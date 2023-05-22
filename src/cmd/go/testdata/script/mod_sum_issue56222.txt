@@ -76,7 +76,7 @@ import _ "example.com/m2/q"
 -- m2/go.mod --
 module example.com/m2
 
-go 1.21
+go 1.19
 
 require example.com/generics v1.0.0
 -- m2/q/q.go --

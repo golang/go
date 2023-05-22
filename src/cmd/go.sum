@@ -4,8 +4,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 h1:rcanfLh
 github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2/go.mod h1:aYm2/VgdVmcIU8iMfdMvDMsRAQjcfZSKFby6HOFvi/w=
 golang.org/x/arch v0.2.1-0.20230208145055-40c19ba4a7c5 h1:UFbINK7+lzLJEIqCXPlzx05ivYhLQeXCkxW3SSH3f8Q=
 golang.org/x/arch v0.2.1-0.20230208145055-40c19ba4a7c5/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
-golang.org/x/mod v0.10.1-0.20230517154618-e7bea8f1d64f h1:ghNt+qaUoQ453QdEj40jEN5kYz71m4aDEkk767JfeR0=
-golang.org/x/mod v0.10.1-0.20230517154618-e7bea8f1d64f/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
+golang.org/x/mod v0.10.1-0.20230523205221-fc83a8faf993 h1:hr4tBhz2ITxV3Dj4xUzXUVtuRnMSzdWcTF8JYcrbdGs=
+golang.org/x/mod v0.10.1-0.20230523205221-fc83a8faf993/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
 golang.org/x/sync v0.2.0 h1:PUR+T4wwASmuSTYdKjYHI5TD22Wy5ogLU5qZCOLxBrI=
 golang.org/x/sync v0.2.0/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sys v0.8.0 h1:EBmGv8NaZBZTWvrbjNoL6HVt+IVy3QDQpJs7VRIw3tU=
