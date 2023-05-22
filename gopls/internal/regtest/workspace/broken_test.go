@@ -23,10 +23,9 @@ import (
 
 // Test for golang/go#53933
 func TestBrokenWorkspace_DuplicateModules(t *testing.T) {
-	testenv.NeedsGo1Point(t, 18)
-
-	// TODO(golang/go#57650): fix this feature.
-	t.Skip("we no longer detect duplicate modules")
+	// The go command error message was improved in Go 1.20 to mention multiple
+	// modules.
+	testenv.NeedsGo1Point(t, 20)
 
 	// This proxy module content is replaced by the workspace, but is still
 	// required for module resolution to function in the Go command.
@@ -98,8 +97,8 @@ const CompleteMe = 222
 		ProxyFiles(proxy),
 	).Run(t, src, func(t *testing.T, env *Env) {
 		env.OpenFile("package1/main.go")
-		env.Await(
-			OutstandingWork(lsp.WorkspaceLoadFailure, `found module "example.com/foo" multiple times in the workspace`),
+		env.AfterChange(
+			OutstandingWork(lsp.WorkspaceLoadFailure, `module example.com/foo appears multiple times in workspace`),
 		)
 
 		// Remove the redundant vendored copy of example.com.
@@ -110,10 +109,10 @@ const CompleteMe = 222
 			./package2/vendor/example.com/foo
 		)
 		`)
-		env.Await(NoOutstandingWork())
+		env.AfterChange(NoOutstandingWork())
 
 		// Check that definitions in package1 go to the copy vendored in package2.
-		location := env.GoToDefinition(env.RegexpSearch("package1/main.go", "CompleteMe")).URI.SpanURI().Filename()
+		location := string(env.GoToDefinition(env.RegexpSearch("package1/main.go", "CompleteMe")).URI)
 		const wantLocation = "package2/vendor/example.com/foo/foo.go"
 		if !strings.HasSuffix(location, wantLocation) {
 			t.Errorf("got definition of CompleteMe at %q, want %q", location, wantLocation)
