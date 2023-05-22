@@ -1,0 +1,13 @@
+[!net:golang.org] skip
+
+env GOPROXY=
+
+go list -m -versions go
+stdout 1.20.1 # among others
+stdout 1.19rc2
+! stdout go1.20.1 # no go prefixes
+! stdout go1.19rc2
+
+go list -m -versions toolchain
+stdout go1.20.1 # among others
+stdout go1.19rc2

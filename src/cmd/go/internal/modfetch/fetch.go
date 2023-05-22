@@ -23,6 +23,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
 	"cmd/go/internal/robustio"
@@ -36,10 +37,15 @@ import (
 
 var downloadCache par.ErrCache[module.Version, string] // version → directory
 
+var ErrToolchain = errors.New("internal error: invalid operation on toolchain module")
+
 // Download downloads the specific module version to the
 // local download cache and returns the name of the directory
 // corresponding to the root of the module's file tree.
 func Download(ctx context.Context, mod module.Version) (dir string, err error) {
+	if gover.IsToolchain(mod.Path) {
+		return "", ErrToolchain
+	}
 	if err := checkCacheDir(ctx); err != nil {
 		base.Fatalf("go: %v", err)
 	}

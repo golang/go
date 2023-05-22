@@ -21,6 +21,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/par"
@@ -42,6 +43,9 @@ func cacheDir(ctx context.Context, path string) (string, error) {
 }
 
 func CachePath(ctx context.Context, m module.Version, suffix string) (string, error) {
+	if gover.IsToolchain(m.Path) {
+		return "", ErrToolchain
+	}
 	dir, err := cacheDir(ctx, m.Path)
 	if err != nil {
 		return "", err
@@ -65,6 +69,9 @@ func CachePath(ctx context.Context, m module.Version, suffix string) (string, er
 // along with the directory if the directory does not exist or if the directory
 // is not completely populated.
 func DownloadDir(ctx context.Context, m module.Version) (string, error) {
+	if gover.IsToolchain(m.Path) {
+		return "", ErrToolchain
+	}
 	if err := checkCacheDir(ctx); err != nil {
 		return "", err
 	}
@@ -227,6 +234,10 @@ type cachedInfo struct {
 }
 
 func (r *cachingRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
+	if gover.IsToolchain(r.path) {
+		// Skip disk cache; the underlying golang.org/toolchain repo is cached instead.
+		return r.repo(ctx).Stat(ctx, rev)
+	}
 	info, err := r.statCache.Do(rev, func() (*RevInfo, error) {
 		file, info, err := readDiskStat(ctx, r.path, rev)
 		if err == nil {
@@ -258,6 +269,10 @@ func (r *cachingRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
 }
 
 func (r *cachingRepo) Latest(ctx context.Context) (*RevInfo, error) {
+	if gover.IsToolchain(r.path) {
+		// Skip disk cache; the underlying golang.org/toolchain repo is cached instead.
+		return r.repo(ctx).Latest(ctx)
+	}
 	info, err := r.latestCache.Do(struct{}{}, func() (*RevInfo, error) {
 		info, err := r.repo(ctx).Latest(ctx)
 
@@ -281,6 +296,10 @@ func (r *cachingRepo) Latest(ctx context.Context) (*RevInfo, error) {
 }
 
 func (r *cachingRepo) GoMod(ctx context.Context, version string) ([]byte, error) {
+	if gover.IsToolchain(r.path) {
+		// Skip disk cache; the underlying golang.org/toolchain repo is cached instead.
+		return r.repo(ctx).GoMod(ctx, version)
+	}
 	text, err := r.gomodCache.Do(version, func() ([]byte, error) {
 		file, text, err := readDiskGoMod(ctx, r.path, version)
 		if err == nil {
@@ -306,6 +325,9 @@ func (r *cachingRepo) GoMod(ctx context.Context, version string) ([]byte, error)
 }
 
 func (r *cachingRepo) Zip(ctx context.Context, dst io.Writer, version string) error {
+	if gover.IsToolchain(r.path) {
+		return ErrToolchain
+	}
 	return r.repo(ctx).Zip(ctx, dst, version)
 }
 
@@ -425,6 +447,9 @@ var errNotCached = fmt.Errorf("not in cache")
 // If the read fails, the caller can use
 // writeDiskStat(file, info) to write a new cache entry.
 func readDiskStat(ctx context.Context, path, rev string) (file string, info *RevInfo, err error) {
+	if gover.IsToolchain(path) {
+		return "", nil, errNotCached
+	}
 	file, data, err := readDiskCache(ctx, path, rev, "info")
 	if err != nil {
 		// If the cache already contains a pseudo-version with the given hash, we
@@ -477,6 +502,9 @@ func readDiskStat(ctx context.Context, path, rev string) (file string, info *Rev
 // just to find out about a commit we already know about
 // (and have cached under its pseudo-version).
 func readDiskStatByHash(ctx context.Context, path, rev string) (file string, info *RevInfo, err error) {
+	if gover.IsToolchain(path) {
+		return "", nil, errNotCached
+	}
 	if cfg.GOMODCACHE == "" {
 		// Do not download to current directory.
 		return "", nil, errNotCached
@@ -530,6 +558,9 @@ var oldVgoPrefix = []byte("//vgo 0.0.")
 // If the read fails, the caller can use
 // writeDiskGoMod(file, data) to write a new cache entry.
 func readDiskGoMod(ctx context.Context, path, rev string) (file string, data []byte, err error) {
+	if gover.IsToolchain(path) {
+		return "", nil, errNotCached
+	}
 	file, data, err = readDiskCache(ctx, path, rev, "mod")
 
 	// If the file has an old auto-conversion prefix, pretend it's not there.
@@ -553,6 +584,9 @@ func readDiskGoMod(ctx context.Context, path, rev string) (file string, data []b
 // If the read fails, the caller can use
 // writeDiskCache(file, data) to write a new cache entry.
 func readDiskCache(ctx context.Context, path, rev, suffix string) (file string, data []byte, err error) {
+	if gover.IsToolchain(path) {
+		return "", nil, errNotCached
+	}
 	file, err = CachePath(ctx, module.Version{Path: path, Version: rev}, suffix)
 	if err != nil {
 		return "", nil, errNotCached

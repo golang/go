@@ -226,6 +226,11 @@ func lookup(ctx context.Context, proxy, path string) (r Repo, err error) {
 		return nil, errLookupDisabled
 	}
 
+	switch path {
+	case "go", "toolchain":
+		return &toolchainRepo{path, Lookup(ctx, proxy, "golang.org/toolchain")}, nil
+	}
+
 	if module.MatchPrefixPatterns(cfg.GONOPROXY, path) {
 		switch proxy {
 		case "noproxy", "direct":

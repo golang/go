@@ -577,6 +577,9 @@ type retraction struct {
 //
 // The caller must not modify the returned summary.
 func goModSummary(m module.Version) (*modFileSummary, error) {
+	if m.Path == "go" || m.Path == "toolchain" {
+		return &modFileSummary{module: m}, nil
+	}
 	if m.Version == "" && !inWorkspaceMode() && MainModules.Contains(m.Path) {
 		panic("internal error: goModSummary called on a main module")
 	}
@@ -674,6 +677,9 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 //
 // rawGoModSummary cannot be used on the main module outside of workspace mode.
 func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+	if gover.IsToolchain(m.Path) {
+		return &modFileSummary{module: m}, nil
+	}
 	if m.Version == "" && !inWorkspaceMode() && MainModules.Contains(m.Path) {
 		// Calling rawGoModSummary implies that we are treating m as a module whose
 		// requirements aren't the roots of the module graph and can't be modified.

@@ -27,8 +27,9 @@ var modCompareTests = []testCase3[string, string, string, int]{
 	{"go", "1.2", "1.3", -1},
 	{"go", "v1.2", "v1.3", 0}, // equal because invalid
 	{"go", "1.2", "1.2", 0},
-	{"toolchain", "1.2", "1.3", -1},
-	{"toolchain", "1.2", "1.2", 0},
+	{"toolchain", "go1.2", "go1.3", -1},
+	{"toolchain", "go1.2", "go1.2", 0},
+	{"toolchain", "1.2", "1.3", -1},  // accepted but non-standard
 	{"toolchain", "v1.2", "v1.3", 0}, // equal because invalid
 	{"rsc.io/quote", "v1.2", "v1.3", -1},
 	{"rsc.io/quote", "1.2", "1.3", 0}, // equal because invalid

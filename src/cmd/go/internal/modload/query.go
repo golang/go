@@ -1050,7 +1050,9 @@ type versionRepo interface {
 var _ versionRepo = modfetch.Repo(nil)
 
 func lookupRepo(ctx context.Context, proxy, path string) (repo versionRepo, err error) {
-	err = module.CheckPath(path)
+	if path != "go" && path != "toolchain" {
+		err = module.CheckPath(path)
+	}
 	if err == nil {
 		repo = modfetch.Lookup(ctx, proxy, path)
 	} else {
