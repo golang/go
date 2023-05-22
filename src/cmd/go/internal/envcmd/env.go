@@ -145,13 +145,13 @@ func envOr(name, def string) string {
 	return def
 }
 
-func findEnv(env []cfg.EnvVar, name string) string {
+func findEnv(env []cfg.EnvVar, envFile map[string]string, name string) string {
 	for _, e := range env {
 		if e.Name == name {
 			return e.Value
 		}
 	}
-	return ""
+	return envFile[name]
 }
 
 // ExtraEnvVars returns environment variables that should not leak into child processes.
@@ -252,6 +252,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 
 	env := cfg.CmdEnv
 	env = append(env, ExtraEnvVars()...)
+	envFile := readEnvFile()
 
 	if err := fsys.Init(base.Cwd()); err != nil {
 		base.Fatalf("go: %v", err)
@@ -289,13 +290,13 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		if *envJson {
 			var es []cfg.EnvVar
 			for _, name := range args {
-				e := cfg.EnvVar{Name: name, Value: findEnv(env, name)}
+				e := cfg.EnvVar{Name: name, Value: findEnv(env, envFile, name)}
 				es = append(es, e)
 			}
 			printEnvAsJSON(es)
 		} else {
 			for _, name := range args {
-				fmt.Printf("%s\n", findEnv(env, name))
+				fmt.Printf("%s\n", findEnv(env, envFile, name))
 			}
 		}
 		return
@@ -321,12 +322,13 @@ func runEnvW(args []string) {
 		}
 	}
 	add := make(map[string]string)
+	envFile := readEnvFile()
 	for _, arg := range args {
 		key, val, found := strings.Cut(arg, "=")
 		if !found {
 			base.Fatalf("go: arguments must be KEY=VALUE: invalid argument: %s", arg)
 		}
-		if err := checkEnvWrite(key, val); err != nil {
+		if err := checkEnvWrite(key, val, envFile, 'w'); err != nil {
 			base.Fatalf("go: %v", err)
 		}
 		if _, ok := add[key]; ok {
@@ -357,9 +359,10 @@ func runEnvU(args []string) {
 	if len(args) == 0 {
 		base.Fatalf("go: 'go env -u' requires an argument")
 	}
+	envFile := readEnvFile()
 	del := make(map[string]bool)
 	for _, arg := range args {
-		if err := checkEnvWrite(arg, ""); err != nil {
+		if err := checkEnvWrite(arg, "", envFile, 'u'); err != nil {
 			base.Fatalf("go: %v", err)
 		}
 		del[arg] = true
@@ -517,7 +520,14 @@ func getOrigEnv(key string) string {
 	return ""
 }
 
-func checkEnvWrite(key, val string) error {
+func checkEnvWrite(key, val string, envFile map[string]string, op rune) error {
+	_, inEnvFile := envFile[key]
+
+	// Always OK to delete something in the env file; maybe a different toolchain put it there.
+	if op == 'u' && inEnvFile {
+		return nil
+	}
+
 	switch key {
 	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOWORK", "GOTOOLDIR", "GOVERSION":
 		return fmt.Errorf("%s cannot be modified", key)
@@ -526,8 +536,11 @@ func checkEnvWrite(key, val string) error {
 	}
 
 	// To catch typos and the like, check that we know the variable.
-	if !cfg.CanGetenv(key) {
-		return fmt.Errorf("unknown go command variable %s", key)
+	// If it's already in the env file, we assume it's known.
+	if !inEnvFile && !cfg.CanGetenv(key) {
+		if _, ok := envFile[key]; !ok {
+			return fmt.Errorf("unknown go command variable %s", key)
+		}
 	}
 
 	// Some variables can only have one of a few valid values. If set to an
@@ -579,22 +592,42 @@ func checkEnvWrite(key, val string) error {
 	return nil
 }
 
-func updateEnvFile(add map[string]string, del map[string]bool) {
+func readEnvFile() map[string]string {
+	lines := readEnvFileLines(false)
+	m := make(map[string]string)
+	for _, line := range lines {
+		key := lineToKey(line)
+		if key == "" {
+			continue
+		}
+		m[key] = string(line[len(key)+len("="):])
+	}
+	return m
+}
+
+func readEnvFileLines(mustExist bool) []string {
 	file, err := cfg.EnvFile()
 	if file == "" {
-		base.Fatalf("go: cannot find go env config: %v", err)
+		if mustExist {
+			base.Fatalf("go: cannot find go env config: %v", err)
+		}
+		return nil
 	}
 	data, err := os.ReadFile(file)
-	if err != nil && (!os.IsNotExist(err) || len(add) == 0) {
+	if err != nil && (!os.IsNotExist(err) || mustExist) {
 		base.Fatalf("go: reading go env config: %v", err)
 	}
-
 	lines := strings.SplitAfter(string(data), "\n")
 	if lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
 	} else {
 		lines[len(lines)-1] += "\n"
 	}
+	return lines
+}
+
+func updateEnvFile(add map[string]string, del map[string]bool) {
+	lines := readEnvFileLines(len(add) == 0)
 
 	// Delete all but last copy of any duplicated variables,
 	// since the last copy is the one that takes effect.
@@ -637,7 +670,11 @@ func updateEnvFile(add map[string]string, del map[string]bool) {
 		}
 	}
 
-	data = []byte(strings.Join(lines, ""))
+	file, err := cfg.EnvFile()
+	if file == "" {
+		base.Fatalf("go: cannot find go env config: %v", err)
+	}
+	data := []byte(strings.Join(lines, ""))
 	err = os.WriteFile(file, data, 0666)
 	if err != nil {
 		// Try creating directory.

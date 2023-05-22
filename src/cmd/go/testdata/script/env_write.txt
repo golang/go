@@ -185,3 +185,21 @@ env GOEXPERIMENT=
 ! go env -w GOEXPERIMENT=badexp
 stderr 'unknown GOEXPERIMENT badexp'
 go env -w GOEXPERIMENT=fieldtrack
+
+# go env -w and go env -u work on unknown fields already in the go/env file
+cp bad.env $GOENV
+go env GOENV
+cat $GOENV
+go env
+! stdout UNKNOWN
+go env UNKNOWN
+stdout yes
+go env -w UNKNOWN=maybe
+go env UNKNOWN
+stdout maybe
+go env -u UNKNOWN
+go env UNKNOWN
+! stdout . # gone
+
+-- bad.env --
+UNKNOWN=yes
