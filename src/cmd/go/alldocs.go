@@ -1210,6 +1210,8 @@
 //
 // The -go=version flag sets the expected Go language version.
 //
+// The -toolchain=name flag sets the Go toolchain to use.
+//
 // The -print flag prints the final go.mod in its text format instead of
 // writing it back to go.mod.
 //
@@ -1222,12 +1224,13 @@
 //	}
 //
 //	type GoMod struct {
-//		Module  ModPath
-//		Go      string
-//		Require []Require
-//		Exclude []Module
-//		Replace []Replace
-//		Retract []Retract
+//		Module    ModPath
+//		Go        string
+//		Toolchain string
+//		Require   []Require
+//		Exclude   []Module
+//		Replace   []Replace
+//		Retract   []Retract
 //	}
 //
 //	type ModPath struct {
@@ -1523,6 +1526,8 @@
 //
 // The -go=version flag sets the expected Go language version.
 //
+// The -toolchain=name flag sets the Go toolchain to use.
+//
 // The -print flag prints the final go.work in its text format instead of
 // writing it back to go.mod.
 //
@@ -1530,9 +1535,10 @@
 // writing it back to go.mod. The JSON output corresponds to these Go types:
 //
 //	type GoWork struct {
-//		Go      string
-//		Use     []Use
-//		Replace []Replace
+//		Go        string
+//		Toolchain string
+//		Use       []Use
+//		Replace   []Replace
 //	}
 //
 //	type Use struct {
