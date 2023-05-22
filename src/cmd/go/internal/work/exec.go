@@ -316,8 +316,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 			fmt.Fprintf(h, "fuzz %q\n", fuzzFlags)
 		}
 	}
-	if p.Internal.BuildInfo != "" {
-		fmt.Fprintf(h, "modinfo %q\n", p.Internal.BuildInfo)
+	if p.Internal.BuildInfo != nil {
+		fmt.Fprintf(h, "modinfo %q\n", p.Internal.BuildInfo.String())
 	}
 
 	// Configuration specific to compiler toolchain.
@@ -842,8 +842,8 @@ OverlayLoop:
 		embedcfg = js
 	}
 
-	if p.Internal.BuildInfo != "" && cfg.ModulesEnabled {
-		prog := modload.ModInfoProg(p.Internal.BuildInfo, cfg.BuildToolchainName == "gccgo")
+	if p.Internal.BuildInfo != nil && cfg.ModulesEnabled {
+		prog := modload.ModInfoProg(p.Internal.BuildInfo.String(), cfg.BuildToolchainName == "gccgo")
 		if len(prog) > 0 {
 			if err := b.writeFile(objdir+"_gomod_.go", prog); err != nil {
 				return err
@@ -1474,7 +1474,11 @@ func (b *Builder) writeLinkImportcfg(a *Action, file string) error {
 			fmt.Fprintf(&icfg, "packageshlib %s=%s\n", p1.ImportPath, p1.Shlib)
 		}
 	}
-	fmt.Fprintf(&icfg, "modinfo %q\n", modload.ModInfoData(a.Package.Internal.BuildInfo))
+	info := ""
+	if a.Package.Internal.BuildInfo != nil {
+		info = a.Package.Internal.BuildInfo.String()
+	}
+	fmt.Fprintf(&icfg, "modinfo %q\n", modload.ModInfoData(info))
 	return b.writeFile(file, icfg.Bytes())
 }
 

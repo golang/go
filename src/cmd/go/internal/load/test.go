@@ -198,7 +198,7 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 		ptest.Internal.Imports = append(imports, p.Internal.Imports...)
 		ptest.Internal.RawImports = str.StringList(rawTestImports, p.Internal.RawImports)
 		ptest.Internal.ForceLibrary = true
-		ptest.Internal.BuildInfo = ""
+		ptest.Internal.BuildInfo = nil
 		ptest.Internal.Build = new(build.Package)
 		*ptest.Internal.Build = *p.Internal.Build
 		m := map[string][]token.Position{}
@@ -471,7 +471,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			copy(p1.Imports, p.Imports)
 			p = p1
 			p.Target = ""
-			p.Internal.BuildInfo = ""
+			p.Internal.BuildInfo = nil
 			p.Internal.ForceLibrary = true
 		}
 
