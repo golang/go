@@ -31,7 +31,7 @@ var cc []string
 var exeSuffix string
 
 var GOOS, GOARCH, GOROOT string
-var installdir, androiddir string
+var installdir string
 var libgoname string
 
 func TestMain(m *testing.M) {
@@ -63,17 +63,6 @@ func testMain(m *testing.M) int {
 
 	if _, err := os.Stat(GOROOT); os.IsNotExist(err) {
 		log.Fatalf("Unable able to find GOROOT at '%s'", GOROOT)
-	}
-
-	androiddir = fmt.Sprintf("/data/local/tmp/testcshared-%d", os.Getpid())
-	if runtime.GOOS != GOOS && GOOS == "android" {
-		args := append(adbCmd(), "exec-out", "mkdir", "-p", androiddir)
-		cmd := exec.Command(args[0], args[1:]...)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			log.Fatalf("setupAndroid failed: %v\n%s\n", err, out)
-		}
-		defer cleanupAndroid()
 	}
 
 	cc = []string{goEnv("CC")}
@@ -184,47 +173,6 @@ func cmdToRun(name string) string {
 	return "./" + name + exeSuffix
 }
 
-func adbCmd() []string {
-	cmd := []string{"adb"}
-	if flags := os.Getenv("GOANDROID_ADB_FLAGS"); flags != "" {
-		cmd = append(cmd, strings.Split(flags, " ")...)
-	}
-	return cmd
-}
-
-func adbPush(t *testing.T, filename string) {
-	if runtime.GOOS == GOOS || GOOS != "android" {
-		return
-	}
-	args := append(adbCmd(), "push", filename, fmt.Sprintf("%s/%s", androiddir, filename))
-	cmd := exec.Command(args[0], args[1:]...)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("adb command failed: %v\n%s\n", err, out)
-	}
-}
-
-func adbRun(t *testing.T, env []string, adbargs ...string) string {
-	if GOOS != "android" {
-		t.Fatalf("trying to run adb command when operating system is not android.")
-	}
-	args := append(adbCmd(), "exec-out")
-	// Propagate LD_LIBRARY_PATH to the adb shell invocation.
-	for _, e := range env {
-		if strings.Contains(e, "LD_LIBRARY_PATH=") {
-			adbargs = append([]string{e}, adbargs...)
-			break
-		}
-	}
-	shellcmd := fmt.Sprintf("cd %s; %s", androiddir, strings.Join(adbargs, " "))
-	args = append(args, shellcmd)
-	cmd := exec.Command(args[0], args[1:]...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("adb command failed: %v\n%s\n", err, out)
-	}
-	return strings.Replace(string(out), "\r", "", -1)
-}
-
 func run(t *testing.T, extraEnv []string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command(args[0], args[1:]...)
@@ -252,9 +200,6 @@ func run(t *testing.T, extraEnv []string, args ...string) string {
 
 func runExe(t *testing.T, extraEnv []string, args ...string) string {
 	t.Helper()
-	if runtime.GOOS != GOOS && GOOS == "android" {
-		return adbRun(t, append(os.Environ(), extraEnv...), args...)
-	}
 	return run(t, extraEnv, args...)
 }
 
@@ -378,15 +323,6 @@ func createHeaders() error {
 		}
 	}
 
-	if runtime.GOOS != GOOS && GOOS == "android" {
-		args = append(adbCmd(), "push", libgoname, fmt.Sprintf("%s/%s", androiddir, libgoname))
-		cmd = exec.Command(args[0], args[1:]...)
-		out, err = cmd.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("adb command failed: %v\n%s\n", err, out)
-		}
-	}
-
 	return nil
 }
 
@@ -409,18 +345,6 @@ func createHeadersOnce(t *testing.T) {
 	}
 }
 
-func cleanupAndroid() {
-	if GOOS != "android" {
-		return
-	}
-	args := append(adbCmd(), "exec-out", "rm", "-rf", androiddir)
-	cmd := exec.Command(args[0], args[1:]...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Panicf("cleanupAndroid failed: %v\n%s\n", err, out)
-	}
-}
-
 // test0: exported symbols in shared lib are accessible.
 func TestExportedSymbols(t *testing.T) {
 	testenv.MustHaveCGO(t)
@@ -434,7 +358,6 @@ func TestExportedSymbols(t *testing.T) {
 	createHeadersOnce(t)
 
 	runCC(t, "-I", installdir, "-o", cmd, "main0.c", libgoname)
-	adbPush(t, cmd)
 
 	defer os.Remove(bin)
 
@@ -563,7 +486,6 @@ func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
 	} else {
 		runCC(t, "-o", cmd, "main1.c")
 	}
-	adbPush(t, cmd)
 
 	defer os.Remove(bin)
 
@@ -595,7 +517,6 @@ func TestUnexportedSymbols(t *testing.T) {
 		"-installsuffix", "testcshared",
 		"-o", libname, "./libgo2",
 	)
-	adbPush(t, libname)
 
 	linkFlags := "-Wl,--no-as-needed"
 	if GOOS == "darwin" || GOOS == "ios" {
@@ -603,7 +524,6 @@ func TestUnexportedSymbols(t *testing.T) {
 	}
 
 	runCC(t, "-o", cmd, "main2.c", linkFlags, libname)
-	adbPush(t, cmd)
 
 	defer os.Remove(libname)
 	defer os.Remove(bin)
@@ -636,7 +556,6 @@ func TestMainExportedOnAndroid(t *testing.T) {
 	createHeadersOnce(t)
 
 	runCC(t, "-o", cmd, "main3.c", "-ldl")
-	adbPush(t, cmd)
 
 	defer os.Remove(bin)
 
@@ -662,13 +581,11 @@ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
 		"-installsuffix", "testcshared",
 		"-o", libname, pkgname,
 	)
-	adbPush(t, libname)
 	if GOOS != "freebsd" {
 		runCC(t, "-pthread", "-o", cmd, cfile, "-ldl")
 	} else {
 		runCC(t, "-pthread", "-o", cmd, cfile)
 	}
-	adbPush(t, cmd)
 
 	bin := cmdToRun(cmd)
 
