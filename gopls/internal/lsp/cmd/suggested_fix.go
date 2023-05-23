@@ -71,9 +71,9 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 		return err
 	}
 	diagnostics := []protocol.Diagnostic{} // LSP wants non-nil slice
-	conn.Client.filesMu.Lock()
+	conn.client.filesMu.Lock()
 	diagnostics = append(diagnostics, file.diagnostics...)
-	conn.Client.filesMu.Unlock()
+	conn.client.filesMu.Unlock()
 
 	// Request code actions
 	codeActionKinds := []protocol.CodeActionKind{protocol.QuickFix}

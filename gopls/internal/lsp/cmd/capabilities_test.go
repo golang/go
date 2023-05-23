@@ -41,17 +41,16 @@ func TestCapabilities(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	app := New("gopls-test", tmpDir, os.Environ(), nil)
-	c := newConnection(app, nil)
-	ctx := context.Background()
-	defer c.terminate(ctx)
 
 	params := &protocol.ParamInitialize{}
-	params.RootURI = protocol.URIFromPath(c.Client.app.wd)
+	params.RootURI = protocol.URIFromPath(app.wd)
 	params.Capabilities.Workspace.Configuration = true
 
 	// Send an initialize request to the server.
-	c.Server = lsp.NewServer(cache.NewSession(ctx, cache.New(nil), app.options), c.Client)
-	result, err := c.Server.Initialize(ctx, params)
+	ctx := context.Background()
+	client := newClient(app, nil)
+	server := lsp.NewServer(cache.NewSession(ctx, cache.New(nil), app.options), client)
+	result, err := server.Initialize(ctx, params)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,9 +59,12 @@ func TestCapabilities(t *testing.T) {
 		t.Error(err)
 	}
 	// Complete initialization of server.
-	if err := c.Server.Initialized(ctx, &protocol.InitializedParams{}); err != nil {
+	if err := server.Initialized(ctx, &protocol.InitializedParams{}); err != nil {
 		t.Fatal(err)
 	}
+
+	c := newConnection(server, client)
+	defer c.terminate(ctx)
 
 	// Open the file on the server side.
 	uri := protocol.URIFromPath(tmpFile)

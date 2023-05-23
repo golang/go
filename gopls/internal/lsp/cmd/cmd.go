@@ -293,10 +293,14 @@ var (
 func (app *Application) connect(ctx context.Context, onProgress func(*protocol.ProgressParams)) (*connection, error) {
 	switch {
 	case app.Remote == "":
-		connection := newConnection(app, onProgress)
-		connection.Server = lsp.NewServer(cache.NewSession(ctx, cache.New(nil), app.options), connection.Client)
-		ctx = protocol.WithClient(ctx, connection.Client)
-		return connection, connection.initialize(ctx, app.options)
+		client := newClient(app, onProgress)
+		server := lsp.NewServer(cache.NewSession(ctx, cache.New(nil), app.options), client)
+		conn := newConnection(server, client)
+		if err := conn.initialize(protocol.WithClient(ctx, client), app.options); err != nil {
+			return nil, err
+		}
+		return conn, nil
+
 	case strings.HasPrefix(app.Remote, "internal@"):
 		internalMu.Lock()
 		defer internalMu.Unlock()
@@ -331,19 +335,19 @@ func CloseTestConnections(ctx context.Context) {
 }
 
 func (app *Application) connectRemote(ctx context.Context, remote string) (*connection, error) {
-	connection := newConnection(app, nil)
 	conn, err := lsprpc.ConnectToRemote(ctx, remote)
 	if err != nil {
 		return nil, err
 	}
 	stream := jsonrpc2.NewHeaderStream(conn)
 	cc := jsonrpc2.NewConn(stream)
-	connection.Server = protocol.ServerDispatcher(cc)
-	ctx = protocol.WithClient(ctx, connection.Client)
+	server := protocol.ServerDispatcher(cc)
+	client := newClient(app, nil)
+	connection := newConnection(server, client)
+	ctx = protocol.WithClient(ctx, connection.client)
 	cc.Go(ctx,
 		protocol.Handlers(
-			protocol.ClientHandler(connection.Client,
-				jsonrpc2.MethodNotFound)))
+			protocol.ClientHandler(client, jsonrpc2.MethodNotFound)))
 	return connection, connection.initialize(ctx, app.options)
 }
 
@@ -355,7 +359,7 @@ var matcherString = map[source.SymbolMatcher]string{
 
 func (c *connection) initialize(ctx context.Context, options func(*source.Options)) error {
 	params := &protocol.ParamInitialize{}
-	params.RootURI = protocol.URIFromPath(c.Client.app.wd)
+	params.RootURI = protocol.URIFromPath(c.client.app.wd)
 	params.Capabilities.Workspace.Configuration = true
 
 	// Make sure to respect configured options when sending initialize request.
@@ -377,7 +381,7 @@ func (c *connection) initialize(ctx context.Context, options func(*source.Option
 
 	// If the subcommand has registered a progress handler, report the progress
 	// capability.
-	if c.Client.onProgress != nil {
+	if c.client.onProgress != nil {
 		params.Capabilities.Window.WorkDoneProgress = true
 	}
 
@@ -395,11 +399,10 @@ func (c *connection) initialize(ctx context.Context, options func(*source.Option
 
 type connection struct {
 	protocol.Server
-	Client *cmdClient
+	client *cmdClient
 }
 
 type cmdClient struct {
-	protocol.Server
 	app        *Application
 	onProgress func(*protocol.ProgressParams)
 
@@ -417,13 +420,18 @@ type cmdFile struct {
 	diagnostics []protocol.Diagnostic
 }
 
-func newConnection(app *Application, onProgress func(*protocol.ProgressParams)) *connection {
+func newClient(app *Application, onProgress func(*protocol.ProgressParams)) *cmdClient {
+	return &cmdClient{
+		app:        app,
+		onProgress: onProgress,
+		files:      make(map[span.URI]*cmdFile),
+	}
+}
+
+func newConnection(server protocol.Server, client *cmdClient) *connection {
 	return &connection{
-		Client: &cmdClient{
-			app:        app,
-			onProgress: onProgress,
-			files:      make(map[span.URI]*cmdFile),
-		},
+		Server: server,
+		client: client,
 	}
 }
 
@@ -611,7 +619,7 @@ func (c *cmdClient) openFile(ctx context.Context, uri span.URI) *cmdFile {
 // - map a (URI, protocol.Range) to a MappedRange;
 // - parse a command-line argument to a MappedRange.
 func (c *connection) openFile(ctx context.Context, uri span.URI) (*cmdFile, error) {
-	file := c.Client.openFile(ctx, uri)
+	file := c.client.openFile(ctx, uri)
 	if file.err != nil {
 		return nil, file.err
 	}
@@ -646,22 +654,22 @@ func (c *connection) diagnoseFiles(ctx context.Context, files []span.URI) error 
 	for _, file := range files {
 		untypedFiles = append(untypedFiles, string(file))
 	}
-	c.Client.diagnosticsMu.Lock()
-	defer c.Client.diagnosticsMu.Unlock()
+	c.client.diagnosticsMu.Lock()
+	defer c.client.diagnosticsMu.Unlock()
 
-	c.Client.diagnosticsDone = make(chan struct{})
+	c.client.diagnosticsDone = make(chan struct{})
 	_, err := c.Server.NonstandardRequest(ctx, "gopls/diagnoseFiles", map[string]interface{}{"files": untypedFiles})
 	if err != nil {
-		close(c.Client.diagnosticsDone)
+		close(c.client.diagnosticsDone)
 		return err
 	}
 
-	<-c.Client.diagnosticsDone
+	<-c.client.diagnosticsDone
 	return nil
 }
 
 func (c *connection) terminate(ctx context.Context) {
-	if strings.HasPrefix(c.Client.app.Remote, "internal@") {
+	if strings.HasPrefix(c.client.app.Remote, "internal@") {
 		// internal connections need to be left alive for the next test
 		return
 	}

@@ -57,8 +57,8 @@ func (c *check) Run(ctx context.Context, args ...string) error {
 	if err := conn.diagnoseFiles(ctx, uris); err != nil {
 		return err
 	}
-	conn.Client.filesMu.Lock()
-	defer conn.Client.filesMu.Unlock()
+	conn.client.filesMu.Lock()
+	defer conn.client.filesMu.Unlock()
 
 	for _, file := range checking {
 		for _, d := range file.diagnostics {
