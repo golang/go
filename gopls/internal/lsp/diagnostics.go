@@ -145,6 +145,9 @@ func computeDiagnosticHash(diags ...*source.Diagnostic) string {
 		fmt.Fprintf(h, "range: %s\n", d.Range)
 		fmt.Fprintf(h, "severity: %s\n", d.Severity)
 		fmt.Fprintf(h, "source: %s\n", d.Source)
+		if d.BundledFixes != nil {
+			fmt.Fprintf(h, "fixes: %s\n", *d.BundledFixes)
+		}
 	}
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
@@ -771,6 +774,7 @@ func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnost
 			Source:             string(diag.Source),
 			Tags:               emptySliceDiagnosticTag(diag.Tags),
 			RelatedInformation: diag.Related,
+			Data:               diag.BundledFixes,
 		}
 		if diag.Code != "" {
 			pdiag.Code = diag.Code

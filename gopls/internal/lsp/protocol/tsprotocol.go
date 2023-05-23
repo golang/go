@@ -896,7 +896,7 @@ type Diagnostic struct { // line 8525
 	// notification and `textDocument/codeAction` request.
 	//
 	// @since 3.16.0
-	Data interface{} `json:"data,omitempty"`
+	Data *json.RawMessage `json:"data,omitempty"`
 }
 
 // Client capabilities specific to diagnostic pull requests.

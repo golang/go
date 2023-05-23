@@ -1542,14 +1542,18 @@ func depsErrors(ctx context.Context, m *source.Metadata, meta *metadataGraph, fs
 				if err != nil {
 					return nil, err
 				}
-				errors = append(errors, &source.Diagnostic{
+				diag := &source.Diagnostic{
 					URI:            imp.cgf.URI,
 					Range:          rng,
 					Severity:       protocol.SeverityError,
 					Source:         source.TypeError,
 					Message:        fmt.Sprintf("error while importing %v: %v", item, depErr.Err),
 					SuggestedFixes: fixes,
-				})
+				}
+				if !source.BundleQuickFixes(diag) {
+					bug.Reportf("failed to bundle fixes for diagnostic %q", diag.Message)
+				}
+				errors = append(errors, diag)
 			}
 		}
 	}
@@ -1585,14 +1589,18 @@ func depsErrors(ctx context.Context, m *source.Metadata, meta *metadataGraph, fs
 			if err != nil {
 				return nil, err
 			}
-			errors = append(errors, &source.Diagnostic{
+			diag := &source.Diagnostic{
 				URI:            pm.URI,
 				Range:          rng,
 				Severity:       protocol.SeverityError,
 				Source:         source.TypeError,
 				Message:        fmt.Sprintf("error while importing %v: %v", item, depErr.Err),
 				SuggestedFixes: fixes,
-			})
+			}
+			if !source.BundleQuickFixes(diag) {
+				bug.Reportf("failed to bundle fixes for diagnostic %q", diag.Message)
+			}
+			errors = append(errors, diag)
 			break
 		}
 	}

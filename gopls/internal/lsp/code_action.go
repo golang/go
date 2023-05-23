@@ -473,6 +473,17 @@ func documentChanges(fh source.FileHandle, edits []protocol.TextEdit) []protocol
 
 func codeActionsMatchingDiagnostics(ctx context.Context, snapshot source.Snapshot, pdiags []protocol.Diagnostic, sdiags []*source.Diagnostic) ([]protocol.CodeAction, error) {
 	var actions []protocol.CodeAction
+	var unbundled []protocol.Diagnostic // diagnostics without bundled code actions in their Data field
+	for _, pd := range pdiags {
+		bundled := source.BundledQuickFixes(pd)
+		if len(bundled) > 0 {
+			actions = append(actions, bundled...)
+		} else {
+			// No bundled actions: keep searching for a match.
+			unbundled = append(unbundled, pd)
+		}
+	}
+
 	for _, sd := range sdiags {
 		var diag *protocol.Diagnostic
 		for _, pd := range pdiags {

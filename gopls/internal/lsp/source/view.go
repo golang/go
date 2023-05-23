@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -971,7 +972,18 @@ type Diagnostic struct {
 	Related []protocol.DiagnosticRelatedInformation
 
 	// Fields below are used internally to generate quick fixes. They aren't
-	// part of the LSP spec and don't leave the server.
+	// part of the LSP spec and historically didn't leave the server.
+	//
+	// Update(2023-05): version 3.16 of the LSP spec included support for the
+	// Diagnostic.data field, which holds arbitrary data preserved in the
+	// diagnostic for codeAction requests. This field allows bundling additional
+	// information for quick-fixes, and gopls can (and should) use this
+	// information to avoid re-evaluating diagnostics in code-action handlers.
+	//
+	// In order to stage this transition incrementally, the 'BundledFixes' field
+	// may store a 'bundled' (=json-serialized) form of the associated
+	// SuggestedFixes. Not all diagnostics have their fixes bundled.
+	BundledFixes   *json.RawMessage
 	SuggestedFixes []SuggestedFix
 }
 

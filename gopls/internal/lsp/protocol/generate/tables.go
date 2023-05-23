@@ -68,6 +68,7 @@ var renameProp = map[prop]string{
 	{"Command", "arguments"}:       "[]json.RawMessage",
 	{"CompletionItem", "textEdit"}: "TextEdit",
 	{"Diagnostic", "code"}:         "interface{}",
+	{"Diagnostic", "data"}:         "json.RawMessage", // delay unmarshalling quickfixes
 
 	{"DocumentDiagnosticReportPartialResult", "relatedDocuments"}: "map[DocumentURI]interface{}",
 

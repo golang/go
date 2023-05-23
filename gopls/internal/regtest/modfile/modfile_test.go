@@ -498,14 +498,8 @@ var _ = blah.Name
 			ReadDiagnostics("a/go.mod", &modDiags),
 		)
 
-		// golang.go#57987: now that gopls is incremental, we must be careful where
-		// we request diagnostics. We must design a simpler way to correlate
-		// published diagnostics with subsequent code action requests (see also the
-		// comment in Server.codeAction).
-		const canRequestCodeActionsForWorkspaceDiagnostics = false
-		if canRequestCodeActionsForWorkspaceDiagnostics {
-			env.ApplyQuickFixes("a/go.mod", modDiags.Diagnostics)
-			const want = `module mod.com
+		env.ApplyQuickFixes("a/go.mod", modDiags.Diagnostics)
+		const want = `module mod.com
 
 go 1.12
 
@@ -514,11 +508,10 @@ require (
 	example.com/blah/v2 v2.0.0
 )
 `
-			env.SaveBuffer("a/go.mod")
-			env.AfterChange(NoDiagnostics(ForFile("a/main.go")))
-			if got := env.BufferText("a/go.mod"); got != want {
-				t.Fatalf("suggested fixes failed:\n%s", compare.Text(want, got))
-			}
+		env.SaveBuffer("a/go.mod")
+		env.AfterChange(NoDiagnostics(ForFile("a/main.go")))
+		if got := env.BufferText("a/go.mod"); got != want {
+			t.Fatalf("suggested fixes failed:\n%s", compare.Text(want, got))
 		}
 	})
 }
