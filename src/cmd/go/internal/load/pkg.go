@@ -3231,9 +3231,10 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args 
 
 	// Check that the arguments satisfy syntactic constraints.
 	var version string
+	var firstPath string
 	for _, arg := range args {
 		if i := strings.Index(arg, "@"); i >= 0 {
-			version = arg[i+1:]
+			firstPath, version = arg[:i], arg[i+1:]
 			if version == "" {
 				return nil, fmt.Errorf("%s: version must not be empty", arg)
 			}
@@ -3271,7 +3272,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args 
 	// later arguments, and other modules would. Let's not try to be too
 	// magical though.
 	allowed := modload.CheckAllowed
-	if modload.IsRevisionQuery(version) {
+	if modload.IsRevisionQuery(firstPath, version) {
 		// Don't check for retractions if a specific revision is requested.
 		allowed = nil
 	}

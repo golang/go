@@ -60,7 +60,7 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 	return summary.require, nil
 }
 
-// Max returns the maximum of v1 and v2 according to semver.Compare.
+// Max returns the maximum of v1 and v2 according to gover.ModCompare.
 //
 // As a special case, the version "" is considered higher than all other
 // versions. The main module (also known as the target) has no version and must

@@ -88,3 +88,25 @@ func untoolchain(x string) string {
 	}
 	return x
 }
+
+// ModIsPrefix reports whether v is a valid version syntax prefix for the module with the given path.
+// The caller is assumed to have checked that ModIsValid(path, vers) is true.
+func ModIsPrefix(path, vers string) bool {
+	if IsToolchain(path) {
+		return IsLang(vers)
+	}
+	// Semver
+	dots := 0
+	for i := 0; i < len(vers); i++ {
+		switch vers[i] {
+		case '-', '+':
+			return false
+		case '.':
+			dots++
+			if dots >= 2 {
+				return false
+			}
+		}
+	}
+	return true
+}

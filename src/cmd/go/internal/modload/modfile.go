@@ -25,7 +25,6 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 const (
@@ -762,7 +761,7 @@ func rawGoModData(m module.Version) (name string, data []byte, err error) {
 			return "", nil, module.VersionError(m, fmt.Errorf("reading %s: %v", base.ShortPath(name), err))
 		}
 	} else {
-		if !semver.IsValid(m.Version) {
+		if !gover.ModIsValid(m.Path, m.Version) {
 			// Disallow the broader queries supported by fetch.Lookup.
 			base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", m.Path, m.Version)
 		}

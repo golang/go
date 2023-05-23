@@ -50,7 +50,7 @@ func CachePath(ctx context.Context, m module.Version, suffix string) (string, er
 	if err != nil {
 		return "", err
 	}
-	if !semver.IsValid(m.Version) {
+	if !gover.ModIsValid(m.Path, m.Version) {
 		return "", fmt.Errorf("non-semver module version %q", m.Version)
 	}
 	if module.CanonicalVersion(m.Version) != m.Version {
@@ -79,7 +79,7 @@ func DownloadDir(ctx context.Context, m module.Version) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !semver.IsValid(m.Version) {
+	if !gover.ModIsValid(m.Path, m.Version) {
 		return "", fmt.Errorf("non-semver module version %q", m.Version)
 	}
 	if module.CanonicalVersion(m.Version) != m.Version {
@@ -334,7 +334,7 @@ func (r *cachingRepo) Zip(ctx context.Context, dst io.Writer, version string) er
 // InfoFile is like Lookup(ctx, path).Stat(version) but also returns the name of the file
 // containing the cached information.
 func InfoFile(ctx context.Context, path, version string) (*RevInfo, string, error) {
-	if !semver.IsValid(version) {
+	if !gover.ModIsValid(path, version) {
 		return nil, "", fmt.Errorf("invalid version %q", version)
 	}
 
@@ -374,7 +374,7 @@ func InfoFile(ctx context.Context, path, version string) (*RevInfo, string, erro
 func GoMod(ctx context.Context, path, rev string) ([]byte, error) {
 	// Convert commit hash to pseudo-version
 	// to increase cache hit rate.
-	if !semver.IsValid(rev) {
+	if !gover.ModIsValid(path, rev) {
 		if _, info, err := readDiskStat(ctx, path, rev); err == nil {
 			rev = info.Version
 		} else {
@@ -409,7 +409,7 @@ func GoMod(ctx context.Context, path, rev string) ([]byte, error) {
 // GoModFile is like GoMod but returns the name of the file containing
 // the cached information.
 func GoModFile(ctx context.Context, path, version string) (string, error) {
-	if !semver.IsValid(version) {
+	if !gover.ModIsValid(path, version) {
 		return "", fmt.Errorf("invalid version %q", version)
 	}
 	if _, err := GoMod(ctx, path, version); err != nil {
@@ -426,7 +426,7 @@ func GoModFile(ctx context.Context, path, version string) (string, error) {
 // GoModSum returns the go.sum entry for the module version's go.mod file.
 // (That is, it returns the entry listed in go.sum as "path version/go.mod".)
 func GoModSum(ctx context.Context, path, version string) (string, error) {
-	if !semver.IsValid(version) {
+	if !gover.ModIsValid(path, version) {
 		return "", fmt.Errorf("invalid version %q", version)
 	}
 	data, err := GoMod(ctx, path, version)

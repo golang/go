@@ -324,32 +324,14 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 // a particular version or revision in a repository like "v1.0.0", "master",
 // or "0123abcd". IsRevisionQuery returns false if vers is a query that
 // chooses from among available versions like "latest" or ">v1.0.0".
-func IsRevisionQuery(vers string) bool {
+func IsRevisionQuery(path, vers string) bool {
 	if vers == "latest" ||
 		vers == "upgrade" ||
 		vers == "patch" ||
 		strings.HasPrefix(vers, "<") ||
 		strings.HasPrefix(vers, ">") ||
-		(semver.IsValid(vers) && isSemverPrefix(vers)) {
+		(gover.ModIsValid(path, vers) && gover.ModIsPrefix(path, vers)) {
 		return false
-	}
-	return true
-}
-
-// isSemverPrefix reports whether v is a semantic version prefix: v1 or v1.2 (not v1.2.3).
-// The caller is assumed to have checked that semver.IsValid(v) is true.
-func isSemverPrefix(v string) bool {
-	dots := 0
-	for i := 0; i < len(v); i++ {
-		switch v[i] {
-		case '-', '+':
-			return false
-		case '.':
-			dots++
-			if dots >= 2 {
-				return false
-			}
-		}
 	}
 	return true
 }
@@ -417,10 +399,10 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
 
 	case strings.HasPrefix(query, "<="):
 		v := query[len("<="):]
-		if !semver.IsValid(v) {
+		if !gover.ModIsValid(path, v) {
 			return badVersion(v)
 		}
-		if isSemverPrefix(v) {
+		if gover.ModIsPrefix(path, v) {
 			// Refuse to say whether <=v1.2 allows v1.2.3 (remember, @v1.2 might mean v1.2.3).
 			return nil, fmt.Errorf("ambiguous semantic version %q in range %q", v, query)
 		}
@@ -431,7 +413,7 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
 
 	case strings.HasPrefix(query, "<"):
 		v := query[len("<"):]
-		if !semver.IsValid(v) {
+		if !gover.ModIsValid(path, v) {
 			return badVersion(v)
 		}
 		qm.filter = func(mv string) bool { return gover.ModCompare(qm.path, mv, v) < 0 }
@@ -441,7 +423,7 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
 
 	case strings.HasPrefix(query, ">="):
 		v := query[len(">="):]
-		if !semver.IsValid(v) {
+		if !gover.ModIsValid(path, v) {
 			return badVersion(v)
 		}
 		qm.filter = func(mv string) bool { return gover.ModCompare(qm.path, mv, v) >= 0 }
@@ -452,10 +434,10 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
 
 	case strings.HasPrefix(query, ">"):
 		v := query[len(">"):]
-		if !semver.IsValid(v) {
+		if !gover.ModIsValid(path, v) {
 			return badVersion(v)
 		}
-		if isSemverPrefix(v) {
+		if gover.ModIsPrefix(path, v) {
 			// Refuse to say whether >v1.2 allows v1.2.3 (remember, @v1.2 might mean v1.2.3).
 			return nil, fmt.Errorf("ambiguous semantic version %q in range %q", v, query)
 		}
@@ -465,8 +447,8 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
 			qm.preferIncompatible = true
 		}
 
-	case semver.IsValid(query):
-		if isSemverPrefix(query) {
+	case gover.ModIsValid(path, query):
+		if gover.ModIsPrefix(path, query) {
 			qm.prefix = query + "."
 			// Do not allow the query "v1.2" to match versions lower than "v1.2.0",
 			// such as prereleases for that version. (https://golang.org/issue/31972)
