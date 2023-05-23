@@ -325,13 +325,12 @@ func runEnvW(args []string) {
 		}
 	}
 	add := make(map[string]string)
-	envFile := readEnvFile()
 	for _, arg := range args {
 		key, val, found := strings.Cut(arg, "=")
 		if !found {
 			base.Fatalf("go: arguments must be KEY=VALUE: invalid argument: %s", arg)
 		}
-		if err := checkEnvWrite(key, val, envFile, 'w'); err != nil {
+		if err := checkEnvWrite(key, val); err != nil {
 			base.Fatalf("go: %v", err)
 		}
 		if _, ok := add[key]; ok {
@@ -362,10 +361,9 @@ func runEnvU(args []string) {
 	if len(args) == 0 {
 		base.Fatalf("go: 'go env -u' requires an argument")
 	}
-	envFile := readEnvFile()
 	del := make(map[string]bool)
 	for _, arg := range args {
-		if err := checkEnvWrite(arg, "", envFile, 'u'); err != nil {
+		if err := checkEnvWrite(arg, ""); err != nil {
 			base.Fatalf("go: %v", err)
 		}
 		del[arg] = true
@@ -523,14 +521,7 @@ func getOrigEnv(key string) string {
 	return ""
 }
 
-func checkEnvWrite(key, val string, envFile map[string]string, op rune) error {
-	_, inEnvFile := envFile[key]
-
-	// Always OK to delete something in the env file; maybe a different toolchain put it there.
-	if op == 'u' && inEnvFile {
-		return nil
-	}
-
+func checkEnvWrite(key, val string) error {
 	switch key {
 	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOWORK", "GOTOOLDIR", "GOVERSION":
 		return fmt.Errorf("%s cannot be modified", key)
@@ -540,10 +531,8 @@ func checkEnvWrite(key, val string, envFile map[string]string, op rune) error {
 
 	// To catch typos and the like, check that we know the variable.
 	// If it's already in the env file, we assume it's known.
-	if !inEnvFile && !cfg.CanGetenv(key) {
-		if _, ok := envFile[key]; !ok {
-			return fmt.Errorf("unknown go command variable %s", key)
-		}
+	if !cfg.CanGetenv(key) {
+		return fmt.Errorf("unknown go command variable %s", key)
 	}
 
 	// Some variables can only have one of a few valid values. If set to an
@@ -593,20 +582,6 @@ func checkEnvWrite(key, val string, envFile map[string]string, op rune) error {
 		return fmt.Errorf("invalid newline in %s=... value", key)
 	}
 	return nil
-}
-
-func readEnvFile() map[string]string {
-	lines := readEnvFileLines(false)
-	m := make(map[string]string)
-	for _, line := range lines {
-		line = strings.TrimRight(line, "\r\n")
-		key := lineToKey(line)
-		if key == "" {
-			continue
-		}
-		m[key] = string(line[len(key)+len("="):])
-	}
-	return m
 }
 
 func readEnvFileLines(mustExist bool) []string {
