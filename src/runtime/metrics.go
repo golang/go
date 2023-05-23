@@ -248,6 +248,12 @@ func initMetrics() {
 				out.scalar = in.sysStats.heapGoal
 			},
 		},
+		"/gc/gomemlimit:bytes": {
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(gcController.memoryLimit.Load())
+			},
+		},
 		"/gc/heap/live:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {

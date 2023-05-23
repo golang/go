@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"runtime/metrics"
 	"sort"
 	"strings"
@@ -30,6 +31,11 @@ func prepareAllMetricsSamples() (map[string]metrics.Description, []metrics.Sampl
 func TestReadMetrics(t *testing.T) {
 	// Run a GC cycle to get some of the stats to be non-zero.
 	runtime.GC()
+
+	// Set an arbitrary memory limit to check the metric for it
+	limit := int64(512 * 1024 * 1024)
+	oldLimit := debug.SetMemoryLimit(limit)
+	defer debug.SetMemoryLimit(oldLimit)
 
 	// Tests whether readMetrics produces values aligning
 	// with ReadMemStats while the world is stopped.
@@ -138,6 +144,8 @@ func TestReadMetrics(t *testing.T) {
 				// Might happen if we don't call runtime.GC() above.
 				t.Error("live bytes is 0")
 			}
+		case "/gc/gomemlimit:bytes":
+			checkUint64(t, name, samples[i].Value.Uint64(), uint64(limit))
 		case "/gc/heap/objects:objects":
 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapObjects)
 		case "/gc/heap/goal:bytes":

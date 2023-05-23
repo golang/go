@@ -194,6 +194,13 @@ var allDesc = []Description{
 		Cumulative:  true,
 	},
 	{
+		Name: "/gc/gomemlimit:bytes",
+		Description: "Go runtime memory limit configured by the user, otherwise " +
+			"math.MaxInt64. This value is set by the GOMEMLIMIT environment variable, and " +
+			"the runtime/debug.SetMemoryLimit function.",
+		Kind: KindUint64,
+	},
+	{
 		Name: "/gc/heap/allocs-by-size:bytes",
 		Description: "Distribution of heap allocations by approximate size. " +
 			"Bucket counts increase monotonically. " +

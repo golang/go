@@ -147,6 +147,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/gc/cycles/total:gc-cycles
 		Count of all completed GC cycles.
 
+	/gc/gomemlimit:bytes
+		Go runtime memory limit configured by the user, otherwise
+		math.MaxInt64. This value is set by the GOMEMLIMIT environment
+		variable, and the runtime/debug.SetMemoryLimit function.
+
 	/gc/heap/allocs-by-size:bytes
 		Distribution of heap allocations by approximate size.
 		Bucket counts increase monotonically. Note that this does not
