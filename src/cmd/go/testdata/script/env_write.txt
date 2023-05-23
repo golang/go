@@ -173,6 +173,7 @@ go env -w GOOS=linux GOARCH=mips
 env GOOS=windows
 ! go env -u GOOS
 stderr 'unsupported GOOS/GOARCH.*windows/mips$'
+env GOOS=
 
 # go env -w should reject relative paths in GOMODCACHE environment.
 ! go env -w GOMODCACHE=~/test
