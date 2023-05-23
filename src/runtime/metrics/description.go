@@ -310,6 +310,11 @@ var allDesc = []Description{
 		Kind:        KindUint64,
 	},
 	{
+		Name:        "/gc/scan/total:bytes",
+		Description: "The total amount space that is scannable. Sum of all metrics in /gc/scan.",
+		Kind:        KindUint64,
+	},
+	{
 		Name:        "/gc/stack/starting-size:bytes",
 		Description: "The stack size of new goroutines.",
 		Kind:        KindUint64,

@@ -225,6 +225,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/gc/scan/stack:bytes
 		The number of bytes of stack that were scanned last GC cycle.
 
+	/gc/scan/total:bytes
+		The total amount space that is scannable. Sum of all metrics in
+		/gc/scan.
+
 	/gc/stack/starting-size:bytes
 		The stack size of new goroutines.
 
