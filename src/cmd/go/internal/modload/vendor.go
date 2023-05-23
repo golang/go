@@ -43,7 +43,8 @@ func readVendorList(mainModule module.Version) {
 		vendorPkgModule = make(map[string]module.Version)
 		vendorVersion = make(map[string]string)
 		vendorMeta = make(map[module.Version]vendorMetadata)
-		data, err := os.ReadFile(filepath.Join(MainModules.ModRoot(mainModule), "vendor/modules.txt"))
+		vendorFile := filepath.Join(MainModules.ModRoot(mainModule), "vendor/modules.txt")
+		data, err := os.ReadFile(vendorFile)
 		if err != nil {
 			if !errors.Is(err, fs.ErrNotExist) {
 				base.Fatalf("go: %s", err)
@@ -110,6 +111,9 @@ func readVendorList(mainModule module.Version) {
 					if goVersion, ok := strings.CutPrefix(entry, "go "); ok {
 						meta.GoVersion = goVersion
 						rawGoVersion.Store(mod, meta.GoVersion)
+						if gover.Compare(goVersion, gover.Local()) > 0 {
+							base.Fatalf("go: %s in %s requires go %v (running go %v)", mod.Path, base.ShortPath(vendorFile), goVersion, gover.Local())
+						}
 					}
 					// All other tokens are reserved for future use.
 				}
