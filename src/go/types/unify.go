@@ -58,7 +58,7 @@ const (
 	// If enableInterfaceInference is set, type inference uses
 	// shared methods for improved type inference involving
 	// interfaces.
-	enableInterfaceInference = false
+	enableInterfaceInference = true
 
 	// If traceInference is set, unification will print a trace of its operation.
 	// Interpretation of trace:

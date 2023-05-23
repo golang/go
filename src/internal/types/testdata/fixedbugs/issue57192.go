@@ -18,5 +18,5 @@ var V2 I2[int]
 func g[T any](I1[T]) {}
 func _() {
 	g(V1)
-	g(V2 /* ERROR "type I2[int] of V2 does not match inferred type I1[int] for I1[T]" */)
+	g(V2)
 }

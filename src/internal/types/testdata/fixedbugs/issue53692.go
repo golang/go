@@ -11,5 +11,5 @@ type LRU[K comparable, V any] struct{}
 func WithLocking2[K comparable, V any](Cache[K, V]) {}
 
 func _() {
-	WithLocking2[string](LRU /* ERROR "type LRU[string, int] of LRU[string, int]{} does not match inferred type Cache[string, int] for Cache[string, V]" */ [string, int]{})
+	WithLocking2 /* ERROR "cannot infer V" */ [string](LRU[string, int]{})
 }

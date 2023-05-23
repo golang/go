@@ -17,5 +17,5 @@ type I[T any] interface {
 func f[T any](x I[T]) {}
 
 func _() {
-	f(S /* ERROR "cannot infer T" */ {})
+	f(S{})
 }
