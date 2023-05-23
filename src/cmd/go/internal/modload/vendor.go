@@ -128,7 +128,7 @@ func readVendorList(mainModule module.Version) {
 				// Since this module provides a package for the build, we know that it
 				// is in the build list and is the selected version of its path.
 				// If this information is new, record it.
-				if v, ok := vendorVersion[mod.Path]; !ok || semver.Compare(v, mod.Version) < 0 {
+				if v, ok := vendorVersion[mod.Path]; !ok || gover.ModCompare(mod.Path, v, mod.Version) < 0 {
 					vendorList = append(vendorList, mod)
 					vendorVersion[mod.Path] = mod.Version
 				}

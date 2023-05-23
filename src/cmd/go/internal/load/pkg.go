@@ -34,6 +34,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modindex"
@@ -2321,7 +2322,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 	for mod := range mdeps {
 		sortedMods = append(sortedMods, mod)
 	}
-	module.Sort(sortedMods)
+	gover.ModSort(sortedMods)
 	deps := make([]*debug.Module, len(sortedMods))
 	for i, mod := range sortedMods {
 		deps[i] = mdeps[mod]

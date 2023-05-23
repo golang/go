@@ -16,6 +16,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/modindex"
@@ -23,7 +24,6 @@ import (
 	"cmd/go/internal/search"
 
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 var (
@@ -152,7 +152,7 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 		return
 	}
 
-	if semver.Compare(info.Version, m.Version) > 0 {
+	if gover.ModCompare(m.Path, info.Version, m.Version) > 0 {
 		m.Update = &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: info.Version,

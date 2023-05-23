@@ -133,7 +133,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 			vendorMods = append(vendorMods, m)
 		}
 	}
-	module.Sort(vendorMods)
+	gover.ModSort(vendorMods)
 
 	var (
 		buf bytes.Buffer

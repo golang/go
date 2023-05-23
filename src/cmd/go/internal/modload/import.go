@@ -18,6 +18,7 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modindex"
 	"cmd/go/internal/par"
@@ -25,7 +26,6 @@ import (
 	"cmd/go/internal/str"
 
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 type ImportMissingError struct {
@@ -509,7 +509,7 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
 			if err != nil {
 				return module.Version{}, err
 			}
-			if cmpVersion(mg.Selected(mp), mv) >= 0 {
+			if gover.ModCompare(mp, mg.Selected(mp), mv) >= 0 {
 				// We can't resolve the import by adding mp@mv to the module graph,
 				// because the selected version of mp is already at least mv.
 				continue
@@ -602,7 +602,7 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
 
 	candidate0MissingVersion := ""
 	for i, c := range candidates {
-		if v := mg.Selected(c.Mod.Path); semver.Compare(v, c.Mod.Version) > 0 {
+		if v := mg.Selected(c.Mod.Path); gover.ModCompare(c.Mod.Path, v, c.Mod.Version) > 0 {
 			// QueryPattern proposed that we add module c.Mod to provide the package,
 			// but we already depend on a newer version of that module (and that
 			// version doesn't have the package).

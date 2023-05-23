@@ -1120,7 +1120,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		for m := range modAddedBy {
 			toAdd = append(toAdd, m)
 		}
-		module.Sort(toAdd) // to make errors deterministic
+		gover.ModSort(toAdd) // to make errors deterministic
 
 		// We ran updateRequirements before resolving missing imports and it didn't
 		// make any changes, so we know that the requirement graph is already
@@ -1662,7 +1662,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 	for m := range need {
 		toAdd = append(toAdd, m)
 	}
-	module.Sort(toAdd)
+	gover.ModSort(toAdd)
 
 	rs, err := updateRoots(ctx, ld.requirements.direct, ld.requirements, nil, toAdd, ld.AssumeRootsImported)
 	if err != nil {

@@ -10,20 +10,20 @@ import (
 	"os"
 	"sort"
 
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfetch/codehost"
 
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 // cmpVersion implements the comparison for versions in the module loader.
 //
-// It is consistent with semver.Compare except that as a special case,
+// It is consistent with gover.ModCompare except that as a special case,
 // the version "" is considered higher than all other versions.
 // The main module (also known as the target) has no version and must be chosen
 // over other versions of the same module in the module dependency graph.
-func cmpVersion(v1, v2 string) int {
+func cmpVersion(p string, v1, v2 string) int {
 	if v2 == "" {
 		if v1 == "" {
 			return 0
@@ -33,7 +33,7 @@ func cmpVersion(v1, v2 string) int {
 	if v1 == "" {
 		return 1
 	}
-	return semver.Compare(v1, v2)
+	return gover.ModCompare(p, v1, v2)
 }
 
 // mvsReqs implements mvs.Reqs for module semantic versions,
@@ -66,8 +66,8 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 // versions. The main module (also known as the target) has no version and must
 // be chosen over other versions of the same module in the module dependency
 // graph.
-func (*mvsReqs) Max(v1, v2 string) string {
-	if cmpVersion(v1, v2) < 0 {
+func (*mvsReqs) Max(p, v1, v2 string) string {
+	if cmpVersion(p, v1, v2) < 0 {
 		return v2
 	}
 	return v1
@@ -123,7 +123,7 @@ func previousVersion(ctx context.Context, m module.Version) (module.Version, err
 		}
 		return module.Version{}, err
 	}
-	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) >= 0 })
+	i := sort.Search(len(list), func(i int) bool { return gover.ModCompare(m.Path, list[i], m.Version) >= 0 })
 	if i > 0 {
 		return module.Version{Path: m.Path, Version: list[i-1]}, nil
 	}

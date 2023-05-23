@@ -30,7 +30,6 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 // Variables set by other packages.
@@ -1051,7 +1050,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
 		}
 		replacedByWorkFile[r.Old.Path] = true
 		v, ok := mainModules.highestReplaced[r.Old.Path]
-		if !ok || semver.Compare(r.Old.Version, v) > 0 {
+		if !ok || gover.ModCompare(r.Old.Path, r.Old.Version, v) > 0 {
 			mainModules.highestReplaced[r.Old.Path] = r.Old.Version
 		}
 		replacements[r.Old] = r.New
@@ -1107,7 +1106,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
 				replacements[r.Old] = newV
 
 				v, ok := mainModules.highestReplaced[r.Old.Path]
-				if !ok || semver.Compare(r.Old.Version, v) > 0 {
+				if !ok || gover.ModCompare(r.Old.Path, r.Old.Version, v) > 0 {
 					mainModules.highestReplaced[r.Old.Path] = r.Old.Version
 				}
 			}
@@ -1150,7 +1149,7 @@ func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Re
 			}
 		}
 	}
-	module.Sort(roots)
+	gover.ModSort(roots)
 	rs := newRequirements(pruning, roots, direct)
 	return rs
 }

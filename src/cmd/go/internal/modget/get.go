@@ -37,6 +37,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
@@ -46,7 +47,6 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 var CmdGet = &base.Command{
@@ -1587,7 +1587,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 		r.work.Add(func() {
 			if _, err := modfetch.DownloadZip(ctx, mActual); err != nil {
 				verb := "upgraded"
-				if semver.Compare(m.Version, old.Version) < 0 {
+				if gover.ModCompare(m.Path, m.Version, old.Version) < 0 {
 					verb = "downgraded"
 				}
 				replaced := ""
@@ -1683,7 +1683,7 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
 			fmt.Fprintf(os.Stderr, "go: added %s %s\n", c.path, c.new)
 		} else if c.new == "none" || c.new == "" {
 			fmt.Fprintf(os.Stderr, "go: removed %s %s\n", c.path, c.old)
-		} else if semver.Compare(c.new, c.old) > 0 {
+		} else if gover.ModCompare(c.path, c.new, c.old) > 0 {
 			fmt.Fprintf(os.Stderr, "go: upgraded %s %s => %s\n", c.path, c.old, c.new)
 		} else {
 			fmt.Fprintf(os.Stderr, "go: downgraded %s %s => %s\n", c.path, c.old, c.new)

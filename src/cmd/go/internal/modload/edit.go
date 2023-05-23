@@ -6,6 +6,7 @@ package modload
 
 import (
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/par"
 	"context"
@@ -71,7 +72,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 	}
 
 	for _, r := range tryUpgrade {
-		if v, ok := selectedRoot[r.Path]; ok && cmpVersion(v, r.Version) >= 0 {
+		if v, ok := selectedRoot[r.Path]; ok && gover.ModCompare(r.Path, v, r.Version) >= 0 {
 			continue
 		}
 		if cfg.BuildV {
@@ -90,7 +91,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 	for _, r := range mustSelect {
 		if v, ok := mustSelectVersion[r.Path]; ok && v != r.Version {
 			prev := module.Version{Path: r.Path, Version: v}
-			if cmpVersion(v, r.Version) > 0 {
+			if gover.ModCompare(r.Path, v, r.Version) > 0 {
 				conflicts = append(conflicts, Conflict{Path: []module.Version{prev}, Constraint: r})
 			} else {
 				conflicts = append(conflicts, Conflict{Path: []module.Version{r}, Constraint: prev})
@@ -175,7 +176,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 				roots = append(roots, module.Version{Path: p, Version: v})
 			}
 		}
-		module.Sort(roots)
+		gover.ModSort(roots)
 
 		// First, we extend the graph so that it includes the selected version
 		// of every root. The upgraded roots are in addition to the original
@@ -213,7 +214,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 		// Now check the resulting extended graph for errors and incompatibilities.
 		t := dqTracker{extendedRootPruning: extendedRootPruning}
 		mg.g.WalkBreadthFirst(func(m module.Version) {
-			if max, ok := mustSelectVersion[m.Path]; ok && cmpVersion(m.Version, max) > 0 {
+			if max, ok := mustSelectVersion[m.Path]; ok && gover.ModCompare(m.Path, m.Version, max) > 0 {
 				// m itself violates mustSelect, so it cannot appear in the module graph
 				// even if its transitive dependencies would be pruned out.
 				t.disqualify(m, pruned, dqState{dep: m})
@@ -253,7 +254,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 			// violates mustSelect disqualifies m, even if the requirements of r are
 			// themselves pruned out.
 			for _, r := range reqs {
-				if max, ok := mustSelectVersion[r.Path]; ok && cmpVersion(r.Version, max) > 0 {
+				if max, ok := mustSelectVersion[r.Path]; ok && gover.ModCompare(r.Path, r.Version, max) > 0 {
 					t.disqualify(m, pruned, dqState{dep: r})
 					return
 				}
@@ -370,7 +371,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 			prev := m
 			for {
 				prev, err = previousVersion(ctx, prev)
-				if cmpVersion(m.Version, origV) > 0 && (cmpVersion(prev.Version, origV) < 0 || err != nil) {
+				if gover.ModCompare(m.Path, m.Version, origV) > 0 && (gover.ModCompare(m.Path, prev.Version, origV) < 0 || err != nil) {
 					// previousVersion skipped over origV. Insert it into the order.
 					prev.Version = origV
 				} else if err != nil {
@@ -449,7 +450,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 		}
 		if rootsDirty {
 			if cfg.BuildV {
-				module.Sort(upgradedFrom) // Make logging deterministic.
+				gover.ModSort(upgradedFrom) // Make logging deterministic.
 				for _, m := range upgradedFrom {
 					fmt.Fprintf(os.Stderr, "go: accepting indirect upgrade from %v to %s\n", m, selectedRoot[m.Path])
 				}

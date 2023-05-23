@@ -237,7 +237,7 @@ func CheckRetractions(ctx context.Context, m module.Version) (err error) {
 	var rationale []string
 	isRetracted := false
 	for _, r := range summary.retract {
-		if semver.Compare(r.Low, m.Version) <= 0 && semver.Compare(m.Version, r.High) <= 0 {
+		if gover.ModCompare(m.Path, r.Low, m.Version) <= 0 && gover.ModCompare(m.Path, m.Version, r.High) <= 0 {
 			isRetracted = true
 			if r.Rationale != "" {
 				rationale = append(rationale, r.Rationale)
