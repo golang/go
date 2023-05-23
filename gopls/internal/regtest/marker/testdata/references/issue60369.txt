@@ -1,0 +1,27 @@
+Regression test for 'references' bug golang/go#60369: a references
+query on the embedded type name T in struct{p.T} instead reports all
+references to the package name p.
+
+The bug was fixed in release go1.21 of go/types.
+
+-- flags --
+-min_go=go1.21
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+type A struct{}
+const C = 0
+
+-- b/b.go --
+package b
+
+import a "example.com/a" //@loc(adef, "a")
+type s struct { a.A } //@loc(Aref1, "A"), loc(aref1, "a"), refs(Aref1, Aref1, Aref3), refs(aref1, adef, aref1, aref2, aref3)
+var _ a.A //@loc(aref2, re" (a)"), loc(Aref2, "A")
+var _ = s{}.A //@loc(Aref3, "A")
+const c = a.C //@loc(aref3, "a")

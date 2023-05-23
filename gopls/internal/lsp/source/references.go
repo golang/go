@@ -224,6 +224,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	}
 
 	// Find the selected object (declaration or reference).
+	// For struct{T}, we choose the field (Def) over the type (Use).
 	pos, err := pgf.PositionPos(pp)
 	if err != nil {
 		return nil, err
@@ -649,6 +650,13 @@ func objectsAt(info *types.Info, file *ast.File, pos token.Pos) (map[types.Objec
 				targets[obj] = leaf
 			}
 		} else {
+			// Note: prior to go1.21, go/types issue #60372 causes the position
+			// a field Var T created for struct{*p.T} to be recorded at the
+			// start of the field type ("*") not the location of the T.
+			// This affects references and other gopls operations (issue #60369).
+			// TODO(adonovan): delete this comment when we drop support for go1.20.
+
+			// For struct{T}, we prefer the defined field Var over the used TypeName.
 			obj := info.ObjectOf(leaf)
 			if obj == nil {
 				return nil, nil, fmt.Errorf("%w for %q", errNoObjectFound, leaf.Name)
