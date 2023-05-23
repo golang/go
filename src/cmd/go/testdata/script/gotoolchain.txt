@@ -87,6 +87,37 @@ go version
 ! stdout go1.999
 rm go.work
 
+# go1.999 should handle go1.998 without a download
+env TESTGO_VERSION=go1.999
+cp go1998 go.mod
+go version
+! stdout go1.998 # local toolchain instead
+
+# go1.998 should handle go1.998 without a download too
+env TESTGO_VERSION=go1.999
+go version
+! stdout go1.998 # local toolchain instead
+
+# go1.998+foo should handle go1.998 without a download too
+env TESTGO_VERSION=go1.998+foo
+go version
+! stdout go1.998 # local toolchain instead
+
+# go1.998-foo should handle go1.998 without a download too
+env TESTGO_VERSION=go1.998-foo
+go version
+! stdout go1.998 # local toolchain instead
+
+# 'go1.998 foo' should handle go1.998 without a download too
+env TESTGO_VERSION='go1.998 foo'
+go version
+! stdout go1.998 # local toolchain instead
+
+# go1.997-foo should download go1.998
+env TESTGO_VERSION=go1.997-foo
+! go version
+stderr go1.998
+
 # GOTOOLCHAIN=auto+go1.1000 falls back to go1.1000 if newer than go line
 env TESTGO_VERSION=go1.1
 env GOTOOLCHAIN=auto+go1.1000
@@ -132,6 +163,9 @@ stderr '^go: cannot find "go1.999mod" in PATH$'
 -- go1999 --
 go 1.999testpath
 
+-- go1998 --
+go 1.998
+
 -- go1999mod --
 go 1.999mod
 
@@ -152,5 +186,5 @@ package main
 import "os"
 
 func main() {
-	os.Stdout.WriteString("go1.999testpath here!")
+	os.Stdout.WriteString("go1.999testpath here!\n")
 }
