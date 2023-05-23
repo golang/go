@@ -4385,6 +4385,64 @@ func TestRowsScanProperlyWrapsErrors(t *testing.T) {
 	}
 }
 
+// From go.dev/issue/60304
+func TestContextCancelDuringRawBytesScan(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	if _, err := db.Exec("USE_RAWBYTES"); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	r, err := db.QueryContext(ctx, "SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	numRows := 0
+	var sink byte
+	for r.Next() {
+		numRows++
+		var s RawBytes
+		err = r.Scan(&s)
+		if !r.closemuScanHold {
+			t.Errorf("expected closemu to be held")
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("read %q", s)
+		if numRows == 2 {
+			cancel() // invalidate the context, which used to call close asynchronously
+		}
+		for _, b := range s { // some operation reading from the raw memory
+			sink += b
+		}
+	}
+	if r.closemuScanHold {
+		t.Errorf("closemu held; should not be")
+	}
+
+	// There are 3 rows. We canceled after reading 2 so we expect either
+	// 2 or 3 depending on how the awaitDone goroutine schedules.
+	switch numRows {
+	case 0, 1:
+		t.Errorf("got %d rows; want 2+", numRows)
+	case 2:
+		if err := r.Err(); err != context.Canceled {
+			t.Errorf("unexpected error: %v (%T)", err, err)
+		}
+	default:
+		// Made it to the end. This is rare, but fine. Permit it.
+	}
+
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // badConn implements a bad driver.Conn, for TestBadDriver.
 // The Exec method panics.
 type badConn struct{}
