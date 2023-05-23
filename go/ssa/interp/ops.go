@@ -1060,6 +1060,11 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa.Builtin, args []value
 			panic(fmt.Sprintf("cap: illegal operand: %T", x))
 		}
 
+	case "min":
+		return foldLeft(min, args)
+	case "max":
+		return foldLeft(max, args)
+
 	case "real":
 		switch c := args[0].(type) {
 		case complex64:
@@ -1425,4 +1430,90 @@ func checkInterface(i *interpreter, itype *types.Interface, x iface) string {
 			x.t, itype, meth.Name())
 	}
 	return "" // ok
+}
+
+func foldLeft(op func(value, value) value, args []value) value {
+	x := args[0]
+	for _, arg := range args[1:] {
+		x = op(x, arg)
+	}
+	return x
+}
+
+func min(x, y value) value {
+	switch x := x.(type) {
+	case float32:
+		return fmin(x, y.(float32))
+	case float64:
+		return fmin(x, y.(float64))
+	}
+
+	// return (y < x) ? y : x
+	if binop(token.LSS, nil, y, x).(bool) {
+		return y
+	}
+	return x
+}
+
+func max(x, y value) value {
+	switch x := x.(type) {
+	case float32:
+		return fmax(x, y.(float32))
+	case float64:
+		return fmax(x, y.(float64))
+	}
+
+	// return (y > x) ? y : x
+	if binop(token.GTR, nil, y, x).(bool) {
+		return y
+	}
+	return x
+}
+
+// copied from $GOROOT/src/runtime/minmax.go
+
+type floaty interface{ ~float32 | ~float64 }
+
+func fmin[F floaty](x, y F) F {
+	if y != y || y < x {
+		return y
+	}
+	if x != x || x < y || x != 0 {
+		return x
+	}
+	// x and y are both ±0
+	// if either is -0, return -0; else return +0
+	return forbits(x, y)
+}
+
+func fmax[F floaty](x, y F) F {
+	if y != y || y > x {
+		return y
+	}
+	if x != x || x > y || x != 0 {
+		return x
+	}
+	// x and y are both ±0
+	// if both are -0, return -0; else return +0
+	return fandbits(x, y)
+}
+
+func forbits[F floaty](x, y F) F {
+	switch unsafe.Sizeof(x) {
+	case 4:
+		*(*uint32)(unsafe.Pointer(&x)) |= *(*uint32)(unsafe.Pointer(&y))
+	case 8:
+		*(*uint64)(unsafe.Pointer(&x)) |= *(*uint64)(unsafe.Pointer(&y))
+	}
+	return x
+}
+
+func fandbits[F floaty](x, y F) F {
+	switch unsafe.Sizeof(x) {
+	case 4:
+		*(*uint32)(unsafe.Pointer(&x)) &= *(*uint32)(unsafe.Pointer(&y))
+	case 8:
+		*(*uint64)(unsafe.Pointer(&x)) &= *(*uint64)(unsafe.Pointer(&y))
+	}
+	return x
 }

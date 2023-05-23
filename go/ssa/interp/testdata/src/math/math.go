@@ -1,5 +1,7 @@
 package math
 
+func Copysign(float64, float64) float64
+
 func NaN() float64
 
 func Inf(int) float64
