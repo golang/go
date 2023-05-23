@@ -420,25 +420,27 @@ func BenchmarkPinnerPinUnpinBatchTiny(b *testing.B) {
 }
 
 func BenchmarkPinnerPinUnpin(b *testing.B) {
+	p := new(obj)
 	for n := 0; n < b.N; n++ {
 		var pinner runtime.Pinner
-		pinner.Pin(new(obj))
+		pinner.Pin(p)
 		pinner.Unpin()
 	}
 }
 
 func BenchmarkPinnerPinUnpinTiny(b *testing.B) {
+	p := new(bool)
 	for n := 0; n < b.N; n++ {
 		var pinner runtime.Pinner
-		pinner.Pin(new(bool))
+		pinner.Pin(p)
 		pinner.Unpin()
 	}
 }
 
 func BenchmarkPinnerPinUnpinDouble(b *testing.B) {
+	p := new(obj)
 	for n := 0; n < b.N; n++ {
 		var pinner runtime.Pinner
-		p := new(obj)
 		pinner.Pin(p)
 		pinner.Pin(p)
 		pinner.Unpin()
@@ -447,9 +449,10 @@ func BenchmarkPinnerPinUnpinDouble(b *testing.B) {
 
 func BenchmarkPinnerPinUnpinParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
+		p := new(obj)
 		for pb.Next() {
 			var pinner runtime.Pinner
-			pinner.Pin(new(obj))
+			pinner.Pin(p)
 			pinner.Unpin()
 		}
 	})
@@ -457,9 +460,10 @@ func BenchmarkPinnerPinUnpinParallel(b *testing.B) {
 
 func BenchmarkPinnerPinUnpinParallelTiny(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
+		p := new(bool)
 		for pb.Next() {
 			var pinner runtime.Pinner
-			pinner.Pin(new(bool))
+			pinner.Pin(p)
 			pinner.Unpin()
 		}
 	})
@@ -467,9 +471,9 @@ func BenchmarkPinnerPinUnpinParallelTiny(b *testing.B) {
 
 func BenchmarkPinnerPinUnpinParallelDouble(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
+		p := new(obj)
 		for pb.Next() {
 			var pinner runtime.Pinner
-			p := new(obj)
 			pinner.Pin(p)
 			pinner.Pin(p)
 			pinner.Unpin()
