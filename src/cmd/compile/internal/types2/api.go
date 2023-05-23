@@ -169,6 +169,12 @@ type Config struct {
 	// If DisableUnusedImportCheck is set, packages are not checked
 	// for unused imports.
 	DisableUnusedImportCheck bool
+
+	// If a non-empty ErrorURL format string is provided, it is used
+	// to format an error URL link that is appended to the first line
+	// of an error message. ErrorURL must be a format string containing
+	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
+	ErrorURL string
 }
 
 func srcimporter_setUsesCgo(conf *Config) {

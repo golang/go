@@ -300,6 +300,13 @@ func boolFieldAddr(conf *Config, name string) *bool {
 	return (*bool)(v.FieldByName(name).Addr().UnsafePointer())
 }
 
+// stringFieldAddr(conf, name) returns the address of the string field conf.<name>.
+// For accessing unexported fields.
+func stringFieldAddr(conf *Config, name string) *string {
+	v := reflect.Indirect(reflect.ValueOf(conf))
+	return (*string)(v.FieldByName(name).Addr().UnsafePointer())
+}
+
 // TestManual is for manual testing of a package - either provided
 // as a list of filenames belonging to the package, or a directory
 // name containing the package files - after the test arguments

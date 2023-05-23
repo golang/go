@@ -2669,3 +2669,29 @@ func (V4) M()
 	// V4 has no method m but has M. Should not report wrongType.
 	checkMissingMethod("V4", false)
 }
+
+func TestErrorURL(t *testing.T) {
+	var conf Config
+	*stringFieldAddr(&conf, "_ErrorURL") = " [go.dev/e/%s]"
+
+	// test case for a one-line error
+	const src1 = `
+package p
+var _ T
+`
+	_, err := typecheck(src1, &conf, nil)
+	if err == nil || !strings.HasSuffix(err.Error(), " [go.dev/e/UndeclaredName]") {
+		t.Errorf("src1: unexpected error: got %v", err)
+	}
+
+	// test case for a multi-line error
+	const src2 = `
+package p
+func f() int { return 0 }
+var _ = f(1, 2)
+`
+	_, err = typecheck(src2, &conf, nil)
+	if err == nil || !strings.Contains(err.Error(), " [go.dev/e/WrongArgCount]\n") {
+		t.Errorf("src1: unexpected error: got %v", err)
+	}
+}
