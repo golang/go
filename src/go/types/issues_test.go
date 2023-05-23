@@ -13,7 +13,6 @@ import (
 	"go/token"
 	"internal/testenv"
 	"regexp"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -846,11 +845,8 @@ func (S) M5(struct {S;t}) {}
 }
 
 func TestIssue59944(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
-		// While we don't use the cgo tool directly in this test, we must have the
-		// syscall package.
-		t.Skip("cgo generated code does not compile on wasm")
-	}
+	testenv.MustHaveCGO(t)
+
 	// The typechecker should resolve methods declared on aliases of cgo types.
 	const src = `
 package p
