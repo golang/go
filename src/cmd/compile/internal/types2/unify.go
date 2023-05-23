@@ -67,7 +67,6 @@ const (
 // corresponding types inferred for each type parameter.
 // A unifier is created by calling newUnifier.
 type unifier struct {
-	check *Checker
 	// handles maps each type parameter to its inferred type through
 	// an indirection *Type called (inferred type) "handle".
 	// Initially, each type parameter has its own, separate handle,
@@ -85,7 +84,7 @@ type unifier struct {
 // and corresponding type argument lists. The type argument list may be shorter
 // than the type parameter list, and it may contain nil types. Matching type
 // parameters and arguments must have the same index.
-func (check *Checker) newUnifier(tparams []*TypeParam, targs []Type) *unifier {
+func newUnifier(tparams []*TypeParam, targs []Type) *unifier {
 	assert(len(tparams) >= len(targs))
 	handles := make(map[*TypeParam]*Type, len(tparams))
 	// Allocate all handles up-front: in a correct program, all type parameters
@@ -99,7 +98,7 @@ func (check *Checker) newUnifier(tparams []*TypeParam, targs []Type) *unifier {
 		}
 		handles[x] = &t
 	}
-	return &unifier{check, handles, 0}
+	return &unifier{handles, 0}
 }
 
 // unify attempts to unify x and y and reports whether it succeeded.
@@ -281,9 +280,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 	// the same type structure are permitted as long as at least one of them
 	// is not a defined type. To accommodate for that possibility, we continue
 	// unification with the underlying type of a defined type if the other type
-	// is a type literal. However, if the type literal is an interface and we
-	// set EnableInterfaceInference, we continue with the defined type because
-	// otherwise we may lose its methods.
+	// is a type literal.
 	// We also continue if the other type is a basic type because basic types
 	// are valid underlying types and may appear as core types of type constraints.
 	// If we exclude them, inferred defined types for type parameters may not
@@ -295,7 +292,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 	// we will fail at function instantiation or argument assignment time.
 	//
 	// If we have at least one defined type, there is one in y.
-	if ny, _ := y.(*Named); ny != nil && isTypeLit(x) && !(u.check.conf.EnableInterfaceInference && IsInterface(x)) {
+	if ny, _ := y.(*Named); ny != nil && isTypeLit(x) {
 		if traceInference {
 			u.tracef("%s ≡ under %s", x, ny)
 		}
@@ -357,104 +354,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 			u.tracef("%s ≡ %s (swap)", y, x)
 		}
 		x, y = y, x
-	}
-
-	// If EnableInterfaceInference is set and both types are interfaces, one
-	// interface must have a subset of the methods of the other and corresponding
-	// method signatures must unify.
-	// If only one type is an interface, all its methods must be present in the
-	// other type and corresponding method signatures must unify.
-	if u.check.conf.EnableInterfaceInference {
-		xi, _ := x.(*Interface)
-		yi, _ := y.(*Interface)
-		// If we have two interfaces, check the type terms for equivalence,
-		// and unify common methods if possible.
-		if xi != nil && yi != nil {
-			xset := xi.typeSet()
-			yset := yi.typeSet()
-			if xset.comparable != yset.comparable {
-				return false
-			}
-			// For now we require terms to be equal.
-			// We should be able to relax this as well, eventually.
-			if !xset.terms.equal(yset.terms) {
-				return false
-			}
-			// Interface types are the only types where cycles can occur
-			// that are not "terminated" via named types; and such cycles
-			// can only be created via method parameter types that are
-			// anonymous interfaces (directly or indirectly) embedding
-			// the current interface. Example:
-			//
-			//    type T interface {
-			//        m() interface{T}
-			//    }
-			//
-			// If two such (differently named) interfaces are compared,
-			// endless recursion occurs if the cycle is not detected.
-			//
-			// If x and y were compared before, they must be equal
-			// (if they were not, the recursion would have stopped);
-			// search the ifacePair stack for the same pair.
-			//
-			// This is a quadratic algorithm, but in practice these stacks
-			// are extremely short (bounded by the nesting depth of interface
-			// type declarations that recur via parameter types, an extremely
-			// rare occurrence). An alternative implementation might use a
-			// "visited" map, but that is probably less efficient overall.
-			q := &ifacePair{xi, yi, p}
-			for p != nil {
-				if p.identical(q) {
-					return true // same pair was compared before
-				}
-				p = p.prev
-			}
-			// The method set of x must be a subset of the method set
-			// of y or vice versa, and the common methods must unify.
-			xmethods := xset.methods
-			ymethods := yset.methods
-			// The smaller method set must be the subset, if it exists.
-			if len(xmethods) > len(ymethods) {
-				xmethods, ymethods = ymethods, xmethods
-			}
-			// len(xmethods) <= len(ymethods)
-			// Collect the ymethods in a map for quick lookup.
-			ymap := make(map[string]*Func, len(ymethods))
-			for _, ym := range ymethods {
-				ymap[ym.Id()] = ym
-			}
-			// All xmethods must exist in ymethods and corresponding signatures must unify.
-			for _, xm := range xmethods {
-				if ym := ymap[xm.Id()]; ym == nil || !u.nify(xm.typ, ym.typ, p) {
-					return false
-				}
-			}
-			return true
-		}
-
-		// We don't have two interfaces. If we have one, make sure it's in xi.
-		if yi != nil {
-			xi = yi
-			y = x
-		}
-
-		// If we have one interface, at a minimum each of the interface methods
-		// must be implemented and thus unify with a corresponding method from
-		// the non-interface type, otherwise unification fails.
-		if xi != nil {
-			// All xi methods must exist in y and corresponding signatures must unify.
-			xmethods := xi.typeSet().methods
-			for _, xm := range xmethods {
-				obj, _, _ := LookupFieldOrMethod(y, false, xm.pkg, xm.name)
-				if ym, _ := obj.(*Func); ym == nil || !u.nify(xm.typ, ym.typ, p) {
-					return false
-				}
-			}
-			return true
-		}
-
-		// Neither x nor y are interface types.
-		// They must be structurally equivalent to unify.
 	}
 
 	switch x := x.(type) {
@@ -537,8 +436,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 
 	case *Interface:
-		assert(!u.check.conf.EnableInterfaceInference) // handled before this switch
-
 		// Two interface types unify if they have the same set of methods with
 		// the same names, and corresponding function types unify.
 		// Lower-case method names from different packages are always different.
@@ -611,49 +508,10 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 
 	case *Named:
-		// Two defined types unify if their type names originate
+		// Two named types unify if their type names originate
 		// in the same type declaration. If they are instantiated,
 		// their type argument lists must unify.
 		if y, ok := y.(*Named); ok {
-			sameOrig := indenticalOrigin(x, y)
-			if u.check.conf.EnableInterfaceInference {
-				xu := x.under()
-				yu := y.under()
-				xi, _ := xu.(*Interface)
-				yi, _ := yu.(*Interface)
-				// If one or both defined types are interfaces, use interface unification,
-				// unless they originated in the same type declaration.
-				if xi != nil && yi != nil {
-					// If both interfaces originate in the same declaration,
-					// their methods unify if the type parameters unify.
-					// Unify the type parameters rather than the methods in
-					// case the type parameters are not used in the methods
-					// (and to preserve existing behavior in this case).
-					if sameOrig {
-						xargs := x.TypeArgs().list()
-						yargs := y.TypeArgs().list()
-						assert(len(xargs) == len(yargs))
-						for i, xarg := range xargs {
-							if !u.nify(xarg, yargs[i], p) {
-								return false
-							}
-						}
-						return true
-					}
-					return u.nify(xu, yu, p)
-				}
-				// We don't have two interfaces. If we have one, make sure it's in xi.
-				if yi != nil {
-					xi = yi
-					y = x
-				}
-				// If xi is an interface, use interface unification.
-				if xi != nil {
-					return u.nify(xi, y, p)
-				}
-				// In all other cases, the type arguments and origins must match.
-			}
-
 			// Check type arguments before origins so they unify
 			// even if the origins don't match; for better error
 			// messages (see go.dev/issue/53692).
@@ -667,7 +525,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 					return false
 				}
 			}
-			return sameOrig
+			return indenticalOrigin(x, y)
 		}
 
 	case *TypeParam:

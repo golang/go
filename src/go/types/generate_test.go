@@ -137,13 +137,10 @@ var filemap = map[string]action{
 	"typeterm_test.go": nil,
 	"typeterm.go":      nil,
 	"under.go":         nil,
-	"unify.go": func(f *ast.File) {
-		fixSprintf(f)
-		renameIdent(f, "EnableInterfaceInference", "_EnableInterfaceInference")
-	},
-	"universe.go":  fixGlobalTypVarDecl,
-	"util_test.go": fixTokenPos,
-	"validtype.go": nil,
+	"unify.go":         fixSprintf,
+	"universe.go":      fixGlobalTypVarDecl,
+	"util_test.go":     fixTokenPos,
+	"validtype.go":     nil,
 }
 
 // TODO(gri) We should be able to make these rewriters more configurable/composable.

@@ -169,11 +169,6 @@ type Config struct {
 	// If DisableUnusedImportCheck is set, packages are not checked
 	// for unused imports.
 	DisableUnusedImportCheck bool
-
-	// If EnableInterfaceInference is set, type inference uses
-	// shared methods for improved type inference involving
-	// interfaces.
-	EnableInterfaceInference bool
 }
 
 func srcimporter_setUsesCgo(conf *Config) {
