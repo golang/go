@@ -109,10 +109,13 @@ allg,
 < MALLOC
 # Below MALLOC is the malloc implementation.
 < fin,
-  gcBitsArenas,
   spanSetSpine,
   mspanSpecial,
   MPROF;
+
+# We can acquire gcBitsArenas for pinner bits, and
+# it's guarded by mspanSpecial.
+MALLOC, mspanSpecial < gcBitsArenas;
 
 # Memory profiling
 MPROF < profInsert, profBlock, profMemActive;
