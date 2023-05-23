@@ -295,6 +295,11 @@ var allDesc = []Description{
 		Cumulative:  true,
 	},
 	{
+		Name:        "/gc/scan/stack:bytes",
+		Description: "The number of bytes of stack that were scanned last GC cycle.",
+		Kind:        KindUint64,
+	},
+	{
 		Name:        "/gc/stack/starting-size:bytes",
 		Description: "The stack size of new goroutines.",
 		Kind:        KindUint64,

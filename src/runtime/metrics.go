@@ -300,6 +300,12 @@ func initMetrics() {
 				hist.counts[len(hist.counts)-1] = memstats.gcPauseDist.overflow.Load()
 			},
 		},
+		"/gc/scan/stack:bytes": {
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(gcController.lastStackScan.Load())
+			},
+		},
 		"/gc/stack/starting-size:bytes": {
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
