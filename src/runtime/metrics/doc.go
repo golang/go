@@ -219,6 +219,9 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/gc/scan/globals:bytes
 		The total amount of global variable space that is scannable.
 
+	/gc/scan/heap:bytes
+		The total amount of heap space that is scannable.
+
 	/gc/scan/stack:bytes
 		The number of bytes of stack that were scanned last GC cycle.
 
