@@ -34,6 +34,7 @@ type SessionState struct {
 	//       uint64 created_at;
 	//       opaque secret<1..2^8-1>;
 	//       opaque extra<0..2^24-1>;
+	//       uint8 ext_master_secret = { 0, 1 };
 	//       uint8 early_data = { 0, 1 };
 	//       CertificateEntry certificate_list<0..2^24-1>;
 	//       select (SessionState.early_data) {
@@ -81,6 +82,7 @@ type SessionState struct {
 	// which the ticket was received on the client.
 	createdAt         uint64 // seconds since UNIX epoch
 	secret            []byte // master secret for TLS 1.2, or the PSK for TLS 1.3
+	extMasterSecret   bool
 	peerCertificates  []*x509.Certificate
 	activeCertHandles []*activeCert
 	ocspResponse      []byte
@@ -117,6 +119,11 @@ func (s *SessionState) Bytes() ([]byte, error) {
 	b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
 		b.AddBytes(s.Extra)
 	})
+	if s.extMasterSecret {
+		b.AddUint8(1)
+	} else {
+		b.AddUint8(0)
+	}
 	if s.EarlyData {
 		b.AddUint8(1)
 	} else {
@@ -173,7 +180,7 @@ func certificatesToBytesSlice(certs []*x509.Certificate) [][]byte {
 func ParseSessionState(data []byte) (*SessionState, error) {
 	ss := &SessionState{}
 	s := cryptobyte.String(data)
-	var typ, earlyData uint8
+	var typ, extMasterSecret, earlyData uint8
 	var cert Certificate
 	if !s.ReadUint16(&ss.version) ||
 		!s.ReadUint8(&typ) ||
@@ -182,9 +189,18 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 		!readUint64(&s, &ss.createdAt) ||
 		!readUint8LengthPrefixed(&s, &ss.secret) ||
 		!readUint24LengthPrefixed(&s, &ss.Extra) ||
+		!s.ReadUint8(&extMasterSecret) ||
 		!s.ReadUint8(&earlyData) ||
 		len(ss.secret) == 0 ||
 		!unmarshalCertificate(&s, &cert) {
+		return nil, errors.New("tls: invalid session encoding")
+	}
+	switch extMasterSecret {
+	case 0:
+		ss.extMasterSecret = false
+	case 1:
+		ss.extMasterSecret = true
+	default:
 		return nil, errors.New("tls: invalid session encoding")
 	}
 	switch earlyData {
@@ -279,6 +295,7 @@ func (c *Conn) sessionState() (*SessionState, error) {
 		ocspResponse:      c.ocspResponse,
 		scts:              c.scts,
 		isClient:          c.isClient,
+		extMasterSecret:   c.extMasterSecret,
 		verifiedChains:    verifiedChains,
 	}, nil
 }

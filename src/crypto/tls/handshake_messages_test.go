@@ -174,6 +174,9 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		m.secureRenegotiationSupported = true
 		m.secureRenegotiation = randomBytes(rand.Intn(50)+1, rand)
 	}
+	if rand.Intn(10) > 5 {
+		m.extendedMasterSecret = true
+	}
 	for i := 0; i < rand.Intn(5); i++ {
 		m.supportedVersions = append(m.supportedVersions, uint16(rand.Intn(0xffff)+1))
 	}
@@ -235,6 +238,9 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	if rand.Intn(10) > 5 {
 		m.secureRenegotiationSupported = true
 		m.secureRenegotiation = randomBytes(rand.Intn(50)+1, rand)
+	}
+	if rand.Intn(10) > 5 {
+		m.extendedMasterSecret = true
 	}
 	if rand.Intn(10) > 5 {
 		m.supportedVersion = uint16(rand.Intn(0xffff) + 1)
@@ -352,6 +358,9 @@ func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 	s.Extra = randomBytes(rand.Intn(100), rand)
 	if rand.Intn(10) > 5 {
 		s.EarlyData = true
+	}
+	if rand.Intn(10) > 5 {
+		s.extMasterSecret = true
 	}
 	if s.isClient || rand.Intn(10) > 5 {
 		if rand.Intn(10) > 5 {

@@ -90,6 +90,7 @@ const (
 	extensionSignatureAlgorithms     uint16 = 13
 	extensionALPN                    uint16 = 16
 	extensionSCT                     uint16 = 18
+	extensionExtendedMasterSecret    uint16 = 23
 	extensionSessionTicket           uint16 = 35
 	extensionPreSharedKey            uint16 = 41
 	extensionEarlyData               uint16 = 42
@@ -271,12 +272,8 @@ type ConnectionState struct {
 	OCSPResponse []byte
 
 	// TLSUnique contains the "tls-unique" channel binding value (see RFC 5929,
-	// Section 3). This value will be nil for TLS 1.3 connections and for all
-	// resumed connections.
-	//
-	// Deprecated: there are conditions in which this value might not be unique
-	// to a connection. See the Security Considerations sections of RFC 5705 and
-	// RFC 7627, and https://mitls.org/pages/attacks/3SHAKE#channelbindings.
+	// Section 3). This value will be nil for TLS 1.3 connections and for
+	// resumed connections that don't support Extended Master Secret (RFC 7627).
 	TLSUnique []byte
 
 	// ekm is a closure exposed via ExportKeyingMaterial.
@@ -287,6 +284,10 @@ type ConnectionState struct {
 // slice as defined in RFC 5705. If context is nil, it is not used as part of
 // the seed. If the connection was set to allow renegotiation via
 // Config.Renegotiation, this function will return an error.
+//
+// There are conditions in which the returned values might not be unique to a
+// connection. See the Security Considerations sections of RFC 5705 and RFC 7627,
+// and https://mitls.org/pages/attacks/3SHAKE#channelbindings.
 func (cs *ConnectionState) ExportKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
 	return cs.ekm(label, context, length)
 }

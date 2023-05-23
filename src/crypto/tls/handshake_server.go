@@ -214,6 +214,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 		return errors.New("tls: initial handshake had non-empty renegotiation extension")
 	}
 
+	hs.hello.extendedMasterSecret = hs.clientHello.extendedMasterSecret
 	hs.hello.secureRenegotiationSupported = hs.clientHello.secureRenegotiationSupported
 	hs.hello.compressionMethod = compressionNone
 	if len(hs.clientHello.serverName) > 0 {
@@ -471,6 +472,17 @@ func (hs *serverHandshakeState) checkForResumption() error {
 		return nil
 	}
 
+	// RFC 7627, Section 5.3
+	if !sessionState.extMasterSecret && hs.clientHello.extendedMasterSecret {
+		return nil
+	}
+	if sessionState.extMasterSecret && !hs.clientHello.extendedMasterSecret {
+		// Aborting is somewhat harsh, but it's a MUST and it would indicate a
+		// weird downgrade in client capabilities.
+		return errors.New("tls: session supported extended_master_secret but client does not")
+	}
+
+	c.extMasterSecret = sessionState.extMasterSecret
 	hs.sessionState = sessionState
 	hs.suite = suite
 	c.didResume = true
@@ -647,7 +659,14 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		c.sendAlert(alertHandshakeFailure)
 		return err
 	}
-	hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret, hs.clientHello.random, hs.hello.random)
+	if hs.hello.extendedMasterSecret {
+		c.extMasterSecret = true
+		hs.masterSecret = extMasterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret,
+			hs.finishedHash.Sum())
+	} else {
+		hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret,
+			hs.clientHello.random, hs.hello.random)
+	}
 	if err := c.config.writeKeyLog(keyLogLabelTLS12, hs.clientHello.random, hs.masterSecret); err != nil {
 		c.sendAlert(alertInternalError)
 		return err

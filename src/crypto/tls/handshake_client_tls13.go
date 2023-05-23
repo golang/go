@@ -136,6 +136,7 @@ func (hs *clientHandshakeStateTLS13) checkServerHelloOrHRR() error {
 
 	if hs.serverHello.ocspStapling ||
 		hs.serverHello.ticketSupported ||
+		hs.serverHello.extendedMasterSecret ||
 		hs.serverHello.secureRenegotiationSupported ||
 		len(hs.serverHello.secureRenegotiation) != 0 ||
 		len(hs.serverHello.alpnProtocol) != 0 ||

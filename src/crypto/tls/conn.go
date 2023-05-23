@@ -45,6 +45,7 @@ type Conn struct {
 	// connection so far. If renegotiation is disabled then this is either
 	// zero or one.
 	handshakes       int
+	extMasterSecret  bool
 	didResume        bool // whether this connection was a session resumption
 	cipherSuite      uint16
 	ocspResponse     []byte   // stapled OCSP response
@@ -1606,7 +1607,7 @@ func (c *Conn) connectionStateLocked() ConnectionState {
 	state.VerifiedChains = c.verifiedChains
 	state.SignedCertificateTimestamps = c.scts
 	state.OCSPResponse = c.ocspResponse
-	if !c.didResume && c.vers != VersionTLS13 {
+	if (!c.didResume || c.extMasterSecret) && c.vers != VersionTLS13 {
 		if c.clientFinishedIsFirst {
 			state.TLSUnique = c.clientFinished[:]
 		} else {

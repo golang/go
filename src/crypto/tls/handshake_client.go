@@ -72,6 +72,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
 		vers:                         clientHelloVersion,
 		compressionMethods:           []uint8{compressionNone},
 		random:                       make([]byte, 32),
+		extendedMasterSecret:         true,
 		ocspStapling:                 true,
 		scts:                         true,
 		serverName:                   hostnameInSNI(config.ServerName),
@@ -645,6 +646,19 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		}
 	}
 
+	if hs.serverHello.extendedMasterSecret {
+		c.extMasterSecret = true
+		hs.masterSecret = extMasterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret,
+			hs.finishedHash.Sum())
+	} else {
+		hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret,
+			hs.hello.random, hs.serverHello.random)
+	}
+	if err := c.config.writeKeyLog(keyLogLabelTLS12, hs.hello.random, hs.masterSecret); err != nil {
+		c.sendAlert(alertInternalError)
+		return errors.New("tls: failed to write to key log: " + err.Error())
+	}
+
 	if chainToSend != nil && len(chainToSend.Certificate) > 0 {
 		certVerify := &certificateVerifyMsg{}
 
@@ -690,12 +704,6 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		if _, err := hs.c.writeHandshakeRecord(certVerify, &hs.finishedHash); err != nil {
 			return err
 		}
-	}
-
-	hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret, hs.hello.random, hs.serverHello.random)
-	if err := c.config.writeKeyLog(keyLogLabelTLS12, hs.hello.random, hs.masterSecret); err != nil {
-		c.sendAlert(alertInternalError)
-		return errors.New("tls: failed to write to key log: " + err.Error())
 	}
 
 	hs.finishedHash.discardHandshakeBuffer()
@@ -784,8 +792,15 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 		return false, errors.New("tls: server resumed a session with a different cipher suite")
 	}
 
+	// RFC 7627, Section 5.3
+	if hs.session.extMasterSecret != hs.serverHello.extendedMasterSecret {
+		c.sendAlert(alertHandshakeFailure)
+		return false, errors.New("tls: server resumed a session with a different EMS extension")
+	}
+
 	// Restore master secret and certificates from previous state
 	hs.masterSecret = hs.session.secret
+	c.extMasterSecret = hs.session.extMasterSecret
 	c.peerCertificates = hs.session.peerCertificates
 	c.activeCertHandles = hs.c.activeCertHandles
 	c.verifiedChains = hs.session.verifiedChains
