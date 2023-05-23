@@ -70,7 +70,13 @@ func switchGoToolchain() {
 
 	gotoolchain := cfg.Getenv("GOTOOLCHAIN")
 	if gotoolchain == "" {
-		gotoolchain = "auto"
+		// cfg.Getenv should fall back to $GOROOT/go.env,
+		// so this should not happen, unless a packager
+		// has deleted the GOTOOLCHAIN line from go.env.
+		// It can also happen if GOROOT is missing or broken,
+		// in which case best to let the go command keep running
+		// and diagnose the problem.
+		return
 	}
 
 	gotoolchain, min, haveMin := strings.Cut(gotoolchain, "+")
@@ -306,6 +312,9 @@ func goInstallVersion() (m module.Version, goVers string, ok bool) {
 				break
 			}
 			if a == "-" {
+				break
+			}
+			if a == "--" {
 				if i+1 < len(args) {
 					arg = args[i+1]
 				}

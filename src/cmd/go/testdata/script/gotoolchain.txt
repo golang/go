@@ -1,13 +1,26 @@
+# Plain go version
+go version
+! stdout go1\.999
+
+# Default should be auto
+env GOTOOLCHAIN=
+go env GOTOOLCHAIN
+stdout auto
+go env
+stdout GOTOOLCHAIN=.?auto.?
+
+# GOTOOLCHAIN from network, does not exist
+env GOTOOLCHAIN=go1.9999x
+! go version
+stderr 'go: download go1.9999x for .*: toolchain not available'
+
 [short] skip
 
+env GOTOOLCHAIN=
 mkdir $WORK/bin
 [!GOOS:plan9] env PATH=$WORK/bin${:}$PATH
 [GOOS:plan9] env path=$WORK/bin${:}$path
 go build -o $WORK/bin/ ./go1.999testpath.go  # adds .exe extension implicitly on Windows
-
-# Plain go version
-go version
-! stdout go1\.999
 
 # GOTOOLCHAIN from PATH
 env GOTOOLCHAIN=go1.999testpath
@@ -20,11 +33,6 @@ env GODEBUG=gotoolchainexec=0
 go version
 stdout 'go1.999testpath here!'
 env GODEBUG=
-
-# GOTOOLCHAIN from network, does not exist
-env GOTOOLCHAIN=go1.9999x
-! go version
-stderr 'go: download go1.9999x for .*: toolchain not available'
 
 # GOTOOLCHAIN from network
 [!exec:/bin/sh] stop 'the fake proxy serves shell scripts instead of binaries'

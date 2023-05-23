@@ -100,6 +100,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOROOT", Value: cfg.GOROOT},
 		{Name: "GOSUMDB", Value: cfg.GOSUMDB},
 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
+		{Name: "GOTOOLCHAIN", Value: cfg.Getenv("GOTOOLCHAIN")},
 		{Name: "GOTOOLDIR", Value: build.ToolDir},
 		{Name: "GOVCS", Value: cfg.GOVCS},
 		{Name: "GOVERSION", Value: runtime.Version()},
@@ -145,13 +146,16 @@ func envOr(name, def string) string {
 	return def
 }
 
-func findEnv(env []cfg.EnvVar, envFile map[string]string, name string) string {
+func findEnv(env []cfg.EnvVar, name string) string {
 	for _, e := range env {
 		if e.Name == name {
 			return e.Value
 		}
 	}
-	return envFile[name]
+	if cfg.CanGetenv(name) {
+		return cfg.Getenv(name)
+	}
+	return ""
 }
 
 // ExtraEnvVars returns environment variables that should not leak into child processes.
@@ -252,7 +256,6 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 
 	env := cfg.CmdEnv
 	env = append(env, ExtraEnvVars()...)
-	envFile := readEnvFile()
 
 	if err := fsys.Init(base.Cwd()); err != nil {
 		base.Fatalf("go: %v", err)
@@ -290,13 +293,13 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		if *envJson {
 			var es []cfg.EnvVar
 			for _, name := range args {
-				e := cfg.EnvVar{Name: name, Value: findEnv(env, envFile, name)}
+				e := cfg.EnvVar{Name: name, Value: findEnv(env, name)}
 				es = append(es, e)
 			}
 			printEnvAsJSON(es)
 		} else {
 			for _, name := range args {
-				fmt.Printf("%s\n", findEnv(env, envFile, name))
+				fmt.Printf("%s\n", findEnv(env, name))
 			}
 		}
 		return
@@ -596,6 +599,7 @@ func readEnvFile() map[string]string {
 	lines := readEnvFileLines(false)
 	m := make(map[string]string)
 	for _, line := range lines {
+		line = strings.TrimRight(line, "\r\n")
 		key := lineToKey(line)
 		if key == "" {
 			continue

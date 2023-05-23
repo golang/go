@@ -387,6 +387,11 @@ func Getenv(key string) string {
 
 // CanGetenv reports whether key is a valid go/env configuration key.
 func CanGetenv(key string) bool {
+	envCache.once.Do(initEnvCache)
+	if _, ok := envCache.m[key]; ok {
+		// Assume anything in the user file or go.env file is valid.
+		return true
+	}
 	return strings.Contains(cfg.KnownEnv, "\t"+key+"\n")
 }
 
