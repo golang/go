@@ -194,6 +194,13 @@ var allDesc = []Description{
 		Cumulative:  true,
 	},
 	{
+		Name: "/gc/gogc:percent",
+		Description: "Heap size target percentage configured by the user, otherwise 100. This " +
+			"value is set by the GOGC environment variable, and the runtime/debug.SetGCPercent " +
+			"function.",
+		Kind: KindUint64,
+	},
+	{
 		Name: "/gc/gomemlimit:bytes",
 		Description: "Go runtime memory limit configured by the user, otherwise " +
 			"math.MaxInt64. This value is set by the GOMEMLIMIT environment variable, and " +

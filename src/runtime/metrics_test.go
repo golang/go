@@ -37,6 +37,11 @@ func TestReadMetrics(t *testing.T) {
 	oldLimit := debug.SetMemoryLimit(limit)
 	defer debug.SetMemoryLimit(oldLimit)
 
+	// Set an GC percent to check the metric for it
+	gcPercent := 99
+	oldGCPercent := debug.SetGCPercent(gcPercent)
+	defer debug.SetGCPercent(oldGCPercent)
+
 	// Tests whether readMetrics produces values aligning
 	// with ReadMemStats while the world is stopped.
 	var mstats runtime.MemStats
@@ -150,6 +155,8 @@ func TestReadMetrics(t *testing.T) {
 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapObjects)
 		case "/gc/heap/goal:bytes":
 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.NextGC)
+		case "/gc/gogc:percent":
+			checkUint64(t, name, samples[i].Value.Uint64(), uint64(gcPercent))
 		case "/gc/cycles/automatic:gc-cycles":
 			checkUint64(t, name, samples[i].Value.Uint64(), uint64(mstats.NumGC-mstats.NumForcedGC))
 		case "/gc/cycles/forced:gc-cycles":

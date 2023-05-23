@@ -147,6 +147,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/gc/cycles/total:gc-cycles
 		Count of all completed GC cycles.
 
+	/gc/gogc:percent
+		Heap size target percentage configured by the user, otherwise
+		100. This value is set by the GOGC environment variable, and the
+		runtime/debug.SetGCPercent function.
+
 	/gc/gomemlimit:bytes
 		Go runtime memory limit configured by the user, otherwise
 		math.MaxInt64. This value is set by the GOMEMLIMIT environment
