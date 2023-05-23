@@ -189,6 +189,12 @@ func initMetrics() {
 				out.scalar = in.sysStats.gcCyclesDone
 			},
 		},
+		"/gc/scan/globals:bytes": {
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = gcController.globalsScan.Load()
+			},
+		},
 		"/gc/heap/allocs-by-size:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {

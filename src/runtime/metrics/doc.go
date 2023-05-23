@@ -216,6 +216,9 @@ Below is the full list of supported metrics, ordered lexicographically.
 		Distribution of individual GC-related stop-the-world pause
 		latencies. Bucket counts increase monotonically.
 
+	/gc/scan/globals:bytes
+		The total amount of global variable space that is scannable.
+
 	/gc/scan/stack:bytes
 		The number of bytes of stack that were scanned last GC cycle.
 

@@ -295,6 +295,11 @@ var allDesc = []Description{
 		Cumulative:  true,
 	},
 	{
+		Name:        "/gc/scan/globals:bytes",
+		Description: "The total amount of global variable space that is scannable.",
+		Kind:        KindUint64,
+	},
+	{
 		Name:        "/gc/scan/stack:bytes",
 		Description: "The number of bytes of stack that were scanned last GC cycle.",
 		Kind:        KindUint64,
