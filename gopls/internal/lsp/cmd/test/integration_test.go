@@ -890,10 +890,7 @@ func goplsWithEnv(t *testing.T, dir string, env []string, args ...string) *resul
 	}
 
 	goplsCmd := exec.Command(os.Args[0], args...)
-	goplsCmd.Env = append(os.Environ(),
-		"ENTRYPOINT=goplsMain",
-		fmt.Sprintf("%s=true", cmd.DebugSuggestedFixEnvVar),
-	)
+	goplsCmd.Env = append(os.Environ(), "ENTRYPOINT=goplsMain")
 	goplsCmd.Env = append(goplsCmd.Env, env...)
 	goplsCmd.Dir = dir
 	goplsCmd.Stdout = new(bytes.Buffer)

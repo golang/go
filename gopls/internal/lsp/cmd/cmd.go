@@ -518,11 +518,6 @@ func (c *cmdClient) ApplyEdit(ctx context.Context, p *protocol.ApplyWorkspaceEdi
 }
 
 func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishDiagnosticsParams) error {
-	var debug = os.Getenv(DebugSuggestedFixEnvVar) == "true"
-	if debug {
-		log.Printf("PublishDiagnostics URI=%v Diagnostics=%v", p.URI, p.Diagnostics)
-	}
-
 	if p.URI == "gopls://diagnostics-done" {
 		close(c.diagnosticsDone)
 	}

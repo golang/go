@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -42,16 +41,11 @@ fix-flags:
 	printFlagDefaults(f)
 }
 
-const DebugSuggestedFixEnvVar = "_DEBUG_SUGGESTED_FIX"
-
 // Run performs diagnostic checks on the file specified and either;
 // - if -w is specified, updates the file in place;
 // - if -d is specified, prints out unified diffs of the changes; or
 // - otherwise, prints the new versions to stdout.
 func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
-	// For debugging golang/go#59475, enable some additional output.
-	var debug = os.Getenv(DebugSuggestedFixEnvVar) == "true"
-
 	if len(args) < 1 {
 		return tool.CommandLineErrorf("fix expects at least 1 argument")
 	}
@@ -80,9 +74,6 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 	conn.Client.filesMu.Lock()
 	diagnostics = append(diagnostics, file.diagnostics...)
 	conn.Client.filesMu.Unlock()
-	if debug {
-		log.Printf("file diagnostics: %#v", diagnostics)
-	}
 
 	// Request code actions
 	codeActionKinds := []protocol.CodeActionKind{protocol.QuickFix}
@@ -105,9 +96,6 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 	actions, err := conn.CodeAction(ctx, &p)
 	if err != nil {
 		return fmt.Errorf("%v: %v", from, err)
-	}
-	if debug {
-		log.Printf("code actions: %#v", actions)
 	}
 
 	// Gather edits from matching code actions.
