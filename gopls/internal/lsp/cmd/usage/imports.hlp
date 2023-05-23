@@ -9,6 +9,10 @@ Example: update imports statements in a file:
 
 imports-flags:
   -d,-diff
-    	display diffs instead of rewriting files
+    	display diffs instead of edited file content
+  -l,-list
+    	display names of edited files
+  -preserve
+    	with -write, make copies of original files
   -w,-write
-    	write result to (source) file instead of stdout
+    	write edited content to source files

@@ -3,13 +3,42 @@ apply suggested fixes
 Usage:
   gopls [flags] fix [fix-flags] <filename>
 
-Example: apply suggested fixes for this file
-	$ gopls fix -w internal/lsp/cmd/check.go
+Example: apply fixes to this file, rewriting it:
+
+	$ gopls fix -a -w internal/lsp/cmd/check.go
+
+The -a (-all) flag causes all fixes, not just preferred ones, to be
+applied, but since no fixes are currently preferred, this flag is
+essentially mandatory.
+
+Arguments after the filename are interpreted as LSP CodeAction kinds
+to be applied; the default set is {"quickfix"}, but valid kinds include:
+
+	quickfix
+	refactor
+	refactor.extract
+	refactor.inline
+	refactor.rewrite
+	source.organizeImports
+	source.fixAll
+
+CodeAction kinds are hierarchical, so "refactor" includes
+"refactor.inline". There is currently no way to enable or even
+enumerate all kinds.
+
+Example: apply any "refactor.rewrite" fixes at the specific byte
+offset within this file:
+
+	$ gopls fix -a internal/lsp/cmd/check.go:#43 refactor.rewrite
 
 fix-flags:
   -a,-all
     	apply all fixes, not just preferred fixes
   -d,-diff
-    	display diffs instead of rewriting files
+    	display diffs instead of edited file content
+  -l,-list
+    	display names of edited files
+  -preserve
+    	with -write, make copies of original files
   -w,-write
-    	write result to (source) file instead of stdout
+    	write edited content to source files

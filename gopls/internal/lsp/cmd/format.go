@@ -8,21 +8,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"os"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
-	"golang.org/x/tools/internal/diff"
 )
 
 // format implements the format verb for gopls.
 type format struct {
-	Diff  bool `flag:"d,diff" help:"display diffs instead of rewriting files"`
-	Write bool `flag:"w,write" help:"write result to (source) file instead of stdout"`
-	List  bool `flag:"l,list" help:"list files whose formatting differs from gofmt's"`
-
+	EditFlags
 	app *Application
 }
 
@@ -47,10 +40,9 @@ format-flags:
 // results to stdout.
 func (c *format) Run(ctx context.Context, args ...string) error {
 	if len(args) == 0 {
-		// no files, so no results
 		return nil
 	}
-	// now we ready to kick things off
+	c.app.editFlags = &c.EditFlags
 	conn, err := c.app.connect(ctx, nil)
 	if err != nil {
 		return err
@@ -62,7 +54,6 @@ func (c *format) Run(ctx context.Context, args ...string) error {
 		if err != nil {
 			return err
 		}
-		filename := spn.URI().Filename()
 		loc, err := file.mapper.SpanLocation(spn)
 		if err != nil {
 			return err
@@ -77,33 +68,8 @@ func (c *format) Run(ctx context.Context, args ...string) error {
 		if err != nil {
 			return fmt.Errorf("%v: %v", spn, err)
 		}
-		formatted, sedits, err := source.ApplyProtocolEdits(file.mapper, edits)
-		if err != nil {
-			return fmt.Errorf("%v: %v", spn, err)
-		}
-		printIt := true
-		if c.List {
-			printIt = false
-			if len(edits) > 0 {
-				fmt.Println(filename)
-			}
-		}
-		if c.Write {
-			printIt = false
-			if len(edits) > 0 {
-				ioutil.WriteFile(filename, formatted, 0644)
-			}
-		}
-		if c.Diff {
-			printIt = false
-			unified, err := diff.ToUnified(filename+".orig", filename, string(file.mapper.Content), sedits)
-			if err != nil {
-				return err
-			}
-			fmt.Print(unified)
-		}
-		if printIt {
-			os.Stdout.Write(formatted)
+		if err := applyTextEdits(file.mapper, edits, c.app.editFlags); err != nil {
+			return err
 		}
 	}
 	return nil

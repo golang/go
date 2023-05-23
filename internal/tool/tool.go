@@ -220,6 +220,9 @@ func addFlags(f *flag.FlagSet, field reflect.StructField, value reflect.Value) *
 	if value.Kind() != reflect.Struct {
 		return nil
 	}
+
+	// TODO(adonovan): there's no need for this special treatment of Profile:
+	// The caller can use f.Lookup("profile.cpu") etc instead.
 	p, _ := value.Addr().Interface().(*Profile)
 	// go through all the fields of the struct
 	for i := 0; i < value.Type().NumField(); i++ {

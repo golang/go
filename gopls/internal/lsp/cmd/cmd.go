@@ -21,6 +21,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"golang.org/x/exp/slices"
 	"golang.org/x/tools/gopls/internal/lsp"
 	"golang.org/x/tools/gopls/internal/lsp/browser"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
@@ -30,6 +31,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/tool"
 	"golang.org/x/tools/internal/xcontext"
@@ -75,6 +77,26 @@ type Application struct {
 	// PrepareOptions is called to update the options when a new view is built.
 	// It is primarily to allow the behavior of gopls to be modified by hooks.
 	PrepareOptions func(*source.Options)
+
+	// editFlags holds flags that control how file edit operations
+	// are applied, in particular when the server makes an ApplyEdits
+	// downcall to the client. Present only for commands that apply edits.
+	editFlags *EditFlags
+}
+
+// EditFlags defines flags common to {fix,format,imports,rename}
+// that control how edits are applied to the client's files.
+//
+// The type is exported for flag reflection.
+//
+// The -write, -diff, and -list flags are orthogonal but any
+// of them suppresses the default behavior, which is to print
+// the edited file contents.
+type EditFlags struct {
+	Write    bool `flag:"w,write" help:"write edited content to source files"`
+	Preserve bool `flag:"preserve" help:"with -write, make copies of original files"`
+	Diff     bool `flag:"d,diff" help:"display diffs instead of edited file content"`
+	List     bool `flag:"l,list" help:"display names of edited files"`
 }
 
 func (app *Application) verbose() bool {
@@ -524,10 +546,86 @@ func (c *cmdClient) Configuration(ctx context.Context, p *protocol.ParamConfigur
 }
 
 func (c *cmdClient) ApplyEdit(ctx context.Context, p *protocol.ApplyWorkspaceEditParams) (*protocol.ApplyWorkspaceEditResult, error) {
-	return &protocol.ApplyWorkspaceEditResult{
-		Applied:       false,
-		FailureReason: "the gopls command-line client does not apply edits",
-	}, nil
+	if err := c.applyWorkspaceEdit(&p.Edit); err != nil {
+		return &protocol.ApplyWorkspaceEditResult{FailureReason: err.Error()}, nil
+	}
+	return &protocol.ApplyWorkspaceEditResult{Applied: true}, nil
+}
+
+// applyWorkspaceEdit applies a complete WorkspaceEdit to the client's
+// files, honoring the preferred edit mode specified by cli.app.editMode.
+// (Used by rename and by ApplyEdit downcalls.)
+func (cli *cmdClient) applyWorkspaceEdit(edit *protocol.WorkspaceEdit) error {
+	var orderedURIs []span.URI
+	edits := map[span.URI][]protocol.TextEdit{}
+	for _, c := range edit.DocumentChanges {
+		if c.TextDocumentEdit != nil {
+			uri := fileURI(c.TextDocumentEdit.TextDocument.URI)
+			edits[uri] = append(edits[uri], c.TextDocumentEdit.Edits...)
+			orderedURIs = append(orderedURIs, uri)
+		}
+		if c.RenameFile != nil {
+			return fmt.Errorf("client does not support file renaming (%s -> %s)",
+				c.RenameFile.OldURI,
+				c.RenameFile.NewURI)
+		}
+	}
+	slices.Sort(orderedURIs)
+	for _, uri := range orderedURIs {
+		f := cli.openFile(uri)
+		if f.err != nil {
+			return f.err
+		}
+		if err := applyTextEdits(f.mapper, edits[uri], cli.app.editFlags); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// applyTextEdits applies a list of edits to the mapper file content,
+// using the preferred edit mode. It is a no-op if there are no edits.
+func applyTextEdits(mapper *protocol.Mapper, edits []protocol.TextEdit, flags *EditFlags) error {
+	if len(edits) == 0 {
+		return nil
+	}
+	newContent, renameEdits, err := source.ApplyProtocolEdits(mapper, edits)
+	if err != nil {
+		return err
+	}
+
+	filename := mapper.URI.Filename()
+
+	if flags.List {
+		fmt.Println(filename)
+	}
+
+	if flags.Write {
+		if flags.Preserve {
+			if err := os.Rename(filename, filename+".orig"); err != nil {
+				return err
+			}
+		}
+		if err := os.WriteFile(filename, newContent, 0644); err != nil {
+			return err
+		}
+	}
+
+	if flags.Diff {
+		unified, err := diff.ToUnified(filename+".orig", filename, string(mapper.Content), renameEdits)
+		if err != nil {
+			return err
+		}
+		fmt.Print(unified)
+	}
+
+	// No flags: just print edited file content.
+	// TODO(adonovan): how is this ever useful with multiple files?
+	if !(flags.List || flags.Write || flags.Diff) {
+		os.Stdout.Write(newContent)
+	}
+
+	return nil
 }
 
 func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishDiagnosticsParams) error {
@@ -542,7 +640,7 @@ func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishD
 	c.filesMu.Lock()
 	defer c.filesMu.Unlock()
 
-	file := c.getFile(ctx, fileURI(p.URI))
+	file := c.getFile(fileURI(p.URI))
 	file.diagnostics = append(file.diagnostics, p.Diagnostics...)
 
 	// Perform a crude in-place deduplication.
@@ -610,7 +708,7 @@ func (c *cmdClient) InlineValueRefresh(context.Context) error {
 	return nil
 }
 
-func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
+func (c *cmdClient) getFile(uri span.URI) *cmdFile {
 	file, found := c.files[uri]
 	if !found || file.err != nil {
 		file = &cmdFile{
@@ -629,17 +727,17 @@ func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 	return file
 }
 
-func (c *cmdClient) openFile(ctx context.Context, uri span.URI) *cmdFile {
+func (c *cmdClient) openFile(uri span.URI) *cmdFile {
 	c.filesMu.Lock()
 	defer c.filesMu.Unlock()
-	return c.getFile(ctx, uri)
+	return c.getFile(uri)
 }
 
 // TODO(adonovan): provide convenience helpers to:
 // - map a (URI, protocol.Range) to a MappedRange;
 // - parse a command-line argument to a MappedRange.
 func (c *connection) openFile(ctx context.Context, uri span.URI) (*cmdFile, error) {
-	file := c.client.openFile(ctx, uri)
+	file := c.client.openFile(uri)
 	if file.err != nil {
 		return nil, file.err
 	}

@@ -8,21 +8,21 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"os"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
-	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/tool"
 )
 
+// TODO(adonovan): this command has a very poor user interface. It
+// should have a way to query the available fixes for a file (without
+// a span), enumerate the valid fix kinds, enable all fixes, and not
+// require the pointless -all flag. See issue #60290.
+
 // suggestedFix implements the fix verb for gopls.
 type suggestedFix struct {
-	Diff  bool `flag:"d,diff" help:"display diffs instead of rewriting files"`
-	Write bool `flag:"w,write" help:"write result to (source) file instead of stdout"`
-	All   bool `flag:"a,all" help:"apply all fixes, not just preferred fixes"`
+	EditFlags
+	All bool `flag:"a,all" help:"apply all fixes, not just preferred fixes"`
 
 	app *Application
 }
@@ -33,8 +33,33 @@ func (s *suggestedFix) Usage() string     { return "[fix-flags] <filename>" }
 func (s *suggestedFix) ShortHelp() string { return "apply suggested fixes" }
 func (s *suggestedFix) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprintf(f.Output(), `
-Example: apply suggested fixes for this file
-	$ gopls fix -w internal/lsp/cmd/check.go
+Example: apply fixes to this file, rewriting it:
+
+	$ gopls fix -a -w internal/lsp/cmd/check.go
+
+The -a (-all) flag causes all fixes, not just preferred ones, to be
+applied, but since no fixes are currently preferred, this flag is
+essentially mandatory.
+
+Arguments after the filename are interpreted as LSP CodeAction kinds
+to be applied; the default set is {"quickfix"}, but valid kinds include:
+
+	quickfix
+	refactor
+	refactor.extract
+	refactor.inline
+	refactor.rewrite
+	source.organizeImports
+	source.fixAll
+
+CodeAction kinds are hierarchical, so "refactor" includes
+"refactor.inline". There is currently no way to enable or even
+enumerate all kinds.
+
+Example: apply any "refactor.rewrite" fixes at the specific byte
+offset within this file:
+
+	$ gopls fix -a internal/lsp/cmd/check.go:#43 refactor.rewrite
 
 fix-flags:
 `)
@@ -49,6 +74,7 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 	if len(args) < 1 {
 		return tool.CommandLineErrorf("fix expects at least 1 argument")
 	}
+	s.app.editFlags = &s.EditFlags
 	conn, err := s.app.connect(ctx, nil)
 	if err != nil {
 		return err
@@ -163,25 +189,5 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 		}
 	}
 
-	newContent, sedits, err := source.ApplyProtocolEdits(file.mapper, edits)
-	if err != nil {
-		return fmt.Errorf("%v: %v", edits, err)
-	}
-
-	filename := file.uri.Filename()
-	switch {
-	case s.Write:
-		if len(edits) > 0 {
-			ioutil.WriteFile(filename, newContent, 0644)
-		}
-	case s.Diff:
-		diffs, err := diff.ToUnified(filename+".orig", filename, string(file.mapper.Content), sedits)
-		if err != nil {
-			return err
-		}
-		fmt.Print(diffs)
-	default:
-		os.Stdout.Write(newContent)
-	}
-	return nil
+	return applyTextEdits(file.mapper, edits, s.app.editFlags)
 }
