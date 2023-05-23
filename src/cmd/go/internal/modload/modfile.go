@@ -74,6 +74,9 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
 		// Errors returned by modfile.Parse begin with file:line.
 		return nil, nil, fmt.Errorf("errors parsing go.mod:\n%s\n", err)
 	}
+	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
+		base.Fatalf("go: %s requires go %v (running go %v)", base.ShortPath(gomod), f.Go.Version, gover.Local())
+	}
 	if f.Module == nil {
 		// No module declaration. Must add module path.
 		return nil, nil, errors.New("no module declaration in go.mod. To specify the module path:\n\tgo mod edit -module=example.com/mod")

@@ -42,12 +42,24 @@ stderr 'go: downloading go1.999testmod \(.*/.*\)'
 
 # GOTOOLCHAIN=auto
 env GOTOOLCHAIN=auto
-env TESTGO_VERSION=go1.100 # set TESTGO_VERSION because devel is newer than everything
+env TESTGO_VERSION=go1.100
 
 # toolchain line in go.mod
 cp go119toolchain1999 go.mod
 go version
 stdout go1.999
+
+# toolchain local in go.mod
+cp go1999toolchainlocal go.mod
+! go build
+stderr '^go: go.mod requires go 1.999 \(running go 1\.100\)$'
+
+# toolchain local in go.work
+cp empty go.mod
+cp go1999toolchainlocal go.work
+! go build
+stderr '^go: go.work requires go 1.999 \(running go 1\.100\)$'
+rm go.work
 
 # toolchain line in go.work
 cp empty go.mod
@@ -68,12 +80,39 @@ go version
 stdout go1.999
 rm go.work
 
-# GOTOOLCHAIN=auto falls back to local toolchain if newer than go line
+# GOTOOLCHAIN=auto falls back to local toolchain if newer than go or toolchain line
 env TESTGO_VERSION=go1.1000
 
 # toolchain line in go.mod
 cp go119toolchain1999 go.mod
 go version
+stdout go1.1000
+
+# toolchain line in go.work
+cp empty go.mod
+cp go119toolchain1999 go.work
+go version
+stdout go1.1000
+rm go.work
+
+# go version in go.mod
+cp go1999 go.mod
+go version
+stdout go1.1000
+
+# go version in go.work
+cp empty go.mod
+cp go1999 go.work
+go version
+stdout go1.1000
+rm go.work
+
+# GOTOOLCHAIN=auto uses different toolchain when instructed and newer
+env TESTGO_VERSION=go1.100
+
+# toolchain line in go.mod
+cp go119toolchain1999 go.mod
+go version
 stdout go1.999
 
 # toolchain line in go.work
@@ -86,13 +125,13 @@ rm go.work
 # go version in go.mod
 cp go1999 go.mod
 go version
-! stdout go1.999
+stdout go1.999
 
 # go version in go.work
 cp empty go.mod
 cp go1999 go.work
 go version
-! stdout go1.999
+stdout go1.999
 rm go.work
 
 # go1.999 should handle go1.998 without a download
@@ -104,42 +143,42 @@ go version
 # go1.998 should handle go1.998 without a download too
 env TESTGO_VERSION=go1.999
 go version
-! stdout go1.998 # local toolchain instead
+stdout go1.999 # local toolchain instead
 
 # go1.998+foo should handle go1.998 without a download too
 env TESTGO_VERSION=go1.998+foo
 go version
-! stdout go1.998 # local toolchain instead
+stdout 'go1.998\+foo' # local toolchain instead
 
 # go1.998-foo should handle go1.998 without a download too
 env TESTGO_VERSION=go1.998-foo
 go version
-! stdout go1.998 # local toolchain instead
+stdout go1.998-foo # local toolchain instead
 
 # 'go1.998 foo' should handle go1.998 without a download too
 env TESTGO_VERSION='go1.998 foo'
 go version
-! stdout go1.998 # local toolchain instead
+stdout 'go1.998 foo' # local toolchain instead
 
 # go1.997-foo should download go1.998
 env TESTGO_VERSION=go1.997-foo
 ! go version
 stderr go1.998
 
-# GOTOOLCHAIN=auto+go1.1000 falls back to go1.1000 if newer than go line
+# GOTOOLCHAIN=go1.1000+auto falls back to go1.1000 if newer than go line
 env TESTGO_VERSION=go1.1
-env GOTOOLCHAIN=auto+go1.1000
+env GOTOOLCHAIN=go1.1000+auto
 
 # toolchain line in go.mod
 cp go119toolchain1999 go.mod
-go version
-stdout go1.999
+! go version
+stderr go1.1000
 
 # toolchain line in go.work
 cp empty go.mod
 cp go119toolchain1999 go.work
-go version
-stdout go1.999
+! go version
+stderr go1.1000
 rm go.work
 
 # go version in go.mod
@@ -206,9 +245,9 @@ go 1.19
 go 1.19
 toolchain go1.999testpath
 
--- go1999toolchain119 --
-go 1.999testpath
-toolchain go1.19
+-- go1999toolchainlocal --
+go 1.999
+toolchain local
 
 -- go1.999testpath.go --
 package main

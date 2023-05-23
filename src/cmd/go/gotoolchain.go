@@ -79,44 +79,62 @@ func switchGoToolchain() {
 		return
 	}
 
-	gotoolchain, min, haveMin := strings.Cut(gotoolchain, "+")
-	if haveMin {
-		if gotoolchain != "auto" && gotoolchain != "path" {
-			base.Fatalf("invalid GOTOOLCHAIN %q: only auto and path can use +version", gotoolchain)
+	var minToolchain, minVers string
+	if x, y, ok := strings.Cut(gotoolchain, "+"); ok { // go1.2.3+auto
+		orig := gotoolchain
+		minToolchain, gotoolchain = x, y
+		minVers = gover.ToolchainVersion(minToolchain)
+		if minVers == "" {
+			base.Fatalf("invalid GOTOOLCHAIN %q: invalid minimum toolchain %q", orig, minToolchain)
 		}
-		if !strings.HasPrefix(min, "go1") {
-			base.Fatalf("invalid GOTOOLCHAIN %q: invalid minimum version %q", gotoolchain, min)
+		if gotoolchain != "auto" && gotoolchain != "path" {
+			base.Fatalf("invalid GOTOOLCHAIN %q: only version suffixes are +auto and +path", orig)
 		}
 	} else {
-		min = "go" + gover.Local()
+		minVers = gover.Local()
+		minToolchain = "go" + minVers
 	}
 
 	pathOnly := gotoolchain == "path"
 	if gotoolchain == "auto" || gotoolchain == "path" {
+		gotoolchain = minToolchain
+
 		// Locate and read go.mod or go.work.
 		// For go install m@v, it's the installed module's go.mod.
 		if m, goVers, ok := goInstallVersion(); ok {
-			v := strings.TrimPrefix(min, "go")
-			if gover.Compare(v, goVers) < 0 {
+			if gover.Compare(goVers, minVers) > 0 {
 				// Always print, because otherwise there's no way for the user to know
 				// that a non-default toolchain version is being used here.
 				// (Normally you can run "go version", but go install m@v ignores the
 				// context that "go version" works in.)
 				fmt.Fprintf(os.Stderr, "go: using go%s for %v\n", goVers, m)
-				v = goVers
+				gotoolchain = "go" + goVers
 			}
-			gotoolchain = "go" + v
 		} else {
 			goVers, toolchain := modGoToolchain()
-			if toolchain != "" {
-				// toolchain line wins by itself
-				gotoolchain = toolchain
-			} else {
-				v := strings.TrimPrefix(min, "go")
-				if gover.Compare(v, goVers) < 0 {
-					v = goVers
+			if toolchain == "local" {
+				// Local means always use the default local toolchain,
+				// which is already set, so nothing to do here.
+				// Note that if we have Go 1.21 installed originally,
+				// GOTOOLCHAIN=go1.30.0+auto or GOTOOLCHAIN=go1.30.0,
+				// and the go.mod  says "toolchain local", we use Go 1.30, not Go 1.21.
+				// That is, local overrides the "auto" part of the calculation
+				// but not the minimum that the user has set.
+				// Of course, if the go.mod also says "go 1.35", using Go 1.30
+				// will provoke an error about the toolchain being too old.
+				// That's what people who use toolchain local want:
+				// only ever use the toolchain configured in the local system
+				// (including its environment and go env -w file).
+			} else if toolchain != "" {
+				// Accept toolchain only if it is >= our min.
+				toolVers := gover.ToolchainVersion(toolchain)
+				if gover.Compare(toolVers, minVers) > 0 {
+					gotoolchain = toolchain
 				}
-				gotoolchain = "go" + v
+			} else {
+				if gover.Compare(goVers, minVers) > 0 {
+					gotoolchain = "go" + goVers
+				}
 			}
 		}
 	}
@@ -130,6 +148,8 @@ func switchGoToolchain() {
 	// We want to allow things like go1.20.3 but also gccgo-go1.20.3.
 	// We want to disallow mistakes / bad ideas like GOTOOLCHAIN=bash,
 	// since we will find that in the path lookup.
+	// gover.ToolchainVersion has already done this check (except for the 1)
+	// but doing it again makes sure we don't miss it on unexpected code paths.
 	if !strings.HasPrefix(gotoolchain, "go1") && !strings.Contains(gotoolchain, "-go1") {
 		base.Fatalf("invalid GOTOOLCHAIN %q", gotoolchain)
 	}

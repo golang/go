@@ -625,7 +625,14 @@ func ReadWorkFile(path string) (*modfile.WorkFile, error) {
 		return nil, err
 	}
 
-	return modfile.ParseWork(path, workData, nil)
+	f, err := modfile.ParseWork(path, workData, nil)
+	if err != nil {
+		return nil, err
+	}
+	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
+		base.Fatalf("go: %s requires go %v (running go %v)", base.ShortPath(path), f.Go.Version, gover.Local())
+	}
+	return f, nil
 }
 
 // WriteWorkFile cleans and writes out the go.work file to the given path.
@@ -697,9 +704,6 @@ func LoadModFile(ctx context.Context) *Requirements {
 		if err != nil {
 			base.Fatalf("reading go.work: %v", err)
 		}
-		if gover.Compare(workFileGoVersion, gover.Local()) > 0 {
-			base.Fatalf("go: %s requires go %v (running go %v)", base.ShortPath(workFilePath), workFileGoVersion, gover.Local())
-		}
 		for _, modRoot := range modRoots {
 			sumFile := strings.TrimSuffix(modFilePath(modRoot), ".mod") + ".sum"
 			modfetch.WorkspaceGoSumFiles = append(modfetch.WorkspaceGoSumFiles, sumFile)
@@ -761,9 +765,6 @@ func LoadModFile(ctx context.Context) *Requirements {
 			} else {
 				base.Fatalf("go: %v", err)
 			}
-		}
-		if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
-			base.Fatalf("go: %s requires go %v (running go %v)", base.ShortPath(gomod), f.Go.Version, gover.Local())
 		}
 
 		modFiles = append(modFiles, f)
