@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 24, 2023",
+	"Subtitle": "Version of May 25, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -643,6 +643,7 @@ an identifier denoting a constant,
 a <a href="#Constant_expressions">constant expression</a>,
 a <a href="#Conversions">conversion</a> with a result that is a constant, or
 the result value of some built-in functions such as
+<code>min</code> or <code>max</code> applied to constant arguments,
 <code>unsafe.Sizeof</code> applied to <a href="#Package_unsafe">certain values</a>,
 <code>cap</code> or <code>len</code> applied to
 <a href="#Length_and_capacity">some expressions</a>,
@@ -2319,7 +2320,7 @@ Zero value:
 
 Functions:
 	append cap clear close complex copy delete imag len
-	make new panic print println real recover
+	make max min new panic print println real recover
 </pre>
 
 <h3 id="Exported_identifiers">Exported identifiers</h3>
@@ -7530,6 +7531,70 @@ create a map with initial space to hold <code>n</code> map elements.
 The precise behavior is implementation-dependent.
 </p>
 
+
+<h3 id="Min_and_max">Min and max</h3>
+
+<p>
+The built-in functions <code>min</code> and <code>max</code> compute the
+smallest&mdash;or largest, respectively&mdash;value of a fixed number of
+arguments of <a href="#Comparison_operators">ordered types</a>.
+There must be at least one argument.
+</p>
+
+<p>
+The same type rules as for <a href="#Operators">operators</a> apply:
+for <a href="#Comparison_operators">ordered</a> arguments <code>x</code> and
+<code>y</code>, <code>min(x, y)</code> is valid if <code>x + y</code> is valid,
+and the type of <code>min(x, y)</code> is the type of <code>x + y</code>
+(and similarly for <code>max</code>).
+If all arguments are constant, the result is constant.
+</p>
+
+<pre>
+var x, y int
+m := min(x)                 // m == x
+m := min(x, y)              // m is the smaller of x and y
+m := max(x, y, 10)          // m is the larger of x and y but at least 10
+c := max(1, 2.0, 10)        // c == 10.0 (floating-point kind)
+f := max(0, float32(x))     // type of f is float32
+var s []string
+_ = min(s...)               // invalid: slice arguments are not permitted
+t := max("", "foo", "bar")  // t == "foo" (string kind)
+</pre>
+
+<p>
+For numeric arguments, <code>min</code> and <code>max</code> are
+commutative and associative:
+</p>
+
+<pre>
+min(x, y)    == min(y, x)
+min(x, y, z) == min(min(x, y), z) == min(x, min(y, z))
+</pre>
+
+<p>
+For floating-point arguments negative zero, NaN, and infinity the following rules apply:
+</p>
+
+<pre>
+   x        y    min(x, y)    max(x, y)
+
+  -0.0    0.0         -0.0          0.0    // negative zero is smaller than (non-negative) zero
+  -Inf      y         -Inf            y    // negative infinity is smaller than any other number
+  +Inf      y            y         +Inf    // positive infinity is larger than any other number
+   NaN      y          NaN          NaN    // if any argument is a NaN, the result is a NaN
+</pre>
+
+<p>
+For string arguments the result for <code>min</code> is the first argument
+with the smallest (or for <code>max</code>, largest) value,
+compared lexically byte-wise:
+</p>
+
+<pre>
+min(x, y)    == if x <= y then x else y
+min(x, y, z) == min(min(x, y), z)
+</pre>
 
 <h3 id="Allocation">Allocation</h3>
 
