@@ -103,15 +103,20 @@ func (f *File) Fd() uintptr {
 // conditions described in the comments of the Fd method, and the same
 // constraints apply.
 func NewFile(fd uintptr, name string) *File {
+	fdi := int(fd)
+	if fdi < 0 {
+		return nil
+	}
+
 	kind := kindNewFile
 	appendMode := false
-	if flags, err := unix.Fcntl(int(fd), syscall.F_GETFL, 0); err == nil {
+	if flags, err := unix.Fcntl(fdi, syscall.F_GETFL, 0); err == nil {
 		if unix.HasNonblockFlag(flags) {
 			kind = kindNonBlock
 		}
 		appendMode = flags&syscall.O_APPEND != 0
 	}
-	f := newFile(fd, name, kind)
+	f := newFile(fdi, name, kind)
 	f.appendMode = appendMode
 	return f
 }
@@ -126,7 +131,11 @@ func NewFile(fd uintptr, name string) *File {
 // retain that behavior because existing code expects it and depends on it.
 //
 //go:linkname net_newUnixFile net.newUnixFile
-func net_newUnixFile(fd uintptr, name string) *File {
+func net_newUnixFile(fd int, name string) *File {
+	if fd < 0 {
+		panic("invalid FD")
+	}
+
 	f := newFile(fd, name, kindNonBlock)
 	f.nonblock = true // tell Fd to return blocking descriptor
 	return f
@@ -155,19 +164,15 @@ const (
 // newFile is like NewFile, but if called from OpenFile or Pipe
 // (as passed in the kind parameter) it tries to add the file to
 // the runtime poller.
-func newFile(fd uintptr, name string, kind newFileKind) *File {
-	fdi := int(fd)
-	if fdi < 0 {
-		return nil
-	}
+func newFile(fd int, name string, kind newFileKind) *File {
 	f := &File{&file{
 		pfd: poll.FD{
-			Sysfd:         fdi,
+			Sysfd:         fd,
 			IsStream:      true,
 			ZeroReadIsEOF: true,
 		},
 		name:        name,
-		stdoutOrErr: fdi == 1 || fdi == 2,
+		stdoutOrErr: fd == 1 || fd == 2,
 	}}
 
 	pollable := kind == kindOpenFile || kind == kindPipe || kind == kindNonBlock
@@ -180,7 +185,7 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 		case "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd":
 			var st syscall.Stat_t
 			err := ignoringEINTR(func() error {
-				return syscall.Fstat(fdi, &st)
+				return syscall.Fstat(fd, &st)
 			})
 			typ := st.Mode & syscall.S_IFMT
 			// Don't try to use kqueue with regular files on *BSDs.
@@ -210,7 +215,7 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 			// The descriptor is already in non-blocking mode.
 			// We only set f.nonblock if we put the file into
 			// non-blocking mode.
-		} else if err := syscall.SetNonblock(fdi, true); err == nil {
+		} else if err := syscall.SetNonblock(fd, true); err == nil {
 			f.nonblock = true
 			clearNonBlock = true
 		} else {
@@ -226,7 +231,7 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	// will show up in later I/O.
 	// We do restore the blocking behavior if it was set by us.
 	if pollErr := f.pfd.Init("file", pollable); pollErr != nil && clearNonBlock {
-		if err := syscall.SetNonblock(fdi, false); err == nil {
+		if err := syscall.SetNonblock(fd, false); err == nil {
 			f.nonblock = false
 		}
 	}
@@ -293,7 +298,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		kind = kindNonBlock
 	}
 
-	f := newFile(uintptr(r), name, kind)
+	f := newFile(r, name, kind)
 	f.pfd.SysFile = s
 	return f, nil
 }

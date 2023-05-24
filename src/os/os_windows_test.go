@@ -1446,3 +1446,10 @@ func TestUTF16Alloc(t *testing.T) {
 		syscall.UTF16FromString("abc")
 	})
 }
+
+func TestNewFileInvalid(t *testing.T) {
+	t.Parallel()
+	if f := os.NewFile(uintptr(syscall.InvalidHandle), "invalid"); f != nil {
+		t.Errorf("NewFile(InvalidHandle) got %v want nil", f)
+	}
+}

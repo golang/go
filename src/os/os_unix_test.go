@@ -314,6 +314,14 @@ func TestNewFileNonBlock(t *testing.T) {
 	newFileTest(t, false)
 }
 
+func TestNewFileInvalid(t *testing.T) {
+	t.Parallel()
+	const negOne = ^uintptr(0)
+	if f := NewFile(negOne, "invalid"); f != nil {
+		t.Errorf("NewFile(-1) got %v want nil", f)
+	}
+}
+
 func TestSplitPath(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct{ path, wantDir, wantBase string }{
