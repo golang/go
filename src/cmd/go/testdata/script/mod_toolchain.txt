@@ -1,0 +1,75 @@
+[!net:golang.org] skip
+
+env GOPROXY=https://proxy.golang.org/
+env TESTGO_VERSION=go1.100
+go get toolchain@go1.20.1
+stderr '^go: added toolchain go1.20.1$'
+! stderr '(added|removed|upgraded|downgraded) go'
+grep 'toolchain go1.20.1' go.mod
+
+go get toolchain@none
+stderr '^go: removed toolchain go1.20.1$'
+! stderr '(added|removed|upgraded|downgraded) go'
+! grep toolchain go.mod
+
+go get toolchain@go1.20.1
+stderr '^go: added toolchain go1.20.1$'
+! stderr '(added|removed|upgraded|downgraded) go'
+grep 'toolchain go1.20.1' go.mod
+
+cat go.mod
+go get go@1.20.3
+stderr '^go: upgraded go 1.10 => 1.20.3$'
+stderr '^go: removed toolchain go1.20.1$'
+grep 'go 1.20.3' go.mod
+! grep toolchain go.mod
+
+go get go@1.20.1 toolchain@go1.20.3
+stderr '^go: downgraded go 1.20.3 => 1.20.1$'
+stderr '^go: added toolchain go1.20.3$'
+grep 'go 1.20.1' go.mod
+grep 'toolchain go1.20.3' go.mod
+
+go get go@1.20.3
+stderr '^go: upgraded go 1.20.1 => 1.20.3$'
+stderr '^go: removed toolchain go1.20.3$'
+grep 'go 1.20.3' go.mod
+! grep toolchain go.mod
+
+go get toolchain@1.20.1
+stderr '^go: downgraded go 1.20.3 => 1.20.1$'
+ # ! stderr toolchain
+grep 'go 1.20.1' go.mod
+
+env TESTGO_VERSION=go1.20.1
+env GOTOOLCHAIN=local
+! go get go@1.20.3
+stderr 'go: updating go.mod requires go 1.20.3 \(running go 1.20.1; GOTOOLCHAIN=local\)$'
+
+go get toolchain@1.20.3
+grep 'toolchain go1.20.3' go.mod
+
+env TESTGO_VERSION=go1.30
+go get go@1.20.1
+grep 'go 1.20.1' go.mod
+go get m2@v1.0.0
+stderr '^go: upgraded go 1.20.1 => 1.22$'
+stderr '^go: added m2 v1.0.0$'
+grep 'go 1.22' go.mod
+
+go mod edit -toolchain=go1.29.0  # cannot go get because it doesn't exist
+go get go@1.28.0
+go get toolchain@none
+stderr '^go: removed toolchain go1.29.0'
+! stderr ' go 1'
+grep 'go 1.28.0' go.mod
+
+-- go.mod --
+module m
+go 1.10
+
+replace m2 v1.0.0 => ./m2
+
+-- m2/go.mod --
+module m2
+go 1.22

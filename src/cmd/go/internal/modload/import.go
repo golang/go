@@ -371,6 +371,10 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 	for {
 		var sumErrMods, altMods []module.Version
 		for prefix := path; prefix != "."; prefix = pathpkg.Dir(prefix) {
+			if gover.IsToolchain(prefix) {
+				// Do not use the synthetic "go" module for "go/ast".
+				continue
+			}
 			var (
 				v  string
 				ok bool

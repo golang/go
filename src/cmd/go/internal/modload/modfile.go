@@ -52,6 +52,12 @@ const (
 	// errors.
 	// See https://go.dev/issue/56222.
 	tidyGoModSumVersion = "1.21"
+
+	// goStrictVersion is the Go version at which the Go versions
+	// became "strict" in the sense that, restricted to modules at this version
+	// or later, every module must have a go version line ≥ all its dependencies.
+	// It is also the version after which "too new" a version is considered a fatal error.
+	GoStrictVersion = "1.21"
 )
 
 // ReadModFile reads and parses the mod file at gomod. ReadModFile properly applies the
@@ -113,6 +119,7 @@ type modFileIndex struct {
 	dataNeedsFix bool // true if fixVersion applied a change while parsing data
 	module       module.Version
 	goVersion    string // Go version (no "v" or "go" prefix)
+	toolchain    string
 	require      map[module.Version]requireMeta
 	replace      map[module.Version]module.Version
 	exclude      map[module.Version]bool
@@ -455,6 +462,9 @@ func indexModFile(data []byte, modFile *modfile.File, mod module.Version, needsF
 		i.goVersion = modFile.Go.Version
 		rawGoVersion.Store(mod, modFile.Go.Version)
 	}
+	if modFile.Toolchain != nil {
+		i.toolchain = modFile.Toolchain.Name
+	}
 
 	i.require = make(map[module.Version]requireMeta, len(modFile.Require))
 	for _, r := range modFile.Require {
@@ -492,21 +502,27 @@ func (i *modFileIndex) modFileIsDirty(modFile *modfile.File) bool {
 		return true
 	}
 
-	if modFile.Go == nil {
-		if i.goVersion != "" {
-			return true
-		}
-	} else if modFile.Go.Version != i.goVersion {
-		if i.goVersion == "" && cfg.BuildMod != "mod" {
-			// go.mod files did not always require a 'go' version, so do not error out
-			// if one is missing — we may be inside an older module in the module
-			// cache, and should bias toward providing useful behavior.
-		} else {
-			return true
-		}
+	var goV, toolchain string
+	if modFile.Go != nil {
+		goV = modFile.Go.Version
+	}
+	if modFile.Toolchain != nil {
+		toolchain = modFile.Toolchain.Name
 	}
 
-	if len(modFile.Require) != len(i.require) ||
+	// go.mod files did not always require a 'go' version, so do not error out
+	// if one is missing — we may be inside an older module in the module cache
+	// and want to bias toward providing useful behavior.
+	// go lines are required if we need to declare version 1.17 or later.
+	// Note that as of CL 303229, a missing go directive implies 1.16,
+	// not “the latest Go version”.
+	if goV != i.goVersion && i.goVersion == "" && cfg.BuildMod != "mod" && gover.Compare(goV, "1.17") < 0 {
+		goV = ""
+	}
+
+	if goV != i.goVersion ||
+		toolchain != i.toolchain ||
+		len(modFile.Require) != len(i.require) ||
 		len(modFile.Replace) != len(i.replace) ||
 		len(modFile.Exclude) != len(i.exclude) {
 		return true
@@ -554,6 +570,7 @@ var rawGoVersion sync.Map // map[module.Version]string
 type modFileSummary struct {
 	module     module.Version
 	goVersion  string
+	toolchain  string
 	pruning    modPruning
 	require    []module.Version
 	retract    []retraction
@@ -579,11 +596,11 @@ type retraction struct {
 //
 // The caller must not modify the returned summary.
 func goModSummary(m module.Version) (*modFileSummary, error) {
-	if m.Path == "go" || m.Path == "toolchain" {
-		return &modFileSummary{module: m}, nil
-	}
 	if m.Version == "" && !inWorkspaceMode() && MainModules.Contains(m.Path) {
 		panic("internal error: goModSummary called on a main module")
+	}
+	if gover.IsToolchain(m.Path) {
+		return rawGoModSummary(m)
 	}
 
 	if cfg.BuildMod == "vendor" {
@@ -639,9 +656,10 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 		// to leave that validation for when we load actual packages from within the
 		// module.
 		if mpath := summary.module.Path; mpath != m.Path && mpath != actual.Path {
-			return nil, module.VersionError(actual, fmt.Errorf(`parsing go.mod:
-	module declares its path as: %s
-	        but was required as: %s`, mpath, m.Path))
+			return nil, module.VersionError(actual,
+				fmt.Errorf("parsing go.mod:\n"+
+					"\tmodule declares its path as: %s\n"+
+					"\t        but was required as: %s", mpath, m.Path))
 		}
 	}
 
@@ -680,6 +698,11 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 // rawGoModSummary cannot be used on the main module outside of workspace mode.
 func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 	if gover.IsToolchain(m.Path) {
+		if m.Path == "go" {
+			// Declare that go 1.2.3 requires toolchain 1.2.3,
+			// so that go get knows that downgrading toolchain implies downgrading go.
+			return &modFileSummary{module: m, require: []module.Version{{Path: "toolchain", Version: "go" + m.Version}}}, nil
+		}
 		return &modFileSummary{module: m}, nil
 	}
 	if m.Version == "" && !inWorkspaceMode() && MainModules.Contains(m.Path) {
@@ -704,15 +727,18 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 			summary.module = f.Module.Mod
 			summary.deprecated = f.Module.Deprecated
 		}
-		if f.Go != nil && f.Go.Version != "" {
+		if f.Go != nil {
 			rawGoVersion.LoadOrStore(m, f.Go.Version)
 			summary.goVersion = f.Go.Version
 			summary.pruning = pruningForGoVersion(f.Go.Version)
 		} else {
 			summary.pruning = unpruned
 		}
+		if f.Toolchain != nil {
+			summary.toolchain = f.Toolchain.Name
+		}
 		if len(f.Require) > 0 {
-			summary.require = make([]module.Version, 0, len(f.Require))
+			summary.require = make([]module.Version, 0, len(f.Require)+1)
 			for _, req := range f.Require {
 				summary.require = append(summary.require, req.Mod)
 			}
@@ -721,6 +747,7 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 			if gover.Compare(summary.goVersion, gover.Local()) > 0 {
 				return nil, &gover.TooNewError{What: summary.module.String(), GoVersion: summary.goVersion}
 			}
+			summary.require = append(summary.require, module.Version{Path: "go", Version: summary.goVersion})
 		}
 		if len(f.Retract) > 0 {
 			summary.retract = make([]retraction, 0, len(f.Retract))

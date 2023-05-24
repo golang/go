@@ -17,6 +17,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/search"
@@ -120,6 +121,9 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 	if len(args) == 0 {
 		var ms []*modinfo.ModulePublic
 		for _, m := range MainModules.Versions() {
+			if gover.IsToolchain(m.Path) {
+				continue
+			}
 			ms = append(ms, moduleInfo(ctx, rs, m, mode, reuse))
 		}
 		return rs, ms, nil
@@ -219,9 +223,10 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 		// Module path or pattern.
 		var match func(string) bool
 		if arg == "all" {
-			match = func(string) bool { return true }
+			match = func(p string) bool { return !gover.IsToolchain(p) }
 		} else if strings.Contains(arg, "...") {
-			match = pkgpattern.MatchPattern(arg)
+			mp := pkgpattern.MatchPattern(arg)
+			match = func(p string) bool { return mp(p) && !gover.IsToolchain(p) }
 		} else {
 			var v string
 			if mg == nil {

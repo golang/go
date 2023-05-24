@@ -117,6 +117,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 
 	modload.LoadPackages(ctx, modload.PackageOpts{
 		GoVersion:                tidyGo.String(),
+		TidyGo:                   tidyGo.String() != "",
 		Tags:                     imports.AnyTags(),
 		Tidy:                     true,
 		TidyCompatibleVersion:    tidyCompat.String(),

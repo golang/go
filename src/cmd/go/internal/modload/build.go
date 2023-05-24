@@ -309,6 +309,10 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 
 	// completeFromModCache fills in the extra fields in m using the module cache.
 	completeFromModCache := func(m *modinfo.ModulePublic) {
+		if gover.IsToolchain(m.Path) {
+			return
+		}
+
 		if old := reuse[module.Version{Path: m.Path, Version: m.Version}]; old != nil {
 			if err := checkReuse(ctx, m.Path, old.Origin); err == nil {
 				*m = *old

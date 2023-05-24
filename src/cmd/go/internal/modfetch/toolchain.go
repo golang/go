@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"cmd/go/internal/gover"
@@ -58,6 +59,16 @@ func (r *toolchainRepo) Versions(ctx context.Context, prefix string) (*Versions,
 			list = append(list, goPrefix+v)
 		}
 	}
+
+	if r.path == "go" {
+		sort.Slice(list, func(i, j int) bool {
+			return gover.Compare(list[i], list[j]) < 0
+		})
+	} else {
+		sort.Slice(list, func(i, j int) bool {
+			return gover.Compare(gover.ToolchainVersion(list[i]), gover.ToolchainVersion(list[j])) < 0
+		})
+	}
 	versions.List = list
 	return versions, nil
 }
@@ -73,9 +84,9 @@ func (r *toolchainRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) 
 	// Convert rev to DL version and stat that to make sure it exists.
 	prefix := ""
 	v := rev
+	v = strings.TrimPrefix(v, "go")
 	if r.path == "toolchain" {
 		prefix = "go"
-		v = strings.TrimPrefix(v, "go")
 	}
 	if gover.IsLang(v) {
 		return nil, fmt.Errorf("go language version %s is not a toolchain version", rev)

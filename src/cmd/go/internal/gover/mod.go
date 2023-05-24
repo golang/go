@@ -36,7 +36,7 @@ func ModCompare(path string, x, y string) int {
 		return Compare(x, y)
 	}
 	if path == "toolchain" {
-		return Compare(untoolchain(x), untoolchain(y))
+		return Compare(maybeToolchainVersion(x), maybeToolchainVersion(y))
 	}
 	return semver.Compare(x, y)
 }
@@ -72,21 +72,12 @@ func ModSort(list []module.Version) {
 // ModIsValid reports whether vers is a valid version syntax for the module with the given path.
 func ModIsValid(path, vers string) bool {
 	if IsToolchain(path) {
-		return parse(vers) != (version{})
+		if path == "toolchain" {
+			return IsValid(ToolchainVersion(vers))
+		}
+		return IsValid(vers)
 	}
 	return semver.IsValid(vers)
-}
-
-// untoolchain converts a toolchain name like "go1.2.3" to a Go version like "1.2.3".
-// It also converts "anything-go1.2.3" (for example, "gccgo-go1.2.3") to "1.2.3".
-func untoolchain(x string) string {
-	if strings.HasPrefix(x, "go1") {
-		return x[len("go"):]
-	}
-	if i := strings.Index(x, "-go1"); i >= 0 {
-		return x[i+len("-go"):]
-	}
-	return x
 }
 
 // ModIsPrefix reports whether v is a valid version syntax prefix for the module with the given path.

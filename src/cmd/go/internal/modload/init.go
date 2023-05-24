@@ -133,6 +133,18 @@ func (mms *MainModuleSet) Versions() []module.Version {
 	return mms.versions
 }
 
+// GraphRoots returns the graph roots for the main module set.
+// Callers should not modify the returned slice.
+// This function is the same as Versions except that in workspace
+// mode it adds a "go" version from the go.work file.
+func (mms *MainModuleSet) GraphRoots() []module.Version {
+	versions := mms.Versions()
+	if inWorkspaceMode() {
+		versions = append(slices.Clip(versions), module.Version{Path: "go", Version: mms.GoVersion()})
+	}
+	return versions
+}
+
 func (mms *MainModuleSet) Contains(path string) bool {
 	if mms == nil {
 		return false
@@ -606,14 +618,11 @@ func (goModDirtyError) Error() string {
 
 var errGoModDirty error = goModDirtyError{}
 
-func loadWorkFile(path string) (goVersion string, modRoots []string, replaces []*modfile.Replace, err error) {
+func loadWorkFile(path string) (workFile *modfile.WorkFile, modRoots []string, err error) {
 	workDir := filepath.Dir(path)
 	wf, err := ReadWorkFile(path)
 	if err != nil {
-		return "", nil, nil, err
-	}
-	if wf.Go != nil {
-		goVersion = wf.Go.Version
+		return nil, nil, err
 	}
 	seen := map[string]bool{}
 	for _, d := range wf.Use {
@@ -623,13 +632,13 @@ func loadWorkFile(path string) (goVersion string, modRoots []string, replaces []
 		}
 
 		if seen[modRoot] {
-			return "", nil, nil, fmt.Errorf("path %s appears multiple times in workspace", modRoot)
+			return nil, nil, fmt.Errorf("path %s appears multiple times in workspace", modRoot)
 		}
 		seen[modRoot] = true
 		modRoots = append(modRoots, modRoot)
 	}
 
-	return goVersion, modRoots, wf.Replace, nil
+	return wf, modRoots, nil
 }
 
 // ReadWorkFile reads and parses the go.work file at the given path.
@@ -703,18 +712,19 @@ func UpdateWorkFile(wf *modfile.WorkFile) {
 // it for global consistency. Most callers outside of the modload package should
 // use LoadModGraph instead.
 func LoadModFile(ctx context.Context) *Requirements {
+	return loadModFile(ctx, nil)
+}
+
+func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
 	if requirements != nil {
 		return requirements
 	}
 
 	Init()
-	var (
-		workFileGoVersion string
-		workFileReplaces  []*modfile.Replace
-	)
+	var workFile *modfile.WorkFile
 	if inWorkspaceMode() {
 		var err error
-		workFileGoVersion, modRoots, workFileReplaces, err = loadWorkFile(workFilePath)
+		workFile, modRoots, err = loadWorkFile(workFilePath)
 		if err != nil {
 			base.Fatalf("reading go.work: %v", err)
 		}
@@ -794,9 +804,17 @@ func LoadModFile(ctx context.Context) *Requirements {
 		}
 	}
 
-	MainModules = makeMainModules(mainModules, modRoots, modFiles, indices, workFileGoVersion, workFileReplaces)
+	var wfGoVersion string
+	var wfReplace []*modfile.Replace
+	if workFile != nil && workFile.Go != nil {
+		wfGoVersion = workFile.Go.Version
+	}
+	if workFile != nil {
+		wfReplace = workFile.Replace
+	}
+	MainModules = makeMainModules(mainModules, modRoots, modFiles, indices, wfGoVersion, wfReplace)
 	setDefaultBuildMod() // possibly enable automatic vendoring
-	rs := requirementsFromModFiles(ctx, modFiles)
+	rs := requirementsFromModFiles(ctx, workFile, modFiles, opts)
 
 	if inWorkspaceMode() {
 		// We don't need to do anything for vendor or update the mod file so
@@ -908,7 +926,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 		base.Fatalf("go: %v", err)
 	}
 
-	rs := requirementsFromModFiles(ctx, []*modfile.File{modFile})
+	rs := requirementsFromModFiles(ctx, nil, []*modfile.File{modFile}, nil)
 	rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
 	if err != nil {
 		base.Fatalf("go: %v", err)
@@ -1132,21 +1150,30 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
 
 // requirementsFromModFiles returns the set of non-excluded requirements from
 // the global modFile.
-func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Requirements {
+func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, modFiles []*modfile.File, opts *PackageOpts) *Requirements {
 	var roots []module.Version
 	direct := map[string]bool{}
 	var pruning modPruning
 	if inWorkspaceMode() {
 		pruning = workspace
-		roots = make([]module.Version, len(MainModules.Versions()))
+		roots = make([]module.Version, len(MainModules.Versions()), 2+len(MainModules.Versions()))
 		copy(roots, MainModules.Versions())
+		// Note: Ignoring the 'go' line in the main modules during mod tidy. See note below.
+		if workFile.Go != nil && (opts == nil || !opts.TidyGo) {
+			roots = append(roots, module.Version{Path: "go", Version: workFile.Go.Version})
+			direct["go"] = true
+		}
+		if workFile.Toolchain != nil {
+			roots = append(roots, module.Version{Path: "toolchain", Version: workFile.Toolchain.Name})
+			direct["toolchain"] = true
+		}
 	} else {
 		pruning = pruningForGoVersion(MainModules.GoVersion())
 		if len(modFiles) != 1 {
 			panic(fmt.Errorf("requirementsFromModFiles called with %v modfiles outside workspace mode", len(modFiles)))
 		}
 		modFile := modFiles[0]
-		roots = make([]module.Version, 0, len(modFile.Require))
+		roots = make([]module.Version, 0, 2+len(modFile.Require))
 		mm := MainModules.mustGetSingleMainModule()
 		for _, r := range modFile.Require {
 			if index := MainModules.Index(mm); index != nil && index.exclude[r.Mod] {
@@ -1162,6 +1189,17 @@ func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Re
 			if !r.Indirect {
 				direct[r.Mod.Path] = true
 			}
+		}
+		// Note: Ignoring the 'go' line in the main modules during mod tidy -go=
+		// so that we can find out the implied minimum go line from the
+		// dependencies instead. If it is higher than the -go= flag, we report an error in LoadPackages.
+		if modFile.Go != nil && (opts == nil || !opts.TidyGo) {
+			roots = append(roots, module.Version{Path: "go", Version: modFile.Go.Version})
+			direct["go"] = true
+		}
+		if modFile.Toolchain != nil {
+			roots = append(roots, module.Version{Path: "toolchain", Version: modFile.Toolchain.Name})
+			direct["toolchain"] = true
 		}
 	}
 	gover.ModSort(roots)
@@ -1276,6 +1314,10 @@ func addGoStmt(modFile *modfile.File, mod module.Version, v string) {
 	if modFile.Go != nil && modFile.Go.Version != "" {
 		return
 	}
+	forceGoStmt(modFile, mod, v)
+}
+
+func forceGoStmt(modFile *modfile.File, mod module.Version, v string) {
 	if err := modFile.AddGoStmt(v); err != nil {
 		base.Fatalf("go: internal error: %v", err)
 	}
@@ -1503,21 +1545,49 @@ func commitRequirements(ctx context.Context) (err error) {
 	modFilePath := modFilePath(MainModules.ModRoot(mainModule))
 
 	var list []*modfile.Require
+	toolchain := ""
 	for _, m := range requirements.rootModules {
+		if m.Path == "go" {
+			forceGoStmt(modFile, mainModule, m.Version)
+			continue
+		}
+		if m.Path == "toolchain" {
+			toolchain = m.Version
+			continue
+		}
 		list = append(list, &modfile.Require{
 			Mod:      m,
 			Indirect: !requirements.direct[m.Path],
 		})
 	}
-	if modFile.Go == nil || modFile.Go.Version == "" {
-		modFile.AddGoStmt(modFileGoVersion(modFile))
-	}
 
+	// Update go and toolchain lines.
+	tv := gover.ToolchainVersion(toolchain)
+	// Set go version if missing.
+	if modFile.Go == nil || modFile.Go.Version == "" {
+		v := modFileGoVersion(modFile)
+		if tv != "" && gover.Compare(v, tv) > 0 {
+			v = tv
+		}
+		modFile.AddGoStmt(v)
+	}
 	if gover.Compare(modFile.Go.Version, gover.Local()) > 0 {
 		// TODO: Reinvoke the newer toolchain if GOTOOLCHAIN=auto.
 		base.Fatalf("go: %v", &gover.TooNewError{What: "updating go.mod", GoVersion: modFile.Go.Version})
 	}
 
+	// If toolchain is older than go version, drop it.
+	if gover.Compare(modFile.Go.Version, tv) >= 0 {
+		toolchain = ""
+	}
+	// Remove or add toolchain as needed.
+	if toolchain == "" {
+		modFile.DropToolchainStmt()
+	} else {
+		modFile.AddToolchainStmt(toolchain)
+	}
+
+	// Update require blocks.
 	if gover.Compare(modFileGoVersion(modFile), separateIndirectVersion) < 0 {
 		modFile.SetRequire(list)
 	} else {

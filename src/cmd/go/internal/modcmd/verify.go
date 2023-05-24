@@ -14,6 +14,7 @@ import (
 	"runtime"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 
@@ -86,6 +87,10 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 }
 
 func verifyMod(ctx context.Context, mod module.Version) []error {
+	if gover.IsToolchain(mod.Path) {
+		// "go" and "toolchain" have no disk footprint; nothing to verify.
+		return nil
+	}
 	var errs []error
 	zip, zipErr := modfetch.CachePath(ctx, mod, "zip")
 	if zipErr == nil {

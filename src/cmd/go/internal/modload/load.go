@@ -143,6 +143,9 @@ type PackageOpts struct {
 	// module.
 	GoVersion string
 
+	// TidyGo, if true, indicates that GoVersion is from the tidy -go= flag.
+	TidyGo bool
+
 	// Tags are the build tags in effect (as interpreted by the
 	// cmd/go/internal/imports package).
 	// If nil, treated as equivalent to imports.Tags().
@@ -338,7 +341,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		}
 	}
 
-	initialRS := LoadModFile(ctx)
+	initialRS := loadModFile(ctx, &opts)
 
 	ld := loadFromRoots(ctx, loaderParams{
 		PackageOpts:  opts,
@@ -407,6 +410,17 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			}
 		}
 
+		// Update the go.mod file's Go version if necessary.
+		if modFile := ModFile(); modFile != nil && ld.GoVersion != "" {
+			mg, _ := ld.requirements.Graph(ctx)
+			if ld.TidyGo {
+				if v := mg.Selected("go"); gover.Compare(ld.GoVersion, v) < 0 {
+					base.Fatalf("go: cannot tidy -go=%v: dependencies require %v", ld.GoVersion, v)
+				}
+			}
+			modFile.AddGoStmt(ld.GoVersion)
+		}
+
 		if !ExplicitWriteGoMod {
 			modfetch.TrimGoSum(keep)
 
@@ -418,11 +432,6 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			if err := modfetch.WriteGoSum(ctx, keep, mustHaveCompleteRequirements()); err != nil {
 				base.Fatalf("go: %v", err)
 			}
-		}
-
-		// Update the go.mod file's Go version if necessary.
-		if modFile := ModFile(); modFile != nil && ld.GoVersion != "" {
-			modFile.AddGoStmt(ld.GoVersion)
 		}
 	}
 
@@ -628,6 +637,9 @@ var (
 // if dir is in the module cache copy of a module in our build list.
 func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string {
 	tryMod := func(m module.Version) (string, bool) {
+		if gover.IsToolchain(m.Path) {
+			return "", false
+		}
 		var root string
 		var err error
 		if repl := Replacement(m); repl.Path != "" && repl.Version == "" {

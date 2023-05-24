@@ -40,7 +40,7 @@ func TestModIsValid(t *testing.T) { test2(t, modIsValidTests, "ModIsValid", ModI
 var modIsValidTests = []testCase2[string, string, bool]{
 	{"go", "1.2", true},
 	{"go", "v1.2", false},
-	{"toolchain", "1.2", true},
+	{"toolchain", "go1.2", true},
 	{"toolchain", "v1.2", false},
 	{"rsc.io/quote", "v1.2", true},
 	{"rsc.io/quote", "1.2", false},

@@ -137,7 +137,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	defer span.Done()
 
 	if current != "" && current != "none" && !gover.ModIsValid(path, current) {
-		return nil, fmt.Errorf("invalid previous version %q", current)
+		return nil, fmt.Errorf("invalid previous version %v@%v", path, current)
 	}
 	if cfg.BuildMod == "vendor" {
 		return nil, errQueryDisabled
@@ -713,6 +713,9 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 				return r, err
 			}
 			r.Mod.Version = r.Rev.Version
+			if gover.IsToolchain(r.Mod.Path) {
+				return r, nil
+			}
 			root, isLocal, err := fetch(ctx, r.Mod)
 			if err != nil {
 				return r, err

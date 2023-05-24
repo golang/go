@@ -29,6 +29,13 @@ func ToolchainVersion(name string) string {
 	return v
 }
 
+func maybeToolchainVersion(name string) string {
+	if IsValid(name) {
+		return name
+	}
+	return ToolchainVersion(name)
+}
+
 // Startup records the information that went into the startup-time version switch.
 // It is initialized by switchGoToolchain.
 var Startup struct {
