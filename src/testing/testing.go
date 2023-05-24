@@ -482,8 +482,6 @@ var (
 
 	numFailed atomic.Uint32 // number of test failures
 
-	numRaceErrors atomic.Uint32 // number of race detector errors
-
 	running sync.Map // map[string]time.Time of running, unpaused tests
 )
 
@@ -608,12 +606,12 @@ type common struct {
 	cleanupPc   []uintptr            // The stack trace at the point where Cleanup was called.
 	finished    bool                 // Test function has completed.
 	inFuzzFn    bool                 // Whether the fuzz target, if this is one, is running.
-	raceErrors  int                  // Number of races detected during test.
 
 	chatty         *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
 	bench          bool           // Whether the current test is a benchmark.
 	hasSub         atomic.Bool    // whether there are sub-benchmarks.
 	cleanupStarted atomic.Bool    // Registered cleanup callbacks have started to execute
+	raceErrors     int            // Number of races detected during test.
 	runner         string         // Function name of tRunner running the test.
 	isParallel     bool           // Whether the test is parallel.
 
@@ -679,26 +677,6 @@ func Verbose() bool {
 		panic("testing: Verbose called before Parse")
 	}
 	return chatty.on
-}
-
-// fetchRaceErrors returns the number of unreported race errors.
-// Calling this resets the number to zero,
-// so the caller is responsible for reporting any errors.
-func fetchRaceErrors() int {
-	if !race.Enabled {
-		return 0
-	}
-
-	for {
-		tot := uint32(race.Errors())
-		seen := numRaceErrors.Load()
-		if tot == seen {
-			return 0
-		}
-		if numRaceErrors.CompareAndSwap(seen, tot) {
-			return int(tot - seen)
-		}
-	}
 }
 
 func (c *common) checkFuzzFn(name string) {
@@ -978,27 +956,10 @@ func (c *common) Fail() {
 
 // Failed reports whether the function has failed.
 func (c *common) Failed() bool {
-	var (
-		failed     bool
-		raceErrors int
-
-		fetch = func() {
-			failed = c.failed
-			raceErrors = c.raceErrors
-		}
-	)
-	if newRaceErrors := fetchRaceErrors(); newRaceErrors > 0 {
-		c.mu.Lock()
-		c.raceErrors += newRaceErrors
-		fetch()
-		c.mu.Unlock()
-	} else {
-		c.mu.RLock()
-		fetch()
-		c.mu.RUnlock()
-	}
-
-	return failed || raceErrors > 0
+	c.mu.RLock()
+	failed := c.failed
+	c.mu.RUnlock()
+	return failed || c.raceErrors+race.Errors() > 0
 }
 
 // FailNow marks the function as having failed and stops its execution
@@ -1424,13 +1385,6 @@ func (t *T) Parallel() {
 		return
 	}
 
-	// Collect any race errors seen so far.
-	if newRaceErrors := fetchRaceErrors(); newRaceErrors > 0 {
-		t.mu.Lock()
-		t.raceErrors += newRaceErrors
-		t.mu.Unlock()
-	}
-
 	// We don't want to include the time we spend waiting for serial tests
 	// in the test duration. Record the elapsed time thus far and reset the
 	// timer afterwards.
@@ -1438,6 +1392,7 @@ func (t *T) Parallel() {
 
 	// Add to the list of tests to be released by the parent.
 	t.parent.sub = append(t.parent.sub, t)
+	t.raceErrors += race.Errors()
 
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== PAUSE %s\n", t.name)
@@ -1454,6 +1409,7 @@ func (t *T) Parallel() {
 	running.Store(t.name, time.Now())
 
 	t.start = time.Now()
+	t.raceErrors += -race.Errors()
 }
 
 // Setenv calls os.Setenv(key, value) and uses Cleanup to
@@ -1505,10 +1461,7 @@ func tRunner(t *T, fn func(t *T)) {
 			numFailed.Add(1)
 		}
 
-		t.mu.RLock()
-		raceErrors := t.raceErrors
-		t.mu.RUnlock()
-		if raceErrors+fetchRaceErrors() > 0 {
+		if t.raceErrors+race.Errors() > 0 {
 			t.Errorf("race detected during execution of test")
 		}
 
@@ -1638,6 +1591,7 @@ func tRunner(t *T, fn func(t *T)) {
 	}()
 
 	t.start = time.Now()
+	t.raceErrors = -race.Errors()
 	fn(t)
 
 	// code beyond here will not be executed when FailNow is invoked
