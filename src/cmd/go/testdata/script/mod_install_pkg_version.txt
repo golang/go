@@ -128,7 +128,7 @@ cd tmp
 go mod init m
 go get example.com/cmd@v1.0.0
 ! go build example.com/cmd/...
-stderr 'err[/\\]err.go:3:9: undefined: DoesNotCompile$'
+stderr 'err[/\\]err.go:3:9: undefined: DoesNotCompile( .*)?$'
 cd ..
 
 go install example.com/cmd/...@v1.0.0
