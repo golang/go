@@ -16,6 +16,7 @@ import (
 	"go/token"
 	"internal/lazytemplate"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -23,7 +24,6 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
-	"cmd/go/internal/slices"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 )
@@ -520,11 +520,22 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 		p := q[0]
 		q = q[1:]
 		if p == ptest {
+			// The stack is supposed to be in the order x imports y imports z.
+			// We collect in the reverse order: z is imported by y is imported
+			// by x, and then we reverse it.
 			var stk []string
 			for p != nil {
 				stk = append(stk, p.ImportPath)
 				p = importerOf[p]
 			}
+			// complete the cycle: we set importer[p] = nil to break the cycle
+			// in importerOf, it's an implicit importerOf[p] == pTest. Add it
+			// back here since we reached nil in the loop above to demonstrate
+			// the cycle as (for example) package p imports package q imports package r
+			// imports package p.
+			stk = append(stk, ptest.ImportPath)
+			slices.Reverse(stk)
+
 			return &PackageError{
 				ImportStack:   stk,
 				Err:           errors.New("import cycle not allowed in test"),

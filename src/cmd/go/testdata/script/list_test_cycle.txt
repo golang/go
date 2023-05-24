@@ -15,8 +15,9 @@ cmp stderr wanterr.txt
 
 -- wanterr.txt --
 go: can't load test package: package example/p
+	imports example/q
 	imports example/r
-	imports example/q: import cycle not allowed in test
+	imports example/p: import cycle not allowed in test
 -- go.mod --
 module example
 go 1.20
