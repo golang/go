@@ -192,19 +192,25 @@ func initMetrics() {
 		"/gc/scan/globals:bytes": {
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = gcController.globalsScan.Load()
+				out.scalar = in.gcStats.globalsScan
 			},
 		},
 		"/gc/scan/heap:bytes": {
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = gcController.heapScan.Load()
+				out.scalar = in.gcStats.heapScan
+			},
+		},
+		"/gc/scan/stack:bytes": {
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.gcStats.stackScan
 			},
 		},
 		"/gc/scan/total:bytes": {
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = gcController.globalsScan.Load() + gcController.heapScan.Load() + gcController.lastStackScan.Load()
+				out.scalar = in.gcStats.totalScan
 			},
 		},
 		"/gc/heap/allocs-by-size:bytes": {
@@ -316,12 +322,6 @@ func initMetrics() {
 					hist.counts[i+1] = memstats.gcPauseDist.counts[i].Load()
 				}
 				hist.counts[len(hist.counts)-1] = memstats.gcPauseDist.overflow.Load()
-			},
-		},
-		"/gc/scan/stack:bytes": {
-			compute: func(in *statAggregate, out *metricValue) {
-				out.kind = metricKindUint64
-				out.scalar = uint64(gcController.lastStackScan.Load())
 			},
 		},
 		"/gc/stack/starting-size:bytes": {
@@ -505,6 +505,7 @@ const (
 	heapStatsDep statDep = iota // corresponds to heapStatsAggregate
 	sysStatsDep                 // corresponds to sysStatsAggregate
 	cpuStatsDep                 // corresponds to cpuStatsAggregate
+	gcStatsDep                  // corresponds to gcStatsAggregate
 	numStatsDeps
 )
 
@@ -666,6 +667,23 @@ func (a *cpuStatsAggregate) compute() {
 	// a.cpuStats.accumulate(nanotime(), gcphase == _GCmark)
 }
 
+// cpuStatsAggregate represents various GC stats obtained from the runtime
+// acquired together to avoid skew and inconsistencies.
+type gcStatsAggregate struct {
+	heapScan    uint64
+	stackScan   uint64
+	globalsScan uint64
+	totalScan   uint64
+}
+
+// compute populates the gcStatsAggregate with values from the runtime.
+func (a *gcStatsAggregate) compute() {
+	a.heapScan = gcController.heapScan.Load()
+	a.stackScan = uint64(gcController.lastStackScan.Load())
+	a.globalsScan = gcController.globalsScan.Load()
+	a.totalScan = a.heapScan + a.stackScan + a.globalsScan
+}
+
 // nsToSec takes a duration in nanoseconds and converts it to seconds as
 // a float64.
 func nsToSec(ns int64) float64 {
@@ -682,6 +700,7 @@ type statAggregate struct {
 	heapStats heapStatsAggregate
 	sysStats  sysStatsAggregate
 	cpuStats  cpuStatsAggregate
+	gcStats   gcStatsAggregate
 }
 
 // ensure populates statistics aggregates determined by deps if they
@@ -702,6 +721,8 @@ func (a *statAggregate) ensure(deps *statDepSet) {
 			a.sysStats.compute()
 		case cpuStatsDep:
 			a.cpuStats.compute()
+		case gcStatsDep:
+			a.gcStats.compute()
 		}
 	}
 	a.ensured = a.ensured.union(missing)

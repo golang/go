@@ -214,6 +214,9 @@ func TestReadMetricsConsistency(t *testing.T) {
 		numGC  uint64
 		pauses uint64
 	}
+	var totalScan struct {
+		got, want uint64
+	}
 	var cpu struct {
 		gcAssist    float64
 		gcDedicated float64
@@ -296,6 +299,14 @@ func TestReadMetricsConsistency(t *testing.T) {
 			for i := range h.Counts {
 				gc.pauses += h.Counts[i]
 			}
+		case "/gc/scan/heap:bytes":
+			totalScan.want += samples[i].Value.Uint64()
+		case "/gc/scan/globals:bytes":
+			totalScan.want += samples[i].Value.Uint64()
+		case "/gc/scan/stack:bytes":
+			totalScan.want += samples[i].Value.Uint64()
+		case "/gc/scan/total:bytes":
+			totalScan.got = samples[i].Value.Uint64()
 		case "/sched/gomaxprocs:threads":
 			if got, want := samples[i].Value.Uint64(), uint64(runtime.GOMAXPROCS(-1)); got != want {
 				t.Errorf("gomaxprocs doesn't match runtime.GOMAXPROCS: got %d, want %d", got, want)
@@ -386,6 +397,9 @@ func TestReadMetricsConsistency(t *testing.T) {
 	// Check to see if that value makes sense.
 	if gc.pauses < gc.numGC*2 {
 		t.Errorf("fewer pauses than expected: got %d, want at least %d", gc.pauses, gc.numGC*2)
+	}
+	if totalScan.got != totalScan.want {
+		t.Errorf("/gc/scan/total:bytes doesn't line up with sum of /gc/scan*: total %d vs. sum %d", totalScan.got, totalScan.want)
 	}
 }
 
