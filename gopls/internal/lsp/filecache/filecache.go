@@ -59,8 +59,6 @@ type memKey struct {
 	key  [32]byte
 }
 
-const useMemCache = false // disabled for now while we debug the new file-based implementation
-
 // Get retrieves from the cache and returns a newly allocated
 // copy of the value most recently supplied to Set(kind, key),
 // possibly by another process.
@@ -69,10 +67,8 @@ func Get(kind string, key [32]byte) ([]byte, error) {
 	// First consult the read-through memory cache.
 	// Note that memory cache hits do not update the times
 	// used for LRU eviction of the file-based cache.
-	if useMemCache {
-		if value := memCache.Get(memKey{kind, key}); value != nil {
-			return value.([]byte), nil
-		}
+	if value := memCache.Get(memKey{kind, key}); value != nil {
+		return value.([]byte), nil
 	}
 
 	iolimit <- struct{}{}        // acquire a token
@@ -130,9 +126,7 @@ func Get(kind string, key [32]byte) ([]byte, error) {
 	touch(indexName)
 	touch(casName)
 
-	if useMemCache {
-		memCache.Set(memKey{kind, key}, value, len(value))
-	}
+	memCache.Set(memKey{kind, key}, value, len(value))
 
 	return value, nil
 }
@@ -143,9 +137,7 @@ var ErrNotFound = fmt.Errorf("not found")
 
 // Set updates the value in the cache.
 func Set(kind string, key [32]byte, value []byte) error {
-	if useMemCache {
-		memCache.Set(memKey{kind, key}, value, len(value))
-	}
+	memCache.Set(memKey{kind, key}, value, len(value))
 
 	iolimit <- struct{}{}        // acquire a token
 	defer func() { <-iolimit }() // release a token
