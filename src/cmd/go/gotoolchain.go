@@ -15,18 +15,15 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modcmd"
-	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
 
@@ -374,46 +371,25 @@ func goInstallVersion() (m module.Version, goVers string, ok bool) {
 		return module.Version{}, "", false
 	}
 
-	// We need to resolve the pkg to a module, to find its go.mod.
-	// Normally we use the module loading code to grab the full
-	// module file tree for pkg and all its path prefixes, checking each
-	// for a file tree that contains source code for pkg.
-	// We can't do that here, because the modules may use newer versions
-	// of Go that affect which files are contained in the modules and therefore
-	// affect their checksums: there is no guarantee an older version of Go
-	// can extract a newer Go module from a VCS repo and choose the right files
-	// (this allows evolution such as https://go.dev/issue/42965).
-	// Instead, we check for a module at all path prefixes (including path itself)
-	// and take the max of the Go versions along the path.
-	var paths []string
-	for len(m.Path) > 1 {
-		paths = append(paths, m.Path)
-		m.Path = path.Dir(m.Path)
+	// Set up modules without an explicit go.mod, to download go.mod.
+	modload.ForceUseModules = true
+	modload.RootMode = modload.NoRoot
+	modload.Init()
+	defer modload.Reset()
+
+	// See internal/load.PackagesAndErrorsOutsideModule
+	ctx := context.Background()
+	allowed := modload.CheckAllowed
+	if modload.IsRevisionQuery(m.Path, m.Version) {
+		// Don't check for retractions if a specific revision is requested.
+		allowed = nil
 	}
-	goVersions := make([]string, len(paths))
-	var wg sync.WaitGroup
-	for i, path := range paths {
-		i := i
-		path := path
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			// TODO(rsc): m.Version could in general be something like latest or patch or upgrade.
-			// Use modload.Query. See review comment on https://go.dev/cl/497079.
-			data, err := modfetch.GoMod(context.Background(), path, m.Version)
-			if err != nil {
-				return
-			}
-			goVersions[i] = gover.GoModLookup(data, "go")
-		}()
+	noneSelected := func(path string) (version string) { return "none" }
+	_, err := modload.QueryPackages(ctx, m.Path, m.Version, noneSelected, allowed)
+	tooNew, ok := err.(*gover.TooNewError)
+	if !ok {
+		return module.Version{}, "", false
 	}
-	wg.Wait()
-	goVers = ""
-	for i, v := range goVersions {
-		if gover.Compare(goVers, v) < 0 {
-			m.Path = paths[i]
-			goVers = v
-		}
-	}
-	return m, goVers, true
+	m.Path, m.Version, _ = strings.Cut(tooNew.What, "@")
+	return m, tooNew.GoVersion, true
 }

@@ -323,6 +323,20 @@ func WorkFilePath() string {
 	return workFilePath
 }
 
+// Reset clears all the initialized, cached state about the use of modules,
+// so that we can start over.
+func Reset() {
+	initialized = false
+	ForceUseModules = false
+	RootMode = 0
+	modRoots = nil
+	cfg.ModulesEnabled = false
+	MainModules = nil
+	requirements = nil
+	workFilePath = ""
+	modfetch.Reset()
+}
+
 // Init determines whether module mode is enabled, locates the root of the
 // current module (if any), sets environment variables for Git subprocesses, and
 // configures the cfg, codehost, load, modfetch, and search packages for use

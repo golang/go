@@ -212,6 +212,10 @@ cp go1999 go.mod
 ! go install rsc.io/fortune/nonexist@v0.0.1
 stderr '^go: cannot find "go1.21rc999" in PATH$'
 
+# go install m@v should handle queries
+! go install rsc.io/fortune/nonexist@v0.0
+stderr '^go: cannot find "go1.21rc999" in PATH$'
+
 # go run m@v should use go version in m@v's go.mod
 env GOTOOLCHAIN=path
 env TESTGO_VERSION=go1.19
@@ -226,6 +230,15 @@ stdout 'go1.999testpath here!'
 stderr '^go: cannot find "go1.21rc999" in PATH$'
 ! go run -x rsc.io/fortune/nonexist@v0.0.1 args here
 stderr '^go: cannot find "go1.21rc999" in PATH$'
+
+# go run m@v should handle queries
+! go run rsc.io/fortune/nonexist@v0
+stderr '^go: cannot find "go1.21rc999" in PATH$'
+
+# go install m@v should work if not upgrading
+go install rsc.io/fortune/nonexist@v1
+stderr '^go: downloading rsc.io/fortune v1.0.0$'
+stdout '^go1.999testpath here!'
 
 -- empty --
 
