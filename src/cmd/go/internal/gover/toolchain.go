@@ -14,17 +14,27 @@ import (
 // ToolchainVersion returns the Go version for the named toolchain,
 // derived from the name itself (not by running the toolchain).
 // A toolchain is named "goVERSION" or "anything-goVERSION".
+// A suffix after the VERSION introduced by a +, -, space, or tab is removed.
 // Examples:
 //
 //	ToolchainVersion("go1.2.3") == "1.2.3"
+//	ToolchainVersion("go1.2.3+bigcorp") == "1.2.3"
+//	ToolchainVersion("go1.2.3-bigcorp") == "1.2.3"
 //	ToolchainVersion("gccgo-go1.23rc4") == "1.23rc4"
 //	ToolchainVersion("invalid") == ""
 func ToolchainVersion(name string) string {
 	var v string
-	if strings.HasPrefix(name, "go") && IsValid(name[2:]) {
+	if strings.HasPrefix(name, "go") {
 		v = name[2:]
-	} else if i := strings.Index(name, "-go"); i >= 0 && IsValid(name[i+3:]) {
+	} else if i := strings.Index(name, "-go"); i >= 0 {
 		v = name[i+3:]
+	}
+	// Some builds use custom suffixes; strip them.
+	if i := strings.IndexAny(v, " \t+-"); i >= 0 {
+		v = v[:i]
+	}
+	if !IsValid(v) {
+		return ""
 	}
 	return v
 }

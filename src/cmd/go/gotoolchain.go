@@ -126,7 +126,7 @@ func switchGoToolchain() {
 			} else if toolchain != "" {
 				// Accept toolchain only if it is >= our min.
 				toolVers := gover.ToolchainVersion(toolchain)
-				if gover.Compare(toolVers, minVers) > 0 {
+				if gover.Compare(toolVers, minVers) >= 0 {
 					gotoolchain = toolchain
 				}
 			} else {

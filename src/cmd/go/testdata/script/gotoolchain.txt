@@ -21,6 +21,8 @@ mkdir $WORK/bin
 [!GOOS:plan9] env PATH=$WORK/bin${:}$PATH
 [GOOS:plan9] env path=$WORK/bin${:}$path
 go build -o $WORK/bin/ ./go1.999testpath.go  # adds .exe extension implicitly on Windows
+cp $WORK/bin/go1.999testpath$GOEXE $WORK/bin/custom-go1.999.0$GOEXE
+cp $WORK/bin/go1.999testpath$GOEXE $WORK/bin/go1.999.0-custom$GOEXE
 
 # GOTOOLCHAIN from PATH
 env GOTOOLCHAIN=go1.999testpath
@@ -48,6 +50,25 @@ env TESTGO_VERSION=go1.100
 cp go119toolchain1999 go.mod
 go version
 stdout go1.999
+
+# custom toolchain line in go.mod
+env TESTGO_VERSION=go1.999
+go version
+stdout testpath # go1.999 < go1.999testpath
+
+env TESTGO_VERSION=go1.999.0
+go version
+! stdout testpath # go1.999testpath < go1.999.0
+
+cp go119customtoolchain1999 go.mod
+go version
+stdout go1.999testpath # custom-go1.999.0 >= go1.999.0
+
+cp go119customtoolchain1999b go.mod
+go version
+stdout go1.999testpath # go1.999.0-custom >= go1.999.0
+
+env TESTGO_VERSION=go1.100
 
 # toolchain local in go.mod
 cp go1999toolchainlocal go.mod
@@ -257,6 +278,14 @@ go 1.19
 -- go119toolchain1999 --
 go 1.19
 toolchain go1.999testpath
+
+-- go119customtoolchain1999 --
+go 1.19
+toolchain custom-go1.999.0
+
+-- go119customtoolchain1999b --
+go 1.19
+toolchain go1.999.0-custom
 
 -- go1999toolchainlocal --
 go 1.999
