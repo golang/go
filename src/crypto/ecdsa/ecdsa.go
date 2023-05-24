@@ -655,6 +655,10 @@ func p521() *nistCurve[*nistec.P521Point] {
 func precomputeParams[Point nistPoint[Point]](c *nistCurve[Point], curve elliptic.Curve) {
 	params := curve.Params()
 	c.curve = curve
-	c.N = bigmod.NewModulusFromBig(params.N)
+	var err error
+	c.N, err = bigmod.NewModulusFromBig(params.N)
+	if err != nil {
+		panic(err)
+	}
 	c.nMinus2 = new(big.Int).Sub(params.N, big.NewInt(2)).Bytes()
 }

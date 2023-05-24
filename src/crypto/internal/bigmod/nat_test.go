@@ -70,7 +70,7 @@ func TestMontgomeryRoundtrip(t *testing.T) {
 		one.limbs[0] = 1
 		aPlusOne := new(big.Int).SetBytes(natBytes(a))
 		aPlusOne.Add(aPlusOne, big.NewInt(1))
-		m := NewModulusFromBig(aPlusOne)
+		m, _ := NewModulusFromBig(aPlusOne)
 		monty := new(Nat).set(a)
 		monty.montgomeryRepresentation(m)
 		aAgain := new(Nat).set(monty)
@@ -319,7 +319,7 @@ func TestMulReductions(t *testing.T) {
 	b, _ := new(big.Int).SetString("180692823610368451951102211649591374573781973061758082626801", 10)
 	n := new(big.Int).Mul(a, b)
 
-	N := NewModulusFromBig(n)
+	N, _ := NewModulusFromBig(n)
 	A := NewNat().setBig(a).ExpandFor(N)
 	B := NewNat().setBig(b).ExpandFor(N)
 
@@ -328,7 +328,7 @@ func TestMulReductions(t *testing.T) {
 	}
 
 	i := new(big.Int).ModInverse(a, b)
-	N = NewModulusFromBig(b)
+	N, _ = NewModulusFromBig(b)
 	A = NewNat().setBig(a).ExpandFor(N)
 	I := NewNat().setBig(i).ExpandFor(N)
 	one := NewNat().setBig(big.NewInt(1)).ExpandFor(N)
@@ -350,15 +350,17 @@ func natFromBytes(b []byte) *Nat {
 
 func modulusFromBytes(b []byte) *Modulus {
 	bb := new(big.Int).SetBytes(b)
-	return NewModulusFromBig(bb)
+	m, _ := NewModulusFromBig(bb)
+	return m
 }
 
 // maxModulus returns the biggest modulus that can fit in n limbs.
 func maxModulus(n uint) *Modulus {
-	m := big.NewInt(1)
-	m.Lsh(m, n*_W)
-	m.Sub(m, big.NewInt(1))
-	return NewModulusFromBig(m)
+	b := big.NewInt(1)
+	b.Lsh(b, n*_W)
+	b.Sub(b, big.NewInt(1))
+	m, _ := NewModulusFromBig(b)
+	return m
 }
 
 func makeBenchmarkModulus() *Modulus {
@@ -460,5 +462,19 @@ func BenchmarkExp(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		out.Exp(x, e, m)
+	}
+}
+
+func TestNewModFromBigZero(t *testing.T) {
+	expected := "modulus must be >= 0"
+	_, err := NewModulusFromBig(big.NewInt(0))
+	if err == nil || err.Error() != expected {
+		t.Errorf("NewModulusFromBig(0) got %q, want %q", err, expected)
+	}
+
+	expected = "modulus must be odd"
+	_, err = NewModulusFromBig(big.NewInt(2))
+	if err == nil || err.Error() != expected {
+		t.Errorf("NewModulusFromBig(2) got %q, want %q", err, expected)
 	}
 }
