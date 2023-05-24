@@ -164,7 +164,6 @@ func ParseFlags() {
 	Flag.LinkShared = &Ctxt.Flag_linkshared
 	Flag.Shared = &Ctxt.Flag_shared
 	Flag.WB = true
-	Flag.ErrorURL = true
 
 	Debug.ConcurrentOk = true
 	Debug.InlFuncsWithClosures = 1

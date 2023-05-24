@@ -184,7 +184,7 @@ func compileInDir(runcmd runCmd, dir string, flags []string, importcfg string, p
 	if importcfg == "" {
 		importcfg = stdlibImportcfgFile()
 	}
-	cmd := []string{goTool, "tool", "compile", "-e", "-D", "test", "-errorurl=false", "-importcfg=" + importcfg}
+	cmd := []string{goTool, "tool", "compile", "-e", "-D", "test", "-importcfg=" + importcfg}
 	if pkgname == "main" {
 		cmd = append(cmd, "-p=main")
 	} else {
@@ -201,7 +201,7 @@ func compileInDir(runcmd runCmd, dir string, flags []string, importcfg string, p
 	return runcmd(cmd...)
 }
 
-var stdlibImportcfgStringOnce sync.Once // TODO(#56102): Use sync.OnceValue once available. Also below.
+var stdlibImportcfgStringOnce sync.Once // TODO(#56102): Use sync.OnceValue once availabe. Also below.
 var stdlibImportcfgString string
 
 func stdlibImportcfg() string {
@@ -745,7 +745,7 @@ func (t test) run() error {
 		// Fail if wantError is true and compilation was successful and vice versa.
 		// Match errors produced by gc against errors in comments.
 		// TODO(gri) remove need for -C (disable printing of columns in error messages)
-		cmdline := []string{goTool, "tool", "compile", "-p=p", "-d=panic", "-C", "-e", "-errorurl=false", "-importcfg=" + stdlibImportcfgFile(), "-o", "a.o"}
+		cmdline := []string{goTool, "tool", "compile", "-p=p", "-d=panic", "-C", "-e", "-importcfg=" + stdlibImportcfgFile(), "-o", "a.o"}
 		// No need to add -dynlink even if linkshared if we're just checking for errors...
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, long)
