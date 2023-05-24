@@ -378,53 +378,6 @@ https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`
 		return fmt.Errorf(msg), s.applyCriticalErrorToFiles(ctx, msg, openFiles)
 	}
 
-	// If the user has one active go.mod file, they may still be editing files
-	// in nested modules. Check the module of each open file and add warnings
-	// that the nested module must be opened as a workspace folder.
-	if len(s.workspaceModFiles) == 1 {
-		// Get the active root go.mod file to compare against.
-		var rootMod string
-		for uri := range s.workspaceModFiles {
-			rootMod = uri.Filename()
-		}
-		rootDir := filepath.Dir(rootMod)
-		nestedModules := make(map[string][]*Overlay)
-		for _, fh := range openFiles {
-			mod, err := findRootPattern(ctx, filepath.Dir(fh.URI().Filename()), "go.mod", s)
-			if err != nil {
-				if ctx.Err() != nil {
-					return ctx.Err(), nil
-				}
-				continue
-			}
-			if mod == "" {
-				continue
-			}
-			if mod != rootMod && source.InDir(rootDir, mod) {
-				modDir := filepath.Dir(mod)
-				nestedModules[modDir] = append(nestedModules[modDir], fh)
-			}
-		}
-		var multiModuleMsg string
-		if s.view.goversion >= 18 {
-			multiModuleMsg = `To work on multiple modules at once, please use a go.work file.
-See https://github.com/golang/tools/blob/master/gopls/doc/workspace.md for more information on using workspaces.`
-		} else {
-			multiModuleMsg = `To work on multiple modules at once, please upgrade to Go 1.18 and use a go.work file.
-See https://github.com/golang/tools/blob/master/gopls/doc/workspace.md for more information on using workspaces.`
-		}
-		// Add a diagnostic to each file in a nested module to mark it as
-		// "orphaned". Don't show a general diagnostic in the progress bar,
-		// because the user may still want to edit a file in a nested module.
-		var srcDiags []*source.Diagnostic
-		for modDir, files := range nestedModules {
-			msg := fmt.Sprintf("This file is in %s, which is a nested module in the %s module.\n%s", modDir, rootMod, multiModuleMsg)
-			srcDiags = append(srcDiags, s.applyCriticalErrorToFiles(ctx, msg, files)...)
-		}
-		if len(srcDiags) != 0 {
-			return fmt.Errorf("You have opened a nested module.\n%s", multiModuleMsg), srcDiags
-		}
-	}
 	return nil, nil
 }
 

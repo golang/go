@@ -1701,8 +1701,7 @@ func helloHelper() {}
 		env.OpenFile("nested/hello/hello.go")
 		env.AfterChange(
 			Diagnostics(env.AtRegexp("nested/hello/hello.go", "helloHelper")),
-			Diagnostics(env.AtRegexp("nested/hello/hello.go", "package hello"), WithMessage("nested module")),
-			OutstandingWork(lsp.WorkspaceLoadFailure, "nested module"),
+			Diagnostics(env.AtRegexp("nested/hello/hello.go", "package (hello)"), WithMessage("not included in your workspace")),
 		)
 	})
 }

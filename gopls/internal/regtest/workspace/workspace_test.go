@@ -1054,7 +1054,7 @@ func main() {}
 		// package declaration.
 		env.AfterChange(
 			NoDiagnostics(ForFile("main.go")),
-			Diagnostics(AtPosition("b/main.go", 0, 0)),
+			Diagnostics(env.AtRegexp("b/main.go", "package (main)")),
 		)
 		env.WriteWorkspaceFile("go.work", `go 1.16
 
@@ -1080,7 +1080,7 @@ use (
 
 		env.AfterChange(
 			NoDiagnostics(ForFile("main.go")),
-			Diagnostics(AtPosition("b/main.go", 0, 0)),
+			Diagnostics(env.AtRegexp("b/main.go", "package (main)")),
 		)
 	})
 }
