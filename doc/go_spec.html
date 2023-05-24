@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 20, 2023",
+	"Subtitle": "Version of May 24, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -7183,206 +7183,6 @@ so they can only appear in <a href="#Calls">call expressions</a>;
 they cannot be used as function values.
 </p>
 
-<h3 id="Clear">Clear</h3>
-
-<p>
-The built-in function <code>clear</code> takes an argument of <a href="#Map_types">map</a>,
-<a href="#Slice_types">slice</a>, or <a href="#Type_parameter_declarations">type parameter</a> type,
-and deletes or zeroes out all elements.
-</p>
-
-<pre class="grammar">
-Call        Argument type     Result
-
-clear(m)    map[K]T           deletes all entries, resulting in an
-                              empty map (len(m) == 0)
-
-clear(s)    []T               sets all elements up to the length of
-                              <code>s</code> to the zero value of T
-
-clear(t)    type parameter    see below
-</pre>
-
-<p>
-If the argument type is a <a href="#Type_parameter_declarations">type parameter</a>,
-all types in its type set must be maps or slices, and <code>clear</code>
-performs the operation corresponding to the actual type argument.
-</p>
-
-<p>
-If the map or slice is <code>nil</code>, <code>clear</code> is a no-op.
-</p>
-
-<h3 id="Close">Close</h3>
-
-<p>
-For an argument <code>ch</code> with a <a href="#Core_types">core type</a>
-that is a <a href="#Channel_types">channel</a>, the built-in function <code>close</code>
-records that no more values will be sent on the channel.
-It is an error if <code>ch</code> is a receive-only channel.
-Sending to or closing a closed channel causes a <a href="#Run_time_panics">run-time panic</a>.
-Closing the nil channel also causes a <a href="#Run_time_panics">run-time panic</a>.
-After calling <code>close</code>, and after any previously
-sent values have been received, receive operations will return
-the zero value for the channel's type without blocking.
-The multi-valued <a href="#Receive_operator">receive operation</a>
-returns a received value along with an indication of whether the channel is closed.
-</p>
-
-<h3 id="Length_and_capacity">Length and capacity</h3>
-
-<p>
-The built-in functions <code>len</code> and <code>cap</code> take arguments
-of various types and return a result of type <code>int</code>.
-The implementation guarantees that the result always fits into an <code>int</code>.
-</p>
-
-<pre class="grammar">
-Call      Argument type    Result
-
-len(s)    string type      string length in bytes
-          [n]T, *[n]T      array length (== n)
-          []T              slice length
-          map[K]T          map length (number of defined keys)
-          chan T           number of elements queued in channel buffer
-          type parameter   see below
-
-cap(s)    [n]T, *[n]T      array length (== n)
-          []T              slice capacity
-          chan T           channel buffer capacity
-          type parameter   see below
-</pre>
-
-<p>
-If the argument type is a <a href="#Type_parameter_declarations">type parameter</a> <code>P</code>,
-the call <code>len(e)</code> (or <code>cap(e)</code> respectively) must be valid for
-each type in <code>P</code>'s type set.
-The result is the length (or capacity, respectively) of the argument whose type
-corresponds to the type argument with which <code>P</code> was
-<a href="#Instantiations">instantiated</a>.
-</p>
-
-<p>
-The capacity of a slice is the number of elements for which there is
-space allocated in the underlying array.
-At any time the following relationship holds:
-</p>
-
-<pre>
-0 &lt;= len(s) &lt;= cap(s)
-</pre>
-
-<p>
-The length of a <code>nil</code> slice, map or channel is 0.
-The capacity of a <code>nil</code> slice or channel is 0.
-</p>
-
-<p>
-The expression <code>len(s)</code> is <a href="#Constants">constant</a> if
-<code>s</code> is a string constant. The expressions <code>len(s)</code> and
-<code>cap(s)</code> are constants if the type of <code>s</code> is an array
-or pointer to an array and the expression <code>s</code> does not contain
-<a href="#Receive_operator">channel receives</a> or (non-constant)
-<a href="#Calls">function calls</a>; in this case <code>s</code> is not evaluated.
-Otherwise, invocations of <code>len</code> and <code>cap</code> are not
-constant and <code>s</code> is evaluated.
-</p>
-
-<pre>
-const (
-	c1 = imag(2i)                    // imag(2i) = 2.0 is a constant
-	c2 = len([10]float64{2})         // [10]float64{2} contains no function calls
-	c3 = len([10]float64{c1})        // [10]float64{c1} contains no function calls
-	c4 = len([10]float64{imag(2i)})  // imag(2i) is a constant and no function call is issued
-	c5 = len([10]float64{imag(z)})   // invalid: imag(z) is a (non-constant) function call
-)
-var z complex128
-</pre>
-
-<h3 id="Allocation">Allocation</h3>
-
-<p>
-The built-in function <code>new</code> takes a type <code>T</code>,
-allocates storage for a <a href="#Variables">variable</a> of that type
-at run time, and returns a value of type <code>*T</code>
-<a href="#Pointer_types">pointing</a> to it.
-The variable is initialized as described in the section on
-<a href="#The_zero_value">initial values</a>.
-</p>
-
-<pre class="grammar">
-new(T)
-</pre>
-
-<p>
-For instance
-</p>
-
-<pre>
-type S struct { a int; b float64 }
-new(S)
-</pre>
-
-<p>
-allocates storage for a variable of type <code>S</code>,
-initializes it (<code>a=0</code>, <code>b=0.0</code>),
-and returns a value of type <code>*S</code> containing the address
-of the location.
-</p>
-
-<h3 id="Making_slices_maps_and_channels">Making slices, maps and channels</h3>
-
-<p>
-The built-in function <code>make</code> takes a type <code>T</code>,
-optionally followed by a type-specific list of expressions.
-The <a href="#Core_types">core type</a> of <code>T</code> must
-be a slice, map or channel.
-It returns a value of type <code>T</code> (not <code>*T</code>).
-The memory is initialized as described in the section on
-<a href="#The_zero_value">initial values</a>.
-</p>
-
-<pre class="grammar">
-Call             Core type    Result
-
-make(T, n)       slice        slice of type T with length n and capacity n
-make(T, n, m)    slice        slice of type T with length n and capacity m
-
-make(T)          map          map of type T
-make(T, n)       map          map of type T with initial space for approximately n elements
-
-make(T)          channel      unbuffered channel of type T
-make(T, n)       channel      buffered channel of type T, buffer size n
-</pre>
-
-
-<p>
-Each of the size arguments <code>n</code> and <code>m</code> must be of <a href="#Numeric_types">integer type</a>,
-have a <a href="#Interface_types">type set</a> containing only integer types,
-or be an untyped <a href="#Constants">constant</a>.
-A constant size argument must be non-negative and <a href="#Representability">representable</a>
-by a value of type <code>int</code>; if it is an untyped constant it is given type <code>int</code>.
-If both <code>n</code> and <code>m</code> are provided and are constant, then
-<code>n</code> must be no larger than <code>m</code>.
-For slices and channels, if <code>n</code> is negative or larger than <code>m</code> at run time,
-a <a href="#Run_time_panics">run-time panic</a> occurs.
-</p>
-
-<pre>
-s := make([]int, 10, 100)       // slice with len(s) == 10, cap(s) == 100
-s := make([]int, 1e3)           // slice with len(s) == cap(s) == 1000
-s := make([]int, 1&lt;&lt;63)         // illegal: len(s) is not representable by a value of type int
-s := make([]int, 10, 0)         // illegal: len(s) > cap(s)
-c := make(chan int, 10)         // channel with a buffer size of 10
-m := make(map[string]int, 100)  // map with initial space for approximately 100 elements
-</pre>
-
-<p>
-Calling <code>make</code> with a map type and size hint <code>n</code> will
-create a map with initial space to hold <code>n</code> map elements.
-The precise behavior is implementation-dependent.
-</p>
-
 
 <h3 id="Appending_and_copying_slices">Appending to and copying slices</h3>
 
@@ -7466,27 +7266,51 @@ n3 := copy(b, "Hello, World!")  // n3 == 5, b is []byte("Hello")
 </pre>
 
 
-<h3 id="Deletion_of_map_elements">Deletion of map elements</h3>
+<h3 id="Clear">Clear</h3>
 
 <p>
-The built-in function <code>delete</code> removes the element with key
-<code>k</code> from a <a href="#Map_types">map</a> <code>m</code>. The
-value <code>k</code> must be <a href="#Assignability">assignable</a>
-to the key type of <code>m</code>.
+The built-in function <code>clear</code> takes an argument of <a href="#Map_types">map</a>,
+<a href="#Slice_types">slice</a>, or <a href="#Type_parameter_declarations">type parameter</a> type,
+and deletes or zeroes out all elements.
 </p>
 
 <pre class="grammar">
-delete(m, k)  // remove element m[k] from map m
+Call        Argument type     Result
+
+clear(m)    map[K]T           deletes all entries, resulting in an
+                              empty map (len(m) == 0)
+
+clear(s)    []T               sets all elements up to the length of
+                              <code>s</code> to the zero value of T
+
+clear(t)    type parameter    see below
 </pre>
 
 <p>
-If the type of <code>m</code> is a <a href="#Type_parameter_declarations">type parameter</a>,
-all types in that type set must be maps, and they must all have identical key types.
+If the argument type is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must be maps or slices, and <code>clear</code>
+performs the operation corresponding to the actual type argument.
 </p>
 
 <p>
-If the map <code>m</code> is <code>nil</code> or the element <code>m[k]</code>
-does not exist, <code>delete</code> is a no-op.
+If the map or slice is <code>nil</code>, <code>clear</code> is a no-op.
+</p>
+
+
+<h3 id="Close">Close</h3>
+
+<p>
+For an argument <code>ch</code> with a <a href="#Core_types">core type</a>
+that is a <a href="#Channel_types">channel</a>, the built-in function <code>close</code>
+records that no more values will be sent on the channel.
+It is an error if <code>ch</code> is a receive-only channel.
+Sending to or closing a closed channel causes a <a href="#Run_time_panics">run-time panic</a>.
+Closing the nil channel also causes a <a href="#Run_time_panics">run-time panic</a>.
+After calling <code>close</code>, and after any previously
+sent values have been received, receive operations will return
+the zero value for the channel's type without blocking.
+The multi-valued <a href="#Receive_operator">receive operation</a>
+returns a received value along with an indication of whether the channel is closed.
 </p>
 
 
@@ -7557,6 +7381,187 @@ _ = imag(3 &lt;&lt; s)                   // illegal: 3 assumes complex type, can
 <p>
 Arguments of type parameter type are not permitted.
 </p>
+
+
+<h3 id="Deletion_of_map_elements">Deletion of map elements</h3>
+
+<p>
+The built-in function <code>delete</code> removes the element with key
+<code>k</code> from a <a href="#Map_types">map</a> <code>m</code>. The
+value <code>k</code> must be <a href="#Assignability">assignable</a>
+to the key type of <code>m</code>.
+</p>
+
+<pre class="grammar">
+delete(m, k)  // remove element m[k] from map m
+</pre>
+
+<p>
+If the type of <code>m</code> is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in that type set must be maps, and they must all have identical key types.
+</p>
+
+<p>
+If the map <code>m</code> is <code>nil</code> or the element <code>m[k]</code>
+does not exist, <code>delete</code> is a no-op.
+</p>
+
+
+<h3 id="Length_and_capacity">Length and capacity</h3>
+
+<p>
+The built-in functions <code>len</code> and <code>cap</code> take arguments
+of various types and return a result of type <code>int</code>.
+The implementation guarantees that the result always fits into an <code>int</code>.
+</p>
+
+<pre class="grammar">
+Call      Argument type    Result
+
+len(s)    string type      string length in bytes
+          [n]T, *[n]T      array length (== n)
+          []T              slice length
+          map[K]T          map length (number of defined keys)
+          chan T           number of elements queued in channel buffer
+          type parameter   see below
+
+cap(s)    [n]T, *[n]T      array length (== n)
+          []T              slice capacity
+          chan T           channel buffer capacity
+          type parameter   see below
+</pre>
+
+<p>
+If the argument type is a <a href="#Type_parameter_declarations">type parameter</a> <code>P</code>,
+the call <code>len(e)</code> (or <code>cap(e)</code> respectively) must be valid for
+each type in <code>P</code>'s type set.
+The result is the length (or capacity, respectively) of the argument whose type
+corresponds to the type argument with which <code>P</code> was
+<a href="#Instantiations">instantiated</a>.
+</p>
+
+<p>
+The capacity of a slice is the number of elements for which there is
+space allocated in the underlying array.
+At any time the following relationship holds:
+</p>
+
+<pre>
+0 &lt;= len(s) &lt;= cap(s)
+</pre>
+
+<p>
+The length of a <code>nil</code> slice, map or channel is 0.
+The capacity of a <code>nil</code> slice or channel is 0.
+</p>
+
+<p>
+The expression <code>len(s)</code> is <a href="#Constants">constant</a> if
+<code>s</code> is a string constant. The expressions <code>len(s)</code> and
+<code>cap(s)</code> are constants if the type of <code>s</code> is an array
+or pointer to an array and the expression <code>s</code> does not contain
+<a href="#Receive_operator">channel receives</a> or (non-constant)
+<a href="#Calls">function calls</a>; in this case <code>s</code> is not evaluated.
+Otherwise, invocations of <code>len</code> and <code>cap</code> are not
+constant and <code>s</code> is evaluated.
+</p>
+
+<pre>
+const (
+	c1 = imag(2i)                    // imag(2i) = 2.0 is a constant
+	c2 = len([10]float64{2})         // [10]float64{2} contains no function calls
+	c3 = len([10]float64{c1})        // [10]float64{c1} contains no function calls
+	c4 = len([10]float64{imag(2i)})  // imag(2i) is a constant and no function call is issued
+	c5 = len([10]float64{imag(z)})   // invalid: imag(z) is a (non-constant) function call
+)
+var z complex128
+</pre>
+
+
+<h3 id="Making_slices_maps_and_channels">Making slices, maps and channels</h3>
+
+<p>
+The built-in function <code>make</code> takes a type <code>T</code>,
+optionally followed by a type-specific list of expressions.
+The <a href="#Core_types">core type</a> of <code>T</code> must
+be a slice, map or channel.
+It returns a value of type <code>T</code> (not <code>*T</code>).
+The memory is initialized as described in the section on
+<a href="#The_zero_value">initial values</a>.
+</p>
+
+<pre class="grammar">
+Call             Core type    Result
+
+make(T, n)       slice        slice of type T with length n and capacity n
+make(T, n, m)    slice        slice of type T with length n and capacity m
+
+make(T)          map          map of type T
+make(T, n)       map          map of type T with initial space for approximately n elements
+
+make(T)          channel      unbuffered channel of type T
+make(T, n)       channel      buffered channel of type T, buffer size n
+</pre>
+
+<p>
+Each of the size arguments <code>n</code> and <code>m</code> must be of <a href="#Numeric_types">integer type</a>,
+have a <a href="#Interface_types">type set</a> containing only integer types,
+or be an untyped <a href="#Constants">constant</a>.
+A constant size argument must be non-negative and <a href="#Representability">representable</a>
+by a value of type <code>int</code>; if it is an untyped constant it is given type <code>int</code>.
+If both <code>n</code> and <code>m</code> are provided and are constant, then
+<code>n</code> must be no larger than <code>m</code>.
+For slices and channels, if <code>n</code> is negative or larger than <code>m</code> at run time,
+a <a href="#Run_time_panics">run-time panic</a> occurs.
+</p>
+
+<pre>
+s := make([]int, 10, 100)       // slice with len(s) == 10, cap(s) == 100
+s := make([]int, 1e3)           // slice with len(s) == cap(s) == 1000
+s := make([]int, 1&lt;&lt;63)         // illegal: len(s) is not representable by a value of type int
+s := make([]int, 10, 0)         // illegal: len(s) > cap(s)
+c := make(chan int, 10)         // channel with a buffer size of 10
+m := make(map[string]int, 100)  // map with initial space for approximately 100 elements
+</pre>
+
+<p>
+Calling <code>make</code> with a map type and size hint <code>n</code> will
+create a map with initial space to hold <code>n</code> map elements.
+The precise behavior is implementation-dependent.
+</p>
+
+
+<h3 id="Allocation">Allocation</h3>
+
+<p>
+The built-in function <code>new</code> takes a type <code>T</code>,
+allocates storage for a <a href="#Variables">variable</a> of that type
+at run time, and returns a value of type <code>*T</code>
+<a href="#Pointer_types">pointing</a> to it.
+The variable is initialized as described in the section on
+<a href="#The_zero_value">initial values</a>.
+</p>
+
+<pre class="grammar">
+new(T)
+</pre>
+
+<p>
+For instance
+</p>
+
+<pre>
+type S struct { a int; b float64 }
+new(S)
+</pre>
+
+<p>
+allocates storage for a variable of type <code>S</code>,
+initializes it (<code>a=0</code>, <code>b=0.0</code>),
+and returns a value of type <code>*S</code> containing the address
+of the location.
+</p>
+
 
 <h3 id="Handling_panics">Handling panics</h3>
 
@@ -7654,6 +7659,7 @@ Implementation restriction: <code>print</code> and <code>println</code> need not
 accept arbitrary argument types, but printing of boolean, numeric, and string
 <a href="#Types">types</a> must be supported.
 </p>
+
 
 <h2 id="Packages">Packages</h2>
 
