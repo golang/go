@@ -1590,6 +1590,15 @@ func TestCipherSuites(t *testing.T) {
 	}
 }
 
+func TestVersionName(t *testing.T) {
+	if got, exp := VersionName(VersionTLS13), "TLS 1.3"; got != exp {
+		t.Errorf("unexpected VersionName: got %q, expected %q", got, exp)
+	}
+	if got, exp := VersionName(0x12a), "0x012A"; got != exp {
+		t.Errorf("unexpected fallback VersionName: got %q, expected %q", got, exp)
+	}
+}
+
 // http2isBadCipher is copied from net/http.
 // TODO: if it ends up exposed somewhere, use that instead.
 func http2isBadCipher(cipher uint16) bool {
