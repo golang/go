@@ -10,10 +10,15 @@ import (
 	"sort"
 	"strconv"
 	"testing"
+	"unsafe"
 )
 
 var m1 = map[int]int{1: 2, 2: 4, 4: 8, 8: 16}
 var m2 = map[int]string{1: "2", 2: "4", 4: "8", 8: "16"}
+
+func keysForBenchmarking[M ~map[K]V, K comparable, V any](m M, s []K) {
+	keys(m, unsafe.Pointer(&s))
+}
 
 func TestKeys(t *testing.T) {
 	want := []int{1, 2, 4, 8}
@@ -46,6 +51,10 @@ func TestKeys(t *testing.T) {
 	if !slices.Equal(got3, want3) {
 		t.Errorf("Keys(%v) = %v, want %v", m, got3, want3)
 	}
+}
+
+func valuesForBenchmarking[M ~map[K]V, K comparable, V any](m M, s []V) {
+	values(m, unsafe.Pointer(&s))
 }
 
 func TestValues(t *testing.T) {

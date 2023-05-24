@@ -20,10 +20,6 @@ func Keys[M ~map[K]V, K comparable, V any](m M) []K {
 	return r
 }
 
-func keysForBenchmarking[M ~map[K]V, K comparable, V any](m M, s []K) {
-	keys(m, unsafe.Pointer(&s))
-}
-
 // values is implemented in the runtime package.
 //
 //go:noescape
@@ -35,10 +31,6 @@ func Values[M ~map[K]V, K comparable, V any](m M) []V {
 	r := make([]V, 0, len(m))
 	values(m, unsafe.Pointer(&r))
 	return r
-}
-
-func valuesForBenchmarking[M ~map[K]V, K comparable, V any](m M, s []V) {
-	values(m, unsafe.Pointer(&s))
 }
 
 // Equal reports whether two maps contain the same key/value pairs.
