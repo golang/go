@@ -7,5 +7,11 @@ Load the workspace for the current directory, and output a JSON summary of
 workspace information relevant to performance. As a side effect, this command
 populates the gopls file cache for the current workspace.
 
+By default, this command may include output that refers to the location or
+content of user code. When the -anon flag is set, fields that may refer to user
+code are hidden.
+
 Example:
-  $ gopls stats
+  $ gopls stats -anon
+  -anon
+    	hide any fields that may contain user names, file names, or source code

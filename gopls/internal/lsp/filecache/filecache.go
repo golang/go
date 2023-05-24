@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -533,9 +534,13 @@ func init() {
 		// Wait for cache init (bugs in tests happen early).
 		_, _ = getCacheDir()
 
-		value := []byte(fmt.Sprintf("%s: %+v", time.Now().Format(time.RFC3339), bug))
-		key := sha256.Sum256(value)
-		_ = Set(bugKind, key, value)
+		data, err := json.Marshal(bug)
+		if err != nil {
+			panic(fmt.Sprintf("error marshalling bug %+v: %v", bug, err))
+		}
+
+		key := sha256.Sum256(data)
+		_ = Set(bugKind, key, data)
 	})
 }
 
@@ -543,7 +548,7 @@ func init() {
 // of all cached bug reports produced by this executable.
 // It also returns the location of the cache directory
 // used by this process (or "" on initialization error).
-func BugReports() (string, [][]byte) {
+func BugReports() (string, []bug.Bug) {
 	// To test this logic, run:
 	// $ TEST_GOPLS_BUG=oops gopls stats   # trigger a bug
 	// $ gopls stats                       # list the bugs
@@ -552,7 +557,7 @@ func BugReports() (string, [][]byte) {
 	if err != nil {
 		return "", nil // ignore initialization errors
 	}
-	var result [][]byte
+	var result []bug.Bug
 	_ = filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return nil // ignore readdir/stat errors
@@ -566,7 +571,11 @@ func BugReports() (string, [][]byte) {
 			}
 			content, err := Get(bugKind, key)
 			if err == nil { // ignore read errors
-				result = append(result, content)
+				var b bug.Bug
+				if err := json.Unmarshal(content, &b); err != nil {
+					log.Printf("error marshalling bug %q: %v", string(content), err)
+				}
+				result = append(result, b)
 			}
 		}
 		return nil

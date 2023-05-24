@@ -17,6 +17,7 @@ import (
 	"runtime/debug"
 	"sort"
 	"sync"
+	"time"
 )
 
 // PanicOnBugs controls whether to panic when bugs are reported.
@@ -32,12 +33,15 @@ var (
 
 // A Bug represents an unexpected event or broken invariant. They are used for
 // capturing metadata that helps us understand the event.
+//
+// Bugs are JSON-serializable.
 type Bug struct {
-	File        string // file containing the call to bug.Report
-	Line        int    // line containing the call to bug.Report
-	Description string // description of the bug
-	Key         string // key identifying the bug (file:line if available)
-	Stack       string // call stack
+	File        string    // file containing the call to bug.Report
+	Line        int       // line containing the call to bug.Report
+	Description string    // description of the bug
+	Key         string    // key identifying the bug (file:line if available)
+	Stack       string    // call stack
+	AtTime      time.Time // time the bug was reported
 }
 
 // Reportf reports a formatted bug message.
@@ -77,6 +81,7 @@ func report(description string) {
 		Description: description,
 		Key:         key,
 		Stack:       string(debug.Stack()),
+		AtTime:      time.Now(),
 	}
 
 	mu.Lock()
