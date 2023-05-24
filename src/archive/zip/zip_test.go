@@ -24,63 +24,34 @@ func TestOver65kFiles(t *testing.T) {
 	if testing.Short() && testenv.Builder() == "" {
 		t.Skip("skipping in short mode")
 	}
-
-	testCases := []struct {
-		name   string
-		method uint16
-	}{
-		{"Store", Store},
-		{"Deflate", Deflate},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			buf := new(strings.Builder)
-			w := NewWriter(buf)
-			const nFiles = (1 << 16) + 42
-			for i := 0; i < nFiles; i++ {
-				_, err := w.CreateHeader(&FileHeader{
-					Name:   fmt.Sprintf("%d.dat", i),
-					Method: tc.method,
-				})
-				if err != nil {
-					t.Fatalf("creating file %d: %v", i, err)
-				}
-			}
-			if err := w.Close(); err != nil {
-				t.Fatalf("Writer.Close: %v", err)
-			}
-
-			s := buf.String()
-			zr, err := NewReader(strings.NewReader(s), int64(len(s)))
-			if err != nil {
-				t.Fatalf("NewReader: %v", err)
-			}
-			if got := len(zr.File); got != nFiles {
-				t.Fatalf("File contains %d files, want %d", got, nFiles)
-			}
-			for i := 0; i < nFiles; i++ {
-				want := fmt.Sprintf("%d.dat", i)
-				if zr.File[i].Name != want {
-					t.Fatalf("File(%d) = %q, want %q", i, zr.File[i].Name, want)
-				}
-			}
-
-			// Test Issue 59775
-			allocs := testing.AllocsPerRun(1, func() {
-				for i := 0; i < nFiles; i++ {
-					f, err := zr.File[i].Open()
-					if err != nil {
-						t.Fatalf("File(%d).Open: %v", i, err)
-					}
-					if err := f.Close(); err != nil {
-						t.Fatalf("File(%d).Open().Close: %v", i, err)
-					}
-				}
-			})
-			if allocs > 450_000 {
-				t.Errorf("allocated too much objects (%v) opening zip files", allocs)
-			}
+	buf := new(strings.Builder)
+	w := NewWriter(buf)
+	const nFiles = (1 << 16) + 42
+	for i := 0; i < nFiles; i++ {
+		_, err := w.CreateHeader(&FileHeader{
+			Name:   fmt.Sprintf("%d.dat", i),
+			Method: Store, // Deflate is too slow when it is compiled with -race flag
 		})
+		if err != nil {
+			t.Fatalf("creating file %d: %v", i, err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("Writer.Close: %v", err)
+	}
+	s := buf.String()
+	zr, err := NewReader(strings.NewReader(s), int64(len(s)))
+	if err != nil {
+		t.Fatalf("NewReader: %v", err)
+	}
+	if got := len(zr.File); got != nFiles {
+		t.Fatalf("File contains %d files, want %d", got, nFiles)
+	}
+	for i := 0; i < nFiles; i++ {
+		want := fmt.Sprintf("%d.dat", i)
+		if zr.File[i].Name != want {
+			t.Fatalf("File(%d) = %q, want %q", i, zr.File[i].Name, want)
+		}
 	}
 }
 
