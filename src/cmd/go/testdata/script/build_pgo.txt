@@ -12,8 +12,10 @@ go build -x -pgo=prof -o triv.exe triv.go
 stderr 'compile.*-pgoprofile=.*prof.*triv.go'
 
 # check that PGO appears in build info
+# N.B. we can't start the stdout check with -pgo because the script assumes that
+# if the first arg starts with - it is a grep flag.
 go version -m triv.exe
-stdout '-pgo=.*/prof'
+stdout 'build\s+-pgo=.*'${/}'prof'
 
 # store the build ID
 go list -export -json=BuildID -pgo=prof triv.go
@@ -44,7 +46,7 @@ go build -x -pgo=prof -trimpath -o triv.exe triv.go
 
 # check that path is trimmed
 go version -m triv.exe
-stdout '-pgo=prof'
+stdout 'build\s+-pgo=prof'
 
 -- prof --
 -- triv.go --

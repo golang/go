@@ -36,14 +36,16 @@ stderr -count=3 'compile.*dep3(/|\\\\)dep3.go'
 stderr -count=2 'compile.*-pgoprofile=.*dep3(/|\\\\)dep3\.go'
 
 # check that pgo appears or not in build info as expected
+# N.B. we can't start the stdout check with -pgo because the script assumes that
+# if the first arg starts with - it is a grep flag.
 go version -m $GOBIN/a$GOEXE
-stdout '-pgo=.*a'${/}'default\.pgo'
+stdout 'build\s+-pgo=.*a'${/}'default\.pgo'
 
 go version -m $GOBIN/b$GOEXE
-stdout '-pgo=.*b'${/}'default\.pgo'
+stdout 'build\s+-pgo=.*b'${/}'default\.pgo'
 
 go version -m $GOBIN/nopgo$GOEXE
-! stdout -pgo=
+! stdout 'build\s+-pgo='
 
 # go test works the same way
 go test -a -n -pgo=auto ./a ./b ./nopgo

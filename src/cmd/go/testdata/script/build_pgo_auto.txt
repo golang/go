@@ -10,8 +10,10 @@ stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
 stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
 
 # check that pgo appears in build info
+# N.B. we can't start the stdout check with -pgo because the script assumes that
+# if the first arg starts with - it is a grep flag.
 go version -m a1.exe
-stdout '-pgo=.*default\.pgo'
+stdout 'build\s+-pgo=.*default\.pgo'
 
 # use default.pgo for ... with a single main package
 go build -a -x -pgo=auto ./a/...
@@ -19,16 +21,16 @@ stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
 
 # check that pgo appears in build info
 go version -m a1$GOEXE
-stdout '-pgo=.*default\.pgo'
+stdout 'build\s+-pgo=.*default\.pgo'
 
 # build succeeds without PGO when default.pgo file is absent
 go build -a -x -pgo=auto -o nopgo.exe ./nopgo
 stderr 'compile.*nopgo.go'
-! stderr '-pgoprofile'
+! stderr 'compile.*-pgoprofile'
 
 # check that pgo doesn't appear in build info
 go version -m nopgo.exe
-! stdout -pgo=
+! stdout 'build\s+-pgo='
 
 # other build-related commands
 go install -a -n -pgo=auto ./a/a1
@@ -56,24 +58,24 @@ stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
 
 # check that pgo appears in build info
 go version -m a1.exe
-stdout '-pgo=.*default\.pgo'
+stdout 'build\s+-pgo=.*default\.pgo'
 
 go build -a -x -o nopgo.exe ./nopgo
 stderr 'compile.*nopgo.go'
-! stderr '-pgoprofile'
+! stderr 'compile.*-pgoprofile'
 
 # check that pgo doesn't appear in build info
 go version -m nopgo.exe
-! stdout -pgo=
+! stdout 'build\s+-pgo='
 
 # -pgo=off should turn off PGO.
 go build -a -x -pgo=off -o a1.exe ./a/a1
 stderr 'compile.*a1.go'
-! stderr '-pgoprofile'
+! stderr 'compile.*-pgoprofile'
 
 # check that pgo doesn't appear in build info
 go version -m a1.exe
-! stdout -pgo=
+! stdout 'build\s+-pgo='
 
 -- go.mod --
 module test
