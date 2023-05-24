@@ -7,7 +7,7 @@ cp x.go.txt x.go
 cp go.mod.empty go.mod
 go list
 
-[!net] skip
+[!net:gopkg.in] skip
 [!git] skip
 
 skip  # TODO(#54503): redirect gopkg.in requests to a local server and re-enable.

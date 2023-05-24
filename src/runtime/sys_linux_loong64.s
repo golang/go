@@ -11,7 +11,9 @@
 #include "textflag.h"
 #include "cgo/abi_loong64.h"
 
-#define AT_FDCWD -100
+#define AT_FDCWD	-100
+#define CLOCK_REALTIME	0
+#define CLOCK_MONOTONIC	1
 
 #define SYS_exit		93
 #define SYS_read		63
@@ -120,19 +122,19 @@ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
 
 // func usleep(usec uint32)
 TEXT runtime·usleep(SB),NOSPLIT,$16-4
-	MOVWU	usec+0(FP), R6
-	MOVV	R6, R5
-	MOVW	$1000000, R4
-	DIVVU	R4, R6, R6
-	MOVV	R6, 8(R3)
-	MOVW	$1000, R4
-	MULVU	R6, R4, R4
-	SUBVU	R4, R5
-	MOVV	R5, 16(R3)
+	MOVWU	usec+0(FP), R7
+	MOVV	$1000, R6
+	MULVU	R6, R7, R7
+	MOVV	$1000000000, R6
+
+	DIVVU	R6, R7, R5	// ts->tv_sec
+	REMVU	R6, R7, R4	// ts->tv_nsec
+	MOVV	R5, 8(R3)
+	MOVV	R4, 16(R3)
 
 	// nanosleep(&ts, 0)
 	ADDV	$8, R3, R4
-	MOVW	$0, R5
+	MOVV	R0, R5
 	MOVV	$SYS_nanosleep, R11
 	SYSCALL
 	RET
@@ -233,7 +235,7 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	RET
 
 // func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$16-12
+TEXT runtime·walltime(SB),NOSPLIT,$24-12
 	MOVV	R3, R23	// R23 is unchanged by C code
 	MOVV	R3, R25
 
@@ -263,12 +265,29 @@ noswitch:
 	AND	$~15, R25	// Align for C code
 	MOVV	R25, R3
 
-	MOVW	$0, R4 // CLOCK_REALTIME=0
+	MOVW	$CLOCK_REALTIME, R4
 	MOVV	$0(R3), R5
 
 	MOVV	runtime·vdsoClockgettimeSym(SB), R20
 	BEQ	R20, fallback
 
+	// Store g on gsignal's stack, see sys_linux_arm64.s for detail
+	MOVBU	runtime·iscgo(SB), R25
+	BNE	R25, nosaveg
+
+	MOVV	m_gsignal(R24), R25	// g.m.gsignal
+	BEQ	R25, nosaveg
+	BEQ	g, R25, nosaveg
+
+	MOVV	(g_stack+stack_lo)(R25), R25	// g.m.gsignal.stack.lo
+	MOVV	g, (R25)
+
+	JAL	(R20)
+
+	MOVV	R0, (R25)
+	JMP	finish
+
+nosaveg:
 	JAL	(R20)
 
 finish:
@@ -326,12 +345,29 @@ noswitch:
 	AND	$~15, R25	// Align for C code
 	MOVV	R25, R3
 
-	MOVW	$1, R4 // CLOCK_MONOTONIC=1
+	MOVW	$CLOCK_MONOTONIC, R4
 	MOVV	$0(R3), R5
 
 	MOVV	runtime·vdsoClockgettimeSym(SB), R20
 	BEQ	R20, fallback
 
+	// Store g on gsignal's stack, see sys_linux_arm64.s for detail
+	MOVBU	runtime·iscgo(SB), R25
+	BNE	R25, nosaveg
+
+	MOVV	m_gsignal(R24), R25	// g.m.gsignal
+	BEQ	R25, nosaveg
+	BEQ	g, R25, nosaveg
+
+	MOVV	(g_stack+stack_lo)(R25), R25	// g.m.gsignal.stack.lo
+	MOVV	g, (R25)
+
+	JAL	(R20)
+
+	MOVV	R0, (R25)
+	JMP	finish
+
+nosaveg:
 	JAL	(R20)
 
 finish:

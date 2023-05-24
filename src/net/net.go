@@ -93,14 +93,6 @@ import (
 	"time"
 )
 
-// netGo and netCgo contain the state of the build tags used
-// to build this binary, and whether cgo is available.
-// conf.go mirrors these into conf for easier testing.
-var (
-	netGo  bool // set true in cgo_stub.go for build tag "netgo" (or no cgo)
-	netCgo bool // set true in conf_netcgo.go for build tag "netcgo"
-)
-
 // Addr represents a network end point address.
 //
 // The two methods Network and String conventionally return strings

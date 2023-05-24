@@ -12,12 +12,12 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/modload"
 
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 var cmdDownload = &base.Command{
@@ -135,7 +135,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		} else {
 			mainModule := modload.MainModules.Versions()[0]
 			modFile := modload.MainModules.ModFile(mainModule)
-			if modFile.Go == nil || semver.Compare("v"+modFile.Go.Version, modload.ExplicitIndirectVersionV) < 0 {
+			if modFile.Go == nil || gover.Compare(modFile.Go.Version, modload.ExplicitIndirectVersion) < 0 {
 				if len(modFile.Require) > 0 {
 					args = []string{"all"}
 				}
@@ -283,18 +283,18 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 // leaving the results (including any error) in m itself.
 func DownloadModule(ctx context.Context, m *ModuleJSON) {
 	var err error
-	_, file, err := modfetch.InfoFile(m.Path, m.Version)
+	_, file, err := modfetch.InfoFile(ctx, m.Path, m.Version)
 	if err != nil {
 		m.Error = err.Error()
 		return
 	}
 	m.Info = file
-	m.GoMod, err = modfetch.GoModFile(m.Path, m.Version)
+	m.GoMod, err = modfetch.GoModFile(ctx, m.Path, m.Version)
 	if err != nil {
 		m.Error = err.Error()
 		return
 	}
-	m.GoModSum, err = modfetch.GoModSum(m.Path, m.Version)
+	m.GoModSum, err = modfetch.GoModSum(ctx, m.Path, m.Version)
 	if err != nil {
 		m.Error = err.Error()
 		return
@@ -305,7 +305,7 @@ func DownloadModule(ctx context.Context, m *ModuleJSON) {
 		m.Error = err.Error()
 		return
 	}
-	m.Sum = modfetch.Sum(mod)
+	m.Sum = modfetch.Sum(ctx, mod)
 	m.Dir, err = modfetch.Download(ctx, mod)
 	if err != nil {
 		m.Error = err.Error()

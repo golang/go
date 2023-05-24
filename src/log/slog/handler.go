@@ -40,7 +40,7 @@ type Handler interface {
 	Enabled(context.Context, Level) bool
 
 	// Handle handles the Record.
-	// It will only be called Enabled returns true.
+	// It will only be called when Enabled returns true.
 	// The Context argument is as for Enabled.
 	// It is present solely to provide Handlers access to the context's values.
 	// Canceling the context should not affect record processing.
@@ -110,7 +110,7 @@ func (h *defaultHandler) Handle(ctx context.Context, r Record) error {
 	buf.WriteString(r.Level.String())
 	buf.WriteByte(' ')
 	buf.WriteString(r.Message)
-	state := h.ch.newHandleState(buf, true, " ", nil)
+	state := h.ch.newHandleState(buf, true, " ")
 	defer state.free()
 	state.appendNonBuiltIns(r)
 	return h.output(r.PC, *buf)
@@ -186,11 +186,15 @@ type commonHandler struct {
 	json              bool // true => output JSON; false => output text
 	opts              HandlerOptions
 	preformattedAttrs []byte
-	groupPrefix       string   // for text: prefix of groups opened in preformatting
-	groups            []string // all groups started from WithGroup
-	nOpenGroups       int      // the number of groups opened in preformattedAttrs
-	mu                sync.Mutex
-	w                 io.Writer
+	// groupPrefix is for the text handler only.
+	// It holds the prefix for groups that were already pre-formatted.
+	// A group will appear here when a call to WithGroup is followed by
+	// a call to WithAttrs.
+	groupPrefix string
+	groups      []string // all groups started from WithGroup
+	nOpenGroups int      // the number of groups opened in preformattedAttrs
+	mu          sync.Mutex
+	w           io.Writer
 }
 
 func (h *commonHandler) clone() *commonHandler {
@@ -219,11 +223,9 @@ func (h *commonHandler) enabled(l Level) bool {
 func (h *commonHandler) withAttrs(as []Attr) *commonHandler {
 	h2 := h.clone()
 	// Pre-format the attributes as an optimization.
-	prefix := buffer.New()
-	defer prefix.Free()
-	prefix.WriteString(h.groupPrefix)
-	state := h2.newHandleState((*buffer.Buffer)(&h2.preformattedAttrs), false, "", prefix)
+	state := h2.newHandleState((*buffer.Buffer)(&h2.preformattedAttrs), false, "")
 	defer state.free()
+	state.prefix.WriteString(h.groupPrefix)
 	if len(h2.preformattedAttrs) > 0 {
 		state.sep = h.attrSep()
 	}
@@ -240,16 +242,13 @@ func (h *commonHandler) withAttrs(as []Attr) *commonHandler {
 }
 
 func (h *commonHandler) withGroup(name string) *commonHandler {
-	if name == "" {
-		return h
-	}
 	h2 := h.clone()
 	h2.groups = append(h2.groups, name)
 	return h2
 }
 
 func (h *commonHandler) handle(r Record) error {
-	state := h.newHandleState(buffer.New(), true, "", nil)
+	state := h.newHandleState(buffer.New(), true, "")
 	defer state.free()
 	if h.json {
 		state.buf.WriteByte('{')
@@ -309,8 +308,6 @@ func (s *handleState) appendNonBuiltIns(r Record) {
 	}
 	// Attrs in Record -- unlike the built-in ones, they are in groups started
 	// from WithGroup.
-	s.prefix = buffer.New()
-	defer s.prefix.Free()
 	s.prefix.WriteString(s.h.groupPrefix)
 	s.openGroups()
 	r.Attrs(func(a Attr) bool {
@@ -352,13 +349,13 @@ var groupPool = sync.Pool{New: func() any {
 	return &s
 }}
 
-func (h *commonHandler) newHandleState(buf *buffer.Buffer, freeBuf bool, sep string, prefix *buffer.Buffer) handleState {
+func (h *commonHandler) newHandleState(buf *buffer.Buffer, freeBuf bool, sep string) handleState {
 	s := handleState{
 		h:       h,
 		buf:     buf,
 		freeBuf: freeBuf,
 		sep:     sep,
-		prefix:  prefix,
+		prefix:  buffer.New(),
 	}
 	if h.opts.ReplaceAttr != nil {
 		s.groups = groupPool.Get().(*[]string)
@@ -375,6 +372,7 @@ func (s *handleState) free() {
 		*gs = (*gs)[:0]
 		groupPool.Put(gs)
 	}
+	s.prefix.Free()
 }
 
 func (s *handleState) openGroups() {
@@ -401,7 +399,6 @@ func (s *handleState) openGroup(name string) {
 	if s.groups != nil {
 		*s.groups = append(*s.groups, name)
 	}
-
 }
 
 // closeGroup ends the group with the given name.
@@ -472,7 +469,7 @@ func (s *handleState) appendError(err error) {
 
 func (s *handleState) appendKey(key string) {
 	s.buf.WriteString(s.sep)
-	if s.prefix != nil {
+	if s.prefix != nil && len(*s.prefix) > 0 {
 		// TODO: optimize by avoiding allocation.
 		s.appendString(string(*s.prefix) + key)
 	} else {

@@ -53,6 +53,9 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 		Importer: &importer,
 		Sizes:    &gcSizes{},
 	}
+	if base.Flag.ErrorURL {
+		conf.ErrorURL = " [go.dev/e/%s]"
+	}
 	info := &types2.Info{
 		StoreTypesInSyntax: true,
 		Defs:               make(map[*syntax.Name]types2.Object),

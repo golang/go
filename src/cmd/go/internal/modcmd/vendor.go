@@ -21,13 +21,13 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 var cmdVendor = &base.Command{
@@ -108,7 +108,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	includeGoVersions := false
 	isExplicit := map[module.Version]bool{}
 	if gv := modload.ModFile().Go; gv != nil {
-		if semver.Compare("v"+gv.Version, "v1.14") >= 0 {
+		if gover.Compare(gv.Version, "1.14") >= 0 {
 			// If the Go version is at least 1.14, annotate all explicit 'require' and
 			// 'replace' targets found in the go.mod file so that we can perform a
 			// stronger consistency check when -mod=vendor is set.
@@ -117,7 +117,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 			}
 			includeAllReplacements = true
 		}
-		if semver.Compare("v"+gv.Version, "v1.17") >= 0 {
+		if gover.Compare(gv.Version, "1.17") >= 0 {
 			// If the Go version is at least 1.17, annotate all modules with their
 			// 'go' version directives.
 			includeGoVersions = true
@@ -133,7 +133,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 			vendorMods = append(vendorMods, m)
 		}
 	}
-	module.Sort(vendorMods)
+	gover.ModSort(vendorMods)
 
 	var (
 		buf bytes.Buffer
@@ -367,7 +367,7 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
 		return false
 	}
 	if info.Name() == "go.mod" || info.Name() == "go.sum" {
-		if gv := modload.ModFile().Go; gv != nil && semver.Compare("v"+gv.Version, "v1.17") >= 0 {
+		if gv := modload.ModFile().Go; gv != nil && gover.Compare(gv.Version, "1.17") >= 0 {
 			// As of Go 1.17, we strip go.mod and go.sum files from dependency modules.
 			// Otherwise, 'go' commands invoked within the vendor subtree may misidentify
 			// an arbitrary directory within the vendor tree as a module root.

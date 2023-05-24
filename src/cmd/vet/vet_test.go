@@ -79,6 +79,7 @@ func TestVet(t *testing.T) {
 		"print",
 		"rangeloop",
 		"shift",
+		"slog",
 		"structtag",
 		"testingpkg",
 		// "testtag" has its own test

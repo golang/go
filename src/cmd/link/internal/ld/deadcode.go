@@ -180,6 +180,14 @@ func (d *deadcodePass) flood() {
 				// converted to an interface, i.e. should have UsedInIface set. See the
 				// comment below for why we need to unset the Reachable bit and re-mark it.
 				rs := r.Sym()
+				if d.ldr.IsItab(rs) {
+					// This relocation can also point at an itab, in which case it
+					// means "the _type field of that itab".
+					rs = decodeItabType(d.ldr, d.ctxt.Arch, rs)
+				}
+				if !d.ldr.IsGoType(rs) && !d.ctxt.linkShared {
+					panic(fmt.Sprintf("R_USEIFACE in %s references %s which is not a type or itab", d.ldr.SymName(symIdx), d.ldr.SymName(rs)))
+				}
 				if !d.ldr.AttrUsedInIface(rs) {
 					d.ldr.SetAttrUsedInIface(rs, true)
 					if d.ldr.AttrReachable(rs) {
@@ -325,20 +333,30 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
 		if *flagDumpDep {
 			to := d.ldr.SymName(symIdx)
 			if to != "" {
-				if d.ldr.AttrUsedInIface(symIdx) {
-					to += " <UsedInIface>"
-				}
+				to = d.dumpDepAddFlags(to, symIdx)
 				from := "_"
 				if parent != 0 {
 					from = d.ldr.SymName(parent)
-					if d.ldr.AttrUsedInIface(parent) {
-						from += " <UsedInIface>"
-					}
+					from = d.dumpDepAddFlags(from, parent)
 				}
 				fmt.Printf("%s -> %s\n", from, to)
 			}
 		}
 	}
+}
+
+func (d *deadcodePass) dumpDepAddFlags(name string, symIdx loader.Sym) string {
+	var flags strings.Builder
+	if d.ldr.AttrUsedInIface(symIdx) {
+		flags.WriteString("<UsedInIface>")
+	}
+	if d.ldr.IsReflectMethod(symIdx) {
+		flags.WriteString("<ReflectMethod>")
+	}
+	if flags.Len() > 0 {
+		return name + " " + flags.String()
+	}
+	return name
 }
 
 func (d *deadcodePass) markMethod(m methodref) {
@@ -487,7 +505,7 @@ func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, sym
 
 // Decode the method name stored in symbol symIdx. The symbol should contain just the bytes of a method name.
 func (d *deadcodePass) decodeGenericIfaceMethod(ldr *loader.Loader, symIdx loader.Sym) string {
-	return string(ldr.Data(symIdx))
+	return ldr.DataString(symIdx)
 }
 
 func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs) []methodsig {

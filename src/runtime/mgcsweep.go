@@ -277,7 +277,7 @@ func bgsweep(c chan int) {
 	lock(&sweep.lock)
 	sweep.parked = true
 	c <- 1
-	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
+	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceBlockGCSweep, 1)
 
 	for {
 		// bgsweep attempts to be a "low priority" goroutine by intentionally
@@ -318,7 +318,7 @@ func bgsweep(c chan int) {
 			continue
 		}
 		sweep.parked = true
-		goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
+		goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceBlockGCSweep, 1)
 	}
 }
 
@@ -425,9 +425,17 @@ func sweepone() uintptr {
 		if debug.scavtrace > 0 {
 			systemstack(func() {
 				lock(&mheap_.lock)
-				released := atomic.Loaduintptr(&mheap_.pages.scav.released)
-				printScavTrace(released, false)
-				atomic.Storeuintptr(&mheap_.pages.scav.released, 0)
+
+				// Get released stats.
+				releasedBg := mheap_.pages.scav.releasedBg.Load()
+				releasedEager := mheap_.pages.scav.releasedEager.Load()
+
+				// Print the line.
+				printScavTrace(releasedBg, releasedEager, false)
+
+				// Update the stats.
+				mheap_.pages.scav.releasedBg.Add(-releasedBg)
+				mheap_.pages.scav.releasedEager.Add(-releasedEager)
 				unlock(&mheap_.lock)
 			})
 		}
@@ -512,7 +520,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		throw("mspan.sweep: bad span state")
 	}
 
-	if trace.enabled {
+	if traceEnabled() {
 		traceGCSweepSpan(s.npages * _PageSize)
 	}
 
@@ -651,14 +659,19 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 	s.allocCount = nalloc
 	s.freeindex = 0 // reset allocation index to start of span.
 	s.freeIndexForScan = 0
-	if trace.enabled {
-		getg().m.p.ptr().traceReclaimed += uintptr(nfreed) * s.elemsize
+	if traceEnabled() {
+		getg().m.p.ptr().trace.reclaimed += uintptr(nfreed) * s.elemsize
 	}
 
 	// gcmarkBits becomes the allocBits.
 	// get a fresh cleared gcmarkBits in preparation for next GC
 	s.allocBits = s.gcmarkBits
 	s.gcmarkBits = newMarkBits(s.nelems)
+
+	// refresh pinnerBits if they exists
+	if s.pinnerBits != nil {
+		s.refreshPinnerBits()
+	}
 
 	// Initialize alloc bits cache.
 	s.refillAllocCache(0)
@@ -871,7 +884,7 @@ func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
 		return
 	}
 
-	if trace.enabled {
+	if traceEnabled() {
 		traceGCSweepStart()
 	}
 
@@ -911,7 +924,7 @@ retry:
 		}
 	}
 
-	if trace.enabled {
+	if traceEnabled() {
 		traceGCSweepDone()
 	}
 }

@@ -41,6 +41,7 @@ To list the available checks, run "go tool vet help":
 	nilfunc      check for useless comparisons between functions and nil
 	printf       check consistency of Printf format strings and arguments
 	shift        check for shifts that equal or exceed the width of the integer
+	slog         check for incorrect arguments to log/slog functions
 	stdmethods   check signature of methods of well-known interfaces
 	structtag    check that struct field tags conform to reflect.StructTag.Get
 	tests        check for common mistaken usages of tests and examples

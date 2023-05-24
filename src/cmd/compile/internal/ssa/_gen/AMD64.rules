@@ -1718,10 +1718,10 @@
 (BSWAP(Q|L) (BSWAP(Q|L) p)) => p
 
 // CPUID feature: MOVBE.
-(MOV(Q|L)store [i] {s} p x:(BSWAP(Q|L) w) mem) && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBE(Q|L)store [i] {s} p w mem)
-(BSWAP(Q|L) x:(MOV(Q|L)load [i] {s} p mem))    && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBE(Q|L)load [i] {s} p mem)
-(BSWAP(Q|L) (MOVBE(Q|L)load [i] {s} p m))    => (MOV(Q|L)load [i] {s} p m)
-(MOVBE(Q|L)store [i] {s} p (BSWAP(Q|L) x) m) => (MOV(Q|L)store [i] {s} p x m)
+(MOV(Q|L)store   [i] {s} p x:(BSWAP(Q|L) w) mem) && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBE(Q|L)store [i] {s} p w mem)
+(MOVBE(Q|L)store [i] {s} p x:(BSWAP(Q|L) w) mem) && x.Uses == 1                          => (MOV(Q|L)store   [i] {s} p w mem)
+(BSWAP(Q|L) x:(MOV(Q|L)load   [i] {s} p mem))  && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => @x.Block (MOVBE(Q|L)load [i] {s} p mem)
+(BSWAP(Q|L) x:(MOVBE(Q|L)load [i] {s} p mem))  && x.Uses == 1                          => @x.Block (MOV(Q|L)load   [i] {s} p mem)
 (MOVWstore [i] {s} p x:(ROLWconst [8] w) mem)   && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBEWstore [i] {s} p w mem)
 (MOVBEWstore [i] {s} p x:(ROLWconst [8] w) mem) && x.Uses == 1 => (MOVWstore [i] {s} p w mem)
 

@@ -24,7 +24,6 @@ func RaceDetectorSupported(goos, goarch string) bool {
 
 // MSanSupported reports whether goos/goarch supports the memory
 // sanitizer option.
-// There is a copy of this function in misc/cgo/testsanitizers/cc_test.go.
 func MSanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
@@ -38,7 +37,6 @@ func MSanSupported(goos, goarch string) bool {
 
 // ASanSupported reports whether goos/goarch supports the address
 // sanitizer option.
-// There is a copy of this function in misc/cgo/testsanitizers/cc_test.go.
 func ASanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
@@ -140,7 +138,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 			return true
 		case "linux":
 			switch goarch {
-			case "386", "amd64", "arm", "armbe", "arm64", "arm64be", "ppc64le", "riscv64", "s390x":
+			case "386", "amd64", "arm", "armbe", "arm64", "arm64be", "loong64", "ppc64le", "riscv64", "s390x":
 				// linux/ppc64 not supported because it does
 				// not support external linking mode yet.
 				return true
@@ -241,7 +239,17 @@ func DefaultPIE(goos, goarch string, isRace bool) bool {
 	return false
 }
 
-// CgoSupported reports whether goos/goarch supports cgo.\n")
+// CgoSupported reports whether goos/goarch supports cgo.
 func CgoSupported(goos, goarch string) bool {
 	return osArchSupportsCgo[goos+"/"+goarch]
+}
+
+// ExecutableHasDWARF reports whether the linked executable includes DWARF
+// symbols on goos/goarch.
+func ExecutableHasDWARF(goos, goarch string) bool {
+	switch goos {
+	case "plan9", "ios":
+		return false
+	}
+	return true
 }

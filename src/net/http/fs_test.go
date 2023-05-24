@@ -768,6 +768,10 @@ func (f *fakeFileInfo) Mode() fs.FileMode {
 	return 0644
 }
 
+func (f *fakeFileInfo) String() string {
+	return fs.FormatFileInfo(f)
+}
+
 type fakeFile struct {
 	io.ReadSeeker
 	fi     *fakeFileInfo

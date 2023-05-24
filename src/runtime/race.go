@@ -93,11 +93,11 @@ const raceenabled = true
 // callerpc is a return PC of the function that calls this function,
 // pc is start PC of the function that calls this function.
 func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
-	kind := t.kind & kindMask
+	kind := t.Kind_ & kindMask
 	if kind == kindArray || kind == kindStruct {
 		// for composite objects we have to read every address
 		// because a write might happen to any subobject.
-		racereadrangepc(addr, t.size, callerpc, pc)
+		racereadrangepc(addr, t.Size_, callerpc, pc)
 	} else {
 		// for non-composite objects we can read just the start
 		// address, as any write must write the first byte.
@@ -106,11 +106,11 @@ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
 }
 
 func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
-	kind := t.kind & kindMask
+	kind := t.Kind_ & kindMask
 	if kind == kindArray || kind == kindStruct {
 		// for composite objects we have to write every address
 		// because a write might happen to any subobject.
-		racewriterangepc(addr, t.size, callerpc, pc)
+		racewriterangepc(addr, t.Size_, callerpc, pc)
 	} else {
 		// for non-composite objects we can write just the start
 		// address, as any write must write the first byte.
@@ -175,8 +175,11 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
 		u, uf := newInlineUnwinder(fi, pc, nil)
 		for ; uf.valid(); uf = u.next(uf) {
 			sf := u.srcFunc(uf)
-			if sf.funcID == abi.FuncIDWrapper {
-				// ignore wrappers
+			if sf.funcID == abi.FuncIDWrapper && u.isInlined(uf) {
+				// Ignore wrappers, unless we're at the outermost frame of u.
+				// A non-inlined wrapper frame always means we have a physical
+				// frame consisting entirely of wrappers, in which case we'll
+				// take a outermost wrapper over nothing.
 				continue
 			}
 
@@ -355,6 +358,8 @@ func isvalidaddr(addr unsafe.Pointer) bool {
 
 //go:nosplit
 func raceinit() (gctx, pctx uintptr) {
+	lockInit(&raceFiniLock, lockRankRaceFini)
+
 	// On most machines, cgo is required to initialize libc, which is used by race runtime.
 	if !iscgo && GOOS != "darwin" {
 		throw("raceinit: race build must use cgo")
@@ -397,8 +402,6 @@ func raceinit() (gctx, pctx uintptr) {
 	return
 }
 
-var raceFiniLock mutex
-
 //go:nosplit
 func racefini() {
 	// racefini() can only be called once to avoid races.
@@ -407,9 +410,16 @@ func racefini() {
 	// already held it's assumed that the first caller exits the program
 	// so other calls can hang forever without an issue.
 	lock(&raceFiniLock)
+
+	// __tsan_fini will run C atexit functions and C++ destructors,
+	// which can theoretically call back into Go.
+	// Tell the scheduler we entering external code.
+	entersyscall()
+
 	// We're entering external code that may call ExitProcess on
 	// Windows.
 	osPreemptExtEnter(getg().m)
+
 	racecall(&__tsan_fini, 0, 0, 0, 0)
 }
 

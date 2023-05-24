@@ -24,6 +24,10 @@ type Analyzer struct {
 	// (no capital or period, max ~60 letters).
 	Doc string
 
+	// URL holds an optional link to a web page with additional
+	// documentation for this analyzer.
+	URL string
+
 	// Flags defines any flags accepted by the analyzer.
 	// The manner in which these flags are exposed to the user
 	// depends on the driver which runs the analyzer.
@@ -145,11 +149,7 @@ type Pass struct {
 	// WARNING: This is an experimental API and may change in the future.
 	AllObjectFacts func() []ObjectFact
 
-	// typeErrors contains types.Errors that are associated with the pkg.
-	typeErrors []types.Error
-
 	/* Further fields may be added in future. */
-	// For example, suggested or applied refactorings.
 }
 
 // PackageFact is a package together with an associated fact.

@@ -77,15 +77,15 @@ const (
 	MAXELEMSIZE = abi.MapMaxElemBytes
 )
 
-func structfieldSize() int { return 3 * types.PtrSize }       // Sizeof(runtime.structfield{})
-func imethodSize() int     { return 4 + 4 }                   // Sizeof(runtime.imethod{})
-func commonSize() int      { return 4*types.PtrSize + 8 + 8 } // Sizeof(runtime._type{})
+func structfieldSize() int { return abi.StructFieldSize(types.PtrSize) } // Sizeof(runtime.structfield{})
+func imethodSize() int     { return abi.IMethodSize(types.PtrSize) }     // Sizeof(runtime.imethod{})
+func commonSize() int      { return abi.CommonSize(types.PtrSize) }      // Sizeof(runtime._type{})
 
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym() == nil && len(methods(t)) == 0 {
 		return 0
 	}
-	return 4 + 2 + 2 + 4 + 4
+	return int(abi.UncommonSize())
 }
 
 func makefield(name string, t *types.Type) *types.Field {
@@ -149,13 +149,13 @@ func MapBucketType(t *types.Type) *types.Type {
 		base.Fatalf("unsupported map key type for %v", t)
 	}
 	if BUCKETSIZE < 8 {
-		base.Fatalf("bucket size too small for proper alignment")
+		base.Fatalf("bucket size %d too small for proper alignment %d", BUCKETSIZE, 8)
 	}
 	if uint8(keytype.Alignment()) > BUCKETSIZE {
 		base.Fatalf("key align too big for %v", t)
 	}
 	if uint8(elemtype.Alignment()) > BUCKETSIZE {
-		base.Fatalf("elem align too big for %v", t)
+		base.Fatalf("elem align %d too big for %v, BUCKETSIZE=%d", elemtype.Alignment(), t, BUCKETSIZE)
 	}
 	if keytype.Size() > MAXKEYSIZE {
 		base.Fatalf("key size to large for %v", t)
@@ -191,7 +191,8 @@ func MapBucketType(t *types.Type) *types.Type {
 	// Double-check that overflow field is final memory in struct,
 	// with no padding at end.
 	if overflow.Offset != bucket.Size()-int64(types.PtrSize) {
-		base.Fatalf("bad offset of overflow in bmap for %v", t)
+		base.Fatalf("bad offset of overflow in bmap for %v, overflow.Offset=%d, bucket.Size()-int64(types.PtrSize)=%d",
+			t, overflow.Offset, bucket.Size()-int64(types.PtrSize))
 	}
 
 	t.MapType().Bucket = bucket
@@ -670,20 +671,6 @@ var kinds = []int{
 	types.TUNSAFEPTR:  objabi.KindUnsafePointer,
 }
 
-// tflag is documented in reflect/type.go.
-//
-// tflag values must be kept in sync with copies in:
-//   - cmd/compile/internal/reflectdata/reflect.go
-//   - cmd/link/internal/ld/decodesym.go
-//   - reflect/type.go
-//   - runtime/type.go
-const (
-	tflagUncommon      = 1 << 0
-	tflagExtraStar     = 1 << 1
-	tflagNamed         = 1 << 2
-	tflagRegularMemory = 1 << 3
-)
-
 var (
 	memhashvarlen  *obj.LSym
 	memequalvarlen *obj.LSym
@@ -727,15 +714,15 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	ot = objw.Uintptr(lsym, ot, uint64(ptrdata))
 	ot = objw.Uint32(lsym, ot, types.TypeHash(t))
 
-	var tflag uint8
+	var tflag abi.TFlag
 	if uncommonSize(t) != 0 {
-		tflag |= tflagUncommon
+		tflag |= abi.TFlagUncommon
 	}
 	if t.Sym() != nil && t.Sym().Name != "" {
-		tflag |= tflagNamed
+		tflag |= abi.TFlagNamed
 	}
 	if compare.IsRegularMemory(t) {
-		tflag |= tflagRegularMemory
+		tflag |= abi.TFlagRegularMemory
 	}
 
 	exported := false
@@ -747,7 +734,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	// amount of space taken up by reflect strings.
 	if !strings.HasPrefix(p, "*") {
 		p = "*" + p
-		tflag |= tflagExtraStar
+		tflag |= abi.TFlagExtraStar
 		if t.Sym() != nil {
 			exported = types.IsExported(t.Sym().Name)
 		}
@@ -757,7 +744,11 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 		}
 	}
 
-	ot = objw.Uint8(lsym, ot, tflag)
+	if tflag != abi.TFlag(uint8(tflag)) {
+		// this should optimize away completely
+		panic("Unexpected change in size of abi.TFlag")
+	}
+	ot = objw.Uint8(lsym, ot, uint8(tflag))
 
 	// runtime (and common sense) expects alignment to be a power of two.
 	i := int(uint8(t.Alignment()))
@@ -844,7 +835,14 @@ func TypeLinksymLookup(name string) *obj.LSym {
 }
 
 func TypeLinksym(t *types.Type) *obj.LSym {
-	return TypeSym(t).Linksym()
+	lsym := TypeSym(t).Linksym()
+	signatmu.Lock()
+	if lsym.Extra == nil {
+		ti := lsym.NewTypeInfo()
+		ti.Type = t
+	}
+	signatmu.Unlock()
+	return lsym
 }
 
 // Deprecated: Use TypePtrAt instead.
@@ -1878,7 +1876,9 @@ func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
 		// Shape types shouldn't be put in interfaces, so we shouldn't ever get here.
 		base.Fatalf("shape types have no methods %+v", t)
 	}
-	tsym := TypeLinksym(t)
+	MarkTypeSymUsedInInterface(TypeLinksym(t), from)
+}
+func MarkTypeSymUsedInInterface(tsym *obj.LSym, from *obj.LSym) {
 	// Emit a marker relocation. The linker will know the type is converted
 	// to an interface if "from" is reachable.
 	r := obj.Addrel(from)

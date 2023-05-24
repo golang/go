@@ -2967,6 +2967,7 @@ const (
 	SOL_TCP                                     = 0x6
 	SOL_TIPC                                    = 0x10f
 	SOL_TLS                                     = 0x11a
+	SOL_UDP                                     = 0x11
 	SOL_X25                                     = 0x106
 	SOL_XDP                                     = 0x11b
 	SOMAXCONN                                   = 0x1000
@@ -3251,6 +3252,19 @@ const (
 	TRACEFS_MAGIC                               = 0x74726163
 	TS_COMM_LEN                                 = 0x20
 	UDF_SUPER_MAGIC                             = 0x15013346
+	UDP_CORK                                    = 0x1
+	UDP_ENCAP                                   = 0x64
+	UDP_ENCAP_ESPINUDP                          = 0x2
+	UDP_ENCAP_ESPINUDP_NON_IKE                  = 0x1
+	UDP_ENCAP_GTP0                              = 0x4
+	UDP_ENCAP_GTP1U                             = 0x5
+	UDP_ENCAP_L2TPINUDP                         = 0x3
+	UDP_GRO                                     = 0x68
+	UDP_NO_CHECK6_RX                            = 0x66
+	UDP_NO_CHECK6_TX                            = 0x65
+	UDP_SEGMENT                                 = 0x67
+	UDP_V4_FLOW                                 = 0x2
+	UDP_V6_FLOW                                 = 0x6
 	UMOUNT_NOFOLLOW                             = 0x8
 	USBDEVICE_SUPER_MAGIC                       = 0x9fa2
 	UTIME_NOW                                   = 0x3fffffff

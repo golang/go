@@ -282,8 +282,9 @@ var work workType
 
 type workType struct {
 	full  lfstack          // lock-free list of full blocks workbuf
+	_     cpu.CacheLinePad // prevents false-sharing between full and empty
 	empty lfstack          // lock-free list of empty blocks workbuf
-	pad0  cpu.CacheLinePad // prevents false-sharing between full/empty and nproc/nwait
+	_     cpu.CacheLinePad // prevents false-sharing between empty and nproc/nwait
 
 	wbufSpans struct {
 		lock mutex
@@ -500,7 +501,7 @@ func gcWaitOnMark(n uint32) {
 		// Wait until sweep termination, mark, and mark
 		// termination of cycle N complete.
 		work.sweepWaiters.list.push(getg())
-		goparkunlock(&work.sweepWaiters.lock, waitReasonWaitForGCCycle, traceEvGoBlock, 1)
+		goparkunlock(&work.sweepWaiters.lock, waitReasonWaitForGCCycle, traceBlockUntilGCEnds, 1)
 	}
 }
 
@@ -629,7 +630,7 @@ func gcStart(trigger gcTrigger) {
 	// Update it under gcsema to avoid gctrace getting wrong values.
 	work.userForced = trigger.kind == gcTriggerCycle
 
-	if trace.enabled {
+	if traceEnabled() {
 		traceGCStart()
 	}
 
@@ -658,10 +659,7 @@ func gcStart(trigger gcTrigger) {
 	now := nanotime()
 	work.tSweepTerm = now
 	work.pauseStart = now
-	if trace.enabled {
-		traceGCSTWStart(1)
-	}
-	systemstack(stopTheWorldWithSema)
+	systemstack(func() { stopTheWorldWithSema(stwGCSweepTerm) })
 	// Finish sweep before we start concurrent scan.
 	systemstack(func() {
 		finishsweep_m()
@@ -726,10 +724,14 @@ func gcStart(trigger gcTrigger) {
 
 	// Concurrent mark.
 	systemstack(func() {
-		now = startTheWorldWithSema(trace.enabled)
+		now = startTheWorldWithSema()
 		work.pauseNS += now - work.pauseStart
 		work.tMark = now
 		memstats.gcPauseDist.record(now - work.pauseStart)
+
+		sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
+		work.cpuStats.gcPauseTime += sweepTermCpu
+		work.cpuStats.gcTotalTime += sweepTermCpu
 
 		// Release the CPU limiter.
 		gcCPULimiter.finishGCTransition(now)
@@ -848,10 +850,7 @@ top:
 	work.tMarkTerm = now
 	work.pauseStart = now
 	getg().m.preemptoff = "gcing"
-	if trace.enabled {
-		traceGCSTWStart(0)
-	}
-	systemstack(stopTheWorldWithSema)
+	systemstack(func() { stopTheWorldWithSema(stwGCMarkTerm) })
 	// The gcphase is _GCmark, it will transition to _GCmarktermination
 	// below. The important thing is that the wb remains active until
 	// all marking is complete. This includes writes made by the GC.
@@ -878,7 +877,7 @@ top:
 	if restart {
 		getg().m.preemptoff = ""
 		systemstack(func() {
-			now := startTheWorldWithSema(trace.enabled)
+			now := startTheWorldWithSema()
 			work.pauseNS += now - work.pauseStart
 			memstats.gcPauseDist.record(now - work.pauseStart)
 		})
@@ -972,7 +971,7 @@ func gcMarkTermination() {
 	mp.traceback = 0
 	casgstatus(curgp, _Gwaiting, _Grunning)
 
-	if trace.enabled {
+	if traceEnabled() {
 		traceGCDone()
 	}
 
@@ -1003,43 +1002,14 @@ func gcMarkTermination() {
 	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(unixNow)
 	memstats.pause_total_ns += uint64(work.pauseNS)
 
-	sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
-	// We report idle marking time below, but omit it from the
-	// overall utilization here since it's "free".
-	markAssistCpu := gcController.assistTime.Load()
-	markDedicatedCpu := gcController.dedicatedMarkTime.Load()
-	markFractionalCpu := gcController.fractionalMarkTime.Load()
-	markIdleCpu := gcController.idleMarkTime.Load()
 	markTermCpu := int64(work.stwprocs) * (work.tEnd - work.tMarkTerm)
-	scavAssistCpu := scavenge.assistTime.Load()
-	scavBgCpu := scavenge.backgroundTime.Load()
+	work.cpuStats.gcPauseTime += markTermCpu
+	work.cpuStats.gcTotalTime += markTermCpu
 
-	// Update cumulative GC CPU stats.
-	work.cpuStats.gcAssistTime += markAssistCpu
-	work.cpuStats.gcDedicatedTime += markDedicatedCpu + markFractionalCpu
-	work.cpuStats.gcIdleTime += markIdleCpu
-	work.cpuStats.gcPauseTime += sweepTermCpu + markTermCpu
-	work.cpuStats.gcTotalTime += sweepTermCpu + markAssistCpu + markDedicatedCpu + markFractionalCpu + markIdleCpu + markTermCpu
-
-	// Update cumulative scavenge CPU stats.
-	work.cpuStats.scavengeAssistTime += scavAssistCpu
-	work.cpuStats.scavengeBgTime += scavBgCpu
-	work.cpuStats.scavengeTotalTime += scavAssistCpu + scavBgCpu
-
-	// Update total CPU.
-	work.cpuStats.totalTime = sched.totaltime + (now-sched.procresizetime)*int64(gomaxprocs)
-	work.cpuStats.idleTime += sched.idleTime.Load()
-
-	// Compute userTime. We compute this indirectly as everything that's not the above.
+	// Accumulate CPU stats.
 	//
-	// Since time spent in _Pgcstop is covered by gcPauseTime, and time spent in _Pidle
-	// is covered by idleTime, what we're left with is time spent in _Prunning and _Psyscall,
-	// the latter of which is fine because the P will either go idle or get used for something
-	// else via sysmon. Meanwhile if we subtract GC time from whatever's left, we get non-GC
-	// _Prunning time. Note that this still leaves time spent in sweeping and in the scheduler,
-	// but that's fine. The overwhelming majority of this time will be actual user time.
-	work.cpuStats.userTime = work.cpuStats.totalTime - (work.cpuStats.gcTotalTime +
-		work.cpuStats.scavengeTotalTime + work.cpuStats.idleTime)
+	// Pass gcMarkPhase=true so we can get all the latest GC CPU stats in there too.
+	work.cpuStats.accumulate(now, true)
 
 	// Compute overall GC CPU utilization.
 	// Omit idle marking time from the overall utilization here since it's "free".
@@ -1092,7 +1062,7 @@ func gcMarkTermination() {
 		throw("failed to set sweep barrier")
 	}
 
-	systemstack(func() { startTheWorldWithSema(trace.enabled) })
+	systemstack(func() { startTheWorldWithSema() })
 
 	// Flush the heap profile so we can start a new cycle next GC.
 	// This is relatively expensive, so we don't do it with the
@@ -1115,6 +1085,9 @@ func gcMarkTermination() {
 	// having pages get stuck on them. These pages are hidden from
 	// the scavenger, so in small idle heaps a significant amount
 	// of additional memory might be held onto.
+	//
+	// Also, flush the pinner cache, to avoid leaking that memory
+	// indefinitely.
 	systemstack(func() {
 		forEachP(func(pp *p) {
 			pp.mcache.prepareForSweep()
@@ -1125,6 +1098,7 @@ func gcMarkTermination() {
 					unlock(&mheap_.lock)
 				})
 			}
+			pp.pinnerCache = nil
 		})
 	})
 	// Now that we've swept stale spans in mcaches, they don't
@@ -1152,7 +1126,7 @@ func gcMarkTermination() {
 		}
 		print(" ms clock, ")
 		for i, ns := range []int64{
-			sweepTermCpu,
+			int64(work.stwprocs) * (work.tMark - work.tSweepTerm),
 			gcController.assistTime.Load(),
 			gcController.dedicatedMarkTime.Load() + gcController.fractionalMarkTime.Load(),
 			gcController.idleMarkTime.Load(),
@@ -1321,7 +1295,7 @@ func gcBgMarkWorker() {
 			// Note that at this point, the G may immediately be
 			// rescheduled and may be running.
 			return true
-		}, unsafe.Pointer(node), waitReasonGCWorkerIdle, traceEvGoBlock, 0)
+		}, unsafe.Pointer(node), waitReasonGCWorkerIdle, traceBlockSystemGoroutine, 0)
 
 		// Preemption must not occur here, or another G might see
 		// p.gcMarkWorkerMode.

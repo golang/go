@@ -13,7 +13,7 @@
  * $FreeBSD: src/sys/sparc64/include/elf.h,v 1.12 2003/09/25 01:10:26 peter Exp $
  * "System V ABI" (http://www.sco.com/developers/gabi/latest/ch4.eheader.html)
  * "ELF for the ARM® 64-bit Architecture (AArch64)" (ARM IHI 0056B)
- * "RISC-V ELF psABI specification" (https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md)
+ * "RISC-V ELF psABI specification" (https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc)
  * llvm/BinaryFormat/ELF.h - ELF constants and structures
  *
  * Copyright (c) 1996-1998 John D. Polstra.  All rights reserved.
@@ -2763,6 +2763,7 @@ const (
 	R_PPC64_PLTSEQ_NOTOC       R_PPC64 = 121
 	R_PPC64_PLTCALL_NOTOC      R_PPC64 = 122
 	R_PPC64_PCREL_OPT          R_PPC64 = 123
+	R_PPC64_REL24_P9NOTOC      R_PPC64 = 124
 	R_PPC64_D34                R_PPC64 = 128
 	R_PPC64_D34_LO             R_PPC64 = 129
 	R_PPC64_D34_HI30           R_PPC64 = 130
@@ -2926,6 +2927,7 @@ var rppc64Strings = []intName{
 	{121, "R_PPC64_PLTSEQ_NOTOC"},
 	{122, "R_PPC64_PLTCALL_NOTOC"},
 	{123, "R_PPC64_PCREL_OPT"},
+	{124, "R_PPC64_REL24_P9NOTOC"},
 	{128, "R_PPC64_D34"},
 	{129, "R_PPC64_D34_LO"},
 	{130, "R_PPC64_D34_HI30"},

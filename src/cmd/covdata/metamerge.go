@@ -273,17 +273,6 @@ func (mm *metaMerge) emitCounters(outdir string, metaHash [16]byte) {
 	mm.astate = &argstate{}
 }
 
-// NumFuncs is used while writing the counter data files; it
-// implements the 'NumFuncs' method required by the interface
-// internal/coverage/encodecounter/CounterVisitor.
-func (mm *metaMerge) NumFuncs() (int, error) {
-	rval := 0
-	for _, p := range mm.pkgs {
-		rval += len(p.ctab)
-	}
-	return rval, nil
-}
-
 // VisitFuncs is used while writing the counter data files; it
 // implements the 'VisitFuncs' method required by the interface
 // internal/coverage/encodecounter/CounterVisitor.

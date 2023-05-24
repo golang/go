@@ -624,20 +624,6 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		base.ExitIfErrors()
 	}
 
-	if cache.Default() == nil {
-		// These flags return file names pointing into the build cache,
-		// so the build cache must exist.
-		if *listCompiled {
-			base.Fatalf("go list -compiled requires build cache")
-		}
-		if *listExport {
-			base.Fatalf("go list -export requires build cache")
-		}
-		if *listTest {
-			base.Fatalf("go list -test requires build cache")
-		}
-	}
-
 	if *listTest {
 		c := cache.Default()
 		// Add test binaries to packages to be listed.
@@ -663,7 +649,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 				} else {
 					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, pkgOpts, p, nil)
 					if err != nil {
-						base.Fatalf("can't load test package: %s", err)
+						base.Fatalf("go: can't load test package: %s", err)
 					}
 				}
 				testPackages = append(testPackages, testPackageSet{p, pmain, ptest, pxtest})

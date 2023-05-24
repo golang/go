@@ -189,6 +189,30 @@ func initMetrics() {
 				out.scalar = in.sysStats.gcCyclesDone
 			},
 		},
+		"/gc/scan/globals:bytes": {
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.gcStats.globalsScan
+			},
+		},
+		"/gc/scan/heap:bytes": {
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.gcStats.heapScan
+			},
+		},
+		"/gc/scan/stack:bytes": {
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.gcStats.stackScan
+			},
+		},
+		"/gc/scan/total:bytes": {
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.gcStats.totalScan
+			},
+		},
 		"/gc/heap/allocs-by-size:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
@@ -246,6 +270,25 @@ func initMetrics() {
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
 				out.scalar = in.sysStats.heapGoal
+			},
+		},
+		"/gc/gomemlimit:bytes": {
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(gcController.memoryLimit.Load())
+			},
+		},
+		"/gc/gogc:percent": {
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(gcController.gcPercent.Load())
+			},
+		},
+		"/gc/heap/live:bytes": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = gcController.heapMarked
 			},
 		},
 		"/gc/heap/objects:objects": {
@@ -462,6 +505,7 @@ const (
 	heapStatsDep statDep = iota // corresponds to heapStatsAggregate
 	sysStatsDep                 // corresponds to sysStatsAggregate
 	cpuStatsDep                 // corresponds to cpuStatsAggregate
+	gcStatsDep                  // corresponds to gcStatsAggregate
 	numStatsDeps
 )
 
@@ -616,6 +660,28 @@ type cpuStatsAggregate struct {
 // compute populates the cpuStatsAggregate with values from the runtime.
 func (a *cpuStatsAggregate) compute() {
 	a.cpuStats = work.cpuStats
+	// TODO(mknyszek): Update the the CPU stats again so that we're not
+	// just relying on the STW snapshot. The issue here is that currently
+	// this will cause non-monotonicity in the "user" CPU time metric.
+	//
+	// a.cpuStats.accumulate(nanotime(), gcphase == _GCmark)
+}
+
+// cpuStatsAggregate represents various GC stats obtained from the runtime
+// acquired together to avoid skew and inconsistencies.
+type gcStatsAggregate struct {
+	heapScan    uint64
+	stackScan   uint64
+	globalsScan uint64
+	totalScan   uint64
+}
+
+// compute populates the gcStatsAggregate with values from the runtime.
+func (a *gcStatsAggregate) compute() {
+	a.heapScan = gcController.heapScan.Load()
+	a.stackScan = uint64(gcController.lastStackScan.Load())
+	a.globalsScan = gcController.globalsScan.Load()
+	a.totalScan = a.heapScan + a.stackScan + a.globalsScan
 }
 
 // nsToSec takes a duration in nanoseconds and converts it to seconds as
@@ -634,6 +700,7 @@ type statAggregate struct {
 	heapStats heapStatsAggregate
 	sysStats  sysStatsAggregate
 	cpuStats  cpuStatsAggregate
+	gcStats   gcStatsAggregate
 }
 
 // ensure populates statistics aggregates determined by deps if they
@@ -654,6 +721,8 @@ func (a *statAggregate) ensure(deps *statDepSet) {
 			a.sysStats.compute()
 		case cpuStatsDep:
 			a.cpuStats.compute()
+		case gcStatsDep:
+			a.gcStats.compute()
 		}
 	}
 	a.ensured = a.ensured.union(missing)

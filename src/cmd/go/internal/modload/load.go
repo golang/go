@@ -113,6 +113,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modindex"
@@ -122,7 +123,6 @@ import (
 	"cmd/go/internal/str"
 
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 // loaded is the most recently-used package loader.
@@ -149,7 +149,7 @@ type PackageOpts struct {
 	Tags map[string]bool
 
 	// Tidy, if true, requests that the build list and go.sum file be reduced to
-	// the minimial dependencies needed to reproducibly reload the requested
+	// the minimal dependencies needed to reproducibly reload the requested
 	// packages.
 	Tidy bool
 
@@ -415,7 +415,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			// loaded.requirements, but here we may have also loaded (and want to
 			// preserve checksums for) additional entities from compatRS, which are
 			// only needed for compatibility with ld.TidyCompatibleVersion.
-			if err := modfetch.WriteGoSum(keep, mustHaveCompleteRequirements()); err != nil {
+			if err := modfetch.WriteGoSum(ctx, keep, mustHaveCompleteRequirements()); err != nil {
 				base.Fatalf("go: %v", err)
 			}
 		}
@@ -636,9 +636,9 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
 				root = filepath.Join(replaceRelativeTo(), root)
 			}
 		} else if repl.Path != "" {
-			root, err = modfetch.DownloadDir(repl)
+			root, err = modfetch.DownloadDir(ctx, repl)
 		} else {
-			root, err = modfetch.DownloadDir(m)
+			root, err = modfetch.DownloadDir(ctx, m)
 		}
 		if err != nil {
 			return "", false
@@ -823,6 +823,10 @@ type loader struct {
 	// transitively *imported by* the packages and tests in the main module.)
 	allClosesOverTests bool
 
+	// skipImportModFiles indicates whether we may skip loading go.mod files
+	// for imported packages (as in 'go mod tidy' in Go 1.17–1.20).
+	skipImportModFiles bool
+
 	work *par.Queue
 
 	// reset on each iteration
@@ -988,24 +992,28 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 	if ld.GoVersion == "" {
 		ld.GoVersion = MainModules.GoVersion()
 
-		if ld.Tidy && versionLess(LatestGoVersion(), ld.GoVersion) {
-			ld.errorf("go: go.mod file indicates go %s, but maximum version supported by tidy is %s\n", ld.GoVersion, LatestGoVersion())
+		if ld.Tidy && versionLess(gover.Local(), ld.GoVersion) {
+			ld.errorf("go: go.mod file indicates go %s, but maximum version supported by tidy is %s\n", ld.GoVersion, gover.Local())
 			base.ExitIfErrors()
 		}
 	}
 
 	if ld.Tidy {
 		if ld.TidyCompatibleVersion == "" {
-			ld.TidyCompatibleVersion = priorGoVersion(ld.GoVersion)
+			ld.TidyCompatibleVersion = gover.Prev(ld.GoVersion)
 		} else if versionLess(ld.GoVersion, ld.TidyCompatibleVersion) {
 			// Each version of the Go toolchain knows how to interpret go.mod and
 			// go.sum files produced by all previous versions, so a compatibility
 			// version higher than the go.mod version adds nothing.
 			ld.TidyCompatibleVersion = ld.GoVersion
 		}
+
+		if gover.Compare(ld.GoVersion, tidyGoModSumVersion) < 0 {
+			ld.skipImportModFiles = true
+		}
 	}
 
-	if semver.Compare("v"+ld.GoVersion, narrowAllVersionV) < 0 && !ld.UseVendorAll {
+	if gover.Compare(ld.GoVersion, narrowAllVersion) < 0 && !ld.UseVendorAll {
 		// The module's go version explicitly predates the change in "all" for graph
 		// pruning, so continue to use the older interpretation.
 		ld.allClosesOverTests = true
@@ -1112,7 +1120,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		for m := range modAddedBy {
 			toAdd = append(toAdd, m)
 		}
-		module.Sort(toAdd) // to make errors deterministic
+		gover.ModSort(toAdd) // to make errors deterministic
 
 		// We ran updateRequirements before resolving missing imports and it didn't
 		// make any changes, so we know that the requirement graph is already
@@ -1193,7 +1201,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			// Add importer go version information to import errors of standard
 			// library packages arising from newer releases.
 			if importer := pkg.stack; importer != nil {
-				if v, ok := rawGoVersion.Load(importer.mod); ok && versionLess(LatestGoVersion(), v.(string)) {
+				if v, ok := rawGoVersion.Load(importer.mod); ok && versionLess(gover.Local(), v.(string)) {
 					stdErr.importerGoVersion = v.(string)
 				}
 			}
@@ -1218,7 +1226,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 // versionLess returns whether a < b according to semantic version precedence.
 // Both strings are interpreted as go version strings, e.g. "1.19".
 func versionLess(a, b string) bool {
-	return semver.Compare("v"+a, "v"+b) < 0
+	return gover.Compare(a, b) < 0
 }
 
 // updateRequirements ensures that ld.requirements is consistent with the
@@ -1398,7 +1406,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 				//
 				// In some sense, we can think of this as ‘upgraded the module providing
 				// pkg.path from "none" to a version higher than "none"’.
-				if _, _, _, _, err = importFromModules(ctx, pkg.path, rs, nil); err == nil {
+				if _, _, _, _, err = importFromModules(ctx, pkg.path, rs, nil, ld.skipImportModFiles); err == nil {
 					changed = true
 					break
 				}
@@ -1609,7 +1617,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 			// If the main module is tidy and the package is in "all" — or if we're
 			// lucky — we can identify all of its imports without actually loading the
 			// full module graph.
-			m, _, _, _, err := importFromModules(ctx, path, ld.requirements, nil)
+			m, _, _, _, err := importFromModules(ctx, path, ld.requirements, nil, ld.skipImportModFiles)
 			if err != nil {
 				var missing *ImportMissingError
 				if errors.As(err, &missing) && ld.ResolveMissingImports {
@@ -1654,7 +1662,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 	for m := range need {
 		toAdd = append(toAdd, m)
 	}
-	module.Sort(toAdd)
+	gover.ModSort(toAdd)
 
 	rs, err := updateRoots(ctx, ld.requirements.direct, ld.requirements, nil, toAdd, ld.AssumeRootsImported)
 	if err != nil {
@@ -1697,7 +1705,7 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 	}
 
 	var modroot string
-	pkg.mod, modroot, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg)
+	pkg.mod, modroot, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg, ld.skipImportModFiles)
 	if pkg.dir == "" {
 		return
 	}
@@ -1895,7 +1903,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 		}
 
 		compatFlag := ""
-		if ld.TidyCompatibleVersion != priorGoVersion(ld.GoVersion) {
+		if ld.TidyCompatibleVersion != gover.Prev(ld.GoVersion) {
 			compatFlag = " -compat=" + ld.TidyCompatibleVersion
 		}
 		if suggestUpgrade {
@@ -1956,7 +1964,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 
 		pkg := pkg
 		ld.work.Add(func() {
-			mod, _, _, _, err := importFromModules(ctx, pkg.path, rs, mg)
+			mod, _, _, _, err := importFromModules(ctx, pkg.path, rs, mg, ld.skipImportModFiles)
 			if mod != pkg.mod {
 				mismatches := <-mismatchMu
 				mismatches[pkg] = mismatch{mod: mod, err: err}
@@ -1998,7 +2006,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 
 		if pkg.isTest() {
 			// We already did (or will) report an error for the package itself,
-			// so don't report a duplicate (and more vebose) error for its test.
+			// so don't report a duplicate (and more verbose) error for its test.
 			if _, ok := mismatches[pkg.testOf]; !ok {
 				base.Fatalf("go: internal error: mismatch recorded for test %s, but not its non-test package", pkg.path)
 			}

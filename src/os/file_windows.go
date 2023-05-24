@@ -11,9 +11,11 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
-	"unicode/utf16"
 	"unsafe"
 )
+
+// This matches the value in syscall/syscall_windows.go.
+const _UTIME_OMIT = -1
 
 // file is the real representation of *File.
 // The extra level of indirection ensures that no clients of os
@@ -257,7 +259,7 @@ func tempDir() string {
 			// Otherwise remove terminating \.
 			n--
 		}
-		return string(utf16.Decode(b[:n]))
+		return syscall.UTF16ToString(b[:n])
 	}
 }
 

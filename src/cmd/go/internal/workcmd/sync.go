@@ -8,6 +8,7 @@ package workcmd
 
 import (
 	"cmd/go/internal/base"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
 	"context"
@@ -83,7 +84,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 				inMustSelect[r] = true
 			}
 		}
-		module.Sort(mustSelect) // ensure determinism
+		gover.ModSort(mustSelect) // ensure determinism
 		mustSelectFor[m] = mustSelect
 	}
 

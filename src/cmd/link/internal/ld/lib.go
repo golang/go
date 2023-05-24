@@ -328,8 +328,10 @@ var (
 	Segrelrodata sym.Segment
 	Segdata      sym.Segment
 	Segdwarf     sym.Segment
+	Segpdata     sym.Segment // windows-only
+	Segxdata     sym.Segment // windows-only
 
-	Segments = []*sym.Segment{&Segtext, &Segrodata, &Segrelrodata, &Segdata, &Segdwarf}
+	Segments = []*sym.Segment{&Segtext, &Segrodata, &Segrelrodata, &Segdata, &Segdwarf, &Segpdata, &Segxdata}
 )
 
 const pkgdef = "__.PKGDEF"
@@ -526,8 +528,7 @@ func (ctxt *Link) loadlib() {
 	default:
 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
 	}
-	elfsetstring1 := func(str string, off int) { elfsetstring(ctxt, 0, str, off) }
-	ctxt.loader = loader.NewLoader(flags, elfsetstring1, &ctxt.ErrorReporter.ErrorReporter)
+	ctxt.loader = loader.NewLoader(flags, &ctxt.ErrorReporter.ErrorReporter)
 	ctxt.ErrorReporter.SymName = func(s loader.Sym) string {
 		return ctxt.loader.SymName(s)
 	}
@@ -1903,7 +1904,11 @@ func (ctxt *Link) hostlink() {
 		stripCmd := strings.TrimSuffix(string(out), "\n")
 
 		dsym := filepath.Join(*flagTmpdir, "go.dwarf")
-		if out, err := exec.Command(dsymutilCmd, "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
+		cmd := exec.Command(dsymutilCmd, "-f", *flagOutfile, "-o", dsym)
+		// dsymutil may not clean up its temp directory at exit.
+		// Set DSYMUTIL_REPRODUCER_PATH to work around. see issue 59026.
+		cmd.Env = append(os.Environ(), "DSYMUTIL_REPRODUCER_PATH="+*flagTmpdir)
+		if out, err := cmd.CombinedOutput(); err != nil {
 			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
 		}
 		// Remove STAB (symbolic debugging) symbols after we are done with them (by dsymutil).
@@ -2001,10 +2006,11 @@ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
 	if altLinker != "" {
 		flags = append(flags, "-fuse-ld="+altLinker)
 	}
-	flags = append(flags, flag, "trivial.c")
+	trivialPath := filepath.Join(*flagTmpdir, "trivial.c")
+	outPath := filepath.Join(*flagTmpdir, "a.out")
+	flags = append(flags, "-o", outPath, flag, trivialPath)
 
 	cmd := exec.Command(linker, flags...)
-	cmd.Dir = *flagTmpdir
 	cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
 	out, err := cmd.CombinedOutput()
 	// GCC says "unrecognized command line option ‘-no-pie’"

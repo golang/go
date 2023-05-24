@@ -93,6 +93,7 @@ TEXT	runtime·libfuzzerCallTraceIntCmp(SB), NOSPLIT, $0-32
 	MOVQ	(g_sched+gobuf_sp)(R10), SP
 call:
 	ANDQ	$~15, SP	// alignment for gcc ABI
+	SUBQ	$8, SP
 	// Load the address of the end of the function and push it into the stack.
 	// This address will be jumped to after executing the return instruction
 	// from the return sled. There we reset the stack pointer and return.

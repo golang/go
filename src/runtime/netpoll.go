@@ -287,11 +287,19 @@ func poll_runtime_pollClose(pd *pollDesc) {
 }
 
 func (c *pollCache) free(pd *pollDesc) {
+	// pd can't be shared here, but lock anyhow because
+	// that's what publishInfo documents.
+	lock(&pd.lock)
+
 	// Increment the fdseq field, so that any currently
 	// running netpoll calls will not mark pd as ready.
 	fdseq := pd.fdseq.Load()
 	fdseq = (fdseq + 1) & (1<<taggedPointerBits - 1)
 	pd.fdseq.Store(fdseq)
+
+	pd.publishInfo()
+
+	unlock(&pd.lock)
 
 	lock(&c.lock)
 	pd.link = c.first
@@ -553,7 +561,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 	// this is necessary because runtime_pollUnblock/runtime_pollSetDeadline/deadlineimpl
 	// do the opposite: store to closing/rd/wd, publishInfo, load of rg/wg
 	if waitio || netpollcheckerr(pd, mode) == pollNoError {
-		gopark(netpollblockcommit, unsafe.Pointer(gpp), waitReasonIOWait, traceEvGoBlockNet, 5)
+		gopark(netpollblockcommit, unsafe.Pointer(gpp), waitReasonIOWait, traceBlockNet, 5)
 	}
 	// be careful to not lose concurrent pdReady notification
 	old := gpp.Swap(pdNil)

@@ -13,6 +13,11 @@ import (
 	"os"
 )
 
+// cgoAvailable set to true to indicate that the cgo resolver
+// is available on Plan 9. Note that on Plan 9 the cgo resolver
+// does not actually use cgo.
+const cgoAvailable = true
+
 func query(ctx context.Context, filename, query string, bufSize int) (addrs []string, err error) {
 	queryAddrs := func() (addrs []string, err error) {
 		file, err := os.OpenFile(filename, os.O_RDWR, 0)
@@ -356,8 +361,8 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) (txt []string, er
 }
 
 func (r *Resolver) lookupAddr(ctx context.Context, addr string) (name []string, err error) {
-	if _, conf, preferGo := r.preferGoOverPlan9WithOrderAndConf(); preferGo {
-		return r.goLookupPTR(ctx, addr, conf)
+	if order, conf, preferGo := r.preferGoOverPlan9WithOrderAndConf(); preferGo {
+		return r.goLookupPTR(ctx, addr, order, conf)
 	}
 	arpa, err := reverseaddr(addr)
 	if err != nil {

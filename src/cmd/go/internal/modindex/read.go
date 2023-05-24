@@ -913,7 +913,7 @@ func (sf *sourceFile) embedsOffset() int {
 func (sf *sourceFile) directivesOffset() int {
 	pos := sf.embedsOffset()
 	n := sf.d.intAt(pos)
-	// each import is 5 uint32s (string + tokpos)
+	// each embed is 5 uint32s (string + tokpos)
 	return pos + 4 + n*(4*5)
 }
 

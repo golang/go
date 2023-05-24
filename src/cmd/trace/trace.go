@@ -764,12 +764,12 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 		case trace.EvGCStart:
 			ctx.emitSlice(ev, "GC")
 		case trace.EvGCDone:
-		case trace.EvGCSTWStart:
+		case trace.EvSTWStart:
 			if ctx.mode&modeGoroutineOriented != 0 {
 				continue
 			}
 			ctx.emitSlice(ev, fmt.Sprintf("STW (%s)", ev.SArgs[0]))
-		case trace.EvGCSTWDone:
+		case trace.EvSTWDone:
 		case trace.EvGCMarkAssistStart:
 			// Mark assists can continue past preemptions, so truncate to the
 			// whichever comes first. We'll synthesize another slice if

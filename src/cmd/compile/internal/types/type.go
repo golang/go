@@ -1863,6 +1863,28 @@ func IsTypePkg(p *Pkg) bool {
 	return p == typepkg
 }
 
+// IsNoInstrumentPkg reports whether p is a package that
+// should not be instrumented.
+func IsNoInstrumentPkg(p *Pkg) bool {
+	for _, np := range base.NoInstrumentPkgs {
+		if p.Path == np {
+			return true
+		}
+	}
+	return false
+}
+
+// IsNoRacePkg reports whether p is a package that
+// should not be race instrumented.
+func IsNoRacePkg(p *Pkg) bool {
+	for _, np := range base.NoRacePkgs {
+		if p.Path == np {
+			return true
+		}
+	}
+	return false
+}
+
 // ReceiverBaseType returns the underlying type, if any,
 // that owns methods with receiver parameter t.
 // The result is either a named type or an anonymous struct.

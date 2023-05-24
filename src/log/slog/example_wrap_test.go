@@ -39,7 +39,7 @@ func Example_wrapping() {
 		}
 		return a
 	}
-	logger := slog.New(slog.HandlerOptions{AddSource: true, ReplaceAttr: replace}.NewTextHandler(os.Stdout))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, ReplaceAttr: replace}))
 	Infof(logger, "message, %s", "formatted")
 
 	// Output:

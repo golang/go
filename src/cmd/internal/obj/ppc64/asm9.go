@@ -1071,7 +1071,7 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 		}
 
 	case obj.TYPE_BRANCH:
-		if a.Sym != nil && c.ctxt.Flag_dynlink {
+		if a.Sym != nil && c.ctxt.Flag_dynlink && !pfxEnabled {
 			return C_LBRAPIC
 		}
 		return C_SBRA
@@ -1273,6 +1273,12 @@ func optabLess(i, j int) bool {
 // as opcode a.
 func opset(a, b0 obj.As) {
 	oprange[a&obj.AMask] = oprange[b0]
+}
+
+// Determine if the build configuration requires a TOC pointer.
+// It is assumed this always called after buildop.
+func NeedTOCpointer(ctxt *obj.Link) bool {
+	return !pfxEnabled && ctxt.Flag_shared
 }
 
 // Build the opcode table

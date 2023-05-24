@@ -3,7 +3,7 @@ env GO111MODULE=off
 # Test that 'go get -u' reports packages whose VCS configurations do not
 # match their import paths.
 
-[!net] skip
+[!net:rsc.io] skip
 [short] skip
 
 # We need to execute a custom Go program to break the config files.

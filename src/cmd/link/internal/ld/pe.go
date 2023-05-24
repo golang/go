@@ -433,6 +433,8 @@ type peFile struct {
 	dataSect       *peSection
 	bssSect        *peSection
 	ctorsSect      *peSection
+	pdataSect      *peSection
+	xdataSect      *peSection
 	nextSectOffset uint32
 	nextFileOffset uint32
 	symtabOffset   int64 // offset to the start of symbol table
@@ -495,6 +497,36 @@ func (f *peFile) addDWARF() {
 		if uint64(h.pointerToRawData) != fileoff {
 			Exitf("%s.PointerToRawData = %#x, want %#x", sect.Name, h.pointerToRawData, fileoff)
 		}
+	}
+}
+
+// addSEH adds SEH information to the COFF file f.
+func (f *peFile) addSEH(ctxt *Link) {
+	// .pdata section can exist without the .xdata section.
+	// .xdata section depends on the .pdata section.
+	if Segpdata.Length == 0 {
+		return
+	}
+	d := pefile.addSection(".pdata", int(Segpdata.Length), int(Segpdata.Length))
+	d.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+	if ctxt.LinkMode == LinkExternal {
+		// Some gcc versions don't honor the default alignment for the .pdata section.
+		d.characteristics |= IMAGE_SCN_ALIGN_4BYTES
+	}
+	pefile.pdataSect = d
+	d.checkSegment(&Segpdata)
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].VirtualAddress = d.virtualAddress
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size = d.virtualSize
+
+	if Segxdata.Length > 0 {
+		d = pefile.addSection(".xdata", int(Segxdata.Length), int(Segxdata.Length))
+		d.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+		if ctxt.LinkMode == LinkExternal {
+			// Some gcc versions don't honor the default alignment for the .xdata section.
+			d.characteristics |= IMAGE_SCN_ALIGN_4BYTES
+		}
+		pefile.xdataSect = d
+		d.checkSegment(&Segxdata)
 	}
 }
 
@@ -593,14 +625,21 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 		return int(sect.Rellen / relocLen)
 	}
 
-	sects := []struct {
+	type relsect struct {
 		peSect *peSection
 		seg    *sym.Segment
 		syms   []loader.Sym
-	}{
+	}
+	sects := []relsect{
 		{f.textSect, &Segtext, ctxt.Textp},
 		{f.rdataSect, &Segrodata, ctxt.datap},
 		{f.dataSect, &Segdata, ctxt.datap},
+	}
+	if sehp.pdata != 0 {
+		sects = append(sects, relsect{f.pdataSect, &Segpdata, []loader.Sym{sehp.pdata}})
+	}
+	if sehp.xdata != 0 {
+		sects = append(sects, relsect{f.xdataSect, &Segxdata, []loader.Sym{sehp.xdata}})
 	}
 	for _, s := range sects {
 		s.peSect.emitRelocations(ctxt.Out, func() int {
@@ -1595,6 +1634,7 @@ func addPEBaseReloc(ctxt *Link) {
 func (ctxt *Link) dope() {
 	initdynimport(ctxt)
 	initdynexport(ctxt)
+	writeSEH(ctxt)
 }
 
 func setpersrc(ctxt *Link, syms []loader.Sym) {
@@ -1689,6 +1729,7 @@ func asmbPe(ctxt *Link) {
 		pefile.bssSect = b
 	}
 
+	pefile.addSEH(ctxt)
 	pefile.addDWARF()
 
 	if ctxt.LinkMode == LinkExternal {

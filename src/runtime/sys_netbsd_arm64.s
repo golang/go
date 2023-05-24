@@ -13,11 +13,6 @@
 
 #define CLOCK_REALTIME		0
 #define CLOCK_MONOTONIC		3
-#define FD_CLOEXEC		1
-#define F_SETFD			2
-#define F_GETFL			3
-#define F_SETFL			4
-#define O_NONBLOCK		4
 
 #define SYS_exit			1
 #define SYS_read			3
@@ -416,10 +411,18 @@ ok:
 	MOVW	R0, ret+48(FP)
 	RET
 
-// void runtime·closeonexec(int32 fd)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVW	$F_SETFD, R1
-	MOVW	$FD_CLOEXEC, R2
+// func fcntl(fd, cmd, arg int32) (int32, int32)
+TEXT runtime·fcntl(SB),NOSPLIT,$0
+	MOVW	fd+0(FP), R0	// fd
+	MOVW	cmd+4(FP), R1	// cmd
+	MOVW	arg+8(FP), R2	// arg
 	SVC	$SYS_fcntl
+	BCC	noerr
+	MOVW	$-1, R1
+	MOVW	R1, ret+16(FP)
+	MOVW	R0, errno+20(FP)
+	RET
+noerr:
+	MOVW	R0, ret+16(FP)
+	MOVW	$0, errno+20(FP)
 	RET

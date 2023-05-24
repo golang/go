@@ -540,19 +540,24 @@ func (r *reader) unionType() *types.Type {
 	//
 	// To avoid needing to represent type unions in types1 (since we
 	// don't have any uses for that today anyway), we simply fold them
-	// to "any". As a consistency check, we still read the union terms
-	// to make sure this substitution is safe.
+	// to "any".
 
-	pure := false
-	for i, n := 0, r.Len(); i < n; i++ {
-		_ = r.Bool() // tilde
-		term := r.typ()
-		if term.IsEmptyInterface() {
-			pure = true
+	// TODO(mdempsky): Restore consistency check to make sure folding to
+	// "any" is safe. This is unfortunately tricky, because a pure
+	// interface can reference impure interfaces too, including
+	// cyclically (#60117).
+	if false {
+		pure := false
+		for i, n := 0, r.Len(); i < n; i++ {
+			_ = r.Bool() // tilde
+			term := r.typ()
+			if term.IsEmptyInterface() {
+				pure = true
+			}
 		}
-	}
-	if !pure {
-		base.Fatalf("impure type set used in value type")
+		if !pure {
+			base.Fatalf("impure type set used in value type")
+		}
 	}
 
 	return types.Types[types.TINTER]
@@ -3988,7 +3993,7 @@ func setBasePos(pos src.XPos) {
 //
 // N.B., this variable name is known to Delve:
 // https://github.com/go-delve/delve/blob/cb91509630529e6055be845688fd21eb89ae8714/pkg/proc/eval.go#L28
-const dictParamName = ".dict"
+const dictParamName = typecheck.LocalDictName
 
 // shapeSig returns a copy of fn's signature, except adding a
 // dictionary parameter and promoting the receiver parameter (if any)

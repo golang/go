@@ -47,6 +47,8 @@ var NetpollGenericInit = netpollGenericInit
 var Memmove = memmove
 var MemclrNoHeapPointers = memclrNoHeapPointers
 
+var CgoCheckPointer = cgoCheckPointer
+
 const TracebackInnerFrames = tracebackInnerFrames
 const TracebackOuterFrames = tracebackOuterFrames
 
@@ -229,22 +231,25 @@ func SetEnvs(e []string) { envs = e }
 // For benchmarking.
 
 func BenchSetType(n int, x any) {
+	// Escape x to ensure it is allocated on the heap, as we are
+	// working on the heap bits here.
+	Escape(x)
 	e := *efaceOf(&x)
 	t := e._type
 	var size uintptr
 	var p unsafe.Pointer
-	switch t.kind & kindMask {
+	switch t.Kind_ & kindMask {
 	case kindPtr:
-		t = (*ptrtype)(unsafe.Pointer(t)).elem
-		size = t.size
+		t = (*ptrtype)(unsafe.Pointer(t)).Elem
+		size = t.Size_
 		p = e.data
 	case kindSlice:
 		slice := *(*struct {
 			ptr      unsafe.Pointer
 			len, cap uintptr
 		})(e.data)
-		t = (*slicetype)(unsafe.Pointer(t)).elem
-		size = t.size * slice.len
+		t = (*slicetype)(unsafe.Pointer(t)).Elem
+		size = t.Size_ * slice.len
 		p = slice.ptr
 	}
 	allocSize := roundupsize(size)
@@ -271,7 +276,7 @@ var ReadUnaligned32 = readUnaligned32
 var ReadUnaligned64 = readUnaligned64
 
 func CountPagesInUse() (pagesInUse, counted uintptr) {
-	stopTheWorld("CountPagesInUse")
+	stopTheWorld(stwForTestCountPagesInUse)
 
 	pagesInUse = uintptr(mheap_.pagesInUse.Load())
 
@@ -314,7 +319,7 @@ func (p *ProfBuf) Close() {
 }
 
 func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
-	stopTheWorld("ReadMetricsSlow")
+	stopTheWorld(stwForTestReadMetricsSlow)
 
 	// Initialize the metrics beforehand because this could
 	// allocate and skew the stats.
@@ -342,7 +347,7 @@ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) 
 // ReadMemStatsSlow returns both the runtime-computed MemStats and
 // MemStats accumulated by scanning the heap.
 func ReadMemStatsSlow() (base, slow MemStats) {
-	stopTheWorld("ReadMemStatsSlow")
+	stopTheWorld(stwForTestReadMemStatsSlow)
 
 	// Run on the system stack to avoid stack growth allocation.
 	systemstack(func() {
@@ -421,6 +426,23 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 
 	startTheWorld()
 	return
+}
+
+// ShrinkStackAndVerifyFramePointers attempts to shrink the stack of the current goroutine
+// and verifies that unwinding the new stack doesn't crash, even if the old
+// stack has been freed or reused (simulated via poisoning).
+func ShrinkStackAndVerifyFramePointers() {
+	before := stackPoisonCopy
+	defer func() { stackPoisonCopy = before }()
+	stackPoisonCopy = 1
+
+	gp := getg()
+	systemstack(func() {
+		shrinkstack(gp)
+	})
+	// If our new stack contains frame pointers into the old stack, this will
+	// crash because the old stack has been poisoned.
+	FPCallers(make([]uintptr, 1024))
 }
 
 // BlockOnSystemStack switches to the system stack, prints "x\n" to
@@ -585,7 +607,7 @@ func MapTombstoneCheck(m map[int]int) {
 	t := *(**maptype)(unsafe.Pointer(&i))
 
 	for x := 0; x < 1<<h.B; x++ {
-		b0 := (*bmap)(add(h.buckets, uintptr(x)*uintptr(t.bucketsize)))
+		b0 := (*bmap)(add(h.buckets, uintptr(x)*uintptr(t.BucketSize)))
 		n := 0
 		for b := b0; b != nil; b = b.overflow(t) {
 			for i := 0; i < bucketCnt; i++ {
@@ -1171,7 +1193,7 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 }
 
 func PageCachePagesLeaked() (leaked uintptr) {
-	stopTheWorld("PageCachePagesLeaked")
+	stopTheWorld(stwForTestPageCachePagesLeaked)
 
 	// Walk over destroyed Ps and look for unflushed caches.
 	deadp := allp[len(allp):cap(allp)]
@@ -1325,10 +1347,11 @@ func GCTestPointerClass(p unsafe.Pointer) string {
 const Raceenabled = raceenabled
 
 const (
-	GCBackgroundUtilization     = gcBackgroundUtilization
-	GCGoalUtilization           = gcGoalUtilization
-	DefaultHeapMinimum          = defaultHeapMinimum
-	MemoryLimitHeapGoalHeadroom = memoryLimitHeapGoalHeadroom
+	GCBackgroundUtilization            = gcBackgroundUtilization
+	GCGoalUtilization                  = gcGoalUtilization
+	DefaultHeapMinimum                 = defaultHeapMinimum
+	MemoryLimitHeapGoalHeadroomPercent = memoryLimitHeapGoalHeadroomPercent
+	MemoryLimitMinHeapGoalHeadroom     = memoryLimitMinHeapGoalHeadroom
 )
 
 type GCController struct {
@@ -1737,10 +1760,10 @@ func NewUserArena() *UserArena {
 func (a *UserArena) New(out *any) {
 	i := efaceOf(out)
 	typ := i._type
-	if typ.kind&kindMask != kindPtr {
+	if typ.Kind_&kindMask != kindPtr {
 		panic("new result of non-ptr type")
 	}
-	typ = (*ptrtype)(unsafe.Pointer(typ)).elem
+	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
 	i.data = a.arena.new(typ)
 }
 
@@ -1802,6 +1825,18 @@ func PersistentAlloc(n uintptr) unsafe.Pointer {
 
 // FPCallers works like Callers and uses frame pointer unwinding to populate
 // pcBuf with the return addresses of the physical frames on the stack.
-func FPCallers(skip int, pcBuf []uintptr) int {
-	return fpTracebackPCs(unsafe.Pointer(getcallerfp()), skip, pcBuf)
+func FPCallers(pcBuf []uintptr) int {
+	return fpTracebackPCs(unsafe.Pointer(getfp()), pcBuf)
+}
+
+var (
+	IsPinned      = isPinned
+	GetPinCounter = pinnerGetPinCounter
+)
+
+func SetPinnerLeakPanic(f func()) {
+	pinnerLeakPanic = f
+}
+func GetPinnerLeakPanic() func() {
+	return pinnerLeakPanic
 }

@@ -26,6 +26,9 @@ import (
 	"crypto/sha1"
 )
 
+// Tests can override this by setting $TESTGO_TOOLCHAIN_VERSION.
+var ToolchainVersion = runtime.Version()
+
 // The 'path' used for GOROOT_FINAL when -trimpath is specified
 const trimPathGoRootFinal string = "$GOROOT"
 
@@ -138,8 +141,8 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if p.Internal.OmitDebug || cfg.Goos == "plan9" || cfg.Goarch == "wasm" {
 		defaultGcFlags = append(defaultGcFlags, "-dwarf=false")
 	}
-	if strings.HasPrefix(RuntimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
-		defaultGcFlags = append(defaultGcFlags, "-goversion", RuntimeVersion)
+	if strings.HasPrefix(ToolchainVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
+		defaultGcFlags = append(defaultGcFlags, "-goversion", ToolchainVersion)
 	}
 	if p.Internal.CoverageCfg != "" {
 		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.CoverageCfg)

@@ -183,7 +183,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			}
 
 			allowed := CheckAllowed
-			if IsRevisionQuery(vers) || mode&ListRetracted != 0 {
+			if IsRevisionQuery(path, vers) || mode&ListRetracted != 0 {
 				// Allow excluded and retracted versions if the user asked for a
 				// specific revision or used 'go list -retracted'.
 				allowed = nil

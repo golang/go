@@ -463,7 +463,7 @@ func (check *Checker) recordUntyped() {
 
 	for x, info := range check.untyped {
 		if debug && isTyped(info.typ) {
-			check.dump("%v: %s (type %s) is typed", posFor(x), x, info.typ)
+			check.dump("%v: %s (type %s) is typed", atPos(x), x, info.typ)
 			unreachable()
 		}
 		check.recordTypeAndValue(x, info.mode, info.typ, info.val)

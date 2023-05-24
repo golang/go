@@ -31,7 +31,7 @@ go vet -n -- .
 go vet .
 env GOFLAGS='-tags=buggy'
 ! go vet .
-stderr 'possible formatting directive'
+stderr 'possible Printf formatting directive'
 
 # Enabling one analyzer in GOFLAGS should disable the rest implicitly...
 env GOFLAGS='-tags=buggy -unsafeptr'
@@ -41,7 +41,7 @@ go vet .
 # enabled via GOFLAGS.
 env GOFLAGS='-tags=buggy -printf'
 ! go vet -unsafeptr
-stderr 'possible formatting directive'
+stderr 'possible Printf formatting directive'
 
 # Analyzer flags don't exist unless we're running 'go vet',
 # and we shouldn't run the vet tool to discover them otherwise.

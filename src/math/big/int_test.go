@@ -254,7 +254,7 @@ func TestBinomial(t *testing.T) {
 
 func BenchmarkBinomial(b *testing.B) {
 	var z Int
-	for i := b.N - 1; i >= 0; i-- {
+	for i := 0; i < b.N; i++ {
 		z.Binomial(1000, 990)
 	}
 }
@@ -1425,7 +1425,6 @@ func BenchmarkBitset(b *testing.B) {
 	z := new(Int)
 	z.SetBit(z, 512, 1)
 	b.ResetTimer()
-	b.StartTimer()
 	for i := b.N - 1; i >= 0; i-- {
 		z.SetBit(z, i&512, 1)
 	}
@@ -1435,7 +1434,6 @@ func BenchmarkBitsetNeg(b *testing.B) {
 	z := NewInt(-1)
 	z.SetBit(z, 512, 0)
 	b.ResetTimer()
-	b.StartTimer()
 	for i := b.N - 1; i >= 0; i-- {
 		z.SetBit(z, i&512, 0)
 	}
@@ -1445,7 +1443,6 @@ func BenchmarkBitsetOrig(b *testing.B) {
 	z := new(Int)
 	altSetBit(z, z, 512, 1)
 	b.ResetTimer()
-	b.StartTimer()
 	for i := b.N - 1; i >= 0; i-- {
 		altSetBit(z, z, i&512, 1)
 	}
@@ -1455,7 +1452,6 @@ func BenchmarkBitsetNegOrig(b *testing.B) {
 	z := NewInt(-1)
 	altSetBit(z, z, 512, 0)
 	b.ResetTimer()
-	b.StartTimer()
 	for i := b.N - 1; i >= 0; i-- {
 		altSetBit(z, z, i&512, 0)
 	}

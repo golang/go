@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Lowering arithmetic
+// GOPPC64 values indicate power8, power9, etc.
+// That means the code is compiled for that target,
+// and will not run on earlier targets.
+//
 (Add(Ptr|64|32|16|8) ...) => (ADD ...)
 (Add64F ...) => (FADD ...)
 (Add32F ...) => (FADDS ...)
@@ -705,71 +708,79 @@
 (MTVSRD x:(MOVDload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (FMOVDload [off] {sym} ptr mem)
 (MFVSRD x:(FMOVDload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVDload [off] {sym} ptr mem)
 
+// Rules for MOV* or FMOV* ops determine when indexed (MOV*loadidx or MOV*storeidx)
+// or non-indexed (MOV*load or MOV*store) should be used. Indexed instructions
+// require an extra instruction and register to load the index so non-indexed is preferred.
+// Indexed ops generate indexed load or store instructions for all GOPPC64 values.
+// Non-indexed ops generate DS-form loads and stores when the offset fits in 16 bits,
+// and on power8 and power9, a multiple of 4 is required for MOVW and MOVD ops.
+// On power10, prefixed loads and stores can be used for offsets > 16 bits and <= 32 bits.
+// and support for PC relative addressing must be available if relocation is needed.
+// On power10, the assembler will determine when to use DS-form or prefixed
+// instructions for non-indexed ops depending on the value of the offset.
+//
 // Fold offsets for stores.
-(MOV(D|W|H|B)store [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(int64(off1)+off2) => (MOV(D|W|H|B)store [off1+int32(off2)] {sym} x val mem)
+(MOV(D|W|H|B)store [off1] {sym} (ADDconst [off2] x) val mem) && (is16Bit(int64(off1)+off2) || (supportsPPC64PCRel() && is32Bit(int64(off1)+off2))) => (MOV(D|W|H|B)store [off1+int32(off2)] {sym} x val mem)
 
-(FMOV(S|D)store [off1] {sym} (ADDconst [off2] ptr) val mem) && is16Bit(int64(off1)+off2) => (FMOV(S|D)store [off1+int32(off2)] {sym} ptr val mem)
+(FMOV(S|D)store [off1] {sym} (ADDconst [off2] ptr) val mem) && (is16Bit(int64(off1)+off2) || (supportsPPC64PCRel() && is32Bit(int64(off1)+off2))) => (FMOV(S|D)store [off1+int32(off2)] {sym} ptr val mem)
 
 // Fold address into load/store.
-// The assembler needs to generate several instructions and use
+// If power10 with PCRel is not available, then
+// the assembler needs to generate several instructions and use
 // temp register for accessing global, and each time it will reload
-// the temp register. So don't fold address of global, unless there
-// is only one use.
+// the temp register. So don't fold address of global in that case if there is more than
+// one use.
 (MOV(B|H|W|D)store [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
-	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
+	&& ((is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)) || (supportsPPC64PCRel() && is32Bit(int64(off1+off2)))) =>
         (MOV(B|H|W|D)store [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 
 (FMOV(S|D)store [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
-	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
+	&& ((is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)) || (supportsPPC64PCRel() && is32Bit(int64(off1+off2)))) =>
         (FMOV(S|D)store [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 
 (MOV(B|H|W)Zload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
-	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
+	&& ((is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)) || (supportsPPC64PCRel() && is32Bit(int64(off1+off2)))) =>
         (MOV(B|H|W)Zload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOV(H|W|D)load [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
-	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
+	&& ((is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)) || (supportsPPC64PCRel() && is32Bit(int64(off1+off2)))) =>
         (MOV(H|W|D)load [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (FMOV(S|D)load [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
-	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
+	&& ((is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)) || (supportsPPC64PCRel() && is32Bit(int64(off1+off2)))) =>
         (FMOV(S|D)load [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 
 // Fold offsets for loads.
-(FMOV(S|D)load [off1] {sym} (ADDconst [off2] ptr) mem) && is16Bit(int64(off1)+off2) => (FMOV(S|D)load [off1+int32(off2)] {sym} ptr mem)
+(FMOV(S|D)load [off1] {sym} (ADDconst [off2] ptr) mem) && (is16Bit(int64(off1)+off2) || (supportsPPC64PCRel() && is32Bit(int64(off1)+off2))) => (FMOV(S|D)load [off1+int32(off2)] {sym} ptr mem)
 
-(MOV(D|W|WZ|H|HZ|BZ)load [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) => (MOV(D|W|WZ|H|HZ|BZ)load [off1+int32(off2)] {sym} x mem)
+(MOV(D|W|WZ|H|HZ|BZ)load [off1] {sym} (ADDconst [off2] x) mem) && (is16Bit(int64(off1)+off2) || (supportsPPC64PCRel() && is32Bit(int64(off1)+off2))) => (MOV(D|W|WZ|H|HZ|BZ)load [off1+int32(off2)] {sym} x mem)
 
 // Determine load + addressing that can be done as a register indexed load
 (MOV(D|W|WZ|H|HZ|BZ)load [0] {sym} p:(ADD ptr idx) mem) && sym == nil && p.Uses == 1 => (MOV(D|W|WZ|H|HZ|BZ)loadidx ptr idx mem)
 
-// Determine if there is benefit to using a non-indexed load, since that saves the load
-// of the index register. With MOVDload and MOVWload, there is no benefit if the offset
-// value is not a multiple of 4, since that results in an extra instruction in the base
-// register address computation.
-(MOV(D|W)loadidx ptr (MOVDconst [c]) mem) && is16Bit(c) && c%4 == 0 => (MOV(D|W)load [int32(c)] ptr mem)
-(MOV(WZ|H|HZ|BZ)loadidx ptr (MOVDconst [c]) mem) && is16Bit(c) => (MOV(WZ|H|HZ|BZ)load [int32(c)] ptr mem)
-(MOV(D|W)loadidx (MOVDconst [c]) ptr mem) && is16Bit(c) && c%4 == 0 => (MOV(D|W)load [int32(c)] ptr mem)
-(MOV(WZ|H|HZ|BZ)loadidx (MOVDconst [c]) ptr mem) && is16Bit(c) => (MOV(WZ|H|HZ|BZ)load [int32(c)] ptr mem)
+// See comments above concerning selection of indexed vs. non-indexed ops.
+// These cases don't have relocation.
+(MOV(D|W)loadidx ptr (MOVDconst [c]) mem) && ((is16Bit(c) && c%4 == 0) || (buildcfg.GOPPC64 >= 10 && is32Bit(c))) => (MOV(D|W)load [int32(c)] ptr mem)
+(MOV(WZ|H|HZ|BZ)loadidx ptr (MOVDconst [c]) mem) && (is16Bit(c) || (buildcfg.GOPPC64 >= 10 && is32Bit(c))) => (MOV(WZ|H|HZ|BZ)load [int32(c)] ptr mem)
+(MOV(D|W)loadidx (MOVDconst [c]) ptr mem) && ((is16Bit(c) && c%4 == 0) || (buildcfg.GOPPC64 >= 10 && is32Bit(c))) => (MOV(D|W)load [int32(c)] ptr mem)
+(MOV(WZ|H|HZ|BZ)loadidx (MOVDconst [c]) ptr mem) && (is16Bit(c) || (buildcfg.GOPPC64 >= 10 && is32Bit(c))) => (MOV(WZ|H|HZ|BZ)load [int32(c)] ptr mem)
 
 // Store of zero => storezero
 (MOV(D|W|H|B)store [off] {sym} ptr (MOVDconst [0]) mem) => (MOV(D|W|H|B)storezero [off] {sym} ptr mem)
 
 // Fold offsets for storezero
-(MOV(D|W|H|B)storezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) =>
+(MOV(D|W|H|B)storezero [off1] {sym} (ADDconst [off2] x) mem) && ((supportsPPC64PCRel() && is32Bit(int64(off1)+off2)) || (is16Bit(int64(off1)+off2))) =>
     (MOV(D|W|H|B)storezero [off1+int32(off2)] {sym} x mem)
 
 // Stores with addressing that can be done as indexed stores
 (MOV(D|W|H|B)store [0] {sym} p:(ADD ptr idx) val mem) && sym == nil && p.Uses == 1 => (MOV(D|W|H|B)storeidx ptr idx val mem)
 
-// Stores with constant index values can be done without indexed instructions
-// No need to lower the idx cases if c%4 is not 0
-(MOVDstoreidx ptr (MOVDconst [c]) val mem) && is16Bit(c) && c%4 == 0 => (MOVDstore [int32(c)] ptr val mem)
-(MOV(W|H|B)storeidx ptr (MOVDconst [c]) val mem) && is16Bit(c) => (MOV(W|H|B)store [int32(c)] ptr val mem)
-(MOVDstoreidx (MOVDconst [c]) ptr val mem) && is16Bit(c) && c%4 == 0 => (MOVDstore [int32(c)] ptr val mem)
-(MOV(W|H|B)storeidx (MOVDconst [c]) ptr val mem) && is16Bit(c) => (MOV(W|H|B)store [int32(c)] ptr val mem)
+(MOVDstoreidx ptr (MOVDconst [c]) val mem) && ((is16Bit(c) && c%4 == 0) || (buildcfg.GOPPC64 >= 10 && is32Bit(c))) => (MOVDstore [int32(c)] ptr val mem)
+(MOV(W|H|B)storeidx ptr (MOVDconst [c]) val mem) && (is16Bit(c) || (buildcfg.GOPPC64 >= 10 && is32Bit(c))) => (MOV(W|H|B)store [int32(c)] ptr val mem)
+(MOVDstoreidx (MOVDconst [c]) ptr val mem) && ((is16Bit(c) && c%4 == 0) || (buildcfg.GOPPC64 >= 10 && is32Bit(c))) => (MOVDstore [int32(c)] ptr val mem)
+(MOV(W|H|B)storeidx (MOVDconst [c]) ptr val mem) && (is16Bit(c) || (buildcfg.GOPPC64 >= 10 && is32Bit(c))) => (MOV(W|H|B)store [int32(c)] ptr val mem)
 
 // Fold symbols into storezero
 (MOV(D|W|H|B)storezero [off1] {sym1} p:(MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2)
-	&& (x.Op != OpSB || p.Uses == 1) =>
+	&& ((is16Bit(int64(off1+off2)) && (x.Op != OpSB || p.Uses == 1)) || (supportsPPC64PCRel() && is32Bit(int64(off1+off2)))) =>
     (MOV(D|W|H|B)storezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
 
 // atomic intrinsics

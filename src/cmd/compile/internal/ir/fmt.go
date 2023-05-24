@@ -63,6 +63,8 @@ var OpNames = []string{
 	OLT:               "<",
 	OMAKE:             "make",
 	ONEG:              "-",
+	OMAX:              "max",
+	OMIN:              "min",
 	OMOD:              "%",
 	OMUL:              "*",
 	ONEW:              "new",
@@ -198,6 +200,8 @@ var OpPrec = []int{
 	OMAKESLICECOPY:    8,
 	OMAKE:             8,
 	OMAPLIT:           8,
+	OMAX:              8,
+	OMIN:              8,
 	ONAME:             8,
 	ONEW:              8,
 	ONIL:              8,
@@ -788,6 +792,8 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case OAPPEND,
 		ODELETE,
 		OMAKE,
+		OMAX,
+		OMIN,
 		ORECOVER,
 		OPRINT,
 		OPRINTN:
@@ -1085,15 +1091,15 @@ func dumpNodeHeader(w io.Writer, n Node) {
 		case src.PosIsStmt:
 			fmt.Fprint(w, "+")
 		}
-		for i, pos := range base.Ctxt.AllPos(n.Pos(), nil) {
-			if i > 0 {
-				fmt.Fprint(w, ",")
-			}
+		sep := ""
+		base.Ctxt.AllPos(n.Pos(), func(pos src.Pos) {
+			fmt.Fprint(w, sep)
+			sep = " "
 			// TODO(mdempsky): Print line pragma details too.
 			file := filepath.Base(pos.Filename())
 			// Note: this output will be parsed by ssa/html.go:(*HTMLWriter).WriteAST. Keep in sync.
 			fmt.Fprintf(w, "%s:%d:%d", file, pos.Line(), pos.Col())
-		}
+		})
 	}
 }
 

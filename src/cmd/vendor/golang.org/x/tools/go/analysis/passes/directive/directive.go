@@ -36,6 +36,7 @@ buildtag analyzer.
 var Analyzer = &analysis.Analyzer{
 	Name: "directive",
 	Doc:  Doc,
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/directive",
 	Run:  runDirective,
 }
 

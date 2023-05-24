@@ -83,7 +83,8 @@ const (
 	// direct references. (This is used for types reachable by reflection.)
 	R_USETYPE
 	// R_USEIFACE marks a type is converted to an interface in the function this
-	// relocation is applied to. The target is a type descriptor.
+	// relocation is applied to. The target is a type descriptor or an itab
+	// (in the latter case it refers to the conrete type contained in the itab).
 	// This is a marker relocation (0-sized), for the linker's reachabililty
 	// analysis.
 	R_USEIFACE

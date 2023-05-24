@@ -5,8 +5,8 @@
 
 [compiler:gccgo] skip # only external linking for gccgo
 
-# This test requires external linking, so use cgo as a proxy
-[!cgo] skip
+[!cgo] skip 'test verifies behavior that depends on CGO_CFLAGS'
+[mustlinkext] skip 'test expects internal linking for non-cgo programs'
 
 # Here we build three program: one with explicit CGO use, one with no
 # CGO use, and one that uses a stdlib package ("runtime/cgo") that has

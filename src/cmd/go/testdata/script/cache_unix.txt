@@ -2,9 +2,10 @@ env GO111MODULE=off
 
 # Integration test for cache directory calculation (cmd/go/internal/cache).
 
-[GOOS:windows] skip
-[GOOS:darwin] skip
-[GOOS:plan9] skip
+[GOOS:windows] skip 'windows does not use XDG_CACHE_HOME'
+[GOOS:darwin]  skip 'darwin does not use XDG_CACHE_HOME'
+[GOOS:ios]     skip 'ios does not use XDG_CACHE_HOME'
+[GOOS:plan9]   skip 'plan9 does not use XDG_CACHE_HOME'
 
 mkdir $WORK/gocache
 mkdir $WORK/xdg

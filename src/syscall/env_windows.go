@@ -7,7 +7,6 @@
 package syscall
 
 import (
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -24,7 +23,7 @@ func Getenv(key string) (value string, found bool) {
 			return "", false
 		}
 		if n <= uint32(len(b)) {
-			return string(utf16.Decode(b[:n])), true
+			return UTF16ToString(b[:n]), true
 		}
 	}
 }
@@ -90,7 +89,7 @@ func Environ() []string {
 		}
 
 		entry := unsafe.Slice(envp, (uintptr(end)-uintptr(unsafe.Pointer(envp)))/size)
-		r = append(r, string(utf16.Decode(entry)))
+		r = append(r, UTF16ToString(entry))
 		envp = (*uint16)(unsafe.Add(end, size))
 	}
 	return r

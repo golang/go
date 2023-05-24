@@ -27,7 +27,7 @@ func WriteMetaDir(dir string) error {
 
 // WriteMeta writes the meta-data content (the payload that would
 // normally be emitted to a meta-data file) for the currently running
-// program to the the writer 'w'. An error will be returned if the
+// program to the writer 'w'. An error will be returned if the
 // operation can't be completed successfully (for example, if the
 // currently running program was not built with "-cover", or if a
 // write fails).

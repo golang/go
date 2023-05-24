@@ -1,5 +1,6 @@
-[short] skip
-[!net] skip
+[!net:github.com] skip
+[!net:golang.org] skip
+[!net:gopkg.in] skip
 [!git] skip
 
 env GO111MODULE=on
@@ -12,6 +13,9 @@ cp $GOPATH/pkg/mod/github.com/docker/distribution@v0.0.0-20150410205453-85de3967
 cd x
 go mod init github.com/docker/distribution
 cmpenv go.mod go.mod.want
+
+[!net:google.golang.org] skip
+[!net:cloud.google.com] skip
 
 go mod download github.com/fishy/gcsbucket@v0.0.0-20180217031846-618d60fe84e0
 cp $GOPATH/pkg/mod/github.com/fishy/gcsbucket@v0.0.0-20180217031846-618d60fe84e0/Gopkg.lock ../y

@@ -652,6 +652,18 @@ func (dir dirFS) Open(name string) (fs.File, error) {
 	return f, nil
 }
 
+// The ReadFile method calls the [ReadFile] function for the file
+// with the given name in the directory. The function provides
+// robust handling for small files and special file systems.
+// Through this method, dirFS implements [io/fs.ReadFileFS].
+func (dir dirFS) ReadFile(name string) ([]byte, error) {
+	fullname, err := dir.join(name)
+	if err != nil {
+		return nil, &PathError{Op: "readfile", Path: name, Err: err}
+	}
+	return ReadFile(fullname)
+}
+
 func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
 	fullname, err := dir.join(name)
 	if err != nil {

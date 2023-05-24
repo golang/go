@@ -497,6 +497,10 @@ func (f *FakeFile) Sys() any {
 	return nil
 }
 
+func (f *FakeFile) String() string {
+	return fs.FormatFileInfo(f)
+}
+
 // Special helpers.
 
 func (f *FakeFile) Entry() *archive.Entry {

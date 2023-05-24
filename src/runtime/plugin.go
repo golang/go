@@ -79,13 +79,13 @@ func plugin_lastmoduleinit() (path string, syms map[string]any, initTasks []*ini
 	syms = make(map[string]any, len(md.ptab))
 	for _, ptab := range md.ptab {
 		symName := resolveNameOff(unsafe.Pointer(md.types), ptab.name)
-		t := (*_type)(unsafe.Pointer(md.types)).typeOff(ptab.typ)
+		t := toRType((*_type)(unsafe.Pointer(md.types))).typeOff(ptab.typ) // TODO can this stack of conversions be simpler?
 		var val any
 		valp := (*[2]unsafe.Pointer)(unsafe.Pointer(&val))
 		(*valp)[0] = unsafe.Pointer(t)
 
-		name := symName.name()
-		if t.kind&kindMask == kindFunc {
+		name := symName.Name()
+		if t.Kind_&kindMask == kindFunc {
 			name = "." + name
 		}
 		syms[name] = val

@@ -332,8 +332,8 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 				isExpr = false
 			}
 		}
-	case ir.OAPPEND:
-		// Must be used (and not BinaryExpr/UnaryExpr).
+	case ir.OAPPEND, ir.OMIN, ir.OMAX:
+		// Must be used.
 		isStmt = false
 	case ir.OCLEAR, ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN:
 		// Must not be used.
@@ -604,6 +604,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OCAP, ir.OLEN:
 		n := n.(*ir.UnaryExpr)
 		return tcLenCap(n)
+
+	case ir.OMIN, ir.OMAX:
+		n := n.(*ir.CallExpr)
+		return tcMinMax(n)
 
 	case ir.OREAL, ir.OIMAG:
 		n := n.(*ir.UnaryExpr)

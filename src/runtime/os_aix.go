@@ -352,20 +352,17 @@ func walltime() (sec int64, nsec int32) {
 }
 
 //go:nosplit
-func fcntl(fd, cmd, arg int32) int32 {
-	r, _ := syscall3(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg))
-	return int32(r)
-}
-
-//go:nosplit
-func closeonexec(fd int32) {
-	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+func fcntl(fd, cmd, arg int32) (int32, int32) {
+	r, errno := syscall3(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg))
+	return int32(r), int32(errno)
 }
 
 //go:nosplit
 func setNonblock(fd int32) {
-	flags := fcntl(fd, _F_GETFL, 0)
-	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+	flags, _ := fcntl(fd, _F_GETFL, 0)
+	if flags != -1 {
+		fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+	}
 }
 
 // sigPerThreadSyscall is only used on linux, so we assign a bogus signal

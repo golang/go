@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 )
@@ -25,6 +26,7 @@ of the second argument is not a pointer to a type implementing error.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "errorsas",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/errorsas",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -35,6 +37,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		// These packages know how to use their own APIs.
 		// Sometimes they are testing what happens to incorrect programs.
 		return nil, nil
+	}
+
+	if !analysisutil.Imports(pass.Pkg, "errors") {
+		return nil, nil // doesn't directly import errors
 	}
 
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)

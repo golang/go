@@ -617,7 +617,7 @@ func (b *profileBuilder) emitLocation() uint64 {
 			b.funcs[frame.Function] = int(funcID)
 			newFuncs = append(newFuncs, newFunc{
 				id:        funcID,
-				name:      frame.Function,
+				name:      runtime_FrameSymbolName(&frame),
 				file:      frame.File,
 				startLine: int64(runtime_FrameStartLine(&frame)),
 			})

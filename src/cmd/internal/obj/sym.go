@@ -367,6 +367,8 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 						fn(aux)
 					}
 					ctxt.traverseFuncAux(flag, s, f, files)
+				} else if v := s.VarInfo(); v != nil {
+					fnNoNil(v.dwarfInfoSym)
 				}
 			}
 			if flag&traversePcdata != 0 && s.Type == objabi.STEXT {
@@ -443,10 +445,11 @@ func (ctxt *Link) traverseAuxSyms(flag traverseFlag, fn func(parent *LSym, aux *
 					fn(s, s.Gotype)
 				}
 			}
-			if s.Type != objabi.STEXT {
-				continue
+			if s.Type == objabi.STEXT {
+				ctxt.traverseFuncAux(flag, s, fn, files)
+			} else if v := s.VarInfo(); v != nil && v.dwarfInfoSym != nil {
+				fn(s, v.dwarfInfoSym)
 			}
-			ctxt.traverseFuncAux(flag, s, fn, files)
 		}
 	}
 }

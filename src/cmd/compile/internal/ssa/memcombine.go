@@ -141,27 +141,26 @@ func combineLoads(root *Value, n int64) bool {
 
 	// Find n values that are ORed together with the above op.
 	a := make([]*Value, 0, 8)
-	v := root
-	for int64(len(a)) < n {
-		if v.Args[0].Op == orOp {
-			a = append(a, v.Args[1])
-			v = v.Args[0]
-		} else if v.Args[1].Op == orOp {
-			a = append(a, v.Args[0])
-			v = v.Args[1]
-		} else if int64(len(a)) == n-2 {
-			a = append(a, v.Args[0])
-			a = append(a, v.Args[1])
-			v = nil
-		} else {
+	a = append(a, root)
+	for i := 0; i < len(a) && int64(len(a)) < n; i++ {
+		v := a[i]
+		if v.Uses != 1 && v != root {
+			// Something in this subtree is used somewhere else.
 			return false
 		}
+		if v.Op == orOp {
+			a[i] = v.Args[0]
+			a = append(a, v.Args[1])
+			i--
+		}
 	}
-	tail := v // Value to OR in beyond the ones we're working with (or nil if none).
+	if int64(len(a)) != n {
+		return false
+	}
 
 	// Check that the first entry to see what ops we're looking for.
 	// All the entries should be of the form shift(extend(load)), maybe with no shift.
-	v = a[0]
+	v := a[0]
 	if v.Op == shiftOp {
 		v = v.Args[0]
 	}
@@ -317,15 +316,9 @@ func combineLoads(root *Value, n int64) bool {
 		v = leftShift(loadBlock, pos, v, shift0-(n-1)*8)
 	}
 
-	// Install. If there's a tail, make the root (OR v tail).
-	// If not, do (Copy v).
-	if tail != nil {
-		root.SetArg(0, v)
-		root.SetArg(1, tail)
-	} else {
-		root.reset(OpCopy)
-		root.AddArg(v)
-	}
+	// Install with (Copy v).
+	root.reset(OpCopy)
+	root.AddArg(v)
 
 	// Clobber the loads, just to prevent additional work being done on
 	// subtrees (which are now unreachable).

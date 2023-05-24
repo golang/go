@@ -553,6 +553,10 @@ func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
 func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
 func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
 
+func (d *statDirEntry) String() string {
+	return fs.FormatDirEntry(d)
+}
+
 // Walk walks the file tree rooted at root, calling fn for each file or
 // directory in the tree, including root.
 //

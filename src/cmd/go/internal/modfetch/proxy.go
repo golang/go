@@ -5,6 +5,7 @@
 package modfetch
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -227,7 +228,7 @@ func (p *proxyRepo) ModulePath() string {
 
 var errProxyReuse = fmt.Errorf("proxy does not support CheckReuse")
 
-func (p *proxyRepo) CheckReuse(old *codehost.Origin) error {
+func (p *proxyRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error {
 	return errProxyReuse
 }
 
@@ -251,8 +252,8 @@ func (p *proxyRepo) versionError(version string, err error) error {
 	}
 }
 
-func (p *proxyRepo) getBytes(path string) ([]byte, error) {
-	body, err := p.getBody(path)
+func (p *proxyRepo) getBytes(ctx context.Context, path string) ([]byte, error) {
+	body, err := p.getBody(ctx, path)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +268,7 @@ func (p *proxyRepo) getBytes(path string) ([]byte, error) {
 	return b, nil
 }
 
-func (p *proxyRepo) getBody(path string) (r io.ReadCloser, err error) {
+func (p *proxyRepo) getBody(ctx context.Context, path string) (r io.ReadCloser, err error) {
 	fullPath := pathpkg.Join(p.url.Path, path)
 
 	target := *p.url
@@ -285,8 +286,8 @@ func (p *proxyRepo) getBody(path string) (r io.ReadCloser, err error) {
 	return resp.Body, nil
 }
 
-func (p *proxyRepo) Versions(prefix string) (*Versions, error) {
-	data, err := p.getBytes("@v/list")
+func (p *proxyRepo) Versions(ctx context.Context, prefix string) (*Versions, error) {
+	data, err := p.getBytes(ctx, "@v/list")
 	if err != nil {
 		p.listLatestOnce.Do(func() {
 			p.listLatest, p.listLatestErr = nil, p.versionError("", err)
@@ -302,26 +303,26 @@ func (p *proxyRepo) Versions(prefix string) (*Versions, error) {
 		}
 	}
 	p.listLatestOnce.Do(func() {
-		p.listLatest, p.listLatestErr = p.latestFromList(allLine)
+		p.listLatest, p.listLatestErr = p.latestFromList(ctx, allLine)
 	})
 	semver.Sort(list)
 	return &Versions{List: list}, nil
 }
 
-func (p *proxyRepo) latest() (*RevInfo, error) {
+func (p *proxyRepo) latest(ctx context.Context) (*RevInfo, error) {
 	p.listLatestOnce.Do(func() {
-		data, err := p.getBytes("@v/list")
+		data, err := p.getBytes(ctx, "@v/list")
 		if err != nil {
 			p.listLatestErr = p.versionError("", err)
 			return
 		}
 		list := strings.Split(string(data), "\n")
-		p.listLatest, p.listLatestErr = p.latestFromList(list)
+		p.listLatest, p.listLatestErr = p.latestFromList(ctx, list)
 	})
 	return p.listLatest, p.listLatestErr
 }
 
-func (p *proxyRepo) latestFromList(allLine []string) (*RevInfo, error) {
+func (p *proxyRepo) latestFromList(ctx context.Context, allLine []string) (*RevInfo, error) {
 	var (
 		bestTime    time.Time
 		bestVersion string
@@ -355,15 +356,15 @@ func (p *proxyRepo) latestFromList(allLine []string) (*RevInfo, error) {
 	}
 
 	// Call Stat to get all the other fields, including Origin information.
-	return p.Stat(bestVersion)
+	return p.Stat(ctx, bestVersion)
 }
 
-func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
+func (p *proxyRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
 	encRev, err := module.EscapeVersion(rev)
 	if err != nil {
 		return nil, p.versionError(rev, err)
 	}
-	data, err := p.getBytes("@v/" + encRev + ".info")
+	data, err := p.getBytes(ctx, "@v/"+encRev+".info")
 	if err != nil {
 		return nil, p.versionError(rev, err)
 	}
@@ -380,13 +381,13 @@ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
 	return info, nil
 }
 
-func (p *proxyRepo) Latest() (*RevInfo, error) {
-	data, err := p.getBytes("@latest")
+func (p *proxyRepo) Latest(ctx context.Context) (*RevInfo, error) {
+	data, err := p.getBytes(ctx, "@latest")
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			return nil, p.versionError("", err)
 		}
-		return p.latest()
+		return p.latest(ctx)
 	}
 	info := new(RevInfo)
 	if err := json.Unmarshal(data, info); err != nil {
@@ -395,7 +396,7 @@ func (p *proxyRepo) Latest() (*RevInfo, error) {
 	return info, nil
 }
 
-func (p *proxyRepo) GoMod(version string) ([]byte, error) {
+func (p *proxyRepo) GoMod(ctx context.Context, version string) ([]byte, error) {
 	if version != module.CanonicalVersion(version) {
 		return nil, p.versionError(version, fmt.Errorf("internal error: version passed to GoMod is not canonical"))
 	}
@@ -404,14 +405,14 @@ func (p *proxyRepo) GoMod(version string) ([]byte, error) {
 	if err != nil {
 		return nil, p.versionError(version, err)
 	}
-	data, err := p.getBytes("@v/" + encVer + ".mod")
+	data, err := p.getBytes(ctx, "@v/"+encVer+".mod")
 	if err != nil {
 		return nil, p.versionError(version, err)
 	}
 	return data, nil
 }
 
-func (p *proxyRepo) Zip(dst io.Writer, version string) error {
+func (p *proxyRepo) Zip(ctx context.Context, dst io.Writer, version string) error {
 	if version != module.CanonicalVersion(version) {
 		return p.versionError(version, fmt.Errorf("internal error: version passed to Zip is not canonical"))
 	}
@@ -421,7 +422,7 @@ func (p *proxyRepo) Zip(dst io.Writer, version string) error {
 		return p.versionError(version, err)
 	}
 	path := "@v/" + encVer + ".zip"
-	body, err := p.getBody(path)
+	body, err := p.getBody(ctx, path)
 	if err != nil {
 		return p.versionError(version, err)
 	}

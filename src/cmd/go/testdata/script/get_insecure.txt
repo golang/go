@@ -1,6 +1,6 @@
 # TODO(matloob): Split this test into two? It's one of the slowest tests we have.
 
-[!net] skip
+[!net:insecure.go-get-issue-15410.appspot.com] skip
 [!git] skip
 
 env PATH=$WORK/tmp/bin${:}$PATH

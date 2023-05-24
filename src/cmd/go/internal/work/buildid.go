@@ -437,6 +437,8 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 		return false
 	}
 
+	c := cache.Default()
+
 	if target != "" {
 		buildID, _ := buildid.ReadFile(target)
 		if strings.HasPrefix(buildID, actionID+buildIDSeparator) {
@@ -474,10 +476,8 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 					// If it doesn't work, it doesn't work: reusing the cached binary is more
 					// important than reprinting diagnostic information.
 					if printOutput {
-						if c := cache.Default(); c != nil {
-							showStdout(b, c, a.actionID, "stdout")      // compile output
-							showStdout(b, c, a.actionID, "link-stdout") // link output
-						}
+						showStdout(b, c, a.actionID, "stdout")      // compile output
+						showStdout(b, c, a.actionID, "link-stdout") // link output
 					}
 
 					// Poison a.Target to catch uses later in the build.
@@ -504,10 +504,8 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 		// If it doesn't work, it doesn't work: reusing the test result is more
 		// important than reprinting diagnostic information.
 		if printOutput {
-			if c := cache.Default(); c != nil {
-				showStdout(b, c, a.Deps[0].actionID, "stdout")      // compile output
-				showStdout(b, c, a.Deps[0].actionID, "link-stdout") // link output
-			}
+			showStdout(b, c, a.Deps[0].actionID, "stdout")      // compile output
+			showStdout(b, c, a.Deps[0].actionID, "link-stdout") // link output
 		}
 
 		// Poison a.Target to catch uses later in the build.
@@ -517,25 +515,23 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 	}
 
 	// Check to see if the action output is cached.
-	if c := cache.Default(); c != nil {
-		if file, _, err := c.GetFile(actionHash); err == nil {
-			if buildID, err := buildid.ReadFile(file); err == nil {
-				if printOutput {
-					showStdout(b, c, a.actionID, "stdout")
-				}
-				a.built = file
-				a.Target = "DO NOT USE - using cache"
-				a.buildID = buildID
-				if a.json != nil {
-					a.json.BuildID = a.buildID
-				}
-				if p := a.Package; p != nil && target != "" {
-					p.Stale = true
-					// Clearer than explaining that something else is stale.
-					p.StaleReason = "not installed but available in build cache"
-				}
-				return true
+	if file, _, err := c.GetFile(actionHash); err == nil {
+		if buildID, err := buildid.ReadFile(file); err == nil {
+			if printOutput {
+				showStdout(b, c, a.actionID, "stdout")
 			}
+			a.built = file
+			a.Target = "DO NOT USE - using cache"
+			a.buildID = buildID
+			if a.json != nil {
+				a.json.BuildID = a.buildID
+			}
+			if p := a.Package; p != nil && target != "" {
+				p.Stale = true
+				// Clearer than explaining that something else is stale.
+				p.StaleReason = "not installed but available in build cache"
+			}
+			return true
 		}
 	}
 
@@ -609,22 +605,22 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 		}
 	}
 
+	c := cache.Default()
+
 	// Cache output from compile/link, even if we don't do the rest.
-	if c := cache.Default(); c != nil {
-		switch a.Mode {
-		case "build":
-			c.PutBytes(cache.Subkey(a.actionID, "stdout"), a.output)
-		case "link":
-			// Even though we don't cache the binary, cache the linker text output.
-			// We might notice that an installed binary is up-to-date but still
-			// want to pretend to have run the linker.
-			// Store it under the main package's action ID
-			// to make it easier to find when that's all we have.
-			for _, a1 := range a.Deps {
-				if p1 := a1.Package; p1 != nil && p1.Name == "main" {
-					c.PutBytes(cache.Subkey(a1.actionID, "link-stdout"), a.output)
-					break
-				}
+	switch a.Mode {
+	case "build":
+		c.PutBytes(cache.Subkey(a.actionID, "stdout"), a.output)
+	case "link":
+		// Even though we don't cache the binary, cache the linker text output.
+		// We might notice that an installed binary is up-to-date but still
+		// want to pretend to have run the linker.
+		// Store it under the main package's action ID
+		// to make it easier to find when that's all we have.
+		for _, a1 := range a.Deps {
+			if p1 := a1.Package; p1 != nil && p1.Name == "main" {
+				c.PutBytes(cache.Subkey(a1.actionID, "link-stdout"), a.output)
+				break
 			}
 		}
 	}
@@ -682,7 +678,7 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 	// that will mean the go process is itself writing a binary
 	// and then executing it, so we will need to defend against
 	// ETXTBSY problems as discussed in exec.go and golang.org/issue/22220.
-	if c := cache.Default(); c != nil && a.Mode == "build" {
+	if a.Mode == "build" {
 		r, err := os.Open(target)
 		if err == nil {
 			if a.output == nil {

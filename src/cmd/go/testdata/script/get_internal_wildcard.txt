@@ -1,4 +1,4 @@
-[!net] skip
+[!net:github.com] skip
 [!git] skip
 env GO111MODULE=off
 

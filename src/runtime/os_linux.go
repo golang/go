@@ -466,6 +466,12 @@ func osyield_no_g() {
 
 func pipe2(flags int32) (r, w int32, errno int32)
 
+//go:nosplit
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
+	r, _, err := syscall.Syscall6(syscall.SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg), 0, 0, 0)
+	return int32(r), int32(err)
+}
+
 const (
 	_si_max_size    = 128
 	_sigev_max_size = 64
@@ -729,7 +735,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
 	// N.B. Internally, this function does not depend on STW to
 	// successfully change every thread. It is only needed for user
 	// expectations, per above.
-	stopTheWorld("doAllThreadsSyscall")
+	stopTheWorld(stwAllThreadsSyscall)
 
 	// This function depends on several properties:
 	//

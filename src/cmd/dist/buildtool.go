@@ -63,6 +63,7 @@ var bootstrapDirs = []string{
 	"go/constant",
 	"internal/abi",
 	"internal/coverage",
+	"internal/bisect",
 	"internal/buildcfg",
 	"internal/goarch",
 	"internal/godebugs",
@@ -99,6 +100,10 @@ var ignorePrefixes = []string{
 var ignoreSuffixes = []string{
 	"_test.s",
 	"_test.go",
+	// Skip PGO profile. No need to build toolchain1 compiler
+	// with PGO. And as it is not a text file the import path
+	// rewrite will break it.
+	".pgo",
 }
 
 var tryDirs = []string{
@@ -135,7 +140,7 @@ func bootstrapBuildTools() {
 	xmkdirall(base)
 
 	// Copy source code into $GOROOT/pkg/bootstrap and rewrite import paths.
-	writefile("module bootstrap\n", pathf("%s/%s", base, "go.mod"), 0)
+	writefile("module bootstrap\ngo 1.20\n", pathf("%s/%s", base, "go.mod"), 0)
 	for _, dir := range bootstrapDirs {
 		recurse := strings.HasSuffix(dir, "/...")
 		dir = strings.TrimSuffix(dir, "/...")

@@ -397,7 +397,7 @@ func tLineCmt(c context, s []byte) (context, int) {
 		return c, len(s)
 	}
 	c.state = endState
-	// Per section 7.4 of EcmaScript 5 : https://es5.github.com/#x7.4
+	// Per section 7.4 of EcmaScript 5 : https://es5.github.io/#x7.4
 	// "However, the LineTerminator at the end of the line is not
 	// considered to be part of the single-line comment; it is
 	// recognized separately by the lexical grammar and becomes part

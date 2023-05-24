@@ -498,6 +498,114 @@ func make2() {
 	_ = make(f1 /* ERROR "not a type" */ ())
 }
 
+func max1() {
+	var b bool
+	var c complex128
+	var x int
+	var s string
+	type myint int
+	var m myint
+	_ = max() /* ERROR "not enough arguments" */
+	_ = max(b /* ERROR "cannot be ordered" */ )
+	_ = max(c /* ERROR "cannot be ordered" */ )
+	_ = max(x)
+	_ = max(s)
+	_ = max(x, x)
+	_ = max(x, x, x, x, x)
+	var _ int = max /* ERROR "cannot use max(m) (value of type myint) as int value" */ (m)
+	_ = max(x, m /* ERROR "invalid argument: mismatched types int (previous argument) and myint (type of m)" */ , x)
+
+	_ = max(1, x)
+	_ = max(1.0, x)
+	_ = max(1.2 /* ERROR "1.2 (untyped float constant) truncated to int" */ , x)
+	_ = max(-10, 1.0, c /* ERROR "cannot be ordered" */ )
+
+	const (
+		_ = max /* ERROR "max(x) (value of type int) is not constant" */ (x)
+		_ = max(true /* ERROR "invalid argument: true (untyped bool constant) cannot be ordered" */ )
+		_ = max(1)
+		_ = max(1, 2.3, 'a')
+		_ = max(1, "foo" /* ERROR "mismatched types" */ )
+		_ = max(1, 0i /* ERROR "cannot be ordered" */ )
+		_ = max(1, 2 /* ERROR "cannot be ordered" */ + 3i )
+	)
+}
+
+func max2() {
+	_ = assert(max(0) == 0)
+	_ = assert(max(0, 1) == 1)
+	_ = assert(max(0, -10, 123456789) == 123456789)
+	_ = assert(max(-12345678901234567890, 0) == 0)
+
+	_ = assert(max(1, 2.3) == 2.3)
+	_ = assert(max(1, 2.3, 'a') == 'a')
+
+	_ = assert(max("", "a") == "a")
+	_ = assert(max("abcde", "xyz", "foo", "bar") == "xyz")
+
+	const (
+		_ int = max(1.0)
+		_ float32 = max(1, 2)
+		_ int = max /* ERROR "cannot use max(1, 2.3) (untyped float constant 2.3) as int value" */ (1, 2.3)
+		_ int = max(1.2, 3) // ok!
+		_ byte = max(1, 'a')
+	)
+}
+
+func min1() {
+	var b bool
+	var c complex128
+	var x int
+	var s string
+	type myint int
+	var m myint
+	_ = min() /* ERROR "not enough arguments" */
+	_ = min(b /* ERROR "cannot be ordered" */ )
+	_ = min(c /* ERROR "cannot be ordered" */ )
+	_ = min(x)
+	_ = min(s)
+	_ = min(x, x)
+	_ = min(x, x, x, x, x)
+	var _ int = min /* ERROR "cannot use min(m) (value of type myint) as int value" */ (m)
+	_ = min(x, m /* ERROR "invalid argument: mismatched types int (previous argument) and myint (type of m)" */ , x)
+
+	_ = min(1, x)
+	_ = min(1.0, x)
+	_ = min(1.2 /* ERROR "1.2 (untyped float constant) truncated to int" */ , x)
+	_ = min(-10, 1.0, c /* ERROR "cannot be ordered" */ )
+
+	const (
+		_ = min /* ERROR "min(x) (value of type int) is not constant" */ (x)
+		_ = min(true /* ERROR "invalid argument: true (untyped bool constant) cannot be ordered" */ )
+		_ = min(1)
+		_ = min(1, 2.3, 'a')
+		_ = min(1, "foo" /* ERROR "mismatched types" */ )
+		_ = min(1, 0i /* ERROR "cannot be ordered" */ )
+		_ = min(1, 2 /* ERROR "cannot be ordered" */ + 3i )
+	)
+}
+
+func min2() {
+	_ = assert(min(0) == 0)
+	_ = assert(min(0, 1) == 0)
+	_ = assert(min(0, -10, 123456789) == -10)
+	_ = assert(min(-12345678901234567890, 0) == -12345678901234567890)
+
+	_ = assert(min(1, 2.3) == 1)
+	_ = assert(min(1, 2.3, 'a') == 1)
+
+	_ = assert(min("", "a") == "")
+	_ = assert(min("abcde", "xyz", "foo", "bar") == "abcde")
+
+	const (
+		_ int = min(1.0)
+		_ float32 = min(1, 2)
+		_ int = min(1, 2.3) // ok!
+		_ int = min /* ERROR "cannot use min(1.2, 3) (untyped float constant 1.2) as int value" */ (1.2, 3)
+		_ byte = min(1, 'a')
+	)
+}
+
 func new1() {
 	_ = new() // ERROR "not enough arguments"
 	_ = new(1, 2) // ERROR "too many arguments"

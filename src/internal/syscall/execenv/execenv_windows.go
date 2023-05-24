@@ -9,7 +9,6 @@ package execenv
 import (
 	"internal/syscall/windows"
 	"syscall"
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -41,7 +40,7 @@ func Default(sys *syscall.SysProcAttr) (env []string, err error) {
 		}
 
 		entry := unsafe.Slice(blockp, (uintptr(end)-uintptr(unsafe.Pointer(blockp)))/2)
-		env = append(env, string(utf16.Decode(entry)))
+		env = append(env, syscall.UTF16ToString(entry))
 		blockp = (*uint16)(unsafe.Add(end, size))
 	}
 	return

@@ -1,4 +1,4 @@
-[!net] skip
+[!net:golang.org] skip
 [!git] skip
 
 env GOBIN=$WORK/tmp/gobin

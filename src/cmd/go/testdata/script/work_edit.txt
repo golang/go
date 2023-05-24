@@ -6,6 +6,10 @@ cmpenv go.work go.work.want_initial
 go work edit -use n
 cmpenv go.work go.work.want_use_n
 
+grep go go.work
+go work edit -go none
+! grep go go.work
+
 go work edit -go 1.18
 cmp go.work go.work.want_go_118
 

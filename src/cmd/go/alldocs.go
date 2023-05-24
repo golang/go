@@ -567,6 +567,11 @@
 //		generator, containing the Go toolchain and standard library.
 //	$DOLLAR
 //		A dollar sign.
+//	$PATH
+//		The $PATH of the parent process, with $GOROOT/bin
+//		placed at the beginning. This causes generators
+//		that execute 'go' commands to use the same 'go'
+//		as the parent 'go generate' command.
 //
 // Other than variable substitution and quoted-string evaluation, no
 // special processing such as "globbing" is performed on the command
@@ -1205,6 +1210,8 @@
 //
 // The -go=version flag sets the expected Go language version.
 //
+// The -toolchain=name flag sets the Go toolchain to use.
+//
 // The -print flag prints the final go.mod in its text format instead of
 // writing it back to go.mod.
 //
@@ -1217,12 +1224,13 @@
 //	}
 //
 //	type GoMod struct {
-//		Module  ModPath
-//		Go      string
-//		Require []Require
-//		Exclude []Module
-//		Replace []Replace
-//		Retract []Retract
+//		Module    ModPath
+//		Go        string
+//		Toolchain string
+//		Require   []Require
+//		Exclude   []Module
+//		Replace   []Replace
+//		Retract   []Retract
 //	}
 //
 //	type ModPath struct {
@@ -1518,6 +1526,8 @@
 //
 // The -go=version flag sets the expected Go language version.
 //
+// The -toolchain=name flag sets the Go toolchain to use.
+//
 // The -print flag prints the final go.work in its text format instead of
 // writing it back to go.mod.
 //
@@ -1525,9 +1535,10 @@
 // writing it back to go.mod. The JSON output corresponds to these Go types:
 //
 //	type GoWork struct {
-//		Go      string
-//		Use     []Use
-//		Replace []Replace
+//		Go        string
+//		Toolchain string
+//		Use       []Use
+//		Replace   []Replace
 //	}
 //
 //	type Use struct {
@@ -1702,6 +1713,10 @@
 // standard output, even if the test printed them to its own standard
 // error. (The go command's standard error is reserved for printing
 // errors building the tests.)
+//
+// The go command places $GOROOT/bin at the beginning of $PATH
+// in the test's environment, so that tests that execute
+// 'go' commands use the same 'go' as the parent 'go test' command.
 //
 // Go test runs in two different modes:
 //
@@ -2089,9 +2104,9 @@
 // # Environment variables
 //
 // The go command and the tools it invokes consult environment variables
-// for configuration. If an environment variable is unset, the go command
-// uses a sensible default setting. To see the effective setting of the
-// variable <NAME>, run 'go env <NAME>'. To change the default setting,
+// for configuration. If an environment variable is unset or empty, the go
+// command uses a sensible default setting. To see the effective setting of
+// the variable <NAME>, run 'go env <NAME>'. To change the default setting,
 // run 'go env -w <NAME>=<VALUE>'. Defaults changed using 'go env -w'
 // are recorded in a Go environment configuration file stored in the
 // per-user configuration directory, as reported by os.UserConfigDir.

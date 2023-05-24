@@ -16,7 +16,8 @@ import (
 	"unsafe"
 )
 
-// Lock synchronizing creation of new file descriptors with fork.
+// ForkLock is used to synchronize creation of new file descriptors
+// with fork.
 //
 // We want the child in a fork/exec sequence to inherit only the
 // file descriptors we intend. To do that, we mark all file
@@ -53,16 +54,14 @@ import (
 // The rules for which file descriptor-creating operations use the
 // ForkLock are as follows:
 //
-// 1) Pipe. Does not block. Use the ForkLock.
-// 2) Socket. Does not block. Use the ForkLock.
-// 3) Accept. If using non-blocking mode, use the ForkLock.
-//             Otherwise, live with the race.
-// 4) Open. Can block. Use O_CLOEXEC if available (Linux).
-//             Otherwise, live with the race.
-// 5) Dup. Does not block. Use the ForkLock.
-//             On Linux, could use fcntl F_DUPFD_CLOEXEC
-//             instead of the ForkLock, but only for dup(fd, -1).
-
+//   - Pipe. Use pipe2 if available. Otherwise, does not block,
+//     so use ForkLock.
+//   - Socket. Use SOCK_CLOEXEC if available. Otherwise, does not
+//     block, so use ForkLock.
+//   - Open. Use O_CLOEXEC if available. Otherwise, may block,
+//     so live with the race.
+//   - Dup. Use F_DUPFD_CLOEXEC or dup3 if available. Otherwise,
+//     does not block, so use ForkLock.
 var ForkLock sync.RWMutex
 
 // StringSlicePtr converts a slice of strings to a slice of pointers
@@ -194,14 +193,11 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		return 0, errorspkg.New("Setctty set but Ctty not valid in child")
 	}
 
-	// Acquire the fork lock so that no other threads
-	// create new fds that are not yet close-on-exec
-	// before we fork.
-	ForkLock.Lock()
+	acquireForkLock()
 
 	// Allocate child status pipe close on exec.
 	if err = forkExecPipe(p[:]); err != nil {
-		ForkLock.Unlock()
+		releaseForkLock()
 		return 0, err
 	}
 
@@ -210,10 +206,10 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	if err1 != 0 {
 		Close(p[0])
 		Close(p[1])
-		ForkLock.Unlock()
+		releaseForkLock()
 		return 0, Errno(err1)
 	}
-	ForkLock.Unlock()
+	releaseForkLock()
 
 	// Read child error status from pipe.
 	Close(p[1])
@@ -243,6 +239,89 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 
 	// Read got EOF, so pipe closed on exec, so exec succeeded.
 	return pid, nil
+}
+
+var (
+	// Guard the forking variable.
+	forkingLock sync.Mutex
+	// Number of goroutines currently forking, and thus the
+	// number of goroutines holding a conceptual write lock
+	// on ForkLock.
+	forking int
+)
+
+// hasWaitingReaders reports whether any goroutine is waiting
+// to acquire a read lock on rw. It is defined in the sync package.
+func hasWaitingReaders(rw *sync.RWMutex) bool
+
+// acquireForkLock acquires a write lock on ForkLock.
+// ForkLock is exported and we've promised that during a fork
+// we will call ForkLock.Lock, so that no other threads create
+// new fds that are not yet close-on-exec before we fork.
+// But that forces all fork calls to be serialized, which is bad.
+// But we haven't promised that serialization, and it is essentially
+// undetectable by other users of ForkLock, which is good.
+// Avoid the serialization by ensuring that ForkLock is locked
+// at the first fork and unlocked when there are no more forks.
+func acquireForkLock() {
+	forkingLock.Lock()
+	defer forkingLock.Unlock()
+
+	if forking == 0 {
+		// There is no current write lock on ForkLock.
+		ForkLock.Lock()
+		forking++
+		return
+	}
+
+	// ForkLock is currently locked for writing.
+
+	if hasWaitingReaders(&ForkLock) {
+		// ForkLock is locked for writing, and at least one
+		// goroutine is waiting to read from it.
+		// To avoid lock starvation, allow readers to proceed.
+		// The simple way to do this is for us to acquire a
+		// read lock. That will block us until all current
+		// conceptual write locks are released.
+		//
+		// Note that this case is unusual on modern systems
+		// with O_CLOEXEC and SOCK_CLOEXEC. On those systems
+		// the standard library should never take a read
+		// lock on ForkLock.
+
+		forkingLock.Unlock()
+
+		ForkLock.RLock()
+		ForkLock.RUnlock()
+
+		forkingLock.Lock()
+
+		// Readers got a chance, so now take the write lock.
+
+		if forking == 0 {
+			ForkLock.Lock()
+		}
+	}
+
+	forking++
+}
+
+// releaseForkLock releases the conceptual write lock on ForkLock
+// acquired by acquireForkLock.
+func releaseForkLock() {
+	forkingLock.Lock()
+	defer forkingLock.Unlock()
+
+	if forking <= 0 {
+		panic("syscall.releaseForkLock: negative count")
+	}
+
+	forking--
+
+	if forking == 0 {
+		// No more conceptual write locks.
+		ForkLock.Unlock()
+	}
 }
 
 // Combination of fork and exec, careful to be thread safe.

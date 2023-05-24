@@ -250,6 +250,10 @@ func walkLenCap(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 		// Replace len([]rune(string)) with runtime.countrunes(string).
 		return mkcall("countrunes", n.Type(), init, typecheck.Conv(n.X.(*ir.ConvExpr).X, types.Types[types.TSTRING]))
 	}
+	if isByteCount(n) {
+		_, len := backingArrayPtrLen(cheapExpr(n.X.(*ir.ConvExpr).X, init))
+		return len
+	}
 
 	n.X = walkExpr(n.X, init)
 
@@ -522,6 +526,12 @@ func walkNew(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 	}
 	types.CalcSize(t)
 	n.MarkNonNil()
+	return n
+}
+
+func walkMinMax(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+	init.Append(ir.TakeInit(n)...)
+	walkExprList(n.Args, init)
 	return n
 }
 
@@ -855,4 +865,10 @@ func writebarrierfn(name string, l *types.Type, r *types.Type) ir.Node {
 // These are optimized into a call to runtime.countrunes.
 func isRuneCount(n ir.Node) bool {
 	return base.Flag.N == 0 && !base.Flag.Cfg.Instrumenting && n.Op() == ir.OLEN && n.(*ir.UnaryExpr).X.Op() == ir.OSTR2RUNES
+}
+
+// isByteCount reports whether n is of the form len(string([]byte)).
+func isByteCount(n ir.Node) bool {
+	return base.Flag.N == 0 && !base.Flag.Cfg.Instrumenting && n.Op() == ir.OLEN &&
+		(n.(*ir.UnaryExpr).X.Op() == ir.OBYTES2STR || n.(*ir.UnaryExpr).X.Op() == ir.OBYTES2STRTMP)
 }

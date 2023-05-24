@@ -15,6 +15,7 @@ const nAttrsInline = 5
 // A Record holds information about a log event.
 // Copies of a Record share state.
 // Do not modify a Record after handing out a copy to it.
+// Call [NewRecord] to create a new Record.
 // Use [Record.Clone] to create a copy with no shared state.
 type Record struct {
 	// The time at which the output method (Log, Info, etc.) was called.
@@ -166,11 +167,11 @@ type Source struct {
 	// Function is the package path-qualified function name containing the
 	// source line. If non-empty, this string uniquely identifies a single
 	// function in the program. This may be the empty string if not known.
-	Function string
+	Function string `json:"function"`
 	// File and Line are the file name and line number (1-based) of the source
 	// line. These may be the empty string and zero, respectively, if not known.
-	File string
-	Line int
+	File string `json:"file"`
+	Line int    `json:"line"`
 }
 
 // attrs returns the non-zero fields of s as a slice of attrs.

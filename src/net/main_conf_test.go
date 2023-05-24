@@ -6,6 +6,8 @@
 
 package net
 
+import "testing"
+
 // forceGoDNS forces the resolver configuration to use the pure Go resolver
 // and returns a fixup function to restore the old settings.
 func forceGoDNS() func() {
@@ -35,4 +37,23 @@ func forceCgoDNS() func() {
 	c.netGo = false
 	c.netCgo = true
 	return fixup
+}
+
+func TestForceCgoDNS(t *testing.T) {
+	if !cgoAvailable {
+		t.Skip("cgo resolver not available")
+	}
+	defer forceCgoDNS()()
+	order, _ := systemConf().hostLookupOrder(nil, "go.dev")
+	if order != hostLookupCgo {
+		t.Fatalf("hostLookupOrder returned: %v, want cgo", order)
+	}
+}
+
+func TestForceGoDNS(t *testing.T) {
+	defer forceGoDNS()()
+	order, _ := systemConf().hostLookupOrder(nil, "go.dev")
+	if order == hostLookupCgo {
+		t.Fatalf("hostLookupOrder returned: %v, want go resolver order", order)
+	}
 }

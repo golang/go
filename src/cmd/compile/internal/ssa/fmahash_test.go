@@ -44,7 +44,7 @@ func TestFmaHash(t *testing.T) {
 		t.Error(e)
 	}
 	s := string(b) // Looking for "GOFMAHASH triggered main.main:24"
-	re := "fmahash(0?) triggered POS=.*fma.go:29:..;.*fma.go:18:.."
+	re := "fmahash(0?) triggered .*fma.go:29:..;.*fma.go:18:.."
 	match := regexp.MustCompile(re)
 	if !match.MatchString(s) {
 		t.Errorf("Expected to match '%s' with \n-----\n%s-----", re, s)

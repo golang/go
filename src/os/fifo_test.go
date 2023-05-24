@@ -8,6 +8,7 @@ package os_test
 
 import (
 	"errors"
+	"internal/syscall/unix"
 	"internal/testenv"
 	"io/fs"
 	"os"
@@ -153,5 +154,54 @@ func TestNonPollable(t *testing.T) {
 		if err := wr.Close(); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+// Issue 60211.
+func TestOpenFileNonBlocking(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Skipf("can't find executable: %v", err)
+	}
+	f, err := os.OpenFile(exe, os.O_RDONLY|syscall.O_NONBLOCK, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	nonblock, err := unix.IsNonblock(int(f.Fd()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !nonblock {
+		t.Errorf("file opened with O_NONBLOCK but in blocking mode")
+	}
+}
+
+func TestNewFileNonBlocking(t *testing.T) {
+	var p [2]int
+	if err := syscall.Pipe(p[:]); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.SetNonblock(p[0], true); err != nil {
+		t.Fatal(err)
+	}
+	f := os.NewFile(uintptr(p[0]), "pipe")
+	nonblock, err := unix.IsNonblock(p[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !nonblock {
+		t.Error("pipe blocking after NewFile")
+	}
+	fd := f.Fd()
+	if fd != uintptr(p[0]) {
+		t.Errorf("Fd returned %d, want %d", fd, p[0])
+	}
+	nonblock, err = unix.IsNonblock(p[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !nonblock {
+		t.Error("pipe blocking after Fd")
 	}
 }

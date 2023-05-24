@@ -22,18 +22,17 @@ type TextHandler struct {
 }
 
 // NewTextHandler creates a TextHandler that writes to w,
-// using the default options.
-func NewTextHandler(w io.Writer) *TextHandler {
-	return (HandlerOptions{}).NewTextHandler(w)
-}
-
-// NewTextHandler creates a TextHandler with the given options that writes to w.
-func (opts HandlerOptions) NewTextHandler(w io.Writer) *TextHandler {
+// using the given options.
+// If opts is nil, the default options are used.
+func NewTextHandler(w io.Writer, opts *HandlerOptions) *TextHandler {
+	if opts == nil {
+		opts = &HandlerOptions{}
+	}
 	return &TextHandler{
 		&commonHandler{
 			json: false,
 			w:    w,
-			opts: opts,
+			opts: *opts,
 		},
 	}
 }

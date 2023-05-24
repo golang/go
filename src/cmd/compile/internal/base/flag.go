@@ -124,7 +124,7 @@ type CmdFlags struct {
 	TrimPath           string       "help:\"remove `prefix` from recorded source file paths\""
 	WB                 bool         "help:\"enable write barrier\"" // TODO: remove
 	PgoProfile         string       "help:\"read profile from `file`\""
-	Url                bool         "help:\"print explanatory URL with error message if applicable\""
+	ErrorURL           bool         "help:\"print explanatory URL with error message if applicable\""
 
 	// Configuration derived from flags; not a flag itself.
 	Cfg struct {
@@ -168,6 +168,8 @@ func ParseFlags() {
 	Debug.ConcurrentOk = true
 	Debug.InlFuncsWithClosures = 1
 	Debug.InlStaticInit = 1
+	Debug.PGOInline = 1
+	Debug.PGODevirtualize = 1
 	Debug.SyncFrames = -1 // disable sync markers by default
 
 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
@@ -213,15 +215,7 @@ func ParseFlags() {
 
 	if Debug.LoopVarHash != "" {
 		// This first little bit controls the inputs for debug-hash-matching.
-		basenameOnly := false
 		mostInlineOnly := true
-		if strings.HasPrefix(Debug.LoopVarHash, "FS") {
-			// Magic handshake for testing, use file suffixes only when hashing on a position.
-			// i.e., rather than /tmp/asdfasdfasdf/go-test-whatever/foo_test.go,
-			// hash only on "foo_test.go", so that it will be the same hash across all runs.
-			Debug.LoopVarHash = Debug.LoopVarHash[2:]
-			basenameOnly = true
-		}
 		if strings.HasPrefix(Debug.LoopVarHash, "IL") {
 			// When hash-searching on a position that is an inline site, default is to use the
 			// most-inlined position only.  This makes the hash faster, plus there's no point
@@ -237,7 +231,6 @@ func ParseFlags() {
 			Debug.LoopVar = 1 // 1 means those loops that syntactically escape their dcl vars are eligible.
 		}
 		LoopVarHash.SetInlineSuffixOnly(mostInlineOnly)
-		LoopVarHash.SetFileSuffixOnly(basenameOnly)
 	} else if buildcfg.Experiment.LoopVar && Debug.LoopVar == 0 {
 		Debug.LoopVar = 1
 	}
@@ -255,7 +248,7 @@ func ParseFlags() {
 	if Flag.Race && !platform.RaceDetectorSupported(buildcfg.GOOS, buildcfg.GOARCH) {
 		log.Fatalf("%s/%s does not support -race", buildcfg.GOOS, buildcfg.GOARCH)
 	}
-	if (*Flag.Shared || *Flag.Dynlink || *Flag.LinkShared) && !Ctxt.Arch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X) {
+	if (*Flag.Shared || *Flag.Dynlink || *Flag.LinkShared) && !Ctxt.Arch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X) {
 		log.Fatalf("%s/%s does not support -shared", buildcfg.GOOS, buildcfg.GOARCH)
 	}
 	parseSpectre(Flag.Spectre) // left as string for RecordFlags

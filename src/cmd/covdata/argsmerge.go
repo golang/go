@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 )
 
@@ -20,25 +21,13 @@ type argstate struct {
 	initialized bool
 }
 
-func ssleq(s1 []string, s2 []string) bool {
-	if len(s1) != len(s2) {
-		return false
-	}
-	for i := range s1 {
-		if s1[i] != s2[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func (a *argstate) Merge(state argvalues) {
 	if !a.initialized {
 		a.state = state
 		a.initialized = true
 		return
 	}
-	if !ssleq(a.state.osargs, state.osargs) {
+	if !slices.Equal(a.state.osargs, state.osargs) {
 		a.state.osargs = nil
 	}
 	if state.goos != a.state.goos {

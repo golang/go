@@ -39,22 +39,24 @@ func hwcapInit(os string) {
 	// TODO(elias.naur): Only disable the optimization on bad chipsets on android.
 	ARM64.HasATOMICS = isSet(HWCap, hwcap_ATOMICS) && os != "android"
 
-	// Check to see if executing on a NeoverseN1 and in order to do that,
+	// Check to see if executing on a Neoverse core and in order to do that,
 	// check the AUXV for the CPUID bit. The getMIDR function executes an
 	// instruction which would normally be an illegal instruction, but it's
-	// trapped by the kernel, the value sanitized and then returned. Without
-	// the CPUID bit the kernel will not trap the instruction and the process
-	// will be terminated with SIGILL.
+	// trapped by the kernel, the value sanitized and then returned.
+	// Without the CPUID bit the kernel will not trap the instruction and the
+	// process will be terminated with SIGILL.
 	if ARM64.HasCPUID {
 		midr := getMIDR()
 		part_num := uint16((midr >> 4) & 0xfff)
 		implementor := byte((midr >> 24) & 0xff)
 
-		if implementor == 'A' && part_num == 0xd0c {
-			ARM64.IsNeoverseN1 = true
-		}
-		if implementor == 'A' && part_num == 0xd40 {
-			ARM64.IsNeoverseV1 = true
+		// d0c - NeoverseN1
+		// d40 - NeoverseV1
+		// d49 - NeoverseN2
+		// d4f - NeoverseV2
+		if implementor == 'A' && (part_num == 0xd0c || part_num == 0xd40 ||
+			part_num == 0xd49 || part_num == 0xd4f) {
+			ARM64.IsNeoverse = true
 		}
 	}
 }

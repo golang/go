@@ -615,6 +615,11 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, baseOffset 
 		}
 	}
 
+	maxInt64 := uint64(1<<63 - 1)
+	if d.directorySize > maxInt64 || d.directoryOffset > maxInt64 {
+		return nil, 0, ErrFormat
+	}
+
 	baseOffset = directoryEndOffset - int64(d.directorySize) - int64(d.directoryOffset)
 
 	// Make sure directoryOffset points to somewhere in our file.
@@ -774,6 +779,10 @@ func (f *fileListEntry) ModTime() time.Time {
 }
 
 func (f *fileListEntry) Info() (fs.FileInfo, error) { return f, nil }
+
+func (f *fileListEntry) String() string {
+	return fs.FormatDirEntry(f)
+}
 
 // toValidName coerces name to be a valid name for fs.FS.Open.
 func toValidName(name string) string {

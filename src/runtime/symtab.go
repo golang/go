@@ -129,7 +129,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 		ci.frames = append(ci.frames, Frame{
 			PC:        pc,
 			Func:      f,
-			Function:  sf.name(),
+			Function:  funcNameForPrint(sf.name()),
 			Entry:     entry,
 			startLine: int(sf.startLine),
 			funcInfo:  funcInfo,
@@ -169,6 +169,20 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 //go:linkname runtime_FrameStartLine runtime/pprof.runtime_FrameStartLine
 func runtime_FrameStartLine(f *Frame) int {
 	return f.startLine
+}
+
+// runtime_FrameSymbolName returns the full symbol name of the function in a Frame.
+// For generic functions this differs from f.Function in that this doesn't replace
+// the shape name to "...".
+//
+//go:linkname runtime_FrameSymbolName runtime/pprof.runtime_FrameSymbolName
+func runtime_FrameSymbolName(f *Frame) string {
+	if !f.funcInfo.valid() {
+		return f.Function
+	}
+	u, uf := newInlineUnwinder(f.funcInfo, f.PC, nil)
+	sf := u.srcFunc(uf)
+	return sf.name()
 }
 
 // runtime_expandFinalInlineFrame expands the final pc in stk to include all
@@ -669,9 +683,9 @@ func (f *Func) Name() string {
 	fn := f.raw()
 	if fn.isInlined() { // inlined version
 		fi := (*funcinl)(unsafe.Pointer(fn))
-		return fi.name
+		return funcNameForPrint(fi.name)
 	}
-	return funcname(f.funcInfo())
+	return funcNameForPrint(funcname(f.funcInfo()))
 }
 
 // Entry returns the entry address of the function.
@@ -929,7 +943,7 @@ func funcname(f funcInfo) string {
 }
 
 func funcpkgpath(f funcInfo) string {
-	name := funcname(f)
+	name := funcNameForPrint(funcname(f))
 	i := len(name) - 1
 	for ; i > 0; i-- {
 		if name[i] == '/' {

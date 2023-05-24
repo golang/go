@@ -575,6 +575,10 @@ func (o *OffsetWriter) Write(p []byte) (n int, err error) {
 }
 
 func (o *OffsetWriter) WriteAt(p []byte, off int64) (n int, err error) {
+	if off < 0 {
+		return 0, errOffset
+	}
+
 	off += o.base
 	return o.w.WriteAt(p, off)
 }

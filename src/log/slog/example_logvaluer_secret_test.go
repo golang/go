@@ -23,8 +23,7 @@ func (Token) LogValue() slog.Value {
 // with an alternative representation to avoid revealing secrets.
 func ExampleLogValuer_secret() {
 	t := Token("shhhh!")
-	logger := slog.New(slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime}.
-		NewTextHandler(os.Stdout))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime}))
 	logger.Info("permission granted", "user", "Perry", "token", t)
 
 	// Output:

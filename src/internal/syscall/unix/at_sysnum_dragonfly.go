@@ -12,3 +12,5 @@ const fstatatTrap uintptr = syscall.SYS_FSTATAT
 
 const AT_REMOVEDIR = 0x2
 const AT_SYMLINK_NOFOLLOW = 0x1
+
+const UTIME_OMIT = -0x1
