@@ -101,3 +101,12 @@ func ModIsPrefix(path, vers string) bool {
 	}
 	return true
 }
+
+// ModIsPrerelease reports whether v is a prerelease version for the module with the given path.
+// The caller is assumed to have checked that ModIsValid(path, vers) is true.
+func ModIsPrerelease(path, vers string) bool {
+	if IsToolchain(path) {
+		return IsPrerelease(vers)
+	}
+	return semver.Prerelease(vers) != ""
+}

@@ -7,6 +7,7 @@
 package main
 
 import (
+	"cmd/go/internal/toolchain"
 	"cmd/go/internal/workcmd"
 	"context"
 	"flag"
@@ -91,7 +92,7 @@ var _ = go11tag
 
 func main() {
 	log.SetFlags(0)
-	switchGoToolchain()
+	toolchain.Switch()
 
 	flag.Usage = base.Usage
 	flag.Parse()

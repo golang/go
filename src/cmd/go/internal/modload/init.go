@@ -848,7 +848,16 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
 		// TODO(#45551): Do something more principled instead of checking
 		// cfg.CmdName directly here.
 		if cfg.BuildMod == "mod" && cfg.CmdName != "mod graph" && cfg.CmdName != "mod why" {
+			// go line is missing from go.mod; add one there and add to derived requirements.
 			addGoStmt(MainModules.ModFile(mainModule), mainModule, gover.Local())
+			if cfg.CmdName != "mod tidy" {
+				// We want to add the "go" line to the module load in general,
+				// if we do it in "mod tidy", then go mod tidy -go=older for some older version
+				// when we are in a module with no go line will see gover.Local() in the
+				// requirement graph and then report that -go=older is invalid.
+				// go test -run=Script/mod_tidy_version will fail without the tidy exclusion.
+				rs = overrideRoots(ctx, rs, []module.Version{{Path: "go", Version: gover.Local()}})
+			}
 
 			// We need to add a 'go' version to the go.mod file, but we must assume
 			// that its existing contents match something between Go 1.11 and 1.16.
@@ -1163,10 +1172,8 @@ func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, m
 			roots = append(roots, module.Version{Path: "go", Version: workFile.Go.Version})
 			direct["go"] = true
 		}
-		if workFile.Toolchain != nil {
-			roots = append(roots, module.Version{Path: "toolchain", Version: workFile.Toolchain.Name})
-			direct["toolchain"] = true
-		}
+		// Do not add toolchain to roots.
+		// We only want to see it in roots if it is on the command line.
 	} else {
 		pruning = pruningForGoVersion(MainModules.GoVersion())
 		if len(modFiles) != 1 {
@@ -1197,10 +1204,8 @@ func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, m
 			roots = append(roots, module.Version{Path: "go", Version: modFile.Go.Version})
 			direct["go"] = true
 		}
-		if modFile.Toolchain != nil {
-			roots = append(roots, module.Version{Path: "toolchain", Version: modFile.Toolchain.Name})
-			direct["toolchain"] = true
-		}
+		// Do not add "toolchain" to roots.
+		// We only want to see it in roots if it is on the command line.
 	}
 	gover.ModSort(roots)
 	rs := newRequirements(pruning, roots, direct)
@@ -1546,8 +1551,10 @@ func commitRequirements(ctx context.Context) (err error) {
 
 	var list []*modfile.Require
 	toolchain := ""
+	wroteGo := false
 	for _, m := range requirements.rootModules {
 		if m.Path == "go" {
+			wroteGo = true
 			forceGoStmt(modFile, mainModule, m.Version)
 			continue
 		}
@@ -1561,27 +1568,49 @@ func commitRequirements(ctx context.Context) (err error) {
 		})
 	}
 
+	var oldToolchain string
+	if modFile.Toolchain != nil {
+		oldToolchain = modFile.Toolchain.Name
+	}
+	oldToolVers := gover.FromToolchain(oldToolchain)
+
 	// Update go and toolchain lines.
-	tv := gover.FromToolchain(toolchain)
+	toolVers := gover.FromToolchain(toolchain)
+
 	// Set go version if missing.
 	if modFile.Go == nil || modFile.Go.Version == "" {
+		wroteGo = true
 		v := modFileGoVersion(modFile)
-		if tv != "" && gover.Compare(v, tv) > 0 {
-			v = tv
+		if toolVers != "" && gover.Compare(v, toolVers) > 0 {
+			v = toolVers
 		}
 		modFile.AddGoStmt(v)
 	}
 	if gover.Compare(modFile.Go.Version, gover.Local()) > 0 {
-		// TODO: Reinvoke the newer toolchain if GOTOOLCHAIN=auto.
-		base.Fatalf("go: %v", &gover.TooNewError{What: "updating go.mod", GoVersion: modFile.Go.Version})
+		// We cannot assume that we know how to update a go.mod to a newer version.
+		return &gover.TooNewError{What: "updating go.mod", GoVersion: modFile.Go.Version}
 	}
 
-	// If toolchain is older than go version, drop it.
-	if gover.Compare(modFile.Go.Version, tv) >= 0 {
+	// If we update the go line and don't have an explicit instruction
+	// for what to write in toolchain, make sure toolchain is at least our local version,
+	// for reproducibility.
+	if wroteGo && toolchain == "" && gover.Compare(oldToolVers, gover.Local()) < 0 && gover.Compare(modFile.Go.Version, GoStrictVersion) >= 0 {
+		toolVers = gover.Local()
+		toolchain = "go" + toolVers
+	}
+
+	// Default to old toolchain.
+	if toolchain == "" {
+		toolchain = oldToolchain
+		toolVers = oldToolVers
+	}
+	if toolchain == "none" {
 		toolchain = ""
 	}
+
 	// Remove or add toolchain as needed.
-	if toolchain == "" {
+	// If toolchain is older than go version, drop it.
+	if toolchain == "" || gover.Compare(modFile.Go.Version, toolVers) >= 0 {
 		modFile.DropToolchainStmt()
 	} else {
 		modFile.AddToolchainStmt(toolchain)

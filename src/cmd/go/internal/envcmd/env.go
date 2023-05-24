@@ -254,6 +254,12 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go: %v", cfg.ExperimentErr)
 	}
 
+	for _, arg := range args {
+		if strings.Contains(arg, "=") {
+			base.Fatalf("go: invalid variable name %q (use -w to set variable)", arg)
+		}
+	}
+
 	env := cfg.CmdEnv
 	env = append(env, ExtraEnvVars()...)
 

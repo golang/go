@@ -78,7 +78,7 @@ func (e *TooNewError) Error() string {
 			explain += "toolchain " + Startup.AutoToolchain
 		}
 	}
-	return fmt.Sprintf("%v requires go %v (running go %v%v)", e.What, e.GoVersion, Local(), explain)
+	return fmt.Sprintf("%v requires go >= %v (running go %v%v)", e.What, e.GoVersion, Local(), explain)
 }
 
 var ErrTooNew = errors.New("module too new")

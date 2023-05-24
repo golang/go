@@ -10,7 +10,9 @@
 // depending on the module path.
 package gover
 
-import "cmp"
+import (
+	"cmp"
+)
 
 // A version is a parsed Go version: major[.minor[.patch]][kind[pre]]
 // The numbers are the original decimal strings to avoid integer overflows
@@ -74,6 +76,11 @@ func Lang(x string) string {
 		return v.major
 	}
 	return v.major + "." + v.minor
+}
+
+// IsPrerelease reports whether v denotes a Go prerelease version.
+func IsPrerelease(x string) bool {
+	return parse(x).kind != ""
 }
 
 // Prev returns the Go major release immediately preceding v,

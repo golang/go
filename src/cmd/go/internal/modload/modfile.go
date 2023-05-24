@@ -511,13 +511,16 @@ func (i *modFileIndex) modFileIsDirty(modFile *modfile.File) bool {
 	}
 
 	// go.mod files did not always require a 'go' version, so do not error out
-	// if one is missing — we may be inside an older module in the module cache
+	// if one is missing — we may be inside an older module
 	// and want to bias toward providing useful behavior.
 	// go lines are required if we need to declare version 1.17 or later.
 	// Note that as of CL 303229, a missing go directive implies 1.16,
 	// not “the latest Go version”.
 	if goV != i.goVersion && i.goVersion == "" && cfg.BuildMod != "mod" && gover.Compare(goV, "1.17") < 0 {
 		goV = ""
+		if toolchain != i.toolchain && i.toolchain == "" {
+			toolchain = ""
+		}
 	}
 
 	if goV != i.goVersion ||

@@ -2,15 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !wasip1
-
-package main
+// Package toolchain implements dynamic switching of Go toolchains.
+package toolchain
 
 import (
 	"context"
 	"fmt"
 	"go/build"
-	"internal/godebug"
 	"io/fs"
 	"log"
 	"os"
@@ -18,12 +16,12 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modcmd"
+	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
 
@@ -51,10 +49,11 @@ const (
 	gotoolchainSwitchEnv = "GOTOOLCHAIN_INTERNAL_SWITCH"
 )
 
-// switchGoToolchain invokes a different Go toolchain if directed by
+// Switch invokes a different Go toolchain if directed by
 // the GOTOOLCHAIN environment variable or the user's configuration
 // or go.mod file.
-func switchGoToolchain() {
+// It must be called early in startup.
+func Switch() {
 	log.SetPrefix("go: ")
 	defer log.SetPrefix("")
 
@@ -93,7 +92,6 @@ func switchGoToolchain() {
 		minToolchain = "go" + minVers
 	}
 
-	pathOnly := gotoolchain == "path"
 	if gotoolchain == "auto" || gotoolchain == "path" {
 		gotoolchain = minToolchain
 
@@ -155,6 +153,103 @@ func switchGoToolchain() {
 		base.Fatalf("invalid GOTOOLCHAIN %q", gotoolchain)
 	}
 
+	SwitchTo(gotoolchain)
+}
+
+// NewerToolchain returns the name of the toolchain to use when we need
+// to reinvoke a newer toolchain that must support at least the given Go version.
+//
+// If the latest major release is 1.N.0, we use the latest patch release of 1.(N-1) if that's >= version.
+// Otherwise we use the latest 1.N if that's allowed.
+// Otherwise we use the latest release.
+func NewerToolchain(ctx context.Context, version string) (string, error) {
+	var versions *modfetch.Versions
+	err := modfetch.TryProxies(func(proxy string) error {
+		v, err := modfetch.Lookup(ctx, proxy, "go").Versions(ctx, "")
+		if err != nil {
+			return err
+		}
+		versions = v
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return newerToolchain(version, versions.List)
+}
+
+// newerToolchain implements NewerToolchain where the list of choices is known.
+// It is separated out for easier testing of this logic.
+func newerToolchain(need string, list []string) (string, error) {
+	// Consider each release in the list, from newest to oldest,
+	// considering only entries >= need and then only entries
+	// that are the latest in their language family
+	// (the latest 1.40, the latest 1.39, and so on).
+	// We prefer the latest patch release before the most recent release family,
+	// so if the latest release is 1.40.1 we'll take the latest 1.39.X.
+	// Failing that, we prefer the latest patch release before the most recent
+	// prerelease family, so if the latest release is 1.40rc1 is out but 1.39 is okay,
+	// we'll still take 1.39.X.
+	// Failing that we'll take the latest release.
+	latest := ""
+	for i := len(list) - 1; i >= 0; i-- {
+		v := list[i]
+		if gover.Compare(v, need) < 0 {
+			break
+		}
+		if gover.Lang(latest) == gover.Lang(v) {
+			continue
+		}
+		newer := latest
+		latest = v
+		if newer != "" && !gover.IsPrerelease(newer) {
+			// latest is the last patch release of Go 1.X, and we saw a non-prerelease of Go 1.(X+1),
+			// so latest is the one we want.
+			break
+		}
+	}
+	if latest == "" {
+		return "", fmt.Errorf("no releases found for go >= %v", need)
+	}
+	return "go" + latest, nil
+}
+
+// HasAuto reports whether the GOTOOLCHAIN setting allows "auto" upgrades.
+func HasAuto() bool {
+	env := cfg.Getenv("GOTOOLCHAIN")
+	return env == "auto" || strings.HasSuffix(env, "+auto")
+}
+
+// HasPath reports whether the GOTOOLCHAIN setting allows "path" upgrades.
+func HasPath() bool {
+	env := cfg.Getenv("GOTOOLCHAIN")
+	return env == "path" || strings.HasSuffix(env, "+path")
+}
+
+// SwitchTo invokes the specified Go toolchain or else prints an error and exits the process.
+// If $GOTOOLCHAIN is set to path or min+path, SwitchTo only considers the PATH
+// as a source of Go toolchains. Otherwise SwitchTo tries the PATH but then downloads
+// a toolchain if necessary.
+func SwitchTo(gotoolchain string) {
+	log.SetPrefix("go: ")
+
+	env := cfg.Getenv("GOTOOLCHAIN")
+	pathOnly := env == "path" || strings.HasSuffix(env, "+path")
+
+	// For testing, if TESTGO_VERSION is already in use
+	// (only happens in the cmd/go test binary)
+	// and TESTGO_VERSION_SWITCH=1 is set,
+	// "switch" toolchains by changing TESTGO_VERSION
+	// and reinvoking the current binary.
+	if gover.TestVersion != "" && os.Getenv("TESTGO_VERSION_SWITCH") == "1" {
+		os.Setenv("TESTGO_VERSION", gotoolchain)
+		exe, err := os.Executable()
+		if err != nil {
+			base.Fatalf("%v", err)
+		}
+		execGoToolchain(gotoolchain, os.Getenv("GOROOT"), exe)
+	}
+
 	// Look in PATH for the toolchain before we download one.
 	// This allows custom toolchains as well as reuse of toolchains
 	// already installed using go install golang.org/dl/go1.2.3@latest.
@@ -169,6 +264,7 @@ func switchGoToolchain() {
 	}
 
 	// Set up modules without an explicit go.mod, to download distribution.
+	modload.Reset()
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NoRoot
 	modload.Init()
@@ -236,46 +332,6 @@ func switchGoToolchain() {
 
 	// Reinvoke the go command.
 	execGoToolchain(gotoolchain, dir, filepath.Join(dir, "bin/go"))
-}
-
-// execGoToolchain execs the Go toolchain with the given name (gotoolchain),
-// GOROOT directory, and go command executable.
-// The GOROOT directory is empty if we are invoking a command named
-// gotoolchain found in $PATH.
-func execGoToolchain(gotoolchain, dir, exe string) {
-	os.Setenv(gotoolchainSwitchEnv, "1")
-	if dir == "" {
-		os.Unsetenv("GOROOT")
-	} else {
-		os.Setenv("GOROOT", dir)
-	}
-
-	// On Windows, there is no syscall.Exec, so the best we can do
-	// is run a subprocess and exit with the same status.
-	// Doing the same on Unix would be a problem because it wouldn't
-	// propagate signals and such, but there are no signals on Windows.
-	// We also use the exec case when GODEBUG=gotoolchainexec=0,
-	// to allow testing this code even when not on Windows.
-	if godebug.New("#gotoolchainexec").Value() == "0" || runtime.GOOS == "windows" {
-		cmd := exec.Command(exe, os.Args[1:]...)
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		fmt.Fprintln(os.Stderr, cmd.Args)
-		err := cmd.Run()
-		if err != nil {
-			if e, ok := err.(*exec.ExitError); ok && e.ProcessState != nil {
-				if e.ProcessState.Exited() {
-					os.Exit(e.ProcessState.ExitCode())
-				}
-				base.Fatalf("exec %s: %s", gotoolchain, e.ProcessState)
-			}
-			base.Fatalf("exec %s: %s", exe, err)
-		}
-		os.Exit(0)
-	}
-	err := syscall.Exec(exe, os.Args, os.Environ())
-	base.Fatalf("exec %s: %v", gotoolchain, err)
 }
 
 // modGoToolchain finds the enclosing go.work or go.mod file

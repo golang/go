@@ -73,13 +73,13 @@ env TESTGO_VERSION=go1.100
 # toolchain local in go.mod
 cp go1999toolchainlocal go.mod
 ! go build
-stderr '^go: go.mod requires go 1.999 \(running go 1.100; go.mod sets go 1.999, toolchain local\)$'
+stderr '^go: go.mod requires go >= 1.999 \(running go 1.100; go.mod sets go 1.999, toolchain local\)$'
 
 # toolchain local in go.work
 cp empty go.mod
 cp go1999toolchainlocal go.work
 ! go build
-stderr '^go: go.work requires go 1.999 \(running go 1.100; go.work sets go 1.999, toolchain local\)$'
+stderr '^go: go.work requires go >= 1.999 \(running go 1.100; go.work sets go 1.999, toolchain local\)$'
 rm go.work
 
 # toolchain line in go.work

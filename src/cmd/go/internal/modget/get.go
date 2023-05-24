@@ -43,6 +43,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
+	"cmd/go/internal/toolchain"
 	"cmd/go/internal/work"
 
 	"golang.org/x/mod/modfile"
@@ -379,6 +380,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	oldReqs := reqsFromGoMod(modload.ModFile())
 
 	if err := modload.WriteGoMod(ctx); err != nil {
+		if tooNew, ok := err.(*gover.TooNewError); ok {
+			// This can happen for 'go get go@newversion'
+			// when all the required modules are old enough
+			// but the command line is not.
+			// TODO(bcmills): Perhaps LoadModGraph should catch this,
+			// in which case the tryVersion here should be removed.
+			tryVersion(ctx, tooNew.GoVersion)
+		}
 		base.Fatalf("go: %v", err)
 	}
 
@@ -1211,6 +1220,20 @@ func (r *resolver) resolveQueries(ctx context.Context, queries []*query) (change
 	for {
 		prevResolved := resolved
 
+		// If we found modules that were too new, find the max of the required versions
+		// and then try to switch to a newer toolchain.
+		goVers := ""
+		for _, q := range queries {
+			for _, cs := range q.candidates {
+				if e, ok := cs.err.(*gover.TooNewError); ok && gover.Compare(goVers, e.GoVersion) < 0 {
+					goVers = e.GoVersion
+				}
+			}
+		}
+		if goVers != "" {
+			tryVersion(ctx, goVers)
+		}
+
 		for _, q := range queries {
 			unresolved := q.candidates[:0]
 
@@ -1884,4 +1907,23 @@ func isNoSuchModuleVersion(err error) bool {
 func isNoSuchPackageVersion(err error) bool {
 	var noPackage *modload.PackageNotInModuleError
 	return isNoSuchModuleVersion(err) || errors.As(err, &noPackage)
+}
+
+// tryVersion tries to switch to a Go toolchain appropriate for version,
+// which was either found in a go.mod file of a dependency or resolved
+// on the command line from go@v.
+func tryVersion(ctx context.Context, version string) {
+	if !gover.IsValid(version) {
+		fmt.Fprintf(os.Stderr, "go: misuse of tryVersion: invalid version %q\n", version)
+		return
+	}
+	if (!toolchain.HasAuto() && !toolchain.HasPath()) || gover.Compare(version, gover.Local()) <= 0 {
+		return
+	}
+	tv, err := toolchain.NewerToolchain(ctx, version)
+	if err != nil {
+		base.Errorf("go: %v\n", err)
+	}
+	fmt.Fprintf(os.Stderr, "go: switching to %v\n", tv)
+	toolchain.SwitchTo(tv)
 }

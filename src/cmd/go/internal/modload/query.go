@@ -546,7 +546,7 @@ func (qm *queryMatcher) filterVersions(ctx context.Context, versions []string) (
 			}
 		}
 
-		if semver.Prerelease(v) != "" {
+		if gover.ModIsPrerelease(qm.path, v) {
 			prereleases = append(prereleases, v)
 		} else {
 			releases = append(releases, v)

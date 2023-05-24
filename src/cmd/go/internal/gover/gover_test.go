@@ -77,6 +77,7 @@ var isLangTests = []testCase1[string, bool]{
 	{"1.21", true},
 	{"1.20", false}, // == 1.20.0
 	{"1.19", false}, // == 1.20.0
+	{"1.3", false},  // == 1.3.0
 	{"1.2", false},  // == 1.2.0
 	{"1", false},    // == 1.0.0
 }
@@ -113,6 +114,7 @@ type testCase3[In1, In2, In3, Out any] struct {
 }
 
 func test1[In, Out any](t *testing.T, tests []testCase1[In, Out], name string, f func(In) Out) {
+	t.Helper()
 	for _, tt := range tests {
 		if out := f(tt.in); !reflect.DeepEqual(out, tt.out) {
 			t.Errorf("%s(%v) = %v, want %v", name, tt.in, out, tt.out)
@@ -121,6 +123,7 @@ func test1[In, Out any](t *testing.T, tests []testCase1[In, Out], name string, f
 }
 
 func test2[In1, In2, Out any](t *testing.T, tests []testCase2[In1, In2, Out], name string, f func(In1, In2) Out) {
+	t.Helper()
 	for _, tt := range tests {
 		if out := f(tt.in1, tt.in2); !reflect.DeepEqual(out, tt.out) {
 			t.Errorf("%s(%+v, %+v) = %+v, want %+v", name, tt.in1, tt.in2, out, tt.out)
@@ -129,6 +132,7 @@ func test2[In1, In2, Out any](t *testing.T, tests []testCase2[In1, In2, Out], na
 }
 
 func test3[In1, In2, In3, Out any](t *testing.T, tests []testCase3[In1, In2, In3, Out], name string, f func(In1, In2, In3) Out) {
+	t.Helper()
 	for _, tt := range tests {
 		if out := f(tt.in1, tt.in2, tt.in3); !reflect.DeepEqual(out, tt.out) {
 			t.Errorf("%s(%+v, %+v, %+v) = %+v, want %+v", name, tt.in1, tt.in2, tt.in3, out, tt.out)
