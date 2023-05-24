@@ -24,6 +24,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -49,6 +50,8 @@ var nameToC = map[string]string{
 
 var incomplete = "_cgopackage.Incomplete"
 
+var cgoRx = regexp.MustCompile(`^#cgo\s+(nocallback|noescape)\s+(\S+)\s*$`)
+
 // cname returns the C name to use for C.s.
 // The expansions are listed in nameToC and also
 // struct_foo becomes "struct foo", and similarly for
@@ -73,18 +76,30 @@ func cname(s string) string {
 	return s
 }
 
-// DiscardCgoDirectives processes the import C preamble, and discards
-// all #cgo CFLAGS and LDFLAGS directives, so they don't make their
-// way into _cgo_export.h.
-func (f *File) DiscardCgoDirectives() {
+// ProcessCgoDirectives processes the import C preamble:
+//  1. discards all #cgo CFLAGS and LDFLAGS directives, so they don't make their
+//     way into _cgo_export.h.
+//  2. parse the nocallback and noescape directives.
+func (f *File) ProcessCgoDirectives() {
 	linesIn := strings.Split(f.Preamble, "\n")
 	linesOut := make([]string, 0, len(linesIn))
+	f.NoCallbacks = make(map[string]struct{})
+	f.NoEscapes = make(map[string]struct{})
 	for _, line := range linesIn {
 		l := strings.TrimSpace(line)
 		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(rune(l[4])) {
 			linesOut = append(linesOut, line)
 		} else {
 			linesOut = append(linesOut, "")
+
+			match := cgoRx.FindStringSubmatch(line)
+			if match != nil {
+				if match[1] == "nocallback" {
+					f.NoCallbacks[match[2]] = struct{}{}
+				} else {
+					f.NoEscapes[match[2]] = struct{}{}
+				}
+			}
 		}
 	}
 	f.Preamble = strings.Join(linesOut, "\n")

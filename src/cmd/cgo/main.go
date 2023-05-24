@@ -48,6 +48,8 @@ type Package struct {
 	Preamble    string          // collected preamble for _cgo_export.h
 	typedefs    map[string]bool // type names that appear in the types of the objects we're interested in
 	typedefList []typedefInfo
+	noCallbacks map[string]struct{} // C function names that with #cgo nocallback directive
+	noEscapes   map[string]struct{} // C function names that with #cgo noescape directive
 }
 
 // A typedefInfo is an element on Package.typedefList: a typedef name
@@ -59,16 +61,18 @@ type typedefInfo struct {
 
 // A File collects information about a single Go input file.
 type File struct {
-	AST      *ast.File           // parsed AST
-	Comments []*ast.CommentGroup // comments from file
-	Package  string              // Package name
-	Preamble string              // C preamble (doc comment on import "C")
-	Ref      []*Ref              // all references to C.xxx in AST
-	Calls    []*Call             // all calls to C.xxx in AST
-	ExpFunc  []*ExpFunc          // exported functions for this file
-	Name     map[string]*Name    // map from Go name to Name
-	NamePos  map[*Name]token.Pos // map from Name to position of the first reference
-	Edit     *edit.Buffer
+	AST         *ast.File           // parsed AST
+	Comments    []*ast.CommentGroup // comments from file
+	Package     string              // Package name
+	Preamble    string              // C preamble (doc comment on import "C")
+	Ref         []*Ref              // all references to C.xxx in AST
+	Calls       []*Call             // all calls to C.xxx in AST
+	ExpFunc     []*ExpFunc          // exported functions for this file
+	Name        map[string]*Name    // map from Go name to Name
+	NamePos     map[*Name]token.Pos // map from Name to position of the first reference
+	Edit        *edit.Buffer
+	NoCallbacks map[string]struct{} // C function names that with #cgo nocallback directive
+	NoEscapes   map[string]struct{} // C function names that with #cgo noescape directive
 }
 
 func (f *File) offset(p token.Pos) int {
@@ -374,7 +378,7 @@ func main() {
 		f := new(File)
 		f.Edit = edit.NewBuffer(b)
 		f.ParseGo(input, b)
-		f.DiscardCgoDirectives()
+		f.ProcessCgoDirectives()
 		fs[i] = f
 	}
 
@@ -484,6 +488,22 @@ func (p *Package) Record(f *File) {
 			} else if !reflect.DeepEqual(p.Name[k], v) {
 				error_(token.NoPos, "inconsistent definitions for C.%s", fixGo(k))
 			}
+		}
+	}
+
+	// merge nocallback & noescape
+	if p.noCallbacks == nil {
+		p.noCallbacks = f.NoCallbacks
+	} else {
+		for k, v := range f.NoCallbacks {
+			p.noCallbacks[k] = v
+		}
+	}
+	if p.noEscapes == nil {
+		p.noEscapes = f.NoEscapes
+	} else {
+		for k, v := range f.NoEscapes {
+			p.noEscapes[k] = v
 		}
 	}
 

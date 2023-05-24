@@ -482,6 +482,7 @@ type g struct {
 
 	raceignore    int8  // ignore race detection events
 	tracking      bool  // whether we're tracking this G for sched latency statistics
+	nocgocallback bool  // whether disable callback from C
 	trackingSeq   uint8 // used to decide whether to track this G
 	trackingStamp int64 // timestamp of when the G last started being tracked
 	runnableTime  int64 // the amount of time spent runnable, cleared when running, only used when tracking

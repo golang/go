@@ -61,3 +61,8 @@ func cgoUse(any) { throw("cgoUse should not be called") }
 var cgoAlwaysFalse bool
 
 var cgo_yield = &_cgo_yield
+
+func cgoNoCallback(v bool) {
+	g := getg()
+	g.nocgocallback = v
+}
