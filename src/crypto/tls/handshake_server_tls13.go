@@ -12,6 +12,7 @@ import (
 	"crypto/rsa"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash"
 	"io"
 	"time"
@@ -641,7 +642,7 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 		} else {
 			c.sendAlert(alertInternalError)
 		}
-		return errors.New("tls: failed to sign handshake: " + err.Error())
+		return fmt.Errorf("tls: failed to sign handshake: %w", err)
 	}
 	certVerifyMsg.signature = sig
 
@@ -850,7 +851,7 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 		if err := verifyHandshakeSignature(sigType, c.peerCertificates[0].PublicKey,
 			sigHash, signed, certVerify.signature); err != nil {
 			c.sendAlert(alertDecryptError)
-			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
+			return fmt.Errorf("tls: invalid signature by the client certificate: %w", err)
 		}
 
 		if err := transcriptMsg(certVerify, hs.transcript); err != nil {

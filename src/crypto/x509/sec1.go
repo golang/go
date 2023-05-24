@@ -90,7 +90,7 @@ func parseECPrivateKey(namedCurveOID *asn1.ObjectIdentifier, der []byte) (key *e
 		if _, err := asn1.Unmarshal(der, &pkcs1PrivateKey{}); err == nil {
 			return nil, errors.New("x509: failed to parse private key (use ParsePKCS1PrivateKey instead for this key format)")
 		}
-		return nil, errors.New("x509: failed to parse EC private key: " + err.Error())
+		return nil, fmt.Errorf("x509: failed to parse EC private key: %w", err)
 	}
 	if privKey.Version != ecPrivKeyVersion {
 		return nil, fmt.Errorf("x509: unknown EC private key version %d", privKey.Version)

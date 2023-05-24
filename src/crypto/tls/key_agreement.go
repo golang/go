@@ -232,7 +232,7 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 	}
 	sig, err := priv.Sign(config.rand(), signed, signOpts)
 	if err != nil {
-		return nil, errors.New("tls: failed to sign ECDHE parameters: " + err.Error())
+		return nil, fmt.Errorf("tls: failed to sign ECDHE parameters: %w", err)
 	}
 
 	skx := new(serverKeyExchangeMsg)
@@ -352,7 +352,7 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 
 	signed := hashForServerKeyExchange(sigType, sigHash, ka.version, clientHello.random, serverHello.random, serverECDHEParams)
 	if err := verifyHandshakeSignature(sigType, cert.PublicKey, sigHash, signed, sig); err != nil {
-		return errors.New("tls: invalid signature by the server certificate: " + err.Error())
+		return fmt.Errorf("tls: invalid signature by the server certificate: %w", err)
 	}
 	return nil
 }

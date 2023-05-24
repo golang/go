@@ -47,7 +47,7 @@ func ParsePKCS8PrivateKey(der []byte) (key any, err error) {
 	case privKey.Algo.Algorithm.Equal(oidPublicKeyRSA):
 		key, err = ParsePKCS1PrivateKey(privKey.PrivateKey)
 		if err != nil {
-			return nil, errors.New("x509: failed to parse RSA private key embedded in PKCS#8: " + err.Error())
+			return nil, fmt.Errorf("x509: failed to parse RSA private key embedded in PKCS#8: %w", err)
 		}
 		return key, nil
 
@@ -59,7 +59,7 @@ func ParsePKCS8PrivateKey(der []byte) (key any, err error) {
 		}
 		key, err = parseECPrivateKey(namedCurveOID, privKey.PrivateKey)
 		if err != nil {
-			return nil, errors.New("x509: failed to parse EC private key embedded in PKCS#8: " + err.Error())
+			return nil, fmt.Errorf("x509: failed to parse EC private key embedded in PKCS#8: %w", err)
 		}
 		return key, nil
 
@@ -116,7 +116,7 @@ func MarshalPKCS8PrivateKey(key any) ([]byte, error) {
 		}
 		oidBytes, err := asn1.Marshal(oid)
 		if err != nil {
-			return nil, errors.New("x509: failed to marshal curve OID: " + err.Error())
+			return nil, fmt.Errorf("x509: failed to marshal curve OID: %w", err)
 		}
 		privKey.Algo = pkix.AlgorithmIdentifier{
 			Algorithm: oidPublicKeyECDSA,
@@ -125,7 +125,7 @@ func MarshalPKCS8PrivateKey(key any) ([]byte, error) {
 			},
 		}
 		if privKey.PrivateKey, err = marshalECPrivateKeyWithOID(k, nil); err != nil {
-			return nil, errors.New("x509: failed to marshal EC private key while building PKCS#8: " + err.Error())
+			return nil, fmt.Errorf("x509: failed to marshal EC private key while building PKCS#8: %w", err)
 		}
 
 	case ed25519.PrivateKey:
@@ -154,7 +154,7 @@ func MarshalPKCS8PrivateKey(key any) ([]byte, error) {
 			}
 			oidBytes, err := asn1.Marshal(oid)
 			if err != nil {
-				return nil, errors.New("x509: failed to marshal curve OID: " + err.Error())
+				return nil, fmt.Errorf("x509: failed to marshal curve OID: %w", err)
 			}
 			privKey.Algo = pkix.AlgorithmIdentifier{
 				Algorithm: oidPublicKeyECDSA,
@@ -163,7 +163,7 @@ func MarshalPKCS8PrivateKey(key any) ([]byte, error) {
 				},
 			}
 			if privKey.PrivateKey, err = marshalECDHPrivateKey(k); err != nil {
-				return nil, errors.New("x509: failed to marshal EC private key while building PKCS#8: " + err.Error())
+				return nil, fmt.Errorf("x509: failed to marshal EC private key while building PKCS#8: %w", err)
 			}
 		}
 
