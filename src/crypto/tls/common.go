@@ -604,10 +604,16 @@ type Config struct {
 	// non-nil error, the handshake is aborted and that error results.
 	//
 	// If normal verification fails then the handshake will abort before
-	// considering this callback. If normal verification is disabled by
-	// setting InsecureSkipVerify, or (for a server) when ClientAuth is
-	// RequestClientCert or RequireAnyClientCert, then this callback will
-	// be considered but the verifiedChains argument will always be nil.
+	// considering this callback. If normal verification is disabled (on the
+	// client when InsecureSkipVerify is set, or on a server when ClientAuth is
+	// RequestClientCert or RequireAnyClientCert), then this callback will be
+	// considered but the verifiedChains argument will always be nil. When
+	// ClientAuth is NoClientCert, this callback is not called on the server.
+	// rawCerts may be empty on the server if ClientAuth is RequestClientCert or
+	// VerifyClientCertIfGiven.
+	//
+	// This callback is not invoked on resumed connections, as certificates are
+	// not re-verified on resumption.
 	//
 	// verifiedChains and its contents should not be modified.
 	VerifyPeerCertificate func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
@@ -618,8 +624,9 @@ type Config struct {
 	// and that error results.
 	//
 	// If normal verification fails then the handshake will abort before
-	// considering this callback. This callback will run for all connections
-	// regardless of InsecureSkipVerify or ClientAuth settings.
+	// considering this callback. This callback will run for all connections,
+	// including resumptions, regardless of InsecureSkipVerify or ClientAuth
+	// settings.
 	VerifyConnection func(ConnectionState) error
 
 	// RootCAs defines the set of root certificate authorities

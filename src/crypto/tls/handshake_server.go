@@ -471,6 +471,13 @@ func (hs *serverHandshakeState) checkForResumption() error {
 	if sessionHasClientCerts && c.config.ClientAuth == NoClientCert {
 		return nil
 	}
+	if sessionHasClientCerts && c.config.time().After(sessionState.peerCertificates[0].NotAfter) {
+		return nil
+	}
+	if sessionHasClientCerts && c.config.ClientAuth >= VerifyClientCertIfGiven &&
+		len(sessionState.verifiedChains) == 0 {
+		return nil
+	}
 
 	// RFC 7627, Section 5.3
 	if !sessionState.extMasterSecret && hs.clientHello.extendedMasterSecret {
@@ -482,6 +489,10 @@ func (hs *serverHandshakeState) checkForResumption() error {
 		return errors.New("tls: session supported extended_master_secret but client does not")
 	}
 
+	c.peerCertificates = sessionState.peerCertificates
+	c.ocspResponse = sessionState.ocspResponse
+	c.scts = sessionState.scts
+	c.verifiedChains = sessionState.verifiedChains
 	c.extMasterSecret = sessionState.extMasterSecret
 	hs.sessionState = sessionState
 	hs.suite = suite
@@ -507,10 +518,6 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 		return err
 	}
 	if _, err := hs.c.writeHandshakeRecord(hs.hello, &hs.finishedHash); err != nil {
-		return err
-	}
-
-	if err := c.processCertsFromClient(hs.sessionState.certificate()); err != nil {
 		return err
 	}
 
@@ -847,8 +854,7 @@ func (hs *serverHandshakeState) sendFinished(out []byte) error {
 }
 
 // processCertsFromClient takes a chain of client certificates either from a
-// Certificates message or from a sessionState and verifies them. It returns
-// the public key of the leaf certificate.
+// Certificates message and verifies them.
 func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	certificates := certificate.Certificate
 	certs := make([]*x509.Certificate, len(certificates))

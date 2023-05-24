@@ -377,10 +377,7 @@ func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 			s.scts = append(s.scts, randomBytes(rand.Intn(500)+1, rand))
 		}
 	}
-	if rand.Intn(10) > 5 && s.EarlyData {
-		s.alpnProtocol = string(randomBytes(rand.Intn(10), rand))
-	}
-	if s.isClient {
+	if len(s.peerCertificates) > 0 {
 		for i := 0; i < rand.Intn(3); i++ {
 			if rand.Intn(10) > 5 {
 				s.verifiedChains = append(s.verifiedChains, s.peerCertificates)
@@ -388,6 +385,11 @@ func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 				s.verifiedChains = append(s.verifiedChains, s.peerCertificates[:1])
 			}
 		}
+	}
+	if rand.Intn(10) > 5 && s.EarlyData {
+		s.alpnProtocol = string(randomBytes(rand.Intn(10), rand))
+	}
+	if s.isClient {
 		if isTLS13 {
 			s.useBy = uint64(rand.Int63())
 			s.ageAdd = uint32(rand.Int63() & math.MaxUint32)

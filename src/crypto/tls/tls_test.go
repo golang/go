@@ -1658,3 +1658,147 @@ func TestPKCS1OnlyCert(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestVerifyCertificates(t *testing.T) {
+	// See https://go.dev/issue/31641.
+	t.Run("TLSv12", func(t *testing.T) { testVerifyCertificates(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testVerifyCertificates(t, VersionTLS13) })
+}
+
+func testVerifyCertificates(t *testing.T, version uint16) {
+	tests := []struct {
+		name string
+
+		InsecureSkipVerify bool
+		ClientAuth         ClientAuthType
+		ClientCertificates bool
+	}{
+		{
+			name: "defaults",
+		},
+		{
+			name:               "InsecureSkipVerify",
+			InsecureSkipVerify: true,
+		},
+		{
+			name:       "RequestClientCert with no certs",
+			ClientAuth: RequestClientCert,
+		},
+		{
+			name:               "RequestClientCert with certs",
+			ClientAuth:         RequestClientCert,
+			ClientCertificates: true,
+		},
+		{
+			name:               "RequireAnyClientCert",
+			ClientAuth:         RequireAnyClientCert,
+			ClientCertificates: true,
+		},
+		{
+			name:       "VerifyClientCertIfGiven with no certs",
+			ClientAuth: VerifyClientCertIfGiven,
+		},
+		{
+			name:               "VerifyClientCertIfGiven with certs",
+			ClientAuth:         VerifyClientCertIfGiven,
+			ClientCertificates: true,
+		},
+		{
+			name:               "RequireAndVerifyClientCert",
+			ClientAuth:         RequireAndVerifyClientCert,
+			ClientCertificates: true,
+		},
+	}
+
+	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rootCAs := x509.NewCertPool()
+	rootCAs.AddCert(issuer)
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			var serverVerifyConnection, clientVerifyConnection bool
+			var serverVerifyPeerCertificates, clientVerifyPeerCertificates bool
+
+			clientConfig := testConfig.Clone()
+			clientConfig.Time = func() time.Time { return time.Unix(1476984729, 0) }
+			clientConfig.MaxVersion = version
+			clientConfig.MinVersion = version
+			clientConfig.RootCAs = rootCAs
+			clientConfig.ServerName = "example.golang"
+			clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
+			serverConfig := clientConfig.Clone()
+			serverConfig.ClientCAs = rootCAs
+
+			clientConfig.VerifyConnection = func(cs ConnectionState) error {
+				clientVerifyConnection = true
+				return nil
+			}
+			clientConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+				clientVerifyPeerCertificates = true
+				return nil
+			}
+			serverConfig.VerifyConnection = func(cs ConnectionState) error {
+				serverVerifyConnection = true
+				return nil
+			}
+			serverConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+				serverVerifyPeerCertificates = true
+				return nil
+			}
+
+			clientConfig.InsecureSkipVerify = test.InsecureSkipVerify
+			serverConfig.ClientAuth = test.ClientAuth
+			if !test.ClientCertificates {
+				clientConfig.Certificates = nil
+			}
+
+			if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+				t.Fatal(err)
+			}
+
+			want := serverConfig.ClientAuth != NoClientCert
+			if serverVerifyPeerCertificates != want {
+				t.Errorf("VerifyPeerCertificates on the server: got %v, want %v",
+					serverVerifyPeerCertificates, want)
+			}
+			if !clientVerifyPeerCertificates {
+				t.Errorf("VerifyPeerCertificates not called on the client")
+			}
+			if !serverVerifyConnection {
+				t.Error("VerifyConnection did not get called on the server")
+			}
+			if !clientVerifyConnection {
+				t.Error("VerifyConnection did not get called on the client")
+			}
+
+			serverVerifyPeerCertificates, clientVerifyPeerCertificates = false, false
+			serverVerifyConnection, clientVerifyConnection = false, false
+			cs, _, err := testHandshake(t, clientConfig, serverConfig)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !cs.DidResume {
+				t.Error("expected resumption")
+			}
+
+			if serverVerifyPeerCertificates {
+				t.Error("VerifyPeerCertificates got called on the server on resumption")
+			}
+			if clientVerifyPeerCertificates {
+				t.Error("VerifyPeerCertificates got called on the client on resumption")
+			}
+			if !serverVerifyConnection {
+				t.Error("VerifyConnection did not get called on the server on resumption")
+			}
+			if !clientVerifyConnection {
+				t.Error("VerifyConnection did not get called on the client on resumption")
+			}
+		})
+	}
+}

@@ -37,16 +37,16 @@ type SessionState struct {
 	//       uint8 ext_master_secret = { 0, 1 };
 	//       uint8 early_data = { 0, 1 };
 	//       CertificateEntry certificate_list<0..2^24-1>;
+	//       CertificateChain verified_chains<0..2^24-1>; /* excluding leaf */
 	//       select (SessionState.early_data) {
 	//           case 0: Empty;
 	//           case 1: opaque alpn<1..2^8-1>;
 	//       };
 	//       select (SessionState.type) {
-	//           case server: /* empty */;
+	//           case server: Empty;
 	//           case client: struct {
-	//               CertificateChain verified_chains<0..2^24-1>; /* excluding leaf */
 	//               select (SessionState.version) {
-	//                   case VersionTLS10..VersionTLS12: /* empty */;
+	//                   case VersionTLS10..VersionTLS12: Empty;
 	//                   case VersionTLS13: struct {
 	//                       uint64 use_by;
 	//                       uint32 age_add;
@@ -87,10 +87,8 @@ type SessionState struct {
 	activeCertHandles []*activeCert
 	ocspResponse      []byte
 	scts              [][]byte
+	verifiedChains    [][]*x509.Certificate
 	alpnProtocol      string // only set if EarlyData is true
-
-	// Client-side fields.
-	verifiedChains [][]*x509.Certificate
 
 	// Client-side TLS 1.3-only fields.
 	useBy  uint64 // seconds since UNIX epoch
@@ -129,43 +127,39 @@ func (s *SessionState) Bytes() ([]byte, error) {
 	} else {
 		b.AddUint8(0)
 	}
-	marshalCertificate(&b, s.certificate())
+	marshalCertificate(&b, Certificate{
+		Certificate:                 certificatesToBytesSlice(s.peerCertificates),
+		OCSPStaple:                  s.ocspResponse,
+		SignedCertificateTimestamps: s.scts,
+	})
+	b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+		for _, chain := range s.verifiedChains {
+			b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+				// We elide the first certificate because it's always the leaf.
+				if len(chain) == 0 {
+					b.SetError(errors.New("tls: internal error: empty verified chain"))
+					return
+				}
+				for _, cert := range chain[1:] {
+					b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+						b.AddBytes(cert.Raw)
+					})
+				}
+			})
+		}
+	})
 	if s.EarlyData {
 		b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
 			b.AddBytes([]byte(s.alpnProtocol))
 		})
 	}
 	if s.isClient {
-		b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
-			for _, chain := range s.verifiedChains {
-				b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
-					// We elide the first certificate because it's always the leaf.
-					if len(chain) == 0 {
-						b.SetError(errors.New("tls: internal error: empty verified chain"))
-						return
-					}
-					for _, cert := range chain[1:] {
-						b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
-							b.AddBytes(cert.Raw)
-						})
-					}
-				})
-			}
-		})
 		if s.version >= VersionTLS13 {
 			addUint64(&b, s.useBy)
 			b.AddUint32(s.ageAdd)
 		}
 	}
 	return b.Bytes()
-}
-
-func (s *SessionState) certificate() Certificate {
-	return Certificate{
-		Certificate:                 certificatesToBytesSlice(s.peerCertificates),
-		OCSPStaple:                  s.ocspResponse,
-		SignedCertificateTimestamps: s.scts,
-	}
 }
 
 func certificatesToBytesSlice(certs []*x509.Certificate) [][]byte {
@@ -221,6 +215,34 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 	}
 	ss.ocspResponse = cert.OCSPStaple
 	ss.scts = cert.SignedCertificateTimestamps
+	var chainList cryptobyte.String
+	if !s.ReadUint24LengthPrefixed(&chainList) {
+		return nil, errors.New("tls: invalid session encoding")
+	}
+	for !chainList.Empty() {
+		var certList cryptobyte.String
+		if !chainList.ReadUint24LengthPrefixed(&certList) {
+			return nil, errors.New("tls: invalid session encoding")
+		}
+		var chain []*x509.Certificate
+		if len(ss.peerCertificates) == 0 {
+			return nil, errors.New("tls: invalid session encoding")
+		}
+		chain = append(chain, ss.peerCertificates[0])
+		for !certList.Empty() {
+			var cert []byte
+			if !readUint24LengthPrefixed(&certList, &cert) {
+				return nil, errors.New("tls: invalid session encoding")
+			}
+			c, err := globalCertCache.newCert(cert)
+			if err != nil {
+				return nil, err
+			}
+			ss.activeCertHandles = append(ss.activeCertHandles, c)
+			chain = append(chain, c.cert)
+		}
+		ss.verifiedChains = append(ss.verifiedChains, chain)
+	}
 	if ss.EarlyData {
 		var alpn []byte
 		if !readUint8LengthPrefixed(&s, &alpn) {
@@ -238,31 +260,6 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 	if len(ss.peerCertificates) == 0 {
 		return nil, errors.New("tls: no server certificates in client session")
 	}
-	var chainList cryptobyte.String
-	if !s.ReadUint24LengthPrefixed(&chainList) {
-		return nil, errors.New("tls: invalid session encoding")
-	}
-	for !chainList.Empty() {
-		var certList cryptobyte.String
-		if !chainList.ReadUint24LengthPrefixed(&certList) {
-			return nil, errors.New("tls: invalid session encoding")
-		}
-		var chain []*x509.Certificate
-		chain = append(chain, ss.peerCertificates[0])
-		for !certList.Empty() {
-			var cert []byte
-			if !readUint24LengthPrefixed(&certList, &cert) {
-				return nil, errors.New("tls: invalid session encoding")
-			}
-			c, err := globalCertCache.newCert(cert)
-			if err != nil {
-				return nil, err
-			}
-			ss.activeCertHandles = append(ss.activeCertHandles, c)
-			chain = append(chain, c.cert)
-		}
-		ss.verifiedChains = append(ss.verifiedChains, chain)
-	}
 	if ss.version < VersionTLS13 {
 		if !s.Empty() {
 			return nil, errors.New("tls: invalid session encoding")
@@ -278,13 +275,6 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 // sessionState returns a partially filled-out [SessionState] with information
 // from the current connection.
 func (c *Conn) sessionState() (*SessionState, error) {
-	var verifiedChains [][]*x509.Certificate
-	if c.isClient {
-		verifiedChains = c.verifiedChains
-		if len(c.peerCertificates) == 0 {
-			return nil, errors.New("tls: internal error: empty peer certificates")
-		}
-	}
 	return &SessionState{
 		version:           c.vers,
 		cipherSuite:       c.cipherSuite,
@@ -296,7 +286,7 @@ func (c *Conn) sessionState() (*SessionState, error) {
 		scts:              c.scts,
 		isClient:          c.isClient,
 		extMasterSecret:   c.extMasterSecret,
-		verifiedChains:    verifiedChains,
+		verifiedChains:    c.verifiedChains,
 	}, nil
 }
 

@@ -335,6 +335,13 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		if sessionHasClientCerts && c.config.ClientAuth == NoClientCert {
 			continue
 		}
+		if sessionHasClientCerts && c.config.time().After(sessionState.peerCertificates[0].NotAfter) {
+			continue
+		}
+		if sessionHasClientCerts && c.config.ClientAuth >= VerifyClientCertIfGiven &&
+			len(sessionState.verifiedChains) == 0 {
+			continue
+		}
 
 		hs.earlySecret = hs.suite.extract(sessionState.secret, nil)
 		binderKey := hs.suite.deriveSecret(hs.earlySecret, resumptionBinderLabel, nil)
@@ -370,9 +377,10 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		}
 
 		c.didResume = true
-		if err := c.processCertsFromClient(sessionState.certificate()); err != nil {
-			return err
-		}
+		c.peerCertificates = sessionState.peerCertificates
+		c.ocspResponse = sessionState.ocspResponse
+		c.scts = sessionState.scts
+		c.verifiedChains = sessionState.verifiedChains
 
 		hs.hello.selectedIdentityPresent = true
 		hs.hello.selectedIdentity = uint16(i)

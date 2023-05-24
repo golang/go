@@ -319,18 +319,17 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 	// Check that the cached server certificate is not expired, and that it's
 	// valid for the ServerName. This should be ensured by the cache key, but
 	// protect the application from a faulty ClientSessionCache implementation.
+	if c.config.time().After(session.peerCertificates[0].NotAfter) {
+		// Expired certificate, delete the entry.
+		c.config.ClientSessionCache.Put(cacheKey, nil)
+		return nil, nil, nil, nil
+	}
 	if !c.config.InsecureSkipVerify {
 		if len(session.verifiedChains) == 0 {
 			// The original connection had InsecureSkipVerify, while this doesn't.
 			return nil, nil, nil, nil
 		}
-		serverCert := session.peerCertificates[0]
-		if c.config.time().After(serverCert.NotAfter) {
-			// Expired certificate, delete the entry.
-			c.config.ClientSessionCache.Put(cacheKey, nil)
-			return nil, nil, nil, nil
-		}
-		if err := serverCert.VerifyHostname(c.config.ServerName); err != nil {
+		if err := session.peerCertificates[0].VerifyHostname(c.config.ServerName); err != nil {
 			return nil, nil, nil, nil
 		}
 	}
