@@ -376,7 +376,7 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 	if c.quic != nil && session.EarlyData {
 		// For 0-RTT, the cipher suite has to match exactly, and we need to be
 		// offering the same ALPN.
-		if mutualCipherSuite(hello.cipherSuites, session.cipherSuite) != nil {
+		if mutualCipherSuiteTLS13(hello.cipherSuites, session.cipherSuite) != nil {
 			for _, alpn := range hello.alpnProtocols {
 				if alpn == session.alpnProtocol {
 					hello.earlyData = true
