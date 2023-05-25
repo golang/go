@@ -261,6 +261,25 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="compiler">Compiler</h2>
 
+<p>
+  Profile-guide optimization (PGO), added as a preview in Go 1.20, is now ready
+  for general use. PGO enables additional optimizations on code identified as
+  hot by profiles of production workloads. As mentioned in the
+  <a href="#go-command">Go command section</a>, PGO is enabled by default for
+  binaries that contain a <code>default.pgo</code> profile in the main
+  package directory. Performance improvements vary depending on application
+  behavior, with most programs from a representative set of Go programs seeing
+  between 2 and 7% improvement from enabling PGO. See the
+  <a href="/doc/pgo">PGO user guide</a> for detailed documentation.
+</p>
+
+<!-- https://go.dev/issue/59959 -->
+<p>
+  PGO builds can now devirtualize some interface method calls, adding a
+  concrete call to the most common callee. This enables further optimization,
+  such as inlining the callee.
+</p>
+
 <!-- CL 490819 -->
 <p>
   <!-- cmd/cgo: reject attempts to declare methods on C types -->
