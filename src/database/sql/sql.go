@@ -2916,6 +2916,12 @@ type Rows struct {
 	// It is only used by Scan, Next, and NextResultSet which are expected
 	// not to be called concurrently.
 	closemuScanHold bool
+
+	// hitEOF is whether Next hit the end of the rows without
+	// encountering an error. It's set in Next before
+	// returning. It's only used by Next and Err which are
+	// expected not to be called concurrently.
+	hitEOF bool
 }
 
 // lasterrOrErrLocked returns either lasterr or the provided err.
@@ -2984,6 +2990,9 @@ func (rs *Rows) Next() bool {
 	})
 	if doClose {
 		rs.Close()
+	}
+	if doClose && !ok {
+		rs.hitEOF = true
 	}
 	return ok
 }
@@ -3073,8 +3082,14 @@ func (rs *Rows) NextResultSet() bool {
 // Err returns the error, if any, that was encountered during iteration.
 // Err may be called after an explicit or implicit Close.
 func (rs *Rows) Err() error {
-	if errp := rs.contextDone.Load(); errp != nil {
-		return *errp
+	// Return any context error that might've happened during row iteration,
+	// but only if we haven't reported the final Next() = false after rows
+	// are done, in which case the user might've canceled their own context
+	// before calling Rows.Err.
+	if !rs.hitEOF {
+		if errp := rs.contextDone.Load(); errp != nil {
+			return *errp
+		}
 	}
 
 	rs.closemu.RLock()
