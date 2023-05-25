@@ -32,10 +32,10 @@ func ComputeEdits(before, after string) []diff.Edit {
 	for _, op := range ops {
 		start, end := lineOffsets[op.I1], lineOffsets[op.I2]
 		switch op.Kind {
-		case diff.Delete:
+		case opDelete:
 			// Delete: before[I1:I2] is deleted.
 			edits = append(edits, diff.Edit{Start: start, End: end})
-		case diff.Insert:
+		case opInsert:
 			// Insert: after[J1:J2] is inserted at before[I1:I1].
 			if content := strings.Join(op.Content, ""); content != "" {
 				edits = append(edits, diff.Edit{Start: start, End: end, New: content})
@@ -45,8 +45,30 @@ func ComputeEdits(before, after string) []diff.Edit {
 	return edits
 }
 
+// opKind is used to denote the type of operation a line represents.
+type opKind int
+
+const (
+	opDelete opKind = iota // line deleted from input (-)
+	opInsert               // line inserted into output (+)
+	opEqual                // line present in input and output
+)
+
+func (kind opKind) String() string {
+	switch kind {
+	case opDelete:
+		return "delete"
+	case opInsert:
+		return "insert"
+	case opEqual:
+		return "equal"
+	default:
+		panic("unknown opKind")
+	}
+}
+
 type operation struct {
-	Kind    diff.OpKind
+	Kind    opKind
 	Content []string // content from b
 	I1, I2  int      // indices of the line in a
 	J1      int      // indices of the line in b, J2 implied by len(Content)
@@ -72,7 +94,7 @@ func operations(a, b []string) []*operation {
 			return
 		}
 		op.I2 = i2
-		if op.Kind == diff.Insert {
+		if op.Kind == opInsert {
 			op.Content = b[op.J1:j2]
 		}
 		solution[i] = op
@@ -88,7 +110,7 @@ func operations(a, b []string) []*operation {
 		for snake[0]-snake[1] > x-y {
 			if op == nil {
 				op = &operation{
-					Kind: diff.Delete,
+					Kind: opDelete,
 					I1:   x,
 					J1:   y,
 				}
@@ -104,7 +126,7 @@ func operations(a, b []string) []*operation {
 		for snake[0]-snake[1] < x-y {
 			if op == nil {
 				op = &operation{
-					Kind: diff.Insert,
+					Kind: opInsert,
 					I1:   x,
 					J1:   y,
 				}
