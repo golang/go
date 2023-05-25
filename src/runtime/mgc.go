@@ -149,7 +149,7 @@ const (
 	sweepMinHeapDistance = 1024 * 1024
 )
 
-// heapObjectsCanMove is always false in the current garbage collector.
+// heapObjectsCanMove always returns false in the current garbage collector.
 // It exists for go4.org/unsafe/assume-no-moving-gc, which is an
 // unfortunate idea that had an even more unfortunate implementation.
 // Every time a new Go release happened, the package stopped building,
@@ -165,7 +165,11 @@ const (
 //
 // If the Go garbage collector ever does move heap objects, we can set
 // this to true to break all the programs using assume-no-moving-gc.
-var heapObjectsCanMove = false
+//
+//go:linkname heapObjectsCanMove
+func heapObjectsCanMove() bool {
+	return false
+}
 
 func gcinit() {
 	if unsafe.Sizeof(workbuf{}) != _WorkbufSize {
