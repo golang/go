@@ -606,6 +606,13 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>
+    <p><!-- CL 480135 -->
+      On Windows the
+      <a href="/pkg/os#File.Chdir"><code>File.Chdir></a> method
+      now changes the current directory to the file, rather than
+      always returning an error.
+    </p>
+
     <p><!-- https://go.dev/issue/32558 -->
       TODO: <a href="https://go.dev/issue/32558">https://go.dev/issue/32558</a>: allow Chtimes with time.Time{} to avoid setting time
     </p>
@@ -760,16 +767,18 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/46259 -->
-      TODO: <a href="https://go.dev/issue/46259">https://go.dev/issue/46259</a>: add Jail int32 to SysProcAttr on FreeBSD
-    </p>
-
-    <p><!-- CL 458335 -->
-      TODO: <a href="https://go.dev/cl/458335">https://go.dev/cl/458335</a>: syscall: add jail support to ForkExec on FreeBSD; modified api/next/46259.txt
-    </p>
-
     <p><!-- CL 480135 -->
-      TODO: <a href="https://go.dev/cl/480135">https://go.dev/cl/480135</a>: syscall: implement Fchdir on Windows
+      On Windows the
+      <a href="/pkg/syscall#Fchdir"><code>Fchdir</code></a> function
+      now changes the current directory to its argument, rather than
+      always returning an error.
+    </p>
+
+    <p><!-- https://go.dev/issue/46259, CL 458335 -->
+      On FreeBSD
+      <a href="/pkg/syscall#SysProcAttr"><code>SysProcAttr</code></a>
+      has a new field <code>Jail</code> that may be used to put the
+      newly created process in a jailed environment.
     </p>
   </dd>
 </dl><!-- syscall -->
