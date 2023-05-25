@@ -21,7 +21,7 @@ func Local() string {
 	if TestVersion != "" {
 		v = TestVersion
 	}
-	if v := ToolchainVersion(v); v != "" {
+	if v := FromToolchain(v); v != "" {
 		return v
 	}
 

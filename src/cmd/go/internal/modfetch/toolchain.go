@@ -66,7 +66,7 @@ func (r *toolchainRepo) Versions(ctx context.Context, prefix string) (*Versions,
 		})
 	} else {
 		sort.Slice(list, func(i, j int) bool {
-			return gover.Compare(gover.ToolchainVersion(list[i]), gover.ToolchainVersion(list[j])) < 0
+			return gover.Compare(gover.FromToolchain(list[i]), gover.FromToolchain(list[j])) < 0
 		})
 	}
 	versions.List = list

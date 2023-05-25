@@ -81,7 +81,7 @@ func switchGoToolchain() {
 	if x, y, ok := strings.Cut(gotoolchain, "+"); ok { // go1.2.3+auto
 		orig := gotoolchain
 		minToolchain, gotoolchain = x, y
-		minVers = gover.ToolchainVersion(minToolchain)
+		minVers = gover.FromToolchain(minToolchain)
 		if minVers == "" {
 			base.Fatalf("invalid GOTOOLCHAIN %q: invalid minimum toolchain %q", orig, minToolchain)
 		}
@@ -125,7 +125,7 @@ func switchGoToolchain() {
 				// (including its environment and go env -w file).
 			} else if toolchain != "" {
 				// Accept toolchain only if it is >= our min.
-				toolVers := gover.ToolchainVersion(toolchain)
+				toolVers := gover.FromToolchain(toolchain)
 				if gover.Compare(toolVers, minVers) >= 0 {
 					gotoolchain = toolchain
 				}
@@ -149,7 +149,7 @@ func switchGoToolchain() {
 	// We want to allow things like go1.20.3 but also gccgo-go1.20.3.
 	// We want to disallow mistakes / bad ideas like GOTOOLCHAIN=bash,
 	// since we will find that in the path lookup.
-	// gover.ToolchainVersion has already done this check (except for the 1)
+	// gover.FromToolchain has already done this check (except for the 1)
 	// but doing it again makes sure we don't miss it on unexpected code paths.
 	if !strings.HasPrefix(gotoolchain, "go1") && !strings.Contains(gotoolchain, "-go1") {
 		base.Fatalf("invalid GOTOOLCHAIN %q", gotoolchain)

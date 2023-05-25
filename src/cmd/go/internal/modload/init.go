@@ -1562,7 +1562,7 @@ func commitRequirements(ctx context.Context) (err error) {
 	}
 
 	// Update go and toolchain lines.
-	tv := gover.ToolchainVersion(toolchain)
+	tv := gover.FromToolchain(toolchain)
 	// Set go version if missing.
 	if modFile.Go == nil || modFile.Go.Version == "" {
 		v := modFileGoVersion(modFile)

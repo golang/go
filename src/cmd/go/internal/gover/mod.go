@@ -73,7 +73,7 @@ func ModSort(list []module.Version) {
 func ModIsValid(path, vers string) bool {
 	if IsToolchain(path) {
 		if path == "toolchain" {
-			return IsValid(ToolchainVersion(vers))
+			return IsValid(FromToolchain(vers))
 		}
 		return IsValid(vers)
 	}

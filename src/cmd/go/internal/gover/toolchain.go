@@ -11,18 +11,18 @@ import (
 	"strings"
 )
 
-// ToolchainVersion returns the Go version for the named toolchain,
+// FromToolchain returns the Go version for the named toolchain,
 // derived from the name itself (not by running the toolchain).
 // A toolchain is named "goVERSION" or "anything-goVERSION".
 // A suffix after the VERSION introduced by a +, -, space, or tab is removed.
 // Examples:
 //
-//	ToolchainVersion("go1.2.3") == "1.2.3"
-//	ToolchainVersion("go1.2.3+bigcorp") == "1.2.3"
-//	ToolchainVersion("go1.2.3-bigcorp") == "1.2.3"
-//	ToolchainVersion("gccgo-go1.23rc4") == "1.23rc4"
-//	ToolchainVersion("invalid") == ""
-func ToolchainVersion(name string) string {
+//	FromToolchain("go1.2.3") == "1.2.3"
+//	FromToolchain("go1.2.3+bigcorp") == "1.2.3"
+//	FromToolchain("go1.2.3-bigcorp") == "1.2.3"
+//	FromToolchain("gccgo-go1.23rc4") == "1.23rc4"
+//	FromToolchain("invalid") == ""
+func FromToolchain(name string) string {
 	var v string
 	if strings.HasPrefix(name, "go") {
 		v = name[2:]
@@ -43,7 +43,7 @@ func maybeToolchainVersion(name string) string {
 	if IsValid(name) {
 		return name
 	}
-	return ToolchainVersion(name)
+	return FromToolchain(name)
 }
 
 // Startup records the information that went into the startup-time version switch.
