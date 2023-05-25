@@ -193,6 +193,14 @@ Do not send CLs removing the interior tags from such phrases.
   The package supports integration with popular log analysis tools and services.
 </p>
 
+<h3 id="slices">New slices package</h3>
+
+<p><!-- https://go.dev/issue/45955, https://go.dev/issue/54768, https://go.dev/issue/57433, CL 467417, CL 483175 -->
+  The new <a href="/pkg/slices">slices</a> package provides many common
+  operations on slices, using generic functions that work with slices
+  of any element type.
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -709,26 +717,6 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- runtime/metrics -->
 
-<dl id="slices"><dt><a href="/pkg/slices/">slices</a></dt>
-  <dd>
-    <p><!-- https://go.dev/issue/54768 -->
-      TODO: <a href="https://go.dev/issue/54768">https://go.dev/issue/54768</a>: add DeleteFunc
-    </p>
-
-    <p><!-- https://go.dev/issue/57433 -->
-      TODO: <a href="https://go.dev/issue/57433">https://go.dev/issue/57433</a>: new standard library package based on x/exp/slices
-    </p>
-
-    <p><!-- CL 467417 -->
-      TODO: <a href="https://go.dev/cl/467417">https://go.dev/cl/467417</a>: slices: new package; modified api/next/57433.txt
-    </p>
-
-    <p><!-- CL 483175 -->
-      TODO: <a href="https://go.dev/cl/483175">https://go.dev/cl/483175</a>: slices: add DeleteFunc; modified api/next/54768.txt
-    </p>
-  </dd>
-</dl><!-- slices -->
-
 <dl id="spec"><dt><a href="/pkg/spec/">spec</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/56351 -->
@@ -744,16 +732,6 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- spec -->
-
-<dl id="slices"><dt><a href="/pkg/slices/">slices</a></dt>
-  <dd>
-    <p><!-- https://go.dev/issue/45955 -->
-      The new <a href="/pkg/slices/"><code>slices</code></a> package
-      provides many common operations on slices, using generic
-      functions that work with slices of any element type.
-    </p>
-  </dd>
-</dl>
 
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
