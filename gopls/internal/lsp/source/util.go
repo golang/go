@@ -255,13 +255,7 @@ func Qualifier(f *ast.File, pkg *types.Package, info *types.Info) types.Qualifie
 	// Construct mapping of import paths to their defined or implicit names.
 	imports := make(map[*types.Package]string)
 	for _, imp := range f.Imports {
-		var obj types.Object
-		if imp.Name != nil {
-			obj = info.Defs[imp.Name]
-		} else {
-			obj = info.Implicits[imp]
-		}
-		if pkgname, ok := obj.(*types.PkgName); ok {
+		if pkgname, ok := ImportedPkgName(info, imp); ok {
 			imports[pkgname.Imported()] = pkgname.Name()
 		}
 	}

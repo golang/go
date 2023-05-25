@@ -87,16 +87,11 @@ func Index(files []*source.ParsedGoFile, pkg *types.Package, info *types.Info) [
 			case *ast.ImportSpec:
 				// Report a reference from each import path
 				// string to the imported package.
-				var obj types.Object
-				if n.Name != nil {
-					obj = info.Defs[n.Name]
-				} else {
-					obj = info.Implicits[n]
-				}
-				if obj == nil {
+				pkgname, ok := source.ImportedPkgName(info, n)
+				if !ok {
 					return true // missing import
 				}
-				objects := getObjects(obj.(*types.PkgName).Imported())
+				objects := getObjects(pkgname.Imported())
 				gobObj, ok := objects[nil]
 				if !ok {
 					gobObj = &gobObject{Path: ""}

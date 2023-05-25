@@ -10,7 +10,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -67,10 +66,27 @@ func highlightPath(path []ast.Node, file *ast.File, info *types.Info) (map[posRa
 	result := make(map[posRange]struct{})
 	switch node := path[0].(type) {
 	case *ast.BasicLit:
+		// Import path string literal?
 		if len(path) > 1 {
-			if _, ok := path[1].(*ast.ImportSpec); ok {
-				err := highlightImportUses(path, info, result)
-				return result, err
+			if imp, ok := path[1].(*ast.ImportSpec); ok {
+				highlight := func(n ast.Node) {
+					result[posRange{start: n.Pos(), end: n.End()}] = struct{}{}
+				}
+
+				// Highlight the import itself...
+				highlight(imp)
+
+				// ...and all references to it in the file.
+				if pkgname, ok := ImportedPkgName(info, imp); ok {
+					ast.Inspect(file, func(n ast.Node) bool {
+						if id, ok := n.(*ast.Ident); ok &&
+							info.Uses[id] == pkgname {
+							highlight(id)
+						}
+						return true
+					})
+				}
+				return result, nil
 			}
 		}
 		highlightFuncControlFlow(path, result)
@@ -419,66 +435,46 @@ Outer:
 	})
 }
 
-func highlightImportUses(path []ast.Node, info *types.Info, result map[posRange]struct{}) error {
-	basicLit, ok := path[0].(*ast.BasicLit)
-	if !ok {
-		return fmt.Errorf("highlightImportUses called with an ast.Node of type %T", basicLit)
-	}
-	ast.Inspect(path[len(path)-1], func(node ast.Node) bool {
-		if imp, ok := node.(*ast.ImportSpec); ok && imp.Path == basicLit {
-			result[posRange{start: node.Pos(), end: node.End()}] = struct{}{}
-			return false
-		}
-		n, ok := node.(*ast.Ident)
-		if !ok {
-			return true
-		}
-		obj, ok := info.ObjectOf(n).(*types.PkgName)
-		if !ok {
-			return true
-		}
-		if !strings.Contains(basicLit.Value, obj.Name()) {
-			return true
-		}
-		result[posRange{start: n.Pos(), end: n.End()}] = struct{}{}
-		return false
-	})
-	return nil
-}
-
 func highlightIdentifier(id *ast.Ident, file *ast.File, info *types.Info, result map[posRange]struct{}) {
-	// TODO(rfindley): idObj may be nil. Note that returning early in this case
-	// causes tests to fail (because the nObj == idObj check below was succeeded
-	// for nil == nil!)
-	//
-	// Revisit this. If ObjectOf is nil, there are type errors, and it seems
-	// reasonable for identifier highlighting not to work.
-	idObj := info.ObjectOf(id)
-	pkgObj, isImported := idObj.(*types.PkgName)
-	ast.Inspect(file, func(node ast.Node) bool {
-		if imp, ok := node.(*ast.ImportSpec); ok && isImported {
-			highlightImport(pkgObj, imp, result)
+	highlight := func(n ast.Node) {
+		result[posRange{start: n.Pos(), end: n.End()}] = struct{}{}
+	}
+
+	// obj may be nil if the Ident is undefined.
+	// In this case, the behavior expected by tests is
+	// to match other undefined Idents of the same name.
+	obj := info.ObjectOf(id)
+
+	ast.Inspect(file, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.Ident:
+			if n.Name == id.Name && info.ObjectOf(n) == obj {
+				highlight(n)
+			}
+
+		case *ast.ImportSpec:
+			pkgname, ok := ImportedPkgName(info, n)
+			if ok && pkgname == obj {
+				if n.Name != nil {
+					highlight(n.Name)
+				} else {
+					highlight(n)
+				}
+			}
 		}
-		n, ok := node.(*ast.Ident)
-		if !ok {
-			return true
-		}
-		if n.Name != id.Name {
-			return false
-		}
-		if nObj := info.ObjectOf(n); nObj == idObj {
-			result[posRange{start: n.Pos(), end: n.End()}] = struct{}{}
-		}
-		return false
+		return true
 	})
 }
 
-func highlightImport(obj *types.PkgName, imp *ast.ImportSpec, result map[posRange]struct{}) {
-	if imp.Name != nil || imp.Path == nil {
-		return
+// ImportedPkgName returns the PkgName object declared by an ImportSpec.
+// TODO(adonovan): make this a method of types.Info.
+func ImportedPkgName(info *types.Info, imp *ast.ImportSpec) (*types.PkgName, bool) {
+	var obj types.Object
+	if imp.Name != nil {
+		obj = info.Defs[imp.Name]
+	} else {
+		obj = info.Implicits[imp]
 	}
-	if !strings.Contains(imp.Path.Value, obj.Name()) {
-		return
-	}
-	result[posRange{start: imp.Path.Pos(), end: imp.Path.End()}] = struct{}{}
+	pkgname, ok := obj.(*types.PkgName)
+	return pkgname, ok
 }
