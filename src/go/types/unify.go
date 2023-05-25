@@ -615,45 +615,23 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 
 	case *Named:
-		// Two named types unify if their type names originate
-		// in the same type declaration. If they are instantiated,
-		// their type argument lists must unify.
+		// Two named non-interface types unify if their type names originate
+		// in the same type declaration. If they are instantiated, their type
+		// argument lists must unify.
+		// If one or both named types are interfaces, the types unify if the
+		// respective methods unify (per the rules for interface unification).
 		if y, ok := y.(*Named); ok {
-			sameOrig := indenticalOrigin(x, y)
 			if enableInterfaceInference {
-				xu := x.under()
-				yu := y.under()
-				xi, _ := xu.(*Interface)
-				yi, _ := yu.(*Interface)
-				// If one or both defined types are interfaces, use interface unification,
-				// unless they originated in the same type declaration.
-				if xi != nil && yi != nil {
-					// If both interfaces originate in the same declaration,
-					// their methods unify if the type parameters unify.
-					// Unify the type parameters rather than the methods in
-					// case the type parameters are not used in the methods
-					// (and to preserve existing behavior in this case).
-					if sameOrig {
-						xargs := x.TypeArgs().list()
-						yargs := y.TypeArgs().list()
-						assert(len(xargs) == len(yargs))
-						for i, xarg := range xargs {
-							if !u.nify(xarg, yargs[i], p) {
-								return false
-							}
-						}
-						return true
-					}
-					return u.nify(xu, yu, p)
-				}
-				// We don't have two interfaces. If we have one, make sure it's in xi.
-				if yi != nil {
-					xi = yi
-					y = x
-				}
-				// If xi is an interface, use interface unification.
-				if xi != nil {
+				xi, _ := x.under().(*Interface)
+				yi, _ := y.under().(*Interface)
+				// If one or both of x and y are interfaces, use interface unification.
+				switch {
+				case xi != nil && yi != nil:
+					return u.nify(xi, yi, p)
+				case xi != nil:
 					return u.nify(xi, y, p)
+				case yi != nil:
+					return u.nify(x, yi, p)
 				}
 				// In all other cases, the type arguments and origins must match.
 			}
@@ -671,7 +649,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 					return false
 				}
 			}
-			return sameOrig
+			return indenticalOrigin(x, y)
 		}
 
 	case *TypeParam:

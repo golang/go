@@ -22,7 +22,7 @@ func _[A any](s S /* ERROR "got 1 arguments but 2 type parameters" */ [A]) {
 // another test case from the issue
 
 func _() {
-	X(Interface[*F /* ERROR "got 1 arguments but 2 type parameters" */ [string]](Impl{}))
+	X /* ERROR "cannot infer Q" */ (Interface[*F /* ERROR "got 1 arguments but 2 type parameters" */ [string]](Impl{}))
 }
 
 func X[Q Qer](fs Interface[Q]) {
