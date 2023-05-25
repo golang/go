@@ -84,8 +84,17 @@ and test commands:
 		Supported only on linux/amd64 or linux/arm64 and only with GCC 7 and higher
 		or Clang/LLVM 9 and higher.
 	-cover
-		enable code coverage instrumentation (requires
-		that GOEXPERIMENT=coverageredesign be set).
+		enable code coverage instrumentation.
+	-covermode set,count,atomic
+		set the mode for coverage analysis.
+		The default is "set" unless -race is enabled,
+		in which case it is "atomic".
+		The values:
+		set: bool: does this statement run?
+		count: int: how many times does this statement run?
+		atomic: int: count, but correct in multithreaded tests;
+			significantly more expensive.
+		Sets -cover.
 	-coverpkg pattern1,pattern2,pattern3
 		For a build that targets package 'main' (e.g. building a Go
 		executable), apply coverage analysis to each package matching
@@ -99,7 +108,6 @@ and test commands:
 		do not delete it when exiting.
 	-x
 		print the commands.
-
 	-asmflags '[pattern=]arg list'
 		arguments to pass on each go tool asm invocation.
 	-buildmode mode
