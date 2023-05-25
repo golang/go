@@ -1056,6 +1056,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			ld.errorf("go: %v\n", err)
 		}
 	}
+	base.ExitIfErrors() // or we will report them again
 
 	for {
 		ld.reset()
