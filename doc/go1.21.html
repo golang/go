@@ -116,6 +116,12 @@ Do not send CLs removing the interior tags from such phrases.
   program.
 </p>
 
+<p><!-- https://go.dev/issue/37708, CL 463837 -->
+  The new <code>go</code> <code>test</code> option
+  <code>-fullpath</code> prints full path names in test log messages,
+  rather than just base names.
+</p>
+
 <p><!-- CL 453603 -->
   TODO: <a href="https://go.dev/cl/453603">https://go.dev/cl/453603</a>: cmd/go, go/build: parse directives in file headers; modified api/next/56986.txt
 </p>
@@ -768,8 +774,9 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/37708 -->
-      TODO: <a href="https://go.dev/issue/37708">https://go.dev/issue/37708</a>: optionally include full (or relative) path name
+    <p><!-- https://go.dev/issue/37708, CL 463837 -->
+      The new <code>-test.fullpath</code> option will print full path
+      names in test log messages, rather than just base names.
     </p>
 
     <p><!-- https://go.dev/issue/52600, CL 475496 -->
