@@ -80,7 +80,7 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
 		// Errors returned by modfile.Parse begin with file:line.
 		return nil, nil, fmt.Errorf("errors parsing go.mod:\n%s\n", err)
 	}
-	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
+	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 && cfg.CmdName != "mod edit" {
 		base.Fatalf("go: %v", &gover.TooNewError{What: base.ShortPath(gomod), GoVersion: f.Go.Version})
 	}
 	if f.Module == nil {

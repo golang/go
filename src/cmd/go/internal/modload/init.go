@@ -652,7 +652,7 @@ func ReadWorkFile(path string) (*modfile.WorkFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
+	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 && cfg.CmdName != "work edit" {
 		base.Fatalf("go: %v", &gover.TooNewError{What: base.ShortPath(path), GoVersion: f.Go.Version})
 	}
 	return f, nil

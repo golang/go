@@ -1,0 +1,64 @@
+# This test only checks that basic PATH lookups work.
+# The full test of toolchain version selection is in gotoolchain.txt.
+
+[short] skip
+
+env TESTGO_VERSION=go1.21pre3
+
+# Compile a fake toolchain to put in the path under various names.
+env GOTOOLCHAIN=
+mkdir $WORK/bin
+[!GOOS:plan9] env PATH=$WORK/bin${:}$PATH
+[GOOS:plan9] env path=$WORK/bin${:}$path
+go build -o $WORK/bin/ ./fakego.go  # adds .exe extension implicitly on Windows
+cp $WORK/bin/fakego$GOEXE $WORK/bin/go1.50.0$GOEXE
+
+go version
+stdout go1.21pre3
+
+# GOTOOLCHAIN=go1.50.0
+env GOTOOLCHAIN=go1.50.0
+go version
+stdout 'running go1.50.0 from PATH'
+
+# GOTOOLCHAIN=path with toolchain line
+env GOTOOLCHAIN=path
+go mod init m
+go mod edit -toolchain=go1.50.0
+go version
+stdout 'running go1.50.0 from PATH'
+
+# GOTOOLCHAIN=path with go line
+env GOTOOLCHAIN=path
+go mod edit -toolchain=none -go=go1.50.0
+go version
+stdout 'running go1.50.0 from PATH'
+
+# GOTOOLCHAIN=auto with toolchain line
+env GOTOOLCHAIN=auto
+go mod edit -toolchain=go1.50.0 -go=1.21
+go version
+stdout 'running go1.50.0 from PATH'
+
+# GOTOOLCHAIN=auto with go line
+env GOTOOLCHAIN=auto
+go mod edit -toolchain=none -go=go1.50.0
+go version
+stdout 'running go1.50.0 from PATH'
+
+-- fakego.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	exe, _ := os.Executable()
+	name := filepath.Base(exe)
+	name = strings.TrimSuffix(name, ".exe")
+	fmt.Printf("running %s from PATH\n", name)
+}

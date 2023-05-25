@@ -1,0 +1,29 @@
+# This test only checks that basic network lookups work.
+# The full test of toolchain version selection is in gotoolchain.txt.
+
+[short] skip
+
+env TESTGO_VERSION=go1.21actual
+
+# GOTOOLCHAIN from network, does not exist
+env GOTOOLCHAIN=go1.9999x
+! go version
+stderr 'go: download go1.9999x for .*: toolchain not available'
+
+# GOTOOLCHAIN from network
+[!exec:/bin/sh] stop 'the fake proxy serves shell scripts instead of binaries'
+env GOTOOLCHAIN=go1.999testmod
+go version
+stderr 'go: downloading go1.999testmod \(.*/.*\)'
+
+# Test a real GOTOOLCHAIN
+[!net:golang.org] skip
+[!GOOS:darwin] [!GOOS:windows] [!GOOS:linux] skip
+[!GOARCH:amd64] [!GOARCH:arm64] skip
+
+env GOPROXY=
+env GOSUMDB=
+env GOTOOLCHAIN=go1.20.1
+go version
+stderr '^go: downloading go1.20.1 '
+stdout go1.20.1

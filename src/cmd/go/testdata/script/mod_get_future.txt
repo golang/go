@@ -1,6 +1,6 @@
 env TESTGO_VERSION=go1.21
 ! go mod download rsc.io/future@v1.0.0
-stderr '^go: rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21; go.mod sets go 1.21\)$'
+stderr '^go: rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21\)$'
 
 -- go.mod --
 module m
