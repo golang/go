@@ -43,57 +43,61 @@ func TestNonblock(t *testing.T) {
 		t.Skip("wasmer does not support non-blocking I/O")
 	}
 
-	args := []string{"run", "./testdata/nonblock.go"}
+	for _, mode := range []string{"os.OpenFile", "os.NewFile"} {
+		t.Run(mode, func(t *testing.T) {
+			args := []string{"run", "./testdata/nonblock.go", mode}
 
-	fifos := make([]*fifo, 8)
-	for i := range fifos {
-		path := filepath.Join(t.TempDir(), fmt.Sprintf("wasip1-nonblock-fifo-%d-%d", rand.Uint32(), i))
-		if err := syscall.Mkfifo(path, 0666); err != nil {
-			t.Fatal(err)
-		}
+			fifos := make([]*fifo, 8)
+			for i := range fifos {
+				path := filepath.Join(t.TempDir(), fmt.Sprintf("wasip1-nonblock-fifo-%d-%d", rand.Uint32(), i))
+				if err := syscall.Mkfifo(path, 0666); err != nil {
+					t.Fatal(err)
+				}
 
-		file, err := os.OpenFile(path, os.O_RDWR, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer file.Close()
+				file, err := os.OpenFile(path, os.O_RDWR, 0)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer file.Close()
 
-		args = append(args, path)
-		fifos[len(fifos)-i-1] = &fifo{file, path}
-	}
+				args = append(args, path)
+				fifos[len(fifos)-i-1] = &fifo{file, path}
+			}
 
-	subProcess := exec.Command("go", args...)
+			subProcess := exec.Command("go", args...)
 
-	subProcess.Env = append(os.Environ(), "GOOS=wasip1", "GOARCH=wasm")
+			subProcess.Env = append(os.Environ(), "GOOS=wasip1", "GOARCH=wasm")
 
-	pr, pw := io.Pipe()
-	defer pw.Close()
+			pr, pw := io.Pipe()
+			defer pw.Close()
 
-	subProcess.Stderr = pw
+			subProcess.Stderr = pw
 
-	if err := subProcess.Start(); err != nil {
-		t.Fatal(err)
-	}
+			if err := subProcess.Start(); err != nil {
+				t.Fatal(err)
+			}
 
-	scanner := bufio.NewScanner(pr)
-	if !scanner.Scan() {
-		t.Fatal("expected line:", scanner.Err())
-	} else if scanner.Text() != "waiting" {
-		t.Fatal("unexpected output:", scanner.Text())
-	}
+			scanner := bufio.NewScanner(pr)
+			if !scanner.Scan() {
+				t.Fatal("expected line:", scanner.Err())
+			} else if scanner.Text() != "waiting" {
+				t.Fatal("unexpected output:", scanner.Text())
+			}
 
-	for _, fifo := range fifos {
-		if _, err := fifo.file.WriteString(fifo.path + "\n"); err != nil {
-			t.Fatal(err)
-		}
-		if !scanner.Scan() {
-			t.Fatal("expected line:", scanner.Err())
-		} else if scanner.Text() != fifo.path {
-			t.Fatal("unexpected line:", scanner.Text())
-		}
-	}
+			for _, fifo := range fifos {
+				if _, err := fifo.file.WriteString(fifo.path + "\n"); err != nil {
+					t.Fatal(err)
+				}
+				if !scanner.Scan() {
+					t.Fatal("expected line:", scanner.Err())
+				} else if scanner.Text() != fifo.path {
+					t.Fatal("unexpected line:", scanner.Text())
+				}
+			}
 
-	if err := subProcess.Wait(); err != nil {
-		t.Fatal(err)
+			if err := subProcess.Wait(); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }

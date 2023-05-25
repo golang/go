@@ -7,16 +7,33 @@ package main
 import (
 	"os"
 	"sync"
+	"syscall"
 )
 
 func main() {
+	if len(os.Args) < 2 {
+		panic("usage: nonblock <MODE> [PATH...]")
+	}
+	mode := os.Args[1]
+
 	ready := make(chan struct{})
 
 	var wg sync.WaitGroup
-	for _, path := range os.Args[1:] {
+	for _, path := range os.Args[2:] {
 		f, err := os.Open(path)
 		if err != nil {
 			panic(err)
+		}
+		switch mode {
+		case "os.OpenFile":
+		case "os.NewFile":
+			fd := f.Fd()
+			if err := syscall.SetNonblock(int(fd), true); err != nil {
+				panic(err)
+			}
+			f = os.NewFile(fd, path)
+		default:
+			panic("invalid test mode")
 		}
 
 		spawnWait := make(chan struct{})
