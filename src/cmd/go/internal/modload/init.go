@@ -783,17 +783,33 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) 
 		// any module.
 		mainModule := module.Version{Path: "command-line-arguments"}
 		MainModules = makeMainModules([]module.Version{mainModule}, []string{""}, []*modfile.File{nil}, []*modFileIndex{nil}, nil)
-		goVersion := gover.Local()
-		rawGoVersion.Store(mainModule, goVersion)
-		pruning := pruningForGoVersion(goVersion)
+		var (
+			goVersion string
+			pruning   modPruning
+			roots     []module.Version
+			direct    = map[string]bool{"go": true}
+		)
 		if inWorkspaceMode() {
+			// Since we are in a workspace, the Go version for the synthetic
+			// "command-line-arguments" module must not exceed the Go version
+			// for the workspace.
+			goVersion = MainModules.GoVersion()
 			pruning = workspace
+			roots = []module.Version{
+				mainModule,
+				{Path: "go", Version: goVersion},
+				{Path: "toolchain", Version: gover.LocalToolchain()},
+			}
+		} else {
+			goVersion = gover.Local()
+			pruning = pruningForGoVersion(goVersion)
+			roots = []module.Version{
+				{Path: "go", Version: goVersion},
+				{Path: "toolchain", Version: gover.LocalToolchain()},
+			}
 		}
-		roots := []module.Version{
-			{Path: "go", Version: gover.Local()},
-			{Path: "toolchain", Version: gover.LocalToolchain()},
-		}
-		requirements = newRequirements(pruning, roots, nil)
+		rawGoVersion.Store(mainModule, goVersion)
+		requirements = newRequirements(pruning, roots, direct)
 		if cfg.BuildMod == "vendor" {
 			// For issue 56536: Some users may have GOFLAGS=-mod=vendor set.
 			// Make sure it behaves as though the fake module is vendored
@@ -1213,13 +1229,16 @@ func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, m
 		goVersion = gover.DefaultGoModVersion
 	}
 	roots = append(roots, module.Version{Path: "go", Version: goVersion})
-	direct["go"] = true
+	direct["go"] = true // Every module directly uses the language and runtime.
 
-	if toolchain == "" {
-		toolchain = "go" + goVersion
+	if toolchain != "" {
+		roots = append(roots, module.Version{Path: "toolchain", Version: toolchain})
+		// Leave the toolchain as indirect: nothing in the user's module directly
+		// imports a package from the toolchain, and (like an indirect dependency in
+		// a module without graph pruning) we may remove the toolchain line
+		// automatically if the 'go' version is changed so that it implies the exact
+		// same toolchain.
 	}
-	roots = append(roots, module.Version{Path: "toolchain", Version: toolchain})
-	direct["toolchain"] = true
 
 	gover.ModSort(roots)
 	rs := newRequirements(pruning, roots, direct)

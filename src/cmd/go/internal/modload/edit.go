@@ -10,6 +10,7 @@ import (
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/par"
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -46,10 +47,51 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 		panic("editRequirements cannot edit workspace requirements")
 	}
 
+	orig := rs
+	// If we already know what go version we will end up on after the edit, and
+	// the pruning for that version is different, go ahead and apply it now.
+	//
+	// If we are changing from pruned to unpruned, then we MUST check the unpruned
+	// graph for conflicts from the start. (Checking only for pruned conflicts
+	// would miss some that would be introduced later.)
+	//
+	// If we are changing from unpruned to pruned, then we would like to avoid
+	// unnecessary downgrades due to conflicts that would be pruned out of the
+	// final graph anyway.
+	//
+	// Note that even if we don't find a go version in mustSelect, it is possible
+	// that we will switch from unpruned to pruned (but not the other way around!)
+	// after applying the edits if we find a dependency that requires a high
+	// enough go version to trigger an upgrade.
+	rootPruning := orig.pruning
+	for _, m := range mustSelect {
+		if m.Path == "go" {
+			rootPruning = pruningForGoVersion(m.Version)
+			break
+		} else if m.Path == "toolchain" && pruningForGoVersion(gover.FromToolchain(m.Version)) == unpruned {
+			// We don't know exactly what go version we will end up at, but we know
+			// that it must be a version supported by the requested toolchain, and
+			// that toolchain does not support pruning.
+			//
+			// TODO(bcmills): 'go get' ought to reject explicit toolchain versions
+			// older than gover.GoStrictVersion. Once that is fixed, is this still
+			// needed?
+			rootPruning = unpruned
+			break
+		}
+	}
+
+	if rootPruning != rs.pruning {
+		rs, err = convertPruning(ctx, rs, rootPruning)
+		if err != nil {
+			return orig, false, err
+		}
+	}
+
 	// selectedRoot records the edited version (possibly "none") for each module
 	// path that would be a root in the edited requirements.
 	var selectedRoot map[string]string // module path → edited version
-	if rs.pruning == pruned {
+	if rootPruning == pruned {
 		selectedRoot = maps.Clone(rs.maxRootVersion)
 	} else {
 		// In a module without graph pruning, modules that provide packages imported
@@ -62,7 +104,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 		if err != nil {
 			// If we couldn't load the graph, we don't know what its requirements were
 			// to begin with, so we can't edit those requirements in a coherent way.
-			return rs, false, err
+			return orig, false, err
 		}
 		bl := mg.BuildList()[MainModules.Len():]
 		selectedRoot = make(map[string]string, len(bl))
@@ -182,10 +224,11 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 		// of every root. The upgraded roots are in addition to the original
 		// roots, so we will have enough information to trace a path to each
 		// conflict we discover from one or more of the original roots.
-		mg, upgradedRoots, err := extendGraph(ctx, rs, roots, selectedRoot)
+		mg, upgradedRoots, err := extendGraph(ctx, rootPruning, roots, selectedRoot)
 		if err != nil {
-			if mg == nil {
-				return rs, false, err
+			var tooNew *gover.TooNewError
+			if mg == nil || errors.As(err, &tooNew) {
+				return orig, false, err
 			}
 			// We're about to walk the entire extended module graph, so we will find
 			// any error then — and we will either try to resolve it by downgrading
@@ -196,13 +239,13 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 		// the extended module graph.
 		extendedRootPruning := make(map[module.Version]modPruning, len(roots)+len(upgradedRoots))
 		findPruning := func(m module.Version) modPruning {
-			if rs.pruning == pruned {
+			if rootPruning == pruned {
 				summary, _ := mg.loadCache.Get(m)
 				if summary != nil && summary.pruning == unpruned {
 					return unpruned
 				}
 			}
-			return rs.pruning
+			return rootPruning
 		}
 		for _, m := range roots {
 			extendedRootPruning[m] = findPruning(m)
@@ -346,7 +389,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 			// the edit. We want to make sure we consider keeping it as-is,
 			// even if it wouldn't normally be included. (For example, it might
 			// be a pseudo-version or pre-release.)
-			origMG, _ := rs.Graph(ctx)
+			origMG, _ := orig.Graph(ctx)
 			origV := origMG.Selected(m.Path)
 
 			if conflict.Err != nil && origV == m.Version {
@@ -376,14 +419,14 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 					prev.Version = origV
 				} else if err != nil {
 					// We don't know the next downgrade to try. Give up.
-					return rs, false, err
+					return orig, false, err
 				}
 				if rejectedRoot[prev] {
 					// We already rejected prev in a previous round.
 					// To ensure that this algorithm terminates, don't try it again.
 					continue
 				}
-				pruning := rs.pruning
+				pruning := rootPruning
 				if pruning == pruned {
 					if summary, err := mg.loadCache.Get(m); err == nil {
 						pruning = summary.pruning
@@ -460,10 +503,10 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 		break
 	}
 	if len(conflicts) > 0 {
-		return rs, false, &ConstraintError{Conflicts: conflicts}
+		return orig, false, &ConstraintError{Conflicts: conflicts}
 	}
 
-	if rs.pruning == unpruned {
+	if rootPruning == unpruned {
 		// An unpruned go.mod file lists only a subset of the requirements needed
 		// for building packages. Figure out which requirements need to be explicit.
 		var rootPaths []string
@@ -493,12 +536,12 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 		}
 	}
 
-	changed = !slices.Equal(roots, rs.rootModules)
+	changed = rootPruning != orig.pruning || !slices.Equal(roots, orig.rootModules)
 	if !changed {
 		// Because the roots we just computed are unchanged, the entire graph must
 		// be the same as it was before. Save the original rs, since we have
 		// probably already loaded its requirement graph.
-		return rs, false, nil
+		return orig, false, nil
 	}
 
 	// A module that is not even in the build list necessarily cannot provide
@@ -518,7 +561,37 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 			direct[m.Path] = true
 		}
 	}
-	return newRequirements(rs.pruning, roots, direct), changed, nil
+	edited = newRequirements(rootPruning, roots, direct)
+
+	// If we ended up adding a dependency that upgrades our go version far enough
+	// to activate pruning, we must convert the edited Requirements in order to
+	// avoid dropping transitive dependencies from the build list the next time
+	// someone uses the updated go.mod file.
+	//
+	// Note that it isn't possible to go in the other direction (from pruned to
+	// unpruned) unless the "go" or "toolchain" module is explicitly listed in
+	// mustSelect, which we already handled at the very beginning of the edit.
+	// That is because the virtual "go" module only requires a "toolchain",
+	// and the "toolchain" module never requires anything else, which means that
+	// those two modules will never be downgraded due to a conflict with any other
+	// constraint.
+	if rootPruning == unpruned {
+		if v, ok := edited.rootSelected("go"); ok && pruningForGoVersion(v) == pruned {
+			// Since we computed the edit with the unpruned graph, and the pruned
+			// graph is a strict subset of the unpruned graph, this conversion
+			// preserves the exact (edited) build list that we already computed.
+			//
+			// However, it does that by shoving the whole build list into the roots of
+			// the graph. 'go get' will check for that sort of transition and log a
+			// message reminding the user how to clean up this mess we're about to
+			// make. 😅
+			edited, err = convertPruning(ctx, edited, pruned)
+			if err != nil {
+				return orig, false, err
+			}
+		}
+	}
+	return edited, true, nil
 }
 
 // extendGraph loads the module graph from roots, and iteratively extends it by
@@ -532,15 +605,15 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 // The extended graph is useful for diagnosing version conflicts: for each
 // selected module version, it can provide a complete path of requirements from
 // some root to that version.
-func extendGraph(ctx context.Context, rs *Requirements, roots []module.Version, selectedRoot map[string]string) (mg *ModuleGraph, upgradedRoot map[module.Version]bool, err error) {
+func extendGraph(ctx context.Context, rootPruning modPruning, roots []module.Version, selectedRoot map[string]string) (mg *ModuleGraph, upgradedRoot map[module.Version]bool, err error) {
 	for {
-		mg, err = readModGraph(ctx, rs.pruning, roots, upgradedRoot)
+		mg, err = readModGraph(ctx, rootPruning, roots, upgradedRoot)
 		// We keep on going even if err is non-nil until we reach a steady state.
 		// (Note that readModGraph returns a non-nil *ModuleGraph even in case of
 		// errors.) The caller may be able to fix the errors by adjusting versions,
 		// so we really want to return as complete a result as we can.
 
-		if rs.pruning == unpruned {
+		if rootPruning == unpruned {
 			// Everything is already unpruned, so there isn't anything we can do to
 			// extend it further.
 			break

@@ -25,7 +25,7 @@ go mod why rsc.io/quote
 stdout '# rsc.io/quote\nexample.com/a\nrsc.io/quote'
 
 go mod graph
-stdout 'example.com/a rsc.io/quote@v1.5.2\nexample.com/b example.com/c@v1.0.0\ngo@1.18 toolchain@go1.18\nrsc.io/quote@v1.5.2 rsc.io/sampler@v1.3.0\nrsc.io/sampler@v1.3.0 golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c'
+stdout 'example.com/a rsc.io/quote@v1.5.2\nexample.com/b example.com/c@v1.0.0\nrsc.io/quote@v1.5.2 rsc.io/sampler@v1.3.0\nrsc.io/sampler@v1.3.0 golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c'
 
 -- go.work --
 go 1.18

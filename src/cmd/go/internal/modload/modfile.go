@@ -639,8 +639,8 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 // rawGoModSummary cannot be used on the main module outside of workspace mode.
 func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 	if gover.IsToolchain(m.Path) {
-		if m.Path == "go" {
-			// Declare that go 1.2.3 requires toolchain 1.2.3,
+		if m.Path == "go" && gover.Compare(m.Version, gover.GoStrictVersion) >= 0 {
+			// Declare that go 1.21.3 requires toolchain 1.21.3,
 			// so that go get knows that downgrading toolchain implies downgrading go
 			// and similarly upgrading go requires upgrading the toolchain.
 			return &modFileSummary{module: m, require: []module.Version{{Path: "toolchain", Version: "go" + m.Version}}}, nil

@@ -1013,6 +1013,8 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			ld.errorf("go: go.mod file indicates go %s, but maximum version supported by tidy is %s\n", ld.GoVersion, gover.Local())
 			base.ExitIfErrors()
 		}
+	} else {
+		ld.requirements = overrideRoots(ctx, ld.requirements, []module.Version{{Path: "go", Version: ld.GoVersion}})
 	}
 
 	if ld.Tidy {
