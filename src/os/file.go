@@ -622,18 +622,6 @@ func DirFS(dir string) fs.FS {
 	return dirFS(dir)
 }
 
-// containsAny reports whether any bytes in chars are within s.
-func containsAny(s, chars string) bool {
-	for i := 0; i < len(s); i++ {
-		for j := 0; j < len(chars); j++ {
-			if s[i] == chars[j] {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 type dirFS string
 
 func (dir dirFS) Open(name string) (fs.File, error) {
