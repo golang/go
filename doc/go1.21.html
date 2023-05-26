@@ -608,24 +608,33 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/56539 -->
-      TODO: <a href="https://go.dev/issue/56539">https://go.dev/issue/56539</a>: add support for MPTCP
+    <p>
+      <!-- https://go.dev/issue/59166, https://go.dev/issue/56539 -->
+      <!-- CL 471136, CL 471137, CL 471140 -->
+      On Linux, the <a href="/pkg/net/">net</a> package can now use
+      Multipath TCP when the kernel supports it. It is not used by
+      default. To use Multipath TCP when available on a client, call
+      the
+      <a href="/pkg/net/#Dialer.SetMultipathTCP"><code>Dialer.SetMultipathTCP</code></a>
+      method before calling the
+      <a href="/pkg/net/#Dialer.Dial"><code>Dialer.Dial</code></a> or
+      <a href="/pkg/net/#Dialer.DialContext"><code>Dialer.DialContext</code></a>
+      methods. To use Multipath TCP when available on a server, call
+      the
+      <a href="/pkg/net/#ListenConfig.SetMultipathTCP"><code>ListenConfig.SetMultipathTCP</code></a>
+      method before calling the
+      <a href="/pkg/net/#ListenConfig.Listen"><code>ListenConfig.Listen</code></a>
+      method. Specify the network as <code>"tcp"</code> or
+      <code>"tcp4"</code> or <code>"tcp6"</code> as usual. If
+      Multipath TCP is not supported by the kernel or the remote host,
+      the connection will silently fall back to TCP. To test whether a
+      particular connection is using Multipath TCP, use the
+      <a href="/pkg/net/#TCPConn.MultipathTCP"><code>TCPConn.MultipathTCP</code></a>
+      method.
     </p>
-
-    <p><!-- https://go.dev/issue/59166 -->
-      TODO: <a href="https://go.dev/issue/59166">https://go.dev/issue/59166</a>: add func (*TCPConn) MultipathTCP() (bool, error)
-    </p>
-
-    <p><!-- CL 471136 -->
-      TODO: <a href="https://go.dev/cl/471136">https://go.dev/cl/471136</a>: net: mptcp: implement dialMPTCP; modified api/next/56539.txt
-    </p>
-
-    <p><!-- CL 471137 -->
-      TODO: <a href="https://go.dev/cl/471137">https://go.dev/cl/471137</a>: net: mptcp: implement listenMPTCP; modified api/next/56539.txt
-    </p>
-
-    <p><!-- CL 471140 -->
-      TODO: <a href="https://go.dev/cl/471140">https://go.dev/cl/471140</a>: net: mptcp: add TCPConn&#39;s MultipathTCP checker; modified api/next/59166.txt
+    <p>
+      In a future Go release we may enable Multipath TCP by default on
+      systems that support it.
     </p>
   </dd>
 </dl><!-- net -->
