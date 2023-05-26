@@ -61,20 +61,14 @@ func _() {
 }
 
 // This is similar to the first example but here T1 is a component
-// of a func type. In this case we should be able to infer a type
-// argument for P because component types must be identical even
-// in the case of interfaces.
-// This is a short-coming of type inference at the moment, but it
-// is better to not be able to infer a type here (we can always
-// supply one), than to infer the wrong type in other cases (see
-// below). Finally, if we decide to accept go.dev/issues/8082,
-// the behavior here is correct.
+// of a func type. In this case types must match exactly: P must
+// match int.
 
 func g5[P any](func(T1[P])) {}
 
 func _() {
 	var f func(T1[int])
-	g5 /* ERROR "cannot infer P" */ (f)
+	g5(f)
 	g5[int](f)
 	g5[string](f /* ERROR "cannot use f (variable of type func(T1[int])) as func(T1[string]) value in argument to g5[string]" */)
 }

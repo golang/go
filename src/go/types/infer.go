@@ -157,7 +157,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 			// Function parameters are always typed. Arguments may be untyped.
 			// Collect the indices of untyped arguments and handle them later.
 			if isTyped(arg.typ) {
-				if !u.unify(par.typ, arg.typ, 0) {
+				if !u.unify(par.typ, arg.typ, assign) {
 					errorf("type", par.typ, arg.typ, arg)
 					return nil
 				}
@@ -342,7 +342,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 			arg := args[i]
 			typ := Default(arg.typ)
 			assert(isTyped(typ))
-			if !u.unify(tpar, typ, 0) {
+			if !u.unify(tpar, typ, assign) {
 				errorf("default type", tpar, typ, arg)
 				return nil
 			}

@@ -49,7 +49,7 @@ const (
 	// Whether to panic when unificationDepthLimit is reached.
 	// If disabled, a recursion depth overflow results in a (quiet)
 	// unification failure.
-	panicAtUnificationDepthLimit = false // go.dev/issue/59740
+	panicAtUnificationDepthLimit = true
 
 	// If enableCoreTypeUnification is set, unification will consider
 	// the core types, if any, of non-local (unbound) type parameters.
@@ -111,8 +111,24 @@ func newUnifier(tparams []*TypeParam, targs []Type) *unifier {
 // unifyMode controls the behavior of the unifier.
 type unifyMode uint
 
+const (
+	// If assign is set, we are unifying types involved in an assignment:
+	// they may match inexactly at the top, but element types must match
+	// exactly.
+	assign unifyMode = 1 << iota
+
+	// If exact is set, types unify if they are identical (or can be
+	// made identical with suitable arguments for type parameters).
+	// Otherwise, a named type and a type literal unify if their
+	// underlying types unify, channel directions are ignored, and
+	// if there is an interface, the other type must implement the
+	// interface.
+	exact
+)
+
 // unify attempts to unify x and y and reports whether it succeeded.
 // As a side-effect, types may be inferred for type parameters.
+// The mode parameter controls how types are compared.
 func (u *unifier) unify(x, y Type, mode unifyMode) bool {
 	return u.nify(x, y, mode, nil)
 }
@@ -286,11 +302,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	}
 
 	// Unification will fail if we match a defined type against a type literal.
-	// Per the (spec) assignment rules, assignments of values to variables with
+	// If we are matching types in an assignment, at the top-level, types with
 	// the same type structure are permitted as long as at least one of them
 	// is not a defined type. To accommodate for that possibility, we continue
 	// unification with the underlying type of a defined type if the other type
-	// is a type literal.
+	// is a type literal. This is controlled by the exact unification mode.
 	// We also continue if the other type is a basic type because basic types
 	// are valid underlying types and may appear as core types of type constraints.
 	// If we exclude them, inferred defined types for type parameters may not
@@ -302,7 +318,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	// we will fail at function instantiation or argument assignment time.
 	//
 	// If we have at least one defined type, there is one in y.
-	if ny, _ := y.(*Named); ny != nil && isTypeLit(x) && !(enableInterfaceInference && IsInterface(x)) {
+	if ny, _ := y.(*Named); mode&exact == 0 && ny != nil && isTypeLit(x) && !(enableInterfaceInference && IsInterface(x)) {
 		if traceInference {
 			u.tracef("%s ≡ under %s", x, ny)
 		}
@@ -367,7 +383,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	}
 
 	// Type elements (array, slice, etc. elements) use emode for unification.
+	// Element types must match exactly if the types are used in an assignment.
 	emode := mode
+	if mode&assign != 0 {
+		emode |= exact
+	}
 
 	// If EnableInterfaceInference is set and both types are interfaces, one
 	// interface must have a subset of the methods of the other and corresponding
@@ -615,9 +635,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		}
 
 	case *Chan:
-		// Two channel types unify if their value types unify.
+		// Two channel types unify if their value types unify
+		// and if they have the same direction.
+		// The channel direction is ignored for inexact unification.
 		if y, ok := y.(*Chan); ok {
-			return u.nify(x.elem, y.elem, emode, p)
+			return (mode&exact == 0 || x.dir == y.dir) && u.nify(x.elem, y.elem, emode, p)
 		}
 
 	case *Named:
@@ -627,7 +649,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		// If one or both named types are interfaces, the types unify if the
 		// respective methods unify (per the rules for interface unification).
 		if y, ok := y.(*Named); ok {
-			if enableInterfaceInference {
+			if enableInterfaceInference && mode&exact == 0 {
 				xi, _ := x.under().(*Interface)
 				yi, _ := y.under().(*Interface)
 				// If one or both of x and y are interfaces, use interface unification.
