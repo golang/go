@@ -10,39 +10,32 @@
 package os
 
 import (
-	"runtime"
+	"internal/poll"
 	"syscall"
-	"unsafe"
 )
 
-const _P_PID = 1
+const _P_PIDFD = 3
 
 // blockUntilWaitable attempts to block until a call to p.Wait will
 // succeed immediately, and reports whether it has done so.
 // It does not actually call p.Wait.
 func (p *Process) blockUntilWaitable() (bool, error) {
-	// The waitid system call expects a pointer to a siginfo_t,
-	// which is 128 bytes on all Linux systems.
-	// On darwin/amd64, it requires 104 bytes.
-	// We don't care about the values it returns.
-	var siginfo [16]uint64
-	psig := &siginfo[0]
-	var e syscall.Errno
-	for {
-		_, _, e = syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
-		if e != syscall.EINTR {
-			break
-		}
+	fd := poll.FD{
+		Sysfd: int(p.handle),
 	}
-	runtime.KeepAlive(p)
-	if e != 0 {
-		// waitid has been available since Linux 2.6.9, but
-		// reportedly is not available in Ubuntu on Windows.
-		// See issue 16610.
-		if e == syscall.ENOSYS {
-			return false, nil
-		}
-		return false, NewSyscallError("waitid", e)
+	err := fd.Init("pidfd", false)
+	if err != nil {
+		return false, err
+	}
+	// We just want to make sure fd is ready for reading, but that is not yet available.
+	// See: https://github.com/golang/go/issues/15735
+	buf := make([]byte, 1)
+	_, err = fd.Read(buf)
+	if err == syscall.EINVAL {
+		// fd is ready for reading, but reading failed, as expected on pidfd.
+		return true, nil
+	} else if err != nil {
+		return false, err
 	}
 	return true, nil
 }

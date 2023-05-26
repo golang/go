@@ -69,9 +69,9 @@ func (p *Process) kill() error {
 
 // ProcessState stores information about a process, as reported by Wait.
 type ProcessState struct {
-	pid    int                // The process's id.
-	status syscall.WaitStatus // System-dependent status info.
-	rusage *syscall.Rusage
+	pid     int     // The process's id.
+	siginfo Siginfo // System-dependent status info.
+	rusage  *syscall.Rusage
 }
 
 // Pid returns the process id of the exited process.
@@ -80,15 +80,15 @@ func (p *ProcessState) Pid() int {
 }
 
 func (p *ProcessState) exited() bool {
-	return p.status.Exited()
+	return p.siginfo.Exited()
 }
 
 func (p *ProcessState) success() bool {
-	return p.status.ExitStatus() == 0
+	return p.siginfo.ExitStatus() == 0
 }
 
 func (p *ProcessState) sys() any {
-	return p.status
+	return p.siginfo
 }
 
 func (p *ProcessState) sysUsage() any {
@@ -99,27 +99,27 @@ func (p *ProcessState) String() string {
 	if p == nil {
 		return "<nil>"
 	}
-	status := p.Sys().(syscall.WaitStatus)
+	siginfo := p.Sys().(Siginfo)
 	res := ""
 	switch {
-	case status.Exited():
-		code := status.ExitStatus()
+	case siginfo.Exited():
+		code := siginfo.ExitStatus()
 		if runtime.GOOS == "windows" && uint(code) >= 1<<16 { // windows uses large hex numbers
 			res = "exit status " + uitox(uint(code))
 		} else { // unix systems use small decimal integers
 			res = "exit status " + itoa.Itoa(code) // unix
 		}
-	case status.Signaled():
-		res = "signal: " + status.Signal().String()
-	case status.Stopped():
-		res = "stop signal: " + status.StopSignal().String()
-		if status.StopSignal() == syscall.SIGTRAP && status.TrapCause() != 0 {
-			res += " (trap " + itoa.Itoa(status.TrapCause()) + ")"
+	case siginfo.Signaled():
+		res = "signal: " + siginfo.Signal().String()
+	case siginfo.Stopped():
+		res = "stop signal: " + siginfo.StopSignal().String()
+		if siginfo.Trapped() && siginfo.TrapCause() != 0 {
+			res += " (trap " + itoa.Itoa(siginfo.TrapCause()) + ")"
 		}
-	case status.Continued():
+	case siginfo.Continued():
 		res = "continued"
 	}
-	if status.CoreDump() {
+	if siginfo.CoreDump() {
 		res += " (core dumped)"
 	}
 	return res
@@ -132,5 +132,5 @@ func (p *ProcessState) ExitCode() int {
 	if p == nil {
 		return -1
 	}
-	return p.status.ExitStatus()
+	return p.siginfo.ExitStatus()
 }

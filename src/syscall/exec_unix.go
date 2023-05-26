@@ -16,6 +16,9 @@ import (
 	"unsafe"
 )
 
+const SYS_PIDFD_OPEN = 434
+const SYS_PIDFD_SEND_SIGNAL = 424
+
 // ForkLock is used to synchronize creation of new file descriptors
 // with fork.
 //
@@ -332,7 +335,15 @@ func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 // StartProcess wraps ForkExec for package os.
 func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
 	pid, err = forkExec(argv0, argv, attr)
-	return pid, 0, err
+	if err != nil {
+		return
+	}
+	fd, _, e := Syscall(SYS_PIDFD_OPEN, uintptr(pid), 0, 0)
+	if e != 0 {
+		err = errnoErr(e)
+		return
+	}
+	return pid, fd, err
 }
 
 // Implemented in runtime package.

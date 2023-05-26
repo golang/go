@@ -85,7 +85,7 @@ func Getppid() int { return syscall.Getppid() }
 // The Process it returns can be used to obtain information
 // about the underlying operating system process.
 //
-// On Unix systems, FindProcess always succeeds and returns a Process
+// On non-Linux Unix systems, FindProcess always succeeds and returns a Process
 // for the given pid, regardless of whether the process exists.
 func FindProcess(pid int) (*Process, error) {
 	return findProcess(pid)
