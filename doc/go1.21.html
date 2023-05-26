@@ -652,15 +652,21 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- https://go.dev/issue/55002 -->
-      TODO: <a href="https://go.dev/issue/55002">https://go.dev/issue/55002</a>: add Value.Clear
+      The new <a href="/pkg/reflect/#Value"><code>Value</code></a>
+      method <a href="/pkg/reflect/#Value.Clear"><code>Value.Clear</code></a>
+      clears the contents of a map or zeros the contents of a slice.
+      This corresponds to the new <code>clear</code> built-in
+      <a href="#language">added to the language</a>.
     </p>
 
-    <p><!-- https://go.dev/issue/56906 -->
-      TODO: <a href="https://go.dev/issue/56906">https://go.dev/issue/56906</a>: deprecate SliceHeader and StringHeader
-    </p>
-
-    <p><!-- CL 452762 -->
-      TODO: <a href="https://go.dev/cl/452762">https://go.dev/cl/452762</a>: reflect: deprecate SliceHeader and StringHeader; modified api/next/56906.txt
+    <p><!-- https://go.dev/issue/56906, CL 452762 -->
+      The <a href="/pkg/reflect/#SliceHeader"><code>SliceHeader</code></a>
+      and <a href="/pkg/reflect/#StringHeader"><code>StringHeader</code></a>
+      types are now deprecated. In new code
+      prefer <a href="/pkg/unsafe/#Slice"><code>unsafe.Slice</code></a>,
+      <a href="/pkg/unsafe/#SliceData"><code>unsafe.SliceData</code></a>,
+      <a href="/pkg/unsafe/#String"><code>unsafe.String</code></a>,
+      or <a href="/pkg/unsafe/#StringData"><code>unsafe.StringData</code></a>.
     </p>
   </dd>
 </dl><!-- reflect -->
