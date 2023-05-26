@@ -5,13 +5,13 @@
 
 case "$GOWASIRUNTIME" in
 	"wasmedge")
-		exec wasmedge --dir=/ --env PWD="$PWD" ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
+		exec wasmedge --dir=/ --env PWD="$PWD" --env PATH="$PATH" ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
 		;;
 	"wasmer")
-		exec wasmer run --dir=/ --env PWD="$PWD" ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
+		exec wasmer run --dir=/ --env PWD="$PWD" --env PATH="$PATH" ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
 		;;
 	"wasmtime")
-		exec wasmtime run --dir=/ --env PWD="$PWD" --max-wasm-stack 1048576 ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
+		exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" --max-wasm-stack 1048576 ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
 		;;
 	"wazero" | "")
 		exec wazero run -mount /:/ -env-inherit -cachedir "${TMPDIR:-/tmp}"/wazero ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
