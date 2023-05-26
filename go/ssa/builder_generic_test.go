@@ -690,6 +690,26 @@ func TestInstructionString(t *testing.T) {
 	func f13[A [3]int, PA *A](v PA) {
 		*v = A{7}
 	}
+
+	//@ instrs("f14", "*ssa.Call", "invoke t1.Set(0:int)")
+	func f14[T any, PT interface {
+		Set(int)
+		*T
+	}]() {
+		var t T
+		p := PT(&t)
+		p.Set(0)
+	}
+
+	//@ instrs("f15", "*ssa.MakeClosure", "make closure (interface{Set(int); *T}).Set$bound [t1]")
+	func f15[T any, PT interface {
+		Set(int)
+		*T
+	}]() func(int) {
+		var t T
+		p := PT(&t)
+		return p.Set
+	}
 	`
 
 	// Parse

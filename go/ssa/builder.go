@@ -829,7 +829,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 			// The result is a "bound".
 			obj := sel.obj.(*types.Func)
 			rt := fn.typ(recvType(obj))
-			_, wantAddr := deptr(rt)
+			_, wantAddr := deref(rt)
 			escaping := true
 			v := b.receiver(fn, e.X, wantAddr, escaping, sel)
 
@@ -956,9 +956,8 @@ func (b *builder) stmtList(fn *Function, list []ast.Stmt) {
 //
 // escaping is defined as per builder.addr().
 func (b *builder) receiver(fn *Function, e ast.Expr, wantAddr, escaping bool, sel *selection) Value {
-
 	var v Value
-	if _, eptr := deptr(fn.typeOf(e)); wantAddr && !sel.indirect && !eptr {
+	if _, eptr := deref(fn.typeOf(e)); wantAddr && !sel.indirect && !eptr {
 		v = b.addr(fn, e, escaping).address(fn)
 	} else {
 		v = b.expr(fn, e)
@@ -967,7 +966,7 @@ func (b *builder) receiver(fn *Function, e ast.Expr, wantAddr, escaping bool, se
 	last := len(sel.index) - 1
 	// The position of implicit selection is the position of the inducing receiver expression.
 	v = emitImplicitSelections(fn, v, sel.index[:last], e.Pos())
-	if _, vptr := deptr(v.Type()); !wantAddr && vptr {
+	if _, vptr := deref(v.Type()); !wantAddr && vptr {
 		v = emitLoad(fn, v)
 	}
 	return v
@@ -986,7 +985,7 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 			obj := sel.obj.(*types.Func)
 			recv := recvType(obj)
 
-			_, wantAddr := deptr(recv)
+			_, wantAddr := deref(recv)
 			escaping := true
 			v := b.receiver(fn, selector.X, wantAddr, escaping, sel)
 			if types.IsInterface(recv) {
