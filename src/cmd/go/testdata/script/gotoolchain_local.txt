@@ -3,7 +3,7 @@
 # See gotoolchain_net.txt and gotoolchain_path.txt for tests of network and PATH toolchains.
 
 env TESTGO_VERSION=go1.500
-env TESTGO_VERSION_SWITCH=1
+env TESTGO_VERSION_SWITCH=switch
 
 # Default setting should be auto
 env GOTOOLCHAIN=

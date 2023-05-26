@@ -1,5 +1,5 @@
 env TESTGO_VERSION=go1.21
-env TESTGO_VERSION_SWITCH=1
+env TESTGO_VERSION_SWITCH=switch
 
 # GOTOOLCHAIN=auto should run the newer toolchain
 env GOTOOLCHAIN=auto

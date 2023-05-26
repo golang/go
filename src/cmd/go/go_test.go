@@ -36,6 +36,7 @@ import (
 	"cmd/go/internal/gover"
 	"cmd/go/internal/robustio"
 	"cmd/go/internal/search"
+	"cmd/go/internal/toolchain"
 	"cmd/go/internal/vcs"
 	"cmd/go/internal/vcweb/vcstest"
 	"cmd/go/internal/web"
@@ -108,10 +109,8 @@ func TestMain(m *testing.M) {
 	// We set CMDGO_TEST_RUN_MAIN via os.Setenv and testScript.setup.
 	if os.Getenv("CMDGO_TEST_RUN_MAIN") != "" {
 		cfg.SetGOROOT(cfg.GOROOT, true)
-
-		if v := os.Getenv("TESTGO_VERSION"); v != "" {
-			gover.TestVersion = v
-		}
+		gover.TestVersion = os.Getenv("TESTGO_VERSION")
+		toolchain.TestVersionSwitch = os.Getenv("TESTGO_VERSION_SWITCH")
 		if v := os.Getenv("TESTGO_TOOLCHAIN_VERSION"); v != "" {
 			work.ToolchainVersion = v
 		}

@@ -1,5 +1,5 @@
 env TESTGO_VERSION=go1.100
-env TESTGO_VERSION_SWITCH=1
+env TESTGO_VERSION_SWITCH=switch
 
 go get toolchain@go1.22.1
 stderr '^go: added toolchain go1.22.1$'

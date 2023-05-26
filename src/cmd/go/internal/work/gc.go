@@ -19,6 +19,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"cmd/internal/objabi"
@@ -99,7 +100,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 			v = "1.16"
 		}
 		if allowedVersion(v) {
-			defaultGcFlags = append(defaultGcFlags, "-lang=go"+v)
+			defaultGcFlags = append(defaultGcFlags, "-lang=go"+gover.Lang(v))
 		}
 	}
 	if p.Standard {

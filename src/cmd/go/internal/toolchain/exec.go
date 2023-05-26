@@ -20,7 +20,7 @@ import (
 // The GOROOT directory is empty if we are invoking a command named
 // gotoolchain found in $PATH.
 func execGoToolchain(gotoolchain, dir, exe string) {
-	os.Setenv(gotoolchainSwitchEnv, "1")
+	os.Setenv(targetEnv, gotoolchain)
 	if dir == "" {
 		os.Unsetenv("GOROOT")
 	} else {

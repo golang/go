@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -40,15 +41,45 @@ const (
 	gotoolchainModule  = "golang.org/toolchain"
 	gotoolchainVersion = "v0.0.1"
 
-	// gotoolchainSwitchEnv is a special environment variable
-	// set to 1 during the toolchain switch by the parent process
-	// and cleared in the child process. When set, that indicates
-	// to the child not to do its own toolchain switch logic,
-	// to avoid an infinite recursion if for some reason a toolchain
-	// did not believe it could handle its own version and then
-	// reinvoked itself.
-	gotoolchainSwitchEnv = "GOTOOLCHAIN_INTERNAL_SWITCH"
+	// targetEnv is a special environment variable set to the expected
+	// toolchain version during the toolchain switch by the parent
+	// process and cleared in the child process. When set, that indicates
+	// to the child to confirm that it provides the expected toolchain version.
+	targetEnv = "GOTOOLCHAIN_INTERNAL_SWITCH_VERSION"
+
+	// countEnv is a special environment variable
+	// that is incremented during each toolchain switch, to detect loops.
+	// It is cleared before invoking programs in 'go run', 'go test', 'go generate', and 'go tool'
+	// by invoking them in an environment filtered with FilterEnv,
+	// so user programs should not see this in their environment.
+	countEnv = "GOTOOLCHAIN_INTERNAL_SWITCH_COUNT"
+
+	// maxSwitch is the maximum toolchain switching depth.
+	// Most uses should never see more than three.
+	// (Perhaps one for the initial GOTOOLCHAIN dispatch,
+	// a second for go get doing an upgrade, and a third if
+	// for some reason the chosen upgrade version is too small
+	// by a little.)
+	// When the count reaches maxSwitch - 10, we start logging
+	// the switched versions for debugging before crashing with
+	// a fatal error upon reaching maxSwitch.
+	// That should be enough to see the repetition.
+	maxSwitch = 100
 )
+
+// FilterEnv returns a copy of env with internal GOTOOLCHAIN environment
+// variables filtered out.
+func FilterEnv(env []string) []string {
+	// Note: Don't need to filter out targetEnv because Switch does that.
+	var out []string
+	for _, e := range env {
+		if strings.HasPrefix(e, countEnv+"=") {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
+}
 
 // Switch invokes a different Go toolchain if directed by
 // the GOTOOLCHAIN environment variable or the user's configuration
@@ -57,10 +88,6 @@ const (
 func Switch() {
 	log.SetPrefix("go: ")
 	defer log.SetPrefix("")
-
-	sw := os.Getenv(gotoolchainSwitchEnv)
-	os.Unsetenv(gotoolchainSwitchEnv)
-	// The sw == "1" check is delayed until later so that we still fill in gover.Startup for use in errors.
 
 	if !modload.WillBeEnabled() {
 		return
@@ -78,20 +105,19 @@ func Switch() {
 		return
 	}
 
-	var minToolchain, minVers string
-	if x, y, ok := strings.Cut(gotoolchain, "+"); ok { // go1.2.3+auto
-		orig := gotoolchain
-		minToolchain, gotoolchain = x, y
-		minVers = gover.FromToolchain(minToolchain)
-		if minVers == "" {
-			base.Fatalf("invalid GOTOOLCHAIN %q: invalid minimum toolchain %q", orig, minToolchain)
+	minToolchain := gover.LocalToolchain()
+	minVers := gover.Local()
+	if min, mode, ok := strings.Cut(gotoolchain, "+"); ok { // go1.2.3+auto
+		v := gover.FromToolchain(min)
+		if v == "" {
+			base.Fatalf("invalid GOTOOLCHAIN %q: invalid minimum toolchain %q", gotoolchain, min)
 		}
-		if gotoolchain != "auto" && gotoolchain != "path" {
-			base.Fatalf("invalid GOTOOLCHAIN %q: only version suffixes are +auto and +path", orig)
+		minToolchain = min
+		minVers = v
+		if mode != "auto" && mode != "path" {
+			base.Fatalf("invalid GOTOOLCHAIN %q: only version suffixes are +auto and +path", gotoolchain)
 		}
-	} else {
-		minVers = gover.Local()
-		minToolchain = "go" + minVers
+		gotoolchain = mode
 	}
 
 	if gotoolchain == "auto" || gotoolchain == "path" {
@@ -153,7 +179,34 @@ func Switch() {
 		}
 	}
 
-	if sw == "1" || gotoolchain == "local" || gotoolchain == "go"+gover.Local() {
+	// If we are invoked as a target toolchain, confirm that
+	// we provide the expected version and then run.
+	// This check is delayed until after the handling of auto and path
+	// so that we have initialized gover.Startup for use in error messages.
+	if target := os.Getenv(targetEnv); target != "" && TestVersionSwitch != "loop" {
+		if gover.LocalToolchain() != target {
+			base.Fatalf("toolchain %v invoked to provide %v", gover.LocalToolchain(), target)
+		}
+		os.Unsetenv(targetEnv)
+
+		// Note: It is tempting to check that if gotoolchain != "local"
+		// then target == gotoolchain here, as a sanity check that
+		// the child has made the same version determination as the parent.
+		// This turns out not always to be the case. Specifically, if we are
+		// running Go 1.21 with GOTOOLCHAIN=go1.22+auto, which invokes
+		// Go 1.22, then 'go get go@1.23.0' or 'go get needs_go_1_23'
+		// will invoke Go 1.23, but as the Go 1.23 child the reason for that
+		// will not be apparent here: it will look like we should be using Go 1.22.
+		// We rely on the targetEnv being set to know not to downgrade.
+		// A longer term problem with the sanity check is that the exact details
+		// may change over time: there may be other reasons that a future Go
+		// version might invoke an older one, and the older one won't know why.
+		// Best to just accept that we were invoked to provide a specific toolchain
+		// (which we just checked) and leave it at that.
+		return
+	}
+
+	if gotoolchain == "local" || gotoolchain == gover.LocalToolchain() {
 		// Let the current binary handle the command.
 		return
 	}
@@ -287,6 +340,14 @@ func HasPath() bool {
 	return env == "path" || strings.HasSuffix(env, "+path")
 }
 
+// TestVersionSwitch is set in the test go binary to the value in $TESTGO_VERSION_SWITCH.
+// Valid settings are:
+//
+//	"switch" - simulate version switches by reinvoking the test go binary with a different TESTGO_VERSION.
+//	"mismatch" - like "switch" but forget to set TESTGO_VERSION, so it looks like we invoked a mismatched toolchain
+//	"loop" - like "switch" but
+var TestVersionSwitch string
+
 // SwitchTo invokes the specified Go toolchain or else prints an error and exits the process.
 // If $GOTOOLCHAIN is set to path or min+path, SwitchTo only considers the PATH
 // as a source of Go toolchains. Otherwise SwitchTo tries the PATH but then downloads
@@ -294,16 +355,32 @@ func HasPath() bool {
 func SwitchTo(gotoolchain string) {
 	log.SetPrefix("go: ")
 
+	count, _ := strconv.Atoi(os.Getenv(countEnv))
+	if count >= maxSwitch-10 {
+		fmt.Fprintf(os.Stderr, "go: switching from go%v to %v [depth %d]\n", gover.Local(), gotoolchain, count)
+	}
+	if count >= maxSwitch {
+		base.Fatalf("too many toolchain switches")
+	}
+	os.Setenv(countEnv, fmt.Sprint(count+1))
+
 	env := cfg.Getenv("GOTOOLCHAIN")
 	pathOnly := env == "path" || strings.HasSuffix(env, "+path")
 
 	// For testing, if TESTGO_VERSION is already in use
 	// (only happens in the cmd/go test binary)
-	// and TESTGO_VERSION_SWITCH=1 is set,
+	// and TESTGO_VERSION_SWITCH=switch is set,
 	// "switch" toolchains by changing TESTGO_VERSION
 	// and reinvoking the current binary.
-	if gover.TestVersion != "" && os.Getenv("TESTGO_VERSION_SWITCH") == "1" {
+	// The special cases =loop and =mismatch skip the
+	// setting of TESTGO_VERSION so that it looks like we
+	// accidentally invoked the wrong toolchain,
+	// to test detection of that failure mode.
+	switch TestVersionSwitch {
+	case "switch":
 		os.Setenv("TESTGO_VERSION", gotoolchain)
+		fallthrough
+	case "loop", "mismatch":
 		exe, err := os.Executable()
 		if err != nil {
 			base.Fatalf("%v", err)
@@ -422,7 +499,7 @@ func modGoToolchain() (file, goVers, toolchain string) {
 
 // goInstallVersion looks at the command line to see if it is go install m@v or go run m@v.
 // If so, it returns the m@v and the go version from that module's go.mod.
-func goInstallVersion() (m module.Version, goVers string, ok bool) {
+func goInstallVersion() (m module.Version, goVers string, found bool) {
 	// Note: We assume there are no flags between 'go' and 'install' or 'run'.
 	// During testing there are some debugging flags that are accepted
 	// in that position, but in production go binaries there are not.
@@ -503,10 +580,15 @@ func goInstallVersion() (m module.Version, goVers string, ok bool) {
 	}
 	noneSelected := func(path string) (version string) { return "none" }
 	_, err := modload.QueryPackages(ctx, m.Path, m.Version, noneSelected, allowed)
-	tooNew, ok := err.(*gover.TooNewError)
-	if !ok {
-		return module.Version{}, "", false
+	if tooNew, ok := err.(*gover.TooNewError); ok {
+		m.Path, m.Version, _ = strings.Cut(tooNew.What, "@")
+		return m, tooNew.GoVersion, true
 	}
-	m.Path, m.Version, _ = strings.Cut(tooNew.What, "@")
-	return m, tooNew.GoVersion, true
+
+	// QueryPackages succeeded, or it failed for a reason other than
+	// this Go toolchain being too old for the modules encountered.
+	// Either way, we identified the m@v on the command line,
+	// so return found == true so the caller does not fall back to
+	// consulting go.mod.
+	return m, "", true
 }

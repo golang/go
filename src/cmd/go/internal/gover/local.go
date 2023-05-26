@@ -17,14 +17,26 @@ var TestVersion string
 
 // Local returns the local Go version, the one implemented by this go command.
 func Local() string {
-	v := runtime.Version()
-	if TestVersion != "" {
-		v = TestVersion
-	}
-	if v := FromToolchain(v); v != "" {
-		return v
-	}
+	v, _ := local()
+	return v
+}
 
-	// Development branch. Use "Dev" version with just 1.N, no rc1 or .0 suffix.
-	return "1." + strconv.Itoa(goversion.Version)
+// LocalToolchain returns the local toolchain name, the one implemented by this go command.
+func LocalToolchain() string {
+	_, t := local()
+	return t
+}
+
+func local() (goVers, toolVers string) {
+	toolVers = runtime.Version()
+	if TestVersion != "" {
+		toolVers = TestVersion
+	}
+	goVers = FromToolchain(toolVers)
+	if goVers == "" {
+		// Development branch. Use "Dev" version with just 1.N, no rc1 or .0 suffix.
+		goVers = "1." + strconv.Itoa(goversion.Version)
+		toolVers = "go" + goVers
+	}
+	return goVers, toolVers
 }
