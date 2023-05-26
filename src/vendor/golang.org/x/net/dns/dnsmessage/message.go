@@ -260,9 +260,11 @@ var (
 	errReserved           = errors.New("segment prefix is reserved")
 	errTooManyPtr         = errors.New("too many pointers (>10)")
 	errInvalidPtr         = errors.New("invalid pointer")
+	errInvalidName        = errors.New("invalid dns name")
 	errNilResouceBody     = errors.New("nil resource body")
 	errResourceLen        = errors.New("insufficient data for resource body length")
 	errSegTooLong         = errors.New("segment length too long")
+	errNameTooLong        = errors.New("name too long")
 	errZeroSegLen         = errors.New("zero length segment")
 	errResTooLong         = errors.New("resource length too long")
 	errTooManyQuestions   = errors.New("too many Questions to pack (>65535)")
@@ -1728,7 +1730,7 @@ const (
 //
 // The provided extRCode must be an extended RCode.
 func (h *ResourceHeader) SetEDNS0(udpPayloadLen int, extRCode RCode, dnssecOK bool) error {
-	h.Name = Name{Data: [nameLen]byte{'.'}, Length: 1} // RFC 6891 section 6.1.2
+	h.Name = Name{Data: [255]byte{'.'}, Length: 1} // RFC 6891 section 6.1.2
 	h.Type = TypeOPT
 	h.Class = Class(udpPayloadLen)
 	h.TTL = uint32(extRCode) >> 4 << 24
@@ -1888,21 +1890,21 @@ func unpackBytes(msg []byte, off int, field []byte) (int, error) {
 	return newOff, nil
 }
 
-const nameLen = 255
+const nonEncodedNameMax = 254
 
 // A Name is a non-encoded domain name. It is used instead of strings to avoid
 // allocations.
 type Name struct {
-	Data   [nameLen]byte // 255 bytes
+	Data   [255]byte
 	Length uint8
 }
 
 // NewName creates a new Name from a string.
 func NewName(name string) (Name, error) {
-	if len(name) > nameLen {
+	n := Name{Length: uint8(len(name))}
+	if len(name) > len(n.Data) {
 		return Name{}, errCalcLen
 	}
-	n := Name{Length: uint8(len(name))}
 	copy(n.Data[:], name)
 	return n, nil
 }
@@ -1935,6 +1937,10 @@ func (n *Name) GoString() string {
 // is nil, compression will not be used.
 func (n *Name) pack(msg []byte, compression map[string]int, compressionOff int) ([]byte, error) {
 	oldMsg := msg
+
+	if n.Length > nonEncodedNameMax {
+		return nil, errNameTooLong
+	}
 
 	// Add a trailing dot to canonicalize name.
 	if n.Length == 0 || n.Data[n.Length-1] != '.' {
@@ -2029,6 +2035,15 @@ Loop:
 			if endOff > len(msg) {
 				return off, errCalcLen
 			}
+
+			// Reject names containing dots.
+			// See issue golang/go#56246
+			for _, v := range msg[currOff:endOff] {
+				if v == '.' {
+					return off, errInvalidName
+				}
+			}
+
 			name = append(name, msg[currOff:endOff]...)
 			name = append(name, '.')
 			currOff = endOff
@@ -2057,8 +2072,8 @@ Loop:
 	if len(name) == 0 {
 		name = append(name, '.')
 	}
-	if len(name) > len(n.Data) {
-		return off, errCalcLen
+	if len(name) > nonEncodedNameMax {
+		return off, errNameTooLong
 	}
 	n.Length = uint8(len(name))
 	if ptr == 0 {
