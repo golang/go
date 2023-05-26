@@ -301,8 +301,6 @@ func (c *Config) EncryptTicket(cs ConnectionState, ss *SessionState) ([]byte, er
 	return c.encryptTicket(stateBytes, ticketKeys)
 }
 
-var _ = &Config{WrapSession: (&Config{}).EncryptTicket}
-
 func (c *Config) encryptTicket(state []byte, ticketKeys []ticketKey) ([]byte, error) {
 	if len(ticketKeys) == 0 {
 		return nil, errors.New("tls: internal error: session ticket keys unavailable")
@@ -347,8 +345,6 @@ func (c *Config) DecryptTicket(identity []byte, cs ConnectionState) (*SessionSta
 	}
 	return s, nil
 }
-
-var _ = &Config{UnwrapSession: (&Config{}).DecryptTicket}
 
 func (c *Config) decryptTicket(encrypted []byte, ticketKeys []ticketKey) []byte {
 	if len(encrypted) < aes.BlockSize+sha256.Size {
