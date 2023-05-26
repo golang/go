@@ -25,8 +25,8 @@ func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, 
 		opts.LiteralCompletions = strings.Contains(string(src.URI()), "literal")
 		opts.ExperimentalPostfixCompletions = strings.Contains(string(src.URI()), "postfix")
 	})
-	got = filterSkipCompletionItems(tests.FilterBuiltins(src, got))
-	want := filterSkipCompletionItems(expected(t, test, items))
+	got = tests.FilterBuiltins(src, got)
+	want := expected(t, test, items)
 	if diff := tests.DiffCompletionItems(want, got); diff != "" {
 		t.Errorf("mismatching completion items (-want +got):\n%s", diff)
 	}
@@ -174,17 +174,4 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options func(*sourc
 		t.Fatal(err)
 	}
 	return list.Items
-}
-
-func filterSkipCompletionItems(items []protocol.CompletionItem) []protocol.CompletionItem {
-	n := 0
-	for _, item := range items {
-		// TODO(cuonglm): remove once https://go-review.googlesource.com/c/go/+/498495 land.
-		if item.Label == "max" || item.Label == "min" {
-			continue
-		}
-		items[n] = item
-		n++
-	}
-	return items[:n]
 }
