@@ -338,6 +338,29 @@ func BenchmarkMemmoveUnalignedSrc(b *testing.B) {
 	})
 }
 
+func BenchmarkMemmoveUnalignedSrcDst(b *testing.B) {
+	for _, n := range []int{16, 64, 256, 4096, 65536} {
+		buf := make([]byte, (n+8)*2)
+		x := buf[:len(buf)/2]
+		y := buf[len(buf)/2:]
+		for _, off := range []int{0, 1, 4, 7} {
+			b.Run(fmt.Sprint("f_", n, off), func(b *testing.B) {
+				b.SetBytes(int64(n))
+				for i := 0; i < b.N; i++ {
+					copy(x[off:n+off], y[off:n+off])
+				}
+			})
+
+			b.Run(fmt.Sprint("b_", n, off), func(b *testing.B) {
+				b.SetBytes(int64(n))
+				for i := 0; i < b.N; i++ {
+					copy(y[off:n+off], x[off:n+off])
+				}
+			})
+		}
+	}
+}
+
 func BenchmarkMemmoveUnalignedSrcOverlap(b *testing.B) {
 	benchmarkSizes(b, bufSizesOverlap, func(b *testing.B, n int) {
 		x := make([]byte, n+1)
