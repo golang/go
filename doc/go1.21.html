@@ -426,12 +426,14 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="errors"><dt><a href="/pkg/errors/">errors</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/41198 -->
-      TODO: <a href="https://go.dev/issue/41198">https://go.dev/issue/41198</a>: add ErrUnsupported
-    </p>
-
-    <p><!-- CL 473935 -->
-      TODO: <a href="https://go.dev/cl/473935">https://go.dev/cl/473935</a>: errors: add ErrUnsupported; modified api/next/41198.txt
+    <p><!-- https://go.dev/issue/41198, CL 473935 -->
+      The new
+      <a href="/pkg/errors/#ErrUnsupported"><code>ErrUnsupported</code></a>
+      error provides a standardized way to indicate that a requested
+      operation may not be performed because it is unsupported.
+      For example, a call to
+      <a href="/pkg/os/#Link"><code>os.Link</code></a> when using a
+      file system that does not support hard links.
     </p>
   </dd>
 </dl><!-- errors -->
@@ -646,7 +648,11 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 494122 -->
-      TODO: <a href="https://go.dev/cl/494122">https://go.dev/cl/494122</a>: net/http: let ErrNotSupported match errors.ErrUnsupported; modified api/next/41198.txt
+      The <a href="/pkg/net/http/">net/http</a> package now supports
+      <a href="/pkg/errors/#ErrUnsupported"><code>errors.ErrUnsupported</code></a>,
+      in that the expression
+      <code>errors.Is(http.ErrNotSupported, errors.ErrUnsupported)</code>
+      will return true.
     </p>
   </dd>
 </dl><!-- net/http -->
@@ -827,6 +833,22 @@ Do not send CLs removing the interior tags from such phrases.
       <a href=http://simonsapin.github.io/wtf-8/"">WTF-8</a> strings.
       This is backward compatible as WTF-8 is a superset of the UTF-8
       format that was used in earlier releases.
+    </p>
+
+    <p><!-- CL 476578, CL 476875, CL 476916 -->
+      Several error values match the new
+      <a href="/pkg/errors/#ErrUnsupported"><code>errors.ErrUnsupported</code></a>,
+      such that <code>errors.Is(err, errors.ErrUnsupported)</code>
+      returns true.
+      <ul>
+	<li><code>ENOSYS</code></li>
+	<li><code>ENOTSUP</code></li>
+	<li><code>EOPNOTSUPP</code></li>
+	<li><code>EPLAN9</code> (Plan 9 only)</li>
+	<li><code>ERROR_CALL_NOT_IMPLEMENTED</code> (Windows only)</li>
+	<li><code>ERROR_NOT_SUPPORTED</code> (Windows only)</li>
+	<li><code>EWINDOWS</code> (Windows only)</li>
+      </ul>
     </p>
   </dd>
 </dl><!-- syscall -->
