@@ -61,10 +61,30 @@ func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 		if err := s.fetchConfig(ctx, view.Name(), view.Folder(), options); err != nil {
 			return err
 		}
-		view, err := s.session.SetViewOptions(ctx, view, options)
+		_, err := s.session.SetViewOptions(ctx, view, options)
 		if err != nil {
 			return err
 		}
+	}
+
+	// Now that all views have been updated: reset vulncheck diagnostics, rerun
+	// diagnostics, and hope for the best...
+	//
+	// TODO(golang/go#60465): this not a reliable way to ensure the correctness
+	// of the resulting diagnostics below. A snapshot could still be in the
+	// process of diagnosing the workspace, and not observe the configuration
+	// changes above.
+	//
+	// The real fix is golang/go#42814: we should create a new snapshot on any
+	// change that could affect the derived results in that snapshot. However, we
+	// are currently (2023-05-26) on the verge of a release, and the proper fix
+	// is too risky a change. Since in the common case a configuration change is
+	// only likely to occur during a period of quiescence on the server, it is
+	// likely that the clearing below will have the desired effect.
+	s.clearDiagnosticSource(modVulncheckSource)
+
+	for _, view := range s.session.Views() {
+		view := view
 		go func() {
 			snapshot, release, err := view.Snapshot()
 			if err != nil {

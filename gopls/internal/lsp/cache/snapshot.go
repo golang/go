@@ -2156,6 +2156,10 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		if !change.exists {
 			result.files.Delete(uri)
 		} else {
+			// TODO(golang/go#57558): the line below is strictly necessary to ensure
+			// that snapshots have each overlay, but it is problematic that we must
+			// set any content in snapshot.clone: if the file has changed, let it be
+			// re-read.
 			result.files.Set(uri, change.fileHandle)
 		}
 
