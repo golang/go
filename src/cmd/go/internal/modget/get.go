@@ -403,7 +403,7 @@ func parseArgs(ctx context.Context, rawArgs []string) (dropToolchain bool, queri
 		if q.version == "none" {
 			switch q.pattern {
 			case "go":
-				base.Errorf("go: cannot use go@none", q.pattern)
+				base.Errorf("go: cannot use go@none")
 				continue
 			case "toolchain":
 				dropToolchain = true
