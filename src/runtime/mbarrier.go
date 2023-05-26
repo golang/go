@@ -112,12 +112,6 @@ import (
 // compiler will generate a write barrier for writes through that
 // pointer (because it doesn't know it's not a heap pointer).
 //
-// One might be tempted to ignore the write barrier if slot points
-// into to the stack. Don't do it! Mark termination only re-scans
-// frames that have potentially been active since the concurrent scan,
-// so it depends on write barriers to track changes to pointers in
-// stack frames that have not been active.
-//
 //
 // Global writes:
 //
