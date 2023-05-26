@@ -28,6 +28,8 @@ package builtins
 /* int8 */ //@item(int8, "int8", "", "type")
 /* iota */ //@item(iota, "iota", "", "const")
 /* len(v Type) int */ //@item(len, "len", "func(v Type) int", "func")
+/* max(x Type, y ...Type) Type */ //@item(max, "max", "func(x Type, y ...Type) Type", "func")
+/* min(y Type, y ...Type) Type */ //@item(min, "min", "func(y Type, y ...Type) Type", "func")
 /* make(t Type, size ...int) Type */ //@item(make, "make", "func(t Type, size ...int) Type", "func")
 /* new(Type) *Type */ //@item(new, "new", "func(Type) *Type", "func")
 /* nil */ //@item(_nil, "nil", "", "var")

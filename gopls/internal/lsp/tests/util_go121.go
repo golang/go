@@ -9,4 +9,6 @@ package tests
 
 func init() {
 	builtins["clear"] = true
+	builtins["max"] = true
+	builtins["min"] = true
 }
