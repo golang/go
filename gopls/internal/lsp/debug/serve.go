@@ -460,11 +460,11 @@ func (i *Instance) Serve(ctx context.Context, addr string) (string, error) {
 		mux.HandleFunc("/memory", render(MemoryTmpl, getMemory))
 
 		// Internal debugging helpers.
-		mux.HandleFunc("/_dogc", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/gc", func(w http.ResponseWriter, r *http.Request) {
 			runtime.GC()
 			runtime.GC()
 			runtime.GC()
-			http.Error(w, "OK", 200)
+			http.Redirect(w, r, "/memory", http.StatusTemporaryRedirect)
 		})
 		mux.HandleFunc("/_makeabug", func(w http.ResponseWriter, r *http.Request) {
 			bug.Report("bug here")
@@ -647,6 +647,7 @@ ul.spans {
 <a href="/">Main</a>
 <a href="/info">Info</a>
 <a href="/memory">Memory</a>
+<a href="/debug/pprof">Profiling</a>
 <a href="/metrics">Metrics</a>
 <a href="/rpc">RPC</a>
 <a href="/trace">Trace</a>
@@ -716,9 +717,10 @@ var InfoTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 `))
 
 var MemoryTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
-{{define "title"}}GoPls memory usage{{end}}
+{{define "title"}}Gopls memory usage{{end}}
 {{define "head"}}<meta http-equiv="refresh" content="5">{{end}}
 {{define "body"}}
+<form action="/gc"><input type="submit" value="Run garbage collector"/></form>
 <h2>Stats</h2>
 <table>
 <tr><td class="label">Allocated bytes</td><td class="value">{{fuint64 .HeapAlloc}}</td></tr>
