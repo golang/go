@@ -252,7 +252,9 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="slog">New log/slog package</h3>
 
-<p>
+<p><!-- https://go.dev/issue/59060, https://go.dev/issue/59141, https://go.dev/issue/59204, https://go.dev/issue/59280,
+        https://go.dev/issue/59282, https://go.dev/issue/59339, https://go.dev/issue/59345,
+        CL 477295, CL 484096, CL 486376, CL 486415, CL 487855 -->
   The new <a href="/pkg/log/slog">log/slog</a> package provides structured logging with levels.
   Structured logging emits key-value pairs
   to enable fast, accurate processing of large amounts of log data.
@@ -604,58 +606,6 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- io/fs -->
-
-<dl id="log/slog"><dt><a href="/pkg/log/slog/">log/slog</a></dt>
-  <dd>
-    <p><!-- https://go.dev/issue/59060 -->
-      TODO: <a href="https://go.dev/issue/59060">https://go.dev/issue/59060</a>: arg to Record.Attrs should return bool
-    </p>
-
-    <p><!-- https://go.dev/issue/59141 -->
-      TODO: <a href="https://go.dev/issue/59141">https://go.dev/issue/59141</a>: handle panics in LogValuer.LogValue
-    </p>
-
-    <p><!-- https://go.dev/issue/59204 -->
-      TODO: <a href="https://go.dev/issue/59204">https://go.dev/issue/59204</a>: change slog.Group signature to ...any
-    </p>
-
-    <p><!-- https://go.dev/issue/59280 -->
-      TODO: <a href="https://go.dev/issue/59280">https://go.dev/issue/59280</a>: ReplaceAttr gets Source struct instead of file:line
-    </p>
-
-    <p><!-- https://go.dev/issue/59282 -->
-      TODO: <a href="https://go.dev/issue/59282">https://go.dev/issue/59282</a>: drop only completely empty Attrs
-    </p>
-
-    <p><!-- https://go.dev/issue/59339 -->
-      TODO: <a href="https://go.dev/issue/59339">https://go.dev/issue/59339</a>: change constructors to NewXXXHandler(io.Writer, *HandlerOptions)
-    </p>
-
-    <p><!-- https://go.dev/issue/59345 -->
-      TODO: <a href="https://go.dev/issue/59345">https://go.dev/issue/59345</a>: JSONHandler should format everything like json.Marshal
-    </p>
-
-    <p><!-- CL 477295 -->
-      TODO: <a href="https://go.dev/cl/477295">https://go.dev/cl/477295</a>: log/slog: initial commit; modified api/next/56345.txt
-    </p>
-
-    <p><!-- CL 484096 -->
-      TODO: <a href="https://go.dev/cl/484096">https://go.dev/cl/484096</a>: log/slog: function argument to Record.Attrs returns bool; modified api/next/59060.txt
-    </p>
-
-    <p><!-- CL 486376 -->
-      TODO: <a href="https://go.dev/cl/486376">https://go.dev/cl/486376</a>: log/slog: add Source type for source location; modified api/next/59280.txt
-    </p>
-
-    <p><!-- CL 486415 -->
-      TODO: <a href="https://go.dev/cl/486415">https://go.dev/cl/486415</a>: log/slog: built-in handler constructors take options as a second arg; modified api/next/56345.txt, api/next/59339.txt
-    </p>
-
-    <p><!-- CL 487855 -->
-      TODO: <a href="https://go.dev/cl/487855">https://go.dev/cl/487855</a>: log/slog: Group takes ...any; modified api/next/56345.txt, api/next/59204.txt
-    </p>
-  </dd>
-</dl><!-- log/slog -->
 
 <dl id="math"><dt><a href="/pkg/math/">math</a></dt>
   <dd>
