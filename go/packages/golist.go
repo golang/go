@@ -891,6 +891,15 @@ func golistargs(cfg *Config, words []string, goVersion int) []string {
 		// probably because you'd just get the TestMain.
 		fmt.Sprintf("-find=%t", !cfg.Tests && cfg.Mode&findFlags == 0 && !usesExportData(cfg)),
 	}
+
+	// golang/go#60456: with go1.21 and later, go list serves pgo variants, which
+	// can be costly to compute and may result in redundant processing for the
+	// caller. Disable these variants. If someone wants to add e.g. a NeedPGO
+	// mode flag, that should be a separate proposal.
+	if goVersion >= 21 {
+		fullargs = append(fullargs, "-pgo=off")
+	}
+
 	fullargs = append(fullargs, cfg.BuildFlags...)
 	fullargs = append(fullargs, "--")
 	fullargs = append(fullargs, words...)
