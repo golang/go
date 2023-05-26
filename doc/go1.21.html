@@ -25,13 +25,53 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="language">Changes to the language</h2>
 
-<!-- https://go.dev/issue/59488 -->
 <p>
-  Go 1.21 adds two new built-ins to the language:
-  the new functions <code>min</code> and <code>max</code> compute the
-  smallest (or largest, for <code>max</code>) value of a fixed number
-  of given arguments.
-  See the language spec for <a href="https://tip.golang.org/ref/spec#Min_and_max">details</a>.
+  Go 1.21 adds three new built-ins to the language.
+
+  <ul>
+    <li><!-- https://go.dev/issue/59488 -->
+      The new functions <code>min</code> and <code>max</code> compute the
+      smallest (or largest, for <code>max</code>) value of a fixed number
+      of given arguments.
+      See the language spec for
+      <a href="https://tip.golang.org/ref/spec#Min_and_max">details</a>.
+    </li>
+    <li><!-- https://go.dev/issue/56351 -->
+      The new function <code>clear</code> deletes all elements from a
+      map or zeroes all elements of a slice.
+      See the language spec for
+      <a href="https://tip.golang.org/ref/spec#Clear">details</a>.
+    </li>
+  </ul>
+</p>
+
+<p><!-- https://go.dev/issue/57411 -->
+  Package initialization order is now specified more precisely. The
+  new algorithm is:
+  <ul>
+    <li>
+      Sort all packages by import path.
+    </li>
+    <li>Repeat until the list of packages is empty:
+      <ul>
+	<li>
+	  Find the first package in the list for which all imports are
+	  already initialized.
+	</li>
+	<li>
+	  Initialize that package and remove it from the list.
+	</li>
+      </ul>
+    </li>
+  </ul>
+  This may change the behavior of some programs that rely on a
+  specific initialization ordering that was not expressed by explicit
+  imports. The behavior of such programs was not well defined by the
+  spec in past releases. The new rule provides an unambiguous definition.
+</p>
+
+<p><!-- https://go.dev/issue/59338 -->
+  TODO: <a href="https://go.dev/issue/59338">https://go.dev/issue/59338</a>: infer type arguments from assignments of generic functions (reverse type inference)
 </p>
 
 <p><!-- https://go.dev/issue/56986 -->
@@ -744,22 +784,6 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- runtime/metrics -->
-
-<dl id="spec"><dt><a href="/pkg/spec/">spec</a></dt>
-  <dd>
-    <p><!-- https://go.dev/issue/56351 -->
-      TODO: <a href="https://go.dev/issue/56351">https://go.dev/issue/56351</a>: add clear(x) builtin, to clear map, zero content of slice
-    </p>
-
-    <p><!-- https://go.dev/issue/57411 -->
-      TODO: <a href="https://go.dev/issue/57411">https://go.dev/issue/57411</a>: define initialization order more precisely
-    </p>
-
-    <p><!-- https://go.dev/issue/59338 -->
-      TODO: <a href="https://go.dev/issue/59338">https://go.dev/issue/59338</a>: infer type arguments from assignments of generic functions (reverse type inference)
-    </p>
-  </dd>
-</dl><!-- spec -->
 
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
