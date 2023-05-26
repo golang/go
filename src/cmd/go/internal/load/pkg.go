@@ -2950,17 +2950,21 @@ func setPGOProfilePath(pkgs []*Package) {
 				continue // no profile
 			}
 
-			copied := make(map[*Package]*Package)
+			// Packages already visited. The value should replace
+			// the key, as it may be a forked copy of the original
+			// Package.
+			visited := make(map[*Package]*Package)
 			var split func(p *Package) *Package
 			split = func(p *Package) *Package {
+				if p1 := visited[p]; p1 != nil {
+					return p1
+				}
+
 				if len(pkgs) > 1 && p != pmain {
 					// Make a copy, then attach profile.
 					// No need to copy if there is only one root package (we can
 					// attach profile directly in-place).
 					// Also no need to copy the main package.
-					if p1 := copied[p]; p1 != nil {
-						return p1
-					}
 					if p.Internal.PGOProfile != "" {
 						panic("setPGOProfilePath: already have profile")
 					}
@@ -2969,9 +2973,11 @@ func setPGOProfilePath(pkgs []*Package) {
 					// Unalias the Internal.Imports slice, which is we're going to
 					// modify. We don't copy other slices as we don't change them.
 					p1.Internal.Imports = slices.Clone(p.Internal.Imports)
-					copied[p] = p1
+					p1.Internal.ForMain = pmain.ImportPath
+					visited[p] = p1
 					p = p1
-					p.Internal.ForMain = pmain.ImportPath
+				} else {
+					visited[p] = p
 				}
 				p.Internal.PGOProfile = file
 				updateBuildInfo(p, file)
