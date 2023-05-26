@@ -610,22 +610,6 @@ func (t test) run() error {
 			cmd.Env = append(cmd.Env, "GOPATH="+tempDir)
 		}
 		cmd.Env = append(cmd.Env, "STDLIB_IMPORTCFG="+stdlibImportcfgFile())
-		// Put the bin directory of the GOROOT that built this program
-		// first in the path. This ensures that tests that use the "go"
-		// tool use the same one that built this program. This ensures
-		// that if you do "../bin/go run run.go" in this directory, all
-		// the tests that start subprocesses that "go tool compile" or
-		// whatever, use ../bin/go as their go tool, not whatever happens
-		// to be first in the user's path.
-		path := os.Getenv("PATH")
-		newdir := filepath.Join(runtime.GOROOT(), "bin")
-		if path != "" {
-			path = newdir + string(filepath.ListSeparator) + path
-		} else {
-			path = newdir
-		}
-		cmd.Env = append(cmd.Env, "PATH="+path)
-
 		cmd.Env = append(cmd.Env, runenv...)
 
 		var err error
