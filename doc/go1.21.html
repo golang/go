@@ -190,9 +190,11 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 <!-- CL 463395 -->
 <p>
-  <!-- cmd/link: linker portion of dead map removal -->
+  In Go 1.21 the linker (with help from the compiler) is now capable of
+  deleting dead (unreferenced) global map variables, if the number of
+  entries in the variable initializer is sufficiently large, and if the
+  initializer expressions are side-effect free.
 </p>
-
 <p>
   TODO: complete this section, or delete if not needed
 </p>
