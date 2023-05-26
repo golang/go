@@ -3,21 +3,11 @@
 // license that can be found in the LICENSE file.
 
 // Lowering arithmetic
-(Add64 ...) => (ADD ...)
-(AddPtr ...) => (ADD ...)
-(Add32 ...) => (ADD ...)
-(Add16 ...) => (ADD ...)
-(Add8 ...) => (ADD ...)
-(Add32F ...) => (FADDS ...)
-(Add64F ...) => (FADDD ...)
+(Add(Ptr|64|32|16|8) ...) => (ADD ...)
+(Add(64|32)F ...) => (FADD(D|S) ...)
 
-(Sub64 ...) => (SUB ...)
-(SubPtr ...) => (SUB ...)
-(Sub32 ...) => (SUB ...)
-(Sub16 ...) => (SUB ...)
-(Sub8 ...) => (SUB ...)
-(Sub32F ...) => (FSUBS ...)
-(Sub64F ...) => (FSUBD ...)
+(Sub(Ptr|64|32|16|8) ...) => (SUB ...)
+(Sub(64|32)F ...) => (FSUB(D|S) ...)
 
 (Mul64 ...) => (MUL  ...)
 (Mul64uhilo ...) => (LoweredMuluhilo ...)
@@ -25,11 +15,9 @@
 (Mul32 ...) => (MULW ...)
 (Mul16 x y) => (MULW (SignExt16to32 x) (SignExt16to32 y))
 (Mul8 x y)  => (MULW (SignExt8to32 x)  (SignExt8to32 y))
-(Mul32F ...) => (FMULS ...)
-(Mul64F ...) => (FMULD ...)
+(Mul(64|32)F ...) => (FMUL(D|S) ...)
 
-(Div32F ...) => (FDIVS ...)
-(Div64F ...) => (FDIVD ...)
+(Div(64|32)F ...) => (FDIV(D|S) ...)
 
 (Div64 x y [false])  => (DIV x y)
 (Div64u ...) => (DIVU ...)
@@ -65,32 +53,15 @@
 (Mod8 x y)   => (REMW  (SignExt8to32  x) (SignExt8to32  y))
 (Mod8u x y)  => (REMUW (ZeroExt8to32  x) (ZeroExt8to32  y))
 
-(And64 ...) => (AND ...)
-(And32 ...) => (AND ...)
-(And16 ...) => (AND ...)
-(And8  ...) => (AND ...)
+(And(64|32|16|8) ...) => (AND ...)
+(Or(64|32|16|8) ...) => (OR ...)
+(Xor(64|32|16|8) ...) => (XOR ...)
 
-(Or64 ...) => (OR ...)
-(Or32 ...) => (OR ...)
-(Or16 ...) => (OR ...)
-(Or8  ...) => (OR ...)
+(Neg(64|32|16|8) ...) => (NEG ...)
+(Neg(64|32)F ...) => (FNEG(D|S) ...)
 
-(Xor64 ...) => (XOR ...)
-(Xor32 ...) => (XOR ...)
-(Xor16 ...) => (XOR ...)
-(Xor8  ...) => (XOR ...)
+(Com(64|32|16|8) ...) => (NOT ...)
 
-(Neg64  ...) => (NEG ...)
-(Neg32  ...) => (NEG ...)
-(Neg16  ...) => (NEG ...)
-(Neg8   ...) => (NEG ...)
-(Neg32F ...) => (FNEGS ...)
-(Neg64F ...) => (FNEGD ...)
-
-(Com64 ...) => (NOT ...)
-(Com32 ...) => (NOT ...)
-(Com16 ...) => (NOT ...)
-(Com8  ...) => (NOT ...)
 
 (Sqrt ...) => (FSQRTD ...)
 (Sqrt32 ...) => (FSQRTS ...)
@@ -132,8 +103,7 @@
 
 (CvtBoolToUint8 ...) => (Copy ...)
 
-(Round32F ...) => (Copy ...)
-(Round64F ...) => (Copy ...)
+(Round(64|32)F ...) => (Copy ...)
 
 (Slicemask <t> x) => (SRAI [63] (NEG <t> x))
 
@@ -250,36 +220,26 @@
 (Less32U x y) => (SLTU (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Less16U x y) => (SLTU (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Less8U  x y) => (SLTU (ZeroExt8to64  x) (ZeroExt8to64  y))
-(Less64F ...) => (FLTD ...)
-(Less32F ...) => (FLTS ...)
+(Less(64|32)F ...) => (FLT(D|S) ...)
 
 // Convert x <= y to !(y > x).
-(Leq64  x y) => (Not (Less64  y x))
-(Leq32  x y) => (Not (Less32  y x))
-(Leq16  x y) => (Not (Less16  y x))
-(Leq8   x y) => (Not (Less8   y x))
-(Leq64U x y) => (Not (Less64U y x))
-(Leq32U x y) => (Not (Less32U y x))
-(Leq16U x y) => (Not (Less16U y x))
-(Leq8U  x y) => (Not (Less8U  y x))
-(Leq64F ...) => (FLED ...)
-(Leq32F ...) => (FLES ...)
+(Leq(64|32|16|8)  x y) => (Not (Less(64|32|16|8)  y x))
+(Leq(64|32|16|8)U x y) => (Not (Less(64|32|16|8)U y x))
+(Leq(64|32)F ...) => (FLE(D|S) ...)
 
 (EqPtr x y) => (SEQZ (SUB <typ.Uintptr> x y))
 (Eq64  x y) => (SEQZ (SUB <x.Type> x y))
 (Eq32  x y) => (SEQZ (SUB <x.Type> (ZeroExt32to64 x) (ZeroExt32to64 y)))
 (Eq16  x y) => (SEQZ (SUB <x.Type> (ZeroExt16to64 x) (ZeroExt16to64 y)))
 (Eq8   x y) => (SEQZ (SUB <x.Type> (ZeroExt8to64  x) (ZeroExt8to64  y)))
-(Eq64F ...) => (FEQD ...)
-(Eq32F ...) => (FEQS ...)
+(Eq(64|32)F ...) => (FEQ(D|S) ...)
 
 (NeqPtr x y) => (SNEZ (SUB <typ.Uintptr> x y))
 (Neq64  x y) => (SNEZ (SUB <x.Type> x y))
 (Neq32  x y) => (SNEZ (SUB <x.Type> (ZeroExt32to64 x) (ZeroExt32to64 y)))
 (Neq16  x y) => (SNEZ (SUB <x.Type> (ZeroExt16to64 x) (ZeroExt16to64 y)))
 (Neq8   x y) => (SNEZ (SUB <x.Type> (ZeroExt8to64  x) (ZeroExt8to64  y)))
-(Neq64F ...) => (FNED ...)
-(Neq32F ...) => (FNES ...)
+(Neq(64|32)F ...) => (FNE(D|S) ...)
 
 // Loads
 (Load <t> ptr mem) &&  t.IsBoolean()                   => (MOVBUload ptr mem)
@@ -537,10 +497,7 @@
 (OffPtr [off] ptr) && is32Bit(off) => (ADDI [off] ptr)
 (OffPtr [off] ptr) => (ADD (MOVDconst [off]) ptr)
 
-(Const8  [val]) => (MOVDconst [int64(val)])
-(Const16 [val]) => (MOVDconst [int64(val)])
-(Const32 [val]) => (MOVDconst [int64(val)])
-(Const64 [val]) => (MOVDconst [int64(val)])
+(Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
 (Const32F [val]) => (FMVSX (MOVDconst [int64(math.Float32bits(val))]))
 (Const64F [val]) => (FMVDX (MOVDconst [int64(math.Float64bits(val))]))
 (ConstNil) => (MOVDconst [0])
@@ -557,18 +514,9 @@
 (TailCall ...) => (CALLtail ...)
 
 // Atomic Intrinsics
-(AtomicLoad8   ...) => (LoweredAtomicLoad8  ...)
-(AtomicLoad32  ...) => (LoweredAtomicLoad32 ...)
-(AtomicLoad64  ...) => (LoweredAtomicLoad64 ...)
-(AtomicLoadPtr ...) => (LoweredAtomicLoad64 ...)
-
-(AtomicStore8       ...) => (LoweredAtomicStore8  ...)
-(AtomicStore32      ...) => (LoweredAtomicStore32 ...)
-(AtomicStore64      ...) => (LoweredAtomicStore64 ...)
-(AtomicStorePtrNoWB ...) => (LoweredAtomicStore64 ...)
-
-(AtomicAdd32 ...) => (LoweredAtomicAdd32 ...)
-(AtomicAdd64 ...) => (LoweredAtomicAdd64 ...)
+(AtomicLoad(Ptr|64|32|8)  ...) => (LoweredAtomicLoad(64|64|32|8) ...)
+(AtomicStore(PtrNoWB|64|32|8) ...) => (LoweredAtomicStore(64|64|32|8) ...)
+(AtomicAdd(64|32) ...) => (LoweredAtomicAdd(64|32) ...)
 
 // AtomicAnd8(ptr,val) => LoweredAtomicAnd32(ptr&^3, ^((uint8(val) ^ 0xff) << ((ptr & 3) * 8)))
 (AtomicAnd8 ptr val mem) =>
@@ -581,8 +529,7 @@
 (AtomicCompareAndSwap32 ptr old new mem) => (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
 (AtomicCompareAndSwap64 ...) => (LoweredAtomicCas64 ...)
 
-(AtomicExchange32 ...) => (LoweredAtomicExchange32 ...)
-(AtomicExchange64 ...) => (LoweredAtomicExchange64 ...)
+(AtomicExchange(64|32) ...) => (LoweredAtomicExchange(64|32) ...)
 
 // AtomicOr8(ptr,val)  => LoweredAtomicOr32(ptr&^3, uint32(val)<<((ptr&3)*8))
 (AtomicOr8 ptr val mem) =>
