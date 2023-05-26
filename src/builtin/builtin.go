@@ -10,6 +10,8 @@ for the language's special identifiers.
 */
 package builtin
 
+import "cmp"
+
 // bool is the set of boolean values, true and false.
 type bool bool
 
@@ -205,6 +207,14 @@ func cap(v Type) int
 //	buffer capacity. If zero, or the size is omitted, the channel is
 //	unbuffered.
 func make(t Type, size ...IntegerType) Type
+
+// The max built-in function returns the largest value of a fixed number of
+// arguments of [cmp.Ordered] types. There must be at least one argument.
+func max[T cmp.Ordered](x T, y ...T) T
+
+// The min built-in function returns the smallest value of a fixed number of
+// arguments of [cmp.Ordered] types. There must be at least one argument.
+func min[T cmp.Ordered](x T, y ...T) T
 
 // The new built-in function allocates memory. The first argument is a type,
 // not a value, and the value returned is a pointer to a newly
