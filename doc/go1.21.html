@@ -667,12 +667,16 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/46159 -->
-      TODO: <a href="https://go.dev/issue/46159">https://go.dev/issue/46159</a>: support encoding.TextMarshaler
-    </p>
-
-    <p><!-- CL 479401 -->
-      TODO: <a href="https://go.dev/cl/479401">https://go.dev/cl/479401</a>: regexp: add Regexp.TextMarshaler/TextUnmarshaler; modified api/next/46159.txt
+    <p><!-- https://go.dev/issue/46159, CL 479401 -->
+      <a href="/pkg/regexp#Regexp"><code>Regexp</code></a> now defines
+      <a href="/pkg/regexp#Regexp.MarshalText"><code>MarshalText</code></a>
+      and <a href="/pkg/regexp#Regexp.UnmarshalText"><code>UnmarshalText</code></a>
+      methods. These implement
+      <a href="/pkg/encoding#TextMarshaler"><code>encoding.TextMarshaler</code></a>
+      and
+      <a href="/pkg/encoding#TextUnmarshaler"><code>encoding.TextUnmarshaler</code></a>
+      and will be used by packages such as
+      <a href="/pkg/encoding/json">encoding/json</a>.
     </p>
   </dd>
 </dl><!-- regexp -->
