@@ -5,7 +5,6 @@
 package runtime_test
 
 import (
-	"internal/testenv"
 	"reflect"
 	"runtime"
 	"runtime/debug"
@@ -661,17 +660,6 @@ func TestCPUMetricsSleep(t *testing.T) {
 		t.Skip("wasip1 currently busy-waits in idle time; test not applicable")
 	}
 
-	// Unconditionally skip this test as flaky.
-	//
-	// There's a fundamental issue with this test, which is that there's no
-	// guarantee the application will go idle; background goroutines and
-	// time spent in the scheduler going to sleep can always erode idle time
-	// sufficiently such that minimum idle time (or maximum user time) stays
-	// within some threshold.
-	//
-	// Leave this as skipped while we figure out a better way to check this.
-	testenv.SkipFlaky(t, 60376)
-
 	names := []string{
 		"/cpu/classes/idle:cpu-seconds",
 
@@ -695,33 +683,70 @@ func TestCPUMetricsSleep(t *testing.T) {
 	}
 	m1, m2 := prep(), prep()
 
-	// Read 1.
-	runtime.GC() // Update /cpu/classes metrics.
-	metrics.Read(m1)
+	const (
+		// Expected time spent idle.
+		dur = 100 * time.Millisecond
 
-	// Sleep.
-	const dur = 100 * time.Millisecond
-	time.Sleep(dur)
+		// maxFailures is the number of consecutive failures requires to cause the test to fail.
+		maxFailures = 10
+	)
 
-	// Read 2.
-	runtime.GC() // Update /cpu/classes metrics.
-	metrics.Read(m2)
+	failureIdleTimes := make([]float64, 0, maxFailures)
 
 	// If the bug we expect is happening, then the Sleep CPU time will be accounted for
-	// as user time rather than idle time.
+	// as user time rather than idle time. In an ideal world we'd expect the whole application
+	// to go instantly idle the moment this goroutine goes to sleep, and stay asleep for that
+	// duration. However, the Go runtime can easily eat into idle time while this goroutine is
+	// blocked in a sleep. For example, slow platforms might spend more time expected in the
+	// scheduler. Another example is that a Go runtime background goroutine could run while
+	// everything else is idle. Lastly, if a running goroutine is descheduled by the OS, enough
+	// time may pass such that the goroutine is ready to wake, even though the runtime couldn't
+	// observe itself as idle with nanotime.
 	//
-	// TODO(mknyszek): This number here is wrong. Background goroutines and just slow
-	// platforms spending a non-trivial amount of time in the scheduler doing things
-	// could easily erode idle time beyond this minimum.
-	minIdleCPUSeconds := dur.Seconds() * float64(runtime.GOMAXPROCS(-1))
+	// To deal with all this, we give a half-proc's worth of leniency.
+	//
+	// We also retry multiple times to deal with the fact that the OS might deschedule us before
+	// we yield and go idle. That has a rare enough chance that retries should resolve it.
+	// If the issue we expect is happening, it should be persistent.
+	minIdleCPUSeconds := dur.Seconds() * (float64(runtime.GOMAXPROCS(-1)) - 0.5)
 
-	if dt := m2[0].Value.Float64() - m1[0].Value.Float64(); dt < minIdleCPUSeconds {
-		for i := range names {
-			if m1[i].Value.Kind() == metrics.KindBad {
-				continue
-			}
-			t.Logf("%s %0.3f\n", names[i], m2[i].Value.Float64()-m1[i].Value.Float64())
+	// Let's make sure there's no background scavenge work to do.
+	//
+	// The runtime.GC calls below ensure the background sweeper
+	// will not run during the idle period.
+	debug.FreeOSMemory()
+
+	for retries := 0; retries < maxFailures; retries++ {
+		// Read 1.
+		runtime.GC() // Update /cpu/classes metrics.
+		metrics.Read(m1)
+
+		// Sleep.
+		time.Sleep(dur)
+
+		// Read 2.
+		runtime.GC() // Update /cpu/classes metrics.
+		metrics.Read(m2)
+
+		dt := m2[0].Value.Float64() - m1[0].Value.Float64()
+		if dt >= minIdleCPUSeconds {
+			// All is well. Test passed.
+			return
 		}
-		t.Errorf(`time.Sleep did not contribute enough to "idle" class: %.5fs < %.5fs`, dt, minIdleCPUSeconds)
+		failureIdleTimes = append(failureIdleTimes, dt)
+		// Try again.
 	}
+
+	// We couldn't observe the expected idle time even once.
+	for i, dt := range failureIdleTimes {
+		t.Logf("try %2d: idle time = %.5fs\n", i+1, dt)
+	}
+	t.Logf("try %d breakdown:\n", len(failureIdleTimes))
+	for i := range names {
+		if m1[i].Value.Kind() == metrics.KindBad {
+			continue
+		}
+		t.Logf("\t%s %0.3f\n", names[i], m2[i].Value.Float64()-m1[i].Value.Float64())
+	}
+	t.Errorf(`time.Sleep did not contribute enough to "idle" class: minimum idle time = %.5fs`, minIdleCPUSeconds)
 }
