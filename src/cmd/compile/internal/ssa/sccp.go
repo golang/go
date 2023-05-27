@@ -358,8 +358,10 @@ func computeLattice(f *Func, val *Value, args ...*Value) lattice {
 			return lattice{constant, constValue}
 		}
 	}
-	// Either we can not match generic rules for given value or it does not satisfy
-	// additional constraints(e.g. divide by zero)
+	// Either we can not match generic rules for given value or it does not
+	// satisfy additional constraints(e.g. divide by zero), in these cases, clean
+	// up temporary value immediately in case they are not dominated by their args.
+	constValue.reset(OpInvalid)
 	return lattice{bottom, nil}
 }
 
