@@ -120,6 +120,10 @@ digits (trailing zeros are removed). For example, given 12.345 the format
 %6.3f prints 12.345 while %.3g prints 12.3. The default precision for %e, %f
 and %#g is 6; for %g it is the smallest number of digits necessary to identify
 the value uniquely.
+If the digit immediately following the precision position is 5 or greater, the
+number is rounded up. For example, given 12.345 the format
+%.2f prints 12.35, otherwise the number is rounded down (truncated). For example,
+given 12.341 the format %.2f prints 12.34.
 
 For complex numbers, the width and precision apply to the two
 components independently and the result is parenthesized, so %f applied
