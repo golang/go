@@ -137,6 +137,10 @@ func g4(a [100]int) {
 		useInt(a[i+50])
 
 		// The following are out of bounds.
+		if a[0] == 0xdeadbeef {
+			// This is a trick to prohibit sccp to optimize out the following out of bound check
+			continue
+		}
 		useInt(a[i-11]) // ERROR "Found IsInBounds$"
 		useInt(a[i+51]) // ERROR "Found IsInBounds$"
 	}
