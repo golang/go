@@ -155,7 +155,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 			// Function parameters are always typed. Arguments may be untyped.
 			// Collect the indices of untyped arguments and handle them later.
 			if isTyped(arg.typ) {
-				if !u.unify(par.typ, arg.typ) {
+				if !u.unify(par.typ, arg.typ, 0) {
 					errorf("type", par.typ, arg.typ, arg)
 					return nil
 				}
@@ -230,7 +230,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 					//    core type.
 					// 2) If the core type doesn't have a tilde, we also must unify tx
 					//    with the core type.
-					if !u.unify(tx, core.typ) {
+					if !u.unify(tx, core.typ, 0) {
 						check.errorf(pos, CannotInferTypeArgs, "%s does not match %s", tpar, core.typ)
 						return nil
 					}
@@ -248,7 +248,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 					// the constraint.
 					var cause string
 					constraint := tpar.iface()
-					if m, _ := check.missingMethod(tx, constraint, true, u.unify, &cause); m != nil {
+					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, 0) }, &cause); m != nil {
 						check.errorf(pos, CannotInferTypeArgs, "%s does not satisfy %s %s", tx, constraint, cause)
 						return nil
 					}
@@ -340,7 +340,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 			arg := args[i]
 			typ := Default(arg.typ)
 			assert(isTyped(typ))
-			if !u.unify(tpar, typ) {
+			if !u.unify(tpar, typ, 0) {
 				errorf("default type", tpar, typ, arg)
 				return nil
 			}

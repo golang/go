@@ -108,10 +108,13 @@ func newUnifier(tparams []*TypeParam, targs []Type) *unifier {
 	return &unifier{handles, 0}
 }
 
+// unifyMode controls the behavior of the unifier.
+type unifyMode uint
+
 // unify attempts to unify x and y and reports whether it succeeded.
 // As a side-effect, types may be inferred for type parameters.
-func (u *unifier) unify(x, y Type) bool {
-	return u.nify(x, y, nil)
+func (u *unifier) unify(x, y Type, mode unifyMode) bool {
+	return u.nify(x, y, mode, nil)
 }
 
 func (u *unifier) tracef(format string, args ...interface{}) {
@@ -243,10 +246,10 @@ func (u *unifier) inferred(tparams []*TypeParam) []Type {
 // adapted version of Checker.identical. For changes to that
 // code the corresponding changes should be made here.
 // Must not be called directly from outside the unifier.
-func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	u.depth++
 	if traceInference {
-		u.tracef("%s ≡ %s", x, y)
+		u.tracef("%s ≡ %s (mode %d)", x, y, mode)
 	}
 	defer func() {
 		if traceInference && !result {
@@ -326,13 +329,13 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 			return true
 		}
 		// both x and y have an inferred type - they must match
-		return u.nify(u.at(px), u.at(py), p)
+		return u.nify(u.at(px), u.at(py), mode, p)
 
 	case px != nil:
 		// x is a type parameter, y is not
 		if x := u.at(px); x != nil {
 			// x has an inferred type which must match y
-			if u.nify(x, y, p) {
+			if u.nify(x, y, mode, p) {
 				// If we have a match, possibly through underlying types,
 				// and y is a defined type, make sure we record that type
 				// for type parameter x, which may have until now only
@@ -362,6 +365,9 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 		x, y = y, x
 	}
+
+	// Type elements (array, slice, etc. elements) use emode for unification.
+	emode := mode
 
 	// If EnableInterfaceInference is set and both types are interfaces, one
 	// interface must have a subset of the methods of the other and corresponding
@@ -429,7 +435,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 			}
 			// All xmethods must exist in ymethods and corresponding signatures must unify.
 			for _, xm := range xmethods {
-				if ym := ymap[xm.Id()]; ym == nil || !u.nify(xm.typ, ym.typ, p) {
+				if ym := ymap[xm.Id()]; ym == nil || !u.nify(xm.typ, ym.typ, emode, p) {
 					return false
 				}
 			}
@@ -450,7 +456,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 			xmethods := xi.typeSet().methods
 			for _, xm := range xmethods {
 				obj, _, _ := LookupFieldOrMethod(y, false, xm.pkg, xm.name)
-				if ym, _ := obj.(*Func); ym == nil || !u.nify(xm.typ, ym.typ, p) {
+				if ym, _ := obj.(*Func); ym == nil || !u.nify(xm.typ, ym.typ, emode, p) {
 					return false
 				}
 			}
@@ -476,13 +482,13 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		if y, ok := y.(*Array); ok {
 			// If one or both array lengths are unknown (< 0) due to some error,
 			// assume they are the same to avoid spurious follow-on errors.
-			return (x.len < 0 || y.len < 0 || x.len == y.len) && u.nify(x.elem, y.elem, p)
+			return (x.len < 0 || y.len < 0 || x.len == y.len) && u.nify(x.elem, y.elem, emode, p)
 		}
 
 	case *Slice:
 		// Two slice types unify if their element types unify.
 		if y, ok := y.(*Slice); ok {
-			return u.nify(x.elem, y.elem, p)
+			return u.nify(x.elem, y.elem, emode, p)
 		}
 
 	case *Struct:
@@ -497,7 +503,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 					if f.embedded != g.embedded ||
 						x.Tag(i) != y.Tag(i) ||
 						!f.sameId(g.pkg, g.name) ||
-						!u.nify(f.typ, g.typ, p) {
+						!u.nify(f.typ, g.typ, emode, p) {
 						return false
 					}
 				}
@@ -508,7 +514,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 	case *Pointer:
 		// Two pointer types unify if their base types unify.
 		if y, ok := y.(*Pointer); ok {
-			return u.nify(x.base, y.base, p)
+			return u.nify(x.base, y.base, emode, p)
 		}
 
 	case *Tuple:
@@ -519,7 +525,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 				if x != nil {
 					for i, v := range x.vars {
 						w := y.vars[i]
-						if !u.nify(v.typ, w.typ, p) {
+						if !u.nify(v.typ, w.typ, mode, p) {
 							return false
 						}
 					}
@@ -536,8 +542,8 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		// TODO(gri) handle type parameters or document why we can ignore them.
 		if y, ok := y.(*Signature); ok {
 			return x.variadic == y.variadic &&
-				u.nify(x.params, y.params, p) &&
-				u.nify(x.results, y.results, p)
+				u.nify(x.params, y.params, emode, p) &&
+				u.nify(x.results, y.results, emode, p)
 		}
 
 	case *Interface:
@@ -594,7 +600,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 				}
 				for i, f := range a {
 					g := b[i]
-					if f.Id() != g.Id() || !u.nify(f.typ, g.typ, q) {
+					if f.Id() != g.Id() || !u.nify(f.typ, g.typ, emode, q) {
 						return false
 					}
 				}
@@ -605,13 +611,13 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 	case *Map:
 		// Two map types unify if their key and value types unify.
 		if y, ok := y.(*Map); ok {
-			return u.nify(x.key, y.key, p) && u.nify(x.elem, y.elem, p)
+			return u.nify(x.key, y.key, emode, p) && u.nify(x.elem, y.elem, emode, p)
 		}
 
 	case *Chan:
 		// Two channel types unify if their value types unify.
 		if y, ok := y.(*Chan); ok {
-			return u.nify(x.elem, y.elem, p)
+			return u.nify(x.elem, y.elem, emode, p)
 		}
 
 	case *Named:
@@ -627,11 +633,11 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 				// If one or both of x and y are interfaces, use interface unification.
 				switch {
 				case xi != nil && yi != nil:
-					return u.nify(xi, yi, p)
+					return u.nify(xi, yi, mode, p)
 				case xi != nil:
-					return u.nify(xi, y, p)
+					return u.nify(xi, y, mode, p)
 				case yi != nil:
-					return u.nify(x, yi, p)
+					return u.nify(x, yi, mode, p)
 				}
 				// In all other cases, the type arguments and origins must match.
 			}
@@ -645,7 +651,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 				return false
 			}
 			for i, xarg := range xargs {
-				if !u.nify(xarg, yargs[i], p) {
+				if !u.nify(xarg, yargs[i], mode, p) {
 					return false
 				}
 			}
@@ -680,7 +686,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 				if traceInference {
 					u.tracef("core %s ≡ %s", x, y)
 				}
-				return u.nify(cx, y, p)
+				return u.nify(cx, y, mode, p)
 			}
 		}
 		// x != y and there's nothing to do
@@ -689,7 +695,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		// avoid a crash in case of nil type
 
 	default:
-		panic(sprintf(nil, nil, true, "u.nify(%s, %s)", x, y))
+		panic(sprintf(nil, nil, true, "u.nify(%s, %s, %d)", x, y, mode))
 	}
 
 	return false
