@@ -9,21 +9,25 @@ import (
 	"unsafe"
 )
 
-// Pinner represents a set of pinned Go objects. An object can be pinned with
+// A Pinner is a set of pinned Go objects. An object can be pinned with
 // the Pin method and all pinned objects of a Pinner can be unpinned with the
 // Unpin method.
 type Pinner struct {
 	*pinner
 }
 
-// Pin a Go object. The object will not be moved or freed by the garbage
-// collector until the Unpin method has been called. The pointer to a pinned
+// Pin pins a Go object, preventing it from being moved or freed by the garbage
+// collector until the Unpin method has been called.
+//
+// A pointer to a pinned
 // object can be directly stored in C memory or can be contained in Go memory
-// passed to C functions. If the pinned object iftself contains pointers to Go
+// passed to C functions. If the pinned object itself contains pointers to Go
 // objects, these objects must be pinned separately if they are going to be
-// accessed from C code. The argument must be a pointer of any type or an
-// unsafe.Pointer. It must be a pointer to an object allocated by calling new,
-// by taking the address of a composite literal, or by taking the address of a
+// accessed from C code.
+//
+// The argument must be a pointer of any type or an
+// unsafe.Pointer. It must be the result of calling new,
+// taking the address of a composite literal, or taking the address of a
 // local variable. If one of these conditions is not met, Pin will panic.
 func (p *Pinner) Pin(pointer any) {
 	if p.pinner == nil {
@@ -59,7 +63,7 @@ func (p *Pinner) Pin(pointer any) {
 	p.refs = append(p.refs, ptr)
 }
 
-// Unpin all pinned objects of the Pinner.
+// Unpin unpins all pinned objects of the Pinner.
 func (p *Pinner) Unpin() {
 	p.pinner.unpin()
 
