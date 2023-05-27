@@ -737,10 +737,6 @@ func ReadFile(name string) ([]byte, error) {
 
 	data := make([]byte, 0, size)
 	for {
-		if len(data) >= cap(data) {
-			d := append(data[:cap(data)], 0)
-			data = d[:len(data)]
-		}
 		n, err := f.Read(data[len(data):cap(data)])
 		data = data[:len(data)+n]
 		if err != nil {
@@ -748,6 +744,11 @@ func ReadFile(name string) ([]byte, error) {
 				err = nil
 			}
 			return data, err
+		}
+
+		if len(data) >= cap(data) {
+			d := append(data[:cap(data)], 0)
+			data = d[:len(data)]
 		}
 	}
 }
