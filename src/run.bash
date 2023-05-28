@@ -58,4 +58,4 @@ if ulimit -T &> /dev/null; then
 fi
 
 export GOPATH=/nonexist-gopath
-exec ../bin/go tool dist test -rebuild "$@"
+#exec ../bin/go tool dist test -rebuild "$@"

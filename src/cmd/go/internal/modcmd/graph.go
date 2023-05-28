@@ -8,18 +8,17 @@ package modcmd
 
 import (
 	"bufio"
-	"context"
-	"os"
-
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modload"
+	"context"
+	"os"
 
 	"golang.org/x/mod/module"
 )
 
 var cmdGraph = &base.Command{
-	UsageLine: "go mod graph [-go=version] [-x]",
+	UsageLine: "go mod graph [-go=version] [-x] [-selectedVersions]",
 	Short:     "print module requirement graph",
 	Long: `
 Graph prints the module requirement graph (with replacements applied)
@@ -33,20 +32,62 @@ in the go.mod file.
 
 The -x flag causes graph to print the commands graph executes.
 
+The -selectedVersions flag cause graph to contains only packages with versions that were selected 
+by the minimal version selected algorithm.
+
 See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
 	`,
 	Run: runGraph,
 }
 
 var (
-	graphGo goVersionFlag
+	graphGo          goVersionFlag
+	selectedVersions bool
 )
 
 func init() {
 	cmdGraph.Flag.Var(&graphGo, "go", "")
 	cmdGraph.Flag.BoolVar(&cfg.BuildX, "x", false, "")
+	cmdGraph.Flag.BoolVar(&selectedVersions, "selectedVersions", false, "")
 	base.AddChdirFlag(&cmdGraph.Flag)
 	base.AddModCommonFlags(&cmdGraph.Flag)
+}
+
+func walkOnSelectedVersions(version module.Version, walkNodes map[string]bool, w *bufio.Writer, mg *modload.ModuleGraph) {
+	selectedVersion := mg.Selected(version.Path)
+
+	// Walk only selected versions
+	if selectedVersion != version.Version {
+		return
+	}
+
+	walkNodes[version.String()] = true
+
+	reqs, ok := mg.RequiredBy(version)
+	if ok {
+		// print the dependencies of the selected package
+		for _, req := range reqs {
+			format(version, w)
+			w.WriteByte(' ')
+			format(req, w)
+			w.WriteByte('\n')
+		}
+
+		// iterate on all the dependencies of the selected package
+		for _, req := range reqs {
+			if _, exists := walkNodes[req.String()]; !exists {
+				walkOnSelectedVersions(req, walkNodes, w, mg)
+			}
+		}
+	}
+}
+
+func format(m module.Version, w *bufio.Writer) {
+	w.WriteString(m.Path)
+	if m.Version != "" {
+		w.WriteString("@")
+		w.WriteString(m.Version)
+	}
 }
 
 func runGraph(ctx context.Context, cmd *base.Command, args []string) {
@@ -58,25 +99,22 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
 	mg := modload.LoadModGraph(ctx, graphGo.String())
-
 	w := bufio.NewWriter(os.Stdout)
 	defer w.Flush()
 
-	format := func(m module.Version) {
-		w.WriteString(m.Path)
-		if m.Version != "" {
-			w.WriteString("@")
-			w.WriteString(m.Version)
-		}
+	if selectedVersions {
+		rootNode := mg.BuildList()[0]
+		walkNodes := make(map[string]bool)
+		walkOnSelectedVersions(rootNode, walkNodes, w, mg)
+	} else {
+		mg.WalkBreadthFirst(func(m module.Version) {
+			reqs, _ := mg.RequiredBy(m)
+			for _, r := range reqs {
+				format(m, w)
+				w.WriteByte(' ')
+				format(r, w)
+				w.WriteByte('\n')
+			}
+		})
 	}
-
-	mg.WalkBreadthFirst(func(m module.Version) {
-		reqs, _ := mg.RequiredBy(m)
-		for _, r := range reqs {
-			format(m)
-			w.WriteByte(' ')
-			format(r)
-			w.WriteByte('\n')
-		}
-	})
 }
