@@ -585,8 +585,8 @@ func Rename(oldpath, newpath string) (err error) {
 }
 
 func ComputerName() (name string, err error) {
-	b := make([]uint16, MAX_COMPUTERNAME_LENGTH+1)
-	var n uint32
+	var n uint32 = MAX_COMPUTERNAME_LENGTH + 1
+	b := make([]uint16, n)
 	e := GetComputerName(&b[0], &n)
 	if e != nil {
 		return "", e
