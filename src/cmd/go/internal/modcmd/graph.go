@@ -68,13 +68,6 @@ func filterVersions(versions []module.Version, mg *modload.ModuleGraph) []module
 }
 
 func walkOnSelectedVersions(version module.Version, walkNodes map[string]bool, w *bufio.Writer, mg *modload.ModuleGraph) {
-	selectedVersion := mg.Selected(version.Path)
-
-	// Walk only selected versions
-	if selectedVersion != version.Version {
-		return
-	}
-
 	walkNodes[version.String()] = true
 
 	reqs, ok := mg.RequiredBy(version)
