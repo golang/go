@@ -59,4 +59,3 @@ fi
 
 export GOPATH=/nonexist-gopath
 exec ../bin/go tool dist test -rebuild "$@"
-
