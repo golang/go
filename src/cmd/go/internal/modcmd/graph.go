@@ -53,6 +53,20 @@ func init() {
 	base.AddModCommonFlags(&cmdGraph.Flag)
 }
 
+func filterVersions(versions []module.Version, mg *modload.ModuleGraph) []module.Version {
+	var filtered []module.Version
+
+	// Iterating over the versions and filtering by selected versions
+	for _, version := range versions {
+
+		if version.Version == mg.Selected(version.Path) {
+			filtered = append(filtered, version)
+		}
+	}
+
+	return filtered
+}
+
 func walkOnSelectedVersions(version module.Version, walkNodes map[string]bool, w *bufio.Writer, mg *modload.ModuleGraph) {
 	selectedVersion := mg.Selected(version.Path)
 
@@ -64,6 +78,10 @@ func walkOnSelectedVersions(version module.Version, walkNodes map[string]bool, w
 	walkNodes[version.String()] = true
 
 	reqs, ok := mg.RequiredBy(version)
+
+	// filter out requirements versions that were not selected.
+	reqs = filterVersions(reqs, mg)
+
 	if ok {
 		// print the dependencies of the selected package
 		for _, req := range reqs {
