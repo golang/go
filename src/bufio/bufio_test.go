@@ -1514,6 +1514,12 @@ func TestReaderReset(t *testing.T) {
 	r.Reset(strings.NewReader("recur2"))
 	r2.Reset(r)
 	checkAll(r2, "recur2")
+
+	// reset the underline reader provided by the client
+	r.Reset(nil)
+	if got := r.Size(); got != DefaultBufSize {
+		t.Errorf("NewReader's Reader.Size = %d; want %d", DefaultBufSize, got)
+	}
 }
 
 func TestWriterReset(t *testing.T) {

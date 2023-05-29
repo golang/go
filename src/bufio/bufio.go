@@ -70,6 +70,8 @@ func (b *Reader) Size() int { return len(b.buf) }
 // the buffered reader to read from r.
 // Calling Reset on the zero value of Reader initializes the internal buffer
 // to the default size.
+// If the argument io.Reader is nil, Reader initializes the internal buffer
+// to the default size.
 // Calling b.Reset(b) (that is, resetting a Reader to itself) does nothing.
 func (b *Reader) Reset(r io.Reader) {
 	// If a Reader r is passed to NewReader, NewReader will return r.
@@ -78,7 +80,7 @@ func (b *Reader) Reset(r io.Reader) {
 	if b == r {
 		return
 	}
-	if b.buf == nil {
+	if b.buf == nil || r == nil {
 		b.buf = make([]byte, defaultBufSize)
 	}
 	b.reset(b.buf, r)
