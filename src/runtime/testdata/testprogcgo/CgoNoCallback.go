@@ -11,7 +11,7 @@ package main
 #cgo nocallback runCShouldNotCallback
 #cgo noescape runCShouldNotCallback
 
-extern void CallbackToGo();
+void CallbackToGo();
 
 static void runCShouldNotCallback() {
 	CallbackToGo();
