@@ -292,6 +292,45 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section
 </p>
 
+<dl id="archive/tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/54451, CL 491175 -->
+      The implementation of the
+      <a href="/pkg/io/fs/#FileInfo"><code>io/fs.FileInfo</code></a>
+      interface returned by
+      <a href="/pkg/archive/tar/#Header.FileInfo"><code>Header.FileInfo</code></a>
+      now implements a <code>String</code> method that calls
+      <a href="/pkg/io/fs/#FormatFileInfo"><code>io/fs.FormatFileInfo</code></a>.
+    </p>
+  </dd>
+</dl><!-- archive/tar -->
+
+<dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/54451, CL 491175 -->
+      The implementation of the
+      <a href="/pkg/io/fs/#FileInfo"><code>io/fs.FileInfo</code></a>
+      interface returned by
+      <a href="/pkg/archive/zip/#FileHeader.FileInfo"><code>FileHeader.FileInfo</code></a>
+      now implements a <code>String</code> method that calls
+      <a href="/pkg/io/fs/#FormatFileInfo"><code>io/fs.FormatFileInfo</code></a>.
+    </p>
+
+    <p><!-- https://go.dev/issue/54451, CL 491175 -->
+      The implementation of the
+      <a href="/pkg/io/fs/#DirEntry"><code>io/fs.DirEntry</code></a>
+      interface returned by the
+      <a href="/pkg/io/fs/#ReadDirFile.ReadDir"><code>io/fs.ReadDirFile.ReadDir</code></a>
+      method of the
+      <a href="/pkg/io/fs/#File"><code>io/fs.File</code></a>
+      returned by
+      <a href="/pkg/archive/zip/#Reader.Open"><code>Reader.Open</code></a>
+      now implements a <code>String</code> method that calls
+      <a href="/pkg/io/fs/#FormatDirEntry"><code>io/fs.FormatDirEntry</code></a>.
+    </p>
+  </dd>
+</dl><!-- archive/zip -->
+
 <dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/53685 -->
@@ -430,6 +469,13 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 483235 -->
       TODO: <a href="https://go.dev/cl/483235">https://go.dev/cl/483235</a>: embed: implement openFile.ReadAt
     </p>
+
+    <p><!-- https://go.dev/issue/54451, CL 491175 -->
+      Calling <code><a href="/pkg/embed/FS.Open">FS.Open</a>.<a href="/pkg/io/fs/#File.Stat">Stat</a></code>
+      will return a type that now implements a <code>String</code>
+      method that calls
+      <a href="/pkg/io/fs/#FormatFileInfo"><code>io/fs.FormatFileInfo</code></a>.
+    </p>
   </dd>
 </dl><!-- embed -->
 
@@ -464,14 +510,6 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- flag -->
-
-<dl id="fs"><dt><a href="/pkg/fs/">fs</a></dt>
-  <dd>
-    <p><!-- https://go.dev/issue/54451 -->
-      TODO: <a href="https://go.dev/issue/54451">https://go.dev/issue/54451</a>: standard implementations of FileInfo and DirEntry should implement fmt.Stringer
-    </p>
-  </dd>
-</dl><!-- fs -->
 
 <dl id="go/ast"><dt><a href="/pkg/go/ast/">go/ast</a></dt>
   <dd>
@@ -541,8 +579,25 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="io/fs"><dt><a href="/pkg/io/fs/">io/fs</a></dt>
   <dd>
-    <p><!-- CL 489555 -->
-      TODO: <a href="https://go.dev/cl/489555">https://go.dev/cl/489555</a>: io/fs: add FormatFileInfo and FormatDirEntry functions; modified api/next/54451.txt
+    <p><!-- https://go.dev/issue/54451, CL 489555 -->
+      The new
+      <a href="/pkg/io/fs/#FormatFileInfo"><code>FormatFileInfo</code></a>
+      function returns a formatted version of a
+      <a href="/pkg/io/fs/#FileInfo"><code>FileInfo</code></a>.
+      The new
+      <a href="/pkg/io/fs/#FormatDirEntry"><code>FormatDirEntry</code></a>
+      function returns a formatted version of a
+      <a href="/pkg/io/fs/#FileInfo"><code>DirEntry</code></a>.
+      The implementation of
+      <a href="/pkg/io/fs/#DirEntry"><code>DirEntry</code></a>
+      returned by
+      <a href="/pkg/io/fs/#ReadDir"><code>ReadDir</code></a> now
+      implements a <code>String</code> method that calls
+      <a href="/pkg/io/fs/#FormatDirEntry"><code>FormatDirEntry</code></a>,
+      and the same is true for
+      the <a href="/pkg/io/fs/#DirEntry"><code>DirEntry</code></a>
+      value passed to
+      <a href="/pkg/io/fs/#WalkDirFunc"><code>WalkDirFunc</code></a>.
     </p>
   </dd>
 </dl><!-- io/fs -->
@@ -705,8 +760,31 @@ Do not send CLs removing the interior tags from such phrases.
       On Windows the os package now supports working with files whose
       names, stored as UTF-16, can't be represented as valid UTF-8.
     </p>
+
+    <p><!-- https://go.dev/issue/54451, CL 491175 -->
+      The implementation of the
+      <a href="/pkg/io/fs/#DirEntry"><code>io/fs.DirEntry</code></a>
+      interface returned by the
+      <a href="/pkg/os/#ReadDir"><code>ReadDir</code></a> function and
+      the <a href="/pkg/os/#File.ReadDir"><code>File.ReadDir</code>
+      method now implements a <code>String</code> method that calls
+      <a href="/pkg/io/fs/#FormatDirEntry"><code>io/fs.FormatDirEntry</code></a>.
+    </p>
   </dd>
 </dl><!-- os -->
+
+<dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
+  <dd>
+    <p>
+      The implementation of the
+      <a href="/pkg/io/fs/#DirEntry"><code>io/fs.DirEntry</code></a>
+      interface passed to the function argument of
+      <a href="/pkg/path/filepath/#WalkDir"><code>WalkDir</code></a>
+      now implements a <code>String</code> method that calls
+      <a href="/pkg/io/fs/#FormatDirEntry"><code>io/fs.FormatDirEntry</code></a>.
+    </p>
+  </dd>
+</dl><!-- path/filepath -->
 
 <!-- CL 459455 reverted -->
 
@@ -887,6 +965,17 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- testing -->
+
+<dl id="testing/fstest"><dt><a href="/pkg/testing/fstest/">testing/fstest</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/54451, CL 491175 -->
+      Calling <code><a href="/pkg/testing/fstest/MapFS.Open">Open</a>.<a href="/pkg/io/fs/#File.Stat">Stat</a></code>
+      will return a type that now implements a <code>String</code>
+      method that calls
+      <a href="/pkg/io/fs/#FormatFileInfo"><code>io/fs.FormatFileInfo</code></a>.
+    </p>
+  </dd>
+</dl><!-- testing/fstest -->
 
 <dl id="testing/slogtest"><dt><a href="/pkg/testing/slogtest/">testing/slogtest</a></dt>
   <dd>
