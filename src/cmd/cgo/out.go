@@ -105,9 +105,9 @@ func (p *Package) writeDefs() {
 		fmt.Fprintf(fgo2, "var _Cgo_always_false bool\n")
 		fmt.Fprintf(fgo2, "//go:linkname _Cgo_use runtime.cgoUse\n")
 		fmt.Fprintf(fgo2, "func _Cgo_use(interface{})\n")
-		fmt.Fprintf(fgo2, "//go:linkname _Cgo_no_callback runtime.cgoNoCallback\n")
-		fmt.Fprintf(fgo2, "func _Cgo_no_callback(bool)\n")
 	}
+	fmt.Fprintf(fgo2, "//go:linkname _Cgo_no_callback runtime.cgoNoCallback\n")
+	fmt.Fprintf(fgo2, "func _Cgo_no_callback(bool)\n")
 
 	typedefNames := make([]string, 0, len(typedef))
 	for name := range typedef {

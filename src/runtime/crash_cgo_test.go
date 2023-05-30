@@ -754,12 +754,8 @@ func TestNeedmDeadlock(t *testing.T) {
 }
 
 func TestCgoNoCallback(t *testing.T) {
-	switch runtime.GOOS {
-	case "plan9", "windows":
-		t.Skipf("no signals on %s", runtime.GOOS)
-	}
 	got := runTestProg(t, "testprogcgo", "CgoNoCallback")
-	want := "runtime: disable callback from C"
+	want := "function marked with #cgo nocallback called back into Go"
 	if !strings.Contains(got, want) {
 		t.Fatalf("did not see %q in output: %q", want, got)
 	}

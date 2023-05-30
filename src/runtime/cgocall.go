@@ -216,10 +216,6 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 		exit(2)
 	}
 
-	if gp.nocgocallback {
-		throw("runtime: disable callback from C")
-	}
-
 	// The call from C is on gp.m's g0 stack, so we must ensure
 	// that we stay on that M. We have to do this before calling
 	// exitsyscall, since it would otherwise be free to move us to
@@ -245,6 +241,10 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	}
 
 	osPreemptExtExit(gp.m)
+
+	if gp.nocgocallback {
+		panic("runtime: function marked with #cgo nocallback called back into Go")
+	}
 
 	cgocallbackg1(fn, frame, ctxt) // will call unlockOSThread
 

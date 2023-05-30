@@ -23,7 +23,6 @@ import (
 	"os/exec"
 	pathpkg "path"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -113,8 +112,6 @@ type Context struct {
 	// If OpenFile is nil, Import uses os.Open.
 	OpenFile func(path string) (io.ReadCloser, error)
 }
-
-var cgoRx = regexp.MustCompile(`^#cgo\s+(?:nocallback|noescape)\s+(?:\S+)\s*$`)
 
 // joinPath calls ctxt.JoinPath (if not nil) or else filepath.Join.
 func (ctxt *Context) joinPath(elem ...string) string {
@@ -1690,7 +1687,8 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 			continue
 		}
 
-		if cgoRx.FindStringSubmatch(line) != nil {
+		// #cgo (nocallback|noescape) <function name>
+		if fields := strings.Fields(line); len(fields) == 3 && (fields[1] == "nocallback" || fields[1] == "noescape") {
 			continue
 		}
 

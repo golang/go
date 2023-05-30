@@ -24,7 +24,6 @@ import (
 	"math"
 	"os"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -49,8 +48,6 @@ var nameToC = map[string]string{
 }
 
 var incomplete = "_cgopackage.Incomplete"
-
-var cgoRx = regexp.MustCompile(`^#cgo\s+(nocallback|noescape)\s+(\S+)\s*$`)
 
 // cname returns the C name to use for C.s.
 // The expansions are listed in nameToC and also
@@ -83,21 +80,21 @@ func cname(s string) string {
 func (f *File) ProcessCgoDirectives() {
 	linesIn := strings.Split(f.Preamble, "\n")
 	linesOut := make([]string, 0, len(linesIn))
-	f.NoCallbacks = make(map[string]struct{})
-	f.NoEscapes = make(map[string]struct{})
+	f.NoCallbacks = make(map[string]bool)
+	f.NoEscapes = make(map[string]bool)
 	for _, line := range linesIn {
 		l := strings.TrimSpace(line)
 		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(rune(l[4])) {
 			linesOut = append(linesOut, line)
 		} else {
-			linesOut = append(linesOut, "")
-
-			match := cgoRx.FindStringSubmatch(line)
-			if match != nil {
-				if match[1] == "nocallback" {
-					f.NoCallbacks[match[2]] = struct{}{}
-				} else {
-					f.NoEscapes[match[2]] = struct{}{}
+			// #cgo (nocallback|noescape) <function name>
+			if fields := strings.Fields(l); len(fields) == 3 {
+				directive := fields[1]
+				funcName := fields[2]
+				if directive == "nocallback" {
+					f.NoCallbacks[funcName] = true
+				} else if directive == "noescape" {
+					f.NoEscapes[funcName] = true
 				}
 			}
 		}

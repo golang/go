@@ -48,8 +48,8 @@ type Package struct {
 	Preamble    string          // collected preamble for _cgo_export.h
 	typedefs    map[string]bool // type names that appear in the types of the objects we're interested in
 	typedefList []typedefInfo
-	noCallbacks map[string]struct{} // C function names that with #cgo nocallback directive
-	noEscapes   map[string]struct{} // C function names that with #cgo noescape directive
+	noCallbacks map[string]bool // C function names that with #cgo nocallback directive
+	noEscapes   map[string]bool // C function names that with #cgo noescape directive
 }
 
 // A typedefInfo is an element on Package.typedefList: a typedef name
@@ -70,9 +70,9 @@ type File struct {
 	ExpFunc     []*ExpFunc          // exported functions for this file
 	Name        map[string]*Name    // map from Go name to Name
 	NamePos     map[*Name]token.Pos // map from Name to position of the first reference
+	NoCallbacks map[string]bool     // C function names that with #cgo nocallback directive
+	NoEscapes   map[string]bool     // C function names that with #cgo noescape directive
 	Edit        *edit.Buffer
-	NoCallbacks map[string]struct{} // C function names that with #cgo nocallback directive
-	NoEscapes   map[string]struct{} // C function names that with #cgo noescape directive
 }
 
 func (f *File) offset(p token.Pos) int {
@@ -454,10 +454,12 @@ func newPackage(args []string) *Package {
 	os.Setenv("LC_ALL", "C")
 
 	p := &Package{
-		PtrSize:  ptrSize,
-		IntSize:  intSize,
-		CgoFlags: make(map[string][]string),
-		Written:  make(map[string]bool),
+		PtrSize:     ptrSize,
+		IntSize:     intSize,
+		CgoFlags:    make(map[string][]string),
+		Written:     make(map[string]bool),
+		noCallbacks: make(map[string]bool),
+		noEscapes:   make(map[string]bool),
 	}
 	p.addToFlag("CFLAGS", args)
 	return p
@@ -492,19 +494,11 @@ func (p *Package) Record(f *File) {
 	}
 
 	// merge nocallback & noescape
-	if p.noCallbacks == nil {
-		p.noCallbacks = f.NoCallbacks
-	} else {
-		for k, v := range f.NoCallbacks {
-			p.noCallbacks[k] = v
-		}
+	for k, v := range f.NoCallbacks {
+		p.noCallbacks[k] = v
 	}
-	if p.noEscapes == nil {
-		p.noEscapes = f.NoEscapes
-	} else {
-		for k, v := range f.NoEscapes {
-			p.noEscapes[k] = v
-		}
+	for k, v := range f.NoEscapes {
+		p.noEscapes[k] = v
 	}
 
 	if f.ExpFunc != nil {
