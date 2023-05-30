@@ -303,7 +303,7 @@ func newErrorf(at positioner, code Code, format string, args ...any) *error_ {
 }
 
 func (check *Checker) error(at positioner, code Code, msg string) {
-	check.report(newErrorf(at, code, msg))
+	check.report(newErrorf(at, code, "%s", msg))
 }
 
 func (check *Checker) errorf(at positioner, code Code, format string, args ...any) {
