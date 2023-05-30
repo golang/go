@@ -748,7 +748,12 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 447778 -->
-      TODO: <a href="https://go.dev/cl/447778">https://go.dev/cl/447778</a>: runtime: reimplement GODEBUG=cgocheck=2 as a GOEXPERIMENT
+      <code>GODEBUG=cgocheck=2</code>, a thorough checker of cgo pointer passing rules,
+      is no longer available as a <a href="/pkg/runtime#hdr-Environment_Variables">debug option</a>.
+      Instead, it is available as an experiment using <code>GOEXPERIMENT=cgocheck2</code>.
+      In particular this means that this mode has to be selected at build time instead of startup time.
+    <p>
+      <code>GODEBUG=cgocheck=1</code> is still available (and is still the default).
     </p>
 
     <p><!-- CL 472195 -->
