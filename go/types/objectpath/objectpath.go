@@ -31,8 +31,6 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/typeparams"
-
-	_ "unsafe" // for go:linkname
 )
 
 // A Path is an opaque name that identifies a types.Object
