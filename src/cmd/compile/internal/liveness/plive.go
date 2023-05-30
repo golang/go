@@ -489,8 +489,6 @@ func (lv *liveness) markUnsafePoints() {
 			//    m2 = store operation ... m1
 			//    m3 = store operation ... m2
 			//    m4 = WBend m3
-			//
-			// (For now m2 and m3 won't be present.)
 
 			// Find first memory op in the block, which should be a Phi.
 			m := v
@@ -535,39 +533,36 @@ func (lv *liveness) markUnsafePoints() {
 			var load *ssa.Value
 			v := decisionBlock.Controls[0]
 			for {
-				if sym, ok := v.Aux.(*obj.LSym); ok && sym == ir.Syms.WriteBarrier {
-					load = v
-					break
-				}
-				switch v.Op {
-				case ssa.Op386TESTL:
-					// 386 lowers Neq32 to (TESTL cond cond),
-					if v.Args[0] == v.Args[1] {
-						v = v.Args[0]
-						continue
+				if v.MemoryArg() != nil {
+					// Single instruction to load (and maybe compare) the write barrier flag.
+					if sym, ok := v.Aux.(*obj.LSym); ok && sym == ir.Syms.WriteBarrier {
+						load = v
+						break
 					}
-				case ssa.Op386MOVLload, ssa.OpARM64MOVWUload, ssa.OpMIPS64MOVWUload, ssa.OpPPC64MOVWZload, ssa.OpWasmI64Load32U:
-					// Args[0] is the address of the write
-					// barrier control. Ignore Args[1],
-					// which is the mem operand.
-					// TODO: Just ignore mem operands?
+					// Some architectures have to materialize the address separate from
+					// the load.
+					if sym, ok := v.Args[0].Aux.(*obj.LSym); ok && sym == ir.Syms.WriteBarrier {
+						load = v
+						break
+					}
+					v.Fatalf("load of write barrier flag not from correct global: %s", v.LongString())
+				}
+				// Common case: just flow backwards.
+				if len(v.Args) == 1 || len(v.Args) == 2 && v.Args[0] == v.Args[1] {
+					// Note: 386 lowers Neq32 to (TESTL cond cond),
 					v = v.Args[0]
 					continue
 				}
-				// Common case: just flow backwards.
-				if len(v.Args) != 1 {
-					v.Fatalf("write barrier control value has more than one argument: %s", v.LongString())
-				}
-				v = v.Args[0]
+				v.Fatalf("write barrier control value has more than one argument: %s", v.LongString())
 			}
 
 			// Mark everything after the load unsafe.
 			found := false
 			for _, v := range decisionBlock.Values {
-				found = found || v == load
 				if found {
 					lv.unsafePoints.Set(int32(v.ID))
 				}
+				found = found || v == load
 			}
 
 			// Mark the write barrier on/off blocks as unsafe.
@@ -583,10 +578,10 @@ func (lv *liveness) markUnsafePoints() {
 
 			// Mark from the join point up to the WBend as unsafe.
 			for _, v := range b.Values {
-				lv.unsafePoints.Set(int32(v.ID))
 				if v.Op == ssa.OpWBend {
 					break
 				}
+				lv.unsafePoints.Set(int32(v.ID))
 			}
 		}
 	}
