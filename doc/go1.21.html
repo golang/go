@@ -462,12 +462,12 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="embed"><dt><a href="/pkg/embed/">embed</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/57803 -->
-      TODO: <a href="https://go.dev/issue/57803">https://go.dev/issue/57803</a>: openFile should implement ReaderAt
-    </p>
-
-    <p><!-- CL 483235 -->
-      TODO: <a href="https://go.dev/cl/483235">https://go.dev/cl/483235</a>: embed: implement openFile.ReadAt
+    <p><!-- https://go.dev/issue/57803, CL 483235 -->
+      The <a href="/pkg/io/fs/#File"><code>io/fs.File</code></a>
+      returned by
+      <a href="/pkg/embed/#FS.Open"><code>FS.Open</code></a> now
+      has a <code>ReadAt</code> method that
+      implements <a href="/pkg/io/#ReaderAt"><code>io.ReaderAt</code></a>.
     </p>
 
     <p><!-- https://go.dev/issue/54451, CL 491175 -->
