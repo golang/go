@@ -61,7 +61,7 @@ func ASanSupported(goos, goarch string) bool {
 // ('go test -fuzz=.').
 func FuzzSupported(goos, goarch string) bool {
 	switch goos {
-	case "darwin", "freebsd", "linux", "windows":
+	case "darwin", "freebsd", "linux", "openbsd", "windows":
 		return true
 	default:
 		return false

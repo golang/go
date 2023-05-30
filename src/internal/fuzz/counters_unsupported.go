@@ -8,7 +8,7 @@
 //
 // If you update this constraint, also update internal/platform.FuzzInstrumented.
 //
-//go:build !((darwin || linux || windows || freebsd) && (amd64 || arm64))
+//go:build !((darwin || linux || windows || freebsd || openbsd) && (amd64 || arm64))
 
 package fuzz
 
