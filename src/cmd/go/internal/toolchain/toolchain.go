@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -175,6 +176,19 @@ func Switch() {
 // Otherwise we use the latest 1.N if that's allowed.
 // Otherwise we use the latest release.
 func NewerToolchain(ctx context.Context, version string) (string, error) {
+	fetch := autoToolchains
+	if !HasAuto() {
+		fetch = pathToolchains
+	}
+	list, err := fetch(ctx)
+	if err != nil {
+		return "", err
+	}
+	return newerToolchain(version, list)
+}
+
+// autoToolchains returns the list of toolchain versions available to GOTOOLCHAIN=auto or =min+auto mode.
+func autoToolchains(ctx context.Context) ([]string, error) {
 	var versions *modfetch.Versions
 	err := modfetch.TryProxies(func(proxy string) error {
 		v, err := modfetch.Lookup(ctx, proxy, "go").Versions(ctx, "")
@@ -185,9 +199,44 @@ func NewerToolchain(ctx context.Context, version string) (string, error) {
 		return nil
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return newerToolchain(version, versions.List)
+	return versions.List, nil
+}
+
+// pathToolchains returns the list of toolchain versions available to GOTOOLCHAIN=path or =min+path mode.
+func pathToolchains(ctx context.Context) ([]string, error) {
+	have := make(map[string]bool)
+	var list []string
+	for _, dir := range pathDirs() {
+		if dir == "" || !filepath.IsAbs(dir) {
+			// Refuse to use local directories in $PATH (hard-coding exec.ErrDot).
+			continue
+		}
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, de := range entries {
+			if de.IsDir() || !strings.HasPrefix(de.Name(), "go1.") {
+				continue
+			}
+			info, err := de.Info()
+			if err != nil {
+				continue
+			}
+			v, ok := pathVersion(dir, de, info)
+			if !ok || !strings.HasPrefix(v, "1.") || have[v] {
+				continue
+			}
+			have[v] = true
+			list = append(list, v)
+		}
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return gover.Compare(list[i], list[j]) < 0
+	})
+	return list, nil
 }
 
 // newerToolchain implements NewerToolchain where the list of choices is known.
