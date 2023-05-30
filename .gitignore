@@ -48,6 +48,9 @@ _testmain.go
 /test/run.out
 /test/times.out
 
+.idea/
+.dist/
+
 # This file includes artifacts of Go build that should not be checked in.
 # For files created by specific development environment (e.g. editor),
 # use alternative ways to exclude files from git.
