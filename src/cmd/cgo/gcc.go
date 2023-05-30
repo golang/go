@@ -87,6 +87,8 @@ func (f *File) ProcessCgoDirectives() {
 		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(rune(l[4])) {
 			linesOut = append(linesOut, line)
 		} else {
+			linesOut = append(linesOut, "")
+
 			// #cgo (nocallback|noescape) <function name>
 			if fields := strings.Fields(l); len(fields) == 3 {
 				directive := fields[1]
