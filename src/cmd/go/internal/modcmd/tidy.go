@@ -12,6 +12,7 @@ import (
 	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/toolchain"
 	"context"
 	"fmt"
 
@@ -115,9 +116,17 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
 
+	goVersion := tidyGo.String()
+	if goVersion != "" && gover.Compare(gover.Local(), goVersion) < 0 {
+		toolchain.TryVersion(ctx, goVersion)
+		base.Fatal(&gover.TooNewError{
+			What:      "-go flag",
+			GoVersion: goVersion,
+		})
+	}
+
 	modload.LoadPackages(ctx, modload.PackageOpts{
-		GoVersion:                tidyGo.String(),
-		TidyGo:                   tidyGo.String() != "",
+		TidyGoVersion:            tidyGo.String(),
 		Tags:                     imports.AnyTags(),
 		Tidy:                     true,
 		TidyCompatibleVersion:    tidyCompat.String(),
@@ -126,5 +135,6 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 		LoadTests:                true,
 		AllowErrors:              tidyE,
 		SilenceMissingStdImports: true,
+		TrySwitchToolchain:       toolchain.TryVersion,
 	}, "all")
 }

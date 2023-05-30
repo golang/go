@@ -1147,6 +1147,7 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
 		LoadTests:                *getT,
 		AssumeRootsImported:      true, // After 'go get foo', imports of foo should build.
 		SilencePackageErrors:     true, // May be fixed by subsequent upgrades or downgrades.
+		TrySwitchToolchain:       toolchain.TryVersion,
 	}
 
 	opts.AllowPackage = func(ctx context.Context, path string, m module.Version) error {

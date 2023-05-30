@@ -117,12 +117,9 @@ func mustHaveGoRoot(roots []module.Version) {
 func newRequirements(pruning modPruning, rootModules []module.Version, direct map[string]bool) *Requirements {
 	mustHaveGoRoot(rootModules)
 
-	if pruning == workspace {
-		return &Requirements{
-			pruning:        pruning,
-			rootModules:    slices.Clip(rootModules),
-			maxRootVersion: nil,
-			direct:         direct,
+	if pruning != workspace {
+		if workFilePath != "" {
+			panic("in workspace mode, but pruning is not workspace in newRequirements")
 		}
 	}
 
@@ -229,6 +226,9 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
 // GoVersion returns the Go language version for the Requirements.
 func (rs *Requirements) GoVersion() string {
 	v, _ := rs.rootSelected("go")
+	if v == "" {
+		panic("internal error: missing go version in modload.Requirements")
+	}
 	return v
 }
 

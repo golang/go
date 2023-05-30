@@ -64,9 +64,9 @@ go build -n -o foo foo.go
 go 1.18
 
 use (
-  a
-  b
-  ../src/a
+	a
+	b
+	../src/a
 )
 -- go.work.want --
 go $goversion
@@ -94,7 +94,7 @@ import "fmt"
 import "rsc.io/quote"
 
 func HelloFromA() {
-  fmt.Println(quote.Hello())
+	fmt.Println(quote.Hello())
 }
 
 -- b/go.mod --
@@ -107,7 +107,7 @@ package main
 import "example.com/a"
 
 func main() {
-  a.HelloFromA()
+	a.HelloFromA()
 }
 -- b/lib/hello.go --
 package lib
@@ -138,9 +138,9 @@ func main() {
 go 1.18
 
 use (
-    d
-    b
-    a
+	d
+	b
+	a
 )
 
 -- foo.go --

@@ -732,6 +732,9 @@ func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, e
 			// so if we don't report the error now, later failures will be
 			// very mysterious.
 			if _, err := fsys.Stat(dir); err != nil {
+				// TODO(bcmills): We should also read dir/go.mod here and check its Go version,
+				// and return a gover.TooNewError if appropriate.
+
 				if os.IsNotExist(err) {
 					// Semantically the module version itself “exists” — we just don't
 					// have its source code. Remove the equivalence to os.ErrNotExist,

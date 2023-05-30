@@ -135,16 +135,13 @@ var loaded *loader
 
 // PackageOpts control the behavior of the LoadPackages function.
 type PackageOpts struct {
-	// GoVersion is the Go version to which the go.mod file should be updated
+	// TidyGoVersion is the Go version to which the go.mod file should be updated
 	// after packages have been loaded.
 	//
-	// An empty GoVersion means to use the Go version already specified in the
+	// An empty TidyGoVersion means to use the Go version already specified in the
 	// main module's go.mod file, or the latest Go version if there is no main
 	// module.
-	GoVersion string
-
-	// TidyGo, if true, indicates that GoVersion is from the tidy -go= flag.
-	TidyGo bool
+	TidyGoVersion string
 
 	// Tags are the build tags in effect (as interpreted by the
 	// cmd/go/internal/imports package).
@@ -237,6 +234,12 @@ type PackageOpts struct {
 
 	// Resolve the query against this module.
 	MainModule module.Version
+
+	// TrySwitchToolchain, if non-nil, attempts to reinvoke a toolchain capable of
+	// handling the given Go version.
+	//
+	// TrySwitchToolchain only returns if the attempt toswitch was unsuccessful.
+	TrySwitchToolchain func(ctx context.Context, version string)
 }
 
 // LoadPackages identifies the set of packages matching the given patterns and
@@ -379,11 +382,9 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		search.WarnUnmatched(matches)
 	}
 
-	tidyWroteGo := false
 	if opts.Tidy {
 		if cfg.BuildV {
 			mg, _ := ld.requirements.Graph(ctx)
-
 			for _, m := range initialRS.rootModules {
 				var unused bool
 				if ld.requirements.pruning == unpruned {
@@ -405,25 +406,30 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		}
 
 		keep := keepSums(ctx, ld, ld.requirements, loadedZipSumsOnly)
-		if compatDepth := pruningForGoVersion(ld.TidyCompatibleVersion); compatDepth != ld.requirements.pruning {
-			compatRS := newRequirements(compatDepth, ld.requirements.rootModules, ld.requirements.direct)
-			ld.checkTidyCompatibility(ctx, compatRS)
+		compatVersion := ld.TidyCompatibleVersion
+		goVersion := ld.requirements.GoVersion()
+		if compatVersion == "" {
+			if gover.Compare(goVersion, gover.GoStrictVersion) < 0 {
+				compatVersion = gover.Prev(goVersion)
+			} else {
+				// Starting at GoStrictVersion, we no longer maintain compatibility with
+				// versions older than what is listed in the go.mod file.
+				compatVersion = goVersion
+			}
+		}
+		if gover.Compare(compatVersion, goVersion) > 0 {
+			// Each version of the Go toolchain knows how to interpret go.mod and
+			// go.sum files produced by all previous versions, so a compatibility
+			// version higher than the go.mod version adds nothing.
+			compatVersion = goVersion
+		}
+		if compatPruning := pruningForGoVersion(compatVersion); compatPruning != ld.requirements.pruning {
+			compatRS := newRequirements(compatPruning, ld.requirements.rootModules, ld.requirements.direct)
+			ld.checkTidyCompatibility(ctx, compatRS, compatVersion)
 
 			for m := range keepSums(ctx, ld, compatRS, loadedZipSumsOnly) {
 				keep[m] = true
 			}
-		}
-
-		// Update the go.mod file's Go version if necessary.
-		if modFile := ModFile(); modFile != nil && ld.GoVersion != "" {
-			mg, _ := ld.requirements.Graph(ctx)
-			if ld.TidyGo {
-				if v := mg.Selected("go"); gover.Compare(ld.GoVersion, v) < 0 {
-					base.Fatalf("go: cannot tidy -go=%v: dependencies require %v", ld.GoVersion, v)
-				}
-			}
-			modFile.AddGoStmt(ld.GoVersion)
-			tidyWroteGo = true
 		}
 
 		if !ExplicitWriteGoMod {
@@ -455,7 +461,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	sort.Strings(loadedPackages)
 
 	if !ExplicitWriteGoMod && opts.ResolveMissingImports {
-		if err := commitRequirements(ctx, WriteOpts{TidyWroteGo: tidyWroteGo}); err != nil {
+		if err := commitRequirements(ctx, WriteOpts{}); err != nil {
 			base.Fatal(err)
 		}
 	}
@@ -885,6 +891,27 @@ func (ld *loader) errorf(format string, args ...any) {
 	}
 }
 
+// goVersion reports the Go version that should be used for the loader's
+// requirements: ld.TidyGoVersion if set, or ld.requirements.GoVersion()
+// otherwise.
+func (ld *loader) goVersion() string {
+	if ld.TidyGoVersion != "" {
+		return ld.TidyGoVersion
+	}
+	return ld.requirements.GoVersion()
+}
+
+func (ld *loader) maybeTryToolchain(ctx context.Context, err error) {
+	if ld.TrySwitchToolchain == nil {
+		return
+	}
+	var tooNew *gover.TooNewError
+	if !errors.As(err, &tooNew) {
+		return
+	}
+	ld.TrySwitchToolchain(ctx, tooNew.GoVersion)
+}
+
 // A loadPkg records information about a single loaded package.
 type loadPkg struct {
 	// Populated at construction time:
@@ -1006,48 +1033,6 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		work:         par.NewQueue(runtime.GOMAXPROCS(0)),
 	}
 
-	if ld.GoVersion == "" {
-		ld.GoVersion = MainModules.GoVersion()
-
-		if ld.Tidy && versionLess(gover.Local(), ld.GoVersion) {
-			ld.errorf("go: go.mod file indicates go %s, but maximum version supported by tidy is %s\n", ld.GoVersion, gover.Local())
-			base.ExitIfErrors()
-		}
-	} else {
-		ld.requirements = overrideRoots(ctx, ld.requirements, []module.Version{{Path: "go", Version: ld.GoVersion}})
-	}
-
-	if ld.Tidy {
-		if ld.TidyCompatibleVersion == "" {
-			ld.TidyCompatibleVersion = gover.Prev(ld.GoVersion)
-		} else if versionLess(ld.GoVersion, ld.TidyCompatibleVersion) {
-			// Each version of the Go toolchain knows how to interpret go.mod and
-			// go.sum files produced by all previous versions, so a compatibility
-			// version higher than the go.mod version adds nothing.
-			ld.TidyCompatibleVersion = ld.GoVersion
-		}
-
-		if gover.Compare(ld.GoVersion, gover.TidyGoModSumVersion) < 0 {
-			ld.skipImportModFiles = true
-		}
-	}
-
-	if gover.Compare(ld.GoVersion, gover.NarrowAllVersion) < 0 && !ld.UseVendorAll {
-		// The module's go version explicitly predates the change in "all" for graph
-		// pruning, so continue to use the older interpretation.
-		ld.allClosesOverTests = true
-	}
-
-	var err error
-	desiredPruning := pruningForGoVersion(ld.GoVersion)
-	if ld.requirements.pruning == workspace {
-		desiredPruning = workspace
-	}
-	ld.requirements, err = convertPruning(ctx, ld.requirements, desiredPruning)
-	if err != nil {
-		ld.errorf("go: %v\n", err)
-	}
-
 	if ld.requirements.pruning == unpruned {
 		// If the module graph does not support pruning, we assume that we will need
 		// the full module graph in order to load package dependencies.
@@ -1060,13 +1045,38 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		var err error
 		ld.requirements, _, err = expandGraph(ctx, ld.requirements)
 		if err != nil {
+			ld.maybeTryToolchain(ctx, err)
 			ld.errorf("go: %v\n", err)
 		}
 	}
 	base.ExitIfErrors() // or we will report them again
 
+	updateGoVersion := func() {
+		goVersion := ld.goVersion()
+
+		if ld.requirements.pruning != workspace {
+			var err error
+			ld.requirements, err = convertPruning(ctx, ld.requirements, pruningForGoVersion(goVersion))
+			if err != nil {
+				ld.maybeTryToolchain(ctx, err)
+				ld.errorf("go: %v\n", err)
+				base.ExitIfErrors()
+			}
+		}
+
+		// If the module's Go version omits go.sum entries for go.mod files for test
+		// dependencies of external packages, avoid loading those files in the first
+		// place.
+		ld.skipImportModFiles = ld.Tidy && gover.Compare(goVersion, gover.TidyGoModSumVersion) < 0
+
+		// If the module's go version explicitly predates the change in "all" for
+		// graph pruning, continue to use the older interpretation.
+		ld.allClosesOverTests = gover.Compare(goVersion, gover.NarrowAllVersion) < 0 && !ld.UseVendorAll
+	}
+
 	for {
 		ld.reset()
+		updateGoVersion()
 
 		// Load the root packages and their imports.
 		// Note: the returned roots can change on each iteration,
@@ -1112,6 +1122,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 
 		changed, err := ld.updateRequirements(ctx)
 		if err != nil {
+			ld.maybeTryToolchain(ctx, err)
 			ld.errorf("go: %v\n", err)
 			break
 		}
@@ -1129,7 +1140,12 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			break
 		}
 
-		modAddedBy := ld.resolveMissingImports(ctx)
+		modAddedBy, err := ld.resolveMissingImports(ctx)
+		if err != nil {
+			ld.maybeTryToolchain(ctx, err)
+			ld.errorf("go: %v\n", err)
+			break
+		}
 		if len(modAddedBy) == 0 {
 			// The roots are stable, and we've resolved all of the missing packages
 			// that we can.
@@ -1154,6 +1170,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		direct := ld.requirements.direct
 		rs, err := updateRoots(ctx, direct, ld.requirements, noPkgs, toAdd, ld.AssumeRootsImported)
 		if err != nil {
+			ld.maybeTryToolchain(ctx, err)
 			// If an error was found in a newly added module, report the package
 			// import stack instead of the module requirement stack. Packages
 			// are more descriptive.
@@ -1175,7 +1192,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		}
 		ld.requirements = rs
 	}
-	base.ExitIfErrors() // TODO(bcmills): Is this actually needed?
+	base.ExitIfErrors()
 
 	// Tidy the build list, if applicable, before we report errors.
 	// (The process of tidying may remove errors from irrelevant dependencies.)
@@ -1183,23 +1200,54 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		rs, err := tidyRoots(ctx, ld.requirements, ld.pkgs)
 		if err != nil {
 			ld.errorf("go: %v\n", err)
-			base.ExitIfErrors()
 		} else {
+			if ld.TidyGoVersion != "" {
+				// Attempt to switch to the requested Go version. We have been using its
+				// pruning and semantics all along, but there may have been — and may
+				// still be — requirements on higher versions in the graph.
+				tidy := overrideRoots(ctx, rs, []module.Version{{Path: "go", Version: ld.TidyGoVersion}})
+				mg, err := tidy.Graph(ctx)
+				if err != nil {
+					ld.errorf("go: %v\n", err)
+				}
+				if v := mg.Selected("go"); v == ld.TidyGoVersion {
+					rs = tidy
+				} else {
+					conflict := Conflict{
+						Path: mg.g.FindPath(func(m module.Version) bool {
+							return m.Path == "go" && m.Version == v
+						})[1:],
+						Constraint: module.Version{Path: "go", Version: ld.TidyGoVersion},
+					}
+					msg := conflict.Summary()
+					if cfg.BuildV {
+						msg = conflict.String()
+					}
+					ld.errorf("go: %v\n", msg)
+				}
+			}
+
 			if ld.requirements.pruning == pruned {
-				// We continuously add tidy roots to ld.requirements during loading, so at
-				// this point the tidy roots should be a subset of the roots of
-				// ld.requirements, ensuring that no new dependencies are brought inside
-				// the graph-pruning horizon.
+				// We continuously add tidy roots to ld.requirements during loading, so
+				// at this point the tidy roots (other than possibly the "go" version
+				// edited above) should be a subset of the roots of ld.requirements,
+				// ensuring that no new dependencies are brought inside the
+				// graph-pruning horizon.
 				// If that is not the case, there is a bug in the loading loop above.
 				for _, m := range rs.rootModules {
+					if m.Path == "go" && ld.TidyGoVersion != "" {
+						continue
+					}
 					if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
-						ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading\n", m)
-						base.ExitIfErrors()
+						ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading (selected %s)\n", m, v)
 					}
 				}
 			}
+
 			ld.requirements = rs
 		}
+
+		base.ExitIfErrors()
 	}
 
 	// Report errors, if any.
@@ -1221,7 +1269,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			// Add importer go version information to import errors of standard
 			// library packages arising from newer releases.
 			if importer := pkg.stack; importer != nil {
-				if v, ok := rawGoVersion.Load(importer.mod); ok && versionLess(gover.Local(), v.(string)) {
+				if v, ok := rawGoVersion.Load(importer.mod); ok && gover.Compare(gover.Local(), v.(string)) < 0 {
 					stdErr.importerGoVersion = v.(string)
 				}
 			}
@@ -1241,12 +1289,6 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 
 	ld.checkMultiplePaths()
 	return ld
-}
-
-// versionLess returns whether a < b according to semantic version precedence.
-// Both strings are interpreted as go version strings, e.g. "1.19".
-func versionLess(a, b string) bool {
-	return gover.Compare(a, b) < 0
 }
 
 // updateRequirements ensures that ld.requirements is consistent with the
@@ -1292,10 +1334,19 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 		}
 	}
 
+	var maxTooNew *gover.TooNewError
 	for _, pkg := range ld.pkgs {
+		if pkg.err != nil {
+			if tooNew := (*gover.TooNewError)(nil); errors.As(pkg.err, &tooNew) {
+				if maxTooNew == nil || gover.Compare(tooNew.GoVersion, maxTooNew.GoVersion) > 0 {
+					maxTooNew = tooNew
+				}
+			}
+		}
 		if pkg.mod.Version != "" || !MainModules.Contains(pkg.mod.Path) {
 			continue
 		}
+
 		for _, dep := range pkg.imports {
 			if !dep.fromExternalModule() {
 				continue
@@ -1345,6 +1396,9 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 			// Mark its module as a direct dependency.
 			direct[dep.mod.Path] = true
 		}
+	}
+	if maxTooNew != nil {
+		return false, maxTooNew
 	}
 
 	var addRoots []module.Version
@@ -1397,7 +1451,14 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 		return false, err
 	}
 
-	if rs != ld.requirements && !reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
+	if rs.GoVersion() != ld.requirements.GoVersion() {
+		// A change in the selected Go version may or may not affect the set of
+		// loaded packages, but in some cases it can change the meaning of the "all"
+		// pattern, the level of pruning in the module graph, and even the set of
+		// packages present in the standard library. If it has changed, it's best to
+		// reload packages once more to be sure everything is stable.
+		changed = true
+	} else if rs != ld.requirements && !reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
 		// The roots of the module graph have changed in some way (not just the
 		// "direct" markings). Check whether the changes affected any of the loaded
 		// packages.
@@ -1444,7 +1505,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 // The newly-resolved packages are added to the addedModuleFor map, and
 // resolveMissingImports returns a map from each new module version to
 // the first missing package that module would resolve.
-func (ld *loader) resolveMissingImports(ctx context.Context) (modAddedBy map[module.Version]*loadPkg) {
+func (ld *loader) resolveMissingImports(ctx context.Context) (modAddedBy map[module.Version]*loadPkg, err error) {
 	type pkgMod struct {
 		pkg *loadPkg
 		mod *module.Version
@@ -1505,6 +1566,24 @@ func (ld *loader) resolveMissingImports(ctx context.Context) (modAddedBy map[mod
 	<-ld.work.Idle()
 
 	modAddedBy = map[module.Version]*loadPkg{}
+
+	var (
+		maxTooNew    *gover.TooNewError
+		maxTooNewPkg *loadPkg
+	)
+	for _, pm := range pkgMods {
+		if tooNew := (*gover.TooNewError)(nil); errors.As(pm.pkg.err, &tooNew) {
+			if maxTooNew == nil || gover.Compare(tooNew.GoVersion, maxTooNew.GoVersion) > 0 {
+				maxTooNew = tooNew
+				maxTooNewPkg = pm.pkg
+			}
+		}
+	}
+	if maxTooNew != nil {
+		fmt.Fprintf(os.Stderr, "go: toolchain upgrade needed to resolve %s\n", maxTooNewPkg.path)
+		return nil, maxTooNew
+	}
+
 	for _, pm := range pkgMods {
 		pkg, mod := pm.pkg, *pm.mod
 		if mod.Path == "" {
@@ -1517,7 +1596,7 @@ func (ld *loader) resolveMissingImports(ctx context.Context) (modAddedBy map[mod
 		}
 	}
 
-	return modAddedBy
+	return modAddedBy, nil
 }
 
 // pkg locates the *loadPkg for path, creating and queuing it for loading if
@@ -1686,6 +1765,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 
 	rs, err := updateRoots(ctx, ld.requirements.direct, ld.requirements, nil, toAdd, ld.AssumeRootsImported)
 	if err != nil {
+		ld.maybeTryToolchain(ctx, err)
 		// We are missing some root dependency, and for some reason we can't load
 		// enough of the module dependency graph to add the missing root. Package
 		// loading is doomed to fail, so fail quickly.
@@ -1901,7 +1981,8 @@ func (ld *loader) checkMultiplePaths() {
 
 // checkTidyCompatibility emits an error if any package would be loaded from a
 // different module under rs than under ld.requirements.
-func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) {
+func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements, compatVersion string) {
+	goVersion := rs.GoVersion()
 	suggestUpgrade := false
 	suggestEFlag := false
 	suggestFixes := func() {
@@ -1918,13 +1999,13 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 		fmt.Fprintln(os.Stderr)
 
 		goFlag := ""
-		if ld.GoVersion != MainModules.GoVersion() {
-			goFlag = " -go=" + ld.GoVersion
+		if goVersion != MainModules.GoVersion() {
+			goFlag = " -go=" + goVersion
 		}
 
 		compatFlag := ""
-		if ld.TidyCompatibleVersion != gover.Prev(ld.GoVersion) {
-			compatFlag = " -compat=" + ld.TidyCompatibleVersion
+		if compatVersion != gover.Prev(goVersion) {
+			compatFlag = " -compat=" + compatVersion
 		}
 		if suggestUpgrade {
 			eDesc := ""
@@ -1933,16 +2014,16 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 				eDesc = ", leaving some packages unresolved"
 				eFlag = " -e"
 			}
-			fmt.Fprintf(os.Stderr, "To upgrade to the versions selected by go %s%s:\n\tgo mod tidy%s -go=%s && go mod tidy%s -go=%s%s\n", ld.TidyCompatibleVersion, eDesc, eFlag, ld.TidyCompatibleVersion, eFlag, ld.GoVersion, compatFlag)
+			fmt.Fprintf(os.Stderr, "To upgrade to the versions selected by go %s%s:\n\tgo mod tidy%s -go=%s && go mod tidy%s -go=%s%s\n", compatVersion, eDesc, eFlag, compatVersion, eFlag, goVersion, compatFlag)
 		} else if suggestEFlag {
 			// If some packages are missing but no package is upgraded, then we
 			// shouldn't suggest upgrading to the Go 1.16 versions explicitly — that
 			// wouldn't actually fix anything for Go 1.16 users, and *would* break
 			// something for Go 1.17 users.
-			fmt.Fprintf(os.Stderr, "To proceed despite packages unresolved in go %s:\n\tgo mod tidy -e%s%s\n", ld.TidyCompatibleVersion, goFlag, compatFlag)
+			fmt.Fprintf(os.Stderr, "To proceed despite packages unresolved in go %s:\n\tgo mod tidy -e%s%s\n", compatVersion, goFlag, compatFlag)
 		}
 
-		fmt.Fprintf(os.Stderr, "If reproducibility with go %s is not needed:\n\tgo mod tidy%s -compat=%s\n", ld.TidyCompatibleVersion, goFlag, ld.GoVersion)
+		fmt.Fprintf(os.Stderr, "If reproducibility with go %s is not needed:\n\tgo mod tidy%s -compat=%s\n", compatVersion, goFlag, goVersion)
 
 		// TODO(#46141): Populate the linked wiki page.
 		fmt.Fprintf(os.Stderr, "For other options, see:\n\thttps://golang.org/doc/modules/pruning\n")
@@ -1950,7 +2031,8 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 
 	mg, err := rs.Graph(ctx)
 	if err != nil {
-		ld.errorf("go: error loading go %s module graph: %v\n", ld.TidyCompatibleVersion, err)
+		ld.maybeTryToolchain(ctx, err)
+		ld.errorf("go: error loading go %s module graph: %v\n", compatVersion, err)
 		suggestFixes()
 		return
 	}
@@ -2010,7 +2092,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 		for _, m := range ld.requirements.rootModules {
 			if v := mg.Selected(m.Path); v != m.Version {
 				fmt.Fprintln(os.Stderr)
-				base.Fatalf("go: internal error: failed to diagnose selected-version mismatch for module %s: go %s selects %s, but go %s selects %s\n\tPlease report this at https://golang.org/issue.", m.Path, ld.GoVersion, m.Version, ld.TidyCompatibleVersion, v)
+				base.Fatalf("go: internal error: failed to diagnose selected-version mismatch for module %s: go %s selects %s, but go %s selects %s\n\tPlease report this at https://golang.org/issue.", m.Path, goVersion, m.Version, compatVersion, v)
 			}
 		}
 		return
@@ -2051,12 +2133,12 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 					Path:    pkg.mod.Path,
 					Version: mg.Selected(pkg.mod.Path),
 				}
-				ld.errorf("%s loaded from %v,\n\tbut go %s would fail to locate it in %s\n", pkg.stackText(), pkg.mod, ld.TidyCompatibleVersion, selected)
+				ld.errorf("%s loaded from %v,\n\tbut go %s would fail to locate it in %s\n", pkg.stackText(), pkg.mod, compatVersion, selected)
 			} else {
 				if ambiguous := (*AmbiguousImportError)(nil); errors.As(mismatch.err, &ambiguous) {
 					// TODO: Is this check needed?
 				}
-				ld.errorf("%s loaded from %v,\n\tbut go %s would fail to locate it:\n\t%v\n", pkg.stackText(), pkg.mod, ld.TidyCompatibleVersion, mismatch.err)
+				ld.errorf("%s loaded from %v,\n\tbut go %s would fail to locate it:\n\t%v\n", pkg.stackText(), pkg.mod, compatVersion, mismatch.err)
 			}
 
 			suggestEFlag = true
@@ -2094,7 +2176,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 			// pkg.err should have already been logged elsewhere — along with a
 			// stack trace — so log only the import path and non-error info here.
 			suggestUpgrade = true
-			ld.errorf("%s failed to load from any module,\n\tbut go %s would load it from %v\n", pkg.path, ld.TidyCompatibleVersion, mismatch.mod)
+			ld.errorf("%s failed to load from any module,\n\tbut go %s would load it from %v\n", pkg.path, compatVersion, mismatch.mod)
 
 		case pkg.mod != mismatch.mod:
 			// The package is loaded successfully by both Go versions, but from a
@@ -2102,7 +2184,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 			// unnoticed!) variations in behavior between builds with different
 			// toolchains.
 			suggestUpgrade = true
-			ld.errorf("%s loaded from %v,\n\tbut go %s would select %v\n", pkg.stackText(), pkg.mod, ld.TidyCompatibleVersion, mismatch.mod.Version)
+			ld.errorf("%s loaded from %v,\n\tbut go %s would select %v\n", pkg.stackText(), pkg.mod, compatVersion, mismatch.mod.Version)
 
 		default:
 			base.Fatalf("go: internal error: mismatch recorded for package %s, but no differences found", pkg.path)

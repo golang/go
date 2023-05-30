@@ -465,6 +465,9 @@ func Init() {
 			// It's a bit of a peculiar thing to disallow but quite mysterious
 			// when it happens. See golang.org/issue/26708.
 			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in system temp root %v\n", os.TempDir())
+			if RootMode == NeedRoot {
+				base.Fatal(ErrNoModRoot)
+			}
 			if !mustUseModules {
 				return
 			}
@@ -889,8 +892,8 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) 
 		if cfg.BuildMod == "mod" && cfg.CmdName != "mod graph" && cfg.CmdName != "mod why" {
 			// go line is missing from go.mod; add one there and add to derived requirements.
 			v := gover.Local()
-			if opts != nil && opts.TidyGo {
-				v = opts.GoVersion
+			if opts != nil && opts.TidyGoVersion != "" {
+				v = opts.TidyGoVersion
 			}
 			addGoStmt(MainModules.ModFile(mainModule), mainModule, v)
 			rs = overrideRoots(ctx, rs, []module.Version{{Path: "go", Version: v}})
@@ -1222,9 +1225,6 @@ func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, m
 	}
 
 	// Add explicit go and toolchain versions, inferring as needed.
-	if opts != nil && opts.TidyGo {
-		goVersion = opts.GoVersion
-	}
 	if goVersion == "" {
 		goVersion = gover.DefaultGoModVersion
 	}
@@ -1764,6 +1764,7 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
 	// not just the modules containing the actual packages — in order to rule out
 	// ambiguous import errors the next time we load the package.
 	if ld != nil {
+		keepPkgGoModSums := !ld.Tidy || gover.Compare(ld.requirements.GoVersion(), gover.TidyGoModSumVersion) >= 0
 		for _, pkg := range ld.pkgs {
 			// We check pkg.mod.Path here instead of pkg.inStd because the
 			// pseudo-package "C" is not in std, but not provided by any module (and
@@ -1777,7 +1778,7 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
 			// However, we didn't do so before Go 1.21, and the bug is relatively
 			// minor, so we maintain the previous (buggy) behavior in 'go mod tidy' to
 			// avoid introducing unnecessary churn.
-			if !ld.Tidy || gover.Compare(ld.GoVersion, gover.TidyGoModSumVersion) >= 0 {
+			if keepPkgGoModSums {
 				r := resolveReplacement(pkg.mod)
 				keep[modkey(r)] = true
 			}
