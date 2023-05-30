@@ -420,6 +420,25 @@ passing uninitialized C memory to Go code if the Go code is going to
 store pointer values in it. Zero out the memory in C before passing it
 to Go.
 
+When passing pointers of Go objects from Go to C, the Go compiler will
+always escape these objects to heap, by default.
+Since the C function may call back to Go, and then the Go stack might
+grow/shrink, and the Go objects on stack will be moved to a new stack,
+so that the Go compiler always escape those objects have been passed to C.
+
+After adding the #cgo noescape/nocallback annotations for a C function,
+that means the C function won't call back to Go,
+the Go compiler won't force those Go objects escape to heap,
+to reduce GC overhead, for better performance.
+
+For example:
+
+	// #cgo nocallback cFunctionName
+	// #cgo noescape cFunctionName
+
+When a C function marked with #cgo nocallback/noescape, but it does call
+back to Go, the Go process will panic.
+
 # Special cases
 
 A few special C types which would normally be represented by a pointer

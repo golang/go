@@ -614,10 +614,10 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 		arg = "uintptr(unsafe.Pointer(&r1))"
 	}
 
-	_, noCallback := p.noCallbacks[n.C]
-	_, noEscape := p.noEscapes[n.C]
 	noCgoCallback := false
-	if noEscape && noCallback {
+	noCallback, ok1 := p.noCallbacks[n.C]
+	noEscape, ok2 := p.noEscapes[n.C]
+	if ok1 && ok2 && noEscape && noCallback {
 		noCgoCallback = true
 	}
 	if noCgoCallback {
