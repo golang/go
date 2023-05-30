@@ -691,10 +691,11 @@ OverlayLoop:
 				if mode == "" {
 					panic("covermode should be set at this point")
 				}
-				pkgcfg := a.Objdir + "pkgcfg.txt"
-				covoutfiles := a.Objdir + "coveroutfiles.txt"
-				if err := b.cover2(a, pkgcfg, covoutfiles, infiles, outfiles, coverVar, mode); err != nil {
+				if newoutfiles, err := b.cover2(a, infiles, outfiles, coverVar, mode); err != nil {
 					return err
+				} else {
+					outfiles = newoutfiles
+					gofiles = append([]string{newoutfiles[0]}, gofiles...)
 				}
 			} else {
 				// If there are no input files passed to cmd/cover,
@@ -2027,9 +2028,19 @@ func (b *Builder) cover(a *Action, dst, src string, varName string) error {
 // cover2 runs, in effect,
 //
 //	go tool cover -pkgcfg=<config file> -mode=b.coverMode -var="varName" -o <outfiles> <infiles>
-func (b *Builder) cover2(a *Action, pkgcfg, covoutputs string, infiles, outfiles []string, varName string, mode string) error {
+//
+// Return value is an updated output files list; in addition to the
+// regular outputs (instrumented source files) the cover tool also
+// writes a separate file (appearing first in the list of outputs)
+// that will contain coverage counters and meta-data.
+func (b *Builder) cover2(a *Action, infiles, outfiles []string, varName string, mode string) ([]string, error) {
+	pkgcfg := a.Objdir + "pkgcfg.txt"
+	covoutputs := a.Objdir + "coveroutfiles.txt"
+	odir := filepath.Dir(outfiles[0])
+	cv := filepath.Join(odir, "covervars.go")
+	outfiles = append([]string{cv}, outfiles...)
 	if err := b.writeCoverPkgInputs(a, pkgcfg, covoutputs, outfiles); err != nil {
-		return err
+		return nil, err
 	}
 	args := []string{base.Tool("cover"),
 		"-pkgcfg", pkgcfg,
@@ -2038,8 +2049,11 @@ func (b *Builder) cover2(a *Action, pkgcfg, covoutputs string, infiles, outfiles
 		"-outfilelist", covoutputs,
 	}
 	args = append(args, infiles...)
-	return b.run(a, a.Objdir, "cover "+a.Package.ImportPath, nil,
-		cfg.BuildToolexec, args)
+	if err := b.run(a, a.Objdir, "cover "+a.Package.ImportPath, nil,
+		cfg.BuildToolexec, args); err != nil {
+		return nil, err
+	}
+	return outfiles, nil
 }
 
 func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsfile string, outfiles []string) error {
