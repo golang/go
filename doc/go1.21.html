@@ -162,10 +162,6 @@ Do not send CLs removing the interior tags from such phrases.
   rather than just base names.
 </p>
 
-<p><!-- CL 453603 -->
-  TODO: <a href="https://go.dev/cl/453603">https://go.dev/cl/453603</a>: cmd/go, go/build: parse directives in file headers; modified api/next/56986.txt
-</p>
-
 <!-- CL 466397 -->
 <p>
   <!-- cmd/go: make go test build multiple executables; The go test command now supports using the -c flag with multiple packages. -->
@@ -488,24 +484,39 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 
   <dd>
-    <p><!-- CL 476276 -->
-      TODO: <a href="https://go.dev/cl/476276">https://go.dev/cl/476276</a>: go/ast: add File.GoVersion; modified api/next/59033.txt
+    <p><!-- https://go.dev/issue/59033, CL 476276 -->
+      The new
+      <a href="/pkg/go/ast/#File.GoVersion"><code>File.GoVersion</code></a>
+      field records the minimum Go version required by
+      any <code>//go:build</code> or <code>// +build</code>
+      directives.
     </p>
   </dd>
 </dl><!-- go/ast -->
 
 <dl id="go/build"><dt><a href="/pkg/go/build/">go/build</a></dt>
   <dd>
-    <p><!-- CL 453603 -->
-      TODO: <a href="https://go.dev/cl/453603">https://go.dev/cl/453603</a>: cmd/go, go/build: parse directives in file headers; modified api/next/56986.txt
+    <p><!-- https://go.dev/issue/56986, CL 453603 -->
+      The package now parses build directives (comments that start
+      with <code>//go:</code>) in file headers (before
+      the <code>package</code> declaration). These directives are
+      available in the new
+      <a href="/pkg/go/build/Package"><code>Package</code></a> fields
+      <a href="/pkg/go/build/Package.Directives"><code>Directives</code></a>,
+      <a href="/pkg/go/build/Package.TestDirectives"><code>TestDirectives</code></a>,
+      and
+      <a href="/pkg/go/build/Package.XTestDirectives"><code>XTestDirectives</code></a>.
     </p>
   </dd>
 </dl><!-- go/build -->
 
 <dl id="go/build/constraint"><dt><a href="/pkg/go/build/constraint/">go/build/constraint</a></dt>
   <dd>
-    <p><!-- CL 476275 -->
-      TODO: <a href="https://go.dev/cl/476275">https://go.dev/cl/476275</a>: go/build/constraint: add GoVersion; modified api/next/59033.txt
+    <p><!-- https://go.dev/issue/59033, CL 476275 -->
+      The new
+      <a href="/pkg/go/build/constraint/#GoVersion"><code>GoVersion</code></a>
+      function returns the minimum Go version implied by a build
+      expression.
     </p>
   </dd>
 </dl><!-- go/build/constraint -->
