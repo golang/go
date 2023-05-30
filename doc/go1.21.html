@@ -495,12 +495,14 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/53747 -->
-      TODO: <a href="https://go.dev/issue/53747">https://go.dev/issue/53747</a>: add BoolFunc(name, usage string, fn func(string)error)
-    </p>
-
-    <p><!-- CL 476015 -->
-      TODO: <a href="https://go.dev/cl/476015">https://go.dev/cl/476015</a>: flag: add BoolFunc; FlagSet.BoolFunc; modified api/next/53747.txt
+    <p><!-- https://go.dev/issue/53747, CL 476015 -->
+      The new <a href="/pkg/flag/#BoolFunc"><code>BoolFunc</code></a>
+      function and
+      <a href="/pkg/flag/#FlagSet.BoolFunc"><code>FlagSet.BoolFunc</code></a>
+      method define a flag that does not require an argument and calls
+      a function when the flag is used. This is similar to
+      <a href="/pkg/flag/#Func"><code>Func</code></a> but for a
+      boolean flag.
     </p>
 
     <p><!-- CL 480215 -->
