@@ -37,10 +37,6 @@ Methods:
 reference to method func (lib.Type).Method(x *int) *int
 defined here
 
--------- @pointsto p --------
-this *int may point to these objects:
-	imports.a
-
 -------- @describe ref-pkg --------
 reference to package "lib"
 	const Const  untyped int = 3

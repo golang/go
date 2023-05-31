@@ -21,7 +21,7 @@ func main() {
 	var t lib.Type      // @describe ref-type "Type"
 	p := t.Method(&a)   // @describe ref-method "Method"
 
-	print(*p + 1) // @pointsto p "p "
+	print(*p + 1)
 
 	var _ lib.Type // @describe ref-pkg "lib"
 

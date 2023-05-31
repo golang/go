@@ -20,14 +20,12 @@ package main // import "golang.org/x/tools/cmd/callgraph"
 //     callee file/line/col
 
 import (
-	"bufio"
 	"bytes"
 	"flag"
 	"fmt"
 	"go/build"
 	"go/token"
 	"io"
-	"log"
 	"os"
 	"runtime"
 	"text/template"
@@ -39,7 +37,6 @@ import (
 	"golang.org/x/tools/go/callgraph/static"
 	"golang.org/x/tools/go/callgraph/vta"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 )
@@ -47,7 +44,7 @@ import (
 // flags
 var (
 	algoFlag = flag.String("algo", "rta",
-		`Call graph construction algorithm (static, cha, rta, vta, pta)`)
+		`Call graph construction algorithm (static, cha, rta, vta)`)
 
 	testFlag = flag.Bool("test", false,
 		"Loads test code (*_test.go) for imported packages")
@@ -55,9 +52,6 @@ var (
 	formatFlag = flag.String("format",
 		"{{.Caller}}\t--{{.Dynamic}}-{{.Line}}:{{.Column}}-->\t{{.Callee}}",
 		"A template expression specifying how to format an edge")
-
-	ptalogFlag = flag.String("ptalog", "",
-		"Location of the points-to analysis log file, or empty to disable logging.")
 )
 
 func init() {
@@ -68,7 +62,7 @@ const Usage = `callgraph: display the call graph of a Go program.
 
 Usage:
 
-  callgraph [-algo=static|cha|rta|vta|pta] [-test] [-format=...] package...
+  callgraph [-algo=static|cha|rta|vta] [-test] [-format=...] package...
 
 Flags:
 
@@ -78,11 +72,10 @@ Flags:
             cha         Class Hierarchy Analysis
             rta         Rapid Type Analysis
             vta         Variable Type Analysis
-            pta         inclusion-based Points-To Analysis
 
            The algorithms are ordered by increasing precision in their
            treatment of dynamic calls (and thus also computational cost).
-           RTA and PTA require a whole program (main or test), and
+           RTA requires a whole program (main or test), and
            include only functions reachable from main.
 
 -test      Include the package's tests in the analysis.
@@ -132,9 +125,9 @@ Examples:
       $GOROOT/src/net/http/triv.go | sort | uniq
 
   Show functions that make dynamic calls into the 'fmt' test package,
-  using the pointer analysis algorithm:
+  using the Rapid Type Analysis algorithm:
 
-    callgraph -format='{{.Caller}} -{{.Dynamic}}-> {{.Callee}}' -test -algo=pta fmt |
+    callgraph -format='{{.Caller}} -{{.Dynamic}}-> {{.Callee}}' -test -algo=rta fmt |
       sed -ne 's/-dynamic-/--/p' |
       sed -ne 's/-->.*fmt_test.*$//p' | sort | uniq
 
@@ -205,39 +198,7 @@ func doCallgraph(dir, gopath, algo, format string, tests bool, args []string) er
 		cg = cha.CallGraph(prog)
 
 	case "pta":
-		// Set up points-to analysis log file.
-		var ptalog io.Writer
-		if *ptalogFlag != "" {
-			if f, err := os.Create(*ptalogFlag); err != nil {
-				log.Fatalf("Failed to create PTA log file: %s", err)
-			} else {
-				buf := bufio.NewWriter(f)
-				ptalog = buf
-				defer func() {
-					if err := buf.Flush(); err != nil {
-						log.Printf("flush: %s", err)
-					}
-					if err := f.Close(); err != nil {
-						log.Printf("close: %s", err)
-					}
-				}()
-			}
-		}
-
-		mains, err := mainPackages(pkgs)
-		if err != nil {
-			return err
-		}
-		config := &pointer.Config{
-			Mains:          mains,
-			BuildCallGraph: true,
-			Log:            ptalog,
-		}
-		ptares, err := pointer.Analyze(config)
-		if err != nil {
-			return err // internal error in pointer analysis
-		}
-		cg = ptares.CallGraph
+		return fmt.Errorf("pointer analysis is no longer supported (see Go issue #59676)")
 
 	case "rta":
 		mains, err := mainPackages(pkgs)

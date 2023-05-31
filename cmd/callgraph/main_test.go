@@ -65,14 +65,6 @@ func TestCallgraph(t *testing.T) {
 			"pkg.main --> pkg.main2",
 			"pkg.main2 --> (pkg.D).f",
 		}},
-		{"pta", false, []string{
-			// pta distinguishes main->C, main2->D.  Also has a root node.
-			`<root> --> pkg.init`,
-			`<root> --> pkg.main`,
-			`pkg.main --> (pkg.C).f`,
-			`pkg.main --> pkg.main2`,
-			`pkg.main2 --> (pkg.D).f`,
-		}},
 		// tests: both the package's main and the test's main are called.
 		// The callgraph includes all the guts of the "testing" package.
 		{"rta", true, []string{
@@ -82,14 +74,6 @@ func TestCallgraph(t *testing.T) {
 			`pkg.main --> (pkg.C).f`,
 		}},
 		{"vta", true, []string{
-			`pkg.test.main --> testing.MainStart`,
-			`testing.runExample --> pkg.Example`,
-			`pkg.Example --> (pkg.C).f`,
-			`pkg.main --> (pkg.C).f`,
-		}},
-		{"pta", true, []string{
-			`<root> --> pkg.test.main`,
-			`<root> --> pkg.main`,
 			`pkg.test.main --> testing.MainStart`,
 			`testing.runExample --> pkg.Example`,
 			`pkg.Example --> (pkg.C).f`,

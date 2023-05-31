@@ -10,18 +10,12 @@
 //
 //	Query      Result stream
 //	-----      -------------
-//	callees    Callees
-//	callers    Caller ...
-//	callstack  CallStack
 //	definition Definition
 //	describe   Describe
 //	freevars   FreeVar ...
 //	implements Implements
-//	peers      Peers
-//	pointsto   PointsTo ...
 //	referrers  ReferrersInitial ReferrersPackage ...
 //	what       What
-//	whicherrs  WhichErrs
 //
 // All 'pos' strings in the output are of the form "file:line:col",
 // where line is the 1-based line number and col is the 1-based byte index.

@@ -1,7 +1,7 @@
 -------- @what pkgdecl --------
 identifier
 source file
-modes: [definition describe freevars implements pointsto referrers whicherrs]
+modes: [definition describe freevars implements referrers]
 srcdir: testdata/src
 import path: what
 
@@ -12,7 +12,7 @@ expression statement
 block
 function declaration
 source file
-modes: [callees callers callstack definition describe freevars implements pointsto referrers whicherrs]
+modes: [definition describe freevars implements referrers]
 srcdir: testdata/src
 import path: what
 
@@ -22,7 +22,7 @@ variable declaration statement
 block
 function declaration
 source file
-modes: [callers callstack describe freevars pointsto whicherrs]
+modes: [describe freevars]
 srcdir: testdata/src
 import path: what
 
@@ -33,7 +33,7 @@ expression statement
 block
 function declaration
 source file
-modes: [callers callstack definition describe freevars implements peers pointsto referrers whicherrs]
+modes: [definition describe freevars implements referrers]
 srcdir: testdata/src
 import path: what
 ch

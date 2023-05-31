@@ -24,10 +24,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/go/pointer"
-	"golang.org/x/tools/go/ssa"
 )
 
 type printfFunc func(pos interface{}, format string, args ...interface{})
@@ -70,11 +67,6 @@ type Query struct {
 	Pos   string         // query position
 	Build *build.Context // package loading configuration
 
-	// pointer analysis options
-	Scope      []string  // main packages in (*loader.Config).FromArgs syntax
-	PTALog     io.Writer // (optional) pointer-analysis log file
-	Reflection bool      // model reflection soundly (currently slow).
-
 	// result-printing function, safe for concurrent use
 	Output func(*token.FileSet, QueryResult)
 }
@@ -82,18 +74,6 @@ type Query struct {
 // Run runs an guru query and populates its Fset and Result.
 func Run(mode string, q *Query) error {
 	switch mode {
-	case "callees":
-		return callees(q)
-	case "callers":
-		return callers(q)
-	case "callstack":
-		return callstack(q)
-	case "peers":
-		return peers(q)
-	case "pointsto":
-		return pointsto(q)
-	case "whicherrs":
-		return whicherrs(q)
 	case "definition":
 		return definition(q)
 	case "describe":
@@ -106,44 +86,11 @@ func Run(mode string, q *Query) error {
 		return referrers(q)
 	case "what":
 		return what(q)
+	case "callees", "callers", "pointsto", "whicherrs", "callstack", "peers":
+		return fmt.Errorf("mode %q is no longer supported (see Go issue #59676)", mode)
 	default:
 		return fmt.Errorf("invalid mode: %q", mode)
 	}
-}
-
-func setPTAScope(lconf *loader.Config, scope []string) error {
-	pkgs := buildutil.ExpandPatterns(lconf.Build, scope)
-	if len(pkgs) == 0 {
-		return fmt.Errorf("no packages specified for pointer analysis scope")
-	}
-	// The value of each entry in pkgs is true,
-	// giving ImportWithTests (not Import) semantics.
-	lconf.ImportPkgs = pkgs
-	return nil
-}
-
-// Create a pointer.Config whose scope is the initial packages of lprog
-// and their dependencies.
-func setupPTA(prog *ssa.Program, lprog *loader.Program, ptaLog io.Writer, reflection bool) (*pointer.Config, error) {
-	// For each initial package (specified on the command line),
-	// analyze the package if it has a main function.
-	var mains []*ssa.Package
-	for _, info := range lprog.InitialPackages() {
-		p := prog.Package(info.Pkg)
-
-		// Add package to the pointer analysis scope.
-		if p.Pkg.Name() == "main" && p.Func("main") != nil {
-			mains = append(mains, p)
-		}
-	}
-	if mains == nil {
-		return nil, fmt.Errorf("analysis scope has no main and no tests")
-	}
-	return &pointer.Config{
-		Log:        ptaLog,
-		Reflection: reflection,
-		Mains:      mains,
-	}, nil
 }
 
 // importQueryPackage finds the package P containing the
@@ -307,15 +254,6 @@ func allowErrors(lconf *loader.Config) {
 	lconf.TypeChecker.Error = func(err error) {}
 }
 
-// ptrAnalysis runs the pointer analysis and returns its result.
-func ptrAnalysis(conf *pointer.Config) *pointer.Result {
-	result, err := pointer.Analyze(conf)
-	if err != nil {
-		panic(err) // pointer analysis internal error
-	}
-	return result
-}
-
 func unparen(e ast.Expr) ast.Expr { return astutil.Unparen(e) }
 
 // deref returns a pointer's element type; otherwise it returns typ.
@@ -333,7 +271,7 @@ func deref(typ types.Type) types.Type {
 //   - a token.Pos, denoting a position
 //   - an ast.Node, denoting an interval
 //   - anything with a Pos() method:
-//     ssa.Member, ssa.Value, ssa.Instruction, types.Object, pointer.Label, etc.
+//     ssa.Member, ssa.Value, ssa.Instruction, types.Object, etc.
 //   - a QueryPos, denoting the extent of the user's query.
 //   - nil, meaning no position at all.
 //

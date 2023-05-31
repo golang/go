@@ -34,12 +34,7 @@ func implements(q *Query) error {
 	}
 
 	// Set the packages to search.
-	if len(q.Scope) > 0 {
-		// Inspect all packages in the analysis scope, if specified.
-		if err := setPTAScope(&lconf, q.Scope); err != nil {
-			return err
-		}
-	} else {
+	{
 		// Otherwise inspect the forward and reverse
 		// transitive closure of the selected package.
 		// (In theory even this is incomplete.)

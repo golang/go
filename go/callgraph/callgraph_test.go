@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/go/callgraph/static"
 	"golang.org/x/tools/go/callgraph/vta"
 	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 )
@@ -136,21 +135,6 @@ func BenchmarkRTA(b *testing.B) {
 		res := rta.Analyze([]*ssa.Function{main}, true)
 		cg := res.CallGraph
 		logStats(b, i == 0, "rta", cg, main)
-	}
-}
-
-func BenchmarkPTA(b *testing.B) {
-	b.StopTimer()
-	_, main := example()
-	b.StartTimer()
-
-	for i := 0; i < b.N; i++ {
-		config := &pointer.Config{Mains: []*ssa.Package{main.Pkg}, BuildCallGraph: true}
-		res, err := pointer.Analyze(config)
-		if err != nil {
-			b.Fatal(err)
-		}
-		logStats(b, i == 0, "pta", res.CallGraph, main)
 	}
 }
 

@@ -43,22 +43,11 @@ func what(q *Query) error {
 	}
 
 	for _, n := range qpos.path {
-		switch n := n.(type) {
+		switch n.(type) {
 		case *ast.Ident:
 			enable["definition"] = true
 			enable["referrers"] = true
 			enable["implements"] = true
-		case *ast.CallExpr:
-			enable["callees"] = true
-		case *ast.FuncDecl:
-			enable["callers"] = true
-			enable["callstack"] = true
-		case *ast.SendStmt:
-			enable["peers"] = true
-		case *ast.UnaryExpr:
-			if n.Op == token.ARROW {
-				enable["peers"] = true
-			}
 		}
 
 		// For implements, we approximate findInterestingNode.
@@ -73,37 +62,10 @@ func what(q *Query) error {
 				enable["implements"] = true
 			}
 		}
-
-		// For pointsto and whicherrs, we approximate findInterestingNode.
-		if _, ok := enable["pointsto"]; !ok {
-			switch n.(type) {
-			case ast.Stmt,
-				*ast.ArrayType,
-				*ast.StructType,
-				*ast.FuncType,
-				*ast.InterfaceType,
-				*ast.MapType,
-				*ast.ChanType:
-				// not an expression
-				enable["pointsto"] = false
-				enable["whicherrs"] = false
-
-			case ast.Expr, ast.Decl, *ast.ValueSpec:
-				// an expression, maybe
-				enable["pointsto"] = true
-				enable["whicherrs"] = true
-
-			default:
-				// Comment, Field, KeyValueExpr, etc: ascend.
-			}
-		}
 	}
 
 	// If we don't have an exact selection, disable modes that need one.
 	if !qpos.exact {
-		enable["callees"] = false
-		enable["pointsto"] = false
-		enable["whicherrs"] = false
 		enable["describe"] = false
 	}
 

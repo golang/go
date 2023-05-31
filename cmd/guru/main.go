@@ -10,18 +10,15 @@
 package main // import "golang.org/x/tools/cmd/guru"
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"go/build"
 	"go/token"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
-	"strings"
 	"sync"
 
 	"golang.org/x/tools/go/buildutil"
@@ -64,10 +61,8 @@ The mode argument determines the query to perform:
 	freevars  	show free variables of selection
 	implements	show 'implements' relation for selected type or method
 	peers     	show send/receive corresponding to selected channel op
-	pointsto	show variables the selected pointer may point to
 	referrers 	show all refs to entity denoted by selected identifier
 	what		show basic information about the selected syntax node
-	whicherrs	show possible values of the selected error variable
 
 The position argument specifies the filename and byte offset (or range)
 of the syntax element to query.  For example:
@@ -137,25 +132,6 @@ func main() {
 		os.Exit(2)
 	}
 
-	// Set up points-to analysis log file.
-	var ptalog io.Writer
-	if *ptalogFlag != "" {
-		if f, err := os.Create(*ptalogFlag); err != nil {
-			log.Fatalf("Failed to create PTA log file: %s", err)
-		} else {
-			buf := bufio.NewWriter(f)
-			ptalog = buf
-			defer func() {
-				if err := buf.Flush(); err != nil {
-					log.Printf("flush: %s", err)
-				}
-				if err := f.Close(); err != nil {
-					log.Printf("close: %s", err)
-				}
-			}()
-		}
-	}
-
 	// Profiling support.
 	if *cpuprofileFlag != "" {
 		f, err := os.Create(*cpuprofileFlag)
@@ -202,20 +178,11 @@ func main() {
 		}
 	}
 
-	// Avoid corner case of split("").
-	var scope []string
-	if *scopeFlag != "" {
-		scope = strings.Split(*scopeFlag, ",")
-	}
-
 	// Ask the guru.
 	query := Query{
-		Pos:        posn,
-		Build:      ctxt,
-		Scope:      scope,
-		PTALog:     ptalog,
-		Reflection: *reflectFlag,
-		Output:     output,
+		Pos:    posn,
+		Build:  ctxt,
+		Output: output,
 	}
 
 	if err := Run(mode, &query); err != nil {

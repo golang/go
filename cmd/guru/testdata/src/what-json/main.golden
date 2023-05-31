@@ -33,16 +33,11 @@
 		}
 	],
 	"modes": [
-		"callees",
-		"callers",
-		"callstack",
 		"definition",
 		"describe",
 		"freevars",
 		"implements",
-		"pointsto",
-		"referrers",
-		"whicherrs"
+		"referrers"
 	],
 	"srcdir": "testdata/src",
 	"importpath": "what-json"
@@ -81,9 +76,7 @@
 		"describe",
 		"freevars",
 		"implements",
-		"pointsto",
-		"referrers",
-		"whicherrs"
+		"referrers"
 	],
 	"srcdir": "testdata/src",
 	"importpath": "what-json",
