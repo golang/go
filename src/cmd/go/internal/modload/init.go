@@ -849,25 +849,24 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
 		// cfg.CmdName directly here.
 		if cfg.BuildMod == "mod" && cfg.CmdName != "mod graph" && cfg.CmdName != "mod why" {
 			// go line is missing from go.mod; add one there and add to derived requirements.
-			addGoStmt(MainModules.ModFile(mainModule), mainModule, gover.Local())
-			if cfg.CmdName != "mod tidy" {
-				// We want to add the "go" line to the module load in general,
-				// if we do it in "mod tidy", then go mod tidy -go=older for some older version
-				// when we are in a module with no go line will see gover.Local() in the
-				// requirement graph and then report that -go=older is invalid.
-				// go test -run=Script/mod_tidy_version will fail without the tidy exclusion.
-				rs = overrideRoots(ctx, rs, []module.Version{{Path: "go", Version: gover.Local()}})
+			v := gover.Local()
+			if opts != nil && opts.TidyGo {
+				v = opts.GoVersion
 			}
+			addGoStmt(MainModules.ModFile(mainModule), mainModule, v)
+			rs = overrideRoots(ctx, rs, []module.Version{{Path: "go", Version: v}})
 
 			// We need to add a 'go' version to the go.mod file, but we must assume
 			// that its existing contents match something between Go 1.11 and 1.16.
 			// Go 1.11 through 1.16 do not support graph pruning, but the latest Go
 			// version uses a pruned module graph — so we need to convert the
 			// requirements to support pruning.
-			var err error
-			rs, err = convertPruning(ctx, rs, pruned)
-			if err != nil {
-				base.Fatalf("go: %v", err)
+			if gover.Compare(v, ExplicitIndirectVersion) >= 0 {
+				var err error
+				rs, err = convertPruning(ctx, rs, pruned)
+				if err != nil {
+					base.Fatalf("go: %v", err)
+				}
 			}
 		} else {
 			rawGoVersion.Store(mainModule, modFileGoVersion(MainModules.ModFile(mainModule)))
