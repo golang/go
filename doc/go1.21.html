@@ -202,6 +202,14 @@ Do not send CLs removing the interior tags from such phrases.
   increasing <code>GOGC</code> and/or <code>GOMEMLIMIT</code> slightly.
 </p>
 
+<p><!-- https://go.dev/issue/51676 -->
+  Calls from C to Go on threads created in C require some setup to prepare for
+  Go execution. On Unix platforms, this setup is now preserved across multiple
+  calls from the same thread. This significantly reduces the overhead of
+  subsequent C to Go calls from ~1-3 microseconds per call to ~100-200
+  nanoseconds per call.
+</p>
+
 <h2 id="compiler">Compiler</h2>
 
 <!-- CL 490819 -->
