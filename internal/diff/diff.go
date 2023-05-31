@@ -114,13 +114,15 @@ func lineEdits(src string, edits []Edit) ([]Edit, error) {
 		return nil, err
 	}
 
-	// Do all edits begin and end at the start of a line?
+	// Do all deletions begin and end at the start of a line,
+	// and all insertions end with a newline?
 	// TODO(adonovan, pjw): why does omitting this 'optimization'
 	// cause tests to fail? (TestDiff/insert-line,extra_newline)
 	for _, edit := range edits {
 		if edit.Start >= len(src) || // insertion at EOF
 			edit.Start > 0 && src[edit.Start-1] != '\n' || // not at line start
-			edit.End > 0 && src[edit.End-1] != '\n' { // not at line start
+			edit.End > 0 && src[edit.End-1] != '\n' || // not at line start
+			edit.New != "" && edit.New[len(edit.New)-1] != '\n' { // partial insert
 			goto expand
 		}
 	}

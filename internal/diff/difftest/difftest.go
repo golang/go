@@ -279,6 +279,23 @@ var TestCases = []struct {
 		Edits:     []diff.Edit{{Start: 3, End: 3, New: "\nbbb"}},
 		LineEdits: []diff.Edit{{Start: 0, End: 4, New: "aaa\nbbb\n"}},
 		Unified:   UnifiedPrefix + "@@ -1,2 +1,3 @@\n aaa\n+bbb\n ccc\n",
+	}, {
+		Name: "60379",
+		In: `package a
+
+type S struct {
+s fmt.Stringer
+}
+`,
+		Out: `package a
+
+type S struct {
+	s fmt.Stringer
+}
+`,
+		Edits:     []diff.Edit{{Start: 27, End: 27, New: "\t"}},
+		LineEdits: []diff.Edit{{Start: 27, End: 42, New: "\ts fmt.Stringer\n"}},
+		Unified:   UnifiedPrefix + "@@ -1,5 +1,5 @@\n package a\n \n type S struct {\n-s fmt.Stringer\n+\ts fmt.Stringer\n }\n",
 	},
 }
 

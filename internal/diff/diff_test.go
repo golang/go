@@ -107,6 +107,14 @@ func TestLineEdits(t *testing.T) {
 			if !reflect.DeepEqual(got, edits) {
 				t.Errorf("LineEdits got\n%q, want\n%q\n%#v", got, edits, tc)
 			}
+			// make sure that applying the edits gives the expected result
+			fixed, err := diff.Apply(tc.In, got)
+			if err != nil {
+				t.Error(err)
+			}
+			if fixed != tc.Out {
+				t.Errorf("Apply(LineEdits): got %q, want %q", fixed, tc.Out)
+			}
 		})
 	}
 }
