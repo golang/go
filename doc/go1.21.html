@@ -437,47 +437,31 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/elliptic"><dt><a href="/pkg/crypto/elliptic/">crypto/elliptic</a></dt>
   <dd>
     <p><!-- CL 459977 -->
-      TODO: <a href="https://go.dev/cl/459977">https://go.dev/cl/459977</a>: crypto/elliptic: deprecate unsafe APIs; modified api/next/34648.txt, api/next/52221.txt
+      All of the <a href="/pkg/crypto/elliptic/#Curve"><code>Curve</code></a> methods have been deprecated, along with <a href="/pkg/crypto/elliptic/#GenerateKey"><code>GenerateKey</code></a>, <a href="/pkg/crypto/elliptic/#Marshal"><code>Marshal</code></a>, and <a href="/pkg/crypto/elliptic/#Unmarshal"><code>Unmarshal</code></a>. For ECDH operations, the new <a href="/pkg/crypto/ecdh/"><code>crypto/ecdh</code></a> package should be used instead.
     </p>
   </dd>
 </dl><!-- crypto/elliptic -->
 
 <dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/56921 -->
-      TODO: <a href="https://go.dev/issue/56921">https://go.dev/issue/56921</a>: deprecate GenerateMultiPrimeKey and PrecomputedValues.CRTValues
-    </p>
-
-    <p><!-- CL 459976 -->
-      TODO: <a href="https://go.dev/cl/459976">https://go.dev/cl/459976</a>: crypto/rsa: deprecate multiprime RSA support; modified api/next/56921.txt
+    <p><!-- https://go.dev/issue/56921, CL 459976 -->
+      The <a href="/pkg/crypto/rsa/#GenerateMultiPrimeKey"><code>GenerateMultiPrimeKey</code></a> function and the <a href="/pkg/crypto/rsa/#PrecomputedValues.CRTValues"><code>PrecomputedValues.CRTValues</code></a> field have been deprecated. <a href="/pkg/crypto/rsa/#PrecomputedValues.CRTValues"><code>PrecomputedValues.CRTValues</code></a> will still be populated when <a href="/pkg/crypto/rsa/#PrivateKey.Precompute"><code>PrivateKey.Precompute</code></a> is called, but the values will not be used during decryption operations.
     </p>
   </dd>
 </dl><!-- crypto/rsa -->
 
-<!-- CL 483815 reverted -->
-<!-- CL 481478 reverted -->
-<!-- CL 483816 reverted -->
-
 <dl id="crypto/sha256"><dt><a href="/pkg/crypto/sha256/">crypto/sha256</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/50543 -->
-      TODO: <a href="https://go.dev/issue/50543">https://go.dev/issue/50543</a>: add native SHA256 instruction implementation for AMD64
-    </p>
-
-    <p><!-- CL 408795 -->
-      TODO: <a href="https://go.dev/cl/408795">https://go.dev/cl/408795</a>: crypto/sha256: add sha-ni implementation; crypto/sha256 uses Intel SHA extensions on new enough x86 processors, making it 3-4X faster.
+    <p><!-- https://go.dev/issue/50543, CL 408795 -->
+      SHA-224 and SHA-256 operations now use native instructions when available when <code>GOOS=amd64</code>, providing a performance improvement on the order of 3-4x.
     </p>
   </dd>
 </dl><!-- crypto/sha256 -->
 
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/53573 -->
-      TODO: <a href="https://go.dev/issue/53573">https://go.dev/issue/53573</a>: surface ReasonCode inside x509.RevocationList entries
-    </p>
-
-    <p><!-- CL 468875 -->
-      TODO: <a href="https://go.dev/cl/468875">https://go.dev/cl/468875</a>: crypto/x509: surface ReasonCode in RevocationList API; modified api/next/53573.txt
+    <p><!-- https://go.dev/issue/53573, CL 468875 -->
+      <a href="/pkg/crypto/x509/#RevocationList.RevokedCertificates"><code>RevocationList.RevokedCertificates</code></a> has been deprecated and replaced with the new <a href="/pkg/crypto/x509/#RevocationList.Entries"><code>RevocationList.Entries</code></a> field, which is a slice of <a href="/pkg/crypto/x509/#RevocationListEntry"><code>RevocationListEntry</code></a>. <a href="/pkg/crypto/x509/#RevocationListEntry"><code>RevocationListEntry</code></a> contains all of the fields in <a href="/pkg/crypto/x509/#pkix.RevokedCertificate"><code>pkix.RevokedCertificate</code></a>, as well as the revocation reason code.
     </p>
   </dd>
 </dl><!-- crypto/x509 -->
