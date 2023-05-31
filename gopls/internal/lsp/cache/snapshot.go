@@ -1605,9 +1605,6 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 			files = append(files, o)
 		}
 	}
-	if len(files) == 0 {
-		return nil
-	}
 
 	// Filter to files that are not known to be unloadable.
 	s.mu.Lock()
@@ -1619,6 +1616,10 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 	}
 	files = loadable
 	s.mu.Unlock()
+
+	if len(files) == 0 {
+		return nil
+	}
 
 	var uris []span.URI
 	for _, file := range files {
