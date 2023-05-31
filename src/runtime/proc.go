@@ -1985,10 +1985,10 @@ func needm(signal bool) {
 	sigsave(&sigmask)
 	sigblock(false)
 
-	// nilokay=false is safe here because of the invariant above,
+	// getExtraM is safe here because of the invariant above,
 	// that the extra list always contains or will soon contain
 	// at least one m.
-	mp, last := getExtraM(false)
+	mp, last := getExtraM()
 
 	// Set needextram when we've just emptied the list,
 	// so that the eventual call into cgocallbackg will
@@ -2260,7 +2260,6 @@ func lockextra(nilokay bool) *m {
 			continue
 		}
 		if extraM.CompareAndSwap(old, locked) {
-			extraMInUse.Add(1)
 			return (*m)(unsafe.Pointer(old))
 		}
 		osyield_no_g()
@@ -2277,13 +2276,13 @@ func unlockextra(mp *m, delta int32) {
 // Return an M from the extra M list. Returns last == true if the list becomes
 // empty because of this call.
 //
+// Spins waiting for an extra M, so caller must ensure that the list always
+// contains or will soon contain at least one M.
+//
 //go:nosplit
-func getExtraM(nilokay bool) (mp *m, last bool) {
-	mp = lockextra(nilokay)
-	if mp == nil {
-		unlockextra(nil, 0)
-		return nil, true
-	}
+func getExtraM() (mp *m, last bool) {
+	mp = lockextra(false)
+	extraMInUse.Add(1)
 	unlockextra(mp.schedlink.ptr(), -1)
 	return mp, mp.schedlink.ptr() == nil
 }
