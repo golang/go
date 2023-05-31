@@ -946,7 +946,7 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 // It clobbers condition codes.
 // It does not clobber R0 through R17 (except special registers),
 // but may clobber any other register, *including* R31.
-TEXT gcWriteBarrier<>(SB),NOSPLIT,$112
+TEXT gcWriteBarrier<>(SB),NOSPLIT,$120
 	// The standard prologue clobbers R31.
 	// We use R18, R19, and R31 as scratch registers.
 retry:
@@ -987,6 +987,7 @@ flush:
 	MOVD	R15, (FIXED_FRAME+88)(R1)
 	MOVD	R16, (FIXED_FRAME+96)(R1)
 	MOVD	R17, (FIXED_FRAME+104)(R1)
+	MOVD	R29, (FIXED_FRAME+112)(R1)
 
 	CALL	runtime·wbBufFlush(SB)
 
@@ -1004,6 +1005,7 @@ flush:
 	MOVD	(FIXED_FRAME+88)(R1), R15
 	MOVD	(FIXED_FRAME+96)(R1), R16
 	MOVD	(FIXED_FRAME+104)(R1), R17
+	MOVD	(FIXED_FRAME+112)(R1), R29
 	JMP	retry
 
 TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
