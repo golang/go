@@ -1735,8 +1735,8 @@ A channel may be closed with the built-in function
 <a href="#Close"><code>close</code></a>.
 The multi-valued assignment form of the
 <a href="#Receive_operator">receive operator</a>
-reports whether a received value was sent before
-the channel was closed.
+reports whether a received value was delivered by a successful send operation or
+is a zero value generated because the channel is closed and empty.
 </p>
 
 <p>
