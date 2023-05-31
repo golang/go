@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -593,18 +594,25 @@ func buildPtrTests(t *testing.T, gopath string, cgocheck2 bool) (exe string) {
 	cmd := exec.Command("go", "build", "-o", exeName)
 	cmd.Dir = src
 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
-	if cgocheck2 {
-		found := false
-		for i, e := range cmd.Env {
-			if strings.HasPrefix(e, "GOEXPERIMENT=") {
-				cmd.Env[i] = e + ",cgocheck2"
-				found = true
-			}
-		}
-		if !found {
-			cmd.Env = append(cmd.Env, "GOEXPERIMENT=cgocheck2")
-		}
+
+	// Set or remove cgocheck2 from the environment.
+	goexperiment := strings.Split(os.Getenv("GOEXPERIMENT"), ",")
+	if len(goexperiment) == 1 && goexperiment[0] == "" {
+		goexperiment = nil
 	}
+	i := slices.Index(goexperiment, "cgocheck2")
+	changed := false
+	if cgocheck2 && i < 0 {
+		goexperiment = append(goexperiment, "cgocheck2")
+		changed = true
+	} else if !cgocheck2 && i >= 0 {
+		goexperiment = append(goexperiment[:i], goexperiment[i+1:]...)
+		changed = true
+	}
+	if changed {
+		cmd.Env = append(cmd.Env, "GOEXPERIMENT="+strings.Join(goexperiment, ","))
+	}
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
