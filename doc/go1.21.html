@@ -333,12 +333,14 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/53685 -->
-      TODO: <a href="https://go.dev/issue/53685">https://go.dev/issue/53685</a>: add Buffer.Available and Buffer.AvailableBuffer
-    </p>
-
-    <p><!-- CL 474635 -->
-      TODO: <a href="https://go.dev/cl/474635">https://go.dev/cl/474635</a>: bytes: add Buffer.Available and Buffer.AvailableBuffer; modified api/next/53685.txt
+    <p><!-- https://go.dev/issue/53685, CL 474635 -->
+      The <a href="/pkg/bytes/#Buffer"><code>Buffer</code></a> type
+      has two new methods:
+      <a href="/pkg/bytes/#Buffer.Available"><code>Available</code></a>
+      and <a href="/pkg/bytes/#AvailableBuffer"><code>AvailableBuffer</code></a>.
+      These may be used along with the
+      <a href="/pkg/bytes/#Buffer.Write"><code>Write</code></a>
+      method to append directly to the <code>Buffer</code>.
     </p>
   </dd>
 </dl><!-- bytes -->
