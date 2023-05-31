@@ -5,9 +5,10 @@
 package mvs
 
 import (
-	"cmd/go/internal/gover"
-	"cmd/go/internal/slices"
 	"fmt"
+	"slices"
+
+	"cmd/go/internal/gover"
 
 	"golang.org/x/mod/module"
 )

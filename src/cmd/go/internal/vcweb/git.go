@@ -5,12 +5,12 @@
 package vcweb
 
 import (
-	"cmd/go/internal/slices"
 	"log"
 	"net/http"
 	"net/http/cgi"
 	"os/exec"
 	"runtime"
+	"slices"
 	"sync"
 )
 
