@@ -450,7 +450,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	sort.Strings(loadedPackages)
 
 	if !ExplicitWriteGoMod && opts.ResolveMissingImports {
-		if err := commitRequirements(ctx); err != nil {
+		if err := commitRequirements(ctx, WriteOpts{}); err != nil {
 			base.Fatalf("go: %v", err)
 		}
 	}
@@ -733,7 +733,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 	requirements = loaded.requirements
 
 	if !ExplicitWriteGoMod {
-		if err := commitRequirements(ctx); err != nil {
+		if err := commitRequirements(ctx, WriteOpts{}); err != nil {
 			base.Fatalf("go: %v", err)
 		}
 	}

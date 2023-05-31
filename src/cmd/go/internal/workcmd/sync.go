@@ -122,7 +122,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 			SilenceMissingStdImports: true,
 			SilencePackageErrors:     true,
 		}, "all")
-		modload.WriteGoMod(ctx)
+		modload.WriteGoMod(ctx, modload.WriteOpts{})
 	}
 
 	wf, err := modload.ReadWorkFile(workFilePath)

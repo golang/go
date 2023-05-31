@@ -940,7 +940,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 		base.Fatalf("go: %v", err)
 	}
 	requirements = rs
-	if err := commitRequirements(ctx); err != nil {
+	if err := commitRequirements(ctx, WriteOpts{}); err != nil {
 		base.Fatalf("go: %v", err)
 	}
 
@@ -1515,10 +1515,14 @@ func findImportComment(file string) string {
 	return path
 }
 
+// WriteOpts control the behavior of WriteGoMod.
+type WriteOpts struct {
+}
+
 // WriteGoMod writes the current build list back to go.mod.
-func WriteGoMod(ctx context.Context) error {
+func WriteGoMod(ctx context.Context, opts WriteOpts) error {
 	requirements = LoadModFile(ctx)
-	return commitRequirements(ctx)
+	return commitRequirements(ctx, opts)
 }
 
 // commitRequirements ensures go.mod and go.sum are up to date with the current
@@ -1530,7 +1534,7 @@ func WriteGoMod(ctx context.Context) error {
 // go.mod or go.sum are out of date in a semantically significant way.
 //
 // In workspace mode, commitRequirements only writes changes to go.work.sum.
-func commitRequirements(ctx context.Context) (err error) {
+func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 	if inWorkspaceMode() {
 		// go.mod files aren't updated in workspace mode, but we still want to
 		// update the go.work.sum file.

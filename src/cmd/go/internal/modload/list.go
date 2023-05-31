@@ -111,7 +111,7 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
 	if err == nil {
 		requirements = rs
 		if !ExplicitWriteGoMod {
-			err = commitRequirements(ctx)
+			err = commitRequirements(ctx, WriteOpts{})
 		}
 	}
 	return mods, err

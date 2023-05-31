@@ -187,7 +187,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		// TODO(#45551): In the future, report an error if go.mod or go.sum need to
 		// be updated after loading the build list. This may require setting
 		// the mode to "mod" or "readonly" depending on haveExplicitArgs.
-		if err := modload.WriteGoMod(ctx); err != nil {
+		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
 			base.Fatalf("go: %v", err)
 		}
 	}
@@ -266,7 +266,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// Don't save sums for 'go mod download' without arguments unless we're in
 	// workspace mode; see comment above.
 	if haveExplicitArgs || modload.WorkFilePath() != "" {
-		if err := modload.WriteGoMod(ctx); err != nil {
+		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
 			base.Errorf("go: %v", err)
 		}
 	}

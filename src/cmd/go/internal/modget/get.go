@@ -379,7 +379,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// Everything succeeded. Update go.mod.
 	oldReqs := reqsFromGoMod(modload.ModFile())
 
-	if err := modload.WriteGoMod(ctx); err != nil {
+	if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
 		if tooNew, ok := err.(*gover.TooNewError); ok {
 			// This can happen for 'go get go@newversion'
 			// when all the required modules are old enough
