@@ -771,9 +771,18 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="/pkg/io/fs/#DirEntry"><code>io/fs.DirEntry</code></a>
       interface returned by the
       <a href="/pkg/os/#ReadDir"><code>ReadDir</code></a> function and
-      the <a href="/pkg/os/#File.ReadDir"><code>File.ReadDir</code>
+      the <a href="/pkg/os/#File.ReadDir"><code>File.ReadDir</code></a>
       method now implements a <code>String</code> method that calls
       <a href="/pkg/io/fs/#FormatDirEntry"><code>io/fs.FormatDirEntry</code></a>.
+    </p>
+
+    <p><!-- https://go.dev/issue/53761, CL 416775, CL 498015-->
+    The implementation of the
+    <a href="/pkg/io/fs/#FS"><code>io/fs.FS</code></a> interface returned by
+    the <a href="/pkg/os/#DirFS"><code>DirFS</code></a> function now implements
+    the <a href="/pkg/io/fs/#ReadFileFS"><code>io/fs.ReadFileFS</code></a> and
+    the <a href="/pkg/io/fs/#ReadDirFS"><code></code>ios/fs.ReadDirFS</a>
+    interfaces.
     </p>
   </dd>
 </dl><!-- os -->
