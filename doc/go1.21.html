@@ -231,6 +231,12 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="linker">Linker</h2>
 
+<p><!-- https://go.dev/issue/57302, CL 461749 -->
+  On Windows AMD64, the linker (with help from the compiler) now emits
+  SEH unwinding data by default, which improves the integration
+  of Go applications with Windows debuggers and other tools.
+</p>
+
 <!-- CL 457455 -->
 <p>
   <!-- cmd/link: generate .xdata PE section -->
@@ -745,8 +751,11 @@ Do not send CLs removing the interior tags from such phrases.
       TODO: <a href="https://go.dev/issue/38651">https://go.dev/issue/38651</a>: add &#39;created by goroutine number&#39; to stack traces
     </p>
 
-    <p><!-- https://go.dev/issue/57441 -->
-      TODO: <a href="https://go.dev/issue/57441">https://go.dev/issue/57441</a>: use WER for GOTRACEBACK=wer on Windows
+    <p><!-- https://go.dev/issue/57441, CL 474915 -->
+      Crashing Go applications can now opt-in to Windows Error Reporting (WER) by setting the environment variable
+      <code>GOTRACEBACK=wer</code> or calling <a href="/pkg/runtime/debug/#SetTraceback"><code>debug.SetTraceback("wer")</code></a>
+      before the crash. Other than enabling WER, the runtime will behave as with <code>GOTRACEBACK=crash</code>.
+      On non-Windows systems, <code>GOTRACEBACK=wer</code> is ignored.
     </p>
 
     <p><!-- CL 447778 -->
@@ -756,14 +765,6 @@ Do not send CLs removing the interior tags from such phrases.
       In particular this means that this mode has to be selected at build time instead of startup time.
     <p>
       <code>GODEBUG=cgocheck=1</code> is still available (and is still the default).
-    </p>
-
-    <p><!-- CL 472195 -->
-      TODO: <a href="https://go.dev/cl/472195">https://go.dev/cl/472195</a>: runtime: remove NOFRAME from asmcgocall, systemstack and mcall
-    </p>
-
-    <p><!-- CL 474915 -->
-      TODO: <a href="https://go.dev/cl/474915">https://go.dev/cl/474915</a>: runtime: support GOTRACEBACK=wer on Windows
     </p>
 
     <p><!-- https://go.dev/issue/46787 -->
