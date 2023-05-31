@@ -231,7 +231,10 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 					// 2) If the core type doesn't have a tilde, we also must unify tx
 					//    with the core type.
 					if !u.unify(tx, core.typ, 0) {
-						check.errorf(pos, CannotInferTypeArgs, "%s does not match %s", tpar, core.typ)
+						// TODO(gri) Type parameters that appear in the constraint and
+						//           for which we have type arguments inferred should
+						//           use those type arguments for a better error message.
+						check.errorf(pos, CannotInferTypeArgs, "%s (type %s) does not satisfy %s", tpar, tx, tpar.Constraint())
 						return nil
 					}
 				case single && !core.tilde:
@@ -249,7 +252,8 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 					var cause string
 					constraint := tpar.iface()
 					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, 0) }, &cause); m != nil {
-						check.errorf(pos, CannotInferTypeArgs, "%s does not satisfy %s %s", tx, constraint, cause)
+						// TODO(gri) better error message (see TODO above)
+						check.errorf(pos, CannotInferTypeArgs, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
 						return nil
 					}
 				}
