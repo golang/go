@@ -11,7 +11,9 @@ import (
 	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/toolchain"
 	"context"
+	"errors"
 
 	"golang.org/x/mod/module"
 )
@@ -53,7 +55,11 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
 	}
 
-	workGraph := modload.LoadModGraph(ctx, "")
+	workGraph, err := modload.LoadModGraph(ctx, "")
+	if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
+		toolchain.TryVersion(ctx, tooNew.GoVersion)
+		base.Fatalf("go: %v", err)
+	}
 	_ = workGraph
 	mustSelectFor := map[module.Version][]module.Version{}
 

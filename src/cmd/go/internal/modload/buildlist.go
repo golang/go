@@ -47,6 +47,9 @@ type Requirements struct {
 	// given module path. The root modules of the graph are the set of main
 	// modules in workspace mode, and the main module's direct requirements
 	// outside workspace mode.
+	//
+	// The roots are always expected to contain an entry for the "go" module,
+	// indicating the Go language version in use.
 	rootModules    []module.Version
 	maxRootVersion map[string]string
 
@@ -537,10 +540,15 @@ func (mg *ModuleGraph) allRootsSelected() bool {
 // Modules are loaded automatically (and lazily) in LoadPackages:
 // LoadModGraph need only be called if LoadPackages is not,
 // typically in commands that care about modules but no particular package.
-func LoadModGraph(ctx context.Context, goVersion string) *ModuleGraph {
+func LoadModGraph(ctx context.Context, goVersion string) (*ModuleGraph, error) {
 	rs := LoadModFile(ctx)
 
 	if goVersion != "" {
+		v, _ := rs.rootSelected("go")
+		if gover.Compare(v, GoStrictVersion) >= 0 && gover.Compare(goVersion, v) < 0 {
+			return nil, fmt.Errorf("requested Go version %s cannot load module graph (requires Go >= %s)", goVersion, v)
+		}
+
 		pruning := pruningForGoVersion(goVersion)
 		if pruning == unpruned && rs.pruning != unpruned {
 			// Use newRequirements instead of convertDepth because convertDepth
@@ -549,21 +557,15 @@ func LoadModGraph(ctx context.Context, goVersion string) *ModuleGraph {
 			rs = newRequirements(unpruned, rs.rootModules, rs.direct)
 		}
 
-		mg, err := rs.Graph(ctx)
-		if err != nil {
-			base.Fatalf("go: %v", err)
-		}
-		return mg
+		return rs.Graph(ctx)
 	}
 
 	rs, mg, err := expandGraph(ctx, rs)
 	if err != nil {
-		base.Fatalf("go: %v", err)
+		return nil, err
 	}
-
 	requirements = rs
-
-	return mg
+	return mg, err
 }
 
 // expandGraph loads the complete module graph from rs.

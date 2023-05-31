@@ -579,7 +579,7 @@ func goInstallVersion() (m module.Version, goVers string, found bool) {
 	}
 	noneSelected := func(path string) (version string) { return "none" }
 	_, err := modload.QueryPackages(ctx, m.Path, m.Version, noneSelected, allowed)
-	if tooNew, ok := err.(*gover.TooNewError); ok {
+	if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
 		m.Path, m.Version, _ = strings.Cut(tooNew.What, "@")
 		return m, tooNew.GoVersion, true
 	}
@@ -590,4 +590,23 @@ func goInstallVersion() (m module.Version, goVers string, found bool) {
 	// so return found == true so the caller does not fall back to
 	// consulting go.mod.
 	return m, "", true
+}
+
+// TryVersion tries to switch to a Go toolchain appropriate for version,
+// which was either found in a go.mod file of a dependency or resolved
+// on the command line from go@v.
+func TryVersion(ctx context.Context, version string) {
+	if !gover.IsValid(version) {
+		fmt.Fprintf(os.Stderr, "go: misuse of tryVersion: invalid version %q\n", version)
+		return
+	}
+	if (!HasAuto() && !HasPath()) || gover.Compare(version, gover.Local()) <= 0 {
+		return
+	}
+	tv, err := NewerToolchain(ctx, version)
+	if err != nil {
+		base.Errorf("go: %v\n", err)
+	}
+	fmt.Fprintf(os.Stderr, "go: switching to %v\n", tv)
+	SwitchTo(tv)
 }

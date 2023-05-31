@@ -13,7 +13,9 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/toolchain"
 
 	"golang.org/x/mod/module"
 )
@@ -57,7 +59,20 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
-	mg := modload.LoadModGraph(ctx, graphGo.String())
+
+	goVersion := graphGo.String()
+	if goVersion != "" && gover.Compare(gover.Local(), goVersion) < 0 {
+		toolchain.TryVersion(ctx, goVersion)
+		base.Fatalf("go: %v", &gover.TooNewError{
+			What:      "-go flag",
+			GoVersion: goVersion,
+		})
+	}
+
+	mg, err := modload.LoadModGraph(ctx, goVersion)
+	if err != nil {
+		base.Fatalf("go: %v", err)
+	}
 
 	w := bufio.NewWriter(os.Stdout)
 	defer w.Flush()

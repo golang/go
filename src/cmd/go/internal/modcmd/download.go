@@ -150,7 +150,10 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 				// However, we also need to load the full module graph, to ensure that
 				// we have downloaded enough of the module graph to run 'go list all',
 				// 'go mod graph', and similar commands.
-				_ = modload.LoadModGraph(ctx, "")
+				_, err := modload.LoadModGraph(ctx, "")
+				if err != nil {
+					base.Fatalf("go: %v", err)
+				}
 
 				for _, m := range modFile.Require {
 					args = append(args, m.Mod.Path)
@@ -176,6 +179,23 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 	infos, infosErr := modload.ListModules(ctx, args, 0, *downloadReuse)
+
+	// There is a bit of a chicken-and-egg problem here: ideally we need to know
+	// which Go version to switch to to download the requested modules, but if we
+	// haven't downloaded the module's go.mod file yet the GoVersion field of its
+	// info struct is not yet populated.
+	//
+	// We also need to be careful to only print the info for each module once
+	// if the -json flag is set.
+	//
+	// In theory we could go through each module in the list, attempt to download
+	// its go.mod file, and record the maximum version (either from the file or
+	// from the resulting TooNewError), all before we try the actual full download
+	// of each module.
+	//
+	// For now, we just let it fail: the user can explicitly set GOTOOLCHAIN
+	// and retry if they want to.
+
 	if !haveExplicitArgs && modload.WorkFilePath() == "" {
 		// 'go mod download' is sometimes run without arguments to pre-populate the
 		// module cache. In modules that aren't at go 1.17 or higher, it may fetch

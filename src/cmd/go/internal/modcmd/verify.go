@@ -57,9 +57,12 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 
+	mg, err := modload.LoadModGraph(ctx, "")
+	if err != nil {
+		base.Fatalf("go: %v", err)
+	}
+	mods := mg.BuildList()[modload.MainModules.Len():]
 	// Use a slice of result channels, so that the output is deterministic.
-	const defaultGoVersion = ""
-	mods := modload.LoadModGraph(ctx, defaultGoVersion).BuildList()[modload.MainModules.Len():]
 	errsChans := make([]<-chan []error, len(mods))
 
 	for i, mod := range mods {
