@@ -28,7 +28,7 @@ const (
 
 var TestCases = []struct {
 	Name, In, Out, Unified string
-	Edits, LineEdits       []diff.Edit
+	Edits, LineEdits       []diff.Edit // expectation (LineEdits=nil => already line-aligned)
 	NoDiff                 bool
 }{{
 	Name: "empty",
@@ -220,9 +220,9 @@ var TestCases = []struct {
 			{Start: 14, End: 14, New: "C\n"},
 		},
 		LineEdits: []diff.Edit{
-			{Start: 0, End: 6, New: "C\n"},
-			{Start: 6, End: 8, New: "B\nA\n"},
-			{Start: 10, End: 14, New: "A\n"},
+			{Start: 0, End: 4, New: ""},
+			{Start: 6, End: 6, New: "B\n"},
+			{Start: 10, End: 12, New: ""},
 			{Start: 14, End: 14, New: "C\n"},
 		},
 	}, {

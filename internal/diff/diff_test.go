@@ -95,17 +95,17 @@ func FuzzRoundTrip(f *testing.F) {
 func TestLineEdits(t *testing.T) {
 	for _, tc := range difftest.TestCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			// if line edits not specified, it is the same as edits
-			edits := tc.LineEdits
-			if edits == nil {
-				edits = tc.Edits
+			want := tc.LineEdits
+			if want == nil {
+				want = tc.Edits // already line-aligned
 			}
 			got, err := diff.LineEdits(tc.In, tc.Edits)
 			if err != nil {
 				t.Fatalf("LineEdits: %v", err)
 			}
-			if !reflect.DeepEqual(got, edits) {
-				t.Errorf("LineEdits got\n%q, want\n%q\n%#v", got, edits, tc)
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("in=<<%s>>\nout=<<%s>>\nraw  edits=%s\nline edits=%s\nwant: %s",
+					tc.In, tc.Out, tc.Edits, got, want)
 			}
 			// make sure that applying the edits gives the expected result
 			fixed, err := diff.Apply(tc.In, got)

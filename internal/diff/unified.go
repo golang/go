@@ -155,18 +155,9 @@ func toUnified(fromName, toName string, content string, edits []Edit) (unified, 
 			last++
 		}
 		if edit.New != "" {
-			for i, content := range splitLines(edit.New) {
-				toLine++
-				// Merge identical Delete+Insert.
-				// This is an unwanted output of converting diffs to line diffs
-				// that is easiest to fix by postprocessing.
-				// e.g.  issue #59232: ("aaa\nccc\n", "aaa\nbbb\nccc")
-				// -> [Delete "aaa\n", Insert "aaa\n", Insert "bbb\n", ...].
-				if i == 0 && last > start && h.lines[len(h.lines)-1].content == content {
-					h.lines[len(h.lines)-1].kind = opEqual
-					continue
-				}
+			for _, content := range splitLines(edit.New) {
 				h.lines = append(h.lines, line{kind: opInsert, content: content})
+				toLine++
 			}
 		}
 	}
