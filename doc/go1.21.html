@@ -430,24 +430,23 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/56887 -->
-      TODO: <a href="https://go.dev/issue/56887">https://go.dev/issue/56887</a>: add DT_FLAGS_1 (dynamic flags) constants
+    <p><!-- https://go.dev/issue/56892, CL 452617 -->
+      The new
+      <a href="https:/pkg/debug/elf/#File.DynValue"><code>File.DynValue</code></a>
+      method may be used to retrieve the numeric values listed with a
+      given dynamic tag.
     </p>
 
-    <p><!-- https://go.dev/issue/56892 -->
-      TODO: <a href="https://go.dev/issue/56892">https://go.dev/issue/56892</a>: add (*File).DynValue
-    </p>
-
-    <p><!-- CL 452496 -->
-      TODO: <a href="https://go.dev/cl/452496">https://go.dev/cl/452496</a>: debug/elf: add DT_FLAGS_1 constants; modified api/next/56887.txt
-    </p>
-
-    <p><!-- CL 452617 -->
-      TODO: <a href="https://go.dev/cl/452617">https://go.dev/cl/452617</a>: debug/elf: retrieve values for dynamic section tags; modified api/next/56892.txt
+    <p><!-- https://go.dev/issue/56887, CL 452496 -->
+      The constant flags permitted in a <code>DT_FLAGS_1</code>
+      dynamic tag are now defined with type
+      <a href="/pkg/debug/elf/#DynFlag1"><code>DynFlag1</code></a>. These
+      tags have names starting with <code>DF_1</code>.
     </p>
 
     <p><!-- CL 473256 -->
-      TODO: <a href="https://go.dev/cl/473256">https://go.dev/cl/473256</a>: debug/elf: support zstd compression; modified api/next/55107.txt
+      The package now defines the constant
+      <a href="/pkg/debug/elf/#COMPRESS_ZSTD"><code>COMPRESS_ZSTD</code></a>.
     </p>
   </dd>
 </dl><!-- debug/elf -->
