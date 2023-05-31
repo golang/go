@@ -84,6 +84,7 @@ m golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c
 m rsc.io/quote@v1.5.2
 m rsc.io/sampler@v1.3.0
 m rsc.io/testonly@v1.0.0
+m toolchain@go1.18
 go@1.18 toolchain@go1.18
 rsc.io/quote@v1.5.2 rsc.io/sampler@v1.3.0
 rsc.io/sampler@v1.3.0 golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c

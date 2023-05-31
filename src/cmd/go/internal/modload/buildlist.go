@@ -5,12 +5,6 @@
 package modload
 
 import (
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/gover"
-	"cmd/go/internal/mvs"
-	"cmd/go/internal/par"
-	"cmd/go/internal/slices"
 	"context"
 	"errors"
 	"fmt"
@@ -18,9 +12,16 @@ import (
 	"reflect"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
+	"cmd/go/internal/mvs"
+	"cmd/go/internal/par"
 
 	"golang.org/x/mod/module"
 )
@@ -91,6 +92,15 @@ type cachedGraph struct {
 // accept and/or return an explicit parameter.
 var requirements *Requirements
 
+func mustHaveGoRoot(roots []module.Version) {
+	for _, m := range roots {
+		if m.Path == "go" {
+			return
+		}
+	}
+	panic("go: internal error: missing go root module")
+}
+
 // newRequirements returns a new requirement set with the given root modules.
 // The dependencies of the roots will be loaded lazily at the first call to the
 // Graph method.
@@ -102,6 +112,8 @@ var requirements *Requirements
 // If vendoring is in effect, the caller must invoke initVendor on the returned
 // *Requirements before any other method.
 func newRequirements(pruning modPruning, rootModules []module.Version, direct map[string]bool) *Requirements {
+	mustHaveGoRoot(rootModules)
+
 	if pruning == workspace {
 		return &Requirements{
 			pruning:        pruning,
@@ -114,7 +126,6 @@ func newRequirements(pruning modPruning, rootModules []module.Version, direct ma
 	if workFilePath != "" && pruning != workspace {
 		panic("in workspace mode, but pruning is not workspace in newRequirements")
 	}
-
 	for i, m := range rootModules {
 		if m.Version == "" && MainModules.Contains(m.Path) {
 			panic(fmt.Sprintf("newRequirements called with untrimmed build list: rootModules[%v] is a main module", i))
@@ -122,17 +133,21 @@ func newRequirements(pruning modPruning, rootModules []module.Version, direct ma
 		if m.Path == "" || m.Version == "" {
 			panic(fmt.Sprintf("bad requirement: rootModules[%v] = %v", i, m))
 		}
-		if i > 0 {
-			prev := rootModules[i-1]
-			if prev.Path > m.Path || (prev.Path == m.Path && gover.ModCompare(m.Path, prev.Version, m.Version) > 0) {
-				panic(fmt.Sprintf("newRequirements called with unsorted roots: %v", rootModules))
-			}
-		}
+	}
+
+	// Allow unsorted root modules, because go and toolchain
+	// are treated as the final graph roots but not trimmed from the build list,
+	// so they always appear at the beginning of the list.
+	r := slices.Clip(slices.Clone(rootModules))
+	gover.ModSort(r)
+	if !reflect.DeepEqual(r, rootModules) {
+		fmt.Fprintln(os.Stderr, "RM", rootModules)
+		panic("unsorted")
 	}
 
 	rs := &Requirements{
 		pruning:        pruning,
-		rootModules:    slices.Clip(rootModules),
+		rootModules:    rootModules,
 		maxRootVersion: make(map[string]string, len(rootModules)),
 		direct:         direct,
 	}
@@ -157,7 +172,7 @@ func (rs *Requirements) String() string {
 func (rs *Requirements) initVendor(vendorList []module.Version) {
 	rs.graphOnce.Do(func() {
 		mg := &ModuleGraph{
-			g: mvs.NewGraph(cmpVersion, MainModules.GraphRoots()),
+			g: mvs.NewGraph(cmpVersion, MainModules.Versions()),
 		}
 
 		if MainModules.Len() != 1 {
@@ -278,6 +293,7 @@ var readModGraphDebugOnce sync.Once
 // Unlike LoadModGraph, readModGraph does not attempt to diagnose or update
 // inconsistent roots.
 func readModGraph(ctx context.Context, pruning modPruning, roots []module.Version, unprune map[module.Version]bool) (*ModuleGraph, error) {
+	mustHaveGoRoot(roots)
 	if pruning == pruned {
 		// Enable diagnostics for lazy module loading
 		// (https://golang.org/ref/mod#lazy-loading) only if the module graph is
@@ -301,13 +317,20 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
 		})
 	}
 
+	var graphRoots []module.Version
+	if inWorkspaceMode() {
+		graphRoots = roots
+	} else {
+		graphRoots = MainModules.Versions()
+	}
 	var (
 		mu       sync.Mutex // guards mg.g and hasError during loading
 		hasError bool
 		mg       = &ModuleGraph{
-			g: mvs.NewGraph(cmpVersion, MainModules.GraphRoots()),
+			g: mvs.NewGraph(cmpVersion, graphRoots),
 		}
 	)
+
 	if pruning != workspace {
 		if inWorkspaceMode() {
 			panic("pruning is not workspace in workspace mode")
@@ -380,6 +403,7 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
 		})
 	}
 
+	mustHaveGoRoot(roots)
 	for _, m := range roots {
 		enqueue(m, pruning)
 	}
@@ -788,6 +812,10 @@ func tidyPrunedRoots(ctx context.Context, mainModule module.Version, old *Requir
 	if v, ok := old.rootSelected("go"); ok {
 		roots = append(roots, module.Version{Path: "go", Version: v})
 		pathIsRoot["go"] = true
+	}
+	if v, ok := old.rootSelected("toolchain"); ok {
+		roots = append(roots, module.Version{Path: "toolchain", Version: v})
+		pathIsRoot["toolchain"] = true
 	}
 	// We start by adding roots for every package in "all".
 	//
@@ -1254,6 +1282,11 @@ func tidyUnprunedRoots(ctx context.Context, mainModule module.Version, old *Requ
 	)
 	if v, ok := old.rootSelected("go"); ok {
 		keep = append(keep, module.Version{Path: "go", Version: v})
+		keptPath["go"] = true
+	}
+	if v, ok := old.rootSelected("toolchain"); ok {
+		keep = append(keep, module.Version{Path: "toolchain", Version: v})
+		keptPath["toolchain"] = true
 	}
 	for _, pkg := range pkgs {
 		if !pkg.fromExternalModule() {

@@ -33,6 +33,22 @@ const (
 	// tests outside of the main module.
 	narrowAllVersion = "1.16"
 
+	// defaultGoModVersion is the Go version to assume for go.mod files
+	// that do not declare a Go version. The go command has been
+	// writing go versions to modules since Go 1.12, so a go.mod
+	// without a version is either very old or recently hand-written.
+	// Since we can't tell which, we have to assume it's very old.
+	// The semantics of the go.mod changed at Go 1.17 to support
+	// graph pruning. If see a go.mod without a go line, we have to
+	// assume Go 1.16 so that we interpret the requirements correctly.
+	// Note that this default must stay at Go 1.16; it cannot be moved forward.
+	defaultGoModVersion = "1.16"
+
+	// defaultGoWorkVersion is the Go version to assume for go.work files
+	// that do not declare a Go version. Workspaces were added in Go 1.18,
+	// so use that.
+	defaultGoWorkVersion = "1.18"
+
 	// ExplicitIndirectVersion is the Go version at which a
 	// module's go.mod file is expected to list explicit requirements on every
 	// module that provides any package transitively imported by that module.
@@ -89,27 +105,6 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
 	}
 
 	return data, f, err
-}
-
-// modFileGoVersion returns the (non-empty) Go version at which the requirements
-// in modFile are interpreted, or the latest Go version if modFile is nil.
-func modFileGoVersion(modFile *modfile.File) string {
-	if modFile == nil {
-		return gover.Local()
-	}
-	if modFile.Go == nil || modFile.Go.Version == "" {
-		// The main module necessarily has a go.mod file, and that file lacks a
-		// 'go' directive. The 'go' command has been adding that directive
-		// automatically since Go 1.12, so this module either dates to Go 1.11 or
-		// has been erroneously hand-edited.
-		//
-		// The semantics of the go.mod file are more-or-less the same from Go 1.11
-		// through Go 1.16, changing at 1.17 to support module graph pruning.
-		// So even though a go.mod file without a 'go' directive is theoretically a
-		// Go 1.11 file, scripts may assume that it ends up as a Go 1.16 module.
-		return "1.16"
-	}
-	return modFile.Go.Version
 }
 
 // A modFileIndex is an index of data corresponding to a modFile
@@ -510,19 +505,6 @@ func (i *modFileIndex) modFileIsDirty(modFile *modfile.File) bool {
 		toolchain = modFile.Toolchain.Name
 	}
 
-	// go.mod files did not always require a 'go' version, so do not error out
-	// if one is missing — we may be inside an older module
-	// and want to bias toward providing useful behavior.
-	// go lines are required if we need to declare version 1.17 or later.
-	// Note that as of CL 303229, a missing go directive implies 1.16,
-	// not “the latest Go version”.
-	if goV != i.goVersion && i.goVersion == "" && cfg.BuildMod != "mod" && gover.Compare(goV, "1.17") < 0 {
-		goV = ""
-		if toolchain != i.toolchain && i.toolchain == "" {
-			toolchain = ""
-		}
-	}
-
 	if goV != i.goVersion ||
 		toolchain != i.toolchain ||
 		len(modFile.Require) != len(i.require) ||
@@ -703,7 +685,8 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 	if gover.IsToolchain(m.Path) {
 		if m.Path == "go" {
 			// Declare that go 1.2.3 requires toolchain 1.2.3,
-			// so that go get knows that downgrading toolchain implies downgrading go.
+			// so that go get knows that downgrading toolchain implies downgrading go
+			// and similarly upgrading go requires upgrading the toolchain.
 			return &modFileSummary{module: m, require: []module.Version{{Path: "toolchain", Version: "go" + m.Version}}}, nil
 		}
 		return &modFileSummary{module: m}, nil

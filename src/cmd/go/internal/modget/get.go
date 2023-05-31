@@ -304,6 +304,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	dropToolchain, queries := parseArgs(ctx, args)
+	opts := modload.WriteOpts{
+		DropToolchain: dropToolchain,
+	}
+	for _, q := range queries {
+		if q.pattern == "toolchain" {
+			opts.ExplicitToolchain = true
+		}
+	}
 
 	r := newResolver(ctx, queries)
 	r.performLocalQueries(ctx)
@@ -372,14 +380,10 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	r.checkPackageProblems(ctx, pkgPatterns)
 
-	if dropToolchain {
-		modload.OverrideRoots(ctx, []module.Version{{Path: "toolchain", Version: "none"}})
-	}
-
 	// Everything succeeded. Update go.mod.
 	oldReqs := reqsFromGoMod(modload.ModFile())
 
-	if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
+	if err := modload.WriteGoMod(ctx, opts); err != nil {
 		if tooNew, ok := err.(*gover.TooNewError); ok {
 			// This can happen for 'go get go@newversion'
 			// when all the required modules are old enough
