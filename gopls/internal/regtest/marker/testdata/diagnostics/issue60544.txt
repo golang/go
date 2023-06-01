@@ -1,0 +1,13 @@
+This test exercises a crash due to treatment of "comparable" in methodset
+calculation (golang/go#60544).
+
+-min_go is 1.19 as the error message changed at this Go version.
+-- flags --
+-min_go=go1.19
+
+-- main.go --
+package main
+
+type X struct{}
+
+func (X) test(x comparable) {} //@diag("comparable", re"outside a type constraint")

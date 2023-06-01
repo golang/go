@@ -351,8 +351,8 @@ func fingerprint(method *types.Func) (string, bool) {
 			if tname.Pkg() != nil {
 				buf.WriteString(strconv.Quote(tname.Pkg().Path()))
 				buf.WriteByte('.')
-			} else if tname.Name() != "error" {
-				panic(tname) // error is the only named type with no package
+			} else if tname.Name() != "error" && tname.Name() != "comparable" {
+				panic(tname) // error and comparable the only named types with no package
 			}
 			buf.WriteString(tname.Name())
 
