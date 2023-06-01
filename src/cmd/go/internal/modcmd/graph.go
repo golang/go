@@ -63,7 +63,7 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 	goVersion := graphGo.String()
 	if goVersion != "" && gover.Compare(gover.Local(), goVersion) < 0 {
 		toolchain.TryVersion(ctx, goVersion)
-		base.Fatalf("go: %v", &gover.TooNewError{
+		base.Fatal(&gover.TooNewError{
 			What:      "-go flag",
 			GoVersion: goVersion,
 		})
@@ -71,7 +71,7 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 
 	mg, err := modload.LoadModGraph(ctx, goVersion)
 	if err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	w := bufio.NewWriter(os.Stdout)

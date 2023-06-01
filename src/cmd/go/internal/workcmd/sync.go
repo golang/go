@@ -58,7 +58,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 	workGraph, err := modload.LoadModGraph(ctx, "")
 	if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
 		toolchain.TryVersion(ctx, tooNew.GoVersion)
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 	_ = workGraph
 	mustSelectFor := map[module.Version][]module.Version{}
@@ -133,10 +133,10 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 
 	wf, err := modload.ReadWorkFile(workFilePath)
 	if err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 	modload.UpdateWorkFile(wf)
 	if err := modload.WriteWorkFile(workFilePath, wf); err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 }

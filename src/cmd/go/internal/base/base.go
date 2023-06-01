@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -131,6 +132,28 @@ func ExitIfErrors() {
 	if exitStatus != 0 {
 		Exit()
 	}
+}
+
+func Error(err error) {
+	// We use errors.Join to return multiple errors from various routines.
+	// If we receive multiple errors joined with a basic errors.Join,
+	// handle each one separately so that they all have the leading "go: " prefix.
+	// A plain interface check is not good enough because there might be
+	// other kinds of structured errors that are logically one unit and that
+	// add other context: only handling the wrapped errors would lose
+	// that context.
+	if err != nil && reflect.TypeOf(err).String() == "*errors.joinError" {
+		for _, e := range err.(interface{ Unwrap() []error }).Unwrap() {
+			Error(e)
+		}
+		return
+	}
+	Errorf("go: %v", err)
+}
+
+func Fatal(err error) {
+	Error(err)
+	Exit()
 }
 
 var exitStatus = 0

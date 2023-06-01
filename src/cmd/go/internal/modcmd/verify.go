@@ -59,7 +59,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 
 	mg, err := modload.LoadModGraph(ctx, "")
 	if err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 	mods := mg.BuildList()[modload.MainModules.Len():]
 	// Use a slice of result channels, so that the output is deterministic.

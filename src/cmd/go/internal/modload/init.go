@@ -399,7 +399,7 @@ func Init() {
 	}
 
 	if err := fsys.Init(base.Cwd()); err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	// Disable any prompting for passwords by Git.
@@ -451,7 +451,7 @@ func Init() {
 				base.Fatalf("go: cannot find main module, but -modfile was set.\n\t-modfile cannot be used to set the module root directory.")
 			}
 			if RootMode == NeedRoot {
-				base.Fatalf("go: %v", ErrNoModRoot)
+				base.Fatal(ErrNoModRoot)
 			}
 			if !mustUseModules {
 				// GO111MODULE is 'auto', and we can't find a module root.
@@ -618,7 +618,7 @@ func die() {
 		}
 		base.Fatalf("go: cannot find main module, but found %s in %s\n\tto create a module there, run:\n\t%sgo mod init", name, dir, cdCmd)
 	}
-	base.Fatalf("go: %v", ErrNoModRoot)
+	base.Fatal(ErrNoModRoot)
 }
 
 var ErrNoModRoot = errors.New("go.mod file not found in current directory or any parent directory; see 'go help modules'")
@@ -672,7 +672,7 @@ func ReadWorkFile(path string) (*modfile.WorkFile, error) {
 		return nil, err
 	}
 	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 && cfg.CmdName != "work edit" {
-		base.Fatalf("go: %v", &gover.TooNewError{What: base.ShortPath(path), GoVersion: f.Go.Version})
+		base.Fatal(&gover.TooNewError{What: base.ShortPath(path), GoVersion: f.Go.Version})
 	}
 	return f, nil
 }
@@ -855,7 +855,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
 		var err error
 		rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
 		if err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 	}
 
@@ -880,7 +880,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
 				var err error
 				rs, err = convertPruning(ctx, rs, pruned)
 				if err != nil {
-					base.Fatalf("go: %v", err)
+					base.Fatal(err)
 				}
 			}
 		} else {
@@ -914,7 +914,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 		var err error
 		modPath, err = findModulePath(modRoot)
 		if err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 	} else if err := module.CheckImportPath(modPath); err != nil {
 		if pathErr, ok := err.(*module.InvalidPathError); ok {
@@ -925,7 +925,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 				pathErr.Err = errors.New("is a local import path")
 			}
 		}
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	} else if _, _, ok := module.SplitPathVersion(modPath); !ok {
 		if strings.HasPrefix(modPath, "gopkg.in/") {
 			invalidMajorVersionMsg := fmt.Errorf("module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN:\n\tgo mod init %s", suggestGopkgIn(modPath))
@@ -946,17 +946,17 @@ func CreateModFile(ctx context.Context, modPath string) {
 		fmt.Fprintf(os.Stderr, "go: copying requirements from %s\n", base.ShortPath(convertedFrom))
 	}
 	if err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	rs := requirementsFromModFiles(ctx, nil, []*modfile.File{modFile}, nil)
 	rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
 	if err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 	requirements = rs
 	if err := commitRequirements(ctx, WriteOpts{}); err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	// Suggest running 'go mod tidy' unless the project is empty. Even if we

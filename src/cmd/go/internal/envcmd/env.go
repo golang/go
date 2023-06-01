@@ -185,7 +185,7 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
 	b := work.NewBuilder("")
 	defer func() {
 		if err := b.Close(); err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 	}()
 
@@ -251,7 +251,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 
 	buildcfg.Check()
 	if cfg.ExperimentErr != nil {
-		base.Fatalf("go: %v", cfg.ExperimentErr)
+		base.Fatal(cfg.ExperimentErr)
 	}
 
 	for _, arg := range args {
@@ -264,7 +264,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	env = append(env, ExtraEnvVars()...)
 
 	if err := fsys.Init(base.Cwd()); err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	// Do we need to call ExtraEnvVarsCostly, which is a bit expensive?
@@ -337,7 +337,7 @@ func runEnvW(args []string) {
 			base.Fatalf("go: arguments must be KEY=VALUE: invalid argument: %s", arg)
 		}
 		if err := checkEnvWrite(key, val); err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 		if _, ok := add[key]; ok {
 			base.Fatalf("go: multiple values for key: %s", key)
@@ -349,7 +349,7 @@ func runEnvW(args []string) {
 	}
 
 	if err := checkBuildConfig(add, nil); err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	gotmp, okGOTMP := add["GOTMPDIR"]
@@ -370,13 +370,13 @@ func runEnvU(args []string) {
 	del := make(map[string]bool)
 	for _, arg := range args {
 		if err := checkEnvWrite(arg, ""); err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 		del[arg] = true
 	}
 
 	if err := checkBuildConfig(nil, del); err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	updateEnvFile(nil, del)

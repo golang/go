@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -569,11 +570,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		if !*listE {
 			for _, m := range mods {
 				if m.Error != nil {
-					base.Errorf("go: %v", m.Error.Err)
+					base.Error(errors.New(m.Error.Err))
 				}
 			}
 			if err != nil {
-				base.Errorf("go: %v", err)
+				base.Error(err)
 			}
 			base.ExitIfErrors()
 		}
@@ -715,7 +716,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		defer func() {
 			if err := b.Close(); err != nil {
-				base.Fatalf("go: %v", err)
+				base.Fatal(err)
 			}
 		}()
 
@@ -847,7 +848,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			}
 			rmods, err := modload.ListModules(ctx, args, mode, *listReuse)
 			if err != nil && !*listE {
-				base.Errorf("go: %v", err)
+				base.Error(err)
 			}
 			for i, arg := range args {
 				rmod := rmods[i]

@@ -105,7 +105,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 	if !ok {
 		mg, err := rs.Graph(ctx)
 		if err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 		v = mg.Selected(path)
 	}

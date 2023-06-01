@@ -7,6 +7,7 @@ package modcmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"runtime"
 
@@ -152,7 +153,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 				// 'go mod graph', and similar commands.
 				_, err := modload.LoadModGraph(ctx, "")
 				if err != nil {
-					base.Fatalf("go: %v", err)
+					base.Fatal(err)
 				}
 
 				for _, m := range modFile.Require {
@@ -208,7 +209,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		// be updated after loading the build list. This may require setting
 		// the mode to "mod" or "readonly" depending on haveExplicitArgs.
 		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 	}
 
@@ -252,7 +253,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		for _, m := range mods {
 			b, err := json.MarshalIndent(m, "", "\t")
 			if err != nil {
-				base.Fatalf("go: %v", err)
+				base.Fatal(err)
 			}
 			os.Stdout.Write(append(b, '\n'))
 			if m.Error != "" {
@@ -262,7 +263,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	} else {
 		for _, m := range mods {
 			if m.Error != "" {
-				base.Errorf("go: %v", m.Error)
+				base.Error(errors.New(m.Error))
 			}
 		}
 		base.ExitIfErrors()
@@ -287,7 +288,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// workspace mode; see comment above.
 	if haveExplicitArgs || modload.WorkFilePath() != "" {
 		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
-			base.Errorf("go: %v", err)
+			base.Error(err)
 		}
 	}
 
@@ -295,7 +296,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// (after we've written the checksums for the modules that were downloaded
 	// successfully).
 	if infosErr != nil {
-		base.Errorf("go: %v", infosErr)
+		base.Error(infosErr)
 	}
 }
 

@@ -37,7 +37,7 @@ func BuildInit() {
 	instrumentInit()
 	buildModeInit()
 	if err := fsys.Init(base.Cwd()); err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	// Make sure -pkgdir is absolute, because we run commands

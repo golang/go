@@ -215,7 +215,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 
 	data, err := lockedfile.Read(gomod)
 	if err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	modFile, err := modfile.Parse(gomod, data, nil)
@@ -257,7 +257,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 
 	out, err := modFile.Format()
 	if err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	if *editPrint {
@@ -278,7 +278,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 		return out, nil
 	})
 	if err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 }
 

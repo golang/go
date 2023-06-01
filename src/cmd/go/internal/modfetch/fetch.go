@@ -47,7 +47,7 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
 		return "", ErrToolchain
 	}
 	if err := checkCacheDir(ctx); err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	// The par.Cache here avoids duplicate work.

@@ -430,7 +430,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			// preserve checksums for) additional entities from compatRS, which are
 			// only needed for compatibility with ld.TidyCompatibleVersion.
 			if err := modfetch.WriteGoSum(ctx, keep, mustHaveCompleteRequirements()); err != nil {
-				base.Fatalf("go: %v", err)
+				base.Fatal(err)
 			}
 		}
 	}
@@ -451,7 +451,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 
 	if !ExplicitWriteGoMod && opts.ResolveMissingImports {
 		if err := commitRequirements(ctx, WriteOpts{}); err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 	}
 
@@ -714,7 +714,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 	tags := imports.Tags()
 	imports, testImports, err := imports.ScanFiles(gofiles, tags)
 	if err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	loaded = loadFromRoots(ctx, loaderParams{
@@ -734,7 +734,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 
 	if !ExplicitWriteGoMod {
 		if err := commitRequirements(ctx, WriteOpts{}); err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 	}
 }

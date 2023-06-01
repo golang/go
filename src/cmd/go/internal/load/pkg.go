@@ -941,7 +941,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 					data.p, data.err = rp.Import(cfg.BuildContext, buildMode)
 					goto Happy
 				} else if !errors.Is(err, modindex.ErrNotIndexed) {
-					base.Fatalf("go: %v", err)
+					base.Fatal(err)
 				}
 			}
 			data.p, data.err = buildContext.ImportDir(r.dir, buildMode)

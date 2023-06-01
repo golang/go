@@ -197,7 +197,7 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
 				}
 			}
 			if inconsistent {
-				base.Fatalf("go: %v", errGoModDirty)
+				base.Fatal(errGoModDirty)
 			}
 
 			// Now we can treat the rest of the module graph as effectively “pruned

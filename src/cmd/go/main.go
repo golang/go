@@ -200,7 +200,7 @@ func invoke(cmd *base.Command, args []string) {
 	if cmd != envcmd.CmdEnv {
 		buildcfg.Check()
 		if cfg.ExperimentErr != nil {
-			base.Fatalf("go: %v", cfg.ExperimentErr)
+			base.Fatal(cfg.ExperimentErr)
 		}
 	}
 

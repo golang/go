@@ -459,7 +459,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	b := NewBuilder("")
 	defer func() {
 		if err := b.Close(); err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 	}()
 
@@ -779,7 +779,7 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
 	b := NewBuilder("")
 	defer func() {
 		if err := b.Close(); err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 	}()
 
@@ -867,7 +867,7 @@ func installOutsideModule(ctx context.Context, args []string) {
 	pkgOpts := load.PackageOpts{MainOnly: true}
 	pkgs, err := load.PackagesAndErrorsOutsideModule(ctx, pkgOpts, args)
 	if err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 	load.CheckPackageErrors(pkgs)
 	patterns := make([]string, len(args))

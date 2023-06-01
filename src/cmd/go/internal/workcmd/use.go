@@ -59,7 +59,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	workFile, err := modload.ReadWorkFile(gowork)
 	if err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 	workDir := filepath.Dir(gowork) // Absolute, since gowork itself is absolute.
 
@@ -90,7 +90,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 			if os.IsNotExist(err) {
 				keepDirs[absDir] = ""
 			} else {
-				base.Errorf("go: %v", err)
+				base.Error(err)
 			}
 			return
 		}
@@ -117,7 +117,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 			if os.IsNotExist(err) {
 				base.Errorf("go: directory %v does not exist", absArg)
 			} else {
-				base.Errorf("go: %v", err)
+				base.Error(err)
 			}
 			continue
 		} else if !info.IsDir() {

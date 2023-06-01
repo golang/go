@@ -391,7 +391,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 			// TODO(bcmills): modload.EditBuildList should catch this instead.
 			toolchain.TryVersion(ctx, tooNew.GoVersion)
 		}
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	newReqs := reqsFromGoMod(modload.ModFile())
@@ -408,7 +408,7 @@ func parseArgs(ctx context.Context, rawArgs []string) (dropToolchain bool, queri
 	for _, arg := range search.CleanPatterns(rawArgs) {
 		q, err := newQuery(arg)
 		if err != nil {
-			base.Errorf("go: %v", err)
+			base.Error(err)
 			continue
 		}
 
@@ -495,7 +495,7 @@ func newResolver(ctx context.Context, queries []*query) *resolver {
 		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
 			toolchain.TryVersion(ctx, tooNew.GoVersion)
 		}
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	buildList := mg.BuildList()
@@ -1332,7 +1332,7 @@ func (r *resolver) applyUpgrades(ctx context.Context, upgrades []pathSet) (chang
 	var tentative []module.Version
 	for _, cs := range upgrades {
 		if cs.err != nil {
-			base.Errorf("go: %v", cs.err)
+			base.Error(cs.err)
 			continue
 		}
 
@@ -1670,7 +1670,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 	}
 	for _, err := range sumErrs {
 		if err != nil {
-			base.Errorf("go: %v", err)
+			base.Error(err)
 		}
 	}
 	base.ExitIfErrors()
@@ -1837,12 +1837,12 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 	if err != nil {
 		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
 			toolchain.TryVersion(ctx, tooNew.GoVersion)
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 
 		var constraint *modload.ConstraintError
 		if !errors.As(err, &constraint) {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 
 		if cfg.BuildV {
@@ -1886,7 +1886,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
 			toolchain.TryVersion(ctx, tooNew.GoVersion)
 		}
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	r.buildList = mg.BuildList()
