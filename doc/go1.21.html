@@ -144,21 +144,11 @@ Do not send CLs removing the interior tags from such phrases.
   <!-- cmd/dist: default to GOARM=7 on all non-arm systems -->
 </p>
 
-<!-- https://go.dev/issue/38248 -->
-<p>
-  <!-- replace CallImport with go:wasmimport directive -->
-</p>
-
 <h3 id="wasm">WebAssembly</h3>
 
-<!-- https://go.dev/issue/59149 -->
-<p>
-  <!-- allow the use of go:wasmimport globally -->
-</p>
-
-<!-- CL 489255 -->
-<p>
-  <!-- cmd/compile: remove go:wasmimport restriction -->
+<p><!-- https://go.dev/issue/38248, https://go.dev/issue/59149, CL 489255 -->
+  The new <code>go:wasmimport</code> directive can now be used in Go programs
+  to import functions from the WebAssembly host.
 </p>
 
 <!-- https://go.dev/issue/56100 -->
