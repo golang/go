@@ -568,9 +568,19 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 480215 -->
-      A flag definition (via <code>Bool</code>, <code>BoolVar</code>, <code>Int</code>, <code>IntVar</code>, etc.) will panic if <code>Set</code> has already been called on a flag with the same name.
-      <p>
-      This change is intended to detect cases where <a href="#language">changes in initialization order</a> cause flag operations to occur in a different order than expected. In many cases the fix to this problem is to introduce a explicit package dependence to correctly order the definition before any <code>Set</code> operations.
+      A flag definition
+      (via <a href="/pkg/flag/#Bool"><code>Bool</code></a>,
+      <a href="/pkg/flag/#BoolVar"><code>BoolVar</code></a>,
+      <a href="/pkg/flag/#Int"><code>Int</code></a>,
+      <a href="/pkg/flag/#IntVar"><code>IntVar</code></a>, etc.)
+      will panic if <a href="/pkg/flag/#Set"><code>Set</code></a> has
+      already been called on a flag with the same name. This change is
+      intended to detect cases where <a href="#language">changes in
+      initialization order</a> cause flag operations to occur in a
+      different order than expected. In many cases the fix to this
+      problem is to introduce a explicit package dependence to
+      correctly order the definition before any
+      <a href="/pkg/flag/#Set"><code>Set</code></a> operations.
     </p>
   </dd>
 </dl><!-- flag -->
