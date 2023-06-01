@@ -30,6 +30,7 @@ import (
 // ReadModFile reads and parses the mod file at gomod. ReadModFile properly applies the
 // overlay, locks the file while reading, and applies fix, if applicable.
 func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfile.File, err error) {
+	gomod = base.ShortPath(gomod) // use short path in any errors
 	if gomodActual, ok := fsys.OverlayPath(gomod); ok {
 		// Don't lock go.mod if it's part of the overlay.
 		// On Plan 9, locking requires chmod, and we don't want to modify any file
@@ -45,14 +46,18 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
 	f, err = modfile.Parse(gomod, data, fix)
 	if err != nil {
 		// Errors returned by modfile.Parse begin with file:line.
-		return nil, nil, fmt.Errorf("errors parsing go.mod:\n%s\n", err)
+		return nil, nil, fmt.Errorf("errors parsing %s:\n%w", gomod, err)
 	}
-	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 && cfg.CmdName != "mod edit" {
-		base.Fatalf("go: %v", &gover.TooNewError{What: base.ShortPath(gomod), GoVersion: f.Go.Version})
+	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
+		toolchain := ""
+		if f.Toolchain != nil {
+			toolchain = f.Toolchain.Name
+		}
+		return nil, nil, &gover.TooNewError{What: gomod, GoVersion: f.Go.Version, Toolchain: toolchain}
 	}
 	if f.Module == nil {
 		// No module declaration. Must add module path.
-		return nil, nil, errors.New("no module declaration in go.mod. To specify the module path:\n\tgo mod edit -module=example.com/mod")
+		return nil, nil, fmt.Errorf("error reading %s: missing module declaration. To specify the module path:\n\tgo mod edit -module=example.com/mod", gomod)
 	}
 
 	return data, f, err

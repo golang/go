@@ -731,12 +731,16 @@ func UpdateWorkFile(wf *modfile.WorkFile) {
 // it for global consistency. Most callers outside of the modload package should
 // use LoadModGraph instead.
 func LoadModFile(ctx context.Context) *Requirements {
-	return loadModFile(ctx, nil)
+	rs, err := loadModFile(ctx, nil)
+	if err != nil {
+		base.Fatal(err)
+	}
+	return rs
 }
 
-func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
+func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) {
 	if requirements != nil {
-		return requirements
+		return requirements, nil
 	}
 
 	Init()
@@ -745,7 +749,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
 		var err error
 		workFile, modRoots, err = loadWorkFile(workFilePath)
 		if err != nil {
-			base.Fatalf("reading go.work: %v", err)
+			return nil, fmt.Errorf("reading go.work: %w", err)
 		}
 		for _, modRoot := range modRoots {
 			sumFile := strings.TrimSuffix(modFilePath(modRoot), ".mod") + ".sum"
@@ -796,22 +800,23 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
 			// with no dependencies.
 			requirements.initVendor(nil)
 		}
-		return requirements
+		return requirements, nil
 	}
 
 	var modFiles []*modfile.File
 	var mainModules []module.Version
 	var indices []*modFileIndex
+	var errs []error
 	for _, modroot := range modRoots {
 		gomod := modFilePath(modroot)
 		var fixed bool
 		data, f, err := ReadModFile(gomod, fixVersion(ctx, &fixed))
 		if err != nil {
 			if inWorkspaceMode() {
-				base.Fatalf("go: cannot load module %s listed in go.work file: %v", base.ShortPath(gomod), err)
-			} else {
-				base.Fatalf("go: %v", err)
+				err = fmt.Errorf("cannot load module %s listed in go.work file: %w", base.ShortPath(gomod), err)
 			}
+			errs = append(errs, err)
+			continue
 		}
 
 		modFiles = append(modFiles, f)
@@ -823,8 +828,11 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
 			if pathErr, ok := err.(*module.InvalidPathError); ok {
 				pathErr.Kind = "module"
 			}
-			base.Fatalf("go: %v", err)
+			errs = append(errs, err)
 		}
+	}
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
 	}
 
 	MainModules = makeMainModules(mainModules, modRoots, modFiles, indices, workFile)
@@ -835,7 +843,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
 		// We don't need to do anything for vendor or update the mod file so
 		// return early.
 		requirements = rs
-		return rs
+		return rs, nil
 	}
 
 	mainModule := MainModules.mustGetSingleMainModule()
@@ -855,7 +863,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
 		var err error
 		rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
 		if err != nil {
-			base.Fatal(err)
+			return nil, err
 		}
 	}
 
@@ -880,7 +888,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
 				var err error
 				rs, err = convertPruning(ctx, rs, pruned)
 				if err != nil {
-					base.Fatal(err)
+					return nil, err
 				}
 			}
 		} else {
@@ -889,7 +897,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
 	}
 
 	requirements = rs
-	return requirements
+	return requirements, nil
 }
 
 // CreateModFile initializes a new module by creating a go.mod file.

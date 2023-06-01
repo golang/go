@@ -60,6 +60,7 @@ var Startup struct {
 type TooNewError struct {
 	What      string
 	GoVersion string
+	Toolchain string // for callers if they want to use it, but not printed
 }
 
 func (e *TooNewError) Error() string {

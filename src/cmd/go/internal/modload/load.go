@@ -341,7 +341,10 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		}
 	}
 
-	initialRS := loadModFile(ctx, &opts)
+	initialRS, err := loadModFile(ctx, &opts)
+	if err != nil {
+		base.Fatal(err)
+	}
 
 	ld := loadFromRoots(ctx, loaderParams{
 		PackageOpts:  opts,

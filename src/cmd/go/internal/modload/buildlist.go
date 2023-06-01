@@ -541,7 +541,10 @@ func (mg *ModuleGraph) allRootsSelected() bool {
 // LoadModGraph need only be called if LoadPackages is not,
 // typically in commands that care about modules but no particular package.
 func LoadModGraph(ctx context.Context, goVersion string) (*ModuleGraph, error) {
-	rs := LoadModFile(ctx)
+	rs, err := loadModFile(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	if goVersion != "" {
 		v, _ := rs.rootSelected("go")
