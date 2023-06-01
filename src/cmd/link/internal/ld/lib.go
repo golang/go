@@ -984,7 +984,9 @@ func (ctxt *Link) mangleTypeSym() {
 // Leave type:runtime. symbols alone, because other parts of
 // the linker manipulates them.
 func typeSymbolMangle(name string) string {
-	if !strings.HasPrefix(name, "type:") {
+	isType := strings.HasPrefix(name, "type:")
+	if !isType && !strings.Contains(name, "@") {
+		// Issue 58800: instantiated symbols may include a type name, which may contain "@"
 		return name
 	}
 	if strings.HasPrefix(name, "type:runtime.") {
@@ -993,12 +995,22 @@ func typeSymbolMangle(name string) string {
 	if len(name) <= 14 && !strings.Contains(name, "@") { // Issue 19529
 		return name
 	}
-	hash := notsha256.Sum256([]byte(name))
-	prefix := "type:"
-	if name[5] == '.' {
-		prefix = "type:."
+	if isType {
+		hash := notsha256.Sum256([]byte(name[5:]))
+		prefix := "type:"
+		if name[5] == '.' {
+			prefix = "type:."
+		}
+		return prefix + base64.StdEncoding.EncodeToString(hash[:6])
 	}
-	return prefix + base64.StdEncoding.EncodeToString(hash[:6])
+	// instantiated symbol, replace type name in []
+	i := strings.IndexByte(name, '[')
+	j := strings.LastIndexByte(name, ']')
+	if j == -1 {
+		j = len(name)
+	}
+	hash := notsha256.Sum256([]byte(name[i+1 : j]))
+	return name[:i+1] + base64.StdEncoding.EncodeToString(hash[:6]) + name[j:]
 }
 
 /*

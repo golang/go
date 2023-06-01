@@ -388,3 +388,10 @@ func TestForkExec(t *testing.T) {
 		t.Fatalf("subprocess hang")
 	}
 }
+
+func TestGeneric(t *testing.T) {
+	// Issue 58800: generic function name may contain weird characters
+	// that confuse the external linker.
+	globalSkip(t)
+	goCmd(t, "build", "-buildmode=plugin", "-o", "generic.so", "./generic/plugin.go")
+}
