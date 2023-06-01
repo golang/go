@@ -186,6 +186,13 @@ func shouldPGODevirt(fn *ir.Func) bool {
 	}
 
 	reason = inline.InlineImpossible(fn)
+	if reason == "no function body" {
+		// TODO: temp fix. InlineImpossible is confused and/or we seemingly can ignore this complaint.
+		// If we've reached here, we've already confirmed we have a Dst.AST, which implies
+		// the destination is visible from this package.
+		reason = ""
+		return true
+	}
 	if reason != "" {
 		return false
 	}
