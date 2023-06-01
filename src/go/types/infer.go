@@ -285,78 +285,37 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		u.tracef("== untyped arguments: %v", untyped)
 	}
 
-	// We need a poser/positioner for check.allowVersion below.
-	// We should really use pos (argument to infer) but currently
-	// the generator that generates go/types/infer.go has trouble
-	// with that. For now, do a little dance to get a position if
-	// we need one. (If we don't have untyped arguments left, it
-	// doesn't matter which branch we take below.)
-	// TODO(gri) adjust infer signature or adjust the rewriter.
-	var at token.Pos
-	if len(untyped) > 0 {
-		at = params.At(untyped[0]).pos
+	// Some generic parameters with untyped arguments may have been given a type by now.
+	// Collect all remaining parameters that don't have a type yet and determine the
+	// maximum untyped type for each of those parameters, if possible.
+	var maxUntyped map[*TypeParam]Type // lazily allocated (we may not need it)
+	for _, index := range untyped {
+		tpar := params.At(index).typ.(*TypeParam) // is type parameter by construction of untyped
+		if u.at(tpar) == nil {
+			arg := args[index] // arg corresponding to tpar
+			if maxUntyped == nil {
+				maxUntyped = make(map[*TypeParam]Type)
+			}
+			max := maxUntyped[tpar]
+			if max == nil {
+				max = arg.typ
+			} else {
+				m := maxType(max, arg.typ)
+				if m == nil {
+					check.errorf(arg, CannotInferTypeArgs, "mismatched types %s and %s (cannot infer %s)", max, arg.typ, tpar)
+					return nil
+				}
+				max = m
+			}
+			maxUntyped[tpar] = max
+		}
 	}
-
-	if check.allowVersion(check.pkg, atPos(at), go1_21) {
-		// Some generic parameters with untyped arguments may have been given a type by now.
-		// Collect all remaining parameters that don't have a type yet and determine the
-		// maximum untyped type for each of those parameters, if possible.
-		var maxUntyped map[*TypeParam]Type // lazily allocated (we may not need it)
-		for _, index := range untyped {
-			tpar := params.At(index).typ.(*TypeParam) // is type parameter by construction of untyped
-			if u.at(tpar) == nil {
-				arg := args[index] // arg corresponding to tpar
-				if maxUntyped == nil {
-					maxUntyped = make(map[*TypeParam]Type)
-				}
-				max := maxUntyped[tpar]
-				if max == nil {
-					max = arg.typ
-				} else {
-					m := maxType(max, arg.typ)
-					if m == nil {
-						check.errorf(arg, CannotInferTypeArgs, "mismatched types %s and %s (cannot infer %s)", max, arg.typ, tpar)
-						return nil
-					}
-					max = m
-				}
-				maxUntyped[tpar] = max
-			}
-		}
-		// maxUntyped contains the maximum untyped type for each type parameter
-		// which doesn't have a type yet. Set the respective default types.
-		for tpar, typ := range maxUntyped {
-			d := Default(typ)
-			assert(isTyped(d))
-			u.set(tpar, d)
-		}
-	} else {
-		// Some generic parameters with untyped arguments may have been given a type by now.
-		// Collect all remaining parameters that don't have a type yet and unify them with
-		// the default types of the untyped arguments.
-		// We need to collect them all before unifying them with their untyped arguments;
-		// otherwise a parameter type that appears multiple times will have a type after
-		// the first unification and will be skipped later on, leading to incorrect results.
-		j := 0
-		for _, i := range untyped {
-			tpar := params.At(i).typ.(*TypeParam) // is type parameter by construction of untyped
-			if u.at(tpar) == nil {
-				untyped[j] = i
-				j++
-			}
-		}
-		// untyped[:j] are the indices of parameters without a type yet.
-		// The respective default types are typed (not untyped) by construction.
-		for _, i := range untyped[:j] {
-			tpar := params.At(i).typ.(*TypeParam)
-			arg := args[i]
-			typ := Default(arg.typ)
-			assert(isTyped(typ))
-			if !u.unify(tpar, typ, assign) {
-				errorf("default type", tpar, typ, arg)
-				return nil
-			}
-		}
+	// maxUntyped contains the maximum untyped type for each type parameter
+	// which doesn't have a type yet. Set the respective default types.
+	for tpar, typ := range maxUntyped {
+		d := Default(typ)
+		assert(isTyped(d))
+		u.set(tpar, d)
 	}
 
 	// --- simplify ---

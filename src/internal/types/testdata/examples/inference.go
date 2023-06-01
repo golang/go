@@ -26,13 +26,13 @@ func _() {
 	_ = min(x, 1)
 	_ = min(x, 1.0)
 	_ = min(1, 2)
-	_ = min(1, 2.3 /* ERRORx `default type float64 .* does not match` */)
+	_ = min(1, 2.3)
 
 	var y float64
 	_ = min(1, y)
 	_ = min(1.2, y)
 	_ = min(1.2, 3.4)
-	_ = min(1.2, 3 /* ERRORx `default type int .* does not match` */)
+	_ = min(1.2, 3)
 
 	var s string
 	_ = min(s, "foo")
