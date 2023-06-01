@@ -389,12 +389,12 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		emode |= exact
 	}
 
-	// If EnableInterfaceInference is set and both types are interfaces, one
-	// interface must have a subset of the methods of the other and corresponding
-	// method signatures must unify.
+	// If EnableInterfaceInference is set and we don't require exact unification,
+	// if both types are interfaces, one interface must have a subset of the
+	// methods of the other and corresponding method signatures must unify.
 	// If only one type is an interface, all its methods must be present in the
 	// other type and corresponding method signatures must unify.
-	if enableInterfaceInference {
+	if enableInterfaceInference && mode&exact == 0 {
 		xi, _ := x.(*Interface)
 		yi, _ := y.(*Interface)
 		// If we have two interfaces, check the type terms for equivalence,
@@ -567,7 +567,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		}
 
 	case *Interface:
-		assert(!enableInterfaceInference) // handled before this switch
+		assert(!enableInterfaceInference || mode&exact != 0) // handled before this switch
 
 		// Two interface types unify if they have the same set of methods with
 		// the same names, and corresponding function types unify.
