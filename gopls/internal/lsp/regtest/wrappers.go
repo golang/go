@@ -270,6 +270,15 @@ func (e *Env) RunGoCommandInDir(dir, verb string, args ...string) {
 	}
 }
 
+// RunGoCommandInDirWithEnv is like RunGoCommand, but executes in the given
+// relative directory of the sandbox with the given additional environment variables.
+func (e *Env) RunGoCommandInDirWithEnv(dir string, env []string, verb string, args ...string) {
+	e.T.Helper()
+	if err := e.Sandbox.RunGoCommand(e.Ctx, dir, verb, args, env, true); err != nil {
+		e.T.Fatal(err)
+	}
+}
+
 // GoVersion checks the version of the go command.
 // It returns the X in Go 1.X.
 func (e *Env) GoVersion() int {

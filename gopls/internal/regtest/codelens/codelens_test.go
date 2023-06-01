@@ -201,7 +201,7 @@ require golang.org/x/hello v1.2.3
 		t.Run(fmt.Sprintf("Upgrade individual dependency vendoring=%v", vendoring), func(t *testing.T) {
 			WithOptions(ProxyFiles(proxyWithLatest)).Run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
 				if vendoring {
-					env.RunGoCommandInDir("a", "mod", "vendor")
+					env.RunGoCommandInDirWithEnv("a", []string{"GOWORK=off"}, "mod", "vendor")
 				}
 				env.AfterChange()
 				env.OpenFile("a/go.mod")
