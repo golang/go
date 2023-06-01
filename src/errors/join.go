@@ -4,6 +4,10 @@
 
 package errors
 
+import (
+	"unsafe"
+)
+
 // Join returns an error that wraps the given errors.
 // Any nil error values are discarded.
 // Join returns nil if every value in errs is nil.
@@ -38,7 +42,8 @@ type joinError struct {
 }
 
 func (e *joinError) Error() string {
-	// Assert len(e.errs) > 0.
+	// Since "Join returns nil if every value in errs is nil",
+	// "errs" in a *joinErr is certainly non-empty.
 	if len(e.errs) == 1 {
 		return e.errs[0].Error()
 	}
@@ -48,7 +53,9 @@ func (e *joinError) Error() string {
 		b = append(b, '\n')
 		b = append(b, err.Error()...)
 	}
-	return string(b)
+	// At this point, b has at least one byte '\n', so that
+	// b is certainly non-empty.
+	return unsafe.String(&b[0], len(b))
 }
 
 func (e *joinError) Unwrap() []error {
