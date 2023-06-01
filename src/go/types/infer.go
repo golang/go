@@ -251,9 +251,15 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 					// It must have (at least) all the methods of the type constraint,
 					// and the method signatures must unify; otherwise tx cannot satisfy
 					// the constraint.
+					// TODO(gri) Now that unification handles interfaces, this code can
+					//           be reduced to calling u.unify(tx, tpar.iface(), assign)
+					//           (which will compare signatures exactly as we do below).
+					//           We leave it as is for now because missingMethod provides
+					//           a failure cause which allows for a better error message.
+					//           Eventually, unify should return an error with cause.
 					var cause string
 					constraint := tpar.iface()
-					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, 0) }, &cause); m != nil {
+					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, exact) }, &cause); m != nil {
 						// TODO(gri) better error message (see TODO above)
 						check.errorf(posn, CannotInferTypeArgs, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
 						return nil
