@@ -1616,14 +1616,21 @@
 //
 // Usage:
 //
-//	go work use [-r] moddirs
+//	go work use [-r] [moddirs]
 //
 // Use provides a command-line interface for adding
 // directories, optionally recursively, to a go.work file.
 //
 // A use directive will be added to the go.work file for each argument
-// directory listed on the command line go.work file, if it exists on disk,
-// or removed from the go.work file if it does not exist on disk.
+// directory listed on the command line go.work file, if it exists,
+// or removed from the go.work file if it does not exist.
+// Use fails if any remaining use directives refer to modules that
+// do not exist.
+//
+// Use updates the go line in go.work to specify a version at least as
+// new as all the go lines in the used modules, both preexisting ones
+// and newly added ones. With no arguments, this update is the only
+// thing that go work use does.
 //
 // The -r flag searches recursively for modules in the argument
 // directories, and the use command operates as if each of the directories

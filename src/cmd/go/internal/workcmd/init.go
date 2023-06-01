@@ -7,13 +7,13 @@
 package workcmd
 
 import (
+	"context"
+	"path/filepath"
+
 	"cmd/go/internal/base"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modload"
-	"context"
-	"os"
-	"path/filepath"
 
 	"golang.org/x/mod/modfile"
 )
@@ -48,36 +48,19 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
 
 	modload.ForceUseModules = true
 
-	workFile := modload.WorkFilePath()
-	if workFile == "" {
-		workFile = filepath.Join(base.Cwd(), "go.work")
+	gowork := modload.WorkFilePath()
+	if gowork == "" {
+		gowork = filepath.Join(base.Cwd(), "go.work")
 	}
 
-	CreateWorkFile(ctx, workFile, args)
-}
-
-// CreateWorkFile initializes a new workspace by creating a go.work file.
-func CreateWorkFile(ctx context.Context, workFile string, modDirs []string) {
-	if _, err := fsys.Stat(workFile); err == nil {
-		base.Fatalf("go: %s already exists", workFile)
+	if _, err := fsys.Stat(gowork); err == nil {
+		base.Fatalf("go: %s already exists", gowork)
 	}
 
 	goV := gover.Local() // Use current Go version by default
 	wf := new(modfile.WorkFile)
 	wf.Syntax = new(modfile.FileSyntax)
 	wf.AddGoStmt(goV)
-
-	for _, dir := range modDirs {
-		_, f, err := modload.ReadModFile(filepath.Join(dir, "go.mod"), nil)
-		if err != nil {
-			if os.IsNotExist(err) {
-				base.Fatalf("go: creating workspace file: no go.mod file exists in directory %v", dir)
-			}
-			base.Fatalf("go: error parsing go.mod in directory %s: %v", dir, err)
-		}
-		wf.AddUse(modload.ToDirectoryPath(dir), f.Module.Mod.Path)
-	}
-
-	modload.UpdateWorkFile(wf)
-	modload.WriteWorkFile(workFile, wf)
+	workUse(ctx, gowork, wf, args)
+	modload.WriteWorkFile(gowork, wf)
 }

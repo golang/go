@@ -8,7 +8,10 @@ stderr '^go: go.mod requires go >= 1.99999 \(running go 1\..+\)$'
 # go.mod referenced from go.work too new
 cp go.work.old go.work
 ! go build .
-stderr '^go: cannot load module go.mod listed in go.work file: go.mod requires go >= 1.99999 \(running go 1\..+\)$'
+stderr '^go: module . listed in go.work file requires go >= 1.99999, but go.work lists go 1.10; to update it:\n\tgo work use$'
+
+! go work sync
+stderr '^go: cannot load module . listed in go.work file: go.mod requires go >= 1.99999 \(running go 1\..+\)$'
 
 # go.work too new
 cp go.work.new go.work

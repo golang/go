@@ -118,8 +118,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 
 	goVersion := tidyGo.String()
 	if goVersion != "" && gover.Compare(gover.Local(), goVersion) < 0 {
-		toolchain.TryVersion(ctx, goVersion)
-		base.Fatal(&gover.TooNewError{
+		toolchain.SwitchOrFatal(ctx, &gover.TooNewError{
 			What:      "-go flag",
 			GoVersion: goVersion,
 		})
@@ -135,6 +134,6 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 		LoadTests:                true,
 		AllowErrors:              tidyE,
 		SilenceMissingStdImports: true,
-		TrySwitchToolchain:       toolchain.TryVersion,
+		Switcher:                 new(toolchain.Switcher),
 	}, "all")
 }

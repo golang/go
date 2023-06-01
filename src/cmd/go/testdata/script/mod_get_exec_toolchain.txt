@@ -5,9 +5,9 @@ env TESTGO_VERSION_SWITCH=switch
 env GOTOOLCHAIN=auto
 cp go.mod.new go.mod
 go get rsc.io/needgo121 rsc.io/needgo122 rsc.io/needgo123 rsc.io/needall
-stderr '^go: switching to go1.23.9$'
+stderr '^go: rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
+! stderr '\(running'
 stderr '^go: added rsc.io/needall v0.0.1'
-! stderr 'requires go >= 1.23'
 grep 'go 1.23' go.mod
 grep 'toolchain go1.23.9' go.mod
 
@@ -15,9 +15,9 @@ grep 'toolchain go1.23.9' go.mod
 env GOTOOLCHAIN=go1.21+auto
 cp go.mod.new go.mod
 go get rsc.io/needgo121 rsc.io/needgo122 rsc.io/needgo123 rsc.io/needall
-stderr '^go: switching to go1.23.9$'
+stderr '^go: rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
+! stderr '\(running'
 stderr '^go: added rsc.io/needall v0.0.1'
-! stderr 'requires go >= 1.23'
 grep 'go 1.23' go.mod
 grep 'toolchain go1.23.9' go.mod
 
@@ -25,7 +25,7 @@ grep 'toolchain go1.23.9' go.mod
 env GOTOOLCHAIN=go1.21
 cp go.mod.new go.mod
 ! go get rsc.io/needgo121 rsc.io/needgo122 rsc.io/needgo123 rsc.io/needall
-! stderr 'switching to go'
+! stderr switching
 stderr 'rsc.io/needgo122@v0.0.1 requires go >= 1.22'
 stderr 'rsc.io/needgo123@v0.0.1 requires go >= 1.23'
 stderr 'rsc.io/needall@v0.0.1 requires go >= 1.23'
@@ -37,7 +37,7 @@ cmp go.mod go.mod.new
 env GOTOOLCHAIN=local
 cp go.mod.new go.mod
 ! go get rsc.io/needgo121 rsc.io/needgo122 rsc.io/needgo123 rsc.io/needall
-! stderr 'switching to go'
+! stderr switching
 stderr 'rsc.io/needgo122@v0.0.1 requires go >= 1.22'
 stderr 'rsc.io/needgo123@v0.0.1 requires go >= 1.23'
 stderr 'rsc.io/needall@v0.0.1 requires go >= 1.23'
@@ -54,7 +54,7 @@ stderr '^go: updating go.mod requires go >= 1.22.9 \(running go 1.21; GOTOOLCHAI
 env GOTOOLCHAIN=auto
 cp go.mod.new go.mod
 go get go@1.22
-stderr '^go: switching to go1.22.9$'
+stderr '^go: updating go.mod requires go >= 1.22.9; switching to go1.22.9$'
 
 # go get go@1.22rc1 should use 1.22rc1 exactly, not a later release.
 env GOTOOLCHAIN=local
@@ -65,7 +65,7 @@ stderr '^go: updating go.mod requires go >= 1.22rc1 \(running go 1.21; GOTOOLCHA
 env GOTOOLCHAIN=auto
 cp go.mod.new go.mod
 go get go@1.22rc1
-stderr '^go: switching to go1.22.9$'
+stderr '^go: updating go.mod requires go >= 1.22rc1; switching to go1.22.9$'
 stderr '^go: upgraded go 1.1 => 1.22rc1$'
 stderr '^go: added toolchain go1.22.9$'
 
@@ -78,7 +78,7 @@ stderr '^go: updating go.mod requires go >= 1.22.1 \(running go 1.21; GOTOOLCHAI
 env GOTOOLCHAIN=auto
 cp go.mod.new go.mod
 go get go@1.22.1
-stderr '^go: switching to go1.22.9$'
+stderr '^go: updating go.mod requires go >= 1.22.1; switching to go1.22.9$'
 stderr '^go: upgraded go 1.1 => 1.22.1$'
 stderr '^go: added toolchain go1.22.9$'
 
@@ -93,7 +93,7 @@ env GOTOOLCHAIN=auto
 cp go.mod.new go.mod
 go get rsc.io/needgo122
 stderr '^go: upgraded go 1.1 => 1.22$'
-stderr '^go: switching to go1.22.9$'
+stderr '^go: rsc.io/needgo122@v0.0.1 requires go >= 1.22; switching to go1.22.9$'
 stderr '^go: added toolchain go1.22.9$'
 
 # go get needgo1223 (says 'go 1.22.3') should use go 1.22.3
@@ -106,7 +106,7 @@ env GOTOOLCHAIN=auto
 cp go.mod.new go.mod
 go get rsc.io/needgo1223
 stderr '^go: upgraded go 1.1 => 1.22.3$'
-stderr '^go: switching to go1.22.9$'
+stderr '^go: rsc.io/needgo1223@v0.0.1 requires go >= 1.22.3; switching to go1.22.9$'
 stderr '^go: added toolchain go1.22.9$'
 
 # go get needgo124 (says 'go 1.24') should use go 1.24rc1, the only version available
@@ -118,7 +118,7 @@ stderr '^go: rsc.io/needgo124@v0.0.1 requires go >= 1.24 \(running go 1.21; GOTO
 env GOTOOLCHAIN=auto
 cp go.mod.new go.mod
 go get rsc.io/needgo124
-stderr '^go: switching to go1.24rc1'
+stderr '^go: rsc.io/needgo124@v0.0.1 requires go >= 1.24; switching to go1.24rc1$'
 stderr '^go: upgraded go 1.1 => 1.24$'
 stderr '^go: added toolchain go1.24rc1$'
 

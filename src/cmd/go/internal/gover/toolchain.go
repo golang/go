@@ -6,6 +6,7 @@ package gover
 
 import (
 	"cmd/go/internal/base"
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -83,4 +84,11 @@ var ErrTooNew = errors.New("module too new")
 
 func (e *TooNewError) Is(err error) bool {
 	return err == ErrTooNew
+}
+
+// A Switcher provides the ability to switch to a new toolchain in response to TooNewErrors.
+// See [cmd/go/internal/toolchain.Switcher] for documentation.
+type Switcher interface {
+	Error(err error)
+	Switch(ctx context.Context)
 }

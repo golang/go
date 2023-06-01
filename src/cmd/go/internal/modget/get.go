@@ -384,18 +384,23 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	oldReqs := reqsFromGoMod(modload.ModFile())
 
 	if err := modload.WriteGoMod(ctx, opts); err != nil {
-		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
-			// This can happen for 'go get go@newversion'
-			// when all the required modules are old enough
-			// but the command line is not.
-			// TODO(bcmills): modload.EditBuildList should catch this instead.
-			toolchain.TryVersion(ctx, tooNew.GoVersion)
-		}
-		base.Fatal(err)
+		// A TooNewError can happen for 'go get go@newversion'
+		// when all the required modules are old enough
+		// but the command line is not.
+		// TODO(bcmills): modload.EditBuildList should catch this instead,
+		// and then this can be changed to base.Fatal(err).
+		toolchain.SwitchOrFatal(ctx, err)
 	}
 
 	newReqs := reqsFromGoMod(modload.ModFile())
 	r.reportChanges(oldReqs, newReqs)
+
+	if gowork := modload.FindGoWork(base.Cwd()); gowork != "" {
+		wf, err := modload.ReadWorkFile(gowork)
+		if err == nil && modload.UpdateWorkGoVersion(wf, modload.MainModules.GoVersion()) {
+			modload.WriteWorkFile(gowork, wf)
+		}
+	}
 }
 
 // parseArgs parses command-line arguments and reports errors.
@@ -492,10 +497,7 @@ func newResolver(ctx context.Context, queries []*query) *resolver {
 	// methods.
 	mg, err := modload.LoadModGraph(ctx, "")
 	if err != nil {
-		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
-			toolchain.TryVersion(ctx, tooNew.GoVersion)
-		}
-		base.Fatal(err)
+		toolchain.SwitchOrFatal(ctx, err)
 	}
 
 	buildList := mg.BuildList()
@@ -1147,7 +1149,7 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
 		LoadTests:                *getT,
 		AssumeRootsImported:      true, // After 'go get foo', imports of foo should build.
 		SilencePackageErrors:     true, // May be fixed by subsequent upgrades or downgrades.
-		TrySwitchToolchain:       toolchain.TryVersion,
+		Switcher:                 new(toolchain.Switcher),
 	}
 
 	opts.AllowPackage = func(ctx context.Context, path string, m module.Version) error {
@@ -1231,16 +1233,19 @@ func (r *resolver) resolveQueries(ctx context.Context, queries []*query) (change
 
 		// If we found modules that were too new, find the max of the required versions
 		// and then try to switch to a newer toolchain.
-		goVers := ""
+		var sw toolchain.Switcher
 		for _, q := range queries {
 			for _, cs := range q.candidates {
-				if e := (*gover.TooNewError)(nil); errors.As(cs.err, &e) {
-					goVers = gover.Max(goVers, e.GoVersion)
-				}
+				sw.Error(cs.err)
 			}
 		}
-		if goVers != "" {
-			toolchain.TryVersion(ctx, goVers)
+		// Only switch if we need a newer toolchain.
+		// Otherwise leave the cs.err for reporting later.
+		if sw.NeedSwitch() {
+			sw.Switch(ctx)
+			// If NeedSwitch is true and Switch returns, Switch has failed to locate a newer toolchain.
+			// It printed the errors along with one more about not finding a good toolchain.
+			base.Exit()
 		}
 
 		for _, q := range queries {
@@ -1840,9 +1845,8 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 
 	changed, err := modload.EditBuildList(ctx, additions, resolved)
 	if err != nil {
-		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
-			toolchain.TryVersion(ctx, tooNew.GoVersion)
-			base.Fatal(err)
+		if errors.Is(err, gover.ErrTooNew) {
+			toolchain.SwitchOrFatal(ctx, err)
 		}
 
 		var constraint *modload.ConstraintError
@@ -1888,10 +1892,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 
 	mg, err := modload.LoadModGraph(ctx, "")
 	if err != nil {
-		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
-			toolchain.TryVersion(ctx, tooNew.GoVersion)
-		}
-		base.Fatal(err)
+		toolchain.SwitchOrFatal(ctx, err)
 	}
 
 	r.buildList = mg.BuildList()

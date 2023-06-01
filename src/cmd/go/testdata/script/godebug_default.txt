@@ -38,12 +38,11 @@ go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
 stdout randautoseed=0
 rm go.work
 
-# Go 1.20 workspace should set panicnil=1 even in Go 1.21 module.
+# Go 1.20 workspace with Go 1.21 module cannot happen.
 cp go.work.20 go.work
 cp go.mod.21 go.mod
-go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
-stdout panicnil=1
-stdout randautoseed=0
+! go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
+stderr 'go: module . listed in go.work file requires go >= 1.21'
 rm go.work
 
 [short] skip

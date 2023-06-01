@@ -184,10 +184,14 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	modload.UpdateWorkFile(workFile)
-
 	workFile.SortBlocks()
 	workFile.Cleanup() // clean file after edits
+
+	// Note: No call to modload.UpdateWorkFile here.
+	// Edit's job is only to make the edits on the command line,
+	// not to apply the kinds of semantic changes that
+	// UpdateWorkFile does (or would eventually do, if we
+	// decide to add the module comments in go.work).
 
 	if *editJSON {
 		editPrintJSON(workFile)

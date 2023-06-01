@@ -591,22 +591,3 @@ func goInstallVersion() (m module.Version, goVers string, found bool) {
 	// consulting go.mod.
 	return m, "", true
 }
-
-// TryVersion tries to switch to a Go toolchain appropriate for version,
-// which was either found in a go.mod file of a dependency or resolved
-// on the command line from go@v.
-func TryVersion(ctx context.Context, version string) {
-	if !gover.IsValid(version) {
-		fmt.Fprintf(os.Stderr, "go: misuse of tryVersion: invalid version %q\n", version)
-		return
-	}
-	if (!HasAuto() && !HasPath()) || gover.Compare(version, gover.Local()) <= 0 {
-		return
-	}
-	tv, err := NewerToolchain(ctx, version)
-	if err != nil {
-		base.Errorf("go: %v\n", err)
-	}
-	fmt.Fprintf(os.Stderr, "go: switching to %v\n", tv)
-	SwitchTo(tv)
-}

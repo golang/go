@@ -6,31 +6,42 @@ env TESTGO_VERSION_SWITCH=switch
 
 cp go.mod go.mod.orig
 
+# tidy reports needing 1.22.0 for b1
+env GOTOOLCHAIN=local
+! go mod tidy
+stderr '^go: example imports\n\texample.net/b: module ./b1 requires go >= 1.22.0 \(running go 1.21.0; GOTOOLCHAIN=local\)$'
+env GOTOOLCHAIN=auto
 go mod tidy
-	# TODO(bcmills): The "switching to" message should explain which
-	# newly-added package caused the switch. I think that will be fixed
-	# by resolving the TODO in modload.fetch.
+
 cmp stderr tidy-stderr.want
 cmp go.mod go.mod.tidy
 
 cp go.mod.orig go.mod
+env GOTOOLCHAIN=local
+! go get -v .
+stderr '^go: example.net/b@v0.1.0: module ./b1 requires go >= 1.22.0 \(running go 1.21.0; GOTOOLCHAIN=local\)$'
+env GOTOOLCHAIN=auto
 go get -v .
 cmp stderr get-v-stderr.want
 cmp go.mod go.mod.tidy
 
 cp go.mod.orig go.mod
+env GOTOOLCHAIN=local
+! go get -u -v .
+stderr '^go: example.net/a@v0.2.0: module ./a2 requires go >= 1.22.0 \(running go 1.21.0; GOTOOLCHAIN=local\)$'
+env GOTOOLCHAIN=auto
 go get -u -v .
 cmp stderr get-u-v-stderr.want
 cmp go.mod go.mod.upgraded
 
 -- tidy-stderr.want --
 go: found example.net/b in example.net/b v0.1.0
-go: switching to go1.22.9
+go: module ./b1 requires go >= 1.22.0; switching to go1.22.9
 go: found example.net/b in example.net/b v0.1.0
 go: found example.net/c in example.net/c v0.1.0
 -- get-v-stderr.want --
 go: trying upgrade to example.net/b@v0.1.0
-go: switching to go1.22.9
+go: module ./b1 requires go >= 1.22.0; switching to go1.22.9
 go: trying upgrade to example.net/b@v0.1.0
 go: accepting indirect upgrade from go@1.20 to 1.22.0
 go: trying upgrade to example.net/c@v0.1.0
@@ -42,13 +53,13 @@ go: added example.net/d v0.1.0
 -- get-u-v-stderr.want --
 go: trying upgrade to example.net/a@v0.2.0
 go: trying upgrade to example.net/b@v0.1.0
-go: switching to go1.22.9
+go: module ./a2 requires go >= 1.22.0; switching to go1.22.9
 go: trying upgrade to example.net/a@v0.2.0
 go: trying upgrade to example.net/b@v0.1.0
 go: accepting indirect upgrade from go@1.20 to 1.22.0
 go: trying upgrade to example.net/c@v0.1.0
 go: trying upgrade to example.net/d@v0.2.0
-go: switching to go1.23.9
+go: module ./d2 requires go >= 1.23.0; switching to go1.23.9
 go: trying upgrade to example.net/a@v0.2.0
 go: trying upgrade to example.net/b@v0.1.0
 go: accepting indirect upgrade from go@1.20 to 1.22.0

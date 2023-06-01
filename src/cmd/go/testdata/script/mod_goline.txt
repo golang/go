@@ -16,10 +16,6 @@ stderr '^go: upgraded go 1.22 => 1.23rc1\ngo: upgraded example.com/a v1.0.0 => v
 go list -f '{{.Module.GoVersion}}'
 stdout 1.23rc1
 
- # would be nice but doesn't work yet
- # go mod why -m go
- # stderr xxx
-
 # Repeating the update with go@1.24.0 should use that Go version.
 cp go.mod1 go.mod
 go get example.com/a@v1.0.1 go@1.24.0

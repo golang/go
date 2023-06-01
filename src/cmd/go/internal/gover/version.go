@@ -4,6 +4,8 @@
 
 package gover
 
+import "golang.org/x/mod/modfile"
+
 const (
 	// narrowAllVersion is the Go version at which the
 	// module-module "all" pattern no longer closes over the dependencies of
@@ -52,3 +54,21 @@ const (
 	// It is also the version after which "too new" a version is considered a fatal error.
 	GoStrictVersion = "1.21"
 )
+
+// FromGoMod returns the go version from the go.mod file.
+// It returns DefaultGoModVersion if the go.mod file does not contain a go line or if mf is nil.
+func FromGoMod(mf *modfile.File) string {
+	if mf == nil || mf.Go == nil {
+		return DefaultGoModVersion
+	}
+	return mf.Go.Version
+}
+
+// FromGoWork returns the go version from the go.mod file.
+// It returns DefaultGoWorkVersion if the go.mod file does not contain a go line or if wf is nil.
+func FromGoWork(wf *modfile.WorkFile) string {
+	if wf == nil || wf.Go == nil {
+		return DefaultGoWorkVersion
+	}
+	return wf.Go.Version
+}

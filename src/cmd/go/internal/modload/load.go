@@ -235,11 +235,9 @@ type PackageOpts struct {
 	// Resolve the query against this module.
 	MainModule module.Version
 
-	// TrySwitchToolchain, if non-nil, attempts to reinvoke a toolchain capable of
-	// handling the given Go version.
-	//
-	// TrySwitchToolchain only returns if the attempt toswitch was unsuccessful.
-	TrySwitchToolchain func(ctx context.Context, version string)
+	// If Switcher is non-nil, then LoadPackages passes all encountered errors
+	// to Switcher.Error and tries Switcher.Switch before base.ExitIfErrors.
+	Switcher gover.Switcher
 }
 
 // LoadPackages identifies the set of packages matching the given patterns and
@@ -372,11 +370,11 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	if !ld.SilencePackageErrors {
 		for _, match := range matches {
 			for _, err := range match.Errs {
-				ld.errorf("%v\n", err)
+				ld.error(err)
 			}
 		}
 	}
-	base.ExitIfErrors()
+	ld.exitIfErrors(ctx)
 
 	if !opts.SilenceUnmatchedWarnings {
 		search.WarnUnmatched(matches)
@@ -881,14 +879,30 @@ func (ld *loader) reset() {
 	ld.pkgs = nil
 }
 
-// errorf reports an error via either os.Stderr or base.Errorf,
+// error reports an error via either os.Stderr or base.Error,
 // according to whether ld.AllowErrors is set.
-func (ld *loader) errorf(format string, args ...any) {
+func (ld *loader) error(err error) {
 	if ld.AllowErrors {
-		fmt.Fprintf(os.Stderr, format, args...)
+		fmt.Fprintf(os.Stderr, "go: %v\n", err)
+	} else if ld.Switcher != nil {
+		ld.Switcher.Error(err)
 	} else {
-		base.Errorf(format, args...)
+		base.Error(err)
 	}
+}
+
+// switchIfErrors switches toolchains if a switch is needed.
+func (ld *loader) switchIfErrors(ctx context.Context) {
+	if ld.Switcher != nil {
+		ld.Switcher.Switch(ctx)
+	}
+}
+
+// exitIfErrors switches toolchains if a switch is needed
+// or else exits if any errors have been reported.
+func (ld *loader) exitIfErrors(ctx context.Context) {
+	ld.switchIfErrors(ctx)
+	base.ExitIfErrors()
 }
 
 // goVersion reports the Go version that should be used for the loader's
@@ -899,17 +913,6 @@ func (ld *loader) goVersion() string {
 		return ld.TidyGoVersion
 	}
 	return ld.requirements.GoVersion()
-}
-
-func (ld *loader) maybeTryToolchain(ctx context.Context, err error) {
-	if ld.TrySwitchToolchain == nil {
-		return
-	}
-	var tooNew *gover.TooNewError
-	if !errors.As(err, &tooNew) {
-		return
-	}
-	ld.TrySwitchToolchain(ctx, tooNew.GoVersion)
 }
 
 // A loadPkg records information about a single loaded package.
@@ -1045,11 +1048,10 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		var err error
 		ld.requirements, _, err = expandGraph(ctx, ld.requirements)
 		if err != nil {
-			ld.maybeTryToolchain(ctx, err)
-			ld.errorf("go: %v\n", err)
+			ld.error(err)
 		}
 	}
-	base.ExitIfErrors() // or we will report them again
+	ld.exitIfErrors(ctx)
 
 	updateGoVersion := func() {
 		goVersion := ld.goVersion()
@@ -1058,9 +1060,8 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			var err error
 			ld.requirements, err = convertPruning(ctx, ld.requirements, pruningForGoVersion(goVersion))
 			if err != nil {
-				ld.maybeTryToolchain(ctx, err)
-				ld.errorf("go: %v\n", err)
-				base.ExitIfErrors()
+				ld.error(err)
+				ld.exitIfErrors(ctx)
 			}
 		}
 
@@ -1122,8 +1123,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 
 		changed, err := ld.updateRequirements(ctx)
 		if err != nil {
-			ld.maybeTryToolchain(ctx, err)
-			ld.errorf("go: %v\n", err)
+			ld.error(err)
 			break
 		}
 		if changed {
@@ -1142,8 +1142,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 
 		modAddedBy, err := ld.resolveMissingImports(ctx)
 		if err != nil {
-			ld.maybeTryToolchain(ctx, err)
-			ld.errorf("go: %v\n", err)
+			ld.error(err)
 			break
 		}
 		if len(modAddedBy) == 0 {
@@ -1170,17 +1169,16 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		direct := ld.requirements.direct
 		rs, err := updateRoots(ctx, direct, ld.requirements, noPkgs, toAdd, ld.AssumeRootsImported)
 		if err != nil {
-			ld.maybeTryToolchain(ctx, err)
 			// If an error was found in a newly added module, report the package
 			// import stack instead of the module requirement stack. Packages
 			// are more descriptive.
 			if err, ok := err.(*mvs.BuildListError); ok {
 				if pkg := modAddedBy[err.Module()]; pkg != nil {
-					ld.errorf("go: %s: %v\n", pkg.stackText(), err.Err)
+					ld.error(fmt.Errorf("%s: %w", pkg.stackText(), err.Err))
 					break
 				}
 			}
-			ld.errorf("go: %v\n", err)
+			ld.error(err)
 			break
 		}
 		if reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
@@ -1192,14 +1190,14 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		}
 		ld.requirements = rs
 	}
-	base.ExitIfErrors()
+	ld.exitIfErrors(ctx)
 
 	// Tidy the build list, if applicable, before we report errors.
 	// (The process of tidying may remove errors from irrelevant dependencies.)
 	if ld.Tidy {
 		rs, err := tidyRoots(ctx, ld.requirements, ld.pkgs)
 		if err != nil {
-			ld.errorf("go: %v\n", err)
+			ld.error(err)
 		} else {
 			if ld.TidyGoVersion != "" {
 				// Attempt to switch to the requested Go version. We have been using its
@@ -1208,7 +1206,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 				tidy := overrideRoots(ctx, rs, []module.Version{{Path: "go", Version: ld.TidyGoVersion}})
 				mg, err := tidy.Graph(ctx)
 				if err != nil {
-					ld.errorf("go: %v\n", err)
+					ld.error(err)
 				}
 				if v := mg.Selected("go"); v == ld.TidyGoVersion {
 					rs = tidy
@@ -1223,7 +1221,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 					if cfg.BuildV {
 						msg = conflict.String()
 					}
-					ld.errorf("go: %v\n", msg)
+					ld.error(errors.New(msg))
 				}
 			}
 
@@ -1239,7 +1237,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 						continue
 					}
 					if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
-						ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading (selected %s)\n", m, v)
+						ld.error(fmt.Errorf("internal error: a requirement on %v is needed but was not added during package loading (selected %s)", m, v))
 					}
 				}
 			}
@@ -1247,7 +1245,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			ld.requirements = rs
 		}
 
-		base.ExitIfErrors()
+		ld.exitIfErrors(ctx)
 	}
 
 	// Report errors, if any.
@@ -1284,7 +1282,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			continue
 		}
 
-		ld.errorf("%s: %v\n", pkg.stackText(), pkg.err)
+		ld.error(fmt.Errorf("%s: %w", pkg.stackText(), pkg.err))
 	}
 
 	ld.checkMultiplePaths()
@@ -1765,12 +1763,11 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 
 	rs, err := updateRoots(ctx, ld.requirements.direct, ld.requirements, nil, toAdd, ld.AssumeRootsImported)
 	if err != nil {
-		ld.maybeTryToolchain(ctx, err)
 		// We are missing some root dependency, and for some reason we can't load
 		// enough of the module dependency graph to add the missing root. Package
 		// loading is doomed to fail, so fail quickly.
-		ld.errorf("go: %v\n", err)
-		base.ExitIfErrors()
+		ld.error(err)
+		ld.exitIfErrors(ctx)
 		return false
 	}
 	if reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
@@ -1974,7 +1971,7 @@ func (ld *loader) checkMultiplePaths() {
 		if prev, ok := firstPath[src]; !ok {
 			firstPath[src] = mod.Path
 		} else if prev != mod.Path {
-			ld.errorf("go: %s@%s used for two different module paths (%s and %s)\n", src.Path, src.Version, prev, mod.Path)
+			ld.error(fmt.Errorf("%s@%s used for two different module paths (%s and %s)", src.Path, src.Version, prev, mod.Path))
 		}
 	}
 }
@@ -2031,9 +2028,10 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements, 
 
 	mg, err := rs.Graph(ctx)
 	if err != nil {
-		ld.maybeTryToolchain(ctx, err)
-		ld.errorf("go: error loading go %s module graph: %v\n", compatVersion, err)
+		ld.error(fmt.Errorf("error loading go %s module graph: %w", compatVersion, err))
+		ld.switchIfErrors(ctx)
 		suggestFixes()
+		ld.exitIfErrors(ctx)
 		return
 	}
 
@@ -2133,12 +2131,12 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements, 
 					Path:    pkg.mod.Path,
 					Version: mg.Selected(pkg.mod.Path),
 				}
-				ld.errorf("%s loaded from %v,\n\tbut go %s would fail to locate it in %s\n", pkg.stackText(), pkg.mod, compatVersion, selected)
+				ld.error(fmt.Errorf("%s loaded from %v,\n\tbut go %s would fail to locate it in %s", pkg.stackText(), pkg.mod, compatVersion, selected))
 			} else {
 				if ambiguous := (*AmbiguousImportError)(nil); errors.As(mismatch.err, &ambiguous) {
 					// TODO: Is this check needed?
 				}
-				ld.errorf("%s loaded from %v,\n\tbut go %s would fail to locate it:\n\t%v\n", pkg.stackText(), pkg.mod, compatVersion, mismatch.err)
+				ld.error(fmt.Errorf("%s loaded from %v,\n\tbut go %s would fail to locate it:\n\t%v", pkg.stackText(), pkg.mod, compatVersion, mismatch.err))
 			}
 
 			suggestEFlag = true
@@ -2176,7 +2174,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements, 
 			// pkg.err should have already been logged elsewhere — along with a
 			// stack trace — so log only the import path and non-error info here.
 			suggestUpgrade = true
-			ld.errorf("%s failed to load from any module,\n\tbut go %s would load it from %v\n", pkg.path, compatVersion, mismatch.mod)
+			ld.error(fmt.Errorf("%s failed to load from any module,\n\tbut go %s would load it from %v", pkg.path, compatVersion, mismatch.mod))
 
 		case pkg.mod != mismatch.mod:
 			// The package is loaded successfully by both Go versions, but from a
@@ -2184,15 +2182,16 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements, 
 			// unnoticed!) variations in behavior between builds with different
 			// toolchains.
 			suggestUpgrade = true
-			ld.errorf("%s loaded from %v,\n\tbut go %s would select %v\n", pkg.stackText(), pkg.mod, compatVersion, mismatch.mod.Version)
+			ld.error(fmt.Errorf("%s loaded from %v,\n\tbut go %s would select %v\n", pkg.stackText(), pkg.mod, compatVersion, mismatch.mod.Version))
 
 		default:
 			base.Fatalf("go: internal error: mismatch recorded for package %s, but no differences found", pkg.path)
 		}
 	}
 
+	ld.switchIfErrors(ctx)
 	suggestFixes()
-	base.ExitIfErrors()
+	ld.exitIfErrors(ctx)
 }
 
 // scanDir is like imports.ScanDir but elides known magic imports from the list,

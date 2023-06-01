@@ -655,6 +655,12 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 		// are the roots of the module graph and we expect them to be kept consistent.
 		panic("internal error: rawGoModSummary called on a main module")
 	}
+	if m.Version == "" && inWorkspaceMode() && m.Path == "command-line-arguments" {
+		// "go work sync" calls LoadModGraph to make sure the module graph is valid.
+		// If there are no modules in the workspace, we synthesize an empty
+		// command-line-arguments module, which rawGoModData cannot read a go.mod for.
+		return &modFileSummary{module: m}, nil
+	}
 	return rawGoModSummaryCache.Do(m, func() (*modFileSummary, error) {
 		summary := new(modFileSummary)
 		name, data, err := rawGoModData(m)
@@ -685,9 +691,9 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 				summary.require = append(summary.require, req.Mod)
 			}
 		}
-		if summary.goVersion != "" && gover.Compare(summary.goVersion, "1.21") >= 0 {
+		if summary.goVersion != "" && gover.Compare(summary.goVersion, gover.GoStrictVersion) >= 0 {
 			if gover.Compare(summary.goVersion, gover.Local()) > 0 {
-				return nil, &gover.TooNewError{What: summary.module.String(), GoVersion: summary.goVersion}
+				return nil, &gover.TooNewError{What: "module " + m.String(), GoVersion: summary.goVersion}
 			}
 			summary.require = append(summary.require, module.Version{Path: "go", Version: summary.goVersion})
 		}
