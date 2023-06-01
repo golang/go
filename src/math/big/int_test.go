@@ -1952,7 +1952,7 @@ func TestNewIntAllocs(t *testing.T) {
 	}
 }
 
-func TestToFloat64(t *testing.T) {
+func TestFloat64(t *testing.T) {
 	for _, test := range []struct {
 		istr string
 		f    float64
@@ -1988,7 +1988,7 @@ func TestToFloat64(t *testing.T) {
 		}
 
 		// Test against expectation.
-		f, acc := i.ToFloat64()
+		f, acc := i.Float64()
 		if f != test.f || acc != test.acc {
 			t.Errorf("%s: got %f (%s); want %f (%s)", test.istr, f, acc, test.f, test.acc)
 		}
