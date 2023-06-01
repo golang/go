@@ -371,6 +371,28 @@ func main() {}
 	}
 }
 
+func TestGoToTypeDefinition_Issue60544(t *testing.T) {
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.19
+-- main.go --
+package main
+
+func F[T comparable]() {}
+`
+
+	Run(t, mod, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+
+		_, err := env.Editor.GoToTypeDefinition(env.Ctx, env.RegexpSearch("main.go", "comparable")) // must not panic
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
 // Test for golang/go#47825.
 func TestImportTestVariant(t *testing.T) {
 	const mod = `

@@ -56,7 +56,7 @@ func searchForEnclosing(info *types.Info, path []ast.Node) *types.TypeName {
 
 // typeToObject returns the relevant type name for the given type, after
 // unwrapping pointers, arrays, slices, channels, and function signatures with
-// a single non-error result.
+// a single non-error result, and ignoring built-in named types.
 func typeToObject(typ types.Type) *types.TypeName {
 	switch typ := typ.(type) {
 	case *types.Named:
@@ -79,7 +79,7 @@ func typeToObject(typ types.Type) *types.TypeName {
 		for i := 0; i < results.Len(); i++ {
 			obj := typeToObject(results.At(i).Type())
 			if obj == nil || hasErrorType(obj) {
-				// Skip builtins.
+				// Skip builtins. TODO(rfindley): should comparable be handled here as well?
 				continue
 			}
 			if res != nil {
