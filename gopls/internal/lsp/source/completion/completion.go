@@ -1210,8 +1210,10 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 
 	// quickParse does a quick parse of a single file of package m,
 	// extracts exported package members and adds candidates to c.items.
-	var itemsMu sync.Mutex // guards c.items
-	var enough int32       // atomic bool
+	// TODO(rfindley): synchronizing access to c here does not feel right.
+	// Consider adding a concurrency-safe API for completer.
+	var cMu sync.Mutex // guards c.items and c.matcher
+	var enough int32   // atomic bool
 	quickParse := func(uri span.URI, m *source.Metadata) error {
 		if atomic.LoadInt32(&enough) != 0 {
 			return nil
@@ -1231,13 +1233,22 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 				return
 			}
 
-			if !id.IsExported() ||
-				sel.Sel.Name != "_" && !strings.HasPrefix(id.Name, sel.Sel.Name) {
-				return // not a match
+			if !id.IsExported() {
+				return
+			}
+
+			cMu.Lock()
+			score := c.matcher.Score(id.Name)
+			cMu.Unlock()
+
+			if sel.Sel.Name != "_" && score == 0 {
+				return // not a match; avoid constructing the completion item below
 			}
 
 			// The only detail is the kind and package: `var (from "example.com/foo")`
 			// TODO(adonovan): pretty-print FuncDecl.FuncType or TypeSpec.Type?
+			// TODO(adonovan): should this score consider the actual c.matcher.Score
+			// of the item? How does this compare with the deepState.enqueue path?
 			item := CompletionItem{
 				Label:      id.Name,
 				Detail:     fmt.Sprintf("%s (from %q)", strings.ToLower(tok.String()), m.PkgPath),
@@ -1298,12 +1309,12 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 				item.snippet = &sn
 			}
 
-			itemsMu.Lock()
+			cMu.Lock()
 			c.items = append(c.items, item)
 			if len(c.items) >= unimportedMemberTarget {
 				atomic.StoreInt32(&enough, 1)
 			}
-			itemsMu.Unlock()
+			cMu.Unlock()
 		})
 		return nil
 	}

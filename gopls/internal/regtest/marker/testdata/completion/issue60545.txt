@@ -1,0 +1,24 @@
+This test checks that unimported completion is case-insensitive.
+
+-- go.mod --
+module mod.test
+
+go 1.18
+
+-- main.go --
+package main
+
+func main() {
+	fmt.p //@complete(re"p()","Print", "Printf", "Println"), diag("fmt", re"(undefined|undeclared)")
+}
+
+-- other.go --
+package main
+
+// Including another package that imports "fmt" causes completion to use the
+// existing metadata, which is the codepath leading to golang/go#60545.
+import "fmt"
+
+func _() {
+	fmt.Println()
+}
