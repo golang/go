@@ -545,7 +545,7 @@ func LoadModGraph(ctx context.Context, goVersion string) (*ModuleGraph, error) {
 
 	if goVersion != "" {
 		v, _ := rs.rootSelected("go")
-		if gover.Compare(v, GoStrictVersion) >= 0 && gover.Compare(goVersion, v) < 0 {
+		if gover.Compare(v, gover.GoStrictVersion) >= 0 && gover.Compare(goVersion, v) < 0 {
 			return nil, fmt.Errorf("requested Go version %s cannot load module graph (requires Go >= %s)", goVersion, v)
 		}
 

@@ -135,7 +135,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		} else {
 			mainModule := modload.MainModules.Versions()[0]
 			modFile := modload.MainModules.ModFile(mainModule)
-			if modFile.Go == nil || gover.Compare(modFile.Go.Version, modload.ExplicitIndirectVersion) < 0 {
+			if modFile.Go == nil || gover.Compare(modFile.Go.Version, gover.ExplicitIndirectVersion) < 0 {
 				if len(modFile.Require) > 0 {
 					args = []string{"all"}
 				}

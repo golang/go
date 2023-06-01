@@ -225,7 +225,7 @@ func (mms *MainModuleSet) GoVersion() string {
 		if mms.workFile != nil && mms.workFile.Go != nil {
 			return mms.workFile.Go.Version
 		}
-		return defaultGoWorkVersion
+		return gover.DefaultGoWorkVersion
 	}
 	if mms != nil && len(mms.versions) == 1 {
 		f := mms.ModFile(mms.mustGetSingleMainModule())
@@ -239,7 +239,7 @@ func (mms *MainModuleSet) GoVersion() string {
 			return f.Go.Version
 		}
 	}
-	return defaultGoModVersion
+	return gover.DefaultGoModVersion
 }
 
 // Toolchain returns the toolchain set on the single module, in module mode,
@@ -876,7 +876,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
 			// Go 1.11 through 1.16 do not support graph pruning, but the latest Go
 			// version uses a pruned module graph — so we need to convert the
 			// requirements to support pruning.
-			if gover.Compare(v, ExplicitIndirectVersion) >= 0 {
+			if gover.Compare(v, gover.ExplicitIndirectVersion) >= 0 {
 				var err error
 				rs, err = convertPruning(ctx, rs, pruned)
 				if err != nil {
@@ -884,7 +884,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
 				}
 			}
 		} else {
-			rawGoVersion.Store(mainModule, defaultGoModVersion)
+			rawGoVersion.Store(mainModule, gover.DefaultGoModVersion)
 		}
 	}
 
@@ -1228,7 +1228,7 @@ func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, m
 		goVersion = opts.GoVersion
 	}
 	if goVersion == "" {
-		goVersion = defaultGoModVersion
+		goVersion = gover.DefaultGoModVersion
 	}
 	roots = append(roots, module.Version{Path: "go", Version: goVersion})
 	direct["go"] = true
@@ -1618,7 +1618,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 	wroteGo := false
 	if modFile.Go == nil || modFile.Go.Version != goVersion {
 		alwaysUpdate := cfg.BuildMod == "mod" || cfg.CmdName == "mod tidy" || cfg.CmdName == "get"
-		if modFile.Go == nil && goVersion == defaultGoModVersion && !alwaysUpdate {
+		if modFile.Go == nil && goVersion == gover.DefaultGoModVersion && !alwaysUpdate {
 			// The go.mod has no go line, the implied default Go version matches
 			// what we've computed for the graph, and we're not in one of the
 			// traditional go.mod-updating programs, so leave it alone.
@@ -1648,7 +1648,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 	}
 
 	// Update require blocks.
-	if gover.Compare(goVersion, separateIndirectVersion) < 0 {
+	if gover.Compare(goVersion, gover.SeparateIndirectVersion) < 0 {
 		modFile.SetRequire(list)
 	} else {
 		modFile.SetRequireSeparateIndirect(list)
@@ -1764,7 +1764,7 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
 			// However, we didn't do so before Go 1.21, and the bug is relatively
 			// minor, so we maintain the previous (buggy) behavior in 'go mod tidy' to
 			// avoid introducing unnecessary churn.
-			if !ld.Tidy || gover.Compare(ld.GoVersion, tidyGoModSumVersion) >= 0 {
+			if !ld.Tidy || gover.Compare(ld.GoVersion, gover.TidyGoModSumVersion) >= 0 {
 				r := resolveReplacement(pkg.mod)
 				keep[modkey(r)] = true
 			}

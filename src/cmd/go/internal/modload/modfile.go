@@ -27,55 +27,6 @@ import (
 	"golang.org/x/mod/module"
 )
 
-const (
-	// narrowAllVersion is the Go version at which the
-	// module-module "all" pattern no longer closes over the dependencies of
-	// tests outside of the main module.
-	narrowAllVersion = "1.16"
-
-	// defaultGoModVersion is the Go version to assume for go.mod files
-	// that do not declare a Go version. The go command has been
-	// writing go versions to modules since Go 1.12, so a go.mod
-	// without a version is either very old or recently hand-written.
-	// Since we can't tell which, we have to assume it's very old.
-	// The semantics of the go.mod changed at Go 1.17 to support
-	// graph pruning. If see a go.mod without a go line, we have to
-	// assume Go 1.16 so that we interpret the requirements correctly.
-	// Note that this default must stay at Go 1.16; it cannot be moved forward.
-	defaultGoModVersion = "1.16"
-
-	// defaultGoWorkVersion is the Go version to assume for go.work files
-	// that do not declare a Go version. Workspaces were added in Go 1.18,
-	// so use that.
-	defaultGoWorkVersion = "1.18"
-
-	// ExplicitIndirectVersion is the Go version at which a
-	// module's go.mod file is expected to list explicit requirements on every
-	// module that provides any package transitively imported by that module.
-	//
-	// Other indirect dependencies of such a module can be safely pruned out of
-	// the module graph; see https://golang.org/ref/mod#graph-pruning.
-	ExplicitIndirectVersion = "1.17"
-
-	// separateIndirectVersion is the Go version at which
-	// "// indirect" dependencies are added in a block separate from the direct
-	// ones. See https://golang.org/issue/45965.
-	separateIndirectVersion = "1.17"
-
-	// tidyGoModSumVersion is the Go version at which
-	// 'go mod tidy' preserves go.mod checksums needed to build test dependencies
-	// of packages in "all", so that 'go test all' can be run without checksum
-	// errors.
-	// See https://go.dev/issue/56222.
-	tidyGoModSumVersion = "1.21"
-
-	// goStrictVersion is the Go version at which the Go versions
-	// became "strict" in the sense that, restricted to modules at this version
-	// or later, every module must have a go version line ≥ all its dependencies.
-	// It is also the version after which "too new" a version is considered a fatal error.
-	GoStrictVersion = "1.21"
-)
-
 // ReadModFile reads and parses the mod file at gomod. ReadModFile properly applies the
 // overlay, locks the file while reading, and applies fix, if applicable.
 func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfile.File, err error) {
@@ -149,7 +100,7 @@ func (p modPruning) String() string {
 }
 
 func pruningForGoVersion(goVersion string) modPruning {
-	if gover.Compare(goVersion, ExplicitIndirectVersion) < 0 {
+	if gover.Compare(goVersion, gover.ExplicitIndirectVersion) < 0 {
 		// The go.mod file does not duplicate relevant information about transitive
 		// dependencies, so they cannot be pruned out.
 		return unpruned

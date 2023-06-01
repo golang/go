@@ -1020,12 +1020,12 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			ld.TidyCompatibleVersion = ld.GoVersion
 		}
 
-		if gover.Compare(ld.GoVersion, tidyGoModSumVersion) < 0 {
+		if gover.Compare(ld.GoVersion, gover.TidyGoModSumVersion) < 0 {
 			ld.skipImportModFiles = true
 		}
 	}
 
-	if gover.Compare(ld.GoVersion, narrowAllVersion) < 0 && !ld.UseVendorAll {
+	if gover.Compare(ld.GoVersion, gover.NarrowAllVersion) < 0 && !ld.UseVendorAll {
 		// The module's go version explicitly predates the change in "all" for graph
 		// pruning, so continue to use the older interpretation.
 		ld.allClosesOverTests = true
