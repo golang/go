@@ -1,2 +1,0 @@
-pkg debug/elf, const R_PPC64_REL24_P9NOTOC = 124 #60348
-pkg debug/elf, const R_PPC64_REL24_P9NOTOC R_PPC64 #60348

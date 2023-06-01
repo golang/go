@@ -1,6 +1,0 @@
-pkg crypto/tls, const QUICEncryptionLevelEarly = 1 #60107
-pkg crypto/tls, const QUICEncryptionLevelEarly QUICEncryptionLevel #60107
-pkg crypto/tls, const QUICRejectedEarlyData = 6 #60107
-pkg crypto/tls, const QUICRejectedEarlyData QUICEventKind #60107
-pkg crypto/tls, method (*QUICConn) SendSessionTicket(bool) error #60107
-pkg crypto/tls, type SessionState struct, EarlyData bool #60107

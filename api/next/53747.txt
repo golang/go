@@ -1,2 +1,0 @@
-pkg flag, func BoolFunc(string, string, func(string) error) #53747
-pkg flag, method (*FlagSet) BoolFunc(string, string, func(string) error) #53747

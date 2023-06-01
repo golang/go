@@ -1,1 +1,0 @@
-pkg encoding/binary, var NativeEndian nativeEndian #57237

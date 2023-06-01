@@ -1,2 +1,0 @@
-pkg crypto/rsa, func GenerateMultiPrimeKey //deprecated #56921
-pkg crypto/rsa, type PrecomputedValues struct, CRTValues //deprecated #56921

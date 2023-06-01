@@ -1,3 +1,0 @@
-pkg cmp, func Compare[$0 Ordered]($0, $0) int #59488
-pkg cmp, func Less[$0 Ordered]($0, $0) bool #59488
-pkg cmp, type Ordered interface {} #59488

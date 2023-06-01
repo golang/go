@@ -1,1 +1,0 @@
-pkg go/ast, func IsGenerated(*File) bool #28089

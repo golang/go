@@ -1,2 +1,0 @@
-pkg io/fs, func FormatDirEntry(DirEntry) string #54451
-pkg io/fs, func FormatFileInfo(FileInfo) string #54451

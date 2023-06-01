@@ -1,1 +1,0 @@
-pkg slices, func DeleteFunc[$0 interface{ ~[]$1 }, $1 interface{}]($0, func($1) bool) $0 #54768

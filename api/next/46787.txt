@@ -1,3 +1,0 @@
-pkg runtime, method (*Pinner) Pin(interface{}) #46787
-pkg runtime, method (*Pinner) Unpin() #46787
-pkg runtime, type Pinner struct #46787

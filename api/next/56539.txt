@@ -1,4 +1,0 @@
-pkg net, method (*Dialer) MultipathTCP() bool #56539
-pkg net, method (*Dialer) SetMultipathTCP(bool) #56539
-pkg net, method (*ListenConfig) MultipathTCP() bool #56539
-pkg net, method (*ListenConfig) SetMultipathTCP(bool) #56539

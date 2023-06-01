@@ -1,8 +1,0 @@
-pkg unicode, const Version = "15.0.0" #55079
-pkg unicode, var Cypro_Minoan *RangeTable #55079
-pkg unicode, var Kawi *RangeTable #55079
-pkg unicode, var Nag_Mundari *RangeTable #55079
-pkg unicode, var Old_Uyghur *RangeTable #55079
-pkg unicode, var Tangsa *RangeTable #55079
-pkg unicode, var Toto *RangeTable #55079
-pkg unicode, var Vithkuqi *RangeTable #55079

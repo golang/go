@@ -1,2 +1,0 @@
-pkg debug/elf, const COMPRESS_ZSTD = 2 #55107
-pkg debug/elf, const COMPRESS_ZSTD CompressionType #55107

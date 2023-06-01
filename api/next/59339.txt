@@ -1,2 +1,0 @@
-pkg log/slog, func NewJSONHandler(io.Writer, *HandlerOptions) *JSONHandler #59339
-pkg log/slog, func NewTextHandler(io.Writer, *HandlerOptions) *TextHandler #59339

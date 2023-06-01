@@ -1,9 +1,0 @@
-pkg crypto/x509, type RevocationList struct, RevokedCertificateEntries []RevocationListEntry #53573
-pkg crypto/x509, type RevocationList struct, RevokedCertificates //deprecated #53573
-pkg crypto/x509, type RevocationListEntry struct #53573
-pkg crypto/x509, type RevocationListEntry struct, Extensions []pkix.Extension #53573
-pkg crypto/x509, type RevocationListEntry struct, ExtraExtensions []pkix.Extension #53573
-pkg crypto/x509, type RevocationListEntry struct, Raw []uint8 #53573
-pkg crypto/x509, type RevocationListEntry struct, ReasonCode int #53573
-pkg crypto/x509, type RevocationListEntry struct, RevocationTime time.Time #53573
-pkg crypto/x509, type RevocationListEntry struct, SerialNumber *big.Int #53573

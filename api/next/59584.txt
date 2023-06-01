@@ -1,2 +1,0 @@
-pkg html/template, const ErrJSTemplate = 12 #59584
-pkg html/template, const ErrJSTemplate ErrorCode #59584

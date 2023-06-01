@@ -1,5 +1,0 @@
-pkg log/slog, type Source struct #59280
-pkg log/slog, type Source struct, File string #59280
-pkg log/slog, type Source struct, Function string #59280
-pkg log/slog, type Source struct, Line int #59280
-
