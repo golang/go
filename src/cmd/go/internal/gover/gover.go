@@ -55,6 +55,26 @@ func Compare(x, y string) int {
 	return 0
 }
 
+// Max returns the maximum of x and y interpreted as toolchain versions,
+// compared using Compare.
+// If x and y compare equal, Max returns x.
+func Max(x, y string) string {
+	if Compare(x, y) < 0 {
+		return y
+	}
+	return x
+}
+
+// Toolchain returns the maximum of x and y interpreted as toolchain names,
+// compared using Compare(FromToolchain(x), FromToolchain(y)).
+// If x and y compare equal, Max returns x.
+func ToolchainMax(x, y string) string {
+	if Compare(FromToolchain(x), FromToolchain(y)) < 0 {
+		return y
+	}
+	return x
+}
+
 // IsLang reports whether v denotes the overall Go language version
 // and not a specific release. Starting with the Go 1.21 release, "1.x" denotes
 // the overall language version; the first release is "1.x.0".

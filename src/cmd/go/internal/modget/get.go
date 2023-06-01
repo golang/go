@@ -1233,8 +1233,8 @@ func (r *resolver) resolveQueries(ctx context.Context, queries []*query) (change
 		goVers := ""
 		for _, q := range queries {
 			for _, cs := range q.candidates {
-				if e := (*gover.TooNewError)(nil); errors.As(cs.err, &e) && gover.Compare(goVers, e.GoVersion) < 0 {
-					goVers = e.GoVersion
+				if e := (*gover.TooNewError)(nil); errors.As(cs.err, &e) {
+					goVers = gover.Max(goVers, e.GoVersion)
 				}
 			}
 		}
