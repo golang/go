@@ -23,7 +23,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
@@ -32,6 +31,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/facts"
 	"golang.org/x/tools/internal/gcimporter"
 	"golang.org/x/tools/internal/memoize"
@@ -164,8 +164,6 @@ import (
 //        Destroy()
 //   - share cache.{goVersionRx,parseGoImpl}
 
-var born = time.Now()
-
 // Analyze applies a set of analyzers to the package denoted by id,
 // and returns their diagnostics for that package.
 //
@@ -174,9 +172,8 @@ var born = time.Now()
 // Precondition: all analyzers within the process have distinct names.
 // (The names are relied on by the serialization logic.)
 func (s *snapshot) Analyze(ctx context.Context, id PackageID, analyzers []*source.Analyzer) ([]*source.Diagnostic, error) {
-	if false { // debugging
-		log.Println("Analyze@", time.Since(born)) // called after the 7s IWL in k8s
-	}
+	ctx, done := event.Start(ctx, "snapshot.Analyze", tag.Package.Of(string(id)))
+	defer done()
 
 	// Filter and sort enabled root analyzers.
 	// A disabled analyzer may still be run if required by another.
@@ -199,19 +196,13 @@ func (s *snapshot) Analyze(ctx context.Context, id PackageID, analyzers []*sourc
 		}
 	}
 
-	if false { // debugging
-		// TODO(adonovan): use proper tracing.
-		t0 := time.Now()
-		defer func() {
-			log.Printf("%v for analyze(%s, %s)", time.Since(t0), id, enabled)
-		}()
-	}
-
 	// Run the analysis.
 	res, err := s.analyze(ctx, id, enabled)
 	if err != nil {
 		return nil, err
 	}
+	// Inv: res is the successful result of analyzeImpl(analyzers, id),
+	// which augments the successful result of actuallyAnalyze.
 
 	// Report diagnostics only from enabled actions that succeeded.
 	// Errors from creating or analyzing packages are ignored.
@@ -225,7 +216,11 @@ func (s *snapshot) Analyze(ctx context.Context, id PackageID, analyzers []*sourc
 	// results, we should propagate the per-action errors.
 	var results []*source.Diagnostic
 	for _, a := range enabled {
-		summary := res.Actions[a.Name]
+		summary, ok := res.Actions[a.Name]
+		if summary == nil {
+			panic(fmt.Sprintf("analyzeSummary.Actions[%q] = (nil, %t); got %v (#60551)",
+				a.Name, ok, res.Actions))
+		}
 		if summary.Err != "" {
 			continue // action failed
 		}
@@ -309,7 +304,7 @@ type actionSummary struct {
 
 // analyze is a memoization of analyzeImpl.
 func (s *snapshot) analyze(ctx context.Context, id PackageID, analyzers []*analysis.Analyzer) (*analyzeSummary, error) {
-	// Use the sorted list of names of analyzers in the key.
+	// Use the caller-sorted list of names of analyzers in the key.
 	//
 	// TODO(adonovan): opt: account for analysis results at a
 	// finer grain to avoid duplicate work when a
@@ -568,6 +563,9 @@ func analysisCacheKey(analyzers []*analysis.Analyzer, m *source.Metadata, compil
 
 // actuallyAnalyze implements the cache-miss case.
 // This function does not access the snapshot.
+//
+// Postcondition: on success, the analyzeSummary.Actions
+// key set is {a.Name for a in analyzers}.
 func actuallyAnalyze(ctx context.Context, analyzers []*analysis.Analyzer, m *source.Metadata, vdeps map[PackageID]*analyzeSummary, compiledGoFiles []source.FileHandle) (*analyzeSummary, error) {
 	// Create a local FileSet for processing this package only.
 	fset := token.NewFileSet()
@@ -637,6 +635,7 @@ func actuallyAnalyze(ctx context.Context, analyzers []*analysis.Analyzer, m *sou
 
 	// Execute the graph in parallel.
 	execActions(roots)
+	// Inv: each root's summary is set (whether success or error).
 
 	// Don't return (or cache) the result in case of cancellation.
 	if err := ctx.Err(); err != nil {
@@ -645,8 +644,11 @@ func actuallyAnalyze(ctx context.Context, analyzers []*analysis.Analyzer, m *sou
 
 	// Return summaries only for the requested actions.
 	summaries := make(map[string]*actionSummary)
-	for _, act := range roots {
-		summaries[act.a.Name] = act.summary
+	for _, root := range roots {
+		if root.summary == nil {
+			panic("root has nil action.summary (#60551)")
+		}
+		summaries[root.a.Name] = root.summary
 	}
 
 	return &analyzeSummary{
@@ -897,6 +899,7 @@ func (act *action) String() string {
 }
 
 // execActions executes a set of action graph nodes in parallel.
+// Postcondition: each action.summary is set, even in case of error.
 func execActions(actions []*action) {
 	var wg sync.WaitGroup
 	for _, act := range actions {
@@ -917,6 +920,9 @@ func execActions(actions []*action) {
 					}
 				}
 			})
+			if act.summary == nil {
+				panic("nil action.summary (#60551)")
+			}
 		}()
 	}
 	wg.Wait()
