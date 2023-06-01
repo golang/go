@@ -216,6 +216,13 @@ Do not send CLs removing the interior tags from such phrases.
   <!-- cmd/go: make go test build multiple executables; The go test command now supports using the -c flag with multiple packages. -->
 </p>
 
+<h3 id="cgo">Cgo</h3>
+
+<p><!-- CL 490819 -->
+  In files that <code>import "C"</code>, the Go toolchain now
+  correctly reports errors for attempts to declare Go methods on C types.
+</p>
+
 <h2 id="runtime-changes">Runtime</h2>
 
 <p>
@@ -278,11 +285,6 @@ Do not send CLs removing the interior tags from such phrases.
   PGO builds can now devirtualize some interface method calls, adding a
   concrete call to the most common callee. This enables further optimization,
   such as inlining the callee.
-</p>
-
-<!-- CL 490819 -->
-<p>
-  <!-- cmd/cgo: reject attempts to declare methods on C types -->
 </p>
 
 <!-- CL 461315 -->
