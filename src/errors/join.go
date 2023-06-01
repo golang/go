@@ -43,7 +43,7 @@ type joinError struct {
 
 func (e *joinError) Error() string {
 	// Since "Join returns nil if every value in errs is nil",
-	// "errs" in a *joinErr is certainly non-empty.
+	// "errs" in a *joinError is certainly non-empty.
 	if len(e.errs) == 1 {
 		return e.errs[0].Error()
 	}
