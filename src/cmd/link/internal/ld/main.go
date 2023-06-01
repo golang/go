@@ -32,6 +32,7 @@ package ld
 
 import (
 	"bufio"
+	"cmd/internal/codesign"
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/quoted"
@@ -81,6 +82,8 @@ var (
 	flagExtar      = flag.String("extar", "", "archive program for buildmode=c-archive")
 
 	flagCaptureHostObjs = flag.String("capturehostobjs", "", "capture host object files loaded during internal linking to specified dir")
+
+	flagEntitlements = flag.String("entitlements", "", "use the supplied entitlements file during mach-o codesigning")
 
 	flagA             = flag.Bool("a", false, "no-op (deprecated)")
 	FlagC             = flag.Bool("c", false, "dump call graph")
@@ -211,6 +214,19 @@ func Main(arch *sys.Arch, theArch Arch) {
 		*flagOutfile = "a.out"
 		if ctxt.HeadType == objabi.Hwindows {
 			*flagOutfile += ".exe"
+		}
+	}
+
+	ctxt.signOpts = codesign.Options{
+		ID: "a.out",
+	}
+
+	if *flagEntitlements != "" {
+		var err error
+		ctxt.signOpts.Entitlements, err = os.ReadFile(*flagEntitlements)
+		if err != nil {
+			Errorf(nil, "could not load entitlements from file")
+			usage()
 		}
 	}
 
