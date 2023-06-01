@@ -277,11 +277,6 @@ Do not send CLs removing the interior tags from such phrases.
   such as inlining the callee.
 </p>
 
-<!-- CL 461315 -->
-<p>
-  <!-- cmd/compile: enable deadcode of unreferenced large global maps -->
-</p>
-
 <p>
   TODO: complete this section, or delete if not needed
 </p>
@@ -305,7 +300,7 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   <!-- cmd/link: generate .xdata PE section -->
 </p>
-<!-- CL 463395 -->
+<!-- CL 463395, CL 461315 -->
 <p>
   In Go 1.21 the linker (with help from the compiler) is now capable of
   deleting dead (unreferenced) global map variables, if the number of
