@@ -185,14 +185,18 @@ func shouldPGODevirt(fn *ir.Func) bool {
 		}()
 	}
 
-	reason = inline.InlineImpossible(fn)
-	if reason == "no function body" {
-		// TODO: temp fix. InlineImpossible is confused and/or we seemingly can ignore this complaint.
-		// If we've reached here, we've already confirmed we have a Dst.AST, which implies
-		// the destination is visible from this package.
-		reason = ""
-		return true
+	if isImportedFunc(fn) {
+		if typecheck.HaveInlineBody(fn) {
+			// The inliner has already determined this is inlinable.
+			return true
+		} else {
+			reason = "imported function that is not inlinable"
+			return false
+		}
 	}
+
+	// Local function.
+	reason = inline.InlineImpossible(fn)
 	if reason != "" {
 		return false
 	}
@@ -364,11 +368,11 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 		elseBlock.Append(call)
 	} else {
 		// Copy slice so edits in one location don't affect another.
-		thenRet := append([]ir.Node(nil),  retvars...)
+		thenRet := append([]ir.Node(nil), retvars...)
 		thenAsList := ir.NewAssignListStmt(pos, ir.OAS2, thenRet, []ir.Node{concreteCall})
 		thenBlock.Append(typecheck.Stmt(thenAsList))
 
-		elseRet := append([]ir.Node(nil),  retvars...)
+		elseRet := append([]ir.Node(nil), retvars...)
 		elseAsList := ir.NewAssignListStmt(pos, ir.OAS2, elseRet, []ir.Node{call})
 		elseBlock.Append(typecheck.Stmt(elseAsList))
 	}
@@ -536,4 +540,9 @@ func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (
 		fmt.Printf("%v call %s:%d: hottest callee %s (weight %d)\n", ir.Line(call), callerName, callOffset, hottest.Dst.Name(), hottest.Weight)
 	}
 	return hottest.Dst.AST, hottest.Weight
+}
+
+func isImportedFunc(fn *ir.Func) bool {
+	// TODO: what is proper way to check this? does it exist already?
+	return fn.Sym().Pkg.Path != base.Ctxt.Pkgpath
 }
