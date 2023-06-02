@@ -35,6 +35,10 @@ var (
 	drivers   = make(map[string]driver.Driver)
 )
 
+// backgroundCtx is the default context used by the [sql]. It is never canceled, has no
+// values, and has no deadline.
+var backgroundCtx = context.Background()
+
 // nowFunc returns the current time; it's overridden in tests.
 var nowFunc = time.Now
 
@@ -779,7 +783,7 @@ func (t dsnConnector) Driver() driver.Driver {
 // function should be called just once. It is rarely necessary to
 // close a DB.
 func OpenDB(c driver.Connector) *DB {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(backgroundCtx)
 	db := &DB{
 		connector:    c,
 		openerCh:     make(chan struct{}, connectionRequestQueueSize),
@@ -864,7 +868,7 @@ func (db *DB) PingContext(ctx context.Context) error {
 // Ping uses context.Background internally; to specify the context, use
 // PingContext.
 func (db *DB) Ping() error {
-	return db.PingContext(context.Background())
+	return db.PingContext(backgroundCtx)
 }
 
 // Close closes the database and prevents new queries from starting.
@@ -1574,7 +1578,7 @@ func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 // Prepare uses context.Background internally; to specify the context, use
 // PrepareContext.
 func (db *DB) Prepare(query string) (*Stmt, error) {
-	return db.PrepareContext(context.Background(), query)
+	return db.PrepareContext(backgroundCtx, query)
 }
 
 func (db *DB) prepare(ctx context.Context, query string, strategy connReuseStrategy) (*Stmt, error) {
@@ -1644,7 +1648,7 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...any) (Resul
 // Exec uses context.Background internally; to specify the context, use
 // ExecContext.
 func (db *DB) Exec(query string, args ...any) (Result, error) {
-	return db.ExecContext(context.Background(), query, args...)
+	return db.ExecContext(backgroundCtx, query, args...)
 }
 
 func (db *DB) exec(ctx context.Context, query string, args []any, strategy connReuseStrategy) (Result, error) {
@@ -1714,7 +1718,7 @@ func (db *DB) QueryContext(ctx context.Context, query string, args ...any) (*Row
 // Query uses context.Background internally; to specify the context, use
 // QueryContext.
 func (db *DB) Query(query string, args ...any) (*Rows, error) {
-	return db.QueryContext(context.Background(), query, args...)
+	return db.QueryContext(backgroundCtx, query, args...)
 }
 
 func (db *DB) query(ctx context.Context, query string, args []any, strategy connReuseStrategy) (*Rows, error) {
@@ -1815,7 +1819,7 @@ func (db *DB) QueryRowContext(ctx context.Context, query string, args ...any) *R
 // QueryRow uses context.Background internally; to specify the context, use
 // QueryRowContext.
 func (db *DB) QueryRow(query string, args ...any) *Row {
-	return db.QueryRowContext(context.Background(), query, args...)
+	return db.QueryRowContext(backgroundCtx, query, args...)
 }
 
 // BeginTx starts a transaction.
@@ -1846,7 +1850,7 @@ func (db *DB) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 // Begin uses context.Background internally; to specify the context, use
 // BeginTx.
 func (db *DB) Begin() (*Tx, error) {
-	return db.BeginTx(context.Background(), nil)
+	return db.BeginTx(backgroundCtx, nil)
 }
 
 func (db *DB) begin(ctx context.Context, opts *TxOptions, strategy connReuseStrategy) (tx *Tx, err error) {
@@ -2357,7 +2361,7 @@ func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 // Prepare uses context.Background internally; to specify the context, use
 // PrepareContext.
 func (tx *Tx) Prepare(query string) (*Stmt, error) {
-	return tx.PrepareContext(context.Background(), query)
+	return tx.PrepareContext(backgroundCtx, query)
 }
 
 // StmtContext returns a transaction-specific prepared statement from
@@ -2465,7 +2469,7 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 // Stmt uses context.Background internally; to specify the context, use
 // StmtContext.
 func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
-	return tx.StmtContext(context.Background(), stmt)
+	return tx.StmtContext(backgroundCtx, stmt)
 }
 
 // ExecContext executes a query that doesn't return rows.
@@ -2484,7 +2488,7 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...any) (Resul
 // Exec uses context.Background internally; to specify the context, use
 // ExecContext.
 func (tx *Tx) Exec(query string, args ...any) (Result, error) {
-	return tx.ExecContext(context.Background(), query, args...)
+	return tx.ExecContext(backgroundCtx, query, args...)
 }
 
 // QueryContext executes a query that returns rows, typically a SELECT.
@@ -2502,7 +2506,7 @@ func (tx *Tx) QueryContext(ctx context.Context, query string, args ...any) (*Row
 // Query uses context.Background internally; to specify the context, use
 // QueryContext.
 func (tx *Tx) Query(query string, args ...any) (*Rows, error) {
-	return tx.QueryContext(context.Background(), query, args...)
+	return tx.QueryContext(backgroundCtx, query, args...)
 }
 
 // QueryRowContext executes a query that is expected to return at most one row.
@@ -2526,7 +2530,7 @@ func (tx *Tx) QueryRowContext(ctx context.Context, query string, args ...any) *R
 // QueryRow uses context.Background internally; to specify the context, use
 // QueryRowContext.
 func (tx *Tx) QueryRow(query string, args ...any) *Row {
-	return tx.QueryRowContext(context.Background(), query, args...)
+	return tx.QueryRowContext(backgroundCtx, query, args...)
 }
 
 // connStmt is a prepared statement on a particular connection.
@@ -2627,7 +2631,7 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...any) (Result, error) {
 // Exec uses context.Background internally; to specify the context, use
 // ExecContext.
 func (s *Stmt) Exec(args ...any) (Result, error) {
-	return s.ExecContext(context.Background(), args...)
+	return s.ExecContext(backgroundCtx, args...)
 }
 
 func resultFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, args ...any) (Result, error) {
@@ -2795,7 +2799,7 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...any) (*Rows, error) {
 // Query uses context.Background internally; to specify the context, use
 // QueryContext.
 func (s *Stmt) Query(args ...any) (*Rows, error) {
-	return s.QueryContext(context.Background(), args...)
+	return s.QueryContext(backgroundCtx, args...)
 }
 
 func rowsiFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, args ...any) (driver.Rows, error) {
@@ -2837,7 +2841,7 @@ func (s *Stmt) QueryRowContext(ctx context.Context, args ...any) *Row {
 // QueryRow uses context.Background internally; to specify the context, use
 // QueryRowContext.
 func (s *Stmt) QueryRow(args ...any) *Row {
-	return s.QueryRowContext(context.Background(), args...)
+	return s.QueryRowContext(backgroundCtx, args...)
 }
 
 // Close closes the statement.
