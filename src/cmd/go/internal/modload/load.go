@@ -379,6 +379,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		search.WarnUnmatched(matches)
 	}
 
+	tidyWroteGo := false
 	if opts.Tidy {
 		if cfg.BuildV {
 			mg, _ := ld.requirements.Graph(ctx)
@@ -422,6 +423,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 				}
 			}
 			modFile.AddGoStmt(ld.GoVersion)
+			tidyWroteGo = true
 		}
 
 		if !ExplicitWriteGoMod {
@@ -453,7 +455,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	sort.Strings(loadedPackages)
 
 	if !ExplicitWriteGoMod && opts.ResolveMissingImports {
-		if err := commitRequirements(ctx, WriteOpts{}); err != nil {
+		if err := commitRequirements(ctx, WriteOpts{TidyWroteGo: tidyWroteGo}); err != nil {
 			base.Fatal(err)
 		}
 	}

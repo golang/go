@@ -29,9 +29,12 @@
 # In go 1.17, the main module must explicitly require b
 # (because it is transitively imported by the main module).
 
-
 cp go.mod go.mod.orig
 
+	# Pretend we're a release version so that we can theoretically
+	# write our version in toolchain lines.
+env goversion=1.99.0
+env TESTGO_VERSION=go${goversion}
 
 # An invalid argument should be rejected.
 
@@ -87,6 +90,17 @@ cp go.mod.orig go.mod
 go mod tidy -go=''
 cmpenv go.mod go.mod.latest
 
+
+# Updating the go line to 1.21 or higher also updates the toolchain line,
+# only if the toolchain is higher than what would be implied by the go line.
+
+cp go.mod.117 go.mod
+go mod tidy -go=$goversion
+cmpenv go.mod go.mod.latest
+
+cp go.mod.117 go.mod
+go mod tidy -go=1.21.0  # lower than $goversion
+cmpenv go.mod go.mod.121toolchain
 
 
 -- go.mod --
@@ -203,6 +217,30 @@ replace (
 module example.com/m
 
 go $goversion
+
+require example.net/a v0.1.0
+
+require (
+	example.net/b v0.1.0 // indirect
+	example.net/c v0.1.0 // indirect
+)
+
+replace (
+	example.net/a v0.1.0 => ./a
+	example.net/a v0.2.0 => ./a
+	example.net/b v0.1.0 => ./b
+	example.net/b v0.2.0 => ./b
+	example.net/c v0.1.0 => ./c
+	example.net/c v0.2.0 => ./c
+	example.net/d v0.1.0 => ./d
+	example.net/d v0.2.0 => ./d
+)
+-- go.mod.121toolchain --
+module example.com/m
+
+go 1.21.0
+
+toolchain $TESTGO_VERSION
 
 require example.net/a v0.1.0
 

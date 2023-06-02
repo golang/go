@@ -1534,6 +1534,10 @@ func findImportComment(file string) string {
 type WriteOpts struct {
 	DropToolchain     bool // go get toolchain@none
 	ExplicitToolchain bool // go get has set explicit toolchain version
+
+	// TODO(bcmills): Make 'go mod tidy' update the go version in the Requirements
+	// instead of writing directly to the modfile.File
+	TidyWroteGo bool // Go.Version field already updated by 'go mod tidy'
 }
 
 // WriteGoMod writes the current build list back to go.mod.
@@ -1597,8 +1601,8 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 		// We cannot assume that we know how to update a go.mod to a newer version.
 		return &gover.TooNewError{What: "updating go.mod", GoVersion: goVersion}
 	}
-	wroteGo := false
-	if modFile.Go == nil || modFile.Go.Version != goVersion {
+	wroteGo := opts.TidyWroteGo
+	if !wroteGo && modFile.Go == nil || modFile.Go.Version != goVersion {
 		alwaysUpdate := cfg.BuildMod == "mod" || cfg.CmdName == "mod tidy" || cfg.CmdName == "get"
 		if modFile.Go == nil && goVersion == gover.DefaultGoModVersion && !alwaysUpdate {
 			// The go.mod has no go line, the implied default Go version matches
@@ -1615,15 +1619,23 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 
 	// For reproducibility, if we are writing a new go line,
 	// and we're not explicitly modifying the toolchain line with 'go get toolchain@something',
+	// and the go version is one that supports switching toolchains,
 	// and the toolchain running right now is newer than the current toolchain line,
 	// then update the toolchain line to record the newer toolchain.
+	//
+	// TODO(#57001): This condition feels too complicated. Can we simplify it?
+	// TODO(#57001): Add more tests for toolchain lines.
 	toolVers := gover.FromToolchain(toolchain)
-	if wroteGo && !opts.DropToolchain && !opts.ExplicitToolchain && gover.Compare(gover.Local(), toolVers) > 0 {
+	if wroteGo && !opts.DropToolchain && !opts.ExplicitToolchain &&
+		gover.Compare(goVersion, gover.GoStrictVersion) >= 0 &&
+		(gover.Compare(gover.Local(), toolVers) > 0 && !gover.IsLang(gover.Local())) {
 		toolchain = "go" + gover.Local()
+		toolVers = gover.FromToolchain(toolchain)
 	}
 
-	if opts.DropToolchain || toolchain == "go"+goVersion {
-		// go get toolchain@none or toolchain matches go line; drop it.
+	if opts.DropToolchain || toolchain == "go"+goVersion || (gover.Compare(toolVers, gover.GoStrictVersion) < 0 && !opts.ExplicitToolchain) {
+		// go get toolchain@none or toolchain matches go line or isn't valid; drop it.
+		// TODO(#57001): 'go get' should reject explicit toolchains below GoStrictVersion.
 		modFile.DropToolchainStmt()
 	} else {
 		modFile.AddToolchainStmt(toolchain)

@@ -1,4 +1,4 @@
-env TESTGO_VERSION=go1.100
+env TESTGO_VERSION=go1.100.0
 env TESTGO_VERSION_SWITCH=switch
 
 go get toolchain@go1.22.1
@@ -18,11 +18,11 @@ grep 'toolchain go1.22.1' go.mod
 
 go get go@1.22.3
 stderr '^go: upgraded go 1.10 => 1.22.3$'
-stderr '^go: upgraded toolchain go1.22.1 => go1.100$'
+stderr '^go: upgraded toolchain go1.22.1 => go1.100.0$'
 grep 'go 1.22.3' go.mod
 
 go get go@1.22.3 toolchain@1.22.3
-stderr '^go: removed toolchain go1.100$'
+stderr '^go: removed toolchain go1.100.0$'
 ! grep toolchain go.mod
 
 go get go@1.22.1 toolchain@go1.22.3
