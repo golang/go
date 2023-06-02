@@ -369,17 +369,6 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	// x != y if we get here
 	assert(x != y)
 
-	// If we get here and x or y is a type parameter, they are unbound
-	// (not recorded with the unifier).
-	// Ensure that if we have at least one type parameter, it is in x
-	// (the earlier swap checks for _recorded_ type parameters only).
-	if isTypeParam(y) {
-		if traceInference {
-			u.tracef("%s ≡ %s (swap)", y, x)
-		}
-		x, y = y, x
-	}
-
 	// Type elements (array, slice, etc. elements) use emode for unification.
 	// Element types must match exactly if the types are used in an assignment.
 	emode := mode
@@ -393,8 +382,16 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	// If only one type is an interface, all its methods must be present in the
 	// other type and corresponding method signatures must unify.
 	if enableInterfaceInference && mode&exact == 0 {
-		xi, _ := x.(*Interface)
-		yi, _ := y.(*Interface)
+		// One or both interfaces may be defined types.
+		// Look under the name, but not under type parameters (go.dev/issue/60564).
+		var xi *Interface
+		if _, ok := x.(*TypeParam); !ok {
+			xi, _ = under(x).(*Interface)
+		}
+		var yi *Interface
+		if _, ok := y.(*TypeParam); !ok {
+			yi, _ = under(y).(*Interface)
+		}
 		// If we have two interfaces, check the type terms for equivalence,
 		// and unify common methods if possible.
 		if xi != nil && yi != nil {
@@ -480,9 +477,24 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 			}
 			return true
 		}
+	}
 
-		// Neither x nor y are interface types.
-		// They must be structurally equivalent to unify.
+	// Unless we have exact unification, neither x nor y are interfaces now.
+	// Except for unbound type parameters (see below), x and y must be structurally
+	// equivalent to unify.
+
+	// If we get here and x or y is a type parameter, they are unbound
+	// (not recorded with the unifier).
+	// Ensure that if we have at least one type parameter, it is in x
+	// (the earlier swap checks for _recorded_ type parameters only).
+	// This ensures that the switch switches on the type parameter.
+	//
+	// TODO(gri) Factor out type parameter handling from the switch.
+	if isTypeParam(y) {
+		if traceInference {
+			u.tracef("%s ≡ %s (swap)", y, x)
+		}
+		x, y = y, x
 	}
 
 	switch x := x.(type) {
@@ -641,27 +653,9 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		}
 
 	case *Named:
-		// Two named non-interface types unify if their type names originate
-		// in the same type declaration. If they are instantiated, their type
-		// argument lists must unify.
-		// If one or both named types are interfaces, the types unify if the
-		// respective methods unify (per the rules for interface unification).
+		// Two named types unify if their type names originate in the same type declaration.
+		// If they are instantiated, their type argument lists must unify.
 		if y, ok := y.(*Named); ok {
-			if enableInterfaceInference && mode&exact == 0 {
-				xi, _ := x.under().(*Interface)
-				yi, _ := y.under().(*Interface)
-				// If one or both of x and y are interfaces, use interface unification.
-				switch {
-				case xi != nil && yi != nil:
-					return u.nify(xi, yi, mode, p)
-				case xi != nil:
-					return u.nify(xi, y, mode, p)
-				case yi != nil:
-					return u.nify(x, yi, mode, p)
-				}
-				// In all other cases, the type arguments and origins must match.
-			}
-
 			// Check type arguments before origins so they unify
 			// even if the origins don't match; for better error
 			// messages (see go.dev/issue/53692).

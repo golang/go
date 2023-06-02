@@ -56,7 +56,6 @@ func _() {
 		m(int)
 		n()
 	}
-	// TODO(gri) this should not produce an error (go.dev/issues/60564)
-	f5(x /* ERROR "type interface{m(int); n()} of x does not match inferred type I[int] for I[T]" */)
+	f5(x)
 	f5[int](x) // ok
 }
