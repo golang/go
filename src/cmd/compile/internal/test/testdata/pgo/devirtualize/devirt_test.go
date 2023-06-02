@@ -13,14 +13,16 @@ package devirt
 
 import (
 	"testing"
+
+	"example.com/pgo/devirtualize/mult"
 )
 
 func BenchmarkDevirt(b *testing.B) {
 	var (
 		a1 Add
 		a2 Sub
-		m1 Mult
-		m2 NegMult
+		m1 mult.Mult
+		m2 mult.NegMult
 	)
 
 	Exercise(b.N, a1, a2, m1, m2)

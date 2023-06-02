@@ -57,11 +57,11 @@ go 1.19
 
 	want := []devirtualization{
 		{
-			pos:    "./devirt.go:81:21",
-			callee: "Mult.Multiply",
+			pos:    "./devirt.go:61:21",
+			callee: "mult.Mult.Multiply",
 		},
 		{
-			pos:    "./devirt.go:81:31",
+			pos:    "./devirt.go:61:31",
 			callee: "Add.Add",
 		},
 	}
@@ -115,8 +115,10 @@ func TestPGODevirtualize(t *testing.T) {
 
 	// Copy the module to a scratch location so we can add a go.mod.
 	dir := t.TempDir()
-
-	for _, file := range []string{"devirt.go", "devirt_test.go", "devirt.pprof"} {
+	if err := os.Mkdir(filepath.Join(dir, "mult"), 0755); err != nil {
+		t.Fatalf("error creating dir: %v", err)
+	}
+	for _, file := range []string{"devirt.go", "devirt_test.go", "devirt.pprof", filepath.Join("mult", "mult.go")} {
 		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
 			t.Fatalf("error copying %s: %v", file, err)
 		}
