@@ -4,22 +4,19 @@
 
 package main
 
-// #include <unistd.h>
-// static void nop() {}
-import "C"
-
 import "syscall"
 
 func init() {
-	register("TgkillSegvInCgo", TgkillSegvInCgo)
+	register("TgkillSegv", TgkillSegv)
 }
 
-func TgkillSegvInCgo() {
+func TgkillSegv() {
 	c := make(chan bool)
 	go func() {
 		close(c)
-		for {
-			C.nop()
+		for i := 0; ; i++ {
+			// Sum defined in segv.go.
+			Sum += i
 		}
 	}()
 
@@ -28,5 +25,5 @@ func TgkillSegvInCgo() {
 	syscall.Tgkill(syscall.Getpid(), syscall.Gettid(), syscall.SIGSEGV)
 
 	// Wait for the OS to deliver the signal.
-	C.pause()
+	select {}
 }

@@ -648,7 +648,11 @@ func TestSegv(t *testing.T) {
 			}
 
 			t.Parallel()
-			got := runTestProg(t, "testprogcgo", test)
+			prog := "testprog"
+			if strings.HasSuffix(test, "InCgo") {
+				prog = "testprogcgo"
+			}
+			got := runTestProg(t, prog, test)
 			t.Log(got)
 			want := "SIGSEGV"
 			if !strings.Contains(got, want) {
