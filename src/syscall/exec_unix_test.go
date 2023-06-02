@@ -387,3 +387,15 @@ func TestRlimitRestored(t *testing.T) {
 		t.Errorf("exec rlimit = %d, want %d", v, orig)
 	}
 }
+
+func TestForkExecNilArgv(t *testing.T) {
+	defer func() {
+		if p := recover(); p != nil {
+			t.Fatal("forkExec panicked")
+		}
+	}()
+
+	// We don't really care what the result of forkExec is, just that it doesn't
+	// panic, so we choose something we know won't actually spawn a process (probably).
+	syscall.ForkExec("/dev/null", nil, nil)
+}

@@ -165,7 +165,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		return 0, err
 	}
 
-	if (runtime.GOOS == "freebsd" || runtime.GOOS == "dragonfly") && len(argv[0]) > len(argv0) {
+	if (runtime.GOOS == "freebsd" || runtime.GOOS == "dragonfly") && len(argv) > 0 && len(argv[0]) > len(argv0) {
 		argvp[0] = argv0p
 	}
 
