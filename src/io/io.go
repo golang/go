@@ -540,7 +540,7 @@ func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
-	if off < 0 || off >= s.limit-s.base {
+	if off < 0 || off >= s.Size() {
 		return 0, EOF
 	}
 	off += s.base
