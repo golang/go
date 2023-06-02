@@ -745,6 +745,15 @@ Do not send CLs removing the interior tags from such phrases.
       an error indicating that the file does not exist.
     </p>
 
+    <p><!-- https://go.dev/issue/56899, CL 463219 -->
+      On Windows calling
+      <a href="/pkg/os/#TempDir"><code>TempDir</code></a> now uses
+      GetTempPath2W when available, instead of GetTempPathW. The
+      new behavior is a security hardening measure that prevents
+      temporary files created by processes running as SYSTEM to
+      be accessed by non-SYSTEM processes.
+    </p>
+
     <p><!-- CL 493036 -->
       On Windows the os package now supports working with files whose
       names, stored as UTF-16, can't be represented as valid UTF-8.
