@@ -542,7 +542,7 @@ func parseReplace(filename string, line *Line, verb string, args []string, fix V
 			if strings.Contains(ns, "@") {
 				return nil, errorf("replacement module must match format 'path version', not 'path@version'")
 			}
-			return nil, errorf("replacement module without version must be directory path (rooted or starting with ./ or ../)")
+			return nil, errorf("replacement module without version must be directory path (rooted or starting with . or ..)")
 		}
 		if filepath.Separator == '/' && strings.Contains(ns, `\`) {
 			return nil, errorf("replacement directory appears to be Windows path (on a non-windows system)")
@@ -555,7 +555,6 @@ func parseReplace(filename string, line *Line, verb string, args []string, fix V
 		}
 		if IsDirectoryPath(ns) {
 			return nil, errorf("replacement module directory path %q cannot have version", ns)
-
 		}
 	}
 	return &Replace{
@@ -679,14 +678,15 @@ func (f *WorkFile) add(errs *ErrorList, line *Line, verb string, args []string, 
 	}
 }
 
-// IsDirectoryPath reports whether the given path should be interpreted
-// as a directory path. Just like on the go command line, relative paths
+// IsDirectoryPath reports whether the given path should be interpreted as a directory path.
+// Just like on the go command line, relative paths starting with a '.' or '..' path component
 // and rooted paths are directory paths; the rest are module paths.
 func IsDirectoryPath(ns string) bool {
 	// Because go.mod files can move from one system to another,
 	// we check all known path syntaxes, both Unix and Windows.
-	return strings.HasPrefix(ns, "./") || strings.HasPrefix(ns, "../") || strings.HasPrefix(ns, "/") ||
-		strings.HasPrefix(ns, `.\`) || strings.HasPrefix(ns, `..\`) || strings.HasPrefix(ns, `\`) ||
+	return ns == "." || strings.HasPrefix(ns, "./") || strings.HasPrefix(ns, `.\`) ||
+		ns == ".." || strings.HasPrefix(ns, "../") || strings.HasPrefix(ns, `..\`) ||
+		strings.HasPrefix(ns, "/") || strings.HasPrefix(ns, `\`) ||
 		len(ns) >= 2 && ('A' <= ns[0] && ns[0] <= 'Z' || 'a' <= ns[0] && ns[0] <= 'z') && ns[1] == ':'
 }
 
