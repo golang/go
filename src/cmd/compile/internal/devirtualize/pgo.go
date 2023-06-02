@@ -185,7 +185,6 @@ func shouldPGODevirt(fn *ir.Func) bool {
 		}()
 	}
 
-	// Local function.
 	reason = inline.InlineImpossible(fn)
 	if reason != "" {
 		return false
