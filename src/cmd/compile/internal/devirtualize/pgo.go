@@ -185,16 +185,6 @@ func shouldPGODevirt(fn *ir.Func) bool {
 		}()
 	}
 
-	if isImportedFunc(fn) {
-		if typecheck.HaveInlineBody(fn) {
-			// The inliner has already determined this is inlinable.
-			return true
-		} else {
-			reason = "imported function that is not inlinable"
-			return false
-		}
-	}
-
 	// Local function.
 	reason = inline.InlineImpossible(fn)
 	if reason != "" {
@@ -540,9 +530,4 @@ func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (
 		fmt.Printf("%v call %s:%d: hottest callee %s (weight %d)\n", ir.Line(call), callerName, callOffset, hottest.Dst.Name(), hottest.Weight)
 	}
 	return hottest.Dst.AST, hottest.Weight
-}
-
-func isImportedFunc(fn *ir.Func) bool {
-	// TODO: what is proper way to check this? does it exist already?
-	return fn.Sym().Pkg.Path != base.Ctxt.Pkgpath
 }
