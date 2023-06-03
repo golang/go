@@ -11,32 +11,12 @@
 
 package devirt
 
-type Multiplier interface {
-	Multiply(a, b int) int
-}
-
-type Adder interface {
-	Add(a, b int) int
-}
+import "example.com/pgo/devirtualize/mult"
 
 var sink int
 
-type Mult struct{}
-
-func (Mult) Multiply(a, b int) int {
-	for i := 0; i < 1000; i++ {
-		sink++
-	}
-	return a * b
-}
-
-type NegMult struct{}
-
-func (NegMult) Multiply(a, b int) int {
-	for i := 0; i < 1000; i++ {
-		sink++
-	}
-	return -1 * a * b
+type Adder interface {
+	Add(a, b int) int
 }
 
 type Add struct{}
@@ -60,7 +40,7 @@ func (Sub) Add(a, b int) int {
 // Exercise calls mostly a1 and m1.
 //
 //go:noinline
-func Exercise(iter int, a1, a2 Adder, m1, m2 Multiplier) {
+func Exercise(iter int, a1, a2 Adder, m1, m2 mult.Multiplier) {
 	for i := 0; i < iter; i++ {
 		a := a1
 		m := m1
@@ -80,4 +60,14 @@ func Exercise(iter int, a1, a2 Adder, m1, m2 Multiplier) {
 		// callee.
 		sink += m.Multiply(42, a.Add(1, 2))
 	}
+}
+
+func init() {
+	// TODO: until https://golang.org/cl/497175 or similar lands,
+	// we need to create an explicit reference to callees
+	// in another package for devirtualization to work.
+	m := mult.Mult{}
+	m.Multiply(42, 0)
+	n := mult.NegMult{}
+	n.Multiply(42, 0)
 }

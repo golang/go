@@ -414,8 +414,9 @@ func InlineImpossible(fn *ir.Func) string {
 		return reason
 	}
 
-	// If fn has no body (is defined outside of Go), cannot inline it.
-	if len(fn.Body) == 0 {
+	// If a local function has no fn.Body (is defined outside of Go), cannot inline it.
+	// Imported functions don't have fn.Body but might have inline body in fn.Inl.
+	if len(fn.Body) == 0 && !typecheck.HaveInlineBody(fn) {
 		reason = "no function body"
 		return reason
 	}

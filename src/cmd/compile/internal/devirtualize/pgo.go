@@ -357,11 +357,11 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 		elseBlock.Append(call)
 	} else {
 		// Copy slice so edits in one location don't affect another.
-		thenRet := append([]ir.Node(nil),  retvars...)
+		thenRet := append([]ir.Node(nil), retvars...)
 		thenAsList := ir.NewAssignListStmt(pos, ir.OAS2, thenRet, []ir.Node{concreteCall})
 		thenBlock.Append(typecheck.Stmt(thenAsList))
 
-		elseRet := append([]ir.Node(nil),  retvars...)
+		elseRet := append([]ir.Node(nil), retvars...)
 		elseAsList := ir.NewAssignListStmt(pos, ir.OAS2, elseRet, []ir.Node{call})
 		elseBlock.Append(typecheck.Stmt(elseAsList))
 	}
