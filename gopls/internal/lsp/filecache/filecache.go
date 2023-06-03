@@ -427,8 +427,9 @@ func gc(goplsDir string) {
 	for {
 		// Enumerate all files in the cache.
 		type item struct {
-			path string
-			stat os.FileInfo
+			path  string
+			mtime time.Time
+			size  int64
 		}
 		var files []item
 		start := time.Now()
@@ -454,7 +455,7 @@ func gc(goplsDir string) {
 					}
 					os.Remove(path) // ignore error
 				} else {
-					files = append(files, item{path, stat})
+					files = append(files, item{path, stat.ModTime(), stat.Size()})
 					total += stat.Size()
 					if debug && len(files)%1000 == 0 {
 						log.Printf("filecache: checked %d files in %v", len(files), time.Since(start))
@@ -469,7 +470,7 @@ func gc(goplsDir string) {
 
 		// Sort oldest files first.
 		sort.Slice(files, func(i, j int) bool {
-			return files[i].stat.ModTime().Before(files[j].stat.ModTime())
+			return files[i].mtime.Before(files[j].mtime)
 		})
 
 		// Delete oldest files until we're under budget.
@@ -479,13 +480,14 @@ func gc(goplsDir string) {
 				break
 			}
 			if debug {
-				age := time.Since(file.stat.ModTime())
+				age := time.Since(file.mtime)
 				log.Printf("budget: deleting stale file %s (%dB, age %v)",
-					file.path, file.stat.Size(), age)
+					file.path, file.size, age)
 			}
 			os.Remove(file.path) // ignore error
-			total -= file.stat.Size()
+			total -= file.size
 		}
+		files = nil // release memory before sleep
 
 		time.Sleep(period)
 
