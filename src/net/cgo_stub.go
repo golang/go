@@ -4,11 +4,12 @@
 
 // This file holds stub versions of the cgo functions called on Unix systems.
 // We build this file if using the netgo build tag, or if cgo is not
-// enabled and we are using a Unix system other than Darwin.
+// enabled and we are using a Unix system other than Darwin, or if it's
+// wasip1 where cgo is never available.
 // Darwin is exempted because it always provides the cgo routines,
 // in cgo_unix_syscall.go.
 
-//go:build netgo || (!cgo && unix && !darwin)
+//go:build netgo || (!cgo && unix && !darwin) || wasip1
 
 package net
 
