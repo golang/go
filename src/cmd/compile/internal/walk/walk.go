@@ -340,7 +340,7 @@ func mayCall(n ir.Node) bool {
 		case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OLINKSYMOFFSET, ir.OMETHEXPR,
 			ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOMPLEX, ir.OEFACE,
 			ir.OADDR, ir.OBITNOT, ir.ONOT, ir.OPLUS,
-			ir.OCAP, ir.OIMAG, ir.OLEN, ir.OREAL,
+			ir.OCAP, ir.OIMAG, ir.OLEN, ir.OREAL, ir.OMIN, ir.OMAX,
 			ir.OCONVNOP, ir.ODOT,
 			ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.OSPTR,
 			ir.OBYTES2STRTMP, ir.OGETG, ir.OGETCALLERPC, ir.OGETCALLERSP, ir.OSLICEHEADER, ir.OSTRINGHEADER:
