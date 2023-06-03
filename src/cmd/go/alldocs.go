@@ -2173,7 +2173,7 @@
 //		The operating system for which to compile code.
 //		Examples are linux, darwin, windows, netbsd.
 //	GOPATH
-//		For more details see: 'go help gopath'.
+//		Controls where various files are stored. See: 'go help gopath'.
 //	GOPROXY
 //		URL of Go module proxy. See https://golang.org/ref/mod#environment-variables
 //		and https://golang.org/ref/mod#module-proxy for details.
@@ -2187,6 +2187,8 @@
 //	GOSUMDB
 //		The name of checksum database to use and optionally its public key and
 //		URL. See https://golang.org/ref/mod#authenticating.
+//	GOTOOLCHAIN
+//		Controls which Go toolchain is used. See https://go.dev/doc/toolchain.
 //	GOTMPDIR
 //		The directory where the go command will write
 //		temporary source files, packages, and binaries.
