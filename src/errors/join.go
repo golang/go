@@ -42,20 +42,37 @@ type joinError struct {
 }
 
 func (e *joinError) Error() string {
-	// Since "Join returns nil if every value in errs is nil",
-	// "errs" in a *joinError is certainly non-empty.
-	if len(e.errs) == 1 {
+	nerrs := len(e.errs)
+	// Since Join returns nil if every value in errs is nil,
+	// e.errs cannot be empty.
+	// TODO: get rid of case 0
+	switch nerrs {
+	case 0: // Impossible but handle.
+		return "<nil>"
+	case 1:
 		return e.errs[0].Error()
 	}
 
-	b := []byte(e.errs[0].Error())
+	const maxInt = int(^uint(0) >> 1)
+
+	n := nerrs - 1
+	for _, err := range e.errs {
+		nstr := len(err.Error())
+		if nstr > maxInt-n {
+			panic("errors: Join output length overflow")
+		}
+		n += nstr
+	}
+
+	b := make([]byte, 0, n)
+	b = append(b, e.errs[0].Error()...)
 	for _, err := range e.errs[1:] {
 		b = append(b, '\n')
 		b = append(b, err.Error()...)
 	}
-	// At this point, b has at least one byte '\n', so that
-	// b is certainly non-empty.
-	return unsafe.String(&b[0], len(b))
+	// At this point, b has at least one byte '\n'.
+	// TODO: replace with unsafe.String(&b[0], len(b))
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }
 
 func (e *joinError) Unwrap() []error {
