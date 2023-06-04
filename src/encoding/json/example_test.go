@@ -308,3 +308,24 @@ func ExampleHTMLEscape() {
 	// Output:
 	//{"Name":"\u003cb\u003eHTML content\u003c/b\u003e"}
 }
+
+func ExampleEqual() {
+	json1 := `{"author":"Hiro","country":"India","age":19,"gopher":true}`
+	json2 := `{"author":"Hiro","gopher":true,"country":"India","age":19}`
+	json3 := `{"age":19,"pageNum":1,"author":"Hiro"}`
+	json4 := `{"age":19,"pageNum":1,"author":"洛北"}`
+	json5 := `{"age":19,"pageNum":1}`
+
+	fmt.Println(json.DeeplyEqual(json1, json2))                 //Returns true structures, values same, order different
+	fmt.Println(json.DeeplyEqual(json1, json2, json3))          //Returns false
+	fmt.Println(json.DeeplyEqual(json3, json4))                 //Returns false value different for key 'author'
+	fmt.Println(json.DeeplyEqual(json3, json5))                 //Returns false structure different for key 'author'
+	fmt.Println(json.DeeplyEqual([]byte(json1), []byte(json2))) //Returns true structures, values same, order different
+	//Output:
+	//true <nil>
+	//false <nil>
+	//false <nil>
+	//false <nil>
+	//true <nil>
+
+}

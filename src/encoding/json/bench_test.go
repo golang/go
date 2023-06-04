@@ -539,3 +539,37 @@ func BenchmarkNumberIsValidRegexp(b *testing.B) {
 		jsonNumberRegexp.MatchString(s)
 	}
 }
+
+func BenchmarkEq(b *testing.B) {
+	s1 := `{"key1": "value1", "key2": "value2"}`
+	s2 := `{"key2": "value2", "key1": "value1"}`
+	for i := 0; i < b.N; i++ {
+		if ok, err := Eq(s1, s2); err != nil {
+			b.Fatal("Equal failed", err)
+		} else if !ok {
+			b.Fatal("want:true got:false")
+		}
+	}
+}
+
+func BenchmarkEqual(b *testing.B) {
+	s1 := `{"key1":"value1","key2":"value2","key3":"value3"}`
+	s2 := `{"key2":"value2","key3":"value3","key1":"value1"}`
+	s3 := `{"key3": "value3", "key1": "value1", "key2": "value2"}`
+	for n := 0; n < b.N; n++ {
+		if ok, err := Equal(s1, s2, s3); err != nil {
+			b.Fatal("Equal failed", err)
+		} else if !ok {
+			b.Fatal("want:true got:false")
+		}
+	}
+}
+
+func BenchmarkDeeplyEqual(b *testing.B) {
+	s1 := `{"key1":"value1","key2":"value2","key3":"value3"}`
+	s2 := `{"key2":"value2","key3":"value3","key1":"value1"}`
+	s3 := `{"key3": "value3", "key1": "value1", "key2": "value2"}`
+	for n := 0; n < b.N; n++ {
+		DeeplyEqual(s1, s2, s3)
+	}
+}
