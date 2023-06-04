@@ -1,2 +1,0 @@
-pkg bytes, method (*Buffer) Available() int #53685
-pkg bytes, method (*Buffer) AvailableBuffer() []uint8 #53685

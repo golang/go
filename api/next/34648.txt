@@ -1,5 +1,0 @@
-pkg crypto/elliptic, method (*CurveParams) Add //deprecated #34648
-pkg crypto/elliptic, method (*CurveParams) Double //deprecated #34648
-pkg crypto/elliptic, method (*CurveParams) IsOnCurve //deprecated #34648
-pkg crypto/elliptic, method (*CurveParams) ScalarBaseMult //deprecated #34648
-pkg crypto/elliptic, method (*CurveParams) ScalarMult //deprecated #34648

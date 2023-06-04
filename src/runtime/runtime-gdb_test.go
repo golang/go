@@ -470,15 +470,17 @@ func TestGdbBacktrace(t *testing.T) {
 	got, err := cmd.CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
-		if bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")) {
+		switch {
+		case bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")):
 			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=28551
 			testenv.SkipFlaky(t, 43068)
-		}
-		if bytes.Contains(got, []byte("Couldn't get registers: No such process.")) {
+		case bytes.Contains(got, []byte("Couldn't get registers: No such process.")), bytes.Contains(got, []byte("Unable to fetch general registers.: No such process.")):
 			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=9086
 			testenv.SkipFlaky(t, 50838)
-		}
-		if bytes.Contains(got, []byte(" exited normally]\n")) {
+		case bytes.Contains(got, []byte("waiting for new child: No child processes.")):
+			// GDB bug: Sometimes it fails to wait for a clone child.
+			testenv.SkipFlaky(t, 60553)
+		case bytes.Contains(got, []byte(" exited normally]\n")):
 			// GDB bug: Sometimes the inferior exits fine,
 			// but then GDB hangs.
 			testenv.SkipFlaky(t, 37405)

@@ -202,6 +202,10 @@ func (s *mspan) isFree(index uintptr) bool {
 // n must be within [0, s.npages*_PageSize),
 // or may be exactly s.npages*_PageSize
 // if s.elemsize is from sizeclasses.go.
+//
+// nosplit, because it is called by objIndex, which is nosplit
+//
+//go:nosplit
 func (s *mspan) divideByElemSize(n uintptr) uintptr {
 	const doubleCheck = false
 
@@ -215,6 +219,9 @@ func (s *mspan) divideByElemSize(n uintptr) uintptr {
 	return q
 }
 
+// nosplit, because it is called by other nosplit code like findObject
+//
+//go:nosplit
 func (s *mspan) objIndex(p uintptr) uintptr {
 	return s.divideByElemSize(p - s.base())
 }
@@ -683,11 +690,11 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
 		throw("runtime: typeBitsBulkBarrier without type")
 	}
 	if typ.Size_ != size {
-		println("runtime: typeBitsBulkBarrier with type ", typ.string(), " of size ", typ.Size_, " but memory size", size)
+		println("runtime: typeBitsBulkBarrier with type ", toRType(typ).string(), " of size ", typ.Size_, " but memory size", size)
 		throw("runtime: invalid typeBitsBulkBarrier")
 	}
 	if typ.Kind_&kindGCProg != 0 {
-		println("runtime: typeBitsBulkBarrier with type ", typ.string(), " with GC prog")
+		println("runtime: typeBitsBulkBarrier with type ", toRType(typ).string(), " with GC prog")
 		throw("runtime: invalid typeBitsBulkBarrier")
 	}
 	if !writeBarrier.needed {
@@ -1417,7 +1424,7 @@ func getgcmask(ep any) (mask []byte) {
 		// data
 		if datap.data <= uintptr(p) && uintptr(p) < datap.edata {
 			bitmap := datap.gcdatamask.bytedata
-			n := (*ptrtype)(unsafe.Pointer(t)).elem.Size_
+			n := (*ptrtype)(unsafe.Pointer(t)).Elem.Size_
 			mask = make([]byte, n/goarch.PtrSize)
 			for i := uintptr(0); i < n; i += goarch.PtrSize {
 				off := (uintptr(p) + i - datap.data) / goarch.PtrSize
@@ -1429,7 +1436,7 @@ func getgcmask(ep any) (mask []byte) {
 		// bss
 		if datap.bss <= uintptr(p) && uintptr(p) < datap.ebss {
 			bitmap := datap.gcbssmask.bytedata
-			n := (*ptrtype)(unsafe.Pointer(t)).elem.Size_
+			n := (*ptrtype)(unsafe.Pointer(t)).Elem.Size_
 			mask = make([]byte, n/goarch.PtrSize)
 			for i := uintptr(0); i < n; i += goarch.PtrSize {
 				off := (uintptr(p) + i - datap.bss) / goarch.PtrSize
@@ -1477,7 +1484,7 @@ func getgcmask(ep any) (mask []byte) {
 				return
 			}
 			size := uintptr(locals.n) * goarch.PtrSize
-			n := (*ptrtype)(unsafe.Pointer(t)).elem.Size_
+			n := (*ptrtype)(unsafe.Pointer(t)).Elem.Size_
 			mask = make([]byte, n/goarch.PtrSize)
 			for i := uintptr(0); i < n; i += goarch.PtrSize {
 				off := (uintptr(p) + i - u.frame.varp + size) / goarch.PtrSize

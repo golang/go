@@ -371,6 +371,15 @@ func MustInternalLink(t testing.TB, withCgo bool) {
 	}
 }
 
+// MustHaveBuildMode reports whether the current system can build programs in
+// the given build mode.
+// If not, MustHaveBuildMode calls t.Skip with an explanation.
+func MustHaveBuildMode(t testing.TB, buildmode string) {
+	if !platform.BuildModeSupported(runtime.Compiler, buildmode, runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping test: build mode %s on %s/%s is not supported by the %s compiler", buildmode, runtime.GOOS, runtime.GOARCH, runtime.Compiler)
+	}
+}
+
 // HasSymlink reports whether the current system can use os.Symlink.
 func HasSymlink() bool {
 	ok, _ := hasSymlink()

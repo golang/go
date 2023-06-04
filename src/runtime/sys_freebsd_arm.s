@@ -387,13 +387,18 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVW	R0, ret+24(FP)
 	RET
 
-// void runtime·closeonexec(int32 fd)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+// func fcntl(fd, cmd, arg int32) (int32, int32)
+TEXT runtime·fcntl(SB),NOSPLIT,$0
 	MOVW fd+0(FP), R0	// fd
-	MOVW $2, R1	// F_SETFD
-	MOVW $1, R2	// FD_CLOEXEC
+	MOVW cmd+4(FP), R1	// cmd
+	MOVW arg+8(FP), R2	// arg
 	MOVW $SYS_fcntl, R7
 	SWI $0
+	MOVW $0, R1
+	MOVW.CS R0, R1
+	MOVW.CS $-1, R0
+	MOVW R0, ret+12(FP)
+	MOVW R1, errno+16(FP)
 	RET
 
 // TODO: this is only valid for ARMv7+

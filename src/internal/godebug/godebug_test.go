@@ -100,23 +100,31 @@ func TestCmdBisect(t *testing.T) {
 }
 
 // This test does nothing by itself, but you can run
+//
 //	bisect 'GODEBUG=buggy=1#PATTERN' go test -run=BisectTestCase
+//
 // to see that the GODEBUG bisect support is working.
 // TestCmdBisect above does exactly that.
 func TestBisectTestCase(t *testing.T) {
 	s := New("#buggy")
 	for i := 0; i < 10; i++ {
-		if s.Value() == "1" {
+		a := s.Value() == "1"
+		b := s.Value() == "1"
+		c := s.Value() == "1" // BISECT BUG
+		d := s.Value() == "1" // BISECT BUG
+		e := s.Value() == "1" // BISECT BUG
+
+		if a {
 			t.Log("ok")
 		}
-		if s.Value() == "1" {
+		if b {
 			t.Log("ok")
 		}
-		if s.Value() == "1" { // BISECT BUG
+		if c {
 			t.Error("bug")
 		}
-		if s.Value() == "1" && // BISECT BUG
-			s.Value() == "1" { // BISECT BUG
+		if d &&
+			e {
 			t.Error("bug")
 		}
 	}

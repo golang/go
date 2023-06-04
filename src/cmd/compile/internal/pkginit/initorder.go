@@ -321,15 +321,6 @@ func (d *initDeps) foundDep(n *ir.Name) {
 		return
 	}
 
-	// Treat coverage counter variables effectively as invisible with
-	// respect to init order. If we don't do this, then the
-	// instrumentation vars can perturb the order of initialization
-	// away from the order of the original uninstrumented program.
-	// See issue #56293 for more details.
-	if n.CoverageCounter() || n.CoverageAuxVar() {
-		return
-	}
-
 	if d.seen.Has(n) {
 		return
 	}

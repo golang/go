@@ -32,6 +32,8 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"sync/atomic"
+	_ "unsafe" // for go:linkname
 )
 
 func init() {
@@ -40,6 +42,11 @@ func init() {
 
 //export go_callback
 func go_callback() {
+	if e := extraMInUse.Load(); e == 0 {
+		fmt.Printf("in callback extraMInUse got %d want >0\n", e)
+		os.Exit(1)
+	}
+
 	runtime.GC()
 	grow()
 	runtime.GC()
@@ -69,6 +76,12 @@ func CgoCallbackGC() {
 	if os.Getenv("RUNTIME_TEST_SHORT") != "" {
 		P = 10
 	}
+
+	if e := extraMInUse.Load(); e != 0 {
+		fmt.Printf("before testing extraMInUse got %d want 0\n", e)
+		os.Exit(1)
+	}
+
 	done := make(chan bool)
 	// allocate a bunch of stack frames and spray them with pointers
 	for i := 0; i < P; i++ {
@@ -90,5 +103,14 @@ func CgoCallbackGC() {
 	for i := 0; i < P; i++ {
 		<-done
 	}
+
+	if e := extraMInUse.Load(); e != 0 {
+		fmt.Printf("after testing extraMInUse got %d want 0\n", e)
+		os.Exit(1)
+	}
+
 	fmt.Printf("OK\n")
 }
+
+//go:linkname extraMInUse runtime.extraMInUse
+var extraMInUse atomic.Uint32

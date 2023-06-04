@@ -111,7 +111,7 @@ func (x *Int64) CompareAndSwap(old, new int64) (swapped bool) {
 // Add atomically adds delta to x and returns the new value.
 func (x *Int64) Add(delta int64) (new int64) { return AddInt64(&x.v, delta) }
 
-// An Uint32 is an atomic uint32. The zero value is zero.
+// A Uint32 is an atomic uint32. The zero value is zero.
 type Uint32 struct {
 	_ noCopy
 	v uint32
@@ -134,7 +134,7 @@ func (x *Uint32) CompareAndSwap(old, new uint32) (swapped bool) {
 // Add atomically adds delta to x and returns the new value.
 func (x *Uint32) Add(delta uint32) (new uint32) { return AddUint32(&x.v, delta) }
 
-// An Uint64 is an atomic uint64. The zero value is zero.
+// A Uint64 is an atomic uint64. The zero value is zero.
 type Uint64 struct {
 	_ noCopy
 	_ align64
@@ -158,7 +158,7 @@ func (x *Uint64) CompareAndSwap(old, new uint64) (swapped bool) {
 // Add atomically adds delta to x and returns the new value.
 func (x *Uint64) Add(delta uint64) (new uint64) { return AddUint64(&x.v, delta) }
 
-// An Uintptr is an atomic uintptr. The zero value is zero.
+// A Uintptr is an atomic uintptr. The zero value is zero.
 type Uintptr struct {
 	_ noCopy
 	v uintptr

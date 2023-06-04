@@ -66,11 +66,9 @@ Below is the full list of supported metrics, ordered lexicographically.
 
 	/cpu/classes/gc/mark/dedicated:cpu-seconds
 		Estimated total CPU time spent performing GC tasks on processors
-		(as defined by GOMAXPROCS) dedicated to those tasks. This
-		includes time spent with the world stopped due to the GC. This
-		metric is an overestimate, and not directly comparable to system
-		CPU time measurements. Compare only with other /cpu/classes
-		metrics.
+		(as defined by GOMAXPROCS) dedicated to those tasks. This metric
+		is an overestimate, and not directly comparable to system CPU
+		time measurements. Compare only with other /cpu/classes metrics.
 
 	/cpu/classes/gc/mark/idle:cpu-seconds
 		Estimated total CPU time spent performing GC tasks on spare CPU
@@ -147,6 +145,16 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/gc/cycles/total:gc-cycles
 		Count of all completed GC cycles.
 
+	/gc/gogc:percent
+		Heap size target percentage configured by the user, otherwise
+		100. This value is set by the GOGC environment variable, and the
+		runtime/debug.SetGCPercent function.
+
+	/gc/gomemlimit:bytes
+		Go runtime memory limit configured by the user, otherwise
+		math.MaxInt64. This value is set by the GOMEMLIMIT environment
+		variable, and the runtime/debug.SetMemoryLimit function.
+
 	/gc/heap/allocs-by-size:bytes
 		Distribution of heap allocations by approximate size.
 		Bucket counts increase monotonically. Note that this does not
@@ -180,6 +188,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/gc/heap/goal:bytes
 		Heap size target for the end of the GC cycle.
 
+	/gc/heap/live:bytes
+		Heap memory occupied by live objects that were marked by the
+		previous GC.
+
 	/gc/heap/objects:objects
 		Number of objects, live or unswept, occupying heap memory.
 
@@ -202,12 +214,37 @@ Below is the full list of supported metrics, ordered lexicographically.
 		Distribution of individual GC-related stop-the-world pause
 		latencies. Bucket counts increase monotonically.
 
+	/gc/scan/globals:bytes
+		The total amount of global variable space that is scannable.
+
+	/gc/scan/heap:bytes
+		The total amount of heap space that is scannable.
+
+	/gc/scan/stack:bytes
+		The number of bytes of stack that were scanned last GC cycle.
+
+	/gc/scan/total:bytes
+		The total amount space that is scannable. Sum of all metrics in
+		/gc/scan.
+
 	/gc/stack/starting-size:bytes
 		The stack size of new goroutines.
 
 	/godebug/non-default-behavior/execerrdot:events
 		The number of non-default behaviors executed by the os/exec
 		package due to a non-default GODEBUG=execerrdot=... setting.
+
+	/godebug/non-default-behavior/gocachehash:events
+		The number of non-default behaviors executed by the cmd/go
+		package due to a non-default GODEBUG=gocachehash=... setting.
+
+	/godebug/non-default-behavior/gocachetest:events
+		The number of non-default behaviors executed by the cmd/go
+		package due to a non-default GODEBUG=gocachetest=... setting.
+
+	/godebug/non-default-behavior/gocacheverify:events
+		The number of non-default behaviors executed by the cmd/go
+		package due to a non-default GODEBUG=gocacheverify=... setting.
 
 	/godebug/non-default-behavior/http2client:events
 		The number of non-default behaviors executed by the net/http

@@ -170,10 +170,11 @@ type Config struct {
 	// for unused imports.
 	DisableUnusedImportCheck bool
 
-	// If InferMaxDefaultType is set, the minimum (smallest) default
-	// type that fits all untyped constant arguments for the same type
-	// parameter is selected in type inference. (go.dev/issue/58671)
-	InferMaxDefaultType bool
+	// If a non-empty ErrorURL format string is provided, it is used
+	// to format an error URL link that is appended to the first line
+	// of an error message. ErrorURL must be a format string containing
+	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
+	ErrorURL string
 }
 
 func srcimporter_setUsesCgo(conf *Config) {

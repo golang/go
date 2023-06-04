@@ -8,6 +8,7 @@ package cfg
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"go/build"
 	"internal/buildcfg"
@@ -386,6 +387,11 @@ func Getenv(key string) string {
 
 // CanGetenv reports whether key is a valid go/env configuration key.
 func CanGetenv(key string) bool {
+	envCache.once.Do(initEnvCache)
+	if _, ok := envCache.m[key]; ok {
+		// Assume anything in the user file or go.env file is valid.
+		return true
+	}
 	return strings.Contains(cfg.KnownEnv, "\t"+key+"\n")
 }
 
@@ -572,4 +578,24 @@ func gopath(ctxt build.Context) string {
 	}
 	GoPathError = fmt.Sprintf("%s is not set", env)
 	return ""
+}
+
+// WithBuildXWriter returns a Context in which BuildX output is written
+// to given io.Writer.
+func WithBuildXWriter(ctx context.Context, xLog io.Writer) context.Context {
+	return context.WithValue(ctx, buildXContextKey{}, xLog)
+}
+
+type buildXContextKey struct{}
+
+// BuildXWriter returns nil if BuildX is false, or
+// the writer to which BuildX output should be written otherwise.
+func BuildXWriter(ctx context.Context) (io.Writer, bool) {
+	if !BuildX {
+		return nil, false
+	}
+	if v := ctx.Value(buildXContextKey{}); v != nil {
+		return v.(io.Writer), true
+	}
+	return os.Stderr, true
 }

@@ -32,7 +32,6 @@ type DebugFlags struct {
 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
 	InlStaticInit         int    `help:"allow static initialization of inlined calls" concurrent:"ok"`
 	InterfaceCycles       int    `help:"allow anonymous interface cycles"`
-	InlineSCCOnePass      int    `help:"visit SCC funcs only once during inlining (legacy behavior)"`
 	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
 	LoopVar               int    `help:"shared (0, default), 1 (private loop variables), 2, private + log"`
 	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
@@ -51,9 +50,11 @@ type DebugFlags struct {
 	WB                    int    `help:"print information about write barriers"`
 	ABIWrap               int    `help:"print information about ABI wrapper generation"`
 	MayMoreStack          string `help:"call named function before all stack growth checks" concurrent:"ok"`
+	PGODebug              int    `help:"debug profile-guided optimizations"`
+	PGOInline             int    `help:"enable profile-guided inlining" concurrent:"ok"`
 	PGOInlineCDFThreshold string `help:"cumulative threshold percentage for determining call sites as hot candidates for inlining" concurrent:"ok"`
 	PGOInlineBudget       int    `help:"inline budget for hot functions" concurrent:"ok"`
-	PGOInline             int    `help:"debug profile-guided inlining"`
+	PGODevirtualize       int    `help:"enable profile-guided devirtualization" concurrent:"ok"`
 	WrapGlobalMapDbg      int    `help:"debug trace output for global map init wrapping"`
 	WrapGlobalMapCtl      int    `help:"global map init wrap control (0 => default, 1 => off, 2 => stress mode, no size cutoff)"`
 

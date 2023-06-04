@@ -209,7 +209,7 @@ func TestCallDepth(t *testing.T) {
 
 func TestAlloc(t *testing.T) {
 	dl := New(discardHandler{})
-	defer func(d *Logger) { SetDefault(d) }(Default())
+	defer SetDefault(Default()) // restore
 	SetDefault(dl)
 
 	t.Run("Info", func(t *testing.T) {
@@ -356,7 +356,9 @@ func TestLoggerError(t *testing.T) {
 	l.Error("msg", "err", io.EOF, "a", 1)
 	checkLogOutput(t, buf.String(), `level=ERROR msg=msg err=EOF a=1`)
 	buf.Reset()
-	l.Error("msg", "err", io.EOF, "a")
+	// use local var 'args' to defeat vet check
+	args := []any{"err", io.EOF, "a"}
+	l.Error("msg", args...)
 	checkLogOutput(t, buf.String(), `level=ERROR msg=msg err=EOF !BADKEY=a`)
 }
 
@@ -366,6 +368,50 @@ func TestNewLogLogger(t *testing.T) {
 	ll := NewLogLogger(h, LevelWarn)
 	ll.Print("hello")
 	checkLogOutput(t, buf.String(), "time="+timeRE+` level=WARN msg=hello`)
+}
+
+func TestLoggerNoOps(t *testing.T) {
+	l := Default()
+	if l.With() != l {
+		t.Error("wanted receiver, didn't get it")
+	}
+	if With() != l {
+		t.Error("wanted receiver, didn't get it")
+	}
+	if l.WithGroup("") != l {
+		t.Error("wanted receiver, didn't get it")
+	}
+}
+
+func TestContext(t *testing.T) {
+	// Verify that the context argument to log output methods is passed to the handler.
+	// Also check the level.
+	h := &captureHandler{}
+	l := New(h)
+	defer SetDefault(Default()) // restore
+	SetDefault(l)
+
+	for _, test := range []struct {
+		f         func(context.Context, string, ...any)
+		wantLevel Level
+	}{
+		{l.DebugCtx, LevelDebug},
+		{l.InfoCtx, LevelInfo},
+		{l.WarnCtx, LevelWarn},
+		{l.ErrorCtx, LevelError},
+		{DebugCtx, LevelDebug},
+		{InfoCtx, LevelInfo},
+		{WarnCtx, LevelWarn},
+		{ErrorCtx, LevelError},
+	} {
+		h.clear()
+		ctx := context.WithValue(context.Background(), "L", test.wantLevel)
+
+		test.f(ctx, "msg")
+		if gv := h.ctx.Value("L"); gv != test.wantLevel || h.r.Level != test.wantLevel {
+			t.Errorf("got context value %v, level %s; want %s for both", gv, h.r.Level, test.wantLevel)
+		}
+	}
 }
 
 func checkLogOutput(t *testing.T, got, wantRegexp string) {
@@ -391,6 +437,7 @@ func clean(s string) string {
 
 type captureHandler struct {
 	mu     sync.Mutex
+	ctx    context.Context
 	r      Record
 	attrs  []Attr
 	groups []string
@@ -399,6 +446,7 @@ type captureHandler struct {
 func (h *captureHandler) Handle(ctx context.Context, r Record) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.ctx = ctx
 	h.r = r
 	return nil
 }
@@ -423,6 +471,13 @@ func (c *captureHandler) WithGroup(name string) Handler {
 	c2.attrs = c.attrs
 	c2.groups = append(slices.Clip(c.groups), name)
 	return &c2
+}
+
+func (c *captureHandler) clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.ctx = nil
+	c.r = Record{}
 }
 
 type discardHandler struct {

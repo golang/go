@@ -1,1 +1,0 @@
-pkg go/token, method (*File) Lines() []int #57708

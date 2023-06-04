@@ -42,6 +42,7 @@ import (
 // Boolean values encode as JSON booleans.
 //
 // Floating point, integer, and Number values encode as JSON numbers.
+// NaN and +/-Inf values will return an [UnsupportedValueError].
 //
 // String values encode as JSON strings coerced to valid UTF-8,
 // replacing invalid bytes with the Unicode replacement rune.

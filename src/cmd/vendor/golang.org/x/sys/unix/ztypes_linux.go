@@ -2555,6 +2555,11 @@ const (
 	BPF_REG_8                                  = 0x8
 	BPF_REG_9                                  = 0x9
 	BPF_REG_10                                 = 0xa
+	BPF_CGROUP_ITER_ORDER_UNSPEC               = 0x0
+	BPF_CGROUP_ITER_SELF_ONLY                  = 0x1
+	BPF_CGROUP_ITER_DESCENDANTS_PRE            = 0x2
+	BPF_CGROUP_ITER_DESCENDANTS_POST           = 0x3
+	BPF_CGROUP_ITER_ANCESTORS_UP               = 0x4
 	BPF_MAP_CREATE                             = 0x0
 	BPF_MAP_LOOKUP_ELEM                        = 0x1
 	BPF_MAP_UPDATE_ELEM                        = 0x2
@@ -2566,6 +2571,7 @@ const (
 	BPF_PROG_ATTACH                            = 0x8
 	BPF_PROG_DETACH                            = 0x9
 	BPF_PROG_TEST_RUN                          = 0xa
+	BPF_PROG_RUN                               = 0xa
 	BPF_PROG_GET_NEXT_ID                       = 0xb
 	BPF_MAP_GET_NEXT_ID                        = 0xc
 	BPF_PROG_GET_FD_BY_ID                      = 0xd
@@ -2610,6 +2616,7 @@ const (
 	BPF_MAP_TYPE_CPUMAP                        = 0x10
 	BPF_MAP_TYPE_XSKMAP                        = 0x11
 	BPF_MAP_TYPE_SOCKHASH                      = 0x12
+	BPF_MAP_TYPE_CGROUP_STORAGE_DEPRECATED     = 0x13
 	BPF_MAP_TYPE_CGROUP_STORAGE                = 0x13
 	BPF_MAP_TYPE_REUSEPORT_SOCKARRAY           = 0x14
 	BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE         = 0x15
@@ -2620,6 +2627,10 @@ const (
 	BPF_MAP_TYPE_STRUCT_OPS                    = 0x1a
 	BPF_MAP_TYPE_RINGBUF                       = 0x1b
 	BPF_MAP_TYPE_INODE_STORAGE                 = 0x1c
+	BPF_MAP_TYPE_TASK_STORAGE                  = 0x1d
+	BPF_MAP_TYPE_BLOOM_FILTER                  = 0x1e
+	BPF_MAP_TYPE_USER_RINGBUF                  = 0x1f
+	BPF_MAP_TYPE_CGRP_STORAGE                  = 0x20
 	BPF_PROG_TYPE_UNSPEC                       = 0x0
 	BPF_PROG_TYPE_SOCKET_FILTER                = 0x1
 	BPF_PROG_TYPE_KPROBE                       = 0x2
@@ -2651,6 +2662,7 @@ const (
 	BPF_PROG_TYPE_EXT                          = 0x1c
 	BPF_PROG_TYPE_LSM                          = 0x1d
 	BPF_PROG_TYPE_SK_LOOKUP                    = 0x1e
+	BPF_PROG_TYPE_SYSCALL                      = 0x1f
 	BPF_CGROUP_INET_INGRESS                    = 0x0
 	BPF_CGROUP_INET_EGRESS                     = 0x1
 	BPF_CGROUP_INET_SOCK_CREATE                = 0x2
@@ -2689,6 +2701,12 @@ const (
 	BPF_XDP_CPUMAP                             = 0x23
 	BPF_SK_LOOKUP                              = 0x24
 	BPF_XDP                                    = 0x25
+	BPF_SK_SKB_VERDICT                         = 0x26
+	BPF_SK_REUSEPORT_SELECT                    = 0x27
+	BPF_SK_REUSEPORT_SELECT_OR_MIGRATE         = 0x28
+	BPF_PERF_EVENT                             = 0x29
+	BPF_TRACE_KPROBE_MULTI                     = 0x2a
+	BPF_LSM_CGROUP                             = 0x2b
 	BPF_LINK_TYPE_UNSPEC                       = 0x0
 	BPF_LINK_TYPE_RAW_TRACEPOINT               = 0x1
 	BPF_LINK_TYPE_TRACING                      = 0x2
@@ -2696,6 +2714,9 @@ const (
 	BPF_LINK_TYPE_ITER                         = 0x4
 	BPF_LINK_TYPE_NETNS                        = 0x5
 	BPF_LINK_TYPE_XDP                          = 0x6
+	BPF_LINK_TYPE_PERF_EVENT                   = 0x7
+	BPF_LINK_TYPE_KPROBE_MULTI                 = 0x8
+	BPF_LINK_TYPE_STRUCT_OPS                   = 0x9
 	BPF_ANY                                    = 0x0
 	BPF_NOEXIST                                = 0x1
 	BPF_EXIST                                  = 0x2
@@ -2733,6 +2754,7 @@ const (
 	BPF_F_ZERO_CSUM_TX                         = 0x2
 	BPF_F_DONT_FRAGMENT                        = 0x4
 	BPF_F_SEQ_NUMBER                           = 0x8
+	BPF_F_TUNINFO_FLAGS                        = 0x10
 	BPF_F_INDEX_MASK                           = 0xffffffff
 	BPF_F_CURRENT_CPU                          = 0xffffffff
 	BPF_F_CTXLEN_MASK                          = 0xfffff00000000
@@ -2747,6 +2769,7 @@ const (
 	BPF_F_ADJ_ROOM_ENCAP_L4_GRE                = 0x8
 	BPF_F_ADJ_ROOM_ENCAP_L4_UDP                = 0x10
 	BPF_F_ADJ_ROOM_NO_CSUM_RESET               = 0x20
+	BPF_F_ADJ_ROOM_ENCAP_L2_ETH                = 0x40
 	BPF_ADJ_ROOM_ENCAP_L2_MASK                 = 0xff
 	BPF_ADJ_ROOM_ENCAP_L2_SHIFT                = 0x38
 	BPF_F_SYSCTL_BASE_NAME                     = 0x1
@@ -2771,10 +2794,16 @@ const (
 	BPF_LWT_ENCAP_SEG6                         = 0x0
 	BPF_LWT_ENCAP_SEG6_INLINE                  = 0x1
 	BPF_LWT_ENCAP_IP                           = 0x2
+	BPF_F_BPRM_SECUREEXEC                      = 0x1
+	BPF_F_BROADCAST                            = 0x8
+	BPF_F_EXCLUDE_INGRESS                      = 0x10
+	BPF_SKB_TSTAMP_UNSPEC                      = 0x0
+	BPF_SKB_TSTAMP_DELIVERY_MONO               = 0x1
 	BPF_OK                                     = 0x0
 	BPF_DROP                                   = 0x2
 	BPF_REDIRECT                               = 0x7
 	BPF_LWT_REROUTE                            = 0x80
+	BPF_FLOW_DISSECTOR_CONTINUE                = 0x81
 	BPF_SOCK_OPS_RTO_CB_FLAG                   = 0x1
 	BPF_SOCK_OPS_RETRANS_CB_FLAG               = 0x2
 	BPF_SOCK_OPS_STATE_CB_FLAG                 = 0x4
@@ -2838,6 +2867,10 @@ const (
 	BPF_FIB_LKUP_RET_UNSUPP_LWT                = 0x6
 	BPF_FIB_LKUP_RET_NO_NEIGH                  = 0x7
 	BPF_FIB_LKUP_RET_FRAG_NEEDED               = 0x8
+	BPF_MTU_CHK_SEGS                           = 0x1
+	BPF_MTU_CHK_RET_SUCCESS                    = 0x0
+	BPF_MTU_CHK_RET_FRAG_NEEDED                = 0x1
+	BPF_MTU_CHK_RET_SEGS_TOOBIG                = 0x2
 	BPF_FD_TYPE_RAW_TRACEPOINT                 = 0x0
 	BPF_FD_TYPE_TRACEPOINT                     = 0x1
 	BPF_FD_TYPE_KPROBE                         = 0x2
@@ -2847,6 +2880,19 @@ const (
 	BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG        = 0x1
 	BPF_FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL    = 0x2
 	BPF_FLOW_DISSECTOR_F_STOP_AT_ENCAP         = 0x4
+	BPF_CORE_FIELD_BYTE_OFFSET                 = 0x0
+	BPF_CORE_FIELD_BYTE_SIZE                   = 0x1
+	BPF_CORE_FIELD_EXISTS                      = 0x2
+	BPF_CORE_FIELD_SIGNED                      = 0x3
+	BPF_CORE_FIELD_LSHIFT_U64                  = 0x4
+	BPF_CORE_FIELD_RSHIFT_U64                  = 0x5
+	BPF_CORE_TYPE_ID_LOCAL                     = 0x6
+	BPF_CORE_TYPE_ID_TARGET                    = 0x7
+	BPF_CORE_TYPE_EXISTS                       = 0x8
+	BPF_CORE_TYPE_SIZE                         = 0x9
+	BPF_CORE_ENUMVAL_EXISTS                    = 0xa
+	BPF_CORE_ENUMVAL_VALUE                     = 0xb
+	BPF_CORE_TYPE_MATCHES                      = 0xc
 )
 
 const (

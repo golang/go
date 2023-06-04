@@ -10,5 +10,6 @@ package runtime
 func load_g()
 func save_g()
 
-// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
-func getcallerfp() uintptr { return 0 }
+// getfp returns the frame pointer register of its caller or 0 if not implemented.
+// TODO: Make this a compiler intrinsic
+func getfp() uintptr { return 0 }

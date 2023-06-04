@@ -112,7 +112,7 @@ func arena_arena_New(arena unsafe.Pointer, typ any) any {
 	if t.Kind_&kindMask != kindPtr {
 		throw("arena_New: non-pointer type")
 	}
-	te := (*ptrtype)(unsafe.Pointer(t)).elem
+	te := (*ptrtype)(unsafe.Pointer(t)).Elem
 	x := ((*userArena)(arena)).new(te)
 	var result any
 	e := efaceOf(&result)
@@ -168,14 +168,14 @@ func arena_heapify(s any) any {
 		x = s2
 	case kindSlice:
 		len := (*slice)(e.data).len
-		et := (*slicetype)(unsafe.Pointer(t)).elem
+		et := (*slicetype)(unsafe.Pointer(t)).Elem
 		sl := new(slice)
 		*sl = slice{makeslicecopy(et, len, len, (*slice)(e.data).array), len, len}
 		xe := efaceOf(&x)
 		xe._type = t
 		xe.data = unsafe.Pointer(sl)
 	case kindPtr:
-		et := (*ptrtype)(unsafe.Pointer(t)).elem
+		et := (*ptrtype)(unsafe.Pointer(t)).Elem
 		e2 := newobject(et)
 		typedmemmove(et, e2, e.data)
 		xe := efaceOf(&x)
@@ -284,11 +284,11 @@ func (a *userArena) slice(sl any, cap int) {
 	if typ.Kind_&kindMask != kindPtr {
 		panic("slice result of non-ptr type")
 	}
-	typ = (*ptrtype)(unsafe.Pointer(typ)).elem
+	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
 	if typ.Kind_&kindMask != kindSlice {
 		panic("slice of non-ptr-to-slice type")
 	}
-	typ = (*slicetype)(unsafe.Pointer(typ)).elem
+	typ = (*slicetype)(unsafe.Pointer(typ)).Elem
 	// t is now the element type of the slice we want to allocate.
 
 	*((*slice)(i.data)) = slice{a.alloc(typ, cap), cap, cap}

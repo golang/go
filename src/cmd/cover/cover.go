@@ -74,7 +74,14 @@ var (
 
 var pkgconfig coverage.CoverPkgConfig
 
-var outputfiles []string // set when -pkgcfg is in use
+// outputfiles is the list of *.cover.go instrumented outputs to write,
+// one per input (set when -pkgcfg is in use)
+var outputfiles []string
+
+// covervarsoutfile is an additional Go source file into which we'll
+// write definitions of coverage counter variables + meta data variables
+// (set when -pkgcfg is in use).
+var covervarsoutfile string
 
 var profile string // The profile to read; the value of -html or -func
 
@@ -165,6 +172,8 @@ func parseFlags() error {
 				if outputfiles, err = readOutFileList(*outfilelist); err != nil {
 					return err
 				}
+				covervarsoutfile = outputfiles[0]
+				outputfiles = outputfiles[1:]
 				numInputs := len(flag.Args())
 				numOutputs := len(outputfiles)
 				if numOutputs != numInputs {
@@ -568,11 +577,6 @@ func annotate(names []string) {
 	}
 	// TODO: process files in parallel here if it matters.
 	for k, name := range names {
-		last := false
-		if k == len(names)-1 {
-			last = true
-		}
-
 		fd := os.Stdout
 		isStdout := true
 		if *pkgcfg != "" {
@@ -590,16 +594,27 @@ func annotate(names []string) {
 			}
 			isStdout = false
 		}
-		p.annotateFile(name, fd, last)
+		p.annotateFile(name, fd)
 		if !isStdout {
 			if err := fd.Close(); err != nil {
 				log.Fatalf("cover: %s", err)
 			}
 		}
 	}
+
+	if *pkgcfg != "" {
+		fd, err := os.Create(covervarsoutfile)
+		if err != nil {
+			log.Fatalf("cover: %s", err)
+		}
+		p.emitMetaData(fd)
+		if err := fd.Close(); err != nil {
+			log.Fatalf("cover: %s", err)
+		}
+	}
 }
 
-func (p *Package) annotateFile(name string, fd io.Writer, last bool) {
+func (p *Package) annotateFile(name string, fd io.Writer) {
 	fset := token.NewFileSet()
 	content, err := os.ReadFile(name)
 	if err != nil {
@@ -657,11 +672,6 @@ func (p *Package) annotateFile(name string, fd io.Writer, last bool) {
 	// import and not used error when there's no code in a file.
 	if *mode == "atomic" {
 		fmt.Fprintf(fd, "\nvar _ = %sLoadUint32\n", atomicPackagePrefix())
-	}
-
-	// Last file? Emit meta-data and converage config.
-	if last {
-		p.emitMetaData(fd)
 	}
 }
 
@@ -1072,6 +1082,9 @@ func (p *Package) emitMetaData(w io.Writer) {
 	if counterStmt == nil && len(p.counterLengths) != 0 {
 		panic("internal error: seen functions with regonly/testmain")
 	}
+
+	// Emit package name.
+	fmt.Fprintf(w, "\npackage %s\n\n", pkgconfig.PkgName)
 
 	// Emit package ID var.
 	fmt.Fprintf(w, "\nvar %sP uint32\n", *varVar)

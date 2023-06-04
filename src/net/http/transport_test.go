@@ -251,7 +251,7 @@ func testTransportConnectionCloseOnResponse(t *testing.T, mode testMode) {
 // an underlying TCP connection after making an http.Request with Request.Close set.
 //
 // It tests the behavior by making an HTTP request to a server which
-// describes the source source connection it got (remote port number +
+// describes the source connection it got (remote port number +
 // address of its net.Conn).
 func TestTransportConnectionCloseOnRequest(t *testing.T) {
 	run(t, testTransportConnectionCloseOnRequest, []testMode{http1Mode})
@@ -2353,7 +2353,7 @@ func testTransportResponseHeaderTimeout(t *testing.T, mode testMode) {
 			if err != nil {
 				uerr, ok := err.(*url.Error)
 				if !ok {
-					t.Errorf("error is not an url.Error; got: %#v", err)
+					t.Errorf("error is not a url.Error; got: %#v", err)
 					continue
 				}
 				nerr, ok := uerr.Err.(net.Error)
@@ -2368,7 +2368,7 @@ func testTransportResponseHeaderTimeout(t *testing.T, mode testMode) {
 				if !tt.wantTimeout {
 					if !retry {
 						// The timeout may be set too short. Retry with a longer one.
-						t.Logf("unexpected timout for path %q after %v; retrying with longer timeout", tt.path, timeout)
+						t.Logf("unexpected timeout for path %q after %v; retrying with longer timeout", tt.path, timeout)
 						timeout *= 2
 						retry = true
 					}
@@ -3889,7 +3889,7 @@ func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 }
 
 // Test for issue 34282
-// Ensure that getConn doesn't call the GotConn trace hook on a HTTP/2 idle conn
+// Ensure that getConn doesn't call the GotConn trace hook on an HTTP/2 idle conn
 func TestTransportTraceGotConnH2IdleConns(t *testing.T) {
 	tr := &Transport{}
 	wantIdle := func(when string, n int) bool {
@@ -4952,7 +4952,7 @@ func TestTransportRejectsAlphaPort(t *testing.T) {
 	}
 }
 
-// Test the httptrace.TLSHandshake{Start,Done} hooks with a https http1
+// Test the httptrace.TLSHandshake{Start,Done} hooks with an https http1
 // connections. The http2 test is done in TestTransportEventTrace_h2
 func TestTLSHandshakeTrace(t *testing.T) {
 	run(t, testTLSHandshakeTrace, []testMode{https1Mode, http2Mode})
@@ -5648,7 +5648,7 @@ func testClientTimeoutKillsConn_BeforeHeaders(t *testing.T, mode testMode) {
 		_, err := cst.c.Get(cst.ts.URL)
 		if err == nil {
 			close(cancelHandler)
-			t.Fatal("unexpected Get succeess")
+			t.Fatal("unexpected Get success")
 		}
 
 		tooSlow := time.NewTimer(timeout * 10)
@@ -5656,8 +5656,8 @@ func testClientTimeoutKillsConn_BeforeHeaders(t *testing.T, mode testMode) {
 		case <-tooSlow.C:
 			// If we didn't get into the Handler, that probably means the builder was
 			// just slow and the Get failed in that time but never made it to the
-			// server. That's fine; we'll try again with a longer timout.
-			t.Logf("no handler seen in %v; retrying with longer timout", timeout)
+			// server. That's fine; we'll try again with a longer timeout.
+			t.Logf("no handler seen in %v; retrying with longer timeout", timeout)
 			close(cancelHandler)
 			cst.close()
 			timeout *= 2

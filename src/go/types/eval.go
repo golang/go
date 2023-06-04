@@ -52,7 +52,7 @@ func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (_ Type
 // to compute types and values, but in addition to Check, as these
 // functions ignore the context in which an expression is used (e.g., an
 // assignment). Thus, top-level untyped constants will return an
-// untyped type rather then the respective context-specific type.
+// untyped type rather than the respective context-specific type.
 func CheckExpr(fset *token.FileSet, pkg *Package, pos token.Pos, expr ast.Expr, info *Info) (err error) {
 	// determine scope
 	var scope *Scope

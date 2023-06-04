@@ -19,6 +19,7 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modindex"
 	"cmd/go/internal/par"
@@ -172,7 +173,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 	}
 
 	for _, mod := range modules {
-		if !treeCanMatch(mod.Path) {
+		if gover.IsToolchain(mod.Path) || !treeCanMatch(mod.Path) {
 			continue
 		}
 

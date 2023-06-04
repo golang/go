@@ -88,3 +88,13 @@ func _() {
 	g5(f6, f7)
 	g6(f1, f1)
 }
+
+// Argument passing of partially instantiated functions
+func h(func(int, string), func(string, int)) {}
+
+func p[P, Q any](P, Q) {}
+
+func _() {
+	h(p, p)
+	h(p[int], p[string])
+}

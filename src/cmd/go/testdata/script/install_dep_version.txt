@@ -3,4 +3,6 @@
 # because the checksumOk function was failing because modfetch.GoSumFile
 # was not set when running outside of a module.
 
+env GOTOOLCHAIN=local
+
 go install --mod=readonly example.com/depends/on/generics@v1.0.0

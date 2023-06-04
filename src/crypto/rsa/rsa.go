@@ -33,7 +33,6 @@ import (
 	"crypto/internal/randutil"
 	"crypto/rand"
 	"crypto/subtle"
-	"encoding/binary"
 	"errors"
 	"hash"
 	"io"
@@ -64,7 +63,7 @@ func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
 	if !ok {
 		return false
 	}
-	return pub.N.Cmp(xx.N) == 0 && pub.E == xx.E
+	return bigIntEqual(pub.N, xx.N) && pub.E == xx.E
 }
 
 // OAEPOptions is an interface for passing options to OAEP decryption using the
@@ -130,18 +129,24 @@ func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
 	if !ok {
 		return false
 	}
-	if !priv.PublicKey.Equal(&xx.PublicKey) || priv.D.Cmp(xx.D) != 0 {
+	if !priv.PublicKey.Equal(&xx.PublicKey) || !bigIntEqual(priv.D, xx.D) {
 		return false
 	}
 	if len(priv.Primes) != len(xx.Primes) {
 		return false
 	}
 	for i := range priv.Primes {
-		if priv.Primes[i].Cmp(xx.Primes[i]) != 0 {
+		if !bigIntEqual(priv.Primes[i], xx.Primes[i]) {
 			return false
 		}
 	}
 	return true
+}
+
+// bigIntEqual reports whether a and b are equal leaking only their bit length
+// through timing side-channels.
+func bigIntEqual(a, b *big.Int) bool {
+	return subtle.ConstantTimeCompare(a.Bytes(), b.Bytes()) == 1
 }
 
 // Sign signs digest with priv, reading randomness from rand. If opts is a
@@ -286,7 +291,8 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
 	randutil.MaybeReadByte(random)
 
-	if boring.Enabled && random == boring.RandReader && nprimes == 2 && (bits == 2048 || bits == 3072) {
+	if boring.Enabled && random == boring.RandReader && nprimes == 2 &&
+		(bits == 2048 || bits == 3072 || bits == 4096) {
 		bN, bE, bD, bP, bQ, bDp, bDq, bQinv, err := boring.GenerateKeyRSA(bits)
 		if err != nil {
 			return nil, err
@@ -303,6 +309,20 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
 		if !E.IsInt64() || int64(int(e64)) != e64 {
 			return nil, errors.New("crypto/rsa: generated key exponent too large")
 		}
+
+		mn, err := bigmod.NewModulusFromBig(N)
+		if err != nil {
+			return nil, err
+		}
+		mp, err := bigmod.NewModulusFromBig(P)
+		if err != nil {
+			return nil, err
+		}
+		mq, err := bigmod.NewModulusFromBig(Q)
+		if err != nil {
+			return nil, err
+		}
+
 		key := &PrivateKey{
 			PublicKey: PublicKey{
 				N: N,
@@ -315,9 +335,9 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
 				Dq:        Dq,
 				Qinv:      Qinv,
 				CRTValues: make([]CRTValue, 0), // non-nil, to match Precompute
-				n:         bigmod.NewModulusFromBig(N),
-				p:         bigmod.NewModulusFromBig(P),
-				q:         bigmod.NewModulusFromBig(Q),
+				n:         mn,
+				p:         mp,
+				q:         mq,
 			},
 		}
 		return key, nil
@@ -455,25 +475,21 @@ var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA key siz
 func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 	boring.Unreachable()
 
-	N := bigmod.NewModulusFromBig(pub.N)
+	// Most of the CPU time for encryption and verification is spent in this
+	// NewModulusFromBig call, because PublicKey doesn't have a Precomputed
+	// field. If performance becomes an issue, consider placing a private
+	// sync.Once on PublicKey to compute this.
+	N, err := bigmod.NewModulusFromBig(pub.N)
+	if err != nil {
+		return nil, err
+	}
 	m, err := bigmod.NewNat().SetBytes(plaintext, N)
 	if err != nil {
 		return nil, err
 	}
-	e := intToBytes(pub.E)
+	e := uint(pub.E)
 
-	return bigmod.NewNat().Exp(m, e, N).Bytes(N), nil
-}
-
-// intToBytes returns i as a big-endian slice of bytes with no leading zeroes,
-// leaking only the bit size of i through timing side-channels.
-func intToBytes(i int) []byte {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(i))
-	for len(b) > 1 && b[0] == 0 {
-		b = b[1:]
-	}
-	return b
+	return bigmod.NewNat().ExpShort(m, e, N).Bytes(N), nil
 }
 
 // EncryptOAEP encrypts the given message with RSA-OAEP.
@@ -556,9 +572,25 @@ var ErrVerification = errors.New("crypto/rsa: verification error")
 // in the future.
 func (priv *PrivateKey) Precompute() {
 	if priv.Precomputed.n == nil && len(priv.Primes) == 2 {
-		priv.Precomputed.n = bigmod.NewModulusFromBig(priv.N)
-		priv.Precomputed.p = bigmod.NewModulusFromBig(priv.Primes[0])
-		priv.Precomputed.q = bigmod.NewModulusFromBig(priv.Primes[1])
+		// Precomputed values _should_ always be valid, but if they aren't
+		// just return. We could also panic.
+		var err error
+		priv.Precomputed.n, err = bigmod.NewModulusFromBig(priv.N)
+		if err != nil {
+			return
+		}
+		priv.Precomputed.p, err = bigmod.NewModulusFromBig(priv.Primes[0])
+		if err != nil {
+			// Unset previous values, so we either have everything or nothing
+			priv.Precomputed.n = nil
+			return
+		}
+		priv.Precomputed.q, err = bigmod.NewModulusFromBig(priv.Primes[1])
+		if err != nil {
+			// Unset previous values, so we either have everything or nothing
+			priv.Precomputed.n, priv.Precomputed.p = nil, nil
+			return
+		}
 	}
 
 	// Fill in the backwards-compatibility *big.Int values.
@@ -608,7 +640,10 @@ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
 		t0   = bigmod.NewNat()
 	)
 	if priv.Precomputed.n == nil {
-		N = bigmod.NewModulusFromBig(priv.N)
+		N, err = bigmod.NewModulusFromBig(priv.N)
+		if err != nil {
+			return nil, ErrDecryption
+		}
 		c, err = bigmod.NewNat().SetBytes(ciphertext, N)
 		if err != nil {
 			return nil, ErrDecryption
@@ -641,7 +676,7 @@ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
 	}
 
 	if check {
-		c1 := bigmod.NewNat().Exp(m, intToBytes(priv.E), N)
+		c1 := bigmod.NewNat().ExpShort(m, uint(priv.E), N)
 		if c1.Equal(c) != 1 {
 			return nil, ErrDecryption
 		}

@@ -5,6 +5,7 @@
 package flate
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 	"strings"
@@ -94,4 +95,43 @@ func TestResetDict(t *testing.T) {
 			t.Errorf("inflated[%d]:\ngot  %q\nwant %q", i, inflated[i], s)
 		}
 	}
+}
+
+func TestReaderReusesReaderBuffer(t *testing.T) {
+	encodedReader := bytes.NewReader([]byte{})
+	encodedNotByteReader := struct{ io.Reader }{encodedReader}
+
+	t.Run("BufferIsReused", func(t *testing.T) {
+		f := NewReader(encodedNotByteReader).(*decompressor)
+		bufioR, ok := f.r.(*bufio.Reader)
+		if !ok {
+			t.Fatalf("bufio.Reader should be created")
+		}
+		f.Reset(encodedNotByteReader, nil)
+		if bufioR != f.r {
+			t.Fatalf("bufio.Reader was not reused")
+		}
+	})
+	t.Run("BufferIsNotReusedWhenGotByteReader", func(t *testing.T) {
+		f := NewReader(encodedNotByteReader).(*decompressor)
+		if _, ok := f.r.(*bufio.Reader); !ok {
+			t.Fatalf("bufio.Reader should be created")
+		}
+		f.Reset(encodedReader, nil)
+		if f.r != encodedReader {
+			t.Fatalf("provided io.ByteReader should be used directly")
+		}
+	})
+	t.Run("BufferIsCreatedAfterByteReader", func(t *testing.T) {
+		for i, r := range []io.Reader{encodedReader, bufio.NewReader(encodedReader)} {
+			f := NewReader(r).(*decompressor)
+			if f.r != r {
+				t.Fatalf("provided io.ByteReader should be used directly, i=%d", i)
+			}
+			f.Reset(encodedNotByteReader, nil)
+			if _, ok := f.r.(*bufio.Reader); !ok {
+				t.Fatalf("bufio.Reader should be created, i=%d", i)
+			}
+		}
+	})
 }

@@ -254,7 +254,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 		default:
 			base.Fatalf("unknown builtin %v", l)
 
-		case ir.OAPPEND, ir.ODELETE, ir.OMAKE, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
+		case ir.OAPPEND, ir.ODELETE, ir.OMAKE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
 			n.SetOp(l.BuiltinOp)
 			n.X = nil
 			n.SetTypecheck(0) // re-typechecking new op is OK, not a loop
@@ -800,6 +800,19 @@ func tcPrint(n *ir.CallExpr) ir.Node {
 			ls[i1] = DefaultLit(ls[i1], nil)
 		}
 	}
+	return n
+}
+
+// tcMinMax typechecks an OMIN or OMAX node.
+func tcMinMax(n *ir.CallExpr) ir.Node {
+	typecheckargs(n)
+	arg0 := n.Args[0]
+	for _, arg := range n.Args[1:] {
+		if !types.Identical(arg.Type(), arg0.Type()) {
+			base.FatalfAt(n.Pos(), "mismatched arguments: %L and %L", arg0, arg)
+		}
+	}
+	n.SetType(arg0.Type())
 	return n
 }
 

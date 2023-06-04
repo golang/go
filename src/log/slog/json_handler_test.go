@@ -76,9 +76,12 @@ func (jsonMarshalerError) Error() string { return "oops" }
 func TestAppendJSONValue(t *testing.T) {
 	// jsonAppendAttrValue should always agree with json.Marshal.
 	for _, value := range []any{
-		"hello",
+		"hello\r\n\t\a",
 		`"[{escape}]"`,
 		"<escapeHTML&>",
+		// \u2028\u2029 is an edge case in JavaScript vs JSON.
+		// \xF6 is an incomplete encoding.
+		"\u03B8\u2028\u2029\uFFFF\xF6",
 		`-123`,
 		int64(-9_200_123_456_789_123_456),
 		uint64(9_200_123_456_789_123_456),

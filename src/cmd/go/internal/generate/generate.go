@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -25,7 +26,6 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/slices"
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 )
@@ -90,6 +90,11 @@ Go generate sets several variables when it runs the generator:
 		generator, containing the Go toolchain and standard library.
 	$DOLLAR
 		A dollar sign.
+	$PATH
+		The $PATH of the parent process, with $GOROOT/bin
+		placed at the beginning. This causes generators
+		that execute 'go' commands to use the same 'go'
+		as the parent 'go generate' command.
 
 Other than variable substitution and quoted-string evaluation, no
 special processing such as "globbing" is performed on the command

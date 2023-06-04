@@ -1,1 +1,0 @@
-pkg errors, var ErrUnsupported error #41198

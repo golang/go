@@ -85,11 +85,7 @@ func FlushErrors() {
 	sort.Stable(byPos(errorMsgs))
 	for i, err := range errorMsgs {
 		if i == 0 || err.msg != errorMsgs[i-1].msg {
-			fmt.Printf("%s", err.msg)
-			if Flag.Url && err.code != 0 {
-				// TODO(gri) we should come up with a better URL eventually
-				fmt.Printf("\thttps://pkg.go.dev/internal/types/errors#%s\n", err.code)
-			}
+			fmt.Print(err.msg)
 		}
 	}
 	errorMsgs = errorMsgs[:0]

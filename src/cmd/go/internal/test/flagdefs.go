@@ -63,6 +63,7 @@ var passAnalyzersToVet = map[string]bool{
 	"rangeloops":       true,
 	"shift":            true,
 	"sigchanyzer":      true,
+	"slog":             true,
 	"stdmethods":       true,
 	"stringintconv":    true,
 	"structtag":        true,

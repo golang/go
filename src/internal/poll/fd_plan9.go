@@ -171,7 +171,7 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 			fd.wtimer = timer
 		}
 	}
-	if !t.IsZero() && d < 0 {
+	if !t.IsZero() && d <= 0 {
 		// Interrupt current I/O operation
 		if mode == 'r' || mode == 'r'+'w' {
 			fd.rtimedout = true

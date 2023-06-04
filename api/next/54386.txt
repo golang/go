@@ -1,2 +1,0 @@
-pkg bytes, func ContainsFunc([]uint8, func(int32) bool) bool #54386
-pkg strings, func ContainsFunc(string, func(int32) bool) bool #54386

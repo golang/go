@@ -6431,6 +6431,75 @@ func testDisableKeepAliveUpgrade(t *testing.T, mode testMode) {
 	}
 }
 
+type tlogWriter struct{ t *testing.T }
+
+func (w tlogWriter) Write(p []byte) (int, error) {
+	w.t.Log(string(p))
+	return len(p), nil
+}
+
+func TestWriteHeaderSwitchingProtocols(t *testing.T) {
+	run(t, testWriteHeaderSwitchingProtocols, []testMode{http1Mode})
+}
+func testWriteHeaderSwitchingProtocols(t *testing.T, mode testMode) {
+	const wantBody = "want"
+	const wantUpgrade = "someProto"
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Connection", "Upgrade")
+		w.Header().Set("Upgrade", wantUpgrade)
+		w.WriteHeader(StatusSwitchingProtocols)
+		NewResponseController(w).Flush()
+
+		// Writing headers or the body after sending a 101 header should fail.
+		w.WriteHeader(200)
+		if _, err := w.Write([]byte("x")); err == nil {
+			t.Errorf("Write to body after 101 Switching Protocols unexpectedly succeeded")
+		}
+
+		c, _, err := NewResponseController(w).Hijack()
+		if err != nil {
+			t.Errorf("Hijack: %v", err)
+			return
+		}
+		defer c.Close()
+		if _, err := c.Write([]byte(wantBody)); err != nil {
+			t.Errorf("Write to hijacked body: %v", err)
+		}
+	}), func(ts *httptest.Server) {
+		// Don't spam log with warning about superfluous WriteHeader call.
+		ts.Config.ErrorLog = log.New(tlogWriter{t}, "log: ", 0)
+	}).ts
+
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatalf("net.Dial: %v", err)
+	}
+	_, err = conn.Write([]byte("GET / HTTP/1.1\r\nHost: foo\r\n\r\n"))
+	if err != nil {
+		t.Fatalf("conn.Write: %v", err)
+	}
+	defer conn.Close()
+
+	r := bufio.NewReader(conn)
+	res, err := ReadResponse(r, &Request{Method: "GET"})
+	if err != nil {
+		t.Fatal("ReadResponse error:", err)
+	}
+	if res.StatusCode != StatusSwitchingProtocols {
+		t.Errorf("Response StatusCode=%v, want 101", res.StatusCode)
+	}
+	if got := res.Header.Get("Upgrade"); got != wantUpgrade {
+		t.Errorf("Response Upgrade header = %q, want %q", got, wantUpgrade)
+	}
+	body, err := io.ReadAll(r)
+	if err != nil {
+		t.Error(err)
+	}
+	if string(body) != wantBody {
+		t.Errorf("Response body = %q, want %q", string(body), wantBody)
+	}
+}
+
 func TestMuxRedirectRelative(t *testing.T) {
 	setParallel(t)
 	req, err := ReadRequest(bufio.NewReader(strings.NewReader("GET http://example.com HTTP/1.1\r\nHost: test\r\n\r\n")))
@@ -6754,5 +6823,45 @@ func testHeadBody(t *testing.T, mode testMode, chunked bool, method string) {
 		if got, want := res.Header.Get("X-Request-Body"), reqBody; got != want {
 			t.Errorf("%v request with %d-byte body: handler read body %q, want %q", method, len(reqBody), got, want)
 		}
+	}
+}
+
+// TestDisableContentLength verifies that the Content-Length is set by default
+// or disabled when the header is set to nil.
+func TestDisableContentLength(t *testing.T) { run(t, testDisableContentLength) }
+func testDisableContentLength(t *testing.T, mode testMode) {
+	if mode == http2Mode {
+		t.Skip("skipping until h2_bundle.go is updated; see https://go-review.googlesource.com/c/net/+/471535")
+	}
+
+	noCL := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header()["Content-Length"] = nil // disable the default Content-Length response
+		fmt.Fprintf(w, "OK")
+	}))
+
+	res, err := noCL.c.Get(noCL.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, haveCL := res.Header["Content-Length"]; haveCL {
+		t.Errorf("Unexpected Content-Length: %q", got)
+	}
+	if err := res.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	withCL := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "OK")
+	}))
+
+	res, err = withCL.c.Get(withCL.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := res.Header.Get("Content-Length"); got != "2" {
+		t.Errorf("Content-Length: %q; want 2", got)
+	}
+	if err := res.Body.Close(); err != nil {
+		t.Fatal(err)
 	}
 }

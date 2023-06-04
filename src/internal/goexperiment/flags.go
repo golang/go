@@ -105,4 +105,8 @@ type Flags struct {
 	// LoopVar changes loop semantics so that each iteration gets its own
 	// copy of the iteration variable.
 	LoopVar bool
+
+	// CacheProg adds support to cmd/go to use a child process to implement
+	// the build cache; see https://github.com/golang/go/issues/59719.
+	CacheProg bool
 }

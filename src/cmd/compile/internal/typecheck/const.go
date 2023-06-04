@@ -539,6 +539,8 @@ func callOrChan(n ir.Node) bool {
 		ir.OIMAG,
 		ir.OLEN,
 		ir.OMAKE,
+		ir.OMAX,
+		ir.OMIN,
 		ir.ONEW,
 		ir.OPANIC,
 		ir.OPRINT,

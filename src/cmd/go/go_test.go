@@ -19,6 +19,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,10 +30,13 @@ import (
 	"testing"
 	"time"
 
+	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/robustio"
 	"cmd/go/internal/search"
+	"cmd/go/internal/toolchain"
 	"cmd/go/internal/vcs"
 	"cmd/go/internal/vcweb/vcstest"
 	"cmd/go/internal/web"
@@ -60,6 +64,12 @@ var (
 	goHostOS, goHostArch string
 	cgoEnabled           string // raw value from 'go env CGO_ENABLED'
 )
+
+// netTestSem is a semaphore limiting the number of tests that may use the
+// external network in parallel. If non-nil, it contains one buffer slot per
+// test (send to acquire), with a low enough limit that the overall number of
+// connections (summed across subprocesses) stays at or below base.NetLimit.
+var netTestSem chan struct{}
 
 var exeSuffix string = func() string {
 	if runtime.GOOS == "windows" {
@@ -99,9 +109,10 @@ func TestMain(m *testing.M) {
 	// We set CMDGO_TEST_RUN_MAIN via os.Setenv and testScript.setup.
 	if os.Getenv("CMDGO_TEST_RUN_MAIN") != "" {
 		cfg.SetGOROOT(cfg.GOROOT, true)
-
-		if v := os.Getenv("TESTGO_VERSION"); v != "" {
-			work.RuntimeVersion = v
+		gover.TestVersion = os.Getenv("TESTGO_VERSION")
+		toolchain.TestVersionSwitch = os.Getenv("TESTGO_VERSION_SWITCH")
+		if v := os.Getenv("TESTGO_TOOLCHAIN_VERSION"); v != "" {
+			work.ToolchainVersion = v
 		}
 
 		if testGOROOT := os.Getenv("TESTGO_GOROOT"); testGOROOT != "" {
@@ -282,6 +293,17 @@ func TestMain(m *testing.M) {
 		}
 	}
 
+	if n, limited := base.NetLimit(); limited && n > 0 {
+		// Split the network limit into chunks, so that each parallel script can
+		// have one chunk. We want to run as many parallel scripts as possible, but
+		// also want to give each script as high a limit as possible.
+		// We arbitrarily split by sqrt(n) to try to balance those two goals.
+		netTestLimit := int(math.Sqrt(float64(n)))
+		netTestSem = make(chan struct{}, netTestLimit)
+		reducedLimit := fmt.Sprintf(",%s=%d", base.NetLimitGodebug.Name(), n/netTestLimit)
+		os.Setenv("GODEBUG", os.Getenv("GODEBUG")+reducedLimit)
+	}
+
 	// Don't let these environment variables confuse the test.
 	os.Setenv("GOENV", "off")
 	os.Unsetenv("GOFLAGS")
@@ -312,16 +334,33 @@ func TestMain(m *testing.M) {
 
 	if !*testWork {
 		// There shouldn't be anything left in topTmpdir.
-		dirf, err := os.Open(topTmpdir)
+		var extraFiles, extraDirs []string
+		err := filepath.WalkDir(topTmpdir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if path == topTmpdir {
+				return nil
+			}
+
+			if rel, err := filepath.Rel(topTmpdir, path); err == nil {
+				path = rel
+			}
+			if d.IsDir() {
+				extraDirs = append(extraDirs, path)
+			} else {
+				extraFiles = append(extraFiles, path)
+			}
+			return nil
+		})
 		if err != nil {
 			log.Fatal(err)
 		}
-		names, err := dirf.Readdirnames(0)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if len(names) > 0 {
-			log.Fatalf("unexpected files left in tmpdir: %v", names)
+
+		if len(extraFiles) > 0 {
+			log.Fatalf("unexpected files left in tmpdir: %q", extraFiles)
+		} else if len(extraDirs) > 0 {
+			log.Fatalf("unexpected subdirectories left in tmpdir: %q", extraDirs)
 		}
 
 		removeAll(topTmpdir)
@@ -352,6 +391,7 @@ type testgoData struct {
 	tempdir        string
 	ran            bool
 	inParallel     bool
+	hasNet         bool
 	stdout, stderr bytes.Buffer
 	execDir        string // dir for tg.run
 }
@@ -394,6 +434,9 @@ func (tg *testgoData) parallel() {
 	if tg.ran {
 		tg.t.Fatal("internal testsuite error: call to parallel after run")
 	}
+	if tg.hasNet {
+		tg.t.Fatal("internal testsuite error: call to parallel after acquireNet")
+	}
 	for _, e := range tg.env {
 		if strings.HasPrefix(e, "GOROOT=") || strings.HasPrefix(e, "GOPATH=") || strings.HasPrefix(e, "GOBIN=") {
 			val := e[strings.Index(e, "=")+1:]
@@ -404,6 +447,25 @@ func (tg *testgoData) parallel() {
 	}
 	tg.inParallel = true
 	tg.t.Parallel()
+}
+
+// acquireNet skips t if the network is unavailable, and otherwise acquires a
+// netTestSem token for t to be released at the end of the test.
+//
+// t.Parallel must not be called after acquireNet.
+func (tg *testgoData) acquireNet() {
+	tg.t.Helper()
+	if tg.hasNet {
+		return
+	}
+
+	testenv.MustHaveExternalNetwork(tg.t)
+	if netTestSem != nil {
+		netTestSem <- struct{}{}
+		tg.t.Cleanup(func() { <-netTestSem })
+	}
+	tg.setenv("TESTGONETWORK", "")
+	tg.hasNet = true
 }
 
 // pwd returns the current directory.
@@ -427,9 +489,6 @@ func (tg *testgoData) sleep() {
 // command.
 func (tg *testgoData) setenv(name, val string) {
 	tg.t.Helper()
-	if tg.inParallel && (name == "GOROOT" || name == "GOPATH" || name == "GOBIN") && (strings.HasPrefix(val, "testdata") || strings.HasPrefix(val, "./testdata")) {
-		tg.t.Fatalf("internal testsuite error: call to setenv with testdata (%s=%s) after parallel", name, val)
-	}
 	tg.unsetenv(name)
 	tg.env = append(tg.env, name+"="+val)
 }
@@ -438,7 +497,10 @@ func (tg *testgoData) setenv(name, val string) {
 func (tg *testgoData) unsetenv(name string) {
 	if tg.env == nil {
 		tg.env = append([]string(nil), os.Environ()...)
-		tg.env = append(tg.env, "GO111MODULE=off")
+		tg.env = append(tg.env, "GO111MODULE=off", "TESTGONETWORK=panic")
+		if testing.Short() {
+			tg.env = append(tg.env, "TESTGOVCS=panic")
+		}
 	}
 	for i, v := range tg.env {
 		if strings.HasPrefix(v, name+"=") {
@@ -995,12 +1057,13 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 
 // cmd/go: custom import path checking should not apply to Go packages without import comment.
 func TestIssue10952(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
 
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
+	tg.acquireNet()
+
 	tg.tempDir("src")
 	tg.setenv("GOPATH", tg.path("."))
 	const importPath = "github.com/zombiezen/go-get-issue-10952"
@@ -1012,12 +1075,13 @@ func TestIssue10952(t *testing.T) {
 
 // Test git clone URL that uses SCP-like syntax and custom import path checking.
 func TestIssue11457(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
 
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
+	tg.acquireNet()
+
 	tg.tempDir("src")
 	tg.setenv("GOPATH", tg.path("."))
 	const importPath = "rsc.io/go-get-issue-11457"
@@ -1037,12 +1101,13 @@ func TestIssue11457(t *testing.T) {
 }
 
 func TestGetGitDefaultBranch(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
 
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
+	tg.acquireNet()
+
 	tg.tempDir("src")
 	tg.setenv("GOPATH", tg.path("."))
 
@@ -1378,12 +1443,13 @@ func TestDefaultGOPATH(t *testing.T) {
 }
 
 func TestDefaultGOPATHGet(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
 
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
+	tg.acquireNet()
+
 	tg.setenv("GOPATH", "")
 	tg.tempDir("home")
 	tg.setenv(homeEnvName(), tg.path("home"))
@@ -2127,7 +2193,7 @@ func TestNeedVersion(t *testing.T) {
 	tg.parallel()
 	tg.tempFile("goversion.go", `package main; func main() {}`)
 	path := tg.path("goversion.go")
-	tg.setenv("TESTGO_VERSION", "go1.testgo")
+	tg.setenv("TESTGO_TOOLCHAIN_VERSION", "go1.testgo")
 	tg.runFail("run", path)
 	tg.grepStderr("compile", "does not match go tool version")
 }

@@ -166,7 +166,10 @@ func calculateCostForType(t *types.Type) int64 {
 // It works by building a list of boolean conditions to satisfy.
 // Conditions must be evaluated in the returned order and
 // properly short-circuited by the caller.
-func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
+// The first return value is the flattened list of conditions,
+// the second value is a boolean indicating whether any of the
+// comparisons could panic.
+func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 	// The conditions are a list-of-lists. Conditions are reorderable
 	// within each inner list. The outer lists must be evaluated in order.
 	var conds [][]ir.Node
@@ -187,9 +190,11 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 			continue
 		}
 
+		typeCanPanic := EqCanPanic(f.Type)
+
 		// Compare non-memory fields with field equality.
 		if !IsRegularMemory(f.Type) {
-			if EqCanPanic(f.Type) {
+			if typeCanPanic {
 				// Enforce ordering by starting a new set of reorderable conditions.
 				conds = append(conds, []ir.Node{})
 			}
@@ -203,7 +208,7 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 			default:
 				and(ir.NewBinaryExpr(base.Pos, ir.OEQ, p, q))
 			}
-			if EqCanPanic(f.Type) {
+			if typeCanPanic {
 				// Also enforce ordering after something that can panic.
 				conds = append(conds, []ir.Node{})
 			}
@@ -238,7 +243,7 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 		})
 		flatConds = append(flatConds, c...)
 	}
-	return flatConds
+	return flatConds, len(conds) > 1
 }
 
 // EqString returns the nodes

@@ -1,6 +1,0 @@
-pkg go/build, type Directive struct #56986
-pkg go/build, type Directive struct, Pos token.Position #56986
-pkg go/build, type Directive struct, Text string #56986
-pkg go/build, type Package struct, Directives []Directive #56986
-pkg go/build, type Package struct, TestDirectives []Directive #56986
-pkg go/build, type Package struct, XTestDirectives []Directive #56986

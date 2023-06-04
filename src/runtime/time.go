@@ -192,7 +192,7 @@ func timeSleep(ns int64) {
 	if t.nextwhen < 0 { // check for overflow.
 		t.nextwhen = maxWhen
 	}
-	gopark(resetForSleep, unsafe.Pointer(t), waitReasonSleep, traceEvGoSleep, 1)
+	gopark(resetForSleep, unsafe.Pointer(t), waitReasonSleep, traceBlockSleep, 1)
 }
 
 // resetForSleep is called after the goroutine is parked for timeSleep.

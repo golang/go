@@ -150,15 +150,15 @@ func _() {
 	var send func(chan<- int)
 
 	ffboth(both)
-	ffboth(recv /* ERROR "cannot use" */ )
-	ffboth(send /* ERROR "cannot use" */ )
+	ffboth(recv /* ERROR "does not match" */ )
+	ffboth(send /* ERROR "does not match" */ )
 
-	ffrecv(both /* ERROR "cannot use" */ )
+	ffrecv(both /* ERROR "does not match" */ )
 	ffrecv(recv)
-	ffrecv(send /* ERROR "cannot use" */ )
+	ffrecv(send /* ERROR "does not match" */ )
 
-	ffsend(both /* ERROR "cannot use" */ )
-	ffsend(recv /* ERROR "cannot use" */ )
+	ffsend(both /* ERROR "does not match" */ )
+	ffsend(recv /* ERROR "does not match" */ )
 	ffsend(send)
 }
 

@@ -1,8 +1,0 @@
-pkg crypto/elliptic, func GenerateKey //deprecated #52221
-pkg crypto/elliptic, func Marshal //deprecated #52221
-pkg crypto/elliptic, func Unmarshal //deprecated #52221
-pkg crypto/elliptic, type Curve interface, Add //deprecated #52221
-pkg crypto/elliptic, type Curve interface, Double //deprecated #52221
-pkg crypto/elliptic, type Curve interface, IsOnCurve //deprecated #52221
-pkg crypto/elliptic, type Curve interface, ScalarBaseMult //deprecated #52221
-pkg crypto/elliptic, type Curve interface, ScalarMult //deprecated #52221

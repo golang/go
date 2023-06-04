@@ -198,7 +198,7 @@ type UncommonType struct {
 	PkgPath NameOff // import path; empty for built-in types like int, string
 	Mcount  uint16  // number of methods
 	Xcount  uint16  // number of exported methods
-	Moff    uint32  // offset from this uncommontype to [mcount]method
+	Moff    uint32  // offset from this uncommontype to [mcount]Method
 	_       uint32  // unused
 }
 
@@ -242,9 +242,9 @@ type ArrayType struct {
 }
 
 // Len returns the length of t if t is an array type, otherwise 0
-func (t *Type) Len() uintptr {
+func (t *Type) Len() int {
 	if t.Kind() == Array {
-		return (*ArrayType)(unsafe.Pointer(t)).Len
+		return int((*ArrayType)(unsafe.Pointer(t)).Len)
 	}
 	return 0
 }
@@ -675,10 +675,10 @@ func (n Name) Tag() string {
 
 func NewName(n, tag string, exported, embedded bool) Name {
 	if len(n) >= 1<<29 {
-		panic("reflect.nameFrom: name too long: " + n[:1024] + "...")
+		panic("abi.NewName: name too long: " + n[:1024] + "...")
 	}
 	if len(tag) >= 1<<29 {
-		panic("reflect.nameFrom: tag too long: " + tag[:1024] + "...")
+		panic("abi.NewName: tag too long: " + tag[:1024] + "...")
 	}
 	var nameLen [10]byte
 	var tagLen [10]byte

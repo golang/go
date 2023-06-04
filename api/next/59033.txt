@@ -1,3 +1,0 @@
-pkg go/ast, type File struct, GoVersion string #59033
-pkg go/build/constraint, func GoVersion(Expr) string #59033
-

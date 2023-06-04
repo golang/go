@@ -74,6 +74,9 @@ var ErrNoProgress = errors.New("multiple Read calls return no data or error")
 // that happen after reading some bytes and also both of the
 // allowed EOF behaviors.
 //
+// If len(p) == 0, Read should always return n == 0. It may return a
+// non-nil error if some error condition is known, such as EOF.
+//
 // Implementations of Read are discouraged from returning a
 // zero byte count with a nil error, except when len(p) == 0.
 // Callers should treat a return of 0 and nil as indicating that
@@ -575,6 +578,10 @@ func (o *OffsetWriter) Write(p []byte) (n int, err error) {
 }
 
 func (o *OffsetWriter) WriteAt(p []byte, off int64) (n int, err error) {
+	if off < 0 {
+		return 0, errOffset
+	}
+
 	off += o.base
 	return o.w.WriteAt(p, off)
 }

@@ -37,6 +37,16 @@ func TestOpen_Dir(t *testing.T) {
 	}
 }
 
+func TestComputerName(t *testing.T) {
+	name, err := syscall.ComputerName()
+	if err != nil {
+		t.Fatalf("ComputerName failed: %v", err)
+	}
+	if len(name) == 0 {
+		t.Error("ComputerName returned empty string")
+	}
+}
+
 func TestWin32finddata(t *testing.T) {
 	dir := t.TempDir()
 

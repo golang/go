@@ -418,7 +418,13 @@ func (enc *Encoder) concreteMethod(meth *types.Func) (Path, bool) {
 		}
 	}
 
-	panic(fmt.Sprintf("couldn't find method %s on type %s", meth, named))
+	// Due to golang/go#59944, go/types fails to associate the receiver with
+	// certain methods on cgo types.
+	//
+	// TODO(rfindley): replace this panic once golang/go#59944 is fixed in all Go
+	// versions gopls supports.
+	return "", false
+	// panic(fmt.Sprintf("couldn't find method %s on type %s; methods: %#v", meth, named, enc.namedMethods(named)))
 }
 
 // find finds obj within type T, returning the path to it, or nil if not found.

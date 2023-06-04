@@ -73,7 +73,6 @@ var allDesc = []Description{
 		Name: "/cpu/classes/gc/mark/dedicated:cpu-seconds",
 		Description: "Estimated total CPU time spent performing GC tasks on " +
 			"processors (as defined by GOMAXPROCS) dedicated to those tasks. " +
-			"This includes time spent with the world stopped due to the GC. " +
 			"This metric is an overestimate, and not directly comparable to " +
 			"system CPU time measurements. Compare only with other /cpu/classes " +
 			"metrics.",
@@ -194,6 +193,20 @@ var allDesc = []Description{
 		Cumulative:  true,
 	},
 	{
+		Name: "/gc/gogc:percent",
+		Description: "Heap size target percentage configured by the user, otherwise 100. This " +
+			"value is set by the GOGC environment variable, and the runtime/debug.SetGCPercent " +
+			"function.",
+		Kind: KindUint64,
+	},
+	{
+		Name: "/gc/gomemlimit:bytes",
+		Description: "Go runtime memory limit configured by the user, otherwise " +
+			"math.MaxInt64. This value is set by the GOMEMLIMIT environment variable, and " +
+			"the runtime/debug.SetMemoryLimit function.",
+		Kind: KindUint64,
+	},
+	{
 		Name: "/gc/heap/allocs-by-size:bytes",
 		Description: "Distribution of heap allocations by approximate size. " +
 			"Bucket counts increase monotonically. " +
@@ -246,6 +259,11 @@ var allDesc = []Description{
 		Kind:        KindUint64,
 	},
 	{
+		Name:        "/gc/heap/live:bytes",
+		Description: "Heap memory occupied by live objects that were marked by the previous GC.",
+		Kind:        KindUint64,
+	},
+	{
 		Name:        "/gc/heap/objects:objects",
 		Description: "Number of objects, live or unswept, occupying heap memory.",
 		Kind:        KindUint64,
@@ -274,6 +292,26 @@ var allDesc = []Description{
 		Description: "Distribution of individual GC-related stop-the-world pause latencies. Bucket counts increase monotonically.",
 		Kind:        KindFloat64Histogram,
 		Cumulative:  true,
+	},
+	{
+		Name:        "/gc/scan/globals:bytes",
+		Description: "The total amount of global variable space that is scannable.",
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/gc/scan/heap:bytes",
+		Description: "The total amount of heap space that is scannable.",
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/gc/scan/stack:bytes",
+		Description: "The number of bytes of stack that were scanned last GC cycle.",
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/gc/scan/total:bytes",
+		Description: "The total amount space that is scannable. Sum of all metrics in /gc/scan.",
+		Kind:        KindUint64,
 	},
 	{
 		Name:        "/gc/stack/starting-size:bytes",

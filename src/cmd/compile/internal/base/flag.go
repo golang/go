@@ -124,7 +124,7 @@ type CmdFlags struct {
 	TrimPath           string       "help:\"remove `prefix` from recorded source file paths\""
 	WB                 bool         "help:\"enable write barrier\"" // TODO: remove
 	PgoProfile         string       "help:\"read profile from `file`\""
-	Url                bool         "help:\"print explanatory URL with error message if applicable\""
+	ErrorURL           bool         "help:\"print explanatory URL with error message if applicable\""
 
 	// Configuration derived from flags; not a flag itself.
 	Cfg struct {
@@ -168,6 +168,8 @@ func ParseFlags() {
 	Debug.ConcurrentOk = true
 	Debug.InlFuncsWithClosures = 1
 	Debug.InlStaticInit = 1
+	Debug.PGOInline = 1
+	Debug.PGODevirtualize = 1
 	Debug.SyncFrames = -1 // disable sync markers by default
 
 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly

@@ -178,7 +178,7 @@ func openIndexModule(modroot string, ismodcache bool) (*Module, error) {
 		if err != nil {
 			return nil, err
 		}
-		data, _, err := cache.Default().GetMmap(id)
+		data, _, err := cache.GetMmap(cache.Default(), id)
 		if err != nil {
 			// Couldn't read from modindex. Assume we couldn't read from
 			// the index because the module hasn't been indexed yet.
@@ -186,7 +186,7 @@ func openIndexModule(modroot string, ismodcache bool) (*Module, error) {
 			if err != nil {
 				return nil, err
 			}
-			if err = cache.Default().PutBytes(id, data); err != nil {
+			if err = cache.PutBytes(cache.Default(), id, data); err != nil {
 				return nil, err
 			}
 		}
@@ -207,12 +207,12 @@ func openIndexPackage(modroot, pkgdir string) (*IndexPackage, error) {
 		if err != nil {
 			return nil, err
 		}
-		data, _, err := cache.Default().GetMmap(id)
+		data, _, err := cache.GetMmap(cache.Default(), id)
 		if err != nil {
 			// Couldn't read from index. Assume we couldn't read from
 			// the index because the package hasn't been indexed yet.
 			data = indexPackage(modroot, pkgdir)
-			if err = cache.Default().PutBytes(id, data); err != nil {
+			if err = cache.PutBytes(cache.Default(), id, data); err != nil {
 				return nil, err
 			}
 		}
@@ -913,7 +913,7 @@ func (sf *sourceFile) embedsOffset() int {
 func (sf *sourceFile) directivesOffset() int {
 	pos := sf.embedsOffset()
 	n := sf.d.intAt(pos)
-	// each import is 5 uint32s (string + tokpos)
+	// each embed is 5 uint32s (string + tokpos)
 	return pos + 4 + n*(4*5)
 }
 

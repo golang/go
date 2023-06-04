@@ -27,6 +27,15 @@
 // If you are not using DefaultServeMux, you will have to register handlers
 // with the mux you are using.
 //
+// # Parameters
+//
+// Parameters can be passed via GET query params:
+//
+//   - debug=N (all profiles): response format: N = 0: binary (default), N > 0: plaintext
+//   - gc=N (heap profile): N > 0: run a garbage collection cycle before profiling
+//   - seconds=N (allocs, block, goroutine, heap, mutex, threadcreate profiles): return a delta profile
+//   - seconds=N (cpu (profile), trace profiles): profile for the given duration
+//
 // # Usage examples
 //
 // Use the pprof tool to look at the heap profile:
@@ -57,8 +66,7 @@
 // in your browser.
 //
 // For a study of the facility in action, visit
-//
-//	https://blog.golang.org/2011/06/profiling-go-programs.html
+// https://blog.golang.org/2011/06/profiling-go-programs.html.
 package pprof
 
 import (

@@ -5,6 +5,7 @@
 package reflect
 
 import (
+	"internal/abi"
 	"internal/goarch"
 	"internal/unsafeheader"
 	"unsafe"
@@ -31,7 +32,7 @@ func Swapper(slice any) func(i, j int) {
 		}
 	}
 
-	typ := v.Type().Elem().(*rtype)
+	typ := v.Type().Elem().common()
 	size := typ.Size()
 	hasPtr := typ.PtrBytes != 0
 
@@ -41,7 +42,7 @@ func Swapper(slice any) func(i, j int) {
 			ps := *(*[]unsafe.Pointer)(v.ptr)
 			return func(i, j int) { ps[i], ps[j] = ps[j], ps[i] }
 		}
-		if typ.Kind() == String {
+		if typ.Kind() == abi.String {
 			ss := *(*[]string)(v.ptr)
 			return func(i, j int) { ss[i], ss[j] = ss[j], ss[i] }
 		}

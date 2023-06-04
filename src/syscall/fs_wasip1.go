@@ -255,6 +255,36 @@ func path_open(rootFD int32, dirflags lookupflags, path unsafe.Pointer, pathLen 
 //go:noescape
 func random_get(buf unsafe.Pointer, bufLen size) Errno
 
+// https://github.com/WebAssembly/WASI/blob/a2b96e81c0586125cc4dc79a5be0b78d9a059925/legacy/preview1/docs.md#-fdstat-record
+// fdflags must be at offset 2, hence the uint16 type rather than the
+// fdflags (uint32) type.
+type fdstat struct {
+	filetype         filetype
+	fdflags          uint16
+	rightsBase       rights
+	rightsInheriting rights
+}
+
+//go:wasmimport wasi_snapshot_preview1 fd_fdstat_get
+//go:noescape
+func fd_fdstat_get(fd int32, buf unsafe.Pointer) Errno
+
+//go:wasmimport wasi_snapshot_preview1 fd_fdstat_set_flags
+//go:noescape
+func fd_fdstat_set_flags(fd int32, flags fdflags) Errno
+
+func fd_fdstat_get_flags(fd int) (uint32, error) {
+	var stat fdstat
+	errno := fd_fdstat_get(int32(fd), unsafe.Pointer(&stat))
+	return uint32(stat.fdflags), errnoErr(errno)
+}
+
+func fd_fdstat_get_type(fd int) (uint8, error) {
+	var stat fdstat
+	errno := fd_fdstat_get(int32(fd), unsafe.Pointer(&stat))
+	return stat.filetype, errnoErr(errno)
+}
+
 type preopentype = uint8
 
 const (
@@ -307,11 +337,11 @@ func init() {
 		if errno == EBADF {
 			break
 		}
+		if errno == ENOTDIR || prestat.typ != preopentypeDir {
+			continue
+		}
 		if errno != 0 {
 			panic("fd_prestat: " + errno.Error())
-		}
-		if prestat.typ != preopentypeDir {
-			continue
 		}
 		if int(prestat.dir.prNameLen) > len(dirNameBuf) {
 			dirNameBuf = make([]byte, prestat.dir.prNameLen)
@@ -390,7 +420,7 @@ func appendCleanPath(buf []byte, path string, lookupParent bool) ([]byte, bool) 
 
 // joinPath concatenates dir and file paths, producing a cleaned path where
 // "." and ".." have been removed, unless dir is relative and the references
-// to parent directories in file represented a location relatie to a parent
+// to parent directories in file represented a location relative to a parent
 // of dir.
 //
 // This function is used for path resolution of all wasi functions expecting
@@ -663,17 +693,33 @@ func Lchown(path string, uid, gid int) error {
 }
 
 func UtimesNano(path string, ts []Timespec) error {
+	// UTIME_OMIT value must match internal/syscall/unix/at_wasip1.go
+	const UTIME_OMIT = -0x2
 	if path == "" {
 		return EINVAL
 	}
 	dirFd, pathPtr, pathLen := preparePath(path)
+	atime := TimespecToNsec(ts[0])
+	mtime := TimespecToNsec(ts[1])
+	if ts[0].Nsec == UTIME_OMIT || ts[1].Nsec == UTIME_OMIT {
+		var st Stat_t
+		if err := Stat(path, &st); err != nil {
+			return err
+		}
+		if ts[0].Nsec == UTIME_OMIT {
+			atime = int64(st.Atime)
+		}
+		if ts[1].Nsec == UTIME_OMIT {
+			mtime = int64(st.Mtime)
+		}
+	}
 	errno := path_filestat_set_times(
 		dirFd,
 		LOOKUP_SYMLINK_FOLLOW,
 		pathPtr,
 		pathLen,
-		timestamp(TimespecToNsec(ts[0])),
-		timestamp(TimespecToNsec(ts[1])),
+		timestamp(atime),
+		timestamp(mtime),
 		FILESTAT_SET_ATIM|FILESTAT_SET_MTIM,
 	)
 	return errnoErr(errno)

@@ -411,7 +411,7 @@ func TestRaceSignal(t *testing.T) {
 		// TODO: Can this test be rewritten to use the C11 thread API instead?
 	}
 	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
-		testenv.SkipFlaky(t, 59807)
+		testenv.SkipFlaky(t, 60316)
 	}
 
 	t.Parallel()
@@ -429,7 +429,7 @@ func TestRaceSignal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoRaceSignal")).CombinedOutput()
+	got, err := testenv.CleanCmdEnv(testenv.Command(t, exe, "CgoRaceSignal")).CombinedOutput()
 	if err != nil {
 		t.Logf("%s\n", got)
 		t.Fatal(err)
@@ -834,5 +834,18 @@ func TestDestructorCallbackRace(t *testing.T) {
 
 	if want := "OK\n"; string(got) != want {
 		t.Errorf("expected %q, but got:\n%s", want, got)
+	}
+}
+
+func TestEnsureBindM(t *testing.T) {
+	t.Parallel()
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		t.Skipf("skipping bindm test on %s", runtime.GOOS)
+	}
+	got := runTestProg(t, "testprogcgo", "EnsureBindM")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q, got %v", want, got)
 	}
 }

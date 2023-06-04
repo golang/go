@@ -1357,9 +1357,19 @@ func (p *GCProg) AddSym(s loader.Sym) {
 // (see issue #9862).
 const cutoff = 2e9 // 2 GB (or so; looks better in errors than 2^31)
 
+// check accumulated size of data sections
 func (state *dodataState) checkdatsize(symn sym.SymKind) {
 	if state.datsize > cutoff {
-		Errorf(nil, "too much data in section %v (over %v bytes)", symn, cutoff)
+		Errorf(nil, "too much data, last section %v (%d, over %v bytes)", symn, state.datsize, cutoff)
+	}
+}
+
+func checkSectSize(sect *sym.Section) {
+	// TODO: consider using 4 GB size limit for DWARF sections, and
+	// make sure we generate unsigned offset in relocations and check
+	// for overflow.
+	if sect.Length > cutoff {
+		Errorf(nil, "too much data in section %s (%d, over %v bytes)", sect.Name, sect.Length, cutoff)
 	}
 }
 
@@ -2162,7 +2172,7 @@ func (state *dodataState) allocateDwarfSections(ctxt *Link) {
 			}
 		}
 		sect.Length = uint64(state.datsize) - sect.Vaddr
-		state.checkdatsize(curType)
+		checkSectSize(sect)
 	}
 }
 

@@ -47,6 +47,8 @@ var NetpollGenericInit = netpollGenericInit
 var Memmove = memmove
 var MemclrNoHeapPointers = memclrNoHeapPointers
 
+var CgoCheckPointer = cgoCheckPointer
+
 const TracebackInnerFrames = tracebackInnerFrames
 const TracebackOuterFrames = tracebackOuterFrames
 
@@ -228,31 +230,126 @@ func SetEnvs(e []string) { envs = e }
 
 // For benchmarking.
 
-func BenchSetType(n int, x any) {
-	e := *efaceOf(&x)
+// blockWrapper is a wrapper type that ensures a T is placed within a
+// large object. This is necessary for safely benchmarking things
+// that manipulate the heap bitmap, like heapBitsSetType.
+//
+// More specifically, allocating threads assume they're the sole writers
+// to their span's heap bits, which allows those writes to be non-atomic.
+// The heap bitmap is written byte-wise, so if one tried to call heapBitsSetType
+// on an existing object in a small object span, we might corrupt that
+// span's bitmap with a concurrent byte write to the heap bitmap. Large
+// object spans contain exactly one object, so we can be sure no other P
+// is going to be allocating from it concurrently, hence this wrapper type
+// which ensures we have a T in a large object span.
+type blockWrapper[T any] struct {
+	value T
+	_     [_MaxSmallSize]byte // Ensure we're a large object.
+}
+
+func BenchSetType[T any](n int, resetTimer func()) {
+	x := new(blockWrapper[T])
+
+	// Escape x to ensure it is allocated on the heap, as we are
+	// working on the heap bits here.
+	Escape(x)
+
+	// Grab the type.
+	var i any = *new(T)
+	e := *efaceOf(&i)
 	t := e._type
-	var size uintptr
-	var p unsafe.Pointer
-	switch t.Kind_ & kindMask {
-	case kindPtr:
-		t = (*ptrtype)(unsafe.Pointer(t)).elem
-		size = t.Size_
-		p = e.data
-	case kindSlice:
-		slice := *(*struct {
-			ptr      unsafe.Pointer
-			len, cap uintptr
-		})(e.data)
-		t = (*slicetype)(unsafe.Pointer(t)).elem
-		size = t.Size_ * slice.len
-		p = slice.ptr
+
+	// Benchmark setting the type bits for just the internal T of the block.
+	benchSetType(n, resetTimer, 1, unsafe.Pointer(&x.value), t)
+}
+
+const maxArrayBlockWrapperLen = 32
+
+// arrayBlockWrapper is like blockWrapper, but the interior value is intended
+// to be used as a backing store for a slice.
+type arrayBlockWrapper[T any] struct {
+	value [maxArrayBlockWrapperLen]T
+	_     [_MaxSmallSize]byte // Ensure we're a large object.
+}
+
+// arrayLargeBlockWrapper is like arrayBlockWrapper, but the interior array
+// accommodates many more elements.
+type arrayLargeBlockWrapper[T any] struct {
+	value [1024]T
+	_     [_MaxSmallSize]byte // Ensure we're a large object.
+}
+
+func BenchSetTypeSlice[T any](n int, resetTimer func(), len int) {
+	// We have two separate cases here because we want to avoid
+	// tests on big types but relatively small slices to avoid generating
+	// an allocation that's really big. This will likely force a GC which will
+	// skew the test results.
+	var y unsafe.Pointer
+	if len <= maxArrayBlockWrapperLen {
+		x := new(arrayBlockWrapper[T])
+		// Escape x to ensure it is allocated on the heap, as we are
+		// working on the heap bits here.
+		Escape(x)
+		y = unsafe.Pointer(&x.value[0])
+	} else {
+		x := new(arrayLargeBlockWrapper[T])
+		Escape(x)
+		y = unsafe.Pointer(&x.value[0])
 	}
+
+	// Grab the type.
+	var i any = *new(T)
+	e := *efaceOf(&i)
+	t := e._type
+
+	// Benchmark setting the type for a slice created from the array
+	// of T within the arrayBlock.
+	benchSetType(n, resetTimer, len, y, t)
+}
+
+// benchSetType is the implementation of the BenchSetType* functions.
+// x must be len consecutive Ts allocated within a large object span (to
+// avoid a race on the heap bitmap).
+//
+// Note: this function cannot be generic. It would get its type from one of
+// its callers (BenchSetType or BenchSetTypeSlice) whose type parameters are
+// set by a call in the runtime_test package. That means this function and its
+// callers will get instantiated in the package that provides the type argument,
+// i.e. runtime_test. However, we call a function on the system stack. In race
+// mode the runtime package is usually left uninstrumented because e.g. g0 has
+// no valid racectx, but if we're instantiated in the runtime_test package,
+// we might accidentally cause runtime code to be incorrectly instrumented.
+func benchSetType(n int, resetTimer func(), len int, x unsafe.Pointer, t *_type) {
+	// Compute the input sizes.
+	size := t.Size() * uintptr(len)
+
+	// Validate this function's invariant.
+	s := spanOfHeap(uintptr(x))
+	if s == nil {
+		panic("no heap span for input")
+	}
+	if s.spanclass.sizeclass() != 0 {
+		panic("span is not a large object span")
+	}
+
+	// Round up the size to the size class to make the benchmark a little more
+	// realistic. However, validate it, to make sure this is safe.
 	allocSize := roundupsize(size)
+	if s.npages*pageSize < allocSize {
+		panic("backing span not large enough for benchmark")
+	}
+
+	// Benchmark heapBitsSetType by calling it in a loop. This is safe because
+	// x is in a large object span.
+	resetTimer()
 	systemstack(func() {
 		for i := 0; i < n; i++ {
-			heapBitsSetType(uintptr(p), allocSize, size, t)
+			heapBitsSetType(uintptr(x), allocSize, size, t)
 		}
 	})
+
+	// Make sure x doesn't get freed, since we're taking a uintptr.
+	KeepAlive(x)
 }
 
 const PtrSize = goarch.PtrSize
@@ -271,7 +368,7 @@ var ReadUnaligned32 = readUnaligned32
 var ReadUnaligned64 = readUnaligned64
 
 func CountPagesInUse() (pagesInUse, counted uintptr) {
-	stopTheWorld("CountPagesInUse")
+	stopTheWorld(stwForTestCountPagesInUse)
 
 	pagesInUse = uintptr(mheap_.pagesInUse.Load())
 
@@ -314,7 +411,7 @@ func (p *ProfBuf) Close() {
 }
 
 func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
-	stopTheWorld("ReadMetricsSlow")
+	stopTheWorld(stwForTestReadMetricsSlow)
 
 	// Initialize the metrics beforehand because this could
 	// allocate and skew the stats.
@@ -342,7 +439,7 @@ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) 
 // ReadMemStatsSlow returns both the runtime-computed MemStats and
 // MemStats accumulated by scanning the heap.
 func ReadMemStatsSlow() (base, slow MemStats) {
-	stopTheWorld("ReadMemStatsSlow")
+	stopTheWorld(stwForTestReadMemStatsSlow)
 
 	// Run on the system stack to avoid stack growth allocation.
 	systemstack(func() {
@@ -437,7 +534,7 @@ func ShrinkStackAndVerifyFramePointers() {
 	})
 	// If our new stack contains frame pointers into the old stack, this will
 	// crash because the old stack has been poisoned.
-	FPCallers(0, make([]uintptr, 1024))
+	FPCallers(make([]uintptr, 1024))
 }
 
 // BlockOnSystemStack switches to the system stack, prints "x\n" to
@@ -602,7 +699,7 @@ func MapTombstoneCheck(m map[int]int) {
 	t := *(**maptype)(unsafe.Pointer(&i))
 
 	for x := 0; x < 1<<h.B; x++ {
-		b0 := (*bmap)(add(h.buckets, uintptr(x)*uintptr(t.bucketsize)))
+		b0 := (*bmap)(add(h.buckets, uintptr(x)*uintptr(t.BucketSize)))
 		n := 0
 		for b := b0; b != nil; b = b.overflow(t) {
 			for i := 0; i < bucketCnt; i++ {
@@ -1188,7 +1285,7 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 }
 
 func PageCachePagesLeaked() (leaked uintptr) {
-	stopTheWorld("PageCachePagesLeaked")
+	stopTheWorld(stwForTestPageCachePagesLeaked)
 
 	// Walk over destroyed Ps and look for unflushed caches.
 	deadp := allp[len(allp):cap(allp)]
@@ -1342,10 +1439,11 @@ func GCTestPointerClass(p unsafe.Pointer) string {
 const Raceenabled = raceenabled
 
 const (
-	GCBackgroundUtilization     = gcBackgroundUtilization
-	GCGoalUtilization           = gcGoalUtilization
-	DefaultHeapMinimum          = defaultHeapMinimum
-	MemoryLimitHeapGoalHeadroom = memoryLimitHeapGoalHeadroom
+	GCBackgroundUtilization            = gcBackgroundUtilization
+	GCGoalUtilization                  = gcGoalUtilization
+	DefaultHeapMinimum                 = defaultHeapMinimum
+	MemoryLimitHeapGoalHeadroomPercent = memoryLimitHeapGoalHeadroomPercent
+	MemoryLimitMinHeapGoalHeadroom     = memoryLimitMinHeapGoalHeadroom
 )
 
 type GCController struct {
@@ -1757,7 +1855,7 @@ func (a *UserArena) New(out *any) {
 	if typ.Kind_&kindMask != kindPtr {
 		panic("new result of non-ptr type")
 	}
-	typ = (*ptrtype)(unsafe.Pointer(typ)).elem
+	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
 	i.data = a.arena.new(typ)
 }
 
@@ -1819,6 +1917,18 @@ func PersistentAlloc(n uintptr) unsafe.Pointer {
 
 // FPCallers works like Callers and uses frame pointer unwinding to populate
 // pcBuf with the return addresses of the physical frames on the stack.
-func FPCallers(skip int, pcBuf []uintptr) int {
-	return fpTracebackPCs(unsafe.Pointer(getcallerfp()), skip, pcBuf)
+func FPCallers(pcBuf []uintptr) int {
+	return fpTracebackPCs(unsafe.Pointer(getfp()), pcBuf)
+}
+
+var (
+	IsPinned      = isPinned
+	GetPinCounter = pinnerGetPinCounter
+)
+
+func SetPinnerLeakPanic(f func()) {
+	pinnerLeakPanic = f
+}
+func GetPinnerLeakPanic() func() {
+	return pinnerLeakPanic
 }

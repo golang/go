@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,9 +36,9 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/slices"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/internal/buildid"
@@ -76,7 +77,7 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 		// If we're doing real work, take time at the end to trim the cache.
 		c := cache.Default()
 		defer func() {
-			if err := c.Trim(); err != nil {
+			if err := c.Close(); err != nil {
 				base.Fatalf("go: failed to trim cache: %v", err)
 			}
 		}()
@@ -316,8 +317,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 			fmt.Fprintf(h, "fuzz %q\n", fuzzFlags)
 		}
 	}
-	if p.Internal.BuildInfo != "" {
-		fmt.Fprintf(h, "modinfo %q\n", p.Internal.BuildInfo)
+	if p.Internal.BuildInfo != nil {
+		fmt.Fprintf(h, "modinfo %q\n", p.Internal.BuildInfo.String())
 	}
 
 	// Configuration specific to compiler toolchain.
@@ -431,17 +432,7 @@ func allowedVersion(v string) bool {
 	if v == "" {
 		return true
 	}
-	// Special case "1.0" means "go1", which is OK.
-	if v == "1.0" {
-		return true
-	}
-	// Otherwise look through release tags of form "go1.23" for one that matches.
-	for _, tag := range cfg.BuildContext.ReleaseTags {
-		if strings.HasPrefix(tag, "go") && tag[2:] == v {
-			return true
-		}
-	}
-	return false
+	return gover.Compare(gover.Local(), v) >= 0
 }
 
 const (
@@ -691,10 +682,11 @@ OverlayLoop:
 				if mode == "" {
 					panic("covermode should be set at this point")
 				}
-				pkgcfg := a.Objdir + "pkgcfg.txt"
-				covoutfiles := a.Objdir + "coveroutfiles.txt"
-				if err := b.cover2(a, pkgcfg, covoutfiles, infiles, outfiles, coverVar, mode); err != nil {
+				if newoutfiles, err := b.cover2(a, infiles, outfiles, coverVar, mode); err != nil {
 					return err
+				} else {
+					outfiles = newoutfiles
+					gofiles = append([]string{newoutfiles[0]}, gofiles...)
 				}
 			} else {
 				// If there are no input files passed to cmd/cover,
@@ -842,8 +834,8 @@ OverlayLoop:
 		embedcfg = js
 	}
 
-	if p.Internal.BuildInfo != "" && cfg.ModulesEnabled {
-		prog := modload.ModInfoProg(p.Internal.BuildInfo, cfg.BuildToolchainName == "gccgo")
+	if p.Internal.BuildInfo != nil && cfg.ModulesEnabled {
+		prog := modload.ModInfoProg(p.Internal.BuildInfo.String(), cfg.BuildToolchainName == "gccgo")
 		if len(prog) > 0 {
 			if err := b.writeFile(objdir+"_gomod_.go", prog); err != nil {
 				return err
@@ -993,7 +985,7 @@ func (b *Builder) checkDirectives(a *Action) error {
 	return nil
 }
 
-func (b *Builder) cacheObjdirFile(a *Action, c *cache.Cache, name string) error {
+func (b *Builder) cacheObjdirFile(a *Action, c cache.Cache, name string) error {
 	f, err := os.Open(a.Objdir + name)
 	if err != nil {
 		return err
@@ -1003,15 +995,15 @@ func (b *Builder) cacheObjdirFile(a *Action, c *cache.Cache, name string) error 
 	return err
 }
 
-func (b *Builder) findCachedObjdirFile(a *Action, c *cache.Cache, name string) (string, error) {
-	file, _, err := c.GetFile(cache.Subkey(a.actionID, name))
+func (b *Builder) findCachedObjdirFile(a *Action, c cache.Cache, name string) (string, error) {
+	file, _, err := cache.GetFile(c, cache.Subkey(a.actionID, name))
 	if err != nil {
 		return "", fmt.Errorf("loading cached file %s: %w", name, err)
 	}
 	return file, nil
 }
 
-func (b *Builder) loadCachedObjdirFile(a *Action, c *cache.Cache, name string) error {
+func (b *Builder) loadCachedObjdirFile(a *Action, c cache.Cache, name string) error {
 	cached, err := b.findCachedObjdirFile(a, c, name)
 	if err != nil {
 		return err
@@ -1047,12 +1039,12 @@ func (b *Builder) cacheSrcFiles(a *Action, srcfiles []string) {
 			return
 		}
 	}
-	c.PutBytes(cache.Subkey(a.actionID, "srcfiles"), buf.Bytes())
+	cache.PutBytes(c, cache.Subkey(a.actionID, "srcfiles"), buf.Bytes())
 }
 
 func (b *Builder) loadCachedVet(a *Action) error {
 	c := cache.Default()
-	list, _, err := c.GetBytes(cache.Subkey(a.actionID, "srcfiles"))
+	list, _, err := cache.GetBytes(c, cache.Subkey(a.actionID, "srcfiles"))
 	if err != nil {
 		return fmt.Errorf("reading srcfiles list: %w", err)
 	}
@@ -1076,7 +1068,7 @@ func (b *Builder) loadCachedVet(a *Action) error {
 
 func (b *Builder) loadCachedCompiledGoFiles(a *Action) error {
 	c := cache.Default()
-	list, _, err := c.GetBytes(cache.Subkey(a.actionID, "srcfiles"))
+	list, _, err := cache.GetBytes(c, cache.Subkey(a.actionID, "srcfiles"))
 	if err != nil {
 		return fmt.Errorf("reading srcfiles list: %w", err)
 	}
@@ -1279,7 +1271,7 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 
 	if vcfg.VetxOnly && !cfg.BuildA {
 		c := cache.Default()
-		if file, _, err := c.GetFile(key); err == nil {
+		if file, _, err := cache.GetFile(c, key); err == nil {
 			a.built = file
 			return nil
 		}
@@ -1474,7 +1466,11 @@ func (b *Builder) writeLinkImportcfg(a *Action, file string) error {
 			fmt.Fprintf(&icfg, "packageshlib %s=%s\n", p1.ImportPath, p1.Shlib)
 		}
 	}
-	fmt.Fprintf(&icfg, "modinfo %q\n", modload.ModInfoData(a.Package.Internal.BuildInfo))
+	info := ""
+	if a.Package.Internal.BuildInfo != nil {
+		info = a.Package.Internal.BuildInfo.String()
+	}
+	fmt.Fprintf(&icfg, "modinfo %q\n", modload.ModInfoData(info))
 	return b.writeFile(file, icfg.Bytes())
 }
 
@@ -2023,9 +2019,19 @@ func (b *Builder) cover(a *Action, dst, src string, varName string) error {
 // cover2 runs, in effect,
 //
 //	go tool cover -pkgcfg=<config file> -mode=b.coverMode -var="varName" -o <outfiles> <infiles>
-func (b *Builder) cover2(a *Action, pkgcfg, covoutputs string, infiles, outfiles []string, varName string, mode string) error {
+//
+// Return value is an updated output files list; in addition to the
+// regular outputs (instrumented source files) the cover tool also
+// writes a separate file (appearing first in the list of outputs)
+// that will contain coverage counters and meta-data.
+func (b *Builder) cover2(a *Action, infiles, outfiles []string, varName string, mode string) ([]string, error) {
+	pkgcfg := a.Objdir + "pkgcfg.txt"
+	covoutputs := a.Objdir + "coveroutfiles.txt"
+	odir := filepath.Dir(outfiles[0])
+	cv := filepath.Join(odir, "covervars.go")
+	outfiles = append([]string{cv}, outfiles...)
 	if err := b.writeCoverPkgInputs(a, pkgcfg, covoutputs, outfiles); err != nil {
-		return err
+		return nil, err
 	}
 	args := []string{base.Tool("cover"),
 		"-pkgcfg", pkgcfg,
@@ -2034,8 +2040,11 @@ func (b *Builder) cover2(a *Action, pkgcfg, covoutputs string, infiles, outfiles
 		"-outfilelist", covoutputs,
 	}
 	args = append(args, infiles...)
-	return b.run(a, a.Objdir, "cover "+a.Package.ImportPath, nil,
-		cfg.BuildToolexec, args)
+	if err := b.run(a, a.Objdir, "cover "+a.Package.ImportPath, nil,
+		cfg.BuildToolexec, args); err != nil {
+		return nil, err
+	}
+	return outfiles, nil
 }
 
 func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsfile string, outfiles []string) error {
@@ -2914,7 +2923,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	var flagID cache.ActionID
 	if cacheOK {
 		flagID = cache.Subkey(compilerID, "gccSupportsFlag "+flag)
-		if data, _, err := cache.Default().GetBytes(flagID); err == nil {
+		if data, _, err := cache.GetBytes(cache.Default(), flagID); err == nil {
 			supported := string(data) == "true"
 			b.flagCache[key] = supported
 			return supported
@@ -2946,7 +2955,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 		if supported {
 			s = "true"
 		}
-		cache.Default().PutBytes(flagID, []byte(s))
+		cache.PutBytes(cache.Default(), flagID, []byte(s))
 	}
 
 	b.flagCache[key] = supported
@@ -2998,7 +3007,7 @@ func (b *Builder) gccCompilerID(compiler string) (id cache.ActionID, ok bool) {
 	h := cache.NewHash("gccCompilerID")
 	fmt.Fprintf(h, "gccCompilerID %q", exe)
 	key := h.Sum()
-	data, _, err := cache.Default().GetBytes(key)
+	data, _, err := cache.GetBytes(cache.Default(), key)
 	if err == nil && len(data) > len(id) {
 		stats := strings.Split(string(data[:len(data)-len(id)]), "\x00")
 		if len(stats)%2 != 0 {
@@ -3046,7 +3055,7 @@ func (b *Builder) gccCompilerID(compiler string) (id cache.ActionID, ok bool) {
 	}
 	buf.Write(id[:])
 
-	cache.Default().PutBytes(key, buf.Bytes())
+	cache.PutBytes(cache.Default(), key, buf.Bytes())
 	if b.gccCompilerIDCache == nil {
 		b.gccCompilerIDCache = make(map[string]cache.ActionID)
 	}
@@ -3779,8 +3788,13 @@ func (b *Builder) swigOne(a *Action, p *load.Package, file, objdir string, pcCFL
 	// going to compile.
 	goFile = objdir + goFile
 	newGoFile := objdir + "_" + base + "_swig.go"
-	if err := os.Rename(goFile, newGoFile); err != nil {
-		return "", "", err
+	if cfg.BuildX || cfg.BuildN {
+		b.Showcmd("", "mv %s %s", goFile, newGoFile)
+	}
+	if !cfg.BuildN {
+		if err := os.Rename(goFile, newGoFile); err != nil {
+			return "", "", err
+		}
 	}
 	return newGoFile, objdir + gccBase + gccExt, nil
 }

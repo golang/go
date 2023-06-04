@@ -1,3 +1,0 @@
-pkg sync, func OnceFunc(func()) func() #56102
-pkg sync, func OnceValue[$0 interface{}](func() $0) func() $0 #56102
-pkg sync, func OnceValues[$0 interface{}, $1 interface{}](func() ($0, $1)) func() ($0, $1) #56102

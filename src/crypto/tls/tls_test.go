@@ -474,6 +474,9 @@ func TestTLSUniqueMatches(t *testing.T) {
 	if !bytes.Equal(conn.ConnectionState().TLSUnique, serverTLSUniquesValue) {
 		t.Error("client and server channel bindings differ")
 	}
+	if serverTLSUniquesValue == nil || bytes.Equal(serverTLSUniquesValue, make([]byte, 12)) {
+		t.Error("tls-unique is empty or zero")
+	}
 	conn.Close()
 
 	conn, err = Dial("tcp", ln.Addr().String(), clientConfig)
@@ -493,6 +496,9 @@ func TestTLSUniqueMatches(t *testing.T) {
 
 	if !bytes.Equal(conn.ConnectionState().TLSUnique, serverTLSUniquesValue) {
 		t.Error("client and server channel bindings differ when session resumption is used")
+	}
+	if serverTLSUniquesValue == nil || bytes.Equal(serverTLSUniquesValue, make([]byte, 12)) {
+		t.Error("resumption tls-unique is empty or zero")
 	}
 }
 
@@ -758,7 +764,7 @@ func TestWarningAlertFlood(t *testing.T) {
 }
 
 func TestCloneFuncFields(t *testing.T) {
-	const expectedCount = 6
+	const expectedCount = 8
 	called := 0
 
 	c1 := Config{
@@ -786,6 +792,14 @@ func TestCloneFuncFields(t *testing.T) {
 			called |= 1 << 5
 			return nil
 		},
+		UnwrapSession: func(identity []byte, cs ConnectionState) (*SessionState, error) {
+			called |= 1 << 6
+			return nil, nil
+		},
+		WrapSession: func(cs ConnectionState, ss *SessionState) ([]byte, error) {
+			called |= 1 << 7
+			return nil, nil
+		},
 	}
 
 	c2 := c1.Clone()
@@ -796,6 +810,8 @@ func TestCloneFuncFields(t *testing.T) {
 	c2.GetConfigForClient(nil)
 	c2.VerifyPeerCertificate(nil, nil)
 	c2.VerifyConnection(ConnectionState{})
+	c2.UnwrapSession(nil, ConnectionState{})
+	c2.WrapSession(ConnectionState{}, nil)
 
 	if called != (1<<expectedCount)-1 {
 		t.Fatalf("expected %d calls but saw calls %b", expectedCount, called)
@@ -814,7 +830,7 @@ func TestCloneNonFuncFields(t *testing.T) {
 		switch fn := typ.Field(i).Name; fn {
 		case "Rand":
 			f.Set(reflect.ValueOf(io.Reader(os.Stdin)))
-		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate":
+		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate", "WrapSession", "UnwrapSession":
 			// DeepEqual can't compare functions. If you add a
 			// function field to this list, you must also change
 			// TestCloneFuncFields to ensure that the func field is
@@ -1574,6 +1590,15 @@ func TestCipherSuites(t *testing.T) {
 	}
 }
 
+func TestVersionName(t *testing.T) {
+	if got, exp := VersionName(VersionTLS13), "TLS 1.3"; got != exp {
+		t.Errorf("unexpected VersionName: got %q, expected %q", got, exp)
+	}
+	if got, exp := VersionName(0x12a), "0x012A"; got != exp {
+		t.Errorf("unexpected fallback VersionName: got %q, expected %q", got, exp)
+	}
+}
+
 // http2isBadCipher is copied from net/http.
 // TODO: if it ends up exposed somewhere, use that instead.
 func http2isBadCipher(cipher uint16) bool {
@@ -1631,5 +1656,149 @@ func TestPKCS1OnlyCert(t *testing.T) {
 	// be selected, and the handshake should succeed.
 	if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestVerifyCertificates(t *testing.T) {
+	// See https://go.dev/issue/31641.
+	t.Run("TLSv12", func(t *testing.T) { testVerifyCertificates(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testVerifyCertificates(t, VersionTLS13) })
+}
+
+func testVerifyCertificates(t *testing.T, version uint16) {
+	tests := []struct {
+		name string
+
+		InsecureSkipVerify bool
+		ClientAuth         ClientAuthType
+		ClientCertificates bool
+	}{
+		{
+			name: "defaults",
+		},
+		{
+			name:               "InsecureSkipVerify",
+			InsecureSkipVerify: true,
+		},
+		{
+			name:       "RequestClientCert with no certs",
+			ClientAuth: RequestClientCert,
+		},
+		{
+			name:               "RequestClientCert with certs",
+			ClientAuth:         RequestClientCert,
+			ClientCertificates: true,
+		},
+		{
+			name:               "RequireAnyClientCert",
+			ClientAuth:         RequireAnyClientCert,
+			ClientCertificates: true,
+		},
+		{
+			name:       "VerifyClientCertIfGiven with no certs",
+			ClientAuth: VerifyClientCertIfGiven,
+		},
+		{
+			name:               "VerifyClientCertIfGiven with certs",
+			ClientAuth:         VerifyClientCertIfGiven,
+			ClientCertificates: true,
+		},
+		{
+			name:               "RequireAndVerifyClientCert",
+			ClientAuth:         RequireAndVerifyClientCert,
+			ClientCertificates: true,
+		},
+	}
+
+	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rootCAs := x509.NewCertPool()
+	rootCAs.AddCert(issuer)
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			var serverVerifyConnection, clientVerifyConnection bool
+			var serverVerifyPeerCertificates, clientVerifyPeerCertificates bool
+
+			clientConfig := testConfig.Clone()
+			clientConfig.Time = func() time.Time { return time.Unix(1476984729, 0) }
+			clientConfig.MaxVersion = version
+			clientConfig.MinVersion = version
+			clientConfig.RootCAs = rootCAs
+			clientConfig.ServerName = "example.golang"
+			clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
+			serverConfig := clientConfig.Clone()
+			serverConfig.ClientCAs = rootCAs
+
+			clientConfig.VerifyConnection = func(cs ConnectionState) error {
+				clientVerifyConnection = true
+				return nil
+			}
+			clientConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+				clientVerifyPeerCertificates = true
+				return nil
+			}
+			serverConfig.VerifyConnection = func(cs ConnectionState) error {
+				serverVerifyConnection = true
+				return nil
+			}
+			serverConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+				serverVerifyPeerCertificates = true
+				return nil
+			}
+
+			clientConfig.InsecureSkipVerify = test.InsecureSkipVerify
+			serverConfig.ClientAuth = test.ClientAuth
+			if !test.ClientCertificates {
+				clientConfig.Certificates = nil
+			}
+
+			if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+				t.Fatal(err)
+			}
+
+			want := serverConfig.ClientAuth != NoClientCert
+			if serverVerifyPeerCertificates != want {
+				t.Errorf("VerifyPeerCertificates on the server: got %v, want %v",
+					serverVerifyPeerCertificates, want)
+			}
+			if !clientVerifyPeerCertificates {
+				t.Errorf("VerifyPeerCertificates not called on the client")
+			}
+			if !serverVerifyConnection {
+				t.Error("VerifyConnection did not get called on the server")
+			}
+			if !clientVerifyConnection {
+				t.Error("VerifyConnection did not get called on the client")
+			}
+
+			serverVerifyPeerCertificates, clientVerifyPeerCertificates = false, false
+			serverVerifyConnection, clientVerifyConnection = false, false
+			cs, _, err := testHandshake(t, clientConfig, serverConfig)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !cs.DidResume {
+				t.Error("expected resumption")
+			}
+
+			if serverVerifyPeerCertificates {
+				t.Error("VerifyPeerCertificates got called on the server on resumption")
+			}
+			if clientVerifyPeerCertificates {
+				t.Error("VerifyPeerCertificates got called on the client on resumption")
+			}
+			if !serverVerifyConnection {
+				t.Error("VerifyConnection did not get called on the server on resumption")
+			}
+			if !clientVerifyConnection {
+				t.Error("VerifyConnection did not get called on the client on resumption")
+			}
+		})
 	}
 }

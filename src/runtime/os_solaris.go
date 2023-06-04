@@ -149,7 +149,7 @@ func sysvicall3(fn *libcFunc, a1, a2, a3 uintptr) uintptr {
 //go:cgo_unsafe_args
 
 // sysvicall3Err returns both the system call result and the errno value.
-// This is used by sysicall3 and write1.
+// This is used by sysvicall3 and write1.
 func sysvicall3Err(fn *libcFunc, a1, a2, a3 uintptr) (r1, err uintptr) {
 	// Leave caller's PC/SP around for traceback.
 	gp := getg()

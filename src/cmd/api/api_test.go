@@ -210,6 +210,9 @@ func BenchmarkAll(b *testing.B) {
 }
 
 func TestIssue21181(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping with -short")
+	}
 	if *flagCheck {
 		// slow, not worth repeating in -check
 		t.Skip("skipping with -check set")

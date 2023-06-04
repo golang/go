@@ -7,6 +7,7 @@
 package main
 
 import (
+	"cmd/go/internal/toolchain"
 	"cmd/go/internal/workcmd"
 	"context"
 	"flag"
@@ -91,7 +92,7 @@ var _ = go11tag
 
 func main() {
 	log.SetFlags(0)
-	switchGoToolchain()
+	toolchain.Switch()
 
 	flag.Usage = base.Usage
 	flag.Parse()
@@ -199,7 +200,7 @@ func invoke(cmd *base.Command, args []string) {
 	if cmd != envcmd.CmdEnv {
 		buildcfg.Check()
 		if cfg.ExperimentErr != nil {
-			base.Fatalf("go: %v", cfg.ExperimentErr)
+			base.Fatal(cfg.ExperimentErr)
 		}
 	}
 
@@ -208,7 +209,7 @@ func invoke(cmd *base.Command, args []string) {
 	// the same default computation of these as we do,
 	// but in practice there might be skew
 	// This makes sure we all agree.
-	cfg.OrigEnv = os.Environ()
+	cfg.OrigEnv = toolchain.FilterEnv(os.Environ())
 	cfg.CmdEnv = envcmd.MkEnv()
 	for _, env := range cfg.CmdEnv {
 		if os.Getenv(env.Name) != env.Value {

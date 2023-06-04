@@ -18,7 +18,7 @@ import (
 
 type VarAndLoop struct {
 	Name    *ir.Name
-	Loop    ir.Node  // the *ir.ForStmt or *ir.ForStmt. Used for identity and position
+	Loop    ir.Node  // the *ir.RangeStmt or *ir.ForStmt. Used for identity and position
 	LastPos src.XPos // the last position observed within Loop
 }
 
@@ -47,6 +47,16 @@ type VarAndLoop struct {
 func ForCapture(fn *ir.Func) []VarAndLoop {
 	// if a loop variable is transformed it is appended to this slice for later logging
 	var transformed []VarAndLoop
+
+	describe := func(n *ir.Name) string {
+		pos := n.Pos()
+		inner := base.Ctxt.InnermostPos(pos)
+		outer := base.Ctxt.OutermostPos(pos)
+		if inner == outer {
+			return fmt.Sprintf("loop variable %v now per-iteration", n)
+		}
+		return fmt.Sprintf("loop variable %v now per-iteration (loop inlined into %s:%d)", n, outer.Filename(), outer.Line())
+	}
 
 	forCapture := func() {
 		seq := 1
@@ -91,7 +101,10 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 		// subject to hash-variable debugging.
 		maybeReplaceVar := func(k ir.Node, x *ir.RangeStmt) ir.Node {
 			if n, ok := k.(*ir.Name); ok && possiblyLeaked[n] {
-				if base.LoopVarHash.MatchPos(n.Pos()) {
+				desc := func() string {
+					return describe(n)
+				}
+				if base.LoopVarHash.MatchPos(n.Pos(), desc) {
 					// Rename the loop key, prefix body with assignment from loop key
 					transformed = append(transformed, VarAndLoop{n, x, lastPos})
 					tk := typecheck.Temp(n.Type())
@@ -198,8 +211,11 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 				// Collect the leaking variables for the much-more-complex transformation.
 				forAllDefInInit(x, func(z ir.Node) {
 					if n, ok := z.(*ir.Name); ok && possiblyLeaked[n] {
+						desc := func() string {
+							return describe(n)
+						}
 						// Hash on n.Pos() for most precise failure location.
-						if base.LoopVarHash.MatchPos(n.Pos()) {
+						if base.LoopVarHash.MatchPos(n.Pos(), desc) {
 							leaked = append(leaked, n)
 						}
 					}
@@ -443,7 +459,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 	return transformed
 }
 
-// forAllDefInInitUpdate applies "do" to all the defining assignemnts in the Init clause of a ForStmt.
+// forAllDefInInitUpdate applies "do" to all the defining assignments in the Init clause of a ForStmt.
 // This abstracts away some of the boilerplate from the already complex and verbose for-3-clause case.
 func forAllDefInInitUpdate(x *ir.ForStmt, do func(z ir.Node, update *ir.Node)) {
 	for _, s := range x.Init() {
@@ -581,20 +597,25 @@ func LogTransformations(transformed []VarAndLoop) {
 		for _, l := range loops {
 			pos := l.loop.Pos()
 			last := l.last
+			loopKind := "range"
+			if _, ok := l.loop.(*ir.ForStmt); ok {
+				loopKind = "for"
+			}
 			if logopt.Enabled() {
-				// Intended to
-				logopt.LogOptRange(pos, last, "loop-modified", "loopvar", ir.FuncName(l.curfn))
+				// Intended to help with performance debugging, we record whole loop ranges
+				logopt.LogOptRange(pos, last, "loop-modified-"+loopKind, "loopvar", ir.FuncName(l.curfn))
 			}
 			if print && 3 <= base.Debug.LoopVar {
 				// TODO decide if we want to keep this, or not.  It was helpful for validating logopt, otherwise, eh.
 				inner := base.Ctxt.InnermostPos(pos)
 				outer := base.Ctxt.OutermostPos(pos)
+
 				if inner == outer {
-					base.WarnfAt(pos, "loop ending at %d:%d was modified", last.Line(), last.Col())
+					base.WarnfAt(pos, "%s loop ending at %d:%d was modified", loopKind, last.Line(), last.Col())
 				} else {
 					pos = trueInlinedPos(inner)
 					last = trueInlinedPos(base.Ctxt.InnermostPos(last))
-					base.WarnfAt(pos, "loop ending at %d:%d was modified (loop inlined into %s:%d)", last.Line(), last.Col(), outer.Filename(), outer.Line())
+					base.WarnfAt(pos, "%s loop ending at %d:%d was modified (loop inlined into %s:%d)", loopKind, last.Line(), last.Col(), outer.Filename(), outer.Line())
 				}
 			}
 		}

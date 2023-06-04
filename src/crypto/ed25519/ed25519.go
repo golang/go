@@ -18,6 +18,7 @@ import (
 	"crypto/internal/edwards25519"
 	cryptorand "crypto/rand"
 	"crypto/sha512"
+	"crypto/subtle"
 	"errors"
 	"io"
 	"strconv"
@@ -46,7 +47,7 @@ func (pub PublicKey) Equal(x crypto.PublicKey) bool {
 	if !ok {
 		return false
 	}
-	return bytes.Equal(pub, xx)
+	return subtle.ConstantTimeCompare(pub, xx) == 1
 }
 
 // PrivateKey is the type of Ed25519 private keys. It implements [crypto.Signer].
@@ -65,7 +66,7 @@ func (priv PrivateKey) Equal(x crypto.PrivateKey) bool {
 	if !ok {
 		return false
 	}
-	return bytes.Equal(priv, xx)
+	return subtle.ConstantTimeCompare(priv, xx) == 1
 }
 
 // Seed returns the private key seed corresponding to priv. It is provided for

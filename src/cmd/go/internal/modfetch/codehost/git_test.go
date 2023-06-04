@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/vcweb/vcstest"
+	"context"
 	"flag"
 	"internal/testenv"
 	"io"
@@ -62,11 +63,11 @@ func localGitURL(t testing.TB) string {
 		// If we use a file:// URL to access the local directory,
 		// then git starts up all the usual protocol machinery,
 		// which will let us test remote git archive invocations.
-		_, localGitURLErr = Run("", "git", "clone", "--mirror", gitrepo1, localGitRepo)
+		_, localGitURLErr = Run(context.Background(), "", "git", "clone", "--mirror", gitrepo1, localGitRepo)
 		if localGitURLErr != nil {
 			return
 		}
-		_, localGitURLErr = Run(localGitRepo, "git", "config", "daemon.uploadarch", "true")
+		_, localGitURLErr = Run(context.Background(), localGitRepo, "git", "config", "daemon.uploadarch", "true")
 	})
 
 	if localGitURLErr != nil {
@@ -88,7 +89,7 @@ var (
 )
 
 func testMain(m *testing.M) (err error) {
-	cfg.BuildX = true
+	cfg.BuildX = testing.Verbose()
 
 	srv, err := vcstest.NewServer()
 	if err != nil {
@@ -125,9 +126,52 @@ func testMain(m *testing.M) (err error) {
 	return nil
 }
 
-func testRepo(t *testing.T, remote string) (Repo, error) {
+func testContext(t testing.TB) context.Context {
+	w := newTestWriter(t)
+	return cfg.WithBuildXWriter(context.Background(), w)
+}
+
+// A testWriter is an io.Writer that writes to a test's log.
+//
+// The writer batches written data until the last byte of a write is a newline
+// character, then flushes the batched data as a single call to Logf.
+// Any remaining unflushed data is logged during Cleanup.
+type testWriter struct {
+	t testing.TB
+
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func newTestWriter(t testing.TB) *testWriter {
+	w := &testWriter{t: t}
+
+	t.Cleanup(func() {
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		if b := w.buf.Bytes(); len(b) > 0 {
+			w.t.Logf("%s", b)
+			w.buf.Reset()
+		}
+	})
+
+	return w
+}
+
+func (w *testWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	n, err := w.buf.Write(p)
+	if b := w.buf.Bytes(); len(b) > 0 && b[len(b)-1] == '\n' {
+		w.t.Logf("%s", b)
+		w.buf.Reset()
+	}
+	return n, err
+}
+
+func testRepo(ctx context.Context, t *testing.T, remote string) (Repo, error) {
 	if remote == "localGitRepo" {
-		return LocalGitRepo(localGitURL(t))
+		return LocalGitRepo(ctx, localGitURL(t))
 	}
 	vcsName := "git"
 	for _, k := range []string{"hg"} {
@@ -142,7 +186,7 @@ func testRepo(t *testing.T, remote string) (Repo, error) {
 	if runtime.GOOS == "android" && strings.HasSuffix(testenv.Builder(), "-corellium") {
 		testenv.SkipFlaky(t, 59940)
 	}
-	return NewRepo(vcsName, remote)
+	return NewRepo(ctx, vcsName, remote)
 }
 
 func TestTags(t *testing.T) {
@@ -157,12 +201,13 @@ func TestTags(t *testing.T) {
 	runTest := func(tt tagsTest) func(*testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
+			ctx := testContext(t)
 
-			r, err := testRepo(t, tt.repo)
+			r, err := testRepo(ctx, t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
 			}
-			tags, err := r.Tags(tt.prefix)
+			tags, err := r.Tags(ctx, tt.prefix)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -224,12 +269,13 @@ func TestLatest(t *testing.T) {
 	runTest := func(tt latestTest) func(*testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
+			ctx := testContext(t)
 
-			r, err := testRepo(t, tt.repo)
+			r, err := testRepo(ctx, t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
 			}
-			info, err := r.Latest()
+			info, err := r.Latest(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -300,12 +346,13 @@ func TestReadFile(t *testing.T) {
 	runTest := func(tt readFileTest) func(*testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
+			ctx := testContext(t)
 
-			r, err := testRepo(t, tt.repo)
+			r, err := testRepo(ctx, t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
 			}
-			data, err := r.ReadFile(tt.rev, tt.file, 100)
+			data, err := r.ReadFile(ctx, tt.rev, tt.file, 100)
 			if err != nil {
 				if tt.err == "" {
 					t.Fatalf("ReadFile: unexpected error %v", err)
@@ -374,12 +421,13 @@ func TestReadZip(t *testing.T) {
 	runTest := func(tt readZipTest) func(*testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
+			ctx := testContext(t)
 
-			r, err := testRepo(t, tt.repo)
+			r, err := testRepo(ctx, t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
 			}
-			rc, err := r.ReadZip(tt.rev, tt.subdir, 100000)
+			rc, err := r.ReadZip(ctx, tt.rev, tt.subdir, 100000)
 			if err != nil {
 				if tt.err == "" {
 					t.Fatalf("ReadZip: unexpected error %v", err)
@@ -592,12 +640,13 @@ func TestStat(t *testing.T) {
 	runTest := func(tt statTest) func(*testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
+			ctx := testContext(t)
 
-			r, err := testRepo(t, tt.repo)
+			r, err := testRepo(ctx, t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
 			}
-			info, err := r.Stat(tt.rev)
+			info, err := r.Stat(ctx, tt.rev)
 			if err != nil {
 				if tt.err == "" {
 					t.Fatalf("Stat: unexpected error %v", err)

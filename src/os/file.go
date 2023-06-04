@@ -616,7 +616,8 @@ func (f *File) SyscallConn() (syscall.RawConn, error) {
 //
 // The directory dir must not be "".
 //
-// The result implements fs.StatFS.
+// The result implements [io/fs.StatFS], [io/fs.ReadFileFS] and
+// [io/fs.ReadDirFS].
 func DirFS(dir string) fs.FS {
 	return dirFS(dir)
 }
@@ -650,6 +651,28 @@ func (dir dirFS) Open(name string) (fs.File, error) {
 		return nil, err
 	}
 	return f, nil
+}
+
+// The ReadFile method calls the [ReadFile] function for the file
+// with the given name in the directory. The function provides
+// robust handling for small files and special file systems.
+// Through this method, dirFS implements [io/fs.ReadFileFS].
+func (dir dirFS) ReadFile(name string) ([]byte, error) {
+	fullname, err := dir.join(name)
+	if err != nil {
+		return nil, &PathError{Op: "readfile", Path: name, Err: err}
+	}
+	return ReadFile(fullname)
+}
+
+// ReadDir reads the named directory, returning all its directory entries sorted
+// by filename. Through this method, dirFS implements [io/fs.ReadDirFS].
+func (dir dirFS) ReadDir(name string) ([]DirEntry, error) {
+	fullname, err := dir.join(name)
+	if err != nil {
+		return nil, &PathError{Op: "readdir", Path: name, Err: err}
+	}
+	return ReadDir(fullname)
 }
 
 func (dir dirFS) Stat(name string) (fs.FileInfo, error) {

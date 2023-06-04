@@ -44,7 +44,7 @@ func InjectDebugCall(gp *g, fn any, regArgs *abi.RegArgs, stackArgs any, tkill f
 	argp := a.data
 	var argSize uintptr
 	if argp != nil {
-		argSize = (*ptrtype)(unsafe.Pointer(a._type)).elem.Size_
+		argSize = (*ptrtype)(unsafe.Pointer(a._type)).Elem.Size_
 	}
 
 	h := new(debugCallHandler)

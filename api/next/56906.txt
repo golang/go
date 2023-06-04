@@ -1,2 +1,0 @@
-pkg reflect, type SliceHeader //deprecated #56906
-pkg reflect, type StringHeader //deprecated #56906

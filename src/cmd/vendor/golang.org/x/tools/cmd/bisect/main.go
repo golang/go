@@ -16,7 +16,7 @@
 // code zero). With all the changes enabled, the target is known to fail
 // (exit any other way). Bisect repeats the target with different sets of
 // changes enabled, using binary search to find (non-overlapping) minimal
-// change sets that preserve the failure.
+// change sets that provoke the failure.
 //
 // The target must cooperate with bisect by accepting a change pattern
 // and then enabling and reporting the changes that match that pattern.
@@ -29,25 +29,36 @@
 // targets implement this protocol. We plan to publish that package
 // in a non-internal location after finalizing its API.
 //
+// Bisect starts by running the target with no changes enabled and then
+// with all changes enabled. It expects the former to succeed and the latter to fail,
+// and then it will search for the minimal set of changes that must be enabled
+// to provoke the failure. If the situation is reversed – the target fails with no
+// changes enabled and succeeds with all changes enabled – then bisect
+// automatically runs in reverse as well, searching for the minimal set of changes
+// that must be disabled to provoke the failure.
+//
+// Bisect prints tracing logs to standard error and the minimal change sets
+// to standard output.
+//
 // # Command Line Flags
 //
 // Bisect supports the following command-line flags:
 //
-//	-max M
+//	-max=M
 //
 // Stop after finding M minimal change sets. The default is no maximum, meaning to run until
 // all changes that provoke a failure have been identified.
 //
-//	-maxset S
+//	-maxset=S
 //
 // Disallow change sets larger than S elements. The default is no maximum.
 //
-//	-timeout D
+//	-timeout=D
 //
 // If the target runs for longer than duration D, stop the target and interpret that as a failure.
 // The default is no timeout.
 //
-//	-count N
+//	-count=N
 //
 // Run each trial N times (default 2), checking for consistency.
 //
@@ -55,18 +66,46 @@
 //
 // Print verbose output, showing each run and its match lines.
 //
+// In addition to these general flags,
+// bisect supports a few “shortcut” flags that make it more convenient
+// to use with specific targets.
+//
+//	-compile=<rewrite>
+//
+// This flag is equivalent to adding an environment variable
+// “GOCOMPILEDEBUG=<rewrite>hash=PATTERN”,
+// which, as discussed in more detail in the example below,
+// allows bisect to identify the specific source locations where the
+// compiler rewrite causes the target to fail.
+//
+//	-godebug=<name>=<value>
+//
+// This flag is equivalent to adding an environment variable
+// “GODEBUG=<name>=<value>#PATTERN”,
+// which allows bisect to identify the specific call stacks where
+// the changed [GODEBUG setting] value causes the target to fail.
+//
 // # Example
 //
-// For example, the Go compiler can be used as a bisect target to
-// determine the source locations that cause a test failure when compiled with
-// a new optimization:
+// The Go compiler provides support for enabling or disabling certain rewrites
+// and optimizations to allow bisect to identify specific source locations where
+// the rewrite causes the program to fail. For example, to bisect a failure caused
+// by the new loop variable semantics:
 //
 //	bisect go test -gcflags=all=-d=loopvarhash=PATTERN
 //
 // The -gcflags=all= instructs the go command to pass the -d=... to the Go compiler
-// when compiling all packages. Bisect replaces the literal text “PATTERN” with a specific pattern
-// on each invocation, varying the patterns to determine the minimal set of changes
+// when compiling all packages. Bisect varies PATTERN to determine the minimal set of changes
 // needed to reproduce the failure.
+//
+// The go command also checks the GOCOMPILEDEBUG environment variable for flags
+// to pass to the compiler, so the above command is equivalent to:
+//
+//	bisect GOCOMPILEDEBUG=loopvarhash=PATTERN go test
+//
+// Finally, as mentioned earlier, the -compile flag allows shortening this command further:
+//
+//	bisect -compile=loopvar go test
 //
 // # Defeating Build Caches
 //
@@ -87,6 +126,8 @@
 // previous example using Bazel, the invocation is:
 //
 //	bazel test --define=gc_goopts=-d=loopvarhash=PATTERN,unused=RANDOM //path/to:test
+//
+// [GODEBUG setting]: https://tip.golang.org/doc/godebug
 package main
 
 import (
@@ -95,9 +136,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/bits"
 	"math/rand"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -127,6 +170,25 @@ func main() {
 	flag.IntVar(&b.Count, "count", 2, "run target `n` times for each trial")
 	flag.BoolVar(&b.Verbose, "v", false, "enable verbose output")
 
+	env := ""
+	envFlag := ""
+	flag.Func("compile", "bisect source locations affected by Go compiler `rewrite` (fma, loopvar, ...)", func(value string) error {
+		if envFlag != "" {
+			return fmt.Errorf("cannot use -%s and -compile", envFlag)
+		}
+		envFlag = "compile"
+		env = "GOCOMPILEDEBUG=" + value + "hash=PATTERN"
+		return nil
+	})
+	flag.Func("godebug", "bisect call stacks affected by GODEBUG setting `name=value`", func(value string) error {
+		if envFlag != "" {
+			return fmt.Errorf("cannot use -%s and -godebug", envFlag)
+		}
+		envFlag = "godebug"
+		env = "GODEBUG=" + value + "#PATTERN"
+		return nil
+	})
+
 	flag.Usage = usage
 	flag.Parse()
 	args := flag.Args()
@@ -140,6 +202,26 @@ func main() {
 		usage()
 	}
 	b.Env, b.Cmd, b.Args = args[:i], args[i], args[i+1:]
+	if env != "" {
+		b.Env = append([]string{env}, b.Env...)
+	}
+
+	// Check that PATTERN is available for us to vary.
+	found := false
+	for _, e := range b.Env {
+		if _, v, _ := strings.Cut(e, "="); strings.Contains(v, "PATTERN") {
+			found = true
+		}
+	}
+	for _, a := range b.Args {
+		if strings.Contains(a, "PATTERN") {
+			found = true
+		}
+	}
+	if !found {
+		log.Fatalf("no PATTERN in target environment or args")
+	}
+
 	if !b.Search() {
 		os.Exit(1)
 	}
@@ -179,6 +261,18 @@ type Bisect struct {
 	// cause a failure when disabled. In this case, the search proceeds as normal except that
 	// each pattern starts with a !.
 	Disable bool
+
+	// SkipDigits is the number of hex digits to use in skip messages.
+	// If the set of available changes is the same in each run, as it should be,
+	// then this doesn't matter: we'll only exclude suffixes that uniquely identify
+	// a given change. But for some programs, especially bisecting runtime
+	// behaviors, sometimes enabling one change unlocks questions about other
+	// changes. Strictly speaking this is a misuse of bisect, but just to make
+	// bisect more robust, we use the y and n runs to create an estimate of the
+	// number of bits needed for a unique suffix, and then we round it up to
+	// a number of hex digits, with one extra digit for good measure, and then
+	// we always use that many hex digits for skips.
+	SkipHexDigits int
 
 	// Add is a list of suffixes to add to every trial, because they
 	// contain changes that are necessary for a group we are assembling.
@@ -256,6 +350,10 @@ func (b *Bisect) Search() bool {
 	case !runN.Success && !runY.Success:
 		b.Fatalf("target fails with no changes and all changes")
 	}
+
+	// Compute minimum number of bits needed to distinguish
+	// all the changes we saw during N and all the changes we saw during Y.
+	b.SkipHexDigits = skipHexDigits(runN.MatchIDs, runY.MatchIDs)
 
 	// Loop finding and printing change sets, until none remain.
 	found := 0
@@ -337,6 +435,35 @@ func (b *Bisect) Logf(format string, args ...any) {
 	b.Stderr.Write([]byte(s))
 }
 
+func skipHexDigits(idY, idN []uint64) int {
+	var all []uint64
+	seen := make(map[uint64]bool)
+	for _, x := range idY {
+		seen[x] = true
+		all = append(all, x)
+	}
+	for _, x := range idN {
+		if !seen[x] {
+			seen[x] = true
+			all = append(all, x)
+		}
+	}
+	sort.Slice(all, func(i, j int) bool { return bits.Reverse64(all[i]) < bits.Reverse64(all[j]) })
+	digits := sort.Search(64/4, func(digits int) bool {
+		mask := uint64(1)<<(4*digits) - 1
+		for i := 0; i+1 < len(all); i++ {
+			if all[i]&mask == all[i+1]&mask {
+				return false
+			}
+		}
+		return true
+	})
+	if digits < 64/4 {
+		digits++
+	}
+	return digits
+}
+
 // search searches for a single locally minimal change set.
 //
 // Invariant: r describes the result of r.Suffix + b.Add, which failed.
@@ -356,10 +483,7 @@ func (b *Bisect) search(r *Result) []string {
 
 	// If there's one matching change, that's the one we're looking for.
 	if len(r.MatchIDs) == 1 {
-		if r.Suffix == "" {
-			return []string{"y"}
-		}
-		return []string{r.Suffix}
+		return []string{fmt.Sprintf("x%0*x", b.SkipHexDigits, r.MatchIDs[0]&(1<<(4*b.SkipHexDigits)-1))}
 	}
 
 	// If the suffix we were tracking in the trial is already 64 bits,

@@ -52,6 +52,16 @@ func TestPlatformVerifier(t *testing.T) {
 			host: "google.com",
 		},
 		{
+			name:       "valid chain (dns check)",
+			host:       "google.com",
+			verifyName: "google.com",
+		},
+		{
+			name:       "valid chain (fqdn dns check)",
+			host:       "google.com.",
+			verifyName: "google.com.",
+		},
+		{
 			name:        "expired leaf",
 			host:        "expired.badssl.com",
 			expectedErr: "x509: certificate has expired or is not yet valid: ",

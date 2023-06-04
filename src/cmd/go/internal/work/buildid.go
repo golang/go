@@ -515,7 +515,7 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 	}
 
 	// Check to see if the action output is cached.
-	if file, _, err := c.GetFile(actionHash); err == nil {
+	if file, _, err := cache.GetFile(c, actionHash); err == nil {
 		if buildID, err := buildid.ReadFile(file); err == nil {
 			if printOutput {
 				showStdout(b, c, a.actionID, "stdout")
@@ -560,8 +560,8 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 	return false
 }
 
-func showStdout(b *Builder, c *cache.Cache, actionID cache.ActionID, key string) error {
-	stdout, stdoutEntry, err := c.GetBytes(cache.Subkey(actionID, key))
+func showStdout(b *Builder, c cache.Cache, actionID cache.ActionID, key string) error {
+	stdout, stdoutEntry, err := cache.GetBytes(c, cache.Subkey(actionID, key))
 	if err != nil {
 		return err
 	}
@@ -610,7 +610,7 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 	// Cache output from compile/link, even if we don't do the rest.
 	switch a.Mode {
 	case "build":
-		c.PutBytes(cache.Subkey(a.actionID, "stdout"), a.output)
+		cache.PutBytes(c, cache.Subkey(a.actionID, "stdout"), a.output)
 	case "link":
 		// Even though we don't cache the binary, cache the linker text output.
 		// We might notice that an installed binary is up-to-date but still
@@ -619,7 +619,7 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 		// to make it easier to find when that's all we have.
 		for _, a1 := range a.Deps {
 			if p1 := a1.Package; p1 != nil && p1.Name == "main" {
-				c.PutBytes(cache.Subkey(a1.actionID, "link-stdout"), a.output)
+				cache.PutBytes(c, cache.Subkey(a1.actionID, "link-stdout"), a.output)
 				break
 			}
 		}

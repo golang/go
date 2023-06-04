@@ -26,6 +26,9 @@ type Info struct {
 // (Otherwise the test in this package will fail.)
 var All = []Info{
 	{Name: "execerrdot", Package: "os/exec"},
+	{Name: "gocachehash", Package: "cmd/go"},
+	{Name: "gocachetest", Package: "cmd/go"},
+	{Name: "gocacheverify", Package: "cmd/go"},
 	{Name: "http2client", Package: "net/http"},
 	{Name: "http2debug", Package: "net/http", Opaque: true},
 	{Name: "http2server", Package: "net/http"},

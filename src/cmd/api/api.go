@@ -300,6 +300,13 @@ func fileFeatures(filename string, needApproval bool) []string {
 		log.Printf("%s: contains CRLFs", filename)
 		exitCode = 1
 	}
+	if filepath.Base(filename) == "go1.4.txt" {
+		// No use for blank lines in api files, except go1.4.txt
+		// used them in a reasonable way and we should let it be.
+	} else if strings.HasPrefix(s, "\n") || strings.Contains(s, "\n\n") {
+		log.Printf("%s: contains a blank line", filename)
+		exitCode = 1
+	}
 	if s == "" {
 		log.Printf("%s: empty file", filename)
 		exitCode = 1

@@ -1,2 +1,0 @@
-pkg regexp, method (*Regexp) MarshalText() ([]uint8, error) #46159
-pkg regexp, method (*Regexp) UnmarshalText([]uint8) error #46159

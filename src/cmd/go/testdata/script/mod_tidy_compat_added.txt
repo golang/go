@@ -17,7 +17,7 @@ cp go.mod go.mod.orig
 
 ! go mod tidy
 
-stderr '^example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added$'
+stderr '^go: example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added$'
 
 cmp go.mod go.mod.orig
 
@@ -31,7 +31,7 @@ cmp go.mod go.mod.orig
 
 go mod tidy -e
 
-stderr '^example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added\nexample\.net/added failed to load from any module,\n\tbut go 1\.16 would load it from example\.net/added@v0\.2\.0$'
+stderr '^go: example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added\ngo: example\.net/added failed to load from any module,\n\tbut go 1\.16 would load it from example\.net/added@v0\.2\.0$'
 
 ! stderr '\n\tgo mod tidy'
 

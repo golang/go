@@ -100,6 +100,10 @@ var ignorePrefixes = []string{
 var ignoreSuffixes = []string{
 	"_test.s",
 	"_test.go",
+	// Skip PGO profile. No need to build toolchain1 compiler
+	// with PGO. And as it is not a text file the import path
+	// rewrite will break it.
+	".pgo",
 }
 
 var tryDirs = []string{

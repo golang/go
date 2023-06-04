@@ -11,6 +11,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
+	"strings"
 )
 
 // A Func corresponds to a single function in a Go program
@@ -359,8 +360,8 @@ func IsTrivialClosure(clo *ClosureExpr) bool {
 // globClosgen is like Func.Closgen, but for the global scope.
 var globClosgen int32
 
-// closureName generates a new unique name for a closure within outerfn.
-func closureName(outerfn *Func) *types.Sym {
+// closureName generates a new unique name for a closure within outerfn at pos.
+func closureName(outerfn *Func, pos src.XPos) *types.Sym {
 	pkg := types.LocalPkg
 	outer := "glob."
 	prefix := "func"
@@ -380,6 +381,17 @@ func closureName(outerfn *Func) *types.Sym {
 		if !IsBlank(outerfn.Nname) {
 			gen = &outerfn.Closgen
 		}
+	}
+
+	// If this closure was created due to inlining, then incorporate any
+	// inlined functions' names into the closure's linker symbol name
+	// too (#60324).
+	if inlIndex := base.Ctxt.InnermostPos(pos).Base().InliningIndex(); inlIndex >= 0 {
+		names := []string{outer}
+		base.Ctxt.InlTree.AllParents(inlIndex, func(call obj.InlinedCall) {
+			names = append(names, call.Name)
+		})
+		outer = strings.Join(names, ".")
 	}
 
 	*gen++
@@ -418,7 +430,7 @@ func NameClosure(clo *ClosureExpr, outerfn *Func) {
 		base.FatalfAt(clo.Pos(), "closure already named: %v", name)
 	}
 
-	name.SetSym(closureName(outerfn))
+	name.SetSym(closureName(outerfn, clo.Pos()))
 	MarkFunc(name)
 }
 

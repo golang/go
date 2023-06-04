@@ -233,7 +233,7 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		} else {
 			return context{
 				state: stateError,
-				err:   errorf(errJSTmplLit, n, n.Line, "%s appears in a JS template literal", n),
+				err:   errorf(ErrJSTemplate, n, n.Line, "%s appears in a JS template literal", n),
 			}
 		}
 	case stateJSRegexp:

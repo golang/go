@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package devirtualize implements a simple "devirtualization"
-// optimization pass, which replaces interface method calls with
-// direct concrete-type method calls where possible.
+// Package devirtualize implements two "devirtualization" optimization passes:
+//
+// - "Static" devirtualization which replaces interface method calls with
+//   direct concrete-type method calls where possible.
+// - "Profile-guided" devirtualization which replaces indirect calls with a
+//   conditional direct call to the hottest concrete callee from a profile, as
+//   well as a fallback using the original indirect call.
 package devirtualize
 
 import (
@@ -14,8 +18,9 @@ import (
 	"cmd/compile/internal/types"
 )
 
-// Func devirtualizes calls within fn where possible.
-func Func(fn *ir.Func) {
+// Static devirtualizes calls within fn where possible when the concrete callee
+// is available statically.
+func Static(fn *ir.Func) {
 	ir.CurFunc = fn
 
 	// For promoted methods (including value-receiver methods promoted to pointer-receivers),
@@ -34,14 +39,15 @@ func Func(fn *ir.Func) {
 			return
 		case *ir.CallExpr:
 			if !goDeferCall[n] {
-				Call(n)
+				staticCall(n)
 			}
 		}
 	})
 }
 
-// Call devirtualizes the given call if possible.
-func Call(call *ir.CallExpr) {
+// staticCall devirtualizes the given call if possible when the concrete callee
+// is available statically.
+func staticCall(call *ir.CallExpr) {
 	if call.Op() != ir.OCALLINTER {
 		return
 	}

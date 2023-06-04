@@ -5,8 +5,10 @@
 package mvs
 
 import (
-	"cmd/go/internal/slices"
 	"fmt"
+	"slices"
+
+	"cmd/go/internal/gover"
 
 	"golang.org/x/mod/module"
 )
@@ -14,7 +16,7 @@ import (
 // Graph implements an incremental version of the MVS algorithm, with the
 // requirements pushed by the caller instead of pulled by the MVS traversal.
 type Graph struct {
-	cmp   func(v1, v2 string) int
+	cmp   func(p, v1, v2 string) int
 	roots []module.Version
 
 	required map[module.Version][]module.Version
@@ -28,7 +30,7 @@ type Graph struct {
 //
 // The caller must ensure that the root slice is not modified while the Graph
 // may be in use.
-func NewGraph(cmp func(v1, v2 string) int, roots []module.Version) *Graph {
+func NewGraph(cmp func(p, v1, v2 string) int, roots []module.Version) *Graph {
 	g := &Graph{
 		cmp:      cmp,
 		roots:    slices.Clip(roots),
@@ -39,7 +41,7 @@ func NewGraph(cmp func(v1, v2 string) int, roots []module.Version) *Graph {
 
 	for _, m := range roots {
 		g.isRoot[m] = true
-		if g.cmp(g.Selected(m.Path), m.Version) < 0 {
+		if g.cmp(m.Path, g.Selected(m.Path), m.Version) < 0 {
 			g.selected[m.Path] = m.Version
 		}
 	}
@@ -78,7 +80,7 @@ func (g *Graph) Require(m module.Version, reqs []module.Version) {
 			g.isRoot[dep] = false
 		}
 
-		if g.cmp(g.Selected(dep.Path), dep.Version) < 0 {
+		if g.cmp(dep.Path, g.Selected(dep.Path), dep.Version) < 0 {
 			g.selected[dep.Path] = dep.Version
 		}
 	}
@@ -138,7 +140,7 @@ func (g *Graph) BuildList() []module.Version {
 			list = append(list, module.Version{Path: path, Version: version})
 		}
 	}
-	module.Sort(list[len(uniqueRoots):])
+	gover.ModSort(list[len(uniqueRoots):])
 
 	return list
 }

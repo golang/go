@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
@@ -229,7 +230,7 @@ func (q *query) isWildcard() bool {
 
 // matchesPath reports whether the given path matches q.pattern.
 func (q *query) matchesPath(path string) bool {
-	if q.matchWildcard != nil {
+	if q.matchWildcard != nil && !gover.IsToolchain(path) {
 		return q.matchWildcard(path)
 	}
 	return path == q.pattern
@@ -241,7 +242,7 @@ func (q *query) canMatchInModule(mPath string) bool {
 	if q.canMatchWildcardInModule != nil {
 		return q.canMatchWildcardInModule(mPath)
 	}
-	return str.HasPathPrefix(q.pattern, mPath)
+	return str.HasPathPrefix(q.pattern, mPath) && !gover.IsToolchain(mPath)
 }
 
 // pathOnce invokes f to generate the pathSet for the given path,

@@ -1207,7 +1207,7 @@ func testClientTimeout(t *testing.T, mode testMode) {
 	}))
 
 	// Try to trigger a timeout after reading part of the response body.
-	// The initial timeout is emprically usually long enough on a decently fast
+	// The initial timeout is empirically usually long enough on a decently fast
 	// machine, but if we undershoot we'll retry with exponentially longer
 	// timeouts until the test either passes or times out completely.
 	// This keeps the test reasonably fast in the typical case but allows it to

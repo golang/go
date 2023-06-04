@@ -38,7 +38,7 @@ func Unwrap(err error) error {
 //
 //	func (m MyError) Is(target error) bool { return target == fs.ErrExist }
 //
-// then Is(MyError{}, fs.ErrExist) returns true. See syscall.Errno.Is for
+// then Is(MyError{}, fs.ErrExist) returns true. See [syscall.Errno.Is] for
 // an example in the standard library. An Is method should only shallowly
 // compare err and the target and not call Unwrap on either.
 func Is(err, target error) bool {

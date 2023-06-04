@@ -7,7 +7,6 @@ package windows
 import (
 	"sync"
 	"syscall"
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -17,17 +16,13 @@ func UTF16PtrToString(p *uint16) string {
 	if p == nil {
 		return ""
 	}
-	// Find NUL terminator.
 	end := unsafe.Pointer(p)
 	n := 0
 	for *(*uint16)(end) != 0 {
 		end = unsafe.Pointer(uintptr(end) + unsafe.Sizeof(*p))
 		n++
 	}
-	// Turn *uint16 into []uint16.
-	s := unsafe.Slice(p, n)
-	// Decode []uint16 into string.
-	return string(utf16.Decode(s))
+	return syscall.UTF16ToString(unsafe.Slice(p, n))
 }
 
 const (

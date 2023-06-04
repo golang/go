@@ -31,7 +31,7 @@ func supportsMultipathTCP() bool {
 	return mptcpAvailable
 }
 
-// Check that MPTCP is supported by attemting to create an MPTCP socket and by
+// Check that MPTCP is supported by attempting to create an MPTCP socket and by
 // looking at the returned error if any.
 func initMPTCPavailable() {
 	s, err := sysSocket(syscall.AF_INET, syscall.SOCK_STREAM, _IPPROTO_MPTCP)

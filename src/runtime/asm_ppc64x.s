@@ -628,6 +628,16 @@ g0:
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
+	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+	// It is used to dropm while thread is exiting.
+	MOVD	fn+0(FP), R5
+	CMP	R5, $0
+	BNE	loadg
+	// Restore the g from frame.
+	MOVD	frame+8(FP), g
+	BR	dropm
+
+loadg:
 	// Load m and g from thread-local storage.
 	MOVBZ	runtime·iscgo(SB), R3
 	CMP	R3, $0
@@ -635,7 +645,8 @@ TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	BL	runtime·load_g(SB)
 nocgo:
 
-	// If g is nil, Go did not create the current thread.
+	// If g is nil, Go did not create the current thread,
+	// or if this thread never called into Go on pthread platforms.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
 	// lots of space, but the linker doesn't know. Hide the call from
@@ -649,7 +660,7 @@ nocgo:
 
 needm:
 	MOVD	g, savedm-8(SP) // g is zero, so is m.
-	MOVD	$runtime·needm(SB), R12
+	MOVD	$runtime·needAndBindM(SB), R12
 	MOVD	R12, CTR
 	BL	(CTR)
 
@@ -724,11 +735,27 @@ havem:
 	MOVD	savedsp-24(SP), R4      // must match frame size
 	MOVD	R4, (g_sched+gobuf_sp)(g)
 
-	// If the m on entry was nil, we called needm above to borrow an m
-	// for the duration of the call. Since the call is over, return it with dropm.
+	// If the m on entry was nil, we called needm above to borrow an m,
+	// 1. for the duration of the call on non-pthread platforms,
+	// 2. or the duration of the C thread alive on pthread platforms.
+	// If the m on entry wasn't nil,
+	// 1. the thread might be a Go thread,
+	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+	//    since the we skip dropm to resue the m in the first call.
 	MOVD	savedm-8(SP), R6
 	CMP	R6, $0
 	BNE	droppedm
+
+	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+	MOVD	_cgo_pthread_key_created(SB), R6
+	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+	CMP	R6, $0
+	BEQ	dropm
+	MOVD	(R6), R6
+	CMP	R6, $0
+	BNE	droppedm
+
+dropm:
 	MOVD	$runtime·dropm(SB), R12
 	MOVD	R12, CTR
 	BL	(CTR)
@@ -919,7 +946,7 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 // It clobbers condition codes.
 // It does not clobber R0 through R17 (except special registers),
 // but may clobber any other register, *including* R31.
-TEXT gcWriteBarrier<>(SB),NOSPLIT,$112
+TEXT gcWriteBarrier<>(SB),NOSPLIT,$120
 	// The standard prologue clobbers R31.
 	// We use R18, R19, and R31 as scratch registers.
 retry:
@@ -960,6 +987,7 @@ flush:
 	MOVD	R15, (FIXED_FRAME+88)(R1)
 	MOVD	R16, (FIXED_FRAME+96)(R1)
 	MOVD	R17, (FIXED_FRAME+104)(R1)
+	MOVD	R29, (FIXED_FRAME+112)(R1)
 
 	CALL	runtime·wbBufFlush(SB)
 
@@ -977,6 +1005,7 @@ flush:
 	MOVD	(FIXED_FRAME+88)(R1), R15
 	MOVD	(FIXED_FRAME+96)(R1), R16
 	MOVD	(FIXED_FRAME+104)(R1), R17
+	MOVD	(FIXED_FRAME+112)(R1), R29
 	JMP	retry
 
 TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0

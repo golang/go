@@ -16,7 +16,7 @@ func TestHashDebugGossahashY(t *testing.T) {
 	if hd == nil {
 		t.Errorf("NewHashDebug should not return nil for GOSSASHASH=y")
 	}
-	if !hd.MatchPkgFunc("anything", "anyfunc") {
+	if !hd.MatchPkgFunc("anything", "anyfunc", nil) {
 		t.Errorf("NewHashDebug should return yes for everything for GOSSASHASH=y")
 	}
 }
@@ -26,7 +26,7 @@ func TestHashDebugGossahashN(t *testing.T) {
 	if hd == nil {
 		t.Errorf("NewHashDebug should not return nil for GOSSASHASH=n")
 	}
-	if hd.MatchPkgFunc("anything", "anyfunc") {
+	if hd.MatchPkgFunc("anything", "anyfunc", nil) {
 		t.Errorf("NewHashDebug should return no for everything for GOSSASHASH=n")
 	}
 }
@@ -60,21 +60,21 @@ func TestHash(t *testing.T) {
 
 func TestHashMatch(t *testing.T) {
 	b := new(bytes.Buffer)
-	hd := NewHashDebug("GOSSAHASH", "1110", b)
-	check := hd.MatchPkgFunc("bar", "0")
+	hd := NewHashDebug("GOSSAHASH", "v1110", b)
+	check := hd.MatchPkgFunc("bar", "0", func() string { return "note" })
 	msg := b.String()
 	t.Logf("message was '%s'", msg)
 	if !check {
 		t.Errorf("GOSSAHASH=1110 should have matched for 'bar', '0'")
 	}
-	wantPrefix(t, msg, "bar.0 [bisect-match ")
-	wantContains(t, msg, "\nGOSSAHASH triggered bar.0 ")
+	wantPrefix(t, msg, "bar.0: note [bisect-match ")
+	wantContains(t, msg, "\nGOSSAHASH triggered bar.0: note ")
 }
 
 func TestYMatch(t *testing.T) {
 	b := new(bytes.Buffer)
-	hd := NewHashDebug("GOSSAHASH", "y", b)
-	check := hd.MatchPkgFunc("bar", "0")
+	hd := NewHashDebug("GOSSAHASH", "vy", b)
+	check := hd.MatchPkgFunc("bar", "0", nil)
 	msg := b.String()
 	t.Logf("message was '%s'", msg)
 	if !check {
@@ -86,21 +86,21 @@ func TestYMatch(t *testing.T) {
 
 func TestNMatch(t *testing.T) {
 	b := new(bytes.Buffer)
-	hd := NewHashDebug("GOSSAHASH", "n", b)
-	check := hd.MatchPkgFunc("bar", "0")
+	hd := NewHashDebug("GOSSAHASH", "vn", b)
+	check := hd.MatchPkgFunc("bar", "0", nil)
 	msg := b.String()
 	t.Logf("message was '%s'", msg)
 	if check {
 		t.Errorf("GOSSAHASH=n should NOT have matched for 'bar', '0'")
 	}
-	wantPrefix(t, msg, "bar.0 [bisect-match ")
-	wantContains(t, msg, "\nGOSSAHASH triggered bar.0 010100100011100101011110")
+	wantPrefix(t, msg, "bar.0 [DISABLED] [bisect-match ")
+	wantContains(t, msg, "\nGOSSAHASH triggered bar.0 [DISABLED] 010100100011100101011110")
 }
 
 func TestHashNoMatch(t *testing.T) {
 	b := new(bytes.Buffer)
 	hd := NewHashDebug("GOSSAHASH", "01110", b)
-	check := hd.MatchPkgFunc("bar", "0")
+	check := hd.MatchPkgFunc("bar", "0", nil)
 	msg := b.String()
 	t.Logf("message was '%s'", msg)
 	if check {
@@ -116,7 +116,7 @@ func TestHashSecondMatch(t *testing.T) {
 	b := new(bytes.Buffer)
 	hd := NewHashDebug("GOSSAHASH", "01110/11110", b)
 
-	check := hd.MatchPkgFunc("bar", "0")
+	check := hd.MatchPkgFunc("bar", "0", nil)
 	msg := b.String()
 	t.Logf("message was '%s'", msg)
 	if !check {

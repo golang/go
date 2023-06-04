@@ -14,7 +14,6 @@ import (
 	"internal/race"
 	"runtime"
 	"sync"
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -37,7 +36,8 @@ func StringToUTF16(s string) []uint16 {
 
 // UTF16FromString returns the UTF-16 encoding of the UTF-8 string
 // s, with a terminating NUL added. If s contains a NUL byte at any
-// location, it returns (nil, EINVAL).
+// location, it returns (nil, EINVAL). Unpaired surrogates
+// are encoded using WTF-8.
 func UTF16FromString(s string) ([]uint16, error) {
 	if bytealg.IndexByteString(s, 0) != -1 {
 		return nil, EINVAL
@@ -49,22 +49,37 @@ func UTF16FromString(s string) ([]uint16, error) {
 	// equal than the number of UTF-16 code units.
 	// Also account for the terminating NUL character.
 	buf := make([]uint16, 0, len(s)+1)
-	for _, r := range s {
-		buf = utf16.AppendRune(buf, r)
-	}
-	return utf16.AppendRune(buf, '\x00'), nil
+	buf = encodeWTF16(s, buf)
+	return append(buf, 0), nil
 }
 
 // UTF16ToString returns the UTF-8 encoding of the UTF-16 sequence s,
-// with a terminating NUL removed.
+// with a terminating NUL removed. Unpaired surrogates are decoded
+// using WTF-8 instead of UTF-8 encoding.
 func UTF16ToString(s []uint16) string {
+	maxLen := 0
 	for i, v := range s {
 		if v == 0 {
 			s = s[0:i]
 			break
 		}
+		switch {
+		case v <= rune1Max:
+			maxLen += 1
+		case v <= rune2Max:
+			maxLen += 2
+		default:
+			// r is a non-surrogate that decodes to 3 bytes,
+			// or is an unpaired surrogate (also 3 bytes in WTF-8),
+			// or is one half of a valid surrogate pair.
+			// If it is half of a pair, we will add 3 for the second surrogate
+			// (total of 6) and overestimate by 2 bytes for the pair,
+			// since the resulting rune only requires 4 bytes.
+			maxLen += 3
+		}
 	}
-	return string(utf16.Decode(s))
+	buf := decodeWTF16(s, make([]byte, 0, maxLen))
+	return unsafe.String(unsafe.SliceData(buf), len(buf))
 }
 
 // utf16PtrToString is like UTF16ToString, but takes *uint16
@@ -73,17 +88,13 @@ func utf16PtrToString(p *uint16) string {
 	if p == nil {
 		return ""
 	}
-	// Find NUL terminator.
 	end := unsafe.Pointer(p)
 	n := 0
 	for *(*uint16)(end) != 0 {
 		end = unsafe.Pointer(uintptr(end) + unsafe.Sizeof(*p))
 		n++
 	}
-	// Turn *uint16 into []uint16.
-	s := unsafe.Slice(p, n)
-	// Decode []uint16 into string.
-	return string(utf16.Decode(s))
+	return UTF16ToString(unsafe.Slice(p, n))
 }
 
 // StringToUTF16Ptr returns pointer to the UTF-16 encoding of
@@ -97,6 +108,7 @@ func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
 // UTF16PtrFromString returns pointer to the UTF-16 encoding of
 // the UTF-8 string s, with a terminating NUL added. If s
 // contains a NUL byte at any location, it returns (nil, EINVAL).
+// Unpaired surrogates are encoded using WTF-8.
 func UTF16PtrFromString(s string) (*uint16, error) {
 	a, err := UTF16FromString(s)
 	if err != nil {
@@ -143,7 +155,7 @@ func (e Errno) Error() string {
 	// trim terminating \r and \n
 	for ; n > 0 && (b[n-1] == '\n' || b[n-1] == '\r'); n-- {
 	}
-	return string(utf16.Decode(b[:n]))
+	return UTF16ToString(b[:n])
 }
 
 const (
@@ -525,7 +537,7 @@ func Getwd() (wd string, err error) {
 	if e != nil {
 		return "", e
 	}
-	return string(utf16.Decode(b[0:n])), nil
+	return UTF16ToString(b[0:n]), nil
 }
 
 func Chdir(path string) (err error) {
@@ -579,7 +591,7 @@ func ComputerName() (name string, err error) {
 	if e != nil {
 		return "", e
 	}
-	return string(utf16.Decode(b[0:n])), nil
+	return UTF16ToString(b[:n]), nil
 }
 
 func Ftruncate(fd Handle, length int64) (err error) {
@@ -635,10 +647,19 @@ func Utimes(path string, tv []Timeval) (err error) {
 		return e
 	}
 	defer Close(h)
-	a := NsecToFiletime(tv[0].Nanoseconds())
-	w := NsecToFiletime(tv[1].Nanoseconds())
+	a := Filetime{}
+	w := Filetime{}
+	if tv[0].Nanoseconds() != 0 {
+		a = NsecToFiletime(tv[0].Nanoseconds())
+	}
+	if tv[0].Nanoseconds() != 0 {
+		w = NsecToFiletime(tv[1].Nanoseconds())
+	}
 	return SetFileTime(h, nil, &a, &w)
 }
+
+// This matches the value in os/file_windows.go.
+const _UTIME_OMIT = -1
 
 func UtimesNano(path string, ts []Timespec) (err error) {
 	if len(ts) != 2 {
@@ -655,8 +676,14 @@ func UtimesNano(path string, ts []Timespec) (err error) {
 		return e
 	}
 	defer Close(h)
-	a := NsecToFiletime(TimespecToNsec(ts[0]))
-	w := NsecToFiletime(TimespecToNsec(ts[1]))
+	a := Filetime{}
+	w := Filetime{}
+	if ts[0].Nsec != _UTIME_OMIT {
+		a = NsecToFiletime(TimespecToNsec(ts[0]))
+	}
+	if ts[1].Nsec != _UTIME_OMIT {
+		w = NsecToFiletime(TimespecToNsec(ts[1]))
+	}
 	return SetFileTime(h, nil, &a, &w)
 }
 

@@ -253,7 +253,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	typecheck.IncrementalAddrtaken = true
 
 	// Read profile file and build profile-graph and weighted-call-graph.
-	base.Timer.Start("fe", "pgoprofile")
+	base.Timer.Start("fe", "pgo-load-profile")
 	var profile *pgo.Profile
 	if base.Flag.PgoProfile != "" {
 		var err error
@@ -261,6 +261,19 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		if err != nil {
 			log.Fatalf("%s: PGO error: %v", base.Flag.PgoProfile, err)
 		}
+	}
+
+	base.Timer.Start("fe", "pgo-devirtualization")
+	if profile != nil && base.Debug.PGODevirtualize > 0 {
+		// TODO(prattmic): No need to use bottom-up visit order. This
+		// is mirroring the PGO IRGraph visit order, which also need
+		// not be bottom-up.
+		ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
+			for _, fn := range list {
+				devirtualize.ProfileGuided(fn, profile)
+			}
+		})
+		ir.CurFunc = nil
 	}
 
 	// Inlining
@@ -274,7 +287,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	var transformed []loopvar.VarAndLoop
 	for _, n := range typecheck.Target.Decls {
 		if n.Op() == ir.ODCLFUNC {
-			devirtualize.Func(n.(*ir.Func))
+			devirtualize.Static(n.(*ir.Func))
 			transformed = append(transformed, loopvar.ForCapture(n.(*ir.Func))...)
 		}
 	}

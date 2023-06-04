@@ -4253,7 +4253,7 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
 	if s.NewWriteScheduler != nil {
 		sc.writeSched = s.NewWriteScheduler()
 	} else {
-		sc.writeSched = http2NewPriorityWriteScheduler(nil)
+		sc.writeSched = http2newRoundRobinWriteScheduler()
 	}
 
 	// These start at the RFC-specified defaults. If there is a higher
@@ -6246,7 +6246,7 @@ type http2requestBody struct {
 	conn          *http2serverConn
 	closeOnce     sync.Once  // for use by Close only
 	sawEOF        bool       // for use by Read only
-	pipe          *http2pipe // non-nil if we have a HTTP entity message body
+	pipe          *http2pipe // non-nil if we have an HTTP entity message body
 	needsContinue bool       // need to send a 100-continue
 }
 
@@ -6386,7 +6386,8 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 				clen = ""
 			}
 		}
-		if clen == "" && rws.handlerDone && http2bodyAllowedForStatus(rws.status) && (len(p) > 0 || !isHeadResp) {
+		_, hasContentLength := rws.snapHeader["Content-Length"]
+		if !hasContentLength && clen == "" && rws.handlerDone && http2bodyAllowedForStatus(rws.status) && (len(p) > 0 || !isHeadResp) {
 			clen = strconv.Itoa(len(p))
 		}
 		_, hasContentType := rws.snapHeader["Content-Type"]
@@ -6591,7 +6592,7 @@ func (w *http2responseWriter) FlushError() error {
 		err = rws.bw.Flush()
 	} else {
 		// The bufio.Writer won't call chunkWriter.Write
-		// (writeChunk with zero bytes, so we have to do it
+		// (writeChunk with zero bytes), so we have to do it
 		// ourselves to force the HTTP response header and/or
 		// final DATA frame (with END_STREAM) to be sent.
 		_, err = http2chunkWriter{rws}.Write(nil)
@@ -8289,8 +8290,8 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 
 	cancelRequest := func(cs *http2clientStream, err error) error {
 		cs.cc.mu.Lock()
-		defer cs.cc.mu.Unlock()
 		cs.abortStreamLocked(err)
+		bodyClosed := cs.reqBodyClosed
 		if cs.ID != 0 {
 			// This request may have failed because of a problem with the connection,
 			// or for some unrelated reason. (For example, the user might have canceled
@@ -8304,6 +8305,23 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 			// is set, for example, in which case retrying on a different connection
 			// will not help.
 			cs.cc.doNotReuse = true
+		}
+		cs.cc.mu.Unlock()
+		// Wait for the request body to be closed.
+		//
+		// If nothing closed the body before now, abortStreamLocked
+		// will have started a goroutine to close it.
+		//
+		// Closing the body before returning avoids a race condition
+		// with net/http checking its readTrackingBody to see if the
+		// body was read from or closed. See golang/go#60041.
+		//
+		// The body is closed in a separate goroutine without the
+		// connection mutex held, but dropping the mutex before waiting
+		// will keep us from holding it indefinitely if the body
+		// close is slow for some reason.
+		if bodyClosed != nil {
+			<-bodyClosed
 		}
 		return err
 	}
@@ -8920,7 +8938,7 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 		// 8.1.2.3 Request Pseudo-Header Fields
 		// The :path pseudo-header field includes the path and query parts of the
 		// target URI (the path-absolute production and optionally a '?' character
-		// followed by the query production (see Sections 3.3 and 3.4 of
+		// followed by the query production, see Sections 3.3 and 3.4 of
 		// [RFC3986]).
 		f(":authority", host)
 		m := req.Method
@@ -10728,7 +10746,8 @@ func (wr *http2FrameWriteRequest) replyToWriter(err error) {
 
 // writeQueue is used by implementations of WriteScheduler.
 type http2writeQueue struct {
-	s []http2FrameWriteRequest
+	s          []http2FrameWriteRequest
+	prev, next *http2writeQueue
 }
 
 func (q *http2writeQueue) empty() bool { return len(q.s) == 0 }
@@ -11302,6 +11321,115 @@ func (ws *http2randomWriteScheduler) Pop() (http2FrameWriteRequest, bool) {
 				ws.queuePool.put(q)
 			}
 			return wr, true
+		}
+	}
+	return http2FrameWriteRequest{}, false
+}
+
+type http2roundRobinWriteScheduler struct {
+	// control contains control frames (SETTINGS, PING, etc.).
+	control http2writeQueue
+
+	// streams maps stream ID to a queue.
+	streams map[uint32]*http2writeQueue
+
+	// stream queues are stored in a circular linked list.
+	// head is the next stream to write, or nil if there are no streams open.
+	head *http2writeQueue
+
+	// pool of empty queues for reuse.
+	queuePool http2writeQueuePool
+}
+
+// newRoundRobinWriteScheduler constructs a new write scheduler.
+// The round robin scheduler priorizes control frames
+// like SETTINGS and PING over DATA frames.
+// When there are no control frames to send, it performs a round-robin
+// selection from the ready streams.
+func http2newRoundRobinWriteScheduler() http2WriteScheduler {
+	ws := &http2roundRobinWriteScheduler{
+		streams: make(map[uint32]*http2writeQueue),
+	}
+	return ws
+}
+
+func (ws *http2roundRobinWriteScheduler) OpenStream(streamID uint32, options http2OpenStreamOptions) {
+	if ws.streams[streamID] != nil {
+		panic(fmt.Errorf("stream %d already opened", streamID))
+	}
+	q := ws.queuePool.get()
+	ws.streams[streamID] = q
+	if ws.head == nil {
+		ws.head = q
+		q.next = q
+		q.prev = q
+	} else {
+		// Queues are stored in a ring.
+		// Insert the new stream before ws.head, putting it at the end of the list.
+		q.prev = ws.head.prev
+		q.next = ws.head
+		q.prev.next = q
+		q.next.prev = q
+	}
+}
+
+func (ws *http2roundRobinWriteScheduler) CloseStream(streamID uint32) {
+	q := ws.streams[streamID]
+	if q == nil {
+		return
+	}
+	if q.next == q {
+		// This was the only open stream.
+		ws.head = nil
+	} else {
+		q.prev.next = q.next
+		q.next.prev = q.prev
+		if ws.head == q {
+			ws.head = q.next
+		}
+	}
+	delete(ws.streams, streamID)
+	ws.queuePool.put(q)
+}
+
+func (ws *http2roundRobinWriteScheduler) AdjustStream(streamID uint32, priority http2PriorityParam) {}
+
+func (ws *http2roundRobinWriteScheduler) Push(wr http2FrameWriteRequest) {
+	if wr.isControl() {
+		ws.control.push(wr)
+		return
+	}
+	q := ws.streams[wr.StreamID()]
+	if q == nil {
+		// This is a closed stream.
+		// wr should not be a HEADERS or DATA frame.
+		// We push the request onto the control queue.
+		if wr.DataSize() > 0 {
+			panic("add DATA on non-open stream")
+		}
+		ws.control.push(wr)
+		return
+	}
+	q.push(wr)
+}
+
+func (ws *http2roundRobinWriteScheduler) Pop() (http2FrameWriteRequest, bool) {
+	// Control and RST_STREAM frames first.
+	if !ws.control.empty() {
+		return ws.control.shift(), true
+	}
+	if ws.head == nil {
+		return http2FrameWriteRequest{}, false
+	}
+	q := ws.head
+	for {
+		if wr, ok := q.consume(math.MaxInt32); ok {
+			ws.head = q.next
+			return wr, true
+		}
+		q = q.next
+		if q == ws.head {
+			break
 		}
 	}
 	return http2FrameWriteRequest{}, false

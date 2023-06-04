@@ -1066,6 +1066,7 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		I386 | uint32(elf.R_386_GOT32X)<<16,
 		PPC64 | uint32(elf.R_PPC64_REL24)<<16,
 		PPC64 | uint32(elf.R_PPC64_REL24_NOTOC)<<16,
+		PPC64 | uint32(elf.R_PPC64_REL24_P9NOTOC)<<16,
 		PPC64 | uint32(elf.R_PPC_REL32)<<16,
 		S390X | uint32(elf.R_390_32)<<16,
 		S390X | uint32(elf.R_390_PC32)<<16,

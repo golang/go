@@ -24,14 +24,17 @@ func TestRecordAttrs(t *testing.T) {
 	}
 
 	// Early return.
-	var got []Attr
-	r.Attrs(func(a Attr) bool {
-		got = append(got, a)
-		return len(got) < 2
-	})
-	want := as[:2]
-	if !attrsEqual(got, want) {
-		t.Errorf("got %v, want %v", got, want)
+	// Hit both loops in Record.Attrs: front and back.
+	for _, stop := range []int{2, 6} {
+		var got []Attr
+		r.Attrs(func(a Attr) bool {
+			got = append(got, a)
+			return len(got) < stop
+		})
+		want := as[:stop]
+		if !attrsEqual(got, want) {
+			t.Errorf("got %v, want %v", got, want)
+		}
 	}
 }
 

@@ -171,10 +171,11 @@ type Config struct {
 	// for unused imports.
 	DisableUnusedImportCheck bool
 
-	// If _InferMaxDefaultType is set, the minimum (smallest) default
-	// type that fits all untyped constant arguments for the same type
-	// parameter is selected in type inference. (go.dev/issue/58671)
-	_InferMaxDefaultType bool
+	// If a non-empty _ErrorURL format string is provided, it is used
+	// to format an error URL link that is appended to the first line
+	// of an error message. ErrorURL must be a format string containing
+	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
+	_ErrorURL string
 }
 
 func srcimporter_setUsesCgo(conf *Config) {
@@ -284,6 +285,10 @@ type Info struct {
 	// in source order. Variables without an initialization expression do not
 	// appear in this list.
 	InitOrder []*Initializer
+}
+
+func (info *Info) recordTypes() bool {
+	return info.Types != nil
 }
 
 // TypeOf returns the type of expression e, or nil if not found.

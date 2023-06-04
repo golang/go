@@ -422,7 +422,7 @@ func (s *scavengerState) park() {
 		throw("tried to park scavenger from another goroutine")
 	}
 	s.parked = true
-	goparkunlock(&s.lock, waitReasonGCScavengeWait, traceEvGoBlock, 2)
+	goparkunlock(&s.lock, waitReasonGCScavengeWait, traceBlockSystemGoroutine, 2)
 }
 
 // ready signals to sysmon that the scavenger should be awoken.
@@ -501,7 +501,7 @@ func (s *scavengerState) sleep(worked float64) {
 
 		// Mark ourselves as asleep and go to sleep.
 		s.parked = true
-		goparkunlock(&s.lock, waitReasonSleep, traceEvGoSleep, 2)
+		goparkunlock(&s.lock, waitReasonSleep, traceBlockSleep, 2)
 
 		// How long we actually slept for.
 		slept = nanotime() - start
@@ -658,7 +658,7 @@ func bgscavenge(c chan int) {
 			scavenger.park()
 			continue
 		}
-		atomic.Xadduintptr(&mheap_.pages.scav.released, released)
+		mheap_.pages.scav.releasedBg.Add(released)
 		scavenger.sleep(workTime)
 	}
 }
@@ -696,13 +696,14 @@ func (p *pageAlloc) scavenge(nbytes uintptr, shouldStop func() bool, force bool)
 // application.
 //
 // scavenger.lock must be held.
-func printScavTrace(released uintptr, forced bool) {
+func printScavTrace(releasedBg, releasedEager uintptr, forced bool) {
 	assertLockHeld(&scavenger.lock)
 
 	printlock()
 	print("scav ",
-		released>>10, " KiB work, ",
-		gcController.heapReleased.load()>>10, " KiB total, ",
+		releasedBg>>10, " KiB work (bg), ",
+		releasedEager>>10, " KiB work (eager), ",
+		gcController.heapReleased.load()>>10, " KiB now, ",
 		(gcController.heapInUse.load()*100)/heapRetained(), "% util",
 	)
 	if forced {

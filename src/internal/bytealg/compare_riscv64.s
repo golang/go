@@ -49,6 +49,8 @@ use_a_len:
 	BEQZ	X7, compare32
 
 	// Check one byte at a time until we reach 8 byte alignment.
+	SUB	X7, X0, X7
+	ADD	$8, X7, X7
 	SUB	X7, X5, X5
 align:
 	ADD	$-1, X7
@@ -60,7 +62,7 @@ align:
 	BNEZ	X7, align
 
 check32:
-	MOV	$32, X6
+	// X6 contains $32
 	BLT	X5, X6, compare16
 compare32:
 	MOV	0(X10), X15

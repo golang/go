@@ -48,6 +48,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -270,10 +271,13 @@ type pageAlloc struct {
 		// scavenge.
 		index scavengeIndex
 
-		// released is the amount of memory released this scavenge cycle.
-		//
-		// Updated atomically.
-		released uintptr
+		// releasedBg is the amount of memory released in the background this
+		// scavenge cycle.
+		releasedBg atomic.Uintptr
+
+		// releasedEager is the amount of memory released eagerly this scavenge
+		// cycle.
+		releasedEager atomic.Uintptr
 	}
 
 	// mheap_.lock. This level of indirection makes it possible

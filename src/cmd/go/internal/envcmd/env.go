@@ -100,6 +100,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOROOT", Value: cfg.GOROOT},
 		{Name: "GOSUMDB", Value: cfg.GOSUMDB},
 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
+		{Name: "GOTOOLCHAIN", Value: cfg.Getenv("GOTOOLCHAIN")},
 		{Name: "GOTOOLDIR", Value: build.ToolDir},
 		{Name: "GOVCS", Value: cfg.GOVCS},
 		{Name: "GOVERSION", Value: runtime.Version()},
@@ -151,6 +152,9 @@ func findEnv(env []cfg.EnvVar, name string) string {
 			return e.Value
 		}
 	}
+	if cfg.CanGetenv(name) {
+		return cfg.Getenv(name)
+	}
 	return ""
 }
 
@@ -181,7 +185,7 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
 	b := work.NewBuilder("")
 	defer func() {
 		if err := b.Close(); err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 	}()
 
@@ -247,14 +251,20 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 
 	buildcfg.Check()
 	if cfg.ExperimentErr != nil {
-		base.Fatalf("go: %v", cfg.ExperimentErr)
+		base.Fatal(cfg.ExperimentErr)
+	}
+
+	for _, arg := range args {
+		if strings.Contains(arg, "=") {
+			base.Fatalf("go: invalid variable name %q (use -w to set variable)", arg)
+		}
 	}
 
 	env := cfg.CmdEnv
 	env = append(env, ExtraEnvVars()...)
 
 	if err := fsys.Init(base.Cwd()); err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	// Do we need to call ExtraEnvVarsCostly, which is a bit expensive?
@@ -327,7 +337,7 @@ func runEnvW(args []string) {
 			base.Fatalf("go: arguments must be KEY=VALUE: invalid argument: %s", arg)
 		}
 		if err := checkEnvWrite(key, val); err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 		if _, ok := add[key]; ok {
 			base.Fatalf("go: multiple values for key: %s", key)
@@ -339,7 +349,7 @@ func runEnvW(args []string) {
 	}
 
 	if err := checkBuildConfig(add, nil); err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	gotmp, okGOTMP := add["GOTMPDIR"]
@@ -360,13 +370,13 @@ func runEnvU(args []string) {
 	del := make(map[string]bool)
 	for _, arg := range args {
 		if err := checkEnvWrite(arg, ""); err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 		del[arg] = true
 	}
 
 	if err := checkBuildConfig(nil, del); err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	updateEnvFile(nil, del)
@@ -431,8 +441,7 @@ func PrintEnv(w io.Writer, env []cfg.EnvVar) {
 						if x > 0 {
 							fmt.Fprintf(w, " ")
 						}
-						// TODO(#59979): Does this need to be quoted like above?
-						fmt.Fprintf(w, "%s", s)
+						fmt.Fprintf(w, "'%s'", strings.ReplaceAll(s, "'", "''"))
 					}
 					fmt.Fprintf(w, ")\n")
 				}
@@ -526,6 +535,7 @@ func checkEnvWrite(key, val string) error {
 	}
 
 	// To catch typos and the like, check that we know the variable.
+	// If it's already in the env file, we assume it's known.
 	if !cfg.CanGetenv(key) {
 		return fmt.Errorf("unknown go command variable %s", key)
 	}
@@ -579,22 +589,29 @@ func checkEnvWrite(key, val string) error {
 	return nil
 }
 
-func updateEnvFile(add map[string]string, del map[string]bool) {
+func readEnvFileLines(mustExist bool) []string {
 	file, err := cfg.EnvFile()
 	if file == "" {
-		base.Fatalf("go: cannot find go env config: %v", err)
+		if mustExist {
+			base.Fatalf("go: cannot find go env config: %v", err)
+		}
+		return nil
 	}
 	data, err := os.ReadFile(file)
-	if err != nil && (!os.IsNotExist(err) || len(add) == 0) {
+	if err != nil && (!os.IsNotExist(err) || mustExist) {
 		base.Fatalf("go: reading go env config: %v", err)
 	}
-
 	lines := strings.SplitAfter(string(data), "\n")
 	if lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
 	} else {
 		lines[len(lines)-1] += "\n"
 	}
+	return lines
+}
+
+func updateEnvFile(add map[string]string, del map[string]bool) {
+	lines := readEnvFileLines(len(add) == 0)
 
 	// Delete all but last copy of any duplicated variables,
 	// since the last copy is the one that takes effect.
@@ -637,7 +654,11 @@ func updateEnvFile(add map[string]string, del map[string]bool) {
 		}
 	}
 
-	data = []byte(strings.Join(lines, ""))
+	file, err := cfg.EnvFile()
+	if file == "" {
+		base.Fatalf("go: cannot find go env config: %v", err)
+	}
+	data := []byte(strings.Join(lines, ""))
 	err = os.WriteFile(file, data, 0666)
 	if err != nil {
 		// Try creating directory.

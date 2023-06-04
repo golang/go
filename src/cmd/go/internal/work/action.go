@@ -344,7 +344,7 @@ func closeBuilders() {
 	builderWorkDirs.Range(func(bi, _ any) bool {
 		leakedBuilders++
 		if err := bi.(*Builder).Close(); err != nil {
-			base.Errorf("go: %v", err)
+			base.Error(err)
 		}
 		return true
 	})

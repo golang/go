@@ -1,6 +1,9 @@
 # Test go build -pgo=auto flag with multiple main packages.
 
-go build -n -pgo=auto ./a ./b ./nopgo
+[short] skip 'compiles and links executables'
+
+env GOBIN=$WORK/bin
+go install -a -x -pgo=auto ./a ./b ./nopgo
 
 # a/default.pgo applies to package a and (transitive)
 # dependencies.
@@ -32,8 +35,20 @@ stderr -count=2 'compile.*-pgoprofile=.*dep2(/|\\\\)dep2\.go'
 stderr -count=3 'compile.*dep3(/|\\\\)dep3.go'
 stderr -count=2 'compile.*-pgoprofile=.*dep3(/|\\\\)dep3\.go'
 
+# check that pgo appears or not in build info as expected
+# N.B. we can't start the stdout check with -pgo because the script assumes that
+# if the first arg starts with - it is a grep flag.
+go version -m $GOBIN/a$GOEXE
+stdout 'build\s+-pgo=.*a'${/}'default\.pgo'
+
+go version -m $GOBIN/b$GOEXE
+stdout 'build\s+-pgo=.*b'${/}'default\.pgo'
+
+go version -m $GOBIN/nopgo$GOEXE
+! stdout 'build\s+-pgo='
+
 # go test works the same way
-go test -n -pgo=auto ./a ./b ./nopgo
+go test -a -n -pgo=auto ./a ./b ./nopgo
 stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*a(/|\\\\)a_test\.go'
 stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
 stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*b(/|\\\\)b_test\.go'
@@ -63,7 +78,6 @@ package main
 import "testing"
 func TestA(*testing.T) {}
 -- a/default.pgo --
-dummy profile a
 -- b/b.go --
 package main
 import _ "test/dep"
@@ -74,7 +88,6 @@ package main
 import "testing"
 func TestB(*testing.T) {}
 -- b/default.pgo --
-dummy profile b
 -- nopgo/nopgo.go --
 package main
 import _ "test/dep"

@@ -50,7 +50,7 @@ cd outside
 stderr 'go: example.com@v0.0.0 \(replaced by \./\.\.\): parsing ..[/\\]go.mod: '$WORK'[/\\]gopath[/\\]src[/\\]go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
 cd ..
 ! go list -m golang.org/x/text
-stderr $WORK'[/\\]gopath[/\\]src[/\\]go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
+stderr '^go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
 
 # A pseudo-version with fewer than 12 digits of SHA-1 prefix is invalid.
 cp go.mod.orig go.mod
