@@ -1485,7 +1485,7 @@ func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
 		return
 	}
 	nptr := int(abiInfo.ArgWidth() / int64(types.PtrSize))
-	bv := bitvec.New(int32(nptr) * 2)
+	bv := bitvec.New(int32(nptr))
 
 	for _, p := range abiInfo.InParams() {
 		typebits.SetNoCheck(p.Type, p.FrameOffset(abiInfo), bv)
