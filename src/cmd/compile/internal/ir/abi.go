@@ -16,7 +16,7 @@ import (
 // InitLSym must be called exactly once per function and must be
 // called for both functions with bodies and functions without bodies.
 // For body-less functions, we only create the LSym; for functions
-// with bodies call a helper to setup up / populate the LSym.
+// with bodies call a helper to set up / populate the LSym.
 func InitLSym(f *Func, hasBody bool) {
 	if f.LSym != nil {
 		base.FatalfAt(f.Pos(), "InitLSym called twice on %v", f)
