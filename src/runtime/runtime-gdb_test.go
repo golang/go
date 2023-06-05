@@ -474,7 +474,9 @@ func TestGdbBacktrace(t *testing.T) {
 		case bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")):
 			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=28551
 			testenv.SkipFlaky(t, 43068)
-		case bytes.Contains(got, []byte("Couldn't get registers: No such process.")), bytes.Contains(got, []byte("Unable to fetch general registers.: No such process.")):
+		case bytes.Contains(got, []byte("Couldn't get registers: No such process.")),
+			bytes.Contains(got, []byte("Unable to fetch general registers.: No such process.")),
+			bytes.Contains(got, []byte("reading register pc (#64): No such process.")):
 			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=9086
 			testenv.SkipFlaky(t, 50838)
 		case bytes.Contains(got, []byte("waiting for new child: No child processes.")):
