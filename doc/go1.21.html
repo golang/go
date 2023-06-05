@@ -137,62 +137,6 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section
 </p>
 
-<h2 id="ports">Ports</h2>
-
-<h3 id="darwin">Darwin</h3>
-
-<p><!-- go.dev/issue/57125 -->
-  As <a href="go1.20#darwin">announced</a> in the Go 1.20 release notes,
-  Go 1.21 requires macOS 10.15 Catalina or later;
-  support for previous versions has been discontinued.
-</p>
-
-<h3 id="windows">Windows</h3>
-
-<p><!-- go.dev/issue/57003, go.dev/issue/57004 -->
-  As <a href="go1.20#windows">announced</a> in the Go 1.20 release notes,
-  Go 1.21 requires at least Windows 10 or Windows Server 2016;
-  support for previous versions has been discontinued.
-</p>
-
-<!-- CL 470695 -->
-<p>
-  <!-- cmd/dist: default to GOARM=7 on all non-arm systems -->
-</p>
-
-<h3 id="wasm">WebAssembly</h3>
-
-<p><!-- https://go.dev/issue/38248, https://go.dev/issue/59149, CL 489255 -->
-  The new <code>go:wasmimport</code> directive can now be used in Go programs
-  to import functions from the WebAssembly host.
-</p>
-
-<!-- https://go.dev/issue/56100 -->
-<p>
-  The Go scheduler now interacts much more efficiently with the
-  JavaScript event loop, especially in applications that block
-  frequently on asynchronous events.
-</p>
-
-
-<h3 id="wasip1">WebAssembly System Interface</h3>
-
-<p><!-- https://go.dev/issue/58141 -->
-  Go 1.21 adds an experimental port to the <a href="https://wasi.dev/">
-  WebAssembly System Interface (WASI)</a>, Preview 1
-  (<code>GOOS=wasip1</code>, <code>GOARCH=wasm</code>).
-</p>
-
-<p>
-  As a result of the addition of the new <code>GOOS</code> value
-  "<code>wasip1</code>", Go files named <code>*_wasip1.go</code>
-  will now be <a href="/pkg/go/build/#hdr-Build_Constraints">ignored
-  by Go tools</a> except when that <code>GOOS</code> value is being
-  used.
-  If you have existing filenames matching that pattern, you will
-  need to rename them.
-</p>
-
 <h2 id="tools">Tools</h2>
 
 <!-- https://go.dev/issue/15513 -->
@@ -1008,6 +952,63 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="https://www.unicode.org/versions/Unicode15.0.0/">Unicode 15.0.0</a>.
     </p>
 </dl><!-- unicode -->
+
+<h2 id="ports">Ports</h2>
+
+<h3 id="darwin">Darwin</h3>
+
+<p><!-- go.dev/issue/57125 -->
+  As <a href="go1.20#darwin">announced</a> in the Go 1.20 release notes,
+  Go 1.21 requires macOS 10.15 Catalina or later;
+  support for previous versions has been discontinued.
+</p>
+
+<h3 id="windows">Windows</h3>
+
+<p><!-- go.dev/issue/57003, go.dev/issue/57004 -->
+  As <a href="go1.20#windows">announced</a> in the Go 1.20 release notes,
+  Go 1.21 requires at least Windows 10 or Windows Server 2016;
+  support for previous versions has been discontinued.
+</p>
+
+<!-- CL 470695 -->
+<p>
+  <!-- cmd/dist: default to GOARM=7 on all non-arm systems -->
+</p>
+
+<h3 id="wasm">WebAssembly</h3>
+
+<p><!-- https://go.dev/issue/38248, https://go.dev/issue/59149, CL 489255 -->
+  The new <code>go:wasmimport</code> directive can now be used in Go programs
+  to import functions from the WebAssembly host.
+</p>
+
+<!-- https://go.dev/issue/56100 -->
+<p>
+  The Go scheduler now interacts much more efficiently with the
+  JavaScript event loop, especially in applications that block
+  frequently on asynchronous events.
+</p>
+
+
+<h3 id="wasip1">WebAssembly System Interface</h3>
+
+<p><!-- https://go.dev/issue/58141 -->
+  Go 1.21 adds an experimental port to the <a href="https://wasi.dev/">
+  WebAssembly System Interface (WASI)</a>, Preview 1
+  (<code>GOOS=wasip1</code>, <code>GOARCH=wasm</code>).
+</p>
+
+<p>
+  As a result of the addition of the new <code>GOOS</code> value
+  "<code>wasip1</code>", Go files named <code>*_wasip1.go</code>
+  will now be <a href="/pkg/go/build/#hdr-Build_Constraints">ignored
+  by Go tools</a> except when that <code>GOOS</code> value is being
+  used.
+  If you have existing filenames matching that pattern, you will
+  need to rename them.
+</p>
+
 
 <!-- proposals for x repos that don't need to be mentioned here but
      are picked up by the relnote tool. -->
