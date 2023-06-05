@@ -6,25 +6,25 @@
 // cancellation signals, and other request-scoped values across API boundaries
 // and between processes.
 //
-// Incoming requests to a server should create a Context, and outgoing
+// Incoming requests to a server should create a [Context], and outgoing
 // calls to servers should accept a Context. The chain of function
 // calls between them must propagate the Context, optionally replacing
-// it with a derived Context created using WithCancel, WithDeadline,
-// WithTimeout, or WithValue. When a Context is canceled, all
+// it with a derived Context created using [WithCancel], [WithDeadline],
+// [WithTimeout], or [WithValue]. When a Context is canceled, all
 // Contexts derived from it are also canceled.
 //
-// The WithCancel, WithDeadline, and WithTimeout functions take a
+// The [WithCancel], [WithDeadline], and [WithTimeout] functions take a
 // Context (the parent) and return a derived Context (the child) and a
-// CancelFunc. Calling the CancelFunc cancels the child and its
+// [CancelFunc]. Calling the CancelFunc cancels the child and its
 // children, removes the parent's reference to the child, and stops
 // any associated timers. Failing to call the CancelFunc leaks the
 // child and its children until the parent is canceled or the timer
 // fires. The go vet tool checks that CancelFuncs are used on all
 // control-flow paths.
 //
-// The WithCancelCause function returns a CancelCauseFunc, which
+// The [WithCancelCause] function returns a [CancelCauseFunc], which
 // takes an error and records it as the cancellation cause. Calling
-// Cause on the canceled context or any of its children retrieves
+// [Cause] on the canceled context or any of its children retrieves
 // the cause. If no cause is specified, Cause(ctx) returns the same
 // value as ctx.Err().
 //
@@ -40,7 +40,7 @@
 //		// ... use ctx ...
 //	}
 //
-// Do not pass a nil Context, even if a function permits it. Pass context.TODO
+// Do not pass a nil [Context], even if a function permits it. Pass [context.TODO]
 // if you are unsure about which Context to use.
 //
 // Use context Values only for request-scoped data that transits processes and
@@ -159,10 +159,10 @@ type Context interface {
 	Value(key any) any
 }
 
-// Canceled is the error returned by Context.Err when the context is canceled.
+// Canceled is the error returned by [Context.Err] when the context is canceled.
 var Canceled = errors.New("context canceled")
 
-// DeadlineExceeded is the error returned by Context.Err when the context's
+// DeadlineExceeded is the error returned by [Context.Err] when the context's
 // deadline passes.
 var DeadlineExceeded error = deadlineExceededError{}
 
@@ -204,7 +204,7 @@ func (todoCtx) String() string {
 	return "context.TODO"
 }
 
-// Background returns a non-nil, empty Context. It is never canceled, has no
+// Background returns a non-nil, empty [Context]. It is never canceled, has no
 // values, and has no deadline. It is typically used by the main function,
 // initialization, and tests, and as the top-level Context for incoming
 // requests.
@@ -212,7 +212,7 @@ func Background() Context {
 	return backgroundCtx{}
 }
 
-// TODO returns a non-nil, empty Context. Code should use context.TODO when
+// TODO returns a non-nil, empty [Context]. Code should use context.TODO when
 // it's unclear which Context to use or it is not yet available (because the
 // surrounding function has not yet been extended to accept a Context
 // parameter).
@@ -237,8 +237,8 @@ func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
 	return c, func() { c.cancel(true, Canceled, nil) }
 }
 
-// A CancelCauseFunc behaves like a CancelFunc but additionally sets the cancellation cause.
-// This cause can be retrieved by calling Cause on the canceled Context or on
+// A CancelCauseFunc behaves like a [CancelFunc] but additionally sets the cancellation cause.
+// This cause can be retrieved by calling [Cause] on the canceled Context or on
 // any of its derived Contexts.
 //
 // If the context has already been canceled, CancelCauseFunc does not set the cause.
@@ -249,7 +249,7 @@ func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
 //     then Cause(parentContext) == cause1 and Cause(childContext) == cause2
 type CancelCauseFunc func(cause error)
 
-// WithCancelCause behaves like WithCancel but returns a CancelCauseFunc instead of a CancelFunc.
+// WithCancelCause behaves like [WithCancel] but returns a [CancelCauseFunc] instead of a [CancelFunc].
 // Calling cancel with a non-nil error (the "cause") records that error in ctx;
 // it can then be retrieved using Cause(ctx).
 // Calling cancel with nil sets the cause to Canceled.
@@ -277,7 +277,7 @@ func withCancel(parent Context) *cancelCtx {
 // Cause returns a non-nil error explaining why c was canceled.
 // The first cancellation of c or one of its parents sets the cause.
 // If that cancellation happened via a call to CancelCauseFunc(err),
-// then Cause returns err.
+// then [Cause] returns err.
 // Otherwise Cause(c) returns the same value as c.Err().
 // Cause returns nil if c has not been canceled yet.
 func Cause(c Context) error {
@@ -562,7 +562,7 @@ func (c *cancelCtx) cancel(removeFromParent bool, err, cause error) {
 
 // WithoutCancel returns a copy of parent that is not canceled when parent is canceled.
 // The returned context returns no Deadline or Err, and its Done channel is nil.
-// Calling Cause on the returned context returns nil.
+// Calling [Cause] on the returned context returns nil.
 func WithoutCancel(parent Context) Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -597,18 +597,18 @@ func (c withoutCancelCtx) String() string {
 // WithDeadline returns a copy of the parent context with the deadline adjusted
 // to be no later than d. If the parent's deadline is already earlier than d,
 // WithDeadline(parent, d) is semantically equivalent to parent. The returned
-// context's Done channel is closed when the deadline expires, when the returned
+// [Context.Done] channel is closed when the deadline expires, when the returned
 // cancel function is called, or when the parent context's Done channel is
 // closed, whichever happens first.
 //
 // Canceling this context releases resources associated with it, so code should
-// call cancel as soon as the operations running in this Context complete.
+// call cancel as soon as the operations running in this [Context] complete.
 func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
 	return WithDeadlineCause(parent, d, nil)
 }
 
-// WithDeadlineCause behaves like WithDeadline but also sets the cause of the
-// returned Context when the deadline is exceeded. The returned CancelFunc does
+// WithDeadlineCause behaves like [WithDeadline] but also sets the cause of the
+// returned Context when the deadline is exceeded. The returned [CancelFunc] does
 // not set the cause.
 func WithDeadlineCause(parent Context, d time.Time, cause error) (Context, CancelFunc) {
 	if parent == nil {
@@ -674,7 +674,7 @@ func (c *timerCtx) cancel(removeFromParent bool, err, cause error) {
 // WithTimeout returns WithDeadline(parent, time.Now().Add(timeout)).
 //
 // Canceling this context releases resources associated with it, so code should
-// call cancel as soon as the operations running in this Context complete:
+// call cancel as soon as the operations running in this [Context] complete:
 //
 //	func slowOperationWithTimeout(ctx context.Context) (Result, error) {
 //		ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
@@ -685,8 +685,8 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 	return WithDeadline(parent, time.Now().Add(timeout))
 }
 
-// WithTimeoutCause behaves like WithTimeout but also sets the cause of the
-// returned Context when the timout expires. The returned CancelFunc does
+// WithTimeoutCause behaves like [WithTimeout] but also sets the cause of the
+// returned Context when the timout expires. The returned [CancelFunc] does
 // not set the cause.
 func WithTimeoutCause(parent Context, timeout time.Duration, cause error) (Context, CancelFunc) {
 	return WithDeadlineCause(parent, time.Now().Add(timeout), cause)
