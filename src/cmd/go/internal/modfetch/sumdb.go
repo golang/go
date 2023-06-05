@@ -33,6 +33,14 @@ import (
 
 // useSumDB reports whether to use the Go checksum database for the given module.
 func useSumDB(mod module.Version) bool {
+	if mod.Path == "golang.org/toolchain" {
+		// Downloaded toolchains cannot be listed in go.sum,
+		// so we require checksum database lookups even if
+		// GOSUMDB=off or GONOSUMDB matches the pattern.
+		// If GOSUMDB=off, then the eventual lookup will fail
+		// with a good error message.
+		return true
+	}
 	return cfg.GOSUMDB != "off" && !module.MatchPrefixPatterns(cfg.GONOSUMDB, mod.Path)
 }
 
@@ -68,6 +76,10 @@ func dbDial() (dbName string, db *sumdb.Client, err error) {
 	gosumdb := cfg.GOSUMDB
 	if gosumdb == "sum.golang.google.cn" {
 		gosumdb = "sum.golang.org https://sum.golang.google.cn"
+	}
+
+	if gosumdb == "off" {
+		return "", nil, fmt.Errorf("checksum database disabled by GOSUMDB=off")
 	}
 
 	key := strings.Fields(gosumdb)

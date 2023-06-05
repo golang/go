@@ -22,6 +22,8 @@ import (
 // *gover.TooNewErrors (potentially wrapped) and switching is
 // permitted by GOTOOLCHAIN, Switch switches to a new toolchain.
 // Otherwise Switch prints all the errors using base.Error.
+//
+// See https://go.dev/doc/toolchain#switch.
 type Switcher struct {
 	TooNew *gover.TooNewError // max go requirement observed
 	Errors []error            // errors collected so far
@@ -91,7 +93,7 @@ func (s *Switcher) Switch(ctx context.Context) {
 	}
 
 	fmt.Fprintf(os.Stderr, "go: %v requires go >= %v; switching to %v\n", s.TooNew.What, s.TooNew.GoVersion, tv)
-	SwitchTo(tv)
+	Exec(tv)
 	panic("unreachable")
 }
 

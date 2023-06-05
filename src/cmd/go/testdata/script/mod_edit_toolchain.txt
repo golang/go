@@ -7,8 +7,8 @@ env GO111MODULE=on
 go mod edit -toolchain=go1.9
 grep 'toolchain go1.9' go.mod
 
-go mod edit -toolchain=local
-grep 'toolchain local' go.mod
+go mod edit -toolchain=default
+grep 'toolchain default' go.mod
 
 go mod edit -toolchain=none
 ! grep toolchain go.mod

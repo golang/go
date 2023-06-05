@@ -92,7 +92,7 @@ var _ = go11tag
 
 func main() {
 	log.SetFlags(0)
-	toolchain.Switch()
+	toolchain.Select()
 
 	flag.Usage = base.Usage
 	flag.Parse()

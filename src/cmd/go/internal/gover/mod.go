@@ -84,6 +84,9 @@ func ModIsValid(path, vers string) bool {
 // The caller is assumed to have checked that ModIsValid(path, vers) is true.
 func ModIsPrefix(path, vers string) bool {
 	if IsToolchain(path) {
+		if path == "toolchain" {
+			return IsLang(FromToolchain(vers))
+		}
 		return IsLang(vers)
 	}
 	// Semver
@@ -109,4 +112,16 @@ func ModIsPrerelease(path, vers string) bool {
 		return IsPrerelease(vers)
 	}
 	return semver.Prerelease(vers) != ""
+}
+
+// ModMajorMinor returns the "major.minor" truncation of the version v,
+// for use as a prefix in "@patch" queries.
+func ModMajorMinor(path, vers string) string {
+	if IsToolchain(path) {
+		if path == "toolchain" {
+			return "go" + Lang(FromToolchain(vers))
+		}
+		return Lang(vers)
+	}
+	return semver.MajorMinor(vers)
 }

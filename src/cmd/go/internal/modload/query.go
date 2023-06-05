@@ -393,7 +393,7 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
 			qm.mayUseLatest = true
 		} else {
 			qm.mayUseLatest = module.IsPseudoVersion(current)
-			qm.prefix = semver.MajorMinor(current) + "."
+			qm.prefix = gover.ModMajorMinor(qm.path, current) + "."
 			qm.filter = func(mv string) bool { return gover.ModCompare(qm.path, mv, current) >= 0 }
 		}
 
