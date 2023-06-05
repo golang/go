@@ -23,6 +23,26 @@ Do not send CLs removing the interior tags from such phrases.
   </strong>
 </p>
 
+<p>
+  The latest Go release, version 1.21, arrives six months after <a href="/doc/go1.20">Go 1.20</a>.
+  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
+  As always, the release maintains the Go 1 <a href="/doc/go1compat">promise of compatibility</a>;
+  in fact, Go 1.21 <a href="#godebug">improves upon that promise</a>.
+  We expect almost all Go programs to continue to compile and run as before.
+</p>
+
+<p>
+  Go 1.21 introduces a small change to the numbering of releases.
+  In the past, we used Go 1.<i>N</i> to refer to both the overall Go language version and release family
+  as well as the first release in that family.
+  Starting in Go 1.21, the first release is now Go 1.<i>N</i>.0.
+  Today we are releasing both the Go 1.21 language and its initial implementation, the Go 1.21.0 release.
+  These notes refer to “Go 1.21”; tools like <code>go</code> <code>version</code> will report “<code>go1.21.0</code>”
+  (until you upgrade to Go 1.21.1).
+  See “<a href="/doc/toolchain#versions">Go versions</a>” in the “Go Toolchains” documentation for details
+  about the new version numbering.
+</p>
+
 <h2 id="language">Changes to the language</h2>
 
 <p>
@@ -123,13 +143,9 @@ Do not send CLs removing the interior tags from such phrases.
   Together, all these changes make type inference more powerful and inference failures less surprising.
 </p>
 
-<p><!-- https://go.dev/issue/56986 -->
-  TODO: <a href="https://go.dev/issue/56986">https://go.dev/issue/56986</a>: extended backwards compatibility for Go
-</p>
-
 <!-- https://go.dev/issue/57969 -->
 <p>
-  <!-- add GOEXPERIMENT=loopvar -->
+  <!-- TODO(rsc): add GOEXPERIMENT=loopvar -->
 </p>
 
 
@@ -138,10 +154,55 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <h2 id="tools">Tools</h2>
-
-<!-- https://go.dev/issue/15513 -->
 <p>
-  <!-- support compiling all tests without running -->
+  Go 1.21 adds improved support for backwards compatibility and forwards compatibility
+  in the Go toolchain.
+</p>
+
+<p><!-- https://go.dev/issue/56986 -->
+  To improve backwards compatibility, Go 1.21 formalizes
+  Go's use of the GODEBUG environment variable to control
+  the default behavior for changes that are non-breaking according to the
+  <a href="/doc/go1compat">compatibility policy</a>
+  but nonetheless may cause existing programs to break.
+  (For example, programs that depend on buggy behavior may break
+  when a bug is fixed, but bug fixes are not considered breaking changes.)
+  When Go must make this kind of behavior change,
+  it now chooses between the old and new behavior based on the
+  <code>go</code> line in the workspace's <code>go.work</code> file
+  or else the main module's <code>go.mod</code> file.
+  Upgrading to a new Go toolchain but leaving the <code>go</code> line
+  set to its original (older) Go version preserves the behavior of the older
+  toolchain.
+  With this compatibility support, the latest Go toolchain should always
+  be the best, most secure, implementation of an older version of Go.
+  See “<a href="/doc/godebug">Go, Backwards Compatibility, and GODEBUG</a>” for details.
+</p>
+
+<p><!-- https://go.dev/issue/57001 -->
+  To improve forwards compatibility, Go 1.21 now reads the <code>go</code> line
+  in a <code>go.work</code> or <code>go.mod</code> file as a strict
+  minimum requirement: <code>go</code> <code>1.21.0</code> means
+  that the workspace or module cannot be used with Go 1.20 or with Go 1.21rc1.
+  This allows projects that depend on fixes made in later versions of Go
+  to ensure that they are not used with earlier versions.
+  It also gives better error reporting for projects that make use of new Go features:
+  when the problem is that a newer Go version is needed,
+  that problem is reported clearly, instead of attempting to build the code
+  and instead printing errors about unresolved imports or syntax errors.
+</p>
+
+<p>
+  To make these new stricter version requirements easier to manage,
+  the <code>go</code> command can now invoke not just the toolchain
+  bundled in its own release but also other Go toolchain versions found in the PATH
+  or downloaded on demand.
+  If a <code>go.mod</code> or <code>go.work</code> <code>go</code> line
+  declares a minimum requirement on a newer version of Go, the <code>go</code>
+  command will find and run that version automatically.
+  The new <code>toolchain</code> directive sets a suggested minimum toolchain to use,
+  which may be newer than the strict <code>go</code> minimum.
+  See “<a href="/doc/toolchain">Go Toolchains</a>” for details.
 </p>
 
 <h3 id="go-command">Go command</h3>
@@ -155,15 +216,28 @@ Do not send CLs removing the interior tags from such phrases.
   program.
 </p>
 
+<p>
+  The <code>-C</code> <code>dir</code> flag must now be the first
+  flag on the command-line when used.
+</p>
+
 <p><!-- https://go.dev/issue/37708, CL 463837 -->
   The new <code>go</code> <code>test</code> option
   <code>-fullpath</code> prints full path names in test log messages,
   rather than just base names.
 </p>
 
-<!-- CL 466397 -->
-<p>
-  <!-- cmd/go: make go test build multiple executables; The go test command now supports using the -c flag with multiple packages. -->
+<p><!-- https://go.dev/issue/15513, CL 466397 -->
+  The <code>go</code> <code>test</code> <code>-c</code> flag now
+  supports writing test binaries for multiple packages, each to
+  <code>pkg.test</code> where <code>pkg</code> is the package name.
+  It is an error if more than one test package being compiled has a given package name.]
+</p>
+
+<p><!-- https://go.dev/issue/15513, CL 466397 -->
+  The <code>go</code> <code>test</code> <code>-o</code> flag now
+  accepts a directory argument, in which case test binaries are written to that
+  directory instead of the current directory.
 </p>
 
 <h3 id="cgo">Cgo</h3>
