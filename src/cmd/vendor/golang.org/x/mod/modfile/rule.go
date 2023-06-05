@@ -306,9 +306,9 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (parse
 var GoVersionRE = lazyregexp.New(`^([1-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?([a-z]+[0-9]+)?$`)
 var laxGoVersionRE = lazyregexp.New(`^v?(([1-9][0-9]*)\.(0|[1-9][0-9]*))([^0-9].*)$`)
 
-// Toolchains must be named beginning with `go1` or containing `-go1` as a substring,
-// like "go1.20.3" or "gccgo-go1.20.3". As a special case, "local" is also permitted.
-var ToolchainRE = lazyregexp.New(`^local$|(^|-)go1`)
+// Toolchains must be named beginning with `go1`,
+// like "go1.20.3" or "go1.20.3-gccgo". As a special case, "default" is also permitted.
+var ToolchainRE = lazyregexp.New(`^default$|^go1($|\.)`)
 
 func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
 	// If strict is false, this module is a dependency.

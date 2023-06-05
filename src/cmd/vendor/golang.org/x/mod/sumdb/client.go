@@ -109,7 +109,7 @@ func NewClient(ops ClientOps) *Client {
 	}
 }
 
-// init initiailzes the client (if not already initialized)
+// init initializes the client (if not already initialized)
 // and returns any initialization error.
 func (c *Client) init() error {
 	c.initOnce.Do(c.initWork)
@@ -553,6 +553,11 @@ func (r *tileReader) ReadTiles(tiles []tlog.Tile) ([][]byte, error) {
 		wg.Add(1)
 		go func(i int, tile tlog.Tile) {
 			defer wg.Done()
+			defer func() {
+				if e := recover(); e != nil {
+					errs[i] = fmt.Errorf("panic: %v", e)
+				}
+			}()
 			data[i], errs[i] = r.c.readTile(tile)
 		}(i, tile)
 	}

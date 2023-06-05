@@ -124,7 +124,7 @@
 // not contain spaces or newlines).
 //
 // If Open is given access to a Verifiers including the
-// Verifier for this key, then it will succeed at verifiying
+// Verifier for this key, then it will succeed at verifying
 // the encoded message and returning the parsed Note:
 //
 //	vkey := "PeterNeumann+c74f20a3+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW"
