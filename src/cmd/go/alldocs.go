@@ -104,6 +104,7 @@
 //		Change to dir before running the command.
 //		Any files named on the command line are interpreted after
 //		changing directories.
+//		If used, this flag must be the first one in the command line.
 //	-a
 //		force rebuilding of packages that are already up-to-date.
 //	-n
@@ -1865,7 +1866,7 @@
 //
 // Usage:
 //
-//	go vet [-C dir] [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]
+//	go vet [build flags] [-vettool prog] [vet flags] [packages]
 //
 // Vet runs the Go vet command on the packages named by the import paths.
 //
@@ -1873,10 +1874,6 @@
 // For more about specifying packages, see 'go help packages'.
 // For a list of checkers and their flags, see 'go tool vet help'.
 // For details of a specific checker such as 'printf', see 'go tool vet help printf'.
-//
-// The -C flag changes to dir before running the 'go vet' command.
-// The -n flag prints commands that would be executed.
-// The -x flag prints commands as they are executed.
 //
 // The -vettool=prog flag selects a different analysis tool with alternative
 // or additional checks.
@@ -1886,7 +1883,7 @@
 //	go vet -vettool=$(which shadow)
 //
 // The build flags supported by go vet are those that control package resolution
-// and execution, such as -n, -x, -v, -tags, and -toolexec.
+// and execution, such as -C, -n, -x, -v, -tags, and -toolexec.
 // For more about these flags, see 'go help build'.
 //
 // See also: go fmt, go fix.

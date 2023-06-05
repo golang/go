@@ -57,6 +57,20 @@ var Go = &Command{
 	// Commands initialized in package main
 }
 
+// Lookup returns the subcommand with the given name, if any.
+// Otherwise it returns nil.
+//
+// Lookup ignores subcommands that have len(c.Commands) == 0 and c.Run == nil.
+// Such subcommands are only for use as arguments to "help".
+func (c *Command) Lookup(name string) *Command {
+	for _, sub := range c.Commands {
+		if sub.Name() == name && (len(c.Commands) > 0 || c.Runnable()) {
+			return sub
+		}
+	}
+	return nil
+}
+
 // hasFlag reports whether a command or any of its subcommands contain the given
 // flag.
 func hasFlag(c *Command, name string) bool {

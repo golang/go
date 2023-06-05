@@ -122,6 +122,21 @@ stderr '^go: rsc.io/needgo124@v0.0.1 requires go >= 1.24; switching to go1.24rc1
 stderr '^go: upgraded go 1.1 => 1.24$'
 stderr '^go: added toolchain go1.24rc1$'
 
+# The -C flag should not happen more than once due to switching.
+mkdir dir dir/dir
+cp go.mod.new go.mod
+cp go.mod.new dir/go.mod
+cp go.mod.new dir/dir/go.mod
+cp p.go dir/p.go
+cp p.go dir/dir/p.go
+go get -C dir rsc.io/needgo124
+stderr '^go: rsc.io/needgo124@v0.0.1 requires go >= 1.24; switching to go1.24rc1$'
+stderr '^go: upgraded go 1.1 => 1.24$'
+stderr '^go: added toolchain go1.24rc1$'
+cmp go.mod.new go.mod
+cmp go.mod.new dir/dir/go.mod
+grep 'go 1.24$' dir/go.mod
+
 -- go.mod.new --
 module m
 go 1.1
