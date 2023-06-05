@@ -2369,10 +2369,8 @@ done:
 		// further confusion.
 		var str string
 		if as, ok := s.(*AssignStmt); ok && as.Op == 0 {
-			// Emphasize Lhs and Rhs of assignment with parentheses to highlight '='.
-			// Do it always - it's not worth going through the trouble of doing it
-			// only for "complex" left and right sides.
-			str = "assignment (" + String(as.Lhs) + ") = (" + String(as.Rhs) + ")"
+			// Emphasize complex Lhs and Rhs of assignment with parentheses to highlight '='.
+			str = "assignment " + emphasize(as.Lhs) + " = " + emphasize(as.Rhs)
 		} else {
 			str = String(s)
 		}
@@ -2381,6 +2379,17 @@ done:
 
 	p.xnest = outer
 	return
+}
+
+// emphasize returns a string representation of x, with (top-level)
+// binary expressions emphasized by enclosing them in parentheses.
+func emphasize(x Expr) string {
+	s := String(x)
+	if op, _ := x.(*Operation); op != nil && op.Y != nil {
+		// binary expression
+		return "(" + s + ")"
+	}
+	return s
 }
 
 func (p *parser) ifStmt() *IfStmt {
