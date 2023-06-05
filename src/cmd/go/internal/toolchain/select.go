@@ -16,7 +16,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -229,125 +228,6 @@ func Select() {
 	}
 
 	Exec(gotoolchain)
-}
-
-// NewerToolchain returns the name of the toolchain to use when we need
-// to switch to a newer toolchain that must support at least the given Go version.
-// See https://go.dev/doc/toolchain#switch.
-//
-// If the latest major release is 1.N.0, we use the latest patch release of 1.(N-1) if that's >= version.
-// Otherwise we use the latest 1.N if that's allowed.
-// Otherwise we use the latest release.
-func NewerToolchain(ctx context.Context, version string) (string, error) {
-	fetch := autoToolchains
-	if !HasAuto() {
-		fetch = pathToolchains
-	}
-	list, err := fetch(ctx)
-	if err != nil {
-		return "", err
-	}
-	return newerToolchain(version, list)
-}
-
-// autoToolchains returns the list of toolchain versions available to GOTOOLCHAIN=auto or =min+auto mode.
-func autoToolchains(ctx context.Context) ([]string, error) {
-	var versions *modfetch.Versions
-	err := modfetch.TryProxies(func(proxy string) error {
-		v, err := modfetch.Lookup(ctx, proxy, "go").Versions(ctx, "")
-		if err != nil {
-			return err
-		}
-		versions = v
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return versions.List, nil
-}
-
-// pathToolchains returns the list of toolchain versions available to GOTOOLCHAIN=path or =min+path mode.
-func pathToolchains(ctx context.Context) ([]string, error) {
-	have := make(map[string]bool)
-	var list []string
-	for _, dir := range pathDirs() {
-		if dir == "" || !filepath.IsAbs(dir) {
-			// Refuse to use local directories in $PATH (hard-coding exec.ErrDot).
-			continue
-		}
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			continue
-		}
-		for _, de := range entries {
-			if de.IsDir() || !strings.HasPrefix(de.Name(), "go1.") {
-				continue
-			}
-			info, err := de.Info()
-			if err != nil {
-				continue
-			}
-			v, ok := pathVersion(dir, de, info)
-			if !ok || !strings.HasPrefix(v, "1.") || have[v] {
-				continue
-			}
-			have[v] = true
-			list = append(list, v)
-		}
-	}
-	sort.Slice(list, func(i, j int) bool {
-		return gover.Compare(list[i], list[j]) < 0
-	})
-	return list, nil
-}
-
-// newerToolchain implements NewerToolchain where the list of choices is known.
-// It is separated out for easier testing of this logic.
-func newerToolchain(need string, list []string) (string, error) {
-	// Consider each release in the list, from newest to oldest,
-	// considering only entries >= need and then only entries
-	// that are the latest in their language family
-	// (the latest 1.40, the latest 1.39, and so on).
-	// We prefer the latest patch release before the most recent release family,
-	// so if the latest release is 1.40.1 we'll take the latest 1.39.X.
-	// Failing that, we prefer the latest patch release before the most recent
-	// prerelease family, so if the latest release is 1.40rc1 is out but 1.39 is okay,
-	// we'll still take 1.39.X.
-	// Failing that we'll take the latest release.
-	latest := ""
-	for i := len(list) - 1; i >= 0; i-- {
-		v := list[i]
-		if gover.Compare(v, need) < 0 {
-			break
-		}
-		if gover.Lang(latest) == gover.Lang(v) {
-			continue
-		}
-		newer := latest
-		latest = v
-		if newer != "" && !gover.IsPrerelease(newer) {
-			// latest is the last patch release of Go 1.X, and we saw a non-prerelease of Go 1.(X+1),
-			// so latest is the one we want.
-			break
-		}
-	}
-	if latest == "" {
-		return "", fmt.Errorf("no releases found for go >= %v", need)
-	}
-	return "go" + latest, nil
-}
-
-// HasAuto reports whether the GOTOOLCHAIN setting allows "auto" upgrades.
-func HasAuto() bool {
-	env := cfg.Getenv("GOTOOLCHAIN")
-	return env == "auto" || strings.HasSuffix(env, "+auto")
-}
-
-// HasPath reports whether the GOTOOLCHAIN setting allows "path" upgrades.
-func HasPath() bool {
-	env := cfg.Getenv("GOTOOLCHAIN")
-	return env == "path" || strings.HasSuffix(env, "+path")
 }
 
 // TestVersionSwitch is set in the test go binary to the value in $TESTGO_VERSION_SWITCH.
