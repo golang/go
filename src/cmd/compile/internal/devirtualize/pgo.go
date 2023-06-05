@@ -265,7 +265,7 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
 // concretetyp.
 func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *types.Type) ir.Node {
 	if base.Flag.LowerM != 0 {
-		fmt.Printf("%v: PGO devirtualizing call to %v\n", ir.Line(call), callee)
+		fmt.Printf("%v: PGO devirtualizing %v to %v\n", ir.Line(call), call.X, callee)
 	}
 
 	// We generate an OINCALL of:

@@ -68,7 +68,7 @@ go 1.19
 
 	got := make(map[devirtualization]struct{})
 
-	devirtualizedLine := regexp.MustCompile(`(.*): PGO devirtualizing call to (.*)`)
+	devirtualizedLine := regexp.MustCompile(`(.*): PGO devirtualizing .* to (.*)`)
 
 	scanner := bufio.NewScanner(pr)
 	for scanner.Scan() {
