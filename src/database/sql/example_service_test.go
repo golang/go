@@ -33,7 +33,7 @@ func Example_openDBService() {
 }
 
 type Service struct {
-	db *sql.DB
+	db *sql.db
 }
 
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
