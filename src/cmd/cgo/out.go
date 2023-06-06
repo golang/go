@@ -48,7 +48,7 @@ func (p *Package) writeDefs() {
 	fflg := creat(*objDir + "_cgo_flags")
 	for k, v := range p.CgoFlags {
 		for _, arg := range v {
-			fmt.Fprintf(fflg, "_CGO_%s=%s\n", arg)
+			fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, arg)
 		}
 		if k == "LDFLAGS" && !*gccgo {
 			for _, arg := range v {
