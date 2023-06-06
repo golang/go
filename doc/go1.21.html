@@ -536,44 +536,57 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/46308 -->
-      TODO: <a href="https://go.dev/issue/46308">https://go.dev/issue/46308</a>: add VersionName function to return a string version of the TLS Version
-    </p>
-
-    <p><!-- https://go.dev/issue/60107 -->
-      TODO: <a href="https://go.dev/issue/60107">https://go.dev/issue/60107</a>: QUIC 0-RTT APIs
-    </p>
-
-    <p><!-- CL 493655 -->
-      TODO: <a href="https://go.dev/cl/493655">https://go.dev/cl/493655</a>: crypto/tls: support QUIC as a transport; modified api/next/44886.txt
-    </p>
-
-    <p><!-- CL 496818 -->
-      TODO: <a href="https://go.dev/cl/496818">https://go.dev/cl/496818</a>: crypto/tls: add SessionState and use it on the server side; modified api/next/60105.txt
-    </p>
-
-    <p><!-- CL 496820 -->
-      TODO: <a href="https://go.dev/cl/496820">https://go.dev/cl/496820</a>: crypto/tls: add ClientSessionState.ResumptionState and NewResumptionState; modified api/next/60105.txt
-    </p>
-
-    <p><!-- CL 496821 -->
-      TODO: <a href="https://go.dev/cl/496821">https://go.dev/cl/496821</a>: crypto/tls: add WrapSession and UnwrapSession; modified api/next/60105.txt
-    </p>
-
-    <p><!-- CL 496822 -->
-      TODO: <a href="https://go.dev/cl/496822">https://go.dev/cl/496822</a>: crypto/tls: add SessionState.Extra; modified api/next/60105.txt
-    </p>
-
-    <p><!-- CL 496995 -->
-      TODO: <a href="https://go.dev/cl/496995">https://go.dev/cl/496995</a>: crypto/tls: add QUIC 0-RTT APIs; modified api/next/44886.txt, api/next/60107.txt
+    <p><!-- https://go.dev/issue/60105 -->
+      Applications can now control the content of session tickets.
+      <ul>
+        <li>
+          The new <a href="/pkg/crypto/tls/#SessionState"><code>SessionState</code></a> type
+          describes a resumable session.
+        </li>
+        <li>
+          The <a href="/pkg/crypto/tls/#SessionState.Bytes"><code>SessionState.Bytes</code></a>
+          method and <a href="/pkg/crypto/tls/#ParseSessionState"><code>ParseSessionState</code></a>
+          function serialize and deserialize a <code>SessionState</code>.
+        </li>
+        <li>
+          The <a href="/pkg/crypto/tls/#Config.WrapSession"><code>Config.WrapSession</code></a> and
+          <a href="/pkg/crypto/tls/#Config.UnwrapSession"><code>Config.UnwrapSession</code></a>
+          hooks convert a <code>SessionState</code> to and from a ticket.
+        </li>
+        <li>
+          The <a href="/pkg/crypto/tls/#Config.EncryptTicket"><code>Config.EncryptTicket</code></a>
+          and <a href="/pkg/crypto/tls/#Config.DecryptTicket"><code>Config.DecryptTicket</code></a>
+          methods provide a default implementation of <code>WrapSession</code> and
+          <code>UnwrapSession</code>.
+        </li>
+        <li>
+          The <a href="/pkg/crypto/tls/#ClientSessionState.ResumptionState"><code>ClientSessionState.ResumptionState</code></a> method and
+          <a href="/pkg/crypto/tls/#NewResumptionState"><code>NewResumptionState</code></a> function
+          may be used by a <code>ClientSessionCache</code> implementation to store and
+          resume sessions.
+        </li>
+      </ul>
     </p>
 
     <p><!-- CL 497376 -->
-      TODO: <a href="https://go.dev/cl/497376">https://go.dev/cl/497376</a>: crypto/tls: implement Extended Master Secret; modified api/except.txt
+      The package now supports the extended master secret extension (RFC 7627),
+      and enables it by default. Additionally, the deprecation of
+      <a href="/pkg/crypto/tls/#ConnectionState.TLSUnique"><code>ConnectionState.TLSUnique</code></a>
+      has been reverted, and it is populated when a connection which uses
+      extended master secret is resumed. Session tickets produced by
+      Go pre-1.21 are not interoperable with Go 1.21, meaning connections
+      resumed across versions will fall back to full handshakes.
     </p>
 
-    <p><!-- CL 497377 -->
-      TODO: <a href="https://go.dev/cl/497377">https://go.dev/cl/497377</a>: crypto/tls: add VersionName; modified api/next/46308.txt
+    <p><!-- https://go.dev/issue/44886, https://go.dev/issue/60107 -->
+      The new <a href="/pkg/crypto/tls/#QUICConn"><code>QUICConn</code></a> type
+      provides support for QUIC implementations. Note that this is not itself
+      a QUIC implementation.
+    </p>
+
+    <p><!-- https://go.dev/issue/46308 -->
+      The new <a href="/pkg/crypto/tls/#VersionName"></code>VersionName</code></a> function
+      returns the name for a TLS version number.
     </p>
   </dd>
 </dl><!-- crypto/tls -->
