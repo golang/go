@@ -196,6 +196,9 @@ func fastrandu() uint {
 //go:linkname rand_fastrand64 math/rand.fastrand64
 func rand_fastrand64() uint64 { return fastrand64() }
 
+//go:linkname rand2_fastrand64 math/rand/v2.fastrand64
+func rand2_fastrand64() uint64 { return fastrand64() }
+
 //go:linkname sync_fastrandn sync.fastrandn
 func sync_fastrandn(n uint32) uint32 { return fastrandn(n) }
 

@@ -1,0 +1,47 @@
+pkg math/rand/v2, func ExpFloat64() float64 #61716
+pkg math/rand/v2, func Float32() float32 #61716
+pkg math/rand/v2, func Float64() float64 #61716
+pkg math/rand/v2, func Int() int #61716
+pkg math/rand/v2, func Int31() int32 #61716
+pkg math/rand/v2, func Int31n(int32) int32 #61716
+pkg math/rand/v2, func Int63() int64 #61716
+pkg math/rand/v2, func Int63n(int64) int64 #61716
+pkg math/rand/v2, func Intn(int) int #61716
+pkg math/rand/v2, func New(Source) *Rand #61716
+pkg math/rand/v2, func NewSource(int64) Source #61716
+pkg math/rand/v2, func NewZipf(*Rand, float64, float64, uint64) *Zipf #61716
+pkg math/rand/v2, func NormFloat64() float64 #61716
+pkg math/rand/v2, func Perm(int) []int #61716
+pkg math/rand/v2, func Read //deprecated #61716
+pkg math/rand/v2, func Read([]uint8) (int, error) #61716
+pkg math/rand/v2, func Seed //deprecated #61716
+pkg math/rand/v2, func Seed(int64) #61716
+pkg math/rand/v2, func Shuffle(int, func(int, int)) #61716
+pkg math/rand/v2, func Uint32() uint32 #61716
+pkg math/rand/v2, func Uint64() uint64 #61716
+pkg math/rand/v2, method (*Rand) ExpFloat64() float64 #61716
+pkg math/rand/v2, method (*Rand) Float32() float32 #61716
+pkg math/rand/v2, method (*Rand) Float64() float64 #61716
+pkg math/rand/v2, method (*Rand) Int() int #61716
+pkg math/rand/v2, method (*Rand) Int31() int32 #61716
+pkg math/rand/v2, method (*Rand) Int31n(int32) int32 #61716
+pkg math/rand/v2, method (*Rand) Int63() int64 #61716
+pkg math/rand/v2, method (*Rand) Int63n(int64) int64 #61716
+pkg math/rand/v2, method (*Rand) Intn(int) int #61716
+pkg math/rand/v2, method (*Rand) NormFloat64() float64 #61716
+pkg math/rand/v2, method (*Rand) Perm(int) []int #61716
+pkg math/rand/v2, method (*Rand) Read([]uint8) (int, error) #61716
+pkg math/rand/v2, method (*Rand) Seed(int64) #61716
+pkg math/rand/v2, method (*Rand) Shuffle(int, func(int, int)) #61716
+pkg math/rand/v2, method (*Rand) Uint32() uint32 #61716
+pkg math/rand/v2, method (*Rand) Uint64() uint64 #61716
+pkg math/rand/v2, method (*Zipf) Uint64() uint64 #61716
+pkg math/rand/v2, type Rand struct #61716
+pkg math/rand/v2, type Source interface { Int63, Seed } #61716
+pkg math/rand/v2, type Source interface, Int63() int64 #61716
+pkg math/rand/v2, type Source interface, Seed(int64) #61716
+pkg math/rand/v2, type Source64 interface { Int63, Seed, Uint64 } #61716
+pkg math/rand/v2, type Source64 interface, Int63() int64 #61716
+pkg math/rand/v2, type Source64 interface, Seed(int64) #61716
+pkg math/rand/v2, type Source64 interface, Uint64() uint64 #61716
+pkg math/rand/v2, type Zipf struct #61716
