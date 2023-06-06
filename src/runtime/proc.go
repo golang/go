@@ -921,6 +921,35 @@ var freezing atomic.Bool
 // This function must not lock any mutexes.
 func freezetheworld() {
 	freezing.Store(true)
+	if debug.dontfreezetheworld > 0 {
+		// Don't prempt Ps to stop goroutines. That will perturb
+		// scheduler state, making debugging more difficult. Instead,
+		// allow goroutines to continue execution.
+		//
+		// fatalpanic will tracebackothers to trace all goroutines. It
+		// is unsafe to trace a running goroutine, so tracebackothers
+		// will skip running goroutines. That is OK and expected, we
+		// expect users of dontfreezetheworld to use core files anyway.
+		//
+		// However, allowing the scheduler to continue running free
+		// introduces a race: a goroutine may be stopped when
+		// tracebackothers checks its status, and then start running
+		// later when we are in the middle of traceback, potentially
+		// causing a crash.
+		//
+		// To mitigate this, when an M naturally enters the scheduler,
+		// schedule checks if freezing is set and if so stops
+		// execution. This guarantees that while Gs can transition from
+		// running to stopped, they can never transition from stopped
+		// to running.
+		//
+		// The sleep here allows racing Ms that missed freezing and are
+		// about to run a G to complete the transition to running
+		// before we start traceback.
+		usleep(1000)
+		return
+	}
+
 	// stopwait and preemption requests can be lost
 	// due to races with concurrently executing threads,
 	// so try several times
@@ -3551,6 +3580,18 @@ top:
 	}
 
 	gp, inheritTime, tryWakeP := findRunnable() // blocks until work is available
+
+	if debug.dontfreezetheworld > 0 && freezing.Load() {
+		// See comment in freezetheworld. We don't want to perturb
+		// scheduler state, so we didn't gcstopm in findRunnable, but
+		// also don't want to allow new goroutines to run.
+		//
+		// Deadlock here rather than in the findRunnable loop so if
+		// findRunnable is stuck in a loop we don't perturb that
+		// either.
+		lock(&deadlock)
+		lock(&deadlock)
+	}
 
 	// This thread is going to run a goroutine and is not spinning anymore,
 	// so if it was marked as spinning we need to reset it now and potentially

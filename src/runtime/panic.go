@@ -1247,9 +1247,6 @@ func startpanic_m() bool {
 		if debug.schedtrace > 0 || debug.scheddetail > 0 {
 			schedtrace(true)
 		}
-		if debug.dontfreezetheworld > 0 {
-			return true
-		}
 		freezetheworld()
 		return true
 	case 1:
