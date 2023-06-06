@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // CallStat summarizes a single call site.
@@ -396,9 +397,9 @@ func methodRecvType(fn *ir.Func) *types.Type {
 	return recv.Type
 }
 
-// interfaceCallRecvType returns the type of the interface used in an interface
-// call.
-func interfaceCallRecvType(call *ir.CallExpr) *types.Type {
+// interfaceCallRecvTypeAndMethod returns the type and the method of the interface
+// used in an interface call.
+func interfaceCallRecvTypeAndMethod(call *ir.CallExpr) (*types.Type, *types.Sym) {
 	if call.Op() != ir.OCALLINTER {
 		base.Fatalf("Call isn't OCALLINTER: %+v", call)
 	}
@@ -408,7 +409,7 @@ func interfaceCallRecvType(call *ir.CallExpr) *types.Type {
 		base.Fatalf("OCALLINTER doesn't contain SelectorExpr: %+v", call)
 	}
 
-	return sel.X.Type()
+	return sel.X.Type(), sel.Sel
 }
 
 // findHotConcreteCallee returns the *ir.Func of the hottest callee of an
@@ -418,7 +419,7 @@ func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (
 	callerNode := p.WeightedCG.IRNodes[callerName]
 	callOffset := pgo.NodeLineOffset(call, caller)
 
-	inter := interfaceCallRecvType(call)
+	inter, method := interfaceCallRecvTypeAndMethod(call)
 
 	var hottest *pgo.IREdge
 
@@ -508,6 +509,15 @@ func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (
 			if base.Debug.PGODebug >= 2 {
 				why := typecheck.ImplementsExplain(ctyp, inter)
 				fmt.Printf("%v: edge %s:%d -> %s (weight %d): %v doesn't implement %v (%s)\n", ir.Line(call), callerName, callOffset, e.Dst.Name(), e.Weight, ctyp, inter, why)
+			}
+			continue
+		}
+
+		// If the method name is different it is most likely from a
+		// different call on the same line
+		if !strings.HasSuffix(e.Dst.Name(), "."+method.Name) {
+			if base.Debug.PGODebug >= 2 {
+				fmt.Printf("%v: edge %s:%d -> %s (weight %d): callee is a different method\n", ir.Line(call), callerName, callOffset, e.Dst.Name(), e.Weight)
 			}
 			continue
 		}
