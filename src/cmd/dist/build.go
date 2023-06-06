@@ -657,13 +657,6 @@ var gentab = []struct {
 	{"zosarch.go", mkzosarch},
 	{"zversion.go", mkzversion},
 	{"zzipdata.go", mktzdata},
-
-	// not generated anymore, but delete the file if we see it
-	{"enam.c", nil},
-	{"anames5.c", nil},
-	{"anames6.c", nil},
-	{"anames8.c", nil},
-	{"anames9.c", nil},
 }
 
 // installed maps from a dir name (as given to install) to a chan
