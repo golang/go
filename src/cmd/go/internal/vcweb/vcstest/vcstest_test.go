@@ -140,6 +140,9 @@ func TestScripts(t *testing.T) {
 		if rel == "README" {
 			return nil
 		}
+		if rel == ".DS_Store" {
+			return nil
+		}
 
 		t.Run(filepath.ToSlash(rel), func(t *testing.T) {
 			t.Parallel()
