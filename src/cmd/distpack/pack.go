@@ -113,7 +113,7 @@ func main() {
 		"bin/**",
 		"pkg/**",
 
-		// Generated during cmd/dist. See ../dist/build.go:/deptab.
+		// Generated during cmd/dist. See ../dist/build.go:/gentab.
 		"src/cmd/go/internal/cfg/zdefaultcc.go",
 		"src/go/build/zcgo.go",
 		"src/internal/platform/zosarch.go",
