@@ -76,6 +76,14 @@ func NewMethodSet(T Type) *MethodSet {
 	// TODO(rfindley) confirm that this code is in sync with lookupFieldOrMethod
 	//                with respect to type params.
 
+	// Methods cannot be associated with a named pointer type.
+	// (spec: "The type denoted by T is called the receiver base type;
+	// it must not be a pointer or interface type and it must be declared
+	// in the same package as the method.").
+	if t, _ := T.(*Named); t != nil && isPointer(t) {
+		return &emptyMethodSet
+	}
+
 	// method set up to the current depth, allocated lazily
 	var base methodSet
 
