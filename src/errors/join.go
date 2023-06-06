@@ -53,19 +53,9 @@ func (e *joinError) Error() string {
 		return e.errs[0].Error()
 	}
 
-	const maxInt = int(^uint(0) >> 1)
-
-	n := nerrs - 1
-	for _, err := range e.errs {
-		nstr := len(err.Error())
-		if nstr > maxInt-n {
-			panic("errors: Join output length overflow")
-		}
-		n += nstr
-	}
-
-	b := make([]byte, 0, n)
-	b = append(b, e.errs[0].Error()...)
+	// To avoid doubling the number of Error calls, skip preallocating 
+	// the slice on overflow and let the runtime handle the panic.
+	b := []byte(e.errs[0].Error())
 	for _, err := range e.errs[1:] {
 		b = append(b, '\n')
 		b = append(b, err.Error()...)
