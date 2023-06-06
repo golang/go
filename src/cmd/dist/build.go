@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -1141,23 +1143,36 @@ func dopack(dst, src string, extra []string) {
 	writefile(bdst.String(), dst, 0)
 }
 
-var runtimegen = []string{
-	"zaexperiment.h",
-	"zversion.go",
-}
-
 func clean() {
-	// Remove generated files.
-	for _, gt := range gentab {
-		path := pathf("%s/src/%s/%s", goroot, gt.pkg, gt.file)
-		xremove(path)
-	}
+	generated := []byte(generatedHeader)
 
-	// remove runtimegen files.
-	path := pathf("%s/src/runtime", goroot)
-	for _, elem := range runtimegen {
-		xremove(pathf("%s/%s", path, elem))
-	}
+	// Remove generated source files.
+	filepath.WalkDir(pathf("%s/src", goroot), func(path string, d fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			// ignore
+		case d.IsDir() && (d.Name() == "vendor" || d.Name() == "testdata"):
+			return filepath.SkipDir
+		case d.IsDir() && d.Name() != "dist":
+			// Remove generated binary named for directory, but not dist out from under us.
+			exe := filepath.Join(path, d.Name())
+			if info, err := os.Stat(exe); err == nil && !info.IsDir() {
+				xremove(exe)
+			}
+			xremove(exe + ".exe")
+		case !d.IsDir() && strings.HasPrefix(d.Name(), "z"):
+			// Remove generated file, identified by marker string.
+			head := make([]byte, 512)
+			if f, err := os.Open(path); err == nil {
+				io.ReadFull(f, head)
+				f.Close()
+			}
+			if bytes.HasPrefix(head, generated) {
+				xremove(path)
+			}
+		}
+		return nil
+	})
 
 	if rebuildall {
 		// Remove object tree.
