@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-var pool *sql.DB // Database connection pool.
+var pool sql.DB // Database connection pool.
 
 func Example_openDBCLI() {
 	id := flag.Int64("id", 0, "person ID to find")
