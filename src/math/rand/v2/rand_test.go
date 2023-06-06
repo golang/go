@@ -5,18 +5,15 @@
 package rand_test
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"internal/testenv"
-	"io"
 	"math"
 	. "math/rand/v2"
 	"os"
 	"runtime"
 	"sync"
 	"testing"
-	"testing/iotest"
 )
 
 const (
@@ -367,94 +364,6 @@ func TestFloat32(t *testing.T) {
 	}
 }
 
-func testReadUniformity(t *testing.T, n int, seed int64) {
-	r := New(NewSource(seed))
-	buf := make([]byte, n)
-	nRead, err := r.Read(buf)
-	if err != nil {
-		t.Errorf("Read err %v", err)
-	}
-	if nRead != n {
-		t.Errorf("Read returned unexpected n; %d != %d", nRead, n)
-	}
-
-	// Expect a uniform distribution of byte values, which lie in [0, 255].
-	var (
-		mean       = 255.0 / 2
-		stddev     = 256.0 / math.Sqrt(12.0)
-		errorScale = stddev / math.Sqrt(float64(n))
-	)
-
-	expected := &statsResults{mean, stddev, 0.10 * errorScale, 0.08 * errorScale}
-
-	// Cast bytes as floats to use the common distribution-validity checks.
-	samples := make([]float64, n)
-	for i, val := range buf {
-		samples[i] = float64(val)
-	}
-	// Make sure that the entire set matches the expected distribution.
-	checkSampleDistribution(t, samples, expected)
-}
-
-func TestReadUniformity(t *testing.T) {
-	testBufferSizes := []int{
-		2, 4, 7, 64, 1024, 1 << 16, 1 << 20,
-	}
-	for _, seed := range testSeeds {
-		for _, n := range testBufferSizes {
-			testReadUniformity(t, n, seed)
-		}
-	}
-}
-
-func TestReadEmpty(t *testing.T) {
-	r := New(NewSource(1))
-	buf := make([]byte, 0)
-	n, err := r.Read(buf)
-	if err != nil {
-		t.Errorf("Read err into empty buffer; %v", err)
-	}
-	if n != 0 {
-		t.Errorf("Read into empty buffer returned unexpected n of %d", n)
-	}
-}
-
-func TestReadByOneByte(t *testing.T) {
-	r := New(NewSource(1))
-	b1 := make([]byte, 100)
-	_, err := io.ReadFull(iotest.OneByteReader(r), b1)
-	if err != nil {
-		t.Errorf("read by one byte: %v", err)
-	}
-	r = New(NewSource(1))
-	b2 := make([]byte, 100)
-	_, err = r.Read(b2)
-	if err != nil {
-		t.Errorf("read: %v", err)
-	}
-	if !bytes.Equal(b1, b2) {
-		t.Errorf("read by one byte vs single read:\n%x\n%x", b1, b2)
-	}
-}
-
-func TestReadSeedReset(t *testing.T) {
-	r := New(NewSource(42))
-	b1 := make([]byte, 128)
-	_, err := r.Read(b1)
-	if err != nil {
-		t.Errorf("read: %v", err)
-	}
-	r.Seed(42)
-	b2 := make([]byte, 128)
-	_, err = r.Read(b2)
-	if err != nil {
-		t.Errorf("read: %v", err)
-	}
-	if !bytes.Equal(b1, b2) {
-		t.Errorf("mismatch after re-seed:\n%x\n%x", b1, b2)
-	}
-}
-
 func TestShuffleSmall(t *testing.T) {
 	// Check that Shuffle allows n=0 and n=1, but that swap is never called for them.
 	r := New(NewSource(1))
@@ -655,33 +564,6 @@ func BenchmarkShuffleOverhead(b *testing.B) {
 				b.Fatalf("bad swap(%d, %d)", i, j)
 			}
 		})
-	}
-}
-
-func BenchmarkRead3(b *testing.B) {
-	r := New(NewSource(1))
-	buf := make([]byte, 3)
-	b.ResetTimer()
-	for n := b.N; n > 0; n-- {
-		r.Read(buf)
-	}
-}
-
-func BenchmarkRead64(b *testing.B) {
-	r := New(NewSource(1))
-	buf := make([]byte, 64)
-	b.ResetTimer()
-	for n := b.N; n > 0; n-- {
-		r.Read(buf)
-	}
-}
-
-func BenchmarkRead1000(b *testing.B) {
-	r := New(NewSource(1))
-	buf := make([]byte, 1000)
-	b.ResetTimer()
-	for n := b.N; n > 0; n-- {
-		r.Read(buf)
 	}
 }
 

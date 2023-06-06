@@ -38,7 +38,6 @@ func TestConcurrent(t *testing.T) {
 				for _, p := range Perm(10) {
 					seed += int64(p)
 				}
-				Read(buf)
 				for _, b := range buf {
 					seed += int64(b)
 				}

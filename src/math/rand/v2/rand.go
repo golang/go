@@ -62,15 +62,6 @@ func newSource(seed int64) *rngSource {
 type Rand struct {
 	src Source
 	s64 Source64 // non-nil if src is source64
-
-	// readVal contains remainder of 63-bit integer used for bytes
-	// generation during most recent Read call.
-	// It is saved so next Read call can start where the previous
-	// one finished.
-	readVal int64
-	// readPos indicates the number of low-order bytes of readVal
-	// that are still valid.
-	readPos int8
 }
 
 // New returns a new Rand that uses random values from src
@@ -84,12 +75,10 @@ func New(src Source) *Rand {
 // Seed should not be called concurrently with any other Rand method.
 func (r *Rand) Seed(seed int64) {
 	if lk, ok := r.src.(*lockedSource); ok {
-		lk.seedPos(seed, &r.readPos)
+		lk.Seed(seed)
 		return
 	}
-
 	r.src.Seed(seed)
-	r.readPos = 0
 }
 
 // Int64 returns a non-negative pseudo-random 63-bit integer as an int64.
@@ -266,41 +255,6 @@ func (r *Rand) Shuffle(n int, swap func(i, j int)) {
 	}
 }
 
-// Read generates len(p) random bytes and writes them into p. It
-// always returns len(p) and a nil error.
-// Read should not be called concurrently with any other Rand method.
-func (r *Rand) Read(p []byte) (n int, err error) {
-	switch src := r.src.(type) {
-	case *lockedSource:
-		return src.read(p, &r.readVal, &r.readPos)
-	case *fastSource:
-		return src.read(p, &r.readVal, &r.readPos)
-	}
-	return read(p, r.src, &r.readVal, &r.readPos)
-}
-
-func read(p []byte, src Source, readVal *int64, readPos *int8) (n int, err error) {
-	pos := *readPos
-	val := *readVal
-	rng, _ := src.(*rngSource)
-	for n = 0; n < len(p); n++ {
-		if pos == 0 {
-			if rng != nil {
-				val = rng.Int64()
-			} else {
-				val = src.Int64()
-			}
-			pos = 7
-		}
-		p[n] = byte(val)
-		val >>= 8
-		pos--
-	}
-	*readPos = pos
-	*readVal = val
-	return
-}
-
 /*
  * Top-level convenience functions
  */
@@ -349,12 +303,8 @@ func globalRand() *Rand {
 //go:linkname fastrand64
 func fastrand64() uint64
 
-// fastSource is an implementation of Source64 that uses the runtime
-// fastrand functions.
-type fastSource struct {
-	// The mutex is used to avoid race conditions in Read.
-	mu sync.Mutex
-}
+// fastSource is a Source that uses the runtime fastrand functions.
+type fastSource struct{}
 
 func (*fastSource) Int64() int64 {
 	return int64(fastrand64() & rngMask)
@@ -366,13 +316,6 @@ func (*fastSource) Seed(int64) {
 
 func (*fastSource) Uint64() uint64 {
 	return fastrand64()
-}
-
-func (fs *fastSource) read(p []byte, readVal *int64, readPos *int8) (n int, err error) {
-	fs.mu.Lock()
-	n, err = read(p, fs, readVal, readPos)
-	fs.mu.Unlock()
-	return
 }
 
 // Seed uses the provided seed value to initialize the default Source to a
@@ -469,13 +412,6 @@ func Perm(n int) []int { return globalRand().Perm(n) }
 // swap swaps the elements with indexes i and j.
 func Shuffle(n int, swap func(i, j int)) { globalRand().Shuffle(n, swap) }
 
-// Read generates len(p) random bytes from the default Source and
-// writes them into p. It always returns len(p) and a nil error.
-// Read, unlike the Rand.Read method, is safe for concurrent use.
-//
-// Deprecated: For almost all use cases, crypto/rand.Read is more appropriate.
-func Read(p []byte) (n int, err error) { return globalRand().Read(p) }
-
 // NormFloat64 returns a normally distributed float64 in the range
 // [-math.MaxFloat64, +math.MaxFloat64] with
 // standard normal distribution (mean = 0, stddev = 1)
@@ -520,14 +456,6 @@ func (r *lockedSource) Seed(seed int64) {
 	r.lk.Unlock()
 }
 
-// seedPos implements Seed for a lockedSource without a race condition.
-func (r *lockedSource) seedPos(seed int64, readPos *int8) {
-	r.lk.Lock()
-	r.seed(seed)
-	*readPos = 0
-	r.lk.Unlock()
-}
-
 // seed seeds the underlying source.
 // The caller must have locked r.lk.
 func (r *lockedSource) seed(seed int64) {
@@ -536,12 +464,4 @@ func (r *lockedSource) seed(seed int64) {
 	} else {
 		r.s.Seed(seed)
 	}
-}
-
-// read implements Read for a lockedSource without a race condition.
-func (r *lockedSource) read(p []byte, readVal *int64, readPos *int8) (n int, err error) {
-	r.lk.Lock()
-	n, err = read(p, r.s, readVal, readPos)
-	r.lk.Unlock()
-	return
 }
