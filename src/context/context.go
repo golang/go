@@ -686,7 +686,7 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 }
 
 // WithTimeoutCause behaves like [WithTimeout] but also sets the cause of the
-// returned Context when the timout expires. The returned [CancelFunc] does
+// returned Context when the timeout expires. The returned [CancelFunc] does
 // not set the cause.
 func WithTimeoutCause(parent Context, timeout time.Duration, cause error) (Context, CancelFunc) {
 	return WithDeadlineCause(parent, time.Now().Add(timeout), cause)
