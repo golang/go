@@ -740,12 +740,18 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/44855, CL 382117 -->
-      The new <a href="/pkg/net/http/#ErrSchemeMismatch"><code>ErrSchemeMismatch</code></a> error is returned by <a href="/pkg/net/http/#Client"><code>Client</code></a> and <a href="/pkg/net/http/#Transport"><code>Transport</code></a> when the server responds to an HTTPS request with an HTTP response.
+    <p><!-- CL 472636 -->
+      The new <a href="/pkg/net/http#ResponseController.EnableFullDuplex"><code>ResponseController.EnableFullDuplex</code></a>
+      method allows server handlers to concurrently read from an HTTP/1
+      request body while writing the response. Normally, the HTTP/1 server
+      automatically consumes any remaining request body before starting to
+      write the response, to avoid deadlocking clients which attempt to
+      write a complete request before reading the response. The
+      <code>EnableFullDuplex</code> method disables this behavior.
     </p>
 
-    <p><!-- CL 472636 -->
-      TODO: <a href="https://go.dev/cl/472636">https://go.dev/cl/472636</a>: net/http: support full-duplex HTTP/1 responses; modified api/next/57786.txt
+    <p><!-- https://go.dev/issue/44855, CL 382117 -->
+      The new <a href="/pkg/net/http/#ErrSchemeMismatch"><code>ErrSchemeMismatch</code></a> error is returned by <a href="/pkg/net/http/#Client"><code>Client</code></a> and <a href="/pkg/net/http/#Transport"><code>Transport</code></a> when the server responds to an HTTPS request with an HTTP response.
     </p>
 
     <p><!-- CL 494122 -->
