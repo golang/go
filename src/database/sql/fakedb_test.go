@@ -329,7 +329,7 @@ func (db *fakeDB) createTable(name string, columnNames, columnTypes []string) er
 	return nil
 }
 
-// must be called with DBStruct.mu lock held
+// must be called with _DB.mu lock held
 func (db *fakeDB) table(table string) (*table, bool) {
 	if db.tables == nil {
 		return nil, false
@@ -642,7 +642,7 @@ func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
 func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
 	c.numPrepare++
 	if c.db == nil {
-		panic("nil c.DBStruct; conn = " + fmt.Sprintf("%#v", c))
+		panic("nil c._DB; conn = " + fmt.Sprintf("%#v", c))
 	}
 
 	if c.stickyBad || (hookPrepareBadConn != nil && hookPrepareBadConn()) {
@@ -745,7 +745,7 @@ func (s *fakeStmt) Close() error {
 		panic("nil conn in fakeStmt.Close")
 	}
 	if s.c.db == nil {
-		panic("in fakeStmt.Close, conn's DBStruct is nil (already closed)")
+		panic("in fakeStmt.Close, conn's _DB is nil (already closed)")
 	}
 	s.touchMem()
 	if !s.closed {
@@ -829,7 +829,7 @@ func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 func (s *fakeStmt) execInsert(args []driver.NamedValue, doInsert bool) (driver.Result, error) {
 	db := s.c.db
 	if len(args) != s.placeholders {
-		panic("error in pkg DBStruct; should only get here if size is correct")
+		panic("error in pkg _DB; should only get here if size is correct")
 	}
 	db.mu.Lock()
 	t, ok := db.table(s.table)
@@ -909,7 +909,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 	s.touchMem()
 	db := s.c.db
 	if len(args) != s.placeholders {
-		panic("error in pkg DBStruct; should only get here if size is correct")
+		panic("error in pkg _DB; should only get here if size is correct")
 	}
 
 	setMRows := make([][]*row, 0, 1)

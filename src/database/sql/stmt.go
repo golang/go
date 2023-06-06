@@ -37,14 +37,14 @@ var (
 // If a Stmt is prepared on a Tx or Conn, it will be bound to a single
 // underlying connection forever. If the Tx or Conn closes, the Stmt will
 // become unusable and all operations will return an error.
-// If a Stmt is prepared on a DBStruct, it will remain usable for the lifetime of the
-// DBStruct. When the Stmt needs to execute on a new underlying connection, it will
+// If a Stmt is prepared on a _DB, it will remain usable for the lifetime of the
+// _DB. When the Stmt needs to execute on a new underlying connection, it will
 // prepare itself on the new connection automatically.
 type stmt struct {
 	// Immutable:
-	db        *DBStruct // where we came from
-	query     string    // that created the Stmt
-	stickyErr error     // if non-nil, this error is returned for all operations
+	db        *_DB   // where we came from
+	query     string // that created the Stmt
+	stickyErr error  // if non-nil, this error is returned for all operations
 
 	closemu sync.RWMutex // held exclusively during close, for read otherwise.
 
@@ -73,7 +73,7 @@ type stmt struct {
 	// connections. If cg != nil, cgds is always used.
 	css []connStmt
 
-	// lastNumClosed is copied from DBStruct.numClosed when Stmt is created
+	// lastNumClosed is copied from _DB.numClosed when Stmt is created
 	// without tx and closed connections in css are removed.
 	lastNumClosed uint64
 }
@@ -136,8 +136,8 @@ func resultFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, ar
 
 // removeClosedStmtLocked removes closed conns in s.css.
 //
-// To avoid lock contention on DBStruct.mu, we do it only when
-// s.DBStruct.numClosed - s.lastNum is large enough.
+// To avoid lock contention on _DB.mu, we do it only when
+// s._DB.numClosed - s.lastNum is large enough.
 func (s *stmt) removeClosedStmtLocked() {
 	t := len(s.css)/2 + 1
 	if t > 10 {

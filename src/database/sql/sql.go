@@ -113,7 +113,7 @@ func (i IsolationLevel) String() string {
 
 var _ fmt.Stringer = LevelDefault
 
-// TxOptions holds the transaction options to be used in DBStruct.BeginTx.
+// TxOptions holds the transaction options to be used in _DB.BeginTx.
 type TxOptions struct {
 	// Isolation is the transaction isolation level.
 	// If zero, the driver or database's default level is used.
@@ -151,7 +151,7 @@ type Scanner interface {
 // Example usage:
 //
 //	var outArg string
-//	_, err := DBStruct.ExecContext(ctx, "ProcName", sql.Named("Arg1", sql.Out{Dest: &outArg}))
+//	_, err := _DB.ExecContext(ctx, "ProcName", sql.Named("Arg1", sql.Out{Dest: &outArg}))
 type Out struct {
 	_NamedFieldsRequired struct{}
 
@@ -170,7 +170,7 @@ type Out struct {
 // defers this error until a Scan.
 var ErrNoRows = errors.New("sql: no rows in result set")
 
-// connReuseStrategy determines how (*DBStruct).conn returns database connections.
+// connReuseStrategy determines how (*_DB).conn returns database connections.
 type connReuseStrategy uint8
 
 const (
@@ -208,11 +208,11 @@ func (ds *driverStmt) Close() error {
 // depSet is a finalCloser's outstanding dependencies
 type depSet map[any]bool // set of true bools
 
-// The finalCloser interface is used by (*DBStruct).addDep and related
+// The finalCloser interface is used by (*_DB).addDep and related
 // dependency reference counting.
 type finalCloser interface {
 	// finalClose is called when the reference count of an object
-	// goes to zero. (*DBStruct).mu is not held while calling it.
+	// goes to zero. (*_DB).mu is not held while calling it.
 	finalClose() error
 }
 
@@ -253,10 +253,10 @@ type DB interface {
 	Conn(ctx context.Context) (*Conn, error)
 }
 
-// This is the size of the connectionOpener request chan (DBStruct.openerCh).
+// This is the size of the connectionOpener request chan (_DB.openerCh).
 // This value should be larger than the maximum typical value
-// used for DBStruct.maxOpen. If maxOpen is significantly larger than
-// connectionRequestQueueSize then it is possible for ALL calls into the *DBStruct
+// used for _DB.maxOpen. If maxOpen is significantly larger than
+// connectionRequestQueueSize then it is possible for ALL calls into the *_DB
 // to block until the connectionOpener can satisfy the backlog of requests.
 var connectionRequestQueueSize = 1000000
 
@@ -277,7 +277,7 @@ func (t dsnConnector) Driver() driver.Driver {
 // bypass a string based data source name.
 //
 // Most users will open a database via a driver-specific connection
-// helper function that returns a *DBStruct. No database drivers are included
+// helper function that returns a *_DB. No database drivers are included
 // in the Go standard library. See https://golang.org/s/sqldrivers for
 // a list of third-party drivers.
 //
@@ -285,13 +285,13 @@ func (t dsnConnector) Driver() driver.Driver {
 // to the database. To verify that the data source name is valid, call
 // Ping.
 //
-// The returned DBStruct is safe for concurrent use by multiple goroutines
+// The returned _DB is safe for concurrent use by multiple goroutines
 // and maintains its own pool of idle connections. Thus, the OpenDB
 // function should be called just once. It is rarely necessary to
-// close a DBStruct.
+// close a _DB.
 func OpenDB(c driver.Connector) DB {
 	ctx, cancel := context.WithCancel(context.Background())
-	db := &DBStruct{
+	db := &_DB{
 		connector:    c,
 		openerCh:     make(chan struct{}, connectionRequestQueueSize),
 		lastPut:      make(map[*driverConn]string),
@@ -309,7 +309,7 @@ func OpenDB(c driver.Connector) DB {
 // database name and connection information.
 //
 // Most users will open a database via a driver-specific connection
-// helper function that returns a *DBStruct. No database drivers are included
+// helper function that returns a *_DB. No database drivers are included
 // in the Go standard library. See https://golang.org/s/sqldrivers for
 // a list of third-party drivers.
 //
@@ -317,10 +317,10 @@ func OpenDB(c driver.Connector) DB {
 // to the database. To verify that the data source name is valid, call
 // Ping.
 //
-// The returned DBStruct is safe for concurrent use by multiple goroutines
+// The returned _DB is safe for concurrent use by multiple goroutines
 // and maintains its own pool of idle connections. Thus, the Open
 // function should be called just once. It is rarely necessary to
-// close a DBStruct.
+// close a _DB.
 func Open(driverName, dataSourceName string) (DB, error) {
 	driversMu.RLock()
 	driveri, ok := drivers[driverName]

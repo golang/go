@@ -15,7 +15,7 @@ import (
 
 var (
 	ctx context.Context
-	db  *sql.DBStruct
+	db  *sql._DB
 )
 
 func ExampleDB_QueryContext() {
@@ -237,7 +237,7 @@ func ExampleDB_BeginTx() {
 }
 
 func ExampleConn_ExecContext() {
-	// A *DBStruct is a pool of connections. Call Conn to reserve a connection for
+	// A *_DB is a pool of connections. Call Conn to reserve a connection for
 	// exclusive use.
 	conn, err := db.Conn(ctx)
 	if err != nil {

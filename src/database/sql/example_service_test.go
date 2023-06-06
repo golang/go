@@ -27,13 +27,13 @@ func Example_openDBService() {
 	db_.SetMaxIdleConns(50)
 	db_.SetMaxOpenConns(50)
 
-	s := &Service{db: db_.(*sql.DBStruct)}
+	s := &Service{db: db_.(*sql._DB)}
 
 	http.ListenAndServe(":8080", s)
 }
 
 type Service struct {
-	db *sql.DBStruct
+	db *sql._DB
 }
 
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +48,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		err := s.db.PingContext(ctx)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("DBStruct down: %v", err), http.StatusFailedDependency)
+			http.Error(w, fmt.Sprintf("_DB down: %v", err), http.StatusFailedDependency)
 			return
 		}
 		w.WriteHeader(http.StatusOK)

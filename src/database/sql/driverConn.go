@@ -13,7 +13,7 @@ import (
 // interfaces returned via that Conn, such as calls on Tx, Stmt,
 // Result, Rows)
 type driverConn struct {
-	db        *DBStruct
+	db        *_DB
 	createdAt time.Time
 
 	sync.Mutex  // guards following
@@ -23,11 +23,11 @@ type driverConn struct {
 	finalClosed bool // ci.Close has been called
 	openStmt    map[*driverStmt]bool
 
-	// guarded by DBStruct.mu
+	// guarded by _DB.mu
 	inUse      bool
 	returnedAt time.Time // Time the connection was created or returned.
-	onPut      []func()  // code (with DBStruct.mu held) run when conn is next returned
-	dbmuClosed bool      // same as closed, but guarded by DBStruct.mu, for removeClosedStmtLocked
+	onPut      []func()  // code (with _DB.mu held) run when conn is next returned
+	dbmuClosed bool      // same as closed, but guarded by _DB.mu, for removeClosedStmtLocked
 }
 
 func (dc *driverConn) releaseConn(err error) {
@@ -102,7 +102,7 @@ func (dc *driverConn) prepareLocked(ctx context.Context, cg stmtConnGrabber, que
 	return ds, nil
 }
 
-// the dc.DBStruct's Mutex is held.
+// the dc._DB's Mutex is held.
 func (dc *driverConn) closeDBLocked() func() error {
 	dc.Lock()
 	defer dc.Unlock()

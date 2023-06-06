@@ -9,7 +9,7 @@ import (
 )
 
 // Conn represents a single database connection rather than a pool of database
-// connections. Prefer running queries from DBStruct unless there is a specific
+// connections. Prefer running queries from _DB unless there is a specific
 // need for a continuous single database connection.
 //
 // A Conn must call Close to return the connection to the database pool
@@ -18,7 +18,7 @@ import (
 // After a call to Close, all operations on the
 // connection fail with ErrConnDone.
 type Conn struct {
-	db *DBStruct
+	db *_DB
 
 	// closemu prevents the connection from closing while there
 	// is an active query. It is held for read during queries
