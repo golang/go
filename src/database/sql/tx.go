@@ -19,7 +19,7 @@ import (
 // the transaction's Prepare or Stmt methods are closed
 // by the call to Commit or Rollback.
 type Tx struct {
-	db *db
+	db *DBStruct
 
 	// closemu prevents the transaction from closing while there
 	// is an active query. It is held for read during queries
@@ -258,9 +258,9 @@ func (tx *Tx) Prepare(query string) (Stmt, error) {
 //
 // Example:
 //
-//	updateMoney, err := db.Prepare("UPDATE balance SET money=money+? WHERE id=?")
+//	updateMoney, err := DBStruct.Prepare("UPDATE balance SET money=money+? WHERE id=?")
 //	...
-//	tx, err := db.Begin()
+//	tx, err := DBStruct.Begin()
 //	...
 //	res, err := tx.StmtContext(ctx, updateMoney).Exec(123.45, 98293203)
 //
@@ -348,9 +348,9 @@ func (tx *Tx) StmtContext(ctx context.Context, s Stmt) Stmt {
 //
 // Example:
 //
-//	updateMoney, err := db.Prepare("UPDATE balance SET money=money+? WHERE id=?")
+//	updateMoney, err := DBStruct.Prepare("UPDATE balance SET money=money+? WHERE id=?")
 //	...
-//	tx, err := db.Begin()
+//	tx, err := DBStruct.Begin()
 //	...
 //	res, err := tx.Stmt(updateMoney).Exec(123.45, 98293203)
 //

@@ -15,7 +15,7 @@ type RawBytes []byte
 // it can be used as a scan destination:
 //
 //	var s NullString
-//	err := db.QueryRow("SELECT name FROM foo WHERE id=?", id).Scan(&s)
+//	err := DBStruct.QueryRow("SELECT name FROM foo WHERE id=?", id).Scan(&s)
 //	...
 //	if s.Valid {
 //	   // use s.String

@@ -17,23 +17,23 @@ import (
 
 func Example_openDBService() {
 	// Opening a driver typically will not attempt to connect to the database.
-	db, err := sql.Open("driver-name", "database=test1")
+	db_, err := sql.Open("driver-name", "database=test1")
 	if err != nil {
 		// This will not be a connection error, but a DSN parse error or
 		// another initialization error.
 		log.Fatal(err)
 	}
-	db.SetConnMaxLifetime(0)
-	db.SetMaxIdleConns(50)
-	db.SetMaxOpenConns(50)
+	db_.SetConnMaxLifetime(0)
+	db_.SetMaxIdleConns(50)
+	db_.SetMaxOpenConns(50)
 
-	s := &Service{db: db}
+	s := &Service{db: db_.(*sql.DBStruct)}
 
 	http.ListenAndServe(":8080", s)
 }
 
 type Service struct {
-	db *sql.db
+	db *sql.DBStruct
 }
 
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +48,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		err := s.db.PingContext(ctx)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("db down: %v", err), http.StatusFailedDependency)
+			http.Error(w, fmt.Sprintf("DBStruct down: %v", err), http.StatusFailedDependency)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
