@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -75,12 +76,20 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
+	if strings.Contains(os.Getenv("GCFLAGS"), "mayMoreStackPreempt") {
+		// This test occasionally times out in this debug mode. This is probably
+		// revealing a real bug in the scheduler, but since it seems to only
+		// affect this test and this is itself a test of a debug mode, it's not
+		// a high priority.
+		testenv.SkipFlaky(t, 55160)
+	}
+
 	exe, err := buildTestProg(t, "testprog")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(exe, "CrashDumpsAllThreads")
+	cmd := testenv.Command(t, exe, "CrashDumpsAllThreads")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env,
 		"GOTRACEBACK=crash",
