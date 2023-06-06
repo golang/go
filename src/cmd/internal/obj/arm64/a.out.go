@@ -341,21 +341,21 @@ const (
 	// optab is sorted based on the order of these constants
 	// and the first match is chosen.
 	// The more specific class needs to come earlier.
-	C_NONE   = iota
-	C_REG    // R0..R30
-	C_ZREG   // R0..R30, ZR
-	C_RSP    // R0..R30, RSP
-	C_FREG   // F0..F31
-	C_VREG   // V0..V31
-	C_PAIR   // (Rn, Rm)
-	C_SHIFT  // Rn<<2
-	C_EXTREG // Rn.UXTB[<<3]
-	C_SPR    // REG_NZCV
-	C_COND   // condition code, EQ, NE, etc.
-	C_SPOP   // special operand, PLDL1KEEP, VMALLE1IS, etc.
-	C_ARNG   // Vn.<T>
-	C_ELEM   // Vn.<T>[index]
-	C_LIST   // [V1, V2, V3]
+	C_NONE   = iota + 1 // starting from 1, leave unclassified Addr's class as 0
+	C_REG               // R0..R30
+	C_ZREG              // R0..R30, ZR
+	C_RSP               // R0..R30, RSP
+	C_FREG              // F0..F31
+	C_VREG              // V0..V31
+	C_PAIR              // (Rn, Rm)
+	C_SHIFT             // Rn<<2
+	C_EXTREG            // Rn.UXTB[<<3]
+	C_SPR               // REG_NZCV
+	C_COND              // condition code, EQ, NE, etc.
+	C_SPOP              // special operand, PLDL1KEEP, VMALLE1IS, etc.
+	C_ARNG              // Vn.<T>
+	C_ELEM              // Vn.<T>[index]
+	C_LIST              // [V1, V2, V3]
 
 	C_ZCON     // $0
 	C_ABCON0   // could be C_ADDCON0 or C_BITCON
