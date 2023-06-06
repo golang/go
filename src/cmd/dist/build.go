@@ -1206,10 +1206,6 @@ func clean() {
 				}
 			}
 		}
-		// Remove generated binary named for directory.
-		if strings.HasPrefix(name, "cmd/") {
-			xremove(pathf("%s/%s", path, name[4:]))
-		}
 	}
 
 	// remove runtimegen files.
