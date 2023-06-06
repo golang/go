@@ -702,7 +702,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 				if traceInference {
 					u.tracef("core %s ≡ %s", x, y)
 				}
-				return u.nify(cx, y, mode, p)
+				// If y is a defined type, it may not match against cx which
+				// is an underlying type (incl. int, string, etc.). Use assign
+				// mode here so that the unifier automatically takes under(y)
+				// if necessary.
+				return u.nify(cx, y, assign, p)
 			}
 		}
 		// x != y and there's nothing to do
