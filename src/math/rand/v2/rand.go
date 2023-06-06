@@ -217,41 +217,14 @@ func (r *Rand) UintN(n uint) uint {
 
 // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0).
 func (r *Rand) Float64() float64 {
-	// A clearer, simpler implementation would be:
-	//	return float64(r.Int64N(1<<53)) / (1<<53)
-	// However, Go 1 shipped with
-	//	return float64(r.Int64()) / (1 << 63)
-	// and we want to preserve that value stream.
-	//
-	// There is one bug in the value stream: r.Int64() may be so close
-	// to 1<<63 that the division rounds up to 1.0, and we've guaranteed
-	// that the result is always less than 1.0.
-	//
-	// We tried to fix this by mapping 1.0 back to 0.0, but since float64
-	// values near 0 are much denser than near 1, mapping 1 to 0 caused
-	// a theoretically significant overshoot in the probability of returning 0.
-	// Instead of that, if we round up to 1, just try again.
-	// Getting 1 only happens 1/2⁵³ of the time, so most clients
-	// will not observe it anyway.
-again:
-	f := float64(r.Int64()) / (1 << 63)
-	if f == 1 {
-		goto again // resample; this branch is taken O(never)
-	}
-	return f
+	// There are exactly 1<<53 float64s in [0,1). Use Intn(1<<53) / (1<<53).
+	return float64(r.Uint64()<<11>>11) / (1 << 53)
 }
 
 // Float32 returns, as a float32, a pseudo-random number in the half-open interval [0.0,1.0).
 func (r *Rand) Float32() float32 {
-	// Same rationale as in Float64: we want to preserve the Go 1 value
-	// stream except we want to fix it not to return 1.0
-	// This only happens 1/2²⁴ of the time (plus the 1/2⁵³ of the time in Float64).
-again:
-	f := float32(r.Float64())
-	if f == 1 {
-		goto again // resample; this branch is taken O(very rarely)
-	}
-	return f
+	// There are exactly 1<<24 float32s in [0,1). Use Intn(1<<24) / (1<<24).
+	return float32(r.Uint32()<<8>>8) / (1 << 24)
 }
 
 // Perm returns, as a slice of n ints, a pseudo-random permutation of the integers
