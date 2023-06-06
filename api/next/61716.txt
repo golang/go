@@ -12,8 +12,6 @@ pkg math/rand/v2, func NewSource(int64) Source #61716
 pkg math/rand/v2, func NewZipf(*Rand, float64, float64, uint64) *Zipf #61716
 pkg math/rand/v2, func NormFloat64() float64 #61716
 pkg math/rand/v2, func Perm(int) []int #61716
-pkg math/rand/v2, func Seed //deprecated #61716
-pkg math/rand/v2, func Seed(int64) #61716
 pkg math/rand/v2, func Shuffle(int, func(int, int)) #61716
 pkg math/rand/v2, func Uint32() uint32 #61716
 pkg math/rand/v2, func Uint64() uint64 #61716
@@ -28,17 +26,14 @@ pkg math/rand/v2, method (*Rand) Int64N(int64) int64 #61716
 pkg math/rand/v2, method (*Rand) IntN(int) int #61716
 pkg math/rand/v2, method (*Rand) NormFloat64() float64 #61716
 pkg math/rand/v2, method (*Rand) Perm(int) []int #61716
-pkg math/rand/v2, method (*Rand) Seed(int64) #61716
 pkg math/rand/v2, method (*Rand) Shuffle(int, func(int, int)) #61716
 pkg math/rand/v2, method (*Rand) Uint32() uint32 #61716
 pkg math/rand/v2, method (*Rand) Uint64() uint64 #61716
 pkg math/rand/v2, method (*Zipf) Uint64() uint64 #61716
 pkg math/rand/v2, type Rand struct #61716
-pkg math/rand/v2, type Source interface { Int64, Seed } #61716
+pkg math/rand/v2, type Source interface { Int64 } #61716
 pkg math/rand/v2, type Source interface, Int64() int64 #61716
-pkg math/rand/v2, type Source interface, Seed(int64) #61716
-pkg math/rand/v2, type Source64 interface { Int64, Seed, Uint64 } #61716
+pkg math/rand/v2, type Source64 interface { Int64, Uint64 } #61716
 pkg math/rand/v2, type Source64 interface, Int64() int64 #61716
-pkg math/rand/v2, type Source64 interface, Seed(int64) #61716
 pkg math/rand/v2, type Source64 interface, Uint64() uint64 #61716
 pkg math/rand/v2, type Zipf struct #61716

@@ -23,9 +23,8 @@ func TestConcurrent(t *testing.T) {
 	for i := 0; i < numRoutines; i++ {
 		go func(i int) {
 			defer wg.Done()
-			buf := make([]byte, 997)
+			var seed int64
 			for j := 0; j < numCycles; j++ {
-				var seed int64
 				seed += int64(ExpFloat64())
 				seed += int64(Float32())
 				seed += int64(Float64())
@@ -38,11 +37,8 @@ func TestConcurrent(t *testing.T) {
 				for _, p := range Perm(10) {
 					seed += int64(p)
 				}
-				for _, b := range buf {
-					seed += int64(b)
-				}
-				Seed(int64(i*j) * seed)
 			}
+			_ = seed
 		}(i)
 	}
 }
