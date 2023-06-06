@@ -884,8 +884,12 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/38651 -->
-      TODO: <a href="https://go.dev/issue/38651">https://go.dev/issue/38651</a>: add &#39;created by goroutine number&#39; to stack traces
+    <p><!-- https://go.dev/issue/38651, CL 435337 -->
+      Textual stack traces produced by Go programs, such as those
+      produced when crashing, calling <code>runtime.Stack</code>, or
+      collecting a goroutine profile with <code>debug=2</code>, now
+      include the IDs of the goroutines that created each goroutine in
+      the stack trace.
     </p>
 
     <p><!-- https://go.dev/issue/57441, CL 474915 -->
