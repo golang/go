@@ -239,8 +239,8 @@ type DB interface {
 	SetConnMaxLifetime(d time.Duration)
 	SetConnMaxIdleTime(d time.Duration)
 	Stats() DBStats
-	PrepareContext(ctx context.Context, query string) (*Stmt, error)
-	Prepare(query string) (*Stmt, error)
+	PrepareContext(ctx context.Context, query string) (Stmt, error)
+	Prepare(query string) (Stmt, error)
 	ExecContext(ctx context.Context, query string, args ...any) (Result, error)
 	Exec(query string, args ...any) (Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (*Rows, error)
@@ -289,7 +289,7 @@ func (t dsnConnector) Driver() driver.Driver {
 // and maintains its own pool of idle connections. Thus, the OpenDB
 // function should be called just once. It is rarely necessary to
 // close a db.
-func OpenDB(c driver.Connector) *db {
+func OpenDB(c driver.Connector) DB {
 	ctx, cancel := context.WithCancel(context.Background())
 	db := &db{
 		connector:    c,
@@ -321,7 +321,7 @@ func OpenDB(c driver.Connector) *db {
 // and maintains its own pool of idle connections. Thus, the Open
 // function should be called just once. It is rarely necessary to
 // close a db.
-func Open(driverName, dataSourceName string) (*db, error) {
+func Open(driverName, dataSourceName string) (DB, error) {
 	driversMu.RLock()
 	driveri, ok := drivers[driverName]
 	driversMu.RUnlock()
