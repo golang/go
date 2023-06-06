@@ -21,22 +21,11 @@ import (
 	_ "unsafe" // for go:linkname
 )
 
-// A Source represents a source of uniformly-distributed
-// pseudo-random int64 values in the range [0, 1<<63).
+// A Source is a source of uniformly-distributed
+// pseudo-random uint64 values in the range [0, 1<<64).
 //
 // A Source is not safe for concurrent use by multiple goroutines.
 type Source interface {
-	Int64() int64
-}
-
-// A Source64 is a Source that can also generate
-// uniformly-distributed pseudo-random uint64 values in
-// the range [0, 1<<64) directly.
-// If a Rand r's underlying Source s implements Source64,
-// then r.Uint64 returns the result of one call to s.Uint64
-// instead of making two calls to s.Int64.
-type Source64 interface {
-	Source
 	Uint64() uint64
 }
 
@@ -57,28 +46,23 @@ func newSource(seed int64) *rngSource {
 // A Rand is a source of random numbers.
 type Rand struct {
 	src Source
-	s64 Source64 // non-nil if src is source64
 }
 
 // New returns a new Rand that uses random values from src
 // to generate other random values.
 func New(src Source) *Rand {
-	s64, _ := src.(Source64)
-	return &Rand{src: src, s64: s64}
+	return &Rand{src: src}
 }
 
 // Int64 returns a non-negative pseudo-random 63-bit integer as an int64.
-func (r *Rand) Int64() int64 { return r.src.Int64() }
+func (r *Rand) Int64() int64 { return int64(r.src.Uint64() &^ (1 << 63)) }
 
 // Uint32 returns a pseudo-random 32-bit value as a uint32.
 func (r *Rand) Uint32() uint32 { return uint32(r.Int64() >> 31) }
 
 // Uint64 returns a pseudo-random 64-bit value as a uint64.
 func (r *Rand) Uint64() uint64 {
-	if r.s64 != nil {
-		return r.s64.Uint64()
-	}
-	return uint64(r.Int64())>>31 | uint64(r.Int64())<<32
+	return r.src.Uint64()
 }
 
 // Int32 returns a non-negative pseudo-random 31-bit integer as an int32.

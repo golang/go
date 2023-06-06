@@ -481,7 +481,7 @@ func testRand() *Rand {
 }
 
 func BenchmarkSourceUint64(b *testing.B) {
-	s := NewSource(1).(Source64)
+	s := NewSource(1)
 	var t uint64
 	for n := b.N; n > 0; n-- {
 		t += s.Uint64()
