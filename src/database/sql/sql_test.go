@@ -23,8 +23,8 @@ import (
 
 func init() {
 	type dbConn struct {
-		db *DB
-		c  *driverConn
+		db_ *DBStruct
+		c   *driverConn
 	}
 	freedFrom := make(map[dbConn]string)
 	var mu sync.Mutex
@@ -38,9 +38,9 @@ func init() {
 		defer mu.Unlock()
 		freedFrom[c] = s
 	}
-	putConnHook = func(db *DB, c *driverConn) {
+	putConnHook = func(db_ *DBStruct, c *driverConn) {
 		idx := -1
-		for i, v := range db.freeConn {
+		for i, v := range db_.freeConn {
 			if v == c {
 				idx = i
 				break
@@ -50,10 +50,10 @@ func init() {
 			// print before panic, as panic may get lost due to conflicting panic
 			// (all goroutines asleep) elsewhere, since we might not unlock
 			// the mutex in freeConn here.
-			println("double free of conn. conflicts are:\nA) " + getFreedFrom(dbConn{db, c}) + "\n\nand\nB) " + stack())
+			println("double free of conn. conflicts are:\nA) " + getFreedFrom(dbConn{db_, c}) + "\n\nand\nB) " + stack())
 			panic("double free of conn.")
 		}
-		setFreedFrom(dbConn{db, c}, stack())
+		setFreedFrom(dbConn{db_, c}, stack())
 	}
 }
 
@@ -65,45 +65,46 @@ const fakeDBName = "foo"
 
 var chrisBirthday = time.Unix(123456789, 0)
 
-func newTestDB(t testing.TB, name string) *DB {
+func newTestDB(t testing.TB, name string) *DBStruct {
 	return newTestDBConnector(t, &fakeConnector{name: fakeDBName}, name)
 }
 
-func newTestDBConnector(t testing.TB, fc *fakeConnector, name string) *DB {
+func newTestDBConnector(t testing.TB, fc *fakeConnector, name string) *DBStruct {
 	fc.name = fakeDBName
-	db := OpenDB(fc)
-	if _, err := db.Exec("WIPE"); err != nil {
+	db_ := OpenDB(fc).(*DBStruct)
+	if _, err := db_.Exec("WIPE"); err != nil {
 		t.Fatalf("exec wipe: %v", err)
 	}
 	if name == "people" {
-		exec(t, db, "CREATE|people|name=string,age=int32,photo=blob,dead=bool,bdate=datetime")
-		exec(t, db, "INSERT|people|name=Alice,age=?,photo=APHOTO", 1)
-		exec(t, db, "INSERT|people|name=Bob,age=?,photo=BPHOTO", 2)
-		exec(t, db, "INSERT|people|name=Chris,age=?,photo=CPHOTO,bdate=?", 3, chrisBirthday)
+		exec(t, db_, "CREATE|people|name=string,age=int32,photo=blob,dead=bool,bdate=datetime")
+		exec(t, db_, "INSERT|people|name=Alice,age=?,photo=APHOTO", 1)
+		exec(t, db_, "INSERT|people|name=Bob,age=?,photo=BPHOTO", 2)
+		exec(t, db_, "INSERT|people|name=Chris,age=?,photo=CPHOTO,bdate=?", 3, chrisBirthday)
 	}
 	if name == "magicquery" {
 		// Magic table name and column, known by fakedb_test.go.
-		exec(t, db, "CREATE|magicquery|op=string,millis=int32")
-		exec(t, db, "INSERT|magicquery|op=sleep,millis=10")
+		exec(t, db_, "CREATE|magicquery|op=string,millis=int32")
+		exec(t, db_, "INSERT|magicquery|op=sleep,millis=10")
 	}
 	if name == "tx_status" {
 		// Magic table name and column, known by fakedb_test.go.
-		exec(t, db, "CREATE|tx_status|tx_status=string")
-		exec(t, db, "INSERT|tx_status|tx_status=invalid")
+		exec(t, db_, "CREATE|tx_status|tx_status=string")
+		exec(t, db_, "INSERT|tx_status|tx_status=invalid")
 	}
-	return db
+	return db_
 }
 
 func TestOpenDB(t *testing.T) {
-	db := OpenDB(dsnConnector{dsn: fakeDBName, driver: fdriver})
-	if db.Driver() != fdriver {
+	db_ := OpenDB(dsnConnector{dsn: fakeDBName, driver: fdriver})
+	if db_.Driver() != fdriver {
 		t.Fatalf("OpenDB should return the driver of the Connector")
 	}
 }
 
 func TestDriverPanic(t *testing.T) {
 	// Test that if driver panics, database/sql does not deadlock.
-	db, err := Open("test", fakeDBName)
+	db1, err := Open("test", fakeDBName)
+	db_ := db1.(*DBStruct)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -117,39 +118,39 @@ func TestDriverPanic(t *testing.T) {
 		f()
 	}
 
-	expectPanic("Exec Exec", func() { db.Exec("PANIC|Exec|WIPE") })
-	exec(t, db, "WIPE") // check not deadlocked
-	expectPanic("Exec NumInput", func() { db.Exec("PANIC|NumInput|WIPE") })
-	exec(t, db, "WIPE") // check not deadlocked
-	expectPanic("Exec Close", func() { db.Exec("PANIC|Close|WIPE") })
-	exec(t, db, "WIPE")             // check not deadlocked
-	exec(t, db, "PANIC|Query|WIPE") // should run successfully: Exec does not call Query
-	exec(t, db, "WIPE")             // check not deadlocked
+	expectPanic("Exec Exec", func() { db_.Exec("PANIC|Exec|WIPE") })
+	exec(t, db_, "WIPE") // check not deadlocked
+	expectPanic("Exec NumInput", func() { db_.Exec("PANIC|NumInput|WIPE") })
+	exec(t, db_, "WIPE") // check not deadlocked
+	expectPanic("Exec Close", func() { db_.Exec("PANIC|Close|WIPE") })
+	exec(t, db_, "WIPE")             // check not deadlocked
+	exec(t, db_, "PANIC|Query|WIPE") // should run successfully: Exec does not call Query
+	exec(t, db_, "WIPE")             // check not deadlocked
 
-	exec(t, db, "CREATE|people|name=string,age=int32,photo=blob,dead=bool,bdate=datetime")
+	exec(t, db_, "CREATE|people|name=string,age=int32,photo=blob,dead=bool,bdate=datetime")
 
-	expectPanic("Query Query", func() { db.Query("PANIC|Query|SELECT|people|age,name|") })
-	expectPanic("Query NumInput", func() { db.Query("PANIC|NumInput|SELECT|people|age,name|") })
+	expectPanic("Query Query", func() { db_.Query("PANIC|Query|SELECT|people|age,name|") })
+	expectPanic("Query NumInput", func() { db_.Query("PANIC|NumInput|SELECT|people|age,name|") })
 	expectPanic("Query Close", func() {
-		rows, err := db.Query("PANIC|Close|SELECT|people|age,name|")
+		rows, err := db_.Query("PANIC|Close|SELECT|people|age,name|")
 		if err != nil {
 			t.Fatal(err)
 		}
 		rows.Close()
 	})
-	db.Query("PANIC|Exec|SELECT|people|age,name|") // should run successfully: Query does not call Exec
-	exec(t, db, "WIPE")                            // check not deadlocked
+	db_.Query("PANIC|Exec|SELECT|people|age,name|") // should run successfully: Query does not call Exec
+	exec(t, db_, "WIPE")                            // check not deadlocked
 }
 
-func exec(t testing.TB, db *DB, query string, args ...any) {
+func exec(t testing.TB, db_ *DBStruct, query string, args ...any) {
 	t.Helper()
-	_, err := db.Exec(query, args...)
+	_, err := db_.Exec(query, args...)
 	if err != nil {
 		t.Fatalf("Exec of %q: %v", query, err)
 	}
 }
 
-func closeDB(t testing.TB, db *DB) {
+func closeDB(t testing.TB, db_ *DBStruct) {
 	if e := recover(); e != nil {
 		fmt.Printf("Panic: %v\n", e)
 		panic(e)
@@ -160,110 +161,110 @@ func closeDB(t testing.TB, db *DB) {
 			t.Errorf("Error closing fakeConn: %v", err)
 		}
 	})
-	db.mu.Lock()
-	for i, dc := range db.freeConn {
+	db_.mu.Lock()
+	for i, dc := range db_.freeConn {
 		if n := len(dc.openStmt); n > 0 {
 			// Just a sanity check. This is legal in
 			// general, but if we make the tests clean up
 			// their statements first, then we can safely
 			// verify this is always zero here, and any
 			// other value is a leak.
-			t.Errorf("while closing db, freeConn %d/%d had %d open stmts; want 0", i, len(db.freeConn), n)
+			t.Errorf("while closing db_, freeConn %d/%d had %d open stmts; want 0", i, len(db_.freeConn), n)
 		}
 	}
-	db.mu.Unlock()
+	db_.mu.Unlock()
 
-	err := db.Close()
+	err := db_.Close()
 	if err != nil {
-		t.Fatalf("error closing DB: %v", err)
+		t.Fatalf("error closing DBStruct: %v", err)
 	}
 
 	var numOpen int
 	if !waitCondition(t, func() bool {
-		numOpen = db.numOpenConns()
+		numOpen = db_.numOpenConns()
 		return numOpen == 0
 	}) {
-		t.Fatalf("%d connections still open after closing DB", numOpen)
+		t.Fatalf("%d connections still open after closing DBStruct", numOpen)
 	}
 }
 
-// numPrepares assumes that db has exactly 1 idle conn and returns
+// numPrepares assumes that DBStruct has exactly 1 idle conn and returns
 // its count of calls to Prepare
-func numPrepares(t *testing.T, db *DB) int {
-	if n := len(db.freeConn); n != 1 {
+func numPrepares(t *testing.T, db_ *DBStruct) int {
+	if n := len(db_.freeConn); n != 1 {
 		t.Fatalf("free conns = %d; want 1", n)
 	}
-	return db.freeConn[0].ci.(*fakeConn).numPrepare
+	return db_.freeConn[0].ci.(*fakeConn).numPrepare
 }
 
-func (db *DB) numDeps() int {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	return len(db.dep)
+func (db_ *DBStruct) numDeps() int {
+	db_.mu.Lock()
+	defer db_.mu.Unlock()
+	return len(db_.dep)
 }
 
 // Dependencies are closed via a goroutine, so this polls waiting for
 // numDeps to fall to want, waiting up to nearly the test's deadline.
-func (db *DB) numDepsPoll(t *testing.T, want int) int {
+func (db_ *DBStruct) numDepsPoll(t *testing.T, want int) int {
 	var n int
 	waitCondition(t, func() bool {
-		n = db.numDeps()
+		n = db_.numDeps()
 		return n <= want
 	})
 	return n
 }
 
-func (db *DB) numFreeConns() int {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	return len(db.freeConn)
+func (db_ *DBStruct) numFreeConns() int {
+	db_.mu.Lock()
+	defer db_.mu.Unlock()
+	return len(db_.freeConn)
 }
 
-func (db *DB) numOpenConns() int {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	return db.numOpen
+func (db_ *DBStruct) numOpenConns() int {
+	db_.mu.Lock()
+	defer db_.mu.Unlock()
+	return db_.numOpen
 }
 
-// clearAllConns closes all connections in db.
-func (db *DB) clearAllConns(t *testing.T) {
-	db.SetMaxIdleConns(0)
+// clearAllConns closes all connections in db_.
+func (db_ *DBStruct) clearAllConns(t *testing.T) {
+	db_.SetMaxIdleConns(0)
 
-	if g, w := db.numFreeConns(), 0; g != w {
+	if g, w := db_.numFreeConns(), 0; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPoll(t, 0); n > 0 {
+	if n := db_.numDepsPoll(t, 0); n > 0 {
 		t.Errorf("number of dependencies = %d; expected 0", n)
-		db.dumpDeps(t)
+		db_.dumpDeps(t)
 	}
 }
 
-func (db *DB) dumpDeps(t *testing.T) {
-	for fc := range db.dep {
-		db.dumpDep(t, 0, fc, map[finalCloser]bool{})
+func (db_ *DBStruct) dumpDeps(t *testing.T) {
+	for fc := range db_.dep {
+		db_.dumpDep(t, 0, fc, map[finalCloser]bool{})
 	}
 }
 
-func (db *DB) dumpDep(t *testing.T, depth int, dep finalCloser, seen map[finalCloser]bool) {
+func (db_ *DBStruct) dumpDep(t *testing.T, depth int, dep finalCloser, seen map[finalCloser]bool) {
 	seen[dep] = true
 	indent := strings.Repeat("  ", depth)
-	ds := db.dep[dep]
+	ds := db_.dep[dep]
 	for k := range ds {
 		t.Logf("%s%T (%p) waiting for -> %T (%p)", indent, dep, dep, k, k)
 		if fc, ok := k.(finalCloser); ok {
 			if !seen[fc] {
-				db.dumpDep(t, depth+1, fc, seen)
+				db_.dumpDep(t, depth+1, fc, seen)
 			}
 		}
 	}
 }
 
 func TestQuery(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-	prepares0 := numPrepares(t, db)
-	rows, err := db.Query("SELECT|people|age,name|")
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
+	prepares0 := numPrepares(t, db_)
+	rows, err := db_.Query("SELECT|people|age,name|")
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}
@@ -295,24 +296,24 @@ func TestQuery(t *testing.T) {
 
 	// And verify that the final rows.Next() call, which hit EOF,
 	// also closed the rows connection.
-	if n := db.numFreeConns(); n != 1 {
+	if n := db_.numFreeConns(); n != 1 {
 		t.Fatalf("free conns after query hitting EOF = %d; want 1", n)
 	}
-	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
+	if prepares := numPrepares(t, db_) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
 }
 
 // TestQueryContext tests canceling the context while scanning the rows.
 func TestQueryContext(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-	prepares0 := numPrepares(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
+	prepares0 := numPrepares(t, db_)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	rows, err := db.QueryContext(ctx, "SELECT|people|age,name|")
+	rows, err := db_.QueryContext(ctx, "SELECT|people|age,name|")
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}
@@ -360,8 +361,8 @@ func TestQueryContext(t *testing.T) {
 	// And verify that the final rows.Next() call, which hit EOF,
 	// also closed the rows connection.
 	waitForRowsClose(t, rows)
-	waitForFree(t, db, 1)
-	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
+	waitForFree(t, db_, 1)
+	if prepares := numPrepares(t, db_) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
 }
@@ -391,12 +392,12 @@ func waitCondition(t testing.TB, fn func() bool) bool {
 	}
 }
 
-// waitForFree checks db.numFreeConns until either it equals want or
+// waitForFree checks db_.numFreeConns until either it equals want or
 // the maxWait time elapses.
-func waitForFree(t *testing.T, db *DB, want int) {
+func waitForFree(t *testing.T, db_ *DBStruct, want int) {
 	var numFree int
 	if !waitCondition(t, func() bool {
-		numFree = db.numFreeConns()
+		numFree = db_.numFreeConns()
 		return numFree == want
 	}) {
 		t.Fatalf("free conns after hitting EOF = %d; want %d", numFree, want)
@@ -416,9 +417,9 @@ func waitForRowsClose(t *testing.T, rows *Rows) {
 // TestQueryContextWait ensures that rows and all internal statements are closed when
 // a query context is closed during execution.
 func TestQueryContextWait(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-	prepares0 := numPrepares(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
+	prepares0 := numPrepares(t, db_)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -426,7 +427,7 @@ func TestQueryContextWait(t *testing.T) {
 	// This will trigger the *fakeConn.Prepare method which will take time
 	// performing the query. The ctxDriverPrepare func will check the context
 	// after this and close the rows and return an error.
-	c, err := db.Conn(ctx)
+	c, err := db_.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -442,8 +443,8 @@ func TestQueryContextWait(t *testing.T) {
 	}
 
 	// Verify closed rows connection after error condition.
-	waitForFree(t, db, 1)
-	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
+	waitForFree(t, db_, 1)
+	if prepares := numPrepares(t, db_) - prepares0; prepares != 1 {
 		t.Fatalf("executed %d Prepare statements; want 1", prepares)
 	}
 }
@@ -461,12 +462,12 @@ func TestTxContextWaitNoDiscard(t *testing.T) {
 }
 
 func testContextWait(t *testing.T, keepConnOnRollback bool) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := db_.BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -485,9 +486,9 @@ func testContextWait(t *testing.T, keepConnOnRollback bool) {
 	}
 
 	if keepConnOnRollback {
-		waitForFree(t, db, 1)
+		waitForFree(t, db_, 1)
 	} else {
-		waitForFree(t, db, 0)
+		waitForFree(t, db_, 0)
 	}
 }
 
@@ -495,9 +496,9 @@ func testContextWait(t *testing.T, keepConnOnRollback bool) {
 // doesn't implement ConnBeginTx is used with non-default options and an
 // un-cancellable context.
 func TestUnsupportedOptions(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-	_, err := db.BeginTx(context.Background(), &TxOptions{
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
+	_, err := db_.BeginTx(context.Background(), &TxOptions{
 		Isolation: LevelSerializable, ReadOnly: true,
 	})
 	if err == nil {
@@ -506,10 +507,10 @@ func TestUnsupportedOptions(t *testing.T) {
 }
 
 func TestMultiResultSetQuery(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-	prepares0 := numPrepares(t, db)
-	rows, err := db.Query("SELECT|people|age,name|;SELECT|people|name|")
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
+	prepares0 := numPrepares(t, db_)
+	rows, err := db_.Query("SELECT|people|age,name|;SELECT|people|name|")
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}
@@ -573,17 +574,17 @@ func TestMultiResultSetQuery(t *testing.T) {
 
 	// And verify that the final rows.Next() call, which hit EOF,
 	// also closed the rows connection.
-	waitForFree(t, db, 1)
-	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
+	waitForFree(t, db_, 1)
+	if prepares := numPrepares(t, db_) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
 }
 
 func TestQueryNamedArg(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-	prepares0 := numPrepares(t, db)
-	rows, err := db.Query(
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
+	prepares0 := numPrepares(t, db_)
+	rows, err := db_.Query(
 		// Ensure the name and age parameters only match on placeholder name, not position.
 		"SELECT|people|age,name|name=?name,age=?age",
 		Named("age", 2),
@@ -618,10 +619,10 @@ func TestQueryNamedArg(t *testing.T) {
 
 	// And verify that the final rows.Next() call, which hit EOF,
 	// also closed the rows connection.
-	if n := db.numFreeConns(); n != 1 {
+	if n := db_.numFreeConns(); n != 1 {
 		t.Fatalf("free conns after query hitting EOF = %d; want 1", n)
 	}
-	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
+	if prepares := numPrepares(t, db_) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
 }
@@ -658,10 +659,10 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 		case 2:
 		}
 	}
-	db := newTestDBConnector(t, &fakeConnector{waiter: waiter}, "people")
-	defer closeDB(t, db)
+	db_ := newTestDBConnector(t, &fakeConnector{waiter: waiter}, "people")
+	defer closeDB(t, db_)
 
-	db.SetMaxOpenConns(max)
+	db_.SetMaxOpenConns(max)
 
 	// First saturate the connection pool.
 	// Then start new requests for a connection that is canceled after it is requested.
@@ -669,7 +670,7 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	state = 1
 	for i := 0; i < max; i++ {
 		go func() {
-			rows, err := db.Query("SELECT|people|name,photo|")
+			rows, err := db_.Query("SELECT|people|name,photo|")
 			if err != nil {
 				t.Errorf("Query: %v", err)
 				return
@@ -695,7 +696,7 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 			time.Sleep(100 * time.Millisecond)
 			cancelReq()
 		}()
-		err := db.PingContext(ctxReq)
+		err := db_.PingContext(ctxReq)
 		if err != context.Canceled {
 			t.Fatalf("PingContext (Exhaust): %v", err)
 		}
@@ -704,16 +705,16 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	saturateDone.Wait()
 
 	// Now try to open a normal connection.
-	err := db.PingContext(ctx)
+	err := db_.PingContext(ctx)
 	if err != nil {
 		t.Fatalf("PingContext (Normal): %v", err)
 	}
 }
 
 func TestRowsColumns(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-	rows, err := db.Query("SELECT|people|age,name|")
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
+	rows, err := db_.Query("SELECT|people|age,name|")
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}
@@ -731,9 +732,9 @@ func TestRowsColumns(t *testing.T) {
 }
 
 func TestRowsColumnTypes(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-	rows, err := db.Query("SELECT|people|age,name|")
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
+	rows, err := db_.Query("SELECT|people|age,name|")
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}
@@ -781,23 +782,23 @@ func TestRowsColumnTypes(t *testing.T) {
 }
 
 func TestQueryRow(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 	var name string
 	var age int
 	var birthday time.Time
 
-	err := db.QueryRow("SELECT|people|age,name|age=?", 3).Scan(&age)
+	err := db_.QueryRow("SELECT|people|age,name|age=?", 3).Scan(&age)
 	if err == nil || !strings.Contains(err.Error(), "expected 2 destination arguments") {
 		t.Errorf("expected error from wrong number of arguments; actually got: %v", err)
 	}
 
-	err = db.QueryRow("SELECT|people|bdate|age=?", 3).Scan(&birthday)
+	err = db_.QueryRow("SELECT|people|bdate|age=?", 3).Scan(&birthday)
 	if err != nil || !birthday.Equal(chrisBirthday) {
 		t.Errorf("chris birthday = %v, err = %v; want %v", birthday, err, chrisBirthday)
 	}
 
-	err = db.QueryRow("SELECT|people|age,name|age=?", 2).Scan(&age, &name)
+	err = db_.QueryRow("SELECT|people|age,name|age=?", 2).Scan(&age, &name)
 	if err != nil {
 		t.Fatalf("age QueryRow+Scan: %v", err)
 	}
@@ -808,7 +809,7 @@ func TestQueryRow(t *testing.T) {
 		t.Errorf("expected age 2, got %d", age)
 	}
 
-	err = db.QueryRow("SELECT|people|age,name|name=?", "Alice").Scan(&age, &name)
+	err = db_.QueryRow("SELECT|people|age,name|name=?", "Alice").Scan(&age, &name)
 	if err != nil {
 		t.Fatalf("name QueryRow+Scan: %v", err)
 	}
@@ -820,7 +821,7 @@ func TestQueryRow(t *testing.T) {
 	}
 
 	var photo []byte
-	err = db.QueryRow("SELECT|people|photo|name=?", "Alice").Scan(&photo)
+	err = db_.QueryRow("SELECT|people|photo|name=?", "Alice").Scan(&photo)
 	if err != nil {
 		t.Fatalf("photo QueryRow+Scan: %v", err)
 	}
@@ -831,9 +832,9 @@ func TestQueryRow(t *testing.T) {
 }
 
 func TestRowErr(t *testing.T) {
-	db := newTestDB(t, "people")
+	db_ := newTestDB(t, "people")
 
-	err := db.QueryRowContext(context.Background(), "SELECT|people|bdate|age=?", 3).Err()
+	err := db_.QueryRowContext(context.Background(), "SELECT|people|bdate|age=?", 3).Err()
 	if err != nil {
 		t.Errorf("Unexpected err = %v; want %v", err, nil)
 	}
@@ -841,7 +842,7 @@ func TestRowErr(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err = db.QueryRowContext(ctx, "SELECT|people|bdate|age=?", 3).Err()
+	err = db_.QueryRowContext(ctx, "SELECT|people|bdate|age=?", 3).Err()
 	exp := "context canceled"
 	if err == nil || !strings.Contains(err.Error(), exp) {
 		t.Errorf("Expected err = %v; got %v", exp, err)
@@ -849,10 +850,10 @@ func TestRowErr(t *testing.T) {
 }
 
 func TestTxRollbackCommitErr(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	tx, err := db.Begin()
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -865,7 +866,7 @@ func TestTxRollbackCommitErr(t *testing.T) {
 		t.Errorf("expected %q from Commit; got %q", ErrTxDone, err)
 	}
 
-	tx, err = db.Begin()
+	tx, err = db_.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -880,31 +881,31 @@ func TestTxRollbackCommitErr(t *testing.T) {
 }
 
 func TestStatementErrorAfterClose(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-	stmt, err := db.Prepare("SELECT|people|age|name=?")
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
+	stmt_, err := db_.Prepare("SELECT|people|age|name=?")
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
 	}
-	err = stmt.Close()
+	err = stmt_.Close()
 	if err != nil {
 		t.Fatalf("Close: %v", err)
 	}
 	var name string
-	err = stmt.QueryRow("foo").Scan(&name)
+	err = stmt_.QueryRow("foo").Scan(&name)
 	if err == nil {
 		t.Errorf("expected error from QueryRow.Scan after Stmt.Close")
 	}
 }
 
 func TestStatementQueryRow(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-	stmt, err := db.Prepare("SELECT|people|age|name=?")
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
+	stmt_, err := db_.Prepare("SELECT|people|age|name=?")
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
 	}
-	defer stmt.Close()
+	defer stmt_.Close()
 	var age int
 	for n, tt := range []struct {
 		name string
@@ -914,7 +915,7 @@ func TestStatementQueryRow(t *testing.T) {
 		{"Bob", 2},
 		{"Chris", 3},
 	} {
-		if err := stmt.QueryRow(tt.name).Scan(&age); err != nil {
+		if err := stmt_.QueryRow(tt.name).Scan(&age); err != nil {
 			t.Errorf("%d: on %q, QueryRow/Scan: %v", n, tt.name, err)
 		} else if age != tt.want {
 			t.Errorf("%d: age=%d, want %d", n, age, tt.want)
@@ -947,35 +948,35 @@ func TestStatementClose(t *testing.T) {
 	want := errors.New("STMT ERROR")
 
 	tests := []struct {
-		stmt *Stmt
-		msg  string
+		stmt_ *stmt
+		msg   string
 	}{
-		{&Stmt{stickyErr: want}, "stickyErr not propagated"},
-		{&Stmt{cg: &Tx{}, cgds: &driverStmt{Locker: &sync.Mutex{}, si: stubDriverStmt{want}}}, "driverStmt.Close() error not propagated"},
+		{&stmt{stickyErr: want}, "stickyErr not propagated"},
+		{&stmt{cg: &Tx{}, cgds: &driverStmt{Locker: &sync.Mutex{}, si: stubDriverStmt{want}}}, "driverStmt.Close() error not propagated"},
 	}
 	for _, test := range tests {
-		if err := test.stmt.Close(); err != want {
-			t.Errorf("%s. Got stmt.Close() = %v, want = %v", test.msg, err, want)
+		if err := test.stmt_.Close(); err != want {
+			t.Errorf("%s. Got stmt_.Close() = %v, want = %v", test.msg, err, want)
 		}
 	}
 }
 
 // golang.org/issue/3734
 func TestStatementQueryRowConcurrent(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-	stmt, err := db.Prepare("SELECT|people|age|name=?")
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
+	stmt_, err := db_.Prepare("SELECT|people|age|name=?")
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
 	}
-	defer stmt.Close()
+	defer stmt_.Close()
 
 	const n = 10
 	ch := make(chan error, n)
 	for i := 0; i < n; i++ {
 		go func() {
 			var age int
-			err := stmt.QueryRow("Alice").Scan(&age)
+			err := stmt_.QueryRow("Alice").Scan(&age)
 			if err == nil && age != 1 {
 				err = fmt.Errorf("unexpected age %d", age)
 			}
@@ -991,10 +992,10 @@ func TestStatementQueryRowConcurrent(t *testing.T) {
 
 // just a test of fakedb itself
 func TestBogusPreboundParameters(t *testing.T) {
-	db := newTestDB(t, "foo")
-	defer closeDB(t, db)
-	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
-	_, err := db.Prepare("INSERT|t1|name=?,age=bogusconversion")
+	db_ := newTestDB(t, "foo")
+	defer closeDB(t, db_)
+	exec(t, db_, "CREATE|t1|name=string,age=int32,dead=bool")
+	_, err := db_.Prepare("INSERT|t1|name=?,age=bogusconversion")
 	if err == nil {
 		t.Fatalf("expected error")
 	}
@@ -1004,14 +1005,14 @@ func TestBogusPreboundParameters(t *testing.T) {
 }
 
 func TestExec(t *testing.T) {
-	db := newTestDB(t, "foo")
-	defer closeDB(t, db)
-	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
-	stmt, err := db.Prepare("INSERT|t1|name=?,age=?")
+	db_ := newTestDB(t, "foo")
+	defer closeDB(t, db_)
+	exec(t, db_, "CREATE|t1|name=string,age=int32,dead=bool")
+	stmt_, err := db_.Prepare("INSERT|t1|name=?,age=?")
 	if err != nil {
-		t.Errorf("Stmt, err = %v, %v", stmt, err)
+		t.Errorf("Stmt, err = %v, %v", stmt_, err)
 	}
-	defer stmt.Close()
+	defer stmt_.Close()
 
 	type execTest struct {
 		args    []any
@@ -1033,32 +1034,32 @@ func TestExec(t *testing.T) {
 		{[]any{1, 2, 3}, "sql: expected 2 arguments, got 3"},
 	}
 	for n, et := range execTests {
-		_, err := stmt.Exec(et.args...)
+		_, err := stmt_.Exec(et.args...)
 		errStr := ""
 		if err != nil {
 			errStr = err.Error()
 		}
 		if errStr != et.wantErr {
-			t.Errorf("stmt.Execute #%d: for %v, got error %q, want error %q",
+			t.Errorf("stmt_.Execute #%d: for %v, got error %q, want error %q",
 				n, et.args, errStr, et.wantErr)
 		}
 	}
 }
 
 func TestTxPrepare(t *testing.T) {
-	db := newTestDB(t, "")
-	defer closeDB(t, db)
-	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
-	tx, err := db.Begin()
+	db_ := newTestDB(t, "")
+	defer closeDB(t, db_)
+	exec(t, db_, "CREATE|t1|name=string,age=int32,dead=bool")
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatalf("Begin = %v", err)
 	}
-	stmt, err := tx.Prepare("INSERT|t1|name=?,age=?")
+	stmt_, err := tx.Prepare("INSERT|t1|name=?,age=?")
 	if err != nil {
-		t.Fatalf("Stmt, err = %v, %v", stmt, err)
+		t.Fatalf("Stmt, err = %v, %v", stmt_, err)
 	}
-	defer stmt.Close()
-	_, err = stmt.Exec("Bobby", 7)
+	defer stmt_.Close()
+	_, err = stmt_.Exec("Bobby", 7)
 	if err != nil {
 		t.Fatalf("Exec = %v", err)
 	}
@@ -1067,25 +1068,25 @@ func TestTxPrepare(t *testing.T) {
 		t.Fatalf("Commit = %v", err)
 	}
 	// Commit() should have closed the statement
-	if !stmt.closed {
+	if !stmt_.(*stmt).closed {
 		t.Fatal("Stmt not closed after Commit")
 	}
 }
 
 func TestTxStmt(t *testing.T) {
-	db := newTestDB(t, "")
-	defer closeDB(t, db)
-	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
-	stmt, err := db.Prepare("INSERT|t1|name=?,age=?")
+	db_ := newTestDB(t, "")
+	defer closeDB(t, db_)
+	exec(t, db_, "CREATE|t1|name=string,age=int32,dead=bool")
+	stmt_, err := db_.Prepare("INSERT|t1|name=?,age=?")
 	if err != nil {
-		t.Fatalf("Stmt, err = %v, %v", stmt, err)
+		t.Fatalf("Stmt, err = %v, %v", stmt_, err)
 	}
-	defer stmt.Close()
-	tx, err := db.Begin()
+	defer stmt_.Close()
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatalf("Begin = %v", err)
 	}
-	txs := tx.Stmt(stmt)
+	txs := tx.Stmt(stmt_).(*stmt)
 	defer txs.Close()
 	_, err = txs.Exec("Bobby", 7)
 	if err != nil {
@@ -1102,26 +1103,26 @@ func TestTxStmt(t *testing.T) {
 }
 
 func TestTxStmtPreparedOnce(t *testing.T) {
-	db := newTestDB(t, "")
-	defer closeDB(t, db)
-	exec(t, db, "CREATE|t1|name=string,age=int32")
+	db_ := newTestDB(t, "")
+	defer closeDB(t, db_)
+	exec(t, db_, "CREATE|t1|name=string,age=int32")
 
-	prepares0 := numPrepares(t, db)
+	prepares0 := numPrepares(t, db_)
 
-	// db.Prepare increments numPrepares.
-	stmt, err := db.Prepare("INSERT|t1|name=?,age=?")
+	// db_.Prepare increments numPrepares.
+	stmt_, err := db_.Prepare("INSERT|t1|name=?,age=?")
 	if err != nil {
-		t.Fatalf("Stmt, err = %v, %v", stmt, err)
+		t.Fatalf("Stmt, err = %v, %v", stmt_, err)
 	}
-	defer stmt.Close()
+	defer stmt_.Close()
 
-	tx, err := db.Begin()
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatalf("Begin = %v", err)
 	}
 
-	txs1 := tx.Stmt(stmt)
-	txs2 := tx.Stmt(stmt)
+	txs1 := tx.Stmt(stmt_).(*stmt)
+	txs2 := tx.Stmt(stmt_).(*stmt)
 
 	_, err = txs1.Exec("Go", 7)
 	if err != nil {
@@ -1140,33 +1141,33 @@ func TestTxStmtPreparedOnce(t *testing.T) {
 		t.Fatalf("Commit = %v", err)
 	}
 
-	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
+	if prepares := numPrepares(t, db_) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
 }
 
 func TestTxStmtClosedRePrepares(t *testing.T) {
-	db := newTestDB(t, "")
-	defer closeDB(t, db)
-	exec(t, db, "CREATE|t1|name=string,age=int32")
+	db_ := newTestDB(t, "")
+	defer closeDB(t, db_)
+	exec(t, db_, "CREATE|t1|name=string,age=int32")
 
-	prepares0 := numPrepares(t, db)
+	prepares0 := numPrepares(t, db_)
 
-	// db.Prepare increments numPrepares.
-	stmt, err := db.Prepare("INSERT|t1|name=?,age=?")
+	// db_.Prepare increments numPrepares.
+	stmt_, err := db_.Prepare("INSERT|t1|name=?,age=?")
 	if err != nil {
-		t.Fatalf("Stmt, err = %v, %v", stmt, err)
+		t.Fatalf("Stmt, err = %v, %v", stmt_, err)
 	}
-	tx, err := db.Begin()
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatalf("Begin = %v", err)
 	}
-	err = stmt.Close()
+	err = stmt_.Close()
 	if err != nil {
-		t.Fatalf("stmt.Close() = %v", err)
+		t.Fatalf("stmt_.Close() = %v", err)
 	}
-	// tx.Stmt increments numPrepares because stmt is closed.
-	txs := tx.Stmt(stmt)
+	// tx.Stmt increments numPrepares because stmt_ is closed.
+	txs := tx.Stmt(stmt_).(*stmt)
 	if txs.stickyErr != nil {
 		t.Fatal(txs.stickyErr)
 	}
@@ -1185,34 +1186,35 @@ func TestTxStmtClosedRePrepares(t *testing.T) {
 
 	tx.Rollback()
 
-	if prepares := numPrepares(t, db) - prepares0; prepares != 2 {
+	if prepares := numPrepares(t, db_) - prepares0; prepares != 2 {
 		t.Errorf("executed %d Prepare statements; want 2", prepares)
 	}
 }
 
 func TestParentStmtOutlivesTxStmt(t *testing.T) {
-	db := newTestDB(t, "")
-	defer closeDB(t, db)
-	exec(t, db, "CREATE|t1|name=string,age=int32")
+	db_ := newTestDB(t, "")
+	defer closeDB(t, db_)
+	exec(t, db_, "CREATE|t1|name=string,age=int32")
 
 	// Make sure everything happens on the same connection.
-	db.SetMaxOpenConns(1)
+	db_.SetMaxOpenConns(1)
 
-	prepares0 := numPrepares(t, db)
+	prepares0 := numPrepares(t, db_)
 
-	// db.Prepare increments numPrepares.
-	stmt, err := db.Prepare("INSERT|t1|name=?,age=?")
+	// db_.Prepare increments numPrepares.
+	stmt1, err := db_.Prepare("INSERT|t1|name=?,age=?")
+	stmt_ := stmt1.(*stmt)
 	if err != nil {
-		t.Fatalf("Stmt, err = %v, %v", stmt, err)
+		t.Fatalf("Stmt, err = %v, %v", stmt_, err)
 	}
-	defer stmt.Close()
-	tx, err := db.Begin()
+	defer stmt_.Close()
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatalf("Begin = %v", err)
 	}
-	txs := tx.Stmt(stmt)
-	if len(stmt.css) != 1 {
-		t.Fatalf("len(stmt.css) = %v; want 1", len(stmt.css))
+	txs := tx.Stmt(stmt_).(*stmt)
+	if len(stmt_.css) != 1 {
+		t.Fatalf("len(stmt_.css) = %v; want 1", len(stmt_.css))
 	}
 	err = txs.Close()
 	if err != nil {
@@ -1228,12 +1230,12 @@ func TestParentStmtOutlivesTxStmt(t *testing.T) {
 		t.Fatalf("txs.Exec(), expected err")
 	}
 	// Stmt must still be valid.
-	_, err = stmt.Exec("Janina", 25)
+	_, err = stmt_.Exec("Janina", 25)
 	if err != nil {
-		t.Fatalf("stmt.Exec() = %v", err)
+		t.Fatalf("stmt_.Exec() = %v", err)
 	}
 
-	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
+	if prepares := numPrepares(t, db_) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
 }
@@ -1242,26 +1244,26 @@ func TestParentStmtOutlivesTxStmt(t *testing.T) {
 // associated with tx as argument re-prepares the same
 // statement again.
 func TestTxStmtFromTxStmtRePrepares(t *testing.T) {
-	db := newTestDB(t, "")
-	defer closeDB(t, db)
-	exec(t, db, "CREATE|t1|name=string,age=int32")
-	prepares0 := numPrepares(t, db)
-	// db.Prepare increments numPrepares.
-	stmt, err := db.Prepare("INSERT|t1|name=?,age=?")
+	db_ := newTestDB(t, "")
+	defer closeDB(t, db_)
+	exec(t, db_, "CREATE|t1|name=string,age=int32")
+	prepares0 := numPrepares(t, db_)
+	// db_.Prepare increments numPrepares.
+	stmt_, err := db_.Prepare("INSERT|t1|name=?,age=?")
 	if err != nil {
-		t.Fatalf("Stmt, err = %v, %v", stmt, err)
+		t.Fatalf("Stmt, err = %v, %v", stmt_, err)
 	}
-	defer stmt.Close()
+	defer stmt_.Close()
 
-	tx, err := db.Begin()
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatalf("Begin = %v", err)
 	}
-	txs1 := tx.Stmt(stmt)
+	txs1 := tx.Stmt(stmt_).(*stmt)
 
 	// tx.Stmt(txs1) increments numPrepares because txs1 already
 	// belongs to a transaction (albeit the same transaction).
-	txs2 := tx.Stmt(txs1)
+	txs2 := tx.Stmt(txs1).(*stmt)
 	if txs2.stickyErr != nil {
 		t.Fatal(txs2.stickyErr)
 	}
@@ -1286,7 +1288,7 @@ func TestTxStmtFromTxStmtRePrepares(t *testing.T) {
 		t.Fatalf("tx.Rollback = %v", err)
 	}
 
-	if prepares := numPrepares(t, db) - prepares0; prepares != 2 {
+	if prepares := numPrepares(t, db_) - prepares0; prepares != 2 {
 		t.Errorf("executed %d Prepare statements; want 2", prepares)
 	}
 }
@@ -1295,12 +1297,12 @@ func TestTxStmtFromTxStmtRePrepares(t *testing.T) {
 // This test didn't fail before because we got lucky with the fakedb driver.
 // It was failing, and now not, in github.com/bradfitz/go-sql-test
 func TestTxQuery(t *testing.T) {
-	db := newTestDB(t, "")
-	defer closeDB(t, db)
-	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
-	exec(t, db, "INSERT|t1|name=Alice")
+	db_ := newTestDB(t, "")
+	defer closeDB(t, db_)
+	exec(t, db_, "CREATE|t1|name=string,age=int32,dead=bool")
+	exec(t, db_, "INSERT|t1|name=Alice")
 
-	tx, err := db.Begin()
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1327,10 +1329,10 @@ func TestTxQuery(t *testing.T) {
 }
 
 func TestTxQueryInvalid(t *testing.T) {
-	db := newTestDB(t, "")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "")
+	defer closeDB(t, db_)
 
-	tx, err := db.Begin()
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1345,25 +1347,26 @@ func TestTxQueryInvalid(t *testing.T) {
 // Tests fix for issue 4433, that retries in Begin happen when
 // conn.Begin() returns ErrBadConn
 func TestTxErrBadConn(t *testing.T) {
-	db, err := Open("test", fakeDBName+";badConn")
+	db1, err := Open("test", fakeDBName+";badConn")
+	db_ := db1.(*DBStruct)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	if _, err := db.Exec("WIPE"); err != nil {
+	if _, err := db_.Exec("WIPE"); err != nil {
 		t.Fatalf("exec wipe: %v", err)
 	}
-	defer closeDB(t, db)
-	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
-	stmt, err := db.Prepare("INSERT|t1|name=?,age=?")
+	defer closeDB(t, db_)
+	exec(t, db_, "CREATE|t1|name=string,age=int32,dead=bool")
+	stmt_, err := db_.Prepare("INSERT|t1|name=?,age=?")
 	if err != nil {
-		t.Fatalf("Stmt, err = %v, %v", stmt, err)
+		t.Fatalf("Stmt, err = %v, %v", stmt_, err)
 	}
-	defer stmt.Close()
-	tx, err := db.Begin()
+	defer stmt_.Close()
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatalf("Begin = %v", err)
 	}
-	txs := tx.Stmt(stmt)
+	txs := tx.Stmt(stmt_).(*stmt)
 	defer txs.Close()
 	_, err = txs.Exec("Bobby", 7)
 	if err != nil {
@@ -1376,12 +1379,12 @@ func TestTxErrBadConn(t *testing.T) {
 }
 
 func TestConnQuery(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	conn, err := db.Conn(ctx)
+	conn, err := db_.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1404,12 +1407,12 @@ func TestConnQuery(t *testing.T) {
 }
 
 func TestConnRaw(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	conn, err := db.Conn(ctx)
+	conn, err := db_.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1452,16 +1455,16 @@ func TestConnRaw(t *testing.T) {
 }
 
 func TestCursorFake(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
-	exec(t, db, "CREATE|peoplecursor|list=table")
-	exec(t, db, "INSERT|peoplecursor|list=people!name!age")
+	exec(t, db_, "CREATE|peoplecursor|list=table")
+	exec(t, db_, "INSERT|peoplecursor|list=people!name!age")
 
-	rows, err := db.QueryContext(ctx, `SELECT|peoplecursor|list|`)
+	rows, err := db_.QueryContext(ctx, `SELECT|peoplecursor|list|`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1520,12 +1523,12 @@ func TestInvalidNilValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			db := newTestDB(t, "people")
-			defer closeDB(t, db)
+			db_ := newTestDB(t, "people")
+			defer closeDB(t, db_)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			conn, err := db.Conn(ctx)
+			conn, err := db_.Conn(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1549,12 +1552,12 @@ func TestInvalidNilValues(t *testing.T) {
 }
 
 func TestConnTx(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	conn, err := db.Conn(ctx)
+	conn, err := db_.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1589,14 +1592,14 @@ func TestConnTx(t *testing.T) {
 // is actually discarded and does not re-enter the connection pool.
 // If the IsValid method from *fakeConn is removed, this test will fail.
 func TestConnIsValid(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	db.SetMaxOpenConns(1)
+	db_.SetMaxOpenConns(1)
 
 	ctx := context.Background()
 
-	c, err := db.Conn(ctx)
+	c, err := db_.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1611,7 +1614,7 @@ func TestConnIsValid(t *testing.T) {
 	}
 	c.Close()
 
-	if len(db.freeConn) > 0 && db.freeConn[0].ci.(*fakeConn).stickyBad {
+	if len(db_.freeConn) > 0 && db_.freeConn[0].ci.(*fakeConn).stickyBad {
 		t.Fatal("bad connection returned to pool; expected bad connection to be discarded")
 	}
 }
@@ -1619,10 +1622,10 @@ func TestConnIsValid(t *testing.T) {
 // Tests fix for issue 2542, that we release a lock when querying on
 // a closed connection.
 func TestIssue2542Deadlock(t *testing.T) {
-	db := newTestDB(t, "people")
-	closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	closeDB(t, db_)
 	for i := 0; i < 2; i++ {
-		_, err := db.Query("SELECT|people|age,name|")
+		_, err := db_.Query("SELECT|people|age,name|")
 		if err == nil {
 			t.Fatalf("expected error")
 		}
@@ -1631,10 +1634,10 @@ func TestIssue2542Deadlock(t *testing.T) {
 
 // From golang.org/issue/3865
 func TestCloseStmtBeforeRows(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	s, err := db.Prepare("SELECT|people|name|")
+	s, err := db_.Prepare("SELECT|people|name|")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1656,14 +1659,14 @@ func TestCloseStmtBeforeRows(t *testing.T) {
 // Tests fix for issue 2788, that we bind nil to a []byte if the
 // value in the column is sql null
 func TestNullByteSlice(t *testing.T) {
-	db := newTestDB(t, "")
-	defer closeDB(t, db)
-	exec(t, db, "CREATE|t|id=int32,name=nullstring")
-	exec(t, db, "INSERT|t|id=10,name=?", nil)
+	db_ := newTestDB(t, "")
+	defer closeDB(t, db_)
+	exec(t, db_, "CREATE|t|id=int32,name=nullstring")
+	exec(t, db_, "INSERT|t|id=10,name=?", nil)
 
 	var name []byte
 
-	err := db.QueryRow("SELECT|t|name|id=?", 10).Scan(&name)
+	err := db_.QueryRow("SELECT|t|name|id=?", 10).Scan(&name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1671,8 +1674,8 @@ func TestNullByteSlice(t *testing.T) {
 		t.Fatalf("name []byte should be nil for null column value, got: %#v", name)
 	}
 
-	exec(t, db, "INSERT|t|id=11,name=?", "bob")
-	err = db.QueryRow("SELECT|t|name|id=?", 11).Scan(&name)
+	exec(t, db_, "INSERT|t|id=11,name=?", "bob")
+	err = db_.QueryRow("SELECT|t|name|id=?", 11).Scan(&name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1682,19 +1685,19 @@ func TestNullByteSlice(t *testing.T) {
 }
 
 func TestPointerParamsAndScans(t *testing.T) {
-	db := newTestDB(t, "")
-	defer closeDB(t, db)
-	exec(t, db, "CREATE|t|id=int32,name=nullstring")
+	db_ := newTestDB(t, "")
+	defer closeDB(t, db_)
+	exec(t, db_, "CREATE|t|id=int32,name=nullstring")
 
 	bob := "bob"
 	var name *string
 
 	name = &bob
-	exec(t, db, "INSERT|t|id=10,name=?", name)
+	exec(t, db_, "INSERT|t|id=10,name=?", name)
 	name = nil
-	exec(t, db, "INSERT|t|id=20,name=?", name)
+	exec(t, db_, "INSERT|t|id=20,name=?", name)
 
-	err := db.QueryRow("SELECT|t|name|id=?", 10).Scan(&name)
+	err := db_.QueryRow("SELECT|t|name|id=?", 10).Scan(&name)
 	if err != nil {
 		t.Fatalf("querying id 10: %v", err)
 	}
@@ -1704,7 +1707,7 @@ func TestPointerParamsAndScans(t *testing.T) {
 		t.Errorf("id 10's name = %q; want bob", *name)
 	}
 
-	err = db.QueryRow("SELECT|t|name|id=?", 20).Scan(&name)
+	err = db_.QueryRow("SELECT|t|name|id=?", 20).Scan(&name)
 	if err != nil {
 		t.Fatalf("querying id 20: %v", err)
 	}
@@ -1714,18 +1717,18 @@ func TestPointerParamsAndScans(t *testing.T) {
 }
 
 func TestQueryRowClosingStmt(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 	var name string
 	var age int
-	err := db.QueryRow("SELECT|people|age,name|age=?", 3).Scan(&age, &name)
+	err := db_.QueryRow("SELECT|people|age,name|age=?", 3).Scan(&age, &name)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(db.freeConn) != 1 {
+	if len(db_.freeConn) != 1 {
 		t.Fatalf("expected 1 free conn")
 	}
-	fakeConn := db.freeConn[0].ci.(*fakeConn)
+	fakeConn := db_.freeConn[0].ci.(*fakeConn)
 	if made, closed := fakeConn.stmtsMade, fakeConn.stmtsClosed; made != closed {
 		t.Errorf("statement close mismatch: made %d, closed %d", made, closed)
 	}
@@ -1751,8 +1754,8 @@ func setRowsCloseHook(fn func(*Rows, *error)) {
 
 // Test issue 6651
 func TestIssue6651(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
 	var v string
 
@@ -1762,7 +1765,7 @@ func TestIssue6651(t *testing.T) {
 	}
 	defer func() { rowsCursorNextHook = nil }()
 
-	err := db.QueryRow("SELECT|people|name|").Scan(&v)
+	err := db_.QueryRow("SELECT|people|name|").Scan(&v)
 	if err == nil || err.Error() != want {
 		t.Errorf("error = %q; want %q", err, want)
 	}
@@ -1773,7 +1776,7 @@ func TestIssue6651(t *testing.T) {
 		*err = fmt.Errorf(want)
 	})
 	defer setRowsCloseHook(nil)
-	err = db.QueryRow("SELECT|people|name|").Scan(&v)
+	err = db_.QueryRow("SELECT|people|name|").Scan(&v)
 	if err == nil || err.Error() != want {
 		t.Errorf("error = %q; want %q", err, want)
 	}
@@ -1891,36 +1894,36 @@ func TestNullTimeParam(t *testing.T) {
 }
 
 func nullTestRun(t *testing.T, spec nullTestSpec) {
-	db := newTestDB(t, "")
-	defer closeDB(t, db)
-	exec(t, db, fmt.Sprintf("CREATE|t|id=int32,name=string,nullf=%s,notnullf=%s", spec.nullType, spec.notNullType))
+	db_ := newTestDB(t, "")
+	defer closeDB(t, db_)
+	exec(t, db_, fmt.Sprintf("CREATE|t|id=int32,name=string,nullf=%s,notnullf=%s", spec.nullType, spec.notNullType))
 
-	// Inserts with db.Exec:
-	exec(t, db, "INSERT|t|id=?,name=?,nullf=?,notnullf=?", 1, "alice", spec.rows[0].nullParam, spec.rows[0].notNullParam)
-	exec(t, db, "INSERT|t|id=?,name=?,nullf=?,notnullf=?", 2, "bob", spec.rows[1].nullParam, spec.rows[1].notNullParam)
+	// Inserts with db_.Exec:
+	exec(t, db_, "INSERT|t|id=?,name=?,nullf=?,notnullf=?", 1, "alice", spec.rows[0].nullParam, spec.rows[0].notNullParam)
+	exec(t, db_, "INSERT|t|id=?,name=?,nullf=?,notnullf=?", 2, "bob", spec.rows[1].nullParam, spec.rows[1].notNullParam)
 
 	// Inserts with a prepared statement:
-	stmt, err := db.Prepare("INSERT|t|id=?,name=?,nullf=?,notnullf=?")
+	stmt_, err := db_.Prepare("INSERT|t|id=?,name=?,nullf=?,notnullf=?")
 	if err != nil {
 		t.Fatalf("prepare: %v", err)
 	}
-	defer stmt.Close()
-	if _, err := stmt.Exec(3, "chris", spec.rows[2].nullParam, spec.rows[2].notNullParam); err != nil {
+	defer stmt_.Close()
+	if _, err := stmt_.Exec(3, "chris", spec.rows[2].nullParam, spec.rows[2].notNullParam); err != nil {
 		t.Errorf("exec insert chris: %v", err)
 	}
-	if _, err := stmt.Exec(4, "dave", spec.rows[3].nullParam, spec.rows[3].notNullParam); err != nil {
+	if _, err := stmt_.Exec(4, "dave", spec.rows[3].nullParam, spec.rows[3].notNullParam); err != nil {
 		t.Errorf("exec insert dave: %v", err)
 	}
-	if _, err := stmt.Exec(5, "eleanor", spec.rows[4].nullParam, spec.rows[4].notNullParam); err != nil {
+	if _, err := stmt_.Exec(5, "eleanor", spec.rows[4].nullParam, spec.rows[4].notNullParam); err != nil {
 		t.Errorf("exec insert eleanor: %v", err)
 	}
 
 	// Can't put null val into non-null col
-	if _, err := stmt.Exec(6, "bob", spec.rows[5].nullParam, spec.rows[5].notNullParam); err == nil {
+	if _, err := stmt_.Exec(6, "bob", spec.rows[5].nullParam, spec.rows[5].notNullParam); err == nil {
 		t.Errorf("expected error inserting nil val with prepared statement Exec")
 	}
 
-	_, err = db.Exec("INSERT|t|id=?,name=?,nullf=?", 999, nil, nil)
+	_, err = db_.Exec("INSERT|t|id=?,name=?,nullf=?", 999, nil, nil)
 	if err == nil {
 		// TODO: this test fails, but it's just because
 		// fakeConn implements the optional Execer interface,
@@ -1935,7 +1938,7 @@ func nullTestRun(t *testing.T, spec nullTestSpec) {
 
 	for i := 0; i < 5; i++ {
 		id := i + 1
-		if err := db.QueryRow("SELECT|t|nullf|id=?", id).Scan(bindVal); err != nil {
+		if err := db_.QueryRow("SELECT|t|nullf|id=?", id).Scan(bindVal); err != nil {
 			t.Errorf("id=%d Scan: %v", id, err)
 		}
 		bindValDeref := reflect.ValueOf(bindVal).Elem().Interface()
@@ -1947,10 +1950,10 @@ func nullTestRun(t *testing.T, spec nullTestSpec) {
 
 // golang.org/issue/4859
 func TestQueryRowNilScanDest(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 	var name *string // nil pointer
-	err := db.QueryRow("SELECT|people|name|").Scan(name)
+	err := db_.QueryRow("SELECT|people|name|").Scan(name)
 	want := `sql: Scan error on column index 0, name "name": destination pointer is nil`
 	if err == nil || err.Error() != want {
 		t.Errorf("error = %q; want %q", err.Error(), want)
@@ -1958,20 +1961,21 @@ func TestQueryRowNilScanDest(t *testing.T) {
 }
 
 func TestIssue4902(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	driver := db.Driver().(*fakeDriver)
+	driver := db_.Driver().(*fakeDriver)
 	opens0 := driver.openCount
 
-	var stmt *Stmt
-	var err error
+	var stmt_ *stmt
+
 	for i := 0; i < 10; i++ {
-		stmt, err = db.Prepare("SELECT|people|name|")
+		stmt1, err := db_.Prepare("SELECT|people|name|")
+		stmt_ = stmt1.(*stmt)
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = stmt.Close()
+		err = stmt_.Close()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1980,19 +1984,19 @@ func TestIssue4902(t *testing.T) {
 	opens := driver.openCount - opens0
 	if opens > 1 {
 		t.Errorf("opens = %d; want <= 1", opens)
-		t.Logf("db = %#v", db)
+		t.Logf("db_ = %#v", db_)
 		t.Logf("driver = %#v", driver)
-		t.Logf("stmt = %#v", stmt)
+		t.Logf("stmt_ = %#v", stmt_)
 	}
 }
 
 // Issue 3857
 // This used to deadlock.
 func TestSimultaneousQueries(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	tx, err := db.Begin()
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2012,30 +2016,30 @@ func TestSimultaneousQueries(t *testing.T) {
 }
 
 func TestMaxIdleConns(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	tx, err := db.Begin()
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
 	tx.Commit()
-	if got := len(db.freeConn); got != 1 {
+	if got := len(db_.freeConn); got != 1 {
 		t.Errorf("freeConns = %d; want 1", got)
 	}
 
-	db.SetMaxIdleConns(0)
+	db_.SetMaxIdleConns(0)
 
-	if got := len(db.freeConn); got != 0 {
+	if got := len(db_.freeConn); got != 0 {
 		t.Errorf("freeConns after set to zero = %d; want 0", got)
 	}
 
-	tx, err = db.Begin()
+	tx, err = db_.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
 	tx.Commit()
-	if got := len(db.freeConn); got != 0 {
+	if got := len(db_.freeConn); got != 0 {
 		t.Errorf("freeConns = %d; want 0", got)
 	}
 }
@@ -2051,24 +2055,24 @@ func TestMaxOpenConns(t *testing.T) {
 		}
 	})
 
-	db := newTestDB(t, "magicquery")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "magicquery")
+	defer closeDB(t, db_)
 
-	driver := db.Driver().(*fakeDriver)
+	driver := db_.Driver().(*fakeDriver)
 
 	// Force the number of open connections to 0 so we can get an accurate
 	// count for the test
-	db.clearAllConns(t)
+	db_.clearAllConns(t)
 
 	driver.mu.Lock()
 	opens0 := driver.openCount
 	closes0 := driver.closeCount
 	driver.mu.Unlock()
 
-	db.SetMaxIdleConns(10)
-	db.SetMaxOpenConns(10)
+	db_.SetMaxIdleConns(10)
+	db_.SetMaxOpenConns(10)
 
-	stmt, err := db.Prepare("SELECT|magicquery|op|op=?,millis=?")
+	stmt_, err := db_.Prepare("SELECT|magicquery|op|op=?,millis=?")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2086,7 +2090,7 @@ func TestMaxOpenConns(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				var op string
-				if err := stmt.QueryRow("sleep", sleepMillis).Scan(&op); err != nil && err != ErrNoRows {
+				if err := stmt_.QueryRow("sleep", sleepMillis).Scan(&op); err != nil && err != ErrNoRows {
 					t.Error(err)
 				}
 			}()
@@ -2095,13 +2099,13 @@ func TestMaxOpenConns(t *testing.T) {
 		wg.Wait()
 	}
 
-	if g, w := db.numFreeConns(), 10; g != w {
+	if g, w := db_.numFreeConns(), 10; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPoll(t, 20); n > 20 {
+	if n := db_.numDepsPoll(t, 20); n > 20 {
 		t.Errorf("number of dependencies = %d; expected <= 20", n)
-		db.dumpDeps(t)
+		db_.dumpDeps(t)
 	}
 
 	driver.mu.Lock()
@@ -2112,46 +2116,46 @@ func TestMaxOpenConns(t *testing.T) {
 	if opens > 10 {
 		t.Logf("open calls = %d", opens)
 		t.Logf("close calls = %d", closes)
-		t.Errorf("db connections opened = %d; want <= 10", opens)
-		db.dumpDeps(t)
+		t.Errorf("DBStruct connections opened = %d; want <= 10", opens)
+		db_.dumpDeps(t)
 	}
 
-	if err := stmt.Close(); err != nil {
+	if err := stmt_.Close(); err != nil {
 		t.Fatal(err)
 	}
 
-	if g, w := db.numFreeConns(), 10; g != w {
+	if g, w := db_.numFreeConns(), 10; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPoll(t, 10); n > 10 {
+	if n := db_.numDepsPoll(t, 10); n > 10 {
 		t.Errorf("number of dependencies = %d; expected <= 10", n)
-		db.dumpDeps(t)
+		db_.dumpDeps(t)
 	}
 
-	db.SetMaxOpenConns(5)
+	db_.SetMaxOpenConns(5)
 
-	if g, w := db.numFreeConns(), 5; g != w {
+	if g, w := db_.numFreeConns(), 5; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPoll(t, 5); n > 5 {
+	if n := db_.numDepsPoll(t, 5); n > 5 {
 		t.Errorf("number of dependencies = %d; expected 0", n)
-		db.dumpDeps(t)
+		db_.dumpDeps(t)
 	}
 
-	db.SetMaxOpenConns(0)
+	db_.SetMaxOpenConns(0)
 
-	if g, w := db.numFreeConns(), 5; g != w {
+	if g, w := db_.numFreeConns(), 5; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPoll(t, 5); n > 5 {
+	if n := db_.numDepsPoll(t, 5); n > 5 {
 		t.Errorf("number of dependencies = %d; expected 0", n)
-		db.dumpDeps(t)
+		db_.dumpDeps(t)
 	}
 
-	db.clearAllConns(t)
+	db_.clearAllConns(t)
 }
 
 // Issue 9453: tests that SetMaxOpenConns can be lowered at runtime
@@ -2164,51 +2168,51 @@ func TestMaxOpenConnsOnBusy(t *testing.T) {
 		}
 	})
 
-	db := newTestDB(t, "magicquery")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "magicquery")
+	defer closeDB(t, db_)
 
-	db.SetMaxOpenConns(3)
+	db_.SetMaxOpenConns(3)
 
 	ctx := context.Background()
 
-	conn0, err := db.conn(ctx, cachedOrNewConn)
+	conn0, err := db_.conn(ctx, cachedOrNewConn)
 	if err != nil {
-		t.Fatalf("db open conn fail: %v", err)
+		t.Fatalf("DBStruct open conn fail: %v", err)
 	}
 
-	conn1, err := db.conn(ctx, cachedOrNewConn)
+	conn1, err := db_.conn(ctx, cachedOrNewConn)
 	if err != nil {
-		t.Fatalf("db open conn fail: %v", err)
+		t.Fatalf("DBStruct open conn fail: %v", err)
 	}
 
-	conn2, err := db.conn(ctx, cachedOrNewConn)
+	conn2, err := db_.conn(ctx, cachedOrNewConn)
 	if err != nil {
-		t.Fatalf("db open conn fail: %v", err)
+		t.Fatalf("DBStruct open conn fail: %v", err)
 	}
 
-	if g, w := db.numOpen, 3; g != w {
+	if g, w := db_.numOpen, 3; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	db.SetMaxOpenConns(2)
-	if g, w := db.numOpen, 3; g != w {
+	db_.SetMaxOpenConns(2)
+	if g, w := db_.numOpen, 3; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
 	conn0.releaseConn(nil)
 	conn1.releaseConn(nil)
-	if g, w := db.numOpen, 2; g != w {
+	if g, w := db_.numOpen, 2; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
 	conn2.releaseConn(nil)
-	if g, w := db.numOpen, 2; g != w {
+	if g, w := db_.numOpen, 2; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 }
 
 // Issue 10886: tests that all connection attempts return when more than
-// DB.maxOpen connections are in flight and the first DB.maxOpen fail.
+// db_.maxOpen connections are in flight and the first db_.maxOpen fail.
 func TestPendingConnsAfterErr(t *testing.T) {
 	const (
 		maxOpen = 2
@@ -2216,21 +2220,22 @@ func TestPendingConnsAfterErr(t *testing.T) {
 	)
 
 	// No queries will be run.
-	db, err := Open("test", fakeDBName)
+	db1, err := Open("test", fakeDBName)
+	db_ := db1.(*DBStruct)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	defer closeDB(t, db)
+	defer closeDB(t, db_)
 	defer func() {
-		for k, v := range db.lastPut {
+		for k, v := range db_.lastPut {
 			t.Logf("%p: %v", k, v)
 		}
 	}()
 
-	db.SetMaxOpenConns(maxOpen)
-	db.SetMaxIdleConns(0)
+	db_.SetMaxOpenConns(maxOpen)
+	db_.SetMaxIdleConns(0)
 
-	errOffline := errors.New("db offline")
+	errOffline := errors.New("DBStruct offline")
 
 	defer func() { setHookOpenErr(nil) }()
 
@@ -2248,7 +2253,7 @@ func TestPendingConnsAfterErr(t *testing.T) {
 	for i := 0; i < tryOpen; i++ {
 		go func() {
 			opening.Done() // signal one connection is in flight
-			_, err := db.Exec("will never run")
+			_, err := db_.Exec("will never run")
 			errs <- err
 		}()
 	}
@@ -2277,12 +2282,12 @@ func TestPendingConnsAfterErr(t *testing.T) {
 	for {
 		select {
 		case <-tick.C:
-			db.mu.Lock()
-			if db.numOpen == 0 {
-				db.mu.Unlock()
+			db_.mu.Lock()
+			if db_.numOpen == 0 {
+				db_.mu.Unlock()
 				return
 			}
-			db.mu.Unlock()
+			db_.mu.Unlock()
 		case <-to.C:
 			// Closing the database will check for numOpen and fail the test.
 			return
@@ -2291,12 +2296,12 @@ func TestPendingConnsAfterErr(t *testing.T) {
 }
 
 func TestSingleOpenConn(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	db.SetMaxOpenConns(1)
+	db_.SetMaxOpenConns(1)
 
-	rows, err := db.Query("SELECT|people|name|")
+	rows, err := db_.Query("SELECT|people|name|")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2304,7 +2309,7 @@ func TestSingleOpenConn(t *testing.T) {
 		t.Fatal(err)
 	}
 	// shouldn't deadlock
-	rows, err = db.Query("SELECT|people|name|")
+	rows, err = db_.Query("SELECT|people|name|")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2314,20 +2319,20 @@ func TestSingleOpenConn(t *testing.T) {
 }
 
 func TestStats(t *testing.T) {
-	db := newTestDB(t, "people")
-	stats := db.Stats()
+	db_ := newTestDB(t, "people")
+	stats := db_.Stats()
 	if got := stats.OpenConnections; got != 1 {
 		t.Errorf("stats.OpenConnections = %d; want 1", got)
 	}
 
-	tx, err := db.Begin()
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
 	tx.Commit()
 
-	closeDB(t, db)
-	stats = db.Stats()
+	closeDB(t, db_)
+	stats = db_.Stats()
 	if got := stats.OpenConnections; got != 0 {
 		t.Errorf("stats.OpenConnections = %d; want 0", got)
 	}
@@ -2340,30 +2345,30 @@ func TestConnMaxLifetime(t *testing.T) {
 	nowFunc = func() time.Time { return t0.Add(offset) }
 	defer func() { nowFunc = time.Now }()
 
-	db := newTestDB(t, "magicquery")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "magicquery")
+	defer closeDB(t, db_)
 
-	driver := db.Driver().(*fakeDriver)
+	driver := db_.Driver().(*fakeDriver)
 
 	// Force the number of open connections to 0 so we can get an accurate
 	// count for the test
-	db.clearAllConns(t)
+	db_.clearAllConns(t)
 
 	driver.mu.Lock()
 	opens0 := driver.openCount
 	closes0 := driver.closeCount
 	driver.mu.Unlock()
 
-	db.SetMaxIdleConns(10)
-	db.SetMaxOpenConns(10)
+	db_.SetMaxIdleConns(10)
+	db_.SetMaxOpenConns(10)
 
-	tx, err := db.Begin()
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	offset = time.Second
-	tx2, err := db.Begin()
+	tx2, err := db_.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2382,22 +2387,22 @@ func TestConnMaxLifetime(t *testing.T) {
 	if closes != 0 {
 		t.Errorf("closes = %d; want 0", closes)
 	}
-	if g, w := db.numFreeConns(), 2; g != w {
+	if g, w := db_.numFreeConns(), 2; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
 	// Expire first conn
 	offset = 11 * time.Second
-	db.SetConnMaxLifetime(10 * time.Second)
+	db_.SetConnMaxLifetime(10 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	tx, err = db.Begin()
+	tx, err = db_.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
-	tx2, err = db.Begin()
+	tx2, err = db_.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2421,7 +2426,7 @@ func TestConnMaxLifetime(t *testing.T) {
 		t.Errorf("closes = %d; want 1", closes)
 	}
 
-	if s := db.Stats(); s.MaxLifetimeClosed != 1 {
+	if s := db_.Stats(); s.MaxLifetimeClosed != 1 {
 		t.Errorf("MaxLifetimeClosed = %d; want 1 %#v", s.MaxLifetimeClosed, s)
 	}
 }
@@ -2438,10 +2443,10 @@ func TestStmtCloseDeps(t *testing.T) {
 		}
 	})
 
-	db := newTestDB(t, "magicquery")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "magicquery")
+	defer closeDB(t, db_)
 
-	driver := db.Driver().(*fakeDriver)
+	driver := db_.Driver().(*fakeDriver)
 
 	driver.mu.Lock()
 	opens0 := driver.openCount
@@ -2449,7 +2454,8 @@ func TestStmtCloseDeps(t *testing.T) {
 	driver.mu.Unlock()
 	openDelta0 := opens0 - closes0
 
-	stmt, err := db.Prepare("SELECT|magicquery|op|op=?,millis=?")
+	stmt1, err := db_.Prepare("SELECT|magicquery|op|op=?,millis=?")
+	stmt_ := stmt1.(*stmt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2467,7 +2473,7 @@ func TestStmtCloseDeps(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				var op string
-				if err := stmt.QueryRow("sleep", sleepMillis).Scan(&op); err != nil && err != ErrNoRows {
+				if err := stmt_.QueryRow("sleep", sleepMillis).Scan(&op); err != nil && err != ErrNoRows {
 					t.Error(err)
 				}
 			}()
@@ -2476,13 +2482,13 @@ func TestStmtCloseDeps(t *testing.T) {
 		wg.Wait()
 	}
 
-	if g, w := db.numFreeConns(), 2; g != w {
+	if g, w := db_.numFreeConns(), 2; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPoll(t, 4); n > 4 {
+	if n := db_.numDepsPoll(t, 4); n > 4 {
 		t.Errorf("number of dependencies = %d; expected <= 4", n)
-		db.dumpDeps(t)
+		db_.dumpDeps(t)
 	}
 
 	driver.mu.Lock()
@@ -2495,55 +2501,55 @@ func TestStmtCloseDeps(t *testing.T) {
 		t.Logf("open calls = %d", opens)
 		t.Logf("close calls = %d", closes)
 		t.Logf("open delta = %d", openDelta)
-		t.Errorf("db connections opened = %d; want <= 2", openDelta)
-		db.dumpDeps(t)
+		t.Errorf("DBStruct connections opened = %d; want <= 2", openDelta)
+		db_.dumpDeps(t)
 	}
 
 	if !waitCondition(t, func() bool {
-		return len(stmt.css) <= nquery
+		return len(stmt_.css) <= nquery
 	}) {
-		t.Errorf("len(stmt.css) = %d; want <= %d", len(stmt.css), nquery)
+		t.Errorf("len(stmt_.css) = %d; want <= %d", len(stmt_.css), nquery)
 	}
 
-	if err := stmt.Close(); err != nil {
+	if err := stmt_.Close(); err != nil {
 		t.Fatal(err)
 	}
 
-	if g, w := db.numFreeConns(), 2; g != w {
+	if g, w := db_.numFreeConns(), 2; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPoll(t, 2); n > 2 {
+	if n := db_.numDepsPoll(t, 2); n > 2 {
 		t.Errorf("number of dependencies = %d; expected <= 2", n)
-		db.dumpDeps(t)
+		db_.dumpDeps(t)
 	}
 
-	db.clearAllConns(t)
+	db_.clearAllConns(t)
 }
 
 // golang.org/issue/5046
 func TestCloseConnBeforeStmts(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
 	defer setHookpostCloseConn(nil)
 	setHookpostCloseConn(func(_ *fakeConn, err error) {
 		if err != nil {
 			t.Errorf("Error closing fakeConn: %v; from %s", err, stack())
-			db.dumpDeps(t)
-			t.Errorf("DB = %#v", db)
+			db_.dumpDeps(t)
+			t.Errorf("db_ = %#v", db_)
 		}
 	})
 
-	stmt, err := db.Prepare("SELECT|people|name|")
+	stmt_, err := db_.Prepare("SELECT|people|name|")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(db.freeConn) != 1 {
-		t.Fatalf("expected 1 freeConn; got %d", len(db.freeConn))
+	if len(db_.freeConn) != 1 {
+		t.Fatalf("expected 1 freeConn; got %d", len(db_.freeConn))
 	}
-	dc := db.freeConn[0]
+	dc := db_.freeConn[0]
 	if dc.closed {
 		t.Errorf("conn shouldn't be closed")
 	}
@@ -2551,18 +2557,18 @@ func TestCloseConnBeforeStmts(t *testing.T) {
 	if n := len(dc.openStmt); n != 1 {
 		t.Errorf("driverConn num openStmt = %d; want 1", n)
 	}
-	err = db.Close()
+	err = db_.Close()
 	if err != nil {
-		t.Errorf("db Close = %v", err)
+		t.Errorf("DBStruct Close = %v", err)
 	}
 	if !dc.closed {
-		t.Errorf("after db.Close, driverConn should be closed")
+		t.Errorf("after db_.Close, driverConn should be closed")
 	}
 	if n := len(dc.openStmt); n != 0 {
 		t.Errorf("driverConn num openStmt = %d; want 0", n)
 	}
 
-	err = stmt.Close()
+	err = stmt_.Close()
 	if err != nil {
 		t.Errorf("Stmt close = %v", err)
 	}
@@ -2578,14 +2584,14 @@ func TestCloseConnBeforeStmts(t *testing.T) {
 // golang.org/issue/5283: don't release the Rows' connection in Close
 // before calling Stmt.Close.
 func TestRowsCloseOrder(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	db.SetMaxIdleConns(0)
+	db_.SetMaxIdleConns(0)
 	setStrictFakeConnClose(t)
 	defer setStrictFakeConnClose(nil)
 
-	rows, err := db.Query("SELECT|people|age,name|")
+	rows, err := db_.Query("SELECT|people|age,name|")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2596,10 +2602,10 @@ func TestRowsCloseOrder(t *testing.T) {
 }
 
 func TestRowsImplicitClose(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	rows, err := db.Query("SELECT|people|age,name|")
+	rows, err := db_.Query("SELECT|people|age,name|")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2624,9 +2630,9 @@ func TestRowsImplicitClose(t *testing.T) {
 }
 
 func TestRowsCloseError(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer db.Close()
-	rows, err := db.Query("SELECT|people|age,name|")
+	db_ := newTestDB(t, "people")
+	defer db_.Close()
+	rows, err := db_.Query("SELECT|people|age,name|")
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}
@@ -2657,14 +2663,14 @@ func TestRowsCloseError(t *testing.T) {
 }
 
 func TestStmtCloseOrder(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	db.SetMaxIdleConns(0)
+	db_.SetMaxIdleConns(0)
 	setStrictFakeConnClose(t)
 	defer setStrictFakeConnClose(nil)
 
-	_, err := db.Query("SELECT|non_existent|name|")
+	_, err := db_.Query("SELECT|non_existent|name|")
 	if err == nil {
 		t.Fatal("Querying non-existent table should fail")
 	}
@@ -2673,20 +2679,20 @@ func TestStmtCloseOrder(t *testing.T) {
 // Test cases where there's more than maxBadConnRetries bad connections in the
 // pool (issue 8834)
 func TestManyErrBadConn(t *testing.T) {
-	manyErrBadConnSetup := func(first ...func(db *DB)) *DB {
-		db := newTestDB(t, "people")
+	manyErrBadConnSetup := func(first ...func(db_ *DBStruct)) *DBStruct {
+		db_ := newTestDB(t, "people")
 
 		for _, f := range first {
-			f(db)
+			f(db_)
 		}
 
 		nconn := maxBadConnRetries + 1
-		db.SetMaxIdleConns(nconn)
-		db.SetMaxOpenConns(nconn)
+		db_.SetMaxIdleConns(nconn)
+		db_.SetMaxOpenConns(nconn)
 		// open enough connections
 		func() {
 			for i := 0; i < nconn; i++ {
-				rows, err := db.Query("SELECT|people|age,name|")
+				rows, err := db_.Query("SELECT|people|age,name|")
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -2694,25 +2700,25 @@ func TestManyErrBadConn(t *testing.T) {
 			}
 		}()
 
-		db.mu.Lock()
-		defer db.mu.Unlock()
-		if db.numOpen != nconn {
-			t.Fatalf("unexpected numOpen %d (was expecting %d)", db.numOpen, nconn)
-		} else if len(db.freeConn) != nconn {
-			t.Fatalf("unexpected len(db.freeConn) %d (was expecting %d)", len(db.freeConn), nconn)
+		db_.mu.Lock()
+		defer db_.mu.Unlock()
+		if db_.numOpen != nconn {
+			t.Fatalf("unexpected numOpen %d (was expecting %d)", db_.numOpen, nconn)
+		} else if len(db_.freeConn) != nconn {
+			t.Fatalf("unexpected len(db_.freeConn) %d (was expecting %d)", len(db_.freeConn), nconn)
 		}
-		for _, conn := range db.freeConn {
+		for _, conn := range db_.freeConn {
 			conn.Lock()
 			conn.ci.(*fakeConn).stickyBad = true
 			conn.Unlock()
 		}
-		return db
+		return db_
 	}
 
 	// Query
-	db := manyErrBadConnSetup()
-	defer closeDB(t, db)
-	rows, err := db.Query("SELECT|people|age,name|")
+	db_ := manyErrBadConnSetup()
+	defer closeDB(t, db_)
+	rows, err := db_.Query("SELECT|people|age,name|")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2721,17 +2727,17 @@ func TestManyErrBadConn(t *testing.T) {
 	}
 
 	// Exec
-	db = manyErrBadConnSetup()
-	defer closeDB(t, db)
-	_, err = db.Exec("INSERT|people|name=Julia,age=19")
+	db_ = manyErrBadConnSetup()
+	defer closeDB(t, db_)
+	_, err = db_.Exec("INSERT|people|name=Julia,age=19")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Begin
-	db = manyErrBadConnSetup()
-	defer closeDB(t, db)
-	tx, err := db.Begin()
+	db_ = manyErrBadConnSetup()
+	defer closeDB(t, db_)
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2740,57 +2746,57 @@ func TestManyErrBadConn(t *testing.T) {
 	}
 
 	// Prepare
-	db = manyErrBadConnSetup()
-	defer closeDB(t, db)
-	stmt, err := db.Prepare("SELECT|people|age,name|")
+	db_ = manyErrBadConnSetup()
+	defer closeDB(t, db_)
+	stmt_, err := db_.Prepare("SELECT|people|age,name|")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = stmt.Close(); err != nil {
+	if err = stmt_.Close(); err != nil {
 		t.Fatal(err)
 	}
 
 	// Stmt.Exec
-	db = manyErrBadConnSetup(func(db *DB) {
-		stmt, err = db.Prepare("INSERT|people|name=Julia,age=19")
+	db_ = manyErrBadConnSetup(func(db_ *DBStruct) {
+		stmt_, err = db_.Prepare("INSERT|people|name=Julia,age=19")
 		if err != nil {
 			t.Fatal(err)
 		}
 	})
-	defer closeDB(t, db)
-	_, err = stmt.Exec()
+	defer closeDB(t, db_)
+	_, err = stmt_.Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = stmt.Close(); err != nil {
+	if err = stmt_.Close(); err != nil {
 		t.Fatal(err)
 	}
 
 	// Stmt.Query
-	db = manyErrBadConnSetup(func(db *DB) {
-		stmt, err = db.Prepare("SELECT|people|age,name|")
+	db_ = manyErrBadConnSetup(func(db_ *DBStruct) {
+		stmt_, err = db_.Prepare("SELECT|people|age,name|")
 		if err != nil {
 			t.Fatal(err)
 		}
 	})
-	defer closeDB(t, db)
-	rows, err = stmt.Query()
+	defer closeDB(t, db_)
+	rows, err = stmt_.Query()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = rows.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err = stmt.Close(); err != nil {
+	if err = stmt_.Close(); err != nil {
 		t.Fatal(err)
 	}
 
 	// Conn
-	db = manyErrBadConnSetup()
-	defer closeDB(t, db)
+	db_ = manyErrBadConnSetup()
+	defer closeDB(t, db_)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	conn, err := db.Conn(ctx)
+	conn, err := db_.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2801,9 +2807,9 @@ func TestManyErrBadConn(t *testing.T) {
 	}
 
 	// Ping
-	db = manyErrBadConnSetup()
-	defer closeDB(t, db)
-	err = db.PingContext(ctx)
+	db_ = manyErrBadConnSetup()
+	defer closeDB(t, db_)
+	err = db_.PingContext(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2811,12 +2817,12 @@ func TestManyErrBadConn(t *testing.T) {
 
 // Issue 34775: Ensure that a Tx cannot commit after a rollback.
 func TestTxCannotCommitAfterRollback(t *testing.T) {
-	db := newTestDB(t, "tx_status")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "tx_status")
+	defer closeDB(t, db_)
 
 	// First check query reporting is correct.
 	var txStatus string
-	err := db.QueryRow("SELECT|tx_status|tx_status|").Scan(&txStatus)
+	err := db_.QueryRow("SELECT|tx_status|tx_status|").Scan(&txStatus)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2827,7 +2833,7 @@ func TestTxCannotCommitAfterRollback(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := db_.BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2879,26 +2885,26 @@ func TestTxCannotCommitAfterRollback(t *testing.T) {
 
 // Issue 40985 transaction statement deadlock while context cancel.
 func TestTxStmtDeadlock(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := db_.BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	stmt, err := tx.Prepare("SELECT|people|name,age|age=?")
+	stmt_, err := tx.Prepare("SELECT|people|name,age|age=?")
 	if err != nil {
 		t.Fatal(err)
 	}
 	cancel()
-	// Run number of stmt queries to reproduce deadlock from context cancel
+	// Run number of stmt_ queries to reproduce deadlock from context cancel
 	for i := 0; i < 1e3; i++ {
-		// Encounter any close related errors (e.g. ErrTxDone, stmt is closed)
+		// Encounter any close related errors (e.g. ErrTxDone, stmt_ is closed)
 		// is expected due to context cancel.
-		_, err = stmt.Query(1)
+		_, err = stmt_.Query(1)
 		if err != nil {
 			break
 		}
@@ -2933,21 +2939,21 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	db := newTestDB(t, "magicquery")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "magicquery")
+	defer closeDB(t, db_)
 
-	db.SetMaxOpenConns(1)
+	db_.SetMaxOpenConns(1)
 
 	for _, ec := range execCases {
 		ec := ec
 		name := fmt.Sprintf("expired=%t,badReset=%t", ec.expired, ec.badReset)
 		t.Run(name, func(t *testing.T) {
-			db.clearAllConns(t)
+			db_.clearAllConns(t)
 
-			db.SetMaxIdleConns(1)
-			db.SetConnMaxLifetime(10 * time.Second)
+			db_.SetMaxIdleConns(1)
+			db_.SetConnMaxLifetime(10 * time.Second)
 
-			conn, err := db.conn(ctx, alwaysNewConn)
+			conn, err := db_.conn(ctx, alwaysNewConn)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2958,11 +2964,11 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 			go func() {
 				defer close(afterPutConn)
 
-				conn, err := db.conn(ctx, alwaysNewConn)
+				conn, err := db_.conn(ctx, alwaysNewConn)
 				if err == nil {
-					db.putConn(conn, err, false)
+					db_.putConn(conn, err, false)
 				} else {
-					t.Errorf("db.conn: %v", err)
+					t.Errorf("db_.conn: %v", err)
 				}
 			}()
 			go func() {
@@ -2972,9 +2978,9 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 					if t.Failed() {
 						return
 					}
-					db.mu.Lock()
-					ct := len(db.connRequests)
-					db.mu.Unlock()
+					db_.mu.Lock()
+					ct := len(db_.connRequests)
+					db_.mu.Unlock()
 					if ct > 0 {
 						return
 					}
@@ -2998,7 +3004,7 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 
 			conn.ci.(*fakeConn).stickyBad = ec.badReset
 
-			db.putConn(conn, err, true)
+			db_.putConn(conn, err, true)
 
 			<-afterPutConn
 		})
@@ -3008,10 +3014,10 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 // TestIssue20575 ensures the Rows from query does not block
 // closing a transaction. Ensure Rows is closed while closing a transaction.
 func TestIssue20575(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	tx, err := db.Begin()
+	tx, err := db_.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3036,13 +3042,13 @@ func TestIssue20575(t *testing.T) {
 // TestIssue20622 tests closing the transaction before rows is closed, requires
 // the race detector to fail.
 func TestIssue20622(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := db_.BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3072,13 +3078,13 @@ func TestIssue20622(t *testing.T) {
 
 // golang.org/issue/5718
 func TestErrBadConnReconnect(t *testing.T) {
-	db := newTestDB(t, "foo")
-	defer closeDB(t, db)
-	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
+	db_ := newTestDB(t, "foo")
+	defer closeDB(t, db_)
+	exec(t, db_, "CREATE|t1|name=string,age=int32,dead=bool")
 
 	simulateBadConn := func(name string, hook *func() bool, op func() error) {
 		broken, retried := false, false
-		numOpen := db.numOpen
+		numOpen := db_.numOpen
 
 		// simulate a broken connection on the first try
 		*hook = func() bool {
@@ -3100,70 +3106,70 @@ func TestErrBadConnReconnect(t *testing.T) {
 		}
 		*hook = nil
 
-		if numOpen != db.numOpen {
-			t.Errorf(name+": leaked %d connection(s)!", db.numOpen-numOpen)
-			numOpen = db.numOpen
+		if numOpen != db_.numOpen {
+			t.Errorf(name+": leaked %d connection(s)!", db_.numOpen-numOpen)
+			numOpen = db_.numOpen
 		}
 	}
 
-	// db.Exec
+	// db_.Exec
 	dbExec := func() error {
-		_, err := db.Exec("INSERT|t1|name=?,age=?,dead=?", "Gordon", 3, true)
+		_, err := db_.Exec("INSERT|t1|name=?,age=?,dead=?", "Gordon", 3, true)
 		return err
 	}
-	simulateBadConn("db.Exec prepare", &hookPrepareBadConn, dbExec)
-	simulateBadConn("db.Exec exec", &hookExecBadConn, dbExec)
+	simulateBadConn("db_.Exec prepare", &hookPrepareBadConn, dbExec)
+	simulateBadConn("db_.Exec exec", &hookExecBadConn, dbExec)
 
-	// db.Query
+	// db_.Query
 	dbQuery := func() error {
-		rows, err := db.Query("SELECT|t1|age,name|")
+		rows, err := db_.Query("SELECT|t1|age,name|")
 		if err == nil {
 			err = rows.Close()
 		}
 		return err
 	}
-	simulateBadConn("db.Query prepare", &hookPrepareBadConn, dbQuery)
-	simulateBadConn("db.Query query", &hookQueryBadConn, dbQuery)
+	simulateBadConn("db_.Query prepare", &hookPrepareBadConn, dbQuery)
+	simulateBadConn("db_.Query query", &hookQueryBadConn, dbQuery)
 
-	// db.Prepare
-	simulateBadConn("db.Prepare", &hookPrepareBadConn, func() error {
-		stmt, err := db.Prepare("INSERT|t1|name=?,age=?,dead=?")
+	// db_.Prepare
+	simulateBadConn("db_.Prepare", &hookPrepareBadConn, func() error {
+		stmt_, err := db_.Prepare("INSERT|t1|name=?,age=?,dead=?")
 		if err != nil {
 			return err
 		}
-		stmt.Close()
+		stmt_.Close()
 		return nil
 	})
 
 	// Provide a way to force a re-prepare of a statement on next execution
-	forcePrepare := func(stmt *Stmt) {
-		stmt.css = nil
+	forcePrepare := func(stmt_ *stmt) {
+		stmt_.css = nil
 	}
 
-	// stmt.Exec
-	stmt1, err := db.Prepare("INSERT|t1|name=?,age=?,dead=?")
+	// stmt_.Exec
+	stmt1, err := db_.Prepare("INSERT|t1|name=?,age=?,dead=?")
 	if err != nil {
 		t.Fatalf("prepare: %v", err)
 	}
 	defer stmt1.Close()
-	// make sure we must prepare the stmt first
-	forcePrepare(stmt1)
+	// make sure we must prepare the stmt_ first
+	forcePrepare(stmt1.(*stmt))
 
 	stmtExec := func() error {
 		_, err := stmt1.Exec("Gopher", 3, false)
 		return err
 	}
-	simulateBadConn("stmt.Exec prepare", &hookPrepareBadConn, stmtExec)
-	simulateBadConn("stmt.Exec exec", &hookExecBadConn, stmtExec)
+	simulateBadConn("stmt_.Exec prepare", &hookPrepareBadConn, stmtExec)
+	simulateBadConn("stmt_.Exec exec", &hookExecBadConn, stmtExec)
 
-	// stmt.Query
-	stmt2, err := db.Prepare("SELECT|t1|age,name|")
+	// stmt_.Query
+	stmt2, err := db_.Prepare("SELECT|t1|age,name|")
 	if err != nil {
 		t.Fatalf("prepare: %v", err)
 	}
 	defer stmt2.Close()
-	// make sure we must prepare the stmt first
-	forcePrepare(stmt2)
+	// make sure we must prepare the stmt_ first
+	forcePrepare(stmt2.(*stmt))
 
 	stmtQuery := func() error {
 		rows, err := stmt2.Query()
@@ -3172,21 +3178,21 @@ func TestErrBadConnReconnect(t *testing.T) {
 		}
 		return err
 	}
-	simulateBadConn("stmt.Query prepare", &hookPrepareBadConn, stmtQuery)
-	simulateBadConn("stmt.Query exec", &hookQueryBadConn, stmtQuery)
+	simulateBadConn("stmt_.Query prepare", &hookPrepareBadConn, stmtQuery)
+	simulateBadConn("stmt_.Query exec", &hookQueryBadConn, stmtQuery)
 }
 
 // golang.org/issue/11264
 func TestTxEndBadConn(t *testing.T) {
-	db := newTestDB(t, "foo")
-	defer closeDB(t, db)
-	db.SetMaxIdleConns(0)
-	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
-	db.SetMaxIdleConns(1)
+	db_ := newTestDB(t, "foo")
+	defer closeDB(t, db_)
+	db_.SetMaxIdleConns(0)
+	exec(t, db_, "CREATE|t1|name=string,age=int32,dead=bool")
+	db_.SetMaxIdleConns(1)
 
 	simulateBadConn := func(name string, hook *func() bool, op func() error) {
 		broken := false
-		numOpen := db.numOpen
+		numOpen := db_.numOpen
 
 		*hook = func() bool {
 			if !broken {
@@ -3205,15 +3211,15 @@ func TestTxEndBadConn(t *testing.T) {
 		}
 		*hook = nil
 
-		if numOpen != db.numOpen {
-			t.Errorf(name+": leaked %d connection(s)!", db.numOpen-numOpen)
+		if numOpen != db_.numOpen {
+			t.Errorf(name+": leaked %d connection(s)!", db_.numOpen-numOpen)
 		}
 	}
 
-	// db.Exec
+	// db_.Exec
 	dbExec := func(endTx func(tx *Tx) error) func() error {
 		return func() error {
-			tx, err := db.Begin()
+			tx, err := db_.Begin()
 			if err != nil {
 				return err
 			}
@@ -3224,13 +3230,13 @@ func TestTxEndBadConn(t *testing.T) {
 			return endTx(tx)
 		}
 	}
-	simulateBadConn("db.Tx.Exec commit", &hookCommitBadConn, dbExec((*Tx).Commit))
-	simulateBadConn("db.Tx.Exec rollback", &hookRollbackBadConn, dbExec((*Tx).Rollback))
+	simulateBadConn("db_.Tx.Exec commit", &hookCommitBadConn, dbExec((*Tx).Commit))
+	simulateBadConn("db_.Tx.Exec rollback", &hookRollbackBadConn, dbExec((*Tx).Rollback))
 
-	// db.Query
+	// db_.Query
 	dbQuery := func(endTx func(tx *Tx) error) func() error {
 		return func() error {
-			tx, err := db.Begin()
+			tx, err := db_.Begin()
 			if err != nil {
 				return err
 			}
@@ -3243,22 +3249,22 @@ func TestTxEndBadConn(t *testing.T) {
 			return endTx(tx)
 		}
 	}
-	simulateBadConn("db.Tx.Query commit", &hookCommitBadConn, dbQuery((*Tx).Commit))
-	simulateBadConn("db.Tx.Query rollback", &hookRollbackBadConn, dbQuery((*Tx).Rollback))
+	simulateBadConn("db_.Tx.Query commit", &hookCommitBadConn, dbQuery((*Tx).Commit))
+	simulateBadConn("db_.Tx.Query rollback", &hookRollbackBadConn, dbQuery((*Tx).Rollback))
 }
 
 type concurrentTest interface {
-	init(t testing.TB, db *DB)
+	init(t testing.TB, db_ *DBStruct)
 	finish(t testing.TB)
 	test(t testing.TB) error
 }
 
 type concurrentDBQueryTest struct {
-	db *DB
+	db *DBStruct
 }
 
-func (c *concurrentDBQueryTest) init(t testing.TB, db *DB) {
-	c.db = db
+func (c *concurrentDBQueryTest) init(t testing.TB, db_ *DBStruct) {
+	c.db = db_
 }
 
 func (c *concurrentDBQueryTest) finish(t testing.TB) {
@@ -3280,11 +3286,11 @@ func (c *concurrentDBQueryTest) test(t testing.TB) error {
 }
 
 type concurrentDBExecTest struct {
-	db *DB
+	db *DBStruct
 }
 
-func (c *concurrentDBExecTest) init(t testing.TB, db *DB) {
-	c.db = db
+func (c *concurrentDBExecTest) init(t testing.TB, db_ *DBStruct) {
+	c.db = db_
 }
 
 func (c *concurrentDBExecTest) finish(t testing.TB) {
@@ -3301,29 +3307,30 @@ func (c *concurrentDBExecTest) test(t testing.TB) error {
 }
 
 type concurrentStmtQueryTest struct {
-	db   *DB
-	stmt *Stmt
+	db    *DBStruct
+	stmt_ *stmt
 }
 
-func (c *concurrentStmtQueryTest) init(t testing.TB, db *DB) {
-	c.db = db
+func (c *concurrentStmtQueryTest) init(t testing.TB, db_ *DBStruct) {
+	c.db = db_
 	var err error
-	c.stmt, err = db.Prepare("SELECT|people|name|")
+	stmt1, err := db_.Prepare("SELECT|people|name|")
+	c.stmt_ = stmt1.(*stmt)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func (c *concurrentStmtQueryTest) finish(t testing.TB) {
-	if c.stmt != nil {
-		c.stmt.Close()
-		c.stmt = nil
+	if c.stmt_ != nil {
+		c.stmt_.Close()
+		c.stmt_ = nil
 	}
 	c.db = nil
 }
 
 func (c *concurrentStmtQueryTest) test(t testing.TB) error {
-	rows, err := c.stmt.Query()
+	rows, err := c.stmt_.Query()
 	if err != nil {
 		t.Errorf("error on query:  %v", err)
 		return err
@@ -3338,29 +3345,30 @@ func (c *concurrentStmtQueryTest) test(t testing.TB) error {
 }
 
 type concurrentStmtExecTest struct {
-	db   *DB
-	stmt *Stmt
+	db    *DBStruct
+	stmt_ *stmt
 }
 
-func (c *concurrentStmtExecTest) init(t testing.TB, db *DB) {
-	c.db = db
+func (c *concurrentStmtExecTest) init(t testing.TB, db_ *DBStruct) {
+	c.db = db_
 	var err error
-	c.stmt, err = db.Prepare("NOSERT|people|name=Chris,age=?,photo=CPHOTO,bdate=?")
+	stmt1, err := db_.Prepare("NOSERT|people|name=Chris,age=?,photo=CPHOTO,bdate=?")
+	c.stmt_ = stmt1.(*stmt)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func (c *concurrentStmtExecTest) finish(t testing.TB) {
-	if c.stmt != nil {
-		c.stmt.Close()
-		c.stmt = nil
+	if c.stmt_ != nil {
+		c.stmt_.Close()
+		c.stmt_ = nil
 	}
 	c.db = nil
 }
 
 func (c *concurrentStmtExecTest) test(t testing.TB) error {
-	_, err := c.stmt.Exec(3, chrisBirthday)
+	_, err := c.stmt_.Exec(3, chrisBirthday)
 	if err != nil {
 		t.Errorf("error on exec:  %v", err)
 		return err
@@ -3369,12 +3377,12 @@ func (c *concurrentStmtExecTest) test(t testing.TB) error {
 }
 
 type concurrentTxQueryTest struct {
-	db *DB
+	db *DBStruct
 	tx *Tx
 }
 
-func (c *concurrentTxQueryTest) init(t testing.TB, db *DB) {
-	c.db = db
+func (c *concurrentTxQueryTest) init(t testing.TB, db_ *DBStruct) {
+	c.db = db_
 	var err error
 	c.tx, err = c.db.Begin()
 	if err != nil {
@@ -3405,12 +3413,12 @@ func (c *concurrentTxQueryTest) test(t testing.TB) error {
 }
 
 type concurrentTxExecTest struct {
-	db *DB
+	db *DBStruct
 	tx *Tx
 }
 
-func (c *concurrentTxExecTest) init(t testing.TB, db *DB) {
-	c.db = db
+func (c *concurrentTxExecTest) init(t testing.TB, db_ *DBStruct) {
+	c.db = db_
 	var err error
 	c.tx, err = c.db.Begin()
 	if err != nil {
@@ -3436,28 +3444,29 @@ func (c *concurrentTxExecTest) test(t testing.TB) error {
 }
 
 type concurrentTxStmtQueryTest struct {
-	db   *DB
-	tx   *Tx
-	stmt *Stmt
+	db    *DBStruct
+	tx    *Tx
+	stmt_ *stmt
 }
 
-func (c *concurrentTxStmtQueryTest) init(t testing.TB, db *DB) {
-	c.db = db
+func (c *concurrentTxStmtQueryTest) init(t testing.TB, db_ *DBStruct) {
+	c.db = db_
 	var err error
 	c.tx, err = c.db.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.stmt, err = c.tx.Prepare("SELECT|people|name|")
+	stmt_, err := c.tx.Prepare("SELECT|people|name|")
+	c.stmt_ = stmt_.(*stmt)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func (c *concurrentTxStmtQueryTest) finish(t testing.TB) {
-	if c.stmt != nil {
-		c.stmt.Close()
-		c.stmt = nil
+	if c.stmt_ != nil {
+		c.stmt_.Close()
+		c.stmt_ = nil
 	}
 	if c.tx != nil {
 		c.tx.Rollback()
@@ -3467,7 +3476,7 @@ func (c *concurrentTxStmtQueryTest) finish(t testing.TB) {
 }
 
 func (c *concurrentTxStmtQueryTest) test(t testing.TB) error {
-	rows, err := c.stmt.Query()
+	rows, err := c.stmt_.Query()
 	if err != nil {
 		t.Errorf("error on query:  %v", err)
 		return err
@@ -3482,28 +3491,29 @@ func (c *concurrentTxStmtQueryTest) test(t testing.TB) error {
 }
 
 type concurrentTxStmtExecTest struct {
-	db   *DB
-	tx   *Tx
-	stmt *Stmt
+	db    *DBStruct
+	tx    *Tx
+	stmt_ *stmt
 }
 
-func (c *concurrentTxStmtExecTest) init(t testing.TB, db *DB) {
-	c.db = db
+func (c *concurrentTxStmtExecTest) init(t testing.TB, db_ *DBStruct) {
+	c.db = db_
 	var err error
 	c.tx, err = c.db.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.stmt, err = c.tx.Prepare("NOSERT|people|name=Chris,age=?,photo=CPHOTO,bdate=?")
+	stmt_, err := c.tx.Prepare("NOSERT|people|name=Chris,age=?,photo=CPHOTO,bdate=?")
+	c.stmt_ = stmt_.(*stmt)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func (c *concurrentTxStmtExecTest) finish(t testing.TB) {
-	if c.stmt != nil {
-		c.stmt.Close()
-		c.stmt = nil
+	if c.stmt_ != nil {
+		c.stmt_.Close()
+		c.stmt_ = nil
 	}
 	if c.tx != nil {
 		c.tx.Rollback()
@@ -3513,7 +3523,7 @@ func (c *concurrentTxStmtExecTest) finish(t testing.TB) {
 }
 
 func (c *concurrentTxStmtExecTest) test(t testing.TB) error {
-	_, err := c.stmt.Exec(3, chrisBirthday)
+	_, err := c.stmt_.Exec(3, chrisBirthday)
 	if err != nil {
 		t.Errorf("error on exec:  %v", err)
 		return err
@@ -3525,7 +3535,7 @@ type concurrentRandomTest struct {
 	tests []concurrentTest
 }
 
-func (c *concurrentRandomTest) init(t testing.TB, db *DB) {
+func (c *concurrentRandomTest) init(t testing.TB, db_ *DBStruct) {
 	c.tests = []concurrentTest{
 		new(concurrentDBQueryTest),
 		new(concurrentDBExecTest),
@@ -3537,7 +3547,7 @@ func (c *concurrentRandomTest) init(t testing.TB, db *DB) {
 		new(concurrentTxStmtExecTest),
 	}
 	for _, ct := range c.tests {
-		ct.init(t, db)
+		ct.init(t, db_)
 	}
 }
 
@@ -3559,10 +3569,10 @@ func doConcurrentTest(t testing.TB, ct concurrentTest) {
 	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))
 
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	ct.init(t, db)
+	ct.init(t, db_)
 	defer ct.finish(t)
 
 	var wg sync.WaitGroup
@@ -3592,16 +3602,18 @@ func doConcurrentTest(t testing.TB, ct concurrentTest) {
 }
 
 func TestIssue6081(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	drv := db.Driver().(*fakeDriver)
+	drv := db_.Driver().(*fakeDriver)
 	drv.mu.Lock()
 	opens0 := drv.openCount
 	closes0 := drv.closeCount
 	drv.mu.Unlock()
 
-	stmt, err := db.Prepare("SELECT|people|name|")
+	stmt1, err := db_.Prepare("SELECT|people|name|")
+	stmt_ := stmt1.(*stmt)
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3610,17 +3622,17 @@ func TestIssue6081(t *testing.T) {
 	})
 	defer setRowsCloseHook(nil)
 	for i := 0; i < 10; i++ {
-		rows, err := stmt.Query()
+		rows, err := stmt_.Query()
 		if err != nil {
 			t.Fatal(err)
 		}
 		rows.Close()
 	}
-	if n := len(stmt.css); n > 1 {
+	if n := len(stmt_.css); n > 1 {
 		t.Errorf("len(css slice) = %d; want <= 1", n)
 	}
-	stmt.Close()
-	if n := len(stmt.css); n != 0 {
+	stmt_.Close()
+	if n := len(stmt_.css); n != 0 {
 		t.Errorf("len(css slice) after Close = %d; want 0", n)
 	}
 
@@ -3648,8 +3660,8 @@ func TestIssue6081(t *testing.T) {
 // The addition of calling rows.Next also tests
 // Issue 21117.
 func TestIssue18429(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
 	ctx := context.Background()
 	sem := make(chan bool, 20)
@@ -3670,7 +3682,7 @@ func TestIssue18429(t *testing.T) {
 			ctx, cancel := context.WithTimeout(ctx, time.Duration(rand.Intn(milliWait))*time.Millisecond)
 			defer cancel()
 
-			tx, err := db.BeginTx(ctx, nil)
+			tx, err := db_.BeginTx(ctx, nil)
 			if err != nil {
 				return
 			}
@@ -3695,10 +3707,10 @@ func TestIssue18429(t *testing.T) {
 	wg.Wait()
 }
 
-// TestIssue20160 attempts to test a short context life on a stmt Query.
+// TestIssue20160 attempts to test a short context life on a stmt_ Query.
 func TestIssue20160(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
 	ctx := context.Background()
 	sem := make(chan bool, 20)
@@ -3706,11 +3718,11 @@ func TestIssue20160(t *testing.T) {
 
 	const milliWait = 30
 
-	stmt, err := db.PrepareContext(ctx, "SELECT|people|name|")
+	stmt_, err := db_.PrepareContext(ctx, "SELECT|people|name|")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stmt.Close()
+	defer stmt_.Close()
 
 	for i := 0; i < 100; i++ {
 		sem <- true
@@ -3726,7 +3738,7 @@ func TestIssue20160(t *testing.T) {
 			// This is expected to give a cancel error most, but not all the time.
 			// Test failure will happen with a panic or other race condition being
 			// reported.
-			rows, _ := stmt.QueryContext(ctx)
+			rows, _ := stmt_.QueryContext(ctx)
 			if rows != nil {
 				rows.Close()
 			}
@@ -3741,13 +3753,13 @@ func TestIssue20160(t *testing.T) {
 //
 // See https://golang.org/cl/35550 .
 func TestIssue18719(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := db_.BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3778,39 +3790,39 @@ func TestIssue18719(t *testing.T) {
 }
 
 func TestIssue20647(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	conn, err := db.Conn(ctx)
+	conn, err := db_.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	conn.dc.ci.(*fakeConn).skipDirtySession = true
 	defer conn.Close()
 
-	stmt, err := conn.PrepareContext(ctx, "SELECT|people|name|")
+	stmt_, err := conn.PrepareContext(ctx, "SELECT|people|name|")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stmt.Close()
+	defer stmt_.Close()
 
-	rows1, err := stmt.QueryContext(ctx)
+	rows1, err := stmt_.QueryContext(ctx)
 	if err != nil {
 		t.Fatal("rows1", err)
 	}
 	defer rows1.Close()
 
-	rows2, err := stmt.QueryContext(ctx)
+	rows2, err := stmt_.QueryContext(ctx)
 	if err != nil {
 		t.Fatal("rows2", err)
 	}
 	defer rows2.Close()
 
 	if rows1.dc != rows2.dc {
-		t.Fatal("stmt prepared on Conn does not use same connection")
+		t.Fatal("stmt_ prepared on Conn does not use same connection")
 	}
 }
 
@@ -3837,16 +3849,16 @@ func TestConcurrency(t *testing.T) {
 }
 
 func TestConnectionLeak(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 	// Start by opening defaultMaxIdleConns
 	rows := make([]*Rows, defaultMaxIdleConns)
-	// We need to SetMaxOpenConns > MaxIdleConns, so the DB can open
+	// We need to SetMaxOpenConns > MaxIdleConns, so the DBStruct can open
 	// a new connection and we can fill the idle queue with the released
 	// connections.
-	db.SetMaxOpenConns(len(rows) + 1)
+	db_.SetMaxOpenConns(len(rows) + 1)
 	for ii := range rows {
-		r, err := db.Query("SELECT|people|name|")
+		r, err := db_.Query("SELECT|people|name|")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3858,14 +3870,14 @@ func TestConnectionLeak(t *testing.T) {
 	}
 	// Now we have defaultMaxIdleConns busy connections. Open
 	// a new one, but wait until the busy connections are released
-	// before returning control to DB.
-	drv := db.Driver().(*fakeDriver)
+	// before returning control to db_.
+	drv := db_.Driver().(*fakeDriver)
 	drv.waitCh = make(chan struct{}, 1)
 	drv.waitingCh = make(chan struct{}, 1)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		r, err := db.Query("SELECT|people|name|")
+		r, err := db_.Query("SELECT|people|name|")
 		if err != nil {
 			t.Error(err)
 			return
@@ -3880,33 +3892,33 @@ func TestConnectionLeak(t *testing.T) {
 	for _, v := range rows {
 		v.Close()
 	}
-	// At this point we give the new connection to DB. This connection is
+	// At this point we give the new connection to db_. This connection is
 	// now useless, since the idle queue is full and there are no pending
-	// requests. DB should deal with this situation without leaking the
+	// requests. DBStruct should deal with this situation without leaking the
 	// connection.
 	drv.waitCh <- struct{}{}
 	wg.Wait()
 }
 
 func TestStatsMaxIdleClosedZero(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	db.SetConnMaxLifetime(0)
+	db_.SetMaxOpenConns(1)
+	db_.SetMaxIdleConns(1)
+	db_.SetConnMaxLifetime(0)
 
-	preMaxIdleClosed := db.Stats().MaxIdleClosed
+	preMaxIdleClosed := db_.Stats().MaxIdleClosed
 
 	for i := 0; i < 10; i++ {
-		rows, err := db.Query("SELECT|people|name|")
+		rows, err := db_.Query("SELECT|people|name|")
 		if err != nil {
 			t.Fatal(err)
 		}
 		rows.Close()
 	}
 
-	st := db.Stats()
+	st := db_.Stats()
 	maxIdleClosed := st.MaxIdleClosed - preMaxIdleClosed
 	t.Logf("MaxIdleClosed: %d", maxIdleClosed)
 	if maxIdleClosed != 0 {
@@ -3915,24 +3927,24 @@ func TestStatsMaxIdleClosedZero(t *testing.T) {
 }
 
 func TestStatsMaxIdleClosedTen(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(0)
-	db.SetConnMaxLifetime(0)
+	db_.SetMaxOpenConns(1)
+	db_.SetMaxIdleConns(0)
+	db_.SetConnMaxLifetime(0)
 
-	preMaxIdleClosed := db.Stats().MaxIdleClosed
+	preMaxIdleClosed := db_.Stats().MaxIdleClosed
 
 	for i := 0; i < 10; i++ {
-		rows, err := db.Query("SELECT|people|name|")
+		rows, err := db_.Query("SELECT|people|name|")
 		if err != nil {
 			t.Fatal(err)
 		}
 		rows.Close()
 	}
 
-	st := db.Stats()
+	st := db_.Stats()
 	maxIdleClosed := st.MaxIdleClosed - preMaxIdleClosed
 	t.Logf("MaxIdleClosed: %d", maxIdleClosed)
 	if maxIdleClosed != 10 {
@@ -3942,7 +3954,7 @@ func TestStatsMaxIdleClosedTen(t *testing.T) {
 
 // testUseConns uses count concurrent connections with 1 nanosecond apart.
 // Returns the returnedAt time of the final connection.
-func testUseConns(t *testing.T, count int, tm time.Time, db *DB) time.Time {
+func testUseConns(t *testing.T, count int, tm time.Time, db_ *DBStruct) time.Time {
 	conns := make([]*Conn, count)
 	ctx := context.Background()
 	for i := range conns {
@@ -3950,7 +3962,7 @@ func testUseConns(t *testing.T, count int, tm time.Time, db *DB) time.Time {
 		nowFunc = func() time.Time {
 			return tm
 		}
-		c, err := db.Conn(ctx)
+		c, err := db_.Conn(ctx)
 		if err != nil {
 			t.Error(err)
 		}
@@ -4024,39 +4036,39 @@ func TestMaxIdleTime(t *testing.T) {
 			return baseTime
 		}
 		t.Run(fmt.Sprintf("%v", item.wantMaxIdleTime), func(t *testing.T) {
-			db := newTestDB(t, "people")
-			defer closeDB(t, db)
+			db_ := newTestDB(t, "people")
+			defer closeDB(t, db_)
 
-			db.SetMaxOpenConns(usedConns)
-			db.SetMaxIdleConns(usedConns)
-			db.SetConnMaxIdleTime(item.wantMaxIdleTime)
-			db.SetConnMaxLifetime(item.wantMaxLifetime)
+			db_.SetMaxOpenConns(usedConns)
+			db_.SetMaxIdleConns(usedConns)
+			db_.SetConnMaxIdleTime(item.wantMaxIdleTime)
+			db_.SetConnMaxLifetime(item.wantMaxLifetime)
 
-			preMaxIdleClosed := db.Stats().MaxIdleTimeClosed
+			preMaxIdleClosed := db_.Stats().MaxIdleTimeClosed
 
 			// Busy usedConns.
-			testUseConns(t, usedConns, baseTime, db)
+			testUseConns(t, usedConns, baseTime, db_)
 
 			tm := baseTime.Add(item.timeOffset)
 
 			// Reuse connections which should never be considered idle
 			// and exercises the sorting for issue 39471.
-			tm = testUseConns(t, reusedConns, tm, db)
+			tm = testUseConns(t, reusedConns, tm, db_)
 
 			tm = tm.Add(item.secondTimeOffset)
 			nowFunc = func() time.Time {
 				return tm
 			}
 
-			db.mu.Lock()
-			nc, closing := db.connectionCleanerRunLocked(time.Second)
+			db_.mu.Lock()
+			nc, closing := db_.connectionCleanerRunLocked(time.Second)
 			if nc != item.wantNextCheck {
 				t.Errorf("got %v; want %v next check duration", nc, item.wantNextCheck)
 			}
 
 			// Validate freeConn order.
 			var last time.Time
-			for _, c := range db.freeConn {
+			for _, c := range db_.freeConn {
 				if last.After(c.returnedAt) {
 					t.Error("freeConn is not ordered by returnedAt")
 					break
@@ -4064,7 +4076,7 @@ func TestMaxIdleTime(t *testing.T) {
 				last = c.returnedAt
 			}
 
-			db.mu.Unlock()
+			db_.mu.Unlock()
 			for _, c := range closing {
 				c.Close()
 			}
@@ -4072,7 +4084,7 @@ func TestMaxIdleTime(t *testing.T) {
 				t.Errorf("got: %d; want %d closed conns", g, w)
 			}
 
-			st := db.Stats()
+			st := db_.Stats()
 			maxIdleClosed := st.MaxIdleTimeClosed - preMaxIdleClosed
 			if g, w := maxIdleClosed, item.wantMaxIdleClosed; g != w {
 				t.Errorf("got: %d; want %d max idle closed conns", g, w)
@@ -4131,27 +4143,28 @@ func (c *nvcConn) CheckNamedValue(nv *driver.NamedValue) error {
 
 func TestNamedValueChecker(t *testing.T) {
 	Register("NamedValueCheck", &nvcDriver{})
-	db, err := Open("NamedValueCheck", "")
+	db1, err := Open("NamedValueCheck", "")
+	db_ := db1.(*DBStruct)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer db_.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	_, err = db.ExecContext(ctx, "WIPE")
+	_, err = db_.ExecContext(ctx, "WIPE")
 	if err != nil {
 		t.Fatal("exec wipe", err)
 	}
 
-	_, err = db.ExecContext(ctx, "CREATE|keys|dec1=any,str1=string,out1=string,array1=any")
+	_, err = db_.ExecContext(ctx, "CREATE|keys|dec1=any,str1=string,out1=string,array1=any")
 	if err != nil {
 		t.Fatal("exec create", err)
 	}
 
 	o1 := ""
-	_, err = db.ExecContext(ctx, "INSERT|keys|dec1=?A,str1=?,out1=?O1,array1=?", Named("A", decimalInt{123}), "hello", Named("O1", Out{Dest: &o1}), []int64{42, 128, 707}, doNotInclude{})
+	_, err = db_.ExecContext(ctx, "INSERT|keys|dec1=?A,str1=?,out1=?O1,array1=?", Named("A", decimalInt{123}), "hello", Named("O1", Out{Dest: &o1}), []int64{42, 128, 707}, doNotInclude{})
 	if err != nil {
 		t.Fatal("exec insert", err)
 	}
@@ -4160,7 +4173,7 @@ func TestNamedValueChecker(t *testing.T) {
 		dec1 decimalInt
 		arr1 []int64
 	)
-	err = db.QueryRowContext(ctx, "SELECT|keys|dec1,str1,array1|").Scan(&dec1, &str1, &arr1)
+	err = db_.QueryRowContext(ctx, "SELECT|keys|dec1,str1,array1|").Scan(&dec1, &str1, &arr1)
 	if err != nil {
 		t.Fatal("select", err)
 	}
@@ -4181,26 +4194,27 @@ func TestNamedValueChecker(t *testing.T) {
 
 func TestNamedValueCheckerSkip(t *testing.T) {
 	Register("NamedValueCheckSkip", &nvcDriver{skipNamedValueCheck: true})
-	db, err := Open("NamedValueCheckSkip", "")
+	db1, err := Open("NamedValueCheckSkip", "")
+	db_ := db1.(*DBStruct)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer db_.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	_, err = db.ExecContext(ctx, "WIPE")
+	_, err = db_.ExecContext(ctx, "WIPE")
 	if err != nil {
 		t.Fatal("exec wipe", err)
 	}
 
-	_, err = db.ExecContext(ctx, "CREATE|keys|dec1=any")
+	_, err = db_.ExecContext(ctx, "CREATE|keys|dec1=any")
 	if err != nil {
 		t.Fatal("exec create", err)
 	}
 
-	_, err = db.ExecContext(ctx, "INSERT|keys|dec1=?A", Named("A", decimalInt{123}))
+	_, err = db_.ExecContext(ctx, "INSERT|keys|dec1=?A", Named("A", decimalInt{123}))
 	if err == nil {
 		t.Fatalf("expected error with bad argument, got %v", err)
 	}
@@ -4208,18 +4222,19 @@ func TestNamedValueCheckerSkip(t *testing.T) {
 
 func TestOpenConnector(t *testing.T) {
 	Register("testctx", &fakeDriverCtx{})
-	db, err := Open("testctx", "people")
+	db1, err := Open("testctx", "people")
+	db_ := db1.(*DBStruct)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer db_.Close()
 
-	c, ok := db.connector.(*fakeConnector)
+	c, ok := db_.connector.(*fakeConnector)
 	if !ok {
 		t.Fatal("not using *fakeConnector")
 	}
 
-	if err := db.Close(); err != nil {
+	if err := db_.Close(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -4294,18 +4309,19 @@ func TestQueryExecContextOnly(t *testing.T) {
 	}
 
 	Register("ContextOnly", &ctxOnlyDriver{})
-	db, err := Open("ContextOnly", "")
+	db1, err := Open("ContextOnly", "")
+	db_ := db1.(*DBStruct)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer db_.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	conn, err := db.Conn(ctx)
+	conn, err := db_.Conn(ctx)
 	if err != nil {
-		t.Fatal("db.Conn", err)
+		t.Fatal("db_.Conn", err)
 	}
 	defer conn.Close()
 	coc := conn.dc.ci.(*ctxOnlyConn)
@@ -4360,10 +4376,10 @@ func (alwaysErrScanner) Scan(any) error {
 
 // Issue 38099: Ensure that Rows.Scan properly wraps underlying errors.
 func TestRowsScanProperlyWrapsErrors(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	rows, err := db.Query("SELECT|people|age|")
+	rows, err := db_.Query("SELECT|people|age|")
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}
@@ -4387,17 +4403,17 @@ func TestRowsScanProperlyWrapsErrors(t *testing.T) {
 
 // From go.dev/issue/60304
 func TestContextCancelDuringRawBytesScan(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
-	if _, err := db.Exec("USE_RAWBYTES"); err != nil {
+	if _, err := db_.Exec("USE_RAWBYTES"); err != nil {
 		t.Fatal(err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	r, err := db.QueryContext(ctx, "SELECT|people|name|")
+	r, err := db_.QueryContext(ctx, "SELECT|people|name|")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4444,12 +4460,12 @@ func TestContextCancelDuringRawBytesScan(t *testing.T) {
 }
 
 func TestContextCancelBetweenNextAndErr(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	r, err := db.QueryContext(ctx, "SELECT|people|name|")
+	r, err := db_.QueryContext(ctx, "SELECT|people|name|")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4492,7 +4508,8 @@ func (bd badDriver) Open(name string) (driver.Conn, error) {
 // Issue 15901.
 func TestBadDriver(t *testing.T) {
 	Register("bad", badDriver{})
-	db, err := Open("bad", "ignored")
+	db1, err := Open("bad", "ignored")
+	db_ := db1.(*DBStruct)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4505,8 +4522,8 @@ func TestBadDriver(t *testing.T) {
 			}
 		}
 	}()
-	defer db.Close()
-	db.Exec("ignored")
+	defer db_.Close()
+	db_.Exec("ignored")
 }
 
 type pingDriver struct {
@@ -4537,31 +4554,32 @@ func TestPing(t *testing.T) {
 	driver := &pingDriver{}
 	Register("ping", driver)
 
-	db, err := Open("ping", "ignored")
+	db1, err := Open("ping", "ignored")
+	db_ := db1.(*DBStruct)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := db.Ping(); err != nil {
+	if err := db_.Ping(); err != nil {
 		t.Errorf("err was %#v, expected nil", err)
 		return
 	}
 
 	driver.fails = true
-	if err := db.Ping(); err != pingError {
+	if err := db_.Ping(); err != pingError {
 		t.Errorf("err was %#v, expected pingError", err)
 	}
 }
 
 // Issue 18101.
 func TestTypedString(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
+	db_ := newTestDB(t, "people")
+	defer closeDB(t, db_)
 
 	type Str string
 	var scanned Str
 
-	err := db.QueryRow("SELECT|people|name|name=?", "Alice").Scan(&scanned)
+	err := db_.QueryRow("SELECT|people|name|name=?", "Alice").Scan(&scanned)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4640,20 +4658,20 @@ func BenchmarkManyConcurrentQueries(b *testing.B) {
 	// To see lock contention in Go 1.4, 16~ cores and 128~ goroutines are required.
 	const parallelism = 16
 
-	db := newTestDB(b, "magicquery")
-	defer closeDB(b, db)
-	db.SetMaxIdleConns(runtime.GOMAXPROCS(0) * parallelism)
+	db_ := newTestDB(b, "magicquery")
+	defer closeDB(b, db_)
+	db_.SetMaxIdleConns(runtime.GOMAXPROCS(0) * parallelism)
 
-	stmt, err := db.Prepare("SELECT|magicquery|op|op=?,millis=?")
+	stmt_, err := db_.Prepare("SELECT|magicquery|op|op=?,millis=?")
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer stmt.Close()
+	defer stmt_.Close()
 
 	b.SetParallelism(parallelism)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			rows, err := stmt.Query("sleep", 1)
+			rows, err := stmt_.Query("sleep", 1)
 			if err != nil {
 				b.Error(err)
 				return
