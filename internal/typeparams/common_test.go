@@ -140,10 +140,12 @@ func TestOriginMethodUses(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		// Look up func T.m.
 		T := pkg.Scope().Lookup("T").Type()
 		obj, _, _ := types.LookupFieldOrMethod(T, true, pkg, "m")
 		m := obj.(*types.Func)
 
+		// Assert that the origin of each t.m() call is p.T.m.
 		ast.Inspect(f, func(n ast.Node) bool {
 			if call, ok := n.(*ast.CallExpr); ok {
 				sel := call.Fun.(*ast.SelectorExpr)
@@ -155,6 +157,54 @@ func TestOriginMethodUses(t *testing.T) {
 			}
 			return true
 		})
+	}
+}
+
+// Issue #60628 was a crash in gopls caused by inconsistency (#60634) between
+// LookupFieldOrMethod and NewFileSet for methods with an illegal
+// *T receiver type, where T itself is a pointer.
+// This is a regression test for the workaround in OriginMethod.
+func TestOriginMethod60628(t *testing.T) {
+	const src = `package p; type T[P any] *int; func (r *T[A]) f() {}`
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "p.go", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Expect type error: "invalid receiver type T[A] (pointer or interface type)".
+	info := types.Info{
+		Uses: make(map[*ast.Ident]types.Object),
+	}
+	var conf types.Config
+	pkg, _ := conf.Check("p", fset, []*ast.File{f}, &info) // error expected
+	if pkg == nil {
+		t.Fatal("no package")
+	}
+
+	// Look up methodset of *T.
+	T := pkg.Scope().Lookup("T").Type()
+	mset := types.NewMethodSet(types.NewPointer(T))
+	if mset.Len() == 0 {
+		t.Errorf("NewMethodSet(*T) is empty")
+	}
+	for i := 0; i < mset.Len(); i++ {
+		sel := mset.At(i)
+		m := sel.Obj().(*types.Func)
+
+		// TODO(adonovan): check the consistency property required to fix #60634.
+		if false {
+			m2, _, _ := types.LookupFieldOrMethod(T, true, m.Pkg(), m.Name())
+			if m2 != m {
+				t.Errorf("LookupFieldOrMethod(%v, indirect=true, %v) = %v, want %v",
+					T, m, m2, m)
+			}
+		}
+
+		// Check the workaround.
+		if OriginMethod(m) == nil {
+			t.Errorf("OriginMethod(%v) = nil", m)
+		}
 	}
 }
 
