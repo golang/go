@@ -46,7 +46,7 @@ func nearEqual(a, b, closeEnough, maxError float64) bool {
 	return absDiff/max(math.Abs(a), math.Abs(b)) < maxError
 }
 
-var testSeeds = []int64{1, 1754801282, 1698661970, 1550503961}
+var testSeeds = []uint64{1, 1754801282, 1698661970, 1550503961}
 
 // checkSimilarDistribution returns success if the mean and stddev of the
 // two statsResults are similar.
@@ -104,8 +104,8 @@ func checkSampleSliceDistributions(t *testing.T, samples []float64, nslices int,
 // Normal distribution tests
 //
 
-func generateNormalSamples(nsamples int, mean, stddev float64, seed int64) []float64 {
-	r := New(NewSource(seed))
+func generateNormalSamples(nsamples int, mean, stddev float64, seed uint64) []float64 {
+	r := New(NewPCG(seed, seed))
 	samples := make([]float64, nsamples)
 	for i := range samples {
 		samples[i] = r.NormFloat64()*stddev + mean
@@ -113,7 +113,7 @@ func generateNormalSamples(nsamples int, mean, stddev float64, seed int64) []flo
 	return samples
 }
 
-func testNormalDistribution(t *testing.T, nsamples int, mean, stddev float64, seed int64) {
+func testNormalDistribution(t *testing.T, nsamples int, mean, stddev float64, seed uint64) {
 	//fmt.Printf("testing nsamples=%v mean=%v stddev=%v seed=%v\n", nsamples, mean, stddev, seed);
 
 	samples := generateNormalSamples(nsamples, mean, stddev, seed)
@@ -161,8 +161,8 @@ func TestNonStandardNormalValues(t *testing.T) {
 // Exponential distribution tests
 //
 
-func generateExponentialSamples(nsamples int, rate float64, seed int64) []float64 {
-	r := New(NewSource(seed))
+func generateExponentialSamples(nsamples int, rate float64, seed uint64) []float64 {
+	r := New(NewPCG(seed, seed))
 	samples := make([]float64, nsamples)
 	for i := range samples {
 		samples[i] = r.ExpFloat64() / rate
@@ -170,7 +170,7 @@ func generateExponentialSamples(nsamples int, rate float64, seed int64) []float6
 	return samples
 }
 
-func testExponentialDistribution(t *testing.T, nsamples int, rate float64, seed int64) {
+func testExponentialDistribution(t *testing.T, nsamples int, rate float64, seed uint64) {
 	//fmt.Printf("testing nsamples=%v rate=%v seed=%v\n", nsamples, rate, seed);
 
 	mean := 1 / rate
@@ -398,7 +398,7 @@ func encodePerm(s []int) int {
 
 // TestUniformFactorial tests several ways of generating a uniform value in [0, n!).
 func TestUniformFactorial(t *testing.T) {
-	r := New(NewSource(testSeeds[0]))
+	r := New(NewPCG(1, 2))
 	top := 6
 	if testing.Short() {
 		top = 3
@@ -436,8 +436,8 @@ func TestUniformFactorial(t *testing.T) {
 					// See https://en.wikipedia.org/wiki/Pearson%27s_chi-squared_test and
 					// https://www.johndcook.com/Beautiful_Testing_ch10.pdf.
 					nsamples := 10 * nfact
-					if nsamples < 500 {
-						nsamples = 500
+					if nsamples < 1000 {
+						nsamples = 1000
 					}
 					samples := make([]float64, nsamples)
 					for i := range samples {
@@ -476,11 +476,11 @@ func TestUniformFactorial(t *testing.T) {
 var Sink uint64
 
 func testRand() *Rand {
-	return New(NewSource(1))
+	return New(NewPCG(1, 2))
 }
 
 func BenchmarkSourceUint64(b *testing.B) {
-	s := NewSource(1)
+	s := NewPCG(1, 2)
 	var t uint64
 	for n := b.N; n > 0; n-- {
 		t += s.Uint64()

@@ -46,9 +46,9 @@ func Example() {
 // The use of the global functions is the same, without the receiver.
 func Example_rand() {
 	// Create and seed the generator.
-	// Typically a non-fixed seed should be used, such as time.Now().UnixNano().
+	// Typically a non-fixed seed should be used, such as Uint64(), Uint64().
 	// Using a fixed seed will produce the same output on every run.
-	r := rand.New(rand.NewSource(99))
+	r := rand.New(rand.NewPCG(1, 2))
 
 	// The tabwriter here helps us generate aligned output.
 	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
@@ -83,17 +83,17 @@ func Example_rand() {
 	// Perm generates a random permutation of the numbers [0, n).
 	show("Perm", r.Perm(5), r.Perm(5), r.Perm(5))
 	// Output:
-	// Float32     0.73793465           0.38461488          0.9940225
-	// Float64     0.6919607852308565   0.29140004584133117 0.2262092163027547
-	// ExpFloat64  0.27263589649304043  1.3214739789908194  2.223639057715668
-	// NormFloat64 -0.09361151905162404 -1.3531915625472757 0.03212053591352371
-	// Int32       1824388269           1817075958          91420417
-	// Int64       3546343826724305832  5724354148158589552 5239846799706671610
-	// Uint32      1380114714           2295813601          961197529
-	// IntN(10)    8                    4                   5
-	// Int32N(10)  1                    8                   5
-	// Int64N(10)  4                    2                   6
-	// Perm        [0 2 4 3 1]          [0 4 2 3 1]         [2 1 3 0 4]
+	// Float32     0.95955694          0.8076733            0.8135684
+	// Float64     0.4297927436037299  0.797802349388613    0.3883664855410056
+	// ExpFloat64  0.43463410545541104 0.5513632046504593   0.7426404617374481
+	// NormFloat64 -0.9303318111676635 -0.04750789419852852 0.22248301107582735
+	// Int32       2020777787          260808523            851126509
+	// Int64       5231057920893523323 4257872588489500903  158397175702351138
+	// Uint32      314478343           1418758728           208955345
+	// IntN(10)    6                   2                    0
+	// Int32N(10)  3                   7                    7
+	// Int64N(10)  8                   9                    4
+	// Perm        [0 3 1 4 2]         [4 1 2 0 3]          [4 3 2 0 1]
 }
 
 func ExamplePerm() {

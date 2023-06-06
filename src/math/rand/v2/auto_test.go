@@ -26,7 +26,7 @@ func TestAuto(t *testing.T) {
 	// Strictly speaking, we should look for them in order,
 	// but this is good enough and not significantly more
 	// likely to have a false positive.
-	r := New(NewSource(1))
+	r := New(NewPCG(1, 0))
 	found := 0
 	for i := 0; i < 1000; i++ {
 		x := r.Int64()

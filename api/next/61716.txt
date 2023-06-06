@@ -10,7 +10,6 @@ pkg math/rand/v2, func IntN(int) int #61716
 pkg math/rand/v2, func N[$0 intType]($0) $0 #61716
 pkg math/rand/v2, func New(Source) *Rand #61716
 pkg math/rand/v2, func NewPCG(uint64, uint64) *PCG #61716
-pkg math/rand/v2, func NewSource(int64) Source #61716
 pkg math/rand/v2, func NewZipf(*Rand, float64, float64, uint64) *Zipf #61716
 pkg math/rand/v2, func NormFloat64() float64 #61716
 pkg math/rand/v2, func Perm(int) []int #61716
