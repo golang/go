@@ -1211,8 +1211,7 @@ func conv(t_dst, t_src types.Type, x value) value {
 
 	case *types.Slice:
 		// []byte or []rune -> string
-		// TODO(adonovan): fix: type B byte; conv([]B -> string).
-		switch ut_src.Elem().(*types.Basic).Kind() {
+		switch ut_src.Elem().Underlying().(*types.Basic).Kind() {
 		case types.Byte:
 			x := x.([]value)
 			b := make([]byte, 0, len(x))
@@ -1234,7 +1233,6 @@ func conv(t_dst, t_src types.Type, x value) value {
 		x = widen(x)
 
 		// integer -> string?
-		// TODO(adonovan): fix: test integer -> named alias of string.
 		if ut_src.Info()&types.IsInteger != 0 {
 			if ut_dst, ok := ut_dst.(*types.Basic); ok && ut_dst.Kind() == types.String {
 				return fmt.Sprintf("%c", x)
@@ -1246,8 +1244,7 @@ func conv(t_dst, t_src types.Type, x value) value {
 			switch ut_dst := ut_dst.(type) {
 			case *types.Slice:
 				var res []value
-				// TODO(adonovan): fix: test named alias of rune, byte.
-				switch ut_dst.Elem().(*types.Basic).Kind() {
+				switch ut_dst.Elem().Underlying().(*types.Basic).Kind() {
 				case types.Rune:
 					for _, r := range []rune(s) {
 						res = append(res, r)
