@@ -93,7 +93,7 @@ func Example_rand() {
 	// IntN(10)    8                    4                   5
 	// Int32N(10)  1                    8                   5
 	// Int64N(10)  4                    2                   6
-	// Perm        [0 4 1 3 2]          [4 0 1 3 2]         [4 1 3 0 2]
+	// Perm        [0 2 4 3 1]          [0 4 2 3 1]         [2 1 3 0 4]
 }
 
 func ExamplePerm() {
