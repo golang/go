@@ -4,10 +4,6 @@
 
 package rand
 
-func Int32NForTest(r *Rand, n int32) int32 {
-	return r.int31n(n)
-}
-
 func GetNormalDistributionParameters() (float64, [128]uint32, [128]float32, [128]float32) {
 	return rn, kn, wn, fn
 }

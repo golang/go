@@ -18,6 +18,7 @@
 package rand
 
 import (
+	"math/bits"
 	_ "unsafe" // for go:linkname
 )
 
@@ -58,21 +59,16 @@ func New(src Source) *Rand {
 func (r *Rand) Int64() int64 { return int64(r.src.Uint64() &^ (1 << 63)) }
 
 // Uint32 returns a pseudo-random 32-bit value as a uint32.
-func (r *Rand) Uint32() uint32 { return uint32(r.Int64() >> 31) }
+func (r *Rand) Uint32() uint32 { return uint32(r.src.Uint64() >> 32) }
 
 // Uint64 returns a pseudo-random 64-bit value as a uint64.
-func (r *Rand) Uint64() uint64 {
-	return r.src.Uint64()
-}
+func (r *Rand) Uint64() uint64 { return r.src.Uint64() }
 
 // Int32 returns a non-negative pseudo-random 31-bit integer as an int32.
-func (r *Rand) Int32() int32 { return int32(r.Int64() >> 32) }
+func (r *Rand) Int32() int32 { return int32(r.src.Uint64() >> 33) }
 
 // Int returns a non-negative pseudo-random int.
-func (r *Rand) Int() int {
-	u := uint(r.Int64())
-	return int(u << 1 >> 1) // clear sign bit if int == int32
-}
+func (r *Rand) Int() int { return int(uint(r.src.Uint64()) << 1 >> 1) }
 
 // Int64N returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n).
 // It panics if n <= 0.
@@ -80,15 +76,105 @@ func (r *Rand) Int64N(n int64) int64 {
 	if n <= 0 {
 		panic("invalid argument to Int64N")
 	}
+	return int64(r.uint64n(uint64(n)))
+}
+
+// Uint64N returns, as a uint64, a non-negative pseudo-random number in the half-open interval [0,n).
+// It panics if n == 0.
+func (r *Rand) Uint64N(n uint64) uint64 {
+	if n == 0 {
+		panic("invalid argument to Uint64N")
+	}
+	return r.uint64n(n)
+}
+
+// uint64n is the no-bounds-checks version of Uint64N.
+func (r *Rand) uint64n(n uint64) uint64 {
+	if is32bit && uint64(uint32(n)) == n {
+		return uint64(r.uint32n(uint32(n)))
+	}
 	if n&(n-1) == 0 { // n is power of two, can mask
-		return r.Int64() & (n - 1)
+		return r.Uint64() & (n - 1)
 	}
-	max := int64((1 << 63) - 1 - (1<<63)%uint64(n))
-	v := r.Int64()
-	for v > max {
-		v = r.Int64()
+
+	// Suppose we have a uint64 x uniform in the range [0,2⁶⁴)
+	// and want to reduce it to the range [0,n) preserving exact uniformity.
+	// We can simulate a scaling arbitrary precision x * (n/2⁶⁴) by
+	// the high bits of a double-width multiply of x*n, meaning (x*n)/2⁶⁴.
+	// Since there are 2⁶⁴ possible inputs x and only n possible outputs,
+	// the output is necessarily biased if n does not divide 2⁶⁴.
+	// In general (x*n)/2⁶⁴ = k for x*n in [k*2⁶⁴,(k+1)*2⁶⁴).
+	// There are either floor(2⁶⁴/n) or ceil(2⁶⁴/n) possible products
+	// in that range, depending on k.
+	// But suppose we reject the sample and try again when
+	// x*n is in [k*2⁶⁴, k*2⁶⁴+(2⁶⁴%n)), meaning rejecting fewer than n possible
+	// outcomes out of the 2⁶⁴.
+	// Now there are exactly floor(2⁶⁴/n) possible ways to produce
+	// each output value k, so we've restored uniformity.
+	// To get valid uint64 math, 2⁶⁴ % n = (2⁶⁴ - n) % n = -n % n,
+	// so the direct implementation of this algorithm would be:
+	//
+	//	hi, lo := bits.Mul64(r.Uint64(), n)
+	//	thresh := -n % n
+	//	for lo < thresh {
+	//		hi, lo = bits.Mul64(r.Uint64(), n)
+	//	}
+	//
+	// That still leaves an expensive 64-bit division that we would rather avoid.
+	// We know that thresh < n, and n is usually much less than 2⁶⁴, so we can
+	// avoid the last four lines unless lo < n.
+	//
+	// See also:
+	// https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction
+	// https://lemire.me/blog/2016/06/30/fast-random-shuffling
+	hi, lo := bits.Mul64(r.Uint64(), n)
+	if lo < n {
+		thresh := -n % n
+		for lo < thresh {
+			hi, lo = bits.Mul64(r.Uint64(), n)
+		}
 	}
-	return v % n
+	return hi
+}
+
+// uint32n is an identical computation to uint64n
+// but optimized for 32-bit systems.
+func (r *Rand) uint32n(n uint32) uint32 {
+	if n&(n-1) == 0 { // n is power of two, can mask
+		return uint32(r.Uint64()) & (n - 1)
+	}
+	// On 64-bit systems we still use the uint64 code below because
+	// the probability of a random uint64 lo being < a uint32 n is near zero,
+	// meaning the unbiasing loop almost never runs.
+	// On 32-bit systems, here we need to implement that same logic in 32-bit math,
+	// both to preserve the exact output sequence observed on 64-bit machines
+	// and to preserve the optimization that the unbiasing loop almost never runs.
+	//
+	// We want to compute
+	// 	hi, lo := bits.Mul64(r.Uint64(), n)
+	// In terms of 32-bit halves, this is:
+	// 	x1:x0 := r.Uint64()
+	// 	0:hi, lo1:lo0 := bits.Mul64(x1:x0, 0:n)
+	// Writing out the multiplication in terms of bits.Mul32 allows
+	// using direct hardware instructions and avoiding
+	// the computations involving these zeros.
+	x := r.Uint64()
+	lo1a, lo0 := bits.Mul32(uint32(x), n)
+	hi, lo1b := bits.Mul32(uint32(x>>32), n)
+	lo1, c := bits.Add32(lo1a, lo1b, 0)
+	hi += c
+	if lo1 == 0 && lo0 < uint32(n) {
+		n64 := uint64(n)
+		thresh := uint32(-n64 % n64)
+		for lo1 == 0 && lo0 < thresh {
+			x := r.Uint64()
+			lo1a, lo0 = bits.Mul32(uint32(x), n)
+			hi, lo1b = bits.Mul32(uint32(x>>32), n)
+			lo1, c = bits.Add32(lo1a, lo1b, 0)
+			hi += c
+		}
+	}
+	return hi
 }
 
 // Int32N returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n).
@@ -97,40 +183,19 @@ func (r *Rand) Int32N(n int32) int32 {
 	if n <= 0 {
 		panic("invalid argument to Int32N")
 	}
-	if n&(n-1) == 0 { // n is power of two, can mask
-		return r.Int32() & (n - 1)
-	}
-	max := int32((1 << 31) - 1 - (1<<31)%uint32(n))
-	v := r.Int32()
-	for v > max {
-		v = r.Int32()
-	}
-	return v % n
+	return int32(r.uint64n(uint64(n)))
 }
 
-// int31n returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n).
-// n must be > 0, but int31n does not check this; the caller must ensure it.
-// int31n exists because Int32N is inefficient, but Go 1 compatibility
-// requires that the stream of values produced by math/rand/v2 remain unchanged.
-// int31n can thus only be used internally, by newly introduced APIs.
-//
-// For implementation details, see:
-// https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction
-// https://lemire.me/blog/2016/06/30/fast-random-shuffling
-func (r *Rand) int31n(n int32) int32 {
-	v := r.Uint32()
-	prod := uint64(v) * uint64(n)
-	low := uint32(prod)
-	if low < uint32(n) {
-		thresh := uint32(-n) % uint32(n)
-		for low < thresh {
-			v = r.Uint32()
-			prod = uint64(v) * uint64(n)
-			low = uint32(prod)
-		}
+// Uint32N returns, as a uint32, a non-negative pseudo-random number in the half-open interval [0,n).
+// It panics if n == 0.
+func (r *Rand) Uint32N(n uint32) uint32 {
+	if n == 0 {
+		panic("invalid argument to Uint32N")
 	}
-	return int32(prod >> 32)
+	return uint32(r.uint64n(uint64(n)))
 }
+
+const is32bit = ^uint(0)>>32 == 0
 
 // IntN returns, as an int, a non-negative pseudo-random number in the half-open interval [0,n).
 // It panics if n <= 0.
@@ -138,10 +203,16 @@ func (r *Rand) IntN(n int) int {
 	if n <= 0 {
 		panic("invalid argument to IntN")
 	}
-	if n <= 1<<31-1 {
-		return int(r.Int32N(int32(n)))
+	return int(r.uint64n(uint64(n)))
+}
+
+// UintN returns, as a uint, a non-negative pseudo-random number in the half-open interval [0,n).
+// It panics if n == 0.
+func (r *Rand) UintN(n uint) uint {
+	if n == 0 {
+		panic("invalid argument to UintN")
 	}
-	return int(r.Int64N(int64(n)))
+	return uint(r.uint64n(uint64(n)))
 }
 
 // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0).
@@ -214,13 +285,8 @@ func (r *Rand) Shuffle(n int, swap func(i, j int)) {
 	// there's no way that any PRNG can have a big enough internal state to
 	// generate even a minuscule percentage of the possible permutations.
 	// Nevertheless, the right API signature accepts an int n, so handle it as best we can.
-	i := n - 1
-	for ; i > 1<<31-1-1; i-- {
-		j := int(r.Int64N(int64(i + 1)))
-		swap(i, j)
-	}
-	for ; i > 0; i-- {
-		j := int(r.int31n(int32(i + 1)))
+	for i := n - 1; i > 0; i-- {
+		j := int(r.uint64n(uint64(i + 1)))
 		swap(i, j)
 	}
 }
@@ -255,6 +321,16 @@ func Int64() int64 { return globalRand.Int64() }
 // from the default Source.
 func Uint32() uint32 { return globalRand.Uint32() }
 
+// Uint64N returns, as a uint64, a pseudo-random number in the half-open interval [0,n)
+// from the default Source.
+// It panics if n <= 0.
+func Uint64N(n uint64) uint64 { return globalRand.Uint64N(n) }
+
+// Uint32N returns, as a uint32, a pseudo-random number in the half-open interval [0,n)
+// from the default Source.
+// It panics if n <= 0.
+func Uint32N(n uint32) uint32 { return globalRand.Uint32N(n) }
+
 // Uint64 returns a pseudo-random 64-bit value as a uint64
 // from the default Source.
 func Uint64() uint64 { return globalRand.Uint64() }
@@ -266,20 +342,40 @@ func Int32() int32 { return globalRand.Int32() }
 // Int returns a non-negative pseudo-random int from the default Source.
 func Int() int { return globalRand.Int() }
 
-// Int64N returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n)
+// Int64N returns, as an int64, a pseudo-random number in the half-open interval [0,n)
 // from the default Source.
 // It panics if n <= 0.
 func Int64N(n int64) int64 { return globalRand.Int64N(n) }
 
-// Int32N returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n)
+// Int32N returns, as an int32, a pseudo-random number in the half-open interval [0,n)
 // from the default Source.
 // It panics if n <= 0.
 func Int32N(n int32) int32 { return globalRand.Int32N(n) }
 
-// IntN returns, as an int, a non-negative pseudo-random number in the half-open interval [0,n)
+// IntN returns, as an int, a pseudo-random number in the half-open interval [0,n)
 // from the default Source.
 // It panics if n <= 0.
 func IntN(n int) int { return globalRand.IntN(n) }
+
+// UintN returns, as a uint, a pseudo-random number in the half-open interval [0,n)
+// from the default Source.
+// It panics if n <= 0.
+func UintN(n uint) uint { return globalRand.UintN(n) }
+
+// N returns a pseudo-random number in the half-open interval [0,n) from the default Source.
+// The type parameter Int can be any integer type.
+// It panics if n <= 0.
+func N[Int intType](n Int) Int {
+	if n <= 0 {
+		panic("invalid argument to N")
+	}
+	return Int(globalRand.uint64n(uint64(n)))
+}
+
+type intType interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+}
 
 // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0)
 // from the default Source.

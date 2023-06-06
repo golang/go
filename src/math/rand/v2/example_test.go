@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 )
 
 // These tests serve as an example but also make sure we don't change
@@ -84,15 +85,15 @@ func Example_rand() {
 	// Output:
 	// Float32     0.2635776           0.6358173           0.6718283
 	// Float64     0.628605430454327   0.4504798828572669  0.9562755949377957
-	// ExpFloat64  0.3362240648200941  1.4256072328483647  0.24354758816173044
-	// NormFloat64 0.17233959114940064 1.577014951434847   0.04259129641113857
-	// Int32       1501292890          1486668269          182840835
-	// Int64       3546343826724305832 5724354148158589552 5239846799706671610
-	// Uint32      2760229429          296659907           1922395059
-	// IntN(10)    1                   2                   5
-	// Int32N(10)  4                   7                   8
-	// Int64N(10)  7                   6                   3
-	// Perm        [1 4 2 3 0]         [4 2 1 3 0]         [1 2 4 0 3]
+	// ExpFloat64  0.10400903165715357 0.28855743344575835 0.20489656480442942
+	// NormFloat64 -0.5602299711828513 -0.9211692958208376 -1.4262061075859056
+	// Int32       1817075958          91420417            1486590581
+	// Int64       5724354148158589552 5239846799706671610 5927547564735367388
+	// Uint32      2295813601          961197529           3493134579
+	// IntN(10)    4                   5                   1
+	// Int32N(10)  8                   5                   4
+	// Int64N(10)  2                   6                   3
+	// Perm        [3 4 2 1 0]         [4 1 2 0 3]         [0 2 1 3 4]
 }
 
 func ExamplePerm() {
@@ -103,6 +104,14 @@ func ExamplePerm() {
 	// Unordered output: 1
 	// 2
 	// 0
+}
+
+func ExampleN() {
+	// Print an int64 in the half-open interval [0, 100).
+	fmt.Println(rand.N(int64(100)))
+
+	// Sleep for a random duration between 0 and 100 milliseconds.
+	time.Sleep(rand.N(100 * time.Millisecond))
 }
 
 func ExampleShuffle() {

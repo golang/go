@@ -418,7 +418,6 @@ func TestUniformFactorial(t *testing.T) {
 				fn   func() int
 			}{
 				{name: "Int32N", fn: func() int { return int(r.Int32N(int32(nfact))) }},
-				{name: "int31n", fn: func() int { return int(Int32NForTest(r, int32(nfact))) }},
 				{name: "Perm", fn: func() int { return encodePerm(r.Perm(n)) }},
 				{name: "Shuffle", fn: func() int {
 					// Generate permutation using Shuffle.
@@ -437,8 +436,8 @@ func TestUniformFactorial(t *testing.T) {
 					// See https://en.wikipedia.org/wiki/Pearson%27s_chi-squared_test and
 					// https://www.johndcook.com/Beautiful_Testing_ch10.pdf.
 					nsamples := 10 * nfact
-					if nsamples < 200 {
-						nsamples = 200
+					if nsamples < 500 {
+						nsamples = 500
 					}
 					samples := make([]float64, nsamples)
 					for i := range samples {
@@ -497,7 +496,7 @@ func BenchmarkGlobalInt64(b *testing.B) {
 	Sink = uint64(t)
 }
 
-func BenchmarkGlobalInt63Parallel(b *testing.B) {
+func BenchmarkGlobalInt64Parallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var t int64
 		for pb.Next() {
@@ -776,4 +775,13 @@ func BenchmarkConcurrent(b *testing.B) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestN(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := N(10)
+		if v < 0 || v >= 10 {
+			t.Fatalf("N(10) returned %d", v)
+		}
+	}
 }
