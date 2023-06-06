@@ -42,18 +42,17 @@ type joinError struct {
 }
 
 func (e *joinError) Error() string {
-	nerrs := len(e.errs)
 	// Since Join returns nil if every value in errs is nil,
 	// e.errs cannot be empty.
 	// TODO: get rid of case 0
-	switch nerrs {
+	switch len(e.errs) {
 	case 0: // Impossible but handle.
 		return "<nil>"
 	case 1:
 		return e.errs[0].Error()
 	}
 
-	// To avoid doubling the number of Error calls, skip preallocating 
+	// To avoid doubling the number of Error calls, skip preallocating
 	// the slice on overflow and let the runtime handle the panic.
 	b := []byte(e.errs[0].Error())
 	for _, err := range e.errs[1:] {
