@@ -53,7 +53,7 @@ func (he headerError) Error() string {
 	if len(ss) == 0 {
 		return prefix
 	}
-	return fmt.Sprintf("%s: %v", prefix, strings.Join(ss, "; and "))
+	return fmt.Sprintf("%s: %s", prefix, strings.Join(ss, "; and "))
 }
 
 // Type flags for Header.Typeflag.
