@@ -80,7 +80,7 @@ pkg crypto/tls, type QUICEvent struct, Level QUICEncryptionLevel #44886
 pkg crypto/tls, type QUICEvent struct, Suite uint16 #44886
 pkg crypto/tls, type SessionState struct #60105
 pkg crypto/tls, type SessionState struct, EarlyData bool #60107
-pkg crypto/tls, type SessionState struct, Extra []uint8 #60105
+pkg crypto/tls, type SessionState struct, Extra [][]uint8 #60539
 pkg crypto/x509, type RevocationListEntry struct #53573
 pkg crypto/x509, type RevocationListEntry struct, Extensions []pkix.Extension #53573
 pkg crypto/x509, type RevocationListEntry struct, ExtraExtensions []pkix.Extension #53573
