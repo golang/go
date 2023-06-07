@@ -3779,6 +3779,10 @@ func goschedImpl(gp *g) {
 	globrunqput(gp)
 	unlock(&sched.lock)
 
+	if mainStarted {
+		wakep()
+	}
+
 	schedule()
 }
 
