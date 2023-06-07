@@ -15,10 +15,9 @@ import "syscall"
 // descriptor as nonblocking and close-on-exec.
 func accept(s int) (int, syscall.Sockaddr, string, error) {
 	ns, sa, err := Accept4Func(s, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
-	// On Linux the accept4 system call was introduced in 2.6.28
-	// kernel and on FreeBSD it was introduced in 10 kernel. If we
-	// get an ENOSYS error on both Linux and FreeBSD, or EINVAL
-	// error on Linux, fall back to using accept.
+	// TODO: We can remove the fallback on Linux and *BSD,
+	// as currently supported versions all support accept4
+	// with SOCK_CLOEXEC, but Solaris does not. See issue #59359.
 	switch err {
 	case nil:
 		return ns, sa, "", nil
