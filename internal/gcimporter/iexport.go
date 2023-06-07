@@ -913,6 +913,17 @@ func (w *exportWriter) value(typ types.Type, v constant.Value) {
 		w.int64(int64(v.Kind()))
 	}
 
+	if v.Kind() == constant.Unknown {
+		// golang/go#60605: treat unknown constant values as if they have invalid type
+		//
+		// This loses some fidelity over the package type-checked from source, but that
+		// is acceptable.
+		//
+		// TODO(rfindley): we should switch on the recorded constant kind rather
+		// than the constant type
+		return
+	}
+
 	switch b := typ.Underlying().(*types.Basic); b.Info() & types.IsConstType {
 	case types.IsBoolean:
 		w.bool(constant.BoolVal(v))

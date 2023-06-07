@@ -1,0 +1,12 @@
+This test verifies that we can export constants with unknown kind.
+Previously, the exporter would panic while attempting to convert such constants
+to their target type (float64, in this case).
+
+-- go.mod --
+module mod.txt/p
+
+go 1.20
+-- p.go --
+package p
+
+const EPSILON float64 = 1e- //@diag(re"1e-()", re"exponent has no digits")
