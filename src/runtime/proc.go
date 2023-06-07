@@ -84,7 +84,7 @@ var modinfo string
 // semi-persistent CPU underutilization.
 //
 // The general pattern for submission is:
-// 1. Submit work to the local run queue, timer heap, or GC state.
+// 1. Submit work to the local or global run queue, timer heap, or GC state.
 // 2. #StoreLoad-style memory barrier.
 // 3. Check sched.nmspinning.
 //
@@ -3093,7 +3093,7 @@ top:
 	//
 	// This applies to the following sources of work:
 	//
-	// * Goroutines added to a per-P run queue.
+	// * Goroutines added to the global or a per-P run queue.
 	// * New/modified-earlier timers on a per-P timer heap.
 	// * Idle-priority GC work (barring golang.org/issue/19112).
 	//
@@ -3135,7 +3135,24 @@ top:
 		//
 		// See https://go.dev/issue/43997.
 
-		// Check all runqueues once again.
+		// Check global and P runqueues again.
+
+		lock(&sched.lock)
+		if sched.runqsize != 0 {
+			pp, _ := pidlegetSpinning(0)
+			if pp != nil {
+				gp := globrunqget(pp, 0)
+				if gp == nil {
+					throw("global runq empty with non-zero runqsize")
+				}
+				unlock(&sched.lock)
+				acquirep(pp)
+				mp.becomeSpinning()
+				return gp, false, false
+			}
+		}
+		unlock(&sched.lock)
+
 		pp := checkRunqsNoP(allpSnapshot, idlepMaskSnapshot)
 		if pp != nil {
 			acquirep(pp)
