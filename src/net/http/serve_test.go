@@ -3012,7 +3012,10 @@ func testRequestBodyLimit(t *testing.T, mode testMode) {
 	//
 	// But that's okay, since what we're really testing is that
 	// the remote side hung up on us before we wrote too much.
-	_, _ = cst.c.Do(req)
+	resp, err := cst.c.Do(req)
+	if err == nil {
+		resp.Body.Close()
+	}
 
 	if atomic.LoadInt64(nWritten) > limit*100 {
 		t.Errorf("handler restricted the request body to %d bytes, but client managed to write %d",
