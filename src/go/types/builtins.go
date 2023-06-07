@@ -892,6 +892,9 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.dump("%v: %s", x1.Pos(), x1)
 			x1 = &t // use incoming x only for first argument
 		}
+		if x.mode == invalid {
+			return
+		}
 		// trace is only available in test mode - no need to record signature
 
 	default:
