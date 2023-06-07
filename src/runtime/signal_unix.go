@@ -768,6 +768,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 			raiseproc(_SIGQUIT)
 			usleep(5 * 1000 * 1000)
 		}
+		printDebugLog()
 		crash()
 	}
 
