@@ -231,8 +231,8 @@ and line number of the logging call within the application. This can produce
 incorrect source information for functions that wrap slog. For instance, if you
 define this function in file mylog.go:
 
-	func Infof(format string, args ...any) {
-	    slog.Default().Info(fmt.Sprintf(format, args...))
+	func Infof(logger *slog.Logger, format string, args ...any) {
+	    logger.Info(fmt.Sprintf(format, args...))
 	}
 
 and you call it like this in main.go:
