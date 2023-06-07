@@ -31,7 +31,7 @@ Do not send CLs removing the interior tags from such phrases.
   We expect almost all Go programs to continue to compile and run as before.
 </p>
 
-<p>
+<p><!-- https://go.dev/issue/57631 -->
   Go 1.21 introduces a small change to the numbering of releases.
   In the past, we used Go 1.<i>N</i> to refer to both the overall Go language version and release family
   as well as the first release in that family.
@@ -368,7 +368,11 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="slices">New slices package</h3>
 
-<p><!-- https://go.dev/issue/45955, https://go.dev/issue/54768, https://go.dev/issue/57348, https://go.dev/issue/57433, CL 467417, CL 483175 -->
+<p>
+  <!-- https://go.dev/issue/45955, https://go.dev/issue/54768 -->
+  <!-- https://go.dev/issue/57348, https://go.dev/issue/57433 -->
+  <!-- https://go.dev/issue/58565, https://go.dev/issue/60091 -->
+  <!-- CL 467417, CL 468855, CL 483175, CL 496078, CL 498175 -->
   The new <a href="/pkg/slices">slices</a> package provides many common
   operations on slices, using generic functions that work with slices
   of any element type.
@@ -381,6 +385,14 @@ Do not send CLs removing the interior tags from such phrases.
   common operations on maps, using generic functions that work with
   maps of any key or element type.
 </p>
+
+<dl id="cmp"><dt><a href="/pkg/cmp/">cmp</a></dt>
+  <dd>
+    <p><!-- CL 496356 -->
+      TODO: <a href="https://go.dev/cl/496356">https://go.dev/cl/496356</a>: cmp: new package; modified api/next/59488.txt
+    </p>
+  </dd>
+</dl><!-- cmp -->
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
@@ -485,6 +497,8 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- crypto/rsa -->
 
+<!-- CL 483815 reverted -->
+
 <dl id="crypto/sha256"><dt><a href="/pkg/crypto/sha256/">crypto/sha256</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/50543, CL 408795 -->
@@ -492,6 +506,53 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- crypto/sha256 -->
+
+<!-- CL 481478 reverted -->
+<!-- CL 483816 reverted -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/46308 -->
+      TODO: <a href="https://go.dev/issue/46308">https://go.dev/issue/46308</a>: add VersionName function to return a string version of the TLS Version
+    </p>
+
+    <p><!-- https://go.dev/issue/60107 -->
+      TODO: <a href="https://go.dev/issue/60107">https://go.dev/issue/60107</a>: QUIC 0-RTT APIs
+    </p>
+
+    <p><!-- CL 493655 -->
+      TODO: <a href="https://go.dev/cl/493655">https://go.dev/cl/493655</a>: crypto/tls: support QUIC as a transport; modified api/next/44886.txt
+    </p>
+
+    <p><!-- CL 496818 -->
+      TODO: <a href="https://go.dev/cl/496818">https://go.dev/cl/496818</a>: crypto/tls: add SessionState and use it on the server side; modified api/next/60105.txt
+    </p>
+
+    <p><!-- CL 496820 -->
+      TODO: <a href="https://go.dev/cl/496820">https://go.dev/cl/496820</a>: crypto/tls: add ClientSessionState.ResumptionState and NewResumptionState; modified api/next/60105.txt
+    </p>
+
+    <p><!-- CL 496821 -->
+      TODO: <a href="https://go.dev/cl/496821">https://go.dev/cl/496821</a>: crypto/tls: add WrapSession and UnwrapSession; modified api/next/60105.txt
+    </p>
+
+    <p><!-- CL 496822 -->
+      TODO: <a href="https://go.dev/cl/496822">https://go.dev/cl/496822</a>: crypto/tls: add SessionState.Extra; modified api/next/60105.txt
+    </p>
+
+    <p><!-- CL 496995 -->
+      TODO: <a href="https://go.dev/cl/496995">https://go.dev/cl/496995</a>: crypto/tls: add QUIC 0-RTT APIs; modified api/next/44886.txt, api/next/60107.txt
+    </p>
+
+    <p><!-- CL 497376 -->
+      TODO: <a href="https://go.dev/cl/497376">https://go.dev/cl/497376</a>: crypto/tls: implement Extended Master Secret; modified api/except.txt
+    </p>
+
+    <p><!-- CL 497377 -->
+      TODO: <a href="https://go.dev/cl/497377">https://go.dev/cl/497377</a>: crypto/tls: add VersionName; modified api/next/46308.txt
+    </p>
+  </dd>
+</dl><!-- crypto/tls -->
 
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
@@ -520,6 +581,11 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 473256 -->
       The package now defines the constant
       <a href="/pkg/debug/elf/#COMPRESS_ZSTD"><code>COMPRESS_ZSTD</code></a>.
+    </p>
+
+    <p><!-- https://go.dev/issue/60348, CL 496918 -->
+      The package now defines the constant
+      <a href="/pkg/debug/elf/#R_PPC64_REL24_P9NOTOC"><code>R_PPC64_REL24_P9NOTOC</code></a>.
     </p>
   </dd>
 </dl><!-- debug/elf -->
@@ -665,6 +731,18 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- hash/maphash -->
 
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/59584 -->
+      TODO: <a href="https://go.dev/issue/59584">https://go.dev/issue/59584</a>: expose ErrJSTemplate
+    </p>
+
+    <p><!-- CL 496395 -->
+      TODO: <a href="https://go.dev/cl/496395">https://go.dev/cl/496395</a>: html/template: expose ErrJSTemplate; modified api/next/59584.txt
+    </p>
+  </dd>
+</dl><!-- html/template -->
+
 <dl id="io/fs"><dt><a href="/pkg/io/fs/">io/fs</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/54451, CL 489555 -->
@@ -690,13 +768,13 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- io/fs -->
 
-<!-- https://go.dev/issue/56491 rolled back -->
-<!-- CL 459435 reverted -->
-<!-- CL 467515 reverted -->
+<!-- https://go.dev/issue/56491 rolled back by https://go.dev/issue/60519 -->
+<!-- CL 459435 reverted by CL 467255 -->
+<!-- CL 467515 reverted by CL 499416 -->
 
 <dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/56984, CL 453115 -->
+    <p><!-- https://go.dev/issue/56984, CL 453115, CL 500116 -->
       The new <a href="/pkg/math/big/#Int.Float64"><code>Int.Float64</code></a>
       method returns the nearest floating-point value to a
       multi-precision integer, along with an indication of any
@@ -777,6 +855,10 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="/pkg/os#File.Chdir"><code>File.Chdir</code></a> method
       now changes the current directory to the file, rather than
       always returning an error.
+    </p>
+
+    <p><!-- CL 495079 -->
+      TODO: <a href="https://go.dev/cl/495079">https://go.dev/cl/495079</a>: os: if descriptor is non-blocking, retain that in Fd method
     </p>
 
     <p><!-- CL 477215 -->
@@ -908,7 +990,7 @@ Do not send CLs removing the interior tags from such phrases.
       <code>GODEBUG=cgocheck=1</code> is still available (and is still the default).
     </p>
 
-    <p><!-- https://go.dev/issue/46787 -->
+    <p><!-- https://go.dev/issue/46787, CL 367296 -->
       A new type <code>Pinner</code> has been added to the runtime
       package. <code>Pinner</code>s may be used to "pin" Go memory
       such that it may be used more freely by non-Go code. For instance,
@@ -919,8 +1001,24 @@ Do not send CLs removing the interior tags from such phrases.
 
       See <a href="/pkg/runtime#Pinner">the docs</a> for more details.
     </p>
+
+    <p><!-- CL 472195 -->
+      TODO: <a href="https://go.dev/cl/472195">https://go.dev/cl/472195</a>: runtime: remove NOFRAME from asmcgocall, systemstack and mcall
+    </p>
   </dd>
 </dl><!-- runtime -->
+
+<dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/56857, CL 497315 -->
+      A few previously-internal GC metrics, such as live heap size, are
+      now available.
+
+      <code>GOGC</code> and <code>GOMEMLIMIT</code> are also now
+      available as metrics.
+    </p>
+  </dd>
+</dl><!-- runtime/metrics -->
 
 <dl id="runtime/trace"><dt><a href="/pkg/runtime/trace/">runtime/trace</a></dt>
   <dd>
@@ -935,18 +1033,6 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- runtime/trace -->
-
-<dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>
-  <dd>
-    <p><!-- https://go.dev/issue/56857 -->
-      A few previously-internal GC metrics, such as live heap size, are
-      now available.
-
-      <code>GOGC</code> and <code>GOMEMLIMIT</code> are also now
-      available as metrics.
-    </p>
-  </dd>
-</dl><!-- runtime/metrics -->
 
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
@@ -1042,7 +1128,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="darwin">Darwin</h3>
 
-<p><!-- go.dev/issue/57125 -->
+<p><!-- https://go.dev/issue/57125 -->
   As <a href="go1.20#darwin">announced</a> in the Go 1.20 release notes,
   Go 1.21 requires macOS 10.15 Catalina or later;
   support for previous versions has been discontinued.
@@ -1050,7 +1136,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="windows">Windows</h3>
 
-<p><!-- go.dev/issue/57003, go.dev/issue/57004 -->
+<p><!-- https://go.dev/issue/57003, https://go.dev/issue/57004 -->
   As <a href="go1.20#windows">announced</a> in the Go 1.20 release notes,
   Go 1.21 requires at least Windows 10 or Windows Server 2016;
   support for previous versions has been discontinued.
@@ -1100,3 +1186,11 @@ Do not send CLs removing the interior tags from such phrases.
 <!-- https://go.dev/issue/54232 -->
 <!-- https://go.dev/issue/57906 -->
 <!-- https://go.dev/issue/58668 -->
+<!-- https://go.dev/issue/59676 -->
+
+<!-- changes to cmd/api that don't need release notes. -->
+<!-- CL 469115, CL 469135, CL 499981 -->
+
+<!-- proposals that don't need release enotes. -->
+<!-- https://go.dev/issue/10275 -->
+<!-- https://go.dev/issue/59719 -->
