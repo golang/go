@@ -1203,6 +1203,22 @@ Do not send CLs removing the interior tags from such phrases.
   need to rename them.
 </p>
 
+<h3 id="PPC64">ppc64/ppc64le</h3>
+
+<p><!-- go.dev/issue/44549 -->
+  On Linux, <code>GOPPC64=power10</code> now generates PC-relative instructions, prefixed
+  instructions, and other new Power10 instructions. On AIX, <code>GOPPC64=power10</code>
+  generates Power10 instructions, but does not generate PC-relative instructions.
+</p>
+
+<p>
+  When building position-independent binaries for <code>GOPPC64=power10</code>
+  <code>GOOS=linux</code> <code>GOARCH=ppc64le</code>, users can expect reduced binary
+  sizes in most cases, in some cases 3.5%. Position-independent binaries are built for
+  ppc64le with the following <code>-buildmode</code> values:
+  <code>c-archive</code>, <code>c-shared</code>, <code>shared</code>, <code>pie</code>, <code>plugin</code>.
+</p>
+
 
 <!-- proposals for x repos that don't need to be mentioned here but
      are picked up by the relnote tool. -->
