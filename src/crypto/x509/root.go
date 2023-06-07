@@ -44,7 +44,7 @@ var x509usefallbackroots = godebug.New("x509usefallbackroots")
 // panic.
 //
 // The fallback behavior can be forced on all platforms, even when there is a
-// system certificate pool, by setting GODEBUG=x509usefallbackroots=1 (note that
+// system certificate pool, by setting GODEBUG=x509 usefallbackroots=1 (note that
 // on Windows and macOS this will disable usage of the platform verification
 // APIs and cause the pure Go verifier to be used). Setting
 // x509usefallbackroots=1 without calling SetFallbackRoots has no effect.
