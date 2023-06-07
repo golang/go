@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 7, 2023",
+	"Subtitle": "Version of June 13, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -8003,6 +8003,9 @@ The declaration order of variables declared in multiple files is determined
 by the order in which the files are presented to the compiler: Variables
 declared in the first file are declared before any of the variables declared
 in the second file, and so on.
+To ensure reproducible initialization behavior, build systems are encouraged
+to present multiple files belonging to the same package in lexical file name
+order to a compiler.
 </p>
 
 <p>
@@ -8113,15 +8116,30 @@ in a program.
 </p>
 
 <p>
-A package with no imports is initialized by assigning initial values
-to all its package-level variables followed by calling all <code>init</code>
-functions in the order they appear in the source, possibly in multiple files,
-as presented to the compiler.
+The entire package is initialized by assigning initial values
+to all its package-level variables followed by calling
+all <code>init</code> functions in the order they appear
+in the source, possibly in multiple files, as presented
+to the compiler.
+</p>
+
+<h3 id="Program_initialization">Program initialization</h3>
+
+<p>
+The packages of a complete program are initialized stepwise, one package at a time.
 If a package has imports, the imported packages are initialized
 before initializing the package itself. If multiple packages import
 a package, the imported package will be initialized only once.
 The importing of packages, by construction, guarantees that there
 can be no cyclic initialization dependencies.
+More precisely:
+</p>
+
+<p>
+Given the list of all packages, sorted by import path, in each step the first
+uninitialized package in the list for which all imported packages (if any) are
+already initialized is <a href="#Package_initialization">initialized</a>.
+This step is repeated until all packages are initialized.
 </p>
 
 <p>
@@ -8134,13 +8152,6 @@ always sequences
 the <code>init</code> functions: it will not invoke the next one
 until the previous one has returned.
 </p>
-
-<p>
-To ensure reproducible initialization behavior, build systems are encouraged
-to present multiple files belonging to the same package in lexical file name
-order to a compiler.
-</p>
-
 
 <h3 id="Program_execution">Program execution</h3>
 <p>
@@ -8157,8 +8168,8 @@ func main() { … }
 </pre>
 
 <p>
-Program execution begins by initializing the main package and then
-invoking the function <code>main</code>.
+Program execution begins by <a href="#Program_initialization">initializing the program</a>
+and then invoking the function <code>main</code> in package <code>main</code>.
 When that function invocation returns, the program exits.
 It does not wait for other (non-<code>main</code>) goroutines to complete.
 </p>
