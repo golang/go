@@ -9,6 +9,9 @@ go build
 
 [!exec:gccgo] skip
 
+# TODO: remove once gccgo on builder is updated
+[GOOS:aix] [GOARCH:ppc64] skip
+
 go build -compiler gccgo
 
 -- go.mod --
