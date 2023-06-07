@@ -1,5 +1,6 @@
 [GOOS:windows] skip 'filesystem normalizes / to \'
 [GOOS:plan9] skip 'filesystem disallows \n in paths'
+[!cgo] skip 'testing cgo handling of newlines'
 
 # If the directory path containing a package to be built includes a newline,
 # the go command should refuse to even try to build the package.
