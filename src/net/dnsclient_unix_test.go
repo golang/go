@@ -231,7 +231,7 @@ var fakeDNSServerSuccessful = fakeDNSServer{rh: func(_, _ string, q dnsmessage.M
 func TestLookupTorOnion(t *testing.T) {
 	defer dnsWaitGroup.Wait()
 	r := Resolver{PreferGo: true, Dial: fakeDNSServerSuccessful.DialContext}
-	addrs, err := r.LookupIPAddr(context.Background(), "foo.onion")
+	addrs, err := r.LookupIPAddr(context.Background(), "foo.onion.")
 	if err != nil {
 		t.Fatalf("lookup = %v; want nil", err)
 	}
