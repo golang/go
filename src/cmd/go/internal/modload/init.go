@@ -1597,7 +1597,17 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
 	// paths of loaded packages. We need to retain sums for all of these modules —
 	// not just the modules containing the actual packages — in order to rule out
 	// ambiguous import errors the next time we load the package.
-	if ld != nil {
+	keepModSumsForZipSums := true
+	if ld == nil {
+		if cfg.BuildMod != "mod" && semver.Compare("v"+MainModules.GoVersion(), tidyGoModSumVersionV) < 0 {
+			keepModSumsForZipSums = false
+		}
+	} else {
+		keepPkgGoModSums := true
+		if (ld.Tidy || cfg.BuildMod != "mod") && semver.Compare("v"+ld.GoVersion, tidyGoModSumVersionV) < 0 {
+			keepPkgGoModSums = false
+			keepModSumsForZipSums = false
+		}
 		for _, pkg := range ld.pkgs {
 			// We check pkg.mod.Path here instead of pkg.inStd because the
 			// pseudo-package "C" is not in std, but not provided by any module (and
@@ -1611,7 +1621,7 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
 			// However, we didn't do so before Go 1.21, and the bug is relatively
 			// minor, so we maintain the previous (buggy) behavior in 'go mod tidy' to
 			// avoid introducing unnecessary churn.
-			if !ld.Tidy || semver.Compare("v"+ld.GoVersion, tidyGoModSumVersionV) >= 0 {
+			if keepPkgGoModSums {
 				r := resolveReplacement(pkg.mod)
 				keep[modkey(r)] = true
 			}
@@ -1671,7 +1681,9 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
 		if which == addBuildListZipSums {
 			for _, m := range mg.BuildList() {
 				r := resolveReplacement(m)
-				keep[modkey(r)] = true // we need the go version from the go.mod file to do anything useful with the zipfile
+				if keepModSumsForZipSums {
+					keep[modkey(r)] = true // we need the go version from the go.mod file to do anything useful with the zipfile
+				}
 				keep[r] = true
 			}
 		}
