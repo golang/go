@@ -391,6 +391,44 @@ func (n NullTime) Value() (driver.Value, error) {
 	return n.Time, nil
 }
 
+// Null represents a value that may be null.
+// Null implements the Scanner interface so
+// it can be used as a scan destination:
+//
+//	var s Null[string]
+//	err := db.QueryRow("SELECT name FROM foo WHERE id=?", id).Scan(&s)
+//	...
+//	if s.Valid {
+//	   // use s.String
+//	} else {
+//	   // NULL value
+//	}
+
+type Null[T any] struct {
+	X     T
+	Valid bool
+}
+
+func (n *Null[T]) Scan(value any) error {
+	n.Valid = false
+	if value == nil {
+		n.X = *new(T)
+		return nil
+	}
+	err := convertAssign(&n.X, value)
+	if err == nil {
+		n.Valid = true
+	}
+	return err
+}
+
+func (n Null[T]) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return n.X, nil
+}
+
 // Scanner is an interface used by Scan.
 type Scanner interface {
 	// Scan assigns a value from a database driver.
