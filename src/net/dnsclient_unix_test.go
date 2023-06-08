@@ -199,6 +199,11 @@ func TestNameListAvoidDNS(t *testing.T) {
 	if !slices.Equal(got, []string{"www.", "www.go.dev."}) {
 		t.Fatalf("unexpected nameList return: %v", got)
 	}
+
+	got = c.nameList("www.onion")
+	if !slices.Equal(got, []string{"www.onion.go.dev."}) {
+		t.Fatalf("unexpected nameList return: %v", got)
+	}
 }
 
 var fakeDNSServerSuccessful = fakeDNSServer{rh: func(_, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
