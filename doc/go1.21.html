@@ -494,13 +494,27 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/elliptic"><dt><a href="/pkg/crypto/elliptic/">crypto/elliptic</a></dt>
   <dd>
     <p><!-- CL 459977 -->
-      All of the <a href="/pkg/crypto/elliptic/#Curve"><code>Curve</code></a> methods have been deprecated, along with <a href="/pkg/crypto/elliptic/#GenerateKey"><code>GenerateKey</code></a>, <a href="/pkg/crypto/elliptic/#Marshal"><code>Marshal</code></a>, and <a href="/pkg/crypto/elliptic/#Unmarshal"><code>Unmarshal</code></a>. For ECDH operations, the new <a href="/pkg/crypto/ecdh/"><code>crypto/ecdh</code></a> package should be used instead.
+      All of the <a href="/pkg/crypto/elliptic/#Curve"><code>Curve</code></a> methods have been deprecated, along with <a href="/pkg/crypto/elliptic/#GenerateKey"><code>GenerateKey</code></a>, <a href="/pkg/crypto/elliptic/#Marshal"><code>Marshal</code></a>, and <a href="/pkg/crypto/elliptic/#Unmarshal"><code>Unmarshal</code></a>. For ECDH operations, the new <a href="/pkg/crypto/ecdh/"><code>crypto/ecdh</code></a> package should be used instead. For lower-level operations, use third-party modules such as <a href="https://pkg.go.dev/filippo.io/nistec">filippo.io/nistec</a>.
     </p>
   </dd>
 </dl><!-- crypto/elliptic -->
 
+<dl id="crypto/rand"><dt><a href="/pkg/crypto/rand/">crypto/rand</a></dt>
+  <dd>
+    <p><!-- CL 463123 -->
+      The <a href="/pkg/crypto/rand/"><code>crypto/rand</code></a> package now uses the <code>getrandom</code> system call on NetBSD 10.0 and later.
+    </p>
+  </dd>
+</dl><!-- crypto/rand -->
+
 <dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
   <dd>
+    <p><!-- CL 471259, CL 492935 -->
+      The performance of private RSA operations (decryption and signing) is now better than Go 1.19 for <code>GOOS=amd64</code> and <code>GOOS=arm64</code>. It had regressed in Go 1.20.
+    </p>
+    <p>
+      Due to the addition of private fields to <a href="/pkg/crypto/rsa/#PrecomputedValues"><code>PrecomputedValues</code></a>, <a href="/pkg/crypto/rsa/#PrivateKey.Precompute"><code>PrivateKey.Precompute</code></a> must be called for optimal performance even if deserializing (for example from JSON) a previously-precomputed private key.
+    </p>
     <p><!-- https://go.dev/issue/56921, CL 459976 -->
       The <a href="/pkg/crypto/rsa/#GenerateMultiPrimeKey"><code>GenerateMultiPrimeKey</code></a> function and the <a href="/pkg/crypto/rsa/#PrecomputedValues.CRTValues"><code>PrecomputedValues.CRTValues</code></a> field have been deprecated. <a href="/pkg/crypto/rsa/#PrecomputedValues.CRTValues"><code>PrecomputedValues.CRTValues</code></a> will still be populated when <a href="/pkg/crypto/rsa/#PrivateKey.Precompute"><code>PrivateKey.Precompute</code></a> is called, but the values will not be used during decryption operations.
     </p>
