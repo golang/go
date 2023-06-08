@@ -99,6 +99,11 @@ func TestDisasm(t *testing.T) {
 	mustHaveDisasm(t)
 	testenv.MustHaveGoBuild(t)
 
+	if runtime.GOARCH == "arm64" {
+		// Fixed at tip (issue 56574). Skip for Go 1.19 release branch.
+		testenv.SkipFlaky(t, 60637)
+	}
+
 	tmpdir := t.TempDir()
 	cpuExe := filepath.Join(tmpdir, "cpu.exe")
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", cpuExe, "cpu.go")
