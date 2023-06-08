@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"slices"
+
 	"golang.org/x/net/dns/dnsmessage"
 )
 
@@ -188,6 +190,14 @@ func TestAvoidDNSName(t *testing.T) {
 		if got != tt.avoid {
 			t.Errorf("avoidDNS(%q) = %v; want %v", tt.name, got, tt.avoid)
 		}
+	}
+}
+
+func TestNameListAvoidDNS(t *testing.T) {
+	c := &dnsConfig{search: []string{"go.dev.", "onion."}}
+	got := c.nameList("www")
+	if !slices.Equal(got, []string{"www.", "www.go.dev."}) {
+		t.Fatalf("unexpected nameList return: %v", got)
 	}
 }
 
