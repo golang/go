@@ -1817,8 +1817,17 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
 	// paths of loaded packages. We need to retain sums for all of these modules —
 	// not just the modules containing the actual packages — in order to rule out
 	// ambiguous import errors the next time we load the package.
-	if ld != nil {
-		keepPkgGoModSums := !ld.Tidy || gover.Compare(ld.requirements.GoVersion(), gover.TidyGoModSumVersion) >= 0
+	keepModSumsForZipSums := true
+	if ld == nil {
+		if gover.Compare(MainModules.GoVersion(), gover.TidyGoModSumVersion) < 0 && cfg.BuildMod != "mod" {
+			keepModSumsForZipSums = false
+		}
+	} else {
+		keepPkgGoModSums := true
+		if gover.Compare(ld.requirements.GoVersion(), gover.TidyGoModSumVersion) < 0 && (ld.Tidy || cfg.BuildMod != "mod") {
+			keepPkgGoModSums = false
+			keepModSumsForZipSums = false
+		}
 		for _, pkg := range ld.pkgs {
 			// We check pkg.mod.Path here instead of pkg.inStd because the
 			// pseudo-package "C" is not in std, but not provided by any module (and
@@ -1892,7 +1901,9 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
 		if which == addBuildListZipSums {
 			for _, m := range mg.BuildList() {
 				r := resolveReplacement(m)
-				keep[modkey(r)] = true // we need the go version from the go.mod file to do anything useful with the zipfile
+				if keepModSumsForZipSums {
+					keep[modkey(r)] = true // we need the go version from the go.mod file to do anything useful with the zipfile
+				}
 				keep[r] = true
 			}
 		}
