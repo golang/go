@@ -914,9 +914,9 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 			name = "TLS"
 		}
 		if ctxt.Arch.InFamily(sys.ARM, sys.PPC64) {
-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s%s+%x\n", int(r.Off), r.Siz, r.Type, name, ver, uint64(r.Add))
+			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%v %s%s+%x\n", int(r.Off), r.Siz, r.Type, name, ver, uint64(r.Add))
 		} else {
-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s%s+%d\n", int(r.Off), r.Siz, r.Type, name, ver, r.Add)
+			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%v %s%s+%d\n", int(r.Off), r.Siz, r.Type, name, ver, r.Add)
 		}
 	}
 }
