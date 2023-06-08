@@ -416,9 +416,7 @@ func (n *Null[T]) Scan(value any) error {
 		return nil
 	}
 	err := convertAssign(&n.X, value)
-	if err == nil {
-		n.Valid = true
-	}
+	n.Valid = err == nil
 	return err
 }
 
