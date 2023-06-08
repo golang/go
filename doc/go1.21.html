@@ -735,12 +735,11 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/59584 -->
-      TODO: <a href="https://go.dev/issue/59584">https://go.dev/issue/59584</a>: expose ErrJSTemplate
-    </p>
-
-    <p><!-- CL 496395 -->
-      TODO: <a href="https://go.dev/cl/496395">https://go.dev/cl/496395</a>: html/template: expose ErrJSTemplate; modified api/next/59584.txt
+    <p><!-- https://go.dev/issue/59584, CL 496395 -->
+      The new error
+      <a href="/pkg/html/template/#ErrJSTemplate"><code>ErrJSTemplate</code></a>
+      is returned when an action appears in a JavaScript template
+      literal. Previously an unexported error was returned.
     </p>
   </dd>
 </dl><!-- html/template -->
