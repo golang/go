@@ -859,7 +859,11 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 495079 -->
-      TODO: <a href="https://go.dev/cl/495079">https://go.dev/cl/495079</a>: os: if descriptor is non-blocking, retain that in Fd method
+      On Unix systems, if a non-blocking descriptor is passed
+      to <a href="/pkg/os/#NewFile"><code>NewFile</code></a>, calling
+      the <a href="/pkg/os/#File.Fd"><code>File.Fd</code></a> method
+      will now return a non-blocking descriptor. Previously the
+      descriptor was converted to blocking mode.
     </p>
 
     <p><!-- CL 477215 -->
