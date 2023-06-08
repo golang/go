@@ -399,7 +399,7 @@ func (n NullTime) Value() (driver.Value, error) {
 //	err := db.QueryRow("SELECT name FROM foo WHERE id=?", id).Scan(&s)
 //	...
 //	if s.Valid {
-//	   // use s.String
+//	   // use s.X
 //	} else {
 //	   // NULL value
 //	}
