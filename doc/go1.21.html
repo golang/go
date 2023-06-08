@@ -386,13 +386,15 @@ Do not send CLs removing the interior tags from such phrases.
   maps of any key or element type.
 </p>
 
-<dl id="cmp"><dt><a href="/pkg/cmp/">cmp</a></dt>
-  <dd>
-    <p><!-- CL 496356 -->
-      TODO: <a href="https://go.dev/cl/496356">https://go.dev/cl/496356</a>: cmp: new package; modified api/next/59488.txt
-    </p>
-  </dd>
-</dl><!-- cmp -->
+<p><!-- https://go.dev/issue/59488, CL 469356 -->
+  The new <a href="/pkg/cmp/">cmp</a> package defines the type
+  constraint <a href="/pkg/cmp/#Ordered"><code>Ordered</code></a> and
+  two new generic functions
+  <a href="/pkg/cmp/#Less"><code>Less</code></a>
+  and <a href="/pkg/cmp/#Compare"><code>Compare</code></a> that are
+  useful with <a href="/ref/spec/#Comparison_operators">ordered
+  types</a>.
+</p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
