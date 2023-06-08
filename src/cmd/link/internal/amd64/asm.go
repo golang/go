@@ -245,13 +245,25 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	r = relocs.At(rIdx)
 
 	switch r.Type() {
-	case objabi.R_CALL,
-		objabi.R_PCREL:
+	case objabi.R_CALL:
 		if targType != sym.SDYNIMPORT {
 			// nothing to do, the relocation will be laid out in reloc
 			return true
 		}
-		if r.Type() == objabi.R_PCREL && ldr.SymType(s) == sym.STEXT && target.IsDarwin() {
+		if target.IsExternal() {
+			// External linker will do this relocation.
+			return true
+		}
+		// Internal linking, for both ELF and Mach-O.
+		// Build a PLT entry and change the relocation target to that entry.
+		addpltsym(target, ldr, syms, targ)
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocSym(rIdx, syms.PLT)
+		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
+		return true
+
+	case objabi.R_PCREL:
+		if targType == sym.SDYNIMPORT && ldr.SymType(s) == sym.STEXT && target.IsDarwin() {
 			// Loading the address of a dynamic symbol. Rewrite to use GOT.
 			// turn LEAQ symbol address to MOVQ of GOT entry
 			if r.Add() != 0 {
@@ -272,19 +284,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 				return true
 			}
 			ldr.Errorf(s, "unexpected R_PCREL reloc for dynamic symbol %s: not preceded by LEAQ instruction", ldr.SymName(targ))
-			return false
 		}
-		if target.IsExternal() {
-			// External linker will do this relocation.
-			return true
-		}
-		// Internal linking, for both ELF and Mach-O.
-		// Build a PLT entry and change the relocation target to that entry.
-		addpltsym(target, ldr, syms, targ)
-		su := ldr.MakeSymbolUpdater(s)
-		su.SetRelocSym(rIdx, syms.PLT)
-		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
-		return true
 
 	case objabi.R_ADDR:
 		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
