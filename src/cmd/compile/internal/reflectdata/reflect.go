@@ -158,10 +158,10 @@ func MapBucketType(t *types.Type) *types.Type {
 		base.Fatalf("elem align %d too big for %v, BUCKETSIZE=%d", elemtype.Alignment(), t, BUCKETSIZE)
 	}
 	if keytype.Size() > MAXKEYSIZE {
-		base.Fatalf("key size to large for %v", t)
+		base.Fatalf("key size too large for %v", t)
 	}
 	if elemtype.Size() > MAXELEMSIZE {
-		base.Fatalf("elem size to large for %v", t)
+		base.Fatalf("elem size too large for %v", t)
 	}
 	if t.Key().Size() > MAXKEYSIZE && !keytype.IsPtr() {
 		base.Fatalf("key indirect incorrect for %v", t)
