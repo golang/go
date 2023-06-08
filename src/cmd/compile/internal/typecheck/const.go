@@ -367,29 +367,7 @@ func EvalConst(n ir.Node) ir.Node {
 		}
 
 	case ir.OADD, ir.OSUB, ir.OMUL, ir.ODIV, ir.OMOD, ir.OOR, ir.OXOR, ir.OAND, ir.OANDNOT:
-		n := n.(*ir.BinaryExpr)
-		nl, nr := n.X, n.Y
-		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
-			rval := nr.Val()
-
-			// check for divisor underflow in complex division (see issue 20227)
-			if n.Op() == ir.ODIV && n.Type().IsComplex() && constant.Sign(square(constant.Real(rval))) == 0 && constant.Sign(square(constant.Imag(rval))) == 0 {
-				base.Errorf("complex division by zero")
-				n.SetType(nil)
-				return n
-			}
-			if (n.Op() == ir.ODIV || n.Op() == ir.OMOD) && constant.Sign(rval) == 0 {
-				base.Errorf("division by zero")
-				n.SetType(nil)
-				return n
-			}
-
-			tok := tokenForOp[n.Op()]
-			if n.Op() == ir.ODIV && n.Type().IsInteger() {
-				tok = token.QUO_ASSIGN // integer division
-			}
-			return OrigConst(n, constant.BinaryOp(nl.Val(), tok, rval))
-		}
+		return n
 
 	case ir.OOROR, ir.OANDAND:
 		n := n.(*ir.LogicalExpr)
@@ -406,19 +384,7 @@ func EvalConst(n ir.Node) ir.Node {
 		}
 
 	case ir.OLSH, ir.ORSH:
-		n := n.(*ir.BinaryExpr)
-		nl, nr := n.X, n.Y
-		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
-			// shiftBound from go/types; "so we can express smallestFloat64" (see issue #44057)
-			const shiftBound = 1023 - 1 + 52
-			s, ok := constant.Uint64Val(nr.Val())
-			if !ok || s > shiftBound {
-				base.Errorf("invalid shift count %v", nr)
-				n.SetType(nil)
-				break
-			}
-			return OrigConst(n, constant.Shift(toint(nl.Val()), tokenForOp[n.Op()], uint(s)))
-		}
+		return n
 
 	case ir.OCONV, ir.ORUNESTR:
 		n := n.(*ir.ConvExpr)

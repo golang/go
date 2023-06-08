@@ -184,13 +184,6 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 		}
 	}
 
-	if (op == ir.ODIV || op == ir.OMOD) && ir.IsConst(r, constant.Int) {
-		if constant.Sign(r.Val()) == 0 {
-			base.Errorf("division by zero")
-			return l, r, nil
-		}
-	}
-
 	return l, r, t
 }
 
