@@ -251,6 +251,29 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// nothing to do, the relocation will be laid out in reloc
 			return true
 		}
+		if r.Type() == objabi.R_PCREL && ldr.SymType(s) == sym.STEXT && target.IsDarwin() {
+			// Loading the address of a dynamic symbol. Rewrite to use GOT.
+			// turn LEAQ symbol address to MOVQ of GOT entry
+			if r.Add() != 0 {
+				ldr.Errorf(s, "unexpected nonzero addend for dynamic symbol %s", ldr.SymName(targ))
+				return false
+			}
+			su := ldr.MakeSymbolUpdater(s)
+			if r.Off() >= 2 && su.Data()[r.Off()-2] == 0x8d {
+				su.MakeWritable()
+				su.Data()[r.Off()-2] = 0x8b
+				if target.IsInternal() {
+					ld.AddGotSym(target, ldr, syms, targ, 0)
+					su.SetRelocSym(rIdx, syms.GOT)
+					su.SetRelocAdd(rIdx, int64(ldr.SymGot(targ)))
+				} else {
+					su.SetRelocType(rIdx, objabi.R_GOTPCREL)
+				}
+				return true
+			}
+			ldr.Errorf(s, "unexpected R_PCREL reloc for dynamic symbol %s: not preceded by LEAQ instruction", ldr.SymName(targ))
+			return false
+		}
 		if target.IsExternal() {
 			// External linker will do this relocation.
 			return true

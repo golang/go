@@ -1209,3 +1209,33 @@ func TestResponseFile(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestDynimportVar(t *testing.T) {
+	// Test that we can access dynamically imported variables.
+	// Currently darwin only.
+	if runtime.GOOS != "darwin" {
+		t.Skip("skip on non-darwin platform")
+	}
+
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	exe := filepath.Join(tmpdir, "a.exe")
+	src := filepath.Join("testdata", "dynimportvar", "main.go")
+
+	for _, mode := range []string{"internal", "external"} {
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-linkmode="+mode, "-o", exe, src)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build (linkmode=%s) failed: %v\n%s", mode, err, out)
+		}
+		cmd = testenv.Command(t, exe)
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("executable failed to run (%s): %v\n%s", mode, err, out)
+		}
+	}
+}

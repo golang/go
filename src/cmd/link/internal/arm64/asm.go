@@ -306,6 +306,40 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
 		return true
 
+	case objabi.R_ADDRARM64:
+		if targType == sym.SDYNIMPORT && ldr.SymType(s) == sym.STEXT && target.IsDarwin() {
+			// Loading the address of a dynamic symbol. Rewrite to use GOT.
+			// turn MOVD $sym (adrp+add) into MOVD sym@GOT (adrp+ldr)
+			if r.Add() != 0 {
+				ldr.Errorf(s, "unexpected nonzero addend for dynamic symbol %s", ldr.SymName(targ))
+				return false
+			}
+			su := ldr.MakeSymbolUpdater(s)
+			data := ldr.Data(s)
+			off := r.Off()
+			if int(off+8) > len(data) {
+				ldr.Errorf(s, "unexpected R_ADDRARM64 reloc for dynamic symbol %s", ldr.SymName(targ))
+				return false
+			}
+			o := target.Arch.ByteOrder.Uint32(data[off+4:])
+			if o>>24 == 0x91 { // add
+				// rewrite to ldr
+				o = (0xf9 << 24) | 1<<22 | (o & (1<<22 - 1))
+				su.MakeWritable()
+				su.SetUint32(target.Arch, int64(off+4), o)
+				if target.IsInternal() {
+					ld.AddGotSym(target, ldr, syms, targ, 0)
+					su.SetRelocSym(rIdx, syms.GOT)
+					su.SetRelocAdd(rIdx, int64(ldr.SymGot(targ)))
+					su.SetRelocType(rIdx, objabi.R_ARM64_PCREL_LDST64)
+				} else {
+					su.SetRelocType(rIdx, objabi.R_ARM64_GOTPCREL)
+				}
+				return true
+			}
+			ldr.Errorf(s, "unexpected R_ADDRARM64 reloc for dynamic symbol %s", ldr.SymName(targ))
+		}
+
 	case objabi.R_ADDR:
 		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
 			// The code is asking for the address of an external
