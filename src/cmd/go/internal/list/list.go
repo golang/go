@@ -949,6 +949,15 @@ func collectDepsErrors(p *load.Package) {
 	// one error set on it.
 	sort.Slice(p.DepsErrors, func(i, j int) bool {
 		stki, stkj := p.DepsErrors[i].ImportStack, p.DepsErrors[j].ImportStack
+		// Some packages are missing import stacks. To ensure deterministic
+		// sort order compare two errors that are missing import stacks by
+		// their errors' error texts.
+		if len(stki) == 0 {
+			if len(stkj) != 0 {
+				return true
+			}
+			return p.DepsErrors[i].Err.Error() < p.DepsErrors[j].Err.Error()
+		}
 		pathi, pathj := stki[len(stki)-1], stkj[len(stkj)-1]
 		return pathi < pathj
 	})
