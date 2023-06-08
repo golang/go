@@ -318,6 +318,14 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="assembler">Assembler</h2>
 
+<!-- https://go.dev/issue/58378 -->
+<p>
+  On amd64, frameless nosplit assembly functions are no longer automatically marked as <code>NOFRAME</code>.
+  Instead, the <code>NOFRAME</code> attribute must be explicitly specified if desired,
+  which is already the behavior on other architectures supporting frame pointers.
+  With this, the runtime now maintains the frame pointers for stack transitions.
+</p>
+
 <!-- CL 476295 -->
 <p>
   The verifier that checks for incorrect uses of <code>R15</code> when dynamic linking on amd64 has been improved.
