@@ -217,6 +217,9 @@ func Export(t testing.TB, exporter Exporter, modules []Module) *Exported {
 		written:       map[string]map[string]string{},
 		ExpectFileSet: token.NewFileSet(),
 	}
+	if testing.Verbose() {
+		exported.Config.Logf = t.Logf
+	}
 	defer func() {
 		if t.Failed() || t.Skipped() {
 			exported.Cleanup()
