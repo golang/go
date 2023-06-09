@@ -7,7 +7,6 @@
 package types
 
 import (
-	"fmt"
 	"go/ast"
 	"go/internal/typeparams"
 	"go/token"
@@ -78,17 +77,19 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
 			return targs, xlist
 		}
 
-		// If the uninstantiated or partially instantiated function x is used in an
-		// assignment (tsig != nil), use the respective function parameter and result
-		// types to infer additional type arguments.
+		// If the uninstantiated or partially instantiated function x is used in
+		// an assignment (tsig != nil), infer missing type arguments by treating
+		// the assignment
+		//
+		//    var tvar tsig = x
+		//
+		// like a call g(tvar) of the synthetic generic function g
+		//
+		//    func g[type_parameters_of_x](func_type_of_x)
+		//
 		var args []*operand
 		var params []*Var
-		if tsig != nil && sig.tparams != nil && tsig.params.Len() == sig.params.Len() && tsig.results.Len() == sig.results.Len() {
-			// x is a generic function and the signature arity matches the target function.
-			// To infer x's missing type arguments, treat the function assignment as a call
-			// of a synthetic function f where f's parameters are the parameters and results
-			// of x and where the arguments to the call of f are values of the parameter and
-			// result types of x.
+		if tsig != nil && sig.tparams != nil {
 			if !versionErr && !check.allowVersion(check.pkg, instErrPos, go1_21) {
 				if ix != nil {
 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
@@ -96,24 +97,14 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
 					check.versionErrorf(instErrPos, go1_21, "implicitly instantiated function in assignment")
 				}
 			}
-			n := tsig.params.Len()
-			m := tsig.results.Len()
-			args = make([]*operand, n+m)
-			params = make([]*Var, n+m)
-			for i := 0; i < n; i++ {
-				lvar := tsig.params.At(i)
-				lname := ast.NewIdent(paramName(lvar.name, i, "parameter"))
-				lname.NamePos = x.Pos() // correct position
-				args[i] = &operand{mode: value, expr: lname, typ: lvar.typ}
-				params[i] = sig.params.At(i)
-			}
-			for i := 0; i < m; i++ {
-				lvar := tsig.results.At(i)
-				lname := ast.NewIdent(paramName(lvar.name, i, "result parameter"))
-				lname.NamePos = x.Pos() // correct position
-				args[n+i] = &operand{mode: value, expr: lname, typ: lvar.typ}
-				params[n+i] = sig.results.At(i)
-			}
+			gsig := NewSignatureType(nil, nil, nil, sig.params, sig.results, sig.variadic)
+			params = []*Var{NewVar(x.Pos(), check.pkg, "", gsig)}
+			// The type of the argument operand is tsig, which is the type of the LHS in an assignment
+			// or the result type in a return statement. Create a pseudo-expression for that operand
+			// that makes sense when reported in error messages from infer, below.
+			expr := ast.NewIdent("variable in assignment")
+			expr.NamePos = x.Pos() // correct position
+			args = []*operand{{mode: value, expr: expr, typ: tsig}}
 		}
 
 		// Rename type parameters to avoid problems with recursive instantiations.
@@ -142,25 +133,6 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
 	x.mode = value
 	x.expr = expr
 	return nil, nil
-}
-
-func paramName(name string, i int, kind string) string {
-	if name != "" {
-		return name
-	}
-	return nth(i+1) + " " + kind
-}
-
-func nth(n int) string {
-	switch n {
-	case 1:
-		return "1st"
-	case 2:
-		return "2nd"
-	case 3:
-		return "3rd"
-	}
-	return fmt.Sprintf("%dth", n)
 }
 
 func (check *Checker) instantiateSignature(pos token.Pos, expr ast.Expr, typ *Signature, targs []Type, xlist []ast.Expr) (res *Signature) {

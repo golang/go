@@ -27,9 +27,9 @@ var (
 	_  func(int) int = f3[int]
 
 	v6 func(int, int)     = f4
-	v7 func(int, string)  = f4 // ERROR "type string of 2nd parameter does not match inferred type int for P"
+	v7 func(int, string)  = f4 // ERROR "type func(int, string) of variable in assignment does not match inferred type func(int, int) for func(P, P)"
 	v8 func(int) []int    = f5
-	v9 func(string) []int = f5 // ERROR "type []int of 1st result parameter does not match inferred type []string for []P"
+	v9 func(string) []int = f5 // ERROR "type func(string) []int of variable in assignment does not match inferred type func(string) []string for func(P) []P"
 
 	_, _ func(int) = f1, f1
 	_, _ func(int) = f1, f2 // ERROR "cannot infer P"
@@ -49,9 +49,9 @@ func _() {
 	v5 = f3[int]
 
 	v6 = f4
-	v7 = f4 // ERROR "type string of 2nd parameter does not match inferred type int for P"
+	v7 = f4 // ERROR "type func(int, string) of variable in assignment does not match inferred type func(int, int) for func(P, P)"
 	v8 = f5
-	v9 = f5 // ERROR "type []int of 1st result parameter does not match inferred type []string for []P"
+	v9 = f5 // ERROR "type func(string) []int of variable in assignment does not match inferred type func(string) []string for func(P) []P"
 }
 
 // Return statements
@@ -62,11 +62,11 @@ func _() func(int) int { return f3[int] }
 
 func _() func(int, int) { return f4 }
 func _() func(int, string) {
-	return f4 /* ERROR "type string of 2nd parameter does not match inferred type int for P" */
+	return f4 /* ERROR "type func(int, string) of variable in assignment does not match inferred type func(int, int) for func(P, P)" */
 }
 func _() func(int) []int { return f5 }
 func _() func(string) []int {
-	return f5 /* ERROR "type []int of 1st result parameter does not match inferred type []string for []P" */
+	return f5 /* ERROR "type func(string) []int of variable in assignment does not match inferred type func(string) []string for func(P) []P" */
 }
 
 func _() (_, _ func(int)) { return f1, f1 }
