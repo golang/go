@@ -32,7 +32,7 @@ import (
 
 const usageMessage = "" +
 	`Usage of 'go tool cover':
-Given a coverage profile produced by 'go test':
+Given a coverage profile 'c.out' produced by 'go test':
 	go test -coverprofile=c.out
 
 Open a web browser displaying annotated source code:
@@ -71,7 +71,7 @@ var (
 	output           = flag.String("o", "", "file for output")
 	outfilelist      = flag.String("outfilelist", "", "file containing list of output files (one per line) if -pkgcfg is in use")
 	htmlOut          = flag.String("html", "", "generate HTML representation of coverage profile")
-	funcOut          = flag.String("func", "", "output coverage profile information for each function")
+	funcOut          = flag.String("func", "", "for the given profile, output coverage information for each function")
 	pkgcfg           = flag.String("pkgcfg", "", "enable full-package instrumentation mode using params from specified config file")
 	pkgconfig        covcmd.CoverPkgConfig
 	outputfiles      []string // list of *.cover.go instrumented outputs to write, one per input (set when -pkgcfg is in use)
