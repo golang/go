@@ -19,11 +19,9 @@ import (
 // descriptor as nonblocking and close-on-exec.
 func sysSocket(family, sotype, proto int) (int, error) {
 	s, err := socketFunc(family, sotype|syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC, proto)
-	// On Linux the SOCK_NONBLOCK and SOCK_CLOEXEC flags were
-	// introduced in 2.6.27 kernel and on FreeBSD both flags were
-	// introduced in 10 kernel. If we get an EINVAL error on Linux
-	// or EPROTONOSUPPORT error on FreeBSD, fall back to using
-	// socket without them.
+	// TODO: We can remove the fallback on Linux and *BSD,
+	// as currently supported versions all support accept4
+	// with SOCK_CLOEXEC, but Solaris does not. See issue #59359.
 	switch err {
 	case nil:
 		return s, nil
