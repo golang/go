@@ -5,14 +5,8 @@
 env TESTGO_VERSION=go1.500
 env TESTGO_VERSION_SWITCH=switch
 
-# Default setting should be auto
-env GOTOOLCHAIN=
-go env GOTOOLCHAIN
-stdout auto
-go env
-stdout GOTOOLCHAIN=.?auto.?  # maybe quoted
-
 # GOTOOLCHAIN=auto runs default toolchain without a go.mod or go.work
+env GOTOOLCHAIN=auto
 go version
 stdout go1.500
 
