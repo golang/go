@@ -566,8 +566,8 @@ havem:
 	// 2. or the duration of the C thread alive on pthread platforms.
 	// If the m on entry wasn't nil,
 	// 1. the thread might be a Go thread,
-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
-	//    since the we skip dropm to resue the m in the first call.
+	// 2. or it wasn't the first call from a C thread on pthread platforms,
+	//    since then we skip dropm to resue the m in the first call.
 	MOVV	savedm-8(SP), R12
 	BNE	R12, droppedm
 
