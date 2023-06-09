@@ -199,7 +199,17 @@ type MemStats struct {
 	// StackSys is bytes of stack memory obtained from the OS.
 	//
 	// StackSys is StackInuse, plus any memory obtained directly
-	// from the OS for OS thread stacks (which should be minimal).
+	// from the OS for OS thread stacks.
+	//
+	// In non-cgo programs this metric is currently equal to StackInuse
+	// (but this should not be relied upon, and the value may change in
+	// the future).
+	//
+	// In cgo programs this metric includes OS thread stacks allocated
+	// directly from the OS. Currently, this only accounts for one stack in
+	// c-shared and c-archive build modes and other sources of stacks from
+	// the OS (notably, any allocated by C code) are not currently measured.
+	// Note this too may change in the future.
 	StackSys uint64
 
 	// Off-heap memory statistics.
