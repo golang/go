@@ -1198,12 +1198,16 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	spfix := obj.Appendp(last, newprog)
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
+	// Remember where this trailing code starts; we'll use this information when
+	// generating DWARF location lists for function arguments.
+	cursym.Func().StackGrowthTrailerStart = spfix
 
 	pcdata := ctxt.EmitEntryStackMap(cursym, spfix, newprog)
 	spill := ctxt.StartUnsafePoint(pcdata, newprog)
 	pcdata = cursym.Func().SpillRegisterArgs(spill, newprog)
 
 	call := obj.Appendp(pcdata, newprog)
+	cursym.Func().StackGrowthCall = call
 	call.Pos = cursym.Func().Text.Pos
 	call.As = obj.ACALL
 	call.To.Type = obj.TYPE_BRANCH

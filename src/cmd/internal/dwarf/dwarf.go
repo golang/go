@@ -1429,7 +1429,7 @@ func PutConcreteFunc(ctxt Context, s *FnState, isWrapper bool) error {
 // routine records).
 func PutDefaultFunc(ctxt Context, s *FnState, isWrapper bool) error {
 	if logDwarf {
-		ctxt.Logf("PutDefaultFunc(%v)\n", s.Info)
+		ctxt.Logf("PutDefaultFunc(%s - %v)\n", s.Name, s.Info)
 	}
 	abbrev := DW_ABRV_FUNCTION
 	if isWrapper {

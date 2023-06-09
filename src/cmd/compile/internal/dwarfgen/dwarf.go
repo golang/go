@@ -517,7 +517,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 	list := debug.LocationLists[varID]
 	if len(list) != 0 {
 		dvar.PutLocationList = func(listSym, startPC dwarf.Sym) {
-			debug.PutLocationList(list, base.Ctxt, listSym.(*obj.LSym), startPC.(*obj.LSym))
+			debug.PutLocationList(list, base.Ctxt, listSym.(*obj.LSym), startPC.(*obj.LSym), dvar.StackOffset)
 		}
 	}
 	return dvar

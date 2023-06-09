@@ -480,6 +480,22 @@ type FuncInfo struct {
 	InlMarks  []InlMark
 	spills    []RegSpill
 
+	// The first instruction in the trailing code dealing with growing the stack
+	// on function entry. This code is placed at the end of the function, but it
+	// is logically part of the function's epilogue. This is used when
+	// generating DWARF location data for the function arguments, which are
+	// alive when this trailing code executes.
+	// Nil if the function doesn't have a stack-growth layer. Also, not all
+	// architectures set it when producing the stack growth code; if not set,
+	// the location lists for variables that are alive at "the end of the
+	// function" will erroneously include the trailing code even though the
+	// variable might not be alive when that code executes.
+	StackGrowthTrailerStart *Prog
+	// StackGrowthCall points to the instruction for actually calling the
+	// runtime stack growth function. The call is a few instructions after
+	// StackGrowthTrailerStart, after the registers have been spilled.
+	StackGrowthCall *Prog
+
 	dwarfInfoSym       *LSym
 	dwarfLocSym        *LSym
 	dwarfRangesSym     *LSym

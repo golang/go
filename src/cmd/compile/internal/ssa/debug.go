@@ -187,10 +187,30 @@ var BlockEnd = &Value{
 	Aux: StringToAux("BlockEnd"),
 }
 
-var FuncEnd = &Value{
+// FuncLogicalEnd identifies the end of the function. If the function has
+// trailing code dealing with stack growth (see StackGrowthTrailerStart), that
+// code is NOT included - i.e. FuncLogicalEnd identifies the beginning of that
+// trailing code.
+var FuncLogicalEnd = &Value{
 	ID:  -30000,
 	Op:  OpInvalid,
-	Aux: StringToAux("FuncEnd"),
+	Aux: StringToAux("FuncLogicalEnd"),
+}
+
+// StackGrowthCall identifies the call to the runtime's stack growth routine.
+// This call comes a bit after FuncLogicalEnd.
+var StackGrowthCall = &Value{
+	ID:  -40000,
+	Op:  OpInvalid,
+	Aux: StringToAux("StackGrowthCallStart"),
+}
+
+// FuncPhysicalEnd identifies the end of the function, including the trailing
+// code that deals with stack growth (see StackGrowthTrailerStart).
+var FuncPhysicalEnd = &Value{
+	ID:  -50000,
+	Op:  OpInvalid,
+	Aux: StringToAux("StackGrowthTrailedEnd"),
 }
 
 // RegisterSet is a bitmap of registers, indexed by Register.num.
@@ -1505,7 +1525,7 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 
 	// Flush any leftover entries live at the end of the last block.
 	for varID := range state.lists {
-		state.writePendingEntry(VarID(varID), -1, FuncEnd.ID)
+		state.writePendingEntry(VarID(varID), -1, FuncLogicalEnd.ID)
 		list := state.lists[varID]
 		if state.loggingLevel > 0 {
 			state.logf("\t%v : %s\n", state.vars[varID], list)
@@ -1620,13 +1640,20 @@ func (state *debugState) writePendingEntry(varID VarID, endBlock, endValue ID) {
 	}
 }
 
-// PutLocationList adds list (a location list in its intermediate representation) to listSym.
-func (debugInfo *FuncDebug) PutLocationList(list locList, ctxt *obj.Link, listSym, startPC *obj.LSym) {
+// PutLocationList adds list (a location list for one variable in its
+// intermediate representation) to listSym.
+// stackOffset is the offset from the CFA where the variable either resides on
+// the stack, or where it will be spilled in the case of in-reg argument.
+func (debugInfo *FuncDebug) PutLocationList(list locList, ctxt *obj.Link, listSym, startPC *obj.LSym, stackOffset int32) {
 	getPC := debugInfo.GetPC
 
 	if ctxt.UseBASEntries {
 		listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, ^0)
 		listSym.WriteAddr(ctxt, listSym.Size, ctxt.Arch.PtrSize, startPC, 0)
+	}
+
+	if startPC.Func().StackGrowthTrailerStart != nil {
+		list = debugInfo.fixupListForStackGrowthTrailer(list, stackOffset)
 	}
 
 	// Resolve the start and end of each entry in the location list to PCs, and
@@ -1673,6 +1700,93 @@ func (debugInfo *FuncDebug) PutLocationList(list locList, ctxt *obj.Link, listSy
 	// End entry.
 	listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, 0)
 	listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, 0)
+}
+
+// fixupListForStackGrowthTrailer augments a locList with extra location info
+// covering the code at the end of the function dealing with the stack growth
+// code injected by the linker. The stack growth code that's trailing the
+// function is morally part of the function's prologue; variables that can be
+// read at the function start can also be read while in this trailing code,
+// albeit with different DWARF instructions.
+// stackOffset is the offset from the CFA where the variable either resides on
+// the stack, or where it will be spilled in the case of in-reg argument.
+//
+// The stack growth trailed looks like this:
+//
+// ret
+// movq    %rax, 0x38(%rsp)                  <- FuncLogicalEnd
+// movq    %rbx, 0x40(%rsp)
+// ...
+// callq   <runtime.morestack_noctxt.abi0>   <- StackGrowthCall
+// movq    0x38(%rsp), %rax
+// movq    0x40(%rsp), %rbx
+// ...
+// jmp     <beginning of function>
+// int3                                      <- FuncPhysicalEnd
+//
+// A variable that's available at the beginning of the function (i.e. a function
+// argument) is available in between [FuncLogicalEnd,StackGrowthCall) using the
+// same DWARF instructions as the ones used at the beginning of the function.
+// The variable is then available in between [StackGrowthCall,FuncPhysicalEnd)
+// with new instructions referencing the stack location where the variable was
+// spilled to.
+func (debugInfo *FuncDebug) fixupListForStackGrowthTrailer(list locList, stackOffset int32) locList {
+	// If the variable has location information for the start of the
+	// function, it will be at the beginning of list, so it suffices to
+	// check the first element.
+	l := &list[0]
+	begin := debugInfo.GetPC(l.startBlock, l.startValue)
+
+	if begin != 0 {
+		// If this variable is not available at the beginning of the function,
+		// there's nothing to do; it's also not available in the stack growth
+		// trailer.
+		return list
+	}
+
+	// We'll insert two new location lists: one for the PCs
+	// corresponding to the spilling of the register arguments to the
+	// stack, and one for the call to the runtime stack growth routine
+	// and the unspilling that comes after.
+
+	if l.endValue == FuncLogicalEnd.ID {
+		// If we have a single locInfo that extends from the beginning of the
+		// function to the end of the function, we can simply extend that entry
+		// to cover the section up to the stack growth call.
+		l.endValue = StackGrowthCall.ID
+	} else {
+		// Copy the info that covers the beginning of the function and create an
+		// identical entry covering the reg spill code in the trailer, up until
+		// the actual stack growth code.
+		newPieces := make(piecesList, len(l.pieces))
+		copy(newPieces, l.pieces)
+		list = append(list,
+			locInfo{
+				startValue: FuncLogicalEnd.ID,
+				endValue:   StackGrowthCall.ID,
+				pieces:     newPieces,
+			})
+	}
+
+	// Assume that the variable was spilled to the into the location indicated
+	// by stackOffset, and produce a location entry that reads it from the
+	// stack. We're dealing with function arguments here (begin==0 check
+	// above); as per the regabi, function arguments passed in registers also
+	// have a contiguous stack location assigned to them.
+	// NOTE: An alternative would be to translate each individual instruction into
+	// a stack read based on the register spill info in FuncInfo.spills, but that
+	// would lead to more code and longer DWARF instructions.
+	stackPiece := pieceInfo{
+		op: dwarf.DW_OP_fbreg,
+	}
+	stackPiece.setOperandSigned(int64(stackOffset))
+	list = append(list, locInfo{
+		startValue: StackGrowthCall.ID,
+		endValue:   FuncPhysicalEnd.ID,
+		pieces:     piecesList{stackPiece},
+	})
+
+	return list
 }
 
 // locatePrologEnd walks the entry block of a function with incoming
@@ -1901,7 +2015,7 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 			startBlock: f.Entry.ID,
 			startValue: afterPrologVal,
 			endBlock:   f.Entry.ID,
-			endValue:   FuncEnd.ID,
+			endValue:   FuncLogicalEnd.ID,
 			pieces:     nil,
 		}
 		soff := stackOffset(sl)

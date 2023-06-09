@@ -7334,7 +7334,24 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 				blk := f.Blocks[idToIdx[b]]
 				nv := len(blk.Values)
 				return valueToProgAfter[blk.Values[nv-1].ID].Pc
-			case ssa.FuncEnd.ID:
+			case ssa.StackGrowthCall.ID:
+				// We can assume that Func().StackGrowthCall is set; StackGrowthCall is
+				// only used for functions that have that field set.
+				return e.curfn.LSym.Func().StackGrowthCall.Pc
+			case ssa.FuncLogicalEnd.ID:
+				// If we have stack-growth trailing code, the "end of the function" is
+				// the start of that code for the purposes of location lists. The stack
+				// growth in question executes as part of the function prologue, so it'd
+				// be incorrect for the location list of variables alive until the end
+				// of the function to extend over it.
+				if e.curfn.LSym.Func().StackGrowthTrailerStart != nil {
+					return e.curfn.LSym.Func().StackGrowthTrailerStart.Pc
+				}
+				// If there's no stack growth code, or there is but the architecture
+				// didn't keep track of it, FuncLogicalEnd behaves like FuncPhysicalEnd.
+				fallthrough
+			case ssa.FuncPhysicalEnd.ID:
+				// Return the end of the function's code.
 				return e.curfn.LSym.Size
 			default:
 				return valueToProgAfter[v].Pc
