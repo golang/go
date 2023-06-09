@@ -1036,7 +1036,7 @@ func (l *Loader) SetAttrCgoExportDynamic(i Sym, v bool) {
 	}
 }
 
-// ForAllAttrCgoExportDynamic calls f for every symbol that has been
+// ForAllCgoExportDynamic calls f for every symbol that has been
 // marked with the "cgo_export_dynamic" compiler directive.
 func (l *Loader) ForAllCgoExportDynamic(f func(Sym)) {
 	for s := range l.attrCgoExportDynamic {
