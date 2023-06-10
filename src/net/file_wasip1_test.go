@@ -79,14 +79,34 @@ func TestWasip1FileListenNet(t *testing.T) {
 func TestWasip1NewFileListener(t *testing.T) {
 	if l, ok := newFileListener(newFD("tcp", -1)).(*TCPListener); !ok {
 		t.Errorf("newFileListener: tcp listener type mismatch: %T", l)
+	} else {
+		testIsTCPAddr(t, "Addr", l.Addr())
 	}
 }
 
 func TestWasip1NewFileConn(t *testing.T) {
 	if c, ok := newFileConn(newFD("tcp", -1)).(*TCPConn); !ok {
 		t.Errorf("newFileConn: tcp conn type mismatch: %T", c)
+	} else {
+		testIsTCPAddr(t, "LocalAddr", c.LocalAddr())
+		testIsTCPAddr(t, "RemoteAddr", c.RemoteAddr())
 	}
 	if c, ok := newFileConn(newFD("udp", -1)).(*UDPConn); !ok {
 		t.Errorf("newFileConn: udp conn type mismatch: %T", c)
+	} else {
+		testIsUDPAddr(t, "LocalAddr", c.LocalAddr())
+		testIsUDPAddr(t, "RemoteAddr", c.RemoteAddr())
+	}
+}
+
+func testIsTCPAddr(t *testing.T, method string, addr Addr) {
+	if _, ok := addr.(*TCPAddr); !ok {
+		t.Errorf("%s: returned address is not a *TCPAddr: %T", method, addr)
+	}
+}
+
+func testIsUDPAddr(t *testing.T, method string, addr Addr) {
+	if _, ok := addr.(*UDPAddr); !ok {
+		t.Errorf("%s: returned address is not a *UDPAddr: %T", method, addr)
 	}
 }
