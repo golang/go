@@ -1487,36 +1487,6 @@
   && clobber(x)
   => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
 
-(MOVBstore [i] {s} p
-  x1:(MOVBload [j] {s2} p2 mem)
-    mem2:(MOVBstore [i-1] {s} p
-      x2:(MOVBload [j-1] {s2} p2 mem) mem))
-  && x1.Uses == 1
-  && x2.Uses == 1
-  && mem2.Uses == 1
-  && clobber(x1, x2, mem2)
-  => (MOVWstore [i-1] {s} p (MOVWload [j-1] {s2} p2 mem) mem)
-
-(MOVWstore [i] {s} p
-  x1:(MOVWload [j] {s2} p2 mem)
-    mem2:(MOVWstore [i-2] {s} p
-      x2:(MOVWload [j-2] {s2} p2 mem) mem))
-  && x1.Uses == 1
-  && x2.Uses == 1
-  && mem2.Uses == 1
-  && clobber(x1, x2, mem2)
-  => (MOVLstore [i-2] {s} p (MOVLload [j-2] {s2} p2 mem) mem)
-
-(MOVLstore [i] {s} p
-  x1:(MOVLload [j] {s2} p2 mem)
-    mem2:(MOVLstore [i-4] {s} p
-      x2:(MOVLload [j-4] {s2} p2 mem) mem))
-  && x1.Uses == 1
-  && x2.Uses == 1
-  && mem2.Uses == 1
-  && clobber(x1, x2, mem2)
-  => (MOVQstore [i-4] {s} p (MOVQload [j-4] {s2} p2 mem) mem)
-
 // Merge load and op
 // TODO: add indexed variants?
 ((ADD|SUB|AND|OR|XOR)Q x l:(MOVQload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) => ((ADD|SUB|AND|OR|XOR)Qload x [off] {sym} ptr mem)

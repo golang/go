@@ -836,3 +836,25 @@ func zero_uint64_2(d1, d2 []uint64) {
 	d1[0], d1[1] = 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
 	d2[1], d2[0] = 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
 }
+
+func loadstore(p, q *[4]uint8) {
+	// amd64:"MOVL",-"MOVB"
+	// arm64:"MOVWU",-"MOVBU"
+	x0, x1, x2, x3 := q[0], q[1], q[2], q[3]
+	// amd64:"MOVL",-"MOVB"
+	// arm64:"MOVW",-"MOVB"
+	p[0], p[1], p[2], p[3] = x0, x1, x2, x3
+}
+
+type S1 struct {
+	a, b int16
+}
+
+func loadstore2(p, q *S1) {
+	// amd64:"MOVL",-"MOVWLZX"
+	// arm64:"MOVWU",-"MOVH"
+	a, b := p.a, p.b
+	// amd64:"MOVL",-"MOVW"
+	// arm64:"MOVW",-"MOVH"
+	q.a, q.b = a, b
+}
