@@ -20,7 +20,7 @@ import (
 )
 
 var listenersMu sync.Mutex
-var listeners = make(map[string]*netFD)
+var listeners = make(map[fakeNetAddr]*netFD)
 
 var portCounterMu sync.Mutex
 var portCounter = 0
@@ -32,13 +32,16 @@ func nextPort() int {
 	return portCounter
 }
 
+type fakeNetAddr struct {
+	network string
+	address string
+}
+
 type fakeNetFD struct {
-	listener bool
-	laddr    Addr
+	listener fakeNetAddr
 	r        *bufferedPipe
 	w        *bufferedPipe
 	incoming chan *netFD
-
 	closedMu sync.Mutex
 	closed   bool
 }
@@ -51,32 +54,110 @@ func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only
 		return fakelistener(fd, laddr)
 	}
 	fd2 := &netFD{family: family, sotype: sotype, net: net}
-	return fakeconn(fd, fd2, raddr)
+	return fakeconn(fd, fd2, laddr, raddr)
+}
+
+func fakeIPAndPort(ip IP, port int) (IP, int) {
+	if ip == nil {
+		ip = IPv4(127, 0, 0, 1)
+	}
+	if port == 0 {
+		port = nextPort()
+	}
+	return ip, port
+}
+
+func fakeTCPAddr(addr *TCPAddr) *TCPAddr {
+	var ip IP
+	var port int
+	var zone string
+	if addr != nil {
+		ip, port, zone = addr.IP, addr.Port, addr.Zone
+	}
+	ip, port = fakeIPAndPort(ip, port)
+	return &TCPAddr{IP: ip, Port: port, Zone: zone}
+}
+
+func fakeUDPAddr(addr *UDPAddr) *UDPAddr {
+	var ip IP
+	var port int
+	var zone string
+	if addr != nil {
+		ip, port, zone = addr.IP, addr.Port, addr.Zone
+	}
+	ip, port = fakeIPAndPort(ip, port)
+	return &UDPAddr{IP: ip, Port: port, Zone: zone}
+}
+
+func fakeUnixAddr(sotype int, addr *UnixAddr) *UnixAddr {
+	var net, name string
+	if addr != nil {
+		name = addr.Name
+	}
+	switch sotype {
+	case syscall.SOCK_DGRAM:
+		net = "unixgram"
+	case syscall.SOCK_SEQPACKET:
+		net = "unixpacket"
+	default:
+		net = "unix"
+	}
+	return &UnixAddr{Net: net, Name: name}
 }
 
 func fakelistener(fd *netFD, laddr sockaddr) (*netFD, error) {
-	l := laddr.(*TCPAddr)
-	fd.laddr = &TCPAddr{
-		IP:   l.IP,
-		Port: nextPort(),
-		Zone: l.Zone,
+	switch l := laddr.(type) {
+	case *TCPAddr:
+		laddr = fakeTCPAddr(l)
+	case *UDPAddr:
+		laddr = fakeUDPAddr(l)
+	case *UnixAddr:
+		if l.Name == "" {
+			return nil, syscall.ENOENT
+		}
+		laddr = fakeUnixAddr(fd.sotype, l)
+	default:
+		return nil, syscall.EOPNOTSUPP
 	}
+
+	listener := fakeNetAddr{
+		network: laddr.Network(),
+		address: laddr.String(),
+	}
+
 	fd.fakeNetFD = &fakeNetFD{
-		listener: true,
-		laddr:    fd.laddr,
+		listener: listener,
 		incoming: make(chan *netFD, 1024),
 	}
+
+	fd.laddr = laddr
 	listenersMu.Lock()
-	listeners[fd.laddr.(*TCPAddr).String()] = fd
-	listenersMu.Unlock()
+	defer listenersMu.Unlock()
+	if _, exists := listeners[listener]; exists {
+		return nil, syscall.EADDRINUSE
+	}
+	listeners[listener] = fd
 	return fd, nil
 }
 
-func fakeconn(fd *netFD, fd2 *netFD, raddr sockaddr) (*netFD, error) {
-	fd.laddr = &TCPAddr{
-		IP:   IPv4(127, 0, 0, 1),
-		Port: nextPort(),
+func fakeconn(fd *netFD, fd2 *netFD, laddr, raddr sockaddr) (*netFD, error) {
+	switch r := raddr.(type) {
+	case *TCPAddr:
+		r = fakeTCPAddr(r)
+		raddr = r
+		laddr = fakeTCPAddr(laddr.(*TCPAddr))
+	case *UDPAddr:
+		r = fakeUDPAddr(r)
+		raddr = r
+		laddr = fakeUDPAddr(laddr.(*UDPAddr))
+	case *UnixAddr:
+		r = fakeUnixAddr(fd.sotype, r)
+		raddr = r
+		laddr = &UnixAddr{Net: r.Net, Name: r.Name}
+	default:
+		return nil, syscall.EAFNOSUPPORT
 	}
+	fd.laddr = laddr
 	fd.raddr = raddr
 
 	fd.fakeNetFD = &fakeNetFD{
@@ -90,15 +171,18 @@ func fakeconn(fd *netFD, fd2 *netFD, raddr sockaddr) (*netFD, error) {
 
 	fd2.laddr = fd.raddr
 	fd2.raddr = fd.laddr
+
+	listener := fakeNetAddr{
+		network: fd.raddr.Network(),
+		address: fd.raddr.String(),
+	}
 	listenersMu.Lock()
-	l, ok := listeners[fd.raddr.(*TCPAddr).String()]
+	defer listenersMu.Unlock()
+	l, ok := listeners[listener]
 	if !ok {
-		listenersMu.Unlock()
 		return nil, syscall.ECONNREFUSED
 	}
 	l.incoming <- fd2
-	listenersMu.Unlock()
-
 	return fd, nil
 }
 
@@ -119,11 +203,11 @@ func (fd *fakeNetFD) Close() error {
 	fd.closed = true
 	fd.closedMu.Unlock()
 
-	if fd.listener {
+	if fd.listener != (fakeNetAddr{}) {
 		listenersMu.Lock()
-		delete(listeners, fd.laddr.String())
+		delete(listeners, fd.listener)
 		close(fd.incoming)
-		fd.listener = false
+		fd.listener = fakeNetAddr{}
 		listenersMu.Unlock()
 		return nil
 	}
