@@ -38,22 +38,21 @@ type netFD struct {
 	*fakeNetFD
 }
 
-func newFD(sysfd int) (*netFD, error) {
-	return newPollFD(poll.FD{
+func newFD(net string, sysfd int) *netFD {
+	return newPollFD(net, poll.FD{
 		Sysfd:         sysfd,
 		IsStream:      true,
 		ZeroReadIsEOF: true,
 	})
 }
 
-func newPollFD(pfd poll.FD) (*netFD, error) {
-	ret := &netFD{
+func newPollFD(net string, pfd poll.FD) *netFD {
+	return &netFD{
 		pfd:   pfd,
-		net:   "tcp",
+		net:   net,
 		laddr: unknownAddr{},
 		raddr: unknownAddr{},
 	}
-	return ret, nil
 }
 
 func (fd *netFD) init() error {
@@ -75,10 +74,7 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
 		}
 		return nil, err
 	}
-	if netfd, err = newFD(d); err != nil {
-		poll.CloseFunc(d)
-		return nil, err
-	}
+	netfd = newFD("tcp", d)
 	if err = netfd.init(); err != nil {
 		netfd.Close()
 		return nil, err
