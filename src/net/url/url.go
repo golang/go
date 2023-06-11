@@ -859,7 +859,7 @@ func (u *URL) String() string {
 }
 
 // Redacted is like String but replaces any password with "xxxxx".
-// Only the password in u.URL is redacted.
+// Only the password in u.User is redacted.
 func (u *URL) Redacted() string {
 	if u == nil {
 		return ""
