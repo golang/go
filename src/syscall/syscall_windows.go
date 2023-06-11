@@ -533,11 +533,21 @@ const ImplementsGetwd = true
 
 func Getwd() (wd string, err error) {
 	b := make([]uint16, 300)
-	n, e := GetCurrentDirectory(uint32(len(b)), &b[0])
-	if e != nil {
-		return "", e
+	// The path of the current directory may not fit in the initial 300-word
+	// buffer when long path support is enabled. The current directory may also
+	// change between subsequent calls of GetCurrentDirectory. As a result, we
+	// need to retry the call in a loop until the current directory fits, each
+	// time with a bigger buffer.
+	for {
+		n, e := GetCurrentDirectory(uint32(len(b)), &b[0])
+		if e != nil {
+			return "", e
+		}
+		if int(n) <= len(b) {
+			return UTF16ToString(b[:n]), nil
+		}
+		b = make([]uint16, n)
 	}
-	return UTF16ToString(b[0:n]), nil
 }
 
 func Chdir(path string) (err error) {
