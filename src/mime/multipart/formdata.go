@@ -86,7 +86,7 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 	// since metadata is always stored in memory, not disk.
 	//
 	// maxMemoryBytes is the maximum bytes we will store in memory, including file content,
-	// non-file part values, metdata, and map entry overhead.
+	// non-file part values, metadata, and map entry overhead.
 	//
 	// We reserve an additional 10 MB in maxMemoryBytes for non-file data.
 	//

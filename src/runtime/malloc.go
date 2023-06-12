@@ -1164,7 +1164,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	publicationBarrier()
 	// As x and the heap bits are initialized, update
 	// freeIndexForScan now so x is seen by the GC
-	// (including convervative scan) as an allocated object.
+	// (including conservative scan) as an allocated object.
 	// While this pointer can't escape into user code as a
 	// _live_ pointer until we return, conservative scanning
 	// may find a dead pointer that happens to point into this

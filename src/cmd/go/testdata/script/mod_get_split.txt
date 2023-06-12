@@ -52,7 +52,7 @@ stderr '^go: example.net/split/nested: ambiguous import: found package example.n
 # (perhaps 'latest' or 'none'), or we can report an error and the let the user
 # disambiguate. We would rather not choose arbitrarily, so we do the latter.
 #
-# TODO(#27899): Should we instead upgrade or downgrade to an arbirary version?
+# TODO(#27899): Should we instead upgrade or downgrade to an arbitrary version?
 
 ! go get example.net/split/nested/...@v0.1.0
 stderr '^go: example.net/split/nested/\.\.\.@v0.1.0 matches packages in example.net/split@v0.2.0 but not example.net/split@v0.1.0: specify a different version for module example.net/split$'

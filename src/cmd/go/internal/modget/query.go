@@ -98,7 +98,7 @@ type query struct {
 	resolved []module.Version
 
 	// matchesPackages is true if the resolved modules provide at least one
-	// package mathcing q.pattern.
+	// package matching q.pattern.
 	matchesPackages bool
 }
 

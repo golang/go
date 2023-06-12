@@ -564,7 +564,7 @@
 #define digestPtr	DI	// input/output, base pointer to digest hash vector H0, H1, ..., H7
 #define dataPtr		SI	// input, base pointer to first input data block
 #define numBytes	DX	// input, number of input bytes to be processed
-#define sha256Constants	AX	// round contants from K256 table, indexed by round number x 32
+#define sha256Constants	AX	// round contents from K256 table, indexed by round number x 32
 #define msg		X0	// input data
 #define state0		X1	// round intermediates and outputs
 #define state1		X2

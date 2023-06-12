@@ -243,7 +243,7 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 //sys	fchmodat(dirfd int, path string, mode uint32) (err error)
 
 func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) {
-	// Linux fchmodat doesn't support the flags parameter. Mimick glibc's behavior
+	// Linux fchmodat doesn't support the flags parameter. Mimic glibc's behavior
 	// and check the flags. Otherwise the mode would be applied to the symlink
 	// destination which is not what the user expects.
 	if flags&^_AT_SYMLINK_NOFOLLOW != 0 {

@@ -567,7 +567,7 @@ havem:
 	// If the m on entry wasn't nil,
 	// 1. the thread might be a Go thread,
 	// 2. or it wasn't the first call from a C thread on pthread platforms,
-	//    since then we skip dropm to resue the m in the first call.
+	//    since then we skip dropm to reuse the m in the first call.
 	MOVV	savedm-8(SP), R12
 	BNE	R12, droppedm
 

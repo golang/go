@@ -132,7 +132,7 @@ TEXT errors(SB),$0
 	VADDPD.BCST X3, X2, K1, X1       // ERROR "illegal broadcast without memory argument"
 	VADDPD.BCST X3, X2, K1, X1       // ERROR "illegal broadcast without memory argument"
 	VADDPD.BCST X3, X2, K1, X1       // ERROR "illegal broadcast without memory argument"
-	// CLWB instuctions:
+	// CLWB instructions:
 	CLWB BX                          // ERROR "invalid instruction"
 	// CLDEMOTE instructions:
 	CLDEMOTE BX                      // ERROR "invalid instruction"

@@ -201,7 +201,7 @@ func compileInDir(runcmd runCmd, dir string, flags []string, importcfg string, p
 	return runcmd(cmd...)
 }
 
-var stdlibImportcfgStringOnce sync.Once // TODO(#56102): Use sync.OnceValue once availabe. Also below.
+var stdlibImportcfgStringOnce sync.Once // TODO(#56102): Use sync.OnceValue once available. Also below.
 var stdlibImportcfgString string
 
 func stdlibImportcfg() string {

@@ -84,7 +84,7 @@ const (
 	R_USETYPE
 	// R_USEIFACE marks a type is converted to an interface in the function this
 	// relocation is applied to. The target is a type descriptor or an itab
-	// (in the latter case it refers to the conrete type contained in the itab).
+	// (in the latter case it refers to the concrete type contained in the itab).
 	// This is a marker relocation (0-sized), for the linker's reachabililty
 	// analysis.
 	R_USEIFACE
@@ -230,7 +230,7 @@ const (
 	R_ADDRPOWER_GOT
 
 	// R_ADDRPOWER_GOT_PCREL34 is identical to R_ADDRPOWER_GOT, but uses a PC relative
-	// sequence to generate a GOT symbol addresss.
+	// sequence to generate a GOT symbol addresses.
 	R_ADDRPOWER_GOT_PCREL34
 
 	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but

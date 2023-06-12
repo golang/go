@@ -1149,7 +1149,7 @@ ListLoop:
 		}
 		a.Offset = offset
 	default:
-		p.errorf("register list not supported on this architecuture")
+		p.errorf("register list not supported on this architecture")
 	}
 }
 

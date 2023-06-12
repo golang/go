@@ -124,7 +124,7 @@ func main() {
 
 	log.Print("Splitting trace...")
 	ranges = splitTrace(res)
-	reportMemoryUsage("after spliting trace")
+	reportMemoryUsage("after splitting trace")
 	debug.FreeOSMemory()
 
 	addr := "http://" + ln.Addr().String()

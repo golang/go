@@ -1195,7 +1195,7 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r relation) {
 	if t == 0 {
 		// Trivial case: nothing to do.
-		// Shoult not happen, but just in case.
+		// Should not happen, but just in case.
 		return
 	}
 	for i := domain(1); i <= t; i <<= 1 {

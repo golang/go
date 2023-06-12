@@ -141,7 +141,7 @@ func TestRepeat(t *testing.T) {
 	sum2 := h1.Sum64()
 
 	if sum1 != sum2 {
-		t.Errorf("different sum after reseting: %#x != %#x", sum1, sum2)
+		t.Errorf("different sum after resetting: %#x != %#x", sum1, sum2)
 	}
 
 	h2 := new(Hash)
