@@ -884,15 +884,15 @@ func (b *packageHandleBuilder) getTransitiveRefsLocked(id PackageID) map[string]
 	for name := range ph.refs {
 		if token.IsExported(name) {
 			pkgs := b.s.pkgIndex.NewSet()
-			for _, node := range ph.refs[name] {
+			for _, sym := range ph.refs[name] {
 				// TODO: opt: avoid int -> PackageID -> int conversions here.
-				id := node.PackageID(b.s.pkgIndex)
+				id := b.s.pkgIndex.DeclaringPackage(sym)
 				pkgs.Add(id)
 				otherRefs := b.getTransitiveRefsLocked(id)
 				if otherRefs == nil {
 					return nil // a predecessor failed: exit early
 				}
-				if otherSet, ok := otherRefs[node.Name]; ok {
+				if otherSet, ok := otherRefs[sym.Name]; ok {
 					pkgs.Union(otherSet)
 				}
 			}

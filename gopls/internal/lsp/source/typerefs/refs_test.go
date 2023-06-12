@@ -543,7 +543,7 @@ type Z map[ext.A]ext.B
 				for _, name := range class.Decls {
 					var syms []string
 					for _, sym := range class.Refs {
-						syms = append(syms, fmt.Sprintf("%s.%s", sym.PackageID(index), sym.Name))
+						syms = append(syms, fmt.Sprintf("%s.%s", index.DeclaringPackage(sym), sym.Name))
 					}
 					sort.Strings(syms)
 					got[name] = syms

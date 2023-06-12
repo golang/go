@@ -23,7 +23,6 @@ import (
 	"golang.org/x/tools/gopls/internal/astutil"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/gopls/internal/lsp/source/typerefs"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/testenv"
@@ -87,7 +86,7 @@ func TestBuildPackageGraph(t *testing.T) {
 	})
 
 	t0 = time.Now()
-	g, err := typerefs.BuildPackageGraph(ctx, meta, ids, newParser().parse)
+	g, err := BuildPackageGraph(ctx, meta, ids, newParser().parse)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,7 +262,7 @@ func BenchmarkBuildPackageGraph(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := typerefs.BuildPackageGraph(ctx, meta, ids, newParser().parse)
+		_, err := BuildPackageGraph(ctx, meta, ids, newParser().parse)
 		if err != nil {
 			b.Fatal(err)
 		}

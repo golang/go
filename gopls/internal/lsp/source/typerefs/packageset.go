@@ -34,25 +34,25 @@ func NewPackageIndex() *PackageIndex {
 
 // idx returns the packageIdx referencing id, creating one if id is not yet
 // tracked by the receiver.
-func (r *PackageIndex) idx(id source.PackageID) int {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if i, ok := r.m[id]; ok {
+func (index *PackageIndex) idx(id source.PackageID) int {
+	index.mu.Lock()
+	defer index.mu.Unlock()
+	if i, ok := index.m[id]; ok {
 		return i
 	}
-	i := len(r.ids)
-	r.m[id] = i
-	r.ids = append(r.ids, id)
+	i := len(index.ids)
+	index.m[id] = i
+	index.ids = append(index.ids, id)
 	return i
 }
 
 // id returns the PackageID for idx.
 //
 // idx must have been created by this PackageIndex instance.
-func (r *PackageIndex) id(idx int) source.PackageID {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.ids[idx]
+func (index *PackageIndex) id(idx int) source.PackageID {
+	index.mu.Lock()
+	defer index.mu.Unlock()
+	return index.ids[idx]
 }
 
 // A PackageSet is a set of source.PackageIDs, optimized for inuse memory
@@ -70,17 +70,26 @@ const blockSize = bits.UintSize
 //
 // PackageSets may only be combined with other PackageSets from the same
 // instance.
-func (s *PackageIndex) NewSet() *PackageSet {
+func (index *PackageIndex) NewSet() *PackageSet {
 	return &PackageSet{
-		parent: s,
+		parent: index,
 		sparse: make(map[int]blockType),
 	}
+}
+
+// DeclaringPackage returns the ID of the symbol's declaring package.
+// The package index must be the one used during decoding.
+func (index *PackageIndex) DeclaringPackage(sym Symbol) source.PackageID {
+	return index.id(sym.pkgIdx)
 }
 
 // Add records a new element in the package set.
 func (s *PackageSet) Add(id source.PackageID) {
 	s.add(s.parent.idx(id))
 }
+
+// AddDeclaringPackage adds sym's declaring package to the set.
+func (s *PackageSet) AddDeclaringPackage(sym Symbol) { s.add(sym.pkgIdx) }
 
 func (s *PackageSet) add(idx int) {
 	i := int(idx)

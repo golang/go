@@ -11,7 +11,6 @@ import (
 	"go/ast"
 	"go/token"
 	"log"
-	"os"
 	"sort"
 	"strings"
 
@@ -63,12 +62,6 @@ type Class struct {
 type Symbol struct {
 	pkgIdx int // w.r.t. PackageIndex passed to decoder
 	Name   string
-}
-
-// PackageID returns the symbol's package identifier.
-// The package index must be the one used during decoding.
-func (sym Symbol) PackageID(index *PackageIndex) source.PackageID {
-	return index.id(sym.pkgIdx)
 }
 
 // -- internals --
@@ -726,14 +719,16 @@ func (decl *declNode) find() *declNode {
 	return rep
 }
 
+const debugSCC = false // enable assertions in strong-component algorithm
+
 func checkCanonical(x *declNode) {
-	if debug {
+	if debugSCC {
 		assert(x == x.find(), "not canonical")
 	}
 }
 
 func assert(cond bool, msg string) {
-	if debug && !cond {
+	if debugSCC && !cond {
 		panic(msg)
 	}
 }
@@ -827,31 +822,6 @@ func decode(pkgIndex *PackageIndex, id source.PackageID, data []byte) []Class {
 	sort.Slice(classes, func(i, j int) bool {
 		return classes[i].Decls[0] < classes[j].Decls[0]
 	})
-
-	// Debug
-	if trace && len(classes) > 0 {
-		var buf bytes.Buffer
-		fmt.Fprintf(&buf, "%s\n", id)
-		for _, class := range classes {
-			for i, name := range class.Decls {
-				if i == 0 {
-					fmt.Fprintf(&buf, "\t")
-				}
-				fmt.Fprintf(&buf, " .%s", name)
-			}
-			// Group symbols by package.
-			prevID := -1
-			for _, sym := range class.Refs {
-				if sym.pkgIdx != prevID {
-					prevID = sym.pkgIdx
-					fmt.Fprintf(&buf, "\n\t\t-> %s:", sym.PackageID(pkgIndex))
-				}
-				fmt.Fprintf(&buf, " .%s", sym.Name)
-			}
-			fmt.Fprintln(&buf)
-		}
-		os.Stderr.Write(buf.Bytes())
-	}
 
 	return classes
 }
