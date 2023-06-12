@@ -1496,7 +1496,16 @@ func cmdbootstrap() {
 	// Now prime the build cache with the rest of the standard library for
 	// testing, and so that the user can run 'go install std cmd' to quickly
 	// iterate on local changes without waiting for a full rebuild.
-	os.Setenv("GOCACHE", oldgocache)
+	if _, err := os.Stat(pathf("%s/VERSION", goroot)); err == nil {
+		// If we have a VERSION file, then we use the Go version
+		// instead of build IDs as a cache key, and there is no guarantee
+		// that code hasn't changed since the last time we ran a build
+		// with this exact VERSION file (especially if someone is working
+		// on a release branch). We must not fall back to the shared build cache
+		// in this case. Leave $GOCACHE alone.
+	} else {
+		os.Setenv("GOCACHE", oldgocache)
+	}
 
 	if goos == oldgoos && goarch == oldgoarch {
 		// Common case - not setting up for cross-compilation.
