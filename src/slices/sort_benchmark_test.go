@@ -77,6 +77,24 @@ func BenchmarkSlicesSortInts_Reversed(b *testing.B) {
 	}
 }
 
+func BenchmarkIntsAreSorted(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		ints := makeSortedInts(N)
+		b.StartTimer()
+		sort.IntsAreSorted(ints)
+	}
+}
+
+func BenchmarkIsSorted(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		ints := makeSortedInts(N)
+		b.StartTimer()
+		IsSorted(ints)
+	}
+}
+
 // Since we're benchmarking these sorts against each other, make sure that they
 // generate similar results.
 func TestIntSorts(t *testing.T) {
