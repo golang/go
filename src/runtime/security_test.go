@@ -27,6 +27,8 @@ func privesc(command string, args ...string) error {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "darwin" {
 		cmd = exec.CommandContext(ctx, "sudo", append([]string{"-n", command}, args...)...)
+	} else if runtime.GOOS == "openbsd" {
+		cmd = exec.CommandContext(ctx, "doas", append([]string{"-n", command}, args...)...)
 	} else {
 		cmd = exec.CommandContext(ctx, "su", highPrivUser, "-c", fmt.Sprintf("%s %s", command, strings.Join(args, " ")))
 	}
