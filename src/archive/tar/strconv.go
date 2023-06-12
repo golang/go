@@ -73,13 +73,8 @@ func (f *formatter) formatString(b []byte, s string) {
 	// in the V7 path field as a directory even though the full path
 	// recorded elsewhere (e.g., via PAX record) contains no trailing slash.
 	if len(s) > len(b) && b[len(b)-1] == '/' {
-		i := len(b) - 2 // s[len(b)-1] == '/'
-		for ; i >= 0; i-- {
-			if s[i] != '/' {
-				break
-			}
-		}
-		b[i+1] = 0 // Replace trailing slash with NUL terminator
+		n := len(strings.TrimRight(s[:len(b)-1], "/"))
+		b[n] = 0 // Replace trailing slash with NUL terminator
 	}
 }
 
