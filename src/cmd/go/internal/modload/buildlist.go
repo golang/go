@@ -916,7 +916,7 @@ func tidyPrunedRoots(ctx context.Context, mainModule module.Version, old *Requir
 		var disambiguateRoot sync.Map
 		for _, pkg := range pkgs {
 			if pkg.mod.Path == "" || pathIsRoot[pkg.mod.Path] {
-				// Lazy module loading will cause m to be checked before any other modules
+				// Lazy module loading will cause pkg.mod to be checked before any other modules
 				// that are only indirectly required. It is as unambiguous as possible.
 				continue
 			}
