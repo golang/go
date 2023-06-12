@@ -150,10 +150,6 @@ Do not send CLs removing the interior tags from such phrases.
   For details about how to try that language change, see <a href="https://go.dev/wiki/LoopvarExperiment">the LoopvarExperiment wiki page</a>.
 </p>
 
-<p>
-  TODO: complete this section
-</p>
-
 <h2 id="tools">Tools</h2>
 <p>
   Go 1.21 adds improved support for backwards compatibility and forwards compatibility
@@ -250,10 +246,6 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="runtime-changes">Runtime</h2>
 
-<p>
-  TODO: complete this section, or delete if not needed
-</p>
-
 <p><!-- https://go.dev/issue/7181 -->
   When printing very deep stacks, the runtime now prints the first 50
   (innermost) frames followed by the bottom 50 (outermost) frames,
@@ -312,8 +304,10 @@ Do not send CLs removing the interior tags from such phrases.
   such as inlining the callee.
 </p>
 
+<!-- CL 497455 -->
 <p>
-  TODO: complete this section, or delete if not needed
+  Go 1.21 improves build speed by up to 6%, largely thanks to building the
+  compiler itself with PGO.
 </p>
 
 <h2 id="assembler">Assembler</h2>
@@ -333,25 +327,18 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="linker">Linker</h2>
 
-<p><!-- https://go.dev/issue/57302, CL 461749 -->
+<p><!-- https://go.dev/issue/57302, CL 461749, CL 457455 -->
   On Windows AMD64, the linker (with help from the compiler) now emits
   SEH unwinding data by default, which improves the integration
   of Go applications with Windows debuggers and other tools.
 </p>
 
-<!-- CL 457455 -->
-<p>
-  <!-- cmd/link: generate .xdata PE section -->
-</p>
 <!-- CL 463395, CL 461315 -->
 <p>
   In Go 1.21 the linker (with help from the compiler) is now capable of
   deleting dead (unreferenced) global map variables, if the number of
   entries in the variable initializer is sufficiently large, and if the
   initializer expressions are side-effect free.
-</p>
-<p>
-  TODO: complete this section, or delete if not needed
 </p>
 
 <h2 id="library">Core library</h2>
@@ -396,7 +383,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="cmp">New cmp package</h3>
 
-<p><!-- https://go.dev/issue/59488, CL 469356 -->
+<p><!-- https://go.dev/issue/59488, CL 496356 -->
   The new <a href="/pkg/cmp/">cmp</a> package defines the type
   constraint <a href="/pkg/cmp/#Ordered"><code>Ordered</code></a> and
   two new generic functions
@@ -413,10 +400,6 @@ Do not send CLs removing the interior tags from such phrases.
   made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
   in mind.
   There are also various performance improvements, not enumerated here.
-</p>
-
-<p>
-  TODO: complete this section
 </p>
 
 <dl id="archive/tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
@@ -538,7 +521,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/60105 -->
+    <p><!-- https://go.dev/issue/60105, CL 496818, CL 496820, CL 496822, CL 496821, CL 501675 -->
       Applications can now control the content of session tickets.
       <ul>
         <li>
@@ -580,13 +563,13 @@ Do not send CLs removing the interior tags from such phrases.
       resumed across versions will fall back to full handshakes.
     </p>
 
-    <p><!-- https://go.dev/issue/44886, https://go.dev/issue/60107 -->
+    <p><!-- https://go.dev/issue/44886, https://go.dev/issue/60107, CL 493655, CL 496995 -->
       The new <a href="/pkg/crypto/tls/#QUICConn"><code>QUICConn</code></a> type
       provides support for QUIC implementations. Note that this is not itself
       a QUIC implementation.
     </p>
 
-    <p><!-- https://go.dev/issue/46308 -->
+    <p><!-- https://go.dev/issue/46308, CL 497377 -->
       The new <a href="/pkg/crypto/tls/#VersionName"></code>VersionName</code></a> function
       returns the name for a TLS version number.
     </p>
@@ -1224,6 +1207,7 @@ Do not send CLs removing the interior tags from such phrases.
 <!-- proposals for x repos that don't need to be mentioned here but
      are picked up by the relnote tool. -->
 <!-- https://go.dev/issue/54232 -->
+<!-- https://go.dev/issue/57792 -->
 <!-- https://go.dev/issue/57906 -->
 <!-- https://go.dev/issue/58668 -->
 <!-- https://go.dev/issue/59676 -->
