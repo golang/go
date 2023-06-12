@@ -398,6 +398,10 @@ func testDirFiles(t *testing.T, dir string, manual bool) {
 		if fi.IsDir() {
 			testDir(t, path, manual)
 		} else {
+			if !strings.HasSuffix(path, ".go") {
+				// type check restricted to go files
+				continue
+			}
 			t.Run(filepath.Base(path), func(t *testing.T) {
 				testPkg(t, []string{path}, manual)
 			})
@@ -414,8 +418,11 @@ func testDir(t *testing.T, dir string, manual bool) {
 		return
 	}
 
-	var filenames []string
+	filenames := make([]string, 0, len(fis))
 	for _, fi := range fis {
+		if !strings.HasSuffix(fi.Name(), ".go") {
+			continue
+		}
 		filenames = append(filenames, filepath.Join(dir, fi.Name()))
 	}
 
