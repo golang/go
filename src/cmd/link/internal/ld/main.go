@@ -110,6 +110,9 @@ var (
 
 // Main is the main entry point for the linker code.
 func Main(arch *sys.Arch, theArch Arch) {
+	log.SetPrefix("link: ")
+	log.SetFlags(0)
+
 	thearch = theArch
 	ctxt := linknew(arch)
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
