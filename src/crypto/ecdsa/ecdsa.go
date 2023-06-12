@@ -380,7 +380,7 @@ func hashToNat[Point nistPoint[Point]](c *nistCurve[Point], e *bigmod.Nat, hash 
 	// an integer modulo N. This is the absolute worst of all worlds: we still
 	// have to reduce, because the result might still overflow N, but to take
 	// the left-most bits for P-521 we have to do a right shift.
-	if size := c.N.Size(); len(hash) > size {
+	if size := c.N.Size(); len(hash) >= size {
 		hash = hash[:size]
 		if excess := len(hash)*8 - c.N.BitLen(); excess > 0 {
 			hash = bytes.Clone(hash)
