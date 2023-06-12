@@ -833,9 +833,9 @@ func asmbMacho(ctxt *Link) {
 		ml.data[2] = uint32(linkoff + s1 + s2 + s3 + s4 + s5) /* stroff */
 		ml.data[3] = uint32(s6)                               /* strsize */
 
-		machodysymtab(ctxt, linkoff+s1+s2)
-
 		if ctxt.LinkMode != LinkExternal {
+			machodysymtab(ctxt, linkoff+s1+s2)
+
 			ml := newMachoLoad(ctxt.Arch, LC_LOAD_DYLINKER, 6)
 			ml.data[0] = 12 /* offset to string */
 			stringtouint32(ml.data[1:], "/usr/lib/dyld")
