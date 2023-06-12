@@ -984,8 +984,7 @@ func (b *packageHandleBuilder) validatePackageHandle(prevPH, ph *packageHandle) 
 
 	// Opt: if no dep keys have changed, we need not re-evaluate the key.
 	if prevPH != nil {
-		depsChanged := true
-		depsChanged = false
+		depsChanged := false
 		assert(len(prevPH.depKeys) == len(ph.depKeys), "mismatching dep count")
 		for id, newKey := range ph.depKeys {
 			oldKey, ok := prevPH.depKeys[id]
@@ -995,7 +994,6 @@ func (b *packageHandleBuilder) validatePackageHandle(prevPH, ph *packageHandle) 
 				break
 			}
 		}
-
 		if !depsChanged {
 			return nil // key cannot have changed
 		}
@@ -1010,10 +1008,8 @@ func (b *packageHandleBuilder) validatePackageHandle(prevPH, ph *packageHandle) 
 			// A predecessor failed to build due to e.g. context cancellation.
 			return fmt.Errorf("missing transitive refs for %s", dep.m.ID)
 		}
-		for name, set := range trefs {
-			if token.IsExported(name) {
-				reachable.Union(set)
-			}
+		for _, set := range trefs {
+			reachable.Union(set)
 		}
 	}
 
