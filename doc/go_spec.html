@@ -5588,21 +5588,6 @@ succeeds but the result value is implementation-dependent.
 
 <ol>
 <li>
-Converting a signed or unsigned integer value to a string type yields a
-string containing the UTF-8 representation of the integer. Values outside
-the range of valid Unicode code points are converted to <code>"\uFFFD"</code>.
-
-<pre>
-string('a')       // "a"
-string(-1)        // "\ufffd" == "\xef\xbf\xbd"
-string(0xf8)      // "\u00f8" == "ø" == "\xc3\xb8"
-
-type myString string
-myString(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
-</pre>
-</li>
-
-<li>
 Converting a slice of bytes to a string type yields
 a string whose successive bytes are the elements of the slice.
 
@@ -5667,6 +5652,31 @@ runes("白鵬翔")              // []rune{0x767d, 0x9d6c, 0x7fd4}
 []myRune("♫♬")              // []myRune{0x266b, 0x266c}
 []myRune(myString("🌐"))    // []myRune{0x1f310}
 </pre>
+</li>
+
+<li>
+Finally, for historical reasons, an integer value may be converted to a string type.
+This form of conversion yields a string containing the (possibly multi-byte) UTF-8
+representation of the Unicode code point with the given integer value.
+Values outside the range of valid Unicode code points are converted to <code>"\uFFFD"</code>.
+
+<pre>
+string('a')          // "a"
+string(65)           // "A"
+string('\xf8')       // "\u00f8" == "ø" == "\xc3\xb8"
+string(-1)           // "\ufffd" == "\xef\xbf\xbd"
+
+type myString string
+myString('\u65e5')   // "\u65e5" == "日" == "\xe6\x97\xa5"
+</pre>
+
+Note: This form of conversion may eventually be removed from the language.
+The <a href="/pkg/cmd/vet"><code>go vet</code></a> tool flags certain
+integer-to-string conversions as potential errors.
+Library functions such as
+<a href="/pkg/unicode/utf8#AppendRune"><code>utf8.AppendRune</code></a> or
+<a href="/pkg/unicode/utf8#EncodeRune"><code>utf8.EncodeRune</code></a>
+should be used instead.
 </li>
 </ol>
 
