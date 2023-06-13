@@ -189,11 +189,15 @@ func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
 // in which case all the symbols are non-package (for now).
 func (ctxt *Link) NumberSyms() {
 	if ctxt.Headtype == objabi.Haix {
-		// Data must be sorted to keep a constant order in TOC symbols.
-		// As they are created during Progedit, two symbols can be switched between
-		// two different compilations. Therefore, BuildID will be different.
-		// TODO: find a better place and optimize to only sort TOC symbols
-		sort.Slice(ctxt.Data, func(i, j int) bool {
+		// Data must be in a reliable order for reproducible builds.
+		// The original entries are in a reliable order, but the TOC symbols
+		// that are added in Progedit are added by different goroutines
+		// that can be scheduled independently. We need to reorder those
+		// symbols reliably. Sort by name but use a stable sort, so that
+		// any original entries with the same name (all DWARFVAR symbols
+		// have empty names but different relocation sets) are not shuffled.
+		// TODO: Find a better place and optimize to only sort TOC symbols.
+		sort.SliceStable(ctxt.Data, func(i, j int) bool {
 			return ctxt.Data[i].Name < ctxt.Data[j].Name
 		})
 	}
