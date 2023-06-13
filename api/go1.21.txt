@@ -365,35 +365,35 @@ pkg runtime, method (*Pinner) Pin(interface{}) #46787
 pkg runtime, method (*Pinner) Unpin() #46787
 pkg runtime, type PanicNilError struct #25448
 pkg runtime, type Pinner struct #46787
-pkg slices, func BinarySearch[$0 cmp.Ordered]([]$0, $0) (int, bool) #60091
-pkg slices, func BinarySearchFunc[$0 interface{}, $1 interface{}]([]$0, $1, func($0, $1) int) (int, bool) #60091
+pkg slices, func BinarySearch[$0 interface{ ~[]$1 }, $1 cmp.Ordered]($0, $1) (int, bool) #60091
+pkg slices, func BinarySearchFunc[$0 interface{ ~[]$1 }, $1 interface{}, $2 interface{}]($0, $2, func($1, $2) int) (int, bool) #60091
 pkg slices, func Clip[$0 interface{ ~[]$1 }, $1 interface{}]($0) $0 #57433
 pkg slices, func Clone[$0 interface{ ~[]$1 }, $1 interface{}]($0) $0 #57433
 pkg slices, func Compact[$0 interface{ ~[]$1 }, $1 comparable]($0) $0 #57433
 pkg slices, func CompactFunc[$0 interface{ ~[]$1 }, $1 interface{}]($0, func($1, $1) bool) $0 #57433
-pkg slices, func Compare[$0 cmp.Ordered]([]$0, []$0) int #60091
-pkg slices, func CompareFunc[$0 interface{}, $1 interface{}]([]$0, []$1, func($0, $1) int) int #60091
-pkg slices, func Contains[$0 comparable]([]$0, $0) bool #57433
-pkg slices, func ContainsFunc[$0 interface{}]([]$0, func($0) bool) bool #57433
+pkg slices, func Compare[$0 interface{ ~[]$1 }, $1 cmp.Ordered]($0, $0) int #60091
+pkg slices, func CompareFunc[$0 interface{ ~[]$2 }, $1 interface{ ~[]$3 }, $2 interface{}, $3 interface{}]($0, $1, func($2, $3) int) int #60091
+pkg slices, func Contains[$0 interface{ ~[]$1 }, $1 comparable]($0, $1) bool #57433
+pkg slices, func ContainsFunc[$0 interface{ ~[]$1 }, $1 interface{}]($0, func($1) bool) bool #57433
 pkg slices, func Delete[$0 interface{ ~[]$1 }, $1 interface{}]($0, int, int) $0 #57433
 pkg slices, func DeleteFunc[$0 interface{ ~[]$1 }, $1 interface{}]($0, func($1) bool) $0 #54768
-pkg slices, func Equal[$0 comparable]([]$0, []$0) bool #57433
-pkg slices, func EqualFunc[$0 interface{}, $1 interface{}]([]$0, []$1, func($0, $1) bool) bool #57433
+pkg slices, func Equal[$0 interface{ ~[]$1 }, $1 comparable]($0, $0) bool #57433
+pkg slices, func EqualFunc[$0 interface{ ~[]$2 }, $1 interface{ ~[]$3 }, $2 interface{}, $3 interface{}]($0, $1, func($2, $3) bool) bool #57433
 pkg slices, func Grow[$0 interface{ ~[]$1 }, $1 interface{}]($0, int) $0 #57433
-pkg slices, func Index[$0 comparable]([]$0, $0) int #57433
-pkg slices, func IndexFunc[$0 interface{}]([]$0, func($0) bool) int #57433
+pkg slices, func Index[$0 interface{ ~[]$1 }, $1 comparable]($0, $1) int #57433
+pkg slices, func IndexFunc[$0 interface{ ~[]$1 }, $1 interface{}]($0, func($1) bool) int #57433
 pkg slices, func Insert[$0 interface{ ~[]$1 }, $1 interface{}]($0, int, ...$1) $0 #57433
-pkg slices, func IsSorted[$0 cmp.Ordered]([]$0) bool #60091
-pkg slices, func IsSortedFunc[$0 interface{}]([]$0, func($0, $0) int) bool #60091
-pkg slices, func Max[$0 cmp.Ordered]([]$0) $0 #60091
-pkg slices, func MaxFunc[$0 interface{}]([]$0, func($0, $0) int) $0 #60091
-pkg slices, func Min[$0 cmp.Ordered]([]$0) $0 #60091
-pkg slices, func MinFunc[$0 interface{}]([]$0, func($0, $0) int) $0 #60091
+pkg slices, func IsSorted[$0 interface{ ~[]$1 }, $1 cmp.Ordered]($0) bool #60091
+pkg slices, func IsSortedFunc[$0 interface{ ~[]$1 }, $1 interface{}]($0, func($1, $1) int) bool #60091
+pkg slices, func Max[$0 interface{ ~[]$1 }, $1 cmp.Ordered]($0) $1 #60091
+pkg slices, func MaxFunc[$0 interface{ ~[]$1 }, $1 interface{}]($0, func($1, $1) int) $1 #60091
+pkg slices, func Min[$0 interface{ ~[]$1 }, $1 cmp.Ordered]($0) $1 #60091
+pkg slices, func MinFunc[$0 interface{ ~[]$1 }, $1 interface{}]($0, func($1, $1) int) $1 #60091
 pkg slices, func Replace[$0 interface{ ~[]$1 }, $1 interface{}]($0, int, int, ...$1) $0 #57433
-pkg slices, func Reverse[$0 interface{}]([]$0) #58565
-pkg slices, func Sort[$0 cmp.Ordered]([]$0) #60091
-pkg slices, func SortFunc[$0 interface{}]([]$0, func($0, $0) int) #60091
-pkg slices, func SortStableFunc[$0 interface{}]([]$0, func($0, $0) int) #60091
+pkg slices, func Reverse[$0 interface{ ~[]$1 }, $1 interface{}]($0) #58565
+pkg slices, func Sort[$0 interface{ ~[]$1 }, $1 cmp.Ordered]($0) #60091
+pkg slices, func SortFunc[$0 interface{ ~[]$1 }, $1 interface{}]($0, func($1, $1) int) #60091
+pkg slices, func SortStableFunc[$0 interface{ ~[]$1 }, $1 interface{}]($0, func($1, $1) int) #60091
 pkg strings, func ContainsFunc(string, func(int32) bool) bool #54386
 pkg sync, func OnceFunc(func()) func() #56102
 pkg sync, func OnceValue[$0 interface{}](func() $0) func() $0 #56102

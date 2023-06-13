@@ -856,7 +856,7 @@ func TestReverse(t *testing.T) {
 		t.Errorf("Reverse(singeleton) = %v, want %v", singleton, want)
 	}
 
-	Reverse[string](nil)
+	Reverse[[]string](nil)
 }
 
 // naiveReplace is a baseline implementation to the Replace function.
@@ -1051,5 +1051,25 @@ func TestReplaceGrowthRate(t *testing.T) {
 	want := int(math.Log(N) / math.Log(1.25)) // 1.25 == growth rate for large slices
 	if nGrow > want {
 		t.Errorf("too many grows. got:%d want:%d", nGrow, want)
+	}
+}
+
+func apply[T any](v T, f func(T)) {
+	f(v)
+}
+
+// Test type inference with a named slice type.
+func TestInference(t *testing.T) {
+	s1 := []int{1, 2, 3}
+	apply(s1, Reverse)
+	if want := []int{3, 2, 1}; !Equal(s1, want) {
+		t.Errorf("Reverse(%v) = %v, want %v", []int{1, 2, 3}, s1, want)
+	}
+
+	type S []int
+	s2 := S{4, 5, 6}
+	apply(s2, Reverse)
+	if want := (S{6, 5, 4}); !Equal(s2, want) {
+		t.Errorf("Reverse(%v) = %v, want %v", S{4, 5, 6}, s2, want)
 	}
 }

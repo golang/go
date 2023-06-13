@@ -11,7 +11,7 @@ import (
 
 // Sort sorts a slice of any ordered type in ascending order.
 // When sorting floating-point numbers, NaNs are ordered before other values.
-func Sort[E cmp.Ordered](x []E) {
+func Sort[S ~[]E, E cmp.Ordered](x S) {
 	n := len(x)
 	pdqsortOrdered(x, 0, n, bits.Len(uint(n)))
 }
@@ -23,19 +23,19 @@ func Sort[E cmp.Ordered](x []E) {
 //
 // SortFunc requires that cmp is a strict weak ordering.
 // See https://en.wikipedia.org/wiki/Weak_ordering#Strict_weak_orderings.
-func SortFunc[E any](x []E, cmp func(a, b E) int) {
+func SortFunc[S ~[]E, E any](x S, cmp func(a, b E) int) {
 	n := len(x)
 	pdqsortCmpFunc(x, 0, n, bits.Len(uint(n)), cmp)
 }
 
 // SortStableFunc sorts the slice x while keeping the original order of equal
 // elements, using cmp to compare elements.
-func SortStableFunc[E any](x []E, cmp func(a, b E) int) {
+func SortStableFunc[S ~[]E, E any](x S, cmp func(a, b E) int) {
 	stableCmpFunc(x, len(x), cmp)
 }
 
 // IsSorted reports whether x is sorted in ascending order.
-func IsSorted[E cmp.Ordered](x []E) bool {
+func IsSorted[S ~[]E, E cmp.Ordered](x S) bool {
 	for i := len(x) - 1; i > 0; i-- {
 		if cmp.Less(x[i], x[i-1]) {
 			return false
@@ -46,7 +46,7 @@ func IsSorted[E cmp.Ordered](x []E) bool {
 
 // IsSortedFunc reports whether x is sorted in ascending order, with cmp as the
 // comparison function.
-func IsSortedFunc[E any](x []E, cmp func(a, b E) int) bool {
+func IsSortedFunc[S ~[]E, E any](x S, cmp func(a, b E) int) bool {
 	for i := len(x) - 1; i > 0; i-- {
 		if cmp(x[i], x[i-1]) < 0 {
 			return false
@@ -58,7 +58,7 @@ func IsSortedFunc[E any](x []E, cmp func(a, b E) int) bool {
 // Min returns the minimal value in x. It panics if x is empty.
 // For floating-point numbers, Min propagates NaNs (any NaN value in x
 // forces the output to be NaN).
-func Min[E cmp.Ordered](x []E) E {
+func Min[S ~[]E, E cmp.Ordered](x S) E {
 	if len(x) < 1 {
 		panic("slices.Min: empty list")
 	}
@@ -71,7 +71,7 @@ func Min[E cmp.Ordered](x []E) E {
 
 // MinFunc returns the minimal value in x, using cmp to compare elements.
 // It panics if x is empty.
-func MinFunc[E any](x []E, cmp func(a, b E) int) E {
+func MinFunc[S ~[]E, E any](x S, cmp func(a, b E) int) E {
 	if len(x) < 1 {
 		panic("slices.MinFunc: empty list")
 	}
@@ -87,7 +87,7 @@ func MinFunc[E any](x []E, cmp func(a, b E) int) E {
 // Max returns the maximal value in x. It panics if x is empty.
 // For floating-point E, Max propagates NaNs (any NaN value in x
 // forces the output to be NaN).
-func Max[E cmp.Ordered](x []E) E {
+func Max[S ~[]E, E cmp.Ordered](x S) E {
 	if len(x) < 1 {
 		panic("slices.Max: empty list")
 	}
@@ -100,7 +100,7 @@ func Max[E cmp.Ordered](x []E) E {
 
 // MaxFunc returns the maximal value in x, using cmp to compare elements.
 // It panics if x is empty.
-func MaxFunc[E any](x []E, cmp func(a, b E) int) E {
+func MaxFunc[S ~[]E, E any](x S, cmp func(a, b E) int) E {
 	if len(x) < 1 {
 		panic("slices.MaxFunc: empty list")
 	}
@@ -117,7 +117,7 @@ func MaxFunc[E any](x []E, cmp func(a, b E) int) E {
 // where target is found, or the position where target would appear in the
 // sort order; it also returns a bool saying whether the target is really found
 // in the slice. The slice must be sorted in increasing order.
-func BinarySearch[E cmp.Ordered](x []E, target E) (int, bool) {
+func BinarySearch[S ~[]E, E cmp.Ordered](x S, target E) (int, bool) {
 	// Inlining is faster than calling BinarySearchFunc with a lambda.
 	n := len(x)
 	// Define x[-1] < target and x[n] >= target.
@@ -143,7 +143,7 @@ func BinarySearch[E cmp.Ordered](x []E, target E) (int, bool) {
 // or a positive number if the slice element follows the target.
 // cmp must implement the same ordering as the slice, such that if
 // cmp(a, t) < 0 and cmp(b, t) >= 0, then a must precede b in the slice.
-func BinarySearchFunc[E, T any](x []E, target T, cmp func(E, T) int) (int, bool) {
+func BinarySearchFunc[S ~[]E, E, T any](x S, target T, cmp func(E, T) int) (int, bool) {
 	n := len(x)
 	// Define cmp(x[-1], target) < 0 and cmp(x[n], target) >= 0 .
 	// Invariant: cmp(x[i - 1], target) < 0, cmp(x[j], target) >= 0.

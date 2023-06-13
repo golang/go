@@ -15,7 +15,7 @@ import (
 // Otherwise, the elements are compared in increasing index order, and the
 // comparison stops at the first unequal pair.
 // Floating point NaNs are not considered equal.
-func Equal[E comparable](s1, s2 []E) bool {
+func Equal[S ~[]E, E comparable](s1, s2 S) bool {
 	if len(s1) != len(s2) {
 		return false
 	}
@@ -32,7 +32,7 @@ func Equal[E comparable](s1, s2 []E) bool {
 // EqualFunc returns false. Otherwise, the elements are compared in
 // increasing index order, and the comparison stops at the first index
 // for which eq returns false.
-func EqualFunc[E1, E2 any](s1 []E1, s2 []E2, eq func(E1, E2) bool) bool {
+func EqualFunc[S1 ~[]E1, S2 ~[]E2, E1, E2 any](s1 S1, s2 S2, eq func(E1, E2) bool) bool {
 	if len(s1) != len(s2) {
 		return false
 	}
@@ -52,7 +52,7 @@ func EqualFunc[E1, E2 any](s1 []E1, s2 []E2, eq func(E1, E2) bool) bool {
 // If both slices are equal until one of them ends, the shorter slice is
 // considered less than the longer one.
 // The result is 0 if s1 == s2, -1 if s1 < s2, and +1 if s1 > s2.
-func Compare[E cmp.Ordered](s1, s2 []E) int {
+func Compare[S ~[]E, E cmp.Ordered](s1, s2 S) int {
 	for i, v1 := range s1 {
 		if i >= len(s2) {
 			return +1
@@ -73,7 +73,7 @@ func Compare[E cmp.Ordered](s1, s2 []E) int {
 // The result is the first non-zero result of cmp; if cmp always
 // returns 0 the result is 0 if len(s1) == len(s2), -1 if len(s1) < len(s2),
 // and +1 if len(s1) > len(s2).
-func CompareFunc[E1, E2 any](s1 []E1, s2 []E2, cmp func(E1, E2) int) int {
+func CompareFunc[S1 ~[]E1, S2 ~[]E2, E1, E2 any](s1 S1, s2 S2, cmp func(E1, E2) int) int {
 	for i, v1 := range s1 {
 		if i >= len(s2) {
 			return +1
@@ -91,7 +91,7 @@ func CompareFunc[E1, E2 any](s1 []E1, s2 []E2, cmp func(E1, E2) int) int {
 
 // Index returns the index of the first occurrence of v in s,
 // or -1 if not present.
-func Index[E comparable](s []E, v E) int {
+func Index[S ~[]E, E comparable](s S, v E) int {
 	for i := range s {
 		if v == s[i] {
 			return i
@@ -102,7 +102,7 @@ func Index[E comparable](s []E, v E) int {
 
 // IndexFunc returns the first index i satisfying f(s[i]),
 // or -1 if none do.
-func IndexFunc[E any](s []E, f func(E) bool) int {
+func IndexFunc[S ~[]E, E any](s S, f func(E) bool) int {
 	for i := range s {
 		if f(s[i]) {
 			return i
@@ -112,13 +112,13 @@ func IndexFunc[E any](s []E, f func(E) bool) int {
 }
 
 // Contains reports whether v is present in s.
-func Contains[E comparable](s []E, v E) bool {
+func Contains[S ~[]E, E comparable](s S, v E) bool {
 	return Index(s, v) >= 0
 }
 
 // ContainsFunc reports whether at least one
 // element e of s satisfies f(e).
-func ContainsFunc[E any](s []E, f func(E) bool) bool {
+func ContainsFunc[S ~[]E, E any](s S, f func(E) bool) bool {
 	return IndexFunc(s, f) >= 0
 }
 
@@ -441,7 +441,7 @@ func Clip[S ~[]E, E any](s S) S {
 
 // rotateLeft rotates b left by n spaces.
 // s_final[i] = s_orig[i+r], wrapping around.
-func rotateLeft[S ~[]E, E any](s S, r int) {
+func rotateLeft[E any](s []E, r int) {
 	for r != 0 && r != len(s) {
 		if r*2 <= len(s) {
 			swap(s[:r], s[len(s)-r:])
@@ -452,19 +452,19 @@ func rotateLeft[S ~[]E, E any](s S, r int) {
 		}
 	}
 }
-func rotateRight[S ~[]E, E any](s S, r int) {
+func rotateRight[E any](s []E, r int) {
 	rotateLeft(s, len(s)-r)
 }
 
 // swap swaps the contents of x and y. x and y must be equal length and disjoint.
-func swap[S ~[]E, E any](x, y S) {
+func swap[E any](x, y []E) {
 	for i := 0; i < len(x); i++ {
 		x[i], y[i] = y[i], x[i]
 	}
 }
 
 // overlaps reports whether the memory ranges a[0:len(a)] and b[0:len(b)] overlap.
-func overlaps[S ~[]E, E any](a, b S) bool {
+func overlaps[E any](a, b []E) bool {
 	if len(a) == 0 || len(b) == 0 {
 		return false
 	}
@@ -480,7 +480,7 @@ func overlaps[S ~[]E, E any](a, b S) bool {
 
 // startIdx returns the index in haystack where the needle starts.
 // prerequisite: the needle must be aliased entirely inside the haystack.
-func startIdx[S ~[]E, E any](haystack, needle S) int {
+func startIdx[E any](haystack, needle []E) int {
 	p := &needle[0]
 	for i := range haystack {
 		if p == &haystack[i] {
@@ -492,7 +492,7 @@ func startIdx[S ~[]E, E any](haystack, needle S) int {
 }
 
 // Reverse reverses the elements of the slice in place.
-func Reverse[E any](s []E) {
+func Reverse[S ~[]E, E any](s S) {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
