@@ -8,14 +8,15 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/hooks"
+	"golang.org/x/tools/gopls/internal/lsp/fake"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/internal/testenv"
-
-	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
 
 func TestMain(m *testing.M) {
@@ -618,6 +619,66 @@ func main() {
 		want := "package main\n\nimport \"math\"\n\nfunc main() {\n\tmath.Sqrt(,0)\n\tmath.Ldexmath.Abs(${1:})\n}\n"
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("unimported completion (-want +got):\n%s", diff)
+		}
+	})
+}
+
+func TestCompleteAllFields(t *testing.T) {
+	// This test verifies that completion results always include all struct fields.
+	// See golang/go#53992.
+
+	const src = `
+-- go.mod --
+module mod.com
+
+go 1.18
+
+-- p/p.go --
+package p
+
+import (
+	"fmt"
+
+	. "net/http"
+	. "runtime"
+	. "go/types"
+	. "go/parser"
+	. "go/ast"
+)
+
+type S struct {
+	a, b, c, d, e, f, g, h, i, j, k, l, m int
+	n, o, p, q, r, s, t, u, v, w, x, y, z int
+}
+
+func _() {
+	var s S
+	fmt.Println(s.)
+}
+`
+
+	WithOptions(Settings{
+		"completionBudget": "1ns", // must be non-zero as 0 => infinity
+	}).Run(t, src, func(t *testing.T, env *Env) {
+		wantFields := make(map[string]bool)
+		for c := 'a'; c <= 'z'; c++ {
+			wantFields[string(c)] = true
+		}
+
+		env.OpenFile("p/p.go")
+		// Make an arbitrary edit to ensure we're not hitting the cache.
+		env.EditBuffer("p/p.go", fake.NewEdit(0, 0, 0, 0, fmt.Sprintf("// current time: %v\n", time.Now())))
+		loc := env.RegexpSearch("p/p.go", `s\.()`)
+		completions := env.Completion(loc)
+		gotFields := make(map[string]bool)
+		for _, item := range completions.Items {
+			if item.Kind == protocol.FieldCompletion {
+				gotFields[item.Label] = true
+			}
+		}
+
+		if diff := cmp.Diff(wantFields, gotFields); diff != "" {
+			t.Errorf("Completion(...) returned mismatching fields (-want +got):\n%s", diff)
 		}
 	})
 }

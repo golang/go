@@ -232,10 +232,6 @@ type completer struct {
 	// mapper converts the positions in the file from which the completion originated.
 	mapper *protocol.Mapper
 
-	// startTime is when we started processing this completion request. It does
-	// not include any time the request spent in the queue.
-	startTime time.Time
-
 	// scopes contains all scopes defined by nodes in our path,
 	// including nil values for nodes that don't defined a scope. It
 	// also includes our package scope and the universal scope at the
@@ -445,8 +441,6 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	ctx, done := event.Start(ctx, "completion.Completion")
 	defer done()
 
-	startTime := time.Now()
-
 	pkg, pgf, err := source.NarrowestPackageForFile(ctx, snapshot, fh.URI())
 	if err != nil || pgf.File.Package == token.NoPos {
 		// If we can't parse this file or find position for the package
@@ -555,22 +549,30 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		matcher:        prefixMatcher(""),
 		methodSetCache: make(map[methodSetKey]*types.MethodSet),
 		mapper:         pgf.Mapper,
-		startTime:      startTime,
 		scopes:         scopes,
 	}
 
-	var cancel context.CancelFunc
-	if c.opts.budget == 0 {
-		ctx, cancel = context.WithCancel(ctx)
-	} else {
-		// timeoutDuration is the completion budget remaining. If less than
-		// 10ms, set to 10ms
-		timeoutDuration := time.Until(c.startTime.Add(c.opts.budget))
-		if timeoutDuration < 10*time.Millisecond {
-			timeoutDuration = 10 * time.Millisecond
-		}
-		ctx, cancel = context.WithTimeout(ctx, timeoutDuration)
+	ctx, cancel := context.WithCancel(ctx)
+
+	// Compute the deadline for this operation. Deadline is relative to the
+	// search operation, not the entire completion RPC, as the work up until this
+	// point depends significantly on how long it took to type-check, which in
+	// turn depends on the timing of the request relative to other operations on
+	// the snapshot. Including that work in the budget leads to inconsistent
+	// results (and realistically, if type-checking took 200ms already, the user
+	// is unlikely to be significantly more bothered by e.g. another 100ms of
+	// search).
+	//
+	// Don't overload the context with this deadline, as we don't want to
+	// conflate user cancellation (=fail the operation) with our time limit
+	// (=stop searching and succeed with partial results).
+	start := time.Now()
+	var deadline *time.Time
+	if c.opts.budget > 0 {
+		d := start.Add(c.opts.budget)
+		deadline = &d
 	}
+
 	defer cancel()
 
 	if surrounding := c.containingIdent(pgf.Src); surrounding != nil {
@@ -585,7 +587,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	}
 
 	// Deep search collected candidates and their members for more candidates.
-	c.deepSearch(ctx)
+	c.deepSearch(ctx, start, deadline)
 
 	for _, callback := range c.completionCallbacks {
 		if err := c.snapshot.RunProcessEnvFunc(ctx, callback); err != nil {
@@ -595,7 +597,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 
 	// Search candidates populated by expensive operations like
 	// unimportedMembers etc. for more completion items.
-	c.deepSearch(ctx)
+	c.deepSearch(ctx, start, deadline)
 
 	// Statement candidates offer an entire statement in certain contexts, as
 	// opposed to a single object. Add statement candidates last because they
@@ -614,7 +616,7 @@ func (c *completer) collectCompletions(ctx context.Context) error {
 		if !(importSpec.Path.Pos() <= c.pos && c.pos <= importSpec.Path.End()) {
 			continue
 		}
-		return c.populateImportCompletions(ctx, importSpec)
+		return c.populateImportCompletions(importSpec)
 	}
 
 	// Inside comments, offer completions for the name of the relevant symbol.
@@ -767,7 +769,7 @@ func (c *completer) emptySwitchStmt() bool {
 // Completions for "golang.org/" yield its subdirectories
 // (i.e. "golang.org/x/"). The user is meant to accept completion suggestions
 // until they reach a complete import path.
-func (c *completer) populateImportCompletions(ctx context.Context, searchImport *ast.ImportSpec) error {
+func (c *completer) populateImportCompletions(searchImport *ast.ImportSpec) error {
 	if !strings.HasPrefix(searchImport.Path.Value, `"`) {
 		return nil
 	}

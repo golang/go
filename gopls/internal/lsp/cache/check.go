@@ -748,7 +748,7 @@ func (ph *packageHandle) clone(validated bool) *packageHandle {
 }
 
 // getPackageHandles gets package handles for all given ids and their
-// dependencies.
+// dependencies, recursively.
 func (s *snapshot) getPackageHandles(ctx context.Context, ids []PackageID) (map[PackageID]*packageHandle, error) {
 	s.mu.Lock()
 	meta := s.meta

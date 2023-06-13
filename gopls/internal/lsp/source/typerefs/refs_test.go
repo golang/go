@@ -485,7 +485,7 @@ type P struct{}
 
 func (a) x(P)
 `},
-			want: map[string][]string{},
+			want:      map[string][]string{},
 			allowErrs: true,
 		},
 		{

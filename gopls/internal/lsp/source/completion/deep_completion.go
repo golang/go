@@ -113,7 +113,7 @@ func (s *deepCompletionState) newPath(cand candidate, obj types.Object) []types.
 // deepSearch searches a candidate and its subordinate objects for completion
 // items if deep completion is enabled and adds the valid candidates to
 // completion items.
-func (c *completer) deepSearch(ctx context.Context) {
+func (c *completer) deepSearch(ctx context.Context, start time.Time, deadline *time.Time) {
 	defer func() {
 		// We can return early before completing the search, so be sure to
 		// clear out our queues to not impact any further invocations.
@@ -121,7 +121,9 @@ func (c *completer) deepSearch(ctx context.Context) {
 		c.deepState.nextQueue = c.deepState.nextQueue[:0]
 	}()
 
-	for len(c.deepState.nextQueue) > 0 {
+	first := true // always fully process the first set of candidates
+	for len(c.deepState.nextQueue) > 0 && (first || deadline == nil || time.Now().Before(*deadline)) {
+		first = false
 		c.deepState.thisQueue, c.deepState.nextQueue = c.deepState.nextQueue, c.deepState.thisQueue[:0]
 
 	outer:
@@ -170,7 +172,7 @@ func (c *completer) deepSearch(ctx context.Context) {
 
 			c.deepState.candidateCount++
 			if c.opts.budget > 0 && c.deepState.candidateCount%100 == 0 {
-				spent := float64(time.Since(c.startTime)) / float64(c.opts.budget)
+				spent := float64(time.Since(start)) / float64(c.opts.budget)
 				select {
 				case <-ctx.Done():
 					return
