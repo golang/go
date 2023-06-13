@@ -31,8 +31,6 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/typeparams"
-
-	_ "unsafe" // for go:linkname
 )
 
 // A Path is an opaque name that identifies a types.Object
@@ -123,8 +121,8 @@ func For(obj types.Object) (Path, error) {
 // An Encoder amortizes the cost of encoding the paths of multiple objects.
 // The zero value of an Encoder is ready to use.
 type Encoder struct {
-	scopeNamesMemo   map[*types.Scope][]string      // memoization of Scope.Names()
-	namedMethodsMemo map[*types.Named][]*types.Func // memoization of namedMethods()
+	scopeMemo        map[*types.Scope][]types.Object // memoization of scopeObjects
+	namedMethodsMemo map[*types.Named][]*types.Func  // memoization of namedMethods()
 }
 
 // For returns the path to an object relative to its package,
@@ -257,15 +255,14 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 	// the best paths because non-types may
 	// refer to types, but not the reverse.
 	empty := make([]byte, 0, 48) // initial space
-	names := enc.scopeNames(scope)
-	for _, name := range names {
-		o := scope.Lookup(name)
+	objs := enc.scopeObjects(scope)
+	for _, o := range objs {
 		tname, ok := o.(*types.TypeName)
 		if !ok {
 			continue // handle non-types in second pass
 		}
 
-		path := append(empty, name...)
+		path := append(empty, o.Name()...)
 		path = append(path, opType)
 
 		T := o.Type()
@@ -291,9 +288,8 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 
 	// Then inspect everything else:
 	// non-types, and declared methods of defined types.
-	for _, name := range names {
-		o := scope.Lookup(name)
-		path := append(empty, name...)
+	for _, o := range objs {
+		path := append(empty, o.Name()...)
 		if _, ok := o.(*types.TypeName); !ok {
 			if o.Exported() {
 				// exported non-type (const, var, func)
@@ -748,17 +744,22 @@ func (enc *Encoder) namedMethods(named *types.Named) []*types.Func {
 	return methods
 }
 
-// scopeNames is a memoization of scope.Names. Callers must not modify the result.
-func (enc *Encoder) scopeNames(scope *types.Scope) []string {
-	m := enc.scopeNamesMemo
+// scopeObjects is a memoization of scope objects.
+// Callers must not modify the result.
+func (enc *Encoder) scopeObjects(scope *types.Scope) []types.Object {
+	m := enc.scopeMemo
 	if m == nil {
-		m = make(map[*types.Scope][]string)
-		enc.scopeNamesMemo = m
+		m = make(map[*types.Scope][]types.Object)
+		enc.scopeMemo = m
 	}
-	names, ok := m[scope]
+	objs, ok := m[scope]
 	if !ok {
-		names = scope.Names() // allocates and sorts
-		m[scope] = names
+		names := scope.Names() // allocates and sorts
+		objs = make([]types.Object, len(names))
+		for i, name := range names {
+			objs[i] = scope.Lookup(name)
+		}
+		m[scope] = objs
 	}
-	return names
+	return objs
 }
