@@ -601,9 +601,16 @@ func (t *tester) registerTests() {
 			}
 		}
 	} else {
-		// Use a format string to only list packages and commands that have tests.
-		const format = "{{if (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}"
-		cmd := exec.Command(gorootBinGo, "list", "-f", format)
+		// Use 'go list std cmd' to get a list of all Go packages
+		// that running 'go test std cmd' could find problems in.
+		// (In race test mode, also set -tags=race.)
+		//
+		// This includes vendored packages and other packages without
+		// tests so that 'dist test' finds if any of them don't build,
+		// have a problem reported by high-confidence vet checks that
+		// come with 'go test', and anything else 'go test' may check
+		// in the future. See go.dev/issue/60463.
+		cmd := exec.Command(gorootBinGo, "list")
 		if t.race {
 			cmd.Args = append(cmd.Args, "-tags=race")
 		}
