@@ -21,5 +21,5 @@
 //
 // The correct code is:
 //
-//	defer func() { recordLatency(time.Since(start)) }()`
+//	defer func() { recordLatency(time.Since(start)) }()
 package defers

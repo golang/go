@@ -26,6 +26,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/composite"
 	"golang.org/x/tools/go/analysis/passes/copylock"
 	"golang.org/x/tools/go/analysis/passes/deepequalerrors"
+	"golang.org/x/tools/go/analysis/passes/defers"
 	"golang.org/x/tools/go/analysis/passes/directive"
 	"golang.org/x/tools/go/analysis/passes/errorsas"
 	"golang.org/x/tools/go/analysis/passes/fieldalignment"
@@ -1544,6 +1545,7 @@ func defaultAnalyzers() map[string]*Analyzer {
 		cgocall.Analyzer.Name:       {Analyzer: cgocall.Analyzer, Enabled: true},
 		composite.Analyzer.Name:     {Analyzer: composite.Analyzer, Enabled: true},
 		copylock.Analyzer.Name:      {Analyzer: copylock.Analyzer, Enabled: true},
+		defers.Analyzer.Name:        {Analyzer: defers.Analyzer, Enabled: true},
 		deprecated.Analyzer.Name:    {Analyzer: deprecated.Analyzer, Enabled: true, Severity: protocol.SeverityHint, Tag: []protocol.DiagnosticTag{protocol.Deprecated}},
 		directive.Analyzer.Name:     {Analyzer: directive.Analyzer, Enabled: true},
 		errorsas.Analyzer.Name:      {Analyzer: errorsas.Analyzer, Enabled: true},

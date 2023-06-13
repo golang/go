@@ -108,6 +108,26 @@ errors is discouraged.
 
 **Enabled by default.**
 
+## **defer**
+
+report common mistakes in defer statements
+
+The defer analyzer reports a diagnostic when a defer statement would
+result in a non-deferred call to time.Since, as experience has shown
+that this is nearly always a mistake.
+
+For example:
+
+	start := time.Now()
+	...
+	defer recordLatency(time.Since(start)) // error: call to time.Since is not deferred
+
+The correct code is:
+
+	defer func() { recordLatency(time.Since(start)) }()
+
+**Enabled by default.**
+
 ## **deprecated**
 
 check for use of deprecated identifiers
