@@ -4385,8 +4385,16 @@ func TestRowsScanProperlyWrapsErrors(t *testing.T) {
 	}
 }
 
-// From go.dev/issue/60304
 func TestContextCancelDuringRawBytesScan(t *testing.T) {
+	for _, mode := range []string{"nocancel", "top", "bottom", "go"} {
+		t.Run(mode, func(t *testing.T) {
+			testContextCancelDuringRawBytesScan(t, mode)
+		})
+	}
+}
+
+// From go.dev/issue/60304
+func testContextCancelDuringRawBytesScan(t *testing.T, mode string) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
@@ -4394,6 +4402,8 @@ func TestContextCancelDuringRawBytesScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// cancel used to call close asynchronously.
+	// This test checks that it waits so as not to interfere with RawBytes.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -4404,9 +4414,22 @@ func TestContextCancelDuringRawBytesScan(t *testing.T) {
 	numRows := 0
 	var sink byte
 	for r.Next() {
+		if mode == "top" && numRows == 2 {
+			// cancel between Next and Scan is observed by Scan as err = context.Canceled.
+			// The sleep here is only to make it more likely that the cancel will be observed.
+			// If not, the test should still pass, like in "go" mode.
+			cancel()
+			time.Sleep(100 * time.Millisecond)
+		}
 		numRows++
 		var s RawBytes
 		err = r.Scan(&s)
+		if numRows == 3 && err == context.Canceled {
+			if r.closemuScanHold {
+				t.Errorf("expected closemu NOT to be held")
+			}
+			break
+		}
 		if !r.closemuScanHold {
 			t.Errorf("expected closemu to be held")
 		}
@@ -4414,8 +4437,16 @@ func TestContextCancelDuringRawBytesScan(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Logf("read %q", s)
-		if numRows == 2 {
-			cancel() // invalidate the context, which used to call close asynchronously
+		if mode == "bottom" && numRows == 2 {
+			// cancel before Next should be observed by Next, exiting the loop.
+			// The sleep here is only to make it more likely that the cancel will be observed.
+			// If not, the test should still pass, like in "go" mode.
+			cancel()
+			time.Sleep(100 * time.Millisecond)
+		}
+		if mode == "go" && numRows == 2 {
+			// cancel at any future time, to catch other cases
+			go cancel()
 		}
 		for _, b := range s { // some operation reading from the raw memory
 			sink += b
