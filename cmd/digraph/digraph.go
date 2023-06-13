@@ -63,18 +63,27 @@ shirt -> sweater, not shirt -> tie -> sweater.
 
 Example usage:
 
-Using digraph with existing Go tools:
-
-	$ go mod graph | digraph nodes # Operate on the Go module graph.
-	$ go list -m all | digraph nodes # Operate on the Go package graph.
-
-Show the transitive closure of imports of the digraph tool itself:
-
-	$ go list -f '{{.ImportPath}} {{join .Imports " "}}' ... | digraph forward golang.org/x/tools/cmd/digraph
-
 Show which clothes (see above) must be donned before a jacket:
 
 	$ digraph reverse jacket
+
+Many tools can be persuaded to produce output in digraph format,
+as in the following examples.
+
+Using an import graph produced by go list, show a path that indicates
+why the gopls application depends on the cmp package:
+
+	$ go list -f '{{.ImportPath}} {{join .Imports " "}}' -deps golang.org/x/tools/gopls |
+		digraph somepath golang.org/x/tools/gopls github.com/google/go-cmp/cmp
+
+Show which packages in x/tools depend, perhaps indirectly, on the callgraph package:
+
+	$ go list -f '{{.ImportPath}} {{join .Imports " "}}' -deps golang.org/x/tools/... |
+		digraph reverse golang.org/x/tools/go/callgraph
+
+Using a module graph produced by go mod, show all dependencies of the current module:
+
+	$ go mod graph | digraph forward $(go list -m)
 */
 package main // import "golang.org/x/tools/cmd/digraph"
 
