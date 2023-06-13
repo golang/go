@@ -113,30 +113,33 @@ func typecheck(t *testing.T, ppkg *packages.Package) {
 
 	// importer state
 	var (
-		insert    func(p *types.Package, name string)
-		importMap = make(map[string]*types.Package) // keys are PackagePaths
+		loadFromExportData func(*packages.Package) (*types.Package, error)
+		importMap          = map[string]*types.Package{ // keys are PackagePaths
+			ppkg.PkgPath: types.NewPackage(ppkg.PkgPath, ppkg.Name),
+		}
 	)
-	loadFromExportData := func(imp *packages.Package) (*types.Package, error) {
-		data := []byte(imp.ExportFile)
-		return gcimporter.IImportShallow(fset, gcimporter.GetPackageFromMap(importMap), data, imp.PkgPath, insert)
-	}
-	insert = func(p *types.Package, name string) {
-		imp, ok := depsByPkgPath[p.Path()]
-		if !ok {
-			t.Fatalf("can't find dependency: %q", p.Path())
+	loadFromExportData = func(imp *packages.Package) (*types.Package, error) {
+		export := []byte(imp.ExportFile)
+		getPackages := func(items []gcimporter.GetPackagesItem) error {
+			for i, item := range items {
+				pkg, ok := importMap[item.Path]
+				if !ok {
+					dep, ok := depsByPkgPath[item.Path]
+					if !ok {
+						return fmt.Errorf("can't find dependency: %q", item.Path)
+					}
+					pkg = types.NewPackage(item.Path, dep.Name)
+					importMap[item.Path] = pkg
+					loadFromExportData(dep) // side effect: populate package scope
+				}
+				items[i].Pkg = pkg
+			}
+			return nil
 		}
-		imported, err := loadFromExportData(imp)
-		if err != nil {
-			t.Fatalf("unmarshal: %v", err)
-		}
-		if imported != p {
-			t.Fatalf("internal error: inconsistent packages")
-		}
-		if obj := imported.Scope().Lookup(name); obj == nil {
-			t.Fatalf("lookup %q.%s failed", imported.Path(), name)
-		}
+		return gcimporter.IImportShallow(fset, getPackages, export, imp.PkgPath)
 	}
 
+	// Type-check the syntax trees.
 	cfg := &types.Config{
 		Error: func(e error) {
 			t.Error(e)
@@ -153,8 +156,10 @@ func typecheck(t *testing.T, ppkg *packages.Package) {
 		}),
 	}
 
-	// Type-check the syntax trees.
-	tpkg, _ := cfg.Check(ppkg.PkgPath, fset, syntax, nil)
+	// (Use NewChecker+Files to ensure Package.Name is set explicitly.)
+	tpkg := types.NewPackage(ppkg.PkgPath, ppkg.Name)
+	_ = types.NewChecker(cfg, fset, tpkg, nil).Files(syntax) // ignore error
+	// Check sanity.
 	postTypeCheck(t, fset, tpkg)
 
 	// Save the export data.

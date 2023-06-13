@@ -122,11 +122,6 @@ type snapshot struct {
 	// IDs not contained in the map are not known to be open or not open.
 	activePackages *persistent.Map // from packageID to *Package
 
-	// analyses maps an analysisKey (which identifies a package
-	// and a set of analyzers) to the handle for the future result
-	// of loading the package and analyzing it.
-	analyses *persistent.Map // from analysisKey to analysisPromise
-
 	// workspacePackages contains the workspace's packages, which are loaded
 	// when the view is created. It contains no intermediate test variants.
 	workspacePackages map[PackageID]PackagePath
@@ -268,7 +263,6 @@ func (s *snapshot) destroy(destroyedBy string) {
 
 	s.packages.Destroy()
 	s.activePackages.Destroy()
-	s.analyses.Destroy()
 	s.files.Destroy()
 	s.knownSubdirs.Destroy()
 	s.symbolizeHandles.Destroy()
@@ -2014,7 +2008,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		initializedErr:       s.initializedErr,
 		packages:             s.packages.Clone(),
 		activePackages:       s.activePackages.Clone(),
-		analyses:             s.analyses.Clone(),
 		files:                s.files.Clone(),
 		parseCache:           s.parseCache,
 		symbolizeHandles:     s.symbolizeHandles.Clone(),
@@ -2240,18 +2233,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 			}
 		}
 		result.activePackages.Delete(id)
-	}
-
-	// Delete invalidated analysis actions.
-	var actionsToDelete []analysisKey
-	result.analyses.Range(func(k, _ interface{}) {
-		key := k.(analysisKey)
-		if _, ok := idsToInvalidate[key.pkgid]; ok {
-			actionsToDelete = append(actionsToDelete, key)
-		}
-	})
-	for _, key := range actionsToDelete {
-		result.analyses.Delete(key)
 	}
 
 	// If a file has been deleted, we must delete metadata for all packages

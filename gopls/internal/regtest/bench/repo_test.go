@@ -87,6 +87,15 @@ var repos = map[string]*repo{
 		short:  true,
 		inDir:  flag.String("tools_dir", "", "if set, reuse this directory as x/tools@v0.9.0"),
 	},
+
+	// A repo of similar size to kubernetes, but with substantially more
+	// complex types that led to a serious performance regression (issue #60621).
+	"hashiform": {
+		name:   "hashiform",
+		url:    "https://github.com/hashicorp/terraform-provider-aws",
+		commit: "ac55de2b1950972d93feaa250d7505d9ed829c7c",
+		inDir:  flag.String("hashiform_dir", "", "if set, reuse this directory as hashiform@ac55de2"),
+	},
 }
 
 // getRepo gets the requested repo, and skips the test if -short is set and

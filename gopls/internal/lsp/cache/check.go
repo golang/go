@@ -531,29 +531,19 @@ func (b *typeCheckBatch) importPackage(ctx context.Context, m *source.Metadata, 
 
 	impMap := b.importMap(m.ID)
 
-	var firstErr error // TODO(rfindley): unused: revisit or remove.
 	thisPackage := types.NewPackage(string(m.PkgPath), string(m.Name))
-	getPackage := func(path, name string) *types.Package {
-		if path == string(m.PkgPath) {
-			return thisPackage
+	getPackages := func(items []gcimporter.GetPackagesItem) error {
+		for i, item := range items {
+			if item.Path == string(m.PkgPath) {
+				items[i].Pkg = thisPackage
+			} else {
+				pkg, err := b.getImportPackage(ctx, impMap[item.Path])
+				if err != nil {
+					return err
+				}
+				items[i].Pkg = pkg
+			}
 		}
-
-		id := impMap[path]
-		imp, err := b.getImportPackage(ctx, id)
-		if err == nil {
-			return imp
-		}
-		// inv: err != nil
-		if firstErr == nil {
-			firstErr = err
-		}
-
-		// Context cancellation, or a very bad error such as a file permission
-		// error.
-		//
-		// Returning nil here will cause the import to fail (and panic if
-		// gcimporter.debug is set), but that is preferable to the confusing errors
-		// produced when shallow import encounters an empty package.
 		return nil
 	}
 
@@ -563,9 +553,9 @@ func (b *typeCheckBatch) importPackage(ctx context.Context, m *source.Metadata, 
 		return nil, ctx.Err()
 	}
 
-	// TODO(rfindley): collect "deep" hashes here using the provided
+	// TODO(rfindley): collect "deep" hashes here using the getPackages
 	// callback, for precise pruning.
-	imported, err := gcimporter.IImportShallow(b.fset, getPackage, data, string(m.PkgPath), func(*types.Package, string) {})
+	imported, err := gcimporter.IImportShallow(b.fset, getPackages, data, string(m.PkgPath))
 	if err != nil {
 		return nil, fmt.Errorf("import failed for %q: %v", m.ID, err)
 	}

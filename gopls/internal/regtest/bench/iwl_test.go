@@ -27,6 +27,7 @@ func BenchmarkInitialWorkspaceLoad(b *testing.B) {
 		{"pkgsite", "internal/frontend/server.go"},
 		{"starlark", "starlark/eval.go"},
 		{"tools", "internal/lsp/cache/snapshot.go"},
+		{"hashiform", "internal/provider/provider.go"},
 	}
 
 	for _, test := range tests {

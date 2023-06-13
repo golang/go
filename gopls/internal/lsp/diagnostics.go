@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -362,7 +363,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 	var (
 		seen       = map[span.URI]struct{}{}
 		toDiagnose = make(map[source.PackageID]*source.Metadata)
-		toAnalyze  = make(map[source.PackageID]*source.Metadata)
+		toAnalyze  = make(map[source.PackageID]unit)
 	)
 	for _, m := range workspace {
 		var hasNonIgnored, hasOpenFile bool
@@ -378,7 +379,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 		if hasNonIgnored {
 			toDiagnose[m.ID] = m
 			if analyze == analyzeEverything || analyze == analyzeOpenPackages && hasOpenFile {
-				toAnalyze[m.ID] = m
+				toAnalyze[m.ID] = unit{}
 			}
 		}
 	}
@@ -416,7 +417,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 // of concurrent dispatch: as of writing we concurrently run TidyDiagnostics
 // and diagnosePkgs, and diagnosePkgs concurrently runs PackageDiagnostics and
 // analysis.
-func (s *Server) diagnosePkgs(ctx context.Context, snapshot source.Snapshot, toDiagnose, toAnalyze map[source.PackageID]*source.Metadata) {
+func (s *Server) diagnosePkgs(ctx context.Context, snapshot source.Snapshot, toDiagnose map[source.PackageID]*source.Metadata, toAnalyze map[source.PackageID]unit) {
 	ctx, done := event.Start(ctx, "Server.diagnosePkgs", source.SnapshotLabels(snapshot)...)
 	defer done()
 
@@ -425,7 +426,6 @@ func (s *Server) diagnosePkgs(ctx context.Context, snapshot source.Snapshot, toD
 	var (
 		wg            sync.WaitGroup
 		pkgDiags      map[span.URI][]*source.Diagnostic
-		analysisMu    sync.Mutex
 		analysisDiags = make(map[span.URI][]*source.Diagnostic)
 	)
 
@@ -446,28 +446,30 @@ func (s *Server) diagnosePkgs(ctx context.Context, snapshot source.Snapshot, toD
 
 	// Get diagnostics from analysis framework.
 	// This includes type-error analyzers, which suggest fixes to compiler errors.
-	//
-	// TODO(adonovan): in many cases we will be analyze multiple open variants of
-	// an open package, which have significantly overlapping import graphs.
-	// It may make sense to change the Analyze API to accept a slice of IDs, or
-	// merge analysis with type-checking.
-	for _, m := range toAnalyze {
-		m := m
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			diags, err := source.Analyze(ctx, snapshot, m.ID, false)
-			if err != nil {
-				event.Error(ctx, "warning: analyzing package", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
-				return
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		diags, err := source.Analyze(ctx, snapshot, toAnalyze, false)
+		if err != nil {
+			var tagStr string // sorted comma-separated list of package IDs
+			{
+				// TODO(adonovan): replace with a generic map[S]any -> string
+				// function in the tag package, and use  maps.Keys + slices.Sort.
+				keys := make([]string, 0, len(toDiagnose))
+				for id := range toDiagnose {
+					keys = append(keys, string(id))
+				}
+				sort.Strings(keys)
+				tagStr = strings.Join(keys, ",")
 			}
-			analysisMu.Lock()
-			for uri, diags := range diags {
-				analysisDiags[uri] = append(analysisDiags[uri], diags...)
-			}
-			analysisMu.Unlock()
-		}()
-	}
+			event.Error(ctx, "warning: analyzing package", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(tagStr))...)
+			return
+		}
+		for uri, diags := range diags {
+			analysisDiags[uri] = append(analysisDiags[uri], diags...)
+		}
+	}()
+
 	wg.Wait()
 
 	// TODO(rfindley): remove the guards against snapshot.IsBuiltin, after the

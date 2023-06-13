@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
@@ -34,7 +35,6 @@ import (
 	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/facts"
 	"golang.org/x/tools/internal/gcimporter"
-	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/typeparams"
 	"golang.org/x/tools/internal/typesinternal"
 )
@@ -43,48 +43,50 @@ import (
 
    DESIGN
 
-   An analysis request is for a set of analyzers and an individual
-   package ID, notated (a*, p). The result is the set of diagnostics
-   for that package. It could easily be generalized to a set of
-   packages, (a*, p*), and perhaps should be, to improve performance
-   versus calling it in a loop.
+   An analysis request (Snapshot.Analyze) is for a set of Analyzers and
+   PackageIDs. The result is the set of diagnostics for those
+   packages. Each request constructs a transitively closed DAG of
+   nodes, each representing a package, then works bottom up in
+   parallel postorder calling runCached to ensure that each node's
+   analysis summary is up to date. The summary contains the analysis
+   diagnostics as well as the intermediate results required by the
+   recursion, such as serialized types and facts.
 
-   The snapshot holds a cache (persistent.Map) of entries keyed by
-   (a*, p) pairs ("analysisKey") that have been requested so far. Some
-   of these entries may be invalidated during snapshot cloning after a
-   modification event.  The cache maps each (a*, p) to a promise of
-   the analysis result or "analysisSummary". The summary contains the
-   results of analysis (e.g. diagnostics) as well as the intermediate
-   results required by the recursion, such as serialized types and
-   facts.
+   The entire DAG is ephemeral. Each node in the DAG records the set
+   of analyzers to run: the complete set for the root packages, and
+   the "facty" subset for dependencies. Each package is thus analyzed
+   at most once. The entire DAG shares a single FileSet for parsing
+   and importing.
 
-   The promise represents the result of a call to analyzeImpl, which
-   type-checks a package and then applies a graph of analyzers to it
-   in parallel postorder. (These graph edges are "horizontal": within
-   the same package.) First, analyzeImpl reads the source files of
-   package p, and obtains (recursively) the results of the "vertical"
-   dependencies (i.e. analyzers applied to the packages imported by
-   p). Only the subset of analyzers that use facts need be executed
-   recursively, but even if this subset is empty, the step is still
-   necessary because it provides type information. It is possible that
-   a package may need to be type-checked and analyzed twice, for
-   different subsets of analyzers, but the overlap is typically
-   insignificant.
-
-   With the file contents and the results of vertical dependencies,
-   analyzeImpl is then in a position to produce a key representing the
-   unit of work (parsing, type-checking, and analysis) that it has to
-   do. The key is a cryptographic hash of the "recipe" for this step,
-   including the Metadata, the file contents, the set of analyzers,
-   and the type and fact information from the vertical dependencies.
+   Each node is processed by runCached. It gets the source file
+   content hashes for package p, and the summaries of its "vertical"
+   dependencies (direct imports), and from them it computes a key
+   representing the unit of work (parsing, type-checking, and
+   analysis) that it has to do. The key is a cryptographic hash of the
+   "recipe" for this step, including the Metadata, the file contents,
+   the set of analyzers, and the type and fact information from the
+   vertical dependencies.
 
    The key is sought in a machine-global persistent file-system based
    cache. If this gopls process, or another gopls process on the same
-   machine, has already performed this analysis step, analyzeImpl will
+   machine, has already performed this analysis step, runCached will
    make a cache hit and load the serialized summary of the results. If
-   not, it will have to proceed to type-checking and analysis, and
-   write a new cache entry. The entry contains serialized types
-   (export data) and analysis facts.
+   not, it will have to proceed to run() to parse and type-check the
+   package and then apply a set of analyzers to it. (The set of
+   analyzers applied to a single package itself forms a graph of
+   "actions", and it too is evaluated in parallel postorder; these
+   dependency edges within the same package are called "horizontal".)
+   Finally it writes a new cache entry. The entry contains serialized
+   types (export data) and analysis facts.
+
+   Each node in the DAG acts like a go/types importer mapping,
+   providing a consistent view of packages and their objects: the
+   mapping for a node is a superset of its dependencies' mappings.
+   Every node has an associated *types.Package, initially nil. A
+   package is populated during run (cache miss) by type-checking its
+   syntax; but for a cache hit, the package is populated lazily, i.e.
+   not until it later becomes necessary because it is imported
+   directly or referenced by export data higher up in the DAG.
 
    For types, we use "shallow" export data. Historically, the Go
    compiler always produced a summary of the types for a given package
@@ -103,11 +105,8 @@ import (
    "Shallow" export data means that the serialized types describe only
    a single package. If those types mention types from other packages,
    the type checker may need to request additional packages beyond
-   just the direct imports. This means type information for the entire
-   transitive closure of imports may need to be available just in
-   case. After a cache hit or a cache miss, the summary is
-   postprocessed so that it contains the union of export data payloads
-   of all its direct dependencies.
+   just the direct imports. Type information for the entire transitive
+   closure of imports is provided (lazily) by the DAG.
 
    For correct dependency analysis, the digest used as a cache key
    must reflect the "deep" export data, so it is derived recursively
@@ -119,8 +118,9 @@ import (
    but if its export data is unchanged as a result, then indirect
    consumers may not need to be re-executed.  This allows, for example,
    one to insert a print statement in a function and not "rebuild" the
-   whole application (though export data does record line numbers of
-   types which may be perturbed by otherwise insignificant changes.)
+   whole application (though export data does record line numbers and
+   offsets of types which may be perturbed by otherwise insignificant
+   changes.)
 
    The summary must record whether a package is transitively
    error-free (whether it would compile) because many analyzers are
@@ -133,13 +133,6 @@ import (
 */
 
 // TODO(adonovan):
-// - Profile + optimize:
-//   - on a cold run, mostly type checking + export data, unsurprisingly.
-//   - on a hot-disk run, mostly type checking the IWL.
-//     Would be nice to have a benchmark that separates this out.
-//   - measure and record in the code the typical operation times
-//     and file sizes (export data + facts = cache entries).
-// - Do "port the old logic" tasks (see TODO in actuallyAnalyze).
 // - Add a (white-box) test of pruning when a change doesn't affect export data.
 // - Optimise pruning based on subset of packages mentioned in exportdata.
 // - Better logging so that it is possible to deduce why an analyzer
@@ -147,7 +140,6 @@ import (
 //   Even if the ultimate consumer decides to ignore errors,
 //   tests and other situations want to be assured of freedom from
 //   errors, not just missing results. This should be recorded.
-// - Check that the event trace is intelligible.
 // - Split this into a subpackage, gopls/internal/lsp/cache/driver,
 //   consisting of this file and three helpers from errors.go.
 //   The (*snapshot).Analyze method would stay behind and make calls
@@ -157,11 +149,6 @@ import (
 //        Metadata(PackageID) source.Metadata
 //        ReadFile(Context, URI) (source.FileHandle, error)
 //        View() *View // for Options
-//   - define a State type that encapsulates the persistent map
-//     (with its own mutex), and has methods:
-//        New() *State
-//        Clone(invalidate map[PackageID]bool) *State
-//        Destroy()
 //   - share cache.{goVersionRx,parseGoImpl}
 
 // Analyze applies a set of analyzers to the package denoted by id,
@@ -171,8 +158,19 @@ import (
 //
 // Precondition: all analyzers within the process have distinct names.
 // (The names are relied on by the serialization logic.)
-func (s *snapshot) Analyze(ctx context.Context, id PackageID, analyzers []*source.Analyzer) ([]*source.Diagnostic, error) {
-	ctx, done := event.Start(ctx, "snapshot.Analyze", tag.Package.Of(string(id)))
+func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, analyzers []*source.Analyzer) ([]*source.Diagnostic, error) {
+	var tagStr string // sorted comma-separated list of PackageIDs
+	{
+		// TODO(adonovan): replace with a generic map[S]any -> string
+		// function in the tag package, and use maps.Keys + slices.Sort.
+		keys := make([]string, 0, len(pkgs))
+		for id := range pkgs {
+			keys = append(keys, string(id))
+		}
+		sort.Strings(keys)
+		tagStr = strings.Join(keys, ",")
+	}
+	ctx, done := event.Start(ctx, "snapshot.Analyze", tag.Package.Of(tagStr))
 	defer done()
 
 	// Filter and sort enabled root analyzers.
@@ -180,7 +178,7 @@ func (s *snapshot) Analyze(ctx context.Context, id PackageID, analyzers []*sourc
 	toSrc := make(map[*analysis.Analyzer]*source.Analyzer)
 	var enabled []*analysis.Analyzer
 	for _, a := range analyzers {
-		if a.IsEnabled(s.view.Options()) {
+		if a.IsEnabled(snapshot.view.Options()) {
 			toSrc[a.Analyzer] = a
 			enabled = append(enabled, a.Analyzer)
 		}
@@ -188,21 +186,149 @@ func (s *snapshot) Analyze(ctx context.Context, id PackageID, analyzers []*sourc
 	sort.Slice(enabled, func(i, j int) bool {
 		return enabled[i].Name < enabled[j].Name
 	})
+	analyzers = nil // prevent accidental use
 
 	// Register fact types of required analyzers.
-	for _, a := range requiredAnalyzers(enabled) {
-		for _, f := range a.FactTypes {
-			gob.Register(f)
+	enabled = requiredAnalyzers(enabled)
+	var useFacts []*analysis.Analyzer
+	for _, a := range enabled {
+		if len(a.FactTypes) > 0 {
+			useFacts = append(useFacts, a)
+			for _, f := range a.FactTypes {
+				gob.Register(f) // <2us
+			}
 		}
 	}
+	useFacts = requiredAnalyzers(useFacts)
 
-	// Run the analysis.
-	res, err := s.analyze(ctx, id, enabled)
-	if err != nil {
-		return nil, err
+	// File set for this batch (entire graph) of analysis.
+	fset := token.NewFileSet()
+
+	// Starting from the root packages and following DepsByPkgPath,
+	// build the DAG of packages we're going to analyze.
+	//
+	// Root nodes will run the enabled set of analyzers,
+	// whereas dependencies will run only the useFacts set.
+	nodes := make(map[PackageID]*analysisNode)
+	var leaves []*analysisNode // nodes with no unfinished successors
+	var makeNode func(from *analysisNode, id PackageID) (*analysisNode, error)
+	makeNode = func(from *analysisNode, id PackageID) (*analysisNode, error) {
+		an, ok := nodes[id]
+		if !ok {
+			m := snapshot.Metadata(id)
+			if m == nil {
+				return nil, bug.Errorf("no metadata for %s", id)
+			}
+
+			// -- preorder --
+
+			an = &analysisNode{
+				fset:       fset,
+				m:          m,
+				analyzers:  useFacts, // all nodes run at least the facty analyzers
+				allDeps:    make(map[PackagePath]*analysisNode),
+				exportDeps: make(map[PackagePath]*analysisNode),
+			}
+			// Unsafe must use a distinguished types.Package.
+			// Mark it as fully populated from birth.
+			if m.PkgPath == "unsafe" {
+				an.typesOnce.Do(func() { an.types = types.Unsafe })
+			}
+			nodes[id] = an
+
+			// -- recursion --
+
+			// Build subgraphs for dependencies.
+			an.succs = make(map[PackageID]*analysisNode, len(m.DepsByPkgPath))
+			for _, depID := range m.DepsByPkgPath {
+				dep, err := makeNode(an, depID)
+				if err != nil {
+					return nil, err
+				}
+				an.succs[depID] = dep
+
+				// Compute the union of all dependencies.
+				// (This step has quadratic complexity.)
+				for pkgPath, node := range dep.allDeps {
+					an.allDeps[pkgPath] = node
+				}
+			}
+
+			// -- postorder --
+
+			an.allDeps[m.PkgPath] = an // add self entry (reflexive transitive closure)
+
+			// Add leaf nodes (no successors) directly to queue.
+			if len(an.succs) == 0 {
+				leaves = append(leaves, an)
+			}
+
+			// Load the contents of each compiled Go file through
+			// the snapshot's cache. (These are all cache hits as
+			// files are pre-loaded following packages.Load)
+			an.files = make([]source.FileHandle, len(m.CompiledGoFiles))
+			for i, uri := range m.CompiledGoFiles {
+				fh, err := snapshot.ReadFile(ctx, uri)
+				if err != nil {
+					return nil, err
+				}
+				an.files[i] = fh
+			}
+		}
+		// Add edge from predecessor.
+		if from != nil {
+			atomic.AddInt32(&from.count, 1) // TODO(adonovan): use generics
+			an.preds = append(an.preds, from)
+		}
+		return an, nil
 	}
-	// Inv: res is the successful result of analyzeImpl(analyzers, id),
-	// which augments the successful result of actuallyAnalyze.
+
+	// For root packages, we run the enabled set of analyzers.
+	var roots []*analysisNode
+	for id := range pkgs {
+		root, err := makeNode(nil, id)
+		if err != nil {
+			return nil, err
+		}
+		root.analyzers = enabled
+		roots = append(roots, root)
+	}
+
+	// Now that we have read all files,
+	// we no longer need the snapshot.
+	snapshot = nil
+
+	// Execute phase: run leaves first, adding
+	// new nodes to the queue as they become leaves.
+	var g errgroup.Group
+	// Avoid g.SetLimit here: it makes g.Go stop accepting work,
+	// which prevents workers from enqeuing, and thus finishing,
+	// and thus allowing the group to make progress: deadlock.
+	var enqueue func(it *analysisNode)
+	enqueue = func(an *analysisNode) {
+		g.Go(func() error {
+			summary, err := an.runCached(ctx)
+			if err != nil {
+				return err // cancelled, or failed to produce a package
+			}
+			an.summary = summary
+
+			// Notify each waiting predecessor,
+			// and enqueue it when it becomes a leaf.
+			for _, pred := range an.preds {
+				if atomic.AddInt32(&pred.count, -1) == 0 {
+					enqueue(pred)
+				}
+			}
+			return nil
+		})
+	}
+	for _, leaf := range leaves {
+		enqueue(leaf)
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err // cancelled, or failed to produce a package
+	}
 
 	// Report diagnostics only from enabled actions that succeeded.
 	// Errors from creating or analyzing packages are ignored.
@@ -215,43 +341,114 @@ func (s *snapshot) Analyze(ctx context.Context, id PackageID, analyzers []*sourc
 	// Even if current callers choose to discard the
 	// results, we should propagate the per-action errors.
 	var results []*source.Diagnostic
-	for _, a := range enabled {
-		summary, ok := res.Actions[a.Name]
-		if summary == nil {
-			panic(fmt.Sprintf("analyzeSummary.Actions[%q] = (nil, %t); got %v (#60551)",
-				a.Name, ok, res.Actions))
-		}
-		if summary.Err != "" {
-			continue // action failed
-		}
-		for _, gobDiag := range summary.Diagnostics {
-			results = append(results, toSourceDiagnostic(toSrc[a], &gobDiag))
+	for _, root := range roots {
+		for _, a := range enabled {
+			// Inv: root.summary is the successful result of run (via runCached).
+			summary, ok := root.summary.Actions[a.Name]
+			if summary == nil {
+				panic(fmt.Sprintf("analyzeSummary.Actions[%q] = (nil, %t); got %v (#60551)",
+					a.Name, ok, root.summary.Actions))
+			}
+			if summary.Err != "" {
+				continue // action failed
+			}
+			for _, gobDiag := range summary.Diagnostics {
+				results = append(results, toSourceDiagnostic(toSrc[a], &gobDiag))
+			}
 		}
 	}
 	return results, nil
 }
 
-// analysisKey is the type of keys in the snapshot.analyses map.
-type analysisKey struct {
-	analyzerNames string
-	pkgid         PackageID
+// An analysisNode is a node in a doubly-linked DAG isomorphic to the
+// import graph. Each node represents a single package, and the DAG
+// represents a batch of analysis work done at once using a single
+// realm of token.Pos or types.Object values.
+//
+// A complete DAG is created anew for each batch of analysis;
+// subgraphs are not reused over time. Each node's *types.Package
+// field is initially nil and is populated on demand, either from
+// type-checking syntax trees (typeCheck) or from importing export
+// data (_import). When this occurs, the typesOnce event becomes
+// "done".
+//
+// Each node's allDeps map is a "view" of all its dependencies keyed by
+// package path, which defines the types.Importer mapping used when
+// populating the node's types.Package. Different nodes have different
+// views (e.g. due to variants), but two nodes that are related by
+// graph ordering have views that are consistent in their overlap.
+// exportDeps is the subset actually referenced by export data;
+// this is the set for which we attempt to decode facts.
+//
+// Each node's run method is called in parallel postorder. On success,
+// its summary field is populated, either from the cache (hit), or by
+// type-checking and analyzing syntax (miss).
+type analysisNode struct {
+	fset       *token.FileSet                // file set shared by entire batch (DAG)
+	m          *source.Metadata              // metadata for this package
+	files      []source.FileHandle           // contents of CompiledGoFiles
+	analyzers  []*analysis.Analyzer          // set of analyzers to run
+	preds      []*analysisNode               // graph edges:
+	succs      map[PackageID]*analysisNode   //   (preds -> self -> succs)
+	allDeps    map[PackagePath]*analysisNode // all dependencies including self
+	exportDeps map[PackagePath]*analysisNode // subset of allDeps ref'd by export data (+self)
+	count      int32                         // number of unfinished successors
+	summary    *analyzeSummary               // serializable result of analyzing this package
+	typesOnce  sync.Once                     // guards lazy population of types field
+	types      *types.Package                // type information lazily imported from summary
 }
 
-func (key analysisKey) String() string {
-	return fmt.Sprintf("%s@%s", key.analyzerNames, key.pkgid)
+func (an *analysisNode) String() string { return string(an.m.ID) }
+
+// _import imports this node's types.Package from export data, if not already done.
+// Precondition: analysis was a success.
+// Postcondition: an.types and an.exportDeps are populated.
+func (an *analysisNode) _import() *types.Package {
+	an.typesOnce.Do(func() {
+		an.types = types.NewPackage(string(an.m.PkgPath), string(an.m.Name))
+
+		// getPackages recursively imports each dependency
+		// referenced by the export data, in parallel.
+		getPackages := func(items []gcimporter.GetPackagesItem) error {
+			var g errgroup.Group
+			for i, item := range items {
+				path := PackagePath(item.Path)
+				dep, ok := an.allDeps[path]
+				if !ok {
+					// This early return bypasses Wait; that's ok.
+					return fmt.Errorf("%s: unknown dependency %q", an.m, path)
+				}
+				an.exportDeps[path] = dep // record, for later fact decoding
+				if dep == an {
+					items[i].Pkg = an.types
+				} else {
+					i := i
+					g.Go(func() error {
+						items[i].Pkg = dep._import()
+						return nil
+					})
+				}
+			}
+			return g.Wait()
+		}
+		pkg, err := gcimporter.IImportShallow(an.fset, getPackages, an.summary.Export, string(an.m.PkgPath))
+		if err != nil {
+			log.Fatalf("%s: invalid export data: %v", an.m, err)
+		}
+		if pkg != an.types {
+			log.Fatalf("%s: inconsistent packages", an.m)
+		}
+	})
+	return an.types
 }
 
 // analyzeSummary is a gob-serializable summary of successfully
 // applying a list of analyzers to a package.
 type analyzeSummary struct {
-	PkgPath        PackagePath // types.Package.Path() (needed to decode export data)
-	Export         []byte
+	Export         []byte      // encoded types of package
 	DeepExportHash source.Hash // hash of reflexive transitive closure of export data
 	Compiles       bool        // transitively free of list/parse/type errors
 	Actions        actionsMap  // map from analyzer name to analysis results (*actionSummary)
-
-	// Not serialized: populated after the summary is computed or deserialized.
-	allExport map[PackagePath][]byte // transitive export data
 }
 
 // actionsMap defines a stable Gob encoding for a map.
@@ -302,126 +499,16 @@ type actionSummary struct {
 	Err         string // "" => success
 }
 
-// analyze is a memoization of analyzeImpl.
-func (s *snapshot) analyze(ctx context.Context, id PackageID, analyzers []*analysis.Analyzer) (*analyzeSummary, error) {
-	// Use the caller-sorted list of names of analyzers in the key.
-	//
-	// TODO(adonovan): opt: account for analysis results at a
-	// finer grain to avoid duplicate work when a
-	// a proper subset of analyzers is requested?
-	// In particular, TypeErrorAnalyzers don't use facts
-	// but need to request vdeps just for type information.
-	names := make([]string, 0, len(analyzers))
-	for _, a := range analyzers {
-		names = append(names, a.Name)
-	}
-	// This key describes the result of applying a list of analyzers to a package.
-	key := analysisKey{strings.Join(names, ","), id}
-
-	// An analysisPromise represents the result of loading, parsing,
-	// type-checking and analyzing a single package.
-	type analysisPromise struct {
-		promise *memoize.Promise // [analyzeImplResult]
-	}
-
-	type analyzeImplResult struct {
-		summary *analyzeSummary
-		err     error
-	}
-
-	// Access the map once, briefly, and atomically.
-	s.mu.Lock()
-	entry, hit := s.analyses.Get(key)
-	if !hit {
-		entry = analysisPromise{
-			promise: memoize.NewPromise("analysis", func(ctx context.Context, arg interface{}) interface{} {
-				summary, err := analyzeImpl(ctx, arg.(*snapshot), analyzers, id)
-				return analyzeImplResult{summary, err}
-			}),
-		}
-		s.analyses.Set(key, entry, nil) // nothing needs releasing
-	}
-	s.mu.Unlock()
-
-	// Await result.
-	ap := entry.(analysisPromise)
-	v, err := s.awaitPromise(ctx, ap.promise)
-	if err != nil {
-		return nil, err // e.g. cancelled
-	}
-	res := v.(analyzeImplResult)
-	return res.summary, res.err
-}
-
-// analyzeImpl applies a list of analyzers (plus any others
+// runCached applies a list of analyzers (plus any others
 // transitively required by them) to a package.  It succeeds as long
 // as it could produce a types.Package, even if there were direct or
 // indirect list/parse/type errors, and even if all the analysis
 // actions failed. It usually fails only if the package was unknown,
 // a file was missing, or the operation was cancelled.
 //
-// Postcondition: analyzeImpl must not continue to use the snapshot
+// Postcondition: runCached must not continue to use the snapshot
 // (in background goroutines) after it has returned; see memoize.RefCounted.
-func analyzeImpl(ctx context.Context, snapshot *snapshot, analyzers []*analysis.Analyzer, id PackageID) (*analyzeSummary, error) {
-	m := snapshot.Metadata(id)
-	if m == nil {
-		return nil, fmt.Errorf("no metadata for %s", id)
-	}
-
-	// Also, load the contents of each "compiled" Go file through
-	// the snapshot's cache.
-	// (These are all cache hits as files are pre-loaded following packages.Load)
-	compiledGoFiles := make([]source.FileHandle, len(m.CompiledGoFiles))
-	for i, uri := range m.CompiledGoFiles {
-		fh, err := snapshot.ReadFile(ctx, uri)
-		if err != nil {
-			return nil, err // e.g. canceled
-		}
-		compiledGoFiles[i] = fh
-	}
-
-	// Recursively analyze each "vertical" dependency
-	// for its types.Package and (perhaps) analysis.Facts.
-	// If any of them fails to produce a package, we cannot continue.
-	// We request only the analyzers that produce facts.
-	vdeps := make(map[PackageID]*analyzeSummary)
-	{
-		var group errgroup.Group
-
-		// Analyze vertical dependencies.
-		// We request only the required analyzers that use facts.
-		var useFacts []*analysis.Analyzer
-		for _, a := range requiredAnalyzers(analyzers) {
-			if len(a.FactTypes) > 0 {
-				useFacts = append(useFacts, a)
-			}
-		}
-		var vdepsMu sync.Mutex
-		for _, id := range m.DepsByPkgPath {
-			id := id
-			group.Go(func() error {
-				res, err := snapshot.analyze(ctx, id, useFacts)
-				if err != nil {
-					return err // cancelled, or failed to produce a package
-				}
-
-				vdepsMu.Lock()
-				vdeps[id] = res
-				vdepsMu.Unlock()
-				return nil
-			})
-		}
-
-		if err := group.Wait(); err != nil {
-			return nil, err
-		}
-	}
-
-	// Inv: analyze() of all vdeps succeeded (though some actions may have failed).
-
-	// We no longer depend on the snapshot.
-	snapshot = nil
-
+func (an *analysisNode) runCached(ctx context.Context) (*analyzeSummary, error) {
 	// At this point we have the action results (serialized
 	// packages and facts) of our immediate dependencies,
 	// and the metadata and content of this package.
@@ -433,7 +520,7 @@ func analyzeImpl(ctx context.Context, snapshot *snapshot, analyzers []*analysis.
 	// The hash of our inputs is based on the serialized export
 	// data and facts so that immaterial changes can be pruned
 	// without decoding.
-	key := analysisCacheKey(analyzers, m, compiledGoFiles, vdeps)
+	key := an.cacheKey()
 
 	// Access the cache.
 	var summary *analyzeSummary
@@ -446,14 +533,14 @@ func analyzeImpl(ctx context.Context, snapshot *snapshot, analyzers []*analysis.
 	} else {
 		// Cache miss: do the work.
 		var err error
-		summary, err = actuallyAnalyze(ctx, analyzers, m, vdeps, compiledGoFiles)
+		summary, err = an.run(ctx)
 		if err != nil {
 			return nil, err
 		}
 		go func() {
 			data := mustEncode(summary)
 			if false {
-				log.Printf("Set key=%d value=%d id=%s\n", len(key), len(data), id)
+				log.Printf("Set key=%d value=%d id=%s\n", len(key), len(data), an.m.ID)
 			}
 			if err := filecache.Set(cacheKind, key, data); err != nil {
 				event.Error(ctx, "internal error updating analysis shared cache", err)
@@ -461,34 +548,15 @@ func analyzeImpl(ctx context.Context, snapshot *snapshot, analyzers []*analysis.
 		}()
 	}
 
-	// Hit or miss, we need to merge the export data from
-	// dependencies so that it includes all the types
-	// that might be summoned by the type checker.
-	//
-	// TODO(adonovan): opt: reduce this set by recording
-	// which packages were actually summoned by insert().
-	// (Just makes map smaller; probably marginal?)
-	allExport := make(map[PackagePath][]byte)
-	for _, vdep := range vdeps {
-		for k, v := range vdep.allExport {
-			allExport[k] = v
-		}
-	}
-	allExport[m.PkgPath] = summary.Export
-	summary.allExport = allExport
-
 	return summary, nil
 }
 
 // analysisCacheKey returns a cache key that is a cryptographic digest
 // of the all the values that might affect type checking and analysis:
 // the analyzer names, package metadata, names and contents of
-// compiled Go files, and vdeps information (export data and facts).
-//
-// TODO(adonovan): safety: define our own flavor of Metadata
-// containing just the fields we need, and using it in the subsequent
-// logic, to keep us honest about hashing all parts that matter?
-func analysisCacheKey(analyzers []*analysis.Analyzer, m *source.Metadata, compiledGoFiles []source.FileHandle, vdeps map[PackageID]*analyzeSummary) [sha256.Size]byte {
+// compiled Go files, and vdeps (successor) information
+// (export data and facts).
+func (an *analysisNode) cacheKey() [sha256.Size]byte {
 	hasher := sha256.New()
 
 	// In principle, a key must be the hash of an
@@ -496,12 +564,13 @@ func analysisCacheKey(analyzers []*analysis.Analyzer, m *source.Metadata, compil
 	// If it's ambiguous, we risk collisions.
 
 	// analyzers
-	fmt.Fprintf(hasher, "analyzers: %d\n", len(analyzers))
-	for _, a := range analyzers {
+	fmt.Fprintf(hasher, "analyzers: %d\n", len(an.analyzers))
+	for _, a := range an.analyzers {
 		fmt.Fprintln(hasher, a.Name)
 	}
 
 	// package metadata
+	m := an.m
 	fmt.Fprintf(hasher, "package: %s %s %s\n", m.ID, m.Name, m.PkgPath)
 	// We can ignore m.DepsBy{Pkg,Import}Path: although the logic
 	// uses those fields, we account for them by hashing vdeps.
@@ -521,30 +590,31 @@ func analysisCacheKey(analyzers []*analysis.Analyzer, m *source.Metadata, compil
 	}
 
 	// file names and contents
-	fmt.Fprintf(hasher, "files: %d\n", len(compiledGoFiles))
-	for _, fh := range compiledGoFiles {
+	fmt.Fprintf(hasher, "files: %d\n", len(an.files))
+	for _, fh := range an.files {
 		fmt.Fprintln(hasher, fh.FileIdentity())
 	}
 
 	// vdeps, in PackageID order
-	depIDs := make([]string, 0, len(vdeps))
-	for depID := range vdeps {
+	depIDs := make([]string, 0, len(an.succs))
+	for depID := range an.succs {
 		depIDs = append(depIDs, string(depID))
 	}
-	sort.Strings(depIDs)
+	sort.Strings(depIDs) // TODO(adonovan): avoid conversions by using slices.Sort[PackageID]
 	for _, depID := range depIDs {
-		vdep := vdeps[PackageID(depID)]
-		fmt.Fprintf(hasher, "dep: %s\n", vdep.PkgPath)
-		fmt.Fprintf(hasher, "export: %s\n", vdep.DeepExportHash)
+		vdep := an.succs[PackageID(depID)]
+		fmt.Fprintf(hasher, "dep: %s\n", vdep.m.PkgPath)
+		fmt.Fprintf(hasher, "export: %s\n", vdep.summary.DeepExportHash)
 
 		// action results: errors and facts
-		names := make([]string, 0, len(vdep.Actions))
-		for name := range vdep.Actions {
+		actions := vdep.summary.Actions
+		names := make([]string, 0, len(actions))
+		for name := range actions {
 			names = append(names, name)
 		}
 		sort.Strings(names)
 		for _, name := range names {
-			summary := vdep.Actions[name]
+			summary := actions[name]
 			fmt.Fprintf(hasher, "action %s\n", name)
 			if summary.Err != "" {
 				fmt.Fprintf(hasher, "error %s\n", summary.Err)
@@ -561,28 +631,25 @@ func analysisCacheKey(analyzers []*analysis.Analyzer, m *source.Metadata, compil
 	return hash
 }
 
-// actuallyAnalyze implements the cache-miss case.
+// run implements the cache-miss case.
 // This function does not access the snapshot.
 //
 // Postcondition: on success, the analyzeSummary.Actions
 // key set is {a.Name for a in analyzers}.
-func actuallyAnalyze(ctx context.Context, analyzers []*analysis.Analyzer, m *source.Metadata, vdeps map[PackageID]*analyzeSummary, compiledGoFiles []source.FileHandle) (*analyzeSummary, error) {
-	// Create a local FileSet for processing this package only.
-	fset := token.NewFileSet()
-
+func (an *analysisNode) run(ctx context.Context) (*analyzeSummary, error) {
 	// Parse only the "compiled" Go files.
 	// Do the computation in parallel.
-	parsed := make([]*source.ParsedGoFile, len(compiledGoFiles))
+	parsed := make([]*source.ParsedGoFile, len(an.files))
 	{
 		var group errgroup.Group
-		for i, fh := range compiledGoFiles {
+		for i, fh := range an.files {
 			i, fh := i, fh
 			group.Go(func() error {
 				// Call parseGoImpl directly, not the caching wrapper,
 				// as cached ASTs require the global FileSet.
 				// ast.Object resolution is unfortunately an implied part of the
 				// go/analysis contract.
-				pgf, err := parseGoImpl(ctx, fset, fh, source.ParseFull&^source.SkipObjectResolution)
+				pgf, err := parseGoImpl(ctx, an.fset, fh, source.ParseFull&^source.SkipObjectResolution)
 				parsed[i] = pgf
 				return err
 			})
@@ -592,21 +659,42 @@ func actuallyAnalyze(ctx context.Context, analyzers []*analysis.Analyzer, m *sou
 		}
 	}
 
-	// Type-check the package.
-	pkg := typeCheckForAnalysis(fset, parsed, m, vdeps)
+	// Type-check the package syntax.
+	pkg := an.typeCheck(parsed)
 
-	// Build a map of PkgPath to *Package for all packages mentioned
-	// in exportdata for use by facts.
-	pkg.factsDecoder = facts.NewDecoder(pkg.types)
+	// Compute the union of exportDeps across our direct imports.
+	// This is the set that will be needed by the fact decoder.
+	allExportDeps := make(map[PackagePath]*analysisNode)
+	for _, succ := range an.succs {
+		for k, v := range succ.exportDeps {
+			allExportDeps[k] = v
+		}
+	}
+
+	// The fact decoder needs a means to look up a Package by path.
+	pkg.factsDecoder = facts.NewDecoderFunc(pkg.types, func(path string) *types.Package {
+		// Note: Decode is called concurrently, and thus so is this function.
+
+		// Does the fact relate to a package referenced by export data?
+		if dep, ok := allExportDeps[PackagePath(path)]; ok {
+			dep.typesOnce.Do(func() { log.Fatal("dep.types not populated") })
+			return dep.types
+		}
+
+		// If the fact relates to a dependency not referenced
+		// by export data, it is safe to ignore it.
+		// (In that case dep.types exists but may be unpopulated
+		// or in the process of being populated from export data.)
+		if an.allDeps[PackagePath(path)] == nil {
+			log.Fatalf("fact package %q is not a dependency", path)
+		}
+		return nil
+	})
 
 	// Poll cancellation state.
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-
-	// TODO(adonovan): port the old logic to:
-	// - gather go/packages diagnostics from m.Errors? (port goPackagesErrorDiagnostics)
-	// - gather diagnostics from expandErrors + typeErrorDiagnostics + depsErrors.
 
 	// -- analysis --
 
@@ -621,7 +709,7 @@ func actuallyAnalyze(ctx context.Context, analyzers []*analysis.Analyzer, m *sou
 			for _, req := range a.Requires {
 				hdeps = append(hdeps, mkAction(req))
 			}
-			act = &action{a: a, pkg: pkg, vdeps: vdeps, hdeps: hdeps}
+			act = &action{a: a, pkg: pkg, vdeps: an.succs, hdeps: hdeps}
 			actions[a] = act
 		}
 		return act
@@ -629,7 +717,7 @@ func actuallyAnalyze(ctx context.Context, analyzers []*analysis.Analyzer, m *sou
 
 	// Build actions for initial package.
 	var roots []*action
-	for _, a := range analyzers {
+	for _, a := range an.analyzers {
 		roots = append(roots, mkAction(a))
 	}
 
@@ -652,7 +740,6 @@ func actuallyAnalyze(ctx context.Context, analyzers []*analysis.Analyzer, m *sou
 	}
 
 	return &analyzeSummary{
-		PkgPath:        PackagePath(pkg.types.Path()),
 		Export:         pkg.export,
 		DeepExportHash: pkg.deepExportHash,
 		Compiles:       pkg.compiles,
@@ -660,9 +747,13 @@ func actuallyAnalyze(ctx context.Context, analyzers []*analysis.Analyzer, m *sou
 	}, nil
 }
 
-func typeCheckForAnalysis(fset *token.FileSet, parsed []*source.ParsedGoFile, m *source.Metadata, vdeps map[PackageID]*analyzeSummary) *analysisPackage {
+// Postcondition: an.types and an.exportDeps are populated.
+func (an *analysisNode) typeCheck(parsed []*source.ParsedGoFile) *analysisPackage {
+	m := an.m
+	fset := an.fset
+
 	if false { // debugging
-		log.Println("typeCheckForAnalysis", m.PkgPath)
+		log.Println("typeCheck", m.ID)
 	}
 
 	pkg := &analysisPackage{
@@ -684,6 +775,11 @@ func typeCheckForAnalysis(fset *token.FileSet, parsed []*source.ParsedGoFile, m 
 	}
 	typeparams.InitInstanceInfo(pkg.typesInfo)
 
+	// Unsafe has no syntax.
+	if m.PkgPath == "unsafe" {
+		return pkg
+	}
+
 	for i, p := range parsed {
 		pkg.files[i] = p.File
 		if p.ParseErr != nil {
@@ -691,74 +787,9 @@ func typeCheckForAnalysis(fset *token.FileSet, parsed []*source.ParsedGoFile, m 
 		}
 	}
 
-	// Unsafe is special.
-	if m.PkgPath == "unsafe" {
-		pkg.types = types.Unsafe
-		return pkg
-	}
-
-	// Compute the union of transitive export data.
-	// (The actual values are shared, and not serialized.)
-	allExport := make(map[PackagePath][]byte)
-	for _, vdep := range vdeps {
-		for k, v := range vdep.allExport {
-			allExport[k] = v
-		}
-
-		if !vdep.Compiles {
+	for _, vdep := range an.succs {
+		if !vdep.summary.Compiles {
 			pkg.compiles = false // transitive error
-		}
-	}
-
-	// exportHasher computes a hash of the names and export data of
-	// each package that was actually loaded during type checking.
-	//
-	// Because we use shallow export data, the hash for dependency
-	// analysis must incorporate indirect dependencies. As an
-	// optimization, we include only those that were actually
-	// used, which may be a small subset of those available.
-	//
-	// TODO(adonovan): opt: even better would be to implement a
-	// traversal over the package API like facts.NewDecoder does
-	// and only mention that set of packages in the hash.
-	// Perhaps there's a way to do that more efficiently.
-	//
-	// TODO(adonovan): opt: record the shallow hash alongside the
-	// shallow export data in the allExport map to avoid repeatedly
-	// hashing the export data.
-	//
-	// The writes to hasher below assume that type checking imports
-	// packages in a deterministic order.
-	exportHasher := sha256.New()
-	hashExport := func(pkgPath PackagePath, export []byte) {
-		fmt.Fprintf(exportHasher, "%s %d ", pkgPath, len(export))
-		exportHasher.Write(export)
-	}
-
-	// importer state
-	var (
-		insert    func(p *types.Package, name string)
-		importMap = make(map[string]*types.Package) // keys are PackagePaths
-	)
-	loadFromExportData := func(pkgPath PackagePath) (*types.Package, error) {
-		export, ok := allExport[pkgPath]
-		if !ok {
-			return nil, bug.Errorf("missing export data for %q", pkgPath)
-		}
-		hashExport(pkgPath, export)
-		imported, err := gcimporter.IImportShallow(fset, gcimporter.GetPackageFromMap(importMap), export, string(pkgPath), insert)
-		if err != nil {
-			return nil, bug.Errorf("invalid export data for %q: %v", pkgPath, err)
-		}
-		return imported, nil
-	}
-	insert = func(p *types.Package, name string) {
-		imported, err := loadFromExportData(PackagePath(p.Path()))
-		if err != nil {
-			log.Fatalf("internal error: %v", err)
-		}
-		if imported != p {
-			log.Fatalf("internal error: inconsistent packages")
 		}
 	}
 
@@ -778,16 +809,13 @@ func typeCheckForAnalysis(fset *token.FileSet, parsed []*source.ParsedGoFile, m 
 			pkg.typeErrors = append(pkg.typeErrors, typeError)
 		},
 		Importer: importerFunc(func(importPath string) (*types.Package, error) {
-			if importPath == "unsafe" {
-				return types.Unsafe, nil // unsafe has no export data
-			}
-
 			// Beware that returning an error from this function
 			// will cause the type checker to synthesize a fake
 			// package whose Path is importPath, potentially
 			// losing a vendor/ prefix. If type-checking errors
 			// are swallowed, these packages may be confusing.
 
+			// Map ImportPath to ID.
 			id, ok := m.DepsByImpPath[ImportPath(importPath)]
 			if !ok {
 				// The import syntax is inconsistent with the metadata.
@@ -798,22 +826,23 @@ func typeCheckForAnalysis(fset *token.FileSet, parsed []*source.ParsedGoFile, m 
 				return nil, fmt.Errorf("missing metadata for import of %q", importPath)
 			}
 
-			depResult, ok := vdeps[id] // id may be ""
-			if !ok {
+			// Map ID to node. (id may be "")
+			dep := an.succs[id]
+			if dep == nil {
 				// Analogous to (*snapshot).missingPkgError
 				// in the logic for regular type-checking,
 				// but without a snapshot we can't provide
 				// such detail, and anyway most analysis
 				// failures aren't surfaced in the UI.
-				return nil, fmt.Errorf("no required module provides package %q (id=%q)", importPath, id)
+				return nil, fmt.Errorf("no required module provides analysis package %q (id=%q)", importPath, id)
 			}
 
 			// (Duplicates logic from check.go.)
-			if !source.IsValidImport(m.PkgPath, depResult.PkgPath) {
+			if !source.IsValidImport(an.m.PkgPath, dep.m.PkgPath) {
 				return nil, fmt.Errorf("invalid use of internal package %s", importPath)
 			}
 
-			return loadFromExportData(depResult.PkgPath)
+			return dep._import(), nil
 		}),
 	}
 
@@ -845,7 +874,13 @@ func typeCheckForAnalysis(fset *token.FileSet, parsed []*source.ParsedGoFile, m 
 		}
 	}
 
-	// Emit the export data and compute the deep hash.
+	// Publish the completed package.
+	an.typesOnce.Do(func() { an.types = pkg.types })
+	if an.types != pkg.types {
+		log.Fatalf("typesOnce prematurely done")
+	}
+
+	// Emit the export data and compute the recursive hash.
 	export, err := gcimporter.IExportShallow(pkg.fset, pkg.types)
 	if err != nil {
 		// TODO(adonovan): in light of exporter bugs such as #57729,
@@ -854,10 +889,54 @@ func typeCheckForAnalysis(fset *token.FileSet, parsed []*source.ParsedGoFile, m 
 		log.Fatalf("internal error writing shallow export data: %v", err)
 	}
 	pkg.export = export
-	hashExport(m.PkgPath, export)
-	exportHasher.Sum(pkg.deepExportHash[:0])
+
+	// Compute a recursive hash to account for the export data of
+	// this package and each dependency referenced by it.
+	// Also, populate exportDeps.
+	hash := sha256.New()
+	fmt.Fprintf(hash, "%s %d\n", m.PkgPath, len(export))
+	hash.Write(export)
+	paths, err := readShallowManifest(export)
+	if err != nil {
+		log.Fatalf("internal error: bad export data: %v", err)
+	}
+	for _, path := range paths {
+		dep, ok := an.allDeps[PackagePath(path)]
+		if !ok {
+			log.Fatalf("%s: missing dependency: %q", an, path)
+		}
+		fmt.Fprintf(hash, "%s %s\n", dep.m.PkgPath, dep.summary.DeepExportHash)
+		an.exportDeps[PackagePath(path)] = dep
+	}
+	an.exportDeps[m.PkgPath] = an // self
+	hash.Sum(pkg.deepExportHash[:0])
 
 	return pkg
+}
+
+// readShallowManifest returns the manifest of packages referenced by
+// a shallow export data file for a package (excluding the package itself).
+// TODO(adonovan): add a test.
+func readShallowManifest(export []byte) ([]PackagePath, error) {
+	const selfPath = "<self>" // dummy path
+	var paths []PackagePath
+	getPackages := func(items []gcimporter.GetPackagesItem) error {
+		paths = []PackagePath{} // non-nil
+		for _, item := range items {
+			if item.Path != selfPath {
+				paths = append(paths, PackagePath(item.Path))
+			}
+		}
+		return errors.New("stop") // terminate importer
+	}
+	_, err := gcimporter.IImportShallow(token.NewFileSet(), getPackages, export, selfPath)
+	if paths == nil {
+		if err != nil {
+			return nil, err // failed before getPackages callback
+		}
+		return nil, bug.Errorf("internal error: IImportShallow did not call getPackages")
+	}
+	return paths, nil // success
 }
 
 // analysisPackage contains information about a package, including
@@ -885,8 +964,8 @@ type action struct {
 	once  sync.Once
 	a     *analysis.Analyzer
 	pkg   *analysisPackage
-	hdeps []*action                     // horizontal dependencies
-	vdeps map[PackageID]*analyzeSummary // vertical dependencies
+	hdeps []*action                   // horizontal dependencies
+	vdeps map[PackageID]*analysisNode // vertical dependencies
 
 	// results of action.exec():
 	result  interface{} // result of Run function, of type a.ResultType
@@ -944,9 +1023,9 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 	// we return the dependencies' error' unadorned.
 	if hasFacts {
 		// TODO(adonovan): use deterministic order.
-		for _, res := range act.vdeps {
-			if vdep := res.Actions[analyzer.Name]; vdep.Err != "" {
-				return nil, nil, errors.New(vdep.Err)
+		for _, vdep := range act.vdeps {
+			if summ := vdep.summary.Actions[analyzer.Name]; summ.Err != "" {
+				return nil, nil, errors.New(summ.Err)
 			}
 		}
 	}
@@ -977,15 +1056,14 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 	// efficient to fork and tailor it to our precise needs.
 	//
 	// We've already sharded the fact encoding by action
-	// so that it can be done in parallel (hoisting the
-	// ImportMap call so that we build the map once per package).
+	// so that it can be done in parallel.
 	// We could eliminate locking.
 	// We could also dovetail more closely with the export data
 	// decoder to obtain a more compact representation of
 	// packages and objects (e.g. its internal IDs, instead
 	// of PkgPaths and objectpaths.)
 
-	// Read and decode analysis facts for each imported package.
+	// Read and decode analysis facts for each direct import.
 	factset, err := pkg.factsDecoder.Decode(func(imp *types.Package) ([]byte, error) {
 		if !hasFacts {
 			return nil, nil // analyzer doesn't use facts, so no vdeps
@@ -1012,11 +1090,12 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 			return nil, nil
 		}
 
-		vdep, ok := act.vdeps[id]
-		if !ok {
+		vdep := act.vdeps[id]
+		if vdep == nil {
 			return nil, bug.Errorf("internal error in %s: missing vdep for id=%s", pkg.types.Path(), id)
 		}
-		return vdep.Actions[analyzer.Name].Facts, nil
+
+		return vdep.summary.Actions[analyzer.Name].Facts, nil
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("internal error decoding analysis facts: %w", err)

@@ -203,7 +203,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		if err != nil {
 			return nil, err
 		}
-		analysisDiags, err := source.Analyze(ctx, snapshot, pkg.Metadata().ID, true)
+		analysisDiags, err := source.Analyze(ctx, snapshot, map[source.PackageID]unit{pkg.Metadata().ID: {}}, true)
 		if err != nil {
 			return nil, err
 		}
@@ -575,3 +575,5 @@ func goTest(ctx context.Context, snapshot source.Snapshot, uri span.URI, rng pro
 		Command: &cmd,
 	}}, nil
 }
+
+type unit = struct{}

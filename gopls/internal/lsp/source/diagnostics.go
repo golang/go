@@ -21,7 +21,7 @@ type SuggestedFix struct {
 }
 
 // Analyze reports go/analysis-framework diagnostics in the specified package.
-func Analyze(ctx context.Context, snapshot Snapshot, pkgid PackageID, includeConvenience bool) (map[span.URI][]*Diagnostic, error) {
+func Analyze(ctx context.Context, snapshot Snapshot, pkgIDs map[PackageID]unit, includeConvenience bool) (map[span.URI][]*Diagnostic, error) {
 	// Exit early if the context has been canceled. This also protects us
 	// from a race on Options, see golang/go#36699.
 	if ctx.Err() != nil {
@@ -45,7 +45,7 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkgid PackageID, includeCon
 		}
 	}
 
-	analysisDiagnostics, err := snapshot.Analyze(ctx, pkgid, analyzers)
+	analysisDiagnostics, err := snapshot.Analyze(ctx, pkgIDs, analyzers)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (File
 	if err != nil {
 		return nil, nil, err
 	}
-	adiags, err := Analyze(ctx, snapshot, pkg.Metadata().ID, false)
+	adiags, err := Analyze(ctx, snapshot, map[PackageID]unit{pkg.Metadata().ID: {}}, false)
 	if err != nil {
 		return nil, nil, err
 	}

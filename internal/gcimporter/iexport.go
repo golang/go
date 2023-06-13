@@ -47,19 +47,19 @@ func IExportShallow(fset *token.FileSet, pkg *types.Package) ([]byte, error) {
 // IImportShallow decodes "shallow" types.Package data encoded by
 // IExportShallow in the same executable. This function cannot import data from
 // cmd/compile or gcexportdata.Write.
-func IImportShallow(fset *token.FileSet, getPackage GetPackageFunc, data []byte, path string, insert InsertType) (*types.Package, error) {
+//
+// The importer calls getPackages to obtain package symbols for all
+// packages mentioned in the export data, including the one being
+// decoded.
+func IImportShallow(fset *token.FileSet, getPackages GetPackagesFunc, data []byte, path string) (*types.Package, error) {
 	const bundle = false
-	pkgs, err := iimportCommon(fset, getPackage, data, bundle, path, insert)
+	const shallow = true
+	pkgs, err := iimportCommon(fset, getPackages, data, bundle, path, shallow)
 	if err != nil {
 		return nil, err
 	}
 	return pkgs[0], nil
 }
-
-// InsertType is the type of a function that creates a types.TypeName
-// object for a named type and inserts it into the scope of the
-// specified Package.
-type InsertType = func(pkg *types.Package, name string)
 
 // Current bundled export format version. Increase with each format change.
 // 0: initial implementation
@@ -1222,6 +1222,13 @@ type internalError string
 
 func (e internalError) Error() string { return "gcimporter: " + string(e) }
 
+// TODO(adonovan): make this call panic, so that it's symmetric with errorf.
+// Otherwise it's easy to forget to do anything with the error.
+//
+// TODO(adonovan): also, consider switching the names "errorf" and
+// "internalErrorf" as the former is used for bugs, whose cause is
+// internal inconsistency, whereas the latter is used for ordinary
+// situations like bad input, whose cause is external.
 func internalErrorf(format string, args ...interface{}) error {
 	return internalError(fmt.Sprintf(format, args...))
 }

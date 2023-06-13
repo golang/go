@@ -92,8 +92,8 @@ type Snapshot interface {
 	// Position information is added to FileSet().
 	ParseGo(ctx context.Context, fh FileHandle, mode parser.Mode) (*ParsedGoFile, error)
 
-	// Analyze runs the specified analyzers on the given package at this snapshot.
-	Analyze(ctx context.Context, id PackageID, analyzers []*Analyzer) ([]*Diagnostic, error)
+	// Analyze runs the specified analyzers on the given packages at this snapshot.
+	Analyze(ctx context.Context, pkgIDs map[PackageID]unit, analyzers []*Analyzer) ([]*Diagnostic, error)
 
 	// RunGoCommandPiped runs the given `go` command, writing its output
 	// to stdout and stderr. Verb, Args, and WorkingDir must be specified.

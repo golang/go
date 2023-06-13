@@ -21,7 +21,7 @@ package source
 //   - special cases: embedded fields, interfaces, test variants,
 //     function-local things with uppercase names;
 //     packages with type errors (currently 'satisfy' rejects them),
-//     pakage with missing imports;
+//     package with missing imports;
 //
 // - measure performance in k8s.
 //
