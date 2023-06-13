@@ -160,7 +160,7 @@ func (mm *metaMerge) beginPod() {
 // the things in a pod -- counter files and meta-data file. There are
 // three cases of interest here:
 //
-// Case 1: in an unconditonal merge (we're not selecting a specific set of
+// Case 1: in an unconditional merge (we're not selecting a specific set of
 // packages using "-pkg", and the "-pcombine" option is not in use),
 // we can simply copy over the meta-data file from input to output.
 //

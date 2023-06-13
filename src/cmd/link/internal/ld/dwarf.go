@@ -1989,7 +1989,7 @@ type dwUnitSyms struct {
 
 // dwUnitPortion assembles the DWARF content for a given compilation
 // unit: debug_info, debug_lines, debug_ranges, debug_loc (debug_frame
-// is handled elsewere). Order is important; the calls to writelines
+// is handled elsewhere). Order is important; the calls to writelines
 // and writepcranges below make updates to the compilation unit DIE,
 // hence they have to happen before the call to writeUnitInfo.
 func (d *dwctxt) dwUnitPortion(u *sym.CompilationUnit, abbrevsym loader.Sym, us *dwUnitSyms) {

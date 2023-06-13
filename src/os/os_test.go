@@ -3005,7 +3005,7 @@ func TestDirFS(t *testing.T) {
 		t.Error("expected DirFS result to implement fs.ReadDirFS")
 	}
 	if _, err := rdfs.ReadDir("nonexistent"); err == nil {
-		t.Error("fs.ReadDir of nonexistent directory suceeded")
+		t.Error("fs.ReadDir of nonexistent directory succeeded")
 	}
 
 	// Test that the error message does not contain a backslash,

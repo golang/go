@@ -484,7 +484,7 @@ func TestCloneTimeNamespace(t *testing.T) {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 
-	// Inode numer of the time namespaces should be different.
+	// Inode number of the time namespaces should be different.
 	// Based on https://man7.org/linux/man-pages/man7/time_namespaces.7.html#EXAMPLES
 	timens, err := os.Readlink("/proc/self/ns/time")
 	if err != nil {

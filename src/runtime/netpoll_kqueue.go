@@ -66,7 +66,7 @@ func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	if goarch.PtrSize == 4 {
 		// We only have a pointer-sized field to store into,
 		// so on a 32-bit system we get no sequence protection.
-		// TODO(iant): If we notice any problems we could at leaset
+		// TODO(iant): If we notice any problems we could at least
 		// steal the low-order 2 bits for a tiny sequence number.
 		ev[0].udata = (*byte)(unsafe.Pointer(pd))
 	} else {

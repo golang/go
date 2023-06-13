@@ -115,7 +115,7 @@ int add(int x, int y) {
 	return x+y;
 };
 
-// Following mimicks vulkan complex definitions for benchmarking cgocheck overhead.
+// Following mimics vulkan complex definitions for benchmarking cgocheck overhead.
 
 typedef uint32_t VkFlags;
 typedef VkFlags  VkDeviceQueueCreateFlags;

@@ -108,7 +108,7 @@ type CovDataVisitor interface {
 	EndCounters()
 
 	// Invoked for each package in the meta-data file for the pod,
-	// first the 'begin' method when processinf of the package starts,
+	// first the 'begin' method when processing of the package starts,
 	// then the 'end' method when we're done
 	BeginPackage(pd *decodemeta.CoverageMetaDataDecoder, pkgIdx uint32)
 	EndPackage(pd *decodemeta.CoverageMetaDataDecoder, pkgIdx uint32)

@@ -193,8 +193,8 @@ const (
 // compiler allocates external registers F26 down
 const (
 	REGMIN = REG_R7  // register variables allocated from here to REGMAX
-	REGRT1 = REG_R16 // ARM64 IP0, external linker may use as a scrach register in trampoline
-	REGRT2 = REG_R17 // ARM64 IP1, external linker may use as a scrach register in trampoline
+	REGRT1 = REG_R16 // ARM64 IP0, external linker may use as a scratch register in trampoline
+	REGRT2 = REG_R17 // ARM64 IP1, external linker may use as a scratch register in trampoline
 	REGPR  = REG_R18 // ARM64 platform register, unused in the Go toolchain
 	REGMAX = REG_R25
 

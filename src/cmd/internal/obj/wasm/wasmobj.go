@@ -228,7 +228,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			for _, f := range wi.Params {
 				// Each load instructions will consume the value of sp on the stack, so
 				// we need to read sp for each param. WASM appears to not have a stack dup instruction
-				// (a strange ommission for a stack-based VM), if it did, we'd be using the dup here.
+				// (a strange omission for a stack-based VM), if it did, we'd be using the dup here.
 				p = appendp(p, AGet, regAddr(REG_SP))
 
 				// Offset is the location of the param on the Go stack (ie relative to sp).

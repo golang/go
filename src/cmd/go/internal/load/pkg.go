@@ -2940,7 +2940,7 @@ func setPGOProfilePath(pkgs []*Package) {
 		// Locate PGO profiles from the main packages, and
 		// attach the profile to the main package and its
 		// dependencies.
-		// If we're builing multiple main packages, they may
+		// If we're building multiple main packages, they may
 		// have different profiles. We may need to split (unshare)
 		// the dependency graph so they can attach different
 		// profiles.

@@ -2420,7 +2420,7 @@ func TestPathBuilding(t *testing.T) {
 		{
 			// A name constraint on the root should apply to any names that appear
 			// on the intermediate, meaning there is no valid chain.
-			name: "contrained root, invalid intermediate",
+			name: "constrained root, invalid intermediate",
 			graph: trustGraphDescription{
 				Roots: []rootDescription{
 					{
@@ -2455,7 +2455,7 @@ func TestPathBuilding(t *testing.T) {
 		{
 			// A name constraint on the intermediate does not apply to the intermediate
 			// itself, so this is a valid chain.
-			name: "contrained intermediate, non-matching SAN",
+			name: "constrained intermediate, non-matching SAN",
 			graph: trustGraphDescription{
 				Roots: []rootDescription{{Subject: "root"}},
 				Leaf:  "leaf",

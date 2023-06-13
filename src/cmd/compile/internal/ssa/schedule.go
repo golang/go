@@ -185,7 +185,7 @@ func schedule(f *Func) {
 				// Schedule flag register generation as late as possible.
 				// This makes sure that we only have one live flags
 				// value at a time.
-				// Note that this case is afer the case above, so values
+				// Note that this case is after the case above, so values
 				// which both read and generate flags are given ScoreReadFlags.
 				score[v.ID] = ScoreFlags
 			default:

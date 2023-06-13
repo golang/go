@@ -121,7 +121,7 @@ func (t *itabTableType) find(inter *interfacetype, typ *_type) *itab {
 // itabLock must be held.
 func itabAdd(m *itab) {
 	// Bugs can lead to calling this while mallocing is set,
-	// typically because this is called while panicing.
+	// typically because this is called while panicking.
 	// Crash reliably, rather than only when we need to grow
 	// the hash table.
 	if getg().m.mallocing != 0 {

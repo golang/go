@@ -964,7 +964,7 @@ func (po *poset) NonEqual(n1, n2 *Value) bool {
 		return false
 	}
 
-	// Check if we recored inequality
+	// Check if we recorded inequality
 	if po.isnoneq(i1, i2) {
 		return true
 	}
@@ -1166,7 +1166,7 @@ func (po *poset) SetEqual(n1, n2 *Value) bool {
 		}
 
 		// If we already knew that n1<=n2, we can collapse the path to
-		// record n1==n2 (and viceversa).
+		// record n1==n2 (and vice versa).
 		if po.reaches(i1, i2, false) {
 			return po.collapsepath(n1, n2)
 		}

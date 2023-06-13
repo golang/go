@@ -1555,7 +1555,7 @@ func mergePPC64AndSrwi(m, s int64) int64 {
 // Return the encoded RLWINM constant, or 0 if they cannot be merged.
 func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 	mask_1 := uint64(0xFFFFFFFF >> uint(srw))
-	// for CLRLSLDI, it's more convient to think of it as a mask left bits then rotate left.
+	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
 	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
 
 	// Rewrite mask to apply after the final left shift.
@@ -1575,7 +1575,7 @@ func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 // the encoded RLWINM constant, or 0 if they cannot be merged.
 func mergePPC64ClrlsldiRlwinm(sld int32, rlw int64) int64 {
 	r_1, _, _, mask_1 := DecodePPC64RotateMask(rlw)
-	// for CLRLSLDI, it's more convient to think of it as a mask left bits then rotate left.
+	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
 	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
 
 	// combine the masks, and adjust for the final left shift.

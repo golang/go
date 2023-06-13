@@ -1137,7 +1137,7 @@ func siftdownTimer(t []*timer, i int) {
 
 // badTimer is called if the timer data structures have been corrupted,
 // presumably due to racy use by the program. We panic here rather than
-// panicing due to invalid slice access while holding locks.
+// panicking due to invalid slice access while holding locks.
 // See issue #25686.
 func badTimer() {
 	throw("timer data corruption")
