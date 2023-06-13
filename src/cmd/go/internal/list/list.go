@@ -730,6 +730,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 				a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
 			}
 		}
+		if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+			load.PrepareForCoverageBuild(pkgs)
+		}
 		b.Do(ctx, a)
 	}
 
