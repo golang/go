@@ -189,6 +189,12 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su.SetRelocType(rIdx, objabi.R_ADDR)
 		return true
 
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_V4BX):
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected R_ARM_V4BX relocation for dynamic symbol %s", ldr.SymName(targ))
+		}
+		return true
+
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_PC24),
 		objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_JUMP24):
 		su := ldr.MakeSymbolUpdater(s)
