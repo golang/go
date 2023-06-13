@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 13, 2023",
+	"Subtitle": "Version of June 14, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -4340,24 +4340,46 @@ type parameter list    type arguments    after substitution
 </pre>
 
 <p>
-For a generic function, type arguments may be provided explicitly, or they
-may be partially or completely <a href="#Type_inference">inferred</a>.
-A generic function that is <i>not</i> <a href="#Calls">called</a> requires a
-type argument list for instantiation; if the list is partial, all
-remaining type arguments must be inferrable.
-A generic function that is called may provide a (possibly partial) type
-argument list, or may omit it entirely if the omitted type arguments are
-inferrable from the ordinary (non-type) function arguments.
+When using a generic function, type arguments may be provided explicitly,
+or they may be partially or completely <a href="#Type_inference">inferred</a>
+from the context in which the function is used.
+Provided that they can be inferred, type arguments may be omitted entirely if the function is:
+</p>
+
+<ul>
+<li>
+	<a href="#Calls">called</a> with ordinary arguments,
+</li>
+<li>
+	<a href="#Assignment_statements">assigned</a> to a variable with an explicitly declared type,
+</li>
+<li>
+	<a href="#Calls">passed as an argument</a> to another function, or
+</li>
+<li>
+	<a href="#Return_statements">returned as a result</a>.
+</li>
+</ul>
+
+<p>
+In all other cases, a (possibly partial) type argument list must be present.
+If a type argument list is absent or partial, all missing type arguments
+must be inferrable from the context in which the function is used.
 </p>
 
 <pre>
-func min[T ~int|~float64](x, y T) T { … }
+// sum returns the sum (concatenation, for strings) of its arguments.
+func sum[T ~int | ~float64 | ~string](x... T) T { … }
 
-f := min                   // illegal: min must be instantiated with type arguments when used without being called
-minInt := min[int]         // minInt has type func(x, y int) int
-a := minInt(2, 3)          // a has value 2 of type int
-b := min[float64](2.0, 3)  // b has value 2.0 of type float64
-c := min(b, -1)            // c has value -1.0 of type float64
+x := sum                       // illegal: sum must have a type argument (x is a variable without a declared type)
+intSum := sum[int]             // intSum has type func(x... int) int
+a := intSum(2, 3)              // a has value 5 of type int
+b := sum[float64](2.0, 3)      // b has value 5.0 of type float64
+c := sum(b, -1)                // c has value 4.0 of type float64
+
+type sumFunc func(x... string) string
+var f sumFunc = sum            // same as var f sumFunc = sum[string]
+f = sum                        // same as f = sum[string]
 </pre>
 
 <p>
