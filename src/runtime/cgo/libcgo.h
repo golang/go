@@ -99,7 +99,10 @@ void darwin_arm_init_mach_exception_handler(void);
 struct context_arg {
 	uintptr_t Context;
 };
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wparentheses"
 extern void (*(_cgo_get_context_function(void)))(struct context_arg*);
+#pragma GCC diagnostic pop
 
 /*
  * The argument for the cgo traceback callback. See runtime.SetCgoTraceback.
