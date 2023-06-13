@@ -26,9 +26,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/filecache"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/gopls/internal/lsp/source/methodsets"
 	"golang.org/x/tools/gopls/internal/lsp/source/typerefs"
-	"golang.org/x/tools/gopls/internal/lsp/source/xrefs"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
@@ -44,6 +42,8 @@ const (
 	preserveImportGraph = true // hold on to the import graph for open packages
 )
 
+type unit = struct{}
+
 // A typeCheckBatch holds data for a logical type-checking operation, which may
 // type-check many unrelated packages.
 //
@@ -56,7 +56,7 @@ type typeCheckBatch struct {
 	handles     map[PackageID]*packageHandle
 	parseCache  *parseCache
 	fset        *token.FileSet // describes all parsed or imported files
-	cpulimit    chan struct{}  // concurrency limiter for CPU-bound operations
+	cpulimit    chan unit      // concurrency limiter for CPU-bound operations
 
 	mu             sync.Mutex
 	syntaxPackages map[PackageID]*futurePackage // results of processing a requested package; may hold (nil, nil)
@@ -69,7 +69,7 @@ type typeCheckBatch struct {
 // The goroutine that creates the futurePackage is responsible for evaluating
 // its value, and closing the done channel.
 type futurePackage struct {
-	done chan struct{}
+	done chan unit
 	v    pkgOrErr
 }
 
@@ -154,7 +154,7 @@ func (s *snapshot) getImportGraph(ctx context.Context) *importGraph {
 	//     for the work to be done.
 	done := s.importGraphDone
 	if done == nil {
-		done = make(chan struct{})
+		done = make(chan unit)
 		s.importGraphDone = done
 		release := s.Acquire() // must acquire to use the snapshot asynchronously
 		go func() {
@@ -360,7 +360,7 @@ func (s *snapshot) forEachPackageInternal(ctx context.Context, importGraph *impo
 		handles:        handles,
 		fset:           fileSetWithBase(reservedForParsing),
 		syntaxIndex:    make(map[PackageID]int),
-		cpulimit:       make(chan struct{}, runtime.GOMAXPROCS(0)),
+		cpulimit:       make(chan unit, runtime.GOMAXPROCS(0)),
 		syntaxPackages: make(map[PackageID]*futurePackage),
 		importPackages: make(map[PackageID]*futurePackage),
 	}
@@ -369,7 +369,7 @@ func (s *snapshot) forEachPackageInternal(ctx context.Context, importGraph *impo
 		// Clone the file set every time, to ensure we do not leak files.
 		b.fset = tokeninternal.CloneFileSet(importGraph.fset)
 		// Pre-populate future cache with 'done' futures.
-		done := make(chan struct{})
+		done := make(chan unit)
 		close(done)
 		for id, res := range importGraph.imports {
 			b.importPackages[id] = &futurePackage{done, res}
@@ -427,7 +427,7 @@ func (b *typeCheckBatch) getImportPackage(ctx context.Context, id PackageID) (pk
 		}
 	}
 
-	f = &futurePackage{done: make(chan struct{})}
+	f = &futurePackage{done: make(chan unit)}
 	b.importPackages[id] = f
 	b.mu.Unlock()
 
@@ -479,7 +479,7 @@ func (b *typeCheckBatch) handleSyntaxPackage(ctx context.Context, i int, id Pack
 		return f.v.pkg, f.v.err
 	}
 
-	f = &futurePackage{done: make(chan struct{})}
+	f = &futurePackage{done: make(chan unit)}
 	b.syntaxPackages[id] = f
 	b.mu.Unlock()
 	defer func() {
@@ -508,7 +508,7 @@ func (b *typeCheckBatch) handleSyntaxPackage(ctx context.Context, i int, id Pack
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
-	case b.cpulimit <- struct{}{}:
+	case b.cpulimit <- unit{}:
 		defer func() {
 			<-b.cpulimit // release CPU token
 		}()
@@ -637,8 +637,8 @@ func (b *typeCheckBatch) checkPackage(ctx context.Context, ph *packageHandle) (*
 		// Write package data to disk asynchronously.
 		go func() {
 			toCache := map[string][]byte{
-				xrefsKind:       pkg.xrefs,
-				methodSetsKind:  pkg.methodsets.Encode(),
+				xrefsKind:       pkg.xrefs(),
+				methodSetsKind:  pkg.methodsets().Encode(),
 				diagnosticsKind: encodeDiagnostics(pkg.diagnostics),
 			}
 
@@ -763,13 +763,13 @@ func (s *snapshot) getPackageHandles(ctx context.Context, ids []PackageID) (map[
 	// Collect all reachable IDs, and create done channels.
 	// TODO: opt: modify SortPostOrder to make this pre-traversal unnecessary.
 	var allIDs []PackageID
-	dones := make(map[PackageID]chan struct{})
+	dones := make(map[PackageID]chan unit)
 	var walk func(PackageID)
 	walk = func(id PackageID) {
 		if _, ok := dones[id]; ok {
 			return
 		}
-		dones[id] = make(chan struct{})
+		dones[id] = make(chan unit)
 		allIDs = append(allIDs, id)
 		m := meta.metadata[id]
 		for _, depID := range m.DepsByPkgPath {
@@ -1262,8 +1262,6 @@ func typeCheckImpl(ctx context.Context, b *typeCheckBatch, inputs typeCheckInput
 	if err != nil {
 		return nil, err
 	}
-	pkg.methodsets = methodsets.NewIndex(pkg.fset, pkg.types)
-	pkg.xrefs = xrefs.Index(pkg.compiledGoFiles, pkg.types, pkg.typesInfo)
 
 	// Our heuristic for whether to show type checking errors is:
 	//  + If any file was 'fixed', don't show type checking errors as we

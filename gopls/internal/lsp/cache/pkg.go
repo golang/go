@@ -11,9 +11,11 @@ import (
 	"go/scanner"
 	"go/token"
 	"go/types"
+	"sync"
 
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/methodsets"
+	"golang.org/x/tools/gopls/internal/lsp/source/xrefs"
 	"golang.org/x/tools/gopls/internal/span"
 )
 
@@ -53,11 +55,25 @@ type syntaxPackage struct {
 	importMap       map[PackagePath]*types.Package
 	hasFixedFiles   bool // if true, AST was sufficiently mangled that we should hide type errors
 
-	// TODO(rfindley): opt: xrefs and methodsets do not need to be pinned to the
-	// package, and perhaps should be computed asynchronously to package
-	// diagnostics.
-	xrefs      []byte
-	methodsets *methodsets.Index
+	xrefsOnce sync.Once
+	_xrefs    []byte // only used by the xrefs method
+
+	methodsetsOnce sync.Once
+	_methodsets    *methodsets.Index // only used by the methodsets method
+}
+
+func (p *syntaxPackage) xrefs() []byte {
+	p.xrefsOnce.Do(func() {
+		p._xrefs = xrefs.Index(p.compiledGoFiles, p.types, p.typesInfo)
+	})
+	return p._xrefs
+}
+
+func (p *syntaxPackage) methodsets() *methodsets.Index {
+	p.methodsetsOnce.Do(func() {
+		p._methodsets = methodsets.NewIndex(p.fset, p.types)
+	})
+	return p._methodsets
 }
 
 func (p *Package) String() string { return string(p.ph.m.ID) }

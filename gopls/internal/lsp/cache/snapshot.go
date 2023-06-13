@@ -688,7 +688,7 @@ func (s *snapshot) References(ctx context.Context, ids ...PackageID) ([]source.X
 		return true
 	}
 	post := func(i int, pkg *Package) {
-		indexes[i] = XrefIndex{m: pkg.ph.m, data: pkg.pkg.xrefs}
+		indexes[i] = XrefIndex{m: pkg.ph.m, data: pkg.pkg.xrefs()}
 	}
 	return indexes, s.forEachPackage(ctx, ids, pre, post)
 }
@@ -719,7 +719,7 @@ func (s *snapshot) MethodSets(ctx context.Context, ids ...PackageID) ([]*methods
 		return true
 	}
 	post := func(i int, pkg *Package) {
-		indexes[i] = pkg.pkg.methodsets
+		indexes[i] = pkg.pkg.methodsets()
 	}
 	return indexes, s.forEachPackage(ctx, ids, pre, post)
 }
