@@ -118,6 +118,16 @@ func unified(m posMap, noders []*noder) {
 		}
 	}
 
+	// For functions originally came from package runtime,
+	// mark as norace to prevent instrumenting, see issue #60439.
+	for _, n := range target.Decls {
+		if fn, ok := n.(*ir.Func); ok {
+			if !base.Flag.CompilingRuntime && types.IsRuntimePkg(fn.Sym().Pkg) {
+				fn.Pragma |= ir.Norace
+			}
+		}
+	}
+
 	base.ExitIfErrors() // just in case
 }
 

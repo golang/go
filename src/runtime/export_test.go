@@ -1932,3 +1932,11 @@ func SetPinnerLeakPanic(f func()) {
 func GetPinnerLeakPanic() func() {
 	return pinnerLeakPanic
 }
+
+var testUintptr uintptr
+
+func MyGenericFunc[T any]() {
+	systemstack(func() {
+		testUintptr = 4
+	})
+}
