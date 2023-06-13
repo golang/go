@@ -6,6 +6,7 @@ package bench
 
 import (
 	"fmt"
+	"sync/atomic"
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/lsp/fake"
@@ -145,31 +146,80 @@ func (c *completer) _() {
 // Edits force type-checked packages to be invalidated, so we want to measure
 // how long it takes before completion results are available.
 func BenchmarkCompletionFollowingEdit(b *testing.B) {
-	file := "internal/lsp/source/completion/completion2.go"
-	fileContent := `
+	tests := []struct {
+		repo           string
+		file           string // repo-relative file to create
+		content        string // file content
+		locationRegexp string // regexp for completion
+	}{
+		{
+			"tools",
+			"internal/lsp/source/completion/completion2.go",
+			`
 package completion
 
 func (c *completer) _() {
 	c.inference.kindMatches(c.)
-	// __MAGIC_STRING_1
 }
-`
-	setup := func(env *Env) {
-		env.CreateBuffer(file, fileContent)
+`,
+			`func \(c \*completer\) _\(\) {\n\tc\.inference\.kindMatches\((c)`,
+		},
+		{
+			"kubernetes",
+			"pkg/kubelet/kubelet2.go",
+			`
+package kubelet
+
+func (kl *Kubelet) _() {
+	kl.
+}
+`,
+			`kl\.()`,
+		},
 	}
 
-	n := 1
-	beforeCompletion := func(env *Env) {
-		old := fmt.Sprintf("__MAGIC_STRING_%d", n)
-		new := fmt.Sprintf("__MAGIC_STRING_%d", n+1)
-		n++
-		env.RegexpReplace(file, old, new)
-	}
+	for _, test := range tests {
+		b.Run(test.repo, func(b *testing.B) {
+			repo := getRepo(b, test.repo)
+			_ = repo.sharedEnv(b) // ensure cache is warm
+			env := repo.newEnv(b, "completion."+test.repo, fake.EditorConfig{
+				Settings: map[string]interface{}{
+					"completeUnimported": false,
+				},
+			})
+			defer env.Close()
 
-	benchmarkCompletion(completionBenchOptions{
-		file:             file,
-		locationRegexp:   `func \(c \*completer\) _\(\) {\n\tc\.inference\.kindMatches\((c)`,
-		setup:            setup,
-		beforeCompletion: beforeCompletion,
-	}, b)
+			env.CreateBuffer(test.file, "// __REGTEST_PLACEHOLDER_0__\n"+test.content)
+			editPlaceholder := func() {
+				edits := atomic.AddInt64(&editID, 1)
+				env.EditBuffer(test.file, protocol.TextEdit{
+					Range: protocol.Range{
+						Start: protocol.Position{Line: 0, Character: 0},
+						End:   protocol.Position{Line: 1, Character: 0},
+					},
+					// Increment the placeholder text, to ensure cache misses.
+					NewText: fmt.Sprintf("// __REGTEST_PLACEHOLDER_%d__\n", edits),
+				})
+			}
+			env.AfterChange()
+
+			// Run a completion to make sure the system is warm.
+			loc := env.RegexpSearch(test.file, test.locationRegexp)
+			completions := env.Completion(loc)
+
+			if testing.Verbose() {
+				fmt.Println("Results:")
+				for i := 0; i < len(completions.Items); i++ {
+					fmt.Printf("\t%d. %v\n", i, completions.Items[i])
+				}
+			}
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				editPlaceholder()
+				loc := env.RegexpSearch(test.file, test.locationRegexp)
+				env.Completion(loc)
+			}
+		})
+	}
 }
