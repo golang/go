@@ -211,6 +211,7 @@ var Anames = []string{
 	"KMC",
 	"KLMD",
 	"KIMD",
+	"KDSA",
 	"VA",
 	"VAB",
 	"VAH",

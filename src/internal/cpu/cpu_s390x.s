@@ -58,6 +58,6 @@ TEXT ·klmdQuery(SB), NOSPLIT|NOFRAME, $0-16
 TEXT ·kdsaQuery(SB), NOSPLIT|NOFRAME, $0-16
 	MOVD $0, R0         // set function code to 0 (KLMD-Query)
 	MOVD $ret+0(FP), R1 // address of 16-byte return value
-	WORD $0xB93A0008    // compute digital signature authentication
+	KDSA R0, R4      // compute digital signature authentication
 	RET
 

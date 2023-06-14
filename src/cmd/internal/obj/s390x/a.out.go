@@ -485,6 +485,7 @@ const (
 	AKMC
 	AKLMD
 	AKIMD
+	AKDSA
 
 	// vector
 	AVA
