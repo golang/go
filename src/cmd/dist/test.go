@@ -605,12 +605,18 @@ func (t *tester) registerTests() {
 		// that running 'go test std cmd' could find problems in.
 		// (In race test mode, also set -tags=race.)
 		//
-		// This includes vendored packages and other packages without
-		// tests so that 'dist test' finds if any of them don't build,
-		// have a problem reported by high-confidence vet checks that
-		// come with 'go test', and anything else 'go test' may check
-		// in the future. See go.dev/issue/60463.
+		// In long test mode, this includes vendored packages and other
+		// packages without tests so that 'dist test' finds if any of
+		// them don't build, have a problem reported by high-confidence
+		// vet checks that come with 'go test', and anything else it
+		// may check in the future. See go.dev/issue/60463.
 		cmd := exec.Command(gorootBinGo, "list")
+		if t.short {
+			// In short test mode, use a format string to only
+			// list packages and commands that have tests.
+			const format = "{{if (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}"
+			cmd.Args = append(cmd.Args, "-f", format)
+		}
 		if t.race {
 			cmd.Args = append(cmd.Args, "-tags=race")
 		}
