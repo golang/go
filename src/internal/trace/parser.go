@@ -517,11 +517,10 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 	for _, ev := range events {
 		ev.Ts = int64(float64(ev.Ts-minTs) * freq)
 		// Move timers and syscalls to separate fake Ps.
-		if timerGoids[ev.G] && ev.Type == EvGoUnblock {
-			ev.P = TimerP
-		}
 		if ev.Type == EvGoSysExit {
 			ev.P = SyscallP
+		} else if timerGoids[ev.G] && ev.Type == EvGoUnblock {
+			ev.P = TimerP
 		}
 	}
 
