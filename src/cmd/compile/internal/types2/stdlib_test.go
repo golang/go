@@ -233,6 +233,9 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		filename := filepath.Join(path, f.Name())
 		goVersion := ""
 		if comment := firstComment(filename); comment != "" {
+			if strings.Contains(comment, "-goexperiment") {
+				continue // ignore this file
+			}
 			fields := strings.Fields(comment)
 			switch fields[0] {
 			case "skip", "compiledir":

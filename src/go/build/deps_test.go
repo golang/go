@@ -288,7 +288,10 @@ var depsRules = `
 	math/big, go/token
 	< go/constant;
 
-	container/heap, go/constant, go/parser, internal/goversion, internal/types/errors
+	FMT, internal/goexperiment
+	< internal/buildcfg;
+
+	container/heap, go/constant, go/parser, internal/buildcfg, internal/goversion, internal/types/errors
 	< go/types;
 
 	# The vast majority of standard library packages should not be resorting to regexp.
@@ -298,9 +301,6 @@ var depsRules = `
 
 	go/doc/comment, go/parser, internal/lazyregexp, text/template
 	< go/doc;
-
-	FMT, internal/goexperiment
-	< internal/buildcfg;
 
 	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/platform
 	< go/build;

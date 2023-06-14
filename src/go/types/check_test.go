@@ -38,12 +38,14 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/token"
+	"internal/buildcfg"
 	"internal/testenv"
 	"internal/types/errors"
 	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -134,12 +136,23 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opt
 	}
 
 	var conf Config
+	var goexperiment string
 	flags := flag.NewFlagSet("", flag.PanicOnError)
 	flags.StringVar(&conf.GoVersion, "lang", "", "")
+	flags.StringVar(&goexperiment, "goexperiment", "", "")
 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
 	if err := parseFlags(srcs[0], flags); err != nil {
 		t.Fatal(err)
 	}
+	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := buildcfg.Experiment
+	defer func() {
+		buildcfg.Experiment = old
+	}()
+	buildcfg.Experiment = *exp
 
 	files, errlist := parseFiles(t, filenames, srcs, parser.AllErrors)
 
@@ -383,6 +396,12 @@ func TestIssue47243_TypedRHS(t *testing.T) {
 }
 
 func TestCheck(t *testing.T) {
+	old := buildcfg.Experiment.Range
+	defer func() {
+		buildcfg.Experiment.Range = old
+	}()
+	buildcfg.Experiment.Range = true
+
 	DefPredeclaredTestFuncs()
 	testDirFiles(t, "../../internal/types/testdata/check", false)
 }
