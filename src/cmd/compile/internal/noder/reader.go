@@ -677,6 +677,9 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 		if pri, ok := objReader[sym]; ok {
 			return pri.pr.objIdx(pri.idx, nil, explicits, shaped)
 		}
+		if sym.Pkg.Path == "runtime" {
+			return typecheck.LookupRuntime(sym.Name)
+		}
 		base.Fatalf("unresolved stub: %v", sym)
 	}
 
@@ -1646,7 +1649,14 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 		pos := r.pos()
 		op := r.op()
 		call := r.expr()
-		return ir.NewGoDeferStmt(pos, op, call)
+		stmt := ir.NewGoDeferStmt(pos, op, call)
+		if op == ir.ODEFER {
+			x := r.optExpr()
+			if x != nil {
+				stmt.DeferAt = x.(ir.Expr)
+			}
+		}
+		return stmt
 
 	case stmtExpr:
 		return r.expr()

@@ -55,6 +55,7 @@ func walkStmt(n ir.Node) ir.Node {
 		if n.Typecheck() == 0 {
 			base.Fatalf("missing typecheck: %+v", n)
 		}
+
 		init := ir.TakeInit(n)
 		n = walkExpr(n, &init)
 		if n.Op() == ir.ONAME {
@@ -104,10 +105,11 @@ func walkStmt(n ir.Node) ir.Node {
 		n := n.(*ir.GoDeferStmt)
 		ir.CurFunc.SetHasDefer(true)
 		ir.CurFunc.NumDefers++
-		if ir.CurFunc.NumDefers > maxOpenDefers {
+		if ir.CurFunc.NumDefers > maxOpenDefers || n.DeferAt != nil {
 			// Don't allow open-coded defers if there are more than
 			// 8 defers in the function, since we use a single
 			// byte to record active defers.
+			// Also don't allow if we need to use deferprocat.
 			ir.CurFunc.SetOpenCodedDeferDisallowed(true)
 		}
 		if n.Esc() != ir.EscNever {

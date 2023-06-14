@@ -185,7 +185,7 @@ func (e *escape) call(ks []hole, call ir.Node) {
 // goDeferStmt analyzes a "go" or "defer" statement.
 func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 	k := e.heapHole()
-	if n.Op() == ir.ODEFER && e.loopDepth == 1 {
+	if n.Op() == ir.ODEFER && e.loopDepth == 1 && n.DeferAt == nil {
 		// Top-level defer arguments don't escape to the heap,
 		// but they do need to last until they're invoked.
 		k = e.later(e.discardHole())

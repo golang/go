@@ -17,6 +17,7 @@ type Node interface {
 	//    associated with that production; usually the left-most one
 	//    ('[' for IndexExpr, 'if' for IfStmt, etc.)
 	Pos() Pos
+	SetPos(Pos)
 	aNode()
 }
 
@@ -26,8 +27,9 @@ type node struct {
 	pos Pos
 }
 
-func (n *node) Pos() Pos { return n.pos }
-func (*node) aNode()     {}
+func (n *node) Pos() Pos       { return n.pos }
+func (n *node) SetPos(pos Pos) { n.pos = pos }
+func (*node) aNode()           {}
 
 // ----------------------------------------------------------------------------
 // Files
@@ -389,8 +391,9 @@ type (
 	}
 
 	CallStmt struct {
-		Tok  token // Go or Defer
-		Call Expr
+		Tok     token // Go or Defer
+		Call    Expr
+		DeferAt Expr // argument to runtime.deferprocat
 		stmt
 	}
 

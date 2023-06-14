@@ -12,6 +12,7 @@ import (
 	"sort"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/rangefunc"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 	"cmd/internal/src"
@@ -70,6 +71,10 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 	}
 
 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
+	base.ExitIfErrors()
+	if err != nil {
+		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)
+	}
 
 	// Check for anonymous interface cycles (#56103).
 	if base.Debug.InterfaceCycles == 0 {
@@ -90,6 +95,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 			})
 		}
 	}
+	base.ExitIfErrors()
 
 	// Implementation restriction: we don't allow not-in-heap types to
 	// be used as type arguments (#54765).
@@ -115,11 +121,16 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 			base.ErrorfAt(targ.pos, 0, "cannot use incomplete (or unallocatable) type as a type argument: %v", targ.typ)
 		}
 	}
-
 	base.ExitIfErrors()
-	if err != nil {
-		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)
-	}
+
+	// Rewrite range over function to explicit function calls
+	// with the loop bodies converted into new implicit closures.
+	// We do this now, before serialization to unified IR, so that if the
+	// implicit closures are inlined, we will have the unified IR form.
+	// If we do the rewrite in the back end, like between typecheck and walk,
+	// then the new implicit closure will not have a unified IR inline body,
+	// and bodyReaderFor will fail.
+	rangefunc.Rewrite(pkg, info, files)
 
 	return pkg, info
 }

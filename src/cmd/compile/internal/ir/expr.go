@@ -186,6 +186,7 @@ type CallExpr struct {
 	miniExpr
 	X         Node
 	Args      Nodes
+	DeferAt   Node
 	RType     Node    `mknode:"-"` // see reflectdata/helpers.go
 	KeepAlive []*Name // vars to be kept alive until call returns
 	IsDDD     bool

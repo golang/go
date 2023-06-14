@@ -10,7 +10,9 @@ import (
 )
 
 // Syms holds known symbols.
-var Syms struct {
+var Syms symsStruct
+
+type symsStruct struct {
 	AssertE2I         *obj.LSym
 	AssertE2I2        *obj.LSym
 	AssertI2I         *obj.LSym
@@ -21,6 +23,7 @@ var Syms struct {
 	CgoCheckPtrWrite  *obj.LSym
 	CheckPtrAlignment *obj.LSym
 	Deferproc         *obj.LSym
+	Deferprocat       *obj.LSym
 	DeferprocStack    *obj.LSym
 	Deferreturn       *obj.LSym
 	Duffcopy          *obj.LSym

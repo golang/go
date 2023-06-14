@@ -103,6 +103,7 @@ func InitConfig() {
 	ir.Syms.CgoCheckPtrWrite = typecheck.LookupRuntimeFunc("cgoCheckPtrWrite")
 	ir.Syms.CheckPtrAlignment = typecheck.LookupRuntimeFunc("checkptrAlignment")
 	ir.Syms.Deferproc = typecheck.LookupRuntimeFunc("deferproc")
+	ir.Syms.Deferprocat = typecheck.LookupRuntimeFunc("deferprocat")
 	ir.Syms.DeferprocStack = typecheck.LookupRuntimeFunc("deferprocStack")
 	ir.Syms.Deferreturn = typecheck.LookupRuntimeFunc("deferreturn")
 	ir.Syms.Duffcopy = typecheck.LookupRuntimeFunc("duffcopy")
@@ -1491,10 +1492,10 @@ func (s *state) stmt(n ir.Node) {
 			s.openDeferRecord(n.Call.(*ir.CallExpr))
 		} else {
 			d := callDefer
-			if n.Esc() == ir.EscNever {
+			if n.Esc() == ir.EscNever && n.DeferAt == nil {
 				d = callDeferStack
 			}
-			s.callResult(n.Call.(*ir.CallExpr), d)
+			s.call(n.Call.(*ir.CallExpr), d, false, n.DeferAt)
 		}
 	case ir.OGO:
 		n := n.(*ir.GoDeferStmt)
@@ -5182,20 +5183,21 @@ func (s *state) openDeferExit() {
 }
 
 func (s *state) callResult(n *ir.CallExpr, k callKind) *ssa.Value {
-	return s.call(n, k, false)
+	return s.call(n, k, false, nil)
 }
 
 func (s *state) callAddr(n *ir.CallExpr, k callKind) *ssa.Value {
-	return s.call(n, k, true)
+	return s.call(n, k, true, nil)
 }
 
 // Calls the function n using the specified call type.
 // Returns the address of the return value (or nil if none).
-func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Value {
+func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExtra ir.Expr) *ssa.Value {
 	s.prevCall = nil
 	var callee *ir.Name    // target function (if static)
 	var closure *ssa.Value // ptr to closure to run (if dynamic)
 	var codeptr *ssa.Value // ptr to target code (if dynamic)
+	var dextra *ssa.Value  // defer extra arg
 	var rcvr *ssa.Value    // receiver to set
 	fn := n.X
 	var ACArgs []*types.Type    // AuxCall args
@@ -5251,6 +5253,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			closure = iclosure
 		}
 	}
+	if deferExtra != nil {
+		dextra = s.expr(deferExtra)
+	}
 
 	params := callABI.ABIAnalyze(n.X.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */)
 	types.CalcSize(fn.Type())
@@ -5293,6 +5298,13 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			callArgs = append(callArgs, closure)
 			stksize += int64(types.PtrSize)
 			argStart += int64(types.PtrSize)
+			if dextra != nil {
+				// Extra token of type any for deferproc
+				ACArgs = append(ACArgs, types.Types[types.TINTER])
+				callArgs = append(callArgs, dextra)
+				stksize += 2 * int64(types.PtrSize)
+				argStart += 2 * int64(types.PtrSize)
+			}
 		}
 
 		// Set receiver (for interface calls).
@@ -5328,11 +5340,15 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		// call target
 		switch {
 		case k == callDefer:
-			aux := ssa.StaticAuxCall(ir.Syms.Deferproc, s.f.ABIDefault.ABIAnalyzeTypes(ACArgs, ACResults)) // TODO paramResultInfo for DeferProc
+			sym := ir.Syms.Deferproc
+			if dextra != nil {
+				sym = ir.Syms.Deferprocat
+			}
+			aux := ssa.StaticAuxCall(sym, s.f.ABIDefault.ABIAnalyzeTypes(ACArgs, ACResults)) // TODO paramResultInfo for Deferproc(at)
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 		case k == callGo:
 			aux := ssa.StaticAuxCall(ir.Syms.Newproc, s.f.ABIDefault.ABIAnalyzeTypes(ACArgs, ACResults))
-			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux) // TODO paramResultInfo for NewProc
+			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux) // TODO paramResultInfo for Newproc
 		case closure != nil:
 			// rawLoad because loading the code pointer from a
 			// closure is always safe, but IsSanitizerSafeAddr

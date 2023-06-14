@@ -583,6 +583,17 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		return e
 	}
 
+	if name, ok := n.X.(*ir.Name); ok {
+		sym := name.Sym()
+		if sym.Pkg.Path == "go.runtime" && sym.Name == "deferrangefunc" {
+			// Call to runtime.deferrangefunc is being shared with a range-over-func
+			// body that might add defers to this frame, so we cannot use open-coded defers
+			// and we need to call deferreturn even if we don't see any other explicit defers.
+			ir.CurFunc.SetHasDefer(true)
+			ir.CurFunc.SetOpenCodedDeferDisallowed(true)
+		}
+	}
+
 	walkCall1(n, init)
 	return n
 }

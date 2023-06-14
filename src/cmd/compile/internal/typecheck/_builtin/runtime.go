@@ -117,6 +117,9 @@ func panicnildottype(want *byte)
 func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
 func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
 
+// defer in range over func
+func deferrangefunc() interface{}
+
 func fastrand() uint32
 
 // *byte is really *runtime.Type

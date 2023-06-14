@@ -10,6 +10,7 @@ import (
 	"go/token"
 	"internal/buildcfg"
 	"internal/pkgbits"
+	"os"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -1055,6 +1056,9 @@ func (w *writer) funcExt(obj *types2.Func) {
 
 	sig, block := obj.Type().(*types2.Signature), decl.Body
 	body, closureVars := w.p.bodyIdx(sig, block, w.dict)
+	if len(closureVars) > 0 {
+		fmt.Fprintln(os.Stderr, "CLOSURE", closureVars)
+	}
 	assert(len(closureVars) == 0)
 
 	w.Sync(pkgbits.SyncFuncExt)
@@ -1266,6 +1270,9 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 		w.pos(stmt)
 		w.op(callOps[stmt.Tok])
 		w.expr(stmt.Call)
+		if stmt.Tok == syntax.Defer {
+			w.optExpr(stmt.DeferAt)
+		}
 
 	case *syntax.DeclStmt:
 		for _, decl := range stmt.DeclList {
@@ -2298,6 +2305,10 @@ func (w *writer) funcLit(expr *syntax.FuncLit) {
 type posVar struct {
 	pos  syntax.Pos
 	var_ *types2.Var
+}
+
+func (p posVar) String() string {
+	return p.pos.String() + ":" + p.var_.String()
 }
 
 func (w *writer) exprList(expr syntax.Expr) {
