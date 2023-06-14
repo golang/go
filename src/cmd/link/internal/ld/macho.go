@@ -877,7 +877,7 @@ func asmbMacho(ctxt *Link) {
 }
 
 func symkind(ldr *loader.Loader, s loader.Sym) int {
-	if ldr.SymType(s) == sym.SDYNIMPORT {
+	if t := ldr.SymType(s); t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
 		return SymKindUndef
 	}
 	if ldr.AttrCgoExport(s) {
