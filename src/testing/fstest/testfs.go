@@ -270,7 +270,7 @@ func (t *fsTester) checkDir(dir string) {
 		}
 	}
 
-	t.checkGlob(dir, list)
+	t.checkGlob(dir, list2)
 }
 
 // formatEntry formats an fs.DirEntry into a string for error messages and comparison.
