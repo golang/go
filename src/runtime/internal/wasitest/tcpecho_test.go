@@ -44,6 +44,8 @@ func TestTCPEcho(t *testing.T) {
 	subProcess.Env = append(os.Environ(), "GOOS=wasip1", "GOARCH=wasm")
 
 	switch os.Getenv("GOWASIRUNTIME") {
+	case "wazero", "":
+		subProcess.Env = append(subProcess.Env, "GOWASIRUNTIMEARGS=--listen="+host)
 	case "wasmtime":
 		subProcess.Env = append(subProcess.Env, "GOWASIRUNTIMEARGS=--tcplisten="+host)
 	default:
