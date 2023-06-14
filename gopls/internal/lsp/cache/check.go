@@ -205,7 +205,11 @@ func (s *snapshot) resolveImportGraph() (*importGraph, error) {
 	openPackages := make(map[PackageID]bool)
 	for _, fh := range s.overlays() {
 		for _, id := range meta.ids[fh.URI()] {
-			openPackages[id] = true
+			// TODO(rfindley): remove this defensiveness after the release. We can
+			// rely on m.metadata[id] != nil.
+			if m := meta.metadata[id]; m != nil && !m.IsIntermediateTestVariant() {
+				openPackages[id] = true
+			}
 		}
 	}
 
