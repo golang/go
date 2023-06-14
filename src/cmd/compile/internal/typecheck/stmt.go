@@ -20,70 +20,6 @@ func RangeExprType(t *types.Type) *types.Type {
 }
 
 func typecheckrangeExpr(n *ir.RangeStmt) {
-	n.X = Expr(n.X)
-	if n.X.Type() == nil {
-		return
-	}
-
-	t := RangeExprType(n.X.Type())
-	// delicate little dance.  see tcAssignList
-	if n.Key != nil && !ir.DeclaredBy(n.Key, n) {
-		n.Key = AssignExpr(n.Key)
-	}
-	if n.Value != nil && !ir.DeclaredBy(n.Value, n) {
-		n.Value = AssignExpr(n.Value)
-	}
-
-	var tk, tv *types.Type
-	toomany := false
-	switch t.Kind() {
-	default:
-		base.ErrorfAt(n.Pos(), errors.InvalidRangeExpr, "cannot range over %L", n.X)
-		return
-
-	case types.TARRAY, types.TSLICE:
-		tk = types.Types[types.TINT]
-		tv = t.Elem()
-
-	case types.TMAP:
-		tk = t.Key()
-		tv = t.Elem()
-
-	case types.TCHAN:
-		if !t.ChanDir().CanRecv() {
-			base.ErrorfAt(n.Pos(), errors.InvalidRangeExpr, "invalid operation: range %v (receive from send-only type %v)", n.X, n.X.Type())
-			return
-		}
-
-		tk = t.Elem()
-		tv = nil
-		if n.Value != nil {
-			toomany = true
-		}
-
-	case types.TSTRING:
-		tk = types.Types[types.TINT]
-		tv = types.RuneType
-	}
-
-	if toomany {
-		base.ErrorfAt(n.Pos(), errors.InvalidIterVar, "too many variables in range")
-	}
-
-	do := func(nn ir.Node, t *types.Type) {
-		if nn != nil {
-			if ir.DeclaredBy(nn, n) && nn.Type() == nil {
-				nn.SetType(t)
-			} else if nn.Type() != nil {
-				if op, why := Assignop(t, nn.Type()); op == ir.OXXX {
-					base.ErrorfAt(n.Pos(), errors.InvalidIterVar, "cannot assign type %v to %L in range%s", t, nn, why)
-				}
-			}
-			checkassign(nn)
-		}
-	}
-	do(n.Key, tk)
-	do(n.Value, tv)
 }
 
 // type check assignment.
@@ -335,18 +271,23 @@ func tcIf(n *ir.IfStmt) ir.Node {
 
 // range
 func tcRange(n *ir.RangeStmt) {
-	// Typechecking order is important here:
-	// 0. first typecheck range expression (slice/map/chan),
-	//	it is evaluated only once and so logically it is not part of the loop.
-	// 1. typecheck produced values,
-	//	this part can declare new vars and so it must be typechecked before body,
-	//	because body can contain a closure that captures the vars.
-	// 2. decldepth++ to denote loop body.
-	// 3. typecheck body.
-	// 4. decldepth--.
-	typecheckrangeExpr(n)
+	n.X = Expr(n.X)
 
-	// second half of dance, the first half being typecheckrangeExpr
+	// delicate little dance.  see tcAssignList
+	if n.Key != nil {
+		if !ir.DeclaredBy(n.Key, n) {
+			n.Key = AssignExpr(n.Key)
+		}
+		checkassign(n.Key)
+	}
+	if n.Value != nil {
+		if !ir.DeclaredBy(n.Value, n) {
+			n.Value = AssignExpr(n.Value)
+		}
+		checkassign(n.Value)
+	}
+
+	// second half of dance
 	n.SetTypecheck(1)
 	if n.Key != nil && n.Key.Typecheck() == 0 {
 		n.Key = AssignExpr(n.Key)
