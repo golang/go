@@ -382,16 +382,23 @@ func (b *Builder) NewObjdir() string {
 func readpkglist(shlibpath string) (pkgs []*load.Package) {
 	var stk load.ImportStack
 	if cfg.BuildToolchainName == "gccgo" {
-		f, _ := elf.Open(shlibpath)
+		f, err := elf.Open(shlibpath)
+		if err != nil {
+			base.Fatal(fmt.Errorf("failed to open shared library: %v", err))
+		}
 		sect := f.Section(".go_export")
-		data, _ := sect.Data()
-		scanner := bufio.NewScanner(bytes.NewBuffer(data))
-		for scanner.Scan() {
-			t := scanner.Text()
-			var found bool
-			if t, found = strings.CutPrefix(t, "pkgpath "); found {
-				t = strings.TrimSuffix(t, ";")
-				pkgs = append(pkgs, load.LoadPackageWithFlags(t, base.Cwd(), &stk, nil, 0))
+		if sect == nil {
+			base.Fatal(fmt.Errorf("%s: missing .go_export section", shlibpath))
+		}
+		data, err := sect.Data()
+		if err != nil {
+			base.Fatal(fmt.Errorf("%s: failed to read .go_export section: %v", shlibpath, err))
+		}
+		pkgpath := []byte("pkgpath ")
+		for _, line := range bytes.Split(data, []byte{'\n'}) {
+			if path, found := bytes.CutPrefix(line, pkgpath); found {
+				path = bytes.TrimSuffix(path, []byte{';'})
+				pkgs = append(pkgs, load.LoadPackageWithFlags(string(path), base.Cwd(), &stk, nil, 0))
 			}
 		}
 	} else {
