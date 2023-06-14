@@ -796,3 +796,25 @@ TEXT runtime·syscall_x509(SB),NOSPLIT,$16
 TEXT runtime·issetugid_trampoline(SB),NOSPLIT,$0
 	CALL	libc_issetugid(SB)
 	RET
+
+// mach_vm_region_trampoline calls mach_vm_region from libc.
+TEXT runtime·mach_vm_region_trampoline(SB),NOSPLIT,$0
+	MOVQ	0(DI), SI // address
+	MOVQ	8(DI), DX // size
+	MOVL	16(DI), CX // flavor
+	MOVQ	24(DI), R8 // info
+	MOVQ	32(DI), R9 // count
+	MOVQ	40(DI), R10 // object_name
+	MOVQ	$libc_mach_task_self_(SB), DI
+	MOVL	0(DI), DI
+	CALL	libc_mach_vm_region(SB)
+	RET
+
+// proc_regionfilename_trampoline calls proc_regionfilename.
+TEXT runtime·proc_regionfilename_trampoline(SB),NOSPLIT,$0
+	MOVQ	8(DI), SI // address
+	MOVQ	16(DI), DX // buffer
+	MOVQ	24(DI), CX // buffer_size
+	MOVQ	0(DI), DI // pid
+	CALL	libc_proc_regionfilename(SB)
+	RET
