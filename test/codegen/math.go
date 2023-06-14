@@ -57,6 +57,7 @@ func sqrt(x float64) float64 {
 	// mips64/hardfloat:"SQRTD" mips64/softfloat:-"SQRTD"
 	// wasm:"F64Sqrt"
 	// ppc64x:"FSQRT"
+	// riscv64: "FSQRTD"
 	return math.Sqrt(x)
 }
 
@@ -69,6 +70,7 @@ func sqrt32(x float32) float32 {
 	// mips64/hardfloat:"SQRTF" mips64/softfloat:-"SQRTF"
 	// wasm:"F32Sqrt"
 	// ppc64x:"FSQRTS"
+	// riscv64: "FSQRTS"
 	return float32(math.Sqrt(float64(x)))
 }
 
