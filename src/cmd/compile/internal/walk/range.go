@@ -74,11 +74,25 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 
 	var body []ir.Node
 	var init []ir.Node
-	switch t.Kind() {
+	switch k := t.Kind(); {
 	default:
 		base.Fatalf("walkRange")
 
-	case types.TARRAY, types.TSLICE, types.TPTR: // TPTR is pointer-to-array
+	case types.IsInt[k]:
+		hv1 := typecheck.TempAt(base.Pos, ir.CurFunc, t)
+		hn := typecheck.TempAt(base.Pos, ir.CurFunc, t)
+
+		init = append(init, ir.NewAssignStmt(base.Pos, hv1, nil))
+		init = append(init, ir.NewAssignStmt(base.Pos, hn, a))
+
+		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv1, hn)
+		nfor.Post = ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(base.Pos, 1)))
+
+		if v1 != nil {
+			body = []ir.Node{rangeAssign(nrange, hv1)}
+		}
+
+	case k == types.TARRAY, k == types.TSLICE, k == types.TPTR: // TPTR is pointer-to-array
 		if nn := arrayRangeClear(nrange, v1, v2, a); nn != nil {
 			base.Pos = lno
 			return nn
@@ -219,7 +233,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		as := ir.NewAssignStmt(base.Pos, hu, ir.NewBinaryExpr(base.Pos, ir.OADD, huVal, ir.NewInt(base.Pos, elem.Size())))
 		nfor.Post = ir.NewBlockStmt(base.Pos, []ir.Node{nfor.Post, as})
 
-	case types.TMAP:
+	case k == types.TMAP:
 		// order.stmt allocated the iterator for us.
 		// we only use a once, so no copy needed.
 		ha := a
@@ -248,7 +262,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 			body = []ir.Node{rangeAssign2(nrange, key, elem)}
 		}
 
-	case types.TCHAN:
+	case k == types.TCHAN:
 		// order.stmt arranged for a copy of the channel variable.
 		ha := a
 
@@ -275,7 +289,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		// See issue 15281.
 		body = append(body, ir.NewAssignStmt(base.Pos, hv1, nil))
 
-	case types.TSTRING:
+	case k == types.TSTRING:
 		// Transform string range statements like "for v1, v2 = range a" into
 		//
 		// ha := a

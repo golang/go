@@ -1448,7 +1448,7 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 				w.convRTTI(src, dstType)
 			}
 
-			keyType, valueType := w.p.rangeTypes(rang.X)
+			keyType, valueType := types2.RangeKeyVal(w.p.typeOf(rang.X))
 			assign(0, keyType)
 			assign(1, valueType)
 		}
@@ -1487,30 +1487,6 @@ func (w *writer) distinctVars(stmt *syntax.ForStmt) bool {
 	// -gcflags=-d=loopvar=3 enables logging for 1.22 but does not turn loopvar on for <= 1.21.
 
 	return is122 || lv > 0 && lv != 3
-}
-
-// rangeTypes returns the types of values produced by ranging over
-// expr.
-func (pw *pkgWriter) rangeTypes(expr syntax.Expr) (key, value types2.Type) {
-	typ := pw.typeOf(expr)
-	switch typ := types2.CoreType(typ).(type) {
-	case *types2.Pointer: // must be pointer to array
-		return types2.Typ[types2.Int], types2.CoreType(typ.Elem()).(*types2.Array).Elem()
-	case *types2.Array:
-		return types2.Typ[types2.Int], typ.Elem()
-	case *types2.Slice:
-		return types2.Typ[types2.Int], typ.Elem()
-	case *types2.Basic:
-		if typ.Info()&types2.IsString != 0 {
-			return types2.Typ[types2.Int], runeTypeName.Type()
-		}
-	case *types2.Map:
-		return typ.Key(), typ.Elem()
-	case *types2.Chan:
-		return typ.Elem(), nil
-	}
-	pw.fatalf(expr, "unexpected range type: %v", typ)
-	panic("unreachable")
 }
 
 func (w *writer) ifStmt(stmt *syntax.IfStmt) {

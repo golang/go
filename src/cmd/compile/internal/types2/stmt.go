@@ -967,6 +967,12 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	check.stmt(inner, s.Body)
 }
 
+// RangeKeyVal returns the key and value types for a range over typ.
+func RangeKeyVal(typ Type) (Type, Type) {
+	key, val, _, _, _ := rangeKeyVal(typ)
+	return key, val
+}
+
 // rangeKeyVal returns the key and value type produced by a range clause
 // over an expression of type typ. If the range clause is not permitted,
 // rangeKeyVal returns ok = false. When ok = false, rangeKeyVal may also
