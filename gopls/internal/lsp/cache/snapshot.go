@@ -2432,8 +2432,8 @@ func metadataChanges(ctx context.Context, lockedSnapshot *snapshot, oldFH, newFH
 
 	fset := token.NewFileSet()
 	// Parse headers to compare package names and imports.
-	oldHeads, oldErr := lockedSnapshot.view.parseCache.parseFiles(ctx, fset, source.ParseHeader, oldFH)
-	newHeads, newErr := lockedSnapshot.view.parseCache.parseFiles(ctx, fset, source.ParseHeader, newFH)
+	oldHeads, oldErr := lockedSnapshot.view.parseCache.parseFiles(ctx, fset, source.ParseHeader, false, oldFH)
+	newHeads, newErr := lockedSnapshot.view.parseCache.parseFiles(ctx, fset, source.ParseHeader, false, newFH)
 
 	if oldErr != nil || newErr != nil {
 		// TODO(rfindley): we can get here if newFH does not exist. There is
@@ -2484,8 +2484,8 @@ func metadataChanges(ctx context.Context, lockedSnapshot *snapshot, oldFH, newFH
 	// Note: if this affects performance we can probably avoid parsing in the
 	// common case by first scanning the source for potential comments.
 	if !invalidate {
-		origFulls, oldErr := lockedSnapshot.view.parseCache.parseFiles(ctx, fset, source.ParseFull, oldFH)
-		newFulls, newErr := lockedSnapshot.view.parseCache.parseFiles(ctx, fset, source.ParseFull, newFH)
+		origFulls, oldErr := lockedSnapshot.view.parseCache.parseFiles(ctx, fset, source.ParseFull, false, oldFH)
+		newFulls, newErr := lockedSnapshot.view.parseCache.parseFiles(ctx, fset, source.ParseFull, false, newFH)
 		if oldErr == nil && newErr == nil {
 			invalidate = magicCommentsChanged(origFulls[0].File, newFulls[0].File)
 		} else {
@@ -2570,7 +2570,7 @@ func (s *snapshot) BuiltinFile(ctx context.Context) (*source.ParsedGoFile, error
 	// For the builtin file only, we need syntactic object resolution
 	// (since we can't type check).
 	mode := source.ParseFull &^ source.SkipObjectResolution
-	pgfs, err := s.view.parseCache.parseFiles(ctx, token.NewFileSet(), mode, fh)
+	pgfs, err := s.view.parseCache.parseFiles(ctx, token.NewFileSet(), mode, false, fh)
 	if err != nil {
 		return nil, err
 	}

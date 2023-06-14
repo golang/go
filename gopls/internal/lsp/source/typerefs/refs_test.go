@@ -516,7 +516,7 @@ type Z map[ext.A]ext.B
 			var pgfs []*source.ParsedGoFile
 			for i, src := range test.srcs {
 				uri := span.URI(fmt.Sprintf("file:///%d.go", i))
-				pgf, _ := cache.ParseGoSrc(ctx, token.NewFileSet(), uri, []byte(src), source.ParseFull)
+				pgf, _ := cache.ParseGoSrc(ctx, token.NewFileSet(), uri, []byte(src), source.ParseFull, false)
 				if !test.allowErrs && pgf.ParseErr != nil {
 					t.Fatalf("ParseGoSrc(...) returned parse errors: %v", pgf.ParseErr)
 				}

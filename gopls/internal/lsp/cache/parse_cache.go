@@ -126,8 +126,9 @@ func (c *parseCache) stop() {
 
 // parseKey uniquely identifies a parsed Go file.
 type parseKey struct {
-	uri  span.URI
-	mode parser.Mode
+	uri             span.URI
+	mode            parser.Mode
+	purgeFuncBodies bool
 }
 
 type parseCacheEntry struct {
@@ -145,7 +146,7 @@ type parseCacheEntry struct {
 // The resulting slice has an entry for every given file handle, though some
 // entries may be nil if there was an error reading the file (in which case the
 // resulting error will be non-nil).
-func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*memoize.Promise, error) {
+func (c *parseCache) startParse(mode parser.Mode, purgeFuncBodies bool, fhs ...source.FileHandle) ([]*memoize.Promise, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -173,8 +174,9 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 		data[i] = content
 
 		key := parseKey{
-			uri:  fh.URI(),
-			mode: mode,
+			uri:             fh.URI(),
+			mode:            mode,
+			purgeFuncBodies: purgeFuncBodies,
 		}
 
 		if e, ok := c.m[key]; ok {
@@ -197,7 +199,7 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 			// inside of parseGoSrc without exceeding the allocated space.
 			base, nextBase := c.allocateSpace(2*len(content) + parsePadding)
 
-			pgf, fixes1 := ParseGoSrc(ctx, fileSetWithBase(base), uri, content, mode)
+			pgf, fixes1 := ParseGoSrc(ctx, fileSetWithBase(base), uri, content, mode, purgeFuncBodies)
 			file := pgf.Tok
 			if file.Base()+file.Size()+1 > nextBase {
 				// The parsed file exceeds its allocated space, likely due to multiple
@@ -209,7 +211,7 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 				// there, as parseGoSrc will repeat them.
 				actual := file.Base() + file.Size() - base // actual size consumed, after re-parsing
 				base2, nextBase2 := c.allocateSpace(actual)
-				pgf2, fixes2 := ParseGoSrc(ctx, fileSetWithBase(base2), uri, content, mode)
+				pgf2, fixes2 := ParseGoSrc(ctx, fileSetWithBase(base2), uri, content, mode, purgeFuncBodies)
 
 				// In golang/go#59097 we observed that this panic condition was hit.
 				// One bug was found and fixed, but record more information here in
@@ -314,7 +316,7 @@ func (c *parseCache) allocateSpace(size int) (int, int) {
 //
 // If parseFiles returns an error, it still returns a slice,
 // but with a nil entry for each file that could not be parsed.
-func (c *parseCache) parseFiles(ctx context.Context, fset *token.FileSet, mode parser.Mode, fhs ...source.FileHandle) ([]*source.ParsedGoFile, error) {
+func (c *parseCache) parseFiles(ctx context.Context, fset *token.FileSet, mode parser.Mode, purgeFuncBodies bool, fhs ...source.FileHandle) ([]*source.ParsedGoFile, error) {
 	pgfs := make([]*source.ParsedGoFile, len(fhs))
 
 	// Temporary fall-back for 32-bit systems, where reservedForParsing is too
@@ -324,7 +326,7 @@ func (c *parseCache) parseFiles(ctx context.Context, fset *token.FileSet, mode p
 	if bits.UintSize == 32 {
 		for i, fh := range fhs {
 			var err error
-			pgfs[i], err = parseGoImpl(ctx, fset, fh, mode)
+			pgfs[i], err = parseGoImpl(ctx, fset, fh, mode, purgeFuncBodies)
 			if err != nil {
 				return pgfs, err
 			}
@@ -332,7 +334,7 @@ func (c *parseCache) parseFiles(ctx context.Context, fset *token.FileSet, mode p
 		return pgfs, nil
 	}
 
-	promises, firstErr := c.startParse(mode, fhs...)
+	promises, firstErr := c.startParse(mode, purgeFuncBodies, fhs...)
 
 	// Await all parsing.
 	var g errgroup.Group

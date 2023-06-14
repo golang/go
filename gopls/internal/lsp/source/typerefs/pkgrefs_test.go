@@ -295,7 +295,7 @@ func (p *memoizedParser) parse(ctx context.Context, uri span.URI) (*ParsedGoFile
 			return nil, err
 		}
 		content = astutil.PurgeFuncBodies(content)
-		pgf, _ := cache.ParseGoSrc(ctx, token.NewFileSet(), uri, content, source.ParseFull)
+		pgf, _ := cache.ParseGoSrc(ctx, token.NewFileSet(), uri, content, source.ParseFull, false)
 		return pgf, nil
 	}
 

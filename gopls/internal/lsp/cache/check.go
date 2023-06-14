@@ -22,7 +22,6 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/ast/astutil"
-	goplsastutil "golang.org/x/tools/gopls/internal/astutil"
 	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/filecache"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -611,7 +610,7 @@ func (b *typeCheckBatch) checkPackageForImport(ctx context.Context, ph *packageH
 		for i, fh := range ph.localInputs.compiledGoFiles {
 			i, fh := i, fh
 			group.Go(func() error {
-				pgf, err := parseGoImpl(ctx, b.fset, fh, parser.SkipObjectResolution)
+				pgf, err := parseGoImpl(ctx, b.fset, fh, parser.SkipObjectResolution, false)
 				pgfs[i] = pgf
 				return err
 			})
@@ -1233,14 +1232,9 @@ func (s *snapshot) typerefData(ctx context.Context, id PackageID, imports map[Im
 		bug.Reportf("internal error reading typerefs data: %v", err)
 	}
 
-	pgfs := make([]*source.ParsedGoFile, len(cgfs))
-	for i, fh := range cgfs {
-		content, err := fh.Content()
-		if err != nil {
-			return nil, err
-		}
-		content = goplsastutil.PurgeFuncBodies(content)
-		pgfs[i], _ = ParseGoSrc(ctx, token.NewFileSet(), fh.URI(), content, source.ParseFull&^parser.ParseComments)
+	pgfs, err := s.view.parseCache.parseFiles(ctx, token.NewFileSet(), source.ParseFull&^parser.ParseComments, true, cgfs...)
+	if err != nil {
+		return nil, err
 	}
 	data := typerefs.Encode(pgfs, id, imports)
 
@@ -1495,11 +1489,11 @@ func doTypeCheck(ctx context.Context, b *typeCheckBatch, inputs typeCheckInputs)
 	// Collect parsed files from the type check pass, capturing parse errors from
 	// compiled files.
 	var err error
-	pkg.goFiles, err = b.parseCache.parseFiles(ctx, b.fset, source.ParseFull, inputs.goFiles...)
+	pkg.goFiles, err = b.parseCache.parseFiles(ctx, b.fset, source.ParseFull, false, inputs.goFiles...)
 	if err != nil {
 		return nil, err
 	}
-	pkg.compiledGoFiles, err = b.parseCache.parseFiles(ctx, b.fset, source.ParseFull, inputs.compiledGoFiles...)
+	pkg.compiledGoFiles, err = b.parseCache.parseFiles(ctx, b.fset, source.ParseFull, false, inputs.compiledGoFiles...)
 	if err != nil {
 		return nil, err
 	}

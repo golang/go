@@ -518,12 +518,14 @@ func parseGoListImportCycleError(ctx context.Context, e packages.Error, m *sourc
 // to use in a list of file of a package, for example.
 //
 // It returns an error if the file could not be read.
+//
+// TODO(rfindley): eliminate this helper.
 func parseGoURI(ctx context.Context, fs source.FileSource, uri span.URI, mode parser.Mode) (*source.ParsedGoFile, error) {
 	fh, err := fs.ReadFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	return parseGoImpl(ctx, token.NewFileSet(), fh, mode)
+	return parseGoImpl(ctx, token.NewFileSet(), fh, mode, false)
 }
 
 // parseModURI is a helper to parse the Mod file at the given URI from the file
