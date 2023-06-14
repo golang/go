@@ -748,7 +748,7 @@ func requireGccgo(t *testing.T) {
 	if dot > 0 {
 		output = output[:dot]
 	}
-	major, err := strconv.Atoi(string(output))
+	major, err := strconv.Atoi(strings.TrimSpace(string(output)))
 	if err != nil {
 		t.Skipf("can't parse gccgo version number %s", output)
 	}
