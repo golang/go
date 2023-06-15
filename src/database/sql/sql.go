@@ -403,7 +403,6 @@ func (n NullTime) Value() (driver.Value, error) {
 //	} else {
 //	   // NULL value
 //	}
-
 type Null[T any] struct {
 	X     T
 	Valid bool
