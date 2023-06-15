@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of July 19, 2023",
+	"Subtitle": "Version of July 20, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -2511,7 +2511,7 @@ type (
 
 <p>
 A type definition creates a new, distinct type with the same
-<a href="#Types">underlying type</a> and operations as the given type
+<a href="#Underlying_types">underlying type</a> and operations as the given type
 and binds an identifier, the <i>type name</i>, to it.
 </p>
 
@@ -4343,7 +4343,7 @@ type parameter list    type arguments    after substitution
 When using a generic function, type arguments may be provided explicitly,
 or they may be partially or completely <a href="#Type_inference">inferred</a>
 from the context in which the function is used.
-Provided that they can be inferred, type arguments may be omitted entirely if the function is:
+Provided that they can be inferred, type argument lists may be omitted entirely if the function is:
 </p>
 
 <ul>
@@ -4351,7 +4351,7 @@ Provided that they can be inferred, type arguments may be omitted entirely if th
 	<a href="#Calls">called</a> with ordinary arguments,
 </li>
 <li>
-	<a href="#Assignment_statements">assigned</a> to a variable with an explicitly declared type,
+	<a href="#Assignment_statements">assigned</a> to a variable with a known type
 </li>
 <li>
 	<a href="#Calls">passed as an argument</a> to another function, or
@@ -4371,7 +4371,7 @@ must be inferrable from the context in which the function is used.
 // sum returns the sum (concatenation, for strings) of its arguments.
 func sum[T ~int | ~float64 | ~string](x... T) T { … }
 
-x := sum                       // illegal: sum must have a type argument (x is a variable without a declared type)
+x := sum                       // illegal: the type of x is unknown
 intSum := sum[int]             // intSum has type func(x... int) int
 a := intSum(2, 3)              // a has value 5 of type int
 b := sum[float64](2.0, 3)      // b has value 5.0 of type float64
@@ -4406,70 +4406,222 @@ For a generic type, all type arguments must always be provided explicitly.
 <h3 id="Type_inference">Type inference</h3>
 
 <p>
-<em>NOTE: This section is not yet up-to-date for Go 1.21.</em>
+A use of a generic function may omit some or all type arguments if they can be
+<i>inferred</i> from the context within which the function is used, including
+the constraints of the function's type parameters.
+Type inference succeeds if it can infer the missing type arguments
+and <a href="#Instantiations">instantiation</a> succeeds with the
+inferred type arguments.
+Otherwise, type inference fails and the program is invalid.
 </p>
 
 <p>
-Missing function type arguments may be <i>inferred</i> by a series of steps, described below.
-Each step attempts to use known information to infer additional type arguments.
-Type inference stops as soon as all type arguments are known.
-After type inference is complete, it is still necessary to substitute all type arguments
-for type parameters and verify that each type argument
-<a href="#Implementing_an_interface">implements</a> the relevant constraint;
-it is possible for an inferred type argument to fail to implement a constraint, in which
-case instantiation fails.
+Type inference uses the type relationships between pairs of types for inference:
+For instance, a function argument must be <a href="#Assignability">assignable</a>
+to its respective function parameter; this establishes a relationship between the
+type of the argument and the type of the parameter.
+If either of these two types contains type parameters, type inference looks for the
+type arguments to substitute the type parameters with such that the assignability
+relationship is satisfied.
+Similarly, type inference uses the fact that a type argument must
+<a href="#Satisfying_a_type_constraint">satisfy</a> the constraint of its respective
+type parameter.
 </p>
 
 <p>
-Type inference is based on
+Each such pair of matched types corresponds to a <i>type equation</i> containing
+one or multiple type parameters, from one or possibly multiple generic functions.
+Inferring the missing type arguments means solving the resulting set of type
+equations for the respective type parameters.
+</p>
+
+<p>
+For example, given
+</p>
+
+<pre>
+// dedup returns a copy of the argument slice with any duplicate entries removed.
+func dedup[S ~[]E, E comparable](S) S { … }
+
+type Slice []int
+var s Slice
+s = dedup(s)   // same as s = dedup[Slice, int](s)
+</pre>
+
+<p>
+the variable <code>s</code> of type <code>Slice</code> must be assignable to
+the function parameter type <code>S</code> for the program to be valid.
+To reduce complexity, type inference ignores the directionality of assignments,
+so the type relationship between <code>Slice</code> and <code>S</code> can be
+expressed via the (symmetric) type equation <code>Slice ≡<sub>A</sub> S</code>
+(or <code>S ≡<sub>A</sub> Slice</code> for that matter),
+where the <code><sub>A</sub></code> in <code>≡<sub>A</sub></code>
+indicates that the LHS and RHS types must match per assignability rules
+(see the section on <a href="#Type_unification">type unifcation</a> for
+details).
+Similarly, the type parameter <code>S</code> must satisfy its constraint
+<code>~[]E</code>. This can be expressed as <code>S ≡<sub>C</sub> ~[]E</code>
+where <code>X ≡<sub>C</sub> Y</code> stands for
+"<code>X</code> satisfies constraint <code>Y</code>".
+These observations lead to a set of two equations
+</p>
+
+<pre>
+	Slice ≡<sub>A</sub> S      (1)
+	S     ≡<sub>C</sub> ~[]E   (2)
+</pre>
+
+<p>
+which now can be solved for the type parameters <code>S</code> and <code>E</code>.
+From (1) a compiler can infer that the type argument for <code>S</code> is <code>Slice</code>.
+Similarly, because the underlying type of <code>Slice</code> is <code>[]int</code>
+and <code>[]int</code> must match <code>[]E</code> of the constraint,
+a compiler can infer that <code>E</code> must be <code>int</code>.
+Thus, for these two equations, type inference infers
+</p>
+
+<pre>
+	S ➞ Slice
+	E ➞ int
+</pre>
+
+<p>
+Given a set of type equations, the type parameters to solve for are
+the type parameters of the functions that need to be instantiated
+and for which no explicit type arguments is provided.
+These type parameters are called <i>bound</i> type parameters.
+For instance, in the <code>dedup</code> example above, the type parameters
+<code>P</code> and <code>E</code> are bound to <code>dedup</code>.
+An argument to a generic function call may be a generic function itself.
+The type parameters of that function are included in the set of bound
+type parameters.
+The types of function arguments may contain type parameters from other
+functions (such as a generic function enclosing a function call).
+Those type parameters may also appear in type equations but they are
+not bound in that context.
+Type equations are always solved for the bound type parameters only.
+</p>
+
+<p>
+Type inference supports calls of generic functions and assignments
+of generic functions to (explicitly function-typed) variables.
+This includes passing generic functions as arguments to other
+(possibly also generic) functions, and returning generic functions
+as results.
+Type inference operates on a set of equations specific to each of
+these cases.
+The equations are as follows (type argument lists are omitted for clarity):
 </p>
 
 <ul>
 <li>
-	a <a href="#Type_parameter_declarations">type parameter list</a>
+	<p>
+	For a function call <code>f(a<sub>0</sub>, a<sub>1</sub>, …)</code> where
+	<code>f</code> or a function argument <code>a<sub>i</sub></code> is
+	a generic function:
+	<br>
+	Each pair <code>(a<sub>i</sub>, p<sub>i</sub>)</code> of corresponding
+	function arguments and parameters where <code>a<sub>i</sub></code> is not an
+	<a href="#Constants">untyped constant</a> yields an equation
+	<code>typeof(p<sub>i</sub>) ≡<sub>A</sub> typeof(a<sub>i</sub>)</code>.
+	<br>
+	If <code>a<sub>i</sub></code> is an untyped constant <code>c<sub>j</sub></code>,
+	and <code>p<sub>i</sub></code> is a bound type parameter <code>P<sub>k</sub></code>,
+	the pair <code>(c<sub>j</sub>, P<sub>k</sub>)</code> is collected separately from
+	the type equations.
+	</p>
 </li>
 <li>
-	a substitution map <i>M</i> initialized with the known type arguments, if any
+	<p>
+	For an assignment <code>v = f</code> of a generic function <code>f</code> to a
+	(non-generic) variable <code>v</code> of function type:
+	<br>
+	<code>typeof(v) ≡<sub>A</sub> typeof(f)</code>.
+	</p>
 </li>
 <li>
-	a (possibly empty) list of ordinary function arguments (in case of a function call only)
+	<p>
+	For a return statement <code>return …, f, … </code> where <code>f</code> is a
+	generic function returned as a result to a (non-generic) result variable
+	of function type:
+	<br>
+	<code>typeof(r) ≡<sub>A</sub> typeof(f)</code>.
+	</p>
 </li>
 </ul>
 
 <p>
-and then proceeds with the following steps:
+Additionally, each type parameter <code>P<sub>k</sub></code> and corresponding type constraint
+<code>C<sub>k</sub></code> yields the type equation
+<code>P<sub>k</sub> ≡<sub>C</sub> C<sub>k</sub></code>.
+</p>
+
+<p>
+Type inference gives precedence to type information obtained from typed operands
+before considering untyped constants.
+Therefore, inference proceeds in two phases:
 </p>
 
 <ol>
 <li>
-	apply <a href="#Function_argument_type_inference"><i>function argument type inference</i></a>
-	to all <i>typed</i> ordinary function arguments
+	<p>
+	The type equations are solved for the bound
+	type parameters using <a href="#Type_unification">type unification</a>.
+	If unification fails, type inference fails.
+	</p>
 </li>
 <li>
-	apply <a href="#Constraint_type_inference"><i>constraint type inference</i></a>
-</li>
-<li>
-	apply function argument type inference to all <i>untyped</i> ordinary function arguments
-	using the default type for each of the untyped function arguments
-</li>
-<li>
-	apply constraint type inference
+	<p>
+	For each bound type parameter <code>P<sub>k</sub></code> for which no type argument
+	has been inferred yet and for which one or more pairs
+	<code>(c<sub>j</sub>, P<sub>k</sub>)</code> with that same type parameter
+	were collected, determine the <a href="#Constant_expressions">constant kind</a>
+	of the constants <code>c<sub>j</sub></code> in all those pairs the same way as for
+	<a href="#Constant_expressions">constant expressions</a>.
+	The type argument for <code>P<sub>k</sub></code> is the
+	<a href="#Constants">default type</a> for the determined constant kind.
+	If a constant kind cannot be determined due to conflicting constant kinds,
+	type inference fails.
+	</p>
 </li>
 </ol>
 
 <p>
-If there are no ordinary or untyped function arguments, the respective steps are skipped.
-Constraint type inference is skipped if the previous step didn't infer any new type arguments,
-but it is run at least once if there are missing type arguments.
+If not all type arguments have been found after these two phases, type inference fails.
 </p>
 
 <p>
-The substitution map <i>M</i> is carried through all steps, and each step may add entries to <i>M</i>.
-The process stops as soon as <i>M</i> has a type argument for each type parameter or if an inference step fails.
-If an inference step fails, or if <i>M</i> is still missing type arguments after the last step, type inference fails.
+If the two phases are successful, type inference determined a type argument for each
+bound type parameter:
+</p>
+
+<pre>
+	P<sub>k</sub> ➞ A<sub>k</sub>
+</pre>
+
+<p>
+A type argument <code>A<sub>k</sub></code> may be a composite type,
+containing other bound type parameters <code>P<sub>k</sub></code> as element types
+(or even be just another bound type parameter).
+In a process of repeated simplification, the bound type parameters in each type
+argument are substituted with the respective type arguments for those type
+parameters until each type argument is free of bound type parameters.
+</p>
+
+<p>
+If type arguments contain cyclic references to themselves
+through bound type parameters, simplification and thus type
+inference fails.
+Otherwise, type inference succeeds.
 </p>
 
 <h4 id="Type_unification">Type unification</h4>
+
+<p>
+<em>
+Note: This section is not up-to-date for Go 1.21.
+</em>
+</p>
 
 <p>
 Type inference is based on <i>type unification</i>. A single unification step
@@ -4544,264 +4696,6 @@ type Vector []float64
 and the type literal <code>[]E</code>, unification compares <code>[]float64</code> with
 <code>[]E</code> and adds an entry <code>E</code> &RightArrow; <code>float64</code> to
 the substitution map.
-</p>
-
-<h4 id="Function_argument_type_inference">Function argument type inference</h4>
-
-<!-- In this section and the section on constraint type inference we start with examples
-rather than have the examples follow the rules as is customary elsewhere in spec.
-Hopefully this helps building an intuition and makes the rules easier to follow. -->
-
-<p>
-Function argument type inference infers type arguments from function arguments:
-if a function parameter is declared with a type <code>T</code> that uses
-type parameters,
-<a href="#Type_unification">unifying</a> the type of the corresponding
-function argument with <code>T</code> may infer type arguments for the type
-parameters used by <code>T</code>.
-</p>
-
-<p>
-For instance, given the generic function
-</p>
-
-<pre>
-func scale[Number ~int64|~float64|~complex128](v []Number, s Number) []Number
-</pre>
-
-<p>
-and the call
-</p>
-
-<pre>
-var vector []float64
-scaledVector := scale(vector, 42)
-</pre>
-
-<p>
-the type argument for <code>Number</code> can be inferred from the function argument
-<code>vector</code> by unifying the type of <code>vector</code> with the corresponding
-parameter type: <code>[]float64</code> and <code>[]Number</code>
-match in structure and <code>float64</code> matches with <code>Number</code>.
-This adds the entry <code>Number</code> &RightArrow; <code>float64</code> to the
-<a href="#Type_unification">substitution map</a>.
-Untyped arguments, such as the second function argument <code>42</code> here, are ignored
-in the first round of function argument type inference and only considered if there are
-unresolved type parameters left.
-</p>
-
-<p>
-Inference happens in two separate phases; each phase operates on a specific list of
-(parameter, argument) pairs:
-</p>
-
-<ol>
-<li>
-	The list <i>Lt</i> contains all (parameter, argument) pairs where the parameter
-	type uses type parameters and where the function argument is <i>typed</i>.
-</li>
-<li>
-	The list <i>Lu</i> contains all remaining pairs where the parameter type is a single
-	type parameter. In this list, the respective function arguments are untyped.
-</li>
-</ol>
-
-<p>
-Any other (parameter, argument) pair is ignored.
-</p>
-
-<p>
-By construction, the arguments of the pairs in <i>Lu</i> are <i>untyped</i> constants
-(or the untyped boolean result of a comparison). And because <a href="#Constants">default types</a>
-of untyped values are always predeclared non-composite types, they can never match against
-a composite type, so it is sufficient to only consider parameter types that are single type
-parameters.
-</p>
-
-<p>
-Each list is processed in a separate phase:
-</p>
-
-<ol>
-<li>
-	In the first phase, the parameter and argument types of each pair in <i>Lt</i>
-	are unified. If unification succeeds for a pair, it may yield new entries that
-	are added to the substitution map <i>M</i>. If unification fails, type inference
-	fails.
-</li>
-<li>
-	The second phase considers the entries of list <i>Lu</i>. Type parameters for
-	which the type argument has already been determined are ignored in this phase.
-	For each remaining pair, the parameter type (which is a single type parameter) and
-	the <a href="#Constants">default type</a> of the corresponding untyped argument is
-	unified. If unification fails, type inference fails.
-</li>
-</ol>
-
-<p>
-While unification is successful, processing of each list continues until all list elements
-are considered, even if all type arguments are inferred before the last list element has
-been processed.
-</p>
-
-<p>
-Example:
-</p>
-
-<pre>
-func min[T ~int|~float64](x, y T) T
-
-var x int
-min(x, 2.0)    // T is int, inferred from typed argument x; 2.0 is assignable to int
-min(1.0, 2.0)  // T is float64, inferred from default type for 1.0 and matches default type for 2.0
-min(1.0, 2)    // illegal: default type float64 (for 1.0) doesn't match default type int (for 2)
-</pre>
-
-<p>
-In the example <code>min(1.0, 2)</code>, processing the function argument <code>1.0</code>
-yields the substitution map entry <code>T</code> &RightArrow; <code>float64</code>. Because
-processing continues until all untyped arguments are considered, an error is reported. This
-ensures that type inference does not depend on the order of the untyped arguments.
-</p>
-
-<h4 id="Constraint_type_inference">Constraint type inference</h4>
-
-<p>
-Constraint type inference infers type arguments by considering type constraints.
-If a type parameter <code>P</code> has a constraint with a
-<a href="#Core_types">core type</a> <code>C</code>,
-<a href="#Type_unification">unifying</a> <code>P</code> with <code>C</code>
-may infer additional type arguments, either the type argument for <code>P</code>,
-or if that is already known, possibly the type arguments for type parameters
-used in <code>C</code>.
-</p>
-
-<p>
-For instance, consider the type parameter list with type parameters <code>List</code> and
-<code>Elem</code>:
-</p>
-
-<pre>
-[List ~[]Elem, Elem any]
-</pre>
-
-<p>
-Constraint type inference can deduce the type of <code>Elem</code> from the type argument
-for <code>List</code> because <code>Elem</code> is a type parameter in the core type
-<code>[]Elem</code> of <code>List</code>.
-If the type argument is <code>Bytes</code>:
-</p>
-
-<pre>
-type Bytes []byte
-</pre>
-
-<p>
-unifying the underlying type of <code>Bytes</code> with the core type means
-unifying <code>[]byte</code> with <code>[]Elem</code>. That unification succeeds and yields
-the <a href="#Type_unification">substitution map</a> entry
-<code>Elem</code> &RightArrow; <code>byte</code>.
-Thus, in this example, constraint type inference can infer the second type argument from the
-first one.
-</p>
-
-<p>
-Using the core type of a constraint may lose some information: In the (unlikely) case that
-the constraint's type set contains a single <a href="#Type_definitions">defined type</a>
-<code>N</code>, the corresponding core type is <code>N</code>'s underlying type rather than
-<code>N</code> itself. In this case, constraint type inference may succeed but instantiation
-will fail because the inferred type is not in the type set of the constraint.
-Thus, constraint type inference uses the <i>adjusted core type</i> of
-a constraint: if the type set contains a single type, use that type; otherwise use the
-constraint's core type.
-</p>
-
-<p>
-Generally, constraint type inference proceeds in two phases: Starting with a given
-substitution map <i>M</i>
-</p>
-
-<ol>
-<li>
-For all type parameters with an adjusted core type, unify the type parameter with that
-type. If any unification fails, constraint type inference fails.
-</li>
-
-<li>
-At this point, some entries in <i>M</i> may map type parameters to other
-type parameters or to types containing type parameters. For each entry
-<code>P</code> &RightArrow; <code>A</code> in <i>M</i> where <code>A</code> is or
-contains type parameters <code>Q</code> for which there exist entries
-<code>Q</code> &RightArrow; <code>B</code> in <i>M</i>, substitute those
-<code>Q</code> with the respective <code>B</code> in <code>A</code>.
-Stop when no further substitution is possible.
-</li>
-</ol>
-
-<p>
-The result of constraint type inference is the final substitution map <i>M</i> from type
-parameters <code>P</code> to type arguments <code>A</code> where no type parameter <code>P</code>
-appears in any of the <code>A</code>.
-</p>
-
-<p>
-For instance, given the type parameter list
-</p>
-
-<pre>
-[A any, B []C, C *A]
-</pre>
-
-<p>
-and the single provided type argument <code>int</code> for type parameter <code>A</code>,
-the initial substitution map <i>M</i> contains the entry <code>A</code> &RightArrow; <code>int</code>.
-</p>
-
-<p>
-In the first phase, the type parameters <code>B</code> and <code>C</code> are unified
-with the core type of their respective constraints. This adds the entries
-<code>B</code> &RightArrow; <code>[]C</code> and <code>C</code> &RightArrow; <code>*A</code>
-to <i>M</i>.
-
-<p>
-At this point there are two entries in <i>M</i> where the right-hand side
-is or contains type parameters for which there exists other entries in <i>M</i>:
-<code>[]C</code> and <code>*A</code>.
-In the second phase, these type parameters are replaced with their respective
-types. It doesn't matter in which order this happens. Starting with the state
-of <i>M</i> after the first phase:
-</p>
-
-<p>
-<code>A</code> &RightArrow; <code>int</code>,
-<code>B</code> &RightArrow; <code>[]C</code>,
-<code>C</code> &RightArrow; <code>*A</code>
-</p>
-
-<p>
-Replace <code>A</code> on the right-hand side of &RightArrow; with <code>int</code>:
-</p>
-
-<p>
-<code>A</code> &RightArrow; <code>int</code>,
-<code>B</code> &RightArrow; <code>[]C</code>,
-<code>C</code> &RightArrow; <code>*int</code>
-</p>
-
-<p>
-Replace <code>C</code> on the right-hand side of &RightArrow; with <code>*int</code>:
-</p>
-
-<p>
-<code>A</code> &RightArrow; <code>int</code>,
-<code>B</code> &RightArrow; <code>[]*int</code>,
-<code>C</code> &RightArrow; <code>*int</code>
-</p>
-
-<p>
-At this point no further substitution is possible and the map is full.
-Therefore, <code>M</code> represents the final map of type parameters
-to type arguments for the given type parameter list.
 </p>
 
 <h3 id="Operators">Operators</h3>
@@ -5479,7 +5373,7 @@ in any of these cases:
 	ignoring struct tags (see below),
 	<code>x</code>'s type and <code>T</code> are not
 	<a href="#Type_parameter_declarations">type parameters</a> but have
-	<a href="#Type_identity">identical</a> <a href="#Types">underlying types</a>.
+	<a href="#Type_identity">identical</a> <a href="#Underlying_types">underlying types</a>.
 	</li>
 	<li>
 	ignoring struct tags (see below),
@@ -8291,7 +8185,7 @@ of if the general conversion rules take care of this.
 <p>
 A <code>Pointer</code> is a <a href="#Pointer_types">pointer type</a> but a <code>Pointer</code>
 value may not be <a href="#Address_operators">dereferenced</a>.
-Any pointer or value of <a href="#Types">underlying type</a> <code>uintptr</code> can be
+Any pointer or value of <a href="#Underlying_types">underlying type</a> <code>uintptr</code> can be
 <a href="#Conversions">converted</a> to a type of underlying type <code>Pointer</code> and vice versa.
 The effect of converting between <code>Pointer</code> and <code>uintptr</code> is implementation-defined.
 </p>
