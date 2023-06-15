@@ -326,7 +326,7 @@ func TestBoringCertAlgs(t *testing.T) {
 	L2_I := boringCert(t, "L2_I", boringRSAKey(t, 1024), I_R1, boringCertLeaf)
 
 	// client verifying server cert
-	testServerCert := func(t *testing.T, desc string, pool *x509.CertPool, key interface{}, list [][]byte, ok bool) {
+	testServerCert := func(t *testing.T, desc string, pool *x509.CertPool, key any, list [][]byte, ok bool) {
 		clientConfig := testConfig.Clone()
 		clientConfig.RootCAs = pool
 		clientConfig.InsecureSkipVerify = false
@@ -354,7 +354,7 @@ func TestBoringCertAlgs(t *testing.T) {
 	}
 
 	// server verifying client cert
-	testClientCert := func(t *testing.T, desc string, pool *x509.CertPool, key interface{}, list [][]byte, ok bool) {
+	testClientCert := func(t *testing.T, desc string, pool *x509.CertPool, key any, list [][]byte, ok bool) {
 		clientConfig := testConfig.Clone()
 		clientConfig.ServerName = "example.com"
 		clientConfig.Certificates = []Certificate{{Certificate: list, PrivateKey: key}}
@@ -488,11 +488,11 @@ type boringCertificate struct {
 	parentOrg string
 	der       []byte
 	cert      *x509.Certificate
-	key       interface{}
+	key       any
 	fipsOK    bool
 }
 
-func boringCert(t *testing.T, name string, key interface{}, parent *boringCertificate, mode int) *boringCertificate {
+func boringCert(t *testing.T, name string, key any, parent *boringCertificate, mode int) *boringCertificate {
 	org := name
 	parentOrg := ""
 	if i := strings.Index(org, "_"); i >= 0 {
@@ -519,7 +519,7 @@ func boringCert(t *testing.T, name string, key interface{}, parent *boringCertif
 	}
 
 	var pcert *x509.Certificate
-	var pkey interface{}
+	var pkey any
 	if parent != nil {
 		pcert = parent.cert
 		pkey = parent.key
@@ -528,7 +528,7 @@ func boringCert(t *testing.T, name string, key interface{}, parent *boringCertif
 		pkey = key
 	}
 
-	var pub interface{}
+	var pub any
 	switch k := key.(type) {
 	case *rsa.PrivateKey:
 		pub = &k.PublicKey

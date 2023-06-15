@@ -83,7 +83,7 @@ func main() {
 		}
 		defer f.Close()
 		buf := &bytes.Buffer{}
-		if err := t.Execute(buf, map[string]interface{}{
+		if err := t.Execute(buf, map[string]any{
 			"P": c.P, "p": p, "B": B, "Gx": Gx, "Gy": Gy,
 			"Element": c.Element, "ElementLen": elementLen,
 			"BuildTags": c.BuildTags,

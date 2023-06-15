@@ -48,7 +48,7 @@ type boringCertificate struct {
 	parentOrg string
 	der       []byte
 	cert      *Certificate
-	key       interface{}
+	key       any
 	fipsOK    bool
 }
 
@@ -72,7 +72,7 @@ func TestBoringAllowCert(t *testing.T) {
 	testBoringCert(t, "L2_I", boringRSAKey(t, 1024), I_R1, boringCertLeaf)
 }
 
-func testBoringCert(t *testing.T, name string, key interface{}, parent *boringCertificate, mode int) *boringCertificate {
+func testBoringCert(t *testing.T, name string, key any, parent *boringCertificate, mode int) *boringCertificate {
 	org := name
 	parentOrg := ""
 	if i := strings.Index(org, "_"); i >= 0 {
@@ -99,7 +99,7 @@ func testBoringCert(t *testing.T, name string, key interface{}, parent *boringCe
 	}
 
 	var pcert *Certificate
-	var pkey interface{}
+	var pkey any
 	if parent != nil {
 		pcert = parent.cert
 		pkey = parent.key
@@ -108,7 +108,7 @@ func testBoringCert(t *testing.T, name string, key interface{}, parent *boringCe
 		pkey = key
 	}
 
-	var pub interface{}
+	var pub any
 	var desc string
 	switch k := key.(type) {
 	case *rsa.PrivateKey:
