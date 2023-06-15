@@ -2121,6 +2121,11 @@
   && isSameCall(callAux, "runtime.memequal")
   => (MakeResult (ConstBool <typ.Bool> [true]) mem)
 
+(Static(Call|LECall) {callAux} p q _ mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && isSamePtr(p, q)
+  => (MakeResult (ConstBool <typ.Bool> [true]) mem)
+
 // Turn known-size calls to memclrNoHeapPointers into a Zero.
 // Note that we are using types.Types[types.TUINT8] instead of sptr.Type.Elem() - see issue 55122 and CL 431496 for more details.
 (SelectN [0] call:(StaticCall {sym} sptr (Const(64|32) [c]) mem))
