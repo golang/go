@@ -14,20 +14,18 @@ import (
 	"bytes"
 	"context"
 	"flag"
-	"fmt"
-	"go/build"
 	"internal/testenv"
 	"internal/txtar"
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/script"
 	"cmd/go/internal/script/scripttest"
 	"cmd/go/internal/vcweb/vcstest"
@@ -209,10 +207,6 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	version, err := goVersion()
-	if err != nil {
-		return nil, err
-	}
 	env := []string{
 		pathEnvName() + "=" + testBin + string(filepath.ListSeparator) + os.Getenv(pathEnvName()),
 		homeEnvName() + "=/no-home",
@@ -243,7 +237,7 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 		"GONOSUMDB=",
 		"GOVCS=*:all",
 		"devnull=" + os.DevNull,
-		"goversion=" + version,
+		"goversion=" + gover.Local(),
 		"CMDGO_TEST_RUN_MAIN=true",
 		"HGRCPATH=",
 		"GOTOOLCHAIN=auto",
@@ -279,16 +273,6 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 	}
 
 	return env, nil
-}
-
-// goVersion returns the current Go version.
-func goVersion() (string, error) {
-	tags := build.Default.ReleaseTags
-	version := tags[len(tags)-1]
-	if !regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`).MatchString(version) {
-		return "", fmt.Errorf("invalid go version %q", version)
-	}
-	return version[2:], nil
 }
 
 var extraEnvKeys = []string{

@@ -3880,7 +3880,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 29: /* op Rn, Rd */
 		fc := c.aclass(&p.From)
 		tc := c.aclass(&p.To)
-		if (p.As == AFMOVD || p.As == AFMOVS) && (fc == C_REG || fc == C_ZREG || tc == C_REG) {
+		if (p.As == AFMOVD || p.As == AFMOVS) && (fc == C_REG || fc == C_ZREG || tc == C_REG || tc == C_ZREG) {
 			// FMOV Rx, Fy or FMOV Fy, Rx
 			o1 = FPCVTI(0, 0, 0, 0, 6)
 			if p.As == AFMOVD {
