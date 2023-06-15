@@ -3886,7 +3886,7 @@ func useResponseFile(path string, argLen int) bool {
 	// TODO: Note that other toolchains like CC are missing here for now.
 	prog := strings.TrimSuffix(filepath.Base(path), ".exe")
 	switch prog {
-	case "compile", "link", "cgo", "asm":
+	case "compile", "link", "cgo", "asm", "cover":
 	default:
 		return false
 	}
