@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"syscall/js"
 )
 
@@ -44,11 +45,15 @@ const jsFetchRedirect = "js.fetch:redirect"
 // the browser globals.
 var jsFetchMissing = js.Global().Get("fetch").IsUndefined()
 
-// jsFetchDisabled will be true if the "process" global is present.
-// We use this as an indicator that we're running in Node.js. We
-// want to disable the Fetch API in Node.js because it breaks
-// our wasm tests. See https://go.dev/issue/57613 for more information.
-var jsFetchDisabled = !js.Global().Get("process").IsUndefined()
+// jsFetchDisabled controls whether the use of Fetch API is disabled.
+// It's set to true when we detect we're running in Node.js, so that
+// RoundTrip ends up talking over the same fake network the HTTP servers
+// currently use in various tests and examples. See go.dev/issue/57613.
+//
+// TODO(go.dev/issue/60810): See if it's viable to test the Fetch API
+// code path.
+var jsFetchDisabled = js.Global().Get("process").Type() == js.TypeObject &&
+	strings.HasPrefix(js.Global().Get("process").Get("argv0").String(), "node")
 
 // Determine whether the JS runtime supports streaming request bodies.
 // Courtesy: https://developer.chrome.com/articles/fetch-streaming-requests/#feature-detection
