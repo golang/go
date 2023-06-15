@@ -577,7 +577,7 @@ func (b *typeCheckBatch) importPackage(ctx context.Context, m *source.Metadata, 
 
 	// TODO(rfindley): collect "deep" hashes here using the getPackages
 	// callback, for precise pruning.
-	imported, err := gcimporter.IImportShallow(b.fset, getPackages, data, string(m.PkgPath))
+	imported, err := gcimporter.IImportShallow(b.fset, getPackages, data, string(m.PkgPath), bug.Reportf)
 	if err != nil {
 		return nil, fmt.Errorf("import failed for %q: %v", m.ID, err)
 	}
@@ -623,7 +623,7 @@ func (b *typeCheckBatch) checkPackageForImport(ctx context.Context, ph *packageH
 
 	// Asynchronously record export data.
 	go func() {
-		exportData, err := gcimporter.IExportShallow(b.fset, pkg)
+		exportData, err := gcimporter.IExportShallow(b.fset, pkg, bug.Reportf)
 		if err != nil {
 			bug.Reportf("exporting package %v: %v", ph.m.ID, err)
 			return
@@ -655,7 +655,7 @@ func (b *typeCheckBatch) checkPackage(ctx context.Context, ph *packageHandle) (*
 			}
 
 			if ph.m.PkgPath != "unsafe" { // unsafe cannot be exported
-				exportData, err := gcimporter.IExportShallow(pkg.fset, pkg.types)
+				exportData, err := gcimporter.IExportShallow(pkg.fset, pkg.types, bug.Reportf)
 				if err != nil {
 					bug.Reportf("exporting package %v: %v", ph.m.ID, err)
 				} else {

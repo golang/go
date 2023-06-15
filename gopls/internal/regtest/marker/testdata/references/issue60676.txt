@@ -1,0 +1,58 @@
+This test verifies that even after importing from export data, the references
+algorithm is able to find all references to struct fields or methods that are
+shared by types from multiple packages. See golang/go#60676.
+
+Note that the marker test runner awaits the initial workspace load, so export
+data should be populated at the time references are requested.
+
+-- go.mod --
+module mod.test
+
+go 1.18
+
+-- a/a.go --
+package a
+
+type A struct {
+	F int //@loc(FDef, "F")
+	E //@loc(EDef, "E")
+}
+
+type E struct {
+	G string //@loc(GDef, "G")
+}
+
+type AI interface {
+	M() //@loc(MDef, "M")
+	EI
+}
+
+type EI interface {
+	N() //@loc(NDef, "N")
+}
+
+-- b/b.go --
+package b
+
+import "mod.test/a"
+
+type B a.A
+
+type BI a.AI
+
+-- c/c.go --
+package c
+
+import "mod.test/b"
+
+func _() {
+	x := b.B{
+		F: 42, //@refs("F", FDef, "F")
+	}
+	x.G = "hi" //@refs("G", GDef, "G")
+	_ = x.E //@refs("E", EDef, "E")
+
+	var y b.BI
+	_ = y.M //@refs("M", MDef, "M")
+	_ = y.N //@refs("N", NDef, "N")
+}

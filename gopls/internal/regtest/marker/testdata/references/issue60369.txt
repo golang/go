@@ -21,7 +21,9 @@ const C = 0
 package b
 
 import a "example.com/a" //@loc(adef, "a")
-type s struct { a.A } //@loc(Aref1, "A"), loc(aref1, "a"), refs(Aref1, Aref1, Aref3), refs(aref1, adef, aref1, aref2, aref3)
+type s struct {
+	a.A //@loc(Aref1, "A"), loc(aref1, "a"), refs(Aref1, Aref1, Aref3), refs(aref1, adef, aref1, aref2, aref3)
+}
 var _ a.A //@loc(aref2, re" (a)"), loc(Aref2, "A")
 var _ = s{}.A //@loc(Aref3, "A")
 const c = a.C //@loc(aref3, "a")

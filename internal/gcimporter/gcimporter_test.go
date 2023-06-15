@@ -834,14 +834,14 @@ func TestExportInvalid(t *testing.T) {
 
 			// Export it.
 			// (Shallowness isn't important here.)
-			data, err := IExportShallow(fset, pkg1)
+			data, err := IExportShallow(fset, pkg1, nil)
 			if err != nil {
 				t.Fatalf("export: %v", err) // any failure to export is a bug
 			}
 
 			// Re-import it.
 			imports := make(map[string]*types.Package)
-			pkg2, err := IImportShallow(fset, GetPackagesFromMap(imports), data, "p")
+			pkg2, err := IImportShallow(fset, GetPackagesFromMap(imports), data, "p", nil)
 			if err != nil {
 				t.Fatalf("import: %v", err) // any failure of IExport+IImport is a bug.
 			}

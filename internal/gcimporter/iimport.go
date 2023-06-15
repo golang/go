@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/tools/go/types/objectpath"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -85,7 +86,7 @@ const (
 // If the export data version is not recognized or the format is otherwise
 // compromised, an error is returned.
 func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (int, *types.Package, error) {
-	pkgs, err := iimportCommon(fset, GetPackagesFromMap(imports), data, false, path, false)
+	pkgs, err := iimportCommon(fset, GetPackagesFromMap(imports), data, false, path, false, nil)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -94,7 +95,7 @@ func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 
 // IImportBundle imports a set of packages from the serialized package bundle.
 func IImportBundle(fset *token.FileSet, imports map[string]*types.Package, data []byte) ([]*types.Package, error) {
-	return iimportCommon(fset, GetPackagesFromMap(imports), data, true, "", false)
+	return iimportCommon(fset, GetPackagesFromMap(imports), data, true, "", false, nil)
 }
 
 // A GetPackagesFunc function obtains the non-nil symbols for a set of
@@ -136,7 +137,7 @@ func GetPackagesFromMap(m map[string]*types.Package) GetPackagesFunc {
 	}
 }
 
-func iimportCommon(fset *token.FileSet, getPackages GetPackagesFunc, data []byte, bundle bool, path string, shallow bool) (pkgs []*types.Package, err error) {
+func iimportCommon(fset *token.FileSet, getPackages GetPackagesFunc, data []byte, bundle bool, path string, shallow bool, reportf ReportFunc) (pkgs []*types.Package, err error) {
 	const currentVersion = iexportVersionCurrent
 	version := int64(-1)
 	if !debug {
@@ -192,9 +193,10 @@ func iimportCommon(fset *token.FileSet, getPackages GetPackagesFunc, data []byte
 	r.Seek(sLen+fLen+dLen, io.SeekCurrent)
 
 	p := iimporter{
-		version:  int(version),
-		ipath:    path,
-		usePosv2: shallow, // precise offsets are encoded only in shallow mode
+		version: int(version),
+		ipath:   path,
+		shallow: shallow,
+		reportf: reportf,
 
 		stringData:  stringData,
 		stringCache: make(map[uint64]string),
@@ -338,7 +340,8 @@ type iimporter struct {
 	version int
 	ipath   string
 
-	usePosv2 bool
+	shallow bool
+	reportf ReportFunc // if non-nil, used to report bugs
 
 	stringData  []byte
 	stringCache map[uint64]string
@@ -755,7 +758,8 @@ func (r *importReader) qualifiedIdent() (*types.Package, string) {
 }
 
 func (r *importReader) pos() token.Pos {
-	if r.p.usePosv2 {
+	if r.p.shallow {
+		// precise offsets are encoded only in shallow mode
 		return r.posv2()
 	}
 	if r.p.version >= iexportVersionPosCol {
@@ -856,13 +860,28 @@ func (r *importReader) doType(base *types.Named) (res types.Type) {
 		fields := make([]*types.Var, r.uint64())
 		tags := make([]string, len(fields))
 		for i := range fields {
+			var field *types.Var
+			if r.p.shallow {
+				field, _ = r.objectPathObject().(*types.Var)
+			}
+
 			fpos := r.pos()
 			fname := r.ident()
 			ftyp := r.typ()
 			emb := r.bool()
 			tag := r.string()
 
-			fields[i] = types.NewField(fpos, r.currPkg, fname, ftyp, emb)
+			// Either this is not a shallow import, the field is local, or the
+			// encoded objectPath failed to produce an object (a bug).
+			//
+			// Even in this last, buggy case, fall back on creating a new field. As
+			// discussed in iexport.go, this is not correct, but mostly works and is
+			// preferable to failing (for now at least).
+			if field == nil {
+				field = types.NewField(fpos, r.currPkg, fname, ftyp, emb)
+			}
+
+			fields[i] = field
 			tags[i] = tag
 		}
 		return types.NewStruct(fields, tags)
@@ -878,6 +897,11 @@ func (r *importReader) doType(base *types.Named) (res types.Type) {
 
 		methods := make([]*types.Func, r.uint64())
 		for i := range methods {
+			var method *types.Func
+			if r.p.shallow {
+				method, _ = r.objectPathObject().(*types.Func)
+			}
+
 			mpos := r.pos()
 			mname := r.ident()
 
@@ -887,9 +911,12 @@ func (r *importReader) doType(base *types.Named) (res types.Type) {
 			if base != nil {
 				recv = types.NewVar(token.NoPos, r.currPkg, "", base)
 			}
-
 			msig := r.signature(recv, nil, nil)
-			methods[i] = types.NewFunc(mpos, r.currPkg, mname, msig)
+
+			if method == nil {
+				method = types.NewFunc(mpos, r.currPkg, mname, msig)
+			}
+			methods[i] = method
 		}
 
 		typ := newInterface(methods, embeddeds)
@@ -943,6 +970,26 @@ func (r *importReader) doType(base *types.Named) (res types.Type) {
 
 func (r *importReader) kind() itag {
 	return itag(r.uint64())
+}
+
+// objectPathObject is the inverse of exportWriter.objectPath.
+//
+// In shallow mode, certain fields and methods may need to be looked up in an
+// imported package. See the doc for exportWriter.objectPath for a full
+// explanation.
+func (r *importReader) objectPathObject() types.Object {
+	pkg := r.pkg()
+	objPath := objectpath.Path(r.string())
+	if objPath == "" {
+		return nil
+	}
+	obj, err := objectpath.Object(pkg, objPath)
+	if err != nil {
+		if r.p.reportf != nil {
+			r.p.reportf("failed to find object for objectPath %q: %v", objPath, err)
+		}
+	}
+	return obj
 }
 
 func (r *importReader) signature(recv *types.Var, rparams []*typeparams.TypeParam, tparams []*typeparams.TypeParam) *types.Signature {

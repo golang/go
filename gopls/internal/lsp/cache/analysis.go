@@ -460,7 +460,7 @@ func (an *analysisNode) _import() (*types.Package, error) {
 			}
 			return g.Wait()
 		}
-		pkg, err := gcimporter.IImportShallow(an.fset, getPackages, an.summary.Export, string(an.m.PkgPath))
+		pkg, err := gcimporter.IImportShallow(an.fset, getPackages, an.summary.Export, string(an.m.PkgPath), bug.Reportf)
 		if err != nil {
 			an.typesErr = bug.Errorf("%s: invalid export data: %v", an.m, err)
 			an.types = nil
@@ -913,7 +913,7 @@ func (an *analysisNode) typeCheck(parsed []*source.ParsedGoFile) *analysisPackag
 	}
 
 	// Emit the export data and compute the recursive hash.
-	export, err := gcimporter.IExportShallow(pkg.fset, pkg.types)
+	export, err := gcimporter.IExportShallow(pkg.fset, pkg.types, bug.Reportf)
 	if err != nil {
 		// TODO(adonovan): in light of exporter bugs such as #57729,
 		// consider using bug.Report here and retrying the IExportShallow
@@ -961,7 +961,7 @@ func readShallowManifest(export []byte) ([]PackagePath, error) {
 		}
 		return errors.New("stop") // terminate importer
 	}
-	_, err := gcimporter.IImportShallow(token.NewFileSet(), getPackages, export, selfPath)
+	_, err := gcimporter.IImportShallow(token.NewFileSet(), getPackages, export, selfPath, bug.Reportf)
 	if paths == nil {
 		if err != nil {
 			return nil, err // failed before getPackages callback
