@@ -415,3 +415,23 @@ func TestHoverLinknameDirective(t *testing.T) {
 		}
 	})
 }
+
+func TestHoverGoWork_Issue60821(t *testing.T) {
+	const files = `
+-- go.work --
+go 1.19
+
+use (
+	moda
+	modb
+)
+-- moda/go.mod --
+
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("go.work")
+		// Neither of the requests below should crash gopls.
+		_, _, _ = env.Editor.Hover(env.Ctx, env.RegexpSearch("go.work", "moda"))
+		_, _, _ = env.Editor.Hover(env.Ctx, env.RegexpSearch("go.work", "modb"))
+	})
+}

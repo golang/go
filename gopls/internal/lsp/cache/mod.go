@@ -400,7 +400,7 @@ func (s *snapshot) matchErrorToModule(ctx context.Context, pm *source.ParsedModu
 		// Show the error on the module declaration, if one exists, or
 		// just the first line of the file.
 		var start, end int
-		if pm.File.Module != nil {
+		if pm.File.Module != nil && pm.File.Module.Syntax != nil {
 			syntax := pm.File.Module.Syntax
 			start, end = syntax.Start.Byte, syntax.End.Byte
 		}

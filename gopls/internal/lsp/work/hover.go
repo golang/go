@@ -52,6 +52,9 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	if err != nil {
 		return nil, fmt.Errorf("getting modfile handle: %w", err)
 	}
+	if pm.File.Module == nil {
+		return nil, fmt.Errorf("modfile has no module declaration")
+	}
 	mod := pm.File.Module.Mod
 
 	// Get the range to highlight for the hover.

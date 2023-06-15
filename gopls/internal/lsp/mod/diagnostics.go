@@ -331,7 +331,13 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 	// TODO(hyangah): place this diagnostic on the `go` directive or `toolchain` directive
 	// after https://go.dev/issue/57001.
 	const diagnoseStdLib = false
-	if diagnoseStdLib {
+
+	// If diagnosing the stdlib, add standard library vulnerability diagnostics
+	// on the module declaration.
+	//
+	// Only proceed if we have a valid module declaration on which to position
+	// the diagnostics.
+	if diagnoseStdLib && pm.File.Module != nil && pm.File.Module.Syntax != nil {
 		// Add standard library vulnerabilities.
 		stdlibVulns := vulnsByModule["stdlib"]
 		if len(stdlibVulns) == 0 {
