@@ -198,10 +198,20 @@ func New(pattern string) (*Matcher, error) {
 
 	m := new(Matcher)
 
-	// Allow multiple v, so that “bisect cmd vPATTERN” can force verbose all the time.
 	p := pattern
+	// Special case for leading 'q' so that 'qn' quietly disables, e.g. fmahash=qn to disable fma
+	// Any instance of 'v' disables 'q'.
+	if len(p) > 0 && p[0] == 'q' {
+		m.quiet = true
+		p = p[1:]
+		if p == "" {
+			return nil, &parseError{"invalid pattern syntax: " + pattern}
+		}
+	}
+	// Allow multiple v, so that “bisect cmd vPATTERN” can force verbose all the time.
 	for len(p) > 0 && p[0] == 'v' {
 		m.verbose = true
+		m.quiet = false
 		p = p[1:]
 		if p == "" {
 			return nil, &parseError{"invalid pattern syntax: " + pattern}
@@ -297,7 +307,8 @@ func New(pattern string) (*Matcher, error) {
 // A Matcher is the parsed, compiled form of a PATTERN string.
 // The nil *Matcher is valid: it has all changes enabled but none reported.
 type Matcher struct {
-	verbose bool
+	verbose bool   // annotate reporting with human-helpful information
+	quiet   bool   // disables all reporting.  reset if verbose is true. use case is -d=fmahash=qn
 	enable  bool   // when true, list is for “enable and report” (when false, “disable and report”)
 	list    []cond // conditions; later ones win over earlier ones
 	dedup   atomicPointerDedup
@@ -339,20 +350,19 @@ func (m *Matcher) ShouldEnable(id uint64) bool {
 	if m == nil {
 		return true
 	}
-	for i := len(m.list) - 1; i >= 0; i-- {
-		c := &m.list[i]
-		if id&c.mask == c.bits {
-			return c.result == m.enable
-		}
-	}
-	return false == m.enable
+	return m.matchResult(id) == m.enable
 }
 
 // ShouldPrint reports whether to print identifying information about the change with the given id.
 func (m *Matcher) ShouldPrint(id uint64) bool {
-	if m == nil {
+	if m == nil || m.quiet {
 		return false
 	}
+	return m.matchResult(id)
+}
+
+// matchResult returns the result from the first condition that matches id.
+func (m *Matcher) matchResult(id uint64) bool {
 	for i := len(m.list) - 1; i >= 0; i-- {
 		c := &m.list[i]
 		if id&c.mask == c.bits {
