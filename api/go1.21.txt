@@ -90,6 +90,11 @@ pkg crypto/x509, type RevocationListEntry struct, RevocationTime time.Time #5357
 pkg crypto/x509, type RevocationListEntry struct, SerialNumber *big.Int #53573
 pkg crypto/x509, type RevocationList struct, RevokedCertificateEntries []RevocationListEntry #53573
 pkg crypto/x509, type RevocationList struct, RevokedCertificates //deprecated #53573
+pkg database/sql, method (*Null[$0]) Scan(interface{}) error #60370
+pkg database/sql, method (Null[$0]) Value() (driver.Value, error) #60370
+pkg database/sql, type Null[$0 interface{}] struct #60370
+pkg database/sql, type Null[$0 interface{}] struct, Valid bool #60370
+pkg database/sql, type Null[$0 interface{}] struct, X $0 #60370
 pkg debug/elf, const COMPRESS_ZSTD = 2 #55107
 pkg debug/elf, const COMPRESS_ZSTD CompressionType #55107
 pkg debug/elf, const DF_1_CONFALT = 8192 #56887
