@@ -21,7 +21,7 @@ func initFuzzFlags() {
 	matchFuzz = flag.String("test.fuzz", "", "run the fuzz test matching `regexp`")
 	flag.Var(&fuzzDuration, "test.fuzztime", "time to spend fuzzing; default is to run indefinitely")
 	flag.Var(&minimizeDuration, "test.fuzzminimizetime", "time to spend minimizing a value after finding a failing input")
-
+	orioraft = flag.Bool("test.old", true, "whether to test the old corpus")
 	fuzzCacheDir = flag.String("test.fuzzcachedir", "", "directory where interesting fuzzing inputs are stored (for use only by cmd/go)")
 	isFuzzWorker = flag.Bool("test.fuzzworker", false, "coordinate with the parent process to fuzz random values (for use only by cmd/go)")
 }
@@ -32,7 +32,7 @@ var (
 	minimizeDuration = durationOrCountFlag{d: 60 * time.Second, allowZero: true}
 	fuzzCacheDir     *string
 	isFuzzWorker     *bool
-
+	orioraft         *bool
 	// corpusDir is the parent directory of the fuzz test's seed corpus within
 	// the package.
 	corpusDir = "testdata/fuzz"
@@ -347,7 +347,8 @@ func (f *F) Fuzz(ff any) {
 		// Fuzzing is enabled, and this is the test process started by 'go test'.
 		// Act as the coordinator process, and coordinate workers to perform the
 		// actual fuzzing.
-		corpusTargetDir := filepath.Join(corpusDir, f.name)
+		// corpusTargetDir := filepath.Join(corpusDir, f.name)
+		corpusTargetDir := filepath.Join(corpusDir, f.name+"Panic")
 		cacheTargetDir := filepath.Join(*fuzzCacheDir, f.name)
 		err := f.fuzzContext.deps.CoordinateFuzzing(
 			fuzzDuration.d,
@@ -497,7 +498,14 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 				if shouldFailFast() {
 					break
 				}
-				testName, matched, _ := tctx.match.fullName(nil, ft.Name)
+				var testName string
+				var matched bool
+				if *orioraft {
+					testName, matched, _ = tctx.match.fullName(nil, ft.Name)
+				} else {
+					testName, matched, _ = tctx.match.fullName(nil, ft.Name+"Panic")
+				}
+				fmt.Println(*orioraft)
 				if !matched {
 					continue
 				}
