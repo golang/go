@@ -37,6 +37,8 @@ The support commands are:
 		the set of nodes strongly connected to the specified one
 	focus <node>
 		the subgraph containing all directed paths that pass through the specified node
+	to dot
+		print the graph in Graphviz dot format (other formats may be supported in the future)
 
 Input format:
 
@@ -80,6 +82,11 @@ Show which packages in x/tools depend, perhaps indirectly, on the callgraph pack
 
 	$ go list -f '{{.ImportPath}} {{join .Imports " "}}' -deps golang.org/x/tools/... |
 		digraph reverse golang.org/x/tools/go/callgraph
+
+Visualize the package dependency graph of the current package:
+
+	$ go list -f '{{.ImportPath}} {{join .Imports " "}}' -deps |
+		digraph to dot | dot -Tpng -o x.png
 
 Using a module graph produced by go mod, show all dependencies of the current module:
 
@@ -137,6 +144,8 @@ The support commands are:
 		the set of nodes nodes strongly connected to the specified one
 	focus <node>
 		the subgraph containing all directed paths that pass through the specified node
+	to dot
+		print the graph in Graphviz dot format (other formats may be supported in the future)
 `)
 	os.Exit(2)
 }
@@ -205,6 +214,14 @@ func (g graph) addEdges(from string, to ...string) {
 		g.addNode(to)
 		edges[to] = true
 	}
+}
+
+func (g graph) nodelist() nodelist {
+	nodes := make(nodeset)
+	for node := range g {
+		nodes[node] = true
+	}
+	return nodes.sort()
 }
 
 func (g graph) reachableFrom(roots nodeset) nodeset {
@@ -356,6 +373,20 @@ func (g graph) somepath(from, to string) error {
 	return nil
 }
 
+func (g graph) toDot(w *bytes.Buffer) {
+	fmt.Fprintln(w, "digraph {")
+	for _, src := range g.nodelist() {
+		for _, dst := range g[src].sort() {
+			// Dot's quoting rules appear to align with Go's for escString,
+			// which is the syntax of node IDs. Labels require significantly
+			// more quoting, but that appears not to be necessary if the node ID
+			// is implicitly used as the label.
+			fmt.Fprintf(w, "\t%q -> %q;\n", src, dst)
+		}
+	}
+	fmt.Fprintln(w, "}")
+}
+
 func parse(rd io.Reader) (graph, error) {
 	g := make(graph)
 
@@ -404,11 +435,7 @@ func digraph(cmd string, args []string) error {
 		if len(args) != 0 {
 			return fmt.Errorf("usage: digraph nodes")
 		}
-		nodes := make(nodeset)
-		for node := range g {
-			nodes[node] = true
-		}
-		nodes.sort().println("\n")
+		g.nodelist().println("\n")
 
 	case "degree":
 		if len(args) != 0 {
@@ -562,6 +589,14 @@ func digraph(cmd string, args []string) error {
 		}
 		sort.Strings(edgesSorted)
 		fmt.Fprintln(stdout, strings.Join(edgesSorted, "\n"))
+
+	case "to":
+		if len(args) != 1 || args[0] != "dot" {
+			return fmt.Errorf("usage: digraph to dot")
+		}
+		var b bytes.Buffer
+		g.toDot(&b)
+		stdout.Write(b.Bytes())
 
 	default:
 		return fmt.Errorf("no such command %q", cmd)

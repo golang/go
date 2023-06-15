@@ -6,6 +6,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"reflect"
 	"sort"
 	"strings"
@@ -345,4 +346,28 @@ func TestFocus(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestToDot(t *testing.T) {
+	in := `a b c
+b "d\"\\d"
+c "d\"\\d"`
+	want := `digraph {
+	"a" -> "b";
+	"a" -> "c";
+	"b" -> "d\"\\d";
+	"c" -> "d\"\\d";
+}
+`
+	defer func(in io.Reader, out io.Writer) { stdin, stdout = in, out }(stdin, stdout)
+	stdin = strings.NewReader(in)
+	stdout = new(bytes.Buffer)
+	if err := digraph("to", []string{"dot"}); err != nil {
+		t.Fatal(err)
+	}
+	got := stdout.(fmt.Stringer).String()
+	if got != want {
+		t.Errorf("digraph(to, dot) = got %q, want %q", got, want)
+	}
+
 }
