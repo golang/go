@@ -449,6 +449,10 @@ func Write(w io.Writer, order ByteOrder, data any) error {
 
 	// Fallback to reflect-based encoding.
 	v := reflect.Indirect(reflect.ValueOf(data))
+	if !v.IsValid() {
+		// Data is nil or nil pointer
+		return nil
+	}
 	size := dataSize(v)
 	if size < 0 {
 		return errors.New("binary.Write: some values are not fixed-sized in type " + reflect.TypeOf(data).String())
@@ -460,11 +464,15 @@ func Write(w io.Writer, order ByteOrder, data any) error {
 	return err
 }
 
-// Size returns how many bytes Write would generate to encode the value v, which
+// Size returns how many bytes Write would generate to encode the value data, which
 // must be a fixed-size value or a slice of fixed-size values, or a pointer to such data.
-// If v is neither of these, Size returns -1.
-func Size(v any) int {
-	return dataSize(reflect.Indirect(reflect.ValueOf(v)))
+// If data is neither of these, Size returns -1.
+func Size(data any) int {
+	v := reflect.Indirect(reflect.ValueOf(data))
+	if !v.IsValid() {
+		return 0
+	}
+	return dataSize(v)
 }
 
 var structSize sync.Map // map[reflect.Type]int
