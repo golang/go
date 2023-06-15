@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -48,6 +49,15 @@ func BenchmarkSortInts(b *testing.B) {
 		b.StartTimer()
 		sort.Ints(ints)
 	}
+}
+
+func makeSortedStrings(n int) []string {
+	x := make([]string, n)
+	for i := 0; i < n; i++ {
+		x[i] = strconv.Itoa(i)
+	}
+	Sort(x)
+	return x
 }
 
 func BenchmarkSlicesSortInts(b *testing.B) {
@@ -153,11 +163,29 @@ func BenchmarkSortStrings(b *testing.B) {
 	}
 }
 
+func BenchmarkSortStrings_Sorted(b *testing.B) {
+	ss := makeSortedStrings(N)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		sort.Strings(ss)
+	}
+}
+
 func BenchmarkSlicesSortStrings(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		ss := makeRandomStrings(N)
 		b.StartTimer()
+		Sort(ss)
+	}
+}
+
+func BenchmarkSlicesSortStrings_Sorted(b *testing.B) {
+	ss := makeSortedStrings(N)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
 		Sort(ss)
 	}
 }
