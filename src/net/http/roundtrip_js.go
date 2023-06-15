@@ -135,7 +135,6 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	}
 	opt.Set("headers", headers)
 
-	var readableStreamStart, readableStreamPull, readableStreamCancel js.Func
 	if req.Body != nil {
 		if !supportsPostRequestStreams() {
 			body, err := io.ReadAll(req.Body)
@@ -143,6 +142,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 				req.Body.Close() // RoundTrip must always close the body, including on errors.
 				return nil, err
 			}
+			req.Body.Close()
 			if len(body) != 0 {
 				buf := uint8Array.New(len(body))
 				js.CopyBytesToJS(buf, body)
@@ -153,7 +153,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 			readableStreamCtorArg.Set("type", "bytes")
 			readableStreamCtorArg.Set("autoAllocateChunkSize", t.writeBufferSize())
 
-			readableStreamPull = js.FuncOf(func(this js.Value, args []js.Value) any {
+			readableStreamPull := js.FuncOf(func(this js.Value, args []js.Value) any {
 				controller := args[0]
 				byobRequest := controller.Get("byobRequest")
 				if byobRequest.IsNull() {
@@ -181,6 +181,10 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 				// Note: This a return from the pull callback of the controller and *not* RoundTrip().
 				return nil
 			})
+			defer func() {
+				readableStreamPull.Release()
+				req.Body.Close()
+			}()
 			readableStreamCtorArg.Set("pull", readableStreamPull)
 
 			opt.Set("body", js.Global().Get("ReadableStream").New(readableStreamCtorArg))
@@ -201,11 +205,6 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	success = js.FuncOf(func(this js.Value, args []js.Value) any {
 		success.Release()
 		failure.Release()
-		readableStreamCancel.Release()
-		readableStreamPull.Release()
-		readableStreamStart.Release()
-
-		req.Body.Close()
 
 		result := args[0]
 		header := Header{}
@@ -270,11 +269,6 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	failure = js.FuncOf(func(this js.Value, args []js.Value) any {
 		success.Release()
 		failure.Release()
-		readableStreamCancel.Release()
-		readableStreamPull.Release()
-		readableStreamStart.Release()
-
-		req.Body.Close()
 
 		err := args[0]
 		// The error is a JS Error type
