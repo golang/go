@@ -557,9 +557,11 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 	siz := r.Size
 	xadd := r.Xadd
 
-	if xadd != signext24(xadd) {
+	if xadd != signext24(xadd) && rt != objabi.R_ADDR {
 		// If the relocation target would overflow the addend, then target
 		// a linker-manufactured label symbol with a smaller addend instead.
+		// R_ADDR has full-width addend encoded in data content, so it doesn't
+		// use a label symbol.
 		label := ldr.Lookup(offsetLabelName(ldr, rs, xadd/machoRelocLimit*machoRelocLimit), ldr.SymVersion(rs))
 		if label != 0 {
 			xadd = ldr.SymValue(rs) + xadd - ldr.SymValue(label)
@@ -577,11 +579,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		}
 	}
 
-	if rt == objabi.R_CALLARM64 ||
-		rt == objabi.R_ARM64_PCREL_LDST8 || rt == objabi.R_ARM64_PCREL_LDST16 ||
-		rt == objabi.R_ARM64_PCREL_LDST32 || rt == objabi.R_ARM64_PCREL_LDST64 ||
-		rt == objabi.R_ADDRARM64 || rt == objabi.R_ARM64_GOTPCREL ||
-		ldr.SymType(rs) == sym.SHOSTOBJ || ldr.SymType(s) == sym.SINITARR {
+	if !ldr.SymType(s).IsDWARF() {
 		if ldr.SymDynid(rs) < 0 {
 			ldr.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
 			return false
