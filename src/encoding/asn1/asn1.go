@@ -357,12 +357,13 @@ func (oid OID) EqualObjectIdentifer(other ObjectIdentifier) bool {
 	)
 
 	for _, v := range oid.der {
-		if val >= maxValSafeShift {
+		if val > maxValSafeShift {
 			return false
 		}
 
 		val <<= bitsPerByte
 		val |= int(v & 0x7F)
+
 		if v&0x80 == 0 {
 			if first {
 				if len(other) < 2 {

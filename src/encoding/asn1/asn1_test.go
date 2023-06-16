@@ -1222,6 +1222,10 @@ func TestOID(t *testing.T) {
 			t.Errorf("%v: unexpected string, got: %q, expected: %q", v.raw, str, v.str)
 		}
 
+		if v.oid != nil && !oid.EqualObjectIdentifer(v.oid) {
+			t.Errorf("%v: is not equal to %v", v.raw, v.oid)
+		}
+
 		o, ok := oid.ToObjectIdentifer()
 		if shouldOk := v.oid != nil; shouldOk != ok {
 			if ok {
@@ -1232,9 +1236,8 @@ func TestOID(t *testing.T) {
 			continue
 		}
 
-		if !o.Equal(v.oid) {
+		if ok && !o.Equal(v.oid) {
 			t.Errorf("%v: after ToObjectIdentifer, is not equal to %v", v.raw, v.oid)
 		}
-
 	}
 }
