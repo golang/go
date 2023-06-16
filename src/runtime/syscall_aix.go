@@ -164,7 +164,6 @@ func syscall_exit(code uintptr) {
 func syscall_fcntl1(fd, cmd, arg uintptr) (val, err uintptr) {
 	val, err = syscall3(&libc_fcntl, fd, cmd, arg)
 	return
-
 }
 
 //go:linkname syscall_forkx syscall.forkx
