@@ -1239,5 +1239,15 @@ func TestOID(t *testing.T) {
 		if ok && !o.Equal(v.oid) {
 			t.Errorf("%v: after ToObjectIdentifer, is not equal to %v", v.raw, v.oid)
 		}
+
+		if v.oid != nil {
+			oid2, err := FromObjectIdentifer(v.oid)
+			if err != nil {
+				t.Errorf("%v: failed while creating OID from ObjectIdentifier: %v", v.raw, err)
+			}
+			if !oid2.Equal(oid) {
+				t.Errorf("%v: OID from ObjectIdentifier is not equal to oid", v.raw)
+			}
+		}
 	}
 }

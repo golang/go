@@ -293,10 +293,23 @@ func parseObjectIdentifier(bytes []byte) (s ObjectIdentifier, err error) {
 	return
 }
 
-var errInvalidDEROid = errors.New("invalid DER Object Identifier encoding")
+var (
+	errInvalidDEROid = errors.New("invalid DER Object Identifier encoding")
+	errInvalidOID    = errors.New("invalid oid")
+)
 
 type OID struct {
 	der []byte
+}
+
+func FromObjectIdentifer(oid ObjectIdentifier) (OID, error) {
+	enc, err := makeObjectIdentifier(oid)
+	if err != nil {
+		return OID{}, errInvalidOID
+	}
+	der := make([]byte, enc.Len())
+	enc.Encode(der)
+	return OID{der}, nil
 }
 
 // ParseOID parsed DER-encoded Object Identifier.
