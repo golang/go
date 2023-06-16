@@ -20,6 +20,7 @@ package asn1
 // everything by any means.
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -290,6 +291,117 @@ func parseObjectIdentifier(bytes []byte) (s ObjectIdentifier, err error) {
 	}
 	s = s[0:i]
 	return
+}
+
+var errInvalidDEROid = errors.New("invalid DER Object Identifier encoding")
+
+type OID struct {
+	der []byte
+}
+
+// ParseOID parsed DER-encoded Object Identifier.
+// On success, der is referenced in the OID struct.
+func ParseOID(der []byte) (OID, error) {
+	if !isDEROIDValid(der) {
+		return OID{}, errInvalidDEROid
+	}
+	return OID{der}, nil
+}
+
+func isDEROIDValid(der []byte) bool {
+	if len(der) == 0 || der[len(der)-1]&0x80 != 0 {
+		return false
+	}
+
+	start := 0
+	for i, v := range der {
+		// ITU-T X.690, section 8.19.2:
+		// The subidentifier shall be encoded in the fewest possible octets,
+		// that is, the leading octet of the subidentifier shall not have the value 0x80.
+		if i == start && v == 0x80 {
+			return false
+		}
+		if v&0x80 == 0 {
+			start = i + 1
+		}
+	}
+
+	return start != 0
+}
+
+func (oid OID) Equal(other OID) bool {
+	// There is only one possible DER encoding of
+	// each unique Object Identifier.
+	return bytes.Equal(oid.der, other.der)
+}
+
+func (oid OID) String() string {
+	var b strings.Builder
+	b.Grow(32)
+
+	var (
+		start  = 0
+		val    = uint64(0)
+		numBuf = make([]byte, 0, 21)
+		bigVal *big.Int
+	)
+
+	for i, v := range oid.der {
+		if i-start >= 64/7 {
+			if i-start == 64/7 {
+				bigVal = new(big.Int).SetUint64(val)
+			}
+
+			bigVal = bigVal.Lsh(bigVal, 7).Or(bigVal, big.NewInt(int64(v&0b11111111)))
+
+			if v&0b10000000 == 0 {
+				if start != 0 {
+					b.WriteByte('.')
+				}
+				if start == 0 {
+					b.Write(strconv.AppendUint(numBuf, 2, 10))
+					b.WriteByte('.')
+					bigVal = bigVal.Sub(bigVal, big.NewInt(80))
+				}
+
+				b.WriteString(bigVal.String())
+				val = 0
+				start = i + 1
+			}
+			continue
+		}
+
+		val <<= 7
+		val |= uint64(v & 0b01111111)
+
+		if v&0b10000000 == 0 {
+			if start != 0 {
+				b.WriteByte('.')
+			}
+
+			if start == 0 {
+				var val1, val2 uint64
+				if val < 80 {
+					val1 = val / 40
+					val2 = val % 40
+				} else {
+					val1 = 2
+					val2 = val - 80
+				}
+
+				b.Write(strconv.AppendUint(numBuf, val1, 10))
+				b.WriteByte('.')
+				b.Write(strconv.AppendUint(numBuf, val2, 10))
+			} else {
+				b.Write(strconv.AppendUint(numBuf, val, 10))
+			}
+
+			val = 0
+			start = i + 1
+		}
+	}
+
+	return b.String()
 }
 
 // ENUMERATED

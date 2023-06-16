@@ -1175,3 +1175,34 @@ func BenchmarkObjectIdentifierString(b *testing.B) {
 		_ = oidPublicKeyRSA.String()
 	}
 }
+
+var testOIDs = []struct {
+	raw   []byte
+	valid bool
+	str   string
+}{
+	{[]byte{}, false, ""},
+	{[]byte{1, 2, 3}, true, "0.1.2.3"},
+	{[]byte{41, 2, 3}, true, "1.1.2.3"},
+	{[]byte{86, 2, 3}, true, "2.6.2.3"},
+	{[]byte{41, 255, 255, 255, 255, 127}, true, "1.1.34359738367"},
+	{[]byte{41, 255, 255, 255, 255, 255, 255, 255, 255, 127}, true, "1.1.9223372036854775807"},
+	{[]byte{41, 255, 255, 255, 255, 255, 255, 255, 255, 255, 127}, true, "1.1.1180591620717411303423"},
+}
+
+func TestOID(t *testing.T) {
+	for _, v := range testOIDs {
+		oid, err := ParseOID(v.raw)
+		if valid := err == nil; valid != v.valid {
+			if valid {
+				t.Errorf("%v: unexpected success while parsing", v.raw)
+			} else {
+				t.Errorf("%v: unexpected failure while parsing: %v", v.raw, err)
+			}
+			continue
+		}
+		if str := oid.String(); str != v.str {
+			t.Errorf("%#v: unexpected string, got: %q, expected: %q", v.raw, str, v.str)
+		}
+	}
+}
