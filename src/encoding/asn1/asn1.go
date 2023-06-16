@@ -339,46 +339,55 @@ func (oid OID) String() string {
 	var b strings.Builder
 	b.Grow(32)
 
+	const (
+		valSize         = 64
+		bitsPerByte     = 7
+		maxValSafeShift = (1 << (valSize - bitsPerByte)) - 1
+	)
+
 	var (
-		start  = 0
-		val    = uint64(0)
-		numBuf = make([]byte, 0, 21)
-		bigVal *big.Int
+		start    = 0
+		val      = uint64(0)
+		numBuf   = make([]byte, 0, 21)
+		bigVal   *big.Int
+		overflow bool
 	)
 
 	for i, v := range oid.der {
-		if i-start >= 64/7 {
-			if i-start == 64/7 {
-				bigVal = new(big.Int).SetUint64(val)
+		if v&0b10000000 == 0 {
+			if start != 0 {
+				b.WriteByte('.')
 			}
+		}
 
-			bigVal = bigVal.Lsh(bigVal, 7).Or(bigVal, big.NewInt(int64(v&0b11111111)))
+		if !overflow && val > maxValSafeShift {
+			bigVal = new(big.Int).SetUint64(val)
+			overflow = true
+		}
 
-			if v&0b10000000 == 0 {
-				if start != 0 {
-					b.WriteByte('.')
-				}
+		curVal := v & 0x7F
+		valEnd := v&0x80 == 0
+
+		if overflow {
+			bigVal = bigVal.Lsh(bigVal, bitsPerByte).Or(bigVal, big.NewInt(int64(curVal)))
+			if valEnd {
 				if start == 0 {
 					b.Write(strconv.AppendUint(numBuf, 2, 10))
 					b.WriteByte('.')
 					bigVal = bigVal.Sub(bigVal, big.NewInt(80))
 				}
-
 				b.WriteString(bigVal.String())
 				val = 0
 				start = i + 1
+				overflow = false
 			}
 			continue
 		}
 
-		val <<= 7
-		val |= uint64(v & 0b01111111)
+		val <<= bitsPerByte
+		val |= uint64(curVal)
 
-		if v&0b10000000 == 0 {
-			if start != 0 {
-				b.WriteByte('.')
-			}
-
+		if valEnd {
 			if start == 0 {
 				var val1, val2 uint64
 				if val < 80 {
@@ -388,14 +397,12 @@ func (oid OID) String() string {
 					val1 = 2
 					val2 = val - 80
 				}
-
 				b.Write(strconv.AppendUint(numBuf, val1, 10))
 				b.WriteByte('.')
 				b.Write(strconv.AppendUint(numBuf, val2, 10))
 			} else {
 				b.Write(strconv.AppendUint(numBuf, val, 10))
 			}
-
 			val = 0
 			start = i + 1
 		}
