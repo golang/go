@@ -438,7 +438,10 @@ func (oid OID) String() string {
 	)
 
 	for i, v := range oid.der {
-		if v&0b10000000 == 0 {
+		curVal := v & 0x7F
+		valEnd := v&0x80 == 0
+
+		if valEnd {
 			if start != 0 {
 				b.WriteByte('.')
 			}
@@ -452,15 +455,11 @@ func (oid OID) String() string {
 			overflow = true
 		}
 
-		curVal := v & 0x7F
-		valEnd := v&0x80 == 0
-
 		if overflow {
 			bigVal = bigVal.Lsh(bigVal, bitsPerByte).Or(bigVal, big.NewInt(int64(curVal)))
 			if valEnd {
 				if start == 0 {
-					b.Write(strconv.AppendUint(numBuf, 2, 10))
-					b.WriteByte('.')
+					b.WriteString("2.")
 					bigVal = bigVal.Sub(bigVal, big.NewInt(80))
 				}
 				b.WriteString(bigVal.String())
