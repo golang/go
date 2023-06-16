@@ -245,6 +245,8 @@ var TestVersionSwitch string
 func Exec(gotoolchain string) {
 	log.SetPrefix("go: ")
 
+	writeBits = sysWriteBits()
+
 	count, _ := strconv.Atoi(os.Getenv(countEnv))
 	if count >= maxSwitch-10 {
 		fmt.Fprintf(os.Stderr, "go: switching from go%v to %v [depth %d]\n", gover.Local(), gotoolchain, count)
@@ -357,8 +359,99 @@ func Exec(gotoolchain string) {
 		}
 	}
 
+	srcUGoMod := filepath.Join(dir, "src/_go.mod")
+	srcGoMod := filepath.Join(dir, "src/go.mod")
+	if size(srcGoMod) != size(srcUGoMod) {
+		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if path == srcUGoMod {
+				// Leave for last, in case we are racing with another go command.
+				return nil
+			}
+			if pdir, name := filepath.Split(path); name == "_go.mod" {
+				if err := raceSafeCopy(path, pdir+"go.mod"); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		// Handle src/go.mod; this is the signal to other racing go commands
+		// that everything is okay and they can skip this step.
+		if err == nil {
+			err = raceSafeCopy(srcUGoMod, srcGoMod)
+		}
+		if err != nil {
+			base.Fatalf("download %s: %v", gotoolchain, err)
+		}
+	}
+
 	// Reinvoke the go command.
 	execGoToolchain(gotoolchain, dir, filepath.Join(dir, "bin/go"))
+}
+
+func size(path string) int64 {
+	info, err := os.Stat(path)
+	if err != nil {
+		return -1
+	}
+	return info.Size()
+}
+
+var writeBits fs.FileMode
+
+// raceSafeCopy copies the file old to the file new, being careful to ensure
+// that if multiple go commands call raceSafeCopy(old, new) at the same time,
+// they don't interfere with each other: both will succeed and return and
+// later observe the correct content in new. Like in the build cache, we arrange
+// this by opening new without truncation and then writing the content.
+// Both go commands can do this simultaneously and will write the same thing
+// (old never changes content).
+func raceSafeCopy(old, new string) error {
+	oldInfo, err := os.Stat(old)
+	if err != nil {
+		return err
+	}
+	newInfo, err := os.Stat(new)
+	if err == nil && newInfo.Size() == oldInfo.Size() {
+		return nil
+	}
+	data, err := os.ReadFile(old)
+	if err != nil {
+		return err
+	}
+	// The module cache has unwritable directories by default.
+	// Restore the user write bit in the directory so we can create
+	// the new go.mod file. We clear it again at the end on a
+	// best-effort basis (ignoring failures).
+	dir := filepath.Dir(old)
+	info, err := os.Stat(dir)
+	if err != nil {
+		return err
+	}
+	if err := os.Chmod(dir, info.Mode()|writeBits); err != nil {
+		return err
+	}
+	defer os.Chmod(dir, info.Mode())
+	// Note: create the file writable, so that a racing go command
+	// doesn't get an error before we store the actual data.
+	f, err := os.OpenFile(new, os.O_CREATE|os.O_WRONLY, writeBits&^0o111)
+	if err != nil {
+		// If OpenFile failed because a racing go command completed our work
+		// (and then OpenFile failed because the directory or file is now read-only),
+		// count that as a success.
+		if size(old) == size(new) {
+			return nil
+		}
+		return err
+	}
+	defer os.Chmod(new, oldInfo.Mode())
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 // modGoToolchain finds the enclosing go.work or go.mod file
