@@ -336,6 +336,75 @@ func (oid OID) Equal(other OID) bool {
 	return bytes.Equal(oid.der, other.der)
 }
 
+func (oid OID) ToObjectIdentifer() (ObjectIdentifier, bool) {
+	o, err := parseObjectIdentifier(oid.der)
+	if err != nil {
+		return nil, false
+	}
+	return o, true
+}
+
+func (oid OID) EqualObjectIdentifer(other ObjectIdentifier) bool {
+	const (
+		valSize         = 31
+		bitsPerByte     = 7
+		maxValSafeShift = (1 << (valSize - bitsPerByte)) - 1
+	)
+
+	var (
+		val   = 0
+		first = true
+	)
+
+	for _, v := range oid.der {
+		if val >= maxValSafeShift {
+			return false
+		}
+
+		val <<= bitsPerByte
+		val |= int(v & 0x7F)
+		if v&0x80 == 0 {
+			if first {
+				if len(other) < 2 {
+					return false
+				}
+
+				var val1, val2 int
+				if val < 80 {
+					val1 = val / 40
+					val2 = val % 40
+				} else {
+					val1 = 2
+					val2 = val - 80
+				}
+
+				if val1 != other[0] || val2 != other[1] {
+					return false
+				}
+
+				val = 0
+				first = false
+				other = other[2:]
+				continue
+			}
+
+			if len(other) == 0 {
+				return false
+			}
+
+			if val != other[0] {
+				return false
+			}
+
+			val = 0
+			other = other[1:]
+
+		}
+	}
+
+	return true
+}
+
 func (oid OID) String() string {
 	var b strings.Builder
 	b.Grow(32)
