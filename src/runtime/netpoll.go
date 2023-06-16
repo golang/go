@@ -526,7 +526,6 @@ func netpollblockcommit(gp *g, gpp unsafe.Pointer) bool {
 }
 
 func netpollgoready(gp *g, traceskip int) {
-	netpollWaiters.Add(-1)
 	goready(gp, traceskip+1)
 }
 
@@ -587,13 +586,15 @@ func netpollunblock(pd *pollDesc, mode int32, ioready bool) *g {
 			// will check for timeout/cancel before waiting.
 			return nil
 		}
-		var new uintptr
+		new := pdNil
 		if ioready {
 			new = pdReady
 		}
 		if gpp.CompareAndSwap(old, new) {
 			if old == pdWait {
 				old = pdNil
+			} else if old != pdNil {
+				netpollWaiters.Add(-1)
 			}
 			return (*g)(unsafe.Pointer(old))
 		}

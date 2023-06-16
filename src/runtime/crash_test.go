@@ -869,3 +869,12 @@ func TestPanicOnUnsafeSlice(t *testing.T) {
 		t.Errorf("output does not contain %q:\n%s", want, output)
 	}
 }
+
+func TestNetpollWaiters(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprognet", "NetpollWaiters")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("output is not %q\n%s", want, output)
+	}
+}
