@@ -235,6 +235,8 @@ func mode(name string, _ fs.FileMode) fs.FileMode {
 		strings.HasSuffix(name, ".pl") ||
 		strings.HasSuffix(name, ".rc") {
 		return 0o755
+	} else if ok, _ := amatch("**/go_?*_?*_exec", name); ok {
+		return 0o755
 	}
 	return 0o644
 }
