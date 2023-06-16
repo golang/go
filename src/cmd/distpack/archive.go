@@ -92,7 +92,7 @@ func (a *Archive) Add(name, src string, info fs.FileInfo) {
 }
 
 // Sort sorts the files in the archive.
-// It is only necessary to call Sort after calling Add.
+// It is only necessary to call Sort after calling Add or RenameGoMod.
 // ArchiveDir returns a sorted archive, and the other methods
 // preserve the sorting of the archive.
 func (a *Archive) Sort() {
@@ -161,6 +161,16 @@ func (a *Archive) Remove(patterns ...string) {
 func (a *Archive) SetTime(t time.Time) {
 	for i := range a.Files {
 		a.Files[i].Time = t
+	}
+}
+
+// RenameGoMod renames the go.mod files in the archive to _go.mod,
+// for use with the module form, which cannot contain other go.mod files.
+func (a *Archive) RenameGoMod() {
+	for i, f := range a.Files {
+		if strings.HasSuffix(f.Name, "/go.mod") {
+			a.Files[i].Name = strings.TrimSuffix(f.Name, "go.mod") + "_go.mod"
+		}
 	}
 }
 
