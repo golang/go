@@ -117,6 +117,15 @@ func Test(t *testing.T) {
 		runoutputGate: make(chan bool, *runoutputLimit),
 	}
 
+	// cmd/distpack deletes GOROOT/test, so skip the test if it isn't present.
+	// cmd/distpack also requires GOROOT/VERSION to exist, so use that to
+	// suppress false-positive skips.
+	if _, err := os.Stat(common.gorootTestDir); os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(testenv.GOROOT(t), "VERSION")); err == nil {
+			t.Skipf("skipping: GOROOT/test not present")
+		}
+	}
+
 	for _, dir := range dirs {
 		for _, goFile := range goFiles(t, dir) {
 			test := test{testCommon: common, dir: dir, goFile: goFile}
