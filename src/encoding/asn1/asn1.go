@@ -301,6 +301,7 @@ type OID struct {
 
 // ParseOID parsed DER-encoded Object Identifier.
 // On success, der is referenced in the OID struct.
+// der must not be modified after parsing.
 func ParseOID(der []byte) (OID, error) {
 	if !isDEROIDValid(der) {
 		return OID{}, errInvalidDEROid
@@ -340,7 +341,7 @@ func (oid OID) String() string {
 	b.Grow(32)
 
 	const (
-		valSize         = 64
+		valSize         = 64 // size in bits of val.
 		bitsPerByte     = 7
 		maxValSafeShift = (1 << (valSize - bitsPerByte)) - 1
 	)
@@ -361,7 +362,10 @@ func (oid OID) String() string {
 		}
 
 		if !overflow && val > maxValSafeShift {
-			bigVal = new(big.Int).SetUint64(val)
+			if bigVal == nil {
+				bigVal = new(big.Int)
+			}
+			bigVal = bigVal.SetUint64(val)
 			overflow = true
 		}
 
