@@ -1622,36 +1622,33 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 	if runtime.GOOS == "ios" {
 		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
-	root, err := filepath.EvalSymlinks(testenv.GOROOT(t) + "/test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	bugs := filepath.Join(root, "fixedbugs")
-	ken := filepath.Join(root, "ken")
-	seenBugs := false
-	seenKen := false
-	err = filepath.Walk(root, func(pth string, info fs.FileInfo, err error) error {
+	root := filepath.Join(testenv.GOROOT(t), "src", "unicode")
+	utf16 := filepath.Join(root, "utf16")
+	utf8 := filepath.Join(root, "utf8")
+	seenUTF16 := false
+	seenUTF8 := false
+	err := filepath.Walk(root, func(pth string, info fs.FileInfo, err error) error {
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		switch pth {
-		case bugs:
-			seenBugs = true
+		case utf16:
+			seenUTF16 = true
 			return filepath.SkipDir
-		case ken:
-			if !seenBugs {
-				t.Fatal("filepath.Walk out of order - ken before fixedbugs")
+		case utf8:
+			if !seenUTF16 {
+				t.Fatal("filepath.Walk out of order - utf8 before utf16")
 			}
-			seenKen = true
+			seenUTF8 = true
 		}
 		return nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !seenKen {
-		t.Fatalf("%q not seen", ken)
+	if !seenUTF8 {
+		t.Fatalf("%q not seen", utf8)
 	}
 }
 
