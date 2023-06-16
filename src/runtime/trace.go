@@ -453,12 +453,17 @@ func StopTrace() {
 		}
 	}
 
+	// Wait for startNanotime != endNanotime. On Windows the default interval between
+	// system clock ticks is typically between 1 and 15 milliseconds, which may not
+	// have passed since the trace started. Without nanotime moving forward, trace
+	// tooling has no way of identifying how much real time each cputicks time deltas
+	// represent.
 	for {
 		trace.endTime = traceClockNow()
 		trace.endTicks = cputicks()
 		trace.endNanotime = nanotime()
-		// Windows time can tick only every 15ms, wait for at least one tick.
-		if trace.endNanotime != trace.startNanotime {
+
+		if trace.endNanotime != trace.startNanotime || faketime != 0 {
 			break
 		}
 		osyield()
