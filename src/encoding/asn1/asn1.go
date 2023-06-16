@@ -462,7 +462,11 @@ func (oid OID) String() string {
 					b.WriteString("2.")
 					bigVal = bigVal.Sub(bigVal, big.NewInt(80))
 				}
-				b.WriteString(bigVal.String())
+
+				numBuf = bigVal.Append(numBuf, 10)
+				b.Write(numBuf)
+				numBuf = numBuf[:0]
+
 				val = 0
 				start = i + 1
 				overflow = false
