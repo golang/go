@@ -160,7 +160,7 @@ func GetModule(modroot string) (*Module, error) {
 		return nil, errNotFromModuleCache
 	}
 	modroot = filepath.Clean(modroot)
-	if !str.HasFilePathPrefix(modroot, cfg.GOMODCACHE) {
+	if str.HasFilePathPrefix(modroot, cfg.GOROOTsrc) || !str.HasFilePathPrefix(modroot, cfg.GOMODCACHE) {
 		return nil, errNotFromModuleCache
 	}
 	return openIndexModule(modroot, true)
