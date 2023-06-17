@@ -392,6 +392,7 @@ func (ui *webInterface) disasm(w http.ResponseWriter, req *http.Request) {
 	ui.render(w, req, "plaintext", rpt, errList, legend, webArgs{
 		TextBody: out.String(),
 	})
+
 }
 
 // source generates a web page containing source code annotated with profile
