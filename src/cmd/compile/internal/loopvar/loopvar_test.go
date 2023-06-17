@@ -248,7 +248,7 @@ func TestLoopVarOpt(t *testing.T) {
 
 	t.Logf(m)
 
-	yCount := strings.Count(m, "opt.go:16:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt.go:30)")
+	yCount := strings.Count(m, "opt.go:16:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt.go:29)")
 	nCount := strings.Count(m, "shared")
 
 	if yCount != 1 {
