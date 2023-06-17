@@ -996,7 +996,6 @@ func TestAcosh(t *testing.T) {
 		if f := Acosh(Conj(v.in)); !cAlike(Conj(v.want), f) && !cAlike(v.in, Conj(v.in)) {
 			t.Errorf("Acosh(%g) = %g, want %g", Conj(v.in), f, Conj(v.want))
 		}
-
 	}
 	for _, pt := range branchPoints {
 		if f0, f1 := Acosh(pt[0]), Acosh(pt[1]); !cVeryclose(f0, f1) {

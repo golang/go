@@ -255,7 +255,6 @@ func TestStreams(t *testing.T) {
 			if got := hex.EncodeToString(data); got != tc.want {
 				t.Errorf("#%d (%s):\ngot  %q\nwant %q", i, tc.desc, got, tc.want)
 			}
-
 		}
 	}
 }

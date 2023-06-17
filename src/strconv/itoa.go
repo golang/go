@@ -149,7 +149,6 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 			i--
 			a[i] = smallsString[is]
 		}
-
 	} else if isPowerOfTwo(base) {
 		// Use shifts and masks instead of / and %.
 		// Base is a power of 2 and 2 <= base <= len(digits) where len(digits) is 36.

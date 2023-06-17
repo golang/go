@@ -431,7 +431,6 @@ func tcConv(n *ir.ConvExpr) ir.Node {
 			n.X = ir.NewConvExpr(n.X.Pos(), ir.OCONVNOP, types.NewSlice(types.RuneType), n.X)
 			n.X.SetTypecheck(1)
 		}
-
 	}
 	return n
 }

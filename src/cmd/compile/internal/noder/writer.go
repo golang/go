@@ -1447,7 +1447,6 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 			assign(0, keyType)
 			assign(1, valueType)
 		}
-
 	} else {
 		w.pos(stmt)
 		w.stmt(stmt.Init)

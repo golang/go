@@ -518,13 +518,11 @@ func TestArithmeticBoundary(t *testing.T) {
 			if got := div_uint64_ssa(v.a, v.b); got != v.div {
 				t.Errorf("div_uint64 %d/%d = %d, wanted %d\n", v.a, v.b, got, v.div)
 			}
-
 		}
 		if v.b != 0 {
 			if got := mod_uint64_ssa(v.a, v.b); got != v.mod {
 				t.Errorf("mod_uint64 %d%%%d = %d, wanted %d\n", v.a, v.b, got, v.mod)
 			}
-
 		}
 		if got := mul_uint64_ssa(v.a, v.b); got != v.mul {
 			t.Errorf("mul_uint64 %d*%d = %d, wanted %d\n", v.a, v.b, got, v.mul)
@@ -541,13 +539,11 @@ func TestArithmeticBoundary(t *testing.T) {
 			if got := div_int64_ssa(v.a, v.b); got != v.div {
 				t.Errorf("div_int64 %d/%d = %d, wanted %d\n", v.a, v.b, got, v.div)
 			}
-
 		}
 		if v.b != 0 {
 			if got := mod_int64_ssa(v.a, v.b); got != v.mod {
 				t.Errorf("mod_int64 %d%%%d = %d, wanted %d\n", v.a, v.b, got, v.mod)
 			}
-
 		}
 		if got := mul_int64_ssa(v.a, v.b); got != v.mul {
 			t.Errorf("mul_int64 %d*%d = %d, wanted %d\n", v.a, v.b, got, v.mul)
@@ -564,13 +560,11 @@ func TestArithmeticBoundary(t *testing.T) {
 			if got := div_uint32_ssa(v.a, v.b); got != v.div {
 				t.Errorf("div_uint32 %d/%d = %d, wanted %d\n", v.a, v.b, got, v.div)
 			}
-
 		}
 		if v.b != 0 {
 			if got := mod_uint32_ssa(v.a, v.b); got != v.mod {
 				t.Errorf("mod_uint32 %d%%%d = %d, wanted %d\n", v.a, v.b, got, v.mod)
 			}
-
 		}
 		if got := mul_uint32_ssa(v.a, v.b); got != v.mul {
 			t.Errorf("mul_uint32 %d*%d = %d, wanted %d\n", v.a, v.b, got, v.mul)
@@ -587,13 +581,11 @@ func TestArithmeticBoundary(t *testing.T) {
 			if got := div_int32_ssa(v.a, v.b); got != v.div {
 				t.Errorf("div_int32 %d/%d = %d, wanted %d\n", v.a, v.b, got, v.div)
 			}
-
 		}
 		if v.b != 0 {
 			if got := mod_int32_ssa(v.a, v.b); got != v.mod {
 				t.Errorf("mod_int32 %d%%%d = %d, wanted %d\n", v.a, v.b, got, v.mod)
 			}
-
 		}
 		if got := mul_int32_ssa(v.a, v.b); got != v.mul {
 			t.Errorf("mul_int32 %d*%d = %d, wanted %d\n", v.a, v.b, got, v.mul)
@@ -610,13 +602,11 @@ func TestArithmeticBoundary(t *testing.T) {
 			if got := div_uint16_ssa(v.a, v.b); got != v.div {
 				t.Errorf("div_uint16 %d/%d = %d, wanted %d\n", v.a, v.b, got, v.div)
 			}
-
 		}
 		if v.b != 0 {
 			if got := mod_uint16_ssa(v.a, v.b); got != v.mod {
 				t.Errorf("mod_uint16 %d%%%d = %d, wanted %d\n", v.a, v.b, got, v.mod)
 			}
-
 		}
 		if got := mul_uint16_ssa(v.a, v.b); got != v.mul {
 			t.Errorf("mul_uint16 %d*%d = %d, wanted %d\n", v.a, v.b, got, v.mul)
@@ -633,13 +623,11 @@ func TestArithmeticBoundary(t *testing.T) {
 			if got := div_int16_ssa(v.a, v.b); got != v.div {
 				t.Errorf("div_int16 %d/%d = %d, wanted %d\n", v.a, v.b, got, v.div)
 			}
-
 		}
 		if v.b != 0 {
 			if got := mod_int16_ssa(v.a, v.b); got != v.mod {
 				t.Errorf("mod_int16 %d%%%d = %d, wanted %d\n", v.a, v.b, got, v.mod)
 			}
-
 		}
 		if got := mul_int16_ssa(v.a, v.b); got != v.mul {
 			t.Errorf("mul_int16 %d*%d = %d, wanted %d\n", v.a, v.b, got, v.mul)
@@ -656,13 +644,11 @@ func TestArithmeticBoundary(t *testing.T) {
 			if got := div_uint8_ssa(v.a, v.b); got != v.div {
 				t.Errorf("div_uint8 %d/%d = %d, wanted %d\n", v.a, v.b, got, v.div)
 			}
-
 		}
 		if v.b != 0 {
 			if got := mod_uint8_ssa(v.a, v.b); got != v.mod {
 				t.Errorf("mod_uint8 %d%%%d = %d, wanted %d\n", v.a, v.b, got, v.mod)
 			}
-
 		}
 		if got := mul_uint8_ssa(v.a, v.b); got != v.mul {
 			t.Errorf("mul_uint8 %d*%d = %d, wanted %d\n", v.a, v.b, got, v.mul)
@@ -679,13 +665,11 @@ func TestArithmeticBoundary(t *testing.T) {
 			if got := div_int8_ssa(v.a, v.b); got != v.div {
 				t.Errorf("div_int8 %d/%d = %d, wanted %d\n", v.a, v.b, got, v.div)
 			}
-
 		}
 		if v.b != 0 {
 			if got := mod_int8_ssa(v.a, v.b); got != v.mod {
 				t.Errorf("mod_int8 %d%%%d = %d, wanted %d\n", v.a, v.b, got, v.mod)
 			}
-
 		}
 		if got := mul_int8_ssa(v.a, v.b); got != v.mul {
 			t.Errorf("mul_int8 %d*%d = %d, wanted %d\n", v.a, v.b, got, v.mul)

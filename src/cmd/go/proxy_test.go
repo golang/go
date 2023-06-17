@@ -389,7 +389,6 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Write(zipBytes)
 		return
-
 	}
 	http.NotFound(w, r)
 }

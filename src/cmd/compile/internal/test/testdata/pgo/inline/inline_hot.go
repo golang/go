@@ -66,7 +66,6 @@ func (b *BS) NS(i uint) (uint, bool) {
 			return uint(x)*wSize + T(b.s[x]), true
 		}
 		x = x + 1
-
 	}
 	return 0, false
 }

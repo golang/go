@@ -262,10 +262,8 @@ type test_%[1]s%[2]s struct {
 								panic(err)
 							}
 						}
-
 					}
 				}
-
 			}
 		}
 
@@ -299,10 +297,8 @@ type test_%[1]s%[2]s struct {
 								panic(err)
 							}
 						}
-
 					}
 				}
-
 			}
 		}
 

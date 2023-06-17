@@ -872,7 +872,6 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string, order hostLooku
 			}
 		}
 		ptrs = append(ptrs, ptr.PTR.String())
-
 	}
 
 	return ptrs, nil

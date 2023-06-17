@@ -141,7 +141,6 @@ func TestSortByRFC6724(t *testing.T) {
 				t.Errorf("test %d, starting backwards:\nin = %s\ngot: %s\nwant: %s\n", i, tt.in, inCopy, tt.want)
 			}
 		}
-
 	}
 }
 

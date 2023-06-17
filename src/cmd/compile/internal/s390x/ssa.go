@@ -306,7 +306,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			c.To.Offset = -1
 
 			j.To.Type = obj.TYPE_BRANCH
-
 		}
 
 		p := s.Prog(v.Op.Asm())

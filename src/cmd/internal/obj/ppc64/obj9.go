@@ -215,7 +215,6 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
 			return
 		}
 		source = &p.From
-
 	} else if p.To.Name == obj.NAME_EXTERN || p.To.Name == obj.NAME_STATIC {
 		if p.To.Type != obj.TYPE_MEM {
 			c.ctxt.Diag("do not know how to handle %v without TYPE_MEM", p)
@@ -228,7 +227,6 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
 		source = &p.To
 	} else {
 		return
-
 	}
 
 	if source.Sym == nil {
@@ -265,7 +263,6 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
 			q.To = p.To
 		}
 		return
-
 	}
 
 	// MOVx sym, Ry becomes MOVD symtoc, REGTMP; MOVx (REGTMP), Ry

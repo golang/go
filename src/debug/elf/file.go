@@ -156,7 +156,6 @@ func (s *Section) Open() io.ReadSeeker {
 		s.compressionType = COMPRESS_ZLIB
 		s.Size = binary.BigEndian.Uint64(b[4:12])
 		zrd = zlib.NewReader
-
 	} else if s.Flags&SHF_ALLOC != 0 {
 		return errorReader{&FormatError{int64(s.Offset),
 			"SHF_COMPRESSED applies only to non-allocable sections", s.compressionType}}
@@ -1331,7 +1330,6 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 		default:
 			return ""
 		}
-
 	}
 	// sectionData gets the data for s, checks its size, and
 	// applies any applicable relations.

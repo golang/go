@@ -7350,7 +7350,6 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		} else if v0 := br.B.FirstPossibleStmtValue(); v0 != nil && v0.Pos.Line() == br.P.Pos.Line() && v0.Pos.IsStmt() == src.PosIsStmt {
 			br.P.Pos = br.P.Pos.WithNotStmt()
 		}
-
 	}
 
 	// Resolve jump table destinations.

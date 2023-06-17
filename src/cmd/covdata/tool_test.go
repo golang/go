@@ -470,7 +470,6 @@ func runDumpChecks(t *testing.T, s state, dir string, flags []string, checks []d
 				if check.negate {
 					t.Errorf("tag %q: unexpected match", check.tag)
 					bad = true
-
 				}
 				if check.nonzero || check.zero {
 					if len(m) < 2 {

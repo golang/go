@@ -130,7 +130,6 @@ func TestUitoa(t *testing.T) {
 			t.Errorf("AppendUint(%q, %v, %v) = %q want %v",
 				"abc", test.in, test.base, x, test.out)
 		}
-
 	}
 }
 

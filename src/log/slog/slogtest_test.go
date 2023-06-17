@@ -92,7 +92,6 @@ func parseText(bs []byte) (map[string]any, error) {
 				m2, ok = x.(map[string]any)
 				if !ok {
 					return nil, fmt.Errorf("value for %q in composite key %q is not map[string]any", key, k)
-
 				}
 			}
 			m = m2

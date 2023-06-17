@@ -528,7 +528,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = r
 				return
-
 			}
 			p := s.Prog(v.Op.Asm())
 			p.From.Type = obj.TYPE_CONST

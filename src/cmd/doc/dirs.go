@@ -161,7 +161,6 @@ func (d *Dirs) bfsWalkRoot(root Dir) {
 				d.scan <- Dir{importPath, dir, root.inModule}
 			}
 		}
-
 	}
 }
 

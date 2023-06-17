@@ -37,7 +37,6 @@ func BenchmarkMakeSliceCopy(b *testing.B) {
 				x = make([]*byte, len(ptrs))
 				copy(x, ptrs)
 			}
-
 		})
 	})
 	b.Run("makecopy", func(b *testing.B) {
@@ -61,7 +60,6 @@ func BenchmarkMakeSliceCopy(b *testing.B) {
 				x = make([]*byte, length)
 				copy(x, ptrs)
 			}
-
 		})
 	})
 	b.Run("nilappend", func(b *testing.B) {
@@ -147,7 +145,6 @@ func BenchmarkMakeSlice(b *testing.B) {
 				_ = x
 			}
 		})
-
 	})
 }
 
@@ -195,7 +192,6 @@ func BenchmarkGrowSlice(b *testing.B) {
 				_ = append([]struct40(nil), x...)
 			}
 		})
-
 	})
 }
 
@@ -441,7 +437,6 @@ func BenchmarkAppendInPlace(b *testing.B) {
 				}
 			}
 		})
-
 	})
 
 	b.Run("Grow", func(b *testing.B) {
@@ -496,6 +491,5 @@ func BenchmarkAppendInPlace(b *testing.B) {
 				}
 			}
 		})
-
 	})
 }

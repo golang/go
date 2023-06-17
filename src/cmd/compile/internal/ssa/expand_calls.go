@@ -423,7 +423,6 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 			} else {
 				selector.copyOf(existing)
 			}
-
 		} else {
 			leafType := removeTrivialWrapperTypes(leaf.Type)
 			if x.canSSAType(leafType) {

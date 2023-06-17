@@ -292,7 +292,6 @@ func TestRecorder(t *testing.T) {
 				io.WriteString(w, "hi")
 			},
 			check(hasResultContents("")), // check we don't crash reading the body
-
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

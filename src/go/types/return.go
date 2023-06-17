@@ -63,7 +63,6 @@ func (check *Checker) isTerminating(s ast.Stmt, label string) bool {
 			if !check.isTerminatingList(cc.Body, "") || hasBreakList(cc.Body, label, true) {
 				return false
 			}
-
 		}
 		return true
 

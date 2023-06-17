@@ -272,7 +272,6 @@ func TestCallersDeferNilFuncPanic(t *testing.T) {
 		if state == 1 {
 			t.Fatal("nil defer func panicked at defer time rather than function exit time")
 		}
-
 	}()
 	var f func()
 	defer f()
@@ -298,7 +297,6 @@ func TestCallersDeferNilFuncPanicWithLoop(t *testing.T) {
 		if state == 1 {
 			t.Fatal("nil defer func panicked at defer time rather than function exit time")
 		}
-
 	}()
 
 	for i := 0; i < 1; i++ {

@@ -1148,7 +1148,6 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		PPC64 | uint32(elf.R_PPC64_PLTCALL_NOTOC)<<16,
 		PPC64 | uint32(elf.R_PPC64_PLTSEQ_NOTOC)<<16:
 		return 0, 0, nil
-
 	}
 }
 

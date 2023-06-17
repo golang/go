@@ -442,7 +442,6 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		rela.AddUint64(target.Arch, 0)
 
 		ldr.SetPlt(s, int32(plt.Size()-32))
-
 	} else {
 		ldr.Errorf(s, "addpltsym: unsupported binary format")
 	}

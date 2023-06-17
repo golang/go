@@ -813,7 +813,6 @@ func TestWalkError(t *testing.T) {
 	})
 	if !alreadyCalled {
 		t.Fatal("expected walk function to be called exactly once, but it was never called")
-
 	}
 	if err == nil {
 		t.Fatalf("Walk: got no error, want error")

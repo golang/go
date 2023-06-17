@@ -177,7 +177,6 @@ func (v *Visitor) checkAddr(n ast.Node) {
 		}
 	default:
 		v.t.Errorf("unchecked atomic address %s %v", v.fset.Position(n.Pos()), v.print(n))
-
 	}
 }
 

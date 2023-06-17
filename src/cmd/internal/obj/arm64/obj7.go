@@ -886,7 +886,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.From.Offset = 0
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = REGTMP
-
 			}
 
 			if p.As != obj.ARET {

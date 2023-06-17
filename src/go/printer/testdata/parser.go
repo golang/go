@@ -683,7 +683,6 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 			}
 			p.next()
 		}
-
 	} else {
 		// Type { "," Type } (anonymous parameters)
 		params = make([]*ast.Field, len(list))

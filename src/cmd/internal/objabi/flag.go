@@ -353,7 +353,6 @@ func (f *DebugFlag) Set(debugstr string) error {
 			// of turning off concurrency for any debug flags.
 			// It's not known for sure if this is necessary, but it is safe.
 			*f.concurrentOk = false
-
 		} else {
 			return fmt.Errorf("unknown debug key %s\n", name)
 		}

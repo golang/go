@@ -319,7 +319,6 @@ func (x nat) itoa(neg bool, base int) []byte {
 			s[i] = digits[w&mask]
 			w >>= shift
 		}
-
 	} else {
 		bb, ndigits := maxPow(b)
 

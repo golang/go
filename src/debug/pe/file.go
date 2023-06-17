@@ -224,7 +224,6 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 		default:
 			return ""
 		}
-
 	}
 
 	// sectionData gets the data for s and checks its size.
@@ -495,7 +494,6 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (any, error) {
 
 	if !read(&ohMagic) {
 		return nil, fmt.Errorf("failure to read optional header magic: %v", err)
-
 	}
 
 	switch ohMagic {

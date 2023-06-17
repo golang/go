@@ -196,7 +196,6 @@ func TestChan(t *testing.T) {
 				t.Fatalf("chan[%d]: bad len/cap, expect %v/%v, got %v/%v", chanCap, chanCap, chanCap, len(c), cap(c))
 			}
 		}
-
 	}
 }
 

@@ -733,7 +733,6 @@ func (p Point) TotalDist(points ...Point) int {
 		dx := q.x - p.x
 		dy := q.y - p.y
 		tot += dx*dx + dy*dy // Should call Sqrt, but it's just a test.
-
 	}
 	return tot
 }

@@ -711,7 +711,6 @@ func (fd *FD) writeConsole(b []byte) (int, error) {
 	if len(fd.lastbits) > 0 {
 		b = append(fd.lastbits, b...)
 		fd.lastbits = nil
-
 	}
 	for len(b) >= utf8.UTFMax || utf8.FullRune(b) {
 		r, l := utf8.DecodeRune(b)

@@ -601,7 +601,6 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 			p.flush(p.posFor(rbrace), token.RBRACE) // make sure we don't lose the last line comment
 			p.setLineComment("// " + filteredMsg)
 		}
-
 	} else { // interface
 
 		var line int
@@ -642,7 +641,6 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 			p.flush(p.posFor(rbrace), token.RBRACE) // make sure we don't lose the last line comment
 			p.setLineComment("// contains filtered or unexported methods")
 		}
-
 	}
 	p.print(unindent, formfeed)
 	p.setPos(rbrace)
@@ -1771,7 +1769,6 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 		}
 		p.setPos(d.Rparen)
 		p.print(token.RPAREN)
-
 	} else if len(d.Specs) > 0 {
 		// single declaration
 		p.spec(d.Specs[0], 1, true)

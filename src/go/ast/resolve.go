@@ -162,7 +162,6 @@ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, 
 				file.Unresolved[i] = ident
 				i++
 			}
-
 		}
 		file.Unresolved = file.Unresolved[0:i]
 		pkgScope.Outer = universe // reset universe scope

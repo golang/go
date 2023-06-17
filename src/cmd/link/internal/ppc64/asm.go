@@ -491,7 +491,6 @@ func rewriteABIFuncReloc(ctxt *ld.Link, ldr *loader.Loader, tname string, r load
 				log.Fatalf("Unexpected number of relocs in %s\n", ldr.SymName(ts))
 			}
 			sb.ResetRelocs()
-
 		}
 	}
 	return ts, firstUse
@@ -1007,7 +1006,6 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 			// TOC is not used in PCrel compiled Go code.
 			out.Write64(uint64(elf.R_PPC64_REL24_NOTOC) | uint64(elfsym)<<32)
 		}
-
 	}
 	out.Write64(uint64(r.Xadd))
 
@@ -1574,7 +1572,6 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv 
 			var o1 uint32
 			if target.IsBigEndian() {
 				o1 = binary.BigEndian.Uint32(p[r.Off()-2:])
-
 			} else {
 				o1 = binary.LittleEndian.Uint32(p[r.Off():])
 			}

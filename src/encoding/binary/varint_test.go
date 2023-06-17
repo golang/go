@@ -222,7 +222,6 @@ func TestNonCanonicalZero(t *testing.T) {
 	x, n := Uvarint(buf)
 	if x != 0 || n != 4 {
 		t.Errorf("Uvarint(%v): got x = %d, n = %d; want 0, 4", buf, x, n)
-
 	}
 }
 

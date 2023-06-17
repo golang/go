@@ -247,7 +247,6 @@ func (a *Address) String() string {
 	}
 	if quoteLocal {
 		local = quoteString(local)
-
 	}
 
 	s := "<" + local + "@" + domain + ">"
@@ -599,7 +598,6 @@ Loop:
 
 		default:
 			return "", fmt.Errorf("mail: bad character in quoted-string: %q", r)
-
 		}
 
 		i += size
@@ -628,7 +626,6 @@ Loop:
 
 		default:
 			i += size
-
 		}
 	}
 

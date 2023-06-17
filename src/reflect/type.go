@@ -2328,7 +2328,6 @@ func StructOf(fields []StructField) Type {
 							Ifn:  resolveReflectText(textOffFor(ft, m.Ifn)),
 							Tfn:  resolveReflectText(textOffFor(ft, m.Tfn)),
 						})
-
 					}
 				}
 			}
@@ -2738,7 +2737,6 @@ func ArrayOf(length int, elem Type) Type {
 				if !eequal(pi, qi) {
 					return false
 				}
-
 			}
 			return true
 		}

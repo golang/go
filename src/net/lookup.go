@@ -792,7 +792,6 @@ func (r *Resolver) goLookupMX(ctx context.Context, name string) ([]*MX, error) {
 			}
 		}
 		mxs = append(mxs, &MX{Host: mx.MX.String(), Pref: mx.Pref})
-
 	}
 	byPref(mxs).sort()
 	return mxs, nil

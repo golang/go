@@ -678,7 +678,6 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 			// .debug_abbrev is common to all packages and not found with the previous function
 			if sect.Name == ".debug_abbrev" {
 				dwsize = uint64(ldr.SymSize(loader.Sym(sect.Sym)))
-
 			}
 		} else {
 			// There is only one .FILE with external linking.
@@ -818,7 +817,6 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x loader.Sym) []xcoffSym {
 					f.writeSymbolNewFile(ctxt, "go_functions", uint64(ldr.SymValue(x)), xfile.getXCOFFscnum(ldr.SymSect(x)))
 				}
 			}
-
 		}
 	}
 
@@ -1269,7 +1267,6 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 					xldr.symndx = 1 // .data
 				}
 			}
-
 		} else {
 			ldr.Errorf(s, "unexpected type for .loader relocation R_ADDR for symbol %s: %s to %s", ldr.SymName(targ), ldr.SymType(s), ldr.SymType(targ))
 			return false
@@ -1396,7 +1393,6 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 		stlen += uint32(2 + ldstr.size) // 2 = sizeof ldstr.size
 		symtab = append(symtab, lds)
 		strtab = append(strtab, ldstr)
-
 	}
 
 	hdr.Lnsyms = int32(len(symtab))
@@ -1481,7 +1477,6 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 		mem := n[len(n)-1]
 		if len(n) > 2 {
 			path = lib[:len(lib)-len(base)-len(mem)-2]
-
 		}
 		ldimpf = &XcoffLdImportFile64{
 			Limpidpath: path,
@@ -1503,7 +1498,6 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 
 	for _, s := range symtab {
 		binary.Write(ctxt.Out, ctxt.Arch.ByteOrder, s)
-
 	}
 	for _, r := range reloctab {
 		binary.Write(ctxt.Out, ctxt.Arch.ByteOrder, r)

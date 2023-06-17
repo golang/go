@@ -188,7 +188,6 @@ func TestWriterPaletted(t *testing.T) {
 				i += chunkFieldsLength + int(length)
 			}
 		})
-
 	}
 }
 

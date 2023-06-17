@@ -207,7 +207,6 @@ func NewArchive(r io.ReaderAt) (*Archive, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error parsing offset of first member in archive header(%q); %v", fhdr, err)
 		}
-
 	}
 
 	return arch, nil

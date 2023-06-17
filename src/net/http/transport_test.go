@@ -1176,7 +1176,6 @@ func testTransportExpect100Continue(t *testing.T, mode testMode) {
 			bufrw.Flush()
 			conn.Close()
 		}
-
 	})).ts
 
 	tests := []struct {
@@ -1465,7 +1464,6 @@ func TestOnProxyConnectResponse(t *testing.T) {
 	}
 	for _, tcase := range tcases {
 		h1 := HandlerFunc(func(w ResponseWriter, r *Request) {
-
 		})
 
 		h2 := HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -2928,7 +2926,6 @@ Content-Length: %d
 				return
 			}
 		}
-
 	}
 
 	tr := &Transport{
@@ -4190,7 +4187,6 @@ func TestTransportFlushesBodyChunks(t *testing.T) {
 			return
 		}
 		resc <- res
-
 	}()
 	// Fully consume the request before checking the Write log vs. want.
 	req, err := ReadRequest(bufio.NewReader(connr))

@@ -764,7 +764,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = v.Reg()
 			ssagen.AddAux(&p.From, v)
-
 		}
 
 	case ssa.OpPPC64MOVDconst:
@@ -1925,7 +1924,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			// NOP (so the BNE has somewhere to land)
 			nop := s.Prog(obj.ANOP)
 			p2.To.SetTarget(nop)
-
 		} else {
 			// Issue a load which will fault if arg is nil.
 			p := s.Prog(ppc64.AMOVBZ)

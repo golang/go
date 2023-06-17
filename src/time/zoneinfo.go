@@ -487,7 +487,6 @@ func tzsetRule(s string) (rule, string, bool) {
 		mon, s, ok = tzsetNum(s[1:], 1, 12)
 		if !ok || len(s) == 0 || s[0] != '.' {
 			return rule{}, "", false
-
 		}
 		var week int
 		week, s, ok = tzsetNum(s[1:], 1, 5)

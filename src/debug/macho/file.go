@@ -618,7 +618,6 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 		default:
 			return ""
 		}
-
 	}
 	sectionData := func(s *Section) ([]byte, error) {
 		b, err := s.Data()

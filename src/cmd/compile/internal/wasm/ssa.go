@@ -485,7 +485,6 @@ func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
 
 	default:
 		v.Fatalf("unexpected op: %s", v.Op)
-
 	}
 }
 

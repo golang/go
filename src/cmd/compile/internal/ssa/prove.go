@@ -1186,7 +1186,6 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r)
 			}
 		}
-
 	}
 }
 

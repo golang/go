@@ -919,7 +919,6 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 		if a.Index != 0 {
 			if a.Name != obj.NAME_NONE || a.Offset != 0 {
 				c.ctxt.Logf("Unexpected Instruction operand index %d offset %d class %d \n", a.Index, a.Offset, a.Class)
-
 			}
 			return C_XOREG
 		}
@@ -1103,7 +1102,6 @@ func (c *ctxt9) oplook(p *obj.Prog) *Optab {
 			argsv[i] = c.aclass(&ap.Addr) + 1
 			ap.Addr.Class = int8(argsv[i])
 		}
-
 	}
 	a3 := argsv[0] - 1
 	a4 := argsv[1] - 1
@@ -1308,7 +1306,6 @@ func buildop(ctxt *obj.Link) {
 			entry.asmout = asmout
 		}
 		prefixOptab = append(prefixOptab, entry.Optab)
-
 	}
 
 	for i := 0; i < C_NCLASS; i++ {
@@ -2465,7 +2462,6 @@ func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32, reuse b
 		case DS_FORM:
 			rel.Type = objabi.R_ADDRPOWER_TOCREL_DS
 		}
-
 	} else {
 		switch form {
 		case D_FORM:
@@ -3067,7 +3063,6 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 
 		if p.As == AEXTSWSLI || p.As == AEXTSWSLICC {
 			o1 = AOP_EXTSWSLI(OP_EXTSWSLI, uint32(r), uint32(p.To.Reg), uint32(v))
-
 		} else {
 			o1 = AOP_RLDIC(op, uint32(p.To.Reg), uint32(r), uint32(v), uint32(a))
 		}
@@ -5429,7 +5424,6 @@ func (c *ctxt9) opstore(a obj.As) uint32 {
 		return OPVXX1(31, 429, 0) /* stxvll ISA 3.0 */
 	case ASTXVX:
 		return OPVXX1(31, 396, 0) /* stxvx - ISA v3.0 */
-
 	}
 
 	c.ctxt.Diag("unknown store opcode %v", a)
@@ -5521,7 +5515,6 @@ func (c *ctxt9) opstorex(a obj.As) uint32 {
 		return OPVXX1(31, 140, 0) /* stxsiwx - v2.07 */
 
 		/* End of vector scalar instructions */
-
 	}
 
 	c.ctxt.Diag("unknown storex opcode %v", a)

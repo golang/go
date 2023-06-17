@@ -69,7 +69,6 @@ func main() { tls.Dial("", "", nil) }
 		},
 		// TODO: add only_server like func main() { tls.Server(nil, nil) }
 		// That currently brings in the client via Conn.handleRenegotiation.
-
 	}
 	tmpDir := t.TempDir()
 	goFile := filepath.Join(tmpDir, "x.go")

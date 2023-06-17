@@ -162,7 +162,6 @@ func computeSqrThreshold(from, to, step, nruns int, lower, upper string) int {
 			fmt.Printf("  threshold  found")
 		}
 		fmt.Println()
-
 	}
 	if threshold != 0 {
 		fmt.Printf("Found threshold = %d between %d - %d\n", threshold, from, to)

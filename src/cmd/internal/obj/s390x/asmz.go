@@ -2832,7 +2832,6 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			zRRE(op_LGR, REGTMP2, uint32(r), asm)
 			zRRE(opcode, regtmp(p), uint32(p.From.Reg), asm)
 			zRRE(op_LGR, uint32(p.To.Reg), regtmp(p), asm)
-
 		}
 
 	case 3: // mov $constant reg

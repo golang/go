@@ -494,7 +494,6 @@ func TestReadTimeoutUnblocksRead(t *testing.T) {
 			println("Stacks at timeout:\n", string(buf))
 			return errors.New("timeout waiting for Read to finish")
 		}
-
 	}
 	// Do nothing in the client. Never write. Just wait for the
 	// server's half to be done.

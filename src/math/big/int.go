@@ -803,7 +803,6 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 				// Ub = u1*Ua + v1*Ub
 				lehmerUpdate(Ua, Ub, q, r, s, t, u0, u1, v0, v1, even)
 			}
-
 		} else {
 			// Single-digit calculations failed to simulate any quotients.
 			// Do a standard Euclidean step.

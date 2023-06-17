@@ -2106,7 +2106,6 @@ func test27660(t *testing.T) {
 					runtime.Gosched()
 				}
 				i++
-
 			}
 		}()
 		time.Sleep(time.Millisecond)

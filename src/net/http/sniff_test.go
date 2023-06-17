@@ -248,9 +248,7 @@ func testContentTypeWithVariousSources(t *testing.T, mode testMode) {
 				t.Errorf("data is %q, want %q", data, input)
 			}
 			resp.Body.Close()
-
 		})
-
 	}
 }
 

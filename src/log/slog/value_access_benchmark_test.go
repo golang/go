@@ -65,7 +65,6 @@ func BenchmarkDispatch(b *testing.B) {
 		_ = d
 		_ = f
 		_ = a
-
 	})
 	b.Run("As", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

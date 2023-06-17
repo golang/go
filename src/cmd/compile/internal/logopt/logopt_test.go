@@ -109,7 +109,6 @@ func TestLogOpt(t *testing.T) {
 			t.Error("-json=0,foo succeeded unexpectedly")
 		}
 		want(t, out, "version must be")
-
 	})
 
 	// replace d (dir)  with t ("tmpdir") and convert path separators to '/'

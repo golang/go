@@ -259,7 +259,6 @@ func testDebugLines(t *testing.T, gcflags, file, function string, wantStmts []in
 		if !reflect.DeepEqual(wantStmts, newGotStmts) {
 			t.Errorf("wanted stmts %v but got %v (with repeats still in: %v)", wantStmts, newGotStmts, gotStmts)
 		}
-
 	} else {
 		if !reflect.DeepEqual(wantStmts, gotStmts) {
 			t.Errorf("wanted stmts %v but got %v", wantStmts, gotStmts)

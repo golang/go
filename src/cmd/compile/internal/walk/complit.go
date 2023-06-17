@@ -273,7 +273,6 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 		default:
 			base.Fatalf("fixedlit: bad kind %d", kind)
 		}
-
 	}
 }
 

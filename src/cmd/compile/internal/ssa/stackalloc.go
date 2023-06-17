@@ -198,7 +198,6 @@ func (s *stackAllocState) stackalloc() {
 		//		continue
 		//	}
 		//}
-
 	}
 
 	// For each type, we keep track of all the stack slots we

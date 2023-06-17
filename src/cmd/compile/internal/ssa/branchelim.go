@@ -216,7 +216,6 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 		if !simpleStmt && simplePos.SameFileAndLine(postPos) {
 			postStmt = false
 		}
-
 	}
 	if postStmt {
 		postStmt = !findBlockPos(post)

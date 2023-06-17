@@ -1372,7 +1372,6 @@ func TestIssue20490(t *testing.T) {
 		if b.Cmp(sum) != 0 {
 			t.Errorf("got %g + %g = %g; want %g\n", a, NewFloat(test.b), b, sum)
 		}
-
 	}
 }
 

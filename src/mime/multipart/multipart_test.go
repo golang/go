@@ -255,7 +255,6 @@ func TestVariousTextLineEndings(t *testing.T) {
 		if err != io.EOF {
 			t.Errorf("On test %d expected io.EOF; got %v", testNum, err)
 		}
-
 	}
 }
 

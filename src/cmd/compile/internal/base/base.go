@@ -152,7 +152,6 @@ func AdjustStartingHeap(requestedHeapGoal uint64) {
 				overPct := 100 * (int(inUse) - int(requestedHeapGoal)) / int(requestedHeapGoal)
 				fmt.Fprintf(os.Stderr, "GCAdjust: AtExit goal %d gogc %d count %d maxprocs %d gcConcurrency %d overPct %d\n",
 					goal, oldGogc, count, mp, gcConcurrency, overPct)
-
 			}
 		})
 	}

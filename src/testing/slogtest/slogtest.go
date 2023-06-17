@@ -127,7 +127,6 @@ func TestHandler(h slog.Handler, results func() []map[string]any) error {
 			explanation: withSource("a Handler should inline the Attrs of a group with an empty key"),
 			f: func(l *slog.Logger) {
 				l.Info("msg", "a", "b", slog.Group("", slog.String("c", "d")), "e", "f")
-
 			},
 			checks: []check{
 				hasAttr("a", "b"),

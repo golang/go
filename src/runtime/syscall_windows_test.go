@@ -965,7 +965,6 @@ func removeOneCPU(mask uintptr) (uintptr, error) {
 		if newmask != mask {
 			return newmask, nil
 		}
-
 	}
 	panic("not reached")
 }

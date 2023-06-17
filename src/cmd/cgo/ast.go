@@ -109,7 +109,6 @@ func (f *File) ParseGo(abspath string, src []byte) {
 				}
 			}
 		}
-
 	}
 	if !sawC {
 		error_(ast1.Package, `cannot find import "C"`)

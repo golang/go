@@ -181,7 +181,6 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 				rs = trs
 			}
 		}
-
 	}
 
 	if target.IsExternal() {

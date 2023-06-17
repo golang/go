@@ -438,7 +438,6 @@ func deleteNamedVals(f *Func, toDelete []namedVal) {
 			return toDelete[i].locIndex > toDelete[j].locIndex
 		}
 		return toDelete[i].valIndex > toDelete[j].valIndex
-
 	})
 
 	// Get rid of obsolete names

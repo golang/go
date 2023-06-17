@@ -87,7 +87,6 @@ func TestConditionalDefers(t *testing.T) {
 		if !reflect.DeepEqual(want, list) {
 			t.Fatal(fmt.Sprintf("wanted %v, got %v", want, list))
 		}
-
 	}()
 	testConditionalDefers(8)
 }
@@ -429,7 +428,6 @@ func TestIssue43921(t *testing.T) {
 			panic(4)
 		}()
 		panic(1)
-
 	}()
 }
 

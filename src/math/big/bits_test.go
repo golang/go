@@ -56,7 +56,6 @@ func TestMulBits(t *testing.T) {
 		if got != want {
 			t.Errorf("%v * %v = %s; want %s", test.x, test.y, got, want)
 		}
-
 	}
 }
 
@@ -98,7 +97,6 @@ func TestNormBits(t *testing.T) {
 		if got != want {
 			t.Errorf("normBits(%v) = %s; want %s", test.x, got, want)
 		}
-
 	}
 }
 

@@ -2006,7 +2006,6 @@ func BenchmarkQueryEscape(b *testing.B) {
 			if g != tc.query {
 				b.Errorf("QueryEscape(%q) == %q, want %q", tc.unescaped, g, tc.query)
 			}
-
 		})
 	}
 }
@@ -2023,7 +2022,6 @@ func BenchmarkPathEscape(b *testing.B) {
 			if g != tc.path {
 				b.Errorf("PathEscape(%q) == %q, want %q", tc.unescaped, g, tc.path)
 			}
-
 		})
 	}
 }
@@ -2040,7 +2038,6 @@ func BenchmarkQueryUnescape(b *testing.B) {
 			if g != tc.unescaped {
 				b.Errorf("QueryUnescape(%q) == %q, want %q", tc.query, g, tc.unescaped)
 			}
-
 		})
 	}
 }
@@ -2057,7 +2054,6 @@ func BenchmarkPathUnescape(b *testing.B) {
 			if g != tc.unescaped {
 				b.Errorf("PathUnescape(%q) == %q, want %q", tc.path, g, tc.unescaped)
 			}
-
 		})
 	}
 }

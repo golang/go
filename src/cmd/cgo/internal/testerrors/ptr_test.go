@@ -663,7 +663,6 @@ func testOne(t *testing.T, pt ptrTest, exe, exe2 string) {
 				t.Errorf("failed unexpectedly with GODEBUG=cgocheck=1: %v", err)
 			}
 		}
-
 	}
 
 	cgocheck := ""

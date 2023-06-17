@@ -676,7 +676,6 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 					sema.Release(1)
 					wg.Done()
 				}()
-
 			}
 			if ptest != nil && ptest != p {
 				pkgs = append(pkgs, ptest)

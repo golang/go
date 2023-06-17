@@ -1087,7 +1087,6 @@ func TestAddressParsingAndFormatting(t *testing.T) {
 			t.Errorf("String() round-trip = %q; want %q", addr, test)
 			continue
 		}
-
 	}
 
 	// Should fail
@@ -1118,7 +1117,6 @@ func TestAddressParsingAndFormatting(t *testing.T) {
 			t.Errorf("Should have failed to parse address: %s", test)
 			continue
 		}
-
 	}
 }
 

@@ -79,7 +79,6 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 				}
 				p.To.Sym = s
 			}
-
 		}
 
 		if curtext == nil {

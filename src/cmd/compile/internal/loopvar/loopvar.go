@@ -311,7 +311,6 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 						as = ir.NewAssignStmt(x.Pos(), tz, z)
 						as.SetTypecheck(1)
 						postBody.Append(as)
-
 					}
 
 					// (3) rewrite continues in body -- rewrite is inplace, so works for top level visit, too.

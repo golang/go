@@ -134,10 +134,8 @@ func insertLoopReschedChecks(f *Func) {
 			headerMemPhi = newPhiFor(h, mem0)
 			newmemphis[h] = rewrite{before: mem0, after: headerMemPhi}
 			addDFphis(mem0, h, h, f, memDefsAtBlockEnds, newmemphis, sdom)
-
 		}
 		tofixBackedges[i].m = headerMemPhi
-
 	}
 	if f.pass.debug > 0 {
 		for b, r := range newmemphis {

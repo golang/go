@@ -1021,7 +1021,6 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 				acquireLockRank(lockRankGscan)
 			}
 			return r
-
 		}
 	}
 	print("runtime: castogscanstatus oldval=", hex(oldval), " newval=", hex(newval), "\n")

@@ -432,7 +432,6 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 					Type:   obj.TYPE_CONST,
 					Offset: p.getConstant(prog, op, &a[0]),
 				}
-
 			}
 
 			// Likewise, fixup usage like:

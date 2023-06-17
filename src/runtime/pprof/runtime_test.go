@@ -76,7 +76,6 @@ func TestDo(t *testing.T) {
 			sync <- struct{}{}
 		}()
 		<-sync
-
 	})
 
 	wantLabels = map[string]string{}

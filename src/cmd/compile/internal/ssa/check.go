@@ -317,7 +317,6 @@ func checkFunc(f *Func) {
 				if !v.Aux.(*ir.Name).Type().HasPointers() {
 					f.Fatalf("vardef must have pointer type %s", v.Aux.(*ir.Name).Type().String())
 				}
-
 			}
 
 			// TODO: check for cycles in values

@@ -350,7 +350,6 @@ func (d *compressor) encSpeed() {
 			d.bestSpeed.reset()
 			return
 		}
-
 	}
 	// Encode the block.
 	d.tokens = d.bestSpeed.encode(d.tokens[:0], d.window[:d.windowEnd])

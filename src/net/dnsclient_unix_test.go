@@ -519,7 +519,6 @@ func TestGoLookupIPWithResolverConfig(t *testing.T) {
 						},
 					})
 				default:
-
 				}
 			case dnsmessage.TypeAAAA:
 				switch question.Name.String() {

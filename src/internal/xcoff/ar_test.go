@@ -74,6 +74,5 @@ func TestOpenArchive(t *testing.T) {
 		if tn != an {
 			t.Errorf("open %s: len(Members) = %d, want %d", tt.file, an, tn)
 		}
-
 	}
 }

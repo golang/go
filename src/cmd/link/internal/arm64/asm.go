@@ -506,7 +506,6 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 			return false
 		}
 		out.Write64(uint64(elf.R_AARCH64_CALL26) | uint64(elfsym)<<32)
-
 	}
 	out.Write64(uint64(r.Xadd))
 

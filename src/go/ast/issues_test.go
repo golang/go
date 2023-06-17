@@ -135,5 +135,4 @@ package p
 			t.Errorf("%d: IsGenerated on <<%s>> returned %t", i, test.src, got)
 		}
 	}
-
 }

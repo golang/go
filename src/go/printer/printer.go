@@ -396,7 +396,6 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment
 			}
 			p.writeByte(sep, 1)
 		}
-
 	} else {
 		// comment on a different line:
 		// separate with at least one line break
@@ -537,7 +536,6 @@ func stripCommonPrefix(lines []string) {
 				}
 				prefix = commonPrefix(prefix, line)
 			}
-
 		}
 	}
 	// If we don't have a prefix yet, consider the last line.

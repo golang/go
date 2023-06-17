@@ -577,7 +577,6 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 		b.WriteString(" <")
 		sconv2(b, t.Sym(), 'v', mode)
 		b.WriteString(">")
-
 	}
 }
 

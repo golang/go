@@ -291,7 +291,6 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 					}
 				}
 				return
-
 			} else if mask0, _ := mask.(image.RGBA64Image); mask0 != nil {
 				sy := sp.Y + y0 - r.Min.Y
 				my := mp.Y + y0 - r.Min.Y
@@ -849,7 +848,6 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 				}
 			}
 			return
-
 		} else if mask0, _ := mask.(image.RGBA64Image); mask0 != nil {
 			if op == Over {
 				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
@@ -918,7 +916,6 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 				d[1] = uint8((dg*a + sg*ma) / m >> 8)
 				d[2] = uint8((db*a + sb*ma) / m >> 8)
 				d[3] = uint8((da*a + sa*ma) / m >> 8)
-
 			} else {
 				d[0] = uint8(sr * ma / m >> 8)
 				d[1] = uint8(sg * ma / m >> 8)
@@ -1034,7 +1031,6 @@ func drawPaletted(dst Image, r image.Rectangle, src image.Image, sp image.Point,
 				eg -= palette[bestIndex][1]
 				eb -= palette[bestIndex][2]
 				ea -= palette[bestIndex][3]
-
 			} else {
 				out.R = uint16(er)
 				out.G = uint16(eg)

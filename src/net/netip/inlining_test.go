@@ -97,6 +97,5 @@ func TestInlining(t *testing.T) {
 			continue
 		}
 		t.Logf("not in expected set, but also inlinable: %q", sym)
-
 	}
 }

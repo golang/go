@@ -258,7 +258,6 @@ func findIndVar(f *Func) []indVar {
 				}
 			}
 			return false
-
 		}
 
 		if ok() {

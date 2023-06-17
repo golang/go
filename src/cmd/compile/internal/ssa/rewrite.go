@@ -944,7 +944,6 @@ found:
 		}
 		b = b.Preds[0].b
 		d--
-
 	}
 	return nil // too far away
 }
@@ -1299,7 +1298,6 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 			}
 		}
 		return true
-
 	}
 	return false
 }
@@ -1323,7 +1321,6 @@ func zeroUpper48Bits(x *Value, depth int) bool {
 			}
 		}
 		return true
-
 	}
 	return false
 }
@@ -1347,7 +1344,6 @@ func zeroUpper56Bits(x *Value, depth int) bool {
 			}
 		}
 		return true
-
 	}
 	return false
 }

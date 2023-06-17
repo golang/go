@@ -555,7 +555,6 @@ L: // unpack receiver type
 				}
 				tparams = append(tparams, par)
 			}
-
 		}
 	}
 

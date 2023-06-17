@@ -157,7 +157,6 @@ func TestPassFD(t *testing.T) {
 		if aixVer < "7200" || (aixVer == "7200" && tl < 2) {
 			t.Skip("skipped on AIX versions previous to 7.2 TL 2")
 		}
-
 	}
 
 	tempDir := t.TempDir()

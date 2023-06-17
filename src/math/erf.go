@@ -322,7 +322,6 @@ func erfc(x float64) float64 {
 			return 1 + erx + P/Q
 		}
 		return 1 - erx - P/Q
-
 	}
 	if x < 28 { // |x| < 28
 		s := 1 / (x * x)

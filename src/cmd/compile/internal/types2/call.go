@@ -890,7 +890,6 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named, w
 		}
 
 		check.addDeclDep(m)
-
 	} else {
 		// regular selector
 		switch obj := obj.(type) {

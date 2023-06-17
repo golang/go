@@ -487,7 +487,6 @@ type inputReader struct {
 func (i *inputReader) step(pos int) (rune, int) {
 	if !i.atEOT && pos != i.pos {
 		return endOfText, 0
-
 	}
 	r, w, err := i.r.ReadRune()
 	if err != nil {

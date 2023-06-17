@@ -84,7 +84,6 @@ func dirstat(arg any) (*syscall.Dir, error) {
 			}
 			return d, nil
 		}
-
 	}
 
 	if err == nil {

@@ -266,7 +266,6 @@ func importRaw(modroot, reldir string) *rawPackage {
 		for _, emb := range info.embeds {
 			rf.embeds = append(rf.embeds, embed{emb.pattern, emb.pos})
 		}
-
 	}
 	return p
 }

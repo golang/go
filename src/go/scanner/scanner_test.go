@@ -306,7 +306,6 @@ func TestScan(t *testing.T) {
 		// update position
 		epos.Offset += len(e.lit) + len(whitespace)
 		epos.Line += newlineCount(e.lit) + whitespace_linecount
-
 	}
 
 	if s.ErrorCount != 0 {

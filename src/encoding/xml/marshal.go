@@ -257,7 +257,6 @@ func (enc *Encoder) EncodeToken(t Token) error {
 		p.WriteString(">")
 	default:
 		return fmt.Errorf("xml: EncodeToken of invalid token type")
-
 	}
 	return p.cachedWriteError()
 }

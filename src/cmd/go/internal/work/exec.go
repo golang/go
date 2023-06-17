@@ -986,7 +986,6 @@ func (b *Builder) checkDirectives(a *Action) error {
 	}
 	if msg != nil {
 		return formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), b.processOutput(msg.Bytes()))
-
 	}
 	return nil
 }

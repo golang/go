@@ -924,7 +924,6 @@ func (t test) run() error {
 			case ".s":
 				asms = append(asms, filepath.Join(longdir, file.Name()))
 			}
-
 		}
 		if len(asms) > 0 {
 			emptyHdrFile := filepath.Join(tempDir, "go_asm.h")

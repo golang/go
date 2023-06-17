@@ -256,7 +256,6 @@ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, i
 			a.Index = arm64.REG_LSL + Rnum
 		default:
 			return errors.New("unsupported general register extension type: " + ext)
-
 		}
 	} else if reg <= arm64.REG_V31 && reg >= arm64.REG_V0 {
 		switch ext {

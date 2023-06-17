@@ -1222,7 +1222,6 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		case AMemoryCopy:
 			w.WriteByte(0x00)
 			w.WriteByte(0x00)
-
 		}
 	}
 

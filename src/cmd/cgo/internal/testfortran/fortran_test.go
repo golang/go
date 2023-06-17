@@ -63,7 +63,6 @@ func TestFortran(t *testing.T) {
 		}
 		t.Logf("CGO_LDFLAGS=%s", cgoLDFlags)
 		os.Setenv("CGO_LDFLAGS", cgoLDFlags)
-
 	}
 
 	// Do a test build that doesn't involve Go FORTRAN support.

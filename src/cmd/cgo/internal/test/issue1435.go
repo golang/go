@@ -121,7 +121,6 @@ func compareStatus(filter, expect string) error {
 						foundAThread = true
 						break
 					}
-
 				}
 				return fmt.Errorf("%q got:%q want:%q (bad) [pid=%d file:'%s' %v]\n", tf, line, expected, pid, string(d), expectedProc)
 			}

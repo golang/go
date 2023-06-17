@@ -635,7 +635,6 @@ func (t *node32) wellFormedSubtree(parent *node32, keyMin, keyMax int32) (s stri
 		if s != "" {
 			return
 		}
-
 	}
 
 	if r != nil {

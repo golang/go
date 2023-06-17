@@ -1425,7 +1425,6 @@ func containsCountsLabels(prof *profile.Profile, countLabels map[int64]map[strin
 				key:   k,
 				val:   v,
 			}]++
-
 		}
 	}
 	for _, s := range prof.Sample {

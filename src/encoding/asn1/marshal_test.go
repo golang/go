@@ -190,7 +190,6 @@ func TestMarshal(t *testing.T) {
 		out, _ := hex.DecodeString(test.out)
 		if !bytes.Equal(out, data) {
 			t.Errorf("#%d got: %x want %x\n\t%q\n\t%q", i, data, out, data, out)
-
 		}
 	}
 }
@@ -216,7 +215,6 @@ func TestMarshalWithParams(t *testing.T) {
 		out, _ := hex.DecodeString(test.out)
 		if !bytes.Equal(out, data) {
 			t.Errorf("#%d got: %x want %x\n\t%q\n\t%q", i, data, out, data, out)
-
 		}
 	}
 }

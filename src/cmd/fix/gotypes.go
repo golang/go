@@ -51,7 +51,6 @@ func fixGoExact(f *ast.File) bool {
 		if path == "golang.org/x/tools/go/exact" {
 			importSpec = spec
 		}
-
 	})
 	if importSpec == nil {
 		return false

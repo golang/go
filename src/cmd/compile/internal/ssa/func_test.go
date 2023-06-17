@@ -120,7 +120,6 @@ func Equiv(f, g *Func) bool {
 				}
 			}
 			return true
-
 		}
 		return blkcor[fb] == gb && blkcor[gb] == fb
 	}

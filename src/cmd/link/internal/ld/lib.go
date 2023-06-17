@@ -2116,7 +2116,6 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
 		} else {
 			return []string{"-m64"}
 		}
-
 	}
 	return nil
 }

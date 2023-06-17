@@ -161,7 +161,6 @@ func numberLines(f *Func) {
 						line = src.NoXPos
 						break
 					}
-
 				}
 			}
 			// If the block has no statement itself and is effectively empty, tag it w/ predecessor(s) but not as a statement

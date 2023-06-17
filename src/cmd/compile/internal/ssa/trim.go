@@ -58,7 +58,6 @@ func trim(f *Func) {
 				if v.Op == OpPhi {
 					mergePhi(v, j, b)
 				}
-
 			}
 			// Remove the phi-ops from `b` if they were merged into the
 			// phi-ops of `s`.

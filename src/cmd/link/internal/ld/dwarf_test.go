@@ -1196,7 +1196,6 @@ func TestPackageNameAttr(t *testing.T) {
 		if !ok {
 			name, _ := e.Val(dwarf.AttrName).(string)
 			t.Errorf("found compile unit without package name: %s", name)
-
 		}
 		if pn == "" {
 			name, _ := e.Val(dwarf.AttrName).(string)

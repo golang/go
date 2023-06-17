@@ -86,7 +86,6 @@ func (b *Replacer) build() replacer {
 			r.toReplace = append(r.toReplace, string([]byte{o}))
 		}
 		r.replacements[o] = []byte(n)
-
 	}
 	return &r
 }
@@ -518,7 +517,6 @@ func (r *byteStringReplacer) Replace(s string) string {
 				newSize += c * (len(r.replacements[x[0]]) - 1)
 				anyChanges = true
 			}
-
 		}
 	} else {
 		for i := 0; i < len(s); i++ {

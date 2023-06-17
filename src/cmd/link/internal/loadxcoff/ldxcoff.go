@@ -221,7 +221,6 @@ func getSymbolType(f *xcoff.File, s *xcoff.Symbol) (stype sym.SymKind, err strin
 				return sym.SXCOFFTOC, ""
 			}
 			return sym.Sxxx, fmt.Sprintf("unrecognised Section Type 0x%x for Storage Class 0x%x with Storage Map XMC_DS", sectType, s.StorageClass)
-
 		}
 	}
 }

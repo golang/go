@@ -494,7 +494,6 @@ func BenchmarkReadForm(b *testing.B) {
 						}
 						form.RemoveAll()
 					}
-
 				})
 			}
 		})

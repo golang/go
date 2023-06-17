@@ -200,7 +200,6 @@ description, constructed from these types:
 		GobEncoderT      *gobEncoderType
 		BinaryMarshalerT *gobEncoderType
 		TextMarshalerT   *gobEncoderType
-
 	}
 	type arrayType struct {
 		CommonType

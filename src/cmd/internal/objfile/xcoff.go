@@ -79,7 +79,6 @@ func (f *xcoffFile) symbols() ([]Sym, error) {
 				// Local symbol
 				sym.Code = unicode.ToLower(sym.Code)
 			}
-
 		}
 		syms = append(syms, sym)
 	}

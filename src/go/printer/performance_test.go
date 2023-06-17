@@ -64,7 +64,6 @@ func initialize() {
 			declSize = int64(fset.Position(decl.End()).Offset - fset.Position(decl.Pos()).Offset)
 			break
 		}
-
 	}
 }
 

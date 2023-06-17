@@ -5420,7 +5420,6 @@ func (ab *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			// On 386, R_GOTPCREL makes the same assumptions as R_PCREL.
 			r.Add += int64(r.Off) - p.Pc + int64(r.Siz)
 		}
-
 	}
 }
 

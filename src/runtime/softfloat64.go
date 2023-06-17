@@ -221,7 +221,6 @@ func fadd64(f, g uint64) uint64 {
 
 	case gm == 0: // f + 0 = f
 		return f
-
 	}
 
 	if fe < ge || fe == ge && fm < gm {

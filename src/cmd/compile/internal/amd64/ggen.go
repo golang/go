@@ -85,7 +85,6 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
 		}
 		// Restore DI from r12
 		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_R12, 0, obj.TYPE_REG, x86.REG_DI, 0)
-
 	} else {
 		// When the register ABI is in effect, at this point in the
 		// prolog we may have live values in all of RAX,RDI,RCX. Save

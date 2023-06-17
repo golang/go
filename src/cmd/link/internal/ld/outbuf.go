@@ -296,7 +296,6 @@ func (out *OutBuf) WriteStringPad(s string, n int, pad []byte) {
 		for n > len(pad) {
 			out.Write(pad)
 			n -= len(pad)
-
 		}
 		out.Write(pad[:n])
 	}

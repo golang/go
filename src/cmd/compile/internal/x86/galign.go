@@ -29,7 +29,6 @@ func Init(arch *ssagen.ArchInfo) {
 	default:
 		fmt.Fprintf(os.Stderr, "unsupported setting GO386=%s\n", v)
 		base.Exit(1)
-
 	}
 
 	arch.ZeroRange = zerorange

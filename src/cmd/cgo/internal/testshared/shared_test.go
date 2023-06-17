@@ -842,7 +842,6 @@ func resetFileStamps() {
 		if err := filepath.Walk(path, chtime); err != nil {
 			log.Panicf("resetFileStamps failed: %v", err)
 		}
-
 	}
 	reset("../../bin")
 	reset("../../pkg")

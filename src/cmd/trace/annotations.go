@@ -885,7 +885,6 @@ func (h *durationHistogram) ToHTML(urlmaker func(min, max time.Duration) string)
 		// Bucket count.
 		fmt.Fprintf(w, `<td align="right"><div style="position:relative">%d</div></td>`, h.Buckets[i])
 		fmt.Fprintf(w, "</tr>\n")
-
 	}
 	// Final tick label.
 	fmt.Fprintf(w, `<tr><td align="right">%s</td></tr>`, niceDuration(h.BucketMin(h.MaxBucket+1)))

@@ -138,7 +138,6 @@ func ` + fname + `(x int64) int64 {
 	if b != 0 {` + `
 		goto ` + string(labels[blocks[j].succs[1]]) + `
 	}`
-
 		}
 		// branch to first successor
 		s += `
@@ -248,7 +247,6 @@ var glob bool
 			s += `
 		{f:` + fname + `, maxin:` + fmt.Sprintf("%d", 1<<k) + `, blocks:` + fmtBlocks(bs) + `},`
 		}
-
 	}
 	s += `}
 `

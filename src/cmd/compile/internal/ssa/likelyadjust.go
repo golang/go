@@ -188,7 +188,6 @@ func likelyadjust(f *Func) {
 						f.Warnl(b.Pos, "Branch prediction rule stay in loop%s",
 							describePredictionAgrees(b, prediction))
 					}
-
 				} else {
 					// Lacking loop structure, fall back on heuristics.
 					if certain[b1] > certain[b0] {
@@ -231,7 +230,6 @@ func likelyadjust(f *Func) {
 		if f.pass.debug > 2 {
 			f.Warnl(b.Pos, "BP: Block %s, local=%s, certain=%s", b, bllikelies[local[b.ID]-blMin], bllikelies[certain[b.ID]-blMin])
 		}
-
 	}
 }
 
@@ -342,7 +340,6 @@ func loopnestfor(f *Func) *loopnest {
 				if f.pass != nil && f.pass.debug > 4 {
 					fmt.Printf("loop finding    succ %s of %s has no loop\n", bb.String(), b.String())
 				}
-
 			}
 
 			if l == nil || innermost == l {
@@ -420,7 +417,6 @@ func loopnestfor(f *Func) *loopnest {
 				if !dominatedByCall[nb.ID] {
 					tovisit = append(tovisit, nb)
 				}
-
 			}
 			if callfreepath {
 				break

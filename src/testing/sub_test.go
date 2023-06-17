@@ -281,7 +281,6 @@ func TestTRun(t *T) {
 					t.Run("c", func(t *T) {
 						t.Parallel()
 					})
-
 				})
 			})
 		},
@@ -306,7 +305,6 @@ func TestTRun(t *T) {
 									time.Sleep(time.Nanosecond)
 								})
 							}
-
 						})
 					}
 				})

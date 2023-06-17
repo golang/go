@@ -587,7 +587,6 @@ func TestStdinCloseRace(t *testing.T) {
 	}
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
-
 	}
 
 	var wg sync.WaitGroup

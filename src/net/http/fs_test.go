@@ -743,7 +743,6 @@ func testFileServerNamesEscape(t *testing.T, mode testMode) {
 		if res.StatusCode < 400 || res.StatusCode > 599 {
 			t.Errorf("Get(%q): got status %v, want 4xx or 5xx", path, res.StatusCode)
 		}
-
 	}
 }
 

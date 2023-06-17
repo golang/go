@@ -86,7 +86,6 @@ func TestPragcgo(t *testing.T) {
 			// This test must fail.
 			{`go:cgo_import_dynamic local' remote' "library"`, []string{`<unknown position>: usage: //go:cgo_import_dynamic local [remote ["lib.a/object.o"]]`}},
 		}...)
-
 	}
 
 	var p noder
@@ -117,6 +116,5 @@ func TestPragcgo(t *testing.T) {
 				continue
 			}
 		}
-
 	}
 }
