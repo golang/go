@@ -465,7 +465,6 @@ func testLrot(t *testing.T) {
 	if x != wantX {
 		t.Errorf("lrot3_ssa(0xb0000001)=%d, got %d", wantX, x)
 	}
-
 }
 
 //go:noinline

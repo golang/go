@@ -346,7 +346,6 @@ func before() {
 		}
 		// Could save f so after can call f.Close; not worth the effort.
 	}
-
 }
 
 // after runs after all testing.

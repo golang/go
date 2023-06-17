@@ -1595,7 +1595,6 @@ func writePtr(ctxt *obj.Link, buf []byte, word uint64) {
 	default:
 		panic("unexpected pointer size")
 	}
-
 }
 
 // Read a pointer-sized uint from the beginning of buf.
@@ -1608,7 +1607,6 @@ func readPtr(ctxt *obj.Link, buf []byte) uint64 {
 	default:
 		panic("unexpected pointer size")
 	}
-
 }
 
 // setupLocList creates the initial portion of a location list for a

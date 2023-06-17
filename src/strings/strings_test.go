@@ -1788,7 +1788,6 @@ func BenchmarkCountByte(b *testing.B) {
 			benchFunc(b, benchStr[:size])
 		})
 	}
-
 }
 
 var makeFieldsInput = func() string {

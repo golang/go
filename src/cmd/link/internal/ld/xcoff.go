@@ -552,7 +552,6 @@ func Xcoffinit(ctxt *Link) {
 		Errorf(nil, "-R not available on AIX")
 	}
 	*FlagRound = int(XCOFFSECTALIGN)
-
 }
 
 // SYMBOL TABLE
@@ -1564,7 +1563,6 @@ func (f *xcoffFile) writeFileHeader(ctxt *Link) {
 		f.xfhdr.Fopthdr = 0
 		binary.Write(ctxt.Out, binary.BigEndian, &f.xfhdr)
 	}
-
 }
 
 func xcoffwrite(ctxt *Link) {

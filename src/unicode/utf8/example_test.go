@@ -49,7 +49,6 @@ func ExampleDecodeLastRuneInString() {
 	// l 1
 	// e 1
 	// H 1
-
 }
 
 func ExampleDecodeRune() {

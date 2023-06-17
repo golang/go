@@ -306,7 +306,6 @@ func ExampleTime_Format() {
 	// No fraction      "Mon Jan _2 15:04:05 MST 2006" gives "Wed Feb 25 11:06:39 PST 2015"
 	// 0s for fraction  "15:04:05.00000" gives "11:06:39.12340"
 	// 9s for fraction  "15:04:05.99999999" gives "11:06:39.1234"
-
 }
 
 func ExampleTime_Format_pad() {
@@ -352,7 +351,6 @@ func ExampleTime_Format_pad() {
 	// Spaces           "<_2>" gives "< 7>"
 	// Zeros            "<02>" gives "<07>"
 	// Suppressed pad   "04:05" gives "06:39"
-
 }
 
 func ExampleTime_GoString() {

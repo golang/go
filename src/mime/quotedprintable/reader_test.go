@@ -88,7 +88,6 @@ func TestReader(t *testing.T) {
 			}
 		}
 	}
-
 }
 
 func everySequence(base, alpha string, length int, fn func(string)) {

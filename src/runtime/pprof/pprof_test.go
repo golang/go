@@ -983,7 +983,6 @@ func TestBlockProfile(t *testing.T) {
 			}
 		}
 	})
-
 }
 
 func stacks(p *profile.Profile) (res [][]string) {

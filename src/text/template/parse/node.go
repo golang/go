@@ -284,7 +284,6 @@ func (a *ActionNode) tree() *Tree {
 
 func (a *ActionNode) Copy() Node {
 	return a.tr.newAction(a.Pos, a.Line, a.Pipe.CopyPipe())
-
 }
 
 // CommandNode holds a command (a pipeline inside an evaluating action).

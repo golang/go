@@ -895,7 +895,6 @@ func (c *Config) initLegacySessionTicketKeyRLocked() {
 	} else if !bytes.HasPrefix(c.SessionTicketKey[:], deprecatedSessionTicketKey) && len(c.sessionTicketKeys) == 0 {
 		c.sessionTicketKeys = []ticketKey{c.ticketKeyFromBytes(c.SessionTicketKey)}
 	}
-
 }
 
 // ticketKeys returns the ticketKeys for this connection.

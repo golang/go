@@ -90,7 +90,6 @@ func TestNoRaceIntRWClosures(t *testing.T) {
 		ch <- 1
 	}()
 	<-ch
-
 }
 
 func TestRaceInt32RWClosures(t *testing.T) {

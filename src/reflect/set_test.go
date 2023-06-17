@@ -115,7 +115,6 @@ func TestImplicitMapConversion(t *testing.T) {
 			t.Errorf("#7 MapIndex(b1) = %#x want %p", p, b2)
 		}
 	}
-
 }
 
 func TestImplicitSetConversion(t *testing.T) {

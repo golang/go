@@ -1783,7 +1783,6 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 		x.Printf("-->%s\n", w.LongString())
 	}
 	return w
-
 }
 
 // ArgOpAndRegisterFor converts an abi register index into an ssa Op and corresponding

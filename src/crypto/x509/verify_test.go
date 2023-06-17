@@ -2692,5 +2692,4 @@ func TestVerifyEKURootAsLeaf(t *testing.T) {
 			}
 		})
 	}
-
 }

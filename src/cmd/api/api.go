@@ -359,7 +359,6 @@ type Walker struct {
 	stdPackages []string                     // names, omitting "unsafe", internal, and vendored packages
 	importMap   map[string]map[string]string // importer dir -> import path -> canonical path
 	importDir   map[string]string            // canonical import path -> dir
-
 }
 
 func NewWalker(context *build.Context, root string) *Walker {

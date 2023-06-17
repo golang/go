@@ -444,7 +444,6 @@ func TestAddrLookupOrder(t *testing.T) {
 	if order != hostLookupCgo {
 		t.Errorf("addrLookupOrder returned: %v, want cgo", order)
 	}
-
 }
 
 func setSystemNSS(nss *nssConf, addDur time.Duration) {

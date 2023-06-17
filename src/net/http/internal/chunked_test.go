@@ -210,7 +210,6 @@ func TestChunkReadPartial(t *testing.T) {
 	if got := fmt.Sprint(err); !strings.Contains(got, "malformed") {
 		t.Fatalf("second read = %v; want malformed error", err)
 	}
-
 }
 
 // Issue 48861: ChunkedReader should report incomplete chunks

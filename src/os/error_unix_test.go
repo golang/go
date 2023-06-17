@@ -36,5 +36,4 @@ func init() {
 		isPermissionTest{err: &os.SyscallError{Err: syscall.EPERM}, want: true},
 		isPermissionTest{err: &os.SyscallError{Err: syscall.EEXIST}, want: false},
 	)
-
 }

@@ -1867,7 +1867,6 @@ func main() {
 		r1, r1u, r2, r3, r4, r4u := tc4(0, 1, x, y, "a", "b")
 		println(r1, r1u, r2, r3, r4[0], r4u[1])
 	}
-
 }
 `
 	_, ex := gobuildAndExamine(t, prog, DefaultOpt)

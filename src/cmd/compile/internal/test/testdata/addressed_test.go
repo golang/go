@@ -13,7 +13,6 @@ var output string
 
 func mypanic(t *testing.T, s string) {
 	t.Fatalf(s + "\n" + output)
-
 }
 
 func assertEqual(t *testing.T, x, y int) {

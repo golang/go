@@ -223,7 +223,6 @@ func testInlineStack(t *testing.T, file, function string, wantStacks [][]int) {
 	if !reflect.DeepEqual(wantStacks, gotStacks) {
 		t.Errorf("wanted inlines %+v but got %+v\n%s", wantStacks, gotStacks, dumpBytes)
 	}
-
 }
 
 // testDebugLines compiles testdata/<file> with flags -N -l and -d=ssa/genssa/dump=<function>

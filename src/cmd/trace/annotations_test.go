@@ -379,7 +379,6 @@ func swapLoaderData(res traceparser.ParseResult, err error) {
 
 	analyzeGoroutines(nil) // fool gsInit once.
 	gs = traceparser.GoroutineStats(res.Events)
-
 }
 
 func saveTrace(buf *bytes.Buffer, name string) {

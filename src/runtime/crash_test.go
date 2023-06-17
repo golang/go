@@ -259,7 +259,6 @@ panic: again
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
-
 }
 
 func TestRecursivePanic2(t *testing.T) {
@@ -272,7 +271,6 @@ panic: third panic
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
-
 }
 
 func TestRecursivePanic3(t *testing.T) {
@@ -283,7 +281,6 @@ func TestRecursivePanic3(t *testing.T) {
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
-
 }
 
 func TestRecursivePanic4(t *testing.T) {
@@ -294,7 +291,6 @@ func TestRecursivePanic4(t *testing.T) {
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
-
 }
 
 func TestRecursivePanic5(t *testing.T) {
@@ -306,7 +302,6 @@ panic: third panic
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
-
 }
 
 func TestGoexitCrash(t *testing.T) {

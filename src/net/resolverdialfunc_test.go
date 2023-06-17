@@ -161,7 +161,6 @@ func (w ResponseWriter) SetTTL(seconds uint32) {
 		return
 	}
 	w.a.ttl = seconds
-
 }
 
 type AWriter struct{ ResponseWriter }

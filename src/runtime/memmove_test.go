@@ -168,7 +168,6 @@ func testOverlap(t *testing.T, size int) {
 			}
 		}
 	}
-
 }
 
 // Forward copy.

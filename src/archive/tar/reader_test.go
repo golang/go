@@ -759,7 +759,6 @@ func TestUninitializedRead(t *testing.T) {
 	if err == nil || err != io.EOF {
 		t.Errorf("Unexpected error: %v, wanted %v", err, io.EOF)
 	}
-
 }
 
 type reader struct{ io.Reader }

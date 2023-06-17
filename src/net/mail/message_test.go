@@ -377,7 +377,6 @@ func TestAddressParsingError(t *testing.T) {
 			}
 		}
 	})
-
 }
 
 func TestAddressParsing(t *testing.T) {
@@ -1121,7 +1120,6 @@ func TestAddressParsingAndFormatting(t *testing.T) {
 		}
 
 	}
-
 }
 
 func TestAddressFormattingAndParsing(t *testing.T) {

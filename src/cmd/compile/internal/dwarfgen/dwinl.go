@@ -357,7 +357,6 @@ func dumpInlCall(inlcalls dwarf.InlCalls, idx, ilevel int) {
 	for _, k := range ic.Children {
 		dumpInlCall(inlcalls, k, ilevel+1)
 	}
-
 }
 
 func dumpInlCalls(inlcalls dwarf.InlCalls) {

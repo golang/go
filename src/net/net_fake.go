@@ -357,7 +357,6 @@ func (fd *fakeNetFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (sysc
 
 func (fd *fakeNetFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 	return 0, nil, syscall.ENOSYS
-
 }
 func (fd *fakeNetFD) readFromInet4(p []byte, sa *syscall.SockaddrInet4) (n int, err error) {
 	return 0, syscall.ENOSYS

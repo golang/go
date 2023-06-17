@@ -172,7 +172,6 @@ func TestNexting(t *testing.T) {
 	// glitches in this harness.
 	// TODO get rid of timing glitches in this harness.
 	skipSubTest(t, debugger+"-opt", "infloop", optFlags, 10, moreargs...)
-
 }
 
 // subTest creates a subtest that compiles basename.go with the specified gcflags and additional compiler arguments,

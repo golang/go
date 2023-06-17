@@ -43,7 +43,6 @@ func httpTrace(w http.ResponseWriter, r *http.Request) {
 	}
 	html := strings.ReplaceAll(templTrace, "{{PARAMS}}", r.Form.Encode())
 	w.Write([]byte(html))
-
 }
 
 // https://chromium.googlesource.com/catapult/+/9508452e18f130c98499cb4c4f1e1efaedee8962/tracing/docs/embedding-trace-viewer.md

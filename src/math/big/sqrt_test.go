@@ -107,7 +107,6 @@ func TestFloatSqrtSpecial(t *testing.T) {
 				test.x, got, got.neg, test.want, test.want.neg)
 		}
 	}
-
 }
 
 // Benchmarks

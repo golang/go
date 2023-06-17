@@ -113,5 +113,4 @@ func (ctxt *Link) computeTLSOffset() {
 			ctxt.Tlsoffset = 0 // dummy value, not needed
 		}
 	}
-
 }

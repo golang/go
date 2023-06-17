@@ -360,7 +360,6 @@ func TestABINumParamRegs(t *testing.T) {
 	nrtest(t, c128, 2)
 	nrtest(t, s, 4)
 	nrtest(t, a, 12)
-
 }
 
 func TestABIUtilsComputePadding(t *testing.T) {

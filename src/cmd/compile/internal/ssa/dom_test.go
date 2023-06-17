@@ -219,7 +219,6 @@ func verifyDominators(t *testing.T, fut fun, domFn domFunc, doms map[string]stri
 			}
 		}
 	}
-
 }
 
 func TestDominatorsSingleBlock(t *testing.T) {
@@ -234,7 +233,6 @@ func TestDominatorsSingleBlock(t *testing.T) {
 	CheckFunc(fun.f)
 	verifyDominators(t, fun, dominators, doms)
 	verifyDominators(t, fun, dominatorsSimple, doms)
-
 }
 
 func TestDominatorsSimple(t *testing.T) {
@@ -262,7 +260,6 @@ func TestDominatorsSimple(t *testing.T) {
 	CheckFunc(fun.f)
 	verifyDominators(t, fun, dominators, doms)
 	verifyDominators(t, fun, dominatorsSimple, doms)
-
 }
 
 func TestDominatorsMultPredFwd(t *testing.T) {

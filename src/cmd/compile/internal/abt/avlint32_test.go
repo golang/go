@@ -297,7 +297,6 @@ func applicDelete(te *testing.T, x []int32) {
 			return
 		}
 	}
-
 }
 
 func applicIterator(te *testing.T, x []int32) {
@@ -349,7 +348,6 @@ func applicEquals(te *testing.T, x, y []int32) {
 		te.Errorf("!Equiv failure, v != u, =\n%v\nand%v\n", v.DebugString(), u.DebugString())
 		return
 	}
-
 }
 
 func tree(x []int32) *T {
@@ -549,7 +547,6 @@ func TestSetOps(t *testing.T) {
 	assert(t, A, ada1_1, "ada1_1")
 	ada1_2 := Ap1.Difference(A, smaller)
 	assert(t, A, ada1_2, "ada1_2")
-
 }
 
 type sstring struct {

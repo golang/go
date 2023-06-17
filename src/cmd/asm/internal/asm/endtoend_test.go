@@ -239,7 +239,6 @@ Diff:
 			t.Errorf("%s: did not find instruction encoding", line)
 		}
 	}
-
 }
 
 func isHexes(s string) bool {

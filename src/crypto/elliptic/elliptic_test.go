@@ -307,7 +307,6 @@ func TestMarshalCompressed(t *testing.T) {
 		}
 		testMarshalCompressed(t, curve, x, y, nil)
 	})
-
 }
 
 func testMarshalCompressed(t *testing.T, curve Curve, x, y *big.Int, want []byte) {

@@ -899,7 +899,6 @@ func TestQuote(t *testing.T) {
 			t.Errorf("Quote(%q) = got %q, want %q", tt.s, q, tt.want)
 		}
 	}
-
 }
 
 // Issue 48037

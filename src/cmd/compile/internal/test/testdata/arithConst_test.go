@@ -9566,5 +9566,4 @@ func TestArithmeticConst(t *testing.T) {
 			t.Errorf("%s(%d) = %d, want %d\n", test.fnname, test.in, got, test.want)
 		}
 	}
-
 }

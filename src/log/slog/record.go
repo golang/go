@@ -123,7 +123,6 @@ func (r *Record) Add(args ...any) {
 			r.back = append(r.back, a)
 		}
 	}
-
 }
 
 // countAttrs returns the number of Attrs that would be created from args.

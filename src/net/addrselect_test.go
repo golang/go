@@ -143,7 +143,6 @@ func TestSortByRFC6724(t *testing.T) {
 		}
 
 	}
-
 }
 
 func TestRFC6724PolicyTableOrder(t *testing.T) {
@@ -308,5 +307,4 @@ func TestRFC6724CommonPrefixLength(t *testing.T) {
 			t.Errorf("%d. commonPrefixLen(%s, %s) = %d; want %d", i, tt.a, tt.b, got, tt.want)
 		}
 	}
-
 }

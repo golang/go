@@ -234,7 +234,6 @@ func TestFoo(t *testing.T) {
 	if !logAfterTaskEnd {
 		t.Error("failed to find 'log after task ends'")
 	}
-
 }
 
 func TestDirectSemaphoreHandoff(t *testing.T) {

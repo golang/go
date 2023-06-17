@@ -47,7 +47,6 @@ func TestLevelVar(t *testing.T) {
 	if got, want := al.Level(), LevelInfo; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
-
 }
 
 func TestMarshalJSON(t *testing.T) {

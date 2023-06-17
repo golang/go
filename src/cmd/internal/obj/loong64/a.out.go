@@ -178,7 +178,6 @@ func init() {
 	}
 	f(REG_R0, REG_R31, 0)
 	f(REG_F0, REG_F31, 32)
-
 }
 
 const (

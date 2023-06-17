@@ -96,7 +96,6 @@ func TestSplitPkgConfigOutput(t *testing.T) {
 			t.Errorf("splitPkgConfigOutput(%v) = %v; want %v", test.in, got, test.want)
 		}
 	}
-
 }
 
 func TestSharedLibName(t *testing.T) {

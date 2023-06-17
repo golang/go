@@ -241,7 +241,6 @@ func (s *sum64) MarshalBinary() ([]byte, error) {
 	b = append(b, magic64...)
 	b = appendUint64(b, uint64(*s))
 	return b, nil
-
 }
 
 func (s *sum64a) MarshalBinary() ([]byte, error) {

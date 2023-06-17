@@ -33,7 +33,6 @@ func runTestSetgid() bool {
 	case <-time.After(5 * time.Second):
 		return false
 	}
-
 }
 
 func testSetgid(t *testing.T) {

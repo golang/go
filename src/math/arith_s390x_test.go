@@ -151,7 +151,6 @@ func TestTanhNovec(t *testing.T) {
 			t.Errorf("Tanh(%g) = %g, want %g", vftanhSC[i], f, tanhSC[i])
 		}
 	}
-
 }
 
 func TestLog10Novec(t *testing.T) {

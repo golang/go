@@ -193,7 +193,6 @@ func (p *cpuProfile) addExtra() {
 		p.log.write(nil, 0, hdr[:], lostStk[:])
 		p.lostAtomic = 0
 	}
-
 }
 
 // CPUProfile panics.

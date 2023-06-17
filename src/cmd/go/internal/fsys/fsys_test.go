@@ -873,7 +873,6 @@ func TestWalkSymlink(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestLstat(t *testing.T) {

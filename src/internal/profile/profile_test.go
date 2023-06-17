@@ -75,5 +75,4 @@ sampling period=1
 			t.Errorf("parseContention(%q) failed unexpectedly: %v", tc.name, err)
 		}
 	}
-
 }

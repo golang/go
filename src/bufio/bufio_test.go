@@ -1685,7 +1685,6 @@ func TestReaderDiscard(t *testing.T) {
 			t.Errorf("%s: after Discard, Buffered = %d; want %d", tt.name, bn, tt.wantBuffered)
 		}
 	}
-
 }
 
 func TestReaderSize(t *testing.T) {

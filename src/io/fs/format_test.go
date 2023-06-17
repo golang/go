@@ -119,5 +119,4 @@ func TestFormatDirEntry(t *testing.T) {
 			t.Errorf("%d: FormatDirEntry(%#v) = %q, want %q", i, test.input, got, test.wantDirEntry)
 		}
 	}
-
 }

@@ -26,7 +26,6 @@ func TestHmapSize(t *testing.T) {
 	if runtime.RuntimeHmapSize != hmapSize {
 		t.Errorf("sizeof(runtime.hmap{})==%d, want %d", runtime.RuntimeHmapSize, hmapSize)
 	}
-
 }
 
 // negative zero is a good test because:
@@ -814,7 +813,6 @@ func TestMapBuckets(t *testing.T) {
 			}
 		}
 	})
-
 }
 
 func benchmarkMapPop(b *testing.B, n int) {
@@ -869,7 +867,6 @@ func TestNonEscapingMap(t *testing.T) {
 	if n != 0 {
 		t.Fatalf("with variable hint: want 0 allocs, got %v", n)
 	}
-
 }
 
 func benchmarkMapAssignInt32(b *testing.B, n int) {

@@ -1050,7 +1050,6 @@ func parseContentLength(cl string) (int64, error) {
 		return 0, badStringError("bad Content-Length", cl)
 	}
 	return int64(n), nil
-
 }
 
 // finishAsyncByteRead finishes reading the 1-byte sniff

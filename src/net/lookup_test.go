@@ -858,7 +858,6 @@ func TestLookupProtocol_Minimal(t *testing.T) {
 			t.Errorf("LookupProtocol(%q) = %d, %v; want %d, error=nil", tt.name, got, err, tt.want)
 		}
 	}
-
 }
 
 func TestLookupNonLDH(t *testing.T) {

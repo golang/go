@@ -1957,7 +1957,6 @@ func TestRejectControlCharacters(t *testing.T) {
 	if _, err := Parse("http://foo.com/ctl\x80"); err != nil {
 		t.Errorf("error parsing URL with non-ASCII control byte: %v", err)
 	}
-
 }
 
 var escapeBenchmarks = []struct {

@@ -59,5 +59,4 @@ func TestTruncCmplx(t *testing.T) {
 	if got := imag(complex128(i53) - 1i); got != 0 {
 		t.Errorf("imag(complex128(i53)-1i) = %g, want 0", got)
 	}
-
 }

@@ -150,7 +150,6 @@ func TestReverseProxy(t *testing.T) {
 	if res.StatusCode != http.StatusBadGateway {
 		t.Errorf("request to bad proxy = %v; want 502 StatusBadGateway", res.Status)
 	}
-
 }
 
 // Issue 16875: remove any proxied headers mentioned in the "Connection"
@@ -1575,7 +1574,6 @@ func TestUnannouncedTrailer(t *testing.T) {
 	if g, w := res.Trailer.Get("X-Unannounced-Trailer"), "unannounced_trailer_value"; g != w {
 		t.Errorf("Trailer(X-Unannounced-Trailer) = %q; want %q", g, w)
 	}
-
 }
 
 func TestSetURL(t *testing.T) {

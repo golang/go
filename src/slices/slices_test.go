@@ -996,7 +996,6 @@ func BenchmarkReplace(b *testing.B) {
 			}
 		})
 	}
-
 }
 
 func TestRotate(t *testing.T) {

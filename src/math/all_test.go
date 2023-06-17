@@ -3426,7 +3426,6 @@ func BenchmarkAbs(b *testing.B) {
 		x = Abs(absPos)
 	}
 	GlobalF = x
-
 }
 
 func BenchmarkDim(b *testing.B) {

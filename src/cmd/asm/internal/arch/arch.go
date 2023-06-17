@@ -317,7 +317,6 @@ func archArm64() *Arch {
 		RegisterNumber: arm64RegisterNumber,
 		IsJump:         jumpArm64,
 	}
-
 }
 
 func archPPC64(linkArch *obj.LinkArch) *Arch {

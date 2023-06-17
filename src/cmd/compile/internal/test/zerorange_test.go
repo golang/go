@@ -180,5 +180,4 @@ func TestZerorange45372(t *testing.T) {
 	if r := triggerZerorangeSmall(101, 303, 505); r != 1010 {
 		t.Errorf("small: wanted %d got %d", 1010, r)
 	}
-
 }

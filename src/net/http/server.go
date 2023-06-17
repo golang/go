@@ -3613,7 +3613,6 @@ func numLeadingCRorLF(v []byte) (n int) {
 		break
 	}
 	return
-
 }
 
 func strSliceContains(ss []string, s string) bool {

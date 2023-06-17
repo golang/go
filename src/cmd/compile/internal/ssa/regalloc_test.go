@@ -166,7 +166,6 @@ func TestSpillMove1(t *testing.T) {
 	if numSpills(f.blocks["exit2"]) != 1 {
 		t.Errorf("spill missing in exit2")
 	}
-
 }
 
 func TestSpillMove2(t *testing.T) {
@@ -216,7 +215,6 @@ func TestSpillMove2(t *testing.T) {
 	if numSpills(f.blocks["exit2"]) != 0 {
 		t.Errorf("spill present in exit2")
 	}
-
 }
 
 func numSpills(b *Block) int {

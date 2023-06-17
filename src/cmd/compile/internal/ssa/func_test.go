@@ -457,7 +457,6 @@ func TestConstCache(t *testing.T) {
 	if v4.AuxInt != 1 {
 		t.Errorf("expected %s to have auxint of 1\n", v4.LongString())
 	}
-
 }
 
 // opcodeMap returns a map from opcode to the number of times that opcode

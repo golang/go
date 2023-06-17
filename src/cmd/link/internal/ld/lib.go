@@ -427,7 +427,6 @@ func exitIfErrors() {
 		mayberemoveoutfile()
 		Exit(2)
 	}
-
 }
 
 func errorexit() {

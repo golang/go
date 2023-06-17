@@ -143,7 +143,6 @@ func newosproc0(stacksize uintptr, fn *funcDescriptor) {
 		writeErrStr(failthreadcreate)
 		exit(1)
 	}
-
 }
 
 // Called to do synchronous initialization of Go code built with
@@ -168,7 +167,6 @@ func miniterrno() {
 	mp := getg().m
 	r, _ := syscall0(&libc__Errno)
 	mp.perrno = r
-
 }
 
 func minit() {
@@ -222,7 +220,6 @@ func newosproc(mp *m) {
 		}
 		throw("newosproc")
 	}
-
 }
 
 func exitThread(wait *atomic.Uint32) {
@@ -265,7 +262,6 @@ func setsig(i uint32, fn uintptr) {
 	}
 	sa.sa_handler = fn
 	sigaction(uintptr(i), &sa, nil)
-
 }
 
 //go:nosplit

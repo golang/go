@@ -156,5 +156,4 @@ func TestErrorPrefixes(t *testing.T) {
 			t.Errorf("mismatching Func: got %s, want %s", got, v.want)
 		}
 	}
-
 }

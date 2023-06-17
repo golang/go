@@ -128,5 +128,4 @@ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
 		t.Errorf("\nexpected:\n%s\ngot:\n%s\nreason: %s",
 			strings.TrimSpace(exp.dump), regResString, reason)
 	}
-
 }

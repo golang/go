@@ -96,7 +96,6 @@ func TestNeverTaken(t *testing.T) {
 			}
 		}
 	}
-
 }
 
 func TestNestedDeadBlocks(t *testing.T) {

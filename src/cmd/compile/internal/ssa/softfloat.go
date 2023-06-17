@@ -76,5 +76,4 @@ func softfloat(f *Func) {
 		decomposeBuiltIn(f)
 		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64, removeDeadValues)
 	}
-
 }

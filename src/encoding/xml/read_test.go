@@ -1095,7 +1095,6 @@ func TestUnmarshalIntoNil(t *testing.T) {
 	if err == nil {
 		t.Fatalf("no error in unmarshalling")
 	}
-
 }
 
 func TestCVE202228131(t *testing.T) {

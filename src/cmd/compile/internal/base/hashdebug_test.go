@@ -109,7 +109,6 @@ func TestHashNoMatch(t *testing.T) {
 	if msg != "" {
 		t.Errorf("Message should have been empty, instead %s", msg)
 	}
-
 }
 
 func TestHashSecondMatch(t *testing.T) {

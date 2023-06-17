@@ -203,7 +203,6 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 	}
 
 	return nvargs, nil
-
 }
 
 // convertAssign is the same as convertAssignRows, but without the optional

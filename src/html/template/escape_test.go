@@ -898,7 +898,6 @@ func TestEscapeSet(t *testing.T) {
 			t.Errorf("want\n\t%q\ngot\n\t%q", test.want, got)
 		}
 	}
-
 }
 
 func TestErrors(t *testing.T) {

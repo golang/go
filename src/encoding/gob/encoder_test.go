@@ -119,7 +119,6 @@ func TestEncodeIntSlice(t *testing.T) {
 			t.Fatalf("EncodeIntSlice: expected %v, got %v", s64, res)
 		}
 	})
-
 }
 
 type ET0 struct {

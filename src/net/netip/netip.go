@@ -956,7 +956,6 @@ func (ip Addr) MarshalText() ([]byte, error) {
 		}
 		return ip.appendTo6(b), nil
 	}
-
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.

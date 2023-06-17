@@ -815,7 +815,6 @@ func TestSuffixSaver(t *testing.T) {
 			}
 		}
 	}
-
 }
 
 type zeros struct{}

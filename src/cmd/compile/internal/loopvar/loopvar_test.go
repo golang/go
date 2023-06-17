@@ -260,5 +260,4 @@ func TestLoopVarOpt(t *testing.T) {
 	if err != nil {
 		t.Errorf("err=%v != nil", err)
 	}
-
 }

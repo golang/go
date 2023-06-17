@@ -106,5 +106,4 @@ func main() {
 	}
 
 	C.fi = C.fi // ERROR HERE
-
 }

@@ -672,7 +672,6 @@ func TestShiftCombine(t *testing.T) {
 	if got, want := two8ur(64), uint8(16); want != got {
 		t.Errorf("64>>1>>1 == %d, want %d", got, want)
 	}
-
 }
 
 //go:noinline

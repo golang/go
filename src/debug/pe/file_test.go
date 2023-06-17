@@ -684,7 +684,6 @@ func TestImportedSymbolsNoPanicMissingOptionalHeader(t *testing.T) {
 	if len(syms) != 0 {
 		t.Fatalf("expected len(syms) == 0, received len(syms) = %d", len(syms))
 	}
-
 }
 
 func TestImportedSymbolsNoPanicWithSliceOutOfBound(t *testing.T) {

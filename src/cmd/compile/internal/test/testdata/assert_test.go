@@ -60,7 +60,6 @@ func testAssertE2TPanic(t *testing.T) {
 	}()
 	got = e2t_ssa(s)
 	t.Errorf("e2t_ssa(s) should panic")
-
 }
 
 func testAssertI2TOk(t *testing.T) {

@@ -387,7 +387,6 @@ func testTransportRespectRequestWantsClose(t *testing.T, mode testMode) {
 				}
 			})
 	}
-
 }
 
 func TestTransportIdleCacheKeys(t *testing.T) {
@@ -1036,7 +1035,6 @@ func testRoundTripGzip(t *testing.T, mode testMode) {
 			t.Errorf("%d. Content-Encoding = %q; want %q", i, g, e)
 		}
 	}
-
 }
 
 func TestTransportGzip(t *testing.T) { run(t, testTransportGzip) }
@@ -4798,7 +4796,6 @@ func testTransportEventTrace(t *testing.T, mode testMode, noHooks bool) {
 	if gotn, want := strings.Count(got, sub), 2; gotn != want {
 		t.Errorf("substring %q appeared %d times; want %d. Log:\n%s", sub, gotn, want, got)
 	}
-
 }
 
 func TestTransportEventTraceTLSVerify(t *testing.T) {
