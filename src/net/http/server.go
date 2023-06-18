@@ -972,10 +972,7 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		return nil, ErrHijacked
 	}
 
-	var (
-		wholeReqDeadline time.Time // or zero if none
-		hdrDeadline      time.Time // or zero if none
-	)
+	var wholeReqDeadline, hdrDeadline time.Time // or zero if none
 	t0 := time.Now()
 	if d := c.server.readHeaderTimeout(); d > 0 {
 		hdrDeadline = t0.Add(d)
@@ -991,7 +988,7 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	}
 
 	c.r.setReadLimit(c.server.initialReadLimitSize())
-	if c.lastMethod == "POST" {
+	if c.lastMethod == MethodPost {
 		// RFC 7230 section 3 tolerance for old buggy clients.
 		peek, _ := c.bufr.Peek(4) // ReadRequest will get err below
 		c.bufr.Discard(numLeadingCRorLF(peek))
