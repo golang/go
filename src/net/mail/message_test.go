@@ -52,6 +52,34 @@ Version: 1
 		},
 		body: "",
 	},
+	{
+		// RFC 5322 permits any printable ASCII character,
+		// except colon, in a header key. Issue #58862.
+		in: `From: iant@golang.org
+Custom/Header: v
+
+Body
+`,
+		header: Header{
+			"From":          []string{"iant@golang.org"},
+			"Custom/Header": []string{"v"},
+		},
+		body: "Body\n",
+	},
+	{
+		// RFC 4155 mbox format. We've historically permitted this,
+		// so we continue to permit it. Issue #60332.
+		in: `From iant@golang.org Mon Jun 19 00:00:00 2023
+From: iant@golang.org
+
+Hello, gophers!
+`,
+		header: Header{
+			"From":                               []string{"iant@golang.org"},
+			"From iant@golang.org Mon Jun 19 00": []string{"00:00 2023"},
+		},
+		body: "Hello, gophers!\n",
+	},
 }
 
 func TestParsing(t *testing.T) {
