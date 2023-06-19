@@ -1096,7 +1096,7 @@ func (w *prefixSuffixSaver) Write(p []byte) (n int, err error) {
 // grow larger than w.N. It returns the un-appended suffix of p.
 func (w *prefixSuffixSaver) fill(dst *[]byte, p []byte) (pRemain []byte) {
 	if remain := w.N - len(*dst); remain > 0 {
-		add := minInt(len(p), remain)
+		add := min(len(p), remain)
 		*dst = append(*dst, p[:add]...)
 		p = p[add:]
 	}
@@ -1119,13 +1119,6 @@ func (w *prefixSuffixSaver) Bytes() []byte {
 	buf.Write(w.suffix[w.suffixOff:])
 	buf.Write(w.suffix[:w.suffixOff])
 	return buf.Bytes()
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // environ returns a best-effort copy of the environment in which the command
