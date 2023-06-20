@@ -229,11 +229,6 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 				allDeps:    make(map[PackagePath]*analysisNode),
 				exportDeps: make(map[PackagePath]*analysisNode),
 			}
-			// Unsafe must use a distinguished types.Package.
-			// Mark it as fully populated from birth.
-			if m.PkgPath == "unsafe" {
-				an.typesOnce.Do(func() { an.types = types.Unsafe })
-			}
 			nodes[id] = an
 
 			// -- recursion --
@@ -405,6 +400,11 @@ func (an *analysisNode) String() string { return string(an.m.ID) }
 // Postcondition: an.types and an.exportDeps are populated.
 func (an *analysisNode) _import() *types.Package {
 	an.typesOnce.Do(func() {
+		if an.m.PkgPath == "unsafe" {
+			an.types = types.Unsafe
+			return
+		}
+
 		an.types = types.NewPackage(string(an.m.PkgPath), string(an.m.Name))
 
 		// getPackages recursively imports each dependency
@@ -662,6 +662,12 @@ func (an *analysisNode) run(ctx context.Context) (*analyzeSummary, error) {
 	// Type-check the package syntax.
 	pkg := an.typeCheck(parsed)
 
+	// Publish the completed package.
+	an.typesOnce.Do(func() { an.types = pkg.types })
+	if an.types != pkg.types {
+		log.Fatalf("typesOnce prematurely done")
+	}
+
 	// Compute the union of exportDeps across our direct imports.
 	// This is the set that will be needed by the fact decoder.
 	allExportDeps := make(map[PackagePath]*analysisNode)
@@ -747,10 +753,9 @@ func (an *analysisNode) run(ctx context.Context) (*analyzeSummary, error) {
 	}, nil
 }
 
-// Postcondition: an.types and an.exportDeps are populated.
+// Postcondition: analysisPackage.types and an.exportDeps are populated.
 func (an *analysisNode) typeCheck(parsed []*source.ParsedGoFile) *analysisPackage {
 	m := an.m
-	fset := an.fset
 
 	if false { // debugging
 		log.Println("typeCheck", m.ID)
@@ -758,7 +763,7 @@ func (an *analysisNode) typeCheck(parsed []*source.ParsedGoFile) *analysisPackag
 
 	pkg := &analysisPackage{
 		m:        m,
-		fset:     fset,
+		fset:     an.fset,
 		parsed:   parsed,
 		files:    make([]*ast.File, len(parsed)),
 		compiles: len(m.Errors) == 0, // false => list error
@@ -777,6 +782,7 @@ func (an *analysisNode) typeCheck(parsed []*source.ParsedGoFile) *analysisPackag
 
 	// Unsafe has no syntax.
 	if m.PkgPath == "unsafe" {
+		pkg.types = types.Unsafe
 		return pkg
 	}
 
@@ -862,7 +868,7 @@ func (an *analysisNode) typeCheck(parsed []*source.ParsedGoFile) *analysisPackag
 	// TODO(adonovan): do we actually need this??
 	typesinternal.SetUsesCgo(cfg)
 
-	check := types.NewChecker(cfg, fset, pkg.types, pkg.typesInfo)
+	check := types.NewChecker(cfg, pkg.fset, pkg.types, pkg.typesInfo)
 
 	// Type checking errors are handled via the config, so ignore them here.
 	_ = check.Files(pkg.files)
@@ -872,12 +878,6 @@ func (an *analysisNode) typeCheck(parsed []*source.ParsedGoFile) *analysisPackag
 		if pkg.typeErrors != nil {
 			log.Printf("package %s has type errors: %v", pkg.types.Path(), pkg.typeErrors)
 		}
-	}
-
-	// Publish the completed package.
-	an.typesOnce.Do(func() { an.types = pkg.types })
-	if an.types != pkg.types {
-		log.Fatalf("typesOnce prematurely done")
 	}
 
 	// Emit the export data and compute the recursive hash.
