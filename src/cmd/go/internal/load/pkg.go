@@ -2387,10 +2387,10 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 			appendSetting("-ldflags", ldflags)
 		}
 	}
-	// N.B. -pgo added later by setPGOProfilePath.
 	if cfg.BuildMSan {
 		appendSetting("-msan", "true")
 	}
+	// N.B. -pgo added later by setPGOProfilePath.
 	if cfg.BuildRace {
 		appendSetting("-race", "true")
 	}
@@ -2928,6 +2928,10 @@ func setPGOProfilePath(pkgs []*Package) {
 		} else {
 			appendBuildSetting(p.Internal.BuildInfo, "-pgo", file)
 		}
+		// Adding -pgo breaks the sort order in BuildInfo.Settings. Restore it.
+		slices.SortFunc(p.Internal.BuildInfo.Settings, func(x, y debug.BuildSetting) int {
+			return strings.Compare(x.Key, y.Key)
+		})
 	}
 
 	switch cfg.BuildPGO {
