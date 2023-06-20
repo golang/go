@@ -298,10 +298,12 @@ var (
 	errInvalidOID    = errors.New("invalid oid")
 )
 
+// An OID represents an ASN.1 OBJECT IDENTIFIER.
 type OID struct {
 	der []byte
 }
 
+// FromObjectIdentifer created a new OID from ObjectIdentifier.
 func FromObjectIdentifer(oid ObjectIdentifier) (OID, error) {
 	enc, err := makeObjectIdentifier(oid)
 	if err != nil {
@@ -342,12 +344,14 @@ func isDEROIDValid(der []byte) bool {
 	return true
 }
 
+// Equal returns true when oid and other represents the same Object Identifier.
 func (oid OID) Equal(other OID) bool {
 	// There is only one possible DER encoding of
 	// each unique Object Identifier.
 	return bytes.Equal(oid.der, other.der)
 }
 
+// ToObjectIdentifer converts oid to an ObjectIdentifier.
 func (oid OID) ToObjectIdentifer() (ObjectIdentifier, bool) {
 	o, err := parseObjectIdentifier(oid.der)
 	if err != nil {
@@ -356,6 +360,7 @@ func (oid OID) ToObjectIdentifer() (ObjectIdentifier, bool) {
 	return o, true
 }
 
+// Equal returns true when oid and other represents the same Object Identifier.
 func (oid OID) EqualObjectIdentifer(other ObjectIdentifier) bool {
 	const (
 		valSize         = 31
@@ -418,6 +423,7 @@ func (oid OID) EqualObjectIdentifer(other ObjectIdentifier) bool {
 	return true
 }
 
+// Strings returns the string representation of the Object Identifier.
 func (oid OID) String() string {
 	var b strings.Builder
 	b.Grow(32)
