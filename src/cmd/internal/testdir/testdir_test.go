@@ -64,7 +64,7 @@ var (
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam", "typeparam/mdempsky"}
+	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam", "typeparam/mdempsky", "arenas"}
 )
 
 // Test is the main entrypoint that runs tests in the GOROOT/test directory.
@@ -115,6 +115,15 @@ func Test(t *testing.T) {
 	common := testCommon{
 		gorootTestDir: filepath.Join(testenv.GOROOT(t), "test"),
 		runoutputGate: make(chan bool, *runoutputLimit),
+	}
+
+	// cmd/distpack deletes GOROOT/test, so skip the test if it isn't present.
+	// cmd/distpack also requires GOROOT/VERSION to exist, so use that to
+	// suppress false-positive skips.
+	if _, err := os.Stat(common.gorootTestDir); os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(testenv.GOROOT(t), "VERSION")); err == nil {
+			t.Skipf("skipping: GOROOT/test not present")
+		}
 	}
 
 	for _, dir := range dirs {

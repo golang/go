@@ -95,6 +95,10 @@ var modRules = []testRule{
 	{name: "golang.org/toolchain@*/pkg/tool/*/compile", goos: "darwin"},
 	{name: "golang.org/toolchain@*/pkg/tool/*/compile", goos: "windows", exclude: true},
 	{name: "golang.org/toolchain@*/pkg/tool/*/compile.exe", goos: "windows"},
+
+	// go.mod are renamed to _go.mod.
+	{name: "**/go.mod", exclude: true},
+	{name: "**/_go.mod"},
 }
 
 func testSrc(a *Archive) {

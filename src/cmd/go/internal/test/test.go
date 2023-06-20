@@ -1217,7 +1217,15 @@ func (lockedStdout) Write(b []byte) (int, error) {
 
 func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action) error {
 	// Wait for previous test to get started and print its first json line.
-	<-r.prev
+	select {
+	case <-r.prev:
+	case <-base.Interrupted:
+		// We can't wait for the previous test action to complete: we don't start
+		// new actions after an interrupt, so if that action wasn't already running
+		// it might never happen. Instead, just don't log anything for this action.
+		base.SetExitStatus(1)
+		return nil
+	}
 
 	if a.Failed {
 		// We were unable to build the binary.

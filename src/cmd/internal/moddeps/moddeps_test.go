@@ -504,7 +504,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 		knownGOROOTModules := [...]string{
 			"std",
 			"cmd",
-			"misc",
+			// The "misc" module sometimes exists, but cmd/distpack intentionally removes it.
 		}
 		var seen = make(map[string]bool) // Key is module path.
 		for _, m := range goroot.modules {

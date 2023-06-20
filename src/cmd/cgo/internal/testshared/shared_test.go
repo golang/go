@@ -731,6 +731,10 @@ func TestThreeGopathShlibs(t *testing.T) {
 func requireGccgo(t *testing.T) {
 	t.Helper()
 
+	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
+		t.Skip("gccgo test skipped on PPC64 until issue #60798 is resolved")
+	}
+
 	gccgoName := os.Getenv("GCCGO")
 	if gccgoName == "" {
 		gccgoName = "gccgo"
@@ -748,7 +752,7 @@ func requireGccgo(t *testing.T) {
 	if dot > 0 {
 		output = output[:dot]
 	}
-	major, err := strconv.Atoi(string(output))
+	major, err := strconv.Atoi(strings.TrimSpace(string(output)))
 	if err != nil {
 		t.Skipf("can't parse gccgo version number %s", output)
 	}
