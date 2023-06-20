@@ -303,7 +303,7 @@ type OID struct {
 	der []byte
 }
 
-// FromObjectIdentifer created a new OID from ObjectIdentifier.
+// FromObjectIdentifer creates a new OID from ObjectIdentifier.
 func FromObjectIdentifer(oid ObjectIdentifier) (OID, error) {
 	enc, err := makeObjectIdentifier(oid)
 	if err != nil {
