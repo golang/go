@@ -125,7 +125,7 @@ func hasEmptyTypeset(t Type) bool {
 func isGeneric(t Type) bool {
 	// A parameterized type is only generic if it doesn't have an instantiation already.
 	named, _ := t.(*Named)
-	return named != nil && named.obj != nil && named.inst == nil && named.TypeParams().Len() > 0
+	return named != nil && named.obj != nil && named.inst == nil && named.TypeArgs().Len() == 0
 }
 
 // Comparable reports whether values of type T are comparable.
