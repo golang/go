@@ -453,6 +453,13 @@ func (b *typeCheckBatch) getImportPackage(ctx context.Context, id PackageID) (pk
 	}
 
 	ph := b.handles[id]
+
+	// Do a second check for "unsafe" defensively, due to golang/go#60890.
+	if ph.m.PkgPath == "unsafe" {
+		bug.Reportf("encountered \"unsafe\" as %s (golang/go#60890)", id)
+		return types.Unsafe, nil
+	}
+
 	data, err := filecache.Get(exportDataKind, ph.key)
 	if err == filecache.ErrNotFound {
 		// No cached export data: type-check as fast as possible.
@@ -632,13 +639,17 @@ func (b *typeCheckBatch) checkPackage(ctx context.Context, ph *packageHandle) (*
 				diagnosticsKind: encodeDiagnostics(pkg.diagnostics),
 			}
 
-			if ph.m.ID != "unsafe" { // unsafe cannot be exported
+			if ph.m.PkgPath != "unsafe" { // unsafe cannot be exported
 				exportData, err := gcimporter.IExportShallow(pkg.fset, pkg.types)
 				if err != nil {
 					bug.Reportf("exporting package %v: %v", ph.m.ID, err)
 				} else {
 					toCache[exportDataKind] = exportData
 				}
+			} else if ph.m.ID != "unsafe" {
+				// golang/go#60890: we should only ever see one variant of the "unsafe"
+				// package.
+				bug.Reportf("encountered \"unsafe\" as %s (golang/go#60890)", ph.m.ID)
 			}
 
 			for kind, data := range toCache {
