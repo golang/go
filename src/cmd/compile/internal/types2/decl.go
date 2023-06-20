@@ -225,9 +225,9 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 	start := obj.color() - grey // index of obj in objPath
 	cycle := check.objPath[start:]
 	tparCycle := false // if set, the cycle is through a type parameter list
-	nval := 0          // number of (constant or variable) values in the cycle; valid if !generic
-	ndef := 0          // number of type definitions in the cycle; valid if !generic
-loop:
+	nval := 0          // number of (constant or variable) values in the cycle;
+	ndef := 0          // number of type definitions in the cycle;
+
 	for _, obj := range cycle {
 		switch obj := obj.(type) {
 		case *Const, *Var:
@@ -236,9 +236,10 @@ loop:
 			// If we reach a generic type that is part of a cycle
 			// and we are in a type parameter list, we have a cycle
 			// through a type parameter list, which is invalid.
+
 			if check.inTParamList && isGeneric(obj.typ) {
 				tparCycle = true
-				break loop
+				break
 			}
 
 			// Determine if the type name is an alias or not. For
