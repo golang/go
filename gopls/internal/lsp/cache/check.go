@@ -541,14 +541,25 @@ func (b *typeCheckBatch) importPackage(ctx context.Context, m *source.Metadata, 
 	thisPackage := types.NewPackage(string(m.PkgPath), string(m.Name))
 	getPackages := func(items []gcimporter.GetPackagesItem) error {
 		for i, item := range items {
+			var id PackageID
+			var pkg *types.Package
 			if item.Path == string(m.PkgPath) {
-				items[i].Pkg = thisPackage
+				id = m.ID
+				pkg = thisPackage
 			} else {
-				pkg, err := b.getImportPackage(ctx, impMap[item.Path])
+				id = impMap[item.Path]
+				var err error
+				pkg, err = b.getImportPackage(ctx, id)
 				if err != nil {
 					return err
 				}
-				items[i].Pkg = pkg
+			}
+			items[i].Pkg = pkg
+
+			// debugging issue #60904
+			if pkg.Name() != item.Name {
+				return bug.Errorf("internal error: package name is %q, want %q (id=%q, path=%q) (see issue #60904)",
+					pkg.Name(), item.Name, id, item.Path)
 			}
 		}
 		return nil
