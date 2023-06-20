@@ -673,6 +673,9 @@ func (w *exportWriter) qualifiedType(obj *types.TypeName) {
 	w.pkg(obj.Pkg())
 }
 
+// TODO(rfindley): what does 'pkg' even mean here? It would be better to pass
+// it in explicitly into signatures and structs that may use it for
+// constructing fields.
 func (w *exportWriter) typ(t types.Type, pkg *types.Package) {
 	w.data.uint64(w.p.typOff(t, pkg))
 }
@@ -773,7 +776,21 @@ func (w *exportWriter) doTyp(t types.Type, pkg *types.Package) {
 		if n > 0 {
 			w.setPkg(t.Field(0).Pkg(), true) // qualifying package for field objects
 		} else {
-			w.setPkg(pkg, true)
+			// TODO(rfindley): improve this very hacky logic.
+			//
+			// The importer expects a package to be set for all struct types, even
+			// those with no fields. A better encoding might be to set NumFields
+			// before pkg. setPkg panics with a nil package, which may be possible
+			// to reach with invalid packages (and perhaps valid packages, too?), so
+			// (arbitrarily) set the localpkg if available.
+			switch {
+			case pkg != nil:
+				w.setPkg(pkg, true)
+			case w.p.shallow:
+				w.setPkg(w.p.localpkg, true)
+			default:
+				panic(internalErrorf("no package to set for empty struct"))
+			}
 		}
 		w.uint64(uint64(n))
 		for i := 0; i < n; i++ {

@@ -809,6 +809,9 @@ func TestExportInvalid(t *testing.T) {
 		// It must be possible to export a constant with unknown kind, even if its
 		// type is known.
 		{"issue 60605", `package p; const EPSILON float64 = 1e-`, "EPSILON"},
+
+		// We must not crash when exporting a struct with unknown package.
+		{"issue 60891", `package p; type I[P any] int; const C I[struct{}] = 42`, "C"},
 	}
 
 	for _, test := range tests {
