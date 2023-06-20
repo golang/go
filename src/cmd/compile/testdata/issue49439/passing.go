@@ -4,5 +4,5 @@
 
 package main
 
-type X[T any, PT *X[T]] interface{}
+type X[T any, PT *X[T,PT]] interface{}
 
