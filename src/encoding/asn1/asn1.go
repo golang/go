@@ -303,8 +303,8 @@ type OID struct {
 	der []byte
 }
 
-// FromObjectIdentifer creates a new OID from ObjectIdentifier.
-func FromObjectIdentifer(oid ObjectIdentifier) (OID, error) {
+// FromObjectIdentifier creates a new OID from ObjectIdentifier.
+func FromObjectIdentifier(oid ObjectIdentifier) (OID, error) {
 	enc, err := makeObjectIdentifier(oid)
 	if err != nil {
 		return OID{}, errInvalidOID
@@ -351,8 +351,8 @@ func (oid OID) Equal(other OID) bool {
 	return bytes.Equal(oid.der, other.der)
 }
 
-// ToObjectIdentifer converts oid to an ObjectIdentifier.
-func (oid OID) ToObjectIdentifer() (ObjectIdentifier, bool) {
+// ToObjectIdentifier converts oid to an ObjectIdentifier
+func (oid OID) ToObjectIdentifier() (ObjectIdentifier, bool) {
 	o, err := parseObjectIdentifier(oid.der)
 	if err != nil {
 		return nil, false
@@ -360,8 +360,8 @@ func (oid OID) ToObjectIdentifer() (ObjectIdentifier, bool) {
 	return o, true
 }
 
-// Equal returns true when oid and other represents the same Object Identifier.
-func (oid OID) EqualObjectIdentifer(other ObjectIdentifier) bool {
+// Equal returns true when oid and other represents the same Object Identifier
+func (oid OID) EqualObjectIdentifier(other ObjectIdentifier) bool {
 	const (
 		valSize         = 31
 		bitsPerByte     = 7
