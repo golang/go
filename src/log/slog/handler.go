@@ -140,7 +140,7 @@ type HandlerOptions struct {
 
 	// ReplaceAttr is called to rewrite each non-group attribute before it is logged.
 	// The attribute's value has been resolved (see [Value.Resolve]).
-	// If ReplaceAttr returns an Attr with Key == "", the attribute is discarded.
+	// If ReplaceAttr returns a zero Attr, the attribute is discarded.
 	//
 	// The built-in attributes with keys "time", "level", "source", and "msg"
 	// are passed to this function, except that time is omitted
