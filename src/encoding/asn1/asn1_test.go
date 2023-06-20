@@ -1183,6 +1183,9 @@ var testOIDs = []struct {
 	oid   ObjectIdentifier
 }{
 	{[]byte{}, false, "", nil},
+	{[]byte{0x80, 0x01}, false, "", nil},
+	{[]byte{0x01, 0x80, 0x01}, false, "", nil},
+
 	{[]byte{1, 2, 3}, true, "0.1.2.3", []int{0, 1, 2, 3}},
 	{[]byte{41, 2, 3}, true, "1.1.2.3", []int{1, 1, 2, 3}},
 	{[]byte{86, 2, 3}, true, "2.6.2.3", []int{2, 6, 2, 3}},
@@ -1212,7 +1215,7 @@ func TestOID(t *testing.T) {
 		oid, err := ParseOID(v.raw)
 		if valid := err == nil; valid != v.valid {
 			if valid {
-				t.Errorf("%v: unexpected success while parsing", v.raw)
+				t.Errorf("%v: unexpected success while parsing: %v", v.raw, oid)
 			} else {
 				t.Errorf("%v: unexpected failure while parsing: %v", v.raw, err)
 			}

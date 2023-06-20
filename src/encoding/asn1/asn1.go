@@ -339,7 +339,6 @@ func isDEROIDValid(der []byte) bool {
 			start = i + 1
 		}
 	}
-
 	return start != 0
 }
 
