@@ -287,7 +287,7 @@ type (
 	Ident struct {
 		NamePos token.Pos // identifier position
 		Name    string    // identifier name
-		Obj     *Object   // denoted object; or nil
+		Obj     *Object   // denoted object, or nil. Deprecated: see Object.
 	}
 
 	// An Ellipsis node stands for the "..." type in a
@@ -1042,9 +1042,9 @@ type File struct {
 	Decls   []Decl        // top-level declarations; or nil
 
 	FileStart, FileEnd token.Pos       // start and end of entire file
-	Scope              *Scope          // package scope (this file only)
+	Scope              *Scope          // package scope (this file only). Deprecated: see Object
 	Imports            []*ImportSpec   // imports in this file
-	Unresolved         []*Ident        // unresolved identifiers in this file
+	Unresolved         []*Ident        // unresolved identifiers in this file. Deprecated: see Object
 	Comments           []*CommentGroup // list of all comments in the source file
 	GoVersion          string          // minimum Go version required by //go:build or // +build directives
 }
@@ -1064,6 +1064,8 @@ func (f *File) End() token.Pos {
 
 // A Package node represents a set of source files
 // collectively building a Go package.
+//
+// Deprecated: use the type checker [go/types] instead; see [Object].
 type Package struct {
 	Name    string             // package name
 	Scope   *Scope             // package scope across all files

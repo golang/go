@@ -60,6 +60,8 @@ func resolve(scope *Scope, ident *Ident) bool {
 // Importer should load the package data for the given path into
 // a new *Object (pkg), record pkg in the imports map, and then
 // return pkg.
+//
+// Deprecated: use the type checker [go/types] instead; see [Object].
 type Importer func(imports map[string]*Object, path string) (pkg *Object, err error)
 
 // NewPackage creates a new Package node from a set of File nodes. It resolves
@@ -70,6 +72,8 @@ type Importer func(imports map[string]*Object, path string) (pkg *Object, err er
 // belong to different packages, one package name is selected and files with
 // different package names are reported and then ignored.
 // The result is a package node and a scanner.ErrorList if there were errors.
+//
+// Deprecated: use the type checker [go/types] instead; see [Object].
 func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, universe *Scope) (*Package, error) {
 	var p pkgBuilder
 	p.fset = fset
