@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/constant"
 	. "internal/types/errors"
-	"log"
 )
 
 func (err *error_) recordAltDecl(obj Object) {
@@ -207,39 +206,6 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 	}
 }
 
-// checkTypePointer is used to check if type is a pointer
-// handles issue60880/should_pass.go
-func checkTypePointer(t Type) bool {
-
-	if t.Underlying() == nil { //generic constraint
-		//TODO: handle issue49439/shouldpass.go
-
-		namedType := t.(*Named)
-
-		if namedType.state() != complete {
-			return true
-		}
-
-		if _, ok := t.(*Pointer); ok {
-			return true
-		}
-
-		return false
-	}
-
-	actual := t.Underlying()
-
-	if _, ok := actual.(*Struct); ok {
-		return true //recursive constraints issue60880
-	}
-
-	if _, ok := actual.(*Pointer); ok {
-		return true // in discussion
-	}
-
-	return false
-}
-
 // validCycle reports whether the cycle starting with obj is valid and
 // reports an error if it is not.
 func (check *Checker) validCycle(obj Object) (valid bool) {
@@ -261,7 +227,7 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 	tparCycle := false       // if set, the cycle is through a type parameter list
 	nval := 0                // number of (constant or variable) values in the cycle;
 	ndef := 0                // number of type definitions in the cycle;
-	enableCycleCheck := true // used to disable checks for recursive type constraints of format *T
+	enableCycleCheck := true // used to disables cycles for [*Struct] recursive generic fields
 
 	for _, obj := range cycle {
 		switch obj := obj.(type) {
@@ -272,14 +238,12 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 			// and we are in a type parameter list, we have a cycle
 			// through a type parameter list, which is invalid.
 
-			if check.inTParamList && isGeneric(obj.typ) {
+			if enableCycleCheck && check.inTParamList && isGeneric(obj.typ) {
 
-				if checkTypePointer(obj.Type()) {
-					log.Println("caught valid cycle with type pointer", obj.Type())
+				if _, ok := obj.typ.Underlying().(*Struct); ok {
+					//fix issue#60880
 					enableCycleCheck = false
-				}
-
-				if enableCycleCheck {
+				} else {
 					tparCycle = true
 					break
 				}
