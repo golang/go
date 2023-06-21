@@ -253,7 +253,7 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 			if check.inTParamList && isGeneric(obj.typ) {
 
 				if checkTypePointer(obj.Type()) {
-					print("caught valid cycle with type pointer", obj.Type())
+					println("caught valid cycle with type pointer", obj.Type())
 					enableCycleCheck = false
 				}
 
