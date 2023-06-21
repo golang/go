@@ -176,7 +176,7 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 	// Filter and sort enabled root analyzers.
 	// A disabled analyzer may still be run if required by another.
 	toSrc := make(map[*analysis.Analyzer]*source.Analyzer)
-	var enabled []*analysis.Analyzer
+	var enabled []*analysis.Analyzer // enabled subset + transitive requirements
 	for _, a := range analyzers {
 		if a.IsEnabled(snapshot.view.Options()) {
 			toSrc[a.Analyzer] = a
@@ -190,16 +190,16 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 
 	// Register fact types of required analyzers.
 	enabled = requiredAnalyzers(enabled)
-	var useFacts []*analysis.Analyzer
+	var facty []*analysis.Analyzer // facty subset of enabled + transitive requirements
 	for _, a := range enabled {
 		if len(a.FactTypes) > 0 {
-			useFacts = append(useFacts, a)
+			facty = append(facty, a)
 			for _, f := range a.FactTypes {
 				gob.Register(f) // <2us
 			}
 		}
 	}
-	useFacts = requiredAnalyzers(useFacts)
+	facty = requiredAnalyzers(facty)
 
 	// File set for this batch (entire graph) of analysis.
 	fset := token.NewFileSet()
@@ -208,7 +208,9 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 	// build the DAG of packages we're going to analyze.
 	//
 	// Root nodes will run the enabled set of analyzers,
-	// whereas dependencies will run only the useFacts set.
+	// whereas dependencies will run only the facty set.
+	// Because (by construction) enabled is a superset of facty,
+	// we can analyze each node with exactly one set of analyzers.
 	nodes := make(map[PackageID]*analysisNode)
 	var leaves []*analysisNode // nodes with no unfinished successors
 	var makeNode func(from *analysisNode, id PackageID) (*analysisNode, error)
@@ -225,7 +227,7 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 			an = &analysisNode{
 				fset:       fset,
 				m:          m,
-				analyzers:  useFacts, // all nodes run at least the facty analyzers
+				analyzers:  facty, // all nodes run at least the facty analyzers
 				allDeps:    make(map[PackagePath]*analysisNode),
 				exportDeps: make(map[PackagePath]*analysisNode),
 			}
@@ -338,6 +340,23 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 	var results []*source.Diagnostic
 	for _, root := range roots {
 		for _, a := range enabled {
+			// Skip analyzers that were added only to
+			// fulfil requirements of the original set.
+			srcAnalyzer, ok := toSrc[a]
+			if !ok {
+				// Although this 'skip' operation is logically sound,
+				// it is nonetheless surprising that its absence should
+				// cause #60909 since none of the analyzers added for
+				// requirements (e.g. ctrlflow, inspect, buildssa)
+				// is capable of reporting diagnostics.
+				if summary := root.summary.Actions[a.Name]; summary != nil {
+					if n := len(summary.Diagnostics); n > 0 {
+						bug.Reportf("Internal error: got %d unexpected diagnostics from analyzer %s. This analyzer was added only to fulfil the requirements of the requested set of analyzers, and it is not expected that such analyzers report diagnostics. Please report this in issue #60909.", n, a)
+					}
+				}
+				continue
+			}
+
 			// Inv: root.summary is the successful result of run (via runCached).
 			summary, ok := root.summary.Actions[a.Name]
 			if summary == nil {
@@ -348,7 +367,7 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 				continue // action failed
 			}
 			for _, gobDiag := range summary.Diagnostics {
-				results = append(results, toSourceDiagnostic(toSrc[a], &gobDiag))
+				results = append(results, toSourceDiagnostic(srcAnalyzer, &gobDiag))
 			}
 		}
 	}
