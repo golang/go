@@ -184,6 +184,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 
 	if !valid {
 		check.errorf(e.Pos(), NonSliceableOperand, invalidOp+"cannot index %s", x)
+		check.use(e.Index)
 		x.mode = invalid
 		return false
 	}

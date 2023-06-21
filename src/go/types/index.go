@@ -186,6 +186,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 	if !valid {
 		// types2 uses the position of '[' for the error
 		check.errorf(x, NonIndexableOperand, invalidOp+"cannot index %s", x)
+		check.use(e.Indices...)
 		x.mode = invalid
 		return false
 	}
