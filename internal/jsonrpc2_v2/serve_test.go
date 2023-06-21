@@ -133,7 +133,7 @@ func TestIdleTimeout(t *testing.T) {
 
 	d := 1 * time.Millisecond
 	for {
-		t.Logf("testing with idle timout %v", d)
+		t.Logf("testing with idle timeout %v", d)
 		if !try(d) {
 			d *= 2
 			continue
