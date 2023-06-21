@@ -215,8 +215,11 @@ var stdlibImportcfg = sync.OnceValue(func() string {
 	cmd := exec.Command(goTool, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std")
 	cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=")
 	output, err := cmd.Output()
+	if err, ok := err.(*exec.ExitError); ok && len(err.Stderr) != 0 {
+		log.Fatalf("'go list' failed: %v: %s", err, err.Stderr)
+	}
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("'go list' failed: %v", err)
 	}
 	return string(output)
 })
