@@ -11,10 +11,6 @@ type T1[T any] struct {
 
 func main() {
 	//Output:
-	//recursive_constraints.go:4:6: invalid recursive type T1
-	//recursive_constraints.go:4:6: T1 refers to
-	//recursive_constraints.go:16:6: innerT refers to
-	//recursive_constraints.go:4:6: T1
 }
 
 type innerT[T any, R *T1[T]] struct {
