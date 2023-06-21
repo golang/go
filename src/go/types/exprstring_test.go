@@ -21,6 +21,7 @@ var testExprs = []testEntry{
 	dup(`'a'`),
 	dup(`"foo"`),
 	dup("`bar`"),
+	dup("any"),
 
 	// func and composite literals
 	{"func(){}", "(func() literal)"},
@@ -43,9 +44,13 @@ var testExprs = []testEntry{
 	dup("<-chan E"),
 	dup("chan<- E"),
 
+	// generic
+	dup("x[T]"),
+	dup("x[N | A | S]"),
+	dup("x[N, A]"),
+
 	// new interfaces
 	dup("interface{int}"),
-	dup("interface{~int}"),
 	dup("interface{~int}"),
 	dup("interface{int | string}"),
 	dup("interface{~int | ~string; float64; m()}"),
@@ -100,6 +105,10 @@ var testExprs = []testEntry{
 	dup("f(x, x + y)"),
 	dup("f(s...)"),
 	dup("f(a, s...)"),
+	dup("f[T]()"),
+	dup("f[T](T)"),
+	dup("f[T, T1]()"),
+	dup("f[T, T1](T, T1)"),
 
 	dup("*x"),
 	dup("&x"),
