@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"go/constant"
 	. "internal/types/errors"
-	"reflect"
+	"log"
 )
 
 func (err *error_) recordAltDecl(obj Object) {
@@ -210,12 +210,34 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 // checkTypePointer is used to check if type is a pointer
 // handles issue60880/should_pass.go
 func checkTypePointer(t Type) bool {
-	if t.Underlying() == nil {
+
+	if t.Underlying() == nil { //generic constraint
 		//TODO: handle issue49439/shouldpass.go
+
+		namedType := t.(*Named)
+
+		if namedType.state() != complete {
+			return true
+		}
+
+		if _, ok := t.(*Pointer); ok {
+			return true
+		}
+
 		return false
 	}
 
-	return reflect.ValueOf(t.Underlying()).Kind() == reflect.Ptr
+	actual := t.Underlying()
+
+	if _, ok := actual.(*Struct); ok {
+		return true //recursive constraints issue60880
+	}
+
+	if _, ok := actual.(*Pointer); ok {
+		return true // in discussion
+	}
+
+	return false
 }
 
 // validCycle reports whether the cycle starting with obj is valid and
@@ -253,7 +275,7 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 			if check.inTParamList && isGeneric(obj.typ) {
 
 				if checkTypePointer(obj.Type()) {
-					println("caught valid cycle with type pointer", obj.Type())
+					log.Println("caught valid cycle with type pointer", obj.Type())
 					enableCycleCheck = false
 				}
 
