@@ -495,7 +495,7 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
   <dd>
     <p><!-- CL 471259, CL 492935 -->
-      The performance of private RSA operations (decryption and signing) is now better than Go 1.19 for <code>GOOS=amd64</code> and <code>GOOS=arm64</code>. It had regressed in Go 1.20.
+      The performance of private RSA operations (decryption and signing) is now better than Go 1.19 for <code>GOARCH=amd64</code> and <code>GOARCH=arm64</code>. It had regressed in Go 1.20.
     </p>
     <p>
       Due to the addition of private fields to <a href="/pkg/crypto/rsa/#PrecomputedValues"><code>PrecomputedValues</code></a>, <a href="/pkg/crypto/rsa/#PrivateKey.Precompute"><code>PrivateKey.Precompute</code></a> must be called for optimal performance even if deserializing (for example from JSON) a previously-precomputed private key.
