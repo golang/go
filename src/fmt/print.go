@@ -550,7 +550,7 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune) {
 	var u uintptr
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.Slice, reflect.UnsafePointer:
-		u = value.Pointer()
+		u = uintptr(value.UnsafePointer())
 	default:
 		p.badVerb(verb)
 		return
@@ -916,7 +916,7 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 	case reflect.Pointer:
 		// pointer to array or slice or struct? ok at top level
 		// but not embedded (avoid loops)
-		if depth == 0 && f.Pointer() != 0 {
+		if depth == 0 && f.UnsafePointer() != nil {
 			switch a := f.Elem(); a.Kind() {
 			case reflect.Array, reflect.Slice, reflect.Struct, reflect.Map:
 				p.buf.writeByte('&')
