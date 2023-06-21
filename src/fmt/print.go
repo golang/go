@@ -872,10 +872,8 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 			t := f.Type()
 			if t.Elem().Kind() == reflect.Uint8 {
 				var bytes []byte
-				if f.Kind() == reflect.Slice {
+				if f.Kind() == reflect.Slice || f.CanAddr() {
 					bytes = f.Bytes()
-				} else if f.CanAddr() {
-					bytes = f.Slice(0, f.Len()).Bytes()
 				} else {
 					// We have an array, but we cannot Slice() a non-addressable array,
 					// so we build a slice by hand. This is a rare case but it would be nice
