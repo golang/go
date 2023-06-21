@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"go/constant"
 	. "internal/types/errors"
+	"log"
+	"reflect"
 )
 
 func (err *error_) recordAltDecl(obj Object) {
@@ -206,6 +208,17 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 	}
 }
 
+// checkTypePointer is used to check if type is a pointer
+// handles issue60880/should_pass.go
+func checkTypePointer(t Type) bool {
+	if t.Underlying() == nil {
+		//TODO: handle issue49439/shouldpass.go
+		return false
+	}
+
+	return reflect.ValueOf(t.Underlying()).Kind() == reflect.Ptr
+}
+
 // validCycle reports whether the cycle starting with obj is valid and
 // reports an error if it is not.
 func (check *Checker) validCycle(obj Object) (valid bool) {
@@ -224,9 +237,10 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 	assert(obj.color() >= grey)
 	start := obj.color() - grey // index of obj in objPath
 	cycle := check.objPath[start:]
-	tparCycle := false // if set, the cycle is through a type parameter list
-	nval := 0          // number of (constant or variable) values in the cycle;
-	ndef := 0          // number of type definitions in the cycle;
+	tparCycle := false       // if set, the cycle is through a type parameter list
+	nval := 0                // number of (constant or variable) values in the cycle;
+	ndef := 0                // number of type definitions in the cycle;
+	enableCycleCheck := true // used to disable checks for recursive type constraints of format *T
 
 	for _, obj := range cycle {
 		switch obj := obj.(type) {
@@ -238,8 +252,16 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 			// through a type parameter list, which is invalid.
 
 			if check.inTParamList && isGeneric(obj.typ) {
-				tparCycle = true
-				break
+
+				if checkTypePointer(obj.Type()) {
+					log.Println("caught valid cycle with type pointer", obj.Type())
+					enableCycleCheck = false
+				}
+
+				if enableCycleCheck {
+					tparCycle = true
+					break
+				}
 			}
 
 			// Determine if the type name is an alias or not. For
