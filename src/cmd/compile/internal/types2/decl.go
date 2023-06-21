@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/constant"
 	. "internal/types/errors"
-	"log"
 	"reflect"
 )
 
@@ -254,7 +253,7 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 			if check.inTParamList && isGeneric(obj.typ) {
 
 				if checkTypePointer(obj.Type()) {
-					log.Println("caught valid cycle with type pointer", obj.Type())
+					print("caught valid cycle with type pointer", obj.Type())
 					enableCycleCheck = false
 				}
 
