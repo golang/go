@@ -187,6 +187,7 @@ func TestWeb(t *testing.T) {
 
 // Basic integration test for godoc HTTP interface.
 func TestWebIndex(t *testing.T) {
+	t.Skip("slow test of to-be-deleted code (golang/go#59056)")
 	if testing.Short() {
 		t.Skip("skipping slow test in -short mode")
 	}
