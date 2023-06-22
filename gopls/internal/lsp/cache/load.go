@@ -528,9 +528,21 @@ func buildMetadata(updates map[PackageID]*source.Metadata, pkg *packages.Package
 			continue
 		}
 
+		buildMetadata(updates, imported, loadDir, false) // only top level packages can be standalone
+
+		// Don't record edges to packages with no name, as they cause trouble for
+		// the importer (golang/go#60952).
+		//
+		// However, we do want to insert these packages into the update map
+		// (buildMetadata above), so that we get type-checking diagnostics for the
+		// invalid packages.
+		if imported.Name == "" {
+			depsByImpPath[importPath] = "" // missing
+			continue
+		}
+
 		depsByImpPath[importPath] = PackageID(imported.ID)
 		depsByPkgPath[PackagePath(imported.PkgPath)] = PackageID(imported.ID)
-		buildMetadata(updates, imported, loadDir, false) // only top level packages can be standalone
 	}
 	m.DepsByImpPath = depsByImpPath
 	m.DepsByPkgPath = depsByPkgPath
