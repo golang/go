@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/bits"
 	"reflect"
 	"strconv"
 	"strings"
@@ -341,6 +342,7 @@ func isDEROIDValid(der []byte) bool {
 			start = i + 1
 		}
 	}
+
 	return true
 }
 
@@ -352,18 +354,51 @@ func (oid OID) Equal(other OID) bool {
 }
 
 // ToObjectIdentifier converts oid to an ObjectIdentifier
+// Reports whether the conversion succeeded, it fails when the
+// int in ObjectIdentifier is too small. to represent the oid.
 func (oid OID) ToObjectIdentifier() (ObjectIdentifier, bool) {
-	o, err := parseObjectIdentifier(oid.der)
-	if err != nil {
-		return nil, false
+	out := make([]int, 0, len(oid.der)+1)
+
+	const (
+		valSize         = bits.UintSize - 1 // amount of usable bits of val for OIDs.
+		bitsPerByte     = 7
+		maxValSafeShift = (1 << (valSize - bitsPerByte)) - 1
+	)
+
+	val := 0
+
+	for _, v := range oid.der {
+		if val > maxValSafeShift {
+			return nil, false
+		}
+
+		val <<= bitsPerByte
+		val |= int(v & 0x7F)
+
+		if v&0x80 == 0 {
+			if len(out) == 0 {
+				if val < 80 {
+					out = append(out, val/40)
+					out = append(out, val%40)
+				} else {
+					out = append(out, 2)
+					out = append(out, val-80)
+				}
+				val = 0
+				continue
+			}
+			out = append(out, val)
+			val = 0
+		}
 	}
-	return o, true
+
+	return out, true
 }
 
 // Equal returns true when oid and other represents the same Object Identifier
 func (oid OID) EqualObjectIdentifier(other ObjectIdentifier) bool {
 	const (
-		valSize         = 31
+		valSize         = bits.UintSize - 1 // amount of usable bits of val for OIDs.
 		bitsPerByte     = 7
 		maxValSafeShift = (1 << (valSize - bitsPerByte)) - 1
 	)

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/bits"
 	"reflect"
 	"strings"
 	"testing"
@@ -1176,6 +1177,13 @@ func BenchmarkObjectIdentifierString(b *testing.B) {
 	}
 }
 
+func on64Bit(ints []int) []int {
+	if bits.UintSize == 64 {
+		return ints
+	}
+	return nil
+}
+
 var testOIDs = []struct {
 	raw   []byte
 	valid bool
@@ -1192,8 +1200,8 @@ var testOIDs = []struct {
 
 	{[]byte{41, 255, 255, 255, 127}, true, "1.1.268435455", []int{1, 1, 268435455}},
 	{[]byte{41, 0x87, 255, 255, 255, 127}, true, "1.1.2147483647", []int{1, 1, 2147483647}},
-	{[]byte{41, 255, 255, 255, 255, 127}, true, "1.1.34359738367", nil},
-	{[]byte{42, 255, 255, 255, 255, 255, 255, 255, 255, 127}, true, "1.2.9223372036854775807", nil},
+	{[]byte{41, 255, 255, 255, 255, 127}, true, "1.1.34359738367", on64Bit([]int{1, 1, 34359738367})},
+	{[]byte{42, 255, 255, 255, 255, 255, 255, 255, 255, 127}, true, "1.2.9223372036854775807", on64Bit([]int{1, 2, 9223372036854775807})},
 	{[]byte{43, 0x81, 255, 255, 255, 255, 255, 255, 255, 255, 127}, true, "1.3.18446744073709551615", nil},
 	{[]byte{44, 0x83, 255, 255, 255, 255, 255, 255, 255, 255, 127}, true, "1.4.36893488147419103231", nil},
 	{[]byte{85, 255, 255, 255, 255, 255, 255, 255, 255, 255, 127}, true, "2.5.1180591620717411303423", nil},
@@ -1202,8 +1210,8 @@ var testOIDs = []struct {
 	{[]byte{255, 255, 255, 127}, true, "2.268435375", []int{2, 268435375}},
 	{[]byte{0x87, 255, 255, 255, 127}, true, "2.2147483567", []int{2, 2147483567}},
 	{[]byte{255, 127}, true, "2.16303", []int{2, 16303}},
-	{[]byte{255, 255, 255, 255, 127}, true, "2.34359738287", nil},
-	{[]byte{255, 255, 255, 255, 255, 255, 255, 255, 127}, true, "2.9223372036854775727", nil},
+	{[]byte{255, 255, 255, 255, 127}, true, "2.34359738287", on64Bit([]int{2, 34359738287})},
+	{[]byte{255, 255, 255, 255, 255, 255, 255, 255, 127}, true, "2.9223372036854775727", on64Bit([]int{2, 9223372036854775727})},
 	{[]byte{0x81, 255, 255, 255, 255, 255, 255, 255, 255, 127}, true, "2.18446744073709551535", nil},
 	{[]byte{0x83, 255, 255, 255, 255, 255, 255, 255, 255, 127}, true, "2.36893488147419103151", nil},
 	{[]byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 127}, true, "2.1180591620717411303343", nil},
@@ -1221,15 +1229,20 @@ func TestOID(t *testing.T) {
 			}
 			continue
 		}
+
+		if err != nil {
+			continue
+		}
+
 		if str := oid.String(); str != v.str {
 			t.Errorf("%v: unexpected string, got: %q, expected: %q", v.raw, str, v.str)
 		}
 
-		if v.oid != nil && !oid.EqualObjectIdentifer(v.oid) {
+		if v.oid != nil && !oid.EqualObjectIdentifier(v.oid) {
 			t.Errorf("%v: is not equal to %v", v.raw, v.oid)
 		}
 
-		o, ok := oid.ToObjectIdentifer()
+		o, ok := oid.ToObjectIdentifier()
 		if shouldOk := v.oid != nil; shouldOk != ok {
 			if ok {
 				t.Errorf("%v: unexpected success while converting to ObjectIdentifier", v.raw)
@@ -1244,7 +1257,7 @@ func TestOID(t *testing.T) {
 		}
 
 		if v.oid != nil {
-			oid2, err := FromObjectIdentifer(v.oid)
+			oid2, err := FromObjectIdentifier(v.oid)
 			if err != nil {
 				t.Errorf("%v: failed while creating OID from ObjectIdentifier: %v", v.raw, err)
 			}
