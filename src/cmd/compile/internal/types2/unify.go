@@ -124,6 +124,20 @@ const (
 	exact
 )
 
+func (m unifyMode) String() string {
+	switch m {
+	case 0:
+		return "inexact"
+	case assign:
+		return "assign"
+	case exact:
+		return "exact"
+	case assign | exact:
+		return "assign, exact"
+	}
+	return fmt.Sprintf("mode %d", m)
+}
+
 // unify attempts to unify x and y and reports whether it succeeded.
 // As a side-effect, types may be inferred for type parameters.
 // The mode parameter controls how types are compared.
@@ -263,7 +277,7 @@ func (u *unifier) inferred(tparams []*TypeParam) []Type {
 func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	u.depth++
 	if traceInference {
-		u.tracef("%s ≡ %s (mode %d)", x, y, mode)
+		u.tracef("%s ≡ %s\t// %s", x, y, mode)
 	}
 	defer func() {
 		if traceInference && !result {
@@ -294,7 +308,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	// - type parameter recorded with u, make sure one is in x
 	if _, ok := x.(*Named); ok || u.asTypeParam(y) != nil {
 		if traceInference {
-			u.tracef("%s ≡ %s (swap)", y, x)
+			u.tracef("%s ≡ %s\t// swap", y, x)
 		}
 		x, y = y, x
 	}
@@ -492,7 +506,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	// TODO(gri) Factor out type parameter handling from the switch.
 	if isTypeParam(y) {
 		if traceInference {
-			u.tracef("%s ≡ %s (swap)", y, x)
+			u.tracef("%s ≡ %s\t// swap", y, x)
 		}
 		x, y = y, x
 	}
