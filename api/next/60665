@@ -1,0 +1,7 @@
+pkg encoding/asn1, func FromObjectIdentifier(ObjectIdentifier) (OID, error) #60665
+pkg encoding/asn1, func ParseOID([]uint8) (OID, error) #60665
+pkg encoding/asn1, method (OID) Equal(OID) bool #60665
+pkg encoding/asn1, method (OID) EqualObjectIdentifier(ObjectIdentifier) bool #60665
+pkg encoding/asn1, method (OID) String() string #60665
+pkg encoding/asn1, method (OID) ToObjectIdentifier() (ObjectIdentifier, bool) #60665
+pkg encoding/asn1, type OID struct #60665
