@@ -54,7 +54,8 @@ const encodeURL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345678
 
 // NewEncoding returns a new padded Encoding defined by the given alphabet,
 // which must be a 64-byte string that does not contain the padding character
-// or CR / LF ('\r', '\n').
+// or CR / LF ('\r', '\n'). The alphabet is treated as sequence of byte values
+// without any special treatment for multi-byte UTF-8.
 // The resulting Encoding uses the default padding character ('='),
 // which may be changed or disabled via WithPadding.
 func NewEncoding(encoder string) *Encoding {
@@ -83,6 +84,8 @@ func NewEncoding(encoder string) *Encoding {
 // The padding character must not be '\r' or '\n', must not
 // be contained in the encoding's alphabet and must be a rune equal or
 // below '\xff'.
+// Padding characters above '\x7f' are encoded as their exact byte value
+// rather than using the UTF-8 representation of the codepoint.
 func (enc Encoding) WithPadding(padding rune) *Encoding {
 	if padding == '\r' || padding == '\n' || padding > 0xff {
 		panic("invalid padding")
