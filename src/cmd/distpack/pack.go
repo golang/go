@@ -127,7 +127,6 @@ func main() {
 		// Generated during cmd/dist. See ../dist/build.go:/gentab.
 		"src/cmd/go/internal/cfg/zdefaultcc.go",
 		"src/go/build/zcgo.go",
-		"src/internal/platform/zosarch.go",
 		"src/runtime/internal/sys/zversion.go",
 		"src/time/tzdata/zzipdata.go",
 

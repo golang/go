@@ -631,7 +631,6 @@ var gentab = []struct {
 }{
 	{"go/build", "zcgo.go", mkzcgo},
 	{"cmd/go/internal/cfg", "zdefaultcc.go", mkzdefaultcc},
-	{"internal/platform", "zosarch.go", mkzosarch},
 	{"runtime/internal/sys", "zversion.go", mkzversion},
 	{"time/tzdata", "zzipdata.go", mktzdata},
 }
@@ -1899,11 +1898,12 @@ func cmdversion() {
 // cmdlist lists all supported platforms.
 func cmdlist() {
 	jsonFlag := flag.Bool("json", false, "produce JSON output")
+	brokenFlag := flag.Bool("broken", false, "include broken ports")
 	xflagparse(0)
 
 	var plats []string
 	for p := range cgoEnabled {
-		if broken[p] {
+		if broken[p] && !*brokenFlag {
 			continue
 		}
 		plats = append(plats, p)
@@ -1922,6 +1922,7 @@ func cmdlist() {
 		GOARCH       string
 		CgoSupported bool
 		FirstClass   bool
+		Broken       bool `json:",omitempty"`
 	}
 	var results []jsonResult
 	for _, p := range plats {
@@ -1930,7 +1931,9 @@ func cmdlist() {
 			GOOS:         fields[0],
 			GOARCH:       fields[1],
 			CgoSupported: cgoEnabled[p],
-			FirstClass:   firstClass[p]})
+			FirstClass:   firstClass[p],
+			Broken:       broken[p],
+		})
 	}
 	out, err := json.MarshalIndent(results, "", "\t")
 	if err != nil {
