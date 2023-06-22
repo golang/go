@@ -255,7 +255,7 @@ and hidden fields that refer to state (such as attributes) indirectly. This
 means that modifying a simple copy of a Record (e.g. by calling
 [Record.Add] or [Record.AddAttrs] to add attributes)
 may have unexpected effects on the original.
-Before modifying a Record, use [Clone] to
+Before modifying a Record, use [Record.Clone] to
 create a copy that shares no state with the original,
 or create a new Record with [NewRecord]
 and build up its Attrs by traversing the old ones with [Record.Attrs].
