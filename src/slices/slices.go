@@ -27,7 +27,7 @@ func Equal[S ~[]E, E comparable](s1, s2 S) bool {
 	return true
 }
 
-// EqualFunc reports whether two slices are equal using a comparison
+// EqualFunc reports whether two slices are equal using an equality
 // function on each pair of elements. If the lengths are different,
 // EqualFunc returns false. Otherwise, the elements are compared in
 // increasing index order, and the comparison stops at the first index
@@ -210,7 +210,6 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 
 // Delete removes the elements s[i:j] from s, returning the modified slice.
 // Delete panics if s[i:j] is not a valid slice of s.
-// Delete modifies the contents of the slice s; it does not create a new slice.
 // Delete is O(len(s)-j), so if many items must be deleted, it is better to
 // make a single call deleting them all together than to delete one at a time.
 // Delete might not modify the elements s[len(s)-(j-i):len(s)]. If those
@@ -224,8 +223,6 @@ func Delete[S ~[]E, E any](s S, i, j int) S {
 
 // DeleteFunc removes any elements from s for which del returns true,
 // returning the modified slice.
-// DeleteFunc modifies the contents of the slice s;
-// it does not create a new slice.
 // When DeleteFunc removes m elements, it might not modify the elements
 // s[len(s)-m:len(s)]. If those elements contain pointers you might consider
 // zeroing those elements so that objects they reference can be garbage
@@ -348,7 +345,8 @@ func Clone[S ~[]E, E any](s S) S {
 
 // Compact replaces consecutive runs of equal elements with a single copy.
 // This is like the uniq command found on Unix.
-// Compact modifies the contents of the slice s; it does not create a new slice.
+// Compact modifies the contents of the slice s and returns the modified slice,
+// which may have a smaller length.
 // When Compact discards m elements in total, it might not modify the elements
 // s[len(s)-m:len(s)]. If those elements contain pointers you might consider
 // zeroing those elements so that objects they reference can be garbage collected.
@@ -368,7 +366,8 @@ func Compact[S ~[]E, E comparable](s S) S {
 	return s[:i]
 }
 
-// CompactFunc is like [Compact] but uses a comparison function.
+// CompactFunc is like [Compact] but uses an equality function to compare elements.
+// For runs of elements that compare equal, CompactFunc keeps the first one.
 func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
 	if len(s) < 2 {
 		return s

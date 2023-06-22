@@ -29,7 +29,7 @@ func SortFunc[S ~[]E, E any](x S, cmp func(a, b E) int) {
 }
 
 // SortStableFunc sorts the slice x while keeping the original order of equal
-// elements, using cmp to compare elements.
+// elements, using cmp to compare elements in the same way as [SortFunc].
 func SortStableFunc[S ~[]E, E any](x S, cmp func(a, b E) int) {
 	stableCmpFunc(x, len(x), cmp)
 }
@@ -45,7 +45,7 @@ func IsSorted[S ~[]E, E cmp.Ordered](x S) bool {
 }
 
 // IsSortedFunc reports whether x is sorted in ascending order, with cmp as the
-// comparison function.
+// comparison function as defined by [SortFunc].
 func IsSortedFunc[S ~[]E, E any](x S, cmp func(a, b E) int) bool {
 	for i := len(x) - 1; i > 0; i-- {
 		if cmp(x[i], x[i-1]) < 0 {
