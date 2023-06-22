@@ -16,7 +16,11 @@ import (
 )
 
 type Curve interface {
-	// GenerateKey generates a new PrivateKey from rand.
+	// GenerateKey generates a random PrivateKey.
+	//
+	// Most applications should use [crypto/rand.Reader] as rand. Note that the
+	// returned key does not depend deterministically on the bytes read from rand,
+	// and may change between calls and/or between versions.
 	GenerateKey(rand io.Reader) (*PrivateKey, error)
 
 	// NewPrivateKey checks that key is valid and returns a PrivateKey.

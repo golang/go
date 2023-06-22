@@ -263,8 +263,11 @@ func (priv *PrivateKey) Validate() error {
 	return nil
 }
 
-// GenerateKey generates an RSA keypair of the given bit size using the
-// random source random (for example, crypto/rand.Reader).
+// GenerateKey generates a random RSA private key of the given bit size.
+//
+// Most applications should use [crypto/rand.Reader] as rand. Note that the
+// returned key does not depend deterministically on the bytes read from rand,
+// and may change between calls and/or between versions.
 func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 	return GenerateMultiPrimeKey(random, 2, bits)
 }
@@ -500,6 +503,7 @@ func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 //
 // The random parameter is used as a source of entropy to ensure that
 // encrypting the same message twice doesn't result in the same ciphertext.
+// Most applications should use [crypto/rand.Reader] as random.
 //
 // The label parameter may contain arbitrary data that will not be encrypted,
 // but which gives important context to the message. For example, if a given
@@ -510,6 +514,12 @@ func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 // The message must be no longer than the length of the public modulus minus
 // twice the hash length, minus a further 2.
 func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
+	// Note that while we don't commit to deterministic execution with respect
+	// to the random stream, we also don't apply MaybeReadByte, so per Hyrum's
+	// Law it's probably relied upon by some. It's a tolerable promise because a
+	// well-specified number of random bytes is included in the ciphertext, in a
+	// well-specified way.
+
 	if err := checkPub(pub); err != nil {
 		return nil, err
 	}
@@ -691,7 +701,7 @@ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
 // Encryption and decryption of a given message must use the same hash function
 // and sha256.New() is a reasonable choice.
 //
-// The random parameter is legacy and ignored, and it can be as nil.
+// The random parameter is legacy and ignored, and it can be nil.
 //
 // The label parameter must match the value given when encrypting. See
 // EncryptOAEP for details.
