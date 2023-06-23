@@ -575,7 +575,7 @@ func (s *emitState) emitCounterDataFile(finalHash [16]byte, w io.Writer) error {
 }
 
 // markProfileEmitted signals the runtime/coverage machinery that
-// coverate data output files have already been written out, and there
+// coverage data output files have already been written out, and there
 // is no need to take any additional action at exit time. This
 // function is called (via linknamed reference) from the
 // coverage-related boilerplate code in _testmain.go emitted for go
