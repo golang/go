@@ -949,6 +949,7 @@ var (
 	typVar       = ssaMarker("typ")
 	okVar        = ssaMarker("ok")
 	deferBitsVar = ssaMarker("deferBits")
+	ternaryVar   = ssaMarker("ternary")
 )
 
 // startBlock sets the current block we're generating code in to b.
@@ -3622,6 +3623,7 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 func (s *state) ternary(cond, x, y *ssa.Value) *ssa.Value {
 	bThen := s.f.NewBlock(ssa.BlockPlain)
 	bElse := s.f.NewBlock(ssa.BlockPlain)
+	bEnd := s.f.NewBlock(ssa.BlockPlain)
 
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
@@ -3629,11 +3631,18 @@ func (s *state) ternary(cond, x, y *ssa.Value) *ssa.Value {
 	b.AddEdgeTo(bThen)
 	b.AddEdgeTo(bElse)
 
-	s.startBlock(bElse)
-	s.endBlock().AddEdgeTo(bThen)
-
 	s.startBlock(bThen)
-	return s.newValue2(ssa.OpPhi, x.Type, x, y)
+	s.vars[ternaryVar] = x
+	s.endBlock().AddEdgeTo(bEnd)
+
+	s.startBlock(bElse)
+	s.vars[ternaryVar] = y
+	s.endBlock().AddEdgeTo(bEnd)
+
+	s.startBlock(bEnd)
+	r := s.variable(ternaryVar, x.Type)
+	delete(s.vars, ternaryVar)
+	return r
 }
 
 // condBranch evaluates the boolean expression cond and branches to yes
