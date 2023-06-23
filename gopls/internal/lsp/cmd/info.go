@@ -12,10 +12,13 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 
+	goplsbug "golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/browser"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
+	"golang.org/x/tools/gopls/internal/lsp/filecache"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/tool"
 )
@@ -128,10 +131,50 @@ A failing unit test is the best.
 // Run collects some basic information and then prepares an issue ready to
 // be reported.
 func (b *bug) Run(ctx context.Context, args ...string) error {
-	buf := &bytes.Buffer{}
-	fmt.Fprint(buf, goplsBugHeader)
-	debug.PrintVersionInfo(ctx, buf, true, debug.Markdown)
-	body := buf.String()
+	// This undocumented environment variable allows
+	// the cmd integration test (and maintainers) to
+	// trigger a call to bug.Report.
+	if msg := os.Getenv("TEST_GOPLS_BUG"); msg != "" {
+		filecache.Start() // register bug handler
+		goplsbug.Report(msg)
+		return nil
+	}
+
+	// Enumerate bug reports, grouped and sorted.
+	_, reports := filecache.BugReports()
+	sort.Slice(reports, func(i, j int) bool {
+		x, y := reports[i], reports[i]
+		if x.Key != y.Key {
+			return x.Key < y.Key // ascending key order
+		}
+		return y.AtTime.Before(x.AtTime) // most recent first
+	})
+	keyDenom := make(map[string]int) // key is "file:line"
+	for _, report := range reports {
+		keyDenom[report.Key]++
+	}
+
+	// Privacy: the content of 'public' will be posted to GitHub
+	// to populate an issue textarea. Even though the user must
+	// submit the form to share the information with the world,
+	// merely populating the form causes us to share the
+	// information with GitHub itself.
+	//
+	// For that reason, we cannot write private information to
+	// public, such as bug reports, which may quote source code.
+	public := &bytes.Buffer{}
+	fmt.Fprint(public, goplsBugHeader)
+	if len(reports) > 0 {
+		fmt.Fprintf(public, "#### Internal errors\n\n")
+		fmt.Fprintf(public, "Gopls detected %d internal errors, %d distinct:\n",
+			len(reports), len(keyDenom))
+		for key, denom := range keyDenom {
+			fmt.Fprintf(public, "- %s (%d)\n", key, denom)
+		}
+		fmt.Fprintf(public, "\nPlease copy the full information printed by `gopls bug` here, if you are comfortable sharing it.\n\n")
+	}
+	debug.PrintVersionInfo(ctx, public, true, debug.Markdown)
+	body := public.String()
 	title := strings.Join(args, " ")
 	if !strings.HasPrefix(title, goplsBugPrefix) {
 		title = goplsBugPrefix + title
@@ -140,6 +183,29 @@ func (b *bug) Run(ctx context.Context, args ...string) error {
 		fmt.Print("Please file a new issue at golang.org/issue/new using this template:\n\n")
 		fmt.Print(body)
 	}
+
+	// Print bug reports to stdout (not GitHub).
+	keyNum := make(map[string]int)
+	for _, report := range reports {
+		fmt.Printf("-- %v -- \n", report.AtTime)
+
+		// Append seq number (e.g. " (1/2)") for repeated keys.
+		var seq string
+		if denom := keyDenom[report.Key]; denom > 1 {
+			keyNum[report.Key]++
+			seq = fmt.Sprintf(" (%d/%d)", keyNum[report.Key], denom)
+		}
+
+		// Privacy:
+		// - File and Stack may contain the name of the user that built gopls.
+		// - Description may contain names of the user's packages/files/symbols.
+		fmt.Printf("%s:%d: %s%s\n\n", report.File, report.Line, report.Description, seq)
+		fmt.Printf("%s\n\n", report.Stack)
+	}
+	if len(reports) > 0 {
+		fmt.Printf("Please copy the above information into the GitHub issue, if you are comfortable sharing it.\n")
+	}
+
 	return nil
 }
 

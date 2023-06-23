@@ -57,14 +57,6 @@ Example:
 }
 
 func (s *stats) Run(ctx context.Context, args ...string) error {
-	// This undocumented environment variable allows
-	// the cmd integration test to trigger a call to bug.Report.
-	if msg := os.Getenv("TEST_GOPLS_BUG"); msg != "" {
-		filecache.Start() // effect: register bug handler
-		goplsbug.Report(msg)
-		return nil
-	}
-
 	if s.app.Remote != "" {
 		// stats does not work with -remote.
 		// Other sessions on the daemon may interfere with results.

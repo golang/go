@@ -702,7 +702,7 @@ package foo
 	oops := fmt.Sprintf("oops-%d", rand.Int())
 	{
 		env := []string{"TEST_GOPLS_BUG=" + oops}
-		res := goplsWithEnv(t, tree, env, "stats")
+		res := goplsWithEnv(t, tree, env, "bug")
 		res.checkExit(true)
 	}
 
@@ -745,8 +745,8 @@ package foo
 	{
 		got := fmt.Sprint(stats.BugReports)
 		wants := []string{
-			"cmd/stats.go", // File containing call to bug.Report
-			oops,           // Description
+			"cmd/info.go", // File containing call to bug.Report
+			oops,          // Description
 		}
 		for _, want := range wants {
 			if !strings.Contains(got, want) {

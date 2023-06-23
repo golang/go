@@ -552,7 +552,7 @@ func init() {
 // used by this process (or "" on initialization error).
 func BugReports() (string, []bug.Bug) {
 	// To test this logic, run:
-	// $ TEST_GOPLS_BUG=oops gopls stats   # trigger a bug
+	// $ TEST_GOPLS_BUG=oops gopls bug     # trigger a bug
 	// $ gopls stats                       # list the bugs
 
 	dir, err := getCacheDir()
