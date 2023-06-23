@@ -839,6 +839,7 @@ func (c *commandHandler) StartDebugging(ctx context.Context, args command.Debugg
 		return result, fmt.Errorf("starting debug server: %w", err)
 	}
 	result.URLs = []string{"http://" + listenedAddr}
+	openClientBrowser(ctx, c.s.client, result.URLs[0])
 	return result, nil
 }
 
@@ -1143,4 +1144,48 @@ func (c *commandHandler) invokeGoWork(ctx context.Context, viewDir, gowork strin
 		return fmt.Errorf("running go work command: %v", err)
 	}
 	return nil
+}
+
+// openClientBrowser causes the LSP client to open the specified URL
+// in an external browser.
+func openClientBrowser(ctx context.Context, cli protocol.Client, url protocol.URI) {
+	showDocumentImpl(ctx, cli, url, nil)
+}
+
+// openClientEditor causes the LSP client to open the specified document
+// and select the indicated range.
+func openClientEditor(ctx context.Context, cli protocol.Client, loc protocol.Location) {
+	showDocumentImpl(ctx, cli, protocol.URI(loc.URI), &loc.Range)
+}
+
+func showDocumentImpl(ctx context.Context, cli protocol.Client, url protocol.URI, rangeOpt *protocol.Range) {
+	// In principle we shouldn't send a showDocument request to a
+	// client that doesn't support it, as reported by
+	// ShowDocumentClientCapabilities. But even clients that do
+	// support it may defer the real work of opening the document
+	// asynchronously, to avoid deadlocks due to rentrancy.
+	//
+	// For example: client sends request to server; server sends
+	// showDocument to client; client opens editor; editor causes
+	// new RPC to be sent to server, which is still busy with
+	// previous request. (This happens in eglot.)
+	//
+	// So we can't rely on the success/failure information.
+	// That's the reason this function doesn't return an error.
+
+	// "External" means run the system-wide handler (e.g. open(1)
+	// on macOS or xdg-open(1) on Linux) for this URL, ignoring
+	// TakeFocus and Selection. Note that this may still end up
+	// opening the same editor (e.g. VSCode) for a file: URL.
+	res, err := cli.ShowDocument(ctx, &protocol.ShowDocumentParams{
+		URI:       url,
+		External:  rangeOpt == nil,
+		TakeFocus: true,
+		Selection: rangeOpt, // optional
+	})
+	if err != nil {
+		event.Error(ctx, "client.showDocument: %v", err)
+	} else if res != nil && !res.Success {
+		event.Log(ctx, fmt.Sprintf("client declined to open document %v", url))
+	}
 }

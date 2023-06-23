@@ -206,6 +206,23 @@ func NoOutstandingWork() Expectation {
 	}
 }
 
+// ShownDocument asserts that the client has received a
+// ShowDocumentRequest for the given URI.
+func ShownDocument(uri protocol.URI) Expectation {
+	check := func(s State) Verdict {
+		for _, params := range s.showDocument {
+			if params.URI == uri {
+				return Met
+			}
+		}
+		return Unmet
+	}
+	return Expectation{
+		Check:       check,
+		Description: fmt.Sprintf("received window/showDocument for URI %s", uri),
+	}
+}
+
 // NoShownMessage asserts that the editor has not received a ShowMessage.
 func NoShownMessage(subString string) Expectation {
 	check := func(s State) Verdict {

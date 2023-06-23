@@ -1110,6 +1110,13 @@ func (s *serverDispatcher) DidRenameFiles(ctx context.Context, params *RenameFil
 	return s.sender.Notify(ctx, "workspace/didRenameFiles", params)
 }
 func (s *serverDispatcher) ExecuteCommand(ctx context.Context, params *ExecuteCommandParams) (interface{}, error) {
+	// TODO(adonovan): allow the caller to pass in the result
+	// pointer so they can avoid an unnecessary JSON-to-any
+	// decoding and re-encoding to JSON before finally decoding to
+	// the correct Go struct type. (Also: the specific result
+	// type depends on the implementation of ExecuteCommand:
+	// (*Server).ExecuteCommand returns the specific Go type!
+	// This is not a meaningful interface.)
 	var result interface{}
 	if err := s.sender.Call(ctx, "workspace/executeCommand", params, &result); err != nil {
 		return nil, err

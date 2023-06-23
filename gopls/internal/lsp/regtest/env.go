@@ -69,6 +69,7 @@ func (a *Awaiter) Hooks() fake.ClientHooks {
 		OnLogMessage:             a.onLogMessage,
 		OnWorkDoneProgressCreate: a.onWorkDoneProgressCreate,
 		OnProgress:               a.onProgress,
+		OnShowDocument:           a.onShowDocument,
 		OnShowMessage:            a.onShowMessage,
 		OnShowMessageRequest:     a.onShowMessageRequest,
 		OnRegisterCapability:     a.onRegisterCapability,
@@ -82,6 +83,7 @@ type State struct {
 	// diagnostics are a map of relative path->diagnostics params
 	diagnostics        map[string]*protocol.PublishDiagnosticsParams
 	logs               []*protocol.LogMessageParams
+	showDocument       []*protocol.ShowDocumentParams
 	showMessage        []*protocol.ShowMessageParams
 	showMessageRequest []*protocol.ShowMessageRequestParams
 
@@ -197,6 +199,15 @@ func (a *Awaiter) onDiagnostics(_ context.Context, d *protocol.PublishDiagnostic
 
 	pth := a.workdir.URIToPath(d.URI)
 	a.state.diagnostics[pth] = d
+	a.checkConditionsLocked()
+	return nil
+}
+
+func (a *Awaiter) onShowDocument(_ context.Context, params *protocol.ShowDocumentParams) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.state.showDocument = append(a.state.showDocument, params)
 	a.checkConditionsLocked()
 	return nil
 }

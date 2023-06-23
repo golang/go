@@ -22,6 +22,7 @@ type ClientHooks struct {
 	OnDiagnostics            func(context.Context, *protocol.PublishDiagnosticsParams) error
 	OnWorkDoneProgressCreate func(context.Context, *protocol.WorkDoneProgressCreateParams) error
 	OnProgress               func(context.Context, *protocol.ProgressParams) error
+	OnShowDocument           func(context.Context, *protocol.ShowDocumentParams) error
 	OnShowMessage            func(context.Context, *protocol.ShowMessageParams) error
 	OnShowMessageRequest     func(context.Context, *protocol.ShowMessageRequestParams) error
 	OnRegisterCapability     func(context.Context, *protocol.RegistrationParams) error
@@ -162,7 +163,13 @@ func (c *Client) WorkDoneProgressCreate(ctx context.Context, params *protocol.Wo
 	return nil
 }
 
-func (c *Client) ShowDocument(context.Context, *protocol.ShowDocumentParams) (*protocol.ShowDocumentResult, error) {
+func (c *Client) ShowDocument(ctx context.Context, params *protocol.ShowDocumentParams) (*protocol.ShowDocumentResult, error) {
+	if c.hooks.OnShowDocument != nil {
+		if err := c.hooks.OnShowDocument(ctx, params); err != nil {
+			return nil, err
+		}
+		return &protocol.ShowDocumentResult{Success: true}, nil
+	}
 	return nil, nil
 }
 

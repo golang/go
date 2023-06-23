@@ -38,6 +38,8 @@ func LogEvent(ctx context.Context, ev core.Event, lm label.Map, mt MessageType) 
 	if event.IsError(ev) {
 		msg.Type = Error
 	}
+	// TODO(adonovan): the goroutine here could cause log
+	// messages to be delivered out of order! Use a queue.
 	go client.LogMessage(xcontext.Detach(ctx), msg)
 	return ctx
 }

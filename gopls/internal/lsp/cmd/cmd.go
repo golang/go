@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/gopls/internal/lsp"
+	"golang.org/x/tools/gopls/internal/lsp/browser"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
 	"golang.org/x/tools/gopls/internal/lsp/filecache"
@@ -402,6 +403,7 @@ type connection struct {
 	client *cmdClient
 }
 
+// cmdClient defines the protocol.Client interface behavior of the gopls CLI tool.
 type cmdClient struct {
 	app        *Application
 	onProgress func(*protocol.ProgressParams)
@@ -570,8 +572,19 @@ func (c *cmdClient) Progress(_ context.Context, params *protocol.ProgressParams)
 	return nil
 }
 
-func (c *cmdClient) ShowDocument(context.Context, *protocol.ShowDocumentParams) (*protocol.ShowDocumentResult, error) {
-	return nil, nil
+func (c *cmdClient) ShowDocument(ctx context.Context, params *protocol.ShowDocumentParams) (*protocol.ShowDocumentResult, error) {
+	var success bool
+	if params.External {
+		// Open URI in external browser.
+		success = browser.Open(string(params.URI))
+	} else {
+		// Open file in editor, optionally taking focus and selecting a range.
+		// (cmdClient has no editor. Should it fork+exec $EDITOR?)
+		log.Printf("Server requested that client editor open %q (takeFocus=%t, selection=%+v)",
+			params.URI, params.TakeFocus, params.Selection)
+		success = true
+	}
+	return &protocol.ShowDocumentResult{Success: success}, nil
 }
 
 func (c *cmdClient) WorkDoneProgressCreate(context.Context, *protocol.WorkDoneProgressCreateParams) error {
