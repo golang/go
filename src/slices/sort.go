@@ -70,7 +70,8 @@ func Min[S ~[]E, E cmp.Ordered](x S) E {
 }
 
 // MinFunc returns the minimal value in x, using cmp to compare elements.
-// It panics if x is empty.
+// It panics if x is empty. If there is more than one minimal element
+// according to the cmp function, MinFunc returns the first one.
 func MinFunc[S ~[]E, E any](x S, cmp func(a, b E) int) E {
 	if len(x) < 1 {
 		panic("slices.MinFunc: empty list")
@@ -99,7 +100,8 @@ func Max[S ~[]E, E cmp.Ordered](x S) E {
 }
 
 // MaxFunc returns the maximal value in x, using cmp to compare elements.
-// It panics if x is empty.
+// It panics if x is empty. If there is more than one maximal element
+// according to the cmp function, MaxFunc returns the first one.
 func MaxFunc[S ~[]E, E any](x S, cmp func(a, b E) int) E {
 	if len(x) < 1 {
 		panic("slices.MaxFunc: empty list")
