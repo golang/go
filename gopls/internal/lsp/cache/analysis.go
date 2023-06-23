@@ -408,8 +408,10 @@ type analysisNode struct {
 	exportDeps map[PackagePath]*analysisNode // subset of allDeps ref'd by export data (+self)
 	count      int32                         // number of unfinished successors
 	summary    *analyzeSummary               // serializable result of analyzing this package
-	typesOnce  sync.Once                     // guards lazy population of types field
-	types      *types.Package                // type information lazily imported from summary
+
+	typesOnce sync.Once      // guards lazy population of types and typesErr fields
+	types     *types.Package // type information lazily imported from summary
+	typesErr  error          // an error producing type information
 }
 
 func (an *analysisNode) String() string { return string(an.m.ID) }
@@ -417,7 +419,7 @@ func (an *analysisNode) String() string { return string(an.m.ID) }
 // _import imports this node's types.Package from export data, if not already done.
 // Precondition: analysis was a success.
 // Postcondition: an.types and an.exportDeps are populated.
-func (an *analysisNode) _import() *types.Package {
+func (an *analysisNode) _import() (*types.Package, error) {
 	an.typesOnce.Do(func() {
 		if an.m.PkgPath == "unsafe" {
 			an.types = types.Unsafe
@@ -439,12 +441,19 @@ func (an *analysisNode) _import() *types.Package {
 				}
 				an.exportDeps[path] = dep // record, for later fact decoding
 				if dep == an {
-					items[i].Pkg = an.types
+					if an.typesErr != nil {
+						return an.typesErr
+					} else {
+						items[i].Pkg = an.types
+					}
 				} else {
 					i := i
 					g.Go(func() error {
-						items[i].Pkg = dep._import()
-						return nil
+						depPkg, err := dep._import()
+						if err == nil {
+							items[i].Pkg = depPkg
+						}
+						return err
 					})
 				}
 			}
@@ -452,13 +461,13 @@ func (an *analysisNode) _import() *types.Package {
 		}
 		pkg, err := gcimporter.IImportShallow(an.fset, getPackages, an.summary.Export, string(an.m.PkgPath))
 		if err != nil {
-			log.Fatalf("%s: invalid export data: %v", an.m, err)
-		}
-		if pkg != an.types {
+			an.typesErr = bug.Errorf("%s: invalid export data: %v", an.m, err)
+			an.types = nil
+		} else if pkg != an.types {
 			log.Fatalf("%s: inconsistent packages", an.m)
 		}
 	})
-	return an.types
+	return an.types, an.typesErr
 }
 
 // analyzeSummary is a gob-serializable summary of successfully
@@ -703,7 +712,10 @@ func (an *analysisNode) run(ctx context.Context) (*analyzeSummary, error) {
 		// Does the fact relate to a package referenced by export data?
 		if dep, ok := allExportDeps[PackagePath(path)]; ok {
 			dep.typesOnce.Do(func() { log.Fatal("dep.types not populated") })
-			return dep.types
+			if dep.typesErr == nil {
+				return dep.types
+			}
+			return nil
 		}
 
 		// If the fact relates to a dependency not referenced
@@ -867,7 +879,7 @@ func (an *analysisNode) typeCheck(parsed []*source.ParsedGoFile) *analysisPackag
 				return nil, fmt.Errorf("invalid use of internal package %s", importPath)
 			}
 
-			return dep._import(), nil
+			return dep._import()
 		}),
 	}
 
