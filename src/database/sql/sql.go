@@ -2944,15 +2944,17 @@ func (rs *Rows) initContextClose(ctx, txctx context.Context) {
 	if bypassRowsAwaitDone {
 		return
 	}
-	ctx, rs.cancel = context.WithCancel(ctx)
-	go rs.awaitDone(ctx, txctx)
+	closectx, cancel := context.WithCancel(ctx)
+	rs.cancel = cancel
+	go rs.awaitDone(ctx, txctx, closectx)
 }
 
-// awaitDone blocks until either ctx or txctx is canceled. The ctx is provided
-// from the query context and is canceled when the query Rows is closed.
+// awaitDone blocks until ctx, txctx, or closectx is canceled. 
+// The ctx is provided from the query context.
 // If the query was issued in a transaction, the transaction's context
-// is also provided in txctx to ensure Rows is closed if the Tx is closed.
-func (rs *Rows) awaitDone(ctx, txctx context.Context) {
+// is also provided in txctx, to ensure Rows is closed if the Tx is closed.
+// The closectx is closed by an explicit call to rs.Close.
+func (rs *Rows) awaitDone(ctx, txctx, closectx context.Context) {
 	var txctxDone <-chan struct{}
 	if txctx != nil {
 		txctxDone = txctx.Done()
@@ -2964,6 +2966,9 @@ func (rs *Rows) awaitDone(ctx, txctx context.Context) {
 	case <-txctxDone:
 		err := txctx.Err()
 		rs.contextDone.Store(&err)
+	case <-closectx.Done():
+		// rs.cancel was called via Close(); don't store this into contextDone
+		// to ensure Err() is unaffected.
 	}
 	rs.close(ctx.Err())
 }
