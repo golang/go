@@ -159,6 +159,10 @@ func (i *mapFileInfo) IsDir() bool                { return i.f.Mode&fs.ModeDir !
 func (i *mapFileInfo) Sys() any                   { return i.f.Sys }
 func (i *mapFileInfo) Info() (fs.FileInfo, error) { return i, nil }
 
+func (i *mapFileInfo) String() string {
+	return fs.FormatFileInfo(i)
+}
+
 // An openMapFile is a regular (non-directory) fs.File open for reading.
 type openMapFile struct {
 	path string

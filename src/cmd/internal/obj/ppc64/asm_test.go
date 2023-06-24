@@ -28,7 +28,7 @@ var platformEnvs = [][]string{
 const invalidPCAlignSrc = `
 TEXT test(SB),0,$0-0
 ADD $2, R3
-PCALIGN $64
+PCALIGN $128
 RET
 `
 

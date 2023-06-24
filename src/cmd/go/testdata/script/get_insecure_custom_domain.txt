@@ -1,4 +1,4 @@
-[!net] skip
+[!net:insecure.go-get-issue-15410.appspot.com] skip
 [!git] skip
 env GO111MODULE=off
 

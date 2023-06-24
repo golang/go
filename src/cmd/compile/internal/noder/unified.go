@@ -68,11 +68,11 @@ var localPkgReader *pkgReader
 // the unified IR has the full typed AST needed for introspection during step (1).
 // In other words, we have all the necessary information to build the generic IR form
 // (see writer.captureVars for an example).
-func unified(noders []*noder) {
+func unified(m posMap, noders []*noder) {
 	inline.InlineCall = unifiedInlineCall
 	typecheck.HaveInlineBody = unifiedHaveInlineBody
 
-	data := writePkgStub(noders)
+	data := writePkgStub(m, noders)
 
 	// We already passed base.Flag.Lang to types2 to handle validating
 	// the user's source code. Bump it up now to the current version and
@@ -158,7 +158,11 @@ func readBodies(target *ir.Package, duringInlining bool) {
 			// Instantiated generic function: add to Decls for typechecking
 			// and compilation.
 			if fn.OClosure == nil && len(pri.dict.targs) != 0 {
-				if duringInlining {
+				// cmd/link does not support a type symbol referencing a method symbol
+				// across DSO boundary, so force re-compiling methods on a generic type
+				// even it was seen from imported package in linkshared mode, see #58966.
+				canSkipNonGenericMethod := !(base.Ctxt.Flag_linkshared && ir.IsMethod(fn))
+				if duringInlining && canSkipNonGenericMethod {
 					inlDecls = append(inlDecls, fn)
 				} else {
 					target.Decls = append(target.Decls, fn)
@@ -202,8 +206,8 @@ func readBodies(target *ir.Package, duringInlining bool) {
 // writePkgStub type checks the given parsed source files,
 // writes an export data package stub representing them,
 // and returns the result.
-func writePkgStub(noders []*noder) string {
-	m, pkg, info := checkFiles(noders)
+func writePkgStub(m posMap, noders []*noder) string {
+	pkg, info := checkFiles(m, noders)
 
 	pw := newPkgWriter(m, pkg, info)
 

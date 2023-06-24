@@ -219,6 +219,19 @@ func (rw *RWMutex) Unlock() {
 	}
 }
 
+// syscall_hasWaitingReaders reports whether any goroutine is waiting
+// to acquire a read lock on rw. This exists because syscall.ForkLock
+// is an RWMutex, and we can't change that without breaking compatibility.
+// We don't need or want RWMutex semantics for ForkLock, and we use
+// this private API to avoid having to change the type of ForkLock.
+// For more details see the syscall package.
+//
+//go:linkname syscall_hasWaitingReaders syscall.hasWaitingReaders
+func syscall_hasWaitingReaders(rw *RWMutex) bool {
+	r := rw.readerCount.Load()
+	return r < 0 && r+rwmutexMaxReaders > 0
+}
+
 // RLocker returns a Locker interface that implements
 // the Lock and Unlock methods by calling rw.RLock and rw.RUnlock.
 func (rw *RWMutex) RLocker() Locker {

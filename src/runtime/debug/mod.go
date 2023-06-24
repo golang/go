@@ -78,7 +78,7 @@ type Module struct {
 //   - CGO_CXXFLAGS:  the effective CGO_CPPFLAGS environment variable
 //   - CGO_LDFLAGS: the effective CGO_CPPFLAGS environment variable
 //   - GOARCH: the architecture target
-//   - GOAMD64/GOARM64/GO386/etc: the architecture feature level for GOARCH
+//   - GOAMD64/GOARM/GO386/etc: the architecture feature level for GOARCH
 //   - GOOS: the operating system target
 //   - vcs: the version control system for the source tree where the build ran
 //   - vcs.revision: the revision identifier for the current commit or checkout

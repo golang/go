@@ -15,12 +15,12 @@ func _[P comparable, Q ~int, R any]() {
 	_ = f1[any /* any does satisfy comparable */]
 	_ = f1[P]
 	_ = f1[Q]
-	_ = f1[R /* ERROR R does not satisfy comparable */]
+	_ = f1[R /* ERROR "R does not satisfy comparable" */]
 
 	_ = f2[int]
 	_ = f2[T /* T does satisfy comparable */]
 	_ = f2[any /* any does satisfy comparable */]
 	_ = f2[P]
 	_ = f2[Q]
-	_ = f2[R /* ERROR R does not satisfy comparable */]
+	_ = f2[R /* ERROR "R does not satisfy comparable" */]
 }

@@ -154,7 +154,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 			} else if len(tparams) < len(recvTParams) {
 				// Reporting an error here is a stop-gap measure to avoid crashes in the
 				// compiler when a type parameter/argument cannot be inferred later. It
-				// may lead to follow-on errors (see issues #51339, #51343).
+				// may lead to follow-on errors (see issues go.dev/issue/51339, go.dev/issue/51343).
 				// TODO(gri) find a better solution
 				got := measure(len(tparams), "type parameter")
 				check.errorf(recvPar, BadRecv, "got %s, but receiver base type declares %d", got, len(recvTParams))
@@ -204,7 +204,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 		sig.recv = recv
 
 		// Delay validation of receiver type as it may cause premature expansion
-		// of types the receiver type is dependent on (see issues #51232, #51233).
+		// of types the receiver type is dependent on (see issues go.dev/issue/51232, go.dev/issue/51233).
 		check.later(func() {
 			// spec: "The receiver type must be of the form T or *T where T is a type name."
 			rtyp, _ := deref(recv.typ)

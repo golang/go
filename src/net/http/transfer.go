@@ -416,7 +416,7 @@ func (t *transferWriter) doBodyCopy(dst io.Writer, src io.Reader) (n int64, err 
 	return
 }
 
-// unwrapBodyReader unwraps the body's inner reader if it's a
+// unwrapBody unwraps the body's inner reader if it's a
 // nopCloser. This is to ensure that body writes sourced from local
 // files (*os.File types) are properly optimized.
 //

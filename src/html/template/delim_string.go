@@ -4,6 +4,16 @@ package template
 
 import "strconv"
 
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[delimNone-0]
+	_ = x[delimDoubleQuote-1]
+	_ = x[delimSingleQuote-2]
+	_ = x[delimSpaceOrTagEnd-3]
+}
+
 const _delim_name = "delimNonedelimDoubleQuotedelimSingleQuotedelimSpaceOrTagEnd"
 
 var _delim_index = [...]uint8{0, 9, 25, 41, 59}

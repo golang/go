@@ -4,6 +4,16 @@ package template
 
 import "strconv"
 
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[urlPartNone-0]
+	_ = x[urlPartPreQuery-1]
+	_ = x[urlPartQueryOrFrag-2]
+	_ = x[urlPartUnknown-3]
+}
+
 const _urlPart_name = "urlPartNoneurlPartPreQueryurlPartQueryOrFragurlPartUnknown"
 
 var _urlPart_index = [...]uint8{0, 11, 26, 44, 58}

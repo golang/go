@@ -26,7 +26,7 @@
 // The implementation works in layers. At the bottom, arenas are managed in chunks.
 // Each chunk must be a multiple of the heap arena size, or the heap arena size must
 // be divisible by the arena chunks. The address space for each chunk, and each
-// corresponding heapArena for that addres space, are eternelly reserved for use as
+// corresponding heapArena for that address space, are eternally reserved for use as
 // arena chunks. That is, they can never be used for the general heap. Each chunk
 // is also represented by a single mspan, and is modeled as a single large heap
 // allocation. It must be, because each chunk contains ordinary Go values that may
@@ -109,10 +109,10 @@ func arena_newArena() unsafe.Pointer {
 //go:linkname arena_arena_New arena.runtime_arena_arena_New
 func arena_arena_New(arena unsafe.Pointer, typ any) any {
 	t := (*_type)(efaceOf(&typ).data)
-	if t.kind&kindMask != kindPtr {
+	if t.Kind_&kindMask != kindPtr {
 		throw("arena_New: non-pointer type")
 	}
-	te := (*ptrtype)(unsafe.Pointer(t)).elem
+	te := (*ptrtype)(unsafe.Pointer(t)).Elem
 	x := ((*userArena)(arena)).new(te)
 	var result any
 	e := efaceOf(&result)
@@ -143,7 +143,7 @@ func arena_heapify(s any) any {
 	var v unsafe.Pointer
 	e := efaceOf(&s)
 	t := e._type
-	switch t.kind & kindMask {
+	switch t.Kind_ & kindMask {
 	case kindString:
 		v = stringStructOf((*string)(e.data)).str
 	case kindSlice:
@@ -160,7 +160,7 @@ func arena_heapify(s any) any {
 	}
 	// Heap-allocate storage for a copy.
 	var x any
-	switch t.kind & kindMask {
+	switch t.Kind_ & kindMask {
 	case kindString:
 		s1 := s.(string)
 		s2, b := rawstring(len(s1))
@@ -168,14 +168,14 @@ func arena_heapify(s any) any {
 		x = s2
 	case kindSlice:
 		len := (*slice)(e.data).len
-		et := (*slicetype)(unsafe.Pointer(t)).elem
+		et := (*slicetype)(unsafe.Pointer(t)).Elem
 		sl := new(slice)
 		*sl = slice{makeslicecopy(et, len, len, (*slice)(e.data).array), len, len}
 		xe := efaceOf(&x)
 		xe._type = t
 		xe.data = unsafe.Pointer(sl)
 	case kindPtr:
-		et := (*ptrtype)(unsafe.Pointer(t)).elem
+		et := (*ptrtype)(unsafe.Pointer(t)).Elem
 		e2 := newobject(et)
 		typedmemmove(et, e2, e.data)
 		xe := efaceOf(&x)
@@ -202,10 +202,10 @@ const (
 
 func init() {
 	if userArenaChunkPages*pageSize != userArenaChunkBytes {
-		throw("user arena chunk size is not a mutliple of the page size")
+		throw("user arena chunk size is not a multiple of the page size")
 	}
 	if userArenaChunkBytes%physPageSize != 0 {
-		throw("user arena chunk size is not a mutliple of the physical page size")
+		throw("user arena chunk size is not a multiple of the physical page size")
 	}
 	if userArenaChunkBytes < heapArenaBytes {
 		if heapArenaBytes%userArenaChunkBytes != 0 {
@@ -281,14 +281,14 @@ func (a *userArena) slice(sl any, cap int) {
 	}
 	i := efaceOf(&sl)
 	typ := i._type
-	if typ.kind&kindMask != kindPtr {
+	if typ.Kind_&kindMask != kindPtr {
 		panic("slice result of non-ptr type")
 	}
-	typ = (*ptrtype)(unsafe.Pointer(typ)).elem
-	if typ.kind&kindMask != kindSlice {
+	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
+	if typ.Kind_&kindMask != kindSlice {
 		panic("slice of non-ptr-to-slice type")
 	}
-	typ = (*slicetype)(unsafe.Pointer(typ)).elem
+	typ = (*slicetype)(unsafe.Pointer(typ)).Elem
 	// t is now the element type of the slice we want to allocate.
 
 	*((*slice)(i.data)) = slice{a.alloc(typ, cap), cap, cap}
@@ -435,7 +435,7 @@ var userArenaState struct {
 // userArenaNextFree reserves space in the user arena for an item of the specified
 // type. If cap is not -1, this is for an array of cap elements of type t.
 func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
-	size := typ.size
+	size := typ.Size_
 	if cap > 0 {
 		if size > ^uintptr(0)/uintptr(cap) {
 			// Overflow.
@@ -468,14 +468,14 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
 	mp.mallocing = 1
 
 	var ptr unsafe.Pointer
-	if typ.ptrdata == 0 {
+	if typ.PtrBytes == 0 {
 		// Allocate pointer-less objects from the tail end of the chunk.
-		v, ok := s.userArenaChunkFree.takeFromBack(size, typ.align)
+		v, ok := s.userArenaChunkFree.takeFromBack(size, typ.Align_)
 		if ok {
 			ptr = unsafe.Pointer(v)
 		}
 	} else {
-		v, ok := s.userArenaChunkFree.takeFromFront(size, typ.align)
+		v, ok := s.userArenaChunkFree.takeFromFront(size, typ.Align_)
 		if ok {
 			ptr = unsafe.Pointer(v)
 		}
@@ -490,7 +490,7 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
 		throw("arena chunk needs zeroing, but should already be zeroed")
 	}
 	// Set up heap bitmap and do extra accounting.
-	if typ.ptrdata != 0 {
+	if typ.PtrBytes != 0 {
 		if cap >= 0 {
 			userArenaHeapBitsSetSliceType(typ, cap, ptr, s.base())
 		} else {
@@ -501,9 +501,9 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
 			throw("mallocgc called without a P or outside bootstrapping")
 		}
 		if cap > 0 {
-			c.scanAlloc += size - (typ.size - typ.ptrdata)
+			c.scanAlloc += size - (typ.Size_ - typ.PtrBytes)
 		} else {
-			c.scanAlloc += typ.ptrdata
+			c.scanAlloc += typ.PtrBytes
 		}
 	}
 
@@ -556,14 +556,14 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
 		h = h.write(b, 1)
 	}
 
-	p := typ.gcdata // start of 1-bit pointer mask (or GC program)
+	p := typ.GCData // start of 1-bit pointer mask (or GC program)
 	var gcProgBits uintptr
-	if typ.kind&kindGCProg != 0 {
+	if typ.Kind_&kindGCProg != 0 {
 		// Expand gc program, using the object itself for storage.
 		gcProgBits = runGCProg(addb(p, 4), (*byte)(ptr))
 		p = (*byte)(ptr)
 	}
-	nb := typ.ptrdata / goarch.PtrSize
+	nb := typ.PtrBytes / goarch.PtrSize
 
 	for i := uintptr(0); i < nb; i += ptrBits {
 		k := nb - i
@@ -578,10 +578,10 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
 	// to clear. We don't need to do this to clear stale noMorePtrs
 	// markers from previous uses because arena chunk pointer bitmaps
 	// are always fully cleared when reused.
-	h = h.pad(typ.size - typ.ptrdata)
-	h.flush(uintptr(ptr), typ.size)
+	h = h.pad(typ.Size_ - typ.PtrBytes)
+	h.flush(uintptr(ptr), typ.Size_)
 
-	if typ.kind&kindGCProg != 0 {
+	if typ.Kind_&kindGCProg != 0 {
 		// Zero out temporary ptrmask buffer inside object.
 		memclrNoHeapPointers(ptr, (gcProgBits+7)/8)
 	}
@@ -591,16 +591,16 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
 	// Derived from heapBitsSetType.
 	const doubleCheck = false
 	if doubleCheck {
-		size := typ.size
+		size := typ.Size_
 		x := uintptr(ptr)
 		h := heapBitsForAddr(x, size)
 		for i := uintptr(0); i < size; i += goarch.PtrSize {
 			// Compute the pointer bit we want at offset i.
 			want := false
-			off := i % typ.size
-			if off < typ.ptrdata {
+			off := i % typ.Size_
+			if off < typ.PtrBytes {
 				j := off / goarch.PtrSize
-				want = *addb(typ.gcdata, j/8)>>(j%8)&1 != 0
+				want = *addb(typ.GCData, j/8)>>(j%8)&1 != 0
 			}
 			if want {
 				var addr uintptr
@@ -620,12 +620,12 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
 // Go slice backing store values allocated in a user arena chunk. It sets up the
 // heap bitmap for n consecutive values with type typ allocated at address ptr.
 func userArenaHeapBitsSetSliceType(typ *_type, n int, ptr unsafe.Pointer, base uintptr) {
-	mem, overflow := math.MulUintptr(typ.size, uintptr(n))
+	mem, overflow := math.MulUintptr(typ.Size_, uintptr(n))
 	if overflow || n < 0 || mem > maxAlloc {
 		panic(plainError("runtime: allocation size out of range"))
 	}
 	for i := 0; i < n; i++ {
-		userArenaHeapBitsSetType(typ, add(ptr, uintptr(i)*typ.size), base)
+		userArenaHeapBitsSetType(typ, add(ptr, uintptr(i)*typ.Size_), base)
 	}
 }
 

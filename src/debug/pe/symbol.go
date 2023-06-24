@@ -180,7 +180,7 @@ const (
 	IMAGE_COMDAT_SELECT_LARGEST      = 6
 )
 
-// COFFSymbolReadSectionDefAux returns a blob of axiliary information
+// COFFSymbolReadSectionDefAux returns a blob of auxiliary information
 // (including COMDAT info) for a section definition symbol. Here 'idx'
 // is the index of a section symbol in the main COFFSymbol array for
 // the File. Return value is a pointer to the appropriate aux symbol

@@ -457,10 +457,14 @@ func TestLOONG64Encoder(t *testing.T) {
 }
 
 func TestPPC64EndToEnd(t *testing.T) {
-	testEndToEnd(t, "ppc64", "ppc64")
-
-	// The assembler accepts all instructions irrespective of the GOPPC64 value.
-	testEndToEnd(t, "ppc64", "ppc64_p10")
+	defer func(old int) { buildcfg.GOPPC64 = old }(buildcfg.GOPPC64)
+	for _, goppc64 := range []int{8, 9, 10} {
+		t.Logf("GOPPC64=power%d", goppc64)
+		buildcfg.GOPPC64 = goppc64
+		// Some pseudo-ops may assemble differently depending on GOPPC64
+		testEndToEnd(t, "ppc64", "ppc64")
+		testEndToEnd(t, "ppc64", "ppc64_p10")
+	}
 }
 
 func TestRISCVEndToEnd(t *testing.T) {

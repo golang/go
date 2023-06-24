@@ -6,7 +6,6 @@ package test
 
 import (
 	"bufio"
-	"internal/buildcfg"
 	"internal/goexperiment"
 	"internal/testenv"
 	"io"
@@ -88,6 +87,8 @@ func TestIntendedInlining(t *testing.T) {
 			"(*mspan).markBitsForIndex",
 			"(*muintptr).set",
 			"(*puintptr).set",
+			"(*wbBuf).get1",
+			"(*wbBuf).get2",
 		},
 		"runtime/internal/sys": {},
 		"runtime/internal/math": {
@@ -122,6 +123,9 @@ func TestIntendedInlining(t *testing.T) {
 			"RuneLen",
 			"AppendRune",
 			"ValidRune",
+		},
+		"unicode/utf16": {
+			"Decode",
 		},
 		"reflect": {
 			"Value.Bool",
@@ -176,6 +180,15 @@ func TestIntendedInlining(t *testing.T) {
 		"net": {
 			"(*UDPConn).ReadFromUDP",
 		},
+		"sync": {
+			// Both OnceFunc and its returned closure need to be inlinable so
+			// that the returned closure can be inlined into the caller of OnceFunc.
+			"OnceFunc",
+			"OnceFunc.func2", // The returned closure.
+			// TODO(austin): It would be good to check OnceValue and OnceValues,
+			// too, but currently they aren't reported because they have type
+			// parameters and aren't instantiated in sync.
+		},
 		"sync/atomic": {
 			// (*Bool).CompareAndSwap handled below.
 			"(*Bool).Load",
@@ -206,7 +219,10 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Uintptr).Load",
 			"(*Uintptr).Store",
 			"(*Uintptr).Swap",
-			// (*Pointer[T])'s methods' handled below.
+			"(*Pointer[go.shape.int]).CompareAndSwap",
+			"(*Pointer[go.shape.int]).Load",
+			"(*Pointer[go.shape.int]).Store",
+			"(*Pointer[go.shape.int]).Swap",
 		},
 	}
 
@@ -231,14 +247,6 @@ func TestIntendedInlining(t *testing.T) {
 		want["runtime"] = append(want["runtime"], "mix")
 		// (*Bool).CompareAndSwap is just over budget on 32-bit systems (386, arm).
 		want["sync/atomic"] = append(want["sync/atomic"], "(*Bool).CompareAndSwap")
-	}
-	if buildcfg.Experiment.Unified {
-		// Non-unified IR does not report "inlining call ..." for atomic.Pointer[T]'s methods.
-		// TODO(cuonglm): remove once non-unified IR frontend gone.
-		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).CompareAndSwap")
-		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Load")
-		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Store")
-		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Swap")
 	}
 
 	switch runtime.GOARCH {

@@ -52,15 +52,20 @@ func runtime_AfterForkInChild()
 // functions that do not grow the stack.
 //
 //go:norace
-func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
+func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err1 Errno) {
 	// Declare all variables at top in case any
 	// declarations require heap allocation (e.g., err1).
 	var (
-		r1     uintptr
-		err1   Errno
-		nextfd int
-		i      int
+		r1              uintptr
+		nextfd          int
+		i               int
+		err             error
+		pgrp            _C_int
+		cred            *Credential
+		ngroups, groups uintptr
 	)
+
+	rlim, rlimOK := origRlimitNofile.Load().(Rlimit)
 
 	// guard against side effects of shuffling fds below.
 	// Make sure that nextfd is beyond any currently open files so
@@ -78,7 +83,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
 	runtime_BeforeFork()
-	r1, _, err1 = rawSyscall(forkTrampoline, 0, 0, 0)
+	r1, _, err1 = rawSyscall(abi.FuncPCABI0(libc_fork_trampoline), 0, 0, 0)
 	if err1 != 0 {
 		runtime_AfterFork()
 		return 0, err1
@@ -94,7 +99,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 
 	// Enable tracing if requested.
 	if sys.Ptrace {
-		if err := ptrace(PTRACE_TRACEME, 0, 0, 0); err != nil {
+		if err = ptrace(PTRACE_TRACEME, 0, 0, 0); err != nil {
 			err1 = err.(Errno)
 			goto childerror
 		}
@@ -120,7 +125,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	if sys.Foreground {
 		// This should really be pid_t, however _C_int (aka int32) is
 		// generally equivalent.
-		pgrp := _C_int(sys.Pgid)
+		pgrp = _C_int(sys.Pgid)
 		if pgrp == 0 {
 			r1, _, err1 = rawSyscall(abi.FuncPCABI0(libc_getpid_trampoline), 0, 0, 0)
 			if err1 != 0 {
@@ -149,9 +154,9 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	// User and groups
-	if cred := sys.Credential; cred != nil {
-		ngroups := uintptr(len(cred.Groups))
-		groups := uintptr(0)
+	if cred = sys.Credential; cred != nil {
+		ngroups = uintptr(len(cred.Groups))
+		groups = uintptr(0)
 		if ngroups > 0 {
 			groups = uintptr(unsafe.Pointer(&cred.Groups[0]))
 		}
@@ -266,6 +271,11 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		}
 	}
 
+	// Restore original rlimit.
+	if rlimOK && rlim.Cur != 0 {
+		rawSyscall(abi.FuncPCABI0(libc_setrlimit_trampoline), uintptr(RLIMIT_NOFILE), uintptr(unsafe.Pointer(&rlim)), 0)
+	}
+
 	// Time to exec.
 	_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_execve_trampoline),
 		uintptr(unsafe.Pointer(argv0)),
@@ -276,6 +286,6 @@ childerror:
 	// send error code on pipe
 	rawSyscall(abi.FuncPCABI0(libc_write_trampoline), uintptr(pipe), uintptr(unsafe.Pointer(&err1)), unsafe.Sizeof(err1))
 	for {
-		rawSyscall(exitTrampoline, 253, 0, 0)
+		rawSyscall(abi.FuncPCABI0(libc_exit_trampoline), 253, 0, 0)
 	}
 }

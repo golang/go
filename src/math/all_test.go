@@ -1687,6 +1687,12 @@ var vfpowSC = [][2]float64{
 	{Nextafter(1, -2), float64(1 << 63)},
 	{Nextafter(-1, 2), float64(1 << 63)},
 	{Nextafter(-1, -2), float64(1 << 63)},
+
+	// Issue #57465
+	{Copysign(0, -1), 1e19},
+	{Copysign(0, -1), -1e19},
+	{Copysign(0, -1), 1<<53 - 1},
+	{Copysign(0, -1), -(1<<53 - 1)},
 }
 var powSC = []float64{
 	0,               // pow(-Inf, -Pi)
@@ -1762,6 +1768,12 @@ var powSC = []float64{
 	0,       // pow(Nextafter(1, -2), float64(1 << 63))
 	0,       // pow(Nextafter(-1, 2), float64(1 << 63))
 	Inf(1),  // pow(Nextafter(-1, -2), float64(1 << 63))
+
+	// Issue #57465
+	0,               // pow(-0, 1e19)
+	Inf(1),          // pow(-0, -1e19)
+	Copysign(0, -1), // pow(-0, 1<<53 -1)
+	Inf(-1),         // pow(-0, -(1<<53 -1))
 }
 
 var vfpow10SC = []int{

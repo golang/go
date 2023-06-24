@@ -67,3 +67,11 @@ func lfnodeValidate(node *lfnode) {
 		throw("bad lfnode address")
 	}
 }
+
+func lfstackPack(node *lfnode, cnt uintptr) uint64 {
+	return uint64(taggedPointerPack(unsafe.Pointer(node), cnt))
+}
+
+func lfstackUnpack(val uint64) *lfnode {
+	return (*lfnode)(taggedPointer(val).pointer())
+}

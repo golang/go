@@ -35,12 +35,13 @@ import (
 
 // A File is the parsed, interpreted form of a go.mod file.
 type File struct {
-	Module  *Module
-	Go      *Go
-	Require []*Require
-	Exclude []*Exclude
-	Replace []*Replace
-	Retract []*Retract
+	Module    *Module
+	Go        *Go
+	Toolchain *Toolchain
+	Require   []*Require
+	Exclude   []*Exclude
+	Replace   []*Replace
+	Retract   []*Retract
 
 	Syntax *FileSyntax
 }
@@ -56,6 +57,12 @@ type Module struct {
 type Go struct {
 	Version string // "1.23"
 	Syntax  *Line
+}
+
+// A Toolchain is the toolchain statement.
+type Toolchain struct {
+	Name   string // "go1.21rc1"
+	Syntax *Line
 }
 
 // An Exclude is a single exclude statement.
@@ -296,8 +303,12 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (parse
 	return f, nil
 }
 
-var GoVersionRE = lazyregexp.New(`^([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+var GoVersionRE = lazyregexp.New(`^([1-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?([a-z]+[0-9]+)?$`)
 var laxGoVersionRE = lazyregexp.New(`^v?(([1-9][0-9]*)\.(0|[1-9][0-9]*))([^0-9].*)$`)
+
+// Toolchains must be named beginning with `go1`,
+// like "go1.20.3" or "go1.20.3-gccgo". As a special case, "default" is also permitted.
+var ToolchainRE = lazyregexp.New(`^default$|^go1($|\.)`)
 
 func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
 	// If strict is false, this module is a dependency.
@@ -363,6 +374,21 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 
 		f.Go = &Go{Syntax: line}
 		f.Go.Version = args[0]
+
+	case "toolchain":
+		if f.Toolchain != nil {
+			errorf("repeated toolchain statement")
+			return
+		}
+		if len(args) != 1 {
+			errorf("toolchain directive expects exactly one argument")
+			return
+		} else if strict && !ToolchainRE.MatchString(args[0]) {
+			errorf("invalid toolchain version '%s': must match format go1.23 or local", args[0])
+			return
+		}
+		f.Toolchain = &Toolchain{Syntax: line}
+		f.Toolchain.Name = args[0]
 
 	case "module":
 		if f.Module != nil {
@@ -611,6 +637,22 @@ func (f *WorkFile) add(errs *ErrorList, line *Line, verb string, args []string, 
 
 		f.Go = &Go{Syntax: line}
 		f.Go.Version = args[0]
+
+	case "toolchain":
+		if f.Toolchain != nil {
+			errorf("repeated toolchain statement")
+			return
+		}
+		if len(args) != 1 {
+			errorf("toolchain directive expects exactly one argument")
+			return
+		} else if !ToolchainRE.MatchString(args[0]) {
+			errorf("invalid toolchain version '%s': must match format go1.23 or local", args[0])
+			return
+		}
+
+		f.Toolchain = &Toolchain{Syntax: line}
+		f.Toolchain.Name = args[0]
 
 	case "use":
 		if len(args) != 1 {
@@ -926,7 +968,7 @@ func (f *File) Cleanup() {
 
 func (f *File) AddGoStmt(version string) error {
 	if !GoVersionRE.MatchString(version) {
-		return fmt.Errorf("invalid language version string %q", version)
+		return fmt.Errorf("invalid language version %q", version)
 	}
 	if f.Go == nil {
 		var hint Expr
@@ -940,6 +982,44 @@ func (f *File) AddGoStmt(version string) error {
 	} else {
 		f.Go.Version = version
 		f.Syntax.updateLine(f.Go.Syntax, "go", version)
+	}
+	return nil
+}
+
+// DropGoStmt deletes the go statement from the file.
+func (f *File) DropGoStmt() {
+	if f.Go != nil {
+		f.Go.Syntax.markRemoved()
+		f.Go = nil
+	}
+}
+
+// DropToolchainStmt deletes the toolchain statement from the file.
+func (f *File) DropToolchainStmt() {
+	if f.Toolchain != nil {
+		f.Toolchain.Syntax.markRemoved()
+		f.Toolchain = nil
+	}
+}
+
+func (f *File) AddToolchainStmt(name string) error {
+	if !ToolchainRE.MatchString(name) {
+		return fmt.Errorf("invalid toolchain name %q", name)
+	}
+	if f.Toolchain == nil {
+		var hint Expr
+		if f.Go != nil && f.Go.Syntax != nil {
+			hint = f.Go.Syntax
+		} else if f.Module != nil && f.Module.Syntax != nil {
+			hint = f.Module.Syntax
+		}
+		f.Toolchain = &Toolchain{
+			Name:   name,
+			Syntax: f.Syntax.addLine(hint, "toolchain", name),
+		}
+	} else {
+		f.Toolchain.Name = name
+		f.Syntax.updateLine(f.Toolchain.Syntax, "toolchain", name)
 	}
 	return nil
 }
@@ -1387,13 +1467,21 @@ func (f *File) DropRetract(vi VersionInterval) error {
 func (f *File) SortBlocks() {
 	f.removeDups() // otherwise sorting is unsafe
 
+	// semanticSortForExcludeVersionV is the Go version (plus leading "v") at which
+	// lines in exclude blocks start to use semantic sort instead of lexicographic sort.
+	// See go.dev/issue/60028.
+	const semanticSortForExcludeVersionV = "v1.21"
+	useSemanticSortForExclude := f.Go != nil && semver.Compare("v"+f.Go.Version, semanticSortForExcludeVersionV) >= 0
+
 	for _, stmt := range f.Syntax.Stmt {
 		block, ok := stmt.(*LineBlock)
 		if !ok {
 			continue
 		}
 		less := lineLess
-		if block.Token[0] == "retract" {
+		if block.Token[0] == "exclude" && useSemanticSortForExclude {
+			less = lineExcludeLess
+		} else if block.Token[0] == "retract" {
 			less = lineRetractLess
 		}
 		sort.SliceStable(block.Line, func(i, j int) bool {
@@ -1494,6 +1582,22 @@ func lineLess(li, lj *Line) bool {
 		}
 	}
 	return len(li.Token) < len(lj.Token)
+}
+
+// lineExcludeLess reports whether li should be sorted before lj for lines in
+// an "exclude" block.
+func lineExcludeLess(li, lj *Line) bool {
+	if len(li.Token) != 2 || len(lj.Token) != 2 {
+		// Not a known exclude specification.
+		// Fall back to sorting lexicographically.
+		return lineLess(li, lj)
+	}
+	// An exclude specification has two tokens: ModulePath and Version.
+	// Compare module path by string order and version by semver rules.
+	if pi, pj := li.Token[0], lj.Token[0]; pi != pj {
+		return pi < pj
+	}
+	return semver.Compare(li.Token[1], lj.Token[1]) < 0
 }
 
 // lineRetractLess returns whether li should be sorted before lj for lines in

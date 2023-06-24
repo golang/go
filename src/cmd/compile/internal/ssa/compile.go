@@ -328,7 +328,7 @@ commas. For example:
 		switch flag {
 		case "on":
 			checkEnabled = val != 0
-			debugPoset = checkEnabled // also turn on advanced self-checking in prove's datastructure
+			debugPoset = checkEnabled // also turn on advanced self-checking in prove's data structure
 			return ""
 		case "off":
 			checkEnabled = val == 0
@@ -482,6 +482,7 @@ var passes = [...]pass{
 	{name: "branchelim", fn: branchelim},
 	{name: "late fuse", fn: fuseLate},
 	{name: "dse", fn: dse},
+	{name: "memcombine", fn: memcombine},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
 		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
@@ -496,7 +497,7 @@ var passes = [...]pass{
 	{name: "checkLower", fn: checkLower, required: true},
 	{name: "late phielim", fn: phielim},
 	{name: "late copyelim", fn: copyelim},
-	{name: "tighten", fn: tighten}, // move values closer to their uses
+	{name: "tighten", fn: tighten, required: true}, // move values closer to their uses
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
 	{name: "phi tighten", fn: phiTighten},            // place rematerializable phi args near uses to reduce value lifetimes
@@ -580,6 +581,10 @@ var passOrder = [...]constraint{
 	{"regalloc", "stackframe"},
 	// trim needs regalloc to be done first.
 	{"regalloc", "trim"},
+	// memcombine works better if fuse happens first, to help merge stores.
+	{"late fuse", "memcombine"},
+	// memcombine is a arch-independent pass.
+	{"memcombine", "lower"},
 }
 
 func init() {

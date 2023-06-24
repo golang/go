@@ -33,13 +33,13 @@ _testmain.go
 /src/cmd/cgo/zdefaultcc.go
 /src/cmd/dist/dist
 /src/cmd/go/internal/cfg/zdefaultcc.go
-/src/cmd/go/internal/cfg/zosarch.go
 /src/cmd/internal/objabi/zbootstrap.go
 /src/go/build/zcgo.go
 /src/go/doc/headscan
 /src/internal/buildcfg/zbootstrap.go
 /src/runtime/internal/sys/zversion.go
 /src/unicode/maketables
+/src/time/tzdata/zzipdata.go
 /test.out
 /test/garbage/*.out
 /test/pass.out

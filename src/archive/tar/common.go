@@ -607,6 +607,10 @@ func (fi headerFileInfo) Mode() (mode fs.FileMode) {
 	return mode
 }
 
+func (fi headerFileInfo) String() string {
+	return fs.FormatFileInfo(fi)
+}
+
 // sysStat, if non-nil, populates h from system-dependent fields of fi.
 var sysStat func(fi fs.FileInfo, h *Header) error
 

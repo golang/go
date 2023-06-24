@@ -323,6 +323,10 @@ func TestUTCTime(t *testing.T) {
 var generalizedTimeTestData = []timeTest{
 	{"20100102030405Z", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.UTC)},
 	{"20100102030405", false, time.Time{}},
+	{"20100102030405.123456Z", true, time.Date(2010, 01, 02, 03, 04, 05, 123456e3, time.UTC)},
+	{"20100102030405.123456", false, time.Time{}},
+	{"20100102030405.Z", false, time.Time{}},
+	{"20100102030405.", false, time.Time{}},
 	{"20100102030405+0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", 6*60*60+7*60))},
 	{"20100102030405-0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", -6*60*60-7*60))},
 	/* These are invalid times. However, the time package normalises times
@@ -1162,5 +1166,12 @@ func TestNonMinimalEncodedOID(t *testing.T) {
 	_, err = Unmarshal(h, &oid)
 	if err == nil {
 		t.Fatalf("accepted non-minimally encoded oid")
+	}
+}
+
+func BenchmarkObjectIdentifierString(b *testing.B) {
+	oidPublicKeyRSA := ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
+	for i := 0; i < b.N; i++ {
+		_ = oidPublicKeyRSA.String()
 	}
 }

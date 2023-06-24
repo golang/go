@@ -26,6 +26,7 @@ import (
 	"math/big"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 	"unicode/utf16"
 	"unicode/utf8"
@@ -236,16 +237,18 @@ func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
 }
 
 func (oi ObjectIdentifier) String() string {
-	var s string
+	var s strings.Builder
+	s.Grow(32)
 
+	buf := make([]byte, 0, 19)
 	for i, v := range oi {
 		if i > 0 {
-			s += "."
+			s.WriteByte('.')
 		}
-		s += strconv.Itoa(v)
+		s.Write(strconv.AppendInt(buf, int64(v), 10))
 	}
 
-	return s
+	return s.String()
 }
 
 // parseObjectIdentifier parses an OBJECT IDENTIFIER from the given bytes and
@@ -365,7 +368,7 @@ func parseUTCTime(bytes []byte) (ret time.Time, err error) {
 // parseGeneralizedTime parses the GeneralizedTime from the given byte slice
 // and returns the resulting time.
 func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
-	const formatStr = "20060102150405Z0700"
+	const formatStr = "20060102150405.999999999Z0700"
 	s := string(bytes)
 
 	if ret, err = time.Parse(formatStr, s); err != nil {

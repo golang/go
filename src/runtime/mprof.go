@@ -844,18 +844,13 @@ func runtime_goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer
 	return goroutineProfileWithLabels(p, labels)
 }
 
-const go119ConcurrentGoroutineProfile = true
-
 // labels may be nil. If labels is non-nil, it must have the same length as p.
 func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
 	if labels != nil && len(labels) != len(p) {
 		labels = nil
 	}
 
-	if go119ConcurrentGoroutineProfile {
-		return goroutineProfileWithLabelsConcurrent(p, labels)
-	}
-	return goroutineProfileWithLabelsSync(p, labels)
+	return goroutineProfileWithLabelsConcurrent(p, labels)
 }
 
 var goroutineProfile = struct {
@@ -906,7 +901,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 
 	ourg := getg()
 
-	stopTheWorld("profile")
+	stopTheWorld(stwGoroutineProfile)
 	// Using gcount while the world is stopped should give us a consistent view
 	// of the number of live goroutines, minus the number of goroutines that are
 	// alive and permanently marked as "system". But to make this count agree
@@ -971,7 +966,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 		tryRecordGoroutineProfile(gp1, Gosched)
 	})
 
-	stopTheWorld("profile cleanup")
+	stopTheWorld(stwGoroutineProfileCleanup)
 	endOffset := goroutineProfile.offset.Swap(0)
 	goroutineProfile.active = false
 	goroutineProfile.records = nil
@@ -1106,7 +1101,7 @@ func goroutineProfileWithLabelsSync(p []StackRecord, labels []unsafe.Pointer) (n
 		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1, false)
 	}
 
-	stopTheWorld("profile")
+	stopTheWorld(stwGoroutineProfile)
 
 	// World is stopped, no locking required.
 	n = 1
@@ -1178,7 +1173,9 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 }
 
 func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
-	n := gentraceback(pc, sp, 0, gp, 0, &r.Stack0[0], len(r.Stack0), nil, nil, 0)
+	var u unwinder
+	u.initAt(pc, sp, 0, gp, unwindSilentErrors)
+	n := tracebackPCs(&u, 0, r.Stack0[:])
 	if n < len(r.Stack0) {
 		r.Stack0[n] = 0
 	}
@@ -1190,7 +1187,7 @@ func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
 // into buf after the trace for the current goroutine.
 func Stack(buf []byte, all bool) int {
 	if all {
-		stopTheWorld("stack trace")
+		stopTheWorld(stwAllGoroutinesStack)
 	}
 
 	n := 0
@@ -1233,7 +1230,7 @@ func tracealloc(p unsafe.Pointer, size uintptr, typ *_type) {
 	if typ == nil {
 		print("tracealloc(", p, ", ", hex(size), ")\n")
 	} else {
-		print("tracealloc(", p, ", ", hex(size), ", ", typ.string(), ")\n")
+		print("tracealloc(", p, ", ", hex(size), ", ", toRType(typ).string(), ")\n")
 	}
 	if gp.m.curg == nil || gp == gp.m.curg {
 		goroutineheader(gp)

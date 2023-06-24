@@ -13,11 +13,6 @@
 
 #define CLOCK_REALTIME		0
 #define CLOCK_MONOTONIC		3
-#define FD_CLOEXEC		1
-#define F_SETFD			2
-#define F_GETFL			3
-#define F_SETFL			4
-#define O_NONBLOCK		4
 
 #define SYS_exit			1
 #define SYS_read			3
@@ -33,6 +28,7 @@
 #define SYS___sysctl			202
 #define SYS___sigaltstack14		281
 #define SYS___sigprocmask14		293
+#define SYS_issetugid			305
 #define SYS_getcontext			307
 #define SYS_setcontext			308
 #define SYS__lwp_create			309
@@ -317,14 +313,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$176
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
 
-#ifdef GOEXPERIMENT_regabiargs
 	// Restore signum to R0.
 	MOVW	8(RSP), R0
 	// R1 and R2 already contain info and ctx, respectively.
-#else
-	MOVD	R1, 16(RSP)
-	MOVD	R2, 24(RSP)
-#endif
 	BL	runtime·sigtrampgo<ABIInternal>(SB)
 
 	// Restore callee-save registers.
@@ -421,10 +412,24 @@ ok:
 	MOVW	R0, ret+48(FP)
 	RET
 
-// void runtime·closeonexec(int32 fd)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVW	$F_SETFD, R1
-	MOVW	$FD_CLOEXEC, R2
+// func fcntl(fd, cmd, arg int32) (int32, int32)
+TEXT runtime·fcntl(SB),NOSPLIT,$0
+	MOVW	fd+0(FP), R0	// fd
+	MOVW	cmd+4(FP), R1	// cmd
+	MOVW	arg+8(FP), R2	// arg
 	SVC	$SYS_fcntl
+	BCC	noerr
+	MOVW	$-1, R1
+	MOVW	R1, ret+16(FP)
+	MOVW	R0, errno+20(FP)
+	RET
+noerr:
+	MOVW	R0, ret+16(FP)
+	MOVW	$0, errno+20(FP)
+	RET
+
+// func issetugid() int32
+TEXT runtime·issetugid(SB),NOSPLIT|NOFRAME,$0
+	SVC $SYS_issetugid
+	MOVW	R0, ret+0(FP)
 	RET

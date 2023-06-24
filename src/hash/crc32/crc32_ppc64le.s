@@ -112,11 +112,11 @@ loop:
 	ANDCC	$7,R6,R8	// any leftover bytes
 	BEQ	done		// none --> done
 	MOVD	R8,CTR		// byte count
-        PCALIGN $16             // align short loop
+	PCALIGN $16             // align short loop
 short:
 	MOVBZ   0(R5),R8        // get v
 	MOVBZ   R7,R9           // byte(crc) -> R8 BE vs LE?
-        SRD     $8,R7,R14       // crc>>8
+	SRD     $8,R7,R14       // crc>>8
 	XOR     R8,R9,R8        // byte(crc)^v -> R8
 	ADD	$1,R5		// ptr to next v
 	SLD     $2,R8           // convert index-> bytes

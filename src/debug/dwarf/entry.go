@@ -975,8 +975,11 @@ func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
 		u := &r.d.unit[unit]
 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
 		e, err := r.Next()
-		if err != nil || e == nil || e.Tag == 0 {
+		if err != nil {
 			return nil, err
+		}
+		if e == nil || e.Tag == 0 {
+			return nil, ErrUnknownPC
 		}
 		ranges, err := r.d.Ranges(e)
 		if err != nil {

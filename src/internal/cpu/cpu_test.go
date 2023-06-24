@@ -48,7 +48,7 @@ func TestDisableAllCapabilities(t *testing.T) {
 func TestAllCapabilitiesDisabled(t *testing.T) {
 	MustHaveDebugOptionsSupport(t)
 
-	if godebug.New("cpu.all").Value() != "off" {
+	if godebug.New("#cpu.all").Value() != "off" {
 		t.Skipf("skipping test: GODEBUG=cpu.all=off not set")
 	}
 

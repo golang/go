@@ -694,7 +694,7 @@ func TestExtraFiles(t *testing.T) {
 
 	// This test runs with cgo disabled. External linking needs cgo, so
 	// it doesn't work if external linking is required.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	if runtime.GOOS == "windows" {
 		t.Skipf("skipping test on %q", runtime.GOOS)
@@ -752,7 +752,7 @@ func TestExtraFiles(t *testing.T) {
 	tempdir := t.TempDir()
 	exe := filepath.Join(tempdir, "read3.exe")
 
-	c := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "read3.go")
+	c := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, "read3.go")
 	// Build the test without cgo, so that C library functions don't
 	// open descriptors unexpectedly. See issue 25628.
 	c.Env = append(os.Environ(), "CGO_ENABLED=0")
@@ -1039,7 +1039,7 @@ func TestDedupEnvEcho(t *testing.T) {
 
 func TestEnvNULCharacter(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("plan9 explicitly allows NUL in the enviroment")
+		t.Skip("plan9 explicitly allows NUL in the environment")
 	}
 	cmd := helperCommand(t, "echoenv", "FOO", "BAR")
 	cmd.Env = append(cmd.Environ(), "FOO=foo\x00BAR=bar")
@@ -1182,6 +1182,7 @@ func cmdHang(args ...string) {
 			os.Exit(1)
 		}
 		fmt.Fprintf(os.Stderr, "%d: started %d: %v\n", pid, cmd.Process.Pid, cmd)
+		go cmd.Wait() // Release resources if cmd happens not to outlive this process.
 	}
 
 	if *exitOnInterrupt {

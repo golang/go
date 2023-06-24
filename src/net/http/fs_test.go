@@ -24,7 +24,6 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -88,15 +87,39 @@ func testServeFile(t *testing.T, mode testMode) {
 	if req.URL, err = url.Parse(ts.URL); err != nil {
 		t.Fatal("ParseURL:", err)
 	}
-	req.Method = "GET"
 
-	// straight GET
-	_, body := getBody(t, "straight get", req, c)
-	if !bytes.Equal(body, file) {
-		t.Fatalf("body mismatch: got %q, want %q", body, file)
+	// Get contents via various methods.
+	//
+	// See https://go.dev/issue/59471 for a proposal to limit the set of methods handled.
+	// For now, test the historical behavior.
+	for _, method := range []string{
+		MethodGet,
+		MethodPost,
+		MethodPut,
+		MethodPatch,
+		MethodDelete,
+		MethodOptions,
+		MethodTrace,
+	} {
+		req.Method = method
+		_, body := getBody(t, method, req, c)
+		if !bytes.Equal(body, file) {
+			t.Fatalf("body mismatch for %v request: got %q, want %q", method, body, file)
+		}
+	}
+
+	// HEAD request.
+	req.Method = MethodHead
+	resp, body := getBody(t, "HEAD", req, c)
+	if len(body) != 0 {
+		t.Fatalf("body mismatch for HEAD request: got %q, want empty", body)
+	}
+	if got, want := resp.Header.Get("Content-Length"), fmt.Sprint(len(file)); got != want {
+		t.Fatalf("Content-Length mismatch for HEAD request: got %v, want %v", got, want)
 	}
 
 	// Range tests
+	req.Method = MethodGet
 Cases:
 	for _, rt := range ServeFileRangeTests {
 		if rt.r != "" {
@@ -417,46 +440,6 @@ func testFileServerImplicitLeadingSlash(t *testing.T, mode testMode) {
 	}
 	if s := get("/bar/foo.txt"); s != "Hello world" {
 		t.Logf("expected %q, got %q", "Hello world", s)
-	}
-}
-
-func TestFileServerMethodOptions(t *testing.T) { run(t, testFileServerMethodOptions) }
-func testFileServerMethodOptions(t *testing.T, mode testMode) {
-	const want = "GET, HEAD, OPTIONS"
-	ts := newClientServerTest(t, mode, FileServer(Dir("."))).ts
-
-	tests := []struct {
-		method     string
-		wantStatus int
-	}{
-		{MethodOptions, StatusOK},
-
-		{MethodDelete, StatusMethodNotAllowed},
-		{MethodPut, StatusMethodNotAllowed},
-		{MethodPost, StatusMethodNotAllowed},
-	}
-
-	for _, test := range tests {
-		req, err := NewRequest(test.method, ts.URL, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		res, err := ts.Client().Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer res.Body.Close()
-
-		if res.StatusCode != test.wantStatus {
-			t.Errorf("%s got status %q, want code %d", test.method, res.Status, test.wantStatus)
-		}
-
-		a := strings.Split(res.Header.Get("Allow"), ", ")
-		sort.Strings(a)
-		got := strings.Join(a, ", ")
-		if got != want {
-			t.Errorf("%s got Allow header %q, want %q", test.method, got, want)
-		}
 	}
 }
 
@@ -785,6 +768,10 @@ func (f *fakeFileInfo) Mode() fs.FileMode {
 	return 0644
 }
 
+func (f *fakeFileInfo) String() string {
+	return fs.FormatFileInfo(f)
+}
+
 type fakeFile struct {
 	io.ReadSeeker
 	fi     *fakeFileInfo
@@ -937,6 +924,7 @@ func testServeContent(t *testing.T, mode testMode) {
 		wantContentType  string
 		wantContentRange string
 		wantStatus       int
+		wantContent      []byte
 	}
 	htmlModTime := mustStat(t, "testdata/index.html").ModTime()
 	tests := map[string]testCase{
@@ -1152,6 +1140,24 @@ func testServeContent(t *testing.T, mode testMode) {
 			wantStatus:  412,
 			wantLastMod: htmlModTime.UTC().Format(TimeFormat),
 		},
+		"uses_writeTo_if_available_and_non-range": {
+			content:          &panicOnNonWriterTo{seekWriterTo: strings.NewReader("foobar")},
+			serveContentType: "text/plain; charset=utf-8",
+			wantContentType:  "text/plain; charset=utf-8",
+			wantStatus:       StatusOK,
+			wantContent:      []byte("foobar"),
+		},
+		"do_not_use_writeTo_for_range_requests": {
+			content:          &panicOnWriterTo{ReadSeeker: strings.NewReader("foobar")},
+			serveContentType: "text/plain; charset=utf-8",
+			reqHeader: map[string]string{
+				"Range": "bytes=0-4",
+			},
+			wantContentType:  "text/plain; charset=utf-8",
+			wantContentRange: "bytes 0-4/6",
+			wantStatus:       StatusPartialContent,
+			wantContent:      []byte("fooba"),
+		},
 	}
 	for testName, tt := range tests {
 		var content io.ReadSeeker
@@ -1165,7 +1171,8 @@ func testServeContent(t *testing.T, mode testMode) {
 		} else {
 			content = tt.content
 		}
-		for _, method := range []string{"GET", "HEAD"} {
+		contentOut := &strings.Builder{}
+		for _, method := range []string{MethodGet, MethodHead} {
 			//restore content in case it is consumed by previous method
 			if content, ok := content.(*strings.Reader); ok {
 				content.Seek(0, io.SeekStart)
@@ -1191,7 +1198,8 @@ func testServeContent(t *testing.T, mode testMode) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			io.Copy(io.Discard, res.Body)
+			contentOut.Reset()
+			io.Copy(contentOut, res.Body)
 			res.Body.Close()
 			if res.StatusCode != tt.wantStatus {
 				t.Errorf("test %q using %q: got status = %d; want %d", testName, method, res.StatusCode, tt.wantStatus)
@@ -1205,8 +1213,26 @@ func testServeContent(t *testing.T, mode testMode) {
 			if g, e := res.Header.Get("Last-Modified"), tt.wantLastMod; g != e {
 				t.Errorf("test %q using %q: got last-modified = %q, want %q", testName, method, g, e)
 			}
+			if g, e := contentOut.String(), tt.wantContent; e != nil && method == MethodGet && g != string(e) {
+				t.Errorf("test %q using %q: got unexpected content %q, want %q", testName, method, g, e)
+			}
 		}
 	}
+}
+
+type seekWriterTo interface {
+	io.Seeker
+	io.WriterTo
+}
+
+type panicOnNonWriterTo struct {
+	io.Reader
+	seekWriterTo
+}
+
+type panicOnWriterTo struct {
+	io.ReadSeeker
+	io.WriterTo
 }
 
 // Issue 12991
@@ -1521,5 +1547,54 @@ func testServeFileRejectsInvalidSuffixLengths(t *testing.T, mode testMode) {
 				t.Fatalf("Content mismatch:\nGot:  %q\nWant: %q", g, w)
 			}
 		})
+	}
+}
+
+func TestFileServerMethods(t *testing.T) {
+	run(t, testFileServerMethods)
+}
+func testFileServerMethods(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, FileServer(Dir("testdata"))).ts
+
+	file, err := os.ReadFile(testFile)
+	if err != nil {
+		t.Fatal("reading file:", err)
+	}
+
+	// Get contents via various methods.
+	//
+	// See https://go.dev/issue/59471 for a proposal to limit the set of methods handled.
+	// For now, test the historical behavior.
+	for _, method := range []string{
+		MethodGet,
+		MethodHead,
+		MethodPost,
+		MethodPut,
+		MethodPatch,
+		MethodDelete,
+		MethodOptions,
+		MethodTrace,
+	} {
+		req, _ := NewRequest(method, ts.URL+"/file", nil)
+		t.Log(req.URL)
+		res, err := ts.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantBody := file
+		if method == MethodHead {
+			wantBody = nil
+		}
+		if !bytes.Equal(body, wantBody) {
+			t.Fatalf("%v: got body %q, want %q", method, body, wantBody)
+		}
+		if got, want := res.Header.Get("Content-Length"), fmt.Sprint(len(file)); got != want {
+			t.Fatalf("%v: got Content-Length %q, want %q", method, got, want)
+		}
 	}
 }

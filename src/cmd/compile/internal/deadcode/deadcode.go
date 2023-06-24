@@ -122,16 +122,16 @@ func stmts(nn *ir.Nodes) {
 							// This switch entry is the one that always triggers.
 							for _, cas2 := range n.Cases {
 								for _, c2 := range cas2.List {
-									if cas2 != cas || c2 != c {
-										ir.Visit(c2, markHiddenClosureDead)
-									}
+									ir.Visit(c2, markHiddenClosureDead)
 								}
 								if cas2 != cas {
 									ir.VisitList(cas2.Body, markHiddenClosureDead)
 								}
 							}
 
-							cas.List[0] = c
+							// Rewrite to switch { case true: ... }
+							n.Tag = nil
+							cas.List[0] = ir.NewBool(c.Pos(), true)
 							cas.List = cas.List[:1]
 							n.Cases[0] = cas
 							n.Cases = n.Cases[:1]

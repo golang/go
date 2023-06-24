@@ -13,7 +13,6 @@ import (
 	"go/internal/typeparams"
 	"go/token"
 	. "internal/types/errors"
-	"math"
 )
 
 /*
@@ -85,41 +84,6 @@ func (check *Checker) op(m opPredicates, x *operand, op token.Token) bool {
 	return true
 }
 
-// overflow checks that the constant x is representable by its type.
-// For untyped constants, it checks that the value doesn't become
-// arbitrarily large.
-func (check *Checker) overflow(x *operand, opPos token.Pos) {
-	assert(x.mode == constant_)
-
-	if x.val.Kind() == constant.Unknown {
-		// TODO(gri) We should report exactly what went wrong. At the
-		//           moment we don't have the (go/constant) API for that.
-		//           See also TODO in go/constant/value.go.
-		check.error(atPos(opPos), InvalidConstVal, "constant result is not representable")
-		return
-	}
-
-	// Typed constants must be representable in
-	// their type after each constant operation.
-	// x.typ cannot be a type parameter (type
-	// parameters cannot be constant types).
-	if isTyped(x.typ) {
-		check.representable(x, under(x.typ).(*Basic))
-		return
-	}
-
-	// Untyped integer values must not grow arbitrarily.
-	const prec = 512 // 512 is the constant precision
-	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > prec {
-		op := opName(x.expr)
-		if op != "" {
-			op += " "
-		}
-		check.errorf(atPos(opPos), InvalidConstVal, "constant %soverflow", op)
-		x.val = constant.MakeUnknown()
-	}
-}
-
 // opName returns the name of the operation if x is an operation
 // that might overflow; otherwise it returns the empty string.
 func opName(e ast.Expr) string {
@@ -160,11 +124,13 @@ func underIs(typ Type, f func(Type) bool) bool {
 
 // The unary expression e may be nil. It's passed in for better error messages only.
 func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
-	check.expr(x, e.X)
+	check.expr(nil, x, e.X)
 	if x.mode == invalid {
 		return
 	}
-	switch e.Op {
+
+	op := e.Op
+	switch op {
 	case token.AND:
 		// spec: "As an exception to the addressability
 		// requirement x may also be a composite literal."
@@ -202,13 +168,17 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 		return
 
 	case token.TILDE:
-		// Provide a better error position and message than what check.op below could do.
-		check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint")
-		x.mode = invalid
-		return
+		// Provide a better error position and message than what check.op below would do.
+		if !allInteger(x.typ) {
+			check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint")
+			x.mode = invalid
+			return
+		}
+		check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint (use ^ for bitwise complement)")
+		op = token.XOR
 	}
 
-	if !check.op(unaryOpPredicates, x, e.Op) {
+	if !check.op(unaryOpPredicates, x, op) {
 		x.mode = invalid
 		return
 	}
@@ -222,7 +192,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 		if isUnsigned(x.typ) {
 			prec = uint(check.conf.sizeof(x.typ) * 8)
 		}
-		x.val = constant.UnaryOp(e.Op, x.val, prec)
+		x.val = constant.UnaryOp(op, x.val, prec)
 		x.expr = e
 		check.overflow(x, x.Pos())
 		return
@@ -243,235 +213,6 @@ func isComparison(op token.Token) bool {
 		return true
 	}
 	return false
-}
-
-func fitsFloat32(x constant.Value) bool {
-	f32, _ := constant.Float32Val(x)
-	f := float64(f32)
-	return !math.IsInf(f, 0)
-}
-
-func roundFloat32(x constant.Value) constant.Value {
-	f32, _ := constant.Float32Val(x)
-	f := float64(f32)
-	if !math.IsInf(f, 0) {
-		return constant.MakeFloat64(f)
-	}
-	return nil
-}
-
-func fitsFloat64(x constant.Value) bool {
-	f, _ := constant.Float64Val(x)
-	return !math.IsInf(f, 0)
-}
-
-func roundFloat64(x constant.Value) constant.Value {
-	f, _ := constant.Float64Val(x)
-	if !math.IsInf(f, 0) {
-		return constant.MakeFloat64(f)
-	}
-	return nil
-}
-
-// representableConst reports whether x can be represented as
-// value of the given basic type and for the configuration
-// provided (only needed for int/uint sizes).
-//
-// If rounded != nil, *rounded is set to the rounded value of x for
-// representable floating-point and complex values, and to an Int
-// value for integer values; it is left alone otherwise.
-// It is ok to provide the addressof the first argument for rounded.
-//
-// The check parameter may be nil if representableConst is invoked
-// (indirectly) through an exported API call (AssignableTo, ConvertibleTo)
-// because we don't need the Checker's config for those calls.
-func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *constant.Value) bool {
-	if x.Kind() == constant.Unknown {
-		return true // avoid follow-up errors
-	}
-
-	var conf *Config
-	if check != nil {
-		conf = check.conf
-	}
-
-	switch {
-	case isInteger(typ):
-		x := constant.ToInt(x)
-		if x.Kind() != constant.Int {
-			return false
-		}
-		if rounded != nil {
-			*rounded = x
-		}
-		if x, ok := constant.Int64Val(x); ok {
-			switch typ.kind {
-			case Int:
-				var s = uint(conf.sizeof(typ)) * 8
-				return int64(-1)<<(s-1) <= x && x <= int64(1)<<(s-1)-1
-			case Int8:
-				const s = 8
-				return -1<<(s-1) <= x && x <= 1<<(s-1)-1
-			case Int16:
-				const s = 16
-				return -1<<(s-1) <= x && x <= 1<<(s-1)-1
-			case Int32:
-				const s = 32
-				return -1<<(s-1) <= x && x <= 1<<(s-1)-1
-			case Int64, UntypedInt:
-				return true
-			case Uint, Uintptr:
-				if s := uint(conf.sizeof(typ)) * 8; s < 64 {
-					return 0 <= x && x <= int64(1)<<s-1
-				}
-				return 0 <= x
-			case Uint8:
-				const s = 8
-				return 0 <= x && x <= 1<<s-1
-			case Uint16:
-				const s = 16
-				return 0 <= x && x <= 1<<s-1
-			case Uint32:
-				const s = 32
-				return 0 <= x && x <= 1<<s-1
-			case Uint64:
-				return 0 <= x
-			default:
-				unreachable()
-			}
-		}
-		// x does not fit into int64
-		switch n := constant.BitLen(x); typ.kind {
-		case Uint, Uintptr:
-			var s = uint(conf.sizeof(typ)) * 8
-			return constant.Sign(x) >= 0 && n <= int(s)
-		case Uint64:
-			return constant.Sign(x) >= 0 && n <= 64
-		case UntypedInt:
-			return true
-		}
-
-	case isFloat(typ):
-		x := constant.ToFloat(x)
-		if x.Kind() != constant.Float {
-			return false
-		}
-		switch typ.kind {
-		case Float32:
-			if rounded == nil {
-				return fitsFloat32(x)
-			}
-			r := roundFloat32(x)
-			if r != nil {
-				*rounded = r
-				return true
-			}
-		case Float64:
-			if rounded == nil {
-				return fitsFloat64(x)
-			}
-			r := roundFloat64(x)
-			if r != nil {
-				*rounded = r
-				return true
-			}
-		case UntypedFloat:
-			return true
-		default:
-			unreachable()
-		}
-
-	case isComplex(typ):
-		x := constant.ToComplex(x)
-		if x.Kind() != constant.Complex {
-			return false
-		}
-		switch typ.kind {
-		case Complex64:
-			if rounded == nil {
-				return fitsFloat32(constant.Real(x)) && fitsFloat32(constant.Imag(x))
-			}
-			re := roundFloat32(constant.Real(x))
-			im := roundFloat32(constant.Imag(x))
-			if re != nil && im != nil {
-				*rounded = constant.BinaryOp(re, token.ADD, constant.MakeImag(im))
-				return true
-			}
-		case Complex128:
-			if rounded == nil {
-				return fitsFloat64(constant.Real(x)) && fitsFloat64(constant.Imag(x))
-			}
-			re := roundFloat64(constant.Real(x))
-			im := roundFloat64(constant.Imag(x))
-			if re != nil && im != nil {
-				*rounded = constant.BinaryOp(re, token.ADD, constant.MakeImag(im))
-				return true
-			}
-		case UntypedComplex:
-			return true
-		default:
-			unreachable()
-		}
-
-	case isString(typ):
-		return x.Kind() == constant.String
-
-	case isBoolean(typ):
-		return x.Kind() == constant.Bool
-	}
-
-	return false
-}
-
-// representable checks that a constant operand is representable in the given
-// basic type.
-func (check *Checker) representable(x *operand, typ *Basic) {
-	v, code := check.representation(x, typ)
-	if code != 0 {
-		check.invalidConversion(code, x, typ)
-		x.mode = invalid
-		return
-	}
-	assert(v != nil)
-	x.val = v
-}
-
-// representation returns the representation of the constant operand x as the
-// basic type typ.
-//
-// If no such representation is possible, it returns a non-zero error code.
-func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, Code) {
-	assert(x.mode == constant_)
-	v := x.val
-	if !representableConst(x.val, check, typ, &v) {
-		if isNumeric(x.typ) && isNumeric(typ) {
-			// numeric conversion : error msg
-			//
-			// integer -> integer : overflows
-			// integer -> float   : overflows (actually not possible)
-			// float   -> integer : truncated
-			// float   -> float   : overflows
-			//
-			if !isInteger(x.typ) && isInteger(typ) {
-				return nil, TruncatedFloat
-			} else {
-				return nil, NumericOverflow
-			}
-		}
-		return nil, InvalidConstVal
-	}
-	return v, 0
-}
-
-func (check *Checker) invalidConversion(code Code, x *operand, target Type) {
-	msg := "cannot convert %s to type %s"
-	switch code {
-	case TruncatedFloat:
-		msg = "%s truncated to %s"
-	case NumericOverflow:
-		msg = "%s overflows %s"
-	}
-	check.errorf(x, code, msg, x, target)
 }
 
 // updateExprType updates the type of x to typ and invokes itself
@@ -585,7 +326,7 @@ func (check *Checker) updateExprType0(parent, x ast.Expr, typ Type, final bool) 
 		}
 		// Even if we have an integer, if the value is a constant we
 		// still must check that it is representable as the specific
-		// int type requested (was issue #22969). Fall through here.
+		// int type requested (was go.dev/issue/22969). Fall through here.
 	}
 	if old.val != nil {
 		// If x is a constant, it must be representable as a value of typ.
@@ -608,28 +349,6 @@ func (check *Checker) updateExprVal(x ast.Expr, val constant.Value) {
 	}
 }
 
-// convertUntyped attempts to set the type of an untyped value to the target type.
-func (check *Checker) convertUntyped(x *operand, target Type) {
-	newType, val, code := check.implicitTypeAndValue(x, target)
-	if code != 0 {
-		t := target
-		if !isTypeParam(target) {
-			t = safeUnderlying(target)
-		}
-		check.invalidConversion(code, x, t)
-		x.mode = invalid
-		return
-	}
-	if val != nil {
-		x.val = val
-		check.updateExprVal(x.expr, val)
-	}
-	if newType != x.typ {
-		x.typ = newType
-		check.updateExprType(x.expr, newType, false)
-	}
-}
-
 // implicitTypeAndValue returns the implicit type of x when used in a context
 // where the target type is expected. If no such implicit conversion is
 // possible, it returns a nil Type and non-zero error code.
@@ -640,19 +359,14 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
 		return x.typ, nil, 0
 	}
+	// x is untyped
 
 	if isUntyped(target) {
 		// both x and target are untyped
-		xkind := x.typ.(*Basic).kind
-		tkind := target.(*Basic).kind
-		if isNumeric(x.typ) && isNumeric(target) {
-			if xkind < tkind {
-				return target, nil, 0
-			}
-		} else if xkind != tkind {
-			return nil, nil, InvalidUntypedConversion
+		if m := maxType(x.typ, target); m != nil {
+			return m, nil, 0
 		}
-		return x.typ, nil, 0
+		return nil, nil, InvalidUntypedConversion
 	}
 
 	switch u := under(target).(type) {
@@ -689,7 +403,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 			if !hasNil(target) {
 				return nil, nil, InvalidUntypedConversion
 			}
-			// Preserve the type of nil as UntypedNil: see #13061.
+			// Preserve the type of nil as UntypedNil: see go.dev/issue/13061.
 			return Typ[UntypedNil], nil, 0
 		default:
 			return nil, nil, InvalidUntypedConversion
@@ -705,7 +419,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 			}) {
 				return nil, nil, InvalidUntypedConversion
 			}
-			// keep nil untyped (was bug #39755)
+			// keep nil untyped (was bug go.dev/issue/39755)
 			if x.isNil() {
 				return Typ[UntypedNil], nil, 0
 			}
@@ -737,7 +451,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 
 // If switchCase is true, the operator op is ignored.
 func (check *Checker) comparison(x, y *operand, op token.Token, switchCase bool) {
-	// Avoid spurious errors if any of the operands has an invalid type (issue #54405).
+	// Avoid spurious errors if any of the operands has an invalid type (go.dev/issue/54405).
 	if x.typ == Typ[Invalid] || y.typ == Typ[Invalid] {
 		x.mode = invalid
 		return
@@ -919,7 +633,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 	// or be an untyped constant representable by a value of type uint."
 
 	// Check that constants are representable by uint, but do not convert them
-	// (see also issue #47243).
+	// (see also go.dev/issue/47243).
 	var yval constant.Value
 	if y.mode == constant_ {
 		// Provide a good error message for negative shift counts.
@@ -932,7 +646,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 
 		if isUntyped(y.typ) {
 			// Caution: Check for representability here, rather than in the switch
-			// below, because isInteger includes untyped integers (was bug #43697).
+			// below, because isInteger includes untyped integers (was bug go.dev/issue/43697).
 			check.representable(y, Typ[Uint])
 			if y.mode == invalid {
 				x.mode = invalid
@@ -943,14 +657,13 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 		// Check that RHS is otherwise at least of integer type.
 		switch {
 		case allInteger(y.typ):
-			if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
-				check.errorf(y, UnsupportedFeature, invalidOp+"signed shift count %s requires go1.13 or later", y)
+			if !allUnsigned(y.typ) && !check.verifyVersionf(y, go1_13, invalidOp+"signed shift count %s", y) {
 				x.mode = invalid
 				return
 			}
 		case isUntyped(y.typ):
 			// This is incorrect, but preserves pre-existing behavior.
-			// See also bug #47410.
+			// See also go.dev/issue/47410.
 			check.convertUntyped(y, Typ[Uint])
 			if y.mode == invalid {
 				x.mode = invalid
@@ -975,7 +688,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 				return
 			}
 			// rhs must be within reasonable bounds in constant shifts
-			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
+			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see go.dev/issue/44057)
 			s, ok := constant.Uint64Val(yval)
 			if !ok || s > shiftBound {
 				check.errorf(y, InvalidShiftCount, invalidOp+"invalid shift count %s", y)
@@ -1020,7 +733,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 			// the same expr node still just leads to one entry for
 			// that node, and it can only be deleted once).
 			// Be cautious and check for presence of entry.
-			// Example: var e, f = int(1<<""[f]) // issue 11347
+			// Example: var e, f = int(1<<""[f]) // go.dev/issue/11347
 			if info, found := check.untyped[x.expr]; found {
 				info.isLhs = true
 				check.untyped[x.expr] = info
@@ -1067,8 +780,8 @@ func init() {
 func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token.Token, opPos token.Pos) {
 	var y operand
 
-	check.expr(x, lhs)
-	check.expr(&y, rhs)
+	check.expr(nil, x, lhs)
+	check.expr(nil, &y, rhs)
 
 	if x.mode == invalid {
 		return
@@ -1084,6 +797,83 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 		return
 	}
 
+	check.matchTypes(x, &y)
+	if x.mode == invalid {
+		return
+	}
+
+	if isComparison(op) {
+		check.comparison(x, &y, op, false)
+		return
+	}
+
+	if !Identical(x.typ, y.typ) {
+		// only report an error if we have valid types
+		// (otherwise we had an error reported elsewhere already)
+		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
+			var posn positioner = x
+			if e != nil {
+				posn = e
+			}
+			if e != nil {
+				check.errorf(posn, MismatchedTypes, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
+			} else {
+				check.errorf(posn, MismatchedTypes, invalidOp+"%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ, y.typ)
+			}
+		}
+		x.mode = invalid
+		return
+	}
+
+	if !check.op(binaryOpPredicates, x, op) {
+		x.mode = invalid
+		return
+	}
+
+	if op == token.QUO || op == token.REM {
+		// check for zero divisor
+		if (x.mode == constant_ || allInteger(x.typ)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
+			check.error(&y, DivByZero, invalidOp+"division by zero")
+			x.mode = invalid
+			return
+		}
+
+		// check for divisor underflow in complex division (see go.dev/issue/20227)
+		if x.mode == constant_ && y.mode == constant_ && isComplex(x.typ) {
+			re, im := constant.Real(y.val), constant.Imag(y.val)
+			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
+			if constant.Sign(re2) == 0 && constant.Sign(im2) == 0 {
+				check.error(&y, DivByZero, invalidOp+"division by zero")
+				x.mode = invalid
+				return
+			}
+		}
+	}
+
+	if x.mode == constant_ && y.mode == constant_ {
+		// if either x or y has an unknown value, the result is unknown
+		if x.val.Kind() == constant.Unknown || y.val.Kind() == constant.Unknown {
+			x.val = constant.MakeUnknown()
+			// x.typ is unchanged
+			return
+		}
+		// force integer division of integer operands
+		if op == token.QUO && isInteger(x.typ) {
+			op = token.QUO_ASSIGN
+		}
+		x.val = constant.BinaryOp(x.val, op, y.val)
+		x.expr = e
+		check.overflow(x, opPos)
+		return
+	}
+
+	x.mode = value
+	// x.typ is unchanged
+}
+
+// matchTypes attempts to convert any untyped types x and y such that they match.
+// If an error occurs, x.mode is set to invalid.
+func (check *Checker) matchTypes(x, y *operand) {
 	// mayConvert reports whether the operands x and y may
 	// possibly have matching types after converting one
 	// untyped operand to the type of the other.
@@ -1127,85 +917,18 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 		}
 		return true
 	}
-	if mayConvert(x, &y) {
+
+	if mayConvert(x, y) {
 		check.convertUntyped(x, y.typ)
 		if x.mode == invalid {
 			return
 		}
-		check.convertUntyped(&y, x.typ)
+		check.convertUntyped(y, x.typ)
 		if y.mode == invalid {
 			x.mode = invalid
 			return
 		}
 	}
-
-	if isComparison(op) {
-		check.comparison(x, &y, op, false)
-		return
-	}
-
-	if !Identical(x.typ, y.typ) {
-		// only report an error if we have valid types
-		// (otherwise we had an error reported elsewhere already)
-		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
-			var posn positioner = x
-			if e != nil {
-				posn = e
-			}
-			if e != nil {
-				check.errorf(posn, MismatchedTypes, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
-			} else {
-				check.errorf(posn, MismatchedTypes, invalidOp+"%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ, y.typ)
-			}
-		}
-		x.mode = invalid
-		return
-	}
-
-	if !check.op(binaryOpPredicates, x, op) {
-		x.mode = invalid
-		return
-	}
-
-	if op == token.QUO || op == token.REM {
-		// check for zero divisor
-		if (x.mode == constant_ || allInteger(x.typ)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
-			check.error(&y, DivByZero, invalidOp+"division by zero")
-			x.mode = invalid
-			return
-		}
-
-		// check for divisor underflow in complex division (see issue 20227)
-		if x.mode == constant_ && y.mode == constant_ && isComplex(x.typ) {
-			re, im := constant.Real(y.val), constant.Imag(y.val)
-			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
-			if constant.Sign(re2) == 0 && constant.Sign(im2) == 0 {
-				check.error(&y, DivByZero, invalidOp+"division by zero")
-				x.mode = invalid
-				return
-			}
-		}
-	}
-
-	if x.mode == constant_ && y.mode == constant_ {
-		// if either x or y has an unknown value, the result is unknown
-		if x.val.Kind() == constant.Unknown || y.val.Kind() == constant.Unknown {
-			x.val = constant.MakeUnknown()
-			// x.typ is unchanged
-			return
-		}
-		// force integer division of integer operands
-		if op == token.QUO && isInteger(x.typ) {
-			op = token.QUO_ASSIGN
-		}
-		x.val = constant.BinaryOp(x.val, op, y.val)
-		x.expr = e
-		check.overflow(x, opPos)
-		return
-	}
-
-	x.mode = value
-	// x.typ is unchanged
 }
 
 // exprKind describes the kind of an expression; the kind
@@ -1218,13 +941,19 @@ const (
 	statement
 )
 
+// TODO(gri) In rawExpr below, consider using T instead of hint and
+//           some sort of "operation mode" instead of allowGeneric.
+//           May be clearer and less error-prone.
+
 // rawExpr typechecks expression e and initializes x with the expression
 // value or type. If an error occurred, x.mode is set to invalid.
+// If a non-nil target type T is given and e is a generic function
+// or function call, T is used to infer the type arguments for e.
 // If hint != nil, it is the type of a composite literal element.
 // If allowGeneric is set, the operand type may be an uninstantiated
 // parameterized type or function value.
-func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type, allowGeneric bool) exprKind {
-	if trace {
+func (check *Checker) rawExpr(T Type, x *operand, e ast.Expr, hint Type, allowGeneric bool) exprKind {
+	if check.conf._Trace {
 		check.trace(e.Pos(), "-- expr %s", e)
 		check.indent++
 		defer func() {
@@ -1233,10 +962,10 @@ func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type, allowGeneric bo
 		}()
 	}
 
-	kind := check.exprInternal(x, e, hint)
+	kind := check.exprInternal(T, x, e, hint)
 
 	if !allowGeneric {
-		check.nonGeneric(x)
+		check.nonGeneric(T, x)
 	}
 
 	check.record(x)
@@ -1244,9 +973,10 @@ func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type, allowGeneric bo
 	return kind
 }
 
-// If x is a generic function or type, nonGeneric reports an error and invalidates x.mode and x.typ.
+// If x is a generic type, or a generic function whose type arguments cannot be inferred
+// from a non-nil target type T, nonGeneric reports an error and invalidates x.mode and x.typ.
 // Otherwise it leaves x alone.
-func (check *Checker) nonGeneric(x *operand) {
+func (check *Checker) nonGeneric(T Type, x *operand) {
 	if x.mode == invalid || x.mode == novalue {
 		return
 	}
@@ -1258,6 +988,12 @@ func (check *Checker) nonGeneric(x *operand) {
 		}
 	case *Signature:
 		if t.tparams != nil {
+			if enableReverseTypeInference && T != nil {
+				if tsig, _ := under(T).(*Signature); tsig != nil {
+					check.funcInst(tsig, x.Pos(), x, nil, true)
+					return
+				}
+			}
 			what = "function"
 		}
 	}
@@ -1270,9 +1006,10 @@ func (check *Checker) nonGeneric(x *operand) {
 
 // exprInternal contains the core of type checking of expressions.
 // Must only be called by rawExpr.
-func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+// (See rawExpr for an explanation of the parameters.)
+func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) exprKind {
 	// make sure x has a valid state in case of bailout
-	// (was issue 5770)
+	// (was go.dev/issue/5770)
 	x.mode = invalid
 	x.typ = Typ[Invalid]
 
@@ -1317,7 +1054,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			check.errorf(e, InvalidConstVal, "malformed constant: %s", e.Value)
 			goto Error
 		}
-		// Ensure that integer values don't overflow (issue #54280).
+		// Ensure that integer values don't overflow (go.dev/issue/54280).
 		check.overflow(x, e.Pos())
 
 	case *ast.FuncLit:
@@ -1327,11 +1064,11 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				// init expression/func declaration which contains
 				// them: use existing package-level declaration info.
 				decl := check.decl // capture for use in closure below
-				iota := check.iota // capture for use in closure below (#22345)
+				iota := check.iota // capture for use in closure below (go.dev/issue/22345)
 				// Don't type-check right away because the function may
 				// be part of a type definition to which the function
 				// body refers. Instead, type-check as soon as possible,
-				// but before the enclosing scope contents changes (#22992).
+				// but before the enclosing scope contents changes (go.dev/issue/22992).
 				check.later(func() {
 					check.funcBody(decl, "<function literal>", sig, e.Body, iota)
 				}).describef(e, "func literal")
@@ -1406,7 +1143,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					key, _ := kv.Key.(*ast.Ident)
 					// do all possible checks early (before exiting due to errors)
 					// so we don't drop information on the floor
-					check.expr(x, kv.Value)
+					check.expr(nil, x, kv.Value)
 					if key == nil {
 						check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
 						continue
@@ -1434,7 +1171,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 						check.error(kv, MixedStructLit, "mixture of field:value and value elements in struct literal")
 						continue
 					}
-					check.expr(x, e)
+					check.expr(nil, x, e)
 					if i >= len(fields) {
 						check.errorf(x, InvalidStructLit, "too many values in struct literal of type %s", base)
 						break // cannot continue
@@ -1457,7 +1194,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			}
 
 		case *Array:
-			// Prevent crash if the array referred to is not yet set up. Was issue #18643.
+			// Prevent crash if the array referred to is not yet set up. Was go.dev/issue/18643.
 			// This is a stop-gap solution. Should use Checker.objPath to report entire
 			// path starting with earliest declaration in the source. TODO(gri) fix this.
 			if utyp.elem == nil {
@@ -1472,7 +1209,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			// length the same here because it makes sense to "guess" the length for
 			// the latter if we have a composite literal; e.g. for [n]int{1, 2, 3}
 			// where n is invalid for some reason, it seems fair to assume it should
-			// be 3 (see also Checked.arrayLength and issue #27346).
+			// be 3 (see also Checked.arrayLength and go.dev/issue/27346).
 			if utyp.len < 0 {
 				utyp.len = n
 				// e.Type is missing if we have a composite literal element
@@ -1563,17 +1300,22 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		x.typ = typ
 
 	case *ast.ParenExpr:
-		kind := check.rawExpr(x, e.X, nil, false)
+		// type inference doesn't go past parentheses (targe type T = nil)
+		kind := check.rawExpr(nil, x, e.X, nil, false)
 		x.expr = e
 		return kind
 
 	case *ast.SelectorExpr:
-		check.selector(x, e, nil)
+		check.selector(x, e, nil, false)
 
 	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := typeparams.UnpackIndexExpr(e)
 		if check.indexExpr(x, ix) {
-			check.funcInst(x, ix)
+			var tsig *Signature
+			if enableReverseTypeInference && T != nil {
+				tsig, _ = under(T).(*Signature)
+			}
+			check.funcInst(tsig, e.Pos(), x, ix, true)
 		}
 		if x.mode == invalid {
 			goto Error
@@ -1586,17 +1328,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		}
 
 	case *ast.TypeAssertExpr:
-		check.expr(x, e.X)
+		check.expr(nil, x, e.X)
 		if x.mode == invalid {
-			goto Error
-		}
-		// TODO(gri) we may want to permit type assertions on type parameter values at some point
-		if isTypeParam(x.typ) {
-			check.errorf(x, InvalidAssert, invalidOp+"cannot use type assertion on type parameter value %s", x)
-			goto Error
-		}
-		if _, ok := under(x.typ).(*Interface); !ok {
-			check.errorf(x, InvalidAssert, invalidOp+"%s is not an interface", x)
 			goto Error
 		}
 		// x.(type) expressions are handled explicitly in type switches
@@ -1604,6 +1337,14 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			// Don't use invalidAST because this can occur in the AST produced by
 			// go/parser.
 			check.error(e, BadTypeKeyword, "use of .(type) outside type switch")
+			goto Error
+		}
+		if isTypeParam(x.typ) {
+			check.errorf(x, InvalidAssert, invalidOp+"cannot use type assertion on type parameter value %s", x)
+			goto Error
+		}
+		if _, ok := under(x.typ).(*Interface); !ok {
+			check.errorf(x, InvalidAssert, invalidOp+"%s is not an interface", x)
 			goto Error
 		}
 		T := check.varType(e.Type)
@@ -1735,12 +1476,10 @@ func keyVal(x constant.Value) interface{} {
 
 // typeAssertion checks x.(T). The type of x must be an interface.
 func (check *Checker) typeAssertion(e ast.Expr, x *operand, T Type, typeSwitch bool) {
-	method, alt := check.assertableTo(under(x.typ).(*Interface), T)
-	if method == nil {
+	var cause string
+	if check.assertableTo(x.typ, T, &cause) {
 		return // success
 	}
-
-	cause := check.missingMethodCause(T, x.typ, method, alt)
 
 	if typeSwitch {
 		check.errorf(e, ImpossibleAssert, "impossible type switch case: %s\n\t%s cannot have dynamic type %s %s", e, x, T, cause)
@@ -1751,18 +1490,54 @@ func (check *Checker) typeAssertion(e ast.Expr, x *operand, T Type, typeSwitch b
 }
 
 // expr typechecks expression e and initializes x with the expression value.
+// If a non-nil target type T is given and e is a generic function
+// or function call, T is used to infer the type arguments for e.
 // The result must be a single value.
 // If an error occurred, x.mode is set to invalid.
-func (check *Checker) expr(x *operand, e ast.Expr) {
-	check.rawExpr(x, e, nil, false)
+func (check *Checker) expr(T Type, x *operand, e ast.Expr) {
+	check.rawExpr(T, x, e, nil, false)
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
 	check.singleValue(x)
 }
 
-// multiExpr is like expr but the result may also be a multi-value.
-func (check *Checker) multiExpr(x *operand, e ast.Expr) {
-	check.rawExpr(x, e, nil, false)
+// genericExpr is like expr but the result may also be generic.
+func (check *Checker) genericExpr(x *operand, e ast.Expr) {
+	check.rawExpr(nil, x, e, nil, true)
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
+	check.singleValue(x)
+}
+
+// multiExpr typechecks e and returns its value (or values) in list.
+// If allowCommaOk is set and e is a map index, comma-ok, or comma-err
+// expression, the result is a two-element list containing the value
+// of e, and an untyped bool value or an error value, respectively.
+// If an error occurred, list[0] is not valid.
+func (check *Checker) multiExpr(e ast.Expr, allowCommaOk bool) (list []*operand, commaOk bool) {
+	var x operand
+	check.rawExpr(nil, &x, e, nil, false)
+	check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
+
+	if t, ok := x.typ.(*Tuple); ok && x.mode != invalid {
+		// multiple values
+		list = make([]*operand, t.Len())
+		for i, v := range t.vars {
+			list[i] = &operand{mode: value, expr: e, typ: v.typ}
+		}
+		return
+	}
+
+	// exactly one (possibly invalid or comma-ok) value
+	list = []*operand{&x}
+	if allowCommaOk && (x.mode == mapindex || x.mode == commaok || x.mode == commaerr) {
+		x2 := &operand{mode: value, expr: e, typ: Typ[UntypedBool]}
+		if x.mode == commaerr {
+			x2.typ = universeError
+		}
+		list = append(list, x2)
+		commaOk = true
+	}
+
+	return
 }
 
 // exprWithHint typechecks expression e and initializes x with the expression value;
@@ -1770,7 +1545,7 @@ func (check *Checker) multiExpr(x *operand, e ast.Expr) {
 // If an error occurred, x.mode is set to invalid.
 func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
 	assert(hint != nil)
-	check.rawExpr(x, e, hint, false)
+	check.rawExpr(nil, x, e, hint, false)
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
 	check.singleValue(x)
 }
@@ -1780,7 +1555,7 @@ func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
 // value.
 // If an error occurred, x.mode is set to invalid.
 func (check *Checker) exprOrType(x *operand, e ast.Expr, allowGeneric bool) {
-	check.rawExpr(x, e, nil, allowGeneric)
+	check.rawExpr(nil, x, e, nil, allowGeneric)
 	check.exclude(x, 1<<novalue)
 	check.singleValue(x)
 }

@@ -775,7 +775,7 @@ var ymshufb = []ytab{
 }
 
 // It should never have more than 1 entry,
-// because some optab entries you opcode secuences that
+// because some optab entries have opcode sequences that
 // are longer than 2 bytes (zoffset=2 here),
 // ROUNDPD and ROUNDPS and recently added BLENDPD,
 // to name a few.
@@ -1774,6 +1774,7 @@ var optab =
 	{ALSSW, ym_rl, Pe, opBytes{0x0f, 0xb2}},
 	{ALSSL, ym_rl, Px, opBytes{0x0f, 0xb2}},
 	{ALSSQ, ym_rl, Pw, opBytes{0x0f, 0xb2}},
+	{ARDPID, yrdrand, Pf3, opBytes{0xc7, 07}},
 
 	{ABLENDPD, yxshuf, Pq, opBytes{0x3a, 0x0d, 0}},
 	{ABLENDPS, yxshuf, Pq, opBytes{0x3a, 0x0c, 0}},
@@ -2551,22 +2552,6 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 		}
 	}
 
-	if ctxt.Arch.Family == sys.I386 {
-		if a.Index == REG_TLS && ctxt.Flag_shared {
-			// When building for inclusion into a shared library, an instruction of the form
-			//     MOVL off(CX)(TLS*1), AX
-			// becomes
-			//     mov %gs:off(%ecx), %eax
-			// which assumes that the correct TLS offset has been loaded into %ecx (today
-			// there is only one TLS variable -- g -- so this is OK). When not building for
-			// a shared library the instruction it becomes
-			//     mov 0x0(%ecx), %eax
-			// and a R_TLS_LE relocation, and so does not require a prefix.
-			return 0x65 // GS
-		}
-		return 0
-	}
-
 	switch a.Index {
 	case REG_CS:
 		return 0x2e
@@ -2582,11 +2567,18 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 			// When building for inclusion into a shared library, an instruction of the form
 			//     MOV off(CX)(TLS*1), AX
 			// becomes
-			//     mov %fs:off(%rcx), %rax
-			// which assumes that the correct TLS offset has been loaded into %rcx (today
+			//     mov %gs:off(%ecx), %eax // on i386
+			//     mov %fs:off(%rcx), %rax // on amd64
+			// which assumes that the correct TLS offset has been loaded into CX (today
 			// there is only one TLS variable -- g -- so this is OK). When not building for
-			// a shared library the instruction does not require a prefix.
-			return 0x64
+			// a shared library the instruction it becomes
+			//     mov 0x0(%ecx), %eax // on i386
+			//     mov 0x0(%rcx), %rax // on amd64
+			// and a R_TLS_LE relocation, and so does not require a prefix.
+			if ctxt.Arch.Family == sys.I386 {
+				return 0x65 // GS
+			}
+			return 0x64 // FS
 		}
 
 	case REG_FS:
@@ -3725,7 +3717,7 @@ func (ab *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj
 
 	if REG_AX <= base && base <= REG_R15 {
 		if a.Index == REG_TLS && !ctxt.Flag_shared && !isAndroid &&
-			!(ctxt.Headtype == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64) {
+			ctxt.Headtype != objabi.Hwindows {
 			rel = obj.Reloc{}
 			rel.Type = objabi.R_TLS_LE
 			rel.Siz = 4
@@ -4079,6 +4071,16 @@ func (ab *AsmBuf) asmevex(ctxt *obj.Link, p *obj.Prog, rm, v, r, k *obj.Addr) {
 		if !evex.ZeroingEnabled() {
 			ctxt.Diag("unsupported zeroing: %v", p)
 		}
+		if k == nil {
+			// When you request zeroing you must specify a mask register.
+			// See issue 57952.
+			ctxt.Diag("mask register must be specified for .Z instructions: %v", p)
+		} else if k.Reg == REG_K0 {
+			// The mask register must not be K0. That restriction is already
+			// handled by the Yknot0 restriction in the opcode tables, so we
+			// won't ever reach here. But put something sensible here just in case.
+			ctxt.Diag("mask register must not be K0 for .Z instructions: %v", p)
+		}
 		evexZ = 1
 	}
 	switch {
@@ -4241,6 +4243,11 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		AVPGATHERQD,
 		AVPGATHERDQ,
 		AVPGATHERQQ:
+		if p.GetFrom3() == nil {
+			// gathers need a 3rd arg. See issue 58822.
+			ctxt.Diag("need a third arg for gather instruction: %v", p)
+			return
+		}
 		// AVX512 gather requires explicit K mask.
 		if p.GetFrom3().Reg >= REG_K0 && p.GetFrom3().Reg <= REG_K7 {
 			if !avx512gatherValid(ctxt, p) {
@@ -5136,19 +5143,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 							pp.From.Offset = 0
 							pp.From.Index = REG_NONE
 							ab.Put1(0x8B)
-							ab.asmand(ctxt, cursym, p, &pp.From, &p.To)
-
-						case objabi.Hwindows:
-							// Windows TLS base is always 0x14(FS).
-							pp.From = p.From
-
-							pp.From.Type = obj.TYPE_MEM
-							pp.From.Reg = REG_FS
-							pp.From.Offset = 0x14
-							pp.From.Index = REG_NONE
-							pp.From.Scale = 0
-							ab.Put2(0x64, // FS
-								0x8B)
 							ab.asmand(ctxt, cursym, p, &pp.From, &p.To)
 						}
 						break

@@ -688,13 +688,16 @@ func (c *ctxt5) addpool(p *obj.Prog, a *obj.Addr) {
 			t.Rel = p
 		}
 
-	case C_SROREG,
-		C_LOREG,
-		C_ROREG,
+	case C_HOREG,
 		C_FOREG,
+		C_HFOREG,
 		C_SOREG,
-		C_HOREG,
+		C_ROREG,
+		C_SROREG,
+		C_LOREG,
+		C_HAUTO,
 		C_FAUTO,
+		C_HFAUTO,
 		C_SAUTO,
 		C_LAUTO,
 		C_LACON:

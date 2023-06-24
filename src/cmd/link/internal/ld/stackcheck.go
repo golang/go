@@ -42,7 +42,7 @@ const stackCheckCycle int16 = 1<<15 - 1
 
 // stackCheckIndirect is a sentinel Sym value used to represent the
 // target of an indirect/closure call.
-const stackCheckIndirect loader.Sym = -1
+const stackCheckIndirect loader.Sym = ^loader.Sym(0)
 
 // doStackCheck walks the call tree to check that there is always
 // enough stack space for call frames, especially for a chain of
@@ -61,7 +61,7 @@ func (ctxt *Link) doStackCheck() {
 	// The call to morestack in every splittable function ensures
 	// that there are at least StackLimit bytes available below SP
 	// when morestack returns.
-	limit := objabi.StackLimit(*flagRace) - sc.callSize
+	limit := objabi.StackNosplit(*flagRace) - sc.callSize
 	if buildcfg.GOARCH == "arm64" {
 		// Need an extra 8 bytes below SP to save FP.
 		limit -= 8

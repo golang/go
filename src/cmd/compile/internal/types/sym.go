@@ -35,8 +35,6 @@ type Sym struct {
 	// bound to within the current scope. (Most parts of the compiler should
 	// prefer passing the Node directly, rather than relying on this field.)
 	//
-	// Def is saved and restored by Pushdcl/Popdcl.
-	//
 	// Deprecated: New code should avoid depending on Sym.Def. Add
 	// mdempsky@ as a reviewer for any CLs involving Sym.Def.
 	Def Object

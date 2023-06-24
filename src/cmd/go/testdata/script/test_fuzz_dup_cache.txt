@@ -1,5 +1,6 @@
 [!fuzz] skip
 [short] skip
+env GOCACHE=$WORK/cache
 
 # This test checks that cached corpus loading properly handles duplicate entries (this can
 # happen when a f.Add value has a duplicate entry in the cached corpus.) Duplicate entries

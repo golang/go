@@ -51,7 +51,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -664,7 +663,7 @@ func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
 		if n == "" {
 			continue
 		}
-		n = strings.TrimPrefix(n, string(filepath.Separator))
+		n = strings.TrimPrefix(n, "/")
 
 		fs = append(fs, zipFile{
 			name: n,
@@ -753,7 +752,7 @@ func Unzip(dir string, m module.Version, zipFile string) (err error) {
 
 	// Check that the directory is empty. Don't create it yet in case there's
 	// an error reading the zip.
-	if files, _ := ioutil.ReadDir(dir); len(files) > 0 {
+	if files, _ := os.ReadDir(dir); len(files) > 0 {
 		return fmt.Errorf("target directory %v exists and is not empty", dir)
 	}
 

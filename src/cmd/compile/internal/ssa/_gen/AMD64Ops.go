@@ -930,13 +930,14 @@ func init() {
 		// the result should be the PC within f that g will return to.
 		// See runtime/stubs.go for a more detailed discussion.
 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
-		// LoweredGetCallerSP returns the SP of the caller of the current function.
-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+		// LoweredGetCallerSP returns the SP of the caller of the current function. arg0=mem
+		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+		// LoweredWB invokes runtime.gcWriteBarrier{auxint}. arg0=mem, auxint=# of buffer entries needed.
 		// It saves all GP registers if necessary, but may clobber others.
-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), buildReg("AX CX DX BX BP SI R8 R9")}, clobbers: callerSave &^ (gp | g)}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+		// Returns a pointer to a write barrier buffer in R11.
+		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: callerSave &^ (gp | g), outputs: []regMask{buildReg("R11")}}, clobberFlags: true, aux: "Int64"},
 
 		{name: "LoweredHasCPUFeature", argLength: 0, reg: gp01, rematerializeable: true, typ: "UInt64", aux: "Sym", symEffect: "None"},
 
@@ -1018,14 +1019,14 @@ func init() {
 		{name: "PrefetchNTA", argLength: 2, reg: prefreg, asm: "PREFETCHNTA", hasSideEffects: true},
 
 		// CPUID feature: BMI1.
-		{name: "ANDNQ", argLength: 2, reg: gp21, asm: "ANDNQ", clobberFlags: true},     // arg0 &^ arg1
-		{name: "ANDNL", argLength: 2, reg: gp21, asm: "ANDNL", clobberFlags: true},     // arg0 &^ arg1
-		{name: "BLSIQ", argLength: 1, reg: gp11, asm: "BLSIQ", clobberFlags: true},     // arg0 & -arg0
-		{name: "BLSIL", argLength: 1, reg: gp11, asm: "BLSIL", clobberFlags: true},     // arg0 & -arg0
-		{name: "BLSMSKQ", argLength: 1, reg: gp11, asm: "BLSMSKQ", clobberFlags: true}, // arg0 ^ (arg0 - 1)
-		{name: "BLSMSKL", argLength: 1, reg: gp11, asm: "BLSMSKL", clobberFlags: true}, // arg0 ^ (arg0 - 1)
-		{name: "BLSRQ", argLength: 1, reg: gp11, asm: "BLSRQ", clobberFlags: true},     // arg0 & (arg0 - 1)
-		{name: "BLSRL", argLength: 1, reg: gp11, asm: "BLSRL", clobberFlags: true},     // arg0 & (arg0 - 1)
+		{name: "ANDNQ", argLength: 2, reg: gp21, asm: "ANDNQ", clobberFlags: true},         // arg0 &^ arg1
+		{name: "ANDNL", argLength: 2, reg: gp21, asm: "ANDNL", clobberFlags: true},         // arg0 &^ arg1
+		{name: "BLSIQ", argLength: 1, reg: gp11, asm: "BLSIQ", clobberFlags: true},         // arg0 & -arg0
+		{name: "BLSIL", argLength: 1, reg: gp11, asm: "BLSIL", clobberFlags: true},         // arg0 & -arg0
+		{name: "BLSMSKQ", argLength: 1, reg: gp11, asm: "BLSMSKQ", clobberFlags: true},     // arg0 ^ (arg0 - 1)
+		{name: "BLSMSKL", argLength: 1, reg: gp11, asm: "BLSMSKL", clobberFlags: true},     // arg0 ^ (arg0 - 1)
+		{name: "BLSRQ", argLength: 1, reg: gp11flags, asm: "BLSRQ", typ: "(UInt64,Flags)"}, // arg0 & (arg0 - 1)
+		{name: "BLSRL", argLength: 1, reg: gp11flags, asm: "BLSRL", typ: "(UInt32,Flags)"}, // arg0 & (arg0 - 1)
 		// count the number of trailing zero bits, prefer TZCNTQ over BSFQ, as TZCNTQ(0)==64
 		// and BSFQ(0) is undefined. Same for TZCNTL(0)==32
 		{name: "TZCNTQ", argLength: 1, reg: gp11, asm: "TZCNTQ", clobberFlags: true},

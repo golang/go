@@ -7,8 +7,8 @@ package types
 import (
 	"fmt"
 	"internal/goversion"
+	"internal/lazyregexp"
 	"log"
-	"regexp"
 	"strconv"
 
 	"cmd/compile/internal/base"
@@ -81,4 +81,4 @@ func currentLang() string {
 
 // goVersionRE is a regular expression that matches the valid
 // arguments to the -lang flag.
-var goVersionRE = regexp.MustCompile(`^go([1-9]\d*)\.(0|[1-9]\d*)$`)
+var goVersionRE = lazyregexp.New(`^go([1-9]\d*)\.(0|[1-9]\d*)$`)

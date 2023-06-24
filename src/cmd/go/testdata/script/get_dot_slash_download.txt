@@ -1,4 +1,4 @@
-[!net] skip
+[!net:rsc.io] skip
 [!git] skip
 env GO111MODULE=off
 

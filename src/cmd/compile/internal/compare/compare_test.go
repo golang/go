@@ -53,11 +53,11 @@ func TestEqStructCost(t *testing.T) {
 	}{
 		{"struct without fields", 0, 0,
 			func() *types.Type {
-				return types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				return types.NewStruct([]*types.Field{})
 			}},
 		{"struct with 1 byte field", 1, 1,
 			func() *types.Type {
-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				parent := types.NewStruct([]*types.Field{})
 				fields := []*types.Field{
 					newByteField(parent, 0),
 				}
@@ -67,7 +67,7 @@ func TestEqStructCost(t *testing.T) {
 		},
 		{"struct with 8 byte fields", 1, 8,
 			func() *types.Type {
-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				parent := types.NewStruct([]*types.Field{})
 				fields := make([]*types.Field, 8)
 				for i := range fields {
 					fields[i] = newByteField(parent, int64(i))
@@ -78,7 +78,7 @@ func TestEqStructCost(t *testing.T) {
 		},
 		{"struct with 16 byte fields", 2, 16,
 			func() *types.Type {
-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				parent := types.NewStruct([]*types.Field{})
 				fields := make([]*types.Field, 16)
 				for i := range fields {
 					fields[i] = newByteField(parent, int64(i))
@@ -89,7 +89,7 @@ func TestEqStructCost(t *testing.T) {
 		},
 		{"struct with 32 byte fields", 4, 32,
 			func() *types.Type {
-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				parent := types.NewStruct([]*types.Field{})
 				fields := make([]*types.Field, 32)
 				for i := range fields {
 					fields[i] = newByteField(parent, int64(i))
@@ -100,7 +100,7 @@ func TestEqStructCost(t *testing.T) {
 		},
 		{"struct with 2 int32 fields", 1, 2,
 			func() *types.Type {
-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				parent := types.NewStruct([]*types.Field{})
 				fields := make([]*types.Field, 2)
 				for i := range fields {
 					fields[i] = newField(parent, int64(i*4), types.TINT32)
@@ -111,7 +111,7 @@ func TestEqStructCost(t *testing.T) {
 		},
 		{"struct with 2 int32 fields and 1 int64", 2, 3,
 			func() *types.Type {
-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				parent := types.NewStruct([]*types.Field{})
 				fields := make([]*types.Field, 3)
 				fields[0] = newField(parent, int64(0), types.TINT32)
 				fields[1] = newField(parent, int64(4), types.TINT32)
@@ -122,7 +122,7 @@ func TestEqStructCost(t *testing.T) {
 		},
 		{"struct with 1 int field and 1 string", 3, 3,
 			func() *types.Type {
-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				parent := types.NewStruct([]*types.Field{})
 				fields := make([]*types.Field, 2)
 				fields[0] = newField(parent, int64(0), types.TINT64)
 				fields[1] = newField(parent, int64(8), types.TSTRING)
@@ -132,7 +132,7 @@ func TestEqStructCost(t *testing.T) {
 		},
 		{"struct with 2 strings", 4, 4,
 			func() *types.Type {
-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				parent := types.NewStruct([]*types.Field{})
 				fields := make([]*types.Field, 2)
 				fields[0] = newField(parent, int64(0), types.TSTRING)
 				fields[1] = newField(parent, int64(8), types.TSTRING)
@@ -142,7 +142,7 @@ func TestEqStructCost(t *testing.T) {
 		},
 		{"struct with 1 large byte array field", 26, 101,
 			func() *types.Type {
-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				parent := types.NewStruct([]*types.Field{})
 				fields := []*types.Field{
 					newArrayField(parent, 0, 101, types.TUINT16),
 				}
@@ -152,7 +152,7 @@ func TestEqStructCost(t *testing.T) {
 		},
 		{"struct with string array field", 4, 4,
 			func() *types.Type {
-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
+				parent := types.NewStruct([]*types.Field{})
 				fields := []*types.Field{
 					newArrayField(parent, 0, 2, types.TSTRING),
 				}

@@ -19,7 +19,6 @@ type DebugFlags struct {
 	Append                int    `help:"print information about append compilation"`
 	Checkptr              int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation" concurrent:"ok"`
 	Closure               int    `help:"print information about closure compilation"`
-	DclStack              int    `help:"run internal dclstack check"`
 	Defer                 int    `help:"print information about defer compilation"`
 	DisableNil            int    `help:"disable nil checks" concurrent:"ok"`
 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
@@ -34,6 +33,8 @@ type DebugFlags struct {
 	InlStaticInit         int    `help:"allow static initialization of inlined calls" concurrent:"ok"`
 	InterfaceCycles       int    `help:"allow anonymous interface cycles"`
 	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
+	LoopVar               int    `help:"shared (0, default), 1 (private loop variables), 2, private + log"`
+	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
 	LocationLists         int    `help:"print information about DWARF location list creation"`
 	Nil                   int    `help:"print information about nil checks"`
 	NoOpenDefer           int    `help:"disable open-coded defers" concurrent:"ok"`
@@ -46,14 +47,16 @@ type DebugFlags struct {
 	SoftFloat             int    `help:"force compiler to emit soft-float code" concurrent:"ok"`
 	SyncFrames            int    `help:"how many writer stack frames to include at sync points in unified export data"`
 	TypeAssert            int    `help:"print information about type assertion inlining"`
-	TypecheckInl          int    `help:"eager typechecking of inline function bodies" concurrent:"ok"`
-	Unified               int    `help:"enable unified IR construction"`
 	WB                    int    `help:"print information about write barriers"`
 	ABIWrap               int    `help:"print information about ABI wrapper generation"`
 	MayMoreStack          string `help:"call named function before all stack growth checks" concurrent:"ok"`
-	PGOInlineCDFThreshold string `help:"cummulative threshold percentage for determining call sites as hot candidates for inlining" concurrent:"ok"`
+	PGODebug              int    `help:"debug profile-guided optimizations"`
+	PGOInline             int    `help:"enable profile-guided inlining" concurrent:"ok"`
+	PGOInlineCDFThreshold string `help:"cumulative threshold percentage for determining call sites as hot candidates for inlining" concurrent:"ok"`
 	PGOInlineBudget       int    `help:"inline budget for hot functions" concurrent:"ok"`
-	PGOInline             int    `help:"debug profile-guided inlining"`
+	PGODevirtualize       int    `help:"enable profile-guided devirtualization" concurrent:"ok"`
+	WrapGlobalMapDbg      int    `help:"debug trace output for global map init wrapping"`
+	WrapGlobalMapCtl      int    `help:"global map init wrap control (0 => default, 1 => off, 2 => stress mode, no size cutoff)"`
 
 	ConcurrentOk bool // true if only concurrentOk flags seen
 }

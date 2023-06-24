@@ -532,6 +532,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 			v = ld.IMAGE_REL_AMD64_ADDR32
 		}
 
+	case objabi.R_PEIMAGEOFF:
+		v = ld.IMAGE_REL_AMD64_ADDR32NB
+
 	case objabi.R_CALL,
 		objabi.R_PCREL:
 		v = ld.IMAGE_REL_AMD64_REL32

@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/cgocall"
 	"golang.org/x/tools/go/analysis/passes/composite"
 	"golang.org/x/tools/go/analysis/passes/copylock"
+	"golang.org/x/tools/go/analysis/passes/directive"
 	"golang.org/x/tools/go/analysis/passes/errorsas"
 	"golang.org/x/tools/go/analysis/passes/framepointer"
 	"golang.org/x/tools/go/analysis/passes/httpresponse"
@@ -27,6 +28,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/passes/shift"
 	"golang.org/x/tools/go/analysis/passes/sigchanyzer"
+	"golang.org/x/tools/go/analysis/passes/slog"
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
 	"golang.org/x/tools/go/analysis/passes/stringintconv"
 	"golang.org/x/tools/go/analysis/passes/structtag"
@@ -51,6 +53,7 @@ func main() {
 		cgocall.Analyzer,
 		composite.Analyzer,
 		copylock.Analyzer,
+		directive.Analyzer,
 		errorsas.Analyzer,
 		framepointer.Analyzer,
 		httpresponse.Analyzer,
@@ -61,6 +64,7 @@ func main() {
 		printf.Analyzer,
 		shift.Analyzer,
 		sigchanyzer.Analyzer,
+		slog.Analyzer,
 		stdmethods.Analyzer,
 		stringintconv.Analyzer,
 		structtag.Analyzer,

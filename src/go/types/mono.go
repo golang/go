@@ -282,7 +282,7 @@ func (w *monoGraph) localNamedVertex(pkg *Package, named *Named) int {
 	// parameters that it's implicitly parameterized by.
 	for scope := obj.Parent(); scope != root; scope = scope.Parent() {
 		for _, elem := range scope.elems {
-			if elem, ok := elem.(*TypeName); ok && !elem.IsAlias() && elem.Pos() < obj.Pos() {
+			if elem, ok := elem.(*TypeName); ok && !elem.IsAlias() && cmpPos(elem.Pos(), obj.Pos()) < 0 {
 				if tpar, ok := elem.Type().(*TypeParam); ok {
 					if idx < 0 {
 						idx = len(w.vertices)

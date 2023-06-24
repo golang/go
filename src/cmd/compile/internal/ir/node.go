@@ -30,6 +30,7 @@ type Node interface {
 
 	doChildren(func(Node) bool) bool
 	editChildren(func(Node) Node)
+	editChildrenWithHidden(func(Node) Node)
 
 	// Abstract graph structure, for generic traversals.
 	Op() Op
@@ -51,7 +52,6 @@ type Node interface {
 	//  0 means the node is not typechecked
 	//  1 means the node is completely typechecked
 	//  2 means typechecking of the node is in progress
-	//  3 means the node has its type from types2, but may need transformation
 	Typecheck() uint8
 	SetTypecheck(x uint8)
 	NonNil() bool
@@ -158,6 +158,7 @@ const (
 	OCALLMETH  // X(Args) (direct method call x.Method(args))
 	OCALLINTER // X(Args) (interface method call x.Method(args))
 	OCAP       // cap(X)
+	OCLEAR     // clear(X)
 	OCLOSE     // close(X)
 	OCLOSURE   // func Type { Func.Closure.Body } (func literal)
 	OCOMPLIT   // Type{List} (composite literal, not yet lowered to specific form)
@@ -240,6 +241,8 @@ const (
 	ORECV             // <-X
 	ORUNESTR          // Type(X) (Type is string, X is rune)
 	OSELRECV2         // like OAS2: Lhs = Rhs where len(Lhs)=2, len(Rhs)=1, Rhs[0].Op = ORECV (appears as .Var of OCASE)
+	OMIN              // min(List)
+	OMAX              // max(List)
 	OREAL             // real(X)
 	OIMAG             // imag(X)
 	OCOMPLEX          // complex(X, Y)
@@ -290,7 +293,7 @@ const (
 	OEFACE         // itable and data words of an empty-interface value.
 	OITAB          // itable word of an interface value.
 	OIDATA         // data word of an interface value in X
-	OSPTR          // base pointer of a slice or string.
+	OSPTR          // base pointer of a slice or string. Bounded==1 means known non-nil.
 	OCFUNC         // reference to c function pointer (not go func value)
 	OCHECKNIL      // emit code to ensure pointer/interface not nil
 	ORESULT        // result of a function call; Xoffset is stack offset

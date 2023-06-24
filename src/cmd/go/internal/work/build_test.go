@@ -6,6 +6,7 @@ package work
 
 import (
 	"fmt"
+	"internal/testenv"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -41,19 +42,20 @@ func TestSplitPkgConfigOutput(t *testing.T) {
 	}{
 		{[]byte(`-r:foo -L/usr/white\ space/lib -lfoo\ bar -lbar\ baz`), []string{"-r:foo", "-L/usr/white space/lib", "-lfoo bar", "-lbar baz"}},
 		{[]byte(`-lextra\ fun\ arg\\`), []string{`-lextra fun arg\`}},
-		{[]byte("\textra     whitespace\r\n"), []string{"extra", "whitespace"}},
-		{[]byte("     \r\n      "), nil},
+		{[]byte("\textra     whitespace\r\n"), []string{"extra", "whitespace\r"}},
+		{[]byte("     \r\n      "), []string{"\r"}},
 		{[]byte(`"-r:foo" "-L/usr/white space/lib" "-lfoo bar" "-lbar baz"`), []string{"-r:foo", "-L/usr/white space/lib", "-lfoo bar", "-lbar baz"}},
 		{[]byte(`"-lextra fun arg\\"`), []string{`-lextra fun arg\`}},
 		{[]byte(`"     \r\n\      "`), []string{`     \r\n\      `}},
-		{[]byte(`""`), nil},
+		{[]byte(`""`), []string{""}},
 		{[]byte(``), nil},
 		{[]byte(`"\\"`), []string{`\`}},
 		{[]byte(`"\x"`), []string{`\x`}},
 		{[]byte(`"\\x"`), []string{`\x`}},
-		{[]byte(`'\\'`), []string{`\`}},
+		{[]byte(`'\\'`), []string{`\\`}},
 		{[]byte(`'\x'`), []string{`\x`}},
 		{[]byte(`"\\x"`), []string{`\x`}},
+		{[]byte("\\\n"), nil},
 		{[]byte(`-fPIC -I/test/include/foo -DQUOTED='"/test/share/doc"'`), []string{"-fPIC", "-I/test/include/foo", `-DQUOTED="/test/share/doc"`}},
 		{[]byte(`-fPIC -I/test/include/foo -DQUOTED="/test/share/doc"`), []string{"-fPIC", "-I/test/include/foo", "-DQUOTED=/test/share/doc"}},
 		{[]byte(`-fPIC -I/test/include/foo -DQUOTED=\"/test/share/doc\"`), []string{"-fPIC", "-I/test/include/foo", `-DQUOTED="/test/share/doc"`}},
@@ -64,11 +66,11 @@ func TestSplitPkgConfigOutput(t *testing.T) {
 	} {
 		got, err := splitPkgConfigOutput(test.in)
 		if err != nil {
-			t.Errorf("splitPkgConfigOutput on %v failed with error %v", test.in, err)
+			t.Errorf("splitPkgConfigOutput on %#q failed with error %v", test.in, err)
 			continue
 		}
 		if !reflect.DeepEqual(got, test.want) {
-			t.Errorf("splitPkgConfigOutput(%v) = %v; want %v", test.in, got, test.want)
+			t.Errorf("splitPkgConfigOutput(%#q) = %#q; want %#q", test.in, got, test.want)
 		}
 	}
 
@@ -220,13 +222,6 @@ func pkgImportPath(pkgpath string) *load.Package {
 // directory.
 // See https://golang.org/issue/18878.
 func TestRespectSetgidDir(t *testing.T) {
-	switch runtime.GOOS {
-	case "ios":
-		t.Skip("can't set SetGID bit with chmod on iOS")
-	case "windows", "plan9":
-		t.Skip("chown/chmod setgid are not supported on Windows or Plan 9")
-	}
-
 	var b Builder
 
 	// Check that `cp` is called instead of `mv` by looking at the output
@@ -249,12 +244,23 @@ func TestRespectSetgidDir(t *testing.T) {
 	// the new temporary directory.
 	err = os.Chown(setgiddir, os.Getuid(), os.Getgid())
 	if err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skip("skipping: chown is not supported on " + runtime.GOOS)
+		}
 		t.Fatal(err)
 	}
 
 	// Change setgiddir's permissions to include the SetGID bit.
 	if err := os.Chmod(setgiddir, 0755|fs.ModeSetgid); err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skip("skipping: chmod is not supported on " + runtime.GOOS)
+		}
 		t.Fatal(err)
+	}
+	if fi, err := os.Stat(setgiddir); err != nil {
+		t.Fatal(err)
+	} else if fi.Mode()&fs.ModeSetgid == 0 {
+		t.Skip("skipping: Chmod ignored ModeSetgid on " + runtime.GOOS)
 	}
 
 	pkgfile, err := os.CreateTemp("", "pkgfile")

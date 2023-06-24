@@ -184,13 +184,6 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 		}
 	}
 
-	if (op == ir.ODIV || op == ir.OMOD) && ir.IsConst(r, constant.Int) {
-		if constant.Sign(r.Val()) == 0 {
-			base.Errorf("division by zero")
-			return l, r, nil
-		}
-	}
-
 	return l, r, t
 }
 
@@ -516,18 +509,6 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 	return n
 }
 
-func wrongTypeFor(haveSym *types.Sym, haveType *types.Type, wantSym *types.Sym, wantType *types.Type) string {
-	haveT := fmt.Sprintf("%S", haveType)
-	wantT := fmt.Sprintf("%S", wantType)
-	if haveT == wantT {
-		// Add packages instead of reporting "got Foo but wanted Foo", see #54258.
-		haveT = haveType.Pkg().Path + "." + haveT
-		wantT = wantType.Pkg().Path + "." + wantT
-	}
-	return fmt.Sprintf("(wrong type for %v method)\n"+
-		"\t\thave %v%s\n\t\twant %v%s", wantSym, haveSym, haveT, wantSym, wantT)
-}
-
 // tcDotType typechecks an ODOTTYPE node.
 func tcDotType(n *ir.TypeAssertExpr) ir.Node {
 	n.X = Expr(n.X)
@@ -547,20 +528,9 @@ func tcDotType(n *ir.TypeAssertExpr) ir.Node {
 	base.AssertfAt(n.Type() != nil, n.Pos(), "missing type: %v", n)
 
 	if n.Type() != nil && !n.Type().IsInterface() {
-		var missing, have *types.Field
-		var ptr int
-		if !implements(n.Type(), t, &missing, &have, &ptr) {
-			if have != nil && have.Sym == missing.Sym {
-				base.Errorf("impossible type assertion:\n\t%v does not implement %v %s", n.Type(), t,
-					wrongTypeFor(have.Sym, have.Type, missing.Sym, missing.Type))
-			} else if ptr != 0 {
-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (%v method has pointer receiver)", n.Type(), t, missing.Sym)
-			} else if have != nil {
-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (missing %v method)\n"+
-					"\t\thave %v%S\n\t\twant %v%S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
-			} else {
-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (missing %v method)", n.Type(), t, missing.Sym)
-			}
+		why := ImplementsExplain(n.Type(), t)
+		if why != "" {
+			base.Fatalf("impossible type assertion:\n\t%s", why)
 			n.SetType(nil)
 			return n
 		}

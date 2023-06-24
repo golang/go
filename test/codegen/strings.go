@@ -14,6 +14,11 @@ func CountRunes(s string) int { // Issue #24923
 	return len([]rune(s))
 }
 
+func CountBytes(s []byte) int {
+	// amd64:-`.*runtime.slicebytetostring`
+	return len(string(s))
+}
+
 func ToByteSlice() []byte { // Issue #24698
 	// amd64:`LEAQ\ttype:\[3\]uint8`
 	// amd64:`CALL\truntime\.newobject`

@@ -211,12 +211,11 @@ func NewArchive(r io.ReaderAt) (*Archive, error) {
 	}
 
 	return arch, nil
-
 }
 
 // GetFile returns the XCOFF file defined by member name.
 // FIXME: This doesn't work if an archive has two members with the same
-// name which can occur if a archive has both 32-bits and 64-bits files.
+// name which can occur if an archive has both 32-bits and 64-bits files.
 func (arch *Archive) GetFile(name string) (*File, error) {
 	for _, mem := range arch.Members {
 		if mem.Name == name {
@@ -224,5 +223,4 @@ func (arch *Archive) GetFile(name string) (*File, error) {
 		}
 	}
 	return nil, fmt.Errorf("unknown member %s in archive", name)
-
 }

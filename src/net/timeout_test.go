@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
+//go:build !js && !wasip1
 
 package net
 
@@ -24,18 +24,17 @@ var dialTimeoutTests = []struct {
 	delta   time.Duration // for deadline
 
 	guard time.Duration
-	max   time.Duration
 }{
 	// Tests that dial timeouts, deadlines in the past work.
-	{-5 * time.Second, 0, -5 * time.Second, 100 * time.Millisecond},
-	{0, -5 * time.Second, -5 * time.Second, 100 * time.Millisecond},
-	{-5 * time.Second, 5 * time.Second, -5 * time.Second, 100 * time.Millisecond}, // timeout over deadline
-	{-1 << 63, 0, time.Second, 100 * time.Millisecond},
-	{0, -1 << 63, time.Second, 100 * time.Millisecond},
+	{-5 * time.Second, 0, -5 * time.Second},
+	{0, -5 * time.Second, -5 * time.Second},
+	{-5 * time.Second, 5 * time.Second, -5 * time.Second}, // timeout over deadline
+	{-1 << 63, 0, time.Second},
+	{0, -1 << 63, time.Second},
 
-	{50 * time.Millisecond, 0, 100 * time.Millisecond, time.Second},
-	{0, 50 * time.Millisecond, 100 * time.Millisecond, time.Second},
-	{50 * time.Millisecond, 5 * time.Second, 100 * time.Millisecond, time.Second}, // timeout over deadline
+	{50 * time.Millisecond, 0, 100 * time.Millisecond},
+	{0, 50 * time.Millisecond, 100 * time.Millisecond},
+	{50 * time.Millisecond, 5 * time.Second, 100 * time.Millisecond}, // timeout over deadline
 }
 
 func TestDialTimeout(t *testing.T) {
@@ -59,35 +58,25 @@ func TestDialTimeout(t *testing.T) {
 			})
 		}
 
-		ch := make(chan error)
 		d := Dialer{Timeout: tt.timeout}
 		if tt.delta != 0 {
 			d.Deadline = time.Now().Add(tt.delta)
 		}
-		max := time.NewTimer(tt.max)
-		defer max.Stop()
-		go func() {
-			// This dial never starts to send any TCP SYN
-			// segment because of above socket filter and
-			// test hook.
-			c, err := d.Dial("tcp", "127.0.0.1:0")
-			if err == nil {
-				err = fmt.Errorf("unexpectedly established: tcp:%s->%s", c.LocalAddr(), c.RemoteAddr())
-				c.Close()
-			}
-			ch <- err
-		}()
 
-		select {
-		case <-max.C:
-			t.Fatalf("#%d: Dial didn't return in an expected time", i)
-		case err := <-ch:
-			if perr := parseDialError(err); perr != nil {
-				t.Errorf("#%d: %v", i, perr)
-			}
-			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
-				t.Fatalf("#%d: %v", i, err)
-			}
+		// This dial never starts to send any TCP SYN
+		// segment because of above socket filter and
+		// test hook.
+		c, err := d.Dial("tcp", "127.0.0.1:0")
+		if err == nil {
+			err = fmt.Errorf("unexpectedly established: tcp:%s->%s", c.LocalAddr(), c.RemoteAddr())
+			c.Close()
+		}
+
+		if perr := parseDialError(err); perr != nil {
+			t.Errorf("#%d: %v", i, perr)
+		}
+		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+			t.Fatalf("#%d: %v", i, err)
 		}
 	}
 }
@@ -646,7 +635,7 @@ const (
 	minDynamicTimeout = 1 * time.Millisecond
 
 	// maxDynamicTimeout is the maximum timeout to attempt for
-	// tests that automatically increase timeouts until succeess.
+	// tests that automatically increase timeouts until success.
 	//
 	// This should be a strict upper bound on the latency required to hit a
 	// timeout accurately, even on a slow or heavily-loaded machine. If a test
@@ -823,10 +812,11 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 		t.Logf("SetWriteDeadline(+%v)", d)
 		t0 := time.Now()
 		deadline := t0.Add(d)
-		if err = c.SetWriteDeadline(deadline); err != nil {
+		if err := c.SetWriteDeadline(deadline); err != nil {
 			t.Fatalf("SetWriteDeadline(%v): %v", deadline, err)
 		}
 		var n int64
+		var err error
 		for {
 			var dn int
 			dn, err = c.Write([]byte("TIMEOUT TRANSMITTER"))
@@ -836,8 +826,8 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 			}
 		}
 		t1 := time.Now()
-
-		if err == nil || !err.(Error).Timeout() {
+		// Inv: err != nil
+		if !err.(Error).Timeout() {
 			t.Fatalf("Write did not return (any, timeout): (%d, %v)", n, err)
 		}
 		if perr := parseWriteError(err); perr != nil {
@@ -909,10 +899,6 @@ func TestVariousDeadlines4Proc(t *testing.T) {
 }
 
 func testVariousDeadlines(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test on plan9; see golang.org/issue/26945")
-	}
-
 	handler := func(ls *localServer, ln Listener) {
 		for {
 			c, err := ln.Accept()

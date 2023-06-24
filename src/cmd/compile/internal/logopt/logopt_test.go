@@ -86,13 +86,7 @@ func TestLogOpt(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := os.MkdirTemp("", "TestLogOpt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
-	dir = fixSlash(dir) // Normalize the directory name as much as possible, for Windows testing
+	dir := fixSlash(t.TempDir()) // Normalize the directory name as much as possible, for Windows testing
 	src := filepath.Join(dir, "file.go")
 	if err := os.WriteFile(src, []byte(srcCode), 0644); err != nil {
 		t.Fatal(err)

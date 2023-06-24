@@ -133,7 +133,7 @@ DATA ·powtm<> + 176(SB)/8, $0xe00003d4a9c6f
 DATA ·powtm<> + 184(SB)/8, $0xf00003d846c66
 GLOBL ·powtm<> + 0(SB), RODATA, $192
 
-// Table of indeces into multiplier tables
+// Table of indices into multiplier tables
 // Adjusted from asm to remove offset and convert
 DATA ·powtabi<> + 0(SB)/8, $0x1010101
 DATA ·powtabi<> + 8(SB)/8, $0x101020202020203

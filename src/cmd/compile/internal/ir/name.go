@@ -40,7 +40,7 @@ type Name struct {
 	flags     bitset16
 	DictIndex uint16 // index of the dictionary entry describing the type of this variable declaration plus 1
 	sym       *types.Sym
-	Func      *Func // TODO(austin): nil for I.M, eqFor, hashfor, and hashmem
+	Func      *Func // TODO(austin): nil for I.M
 	Offset_   int64
 	val       constant.Value
 	Opt       interface{} // for use by escape analysis
@@ -134,9 +134,10 @@ type Name struct {
 
 func (n *Name) isExpr() {}
 
-func (n *Name) copy() Node                         { panic(n.no("copy")) }
-func (n *Name) doChildren(do func(Node) bool) bool { return false }
-func (n *Name) editChildren(edit func(Node) Node)  {}
+func (n *Name) copy() Node                                  { panic(n.no("copy")) }
+func (n *Name) doChildren(do func(Node) bool) bool          { return false }
+func (n *Name) editChildren(edit func(Node) Node)           {}
+func (n *Name) editChildrenWithHidden(edit func(Node) Node) {}
 
 // RecordFrameOffset records the frame offset for the name.
 // It is used by package types when laying out function arguments.

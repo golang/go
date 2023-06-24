@@ -14,20 +14,18 @@ import (
 	"bytes"
 	"context"
 	"flag"
-	"fmt"
-	"go/build"
 	"internal/testenv"
 	"internal/txtar"
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/script"
 	"cmd/go/internal/script/scripttest"
 	"cmd/go/internal/vcweb/vcstest"
@@ -116,7 +114,7 @@ func TestScript(t *testing.T) {
 				defer removeAll(workdir)
 			}
 
-			s, err := script.NewState(ctx, workdir, env)
+			s, err := script.NewState(tbContext(ctx, t), workdir, env)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -151,9 +149,30 @@ func TestScript(t *testing.T) {
 				}
 			}
 
-			scripttest.Run(t, engine, s, filepath.Base(file), bytes.NewReader(a.Comment))
+			// Note: Do not use filepath.Base(file) here:
+			// editors that can jump to file:line references in the output
+			// will work better seeing the full path relative to cmd/go
+			// (where the "go test" command is usually run).
+			scripttest.Run(t, engine, s, file, bytes.NewReader(a.Comment))
 		})
 	}
+}
+
+// testingTBKey is the Context key for a testing.TB.
+type testingTBKey struct{}
+
+// tbContext returns a Context derived from ctx and associated with t.
+func tbContext(ctx context.Context, t testing.TB) context.Context {
+	return context.WithValue(ctx, testingTBKey{}, t)
+}
+
+// tbFromContext returns the testing.TB associated with ctx, if any.
+func tbFromContext(ctx context.Context) (testing.TB, bool) {
+	t := ctx.Value(testingTBKey{})
+	if t == nil {
+		return nil, false
+	}
+	return t.(testing.TB), true
 }
 
 // initScriptState creates the initial directory structure in s for unpacking a
@@ -188,10 +207,6 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	version, err := goVersion()
-	if err != nil {
-		return nil, err
-	}
 	env := []string{
 		pathEnvName() + "=" + testBin + string(filepath.ListSeparator) + os.Getenv(pathEnvName()),
 		homeEnvName() + "=/no-home",
@@ -210,17 +225,23 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 		"GOROOT=" + testGOROOT,
 		"GOROOT_FINAL=" + testGOROOT_FINAL, // causes spurious rebuilds and breaks the "stale" built-in if not propagated
 		"GOTRACEBACK=system",
+		"TESTGONETWORK=panic", // allow only local connections by default; the [net] condition resets this
 		"TESTGO_GOROOT=" + testGOROOT,
+		"TESTGO_EXE=" + testGo,
 		"TESTGO_VCSTEST_HOST=" + httpURL.Host,
 		"TESTGO_VCSTEST_TLS_HOST=" + httpsURL.Host,
 		"TESTGO_VCSTEST_CERT=" + srvCertFile,
+		"TESTGONETWORK=panic", // cleared by the [net] condition
 		"GOSUMDB=" + testSumDBVerifierKey,
 		"GONOPROXY=",
 		"GONOSUMDB=",
 		"GOVCS=*:all",
 		"devnull=" + os.DevNull,
-		"goversion=" + version,
+		"goversion=" + gover.Local(),
 		"CMDGO_TEST_RUN_MAIN=true",
+		"HGRCPATH=",
+		"GOTOOLCHAIN=auto",
+		"newline=\n",
 	}
 
 	if testenv.Builder() != "" || os.Getenv("GIT_TRACE_CURL") == "1" {
@@ -231,9 +252,13 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 			"GIT_TRACE_CURL_NO_DATA=1",
 			"GIT_REDACT_COOKIES=o,SSO,GSSO_Uberproxy")
 	}
-	if !testenv.HasExternalNetwork() {
-		env = append(env, "TESTGONETWORK=panic", "TESTGOVCS=panic")
+	if testing.Short() {
+		// VCS commands are always somewhat slow: they either require access to external hosts,
+		// or they require our intercepted vcs-test.golang.org to regenerate the repository.
+		// Require all tests that use VCS commands to be skipped in short mode.
+		env = append(env, "TESTGOVCS=panic")
 	}
+
 	if os.Getenv("CGO_ENABLED") != "" || runtime.GOOS != goHostOS || runtime.GOARCH != goHostArch {
 		// If the actual CGO_ENABLED might not match the cmd/go default, set it
 		// explicitly in the environment. Otherwise, leave it unset so that we also
@@ -248,16 +273,6 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 	}
 
 	return env, nil
-}
-
-// goVersion returns the current Go version.
-func goVersion() (string, error) {
-	tags := build.Default.ReleaseTags
-	version := tags[len(tags)-1]
-	if !regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`).MatchString(version) {
-		return "", fmt.Errorf("invalid go version %q", version)
-	}
-	return version[2:], nil
 }
 
 var extraEnvKeys = []string{

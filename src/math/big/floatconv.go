@@ -248,7 +248,7 @@ func (z *Float) pow5(n uint64) *Float {
 // no prefix is accepted. The octal prefix "0" is not supported (a leading
 // "0" is simply considered a "0").
 //
-// A "p" or "P" exponent indicates a base 2 (rather then base 10) exponent;
+// A "p" or "P" exponent indicates a base 2 (rather than base 10) exponent;
 // for instance, "0x1.fffffffffffffp1023" (using base 0) represents the
 // maximum float64 value. For hexadecimal mantissae, the exponent character
 // must be one of 'p' or 'P', if present (an "e" or "E" exponent indicator

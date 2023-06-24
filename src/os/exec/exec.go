@@ -348,7 +348,7 @@ type ctxResult struct {
 	timer *time.Timer
 }
 
-var execwait = godebug.New("execwait")
+var execwait = godebug.New("#execwait")
 var execerrdot = godebug.New("execerrdot")
 
 // Command returns the Cmd struct to execute the named program with

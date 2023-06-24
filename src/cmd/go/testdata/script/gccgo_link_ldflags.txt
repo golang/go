@@ -1,0 +1,23 @@
+# Test that #cgo LDFLAGS are properly quoted.
+# The #cgo LDFLAGS below should pass a string with spaces to -L,
+# as though searching a directory with a space in its name.
+# It should not pass --nosuchoption to the external linker.
+
+[!cgo] skip
+
+go build
+
+[!exec:gccgo] skip
+
+# TODO: remove once gccgo on builder is updated
+[GOOS:aix] [GOARCH:ppc64] skip
+
+go build -compiler gccgo
+
+-- go.mod --
+module m
+-- cgo.go --
+package main
+// #cgo LDFLAGS: -L "./ -Wl,--nosuchoption"
+import "C"
+func main() {}

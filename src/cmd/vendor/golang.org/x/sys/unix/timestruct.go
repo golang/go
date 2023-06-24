@@ -9,7 +9,7 @@ package unix
 
 import "time"
 
-// TimespecToNSec returns the time stored in ts as nanoseconds.
+// TimespecToNsec returns the time stored in ts as nanoseconds.
 func TimespecToNsec(ts Timespec) int64 { return ts.Nano() }
 
 // NsecToTimespec converts a number of nanoseconds into a Timespec.

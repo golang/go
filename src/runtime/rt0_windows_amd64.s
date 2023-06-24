@@ -6,7 +6,7 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
+TEXT _rt0_amd64_windows(SB),NOSPLIT|NOFRAME,$-8
 	JMP	_rt0_amd64(SB)
 
 // When building with -buildmode=(c-shared or c-archive), this
@@ -16,7 +16,7 @@ TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
 // phase.
 // Leave space for four pointers on the stack as required
 // by the Windows amd64 calling convention.
-TEXT _rt0_amd64_windows_lib(SB),NOSPLIT,$0x20
+TEXT _rt0_amd64_windows_lib(SB),NOSPLIT|NOFRAME,$0x20
 	// Create a new thread to do the runtime initialization and return.
 	MOVQ	_cgo_sys_thread_create(SB), AX
 	MOVQ	$_rt0_amd64_windows_lib_go(SB), CX
@@ -24,7 +24,7 @@ TEXT _rt0_amd64_windows_lib(SB),NOSPLIT,$0x20
 	CALL	AX
 	RET
 
-TEXT _rt0_amd64_windows_lib_go(SB),NOSPLIT,$0
+TEXT _rt0_amd64_windows_lib_go(SB),NOSPLIT|NOFRAME,$0
 	MOVQ  $0, DI
 	MOVQ	$0, SI
 	MOVQ	$runtime·rt0_go(SB), AX

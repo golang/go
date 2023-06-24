@@ -6,12 +6,12 @@ package p
 
 import "unsafe"
 
-type T0 /* ERROR invalid recursive type */ [P T0[P]] struct{}
+type T0 /* ERROR "invalid recursive type" */ [P T0[P]] struct{}
 
-type T1 /* ERROR invalid recursive type */ [P T2[P]] struct{}
+type T1 /* ERROR "invalid recursive type" */ [P T2[P]] struct{}
 type T2[P T1[P]] struct{}
 
-type T3 /* ERROR invalid recursive type */ [P interface{ ~struct{ f T3[int] } }] struct{}
+type T3 /* ERROR "invalid recursive type" */ [P interface{ ~struct{ f T3[int] } }] struct{}
 
 // valid cycle in M
 type N[P M[P]] struct{}
@@ -23,4 +23,4 @@ type TC[P [unsafe.Sizeof(func() {
 })]byte] struct{}
 
 // test case from issue
-type X /* ERROR invalid recursive type */ [T any, PT X[T]] interface{}
+type X /* ERROR "invalid recursive type" */ [T any, PT X[T]] interface{}

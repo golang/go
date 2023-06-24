@@ -12,4 +12,4 @@ type Slice []byte
 type Array [8]byte
 
 var s Slice
-var p = (Array)(s /* ERROR requires go1.20 or later */)
+var p = (Array)(s /* ERROR "requires go1.20 or later" */)

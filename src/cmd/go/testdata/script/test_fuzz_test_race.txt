@@ -5,6 +5,7 @@
 [short] skip
 [!fuzz] skip
 [!race] skip
+env GOCACHE=$WORK/cache
 
 # Test with coverage instrumentation enabled (-fuzz) and race instrumentation
 # but without actually fuzzing the target (by using a non-matching pattern)

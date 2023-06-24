@@ -333,6 +333,23 @@ func inlinedCalleeDump(pcs []uintptr) {
 	dumpCallers(pcs)
 }
 
+type inlineWrapperInterface interface {
+	dump(stack []uintptr)
+}
+
+type inlineWrapper struct {
+}
+
+func (h inlineWrapper) dump(pcs []uintptr) {
+	dumpCallers(pcs)
+}
+
+func inlinedWrapperCallerDump(pcs []uintptr) {
+	var h inlineWrapperInterface
+	h = &inlineWrapper{}
+	h.dump(pcs)
+}
+
 func TestCPUProfileRecursion(t *testing.T) {
 	matches := matchAndAvoidStacks(stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.recursionCallee", "runtime/pprof.recursionCaller"}, avoidFunctions())
 	p := testCPUProfile(t, matches, func(dur time.Duration) {
@@ -431,6 +448,8 @@ func testCPUProfile(t *testing.T, matches profileMatchFunc, f func(dur time.Dura
 		t.Logf("uname -a: %v", vers)
 	case "plan9":
 		t.Skip("skipping on plan9")
+	case "wasip1":
+		t.Skip("skipping on wasip1")
 	}
 
 	broken := cpuProfilingBroken()
@@ -1440,6 +1459,8 @@ func containsCountsLabels(prof *profile.Profile, countLabels map[int64]map[strin
 }
 
 func TestGoroutineProfileConcurrency(t *testing.T) {
+	testenv.MustHaveParallelism(t)
+
 	goroutineProf := Lookup("goroutine")
 
 	profilerCalls := func(s string) int {
@@ -1768,6 +1789,7 @@ func TestCPUProfileLabel(t *testing.T) {
 }
 
 func TestLabelRace(t *testing.T) {
+	testenv.MustHaveParallelism(t)
 	// Test the race detector annotations for synchronization
 	// between setting labels and consuming them from the
 	// profile.
@@ -1792,6 +1814,7 @@ func TestLabelRace(t *testing.T) {
 }
 
 func TestGoroutineProfileLabelRace(t *testing.T) {
+	testenv.MustHaveParallelism(t)
 	// Test the race detector annotations for synchronization
 	// between setting labels and consuming them from the
 	// goroutine profile. See issue #50292.
@@ -2054,6 +2077,8 @@ func TestTryAdd(t *testing.T) {
 	for i := range pcs {
 		inlinedCallerStack[i] = uint64(pcs[i])
 	}
+	wrapperPCs := make([]uintptr, 1)
+	inlinedWrapperCallerDump(wrapperPCs)
 
 	if _, found := findInlinedCall(recursionChainBottom, 4<<10); !found {
 		t.Skip("Can't determine whether anything was inlined into recursionChainBottom.")
@@ -2225,6 +2250,17 @@ func TestTryAdd(t *testing.T) {
 		wantSamples: []*profile.Sample{
 			{Value: []int64{70, 70 * period}, Location: []*profile.Location{{ID: 1}}},
 			{Value: []int64{80, 80 * period}, Location: []*profile.Location{{ID: 2}, {ID: 1}}},
+		},
+	}, {
+		name: "expand_wrapper_function",
+		input: []uint64{
+			3, 0, 500, // hz = 500. Must match the period.
+			4, 0, 50, uint64(wrapperPCs[0]),
+		},
+		count:    2,
+		wantLocs: [][]string{{"runtime/pprof.inlineWrapper.dump"}},
+		wantSamples: []*profile.Sample{
+			{Value: []int64{50, 50 * period}, Location: []*profile.Location{{ID: 1}}},
 		},
 	}}
 

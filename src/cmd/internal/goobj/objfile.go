@@ -134,7 +134,7 @@ import (
 // - If PkgIdx is PkgIdxHashed, SymIdx is the index of the symbol in the
 //   HashedDefs array.
 // - If PkgIdx is PkgIdxNone, SymIdx is the index of the symbol in the
-//   NonPkgDefs array (could natually overflow to NonPkgRefs array).
+//   NonPkgDefs array (could naturally overflow to NonPkgRefs array).
 // - Otherwise, SymIdx is the index of the symbol in some other package's
 //   SymbolDefs array.
 //
@@ -303,6 +303,7 @@ const (
 	SymFlagUsedInIface = 1 << iota
 	SymFlagItab
 	SymFlagDict
+	SymFlagPkgInit
 )
 
 // Returns the length of the name of the symbol.
@@ -333,6 +334,7 @@ func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
 func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
 func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
 func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
+func (s *Sym) IsPkgInit() bool     { return s.Flag2()&SymFlagPkgInit != 0 }
 
 func (s *Sym) SetName(x string, w *Writer) {
 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
@@ -440,6 +442,8 @@ const (
 	AuxPcline
 	AuxPcinline
 	AuxPcdata
+	AuxWasmImport
+	AuxSehUnwindInfo
 )
 
 func (a *Aux) Type() uint8 { return a[0] }
@@ -847,6 +851,15 @@ func (r *Reader) Data(i uint32) []byte {
 	off := r.uint32At(dataIdxOff)
 	end := r.uint32At(dataIdxOff + 4)
 	return r.BytesAt(base+off, int(end-off))
+}
+
+// DataString returns the i-th symbol's data as a string.
+func (r *Reader) DataString(i uint32) string {
+	dataIdxOff := r.h.Offsets[BlkDataIdx] + i*4
+	base := r.h.Offsets[BlkData]
+	off := r.uint32At(dataIdxOff)
+	end := r.uint32At(dataIdxOff + 4)
+	return r.StringAt(base+off, end-off)
 }
 
 // NRefName returns the number of referenced symbol names.

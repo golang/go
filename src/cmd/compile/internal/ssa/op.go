@@ -372,7 +372,7 @@ const (
 	auxARM64BitField     // aux is an arm64 bitfield lsb and width packed into auxInt
 	auxS390XRotateParams // aux is a s390x rotate parameters object encoding start bit, end bit and rotate amount
 	auxS390XCCMask       // aux is a s390x 4-bit condition code mask
-	auxS390XCCMaskInt8   // aux is a s390x 4-bit condition code mask, auxInt is a int8 immediate
+	auxS390XCCMaskInt8   // aux is a s390x 4-bit condition code mask, auxInt is an int8 immediate
 	auxS390XCCMaskUint8  // aux is a s390x 4-bit condition code mask, auxInt is a uint8 immediate
 )
 

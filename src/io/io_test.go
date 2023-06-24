@@ -608,6 +608,26 @@ func TestOffsetWriter_WriteAt(t *testing.T) {
 	}
 }
 
+func TestWriteAt_PositionPriorToBase(t *testing.T) {
+	tmpdir := t.TempDir()
+	tmpfilename := "TestOffsetWriter_WriteAt"
+	tmpfile, err := os.CreateTemp(tmpdir, tmpfilename)
+	if err != nil {
+		t.Fatalf("CreateTemp(%s) failed: %v", tmpfilename, err)
+	}
+	defer tmpfile.Close()
+
+	// start writing position in OffsetWriter
+	offset := int64(10)
+	// position we want to write to the tmpfile
+	at := int64(-1)
+	w := NewOffsetWriter(tmpfile, offset)
+	_, e := w.WriteAt([]byte("hello"), at)
+	if e == nil {
+		t.Errorf("error expected to be not nil")
+	}
+}
+
 func TestOffsetWriter_Write(t *testing.T) {
 	const content = "0123456789ABCDEF"
 	contentSize := len(content)

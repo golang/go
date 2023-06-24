@@ -33,7 +33,7 @@ func initSystemRoots() {
 	}
 }
 
-var forceFallback = godebug.New("x509usefallbackroots")
+var x509usefallbackroots = godebug.New("x509usefallbackroots")
 
 // SetFallbackRoots sets the roots to use during certificate verification, if no
 // custom roots are specified and a platform verifier or a system certificate
@@ -65,8 +65,11 @@ func SetFallbackRoots(roots *CertPool) {
 	}
 	fallbacksSet = true
 
-	if systemRoots != nil && (systemRoots.len() > 0 || systemRoots.systemPool) && forceFallback.Value() != "1" {
-		return
+	if systemRoots != nil && (systemRoots.len() > 0 || systemRoots.systemPool) {
+		if x509usefallbackroots.Value() != "1" {
+			return
+		}
+		x509usefallbackroots.IncNonDefault()
 	}
 	systemRoots, systemRootsErr = roots, nil
 }

@@ -60,7 +60,7 @@ func (br *bitReader) ReadBits64(bits uint) (n uint64) {
 	//        |------------|
 	//           br.bits (num valid bits)
 	//
-	// This the next line right shifts the desired bits into the
+	// The next line right shifts the desired bits into the
 	// least-significant places and masks off anything above.
 	n = (br.n >> (br.bits - bits)) & ((1 << bits) - 1)
 	br.bits -= bits

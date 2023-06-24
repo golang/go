@@ -50,7 +50,7 @@ type State interface {
 
 // Formatter is implemented by any value that has a Format method.
 // The implementation controls how State and rune are interpreted,
-// and may call Sprint(f) or Fprint(f) etc. to generate its output.
+// and may call Sprint() or Fprint(f) etc. to generate its output.
 type Formatter interface {
 	Format(f State, verb rune)
 }

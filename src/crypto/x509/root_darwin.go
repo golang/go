@@ -25,9 +25,10 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 				return nil, err
 			}
 			sc, err := macOS.SecCertificateCreateWithData(c.Raw)
-			if err == nil {
-				macOS.CFArrayAppendValue(certs, sc)
+			if err != nil {
+				return nil, err
 			}
+			macOS.CFArrayAppendValue(certs, sc)
 		}
 	}
 

@@ -12,6 +12,7 @@ import (
 	"cmd/link/internal/sym"
 	"fmt"
 	"internal/buildcfg"
+	"strings"
 	"unicode"
 )
 
@@ -29,6 +30,8 @@ type deadcodePass struct {
 	dynlink            bool
 
 	methodsigstmp []methodsig // scratch buffer for decoding method signatures
+	pkginits      []loader.Sym
+	mapinitnoop   loader.Sym
 }
 
 func (d *deadcodePass) init() {
@@ -105,6 +108,14 @@ func (d *deadcodePass) init() {
 		}
 		d.mark(s, 0)
 	}
+
+	d.mapinitnoop = d.ldr.Lookup("runtime.mapinitnoop", abiInternalVer)
+	if d.mapinitnoop == 0 {
+		panic("could not look up runtime.mapinitnoop")
+	}
+	if d.ctxt.mainInittasks != 0 {
+		d.mark(d.ctxt.mainInittasks, 0)
+	}
 }
 
 func (d *deadcodePass) flood() {
@@ -169,6 +180,14 @@ func (d *deadcodePass) flood() {
 				// converted to an interface, i.e. should have UsedInIface set. See the
 				// comment below for why we need to unset the Reachable bit and re-mark it.
 				rs := r.Sym()
+				if d.ldr.IsItab(rs) {
+					// This relocation can also point at an itab, in which case it
+					// means "the _type field of that itab".
+					rs = decodeItabType(d.ldr, d.ctxt.Arch, rs)
+				}
+				if !d.ldr.IsGoType(rs) && !d.ctxt.linkShared {
+					panic(fmt.Sprintf("R_USEIFACE in %s references %s which is not a type or itab", d.ldr.SymName(symIdx), d.ldr.SymName(rs)))
+				}
 				if !d.ldr.AttrUsedInIface(rs) {
 					d.ldr.SetAttrUsedInIface(rs, true)
 					if d.ldr.AttrReachable(rs) {
@@ -200,6 +219,11 @@ func (d *deadcodePass) flood() {
 				}
 				d.genericIfaceMethod[name] = true
 				continue // don't mark referenced symbol - it is not needed in the final binary.
+			case objabi.R_INITORDER:
+				// inittasks has already run, so any R_INITORDER links are now
+				// superfluous - the only live inittask records are those which are
+				// in a scheduled list somewhere (e.g. runtime.moduledata.inittasks).
+				continue
 			}
 			rs := r.Sym()
 			if isgotype && usedInIface && d.ldr.IsGoType(rs) && !d.ldr.AttrUsedInIface(rs) {
@@ -228,6 +252,12 @@ func (d *deadcodePass) flood() {
 				continue
 			}
 			d.mark(a.Sym(), symIdx)
+		}
+		// Record sym if package init func (here naux != 0 is a cheap way
+		// to check first if it is a function symbol).
+		if naux != 0 && d.ldr.IsPkgInit(symIdx) {
+
+			d.pkginits = append(d.pkginits, symIdx)
 		}
 		// Some host object symbols have an outer object, which acts like a
 		// "carrier" symbol, or it holds all the symbols for a particular
@@ -262,6 +292,37 @@ func (d *deadcodePass) flood() {
 	}
 }
 
+// mapinitcleanup walks all pkg init functions and looks for weak relocations
+// to mapinit symbols that are no longer reachable. It rewrites
+// the relocs to target a new no-op routine in the runtime.
+func (d *deadcodePass) mapinitcleanup() {
+	for _, idx := range d.pkginits {
+		relocs := d.ldr.Relocs(idx)
+		var su *loader.SymbolBuilder
+		for i := 0; i < relocs.Count(); i++ {
+			r := relocs.At(i)
+			rs := r.Sym()
+			if r.Weak() && r.Type().IsDirectCall() && !d.ldr.AttrReachable(rs) {
+				// double check to make sure target is indeed map.init
+				rsn := d.ldr.SymName(rs)
+				if !strings.Contains(rsn, "map.init") {
+					panic(fmt.Sprintf("internal error: expected map.init sym for weak call reloc, got %s -> %s", d.ldr.SymName(idx), rsn))
+				}
+				d.ldr.SetAttrReachable(d.mapinitnoop, true)
+				if d.ctxt.Debugvlog > 1 {
+					d.ctxt.Logf("deadcode: %s rewrite %s ref to %s\n",
+						d.ldr.SymName(idx), rsn,
+						d.ldr.SymName(d.mapinitnoop))
+				}
+				if su == nil {
+					su = d.ldr.MakeSymbolUpdater(idx)
+				}
+				su.SetRelocSym(i, d.mapinitnoop)
+			}
+		}
+	}
+}
+
 func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
 	if symIdx != 0 && !d.ldr.AttrReachable(symIdx) {
 		d.wq.push(symIdx)
@@ -272,20 +333,30 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
 		if *flagDumpDep {
 			to := d.ldr.SymName(symIdx)
 			if to != "" {
-				if d.ldr.AttrUsedInIface(symIdx) {
-					to += " <UsedInIface>"
-				}
+				to = d.dumpDepAddFlags(to, symIdx)
 				from := "_"
 				if parent != 0 {
 					from = d.ldr.SymName(parent)
-					if d.ldr.AttrUsedInIface(parent) {
-						from += " <UsedInIface>"
-					}
+					from = d.dumpDepAddFlags(from, parent)
 				}
 				fmt.Printf("%s -> %s\n", from, to)
 			}
 		}
 	}
+}
+
+func (d *deadcodePass) dumpDepAddFlags(name string, symIdx loader.Sym) string {
+	var flags strings.Builder
+	if d.ldr.AttrUsedInIface(symIdx) {
+		flags.WriteString("<UsedInIface>")
+	}
+	if d.ldr.IsReflectMethod(symIdx) {
+		flags.WriteString("<ReflectMethod>")
+	}
+	if flags.Len() > 0 {
+		return name + " " + flags.String()
+	}
+	return name
 }
 
 func (d *deadcodePass) markMethod(m methodref) {
@@ -370,6 +441,9 @@ func deadcode(ctxt *Link) {
 		}
 		d.flood()
 	}
+	if *flagPruneWeakMap {
+		d.mapinitcleanup()
+	}
 }
 
 // methodsig is a typed method signature (name + type).
@@ -431,7 +505,7 @@ func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, sym
 
 // Decode the method name stored in symbol symIdx. The symbol should contain just the bytes of a method name.
 func (d *deadcodePass) decodeGenericIfaceMethod(ldr *loader.Loader, symIdx loader.Sym) string {
-	return string(ldr.Data(symIdx))
+	return ldr.DataString(symIdx)
 }
 
 func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs) []methodsig {

@@ -32,10 +32,10 @@ type U3 interface { M; m() }
 type U4 interface { M; M; M }
 type U5 interface { U1; U2; U3; U4 }
 
-type U6 interface { m(); m /* ERROR duplicate method */ () }
-type U7 interface { M32 /* ERROR duplicate method */ ; m() }
-type U8 interface { m(); M32 /* ERROR duplicate method */ }
-type U9 interface { M32; M64 /* ERROR duplicate method */ }
+type U6 interface { m(); m /* ERROR "duplicate method" */ () }
+type U7 interface { M32 /* ERROR "duplicate method" */ ; m() }
+type U8 interface { m(); M32 /* ERROR "duplicate method" */ }
+type U9 interface { M32; M64 /* ERROR "duplicate method" */ }
 
 // Verify that repeated embedding of the same interface(s)
 // eliminates duplicate methods early (rather than at the

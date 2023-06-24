@@ -168,7 +168,7 @@ func (check *Checker) validateTArgLen(pos syntax.Pos, ntparams, ntargs int) bool
 func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type, ctxt *Context) (int, error) {
 	smap := makeSubstMap(tparams, targs)
 	for i, tpar := range tparams {
-		// Ensure that we have a (possibly implicit) interface as type bound (issue #51048).
+		// Ensure that we have a (possibly implicit) interface as type bound (go.dev/issue/51048).
 		tpar.iface()
 		// The type parameter bound is parameterized with the same type parameters
 		// as the instantiated type; before we can use it for bounds checking we
@@ -176,7 +176,7 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 		// the parameterized type.
 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
 		var cause string
-		if !check.implements(targs[i], bound, true, &cause) {
+		if !check.implements(pos, targs[i], bound, true, &cause) {
 			return i, errors.New(cause)
 		}
 	}
@@ -189,14 +189,14 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 //
 // If the provided cause is non-nil, it may be set to an error string
 // explaining why V does not implement (or satisfy, for constraints) T.
-func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
+func (check *Checker) implements(pos syntax.Pos, V, T Type, constraint bool, cause *string) bool {
 	Vu := under(V)
 	Tu := under(T)
 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
 		return true // avoid follow-on errors
 	}
 	if p, _ := Vu.(*Pointer); p != nil && under(p.base) == Typ[Invalid] {
-		return true // avoid follow-on errors (see issue #49541 for an example)
+		return true // avoid follow-on errors (see go.dev/issue/49541 for an example)
 	}
 
 	verb := "implement"
@@ -241,9 +241,9 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 	}
 
 	// V must implement T's methods, if any.
-	if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+	if m, _ := check.missingMethod(V, T, true, Identical, cause); m != nil /* !Implements(V, T) */ {
 		if cause != nil {
-			*cause = check.sprintf("%s does not %s %s %s", V, verb, T, check.missingMethodCause(V, T, m, wrong))
+			*cause = check.sprintf("%s does not %s %s %s", V, verb, T, *cause)
 		}
 		return false
 	}
@@ -258,20 +258,11 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 		if comparable(V, false /* strict comparability */, nil, nil) {
 			return true
 		}
-		// If check.conf.OldComparableSemantics is set (by the compiler or
-		// a test), we only consider strict comparability and we're done.
-		// TODO(gri) remove this check for Go 1.21
-		if check != nil && check.conf.OldComparableSemantics {
-			if cause != nil {
-				*cause = check.sprintf("%s does not %s comparable", V, verb)
-			}
-			return false
-		}
 		// For constraint satisfaction, use dynamic (spec) comparability
 		// so that ordinary, non-type parameter interfaces implement comparable.
 		if constraint && comparable(V, true /* spec comparability */, nil, nil) {
 			// V is comparable if we are at Go 1.20 or higher.
-			if check == nil || check.allowVersion(check.pkg, 1, 20) {
+			if check == nil || check.allowVersion(check.pkg, atPos(pos), go1_20) { // atPos needed so that go/types generate passes
 				return true
 			}
 			if cause != nil {
@@ -324,14 +315,43 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 		return false
 	}) {
 		if cause != nil {
-			if alt != nil {
-				*cause = check.sprintf("%s does not %s %s (possibly missing ~ for %s in constraint %s)", V, verb, T, alt, T)
-			} else {
-				*cause = check.sprintf("%s does not %s %s (%s missing in %s)", V, verb, T, V, Ti.typeSet().terms)
+			var detail string
+			switch {
+			case alt != nil:
+				detail = check.sprintf("possibly missing ~ for %s in %s", alt, T)
+			case mentions(Ti, V):
+				detail = check.sprintf("%s mentions %s, but %s is not in the type set of %s", T, V, V, T)
+			default:
+				detail = check.sprintf("%s missing in %s", V, Ti.typeSet().terms)
 			}
+			*cause = check.sprintf("%s does not %s %s (%s)", V, verb, T, detail)
 		}
 		return false
 	}
 
 	return checkComparability()
+}
+
+// mentions reports whether type T "mentions" typ in an (embedded) element or term
+// of T (whether typ is in the type set of T or not). For better error messages.
+func mentions(T, typ Type) bool {
+	switch T := T.(type) {
+	case *Interface:
+		for _, e := range T.embeddeds {
+			if mentions(e, typ) {
+				return true
+			}
+		}
+	case *Union:
+		for _, t := range T.terms {
+			if mentions(t.typ, typ) {
+				return true
+			}
+		}
+	default:
+		if Identical(T, typ) {
+			return true
+		}
+	}
+	return false
 }

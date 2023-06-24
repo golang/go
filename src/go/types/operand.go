@@ -59,11 +59,11 @@ type operand struct {
 }
 
 // Pos returns the position of the expression corresponding to x.
-// If x is invalid the position is token.NoPos.
+// If x is invalid the position is nopos.
 func (x *operand) Pos() token.Pos {
 	// x.expr may not be set if x is invalid
 	if x.expr == nil {
-		return token.NoPos
+		return nopos
 	}
 	return x.expr.Pos()
 }
@@ -222,10 +222,8 @@ func (x *operand) setConst(tok token.Token, lit string) {
 	x.val = val
 }
 
-// isNil reports whether x is the nil value.
-func (x *operand) isNil() bool {
-	return x.mode == value && x.typ == Typ[UntypedNil]
-}
+// isNil reports whether x is the (untyped) nil value.
+func (x *operand) isNil() bool { return x.mode == value && x.typ == Typ[UntypedNil] }
 
 // assignableTo reports whether x is assignable to a variable of type T. If the
 // result is false and a non-nil cause is provided, it may be set to a more
@@ -279,18 +277,26 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 		return true, 0
 	}
 
-	// T is an interface type and x implements T and T is not a type parameter.
-	// Also handle the case where T is a pointer to an interface.
+	// T is an interface type, but not a type parameter, and V implements T.
+	// Also handle the case where T is a pointer to an interface so that we get
+	// the Checker.implements error cause.
 	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
-		if !check.implements(V, T, false, cause) {
+		if check.implements(x.Pos(), V, T, false, cause) {
+			return true, 0
+		}
+		// V doesn't implement T but V may still be assignable to T if V
+		// is a type parameter; do not report an error in that case yet.
+		if Vp == nil {
 			return false, InvalidIfaceAssign
 		}
-		return true, 0
+		if cause != nil {
+			*cause = ""
+		}
 	}
 
 	// If V is an interface, check if a missing type assertion is the problem.
 	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
-		if check.implements(T, V, false, nil) {
+		if check.implements(x.Pos(), T, V, false, nil) {
 			// T implements V, so give hint about type assertion.
 			if cause != nil {
 				*cause = "need type assertion"

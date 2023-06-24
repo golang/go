@@ -203,7 +203,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64,
 	// If we're at the end of the known zone transitions,
 	// try the extend string.
 	if lo == len(tx)-1 && l.extend != "" {
-		if ename, eoffset, estart, eend, eisDST, ok := tzset(l.extend, end, sec); ok {
+		if ename, eoffset, estart, eend, eisDST, ok := tzset(l.extend, start, sec); ok {
 			return ename, eoffset, estart, eend, eisDST
 		}
 	}
@@ -264,12 +264,12 @@ func (l *Location) firstZoneUsed() bool {
 }
 
 // tzset takes a timezone string like the one found in the TZ environment
-// variable, the end of the last time zone transition expressed as seconds
+// variable, the time of the last time zone transition expressed as seconds
 // since January 1, 1970 00:00:00 UTC, and a time expressed the same way.
 // We call this a tzset string since in C the function tzset reads TZ.
 // The return values are as for lookup, plus ok which reports whether the
 // parse succeeded.
-func tzset(s string, initEnd, sec int64) (name string, offset int, start, end int64, isDST, ok bool) {
+func tzset(s string, lastTxSec, sec int64) (name string, offset int, start, end int64, isDST, ok bool) {
 	var (
 		stdName, dstName     string
 		stdOffset, dstOffset int
@@ -290,7 +290,7 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 
 	if len(s) == 0 || s[0] == ',' {
 		// No daylight savings time.
-		return stdName, stdOffset, initEnd, omega, false, true
+		return stdName, stdOffset, lastTxSec, omega, false, true
 	}
 
 	dstName, s, ok = tzsetName(s)

@@ -416,7 +416,7 @@ const (
 
 type SockaddrStorage struct {
 	Family uint16
-	_      [118]uint8
+	Data   [118]byte
 	_      uint64
 }
 

@@ -77,15 +77,15 @@ func main() {
 			Name:       "generic_ordered",
 			Path:       "zsortordered.go",
 			Package:    "slices",
-			Imports:    "import \"constraints\"\n",
+			Imports:    "import \"cmp\"\n",
 			FuncSuffix: "Ordered",
-			TypeParam:  "[E constraints.Ordered]",
+			TypeParam:  "[E cmp.Ordered]",
 			ExtraParam: "",
 			ExtraArg:   "",
 			DataType:   "[]E",
 			Funcs: template.FuncMap{
 				"Less": func(name, i, j string) string {
-					return fmt.Sprintf("(%s[%s] < %s[%s])", name, i, name, j)
+					return fmt.Sprintf("cmp.Less(%s[%s], %s[%s])", name, i, name, j)
 				},
 				"Swap": func(name, i, j string) string {
 					return fmt.Sprintf("%s[%s], %s[%s] = %s[%s], %s[%s]", name, i, name, j, name, j, name, i)
@@ -97,14 +97,14 @@ func main() {
 			Name:       "generic_func",
 			Path:       "zsortanyfunc.go",
 			Package:    "slices",
-			FuncSuffix: "LessFunc",
+			FuncSuffix: "CmpFunc",
 			TypeParam:  "[E any]",
-			ExtraParam: ", less func(a, b E) bool",
-			ExtraArg:   ", less",
+			ExtraParam: ", cmp func(a, b E) int",
+			ExtraArg:   ", cmp",
 			DataType:   "[]E",
 			Funcs: template.FuncMap{
 				"Less": func(name, i, j string) string {
-					return fmt.Sprintf("less(%s[%s], %s[%s])", name, i, name, j)
+					return fmt.Sprintf("(cmp(%s[%s], %s[%s]) < 0)", name, i, name, j)
 				},
 				"Swap": func(name, i, j string) string {
 					return fmt.Sprintf("%s[%s], %s[%s] = %s[%s], %s[%s]", name, i, name, j, name, j, name, i)

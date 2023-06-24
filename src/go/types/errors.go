@@ -54,7 +54,7 @@ func (err *error_) empty() bool {
 
 func (err *error_) pos() token.Pos {
 	if err.empty() {
-		return token.NoPos
+		return nopos
 	}
 	return err.desc[0].posn.Pos()
 }
@@ -228,6 +228,16 @@ func (check *Checker) report(errp *error_) {
 		panic("no error code provided")
 	}
 
+	// If we have an URL for error codes, add a link to the first line.
+	if errp.code != 0 && check.conf._ErrorURL != "" {
+		u := fmt.Sprintf(check.conf._ErrorURL, errp.code)
+		if i := strings.Index(msg, "\n"); i >= 0 {
+			msg = msg[:i] + u + msg[i:]
+		} else {
+			msg += u
+		}
+	}
+
 	span := spanOf(errp.desc[0].posn)
 	e := Error{
 		Fset:       check.fset,
@@ -266,7 +276,7 @@ func (check *Checker) report(errp *error_) {
 		check.firstErr = err
 	}
 
-	if trace {
+	if check.conf._Trace {
 		pos := e.Pos
 		msg := e.Msg
 		check.trace(pos, "ERROR: %s", msg)
@@ -293,7 +303,7 @@ func newErrorf(at positioner, code Code, format string, args ...any) *error_ {
 }
 
 func (check *Checker) error(at positioner, code Code, msg string) {
-	check.report(newErrorf(at, code, msg))
+	check.report(newErrorf(at, code, "%s", msg))
 }
 
 func (check *Checker) errorf(at positioner, code Code, format string, args ...any) {
@@ -306,10 +316,10 @@ func (check *Checker) softErrorf(at positioner, code Code, format string, args .
 	check.report(err)
 }
 
-func (check *Checker) versionErrorf(at positioner, goVersion string, format string, args ...interface{}) {
+func (check *Checker) versionErrorf(at positioner, v version, format string, args ...interface{}) {
 	msg := check.sprintf(format, args...)
 	var err *error_
-	err = newErrorf(at, UnsupportedFeature, "%s requires %s or later", msg, goVersion)
+	err = newErrorf(at, UnsupportedFeature, "%s requires %s or later", msg, v)
 	check.report(err)
 }
 
@@ -367,7 +377,7 @@ func spanOf(at positioner) posSpan {
 			pos := x.Pos()
 			return posSpan{pos, pos, x.expr.End()}
 		}
-		return posSpan{token.NoPos, token.NoPos, token.NoPos}
+		return posSpan{nopos, nopos, nopos}
 	default:
 		pos := at.Pos()
 		return posSpan{pos, pos, pos}

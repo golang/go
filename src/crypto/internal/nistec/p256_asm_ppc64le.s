@@ -1208,7 +1208,7 @@ sqrLoop:
 	BR	sqrLoop
 
 done:
-        MOVD $p256mul<>+0x00(SB), CPOOL
+	MOVD $p256mul<>+0x00(SB), CPOOL
 
 	XXPERMDI T0, T0, $2, T0
 	XXPERMDI T1, T1, $2, T1

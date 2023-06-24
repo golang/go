@@ -14,6 +14,7 @@ import (
 	. "internal/types/errors"
 )
 
+// nopos indicates an unknown position
 var nopos syntax.Pos
 
 // debugging/development support
@@ -115,6 +116,7 @@ type Checker struct {
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
 	files         []*syntax.File              // list of package files
+	posVers       map[*syntax.PosBase]version // Pos -> Go version mapping
 	imports       []*PkgName                  // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName   // maps dot-imported objects to the package they were dot-imported through
 	recvTParamMap map[*syntax.Name]*TypeParam // maps blank receiver type parameters to their type
@@ -280,6 +282,35 @@ func (check *Checker) initFiles(files []*syntax.File) {
 			// ignore this file
 		}
 	}
+
+	for _, file := range check.files {
+		v, _ := parseGoVersion(file.GoVersion)
+		if v.major > 0 {
+			if v.equal(check.version) {
+				continue
+			}
+			// Go 1.21 introduced the feature of setting the go.mod
+			// go line to an early version of Go and allowing //go:build lines
+			// to “upgrade” the Go version in a given file.
+			// We can do that backwards compatibly.
+			// Go 1.21 also introduced the feature of allowing //go:build lines
+			// to “downgrade” the Go version in a given file.
+			// That can't be done compatibly in general, since before the
+			// build lines were ignored and code got the module's Go version.
+			// To work around this, downgrades are only allowed when the
+			// module's Go version is Go 1.21 or later.
+			// If there is no check.version, then we don't really know what Go version to apply.
+			// Legacy tools may do this, and they historically have accepted everything.
+			// Preserve that behavior by ignoring //go:build constraints entirely in that case.
+			if (v.before(check.version) && check.version.before(version{1, 21})) || check.version.equal(version{0, 0}) {
+				continue
+			}
+			if check.posVers == nil {
+				check.posVers = make(map[*syntax.PosBase]version)
+			}
+			check.posVers[base(file.Pos())] = v
+		}
+	}
 }
 
 // A bailout panic is used for early termination.
@@ -432,7 +463,7 @@ func (check *Checker) recordUntyped() {
 
 	for x, info := range check.untyped {
 		if debug && isTyped(info.typ) {
-			check.dump("%v: %s (type %s) is typed", posFor(x), x, info.typ)
+			check.dump("%v: %s (type %s) is typed", atPos(x), x, info.typ)
 			unreachable()
 		}
 		check.recordTypeAndValue(x, info.mode, info.typ, info.val)
@@ -503,22 +534,27 @@ func (check *Checker) recordBuiltinType(f syntax.Expr, sig *Signature) {
 	}
 }
 
-func (check *Checker) recordCommaOkTypes(x syntax.Expr, a [2]Type) {
+// recordCommaOkTypes updates recorded types to reflect that x is used in a commaOk context
+// (and therefore has tuple type).
+func (check *Checker) recordCommaOkTypes(x syntax.Expr, a []*operand) {
 	assert(x != nil)
-	if a[0] == nil || a[1] == nil {
+	assert(len(a) == 2)
+	if a[0].mode == invalid {
 		return
 	}
-	assert(isTyped(a[0]) && isTyped(a[1]) && (isBoolean(a[1]) || a[1] == universeError))
+	t0, t1 := a[0].typ, a[1].typ
+	assert(isTyped(t0) && isTyped(t1) && (isBoolean(t1) || t1 == universeError))
 	if m := check.Types; m != nil {
 		for {
 			tv := m[x]
 			assert(tv.Type != nil) // should have been recorded already
 			pos := x.Pos()
 			tv.Type = NewTuple(
-				NewVar(pos, check.pkg, "", a[0]),
-				NewVar(pos, check.pkg, "", a[1]),
+				NewVar(pos, check.pkg, "", t0),
+				NewVar(pos, check.pkg, "", t1),
 			)
 			m[x] = tv
+			// if x is a parenthesized expression (p.X), update p.X
 			p, _ := x.(*syntax.ParenExpr)
 			if p == nil {
 				break
@@ -534,8 +570,8 @@ func (check *Checker) recordCommaOkTypes(x syntax.Expr, a [2]Type) {
 			assert(tv.Type != nil) // should have been recorded already
 			pos := x.Pos()
 			tv.Type = NewTuple(
-				NewVar(pos, check.pkg, "", a[0]),
-				NewVar(pos, check.pkg, "", a[1]),
+				NewVar(pos, check.pkg, "", t0),
+				NewVar(pos, check.pkg, "", t1),
 			)
 			x.SetTypeInfo(tv)
 			p, _ := x.(*syntax.ParenExpr)

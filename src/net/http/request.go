@@ -48,6 +48,11 @@ type ProtocolError struct {
 
 func (pe *ProtocolError) Error() string { return pe.ErrorString }
 
+// Is lets http.ErrNotSupported match errors.ErrUnsupported.
+func (pe *ProtocolError) Is(err error) bool {
+	return pe == ErrNotSupported && err == errors.ErrUnsupported
+}
+
 var (
 	// ErrNotSupported indicates that a feature is not supported.
 	//

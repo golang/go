@@ -408,8 +408,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 		for n < len(pp.Path) && pp.Path[n] != 0 {
 			n++
 		}
-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
-		sa.Name = string(bytes)
+		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
 		return sa, nil
 
 	case AF_INET:
@@ -546,22 +545,26 @@ func Minor(dev uint64) uint32 {
  * Expose the ioctl function
  */
 
-//sys	ioctlRet(fd int, req uint, arg uintptr) (ret int, err error) = libc.ioctl
+//sys	ioctlRet(fd int, req int, arg uintptr) (ret int, err error) = libc.ioctl
+//sys	ioctlPtrRet(fd int, req int, arg unsafe.Pointer) (ret int, err error) = libc.ioctl
 
-func ioctl(fd int, req uint, arg uintptr) (err error) {
+func ioctl(fd int, req int, arg uintptr) (err error) {
 	_, err = ioctlRet(fd, req, arg)
 	return err
 }
 
-func IoctlSetTermio(fd int, req uint, value *Termio) error {
-	err := ioctl(fd, req, uintptr(unsafe.Pointer(value)))
-	runtime.KeepAlive(value)
+func ioctlPtr(fd int, req int, arg unsafe.Pointer) (err error) {
+	_, err = ioctlPtrRet(fd, req, arg)
 	return err
 }
 
-func IoctlGetTermio(fd int, req uint) (*Termio, error) {
+func IoctlSetTermio(fd int, req int, value *Termio) error {
+	return ioctlPtr(fd, req, unsafe.Pointer(value))
+}
+
+func IoctlGetTermio(fd int, req int) (*Termio, error) {
 	var value Termio
-	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
+	err := ioctlPtr(fd, req, unsafe.Pointer(&value))
 	return &value, err
 }
 
@@ -590,6 +593,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Chmod(path string, mode uint32) (err error)
 //sys	Chown(path string, uid int, gid int) (err error)
 //sys	Chroot(path string) (err error)
+//sys	ClockGettime(clockid int32, time *Timespec) (err error)
 //sys	Close(fd int) (err error)
 //sys	Creat(path string, mode uint32) (fd int, err error)
 //sys	Dup(fd int) (nfd int, err error)
@@ -661,7 +665,6 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Setuid(uid int) (err error)
 //sys	Shutdown(s int, how int) (err error) = libsocket.shutdown
@@ -1076,14 +1079,14 @@ func Getmsg(fd int, cl []byte, data []byte) (retCl []byte, retData []byte, flags
 	return retCl, retData, flags, nil
 }
 
-func IoctlSetIntRetInt(fd int, req uint, arg int) (int, error) {
+func IoctlSetIntRetInt(fd int, req int, arg int) (int, error) {
 	return ioctlRet(fd, req, uintptr(arg))
 }
 
-func IoctlSetString(fd int, req uint, val string) error {
+func IoctlSetString(fd int, req int, val string) error {
 	bs := make([]byte, len(val)+1)
 	copy(bs[:len(bs)-1], val)
-	err := ioctl(fd, req, uintptr(unsafe.Pointer(&bs[0])))
+	err := ioctlPtr(fd, req, unsafe.Pointer(&bs[0]))
 	runtime.KeepAlive(&bs[0])
 	return err
 }
@@ -1116,8 +1119,8 @@ func (l *Lifreq) GetLifruUint() uint {
 	return *(*uint)(unsafe.Pointer(&l.Lifru[0]))
 }
 
-func IoctlLifreq(fd int, req uint, l *Lifreq) error {
-	return ioctl(fd, req, uintptr(unsafe.Pointer(l)))
+func IoctlLifreq(fd int, req int, l *Lifreq) error {
+	return ioctlPtr(fd, req, unsafe.Pointer(l))
 }
 
 // Strioctl Helpers
@@ -1127,6 +1130,6 @@ func (s *Strioctl) SetInt(i int) {
 	s.Dp = (*int8)(unsafe.Pointer(&i))
 }
 
-func IoctlSetStrioctlRetInt(fd int, req uint, s *Strioctl) (int, error) {
-	return ioctlRet(fd, req, uintptr(unsafe.Pointer(s)))
+func IoctlSetStrioctlRetInt(fd int, req int, s *Strioctl) (int, error) {
+	return ioctlPtrRet(fd, req, unsafe.Pointer(s))
 }

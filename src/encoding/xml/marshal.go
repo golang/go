@@ -543,6 +543,11 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		}
 	}
 
+	// If a name was found, namespace is overridden with an empty space
+	if tinfo.xmlname != nil && start.Name.Space == "" &&
+		len(p.tags) != 0 && p.tags[len(p.tags)-1].Space != "" {
+		start.Attr = append(start.Attr, Attr{Name{"", xmlnsPrefix}, ""})
+	}
 	if err := p.writeStart(&start); err != nil {
 		return err
 	}

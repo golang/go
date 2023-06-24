@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"strconv"
 	"testing"
 	"unicode/utf8"
 )
@@ -267,7 +268,7 @@ type panicReader struct{ panic bool }
 
 func (r panicReader) Read(p []byte) (int, error) {
 	if r.panic {
-		panic(nil)
+		panic("oops")
 	}
 	return 0, io.EOF
 }
@@ -323,6 +324,33 @@ func TestWriteTo(t *testing.T) {
 		var b Buffer
 		buf.WriteTo(&b)
 		empty(t, "TestWriteTo (2)", &b, s, make([]byte, len(testString)))
+	}
+}
+
+func TestWriteAppend(t *testing.T) {
+	var got Buffer
+	var want []byte
+	for i := 0; i < 1000; i++ {
+		b := got.AvailableBuffer()
+		b = strconv.AppendInt(b, int64(i), 10)
+		want = strconv.AppendInt(want, int64(i), 10)
+		got.Write(b)
+	}
+	if !Equal(got.Bytes(), want) {
+		t.Fatalf("Bytes() = %q, want %q", got, want)
+	}
+
+	// With a sufficiently sized buffer, there should be no allocations.
+	n := testing.AllocsPerRun(100, func() {
+		got.Reset()
+		for i := 0; i < 1000; i++ {
+			b := got.AvailableBuffer()
+			b = strconv.AppendInt(b, int64(i), 10)
+			got.Write(b)
+		}
+	})
+	if n > 0 {
+		t.Errorf("allocations occurred while appending")
 	}
 }
 
@@ -685,5 +713,18 @@ func BenchmarkBufferWriteBlock(b *testing.B) {
 				}
 			}
 		})
+	}
+}
+
+func BenchmarkBufferAppendNoCopy(b *testing.B) {
+	var bb Buffer
+	bb.Grow(16 << 20)
+	b.SetBytes(int64(bb.Available()))
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		bb.Reset()
+		b := bb.AvailableBuffer()
+		b = b[:cap(b)] // use max capacity to simulate a large append operation
+		bb.Write(b)    // should be nearly infinitely fast
 	}
 }

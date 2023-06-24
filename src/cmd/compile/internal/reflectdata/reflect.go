@@ -7,6 +7,7 @@ package reflectdata
 import (
 	"encoding/binary"
 	"fmt"
+	"internal/abi"
 	"os"
 	"sort"
 	"strings"
@@ -15,8 +16,6 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/bitvec"
 	"cmd/compile/internal/compare"
-	"cmd/compile/internal/escape"
-	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/typebits"
@@ -65,21 +64,28 @@ type typeSig struct {
 // we include only enough information to generate a correct GC
 // program for it.
 // Make sure this stays in sync with runtime/map.go.
+//
+//	A "bucket" is a "struct" {
+//	      tophash [BUCKETSIZE]uint8
+//	      keys [BUCKETSIZE]keyType
+//	      elems [BUCKETSIZE]elemType
+//	      overflow *bucket
+//	    }
 const (
-	BUCKETSIZE  = 8
-	MAXKEYSIZE  = 128
-	MAXELEMSIZE = 128
+	BUCKETSIZE  = abi.MapBucketCount
+	MAXKEYSIZE  = abi.MapMaxKeyBytes
+	MAXELEMSIZE = abi.MapMaxElemBytes
 )
 
-func structfieldSize() int { return 3 * types.PtrSize }       // Sizeof(runtime.structfield{})
-func imethodSize() int     { return 4 + 4 }                   // Sizeof(runtime.imethod{})
-func commonSize() int      { return 4*types.PtrSize + 8 + 8 } // Sizeof(runtime._type{})
+func structfieldSize() int { return abi.StructFieldSize(types.PtrSize) } // Sizeof(runtime.structfield{})
+func imethodSize() int     { return abi.IMethodSize(types.PtrSize) }     // Sizeof(runtime.imethod{})
+func commonSize() int      { return abi.CommonSize(types.PtrSize) }      // Sizeof(runtime._type{})
 
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym() == nil && len(methods(t)) == 0 {
 		return 0
 	}
-	return 4 + 2 + 2 + 4 + 4
+	return int(abi.UncommonSize())
 }
 
 func makefield(name string, t *types.Type) *types.Field {
@@ -134,7 +140,7 @@ func MapBucketType(t *types.Type) *types.Type {
 	field = append(field, overflow)
 
 	// link up fields
-	bucket := types.NewStruct(types.NoPkg, field[:])
+	bucket := types.NewStruct(field[:])
 	bucket.SetNoalg(true)
 	types.CalcSize(bucket)
 
@@ -143,19 +149,19 @@ func MapBucketType(t *types.Type) *types.Type {
 		base.Fatalf("unsupported map key type for %v", t)
 	}
 	if BUCKETSIZE < 8 {
-		base.Fatalf("bucket size too small for proper alignment")
+		base.Fatalf("bucket size %d too small for proper alignment %d", BUCKETSIZE, 8)
 	}
 	if uint8(keytype.Alignment()) > BUCKETSIZE {
 		base.Fatalf("key align too big for %v", t)
 	}
 	if uint8(elemtype.Alignment()) > BUCKETSIZE {
-		base.Fatalf("elem align too big for %v", t)
+		base.Fatalf("elem align %d too big for %v, BUCKETSIZE=%d", elemtype.Alignment(), t, BUCKETSIZE)
 	}
 	if keytype.Size() > MAXKEYSIZE {
-		base.Fatalf("key size to large for %v", t)
+		base.Fatalf("key size too large for %v", t)
 	}
 	if elemtype.Size() > MAXELEMSIZE {
-		base.Fatalf("elem size to large for %v", t)
+		base.Fatalf("elem size too large for %v", t)
 	}
 	if t.Key().Size() > MAXKEYSIZE && !keytype.IsPtr() {
 		base.Fatalf("key indirect incorrect for %v", t)
@@ -185,7 +191,8 @@ func MapBucketType(t *types.Type) *types.Type {
 	// Double-check that overflow field is final memory in struct,
 	// with no padding at end.
 	if overflow.Offset != bucket.Size()-int64(types.PtrSize) {
-		base.Fatalf("bad offset of overflow in bmap for %v", t)
+		base.Fatalf("bad offset of overflow in bmap for %v, overflow.Offset=%d, bucket.Size()-int64(types.PtrSize)=%d",
+			t, overflow.Offset, bucket.Size()-int64(types.PtrSize))
 	}
 
 	t.MapType().Bucket = bucket
@@ -228,7 +235,7 @@ func MapType(t *types.Type) *types.Type {
 		makefield("extra", types.Types[types.TUNSAFEPTR]),
 	}
 
-	hmap := types.NewStruct(types.NoPkg, fields)
+	hmap := types.NewStruct(fields)
 	hmap.SetNoalg(true)
 	types.CalcSize(hmap)
 
@@ -291,7 +298,7 @@ func MapIterType(t *types.Type) *types.Type {
 	}
 
 	// build iterator struct holding the above fields
-	hiter := types.NewStruct(types.NoPkg, fields)
+	hiter := types.NewStruct(fields)
 	hiter.SetNoalg(true)
 	types.CalcSize(hiter)
 	if hiter.Size() != int64(12*types.PtrSize) {
@@ -664,20 +671,6 @@ var kinds = []int{
 	types.TUNSAFEPTR:  objabi.KindUnsafePointer,
 }
 
-// tflag is documented in reflect/type.go.
-//
-// tflag values must be kept in sync with copies in:
-//   - cmd/compile/internal/reflectdata/reflect.go
-//   - cmd/link/internal/ld/decodesym.go
-//   - reflect/type.go
-//   - runtime/type.go
-const (
-	tflagUncommon      = 1 << 0
-	tflagExtraStar     = 1 << 1
-	tflagNamed         = 1 << 2
-	tflagRegularMemory = 1 << 3
-)
-
 var (
 	memhashvarlen  *obj.LSym
 	memequalvarlen *obj.LSym
@@ -721,15 +714,15 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	ot = objw.Uintptr(lsym, ot, uint64(ptrdata))
 	ot = objw.Uint32(lsym, ot, types.TypeHash(t))
 
-	var tflag uint8
+	var tflag abi.TFlag
 	if uncommonSize(t) != 0 {
-		tflag |= tflagUncommon
+		tflag |= abi.TFlagUncommon
 	}
 	if t.Sym() != nil && t.Sym().Name != "" {
-		tflag |= tflagNamed
+		tflag |= abi.TFlagNamed
 	}
 	if compare.IsRegularMemory(t) {
-		tflag |= tflagRegularMemory
+		tflag |= abi.TFlagRegularMemory
 	}
 
 	exported := false
@@ -741,7 +734,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	// amount of space taken up by reflect strings.
 	if !strings.HasPrefix(p, "*") {
 		p = "*" + p
-		tflag |= tflagExtraStar
+		tflag |= abi.TFlagExtraStar
 		if t.Sym() != nil {
 			exported = types.IsExported(t.Sym().Name)
 		}
@@ -751,7 +744,11 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 		}
 	}
 
-	ot = objw.Uint8(lsym, ot, tflag)
+	if tflag != abi.TFlag(uint8(tflag)) {
+		// this should optimize away completely
+		panic("Unexpected change in size of abi.TFlag")
+	}
+	ot = objw.Uint8(lsym, ot, uint8(tflag))
 
 	// runtime (and common sense) expects alignment to be a power of two.
 	i := int(uint8(t.Alignment()))
@@ -838,7 +835,14 @@ func TypeLinksymLookup(name string) *obj.LSym {
 }
 
 func TypeLinksym(t *types.Type) *obj.LSym {
-	return TypeSym(t).Linksym()
+	lsym := TypeSym(t).Linksym()
+	signatmu.Lock()
+	if lsym.Extra == nil {
+		ti := lsym.NewTypeInfo()
+		ti.Type = t
+	}
+	signatmu.Unlock()
+	return lsym
 }
 
 // Deprecated: Use TypePtrAt instead.
@@ -953,7 +957,7 @@ func formalType(t *types.Type) *types.Type {
 
 func writeType(t *types.Type) *obj.LSym {
 	t = formalType(t)
-	if t.IsUntyped() || t.HasTParam() {
+	if t.IsUntyped() {
 		base.Fatalf("writeType %v", t)
 	}
 
@@ -1254,11 +1258,6 @@ func InterfaceMethodOffset(ityp *types.Type, i int64) int64 {
 
 // NeedRuntimeType ensures that a runtime type descriptor is emitted for t.
 func NeedRuntimeType(t *types.Type) {
-	if t.HasTParam() {
-		// Generic types don't really exist at run-time and have no runtime
-		// type descriptor.  But we do write out shape types.
-		return
-	}
 	if _, ok := signatset[t]; !ok {
 		signatset[t] = struct{}{}
 		signatslice = append(signatslice, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
@@ -1401,7 +1400,7 @@ func writtenByWriteBasicTypes(typ *types.Type) bool {
 	if typ.Sym() == nil && typ.Kind() == types.TFUNC {
 		f := typ.FuncType()
 		// func(error) string
-		if f.Receiver.NumFields() == 0 && f.TParams.NumFields() == 0 &&
+		if f.Receiver.NumFields() == 0 &&
 			f.Params.NumFields() == 1 && f.Results.NumFields() == 1 &&
 			f.Params.FieldType(0) == types.ErrorType &&
 			f.Results.FieldType(0) == types.Types[types.TSTRING] {
@@ -1450,7 +1449,7 @@ func WriteBasicTypes() {
 
 		// emit type for func(error) string,
 		// which is the type of an auto-generated wrapper.
-		writeType(types.NewPtr(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
+		writeType(types.NewPtr(types.NewSignature(nil, []*types.Field{
 			types.NewField(base.Pos, nil, types.ErrorType),
 		}, []*types.Field{
 			types.NewField(base.Pos, nil, types.Types[types.TSTRING]),
@@ -1775,9 +1774,6 @@ func CollectPTabs() {
 		if s.Pkg.Name != "main" {
 			continue
 		}
-		if n.Type().HasTParam() {
-			continue // skip generic functions (#52937)
-		}
 		ptabs = append(ptabs, n)
 	}
 }
@@ -1860,207 +1856,16 @@ func NeedEmit(typ *types.Type) bool {
 //
 // These wrappers are always fully stenciled.
 func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSym {
-	orig := rcvr
 	if forItab && !types.IsDirectIface(rcvr) {
 		rcvr = rcvr.PtrTo()
-	}
-
-	generic := false
-	// We don't need a dictionary if we are reaching a method (possibly via an
-	// embedded field) which is an interface method.
-	if !types.IsInterfaceMethod(method.Type) {
-		rcvr1 := deref(rcvr)
-		if len(rcvr1.RParams()) > 0 {
-			// If rcvr has rparams, remember method as generic, which
-			// means we need to add a dictionary to the wrapper.
-			generic = true
-			if rcvr.HasShape() {
-				base.Fatalf("method on type instantiated with shapes, rcvr:%+v", rcvr)
-			}
-		}
 	}
 
 	newnam := ir.MethodSym(rcvr, method.Sym)
 	lsym := newnam.Linksym()
 
 	// Unified IR creates its own wrappers.
-	if base.Debug.Unified != 0 {
-		return lsym
-	}
-
-	if newnam.Siggen() {
-		return lsym
-	}
-	newnam.SetSiggen(true)
-
-	methodrcvr := method.Type.Recv().Type
-	// For generic methods, we need to generate the wrapper even if the receiver
-	// types are identical, because we want to add the dictionary.
-	if !generic && types.Identical(rcvr, methodrcvr) {
-		return lsym
-	}
-
-	if !NeedEmit(rcvr) || rcvr.IsPtr() && !NeedEmit(rcvr.Elem()) {
-		return lsym
-	}
-
-	base.Pos = base.AutogeneratedPos
-	typecheck.DeclContext = ir.PEXTERN
-
-	// TODO(austin): SelectorExpr may have created one or more
-	// ir.Names for these already with a nil Func field. We should
-	// consolidate these and always attach a Func to the Name.
-	fn := typecheck.DeclFunc(newnam, ir.NewField(base.Pos, typecheck.Lookup(".this"), rcvr),
-		typecheck.NewFuncParams(method.Type.Params(), true),
-		typecheck.NewFuncParams(method.Type.Results(), false))
-
-	fn.SetDupok(true)
-
-	nthis := ir.AsNode(fn.Type().Recv().Nname)
-
-	indirect := rcvr.IsPtr() && rcvr.Elem() == methodrcvr
-
-	// generate nil pointer check for better error
-	if indirect {
-		// generating wrapper from *T to T.
-		n := ir.NewIfStmt(base.Pos, nil, nil, nil)
-		n.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, nthis, typecheck.NodNil())
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, typecheck.LookupRuntime("panicwrap"), nil)
-		n.Body = []ir.Node{call}
-		fn.Body.Append(n)
-	}
-
-	dot := typecheck.AddImplicitDots(ir.NewSelectorExpr(base.Pos, ir.OXDOT, nthis, method.Sym))
-	// generate call
-	// It's not possible to use a tail call when dynamic linking on ppc64le. The
-	// bad scenario is when a local call is made to the wrapper: the wrapper will
-	// call the implementation, which might be in a different module and so set
-	// the TOC to the appropriate value for that module. But if it returns
-	// directly to the wrapper's caller, nothing will reset it to the correct
-	// value for that function.
-	var call *ir.CallExpr
-	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !generic {
-		call = ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
-		call.Args = ir.ParamNames(fn.Type())
-		call.IsDDD = fn.Type().IsVariadic()
-		fn.Body.Append(ir.NewTailCallStmt(base.Pos, call))
-	} else {
-		fn.SetWrapper(true) // ignore frame for panic+recover matching
-
-		if generic && dot.X != nthis {
-			// If there is embedding involved, then we should do the
-			// normal non-generic embedding wrapper below, which calls
-			// the wrapper for the real receiver type using dot as an
-			// argument. There is no need for generic processing (adding
-			// a dictionary) for this wrapper.
-			generic = false
-		}
-
-		if generic {
-			targs := deref(rcvr).RParams()
-			// The wrapper for an auto-generated pointer/non-pointer
-			// receiver method should share the same dictionary as the
-			// corresponding original (user-written) method.
-			baseOrig := orig
-			if baseOrig.IsPtr() && !methodrcvr.IsPtr() {
-				baseOrig = baseOrig.Elem()
-			} else if !baseOrig.IsPtr() && methodrcvr.IsPtr() {
-				baseOrig = types.NewPtr(baseOrig)
-			}
-			args := []ir.Node{getDictionary(ir.MethodSym(baseOrig, method.Sym), targs)}
-			if indirect {
-				args = append(args, ir.NewStarExpr(base.Pos, dot.X))
-			} else if methodrcvr.IsPtr() && methodrcvr.Elem() == dot.X.Type() {
-				// Case where method call is via a non-pointer
-				// embedded field with a pointer method.
-				args = append(args, typecheck.NodAddrAt(base.Pos, dot.X))
-			} else {
-				args = append(args, dot.X)
-			}
-			args = append(args, ir.ParamNames(fn.Type())...)
-
-			// Target method uses shaped names.
-			targs2 := make([]*types.Type, len(targs))
-			origRParams := deref(orig).OrigType().RParams()
-			for i, t := range targs {
-				targs2[i] = typecheck.Shapify(t, i, origRParams[i])
-			}
-			targs = targs2
-
-			sym := typecheck.MakeFuncInstSym(ir.MethodSym(methodrcvr, method.Sym), targs, false, true)
-			if sym.Def == nil {
-				// Currently we make sure that we have all the
-				// instantiations we need by generating them all in
-				// ../noder/stencil.go:instantiateMethods
-				// Extra instantiations because of an inlined function
-				// should have been exported, and so available via
-				// Resolve.
-				in := typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
-				if in.Op() == ir.ONONAME {
-					base.Fatalf("instantiation %s not found", sym.Name)
-				}
-				sym = in.Sym()
-			}
-			target := ir.AsNode(sym.Def)
-			call = ir.NewCallExpr(base.Pos, ir.OCALL, target, args)
-			// Fill-in the generic method node that was not filled in
-			// in instantiateMethod.
-			method.Nname = fn.Nname
-		} else {
-			call = ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
-			call.Args = ir.ParamNames(fn.Type())
-		}
-		call.IsDDD = fn.Type().IsVariadic()
-		if method.Type.NumResults() > 0 {
-			ret := ir.NewReturnStmt(base.Pos, nil)
-			ret.Results = []ir.Node{call}
-			fn.Body.Append(ret)
-		} else {
-			fn.Body.Append(call)
-		}
-	}
-
-	typecheck.FinishFuncBody()
-	if base.Debug.DclStack != 0 {
-		types.CheckDclstack()
-	}
-
-	typecheck.Func(fn)
-	ir.CurFunc = fn
-	typecheck.Stmts(fn.Body)
-
-	if AfterGlobalEscapeAnalysis {
-		// Inlining the method may reveal closures, which require walking all function bodies
-		// to decide whether to capture free variables by value or by ref. So we only do inline
-		// if the method do not contain any closures, otherwise, the escape analysis may make
-		// dead variables resurrected, and causing liveness analysis confused, see issue #53702.
-		var canInline bool
-		switch x := call.X.(type) {
-		case *ir.Name:
-			canInline = len(x.Func.Closures) == 0
-		case *ir.SelectorExpr:
-			if x.Op() == ir.OMETHEXPR {
-				canInline = x.FuncName().Func != nil && len(x.FuncName().Func.Closures) == 0
-			}
-		}
-		if canInline {
-			// TODO(prattmic): plumb PGO.
-			inline.InlineCalls(fn, nil)
-		}
-		escape.Batch([]*ir.Func{fn}, false)
-	}
-
-	ir.CurFunc = nil
-	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
-
 	return lsym
 }
-
-// AfterGlobalEscapeAnalysis tracks whether package gc has already
-// performed the main, global escape analysis pass. If so,
-// methodWrapper takes responsibility for escape analyzing any
-// generated wrappers.
-var AfterGlobalEscapeAnalysis bool
 
 var ZeroSize int64
 
@@ -2071,7 +1876,9 @@ func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
 		// Shape types shouldn't be put in interfaces, so we shouldn't ever get here.
 		base.Fatalf("shape types have no methods %+v", t)
 	}
-	tsym := TypeLinksym(t)
+	MarkTypeSymUsedInInterface(TypeLinksym(t), from)
+}
+func MarkTypeSymUsedInInterface(tsym *obj.LSym, from *obj.LSym) {
 	// Emit a marker relocation. The linker will know the type is converted
 	// to an interface if "from" is reachable.
 	r := obj.Addrel(from)
@@ -2131,53 +1938,6 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	midx := dot.Offset() / int64(types.PtrSize)
 	r.Add = InterfaceMethodOffset(ityp, midx)
 	r.Type = objabi.R_USEIFACEMETHOD
-}
-
-// getDictionary returns the dictionary for the given named generic function
-// or method, with the given type arguments.
-func getDictionary(gf *types.Sym, targs []*types.Type) ir.Node {
-	if len(targs) == 0 {
-		base.Fatalf("%s should have type arguments", gf.Name)
-	}
-	for _, t := range targs {
-		if t.HasShape() {
-			base.Fatalf("dictionary for %s should only use concrete types: %+v", gf.Name, t)
-		}
-	}
-
-	sym := typecheck.MakeDictSym(gf, targs, true)
-
-	// Dictionary should already have been generated by instantiateMethods().
-	// Extra dictionaries needed because of an inlined function should have been
-	// exported, and so available via Resolve.
-	if lsym := sym.Linksym(); len(lsym.P) == 0 {
-		in := typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
-		if in.Op() == ir.ONONAME {
-			base.Fatalf("Dictionary should have already been generated: %s.%s", sym.Pkg.Path, sym.Name)
-		}
-		sym = in.Sym()
-	}
-
-	// Make (or reuse) a node referencing the dictionary symbol.
-	var n *ir.Name
-	if sym.Def != nil {
-		n = sym.Def.(*ir.Name)
-	} else {
-		n = typecheck.NewName(sym)
-		n.SetType(types.Types[types.TUINTPTR]) // should probably be [...]uintptr, but doesn't really matter
-		n.SetTypecheck(1)
-		n.Class = ir.PEXTERN
-		sym.Def = n
-	}
-
-	// Return the address of the dictionary.
-	np := typecheck.NodAddr(n)
-	// Note: treat dictionary pointers as uintptrs, so they aren't pointers
-	// with respect to GC. That saves on stack scanning work, write barriers, etc.
-	// We can get away with it because dictionaries are global variables.
-	np.SetType(types.Types[types.TUINTPTR])
-	np.SetTypecheck(1)
-	return np
 }
 
 func deref(t *types.Type) *types.Type {

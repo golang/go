@@ -9,6 +9,8 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"internal/race"
+	"internal/testenv"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -4383,6 +4385,114 @@ func TestRowsScanProperlyWrapsErrors(t *testing.T) {
 	}
 }
 
+func TestContextCancelDuringRawBytesScan(t *testing.T) {
+	for _, mode := range []string{"nocancel", "top", "bottom", "go"} {
+		t.Run(mode, func(t *testing.T) {
+			testContextCancelDuringRawBytesScan(t, mode)
+		})
+	}
+}
+
+// From go.dev/issue/60304
+func testContextCancelDuringRawBytesScan(t *testing.T, mode string) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	if _, err := db.Exec("USE_RAWBYTES"); err != nil {
+		t.Fatal(err)
+	}
+
+	// cancel used to call close asynchronously.
+	// This test checks that it waits so as not to interfere with RawBytes.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	r, err := db.QueryContext(ctx, "SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	numRows := 0
+	var sink byte
+	for r.Next() {
+		if mode == "top" && numRows == 2 {
+			// cancel between Next and Scan is observed by Scan as err = context.Canceled.
+			// The sleep here is only to make it more likely that the cancel will be observed.
+			// If not, the test should still pass, like in "go" mode.
+			cancel()
+			time.Sleep(100 * time.Millisecond)
+		}
+		numRows++
+		var s RawBytes
+		err = r.Scan(&s)
+		if numRows == 3 && err == context.Canceled {
+			if r.closemuScanHold {
+				t.Errorf("expected closemu NOT to be held")
+			}
+			break
+		}
+		if !r.closemuScanHold {
+			t.Errorf("expected closemu to be held")
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("read %q", s)
+		if mode == "bottom" && numRows == 2 {
+			// cancel before Next should be observed by Next, exiting the loop.
+			// The sleep here is only to make it more likely that the cancel will be observed.
+			// If not, the test should still pass, like in "go" mode.
+			cancel()
+			time.Sleep(100 * time.Millisecond)
+		}
+		if mode == "go" && numRows == 2 {
+			// cancel at any future time, to catch other cases
+			go cancel()
+		}
+		for _, b := range s { // some operation reading from the raw memory
+			sink += b
+		}
+	}
+	if r.closemuScanHold {
+		t.Errorf("closemu held; should not be")
+	}
+
+	// There are 3 rows. We canceled after reading 2 so we expect either
+	// 2 or 3 depending on how the awaitDone goroutine schedules.
+	switch numRows {
+	case 0, 1:
+		t.Errorf("got %d rows; want 2+", numRows)
+	case 2:
+		if err := r.Err(); err != context.Canceled {
+			t.Errorf("unexpected error: %v (%T)", err, err)
+		}
+	default:
+		// Made it to the end. This is rare, but fine. Permit it.
+	}
+
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestContextCancelBetweenNextAndErr(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	r, err := db.QueryContext(ctx, "SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for r.Next() {
+	}
+	cancel()                          // wake up the awaitDone goroutine
+	time.Sleep(10 * time.Millisecond) // increase odds of seeing failure
+	if err := r.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // badConn implements a bad driver.Conn, for TestBadDriver.
 // The Exec method panics.
 type badConn struct{}
@@ -4582,4 +4692,36 @@ func BenchmarkManyConcurrentQueries(b *testing.B) {
 			rows.Close()
 		}
 	})
+}
+
+func TestGrabConnAllocs(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	if race.Enabled {
+		t.Skip("skipping allocation test when using race detector")
+	}
+	c := new(Conn)
+	ctx := context.Background()
+	n := int(testing.AllocsPerRun(1000, func() {
+		_, release, err := c.grabConn(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		release(nil)
+	}))
+	if n > 0 {
+		t.Fatalf("Conn.grabConn allocated %v objects; want 0", n)
+	}
+}
+
+func BenchmarkGrabConn(b *testing.B) {
+	b.ReportAllocs()
+	c := new(Conn)
+	ctx := context.Background()
+	for i := 0; i < b.N; i++ {
+		_, release, err := c.grabConn(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+		release(nil)
+	}
 }

@@ -42,7 +42,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	}
 
 	// x should not be generic at this point, but be safe and check
-	check.nonGeneric(x)
+	check.nonGeneric(nil, x)
 	if x.mode == invalid {
 		return false
 	}
@@ -92,7 +92,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 			return false
 		}
 		var key operand
-		check.expr(&key, index)
+		check.expr(nil, &key, index)
 		check.assignment(&key, typ.key, "map index")
 		// ok to continue even if indexing failed - map element type is known
 		x.mode = mapindex
@@ -166,7 +166,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 					return false
 				}
 				var k operand
-				check.expr(&k, index)
+				check.expr(nil, &k, index)
 				check.assignment(&k, key, "map index")
 				// ok to continue even if indexing failed - map element type is known
 				x.mode = mapindex
@@ -184,6 +184,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 
 	if !valid {
 		check.errorf(e.Pos(), NonSliceableOperand, invalidOp+"cannot index %s", x)
+		check.use(e.Index)
 		x.mode = invalid
 		return false
 	}
@@ -206,7 +207,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 }
 
 func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
-	check.expr(x, e.X)
+	check.expr(nil, x, e.X)
 	if x.mode == invalid {
 		check.use(e.Index[:]...)
 		return
@@ -353,7 +354,7 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64) 
 	val = -1
 
 	var x operand
-	check.expr(&x, index)
+	check.expr(nil, &x, index)
 	if !check.isValidIndex(&x, InvalidIndex, "index", false) {
 		return
 	}
@@ -415,7 +416,7 @@ func (check *Checker) isValidIndex(x *operand, code Code, what string, allowNega
 	return true
 }
 
-// indexElts checks the elements (elts) of an array or slice composite literal
+// indexedElts checks the elements (elts) of an array or slice composite literal
 // against the literal's element type (typ), and the element indices against
 // the literal length if known (length >= 0). It returns the length of the
 // literal (maximum index value + 1).

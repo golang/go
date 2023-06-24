@@ -67,12 +67,12 @@ stderr '^go: rsc.io/nonexist.bzr/hello: GOVCS disallows using bzr for public rsc
 # git is OK by default
 env GOVCS=
 env GONOSUMDB='*'
-[net] [git] [!short] go get rsc.io/sampler
+[net:rsc.io] [git] [!short] go get rsc.io/sampler
 
 # hg is OK by default
 env GOVCS=
 env GONOSUMDB='*'
-[net] [exec:hg] [!short] go get vcs-test.golang.org/go/custom-hg-hello
+[exec:hg] [!short] go get vcs-test.golang.org/go/custom-hg-hello
 
 # git can be disallowed
 env GOVCS=public:hg
@@ -150,12 +150,12 @@ stderr '^package rsc.io/nonexist.bzr/hello: GOVCS disallows using bzr for public
 # git is OK by default
 env GOVCS=
 env GONOSUMDB='*'
-[net] [git] [!short] go get rsc.io/sampler
+[net:rsc.io] [git] [!short] go get rsc.io/sampler
 
 # hg is OK by default
 env GOVCS=
 env GONOSUMDB='*'
-[net] [exec:hg] [!short] go get vcs-test.golang.org/go/custom-hg-hello
+[exec:hg] [!short] go get vcs-test.golang.org/go/custom-hg-hello
 
 # git can be disallowed
 env GOVCS=public:hg

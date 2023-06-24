@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/gover"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -42,7 +43,8 @@ func readVendorList(mainModule module.Version) {
 		vendorPkgModule = make(map[string]module.Version)
 		vendorVersion = make(map[string]string)
 		vendorMeta = make(map[module.Version]vendorMetadata)
-		data, err := os.ReadFile(filepath.Join(MainModules.ModRoot(mainModule), "vendor/modules.txt"))
+		vendorFile := filepath.Join(MainModules.ModRoot(mainModule), "vendor/modules.txt")
+		data, err := os.ReadFile(vendorFile)
 		if err != nil {
 			if !errors.Is(err, fs.ErrNotExist) {
 				base.Fatalf("go: %s", err)
@@ -98,10 +100,10 @@ func readVendorList(mainModule module.Version) {
 				continue
 			}
 
-			if annonations, ok := strings.CutPrefix(line, "## "); ok {
+			if annotations, ok := strings.CutPrefix(line, "## "); ok {
 				// Metadata. Take the union of annotations across multiple lines, if present.
 				meta := vendorMeta[mod]
-				for _, entry := range strings.Split(annonations, ";") {
+				for _, entry := range strings.Split(annotations, ";") {
 					entry = strings.TrimSpace(entry)
 					if entry == "explicit" {
 						meta.Explicit = true
@@ -109,6 +111,9 @@ func readVendorList(mainModule module.Version) {
 					if goVersion, ok := strings.CutPrefix(entry, "go "); ok {
 						meta.GoVersion = goVersion
 						rawGoVersion.Store(mod, meta.GoVersion)
+						if gover.Compare(goVersion, gover.Local()) > 0 {
+							base.Fatal(&gover.TooNewError{What: mod.Path + " in " + base.ShortPath(vendorFile), GoVersion: goVersion})
+						}
 					}
 					// All other tokens are reserved for future use.
 				}
@@ -123,7 +128,7 @@ func readVendorList(mainModule module.Version) {
 				// Since this module provides a package for the build, we know that it
 				// is in the build list and is the selected version of its path.
 				// If this information is new, record it.
-				if v, ok := vendorVersion[mod.Path]; !ok || semver.Compare(v, mod.Version) < 0 {
+				if v, ok := vendorVersion[mod.Path]; !ok || gover.ModCompare(mod.Path, v, mod.Version) < 0 {
 					vendorList = append(vendorList, mod)
 					vendorVersion[mod.Path] = mod.Version
 				}
@@ -139,7 +144,7 @@ func checkVendorConsistency(index *modFileIndex, modFile *modfile.File) {
 	readVendorList(MainModules.mustGetSingleMainModule())
 
 	pre114 := false
-	if semver.Compare(index.goVersionV, "v1.14") < 0 {
+	if gover.Compare(index.goVersion, "1.14") < 0 {
 		// Go versions before 1.14 did not include enough information in
 		// vendor/modules.txt to check for consistency.
 		// If we know that we're on an earlier version, relax the consistency check.

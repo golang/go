@@ -20,11 +20,12 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 )
 
-const Doc = "check that +build tags are well-formed and correctly located"
+const Doc = "check //go:build and // +build directives"
 
 var Analyzer = &analysis.Analyzer{
 	Name: "buildtag",
 	Doc:  Doc,
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/buildtag",
 	Run:  runBuildTag,
 }
 

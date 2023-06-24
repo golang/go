@@ -161,7 +161,7 @@ func (w *typeWriter) typ(typ Type) {
 
 			// This doesn't do the right thing for embedded type
 			// aliases where we should print the alias name, not
-			// the aliased type (see issue #44410).
+			// the aliased type (see go.dev/issue/44410).
 			if !f.embedded {
 				w.string(f.name)
 				w.byte(' ')
@@ -317,6 +317,15 @@ func (w *typeWriter) typ(typ Type) {
 			w.string(t.obj.name)
 			if w.tpSubscripts || w.ctxt != nil {
 				w.string(subscript(t.id))
+			}
+			// If the type parameter name is the same as a predeclared object
+			// (say int), point out where it is declared to avoid confusing
+			// error messages. This doesn't need to be super-elegant; we just
+			// need a clear indication that this is not a predeclared name.
+			// Note: types2 prints position information here - we can't do
+			//       that because we don't have a token.FileSet accessible.
+			if w.ctxt == nil && Universe.Lookup(t.obj.name) != nil {
+				w.string("/* type parameter */")
 			}
 		}
 

@@ -6,6 +6,7 @@ package noder
 
 import (
 	"fmt"
+	"internal/buildcfg"
 	"internal/pkgbits"
 
 	"cmd/compile/internal/base"
@@ -107,7 +108,7 @@ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
 
 // errorf reports a user error about thing p.
 func (pw *pkgWriter) errorf(p poser, msg string, args ...interface{}) {
-	base.ErrorfAt(pw.m.pos(p), msg, args...)
+	base.ErrorfAt(pw.m.pos(p), 0, msg, args...)
 }
 
 // fatalf reports an internal compiler error about thing p.
@@ -122,14 +123,25 @@ func (pw *pkgWriter) unexpected(what string, p poser) {
 }
 
 func (pw *pkgWriter) typeAndValue(x syntax.Expr) syntax.TypeAndValue {
-	tv := x.GetTypeInfo()
-	if tv.Type == nil {
+	tv, ok := pw.maybeTypeAndValue(x)
+	if !ok {
 		pw.fatalf(x, "missing Types entry: %v", syntax.String(x))
 	}
 	return tv
 }
+
 func (pw *pkgWriter) maybeTypeAndValue(x syntax.Expr) (syntax.TypeAndValue, bool) {
 	tv := x.GetTypeInfo()
+
+	// If x is a generic function whose type arguments are inferred
+	// from assignment context, then we need to find its inferred type
+	// in Info.Instances instead.
+	if name, ok := x.(*syntax.Name); ok {
+		if inst, ok := pw.info.Instances[name]; ok {
+			tv.Type = inst.Type
+		}
+	}
+
 	return tv, tv.Type != nil
 }
 
@@ -1003,10 +1015,14 @@ func (w *writer) funcExt(obj *types2.Func) {
 	if pragma&ir.Systemstack != 0 && pragma&ir.Nosplit != 0 {
 		w.p.errorf(decl, "go:nosplit and go:systemstack cannot be combined")
 	}
+	wi := asWasmImport(decl.Pragma)
 
 	if decl.Body != nil {
 		if pragma&ir.Noescape != 0 {
 			w.p.errorf(decl, "can only use //go:noescape with external func implementations")
+		}
+		if wi != nil {
+			w.p.errorf(decl, "can only use //go:wasmimport with external func implementations")
 		}
 		if (pragma&ir.UintptrKeepAlive != 0 && pragma&ir.UintptrEscapes == 0) && pragma&ir.Nosplit == 0 {
 			// Stack growth can't handle uintptr arguments that may
@@ -1028,7 +1044,8 @@ func (w *writer) funcExt(obj *types2.Func) {
 		if base.Flag.Complete || decl.Name.Value == "init" {
 			// Linknamed functions are allowed to have no body. Hopefully
 			// the linkname target has a body. See issue 23311.
-			if _, ok := w.p.linknames[obj]; !ok {
+			// Wasmimport functions are also allowed to have no body.
+			if _, ok := w.p.linknames[obj]; !ok && wi == nil {
 				w.p.errorf(decl, "missing function body")
 			}
 		}
@@ -1041,6 +1058,17 @@ func (w *writer) funcExt(obj *types2.Func) {
 	w.Sync(pkgbits.SyncFuncExt)
 	w.pragmaFlag(pragma)
 	w.linkname(obj)
+
+	if buildcfg.GOARCH == "wasm" {
+		if wi != nil {
+			w.String(wi.Module)
+			w.String(wi.Name)
+		} else {
+			w.String("")
+			w.String("")
+		}
+	}
+
 	w.Bool(false) // stub extension
 	w.Reloc(pkgbits.RelocBody, body)
 	w.Sync(pkgbits.SyncEOF)
@@ -1428,6 +1456,7 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 	}
 
 	w.blockStmt(stmt.Body)
+	w.Bool(base.Debug.LoopVar > 0)
 	w.closeAnotherScope()
 }
 
@@ -2726,6 +2755,13 @@ func asPragmaFlag(p syntax.Pragma) ir.PragmaFlag {
 		return 0
 	}
 	return p.(*pragmas).Flag
+}
+
+func asWasmImport(p syntax.Pragma) *WasmImport {
+	if p == nil {
+		return nil
+	}
+	return p.(*pragmas).WasmImport
 }
 
 // isPtrTo reports whether from is the type *to.

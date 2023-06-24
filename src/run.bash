@@ -20,8 +20,7 @@
 # and will be removed if it stops being needed. See go.dev/issue/12508.
 #
 # GO_TEST_TIMEOUT_SCALE: a non-negative integer factor to scale test timeout by.
-# Defaults to 1, or as a special case for the purpose of the Go build system (x/build),
-# defaults to 2 when GOARCH is arm, and to 4 when GOARCH is mips, mipsle, mips64, or mips64le.
+# Defaults to 1.
 
 set -e
 
@@ -32,7 +31,6 @@ fi
 
 export GOENV=off
 eval $(../bin/go tool dist env)
-export GOROOT   # The api test requires GOROOT to be set, so set it to match ../bin/go.
 
 unset CDPATH	# in case user has it set
 

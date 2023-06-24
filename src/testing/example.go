@@ -93,8 +93,7 @@ func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Durati
 	if recovered != nil {
 		// Propagate the previously recovered result, by panicking.
 		panic(recovered)
-	}
-	if !finished && recovered == nil {
+	} else if !finished {
 		panic(errNilPanicOrGoexit)
 	}
 

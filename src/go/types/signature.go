@@ -7,7 +7,6 @@ package types
 import (
 	"fmt"
 	"go/ast"
-	"go/token"
 	. "internal/types/errors"
 )
 
@@ -159,7 +158,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 			} else if len(tparams) < len(recvTParams) {
 				// Reporting an error here is a stop-gap measure to avoid crashes in the
 				// compiler when a type parameter/argument cannot be inferred later. It
-				// may lead to follow-on errors (see issues #51339, #51343).
+				// may lead to follow-on errors (see issues go.dev/issue/51339, go.dev/issue/51343).
 				// TODO(gri) find a better solution
 				got := measure(len(tparams), "type parameter")
 				check.errorf(recvPar, BadRecv, "got %s, but receiver base type declares %d", got, len(recvTParams))
@@ -180,7 +179,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
 	// declarations and then squash that scope into the parent scope (and report any redeclarations at
 	// that time).
-	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function body (temp. scope)")
+	scope := NewScope(check.scope, nopos, nopos, "function body (temp. scope)")
 	recvList, _ := check.collectParams(scope, recvPar, false)
 	params, variadic := check.collectParams(scope, ftyp.Params, true)
 	results, _ := check.collectParams(scope, ftyp.Results, false)
@@ -197,7 +196,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		switch len(recvList) {
 		case 0:
 			// error reported by resolver
-			recv = NewParam(token.NoPos, nil, "", Typ[Invalid]) // ignore recv below
+			recv = NewParam(nopos, nil, "", Typ[Invalid]) // ignore recv below
 		default:
 			// more than one receiver
 			check.error(recvList[len(recvList)-1], InvalidRecv, "method has multiple receivers")
@@ -208,7 +207,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		sig.recv = recv
 
 		// Delay validation of receiver type as it may cause premature expansion
-		// of types the receiver type is dependent on (see issues #51232, #51233).
+		// of types the receiver type is dependent on (see issues go.dev/issue/51232, go.dev/issue/51233).
 		check.later(func() {
 			// spec: "The receiver type must be of the form T or *T where T is a type name."
 			rtyp, _ := deref(recv.typ)

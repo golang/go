@@ -273,6 +273,8 @@ func Lchown(path string, uid, gid int) error {
 }
 
 func UtimesNano(path string, ts []Timespec) error {
+	// UTIME_OMIT value must match internal/syscall/unix/at_js.go
+	const UTIME_OMIT = -0x2
 	if err := checkPath(path); err != nil {
 		return err
 	}
@@ -281,6 +283,18 @@ func UtimesNano(path string, ts []Timespec) error {
 	}
 	atime := ts[0].Sec
 	mtime := ts[1].Sec
+	if atime == UTIME_OMIT || mtime == UTIME_OMIT {
+		var st Stat_t
+		if err := Stat(path, &st); err != nil {
+			return err
+		}
+		if atime == UTIME_OMIT {
+			atime = st.Atime
+		}
+		if mtime == UTIME_OMIT {
+			mtime = st.Mtime
+		}
+	}
 	_, err := fsCall("utimes", path, atime, mtime)
 	return err
 }

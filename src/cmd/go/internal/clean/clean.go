@@ -172,7 +172,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 						// This also mimics what os.RemoveAll(dir) would do.
 						if err := os.RemoveAll(d); err != nil && !printedErrors {
 							printedErrors = true
-							base.Errorf("go: %v", err)
+							base.Error(err)
 						}
 					}
 				}
@@ -185,7 +185,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 			if !cfg.BuildN {
 				if err := os.RemoveAll(logFile); err != nil && !printedErrors {
 					printedErrors = true
-					base.Errorf("go: %v", err)
+					base.Error(err)
 				}
 			}
 		}
@@ -215,7 +215,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 			}
 			if err != nil {
 				if _, statErr := os.Stat(dir); !os.IsNotExist(statErr) {
-					base.Errorf("go: %v", err)
+					base.Error(err)
 				}
 			}
 		}
@@ -230,7 +230,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		if !cfg.BuildN {
 			if err := modfetch.RemoveAll(cfg.GOMODCACHE); err != nil {
-				base.Errorf("go: %v", err)
+				base.Error(err)
 			}
 		}
 	}
@@ -242,7 +242,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		if !cfg.BuildN {
 			if err := os.RemoveAll(fuzzDir); err != nil {
-				base.Errorf("go: %v", err)
+				base.Error(err)
 			}
 		}
 	}
@@ -372,7 +372,7 @@ func clean(p *load.Package) {
 					}
 				}
 				if err := os.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
-					base.Errorf("go: %v", err)
+					base.Error(err)
 				}
 			}
 			continue
@@ -424,5 +424,5 @@ func removeFile(f string) {
 			return
 		}
 	}
-	base.Errorf("go: %v", err)
+	base.Error(err)
 }

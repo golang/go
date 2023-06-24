@@ -76,6 +76,15 @@ func FixMethodCall(call *ir.CallExpr) {
 	call.Args = args
 }
 
+func AssertFixedCall(call *ir.CallExpr) {
+	if call.X.Type().IsVariadic() && !call.IsDDD {
+		base.FatalfAt(call.Pos(), "missed FixVariadicCall")
+	}
+	if call.Op() == ir.OCALLMETH {
+		base.FatalfAt(call.Pos(), "missed FixMethodCall")
+	}
+}
+
 // ClosureType returns the struct type used to hold all the information
 // needed in the closure for clo (clo must be a OCLOSURE node).
 // The address of a variable of the returned type can be cast to a func.
@@ -120,7 +129,7 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 		}
 		fields = append(fields, types.NewField(base.Pos, v.Sym(), typ))
 	}
-	typ := types.NewStruct(types.NoPkg, fields)
+	typ := types.NewStruct(fields)
 	typ.SetNoalg(true)
 	return typ
 }
@@ -129,60 +138,12 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 // needed in the closure for a OMETHVALUE node. The address of a variable of
 // the returned type can be cast to a func.
 func MethodValueType(n *ir.SelectorExpr) *types.Type {
-	t := types.NewStruct(types.NoPkg, []*types.Field{
+	t := types.NewStruct([]*types.Field{
 		types.NewField(base.Pos, Lookup("F"), types.Types[types.TUINTPTR]),
 		types.NewField(base.Pos, Lookup("R"), n.X.Type()),
 	})
 	t.SetNoalg(true)
 	return t
-}
-
-// ImportedBody returns immediately if the inlining information for fn is
-// populated. Otherwise, fn must be an imported function. If so, ImportedBody
-// loads in the dcls and body for fn, and typechecks as needed.
-func ImportedBody(fn *ir.Func) {
-	if fn.Inl.Body != nil {
-		return
-	}
-	lno := ir.SetPos(fn.Nname)
-
-	// When we load an inlined body, we need to allow OADDR
-	// operations on untyped expressions. We will fix the
-	// addrtaken flags on all the arguments of the OADDR with the
-	// computeAddrtaken call below (after we typecheck the body).
-	// TODO: export/import types and addrtaken marks along with inlined bodies,
-	// so this will be unnecessary.
-	IncrementalAddrtaken = false
-	defer func() {
-		if DirtyAddrtaken {
-			// We do ComputeAddrTaken on function instantiations, but not
-			// generic functions (since we may not yet know if x in &x[i]
-			// is an array or a slice).
-			if !fn.Type().HasTParam() {
-				ComputeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
-			}
-			DirtyAddrtaken = false
-		}
-		IncrementalAddrtaken = true
-	}()
-
-	ImportBody(fn)
-
-	// Stmts(fn.Inl.Body) below is only for imported functions;
-	// their bodies may refer to unsafe as long as the package
-	// was marked safe during import (which was checked then).
-	// the ->inl of a local function has been typechecked before CanInline copied it.
-	pkg := fnpkg(fn.Nname)
-
-	if pkg == types.LocalPkg || pkg == nil {
-		return // ImportedBody on local function
-	}
-
-	if base.Flag.LowerM > 2 || base.Debug.Export != 0 {
-		fmt.Printf("typecheck import [%v] %L { %v }\n", fn.Sym(), fn, ir.Nodes(fn.Inl.Body))
-	}
-
-	base.Pos = lno
 }
 
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
@@ -293,13 +254,13 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 		default:
 			base.Fatalf("unknown builtin %v", l)
 
-		case ir.OAPPEND, ir.ODELETE, ir.OMAKE, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
+		case ir.OAPPEND, ir.ODELETE, ir.OMAKE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
 			n.SetOp(l.BuiltinOp)
 			n.X = nil
 			n.SetTypecheck(0) // re-typechecking new op is OK, not a loop
 			return typecheck(n, top)
 
-		case ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
+		case ir.OCAP, ir.OCLEAR, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
 			typecheckargs(n)
 			fallthrough
 		case ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
@@ -387,6 +348,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 	}
 
 	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args, func() string { return fmt.Sprintf("argument to %v", n.X) })
+	FixVariadicCall(n)
 	FixMethodCall(n)
 	if t.NumResults() == 0 {
 		return n
@@ -476,6 +438,28 @@ func tcAppend(n *ir.CallExpr) ir.Node {
 		as[i] = AssignConv(n, t.Elem(), "append")
 		types.CheckSize(as[i].Type()) // ensure width is calculated for backend
 	}
+	return n
+}
+
+// tcClear typechecks an OCLEAR node.
+func tcClear(n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(n.X)
+	n.X = DefaultLit(n.X, nil)
+	l := n.X
+	t := l.Type()
+	if t == nil {
+		n.SetType(nil)
+		return n
+	}
+
+	switch {
+	case t.IsMap(), t.IsSlice():
+	default:
+		base.Errorf("invalid operation: %v (argument must be a map or slice)", n)
+		n.SetType(nil)
+		return n
+	}
+
 	return n
 }
 
@@ -694,7 +678,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 				return n
 			}
 		} else {
-			l = ir.NewInt(0)
+			l = ir.NewInt(base.Pos, 0)
 		}
 		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKEMAP, l, nil)
 		nn.SetEsc(n.Esc())
@@ -715,7 +699,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 				return n
 			}
 		} else {
-			l = ir.NewInt(0)
+			l = ir.NewInt(base.Pos, 0)
 		}
 		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKECHAN, l, nil)
 	}
@@ -816,6 +800,19 @@ func tcPrint(n *ir.CallExpr) ir.Node {
 			ls[i1] = DefaultLit(ls[i1], nil)
 		}
 	}
+	return n
+}
+
+// tcMinMax typechecks an OMIN or OMAX node.
+func tcMinMax(n *ir.CallExpr) ir.Node {
+	typecheckargs(n)
+	arg0 := n.Args[0]
+	for _, arg := range n.Args[1:] {
+		if !types.Identical(arg.Type(), arg0.Type()) {
+			base.FatalfAt(n.Pos(), "mismatched arguments: %L and %L", arg0, arg)
+		}
+	}
+	n.SetType(arg0.Type())
 	return n
 }
 

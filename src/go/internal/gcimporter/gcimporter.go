@@ -13,6 +13,7 @@ import (
 	"go/token"
 	"go/types"
 	"internal/pkgbits"
+	"internal/saferio"
 	"io"
 	"os"
 	"os/exec"
@@ -42,8 +43,9 @@ func lookupGorootExport(pkgDir string) (string, bool) {
 		)
 		f, _ = exportMap.LoadOrStore(pkgDir, func() (string, bool) {
 			listOnce.Do(func() {
-				cmd := exec.Command("go", "list", "-export", "-f", "{{.Export}}", pkgDir)
+				cmd := exec.Command(filepath.Join(build.Default.GOROOT, "bin", "go"), "list", "-export", "-f", "{{.Export}}", pkgDir)
 				cmd.Dir = build.Default.GOROOT
+				cmd.Env = append(cmd.Environ(), "GOROOT="+build.Default.GOROOT)
 				var output []byte
 				output, err := cmd.Output()
 				if err != nil {
@@ -204,6 +206,7 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 		if exportFormat, err = buf.ReadByte(); err != nil {
 			return
 		}
+		size--
 
 		// The unified export format starts with a 'u'; the indexed export
 		// format starts with an 'i'; and the older binary export format
@@ -214,9 +217,10 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 			var data []byte
 			var r io.Reader = buf
 			if size >= 0 {
-				r = io.LimitReader(r, int64(size))
-			}
-			if data, err = io.ReadAll(r); err != nil {
+				if data, err = saferio.ReadData(r, uint64(size)); err != nil {
+					return
+				}
+			} else if data, err = io.ReadAll(r); err != nil {
 				return
 			}
 			s := string(data)

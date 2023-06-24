@@ -12,7 +12,9 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -21,7 +23,7 @@ const (
 	Rdate         = `[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]`
 	Rtime         = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`
 	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`
-	Rline         = `(61|63):` // must update if the calls to l.Printf / l.Print below move
+	Rline         = `(63|65):` // must update if the calls to l.Printf / l.Print below move
 	Rlongfile     = `.*/[A-Za-z0-9_\-]+\.go:` + Rline
 	Rshortfile    = `[A-Za-z0-9_\-]+\.go:` + Rline
 )
@@ -98,15 +100,25 @@ func TestOutput(t *testing.T) {
 	}
 }
 
+func TestNonNewLogger(t *testing.T) {
+	var l Logger
+	l.SetOutput(new(bytes.Buffer)) // minimal work to initialize a Logger
+	l.Print("hello")
+}
+
 func TestOutputRace(t *testing.T) {
 	var b bytes.Buffer
 	l := New(&b, "", 0)
+	var wg sync.WaitGroup
+	wg.Add(100)
 	for i := 0; i < 100; i++ {
 		go func() {
+			defer wg.Done()
 			l.SetFlags(0)
+			l.Output(0, "")
 		}()
-		l.Output(0, "")
 	}
+	wg.Wait()
 }
 
 func TestFlagAndPrefixSetting(t *testing.T) {
@@ -139,6 +151,15 @@ func TestFlagAndPrefixSetting(t *testing.T) {
 	}
 	if !matched {
 		t.Error("message did not match pattern")
+	}
+
+	// Ensure that a newline is added only if the buffer lacks a newline suffix.
+	b.Reset()
+	l.SetFlags(0)
+	l.SetPrefix("\n")
+	l.Output(0, "")
+	if got := b.String(); got != "\n" {
+		t.Errorf("message mismatch:\ngot  %q\nwant %q", got, "\n")
 	}
 }
 
@@ -209,6 +230,7 @@ func BenchmarkPrintln(b *testing.B) {
 	const testString = "test"
 	var buf bytes.Buffer
 	l := New(&buf, "", LstdFlags)
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		l.Println(testString)
@@ -219,8 +241,40 @@ func BenchmarkPrintlnNoFlags(b *testing.B) {
 	const testString = "test"
 	var buf bytes.Buffer
 	l := New(&buf, "", 0)
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		l.Println(testString)
+	}
+}
+
+// discard is identical to io.Discard,
+// but copied here to avoid the io.Discard optimization in Logger.
+type discard struct{}
+
+func (discard) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+
+func BenchmarkConcurrent(b *testing.B) {
+	l := New(discard{}, "prefix: ", Ldate|Ltime|Lmicroseconds|Llongfile|Lmsgprefix)
+	var group sync.WaitGroup
+	for i := runtime.NumCPU(); i > 0; i-- {
+		group.Add(1)
+		go func() {
+			for i := 0; i < b.N; i++ {
+				l.Output(0, "hello, world!")
+			}
+			defer group.Done()
+		}()
+	}
+	group.Wait()
+}
+
+func BenchmarkDiscard(b *testing.B) {
+	l := New(io.Discard, "", LstdFlags|Lshortfile)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		l.Printf("processing %d objects from bucket %q", 1234, "fizzbuzz")
 	}
 }

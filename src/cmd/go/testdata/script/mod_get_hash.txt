@@ -1,7 +1,7 @@
 env GO111MODULE=on
 env GOPROXY=direct
 env GOSUMDB=off
-[!net] skip
+[!net:golang.org] skip
 [!git] skip
 
 # fetch commit hash reachable from refs/heads/* and refs/tags/* is OK

@@ -157,7 +157,7 @@ func registerMeta(cnames Names, hashv [16]byte, mdlen int) {
 	pos := cnames.InitFn.Pos()
 	elist := make([]ir.Node, 0, 16)
 	for i := 0; i < 16; i++ {
-		elem := ir.NewInt(int64(hashv[i]))
+		elem := ir.NewInt(base.Pos, int64(hashv[i]))
 		elist = append(elist, elem)
 	}
 	ht := types.NewArray(types.Types[types.TUINT8], 16)
@@ -168,7 +168,7 @@ func registerMeta(cnames Names, hashv [16]byte, mdlen int) {
 	mdauspx := typecheck.ConvNop(mdax, types.Types[types.TUNSAFEPTR])
 
 	// Materialize expression for length.
-	lenx := ir.NewInt(int64(mdlen)) // untyped
+	lenx := ir.NewInt(base.Pos, int64(mdlen)) // untyped
 
 	// Generate a call to runtime.addCovMeta, e.g.
 	//
@@ -176,10 +176,10 @@ func registerMeta(cnames Names, hashv [16]byte, mdlen int) {
 	//
 	fn := typecheck.LookupRuntime("addCovMeta")
 	pkid := coverage.HardCodedPkgID(base.Ctxt.Pkgpath)
-	pkIdNode := ir.NewInt(int64(pkid))
-	cmodeNode := ir.NewInt(int64(cnames.CounterMode))
-	cgranNode := ir.NewInt(int64(cnames.CounterGran))
-	pkPathNode := ir.NewString(base.Ctxt.Pkgpath)
+	pkIdNode := ir.NewInt(base.Pos, int64(pkid))
+	cmodeNode := ir.NewInt(base.Pos, int64(cnames.CounterMode))
+	cgranNode := ir.NewInt(base.Pos, int64(cnames.CounterGran))
+	pkPathNode := ir.NewString(base.Pos, base.Ctxt.Pkgpath)
 	callx := typecheck.Call(pos, fn, []ir.Node{mdauspx, lenx, hashx,
 		pkPathNode, pkIdNode, cmodeNode, cgranNode}, false)
 	assign := callx
@@ -202,7 +202,7 @@ func addInitHookCall(initfn *ir.Func, cmode coverage.CounterMode) {
 	pos := initfn.Pos()
 	istest := cmode == coverage.CtrModeTestMain
 	initf := typecheck.LookupCoverage("initHook")
-	istestNode := ir.NewBool(istest)
+	istestNode := ir.NewBool(base.Pos, istest)
 	args := []ir.Node{istestNode}
 	callx := typecheck.Call(pos, initf, args, false)
 	initfn.Body.Append(callx)

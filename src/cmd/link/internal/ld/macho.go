@@ -479,8 +479,11 @@ func (ctxt *Link) domacho() {
 			var version uint32
 			switch ctxt.Arch.Family {
 			case sys.AMD64:
-				// The version must be at least 10.9; see golang.org/issues/30488.
-				version = 10<<16 | 9<<8 | 0<<0 // 10.9.0
+				// This must be fairly recent for Apple signing (go.dev/issue/30488).
+				// Having too old a version here was also implicated in some problems
+				// calling into macOS libraries (go.dev/issue/56784).
+				// In general this can be the most recent supported macOS version.
+				version = 10<<16 | 13<<8 | 0<<0 // 10.13.0
 			case sys.ARM64:
 				version = 11<<16 | 0<<8 | 0<<0 // 11.0.0
 			}
@@ -707,6 +710,7 @@ func asmbMacho(ctxt *Link) {
 	/* text */
 	v := Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound))
 
+	var mstext *MachoSeg
 	if ctxt.LinkMode != LinkExternal {
 		ms = newMachoSeg("__TEXT", 20)
 		ms.vaddr = uint64(va)
@@ -715,6 +719,7 @@ func asmbMacho(ctxt *Link) {
 		ms.filesize = uint64(v)
 		ms.prot1 = 7
 		ms.prot2 = 5
+		mstext = ms
 	}
 
 	for _, sect := range Segtext.Sections {
@@ -865,7 +870,7 @@ func asmbMacho(ctxt *Link) {
 		if int64(len(data)) != codesigOff {
 			panic("wrong size")
 		}
-		codesign.Sign(ldr.Data(cs), bytes.NewReader(data), "a.out", codesigOff, int64(Segtext.Fileoff), int64(Segtext.Filelen), ctxt.IsExe() || ctxt.IsPIE())
+		codesign.Sign(ldr.Data(cs), bytes.NewReader(data), "a.out", codesigOff, int64(mstext.fileoffset), int64(mstext.filesize), ctxt.IsExe() || ctxt.IsPIE())
 		ctxt.Out.SeekSet(codesigOff)
 		ctxt.Out.Write(ldr.Data(cs))
 	}

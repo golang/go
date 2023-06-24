@@ -55,7 +55,7 @@ stderr 'go: module diamondright: can''t resolve module using the vendor director
 go list -mod=mod -f {{.Dir}} w
 stdout 'src[\\/]w'
 ! go list -mod=vendor -f {{.Dir}} w
-stderr 'package w is not in GOROOT'
+stderr 'package w is not in std'
 
 go list -mod=mod -f {{.Dir}} diamondright
 stdout 'src[\\/]diamondright'

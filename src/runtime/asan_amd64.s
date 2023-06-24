@@ -24,7 +24,7 @@
 #define RARG3 CX
 #endif
 
-// Called from intrumented code.
+// Called from instrumented code.
 // func runtime·doasanread(addr unsafe.Pointer, sz, sp, pc uintptr)
 TEXT	runtime·doasanread(SB), NOSPLIT, $0-32
 	MOVQ	addr+0(FP), RARG0

@@ -7,7 +7,6 @@ package windows
 import (
 	"sync"
 	"syscall"
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -17,17 +16,13 @@ func UTF16PtrToString(p *uint16) string {
 	if p == nil {
 		return ""
 	}
-	// Find NUL terminator.
 	end := unsafe.Pointer(p)
 	n := 0
 	for *(*uint16)(end) != 0 {
 		end = unsafe.Pointer(uintptr(end) + unsafe.Sizeof(*p))
 		n++
 	}
-	// Turn *uint16 into []uint16.
-	s := unsafe.Slice(p, n)
-	// Decode []uint16 into string.
-	return string(utf16.Decode(s))
+	return syscall.UTF16ToString(unsafe.Slice(p, n))
 }
 
 const (
@@ -127,6 +122,12 @@ type IpAdapterAddresses struct {
 	/* more fields might be present here. */
 }
 
+type SecurityAttributes struct {
+	Length             uint16
+	SecurityDescriptor uintptr
+	InheritHandle      bool
+}
+
 type FILE_BASIC_INFO struct {
 	CreationTime   syscall.Filetime
 	LastAccessTime syscall.Filetime
@@ -151,6 +152,7 @@ const (
 //sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
 //sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
 //sys	VirtualQuery(address uintptr, buffer *MemoryBasicInformation, length uintptr) (err error) = kernel32.VirtualQuery
+//sys	GetTempPath2(buflen uint32, buf *uint16) (n uint32, err error) = GetTempPath2W
 
 const (
 	// flags for CreateToolhelp32Snapshot
@@ -363,7 +365,35 @@ func LoadGetFinalPathNameByHandle() error {
 	return procGetFinalPathNameByHandleW.Find()
 }
 
+func ErrorLoadingGetTempPath2() error {
+	return procGetTempPath2W.Find()
+}
+
 //sys	CreateEnvironmentBlock(block **uint16, token syscall.Token, inheritExisting bool) (err error) = userenv.CreateEnvironmentBlock
 //sys	DestroyEnvironmentBlock(block *uint16) (err error) = userenv.DestroyEnvironmentBlock
+//sys	CreateEvent(eventAttrs *SecurityAttributes, manualReset uint32, initialState uint32, name *uint16) (handle syscall.Handle, err error) = kernel32.CreateEventW
 
 //sys	RtlGenRandom(buf []byte) (err error) = advapi32.SystemFunction036
+
+type FILE_ID_BOTH_DIR_INFO struct {
+	NextEntryOffset uint32
+	FileIndex       uint32
+	CreationTime    syscall.Filetime
+	LastAccessTime  syscall.Filetime
+	LastWriteTime   syscall.Filetime
+	ChangeTime      syscall.Filetime
+	EndOfFile       uint64
+	AllocationSize  uint64
+	FileAttributes  uint32
+	FileNameLength  uint32
+	EaSize          uint32
+	ShortNameLength uint32
+	ShortName       [12]uint16
+	FileID          uint64
+	FileName        [1]uint16
+}
+
+//sys	GetVolumeInformationByHandle(file syscall.Handle, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) = GetVolumeInformationByHandleW
+
+//sys	RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret uintptr) = kernel32.RtlLookupFunctionEntry
+//sys	RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry uintptr, ctxt uintptr, data *uintptr, frame *uintptr, ctxptrs *byte) (ret uintptr) = kernel32.RtlVirtualUnwind

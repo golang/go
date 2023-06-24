@@ -34,6 +34,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+	"internal/abi"
 	"log"
 )
 
@@ -632,7 +633,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				autosize += int32(c.ctxt.Arch.FixedFrameSize)
 			}
 
-			if p.Mark&LEAF != 0 && autosize < objabi.StackSmall {
+			if p.Mark&LEAF != 0 && autosize < abi.StackSmall {
 				// A leaf function with a small stack can be marked
 				// NOSPLIT, avoiding a stack check.
 				p.From.Sym.Set(obj.AttrNoSplit, true)
@@ -642,8 +643,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			q = p
 
-			if c.ctxt.Flag_shared && c.cursym.Name != "runtime.duffzero" && c.cursym.Name != "runtime.duffcopy" {
-				// When compiling Go into PIC, all functions must start
+			if NeedTOCpointer(c.ctxt) && c.cursym.Name != "runtime.duffzero" && c.cursym.Name != "runtime.duffcopy" {
+				// When compiling Go into PIC, without PCrel support, all functions must start
 				// with instructions to load the TOC pointer into r2:
 				//
 				//	addis r2, r12, .TOC.-func@ha
@@ -685,10 +686,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = c.stacksplit(q, autosize) // emit split check
 			}
 
-			// Special handling of the racecall thunk. Assume that its asm code will
-			// save the link register and update the stack, since that code is
-			// called directly from C/C++ and can't clobber REGTMP (R31).
-			if autosize != 0 && c.cursym.Name != "runtime.racecallbackthunk" {
+			if autosize != 0 {
 				var prologueEnd *obj.Prog
 				// Save the link register and update the SP.  MOVDU is used unless
 				// the frame size is too large.  The link register must be saved
@@ -765,7 +763,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				break
 			}
 
-			if c.ctxt.Flag_shared {
+			if NeedTOCpointer(c.ctxt) {
 				q = obj.Appendp(q, c.newprog)
 				q.As = AMOVD
 				q.Pos = p.Pos
@@ -875,7 +873,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			retTarget := p.To.Sym
 
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
-				if autosize == 0 || c.cursym.Name == "runtime.racecallbackthunk" {
+				if autosize == 0 {
 					p.As = ABR
 					p.From = obj.Addr{}
 					if retTarget == nil {
@@ -950,7 +948,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p = q
 			}
 			prev := p
-			if autosize != 0 && c.cursym.Name != "runtime.racecallbackthunk" {
+			if autosize != 0 {
 				q = c.newprog()
 				q.As = AADD
 				q.Pos = p.Pos
@@ -1007,8 +1005,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 && p.As != ACMPU {
 			f := c.cursym.Func()
-			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
-				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
+			if f.FuncFlag&abi.FuncFlagSPWrite == 0 {
+				c.cursym.Func().FuncFlag |= abi.FuncFlagSPWrite
 				if ctxt.Debugvlog || !ctxt.IsAsm {
 					ctxt.Logf("auto-SPWRITE: %s %v\n", c.cursym.Name, p)
 					if !ctxt.IsAsm {
@@ -1180,7 +1178,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
 
 	var q *obj.Prog
-	if framesize <= objabi.StackSmall {
+	if framesize <= abi.StackSmall {
 		// small stack: SP < stackguard
 		//	CMP	stackguard, SP
 		p = obj.Appendp(p, c.newprog)
@@ -1192,8 +1190,8 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Reg = REGSP
 	} else {
 		// large stack: SP-framesize < stackguard-StackSmall
-		offset := int64(framesize) - objabi.StackSmall
-		if framesize > objabi.StackBig {
+		offset := int64(framesize) - abi.StackSmall
+		if framesize > abi.StackBig {
 			// Such a large stack we need to protect against underflow.
 			// The runtime guarantees SP > objabi.StackBig, but
 			// framesize is large enough that SP-framesize may
@@ -1291,7 +1289,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		morestacksym = c.ctxt.Lookup("runtime.morestack")
 	}
 
-	if c.ctxt.Flag_shared {
+	if NeedTOCpointer(c.ctxt) {
 		// In PPC64 PIC code, R2 is used as TOC pointer derived from R12
 		// which is the address of function entry point when entering
 		// the function. We need to preserve R2 across call to morestack.
@@ -1354,7 +1352,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Sym = morestacksym
 	}
 
-	if c.ctxt.Flag_shared {
+	if NeedTOCpointer(c.ctxt) {
 		// MOVD 8(SP), R2
 		p = obj.Appendp(p, c.newprog)
 		p.As = AMOVD

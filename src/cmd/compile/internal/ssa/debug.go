@@ -803,7 +803,7 @@ func (state *debugState) liveness() []*BlockDebug {
 // the first call, subsequent calls can only shrink startState.
 //
 // Passing forLocationLists=true enables additional side-effects that
-// are necessary for building location lists but superflous while still
+// are necessary for building location lists but superfluous while still
 // iterating to an answer.
 //
 // If previousBlock is non-nil, it registers changes vs. that block's
@@ -969,7 +969,7 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug, pr
 	}
 
 	state.currentState.reset(abt.T{})
-	// The normal logic of "reset" is incuded in the intersection loop below.
+	// The normal logic of "reset" is included in the intersection loop below.
 
 	slotLocs := state.currentState.slots
 
@@ -1751,7 +1751,7 @@ func isNamedRegParam(p abi.ABIParamAssignment) bool {
 // it constructs a 2-element location list: the first element holds
 // the input register, and the second element holds the stack location
 // of the param (the assumption being that when optimization is off,
-// each input param reg will be spilled in the prolog.
+// each input param reg will be spilled in the prolog).
 func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset func(LocalSlot) int32, rval *FuncDebug) {
 
 	pri := f.ABISelf.ABIAnalyzeFuncType(f.Type.FuncType())

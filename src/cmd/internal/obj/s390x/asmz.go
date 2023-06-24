@@ -333,6 +333,9 @@ var optab = []Optab{
 	// undefined (deliberate illegal instruction)
 	{i: 78, as: obj.AUNDEF},
 
+	// Break point instruction(0x0001 opcode)
+	{i: 73, as: ABRRK},
+
 	// 2 byte no-operation
 	{i: 66, as: ANOPH},
 
@@ -2470,6 +2473,7 @@ const (
 	op_XSCH    uint32 = 0xB276 // FORMAT_S          CANCEL SUBCHANNEL
 	op_XY      uint32 = 0xE357 // FORMAT_RXY1       EXCLUSIVE OR (32)
 	op_ZAP     uint32 = 0xF800 // FORMAT_SS2        ZERO AND ADD
+	op_BRRK    uint32 = 0x0001 // FORMAT_E          BREAKPOINT
 
 	// added in z13
 	op_CXPT   uint32 = 0xEDAF // 	RSL-b	CONVERT FROM PACKED (to extended DFP)
@@ -3604,6 +3608,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		default:
 			zSIL(opcode, uint32(r), uint32(d), uint32(v), asm)
 		}
+
+	case 73: //Illegal opcode with SIGTRAP Exception
+		zE(op_BRRK, asm)
 
 	case 74: // mov reg addr (including relocation)
 		i2 := c.regoff(&p.To)

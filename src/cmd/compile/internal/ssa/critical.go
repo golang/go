@@ -96,11 +96,6 @@ func critical(f *Func) {
 
 				// splitting occasionally leads to a phi having
 				// a single argument (occurs with -N)
-				// TODO(cuonglm,khr): replace this with phielimValue, and
-				//                    make removePhiArg incorporates that.
-				if len(b.Preds) == 1 {
-					phi.Op = OpCopy
-				}
 				// Don't increment i in this case because we moved
 				// an unprocessed predecessor down into slot i.
 			} else {

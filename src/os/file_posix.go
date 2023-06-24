@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm) || windows
+//go:build unix || (js && wasm) || wasip1 || windows
 
 package os
 
@@ -11,8 +11,6 @@ import (
 	"syscall"
 	"time"
 )
-
-func sigpipe() // implemented in package runtime
 
 // Close closes the File, rendering it unusable for I/O.
 // On files that support SetDeadline, any pending I/O operations will
@@ -173,14 +171,22 @@ func (f *File) Sync() error {
 
 // Chtimes changes the access and modification times of the named
 // file, similar to the Unix utime() or utimes() functions.
+// A zero time.Time value will leave the corresponding file time unchanged.
 //
 // The underlying filesystem may truncate or round the values to a
 // less precise time unit.
 // If there is an error, it will be of type *PathError.
 func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	var utimes [2]syscall.Timespec
-	utimes[0] = syscall.NsecToTimespec(atime.UnixNano())
-	utimes[1] = syscall.NsecToTimespec(mtime.UnixNano())
+	set := func(i int, t time.Time) {
+		if t.IsZero() {
+			utimes[i] = syscall.Timespec{Sec: _UTIME_OMIT, Nsec: _UTIME_OMIT}
+		} else {
+			utimes[i] = syscall.NsecToTimespec(t.UnixNano())
+		}
+	}
+	set(0, atime)
+	set(1, mtime)
 	if e := syscall.UtimesNano(fixLongPath(name), utimes[0:]); e != nil {
 		return &PathError{Op: "chtimes", Path: name, Err: e}
 	}

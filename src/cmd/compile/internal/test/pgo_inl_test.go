@@ -7,6 +7,7 @@ package test
 import (
 	"bufio"
 	"fmt"
+	"internal/profile"
 	"internal/testenv"
 	"io"
 	"os"
@@ -211,6 +212,73 @@ func TestPGOIntendedInliningShiftedLines(t *testing.T) {
 	dst.Close()
 
 	testPGOIntendedInlining(t, dir)
+}
+
+// TestPGOSingleIndex tests that the sample index can not be 1 and compilation
+// will not fail. All it should care about is that the sample type is either
+// CPU nanoseconds or samples count, whichever it finds first.
+func TestPGOSingleIndex(t *testing.T) {
+	for _, tc := range []struct {
+		originalIndex int
+	}{{
+		// The `testdata/pgo/inline/inline_hot.pprof` file is a standard CPU
+		// profile as the runtime would generate. The 0 index contains the
+		// value-type samples and value-unit count. The 1 index contains the
+		// value-type cpu and value-unit nanoseconds. These tests ensure that
+		// the compiler can work with profiles that only have a single index,
+		// but are either samples count or CPU nanoseconds.
+		originalIndex: 0,
+	}, {
+		originalIndex: 1,
+	}} {
+		t.Run(fmt.Sprintf("originalIndex=%d", tc.originalIndex), func(t *testing.T) {
+			wd, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("error getting wd: %v", err)
+			}
+			srcDir := filepath.Join(wd, "testdata/pgo/inline")
+
+			// Copy the module to a scratch location so we can add a go.mod.
+			dir := t.TempDir()
+
+			originalPprofFile, err := os.Open(filepath.Join(srcDir, "inline_hot.pprof"))
+			if err != nil {
+				t.Fatalf("error opening inline_hot.pprof: %v", err)
+			}
+			defer originalPprofFile.Close()
+
+			p, err := profile.Parse(originalPprofFile)
+			if err != nil {
+				t.Fatalf("error parsing inline_hot.pprof: %v", err)
+			}
+
+			// Move the samples count value-type to the 0 index.
+			p.SampleType = []*profile.ValueType{p.SampleType[tc.originalIndex]}
+
+			// Ensure we only have a single set of sample values.
+			for _, s := range p.Sample {
+				s.Value = []int64{s.Value[tc.originalIndex]}
+			}
+
+			modifiedPprofFile, err := os.Create(filepath.Join(dir, "inline_hot.pprof"))
+			if err != nil {
+				t.Fatalf("error creating inline_hot.pprof: %v", err)
+			}
+			defer modifiedPprofFile.Close()
+
+			if err := p.Write(modifiedPprofFile); err != nil {
+				t.Fatalf("error writing inline_hot.pprof: %v", err)
+			}
+
+			for _, file := range []string{"inline_hot.go", "inline_hot_test.go"} {
+				if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
+					t.Fatalf("error copying %s: %v", file, err)
+				}
+			}
+
+			testPGOIntendedInlining(t, dir)
+		})
+	}
 }
 
 func copyFile(dst, src string) error {

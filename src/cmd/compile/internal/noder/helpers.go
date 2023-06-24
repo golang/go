@@ -61,9 +61,7 @@ func FixValue(typ *types.Type, val constant.Value) constant.Value {
 	if !typ.IsUntyped() {
 		val = typecheck.DefaultLit(ir.NewBasicLit(src.NoXPos, val), typ).Val()
 	}
-	if !typ.IsTypeParam() {
-		ir.AssertValidTypeForConst(typ, val)
-	}
+	ir.AssertValidTypeForConst(typ, val)
 	return val
 }
 
@@ -211,15 +209,7 @@ var one = constant.MakeInt64(1)
 func IncDec(pos src.XPos, op ir.Op, x ir.Node) *ir.AssignOpStmt {
 	assert(x.Type() != nil)
 	bl := ir.NewBasicLit(pos, one)
-	if x.Type().HasTParam() {
-		// If the operand is generic, then types2 will have proved it must be
-		// a type that fits with increment/decrement, so just set the type of
-		// "one" to n.Type(). This works even for types that are eventually
-		// float or complex.
-		typed(x.Type(), bl)
-	} else {
-		bl = typecheck.DefaultLit(bl, x.Type())
-	}
+	bl = typecheck.DefaultLit(bl, x.Type())
 	return ir.NewAssignOpStmt(pos, op, x, bl)
 }
 

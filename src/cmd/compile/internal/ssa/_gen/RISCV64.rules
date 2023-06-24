@@ -282,24 +282,24 @@
 (Neq32F ...) => (FNES ...)
 
 // Loads
-(Load <t> ptr mem) &&  t.IsBoolean()                  => (MOVBUload ptr mem)
-(Load <t> ptr mem) && ( is8BitInt(t) &&  isSigned(t)) => (MOVBload  ptr mem)
-(Load <t> ptr mem) && ( is8BitInt(t) && !isSigned(t)) => (MOVBUload ptr mem)
-(Load <t> ptr mem) && (is16BitInt(t) &&  isSigned(t)) => (MOVHload  ptr mem)
-(Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) => (MOVHUload ptr mem)
-(Load <t> ptr mem) && (is32BitInt(t) &&  isSigned(t)) => (MOVWload  ptr mem)
-(Load <t> ptr mem) && (is32BitInt(t) && !isSigned(t)) => (MOVWUload ptr mem)
-(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t))     => (MOVDload  ptr mem)
-(Load <t> ptr mem) &&  is32BitFloat(t)                => (FMOVWload ptr mem)
-(Load <t> ptr mem) &&  is64BitFloat(t)                => (FMOVDload ptr mem)
+(Load <t> ptr mem) &&  t.IsBoolean()                   => (MOVBUload ptr mem)
+(Load <t> ptr mem) && ( is8BitInt(t) &&  t.IsSigned()) => (MOVBload  ptr mem)
+(Load <t> ptr mem) && ( is8BitInt(t) && !t.IsSigned()) => (MOVBUload ptr mem)
+(Load <t> ptr mem) && (is16BitInt(t) &&  t.IsSigned()) => (MOVHload  ptr mem)
+(Load <t> ptr mem) && (is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
+(Load <t> ptr mem) && (is32BitInt(t) &&  t.IsSigned()) => (MOVWload  ptr mem)
+(Load <t> ptr mem) && (is32BitInt(t) && !t.IsSigned()) => (MOVWUload ptr mem)
+(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t))      => (MOVDload  ptr mem)
+(Load <t> ptr mem) &&  is32BitFloat(t)                 => (FMOVWload ptr mem)
+(Load <t> ptr mem) &&  is64BitFloat(t)                 => (FMOVDload ptr mem)
 
 // Stores
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 && !is32BitFloat(val.Type) => (MOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 8 && !is64BitFloat(val.Type) => (MOVDstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 &&  is32BitFloat(val.Type) => (FMOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 8 &&  is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (FMOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (FMOVDstore ptr val mem)
 
 // We need to fold MOVaddr into the LD/MOVDstore ops so that the live variable analysis
 // knows what variables are being read/written by the ops.
@@ -547,7 +547,8 @@
 (ConstBool [val]) => (MOVDconst [int64(b2i(val))])
 
 (Addr {sym} base) => (MOVaddr {sym} [0] base)
-(LocalAddr {sym} base _) => (MOVaddr {sym} base)
+(LocalAddr <t> {sym} base mem) && t.Elem().HasPointers() => (MOVaddr {sym} (SPanchored base mem))
+(LocalAddr <t> {sym} base _)  && !t.Elem().HasPointers() => (MOVaddr {sym} base)
 
 // Calls
 (StaticCall  ...) => (CALLstatic  ...)
@@ -756,7 +757,7 @@
 (MOVDnop (MOVDconst [c])) => (MOVDconst [c])
 
 // Fold constant into immediate instructions where possible.
-(ADD (MOVDconst [val]) x) && is32Bit(val) => (ADDI [val] x)
+(ADD (MOVDconst <t> [val]) x) && is32Bit(val) && !t.IsPtr() => (ADDI [val] x)
 (AND (MOVDconst [val]) x) && is32Bit(val) => (ANDI [val] x)
 (OR  (MOVDconst [val]) x) && is32Bit(val) => (ORI  [val] x)
 (XOR (MOVDconst [val]) x) && is32Bit(val) => (XORI [val] x)

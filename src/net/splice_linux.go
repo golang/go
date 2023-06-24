@@ -15,7 +15,7 @@ import (
 //
 // If splice returns handled == false, it has performed no work.
 func splice(c *netFD, r io.Reader) (written int64, err error, handled bool) {
-	var remain int64 = 1 << 62 // by default, copy until EOF
+	var remain int64 = 1<<63 - 1 // by default, copy until EOF
 	lr, ok := r.(*io.LimitedReader)
 	if ok {
 		remain, r = lr.N, lr.R

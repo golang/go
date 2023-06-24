@@ -431,6 +431,14 @@ func (s *String) readBase128Int(out *int) bool {
 		}
 		ret <<= 7
 		b := s.read(1)[0]
+
+		// ITU-T X.690, section 8.19.2:
+		// The subidentifier shall be encoded in the fewest possible octets,
+		// that is, the leading octet of the subidentifier shall not have the value 0x80.
+		if i == 0 && b == 0x80 {
+			return false
+		}
+
 		ret |= int(b & 0x7f)
 		if b&0x80 == 0 {
 			*out = ret
@@ -559,7 +567,7 @@ func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
 	return true
 }
 
-// ReadASN1BitString decodes an ASN.1 BIT STRING into out and advances. It is
+// ReadASN1BitStringAsBytes decodes an ASN.1 BIT STRING into out and advances. It is
 // an error if the BIT STRING is not a whole number of bytes. It reports
 // whether the read was successful.
 func (s *String) ReadASN1BitStringAsBytes(out *[]byte) bool {
