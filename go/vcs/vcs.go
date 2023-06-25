@@ -16,7 +16,7 @@
 // It needed to be manually kept in sync with upstream when changes were
 // made to cmd/go/internal/get, as tracked in go.dev/issue/11490.
 // By now, it has diverged significantly from upstream cmd/go/internal/get
-// behavior and is not being actively updated.
+// behavior and will not receive any further updates.
 package vcs // import "golang.org/x/tools/go/vcs"
 
 import (
