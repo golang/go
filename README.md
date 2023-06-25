@@ -62,12 +62,11 @@ Selected packages:
 
 Numerous other packages provide more esoteric functionality.
 
-<!-- Some that didn't make the cut: 
+<!-- Some that didn't make the cut:
 
 golang.org/x/tools/benchmark/parse
 golang.org/x/tools/go/ast/astutil
 golang.org/x/tools/go/types/typeutil
-golang.org/x/tools/go/vcs
 golang.org/x/tools/playground
 golang.org/x/tools/present
 golang.org/x/tools/refactor/importgraph
