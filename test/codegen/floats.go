@@ -88,17 +88,20 @@ func FusedAdd64(x, y, z float64) float64 {
 	// s390x:"FMADD\t"
 	// ppc64x:"FMADD\t"
 	// arm64:"FMADDD"
+	// riscv64:"FMADDD\t"
 	return x*y + z
 }
 
 func FusedSub64_a(x, y, z float64) float64 {
 	// s390x:"FMSUB\t"
 	// ppc64x:"FMSUB\t"
+	// riscv64:"FMSUBD\t"
 	return x*y - z
 }
 
 func FusedSub64_b(x, y, z float64) float64 {
 	// arm64:"FMSUBD"
+	// riscv64:"FNMSUBD\t"
 	return z - x*y
 }
 

@@ -103,7 +103,7 @@
 
 (CvtBoolToUint8 ...) => (Copy ...)
 
-(Round(64|32)F ...) => (Copy ...)
+(Round(32|64)F ...) => (LoweredRound(32|64)F ...)
 
 (Slicemask <t> x) => (SRAI [63] (NEG <t> x))
 
@@ -780,6 +780,9 @@
 (Select0 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MULHU x y)
 (Select1 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MUL x y)
 
+(FADDD a (FMULD x y)) && a.Block.Func.useFMA(v) => (FMADDD x y a)
+(FSUBD a (FMULD x y)) && a.Block.Func.useFMA(v) => (FNMSUBD x y a)
+(FSUBD (FMULD x y) a) && a.Block.Func.useFMA(v) => (FMSUBD x y a)
 // Merge negation into fused multiply-add and multiply-subtract.
 //
 // Key:
