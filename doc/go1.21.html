@@ -589,7 +589,7 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/53573, CL 468875 -->
-      <a href="/pkg/crypto/x509/#RevocationList.RevokedCertificates"><code>RevocationList.RevokedCertificates</code></a> has been deprecated and replaced with the new <a href="/pkg/crypto/x509/#RevocationList.Entries"><code>RevocationList.Entries</code></a> field, which is a slice of <a href="/pkg/crypto/x509/#RevocationListEntry"><code>RevocationListEntry</code></a>. <a href="/pkg/crypto/x509/#RevocationListEntry"><code>RevocationListEntry</code></a> contains all of the fields in <a href="/pkg/crypto/x509/#pkix.RevokedCertificate"><code>pkix.RevokedCertificate</code></a>, as well as the revocation reason code.
+      <a href="/pkg/crypto/x509/#RevocationList.RevokedCertificates"><code>RevocationList.RevokedCertificates</code></a> has been deprecated and replaced with the new <a href="/pkg/crypto/x509/#RevocationList.RevokedCertificateEntries"><code>RevokedCertificateEntries</code></a> field, which is a slice of <a href="/pkg/crypto/x509/#RevocationListEntry"><code>RevocationListEntry</code></a>. <a href="/pkg/crypto/x509/#RevocationListEntry"><code>RevocationListEntry</code></a> contains all of the fields in <a href="/pkg/crypto/x509/pkix#RevokedCertificate"><code>pkix.RevokedCertificate</code></a>, as well as the revocation reason code.
     </p>
   </dd>
 </dl><!-- crypto/x509 -->
