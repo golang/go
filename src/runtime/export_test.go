@@ -1330,7 +1330,7 @@ func (t *SemTable) Enqueue(addr *uint32) {
 //
 // Returns true if there actually was a waiter to be dequeued.
 func (t *SemTable) Dequeue(addr *uint32) bool {
-	s, _ := t.semTable.rootFor(addr).dequeue(addr)
+	s, _, _ := t.semTable.rootFor(addr).dequeue(addr)
 	if s != nil {
 		releaseSudog(s)
 		return true

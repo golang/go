@@ -342,7 +342,7 @@ type gobuf struct {
 	bp   uintptr // for framepointer-enabled architectures
 }
 
-// sudog represents a g in a wait list, such as for sending/receiving
+// sudog (pseudo-g) represents a g in a wait list, such as for sending/receiving
 // on a channel.
 //
 // sudog is necessary because the g ↔ synchronization object relation
@@ -381,6 +381,13 @@ type sudog struct {
 	// value was delivered over channel c, and false if awoken
 	// because c was closed.
 	success bool
+
+	// waiters is a count of semaRoot waiting list other than head of list,
+	// clamped to a uint16 to fit in unused space.
+	// Only meaningful at the head of the list.
+	// (If we wanted to be overly clever, we could store a high 16 bits
+	// in the second entry in the list.)
+	waiters uint16
 
 	parent   *sudog // semaRoot binary tree
 	waitlink *sudog // g.waiting list or semaRoot

@@ -553,8 +553,6 @@ func mutexevent(cycles int64, skip int) {
 		cycles = 0
 	}
 	rate := int64(atomic.Load64(&mutexprofilerate))
-	// TODO(pjw): measure impact of always calling fastrand vs using something
-	// like malloc.go:nextSample()
 	if rate > 0 && int64(fastrand())%rate == 0 {
 		saveblockevent(cycles, rate, skip+1, mutexProfile)
 	}
