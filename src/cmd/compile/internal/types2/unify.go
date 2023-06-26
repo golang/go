@@ -410,8 +410,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 				// recorded an underlying type (go.dev/issue/43056).
 				// Either both types are interfaces, or neither type is.
 				// If both are interfaces, they have the same methods.
-				// TODO(gri) We probably can do this only for inexact
-				//           unification. Need to find a failure case.
+				//
+				// Note: Changing the recorded type for a type parameter to
+				// a defined type is only ok when unification is inexact.
+				// But in exact unification, if we have a match, x and y must
+				// be identical, so changing the recorded type for x is a no-op.
 				if yn {
 					u.set(px, y)
 				}
