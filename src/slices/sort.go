@@ -138,7 +138,7 @@ func BinarySearch[S ~[]E, E cmp.Ordered](x S, target E) (int, bool) {
 	return i, i < n && (x[i] == target || (isNaN(x[i]) && isNaN(target)))
 }
 
-// BinarySearchFunc works like BinarySearch, but uses a custom comparison
+// BinarySearchFunc works like [BinarySearch], but uses a custom comparison
 // function. The slice must be sorted in increasing order, where "increasing"
 // is defined by cmp. cmp should return 0 if the slice element matches
 // the target, a negative number if the slice element precedes the target,

@@ -68,7 +68,7 @@ func Compare[S ~[]E, E cmp.Ordered](s1, s2 S) int {
 	return 0
 }
 
-// CompareFunc is like Compare but uses a custom comparison function on each
+// CompareFunc is like [Compare] but uses a custom comparison function on each
 // pair of elements.
 // The result is the first non-zero result of cmp; if cmp always
 // returns 0 the result is 0 if len(s1) == len(s2), -1 if len(s1) < len(s2),
@@ -368,7 +368,7 @@ func Compact[S ~[]E, E comparable](s S) S {
 	return s[:i]
 }
 
-// CompactFunc is like Compact but uses a comparison function.
+// CompactFunc is like [Compact] but uses a comparison function.
 func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
 	if len(s) < 2 {
 		return s
