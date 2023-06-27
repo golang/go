@@ -1,6 +1,5 @@
 package with_generics
 
-
 // It doesn't matter if the innerT1 struct unexported or exported, the result is the same.
 //
 // Within the deadlock issue, it does matter if the type parameter R as a pointer, and the inner field that

@@ -1,8 +1,6 @@
 package main
 
-import (
-"workspace/with_generics"
-)
+import "workspace/with_generics"
 
 func main() {
 
