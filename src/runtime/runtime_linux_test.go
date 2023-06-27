@@ -45,7 +45,7 @@ func TestLockOSThread(t *testing.T) {
 // Use a misaligned pointer to get -EINVAL.
 func TestMincoreErrorSign(t *testing.T) {
 	var dst byte
-	v := Mincore(Add(unsafe.Pointer(new(int32)), 1), 1, &dst)
+	v := Mincore(unsafe.Add(unsafe.Pointer(new(int32)), 1), 1, &dst)
 
 	const EINVAL = 0x16
 	if v != -EINVAL {
