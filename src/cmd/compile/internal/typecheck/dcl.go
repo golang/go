@@ -163,27 +163,6 @@ func checkdupfields(what string, fss ...[]*types.Field) {
 	}
 }
 
-// structs, functions, and methods.
-// they don't belong here, but where do they belong?
-func checkembeddedtype(t *types.Type) {
-	if t == nil {
-		return
-	}
-
-	if t.Sym() == nil && t.IsPtr() {
-		t = t.Elem()
-		if t.IsInterface() {
-			base.Errorf("embedded type cannot be a pointer to interface")
-		}
-	}
-
-	if t.IsPtr() || t.IsUnsafePtr() {
-		base.Errorf("embedded type cannot be a pointer")
-	} else if t.Kind() == types.TFORW && !t.ForwardType().Embedlineno.IsKnown() {
-		t.ForwardType().Embedlineno = base.Pos
-	}
-}
-
 var funcStack []funcStackEnt // stack of previous values of ir.CurFunc/DeclContext
 
 type funcStackEnt struct {

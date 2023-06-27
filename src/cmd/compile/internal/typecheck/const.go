@@ -319,35 +319,6 @@ func tostr(v constant.Value) constant.Value {
 	return v
 }
 
-var tokenForOp = [...]token.Token{
-	ir.OPLUS:   token.ADD,
-	ir.ONEG:    token.SUB,
-	ir.ONOT:    token.NOT,
-	ir.OBITNOT: token.XOR,
-
-	ir.OADD:    token.ADD,
-	ir.OSUB:    token.SUB,
-	ir.OMUL:    token.MUL,
-	ir.ODIV:    token.QUO,
-	ir.OMOD:    token.REM,
-	ir.OOR:     token.OR,
-	ir.OXOR:    token.XOR,
-	ir.OAND:    token.AND,
-	ir.OANDNOT: token.AND_NOT,
-	ir.OOROR:   token.LOR,
-	ir.OANDAND: token.LAND,
-
-	ir.OEQ: token.EQL,
-	ir.ONE: token.NEQ,
-	ir.OLT: token.LSS,
-	ir.OLE: token.LEQ,
-	ir.OGT: token.GTR,
-	ir.OGE: token.GEQ,
-
-	ir.OLSH: token.SHL,
-	ir.ORSH: token.SHR,
-}
-
 func makeFloat64(f float64) constant.Value {
 	if math.IsInf(f, 0) {
 		base.Fatalf("infinity is not a valid constant")

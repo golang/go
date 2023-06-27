@@ -877,7 +877,3 @@ var slist []symlink
 type symlink struct {
 	field *types.Field
 }
-
-func assert(p bool) {
-	base.Assert(p)
-}
