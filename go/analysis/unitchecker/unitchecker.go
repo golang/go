@@ -218,7 +218,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	})
 	tc := &types.Config{
 		Importer: importer,
-		Sizes:    sizesFor("gc", build.Default.GOARCH), // assume gccgo ≡ gc?
+		Sizes:    types.SizesFor("gc", build.Default.GOARCH), // assume gccgo ≡ gc?
 	}
 	info := &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
