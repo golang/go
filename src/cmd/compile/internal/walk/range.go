@@ -564,18 +564,3 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
 	typecheck.Stmts(n.Body)
 	return walkStmt(n)
 }
-
-// addptr returns (*T)(uintptr(p) + n).
-func addptr(p ir.Node, n int64) ir.Node {
-	t := p.Type()
-
-	p = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, p)
-	p.SetType(types.Types[types.TUINTPTR])
-
-	p = ir.NewBinaryExpr(base.Pos, ir.OADD, p, ir.NewInt(base.Pos, n))
-
-	p = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, p)
-	p.SetType(t)
-
-	return p
-}

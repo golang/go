@@ -5,7 +5,6 @@
 package walk
 
 import (
-	"errors"
 	"fmt"
 
 	"cmd/compile/internal/base"
@@ -97,8 +96,6 @@ func convas(n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
 
 	return n
 }
-
-var stop = errors.New("stop")
 
 func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallExpr {
 	if init == nil {
