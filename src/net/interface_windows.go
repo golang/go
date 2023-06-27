@@ -57,8 +57,9 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 		}
 		if ifindex == 0 || ifindex == int(index) {
 			ifi := Interface{
-				Index: int(index),
-				Name:  windows.UTF16PtrToString(aa.FriendlyName),
+				Index:       int(index),
+				Description: windows.UTF16PtrToString(aa.Description),
+				Name:        windows.UTF16PtrToString(aa.FriendlyName),
 			}
 			if aa.OperStatus == windows.IfOperStatusUp {
 				ifi.Flags |= FlagUp
