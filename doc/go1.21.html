@@ -585,6 +585,32 @@ Do not send CLs removing the interior tags from such phrases.
       The new <a href="/pkg/crypto/tls/#VersionName"><code>VersionName</code></a> function
       returns the name for a TLS version number.
     </p>
+
+    <p><!-- https://go.dev/issue/52113, CL 410496 -->
+      The TLS alert codes sent from the server for client authentication failures have
+      been improved. Prior to Go 1.21, these failures always resulted in a "bad certificate" alert.
+      Starting from Go 1.21, certain failures will result in more appropriate alert codes,
+      as defined by RFC 5246 and RFC 8446:
+      <ul>
+        <li>
+          For TLS 1.3 connections, if the server is configured to require client authentication using
+          <a href="/pkg/crypto/tls/#RequireAnyClientCert"></code>RequireAnyClientCert</code></a> or
+          <a href="/pkg/crypto/tls/#RequireAndVerifyClientCert"></code>RequireAndVerifyClientCert</code></a>,
+          and the client does not provide any certificate, the server will now return the "certificate required" alert.
+        </li>
+        <li>
+          If the client provides a certificate that is not signed by the set of trusted certificate authorities
+          configured on the server, the server will return the "unknown certificate authority" alert.
+        </li>
+        <li>
+          If the client provides a certificate that is either expired or not yet valid,
+          the server will return the "expired certificate" alert.
+        </li>
+        <li>
+          In all other scenarios related to client authentication failures, the server still returns "bad certificate".
+        </li>
+      </ul>
+    </p>
   </dd>
 </dl><!-- crypto/tls -->
 
