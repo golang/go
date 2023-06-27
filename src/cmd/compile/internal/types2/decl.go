@@ -241,7 +241,7 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 			if enableCycleCheck && check.inTParamList && isGeneric(obj.typ) {
 
 				if _, ok := obj.typ.Underlying().(*Struct); ok {
-					// allow recursive cunstraints for struct fields
+					// allow recursive constraints for struct fields
 					// fixes #60880
 					enableCycleCheck = false
 				} else {
