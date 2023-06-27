@@ -17,3 +17,16 @@
 (SETBCR [0] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [4] (MOVDconst [1]) cmp)
 (SETBC [1] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [1] (MOVDconst [1]) cmp)
 (SETBCR [1] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [5] (MOVDconst [1]) cmp)
+
+// The upper bits of the smaller than register values is undefined. Take advantage of that.
+(AND <t> x:(MOVDconst [m]) n) && t.Size() <= 2 => (Select0 (ANDCCconst [int64(int16(m))] n))
+
+// Convert simple bit masks to an equivalent rldic[lr] if possible.
+(AND x:(MOVDconst [m]) n) && isPPC64ValidShiftMask(m) => (RLDICL [encodePPC64RotateMask(0,m,64)] n)
+(AND x:(MOVDconst [m]) n) && m != 0 && isPPC64ValidShiftMask(^m) => (RLDICR [encodePPC64RotateMask(0,m,64)] n)
+
+// If the RLDICL does not rotate its value, a shifted value can be merged.
+(RLDICL [em] x:(SRDconst [s] a)) && (em&0xFF0000) == 0 => (RLDICL [mergePPC64RLDICLandSRDconst(em, s)] a)
+
+// Convert rotated 32 bit masks on 32 bit values into rlwinm. In general, this leaves the upper 32 bits in an undefined state.
+(AND <t> x:(MOVDconst [m]) n) && t.Size() == 4 && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(0,m,32)] n)
