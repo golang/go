@@ -34,7 +34,7 @@ type application struct {
 	Deps       bool            `flag:"deps" help:"show dependencies too"`
 	Test       bool            `flag:"test" help:"include any tests implied by the patterns"`
 	Mode       string          `flag:"mode" help:"mode (one of files, imports, types, syntax, allsyntax)"`
-	Private    bool            `flag:"private" help:"show non-exported declarations too"`
+	Private    bool            `flag:"private" help:"show non-exported declarations too (if -mode=syntax)"`
 	PrintJSON  bool            `flag:"json" help:"print package in JSON form"`
 	BuildFlags stringListValue `flag:"buildflag" help:"pass argument to underlying build system (may be repeated)"`
 }
@@ -55,6 +55,21 @@ func (app *application) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
 Packages are specified using the notation of "go list",
 or other underlying build system.
+
+The mode flag determines how much information is computed and printed
+for the specified packages. In order of increasing computational cost,
+the legal values are:
+
+ -mode=files     shows only the names of the packages' files.
+ -mode=imports   also shows the imports. (This is the default.)
+ -mode=types     loads the compiler's export data and displays the
+                 type of each exported declaration.
+ -mode=syntax    parses and type checks syntax trees for the initial
+                 packages. (With the -private flag, the types of
+                 non-exported declarations are shown too.)
+                 Type information for dependencies is obtained from
+                 compiler export data.
+ -mode=allsyntax is like -mode=syntax but applied to all dependencies.
 
 Flags:
 `)
@@ -189,7 +204,7 @@ func (app *application) print(lpkg *packages.Package) {
 		fmt.Printf("\t%s\n", err)
 	}
 
-	// package members (TypeCheck or WholeProgram mode)
+	// types of package members
 	if lpkg.Types != nil {
 		qual := types.RelativeTo(lpkg.Types)
 		scope := lpkg.Types.Scope()
