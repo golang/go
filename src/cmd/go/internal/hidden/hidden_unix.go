@@ -9,11 +9,11 @@ import (
 	"strings"
 )
 
-// IsHidden reports whether path is hidden by default in user interfaces
-// on the current platform.
-func IsHidden(path string) (flag bool) {
+// IsHidden checks if a path is hidden or not in the filesystem.
+// such as: '.' files in unix filesystem
+func IsHidden(path string) (flag bool, err error) {
 
-	flag = strings.HasPrefix(path, ".") || strings.HasPrefix(filepath.Base(path), ".")
+	flag = strings.HasPrefix(filepath.Base(path), ".")
 
 	return
 }
