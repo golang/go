@@ -9,9 +9,8 @@ import (
 	"strings"
 )
 
-// IsHidden checks if a path is hidden or not
-// Eg: .DS_Store in mac
-// Eg: . in linux
+// IsHidden reports whether path is hidden by default in user interfaces
+// on the current platform.
 func IsHidden(path string) (flag bool) {
 
 	flag = strings.HasPrefix(path, ".") || strings.HasPrefix(filepath.Base(path), ".")

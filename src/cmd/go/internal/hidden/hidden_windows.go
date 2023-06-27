@@ -4,6 +4,8 @@
 
 package hidden
 
+// IsHidden reports whether path is hidden by default in user interfaces
+// on the current platform.
 func IsHidden(path string) (flag bool) {
 	// TODO:
 	return
