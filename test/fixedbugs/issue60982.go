@@ -6,8 +6,13 @@
 
 package main
 
-func f(x int) int {
+func f(x int, b bool) int {
 	if x >= 1000 {
+		if b { // from #61041
+			var a struct{ f int64 }
+			_ = max(0, a.f)
+		}
+
 		return max(x, 2000)
 	}
 	// generate 1000 basic blocks to put this function

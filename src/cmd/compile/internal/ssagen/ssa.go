@@ -949,7 +949,6 @@ var (
 	typVar       = ssaMarker("typ")
 	okVar        = ssaMarker("ok")
 	deferBitsVar = ssaMarker("deferBits")
-	ternaryVar   = ssaMarker("ternary")
 )
 
 // startBlock sets the current block we're generating code in to b.
@@ -3621,6 +3620,10 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 
 // ternary emits code to evaluate cond ? x : y.
 func (s *state) ternary(cond, x, y *ssa.Value) *ssa.Value {
+	// Note that we need a new ternaryVar each time (unlike okVar where we can
+	// reuse the variable) because it might have a different type every time.
+	ternaryVar := ssaMarker("ternary")
+
 	bThen := s.f.NewBlock(ssa.BlockPlain)
 	bElse := s.f.NewBlock(ssa.BlockPlain)
 	bEnd := s.f.NewBlock(ssa.BlockPlain)
