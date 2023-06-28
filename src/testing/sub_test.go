@@ -21,102 +21,6 @@ func init() {
 	benchTime.d = 100 * time.Millisecond
 }
 
-func TestTestContext(t *T) {
-	const (
-		add1 = 0
-		done = 1
-	)
-	// After each of the calls are applied to the context, the
-	type call struct {
-		typ int // run or done
-		// result from applying the call
-		running int
-		waiting int
-		started bool
-	}
-	testCases := []struct {
-		max int
-		run []call
-	}{{
-		max: 1,
-		run: []call{
-			{typ: add1, running: 1, waiting: 0, started: true},
-			{typ: done, running: 0, waiting: 0, started: false},
-		},
-	}, {
-		max: 1,
-		run: []call{
-			{typ: add1, running: 1, waiting: 0, started: true},
-			{typ: add1, running: 1, waiting: 1, started: false},
-			{typ: done, running: 1, waiting: 0, started: true},
-			{typ: done, running: 0, waiting: 0, started: false},
-			{typ: add1, running: 1, waiting: 0, started: true},
-		},
-	}, {
-		max: 3,
-		run: []call{
-			{typ: add1, running: 1, waiting: 0, started: true},
-			{typ: add1, running: 2, waiting: 0, started: true},
-			{typ: add1, running: 3, waiting: 0, started: true},
-			{typ: add1, running: 3, waiting: 1, started: false},
-			{typ: add1, running: 3, waiting: 2, started: false},
-			{typ: add1, running: 3, waiting: 3, started: false},
-			{typ: done, running: 3, waiting: 2, started: true},
-			{typ: add1, running: 3, waiting: 3, started: false},
-			{typ: done, running: 3, waiting: 2, started: true},
-			{typ: done, running: 3, waiting: 1, started: true},
-			{typ: done, running: 3, waiting: 0, started: true},
-			{typ: done, running: 2, waiting: 0, started: false},
-			{typ: done, running: 1, waiting: 0, started: false},
-			{typ: done, running: 0, waiting: 0, started: false},
-		},
-	}}
-	for i, tc := range testCases {
-		ctx := &testContext{
-			startParallel: make(chan bool),
-			maxParallel:   tc.max,
-		}
-		for j, call := range tc.run {
-			doCall := func(f func()) chan bool {
-				done := make(chan bool)
-				go func() {
-					f()
-					done <- true
-				}()
-				return done
-			}
-			started := false
-			switch call.typ {
-			case add1:
-				signal := doCall(ctx.waitParallel)
-				select {
-				case <-signal:
-					started = true
-				case ctx.startParallel <- true:
-					<-signal
-				}
-			case done:
-				signal := doCall(ctx.release)
-				select {
-				case <-signal:
-				case <-ctx.startParallel:
-					started = true
-					<-signal
-				}
-			}
-			if started != call.started {
-				t.Errorf("%d:%d:started: got %v; want %v", i, j, started, call.started)
-			}
-			if ctx.running != call.running {
-				t.Errorf("%d:%d:running: got %v; want %v", i, j, ctx.running, call.running)
-			}
-			if ctx.numWaiting != call.waiting {
-				t.Errorf("%d:%d:waiting: got %v; want %v", i, j, ctx.numWaiting, call.waiting)
-			}
-		}
-	}
-}
-
 func TestTRun(t *T) {
 	realTest := t
 	testCases := []struct {
@@ -511,10 +415,10 @@ func TestTRun(t *T) {
 			buf := &strings.Builder{}
 			root := &T{
 				common: common{
-					signal:  make(chan bool),
-					barrier: make(chan bool),
-					name:    "",
-					w:       buf,
+					doneOrParallel: make(chan struct{}),
+					runParallel:    make(chan struct{}),
+					name:           "",
+					w:              buf,
 				},
 				context: ctx,
 			}
@@ -523,7 +427,6 @@ func TestTRun(t *T) {
 				root.chatty.json = tc.json
 			}
 			ok := root.Run(tc.desc, tc.f)
-			ctx.release()
 
 			if ok != tc.ok {
 				t.Errorf("%s:ok: got %v; want %v", tc.desc, ok, tc.ok)
@@ -531,8 +434,8 @@ func TestTRun(t *T) {
 			if ok != !root.Failed() {
 				t.Errorf("%s:root failed: got %v; want %v", tc.desc, !ok, root.Failed())
 			}
-			if ctx.running != 0 || ctx.numWaiting != 0 {
-				t.Errorf("%s:running and waiting non-zero: got %d and %d", tc.desc, ctx.running, ctx.numWaiting)
+			if n := ctx.running(); n != 0 {
+				t.Errorf("%s:running non-zero: got %d", tc.desc, n)
 			}
 			got := strings.TrimSpace(buf.String())
 			want := strings.TrimSpace(tc.output)
@@ -701,9 +604,9 @@ func TestBRun(t *T) {
 			// the benchtime and catch the failure result of the subbenchmark.
 			root := &B{
 				common: common{
-					signal: make(chan bool),
-					name:   "root",
-					w:      buf,
+					doneOrParallel: make(chan struct{}),
+					name:           "root",
+					w:              buf,
 				},
 				benchFunc: func(b *B) { ok = b.Run("test", tc.f) }, // Use Run to catch failure.
 				benchTime: durationOrCountFlag{d: 1 * time.Microsecond},
@@ -837,8 +740,8 @@ func TestLogAfterComplete(t *T) {
 		common: common{
 			// Use a buffered channel so that tRunner can write
 			// to it although nothing is reading from it.
-			signal: make(chan bool, 1),
-			w:      &buf,
+			doneOrParallel: make(chan struct{}),
+			w:              &buf,
 		},
 		context: ctx,
 	}
@@ -910,18 +813,22 @@ func TestCleanup(t *T) {
 func TestConcurrentCleanup(t *T) {
 	cleanups := 0
 	t.Run("test", func(t *T) {
-		done := make(chan struct{})
+		var wg sync.WaitGroup
+		wg.Add(2)
 		for i := 0; i < 2; i++ {
 			i := i
 			go func() {
 				t.Cleanup(func() {
+					// Although the calls to Cleanup are concurrent, the functions passed
+					// to Cleanup should be called sequentially, in some nondeterministic
+					// order based on when the Cleanup calls happened to be scheduled.
+					// So these assignments to the cleanups variable should not race.
 					cleanups |= 1 << i
 				})
-				done <- struct{}{}
+				wg.Done()
 			}()
 		}
-		<-done
-		<-done
+		wg.Wait()
 	})
 	if cleanups != 1|2 {
 		t.Errorf("unexpected cleanup; got %d want 3", cleanups)

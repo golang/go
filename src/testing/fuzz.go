@@ -70,10 +70,6 @@ type F struct {
 	fuzzContext *fuzzContext
 	testContext *testContext
 
-	// inFuzzFn is true when the fuzz function is running. Most F methods cannot
-	// be called when inFuzzFn is true.
-	inFuzzFn bool
-
 	// corpus is a set of seed corpus entries, added with F.Add and loaded
 	// from testdata.
 	corpus []corpusEntry
@@ -300,13 +296,13 @@ func (f *F) Fuzz(ff any) {
 		n := runtime.Callers(2, pc[:])
 		t := &T{
 			common: common{
-				barrier: make(chan bool),
-				signal:  make(chan bool),
-				name:    testName,
-				parent:  &f.common,
-				level:   f.level + 1,
-				creator: pc[:n],
-				chatty:  f.chatty,
+				runParallel:    make(chan struct{}),
+				doneOrParallel: make(chan struct{}),
+				name:           testName,
+				parent:         &f.common,
+				level:          f.level + 1,
+				creator:        pc[:n],
+				chatty:         f.chatty,
 			},
 			context: f.testContext,
 		}
@@ -318,7 +314,7 @@ func (f *F) Fuzz(ff any) {
 		if t.chatty != nil {
 			t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
 		}
-		f.common.inFuzzFn, f.inFuzzFn = true, true
+		f.inFuzzFn = true
 		go tRunner(t, func(t *T) {
 			args := []reflect.Value{reflect.ValueOf(t)}
 			for _, v := range e.Values {
@@ -334,11 +330,11 @@ func (f *F) Fuzz(ff any) {
 			}
 			fn.Call(args)
 		})
-		<-t.signal
+		<-t.doneOrParallel
 		if t.chatty != nil && t.chatty.json {
 			t.chatty.Updatef(t.parent.name, "=== NAME  %s\n", t.parent.name)
 		}
-		f.common.inFuzzFn, f.inFuzzFn = false, false
+		f.inFuzzFn = false
 		return !t.Failed()
 	}
 
@@ -510,12 +506,12 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 				}
 				f := &F{
 					common: common{
-						signal:  make(chan bool),
-						barrier: make(chan bool),
-						name:    testName,
-						parent:  &root,
-						level:   root.level + 1,
-						chatty:  root.chatty,
+						doneOrParallel: make(chan struct{}),
+						runParallel:    make(chan struct{}),
+						name:           testName,
+						parent:         &root,
+						level:          root.level + 1,
+						chatty:         root.chatty,
 					},
 					testContext: tctx,
 					fuzzContext: fctx,
@@ -525,12 +521,12 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 					f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
 				}
 				go fRunner(f, ft.Fn)
-				<-f.signal
+				<-f.doneOrParallel
 				if f.chatty != nil && f.chatty.json {
 					f.chatty.Updatef(f.parent.name, "=== NAME  %s\n", f.parent.name)
 				}
 				ok = ok && !f.Failed()
-				ran = ran || f.ran
+				ran = ran || f.ranAnyLeaf
 			}
 			if !ran {
 				// There were no tests to run on this iteration.
@@ -592,12 +588,12 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 
 	f := &F{
 		common: common{
-			signal:  make(chan bool),
-			barrier: nil, // T.Parallel has no effect when fuzzing.
-			name:    testName,
-			parent:  &root,
-			level:   root.level + 1,
-			chatty:  root.chatty,
+			doneOrParallel: make(chan struct{}),
+			runParallel:    nil, // T.Parallel has no effect when fuzzing.
+			name:           testName,
+			parent:         &root,
+			level:          root.level + 1,
+			chatty:         root.chatty,
 		},
 		fuzzContext: fctx,
 		testContext: tctx,
@@ -607,7 +603,7 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 		f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
 	}
 	go fRunner(f, fuzzTest.Fn)
-	<-f.signal
+	<-f.doneOrParallel
 	if f.chatty != nil {
 		f.chatty.Updatef(f.parent.name, "=== NAME  %s\n", f.parent.name)
 	}
@@ -625,6 +621,12 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 // simplifications are made. We also require that F.Fuzz, F.Skip, or F.Fail is
 // called.
 func fRunner(f *F, fn func(*F)) {
+	// TODO(bcmills): This function has a lot of code and structure in common with
+	// tRunner. At some point it would probably be good to factor out the common
+	// parts to make the differences easier to spot.
+
+	returned := false
+
 	// When this goroutine is done, either because runtime.Goexit was called, a
 	// panic started, or fn returned normally, record the duration and send
 	// t.signal, indicating the fuzz test is done.
@@ -636,96 +638,93 @@ func fRunner(f *F, fn func(*F)) {
 		// Unfortunately, recovering here adds stack frames, but the location of
 		// the original panic should still be
 		// clear.
-		f.checkRaces()
-		if f.Failed() {
-			numFailed.Add(1)
-		}
-		err := recover()
-		if err == nil {
-			f.mu.RLock()
-			fuzzNotCalled := !f.fuzzCalled && !f.skipped && !f.failed
-			if !f.finished && !f.skipped && !f.failed {
-				err = errNilPanicOrGoexit
-			}
-			f.mu.RUnlock()
-			if fuzzNotCalled && err == nil {
+
+		panicVal := recover()
+		if panicVal == nil && !f.skipped && !f.failed {
+			if !returned {
+				panicVal = errNilPanicOrGoexit
+			} else if !f.fuzzCalled {
 				f.Error("returned without calling F.Fuzz, F.Fail, or F.Skip")
 			}
 		}
 
-		// Use a deferred call to ensure that we report that the test is
-		// complete even if a cleanup function calls F.FailNow. See issue 41355.
-		didPanic := false
-		defer func() {
-			if !didPanic {
-				// Only report that the test is complete if it doesn't panic,
-				// as otherwise the test binary can exit before the panic is
-				// reported to the user. See issue 41479.
-				f.signal <- true
-			}
-		}()
-
-		// If we recovered a panic or inappropriate runtime.Goexit, fail the test,
-		// flush the output log up to the root, then panic.
-		doPanic := func(err any) {
+		if panicVal != nil {
+			// Mark the test as failed so that Cleanup functions can see its correct status.
 			f.Fail()
-			if r := f.runCleanup(recoverAndReturnPanic); r != nil {
-				f.Logf("cleanup panicked with %v", r)
-			}
-			for root := &f.common; root.parent != nil; root = root.parent {
-				root.mu.Lock()
-				root.duration += time.Since(root.start)
-				d := root.duration
-				root.mu.Unlock()
-				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
-			}
-			didPanic = true
-			panic(err)
-		}
-		if err != nil {
-			doPanic(err)
-		}
-
-		// No panic or inappropriate Goexit.
-		f.duration += time.Since(f.start)
-
-		if len(f.sub) > 0 {
+		} else if f.runParallel != nil {
 			// Unblock inputs that called T.Parallel while running the seed corpus.
 			// This only affects fuzz tests run as normal tests.
-			// While fuzzing, T.Parallel has no effect, so f.sub is empty, and this
-			// branch is not taken. f.barrier is nil in that case.
-			f.testContext.release()
-			close(f.barrier)
-			// Wait for the subtests to complete.
-			for _, sub := range f.sub {
-				<-sub.signal
-			}
-			cleanupStart := time.Now()
-			err := f.runCleanup(recoverAndReturnPanic)
-			f.duration += time.Since(cleanupStart)
-			if err != nil {
-				doPanic(err)
-			}
+			// While fuzzing, T.Parallel has no effect, so f.parallelSubtests is empty
+			// and this is a no-op.
+
+			// Check for races before starting parallel subtests, so that if a
+			// parallel subtest *also* triggers a data race we will report the two
+			// races to the two tests and not attribute all of them to the subtest.
+			f.checkRaces()
+
+			close(f.runParallel)
+			f.parallelSubtests.Wait()
 		}
 
-		// Report after all subtests have finished.
-		f.report()
-		f.done = true
-		f.setRan()
-	}()
-	defer func() {
-		if len(f.sub) == 0 {
-			f.runCleanup(normalPanic)
-		}
+		// Use a deferred call to ensure that we report that the test is
+		// complete even if a cleanup function calls t.FailNow. See issue 41355.
+		defer func() {
+			cleanupPanic := recover()
+			if panicVal == nil {
+				panicVal = cleanupPanic
+			}
+
+			// Only report that the test is complete if it doesn't panic,
+			// as otherwise the test binary can exit before the panic is
+			// reported to the user. See issue 41479.
+			if panicVal != nil {
+				// Flush the output log up to the root before dying.
+				for root := &f.common; root.parent != nil; root = root.parent {
+					root.mu.Lock()
+					root.duration += time.Since(root.start)
+					d := root.duration
+					root.mu.Unlock()
+					root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
+
+					// Since the parent will never finish running, do its cleanup now.
+					// Run the cleanup in a fresh goroutine in case it calls runtime.Goexit,
+					// which we cannot recover.
+					cleanupDone := make(chan struct{})
+					go func() {
+						defer close(cleanupDone)
+						if r := root.parent.runCleanup(recoverAndReturnPanic); r != nil {
+							fmt.Fprintf(root.parent.w, "cleanup panicked with %v", r)
+						}
+					}()
+					<-cleanupDone
+				}
+				panic(panicVal)
+			}
+
+			f.checkRaces()
+			f.duration += time.Since(f.start)
+			f.report()
+
+			// Do not lock f.done to allow race detector to detect race in case
+			// the user does not appropriately synchronize a goroutine.
+			f.done = true
+			if f.parent != nil && !f.hasSub.Load() {
+				f.setRanLeaf()
+			}
+
+			running.Delete(f.name)
+			close(f.doneOrParallel)
+		}()
+
+		f.runCleanup(normalPanic)
 	}()
 
+	// Run the actual fuzz function.
 	f.start = time.Now()
 	f.resetRaces()
 	fn(f)
 
 	// Code beyond this point will not be executed when FailNow or SkipNow
 	// is invoked.
-	f.mu.Lock()
-	f.finished = true
-	f.mu.Unlock()
+	returned = true
 }
