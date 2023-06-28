@@ -545,7 +545,7 @@ type Metadata struct {
 	CompiledGoFiles []span.URI
 	IgnoredFiles    []span.URI
 
-	ForTest       PackagePath // package path under test, or ""
+	ForTest       PackagePath // q in a "p [q.test]" package, else ""
 	TypesSizes    types.Sizes
 	Errors        []packages.Error          // must be set for packages in import cycles
 	DepsByImpPath map[ImportPath]PackageID  // may contain dups; empty ID => missing
