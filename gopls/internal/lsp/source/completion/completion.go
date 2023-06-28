@@ -1287,13 +1287,17 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 								sn.WriteText(", ")
 							}
 							nparams++
-							sn.WritePlaceholder(func(b *snippet.Builder) {
-								var buf strings.Builder
-								buf.WriteString(name)
-								buf.WriteByte(' ')
-								cfg.Fprint(&buf, token.NewFileSet(), typ)
-								b.WriteText(buf.String())
-							})
+							if c.opts.placeholders {
+								sn.WritePlaceholder(func(b *snippet.Builder) {
+									var buf strings.Builder
+									buf.WriteString(name)
+									buf.WriteByte(' ')
+									cfg.Fprint(&buf, token.NewFileSet(), typ)
+									b.WriteText(buf.String())
+								})
+							} else {
+								sn.WriteText(name)
+							}
 						}
 
 						sn.WriteText(open)

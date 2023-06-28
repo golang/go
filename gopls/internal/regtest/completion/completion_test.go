@@ -516,6 +516,7 @@ func main() {
 `
 	WithOptions(
 		WindowsLineEndings(),
+		Settings{"ui.completion.usePlaceholders": true},
 	).Run(t, src, func(t *testing.T, env *Env) {
 		// Trigger unimported completions for the mod.com package.
 		env.OpenFile("main.go")
@@ -559,11 +560,12 @@ func F3[K comparable, V any](map[K]V, chan V) {}
 `
 	WithOptions(
 		WindowsLineEndings(),
+		Settings{"ui.completion.usePlaceholders": true},
 	).Run(t, src, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
 		env.Await(env.DoneWithOpen())
 
-		// The table lists the expected completions as they appear in Items.
+		// The table lists the expected completions of b.F as they appear in Items.
 		const common = "package a\r\n\r\nimport \"example.com/b\"\r\n\r\nvar _ = "
 		for i, want := range []string{
 			common + "b.F0(${1:a int}, ${2:b int}, ${3:c float64})\r\n",
