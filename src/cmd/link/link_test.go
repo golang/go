@@ -8,9 +8,11 @@ import (
 	"bufio"
 	"bytes"
 	"debug/macho"
+	"errors"
 	"internal/platform"
 	"internal/testenv"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -1316,6 +1318,57 @@ func TestDynimportVar(t *testing.T) {
 		out, err = cmd.CombinedOutput()
 		if err != nil {
 			t.Errorf("executable failed to run (%s): %v\n%s", mode, err, out)
+		}
+	}
+}
+
+const helloSrc = `
+package main
+var X = 42
+var Y int
+func main() { println("hello", X, Y) }
+`
+
+func TestFlagS(t *testing.T) {
+	// Test that the -s flag strips the symbol table.
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	exe := filepath.Join(tmpdir, "a.exe")
+	src := filepath.Join(tmpdir, "a.go")
+	err := os.WriteFile(src, []byte(helloSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	modes := []string{"auto"}
+	if testenv.HasCGO() {
+		modes = append(modes, "external")
+	}
+
+	// check a text symbol, a data symbol, and a BSS symbol
+	syms := []string{"main.main", "main.X", "main.Y"}
+
+	for _, mode := range modes {
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-s -linkmode="+mode, "-o", exe, src)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build (linkmode=%s) failed: %v\n%s", mode, err, out)
+		}
+		cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", exe)
+		out, err = cmd.CombinedOutput()
+		if err != nil && !errors.As(err, new(*exec.ExitError)) {
+			// Error exit is fine as it may have no symbols.
+			// On darwin we need to emit dynamic symbol references so it
+			// actually has some symbols, and nm succeeds.
+			t.Errorf("(mode=%s) go tool nm failed: %v\n%s", mode, err, out)
+		}
+		for _, s := range syms {
+			if bytes.Contains(out, []byte(s)) {
+				t.Errorf("(mode=%s): unexpected symbol %s", mode, s)
+			}
 		}
 	}
 }
