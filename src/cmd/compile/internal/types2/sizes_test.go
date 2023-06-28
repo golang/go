@@ -133,3 +133,62 @@ var s struct {
 		})
 	}
 }
+
+type gcSizeTest struct {
+	name string
+	src  string
+}
+
+var gcSizesTests = []gcSizeTest{
+	{
+		"issue60431",
+		`
+package main
+
+import "unsafe"
+
+// The foo struct size is expected to be rounded up to 16 bytes.
+type foo struct {
+	a int64
+	b bool
+}
+
+func main() {
+	assert(unsafe.Sizeof(foo{}) == 16)
+}`,
+	},
+	{
+		"issue60734",
+		`
+package main
+
+import (
+	"unsafe"
+)
+
+// The Data struct size is expected to be rounded up to 16 bytes.
+type Data struct {
+	Value  uint32   // 4 bytes
+	Label  [10]byte // 10 bytes
+	Active bool     // 1 byte
+	// padded with 1 byte to make it align
+}
+
+func main() {
+	assert(unsafe.Sizeof(Data{}) == 16)
+}
+`,
+	},
+}
+
+func TestGCSizes(t *testing.T) {
+	types2.DefPredeclaredTestFuncs()
+	for _, tc := range gcSizesTests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			conf := types2.Config{Importer: defaultImporter(), Sizes: types2.SizesFor("gc", "amd64")}
+			mustTypecheck(tc.src, &conf, nil)
+		})
+	}
+}
