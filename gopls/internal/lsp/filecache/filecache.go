@@ -385,7 +385,16 @@ func hashExecutable() (hash [32]byte, err error) {
 // process, possibly running a different version of gopls, possibly
 // running concurrently.
 func gc(goplsDir string) {
-	const period = 1 * time.Minute // period between collections
+	// period between collections
+	//
+	// This was increased from 1 minute as an immediate measure to
+	// reduce the CPU cost of gopls when idle, which was around
+	// 15% of a core (#61049). A better solution might be to avoid
+	// walking the entire tree every period. e.g. walk only the
+	// subtree corresponding to this gopls executable every period,
+	// and the subtrees for other gopls instances every hour.
+	const period = 5 * time.Minute
+
 	// Sleep statDelay*batchSize between stats to smooth out I/O.
 	//
 	// The constants below were chosen using the following heuristics:
@@ -396,17 +405,7 @@ func gc(goplsDir string) {
 	//    sleeping after every stat (due to OS optimizations).
 	const statDelay = 100 * time.Microsecond // average delay between stats, to smooth out I/O
 	const batchSize = 1000                   // # of stats to process before sleeping
-	maxAge := 5 * 24 * time.Hour             // max time since last access before file is deleted
-
-	// This environment variable is set when running under a Go test builder.
-	// We use it to trigger much more aggressive cache eviction to prevent
-	// filling of the tmp volume by short-lived test processes.
-	// A single run of the gopls tests takes on the order of a minute
-	// and produces <50MB of cache data, so these are still generous.
-	if os.Getenv("GO_BUILDER_NAME") != "" {
-		maxAge = 1 * time.Hour
-		SetBudget(250 * 1e6) // 250MB
-	}
+	const maxAge = 5 * 24 * time.Hour        // max time since last access before file is deleted
 
 	// The macOS filesystem is strikingly slow, at least on some machines.
 	// /usr/bin/find achieves only about 25,000 stats per second
