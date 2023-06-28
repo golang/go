@@ -1277,33 +1277,42 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 			if fn != nil {
 				var sn snippet.Builder
 				sn.WriteText(id.Name)
-				sn.WriteText("(")
 
-				var cfg printer.Config // slight overkill
-				var nparams int
-				param := func(name string, typ ast.Expr) {
-					if nparams > 0 {
-						sn.WriteText(", ")
-					}
-					nparams++
-					sn.WritePlaceholder(func(b *snippet.Builder) {
-						var buf strings.Builder
-						buf.WriteString(name)
-						buf.WriteByte(' ')
-						cfg.Fprint(&buf, token.NewFileSet(), typ)
-						b.WriteText(buf.String())
-					})
-				}
-				for _, field := range fn.Type.Params.List {
-					if field.Names != nil {
-						for _, name := range field.Names {
-							param(name.Name, field.Type)
+				paramList := func(open, close string, list *ast.FieldList) {
+					if list != nil {
+						var cfg printer.Config // slight overkill
+						var nparams int
+						param := func(name string, typ ast.Expr) {
+							if nparams > 0 {
+								sn.WriteText(", ")
+							}
+							nparams++
+							sn.WritePlaceholder(func(b *snippet.Builder) {
+								var buf strings.Builder
+								buf.WriteString(name)
+								buf.WriteByte(' ')
+								cfg.Fprint(&buf, token.NewFileSet(), typ)
+								b.WriteText(buf.String())
+							})
 						}
-					} else {
-						param("_", field.Type)
+
+						sn.WriteText(open)
+						for _, field := range list.List {
+							if field.Names != nil {
+								for _, name := range field.Names {
+									param(name.Name, field.Type)
+								}
+							} else {
+								param("_", field.Type)
+							}
+						}
+						sn.WriteText(close)
 					}
 				}
-				sn.WriteText(")")
+
+				paramList("[", "]", typeparams.ForFuncType(fn.Type))
+				paramList("(", ")", fn.Type.Params)
+
 				item.snippet = &sn
 			}
 
