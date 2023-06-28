@@ -46,6 +46,52 @@ The best way to contact the gopls team directly is via the
 gophers slack. Please feel free to ask any questions about your contribution or
 about contributing in general.
 
+
+## Error handling
+
+It is important for the user experience that, whenever practical,
+minor logic errors in a particular feature don't cause the server to
+crash.
+
+The representation of a Go program is complex. The import graph of
+package metadata, the syntax trees of parsed files, and their
+associated type information together form a huge API surface area.
+Even when the input is valid, there are many edge cases to consider,
+and this grows by an order of magnitude when you consider missing
+imports, parse errors, and type errors.
+
+What should you do when your logic must handle an error that you
+believe "can't happen"?
+
+- If it's possible to return an error, then use the `bug.Errorf`
+  function to return an error to the user, but also record the bug in
+  gopls' cache so that it is less likely to be ignored.
+
+- If it's safe to proceed, you can call `bug.Reportf` to record the
+  error and continue as normal.
+
+- If there's no way to proceed, call `bug.Fatalf` to record the error
+  and then stop the program with `log.Fatalf`. You can also use
+  `bug.Panicf` if there's a chance that a recover handler might save
+  the situation.
+
+- Only if you can prove locally that an error is impossible should you
+  call `log.Fatal`. If the error may happen for some input, however
+  unlikely, then you should use one of the approaches above. Also, if
+  the proof of safety depends on invariants broadly distributed across
+  the code base, then you should instead use `bug.Panicf`.
+
+Note also that panicking is preferable to `log.Fatal` because it
+allows VS Code's crash reporting to recognize and capture the stack.
+
+Bugs reported through `bug.Errorf` and friends are retrieved using the
+`gopls bug` command, which opens a GitHub Issue template and populates
+it with a summary of each bug and its frequency.
+The text of the bug is rather fastidiously printed to stdout to avoid
+sharing user names and error message strings (which could contain
+project identifiers) with GitHub.
+Users are invited to share it if they are willing.
+
 ## Testing
 
 To run tests for just `gopls/`, run,
