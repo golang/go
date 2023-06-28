@@ -2,38 +2,45 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package testing
+package testing_test
 
-import "sync"
+import (
+	"sync"
+	"testing"
+)
 
 // The line numbering of this file is important for TestTBHelper.
 
-func notHelper(t *T, msg string) {
+func notHelper(t *testing.T, msg string) {
 	t.Error(msg)
 }
 
-func helper(t *T, msg string) {
+func helper(t *testing.T, msg string) {
 	t.Helper()
 	t.Error(msg)
 }
 
-func notHelperCallingHelper(t *T, msg string) {
+func notHelperCallingHelper(t *testing.T, msg string) {
 	helper(t, msg)
 }
 
-func helperCallingHelper(t *T, msg string) {
+func helperCallingHelper(t *testing.T, msg string) {
 	t.Helper()
 	helper(t, msg)
 }
 
-func genericHelper[G any](t *T, msg string) {
+func genericHelper[G any](t *testing.T, msg string) {
 	t.Helper()
 	t.Error(msg)
 }
 
 var genericIntHelper = genericHelper[int]
 
-func testHelper(t *T) {
+func testTestHelper(t *testing.T) {
+	testHelper(t)
+}
+
+func testHelper(t *testing.T) {
 	// Check combinations of directly and indirectly
 	// calling helper functions.
 	notHelper(t, "0")
@@ -48,7 +55,7 @@ func testHelper(t *T) {
 	}
 	fn("4")
 
-	t.Run("sub", func(t *T) {
+	t.Run("sub", func(t *testing.T) {
 		helper(t, "5")
 		notHelperCallingHelper(t, "6")
 		// Check that calling Helper from inside a subtest entry function
@@ -56,11 +63,6 @@ func testHelper(t *T) {
 		t.Helper()
 		t.Error("7")
 	})
-
-	// Check that calling Helper from inside a top-level test function
-	// has no effect.
-	t.Helper()
-	t.Error("8")
 
 	// Check that right caller is reported for func passed to Cleanup when
 	// multiple cleanup functions have been registered.
@@ -85,7 +87,7 @@ func testHelper(t *T) {
 	genericIntHelper(t, "GenericInt")
 }
 
-func parallelTestHelper(t *T) {
+func parallelTestHelper(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
@@ -97,15 +99,15 @@ func parallelTestHelper(t *T) {
 	wg.Wait()
 }
 
-func helperSubCallingHelper(t *T, msg string) {
+func helperSubCallingHelper(t *testing.T, msg string) {
 	t.Helper()
-	t.Run("sub2", func(t *T) {
+	t.Run("sub2", func(t *testing.T) {
 		t.Helper()
 		t.Fatal(msg)
 	})
 }
 
-func recoverHelper(t *T, msg string) {
+func recoverHelper(t *testing.T, msg string) {
 	t.Helper()
 	defer func() {
 		t.Helper()
@@ -116,7 +118,7 @@ func recoverHelper(t *T, msg string) {
 	doPanic(t, msg)
 }
 
-func doPanic(t *T, msg string) {
+func doPanic(t *testing.T, msg string) {
 	t.Helper()
 	panic(msg)
 }
