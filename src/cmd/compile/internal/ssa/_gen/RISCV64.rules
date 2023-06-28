@@ -780,9 +780,10 @@
 (Select0 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MULHU x y)
 (Select1 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MUL x y)
 
-(FADDD a (FMULD x y)) && a.Block.Func.useFMA(v) => (FMADDD x y a)
-(FSUBD a (FMULD x y)) && a.Block.Func.useFMA(v) => (FNMSUBD x y a)
-(FSUBD (FMULD x y) a) && a.Block.Func.useFMA(v) => (FMSUBD x y a)
+(FADD(S|D) a (FMUL(S|D) x y)) && a.Block.Func.useFMA(v) => (FMADD(S|D) x y a)
+(FSUB(S|D) a (FMUL(S|D) x y)) && a.Block.Func.useFMA(v) => (FNMSUB(S|D) x y a)
+(FSUB(S|D) (FMUL(S|D) x y) a) && a.Block.Func.useFMA(v) => (FMSUB(S|D) x y a)
+
 // Merge negation into fused multiply-add and multiply-subtract.
 //
 // Key:
@@ -793,5 +794,7 @@
 //                D B
 //
 // Note: multiplication commutativity handled by rule generator.
+(F(MADD|NMADD|MSUB|NMSUB)S neg:(FNEGS x) y z) && neg.Uses == 1 => (F(NMSUB|MSUB|NMADD|MADD)S x y z)
+(F(MADD|NMADD|MSUB|NMSUB)S x y neg:(FNEGS z)) && neg.Uses == 1 => (F(MSUB|NMSUB|MADD|NMADD)S x y z)
 (F(MADD|NMADD|MSUB|NMSUB)D neg:(FNEGD x) y z) && neg.Uses == 1 => (F(NMSUB|MSUB|NMADD|MADD)D x y z)
 (F(MADD|NMADD|MSUB|NMSUB)D x y neg:(FNEGD z)) && neg.Uses == 1 => (F(MSUB|NMSUB|MADD|NMADD)D x y z)

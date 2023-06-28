@@ -442,16 +442,28 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpRISCV64ANDI(v)
 	case OpRISCV64FADDD:
 		return rewriteValueRISCV64_OpRISCV64FADDD(v)
+	case OpRISCV64FADDS:
+		return rewriteValueRISCV64_OpRISCV64FADDS(v)
 	case OpRISCV64FMADDD:
 		return rewriteValueRISCV64_OpRISCV64FMADDD(v)
+	case OpRISCV64FMADDS:
+		return rewriteValueRISCV64_OpRISCV64FMADDS(v)
 	case OpRISCV64FMSUBD:
 		return rewriteValueRISCV64_OpRISCV64FMSUBD(v)
+	case OpRISCV64FMSUBS:
+		return rewriteValueRISCV64_OpRISCV64FMSUBS(v)
 	case OpRISCV64FNMADDD:
 		return rewriteValueRISCV64_OpRISCV64FNMADDD(v)
+	case OpRISCV64FNMADDS:
+		return rewriteValueRISCV64_OpRISCV64FNMADDS(v)
 	case OpRISCV64FNMSUBD:
 		return rewriteValueRISCV64_OpRISCV64FNMSUBD(v)
+	case OpRISCV64FNMSUBS:
+		return rewriteValueRISCV64_OpRISCV64FNMSUBS(v)
 	case OpRISCV64FSUBD:
 		return rewriteValueRISCV64_OpRISCV64FSUBD(v)
+	case OpRISCV64FSUBS:
+		return rewriteValueRISCV64_OpRISCV64FSUBS(v)
 	case OpRISCV64MOVBUload:
 		return rewriteValueRISCV64_OpRISCV64MOVBUload(v)
 	case OpRISCV64MOVBUreg:
@@ -3364,6 +3376,31 @@ func rewriteValueRISCV64_OpRISCV64FADDD(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueRISCV64_OpRISCV64FADDS(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FADDS a (FMULS x y))
+	// cond: a.Block.Func.useFMA(v)
+	// result: (FMADDS x y a)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			a := v_0
+			if v_1.Op != OpRISCV64FMULS {
+				continue
+			}
+			y := v_1.Args[1]
+			x := v_1.Args[0]
+			if !(a.Block.Func.useFMA(v)) {
+				continue
+			}
+			v.reset(OpRISCV64FMADDS)
+			v.AddArg3(x, y, a)
+			return true
+		}
+		break
+	}
+	return false
+}
 func rewriteValueRISCV64_OpRISCV64FMADDD(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -3404,6 +3441,51 @@ func rewriteValueRISCV64_OpRISCV64FMADDD(v *Value) bool {
 			break
 		}
 		v.reset(OpRISCV64FMSUBD)
+		v.AddArg3(x, y, z)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64FMADDS(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FMADDS neg:(FNEGS x) y z)
+	// cond: neg.Uses == 1
+	// result: (FNMSUBS x y z)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			neg := v_0
+			if neg.Op != OpRISCV64FNEGS {
+				continue
+			}
+			x := neg.Args[0]
+			y := v_1
+			z := v_2
+			if !(neg.Uses == 1) {
+				continue
+			}
+			v.reset(OpRISCV64FNMSUBS)
+			v.AddArg3(x, y, z)
+			return true
+		}
+		break
+	}
+	// match: (FMADDS x y neg:(FNEGS z))
+	// cond: neg.Uses == 1
+	// result: (FMSUBS x y z)
+	for {
+		x := v_0
+		y := v_1
+		neg := v_2
+		if neg.Op != OpRISCV64FNEGS {
+			break
+		}
+		z := neg.Args[0]
+		if !(neg.Uses == 1) {
+			break
+		}
+		v.reset(OpRISCV64FMSUBS)
 		v.AddArg3(x, y, z)
 		return true
 	}
@@ -3454,6 +3536,51 @@ func rewriteValueRISCV64_OpRISCV64FMSUBD(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueRISCV64_OpRISCV64FMSUBS(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FMSUBS neg:(FNEGS x) y z)
+	// cond: neg.Uses == 1
+	// result: (FNMADDS x y z)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			neg := v_0
+			if neg.Op != OpRISCV64FNEGS {
+				continue
+			}
+			x := neg.Args[0]
+			y := v_1
+			z := v_2
+			if !(neg.Uses == 1) {
+				continue
+			}
+			v.reset(OpRISCV64FNMADDS)
+			v.AddArg3(x, y, z)
+			return true
+		}
+		break
+	}
+	// match: (FMSUBS x y neg:(FNEGS z))
+	// cond: neg.Uses == 1
+	// result: (FMADDS x y z)
+	for {
+		x := v_0
+		y := v_1
+		neg := v_2
+		if neg.Op != OpRISCV64FNEGS {
+			break
+		}
+		z := neg.Args[0]
+		if !(neg.Uses == 1) {
+			break
+		}
+		v.reset(OpRISCV64FMADDS)
+		v.AddArg3(x, y, z)
+		return true
+	}
+	return false
+}
 func rewriteValueRISCV64_OpRISCV64FNMADDD(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -3494,6 +3621,51 @@ func rewriteValueRISCV64_OpRISCV64FNMADDD(v *Value) bool {
 			break
 		}
 		v.reset(OpRISCV64FNMSUBD)
+		v.AddArg3(x, y, z)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64FNMADDS(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FNMADDS neg:(FNEGS x) y z)
+	// cond: neg.Uses == 1
+	// result: (FMSUBS x y z)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			neg := v_0
+			if neg.Op != OpRISCV64FNEGS {
+				continue
+			}
+			x := neg.Args[0]
+			y := v_1
+			z := v_2
+			if !(neg.Uses == 1) {
+				continue
+			}
+			v.reset(OpRISCV64FMSUBS)
+			v.AddArg3(x, y, z)
+			return true
+		}
+		break
+	}
+	// match: (FNMADDS x y neg:(FNEGS z))
+	// cond: neg.Uses == 1
+	// result: (FNMSUBS x y z)
+	for {
+		x := v_0
+		y := v_1
+		neg := v_2
+		if neg.Op != OpRISCV64FNEGS {
+			break
+		}
+		z := neg.Args[0]
+		if !(neg.Uses == 1) {
+			break
+		}
+		v.reset(OpRISCV64FNMSUBS)
 		v.AddArg3(x, y, z)
 		return true
 	}
@@ -3544,6 +3716,51 @@ func rewriteValueRISCV64_OpRISCV64FNMSUBD(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueRISCV64_OpRISCV64FNMSUBS(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FNMSUBS neg:(FNEGS x) y z)
+	// cond: neg.Uses == 1
+	// result: (FMADDS x y z)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			neg := v_0
+			if neg.Op != OpRISCV64FNEGS {
+				continue
+			}
+			x := neg.Args[0]
+			y := v_1
+			z := v_2
+			if !(neg.Uses == 1) {
+				continue
+			}
+			v.reset(OpRISCV64FMADDS)
+			v.AddArg3(x, y, z)
+			return true
+		}
+		break
+	}
+	// match: (FNMSUBS x y neg:(FNEGS z))
+	// cond: neg.Uses == 1
+	// result: (FNMADDS x y z)
+	for {
+		x := v_0
+		y := v_1
+		neg := v_2
+		if neg.Op != OpRISCV64FNEGS {
+			break
+		}
+		z := neg.Args[0]
+		if !(neg.Uses == 1) {
+			break
+		}
+		v.reset(OpRISCV64FNMADDS)
+		v.AddArg3(x, y, z)
+		return true
+	}
+	return false
+}
 func rewriteValueRISCV64_OpRISCV64FSUBD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3578,6 +3795,45 @@ func rewriteValueRISCV64_OpRISCV64FSUBD(v *Value) bool {
 			break
 		}
 		v.reset(OpRISCV64FMSUBD)
+		v.AddArg3(x, y, a)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64FSUBS(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FSUBS a (FMULS x y))
+	// cond: a.Block.Func.useFMA(v)
+	// result: (FNMSUBS x y a)
+	for {
+		a := v_0
+		if v_1.Op != OpRISCV64FMULS {
+			break
+		}
+		y := v_1.Args[1]
+		x := v_1.Args[0]
+		if !(a.Block.Func.useFMA(v)) {
+			break
+		}
+		v.reset(OpRISCV64FNMSUBS)
+		v.AddArg3(x, y, a)
+		return true
+	}
+	// match: (FSUBS (FMULS x y) a)
+	// cond: a.Block.Func.useFMA(v)
+	// result: (FMSUBS x y a)
+	for {
+		if v_0.Op != OpRISCV64FMULS {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		a := v_1
+		if !(a.Block.Func.useFMA(v)) {
+			break
+		}
+		v.reset(OpRISCV64FMSUBS)
 		v.AddArg3(x, y, a)
 		return true
 	}
