@@ -6566,3 +6566,21 @@ func TestHandlerAbortRacesBodyRead(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestRequestSanitization(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	ts := newClientServerTest(t, h1Mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+		if h, ok := req.Header["X-Evil"]; ok {
+			t.Errorf("request has X-Evil header: %q", h)
+		}
+	})).ts
+	defer ts.Close()
+	req, _ := NewRequest("GET", ts.URL, nil)
+	req.Host = "go.dev\r\nX-Evil:evil"
+	resp, _ := ts.Client().Do(req)
+	if resp != nil {
+		resp.Body.Close()
+	}
+}
