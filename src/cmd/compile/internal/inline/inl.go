@@ -29,6 +29,7 @@ package inline
 import (
 	"fmt"
 	"go/constant"
+	"internal/goexperiment"
 	"sort"
 	"strconv"
 
@@ -292,11 +293,15 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 		base.Fatalf("CanInline no nname %+v", fn)
 	}
 
+	canInline := func(fn *ir.Func) { CanInline(fn, profile) }
+
+	var funcProps *inlheur.FuncProps
+	if goexperiment.NewInliner {
+		funcProps = inlheur.AnalyzeFunc(fn, canInline)
+	}
+
 	if base.Debug.DumpInlFuncProps != "" {
-		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps,
-			func(fn *ir.Func) {
-				CanInline(fn, profile)
-			})
+		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps, canInline)
 	}
 
 	var reason string // reason, if any, that the function was not inlined
@@ -362,6 +367,9 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 		HaveDcl: true,
 
 		CanDelayResults: canDelayResults(fn),
+	}
+	if goexperiment.NewInliner {
+		n.Func.Inl.Properties = funcProps.SerializeToString()
 	}
 
 	if base.Flag.LowerM > 1 {

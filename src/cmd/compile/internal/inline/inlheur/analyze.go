@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/ir"
 	"encoding/json"
 	"fmt"
+	"internal/goexperiment"
 	"io"
 	"os"
 	"path/filepath"
@@ -46,6 +47,24 @@ type fnInlHeur struct {
 	file  string
 	line  uint
 	props *FuncProps
+}
+
+var fpmap = map[*ir.Func]fnInlHeur{}
+
+func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
+	if fih, ok := fpmap[fn]; ok {
+		return fih.props
+	}
+	fp := computeFuncProps(fn, canInline)
+	file, line := fnFileLine(fn)
+	entry := fnInlHeur{
+		fname: fn.Sym().Name,
+		file:  file,
+		line:  line,
+		props: fp,
+	}
+	fpmap[fn] = entry
+	return fp
 }
 
 // computeFuncProps examines the Go function 'fn' and computes for it
@@ -148,6 +167,16 @@ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
 	if strings.HasPrefix(fn.Sym().Name, ".eq.") {
 		return
 	}
+	fih, ok := fpmap[fn]
+	if goexperiment.NewInliner {
+		// Props object should already be present.
+		if !ok {
+			panic("unexpected missing props")
+		}
+	} else {
+		AnalyzeFunc(fn, canInline)
+		fih = fpmap[fn]
+	}
 	if dumpBuffer == nil {
 		dumpBuffer = make(map[*ir.Func]fnInlHeur)
 	}
@@ -156,15 +185,7 @@ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
 		// so don't add them more than once.
 		return
 	}
-	fp := computeFuncProps(fn, canInline)
-	file, line := fnFileLine(fn)
-	entry := fnInlHeur{
-		fname: fn.Sym().Name,
-		file:  file,
-		line:  line,
-		props: fp,
-	}
-	dumpBuffer[fn] = entry
+	dumpBuffer[fn] = fih
 }
 
 // dumpFilePreamble writes out a file-level preamble for a given
