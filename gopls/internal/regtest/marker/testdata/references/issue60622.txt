@@ -1,0 +1,25 @@
+Regression test for 'references' bug golang/go#60622:
+references to methods of generics were missing.
+
+-- flags --
+-min_go=go1.18
+
+-- go.mod --
+module example.com
+go 1.18
+
+-- a/a.go --
+package a
+
+type G[T any] struct{}
+
+func (G[T]) M() {} //@loc(Mdef, "M"), refs(Mdef, Mdef, Mref)
+
+-- b/b.go --
+package b
+
+import "example.com/a"
+
+func _() {
+	new(a.G[int]).M() //@loc(Mref, "M")
+}

@@ -19,6 +19,7 @@ import (
 	"golang.org/x/tools/go/types/objectpath"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // Index constructs a serializable index of outbound cross-references
@@ -63,6 +64,12 @@ func Index(files []*source.ParsedGoFile, pkg *types.Package, info *types.Info) [
 					if obj, ok := info.Uses[n]; ok &&
 						obj.Pkg() != nil &&
 						obj.Pkg() != pkg {
+
+						// For instantiations of generic methods,
+						// use the generic object (see issue #60622).
+						if fn, ok := obj.(*types.Func); ok {
+							obj = typeparams.OriginMethod(fn)
+						}
 
 						objects := getObjects(obj.Pkg())
 						gobObj, ok := objects[obj]
