@@ -111,7 +111,6 @@ func IsPrerelease(x string) bool {
 //
 //	Prev("1.2") = "1.1"
 //	Prev("1.3rc4") = "1.2"
-//
 func Prev(x string) string {
 	v := parse(x)
 	if cmpInt(v.minor, "1") <= 0 {

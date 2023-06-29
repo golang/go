@@ -607,7 +607,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
 			if !n1.Type().IsInterface() {
 				why := ImplementsExplain(n1.Type(), t)
 				if why != "" {
-					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v (%s)" , guard.X, n1.Type(), why)
+					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v (%s)", guard.X, n1.Type(), why)
 				}
 				continue
 			}
