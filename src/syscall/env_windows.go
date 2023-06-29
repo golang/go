@@ -62,7 +62,7 @@ func Clearenv() {
 	for _, s := range Environ() {
 		// Environment variables can begin with =
 		// so start looking for the separator = at j=1.
-		// https://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
+		// https://devblogs.microsoft.com/oldnewthing/20100506-00/?p=14133
 		for j := 1; j < len(s); j++ {
 			if s[j] == '=' {
 				Unsetenv(s[0:j])
