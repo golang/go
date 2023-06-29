@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package fastwalk provides a faster version of filepath.Walk for file system
+// Package fastwalk provides a faster version of [filepath.Walk] for file system
 // scanning tools.
 package fastwalk
 
@@ -23,31 +23,31 @@ var ErrTraverseLink = errors.New("fastwalk: traverse symlink, assuming target is
 // Child directories will still be traversed.
 var ErrSkipFiles = errors.New("fastwalk: skip remaining files in directory")
 
-// Walk is a faster implementation of filepath.Walk.
+// Walk is a faster implementation of [filepath.Walk].
 //
-// filepath.Walk's design necessarily calls os.Lstat on each file,
+// [filepath.Walk]'s design necessarily calls [os.Lstat] on each file,
 // even if the caller needs less info.
 // Many tools need only the type of each file.
 // On some platforms, this information is provided directly by the readdir
 // system call, avoiding the need to stat each file individually.
 // fastwalk_unix.go contains a fork of the syscall routines.
 //
-// See golang.org/issue/16399
+// See golang.org/issue/16399.
 //
 // Walk walks the file tree rooted at root, calling walkFn for
 // each file or directory in the tree, including root.
 //
-// If fastWalk returns filepath.SkipDir, the directory is skipped.
+// If Walk returns [filepath.SkipDir], the directory is skipped.
 //
-// Unlike filepath.Walk:
+// Unlike [filepath.Walk]:
 //   - file stat calls must be done by the user.
 //     The only provided metadata is the file type, which does not include
 //     any permission bits.
 //   - multiple goroutines stat the filesystem concurrently. The provided
 //     walkFn must be safe for concurrent use.
-//   - fastWalk can follow symlinks if walkFn returns the TraverseLink
+//   - Walk can follow symlinks if walkFn returns the TraverseLink
 //     sentinel error. It is the walkFn's responsibility to prevent
-//     fastWalk from going into symlink cycles.
+//     Walk from going into symlink cycles.
 func Walk(root string, walkFn func(path string, typ os.FileMode) error) error {
 	// TODO(bradfitz): make numWorkers configurable? We used a
 	// minimum of 4 to give the kernel more info about multiple
