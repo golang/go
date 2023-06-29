@@ -1013,7 +1013,7 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
 		// but don't work in JSONP, which has to be evaluated as JavaScript,
 		// and can lead to security holes there. It is valid JSON to
 		// escape them, so we do so unconditionally.
-		// See http://timelessrepo.com/json-isnt-a-javascript-subset for discussion.
+		// See https://en.wikipedia.org/wiki/JSON#Safety.
 		if c == '\u2028' || c == '\u2029' {
 			dst = append(dst, src[start:i]...)
 			dst = append(dst, '\\', 'u', '2', '0', '2', hex[c&0xF])
