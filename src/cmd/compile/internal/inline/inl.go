@@ -33,6 +33,7 @@ import (
 	"strconv"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/inline/inlheur"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/pgo"
@@ -166,6 +167,10 @@ func InlinePackage(p *pgo.Profile) {
 	// are no longer reachable from top-level functions following
 	// inlining. See #59404 and #59638 for more context.
 	garbageCollectUnreferencedHiddenClosures()
+
+	if base.Debug.DumpInlFuncProps != "" {
+		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps)
+	}
 }
 
 // InlineDecls applies inlining to the given batch of declarations.
@@ -267,6 +272,10 @@ func garbageCollectUnreferencedHiddenClosures() {
 func CanInline(fn *ir.Func, profile *pgo.Profile) {
 	if fn.Nname == nil {
 		base.Fatalf("CanInline no nname %+v", fn)
+	}
+
+	if base.Debug.DumpInlFuncProps != "" {
+		defer inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps)
 	}
 
 	var reason string // reason, if any, that the function was not inlined

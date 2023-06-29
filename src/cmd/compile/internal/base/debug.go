@@ -21,6 +21,7 @@ type DebugFlags struct {
 	Closure               int    `help:"print information about closure compilation"`
 	Defer                 int    `help:"print information about defer compilation"`
 	DisableNil            int    `help:"disable nil checks" concurrent:"ok"`
+	DumpInlFuncProps      string `help:"dump function properties from inl heuristics to specified file"`
 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
 	Export                int    `help:"print export data"`
