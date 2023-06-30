@@ -76,7 +76,7 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	if strings.Contains(os.Getenv("GCFLAGS"), "mayMoreStackPreempt") {
+	if strings.Contains(os.Getenv("GOFLAGS"), "mayMoreStackPreempt") {
 		// This test occasionally times out in this debug mode. This is probably
 		// revealing a real bug in the scheduler, but since it seems to only
 		// affect this test and this is itself a test of a debug mode, it's not
