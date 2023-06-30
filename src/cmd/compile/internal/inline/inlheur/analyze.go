@@ -19,6 +19,7 @@ import (
 const (
 	debugTraceFuncs = 1 << iota
 	debugTraceFuncFlags
+	debugTraceResults
 )
 
 // propAnalyzer interface is used for defining one or more analyzer
@@ -48,18 +49,21 @@ type fnInlHeur struct {
 // computeFuncProps examines the Go function 'fn' and computes for it
 // a function "properties" object, to be used to drive inlining
 // heuristics. See comments on the FuncProps type for more info.
-func computeFuncProps(fn *ir.Func) *FuncProps {
+func computeFuncProps(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
+	enableDebugTraceIfEnv()
 	if debugTrace&debugTraceFuncs != 0 {
 		fmt.Fprintf(os.Stderr, "=-= starting analysis of func %v:\n%+v\n",
 			fn.Sym().Name, fn)
 	}
+	ra := makeResultsAnalyzer(fn, canInline)
 	ffa := makeFuncFlagsAnalyzer(fn)
-	analyzers := []propAnalyzer{ffa}
+	analyzers := []propAnalyzer{ffa, ra}
 	fp := new(FuncProps)
 	runAnalyzersOnFunction(fn, analyzers)
 	for _, a := range analyzers {
 		a.setResults(fp)
 	}
+	disableDebugTrace()
 	return fp
 }
 
@@ -83,13 +87,17 @@ func fnFileLine(fn *ir.Func) (string, uint) {
 	return filepath.Base(p.Filename()), p.Line()
 }
 
+func UnitTesting() bool {
+	return base.Debug.DumpInlFuncProps != ""
+}
+
 // DumpFuncProps computes and caches function properties for the func
 // 'fn', or if fn is nil, writes out the cached set of properties to
 // the file given in 'dumpfile'. Used for the "-d=dumpinlfuncprops=..."
 // command line flag, intended for use primarily in unit testing.
-func DumpFuncProps(fn *ir.Func, dumpfile string) {
+func DumpFuncProps(fn *ir.Func, dumpfile string, canInline func(*ir.Func)) {
 	if fn != nil {
-		captureFuncDumpEntry(fn)
+		captureFuncDumpEntry(fn, canInline)
 	} else {
 		emitDumpToFile(dumpfile)
 	}
@@ -132,7 +140,7 @@ func emitDumpToFile(dumpfile string) {
 
 // captureFuncDumpEntry analyzes function 'fn' and adds a entry
 // for it to 'dumpBuffer'. Used for unit testing.
-func captureFuncDumpEntry(fn *ir.Func) {
+func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
 	// avoid capturing compiler-generated equality funcs.
 	if strings.HasPrefix(fn.Sym().Name, ".eq.") {
 		return
@@ -145,7 +153,7 @@ func captureFuncDumpEntry(fn *ir.Func) {
 		// so don't add them more than once.
 		return
 	}
-	fp := computeFuncProps(fn)
+	fp := computeFuncProps(fn, canInline)
 	file, line := fnFileLine(fn)
 	entry := fnInlHeur{
 		fname: fn.Sym().Name,

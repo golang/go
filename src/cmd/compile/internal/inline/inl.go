@@ -169,7 +169,7 @@ func InlinePackage(p *pgo.Profile) {
 	garbageCollectUnreferencedHiddenClosures()
 
 	if base.Debug.DumpInlFuncProps != "" {
-		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps)
+		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps, nil)
 	}
 }
 
@@ -293,7 +293,10 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 	}
 
 	if base.Debug.DumpInlFuncProps != "" {
-		defer inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps)
+		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps,
+			func(fn *ir.Func) {
+				CanInline(fn, profile)
+			})
 	}
 
 	var reason string // reason, if any, that the function was not inlined
