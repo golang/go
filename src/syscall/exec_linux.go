@@ -641,11 +641,6 @@ childerror:
 	}
 }
 
-// Try to open a pipe with O_CLOEXEC set on both file descriptors.
-func forkExecPipe(p []int) (err error) {
-	return Pipe2(p, O_CLOEXEC)
-}
-
 func formatIDMappings(idMap []SysProcIDMap) []byte {
 	var data []byte
 	for _, im := range idMap {
