@@ -51,7 +51,7 @@ func main() {
 }
 
 func mkbuiltin(w io.Writer) {
-	pkg := "runtime"
+	const pkg = "runtime"
 	fset := token.NewFileSet()
 	path := filepath.Join("..", "..", "compile", "internal", "typecheck", "_builtin", "runtime.go")
 	f, err := parser.ParseFile(fset, path, nil, 0)
@@ -127,7 +127,7 @@ func enumerateBasicTypes() []extra {
 		"float32", "float64", "complex64", "complex128",
 		"unsafe.Pointer", "uintptr", "bool", "string", "error",
 		"func(error) string"}
-	result := []extra{}
+	result := make([]extra, 0, len(names)*2)
 	for _, n := range names {
 		result = append(result, extra{"type:" + n, 0})
 		result = append(result, extra{"type:*" + n, 0})
