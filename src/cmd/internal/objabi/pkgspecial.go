@@ -9,11 +9,42 @@ import "sync"
 // PkgSpecial indicates special build properties of a given runtime-related
 // package.
 type PkgSpecial struct {
+	// Runtime indicates that this package is "runtime" or imported by
+	// "runtime". This has several effects (which maybe should be split out):
+	//
+	// - Implicit allocation is disallowed.
+	//
+	// - Various runtime pragmas are enabled.
+	//
+	// - Optimizations are always enabled.
+	//
+	// This should be set for runtime and all packages it imports, and may be
+	// set for additional packages.
+	//
+	// TODO(austin): Test that all of `go list -deps runtime` is marked Runtime.
+	Runtime bool
+
 	// AllowAsmABI indicates that assembly in this package is allowed to use ABI
 	// selectors in symbol names. Generally this is needed for packages that
 	// interact closely with the runtime package or have performance-critical
 	// assembly.
 	AllowAsmABI bool
+}
+
+var runtimePkgs = []string{
+	"runtime",
+
+	"runtime/internal/atomic",
+	"runtime/internal/math",
+	"runtime/internal/sys",
+	"runtime/internal/syscall",
+
+	"internal/abi",
+	"internal/bytealg",
+	"internal/coverage/rtcov",
+	"internal/cpu",
+	"internal/goarch",
+	"internal/goos",
 }
 
 var allowAsmABIPkgs = []string{
@@ -41,6 +72,9 @@ func LookupPkgSpecial(pkgPath string) PkgSpecial {
 			s := pkgSpecials[elt]
 			f(&s)
 			pkgSpecials[elt] = s
+		}
+		for _, pkg := range runtimePkgs {
+			set(pkg, func(ps *PkgSpecial) { ps.Runtime = true })
 		}
 		for _, pkg := range allowAsmABIPkgs {
 			set(pkg, func(ps *PkgSpecial) { ps.AllowAsmABI = true })

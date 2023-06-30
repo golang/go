@@ -32,20 +32,6 @@ var ToolchainVersion = runtime.Version()
 // The 'path' used for GOROOT_FINAL when -trimpath is specified
 const trimPathGoRootFinal string = "$GOROOT"
 
-var runtimePackages = map[string]struct{}{
-	"internal/abi":             struct{}{},
-	"internal/bytealg":         struct{}{},
-	"internal/coverage/rtcov":  struct{}{},
-	"internal/cpu":             struct{}{},
-	"internal/goarch":          struct{}{},
-	"internal/goos":            struct{}{},
-	"runtime":                  struct{}{},
-	"runtime/internal/atomic":  struct{}{},
-	"runtime/internal/math":    struct{}{},
-	"runtime/internal/sys":     struct{}{},
-	"runtime/internal/syscall": struct{}{},
-}
-
 // The Go toolchain.
 
 type gcToolchain struct{}
@@ -93,14 +79,6 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if p.Standard {
 		defaultGcFlags = append(defaultGcFlags, "-std")
 	}
-	_, compilingRuntime := runtimePackages[p.ImportPath]
-	compilingRuntime = compilingRuntime && p.Standard
-	if compilingRuntime {
-		// runtime compiles with a special gc flag to check for
-		// memory allocations that are invalid in the runtime package,
-		// and to implement some special compiler pragmas.
-		defaultGcFlags = append(defaultGcFlags, "-+")
-	}
 
 	// If we're giving the compiler the entire package (no C etc files), tell it that,
 	// so that it can give good error messages about forward declarations.
@@ -145,18 +123,6 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	gcflags := str.StringList(forcedGcflags, p.Internal.Gcflags)
 	if p.Internal.FuzzInstrument {
 		gcflags = append(gcflags, fuzzInstrumentFlags()...)
-	}
-	if compilingRuntime {
-		// Remove -N, if present.
-		// It is not possible to build the runtime with no optimizations,
-		// because the compiler cannot eliminate enough write barriers.
-		for i := 0; i < len(gcflags); i++ {
-			if gcflags[i] == "-N" {
-				copy(gcflags[i:], gcflags[i+1:])
-				gcflags = gcflags[:len(gcflags)-1]
-				i--
-			}
-		}
 	}
 	// Add -c=N to use concurrent backend compilation, if possible.
 	if c := gcBackendConcurrency(gcflags); c > 1 {

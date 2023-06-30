@@ -201,6 +201,12 @@ func ParseFlags() {
 		hashDebug = NewHashDebug("gossahash", Debug.Gossahash, nil)
 	}
 
+	// Compute whether we're compiling the runtime from the package path. Test
+	// code can also use the flag to set this explicitly.
+	if Flag.Std && objabi.LookupPkgSpecial(Ctxt.Pkgpath).Runtime {
+		Flag.CompilingRuntime = true
+	}
+
 	// Three inputs govern loop iteration variable rewriting, hash, experiment, flag.
 	// The loop variable rewriting is:
 	// IF non-empty hash, then hash determines behavior (function+line match) (*)
@@ -317,9 +323,6 @@ func ParseFlags() {
 		}
 	}
 
-	if Flag.CompilingRuntime && Flag.N != 0 {
-		log.Fatal("cannot disable optimizations while compiling runtime")
-	}
 	if Flag.LowerC < 1 {
 		log.Fatalf("-c must be at least 1, got %d", Flag.LowerC)
 	}
@@ -328,6 +331,10 @@ func ParseFlags() {
 	}
 
 	if Flag.CompilingRuntime {
+		// It is not possible to build the runtime with no optimizations,
+		// because the compiler cannot eliminate enough write barriers.
+		Flag.N = 0
+
 		// Runtime can't use -d=checkptr, at least not yet.
 		Debug.Checkptr = 0
 

@@ -946,9 +946,6 @@ func runInstall(pkg string, ch chan struct{}) {
 	if gogcflags != "" {
 		compile = append(compile, strings.Fields(gogcflags)...)
 	}
-	if pkg == "runtime" {
-		compile = append(compile, "-+")
-	}
 	if len(sfiles) > 0 {
 		compile = append(compile, "-asmhdr", goasmh)
 	}
