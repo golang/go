@@ -37,6 +37,7 @@ var All = []Info{
 	//{Name: "multipartfiles", Package: "mime/multipart"},
 	{Name: "multipartmaxheaders", Package: "mime/multipart"},
 	{Name: "multipartmaxparts", Package: "mime/multipart"},
+	{Name: "multipathtcp", Package: "net"},
 	{Name: "netdns", Package: "net", Opaque: true},
 	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},
 	{Name: "randautoseed", Package: "math/rand"},

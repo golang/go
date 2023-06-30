@@ -142,6 +142,10 @@ forms, controlled by the
 respectively.
 This behavior was backported to Go 1.19.8+ and Go 1.20.3+.
 
+Go 1.21 adds the support of Multipath TCP but it is only used if the application
+explicitly asked for it. This behavior can be controlled by the
+[`multipathtcp` setting](/pkg/net#Dialer.SetMultipathTCP).
+
 There is no plan to remove any of these settings.
 
 ### Go 1.20
