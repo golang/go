@@ -18,7 +18,6 @@ import (
 	"math"
 	"math/big"
 	"os"
-	"os/exec"
 	"regexp"
 	"runtime"
 	"runtime/debug"
@@ -440,7 +439,7 @@ func cpuProfilingBroken() bool {
 func testCPUProfile(t *testing.T, matches profileMatchFunc, f func(dur time.Duration)) *profile.Profile {
 	switch runtime.GOOS {
 	case "darwin":
-		out, err := exec.Command("uname", "-a").CombinedOutput()
+		out, err := testenv.Command(t, "uname", "-a").CombinedOutput()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -653,6 +652,11 @@ func matchAndAvoidStacks(matches sampleMatchFunc, need []string, avoid []string)
 func TestCPUProfileWithFork(t *testing.T) {
 	testenv.MustHaveExec(t)
 
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	heap := 1 << 30
 	if runtime.GOOS == "android" {
 		// Use smaller size for Android to avoid crash.
@@ -684,7 +688,7 @@ func TestCPUProfileWithFork(t *testing.T) {
 	defer StopCPUProfile()
 
 	for i := 0; i < 10; i++ {
-		exec.Command(os.Args[0], "-h").CombinedOutput()
+		testenv.Command(t, exe, "-h").CombinedOutput()
 	}
 }
 
