@@ -18,7 +18,23 @@ import (
 
 const (
 	debugTraceFuncs = 1 << iota
+	debugTraceFuncFlags
 )
+
+// propAnalyzer interface is used for defining one or more analyzer
+// helper objects, each tasked with computing some specific subset of
+// the properties we're interested in. The assumption is that
+// properties are independent, so each new analyzer that implements
+// this interface can operate entirely on its own. For a given analyzer
+// there will be a sequence of calls to nodeVisitPre and nodeVisitPost
+// as the nodes within a function are visited, then a followup call to
+// setResults so that the analyzer can transfer its results into the
+// final properties object.
+type propAnalyzer interface {
+	nodeVisitPre(n ir.Node)
+	nodeVisitPost(n ir.Node)
+	setResults(fp *FuncProps)
+}
 
 // fnInlHeur contains inline heuristics state information about
 // a specific Go function being analyzed/considered by the inliner.
@@ -37,8 +53,29 @@ func computeFuncProps(fn *ir.Func) *FuncProps {
 		fmt.Fprintf(os.Stderr, "=-= starting analysis of func %v:\n%+v\n",
 			fn.Sym().Name, fn)
 	}
-	// implementation stubbed out for now
-	return &FuncProps{}
+	ffa := makeFuncFlagsAnalyzer(fn)
+	analyzers := []propAnalyzer{ffa}
+	fp := new(FuncProps)
+	runAnalyzersOnFunction(fn, analyzers)
+	for _, a := range analyzers {
+		a.setResults(fp)
+	}
+	return fp
+}
+
+func runAnalyzersOnFunction(fn *ir.Func, analyzers []propAnalyzer) {
+	var doNode func(ir.Node) bool
+	doNode = func(n ir.Node) bool {
+		for _, a := range analyzers {
+			a.nodeVisitPre(n)
+		}
+		ir.DoChildren(n, doNode)
+		for _, a := range analyzers {
+			a.nodeVisitPost(n)
+		}
+		return false
+	}
+	doNode(fn)
 }
 
 func fnFileLine(fn *ir.Func) (string, uint) {
