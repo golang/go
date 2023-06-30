@@ -35,7 +35,7 @@ func main() {
 	if architecture == nil {
 		log.Fatalf("unrecognized architecture %s", GOARCH)
 	}
-	compilingRuntime := objabi.IsRuntimePackagePath(*flags.Importpath)
+	compilingRuntime := objabi.LookupPkgSpecial(*flags.Importpath).AllowAsmABI
 
 	ctxt := obj.Linknew(architecture.LinkArch)
 	ctxt.Debugasm = flags.PrintOut
