@@ -7,7 +7,6 @@ package bytes_test
 import (
 	. "bytes"
 	"fmt"
-	"internal/testenv"
 	"testing"
 )
 
@@ -73,7 +72,7 @@ func TestCompareBytes(t *testing.T) {
 	}
 	lengths = append(lengths, 256, 512, 1024, 1333, 4095, 4096, 4097)
 
-	if !testing.Short() || testenv.Builder() != "" {
+	if !testing.Short() {
 		lengths = append(lengths, 65535, 65536, 65537, 99999)
 	}
 
