@@ -6,6 +6,7 @@ package net
 
 import (
 	"os"
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -16,6 +17,9 @@ import (
 func interfaceTable(ifindex int) ([]Interface, error) {
 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
 	if err != nil {
+		if os.IsPermission(err) && runtime.GOOS == "android" {
+			return interfaceTableAndroid(ifindex)
+		}
 		return nil, os.NewSyscallError("netlinkrib", err)
 	}
 	msgs, err := syscall.ParseNetlinkMessage(tab)
