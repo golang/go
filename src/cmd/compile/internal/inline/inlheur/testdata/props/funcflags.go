@@ -14,16 +14,18 @@ import "os"
 // funcflags.go T_simple 19 0 1
 // Flags FuncPropNeverReturns
 // <endpropsdump>
-// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":1,"ParamFlags":[],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_simple() {
 	panic("bad")
 }
 
-// funcflags.go T_nested 28 0 1
+// funcflags.go T_nested 30 0 1
 // Flags FuncPropNeverReturns
+// ParamFlags
+//   0 ParamFeedsIfOrSwitch
 // <endpropsdump>
-// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":1,"ParamFlags":[32],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_nested(x int) {
 	if x < 10 {
@@ -33,10 +35,10 @@ func T_nested(x int) {
 	}
 }
 
-// funcflags.go T_block1 41 0 1
+// funcflags.go T_block1 43 0 1
 // Flags FuncPropNeverReturns
 // <endpropsdump>
-// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":1,"ParamFlags":[0],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_block1(x int) {
 	panic("bad")
@@ -45,9 +47,11 @@ func T_block1(x int) {
 	}
 }
 
-// funcflags.go T_block2 52 0 1
+// funcflags.go T_block2 56 0 1
+// ParamFlags
+//   0 ParamFeedsIfOrSwitch
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_block2(x int) {
 	if x < 10 {
@@ -56,10 +60,12 @@ func T_block2(x int) {
 	panic("bad")
 }
 
-// funcflags.go T_switches1 64 0 1
+// funcflags.go T_switches1 70 0 1
 // Flags FuncPropNeverReturns
+// ParamFlags
+//   0 ParamFeedsIfOrSwitch
 // <endpropsdump>
-// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":1,"ParamFlags":[32],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_switches1(x int) {
 	switch x {
@@ -71,9 +77,11 @@ func T_switches1(x int) {
 	panic("whatev")
 }
 
-// funcflags.go T_switches1a 78 0 1
+// funcflags.go T_switches1a 86 0 1
+// ParamFlags
+//   0 ParamFeedsIfOrSwitch
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_switches1a(x int) {
 	switch x {
@@ -82,9 +90,11 @@ func T_switches1a(x int) {
 	}
 }
 
-// funcflags.go T_switches2 89 0 1
+// funcflags.go T_switches2 99 0 1
+// ParamFlags
+//   0 ParamFeedsIfOrSwitch
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_switches2(x int) {
 	switch x {
@@ -98,9 +108,9 @@ func T_switches2(x int) {
 	panic("whatev")
 }
 
-// funcflags.go T_switches3 105 0 1
+// funcflags.go T_switches3 115 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_switches3(x interface{}) {
 	switch x.(type) {
@@ -111,10 +121,10 @@ func T_switches3(x interface{}) {
 	}
 }
 
-// funcflags.go T_switches4 119 0 1
+// funcflags.go T_switches4 129 0 1
 // Flags FuncPropNeverReturns
 // <endpropsdump>
-// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":1,"ParamFlags":[0],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_switches4(x int) {
 	switch x {
@@ -130,9 +140,9 @@ func T_switches4(x int) {
 	panic("whatev")
 }
 
-// funcflags.go T_recov 137 0 1
+// funcflags.go T_recov 147 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_recov(x int) {
 	if x := recover(); x != nil {
@@ -140,10 +150,10 @@ func T_recov(x int) {
 	}
 }
 
-// funcflags.go T_forloops1 148 0 1
+// funcflags.go T_forloops1 158 0 1
 // Flags FuncPropNeverReturns
 // <endpropsdump>
-// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":1,"ParamFlags":[0],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_forloops1(x int) {
 	for {
@@ -151,9 +161,9 @@ func T_forloops1(x int) {
 	}
 }
 
-// funcflags.go T_forloops2 158 0 1
+// funcflags.go T_forloops2 168 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_forloops2(x int) {
 	for {
@@ -165,9 +175,9 @@ func T_forloops2(x int) {
 	}
 }
 
-// funcflags.go T_forloops3 172 0 1
+// funcflags.go T_forloops3 182 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_forloops3(x int) {
 	for i := 0; i < 101; i++ {
@@ -184,9 +194,9 @@ func T_forloops3(x int) {
 	panic("whatev")
 }
 
-// funcflags.go T_hasgotos 191 0 1
+// funcflags.go T_hasgotos 201 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_hasgotos(x int, y int) {
 	{
@@ -211,9 +221,12 @@ func T_hasgotos(x int, y int) {
 	}
 }
 
-// funcflags.go T_break_with_label 218 0 1
+// funcflags.go T_break_with_label 228 0 1
+// ParamFlags
+//   0 ParamMayFeedIfOrSwitch
+//   1 ParamNoInfo
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[64,0],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_break_with_label(x int, y int) {
 	// presence of break with label should pessimize this func
@@ -229,10 +242,12 @@ lab1:
 	}
 }
 
-// funcflags.go T_callsexit 237 0 1
+// funcflags.go T_callsexit 250 0 1
 // Flags FuncPropNeverReturns
+// ParamFlags
+//   0 ParamFeedsIfOrSwitch
 // <endpropsdump>
-// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":1,"ParamFlags":[32],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_callsexit(x int) {
 	if x < 0 {
@@ -241,9 +256,9 @@ func T_callsexit(x int) {
 	os.Exit(2)
 }
 
-// funcflags.go T_exitinexpr 248 0 1
+// funcflags.go T_exitinexpr 262 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_exitinexpr(x int) {
 	// This function does indeed unconditionally call exit, since the
@@ -255,10 +270,10 @@ func T_exitinexpr(x int) {
 	}
 }
 
-// funcflags.go T_select_noreturn 264 0 1
+// funcflags.go T_select_noreturn 278 0 1
 // Flags FuncPropNeverReturns
 // <endpropsdump>
-// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+// {"Flags":1,"ParamFlags":[0,0,0],"ResultFlags":[]}
 // <endfuncpreamble>
 func T_select_noreturn(chi chan int, chf chan float32, p *int) {
 	rv := 0
@@ -272,9 +287,9 @@ func T_select_noreturn(chi chan int, chf chan float32, p *int) {
 	panic("bad")
 }
 
-// funcflags.go T_select_mayreturn 281 0 1
+// funcflags.go T_select_mayreturn 295 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":null,"ResultFlags":[0]}
+// {"Flags":0,"ParamFlags":[0,0,0],"ResultFlags":[0]}
 // <endfuncpreamble>
 func T_select_mayreturn(chi chan int, chf chan float32, p *int) int {
 	rv := 0

@@ -35,7 +35,7 @@ func TestFuncProperties(t *testing.T) {
 	// to building a fresh compiler on the fly, or using some other
 	// scheme.
 
-	testcases := []string{"funcflags", "returns"}
+	testcases := []string{"funcflags", "returns", "params"}
 
 	for _, tc := range testcases {
 		dumpfile, err := gatherPropsDumpForFile(t, tc, td)
@@ -101,22 +101,22 @@ func compareEntries(t *testing.T, tc string, dentry *fnInlHeur, eentry *fnInlHeu
 
 	// Compare function flags.
 	if dfp.Flags != efp.Flags {
-		t.Errorf("testcase %s: Flags mismatch for %q: got %s, wanted %s",
+		t.Errorf("testcase %q: Flags mismatch for %q: got %s, wanted %s",
 			tc, dfn, dfp.Flags.String(), efp.Flags.String())
 	}
 	// Compare returns
 	rgot := propBitsToString[ResultPropBits](dfp.ResultFlags)
 	rwant := propBitsToString[ResultPropBits](efp.ResultFlags)
 	if rgot != rwant {
-		t.Errorf("Results mismatch for %q: got:\n%swant:\n%s",
-			dfn, rgot, rwant)
+		t.Errorf("testcase %q: Results mismatch for %q: got:\n%swant:\n%s",
+			tc, dfn, rgot, rwant)
 	}
 	// Compare receiver + params.
 	pgot := propBitsToString[ParamPropBits](dfp.ParamFlags)
 	pwant := propBitsToString[ParamPropBits](efp.ParamFlags)
 	if pgot != pwant {
-		t.Errorf("Params mismatch for %q: got:\n%swant:\n%s",
-			dfn, pgot, pwant)
+		t.Errorf("testcase %q: Params mismatch for %q: got:\n%swant:\n%s",
+			tc, dfn, pgot, pwant)
 	}
 }
 

@@ -20,6 +20,8 @@ const (
 	debugTraceFuncs = 1 << iota
 	debugTraceFuncFlags
 	debugTraceResults
+	debugTraceParams
+	debugTraceExprClassify
 )
 
 // propAnalyzer interface is used for defining one or more analyzer
@@ -56,8 +58,9 @@ func computeFuncProps(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
 			fn.Sym().Name, fn)
 	}
 	ra := makeResultsAnalyzer(fn, canInline)
+	pa := makeParamsAnalyzer(fn)
 	ffa := makeFuncFlagsAnalyzer(fn)
-	analyzers := []propAnalyzer{ffa, ra}
+	analyzers := []propAnalyzer{ffa, ra, pa}
 	fp := new(FuncProps)
 	runAnalyzersOnFunction(fn, analyzers)
 	for _, a := range analyzers {
