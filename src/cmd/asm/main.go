@@ -35,6 +35,7 @@ func main() {
 	if architecture == nil {
 		log.Fatalf("unrecognized architecture %s", GOARCH)
 	}
+	compilingRuntime := objabi.IsRuntimePackagePath(*flags.Importpath)
 
 	ctxt := obj.Linknew(architecture.LinkArch)
 	ctxt.Debugasm = flags.PrintOut
@@ -79,9 +80,9 @@ func main() {
 	var ok, diag bool
 	var failedFile string
 	for _, f := range flag.Args() {
-		lexer := lex.NewLexer(f)
+		lexer := lex.NewLexer(f, compilingRuntime)
 		parser := asm.NewParser(ctxt, architecture, lexer,
-			*flags.CompilingRuntime)
+			compilingRuntime)
 		ctxt.DiagFunc = func(format string, args ...interface{}) {
 			diag = true
 			log.Printf(format, args...)

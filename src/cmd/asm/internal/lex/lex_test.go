@@ -258,7 +258,7 @@ var lexTests = []lexTest{
 
 func TestLex(t *testing.T) {
 	for _, test := range lexTests {
-		input := NewInput(test.name)
+		input := NewInput(test.name, false)
 		input.Push(NewTokenizer(test.name, strings.NewReader(test.input), nil))
 		result := drain(input)
 		if result != test.output {
@@ -328,7 +328,7 @@ var badLexTests = []badLexTest{
 
 func TestBadLex(t *testing.T) {
 	for _, test := range badLexTests {
-		input := NewInput(test.error)
+		input := NewInput(test.error, false)
 		input.Push(NewTokenizer(test.error, strings.NewReader(test.input), nil))
 		err := firstError(input)
 		if err == nil {

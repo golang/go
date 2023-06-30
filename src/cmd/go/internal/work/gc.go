@@ -22,7 +22,6 @@ import (
 	"cmd/go/internal/gover"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
-	"cmd/internal/objabi"
 	"cmd/internal/quoted"
 	"crypto/sha1"
 )
@@ -358,9 +357,6 @@ func asmArgs(a *Action, p *load.Package) []any {
 				args = append(args, "-D=GOBUILDMODE_shared=1")
 			}
 		}
-	}
-	if objabi.IsRuntimePackagePath(pkgpath) {
-		args = append(args, "-compiling-runtime")
 	}
 
 	if cfg.Goarch == "386" {

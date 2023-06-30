@@ -892,9 +892,6 @@ func runInstall(pkg string, ch chan struct{}) {
 		}
 	}
 	goasmh := pathf("%s/go_asm.h", workdir)
-	if IsRuntimePackagePath(pkg) {
-		asmArgs = append(asmArgs, "-compiling-runtime")
-	}
 
 	// Collect symabis from assembly code.
 	var symabis string
@@ -1945,29 +1942,6 @@ func cmdlist() {
 	if _, err := os.Stdout.Write(out); err != nil {
 		fatalf("write failed: %v", err)
 	}
-}
-
-// IsRuntimePackagePath examines 'pkgpath' and returns TRUE if it
-// belongs to the collection of "runtime-related" packages, including
-// "runtime" itself, "reflect", "syscall", and the
-// "runtime/internal/*" packages.
-//
-// Keep in sync with cmd/internal/objabi/path.go:IsRuntimePackagePath.
-func IsRuntimePackagePath(pkgpath string) bool {
-	rval := false
-	switch pkgpath {
-	case "runtime":
-		rval = true
-	case "reflect":
-		rval = true
-	case "syscall":
-		rval = true
-	case "internal/bytealg":
-		rval = true
-	default:
-		rval = strings.HasPrefix(pkgpath, "runtime/internal")
-	}
-	return rval
 }
 
 func setNoOpt() {

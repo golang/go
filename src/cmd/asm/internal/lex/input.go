@@ -34,22 +34,22 @@ type Input struct {
 }
 
 // NewInput returns an Input from the given path.
-func NewInput(name string) *Input {
+func NewInput(name string, compilingRuntime bool) *Input {
 	return &Input{
 		// include directories: look in source dir, then -I directories.
 		includes:        append([]string{filepath.Dir(name)}, flags.I...),
 		beginningOfLine: true,
-		macros:          predefine(flags.D),
+		macros:          predefine(flags.D, compilingRuntime),
 	}
 }
 
 // predefine installs the macros set by the -D flag on the command line.
-func predefine(defines flags.MultiFlag) map[string]*Macro {
+func predefine(defines flags.MultiFlag, compilingRuntime bool) map[string]*Macro {
 	macros := make(map[string]*Macro)
 
 	// Set macros for GOEXPERIMENTs so we can easily switch
 	// runtime assembly code based on them.
-	if *flags.CompilingRuntime {
+	if compilingRuntime {
 		for _, exp := range buildcfg.Experiment.Enabled() {
 			// Define macro.
 			name := "GOEXPERIMENT_" + exp
