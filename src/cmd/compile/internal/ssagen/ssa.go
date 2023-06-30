@@ -5264,15 +5264,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		}
 		addr := s.addr(d)
 
-		// Must match deferstruct() below and src/runtime/runtime2.go:_defer.
-		// 0: heap, set in deferprocStack
-		// 1: sp, set in deferprocStack
-		// 2: pc, set in deferprocStack
-		// 3: fn
 		s.store(closure.Type,
-			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(3), addr),
+			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(deferStructFnField), addr),
 			closure)
-		// 4: link, set in deferprocStack
 
 		// Call runtime.deferprocStack with pointer to _defer record.
 		ACArgs = append(ACArgs, types.Types[types.TUINTPTR])
@@ -8101,6 +8095,8 @@ func max8(a, b int8) int8 {
 	return b
 }
 
+var deferStructFnField = -1
+
 // deferstruct makes a runtime._defer structure.
 func deferstruct() *types.Type {
 	makefield := func(name string, typ *types.Type) *types.Field {
@@ -8114,6 +8110,7 @@ func deferstruct() *types.Type {
 	// (*state).call above.
 	fields := []*types.Field{
 		makefield("heap", types.Types[types.TBOOL]),
+		makefield("rangefunc", types.Types[types.TBOOL]),
 		makefield("sp", types.Types[types.TUINTPTR]),
 		makefield("pc", types.Types[types.TUINTPTR]),
 		// Note: the types here don't really matter. Defer structures
@@ -8121,6 +8118,16 @@ func deferstruct() *types.Type {
 		// so we make them uintptr type even though they are real pointers.
 		makefield("fn", types.Types[types.TUINTPTR]),
 		makefield("link", types.Types[types.TUINTPTR]),
+		makefield("head", types.Types[types.TUINTPTR]),
+	}
+	for i, f := range fields {
+		if f.Sym.Name == "fn" {
+			deferStructFnField = i
+			break
+		}
+	}
+	if deferStructFnField < 0 {
+		base.Fatalf("deferstruct has no fn field")
 	}
 
 	// build struct holding the above fields
