@@ -569,12 +569,15 @@ func renameExported(ctx context.Context, snapshot Snapshot, pkgs []Package, decl
 			}
 			obj, err := objectpath.Object(p, t.obj)
 			if err != nil {
-				// Though this can happen with regular export data
-				// due to trimming of inconsequential objects,
-				// it can't happen if we load dependencies from full
-				// syntax (as today) or shallow export data (soon),
-				// as both are complete.
-				bug.Reportf("objectpath.Object(%v, %v) failed: %v", p, t.obj, err)
+				// Possibly a method or an unexported type
+				// that is not reachable through export data?
+				// See https://github.com/golang/go/issues/60789.
+				//
+				// TODO(adonovan): it seems unsatisfactory that Object
+				// should return an error for a "valid" path. Perhaps
+				// we should define such paths as invalid and make
+				// objectpath.For compute reachability?
+				// Would that be a compatible change?
 				continue
 			}
 			objects = append(objects, obj)

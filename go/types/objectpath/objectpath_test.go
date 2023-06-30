@@ -47,6 +47,8 @@ type M map[struct{x int}]struct{y int}
 func unexportedFunc()
 type unexportedType struct{}
 
+func (unexportedType) F() {} // not reachable from package's public API (export data)
+
 type S struct{t struct{x int}}
 type R []struct{y int}
 type Q [2]struct{z int}
@@ -84,6 +86,7 @@ type T struct{x, y int}
 		{"b", "T.M0.RA0", "var  *interface{f()}", ""},       // parameter
 		{"b", "T.M0.RA0.EM0", "func (interface).f()", ""},   // interface method
 		{"b", "unexportedType", "type b.unexportedType struct{}", ""},
+		{"b", "unexportedType.M0", "func (b.unexportedType).F()", ""},
 		{"b", "S.UF0.F0", "field x int", ""},
 		{"b", "R.UEF0", "field y int", ""},
 		{"b", "Q.UEF0", "field z int", ""},
@@ -234,6 +237,14 @@ type Foo interface {
 
 var X chan struct{ Z int }
 var Z map[string]struct{ A int }
+
+var V unexported
+type unexported struct{}
+func (unexported) F() {} // reachable via V
+
+// The name 'unreachable' has special meaning to the test.
+type unreachable struct{}
+func (unreachable) F() {} // not reachable in export data
 `
 
 	// Parse source file and type-check it as a package, "src".
@@ -277,10 +288,19 @@ var Z map[string]struct{ A int }
 			t.Errorf("For(%v): %v", srcobj, err)
 			continue
 		}
+
+		// Do we expect to find this object in the export data?
+		reachable := !strings.Contains(string(path), "unreachable")
+
 		binobj, err := objectpath.Object(binpkg, path)
 		if err != nil {
-			t.Errorf("Object(%s, %q): %v", binpkg.Path(), path, err)
+			if reachable {
+				t.Errorf("Object(%s, %q): %v", binpkg.Path(), path, err)
+			}
 			continue
+		}
+		if !reachable {
+			t.Errorf("Object(%s, %q) = %v (unexpectedly reachable)", binpkg.Path(), path, binobj)
 		}
 
 		// Check the object strings match.

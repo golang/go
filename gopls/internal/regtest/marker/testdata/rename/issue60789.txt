@@ -1,0 +1,36 @@
+
+This test renames an exported method of an unexported type,
+which is an edge case for objectpath, since it computes a path
+from a syntax package that is no good when applied to an
+export data package.
+
+See issue #60789.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+type unexported int 
+func (unexported) F() {} //@rename("F", G, fToG)
+
+var _ = unexported(0).F
+
+-- b/b.go --
+package b
+
+// The existence of this package is sufficient to exercise
+// the bug even though it cannot reference a.unexported.
+
+import _ "example.com/a"
+
+-- @fToG/a/a.go --
+package a
+
+type unexported int 
+func (unexported) G() {} //@rename("F", G, fToG)
+
+var _ = unexported(0).G
+
