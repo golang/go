@@ -928,7 +928,7 @@ func (p *Parser) funcAddress() (string, obj.ABI, bool) {
 }
 
 // registerIndirect parses the general form of a register indirection.
-// It is can be (R1), (R2*scale), (R1)(R2*scale), (R1)(R2.SXTX<<3) or (R1)(R2<<3)
+// It can be (R1), (R2*scale), (R1)(R2*scale), (R1)(R2.SXTX<<3) or (R1)(R2<<3)
 // where R1 may be a simple register or register pair R:R or (R, R) or (R+R).
 // Or it might be a pseudo-indirection like (FP).
 // We are sitting on the opening parenthesis.
@@ -1186,7 +1186,7 @@ func (p *Parser) registerListX86(a *obj.Addr) {
 	a.Offset = x86.EncodeRegisterRange(lo, hi)
 }
 
-// register number is ARM-specific. It returns the number of the specified register.
+// registerNumber is ARM-specific. It returns the number of the specified register.
 func (p *Parser) registerNumber(name string) uint16 {
 	if p.arch.Family == sys.ARM && name == "g" {
 		return 10
