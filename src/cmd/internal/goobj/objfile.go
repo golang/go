@@ -662,13 +662,7 @@ func toString(b []byte) string {
 	if len(b) == 0 {
 		return ""
 	}
-
-	var s string
-	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(&b[0])
-	hdr.Len = len(b)
-
-	return s
+	return unsafe.String(&b[0], len(b))
 }
 
 func (r *Reader) StringRef(off uint32) string {
