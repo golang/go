@@ -41,6 +41,8 @@ loop:
 			ifam := (*syscall.IfAddrmsg)(unsafe.Pointer(&m.Data[0]))
 			if _, ok := im[ifam.Index]; ok {
 				continue
+			} else {
+				im[ifam.Index] = struct{}{}
 			}
 
 			if ifindex == 0 || ifindex == int(ifam.Index) {
