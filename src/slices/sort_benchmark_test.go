@@ -16,10 +16,10 @@ import (
 // These benchmarks compare sorting a large slice of int with sort.Ints vs.
 // slices.Sort
 func makeRandomInts(n int) []int {
-	rand.Seed(42)
+	r := rand.New(rand.NewSource(42))
 	ints := make([]int, n)
 	for i := 0; i < n; i++ {
-		ints[i] = rand.Intn(n)
+		ints[i] = r.Intn(n)
 	}
 	return ints
 }
@@ -126,12 +126,12 @@ func TestIntSorts(t *testing.T) {
 // makeRandomStrings generates n random strings with alphabetic runes of
 // varying lengths.
 func makeRandomStrings(n int) []string {
-	rand.Seed(42)
+	r := rand.New(rand.NewSource(42))
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	ss := make([]string, n)
 	for i := 0; i < n; i++ {
 		var sb strings.Builder
-		slen := 2 + rand.Intn(50)
+		slen := 2 + r.Intn(50)
 		for j := 0; j < slen; j++ {
 			sb.WriteRune(letters[rand.Intn(len(letters))])
 		}
@@ -204,10 +204,10 @@ func (s myStructs) Less(i, j int) bool { return s[i].n < s[j].n }
 func (s myStructs) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func makeRandomStructs(n int) myStructs {
-	rand.Seed(42)
+	r := rand.New(rand.NewSource(42))
 	structs := make([]*myStruct, n)
 	for i := 0; i < n; i++ {
-		structs[i] = &myStruct{n: rand.Intn(n)}
+		structs[i] = &myStruct{n: r.Intn(n)}
 	}
 	return structs
 }
