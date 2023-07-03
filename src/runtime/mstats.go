@@ -347,6 +347,7 @@ func init() {
 // which is a snapshot as of the most recently completed garbage
 // collection cycle.
 func ReadMemStats(m *MemStats) {
+	_ = m.Alloc // nil check test before we switch stacks, see issue 61158
 	stopTheWorld(stwReadMemStats)
 
 	systemstack(func() {
