@@ -232,33 +232,44 @@ func (g graph) allpaths(from, to string) error {
 }
 
 func (g graph) somepath(from, to string) error {
-	type edge struct{ from, to string }
-	seen := make(nodeset)
-	var dfs func(path []edge, from string) bool
-	dfs = func(path []edge, from string) bool {
-		if !seen[from] {
-			seen[from] = true
-			if from == to {
-				// fmt.Println(path, len(path), cap(path))
-				// Print and unwind.
-				for _, e := range path {
-					fmt.Fprintln(stdout, e.from+" "+e.to)
+	// Search breadth-first so that we return a minimal path.
+
+	// A path is a linked list whose head is a candidate "to" node
+	// and whose tail is the path ending in the "from" node.
+	type path struct {
+		node string
+		tail *path
+	}
+
+	seen := nodeset{from: true}
+
+	var queue []*path
+	queue = append(queue, &path{node: from, tail: nil})
+	for len(queue) > 0 {
+		p := queue[0]
+		queue = queue[1:]
+
+		if p.node == to {
+			// Found a path. Print, tail first.
+			var print func(p *path)
+			print = func(p *path) {
+				if p.tail != nil {
+					print(p.tail)
+					fmt.Fprintln(stdout, p.tail.node+" "+p.node)
 				}
-				return true
 			}
-			for e := range g[from] {
-				if dfs(append(path, edge{from: from, to: e}), e) {
-					return true
-				}
+			print(p)
+			return nil
+		}
+
+		for succ := range g[p.node] {
+			if !seen[succ] {
+				seen[succ] = true
+				queue = append(queue, &path{node: succ, tail: p})
 			}
 		}
-		return false
 	}
-	maxEdgesInGraph := len(g) * (len(g) - 1)
-	if !dfs(make([]edge, 0, maxEdgesInGraph), from) {
-		return fmt.Errorf("no path from %q to %q", from, to)
-	}
-	return nil
+	return fmt.Errorf("no path from %q to %q", from, to)
 }
 
 func (g graph) toDot(w *bytes.Buffer) {

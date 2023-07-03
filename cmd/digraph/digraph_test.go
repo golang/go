@@ -65,7 +65,6 @@ e e
 	}
 
 	// TODO(adonovan):
-	// - test somepath (it's nondeterministic).
 	// - test errors
 }
 
@@ -202,6 +201,15 @@ func TestSomepath(t *testing.T) {
 			in:        "A B\nA C\nB D\nC D",
 			to:        "D",
 			wantAnyOf: "A B\nB D|A C\nC D",
+		},
+		{
+			name: "Printed path is minimal",
+			// A -> B1->B2->B3 -> E
+			// A -> C1->C2 -> E
+			// A -> D -> E
+			in:        "A D C1 B1\nD E\nC1 C2\nC2 E\nB1 B2\nB2 B3\nB3 E",
+			to:        "E",
+			wantAnyOf: "A D\nD E",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
