@@ -50,30 +50,30 @@ func lambda[X I]() func() func() {
 }
 
 // WANT:
-// All calls
-//   (*C).Foo --> (C).Foo
-//   (A).Foo$bound --> (A).Foo
-//   instantiated[main.A] --> (A).Foo
-//   instantiated[main.B] --> (B).Foo
-//   main --> (*C).Foo
-//   main --> (A).Foo$bound
-//   main --> (C).Foo
-//   main --> instantiated[main.A]
-//   main --> instantiated[main.B]
-//   main --> lambda[main.A]
-//   main --> lambda[main.A]$1
-//   main --> local[main.C]
-// Reachable functions
-//   (*C).Foo
-//   (A).Foo
-//   (A).Foo$bound
-//   (B).Foo
-//   (C).Foo
-//   instantiated[main.A]
-//   instantiated[main.B]
-//   lambda[main.A]
-//   lambda[main.A]$1
-//   local[main.C]
-// Reflect types
-//   *C
-//   C
+//
+//  edge (*C).Foo --static method call--> (C).Foo
+//  edge (A).Foo$bound --static method call--> (A).Foo
+//  edge instantiated[main.A] --static method call--> (A).Foo
+//  edge instantiated[main.B] --static method call--> (B).Foo
+//  edge main --dynamic method call--> (*C).Foo
+//  edge main --dynamic function call--> (A).Foo$bound
+//  edge main --dynamic method call--> (C).Foo
+//  edge main --static function call--> instantiated[main.A]
+//  edge main --static function call--> instantiated[main.B]
+//  edge main --static function call--> lambda[main.A]
+//  edge main --dynamic function call--> lambda[main.A]$1
+//  edge main --static function call--> local[main.C]
+//
+//  reachable (*C).Foo
+//  reachable (A).Foo
+//  reachable (A).Foo$bound
+//  reachable (B).Foo
+//  reachable (C).Foo
+//  reachable instantiated[main.A]
+//  reachable instantiated[main.B]
+//  reachable lambda[main.A]
+//  reachable lambda[main.A]$1
+//  reachable local[main.C]
+//
+//  rtype *C
+//  rtype C

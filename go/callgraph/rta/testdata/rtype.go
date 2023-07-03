@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 package main
@@ -23,13 +24,16 @@ func main() {
 }
 
 // WANT:
-// Dynamic calls
-// Reachable functions
-//   use
-// Reflect types
-//   *B
-//   B
-//   string
-//   struct{uint64}
-//   uint
-//   uint64
+//
+//  reachable main
+//  reachable use
+//
+// !rtype A
+// !rtype struct{uint}
+//  rtype *B
+//  rtype B
+//  rtype string
+//  rtype struct{uint64}
+//  rtype uint
+//  rtype uint64
+// !rtype int

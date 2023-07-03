@@ -92,6 +92,8 @@ type rta struct {
 
 	prog *ssa.Program
 
+	reflectValueCall *ssa.Function // (*reflect.Value).Call, iff part of prog
+
 	worklist []*ssa.Function // list of functions to visit
 
 	// addrTakenFuncsBySig contains all address-taken *Functions, grouped by signature.
@@ -140,14 +142,15 @@ func (r *rta) addReachable(f *ssa.Function, addrTaken bool) {
 
 // addEdge adds the specified call graph edge, and marks it reachable.
 // addrTaken indicates whether to mark the callee as "address-taken".
-func (r *rta) addEdge(site ssa.CallInstruction, callee *ssa.Function, addrTaken bool) {
+// site is nil for calls made via reflection.
+func (r *rta) addEdge(caller *ssa.Function, site ssa.CallInstruction, callee *ssa.Function, addrTaken bool) {
 	r.addReachable(callee, addrTaken)
 
 	if g := r.result.CallGraph; g != nil {
-		if site.Parent() == nil {
+		if caller == nil {
 			panic(site)
 		}
-		from := g.CreateNode(site.Parent())
+		from := g.CreateNode(caller)
 		to := g.CreateNode(callee)
 		callgraph.AddEdge(from, site, to)
 	}
@@ -172,7 +175,34 @@ func (r *rta) visitAddrTakenFunc(f *ssa.Function) {
 		// and add call graph edges.
 		sites, _ := r.dynCallSites.At(S).([]ssa.CallInstruction)
 		for _, site := range sites {
-			r.addEdge(site, f, true)
+			r.addEdge(site.Parent(), site, f, true)
+		}
+
+		// If the program includes (*reflect.Value).Call,
+		// add a dynamic call edge from it to any address-taken
+		// function, regardless of signature.
+		//
+		// This isn't perfect.
+		// - The actual call comes from an internal function
+		//   called reflect.call, but we can't rely on that here.
+		// - reflect.Value.CallSlice behaves similarly,
+		//   but we don't bother to create callgraph edges from
+		//   it as well as it wouldn't fundamentally change the
+		//   reachability but it would add a bunch more edges.
+		// - We assume that if reflect.Value.Call is among
+		//   the dependencies of the application, it is itself
+		//   reachable. (It would be more accurate to defer
+		//   all the addEdges below until r.V.Call itself
+		//   becomes reachable.)
+		// - Fake call graph edges are added from r.V.Call to
+		//   each address-taken function, but not to every
+		//   method reachable through a materialized rtype,
+		//   which is a little inconsistent. Still, the
+		//   reachable set includes both kinds, which is what
+		//   matters for e.g. deadcode detection.)
+		if r.reflectValueCall != nil {
+			var site ssa.CallInstruction = nil // can't find actual call site
+			r.addEdge(r.reflectValueCall, site, f, true)
 		}
 	}
 }
@@ -189,7 +219,7 @@ func (r *rta) visitDynCall(site ssa.CallInstruction) {
 	// add an edge and mark it reachable.
 	funcs, _ := r.addrTakenFuncsBySig.At(S).(map[*ssa.Function]bool)
 	for g := range funcs {
-		r.addEdge(site, g, true)
+		r.addEdge(site.Parent(), site, g, true)
 	}
 }
 
@@ -200,7 +230,7 @@ func (r *rta) addInvokeEdge(site ssa.CallInstruction, C types.Type) {
 	// Ascertain the concrete method of C to be called.
 	imethod := site.Common().Method
 	cmethod := r.prog.MethodValue(r.prog.MethodSets.MethodSet(C).Lookup(imethod.Pkg(), imethod.Name()))
-	r.addEdge(site, cmethod, true)
+	r.addEdge(site.Parent(), site, cmethod, true)
 }
 
 // visitInvoke is called each time the algorithm encounters an "invoke"-mode call.
@@ -234,7 +264,7 @@ func (r *rta) visitFunc(f *ssa.Function) {
 				if call.IsInvoke() {
 					r.visitInvoke(instr)
 				} else if g := call.StaticCallee(); g != nil {
-					r.addEdge(instr, g, false)
+					r.addEdge(f, instr, g, false)
 				} else if _, ok := call.Value.(*ssa.Builtin); !ok {
 					r.visitDynCall(instr)
 				}
@@ -245,6 +275,10 @@ func (r *rta) visitFunc(f *ssa.Function) {
 				rands = rands[1:]
 
 			case *ssa.MakeInterface:
+				// Converting a value of type T to an
+				// interface materializes its runtime
+				// type, allowing any of its exported
+				// methods to be called though reflection.
 				r.addRuntimeType(instr.X.Type(), false)
 			}
 
@@ -281,6 +315,13 @@ func Analyze(roots []*ssa.Function, buildCallGraph bool) *Result {
 		r.result.CallGraph = callgraph.New(roots[0])
 	}
 
+	// Grab ssa.Function for (*reflect.Value).Call,
+	// if "reflect" is among the dependencies.
+	if reflectPkg := r.prog.ImportedPackage("reflect"); reflectPkg != nil {
+		reflectValue := reflectPkg.Members["Value"].(*ssa.Type)
+		r.reflectValueCall = r.prog.LookupMethod(reflectValue.Object().Type(), reflectPkg.Pkg, "Call")
+	}
+
 	hasher := typeutil.MakeHasher()
 	r.result.RuntimeTypes.SetHasher(hasher)
 	r.addrTakenFuncsBySig.SetHasher(hasher)
@@ -289,11 +330,14 @@ func Analyze(roots []*ssa.Function, buildCallGraph bool) *Result {
 	r.concreteTypes.SetHasher(hasher)
 	r.interfaceTypes.SetHasher(hasher)
 
+	for _, root := range roots {
+		r.addReachable(root, false)
+	}
+
 	// Visit functions, processing their instructions, and adding
 	// new functions to the worklist, until a fixed point is
 	// reached.
 	var shadow []*ssa.Function // for efficiency, we double-buffer the worklist
-	r.worklist = append(r.worklist, roots...)
 	for len(r.worklist) > 0 {
 		shadow, r.worklist = r.worklist, shadow[:0]
 		for _, f := range shadow {

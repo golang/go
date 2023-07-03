@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 package main
@@ -58,22 +59,34 @@ func dead() {
 }
 
 // WANT:
-// Dynamic calls
-//   live --> (*B2).f
-//   live --> (B2).f
-//   main --> (*B).f
-//   main --> (*B2).f
-//   main --> (B2).f
-// Reachable functions
-//   (*B).F
-//   (*B).f
-//   (*B2).f
-//   (A).f
-//   (B2).f
-//   live
-//   use
-// Reflect types
-//   *B
-//   *B2
-//   B
-//   B2
+//
+//  edge live --dynamic method call--> (*B2).f
+//  edge live --dynamic method call--> (B2).f
+//  edge main --dynamic method call--> (*B).f
+//  edge main --dynamic method call--> (*B2).f
+//  edge main --dynamic method call--> (B2).f
+//
+//  reachable (A).f
+// !reachable (A).F
+//  reachable (*B).f
+//  reachable (*B).F
+//  reachable (B2).f
+// !reachable (B2).g
+//  reachable (*B2).f
+// !reachable (*B2).g
+// !reachable (C).f
+// !reachable (C).F
+// !reachable (D).f
+// !reachable (D).F
+//  reachable main
+//  reachable live
+//  reachable use
+// !reachable dead
+//
+// !rtype A
+//  rtype *B
+//  rtype *B2
+//  rtype B
+//  rtype B2
+// !rtype C
+// !rtype D

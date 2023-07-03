@@ -64,6 +64,7 @@ func New(root *ssa.Function) *Graph {
 }
 
 // CreateNode returns the Node for fn, creating it if not present.
+// The root node may have fn=nil.
 func (g *Graph) CreateNode(fn *ssa.Function) *Node {
 	n, ok := g.Nodes[fn]
 	if !ok {

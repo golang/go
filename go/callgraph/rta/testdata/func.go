@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 package main
@@ -26,12 +27,13 @@ func main() {
 }
 
 // WANT:
-// Dynamic calls
-//   main --> init$1
-//   main --> init$2
-// Reachable functions
-//   A1
-//   A2
-//   init$1
-//   init$2
-// Reflect types
+//
+//  edge main --dynamic function call--> init$1
+//  edge main --dynamic function call--> init$2
+//
+//  reachable A1
+//  reachable A2
+//  reachable init$1
+//  reachable init$2
+// !reachable B
+//  reachable main

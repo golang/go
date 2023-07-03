@@ -294,6 +294,10 @@ func (prog *Program) AllPackages() []*Package {
 // false---yet this function remains very convenient.
 // Clients should use (*Program).Package instead where possible.
 // SSA doesn't really need a string-keyed map of packages.
+//
+// Furthermore, the graph of packages may contain multiple variants
+// (e.g. "p" vs "p as compiled for q.test"), and each has a different
+// view of its dependencies.
 func (prog *Program) ImportedPackage(path string) *Package {
 	return prog.imported[path]
 }
