@@ -9,7 +9,7 @@
 // Darwin is exempted because it always provides the cgo routines,
 // in cgo_unix_syscall.go.
 
-//go:build netgo || (!cgo && unix && !darwin) || wasip1
+//go:build (unix && netgo) || (!cgo && unix && !darwin) || wasip1
 
 package net
 
