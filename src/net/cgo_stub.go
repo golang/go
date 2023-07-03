@@ -3,13 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // This file holds stub versions of the cgo functions called on Unix systems.
-// We build this file if using the netgo build tag, or if cgo is not
-// enabled and we are using a Unix system other than Darwin, or if it's
-// wasip1 where cgo is never available.
-// Darwin is exempted because it always provides the cgo routines,
-// in cgo_unix_syscall.go.
+// We build this file:
+// - if using the netgo build tag on a Unix system
+// - on a Unix system without the cgo resolver functions
+//   (Darwin always provides the cgo functions, in cgo_unix_syscall.go)
+// - on wasip1, where cgo is never available
 
-//go:build netgo || (!cgo && unix && !darwin) || wasip1
+//go:build (netgo && unix) || (unix && !cgo && !darwin) || wasip1
 
 package net
 
