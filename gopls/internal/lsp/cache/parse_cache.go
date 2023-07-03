@@ -244,12 +244,6 @@ func (c *parseCache) allocateSpace(size int) (int, int) {
 	return base, c.nextBase
 }
 
-// The parse cache is not supported on 32-bit systems, where reservedForParsing
-// is too small to be viable.
-func parseCacheSupported() bool {
-	return bits.UintSize != 32
-}
-
 // parseFiles returns a ParsedGoFile for each file handle in fhs, in the
 // requested parse mode.
 //

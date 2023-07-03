@@ -302,10 +302,6 @@ type Selection struct {
 	mapper             *protocol.Mapper
 }
 
-func (p Selection) Content() string {
-	return p.content
-}
-
 func (p Selection) Range() (protocol.Range, error) {
 	return p.mapper.PosRange(p.tokFile, p.start, p.end)
 }

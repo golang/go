@@ -116,10 +116,9 @@ func testLSP(t *testing.T, datum *tests.Data) {
 		t.Fatal(err)
 	}
 	r := &runner{
-		data:        datum,
-		ctx:         ctx,
-		normalizers: tests.CollectNormalizers(datum.Exported),
-		editRecv:    make(chan map[span.URI][]byte, 1),
+		data:     datum,
+		ctx:      ctx,
+		editRecv: make(chan map[span.URI][]byte, 1),
 	}
 
 	r.server = NewServer(session, testClient{runner: r})
@@ -132,7 +131,6 @@ type runner struct {
 	data        *tests.Data
 	diagnostics map[span.URI][]*source.Diagnostic
 	ctx         context.Context
-	normalizers []tests.Normalizer
 	editRecv    chan map[span.URI][]byte
 }
 

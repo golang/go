@@ -219,13 +219,6 @@ func (w *Workdir) WriteFile(ctx context.Context, path, content string) error {
 	return w.WriteFiles(ctx, map[string]string{path: content})
 }
 
-func (w *Workdir) fileEvent(path string, changeType protocol.FileChangeType) protocol.FileEvent {
-	return protocol.FileEvent{
-		URI:  w.URI(path),
-		Type: changeType,
-	}
-}
-
 // RenameFile performs an on disk-renaming of the workdir-relative oldPath to
 // workdir-relative newPath, and notifies watchers of the changes.
 //

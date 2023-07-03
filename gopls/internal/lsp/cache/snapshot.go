@@ -1268,17 +1268,6 @@ func (s *snapshot) clearShouldLoad(scopes ...loadScope) {
 	}
 }
 
-// noRealPackagesForURILocked reports whether there are any
-// non-command-line-arguments packages containing the given URI.
-func (s *snapshot) noRealPackagesForURILocked(uri span.URI) bool {
-	for _, id := range s.meta.ids[uri] {
-		if !source.IsCommandLineArguments(id) || s.meta.metadata[id].Standalone {
-			return false
-		}
-	}
-	return true
-}
-
 func (s *snapshot) FindFile(uri span.URI) source.FileHandle {
 	s.view.markKnown(uri)
 
@@ -1360,11 +1349,6 @@ func (s *snapshot) IsOpen(uri span.URI) bool {
 	defer s.mu.Unlock()
 
 	fh, _ := s.files.Get(uri)
-	_, open := fh.(*Overlay)
-	return open
-}
-
-func isFileOpen(fh source.FileHandle) bool {
 	_, open := fh.(*Overlay)
 	return open
 }
