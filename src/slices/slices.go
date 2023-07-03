@@ -228,21 +228,18 @@ func Delete[S ~[]E, E any](s S, i, j int) S {
 // zeroing those elements so that objects they reference can be garbage
 // collected.
 func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
+	i := IndexFunc(s, del)
+	if i == -1 {
+		return s
+	}
 	// Don't start copying elements until we find one to delete.
-	for i, v := range s {
-		if del(v) {
-			j := i
-			for i++; i < len(s); i++ {
-				v = s[i]
-				if !del(v) {
-					s[j] = v
-					j++
-				}
-			}
-			return s[:j]
+	for j := i + 1; j < len(s); j++ {
+		if v := s[j]; !del(v) {
+			s[i] = v
+			i++
 		}
 	}
-	return s
+	return s[:i]
 }
 
 // Replace replaces the elements s[i:j] by the given v, and returns the
