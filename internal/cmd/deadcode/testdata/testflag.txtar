@@ -1,0 +1,42 @@
+# Test of -test flag.
+
+deadcode -test -filter=example.com example.com/p
+
+ want "func Dead"
+!want "func Live1"
+!want "func Live2"
+
+ want "func ExampleDead"
+!want "func ExampleLive"
+
+-- go.mod --
+module example.com
+go 1.18
+
+-- p/p.go --
+package p
+
+func Live1() {}
+func Live2() {}
+func Dead() {}
+
+-- p/p_test.go --
+package p_test
+
+import "example.com/p"
+
+import "testing"
+
+func Test(t *testing.T) {
+	p.Live1()
+}
+
+func ExampleLive() {
+	p.Live2()
+	// Output:
+}
+
+// A test Example function without an "Output:" comment is never executed.
+func ExampleDead() {
+	p.Dead()
+}

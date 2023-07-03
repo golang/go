@@ -1,0 +1,32 @@
+# Test of -line output.
+
+ deadcode -line -filter= example.com
+
+ want "(example.com.T).Goodbye"
+!want "(example.com.T).Hello"
+ want "example.com.unreferenced"
+
+ want "fmt.Scanf"
+ want "fmt.Printf"
+!want "fmt.Println"
+
+-- go.mod --
+module example.com
+go 1.18
+
+-- main.go --
+package main
+
+import "fmt"
+
+type T int
+
+func main() {
+	var x T
+	x.Hello()
+}
+
+func (T) Hello() { fmt.Println("hello") }
+func (T) Goodbye() { fmt.Println("goodbye") }
+
+func unreferenced() {}

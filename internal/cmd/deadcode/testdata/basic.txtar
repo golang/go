@@ -1,0 +1,32 @@
+# Test of basic functionality.
+
+ deadcode -filter= example.com
+
+ want "func (T).Goodbye"
+!want "func (T).Hello"
+ want "func unreferenced"
+
+ want "func Scanf"
+ want "func Printf"
+!want "func Println"
+
+-- go.mod --
+module example.com
+go 1.18
+
+-- main.go --
+package main
+
+import "fmt"
+
+type T int
+
+func main() {
+	var x T
+	x.Hello()
+}
+
+func (T) Hello() { fmt.Println("hello") }
+func (T) Goodbye() { fmt.Println("goodbye") }
+
+func unreferenced() {}

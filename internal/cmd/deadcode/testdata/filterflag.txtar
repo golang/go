@@ -1,0 +1,39 @@
+# Test of -filter flag.
+
+ deadcode -filter=other.net example.com
+
+ want `package "other.net"`
+ want `func Dead`
+!want `func Live`
+
+!want `package "example.com"`
+!want `func unreferenced`
+
+-- go.work --
+use example.com
+use other.net
+
+-- example.com/go.mod --
+module example.com
+go 1.18
+
+-- example.com/main.go --
+package main
+
+import "other.net"
+
+func main() {
+	other.Live()
+}
+
+func unreferenced() {}
+
+-- other.net/go.mod --
+module other.net
+go 1.18
+
+-- other.net/other.go --
+package other
+
+func Live() {}
+func Dead() {}
