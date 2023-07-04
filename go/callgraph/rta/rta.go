@@ -52,6 +52,7 @@ package rta // import "golang.org/x/tools/go/callgraph/rta"
 import (
 	"fmt"
 	"go/types"
+	"hash/crc32"
 
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa"
@@ -112,16 +113,29 @@ type rta struct {
 	// The following two maps together define the subset of the
 	// m:n "implements" relation needed by the algorithm.
 
-	// concreteTypes maps each concrete type to the set of interfaces that it implements.
-	// Keys are types.Type, values are unordered []*types.Interface.
+	// concreteTypes maps each concrete type to information about it.
+	// Keys are types.Type, values are *concreteTypeInfo.
 	// Only concrete types used as MakeInterface operands are included.
 	concreteTypes typeutil.Map
 
-	// interfaceTypes maps each interface type to
-	// the set of concrete types that implement it.
-	// Keys are *types.Interface, values are unordered []types.Type.
+	// interfaceTypes maps each interface type to information about it.
+	// Keys are *types.Interface, values are *interfaceTypeInfo.
 	// Only interfaces used in "invoke"-mode CallInstructions are included.
 	interfaceTypes typeutil.Map
+}
+
+type concreteTypeInfo struct {
+	C          types.Type
+	mset       *types.MethodSet
+	fprint     uint64             // fingerprint of method set
+	implements []*types.Interface // unordered set of implemented interfaces
+}
+
+type interfaceTypeInfo struct {
+	I               *types.Interface
+	mset            *types.MethodSet
+	fprint          uint64
+	implementations []types.Type // unordered set of concrete implementations
 }
 
 // addReachable marks a function as potentially callable at run-time,
@@ -295,6 +309,11 @@ func (r *rta) visitFunc(f *ssa.Function) {
 // Analyze performs Rapid Type Analysis, starting at the specified root
 // functions.  It returns nil if no roots were specified.
 //
+// The root functions must be one or more entrypoints (main and init
+// functions) of a complete SSA program, with function bodies for all
+// dependencies, constructed with the [ssa.InstantiateGenerics] mode
+// flag.
+//
 // If buildCallGraph is true, Result.CallGraph will contain a call
 // graph; otherwise, only the other fields (reachable functions) are
 // populated.
@@ -349,38 +368,59 @@ func Analyze(roots []*ssa.Function, buildCallGraph bool) *Result {
 
 // interfaces(C) returns all currently known interfaces implemented by C.
 func (r *rta) interfaces(C types.Type) []*types.Interface {
-	// Ascertain set of interfaces C implements
-	// and update 'implements' relation.
-	var ifaces []*types.Interface
-	r.interfaceTypes.Iterate(func(I types.Type, concs interface{}) {
-		if I := I.(*types.Interface); types.Implements(C, I) {
-			concs, _ := concs.([]types.Type)
-			r.interfaceTypes.Set(I, append(concs, C))
-			ifaces = append(ifaces, I)
+	// Create an info for C the first time we see it.
+	var cinfo *concreteTypeInfo
+	if v := r.concreteTypes.At(C); v != nil {
+		cinfo = v.(*concreteTypeInfo)
+	} else {
+		mset := r.prog.MethodSets.MethodSet(C)
+		cinfo = &concreteTypeInfo{
+			C:      C,
+			mset:   mset,
+			fprint: fingerprint(mset),
 		}
-	})
-	r.concreteTypes.Set(C, ifaces)
-	return ifaces
+		r.concreteTypes.Set(C, cinfo)
+
+		// Ascertain set of interfaces C implements
+		// and update the 'implements' relation.
+		r.interfaceTypes.Iterate(func(I types.Type, v interface{}) {
+			iinfo := v.(*interfaceTypeInfo)
+			if I := I.(*types.Interface); implements(cinfo, iinfo) {
+				iinfo.implementations = append(iinfo.implementations, C)
+				cinfo.implements = append(cinfo.implements, I)
+			}
+		})
+	}
+
+	return cinfo.implements
 }
 
 // implementations(I) returns all currently known concrete types that implement I.
 func (r *rta) implementations(I *types.Interface) []types.Type {
-	var concs []types.Type
+	// Create an info for I the first time we see it.
+	var iinfo *interfaceTypeInfo
 	if v := r.interfaceTypes.At(I); v != nil {
-		concs = v.([]types.Type)
+		iinfo = v.(*interfaceTypeInfo)
 	} else {
-		// First time seeing this interface.
-		// Update the 'implements' relation.
-		r.concreteTypes.Iterate(func(C types.Type, ifaces interface{}) {
-			if types.Implements(C, I) {
-				ifaces, _ := ifaces.([]*types.Interface)
-				r.concreteTypes.Set(C, append(ifaces, I))
-				concs = append(concs, C)
+		mset := r.prog.MethodSets.MethodSet(I)
+		iinfo = &interfaceTypeInfo{
+			I:      I,
+			mset:   mset,
+			fprint: fingerprint(mset),
+		}
+		r.interfaceTypes.Set(I, iinfo)
+
+		// Ascertain set of concrete types that implement I
+		// and update the 'implements' relation.
+		r.concreteTypes.Iterate(func(C types.Type, v interface{}) {
+			cinfo := v.(*concreteTypeInfo)
+			if implements(cinfo, iinfo) {
+				cinfo.implements = append(cinfo.implements, I)
+				iinfo.implementations = append(iinfo.implementations, C)
 			}
 		})
-		r.interfaceTypes.Set(I, concs)
 	}
-	return concs
+	return iinfo.implementations
 }
 
 // addRuntimeType is called for each concrete type that can be the
@@ -500,4 +540,30 @@ func (r *rta) addRuntimeType(T types.Type, skip bool) {
 	default:
 		panic(T)
 	}
+}
+
+// fingerprint returns a bitmask with one bit set per method id,
+// enabling 'implements' to quickly reject most candidates.
+func fingerprint(mset *types.MethodSet) uint64 {
+	var space [64]byte
+	var mask uint64
+	for i := 0; i < mset.Len(); i++ {
+		method := mset.At(i).Obj()
+		sig := method.Type().(*types.Signature)
+		sum := crc32.ChecksumIEEE(fmt.Appendf(space[:], "%s/%d/%d",
+			method.Id(),
+			sig.Params().Len(),
+			sig.Results().Len()))
+		mask |= 1 << (sum % 64)
+	}
+	return mask
+}
+
+// implements reports whether types.Implements(cinfo.C, iinfo.I),
+// but more efficiently.
+func implements(cinfo *concreteTypeInfo, iinfo *interfaceTypeInfo) (got bool) {
+	// The concrete type must have at least the methods
+	// (bits) of the interface type. Use a bitwise subset
+	// test to reject most candidates quickly.
+	return iinfo.fprint & ^cinfo.fprint == 0 && types.Implements(cinfo.C, iinfo.I)
 }
