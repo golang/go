@@ -342,6 +342,8 @@ func toSourceDiagnostic(srcAnalyzer *source.Analyzer, gobDiag *gobDiagnostic) *s
 		URI:            gobDiag.Location.URI.SpanURI(),
 		Range:          gobDiag.Location.Range,
 		Severity:       severity,
+		Code:           gobDiag.Code,
+		CodeHref:       gobDiag.CodeHref,
 		Source:         source.AnalyzerErrorKind(gobDiag.Source),
 		Message:        gobDiag.Message,
 		Related:        related,

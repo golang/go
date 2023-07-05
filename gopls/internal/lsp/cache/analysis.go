@@ -18,6 +18,7 @@ import (
 	"go/token"
 	"go/types"
 	"log"
+	urlpkg "net/url"
 	"reflect"
 	"runtime/debug"
 	"sort"
@@ -1167,14 +1168,7 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 		TypeErrors: pkg.typeErrors,
 		ResultOf:   inputs,
 		Report: func(d analysis.Diagnostic) {
-			// Prefix the diagnostic category with the analyzer's name.
-			if d.Category == "" {
-				d.Category = analyzer.Name
-			} else {
-				d.Category = analyzer.Name + "." + d.Category
-			}
-
-			diagnostic, err := toGobDiagnostic(posToLocation, d)
+			diagnostic, err := toGobDiagnostic(posToLocation, analyzer, d)
 			if err != nil {
 				bug.Reportf("internal error converting diagnostic from analyzer %q: %v", analyzer.Name, err)
 				return
@@ -1332,7 +1326,7 @@ type gobTextEdit struct {
 
 // toGobDiagnostic converts an analysis.Diagnosic to a serializable gobDiagnostic,
 // which requires expanding token.Pos positions into protocol.Location form.
-func toGobDiagnostic(posToLocation func(start, end token.Pos) (protocol.Location, error), diag analysis.Diagnostic) (gobDiagnostic, error) {
+func toGobDiagnostic(posToLocation func(start, end token.Pos) (protocol.Location, error), a *analysis.Analyzer, diag analysis.Diagnostic) (gobDiagnostic, error) {
 	var fixes []gobSuggestedFix
 	for _, fix := range diag.SuggestedFixes {
 		var gobEdits []gobTextEdit
@@ -1369,16 +1363,40 @@ func toGobDiagnostic(posToLocation func(start, end token.Pos) (protocol.Location
 		return gobDiagnostic{}, err
 	}
 
+	// The Code column of VSCode's Problems table renders this
+	// information as "Source(Code)" where code is a link to CodeHref.
+	// (The code field must be nonempty for anything to appear.)
+	diagURL := effectiveURL(a, diag)
+	code := "default"
+	if diag.Category != "" {
+		code = diag.Category
+	}
+
 	return gobDiagnostic{
 		Location: loc,
-		// Severity for analysis diagnostics is dynamic, based on user
-		// configuration per analyzer.
-		// Code and CodeHref are unset for Analysis diagnostics,
-		// TODO(rfindley): derive Code fields from diag.URL.
-		Source:         diag.Category,
+		// Severity for analysis diagnostics is dynamic,
+		// based on user configuration per analyzer.
+		Code:           code,
+		CodeHref:       diagURL,
+		Source:         a.Name,
 		Message:        diag.Message,
 		SuggestedFixes: fixes,
 		Related:        related,
 		// Analysis diagnostics do not contain tags.
 	}, nil
+}
+
+// effectiveURL computes the effective URL of diag,
+// using the algorithm specified at Diagnostic.URL.
+func effectiveURL(a *analysis.Analyzer, diag analysis.Diagnostic) string {
+	u := diag.URL
+	if u == "" && diag.Category != "" {
+		u = "#" + diag.Category
+	}
+	if base, err := urlpkg.Parse(a.URL); err == nil {
+		if rel, err := urlpkg.Parse(u); err == nil {
+			u = base.ResolveReference(rel).String()
+		}
+	}
+	return u
 }

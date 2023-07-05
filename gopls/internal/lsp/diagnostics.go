@@ -142,6 +142,8 @@ func computeDiagnosticHash(diags ...*source.Diagnostic) string {
 		for _, r := range d.Related {
 			fmt.Fprintf(h, "related: %s %s %s\n", r.Location.URI.SpanURI(), r.Message, r.Location.Range)
 		}
+		fmt.Fprintf(h, "code: %s\n", d.Code)
+		fmt.Fprintf(h, "codeHref: %s\n", d.CodeHref)
 		fmt.Fprintf(h, "message: %s\n", d.Message)
 		fmt.Fprintf(h, "range: %s\n", d.Range)
 		fmt.Fprintf(h, "severity: %s\n", d.Severity)

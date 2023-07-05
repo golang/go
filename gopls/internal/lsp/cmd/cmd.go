@@ -544,11 +544,15 @@ func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishD
 	// TODO(golang/go#60122): replace the ad-hoc gopls/diagnoseFiles
 	// non-standard request with support for textDocument/diagnostic,
 	// so that we don't need to do this de-duplication.
-	type key [5]interface{}
+	type key [6]interface{}
 	seen := make(map[key]bool)
 	out := file.diagnostics[:0]
 	for _, d := range file.diagnostics {
-		k := key{d.Range, d.Severity, d.Code, d.Source, d.Message}
+		var codeHref string
+		if desc := d.CodeDescription; desc != nil {
+			codeHref = desc.Href
+		}
+		k := key{d.Range, d.Severity, d.Code, codeHref, d.Source, d.Message}
 		if !seen[k] {
 			seen[k] = true
 			out = append(out, d)
