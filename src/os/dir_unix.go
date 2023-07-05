@@ -89,7 +89,11 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 		if !ok {
 			break
 		}
-		if ino == 0 {
+		// When building to wasip1, the host runtime might be running on Windows
+		// or might expose a remote file system which does not have the concept
+		// of inodes. Therefore, we cannot make the assumption that it is safe
+		// to skip entries with zero inodes.
+		if ino == 0 && runtime.GOOS != "wasip1" {
 			continue
 		}
 		const namoff = uint64(unsafe.Offsetof(syscall.Dirent{}.Name))
