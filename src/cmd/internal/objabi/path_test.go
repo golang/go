@@ -4,7 +4,12 @@
 
 package objabi
 
-import "testing"
+import (
+	"internal/testenv"
+	"os/exec"
+	"strings"
+	"testing"
+)
 
 func TestPathToPrefix(t *testing.T) {
 	tests := []struct {
@@ -28,6 +33,31 @@ func TestPathToPrefix(t *testing.T) {
 	for _, tc := range tests {
 		if got := PathToPrefix(tc.Path); got != tc.Expected {
 			t.Errorf("expected PathToPrefix(%s) = %s, got %s", tc.Path, tc.Expected, got)
+		}
+	}
+}
+
+func TestRuntimePackageList(t *testing.T) {
+	// Test that all packages imported by the runtime are marked as runtime
+	// packages.
+	testenv.MustHaveGoBuild(t)
+	goCmd, err := testenv.GoTool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkgList, err := exec.Command(goCmd, "list", "-deps", "runtime").Output()
+	if err != nil {
+		if err, ok := err.(*exec.ExitError); ok {
+			t.Log(string(err.Stderr))
+		}
+		t.Fatal(err)
+	}
+	for _, pkg := range strings.Split(strings.TrimRight(string(pkgList), "\n"), "\n") {
+		if pkg == "unsafe" {
+			continue
+		}
+		if !LookupPkgSpecial(pkg).Runtime {
+			t.Errorf("package %s is imported by runtime, but not marked Runtime", pkg)
 		}
 	}
 }

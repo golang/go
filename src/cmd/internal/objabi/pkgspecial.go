@@ -20,8 +20,6 @@ type PkgSpecial struct {
 	//
 	// This should be set for runtime and all packages it imports, and may be
 	// set for additional packages.
-	//
-	// TODO(austin): Test that all of `go list -deps runtime` is marked Runtime.
 	Runtime bool
 
 	// AllowAsmABI indicates that assembly in this package is allowed to use ABI
@@ -44,6 +42,8 @@ var runtimePkgs = []string{
 	"internal/coverage/rtcov",
 	"internal/cpu",
 	"internal/goarch",
+	"internal/godebugs",
+	"internal/goexperiment",
 	"internal/goos",
 }
 
