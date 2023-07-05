@@ -1043,6 +1043,9 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 		Error: appendError,
 		Sizes: ld.sizes,
 	}
+	if lpkg.Module != nil && lpkg.Module.GoVersion != "" {
+		typesinternal.SetGoVersion(tc, "go"+lpkg.Module.GoVersion)
+	}
 	if (ld.Mode & typecheckCgo) != 0 {
 		if !typesinternal.SetUsesCgo(tc) {
 			appendError(Error{
