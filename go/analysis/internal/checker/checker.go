@@ -172,6 +172,7 @@ func load(patterns []string, allSyntax bool) ([]*packages.Package, error) {
 	if allSyntax {
 		mode = packages.LoadAllSyntax
 	}
+	mode |= packages.NeedModule
 	conf := packages.Config{
 		Mode:  mode,
 		Tests: IncludeTests,
