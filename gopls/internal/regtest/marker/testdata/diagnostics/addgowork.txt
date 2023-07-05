@@ -4,6 +4,11 @@ Quick-fixes change files on disk, so are tested by regtests.
 
 TODO(rfindley): improve the "cannot find package" import errors.
 
+-- skip --
+Skipping due to go.dev/issue/60584#issuecomment-1622238115.
+There appears to be a real race in the critical error logic causing this test
+to flake with high frequency.
+
 -- flags --
 -min_go=go1.18
 

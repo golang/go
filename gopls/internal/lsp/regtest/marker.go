@@ -100,6 +100,8 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //
 // There are several types of file within the test archive that are given special
 // treatment by the test runner:
+//   - "skip": the presence of this file causes the test to be skipped, with
+//     the file content used as the skip message.
 //   - "flags": this file is treated as a whitespace-separated list of flags
 //     that configure the MarkerTest instance. Supported flags:
 //     -min_go=go1.18 sets the minimum Go version for the test;
@@ -343,6 +345,9 @@ func RunMarkerTests(t *testing.T, dir string) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			if test.skipReason != "" {
+				t.Skip(test.skipReason)
+			}
 			for _, goos := range test.skipGOOS {
 				if runtime.GOOS == goos {
 					t.Skipf("skipping on %s due to -skip_goos", runtime.GOOS)
@@ -574,8 +579,9 @@ type markerTest struct {
 	notes      []*expect.Note         // extracted notes from data files
 	golden     map[string]*Golden     // extracted golden content, by identifier name
 
-	// flags holds flags extracted from the special "flags" archive file.
-	flags []string
+	skipReason string   // the skip reason extracted from the "skip" archive file
+	flags      []string // flags extracted from the special "flags" archive file.
+
 	// Parsed flags values.
 	minGoVersion string
 	cgo          bool
@@ -715,6 +721,11 @@ func loadMarkerTest(name string, content []byte) (*markerTest, error) {
 	}
 	for _, file := range archive.Files {
 		switch {
+		case file.Name == "skip":
+			reason := strings.ReplaceAll(string(file.Data), "\n", " ")
+			reason = strings.TrimSpace(reason)
+			test.skipReason = reason
+
 		case file.Name == "flags":
 			test.flags = strings.Fields(string(file.Data))
 			if err := test.flagSet().Parse(test.flags); err != nil {
@@ -813,7 +824,7 @@ func formatTest(test *markerTest) ([]byte, error) {
 		switch file.Name {
 		// Preserve configuration files exactly as they were. They must have parsed
 		// if we got this far.
-		case "flags", "settings.json", "env":
+		case "skip", "flags", "settings.json", "env":
 			arch.Files = append(arch.Files, file)
 		default:
 			if _, ok := test.files[file.Name]; ok { // ordinary file
