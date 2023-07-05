@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	"internal/goversion"
 	. "internal/types/errors"
 )
 
@@ -98,11 +99,12 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	version version                // accepted language version
-	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
-	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
-	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
-	valids  instanceLookup         // valid *Named (incl. instantiated) types per the validType check
+	version    version                // accepted language version
+	versionErr error                  // version error, delayed from NewChecker
+	nextID     uint64                 // unique Id for type parameters (first valid Id is 1)
+	objMap     map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+	impMap     map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+	valids     instanceLookup         // valid *Named (incl. instantiated) types per the validType check
 
 	// pkgPathMap maps package names to the set of distinct import paths we've
 	// seen for that name, anywhere in the import graph. It is used for
@@ -233,20 +235,21 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		info = new(Info)
 	}
 
-	version, err := parseGoVersion(conf.GoVersion)
-	if err != nil {
-		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.GoVersion, err))
+	version, versionErr := parseGoVersion(conf.GoVersion)
+	if pkg != nil {
+		pkg.goVersion = conf.GoVersion
 	}
 
 	return &Checker{
-		conf:    conf,
-		ctxt:    conf.Context,
-		fset:    fset,
-		pkg:     pkg,
-		Info:    info,
-		version: version,
-		objMap:  make(map[Object]*declInfo),
-		impMap:  make(map[importKey]*Package),
+		conf:       conf,
+		ctxt:       conf.Context,
+		fset:       fset,
+		pkg:        pkg,
+		Info:       info,
+		version:    version,
+		versionErr: versionErr,
+		objMap:     make(map[Object]*declInfo),
+		impMap:     make(map[importKey]*Package),
 	}
 }
 
@@ -342,6 +345,12 @@ func (check *Checker) Files(files []*ast.File) error { return check.checkFiles(f
 var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
 
 func (check *Checker) checkFiles(files []*ast.File) (err error) {
+	if check.versionErr != nil {
+		return check.versionErr
+	}
+	if check.version.after(version{1, goversion.Version}) {
+		return fmt.Errorf("package requires newer Go version %v", check.version)
+	}
 	if check.conf.FakeImportC && check.conf.go115UsesCgo {
 		return errBadCgo
 	}
