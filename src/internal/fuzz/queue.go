@@ -32,9 +32,9 @@ func (q *queue) grow() {
 	}
 	newElems := make([]any, newCap)
 	oldLen := q.len
-	for i := 0; i < oldLen; i++ {
-		newElems[i] = q.elems[(q.head+i)%oldCap]
-	}
+	copy(newElems, q.elems[q.head:])
+	wrote := oldLen - q.head
+	copy(newElems[wrote:], q.elems[:q.head])
 	q.elems = newElems
 	q.head = 0
 }
