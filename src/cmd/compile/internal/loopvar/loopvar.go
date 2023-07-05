@@ -605,7 +605,7 @@ func LogTransformations(transformed []VarAndLoop) {
 				// Intended to help with performance debugging, we record whole loop ranges
 				logopt.LogOptRange(pos, last, "loop-modified-"+loopKind, "loopvar", ir.FuncName(l.curfn))
 			}
-			if print && 3 <= base.Debug.LoopVar {
+			if print && 4 <= base.Debug.LoopVar {
 				// TODO decide if we want to keep this, or not.  It was helpful for validating logopt, otherwise, eh.
 				inner := base.Ctxt.InnermostPos(pos)
 				outer := base.Ctxt.OutermostPos(pos)

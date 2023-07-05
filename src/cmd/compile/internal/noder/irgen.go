@@ -64,6 +64,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 		Implicits:          make(map[syntax.Node]types2.Object),
 		Scopes:             make(map[syntax.Node]*types2.Scope),
 		Instances:          make(map[*syntax.Name]types2.Instance),
+		FileVersions:       make(map[*syntax.PosBase]types2.Version),
 		// expand as needed
 	}
 

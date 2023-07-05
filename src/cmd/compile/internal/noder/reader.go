@@ -1897,10 +1897,10 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 	cond := r.optExpr()
 	post := r.stmt()
 	body := r.blockStmt()
-	dv := r.Bool()
+	perLoopVars := r.Bool()
 	r.closeAnotherScope()
 
-	stmt := ir.NewForStmt(pos, init, cond, post, body, dv)
+	stmt := ir.NewForStmt(pos, init, cond, post, body, perLoopVars)
 	stmt.Label = label
 	return stmt
 }

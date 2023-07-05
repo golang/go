@@ -1456,8 +1456,27 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 	}
 
 	w.blockStmt(stmt.Body)
-	w.Bool(base.Debug.LoopVar > 0)
+	w.Bool(w.distinctVars(stmt))
 	w.closeAnotherScope()
+}
+
+func (w *writer) distinctVars(stmt *syntax.ForStmt) bool {
+	lv := base.Debug.LoopVar
+	v := w.p.info.FileVersions[stmt.Pos().Base()]
+	is122 := v.Major == 0 && v.Minor == 0 || v.Major == 1 && v.Minor >= 22
+
+	// Turning off loopvar for 1.22 is only possible with loopvarhash=qn
+	//
+	// Debug.LoopVar values to be preserved for 1.21 compatibility are 1 and 2,
+	// which are also set (=1) by GOEXPERIMENT=loopvar.  The knobs for turning on
+	// the new, unshared, loopvar behavior apply to versions less than 1.21 because
+	// (1) 1.21 also did that and (2) this is believed to be the likely use case;
+	// anyone checking to see if it affects their code will just run the GOEXPERIMENT
+	// but will not also update all their go.mod files to 1.21.
+	//
+	// -gcflags=-d=loopvar=3 enables logging for 1.22 but does not turn loopvar on for <= 1.21.
+
+	return is122 || lv > 0 && lv != 3
 }
 
 // rangeTypes returns the types of values produced by ranging over
