@@ -141,7 +141,7 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 			// TODO(matloob): Better action descriptions
 			desc := "Executing action "
 			if a.Package != nil {
-				desc += "(" + a.Mode + " " + a.Package.Desc() + ")"
+				desc += fmt.Sprintf("(%s %s)", a.Mode, a.Package.Desc())
 			}
 			ctx, span := trace.StartSpan(ctx, desc)
 			a.traceSpan = span
@@ -200,11 +200,12 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 	if cfg.BuildN {
 		par = 1
 	}
+	wg.Add(par)
 	for i := 0; i < par; i++ {
-		wg.Add(1)
 		go func() {
-			ctx := trace.StartGoroutine(ctx)
 			defer wg.Done()
+
+			ctx := trace.StartGoroutine(ctx)
 			for {
 				select {
 				case _, ok := <-b.readySema:
