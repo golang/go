@@ -4,6 +4,6 @@
 
 package main
 
-type X[T any, PT *X[T,PT]] interface{}
+type X[T any, PT X[T,PT]] interface{}
 
 //TODO: current implementation doesn't allow this due to lack of applications for this syntax.
