@@ -17,14 +17,16 @@ import (
 // https://www.w3.org/TR/html5/syntax.html#the-end
 // where the context element is null.
 type context struct {
-	state   state
-	delim   delim
-	urlPart urlPart
-	jsCtx   jsCtx
-	attr    attr
-	element element
-	n       parse.Node // for range break/continue
-	err     *Error
+	state           state
+	delim           delim
+	urlPart         urlPart
+	jsCtx           jsCtx
+	jsTmplExprDepth int
+	jsBraceDepth    int
+	attr            attr
+	element         element
+	n               parse.Node // for range break/continue
+	err             *Error
 }
 
 func (c context) String() string {
@@ -120,8 +122,8 @@ const (
 	stateJSDqStr
 	// stateJSSqStr occurs inside a JavaScript single quoted string.
 	stateJSSqStr
-	// stateJSBqStr occurs inside a JavaScript back quoted string.
-	stateJSBqStr
+	// stateJSTmplLit occurs inside a JavaScript back quoted string.
+	stateJSTmplLit
 	// stateJSRegexp occurs inside a JavaScript regexp literal.
 	stateJSRegexp
 	// stateJSBlockCmt occurs inside a JavaScript /* block comment */.
@@ -182,7 +184,7 @@ func isInScriptLiteral(s state) bool {
 	// stateJSHTMLOpenCmt, stateJSHTMLCloseCmt) because their content is already
 	// omitted from the output.
 	switch s {
-	case stateJSDqStr, stateJSSqStr, stateJSBqStr, stateJSRegexp:
+	case stateJSDqStr, stateJSSqStr, stateJSTmplLit, stateJSRegexp:
 		return true
 	}
 	return false
