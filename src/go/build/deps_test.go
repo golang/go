@@ -77,8 +77,15 @@ var depsRules = `
 	< internal/oserror, math/bits
 	< RUNTIME;
 
-	RUNTIME
-	< sort
+	# slices depends on unsafe for overlapping check, cmp for comparison
+	# semantics, and math/bits for # calculating bitlength of numbers.
+	unsafe, cmp, math/bits
+	< slices;
+
+	RUNTIME, slices
+	< sort;
+
+	sort
 	< container/heap;
 
 	RUNTIME
@@ -222,11 +229,6 @@ var depsRules = `
 	io
 	< hash
 	< hash/adler32, hash/crc32, hash/crc64, hash/fnv;
-
-	# slices depends on unsafe for overlapping check, cmp for comparison
-	# semantics, and math/bits for # calculating bitlength of numbers.
-	unsafe, cmp, math/bits
-	< slices;
 
 	# math/big
 	FMT, encoding/binary, math/rand

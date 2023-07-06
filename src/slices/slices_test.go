@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package slices
+package slices_test
 
 import (
 	"cmp"
 	"internal/race"
 	"internal/testenv"
 	"math"
+	. "slices"
 	"strings"
 	"testing"
 )
@@ -997,25 +998,6 @@ func BenchmarkReplace(b *testing.B) {
 		})
 	}
 
-}
-
-func TestRotate(t *testing.T) {
-	const N = 10
-	s := make([]int, 0, N)
-	for n := 0; n < N; n++ {
-		for r := 0; r < n; r++ {
-			s = s[:0]
-			for i := 0; i < n; i++ {
-				s = append(s, i)
-			}
-			rotateLeft(s, r)
-			for i := 0; i < n; i++ {
-				if s[i] != (i+r)%n {
-					t.Errorf("expected n=%d r=%d i:%d want:%d got:%d", n, r, i, (i+r)%n, s[i])
-				}
-			}
-		}
-	}
 }
 
 func TestInsertGrowthRate(t *testing.T) {
