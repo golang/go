@@ -395,14 +395,14 @@ func TestContext(t *testing.T) {
 		f         func(context.Context, string, ...any)
 		wantLevel Level
 	}{
-		{l.DebugCtx, LevelDebug},
-		{l.InfoCtx, LevelInfo},
-		{l.WarnCtx, LevelWarn},
-		{l.ErrorCtx, LevelError},
-		{DebugCtx, LevelDebug},
-		{InfoCtx, LevelInfo},
-		{WarnCtx, LevelWarn},
-		{ErrorCtx, LevelError},
+		{l.DebugContext, LevelDebug},
+		{l.InfoContext, LevelInfo},
+		{l.WarnContext, LevelWarn},
+		{l.ErrorContext, LevelError},
+		{DebugContext, LevelDebug},
+		{InfoContext, LevelInfo},
+		{WarnContext, LevelWarn},
+		{ErrorContext, LevelError},
 	} {
 		h.clear()
 		ctx := context.WithValue(context.Background(), "L", test.wantLevel)

@@ -174,9 +174,9 @@ argument, as do their corresponding top-level functions.
 
 Although the convenience methods on Logger (Info and so on) and the
 corresponding top-level functions do not take a context, the alternatives ending
-in "Ctx" do. For example,
+in "Context" do. For example,
 
-	slog.InfoCtx(ctx, "message")
+	slog.InfoContext(ctx, "message")
 
 It is recommended to pass a context to an output method if one is available.
 

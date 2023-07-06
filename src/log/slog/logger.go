@@ -168,8 +168,8 @@ func (l *Logger) Debug(msg string, args ...any) {
 	l.log(nil, LevelDebug, msg, args...)
 }
 
-// DebugCtx logs at LevelDebug with the given context.
-func (l *Logger) DebugCtx(ctx context.Context, msg string, args ...any) {
+// DebugContext logs at LevelDebug with the given context.
+func (l *Logger) DebugContext(ctx context.Context, msg string, args ...any) {
 	l.log(ctx, LevelDebug, msg, args...)
 }
 
@@ -178,8 +178,8 @@ func (l *Logger) Info(msg string, args ...any) {
 	l.log(nil, LevelInfo, msg, args...)
 }
 
-// InfoCtx logs at LevelInfo with the given context.
-func (l *Logger) InfoCtx(ctx context.Context, msg string, args ...any) {
+// InfoContext logs at LevelInfo with the given context.
+func (l *Logger) InfoContext(ctx context.Context, msg string, args ...any) {
 	l.log(ctx, LevelInfo, msg, args...)
 }
 
@@ -188,8 +188,8 @@ func (l *Logger) Warn(msg string, args ...any) {
 	l.log(nil, LevelWarn, msg, args...)
 }
 
-// WarnCtx logs at LevelWarn with the given context.
-func (l *Logger) WarnCtx(ctx context.Context, msg string, args ...any) {
+// WarnContext logs at LevelWarn with the given context.
+func (l *Logger) WarnContext(ctx context.Context, msg string, args ...any) {
 	l.log(ctx, LevelWarn, msg, args...)
 }
 
@@ -198,8 +198,8 @@ func (l *Logger) Error(msg string, args ...any) {
 	l.log(nil, LevelError, msg, args...)
 }
 
-// ErrorCtx logs at LevelError with the given context.
-func (l *Logger) ErrorCtx(ctx context.Context, msg string, args ...any) {
+// ErrorContext logs at LevelError with the given context.
+func (l *Logger) ErrorContext(ctx context.Context, msg string, args ...any) {
 	l.log(ctx, LevelError, msg, args...)
 }
 
@@ -250,8 +250,8 @@ func Debug(msg string, args ...any) {
 	Default().log(nil, LevelDebug, msg, args...)
 }
 
-// DebugCtx calls Logger.DebugCtx on the default logger.
-func DebugCtx(ctx context.Context, msg string, args ...any) {
+// DebugContext calls Logger.DebugContext on the default logger.
+func DebugContext(ctx context.Context, msg string, args ...any) {
 	Default().log(ctx, LevelDebug, msg, args...)
 }
 
@@ -260,8 +260,8 @@ func Info(msg string, args ...any) {
 	Default().log(nil, LevelInfo, msg, args...)
 }
 
-// InfoCtx calls Logger.InfoCtx on the default logger.
-func InfoCtx(ctx context.Context, msg string, args ...any) {
+// InfoContext calls Logger.InfoContext on the default logger.
+func InfoContext(ctx context.Context, msg string, args ...any) {
 	Default().log(ctx, LevelInfo, msg, args...)
 }
 
@@ -270,8 +270,8 @@ func Warn(msg string, args ...any) {
 	Default().log(nil, LevelWarn, msg, args...)
 }
 
-// WarnCtx calls Logger.WarnCtx on the default logger.
-func WarnCtx(ctx context.Context, msg string, args ...any) {
+// WarnContext calls Logger.WarnContext on the default logger.
+func WarnContext(ctx context.Context, msg string, args ...any) {
 	Default().log(ctx, LevelWarn, msg, args...)
 }
 
@@ -280,8 +280,8 @@ func Error(msg string, args ...any) {
 	Default().log(nil, LevelError, msg, args...)
 }
 
-// ErrorCtx calls Logger.ErrorCtx on the default logger.
-func ErrorCtx(ctx context.Context, msg string, args ...any) {
+// ErrorContext calls Logger.ErrorContext on the default logger.
+func ErrorContext(ctx context.Context, msg string, args ...any) {
 	Default().log(ctx, LevelError, msg, args...)
 }
 
