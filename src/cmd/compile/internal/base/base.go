@@ -245,6 +245,16 @@ var NoInstrumentPkgs = []string{
 	"runtime/asan",
 	"internal/cpu",
 	"internal/abi",
+	// We omit bytealg even though it's imported by runtime because it also
+	// backs a lot of package bytes. Currently we don't have a way to omit race
+	// instrumentation when used from the runtime while keeping race
+	// instrumentation when used from user code. Somehow this doesn't seem to
+	// cause problems, though we may be skating on thin ice. See #61204.
+	//"internal/bytealg",
+	"internal/coverage/rtcov",
+	"internal/godebugs",
+	"internal/goexperiment",
+	"internal/goos",
 }
 
 // Don't insert racefuncenter/racefuncexit into the following packages.
