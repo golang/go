@@ -10,6 +10,7 @@ package a
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 )
@@ -146,6 +147,7 @@ func All() {
 	_ = slog.Group("key", "a", 1, "b", 2)
 	_ = slog.Group("key", "a", 1, 2, 3) // want `slog.Group arg "2" should be a string or a slog.Attr`
 
+	slog.Error("foo", "err", errors.New("oops")) // regression test for #61228.
 }
 
 // Used in tests by package b.
