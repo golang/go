@@ -12,7 +12,7 @@
 // http://doi.acm.org/10.1145/236337.236371
 //
 // The algorithm uses dynamic programming to tabulate the cross-product
-// of the set of known "address taken" functions with the set of known
+// of the set of known "address-taken" functions with the set of known
 // dynamic calls of the same type.  As each new address-taken function
 // is discovered, call graph edges are added from each known callsite,
 // and as each new call site is discovered, call graph edges are added
@@ -20,34 +20,22 @@
 //
 // A similar approach is used for dynamic calls via interfaces: it
 // tabulates the cross-product of the set of known "runtime types",
-// i.e. types that may appear in an interface value, or be derived from
+// i.e. types that may appear in an interface value, or may be derived from
 // one via reflection, with the set of known "invoke"-mode dynamic
-// calls.  As each new "runtime type" is discovered, call edges are
+// calls.  As each new runtime type is discovered, call edges are
 // added from the known call sites, and as each new call site is
 // discovered, call graph edges are added to each compatible
 // method.
 //
-// In addition, we must consider all exported methods of any runtime type
-// as reachable, since they may be called via reflection.
+// In addition, we must consider as reachable all address-taken
+// functions and all exported methods of any runtime type, since they
+// may be called via reflection.
 //
 // Each time a newly added call edge causes a new function to become
 // reachable, the code of that function is analyzed for more call sites,
 // address-taken functions, and runtime types.  The process continues
-// until a fixed point is achieved.
-//
-// The resulting call graph is less precise than one produced by pointer
-// analysis, but the algorithm is much faster.  For example, running the
-// cmd/callgraph tool on its own source takes ~2.1s for RTA and ~5.4s
-// for points-to analysis.
+// until a fixed point is reached.
 package rta // import "golang.org/x/tools/go/callgraph/rta"
-
-// TODO(adonovan): test it by connecting it to the interpreter and
-// replacing all "unreachable" functions by a special intrinsic, and
-// ensure that that intrinsic is never called.
-
-// TODO(zpavlinovic): decide if the clients must use ssa.InstantiateGenerics
-// mode when building programs with generics. It might be possible to
-// extend rta to accurately support generics with just ssa.BuilderMode(0).
 
 import (
 	"fmt"
