@@ -398,7 +398,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	RLWMICC $7, R3, $65535, R6      // 50663c3f
 	RLWMICC $7, R3, $16, $31, R6    // 50663c3f
 	RLWNM $3, R4, $7, R6            // 54861f7e
+	RLWNM $0, R4, $7, R6            // 5486077e
+	RLWNM R0, R4, $7, R6            // 5c86077e
 	RLWNM $3, R4, $29, $31, R6      // 54861f7e
+	RLWNM $0, R4, $29, $31, R6      // 5486077e
+	RLWNM R0, R4, $29, $31, R6      // 5c86077e
 	RLWNM R3, R4, $7, R6            // 5c861f7e
 	RLWNM R3, R4, $29, $31, R6      // 5c861f7e
 	RLWNMCC $3, R4, $7, R6          // 54861f7f
