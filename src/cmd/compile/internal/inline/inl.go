@@ -505,6 +505,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 	if n == nil {
 		return false
 	}
+opSwitch:
 	switch n.Op() {
 	// Call is okay if inlinable and we have the budget for the body.
 	case ir.OCALLFUNC:
@@ -516,22 +517,19 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		var cheap bool
 		if n.X.Op() == ir.ONAME {
 			name := n.X.(*ir.Name)
-			if name.Class == ir.PFUNC && types.IsRuntimePkg(name.Sym().Pkg) {
-				fn := name.Sym().Name
-				if fn == "getcallerpc" || fn == "getcallersp" {
+			if name.Class == ir.PFUNC {
+				switch fn := types.RuntimeSymName(name.Sym()); fn {
+				case "getcallerpc", "getcallersp":
 					v.reason = "call to " + fn
 					return true
-				}
-				if fn == "throw" {
+				case "throw":
 					v.budget -= inlineExtraThrowCost
-					break
+					break opSwitch
 				}
-			}
-			// Special case for reflect.noescpae. It does just type
-			// conversions to appease the escape analysis, and doesn't
-			// generate code.
-			if name.Class == ir.PFUNC && types.IsReflectPkg(name.Sym().Pkg) {
-				if name.Sym().Name == "noescape" {
+				// Special case for reflect.noescape. It does just type
+				// conversions to appease the escape analysis, and doesn't
+				// generate code.
+				if types.ReflectSymName(name.Sym()) == "noescape" {
 					cheap = true
 				}
 			}
@@ -553,7 +551,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 			if meth := ir.MethodExprName(n.X); meth != nil {
 				if fn := meth.Func; fn != nil {
 					s := fn.Sym()
-					if types.IsRuntimePkg(s.Pkg) && s.Name == "heapBits.nextArena" {
+					if types.RuntimeSymName(s) == "heapBits.nextArena" {
 						// Special case: explicitly allow mid-stack inlining of
 						// runtime.heapBits.next even though it calls slow-path
 						// runtime.heapBits.nextArena.
@@ -906,8 +904,11 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
 			// even when package reflect was compiled without it (#35073).
 			if meth := ir.MethodExprName(n.X); meth != nil {
 				s := meth.Sym()
-				if base.Debug.Checkptr != 0 && types.IsReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
-					return n
+				if base.Debug.Checkptr != 0 {
+					switch types.ReflectSymName(s) {
+					case "Value.UnsafeAddr", "Value.Pointer":
+						return n
+					}
 				}
 			}
 		}

@@ -278,7 +278,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 		n.SetType(l.Type().Result(0).Type)
 
 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME {
-			if sym := n.X.(*ir.Name).Sym(); types.IsRuntimePkg(sym.Pkg) && sym.Name == "getg" {
+			if sym := n.X.(*ir.Name).Sym(); types.RuntimeSymName(sym) == "getg" {
 				// Emit code for runtime.getg() directly instead of calling function.
 				// Most such rewrites (for example the similar one for math.Sqrt) should be done in walk,
 				// so that the ordering pass can make sure to preserve the semantics of the original code

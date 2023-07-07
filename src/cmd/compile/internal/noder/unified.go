@@ -109,7 +109,7 @@ func unified(m posMap, noders []*noder) {
 	// For functions originally came from package runtime,
 	// mark as norace to prevent instrumenting, see issue #60439.
 	for _, fn := range target.Funcs {
-		if !base.Flag.CompilingRuntime && types.IsRuntimePkg(fn.Sym().Pkg) {
+		if !base.Flag.CompilingRuntime && types.RuntimeSymName(fn.Sym()) != "" {
 			fn.Pragma |= ir.Norace
 		}
 	}

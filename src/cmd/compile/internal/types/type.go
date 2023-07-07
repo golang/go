@@ -1841,17 +1841,22 @@ func IsMethodApplicable(t *Type, m *Field) bool {
 	return t.IsPtr() || !m.Type.Recv().Type.IsPtr() || IsInterfaceMethod(m.Type) || m.Embedded == 2
 }
 
-// IsRuntimePkg reports whether p is package runtime.
-func IsRuntimePkg(p *Pkg) bool {
-	if base.Flag.CompilingRuntime && p == LocalPkg {
-		return true
+// RuntimeSymName returns the name of s if it's in package "runtime"; otherwise
+// it returns "".
+func RuntimeSymName(s *Sym) string {
+	if s.Pkg.Path == "runtime" {
+		return s.Name
 	}
-	return p.Path == "runtime"
+	return ""
 }
 
-// IsReflectPkg reports whether p is package reflect.
-func IsReflectPkg(p *Pkg) bool {
-	return p.Path == "reflect"
+// ReflectSymName returns the name of s if it's in package "reflect"; otherwise
+// it returns "".
+func ReflectSymName(s *Sym) string {
+	if s.Pkg.Path == "reflect" {
+		return s.Name
+	}
+	return ""
 }
 
 // IsNoInstrumentPkg reports whether p is a package that

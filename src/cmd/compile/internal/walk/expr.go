@@ -993,7 +993,7 @@ func usemethod(n *ir.CallExpr) {
 
 	// Check that first result type is "reflect.Method". Note that we have to check sym name and sym package
 	// separately, as we can't check for exact string "reflect.Method" reliably (e.g., see #19028 and #38515).
-	if s := t.Result(0).Type.Sym(); s != nil && s.Name == "Method" && types.IsReflectPkg(s.Pkg) {
+	if s := t.Result(0).Type.Sym(); s != nil && types.ReflectSymName(s) == "Method" {
 		ir.CurFunc.SetReflectMethod(true)
 		// The LSym is initialized at this point. We need to set the attribute on the LSym.
 		ir.CurFunc.LSym.Set(obj.AttrReflectMethod, true)

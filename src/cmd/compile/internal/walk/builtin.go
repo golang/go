@@ -631,7 +631,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 			on = typecheck.LookupRuntime("printslice")
 			on = typecheck.SubstArgTypes(on, n.Type()) // any-1
 		case types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64, types.TUINTPTR:
-			if types.IsRuntimePkg(n.Type().Sym().Pkg) && n.Type().Sym().Name == "hex" {
+			if types.RuntimeSymName(n.Type().Sym()) == "hex" {
 				on = typecheck.LookupRuntime("printhex")
 			} else {
 				on = typecheck.LookupRuntime("printuint")
