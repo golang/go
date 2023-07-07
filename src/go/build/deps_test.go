@@ -286,7 +286,7 @@ var depsRules = `
 	math/big, go/token
 	< go/constant;
 
-	container/heap, go/constant, go/parser, internal/types/errors
+	container/heap, go/constant, go/parser, internal/goversion, internal/types/errors
 	< go/types;
 
 	# The vast majority of standard library packages should not be resorting to regexp.

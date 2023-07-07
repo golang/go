@@ -3322,7 +3322,7 @@ func rewriteValueRISCV64_OpRISCV64FMADDD(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (FMADDD neg:(FNEGD x) y z)
 	// cond: neg.Uses == 1
-	// result: (FNMADDD x y z)
+	// result: (FNMSUBD x y z)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			neg := v_0
@@ -3335,7 +3335,7 @@ func rewriteValueRISCV64_OpRISCV64FMADDD(v *Value) bool {
 			if !(neg.Uses == 1) {
 				continue
 			}
-			v.reset(OpRISCV64FNMADDD)
+			v.reset(OpRISCV64FNMSUBD)
 			v.AddArg3(x, y, z)
 			return true
 		}
@@ -3367,7 +3367,7 @@ func rewriteValueRISCV64_OpRISCV64FMSUBD(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (FMSUBD neg:(FNEGD x) y z)
 	// cond: neg.Uses == 1
-	// result: (FNMSUBD x y z)
+	// result: (FNMADDD x y z)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			neg := v_0
@@ -3380,7 +3380,7 @@ func rewriteValueRISCV64_OpRISCV64FMSUBD(v *Value) bool {
 			if !(neg.Uses == 1) {
 				continue
 			}
-			v.reset(OpRISCV64FNMSUBD)
+			v.reset(OpRISCV64FNMADDD)
 			v.AddArg3(x, y, z)
 			return true
 		}
@@ -3412,7 +3412,7 @@ func rewriteValueRISCV64_OpRISCV64FNMADDD(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (FNMADDD neg:(FNEGD x) y z)
 	// cond: neg.Uses == 1
-	// result: (FMADDD x y z)
+	// result: (FMSUBD x y z)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			neg := v_0
@@ -3425,7 +3425,7 @@ func rewriteValueRISCV64_OpRISCV64FNMADDD(v *Value) bool {
 			if !(neg.Uses == 1) {
 				continue
 			}
-			v.reset(OpRISCV64FMADDD)
+			v.reset(OpRISCV64FMSUBD)
 			v.AddArg3(x, y, z)
 			return true
 		}
@@ -3457,7 +3457,7 @@ func rewriteValueRISCV64_OpRISCV64FNMSUBD(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (FNMSUBD neg:(FNEGD x) y z)
 	// cond: neg.Uses == 1
-	// result: (FMSUBD x y z)
+	// result: (FMADDD x y z)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			neg := v_0
@@ -3470,7 +3470,7 @@ func rewriteValueRISCV64_OpRISCV64FNMSUBD(v *Value) bool {
 			if !(neg.Uses == 1) {
 				continue
 			}
-			v.reset(OpRISCV64FMSUBD)
+			v.reset(OpRISCV64FMADDD)
 			v.AddArg3(x, y, z)
 			return true
 		}

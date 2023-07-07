@@ -2059,6 +2059,9 @@ var fmaC = []struct{ x, y, z, want float64 }{
 
 	// Special
 	{0, 0, 0, 0},
+	{Copysign(0, -1), 0, 0, 0},
+	{0, 0, Copysign(0, -1), 0},
+	{Copysign(0, -1), 0, Copysign(0, -1), Copysign(0, -1)},
 	{-1.1754226043408471e-38, NaN(), Inf(0), NaN()},
 	{0, 0, 2.22507385643494e-308, 2.22507385643494e-308},
 	{-8.65697792e+09, NaN(), -7.516192799999999e+09, NaN()},
@@ -2077,6 +2080,10 @@ var fmaC = []struct{ x, y, z, want float64 }{
 	{4.612811918325842e+18, 1.4901161193847641e-08, 2.6077032311277997e-08, 6.873625395187494e+10},
 	{-9.094947033611148e-13, 4.450691014249257e-308, 2.086006742350485e-308, 2.086006742346437e-308},
 	{-7.751454006381804e-05, 5.588653777189071e-308, -2.2207280111272877e-308, -2.2211612130544025e-308},
+
+	// Issue #61130
+	{-1, 1, 1, 0},
+	{1, 1, -1, 0},
 }
 
 var sqrt32 = []float32{
@@ -3095,6 +3102,45 @@ func TestFMA(t *testing.T) {
 		got = PortableFMA(c.x, c.y, c.z)
 		if !alike(got, c.want) {
 			t.Errorf("PortableFMA(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
+		}
+	}
+}
+
+//go:noinline
+func fmsub(x, y, z float64) float64 {
+	return FMA(x, y, -z)
+}
+
+//go:noinline
+func fnmsub(x, y, z float64) float64 {
+	return FMA(-x, y, z)
+}
+
+//go:noinline
+func fnmadd(x, y, z float64) float64 {
+	return FMA(-x, y, -z)
+}
+
+func TestFMANegativeArgs(t *testing.T) {
+	// Some architectures have instructions for fused multiply-subtract and
+	// also negated variants of fused multiply-add and subtract. This test
+	// aims to check that the optimizations that generate those instructions
+	// are applied correctly, if they exist.
+	for _, c := range fmaC {
+		want := PortableFMA(c.x, c.y, -c.z)
+		got := fmsub(c.x, c.y, c.z)
+		if !alike(got, want) {
+			t.Errorf("FMA(%g, %g, -(%g)) == %g, want %g", c.x, c.y, c.z, got, want)
+		}
+		want = PortableFMA(-c.x, c.y, c.z)
+		got = fnmsub(c.x, c.y, c.z)
+		if !alike(got, want) {
+			t.Errorf("FMA(-(%g), %g, %g) == %g, want %g", c.x, c.y, c.z, got, want)
+		}
+		want = PortableFMA(-c.x, c.y, -c.z)
+		got = fnmadd(c.x, c.y, c.z)
+		if !alike(got, want) {
+			t.Errorf("FMA(-(%g), %g, -(%g)) == %g, want %g", c.x, c.y, c.z, got, want)
 		}
 	}
 }

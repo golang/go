@@ -4493,6 +4493,31 @@ func TestContextCancelBetweenNextAndErr(t *testing.T) {
 	}
 }
 
+func TestNilErrorAfterClose(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	// This WithCancel is important; Rows contains an optimization to avoid
+	// spawning a goroutine when the query/transaction context cannot be
+	// canceled, but this test tests a bug which is caused by said goroutine.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	r, err := db.QueryContext(ctx, "SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(10 * time.Millisecond) // increase odds of seeing failure
+	if err := r.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // badConn implements a bad driver.Conn, for TestBadDriver.
 // The Exec method panics.
 type badConn struct{}

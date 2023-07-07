@@ -106,7 +106,7 @@ func TestConnections(t *testing.T) {
 	// log.Logger's output goes through the handler.
 	SetDefault(New(NewTextHandler(&slogbuf, &HandlerOptions{AddSource: true})))
 	log.Print("msg2")
-	checkLogOutput(t, slogbuf.String(), "time="+timeRE+` level=INFO source=.*logger_test.go:\d{3} msg=msg2`)
+	checkLogOutput(t, slogbuf.String(), "time="+timeRE+` level=INFO source=.*logger_test.go:\d{3}"? msg=msg2`)
 
 	// The default log.Logger always outputs at Info level.
 	slogbuf.Reset()

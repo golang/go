@@ -15,8 +15,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"golang.org/x/net/dns/dnsmessage"
 )
 
 var listenersMu sync.Mutex
@@ -405,8 +403,4 @@ func (fd *fakeNetFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int,
 
 func (fd *fakeNetFD) dup() (f *os.File, err error) {
 	return nil, syscall.ENOSYS
-}
-
-func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type, conf *dnsConfig) (dnsmessage.Parser, string, error) {
-	panic("unreachable")
 }

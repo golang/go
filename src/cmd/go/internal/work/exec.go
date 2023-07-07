@@ -1115,6 +1115,7 @@ type vetConfig struct {
 	PackageVetx map[string]string // map package path to vetx data from earlier vet run
 	VetxOnly    bool              // only compute vetx data; don't report detected problems
 	VetxOutput  string            // write vetx data to this output file
+	GoVersion   string            // Go version for package
 
 	SucceedOnTypecheckFailure bool // awful hack; see #18395 and below
 }
@@ -1148,6 +1149,13 @@ func buildVetConfig(a *Action, srcfiles []string) {
 		ImportMap:    make(map[string]string),
 		PackageFile:  make(map[string]string),
 		Standard:     make(map[string]bool),
+	}
+	if a.Package.Module != nil {
+		v := a.Package.Module.GoVersion
+		if v == "" {
+			v = gover.DefaultGoModVersion
+		}
+		vcfg.GoVersion = "go" + v
 	}
 	a.vetCfg = vcfg
 	for i, raw := range a.Package.Internal.RawImports {

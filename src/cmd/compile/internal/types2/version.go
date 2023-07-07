@@ -6,7 +6,6 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -44,23 +43,24 @@ var (
 	go1_21 = version{1, 21}
 )
 
-var errVersionSyntax = errors.New("invalid Go version syntax")
-
 // parseGoVersion parses a Go version string (such as "go1.12")
 // and returns the version, or an error. If s is the empty
 // string, the version is 0.0.
 func parseGoVersion(s string) (v version, err error) {
+	bad := func() (version, error) {
+		return version{}, fmt.Errorf("invalid Go version syntax %q", s)
+	}
 	if s == "" {
 		return
 	}
 	if !strings.HasPrefix(s, "go") {
-		return version{}, errVersionSyntax
+		return bad()
 	}
 	s = s[len("go"):]
 	i := 0
 	for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
 		if i >= 10 || i == 0 && s[i] == '0' {
-			return version{}, errVersionSyntax
+			return bad()
 		}
 		v.major = 10*v.major + int(s[i]) - '0'
 	}
@@ -68,7 +68,7 @@ func parseGoVersion(s string) (v version, err error) {
 		return
 	}
 	if i == 0 || s[i] != '.' {
-		return version{}, errVersionSyntax
+		return bad()
 	}
 	s = s[i+1:]
 	if s == "0" {
@@ -81,14 +81,15 @@ func parseGoVersion(s string) (v version, err error) {
 	i = 0
 	for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
 		if i >= 10 || i == 0 && s[i] == '0' {
-			return version{}, errVersionSyntax
+			return bad()
 		}
 		v.minor = 10*v.minor + int(s[i]) - '0'
 	}
-	if i > 0 && i == len(s) {
-		return
-	}
-	return version{}, errVersionSyntax
+	// Accept any suffix after the minor number.
+	// We are only looking for the language version (major.minor)
+	// but want to accept any valid Go version, like go1.21.0
+	// and go1.21rc2.
+	return
 }
 
 // langCompat reports an error if the representation of a numeric

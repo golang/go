@@ -215,6 +215,28 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			wantJSON: `{"msg":"message","h":{"a":1}}`,
 		},
 		{
+			name:    "nested empty group",
+			replace: removeKeys(TimeKey, LevelKey),
+			attrs: []Attr{
+				Group("g",
+					Group("h",
+						Group("i"), Group("j"))),
+			},
+			wantText: `msg=message`,
+			wantJSON: `{"msg":"message"}`,
+		},
+		{
+			name:    "nested non-empty group",
+			replace: removeKeys(TimeKey, LevelKey),
+			attrs: []Attr{
+				Group("g",
+					Group("h",
+						Group("i"), Group("j", Int("a", 1)))),
+			},
+			wantText: `msg=message g.h.j.a=1`,
+			wantJSON: `{"msg":"message","g":{"h":{"j":{"a":1}}}}`,
+		},
+		{
 			name:    "escapes",
 			replace: removeKeys(TimeKey, LevelKey),
 			attrs: []Attr{
@@ -280,6 +302,34 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			attrs:    attrs,
 			wantText: "msg=message p1=1 s1.s2.a=one s1.s2.b=2",
 			wantJSON: `{"msg":"message","p1":1,"s1":{"s2":{"a":"one","b":2}}}`,
+		},
+		{
+			name:    "empty with-groups",
+			replace: removeKeys(TimeKey, LevelKey),
+			with: func(h Handler) Handler {
+				return h.WithGroup("x").WithGroup("y")
+			},
+			wantText: "msg=message",
+			wantJSON: `{"msg":"message"}`,
+		},
+		{
+			name:    "empty with-groups, no non-empty attrs",
+			replace: removeKeys(TimeKey, LevelKey),
+			with: func(h Handler) Handler {
+				return h.WithGroup("x").WithAttrs([]Attr{Group("g")}).WithGroup("y")
+			},
+			wantText: "msg=message",
+			wantJSON: `{"msg":"message"}`,
+		},
+		{
+			name:    "one empty with-group",
+			replace: removeKeys(TimeKey, LevelKey),
+			with: func(h Handler) Handler {
+				return h.WithGroup("x").WithAttrs([]Attr{Int("a", 1)}).WithGroup("y")
+			},
+			attrs:    []Attr{Group("g", Group("h"))},
+			wantText: "msg=message x.a=1",
+			wantJSON: `{"msg":"message","x":{"a":1}}`,
 		},
 		{
 			name:     "GroupValue as Attr value",
