@@ -13,6 +13,7 @@ import (
 	"internal/bytealg"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -137,7 +138,150 @@ type ProcAttr struct {
 var zeroProcAttr ProcAttr
 var zeroSysProcAttr SysProcAttr
 
-func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) {
+type baseProcessHandle struct {
+	terminated atomic.Bool
+	holdMu     sync.RWMutex
+}
+
+func (ph *baseProcessHandle) markTerminated(graceful bool) {
+	ph.terminated.Store(true)
+	if graceful {
+		// Acquire a write lock on holdMu to wait for any tasks
+		// that hold the process (e.g., signalling) complete.
+		ph.holdMu.Lock()
+		ph.holdMu.Unlock()
+	}
+}
+
+func (ph *baseProcessHandle) Hold() bool {
+	ph.holdMu.RLock()
+	if ph.terminated.Load() {
+		ph.holdMu.RUnlock()
+		return false
+	}
+	return true
+}
+
+func (ph *baseProcessHandle) Unhold() {
+	ph.holdMu.RUnlock()
+}
+
+// managedProcessHandle is created for processes for which Wait4()
+// should not be called directly. Instead, wait results will be
+// delivered by a dedicated goroutine that calls Wait4(-1). This is
+// necessary to ensure that all zombie processes are removed when
+// running as PID 1.
+type managedProcessHandle struct {
+	baseProcessHandle
+
+	haveStatus chan struct{}
+	err        error
+	status     WaitStatus
+	rusage     Rusage
+}
+
+func (ph *managedProcessHandle) Wait4(status *WaitStatus, rusage *Rusage) error {
+	<-ph.haveStatus
+	if ph.err != nil {
+		return ph.err
+	}
+	*status = ph.status
+	if rusage != nil {
+		*rusage = ph.rusage
+	}
+	return nil
+}
+
+func stopProcessReaper() bool {
+	ForkLock.Lock()
+	defer ForkLock.Unlock()
+	if len(processHandles) > 0 {
+		// forkExec() has been called after the last call to
+		// Wait4(). Continue reaping processes.
+		return false
+	}
+	processReaperRunning = false
+	return true
+}
+
+func reapProcesses() {
+	for {
+		switch pid, err := blockUntilWaitable(0); err {
+		case nil:
+			if pid == 0 {
+				// This operating system does not support
+				// wait6(-1, WNOWAIT) or waitid(-1, WNOWAIT).
+				// We must thus call Wait4(-1, 0). This
+				// unfortunately means we can't delay waiting
+				// until all calls to ProcessHandle.Hold() and
+				// Unhold() have completed.
+				var status WaitStatus
+				var rusage Rusage
+				switch pid, err := Wait4(-1, &status, 0, &rusage); err {
+				case nil:
+					ForkLock.Lock()
+					if ph, ok := processHandles[pid]; ok {
+						delete(processHandles, pid)
+						ph.markTerminated(false)
+						ph.status = status
+						ph.rusage = rusage
+						close(ph.haveStatus)
+					}
+					ForkLock.Unlock()
+				case ECHILD:
+					if stopProcessReaper() {
+						return
+					}
+				case EINTR:
+				default:
+					panic(err)
+				}
+			} else {
+				ForkLock.Lock()
+				if ph, ok := processHandles[pid]; ok {
+					// Process for which we have a valid
+					// handle has terminated.
+					delete(processHandles, pid)
+					ForkLock.Unlock()
+					ph.markTerminated(true)
+					for {
+						if _, ph.err = Wait4(pid, &ph.status, 0, &ph.rusage); ph.err != EINTR {
+							break
+						}
+					}
+					close(ph.haveStatus)
+				} else {
+					// Process that has been reparented
+					// to us has terminated. Discard the
+					// wait results.
+					ForkLock.Unlock()
+					var status WaitStatus
+					if _, err := Wait4(pid, &status, 0, nil); err != nil && err != ECHILD && err != EINTR {
+						panic(err)
+					}
+				}
+			}
+		case ECHILD:
+			if stopProcessReaper() {
+				return
+			}
+		default:
+			panic(err)
+		}
+	}
+}
+
+var (
+	processReaperInsertionLock sync.Mutex
+
+	// These fields are locked either by acquiring ForkLock for
+	// writing, or by acquiring ForkLock for reading and
+	// processReaperInsertionLock.
+	processReaperRunning = false
+	processHandles       = map[int]*managedProcessHandle{}
+)
+
+func forkExec(argv0 string, argv []string, attr *ProcAttr, waitInBackground bool) (pid int, handle *managedProcessHandle, err error) {
 	var p [2]int
 	var n int
 	var err1 Errno
@@ -154,15 +298,15 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	// Convert args to C form.
 	argv0p, err := BytePtrFromString(argv0)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	argvp, err := SlicePtrFromStrings(argv)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	envvp, err := SlicePtrFromStrings(attr.Env)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
 	if (runtime.GOOS == "freebsd" || runtime.GOOS == "dragonfly") && len(argv) > 0 && len(argv[0]) > len(argv0) {
@@ -173,24 +317,24 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	if sys.Chroot != "" {
 		chroot, err = BytePtrFromString(sys.Chroot)
 		if err != nil {
-			return 0, err
+			return 0, nil, err
 		}
 	}
 	var dir *byte
 	if attr.Dir != "" {
 		dir, err = BytePtrFromString(attr.Dir)
 		if err != nil {
-			return 0, err
+			return 0, nil, err
 		}
 	}
 
 	// Both Setctty and Foreground use the Ctty field,
 	// but they give it slightly different meanings.
 	if sys.Setctty && sys.Foreground {
-		return 0, errorspkg.New("both Setctty and Foreground set in SysProcAttr")
+		return 0, nil, errorspkg.New("both Setctty and Foreground set in SysProcAttr")
 	}
 	if sys.Setctty && sys.Ctty >= len(attr.Files) {
-		return 0, errorspkg.New("Setctty set but Ctty not valid in child")
+		return 0, nil, errorspkg.New("Setctty set but Ctty not valid in child")
 	}
 
 	acquireForkLock()
@@ -198,7 +342,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	// Allocate child status pipe close on exec.
 	if err = forkExecPipe(p[:]); err != nil {
 		releaseForkLock()
-		return 0, err
+		return 0, nil, err
 	}
 
 	// Kick off child.
@@ -207,7 +351,24 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		Close(p[0])
 		Close(p[1])
 		releaseForkLock()
-		return 0, Errno(err1)
+		return 0, nil, Errno(err1)
+	}
+
+	if waitInBackground {
+		processReaperInsertionLock.Lock()
+		handle = &managedProcessHandle{
+			haveStatus: make(chan struct{}),
+		}
+		if _, ok := processHandles[pid]; ok {
+			panic("Process ID has been recycled before wait status was obtained")
+		}
+		processHandles[pid] = handle
+
+		if !processReaperRunning {
+			processReaperRunning = true
+			go reapProcesses()
+		}
+		processReaperInsertionLock.Unlock()
 	}
 	releaseForkLock()
 
@@ -228,17 +389,19 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 			err = EPIPE
 		}
 
-		// Child failed; wait for it to exit, to make sure
-		// the zombies don't accumulate.
-		_, err1 := Wait4(pid, &wstatus, 0, nil)
-		for err1 == EINTR {
-			_, err1 = Wait4(pid, &wstatus, 0, nil)
+		if !waitInBackground {
+			// Child failed; wait for it to exit, to make sure
+			// the zombies don't accumulate.
+			_, err1 := Wait4(pid, &wstatus, 0, nil)
+			for err1 == EINTR {
+				_, err1 = Wait4(pid, &wstatus, 0, nil)
+			}
 		}
-		return 0, err
+		return 0, nil, err
 	}
 
 	// Read got EOF, so pipe closed on exec, so exec succeeded.
-	return pid, nil
+	return pid, handle, nil
 }
 
 var (
@@ -325,14 +488,67 @@ func releaseForkLock() {
 }
 
 // Combination of fork and exec, careful to be thread safe.
-func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) {
-	return forkExec(argv0, argv, attr)
+func ForkExec(argv0 string, argv []string, attr *ProcAttr) (int, error) {
+	pid, _, err := forkExec(argv0, argv, attr, false)
+	return pid, err
 }
 
+type ProcessHandle interface {
+	Hold() (success bool)
+	Unhold()
+	Wait4(status *WaitStatus, rusage *Rusage) error
+}
+
+// freestandingProcessHandle is created for processes for which
+// Wait4(pid) may be called directly. This is safe if the current
+// process does not have PID 1, as we know no other processes will be
+// reparented to it. There is thus no need to call Wait4(-1).
+type freestandingProcessHandle struct {
+	baseProcessHandle
+	pid int
+}
+
+func (ph *freestandingProcessHandle) Wait4(status *WaitStatus, rusage *Rusage) error {
+	// If we can block until Wait4 will succeed immediately, do so.
+	pid, err := blockUntilWaitable(ph.pid)
+	if err != nil {
+		return err
+	}
+	if pid != 0 {
+		ph.markTerminated(true)
+	}
+	for {
+		if _, err := Wait4(ph.pid, status, 0, rusage); err == nil {
+			ph.markTerminated(false)
+			return nil
+		} else if err != EINTR {
+			return err
+		}
+	}
+}
+
+var (
+	isPID1     bool
+	isPID1Init sync.Once
+)
+
 // StartProcess wraps ForkExec for package os.
-func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
-	pid, err = forkExec(argv0, argv, attr)
-	return pid, 0, err
+func StartProcess(argv0 string, argv []string, attr *ProcAttr) (int, ProcessHandle, error) {
+	isPID1Init.Do(func() { isPID1 = Getpid() == 1 })
+	if isPID1 {
+		// When running as PID 1, orphan processes may be
+		// reparented to us. This means that calling Wait4(pid)
+		// on is not sufficient to get rid of all zombie
+		// processes. Spawn a dedicated goroutine that
+		// repeatedly calls Wait4(-1) and delivers the
+		return forkExec(argv0, argv, attr, true)
+	}
+
+	pid, _, err := forkExec(argv0, argv, attr, false)
+	if err != nil {
+		return 0, nil, err
+	}
+	return pid, &freestandingProcessHandle{pid: pid}, nil
 }
 
 // Implemented in runtime package.

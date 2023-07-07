@@ -8,8 +8,6 @@ import (
 	"errors"
 	"internal/testlog"
 	"runtime"
-	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -20,23 +18,13 @@ var ErrProcessDone = errors.New("os: process already finished")
 // Process stores the information about a process created by StartProcess.
 type Process struct {
 	Pid    int
-	handle uintptr      // handle is accessed atomically on Windows
-	isdone atomic.Bool  // process has been successfully waited on
-	sigMu  sync.RWMutex // avoid race between wait and signal
+	handle syscall.ProcessHandle // handle is accessed atomically on Windows
 }
 
-func newProcess(pid int, handle uintptr) *Process {
+func newProcess(pid int, handle syscall.ProcessHandle) *Process {
 	p := &Process{Pid: pid, handle: handle}
 	runtime.SetFinalizer(p, (*Process).Release)
 	return p
-}
-
-func (p *Process) setDone() {
-	p.isdone.Store(true)
-}
-
-func (p *Process) done() bool {
-	return p.isdone.Load()
 }
 
 // ProcAttr holds the attributes that will be applied to a new process

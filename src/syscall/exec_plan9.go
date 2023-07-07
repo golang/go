@@ -528,8 +528,10 @@ func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	return startProcess(argv0, argv, attr)
 }
 
+type ProcessHandle = uintptr
+
 // StartProcess wraps ForkExec for package os.
-func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
+func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle ProcessHandle, err error) {
 	pid, err = startProcess(argv0, argv, attr)
 	return pid, 0, err
 }

@@ -4,17 +4,16 @@
 
 //go:build freebsd && (amd64 || arm64 || riscv64)
 
-package os
+package syscall
 
 import (
-	"syscall"
 	"unsafe"
 )
 
 const _P_PID = 0
 
-func wait6(idtype, id, options int) (status int, errno syscall.Errno) {
+func wait6(idtype, id, options int) (status int, errno Errno) {
 	var status32 int32 // C.int
-	_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, uintptr(idtype), uintptr(id), uintptr(unsafe.Pointer(&status32)), uintptr(options), 0, 0)
+	_, _, errno = Syscall6(SYS_WAIT6, uintptr(idtype), uintptr(id), uintptr(unsafe.Pointer(&status32)), uintptr(options), 0, 0)
 	return int(status32), errno
 }

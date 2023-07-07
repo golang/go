@@ -255,7 +255,9 @@ type SysProcAttr struct {
 var zeroProcAttr ProcAttr
 var zeroSysProcAttr SysProcAttr
 
-func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
+type ProcessHandle = uintptr
+
+func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle ProcessHandle, err error) {
 	if len(argv0) == 0 {
 		return 0, 0, EWINDOWS
 	}
