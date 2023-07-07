@@ -25,6 +25,7 @@ import (
 const timeRE = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2})`
 
 func TestLogTextHandler(t *testing.T) {
+	ctx := context.Background()
 	var buf bytes.Buffer
 
 	l := New(NewTextHandler(&buf, nil))
@@ -51,10 +52,10 @@ func TestLogTextHandler(t *testing.T) {
 	l.Error("bad", "a", 1)
 	check(`level=ERROR msg=bad a=1`)
 
-	l.Log(nil, LevelWarn+1, "w", Int("a", 1), String("b", "two"))
+	l.Log(ctx, LevelWarn+1, "w", Int("a", 1), String("b", "two"))
 	check(`level=WARN\+1 msg=w a=1 b=two`)
 
-	l.LogAttrs(nil, LevelInfo+1, "a b c", Int("a", 1), String("b", "two"))
+	l.LogAttrs(ctx, LevelInfo+1, "a b c", Int("a", 1), String("b", "two"))
 	check(`level=INFO\+1 msg="a b c" a=1 b=two`)
 
 	l.Info("info", "a", []Attr{Int("i", 1)})
@@ -156,6 +157,7 @@ func TestAttrs(t *testing.T) {
 }
 
 func TestCallDepth(t *testing.T) {
+	ctx := context.Background()
 	h := &captureHandler{}
 	var startLine int
 
@@ -181,9 +183,9 @@ func TestCallDepth(t *testing.T) {
 	startLine = f.Line + 4
 	// Do not change the number of lines between here and the call to check(0).
 
-	logger.Log(nil, LevelInfo, "")
+	logger.Log(ctx, LevelInfo, "")
 	check(0)
-	logger.LogAttrs(nil, LevelInfo, "")
+	logger.LogAttrs(ctx, LevelInfo, "")
 	check(1)
 	logger.Debug("")
 	check(2)
@@ -201,13 +203,14 @@ func TestCallDepth(t *testing.T) {
 	check(8)
 	Error("")
 	check(9)
-	Log(nil, LevelInfo, "")
+	Log(ctx, LevelInfo, "")
 	check(10)
-	LogAttrs(nil, LevelInfo, "")
+	LogAttrs(ctx, LevelInfo, "")
 	check(11)
 }
 
 func TestAlloc(t *testing.T) {
+	ctx := context.Background()
 	dl := New(discardHandler{})
 	defer SetDefault(Default()) // restore
 	SetDefault(dl)
@@ -222,7 +225,7 @@ func TestAlloc(t *testing.T) {
 		wantAllocs(t, 0, func() { dl.Info("hello") })
 	})
 	t.Run("logger.Log", func(t *testing.T) {
-		wantAllocs(t, 0, func() { dl.Log(nil, LevelDebug, "hello") })
+		wantAllocs(t, 0, func() { dl.Log(ctx, LevelDebug, "hello") })
 	})
 	t.Run("2 pairs", func(t *testing.T) {
 		s := "abc"
@@ -239,7 +242,7 @@ func TestAlloc(t *testing.T) {
 		s := "abc"
 		i := 2000
 		wantAllocs(t, 2, func() {
-			l.Log(nil, LevelInfo, "hello",
+			l.Log(ctx, LevelInfo, "hello",
 				"n", i,
 				"s", s,
 			)
@@ -250,8 +253,8 @@ func TestAlloc(t *testing.T) {
 		s := "abc"
 		i := 2000
 		wantAllocs(t, 0, func() {
-			if l.Enabled(nil, LevelInfo) {
-				l.Log(nil, LevelInfo, "hello",
+			if l.Enabled(ctx, LevelInfo) {
+				l.Log(ctx, LevelInfo, "hello",
 					"n", i,
 					"s", s,
 				)
@@ -273,30 +276,30 @@ func TestAlloc(t *testing.T) {
 		wantAllocs(t, 0, func() { dl.Info("", "error", io.EOF) })
 	})
 	t.Run("attrs1", func(t *testing.T) {
-		wantAllocs(t, 0, func() { dl.LogAttrs(nil, LevelInfo, "", Int("a", 1)) })
-		wantAllocs(t, 0, func() { dl.LogAttrs(nil, LevelInfo, "", Any("error", io.EOF)) })
+		wantAllocs(t, 0, func() { dl.LogAttrs(ctx, LevelInfo, "", Int("a", 1)) })
+		wantAllocs(t, 0, func() { dl.LogAttrs(ctx, LevelInfo, "", Any("error", io.EOF)) })
 	})
 	t.Run("attrs3", func(t *testing.T) {
 		wantAllocs(t, 0, func() {
-			dl.LogAttrs(nil, LevelInfo, "hello", Int("a", 1), String("b", "two"), Duration("c", time.Second))
+			dl.LogAttrs(ctx, LevelInfo, "hello", Int("a", 1), String("b", "two"), Duration("c", time.Second))
 		})
 	})
 	t.Run("attrs3 disabled", func(t *testing.T) {
 		logger := New(discardHandler{disabled: true})
 		wantAllocs(t, 0, func() {
-			logger.LogAttrs(nil, LevelInfo, "hello", Int("a", 1), String("b", "two"), Duration("c", time.Second))
+			logger.LogAttrs(ctx, LevelInfo, "hello", Int("a", 1), String("b", "two"), Duration("c", time.Second))
 		})
 	})
 	t.Run("attrs6", func(t *testing.T) {
 		wantAllocs(t, 1, func() {
-			dl.LogAttrs(nil, LevelInfo, "hello",
+			dl.LogAttrs(ctx, LevelInfo, "hello",
 				Int("a", 1), String("b", "two"), Duration("c", time.Second),
 				Int("d", 1), String("e", "two"), Duration("f", time.Second))
 		})
 	})
 	t.Run("attrs9", func(t *testing.T) {
 		wantAllocs(t, 1, func() {
-			dl.LogAttrs(nil, LevelInfo, "hello",
+			dl.LogAttrs(ctx, LevelInfo, "hello",
 				Int("a", 1), String("b", "two"), Duration("c", time.Second),
 				Int("d", 1), String("e", "two"), Duration("f", time.Second),
 				Int("d", 1), String("e", "two"), Duration("f", time.Second))
@@ -511,27 +514,27 @@ func BenchmarkNopLog(b *testing.B) {
 	b.Run("no attrs", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			l.LogAttrs(nil, LevelInfo, "msg")
+			l.LogAttrs(ctx, LevelInfo, "msg")
 		}
 	})
 	b.Run("attrs", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			l.LogAttrs(nil, LevelInfo, "msg", Int("a", 1), String("b", "two"), Bool("c", true))
+			l.LogAttrs(ctx, LevelInfo, "msg", Int("a", 1), String("b", "two"), Bool("c", true))
 		}
 	})
 	b.Run("attrs-parallel", func(b *testing.B) {
 		b.ReportAllocs()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				l.LogAttrs(nil, LevelInfo, "msg", Int("a", 1), String("b", "two"), Bool("c", true))
+				l.LogAttrs(ctx, LevelInfo, "msg", Int("a", 1), String("b", "two"), Bool("c", true))
 			}
 		})
 	})
 	b.Run("keys-values", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			l.Log(nil, LevelInfo, "msg", "a", 1, "b", "two", "c", true)
+			l.Log(ctx, LevelInfo, "msg", "a", 1, "b", "two", "c", true)
 		}
 	})
 	b.Run("WithContext", func(b *testing.B) {

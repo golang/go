@@ -108,8 +108,6 @@ func TestDefaultHandle(t *testing.T) {
 
 // Verify the common parts of TextHandler and JSONHandler.
 func TestJSONAndTextHandlers(t *testing.T) {
-	ctx := context.Background()
-
 	// remove all Attrs
 	removeAll := func(_ []string, a Attr) Attr { return Attr{} }
 
@@ -412,7 +410,7 @@ func TestJSONAndTextHandlers(t *testing.T) {
 						h = test.with(h)
 					}
 					buf.Reset()
-					if err := h.Handle(ctx, r); err != nil {
+					if err := h.Handle(nil, r); err != nil {
 						t.Fatal(err)
 					}
 					want := strings.ReplaceAll(handler.want, "$LINE", line)

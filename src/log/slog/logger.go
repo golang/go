@@ -165,7 +165,7 @@ func (l *Logger) LogAttrs(ctx context.Context, level Level, msg string, attrs ..
 
 // Debug logs at LevelDebug.
 func (l *Logger) Debug(msg string, args ...any) {
-	l.log(nil, LevelDebug, msg, args...)
+	l.log(context.Background(), LevelDebug, msg, args...)
 }
 
 // DebugContext logs at LevelDebug with the given context.
@@ -175,7 +175,7 @@ func (l *Logger) DebugContext(ctx context.Context, msg string, args ...any) {
 
 // Info logs at LevelInfo.
 func (l *Logger) Info(msg string, args ...any) {
-	l.log(nil, LevelInfo, msg, args...)
+	l.log(context.Background(), LevelInfo, msg, args...)
 }
 
 // InfoContext logs at LevelInfo with the given context.
@@ -185,7 +185,7 @@ func (l *Logger) InfoContext(ctx context.Context, msg string, args ...any) {
 
 // Warn logs at LevelWarn.
 func (l *Logger) Warn(msg string, args ...any) {
-	l.log(nil, LevelWarn, msg, args...)
+	l.log(context.Background(), LevelWarn, msg, args...)
 }
 
 // WarnContext logs at LevelWarn with the given context.
@@ -195,7 +195,7 @@ func (l *Logger) WarnContext(ctx context.Context, msg string, args ...any) {
 
 // Error logs at LevelError.
 func (l *Logger) Error(msg string, args ...any) {
-	l.log(nil, LevelError, msg, args...)
+	l.log(context.Background(), LevelError, msg, args...)
 }
 
 // ErrorContext logs at LevelError with the given context.
@@ -247,7 +247,7 @@ func (l *Logger) logAttrs(ctx context.Context, level Level, msg string, attrs ..
 
 // Debug calls Logger.Debug on the default logger.
 func Debug(msg string, args ...any) {
-	Default().log(nil, LevelDebug, msg, args...)
+	Default().log(context.Background(), LevelDebug, msg, args...)
 }
 
 // DebugContext calls Logger.DebugContext on the default logger.
@@ -257,7 +257,7 @@ func DebugContext(ctx context.Context, msg string, args ...any) {
 
 // Info calls Logger.Info on the default logger.
 func Info(msg string, args ...any) {
-	Default().log(nil, LevelInfo, msg, args...)
+	Default().log(context.Background(), LevelInfo, msg, args...)
 }
 
 // InfoContext calls Logger.InfoContext on the default logger.
@@ -267,7 +267,7 @@ func InfoContext(ctx context.Context, msg string, args ...any) {
 
 // Warn calls Logger.Warn on the default logger.
 func Warn(msg string, args ...any) {
-	Default().log(nil, LevelWarn, msg, args...)
+	Default().log(context.Background(), LevelWarn, msg, args...)
 }
 
 // WarnContext calls Logger.WarnContext on the default logger.
@@ -277,7 +277,7 @@ func WarnContext(ctx context.Context, msg string, args ...any) {
 
 // Error calls Logger.Error on the default logger.
 func Error(msg string, args ...any) {
-	Default().log(nil, LevelError, msg, args...)
+	Default().log(context.Background(), LevelError, msg, args...)
 }
 
 // ErrorContext calls Logger.ErrorContext on the default logger.
