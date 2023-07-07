@@ -2949,7 +2949,7 @@ func (rs *Rows) initContextClose(ctx, txctx context.Context) {
 	go rs.awaitDone(ctx, txctx, closectx)
 }
 
-// awaitDone blocks until ctx, txctx, or closectx is canceled. 
+// awaitDone blocks until ctx, txctx, or closectx is canceled.
 // The ctx is provided from the query context.
 // If the query was issued in a transaction, the transaction's context
 // is also provided in txctx, to ensure Rows is closed if the Tx is closed.
