@@ -163,6 +163,20 @@ func TestHandler(h slog.Handler, results func() []map[string]any) error {
 			},
 		},
 		{
+			explanation: withSource("a Handler should not output groups for an empty Record"),
+			f: func(l *slog.Logger) {
+				l.With("a", "b").WithGroup("G").With("c", "d").WithGroup("H").Info("msg")
+			},
+			checks: []check{
+				hasKey(slog.TimeKey),
+				hasKey(slog.LevelKey),
+				hasAttr(slog.MessageKey, "msg"),
+				hasAttr("a", "b"),
+				inGroup("G", hasAttr("c", "d")),
+				inGroup("G", missingKey("H")),
+			},
+		},
+		{
 			explanation: withSource("a Handler should call Resolve on attribute values"),
 			f: func(l *slog.Logger) {
 				l.Info("msg", "k", &replace{"replaced"})
