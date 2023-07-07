@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"go/constant"
+	"internal/goversion"
 	. "internal/types/errors"
 )
 
@@ -231,19 +232,19 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 		info = new(Info)
 	}
 
-	version, err := parseGoVersion(conf.GoVersion)
-	if err != nil {
-		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.GoVersion, err))
-	}
+	// Note: clients may call NewChecker with the Unsafe package, which is
+	// globally shared and must not be mutated. Therefore NewChecker must not
+	// mutate *pkg.
+	//
+	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
 
 	return &Checker{
-		conf:    conf,
-		ctxt:    conf.Context,
-		pkg:     pkg,
-		Info:    info,
-		version: version,
-		objMap:  make(map[Object]*declInfo),
-		impMap:  make(map[importKey]*Package),
+		conf:   conf,
+		ctxt:   conf.Context,
+		pkg:    pkg,
+		Info:   info,
+		objMap: make(map[Object]*declInfo),
+		impMap: make(map[importKey]*Package),
 	}
 }
 
@@ -333,6 +334,20 @@ func (check *Checker) Files(files []*syntax.File) error { return check.checkFile
 var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
 
 func (check *Checker) checkFiles(files []*syntax.File) (err error) {
+	if check.pkg == Unsafe {
+		// Defensive handling for Unsafe, which cannot be type checked, and must
+		// not be mutated. See https://go.dev/issue/61212 for an example of where
+		// Unsafe is passed to NewChecker.
+		return nil
+	}
+
+	check.version, err = parseGoVersion(check.conf.GoVersion)
+	if err != nil {
+		return err
+	}
+	if check.version.after(version{1, goversion.Version}) {
+		return fmt.Errorf("package requires newer Go version %v", check.version)
+	}
 	if check.conf.FakeImportC && check.conf.go115UsesCgo {
 		return errBadCgo
 	}
@@ -377,6 +392,7 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 		check.monomorph()
 	}
 
+	check.pkg.goVersion = check.conf.GoVersion
 	check.pkg.complete = true
 
 	// no longer needed - release memory
