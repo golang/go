@@ -151,7 +151,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		symABIs.ReadSymABIs(base.Flag.SymABIs)
 	}
 
-	if base.Compiling(base.NoInstrumentPkgs) {
+	if objabi.LookupPkgSpecial(base.Ctxt.Pkgpath).NoInstrument {
 		base.Flag.Race = false
 		base.Flag.MSan = false
 		base.Flag.ASan = false

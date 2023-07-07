@@ -22,6 +22,17 @@ type PkgSpecial struct {
 	// set for additional packages.
 	Runtime bool
 
+	// NoInstrument indicates this package should not receive sanitizer
+	// instrumentation. In many of these, instrumentation could cause infinite
+	// recursion. This is all runtime packages, plus those that support the
+	// sanitizers.
+	NoInstrument bool
+
+	// NoRaceFunc indicates functions in this package should not get
+	// racefuncenter/racefuncexit instrumentation Memory accesses in these
+	// packages are either uninteresting or will cause false positives.
+	NoRaceFunc bool
+
 	// AllowAsmABI indicates that assembly in this package is allowed to use ABI
 	// selectors in symbol names. Generally this is needed for packages that
 	// interact closely with the runtime package or have performance-critical
@@ -46,6 +57,22 @@ var runtimePkgs = []string{
 	"internal/goexperiment",
 	"internal/goos",
 }
+
+// extraNoInstrumentPkgs is the set of packages in addition to runtimePkgs that
+// should have NoInstrument set.
+var extraNoInstrumentPkgs = []string{
+	"runtime/race",
+	"runtime/msan",
+	"runtime/asan",
+	// We omit bytealg even though it's imported by runtime because it also
+	// backs a lot of package bytes. Currently we don't have a way to omit race
+	// instrumentation when used from the runtime while keeping race
+	// instrumentation when used from user code. Somehow this doesn't seem to
+	// cause problems, though we may be skating on thin ice. See #61204.
+	"-internal/bytealg",
+}
+
+var noRaceFuncPkgs = []string{"sync", "sync/atomic"}
 
 var allowAsmABIPkgs = []string{
 	"runtime",
@@ -74,7 +101,17 @@ func LookupPkgSpecial(pkgPath string) PkgSpecial {
 			pkgSpecials[elt] = s
 		}
 		for _, pkg := range runtimePkgs {
-			set(pkg, func(ps *PkgSpecial) { ps.Runtime = true })
+			set(pkg, func(ps *PkgSpecial) { ps.Runtime = true; ps.NoInstrument = true })
+		}
+		for _, pkg := range extraNoInstrumentPkgs {
+			if pkg[0] == '-' {
+				set(pkg[1:], func(ps *PkgSpecial) { ps.NoInstrument = false })
+			} else {
+				set(pkg, func(ps *PkgSpecial) { ps.NoInstrument = true })
+			}
+		}
+		for _, pkg := range noRaceFuncPkgs {
+			set(pkg, func(ps *PkgSpecial) { ps.NoRaceFunc = true })
 		}
 		for _, pkg := range allowAsmABIPkgs {
 			set(pkg, func(ps *PkgSpecial) { ps.AllowAsmABI = true })

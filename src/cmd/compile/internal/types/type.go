@@ -6,6 +6,7 @@ package types
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
 	"internal/types/errors"
@@ -1862,23 +1863,13 @@ func ReflectSymName(s *Sym) string {
 // IsNoInstrumentPkg reports whether p is a package that
 // should not be instrumented.
 func IsNoInstrumentPkg(p *Pkg) bool {
-	for _, np := range base.NoInstrumentPkgs {
-		if p.Path == np {
-			return true
-		}
-	}
-	return false
+	return objabi.LookupPkgSpecial(p.Path).NoInstrument
 }
 
 // IsNoRacePkg reports whether p is a package that
 // should not be race instrumented.
 func IsNoRacePkg(p *Pkg) bool {
-	for _, np := range base.NoRacePkgs {
-		if p.Path == np {
-			return true
-		}
-	}
-	return false
+	return objabi.LookupPkgSpecial(p.Path).NoRaceFunc
 }
 
 // ReceiverBaseType returns the underlying type, if any,

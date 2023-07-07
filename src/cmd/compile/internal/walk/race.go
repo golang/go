@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -36,7 +37,7 @@ func instrument(fn *ir.Func) {
 		return
 	}
 
-	if !base.Flag.Race || !base.Compiling(base.NoRacePkgs) {
+	if !base.Flag.Race || !objabi.LookupPkgSpecial(base.Ctxt.Pkgpath).NoRaceFunc {
 		fn.SetInstrumentBody(true)
 	}
 
