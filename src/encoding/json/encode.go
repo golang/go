@@ -28,14 +28,14 @@ import (
 // Marshal returns the JSON encoding of v.
 //
 // Marshal traverses the value v recursively.
-// If an encountered value implements the Marshaler interface
-// and is not a nil pointer, Marshal calls its MarshalJSON method
-// to produce JSON. If no MarshalJSON method is present but the
-// value implements encoding.TextMarshaler instead, Marshal calls
-// its MarshalText method and encodes the result as a JSON string.
+// If an encountered value implements [Marshaler]
+// and is not a nil pointer, Marshal calls [Marshaler.MarshalJSON]
+// to produce JSON. If no [Marshaler.MarshalJSON] method is present but the
+// value implements [encoding.TextMarshaler] instead, Marshal calls
+// [encoding.TextMarshaler.MarshalText] and encodes the result as a JSON string.
 // The nil pointer exception is not strictly necessary
 // but mimics a similar, necessary exception in the behavior of
-// UnmarshalJSON.
+// [Unmarshaler.UnmarshalJSON].
 //
 // Otherwise, Marshal uses the following type-dependent default encodings:
 //

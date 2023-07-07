@@ -21,7 +21,7 @@ import (
 
 // Unmarshal parses the JSON-encoded data and stores the result
 // in the value pointed to by v. If v is nil or not a pointer,
-// Unmarshal returns an InvalidUnmarshalError.
+// Unmarshal returns an [InvalidUnmarshalError].
 //
 // Unmarshal uses the inverse of the encodings that
 // Marshal uses, allocating maps, slices, and pointers as necessary,
@@ -33,18 +33,18 @@ import (
 // the value pointed at by the pointer. If the pointer is nil, Unmarshal
 // allocates a new value for it to point to.
 //
-// To unmarshal JSON into a value implementing the Unmarshaler interface,
-// Unmarshal calls that value's UnmarshalJSON method, including
+// To unmarshal JSON into a value implementing [Unmarshaler],
+// Unmarshal calls that value's [Unmarshaler.UnmarshalJSON] method, including
 // when the input is a JSON null.
-// Otherwise, if the value implements encoding.TextUnmarshaler
-// and the input is a JSON quoted string, Unmarshal calls that value's
-// UnmarshalText method with the unquoted form of the string.
+// Otherwise, if the value implements [encoding.TextUnmarshaler]
+// and the input is a JSON quoted string, Unmarshal calls
+// [encoding.TextUnmarshaler.UnmarshalText] with the unquoted form of the string.
 //
 // To unmarshal JSON into a struct, Unmarshal matches incoming object
 // keys to the keys used by Marshal (either the struct field name or its tag),
 // preferring an exact match but also accepting a case-insensitive match. By
 // default, object keys which don't have a corresponding struct field are
-// ignored (see Decoder.DisallowUnknownFields for an alternative).
+// ignored (see [Decoder.DisallowUnknownFields] for an alternative).
 //
 // To unmarshal JSON into an interface value,
 // Unmarshal stores one of these in the interface value:
@@ -75,7 +75,7 @@ import (
 // either be any string type, an integer, implement json.Unmarshaler, or
 // implement encoding.TextUnmarshaler.
 //
-// If the JSON-encoded data contain a syntax error, Unmarshal returns a SyntaxError.
+// If the JSON-encoded data contain a syntax error, Unmarshal returns a [SyntaxError].
 //
 // If a JSON value is not appropriate for a given target type,
 // or if a JSON number overflows the target type, Unmarshal
