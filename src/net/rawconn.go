@@ -75,8 +75,8 @@ func (c *rawConn) PollFD() *poll.FD {
 	return &c.fd.pfd
 }
 
-func newRawConn(fd *netFD) (*rawConn, error) {
-	return &rawConn{fd: fd}, nil
+func newRawConn(fd *netFD) *rawConn {
+	return &rawConn{fd: fd}
 }
 
 type rawListener struct {
@@ -91,6 +91,6 @@ func (l *rawListener) Write(func(uintptr) bool) error {
 	return syscall.EINVAL
 }
 
-func newRawListener(fd *netFD) (*rawListener, error) {
-	return &rawListener{rawConn{fd: fd}}, nil
+func newRawListener(fd *netFD) *rawListener {
+	return &rawListener{rawConn{fd: fd}}
 }

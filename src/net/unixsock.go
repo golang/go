@@ -75,7 +75,7 @@ func (c *UnixConn) SyscallConn() (syscall.RawConn, error) {
 	if !c.ok() {
 		return nil, syscall.EINVAL
 	}
-	return newRawConn(c.fd)
+	return newRawConn(c.fd), nil
 }
 
 // CloseRead shuts down the reading side of the Unix domain connection.
@@ -235,7 +235,7 @@ func (l *UnixListener) SyscallConn() (syscall.RawConn, error) {
 	if !l.ok() {
 		return nil, syscall.EINVAL
 	}
-	return newRawListener(l.fd)
+	return newRawListener(l.fd), nil
 }
 
 // AcceptUnix accepts the next incoming call and returns the new
