@@ -5,6 +5,7 @@
 package bench
 
 import (
+	"flag"
 	"fmt"
 	"sync/atomic"
 	"testing"
@@ -12,6 +13,13 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+)
+
+var didChangeProfile = flag.String(
+	"didchange_cpuprofile",
+	"",
+	`If set, profile BenchmarkDidChange using this cpu profile suffix. Incompatible with gopls_cpuprofile.
+See "Profiling" in the package doc for more information.`,
 )
 
 // Use a global edit counter as bench function may execute multiple times, and
@@ -47,6 +55,10 @@ func BenchmarkDidChange(b *testing.B) {
 			env.EditBuffer(test.file, protocol.TextEdit{NewText: "// __REGTEST_PLACEHOLDER_0__\n"})
 			env.AfterChange()
 			b.ResetTimer()
+
+			if stopAndRecord := startProfileIfSupported(env, test.repo, *didChangeProfile); stopAndRecord != nil {
+				defer stopAndRecord(b)
+			}
 
 			for i := 0; i < b.N; i++ {
 				edits := atomic.AddInt64(&editID, 1)

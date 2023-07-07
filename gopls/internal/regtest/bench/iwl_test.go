@@ -56,12 +56,11 @@ func doIWL(b *testing.B, gopath string, repo *repo, file string) {
 	b.StartTimer()
 
 	// Note: in the future, we may need to open a file in order to cause gopls to
-	// start loading. the workspace.
+	// start loading the workspace.
 
 	env.Await(InitialWorkspaceLoad)
-	// TODO(rfindley): remove this guard once the released gopls version supports
-	// the memstats command.
-	if !testing.Short() {
+
+	if env.Editor.HasCommand(command.MemStats.ID()) {
 		b.StopTimer()
 		params := &protocol.ExecuteCommandParams{
 			Command: command.MemStats.ID(),

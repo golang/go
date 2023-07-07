@@ -370,6 +370,41 @@ func (e *Env) ExecuteCommand(params *protocol.ExecuteCommandParams, result inter
 	}
 }
 
+// StartProfile starts a CPU profile with the given name, using the
+// gopls.start_profile custom command. It calls t.Fatal on any error.
+//
+// The resulting stop function must be called to stop profiling (using the
+// gopls.stop_profile custom command).
+func (e *Env) StartProfile() (stop func() string) {
+	// TODO(golang/go#61217): revisit the ergonomics of these command APIs.
+	//
+	// This would be a lot simpler if we generated params constructors.
+	args, err := command.MarshalArgs(command.StartProfileArgs{})
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	params := &protocol.ExecuteCommandParams{
+		Command:   command.StartProfile.ID(),
+		Arguments: args,
+	}
+	var result command.StartProfileResult
+	e.ExecuteCommand(params, &result)
+
+	return func() string {
+		stopArgs, err := command.MarshalArgs(command.StopProfileArgs{})
+		if err != nil {
+			e.T.Fatal(err)
+		}
+		stopParams := &protocol.ExecuteCommandParams{
+			Command:   command.StopProfile.ID(),
+			Arguments: stopArgs,
+		}
+		var result command.StopProfileResult
+		e.ExecuteCommand(stopParams, &result)
+		return result.File
+	}
+}
+
 // InlayHints calls textDocument/inlayHints for the given path, calling t.Fatal on
 // any error.
 func (e *Env) InlayHints(path string) []protocol.InlayHint {

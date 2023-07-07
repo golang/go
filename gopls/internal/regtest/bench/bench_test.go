@@ -5,9 +5,12 @@
 package bench
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -20,11 +23,14 @@ import (
 	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/hooks"
 	"golang.org/x/tools/gopls/internal/lsp/cmd"
+	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/fake"
+	"golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/fakenet"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/jsonrpc2/servertest"
+	"golang.org/x/tools/internal/pprof"
 	"golang.org/x/tools/internal/tool"
 
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
@@ -250,4 +256,62 @@ func (s *SidecarServer) Connect(ctx context.Context) jsonrpc2.Conn {
 	}()
 
 	return clientConn
+}
+
+// startProfileIfSupported checks to see if the remote gopls instance supports
+// the start/stop profiling commands. If so, it starts profiling and returns a
+// function that stops profiling and records the total CPU seconds sampled in the
+// cpu_seconds benchmark metric.
+//
+// If the remote gopls instance does not support profiling commands, this
+// function returns nil.
+//
+// If the supplied userSuffix is non-empty, the profile is written to
+// <repo>.<userSuffix>, and not deleted when the benchmark exits. Otherwise,
+// the profile is written to a temp file that is deleted after the cpu_seconds
+// metric has been computed.
+func startProfileIfSupported(env *regtest.Env, repo, userSuffix string) func(*testing.B) {
+	if !env.Editor.HasCommand(command.StartProfile.ID()) {
+		return nil
+	}
+	stopProfile := env.StartProfile()
+	return func(b *testing.B) {
+		b.StopTimer()
+		profFile := stopProfile()
+		totalCPU, err := totalCPUForProfile(profFile)
+		if err != nil {
+			b.Fatalf("reading profile: %v", err)
+		}
+		b.ReportMetric(totalCPU.Seconds(), "cpu_seconds")
+		if userSuffix == "" {
+			// The user didn't request this profile file, so delete it to clean up.
+			if err := os.Remove(profFile); err != nil {
+				b.Errorf("removing profile file: %v", err)
+			}
+		} else {
+			// NOTE: if this proves unreliable (due to e.g. EXDEV), we can fall back
+			// on Read+Write+Remove.
+			if err := os.Rename(profFile, repo+"."+userSuffix); err != nil {
+				b.Fatalf("renaming profile file: %v", err)
+			}
+		}
+	}
+}
+
+// totalCPUForProfile reads the pprof profile with the given file name, parses,
+// and aggregates the total CPU sampled during the profile.
+func totalCPUForProfile(filename string) (time.Duration, error) {
+	protoGz, err := os.ReadFile(filename)
+	if err != nil {
+		return 0, err
+	}
+	rd, err := gzip.NewReader(bytes.NewReader(protoGz))
+	if err != nil {
+		return 0, fmt.Errorf("creating gzip reader for %s: %v", filename, err)
+	}
+	data, err := io.ReadAll(rd)
+	if err != nil {
+		return 0, fmt.Errorf("reading %s: %v", filename, err)
+	}
+	return pprof.TotalTime(data)
 }

@@ -465,7 +465,11 @@ func structDoc(fields []*commandmeta.Field, level int) string {
 		if fld.Doc != "" && level == 0 {
 			doclines := strings.Split(fld.Doc, "\n")
 			for _, line := range doclines {
-				fmt.Fprintf(&b, "%s\t// %s\n", indent, line)
+				text := ""
+				if line != "" {
+					text = " " + line
+				}
+				fmt.Fprintf(&b, "%s\t//%s\n", indent, text)
 			}
 		}
 		tag := strings.Split(fld.JSONTag, ",")[0]

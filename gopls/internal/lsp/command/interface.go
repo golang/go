@@ -145,6 +145,21 @@ type Interface interface {
 	// address.
 	StartDebugging(context.Context, DebuggingArgs) (DebuggingResult, error)
 
+	// StartProfile: start capturing a profile of gopls' execution.
+	//
+	// Start a new pprof profile. Before using the resulting file, profiling must
+	// be stopped with a corresponding call to StopProfile.
+	//
+	// This command is intended for internal use only, by the gopls benchmark
+	// runner.
+	StartProfile(context.Context, StartProfileArgs) (StartProfileResult, error)
+
+	// StopProfile: stop an ongoing profile.
+	//
+	// This command is intended for internal use only, by the gopls benchmark
+	// runner.
+	StopProfile(context.Context, StopProfileArgs) (StopProfileResult, error)
+
 	// RunGovulncheck: Run govulncheck.
 	//
 	// Run vulnerability check (`govulncheck`).
@@ -325,6 +340,30 @@ type DebuggingResult struct {
 	// error will be returned but the debug URL for that server in the URLs slice
 	// will be empty.
 	URLs []string
+}
+
+// StartProfileArgs holds the arguments to the StartProfile command.
+//
+// It is a placeholder for future compatibility.
+type StartProfileArgs struct {
+}
+
+// StartProfileResult holds the result of the StartProfile command.
+//
+// It is a placeholder for future compatibility.
+type StartProfileResult struct {
+}
+
+// StopProfileArgs holds the arguments to the StopProfile command.
+//
+// It is a placeholder for future compatibility.
+type StopProfileArgs struct {
+}
+
+// StopProfileResult holds the result to the StopProfile command.
+type StopProfileResult struct {
+	// File is the profile file name.
+	File string
 }
 
 type ResetGoModDiagnosticsArgs struct {

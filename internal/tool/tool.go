@@ -106,7 +106,7 @@ func Main(ctx context.Context, app Application, args []string) {
 // Run is the inner loop for Main; invoked by Main, recursively by
 // Run, and by various tests.  It runs the application and returns an
 // error.
-func Run(ctx context.Context, s *flag.FlagSet, app Application, args []string) error {
+func Run(ctx context.Context, s *flag.FlagSet, app Application, args []string) (resultErr error) {
 	s.Usage = func() {
 		if app.ShortHelp() != "" {
 			fmt.Fprintf(s.Output(), "%s\n\nUsage:\n  ", app.ShortHelp())
@@ -133,9 +133,15 @@ func Run(ctx context.Context, s *flag.FlagSet, app Application, args []string) e
 			return err
 		}
 		if err := pprof.StartCPUProfile(f); err != nil {
+			f.Close() // ignore error
 			return err
 		}
-		defer pprof.StopCPUProfile()
+		defer func() {
+			pprof.StopCPUProfile()
+			if closeErr := f.Close(); resultErr == nil {
+				resultErr = closeErr
+			}
+		}()
 	}
 
 	if p != nil && p.Trace != "" {
@@ -144,10 +150,14 @@ func Run(ctx context.Context, s *flag.FlagSet, app Application, args []string) e
 			return err
 		}
 		if err := trace.Start(f); err != nil {
+			f.Close() // ignore error
 			return err
 		}
 		defer func() {
 			trace.Stop()
+			if closeErr := f.Close(); resultErr == nil {
+				resultErr = closeErr
+			}
 			log.Printf("To view the trace, run:\n$ go tool trace view %s", p.Trace)
 		}()
 	}

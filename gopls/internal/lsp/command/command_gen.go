@@ -38,6 +38,8 @@ const (
 	RunGovulncheck        Command = "run_govulncheck"
 	RunTests              Command = "run_tests"
 	StartDebugging        Command = "start_debugging"
+	StartProfile          Command = "start_profile"
+	StopProfile           Command = "stop_profile"
 	Test                  Command = "test"
 	Tidy                  Command = "tidy"
 	ToggleGCDetails       Command = "toggle_gc_details"
@@ -67,6 +69,8 @@ var Commands = []Command{
 	RunGovulncheck,
 	RunTests,
 	StartDebugging,
+	StartProfile,
+	StopProfile,
 	Test,
 	Tidy,
 	ToggleGCDetails,
@@ -188,6 +192,18 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 			return nil, err
 		}
 		return s.StartDebugging(ctx, a0)
+	case "gopls.start_profile":
+		var a0 StartProfileArgs
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		return s.StartProfile(ctx, a0)
+	case "gopls.stop_profile":
+		var a0 StopProfileArgs
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		return s.StopProfile(ctx, a0)
 	case "gopls.test":
 		var a0 protocol.DocumentURI
 		var a1 []string
@@ -456,6 +472,30 @@ func NewStartDebuggingCommand(title string, a0 DebuggingArgs) (protocol.Command,
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.start_debugging",
+		Arguments: args,
+	}, nil
+}
+
+func NewStartProfileCommand(title string, a0 StartProfileArgs) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.start_profile",
+		Arguments: args,
+	}, nil
+}
+
+func NewStopProfileCommand(title string, a0 StopProfileArgs) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.stop_profile",
 		Arguments: args,
 	}, nil
 }

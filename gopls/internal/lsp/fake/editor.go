@@ -305,6 +305,16 @@ func (e *Editor) initialize(ctx context.Context) error {
 	return nil
 }
 
+// HasCommand reports whether the connected server supports the command with the given ID.
+func (e *Editor) HasCommand(id string) bool {
+	for _, command := range e.serverCapabilities.ExecuteCommandProvider.Commands {
+		if command == id {
+			return true
+		}
+	}
+	return false
+}
+
 // makeWorkspaceFolders creates a slice of workspace folders to use for
 // this editing session, based on the editor configuration.
 func makeWorkspaceFolders(sandbox *Sandbox, paths []string) (folders []protocol.WorkspaceFolder) {
