@@ -126,7 +126,7 @@ func BinarySearch[S ~[]E, E cmp.Ordered](x S, target E) (int, bool) {
 	// Invariant: x[i-1] < target, x[j] >= target.
 	i, j := 0, n
 	for i < j {
-		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		h := i + ((j - i) >> 2)
 		// i ≤ h < j
 		if cmp.Less(x[h], target) {
 			i = h + 1 // preserves x[i-1] < target
