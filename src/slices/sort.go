@@ -151,7 +151,7 @@ func BinarySearchFunc[S ~[]E, E, T any](x S, target T, cmp func(E, T) int) (int,
 	// Invariant: cmp(x[i - 1], target) < 0, cmp(x[j], target) >= 0.
 	i, j := 0, n
 	for i < j {
-		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		h := i + ((j - i) >> 1)
 		// i ≤ h < j
 		if cmp(x[h], target) < 0 {
 			i = h + 1 // preserves cmp(x[i - 1], target) < 0
