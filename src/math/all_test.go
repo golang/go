@@ -3106,6 +3106,45 @@ func TestFMA(t *testing.T) {
 	}
 }
 
+//go:noinline
+func fmsub(x, y, z float64) float64 {
+	return FMA(x, y, -z)
+}
+
+//go:noinline
+func fnmsub(x, y, z float64) float64 {
+	return FMA(-x, y, z)
+}
+
+//go:noinline
+func fnmadd(x, y, z float64) float64 {
+	return FMA(-x, y, -z)
+}
+
+func TestFMANegativeArgs(t *testing.T) {
+	// Some architectures have instructions for fused multiply-subtract and
+	// also negated variants of fused multiply-add and subtract. This test
+	// aims to check that the optimizations that generate those instructions
+	// are applied correctly, if they exist.
+	for _, c := range fmaC {
+		want := PortableFMA(c.x, c.y, -c.z)
+		got := fmsub(c.x, c.y, c.z)
+		if !alike(got, want) {
+			t.Errorf("FMA(%g, %g, -(%g)) == %g, want %g", c.x, c.y, c.z, got, want)
+		}
+		want = PortableFMA(-c.x, c.y, c.z)
+		got = fnmsub(c.x, c.y, c.z)
+		if !alike(got, want) {
+			t.Errorf("FMA(-(%g), %g, %g) == %g, want %g", c.x, c.y, c.z, got, want)
+		}
+		want = PortableFMA(-c.x, c.y, -c.z)
+		got = fnmadd(c.x, c.y, c.z)
+		if !alike(got, want) {
+			t.Errorf("FMA(-(%g), %g, -(%g)) == %g, want %g", c.x, c.y, c.z, got, want)
+		}
+	}
+}
+
 // Check that math functions of high angle values
 // return accurate results. [Since (vf[i] + large) - large != vf[i],
 // testing for Trig(vf[i] + large) == Trig(vf[i]), where large is
