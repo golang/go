@@ -53,7 +53,10 @@ func mightContainHeapPointer(ptr *Value, size int64, mem *Value, zeroes map[ID]Z
 	}
 
 	ptrSize := ptr.Block.Func.Config.PtrSize
-	if off%ptrSize != 0 || size%ptrSize != 0 {
+	if off%ptrSize != 0 {
+		return true // see issue 61187
+	}
+	if size%ptrSize != 0 {
 		ptr.Fatalf("unaligned pointer write")
 	}
 	if off < 0 || off+size > 64*ptrSize {
@@ -130,7 +133,7 @@ func needWBdst(ptr, mem *Value, zeroes map[ID]ZeroRegion) bool {
 	}
 	ptrSize := ptr.Block.Func.Config.PtrSize
 	if off%ptrSize != 0 {
-		ptr.Fatalf("unaligned pointer write")
+		return true // see issue 61187
 	}
 	if off < 0 || off >= 64*ptrSize {
 		// write goes off end of tracked offsets
