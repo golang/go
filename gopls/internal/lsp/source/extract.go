@@ -363,6 +363,8 @@ func extractFunctionMethod(fset *token.FileSet, start, end token.Pos, src []byte
 		}
 	}
 
+	reorderParams(params, paramTypes)
+
 	// Find the function literal that encloses the selection. The enclosing function literal
 	// may not be the enclosing function declaration (i.e. 'outer'). For example, in the
 	// following block:
@@ -629,6 +631,33 @@ func extractFunctionMethod(fset *token.FileSet, start, end token.Pos, src []byte
 			NewText: []byte(fullReplacement.String()),
 		}},
 	}, nil
+}
+
+// isSelector reports if e is the selector expr <x>, <sel>.
+func isSelector(e ast.Expr, x, sel string) bool {
+	selectorExpr, ok := e.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	ident, ok := selectorExpr.X.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	return ident.Name == x && selectorExpr.Sel.Name == sel
+}
+
+// reorderParams reorders the given parameters in-place to follow common Go conventions.
+func reorderParams(params []ast.Expr, paramTypes []*ast.Field) {
+	// Move Context parameter (if any) to front.
+	for i, t := range paramTypes {
+		if isSelector(t.Type, "context", "Context") {
+			p, t := params[i], paramTypes[i]
+			copy(params[1:], params[:i])
+			copy(paramTypes[1:], paramTypes[:i])
+			params[0], paramTypes[0] = p, t
+			break
+		}
+	}
 }
 
 // adjustRangeForCommentsAndWhiteSpace adjusts the given range to exclude unnecessary leading or

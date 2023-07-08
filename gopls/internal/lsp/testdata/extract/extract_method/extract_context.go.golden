@@ -1,0 +1,52 @@
+-- methodextraction_extract_context_12_2 --
+package extract
+
+import "context"
+
+type B struct {
+	x int
+	y int
+}
+
+func (b *B) AddP(ctx context.Context) (int, error) {
+	sum := b.x + b.y
+	return b.newMethod(ctx, sum) //@extractmethod("return", "ctx.Err()"),extractfunc("return", "ctx.Err()")
+}
+
+func (*B) newMethod(ctx context.Context, sum int) (int, error) {
+	return sum, ctx.Err()
+}
+
+func (b *B) LongList(ctx context.Context) (int, error) {
+	p1 := 1
+	p2 := 1
+	p3 := 1
+	return p1 + p2 + p3, ctx.Err() //@extractmethod("return", "ctx.Err()"),extractfunc("return", "ctx.Err()")
+}
+
+-- methodextraction_extract_context_19_2 --
+package extract
+
+import "context"
+
+type B struct {
+	x int
+	y int
+}
+
+func (b *B) AddP(ctx context.Context) (int, error) {
+	sum := b.x + b.y
+	return sum, ctx.Err() //@extractmethod("return", "ctx.Err()"),extractfunc("return", "ctx.Err()")
+}
+
+func (b *B) LongList(ctx context.Context) (int, error) {
+	p1 := 1
+	p2 := 1
+	p3 := 1
+	return b.newMethod(ctx, p1, p2, p3) //@extractmethod("return", "ctx.Err()"),extractfunc("return", "ctx.Err()")
+}
+
+func (*B) newMethod(ctx context.Context, p1 int, p2 int, p3 int) (int, error) {
+	return p1 + p2 + p3, ctx.Err()
+}
+
