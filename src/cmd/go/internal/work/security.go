@@ -90,6 +90,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-f(no-)?use-linker-plugin`), // safe if -B is not used; we don't permit -B
 	re(`-f(no-)?visibility-inlines-hidden`),
 	re(`-fsanitize=(.+)`),
+	re(`-fsanitize-undefined-strip-path-components=(-)?[0-9]+`),
 	re(`-ftemplate-depth-(.+)`),
 	re(`-ftls-model=(global-dynamic|local-dynamic|initial-exec|local-exec)`),
 	re(`-fvisibility=(.+)`),
