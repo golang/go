@@ -886,6 +886,10 @@ type Analyzer struct {
 	// Severity is the severity set for diagnostics reported by this
 	// analyzer. If left unset it defaults to Warning.
 	Severity protocol.DiagnosticSeverity
+
+	// Tag is extra tags (unnecessary, deprecated, etc) for diagnostics
+	// reported by this analyzer.
+	Tag []protocol.DiagnosticTag
 }
 
 func (a *Analyzer) String() string { return a.Analyzer.String() }

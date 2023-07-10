@@ -50,6 +50,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 	"golang.org/x/tools/go/analysis/passes/unusedwrite"
+	"golang.org/x/tools/gopls/internal/lsp/analysis/deprecated"
 	"golang.org/x/tools/gopls/internal/lsp/analysis/embeddirective"
 	"golang.org/x/tools/gopls/internal/lsp/analysis/fillreturns"
 	"golang.org/x/tools/gopls/internal/lsp/analysis/fillstruct"
@@ -1543,6 +1544,7 @@ func defaultAnalyzers() map[string]*Analyzer {
 		cgocall.Analyzer.Name:       {Analyzer: cgocall.Analyzer, Enabled: true},
 		composite.Analyzer.Name:     {Analyzer: composite.Analyzer, Enabled: true},
 		copylock.Analyzer.Name:      {Analyzer: copylock.Analyzer, Enabled: true},
+		deprecated.Analyzer.Name:    {Analyzer: deprecated.Analyzer, Enabled: true, Severity: protocol.SeverityHint, Tag: []protocol.DiagnosticTag{protocol.Deprecated}},
 		directive.Analyzer.Name:     {Analyzer: directive.Analyzer, Enabled: true},
 		errorsas.Analyzer.Name:      {Analyzer: errorsas.Analyzer, Enabled: true},
 		httpresponse.Analyzer.Name:  {Analyzer: httpresponse.Analyzer, Enabled: true},

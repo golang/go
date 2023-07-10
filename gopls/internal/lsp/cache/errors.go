@@ -348,10 +348,11 @@ func toSourceDiagnostic(srcAnalyzer *source.Analyzer, gobDiag *gobDiagnostic) *s
 		Message:        gobDiag.Message,
 		Related:        related,
 		SuggestedFixes: fixes,
+		Tags:           srcAnalyzer.Tag,
 	}
 	// If the fixes only delete code, assume that the diagnostic is reporting dead code.
 	if onlyDeletions(fixes) {
-		diag.Tags = []protocol.DiagnosticTag{protocol.Unnecessary}
+		diag.Tags = append(diag.Tags, protocol.Unnecessary)
 	}
 	return diag
 }

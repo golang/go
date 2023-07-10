@@ -2087,3 +2087,40 @@ var _ = 1 / "" // type error
 		}
 	})
 }
+
+// This test demonstrates the deprecated symbol analyzer
+// produces deprecation notices with expected severity and tags.
+func TestDeprecatedAnalysis(t *testing.T) {
+	const src = `
+-- go.mod --
+module example.com
+-- a/a.go --
+package a
+
+import "example.com/b"
+
+func _() {
+	new(b.B).Obsolete() // deprecated
+}
+
+-- b/b.go --
+package b
+
+type B struct{}
+
+// Deprecated: use New instead.
+func (B) Obsolete() {}
+
+func (B) New() {}
+`
+	Run(t, src, func(t *testing.T, env *Env) {
+		env.OpenFile("a/a.go")
+		env.AfterChange(
+			Diagnostics(
+				env.AtRegexp("a/a.go", "new.*Obsolete"),
+				WithMessage("use New instead."),
+				WithSeverityTags("deprecated", protocol.SeverityHint, []protocol.DiagnosticTag{protocol.Deprecated}),
+			),
+		)
+	})
+}

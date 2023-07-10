@@ -108,6 +108,17 @@ errors is discouraged.
 
 **Enabled by default.**
 
+## **deprecated**
+
+check for use of deprecated identifiers
+
+The deprecated analyzer looks for deprecated symbols and package imports.
+
+See https://go.dev/wiki/Deprecated to learn about Go's convention
+for documenting and signaling deprecated identifiers.
+
+**Enabled by default.**
+
 ## **directive**
 
 check Go toolchain directives such as //go:debug

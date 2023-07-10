@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/gopls/internal/lsp"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
@@ -771,6 +772,17 @@ func WithMessage(substring string) DiagnosticFilter {
 		desc: fmt.Sprintf("with message containing %q", substring),
 		check: func(_ string, d protocol.Diagnostic) bool {
 			return strings.Contains(d.Message, substring)
+		},
+	}
+}
+
+// WithSeverityTags filters to diagnostics whose severity and tags match
+// the given expectation.
+func WithSeverityTags(diagName string, severity protocol.DiagnosticSeverity, tags []protocol.DiagnosticTag) DiagnosticFilter {
+	return DiagnosticFilter{
+		desc: fmt.Sprintf("with diagnostic %q with severity %q and tag %#q", diagName, severity, tags),
+		check: func(_ string, d protocol.Diagnostic) bool {
+			return d.Source == diagName && d.Severity == severity && cmp.Equal(d.Tags, tags)
 		},
 	}
 }
