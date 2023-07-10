@@ -1903,6 +1903,16 @@ func (ctxt *Link) hostlink() {
 				out = append(out[:i], out[i+len(noPieWarning):]...)
 			}
 		}
+		if ctxt.IsDarwin() {
+			const bindAtLoadWarning = "ld: warning: -bind_at_load is deprecated on macOS\n"
+			if i := bytes.Index(out, []byte(bindAtLoadWarning)); i >= 0 {
+				// -bind_at_load is deprecated with ld-prime, but needed for
+				// correctness with older versions of ld64. Swallow the warning.
+				// TODO: maybe pass -bind_at_load conditionally based on C
+				// linker version.
+				out = append(out[:i], out[i+len(bindAtLoadWarning):]...)
+			}
+		}
 		ctxt.Logf("%s", out)
 	}
 
