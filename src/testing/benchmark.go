@@ -251,7 +251,7 @@ func (b *B) run() {
 		if b.importPath != "" {
 			fmt.Fprintf(b.w, "pkg: %s\n", b.importPath)
 		}
-		if cpu := sysinfo.CPU.Name(); cpu != "" {
+		if cpu := sysinfo.CPUName(); cpu != "" {
 			fmt.Fprintf(b.w, "cpu: %s\n", cpu)
 		}
 	})
@@ -668,7 +668,7 @@ func (b *B) Run(name string, f func(b *B)) bool {
 			if b.importPath != "" {
 				fmt.Printf("pkg: %s\n", b.importPath)
 			}
-			if cpu := sysinfo.CPU.Name(); cpu != "" {
+			if cpu := sysinfo.CPUName(); cpu != "" {
 				fmt.Printf("cpu: %s\n", cpu)
 			}
 		})
