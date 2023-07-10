@@ -1292,7 +1292,7 @@ import (
 func BenchmarkScanModCache(b *testing.B) {
 	env := &ProcessEnv{
 		GocmdRunner: &gocommand.Runner{},
-		Logf:        log.Printf,
+		Logf:        b.Logf,
 	}
 	exclude := []gopathwalk.RootType{gopathwalk.RootGOROOT}
 	resolver, err := env.GetResolver()
