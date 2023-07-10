@@ -23,7 +23,7 @@ package cgotest
 #include <unistd.h>
 #include <sys/stat.h>
 #include <errno.h>
-#cgo LDFLAGS: -lm
+#cgo !darwin LDFLAGS: -lm
 
 #ifndef WIN32
 #include <pthread.h>
