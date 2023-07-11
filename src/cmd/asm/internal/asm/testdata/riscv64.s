@@ -183,28 +183,28 @@ start:
 	// 8.2: Load-Reserved/Store-Conditional
 	LRW	(X5), X6				// 2fa30214
 	LRD	(X5), X6				// 2fb30214
-	SCW	X5, (X6), X7				// af23531c
-	SCD	X5, (X6), X7				// af33531c
+	SCW	X5, (X6), X7				// af23531a
+	SCD	X5, (X6), X7				// af33531a
 
 	// 8.3: Atomic Memory Operations
-	AMOSWAPW	X5, (X6), X7			// af23530c
-	AMOSWAPD	X5, (X6), X7			// af33530c
-	AMOADDW		X5, (X6), X7			// af235304
-	AMOADDD		X5, (X6), X7			// af335304
-	AMOANDW		X5, (X6), X7			// af235364
-	AMOANDD		X5, (X6), X7			// af335364
-	AMOORW		X5, (X6), X7			// af235344
-	AMOORD		X5, (X6), X7			// af335344
-	AMOXORW		X5, (X6), X7			// af235324
-	AMOXORD		X5, (X6), X7			// af335324
-	AMOMAXW		X5, (X6), X7			// af2353a4
-	AMOMAXD		X5, (X6), X7			// af3353a4
-	AMOMAXUW	X5, (X6), X7			// af2353e4
-	AMOMAXUD	X5, (X6), X7			// af3353e4
-	AMOMINW		X5, (X6), X7			// af235384
-	AMOMIND		X5, (X6), X7			// af335384
-	AMOMINUW	X5, (X6), X7			// af2353c4
-	AMOMINUD	X5, (X6), X7			// af3353c4
+	AMOSWAPW	X5, (X6), X7			// af23530e
+	AMOSWAPD	X5, (X6), X7			// af33530e
+	AMOADDW		X5, (X6), X7			// af235306
+	AMOADDD		X5, (X6), X7			// af335306
+	AMOANDW		X5, (X6), X7			// af235366
+	AMOANDD		X5, (X6), X7			// af335366
+	AMOORW		X5, (X6), X7			// af235346
+	AMOORD		X5, (X6), X7			// af335346
+	AMOXORW		X5, (X6), X7			// af235326
+	AMOXORD		X5, (X6), X7			// af335326
+	AMOMAXW		X5, (X6), X7			// af2353a6
+	AMOMAXD		X5, (X6), X7			// af3353a6
+	AMOMAXUW	X5, (X6), X7			// af2353e6
+	AMOMAXUD	X5, (X6), X7			// af3353e6
+	AMOMINW		X5, (X6), X7			// af235386
+	AMOMIND		X5, (X6), X7			// af335386
+	AMOMINUW	X5, (X6), X7			// af2353c6
+	AMOMINUD	X5, (X6), X7			// af3353c6
 
 	// 10.1: Base Counters and Timers
 	RDCYCLE		X5				// f32200c0
