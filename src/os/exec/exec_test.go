@@ -1754,7 +1754,9 @@ func TestConcurrentExec(t *testing.T) {
 
 			ready.Wait()
 			if err := cmd.Start(); err != nil {
-				t.Error(err)
+				if !errors.Is(err, context.Canceled) {
+					t.Error(err)
+				}
 				return
 			}
 
