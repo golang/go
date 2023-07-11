@@ -374,3 +374,23 @@ func foldConstOutOfRange(a uint64) uint64 {
 	// arm64: "MOVD\t[$]19088744",-"ADD\t[$]19088744"
 	return a + 0x1234568
 }
+
+// Verify sign-extended values are not zero-extended under a bit mask (#61297)
+func signextendAndMask8to64(a int8) (s, z uint64) {
+	// ppc64x: "MOVB", "ANDCC\t[$]1015,"
+	s = uint64(a) & 0x3F7
+	// ppc64x: -"MOVB", "ANDCC\t[$]247,"
+	z = uint64(uint8(a)) & 0x3F7
+	return
+
+}
+
+// Verify zero-extended values are not sign-extended under a bit mask (#61297)
+func zeroextendAndMask8to64(a int8, b int16) (x, y uint64) {
+	// ppc64x: -"MOVB\t", -"ANDCC", "MOVBZ"
+	x = uint64(a) & 0xFF
+	// ppc64x: -"MOVH\t", -"ANDCC", "MOVHZ"
+	y = uint64(b) & 0xFFFF
+	return
+
+}
