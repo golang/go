@@ -348,6 +348,13 @@ func escape(s string, mode encoding) string {
 //
 //	scheme:opaque[?query][#fragment]
 //
+// The Host field contains the host and port subcomponents of the URL.
+// When the port is present, it is separated from the host with a colon.
+// When the host is an IPv6 address, it must be enclosed in square brackets:
+// "[fe80::1]:80". The [net.JoinHostPort] function combines a host and port
+// into a string suitable for the Host field, adding square brackets to
+// the host when necessary.
+//
 // Note that the Path field is stored in decoded form: /%47%6f%2f becomes /Go/.
 // A consequence is that it is impossible to tell which slashes in the Path were
 // slashes in the raw URL and which were %2f. This distinction is rarely important,
@@ -363,7 +370,7 @@ type URL struct {
 	Scheme      string
 	Opaque      string    // encoded opaque data
 	User        *Userinfo // username and password information
-	Host        string    // host or host:port
+	Host        string    // host or host:port (see Hostname and Port methods)
 	Path        string    // path (relative paths may omit leading slash)
 	RawPath     string    // encoded path hint (see EscapedPath method)
 	OmitHost    bool      // do not emit empty host (authority)
