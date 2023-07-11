@@ -15,7 +15,7 @@ import (
 // FromToolchain returns the Go version for the named toolchain,
 // derived from the name itself (not by running the toolchain).
 // A toolchain is named "goVERSION".
-// A suffix after the VERSION introduced by a +, -, space, or tab is removed.
+// A suffix after the VERSION introduced by a -, space, or tab is removed.
 // Examples:
 //
 //	FromToolchain("go1.2.3") == "1.2.3"

@@ -179,6 +179,9 @@ func parse(x string) version {
 	// Parse prerelease.
 	i := 0
 	for i < len(x) && (x[i] < '0' || '9' < x[i]) {
+		if x[i] < 'a' || 'z' < x[i] {
+			return version{}
+		}
 		i++
 	}
 	if i == 0 {

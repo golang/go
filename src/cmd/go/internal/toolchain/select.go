@@ -131,7 +131,7 @@ func Select() {
 	} else {
 		min, suffix, plus := strings.Cut(gotoolchain, "+") // go1.2.3+auto
 		if min != "local" {
-			v := gover.FromToolchain(gotoolchain)
+			v := gover.FromToolchain(min)
 			if v == "" {
 				if plus {
 					base.Fatalf("invalid GOTOOLCHAIN %q: invalid minimum toolchain %q", gotoolchain, min)
