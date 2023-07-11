@@ -60,6 +60,14 @@ var repos = map[string]*repo{
 		inDir:  flag.String("kuma_dir", "", "if set, reuse this directory as kuma@v2.1.1"),
 	},
 
+	// A repo containing a very large package (./dataintegration).
+	"oracle": {
+		name:   "oracle",
+		url:    "https://github.com/oracle/oci-go-sdk.git",
+		commit: "v65.43.0",
+		inDir:  flag.String("oracle_dir", "", "if set, reuse this directory as oracle/oci-go-sdk@v65.43.0"),
+	},
+
 	// x/pkgsite is familiar and represents a common use case (a webserver). It
 	// also has a number of static non-go files and template files.
 	"pkgsite": {

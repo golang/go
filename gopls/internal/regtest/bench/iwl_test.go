@@ -24,6 +24,7 @@ func BenchmarkInitialWorkspaceLoad(b *testing.B) {
 		{"istio", "pkg/fuzz/util.go"},
 		{"kubernetes", "pkg/controller/lookup_cache.go"},
 		{"kuma", "api/generic/insights.go"},
+		{"oracle", "dataintegration/data_type.go"},
 		{"pkgsite", "internal/frontend/server.go"},
 		{"starlark", "starlark/eval.go"},
 		{"tools", "internal/lsp/cache/snapshot.go"},

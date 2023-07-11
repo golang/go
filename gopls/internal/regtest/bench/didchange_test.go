@@ -29,6 +29,7 @@ var didChangeTests = []changeTest{
 	{"istio", "pkg/fuzz/util.go"},
 	{"kubernetes", "pkg/controller/lookup_cache.go"},
 	{"kuma", "api/generic/insights.go"},
+	{"oracle", "dataintegration/data_type.go"}, // diagnoseSave fails because this package is generated
 	{"pkgsite", "internal/frontend/server.go"},
 	{"starlark", "starlark/eval.go"},
 	{"tools", "internal/lsp/cache/snapshot.go"},
