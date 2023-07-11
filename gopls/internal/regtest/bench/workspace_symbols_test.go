@@ -29,6 +29,10 @@ func BenchmarkWorkspaceSymbols(b *testing.B) {
 
 			b.ResetTimer()
 
+			if stopAndRecord := startProfileIfSupported(b, env, qualifiedName(name, "workspaceSymbols")); stopAndRecord != nil {
+				defer stopAndRecord()
+			}
+
 			for i := 0; i < b.N; i++ {
 				env.Symbol(*symbolQuery)
 			}

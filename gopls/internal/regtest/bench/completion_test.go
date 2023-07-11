@@ -27,7 +27,7 @@ type completionBenchOptions struct {
 func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
 	repo := getRepo(b, "tools")
 	_ = repo.sharedEnv(b) // ensure cache is warm
-	env := repo.newEnv(b, "completion.tools", fake.EditorConfig{})
+	env := repo.newEnv(b, fake.EditorConfig{}, "completion", false)
 	defer env.Close()
 
 	// Run edits required for this completion.
@@ -47,6 +47,10 @@ func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
 	}
 
 	b.Run("tools", func(b *testing.B) {
+		if stopAndRecord := startProfileIfSupported(b, env, qualifiedName("tools", "completion")); stopAndRecord != nil {
+			defer stopAndRecord()
+		}
+
 		for i := 0; i < b.N; i++ {
 			if options.beforeCompletion != nil {
 				options.beforeCompletion(env)
@@ -182,11 +186,11 @@ func (kl *Kubelet) _() {
 		b.Run(test.repo, func(b *testing.B) {
 			repo := getRepo(b, test.repo)
 			_ = repo.sharedEnv(b) // ensure cache is warm
-			env := repo.newEnv(b, "completion."+test.repo, fake.EditorConfig{
+			env := repo.newEnv(b, fake.EditorConfig{
 				Settings: map[string]interface{}{
 					"completeUnimported": false,
 				},
-			})
+			}, "completionFollowingEdit", false)
 			defer env.Close()
 
 			env.CreateBuffer(test.file, "// __REGTEST_PLACEHOLDER_0__\n"+test.content)
@@ -215,6 +219,11 @@ func (kl *Kubelet) _() {
 			}
 
 			b.ResetTimer()
+
+			if stopAndRecord := startProfileIfSupported(b, env, qualifiedName(test.repo, "completionFollowingEdit")); stopAndRecord != nil {
+				defer stopAndRecord()
+			}
+
 			for i := 0; i < b.N; i++ {
 				editPlaceholder()
 				loc := env.RegexpSearch(test.file, test.locationRegexp)

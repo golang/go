@@ -5,7 +5,6 @@
 package bench
 
 import (
-	"flag"
 	"fmt"
 	"sync/atomic"
 	"testing"
@@ -13,13 +12,6 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-)
-
-var didChangeProfile = flag.String(
-	"didchange_cpuprofile",
-	"",
-	`If set, profile BenchmarkDidChange using this cpu profile suffix. Incompatible with gopls_cpuprofile.
-See "Profiling" in the package doc for more information.`,
 )
 
 // Use a global edit counter as bench function may execute multiple times, and
@@ -56,8 +48,8 @@ func BenchmarkDidChange(b *testing.B) {
 			env.AfterChange()
 			b.ResetTimer()
 
-			if stopAndRecord := startProfileIfSupported(env, test.repo, *didChangeProfile); stopAndRecord != nil {
-				defer stopAndRecord(b)
+			if stopAndRecord := startProfileIfSupported(b, env, qualifiedName(test.repo, "didchange")); stopAndRecord != nil {
+				defer stopAndRecord()
 			}
 
 			for i := 0; i < b.N; i++ {
@@ -78,7 +70,7 @@ func BenchmarkDidChange(b *testing.B) {
 
 func BenchmarkDiagnoseChange(b *testing.B) {
 	for _, test := range didChangeTests {
-		runChangeDiagnosticsBenchmark(b, test, false)
+		runChangeDiagnosticsBenchmark(b, test, false, "diagnoseChange")
 	}
 }
 
@@ -86,13 +78,13 @@ func BenchmarkDiagnoseChange(b *testing.B) {
 // this matters.
 func BenchmarkDiagnoseSave(b *testing.B) {
 	for _, test := range didChangeTests {
-		runChangeDiagnosticsBenchmark(b, test, true)
+		runChangeDiagnosticsBenchmark(b, test, true, "diagnoseSave")
 	}
 }
 
 // runChangeDiagnosticsBenchmark runs a benchmark to edit the test file and
 // await the resulting diagnostics pass. If save is set, the file is also saved.
-func runChangeDiagnosticsBenchmark(b *testing.B, test changeTest, save bool) {
+func runChangeDiagnosticsBenchmark(b *testing.B, test changeTest, save bool, operation string) {
 	b.Run(test.repo, func(b *testing.B) {
 		sharedEnv := getRepo(b, test.repo).sharedEnv(b)
 		config := fake.EditorConfig{
@@ -105,7 +97,7 @@ func runChangeDiagnosticsBenchmark(b *testing.B, test changeTest, save bool) {
 		}
 		// Use a new env to avoid the diagnostic delay: we want to measure how
 		// long it takes to produce the diagnostics.
-		env := getRepo(b, test.repo).newEnv(b, "diagnoseSave", config)
+		env := getRepo(b, test.repo).newEnv(b, config, operation, false)
 		defer env.Close()
 		env.OpenFile(test.file)
 		// Insert the text we'll be modifying at the top of the file.
@@ -120,6 +112,9 @@ func runChangeDiagnosticsBenchmark(b *testing.B, test changeTest, save bool) {
 		// shared env once (otherwise we pay additional overhead and the profiling
 		// flags don't work).
 		b.Run("diagnose", func(b *testing.B) {
+			if stopAndRecord := startProfileIfSupported(b, env, qualifiedName(test.repo, operation)); stopAndRecord != nil {
+				defer stopAndRecord()
+			}
 			for i := 0; i < b.N; i++ {
 				edits := atomic.AddInt64(&editID, 1)
 				env.EditBuffer(test.file, protocol.TextEdit{

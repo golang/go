@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -32,8 +33,6 @@ import (
 	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/internal/pprof"
 	"golang.org/x/tools/internal/tool"
-
-	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 )
 
 var (
@@ -111,7 +110,7 @@ func shallowClone(dir, repo, commitish string) error {
 
 // connectEditor connects a fake editor session in the given dir, using the
 // given editor config.
-func connectEditor(dir string, config fake.EditorConfig, ts servertest.Connector) (*fake.Sandbox, *fake.Editor, *Awaiter, error) {
+func connectEditor(dir string, config fake.EditorConfig, ts servertest.Connector) (*fake.Sandbox, *fake.Editor, *regtest.Awaiter, error) {
 	s, err := fake.NewSandbox(&fake.SandboxConfig{
 		Workdir: dir,
 		GOPROXY: "https://proxy.golang.org",
@@ -120,7 +119,7 @@ func connectEditor(dir string, config fake.EditorConfig, ts servertest.Connector
 		return nil, nil, nil, err
 	}
 
-	a := NewAwaiter(s.Workdir)
+	a := regtest.NewAwaiter(s.Workdir)
 	const skipApplyEdits = false
 	editor, err := fake.NewEditor(s, config).Connect(context.Background(), ts, a.Hooks(), skipApplyEdits)
 	if err != nil {
@@ -130,8 +129,9 @@ func connectEditor(dir string, config fake.EditorConfig, ts servertest.Connector
 	return s, editor, a, nil
 }
 
-// newGoplsServer returns a connector that connects to a new gopls process.
-func newGoplsServer(name string) (servertest.Connector, error) {
+// newGoplsConnector returns a connector that connects to a new gopls process,
+// executed with the provided arguments.
+func newGoplsConnector(args []string) (servertest.Connector, error) {
 	if *goplsPath != "" && *goplsCommit != "" {
 		panic("can't set both -gopls_path and -gopls_commit")
 	}
@@ -150,24 +150,44 @@ func newGoplsServer(name string) (servertest.Connector, error) {
 		}
 		env = []string{fmt.Sprintf("%s=true", runAsGopls)}
 	}
-	var args []string
-	if *cpuProfile != "" {
-		args = append(args, fmt.Sprintf("-profile.cpu=%s", name+"."+*cpuProfile))
-	}
-	if *memProfile != "" {
-		args = append(args, fmt.Sprintf("-profile.mem=%s", name+"."+*memProfile))
-	}
-	if *allocProfile != "" {
-		args = append(args, fmt.Sprintf("-profile.alloc=%s", name+"."+*allocProfile))
-	}
-	if *trace != "" {
-		args = append(args, fmt.Sprintf("-profile.trace=%s", name+"."+*trace))
-	}
 	return &SidecarServer{
 		goplsPath: goplsPath,
 		env:       env,
 		args:      args,
 	}, nil
+}
+
+// profileArgs returns additional command-line arguments to use when invoking
+// gopls, to enable the user-requested profiles.
+//
+// If wantCPU is set, CPU profiling is enabled as well. Some tests may want to
+// instrument profiling around specific critical sections of the benchmark,
+// rather than the entire process.
+//
+// TODO(rfindley): like CPU, all of these would be better served by a custom
+// command. Very rarely do we care about memory usage as the process exits: we
+// care about specific points in time during the benchmark. mem and alloc
+// should be snapshotted, and tracing should be bracketed around critical
+// sections.
+func profileArgs(name string, wantCPU bool) []string {
+	var args []string
+	if wantCPU && *cpuProfile != "" {
+		args = append(args, fmt.Sprintf("-profile.cpu=%s", qualifiedName(name, *cpuProfile)))
+	}
+	if *memProfile != "" {
+		args = append(args, fmt.Sprintf("-profile.mem=%s", qualifiedName(name, *memProfile)))
+	}
+	if *allocProfile != "" {
+		args = append(args, fmt.Sprintf("-profile.alloc=%s", qualifiedName(name, *allocProfile)))
+	}
+	if *trace != "" {
+		args = append(args, fmt.Sprintf("-profile.trace=%s", qualifiedName(name, *trace)))
+	}
+	return args
+}
+
+func qualifiedName(args ...string) string {
+	return strings.Join(args, ".")
 }
 
 // getInstalledGopls builds gopls at the given -gopls_commit, returning the
@@ -270,28 +290,31 @@ func (s *SidecarServer) Connect(ctx context.Context) jsonrpc2.Conn {
 // <repo>.<userSuffix>, and not deleted when the benchmark exits. Otherwise,
 // the profile is written to a temp file that is deleted after the cpu_seconds
 // metric has been computed.
-func startProfileIfSupported(env *regtest.Env, repo, userSuffix string) func(*testing.B) {
+func startProfileIfSupported(b *testing.B, env *regtest.Env, name string) func() {
 	if !env.Editor.HasCommand(command.StartProfile.ID()) {
 		return nil
 	}
+	b.StopTimer()
 	stopProfile := env.StartProfile()
-	return func(b *testing.B) {
+	b.StartTimer()
+	return func() {
 		b.StopTimer()
 		profFile := stopProfile()
 		totalCPU, err := totalCPUForProfile(profFile)
 		if err != nil {
 			b.Fatalf("reading profile: %v", err)
 		}
-		b.ReportMetric(totalCPU.Seconds(), "cpu_seconds")
-		if userSuffix == "" {
-			// The user didn't request this profile file, so delete it to clean up.
+		b.ReportMetric(totalCPU.Seconds()/float64(b.N), "cpu_seconds/op")
+		if *cpuProfile == "" {
+			// The user didn't request profiles, so delete it to clean up.
 			if err := os.Remove(profFile); err != nil {
 				b.Errorf("removing profile file: %v", err)
 			}
 		} else {
 			// NOTE: if this proves unreliable (due to e.g. EXDEV), we can fall back
 			// on Read+Write+Remove.
-			if err := os.Rename(profFile, repo+"."+userSuffix); err != nil {
+			name := qualifiedName(name, *cpuProfile)
+			if err := os.Rename(profFile, name); err != nil {
 				b.Fatalf("renaming profile file: %v", err)
 			}
 		}

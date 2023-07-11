@@ -30,6 +30,10 @@ func BenchmarkReferences(b *testing.B) {
 			env.References(loc) // pre-warm the query
 			b.ResetTimer()
 
+			if stopAndRecord := startProfileIfSupported(b, env, qualifiedName(test.repo, "references")); stopAndRecord != nil {
+				defer stopAndRecord()
+			}
+
 			for i := 0; i < b.N; i++ {
 				env.References(loc)
 			}

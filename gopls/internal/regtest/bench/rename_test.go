@@ -35,6 +35,10 @@ func BenchmarkRename(b *testing.B) {
 			env.Rename(loc, test.baseName+"X") // pre-warm the query
 			b.ResetTimer()
 
+			if stopAndRecord := startProfileIfSupported(b, env, qualifiedName(test.repo, "rename")); stopAndRecord != nil {
+				defer stopAndRecord()
+			}
+
 			for i := 0; i < b.N; i++ {
 				names++
 				newName := fmt.Sprintf("%s%d", test.baseName, names)

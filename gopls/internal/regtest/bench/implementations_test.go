@@ -30,6 +30,10 @@ func BenchmarkImplementations(b *testing.B) {
 			env.Implementations(loc) // pre-warm the query
 			b.ResetTimer()
 
+			if stopAndRecord := startProfileIfSupported(b, env, qualifiedName(test.repo, "implementations")); stopAndRecord != nil {
+				defer stopAndRecord()
+			}
+
 			for i := 0; i < b.N; i++ {
 				env.Implementations(loc)
 			}

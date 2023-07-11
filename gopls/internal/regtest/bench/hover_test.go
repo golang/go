@@ -32,6 +32,10 @@ func BenchmarkHover(b *testing.B) {
 			env.Hover(loc) // pre-warm the query
 			b.ResetTimer()
 
+			if stopAndRecord := startProfileIfSupported(b, env, qualifiedName(test.repo, "hover")); stopAndRecord != nil {
+				defer stopAndRecord()
+			}
+
 			for i := 0; i < b.N; i++ {
 				env.Hover(loc) // pre-warm the query
 			}

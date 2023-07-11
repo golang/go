@@ -186,7 +186,7 @@ func (r *repo) sharedEnv(tb testing.TB) *Env {
 
 		start := time.Now()
 		log.Printf("starting initial workspace load for %s", r.name)
-		ts, err := newGoplsServer(r.name)
+		ts, err := newGoplsConnector(profileArgs(r.name, false))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -215,10 +215,11 @@ func (r *repo) sharedEnv(tb testing.TB) *Env {
 //
 // It is the caller's responsibility to call Close on the resulting Env when it
 // is no longer needed.
-func (r *repo) newEnv(tb testing.TB, name string, config fake.EditorConfig) *Env {
+func (r *repo) newEnv(tb testing.TB, config fake.EditorConfig, forOperation string, cpuProfile bool) *Env {
 	dir := r.getDir()
 
-	ts, err := newGoplsServer(name)
+	args := profileArgs(qualifiedName(r.name, forOperation), cpuProfile)
+	ts, err := newGoplsConnector(args)
 	if err != nil {
 		tb.Fatal(err)
 	}
