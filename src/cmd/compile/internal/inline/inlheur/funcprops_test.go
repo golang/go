@@ -22,9 +22,9 @@ var remasterflag = flag.Bool("update-expected", false, "if true, generate update
 
 func TestFuncProperties(t *testing.T) {
 	td := t.TempDir()
-	//td = "/tmp/qqq"
-	//os.RemoveAll(td)
-	//os.Mkdir(td, 0777)
+	// td = "/tmp/qqq"
+	// os.RemoveAll(td)
+	// os.Mkdir(td, 0777)
 	testenv.MustHaveGoBuild(t)
 
 	// NOTE: this testpoint has the unfortunate characteristic that it
@@ -35,7 +35,7 @@ func TestFuncProperties(t *testing.T) {
 	// to building a fresh compiler on the fly, or using some other
 	// scheme.
 
-	testcases := []string{"funcflags", "returns", "params"}
+	testcases := []string{"funcflags", "returns", "params", "acrosscall"}
 
 	for _, tc := range testcases {
 		dumpfile, err := gatherPropsDumpForFile(t, tc, td)

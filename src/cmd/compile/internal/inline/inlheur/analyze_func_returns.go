@@ -28,10 +28,11 @@ type returnsAnalyzer struct {
 // the same function, etc. This container stores info on a the specific
 // scenarios we're looking for.
 type resultVal struct {
-	lit   constant.Value
-	fn    *ir.Name
-	fnClo bool
-	top   bool
+	lit     constant.Value
+	fn      *ir.Name
+	fnClo   bool
+	top     bool
+	derived bool // see deriveReturnFlagsFromCallee below
 }
 
 func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func)) *returnsAnalyzer {
@@ -62,7 +63,7 @@ func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func)) *returnsAnalyzer
 func (ra *returnsAnalyzer) setResults(fp *FuncProps) {
 	// Promote ResultAlwaysSameFunc to ResultAlwaysSameInlinableFunc
 	for i := range ra.values {
-		if ra.props[i] == ResultAlwaysSameFunc {
+		if ra.props[i] == ResultAlwaysSameFunc && !ra.values[i].derived {
 			f := ra.values[i].fn.Func
 			// If the function being returns is a closure that hasn't
 			// yet been checked by CanInline, invoke it now. NB: this
@@ -149,6 +150,7 @@ func (ra *returnsAnalyzer) analyzeResult(ii int, n ir.Node) {
 	lit, isConst := isLiteral(n)
 	rfunc, isFunc, isClo := isFuncName(n)
 	curp := ra.props[ii]
+	dprops, isDerivedFromCall := deriveReturnFlagsFromCallee(n)
 	newp := ResultNoInfo
 	var newlit constant.Value
 	var newfunc *ir.Name
@@ -172,30 +174,35 @@ func (ra *returnsAnalyzer) analyzeResult(ii int, n ir.Node) {
 		case isConst:
 			newp = ResultAlwaysSameConstant
 			newlit = lit
+		case isDerivedFromCall:
+			newp = dprops
+			ra.values[ii].derived = true
 		}
 	} else {
-		// this is not the first return we've seen; apply
-		// what amounts of a "meet" operator to combine
-		// the properties we see here with what we saw on
-		// the previous returns.
-		switch curp {
-		case ResultIsAllocatedMem:
-			if isAllocatedMem(n) {
-				newp = ResultIsAllocatedMem
-			}
-		case ResultIsConcreteTypeConvertedToInterface:
-			if isConcreteConvIface(n) {
-				newp = ResultIsConcreteTypeConvertedToInterface
-			}
-		case ResultAlwaysSameConstant:
-			if isConst && isSameLiteral(lit, ra.values[ii].lit) {
-				newp = ResultAlwaysSameConstant
-				newlit = lit
-			}
-		case ResultAlwaysSameFunc:
-			if isFunc && isSameFuncName(rfunc, ra.values[ii].fn) {
-				newp = ResultAlwaysSameFunc
-				newfunc = rfunc
+		if !ra.values[ii].derived {
+			// this is not the first return we've seen; apply
+			// what amounts of a "meet" operator to combine
+			// the properties we see here with what we saw on
+			// the previous returns.
+			switch curp {
+			case ResultIsAllocatedMem:
+				if isAllocatedMem(n) {
+					newp = ResultIsAllocatedMem
+				}
+			case ResultIsConcreteTypeConvertedToInterface:
+				if isConcreteConvIface(n) {
+					newp = ResultIsConcreteTypeConvertedToInterface
+				}
+			case ResultAlwaysSameConstant:
+				if isConst && isSameLiteral(lit, ra.values[ii].lit) {
+					newp = ResultAlwaysSameConstant
+					newlit = lit
+				}
+			case ResultAlwaysSameFunc:
+				if isFunc && isSameFuncName(rfunc, ra.values[ii].fn) {
+					newp = ResultAlwaysSameFunc
+					newfunc = rfunc
+				}
 			}
 		}
 	}
@@ -208,7 +215,6 @@ func (ra *returnsAnalyzer) analyzeResult(ii int, n ir.Node) {
 		fmt.Fprintf(os.Stderr, "=-= %v: analyzeResult newp=%s\n",
 			ir.Line(n), newp)
 	}
-
 }
 
 func isAllocatedMem(n ir.Node) bool {
@@ -218,6 +224,48 @@ func isAllocatedMem(n ir.Node) bool {
 		return true
 	}
 	return false
+}
+
+// deriveReturnFlagsFromCallee tries to set properties for a given
+// return result where we're returning call expression; return value
+// is a return property value and a boolean indicating whether the
+// prop is valid. Examples:
+//
+//	func foo() int { return bar() }
+//	func bar() int { return 42 }
+//	func blix() int { return 43 }
+//	func two(y int) int {
+//	  if y < 0 { return bar() } else { return blix() }
+//	}
+//
+// Since "foo" always returns the result of a call to "bar", we can
+// set foo's return property to that of bar. In the case of "two", however,
+// even though each return path returns a constant, we don't know
+// whether the constants are identical, hence we need to be conservative.
+func deriveReturnFlagsFromCallee(n ir.Node) (ResultPropBits, bool) {
+	if n.Op() != ir.OCALLFUNC {
+		return 0, false
+	}
+	ce := n.(*ir.CallExpr)
+	if ce.X.Op() != ir.ONAME {
+		return 0, false
+	}
+	called := ir.StaticValue(ce.X)
+	if called.Op() != ir.ONAME {
+		return 0, false
+	}
+	cname, isFunc, _ := isFuncName(called)
+	if !isFunc {
+		return 0, false
+	}
+	calleeProps := propsForFunc(cname.Func)
+	if calleeProps == nil {
+		return 0, false
+	}
+	if len(calleeProps.ResultFlags) != 1 {
+		return 0, false
+	}
+	return calleeProps.ResultFlags[0], true
 }
 
 func isLiteral(n ir.Node) (constant.Value, bool) {

@@ -304,6 +304,15 @@ func T_select_mayreturn(chi chan int, chf chan float32, p *int) int {
 	panic("bad")
 }
 
+// funcflags.go T_calls_callsexit 291 0 1
+// Flags FuncPropNeverReturns
+// <endpropsdump>
+// {"Flags":1,"ParamFlags":[0],"ResultFlags":[]}
+// <endfuncpreamble>
+func T_calls_callsexit(x int) {
+	exprcallsexit(x)
+}
+
 func exprcallsexit(x int) int {
 	os.Exit(x)
 	return x

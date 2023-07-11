@@ -104,6 +104,17 @@ func runAnalyzersOnFunction(fn *ir.Func, analyzers []propAnalyzer) {
 	doNode(fn)
 }
 
+func propsForFunc(fn *ir.Func) *FuncProps {
+	if fih, ok := fpmap[fn]; ok {
+		return fih.props
+	} else if fn.Inl != nil && fn.Inl.Properties != "" {
+		// FIXME: considering adding some sort of cache or table
+		// for deserialized properties of imported functions.
+		return DeserializeFromString(fn.Inl.Properties)
+	}
+	return nil
+}
+
 func fnFileLine(fn *ir.Func) (string, uint) {
 	p := base.Ctxt.InnermostPos(fn.Pos())
 	return filepath.Base(p.Filename()), p.Line()
@@ -176,6 +187,9 @@ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
 	} else {
 		AnalyzeFunc(fn, canInline)
 		fih = fpmap[fn]
+		if fn.Inl != nil && fn.Inl.Properties == "" {
+			fn.Inl.Properties = fih.props.SerializeToString()
+		}
 	}
 	if dumpBuffer == nil {
 		dumpBuffer = make(map[*ir.Func]fnInlHeur)
