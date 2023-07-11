@@ -13,7 +13,6 @@ import (
 )
 
 func Test(t *testing.T) {
-	t.Skip("skipping pending renaming of slog.XXXCtx functions in stdlib")
 	testenv.NeedsGo1Point(t, 21)
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, slog.Analyzer, "a", "b")
