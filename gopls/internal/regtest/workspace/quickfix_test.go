@@ -5,7 +5,6 @@
 package workspace
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -104,7 +103,6 @@ use (
 func TestQuickFix_AddGoWork(t *testing.T) {
 	testenv.NeedsGo1Point(t, 18) // needs go.work
 
-	v := goVersion(t)
 	const files = `
 -- a/go.mod --
 module mod.com/a
@@ -148,37 +146,34 @@ const C = "b"
 		name  string
 		file  string
 		title string
-		want  string
+		want  string // expected go.work content, excluding go directive line
 	}{
 		{
 			"use b",
 			"b/main.go",
 			"Add a go.work file using this module",
-			fmt.Sprintf(`go 1.%d
-
+			`
 use ./b
-`, v),
+`,
 		},
 		{
 			"use a",
 			"a/main.go",
 			"Add a go.work file using this module",
-			fmt.Sprintf(`go 1.%d
-
+			`
 use ./a
-`, v),
+`,
 		},
 		{
 			"use all",
 			"a/main.go",
 			"Add a go.work file using all modules",
-			fmt.Sprintf(`go 1.%d
-
+			`
 use (
 	./a
 	./b
 )
-`, v),
+`,
 		},
 	}
 
@@ -204,6 +199,9 @@ use (
 				)
 
 				got := env.ReadWorkspaceFile("go.work")
+				// Ignore the `go` directive, which we assume is on the first line of
+				// the go.work file. This allows the test to be independent of go version.
+				got = strings.Join(strings.Split(got, "\n")[1:], "\n")
 				if diff := compare.Text(test.want, got); diff != "" {
 					t.Errorf("unexpected go.work content:\n%s", diff)
 				}
