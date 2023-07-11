@@ -578,9 +578,9 @@
 ((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(XOR x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (XORCC x y) yes no)
 
 // Only lower after bool is lowered. It should always lower. This helps ensure the folding below happens reliably.
-(CondSelect x y bool) && flagArg(bool) == nil => (ISEL [6] x y (Select1 <types.TypeFlags> (ANDCCconst [1] bool)))
+(CondSelect x y bool) && flagArg(bool) == nil => (ISEL [6] x y (ANDCCconst [1] bool))
 // Fold any CR -> GPR -> CR transfers when applying the above rule.
-(ISEL [6] x y (Select1 (ANDCCconst [1] (ISELB [c] one cmp)))) => (ISEL [c] x y cmp)
+(ISEL [6] x y (ANDCCconst [1] (ISELB [c] one cmp))) => (ISEL [c] x y cmp)
 
 // Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) => (MOVDload ptr mem)
@@ -750,16 +750,16 @@
 
 // small and of zero-extend => either zero-extend or small and
 (ANDconst [c] y:(MOVBZreg _)) && c&0xFF == 0xFF => y
-(ANDconst [0xFF] y:(MOVBreg _)) => y
+(ANDconst [0xFF] (MOVBreg x)) => (MOVBZreg x)
 (ANDconst [c] y:(MOVHZreg _))  && c&0xFFFF == 0xFFFF => y
-(ANDconst [0xFFFF] y:(MOVHreg _)) => y
+(ANDconst [0xFFFF] (MOVHreg x)) => (MOVHZreg x)
 
 (AND (MOVDconst [c]) y:(MOVWZreg _))  && c&0xFFFFFFFF == 0xFFFFFFFF => y
 (AND (MOVDconst [0xFFFFFFFF]) y:(MOVWreg x)) => (MOVWZreg x)
 // normal case
-(ANDconst [c] (MOV(B|BZ)reg x)) => (ANDconst [c&0xFF] x)
-(ANDconst [c] (MOV(H|HZ)reg x)) => (ANDconst [c&0xFFFF] x)
-(ANDconst [c] (MOV(W|WZ)reg x)) => (ANDconst [c&0xFFFFFFFF] x)
+(ANDconst [c] (MOVBZreg x)) => (ANDconst [c&0xFF] x)
+(ANDconst [c] (MOVHZreg x)) => (ANDconst [c&0xFFFF] x)
+(ANDconst [c] (MOVWZreg x)) => (ANDconst [c&0xFFFFFFFF] x)
 
 // Eliminate unnecessary sign/zero extend following right shift
 (MOV(B|H|W)Zreg (SRWconst [c] (MOVBZreg x))) => (SRWconst [c] (MOVBZreg x))
