@@ -193,7 +193,7 @@ type commonHandler struct {
 	groupPrefix string
 	groups      []string // all groups started from WithGroup
 	nOpenGroups int      // the number of groups opened in preformattedAttrs
-	mu          sync.Mutex
+	mu          *sync.Mutex
 	w           io.Writer
 }
 
@@ -207,6 +207,7 @@ func (h *commonHandler) clone() *commonHandler {
 		groups:            slices.Clip(h.groups),
 		nOpenGroups:       h.nOpenGroups,
 		w:                 h.w,
+		mu:                h.mu, // mutex shared among all clones of this handler
 	}
 }
 

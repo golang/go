@@ -11,6 +11,7 @@ import (
 	"io"
 	"reflect"
 	"strconv"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 )
@@ -33,6 +34,7 @@ func NewTextHandler(w io.Writer, opts *HandlerOptions) *TextHandler {
 			json: false,
 			w:    w,
 			opts: *opts,
+			mu:   &sync.Mutex{},
 		},
 	}
 }
