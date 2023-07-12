@@ -12,7 +12,7 @@ TEXT ·cryptBlocks(SB),NOSPLIT,$0-40
 	MOVD	length+32(FP), R5
 	MOVD	c+0(FP), R0
 loop:
-	WORD	$0xB92E0024 // cipher message (KM)
+	KM	R2, R4      // cipher message (KM)
 	BVS	loop        // branch back if interrupted
 	XOR	R0, R0
 	RET
@@ -29,7 +29,7 @@ TEXT ·cryptBlocksChain(SB),NOSPLIT,$48-48
 	MOVD	length+40(FP), R5
 	MOVD	c+0(FP), R0
 loop:
-	WORD	$0xB92F0024       // cipher message with chaining (KMC)
+	KMC	R2, R4            // cipher message with chaining (KMC)
 	BVS	loop              // branch back if interrupted
 	XOR	R0, R0
 	MVC	$16, 0(R1), 0(R8) // update iv
@@ -145,7 +145,7 @@ TEXT ·ghash(SB),NOSPLIT,$32-40
 	STMG	R4, R7, (R1)
 	LMG	data+16(FP), R2, R3 // R2=base, R3=len
 loop:
-	WORD    $0xB93E0002 // compute intermediate message digest (KIMD)
+	KIMD	R0, R2      // compute intermediate message digest (KIMD)
 	BVS     loop        // branch back if interrupted
 	MVC     $16, (R1), (R8)
 	MOVD	$0, R0

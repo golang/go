@@ -12,7 +12,7 @@ TEXT ·block(SB), NOSPLIT|NOFRAME, $0-32
 	CMPBEQ R4, $0, generic
 
 loop:
-	WORD $0xB93E0002 // KIMD R2
+	KIMD R0, R2      // compute intermediate message digest (KIMD)
 	BVS  loop        // continue if interrupted
 	RET
 
