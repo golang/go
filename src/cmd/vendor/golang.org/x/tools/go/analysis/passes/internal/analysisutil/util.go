@@ -118,12 +118,3 @@ func Imports(pkg *types.Package, path string) bool {
 	}
 	return false
 }
-
-// IsNamed reports whether t is exactly a named type in a package with a given path.
-func IsNamed(t types.Type, path, name string) bool {
-	if n, ok := t.(*types.Named); ok {
-		obj := n.Obj()
-		return obj.Pkg().Path() == path && obj.Name() == name
-	}
-	return false
-}

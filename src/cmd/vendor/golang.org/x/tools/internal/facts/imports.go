@@ -21,6 +21,10 @@ import (
 // Packages in the map that are only indirectly imported may be
 // incomplete (!pkg.Complete()).
 //
+// This function scales very poorly with packages' transitive object
+// references, which can be more than a million for each package near
+// the top of a large project. (This was a significant contributor to
+// #60621.)
 // TODO(adonovan): opt: compute this information more efficiently
 // by obtaining it from the internals of the gcexportdata decoder.
 func importMap(imports []*types.Package) map[string]*types.Package {

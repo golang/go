@@ -2124,11 +2124,15 @@ func writevRacedetect(iovecs []Iovec, n int) {
 
 // mmap varies by architecture; see syscall_linux_*.go.
 //sys	munmap(addr uintptr, length uintptr) (err error)
+//sys	mremap(oldaddr uintptr, oldlength uintptr, newlength uintptr, flags int, newaddr uintptr) (xaddr uintptr, err error)
 
-var mapper = &mmapper{
-	active: make(map[*byte][]byte),
-	mmap:   mmap,
-	munmap: munmap,
+var mapper = &mremapMmapper{
+	mmapper: mmapper{
+		active: make(map[*byte][]byte),
+		mmap:   mmap,
+		munmap: munmap,
+	},
+	mremap: mremap,
 }
 
 func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
@@ -2137,6 +2141,10 @@ func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, e
 
 func Munmap(b []byte) (err error) {
 	return mapper.Munmap(b)
+}
+
+func Mremap(oldData []byte, newLength int, flags int) (data []byte, err error) {
+	return mapper.Mremap(oldData, newLength, flags)
 }
 
 //sys	Madvise(b []byte, advice int) (err error)
@@ -2487,7 +2495,6 @@ func Getresgid() (rgid, egid, sgid int) {
 // MqTimedreceive
 // MqTimedsend
 // MqUnlink
-// Mremap
 // Msgctl
 // Msgget
 // Msgrcv

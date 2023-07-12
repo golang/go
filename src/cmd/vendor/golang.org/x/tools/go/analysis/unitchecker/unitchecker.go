@@ -62,6 +62,7 @@ type Config struct {
 	Compiler                  string
 	Dir                       string
 	ImportPath                string
+	GoVersion                 string // minimum required Go version, such as "go1.21.0"
 	GoFiles                   []string
 	NonGoFiles                []string
 	IgnoredFiles              []string
@@ -217,8 +218,9 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		return compilerImporter.Import(path)
 	})
 	tc := &types.Config{
-		Importer: importer,
-		Sizes:    types.SizesFor("gc", build.Default.GOARCH), // assume gccgo ≡ gc?
+		Importer:  importer,
+		Sizes:     types.SizesFor("gc", build.Default.GOARCH), // assume gccgo ≡ gc?
+		GoVersion: cfg.GoVersion,
 	}
 	info := &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),

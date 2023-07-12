@@ -158,24 +158,52 @@ type gobFact struct {
 // for the same package. Each call to Decode returns an independent
 // fact set.
 type Decoder struct {
-	pkg      *types.Package
-	packages map[string]*types.Package
+	pkg        *types.Package
+	getPackage GetPackageFunc
 }
 
 // NewDecoder returns a fact decoder for the specified package.
+//
+// It uses a brute-force recursive approach to enumerate all objects
+// defined by dependencies of pkg, so that it can learn the set of
+// package paths that may be mentioned in the fact encoding. This does
+// not scale well; use [NewDecoderFunc] where possible.
 func NewDecoder(pkg *types.Package) *Decoder {
 	// Compute the import map for this package.
 	// See the package doc comment.
-	return &Decoder{pkg, importMap(pkg.Imports())}
+	m := importMap(pkg.Imports())
+	getPackageFunc := func(path string) *types.Package { return m[path] }
+	return NewDecoderFunc(pkg, getPackageFunc)
 }
 
-// Decode decodes all the facts relevant to the analysis of package pkg.
-// The read function reads serialized fact data from an external source
-// for one of of pkg's direct imports. The empty file is a valid
-// encoding of an empty fact set.
+// NewDecoderFunc returns a fact decoder for the specified package.
+//
+// It calls the getPackage function for the package path string of
+// each dependency (perhaps indirect) that it encounters in the
+// encoding. If the function returns nil, the fact is discarded.
+//
+// This function is preferred over [NewDecoder] when the client is
+// capable of efficient look-up of packages by package path.
+func NewDecoderFunc(pkg *types.Package, getPackage GetPackageFunc) *Decoder {
+	return &Decoder{
+		pkg:        pkg,
+		getPackage: getPackage,
+	}
+}
+
+// A GetPackageFunc function returns the package denoted by a package path.
+type GetPackageFunc = func(pkgPath string) *types.Package
+
+// Decode decodes all the facts relevant to the analysis of package
+// pkg. The read function reads serialized fact data from an external
+// source for one of pkg's direct imports, identified by package path.
+// The empty file is a valid encoding of an empty fact set.
 //
 // It is the caller's responsibility to call gob.Register on all
 // necessary fact types.
+//
+// Concurrent calls to Decode are safe, so long as the
+// [GetPackageFunc] (if any) is also concurrency-safe.
 func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error) {
 	// Read facts from imported packages.
 	// Facts may describe indirectly imported packages, or their objects.
@@ -202,13 +230,11 @@ func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error
 		if err := gob.NewDecoder(bytes.NewReader(data)).Decode(&gobFacts); err != nil {
 			return nil, fmt.Errorf("decoding facts for %q: %v", imp.Path(), err)
 		}
-		if debug {
-			logf("decoded %d facts: %v", len(gobFacts), gobFacts)
-		}
+		logf("decoded %d facts: %v", len(gobFacts), gobFacts)
 
 		// Parse each one into a key and a Fact.
 		for _, f := range gobFacts {
-			factPkg := d.packages[f.PkgPath]
+			factPkg := d.getPackage(f.PkgPath) // possibly an indirect dependency
 			if factPkg == nil {
 				// Fact relates to a dependency that was
 				// unused in this translation unit. Skip.

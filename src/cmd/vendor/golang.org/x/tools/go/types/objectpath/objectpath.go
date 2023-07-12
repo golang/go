@@ -137,6 +137,17 @@ type Encoder struct {
 // These objects are sufficient to define the API of their package.
 // The objects described by a package's export data are drawn from this set.
 //
+// The set of objects accessible from a package's Scope depends on
+// whether the package was produced by type-checking syntax, or
+// reading export data; the latter may have a smaller Scope since
+// export data trims objects that are not reachable from an exported
+// declaration. For example, the For function will return a path for
+// an exported method of an unexported type that is not reachable
+// from any public declaration; this path will cause the Object
+// function to fail if called on a package loaded from export data.
+// TODO(adonovan): is this a bug or feature? Should this package
+// compute accessibility in the same way?
+//
 // For does not return a path for predeclared names, imported package
 // names, local names, and unexported package-level names (except
 // types).
