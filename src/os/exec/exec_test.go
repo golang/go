@@ -1708,3 +1708,77 @@ func TestCancelErrors(t *testing.T) {
 		}
 	})
 }
+
+// TestConcurrentExec is a regression test for https://go.dev/issue/61080.
+//
+// Forking multiple child processes concurrently would sometimes hang on darwin.
+// (This test hung on a gomote with -count=100 after only a few iterations.)
+func TestConcurrentExec(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// This test will spawn nHangs subprocesses that hang reading from stdin,
+	// and nExits subprocesses that exit immediately.
+	//
+	// When issue #61080 was present, a long-lived "hang" subprocess would
+	// occasionally inherit the fork/exec status pipe from an "exit" subprocess,
+	// causing the parent process (which expects to see an EOF on that pipe almost
+	// immediately) to unexpectedly block on reading from the pipe.
+	var (
+		nHangs       = runtime.GOMAXPROCS(0)
+		nExits       = runtime.GOMAXPROCS(0)
+		hangs, exits sync.WaitGroup
+	)
+	hangs.Add(nHangs)
+	exits.Add(nExits)
+
+	// ready is done when the goroutines have done as much work as possible to
+	// prepare to create subprocesses. It isn't strictly necessary for the test,
+	// but helps to increase the repro rate by making it more likely that calls to
+	// syscall.StartProcess for the "hang" and "exit" goroutines overlap.
+	var ready sync.WaitGroup
+	ready.Add(nHangs + nExits)
+
+	for i := 0; i < nHangs; i++ {
+		go func() {
+			defer hangs.Done()
+
+			cmd := helperCommandContext(t, ctx, "pipetest")
+			stdin, err := cmd.StdinPipe()
+			if err != nil {
+				ready.Done()
+				t.Error(err)
+				return
+			}
+			cmd.Cancel = stdin.Close
+			ready.Done()
+
+			ready.Wait()
+			if err := cmd.Start(); err != nil {
+				if !errors.Is(err, context.Canceled) {
+					t.Error(err)
+				}
+				return
+			}
+
+			cmd.Wait()
+		}()
+	}
+
+	for i := 0; i < nExits; i++ {
+		go func() {
+			defer exits.Done()
+
+			cmd := helperCommandContext(t, ctx, "exit", "0")
+			ready.Done()
+
+			ready.Wait()
+			if err := cmd.Run(); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+
+	exits.Wait()
+	cancel()
+	hangs.Wait()
+}

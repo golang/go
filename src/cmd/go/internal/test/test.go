@@ -660,6 +660,7 @@ var defaultVetFlags = []string{
 	"-printf",
 	// "-rangeloops",
 	// "-shift",
+	"-slog",
 	"-stringintconv",
 	// "-structtags",
 	// "-tests",

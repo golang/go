@@ -8,7 +8,12 @@
 
 package net
 
-import "internal/poll"
+import (
+	"context"
+	"internal/poll"
+
+	"golang.org/x/net/dns/dnsmessage"
+)
 
 // Network file descriptor.
 type netFD struct {
@@ -24,4 +29,8 @@ type netFD struct {
 	// unused
 	pfd         poll.FD
 	isConnected bool // handshake completed or use of association with peer
+}
+
+func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type, conf *dnsConfig) (dnsmessage.Parser, string, error) {
+	panic("unreachable")
 }

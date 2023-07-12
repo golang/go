@@ -29,7 +29,7 @@ func SortFunc[S ~[]E, E any](x S, cmp func(a, b E) int) {
 }
 
 // SortStableFunc sorts the slice x while keeping the original order of equal
-// elements, using cmp to compare elements.
+// elements, using cmp to compare elements in the same way as [SortFunc].
 func SortStableFunc[S ~[]E, E any](x S, cmp func(a, b E) int) {
 	stableCmpFunc(x, len(x), cmp)
 }
@@ -45,7 +45,7 @@ func IsSorted[S ~[]E, E cmp.Ordered](x S) bool {
 }
 
 // IsSortedFunc reports whether x is sorted in ascending order, with cmp as the
-// comparison function.
+// comparison function as defined by [SortFunc].
 func IsSortedFunc[S ~[]E, E any](x S, cmp func(a, b E) int) bool {
 	for i := len(x) - 1; i > 0; i-- {
 		if cmp(x[i], x[i-1]) < 0 {
@@ -70,7 +70,8 @@ func Min[S ~[]E, E cmp.Ordered](x S) E {
 }
 
 // MinFunc returns the minimal value in x, using cmp to compare elements.
-// It panics if x is empty.
+// It panics if x is empty. If there is more than one minimal element
+// according to the cmp function, MinFunc returns the first one.
 func MinFunc[S ~[]E, E any](x S, cmp func(a, b E) int) E {
 	if len(x) < 1 {
 		panic("slices.MinFunc: empty list")
@@ -99,7 +100,8 @@ func Max[S ~[]E, E cmp.Ordered](x S) E {
 }
 
 // MaxFunc returns the maximal value in x, using cmp to compare elements.
-// It panics if x is empty.
+// It panics if x is empty. If there is more than one maximal element
+// according to the cmp function, MaxFunc returns the first one.
 func MaxFunc[S ~[]E, E any](x S, cmp func(a, b E) int) E {
 	if len(x) < 1 {
 		panic("slices.MaxFunc: empty list")
@@ -136,7 +138,7 @@ func BinarySearch[S ~[]E, E cmp.Ordered](x S, target E) (int, bool) {
 	return i, i < n && (x[i] == target || (isNaN(x[i]) && isNaN(target)))
 }
 
-// BinarySearchFunc works like BinarySearch, but uses a custom comparison
+// BinarySearchFunc works like [BinarySearch], but uses a custom comparison
 // function. The slice must be sorted in increasing order, where "increasing"
 // is defined by cmp. cmp should return 0 if the slice element matches
 // the target, a negative number if the slice element precedes the target,

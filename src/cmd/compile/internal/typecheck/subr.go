@@ -713,12 +713,12 @@ func ImplementsExplain(t, iface *types.Type) string {
 		return fmt.Sprintf("%v does not implement %v (%v method is marked 'nointerface')", t, iface, missing.Sym)
 	} else if have != nil && have.Sym == missing.Sym {
 		return fmt.Sprintf("%v does not implement %v (wrong type for %v method)\n"+
-		"\t\thave %v%S\n\t\twant %v%S", t, iface, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+			"\t\thave %v%S\n\t\twant %v%S", t, iface, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 	} else if ptr != 0 {
 		return fmt.Sprintf("%v does not implement %v (%v method has pointer receiver)", t, iface, missing.Sym)
 	} else if have != nil {
 		return fmt.Sprintf("%v does not implement %v (missing %v method)\n"+
-		"\t\thave %v%S\n\t\twant %v%S", t, iface, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+			"\t\thave %v%S\n\t\twant %v%S", t, iface, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 	}
 	return fmt.Sprintf("%v does not implement %v (missing %v method)", t, iface, missing.Sym)
 }

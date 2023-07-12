@@ -95,7 +95,7 @@ const (
 func main() {
 	objabi.AddVersionFlag()
 	flag.Usage = usage
-	flag.Parse()
+	objabi.Flagparse(usage)
 
 	// Usage information when no arguments.
 	if flag.NFlag() == 0 && flag.NArg() == 0 {

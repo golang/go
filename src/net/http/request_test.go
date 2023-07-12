@@ -775,15 +775,8 @@ func TestRequestBadHost(t *testing.T) {
 	}
 	req.Host = "foo.com with spaces"
 	req.URL.Host = "foo.com with spaces"
-	req.Write(logWrites{t, &got})
-	want := []string{
-		"GET /after HTTP/1.1\r\n",
-		"Host: foo.com\r\n",
-		"User-Agent: " + DefaultUserAgent + "\r\n",
-		"\r\n",
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Writes = %q\n  Want = %q", got, want)
+	if err := req.Write(logWrites{t, &got}); err == nil {
+		t.Errorf("Writing request with invalid Host: succeded, want error")
 	}
 }
 

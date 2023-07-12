@@ -37,6 +37,8 @@ TEXT memequal<>(SB),NOSPLIT|NOFRAME,$0
 	BEQZ	X9, loop32_check
 
 	// Check one byte at a time until we reach 8 byte alignment.
+	SUB	X9, X0, X9
+	ADD	$8, X9, X9
 	SUB	X9, X12, X12
 align:
 	ADD	$-1, X9

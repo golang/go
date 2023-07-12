@@ -140,7 +140,7 @@ type HandlerOptions struct {
 
 	// ReplaceAttr is called to rewrite each non-group attribute before it is logged.
 	// The attribute's value has been resolved (see [Value.Resolve]).
-	// If ReplaceAttr returns an Attr with Key == "", the attribute is discarded.
+	// If ReplaceAttr returns a zero Attr, the attribute is discarded.
 	//
 	// The built-in attributes with keys "time", "level", "source", and "msg"
 	// are passed to this function, except that time is omitted
@@ -221,6 +221,11 @@ func (h *commonHandler) enabled(l Level) bool {
 }
 
 func (h *commonHandler) withAttrs(as []Attr) *commonHandler {
+	// We are going to ignore empty groups, so if the entire slice consists of
+	// them, there is nothing to do.
+	if countEmptyGroups(as) == len(as) {
+		return h
+	}
 	h2 := h.clone()
 	// Pre-format the attributes as an optimization.
 	state := h2.newHandleState((*buffer.Buffer)(&h2.preformattedAttrs), false, "")
@@ -308,15 +313,20 @@ func (s *handleState) appendNonBuiltIns(r Record) {
 	}
 	// Attrs in Record -- unlike the built-in ones, they are in groups started
 	// from WithGroup.
-	s.prefix.WriteString(s.h.groupPrefix)
-	s.openGroups()
-	r.Attrs(func(a Attr) bool {
-		s.appendAttr(a)
-		return true
-	})
+	// If the record has no Attrs, don't output any groups.
+	nOpenGroups := s.h.nOpenGroups
+	if r.NumAttrs() > 0 {
+		s.prefix.WriteString(s.h.groupPrefix)
+		s.openGroups()
+		nOpenGroups = len(s.h.groups)
+		r.Attrs(func(a Attr) bool {
+			s.appendAttr(a)
+			return true
+		})
+	}
 	if s.h.json {
 		// Close all open groups.
-		for range s.h.groups {
+		for range s.h.groups[:nOpenGroups] {
 			s.buf.WriteByte('}')
 		}
 		// Close the top-level object.

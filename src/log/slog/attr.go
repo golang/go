@@ -81,7 +81,7 @@ func argsToAttrSlice(args []any) []Attr {
 }
 
 // Any returns an Attr for the supplied value.
-// See [Value.AnyValue] for how values are treated.
+// See [AnyValue] for how values are treated.
 func Any(key string, value any) Attr {
 	return Attr{key, AnyValue(value)}
 }

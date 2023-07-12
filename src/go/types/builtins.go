@@ -577,6 +577,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			x.mode = value
 		}
 
+		// Use the final type computed above for all arguments.
+		for _, a := range args {
+			check.updateExprType(a.expr, x.typ, true)
+		}
+
 		if check.recordTypes() && x.mode != constant_ {
 			types := make([]Type, nargs)
 			for i := range types {

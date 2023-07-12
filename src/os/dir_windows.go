@@ -84,6 +84,18 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 				if err == syscall.ERROR_NO_MORE_FILES {
 					break
 				}
+				if infoClass == windows.FileIdBothDirectoryRestartInfo && err == syscall.ERROR_FILE_NOT_FOUND {
+					// GetFileInformationByHandleEx doesn't document the return error codes when the info class is FileIdBothDirectoryRestartInfo,
+					// but MS-FSA 2.1.5.6.3 [1] specifies that the underlying file system driver should return STATUS_NO_SUCH_FILE when
+					// reading an empty root directory, which is mapped to ERROR_FILE_NOT_FOUND by Windows.
+					// Note that some file system drivers may never return this error code, as the spec allows to return the "." and ".."
+					// entries in such cases, making the directory appear non-empty.
+					// The chances of false positive are very low, as we know that the directory exists, else GetVolumeInformationByHandle
+					// would have failed, and that the handle is still valid, as we haven't closed it.
+					// See go.dev/issue/61159.
+					// [1] https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsa/fa8194e0-53ec-413b-8315-e8fa85396fd8
+					break
+				}
 				if s, _ := file.Stat(); s != nil && !s.IsDir() {
 					err = &PathError{Op: "readdir", Path: file.name, Err: syscall.ENOTDIR}
 				} else {

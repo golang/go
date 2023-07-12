@@ -2,7 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate go test . -run=TestGenerated -fix
+
 package platform
+
+// An OSArch is a pair of GOOS and GOARCH values indicating a platform.
+type OSArch struct {
+	GOOS, GOARCH string
+}
+
+func (p OSArch) String() string {
+	return p.GOOS + "/" + p.GOARCH
+}
 
 // RaceDetectorSupported reports whether goos/goarch supports the race
 // detector. There is a copy of this function in cmd/dist/test.go.
@@ -123,11 +134,11 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 		return true
 	}
 
-	platform := goos + "/" + goarch
-	if _, ok := osArchSupportsCgo[platform]; !ok {
+	if _, ok := distInfo[OSArch{goos, goarch}]; !ok {
 		return false // platform unrecognized
 	}
 
+	platform := goos + "/" + goarch
 	switch buildmode {
 	case "archive":
 		return true
@@ -239,11 +250,6 @@ func DefaultPIE(goos, goarch string, isRace bool) bool {
 	return false
 }
 
-// CgoSupported reports whether goos/goarch supports cgo.
-func CgoSupported(goos, goarch string) bool {
-	return osArchSupportsCgo[goos+"/"+goarch]
-}
-
 // ExecutableHasDWARF reports whether the linked executable includes DWARF
 // symbols on goos/goarch.
 func ExecutableHasDWARF(goos, goarch string) bool {
@@ -252,4 +258,29 @@ func ExecutableHasDWARF(goos, goarch string) bool {
 		return false
 	}
 	return true
+}
+
+// osArchInfo describes information about an OSArch extracted from cmd/dist and
+// stored in the generated distInfo map.
+type osArchInfo struct {
+	CgoSupported bool
+	FirstClass   bool
+	Broken       bool
+}
+
+// CgoSupported reports whether goos/goarch supports cgo.
+func CgoSupported(goos, goarch string) bool {
+	return distInfo[OSArch{goos, goarch}].CgoSupported
+}
+
+// FirstClass reports whether goos/goarch is considered a “first class” port.
+// (See https://go.dev/wiki/PortingPolicy#first-class-ports.)
+func FirstClass(goos, goarch string) bool {
+	return distInfo[OSArch{goos, goarch}].FirstClass
+}
+
+// Broken reportsr whether goos/goarch is considered a broken port.
+// (See https://go.dev/wiki/PortingPolicy#broken-ports.)
+func Broken(goos, goarch string) bool {
+	return distInfo[OSArch{goos, goarch}].Broken
 }

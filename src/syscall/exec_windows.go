@@ -247,7 +247,7 @@ type SysProcAttr struct {
 	Token                      Token               // if set, runs new process in the security context represented by the token
 	ProcessAttributes          *SecurityAttributes // if set, applies these security attributes as the descriptor for the new process
 	ThreadAttributes           *SecurityAttributes // if set, applies these security attributes as the descriptor for the main thread of the new process
-	NoInheritHandles           bool                // if set, each inheritable handle in the calling process is not inherited by the new process
+	NoInheritHandles           bool                // if set, no handles are inherited by the new process, not even the standard handles, contained in ProcAttr.Files, nor the ones contained in AdditionalInheritedHandles
 	AdditionalInheritedHandles []Handle            // a list of additional handles, already marked as inheritable, that will be inherited by the new process
 	ParentProcess              Handle              // if non-zero, the new process regards the process given by this handle as its parent process, and AdditionalInheritedHandles, if set, should exist in this parent process
 }

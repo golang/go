@@ -174,9 +174,9 @@ argument, as do their corresponding top-level functions.
 
 Although the convenience methods on Logger (Info and so on) and the
 corresponding top-level functions do not take a context, the alternatives ending
-in "Ctx" do. For example,
+in "Context" do. For example,
 
-	slog.InfoCtx(ctx, "message")
+	slog.InfoContext(ctx, "message")
 
 It is recommended to pass a context to an output method if one is available.
 
@@ -206,7 +206,7 @@ keys and values; this allows it, too, to avoid allocation.
 
 The call
 
-	logger.LogAttrs(nil, slog.LevelInfo, "hello", slog.Int("count", 3))
+	logger.LogAttrs(ctx, slog.LevelInfo, "hello", slog.Int("count", 3))
 
 is the most efficient way to achieve the same output as
 
@@ -255,7 +255,7 @@ and hidden fields that refer to state (such as attributes) indirectly. This
 means that modifying a simple copy of a Record (e.g. by calling
 [Record.Add] or [Record.AddAttrs] to add attributes)
 may have unexpected effects on the original.
-Before modifying a Record, use [Clone] to
+Before modifying a Record, use [Record.Clone] to
 create a copy that shares no state with the original,
 or create a new Record with [NewRecord]
 and build up its Attrs by traversing the old ones with [Record.Attrs].

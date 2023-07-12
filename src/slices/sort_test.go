@@ -173,6 +173,15 @@ func TestStability(t *testing.T) {
 	}
 }
 
+type S struct {
+	a int
+	b string
+}
+
+func cmpS(s1, s2 S) int {
+	return cmp.Compare(s1.a, s2.a)
+}
+
 func TestMinMax(t *testing.T) {
 	intCmp := func(a, b int) int { return a - b }
 
@@ -213,6 +222,25 @@ func TestMinMax(t *testing.T) {
 				t.Errorf("MaxFunc got %v, want %v", gotMaxFunc, tt.wantMax)
 			}
 		})
+	}
+
+	svals := []S{
+		{1, "a"},
+		{2, "a"},
+		{1, "b"},
+		{2, "b"},
+	}
+
+	gotMin := MinFunc(svals, cmpS)
+	wantMin := S{1, "a"}
+	if gotMin != wantMin {
+		t.Errorf("MinFunc(%v) = %v, want %v", svals, gotMin, wantMin)
+	}
+
+	gotMax := MaxFunc(svals, cmpS)
+	wantMax := S{2, "a"}
+	if gotMax != wantMax {
+		t.Errorf("MaxFunc(%v) = %v, want %v", svals, gotMax, wantMax)
 	}
 }
 

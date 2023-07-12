@@ -95,6 +95,25 @@ var prevTests = []testCase1[string, string]{
 	{"1.40000000000000000", "1.39999999999999999"},
 }
 
+func TestIsValid(t *testing.T) { test1(t, isValidTests, "IsValid", IsValid) }
+
+var isValidTests = []testCase1[string, bool]{
+	{"1.2rc3", true},
+	{"1.2.3", true},
+	{"1.999testmod", true},
+	{"1.600+auto", false},
+	{"1.22", true},
+	{"1.21.0", true},
+	{"1.21rc2", true},
+	{"1.21", true},
+	{"1.20.0", true},
+	{"1.20", true},
+	{"1.19", true},
+	{"1.3", true},
+	{"1.2", true},
+	{"1", true},
+}
+
 type testCase1[In, Out any] struct {
 	in  In
 	out Out

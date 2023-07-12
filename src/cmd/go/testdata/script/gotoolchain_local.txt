@@ -34,9 +34,9 @@ env GOTOOLCHAIN=go1.600+auto
 go version
 stdout go1.600
 
-env GOTOOLCHAIN=go1.400+auto
+env GOTOOLCHAIN=go1.400.0+auto
 go version
-stdout go1.400
+stdout go1.400.0
 
 # GOTOOLCHAIN=version+path sets a minimum too.
 env GOTOOLCHAIN=go1.600+path

@@ -12,7 +12,9 @@ import (
 	"time"
 )
 
-func TestPlatformVerifier(t *testing.T) {
+func TestPlatformVerifierLegacy(t *testing.T) {
+	// TODO(#52108): This can be removed once the synthetic test root is deployed on
+	// builders.
 	if !testenv.HasExternalNetwork() {
 		t.Skip()
 	}

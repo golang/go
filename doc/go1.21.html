@@ -473,6 +473,16 @@ Do not send CLs removing the interior tags from such phrases.
       The new <a href="/pkg/context/#AfterFunc"><code>AfterFunc</code></a>
       function registers a function to run after a context has been cancelled.
     </p>
+
+    <p><!-- CL 455455 -->
+      An optimization means that the results of calling
+      <a href="/pkg/context/#Background"><code>Background</code></a>
+      and <a href="/pkg/context/#TODO"><code>TODO</code></a> and
+      converting them to a shared type can be considered equal.
+      In previous releases they were always different.  Comparing
+      <a href="/pkg/context/#Context"><code>Context</code></a> values
+      for equality has never been well-defined, so this is not
+      considered to be an incompatible change.
   </dd>
 </dl>
 
@@ -495,7 +505,7 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
   <dd>
     <p><!-- CL 471259, CL 492935 -->
-      The performance of private RSA operations (decryption and signing) is now better than Go 1.19 for <code>GOOS=amd64</code> and <code>GOOS=arm64</code>. It had regressed in Go 1.20.
+      The performance of private RSA operations (decryption and signing) is now better than Go 1.19 for <code>GOARCH=amd64</code> and <code>GOARCH=arm64</code>. It had regressed in Go 1.20.
     </p>
     <p>
       Due to the addition of private fields to <a href="/pkg/crypto/rsa/#PrecomputedValues"><code>PrecomputedValues</code></a>, <a href="/pkg/crypto/rsa/#PrivateKey.Precompute"><code>PrivateKey.Precompute</code></a> must be called for optimal performance even if deserializing (for example from JSON) a previously-precomputed private key.
@@ -511,7 +521,7 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/sha256"><dt><a href="/pkg/crypto/sha256/">crypto/sha256</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/50543, CL 408795 -->
-      SHA-224 and SHA-256 operations now use native instructions when available when <code>GOOS=amd64</code>, providing a performance improvement on the order of 3-4x.
+      SHA-224 and SHA-256 operations now use native instructions when available when <code>GOARCH=amd64</code>, providing a performance improvement on the order of 3-4x.
     </p>
   </dd>
 </dl><!-- crypto/sha256 -->
@@ -579,7 +589,7 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/53573, CL 468875 -->
-      <a href="/pkg/crypto/x509/#RevocationList.RevokedCertificates"><code>RevocationList.RevokedCertificates</code></a> has been deprecated and replaced with the new <a href="/pkg/crypto/x509/#RevocationList.Entries"><code>RevocationList.Entries</code></a> field, which is a slice of <a href="/pkg/crypto/x509/#RevocationListEntry"><code>RevocationListEntry</code></a>. <a href="/pkg/crypto/x509/#RevocationListEntry"><code>RevocationListEntry</code></a> contains all of the fields in <a href="/pkg/crypto/x509/#pkix.RevokedCertificate"><code>pkix.RevokedCertificate</code></a>, as well as the revocation reason code.
+      <a href="/pkg/crypto/x509/#RevocationList.RevokedCertificates"><code>RevocationList.RevokedCertificates</code></a> has been deprecated and replaced with the new <a href="/pkg/crypto/x509/#RevocationList.RevokedCertificateEntries"><code>RevokedCertificateEntries</code></a> field, which is a slice of <a href="/pkg/crypto/x509/#RevocationListEntry"><code>RevocationListEntry</code></a>. <a href="/pkg/crypto/x509/#RevocationListEntry"><code>RevocationListEntry</code></a> contains all of the fields in <a href="/pkg/crypto/x509/pkix#RevokedCertificate"><code>pkix.RevokedCertificate</code></a>, as well as the revocation reason code.
     </p>
   </dd>
 </dl><!-- crypto/x509 -->
@@ -905,6 +915,12 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 493036 -->
       On Windows the os package now supports working with files whose
       names, stored as UTF-16, can't be represented as valid UTF-8.
+    </p>
+
+    <p><!-- CL 463177 -->
+      On Windows <a href="/pkg/os/#Lstat"><code>Lstat</code></a> now resolves
+      symbolic links for paths ending with a path separator, consistent with its
+      behavior on POSIX platforms.
     </p>
 
     <p><!-- https://go.dev/issue/54451, CL 491175 -->

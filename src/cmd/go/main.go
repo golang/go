@@ -300,10 +300,10 @@ func maybeStartTrace(pctx context.Context) context.Context {
 //
 // We have to handle the -C flag this way for two reasons:
 //
-//   1. Toolchain selection needs to be in the right directory to look for go.mod and go.work.
+//  1. Toolchain selection needs to be in the right directory to look for go.mod and go.work.
 //
-//   2. A toolchain switch later on reinvokes the new go command with the same arguments.
-//      The parent toolchain has already done the chdir; the child must not try to do it again.
+//  2. A toolchain switch later on reinvokes the new go command with the same arguments.
+//     The parent toolchain has already done the chdir; the child must not try to do it again.
 func handleChdirFlag() {
 	_, used := lookupCmd(os.Args[1:])
 	used++ // because of [1:]

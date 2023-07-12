@@ -143,13 +143,13 @@ func fms(x, y, z float64) float64 {
 	return math.FMA(x, y, -z)
 }
 
-func fnma(x, y, z float64) float64 {
-	// riscv64:"FNMADDD"
+func fnms(x, y, z float64) float64 {
+	// riscv64:"FNMSUBD",-"FNMADDD"
 	return math.FMA(-x, y, z)
 }
 
-func fnms(x, y, z float64) float64 {
-	// riscv64:"FNMSUBD"
+func fnma(x, y, z float64) float64 {
+	// riscv64:"FNMADDD",-"FNMSUBD"
 	return math.FMA(x, -y, -z)
 }
 

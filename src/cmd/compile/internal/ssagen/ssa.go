@@ -3620,8 +3620,13 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 
 // ternary emits code to evaluate cond ? x : y.
 func (s *state) ternary(cond, x, y *ssa.Value) *ssa.Value {
+	// Note that we need a new ternaryVar each time (unlike okVar where we can
+	// reuse the variable) because it might have a different type every time.
+	ternaryVar := ssaMarker("ternary")
+
 	bThen := s.f.NewBlock(ssa.BlockPlain)
 	bElse := s.f.NewBlock(ssa.BlockPlain)
+	bEnd := s.f.NewBlock(ssa.BlockPlain)
 
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
@@ -3629,11 +3634,18 @@ func (s *state) ternary(cond, x, y *ssa.Value) *ssa.Value {
 	b.AddEdgeTo(bThen)
 	b.AddEdgeTo(bElse)
 
-	s.startBlock(bElse)
-	s.endBlock().AddEdgeTo(bThen)
-
 	s.startBlock(bThen)
-	return s.newValue2(ssa.OpPhi, x.Type, x, y)
+	s.vars[ternaryVar] = x
+	s.endBlock().AddEdgeTo(bEnd)
+
+	s.startBlock(bElse)
+	s.vars[ternaryVar] = y
+	s.endBlock().AddEdgeTo(bEnd)
+
+	s.startBlock(bEnd)
+	r := s.variable(ternaryVar, x.Type)
+	delete(s.vars, ternaryVar)
+	return r
 }
 
 // condBranch evaluates the boolean expression cond and branches to yes
