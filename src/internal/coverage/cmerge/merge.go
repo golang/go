@@ -68,7 +68,7 @@ func (m *Merger) SaturatingAdd(dst, src uint32) uint32 {
 	return result
 }
 
-// Saturating add does a saturing addition of 'dst' and 'src',
+// Saturating add does a saturating addition of 'dst' and 'src',
 // returning added value or math.MaxUint32 plus an overflow flag.
 func SaturatingAdd(dst, src uint32) (uint32, bool) {
 	d, s := uint64(dst), uint64(src)

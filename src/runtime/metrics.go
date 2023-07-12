@@ -660,7 +660,7 @@ type cpuStatsAggregate struct {
 // compute populates the cpuStatsAggregate with values from the runtime.
 func (a *cpuStatsAggregate) compute() {
 	a.cpuStats = work.cpuStats
-	// TODO(mknyszek): Update the the CPU stats again so that we're not
+	// TODO(mknyszek): Update the CPU stats again so that we're not
 	// just relying on the STW snapshot. The issue here is that currently
 	// this will cause non-monotonicity in the "user" CPU time metric.
 	//
