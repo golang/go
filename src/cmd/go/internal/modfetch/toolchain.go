@@ -60,6 +60,15 @@ func (r *toolchainRepo) Versions(ctx context.Context, prefix string) (*Versions,
 		}
 	}
 
+	// Always include our own version.
+	// This means that the development branch of Go 1.21 (say) will allow 'go get go@1.21'
+	// even though there are no Go 1.21 releases yet.
+	// Once there is a release, 1.21 will be treated as a query matching the latest available release.
+	// Before then, 1.21 will be treated as a query that resolves to this entry we are adding (1.21).
+	if v := gover.Local(); !have[v] {
+		list = append(list, goPrefix+v)
+	}
+
 	if r.path == "go" {
 		sort.Slice(list, func(i, j int) bool {
 			return gover.Compare(list[i], list[j]) < 0
@@ -74,19 +83,26 @@ func (r *toolchainRepo) Versions(ctx context.Context, prefix string) (*Versions,
 }
 
 func (r *toolchainRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
-	// If we're asking about "go" (not "toolchain"), pretend to have
-	// all earlier Go versions available without network access:
-	// we will provide those ourselves, at least in GOTOOLCHAIN=auto mode.
-	if r.path == "go" && gover.Compare(rev, gover.Local()) <= 0 {
-		return &RevInfo{Version: rev}, nil
-	}
-
 	// Convert rev to DL version and stat that to make sure it exists.
+	// In theory the go@ versions should be like 1.21.0
+	// and the toolchain@ versions should be like go1.21.0
+	// but people will type the wrong one, and so we accept
+	// both and silently correct it to the standard form.
 	prefix := ""
 	v := rev
 	v = strings.TrimPrefix(v, "go")
 	if r.path == "toolchain" {
 		prefix = "go"
+	}
+
+	if !gover.IsValid(v) {
+		return nil, fmt.Errorf("invalid %s version %s", r.path, rev)
+	}
+	// If we're asking about "go" (not "toolchain"), pretend to have
+	// all earlier Go versions available without network access:
+	// we will provide those ourselves, at least in GOTOOLCHAIN=auto mode.
+	if r.path == "go" && gover.Compare(v, gover.Local()) <= 0 {
+		return &RevInfo{Version: prefix + v}, nil
 	}
 	if gover.IsLang(v) {
 		return nil, fmt.Errorf("go language version %s is not a toolchain version", rev)
