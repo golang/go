@@ -85,3 +85,43 @@ func main() {
 		})
 	}
 }
+
+// Test the embed directive analyzer.
+//
+// There is a fix for missing imports, but it should not trigger for other
+// kinds of issues reported by the analayzer, here the variable
+// declaration following the embed directive is wrong.
+func TestNoSuggestedFixesForEmbedDirectiveDeclaration(t *testing.T) {
+	const generated = `
+-- go.mod --
+module mod.com
+
+go 1.20
+
+-- foo.txt --
+FOO
+
+-- main.go --
+package main
+
+import _ "embed"
+
+//go:embed foo.txt
+var foo, bar string
+
+func main() {
+	_ = foo
+}
+`
+	Run(t, generated, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		var d protocol.PublishDiagnosticsParams
+		env.AfterChange(
+			Diagnostics(env.AtRegexp("main.go", "//go:embed")),
+			ReadDiagnostics("main.go", &d),
+		)
+		if fixes := env.GetQuickFixes("main.go", d.Diagnostics); len(fixes) != 0 {
+			t.Errorf("got quick fixes %v, wanted none", fixes)
+		}
+	})
+}

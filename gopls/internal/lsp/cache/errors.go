@@ -339,17 +339,20 @@ func toSourceDiagnostic(srcAnalyzer *source.Analyzer, gobDiag *gobDiagnostic) *s
 	}
 
 	diag := &source.Diagnostic{
-		URI:            gobDiag.Location.URI.SpanURI(),
-		Range:          gobDiag.Location.Range,
-		Severity:       severity,
-		Code:           gobDiag.Code,
-		CodeHref:       gobDiag.CodeHref,
-		Source:         source.AnalyzerErrorKind(gobDiag.Source),
-		Message:        gobDiag.Message,
-		Related:        related,
-		SuggestedFixes: fixes,
-		Tags:           srcAnalyzer.Tag,
+		URI:      gobDiag.Location.URI.SpanURI(),
+		Range:    gobDiag.Location.Range,
+		Severity: severity,
+		Code:     gobDiag.Code,
+		CodeHref: gobDiag.CodeHref,
+		Source:   source.AnalyzerErrorKind(gobDiag.Source),
+		Message:  gobDiag.Message,
+		Related:  related,
+		Tags:     srcAnalyzer.Tag,
 	}
+	if srcAnalyzer.FixesDiagnostic(diag) {
+		diag.SuggestedFixes = fixes
+	}
+
 	// If the fixes only delete code, assume that the diagnostic is reporting dead code.
 	if onlyDeletions(fixes) {
 		diag.Tags = append(diag.Tags, protocol.Unnecessary)

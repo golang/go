@@ -1574,8 +1574,13 @@ func defaultAnalyzers() map[string]*Analyzer {
 		unusedparams.Analyzer.Name:     {Analyzer: unusedparams.Analyzer, Enabled: false},
 		unusedwrite.Analyzer.Name:      {Analyzer: unusedwrite.Analyzer, Enabled: false},
 		useany.Analyzer.Name:           {Analyzer: useany.Analyzer, Enabled: false},
-		embeddirective.Analyzer.Name:   {Analyzer: embeddirective.Analyzer, Enabled: true},
 		timeformat.Analyzer.Name:       {Analyzer: timeformat.Analyzer, Enabled: true},
+		embeddirective.Analyzer.Name: {
+			Analyzer:        embeddirective.Analyzer,
+			Enabled:         true,
+			Fix:             AddEmbedImport,
+			fixesDiagnostic: fixedByImportingEmbed,
+		},
 
 		// gofmt -s suite:
 		simplifycompositelit.Analyzer.Name: {

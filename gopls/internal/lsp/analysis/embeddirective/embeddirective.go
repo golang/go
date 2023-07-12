@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package embeddirective defines an Analyzer that validates import for //go:embed directive.
+// Package embeddirective defines an Analyzer that validates //go:embed directives.
+// The analyzer defers fixes to it's parent source.Analyzer.
 package embeddirective
 
 import (
@@ -25,6 +26,10 @@ var Analyzer = &analysis.Analyzer{
 	Run:              run,
 	RunDespiteErrors: true,
 }
+
+// source.fixedByImportingEmbed relies on this message to filter
+// out fixable diagnostics from this Analyzer.
+const MissingImportMessage = `must import "embed" when using go:embed directives`
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	for _, f := range pass.Files {
@@ -51,7 +56,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			}
 
 			if !hasEmbedImport {
-				report(`must import "embed" when using go:embed directives`)
+				report(MissingImportMessage)
 			}
 
 			spec := nextVarSpec(c, f)

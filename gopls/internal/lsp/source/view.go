@@ -879,6 +879,10 @@ type Analyzer struct {
 	// the analyzer's suggested fixes through a Command, not a TextEdit.
 	Fix string
 
+	// fixesDiagnostic reports if a diagnostic from the analyzer can be fixed by Fix.
+	// If nil then all diagnostics from the analyzer are assumed to be fixable.
+	fixesDiagnostic func(*Diagnostic) bool
+
 	// ActionKind is the kind of code action this analyzer produces. If
 	// unspecified the type defaults to quickfix.
 	ActionKind []protocol.CodeActionKind
@@ -906,6 +910,14 @@ func (a Analyzer) IsEnabled(options *Options) bool {
 		return enabled
 	}
 	return a.Enabled
+}
+
+// FixesDiagnostic returns true if Analyzer.Fix can fix the Diagnostic.
+func (a Analyzer) FixesDiagnostic(d *Diagnostic) bool {
+	if a.fixesDiagnostic == nil {
+		return true
+	}
+	return a.fixesDiagnostic(d)
 }
 
 // Declare explicit types for package paths, names, and IDs to ensure that we
