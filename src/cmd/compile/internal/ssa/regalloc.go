@@ -121,6 +121,7 @@ import (
 	"cmd/internal/sys"
 	"fmt"
 	"internal/buildcfg"
+	"math"
 	"math/bits"
 	"unsafe"
 )
@@ -210,7 +211,12 @@ func pickReg(r regMask) register {
 }
 
 type use struct {
-	dist int32    // distance from start of the block to a use of a value
+	// distance from start of the block to a use of a value
+	//   dist == 0                 used by first instruction in block
+	//   dist == len(b.Values)-1   used by last instruction in block
+	//   dist == len(b.Values)     used by block's control value
+	//   dist  > len(b.Values)     used by a subsequent block
+	dist int32
 	pos  src.XPos // source position of the use
 	next *use     // linked list of uses of a value in nondecreasing dist order
 }
@@ -314,6 +320,17 @@ type regAllocState struct {
 
 	// whether to insert instructions that clobber dead registers at call sites
 	doClobber bool
+
+	// For each instruction index in a basic block, the index of the next call
+	// at or after that instruction index.
+	// If there is no next call, returns maxInt32.
+	// nextCall for a call instruction points to itself.
+	// (Indexes and results are pre-regalloc.)
+	nextCall []int32
+
+	// Index of the instruction we're currently working on.
+	// Index is expressed in terms of the pre-regalloc b.Values list.
+	curIdx int
 }
 
 type endReg struct {
@@ -801,12 +818,26 @@ func (s *regAllocState) advanceUses(v *Value) {
 		ai := &s.values[a.ID]
 		r := ai.uses
 		ai.uses = r.next
-		if r.next == nil {
-			// Value is dead, free all registers that hold it.
+		if r.next == nil || (a.Op != OpSP && a.Op != OpSB && r.next.dist > s.nextCall[s.curIdx]) {
+			// Value is dead (or is not used again until after a call), free all registers that hold it.
 			s.freeRegs(ai.regs)
 		}
 		r.next = s.freeUseRecords
 		s.freeUseRecords = r
+	}
+	s.dropIfUnused(v)
+}
+
+// Drop v from registers if it isn't used again, or its only uses are after
+// a call instruction.
+func (s *regAllocState) dropIfUnused(v *Value) {
+	if !s.values[v.ID].needReg {
+		return
+	}
+	vi := &s.values[v.ID]
+	r := vi.uses
+	if r == nil || (v.Op != OpSP && v.Op != OpSB && r.dist > s.nextCall[s.curIdx]) {
+		s.freeRegs(vi.regs)
 	}
 }
 
@@ -932,6 +963,10 @@ func (s *regAllocState) regalloc(f *Func) {
 				regValLiveSet.add(v.ID)
 			}
 		}
+		if len(s.nextCall) < len(b.Values) {
+			s.nextCall = append(s.nextCall, make([]int32, len(b.Values)-len(s.nextCall))...)
+		}
+		var nextCall int32 = math.MaxInt32
 		for i := len(b.Values) - 1; i >= 0; i-- {
 			v := b.Values[i]
 			regValLiveSet.remove(v.ID)
@@ -939,6 +974,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				// Remove v from the live set, but don't add
 				// any inputs. This is the state the len(b.Preds)>1
 				// case below desires; it wants to process phis specially.
+				s.nextCall[i] = nextCall
 				continue
 			}
 			if opcodeTable[v.Op].call {
@@ -950,6 +986,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				if s.sb != 0 && s.values[s.sb].uses != nil {
 					regValLiveSet.add(s.sb)
 				}
+				nextCall = int32(i)
 			}
 			for _, a := range v.Args {
 				if !s.values[a.ID].needReg {
@@ -958,6 +995,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				s.addUse(a.ID, int32(i), v.Pos)
 				regValLiveSet.add(a.ID)
 			}
+			s.nextCall[i] = nextCall
 		}
 		if s.f.pass.debug > regDebug {
 			fmt.Printf("use distances for %s\n", b)
@@ -1222,6 +1260,12 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 		}
 
+		// Drop phis from registers if they immediately go dead.
+		for i, v := range phis {
+			s.curIdx = i
+			s.dropIfUnused(v)
+		}
+
 		// Allocate space to record the desired registers for each value.
 		if l := len(oldSched); cap(dinfo) < l {
 			dinfo = make([]dentry, l)
@@ -1306,6 +1350,7 @@ func (s *regAllocState) regalloc(f *Func) {
 
 		// Process all the non-phi values.
 		for idx, v := range oldSched {
+			s.curIdx = nphi + idx
 			tmpReg := noRegister
 			if s.f.pass.debug > regDebug {
 				fmt.Printf("  processing %s\n", v.LongString())
@@ -1761,6 +1806,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				v.SetArg(i, a) // use register version of arguments
 			}
 			b.Values = append(b.Values, v)
+			s.dropIfUnused(v)
 		}
 
 		// Copy the control values - we need this so we can reduce the
