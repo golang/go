@@ -917,6 +917,12 @@ Do not send CLs removing the interior tags from such phrases.
       names, stored as UTF-16, can't be represented as valid UTF-8.
     </p>
 
+    <p><!-- CL 463177 -->
+      On Windows <a href="/pkg/os/#Lstat"><code>Lstat</code></a> now resolves
+      symbolic links for paths ending with a path separator, consistent with its
+      behavior on POSIX platforms.
+    </p>
+
     <p><!-- https://go.dev/issue/54451, CL 491175 -->
       The implementation of the
       <a href="/pkg/io/fs/#DirEntry"><code>io/fs.DirEntry</code></a>
