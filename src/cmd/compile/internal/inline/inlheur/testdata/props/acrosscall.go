@@ -8,21 +8,25 @@
 // <endfilepreamble>
 package params
 
-// acrosscall.go T_feeds_indirect_call_via_call_toplevel 17 0 1
+// acrosscall.go T_feeds_indirect_call_via_call_toplevel 19 0 1
 // ParamFlags
 //   0 ParamFeedsIndirectCall
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[8],"ResultFlags":[]}
+// callsite: acrosscall.go:20:12|0 flagstr "" flagval 0
+// <endcallsites>
 // <endfuncpreamble>
 func T_feeds_indirect_call_via_call_toplevel(f func(int)) {
 	callsparam(f)
 }
 
-// acrosscall.go T_feeds_indirect_call_via_call_conditional 27 0 1
+// acrosscall.go T_feeds_indirect_call_via_call_conditional 31 0 1
 // ParamFlags
 //   0 ParamMayFeedIndirectCall
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[16],"ResultFlags":[]}
+// callsite: acrosscall.go:33:13|0 flagstr "" flagval 0
+// <endcallsites>
 // <endfuncpreamble>
 func T_feeds_indirect_call_via_call_conditional(f func(int)) {
 	if G != 101 {
@@ -30,31 +34,37 @@ func T_feeds_indirect_call_via_call_conditional(f func(int)) {
 	}
 }
 
-// acrosscall.go T_feeds_conditional_indirect_call_via_call_toplevel 39 0 1
+// acrosscall.go T_feeds_conditional_indirect_call_via_call_toplevel 45 0 1
 // ParamFlags
 //   0 ParamMayFeedIndirectCall
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[16],"ResultFlags":[]}
+// callsite: acrosscall.go:46:23|0 flagstr "" flagval 0
+// <endcallsites>
 // <endfuncpreamble>
 func T_feeds_conditional_indirect_call_via_call_toplevel(f func(int)) {
 	callsparamconditional(f)
 }
 
-// acrosscall.go T_feeds_if_via_call 49 0 1
+// acrosscall.go T_feeds_if_via_call 57 0 1
 // ParamFlags
 //   0 ParamFeedsIfOrSwitch
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
+// callsite: acrosscall.go:58:9|0 flagstr "" flagval 0
+// <endcallsites>
 // <endfuncpreamble>
 func T_feeds_if_via_call(x int) {
 	feedsif(x)
 }
 
-// acrosscall.go T_feeds_if_via_call_conditional 59 0 1
+// acrosscall.go T_feeds_if_via_call_conditional 69 0 1
 // ParamFlags
 //   0 ParamMayFeedIfOrSwitch
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[64],"ResultFlags":[]}
+// callsite: acrosscall.go:71:10|0 flagstr "" flagval 0
+// <endcallsites>
 // <endfuncpreamble>
 func T_feeds_if_via_call_conditional(x int) {
 	if G != 101 {
@@ -62,22 +72,28 @@ func T_feeds_if_via_call_conditional(x int) {
 	}
 }
 
-// acrosscall.go T_feeds_conditional_if_via_call 71 0 1
+// acrosscall.go T_feeds_conditional_if_via_call 83 0 1
 // ParamFlags
 //   0 ParamMayFeedIfOrSwitch
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[64],"ResultFlags":[]}
+// callsite: acrosscall.go:84:20|0 flagstr "" flagval 0
+// <endcallsites>
 // <endfuncpreamble>
 func T_feeds_conditional_if_via_call(x int) {
 	feedsifconditional(x)
 }
 
-// acrosscall.go T_multifeeds 82 0 1
+// acrosscall.go T_multifeeds 98 0 1
 // ParamFlags
 //   0 ParamFeedsIndirectCall|ParamMayFeedIndirectCall
 //   1 ParamFeedsIndirectCall
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[24,8],"ResultFlags":[]}
+// callsite: acrosscall.go:100:23|1 flagstr "" flagval 0
+// callsite: acrosscall.go:101:12|2 flagstr "" flagval 0
+// callsite: acrosscall.go:99:12|0 flagstr "" flagval 0
+// <endcallsites>
 // <endfuncpreamble>
 func T_multifeeds(f1, f2 func(int)) {
 	callsparam(f1)
@@ -85,39 +101,47 @@ func T_multifeeds(f1, f2 func(int)) {
 	callsparam(f2)
 }
 
-// acrosscall.go T_acrosscall_returnsconstant 94 0 1
+// acrosscall.go T_acrosscall_returnsconstant 112 0 1
 // ResultFlags
 //   0 ResultAlwaysSameConstant
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[],"ResultFlags":[8]}
+// callsite: acrosscall.go:113:24|0 flagstr "" flagval 0
+// <endcallsites>
 // <endfuncpreamble>
 func T_acrosscall_returnsconstant() int {
 	return returnsconstant()
 }
 
-// acrosscall.go T_acrosscall_returnsmem 104 0 1
+// acrosscall.go T_acrosscall_returnsmem 124 0 1
 // ResultFlags
 //   0 ResultIsAllocatedMem
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[],"ResultFlags":[2]}
+// callsite: acrosscall.go:125:19|0 flagstr "" flagval 0
+// <endcallsites>
 // <endfuncpreamble>
 func T_acrosscall_returnsmem() *int {
 	return returnsmem()
 }
 
-// acrosscall.go T_acrosscall_returnscci 114 0 1
+// acrosscall.go T_acrosscall_returnscci 136 0 1
 // ResultFlags
 //   0 ResultIsConcreteTypeConvertedToInterface
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[],"ResultFlags":[4]}
+// callsite: acrosscall.go:137:19|0 flagstr "" flagval 0
+// <endcallsites>
 // <endfuncpreamble>
 func T_acrosscall_returnscci() I {
 	return returnscci()
 }
 
-// acrosscall.go T_acrosscall_multiret 122 0 1
+// acrosscall.go T_acrosscall_multiret 146 0 1
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+// callsite: acrosscall.go:148:25|0 flagstr "" flagval 0
+// <endcallsites>
 // <endfuncpreamble>
 func T_acrosscall_multiret(q int) int {
 	if q != G {
@@ -126,9 +150,12 @@ func T_acrosscall_multiret(q int) int {
 	return 0
 }
 
-// acrosscall.go T_acrosscall_multiret2 133 0 1
+// acrosscall.go T_acrosscall_multiret2 160 0 1
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+// callsite: acrosscall.go:162:25|0 flagstr "" flagval 0
+// callsite: acrosscall.go:164:25|1 flagstr "" flagval 0
+// <endcallsites>
 // <endfuncpreamble>
 func T_acrosscall_multiret2(q int) int {
 	if q == G {
