@@ -741,6 +741,7 @@ func schedinit() {
 	goargs()
 	goenvs()
 	secure()
+	checkfds()
 	parsedebugvars()
 	gcinit()
 
