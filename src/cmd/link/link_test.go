@@ -1167,6 +1167,86 @@ func TestUnlinkableObj(t *testing.T) {
 	}
 }
 
+func TestExtLinkCmdlineDeterminism(t *testing.T) {
+	// Test that we pass flags in deterministic order to the external linker
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t) // this test requires -linkmode=external
+	t.Parallel()
+
+	// test source code, with some cgo exports
+	testSrc := `
+package main
+import "C"
+//export F1
+func F1() {}
+//export F2
+func F2() {}
+//export F3
+func F3() {}
+func main() {}
+`
+
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(testSrc), 0666); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "x.exe")
+
+	// Use a deterministc tmp directory so the temporary file paths are
+	// deterministc.
+	linktmp := filepath.Join(tmpdir, "linktmp")
+	if err := os.Mkdir(linktmp, 0777); err != nil {
+		t.Fatal(err)
+	}
+
+	// Link with -v -linkmode=external to see the flags we pass to the
+	// external linker.
+	ldflags := "-ldflags=-v -linkmode=external -tmpdir=" + linktmp
+	var out0 []byte
+	for i := 0; i < 5; i++ {
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", ldflags, "-o", exe, src)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build failed: %v, output:\n%s", err, out)
+		}
+		if err := os.Remove(exe); err != nil {
+			t.Fatal(err)
+		}
+
+		// extract the "host link" invocaton
+		j := bytes.Index(out, []byte("\nhost link:"))
+		if j == -1 {
+			t.Fatalf("host link step not found, output:\n%s", out)
+		}
+		out = out[j+1:]
+		k := bytes.Index(out, []byte("\n"))
+		if k == -1 {
+			t.Fatalf("no newline after host link, output:\n%s", out)
+		}
+		out = out[:k]
+
+		// filter out output file name, which is passed by the go
+		// command and is nondeterministic.
+		fs := bytes.Fields(out)
+		for i, f := range fs {
+			if bytes.Equal(f, []byte(`"-o"`)) && i+1 < len(fs) {
+				fs[i+1] = []byte("a.out")
+				break
+			}
+		}
+		out = bytes.Join(fs, []byte{' '})
+
+		if i == 0 {
+			out0 = out
+			continue
+		}
+		if !bytes.Equal(out0, out) {
+			t.Fatalf("output differ:\n%s\n==========\n%s", out0, out)
+		}
+	}
+}
+
 // TestResponseFile tests that creating a response file to pass to the
 // external linker works correctly.
 func TestResponseFile(t *testing.T) {

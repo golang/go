@@ -44,6 +44,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 
@@ -1670,9 +1671,12 @@ func (ctxt *Link) hostlink() {
 		if ctxt.DynlinkingGo() || ctxt.BuildMode == BuildModeCShared || !linkerFlagSupported(ctxt.Arch, argv[0], altLinker, "-Wl,--export-dynamic-symbol=main") {
 			argv = append(argv, "-rdynamic")
 		} else {
+			var exports []string
 			ctxt.loader.ForAllCgoExportDynamic(func(s loader.Sym) {
-				argv = append(argv, "-Wl,--export-dynamic-symbol="+ctxt.loader.SymExtname(s))
+				exports = append(exports, "-Wl,--export-dynamic-symbol="+ctxt.loader.SymExtname(s))
 			})
+			sort.Strings(exports)
+			argv = append(argv, exports...)
 		}
 	}
 	if ctxt.HeadType == objabi.Haix {
