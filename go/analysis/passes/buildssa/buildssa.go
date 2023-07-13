@@ -6,8 +6,6 @@
 // representation of an error-free package and returns the set of all
 // functions within it. It does not report any diagnostics itself but
 // may be used as an input to other analyzers.
-//
-// THIS INTERFACE IS EXPERIMENTAL AND MAY BE SUBJECT TO INCOMPATIBLE CHANGE.
 package buildssa
 
 import (
