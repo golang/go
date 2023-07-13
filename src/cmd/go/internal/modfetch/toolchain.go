@@ -98,13 +98,23 @@ func (r *toolchainRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) 
 	if !gover.IsValid(v) {
 		return nil, fmt.Errorf("invalid %s version %s", r.path, rev)
 	}
+
 	// If we're asking about "go" (not "toolchain"), pretend to have
 	// all earlier Go versions available without network access:
 	// we will provide those ourselves, at least in GOTOOLCHAIN=auto mode.
 	if r.path == "go" && gover.Compare(v, gover.Local()) <= 0 {
 		return &RevInfo{Version: prefix + v}, nil
 	}
+
+	// Similarly, if we're asking about *exactly* the current toolchain,
+	// we don't need to access the network to know that it exists.
+	if r.path == "toolchain" && v == gover.Local() {
+		return &RevInfo{Version: prefix + v}, nil
+	}
+
 	if gover.IsLang(v) {
+		// We can only use a language (development) version if the current toolchain
+		// implements that version, and the two checks above have ruled that out.
 		return nil, fmt.Errorf("go language version %s is not a toolchain version", rev)
 	}
 

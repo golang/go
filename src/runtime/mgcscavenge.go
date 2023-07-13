@@ -884,7 +884,7 @@ func fillAligned(x uint64, m uint) uint64 {
 // segment which represents a contiguous region of free and unscavenged memory.
 //
 // searchIdx indicates the page index within this chunk to start the search, but
-// note that findScavengeCandidate searches backwards through the pallocData. As a
+// note that findScavengeCandidate searches backwards through the pallocData. As
 // a result, it will return the highest scavenge candidate in address order.
 //
 // min indicates a hard minimum size and alignment for runs of pages. That is,
