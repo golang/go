@@ -230,7 +230,7 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 		}
 
 		// Find all packages that include this file and diagnose them in parallel.
-		metas, err := snapshot.MetadataForFile(ctx, uri)
+		meta, err := source.NarrowestMetadataForFile(ctx, snapshot, uri)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
@@ -240,10 +240,7 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 			// noisy to log (and we'll handle things later in the slow pass).
 			continue
 		}
-		source.RemoveIntermediateTestVariants(&metas)
-		for _, m := range metas {
-			toDiagnose[m.ID] = m
-		}
+		toDiagnose[meta.ID] = meta
 	}
 	s.diagnosePkgs(ctx, snapshot, toDiagnose, nil)
 }

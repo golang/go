@@ -193,7 +193,7 @@ func (s *snapshot) resolveImportGraph() (*importGraph, error) {
 	ctx, done := event.Start(event.Detach(ctx), "cache.resolveImportGraph")
 	defer done()
 
-	if err := s.awaitLoaded(ctx); err != nil {
+	if err := s.awaitLoaded(ctx); err != nil { // TODO(rfindley): this is problematic, and slows down diagnostics
 		return nil, err
 	}
 
