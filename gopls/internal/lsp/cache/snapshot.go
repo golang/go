@@ -184,6 +184,18 @@ type snapshot struct {
 	// detect ignored files.
 	ignoreFilterOnce sync.Once
 	ignoreFilter     *ignoreFilter
+
+	// typeCheckMu guards type checking.
+	//
+	// Only one type checking pass should be running at a given time, for two reasons:
+	//  1. type checking batches are optimized to use all available processors.
+	//     Generally speaking, running two type checking batches serially is about
+	//     as fast as running them in parallel.
+	//  2. type checking produces cached artifacts that may be re-used by the
+	//     next type-checking batch: the shared import graph and the set of
+	//     active packages. Running type checking batches in parallel after an
+	//     invalidation can cause redundant calculation of this shared state.
+	typeCheckMu sync.Mutex
 }
 
 var globalSnapshotID uint64

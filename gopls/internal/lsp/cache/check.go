@@ -323,6 +323,9 @@ type (
 //
 // Both pre and post may be called concurrently.
 func (s *snapshot) forEachPackage(ctx context.Context, ids []PackageID, pre preTypeCheck, post postTypeCheck) error {
+	s.typeCheckMu.Lock()
+	defer s.typeCheckMu.Unlock()
+
 	ctx, done := event.Start(ctx, "cache.forEachPackage", tag.PackageCount.Of(len(ids)))
 	defer done()
 
