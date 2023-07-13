@@ -21,35 +21,35 @@ type PackageIndex struct {
 	// faster unions via sparse int vectors.
 	mu  sync.Mutex
 	ids []source.PackageID
-	m   map[source.PackageID]int
+	m   map[source.PackageID]IndexID
 }
 
 // NewPackageIndex creates a new PackageIndex instance for use in building
 // reference and package sets.
 func NewPackageIndex() *PackageIndex {
 	return &PackageIndex{
-		m: make(map[source.PackageID]int),
+		m: make(map[source.PackageID]IndexID),
 	}
 }
 
-// idx returns the packageIdx referencing id, creating one if id is not yet
+// IndexID returns the packageIdx referencing id, creating one if id is not yet
 // tracked by the receiver.
-func (index *PackageIndex) idx(id source.PackageID) int {
+func (index *PackageIndex) IndexID(id source.PackageID) IndexID {
 	index.mu.Lock()
 	defer index.mu.Unlock()
 	if i, ok := index.m[id]; ok {
 		return i
 	}
-	i := len(index.ids)
+	i := IndexID(len(index.ids))
 	index.m[id] = i
 	index.ids = append(index.ids, id)
 	return i
 }
 
-// id returns the PackageID for idx.
+// PackageID returns the PackageID for idx.
 //
 // idx must have been created by this PackageIndex instance.
-func (index *PackageIndex) id(idx int) source.PackageID {
+func (index *PackageIndex) PackageID(idx IndexID) source.PackageID {
 	index.mu.Lock()
 	defer index.mu.Unlock()
 	return index.ids[idx]
@@ -80,18 +80,18 @@ func (index *PackageIndex) NewSet() *PackageSet {
 // DeclaringPackage returns the ID of the symbol's declaring package.
 // The package index must be the one used during decoding.
 func (index *PackageIndex) DeclaringPackage(sym Symbol) source.PackageID {
-	return index.id(sym.pkgIdx)
+	return index.PackageID(sym.Package)
+}
+
+// Add records a new element in the package set, for the provided package ID.
+func (s *PackageSet) AddPackage(id source.PackageID) {
+	s.Add(s.parent.IndexID(id))
 }
 
 // Add records a new element in the package set.
-func (s *PackageSet) Add(id source.PackageID) {
-	s.add(s.parent.idx(id))
-}
-
-// AddDeclaringPackage adds sym's declaring package to the set.
-func (s *PackageSet) AddDeclaringPackage(sym Symbol) { s.add(sym.pkgIdx) }
-
-func (s *PackageSet) add(idx int) {
+// It is the caller's responsibility to ensure that idx was created with the
+// same PackageIndex as the PackageSet.
+func (s *PackageSet) Add(idx IndexID) {
 	i := int(idx)
 	s.sparse[i/blockSize] |= 1 << (i % blockSize)
 }
@@ -117,12 +117,12 @@ func (s *PackageSet) Union(other *PackageSet) {
 
 // Contains reports whether id is contained in the receiver set.
 func (s *PackageSet) Contains(id source.PackageID) bool {
-	i := int(s.parent.idx(id))
+	i := int(s.parent.IndexID(id))
 	return s.sparse[i/blockSize]&(1<<(i%blockSize)) != 0
 }
 
 // Elems calls f for each element of the set in ascending order.
-func (s *PackageSet) Elems(f func(source.PackageID)) {
+func (s *PackageSet) Elems(f func(IndexID)) {
 	blockIndexes := make([]int, 0, len(s.sparse))
 	for k := range s.sparse {
 		blockIndexes = append(blockIndexes, k)
@@ -132,26 +132,17 @@ func (s *PackageSet) Elems(f func(source.PackageID)) {
 		v := s.sparse[i]
 		for b := 0; b < blockSize; b++ {
 			if (v & (1 << b)) != 0 {
-				f(s.parent.id(i*blockSize + b))
+				f(IndexID(i*blockSize + b))
 			}
 		}
 	}
 }
 
-// Len reports the length of the receiver set.
-func (s *PackageSet) Len() int { // could be optimized
-	l := 0
-	s.Elems(func(source.PackageID) {
-		l++
-	})
-	return l
-}
-
 // String returns a human-readable representation of the set: {A, B, ...}.
 func (s *PackageSet) String() string {
 	var ids []string
-	s.Elems(func(id source.PackageID) {
-		ids = append(ids, string(id))
+	s.Elems(func(id IndexID) {
+		ids = append(ids, string(s.parent.PackageID(id)))
 	})
 	return fmt.Sprintf("{%s}", strings.Join(ids, ", "))
 }

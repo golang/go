@@ -276,7 +276,7 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 		}
 		// Add edge from predecessor.
 		if from != nil {
-			atomic.AddInt32(&from.count, 1) // TODO(adonovan): use generics
+			atomic.AddInt32(&from.unfinishedSuccs, 1) // TODO(adonovan): use generics
 			an.preds = append(an.preds, from)
 		}
 		return an, nil
@@ -303,7 +303,7 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 	// Avoid g.SetLimit here: it makes g.Go stop accepting work,
 	// which prevents workers from enqeuing, and thus finishing,
 	// and thus allowing the group to make progress: deadlock.
-	var enqueue func(it *analysisNode)
+	var enqueue func(*analysisNode)
 	enqueue = func(an *analysisNode) {
 		g.Go(func() error {
 			summary, err := an.runCached(ctx)
@@ -315,7 +315,7 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 			// Notify each waiting predecessor,
 			// and enqueue it when it becomes a leaf.
 			for _, pred := range an.preds {
-				if atomic.AddInt32(&pred.count, -1) == 0 {
+				if atomic.AddInt32(&pred.unfinishedSuccs, -1) == 0 {
 					enqueue(pred)
 				}
 			}
@@ -400,16 +400,16 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 // its summary field is populated, either from the cache (hit), or by
 // type-checking and analyzing syntax (miss).
 type analysisNode struct {
-	fset       *token.FileSet                // file set shared by entire batch (DAG)
-	m          *source.Metadata              // metadata for this package
-	files      []source.FileHandle           // contents of CompiledGoFiles
-	analyzers  []*analysis.Analyzer          // set of analyzers to run
-	preds      []*analysisNode               // graph edges:
-	succs      map[PackageID]*analysisNode   //   (preds -> self -> succs)
-	allDeps    map[PackagePath]*analysisNode // all dependencies including self
-	exportDeps map[PackagePath]*analysisNode // subset of allDeps ref'd by export data (+self)
-	count      int32                         // number of unfinished successors
-	summary    *analyzeSummary               // serializable result of analyzing this package
+	fset            *token.FileSet              // file set shared by entire batch (DAG)
+	m               *source.Metadata            // metadata for this package
+	files           []source.FileHandle         // contents of CompiledGoFiles
+	analyzers       []*analysis.Analyzer        // set of analyzers to run
+	preds           []*analysisNode             // graph edges:
+	succs           map[PackageID]*analysisNode //   (preds -> self -> succs)
+	unfinishedSuccs int32
+	allDeps         map[PackagePath]*analysisNode // all dependencies including self
+	exportDeps      map[PackagePath]*analysisNode // subset of allDeps ref'd by export data (+self)
+	summary         *analyzeSummary               // serializable result of analyzing this package
 
 	typesOnce sync.Once      // guards lazy population of types and typesErr fields
 	types     *types.Package // type information lazily imported from summary

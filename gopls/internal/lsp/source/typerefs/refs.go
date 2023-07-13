@@ -60,9 +60,13 @@ type Class struct {
 // A Symbol represents an external (imported) symbol
 // referenced by the analyzed package.
 type Symbol struct {
-	pkgIdx int // w.r.t. PackageIndex passed to decoder
-	Name   string
+	Package IndexID // w.r.t. PackageIndex passed to decoder
+	Name    string
 }
+
+// An IndexID is a small integer that uniquely identifies a package within a
+// given PackageIndex.
+type IndexID int
 
 // -- internals --
 
@@ -807,9 +811,9 @@ func decode(pkgIndex *PackageIndex, id source.PackageID, data []byte) []Class {
 		}
 		refs := make([]Symbol, len(gobClass.Refs)/2)
 		for i := range refs {
-			pkgID := pkgIndex.idx(source.PackageID(payload.Strings[gobClass.Refs[2*i]]))
+			pkgID := pkgIndex.IndexID(source.PackageID(payload.Strings[gobClass.Refs[2*i]]))
 			name := payload.Strings[gobClass.Refs[2*i+1]]
-			refs[i] = Symbol{pkgIdx: pkgID, Name: name}
+			refs[i] = Symbol{Package: pkgID, Name: name}
 		}
 		classes[i] = Class{
 			Decls: decls,

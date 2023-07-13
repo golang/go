@@ -206,7 +206,7 @@ func (g *PackageGraph) buildPackage(ctx context.Context, id source.PackageID) (*
 					return nil, err
 				}
 			}
-			set.AddDeclaringPackage(sym)
+			set.Add(sym.Package)
 			set.Union(depP.transitiveRefs[sym.Name])
 		}
 		for _, name := range class.Decls {
@@ -234,7 +234,7 @@ func (g *PackageGraph) reachesByDeps(ctx context.Context, m *source.Metadata) (*
 		if err != nil {
 			return nil, err
 		}
-		transitive.Add(dep.metadata.ID)
+		transitive.AddPackage(dep.metadata.ID)
 		for _, set := range dep.transitiveRefs {
 			transitive.Union(set)
 		}

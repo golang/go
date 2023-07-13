@@ -23,6 +23,7 @@ import (
 	"golang.org/x/tools/gopls/internal/astutil"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/lsp/source/typerefs"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/testenv"
@@ -146,8 +147,8 @@ func TestBuildPackageGraph(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		pkg.ReachesByDeps.Elems(func(id2 PackageID) {
-			recordEdge(id, id2, reaches, reachedBy)
+		pkg.ReachesByDeps.Elems(func(id2 typerefs.IndexID) {
+			recordEdge(id, g.pkgIndex.PackageID(id2), reaches, reachedBy)
 		})
 
 		importMap := importMap(id, meta)
