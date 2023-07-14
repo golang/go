@@ -29,6 +29,7 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
 // TODO(adonovan):
@@ -166,12 +167,14 @@ func handleSelectJSON(w http.ResponseWriter, req *http.Request) {
 	}
 	fmt.Fprintf(out, "\n")
 
-	// Syntax debug output.
-	ast.Fprint(out, fset, path[0], nil) // ignore errors
-	fmt.Fprintf(out, "\n")
-
 	// Pretty-print of selected syntax.
+	fmt.Fprintf(out, "Pretty-printed:\n")
 	format.Node(out, fset, path[0])
+	fmt.Fprintf(out, "\n\n")
+
+	// Syntax debug output.
+	fmt.Fprintf(out, "Syntax:\n")
+	ast.Fprint(out, fset, path[0], nil) // ignore errors
 
 	// Clean up the messy temp file name.
 	outStr := strings.ReplaceAll(out.String(), f.Name(), "play.go")
@@ -219,7 +222,22 @@ func formatObj(out *strings.Builder, fset *token.FileSet, ref string, obj types.
 	if origin != nil && origin != obj {
 		fmt.Fprintf(out, " (instantiation of %v)", origin.Type())
 	}
-	fmt.Fprintf(out, "\n")
+	fmt.Fprintf(out, "\n\n")
+
+	// method set
+	if methods := typeutil.IntuitiveMethodSet(obj.Type(), nil); len(methods) > 0 {
+		fmt.Fprintf(out, "Methods:\n")
+		for _, m := range methods {
+			fmt.Fprintln(out, m)
+		}
+		fmt.Fprintf(out, "\n")
+	}
+
+	// scope tree
+	fmt.Fprintf(out, "Scopes:\n")
+	for scope := obj.Parent(); scope != nil; scope = scope.Parent() {
+		fmt.Fprintln(out, scope)
+	}
 }
 
 func handleRoot(w http.ResponseWriter, req *http.Request) { io.WriteString(w, mainHTML) }
