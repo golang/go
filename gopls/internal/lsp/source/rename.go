@@ -357,10 +357,25 @@ func renameOrdinary(ctx context.Context, snapshot Snapshot, f FileHandle, pp pro
 			obj = funcOrigin(obj.(*types.Func))
 		case *types.Var:
 			// TODO(adonovan): do vars need the origin treatment too? (issue #58462)
+
+			// Function parameter and result vars that are (unusually)
+			// capitalized are technically exported, even though they
+			// cannot be referenced, because they may affect downstream
+			// error messages. But we can safely treat them as local.
+			//
+			// This is not merely an optimization: the renameExported
+			// operation gets confused by such vars. It finds them from
+			// objectpath, the classifies them as local vars, but as
+			// they came from export data they lack syntax and the
+			// correct scope tree (issue #61294).
+			if !obj.(*types.Var).IsField() && !isPackageLevel(obj) {
+				goto skipObjectPath
+			}
 		}
 		if path, err := objectpath.For(obj); err == nil {
 			declObjPath = path
 		}
+	skipObjectPath:
 	}
 
 	// Nonexported? Search locally.

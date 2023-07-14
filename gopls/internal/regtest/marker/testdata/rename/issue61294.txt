@@ -1,0 +1,29 @@
+
+This test renames a parameter var whose name is the same as a
+package-level var, which revealed a bug in isLocal.
+
+This is a regression test for issue #61294.
+
+-- go.mod --
+module example.com
+go 1.18
+
+-- a/a.go --
+package a
+
+func One()
+
+func Two(One int) //@rename("One", Three, OneToThree)
+
+-- b/b.go --
+package b
+
+import _ "example.com/a"
+
+-- @OneToThree/a/a.go --
+package a
+
+func One()
+
+func Two(Three int) //@rename("One", Three, OneToThree)
+
