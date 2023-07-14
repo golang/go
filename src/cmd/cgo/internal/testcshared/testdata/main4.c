@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
 	setsid();
 
 	if (verbose) {
-		printf("calling sigaction\n");
+		fprintf(stderr, "calling sigaction\n");
 	}
 
 	memset(&sa, 0, sizeof sa);
@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
 	}
 
 	if (verbose) {
-		printf("calling dlopen\n");
+		fprintf(stderr, "calling dlopen\n");
 	}
 
 	handle = dlopen(argv[1], RTLD_NOW | RTLD_GLOBAL);
@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
 	}
 
 	if (verbose) {
-		printf("calling dlsym\n");
+		fprintf(stderr, "calling dlsym\n");
 	}
 
 	// Start some goroutines.
@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
 	}
 
 	if (verbose) {
-		printf("calling RunGoroutines\n");
+		fprintf(stderr, "calling RunGoroutines\n");
 	}
 
 	fn();
@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
 	// will be delivered to a goroutine.
 
 	if (verbose) {
-		printf("calling pthread_sigmask\n");
+		fprintf(stderr, "calling pthread_sigmask\n");
 	}
 
 	if (sigemptyset(&mask) < 0) {
@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
 	}
 
 	if (verbose) {
-		printf("calling kill\n");
+		fprintf(stderr, "calling kill\n");
 	}
 
 	if (kill(0, SIGIO) < 0) {
@@ -161,7 +161,7 @@ int main(int argc, char** argv) {
 	}
 
 	if (verbose) {
-		printf("waiting for sigioSeen\n");
+		fprintf(stderr, "waiting for sigioSeen\n");
 	}
 
 	// Wait until the signal has been delivered.
@@ -178,13 +178,13 @@ int main(int argc, char** argv) {
 	}
 
 	if (verbose) {
-		printf("calling setjmp\n");
+		fprintf(stderr, "calling setjmp\n");
 	}
 
 	// Test that a SIGSEGV on this thread is delivered to us.
 	if (setjmp(jmp) == 0) {
 		if (verbose) {
-			printf("triggering SIGSEGV\n");
+			fprintf(stderr, "triggering SIGSEGV\n");
 		}
 
 		*nullPointer = '\0';
@@ -194,7 +194,7 @@ int main(int argc, char** argv) {
 	}
 
 	if (verbose) {
-		printf("calling dlsym\n");
+		fprintf(stderr, "calling dlsym\n");
 	}
 
 	// Make sure that a SIGSEGV in Go causes a run-time panic.
@@ -205,7 +205,7 @@ int main(int argc, char** argv) {
 	}
 
 	if (verbose) {
-		printf("calling TestSEGV\n");
+		fprintf(stderr, "calling TestSEGV\n");
 	}
 
 	fn();
