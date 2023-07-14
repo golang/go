@@ -253,6 +253,8 @@ func (h *commonHandler) withGroup(name string) *commonHandler {
 	return h2
 }
 
+// handle is the internal implementation of Handler.Handle
+// used by TextHandler and JSONHandler.
 func (h *commonHandler) handle(r Record) error {
 	state := h.newHandleState(buffer.New(), true, "")
 	defer state.free()
