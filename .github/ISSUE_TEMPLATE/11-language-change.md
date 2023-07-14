@@ -1,8 +1,8 @@
 ---
 name: Language Change Proposals
 about: Changes to the language
-title: "proposal: Go 2: "
-labels: Proposal Go2 LanguageChange
+title: "language change proposal: "
+labels: Proposal LanguageChange
 ---
 
 <!--
@@ -32,8 +32,7 @@ https://go.googlesource.com/proposal/+/refs/heads/master#language-changes
 - **What would change in the language spec?**
 - **Please also describe the change informally, as in a class teaching Go.**
 - **Is this change backward compatible?**
-  - Breaking the Go 1 compatibility guarantee is a large cost and requires a large benefit.
-    Show example code before and after the change.
+  - Breaking the Go 1 compatibility guarantee is not permited.
   - **Before**
   - **After**
 - **Orthogonality: how does this change interact or overlap with existing features?**
