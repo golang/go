@@ -81,6 +81,10 @@ func TestHugeCos(t *testing.T) {
 		if !close(f1, f2) {
 			t.Errorf("Cos(%g) = %g, want %g", trigHuge[i], f2, f1)
 		}
+		f3 := Cos(-trigHuge[i])
+		if !close(f1, f3) {
+			t.Errorf("Cos(%g) = %g, want %g", -trigHuge[i], f3, f1)
+		}
 	}
 }
 
@@ -90,6 +94,10 @@ func TestHugeSin(t *testing.T) {
 		f2 := Sin(trigHuge[i])
 		if !close(f1, f2) {
 			t.Errorf("Sin(%g) = %g, want %g", trigHuge[i], f2, f1)
+		}
+		f3 := Sin(-trigHuge[i])
+		if !close(-f1, f3) {
+			t.Errorf("Sin(%g) = %g, want %g", -trigHuge[i], f3, -f1)
 		}
 	}
 }
@@ -101,6 +109,10 @@ func TestHugeSinCos(t *testing.T) {
 		if !close(f1, f2) || !close(g1, g2) {
 			t.Errorf("Sincos(%g) = %g, %g, want %g, %g", trigHuge[i], f2, g2, f1, g1)
 		}
+		f3, g3 := Sincos(-trigHuge[i])
+		if !close(-f1, f3) || !close(g1, g3) {
+			t.Errorf("Sincos(%g) = %g, %g, want %g, %g", -trigHuge[i], f3, g3, -f1, g1)
+		}
 	}
 }
 
@@ -110,6 +122,10 @@ func TestHugeTan(t *testing.T) {
 		f2 := Tan(trigHuge[i])
 		if !close(f1, f2) {
 			t.Errorf("Tan(%g) = %g, want %g", trigHuge[i], f2, f1)
+		}
+		f3 := Tan(-trigHuge[i])
+		if !close(-f1, f3) {
+			t.Errorf("Tan(%g) = %g, want %g", -trigHuge[i], f3, -f1)
 		}
 	}
 }
