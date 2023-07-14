@@ -75,8 +75,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 func check64BitAlignment(pass *analysis.Pass, funcName string, arg ast.Expr) {
 	// Checks the argument is made of the address operator (&) applied to
-	// to a struct field (as opposed to a variable as the first word of
-	// uint64 and int64 variables can be relied upon to be 64-bit aligned.
+	// a struct field (as opposed to a variable as the first word of
+	// uint64 and int64 variables can be relied upon to be 64-bit aligned).
 	unary, ok := arg.(*ast.UnaryExpr)
 	if !ok || unary.Op != token.AND {
 		return

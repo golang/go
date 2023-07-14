@@ -630,7 +630,7 @@ func newLoader(cfg *Config) *loader {
 	return ld
 }
 
-// refine connects the supplied packages into a graph and then adds type and
+// refine connects the supplied packages into a graph and then adds type
 // and syntax information as requested by the LoadMode.
 func (ld *loader) refine(response *driverResponse) ([]*Package, error) {
 	roots := response.Roots

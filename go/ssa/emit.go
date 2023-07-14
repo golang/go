@@ -101,7 +101,7 @@ func emitArith(f *Function, op token.Token, x, y Value, t types.Type, pos token.
 }
 
 // emitCompare emits to f code compute the boolean result of
-// comparison comparison 'x op y'.
+// comparison 'x op y'.
 func emitCompare(f *Function, op token.Token, x, y Value, pos token.Pos) Value {
 	xt := x.Type().Underlying()
 	yt := y.Type().Underlying()

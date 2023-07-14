@@ -153,7 +153,7 @@ expand:
 // expandEdit returns edit expanded to complete whole lines.
 func expandEdit(edit Edit, src string) Edit {
 	// Expand start left to start of line.
-	// (delta is the zero-based column number of of start.)
+	// (delta is the zero-based column number of start.)
 	start := edit.Start
 	if delta := start - 1 - strings.LastIndex(src[:start], "\n"); delta > 0 {
 		edit.Start -= delta

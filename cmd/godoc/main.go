@@ -226,7 +226,7 @@ func main() {
 
 		} else {
 			// Try to download dependencies that are not in the module cache in order to
-			// to show their documentation.
+			// show their documentation.
 			// This may fail if module downloading is disallowed (GOPROXY=off) or due to
 			// limited connectivity, in which case we print errors to stderr and show
 			// documentation only for packages that are available.

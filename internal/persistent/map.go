@@ -242,7 +242,7 @@ func union(first, second *mapNode, less func(a, b interface{}) bool, overwrite b
 //
 // split(n:-0) (left:+1, mid:+1, right:+1)
 // Split borrows n without affecting its refcount, and returns three
-// new references that that caller is expected to call decref.
+// new references that the caller is expected to call decref.
 func split(n *mapNode, key interface{}, less func(a, b interface{}) bool, requireMid bool) (left, mid, right *mapNode) {
 	if n == nil {
 		return nil, nil, nil

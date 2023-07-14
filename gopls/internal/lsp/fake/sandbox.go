@@ -267,7 +267,7 @@ func (sb *Sandbox) RunGoCommand(ctx context.Context, dir, verb string, args, env
 		return fmt.Errorf("go command failed (stdout: %s) (stderr: %s): %v", stdout.String(), stderr.String(), err)
 	}
 	// Since running a go command may result in changes to workspace files,
-	// check if we need to send any any "watched" file events.
+	// check if we need to send any "watched" file events.
 	//
 	// TODO(rFindley): this side-effect can impact the usability of the sandbox
 	//                 for benchmarks. Consider refactoring.

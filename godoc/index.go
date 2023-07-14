@@ -628,7 +628,7 @@ func (x *Indexer) addFile(f vfs.ReadSeekCloser, filename string, goFile bool) (f
 
 	// The file set's base offset and x.sources size must be in lock-step;
 	// this permits the direct mapping of suffix array lookup results to
-	// to corresponding Pos values.
+	// corresponding Pos values.
 	//
 	// When a file is added to the file set, its offset base increases by
 	// the size of the file + 1; and the initial base offset is 1. Add an

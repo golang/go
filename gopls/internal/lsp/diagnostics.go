@@ -263,7 +263,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 	// Wait for a free diagnostics slot.
 	// TODO(adonovan): opt: shouldn't it be the analysis implementation's
 	// job to de-dup and limit resource consumption? In any case this
-	// this function spends most its time waiting for awaitLoaded, at
+	// function spends most its time waiting for awaitLoaded, at
 	// least initially.
 	select {
 	case <-ctx.Done():

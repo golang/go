@@ -950,7 +950,7 @@ func (b *builder) stmtList(fn *Function, list []ast.Stmt) {
 // returns the effective receiver after applying the implicit field
 // selections of sel.
 //
-// wantAddr requests that the result is an an address.  If
+// wantAddr requests that the result is an address.  If
 // !sel.indirect, this may require that e be built in addr() mode; it
 // must thus be addressable.
 //

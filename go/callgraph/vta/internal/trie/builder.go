@@ -378,7 +378,7 @@ func (b *Builder) merge(c Collision, lhs, rhs node) node {
 		}
 	}
 
-	// Last remaining case is branch branch merging.
+	// Last remaining case is branch merging.
 	// For brevity, we adopt the Okasaki and Gill naming conventions
 	// for branching and prefixes.
 	s, t := lhs.(*branch), rhs.(*branch)
@@ -472,7 +472,7 @@ func (b *Builder) intersect(c Collision, l, r node) node {
 			// fallthrough
 		}
 	}
-	// Last remaining case is branch branch intersection.
+	// Last remaining case is branch intersection.
 	s, t := l.(*branch), r.(*branch)
 	p, m := s.prefix, s.branching
 	q, n := t.prefix, t.branching

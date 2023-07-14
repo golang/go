@@ -25,7 +25,7 @@ import (
 const concurrentAnalyses = 1
 
 // NewServer creates an LSP server and binds it to handle incoming client
-// messages on on the supplied stream.
+// messages on the supplied stream.
 func NewServer(session *cache.Session, client protocol.ClientCloser) *Server {
 	return &Server{
 		diagnostics:           map[span.URI]*fileReports{},

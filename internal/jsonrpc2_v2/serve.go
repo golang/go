@@ -104,7 +104,7 @@ func (s *Server) run(ctx context.Context) {
 		rwc, err := s.listener.Accept(ctx)
 		if err != nil {
 			// Only Shutdown closes the listener. If we get an error after Shutdown is
-			// called, assume that that was the cause and don't report the error;
+			// called, assume that was the cause and don't report the error;
 			// otherwise, report the error in case it is unexpected.
 			if atomic.LoadInt32(&s.closing) == 0 {
 				s.async.setError(err)

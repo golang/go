@@ -332,7 +332,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 
 		// The scope is the union of rdeps of each variant.
 		// (Each set is disjoint so there's no benefit to
-		// to combining the metadata graph traversals.)
+		// combining the metadata graph traversals.)
 		for _, m := range variants {
 			if err := addRdeps(m.ID, transitive); err != nil {
 				return nil, err

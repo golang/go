@@ -157,7 +157,7 @@ func parameterNames(node ast.Node, m *protocol.Mapper, tf *token.File, info *typ
 		if param.Name() == "" {
 			continue
 		}
-		// Skip the parameter name hint if the arg matches the
+		// Skip the parameter name hint if the arg matches
 		// the parameter name.
 		if i, ok := v.(*ast.Ident); ok && i.Name == param.Name() {
 			continue

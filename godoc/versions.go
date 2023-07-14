@@ -72,7 +72,7 @@ type versionedRow struct {
 	structName string // for struct fields, the outer struct name
 }
 
-// versionParser parses $GOROOT/api/go*.txt files and stores them in in its rows field.
+// versionParser parses $GOROOT/api/go*.txt files and stores them in its rows field.
 type versionParser struct {
 	res apiVersions // initialized lazily
 }

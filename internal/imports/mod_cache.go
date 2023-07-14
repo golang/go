@@ -12,7 +12,7 @@ import (
 	"golang.org/x/tools/internal/gopathwalk"
 )
 
-// To find packages to import, the resolver needs to know about all of the
+// To find packages to import, the resolver needs to know about all of
 // the packages that could be imported. This includes packages that are
 // already in modules that are in (1) the current module, (2) replace targets,
 // and (3) packages in the module cache. Packages in (1) and (2) may change over

@@ -302,7 +302,7 @@ func SetBudget(new int64) (old int64) {
 // In particular, each gopls process attempts to garbage collect
 // the entire gopls directory so that newer binaries can clean up
 // after older ones: in the development cycle especially, new
-// new versions may be created frequently.
+// versions may be created frequently.
 func filename(kind string, key [32]byte) (string, error) {
 	base := fmt.Sprintf("%x-%s", key, kind)
 	dir, err := getCacheDir()

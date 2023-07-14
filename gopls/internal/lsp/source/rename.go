@@ -774,7 +774,7 @@ func renamePackage(ctx context.Context, s Snapshot, f FileHandle, newName Packag
 	edits := make(map[span.URI][]diff.Edit)
 	for _, m := range allMetadata {
 		// Special case: x_test packages for the renamed package will not have the
-		// package path as as a dir prefix, but still need their package clauses
+		// package path as a dir prefix, but still need their package clauses
 		// renamed.
 		if m.PkgPath == oldPkgPath+"_test" {
 			if err := renamePackageClause(ctx, m, s, newName+"_test", edits); err != nil {
