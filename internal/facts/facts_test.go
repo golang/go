@@ -295,7 +295,7 @@ func testEncodeDecode(t *testing.T, files map[string]string, tests []pkgLookups)
 	// factmap represents the passing of encoded facts from one
 	// package to another. In practice one would use the file system.
 	factmap := make(map[string][]byte)
-	read := func(imp *types.Package) ([]byte, error) { return factmap[imp.Path()], nil }
+	read := func(pkgPath string) ([]byte, error) { return factmap[pkgPath], nil }
 
 	// Analyze packages in order, look up various objects accessible within
 	// each package, and see if they have a fact.  The "analysis" exports a
@@ -413,7 +413,7 @@ func TestFactFilter(t *testing.T) {
 	}
 
 	obj := pkg.Scope().Lookup("A")
-	s, err := facts.NewDecoder(pkg).Decode(func(*types.Package) ([]byte, error) { return nil, nil })
+	s, err := facts.NewDecoder(pkg).Decode(func(pkgPath string) ([]byte, error) { return nil, nil })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -502,7 +502,7 @@ func TestMalformed(t *testing.T) {
 			}
 			fset := token.NewFileSet()
 			factmap := make(map[string][]byte)
-			read := func(imp *types.Package) ([]byte, error) { return factmap[imp.Path()], nil }
+			read := func(pkgPath string) ([]byte, error) { return factmap[pkgPath], nil }
 
 			// Processes the pkgs in order. For package, export a package fact,
 			// and use this fact to verify which package facts are reachable via Decode.

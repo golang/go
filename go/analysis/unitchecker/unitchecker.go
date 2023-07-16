@@ -288,8 +288,8 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	analyzers = filtered
 
 	// Read facts from imported packages.
-	read := func(imp *types.Package) ([]byte, error) {
-		if vetx, ok := cfg.PackageVetx[imp.Path()]; ok {
+	read := func(pkgPath string) ([]byte, error) {
+		if vetx, ok := cfg.PackageVetx[pkgPath]; ok {
 			return ioutil.ReadFile(vetx)
 		}
 		return nil, nil // no .vetx file, no facts

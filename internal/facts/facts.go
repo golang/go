@@ -195,7 +195,7 @@ func NewDecoderFunc(pkg *types.Package, getPackage GetPackageFunc) *Decoder {
 type GetPackageFunc = func(pkgPath string) *types.Package
 
 // Decode decodes all the facts relevant to the analysis of package
-// pkg. The read function reads serialized fact data from an external
+// pkgPath. The read function reads serialized fact data from an external
 // source for one of pkg's direct imports, identified by package path.
 // The empty file is a valid encoding of an empty fact set.
 //
@@ -204,7 +204,7 @@ type GetPackageFunc = func(pkgPath string) *types.Package
 //
 // Concurrent calls to Decode are safe, so long as the
 // [GetPackageFunc] (if any) is also concurrency-safe.
-func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error) {
+func (d *Decoder) Decode(read func(pkgPath string) ([]byte, error)) (*Set, error) {
 	// Read facts from imported packages.
 	// Facts may describe indirectly imported packages, or their objects.
 	m := make(map[key]analysis.Fact) // one big bucket
@@ -218,7 +218,7 @@ func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error
 		}
 
 		// Read the gob-encoded facts.
-		data, err := read(imp)
+		data, err := read(imp.Path())
 		if err != nil {
 			return nil, fmt.Errorf("in %s, can't import facts for package %q: %v",
 				d.pkg.Path(), imp.Path(), err)

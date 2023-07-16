@@ -1097,17 +1097,17 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 	// of PkgPaths and objectpaths.)
 
 	// Read and decode analysis facts for each direct import.
-	factset, err := pkg.factsDecoder.Decode(func(imp *types.Package) ([]byte, error) {
+	factset, err := pkg.factsDecoder.Decode(func(pkgPath string) ([]byte, error) {
 		if !hasFacts {
 			return nil, nil // analyzer doesn't use facts, so no vdeps
 		}
 
 		// Package.Imports() may contain a fake "C" package. Ignore it.
-		if imp.Path() == "C" {
+		if pkgPath == "C" {
 			return nil, nil
 		}
 
-		id, ok := pkg.m.DepsByPkgPath[PackagePath(imp.Path())]
+		id, ok := pkg.m.DepsByPkgPath[PackagePath(pkgPath)]
 		if !ok {
 			// This may mean imp was synthesized by the type
 			// checker because it failed to import it for any reason
