@@ -11,6 +11,7 @@ package http
 
 import (
 	"bufio"
+	"compress/flate"
 	"compress/gzip"
 	"container/list"
 	"context"
@@ -2849,33 +2850,59 @@ type gzipReader struct {
 	_    incomparable
 	body *bodyEOFSignal // underlying HTTP/1 response body framing
 	zr   *gzip.Reader   // lazily-initialized gzip reader
-	zerr error          // any error from gzip.NewReader; sticky
+	zerr error          // any error from gzip.Reader.Reset; sticky
 }
 
+var (
+	gzipPool = sync.Pool{
+		New: func() any { return new(gzip.Reader) },
+	}
+	_ flate.Reader = eofReader{}
+)
+
+type eofReader struct{}
+
+func (eofReader) Read([]byte) (int, error) { return 0, io.EOF }
+func (eofReader) ReadByte() (byte, error)  { return 0, io.EOF }
+
 func (gz *gzipReader) Read(p []byte) (n int, err error) {
+	gz.body.mu.Lock()
+	closed := gz.body.closed
+	gz.body.mu.Unlock()
+
+	if closed {
+		return 0, errReadOnClosedResBody
+	}
+
 	if gz.zr == nil {
 		if gz.zerr == nil {
-			gz.zr, gz.zerr = gzip.NewReader(gz.body)
+			zr := gzipPool.Get().(*gzip.Reader)
+			if gz.zerr = zr.Reset(gz.body); gz.zerr == nil {
+				gz.zr = zr
+			} else {
+				_ = zr.Reset(eofReader{})
+				gzipPool.Put(zr)
+			}
 		}
 		if gz.zerr != nil {
 			return 0, gz.zerr
 		}
 	}
-
-	gz.body.mu.Lock()
-	if gz.body.closed {
-		err = errReadOnClosedResBody
-	}
-	gz.body.mu.Unlock()
-
-	if err != nil {
-		return 0, err
-	}
 	return gz.zr.Read(p)
 }
 
 func (gz *gzipReader) Close() error {
-	return gz.body.Close()
+	err := gz.body.Close()
+
+	gz.body.mu.Lock()
+	if gz.zr != nil {
+		_ = gz.zr.Reset(eofReader{})
+		gzipPool.Put(gz.zr)
+		gz.zr = nil
+	}
+	gz.body.mu.Unlock()
+
+	return err
 }
 
 type tlsHandshakeTimeoutError struct{}
