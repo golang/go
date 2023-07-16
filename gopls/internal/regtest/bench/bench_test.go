@@ -338,3 +338,15 @@ func totalCPUForProfile(filename string) (time.Duration, error) {
 	}
 	return pprof.TotalTime(data)
 }
+
+// closeBuffer stops the benchmark timer and closes the buffer with the given
+// name.
+//
+// It may be used to clean up files opened in the shared environment during
+// benchmarking.
+func closeBuffer(b *testing.B, env *regtest.Env, name string) {
+	b.StopTimer()
+	env.CloseBuffer(name)
+	env.AfterChange()
+	b.StartTimer()
+}

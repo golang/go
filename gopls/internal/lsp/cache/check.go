@@ -194,10 +194,6 @@ func (s *snapshot) resolveImportGraph() (*importGraph, error) {
 	ctx, done := event.Start(event.Detach(ctx), "cache.resolveImportGraph")
 	defer done()
 
-	if err := s.awaitLoaded(ctx); err != nil { // TODO(rfindley): this is problematic, and slows down diagnostics
-		return nil, err
-	}
-
 	s.mu.Lock()
 	meta := s.meta
 	lastImportGraph := s.importGraph
@@ -205,12 +201,13 @@ func (s *snapshot) resolveImportGraph() (*importGraph, error) {
 
 	openPackages := make(map[PackageID]bool)
 	for _, fh := range s.overlays() {
-		for _, id := range meta.ids[fh.URI()] {
-			// TODO(rfindley): remove this defensiveness after the release. We can
-			// rely on m.metadata[id] != nil.
-			if m := meta.metadata[id]; m != nil && !m.IsIntermediateTestVariant() {
-				openPackages[id] = true
-			}
+		meta, err := s.MetadataForFile(ctx, fh.URI())
+		if err != nil {
+			return nil, err
+		}
+		source.RemoveIntermediateTestVariants(&meta)
+		for _, m := range meta {
+			openPackages[m.ID] = true
 		}
 	}
 

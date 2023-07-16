@@ -1,3 +1,7 @@
+// Copyright 2023 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package bench
 
 import (
@@ -19,6 +23,8 @@ func BenchmarkTyping(b *testing.B) {
 		b.Run(test.repo, func(b *testing.B) {
 			env := getRepo(b, test.repo).sharedEnv(b)
 			env.OpenFile(test.file)
+			defer closeBuffer(b, env, test.file)
+
 			// Insert the text we'll be modifying at the top of the file.
 			env.EditBuffer(test.file, protocol.TextEdit{NewText: "// __REGTEST_PLACEHOLDER_0__\n"})
 			env.AfterChange()

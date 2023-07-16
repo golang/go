@@ -185,8 +185,11 @@ func (kl *Kubelet) _() {
 	for _, test := range tests {
 		b.Run(test.repo, func(b *testing.B) {
 			repo := getRepo(b, test.repo)
-			_ = repo.sharedEnv(b) // ensure cache is warm
+			sharedEnv := repo.sharedEnv(b) // ensure cache is warm
 			env := repo.newEnv(b, fake.EditorConfig{
+				Env: map[string]string{
+					"GOPATH": sharedEnv.Sandbox.GOPATH(), // use the warm cache
+				},
 				Settings: map[string]interface{}{
 					"completeUnimported": false,
 				},

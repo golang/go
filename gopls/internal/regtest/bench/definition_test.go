@@ -27,6 +27,8 @@ func BenchmarkDefinition(b *testing.B) {
 		b.Run(test.repo, func(b *testing.B) {
 			env := getRepo(b, test.repo).sharedEnv(b)
 			env.OpenFile(test.file)
+			defer closeBuffer(b, env, test.file)
+
 			loc := env.RegexpSearch(test.file, test.regexp)
 			env.Await(env.DoneWithOpen())
 			env.GoToDefinition(loc) // pre-warm the query, and open the target file
