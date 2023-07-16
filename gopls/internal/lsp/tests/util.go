@@ -79,11 +79,11 @@ func DiffLinks(mapper *protocol.Mapper, wantLinks []Link, gotLinks []protocol.Do
 
 		if target, ok := links[spn]; ok {
 			delete(links, spn)
-			if target != link.Target {
-				fmt.Fprintf(&msg, "%s: want link with target %q, got %q\n", spn, target, link.Target)
+			if target != *link.Target {
+				fmt.Fprintf(&msg, "%s: want link with target %q, got %q\n", spn, target, *link.Target)
 			}
 		} else {
-			fmt.Fprintf(&msg, "%s: got unexpected link with target %q\n", spn, link.Target)
+			fmt.Fprintf(&msg, "%s: got unexpected link with target %q\n", spn, *link.Target)
 		}
 	}
 	for spn, target := range links {

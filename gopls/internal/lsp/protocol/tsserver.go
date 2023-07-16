@@ -6,8 +6,8 @@
 
 package protocol
 
-// Code generated from protocol/metaModel.json at ref release/protocol/3.17.4-next.0 (hash 5c6ec4f537f304aa1ad645b5fd2bbb757fc40ed1).
-// https://github.com/microsoft/vscode-languageserver-node/blob/release/protocol/3.17.4-next.0/protocol/metaModel.json
+// Code generated from protocol/metaModel.json at ref release/protocol/3.17.4-next.2 (hash 184c8a7f010d335582f24337fe182baa6f2fccdd).
+// https://github.com/microsoft/vscode-languageserver-node/blob/release/protocol/3.17.4-next.2/protocol/metaModel.json
 // LSP metaData.version = 3.17.0.
 
 import (
@@ -18,77 +18,79 @@ import (
 )
 
 type Server interface {
-	Progress(context.Context, *ProgressParams) error                                                       // $/progress
-	SetTrace(context.Context, *SetTraceParams) error                                                       // $/setTrace
-	IncomingCalls(context.Context, *CallHierarchyIncomingCallsParams) ([]CallHierarchyIncomingCall, error) // callHierarchy/incomingCalls
-	OutgoingCalls(context.Context, *CallHierarchyOutgoingCallsParams) ([]CallHierarchyOutgoingCall, error) // callHierarchy/outgoingCalls
-	ResolveCodeAction(context.Context, *CodeAction) (*CodeAction, error)                                   // codeAction/resolve
-	ResolveCodeLens(context.Context, *CodeLens) (*CodeLens, error)                                         // codeLens/resolve
-	ResolveCompletionItem(context.Context, *CompletionItem) (*CompletionItem, error)                       // completionItem/resolve
-	ResolveDocumentLink(context.Context, *DocumentLink) (*DocumentLink, error)                             // documentLink/resolve
-	Exit(context.Context) error                                                                            // exit
-	Initialize(context.Context, *ParamInitialize) (*InitializeResult, error)                               // initialize
-	Initialized(context.Context, *InitializedParams) error                                                 // initialized
-	Resolve(context.Context, *InlayHint) (*InlayHint, error)                                               // inlayHint/resolve
-	DidChangeNotebookDocument(context.Context, *DidChangeNotebookDocumentParams) error                     // notebookDocument/didChange
-	DidCloseNotebookDocument(context.Context, *DidCloseNotebookDocumentParams) error                       // notebookDocument/didClose
-	DidOpenNotebookDocument(context.Context, *DidOpenNotebookDocumentParams) error                         // notebookDocument/didOpen
-	DidSaveNotebookDocument(context.Context, *DidSaveNotebookDocumentParams) error                         // notebookDocument/didSave
-	Shutdown(context.Context) error                                                                        // shutdown
-	CodeAction(context.Context, *CodeActionParams) ([]CodeAction, error)                                   // textDocument/codeAction
-	CodeLens(context.Context, *CodeLensParams) ([]CodeLens, error)                                         // textDocument/codeLens
-	ColorPresentation(context.Context, *ColorPresentationParams) ([]ColorPresentation, error)              // textDocument/colorPresentation
-	Completion(context.Context, *CompletionParams) (*CompletionList, error)                                // textDocument/completion
-	Declaration(context.Context, *DeclarationParams) (*Or_textDocument_declaration, error)                 // textDocument/declaration
-	Definition(context.Context, *DefinitionParams) ([]Location, error)                                     // textDocument/definition
-	Diagnostic(context.Context, *string) (*string, error)                                                  // textDocument/diagnostic
-	DidChange(context.Context, *DidChangeTextDocumentParams) error                                         // textDocument/didChange
-	DidClose(context.Context, *DidCloseTextDocumentParams) error                                           // textDocument/didClose
-	DidOpen(context.Context, *DidOpenTextDocumentParams) error                                             // textDocument/didOpen
-	DidSave(context.Context, *DidSaveTextDocumentParams) error                                             // textDocument/didSave
-	DocumentColor(context.Context, *DocumentColorParams) ([]ColorInformation, error)                       // textDocument/documentColor
-	DocumentHighlight(context.Context, *DocumentHighlightParams) ([]DocumentHighlight, error)              // textDocument/documentHighlight
-	DocumentLink(context.Context, *DocumentLinkParams) ([]DocumentLink, error)                             // textDocument/documentLink
-	DocumentSymbol(context.Context, *DocumentSymbolParams) ([]interface{}, error)                          // textDocument/documentSymbol
-	FoldingRange(context.Context, *FoldingRangeParams) ([]FoldingRange, error)                             // textDocument/foldingRange
-	Formatting(context.Context, *DocumentFormattingParams) ([]TextEdit, error)                             // textDocument/formatting
-	Hover(context.Context, *HoverParams) (*Hover, error)                                                   // textDocument/hover
-	Implementation(context.Context, *ImplementationParams) ([]Location, error)                             // textDocument/implementation
-	InlayHint(context.Context, *InlayHintParams) ([]InlayHint, error)                                      // textDocument/inlayHint
-	InlineValue(context.Context, *InlineValueParams) ([]InlineValue, error)                                // textDocument/inlineValue
-	LinkedEditingRange(context.Context, *LinkedEditingRangeParams) (*LinkedEditingRanges, error)           // textDocument/linkedEditingRange
-	Moniker(context.Context, *MonikerParams) ([]Moniker, error)                                            // textDocument/moniker
-	OnTypeFormatting(context.Context, *DocumentOnTypeFormattingParams) ([]TextEdit, error)                 // textDocument/onTypeFormatting
-	PrepareCallHierarchy(context.Context, *CallHierarchyPrepareParams) ([]CallHierarchyItem, error)        // textDocument/prepareCallHierarchy
-	PrepareRename(context.Context, *PrepareRenameParams) (*PrepareRename2Gn, error)                        // textDocument/prepareRename
-	PrepareTypeHierarchy(context.Context, *TypeHierarchyPrepareParams) ([]TypeHierarchyItem, error)        // textDocument/prepareTypeHierarchy
-	RangeFormatting(context.Context, *DocumentRangeFormattingParams) ([]TextEdit, error)                   // textDocument/rangeFormatting
-	References(context.Context, *ReferenceParams) ([]Location, error)                                      // textDocument/references
-	Rename(context.Context, *RenameParams) (*WorkspaceEdit, error)                                         // textDocument/rename
-	SelectionRange(context.Context, *SelectionRangeParams) ([]SelectionRange, error)                       // textDocument/selectionRange
-	SemanticTokensFull(context.Context, *SemanticTokensParams) (*SemanticTokens, error)                    // textDocument/semanticTokens/full
-	SemanticTokensFullDelta(context.Context, *SemanticTokensDeltaParams) (interface{}, error)              // textDocument/semanticTokens/full/delta
-	SemanticTokensRange(context.Context, *SemanticTokensRangeParams) (*SemanticTokens, error)              // textDocument/semanticTokens/range
-	SignatureHelp(context.Context, *SignatureHelpParams) (*SignatureHelp, error)                           // textDocument/signatureHelp
-	TypeDefinition(context.Context, *TypeDefinitionParams) ([]Location, error)                             // textDocument/typeDefinition
-	WillSave(context.Context, *WillSaveTextDocumentParams) error                                           // textDocument/willSave
-	WillSaveWaitUntil(context.Context, *WillSaveTextDocumentParams) ([]TextEdit, error)                    // textDocument/willSaveWaitUntil
-	Subtypes(context.Context, *TypeHierarchySubtypesParams) ([]TypeHierarchyItem, error)                   // typeHierarchy/subtypes
-	Supertypes(context.Context, *TypeHierarchySupertypesParams) ([]TypeHierarchyItem, error)               // typeHierarchy/supertypes
-	WorkDoneProgressCancel(context.Context, *WorkDoneProgressCancelParams) error                           // window/workDoneProgress/cancel
-	DiagnosticWorkspace(context.Context, *WorkspaceDiagnosticParams) (*WorkspaceDiagnosticReport, error)   // workspace/diagnostic
-	DidChangeConfiguration(context.Context, *DidChangeConfigurationParams) error                           // workspace/didChangeConfiguration
-	DidChangeWatchedFiles(context.Context, *DidChangeWatchedFilesParams) error                             // workspace/didChangeWatchedFiles
-	DidChangeWorkspaceFolders(context.Context, *DidChangeWorkspaceFoldersParams) error                     // workspace/didChangeWorkspaceFolders
-	DidCreateFiles(context.Context, *CreateFilesParams) error                                              // workspace/didCreateFiles
-	DidDeleteFiles(context.Context, *DeleteFilesParams) error                                              // workspace/didDeleteFiles
-	DidRenameFiles(context.Context, *RenameFilesParams) error                                              // workspace/didRenameFiles
-	ExecuteCommand(context.Context, *ExecuteCommandParams) (interface{}, error)                            // workspace/executeCommand
-	Symbol(context.Context, *WorkspaceSymbolParams) ([]SymbolInformation, error)                           // workspace/symbol
-	WillCreateFiles(context.Context, *CreateFilesParams) (*WorkspaceEdit, error)                           // workspace/willCreateFiles
-	WillDeleteFiles(context.Context, *DeleteFilesParams) (*WorkspaceEdit, error)                           // workspace/willDeleteFiles
-	WillRenameFiles(context.Context, *RenameFilesParams) (*WorkspaceEdit, error)                           // workspace/willRenameFiles
-	ResolveWorkspaceSymbol(context.Context, *WorkspaceSymbol) (*WorkspaceSymbol, error)                    // workspaceSymbol/resolve
+	Progress(context.Context, *ProgressParams) error                                                             // $/progress
+	SetTrace(context.Context, *SetTraceParams) error                                                             // $/setTrace
+	IncomingCalls(context.Context, *CallHierarchyIncomingCallsParams) ([]CallHierarchyIncomingCall, error)       // callHierarchy/incomingCalls
+	OutgoingCalls(context.Context, *CallHierarchyOutgoingCallsParams) ([]CallHierarchyOutgoingCall, error)       // callHierarchy/outgoingCalls
+	ResolveCodeAction(context.Context, *CodeAction) (*CodeAction, error)                                         // codeAction/resolve
+	ResolveCodeLens(context.Context, *CodeLens) (*CodeLens, error)                                               // codeLens/resolve
+	ResolveCompletionItem(context.Context, *CompletionItem) (*CompletionItem, error)                             // completionItem/resolve
+	ResolveDocumentLink(context.Context, *DocumentLink) (*DocumentLink, error)                                   // documentLink/resolve
+	Exit(context.Context) error                                                                                  // exit
+	Initialize(context.Context, *ParamInitialize) (*InitializeResult, error)                                     // initialize
+	Initialized(context.Context, *InitializedParams) error                                                       // initialized
+	Resolve(context.Context, *InlayHint) (*InlayHint, error)                                                     // inlayHint/resolve
+	DidChangeNotebookDocument(context.Context, *DidChangeNotebookDocumentParams) error                           // notebookDocument/didChange
+	DidCloseNotebookDocument(context.Context, *DidCloseNotebookDocumentParams) error                             // notebookDocument/didClose
+	DidOpenNotebookDocument(context.Context, *DidOpenNotebookDocumentParams) error                               // notebookDocument/didOpen
+	DidSaveNotebookDocument(context.Context, *DidSaveNotebookDocumentParams) error                               // notebookDocument/didSave
+	Shutdown(context.Context) error                                                                              // shutdown
+	CodeAction(context.Context, *CodeActionParams) ([]CodeAction, error)                                         // textDocument/codeAction
+	CodeLens(context.Context, *CodeLensParams) ([]CodeLens, error)                                               // textDocument/codeLens
+	ColorPresentation(context.Context, *ColorPresentationParams) ([]ColorPresentation, error)                    // textDocument/colorPresentation
+	Completion(context.Context, *CompletionParams) (*CompletionList, error)                                      // textDocument/completion
+	Declaration(context.Context, *DeclarationParams) (*Or_textDocument_declaration, error)                       // textDocument/declaration
+	Definition(context.Context, *DefinitionParams) ([]Location, error)                                           // textDocument/definition
+	Diagnostic(context.Context, *string) (*string, error)                                                        // textDocument/diagnostic
+	DidChange(context.Context, *DidChangeTextDocumentParams) error                                               // textDocument/didChange
+	DidClose(context.Context, *DidCloseTextDocumentParams) error                                                 // textDocument/didClose
+	DidOpen(context.Context, *DidOpenTextDocumentParams) error                                                   // textDocument/didOpen
+	DidSave(context.Context, *DidSaveTextDocumentParams) error                                                   // textDocument/didSave
+	DocumentColor(context.Context, *DocumentColorParams) ([]ColorInformation, error)                             // textDocument/documentColor
+	DocumentHighlight(context.Context, *DocumentHighlightParams) ([]DocumentHighlight, error)                    // textDocument/documentHighlight
+	DocumentLink(context.Context, *DocumentLinkParams) ([]DocumentLink, error)                                   // textDocument/documentLink
+	DocumentSymbol(context.Context, *DocumentSymbolParams) ([]interface{}, error)                                // textDocument/documentSymbol
+	FoldingRange(context.Context, *FoldingRangeParams) ([]FoldingRange, error)                                   // textDocument/foldingRange
+	Formatting(context.Context, *DocumentFormattingParams) ([]TextEdit, error)                                   // textDocument/formatting
+	Hover(context.Context, *HoverParams) (*Hover, error)                                                         // textDocument/hover
+	Implementation(context.Context, *ImplementationParams) ([]Location, error)                                   // textDocument/implementation
+	InlayHint(context.Context, *InlayHintParams) ([]InlayHint, error)                                            // textDocument/inlayHint
+	InlineCompletion(context.Context, *InlineCompletionParams) (*Or_Result_textDocument_inlineCompletion, error) // textDocument/inlineCompletion
+	InlineValue(context.Context, *InlineValueParams) ([]InlineValue, error)                                      // textDocument/inlineValue
+	LinkedEditingRange(context.Context, *LinkedEditingRangeParams) (*LinkedEditingRanges, error)                 // textDocument/linkedEditingRange
+	Moniker(context.Context, *MonikerParams) ([]Moniker, error)                                                  // textDocument/moniker
+	OnTypeFormatting(context.Context, *DocumentOnTypeFormattingParams) ([]TextEdit, error)                       // textDocument/onTypeFormatting
+	PrepareCallHierarchy(context.Context, *CallHierarchyPrepareParams) ([]CallHierarchyItem, error)              // textDocument/prepareCallHierarchy
+	PrepareRename(context.Context, *PrepareRenameParams) (*PrepareRename2Gn, error)                              // textDocument/prepareRename
+	PrepareTypeHierarchy(context.Context, *TypeHierarchyPrepareParams) ([]TypeHierarchyItem, error)              // textDocument/prepareTypeHierarchy
+	RangeFormatting(context.Context, *DocumentRangeFormattingParams) ([]TextEdit, error)                         // textDocument/rangeFormatting
+	RangesFormatting(context.Context, *DocumentRangesFormattingParams) ([]TextEdit, error)                       // textDocument/rangesFormatting
+	References(context.Context, *ReferenceParams) ([]Location, error)                                            // textDocument/references
+	Rename(context.Context, *RenameParams) (*WorkspaceEdit, error)                                               // textDocument/rename
+	SelectionRange(context.Context, *SelectionRangeParams) ([]SelectionRange, error)                             // textDocument/selectionRange
+	SemanticTokensFull(context.Context, *SemanticTokensParams) (*SemanticTokens, error)                          // textDocument/semanticTokens/full
+	SemanticTokensFullDelta(context.Context, *SemanticTokensDeltaParams) (interface{}, error)                    // textDocument/semanticTokens/full/delta
+	SemanticTokensRange(context.Context, *SemanticTokensRangeParams) (*SemanticTokens, error)                    // textDocument/semanticTokens/range
+	SignatureHelp(context.Context, *SignatureHelpParams) (*SignatureHelp, error)                                 // textDocument/signatureHelp
+	TypeDefinition(context.Context, *TypeDefinitionParams) ([]Location, error)                                   // textDocument/typeDefinition
+	WillSave(context.Context, *WillSaveTextDocumentParams) error                                                 // textDocument/willSave
+	WillSaveWaitUntil(context.Context, *WillSaveTextDocumentParams) ([]TextEdit, error)                          // textDocument/willSaveWaitUntil
+	Subtypes(context.Context, *TypeHierarchySubtypesParams) ([]TypeHierarchyItem, error)                         // typeHierarchy/subtypes
+	Supertypes(context.Context, *TypeHierarchySupertypesParams) ([]TypeHierarchyItem, error)                     // typeHierarchy/supertypes
+	WorkDoneProgressCancel(context.Context, *WorkDoneProgressCancelParams) error                                 // window/workDoneProgress/cancel
+	DiagnosticWorkspace(context.Context, *WorkspaceDiagnosticParams) (*WorkspaceDiagnosticReport, error)         // workspace/diagnostic
+	DidChangeConfiguration(context.Context, *DidChangeConfigurationParams) error                                 // workspace/didChangeConfiguration
+	DidChangeWatchedFiles(context.Context, *DidChangeWatchedFilesParams) error                                   // workspace/didChangeWatchedFiles
+	DidChangeWorkspaceFolders(context.Context, *DidChangeWorkspaceFoldersParams) error                           // workspace/didChangeWorkspaceFolders
+	DidCreateFiles(context.Context, *CreateFilesParams) error                                                    // workspace/didCreateFiles
+	DidDeleteFiles(context.Context, *DeleteFilesParams) error                                                    // workspace/didDeleteFiles
+	DidRenameFiles(context.Context, *RenameFilesParams) error                                                    // workspace/didRenameFiles
+	ExecuteCommand(context.Context, *ExecuteCommandParams) (interface{}, error)                                  // workspace/executeCommand
+	Symbol(context.Context, *WorkspaceSymbolParams) ([]SymbolInformation, error)                                 // workspace/symbol
+	WillCreateFiles(context.Context, *CreateFilesParams) (*WorkspaceEdit, error)                                 // workspace/willCreateFiles
+	WillDeleteFiles(context.Context, *DeleteFilesParams) (*WorkspaceEdit, error)                                 // workspace/willDeleteFiles
+	WillRenameFiles(context.Context, *RenameFilesParams) (*WorkspaceEdit, error)                                 // workspace/willRenameFiles
+	ResolveWorkspaceSymbol(context.Context, *WorkspaceSymbol) (*WorkspaceSymbol, error)                          // workspaceSymbol/resolve
 	NonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error)
 }
 
@@ -417,6 +419,16 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 			return true, reply(ctx, nil, err)
 		}
 		return true, reply(ctx, resp, nil)
+	case "textDocument/inlineCompletion":
+		var params InlineCompletionParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.InlineCompletion(ctx, &params)
+		if err != nil {
+			return true, reply(ctx, nil, err)
+		}
+		return true, reply(ctx, resp, nil)
 	case "textDocument/inlineValue":
 		var params InlineValueParams
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
@@ -493,6 +505,16 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 			return true, sendParseError(ctx, reply, err)
 		}
 		resp, err := server.RangeFormatting(ctx, &params)
+		if err != nil {
+			return true, reply(ctx, nil, err)
+		}
+		return true, reply(ctx, resp, nil)
+	case "textDocument/rangesFormatting":
+		var params DocumentRangesFormattingParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.RangesFormatting(ctx, &params)
 		if err != nil {
 			return true, reply(ctx, nil, err)
 		}
@@ -945,6 +967,13 @@ func (s *serverDispatcher) InlayHint(ctx context.Context, params *InlayHintParam
 	}
 	return result, nil
 }
+func (s *serverDispatcher) InlineCompletion(ctx context.Context, params *InlineCompletionParams) (*Or_Result_textDocument_inlineCompletion, error) {
+	var result *Or_Result_textDocument_inlineCompletion
+	if err := s.sender.Call(ctx, "textDocument/inlineCompletion", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
 func (s *serverDispatcher) InlineValue(ctx context.Context, params *InlineValueParams) ([]InlineValue, error) {
 	var result []InlineValue
 	if err := s.sender.Call(ctx, "textDocument/inlineValue", params, &result); err != nil {
@@ -997,6 +1026,13 @@ func (s *serverDispatcher) PrepareTypeHierarchy(ctx context.Context, params *Typ
 func (s *serverDispatcher) RangeFormatting(ctx context.Context, params *DocumentRangeFormattingParams) ([]TextEdit, error) {
 	var result []TextEdit
 	if err := s.sender.Call(ctx, "textDocument/rangeFormatting", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+func (s *serverDispatcher) RangesFormatting(ctx context.Context, params *DocumentRangesFormattingParams) ([]TextEdit, error) {
+	var result []TextEdit
+	if err := s.sender.Call(ctx, "textDocument/rangesFormatting", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -1110,13 +1146,6 @@ func (s *serverDispatcher) DidRenameFiles(ctx context.Context, params *RenameFil
 	return s.sender.Notify(ctx, "workspace/didRenameFiles", params)
 }
 func (s *serverDispatcher) ExecuteCommand(ctx context.Context, params *ExecuteCommandParams) (interface{}, error) {
-	// TODO(adonovan): allow the caller to pass in the result
-	// pointer so they can avoid an unnecessary JSON-to-any
-	// decoding and re-encoding to JSON before finally decoding to
-	// the correct Go struct type. (Also: the specific result
-	// type depends on the implementation of ExecuteCommand:
-	// (*Server).ExecuteCommand returns the specific Go type!
-	// This is not a meaningful interface.)
 	var result interface{}
 	if err := s.sender.Call(ctx, "workspace/executeCommand", params, &result); err != nil {
 		return nil, err

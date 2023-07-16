@@ -156,6 +156,10 @@ func (s *Server) InlayHint(ctx context.Context, params *protocol.InlayHintParams
 	return s.inlayHint(ctx, params)
 }
 
+func (s *Server) InlineCompletion(context.Context, *protocol.InlineCompletionParams) (*protocol.Or_Result_textDocument_inlineCompletion, error) {
+	return nil, notImplemented("InlineCompletion")
+}
+
 func (s *Server) InlineValue(context.Context, *protocol.InlineValueParams) ([]protocol.InlineValue, error) {
 	return nil, notImplemented("InlineValue")
 }
@@ -198,6 +202,10 @@ func (s *Server) Progress(context.Context, *protocol.ProgressParams) error {
 
 func (s *Server) RangeFormatting(context.Context, *protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
 	return nil, notImplemented("RangeFormatting")
+}
+
+func (s *Server) RangesFormatting(context.Context, *protocol.DocumentRangesFormattingParams) ([]protocol.TextEdit, error) {
+	return nil, notImplemented("RangesFormatting")
 }
 
 func (s *Server) References(ctx context.Context, params *protocol.ReferenceParams) ([]protocol.Location, error) {

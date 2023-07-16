@@ -276,6 +276,6 @@ func toProtocolLink(m *protocol.Mapper, targetURL string, start, end int) (proto
 	}
 	return protocol.DocumentLink{
 		Range:  rng,
-		Target: targetURL,
+		Target: &targetURL,
 	}, nil
 }

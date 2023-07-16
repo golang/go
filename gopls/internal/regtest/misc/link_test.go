@@ -62,11 +62,11 @@ const Hello = "Hello"
 			t.Errorf("hover: got %v in go.mod, want contains %q", content, pkgLink)
 		}
 		links := env.DocumentLink("main.go")
-		if len(links) != 1 || links[0].Target != pkgLink {
+		if len(links) != 1 || *links[0].Target != pkgLink {
 			t.Errorf("documentLink: got links %+v for main.go, want one link with target %q", links, pkgLink)
 		}
 		links = env.DocumentLink("go.mod")
-		if len(links) != 1 || links[0].Target != modLink {
+		if len(links) != 1 || *links[0].Target != modLink {
 			t.Errorf("documentLink: got links %+v for go.mod, want one link with target %q", links, modLink)
 		}
 

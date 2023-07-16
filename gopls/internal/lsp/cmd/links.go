@@ -71,7 +71,7 @@ func (l *links) Run(ctx context.Context, args ...string) error {
 		return enc.Encode(results)
 	}
 	for _, v := range results {
-		fmt.Println(v.Target)
+		fmt.Println(*v.Target)
 	}
 	return nil
 }
