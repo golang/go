@@ -15,7 +15,7 @@ import (
 )
 
 func ExampleOpenFile() {
-	f, err := os.OpenFile("notes.txt", os.O_RDWR|os.O_CREATE, 0755)
+	f, err := os.OpenFile("notes.txt", os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
