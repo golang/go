@@ -1,0 +1,31 @@
+Errors from attempting to import a function from another
+package whose body refers to unexported declarations.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+func A1() { b() }
+func b() {}
+
+func A2() { var x T; print(x.f) }
+type T struct { f int }
+
+func A3() { _ = &T{f: 0} }
+
+func A4() { _ = &T{0} }
+
+-- b/b.go --
+package b
+
+import "testdata/a"
+
+func _() {
+	a.A1() //@ inline(re"A1", re`body refers to non-exported b`)
+	a.A2() //@ inline(re"A2", re`body refers to non-exported \(testdata/a.T\).f`)
+	a.A3() //@ inline(re"A3", re`body refers to non-exported \(testdata/a.T\).f`)
+	a.A4() //@ inline(re"A4", re`body refers to non-exported \(testdata/a.T\).f`)
+}

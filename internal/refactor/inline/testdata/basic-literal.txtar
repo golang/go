@@ -1,0 +1,19 @@
+Most basic test of inlining by literalization.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+var _ = add(1, 2) //@ inline(re"add", add)
+
+func add(x, y int) int { return x + y }
+
+-- add --
+package a
+
+var _ = func(x, y int) int { return x + y }(1, 2) //@ inline(re"add", add)
+
+func add(x, y int) int { return x + y }

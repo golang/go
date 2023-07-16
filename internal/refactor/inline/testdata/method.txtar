@@ -1,0 +1,104 @@
+Test of inlining a method call.
+
+The call to (*T).g0 implicitly takes the address &x.
+
+The f1/g1 methods have parameters, exercising the
+splicing of the receiver into the parameter list.
+Notice that the unnamed parameters become named.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/f0.go --
+package a
+
+type T int
+func (T) f0() {}
+
+func _(x T) {
+	x.f0() //@ inline(re"f0", f0)
+}
+
+-- f0 --
+package a
+
+type T int
+
+func (T) f0() {}
+
+func _(x T) {
+	func(_ T) {}(x) //@ inline(re"f0", f0)
+}
+
+-- a/g0.go --
+package a
+
+func (recv *T) g0() {}
+
+func _(x T) {
+	x.g0() //@ inline(re"g0", g0)
+}
+
+-- g0 --
+package a
+
+func (recv *T) g0() {}
+
+func _(x T) {
+	func(recv *T) {}(&x) //@ inline(re"g0", g0)
+}
+
+-- a/f1.go --
+package a
+
+func (T) f1(int, int) {}
+
+func _(x T) {
+	x.f1(1, 2) //@ inline(re"f1", f1)
+}
+
+-- f1 --
+package a
+
+func (T) f1(int, int) {}
+
+func _(x T) {
+	func(_ T, _ int, _ int) {}(x, 1, 2) //@ inline(re"f1", f1)
+}
+
+-- a/g1.go --
+package a
+
+func (recv *T) g1(int, int) {}
+
+func _(x T) {
+	x.g1(1, 2) //@ inline(re"g1", g1)
+}
+
+-- g1 --
+package a
+
+func (recv *T) g1(int, int) {}
+
+func _(x T) {
+	func(recv *T, _ int, _ int) {}(&x, 1, 2) //@ inline(re"g1", g1)
+}
+
+-- a/h.go --
+package a
+
+func (T) h() int { return 1 }
+
+func _() {
+	new(T).h() //@ inline(re"h", h)
+}
+
+-- h --
+package a
+
+func (T) h() int { return 1 }
+
+func _() {
+	func(_ T) int { return 1 }(*new(T)) //@ inline(re"h", h)
+}

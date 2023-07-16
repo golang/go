@@ -1,0 +1,56 @@
+Inlining, whether by literalization or reduction,
+preserves comments in the callee.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/f.go --
+package a
+
+func _() {
+	f() //@ inline(re"f", f)
+}
+
+func f() {
+	// a
+	/* b */ g() /* c */
+	// d
+}
+
+-- f --
+package a
+
+func _() {
+	func() {
+		// a
+		/* b */
+		g() /* c */
+		// d
+	}() //@ inline(re"f", f)
+}
+
+func f() {
+	// a
+	/* b */
+	g() /* c */
+	// d
+}
+
+-- a/g.go --
+package a
+
+func _() {
+	println(g()) //@ inline(re"g", g)
+}
+
+func g() int { return 1 /*hello*/ + /*there*/ 1 }
+
+-- g --
+package a
+
+func _() {
+	println((1 /*hello*/ + /*there*/ 1)) //@ inline(re"g", g)
+}
+
+func g() int { return 1 /*hello*/ + /*there*/ 1 }

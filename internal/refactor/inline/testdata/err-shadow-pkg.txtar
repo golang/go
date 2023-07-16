@@ -1,0 +1,36 @@
+Test of failure to inline because callee references a
+package-level decl that is shadowed by caller.
+
+Observe that the first call to f can be inlined because
+the shadowing has not yet occurred; but the second call
+to f is within the scope of the local constant v.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+func _() {
+	f() //@ inline(re"f", result)
+	const v = 1
+	f() //@ inline(re"f", re"v.*shadowed.*by.*const .line 5")
+}
+
+func f() int { return v }
+
+var v int
+
+-- result --
+package a
+
+func _() {
+	_ = v //@ inline(re"f", result)
+	const v = 1
+	f() //@ inline(re"f", re"v.*shadowed.*by.*const .line 5")
+}
+
+func f() int { return v }
+
+var v int

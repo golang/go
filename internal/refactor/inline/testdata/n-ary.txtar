@@ -1,0 +1,79 @@
+Tests of various n-ary result function cases.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+func _() {
+	println(f1()) //@ inline(re"f1", f1)
+}
+
+func f1() (int, int) { return 1, 1 }
+
+-- f1 --
+package a
+
+func _() {
+	println(1, 1) //@ inline(re"f1", f1)
+}
+
+func f1() (int, int) { return 1, 1 }
+
+-- b/b.go --
+package b
+
+func _() {
+	f2() //@ inline(re"f2", f2)
+}
+
+func f2() (int, int) { return 2, 2 }
+
+-- f2 --
+package b
+
+func _() {
+	_, _ = 2, 2 //@ inline(re"f2", f2)
+}
+
+func f2() (int, int) { return 2, 2 }
+
+-- c/c.go --
+package c
+
+func _() {
+	_, _ = f3() //@ inline(re"f3", f3)
+}
+
+func f3() (int, int) { return f3A() }
+func f3A() (x, y int)
+
+-- f3 --
+package c
+
+func _() {
+	_, _ = f3A() //@ inline(re"f3", f3)
+}
+
+func f3() (int, int) { return f3A() }
+func f3A() (x, y int)
+
+-- d/d.go --
+package d
+
+func _() {
+	println(-f4()) //@ inline(re"f4", f4)
+}
+
+func f4() int { return 2 + 2 }
+
+-- f4 --
+package d
+
+func _() {
+	println(-(2 + 2)) //@ inline(re"f4", f4)
+}
+
+func f4() int { return 2 + 2 }

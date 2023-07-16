@@ -1,0 +1,36 @@
+Failures to inline because callee references a builtin that
+is shadowed by caller.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/nil.go --
+package a
+
+func _() {
+	const nil = 1
+	_ = f() //@ inline(re"f", re"nil.*shadowed.*by.*const .line 4")
+}
+
+func f() *int { return nil }
+
+-- a/append.go --
+package a
+
+func _() {
+	type append int
+	g(nil) //@ inline(re"g", re"append.*shadowed.*by.*typename .line 4")
+}
+
+func g(x []int) { _ = append(x, x...) }
+
+-- a/type.go --
+package a
+
+func _() {
+	type int uint8
+	_ = h(0) //@ inline(re"h", re"int.*shadowed.*by.*typename .line 4")
+}
+
+func h(x int) int { return x + 1 }

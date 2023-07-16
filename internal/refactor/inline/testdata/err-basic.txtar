@@ -1,0 +1,30 @@
+Basic errors:
+- Inlining of generic functions is not yet supported.
+
+We can't express tests for the error resulting from inlining a
+conversion T(x), a call to a literal func(){}(), a call to a
+func-typed var, or a call to an interface method, since all of these
+cause the test driver to fail to locate the callee, so
+it doesn't even reach the Indent function.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/generic.go --
+package a
+
+func _() {
+	f[int]() //@ inline(re"f", re"type parameters are not yet supported")
+}
+
+func f[T any]() {}
+
+-- a/nobody.go --
+package a
+
+func _() {
+	g() //@ inline(re"g", re"has no body")
+}
+
+func g()

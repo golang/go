@@ -1,0 +1,29 @@
+Test of inlining a function that references an
+internal package that is not accessible to the caller.
+
+(c -> b -> b/internal/a)
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- b/internal/a/a.go --
+package a
+
+func A() {}
+
+-- b/b.go --
+package b
+
+import "testdata/b/internal/a"
+
+func B() { a.A() }
+
+-- c/c.go --
+package c
+
+import "testdata/b"
+
+func _() {
+	b.B() //@ inline(re"B", re`body refers to inaccessible package "testdata/b/internal/a"`)
+}

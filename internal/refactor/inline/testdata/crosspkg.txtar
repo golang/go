@@ -1,0 +1,77 @@
+Test of cross-package inlining.
+The first case creates a new import,
+the second reuses an existing one.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+// This comment does not migrate.
+
+import (
+	"fmt"
+	"testdata/b"
+)
+
+// Nor this one.
+
+func A() {
+	fmt.Println()
+	b.B1() //@ inline(re"B1", b1result)
+	b.B2() //@ inline(re"B2", b2result)
+}
+
+-- b/b.go --
+package b
+
+import "testdata/c"
+import "fmt"
+
+func B1() { c.C() }
+func B2() { fmt.Println() }
+
+-- c/c.go --
+package c
+
+func C() {}
+
+-- b1result --
+package a
+
+// This comment does not migrate.
+
+import (
+	"fmt"
+	"testdata/b"
+
+	c "testdata/c"
+)
+
+// Nor this one.
+
+func A() {
+	fmt.Println()
+	func() { c.C() }() //@ inline(re"B1", b1result)
+	b.B2()             //@ inline(re"B2", b2result)
+}
+
+-- b2result --
+package a
+
+// This comment does not migrate.
+
+import (
+	"fmt"
+	"testdata/b"
+)
+
+// Nor this one.
+
+func A() {
+	fmt.Println()
+	b.B1()                     //@ inline(re"B1", b1result)
+	func() { fmt.Println() }() //@ inline(re"B2", b2result)
+}

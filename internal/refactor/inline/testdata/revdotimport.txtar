@@ -1,0 +1,43 @@
+Test of inlining a function into a context that already
+dot-imports the necessary additional import.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+func A() {}
+
+-- b/b.go --
+package b
+
+import "testdata/a"
+
+func B() { a.A() }
+
+-- c/c.go --
+package c
+
+import . "testdata/a"
+import "testdata/b"
+
+func _() {
+	A()
+	b.B() //@ inline(re"B", result)
+}
+
+-- result --
+package c
+
+import (
+	. "testdata/a"
+
+	a "testdata/a"
+)
+
+func _() {
+	A()
+	func() { a.A() }() //@ inline(re"B", result)
+}

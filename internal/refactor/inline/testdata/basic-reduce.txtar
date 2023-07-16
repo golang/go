@@ -1,0 +1,19 @@
+Most basic test of inlining by reduction.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+var _ = zero() //@ inline(re"zero", zero)
+
+func zero() int { return 0 }
+
+-- zero --
+package a
+
+var _ = (0) //@ inline(re"zero", zero)
+
+func zero() int { return 0 }

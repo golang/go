@@ -1,0 +1,24 @@
+Test of inlining a function that references err.Error,
+which is often a special case because it has no position.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+import "io"
+
+var _ = getError(io.EOF) //@ inline(re"getError", getError)
+
+func getError(err error) string { return err.Error() }
+
+-- getError --
+package a
+
+import "io"
+
+var _ = func(err error) string { return err.Error() }(io.EOF) //@ inline(re"getError", getError)
+
+func getError(err error) string { return err.Error() }

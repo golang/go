@@ -1,0 +1,35 @@
+Test of inlining a function that uses a dot import.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+func A() {}
+
+-- b/b.go --
+package b
+
+import . "testdata/a"
+
+func B() { A() }
+
+-- c/c.go --
+package c
+
+import "testdata/b"
+
+func _() {
+	b.B() //@ inline(re"B", result)
+}
+
+-- result --
+package c
+
+import a "testdata/a"
+
+func _() {
+	func() { a.A() }() //@ inline(re"B", result)
+}

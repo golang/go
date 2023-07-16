@@ -1,0 +1,41 @@
+Test of heuristic for generating a fresh import PkgName.
+The names c and c0 are taken, so it uses c1.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+import "testdata/b"
+
+func A() {
+	const c = 1
+	type c0 int
+	b.B() //@ inline(re"B", result)
+}
+
+-- b/b.go --
+package b
+
+import "testdata/c"
+
+func B() { c.C() }
+
+-- c/c.go --
+package c
+
+func C() {}
+
+-- result --
+package a
+
+import c1 "testdata/c"
+
+func A() {
+	const c = 1
+	type c0 int
+	func() { c1.C() }() //@ inline(re"B", result)
+}
+

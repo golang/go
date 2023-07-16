@@ -1,0 +1,99 @@
+Inlining an expression into an ExprStmt.
+Call and receive expressions can be inlined directly
+(though calls to only some builtins can be reduced).
+All other expressions are inlined as "_ = expr".
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/call.go --
+package a
+
+func _() {
+	call() //@ inline(re"call", call)
+}
+
+func call() int { return recv() }
+
+-- call --
+package a
+
+func _() {
+	recv() //@ inline(re"call", call)
+}
+
+func call() int { return recv() }
+
+-- a/recv.go --
+package a
+
+func _() {
+	recv() //@ inline(re"recv", recv)
+}
+
+func recv() int { return <-(chan int)(nil) }
+
+-- recv --
+package a
+
+func _() {
+	<-(chan int)(nil) //@ inline(re"recv", recv)
+}
+
+func recv() int { return <-(chan int)(nil) }
+
+-- a/constant.go --
+package a
+
+func _() {
+	constant() //@ inline(re"constant", constant)
+}
+
+func constant() int { return 0 }
+
+-- constant --
+package a
+
+func _() {
+	_ = 0 //@ inline(re"constant", constant)
+}
+
+func constant() int { return 0 }
+
+-- a/builtin.go --
+package a
+
+func _() {
+	builtin() //@ inline(re"builtin", builtin)
+}
+
+func builtin() int { return len("") }
+
+-- builtin --
+package a
+
+func _() {
+	_ = len("") //@ inline(re"builtin", builtin)
+}
+
+func builtin() int { return len("") }
+
+-- a/copy.go --
+package a
+
+func _() {
+	_copy() //@ inline(re"copy", copy)
+}
+
+func _copy() int { return copy([]int(nil), []int(nil)) }
+
+-- copy --
+package a
+
+func _() {
+	copy([]int(nil), []int(nil)) //@ inline(re"copy", copy)
+}
+
+func _copy() int { return copy([]int(nil), []int(nil)) }
+
