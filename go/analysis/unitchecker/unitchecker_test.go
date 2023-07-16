@@ -29,6 +29,9 @@ func TestMain(m *testing.M) {
 	case "minivet":
 		minivet()
 		panic("unreachable")
+	case "worker":
+		worker() // see ExampleSeparateAnalysis
+		panic("unreachable")
 	}
 
 	// test process
