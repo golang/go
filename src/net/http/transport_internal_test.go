@@ -8,6 +8,7 @@ package http
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/tls"
 	"errors"
 	"io"
@@ -263,5 +264,26 @@ func TestTransportBodyAltRewind(t *testing.T) {
 	_, err = c.Do(req)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func BenchmarkGzipReaderInit(b *testing.B) {
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, err := gz.Write([]byte("The test string")); err != nil {
+		b.Fatal(err)
+	}
+	gz.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r := &gzipReader{body: &bodyEOFSignal{body: io.NopCloser(bytes.NewReader(buf.Bytes()))}}
+
+		if _, err := r.Read(nil); err != nil {
+			b.Fatal(err)
+		}
+		if err := r.Close(); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
