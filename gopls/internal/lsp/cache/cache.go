@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/event"
@@ -67,6 +68,7 @@ func NewSession(ctx context.Context, c *Cache, optionsOverrides func(*source.Opt
 		gocmdRunner: &gocommand.Runner{},
 		options:     options,
 		overlayFS:   newOverlayFS(c),
+		parseCache:  newParseCache(1 * time.Minute), // keep recently parsed files for a minute, to optimize typing CPU
 	}
 	event.Log(ctx, "New session", KeyCreateSession.Of(s))
 	return s

@@ -100,9 +100,6 @@ type snapshot struct {
 	// It may invalidated when a file's content changes.
 	files filesMap
 
-	// parseCache holds an LRU cache of recently parsed files.
-	parseCache *parseCache
-
 	// symbolizeHandles maps each file URI to a handle for the future
 	// result of computing the symbols declared in that file.
 	symbolizeHandles *persistent.Map // from span.URI to *memoize.Promise[symbolizeResult]
@@ -1989,7 +1986,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		packages:             s.packages.Clone(),
 		activePackages:       s.activePackages.Clone(),
 		files:                s.files.Clone(),
-		parseCache:           s.parseCache,
 		symbolizeHandles:     s.symbolizeHandles.Clone(),
 		workspacePackages:    make(map[PackageID]PackagePath, len(s.workspacePackages)),
 		unloadableFiles:      make(map[span.URI]struct{}, len(s.unloadableFiles)),
@@ -2436,8 +2432,8 @@ func metadataChanges(ctx context.Context, lockedSnapshot *snapshot, oldFH, newFH
 
 	fset := token.NewFileSet()
 	// Parse headers to compare package names and imports.
-	oldHeads, oldErr := lockedSnapshot.parseCache.parseFiles(ctx, fset, source.ParseHeader, oldFH)
-	newHeads, newErr := lockedSnapshot.parseCache.parseFiles(ctx, fset, source.ParseHeader, newFH)
+	oldHeads, oldErr := lockedSnapshot.view.parseCache.parseFiles(ctx, fset, source.ParseHeader, oldFH)
+	newHeads, newErr := lockedSnapshot.view.parseCache.parseFiles(ctx, fset, source.ParseHeader, newFH)
 
 	if oldErr != nil || newErr != nil {
 		// TODO(rfindley): we can get here if newFH does not exist. There is
@@ -2488,8 +2484,8 @@ func metadataChanges(ctx context.Context, lockedSnapshot *snapshot, oldFH, newFH
 	// Note: if this affects performance we can probably avoid parsing in the
 	// common case by first scanning the source for potential comments.
 	if !invalidate {
-		origFulls, oldErr := lockedSnapshot.parseCache.parseFiles(ctx, fset, source.ParseFull, oldFH)
-		newFulls, newErr := lockedSnapshot.parseCache.parseFiles(ctx, fset, source.ParseFull, newFH)
+		origFulls, oldErr := lockedSnapshot.view.parseCache.parseFiles(ctx, fset, source.ParseFull, oldFH)
+		newFulls, newErr := lockedSnapshot.view.parseCache.parseFiles(ctx, fset, source.ParseFull, newFH)
 		if oldErr == nil && newErr == nil {
 			invalidate = magicCommentsChanged(origFulls[0].File, newFulls[0].File)
 		} else {
@@ -2574,7 +2570,7 @@ func (s *snapshot) BuiltinFile(ctx context.Context) (*source.ParsedGoFile, error
 	// For the builtin file only, we need syntactic object resolution
 	// (since we can't type check).
 	mode := source.ParseFull &^ source.SkipObjectResolution
-	pgfs, err := s.parseCache.parseFiles(ctx, token.NewFileSet(), mode, fh)
+	pgfs, err := s.view.parseCache.parseFiles(ctx, token.NewFileSet(), mode, fh)
 	if err != nil {
 		return nil, err
 	}

@@ -63,7 +63,7 @@ func (s *snapshot) symbolize(ctx context.Context, uri span.URI) ([]source.Symbol
 // It may use a parsed file already present in the cache but
 // otherwise does not populate the cache.
 func symbolizeImpl(ctx context.Context, snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, error) {
-	pgfs, err := snapshot.parseCache.parseFiles(ctx, token.NewFileSet(), source.ParseFull, fh)
+	pgfs, err := snapshot.view.parseCache.parseFiles(ctx, token.NewFileSet(), source.ParseFull, fh)
 	if err != nil {
 		return nil, err
 	}

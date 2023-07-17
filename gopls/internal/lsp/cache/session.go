@@ -39,6 +39,8 @@ type Session struct {
 	views   []*View
 	viewMap map[span.URI]*View // map of URI->best view
 
+	parseCache *parseCache
+
 	*overlayFS
 }
 
@@ -76,6 +78,7 @@ func (s *Session) Shutdown(ctx context.Context) {
 	for _, view := range views {
 		view.shutdown()
 	}
+	s.parseCache.stop()
 	event.Log(ctx, "Shutdown session", KeyShutdownSession.Of(s))
 }
 
@@ -138,6 +141,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		folder:               folder,
 		moduleUpgrades:       map[span.URI]map[string]string{},
 		vulns:                map[span.URI]*govulncheck.Result{},
+		parseCache:           s.parseCache,
 		fs:                   s.overlayFS,
 		workspaceInformation: info,
 	}
@@ -168,7 +172,6 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		packages:             persistent.NewMap(packageIDLessInterface),
 		meta:                 new(metadataGraph),
 		files:                newFilesMap(),
-		parseCache:           new(parseCache),
 		activePackages:       persistent.NewMap(packageIDLessInterface),
 		symbolizeHandles:     persistent.NewMap(uriLessInterface),
 		workspacePackages:    make(map[PackageID]PackagePath),

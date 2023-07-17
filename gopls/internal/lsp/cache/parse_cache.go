@@ -14,12 +14,21 @@ import (
 	"math/bits"
 	"runtime"
 	"sync"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/tokeninternal"
 )
+
+// This file contains an implementation of an LRU parse cache, that offsets the
+// base token.Pos value of each cached file so that they may be later described
+// by a single dedicated FileSet.
+//
+// This is achieved by tracking a monotonic offset in the token.Pos space, that
+// is incremented before parsing allow room for the resulting parsed file.
 
 // reservedForParsing defines the room in the token.Pos space reserved for
 // cached parsed files.
@@ -58,21 +67,11 @@ func fileSetWithBase(base int) *token.FileSet {
 	return fset
 }
 
-// This file contains an implementation of a bounded-size parse cache, that
-// offsets the base token.Pos value of each cached file so that they may be
-// later described by a single dedicated FileSet.
-//
-// This is achieved by tracking a monotonic offset in the token.Pos space, that
-// is incremented before parsing allow room for the resulting parsed file.
-
-// Keep 200 recently parsed files, based on the following rationale:
-//   - One of the most important benefits of caching is avoiding re-parsing
-//     everything in a package when working on a single file. No packages in
-//     Kubernetes have > 200 files (only one has > 100).
-//   - Experience has shown that ~1000 parsed files can use noticeable space.
-//     200 feels like a sweet spot between limiting cache size and optimizing
-//     cache hits for low-latency operations.
-const parseCacheMaxFiles = 200
+const (
+	// Always keep 100 recent files, independent of their wall-clock age, to
+	// optimize the case where the user resumes editing after a delay.
+	parseCacheMinFiles = 100
+)
 
 // parsePadding is additional padding allocated to allow for increases in
 // length (such as appending missing braces) caused by fixAST.
@@ -89,13 +88,16 @@ const parseCacheMaxFiles = 200
 // This value is mutable for testing, so that we can exercise the slow path.
 var parsePadding = 1000 // mutable for testing
 
-// A parseCache holds a bounded number of recently accessed parsed Go files. As
-// new files are stored, older files may be evicted from the cache.
+// A parseCache holds recently accessed parsed Go files. After new files are
+// stored, older files may be evicted from the cache via garbage collection.
 //
 // The parseCache.parseFiles method exposes a batch API for parsing (and
 // caching) multiple files. This is necessary for type-checking, where files
 // must be parsed in a common fileset.
 type parseCache struct {
+	maxAge time.Duration // interval at which to collect expired cache entries
+	done   chan struct{} // closed when GC is stopped
+
 	mu       sync.Mutex
 	m        map[parseKey]*parseCacheEntry
 	lru      queue  // min-atime priority queue of *parseCacheEntry
@@ -103,17 +105,38 @@ type parseCache struct {
 	nextBase int    // base offset for the next parsed file
 }
 
+// newParseCache creates a new parse cache and starts a goroutine to garbage
+// collect old entries that are older than maxAge.
+//
+// Callers must call parseCache.stop when the parse cache is no longer in use.
+func newParseCache(maxAge time.Duration) *parseCache {
+	c := &parseCache{
+		maxAge: maxAge,
+		m:      make(map[parseKey]*parseCacheEntry),
+		done:   make(chan struct{}),
+	}
+	go c.gc()
+	return c
+}
+
+// stop causes the GC goroutine to exit.
+func (c *parseCache) stop() {
+	close(c.done)
+}
+
 // parseKey uniquely identifies a parsed Go file.
 type parseKey struct {
-	file source.FileIdentity
+	uri  span.URI
 	mode parser.Mode
 }
 
 type parseCacheEntry struct {
 	key      parseKey
+	hash     source.Hash
 	promise  *memoize.Promise // memoize.Promise[*source.ParsedGoFile]
-	atime    uint64           // clock time of last access
-	lruIndex int
+	atime    uint64           // clock time of last access, for use in LRU sorting
+	walltime time.Time        // actual time of last access, for use in time-based eviction; too coarse for LRU on some systems
+	lruIndex int              // owned by the queue implementation
 }
 
 // startParse prepares a parsing pass, creating new promises in the cache for
@@ -131,6 +154,7 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 	//
 	// All entries parsed from a single call get the same access time.
 	c.clock++
+	walltime := time.Now()
 
 	// Read file data and collect cacheable files.
 	var (
@@ -149,15 +173,22 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 		data[i] = content
 
 		key := parseKey{
-			file: fh.FileIdentity(),
+			uri:  fh.URI(),
 			mode: mode,
 		}
 
-		if e, ok := c.m[key]; ok { // cache hit
-			e.atime = c.clock
-			heap.Fix(&c.lru, e.lruIndex)
-			promises[i] = e.promise
-			continue
+		if e, ok := c.m[key]; ok {
+			if e.hash == fh.FileIdentity().Hash { // cache hit
+				e.atime = c.clock
+				e.walltime = walltime
+				heap.Fix(&c.lru, e.lruIndex)
+				promises[i] = e.promise
+				continue
+			} else {
+				// A cache hit, for a different version. Delete it.
+				delete(c.m, e.key)
+				heap.Remove(&c.lru, e.lruIndex)
+			}
 		}
 
 		uri := fh.URI()
@@ -200,21 +231,14 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 		})
 		promises[i] = promise
 
-		var e *parseCacheEntry
-		if len(c.lru) < parseCacheMaxFiles {
-			// add new entry
-			e = new(parseCacheEntry)
-			if c.m == nil {
-				c.m = make(map[parseKey]*parseCacheEntry)
-			}
-		} else {
-			// evict oldest entry
-			e = heap.Pop(&c.lru).(*parseCacheEntry)
-			delete(c.m, e.key)
+		// add new entry; entries are gc'ed asynchronously
+		e := &parseCacheEntry{
+			key:      key,
+			hash:     fh.FileIdentity().Hash,
+			promise:  promise,
+			atime:    c.clock,
+			walltime: walltime,
 		}
-		e.key = key
-		e.promise = promise
-		e.atime = c.clock
 		c.m[e.key] = e
 		heap.Push(&c.lru, e)
 	}
@@ -224,6 +248,38 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 	}
 
 	return promises, firstReadError
+}
+
+func (c *parseCache) gc() {
+	const period = 10 * time.Second // gc period
+	timer := time.NewTimer(period)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-c.done:
+			return
+		case <-timer.C:
+		}
+
+		c.gcOnce()
+	}
+}
+
+func (c *parseCache) gcOnce() {
+	now := time.Now()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for len(c.m) > parseCacheMinFiles {
+		e := heap.Pop(&c.lru).(*parseCacheEntry)
+		if now.Sub(e.walltime) > c.maxAge {
+			delete(c.m, e.key)
+		} else {
+			heap.Push(&c.lru, e)
+			break
+		}
+	}
 }
 
 // allocateSpace reserves the next n bytes of token.Pos space in the

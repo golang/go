@@ -356,7 +356,7 @@ func (s *snapshot) forEachPackage(ctx context.Context, ids []PackageID, pre preT
 // If a non-nil importGraph is provided, imports in this graph will be reused.
 func (s *snapshot) forEachPackageInternal(ctx context.Context, importGraph *importGraph, importIDs, syntaxIDs []PackageID, pre preTypeCheck, post postTypeCheck, handles map[PackageID]*packageHandle) (*typeCheckBatch, error) {
 	b := &typeCheckBatch{
-		parseCache:     s.parseCache,
+		parseCache:     s.view.parseCache,
 		pre:            pre,
 		post:           post,
 		handles:        handles,
@@ -593,9 +593,32 @@ func (b *typeCheckBatch) checkPackageForImport(ctx context.Context, ph *packageH
 	}
 	cfg := b.typesConfig(ctx, ph.localInputs, onError)
 	cfg.IgnoreFuncBodies = true
-	pgfs, err := b.parseCache.parseFiles(ctx, b.fset, source.ParseFull, ph.localInputs.compiledGoFiles...)
-	if err != nil {
-		return nil, err
+
+	// Parse the compiled go files, bypassing the parse cache as packages checked
+	// for import are unlikely to get cache hits. Additionally, we can optimize
+	// parsing slightly by not passing parser.ParseComments.
+	pgfs := make([]*source.ParsedGoFile, len(ph.localInputs.compiledGoFiles))
+	{
+		var group errgroup.Group
+		// Set an arbitrary concurrency limit; we want some parallelism but don't
+		// need GOMAXPROCS, as there is already a lot of concurrency among calls to
+		// checkPackageForImport.
+		//
+		// TODO(rfindley): is there a better way to limit parallelism here? We could
+		// have a global limit on the type-check batch, but would have to be very
+		// careful to avoid starvation.
+		group.SetLimit(4)
+		for i, fh := range ph.localInputs.compiledGoFiles {
+			i, fh := i, fh
+			group.Go(func() error {
+				pgf, err := parseGoImpl(ctx, b.fset, fh, parser.SkipObjectResolution)
+				pgfs[i] = pgf
+				return err
+			})
+		}
+		if err := group.Wait(); err != nil {
+			return nil, err // cancelled, or catastrophic error (e.g. missing file)
+		}
 	}
 	pkg := types.NewPackage(string(ph.localInputs.pkgPath), string(ph.localInputs.name))
 	check := types.NewChecker(cfg, b.fset, pkg, nil)

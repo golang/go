@@ -67,6 +67,9 @@ type View struct {
 	vulnsMu sync.Mutex
 	vulns   map[span.URI]*govulncheck.Result
 
+	// parseCache holds an LRU cache of recently parsed files.
+	parseCache *parseCache
+
 	// fs is the file source used to populate this view.
 	fs *overlayFS
 
