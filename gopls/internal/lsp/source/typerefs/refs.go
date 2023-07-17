@@ -5,16 +5,14 @@
 package typerefs
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
 	"go/ast"
 	"go/token"
-	"log"
 	"sort"
 	"strings"
 
 	"golang.org/x/tools/gopls/internal/astutil"
+	"golang.org/x/tools/gopls/internal/lsp/frob"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -739,6 +737,10 @@ func assert(cond bool, msg string) {
 
 // -- serialization --
 
+// (The name says gob but in fact we use frob.)
+// var classesCodec = frob.For[gobClasses]()
+var classesCodec = frob.CodecFor117(new(gobClasses))
+
 type gobClasses struct {
 	Strings []string // table of strings (PackageIDs and names)
 	Classes []gobClass
@@ -756,7 +758,7 @@ type gobClass struct {
 // the encoded size distribution has
 // p50 = 511B, p95 = 4.4KB, max = 108K.
 func encode(classNames map[int][]string, classes []symbolSet) []byte {
-	payload := &gobClasses{
+	payload := gobClasses{
 		Classes: make([]gobClass, 0, len(classNames)),
 	}
 
@@ -796,12 +798,12 @@ func encode(classNames map[int][]string, classes []symbolSet) []byte {
 		})
 	}
 
-	return mustEncode(payload)
+	return classesCodec.Encode(payload)
 }
 
 func decode(pkgIndex *PackageIndex, id source.PackageID, data []byte) []Class {
 	var payload gobClasses
-	mustDecode(data, &payload)
+	classesCodec.Decode(data, &payload)
 
 	classes := make([]Class, len(payload.Classes))
 	for i, gobClass := range payload.Classes {
@@ -828,18 +830,4 @@ func decode(pkgIndex *PackageIndex, id source.PackageID, data []byte) []Class {
 	})
 
 	return classes
-}
-
-func mustEncode(x interface{}) []byte {
-	var out bytes.Buffer
-	if err := gob.NewEncoder(&out).Encode(x); err != nil {
-		log.Fatalf("internal error gob-encoding %T: %v", x, err)
-	}
-	return out.Bytes()
-}
-
-func mustDecode(data []byte, ptr interface{}) {
-	if err := gob.NewDecoder(bytes.NewReader(data)).Decode(ptr); err != nil {
-		log.Fatalf("internal error gob-decoding %T: %v", ptr, err)
-	}
 }

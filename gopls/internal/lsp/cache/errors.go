@@ -249,13 +249,13 @@ func encodeDiagnostics(srcDiags []*source.Diagnostic) []byte {
 		}
 		gobDiags = append(gobDiags, gobDiag)
 	}
-	return mustJSONEncode(gobDiags)
+	return diagnosticsCodec.Encode(gobDiags)
 }
 
 // decodeDiagnostics decodes the given gob-encoded diagnostics.
 func decodeDiagnostics(data []byte) []*source.Diagnostic {
 	var gobDiags []gobDiagnostic
-	mustJSONDecode(data, &gobDiags)
+	diagnosticsCodec.Decode(data, &gobDiags)
 	var srcDiags []*source.Diagnostic
 	for _, gobDiag := range gobDiags {
 		var srcFixes []source.SuggestedFix

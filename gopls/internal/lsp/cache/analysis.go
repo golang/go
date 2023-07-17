@@ -31,6 +31,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/filecache"
+	"golang.org/x/tools/gopls/internal/lsp/frob"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/event"
@@ -557,7 +558,7 @@ func (an *analysisNode) runCached(ctx context.Context) (*analyzeSummary, error) 
 	const cacheKind = "analysis"
 	if data, err := filecache.Get(cacheKind, key); err == nil {
 		// cache hit
-		mustDecode(data, &summary)
+		analyzeSummaryCodec.Decode(data, &summary)
 	} else if err != filecache.ErrNotFound {
 		return nil, bug.Errorf("internal error reading shared cache: %v", err)
 	} else {
@@ -568,7 +569,7 @@ func (an *analysisNode) runCached(ctx context.Context) (*analyzeSummary, error) 
 			return nil, err
 		}
 		go func() {
-			data := mustEncode(summary)
+			data := analyzeSummaryCodec.Encode(summary)
 			if false {
 				log.Printf("Set key=%d value=%d id=%s\n", len(key), len(data), an.m.ID)
 			}
@@ -1299,29 +1300,14 @@ func mustEncode(x interface{}) []byte {
 	return buf.Bytes()
 }
 
-// TODO(rfindley): based on profiling, we should consider using JSON encoding
-// throughout, rather than gob encoding.
-func mustJSONEncode(x interface{}) []byte {
-	data, err := json.Marshal(x)
-	if err != nil {
-		log.Fatalf("internal error marshalling %T: %v", data, err)
-	}
-	return data
-}
-
-func mustDecode(data []byte, ptr interface{}) {
-	if err := gob.NewDecoder(bytes.NewReader(data)).Decode(ptr); err != nil {
-		log.Fatalf("internal error decoding %T: %v", ptr, err)
-	}
-}
-
-func mustJSONDecode(data []byte, ptr interface{}) {
-	if err := json.Unmarshal(data, ptr); err != nil {
-		log.Fatalf("internal error unmarshalling %T: %v", ptr, err)
-	}
-}
+// var analyzeSummaryCodec = frob.For[*analyzeSummary]()
+var analyzeSummaryCodec = frob.CodecFor117(new(*analyzeSummary))
 
 // -- data types for serialization of analysis.Diagnostic and source.Diagnostic --
+
+// (The name says gob but we use frob.)
+// var diagnosticsCodec = frob.For[[]gobDiagnostic]()
+var diagnosticsCodec = frob.CodecFor117(new([]gobDiagnostic))
 
 type gobDiagnostic struct {
 	Location       protocol.Location

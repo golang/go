@@ -9,14 +9,12 @@
 package xrefs
 
 import (
-	"bytes"
-	"encoding/gob"
 	"go/ast"
 	"go/types"
-	"log"
 	"sort"
 
 	"golang.org/x/tools/go/types/objectpath"
+	"golang.org/x/tools/gopls/internal/lsp/frob"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/typeparams"
@@ -133,7 +131,7 @@ func Index(files []*source.ParsedGoFile, pkg *types.Package, info *types.Info) [
 		return packages[i].PkgPath < packages[j].PkgPath
 	})
 
-	return mustEncode(packages)
+	return packageCodec.Encode(packages)
 }
 
 // Lookup searches a serialized index produced by an indexPackage
@@ -141,15 +139,8 @@ func Index(files []*source.ParsedGoFile, pkg *types.Package, info *types.Info) [
 // to any object in the target set. Each object is denoted by a pair
 // of (package path, object path).
 func Lookup(m *source.Metadata, data []byte, targets map[source.PackagePath]map[objectpath.Path]struct{}) (locs []protocol.Location) {
-
-	// TODO(adonovan): opt: evaluate whether it would be faster to decode
-	// in two passes, first with struct { PkgPath string; Objects BLOB }
-	// to find the relevant record without decoding the Objects slice,
-	// then decode just the desired BLOB into a slice. BLOB would be a
-	// type whose Unmarshal method just retains (a copy of) the bytes.
-	var packages []gobPackage
-	mustDecode(data, &packages)
-
+	var packages []*gobPackage
+	packageCodec.Decode(data, &packages)
 	for _, gp := range packages {
 		if objectSet, ok := targets[gp.PkgPath]; ok {
 			for _, gobObj := range gp.Objects {
@@ -177,10 +168,12 @@ func Lookup(m *source.Metadata, data []byte, targets map[source.PackagePath]map[
 // The index for package P consists of a list of gopPackage records,
 // each enumerating references to symbols defined a single dependency, Q.
 
-// TODO(adonovan): opt: choose a more compact encoding. Gzip reduces
-// the gob output to about one third its size, so clearly there's room
-// to improve. The gobRef.Range field is the obvious place to begin.
-// Even a zero-length slice gob-encodes to ~285 bytes.
+// TODO(adonovan): opt: choose a more compact encoding.
+// The gobRef.Range field is the obvious place to begin.
+
+// (The name says gob but in fact we use frob.)
+// var packageCodec = frob.For[[]*gobPackage]()
+var packageCodec = frob.CodecFor117(new([]*gobPackage))
 
 // A gobPackage records the set of outgoing references from the index
 // package to symbols defined in a dependency package.
@@ -198,20 +191,4 @@ type gobObject struct {
 type gobRef struct {
 	FileIndex int            // index of enclosing file within P's CompiledGoFiles
 	Range     protocol.Range // source range of reference
-}
-
-// -- duplicated from ../../cache/analysis.go --
-
-func mustEncode(x interface{}) []byte {
-	var buf bytes.Buffer
-	if err := gob.NewEncoder(&buf).Encode(x); err != nil {
-		log.Fatalf("internal error encoding %T: %v", x, err)
-	}
-	return buf.Bytes()
-}
-
-func mustDecode(data []byte, ptr interface{}) {
-	if err := gob.NewDecoder(bytes.NewReader(data)).Decode(ptr); err != nil {
-		log.Fatalf("internal error decoding %T: %v", ptr, err)
-	}
 }
