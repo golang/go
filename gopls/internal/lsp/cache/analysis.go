@@ -25,6 +25,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
@@ -1187,6 +1188,7 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 	// (Use an anonymous function to limit the recover scope.)
 	var result interface{}
 	func() {
+		start := time.Now()
 		defer func() {
 			if r := recover(); r != nil {
 				// An Analyzer panicked, likely due to a bug.
@@ -1209,7 +1211,13 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 					err = fmt.Errorf("analysis %s for package %s panicked: %v", analyzer.Name, pass.Pkg.Path(), r)
 				}
 			}
+
+			// Accumulate running time for each checker.
+			analyzerRunTimesMu.Lock()
+			analyzerRunTimes[analyzer] += time.Since(start)
+			analyzerRunTimesMu.Unlock()
 		}()
+
 		result, err = pass.Analyzer.Run(pass)
 	}()
 	if err != nil {
@@ -1237,6 +1245,32 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 		Facts:       factsdata,
 		FactsHash:   source.HashOf(factsdata),
 	}, nil
+}
+
+var (
+	analyzerRunTimesMu sync.Mutex
+	analyzerRunTimes   = make(map[*analysis.Analyzer]time.Duration)
+)
+
+type LabelDuration struct {
+	Label    string
+	Duration time.Duration
+}
+
+// AnalyzerTimes returns the accumulated time spent in each Analyzer's
+// Run function since process start, in descending order.
+func AnalyzerRunTimes() []LabelDuration {
+	analyzerRunTimesMu.Lock()
+	defer analyzerRunTimesMu.Unlock()
+
+	slice := make([]LabelDuration, 0, len(analyzerRunTimes))
+	for a, t := range analyzerRunTimes {
+		slice = append(slice, LabelDuration{Label: a.Name, Duration: t})
+	}
+	sort.Slice(slice, func(i, j int) bool {
+		return slice[i].Duration > slice[j].Duration
+	})
+	return slice
 }
 
 // requiredAnalyzers returns the transitive closure of required analyzers in preorder.

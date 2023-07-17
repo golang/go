@@ -4,7 +4,7 @@
 
 package debug_test
 
-// Provide 'static type checking' of the templates. This guards against changes is various
+// Provide 'static type checking' of the templates. This guards against changes in various
 // gopls datastructures causing template execution to fail. The checking is done by
 // the github.com/jba/templatecheck package. Before that is run, the test checks that
 // its list of templates and their arguments corresponds to the arguments in
@@ -30,18 +30,19 @@ var templates = map[string]struct {
 	tmpl *template.Template
 	data interface{} // a value of the needed type
 }{
-	"MainTmpl":    {debug.MainTmpl, &debug.Instance{}},
-	"DebugTmpl":   {debug.DebugTmpl, nil},
-	"RPCTmpl":     {debug.RPCTmpl, &debug.Rpcs{}},
-	"TraceTmpl":   {debug.TraceTmpl, debug.TraceResults{}},
-	"CacheTmpl":   {debug.CacheTmpl, &cache.Cache{}},
-	"SessionTmpl": {debug.SessionTmpl, &cache.Session{}},
-	"ViewTmpl":    {debug.ViewTmpl, &cache.View{}},
-	"ClientTmpl":  {debug.ClientTmpl, &debug.Client{}},
-	"ServerTmpl":  {debug.ServerTmpl, &debug.Server{}},
-	"FileTmpl":    {debug.FileTmpl, &cache.Overlay{}},
-	"InfoTmpl":    {debug.InfoTmpl, "something"},
-	"MemoryTmpl":  {debug.MemoryTmpl, runtime.MemStats{}},
+	"MainTmpl":     {debug.MainTmpl, &debug.Instance{}},
+	"DebugTmpl":    {debug.DebugTmpl, nil},
+	"RPCTmpl":      {debug.RPCTmpl, &debug.Rpcs{}},
+	"TraceTmpl":    {debug.TraceTmpl, debug.TraceResults{}},
+	"CacheTmpl":    {debug.CacheTmpl, &cache.Cache{}},
+	"SessionTmpl":  {debug.SessionTmpl, &cache.Session{}},
+	"ViewTmpl":     {debug.ViewTmpl, &cache.View{}},
+	"ClientTmpl":   {debug.ClientTmpl, &debug.Client{}},
+	"ServerTmpl":   {debug.ServerTmpl, &debug.Server{}},
+	"FileTmpl":     {debug.FileTmpl, &cache.Overlay{}},
+	"InfoTmpl":     {debug.InfoTmpl, "something"},
+	"MemoryTmpl":   {debug.MemoryTmpl, runtime.MemStats{}},
+	"AnalysisTmpl": {debug.AnalysisTmpl, new(debug.State).Analysis()},
 }
 
 func TestTemplates(t *testing.T) {

@@ -105,6 +105,13 @@ func (st *State) Cache(id string) *cache.Cache {
 	return nil
 }
 
+// Analysis returns the global Analysis template value.
+func (st *State) Analysis() (_ analysisTmpl) { return }
+
+type analysisTmpl struct{}
+
+func (analysisTmpl) AnalyzerRunTimes() []cache.LabelDuration { return cache.AnalyzerRunTimes() }
+
 // Sessions returns the set of Session objects currently being served.
 func (st *State) Sessions() []*cache.Session {
 	var sessions []*cache.Session
@@ -276,6 +283,10 @@ func cmdline(w http.ResponseWriter, r *http.Request) {
 
 func (i *Instance) getCache(r *http.Request) interface{} {
 	return i.State.Cache(path.Base(r.URL.Path))
+}
+
+func (i *Instance) getAnalysis(r *http.Request) interface{} {
+	return i.State.Analysis()
 }
 
 func (i *Instance) getSession(r *http.Request) interface{} {
@@ -450,6 +461,7 @@ func (i *Instance) Serve(ctx context.Context, addr string) (string, error) {
 		if i.traces != nil {
 			mux.HandleFunc("/trace/", render(TraceTmpl, i.traces.getData))
 		}
+		mux.HandleFunc("/analysis/", render(AnalysisTmpl, i.getAnalysis))
 		mux.HandleFunc("/cache/", render(CacheTmpl, i.getCache))
 		mux.HandleFunc("/session/", render(SessionTmpl, i.getSession))
 		mux.HandleFunc("/view/", render(ViewTmpl, i.getView))
@@ -651,6 +663,7 @@ ul.spans {
 <a href="/metrics">Metrics</a>
 <a href="/rpc">RPC</a>
 <a href="/trace">Trace</a>
+<a href="/analysis">Analysis</a>
 <hr>
 <h1>{{template "title" .}}</h1>
 {{block "body" .}}
@@ -759,6 +772,14 @@ var CacheTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "body"}}
 <h2>memoize.Store entries</h2>
 <ul>{{range $k,$v := .MemStats}}<li>{{$k}} - {{$v}}</li>{{end}}</ul>
+{{end}}
+`))
+
+var AnalysisTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
+{{define "title"}}Analysis{{end}}
+{{define "body"}}
+<h2>Analyzer.Run times</h2>
+<ul>{{range .AnalyzerRunTimes}}<li>{{.Duration}} {{.Label}}</li>{{end}}</ul>
 {{end}}
 `))
 
