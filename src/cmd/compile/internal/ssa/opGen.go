@@ -935,6 +935,16 @@ const (
 	OpAMD64SETBEstore
 	OpAMD64SETAstore
 	OpAMD64SETAEstore
+	OpAMD64SETEQstoreidx1
+	OpAMD64SETNEstoreidx1
+	OpAMD64SETLstoreidx1
+	OpAMD64SETLEstoreidx1
+	OpAMD64SETGstoreidx1
+	OpAMD64SETGEstoreidx1
+	OpAMD64SETBstoreidx1
+	OpAMD64SETBEstoreidx1
+	OpAMD64SETAstoreidx1
+	OpAMD64SETAEstoreidx1
 	OpAMD64SETEQF
 	OpAMD64SETNEF
 	OpAMD64SETORD
@@ -12146,6 +12156,156 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASETCC,
 		reg: regInfo{
 			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETEQstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETEQ,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETNEstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETNE,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETLstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETLT,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETLEstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETLE,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETGstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETGT,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETGEstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETGE,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETBstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETCS,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETBEstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETLS,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETAstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETHI,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETAEstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETCC,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},

@@ -1187,6 +1187,15 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux(&p.To, v)
 
+	case ssa.OpAMD64SETEQstoreidx1, ssa.OpAMD64SETNEstoreidx1,
+		ssa.OpAMD64SETLstoreidx1, ssa.OpAMD64SETLEstoreidx1,
+		ssa.OpAMD64SETGstoreidx1, ssa.OpAMD64SETGEstoreidx1,
+		ssa.OpAMD64SETBstoreidx1, ssa.OpAMD64SETBEstoreidx1,
+		ssa.OpAMD64SETAstoreidx1, ssa.OpAMD64SETAEstoreidx1:
+		p := s.Prog(v.Op.Asm())
+		memIdx(&p.To, v)
+		ssagen.AddAux(&p.To, v)
+
 	case ssa.OpAMD64SETNEF:
 		t := v.RegTmp()
 		p := s.Prog(v.Op.Asm())
