@@ -907,9 +907,10 @@ func (w *exportWriter) doTyp(t types.Type, pkg *types.Package) {
 // type of B, they are encoded as objectPaths and later looked up in the
 // importer. The same problem applies to interface methods.
 func (w *exportWriter) objectPath(obj types.Object) {
-	w.pkg(obj.Pkg())
-	if obj.Pkg() == w.p.localpkg {
-		// If obj is declared in the local package, no need to encode.
+	if obj.Pkg() == nil || obj.Pkg() == w.p.localpkg {
+		// obj.Pkg() may be nil for the builtin error.Error.
+		// In this case, or if obj is declared in the local package, no need to
+		// encode.
 		w.string("")
 		return
 	}
@@ -934,6 +935,7 @@ func (w *exportWriter) objectPath(obj types.Object) {
 		}
 	}
 	w.string(string(objectPath))
+	w.pkg(obj.Pkg())
 }
 
 func (w *exportWriter) signature(sig *types.Signature) {

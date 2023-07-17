@@ -978,11 +978,11 @@ func (r *importReader) kind() itag {
 // imported package. See the doc for exportWriter.objectPath for a full
 // explanation.
 func (r *importReader) objectPathObject() types.Object {
-	pkg := r.pkg()
 	objPath := objectpath.Path(r.string())
 	if objPath == "" {
 		return nil
 	}
+	pkg := r.pkg()
 	obj, err := objectpath.Object(pkg, objPath)
 	if err != nil {
 		if r.p.reportf != nil {

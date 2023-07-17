@@ -25,11 +25,14 @@ type E struct {
 type AI interface {
 	M() //@loc(MDef, "M")
 	EI
+	error
 }
 
 type EI interface {
 	N() //@loc(NDef, "N")
 }
+
+type Error error
 
 -- b/b.go --
 package b
