@@ -346,8 +346,8 @@ Do not send CLs removing the interior tags from such phrases.
 <h3 id="slog">New log/slog package</h3>
 
 <p><!-- https://go.dev/issue/59060, https://go.dev/issue/59141, https://go.dev/issue/59204, https://go.dev/issue/59280,
-        https://go.dev/issue/59282, https://go.dev/issue/59339, https://go.dev/issue/59345,
-        CL 477295, CL 484096, CL 486376, CL 486415, CL 487855 -->
+        https://go.dev/issue/59282, https://go.dev/issue/59339, https://go.dev/issue/59345, https://go.dev/issue/61200,
+        CL 477295, CL 484096, CL 486376, CL 486415, CL 487855, CL 508195 -->
   The new <a href="/pkg/log/slog">log/slog</a> package provides structured logging with levels.
   Structured logging emits key-value pairs
   to enable fast, accurate processing of large amounts of log data.
@@ -367,7 +367,8 @@ Do not send CLs removing the interior tags from such phrases.
   <!-- https://go.dev/issue/45955, https://go.dev/issue/54768 -->
   <!-- https://go.dev/issue/57348, https://go.dev/issue/57433 -->
   <!-- https://go.dev/issue/58565, https://go.dev/issue/60091 -->
-  <!-- CL 467417, CL 468855, CL 483175, CL 496078, CL 498175 -->
+  <!-- https://go.dev/issue/60546 -->
+  <!-- CL 467417, CL 468855, CL 483175, CL 496078, CL 498175, CL 502955 -->
   The new <a href="/pkg/slices">slices</a> package provides many common
   operations on slices, using generic functions that work with slices
   of any element type.
@@ -754,6 +755,14 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- go/token -->
+
+<dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61175, CL 507975 -->
+      TODO: <a href="https://go.dev/cl/507975">https://go.dev/cl/507975</a>: go/types: record Config.GoVersion for reporting in Package.GoVersion method; modified api/go1.21.txt
+    </p>
+  </dd>
+</dl><!-- go/types -->
 
 <dl id="hash/maphash"><dt><a href="/pkg/hash/maphash/">hash/maphash</a></dt>
   <dd>
@@ -1235,18 +1244,21 @@ Do not send CLs removing the interior tags from such phrases.
   <code>c-archive</code>, <code>c-shared</code>, <code>shared</code>, <code>pie</code>, <code>plugin</code>.
 </p>
 
-
 <!-- proposals for x repos that don't need to be mentioned here but
      are picked up by the relnote tool. -->
 <!-- https://go.dev/issue/54232 -->
+<!-- https://go.dev/issue/57051 -->
 <!-- https://go.dev/issue/57792 -->
 <!-- https://go.dev/issue/57906 -->
 <!-- https://go.dev/issue/58668 -->
+<!-- https://go.dev/issue/59016 -->
 <!-- https://go.dev/issue/59676 -->
+<!-- https://go.dev/issue/60409 -->
+<!-- https://go.dev/issue/61176 -->
 
 <!-- changes to cmd/api that don't need release notes. -->
 <!-- CL 469115, CL 469135, CL 499981 -->
 
-<!-- proposals that don't need release enotes. -->
+<!-- proposals that don't need release notes. -->
 <!-- https://go.dev/issue/10275 -->
 <!-- https://go.dev/issue/59719 -->
