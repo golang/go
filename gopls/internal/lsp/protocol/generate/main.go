@@ -11,6 +11,8 @@
 // To run it, type 'go generate' in the parent (protocol) directory.
 package main
 
+// see https://github.com/golang/go/issues/61217 for discussion of an issue
+
 import (
 	"bytes"
 	"encoding/json"
@@ -31,14 +33,15 @@ const vscodeRepo = "https://github.com/microsoft/vscode-languageserver-node"
 // For example, tag release/protocol/3.17.3 of the repo defines protocol version 3.17.0.
 // (Point releases are reflected in the git tag version even when they are cosmetic
 // and don't change the protocol.)
-var lspGitRef = "release/protocol/3.17.4-next.0"
+var lspGitRef = "release/protocol/3.17.4-next.2"
 
 var (
 	repodir   = flag.String("d", "", "directory containing clone of "+vscodeRepo)
 	outputdir = flag.String("o", ".", "output directory")
 	// PJW: not for real code
-	cmpdir = flag.String("c", "", "directory of earlier code")
-	doboth = flag.String("b", "", "generate and compare")
+	cmpdir      = flag.String("c", "", "directory of earlier code")
+	doboth      = flag.String("b", "", "generate and compare")
+	lineNumbers = flag.Bool("l", false, "add line numbers to generated output")
 )
 
 func main() {

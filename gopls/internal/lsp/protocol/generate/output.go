@@ -53,7 +53,7 @@ func generateOutput(model Model) {
 }
 
 func genDecl(method string, param, result *Type, dir string) {
-	fname := methodNames[method]
+	fname := methodName(method)
 	p := ""
 	if notNil(param) {
 		p = ", *" + goplsName(param)
@@ -92,7 +92,7 @@ func genCase(method string, param, result *Type, dir string) {
 	out := new(bytes.Buffer)
 	fmt.Fprintf(out, "\tcase %q:\n", method)
 	var p string
-	fname := methodNames[method]
+	fname := methodName(method)
 	if notNil(param) {
 		nm := goplsName(param)
 		if method == "workspace/configuration" { // gopls compatibility
@@ -154,7 +154,7 @@ func genFunc(method string, param, result *Type, dir string, isnotify bool) {
 		r = "([]LSPAny, error)"
 		goResult = "[]LSPAny"
 	}
-	fname := methodNames[method]
+	fname := methodName(method)
 	fmt.Fprintf(out, "func (s *%%sDispatcher) %s(ctx context.Context%s) %s {\n",
 		fname, p, r)
 
@@ -217,7 +217,7 @@ func genStructs(model Model) {
 			// a weird case, and needed only so the generated code contains the old gopls code
 			nm = "DocumentDiagnosticParams"
 		}
-		fmt.Fprintf(out, "type %s struct { // line %d\n", nm, s.Line)
+		fmt.Fprintf(out, "type %s struct {%s\n", nm, linex(s.Line))
 		// for gpls compatibilitye, embed most extensions, but expand the rest some day
 		props := append([]NameType{}, s.Properties...)
 		if s.Name == "SymbolInformation" { // but expand this one
@@ -287,7 +287,7 @@ func genGenTypes() {
 		switch nt.kind {
 		case "literal":
 			fmt.Fprintf(out, "// created for Literal (%s)\n", nt.name)
-			fmt.Fprintf(out, "type %s struct { // line %d\n", nm, nt.line+1)
+			fmt.Fprintf(out, "type %s struct {%s\n", nm, linex(nt.line+1))
 			genProps(out, nt.properties, nt.name) // systematic name, not gopls name; is this a good choice?
 		case "or":
 			if !strings.HasPrefix(nm, "Or") {
@@ -302,18 +302,18 @@ func genGenTypes() {
 			}
 			sort.Strings(names)
 			fmt.Fprintf(out, "// created for Or %v\n", names)
-			fmt.Fprintf(out, "type %s struct { // line %d\n", nm, nt.line+1)
+			fmt.Fprintf(out, "type %s struct {%s\n", nm, linex(nt.line+1))
 			fmt.Fprintf(out, "\tValue interface{} `json:\"value\"`\n")
 		case "and":
 			fmt.Fprintf(out, "// created for And\n")
-			fmt.Fprintf(out, "type %s struct { // line %d\n", nm, nt.line+1)
+			fmt.Fprintf(out, "type %s struct {%s\n", nm, linex(nt.line+1))
 			for _, x := range nt.items {
 				nm := goplsName(x)
 				fmt.Fprintf(out, "\t%s\n", nm)
 			}
 		case "tuple": // there's only this one
 			nt.name = "UIntCommaUInt"
-			fmt.Fprintf(out, "//created for Tuple\ntype %s struct { // line %d\n", nm, nt.line+1)
+			fmt.Fprintf(out, "//created for Tuple\ntype %s struct {%s\n", nm, linex(nt.line+1))
 			fmt.Fprintf(out, "\tFld0 uint32 `json:\"fld0\"`\n")
 			fmt.Fprintf(out, "\tFld1 uint32 `json:\"fld1\"`\n")
 		default:
@@ -329,7 +329,7 @@ func genConsts(model Model) {
 		generateDoc(out, e.Documentation)
 		tp := goplsName(e.Type)
 		nm := goName(e.Name)
-		fmt.Fprintf(out, "type %s %s // line %d\n", nm, tp, e.Line)
+		fmt.Fprintf(out, "type %s %s%s\n", nm, tp, linex(e.Line))
 		types[nm] = out.String()
 		vals := new(bytes.Buffer)
 		generateDoc(vals, e.Documentation)
@@ -351,7 +351,7 @@ func genConsts(model Model) {
 			default:
 				log.Fatalf("impossible type %T", v)
 			}
-			fmt.Fprintf(vals, "\t%s %s = %s // line %d\n", nm, e.Name, val, v.Line)
+			fmt.Fprintf(vals, "\t%s %s = %s%s\n", nm, e.Name, val, linex(v.Line))
 		}
 		consts[nm] = vals.String()
 	}
@@ -391,6 +391,13 @@ func genMarshal() {
 		buf.WriteString("}\n\n")
 		jsons[nm] = buf.String()
 	}
+}
+
+func linex(n int) string {
+	if *lineNumbers {
+		return fmt.Sprintf(" // line %d", n)
+	}
+	return ""
 }
 
 func goplsName(t *Type) string {

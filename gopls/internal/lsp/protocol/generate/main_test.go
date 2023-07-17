@@ -22,6 +22,7 @@ import (
 // (in vscode, just run the test with  "go.coverOnSingleTest": true)
 func TestAll(t *testing.T) {
 	t.Skip("needs vscode-languageserver-node repository")
+	*lineNumbers = true
 	log.SetFlags(log.Lshortfile)
 	main()
 }

@@ -7,6 +7,8 @@
 
 package main
 
+import "log"
+
 // prop combines the name of a property with the name of the structure it is in.
 type prop [2]string
 
@@ -111,6 +113,7 @@ var disambiguate = map[string]adjust{
 	"DiagnosticSeverity":           {"Severity", ""},
 	"DocumentDiagnosticReportKind": {"Diagnostic", ""},
 	"FileOperationPatternKind":     {"", "Pattern"},
+	"InlineCompletionTriggerKind":  {"Inline", ""},
 	"InsertTextFormat":             {"", "TextFormat"},
 	"SemanticTokenModifiers":       {"Mod", ""},
 	"SemanticTokenTypes":           {"", "Type"},
@@ -277,6 +280,7 @@ var methodNames = map[string]string{
 	"textDocument/hover":                     "Hover",
 	"textDocument/implementation":            "Implementation",
 	"textDocument/inlayHint":                 "InlayHint",
+	"textDocument/inlineCompletion":          "InlineCompletion",
 	"textDocument/inlineValue":               "InlineValue",
 	"textDocument/linkedEditingRange":        "LinkedEditingRange",
 	"textDocument/moniker":                   "Moniker",
@@ -286,6 +290,7 @@ var methodNames = map[string]string{
 	"textDocument/prepareTypeHierarchy":      "PrepareTypeHierarchy",
 	"textDocument/publishDiagnostics":        "PublishDiagnostics",
 	"textDocument/rangeFormatting":           "RangeFormatting",
+	"textDocument/rangesFormatting":          "RangesFormatting",
 	"textDocument/references":                "References",
 	"textDocument/rename":                    "Rename",
 	"textDocument/selectionRange":            "SelectionRange",
@@ -325,4 +330,12 @@ var methodNames = map[string]string{
 	"workspace/willRenameFiles":              "WillRenameFiles",
 	"workspace/workspaceFolders":             "WorkspaceFolders",
 	"workspaceSymbol/resolve":                "ResolveWorkspaceSymbol",
+}
+
+func methodName(method string) string {
+	ans := methodNames[method]
+	if ans == "" {
+		log.Fatalf("unknown method %q", method)
+	}
+	return ans
 }
