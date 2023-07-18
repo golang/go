@@ -807,6 +807,9 @@ func (s *snapshot) getPackageHandles(ctx context.Context, ids []PackageID) (map[
 		n, ok := b.nodes[idxID]
 		if !ok {
 			m := s.meta.metadata[id]
+			if m == nil {
+				panic(fmt.Sprintf("nil metadata for %q", id))
+			}
 			n = &handleNode{
 				m:               m,
 				idxID:           idxID,
