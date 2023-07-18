@@ -7601,6 +7601,11 @@ func (c *ctxt7) encRegShiftOrExt(p *obj.Prog, a *obj.Addr, r int16) uint32 {
 	case REG_UXTW <= r && r < REG_UXTX:
 		if a.Type == obj.TYPE_MEM {
 			if num == 0 {
+				// According to the arm64 specification, for instructions MOVB, MOVBU and FMOVB,
+				// the extension amount must be 0, encoded in "S" as 0 if omitted, or as 1 if present.
+				// But in Go, we don't distinguish between Rn.UXTW and Rn.UXTW<<0, so we encode it as
+				// that does not present. This makes no difference to the function of the instruction.
+				// This is also true for extensions LSL, SXTW and SXTX.
 				return roff(rm, 2, 2)
 			} else {
 				return roff(rm, 2, 6)
@@ -7636,7 +7641,11 @@ func (c *ctxt7) encRegShiftOrExt(p *obj.Prog, a *obj.Addr, r int16) uint32 {
 		}
 	case REG_LSL <= r && r < REG_ARNG:
 		if a.Type == obj.TYPE_MEM { // (R1)(R2<<1)
-			return roff(rm, 3, 6)
+			if num == 0 {
+				return roff(rm, 3, 2)
+			} else {
+				return roff(rm, 3, 6)
+			}
 		} else if isADDWop(p.As) {
 			return roff(rm, 2, num)
 		}

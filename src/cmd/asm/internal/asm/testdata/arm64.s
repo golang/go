@@ -595,6 +595,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	(R3)(R6*1), R5                  // 656866f8
 	MOVD	(R2)(R6), R4                    // 446866f8
 	MOVWU	(R19)(R20<<2), R20              // 747a74b8
+	MOVD	(R2)(R3<<0), R1                 // 416863f8
 	MOVD	(R2)(R6<<3), R4                 // 447866f8
 	MOVD	(R3)(R7.SXTX<<3), R8            // 68f867f8
 	MOVWU	(R5)(R4.UXTW), R10              // aa4864b8
@@ -604,7 +605,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVHU	(R1)(R2<<1), R5                 // 25786278
 	MOVB	(R9)(R3.UXTW), R6               // 2649a338
 	MOVB	(R10)(R6), R15                  // 4f69a638
-	MOVB	(R29)(R30<<0), R14              // ae7bbe38
+	MOVB	(R29)(R30<<0), R14              // ae6bbe38
 	MOVB	(R29)(R30), R14                 // ae6bbe38
 	MOVH	(R5)(R7.SXTX<<1), R19           // b3f8a778
 	MOVH	(R8)(R4<<1), R10                // 0a79a478
