@@ -19,7 +19,7 @@ func TestBasics(t *testing.T) {
 		C *Basics
 		D map[string]int
 	}
-	codec := frob.CodecFor117(new(Basics))
+	codec := frob.CodecFor[Basics]()
 
 	s1, s2 := "hello", "world"
 	x := Basics{
@@ -55,7 +55,7 @@ func TestInts(t *testing.T) {
 		C64  complex64
 		C128 complex128
 	}
-	codec := frob.CodecFor117(new(Ints))
+	codec := frob.CodecFor[Ints]()
 
 	// maxima
 	max1 := Ints{

@@ -1403,14 +1403,12 @@ func mustEncode(x interface{}) []byte {
 	return buf.Bytes()
 }
 
-// var analyzeSummaryCodec = frob.For[*analyzeSummary]()
-var analyzeSummaryCodec = frob.CodecFor117(new(*analyzeSummary))
+var analyzeSummaryCodec = frob.CodecFor[*analyzeSummary]()
 
 // -- data types for serialization of analysis.Diagnostic and source.Diagnostic --
 
 // (The name says gob but we use frob.)
-// var diagnosticsCodec = frob.For[[]gobDiagnostic]()
-var diagnosticsCodec = frob.CodecFor117(new([]gobDiagnostic))
+var diagnosticsCodec = frob.CodecFor[[]gobDiagnostic]()
 
 type gobDiagnostic struct {
 	Location       protocol.Location

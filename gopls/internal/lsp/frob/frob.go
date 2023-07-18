@@ -3,10 +3,17 @@
 // license that can be found in the LICENSE file.
 
 // Package frob is a fast restricted object encoder/decoder in the
-// spirit of gob. Restrictions include:
+// spirit of encoding/gob.
 //
-//   - Interface values are not supported. This avoids the need for
+// As with gob, types that recursively contain functions,
+// channels, and unsafe.Pointers cannot encoded, but frob has these
+// additional restrictions:
+//
+//   - Interface values are not supported; this avoids the need for
 //     the encoding to describe types.
+//
+//   - Types that recursively contain private struct fields are not
+//     permitted.
 //
 //   - The encoding is unspecified and subject to change, so the encoder
 //     and decoder must exactly agree on their implementation and on the
@@ -33,37 +40,19 @@ import (
 	"sync"
 )
 
-// Use CodecFor117(new(T)) to create a codec for values of type T.
-// Then call Encode(T) and Decode(data, *T).
-// This is a placeholder for the forthcoming generic API -- see below.
-// CodecFor117 panics if type T is unsuitable.
-func CodecFor117(x any) Codec {
-	frobsMu.Lock()
-	defer frobsMu.Unlock()
-	return Codec{frobFor(reflect.TypeOf(x).Elem())}
-}
-
-type any = interface{}
-
-// A Codec is an immutable encoder and decoder for values of a particular type.
-type Codec struct{ *frob }
-
-// TODO(adonovan): after go1.18, enable this generic interface.
-/*
-
-// CodecFor[T] returns a codec for values of type T.
-//
-// For panics if the type recursively contains members of unsupported
-// types: functions, channels, interfaces, unsafe.Pointer.
-func CodecFor[T any]() Codec[T] { return For117((*T)(nil)) }
-
 // A Codec[T] is an immutable encoder and decoder for values of type T.
 type Codec[T any] struct{ frob *frob }
 
+// CodecFor[T] returns a codec for values of type T.
+// It panics if type T is unsuitable.
+func CodecFor[T any]() Codec[T] {
+	frobsMu.Lock()
+	defer frobsMu.Unlock()
+	return Codec[T]{frobFor(reflect.TypeOf((*T)(nil)).Elem())}
+}
+
 func (codec Codec[T]) Encode(v T) []byte          { return codec.frob.Encode(v) }
 func (codec Codec[T]) Decode(data []byte, ptr *T) { codec.frob.Decode(data, ptr) }
-
-*/
 
 var (
 	frobsMu sync.Mutex
@@ -106,7 +95,7 @@ func frobFor(t reflect.Type) *frob {
 
 		case reflect.Array,
 			reflect.Slice,
-			reflect.Ptr: // TODO(adonovan): after go1.18, use Pointer
+			reflect.Pointer:
 			fr.addElem(fr.t.Elem())
 
 		case reflect.Map:
@@ -224,7 +213,7 @@ func (fr *frob) encode(out *writer, v reflect.Value) {
 			}
 		}
 
-	case reflect.Ptr: // TODO(adonovan): after go1.18, use Pointer
+	case reflect.Pointer:
 		if v.IsNil() {
 			out.uint8(0)
 		} else {
@@ -337,7 +326,7 @@ func (fr *frob) decode(in *reader, addr reflect.Value) {
 			kzero := reflect.Zero(kfrob.t)
 			vzero := reflect.Zero(vfrob.t)
 			for i := 0; i < len; i++ {
-				// TODO(adonovan): after go1.18, use SetZero.
+				// TODO(adonovan): use SetZero from go1.20.
 				// k.SetZero()
 				// v.SetZero()
 				k.Set(kzero)
@@ -348,7 +337,7 @@ func (fr *frob) decode(in *reader, addr reflect.Value) {
 			}
 		}
 
-	case reflect.Ptr: // TODO(adonovan): after go1.18, use Pointer
+	case reflect.Pointer:
 		isNil := in.uint8() == 0
 		if !isNil {
 			ptr := reflect.New(fr.elems[0].t)
@@ -409,38 +398,7 @@ func (r *reader) bytes(n int) []byte {
 type writer struct{ data []byte }
 
 func (w *writer) uint8(v uint8)   { w.data = append(w.data, v) }
-func (w *writer) uint16(v uint16) { w.data = appendUint16(w.data, v) }
-func (w *writer) uint32(v uint32) { w.data = appendUint32(w.data, v) }
-func (w *writer) uint64(v uint64) { w.data = appendUint64(w.data, v) }
+func (w *writer) uint16(v uint16) { w.data = le.AppendUint16(w.data, v) }
+func (w *writer) uint32(v uint32) { w.data = le.AppendUint32(w.data, v) }
+func (w *writer) uint64(v uint64) { w.data = le.AppendUint64(w.data, v) }
 func (w *writer) bytes(v []byte)  { w.data = append(w.data, v...) }
-
-// TODO(adonovan): delete these as in go1.18 they are methods on LittleEndian:
-
-func appendUint16(b []byte, v uint16) []byte {
-	return append(b,
-		byte(v),
-		byte(v>>8),
-	)
-}
-
-func appendUint32(b []byte, v uint32) []byte {
-	return append(b,
-		byte(v),
-		byte(v>>8),
-		byte(v>>16),
-		byte(v>>24),
-	)
-}
-
-func appendUint64(b []byte, v uint64) []byte {
-	return append(b,
-		byte(v),
-		byte(v>>8),
-		byte(v>>16),
-		byte(v>>24),
-		byte(v>>32),
-		byte(v>>40),
-		byte(v>>48),
-		byte(v>>56),
-	)
-}
