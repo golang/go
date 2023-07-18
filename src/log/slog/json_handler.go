@@ -13,6 +13,7 @@ import (
 	"io"
 	"log/slog/internal/buffer"
 	"strconv"
+	"sync"
 	"time"
 	"unicode/utf8"
 )
@@ -35,6 +36,7 @@ func NewJSONHandler(w io.Writer, opts *HandlerOptions) *JSONHandler {
 			json: true,
 			w:    w,
 			opts: *opts,
+			mu:   &sync.Mutex{},
 		},
 	}
 }
