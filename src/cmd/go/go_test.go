@@ -1055,77 +1055,6 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with old release")
 }
 
-// cmd/go: custom import path checking should not apply to Go packages without import comment.
-func TestIssue10952(t *testing.T) {
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.acquireNet()
-
-	tg.tempDir("src")
-	tg.setenv("GOPATH", tg.path("."))
-	const importPath = "github.com/zombiezen/go-get-issue-10952"
-	tg.run("get", "-d", "-u", importPath)
-	repoDir := tg.path("src/" + importPath)
-	tg.runGit(repoDir, "remote", "set-url", "origin", "https://"+importPath+".git")
-	tg.run("get", "-d", "-u", importPath)
-}
-
-// Test git clone URL that uses SCP-like syntax and custom import path checking.
-func TestIssue11457(t *testing.T) {
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.acquireNet()
-
-	tg.tempDir("src")
-	tg.setenv("GOPATH", tg.path("."))
-	const importPath = "rsc.io/go-get-issue-11457"
-	tg.run("get", "-d", "-u", importPath)
-	repoDir := tg.path("src/" + importPath)
-	tg.runGit(repoDir, "remote", "set-url", "origin", "git@github.com:rsc/go-get-issue-11457")
-
-	// At this time, custom import path checking compares remotes verbatim (rather than
-	// just the host and path, skipping scheme and user), so we expect go get -u to fail.
-	// However, the goal of this test is to verify that gitRemoteRepo correctly parsed
-	// the SCP-like syntax, and we expect it to appear in the error message.
-	tg.runFail("get", "-d", "-u", importPath)
-	want := " is checked out from ssh://git@github.com/rsc/go-get-issue-11457"
-	if !strings.HasSuffix(strings.TrimSpace(tg.getStderr()), want) {
-		t.Error("expected clone URL to appear in stderr")
-	}
-}
-
-func TestGetGitDefaultBranch(t *testing.T) {
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.acquireNet()
-
-	tg.tempDir("src")
-	tg.setenv("GOPATH", tg.path("."))
-
-	// This repo has two branches, master and another-branch.
-	// The another-branch is the default that you get from 'git clone'.
-	// The go get command variants should not override this.
-	const importPath = "github.com/rsc/go-get-default-branch"
-
-	tg.run("get", "-d", importPath)
-	repoDir := tg.path("src/" + importPath)
-	tg.runGit(repoDir, "branch", "--contains", "HEAD")
-	tg.grepStdout(`\* another-branch`, "not on correct default branch")
-
-	tg.run("get", "-d", "-u", importPath)
-	tg.runGit(repoDir, "branch", "--contains", "HEAD")
-	tg.grepStdout(`\* another-branch`, "not on correct default branch")
-}
-
 func TestPackageMainTestCompilerFlags(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1440,35 +1369,6 @@ func TestDefaultGOPATH(t *testing.T) {
 	tg.setenv("GOROOT", tg.path("home/go")+"/")
 	tg.run("env", "GOPATH")
 	tg.grepStdoutNot(".", "want unset GOPATH because GOROOT=$HOME/go/")
-}
-
-func TestDefaultGOPATHGet(t *testing.T) {
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.acquireNet()
-
-	tg.setenv("GOPATH", "")
-	tg.tempDir("home")
-	tg.setenv(homeEnvName(), tg.path("home"))
-
-	// warn for creating directory
-	tg.run("get", "-v", "github.com/golang/example/hello")
-	tg.grepStderr("created GOPATH="+regexp.QuoteMeta(tg.path("home/go"))+"; see 'go help gopath'", "did not create GOPATH")
-
-	// no warning if directory already exists
-	tg.must(robustio.RemoveAll(tg.path("home/go")))
-	tg.tempDir("home/go")
-	tg.run("get", "github.com/golang/example/hello")
-	tg.grepStderrNot(".", "expected no output on standard error")
-
-	// error if $HOME/go is a file
-	tg.must(robustio.RemoveAll(tg.path("home/go")))
-	tg.tempFile("home/go", "")
-	tg.runFail("get", "github.com/golang/example/hello")
-	tg.grepStderr(`mkdir .*[/\\]go: .*(not a directory|cannot find the path)`, "expected error because $HOME/go is a file")
 }
 
 func TestDefaultGOPATHPrintedSearchList(t *testing.T) {

@@ -30,7 +30,6 @@ import (
 	"cmd/go/internal/fix"
 	"cmd/go/internal/fmtcmd"
 	"cmd/go/internal/generate"
-	"cmd/go/internal/get"
 	"cmd/go/internal/help"
 	"cmd/go/internal/list"
 	"cmd/go/internal/modcmd"
@@ -75,11 +74,9 @@ func init() {
 		help.HelpFileType,
 		modload.HelpGoMod,
 		help.HelpGopath,
-		get.HelpGopathGet,
 		modfetch.HelpGoproxy,
 		help.HelpImportPath,
 		modload.HelpModules,
-		modget.HelpModuleGet,
 		modfetch.HelpModuleAuth,
 		help.HelpPackages,
 		modfetch.HelpPrivate,
@@ -102,13 +99,6 @@ func main() {
 	args := flag.Args()
 	if len(args) < 1 {
 		base.Usage()
-	}
-
-	if args[0] == "get" || args[0] == "help" {
-		if !modload.WillBeEnabled() {
-			// Replace module-aware get with GOPATH get if appropriate.
-			*modget.CmdGet = *get.CmdGet
-		}
 	}
 
 	cfg.CmdName = args[0] // for error messages

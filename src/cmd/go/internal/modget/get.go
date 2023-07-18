@@ -128,23 +128,6 @@ See also: go build, go install, go clean, go mod.
 	`,
 }
 
-// Note that this help text is a stopgap to make the module-aware get help text
-// available even in non-module settings. It should be deleted when the old get
-// is deleted. It should NOT be considered to set a precedent of having hierarchical
-// help names with dashes.
-var HelpModuleGet = &base.Command{
-	UsageLine: "module-get",
-	Short:     "module-aware go get",
-	Long: `
-The 'go get' command changes behavior depending on whether the
-go command is running in module-aware mode or legacy GOPATH mode.
-This help text, accessible as 'go help module-get' even in legacy GOPATH mode,
-describes 'go get' as it operates in module-aware mode.
-
-Usage: ` + CmdGet.UsageLine + `
-` + CmdGet.Long,
-}
-
 var HelpVCS = &base.Command{
 	UsageLine: "vcs",
 	Short:     "controlling version control with GOVCS",
