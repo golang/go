@@ -1171,6 +1171,8 @@ var ptrMap sync.Map // map[*rtype]*ptrType
 //
 // PtrTo is the old spelling of PointerTo.
 // The two functions behave identically.
+//
+// Deprecated: Superseded by [PointerTo].
 func PtrTo(t Type) Type { return PointerTo(t) }
 
 // PointerTo returns the pointer type with element t.
