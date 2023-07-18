@@ -45,6 +45,12 @@ stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*b(/|\\\\)b_test\.go'
 stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
 ! stderr 'compile.*-pgoprofile=.*nopgo(/|\\\\)nopgo_test\.go'
 
+# test-only dependencies also have profiles attached
+stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*testdep(/|\\\\)testdep\.go'
+stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*testdep(/|\\\\)testdep\.go'
+stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*testdep2(/|\\\\)testdep2\.go'
+stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*testdep2(/|\\\\)testdep2\.go'
+
 # go list -deps prints packages built multiple times.
 go list -pgo=auto -deps ./a ./b ./nopgo
 stdout 'test/dep \[test/a\]'
@@ -66,6 +72,7 @@ func main() {}
 -- a/a_test.go --
 package main
 import "testing"
+import _ "test/testdep"
 func TestA(*testing.T) {}
 -- a/default.pgo --
 -- b/b.go --
@@ -76,6 +83,7 @@ func main() {}
 -- b/b_test.go --
 package main
 import "testing"
+import _ "test/testdep"
 func TestB(*testing.T) {}
 -- b/default.pgo --
 -- nopgo/nopgo.go --
@@ -94,3 +102,8 @@ import _ "test/dep3"
 package dep2
 -- dep3/dep3.go --
 package dep3
+-- testdep/testdep.go --
+package testdep
+import _ "test/testdep2"
+-- testdep2/testdep2.go --
+package testdep2
