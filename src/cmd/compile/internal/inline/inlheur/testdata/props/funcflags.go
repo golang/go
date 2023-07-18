@@ -160,8 +160,7 @@ func T_recov(x int) {
 	}
 }
 
-
-// funcflags.go T_forloops1 170 0 1
+// funcflags.go T_forloops1 169 0 1
 // Flags FuncPropNeverReturns
 // <endpropsdump>
 // {"Flags":1,"ParamFlags":[0],"ResultFlags":[]}
@@ -173,7 +172,7 @@ func T_forloops1(x int) {
 	}
 }
 
-// funcflags.go T_forloops2 181 0 1
+// funcflags.go T_forloops2 180 0 1
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
 // <endcallsites>
@@ -188,8 +187,7 @@ func T_forloops2(x int) {
 	}
 }
 
-
-// funcflags.go T_forloops3 197 0 1
+// funcflags.go T_forloops3 195 0 1
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
 // <endcallsites>
@@ -209,8 +207,7 @@ func T_forloops3(x int) {
 	panic("whatev")
 }
 
-
-// funcflags.go T_hasgotos 218 0 1
+// funcflags.go T_hasgotos 215 0 1
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
 // <endcallsites>
@@ -238,7 +235,7 @@ func T_hasgotos(x int, y int) {
 	}
 }
 
-// funcflags.go T_break_with_label 248 0 1
+// funcflags.go T_break_with_label 246 0 1
 // ParamFlags
 //   0 ParamMayFeedIfOrSwitch
 //   1 ParamNoInfo
@@ -260,7 +257,7 @@ lab1:
 	}
 }
 
-// funcflags.go T_callsexit 271 0 1
+// funcflags.go T_callsexit 268 0 1
 // Flags FuncPropNeverReturns
 // ParamFlags
 //   0 ParamFeedsIfOrSwitch
@@ -275,10 +272,10 @@ func T_callsexit(x int) {
 	os.Exit(2)
 }
 
-// funcflags.go T_exitinexpr 284 0 1
+// funcflags.go T_exitinexpr 281 0 1
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
-// callsite: funcflags.go:289:18|0 flagstr "" flagval 0
+// callsite: funcflags.go:286:18|0 flagstr "CallSiteOnPanicPath" flagval 2
 // <endcallsites>
 // <endfuncpreamble>
 func T_exitinexpr(x int) {
@@ -291,7 +288,7 @@ func T_exitinexpr(x int) {
 	}
 }
 
-// funcflags.go T_select_noreturn 300 0 1
+// funcflags.go T_select_noreturn 297 0 1
 // Flags FuncPropNeverReturns
 // <endpropsdump>
 // {"Flags":1,"ParamFlags":[0,0,0],"ResultFlags":[]}
@@ -309,7 +306,7 @@ func T_select_noreturn(chi chan int, chf chan float32, p *int) {
 	panic("bad")
 }
 
-// funcflags.go T_select_mayreturn 317 0 1
+// funcflags.go T_select_mayreturn 314 0 1
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[0,0,0],"ResultFlags":[0]}
 // <endcallsites>
@@ -327,11 +324,11 @@ func T_select_mayreturn(chi chan int, chf chan float32, p *int) int {
 	panic("bad")
 }
 
-// funcflags.go T_calls_callsexit 337 0 1
+// funcflags.go T_calls_callsexit 334 0 1
 // Flags FuncPropNeverReturns
 // <endpropsdump>
 // {"Flags":1,"ParamFlags":[0],"ResultFlags":[]}
-// callsite: funcflags.go:338:15|0 flagstr "" flagval 0
+// callsite: funcflags.go:335:15|0 flagstr "CallSiteOnPanicPath" flagval 2
 // <endcallsites>
 // <endfuncpreamble>
 func T_calls_callsexit(x int) {

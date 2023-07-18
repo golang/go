@@ -9,25 +9,34 @@ import (
 	"cmd/compile/internal/pgo"
 	"fmt"
 	"os"
+	"strings"
 )
 
 type callSiteAnalyzer struct {
-	cstab  CallSiteTab
-	nstack []ir.Node
+	cstab    CallSiteTab
+	fn       *ir.Func
+	ptab     map[ir.Node]pstate
+	nstack   []ir.Node
+	loopNest int
+	isInit   bool
 }
 
-func makeCallSiteAnalyzer(fn *ir.Func) *callSiteAnalyzer {
+func makeCallSiteAnalyzer(fn *ir.Func, ptab map[ir.Node]pstate) *callSiteAnalyzer {
+	isInit := fn.IsPackageInit() || strings.HasPrefix(fn.Sym().Name, "init.")
 	return &callSiteAnalyzer{
-		cstab: make(CallSiteTab),
+		fn:     fn,
+		cstab:  make(CallSiteTab),
+		ptab:   ptab,
+		isInit: isInit,
 	}
 }
 
-func computeCallSiteTable(fn *ir.Func) CallSiteTab {
-	if debugTrace&debugTraceCalls != 0 {
+func computeCallSiteTable(fn *ir.Func, ptab map[ir.Node]pstate) CallSiteTab {
+	if debugTrace != 0 {
 		fmt.Fprintf(os.Stderr, "=-= making callsite table for func %v:\n",
 			fn.Sym().Name)
 	}
-	csa := makeCallSiteAnalyzer(fn)
+	csa := makeCallSiteAnalyzer(fn, ptab)
 	var doNode func(ir.Node) bool
 	doNode = func(n ir.Node) bool {
 		csa.nodeVisitPre(n)
@@ -40,7 +49,74 @@ func computeCallSiteTable(fn *ir.Func) CallSiteTab {
 }
 
 func (csa *callSiteAnalyzer) flagsForNode(call *ir.CallExpr) CSPropBits {
-	return 0
+	var r CSPropBits
+
+	if debugTrace&debugTraceCalls != 0 {
+		fmt.Fprintf(os.Stderr, "=-= analyzing call at %s\n",
+			fmtFullPos(call.Pos()))
+	}
+
+	// Set a bit if this call is within a loop.
+	if csa.loopNest > 0 {
+		r |= CallSiteInLoop
+	}
+
+	// Set a bit if the call is within an init function (either
+	// compiler-generated or user-written).
+	if csa.isInit {
+		r |= CallSiteInInitFunc
+	}
+
+	// Decide whether to apply the panic path heuristic. Hack: don't
+	// apply this heuristic in the function "main.main" (mostly just
+	// to avoid annoying users).
+	if !isMainMain(csa.fn) {
+		r = csa.determinePanicPathBits(call, r)
+	}
+
+	return r
+}
+
+// determinePanicPathBits updates the CallSiteOnPanicPath bit within
+// "r" if we think this call is on an unconditional path to
+// panic/exit. Do this by walking back up the node stack to see if we
+// can find either A) an enclosing panic, or B) a statement node that
+// we've determined leads to a panic/exit.
+func (csa *callSiteAnalyzer) determinePanicPathBits(call ir.Node, r CSPropBits) CSPropBits {
+	csa.nstack = append(csa.nstack, call)
+	defer func() {
+		csa.nstack = csa.nstack[:len(csa.nstack)-1]
+	}()
+
+	for ri := range csa.nstack[:len(csa.nstack)-1] {
+		i := len(csa.nstack) - ri - 1
+		n := csa.nstack[i]
+		_, isCallExpr := n.(*ir.CallExpr)
+		_, isStmt := n.(ir.Stmt)
+		if isCallExpr {
+			isStmt = false
+		}
+
+		if debugTrace&debugTraceCalls != 0 {
+			ps, inps := csa.ptab[n]
+			fmt.Fprintf(os.Stderr, "=-= callpar %d op=%s ps=%s inptab=%v stmt=%v\n", i, n.Op().String(), ps.String(), inps, isStmt)
+		}
+
+		if n.Op() == ir.OPANIC {
+			r |= CallSiteOnPanicPath
+			break
+		}
+		if v, ok := csa.ptab[n]; ok {
+			if v == psCallsPanic {
+				r |= CallSiteOnPanicPath
+				break
+			}
+			if isStmt {
+				break
+			}
+		}
+	}
+	return r
 }
 
 func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
@@ -68,6 +144,10 @@ func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
 
 func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {
 	switch n.Op() {
+	case ir.ORANGE, ir.OFOR:
+		if !hasTopLevelLoopBodyReturnOrBreak(loopBody(n)) {
+			csa.loopNest++
+		}
 	case ir.OCALLFUNC:
 		ce := n.(*ir.CallExpr)
 		callee := pgo.DirectCallee(ce.X)
@@ -80,6 +160,47 @@ func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {
 
 func (csa *callSiteAnalyzer) nodeVisitPost(n ir.Node) {
 	csa.nstack = csa.nstack[:len(csa.nstack)-1]
+	switch n.Op() {
+	case ir.ORANGE, ir.OFOR:
+		if !hasTopLevelLoopBodyReturnOrBreak(loopBody(n)) {
+			csa.loopNest--
+		}
+	}
+}
+
+func loopBody(n ir.Node) ir.Nodes {
+	if forst, ok := n.(*ir.ForStmt); ok {
+		return forst.Body
+	}
+	if rst, ok := n.(*ir.RangeStmt); ok {
+		return rst.Body
+	}
+	return nil
+}
+
+// hasTopLevelLoopBodyReturnOrBreak examines the body of a "for" or
+// "range" loop to try to verify that it is a real loop, as opposed to
+// a construct that is syntactically loopy but doesn't actually iterate
+// multiple times, like:
+//
+//	for {
+//	  blah()
+//	  return 1
+//	}
+//
+// [Remark: the pattern above crops up quite a bit in the source code
+// for the compiler itself, e.g. the auto-generated rewrite code]
+//
+// Note that we don't look for GOTO statements here, so it's possible
+// we'll get the wrong result for a loop with complicated control
+// jumps via gotos.
+func hasTopLevelLoopBodyReturnOrBreak(loopBody ir.Nodes) bool {
+	for _, n := range loopBody {
+		if n.Op() == ir.ORETURN || n.Op() == ir.OBREAK {
+			return true
+		}
+	}
+	return false
 }
 
 // containingAssignment returns the top-level assignment statement
