@@ -278,7 +278,7 @@ func NewEncoder(enc *Encoding, w io.Writer) io.WriteCloser {
 // of an input buffer of length n.
 func (enc *Encoding) EncodedLen(n int) int {
 	if enc.padChar == NoPadding {
-		return (n*8 + 5) / 6 // minimum # chars at 6 bits per char
+		return n/3*4 + (n%3*8+5)/6 // minimum # chars at 6 bits per char
 	}
 	return (n + 2) / 3 * 4 // minimum # 4-char quanta, 3 bytes each
 }
@@ -623,7 +623,7 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
 func (enc *Encoding) DecodedLen(n int) int {
 	if enc.padChar == NoPadding {
 		// Unpadded data may end with partial block of 2-3 characters.
-		return n * 6 / 8
+		return n/4*3 + n%4*6/8
 	}
 	// Padded base64 should always be a multiple of 4 characters in length.
 	return n / 4 * 3
