@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 14, 2023",
+	"Subtitle": "Version of July 19, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -7324,7 +7324,8 @@ clear(t)    type parameter    see below
 </pre>
 
 <p>
-If the argument type is a <a href="#Type_parameter_declarations">type parameter</a>,
+If the type of the argument to <code>clear</code> is a
+<a href="#Type_parameter_declarations">type parameter</a>,
 all types in its type set must be maps or slices, and <code>clear</code>
 performs the operation corresponding to the actual type argument.
 </p>
