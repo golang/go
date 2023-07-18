@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/bug"
@@ -1274,7 +1275,7 @@ func main() {}
 	})
 }
 
-func TestNotifyOrphanedFiles(t *testing.T) {
+func TestOrphanedFiles(t *testing.T) {
 	const files = `
 -- go.mod --
 module mod.com
@@ -1301,9 +1302,43 @@ func _() {
 			Diagnostics(env.AtRegexp("a/a.go", "x")),
 		)
 		env.OpenFile("a/a_exclude.go")
+
+		countLoads := func(logs []*protocol.LogMessageParams) int {
+			count := 0
+			for _, log := range logs {
+				if strings.Contains(log.Message, `go/packages.Load`) {
+					count++
+				}
+			}
+			return count
+		}
+
+		var before []*protocol.LogMessageParams
 		env.AfterChange(
 			Diagnostics(env.AtRegexp("a/a_exclude.go", "package (a)")),
+			ReadLogs(&before),
 		)
+
+		// Check that orphaned files are not reloaded, by making a change in
+		// a.go file and confirming that the workspace diagnosis did not reload
+		// a_exclude.go.
+		//
+		// Currently, typing in a_exclude.go does result in a reload, because we
+		// aren't precise about which changes could result in an unloadable file
+		// becoming loadable.
+		loads0 := countLoads(before)
+		if loads0 == 0 {
+			t.Fatal("got 0 Load log messages, want at least 1", loads0)
+		}
+		env.RegexpReplace("a/a.go", "package a", "package a // arbitrary comment")
+		var after []*protocol.LogMessageParams
+		env.AfterChange(
+			Diagnostics(env.AtRegexp("a/a_exclude.go", "package (a)")),
+			ReadLogs(&after),
+		)
+		if loads := countLoads(after); loads != loads0 {
+			t.Errorf("got %d Load log messages after change to orphaned file, want %d", loads, loads0)
+		}
 	})
 }
 

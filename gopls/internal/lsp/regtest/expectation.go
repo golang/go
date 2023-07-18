@@ -191,6 +191,20 @@ func ReadAllDiagnostics(into *map[string]*protocol.PublishDiagnosticsParams) Exp
 	}
 }
 
+// ReadLogs is an expectation that may be used with AfterChange or OnceMet
+// conditions to copy logs into the provided slice.
+func ReadLogs(into *[]*protocol.LogMessageParams) Expectation {
+	check := func(s State) Verdict {
+		*into = make([]*protocol.LogMessageParams, len(s.logs))
+		copy(*into, s.logs)
+		return Met
+	}
+	return Expectation{
+		Check:       check,
+		Description: "read logs",
+	}
+}
+
 // NoOutstandingWork asserts that there is no work initiated using the LSP
 // $/progress API that has not completed.
 func NoOutstandingWork() Expectation {

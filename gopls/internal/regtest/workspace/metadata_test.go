@@ -59,16 +59,7 @@ package main
 func main() {}
 	`
 
-	WithOptions(
-		// TODO(golang/go#54180): we don't run in 'experimental' mode here, because
-		// with "experimentalUseInvalidMetadata", this test fails because the
-		// orphaned bar.go is diagnosed using stale metadata, and then not
-		// re-diagnosed when new metadata arrives.
-		//
-		// We could fix this by re-running diagnostics after a load, but should
-		// consider whether that is worthwhile.
-		Modes(Default),
-	).Run(t, src, func(t *testing.T, env *Env) {
+	Run(t, src, func(t *testing.T, env *Env) {
 		env.OpenFile("foo.go")
 		env.OpenFile("bar.go")
 		env.OnceMet(

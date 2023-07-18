@@ -1616,10 +1616,6 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 	for _, file := range files {
 		file := file
 		g.Go(func() error {
-			pgf, err := s.ParseGo(ctx, file, source.ParseHeader)
-			if err != nil || !pgf.File.Package.IsValid() {
-				return nil // need a valid header
-			}
 			return s.load(ctx, false, fileLoadScope(file.URI()))
 		})
 	}
@@ -1654,7 +1650,7 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 		// TODO(rfindley): instead of locking here, we should have load return the
 		// metadata graph that resulted from loading.
 		uri := file.URI()
-		if len(s.meta.ids) == 0 {
+		if len(s.meta.ids[uri]) == 0 {
 			s.unloadableFiles[uri] = struct{}{}
 		}
 	}
@@ -2142,6 +2138,10 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 
 		// Make sure to remove the changed file from the unloadable set.
+		//
+		// TODO(rfindley): this also looks wrong, as typing in an unloadable file
+		// will result in repeated reloads. We should only delete if metadata
+		// changed.
 		delete(result.unloadableFiles, uri)
 	}
 
