@@ -5,10 +5,12 @@
 package inlheur
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/pgo"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -120,13 +122,14 @@ func (csa *callSiteAnalyzer) determinePanicPathBits(call ir.Node, r CSPropBits) 
 }
 
 func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
+	flags := csa.flagsForNode(call)
 	// FIXME: maybe bulk-allocate these?
 	cs := &CallSite{
 		Call:   call,
 		Callee: callee,
 		Assign: csa.containingAssignment(call),
-		Flags:  csa.flagsForNode(call),
-		Id:     uint(len(csa.cstab)),
+		Flags:  flags,
+		ID:     uint(len(csa.cstab)),
 	}
 	if _, ok := csa.cstab[call]; ok {
 		fmt.Fprintf(os.Stderr, "*** cstab duplicate entry at: %s\n",
@@ -134,12 +137,87 @@ func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
 		fmt.Fprintf(os.Stderr, "*** call: %+v\n", call)
 		panic("bad")
 	}
+	if callee.Inl != nil {
+		// Set initial score for callsite to the cost computed
+		// by CanInline; this score will be refined later based
+		// on heuristics.
+		cs.Score = int(callee.Inl.Cost)
+	}
+
+	csa.cstab[call] = cs
 	if debugTrace&debugTraceCalls != 0 {
 		fmt.Fprintf(os.Stderr, "=-= added callsite: callee=%s call=%v\n",
 			callee.Sym().Name, callee)
 	}
+}
 
-	csa.cstab[call] = cs
+// ScoreCalls assigns numeric scores to each of the callsites in
+// function 'fn'; the lower the score, the more helpful we think it
+// will be to inline.
+//
+// Unlike a lot of the other inline heuristics machinery, callsite
+// scoring can't be done as part of the CanInline call for a function,
+// due to fact that we may be working on a non-trivial SCC. So for
+// example with this SCC:
+//
+//	func foo(x int) {           func bar(x int, f func()) {
+//	  if x != 0 {                  f()
+//	    bar(x, func(){})           foo(x-1)
+//	  }                         }
+//	}
+//
+// We don't want to perform scoring for the 'foo' call in "bar" until
+// after foo has been analyzed, but it's conceivable that CanInline
+// might visit bar before foo for this SCC.
+func ScoreCalls(fn *ir.Func) {
+	enableDebugTraceIfEnv()
+	defer disableDebugTrace()
+	if debugTrace&debugTraceScoring != 0 {
+		fmt.Fprintf(os.Stderr, "=-= ScoreCalls(%v)\n", ir.FuncName(fn))
+	}
+
+	fih, ok := fpmap[fn]
+	if !ok {
+		// TODO: add an assert/panic here.
+		return
+	}
+
+	// Sort callsites to avoid any surprises with non deterministic
+	// map iteration order (this is probably not needed, but here just
+	// in case).
+	csl := make([]*CallSite, 0, len(fih.cstab))
+	for _, cs := range fih.cstab {
+		csl = append(csl, cs)
+	}
+	sort.Slice(csl, func(i, j int) bool {
+		return csl[i].ID < csl[j].ID
+	})
+
+	// Score each call site.
+	for _, cs := range csl {
+		var cprops *FuncProps
+		fihcprops := false
+		desercprops := false
+		if fih, ok := fpmap[cs.Callee]; ok {
+			cprops = fih.props
+			fihcprops = true
+		} else if cs.Callee.Inl != nil {
+			cprops = DeserializeFromString(cs.Callee.Inl.Properties)
+			desercprops = true
+		} else {
+			if base.Debug.DumpInlFuncProps != "" {
+				fmt.Fprintf(os.Stderr, "=-= *** unable to score call to %s from %s\n", cs.Callee.Sym().Name, fmtFullPos(cs.Call.Pos()))
+				panic("should never happen")
+			} else {
+				continue
+			}
+		}
+		cs.Score, cs.ScoreMask = computeCallSiteScore(cs.Callee, cprops, cs.Call, cs.Flags)
+
+		if debugTrace&debugTraceScoring != 0 {
+			fmt.Fprintf(os.Stderr, "=-= scoring call at %s: flags=%d score=%d fih=%v deser=%v\n", fmtFullPos(cs.Call.Pos()), cs.Flags, cs.Score, fihcprops, desercprops)
+		}
+	}
 }
 
 func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {

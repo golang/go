@@ -72,8 +72,7 @@ func TestFuncProperties(t *testing.T) {
 				continue
 			}
 			if eidx >= len(eentries) {
-				t.Errorf("missing expected entry for %s, skipping",
-					dentry.fname)
+				t.Errorf("testcase %s missing expected entry for %s, skipping", tc, dentry.fname)
 				continue
 			}
 			eentry := eentries[eidx]
@@ -124,20 +123,18 @@ func compareEntries(t *testing.T, tc string, dentry *fnInlHeur, dcsites encodedC
 	// Compare call sites.
 	for k, ve := range ecsites {
 		if vd, ok := dcsites[k]; !ok {
-			t.Errorf("missing expected callsite %q in func %q",
-				dfn, k)
+			t.Errorf("testcase %q missing expected callsite %q in func %q", tc, k, dfn)
 			continue
 		} else {
 			if vd != ve {
-				t.Errorf("callsite %q in func %q: got %s want %s",
-					k, dfn, vd.String(), ve.String())
+				t.Errorf("testcase %q callsite %q in func %q: got %+v want %+v",
+					tc, k, dfn, vd.String(), ve.String())
 			}
 		}
 	}
 	for k := range dcsites {
 		if _, ok := ecsites[k]; !ok {
-			t.Errorf("unexpected extra callsite %q in func %q",
-				dfn, k)
+			t.Errorf("testcase %q unexpected extra callsite %q in func %q", tc, k, dfn)
 		}
 	}
 }
@@ -276,13 +273,12 @@ func (dr *dumpReader) readEntry() (fnInlHeur, encodedCallSiteTab, error) {
 		if line == csDelimiter {
 			break
 		}
-		// expected format: "// callsite: <expanded pos> flagstr <desc> flagval <flags>"
+		// expected format: "// callsite: <expanded pos> flagstr <desc> flagval <flags> score <score> mask <scoremask> maskstr <scoremaskstring>"
 		fields := strings.Fields(line)
-		if len(fields) != 6 {
-			return fih, nil, fmt.Errorf("malformed callsite %s line %d: %s",
-				dr.p, dr.ln, line)
+		if len(fields) != 12 {
+			return fih, nil, fmt.Errorf("malformed callsite (nf=%d) %s line %d: %s", len(fields), dr.p, dr.ln, line)
 		}
-		if fields[2] != "flagstr" || fields[4] != "flagval" {
+		if fields[2] != "flagstr" || fields[4] != "flagval" || fields[6] != "score" || fields[8] != "mask" || fields[10] != "maskstr" {
 			return fih, nil, fmt.Errorf("malformed callsite %s line %d: %s",
 				dr.p, dr.ln, line)
 		}
@@ -293,7 +289,23 @@ func (dr *dumpReader) readEntry() (fnInlHeur, encodedCallSiteTab, error) {
 			return fih, nil, fmt.Errorf("bad flags val %s line %d: %q err=%v",
 				dr.p, dr.ln, line, err)
 		}
-		callsites[tag] = CSPropBits(flags)
+		scorestr := fields[7]
+		score, err2 := strconv.Atoi(scorestr)
+		if err2 != nil {
+			return fih, nil, fmt.Errorf("bad score val %s line %d: %q err=%v",
+				dr.p, dr.ln, line, err2)
+		}
+		maskstr := fields[9]
+		mask, err3 := strconv.Atoi(maskstr)
+		if err3 != nil {
+			return fih, nil, fmt.Errorf("bad mask val %s line %d: %q err=%v",
+				dr.p, dr.ln, line, err3)
+		}
+		callsites[tag] = propsAndScore{
+			props: CSPropBits(flags),
+			score: score,
+			mask:  scoreAdjustTyp(mask),
+		}
 	}
 
 	// Consume function delimiter.

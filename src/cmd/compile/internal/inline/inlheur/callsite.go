@@ -22,15 +22,16 @@ import (
 // appears in the form of a top-level statement, e.g. "x := foo()"),
 // "Flags" contains properties of the call that might be useful for
 // making inlining decisions, "Score" is the final score assigned to
-// the site, and "Id" is a numeric ID for the site within its
+// the site, and "ID" is a numeric ID for the site within its
 // containing function.
 type CallSite struct {
-	Callee *ir.Func
-	Call   *ir.CallExpr
-	Assign ir.Node
-	Flags  CSPropBits
-	Score  int
-	Id     uint
+	Callee    *ir.Func
+	Call      *ir.CallExpr
+	Assign    ir.Node
+	Flags     CSPropBits
+	Score     int
+	ScoreMask scoreAdjustTyp
+	ID        uint
 }
 
 // CallSiteTab is a table of call sites, keyed by call expr.
@@ -53,8 +54,19 @@ const (
 
 // encodedCallSiteTab is a table keyed by "encoded" callsite
 // (stringified src.XPos plus call site ID) mapping to a value of call
-// property bits.
-type encodedCallSiteTab map[string]CSPropBits
+// property bits and score.
+type encodedCallSiteTab map[string]propsAndScore
+
+type propsAndScore struct {
+	props CSPropBits
+	score int
+	mask  scoreAdjustTyp
+}
+
+func (pas propsAndScore) String() string {
+	return fmt.Sprintf("P=%s|S=%d|M=%s", pas.props.String(),
+		pas.score, pas.mask.String())
+}
 
 func (cst CallSiteTab) merge(other CallSiteTab) error {
 	for k, v := range other {
@@ -80,9 +92,9 @@ func fmtFullPos(p src.XPos) string {
 
 func encodeCallSiteKey(cs *CallSite) string {
 	var sb strings.Builder
-	// FIXME: rewrite line offsets relative to function start
+	// FIXME: maybe rewrite line offsets relative to function start?
 	sb.WriteString(fmtFullPos(cs.Call.Pos()))
-	fmt.Fprintf(&sb, "|%d", cs.Id)
+	fmt.Fprintf(&sb, "|%d", cs.ID)
 	return sb.String()
 }
 
@@ -90,7 +102,11 @@ func buildEncodedCallSiteTab(tab CallSiteTab) encodedCallSiteTab {
 	r := make(encodedCallSiteTab)
 	for _, cs := range tab {
 		k := encodeCallSiteKey(cs)
-		r[k] = cs.Flags
+		r[k] = propsAndScore{
+			props: cs.Flags,
+			score: cs.Score,
+			mask:  cs.ScoreMask,
+		}
 	}
 	return r
 }
@@ -109,7 +125,7 @@ func dumpCallSiteComments(w io.Writer, tab CallSiteTab, ecst encodedCallSiteTab)
 	sort.Strings(tags)
 	for _, s := range tags {
 		v := ecst[s]
-		fmt.Fprintf(w, "// callsite: %s flagstr %q flagval %d\n", s, v.String(), v)
+		fmt.Fprintf(w, "// callsite: %s flagstr %q flagval %d score %d mask %d maskstr %q\n", s, v.props.String(), v.props, v.score, v.mask, v.mask.String())
 	}
 	fmt.Fprintf(w, "// %s\n", csDelimiter)
 }

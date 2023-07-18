@@ -24,6 +24,7 @@ const (
 	debugTraceParams
 	debugTraceExprClassify
 	debugTraceCalls
+	debugTraceScoring
 )
 
 // propAnalyzer interface is used for defining one or more analyzer
@@ -76,6 +77,9 @@ func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
 		base.FatalfAt(fn.Pos(), "%v", err)
 	}
 	fpmap[fn] = entry
+	if fn.Inl != nil && fn.Inl.Properties == "" {
+		fn.Inl.Properties = entry.props.SerializeToString()
+	}
 	return fp
 }
 
@@ -139,12 +143,26 @@ func UnitTesting() bool {
 }
 
 // DumpFuncProps computes and caches function properties for the func
-// 'fn', or if fn is nil, writes out the cached set of properties to
-// the file given in 'dumpfile'. Used for the "-d=dumpinlfuncprops=..."
-// command line flag, intended for use primarily in unit testing.
+// 'fn' and any closures it contains, or if fn is nil, it writes out the
+// cached set of properties to the file given in 'dumpfile'. Used for
+// the "-d=dumpinlfuncprops=..." command line flag, intended for use
+// primarily in unit testing.
 func DumpFuncProps(fn *ir.Func, dumpfile string, canInline func(*ir.Func)) {
 	if fn != nil {
+		dmp := func(fn *ir.Func) {
+
+			if !goexperiment.NewInliner {
+				ScoreCalls(fn)
+			}
+			captureFuncDumpEntry(fn, canInline)
+		}
 		captureFuncDumpEntry(fn, canInline)
+		dmp(fn)
+		ir.Visit(fn, func(n ir.Node) {
+			if clo, ok := n.(*ir.ClosureExpr); ok {
+				dmp(clo.Func)
+			}
+		})
 	} else {
 		emitDumpToFile(dumpfile)
 	}
@@ -185,9 +203,16 @@ func emitDumpToFile(dumpfile string) {
 	dumpBuffer = nil
 }
 
-// captureFuncDumpEntry analyzes function 'fn' and adds a entry
-// for it to 'dumpBuffer'. Used for unit testing.
+// captureFuncDumpEntry grabs the function properties object for 'fn'
+// and enqueues it for later dumping. Used for the
+// "-d=dumpinlfuncprops=..." command line flag, intended for use
+// primarily in unit testing.
 func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
+	if debugTrace&debugTraceFuncs != 0 {
+		fmt.Fprintf(os.Stderr, "=-= capturing dump for %v:\n",
+			fn.Sym().Name)
+	}
+
 	// avoid capturing compiler-generated equality funcs.
 	if strings.HasPrefix(fn.Sym().Name, ".eq.") {
 		return

@@ -293,15 +293,10 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 		base.Fatalf("CanInline no nname %+v", fn)
 	}
 
-	canInline := func(fn *ir.Func) { CanInline(fn, profile) }
-
 	var funcProps *inlheur.FuncProps
-	if goexperiment.NewInliner {
-		funcProps = inlheur.AnalyzeFunc(fn, canInline)
-	}
-
-	if base.Debug.DumpInlFuncProps != "" {
-		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps, canInline)
+	if goexperiment.NewInliner || inlheur.UnitTesting() {
+		funcProps = inlheur.AnalyzeFunc(fn,
+			func(fn *ir.Func) { CanInline(fn, profile) })
 	}
 
 	var reason string // reason, if any, that the function was not inlined
@@ -803,6 +798,13 @@ func isBigFunc(fn *ir.Func) bool {
 // InlineCalls/inlnode walks fn's statements and expressions and substitutes any
 // calls made to inlineable functions. This is the external entry point.
 func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
+	if goexperiment.NewInliner && !fn.Wrapper() {
+		inlheur.ScoreCalls(fn)
+	}
+	if base.Debug.DumpInlFuncProps != "" && !fn.Wrapper() {
+		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps,
+			func(fn *ir.Func) { CanInline(fn, profile) })
+	}
 	savefn := ir.CurFunc
 	ir.CurFunc = fn
 	bigCaller := isBigFunc(fn)
