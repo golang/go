@@ -344,6 +344,20 @@ This option must be set to a valid duration string, for example `"250ms"`.
 
 Default: `"1s"`.
 
+##### **analysisProgressReporting** *bool*
+
+analysisProgressReporting controls whether gopls sends progress
+notifications when construction of its index of analysis facts is taking a
+long time. Cancelling these notifications will cancel the indexing task,
+though it will restart after the next change in the workspace.
+
+When a package is opened for the first time and heavyweight analyses such as
+staticcheck are enabled, it can take a while to construct the index of
+analysis facts for all its dependencies. The index is cached in the
+filesystem, so subsequent analysis should be faster.
+
+Default: `true`.
+
 #### Documentation
 
 ##### **hoverKind** *enum*

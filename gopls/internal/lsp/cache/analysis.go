@@ -20,6 +20,7 @@ import (
 	"log"
 	urlpkg "net/url"
 	"reflect"
+	"runtime"
 	"runtime/debug"
 	"sort"
 	"strings"
@@ -32,6 +33,7 @@ import (
 	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/filecache"
 	"golang.org/x/tools/gopls/internal/lsp/frob"
+	"golang.org/x/tools/gopls/internal/lsp/progress"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/event"
@@ -154,14 +156,23 @@ import (
 //        View() *View // for Options
 //   - share cache.{goVersionRx,parseGoImpl}
 
+// AnalysisProgressTitle is the title of the progress report for ongoing
+// analysis. It is sought by regression tests for the progress reporting
+// feature.
+const AnalysisProgressTitle = "Analyzing Dependencies"
+
 // Analyze applies a set of analyzers to the package denoted by id,
 // and returns their diagnostics for that package.
 //
 // The analyzers list must be duplicate free; order does not matter.
 //
+// Notifications of progress may be sent to the optional reporter.
+//
 // Precondition: all analyzers within the process have distinct names.
 // (The names are relied on by the serialization logic.)
-func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, analyzers []*source.Analyzer) ([]*source.Diagnostic, error) {
+func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, analyzers []*source.Analyzer, reporter *progress.Tracker) ([]*source.Diagnostic, error) {
+	start := time.Now() // for progress reporting
+
 	var tagStr string // sorted comma-separated list of PackageIDs
 	{
 		// TODO(adonovan): replace with a generic map[S]any -> string
@@ -296,21 +307,84 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 
 	// Now that we have read all files,
 	// we no longer need the snapshot.
+	// (but options are needed for progress reporting)
+	options := snapshot.view.Options()
 	snapshot = nil
+
+	// Progress reporting. If supported, gopls reports progress on analysis
+	// passes that are taking a long time.
+	maybeReport := func(completed int64) {}
+
+	// Enable progress reporting if enabled by the user
+	// and we have a capable reporter.
+	if reporter != nil && reporter.SupportsWorkDoneProgress() && options.AnalysisProgressReporting {
+		var reportAfter = options.ReportAnalysisProgressAfter // tests may set this to 0
+		const reportEvery = 1 * time.Second
+
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		var (
+			reportMu   sync.Mutex
+			lastReport time.Time
+			wd         *progress.WorkDone
+		)
+		defer func() {
+			reportMu.Lock()
+			defer reportMu.Unlock()
+
+			if wd != nil {
+				wd.End(ctx, "Done.") // ensure that the progress report exits
+			}
+		}()
+		maybeReport = func(completed int64) {
+			now := time.Now()
+			if now.Sub(start) < reportAfter {
+				return
+			}
+
+			reportMu.Lock()
+			defer reportMu.Unlock()
+
+			if wd == nil {
+				wd = reporter.Start(ctx, AnalysisProgressTitle, "", nil, cancel)
+			}
+
+			if now.Sub(lastReport) > reportEvery {
+				lastReport = now
+				// Trailing space is intentional: some LSP clients strip newlines.
+				msg := fmt.Sprintf(`Constructing index of analysis facts... (%d/%d packages). 
+(Set "analysisProgressReporting" to false to disable notifications.)`,
+					completed, len(nodes))
+				pct := 100 * float64(completed) / float64(len(nodes))
+				wd.Report(ctx, msg, pct)
+			}
+		}
+	}
 
 	// Execute phase: run leaves first, adding
 	// new nodes to the queue as they become leaves.
 	var g errgroup.Group
-	// Avoid g.SetLimit here: it makes g.Go stop accepting work,
-	// which prevents workers from enqeuing, and thus finishing,
-	// and thus allowing the group to make progress: deadlock.
+
+	// Analysis is CPU-bound.
+	//
+	// Note: avoid g.SetLimit here: it makes g.Go stop accepting work, which
+	// prevents workers from enqeuing, and thus finishing, and thus allowing the
+	// group to make progress: deadlock.
+	limiter := make(chan unit, runtime.GOMAXPROCS(0))
+	var completed int64
+
 	var enqueue func(*analysisNode)
 	enqueue = func(an *analysisNode) {
 		g.Go(func() error {
+			limiter <- unit{}
+			defer func() { <-limiter }()
+
 			summary, err := an.runCached(ctx)
 			if err != nil {
 				return err // cancelled, or failed to produce a package
 			}
+			maybeReport(atomic.AddInt64(&completed, 1))
 			an.summary = summary
 
 			// Notify each waiting predecessor,

@@ -203,7 +203,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		if err != nil {
 			return nil, err
 		}
-		analysisDiags, err := source.Analyze(ctx, snapshot, map[source.PackageID]unit{pkg.Metadata().ID: {}}, true)
+		analysisDiags, err := source.Analyze(ctx, snapshot, map[source.PackageID]unit{pkg.Metadata().ID: {}}, true, s.progress)
 		if err != nil {
 			return nil, err
 		}

@@ -531,6 +531,13 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy: "ui.diagnostic",
 			},
 			{
+				Name:      "analysisProgressReporting",
+				Type:      "bool",
+				Doc:       "analysisProgressReporting controls whether gopls sends progress\nnotifications when construction of its index of analysis facts is taking a\nlong time. Cancelling these notifications will cancel the indexing task,\nthough it will restart after the next change in the workspace.\n\nWhen a package is opened for the first time and heavyweight analyses such as\nstaticcheck are enabled, it can take a while to construct the index of\nanalysis facts for all its dependencies. The index is cached in the\nfilesystem, so subsequent analysis should be faster.\n",
+				Default:   "true",
+				Hierarchy: "ui.diagnostic",
+			},
+			{
 				Name: "hints",
 				Type: "map[string]bool",
 				Doc:  "hints specify inlay hints that users want to see. A full list of hints\nthat gopls uses can be found in\n[inlayHints.md](https://github.com/golang/tools/blob/master/gopls/doc/inlayHints.md).\n",

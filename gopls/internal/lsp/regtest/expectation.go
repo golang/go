@@ -105,6 +105,26 @@ func describeExpectations(expectations ...Expectation) string {
 	return strings.Join(descriptions, "\n")
 }
 
+// Not inverts the sense of an expectation: a met expectation is unmet, and an
+// unmet expectation is met.
+func Not(e Expectation) Expectation {
+	check := func(s State) Verdict {
+		switch v := e.Check(s); v {
+		case Met:
+			return Unmet
+		case Unmet, Unmeetable:
+			return Met
+		default:
+			panic(fmt.Sprintf("unexpected verdict %v", v))
+		}
+	}
+	description := describeExpectations(e)
+	return Expectation{
+		Check:       check,
+		Description: fmt.Sprintf("not: %s", description),
+	}
+}
+
 // AnyOf returns an expectation that is satisfied when any of the given
 // expectations is met.
 func AnyOf(anyOf ...Expectation) Expectation {

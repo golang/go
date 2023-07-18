@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 
 	"golang.org/x/tools/gopls/internal/bug"
+	"golang.org/x/tools/gopls/internal/lsp/progress"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/span"
 )
@@ -21,7 +22,10 @@ type SuggestedFix struct {
 }
 
 // Analyze reports go/analysis-framework diagnostics in the specified package.
-func Analyze(ctx context.Context, snapshot Snapshot, pkgIDs map[PackageID]unit, includeConvenience bool) (map[span.URI][]*Diagnostic, error) {
+//
+// If the provided tracker is non-nil, it may be used to provide notifications
+// of the ongoing analysis pass.
+func Analyze(ctx context.Context, snapshot Snapshot, pkgIDs map[PackageID]unit, includeConvenience bool, tracker *progress.Tracker) (map[span.URI][]*Diagnostic, error) {
 	// Exit early if the context has been canceled. This also protects us
 	// from a race on Options, see golang/go#36699.
 	if ctx.Err() != nil {
@@ -45,7 +49,7 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkgIDs map[PackageID]unit, 
 		}
 	}
 
-	analysisDiagnostics, err := snapshot.Analyze(ctx, pkgIDs, analyzers)
+	analysisDiagnostics, err := snapshot.Analyze(ctx, pkgIDs, analyzers, tracker)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +85,7 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (File
 	if err != nil {
 		return nil, nil, err
 	}
-	adiags, err := Analyze(ctx, snapshot, map[PackageID]unit{pkg.Metadata().ID: {}}, false)
+	adiags, err := Analyze(ctx, snapshot, map[PackageID]unit{pkg.Metadata().ID: {}}, false, nil /* progress tracker */)
 	if err != nil {
 		return nil, nil, err
 	}

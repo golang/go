@@ -33,8 +33,20 @@ func NewTracker(client protocol.Client) *Tracker {
 	}
 }
 
+// SetSupportsWorkDoneProgress sets whether the client supports work done
+// progress reporting. It must be set before using the tracker.
+//
+// TODO(rfindley): fix this broken initialization pattern.
+// Also: do we actually need the fall-back progress behavior using ShowMessage?
+// Surely ShowMessage notifications are too noisy to be worthwhile.
 func (tracker *Tracker) SetSupportsWorkDoneProgress(b bool) {
 	tracker.supportsWorkDoneProgress = b
+}
+
+// SupportsWorkDoneProgress reports whether the tracker supports work done
+// progress reporting.
+func (tracker *Tracker) SupportsWorkDoneProgress() bool {
+	return tracker.supportsWorkDoneProgress
 }
 
 // Start notifies the client of work being done on the server. It uses either

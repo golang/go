@@ -14,7 +14,7 @@ func BenchmarkReferences(b *testing.B) {
 	}{
 		{"google-cloud-go", "httpreplay/httpreplay.go", `func (NewRecorder)`},
 		{"istio", "pkg/config/model.go", "type (Meta)"},
-		{"kubernetes", "pkg/controller/lookup_cache.go", "type (objectWithMeta)"},
+		{"kubernetes", "pkg/controller/lookup_cache.go", "type (objectWithMeta)"}, // TODO: choose an exported identifier
 		{"kuma", "pkg/events/interfaces.go", "type (Event)"},
 		{"pkgsite", "internal/log/log.go", "func (Infof)"},
 		{"starlark", "syntax/syntax.go", "type (Ident)"},
