@@ -18,6 +18,8 @@ Flags:
 	-B note
 		Add an ELF_NT_GNU_BUILD_ID note when using ELF.
 		The value should start with 0x and be an even number of hex digits.
+		Alternatively, you can pass "gobuildid" in order to derive the
+		GNU build ID from the Go build ID.
 	-E entry
 		Set entry symbol name.
 	-H type
