@@ -110,11 +110,11 @@ type Config struct {
 	// type checker will initialize this field with a newly created context.
 	Context *Context
 
-	// GoVersion describes the accepted Go language version. The string
-	// must follow the format "go%d.%d" (e.g. "go1.12") or ist must be
-	// empty; an empty string disables Go language version checks.
-	// If the format is invalid, invoking the type checker will cause a
-	// panic.
+	// GoVersion describes the accepted Go language version. The string must
+	// start with a prefix of the form "go%d.%d" (e.g. "go1.20", "go1.21rc1", or
+	// "go1.21.0") or it must be empty; an empty string disables Go language
+	// version checks. If the format is invalid, invoking the type checker will
+	// result in an error.
 	GoVersion string
 
 	// If IgnoreFuncBodies is set, function bodies are not
