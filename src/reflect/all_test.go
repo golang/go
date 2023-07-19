@@ -1708,8 +1708,8 @@ func TestChan(t *testing.T) {
 		}
 		// Closing a read-only channel
 		shouldPanic("", func() {
-			rc := make(<-chan int, 1)
-			cv := ValueOf(rc)
+			c := make(<-chan int, 1)
+			cv := ValueOf(c)
 			cv.Close()
 		})
 	}
