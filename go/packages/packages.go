@@ -221,7 +221,7 @@ type driverResponse struct {
 	NotHandled bool
 
 	// Sizes, if not nil, is the types.Sizes to use when type checking.
-	Sizes types.Sizes
+	Sizes *types.StdSizes
 
 	// Roots is the set of package IDs that make up the root packages.
 	// We have to encode this separately because when we encode a single package
