@@ -268,10 +268,44 @@ func ExampleSort() {
 	// [-10 0 8 42]
 }
 
+func ExampleSortFunc() {
+
+	x := []int{2, 1, 3}
+
+	slices.SortFunc(x, func(a, b int) int {
+		return a - b
+	})
+	fmt.Println(x)
+	// Output:
+	// [1 2 3]
+}
+
+func ExampleSortFuncBasedOnBool() {
+
+	x := []int{2, 1, 3}
+
+	slices.SortFuncBasedOnBool(x, func(a, b int) bool {
+		return a < b
+	})
+	fmt.Println(x)
+	// Output:
+	// [1 2 3]
+}
+
 func ExampleSortFunc_caseInsensitive() {
 	names := []string{"Bob", "alice", "VERA"}
 	slices.SortFunc(names, func(a, b string) int {
 		return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
+	})
+	fmt.Println(names)
+	// Output:
+	// [alice Bob VERA]
+}
+
+func ExampleSortFuncBasedOnBool_caseInsensitive() {
+	names := []string{"Bob", "alice", "VERA"}
+	slices.SortFuncBasedOnBool(names, func(a, b string) bool {
+		return cmp.Compare(strings.ToLower(a), strings.ToLower(b)) > 0
 	})
 	fmt.Println(names)
 	// Output:
