@@ -28,6 +28,18 @@ func SortFunc[S ~[]E, E any](x S, cmp func(a, b E) int) {
 	pdqsortCmpFunc(x, 0, n, bits.Len(uint(n)), cmp)
 }
 
+// SortFuncBasedOnBool sorts the slice x in ascending order as determined by the cmp
+// function. This sort is not guaranteed to be stable.
+// cmp(a, b) should return a boolean i.e a < b, true when
+// a > b and false when a <= b
+// SortFuncBasedOnBool requires that cmp is a strict weak ordering.
+// See https://en.wikipedia.org/wiki/Weak_ordering#Strict_weak_orderings.
+// Backported from https://pkg.go.dev/golang.org/x/exp/slices#SortFunc
+func SortFuncBasedOnBool[S ~[]E, E any](x S, cmp func(a, b E) bool) {
+	n := len(x)
+	pdqsortCmpFuncBasedonBool(x, 0, n, bits.Len(uint(n)), cmp)
+}
+
 // SortStableFunc sorts the slice x while keeping the original order of equal
 // elements, using cmp to compare elements in the same way as [SortFunc].
 func SortStableFunc[S ~[]E, E any](x S, cmp func(a, b E) int) {
