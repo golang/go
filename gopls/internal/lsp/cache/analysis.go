@@ -1198,6 +1198,9 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 	// decoder to obtain a more compact representation of
 	// packages and objects (e.g. its internal IDs, instead
 	// of PkgPaths and objectpaths.)
+	// More importantly, we should avoid re-export of
+	// facts that related to objects that are discarded
+	// by "deep" export data. Better still, use a "shallow" approach.
 
 	// Read and decode analysis facts for each direct import.
 	factset, err := pkg.factsDecoder.Decode(true, func(pkgPath string) ([]byte, error) {

@@ -288,6 +288,33 @@ func (s *Set) Encode(skipMethodSorting bool) []byte {
 		if debug {
 			log.Printf("%v => %s\n", k, fact)
 		}
+
+		// Don't export facts that we imported from another
+		// package, unless they represent fields or methods,
+		// or package-level types.
+		// (Facts about packages, and other package-level
+		// objects, are only obtained from direct imports so
+		// they needn't be reexported.)
+		//
+		// This is analogous to the pruning done by "deep"
+		// export data for types, but not as precise because
+		// we aren't careful about which structs or methods
+		// we rexport: it should be only those referenced
+		// from the API of s.pkg.
+		// TOOD(adonovan): opt: be more precise. e.g.
+		// intersect with the set of objects computed by
+		// importMap(s.pkg.Imports()).
+		// TOOD(adonovan): opt: implement "shallow" facts.
+		if k.pkg != s.pkg {
+			if k.obj == nil {
+				continue // imported package fact
+			}
+			if _, isType := k.obj.(*types.TypeName); !isType &&
+				k.obj.Parent() == k.obj.Pkg().Scope() {
+				continue // imported fact about package-level non-type object
+			}
+		}
+
 		var object objectpath.Path
 		if k.obj != nil {
 			path, err := encoder.For(k.obj)

@@ -472,6 +472,7 @@ func TestMalformed(t *testing.T) {
 		{
 			name: "initialization-cycle",
 			pkgs: []pkgTest{
+				// Notation: myFact(a.[N]) means: package a has members {N}.
 				{
 					content: `package a; type N[T any] struct { F *N[N[T]] }`,
 					err:     "instantiation cycle:",
@@ -483,7 +484,8 @@ func TestMalformed(t *testing.T) {
 				},
 				{
 					content: `package c; import "b"; var C b.B`,
-					wants:   map[string]string{"a": "myFact(a.[N])", "b": "myFact(b.[B])", "c": "myFact(c.[C])"},
+					wants:   map[string]string{"a": "no fact", "b": "myFact(b.[B])", "c": "myFact(c.[C])"},
+					// package fact myFact(a.[N]) not reexported
 				},
 			},
 		},
