@@ -1191,6 +1191,17 @@ func (v Value) capNonSlice() int {
 func (v Value) Close() {
 	v.mustBe(Chan)
 	v.mustBeExported()
+	v.close()
+}
+
+// internal close
+// v is known to be a channel.
+func (v Value) close() {
+	tt := (*chanType)(unsafe.Pointer(v.typ()))
+	if ChanDir(tt.Dir)&SendDir == 0 {
+		panic("reflect: close on receive-only channel")
+	}
+
 	chanclose(v.pointer())
 }
 
