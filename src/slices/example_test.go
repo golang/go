@@ -305,7 +305,7 @@ func ExampleSortFunc_caseInsensitive() {
 func ExampleSortFuncBasedOnBool_caseInsensitive() {
 	names := []string{"Bob", "alice", "VERA"}
 	slices.SortFuncBasedOnBool(names, func(a, b string) bool {
-		return cmp.Compare(strings.ToLower(a), strings.ToLower(b)) > 0
+		return cmp.Compare(strings.ToLower(a), strings.ToLower(b)) < 0
 	})
 	fmt.Println(names)
 	// Output:
