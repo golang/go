@@ -79,11 +79,16 @@
 //
 // When compiling packages, build ignores files that end in '_test.go'.
 //
-// When compiling a single main package, build writes
-// the resulting executable to an output file named after
-// the first source file ('go build ed.go rx.go' writes 'ed' or 'ed.exe')
-// or the source code directory ('go build unix/sam' writes 'sam' or 'sam.exe').
-// The '.exe' suffix is added when writing a Windows executable.
+// When compiling a single main package, build writes the resulting
+// executable to an output file named after the last non-major-version
+// component of the package import path. The '.exe' suffix is added
+// when writing a Windows executable.
+// So 'go build example/sam' writes 'sam' or 'sam.exe'.
+// 'go build example.com/foo/v2' writes 'foo' or 'foo.exe', not 'v2.exe'.
+//
+// When compiling a package from a list of .go files, the executable
+// is named after the first source file.
+// 'go build ed.go rx.go' writes 'ed' or 'ed.exe'.
 //
 // When compiling multiple packages or a single non-main package,
 // build compiles the packages but discards the resulting object,
