@@ -294,7 +294,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		}
 		return nil, nil // no .vetx file, no facts
 	}
-	facts, err := facts.NewDecoder(pkg).Decode(read)
+	facts, err := facts.NewDecoder(pkg).Decode(false, read)
 	if err != nil {
 		return nil, err
 	}
@@ -393,7 +393,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		results[i].diagnostics = act.diagnostics
 	}
 
-	data := facts.Encode()
+	data := facts.Encode(false)
 	if err := ioutil.WriteFile(cfg.VetxOutput, data, 0666); err != nil {
 		return nil, fmt.Errorf("failed to write analysis facts: %v", err)
 	}

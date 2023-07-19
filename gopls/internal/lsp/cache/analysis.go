@@ -1172,7 +1172,7 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 	// of PkgPaths and objectpaths.)
 
 	// Read and decode analysis facts for each direct import.
-	factset, err := pkg.factsDecoder.Decode(func(pkgPath string) ([]byte, error) {
+	factset, err := pkg.factsDecoder.Decode(true, func(pkgPath string) ([]byte, error) {
 		if !hasFacts {
 			return nil, nil // analyzer doesn't use facts, so no vdeps
 		}
@@ -1314,7 +1314,7 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 		panic(fmt.Sprintf("%v: Pass.ExportPackageFact(%T) called after Run", act, fact))
 	}
 
-	factsdata := factset.Encode()
+	factsdata := factset.Encode(true)
 	return result, &actionSummary{
 		Diagnostics: diagnostics,
 		Facts:       factsdata,
