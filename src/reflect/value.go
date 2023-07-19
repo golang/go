@@ -1187,16 +1187,11 @@ func (v Value) capNonSlice() int {
 }
 
 // Close closes the channel v.
-// It panics if v's Kind is not Chan.
+// It panics if v's Kind is not Chan or
+// v is a recv-only channel.
 func (v Value) Close() {
 	v.mustBe(Chan)
 	v.mustBeExported()
-	v.close()
-}
-
-// internal close
-// v is known to be a channel.
-func (v Value) close() {
 	tt := (*chanType)(unsafe.Pointer(v.typ()))
 	if ChanDir(tt.Dir)&SendDir == 0 {
 		panic("reflect: close on receive-only channel")
