@@ -197,12 +197,12 @@ func TestNameListAvoidDNS(t *testing.T) {
 	c := &dnsConfig{search: []string{"go.dev.", "onion."}}
 	got := c.nameList("www")
 	if !slices.Equal(got, []string{"www.", "www.go.dev."}) {
-		t.Fatalf("unexpected nameList return: %v", got)
+		t.Fatalf("nameList(\"www\") = %v, want \"www\", \"www.go.dev\"", got)
 	}
 
 	got = c.nameList("www.onion")
 	if !slices.Equal(got, []string{"www.onion.go.dev."}) {
-		t.Fatalf("unexpected nameList return: %v", got)
+		t.Fatalf("nameList(\"www.onion\") = %v, want \"www.onion.go.dev\"", got)
 	}
 }
 
