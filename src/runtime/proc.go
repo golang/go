@@ -1435,8 +1435,9 @@ func startTheWorldWithSema() int64 {
 
 	mp := acquirem() // disable preemption because it can be holding p in a local var
 	if netpollinited() {
-		list := netpoll(0) // non-blocking
+		list, delta := netpoll(0) // non-blocking
 		injectglist(&list)
+		netpollAdjustWaiters(delta)
 	}
 	lock(&sched.lock)
 
@@ -2974,10 +2975,11 @@ top:
 	// blocked thread (e.g. it has already returned from netpoll, but does
 	// not set lastpoll yet), this thread will do blocking netpoll below
 	// anyway.
-	if netpollinited() && netpollWaiters.Load() > 0 && sched.lastpoll.Load() != 0 {
-		if list := netpoll(0); !list.empty() { // non-blocking
+	if netpollinited() && netpollAnyWaiters() && sched.lastpoll.Load() != 0 {
+		if list, delta := netpoll(0); !list.empty() { // non-blocking
 			gp := list.pop()
 			injectglist(&list)
+			netpollAdjustWaiters(delta)
 			casgstatus(gp, _Gwaiting, _Grunnable)
 			if traceEnabled() {
 				traceGoUnpark(gp, 0)
@@ -3166,7 +3168,7 @@ top:
 	}
 
 	// Poll network until next timer.
-	if netpollinited() && (netpollWaiters.Load() > 0 || pollUntil != 0) && sched.lastpoll.Swap(0) != 0 {
+	if netpollinited() && (netpollAnyWaiters() || pollUntil != 0) && sched.lastpoll.Swap(0) != 0 {
 		sched.pollUntil.Store(pollUntil)
 		if mp.p != 0 {
 			throw("findrunnable: netpoll with p")
@@ -3188,7 +3190,7 @@ top:
 			// When using fake time, just poll.
 			delay = 0
 		}
-		list := netpoll(delay) // block until new work is available
+		list, delta := netpoll(delay) // block until new work is available
 		// Refresh now again, after potentially blocking.
 		now = nanotime()
 		sched.pollUntil.Store(0)
@@ -3204,11 +3206,13 @@ top:
 		unlock(&sched.lock)
 		if pp == nil {
 			injectglist(&list)
+			netpollAdjustWaiters(delta)
 		} else {
 			acquirep(pp)
 			if !list.empty() {
 				gp := list.pop()
 				injectglist(&list)
+				netpollAdjustWaiters(delta)
 				casgstatus(gp, _Gwaiting, _Grunnable)
 				if traceEnabled() {
 					traceGoUnpark(gp, 0)
@@ -3242,9 +3246,10 @@ func pollWork() bool {
 	if !runqempty(p) {
 		return true
 	}
-	if netpollinited() && netpollWaiters.Load() > 0 && sched.lastpoll.Load() != 0 {
-		if list := netpoll(0); !list.empty() {
+	if netpollinited() && netpollAnyWaiters() && sched.lastpoll.Load() != 0 {
+		if list, delta := netpoll(0); !list.empty() {
 			injectglist(&list)
+			netpollAdjustWaiters(delta)
 			return true
 		}
 	}
@@ -5596,7 +5601,7 @@ func sysmon() {
 		lastpoll := sched.lastpoll.Load()
 		if netpollinited() && lastpoll != 0 && lastpoll+10*1000*1000 < now {
 			sched.lastpoll.CompareAndSwap(lastpoll, now)
-			list := netpoll(0) // non-blocking - returns list of goroutines
+			list, delta := netpoll(0) // non-blocking - returns list of goroutines
 			if !list.empty() {
 				// Need to decrement number of idle locked M's
 				// (pretending that one more is running) before injectglist.
@@ -5608,6 +5613,7 @@ func sysmon() {
 				incidlelocked(-1)
 				injectglist(&list)
 				incidlelocked(1)
+				netpollAdjustWaiters(delta)
 			}
 		}
 		if GOOS == "netbsd" && needSysmonWorkaround {
