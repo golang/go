@@ -4526,7 +4526,7 @@ The equations are as follows (type argument lists are omitted for clarity):
 	<code>typeof(p<sub>i</sub>) ≡<sub>A</sub> typeof(a<sub>i</sub>)</code>.
 	<br>
 	If <code>a<sub>i</sub></code> is an untyped constant <code>c<sub>j</sub></code>,
-	and <code>p<sub>i</sub></code> is a bound type parameter <code>P<sub>k</sub></code>,
+	and <code>typeof(p<sub>i</sub>)</code> is a bound type parameter <code>P<sub>k</sub></code>,
 	the pair <code>(c<sub>j</sub>, P<sub>k</sub>)</code> is collected separately from
 	the type equations.
 	</p>
@@ -4543,7 +4543,7 @@ The equations are as follows (type argument lists are omitted for clarity):
 	<p>
 	For a return statement <code>return …, f, … </code> where <code>f</code> is a
 	generic function returned as a result to a (non-generic) result variable
-	of function type:
+	<code>r</code> of function type:
 	<br>
 	<code>typeof(r) ≡<sub>A</sub> typeof(f)</code>.
 	</p>
