@@ -395,7 +395,6 @@ var importedObjectTests = []struct {
 	{"math.Pi", "const Pi untyped float"},
 	{"math.Sin", "func Sin(x float64) float64"},
 	{"go/ast.NotNilFilter", "func NotNilFilter(_ string, v reflect.Value) bool"},
-	{"go/internal/gcimporter.FindPkg", "func FindPkg(path string, srcDir string) (filename string, id string)"},
 
 	// interfaces
 	{"context.Context", "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key any) any}"},
