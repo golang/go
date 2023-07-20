@@ -1188,7 +1188,7 @@ func (v Value) capNonSlice() int {
 
 // Close closes the channel v.
 // It panics if v's Kind is not Chan or
-// v is a recv-only channel.
+// v is a receive-only channel.
 func (v Value) Close() {
 	v.mustBe(Chan)
 	v.mustBeExported()
