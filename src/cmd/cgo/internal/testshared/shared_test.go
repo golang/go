@@ -96,6 +96,10 @@ func goCmd(t *testing.T, args ...string) string {
 
 // TestMain calls testMain so that the latter can use defer (TestMain exits with os.Exit).
 func testMain(m *testing.M) (int, error) {
+	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+		globalSkip = func(t testing.TB) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
+		return m.Run(), nil
+	}
 	if !platform.BuildModeSupported(runtime.Compiler, "shared", runtime.GOOS, runtime.GOARCH) {
 		globalSkip = func(t testing.TB) { t.Skip("shared build mode not supported") }
 		return m.Run(), nil
