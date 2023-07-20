@@ -939,7 +939,7 @@ var GeneratedAPIJSON = &APIJSON{
 		{
 			Name:    "composites",
 			Doc:     "check for unkeyed composite literals\n\nThis analyzer reports a diagnostic for composite literals of struct\ntypes imported from another package that do not use the field-keyed\nsyntax. Such literals are fragile because the addition of a new field\n(even if unexported) to the struct will cause compilation to fail.\n\nAs an example,\n\n\terr = &net.DNSConfigError{err}\n\nshould be replaced by:\n\n\terr = &net.DNSConfigError{Err: err}\n",
-			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/composites",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/composite",
 			Default: true,
 		},
 		{
