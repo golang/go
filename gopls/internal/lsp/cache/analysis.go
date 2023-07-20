@@ -291,6 +291,7 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 			atomic.AddInt32(&from.unfinishedSuccs, 1) // TODO(adonovan): use generics
 			an.preds = append(an.preds, from)
 		}
+		atomic.AddInt32(&an.unfinishedPreds, 1)
 		return an, nil
 	}
 
@@ -394,6 +395,14 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 					enqueue(pred)
 				}
 			}
+
+			// Notify each successor that we no longer need
+			// its action summaries, which hold Result values.
+			// After the last one, delete it, so that we
+			// free up large results such as SSA.
+			for _, succ := range an.succs {
+				succ.decrefPreds()
+			}
 			return nil
 		})
 	}
@@ -451,6 +460,12 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 	return results, nil
 }
 
+func (an *analysisNode) decrefPreds() {
+	if atomic.AddInt32(&an.unfinishedPreds, -1) == 0 {
+		an.summary.Actions = nil
+	}
+}
+
 // An analysisNode is a node in a doubly-linked DAG isomorphic to the
 // import graph. Each node represents a single package, and the DAG
 // represents a batch of analysis work done at once using a single
@@ -482,6 +497,7 @@ type analysisNode struct {
 	preds           []*analysisNode             // graph edges:
 	succs           map[PackageID]*analysisNode //   (preds -> self -> succs)
 	unfinishedSuccs int32
+	unfinishedPreds int32                         // effectively a summary.Actions refcount
 	allDeps         map[PackagePath]*analysisNode // all dependencies including self
 	exportDeps      map[PackagePath]*analysisNode // subset of allDeps ref'd by export data (+self)
 	summary         *analyzeSummary               // serializable result of analyzing this package
@@ -642,7 +658,11 @@ func (an *analysisNode) runCached(ctx context.Context) (*analyzeSummary, error) 
 		if err != nil {
 			return nil, err
 		}
+
+		atomic.AddInt32(&an.unfinishedPreds, +1) // incref
 		go func() {
+			defer an.decrefPreds() //decref
+
 			cacheLimit <- unit{}            // acquire token
 			defer func() { <-cacheLimit }() // release token
 
