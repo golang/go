@@ -643,6 +643,9 @@ func (an *analysisNode) runCached(ctx context.Context) (*analyzeSummary, error) 
 			return nil, err
 		}
 		go func() {
+			cacheLimit <- unit{}            // acquire token
+			defer func() { <-cacheLimit }() // release token
+
 			data := analyzeSummaryCodec.Encode(summary)
 			if false {
 				log.Printf("Set key=%d value=%d id=%s\n", len(key), len(data), an.m.ID)
@@ -655,6 +658,10 @@ func (an *analysisNode) runCached(ctx context.Context) (*analyzeSummary, error) 
 
 	return summary, nil
 }
+
+// cacheLimit reduces parallelism of cache updates.
+// We allow more than typical GOMAXPROCS as it's a mix of CPU and I/O.
+var cacheLimit = make(chan unit, 32)
 
 // analysisCacheKey returns a cache key that is a cryptographic digest
 // of the all the values that might affect type checking and analysis:
@@ -747,6 +754,7 @@ func (an *analysisNode) run(ctx context.Context) (*analyzeSummary, error) {
 	parsed := make([]*source.ParsedGoFile, len(an.files))
 	{
 		var group errgroup.Group
+		group.SetLimit(4) // not too much: run itself is already called in parallel
 		for i, fh := range an.files {
 			i, fh := i, fh
 			group.Go(func() error {
