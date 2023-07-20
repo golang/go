@@ -405,6 +405,9 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 	if opts.timeout != 0 {
 		d := opts.timeout * time.Duration(t.timeoutScale)
 		run = append(run, "-timeout="+d.String())
+	} else if t.timeoutScale != 1 {
+		const goTestDefaultTimeout = 10 * time.Minute // Default value of go test -timeout flag.
+		run = append(run, "-timeout="+(goTestDefaultTimeout*time.Duration(t.timeoutScale)).String())
 	}
 	if opts.short || t.short {
 		run = append(run, "-short")
