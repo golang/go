@@ -19,6 +19,9 @@
 //
 //   - Types that (recursively) contain private struct fields are not permitted.
 //
+//   - Values are serialized as trees, not graphs, so shared subgraphs
+//     are encoded repeatedly.
+//
 //   - No attempt is made to detect cyclic data structures.
 package frob
 
