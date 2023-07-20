@@ -576,6 +576,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// If nargs == 1, make sure x.mode is either a value or a constant.
 		if x.mode != constant_ {
 			x.mode = value
+			// A value must not be untyped.
+			check.assignment(x, &emptyInterface, "argument to "+bin.name)
+			if x.mode == invalid {
+				return
+			}
 		}
 
 		// Use the final type computed above for all arguments.
