@@ -179,7 +179,7 @@ func (t *Type) IsDirectIface() bool {
 }
 
 func (t *Type) GcSlice(begin, end uintptr) []byte {
-	return unsafeSliceFor(t.GCData, int(end))[begin:]
+	return unsafe.Slice(t.GCData, int(end))[begin:]
 }
 
 // Method on non-interface type
@@ -660,7 +660,7 @@ func (n Name) Name() string {
 		return ""
 	}
 	i, l := n.ReadVarint(1)
-	return unsafeStringFor(n.DataChecked(1+i, "non-empty string"), l)
+	return unsafe.String(n.DataChecked(1+i, "non-empty string"), l)
 }
 
 // Tag returns the tag string for n, or empty if there is none.
@@ -670,7 +670,7 @@ func (n Name) Tag() string {
 	}
 	i, l := n.ReadVarint(1)
 	i2, l2 := n.ReadVarint(1 + i + l)
-	return unsafeStringFor(n.DataChecked(1+i+l+i2, "non-empty string"), l2)
+	return unsafe.String(n.DataChecked(1+i+l+i2, "non-empty string"), l2)
 }
 
 func NewName(n, tag string, exported, embedded bool) Name {
