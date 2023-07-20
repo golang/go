@@ -1194,7 +1194,7 @@ func (v Value) Close() {
 	v.mustBeExported()
 	tt := (*chanType)(unsafe.Pointer(v.typ()))
 	if ChanDir(tt.Dir)&SendDir == 0 {
-		panic("reflect: close on receive-only channel")
+		panic("reflect: close of receive-only channel")
 	}
 
 	chanclose(v.pointer())
