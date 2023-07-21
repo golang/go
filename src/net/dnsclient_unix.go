@@ -501,7 +501,7 @@ func (conf *dnsConfig) nameList(name string) []string {
 	// Build list of search choices.
 	names := make([]string, 0, 1+len(conf.search))
 	// If name has enough dots, try unsuffixed first.
-	if !avoidDNS(name) && hasNdots {
+	if hasNdots && !avoidDNS(name) {
 		names = append(names, name)
 	}
 	// Try suffixes that are not too long (see isDomainName).
@@ -512,7 +512,7 @@ func (conf *dnsConfig) nameList(name string) []string {
 		}
 	}
 	// Try unsuffixed, if not tried first above.
-	if !avoidDNS(name) && !hasNdots {
+	if !hasNdots && !avoidDNS(name) {
 		names = append(names, name)
 	}
 	return names
