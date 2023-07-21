@@ -91,6 +91,29 @@ type work struct {
 	end   chan bool
 }
 
+// printSkip prints a skip message for all of work.
+func (w *work) printSkip(t *tester, msg string) {
+	if t.json {
+		type event struct {
+			Time    time.Time
+			Action  string
+			Package string
+			Output  string `json:",omitempty"`
+		}
+		enc := json.NewEncoder(&w.out)
+		ev := event{Time: time.Now(), Package: w.dt.name, Action: "start"}
+		enc.Encode(ev)
+		ev.Action = "output"
+		ev.Output = msg
+		enc.Encode(ev)
+		ev.Action = "skip"
+		ev.Output = ""
+		enc.Encode(ev)
+		return
+	}
+	fmt.Fprintln(&w.out, msg)
+}
+
 // A distTest is a test run by dist test.
 // Each test has a unique name and belongs to a group (heading)
 type distTest struct {
@@ -1265,7 +1288,7 @@ func (t *tester) runPending(nextTest *distTest) {
 		go func(w *work) {
 			if !<-w.start {
 				timelog("skip", w.dt.name)
-				w.out.WriteString("skipped due to earlier error\n")
+				w.printSkip(t, "skipped due to earlier error")
 			} else {
 				timelog("start", w.dt.name)
 				w.err = w.cmd.Run()
@@ -1276,7 +1299,7 @@ func (t *tester) runPending(nextTest *distTest) {
 					if isUnsupportedVMASize(w) {
 						timelog("skip", w.dt.name)
 						w.out.Reset()
-						w.out.WriteString("skipped due to unsupported VMA\n")
+						w.printSkip(t, "skipped due to unsupported VMA")
 						w.err = nil
 					}
 				}
