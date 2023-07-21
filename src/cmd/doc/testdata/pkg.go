@@ -57,6 +57,7 @@ var (
 
 // Comment about exported function.
 func ExportedFunc(a int) bool {
+	// BUG(me): function body note
 	return true != false
 }
 
