@@ -1528,7 +1528,7 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
 // internal/platform.RaceDetectorSupported, which can't be used here
 // because cmd/dist can not import internal packages during bootstrap.
 // The race detector only supports 48-bit VMA on arm64. But we don't have
-// a good solution to check VMA size(See https://golang.org/issue/29948)
+// a good solution to check VMA size (see https://go.dev/issue/29948).
 // raceDetectorSupported will always return true for arm64. But race
 // detector tests may abort on non 48-bit VMA configuration, the tests
 // will be marked as "skipped" in this case.
@@ -1637,10 +1637,10 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 
 // isUnsupportedVMASize reports whether the failure is caused by an unsupported
 // VMA for the race detector (for example, running the race detector on an
-// arm64 machine configured with 39-bit VMA)
+// arm64 machine configured with 39-bit VMA).
 func isUnsupportedVMASize(w *work) bool {
 	unsupportedVMA := []byte("unsupported VMA range")
-	return w.dt.name == "race" && bytes.Contains(w.out.Bytes(), unsupportedVMA)
+	return strings.Contains(w.dt.name, ":race") && bytes.Contains(w.out.Bytes(), unsupportedVMA)
 }
 
 // isEnvSet reports whether the environment variable evar is
