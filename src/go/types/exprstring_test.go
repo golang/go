@@ -44,20 +44,20 @@ var testExprs = []testEntry{
 	dup("<-chan E"),
 	dup("chan<- E"),
 
-	// generic
-	dup("x[T]"),
-	dup("x[N | A | S]"),
-	dup("x[N, A]"),
-
 	// new interfaces
 	dup("interface{int}"),
 	dup("interface{~int}"),
+
+	// generic constraints
+	// dup("interface{type a, b, c; ~int | ~string; float64; m()}"),
 	dup("interface{int | string}"),
 	dup("interface{~int | ~string; float64; m()}"),
-
-	// See above.
-	// dup("interface{type a, b, c; ~int | ~string; float64; m()}"),
 	dup("interface{~T[int, string] | string}"),
+
+	// generic types
+	dup("x[T]"),
+	dup("x[N | A | S]"),
+	dup("x[N, A]"),
 
 	// non-type expressions
 	dup("(x)"),
@@ -105,6 +105,8 @@ var testExprs = []testEntry{
 	dup("f(x, x + y)"),
 	dup("f(s...)"),
 	dup("f(a, s...)"),
+
+	// generic functions
 	dup("f[T]()"),
 	dup("f[T](T)"),
 	dup("f[T, T1]()"),
