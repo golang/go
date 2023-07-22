@@ -2036,6 +2036,25 @@ type nopPad struct {
 	n int32     // Size of the pad
 }
 
+// padding bytes to add to align code as requested.
+func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
+	switch a {
+	case 8, 16, 32, 64:
+		// By default function alignment is 16. If an alignment > 16 is
+		// requested then the function alignment must also be promoted.
+		// The function alignment is not promoted on AIX at this time.
+		if cursym.Func().Align < int32(a) {
+			cursym.Func().Align = int32(a)
+		}
+		if pc&(a-1) != 0 {
+			return int(a - (pc & (a - 1)))
+		}
+	default:
+		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", a)
+	}
+	return 0
+}
+
 func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	if ctxt.Retpoline && ctxt.Arch.Family == sys.I386 {
 		ctxt.Diag("-spectre=ret not supported on 386")
@@ -2118,6 +2137,24 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		for p := s.Func().Text; p != nil; p = p.Link {
 			c0 := c
 			c = pjc.padJump(ctxt, s, p, c)
+
+			if p.As == obj.APCALIGN {
+				aln := p.From.Offset
+				v := addpad(int64(c), aln, ctxt, s)
+				if v > 0 {
+					s.Grow(int64(c) + int64(v))
+					fillnop(s.P[c:], int(v))
+				}
+
+				// Update the current text symbol alignment value.
+				if int32(v) > s.Func().Align {
+					s.Func().Align = int32(v)
+				}
+
+				c += int32(v)
+				pPrev = p
+				continue
+			}
 
 			if maxLoopPad > 0 && p.Back&branchLoopHead != 0 && c&(loopAlign-1) != 0 {
 				// pad with NOPs
