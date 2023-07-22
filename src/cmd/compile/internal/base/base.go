@@ -245,7 +245,7 @@ func Compiling(pkgs []string) bool {
 // is done during SSA construction rather than a separate SSA pass,
 // see issue #19054.
 //
-// Third we remove calls to racefuncenter and racefuncexit, for leaf
+// Third, we remove calls to racefuncenter and racefuncexit, for leaf
 // functions without instrumented operations. This is done as part of
 // ssa opt pass via special rule.
 
