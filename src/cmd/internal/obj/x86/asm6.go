@@ -2146,11 +2146,6 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 					fillnop(s.P[c:], int(v))
 				}
 
-				// Update the current text symbol alignment value.
-				if int32(v) > s.Func().Align {
-					s.Func().Align = int32(v)
-				}
-
 				c += int32(v)
 				pPrev = p
 				continue
