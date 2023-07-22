@@ -205,7 +205,7 @@ func (c *conf) isGoResolverForced(r *Resolver) bool {
 	return c.netGo || r.preferGo()
 }
 
-// mustUseGoResolver determines whether to use of the Go resolver for
+// mustUseGoResolver determines whether the use of the Go resolver for
 // non-hostname and non-address resolutions (e.g., DNS, port lookup) is required.
 // The provided Resolver is optional. nil means to not consider its options.
 func (c *conf) mustUseGoResolver(r *Resolver, qType, host string) (ret bool) {
