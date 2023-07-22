@@ -1608,6 +1608,7 @@ func processParams(die *dwarf.Entry, ex *dwtest.Examiner) string {
 	// Walk the subprogram DIE's children looking for params.
 	pIdx := ex.IdxFromOffset(die.Offset)
 	childDies := ex.Children(pIdx)
+	entryName := die.Val(dwarf.AttrName)
 	idx := 0
 	for _, child := range childDies {
 		if child.Tag == dwarf.TagFormalParameter {
@@ -1626,6 +1627,9 @@ func processParams(die *dwarf.Entry, ex *dwtest.Examiner) string {
 				}
 			}
 			if name, ok := child.Val(dwarf.AttrName).(string); ok {
+				if _, ok := foundParams[name]; ok {
+					panic(fmt.Sprintf("Found duplicated child parameter %s while parsing dwarf entry %s", name, entryName))
+				}
 				foundParams[name] = fmt.Sprintf("%d:%d", idx, st)
 				idx++
 			}
@@ -2022,5 +2026,35 @@ func main() {
 				t.Fatalf("more than one zeroSizedVariable DIE")
 			}
 		})
+	}
+}
+
+func TestIssue61357(t *testing.T) {
+	// This test asserts that parameters are not duplicated
+	// in the generated dwarf symbols.
+	testenv.MustHaveGoBuild(t)
+
+	mustHaveDWARF(t)
+	t.Parallel()
+
+	const prog = `
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello")
+}
+`
+	_, ex := gobuildAndExamine(t, prog, NoOpt)
+
+	die := findSubprogramDIE(t, ex, "internal/poll.(*FD).Write")
+
+	found := processParams(die, ex)
+
+	expected := "[fd:0:1 p:1:1 ~r0:2:2 ~r1:3:2]"
+	if found != expected {
+		t.Errorf("param check failed, wanted:\n%s\ngot:\n%s\n",
+			expected, found)
 	}
 }
