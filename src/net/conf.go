@@ -181,11 +181,40 @@ func goosPrefersCgo() bool {
 	}
 }
 
-// mustUseGoResolver reports whether a DNS lookup of any sort is
+// isGoResolverForced reports whether a DNS lookup of any sort is
 // required to use the go resolver. The provided Resolver is optional.
 // This will report true if the cgo resolver is not available.
-func (c *conf) mustUseGoResolver(r *Resolver) bool {
-	return c.netGo || r.preferGo() || !cgoAvailable
+func (c *conf) isGoResolverForced(r *Resolver) bool {
+	if !cgoAvailable {
+		return true
+	}
+
+	if runtime.GOOS == "plan9" {
+		// TODO(bradfitz): for now we only permit use of the PreferGo
+		// implementation when there's a non-nil Resolver with a
+		// non-nil Dialer. This is a sign that they the code is trying
+		// to use their DNS-speaking net.Conn (such as an in-memory
+		// DNS cache) and they don't want to actually hit the network.
+		// Once we add support for looking the default DNS servers
+		// from plan9, though, then we can relax this.
+		if r == nil || r.Dial == nil {
+			return false
+		}
+	}
+
+	return c.netGo || r.preferGo()
+}
+
+// mustUseGoResolver determines whether to use of the Go resolver for
+// non-hostname and non-address resolutions (e.g., DNS, port lookup) is required.
+// The provided Resolver is optional. nil means to not consider its options.
+func (c *conf) mustUseGoResolver(r *Resolver, qType, host string) (ret bool) {
+	if c.dnsDebugLevel > 1 {
+		defer func() {
+			print("go package net: mustUseGoResolver(", qType, ", ", host, ") = ", ret, "\n")
+		}()
+	}
+	return c.isGoResolverForced(r)
 }
 
 // addrLookupOrder determines which strategy to use to resolve addresses.
@@ -217,7 +246,7 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 	var fallbackOrder hostLookupOrder
 
 	var canUseCgo bool
-	if c.mustUseGoResolver(r) {
+	if c.isGoResolverForced(r) {
 		// Go resolver was explicitly requested
 		// or cgo resolver is not available.
 		// Figure out the order below.

@@ -62,9 +62,6 @@ func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string,
 }
 
 func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
-	if r.preferGo() {
-		return r.goLookupIP(ctx, network, host)
-	}
 	order, conf := systemConf().hostLookupOrder(r, host)
 	if order == hostLookupCgo {
 		return cgoLookupIP(ctx, network, host)
@@ -76,7 +73,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
 	// Port lookup is not a DNS operation.
 	// Prefer the cgo resolver if possible.
-	if !systemConf().mustUseGoResolver(r) {
+	if !systemConf().mustUseGoResolver(r, "port", service) {
 		port, err := cgoLookupPort(ctx, network, service)
 		if err != nil {
 			// Issue 18213: if cgo fails, first check to see whether we
