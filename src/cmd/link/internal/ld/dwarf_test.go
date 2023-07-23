@@ -1628,7 +1628,7 @@ func processParams(die *dwarf.Entry, ex *dwtest.Examiner) string {
 			}
 			if name, ok := child.Val(dwarf.AttrName).(string); ok {
 				if _, ok := foundParams[name]; ok {
-					panic(fmt.Sprintf("Found duplicated child parameter %s while parsing dwarf entry %s", name, entryName))
+					panic(fmt.Sprintf("Found duplicated child parameter %s while parsing dwarf entry %s\n", name, entryName))
 				}
 				foundParams[name] = fmt.Sprintf("%d:%d", idx, st)
 				idx++
