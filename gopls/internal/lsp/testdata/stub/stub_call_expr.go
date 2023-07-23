@@ -1,7 +1,7 @@
 package stub
 
 func main() {
-	check(&callExpr{}) //@suggestedfix("&", "refactor.rewrite", "")
+	check(&callExpr{}) //@suggestedfix("&", "quickfix", "")
 }
 
 func check(err error) {

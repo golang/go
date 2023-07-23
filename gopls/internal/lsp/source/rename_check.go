@@ -827,7 +827,7 @@ func (r *renamer) satisfy() map[satisfy.Constraint]bool {
 			// type-checker.
 			//
 			// Only proceed if all packages have no errors.
-			if pkg.HasParseErrors() || pkg.HasTypeErrors() {
+			if len(pkg.GetParseErrors()) > 0 || len(pkg.GetTypeErrors()) > 0 {
 				r.errorf(token.NoPos, // we don't have a position for this error.
 					"renaming %q to %q not possible because %q has errors",
 					r.from, r.to, pkg.Metadata().PkgPath)

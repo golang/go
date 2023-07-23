@@ -6,7 +6,7 @@ package stub
 import "io"
 
 func newReadCloser() io.ReadCloser {
-	return rdcloser{} //@suggestedfix("rd", "refactor.rewrite", "")
+	return rdcloser{} //@suggestedfix("rd", "quickfix", "")
 }
 
 type (

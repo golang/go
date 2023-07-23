@@ -781,13 +781,11 @@ go 1.18
 
 -- a.go --
 package a
-var _ error = T(0)
 type T int
 func f() (int, string) { return }
 `)
 	want := `
 package a
-var _ error = T(0)
 type T int
 func f() (int, string) { return 0, "" }
 `[1:]

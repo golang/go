@@ -933,13 +933,13 @@ type Package interface {
 	CompiledGoFiles() []*ParsedGoFile // (borrowed)
 	File(uri span.URI) (*ParsedGoFile, error)
 	GetSyntax() []*ast.File // (borrowed)
-	HasParseErrors() bool
+	GetParseErrors() []scanner.ErrorList
 
 	// Results of type checking:
 	GetTypes() *types.Package
+	GetTypeErrors() []types.Error
 	GetTypesInfo() *types.Info
 	DependencyTypes(PackagePath) *types.Package // nil for indirect dependency of no consequence
-	HasTypeErrors() bool
 	DiagnosticsForFile(ctx context.Context, s Snapshot, uri span.URI) ([]*Diagnostic, error)
 }
 

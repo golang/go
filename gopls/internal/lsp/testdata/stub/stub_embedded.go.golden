@@ -6,7 +6,7 @@ import (
 	"sort"
 )
 
-var _ embeddedInterface = (*embeddedConcrete)(nil) //@suggestedfix("(", "refactor.rewrite", "")
+var _ embeddedInterface = (*embeddedConcrete)(nil) //@suggestedfix("(", "quickfix", "")
 
 type embeddedConcrete struct{}
 

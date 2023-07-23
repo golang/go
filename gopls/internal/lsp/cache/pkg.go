@@ -153,12 +153,12 @@ func (p *Package) DependencyTypes(path source.PackagePath) *types.Package {
 	return p.pkg.importMap[path]
 }
 
-func (p *Package) HasParseErrors() bool {
-	return len(p.pkg.parseErrors) != 0
+func (p *Package) GetParseErrors() []scanner.ErrorList {
+	return p.pkg.parseErrors
 }
 
-func (p *Package) HasTypeErrors() bool {
-	return len(p.pkg.typeErrors) != 0
+func (p *Package) GetTypeErrors() []types.Error {
+	return p.pkg.typeErrors
 }
 
 func (p *Package) DiagnosticsForFile(ctx context.Context, s source.Snapshot, uri span.URI) ([]*source.Diagnostic, error) {

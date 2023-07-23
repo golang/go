@@ -448,7 +448,7 @@ func (s *Server) diagnosePkgs(ctx context.Context, snapshot source.Snapshot, toD
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		diags, err := source.Analyze(ctx, snapshot, toAnalyze, false, s.progress)
+		diags, err := source.Analyze(ctx, snapshot, toAnalyze, s.progress)
 		if err != nil {
 			var tagStr string // sorted comma-separated list of package IDs
 			{

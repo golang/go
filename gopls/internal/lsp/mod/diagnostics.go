@@ -537,7 +537,7 @@ func SelectUpgradeCodeActions(actions []protocol.CodeAction) []protocol.CodeActi
 	var chosenVersionedUpgrade string
 	var selected []protocol.CodeAction
 
-	seen := make(map[string]bool)
+	seenTitles := make(map[string]bool)
 
 	for _, action := range actions {
 		if strings.HasPrefix(action.Title, upgradeCodeActionPrefix) {
@@ -549,8 +549,8 @@ func SelectUpgradeCodeActions(actions []protocol.CodeAction) []protocol.CodeActi
 			}
 		} else if strings.HasPrefix(action.Title, "Reset govulncheck") {
 			resetAction = action
-		} else if !seen[action.Command.Title] {
-			seen[action.Command.Title] = true
+		} else if !seenTitles[action.Command.Title] {
+			seenTitles[action.Command.Title] = true
 			selected = append(selected, action)
 		}
 	}

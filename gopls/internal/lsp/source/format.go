@@ -108,14 +108,10 @@ type ImportFix struct {
 // In addition to returning the result of applying all edits,
 // it returns a list of fixes that could be applied to the file, with the
 // corresponding TextEdits that would be needed to apply that fix.
-func AllImportsFixes(ctx context.Context, snapshot Snapshot, fh FileHandle) (allFixEdits []protocol.TextEdit, editsPerFix []*ImportFix, err error) {
+func AllImportsFixes(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile) (allFixEdits []protocol.TextEdit, editsPerFix []*ImportFix, err error) {
 	ctx, done := event.Start(ctx, "source.AllImportsFixes")
 	defer done()
 
-	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
-	if err != nil {
-		return nil, nil, err
-	}
 	if err := snapshot.RunProcessEnvFunc(ctx, func(ctx context.Context, opts *imports.Options) error {
 		allFixEdits, editsPerFix, err = computeImportEdits(ctx, snapshot, pgf, opts)
 		return err

@@ -7,8 +7,11 @@
 package infertypeargs
 
 import (
+	"go/token"
+
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 const Doc = `check for unnecessary type arguments in call expressions
@@ -28,4 +31,17 @@ var Analyzer = &analysis.Analyzer{
 	Doc:      Doc,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
+}
+
+// TODO(rfindley): remove this thin wrapper around the infertypeargs refactoring,
+// and eliminate the infertypeargs analyzer.
+//
+// Previous iterations used the analysis framework for computing refactorings,
+// which proved inefficient.
+func run(pass *analysis.Pass) (interface{}, error) {
+	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	for _, diag := range DiagnoseInferableTypeArgs(pass.Fset, inspect, token.NoPos, token.NoPos, pass.Pkg, pass.TypesInfo) {
+		pass.Report(diag)
+	}
+	return nil, nil
 }

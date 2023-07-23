@@ -4,7 +4,7 @@ import "io"
 
 func main() {
 	var br io.ByteWriter
-	br = &byteWriter{} //@suggestedfix("&", "refactor.rewrite", "")
+	br = &byteWriter{} //@suggestedfix("&", "quickfix", "")
 }
 
 type byteWriter struct{}

@@ -36,9 +36,13 @@ var (
 )
 
 func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
-	codeLens := make([]protocol.CodeLens, 0)
+	var codeLens []protocol.CodeLens
 
-	fns, err := TestsAndBenchmarks(ctx, snapshot, fh)
+	pkg, pgf, err := NarrowestPackageForFile(ctx, snapshot, fh.URI())
+	if err != nil {
+		return nil, err
+	}
+	fns, err := TestsAndBenchmarks(ctx, snapshot, pkg, pgf)
 	if err != nil {
 		return nil, err
 	}
@@ -94,15 +98,11 @@ type testFns struct {
 	Benchmarks []testFn
 }
 
-func TestsAndBenchmarks(ctx context.Context, snapshot Snapshot, fh FileHandle) (testFns, error) {
+func TestsAndBenchmarks(ctx context.Context, snapshot Snapshot, pkg Package, pgf *ParsedGoFile) (testFns, error) {
 	var out testFns
 
-	if !strings.HasSuffix(fh.URI().Filename(), "_test.go") {
+	if !strings.HasSuffix(pgf.URI.Filename(), "_test.go") {
 		return out, nil
-	}
-	pkg, pgf, err := NarrowestPackageForFile(ctx, snapshot, fh.URI())
-	if err != nil {
-		return out, err
 	}
 
 	for _, d := range pgf.File.Decls {

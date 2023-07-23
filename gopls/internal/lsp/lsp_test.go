@@ -203,7 +203,7 @@ func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests
 	}
 	msg := tests.DiffCallHierarchyItems(incomingCallItems, expectedCalls.IncomingCalls)
 	if msg != "" {
-		t.Error(fmt.Sprintf("incoming calls: %s", msg))
+		t.Errorf("incoming calls: %s", msg)
 	}
 
 	outgoingCalls, err := r.server.OutgoingCalls(r.ctx, &protocol.CallHierarchyOutgoingCallsParams{Item: items[0]})
@@ -216,7 +216,7 @@ func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests
 	}
 	msg = tests.DiffCallHierarchyItems(outgoingCallItems, expectedCalls.OutgoingCalls)
 	if msg != "" {
-		t.Error(fmt.Sprintf("outgoing calls: %s", msg))
+		t.Errorf("outgoing calls: %s", msg)
 	}
 }
 

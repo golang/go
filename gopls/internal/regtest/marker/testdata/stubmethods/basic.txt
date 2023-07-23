@@ -9,7 +9,7 @@ package a
 
 type C int
 
-var _ error = C(0) //@suggestedfix(re"C.0.", re"missing method Error", "refactor.rewrite", stub)
+var _ error = C(0) //@suggestedfix(re"C.0.", re"missing method Error", "quickfix", stub)
 
 -- @stub/a/a.go --
 package a
@@ -21,4 +21,4 @@ func (C) Error() string {
 	panic("unimplemented")
 }
 
-var _ error = C(0) //@suggestedfix(re"C.0.", re"missing method Error", "refactor.rewrite", stub)
+var _ error = C(0) //@suggestedfix(re"C.0.", re"missing method Error", "quickfix", stub)

@@ -6,6 +6,6 @@ import "io"
 // has multiple values on the same line can still be
 // analyzed correctly to target the interface implementation
 // diagnostic.
-var one, two, three io.Reader = nil, &multiVar{}, nil //@suggestedfix("&", "refactor.rewrite", "")
+var one, two, three io.Reader = nil, &multiVar{}, nil //@suggestedfix("&", "quickfix", "")
 
 type multiVar struct{}

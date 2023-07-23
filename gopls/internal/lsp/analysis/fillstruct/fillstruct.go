@@ -48,26 +48,34 @@ var Analyzer = &analysis.Analyzer{
 	RunDespiteErrors: true,
 }
 
+// TODO(rfindley): remove this thin wrapper around the fillstruct refactoring,
+// and eliminate the fillstruct analyzer.
+//
+// Previous iterations used the analysis framework for computing refactorings,
+// which proved inefficient.
 func run(pass *analysis.Pass) (interface{}, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	for _, d := range DiagnoseFillableStructs(inspect, token.NoPos, token.NoPos, pass.Pkg, pass.TypesInfo) {
+		pass.Report(d)
+	}
+	return nil, nil
+}
+
+// DiagnoseFillableStructs computes diagnostics for fillable struct composite
+// literals overlapping with the provided start and end position.
+//
+// If either start or end is invalid, it is considered an unbounded condition.
+func DiagnoseFillableStructs(inspect *inspector.Inspector, start, end token.Pos, pkg *types.Package, info *types.Info) []analysis.Diagnostic {
+	var diags []analysis.Diagnostic
 	nodeFilter := []ast.Node{(*ast.CompositeLit)(nil)}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		expr := n.(*ast.CompositeLit)
 
-		// Find enclosing file.
-		// TODO(adonovan): use inspect.WithStack?
-		var file *ast.File
-		for _, f := range pass.Files {
-			if f.Pos() <= expr.Pos() && expr.Pos() <= f.End() {
-				file = f
-				break
-			}
-		}
-		if file == nil {
-			return
+		if (start.IsValid() && expr.End() < start) || (end.IsValid() && expr.Pos() > end) {
+			return // non-overlapping
 		}
 
-		typ := pass.TypesInfo.TypeOf(expr)
+		typ := info.TypeOf(expr)
 		if typ == nil {
 			return
 		}
@@ -92,7 +100,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		for i := 0; i < fieldCount; i++ {
 			field := tStruct.Field(i)
 			// Ignore fields that are not accessible in the current package.
-			if field.Pkg() != nil && field.Pkg() != pass.Pkg && !field.Exported() {
+			if field.Pkg() != nil && field.Pkg() != pkg && !field.Exported() {
 				continue
 			}
 			fillableFields = append(fillableFields, fmt.Sprintf("%s: %s", field.Name(), field.Type().String()))
@@ -105,7 +113,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		var name string
 		if typ != tStruct {
 			// named struct type (e.g. pkg.S[T])
-			name = types.TypeString(typ, types.RelativeTo(pass.Pkg))
+			name = types.TypeString(typ, types.RelativeTo(pkg))
 		} else {
 			// anonymous struct type
 			totalFields := len(fillableFields)
@@ -124,13 +132,14 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			}
 			name = fmt.Sprintf("anonymous struct { %s }", strings.Join(fillableFields, ", "))
 		}
-		pass.Report(analysis.Diagnostic{
+		diags = append(diags, analysis.Diagnostic{
 			Message: fmt.Sprintf("Fill %s", name),
 			Pos:     expr.Pos(),
 			End:     expr.End(),
 		})
 	})
-	return nil, nil
+
+	return diags
 }
 
 // SuggestedFix computes the suggested fix for the kinds of

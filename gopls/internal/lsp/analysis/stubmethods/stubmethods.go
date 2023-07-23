@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/typesinternal"
@@ -29,17 +28,17 @@ in order to implement a target interface`
 var Analyzer = &analysis.Analyzer{
 	Name:             "stubmethods",
 	Doc:              Doc,
-	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	Run:              run,
 	RunDespiteErrors: true,
 }
 
+// TODO(rfindley): remove this thin wrapper around the stubmethods refactoring,
+// and eliminate the stubmethods analyzer.
+//
+// Previous iterations used the analysis framework for computing refactorings,
+// which proved inefficient.
 func run(pass *analysis.Pass) (interface{}, error) {
 	for _, err := range pass.TypeErrors {
-		ifaceErr := strings.Contains(err.Msg, "missing method") || strings.HasPrefix(err.Msg, "cannot convert")
-		if !ifaceErr {
-			continue
-		}
 		var file *ast.File
 		for _, f := range pass.Files {
 			if f.Pos() <= err.Pos && err.Pos < f.End() {
@@ -47,31 +46,52 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				break
 			}
 		}
-		if file == nil {
-			continue
-		}
 		// Get the end position of the error.
-		_, _, endPos, ok := typesinternal.ReadGo116ErrorData(err)
+		_, _, end, ok := typesinternal.ReadGo116ErrorData(err)
 		if !ok {
 			var buf bytes.Buffer
 			if err := format.Node(&buf, pass.Fset, file); err != nil {
 				continue
 			}
-			endPos = analysisinternal.TypeErrorEndPos(pass.Fset, buf.Bytes(), err.Pos)
+			end = analysisinternal.TypeErrorEndPos(pass.Fset, buf.Bytes(), err.Pos)
 		}
-		path, _ := astutil.PathEnclosingInterval(file, err.Pos, endPos)
-		si := GetStubInfo(pass.Fset, pass.TypesInfo, path, err.Pos)
-		if si == nil {
-			continue
+		if diag, ok := DiagnosticForError(pass.Fset, file, err.Pos, end, err.Msg, pass.TypesInfo); ok {
+			pass.Report(diag)
 		}
-		qf := RelativeToFiles(si.Concrete.Obj().Pkg(), file, nil, nil)
-		pass.Report(analysis.Diagnostic{
-			Pos:     err.Pos,
-			End:     endPos,
-			Message: fmt.Sprintf("Implement %s", types.TypeString(si.Interface.Type(), qf)),
-		})
 	}
+
 	return nil, nil
+}
+
+// MatchesMessage reports whether msg matches the error message sought after by
+// the stubmethods fix.
+func MatchesMessage(msg string) bool {
+	return strings.Contains(msg, "missing method") || strings.HasPrefix(msg, "cannot convert")
+}
+
+// DiagnosticForError computes a diagnostic suggesting to implement an
+// interface to fix the type checking error defined by (start, end, msg).
+//
+// If no such fix is possible, the second result is false.
+//
+// TODO(rfindley): simplify this signature once the stubmethods refactoring is
+// no longer wedged into the analysis framework.
+func DiagnosticForError(fset *token.FileSet, file *ast.File, start, end token.Pos, msg string, info *types.Info) (analysis.Diagnostic, bool) {
+	if !MatchesMessage(msg) {
+		return analysis.Diagnostic{}, false
+	}
+
+	path, _ := astutil.PathEnclosingInterval(file, start, end)
+	si := GetStubInfo(fset, info, path, start)
+	if si == nil {
+		return analysis.Diagnostic{}, false
+	}
+	qf := RelativeToFiles(si.Concrete.Obj().Pkg(), file, nil, nil)
+	return analysis.Diagnostic{
+		Pos:     start,
+		End:     end,
+		Message: fmt.Sprintf("Implement %s", types.TypeString(si.Interface.Type(), qf)),
+	}, true
 }
 
 // StubInfo represents a concrete type

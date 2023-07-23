@@ -13,18 +13,19 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/internal/typeparams"
 )
 
-func run(pass *analysis.Pass) (interface{}, error) {
-	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+// DiagnoseInferableTypeArgs reports diagnostics describing simplifications to type
+// arguments overlapping with the provided start and end position.
+//
+// If start or end is token.NoPos, the corresponding bound is not checked
+// (i.e. if both start and end are NoPos, all call expressions are considered).
+func DiagnoseInferableTypeArgs(fset *token.FileSet, inspect *inspector.Inspector, start, end token.Pos, pkg *types.Package, info *types.Info) []analysis.Diagnostic {
+	var diags []analysis.Diagnostic
 
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
-	}
-
+	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
 	inspect.Preorder(nodeFilter, func(node ast.Node) {
 		call := node.(*ast.CallExpr)
 		x, lbrack, indices, rbrack := typeparams.UnpackIndexExpr(call.Fun)
@@ -33,8 +34,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return // no explicit args, nothing to do
 		}
 
+		if (start.IsValid() && call.End() < start) || (end.IsValid() && call.Pos() > end) {
+			return // non-overlapping
+		}
+
 		// Confirm that instantiation actually occurred at this ident.
-		idata, ok := typeparams.GetInstances(pass.TypesInfo)[ident]
+		idata, ok := typeparams.GetInstances(info)[ident]
 		if !ok {
 			return // something went wrong, but fail open
 		}
@@ -60,7 +65,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			}
 			info := new(types.Info)
 			typeparams.InitInstanceInfo(info)
-			if err := types.CheckExpr(pass.Fset, pass.Pkg, call.Pos(), newCall, info); err != nil {
+			if err := types.CheckExpr(fset, pkg, call.Pos(), newCall, info); err != nil {
 				// Most likely inference failed.
 				break
 			}
@@ -74,20 +79,24 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			required = i
 		}
 		if required < len(indices) {
-			var start, end token.Pos
+			var s, e token.Pos
 			var edit analysis.TextEdit
 			if required == 0 {
-				start, end = lbrack, rbrack+1 // erase the entire index
-				edit = analysis.TextEdit{Pos: start, End: end}
+				s, e = lbrack, rbrack+1 // erase the entire index
+				edit = analysis.TextEdit{Pos: s, End: e}
 			} else {
-				start = indices[required].Pos()
-				end = rbrack
+				s = indices[required].Pos()
+				e = rbrack
 				//  erase from end of last arg to include last comma & white-spaces
-				edit = analysis.TextEdit{Pos: indices[required-1].End(), End: end}
+				edit = analysis.TextEdit{Pos: indices[required-1].End(), End: e}
 			}
-			pass.Report(analysis.Diagnostic{
-				Pos:     start,
-				End:     end,
+			// Recheck that our (narrower) fixes overlap with the requested range.
+			if (start.IsValid() && e < start) || (end.IsValid() && s > end) {
+				return // non-overlapping
+			}
+			diags = append(diags, analysis.Diagnostic{
+				Pos:     s,
+				End:     e,
 				Message: "unnecessary type arguments",
 				SuggestedFixes: []analysis.SuggestedFix{{
 					Message:   "simplify type arguments",
@@ -97,7 +106,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 	})
 
-	return nil, nil
+	return diags
 }
 
 func calledIdent(x ast.Expr) *ast.Ident {

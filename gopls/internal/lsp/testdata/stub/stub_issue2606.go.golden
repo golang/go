@@ -10,5 +10,5 @@ func (C) Error() string {
 	panic("unimplemented")
 }
 
-var _ I = C(0) //@suggestedfix("C", "refactor.rewrite", "")
+var _ I = C(0) //@suggestedfix("C", "quickfix", "")
 

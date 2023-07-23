@@ -5,7 +5,7 @@ import (
 )
 
 func newCloser() io.Closer {
-	return closer{} //@suggestedfix("c", "refactor.rewrite", "")
+	return closer{} //@suggestedfix("c", "quickfix", "")
 }
 
 type closer struct{}

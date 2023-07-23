@@ -12,7 +12,7 @@ import (
 
 var (
 	_ Reader
-	_ zlib.Resetter = (*ignoredResetter)(nil) //@suggestedfix("(", "refactor.rewrite", "")
+	_ zlib.Resetter = (*ignoredResetter)(nil) //@suggestedfix("(", "quickfix", "")
 )
 
 type ignoredResetter struct{}

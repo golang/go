@@ -6,7 +6,7 @@ import (
 	myio "io"
 )
 
-var _ zlib.Resetter = &myIO{} //@suggestedfix("&", "refactor.rewrite", "")
+var _ zlib.Resetter = &myIO{} //@suggestedfix("&", "quickfix", "")
 var _ myio.Reader
 
 type myIO struct{}

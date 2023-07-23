@@ -7,7 +7,7 @@ import "io"
 
 // This file tests that that the stub method generator accounts for concrete
 // types that have type parameters defined.
-var _ io.ReaderFrom = &genReader[string, int]{} //@suggestedfix("&genReader", "refactor.rewrite", "Implement io.ReaderFrom")
+var _ io.ReaderFrom = &genReader[string, int]{} //@suggestedfix("&genReader", "quickfix", "Implement io.ReaderFrom")
 
 type genReader[T, Y any] struct {
 	T T

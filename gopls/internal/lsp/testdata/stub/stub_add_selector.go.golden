@@ -8,7 +8,7 @@ import "io"
 // then our implementation must add the import/package selector
 // in the concrete method if the concrete type is outside of the interface
 // package
-var _ io.ReaderFrom = &readerFrom{} //@suggestedfix("&readerFrom", "refactor.rewrite", "")
+var _ io.ReaderFrom = &readerFrom{} //@suggestedfix("&readerFrom", "quickfix", "")
 
 type readerFrom struct{}
 

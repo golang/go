@@ -102,7 +102,7 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 	var edits []protocol.TextEdit
 	for _, a := range actions {
 		if a.Command != nil {
-			return fmt.Errorf("ExecuteCommand is not yet supported on the command line")
+			return fmt.Errorf("ExecuteCommand is not yet supported on the command line (action: %v)", a.Title)
 		}
 		if !a.IsPreferred && !s.All {
 			continue

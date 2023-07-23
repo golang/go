@@ -7,10 +7,16 @@
 
 package infertypeargs
 
-import "golang.org/x/tools/go/analysis"
+import (
+	"go/token"
+	"go/types"
 
-// This analyzer only relates to go1.18+, and uses the types.CheckExpr API that
-// was added in Go 1.13.
-func run(pass *analysis.Pass) (interface{}, error) {
-	return nil, nil
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/ast/inspector"
+)
+
+// DiagnoseInferableTypeArgs returns an empty slice, as generics are not supported at
+// this go version.
+func DiagnoseInferableTypeArgs(fset *token.FileSet, inspect *inspector.Inspector, start, end token.Pos, pkg *types.Package, info *types.Info) []analysis.Diagnostic {
+	return nil
 }
