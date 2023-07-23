@@ -12,6 +12,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall/js"
 )
 
@@ -57,7 +58,7 @@ var jsFetchDisabled = js.Global().Get("process").Type() == js.TypeObject &&
 
 // Determine whether the JS runtime supports streaming request bodies.
 // Courtesy: https://developer.chrome.com/articles/fetch-streaming-requests/#feature-detection
-func supportsPostRequestStreams() bool {
+var supportsPostRequestStreams = sync.OnceValue(func() bool {
 	requestOpt := js.Global().Get("Object").New()
 	requestBody := js.Global().Get("ReadableStream").New()
 
@@ -85,7 +86,7 @@ func supportsPostRequestStreams() bool {
 	hasContentTypeHeader := requestObject.Get("headers").Call("has", "Content-Type").Bool()
 
 	return duplexCalled && !hasContentTypeHeader
-}
+})
 
 // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
