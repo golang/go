@@ -1603,7 +1603,7 @@ func testFileServerMethods(t *testing.T, mode testMode) {
 func BenchmarkServeFile(b *testing.B) {
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		b.StartTimer()
-		ServeFile(w, r, "testdata/index.html")
+		ServeFile(w, r, "testdata/issue61530.json")
 		b.StopTimer()
 	}))
 	defer ts.Close()
@@ -1611,6 +1611,10 @@ func BenchmarkServeFile(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		res, err := Get(ts.URL)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, err = io.ReadAll(res.Body)
 		if err != nil {
 			b.Fatal(err)
 		}
