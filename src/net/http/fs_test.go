@@ -1601,17 +1601,19 @@ func testFileServerMethods(t *testing.T, mode testMode) {
 
 // Issue 61530
 func BenchmarkServeFile(b *testing.B) {
-	handler := HandlerFunc(func(w ResponseWriter, r *Request) {
-		ServeFile(w, r, "./testdata/index.html")
-	})
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		b.StartTimer()
+		ServeFile(w, r, "testdata/index.html")
+		b.StopTimer()
+	}))
+	defer ts.Close()
 
-	r, _ := NewRequest("GET", "/file", nil)
-	w := httptest.NewRecorder()
-
-	b.ReportAllocs()
 	b.ResetTimer()
-
 	for i := 0; i < b.N; i++ {
-		handler.ServeHTTP(w, r)
+		res, err := Get(ts.URL)
+		if err != nil {
+			b.Fatal(err)
+		}
+		res.Body.Close()
 	}
 }
