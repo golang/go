@@ -350,12 +350,14 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 	w.WriteHeader(code)
 
 	if r.Method != MethodHead {
-		if sendSize == size {
-			// use Copy in the non-range case to make use of WriterTo if available
+		// Use Copy in the non-range case to make use of WriterTo if available.
+		// os.File allocates too much memory if passed through io.Copy.
+		if _, ok := sendContent.(*os.File); !ok && sendSize == size {
 			io.Copy(w, sendContent)
-		} else {
-			io.CopyN(w, sendContent, sendSize)
+			return
 		}
+
+		io.CopyN(w, sendContent, sendSize)
 	}
 }
 

@@ -1598,3 +1598,20 @@ func testFileServerMethods(t *testing.T, mode testMode) {
 		}
 	}
 }
+
+// Issue 61530
+func BenchmarkServeFile(b *testing.B) {
+	handler := HandlerFunc(func(w ResponseWriter, r *Request) {
+		ServeFile(w, r, "./testdata/index.html")
+	})
+
+	r, _ := NewRequest("GET", "/file", nil)
+	w := httptest.NewRecorder()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		handler.ServeHTTP(w, r)
+	}
+}
