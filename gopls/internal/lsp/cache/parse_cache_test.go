@@ -51,6 +51,9 @@ func TestParseCache(t *testing.T) {
 	files = append(files, dummyFileHandles(parseCacheMinFiles-1)...)
 
 	pgfs3, err := cache.parseFiles(ctx, fset, source.ParseFull, false, files...)
+	if err != nil {
+		t.Fatal(err)
+	}
 	pgf3 := pgfs3[0]
 	if pgf3 != pgf1 {
 		t.Errorf("parseFiles(%q, ...): unexpected cache miss", uri)

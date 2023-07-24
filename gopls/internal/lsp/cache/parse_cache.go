@@ -95,8 +95,8 @@ var parsePadding = 1000 // mutable for testing
 // caching) multiple files. This is necessary for type-checking, where files
 // must be parsed in a common fileset.
 type parseCache struct {
-	maxAge time.Duration // interval at which to collect expired cache entries
-	done   chan struct{} // closed when GC is stopped
+	expireAfter time.Duration // interval at which to collect expired cache entries
+	done        chan struct{} // closed when GC is stopped
 
 	mu       sync.Mutex
 	m        map[parseKey]*parseCacheEntry
@@ -106,14 +106,14 @@ type parseCache struct {
 }
 
 // newParseCache creates a new parse cache and starts a goroutine to garbage
-// collect old entries that are older than maxAge.
+// collect entries whose age is at least expireAfter.
 //
 // Callers must call parseCache.stop when the parse cache is no longer in use.
-func newParseCache(maxAge time.Duration) *parseCache {
+func newParseCache(expireAfter time.Duration) *parseCache {
 	c := &parseCache{
-		maxAge: maxAge,
-		m:      make(map[parseKey]*parseCacheEntry),
-		done:   make(chan struct{}),
+		expireAfter: expireAfter,
+		m:           make(map[parseKey]*parseCacheEntry),
+		done:        make(chan struct{}),
 	}
 	go c.gc()
 	return c
@@ -275,7 +275,7 @@ func (c *parseCache) gcOnce() {
 
 	for len(c.m) > parseCacheMinFiles {
 		e := heap.Pop(&c.lru).(*parseCacheEntry)
-		if now.Sub(e.walltime) > c.maxAge {
+		if now.Sub(e.walltime) >= c.expireAfter {
 			delete(c.m, e.key)
 		} else {
 			heap.Push(&c.lru, e)
