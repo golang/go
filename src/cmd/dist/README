@@ -16,6 +16,6 @@ Because of backward compatibility, although the steps above say Go 1.20.6,
 in practice any release ≥ Go 1.20.6 but < Go 1.x will work as the bootstrap base.
 Releases ≥ Go 1.x are very likely to work as well.
 
-See golang.org/s/go15bootstrap for more details about the original bootstrap
-and https://go.dev/cl/54265 for details about later bootstrap version bumps.
+See https://go.dev/s/go15bootstrap for more details about the original bootstrap
+and https://go.dev/issue/54265 for details about later bootstrap version bumps.
 
