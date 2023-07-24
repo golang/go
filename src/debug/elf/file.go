@@ -639,8 +639,7 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot load symbol section: %w", err)
 	}
-	symtab := bytes.NewReader(data)
-	if symtab.Len()%Sym32Size != 0 {
+	if len(data)%Sym32Size != 0 {
 		return nil, nil, errors.New("length of symbol section is not a multiple of SymSize")
 	}
 
@@ -650,15 +649,19 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 	}
 
 	// The first entry is all zeros.
-	var skip [Sym32Size]byte
-	symtab.Read(skip[:])
+	data = data[Sym32Size:]
 
-	symbols := make([]Symbol, symtab.Len()/Sym32Size)
+	symbols := make([]Symbol, len(data)/Sym32Size)
 
 	i := 0
 	var sym Sym32
-	for symtab.Len() > 0 {
-		binary.Read(symtab, f.ByteOrder, &sym)
+	for len(data) > 0 {
+		sym.Name = f.ByteOrder.Uint32(data[0:4])
+		sym.Value = f.ByteOrder.Uint32(data[4:8])
+		sym.Size = f.ByteOrder.Uint32(data[8:12])
+		sym.Info = data[12]
+		sym.Other = data[13]
+		sym.Shndx = f.ByteOrder.Uint16(data[14:16])
 		str, _ := getString(strdata, int(sym.Name))
 		symbols[i].Name = str
 		symbols[i].Info = sym.Info
@@ -667,6 +670,7 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 		symbols[i].Value = uint64(sym.Value)
 		symbols[i].Size = uint64(sym.Size)
 		i++
+		data = data[Sym32Size:]
 	}
 
 	return symbols, strdata, nil
@@ -682,8 +686,7 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot load symbol section: %w", err)
 	}
-	symtab := bytes.NewReader(data)
-	if symtab.Len()%Sym64Size != 0 {
+	if len(data)%Sym64Size != 0 {
 		return nil, nil, errors.New("length of symbol section is not a multiple of Sym64Size")
 	}
 
@@ -693,15 +696,19 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 	}
 
 	// The first entry is all zeros.
-	var skip [Sym64Size]byte
-	symtab.Read(skip[:])
+	data = data[Sym64Size:]
 
-	symbols := make([]Symbol, symtab.Len()/Sym64Size)
+	symbols := make([]Symbol, len(data)/Sym64Size)
 
 	i := 0
 	var sym Sym64
-	for symtab.Len() > 0 {
-		binary.Read(symtab, f.ByteOrder, &sym)
+	for len(data) > 0 {
+		sym.Name = f.ByteOrder.Uint32(data[0:4])
+		sym.Info = data[4]
+		sym.Other = data[5]
+		sym.Shndx = f.ByteOrder.Uint16(data[6:8])
+		sym.Value = f.ByteOrder.Uint64(data[8:16])
+		sym.Size = f.ByteOrder.Uint64(data[16:24])
 		str, _ := getString(strdata, int(sym.Name))
 		symbols[i].Name = str
 		symbols[i].Info = sym.Info
@@ -710,6 +717,7 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 		symbols[i].Value = sym.Value
 		symbols[i].Size = sym.Size
 		i++
+		data = data[Sym64Size:]
 	}
 
 	return symbols, strdata, nil
