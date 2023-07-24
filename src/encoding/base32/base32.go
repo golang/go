@@ -271,7 +271,7 @@ func NewEncoder(enc *Encoding, w io.Writer) io.WriteCloser {
 // of an input buffer of length n.
 func (enc *Encoding) EncodedLen(n int) int {
 	if enc.padChar == NoPadding {
-		return (n*8 + 4) / 5
+		return n/5*8 + (n%5*8+4)/5
 	}
 	return (n + 4) / 5 * 8
 }
@@ -545,8 +545,7 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
 // corresponding to n bytes of base32-encoded data.
 func (enc *Encoding) DecodedLen(n int) int {
 	if enc.padChar == NoPadding {
-		return n * 5 / 8
+		return n/8*5 + n%8*5/8
 	}
-
 	return n / 8 * 5
 }
