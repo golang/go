@@ -172,6 +172,9 @@ func InlinePackage(p *pgo.Profile) {
 	if base.Debug.DumpInlFuncProps != "" {
 		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps, nil)
 	}
+	if goexperiment.NewInliner {
+		postProcessCallSites(p)
+	}
 }
 
 // InlineDecls applies inlining to the given batch of declarations.
@@ -339,9 +342,10 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 	}
 
 	// Used a "relaxed" inline budget if goexperiment.NewInliner is in
-	// effect, or if we're producing a debugging dump for unit testing.
+	// effect, or if we're producing a debugging dump.
 	relaxed := goexperiment.NewInliner ||
-		(base.Debug.DumpInlFuncProps != "")
+		(base.Debug.DumpInlFuncProps != "" ||
+			base.Debug.DumpInlCallSiteScores != 0)
 
 	// Compute the inline budget for this func.
 	budget := inlineBudget(fn, profile, relaxed, base.Debug.PGODebug > 0)
@@ -1285,4 +1289,14 @@ func isAtomicCoverageCounterUpdate(cn *ir.CallExpr) bool {
 	adn := cn.Args[0].(*ir.AddrExpr)
 	v := isIndexingCoverageCounter(adn.X)
 	return v
+}
+
+func postProcessCallSites(profile *pgo.Profile) {
+	if base.Debug.DumpInlCallSiteScores != 0 {
+		budgetCallback := func(fn *ir.Func, prof *pgo.Profile) (int32, bool) {
+			v := inlineBudget(fn, prof, false, false)
+			return v, v == inlineHotMaxBudget
+		}
+		inlheur.DumpInlCallSiteScores(profile, budgetCallback)
+	}
 }

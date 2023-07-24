@@ -52,6 +52,10 @@ func GetCallSiteScore(ce *ir.CallExpr) (bool, int) {
 	return true, cs.Score
 }
 
+func CallSiteTable() CallSiteTab {
+	return cstab
+}
+
 type CSPropBits uint32
 
 const (
@@ -98,7 +102,7 @@ func fmtFullPos(p src.XPos) string {
 	return sb.String()
 }
 
-func encodeCallSiteKey(cs *CallSite) string {
+func EncodeCallSiteKey(cs *CallSite) string {
 	var sb strings.Builder
 	// FIXME: maybe rewrite line offsets relative to function start?
 	sb.WriteString(fmtFullPos(cs.Call.Pos()))
@@ -109,7 +113,7 @@ func encodeCallSiteKey(cs *CallSite) string {
 func buildEncodedCallSiteTab(tab CallSiteTab) encodedCallSiteTab {
 	r := make(encodedCallSiteTab)
 	for _, cs := range tab {
-		k := encodeCallSiteKey(cs)
+		k := EncodeCallSiteKey(cs)
 		r[k] = propsAndScore{
 			props: cs.Flags,
 			score: cs.Score,

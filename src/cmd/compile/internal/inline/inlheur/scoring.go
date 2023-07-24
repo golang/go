@@ -5,10 +5,14 @@
 package inlheur
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/pgo"
 	"cmd/compile/internal/typecheck"
+	"cmd/compile/internal/types"
 	"fmt"
 	"os"
+	"sort"
 )
 
 // These constants enumerate the set of possible ways/scenarios
@@ -229,4 +233,115 @@ func adjustScore(typ scoreAdjustTyp, score int, mask scoreAdjustTyp) (int, score
 		mask |= typ
 	}
 	return score, mask
+}
+
+// DumpInlCallSiteScores is invoked by the inliner if the debug flag
+// "-d=dumpinlcallsitescores" is set; it dumps out a human-readable
+// summary of all (potentially) inlinable callsites in the package,
+// along with info on call site scoring and the adjustments made to a
+// given score. Here profile is the PGO profile in use (may be
+// nil), budgetCallback is a callback that can be invoked to find out
+// the original pre-adjustment hairyness limit for the function, and
+// inlineHotMaxBudget is the constant of the same name used in the
+// inliner. Sample output lines:
+//
+// Score  Adjustment  Status  Callee  CallerPos ScoreFlags
+// 115    40          DEMOTED cmd/compile/internal/abi.(*ABIParamAssignment).Offset     expand_calls.go:1679:14|6       panicPathAdj
+// 76     -5n           PROMOTED runtime.persistentalloc   mcheckmark.go:48:45|3   inLoopAdj
+// 201    0           --- PGO  unicode.DecodeRuneInString        utf8.go:312:30|1
+// 7      -5          --- PGO  internal/abi.Name.DataChecked     type.go:625:22|0        inLoopAdj
+//
+// In the dump above, "Score" is the final score calculated for the
+// callsite, "Adjustment" is the amount added to or subtracted from
+// the original hairyness estimate to form the score. "Status" shows
+// whether anything changed with the site -- did the adjustment bump
+// it down just below the threshold ("PROMOTED") or instead bump it
+// above the threshold ("DEMOTED"); this will be blank ("---") if no
+// threshold was crossed as a result of the heuristics. Note that
+// "Status" also shows whether PGO was involved. "Callee" is the name
+// of the function called, "CallerPos" is the position of the
+// callsite, and "ScoreFlags" is a digest of the specific properties
+// we used to make adjustments to callsite score via heuristics.
+func DumpInlCallSiteScores(profile *pgo.Profile, budgetCallback func(fn *ir.Func, profile *pgo.Profile) (int32, bool)) {
+
+	fmt.Fprintf(os.Stdout, "# scores for package %s\n", types.LocalPkg.Path)
+	cstab := CallSiteTable()
+
+	genstatus := func(cs *CallSite, prof *pgo.Profile) string {
+		hairyval := cs.Callee.Inl.Cost
+		bud, isPGO := budgetCallback(cs.Callee, prof)
+		score := int32(cs.Score)
+		st := "---"
+
+		switch {
+		case hairyval <= bud && score <= bud:
+			// "Normal" inlined case: hairy val sufficiently low that
+			// it would have been inlined anyway without heuristics.
+		case hairyval > bud && score > bud:
+			// "Normal" not inlined case: hairy val sufficiently high
+			// and scoring didn't lower it.
+		case hairyval > bud && score <= bud:
+			// Promoted: we would not have inlined it before, but
+			// after score adjustment we decided to inline.
+			st = "PROMOTED"
+		case hairyval <= bud && score > bud:
+			// Demoted: we would have inlined it before, but after
+			// score adjustment we decided not to inline.
+			st = "DEMOTED"
+		}
+		if isPGO {
+			st += " PGO"
+		}
+		return st
+	}
+
+	if base.Debug.DumpInlCallSiteScores != 0 {
+		sl := make([]*CallSite, 0, len(cstab))
+		for _, v := range cstab {
+			sl = append(sl, v)
+		}
+		sort.Slice(sl, func(i, j int) bool {
+			if sl[i].Score != sl[j].Score {
+				return sl[i].Score < sl[j].Score
+			}
+			fni := ir.PkgFuncName(sl[i].Callee)
+			fnj := ir.PkgFuncName(sl[j].Callee)
+			if fni != fnj {
+				return fni < fnj
+			}
+			ecsi := EncodeCallSiteKey(sl[i])
+			ecsj := EncodeCallSiteKey(sl[j])
+			return ecsi < ecsj
+		})
+
+		mkname := func(fn *ir.Func) string {
+			var n string
+			if fn == nil || fn.Nname == nil {
+				return "<nil>"
+			}
+			if fn.Sym().Pkg == types.LocalPkg {
+				n = "·" + fn.Sym().Name
+			} else {
+				n = ir.PkgFuncName(fn)
+			}
+			// don't try to print super-long names
+			if len(n) <= 64 {
+				return n
+			}
+			return n[:32] + "..." + n[len(n)-32:len(n)]
+		}
+
+		if len(sl) != 0 {
+			fmt.Fprintf(os.Stdout, "Score  Adjustment  Status  Callee  CallerPos Flags ScoreFlags\n")
+		}
+		for _, cs := range sl {
+			hairyval := cs.Callee.Inl.Cost
+			adj := int32(cs.Score) - hairyval
+			fmt.Fprintf(os.Stdout, "%d  %d\t%s\t%s\t%s\t%s\n",
+				cs.Score, adj, genstatus(cs, profile),
+				mkname(cs.Callee),
+				EncodeCallSiteKey(cs),
+				cs.ScoreMask.String())
+		}
+	}
 }
