@@ -117,6 +117,10 @@ type Transport struct {
 	// "https", and "socks5" are supported. If the scheme is empty,
 	// "http" is assumed.
 	//
+	// If the proxy URL contains a userinfo subcomponent,
+	// the proxy request will pass the username and password
+	// in a Proxy-Authorization header.
+	//
 	// If Proxy is nil or returns a nil *URL, no proxy is used.
 	Proxy func(*Request) (*url.URL, error)
 

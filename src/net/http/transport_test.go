@@ -6810,3 +6810,36 @@ func testRequestSanitization(t *testing.T, mode testMode) {
 		resp.Body.Close()
 	}
 }
+
+func TestProxyAuthHeader(t *testing.T) {
+	// Not parallel: Sets an environment variable.
+	run(t, testProxyAuthHeader, []testMode{http1Mode}, testNotParallel)
+}
+func testProxyAuthHeader(t *testing.T, mode testMode) {
+	const username = "u"
+	const password = "@/?!"
+	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+		// Copy the Proxy-Authorization header to a new Request,
+		// since Request.BasicAuth only parses the Authorization header.
+		var r2 Request
+		r2.Header = Header{
+			"Authorization": req.Header["Proxy-Authorization"],
+		}
+		gotuser, gotpass, ok := r2.BasicAuth()
+		if !ok || gotuser != username || gotpass != password {
+			t.Errorf("req.BasicAuth() = %q, %q, %v; want %q, %q, true", gotuser, gotpass, ok, username, password)
+		}
+	}))
+	u, err := url.Parse(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u.User = url.UserPassword(username, password)
+	t.Setenv("HTTP_PROXY", u.String())
+	cst.tr.Proxy = ProxyURL(u)
+	resp, err := cst.c.Get("http://_/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+}
