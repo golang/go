@@ -50,6 +50,10 @@ type unit = struct{}
 // It shares state such as parsed files and imports, to optimize type-checking
 // for packages with overlapping dependency graphs.
 type typeCheckBatch struct {
+	activePackageCache interface {
+		getActivePackage(id PackageID) *Package
+		setActivePackage(id PackageID, pkg *Package)
+	}
 	syntaxIndex map[PackageID]int // requested ID -> index in ids
 	pre         preTypeCheck
 	post        postTypeCheck
@@ -89,39 +93,10 @@ type pkgOrErr struct {
 // the type-checking operation.
 func (s *snapshot) TypeCheck(ctx context.Context, ids ...PackageID) ([]source.Package, error) {
 	pkgs := make([]source.Package, len(ids))
-
-	var (
-		needIDs []PackageID // ids to type-check
-		indexes []int       // original index of requested ids
-	)
-
-	// Check for existing active packages.
-	//
-	// Since gopls can't depend on package identity, any instance of the
-	// requested package must be ok to return.
-	//
-	// This is an optimization to avoid redundant type-checking: following
-	// changes to an open package many LSP clients send several successive
-	// requests for package information for the modified package (semantic
-	// tokens, code lens, inlay hints, etc.)
-	for i, id := range ids {
-		if pkg := s.getActivePackage(id); pkg != nil {
-			pkgs[i] = pkg
-		} else {
-			needIDs = append(needIDs, id)
-			indexes = append(indexes, i)
-		}
-	}
-
 	post := func(i int, pkg *Package) {
-		if alt := s.memoizeActivePackage(pkg.ph.m.ID, pkg); alt != nil && alt != pkg {
-			// pkg is an open package, but we've lost a race and an existing package
-			// has already been memoized.
-			pkg = alt
-		}
-		pkgs[indexes[i]] = pkg
+		pkgs[i] = pkg
 	}
-	return pkgs, s.forEachPackage(ctx, needIDs, nil, post)
+	return pkgs, s.forEachPackage(ctx, ids, nil, post)
 }
 
 // getImportGraph returns a shared import graph use for this snapshot, or nil.
@@ -355,15 +330,16 @@ func (s *snapshot) forEachPackage(ctx context.Context, ids []PackageID, pre preT
 // If a non-nil importGraph is provided, imports in this graph will be reused.
 func (s *snapshot) forEachPackageInternal(ctx context.Context, importGraph *importGraph, importIDs, syntaxIDs []PackageID, pre preTypeCheck, post postTypeCheck, handles map[PackageID]*packageHandle) (*typeCheckBatch, error) {
 	b := &typeCheckBatch{
-		parseCache:     s.view.parseCache,
-		pre:            pre,
-		post:           post,
-		handles:        handles,
-		fset:           fileSetWithBase(reservedForParsing),
-		syntaxIndex:    make(map[PackageID]int),
-		cpulimit:       make(chan unit, runtime.GOMAXPROCS(0)),
-		syntaxPackages: make(map[PackageID]*futurePackage),
-		importPackages: make(map[PackageID]*futurePackage),
+		activePackageCache: s,
+		pre:                pre,
+		post:               post,
+		handles:            handles,
+		parseCache:         s.view.parseCache,
+		fset:               fileSetWithBase(reservedForParsing),
+		syntaxIndex:        make(map[PackageID]int),
+		cpulimit:           make(chan unit, runtime.GOMAXPROCS(0)),
+		syntaxPackages:     make(map[PackageID]*futurePackage),
+		importPackages:     make(map[PackageID]*futurePackage),
 	}
 
 	if importGraph != nil {
@@ -500,6 +476,20 @@ func (b *typeCheckBatch) handleSyntaxPackage(ctx context.Context, i int, id Pack
 		return nil, nil // skip: export data only
 	}
 
+	// Check for existing active packages.
+	//
+	// Since gopls can't depend on package identity, any instance of the
+	// requested package must be ok to return.
+	//
+	// This is an optimization to avoid redundant type-checking: following
+	// changes to an open package many LSP clients send several successive
+	// requests for package information for the modified package (semantic
+	// tokens, code lens, inlay hints, etc.)
+	if pkg := b.activePackageCache.getActivePackage(id); ok {
+		b.post(i, pkg)
+		return nil, nil // skip: not checked in this batch
+	}
+
 	if err := b.awaitPredecessors(ctx, ph.m); err != nil {
 		// One failed precessesor should not fail the entire type checking
 		// operation. Errors related to imports will be reported as type checking
@@ -527,7 +517,9 @@ func (b *typeCheckBatch) handleSyntaxPackage(ctx context.Context, i int, id Pack
 	if err != nil {
 		return nil, err
 	}
+	b.activePackageCache.setActivePackage(id, syntaxPkg)
 	b.post(i, syntaxPkg)
+
 	return syntaxPkg.pkg.types, nil
 }
 
@@ -1462,6 +1454,14 @@ func typeCheckImpl(ctx context.Context, b *typeCheckBatch, inputs typeCheckInput
 			if !unparseable[diag.URI] {
 				pkg.diagnostics = append(pkg.diagnostics, diag)
 			}
+		}
+	}
+
+	// Work around golang/go#61561: interface instances aren't concurrency-safe
+	// as they are not completed by the type checker.
+	for _, inst := range typeparams.GetInstances(pkg.typesInfo) {
+		if iface, _ := inst.Type.Underlying().(*types.Interface); iface != nil {
+			iface.Complete()
 		}
 	}
 

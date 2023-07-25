@@ -864,26 +864,21 @@ func (s *snapshot) getActivePackage(id PackageID) *Package {
 	return nil
 }
 
-// memoizeActivePackage checks if pkg is active, and if so either records it in
+// setActivePackage checks if pkg is active, and if so either records it in
 // the active packages map or returns the existing memoized active package for id.
-//
-// The resulting package is non-nil if and only if the specified package is open.
-func (s *snapshot) memoizeActivePackage(id PackageID, pkg *Package) (active *Package) {
+func (s *snapshot) setActivePackage(id PackageID, pkg *Package) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if value, ok := s.activePackages.Get(id); ok {
-		return value.(*Package) // possibly nil, if we have already checked this id.
+	if _, ok := s.activePackages.Get(id); ok {
+		return // already memoized
 	}
-
-	defer func() {
-		s.activePackages.Set(id, active, nil) // store the result either way: remember that pkg is not open
-	}()
 
 	if containsOpenFileLocked(s, pkg.Metadata()) {
-		return pkg
+		s.activePackages.Set(id, pkg, nil)
+	} else {
+		s.activePackages.Set(id, (*Package)(nil), nil) // remember that pkg is not open
 	}
-	return nil
 }
 
 func (s *snapshot) resetActivePackagesLocked() {
