@@ -1052,13 +1052,20 @@ func TestDialerControlContext(t *testing.T) {
 }
 
 // mustHaveExternalNetwork is like testenv.MustHaveExternalNetwork
-// except that it won't skip testing on non-mobile builders.
+// except on non-Linux, non-mobile builders it permits the test to
+// run in -short mode.
 func mustHaveExternalNetwork(t *testing.T) {
 	t.Helper()
+	definitelyHasLongtestBuilder := runtime.GOOS == "linux"
 	mobile := runtime.GOOS == "android" || runtime.GOOS == "ios"
-	if testenv.Builder() == "" || mobile {
-		testenv.MustHaveExternalNetwork(t)
+	if testenv.Builder() != "" && !definitelyHasLongtestBuilder && !mobile {
+		// On a non-Linux, non-mobile builder (e.g., freebsd-amd64-13_0).
+		//
+		// Don't skip testing because otherwise the test may never run on
+		// any builder if this port doesn't also have a -longtest builder.
+		return
 	}
+	testenv.MustHaveExternalNetwork(t)
 }
 
 type contextWithNonZeroDeadline struct {
