@@ -647,7 +647,7 @@ func (s *snapshot) PackageDiagnostics(ctx context.Context, ids ...PackageID) (ma
 		return true
 	}
 	post := func(_ int, pkg *Package) {
-		collect(pkg.ph.m.Diagnostics)
+		collect(pkg.m.Diagnostics)
 		collect(pkg.pkg.diagnostics)
 	}
 	return perFile, s.forEachPackage(ctx, ids, pre, post)
@@ -669,7 +669,7 @@ func (s *snapshot) References(ctx context.Context, ids ...PackageID) ([]source.X
 		return true
 	}
 	post := func(i int, pkg *Package) {
-		indexes[i] = XrefIndex{m: pkg.ph.m, data: pkg.pkg.xrefs()}
+		indexes[i] = XrefIndex{m: pkg.m, data: pkg.pkg.xrefs()}
 	}
 	return indexes, s.forEachPackage(ctx, ids, pre, post)
 }

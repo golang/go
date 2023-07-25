@@ -27,14 +27,13 @@ type (
 	ImportPath  = source.ImportPath
 )
 
-// A Package is the union of type-checking inputs (packageHandle) and results
-// (a syntaxPackage).
+// A Package is the union of package metadata and type checking results.
 //
 // TODO(rfindley): for now, we do not persist the post-processing of
-// loadDiagnostics, because the value of the snapshot.packages map  is just the
+// loadDiagnostics, because the value of the snapshot.packages map is just the
 // package handle. Fix this.
 type Package struct {
-	ph  *packageHandle
+	m   *source.Metadata
 	pkg *syntaxPackage
 }
 
@@ -76,9 +75,9 @@ func (p *syntaxPackage) methodsets() *methodsets.Index {
 	return p._methodsets
 }
 
-func (p *Package) String() string { return string(p.ph.m.ID) }
+func (p *Package) String() string { return string(p.m.ID) }
 
-func (p *Package) Metadata() *source.Metadata { return p.ph.m }
+func (p *Package) Metadata() *source.Metadata { return p.m }
 
 // A loadScope defines a package loading scope for use with go/packages.
 //
@@ -163,7 +162,7 @@ func (p *Package) GetTypeErrors() []types.Error {
 
 func (p *Package) DiagnosticsForFile(ctx context.Context, s source.Snapshot, uri span.URI) ([]*source.Diagnostic, error) {
 	var diags []*source.Diagnostic
-	for _, diag := range p.ph.m.Diagnostics {
+	for _, diag := range p.m.Diagnostics {
 		if diag.URI == uri {
 			diags = append(diags, diag)
 		}
