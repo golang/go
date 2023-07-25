@@ -603,9 +603,7 @@ var packageCache = map[string]*Package{}
 // It is only for use by GOPATH-based "go get".
 // TODO(jayconrod): When GOPATH-based "go get" is removed, delete this function.
 func ClearPackageCache() {
-	for name := range packageCache {
-		delete(packageCache, name)
-	}
+	clear(packageCache)
 	resolvedImportCache.Clear()
 	packageDataCache.Clear()
 }
