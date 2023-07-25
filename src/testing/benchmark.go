@@ -151,9 +151,7 @@ func (b *B) ResetTimer() {
 		// Pre-size it to make more allocation unlikely.
 		b.extra = make(map[string]float64, 16)
 	} else {
-		for k := range b.extra {
-			delete(b.extra, k)
-		}
+		clear(b.extra)
 	}
 	if b.timerOn {
 		runtime.ReadMemStats(&memStats)
