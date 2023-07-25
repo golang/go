@@ -440,10 +440,7 @@ func BenchmarkGoMapClear(b *testing.B) {
 				m := make(map[float64]int, size)
 				for i := 0; i < b.N; i++ {
 					m[1.0] = size // Add one element so len(m) != 0 avoiding fast paths.
-					for k := range m {
-						delete(m, k)
-					}
-					// clear(m)
+					clear(m)
 				}
 			})
 		}
