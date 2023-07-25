@@ -943,7 +943,13 @@ scanAgain:
 		default:
 			// next reports unexpected BOMs - don't repeat
 			if ch != bom {
-				s.errorf(s.file.Offset(pos), "illegal character %#U", ch)
+				// Report an informative error for U+201[CD] quotation
+				// marks, which are easily introduced via copy and paste.
+				if ch == '“' || ch == '”' {
+					s.errorf(s.file.Offset(pos), "curly quotation mark %q (use neutral %q)", ch, '"')
+				} else {
+					s.errorf(s.file.Offset(pos), "illegal character %#U", ch)
+				}
 			}
 			insertSemi = s.insertSemi // preserve insertSemi info
 			tok = token.ILLEGAL
