@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"strings"
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/bug"
@@ -433,7 +432,11 @@ func TestResolveDiagnosticWithDownload(t *testing.T) {
 func TestMissingDependency(t *testing.T) {
 	Run(t, testPackageWithRequire, func(t *testing.T, env *Env) {
 		env.OpenFile("print.go")
-		env.Await(LogMatching(protocol.Error, "initial workspace load failed", 1, false))
+		env.Await(
+			// Log messages are asynchronous to other events on the LSP stream, so we
+			// can't use OnceMet or AfterChange here.
+			LogMatching(protocol.Error, "initial workspace load failed", 1, false),
+		)
 	})
 }
 
@@ -1303,42 +1306,18 @@ func _() {
 		)
 		env.OpenFile("a/a_exclude.go")
 
-		countLoads := func(logs []*protocol.LogMessageParams) int {
-			count := 0
-			for _, log := range logs {
-				if strings.Contains(log.Message, `go/packages.Load`) {
-					count++
-				}
-			}
-			return count
-		}
-
-		var before []*protocol.LogMessageParams
-		env.AfterChange(
-			Diagnostics(env.AtRegexp("a/a_exclude.go", "package (a)")),
-			ReadLogs(&before),
-		)
+		loadOnce := LogMatching(protocol.Info, "query=.*file=.*a_exclude.go", 1, false)
+		env.Await(loadOnce) // can't use OnceMet or AfterChange as logs are async
 
 		// Check that orphaned files are not reloaded, by making a change in
 		// a.go file and confirming that the workspace diagnosis did not reload
 		// a_exclude.go.
 		//
-		// Currently, typing in a_exclude.go does result in a reload, because we
-		// aren't precise about which changes could result in an unloadable file
-		// becoming loadable.
-		loads0 := countLoads(before)
-		if loads0 == 0 {
-			t.Fatal("got 0 Load log messages, want at least 1", loads0)
-		}
+		// This is racy (but fails open) because logs are asynchronous to other LSP
+		// operations. There's a chance gopls _did_ log, and we just haven't seen
+		// it yet.
 		env.RegexpReplace("a/a.go", "package a", "package a // arbitrary comment")
-		var after []*protocol.LogMessageParams
-		env.AfterChange(
-			Diagnostics(env.AtRegexp("a/a_exclude.go", "package (a)")),
-			ReadLogs(&after),
-		)
-		if loads := countLoads(after); loads != loads0 {
-			t.Errorf("got %d Load log messages after change to orphaned file, want %d", loads, loads0)
-		}
+		env.AfterChange(loadOnce)
 	})
 }
 
@@ -1853,8 +1832,10 @@ func main() {}
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
-		env.AfterChange(
+		env.Await(
 			// Check that we have only loaded "<dir>/..." once.
+			// Log messages are asynchronous to other events on the LSP stream, so we
+			// can't use OnceMet or AfterChange here.
 			LogMatching(protocol.Info, `.*query=.*\.\.\..*`, 1, false),
 		)
 	})

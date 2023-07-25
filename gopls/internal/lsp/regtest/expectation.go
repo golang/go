@@ -212,20 +212,6 @@ func ReadAllDiagnostics(into *map[string]*protocol.PublishDiagnosticsParams) Exp
 	}
 }
 
-// ReadLogs is an expectation that may be used with AfterChange or OnceMet
-// conditions to copy logs into the provided slice.
-func ReadLogs(into *[]*protocol.LogMessageParams) Expectation {
-	check := func(s State) Verdict {
-		*into = make([]*protocol.LogMessageParams, len(s.logs))
-		copy(*into, s.logs)
-		return Met
-	}
-	return Expectation{
-		Check:       check,
-		Description: "read logs",
-	}
-}
-
 // NoOutstandingWork asserts that there is no work initiated using the LSP
 // $/progress API that has not completed.
 func NoOutstandingWork() Expectation {
@@ -521,6 +507,10 @@ func NoErrorLogs() Expectation {
 // The count argument specifies the expected number of matching logs. If
 // atLeast is set, this is a lower bound, otherwise there must be exactly count
 // matching logs.
+//
+// Logs are asynchronous to other LSP messages, so this expectation should not
+// be used with combinators such as OnceMet or AfterChange that assert on
+// ordering with respect to other operations.
 func LogMatching(typ protocol.MessageType, re string, count int, atLeast bool) Expectation {
 	rec, err := regexp.Compile(re)
 	if err != nil {
@@ -536,6 +526,11 @@ func LogMatching(typ protocol.MessageType, re string, count int, atLeast bool) E
 		// Check for an exact or "at least" match.
 		if found == count || (found >= count && atLeast) {
 			return Met
+		}
+		// If we require an exact count, and have received more than expected, the
+		// expectation can never be met.
+		if found > count && !atLeast {
+			return Unmeetable
 		}
 		return Unmet
 	}

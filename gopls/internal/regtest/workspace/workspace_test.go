@@ -177,7 +177,7 @@ func TestReloadOnlyOnce(t *testing.T) {
 replace random.org => %s
 `, env.ReadWorkspaceFile("pkg/go.mod"), dir)
 		env.WriteWorkspaceFile("pkg/go.mod", goModWithReplace)
-		env.AfterChange(
+		env.Await(
 			LogMatching(protocol.Info, `packages\.Load #\d+\n`, 2, false),
 		)
 	})
