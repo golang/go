@@ -13,12 +13,14 @@ import (
 type indVarFlags uint8
 
 const (
-	indVarMinExc indVarFlags = 1 << iota // minimum value is exclusive (default: inclusive)
-	indVarMaxInc                         // maximum value is inclusive (default: exclusive)
+	indVarMinExc    indVarFlags = 1 << iota // minimum value is exclusive (default: inclusive)
+	indVarMaxInc                            // maximum value is inclusive (default: exclusive)
+	indVarCountDown                         // if set the iteration starts at max and count towards min (default: min towards max)
 )
 
 type indVar struct {
 	ind   *Value // induction variable
+	nxt   *Value // the incremented variable
 	min   *Value // minimum value, inclusive/exclusive depends on flags
 	max   *Value // maximum value, inclusive/exclusive depends on flags
 	entry *Block // entry block in the loop.
@@ -277,6 +279,7 @@ func findIndVar(f *Func) []indVar {
 				if !inclusive {
 					flags |= indVarMinExc
 				}
+				flags |= indVarCountDown
 				step = -step
 			}
 			if f.pass.debug >= 1 {
@@ -285,6 +288,7 @@ func findIndVar(f *Func) []indVar {
 
 			iv = append(iv, indVar{
 				ind:   ind,
+				nxt:   nxt,
 				min:   min,
 				max:   max,
 				entry: b.Succs[0].b,
