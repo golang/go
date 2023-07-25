@@ -328,6 +328,13 @@ func iimportCommon(fset *token.FileSet, getPackages GetPackagesFunc, data []byte
 		typ.Complete()
 	}
 
+	// Workaround for golang/go#61561. See the doc for instanceList for details.
+	for _, typ := range p.instanceList {
+		if iface, _ := typ.Underlying().(*types.Interface); iface != nil {
+			iface.Complete()
+		}
+	}
+
 	return pkgs, nil
 }
 
@@ -357,6 +364,12 @@ type iimporter struct {
 
 	fake          fakeFileSet
 	interfaceList []*types.Interface
+
+	// Workaround for the go/types bug golang/go#61561: instances produced during
+	// instantiation may contain incomplete interfaces. Here we only complete the
+	// underlying type of the instance, which is the most common case but doesn't
+	// handle parameterized interface literals defined deeper in the type.
+	instanceList []types.Type // instances for later completion (see golang/go#61561)
 
 	// Arguments for calls to SetConstraint that are deferred due to recursive types
 	later []setConstraintArgs
@@ -954,6 +967,9 @@ func (r *importReader) doType(base *types.Named) (res types.Type) {
 		// we must always use the methods of the base (orig) type.
 		// TODO provide a non-nil *Environment
 		t, _ := typeparams.Instantiate(nil, baseType, targs, false)
+
+		// Workaround for golang/go#61561. See the doc for instanceList for details.
+		r.p.instanceList = append(r.p.instanceList, t)
 		return t
 
 	case unionType:
