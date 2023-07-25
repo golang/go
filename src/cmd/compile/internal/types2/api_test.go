@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	. "cmd/compile/internal/types2"
@@ -2292,6 +2293,60 @@ func TestInstantiate(t *testing.T) {
 	// instantiated type should point to itself
 	if p := res.Underlying().(*Pointer).Elem(); p != res {
 		t.Fatalf("unexpected result type: %s points to %s", res, p)
+	}
+}
+
+func TestInstantiateConcurrent(t *testing.T) {
+	const src = `package p
+
+type I[P any] interface {
+	m(P)
+	n() P
+}
+
+type J = I[int]
+
+type Nested[P any] *interface{b(P)}
+
+type K = Nested[string]
+`
+	pkg := mustTypecheck(src, nil, nil)
+
+	insts := []*Interface{
+		pkg.Scope().Lookup("J").Type().Underlying().(*Interface),
+		pkg.Scope().Lookup("K").Type().Underlying().(*Pointer).Elem().(*Interface),
+	}
+
+	// Use the interface instances concurrently.
+	for _, inst := range insts {
+		var (
+			counts  [2]int      // method counts
+			methods [2][]string // method strings
+		)
+		var wg sync.WaitGroup
+		for i := 0; i < 2; i++ {
+			i := i
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				counts[i] = inst.NumMethods()
+				for mi := 0; mi < counts[i]; mi++ {
+					methods[i] = append(methods[i], inst.Method(mi).String())
+				}
+			}()
+		}
+		wg.Wait()
+
+		if counts[0] != counts[1] {
+			t.Errorf("mismatching method counts for %s: %d vs %d", inst, counts[0], counts[1])
+			continue
+		}
+		for i := 0; i < counts[0]; i++ {
+			if m0, m1 := methods[0][i], methods[1][i]; m0 != m1 {
+				t.Errorf("mismatching methods for %s: %s vs %s", inst, m0, m1)
+			}
+		}
 	}
 }
 
