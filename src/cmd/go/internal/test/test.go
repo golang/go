@@ -1672,7 +1672,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 		// The cached coverprofile has the same expiration time as the
 		// test result it corresponds to. That time is already checked
 		// above, so we can ignore the entry returned by GetFile here.
-		f, _, err := cache.Default().GetFile(testCoverProfileKey(testID, testInputsID))
+		f, _, err := cache.GetFile(cache.Default(), testCoverProfileKey(testID, testInputsID))
 		if err != nil {
 			if cache.DebugTest {
 				fmt.Fprintf(os.Stderr, "testcache: %s: test coverage profile not found: %v\n", a.Package.ImportPath, err)
@@ -1881,7 +1881,7 @@ func (c *runCache) saveOutput(a *work.Action, coverprofileFile string) {
 			fmt.Fprintf(os.Stderr, "testcache: %s: save test ID %x => input ID %x => %x\n", a.Package.ImportPath, c.id1, testInputsID, testAndInputKey(c.id1, testInputsID))
 		}
 		cache.PutNoVerify(cache.Default(), c.id1, bytes.NewReader(testlog))
-		cache.PutNoVerify(testAndInputKey(cache.Default(), c.id1, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
+		cache.PutNoVerify(cache.Default(), testAndInputKey(c.id1, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
 		saveCoverProfile(c.id1)
 	}
 	if c.id2 != (cache.ActionID{}) {

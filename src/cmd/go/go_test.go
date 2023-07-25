@@ -2448,9 +2448,9 @@ func TestCacheCoverage(t *testing.T) {
 }
 
 func TestCacheCoverageProfile(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "links and runs a test binary multiple times with coverage enabled")
 
-	if godebug.Get("gocacheverify") == "1" {
+	if gocacheverify.Value() == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 
