@@ -27,7 +27,7 @@ The workspace's build list is the set of versions of all the
 (transitive) dependency modules used to do builds in the workspace. go
 work sync generates that build list using the Minimal Version Selection
 algorithm, and then syncs those versions back to each of modules
-specified in the workspace (with use of directives).
+specified in the workspace (with "use" directives).
 
 The syncing is done by sequentially upgrading each of the dependency
 modules specified in a workspace module to the version in the build list
