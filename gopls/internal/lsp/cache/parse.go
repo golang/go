@@ -398,7 +398,7 @@ func fixMissingCurlies(f *ast.File, b *ast.BlockStmt, parent ast.Node, tok *toke
 //
 //	}
 //
-// The resulting bool reports whether any fixing occured.
+// The resulting bool reports whether any fixing occurred.
 func fixEmptySwitch(body *ast.BlockStmt, tok *token.File, src []byte) bool {
 	// We only care about empty switch statements.
 	if len(body.List) > 0 || !body.Rbrace.IsValid() {
@@ -475,7 +475,7 @@ func fixDanglingSelector(s *ast.SelectorExpr, tf *token.File, src []byte) []byte
 //
 // TODO(rfindley): should this constitute an ast 'fix'?
 //
-// The resulting bool reports whether any fixing occured.
+// The resulting bool reports whether any fixing occurred.
 func fixPhantomSelector(sel *ast.SelectorExpr, tf *token.File, src []byte) bool {
 	if !isPhantomUnderscore(sel.Sel, tf, src) {
 		return false
@@ -525,7 +525,7 @@ func isPhantomUnderscore(id *ast.Ident, tok *token.File, src []byte) bool {
 // parser is looking for the conditional expression. However, "i := 0"
 // are not valid expressions, so we get a BadExpr.
 //
-// The resulting bool reports whether any fixing occured.
+// The resulting bool reports whether any fixing occurred.
 func fixInitStmt(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte) bool {
 	if !bad.Pos().IsValid() || !bad.End().IsValid() {
 		return false

@@ -388,7 +388,7 @@ func (subst *subster) signature(t *types.Signature) types.Type {
 	//    no type params to substitute
 	// (2)generic method and recv needs to be substituted.
 
-	// Recievers can be either:
+	// Receivers can be either:
 	// named
 	// pointer to named
 	// interface

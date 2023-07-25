@@ -115,7 +115,7 @@ type StubInfo struct {
 //
 // TODO(adonovan): this function (and its following 5 helpers) tries
 // to deduce a pair of (concrete, interface) types that are related by
-// an assignment, either explictly or through a return statement or
+// an assignment, either explicitly or through a return statement or
 // function call. This is essentially what the refactor/satisfy does,
 // more generally. Refactor to share logic, after auditing 'satisfy'
 // for safety on ill-typed code.

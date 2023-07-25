@@ -19,6 +19,6 @@ func B() {
 	m := b.G.Load()
 	f := b.Load(&b.G)
 	if f != m {
-		panic("loads of b.G are expected to be indentical")
+		panic("loads of b.G are expected to be identical")
 	}
 }

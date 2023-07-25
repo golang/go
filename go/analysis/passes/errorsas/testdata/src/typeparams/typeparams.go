@@ -26,7 +26,7 @@ func _[E error](e E) {
 		tw twice[myError[int]]
 	)
 	errors.As(nil, &e)
-	errors.As(nil, &m)            // *T where T implemements error
+	errors.As(nil, &m)            // *T where T implements error
 	errors.As(nil, &tw.t)         // *T where T implements error
 	errors.As(nil, perr[error]()) // want `second argument to errors.As should not be \*error`
 

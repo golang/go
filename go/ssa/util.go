@@ -304,7 +304,7 @@ func (c *canonizer) Type(T types.Type) types.Type {
 	return T
 }
 
-// A type for representating an canonized list of types.
+// A type for representing a canonized list of types.
 type typeList []types.Type
 
 func (l *typeList) identical(ts []types.Type) bool {

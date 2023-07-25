@@ -120,7 +120,7 @@ func NewWorkdir(dir string, files map[string][]byte) (*Workdir, error) {
 // fileID identifies a file version on disk.
 type fileID struct {
 	mtime time.Time
-	hash  string // empty if mtime is old enough to be reliabe; otherwise a file digest
+	hash  string // empty if mtime is old enough to be reliable; otherwise a file digest
 }
 
 func hashFile(data []byte) string {
@@ -363,7 +363,7 @@ func (w *Workdir) pollFiles() ([]protocol.FileEvent, error) {
 			return nil
 		}
 
-		// Opt: avoid reading the file if mtime is sufficently old to be reliable.
+		// Opt: avoid reading the file if mtime is sufficiently old to be reliable.
 		//
 		// If mtime is recent, it may not sufficiently identify the file contents:
 		// a subsequent write could result in the same mtime. For these cases, we

@@ -18,7 +18,7 @@ import (
 // * Each value is reference counted by nodes which hold it.
 // * Each node is reference counted by its parent nodes.
 // * Each map is considered a top-level parent node from reference counting perspective.
-// * Each change does always effectivelly produce a new top level node.
+// * Each change does always effectively produce a new top level node.
 //
 // Functions which operate directly with nodes do have a notation in form of
 // `foo(arg1:+n1, arg2:+n2) (ret1:+n3)`.

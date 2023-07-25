@@ -567,10 +567,10 @@ func runBuildCmd(name string, count int, dir, tool string, args []string) error 
 	return nil
 }
 
-// genSymAbisFile runs the assembler on the target packge asm files
+// genSymAbisFile runs the assembler on the target package asm files
 // with "-gensymabis" to produce a symabis file that will feed into
 // the Go source compilation. This is fairly hacky in that if the
-// asm invocation convenion changes it will need to be updated
+// asm invocation convention changes it will need to be updated
 // (hopefully that will not be needed too frequently).
 func genSymAbisFile(pkg *Pkg, symAbisFile, incdir string) error {
 	args := []string{"-gensymabis", "-o", symAbisFile,

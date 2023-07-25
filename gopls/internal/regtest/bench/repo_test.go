@@ -115,7 +115,7 @@ func getRepo(tb testing.TB, name string) *repo {
 		tb.Fatalf("repo %s does not exist", name)
 	}
 	if !repo.short && testing.Short() {
-		tb.Skipf("large repo %s does not run whith -short", repo.name)
+		tb.Skipf("large repo %s does not run with -short", repo.name)
 	}
 	return repo
 }

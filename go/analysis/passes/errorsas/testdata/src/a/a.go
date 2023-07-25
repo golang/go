@@ -29,7 +29,7 @@ func _() {
 		ei interface{}
 	)
 	errors.As(nil, &e)     // want `second argument to errors.As should not be \*error`
-	errors.As(nil, &m)     // *T where T implemements error
+	errors.As(nil, &m)     // *T where T implements error
 	errors.As(nil, &f)     // *interface
 	errors.As(nil, perr()) // want `second argument to errors.As should not be \*error`
 	errors.As(nil, ei)     //  empty interface

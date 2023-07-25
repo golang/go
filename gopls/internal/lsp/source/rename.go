@@ -1061,7 +1061,7 @@ func (r *renamer) update() (map[span.URI][]diff.Edit, error) {
 	}
 
 	// Find all identifiers in the package that define or use a
-	// renamed object. We iterate over info as it is more efficent
+	// renamed object. We iterate over info as it is more efficient
 	// than calling ast.Inspect for each of r.pkg.CompiledGoFiles().
 	type item struct {
 		node  ast.Node // Ident, ImportSpec (obj=PkgName), or CaseClause (obj=Var)

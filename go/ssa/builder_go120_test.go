@@ -36,7 +36,7 @@ func TestBuildPackageGo120(t *testing.T) {
 			// as []rune, pointers to rune arrays, rune arrays, or strings.
 			//
 			// Comments listed given the current emitted instructions [approximately].
-			// If multiple conversions are needed, these are seperated by |.
+			// If multiple conversions are needed, these are separated by |.
 			// rune was selected as it leads to string casts (byte is similar).
 			// The length 2 is not significant.
 			// Multiple array lengths may occur in a cast in practice (including 0).
