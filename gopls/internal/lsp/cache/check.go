@@ -485,7 +485,7 @@ func (b *typeCheckBatch) handleSyntaxPackage(ctx context.Context, i int, id Pack
 	// changes to an open package many LSP clients send several successive
 	// requests for package information for the modified package (semantic
 	// tokens, code lens, inlay hints, etc.)
-	if pkg := b.activePackageCache.getActivePackage(id); ok {
+	if pkg := b.activePackageCache.getActivePackage(id); pkg != nil {
 		b.post(i, pkg)
 		return nil, nil // skip: not checked in this batch
 	}
