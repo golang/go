@@ -32,7 +32,7 @@ func init() {
 	if GccgoName == "" {
 		GccgoName = "gccgo"
 	}
-	GccgoBin, gccgoErr = exec.LookPath(GccgoName)
+	GccgoBin, gccgoErr = cfg.LookPath(GccgoName)
 }
 
 func (gccgoToolchain) compiler() string {
