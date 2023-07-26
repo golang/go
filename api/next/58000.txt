@@ -1,0 +1,1 @@
+pkg archive/tar, method (*Writer) AddFS(fsys fs.FS) error #58000
