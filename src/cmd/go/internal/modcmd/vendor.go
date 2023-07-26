@@ -155,6 +155,10 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
 		w = io.MultiWriter(&buf, os.Stderr)
 	}
 
+	if modload.MainModules.WorkFile() != nil {
+		fmt.Fprintf(w, "## workspace\n")
+	}
+
 	replacementWritten := make(map[module.Version]bool)
 	for _, m := range vendorMods {
 		replacement := modload.Replacement(m)
