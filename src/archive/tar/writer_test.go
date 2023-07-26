@@ -1336,13 +1336,9 @@ func TestFileWriter(t *testing.T) {
 }
 
 func TestWriterAddFs(t *testing.T) {
-	expectedFiles := []string{
-		"file.go",
-		"subfolder/another.go",
-	}
 	fsys := fstest.MapFS{
-		"file.go":              {},
-		"subfolder/another.go": {},
+		"file.go":              {Data: []byte("hello")},
+		"subfolder/another.go": {Data: []byte("world")},
 	}
 	var buf bytes.Buffer
 	tw := NewWriter(&buf)
@@ -1352,7 +1348,7 @@ func TestWriterAddFs(t *testing.T) {
 
 	// Test that we can get the files back from the archive
 	tr := NewReader(&buf)
-	var foundFiles []string
+	foundFiles := make(map[string][]byte)
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -1361,11 +1357,22 @@ func TestWriterAddFs(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		foundFiles = append(foundFiles, hdr.Name)
+
+		data := make([]byte, hdr.Size)
+		_, err = tr.Read(data)
+		foundFiles[hdr.Name] = data
 	}
 
-	if !reflect.DeepEqual(expectedFiles, foundFiles) {
-		t.Fatalf("got %+v, want %+v",
-			foundFiles, expectedFiles)
+	for name, file := range fsys {
+		got, ok := foundFiles[name]
+		if !ok {
+			t.Fatalf("got filename %s, want %s",
+				got, name)
+		}
+
+		if !reflect.DeepEqual(foundFiles[name], file.Data) {
+			t.Fatalf("got file content %#v, want %#v",
+				foundFiles[name], file.Data)
+		}
 	}
 }
