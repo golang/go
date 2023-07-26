@@ -133,6 +133,10 @@ func getPageSize() uintptr {
 }
 
 func osinit() {
+	// Call miniterrno so that we can safely make system calls
+	// before calling minit on m0.
+	asmcgocall(unsafe.Pointer(abi.FuncPCABI0(miniterrno)), unsafe.Pointer(&libc____errno))
+
 	ncpu = getncpu()
 	if physPageSize == 0 {
 		physPageSize = getPageSize()

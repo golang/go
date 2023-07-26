@@ -29,15 +29,6 @@ func checkfds() {
 			continue
 		}
 
-		// On AIX and Solaris we can't get the right errno
-		// value this early in program startup,
-		// because we haven't yet called minit
-		// which sets m.mOS.perrno.
-		// Just assume that the error is EBADF.
-		if GOOS == "aix" || GOOS == "solaris" {
-			errno = EBADF
-		}
-
 		if errno != EBADF {
 			print("runtime: unexpected error while checking standard file descriptor ", i, ", errno=", errno, "\n")
 			throw("cannot open standard fds")

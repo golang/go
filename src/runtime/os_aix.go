@@ -93,6 +93,10 @@ func semawakeup(mp *m) {
 }
 
 func osinit() {
+	// Call miniterrno so that we can safely make system calls
+	// before calling minit on m0.
+	miniterrno()
+
 	ncpu = int32(sysconf(__SC_NPROCESSORS_ONLN))
 	physPageSize = sysconf(__SC_PAGE_SIZE)
 }
