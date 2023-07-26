@@ -254,7 +254,7 @@ func (c *parseCache) startParse(mode parser.Mode, purgeFuncBodies bool, fhs ...s
 
 func (c *parseCache) gc() {
 	const period = 10 * time.Second // gc period
-	timer := time.NewTimer(period)
+	timer := time.NewTicker(period)
 	defer timer.Stop()
 
 	for {
