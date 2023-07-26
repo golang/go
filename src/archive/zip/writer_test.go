@@ -14,8 +14,10 @@ import (
 	"io/fs"
 	"math/rand"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 )
 
@@ -601,4 +603,42 @@ func BenchmarkCompressedZipGarbage(b *testing.B) {
 			runOnce(&buf)
 		}
 	})
+}
+
+func TestWriterAddFs(t *testing.T) {
+	expectedFiles := []string{
+		"file.go",
+		"subfolder/another.go",
+	}
+	fsys := fstest.MapFS{
+		"file.go":              {Data: []byte("hello")},
+		"subfolder/another.go": {Data: []byte("world")},
+	}
+	println(fsys)
+
+	buf := new(bytes.Buffer)
+	zw := NewWriter(buf)
+	if err := zw.AddFS(fsys); err != nil {
+		zw.Close()
+		t.Fatal(err)
+	}
+
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that we can get the files back from the archive
+	zr, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var foundFiles []string
+	for _, file := range zr.File {
+		foundFiles = append(foundFiles, file.FileHeader.Name)
+	}
+
+	if !reflect.DeepEqual(expectedFiles, foundFiles) {
+		t.Fatalf("got %+v, want %+v",
+			foundFiles, expectedFiles)
+	}
 }
