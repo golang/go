@@ -1224,7 +1224,7 @@ func writeType(t *types.Type) *obj.LSym {
 	keep := base.Ctxt.Flag_dynlink
 	if !keep && t.Sym() == nil {
 		// For an unnamed type, we only need the link if the type can
-		// be created at run time by reflect.PtrTo and similar
+		// be created at run time by reflect.PointerTo and similar
 		// functions. If the type exists in the program, those
 		// functions must return the existing type structure rather
 		// than creating a new one.
