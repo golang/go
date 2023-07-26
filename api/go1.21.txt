@@ -344,8 +344,6 @@ pkg maps, func Copy[$0 interface{ ~map[$2]$3 }, $1 interface{ ~map[$2]$3 }, $2 c
 pkg maps, func DeleteFunc[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0, func($1, $2) bool) #57436
 pkg maps, func Equal[$0 interface{ ~map[$2]$3 }, $1 interface{ ~map[$2]$3 }, $2 comparable, $3 comparable]($0, $1) bool #57436
 pkg maps, func EqualFunc[$0 interface{ ~map[$2]$3 }, $1 interface{ ~map[$2]$4 }, $2 comparable, $3 interface{}, $4 interface{}]($0, $1, func($3, $4) bool) bool #57436
-pkg maps, func Keys[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) []$1 #57436
-pkg maps, func Values[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) []$2 #57436
 pkg math/big, method (*Int) Float64() (float64, Accuracy) #56984
 pkg net/http, method (*ProtocolError) Is(error) bool #41198
 pkg net/http, method (*ResponseController) EnableFullDuplex() error #57786
