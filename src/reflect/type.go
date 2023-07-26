@@ -2909,3 +2909,8 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
 		}
 	}
 }
+
+// TypeFor returns the reflection Type that represents the static type of T.
+func TypeFor[T any]() Type {
+	return TypeOf((*T)(nil)).Elem()
+}
