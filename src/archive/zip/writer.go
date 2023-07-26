@@ -302,7 +302,7 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 	fh.ReaderVersion = zipVersion20
 
 	// If Modified is set, this takes precedence over MS-DOS timestamp fields.
-	if !fh.Modified.IsZero() {
+	if !fh.Modified.IsZero() && !hasExtraField(fh.Extra, extTimeExtraID) {
 		// Contrary to the FileHeader.SetModTime method, we intentionally
 		// do not convert to UTC, because we assume the user intends to encode
 		// the date using the specified timezone. A user may want this control
@@ -381,6 +381,20 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 	// If we're creating a directory, fw is nil.
 	w.last = fw
 	return ow, nil
+}
+
+func hasExtraField(extra []byte, tag uint16) bool {
+	for buf := readBuf(extra); len(buf) >= 4; { // need at least tag and size
+		if fieldTag := buf.uint16(); fieldTag == tag {
+			return true
+		}
+		fieldSize := int(buf.uint16())
+		if len(buf) < fieldSize {
+			break
+		}
+		buf.sub(fieldSize)
+	}
+	return false
 }
 
 func writeHeader(w io.Writer, h *header) error {

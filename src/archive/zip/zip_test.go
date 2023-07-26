@@ -826,3 +826,81 @@ func (zeros) Read(p []byte) (int, error) {
 	}
 	return len(p), nil
 }
+
+// Issue 61572
+func TestWriterModifiedTime(t *testing.T) {
+	modified := time.Date(2023, 07, 27, 00, 41, 57, 0, timeZone(+1*time.Hour))
+	extendedTimestampField := []byte{
+		// tag 0x5455 size 5, extended timestamp, encodes modified
+		0x55, 0x54, 5, 0, 0x01, 0x45, 0xaf, 0xc1, 0x64,
+	}
+
+	for _, tc := range []struct {
+		name        string
+		extra, want []byte
+	}{
+		{
+			name:  "adds modified time to empty extra",
+			extra: nil,
+			want:  extendedTimestampField,
+		},
+		{
+			name: "adds modified time if extended timestamp does not exist",
+			extra: []byte{
+				// tag 0x9999 size 5
+				0x99, 0x99, 5, 0, 0, 1, 2, 3, 4,
+				// tag 0xaaaa size 0
+				0xaa, 0xaa, 0, 0,
+			},
+			want: append([]byte{
+				0x99, 0x99, 5, 0, 0, 1, 2, 3, 4,
+				0xaa, 0xaa, 0, 0,
+			}, extendedTimestampField...),
+		},
+		{
+			name: "ignores modified time if extended timestamp exists",
+			extra: []byte{
+				// tag 0x9999 size 5
+				0x99, 0x99, 5, 0, 0, 1, 2, 3, 4,
+				// tag 0x5455 size 5, extended timestamp, encodes time.Date(2017, 10, 31, 21, 11, 57, 0, timeZone(-7*time.Hour))
+				0x55, 0x54, 5, 0, 0x01, 0x8d, 0x49, 0xf9, 0x59,
+				// tag 0xaaaa size 0
+				0xaa, 0xaa, 0, 0,
+			},
+			want: []byte{ // same as extra
+				0x99, 0x99, 5, 0, 0, 1, 2, 3, 4,
+				0x55, 0x54, 5, 0, 0x01, 0x8d, 0x49, 0xf9, 0x59,
+				0xaa, 0xaa, 0, 0,
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := &FileHeader{
+				Name:     "issue61572.txt",
+				Modified: modified,
+				Extra:    tc.extra,
+			}
+
+			var buf bytes.Buffer
+			w := NewWriter(&buf)
+			if _, err := w.CreateHeader(h); err != nil {
+				t.Fatalf("unexpected CreateHeader error: %v", err)
+			}
+			if err := w.Close(); err != nil {
+				t.Fatalf("unexpected Close error: %v", err)
+			}
+
+			in := buf.Bytes()
+			zf, err := NewReader(bytes.NewReader(in), int64(len(in)))
+			if err != nil {
+				t.Fatalf("unexpected NewReader error: %v", err)
+			}
+
+			if got := zf.File[0].FileHeader.Extra; !bytes.Equal(tc.want, got) {
+				t.Logf("want: % x", tc.want)
+				t.Logf(" got: % x", got)
+				t.Error("wrong header extra")
+			}
+		})
+	}
+}
