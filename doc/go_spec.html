@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of July 25, 2023",
+	"Subtitle": "Version of July 31, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -4620,13 +4620,13 @@ Otherwise, type inference succeeds.
 <p>
 Type inference solves type equations through <i>type unification</i>.
 Type unification recursively compares the LHS and RHS types of an
-equation, where either or both types may be or contain type parameters,
+equation, where either or both types may be or contain bound type parameters,
 and looks for type arguments for those type parameters such that the LHS
 and RHS match (become identical or assignment-compatible, depending on
 context).
 To that effect, type inference maintains a map of bound type parameters
-to inferred type arguments.
-Initially, the type parameters are known but the map is empty.
+to inferred type arguments; this map is consulted and updated during type unification.
+Initially, the bound type parameters are known but the map is empty.
 During type unification, if a new type argument <code>A</code> is inferred,
 the respective mapping <code>P ➞ A</code> from type parameter to argument
 is added to the map.
@@ -4674,9 +4674,12 @@ no unification step failed, and the map is fully populated.
 
 <p>
 Unification uses a combination of <i>exact</i> and <i>loose</i>
-Unification (see Appendix) depending on whether two types have
-to be <a href="#Type_identity">identical</a> or simply
-<a href="#Assignability">assignment-compatible</a>:
+unification depending on whether two types have to be
+<a href="#Type_identity">identical</a>,
+<a href="#Assignability">assignment-compatible</a>, or
+only structurally equal.
+The respective <a href="#Type_unification_rules">type unification rules</a>
+are spelled out in detail in the <a href="#Appendix">Appendix</a>.
 </p>
 
 <p>
@@ -8357,3 +8360,148 @@ The following minimal alignment properties are guaranteed:
 <p>
 A struct or array type has size zero if it contains no fields (or elements, respectively) that have a size greater than zero. Two distinct zero-size variables may have the same address in memory.
 </p>
+
+<h2 id="Appendix">Appendix</h2>
+
+<h3 id="Type_unification_rules">Type unification rules</h3>
+
+<p>
+The type unification rules describe if and how two types unify.
+The precise details are relevant for Go implementations,
+affect the specifics of error messages (such as whether
+a compiler reports a type inference or other error),
+and may explain why type inference fails in unusual code situations.
+But by and large these rules can be ignored when writing Go code:
+type inference is designed to mostly "work as expected",
+and the unification rules are fine-tuned accordingly.
+</p>
+
+<p>
+Type unification is controlled by a <i>matching mode</i>, which may
+be <i>exact</i> or <i>loose</i>.
+As unification recursively descends a composite type structure,
+the matching mode used for elements of the type, the <i>element matching mode</i>,
+remains the same as the matching mode except when two types are unified for
+<a href="#Assignability">assignability</a> (<code>≡<sub>A</sub></code>):
+in this case, the matching mode is <i>loose</i> at the top level but
+then changes to <i>exact</i> for element types, reflecting the fact
+that types don't have to be identical to be assignable.
+</p>
+
+<p>
+Two types that are not bound type parameters unify exactly if any of
+following conditions is true:
+</p>
+
+<ul>
+<li>
+	Both types are <a href="#Type_identity">identical</a>.
+</li>
+<li>
+	Both types have identical structure and their element types
+	unify exactly.
+</li>
+<li>
+	Exactly one type is an <a href="#Type_inference">unbound</a>
+	type parameter with a <a href="#Core_types">core type</a>,
+	and that core type unifies with the other type per the
+	unification rules for <code>≡<sub>A</sub></code>
+	(loose unification at the top level and exact unification
+	for element types).
+</li>
+</ul>
+
+<p>
+If both types are bound type parameters, they unify per the given
+matching modes if:
+</p>
+
+<ul>
+<li>
+	Both type parameters are identical.
+</li>
+<li>
+	At most one of the type parameters has a known type argument.
+	In this case, the type parameters are <i>joined</i>:
+	they both stand for the same type argument.
+	If neither type parameter has a known type argument yet,
+	a future type argument inferred for one the type parameters
+	is simultaneously inferred for both of them.
+</li>
+<li>
+	Both type parameters have a known type argument
+	and the type arguments unify per the given matching modes.
+</li>
+</ul>
+
+<p>
+A single bound type parameter <code>P</code> and another type <code>T</code> unify
+per the given matching modes if:
+</p>
+
+<ul>
+<li>
+	<code>P</code> doesn't have a known type argument.
+	In this case, <code>T</code> is inferred as the type argument for <code>P</code>.
+</li>
+<li>
+	<code>P</code> does have a known type argument <code>A</code>,
+	<code>A</code> and <code>T</code> unify per the given matching modes,
+	and one of the following conditions is true:
+	<ul>
+	<li>
+		Both <code>A</code> and <code>T</code> are interface types:
+		In this case, if both <code>A</code> and <code>T</code> are
+		also <a href="#Type_definitions">defined</a> types,
+		they must be <a href="#Type_identity">identical</a>.
+		Otherwise, if neither of them is a defined type, they must
+		have the same number of methods
+		(unification of <code>A</code> and <code>T</code> already
+		established that the methods match).
+	</li>
+	<li>
+		Neither <code>A</code> nor <code>T</code> are interface types:
+		In this case, if <code>T</code> is a defined type, <code>T</code>
+		replaces <code>A</code> as the inferred type argument for <code>P</code>.
+	</li>
+	<li>
+		In all other cases unification of <code>P</code> and <code>T</code> fails.
+	</li>
+	</ul>
+</li>
+</ul>
+
+<p>
+Finally, two types that are not bound type parameters unify loosely
+(and per the element matching mode) if:
+</p>
+
+<ul>
+<li>
+	Both types unify exactly.
+</li>
+<li>
+	One type is a <a href="#Type_definitions">defined type</a>,
+	the other type is a type literal, but not an interface,
+	and their underlying types unify per the element matching mode.
+</li>
+<li>
+	Both types are interfaces (but not type parameters) with
+	identical <a href="#Interface_types">type terms</a>,
+	both or neither embed the predeclared type
+	<a href="#Predeclared_identifiers">comparable</a>,
+	corresponding method types unify per the element matching mode,
+	and the method set of one of the interfaces is a subset of
+	the method set of the other interface.
+</li>
+<li>
+	Only one type is an interface (but not a type parameter),
+	corresponding methods of the two types unify per the element matching mode,
+	and the method set of the interface is a subset of
+	the method set of the other type.
+</li>
+<li>
+	Both types have the same structure and their element types
+	unify per the element matching mode.
+</li>
+</ul>
