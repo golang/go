@@ -93,10 +93,30 @@ type pkgOrErr struct {
 // the type-checking operation.
 func (s *snapshot) TypeCheck(ctx context.Context, ids ...PackageID) ([]source.Package, error) {
 	pkgs := make([]source.Package, len(ids))
-	post := func(i int, pkg *Package) {
-		pkgs[i] = pkg
+
+	var (
+		needIDs []PackageID // ids to type-check
+		indexes []int       // original index of requested ids
+	)
+
+	// Check for existing active packages, as any package will do.
+	//
+	// This is also done inside forEachPackage, but doing it here avoids
+	// unnecessary set up for type checking (e.g. assembling the package handle
+	// graph).
+	for i, id := range ids {
+		if pkg := s.getActivePackage(id); pkg != nil {
+			pkgs[i] = pkg
+		} else {
+			needIDs = append(needIDs, id)
+			indexes = append(indexes, i)
+		}
 	}
-	return pkgs, s.forEachPackage(ctx, ids, nil, post)
+
+	post := func(i int, pkg *Package) {
+		pkgs[indexes[i]] = pkg
+	}
+	return pkgs, s.forEachPackage(ctx, needIDs, nil, post)
 }
 
 // getImportGraph returns a shared import graph use for this snapshot, or nil.
