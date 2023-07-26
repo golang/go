@@ -6,86 +6,12 @@ package maps
 
 import (
 	"math"
-	"slices"
-	"sort"
 	"strconv"
 	"testing"
-	"unsafe"
 )
 
 var m1 = map[int]int{1: 2, 2: 4, 4: 8, 8: 16}
 var m2 = map[int]string{1: "2", 2: "4", 4: "8", 8: "16"}
-
-func keysForBenchmarking[M ~map[K]V, K comparable, V any](m M, s []K) {
-	keys(m, unsafe.Pointer(&s))
-}
-
-func TestKeys(t *testing.T) {
-	want := []int{1, 2, 4, 8}
-
-	got1 := Keys(m1)
-	sort.Ints(got1)
-	if !slices.Equal(got1, want) {
-		t.Errorf("Keys(%v) = %v, want %v", m1, got1, want)
-	}
-
-	got2 := Keys(m2)
-	sort.Ints(got2)
-	if !slices.Equal(got2, want) {
-		t.Errorf("Keys(%v) = %v, want %v", m2, got2, want)
-	}
-
-	// test for oldbucket code path
-	// We grow from 128 to 256 buckets at size 832 (6.5 * 128).
-	// Then we have to evacuate 128 buckets, which means we'll be done evacuation at 832+128=960 elements inserted.
-	// so 840 is a good number to test for oldbucket code path.
-	var want3 []int
-	var m = make(map[int]int)
-	for i := 0; i < 840; i++ {
-		want3 = append(want3, i)
-		m[i] = i * i
-	}
-
-	got3 := Keys(m)
-	sort.Ints(got3)
-	if !slices.Equal(got3, want3) {
-		t.Errorf("Keys(%v) = %v, want %v", m, got3, want3)
-	}
-}
-
-func valuesForBenchmarking[M ~map[K]V, K comparable, V any](m M, s []V) {
-	values(m, unsafe.Pointer(&s))
-}
-
-func TestValues(t *testing.T) {
-	got1 := Values(m1)
-	want1 := []int{2, 4, 8, 16}
-	sort.Ints(got1)
-	if !slices.Equal(got1, want1) {
-		t.Errorf("Values(%v) = %v, want %v", m1, got1, want1)
-	}
-
-	got2 := Values(m2)
-	want2 := []string{"16", "2", "4", "8"}
-	sort.Strings(got2)
-	if !slices.Equal(got2, want2) {
-		t.Errorf("Values(%v) = %v, want %v", m2, got2, want2)
-	}
-
-	//test for oldbucket code path
-	var want3 []int
-	var m = make(map[int]int)
-	for i := 0; i < 840; i++ {
-		want3 = append(want3, i*i)
-		m[i] = i * i
-	}
-
-	got3 := Values(m)
-	sort.Ints(got3)
-	if !slices.Equal(got3, want3) {
-		t.Errorf("Values(%v) = %v, want %v", m, got3, want3)
-	}
-}
 
 func TestEqual(t *testing.T) {
 	if !Equal(m1, m1) {
@@ -254,31 +180,5 @@ func TestCloneWithMapAssign(t *testing.T) {
 		if m2[i] != m[i] {
 			t.Errorf("m2[%d] = %d, want %d", i, m2[i], m[i])
 		}
-	}
-}
-
-func BenchmarkKeys(b *testing.B) {
-	m := make(map[int]int, 1000000)
-	for i := 0; i < 1000000; i++ {
-		m[i] = i
-	}
-	b.ResetTimer()
-
-	slice := make([]int, 0, len(m))
-	for i := 0; i < b.N; i++ {
-		keysForBenchmarking(m, slice)
-	}
-}
-
-func BenchmarkValues(b *testing.B) {
-	m := make(map[int]int, 1000000)
-	for i := 0; i < 1000000; i++ {
-		m[i] = i
-	}
-	b.ResetTimer()
-
-	slice := make([]int, 0, len(m))
-	for i := 0; i < b.N; i++ {
-		valuesForBenchmarking(m, slice)
 	}
 }
