@@ -355,8 +355,7 @@ func (f *Finder) expr(e ast.Expr) types.Type {
 		f.sig = saved
 
 	case *ast.CompositeLit:
-		// No need for coreType here: go1.18 disallows P{...} for type param P.
-		switch T := deref(tv.Type).Underlying().(type) {
+		switch T := coreType(tv.Type).(type) {
 		case *types.Struct:
 			for i, elem := range e.Elts {
 				if kv, ok := elem.(*ast.KeyValueExpr); ok {

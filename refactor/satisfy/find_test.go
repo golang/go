@@ -57,6 +57,8 @@ type S struct{impl}
 type T struct{impl}
 type U struct{impl}
 type V struct{impl}
+type W struct{impl}
+type X struct{impl}
 
 type Generic[T any] struct{impl}
 func (Generic[T]) g(T) {}
@@ -164,6 +166,11 @@ func _() {
 	// golang/go#56227: the finder should visit calls in the unsafe package.
 	_ = unsafe.Slice(&x[0], func() int { var _ I = x[0]; return 3 }()) // I <- V
 }
+
+func _[P ~struct{F I}]() {
+	_ = P{W{}}
+	_ = P{F: X{}}
+}
 `
 	got := constraints(t, src)
 	want := []string{
@@ -194,6 +201,8 @@ func _() {
 		"p.I <- p.T",
 		"p.I <- p.U",
 		"p.I <- p.V",
+		"p.I <- p.W",
+		"p.I <- p.X",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("found unexpected constraints: got %s, want %s", got, want)

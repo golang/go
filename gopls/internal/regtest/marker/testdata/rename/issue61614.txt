@@ -1,0 +1,35 @@
+This test renames a method of a type in a package that uses type parameter
+composite lits. Previous iterations of the satisfy analysis did not account for
+this language feature.
+
+See issue #60789.
+
+-- flags --
+-min_go=go1.18
+
+-- go.mod --
+module example.com
+go 1.20
+
+-- a.go --
+package a
+
+type I int
+
+func (I) m() {} //@rename("m", M, mToM)
+
+func _[P ~[]int]() {
+	_ = P{}
+}
+
+-- @mToM/a.go --
+package a
+
+type I int
+
+func (I) M() {} //@rename("m", M, mToM)
+
+func _[P ~[]int]() {
+	_ = P{}
+}
+
