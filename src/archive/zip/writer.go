@@ -16,8 +16,9 @@ import (
 )
 
 var (
-	errLongName  = errors.New("zip: FileHeader.Name too long")
-	errLongExtra = errors.New("zip: FileHeader.Extra too long")
+	errLongName     = errors.New("zip: FileHeader.Name too long")
+	errLongExtra    = errors.New("zip: FileHeader.Extra too long")
+	errInvalidExtra = errors.New("zip: invalid FileHeader.Extra")
 )
 
 // Writer implements a zip file writer.
@@ -326,7 +327,16 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 		eb.uint16(5)  // Size: SizeOf(uint8) + SizeOf(uint32)
 		eb.uint8(1)   // Flags: ModTime
 		eb.uint32(mt) // ModTime
-		fh.Extra = append(fh.Extra, mbuf[:]...)
+
+		offset, err := extendedTimestampOffset(fh.Extra)
+		if err != nil {
+			return nil, err
+		}
+		if offset != -1 {
+			copy(fh.Extra[offset:], mbuf[:])
+		} else {
+			fh.Extra = append(fh.Extra, mbuf[:]...)
+		}
 	}
 
 	var (
@@ -381,6 +391,25 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 	// If we're creating a directory, fw is nil.
 	w.last = fw
 	return ow, nil
+}
+
+func extendedTimestampOffset(extra []byte) (offset int, _ error) {
+	for buf := readBuf(extra); len(buf) >= 4; { // need at least tag and size
+		fieldTag := buf.uint16()
+		fieldSize := int(buf.uint16())
+		if len(buf) < fieldSize {
+			return -1, errInvalidExtra
+		}
+		if fieldTag == extTimeExtraID {
+			if fieldSize != 5 {
+				return -1, errInvalidExtra
+			}
+			return offset, nil
+		}
+		buf.sub(fieldSize)
+		offset += 4 + fieldSize
+	}
+	return -1, nil
 }
 
 func writeHeader(w io.Writer, h *header) error {
