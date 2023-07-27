@@ -2036,22 +2036,28 @@ type nopPad struct {
 	n int32     // Size of the pad
 }
 
-// padding bytes to add to align code as requested.
+// Padding bytes to add to align code as requested.
+// Alignment is restricted to powers of 2 between 8 and 2048 inclusive.
+//
+// pc: current offset in function, in bytes
+// a: requested alignment, in bytes
+// cursym: current function being assembled
+// returns number of bytes of padding needed
 func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
-	switch a {
-	case 8, 16, 32, 64:
-		// By default function alignment is 16. If an alignment > 16 is
-		// requested then the function alignment must also be promoted.
-		// The function alignment is not promoted on AIX at this time.
-		if cursym.Func().Align < int32(a) {
-			cursym.Func().Align = int32(a)
-		}
-		if pc&(a-1) != 0 {
-			return int(a - (pc & (a - 1)))
-		}
-	default:
-		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", a)
+	if !((a&(a-1) == 0) && 8 <= a && a <= 2048) {
+		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", a)
+		return 0
 	}
+
+	// By default function alignment is 32 bytes for amd64
+	if cursym.Func().Align < int32(a) {
+		cursym.Func().Align = int32(a)
+	}
+
+	if pc&(a-1) != 0 {
+		return int(a - (pc & (a - 1)))
+	}
+
 	return 0
 }
 

@@ -313,12 +313,12 @@ func TestPCALIGN(t *testing.T) {
 	}{
 		{
 			name: "8-byte alignment",
-			code: `TEXT ·foo(SB),$0-0\nMOVQ $0, AX\nPCALIGN $8\nMOVQ $1, BX\nRET\n`,
+			code: "TEXT ·foo(SB),$0-0\nMOVQ $0, AX\nPCALIGN $8\nMOVQ $1, BX\nRET\n",
 			out:  `0x0008\s00008\s\(.*\)\tMOVQ\t\$1,\sBX`,
 		},
 		{
 			name: "16-byte alignment",
-			code: `TEXT ·foo(SB),$0-0\nMOVQ $0, AX\nPCALIGN $16\nMOVQ $2, CX\nRET\n`,
+			code: "TEXT ·foo(SB),$0-0\nMOVQ $0, AX\nPCALIGN $16\nMOVQ $2, CX\nRET\n",
 			out:  `0x0010\s00016\s\(.*\)\tMOVQ\t\$2,\sCX`,
 		},
 	}
