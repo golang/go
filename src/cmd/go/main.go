@@ -158,9 +158,8 @@ func main() {
 		os.Exit(2)
 	}
 
-	cmd, used := lookupCmd(args[1:])
-	used++ // because of [1:]
-	cfg.CmdName = strings.Join(args[:used], " ")
+	cmd, used := lookupCmd(args)
+	cfg.CmdName = strings.Join(args[:used], " ") + args[0]
 	if len(cmd.Commands) > 0 {
 		if used >= len(args) {
 			help.PrintUsage(os.Stderr, cmd)
@@ -176,7 +175,11 @@ func main() {
 		if used > 0 {
 			helpArg += " " + strings.Join(args[:used], " ")
 		}
-		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cfg.CmdName, helpArg)
+		cmdName := cfg.CmdName
+		if cmdName == "" {
+			cmdName = args[0]
+		}
+		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cmdName, helpArg)
 		base.SetExitStatus(2)
 		base.Exit()
 	}
