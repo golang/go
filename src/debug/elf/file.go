@@ -139,29 +139,27 @@ func (s *Section) Open() io.ReadSeeker {
 		return io.NewSectionReader(&nobitsSectionReader{}, 0, int64(s.Size))
 	}
 
-	var zrd func(io.Reader) (io.ReadCloser, error)
+	b := make([]byte, 12)
+	// peek to check for zlib
+	n, _ := s.sr.ReadAt(b, 0)
+	hasZLIBHeader := n == 12 && string(b[:4]) == "ZLIB"
+	sectionStartsWithZ := strings.HasPrefix(s.Name, ".z")
+	zlibCompressed := sectionStartsWithZ && hasZLIBHeader
+
 	if s.Flags&SHF_COMPRESSED == 0 {
-
-		if !strings.HasPrefix(s.Name, ".zdebug") {
-			return io.NewSectionReader(s.sr, 0, 1<<63-1)
-		}
-
-		b := make([]byte, 12)
-		n, _ := s.sr.ReadAt(b, 0)
-		if n != 12 || string(b[:4]) != "ZLIB" {
+		if !zlibCompressed {
 			return io.NewSectionReader(s.sr, 0, 1<<63-1)
 		}
 
 		s.compressionOffset = 12
 		s.compressionType = COMPRESS_ZLIB
 		s.Size = binary.BigEndian.Uint64(b[4:12])
-		zrd = zlib.NewReader
-
 	} else if s.Flags&SHF_ALLOC != 0 {
 		return errorReader{&FormatError{int64(s.Offset),
 			"SHF_COMPRESSED applies only to non-allocable sections", s.compressionType}}
 	}
 
+	var zrd func(io.Reader) (io.ReadCloser, error)
 	switch s.compressionType {
 	case COMPRESS_ZLIB:
 		zrd = zlib.NewReader
