@@ -1,1 +1,1 @@
-pkg archive/zip, method (*Writer) AddFS(fsys fs.FS) error #54896
+pkg archive/zip, method (*Writer) AddFS(fsys fs.FS) error #54898
