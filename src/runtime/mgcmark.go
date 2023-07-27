@@ -420,7 +420,11 @@ retry:
 		// If the CPU limiter is enabled, intentionally don't
 		// assist to reduce the amount of CPU time spent in the GC.
 		if traced {
-			traceGCMarkAssistDone()
+			trace := traceAcquire()
+			if trace.ok() {
+				trace.GCMarkAssistDone()
+				traceRelease(trace)
+			}
 		}
 		return
 	}
@@ -461,15 +465,22 @@ retry:
 			// We were able to steal all of the credit we
 			// needed.
 			if traced {
-				traceGCMarkAssistDone()
+				trace := traceAcquire()
+				if trace.ok() {
+					trace.GCMarkAssistDone()
+					traceRelease(trace)
+				}
 			}
 			return
 		}
 	}
-
 	if traceEnabled() && !traced {
-		traced = true
-		traceGCMarkAssistStart()
+		trace := traceAcquire()
+		if trace.ok() {
+			traced = true
+			trace.GCMarkAssistStart()
+			traceRelease(trace)
+		}
 	}
 
 	// Perform assist work
@@ -515,7 +526,11 @@ retry:
 		// this G's assist debt, or the GC cycle is over.
 	}
 	if traced {
-		traceGCMarkAssistDone()
+		trace := traceAcquire()
+		if trace.ok() {
+			trace.GCMarkAssistDone()
+			traceRelease(trace)
+		}
 	}
 }
 
