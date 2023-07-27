@@ -306,23 +306,25 @@ func TestPCALIGN(t *testing.T) {
 	tmpfile := filepath.Join(dir, "test.s")
 	tmpout := filepath.Join(dir, "test.o")
 
-	code1 := []byte("TEXT ·foo(SB),$0-0\nMOVQ $0, AX\nPCALIGN $8\nMOVQ $1, BX\nRET\n")
-	code2 := []byte("TEXT ·foo(SB),$0-0\nMOVQ $0, AX\nPCALIGN $16\nMOVQ $2, CX\nRET\n")
-	// If the output contains this pattern, the pc-offsite of "MOVQ $1, AX" is 8 bytes aligned.
-	out1 := `0x0008\s00008\s\(.*\)\tMOVQ\t\$1,\sBX`
-	// If the output contains this pattern, the pc-offsite of "MOVQ $2, CX" is 16 bytes aligned.
-	out2 := `0x0010\s00016\s\(.*\)\tMOVQ\t\$2,\sCX`
 	var testCases = []struct {
 		name string
-		code []byte
+		code string
 		out  string
 	}{
-		{"8-byte alignment", code1, out1},
-		{"16-byte alignment", code2, out2},
+		{
+			name: "8-byte alignment",
+			code: `TEXT ·foo(SB),$0-0\nMOVQ $0, AX\nPCALIGN $8\nMOVQ $1, BX\nRET\n`,
+			out:  `0x0008\s00008\s\(.*\)\tMOVQ\t\$1,\sBX`,
+		},
+		{
+			name: "16-byte alignment",
+			code: `TEXT ·foo(SB),$0-0\nMOVQ $0, AX\nPCALIGN $16\nMOVQ $2, CX\nRET\n`,
+			out:  `0x0010\s00016\s\(.*\)\tMOVQ\t\$2,\sCX`,
+		},
 	}
 
 	for _, test := range testCases {
-		if err := os.WriteFile(tmpfile, test.code, 0644); err != nil {
+		if err := os.WriteFile(tmpfile, []byte(test.code), 0644); err != nil {
 			t.Fatal(err)
 		}
 		cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-o", tmpout, tmpfile)
