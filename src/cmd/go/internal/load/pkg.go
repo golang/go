@@ -2807,6 +2807,10 @@ type PackageOpts struct {
 	SuppressEmbedFiles bool
 }
 
+type KnownError struct {
+	Err error
+}
+
 // PackagesAndErrors returns the packages named by the command line arguments
 // 'patterns'. If a named package cannot be loaded, PackagesAndErrors returns
 // a *Package with the Error field describing the failure. If errors are found
@@ -2861,6 +2865,10 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
 		for _, pkg := range m.Pkgs {
 			if pkg == "" {
 				panic(fmt.Sprintf("ImportPaths returned empty package for pattern %s", m.Pattern()))
+			}
+			if strings.HasSuffix(pkg, ".test") {
+				panic(KnownError{Err: fmt.Errorf("Reject %s because the import path suffix cannot be .test", pkg)})
+				continue
 			}
 			mode := cmdlinePkg
 			if m.IsLiteral() {

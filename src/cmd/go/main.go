@@ -7,6 +7,7 @@
 package main
 
 import (
+	"cmd/go/internal/load"
 	"cmd/go/internal/toolchain"
 	"cmd/go/internal/workcmd"
 	"context"
@@ -261,6 +262,15 @@ func invoke(cmd *base.Command, args []string) {
 
 	ctx := maybeStartTrace(context.Background())
 	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
+	defer func() {
+		if err := recover(); err != nil {
+			if e, ok := err.(load.KnownError); ok {
+				log.Fatal(e.Err.Error())
+			} else {
+				panic(err)
+			}
+		}
+	}()
 	cmd.Run(ctx, cmd, args)
 	span.Done()
 }
