@@ -354,8 +354,7 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 			if now.Sub(lastReport) > reportEvery {
 				lastReport = now
 				// Trailing space is intentional: some LSP clients strip newlines.
-				msg := fmt.Sprintf(`Constructing index of analysis facts... (%d/%d packages). 
-(Set "analysisProgressReporting" to false to disable notifications.)`,
+				msg := fmt.Sprintf(`Indexed %d/%d packages. (Set "analysisProgressReporting" to false to disable notifications.)`,
 					completed, len(nodes))
 				pct := 100 * float64(completed) / float64(len(nodes))
 				wd.Report(ctx, msg, pct)
