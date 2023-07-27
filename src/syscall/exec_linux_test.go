@@ -249,6 +249,14 @@ func TestUnshareMountNameSpace(t *testing.T) {
 		if testenv.SyscallIsNotSupported(err) {
 			t.Skipf("skipping: could not start process with CLONE_NEWNS: %v", err)
 		}
+		if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
+			// The Go build system's swarming user is known not to support
+			// starting a process with CLONE_NEWNS.
+			// Unfortunately, it doesn't get recognized as such due the current
+			// implementation of a no-network check using 'unshare -n -r'.
+			// Since this test does need start this process, we need to skip it.
+			t.Skipf("skipping: could not start process with CLONE_NEWNS: %v", err)
+		}
 		t.Fatalf("unshare failed: %v\n%s", err, o)
 	}
 
@@ -299,6 +307,14 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 	o, err := cmd.CombinedOutput()
 	if err != nil {
 		if testenv.SyscallIsNotSupported(err) {
+			t.Skipf("skipping: could not start process with CLONE_NEWNS and Chroot %q: %v", d, err)
+		}
+		if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
+			// The Go build system's swarming user is known not to support
+			// starting a process with CLONE_NEWNS and Chroot.
+			// Unfortunately, it doesn't get recognized as such due the current
+			// implementation of a no-network check using 'unshare -n -r'.
+			// Since this test does need start this process, we need to skip it.
 			t.Skipf("skipping: could not start process with CLONE_NEWNS and Chroot %q: %v", d, err)
 		}
 		t.Fatalf("unshare failed: %v\n%s", err, o)
