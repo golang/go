@@ -159,7 +159,7 @@ func main() {
 	}
 
 	cmd, used := lookupCmd(args)
-	cfg.CmdName = strings.Join(args[:used], " ") + args[0]
+	cfg.CmdName = strings.Join(args[:used], " ")
 	if len(cmd.Commands) > 0 {
 		if used >= len(args) {
 			help.PrintUsage(os.Stderr, cmd)
