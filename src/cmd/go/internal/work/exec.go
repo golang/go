@@ -1250,7 +1250,7 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 		// that vet doesn't like in low-level packages
 		// like runtime, sync, and reflect.
 		// Note that $GOROOT/src/buildall.bash
-		// does the same for the misc-compile trybots
+		// does the same
 		// and should be updated if these flags are
 		// changed here.
 		vetFlags = []string{"-unsafeptr=false"}
@@ -1260,7 +1260,7 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 		// like hard-coded forced returns or panics that make
 		// code unreachable. It's unreasonable to insist on files
 		// not having any unreachable code during "go test".
-		// (buildall.bash still runs with -unreachable enabled
+		// (buildall.bash still has -unreachable enabled
 		// for the overall whole-tree scan.)
 		if cfg.CmdName == "test" {
 			vetFlags = append(vetFlags, "-unreachable=false")
