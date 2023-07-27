@@ -29,7 +29,7 @@ func TestTypeFor(t *testing.T) {
 	for _, tc := range testcases {
 		want := reflect.ValueOf(tc.wantFrom).Elem().Type()
 		if want != tc.got {
-			t.Errorf("unexpected reflect.Type: want %v; got %v", want, tc.got)
+			t.Errorf("unexpected reflect.Type: got %v; want %v", tc.got, want)
 		}
 	}
 }
