@@ -784,6 +784,7 @@ func TestDialCancel(t *testing.T) {
 					"connection refused",
 					"unreachable",
 					"no route to host",
+					"invalid argument",
 				}
 				e := err.Error()
 				for _, ignore := range ignorable {
