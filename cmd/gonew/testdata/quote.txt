@@ -1,0 +1,28 @@
+gonew example.com/quote my.com/test
+
+-- example.com/quote@v1.5.2/go.mod --
+module example.com/quote
+-- example.com/quote@v1.5.2/quote.go --
+package quote
+
+import (
+	"example.com/quote/bar"
+)
+
+func Quote() {}
+-- example.com/quote@v1.5.2/quote/another.go --
+package quote // another package quote!
+-- stderr --
+gonew: initialized my.com/test in ./test
+-- out/test/go.mod --
+module my.com/test
+-- out/test/quote.go --
+package test
+
+import (
+	"my.com/test/bar"
+)
+
+func Quote() {}
+-- out/test/quote/another.go --
+package quote // another package quote!
