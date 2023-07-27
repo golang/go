@@ -14,7 +14,6 @@ import (
 	"io/fs"
 	"math/rand"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 	"testing/fstest"
