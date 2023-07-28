@@ -1159,9 +1159,18 @@ func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 	// support all three as well. EcmaScript 4 uses only the Python form.
 	//
 	// In both the open source world (via Code Search) and the
-	// Google source tree, (?P<expr>name) is the dominant form,
-	// so that's the one we implement. One is enough.
-	if len(t) > 4 && t[2] == 'P' && t[3] == '<' {
+	// Google source tree, (?P<expr>name) and (?<expr>name) are the
+	// dominant forms of named captures and both are supported.
+	startsWithP := len(t) > 4 && t[2] == 'P' && t[3] == '<'
+	startsWithName := len(t) > 3 && t[2] == '<'
+
+	if startsWithP || startsWithName {
+		// position of expr start
+		exprStartPos := 4
+		if startsWithName {
+			exprStartPos = 3
+		}
+
 		// Pull out name.
 		end := strings.IndexRune(t, '>')
 		if end < 0 {
@@ -1171,8 +1180,8 @@ func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 			return "", &Error{ErrInvalidNamedCapture, s}
 		}
 
-		capture := t[:end+1] // "(?P<name>"
-		name := t[4:end]     // "name"
+		capture := t[:end+1]        // "(?P<name>" or "(?<name>"
+		name := t[exprStartPos:end] // "name"
 		if err = checkUTF8(name); err != nil {
 			return "", err
 		}
