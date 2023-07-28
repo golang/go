@@ -298,11 +298,7 @@ func TestRegIndex(t *testing.T) {
 // code can be aligned to the alignment value.
 func TestPCALIGN(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	dir, err := os.MkdirTemp("", "testpcalign")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	tmpfile := filepath.Join(dir, "test.s")
 	tmpout := filepath.Join(dir, "test.o")
 
