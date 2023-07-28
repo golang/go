@@ -1,0 +1,117 @@
+This test exercises various renaming features on generic code.
+
+Fixed bugs:
+
+- golang/go#61614: renaming a method of a type in a package that uses type
+  parameter composite lits used to panic, because previous iterations of the
+  satisfy analysis did not account for this language feature.
+
+- golang/go#61635: renaming type parameters did not work when they were
+  capitalized and the package was imported by another package.
+
+-- flags --
+-min_go=go1.18
+
+-- go.mod --
+module example.com
+go 1.20
+
+-- a.go --
+package a
+
+type I int
+
+func (I) m() {} //@rename("m", M, mToM)
+
+func _[P ~[]int]() {
+	_ = P{}
+}
+
+-- @mToM/a.go --
+package a
+
+type I int
+
+func (I) M() {} //@rename("m", M, mToM)
+
+func _[P ~[]int]() {
+	_ = P{}
+}
+
+-- g.go --
+package a
+
+type S[P any] struct { //@rename("P", Q, PToQ)
+	P P
+	F func(P) P
+}
+
+func F[R any](r R) {
+	var _ R //@rename("R", S, RToS)
+}
+
+-- @PToQ/g.go --
+package a
+
+type S[Q any] struct { //@rename("P", Q, PToQ)
+	P Q
+	F func(Q) Q
+}
+
+func F[R any](r R) {
+	var _ R //@rename("R", S, RToS)
+}
+
+-- @RToS/g.go --
+package a
+
+type S[P any] struct { //@rename("P", Q, PToQ)
+	P P
+	F func(P) P
+}
+
+func F[S any](r S) {
+	var _ S //@rename("R", S, RToS)
+}
+
+-- issue61635/p.go --
+package issue61635
+
+type builder[S ~[]F, F ~string] struct { //@rename("S", T, SToT)
+	name string
+	elements S
+	elemData map[F][]ElemData[F]
+	// other fields...
+}
+
+type ElemData[F ~string] struct {
+  Name F
+  // other fields...
+}
+
+type BuilderImpl[S ~[]F, F ~string] struct{ builder[S, F] }
+
+-- importer/i.go --
+package importer
+
+import "example.com/issue61635" // importing is necessary to repro golang/go#61635
+
+var _ issue61635.ElemData[string]
+
+-- @SToT/issue61635/p.go --
+package issue61635
+
+type builder[T ~[]F, F ~string] struct { //@rename("S", T, SToT)
+	name string
+	elements T
+	elemData map[F][]ElemData[F]
+	// other fields...
+}
+
+type ElemData[F ~string] struct {
+  Name F
+  // other fields...
+}
+
+type BuilderImpl[S ~[]F, F ~string] struct{ builder[S, F] }
+

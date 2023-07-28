@@ -350,8 +350,13 @@ func renameOrdinary(ctx context.Context, snapshot Snapshot, f FileHandle, pp pro
 		// So we take a scenic route.
 		switch obj.(type) { // avoid "obj :=" since cases reassign the var
 		case *types.TypeName:
-			if named, ok := obj.Type().(*types.Named); ok {
-				obj = named.Obj()
+			switch t := obj.Type().(type) {
+			case *types.Named:
+				obj = t.Obj()
+			case *typeparams.TypeParam:
+				// As with capitalized function parameters below, type parameters are
+				// local.
+				goto skipObjectPath
 			}
 		case *types.Func:
 			obj = funcOrigin(obj.(*types.Func))
