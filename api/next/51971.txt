@@ -1,0 +1,3 @@
+pkg net/http, func ServeFileFS(http.ResponseWriter, *http.Request, fs.FS, string) #51971
+pkg net/http, func FileServerFS(fs.FS) http.Handler #51971
+pkg net/http, func NewFileTransportFS(fs.FS) RoundTripper #51971

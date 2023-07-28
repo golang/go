@@ -26,6 +26,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 )
 
@@ -1558,4 +1559,52 @@ func testFileServerMethods(t *testing.T, mode testMode) {
 			t.Fatalf("%v: got Content-Length %q, want %q", method, got, want)
 		}
 	}
+}
+
+func TestFileServerFS(t *testing.T) {
+	filename := "index.html"
+	contents := []byte("index.html says hello")
+	fsys := fstest.MapFS{
+		filename: {Data: contents},
+	}
+	ts := newClientServerTest(t, http1Mode, FileServerFS(fsys)).ts
+	defer ts.Close()
+
+	res, err := ts.Client().Get(ts.URL + "/" + filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal("reading Body:", err)
+	}
+	if s := string(b); s != string(contents) {
+		t.Errorf("for path %q got %q, want %q", filename, s, contents)
+	}
+	res.Body.Close()
+}
+
+func TestServeFileFS(t *testing.T) {
+	filename := "index.html"
+	contents := []byte("index.html says hello")
+	fsys := fstest.MapFS{
+		filename: {Data: contents},
+	}
+	ts := newClientServerTest(t, http1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		ServeFileFS(w, r, fsys, filename)
+	})).ts
+	defer ts.Close()
+
+	res, err := ts.Client().Get(ts.URL + "/" + filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal("reading Body:", err)
+	}
+	if s := string(b); s != string(contents) {
+		t.Errorf("for path %q got %q, want %q", filename, s, contents)
+	}
+	res.Body.Close()
 }
