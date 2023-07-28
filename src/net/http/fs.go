@@ -741,7 +741,7 @@ func ServeFile(w ResponseWriter, r *Request, name string) {
 	serveFile(w, r, Dir(dir), file, false)
 }
 
-// ServeFSFile replies to the request with the contents
+// ServeFileFS replies to the request with the contents
 // of the named file or directory from the file system fsys.
 //
 // If the provided file or directory name is a relative path, it is
