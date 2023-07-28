@@ -200,7 +200,6 @@ var exprTests = [][2]string{
 	dup("interface{~int}"),
 
 	// generic constraints
-	// dup("interface{type a, b, c; ~int | ~string; float64; m()}"),
 	dup("interface{~a | ~b | ~c; ~int | ~string; float64; m()}"),
 	dup("interface{int | string}"),
 	dup("interface{~int | ~string; float64; m()}"),
