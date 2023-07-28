@@ -1,0 +1,39 @@
+Regression test for 'references' bug golang/go#61618:
+references to instantiated fields were missing.
+
+-- flags --
+-min_go=go1.18
+
+-- go.mod --
+module example.com
+go 1.18
+
+-- a.go --
+package a
+
+// This file is adapted from the example in the issue.
+
+type builder[S ~[]F, F ~string] struct {
+	name string
+	elements S //@loc(def, "elements"), refs(def, def, assign, use)
+	elemData map[F][]ElemData[F]
+}
+
+type ElemData[F ~string] struct {
+  Name F
+}
+
+type BuilderImpl[S ~[]F, F ~string] struct{ builder[S, F] }
+
+func NewBuilderImpl[S ~[]F, F ~string](name string)  *BuilderImpl[S, F] {
+  impl := &BuilderImpl[S,F]{
+	builder[S, F]{
+	  name: name,
+	  elements: S{}, //@loc(assign, "elements"), refs(assign, def, assign, use)
+	  elemData: map[F][]ElemData[F]{},
+	},
+  }
+
+  _ = impl.elements //@loc(use, "elements"), refs(use, def, assign, use)
+  return impl
+}
