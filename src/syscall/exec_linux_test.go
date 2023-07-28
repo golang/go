@@ -109,11 +109,17 @@ func TestUnshare(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	orig, err := os.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	origLines := strings.Split(strings.TrimSpace(string(orig)), "\n")
+	orig := strings.TrimSpace(string(b))
+	if strings.Contains(orig, "lo:") && strings.Count(orig, ":") == 1 {
+		// This test expects there to be at least 1 more network interface
+		// in addition to the local network interface, so that it can tell
+		// that unshare worked.
+		t.Skip("not enough network interfaces to test unshare with")
+	}
 
 	cmd := testenv.Command(t, "cat", path)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -128,15 +134,18 @@ func TestUnshare(t *testing.T) {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 
-	// Check there is only the local network interface
+	// Check there is only the local network interface.
 	sout := strings.TrimSpace(string(out))
 	if !strings.Contains(sout, "lo:") {
 		t.Fatalf("Expected lo network interface to exist, got %s", sout)
 	}
 
+	origLines := strings.Split(orig, "\n")
 	lines := strings.Split(sout, "\n")
 	if len(lines) >= len(origLines) {
-		t.Fatalf("Got %d lines of output, want <%d", len(lines), len(origLines))
+		t.Logf("%s before unshare:\n%s", path, orig)
+		t.Logf("%s after unshare:\n%s", path, sout)
+		t.Fatalf("Got %d lines of output, want < %d", len(lines), len(origLines))
 	}
 }
 
