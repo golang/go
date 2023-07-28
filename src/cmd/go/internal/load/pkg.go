@@ -2510,12 +2510,6 @@ func (p *Package) setBuildInfo(ctx context.Context, f *modfetch.Fetcher, autoVCS
 	}
 
 	if wantVCS && p.Module != nil && p.Module.Version == "" && !p.Standard {
-		if p.Module.Path == "bootstrap" && cfg.GOROOT == os.Getenv("GOROOT_BOOTSTRAP") {
-			// During bootstrapping, the bootstrap toolchain is built in module
-			// "bootstrap" (instead of "std"), with GOROOT set to GOROOT_BOOTSTRAP
-			// (so the bootstrap toolchain packages don't even appear to be in GOROOT).
-			goto omitVCS
-		}
 		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "")
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			setVCSError(err)
