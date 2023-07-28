@@ -1145,12 +1145,12 @@ func OP_IRR(op uint32, i uint32, r2 int16, r3 int16) uint32 {
 	return op | i&0xFFFF | uint32(r2&31)<<21 | uint32(r3&31)<<16
 }
 
-func OP_SRR(op uint32, s uint32, r2 uint32, r3 uint32) uint32 {
-	return op | (s&31)<<6 | (r2&31)<<16 | (r3&31)<<11
+func OP_SRR(op uint32, s uint32, r2 int16, r3 int16) uint32 {
+	return op | (s&31)<<6 | uint32(r2&31)<<16 | uint32(r3&31)<<11
 }
 
-func OP_FRRR(op uint32, r1 uint32, r2 uint32, r3 uint32) uint32 {
-	return op | (r1&31)<<16 | (r2&31)<<11 | (r3&31)<<6
+func OP_FRRR(op uint32, r1 int16, r2 int16, r3 int16) uint32 {
+	return op | uint32(r1&31)<<16 | uint32(r2&31)<<11 | uint32(r3&31)<<6
 }
 
 func OP_JMP(op uint32, i uint32) uint32 {
@@ -1320,8 +1320,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.As == AMOVB {
 			v = 24
 		}
-		o1 = OP_SRR(c.opirr(ASLL), uint32(v), uint32(p.From.Reg), uint32(p.To.Reg))
-		o2 = OP_SRR(c.opirr(ASRA), uint32(v), uint32(p.To.Reg), uint32(p.To.Reg))
+		o1 = OP_SRR(c.opirr(ASLL), uint32(v), p.From.Reg, p.To.Reg)
+		o2 = OP_SRR(c.opirr(ASRA), uint32(v), p.To.Reg, p.To.Reg)
 
 	case 13: /* movbu r,r */
 		if p.As == AMOVBU {
@@ -1333,8 +1333,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 14: /* movwu r,r */
 		// NOTE: this case does not use REGTMP. If it ever does,
 		// remove the NOTUSETMP flag in optab.
-		o1 = OP_SRR(c.opirr(-ASLLV), uint32(0), uint32(p.From.Reg), uint32(p.To.Reg))
-		o2 = OP_SRR(c.opirr(-ASRLV), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
+		o1 = OP_SRR(c.opirr(-ASLLV), 0, p.From.Reg, p.To.Reg)
+		o2 = OP_SRR(c.opirr(-ASRLV), 0, p.To.Reg, p.To.Reg)
 
 	case 15: /* teq $c r,r */
 		r := p.Reg
@@ -1346,17 +1346,17 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = OP_IRR(c.opirr(p.As), (uint32(v)&0x3FF)<<6, r, p.To.Reg)
 
 	case 16: /* sll $c,[r1],r2 */
-		v := c.regoff(&p.From)
-		r := int(p.Reg)
+		r := p.Reg
 		if r == obj.REG_NONE {
-			r = int(p.To.Reg)
+			r = p.To.Reg
 		}
+		v := c.regoff(&p.From)
 
 		/* OP_SRR will use only the low 5 bits of the shift value */
 		if v >= 32 && vshift(p.As) {
-			o1 = OP_SRR(c.opirr(-p.As), uint32(v-32), uint32(r), uint32(p.To.Reg))
+			o1 = OP_SRR(c.opirr(-p.As), uint32(v-32), r, p.To.Reg)
 		} else {
-			o1 = OP_SRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+			o1 = OP_SRR(c.opirr(p.As), uint32(v), r, p.To.Reg)
 		}
 
 	case 17:
@@ -1490,14 +1490,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = OP_RRR(a, p.To.Reg, obj.REG_NONE, p.From.Reg)
 
 	case 32: /* fadd fr1,[fr2],fr3 */
-		r := int(p.Reg)
+		r := p.Reg
 		if r == obj.REG_NONE {
-			r = int(p.To.Reg)
+			r = p.To.Reg
 		}
-		o1 = OP_FRRR(c.oprrr(p.As), uint32(p.From.Reg), uint32(r), uint32(p.To.Reg))
+		o1 = OP_FRRR(c.oprrr(p.As), p.From.Reg, r, p.To.Reg)
 
 	case 33: /* fabs fr1, fr3 */
-		o1 = OP_FRRR(c.oprrr(p.As), uint32(obj.REG_NONE), uint32(p.From.Reg), uint32(p.To.Reg))
+		o1 = OP_FRRR(c.oprrr(p.As), obj.REG_NONE, p.From.Reg, p.To.Reg)
 
 	case 34: /* mov $con,fr ==> or/add $i,t; mov t,fr */
 		a := AADDU
