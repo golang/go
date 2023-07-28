@@ -115,3 +115,126 @@ type ElemData[F ~string] struct {
 
 type BuilderImpl[S ~[]F, F ~string] struct{ builder[S, F] }
 
+-- instances/type.go --
+package instances
+
+type R[P any] struct { //@rename("R", u, Rtou)
+	Next *R[P] //@rename("R", s, RTos)
+}
+
+func (rv R[P]) Do(R[P]) R[P] { //@rename("Do", Do1, DoToDo1)
+	var x R[P]
+	return rv.Do(x) //@rename("Do", Do2, DoToDo2)
+}
+
+func _() {
+	var x R[int] //@rename("R", r, RTor)
+	x = x.Do(x)
+}
+
+-- @RTos/instances/type.go --
+package instances
+
+type s[P any] struct { //@rename("R", u, Rtou)
+	Next *s[P] //@rename("R", s, RTos)
+}
+
+func (rv s[P]) Do(s[P]) s[P] { //@rename("Do", Do1, DoToDo1)
+	var x s[P]
+	return rv.Do(x) //@rename("Do", Do2, DoToDo2)
+}
+
+func _() {
+	var x s[int] //@rename("R", r, RTor)
+	x = x.Do(x)
+}
+
+-- @Rtou/instances/type.go --
+package instances
+
+type u[P any] struct { //@rename("R", u, Rtou)
+	Next *u[P] //@rename("R", s, RTos)
+}
+
+func (rv u[P]) Do(u[P]) u[P] { //@rename("Do", Do1, DoToDo1)
+	var x u[P]
+	return rv.Do(x) //@rename("Do", Do2, DoToDo2)
+}
+
+func _() {
+	var x u[int] //@rename("R", r, RTor)
+	x = x.Do(x)
+}
+
+-- @DoToDo1/instances/type.go --
+package instances
+
+type R[P any] struct { //@rename("R", u, Rtou)
+	Next *R[P] //@rename("R", s, RTos)
+}
+
+func (rv R[P]) Do1(R[P]) R[P] { //@rename("Do", Do1, DoToDo1)
+	var x R[P]
+	return rv.Do1(x) //@rename("Do", Do2, DoToDo2)
+}
+
+func _() {
+	var x R[int] //@rename("R", r, RTor)
+	x = x.Do1(x)
+}
+
+-- @DoToDo2/instances/type.go --
+package instances
+
+type R[P any] struct { //@rename("R", u, Rtou)
+	Next *R[P] //@rename("R", s, RTos)
+}
+
+func (rv R[P]) Do2(R[P]) R[P] { //@rename("Do", Do1, DoToDo1)
+	var x R[P]
+	return rv.Do2(x) //@rename("Do", Do2, DoToDo2)
+}
+
+func _() {
+	var x R[int] //@rename("R", r, RTor)
+	x = x.Do2(x)
+}
+
+-- instances/func.go --
+package instances
+
+func Foo[P any](p P) { //@rename("Foo", Bar, FooToBar)
+	Foo(p) //@rename("Foo", Baz, FooToBaz)
+}
+
+-- @FooToBar/instances/func.go --
+package instances
+
+func Bar[P any](p P) { //@rename("Foo", Bar, FooToBar)
+	Bar(p) //@rename("Foo", Baz, FooToBaz)
+}
+
+-- @FooToBaz/instances/func.go --
+package instances
+
+func Baz[P any](p P) { //@rename("Foo", Bar, FooToBar)
+	Baz(p) //@rename("Foo", Baz, FooToBaz)
+}
+
+-- @RTor/instances/type.go --
+package instances
+
+type r[P any] struct { //@rename("R", u, Rtou)
+	Next *r[P] //@rename("R", s, RTos)
+}
+
+func (rv r[P]) Do(r[P]) r[P] { //@rename("Do", Do1, DoToDo1)
+	var x r[P]
+	return rv.Do(x) //@rename("Do", Do2, DoToDo2)
+}
+
+func _() {
+	var x r[int] //@rename("R", r, RTor)
+	x = x.Do(x)
+}
+

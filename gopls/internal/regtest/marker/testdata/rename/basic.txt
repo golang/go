@@ -3,12 +3,28 @@ This test performs basic coverage of 'rename' within a single package.
 -- basic.go --
 package p
 
-func f(x int) { println(x) } //@rename("x", y, param_x)
+func f(x int) { println(x) } //@rename("x", y, xToy)
 
--- @param_x/basic.go --
+-- @xToy/basic.go --
 package p
 
-func f(y int) { println(y) } //@rename("x", y, param_x)
+func f(y int) { println(y) } //@rename("x", y, xToy)
+
+-- alias.go --
+package p
+
+// from golang/go#61625
+type LongNameHere struct{}
+type A = LongNameHere //@rename("A", B, AToB)
+func Foo() A
+
+-- @AToB/alias.go --
+package p
+
+// from golang/go#61625
+type LongNameHere struct{}
+type B = LongNameHere //@rename("A", B, AToB)
+func Foo() B
 
 -- errors.go --
 package p
