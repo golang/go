@@ -1137,8 +1137,8 @@ func FPV(x uint32, y uint32) uint32 {
 	return SP(2, 1) | 21<<21 | x<<3 | y<<0
 }
 
-func OP_RRR(op uint32, r1 uint32, r2 uint32, r3 uint32) uint32 {
-	return op | (r1&31)<<16 | (r2&31)<<21 | (r3&31)<<11
+func OP_RRR(op uint32, r1 int16, r2 int16, r3 int16) uint32 {
+	return op | uint32(r1&31)<<16 | uint32(r2&31)<<21 | uint32(r3&31)<<11
 }
 
 func OP_IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
@@ -1191,17 +1191,17 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			// but SLL is special that the result is always sign-extended to 64-bit.
 			a = ASLL
 		}
-		o1 = OP_RRR(c.oprrr(a), uint32(p.From.Reg), uint32(REGZERO), uint32(p.To.Reg))
+		o1 = OP_RRR(c.oprrr(a), p.From.Reg, REGZERO, p.To.Reg)
 
 	case 2: /* add/sub r1,[r2],r3 */
-		r := int(p.Reg)
+		r := p.Reg
 		if p.As == ANEGW || p.As == ANEGV {
 			r = REGZERO
 		}
 		if r == obj.REG_NONE {
-			r = int(p.To.Reg)
+			r = p.To.Reg
 		}
-		o1 = OP_RRR(c.oprrr(p.As), uint32(p.From.Reg), uint32(r), uint32(p.To.Reg))
+		o1 = OP_RRR(c.oprrr(p.As), p.From.Reg, r, p.To.Reg)
 
 	case 3: /* mov $soreg, r ==> or/add $i,o,r */
 		v := c.regoff(&p.From)
@@ -1262,12 +1262,11 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = OP_IRR(c.opirr(-p.As), uint32(v), uint32(r), uint32(p.To.Reg))
 
 	case 9: /* sll r1,[r2],r3 */
-		r := int(p.Reg)
-
+		r := p.Reg
 		if r == obj.REG_NONE {
-			r = int(p.To.Reg)
+			r = p.To.Reg
 		}
-		o1 = OP_RRR(c.oprrr(p.As), uint32(r), uint32(p.From.Reg), uint32(p.To.Reg))
+		o1 = OP_RRR(c.oprrr(p.As), r, p.From.Reg, p.To.Reg)
 
 	case 10: /* add $con,[r1],r2 ==> mov $con, t; add t,[r1],r2 */
 		v := c.regoff(&p.From)
@@ -1276,11 +1275,11 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			a = AADDU
 		}
 		o1 = OP_IRR(c.opirr(a), uint32(v), uint32(obj.REG_NONE), uint32(REGTMP))
-		r := int(p.Reg)
+		r := p.Reg
 		if r == obj.REG_NONE {
-			r = int(p.To.Reg)
+			r = p.To.Reg
 		}
-		o2 = OP_RRR(c.oprrr(p.As), uint32(REGTMP), uint32(r), uint32(p.To.Reg))
+		o2 = OP_RRR(c.oprrr(p.As), REGTMP, r, p.To.Reg)
 
 	case 11: /* jmp lbra */
 		v := int32(0)
@@ -1365,14 +1364,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 17:
-		o1 = OP_RRR(c.oprrr(p.As), uint32(REGZERO), uint32(p.From.Reg), uint32(p.To.Reg))
+		o1 = OP_RRR(c.oprrr(p.As), REGZERO, p.From.Reg, p.To.Reg)
 
 	case 18: /* jmp [r1],0(r2) */
-		r := int(p.Reg)
+		r := p.Reg
 		if r == obj.REG_NONE {
-			r = int(o.param)
+			r = o.param
 		}
-		o1 = OP_RRR(c.oprrr(p.As), uint32(obj.REG_NONE), uint32(p.To.Reg), uint32(r))
+		o1 = OP_RRR(c.oprrr(p.As), obj.REG_NONE, p.To.Reg, r)
 		if p.As == obj.ACALL {
 			rel := obj.Addrel(c.cursym)
 			rel.Off = int32(c.pc)
@@ -1392,36 +1391,36 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.From.Reg == REG_LO {
 			a = OP(2, 2) /* mflo */
 		}
-		o1 = OP_RRR(a, uint32(REGZERO), uint32(REGZERO), uint32(p.To.Reg))
+		o1 = OP_RRR(a, REGZERO, REGZERO, p.To.Reg)
 
 	case 21: /* mov r,lo/hi */
 		a := OP(2, 1) /* mthi */
 		if p.To.Reg == REG_LO {
 			a = OP(2, 3) /* mtlo */
 		}
-		o1 = OP_RRR(a, uint32(REGZERO), uint32(p.From.Reg), uint32(REGZERO))
+		o1 = OP_RRR(a, REGZERO, p.From.Reg, REGZERO)
 
 	case 22: /* mul r1,r2 [r3]*/
 		if p.To.Reg != obj.REG_NONE {
-			r := int(p.Reg)
+			r := p.Reg
 			if r == obj.REG_NONE {
-				r = int(p.To.Reg)
+				r = p.To.Reg
 			}
 			a := SP(3, 4) | 2 /* mul */
-			o1 = OP_RRR(a, uint32(p.From.Reg), uint32(r), uint32(p.To.Reg))
+			o1 = OP_RRR(a, p.From.Reg, r, p.To.Reg)
 		} else {
-			o1 = OP_RRR(c.oprrr(p.As), uint32(p.From.Reg), uint32(p.Reg), uint32(REGZERO))
+			o1 = OP_RRR(c.oprrr(p.As), p.From.Reg, p.Reg, REGZERO)
 		}
 
 	case 23: /* add $lcon,r1,r2 ==> lu+or+add */
 		v := c.regoff(&p.From)
 		o1 = OP_IRR(c.opirr(ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
 		o2 = OP_IRR(c.opirr(AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
-		r := int(p.Reg)
+		r := p.Reg
 		if r == obj.REG_NONE {
-			r = int(p.To.Reg)
+			r = p.To.Reg
 		}
-		o3 = OP_RRR(c.oprrr(p.As), uint32(REGTMP), uint32(r), uint32(p.To.Reg))
+		o3 = OP_RRR(c.oprrr(p.As), REGTMP, r, p.To.Reg)
 
 	case 24: /* mov $ucon,r ==> lu r */
 		v := c.regoff(&p.From)
@@ -1430,27 +1429,27 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 25: /* add/and $ucon,[r1],r2 ==> lu $con,t; add t,[r1],r2 */
 		v := c.regoff(&p.From)
 		o1 = OP_IRR(c.opirr(ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
-		r := int(p.Reg)
+		r := p.Reg
 		if r == obj.REG_NONE {
-			r = int(p.To.Reg)
+			r = p.To.Reg
 		}
-		o2 = OP_RRR(c.oprrr(p.As), uint32(REGTMP), uint32(r), uint32(p.To.Reg))
+		o2 = OP_RRR(c.oprrr(p.As), REGTMP, r, p.To.Reg)
 
 	case 26: /* mov $lsext/auto/oreg,r ==> lu+or+add */
 		v := c.regoff(&p.From)
 		o1 = OP_IRR(c.opirr(ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
 		o2 = OP_IRR(c.opirr(AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
-		r := int(p.From.Reg)
+		r := p.From.Reg
 		if r == obj.REG_NONE {
-			r = int(o.param)
+			r = o.param
 		}
-		o3 = OP_RRR(c.oprrr(add), uint32(REGTMP), uint32(r), uint32(p.To.Reg))
+		o3 = OP_RRR(c.oprrr(add), REGTMP, r, p.To.Reg)
 
 	case 27: /* mov [sl]ext/auto/oreg,fr ==> lwc1 o(r) */
 		v := c.regoff(&p.From)
-		r := int(p.From.Reg)
+		r := p.From.Reg
 		if r == obj.REG_NONE {
-			r = int(o.param)
+			r = o.param
 		}
 		a := -AMOVF
 		if p.As == AMOVD {
@@ -1459,7 +1458,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		switch o.size {
 		case 12:
 			o1 = OP_IRR(c.opirr(ALUI), uint32((v+1<<15)>>16), uint32(REGZERO), uint32(REGTMP))
-			o2 = OP_RRR(c.oprrr(add), uint32(r), uint32(REGTMP), uint32(REGTMP))
+			o2 = OP_RRR(c.oprrr(add), r, REGTMP, REGTMP)
 			o3 = OP_IRR(c.opirr(a), uint32(v), uint32(REGTMP), uint32(p.To.Reg))
 
 		case 4:
@@ -1468,9 +1467,9 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 28: /* mov fr,[sl]ext/auto/oreg ==> swc1 o(r) */
 		v := c.regoff(&p.To)
-		r := int(p.To.Reg)
+		r := p.To.Reg
 		if r == obj.REG_NONE {
-			r = int(o.param)
+			r = o.param
 		}
 		a := AMOVF
 		if p.As == AMOVD {
@@ -1479,7 +1478,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		switch o.size {
 		case 12:
 			o1 = OP_IRR(c.opirr(ALUI), uint32((v+1<<15)>>16), uint32(REGZERO), uint32(REGTMP))
-			o2 = OP_RRR(c.oprrr(add), uint32(r), uint32(REGTMP), uint32(REGTMP))
+			o2 = OP_RRR(c.oprrr(add), r, REGTMP, REGTMP)
 			o3 = OP_IRR(c.opirr(a), uint32(v), uint32(REGTMP), uint32(p.From.Reg))
 
 		case 4:
@@ -1488,11 +1487,11 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 30: /* movw r,fr */
 		a := SP(2, 1) | (4 << 21) /* mtc1 */
-		o1 = OP_RRR(a, uint32(p.From.Reg), uint32(obj.REG_NONE), uint32(p.To.Reg))
+		o1 = OP_RRR(a, p.From.Reg, obj.REG_NONE, p.To.Reg)
 
 	case 31: /* movw fr,r */
 		a := SP(2, 1) | (0 << 21) /* mtc1 */
-		o1 = OP_RRR(a, uint32(p.To.Reg), uint32(obj.REG_NONE), uint32(p.From.Reg))
+		o1 = OP_RRR(a, p.To.Reg, obj.REG_NONE, p.From.Reg)
 
 	case 32: /* fadd fr1,[fr2],fr3 */
 		r := int(p.Reg)
@@ -1511,26 +1510,26 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			a = AOR
 		}
 		o1 = OP_IRR(c.opirr(a), uint32(v), uint32(obj.REG_NONE), uint32(REGTMP))
-		o2 = OP_RRR(SP(2, 1)|(4<<21), uint32(REGTMP), uint32(obj.REG_NONE), uint32(p.To.Reg)) /* mtc1 */
+		o2 = OP_RRR(SP(2, 1)|(4<<21), REGTMP, obj.REG_NONE, p.To.Reg) /* mtc1 */
 
 	case 35: /* mov r,lext/auto/oreg ==> sw o(REGTMP) */
 		v := c.regoff(&p.To)
-		r := int(p.To.Reg)
+		r := p.To.Reg
 		if r == obj.REG_NONE {
-			r = int(o.param)
+			r = o.param
 		}
 		o1 = OP_IRR(c.opirr(ALUI), uint32((v+1<<15)>>16), uint32(REGZERO), uint32(REGTMP))
-		o2 = OP_RRR(c.oprrr(add), uint32(r), uint32(REGTMP), uint32(REGTMP))
+		o2 = OP_RRR(c.oprrr(add), r, REGTMP, REGTMP)
 		o3 = OP_IRR(c.opirr(p.As), uint32(v), uint32(REGTMP), uint32(p.From.Reg))
 
 	case 36: /* mov lext/auto/oreg,r ==> lw o(REGTMP) */
 		v := c.regoff(&p.From)
-		r := int(p.From.Reg)
+		r := p.From.Reg
 		if r == obj.REG_NONE {
-			r = int(o.param)
+			r = o.param
 		}
 		o1 = OP_IRR(c.opirr(ALUI), uint32((v+1<<15)>>16), uint32(REGZERO), uint32(REGTMP))
-		o2 = OP_RRR(c.oprrr(add), uint32(r), uint32(REGTMP), uint32(REGTMP))
+		o2 = OP_RRR(c.oprrr(add), r, REGTMP, REGTMP)
 		o3 = OP_IRR(c.opirr(-p.As), uint32(v), uint32(REGTMP), uint32(p.To.Reg))
 
 	case 37: /* movw r,mr */
@@ -1538,31 +1537,31 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.As == AMOVV {
 			a = SP(2, 0) | (5 << 21) /* dmtc0 */
 		}
-		o1 = OP_RRR(a, uint32(p.From.Reg), uint32(obj.REG_NONE), uint32(p.To.Reg))
+		o1 = OP_RRR(a, p.From.Reg, obj.REG_NONE, p.To.Reg)
 
 	case 38: /* movw mr,r */
 		a := SP(2, 0) | (0 << 21) /* mfc0 */
 		if p.As == AMOVV {
 			a = SP(2, 0) | (1 << 21) /* dmfc0 */
 		}
-		o1 = OP_RRR(a, uint32(p.To.Reg), uint32(obj.REG_NONE), uint32(p.From.Reg))
+		o1 = OP_RRR(a, p.To.Reg, obj.REG_NONE, p.From.Reg)
 
 	case 40: /* word */
 		o1 = uint32(c.regoff(&p.From))
 
 	case 41: /* movw f,fcr */
-		o1 = OP_RRR(SP(2, 1)|(6<<21), uint32(p.From.Reg), uint32(obj.REG_NONE), uint32(p.To.Reg)) /* mtcc1 */
+		o1 = OP_RRR(SP(2, 1)|(6<<21), p.From.Reg, obj.REG_NONE, p.To.Reg) /* mtcc1 */
 
 	case 42: /* movw fcr,r */
-		o1 = OP_RRR(SP(2, 1)|(2<<21), uint32(p.To.Reg), uint32(obj.REG_NONE), uint32(p.From.Reg)) /* mfcc1 */
+		o1 = OP_RRR(SP(2, 1)|(2<<21), p.To.Reg, obj.REG_NONE, p.From.Reg) /* mfcc1 */
 
 	case 47: /* movv r,fr */
 		a := SP(2, 1) | (5 << 21) /* dmtc1 */
-		o1 = OP_RRR(a, uint32(p.From.Reg), uint32(obj.REG_NONE), uint32(p.To.Reg))
+		o1 = OP_RRR(a, p.From.Reg, obj.REG_NONE, p.To.Reg)
 
 	case 48: /* movv fr,r */
 		a := SP(2, 1) | (1 << 21) /* dmtc1 */
-		o1 = OP_RRR(a, uint32(p.To.Reg), uint32(obj.REG_NONE), uint32(p.From.Reg))
+		o1 = OP_RRR(a, p.To.Reg, obj.REG_NONE, p.From.Reg)
 
 	case 49: /* undef */
 		o1 = 52 /* trap -- teq r0, r0 */
@@ -1586,7 +1585,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		if o.size == 12 {
 			o3 = o2
-			o2 = OP_RRR(c.oprrr(AADDVU), uint32(REGSB), uint32(REGTMP), uint32(REGTMP))
+			o2 = OP_RRR(c.oprrr(AADDVU), REGSB, REGTMP, REGTMP)
 			rel2.Off += 4
 		}
 
@@ -1608,7 +1607,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		if o.size == 12 {
 			o3 = o2
-			o2 = OP_RRR(c.oprrr(AADDVU), uint32(REGSB), uint32(REGTMP), uint32(REGTMP))
+			o2 = OP_RRR(c.oprrr(AADDVU), REGSB, REGTMP, REGTMP)
 			rel2.Off += 4
 		}
 
@@ -1632,7 +1631,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		if o.size == 12 {
 			o3 = o2
-			o2 = OP_RRR(c.oprrr(AADDVU), uint32(REGSB), uint32(p.To.Reg), uint32(p.To.Reg))
+			o2 = OP_RRR(c.oprrr(AADDVU), REGSB, p.To.Reg, p.To.Reg)
 			rel2.Off += 4
 		}
 
