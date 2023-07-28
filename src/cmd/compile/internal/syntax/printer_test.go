@@ -172,8 +172,9 @@ var exprTests = [][2]string{
 	dup("any"),
 
 	// func and composite literals
-	{"func(){}", "(func() literal)"},
-	{"func(x int) complex128 {}", "(func(x int) complex128 literal)"},
+	dup("func() {}"),
+	dup("[]int{}"),
+	{"func(x int) complex128 { return 0 }", "func(x int) complex128 {…}"},
 	{"[]int{1, 2, 3}", "[]int{…}"},
 
 	// type expressions
@@ -186,7 +187,9 @@ var exprTests = [][2]string{
 	dup("interface{m()}"),
 	dup("interface{m() string; n(x int)}"),
 	dup("interface{~int}"),
-
+	dup("interface{~int | ~float64 | ~string}"),
+	dup("interface{~int; m()}"),
+	dup("interface{~int | ~float64 | ~string; m() string; n(x int)}"),
 	dup("map[string]int"),
 	dup("chan E"),
 	dup("<-chan E"),
@@ -198,6 +201,7 @@ var exprTests = [][2]string{
 
 	// generic constraints
 	// dup("interface{type a, b, c; ~int | ~string; float64; m()}"),
+	dup("interface{~a | ~b | ~c; ~int | ~string; float64; m()}"),
 	dup("interface{int | string}"),
 	dup("interface{~int | ~string; float64; m()}"),
 	dup("interface{~T[int, string] | string}"),
