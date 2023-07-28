@@ -141,10 +141,14 @@ buildtag analyzer.
 
 ## **embed**
 
-check for //go:embed directive import
+check //go:embed directive usage
 
-This analyzer checks that the embed package is imported when source code contains //go:embed comment directives.
-The embed package must be imported for //go:embed directives to function.import _ "embed".
+This analyzer checks that the embed package is imported if //go:embed
+directives are present, providing a suggested fix to add the import if
+it is missing.
+
+This analyzer also checks that //go:embed directives precede the
+declaration of a single variable.
 
 **Enabled by default.**
 
