@@ -49,6 +49,7 @@ var testExprs = []testEntry{
 	dup("interface{~int}"),
 
 	// generic constraints
+	dup("interface{~a | ~b | ~c; ~int | ~string; float64; m()}"),
 	dup("interface{int | string}"),
 	dup("interface{~int | ~string; float64; m()}"),
 	dup("interface{~T[int, string] | string}"),
