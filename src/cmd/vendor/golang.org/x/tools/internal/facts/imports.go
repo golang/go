@@ -21,25 +21,28 @@ import (
 // Packages in the map that are only indirectly imported may be
 // incomplete (!pkg.Complete()).
 //
+// This function scales very poorly with packages' transitive object
+// references, which can be more than a million for each package near
+// the top of a large project. (This was a significant contributor to
+// #60621.)
 // TODO(adonovan): opt: compute this information more efficiently
 // by obtaining it from the internals of the gcexportdata decoder.
 func importMap(imports []*types.Package) map[string]*types.Package {
 	objects := make(map[types.Object]bool)
+	typs := make(map[types.Type]bool) // Named and TypeParam
 	packages := make(map[string]*types.Package)
 
-	var addObj func(obj types.Object) bool
+	var addObj func(obj types.Object)
 	var addType func(T types.Type)
 
-	addObj = func(obj types.Object) bool {
+	addObj = func(obj types.Object) {
 		if !objects[obj] {
 			objects[obj] = true
 			addType(obj.Type())
 			if pkg := obj.Pkg(); pkg != nil {
 				packages[pkg.Path()] = pkg
 			}
-			return true
 		}
-		return false
 	}
 
 	addType = func(T types.Type) {
@@ -47,8 +50,16 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 		case *types.Basic:
 			// nop
 		case *types.Named:
-			if addObj(T.Obj()) {
-				// TODO(taking): Investigate why the Underlying type is not added here.
+			// Remove infinite expansions of *types.Named by always looking at the origin.
+			// Some named types with type parameters [that will not type check] have
+			// infinite expansions:
+			//     type N[T any] struct { F *N[N[T]] }
+			// importMap() is called on such types when Analyzer.RunDespiteErrors is true.
+			T = typeparams.NamedTypeOrigin(T).(*types.Named)
+			if !typs[T] {
+				typs[T] = true
+				addObj(T.Obj())
+				addType(T.Underlying())
 				for i := 0; i < T.NumMethods(); i++ {
 					addObj(T.Method(i))
 				}
@@ -102,7 +113,9 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 				addType(T.Term(i).Type())
 			}
 		case *typeparams.TypeParam:
-			if addObj(T.Obj()) {
+			if !typs[T] {
+				typs[T] = true
+				addObj(T.Obj())
 				addType(T.Constraint())
 			}
 		}

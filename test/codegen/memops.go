@@ -365,3 +365,10 @@ func idxFloatOps(a []float64, b []float32, i int) (float64, float32) {
 	d /= b[i+4]
 	return c, d
 }
+
+func storeTest(a []bool, v int, i int) {
+	// amd64: `BTL\t\$0,`,`SETCS\t4\([A-Z]+[0-9]*\)`
+	a[4] = v&1 != 0
+	// amd64: `BTL\t\$1,`,`SETCS\t3\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
+	a[3+i] = v&2 != 0
+}

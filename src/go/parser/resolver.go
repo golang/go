@@ -234,7 +234,7 @@ func (r *resolver) walkExprs(list []ast.Expr) {
 
 func (r *resolver) walkLHS(list []ast.Expr) {
 	for _, expr := range list {
-		expr := unparen(expr)
+		expr := ast.Unparen(expr)
 		if _, ok := expr.(*ast.Ident); !ok && expr != nil {
 			ast.Walk(r, expr)
 		}

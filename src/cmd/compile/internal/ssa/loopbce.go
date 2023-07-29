@@ -93,7 +93,7 @@ func findIndVar(f *Func) []indVar {
 		var init *Value  // starting value
 		var limit *Value // ending value
 
-		// Check thet the control if it either ind </<= limit or limit </<= ind.
+		// Check that the control if it either ind </<= limit or limit </<= ind.
 		// TODO: Handle unsigned comparisons?
 		c := b.Controls[0]
 		inclusive := false
@@ -117,12 +117,12 @@ func findIndVar(f *Func) []indVar {
 			//     for i := len(n)-1; i >= 0; i--
 			init, inc, nxt = parseIndVar(limit)
 			if init == nil {
-				// No recognied induction variable on either operand
+				// No recognized induction variable on either operand
 				continue
 			}
 
 			// Ok, the arguments were reversed. Swap them, and remember that we're
-			// looking at a ind >/>= loop (so the induction must be decrementing).
+			// looking at an ind >/>= loop (so the induction must be decrementing).
 			ind, limit = limit, ind
 			less = false
 		}

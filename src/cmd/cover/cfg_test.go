@@ -41,7 +41,9 @@ func writePkgConfig(t *testing.T, outdir, tag, ppath, pname string, gran string)
 func writeOutFileList(t *testing.T, infiles []string, outdir, tag string) ([]string, string) {
 	outfilelist := filepath.Join(outdir, tag+"outfilelist.txt")
 	var sb strings.Builder
-	outfs := []string{}
+	cv := filepath.Join(outdir, "covervars.go")
+	outfs := []string{cv}
+	fmt.Fprintf(&sb, "%s\n", cv)
 	for _, inf := range infiles {
 		base := filepath.Base(inf)
 		of := filepath.Join(outdir, tag+".cov."+base)

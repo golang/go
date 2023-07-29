@@ -245,8 +245,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	r = relocs.At(rIdx)
 
 	switch r.Type() {
-	case objabi.R_CALL,
-		objabi.R_PCREL:
+	case objabi.R_CALL:
 		if targType != sym.SDYNIMPORT {
 			// nothing to do, the relocation will be laid out in reloc
 			return true
@@ -262,6 +261,30 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su.SetRelocSym(rIdx, syms.PLT)
 		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
 		return true
+
+	case objabi.R_PCREL:
+		if targType == sym.SDYNIMPORT && ldr.SymType(s) == sym.STEXT && target.IsDarwin() {
+			// Loading the address of a dynamic symbol. Rewrite to use GOT.
+			// turn LEAQ symbol address to MOVQ of GOT entry
+			if r.Add() != 0 {
+				ldr.Errorf(s, "unexpected nonzero addend for dynamic symbol %s", ldr.SymName(targ))
+				return false
+			}
+			su := ldr.MakeSymbolUpdater(s)
+			if r.Off() >= 2 && su.Data()[r.Off()-2] == 0x8d {
+				su.MakeWritable()
+				su.Data()[r.Off()-2] = 0x8b
+				if target.IsInternal() {
+					ld.AddGotSym(target, ldr, syms, targ, 0)
+					su.SetRelocSym(rIdx, syms.GOT)
+					su.SetRelocAdd(rIdx, int64(ldr.SymGot(targ)))
+				} else {
+					su.SetRelocType(rIdx, objabi.R_GOTPCREL)
+				}
+				return true
+			}
+			ldr.Errorf(s, "unexpected R_PCREL reloc for dynamic symbol %s: not preceded by LEAQ instruction", ldr.SymName(targ))
+		}
 
 	case objabi.R_ADDR:
 		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
@@ -531,6 +554,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		} else {
 			v = ld.IMAGE_REL_AMD64_ADDR32
 		}
+
+	case objabi.R_PEIMAGEOFF:
+		v = ld.IMAGE_REL_AMD64_ADDR32NB
 
 	case objabi.R_CALL,
 		objabi.R_PCREL:

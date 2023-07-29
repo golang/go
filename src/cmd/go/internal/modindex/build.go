@@ -10,6 +10,7 @@ package modindex
 import (
 	"bytes"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/str"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -41,7 +42,7 @@ type Context struct {
 	Dir string
 
 	CgoEnabled  bool   // whether cgo files are included
-	UseAllFiles bool   // use files regardless of +build lines, file names
+	UseAllFiles bool   // use files regardless of //go:build lines, file names
 	Compiler    string // compiler to assume when computing target paths
 
 	// The build, tool, and release tags specify build constraints
@@ -166,11 +167,7 @@ func (ctxt *Context) hasSubdir(root, dir string) (rel string, ok bool) {
 
 // hasSubdir reports if dir is within root by performing lexical analysis only.
 func hasSubdir(root, dir string) (rel string, ok bool) {
-	const sep = string(filepath.Separator)
-	root = filepath.Clean(root)
-	if !strings.HasSuffix(root, sep) {
-		root += sep
-	}
+	root = str.WithFilePathSeparator(filepath.Clean(root))
 	dir = filepath.Clean(dir)
 	if !strings.HasPrefix(dir, root) {
 		return "", false
@@ -379,13 +376,14 @@ var dummyPkg build.Package
 
 // fileInfo records information learned about a file included in a build.
 type fileInfo struct {
-	name     string // full name including dir
-	header   []byte
-	fset     *token.FileSet
-	parsed   *ast.File
-	parseErr error
-	imports  []fileImport
-	embeds   []fileEmbed
+	name       string // full name including dir
+	header     []byte
+	fset       *token.FileSet
+	parsed     *ast.File
+	parseErr   error
+	imports    []fileImport
+	embeds     []fileEmbed
+	directives []build.Directive
 
 	// Additional fields added to go/build's fileinfo for the purposes of the modindex package.
 	binaryOnly           bool

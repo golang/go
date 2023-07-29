@@ -98,6 +98,10 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.SelectorExpr)
 		return n.FuncName()
 
+	case ir.OMIN, ir.OMAX:
+		n := n.(*ir.CallExpr)
+		return walkMinMax(n, init)
+
 	case ir.ONOT, ir.ONEG, ir.OPLUS, ir.OBITNOT, ir.OREAL, ir.OIMAG, ir.OSPTR, ir.OITAB, ir.OIDATA:
 		n := n.(*ir.UnaryExpr)
 		n.X = walkExpr(n.X, init)
@@ -278,6 +282,10 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 
 	case ir.OCOPY:
 		return walkCopy(n.(*ir.BinaryExpr), init, base.Flag.Cfg.Instrumenting && !base.Flag.CompilingRuntime)
+
+	case ir.OCLEAR:
+		n := n.(*ir.UnaryExpr)
+		return walkClear(n)
 
 	case ir.OCLOSE:
 		n := n.(*ir.UnaryExpr)
@@ -556,7 +564,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 			fn := arg.(*ir.ConvExpr).X.(*ir.Name)
 			abi := fn.Func.ABI
 			if abi != wantABI {
-				base.ErrorfAt(n.Pos(), "internal/abi.%s expects an %v function, %s is defined as %v", name, wantABI, fn.Sym().Name, abi)
+				base.ErrorfAt(n.Pos(), 0, "internal/abi.%s expects an %v function, %s is defined as %v", name, wantABI, fn.Sym().Name, abi)
 			}
 			var e ir.Node = ir.NewLinksymExpr(n.Pos(), fn.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
 			e = ir.NewAddrExpr(n.Pos(), e)
@@ -566,7 +574,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		// fn is not a defined function. It must be ABIInternal.
 		// Read the address from func value, i.e. *(*uintptr)(idata(fn)).
 		if wantABI != obj.ABIInternal {
-			base.ErrorfAt(n.Pos(), "internal/abi.%s does not accept func expression, which is ABIInternal", name)
+			base.ErrorfAt(n.Pos(), 0, "internal/abi.%s does not accept func expression, which is ABIInternal", name)
 		}
 		arg = walkExpr(arg, init)
 		var e ir.Node = ir.NewUnaryExpr(n.Pos(), ir.OIDATA, arg)
@@ -617,7 +625,6 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 		}
 	}
 
-	n.Args = args
 	funSym := n.X.Sym()
 	if base.Debug.Libfuzzer != 0 && funSym != nil {
 		if hook, found := hooks[funSym.Pkg.Path+"."+funSym.Name]; found {
@@ -755,7 +762,7 @@ func walkIndex(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 
 // mapKeyArg returns an expression for key that is suitable to be passed
 // as the key argument for runtime map* functions.
-// n is is the map indexing or delete Node (to provide Pos).
+// n is the map indexing or delete Node (to provide Pos).
 func mapKeyArg(fast int, n, key ir.Node, assigned bool) ir.Node {
 	if fast == mapslow {
 		// standard version takes key by reference.

@@ -10,11 +10,15 @@
 
 // Offsets into Thread Environment Block (pointer in GS)
 #define TEB_TlsSlots 0x1480
+#define TEB_ArbitraryPtr 0x28
 
 // void runtime·asmstdcall(void *c);
-TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
-	// asmcgocall will put first argument into CX.
-	PUSHQ	CX			// save for later
+TEXT runtime·asmstdcall(SB),NOSPLIT,$16
+	MOVQ	SP, AX
+	ANDQ	$~15, SP	// alignment as per Windows requirement
+	MOVQ	AX, 8(SP)
+	MOVQ	CX, 0(SP)	// asmcgocall will put first argument into CX.
+
 	MOVQ	libcall_fn(CX), AX
 	MOVQ	libcall_args(CX), SI
 	MOVQ	libcall_n(CX), CX
@@ -61,7 +65,8 @@ loadregs:
 	ADDQ	$(const_maxArgs*8), SP
 
 	// Return result.
-	POPQ	CX
+	MOVQ	0(SP), CX
+	MOVQ	8(SP), SP
 	MOVQ	AX, libcall_r1(CX)
 	// Floating point return values are returned in XMM0. Setting r2 to this
 	// value in case this call returned a floating point value. For details,
@@ -147,15 +152,15 @@ TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
 	// In any case, even if function has 0,1,2,3,4 args, there is reserved
 	// but uninitialized "shadow space" for the first 4 args.
 	// The values are in registers.
-  	MOVQ	CX, (16+0)(SP)
-  	MOVQ	DX, (16+8)(SP)
-  	MOVQ	R8, (16+16)(SP)
-  	MOVQ	R9, (16+24)(SP)
+	MOVQ	CX, (16+0)(SP)
+	MOVQ	DX, (16+8)(SP)
+	MOVQ	R8, (16+16)(SP)
+	MOVQ	R9, (16+24)(SP)
 	// R8 = address of args vector
 	LEAQ	(16+0)(SP), R8
 
 	// remove return address from stack, we are not returning to callbackasm, but to its caller.
-  	MOVQ	0(SP), AX
+	MOVQ	0(SP), AX
 	ADDQ	$8, SP
 
 	// determine index into runtime·cbs table
@@ -204,7 +209,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
 	MOVQ	AX, (g_stack+stack_hi)(DX)
 	SUBQ	$(64*1024), AX		// initial stack size (adjusted later)
 	MOVQ	AX, (g_stack+stack_lo)(DX)
-	ADDQ	$const__StackGuard, AX
+	ADDQ	$const_stackGuard, AX
 	MOVQ	AX, g_stackguard0(DX)
 	MOVQ	AX, g_stackguard1(DX)
 
@@ -233,7 +238,7 @@ TEXT runtime·settls(SB),NOSPLIT,$0
 // g may be nil.
 // The function leaves room for 4 syscall parameters
 // (as per windows amd64 calling convention).
-TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$48-4
+TEXT runtime·usleep2(SB),NOSPLIT,$48-4
 	MOVLQSX	dt+0(FP), BX
 	MOVQ	SP, AX
 	ANDQ	$~15, SP	// alignment as per Windows requirement
@@ -247,41 +252,8 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$48-4
 	MOVQ	40(SP), SP
 	RET
 
-// Runs on OS stack. duration (in -100ns units) is in dt+0(FP).
-// g is valid.
-TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72-4
-	MOVLQSX	dt+0(FP), BX
-	get_tls(CX)
-
-	MOVQ	SP, AX
-	ANDQ	$~15, SP	// alignment as per Windows requirement
-	MOVQ	AX, 64(SP)
-
-	MOVQ	g(CX), CX
-	MOVQ	g_m(CX), CX
-	MOVQ	(m_mOS+mOS_highResTimer)(CX), CX	// hTimer
-	MOVQ	CX, 48(SP)				// save hTimer for later
-	LEAQ	56(SP), DX				// lpDueTime
-	MOVQ	BX, (DX)
-	MOVQ	$0, R8					// lPeriod
-	MOVQ	$0, R9					// pfnCompletionRoutine
-	MOVQ	$0, AX
-	MOVQ	AX, 32(SP)				// lpArgToCompletionRoutine
-	MOVQ	AX, 40(SP)				// fResume
-	MOVQ	runtime·_SetWaitableTimer(SB), AX
-	CALL	AX
-
-	MOVQ	48(SP), CX				// handle
-	MOVQ	$0, DX					// alertable
-	MOVQ	$0, R8					// ptime
-	MOVQ	runtime·_NtWaitForSingleObject(SB), AX
-	CALL	AX
-
-	MOVQ	64(SP), SP
-	RET
-
 // Runs on OS stack.
-TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·switchtothread(SB),NOSPLIT,$0
 	MOVQ	SP, AX
 	ANDQ	$~15, SP	// alignment as per Windows requirement
 	SUBQ	$(48), SP	// room for SP and 4 args as per Windows requirement
@@ -306,7 +278,7 @@ useQPC:
 
 // func osSetupTLS(mp *m)
 // Setup TLS. for use by needm on Windows.
-TEXT runtime·osSetupTLS(SB),NOSPLIT|NOFRAME,$0-8
+TEXT runtime·osSetupTLS(SB),NOSPLIT,$0-8
 	MOVQ	mp+0(FP), AX
 	LEAQ	m_tls(AX), DI
 	CALL	runtime·settls(SB)
@@ -314,7 +286,7 @@ TEXT runtime·osSetupTLS(SB),NOSPLIT|NOFRAME,$0-8
 
 // This is called from rt0_go, which runs on the system stack
 // using the initial stack allocated by the OS.
-TEXT runtime·wintls(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·wintls(SB),NOSPLIT,$0
 	// Allocate a TLS slot to hold g across calls to external code
 	MOVQ	SP, AX
 	ANDQ	$~15, SP	// alignment as per Windows requirement
@@ -330,7 +302,11 @@ TEXT runtime·wintls(SB),NOSPLIT|NOFRAME,$0
 	// Assert that slot is less than 64 so we can use _TEB->TlsSlots
 	CMPQ	CX, $64
 	JB	ok
-	CALL	runtime·abort(SB)
+
+	// Fallback to the TEB arbitrary pointer.
+	// TODO: don't use the arbitrary pointer (see go.dev/issue/59824)
+	MOVQ	$TEB_ArbitraryPtr, CX
+	JMP	settls
 ok:
 	// Convert the TLS index at CX into
 	// an offset from TEB_TlsSlots.
@@ -338,5 +314,6 @@ ok:
 
 	// Save offset from TLS into tls_g.
 	ADDQ	$TEB_TlsSlots, CX
+settls:
 	MOVQ	CX, runtime·tls_g(SB)
 	RET

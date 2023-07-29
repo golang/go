@@ -67,7 +67,7 @@ const (
 	//
 	// IDs 0..31 are reserved for official use by PKWARE.
 	// IDs above that range are defined by third-party vendors.
-	// Since ZIP lacked high precision timestamps (nor a official specification
+	// Since ZIP lacked high precision timestamps (nor an official specification
 	// of the timezone used for the date fields), many competing extra fields
 	// have been invented. Pervasive use effectively makes them "official".
 	//
@@ -189,6 +189,10 @@ func (fi headerFileInfo) Type() fs.FileMode { return fi.fh.Mode().Type() }
 func (fi headerFileInfo) Sys() any          { return fi.fh }
 
 func (fi headerFileInfo) Info() (fs.FileInfo, error) { return fi, nil }
+
+func (fi headerFileInfo) String() string {
+	return fs.FormatFileInfo(fi)
+}
 
 // FileInfoHeader creates a partially-populated FileHeader from an
 // fs.FileInfo.
@@ -338,8 +342,8 @@ func (h *FileHeader) isZip64() bool {
 	return h.CompressedSize64 >= uint32max || h.UncompressedSize64 >= uint32max
 }
 
-func (f *FileHeader) hasDataDescriptor() bool {
-	return f.Flags&0x8 != 0
+func (h *FileHeader) hasDataDescriptor() bool {
+	return h.Flags&0x8 != 0
 }
 
 func msdosModeToFileMode(m uint32) (mode fs.FileMode) {

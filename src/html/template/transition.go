@@ -27,6 +27,7 @@ var transitionFunc = [...]func(context, []byte) (context, int){
 	stateJS:          tJS,
 	stateJSDqStr:     tJSDelimited,
 	stateJSSqStr:     tJSDelimited,
+	stateJSBqStr:     tJSDelimited,
 	stateJSRegexp:    tJSDelimited,
 	stateJSBlockCmt:  tBlockCmt,
 	stateJSLineCmt:   tLineCmt,
@@ -262,7 +263,7 @@ func tURL(c context, s []byte) (context, int) {
 
 // tJS is the context transition function for the JS state.
 func tJS(c context, s []byte) (context, int) {
-	i := bytes.IndexAny(s, `"'/`)
+	i := bytes.IndexAny(s, "\"`'/")
 	if i == -1 {
 		// Entire input is non string, comment, regexp tokens.
 		c.jsCtx = nextJSCtx(s, c.jsCtx)
@@ -274,6 +275,8 @@ func tJS(c context, s []byte) (context, int) {
 		c.state, c.jsCtx = stateJSDqStr, jsCtxRegexp
 	case '\'':
 		c.state, c.jsCtx = stateJSSqStr, jsCtxRegexp
+	case '`':
+		c.state, c.jsCtx = stateJSBqStr, jsCtxRegexp
 	case '/':
 		switch {
 		case i+1 < len(s) && s[i+1] == '/':
@@ -303,6 +306,8 @@ func tJSDelimited(c context, s []byte) (context, int) {
 	switch c.state {
 	case stateJSSqStr:
 		specials = `\'`
+	case stateJSBqStr:
+		specials = "`\\"
 	case stateJSRegexp:
 		specials = `\/[]`
 	}
@@ -392,7 +397,7 @@ func tLineCmt(c context, s []byte) (context, int) {
 		return c, len(s)
 	}
 	c.state = endState
-	// Per section 7.4 of EcmaScript 5 : https://es5.github.com/#x7.4
+	// Per section 7.4 of EcmaScript 5 : https://es5.github.io/#x7.4
 	// "However, the LineTerminator at the end of the line is not
 	// considered to be part of the single-line comment; it is
 	// recognized separately by the lexical grammar and becomes part

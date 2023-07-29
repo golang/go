@@ -147,10 +147,14 @@ func (s *State) ExpandEnv(str string, inRegexp bool) string {
 // originally created.
 func (s *State) ExtractFiles(ar *txtar.Archive) error {
 	wd := s.workdir
+
 	// Add trailing separator to terminate wd.
 	// This prevents extracting to outside paths which prefix wd,
 	// e.g. extracting to /home/foobar when wd is /home/foo
-	if !strings.HasSuffix(wd, string(filepath.Separator)) {
+	if wd == "" {
+		panic("s.workdir is unexpectedly empty")
+	}
+	if !os.IsPathSeparator(wd[len(wd)-1]) {
 		wd += string(filepath.Separator)
 	}
 

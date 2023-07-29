@@ -27,6 +27,7 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/constant"
+	. "internal/types/errors"
 	"strings"
 )
 
@@ -39,6 +40,7 @@ type Error struct {
 	Msg  string     // default error message, user-friendly
 	Full string     // full error message, for debugging (may contain internal details)
 	Soft bool       // if set, error is "soft"
+	Code Code       // error code
 }
 
 // Error returns an error string formatted as follows:
@@ -108,11 +110,11 @@ type Config struct {
 	// type checker will initialize this field with a newly created context.
 	Context *Context
 
-	// GoVersion describes the accepted Go language version. The string
-	// must follow the format "go%d.%d" (e.g. "go1.12") or ist must be
-	// empty; an empty string indicates the latest language version.
-	// If the format is invalid, invoking the type checker will cause a
-	// panic.
+	// GoVersion describes the accepted Go language version. The string must
+	// start with a prefix of the form "go%d.%d" (e.g. "go1.20", "go1.21rc1", or
+	// "go1.21.0") or it must be empty; an empty string disables Go language
+	// version checks. If the format is invalid, invoking the type checker will
+	// result in an error.
 	GoVersion string
 
 	// If IgnoreFuncBodies is set, function bodies are not
@@ -167,6 +169,12 @@ type Config struct {
 	// If DisableUnusedImportCheck is set, packages are not checked
 	// for unused imports.
 	DisableUnusedImportCheck bool
+
+	// If a non-empty ErrorURL format string is provided, it is used
+	// to format an error URL link that is appended to the first line
+	// of an error message. ErrorURL must be a format string containing
+	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
+	ErrorURL string
 }
 
 func srcimporter_setUsesCgo(conf *Config) {
@@ -442,7 +450,7 @@ func AssertableTo(V *Interface, T Type) bool {
 	if T.Underlying() == Typ[Invalid] {
 		return false
 	}
-	return (*Checker)(nil).newAssertableTo(V, T)
+	return (*Checker)(nil).newAssertableTo(nopos, V, T, nil)
 }
 
 // AssignableTo reports whether a value of type V is assignable to a variable
@@ -480,7 +488,7 @@ func Implements(V Type, T *Interface) bool {
 	if V.Underlying() == Typ[Invalid] {
 		return false
 	}
-	return (*Checker)(nil).implements(V, T, false, nil)
+	return (*Checker)(nil).implements(nopos, V, T, false, nil)
 }
 
 // Satisfies reports whether type V satisfies the constraint T.
@@ -488,17 +496,20 @@ func Implements(V Type, T *Interface) bool {
 // The behavior of Satisfies is unspecified if V is Typ[Invalid] or an uninstantiated
 // generic type.
 func Satisfies(V Type, T *Interface) bool {
-	return (*Checker)(nil).implements(V, T, true, nil)
+	return (*Checker)(nil).implements(nopos, V, T, true, nil)
 }
 
 // Identical reports whether x and y are identical types.
 // Receivers of Signature types are ignored.
 func Identical(x, y Type) bool {
-	return identical(x, y, true, nil)
+	var c comparer
+	return c.identical(x, y, nil)
 }
 
 // IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
 // Receivers of Signature types are ignored.
 func IdenticalIgnoreTags(x, y Type) bool {
-	return identical(x, y, false, nil)
+	var c comparer
+	c.ignoreTags = true
+	return c.identical(x, y, nil)
 }

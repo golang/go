@@ -26,6 +26,7 @@ package zlib
 import (
 	"bufio"
 	"compress/flate"
+	"encoding/binary"
 	"errors"
 	"hash"
 	"hash/adler32"
@@ -110,7 +111,7 @@ func (z *reader) Read(p []byte) (int, error) {
 		return n, z.err
 	}
 	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
-	checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])
+	checksum := binary.BigEndian.Uint32(z.scratch[:4])
 	if checksum != z.digest.Sum32() {
 		z.err = ErrChecksum
 		return n, z.err
@@ -145,7 +146,7 @@ func (z *reader) Reset(r io.Reader, dict []byte) error {
 		}
 		return z.err
 	}
-	h := uint(z.scratch[0])<<8 | uint(z.scratch[1])
+	h := binary.BigEndian.Uint16(z.scratch[:2])
 	if (z.scratch[0]&0x0f != zlibDeflate) || (z.scratch[0]>>4 > zlibMaxWindow) || (h%31 != 0) {
 		z.err = ErrHeader
 		return z.err
@@ -159,7 +160,7 @@ func (z *reader) Reset(r io.Reader, dict []byte) error {
 			}
 			return z.err
 		}
-		checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])
+		checksum := binary.BigEndian.Uint32(z.scratch[:4])
 		if checksum != adler32.Checksum(dict) {
 			z.err = ErrDictionary
 			return z.err

@@ -8,7 +8,7 @@
 #include "textflag.h"
 #include "time_windows.h"
 
-TEXT time·now(SB),NOSPLIT|NOFRAME,$0-20
+TEXT time·now(SB),NOSPLIT,$0-20
 	MOVW    $0, R0
 	MOVB    runtime·useQPCTime(SB), R0
 	CMP	$0, R0
@@ -86,5 +86,5 @@ wall:
 	MOVW	R1,nsec+8(FP)
 	RET
 useQPC:
-	B	runtime·nowQPC(SB)		// tail call
+	RET	runtime·nowQPC(SB)		// tail call
 

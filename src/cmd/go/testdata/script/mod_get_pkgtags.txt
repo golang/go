@@ -52,7 +52,7 @@ go get example.net/testonly@v0.1.0
 
 # With the -t flag, the test dependencies must resolve successfully.
 ! go get -t example.net/testonly@v0.1.0
-stderr '^example.net/testonly tested by\n\texample.net/testonly\.test imports\n\texample.net/missing: cannot find module providing package example.net/missing$'
+stderr '^go: example.net/testonly tested by\n\texample.net/testonly\.test imports\n\texample.net/missing: cannot find module providing package example.net/missing$'
 
 
 # 'go get' should succeed for a module path that does not contain a package,

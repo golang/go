@@ -585,7 +585,6 @@ func TestIPProperties(t *testing.T) {
 		lluZone6 = mustIP("fe80::1%eth0")
 
 		loopback4 = mustIP("127.0.0.1")
-		loopback6 = mustIP("::1")
 
 		ilm6     = mustIP("ff01::1")
 		ilmZone6 = mustIP("ff01::1%eth0")
@@ -677,7 +676,7 @@ func TestIPProperties(t *testing.T) {
 		},
 		{
 			name:     "loopback v6Addr",
-			ip:       loopback6,
+			ip:       IPv6Loopback(),
 			loopback: true,
 		},
 		{

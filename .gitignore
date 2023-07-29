@@ -33,7 +33,6 @@ _testmain.go
 /src/cmd/cgo/zdefaultcc.go
 /src/cmd/dist/dist
 /src/cmd/go/internal/cfg/zdefaultcc.go
-/src/cmd/go/internal/cfg/zosarch.go
 /src/cmd/internal/objabi/zbootstrap.go
 /src/go/build/zcgo.go
 /src/go/doc/headscan

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm)
+//go:build unix || (js && wasm) || wasip1
 
 package poll
 
@@ -22,11 +22,11 @@ type FD struct {
 	// System file descriptor. Immutable until Close.
 	Sysfd int
 
+	// Platform dependent state of the file descriptor.
+	SysFile
+
 	// I/O poller.
 	pd pollDesc
-
-	// Writev cache.
-	iovecs *[]syscall.Iovec
 
 	// Semaphore signaled when file is closed.
 	csema uint32
@@ -52,6 +52,8 @@ type FD struct {
 // or "file".
 // Set pollable to true if fd should be managed by runtime netpoll.
 func (fd *FD) Init(net string, pollable bool) error {
+	fd.SysFile.init()
+
 	// We don't actually care about the various network types.
 	if net == "file" {
 		fd.isFile = true
@@ -76,12 +78,7 @@ func (fd *FD) destroy() error {
 	// so this must be executed before CloseFunc.
 	fd.pd.close()
 
-	// We don't use ignoringEINTR here because POSIX does not define
-	// whether the descriptor is closed if close returns EINTR.
-	// If the descriptor is indeed closed, using a loop would race
-	// with some other goroutine opening a new descriptor.
-	// (The Linux kernel guarantees that it is closed on an EINTR error.)
-	err := CloseFunc(fd.Sysfd)
+	err := fd.SysFile.destroy(fd.Sysfd)
 
 	fd.Sysfd = -1
 	runtime_Semrelease(&fd.csema)
@@ -625,38 +622,6 @@ func (fd *FD) Accept() (int, syscall.Sockaddr, string, error) {
 	}
 }
 
-// Seek wraps syscall.Seek.
-func (fd *FD) Seek(offset int64, whence int) (int64, error) {
-	if err := fd.incref(); err != nil {
-		return 0, err
-	}
-	defer fd.decref()
-	return syscall.Seek(fd.Sysfd, offset, whence)
-}
-
-// ReadDirent wraps syscall.ReadDirent.
-// We treat this like an ordinary system call rather than a call
-// that tries to fill the buffer.
-func (fd *FD) ReadDirent(buf []byte) (int, error) {
-	if err := fd.incref(); err != nil {
-		return 0, err
-	}
-	defer fd.decref()
-	for {
-		n, err := ignoringEINTRIO(syscall.ReadDirent, fd.Sysfd, buf)
-		if err != nil {
-			n = 0
-			if err == syscall.EAGAIN && fd.pd.pollable() {
-				if err = fd.pd.waitRead(fd.isFile); err == nil {
-					continue
-				}
-			}
-		}
-		// Do not call eofError; caller does not expect to see io.EOF.
-		return n, err
-	}
-}
-
 // Fchmod wraps syscall.Fchmod.
 func (fd *FD) Fchmod(mode uint32) error {
 	if err := fd.incref(); err != nil {
@@ -666,15 +631,6 @@ func (fd *FD) Fchmod(mode uint32) error {
 	return ignoringEINTR(func() error {
 		return syscall.Fchmod(fd.Sysfd, mode)
 	})
-}
-
-// Fchdir wraps syscall.Fchdir.
-func (fd *FD) Fchdir() error {
-	if err := fd.incref(); err != nil {
-		return err
-	}
-	defer fd.decref()
-	return syscall.Fchdir(fd.Sysfd)
 }
 
 // Fstat wraps syscall.Fstat
@@ -688,41 +644,27 @@ func (fd *FD) Fstat(s *syscall.Stat_t) error {
 	})
 }
 
-// tryDupCloexec indicates whether F_DUPFD_CLOEXEC should be used.
-// If the kernel doesn't support it, this is set to 0.
-var tryDupCloexec = int32(1)
+// dupCloexecUnsupported indicates whether F_DUPFD_CLOEXEC is supported by the kernel.
+var dupCloexecUnsupported atomic.Bool
 
 // DupCloseOnExec dups fd and marks it close-on-exec.
 func DupCloseOnExec(fd int) (int, string, error) {
-	if syscall.F_DUPFD_CLOEXEC != 0 && atomic.LoadInt32(&tryDupCloexec) == 1 {
-		r0, e1 := fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0)
-		if e1 == nil {
+	if syscall.F_DUPFD_CLOEXEC != 0 && !dupCloexecUnsupported.Load() {
+		r0, err := unix.Fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0)
+		if err == nil {
 			return r0, "", nil
 		}
-		switch e1.(syscall.Errno) {
+		switch err {
 		case syscall.EINVAL, syscall.ENOSYS:
 			// Old kernel, or js/wasm (which returns
 			// ENOSYS). Fall back to the portable way from
 			// now on.
-			atomic.StoreInt32(&tryDupCloexec, 0)
+			dupCloexecUnsupported.Store(true)
 		default:
-			return -1, "fcntl", e1
+			return -1, "fcntl", err
 		}
 	}
 	return dupCloseOnExecOld(fd)
-}
-
-// dupCloseOnExecOld is the traditional way to dup an fd and
-// set its O_CLOEXEC bit, using two system calls.
-func dupCloseOnExecOld(fd int) (int, string, error) {
-	syscall.ForkLock.RLock()
-	defer syscall.ForkLock.RUnlock()
-	newfd, err := syscall.Dup(fd)
-	if err != nil {
-		return -1, "dup", err
-	}
-	syscall.CloseOnExec(newfd)
-	return newfd, "", nil
 }
 
 // Dup duplicates the file descriptor.

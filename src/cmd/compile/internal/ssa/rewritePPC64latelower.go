@@ -2,10 +2,16 @@
 
 package ssa
 
+import "internal/buildcfg"
+
 func rewriteValuePPC64latelower(v *Value) bool {
 	switch v.Op {
 	case OpPPC64ISEL:
 		return rewriteValuePPC64latelower_OpPPC64ISEL(v)
+	case OpPPC64SETBC:
+		return rewriteValuePPC64latelower_OpPPC64SETBC(v)
+	case OpPPC64SETBCR:
+		return rewriteValuePPC64latelower_OpPPC64SETBCR(v)
 	}
 	return false
 }
@@ -39,6 +45,126 @@ func rewriteValuePPC64latelower_OpPPC64ISEL(v *Value) bool {
 		v.reset(OpPPC64ISELZ)
 		v.AuxInt = int32ToAuxInt(a ^ 0x4)
 		v.AddArg2(y, z)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64latelower_OpPPC64SETBC(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (SETBC [2] cmp)
+	// cond: buildcfg.GOPPC64 <= 9
+	// result: (ISELZ [2] (MOVDconst [1]) cmp)
+	for {
+		if auxIntToInt32(v.AuxInt) != 2 {
+			break
+		}
+		cmp := v_0
+		if !(buildcfg.GOPPC64 <= 9) {
+			break
+		}
+		v.reset(OpPPC64ISELZ)
+		v.AuxInt = int32ToAuxInt(2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(1)
+		v.AddArg2(v0, cmp)
+		return true
+	}
+	// match: (SETBC [0] cmp)
+	// cond: buildcfg.GOPPC64 <= 9
+	// result: (ISELZ [0] (MOVDconst [1]) cmp)
+	for {
+		if auxIntToInt32(v.AuxInt) != 0 {
+			break
+		}
+		cmp := v_0
+		if !(buildcfg.GOPPC64 <= 9) {
+			break
+		}
+		v.reset(OpPPC64ISELZ)
+		v.AuxInt = int32ToAuxInt(0)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(1)
+		v.AddArg2(v0, cmp)
+		return true
+	}
+	// match: (SETBC [1] cmp)
+	// cond: buildcfg.GOPPC64 <= 9
+	// result: (ISELZ [1] (MOVDconst [1]) cmp)
+	for {
+		if auxIntToInt32(v.AuxInt) != 1 {
+			break
+		}
+		cmp := v_0
+		if !(buildcfg.GOPPC64 <= 9) {
+			break
+		}
+		v.reset(OpPPC64ISELZ)
+		v.AuxInt = int32ToAuxInt(1)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(1)
+		v.AddArg2(v0, cmp)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64latelower_OpPPC64SETBCR(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (SETBCR [2] cmp)
+	// cond: buildcfg.GOPPC64 <= 9
+	// result: (ISELZ [6] (MOVDconst [1]) cmp)
+	for {
+		if auxIntToInt32(v.AuxInt) != 2 {
+			break
+		}
+		cmp := v_0
+		if !(buildcfg.GOPPC64 <= 9) {
+			break
+		}
+		v.reset(OpPPC64ISELZ)
+		v.AuxInt = int32ToAuxInt(6)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(1)
+		v.AddArg2(v0, cmp)
+		return true
+	}
+	// match: (SETBCR [0] cmp)
+	// cond: buildcfg.GOPPC64 <= 9
+	// result: (ISELZ [4] (MOVDconst [1]) cmp)
+	for {
+		if auxIntToInt32(v.AuxInt) != 0 {
+			break
+		}
+		cmp := v_0
+		if !(buildcfg.GOPPC64 <= 9) {
+			break
+		}
+		v.reset(OpPPC64ISELZ)
+		v.AuxInt = int32ToAuxInt(4)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(1)
+		v.AddArg2(v0, cmp)
+		return true
+	}
+	// match: (SETBCR [1] cmp)
+	// cond: buildcfg.GOPPC64 <= 9
+	// result: (ISELZ [5] (MOVDconst [1]) cmp)
+	for {
+		if auxIntToInt32(v.AuxInt) != 1 {
+			break
+		}
+		cmp := v_0
+		if !(buildcfg.GOPPC64 <= 9) {
+			break
+		}
+		v.reset(OpPPC64ISELZ)
+		v.AuxInt = int32ToAuxInt(5)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(1)
+		v.AddArg2(v0, cmp)
 		return true
 	}
 	return false

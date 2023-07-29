@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	"internal/goversion"
 	. "internal/types/errors"
 )
 
@@ -118,6 +119,7 @@ type Checker struct {
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
 	files         []*ast.File               // package files
+	posVers       map[*token.File]version   // Pos -> Go version mapping
 	imports       []*PkgName                // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
 	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type
@@ -232,20 +234,20 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		info = new(Info)
 	}
 
-	version, err := parseGoVersion(conf.GoVersion)
-	if err != nil {
-		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.GoVersion, err))
-	}
+	// Note: clients may call NewChecker with the Unsafe package, which is
+	// globally shared and must not be mutated. Therefore NewChecker must not
+	// mutate *pkg.
+	//
+	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
 
 	return &Checker{
-		conf:    conf,
-		ctxt:    conf.Context,
-		fset:    fset,
-		pkg:     pkg,
-		Info:    info,
-		version: version,
-		objMap:  make(map[Object]*declInfo),
-		impMap:  make(map[importKey]*Package),
+		conf:   conf,
+		ctxt:   conf.Context,
+		fset:   fset,
+		pkg:    pkg,
+		Info:   info,
+		objMap: make(map[Object]*declInfo),
+		impMap: make(map[importKey]*Package),
 	}
 }
 
@@ -284,6 +286,41 @@ func (check *Checker) initFiles(files []*ast.File) {
 			// ignore this file
 		}
 	}
+
+	for _, file := range check.files {
+		v, _ := parseGoVersion(file.GoVersion)
+		if v.major > 0 {
+			if v.equal(check.version) {
+				continue
+			}
+			// Go 1.21 introduced the feature of setting the go.mod
+			// go line to an early version of Go and allowing //go:build lines
+			// to “upgrade” the Go version in a given file.
+			// We can do that backwards compatibly.
+			// Go 1.21 also introduced the feature of allowing //go:build lines
+			// to “downgrade” the Go version in a given file.
+			// That can't be done compatibly in general, since before the
+			// build lines were ignored and code got the module's Go version.
+			// To work around this, downgrades are only allowed when the
+			// module's Go version is Go 1.21 or later.
+			// If there is no check.version, then we don't really know what Go version to apply.
+			// Legacy tools may do this, and they historically have accepted everything.
+			// Preserve that behavior by ignoring //go:build constraints entirely in that case.
+			if (v.before(check.version) && check.version.before(version{1, 21})) || check.version.equal(version{0, 0}) {
+				continue
+			}
+			if check.posVers == nil {
+				check.posVers = make(map[*token.File]version)
+			}
+			check.posVers[check.fset.File(file.FileStart)] = v
+		}
+	}
+}
+
+// A posVers records that the file starting at pos declares the Go version vers.
+type posVers struct {
+	pos  token.Pos
+	vers version
 }
 
 // A bailout panic is used for early termination.
@@ -306,6 +343,20 @@ func (check *Checker) Files(files []*ast.File) error { return check.checkFiles(f
 var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
 
 func (check *Checker) checkFiles(files []*ast.File) (err error) {
+	if check.pkg == Unsafe {
+		// Defensive handling for Unsafe, which cannot be type checked, and must
+		// not be mutated. See https://go.dev/issue/61212 for an example of where
+		// Unsafe is passed to NewChecker.
+		return nil
+	}
+
+	check.version, err = parseGoVersion(check.conf.GoVersion)
+	if err != nil {
+		return err
+	}
+	if check.version.after(version{1, goversion.Version}) {
+		return fmt.Errorf("package requires newer Go version %v", check.version)
+	}
 	if check.conf.FakeImportC && check.conf.go115UsesCgo {
 		return errBadCgo
 	}
@@ -350,6 +401,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 		check.monomorph()
 	}
 
+	check.pkg.goVersion = check.conf.GoVersion
 	check.pkg.complete = true
 
 	// no longer needed - release memory
@@ -478,20 +530,24 @@ func (check *Checker) recordBuiltinType(f ast.Expr, sig *Signature) {
 	}
 }
 
-func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
+// recordCommaOkTypes updates recorded types to reflect that x is used in a commaOk context
+// (and therefore has tuple type).
+func (check *Checker) recordCommaOkTypes(x ast.Expr, a []*operand) {
 	assert(x != nil)
-	if a[0] == nil || a[1] == nil {
+	assert(len(a) == 2)
+	if a[0].mode == invalid {
 		return
 	}
-	assert(isTyped(a[0]) && isTyped(a[1]) && (isBoolean(a[1]) || a[1] == universeError))
+	t0, t1 := a[0].typ, a[1].typ
+	assert(isTyped(t0) && isTyped(t1) && (isBoolean(t1) || t1 == universeError))
 	if m := check.Types; m != nil {
 		for {
 			tv := m[x]
 			assert(tv.Type != nil) // should have been recorded already
 			pos := x.Pos()
 			tv.Type = NewTuple(
-				NewVar(pos, check.pkg, "", a[0]),
-				NewVar(pos, check.pkg, "", a[1]),
+				NewVar(pos, check.pkg, "", t0),
+				NewVar(pos, check.pkg, "", t1),
 			)
 			m[x] = tv
 			// if x is a parenthesized expression (p.X), update p.X

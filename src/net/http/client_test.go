@@ -1207,7 +1207,7 @@ func testClientTimeout(t *testing.T, mode testMode) {
 	}))
 
 	// Try to trigger a timeout after reading part of the response body.
-	// The initial timeout is emprically usually long enough on a decently fast
+	// The initial timeout is empirically usually long enough on a decently fast
 	// machine, but if we undershoot we'll retry with exponentially longer
 	// timeouts until the test either passes or times out completely.
 	// This keeps the test reasonably fast in the typical case but allows it to
@@ -1411,24 +1411,32 @@ func (f eofReaderFunc) Read(p []byte) (n int, err error) {
 
 func TestReferer(t *testing.T) {
 	tests := []struct {
-		lastReq, newReq string // from -> to URLs
-		want            string
+		lastReq, newReq, explicitRef string // from -> to URLs, explicitly set Referer value
+		want                         string
 	}{
 		// don't send user:
-		{"http://gopher@test.com", "http://link.com", "http://test.com"},
-		{"https://gopher@test.com", "https://link.com", "https://test.com"},
+		{lastReq: "http://gopher@test.com", newReq: "http://link.com", want: "http://test.com"},
+		{lastReq: "https://gopher@test.com", newReq: "https://link.com", want: "https://test.com"},
 
 		// don't send a user and password:
-		{"http://gopher:go@test.com", "http://link.com", "http://test.com"},
-		{"https://gopher:go@test.com", "https://link.com", "https://test.com"},
+		{lastReq: "http://gopher:go@test.com", newReq: "http://link.com", want: "http://test.com"},
+		{lastReq: "https://gopher:go@test.com", newReq: "https://link.com", want: "https://test.com"},
 
 		// nothing to do:
-		{"http://test.com", "http://link.com", "http://test.com"},
-		{"https://test.com", "https://link.com", "https://test.com"},
+		{lastReq: "http://test.com", newReq: "http://link.com", want: "http://test.com"},
+		{lastReq: "https://test.com", newReq: "https://link.com", want: "https://test.com"},
 
 		// https to http doesn't send a referer:
-		{"https://test.com", "http://link.com", ""},
-		{"https://gopher:go@test.com", "http://link.com", ""},
+		{lastReq: "https://test.com", newReq: "http://link.com", want: ""},
+		{lastReq: "https://gopher:go@test.com", newReq: "http://link.com", want: ""},
+
+		// https to http should remove an existing referer:
+		{lastReq: "https://test.com", newReq: "http://link.com", explicitRef: "https://foo.com", want: ""},
+		{lastReq: "https://gopher:go@test.com", newReq: "http://link.com", explicitRef: "https://foo.com", want: ""},
+
+		// don't override an existing referer:
+		{lastReq: "https://test.com", newReq: "https://link.com", explicitRef: "https://foo.com", want: "https://foo.com"},
+		{lastReq: "https://gopher:go@test.com", newReq: "https://link.com", explicitRef: "https://foo.com", want: "https://foo.com"},
 	}
 	for _, tt := range tests {
 		l, err := url.Parse(tt.lastReq)
@@ -1439,7 +1447,7 @@ func TestReferer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		r := ExportRefererForURL(l, n)
+		r := ExportRefererForURL(l, n, tt.explicitRef)
 		if r != tt.want {
 			t.Errorf("refererForURL(%q, %q) = %q; want %q", tt.lastReq, tt.newReq, r, tt.want)
 		}

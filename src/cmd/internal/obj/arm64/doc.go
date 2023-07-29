@@ -96,7 +96,7 @@ Examples:
 7. Move large constants to vector registers.
 
 Go asm uses VMOVQ/VMOVD/VMOVS to move 128-bit, 64-bit and 32-bit constants into vector registers, respectively.
-And for a 128-bit interger, it take two 64-bit operands, for the low and high parts separately.
+And for a 128-bit integer, it take two 64-bit operands, for the low and high parts separately.
 
 Examples:
 

@@ -246,7 +246,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = ra
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = rm
-		p.SetFrom3Reg(rn)
+		p.AddRestSourceReg(rn)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = rt
 	case ssa.OpARM64ADDconst,
@@ -309,7 +309,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
-		p.SetFrom3Reg(v.Args[0].Reg())
+		p.AddRestSourceReg(v.Args[0].Reg())
 		p.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -558,7 +558,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt >> 8
-		p.SetFrom3Const(v.AuxInt & 0xff)
+		p.AddRestSourceConst(v.AuxInt & 0xff)
 		p.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -569,7 +569,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt >> 8
-		p.SetFrom3Const(v.AuxInt & 0xff)
+		p.AddRestSourceConst(v.AuxInt & 0xff)
 		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -976,7 +976,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		condCode := condBits[ssa.Op(v.AuxInt)]
 		p.From.Offset = int64(condCode)
 		p.Reg = v.Args[0].Reg()
-		p.SetFrom3Reg(r1)
+		p.AddRestSourceReg(r1)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpARM64CSINC, ssa.OpARM64CSINV, ssa.OpARM64CSNEG:
@@ -985,7 +985,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		condCode := condBits[ssa.Op(v.AuxInt)]
 		p.From.Offset = int64(condCode)
 		p.Reg = v.Args[0].Reg()
-		p.SetFrom3Reg(v.Args[1].Reg())
+		p.AddRestSourceReg(v.Args[1].Reg())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpARM64CSETM:
@@ -1065,7 +1065,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = v.Aux.(*obj.LSym)
+		// AuxInt encodes how many buffer entries we need.
+		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
+
 	case ssa.OpARM64LoweredPanicBoundsA, ssa.OpARM64LoweredPanicBoundsB, ssa.OpARM64LoweredPanicBoundsC:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -1103,7 +1105,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64NotLessThanF,
 		ssa.OpARM64NotLessEqualF,
 		ssa.OpARM64NotGreaterThanF,
-		ssa.OpARM64NotGreaterEqualF:
+		ssa.OpARM64NotGreaterEqualF,
+		ssa.OpARM64LessThanNoov,
+		ssa.OpARM64GreaterEqualNoov:
 		// generate boolean values using CSET
 		p := s.Prog(arm64.ACSET)
 		p.From.Type = obj.TYPE_SPECIAL // assembler encodes conditional bits in Offset
@@ -1194,6 +1198,9 @@ var condBits = map[ssa.Op]arm64.SpecialOperand{
 	ssa.OpARM64NotLessEqualF:    arm64.SPOP_HI, // Greater than or unordered
 	ssa.OpARM64NotGreaterThanF:  arm64.SPOP_LE, // Less than, equal to or unordered
 	ssa.OpARM64NotGreaterEqualF: arm64.SPOP_LT, // Less than or unordered
+
+	ssa.OpARM64LessThanNoov:     arm64.SPOP_MI, // Less than but without honoring overflow
+	ssa.OpARM64GreaterEqualNoov: arm64.SPOP_PL, // Greater than or equal to but without honoring overflow
 }
 
 var blockJump = map[ssa.BlockKind]struct {

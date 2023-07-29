@@ -1090,7 +1090,7 @@ DATA ·IEEEConst+4328(SB)/8,$0xedb88320b1e6b092
 
 GLOBL ·IEEEConst(SB),RODATA,$4336
 
- /* Barrett constant m - (4^32)/n */
+	/* Barrett constant m - (4^32)/n */
 DATA ·IEEEBarConst(SB)/8,$0x00000001f7011641
 DATA ·IEEEBarConst+8(SB)/8,$0x0000000000000000
 DATA ·IEEEBarConst+16(SB)/8,$0x00000001db710641
@@ -2184,7 +2184,7 @@ DATA ·CastConst+4328(SB)/8,$0x82f63b786ea2d55c
 
 GLOBL ·CastConst(SB),RODATA,$4336
 
- /* Barrett constant m - (4^32)/n */
+	/* Barrett constant m - (4^32)/n */
 DATA ·CastBarConst(SB)/8,$0x00000000dea713f1
 DATA ·CastBarConst+8(SB)/8,$0x0000000000000000
 DATA ·CastBarConst+16(SB)/8,$0x0000000105ec76f1
@@ -3278,7 +3278,7 @@ DATA ·KoopConst+4328(SB)/8,$0xeb31d82e0c62ab26
 
 GLOBL ·KoopConst(SB),RODATA,$4336
 
- /* Barrett constant m - (4^32)/n */
+	/* Barrett constant m - (4^32)/n */
 DATA ·KoopBarConst(SB)/8,$0x0000000017d232cd
 DATA ·KoopBarConst+8(SB)/8,$0x0000000000000000
 DATA ·KoopBarConst+16(SB)/8,$0x00000001d663b05d

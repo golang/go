@@ -460,6 +460,10 @@ type response struct {
 	// Content-Length.
 	closeAfterReply bool
 
+	// When fullDuplex is false (the default), we consume any remaining
+	// request body before starting to write a response.
+	fullDuplex bool
+
 	// requestBodyLimitHit is set by requestTooLarge when
 	// maxBytesReader hits its max size. It is checked in
 	// WriteHeader, to make sure we don't consume the
@@ -495,6 +499,11 @@ func (c *response) SetReadDeadline(deadline time.Time) error {
 
 func (c *response) SetWriteDeadline(deadline time.Time) error {
 	return c.conn.rwc.SetWriteDeadline(deadline)
+}
+
+func (c *response) EnableFullDuplex() error {
+	c.fullDuplex = true
+	return nil
 }
 
 // TrailerPrefix is a magic prefix for ResponseWriter.Header map keys
@@ -1145,8 +1154,11 @@ func (w *response) WriteHeader(code int) {
 	}
 	checkWriteHeaderCode(code)
 
-	// Handle informational headers
-	if code >= 100 && code <= 199 {
+	// Handle informational headers.
+	//
+	// We shouldn't send any further headers after 101 Switching Protocols,
+	// so it takes the non-informational path.
+	if code >= 100 && code <= 199 && code != StatusSwitchingProtocols {
 		// Prevent a potential race with an automatically-sent 100 Continue triggered by Request.Body.Read()
 		if code == 100 && w.canWriteContinue.Load() {
 			w.writeContinueMu.Lock()
@@ -1308,7 +1320,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// send a Content-Length header.
 	// Further, we don't send an automatic Content-Length if they
 	// set a Transfer-Encoding, because they're generally incompatible.
-	if w.handlerDone.Load() && !trailers && !hasTE && bodyAllowedForStatus(w.status) && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
+	if w.handlerDone.Load() && !trailers && !hasTE && bodyAllowedForStatus(w.status) && !header.has("Content-Length") && (!isHEAD || len(p) > 0) {
 		w.contentLength = int64(len(p))
 		setHeader.contentLength = strconv.AppendInt(cw.res.clenBuf[:0], int64(len(p)), 10)
 	}
@@ -1354,14 +1366,14 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		w.closeAfterReply = true
 	}
 
-	// Per RFC 2616, we should consume the request body before
-	// replying, if the handler hasn't already done so. But we
-	// don't want to do an unbounded amount of reading here for
-	// DoS reasons, so we only try up to a threshold.
-	// TODO(bradfitz): where does RFC 2616 say that? See Issue 15527
-	// about HTTP/1.x Handlers concurrently reading and writing, like
-	// HTTP/2 handlers can do. Maybe this code should be relaxed?
-	if w.req.ContentLength != 0 && !w.closeAfterReply {
+	// We do this by default because there are a number of clients that
+	// send a full request before starting to read the response, and they
+	// can deadlock if we start writing the response with unconsumed body
+	// remaining. See Issue 15527 for some history.
+	//
+	// If full duplex mode has been enabled with ResponseController.EnableFullDuplex,
+	// then leave the request body alone.
+	if w.req.ContentLength != 0 && !w.closeAfterReply && !w.fullDuplex {
 		var discard, tooBig bool
 
 		switch bdy := w.req.Body.(type) {
@@ -1749,7 +1761,7 @@ type closeWriter interface {
 
 var _ closeWriter = (*net.TCPConn)(nil)
 
-// closeWrite flushes any outstanding data and sends a FIN packet (if
+// closeWriteAndWait flushes any outstanding data and sends a FIN packet (if
 // client is connected via TCP), signaling that we're done. We then
 // pause for a bit, hoping the client processes it before any
 // subsequent RST.
@@ -1844,7 +1856,9 @@ func isCommonNetReadError(err error) bool {
 
 // Serve a new connection.
 func (c *conn) serve(ctx context.Context) {
-	c.remoteAddr = c.rwc.RemoteAddr().String()
+	if ra := c.rwc.RemoteAddr(); ra != nil {
+		c.remoteAddr = ra.String()
+	}
 	ctx = context.WithValue(ctx, LocalAddrContextKey, c.rwc.LocalAddr())
 	var inFlightResponse *response
 	defer func() {
@@ -1957,7 +1971,7 @@ func (c *conn) serve(ctx context.Context) {
 					fmt.Fprintf(c.rwc, "HTTP/1.1 %d %s: %s%s%d %s: %s", v.code, StatusText(v.code), v.text, errorHeaders, v.code, StatusText(v.code), v.text)
 					return
 				}
-				publicErr := "400 Bad Request"
+				const publicErr = "400 Bad Request"
 				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
 				return
 			}
@@ -2921,22 +2935,8 @@ func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
 		handler = globalOptionsHandler{}
 	}
 
-	if req.URL != nil && strings.Contains(req.URL.RawQuery, ";") {
-		var allowQuerySemicolonsInUse atomic.Bool
-		req = req.WithContext(context.WithValue(req.Context(), silenceSemWarnContextKey, func() {
-			allowQuerySemicolonsInUse.Store(true)
-		}))
-		defer func() {
-			if !allowQuerySemicolonsInUse.Load() {
-				sh.srv.logf("http: URL query contains semicolon, which is no longer a supported separator; parts of the query may be stripped when parsed; see golang.org/issue/25192")
-			}
-		}()
-	}
-
 	handler.ServeHTTP(rw, req)
 }
-
-var silenceSemWarnContextKey = &contextKey{"silence-semicolons"}
 
 // AllowQuerySemicolons returns a handler that serves requests by converting any
 // unescaped semicolons in the URL query to ampersands, and invoking the handler h.
@@ -2949,9 +2949,6 @@ var silenceSemWarnContextKey = &contextKey{"silence-semicolons"}
 // AllowQuerySemicolons should be invoked before Request.ParseForm is called.
 func AllowQuerySemicolons(h Handler) Handler {
 	return HandlerFunc(func(w ResponseWriter, r *Request) {
-		if silenceSemicolonsWarning, ok := r.Context().Value(silenceSemWarnContextKey).(func()); ok {
-			silenceSemicolonsWarning()
-		}
 		if strings.Contains(r.URL.RawQuery, ";") {
 			r2 := new(Request)
 			*r2 = *r
@@ -2990,7 +2987,7 @@ func (srv *Server) ListenAndServe() error {
 
 var testHookServerServe func(*Server, net.Listener) // used if non-nil
 
-// shouldDoServeHTTP2 reports whether Server.Serve should configure
+// shouldConfigureHTTP2ForServe reports whether Server.Serve should configure
 // automatic HTTP/2. (which sets up the srv.TLSNextProto map)
 func (srv *Server) shouldConfigureHTTP2ForServe() bool {
 	if srv.TLSConfig == nil {

@@ -61,7 +61,9 @@ threadentry(void *v)
 	ThreadStart ts;
 
 	ts = *(ThreadStart*)v;
+	_cgo_tsan_acquire();
 	free(v);
+	_cgo_tsan_release();
 
 	// Save g for this thread in C TLS
 	setg_gcc((void*)ts.g);

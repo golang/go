@@ -6,6 +6,7 @@
 # to the coordinator.
 
 [short] skip
+env GOCACHE=$WORK/cache
 
 # Start fuzzing. The worker crashes after 100 iterations.
 # The fuzz function writes the crashing input to "want" before exiting.

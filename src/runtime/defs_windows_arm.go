@@ -58,6 +58,9 @@ func (c *context) set_ip(x uintptr) { c.pc = uint32(x) }
 func (c *context) set_sp(x uintptr) { c.spr = uint32(x) }
 func (c *context) set_lr(x uintptr) { c.lrr = uint32(x) }
 
+// arm does not have frame pointer register.
+func (c *context) set_fp(x uintptr) {}
+
 func prepareContextForSigResume(c *context) {
 	c.r0 = c.spr
 	c.r1 = c.pc

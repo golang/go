@@ -7,7 +7,7 @@
 // correctly with types2 at the moment. See go.dev/issue/52080.
 // Make sure we keep testing them with go/types.
 //
-// TODO(gri) Once #52080 is fixed, this file can be
+// TODO(gri) Once go.dev/issue/52080 is fixed, this file can be
 //           deleted in favor of the re-enabled tests
 //           in the shared file.
 

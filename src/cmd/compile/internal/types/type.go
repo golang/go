@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/internal/src"
 	"fmt"
+	"internal/types/errors"
 	"sync"
 )
 
@@ -1344,7 +1345,7 @@ func (t *Type) IsUnsafePtr() bool {
 	return t.kind == TUNSAFEPTR
 }
 
-// IsUintptr reports whether t is an uintptr.
+// IsUintptr reports whether t is a uintptr.
 func (t *Type) IsUintptr() bool {
 	return t.kind == TUINTPTR
 }
@@ -1663,7 +1664,7 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	// Double-check use of type as embedded type.
 	if ft.Embedlineno.IsKnown() {
 		if t.IsPtr() || t.IsUnsafePtr() {
-			base.ErrorfAt(ft.Embedlineno, "embedded type cannot be a pointer")
+			base.ErrorfAt(ft.Embedlineno, errors.InvalidPtrEmbed, "embedded type cannot be a pointer")
 		}
 	}
 }
@@ -1855,6 +1856,33 @@ func IsRuntimePkg(p *Pkg) bool {
 // IsReflectPkg reports whether p is package reflect.
 func IsReflectPkg(p *Pkg) bool {
 	return p.Path == "reflect"
+}
+
+// IsTypePkg reports whether p is pesudo package type.
+func IsTypePkg(p *Pkg) bool {
+	return p == typepkg
+}
+
+// IsNoInstrumentPkg reports whether p is a package that
+// should not be instrumented.
+func IsNoInstrumentPkg(p *Pkg) bool {
+	for _, np := range base.NoInstrumentPkgs {
+		if p.Path == np {
+			return true
+		}
+	}
+	return false
+}
+
+// IsNoRacePkg reports whether p is a package that
+// should not be race instrumented.
+func IsNoRacePkg(p *Pkg) bool {
+	for _, np := range base.NoRacePkgs {
+		if p.Path == np {
+			return true
+		}
+	}
+	return false
 }
 
 // ReceiverBaseType returns the underlying type, if any,

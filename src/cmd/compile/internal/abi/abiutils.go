@@ -92,7 +92,7 @@ type RegIndex uint8
 // ABIParamAssignment holds information about how a specific param or
 // result will be passed: in registers (in which case 'Registers' is
 // populated) or on the stack (in which case 'Offset' is set to a
-// non-negative stack offset. The values in 'Registers' are indices
+// non-negative stack offset). The values in 'Registers' are indices
 // (as described above), not architected registers.
 type ABIParamAssignment struct {
 	Type      *types.Type

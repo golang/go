@@ -7,6 +7,7 @@ package net
 import (
 	"context"
 	"internal/poll"
+	"internal/syscall/windows"
 	"os"
 	"runtime"
 	"syscall"
@@ -84,6 +85,32 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (syscall.
 		if err := syscall.Bind(fd.pfd.Sysfd, la); err != nil {
 			return nil, os.NewSyscallError("bind", err)
 		}
+	}
+
+	var isloopback bool
+	switch ra := ra.(type) {
+	case *syscall.SockaddrInet4:
+		isloopback = ra.Addr[0] == 127
+	case *syscall.SockaddrInet6:
+		isloopback = ra.Addr == [16]byte(IPv6loopback)
+	default:
+		panic("unexpected type in connect")
+	}
+	if isloopback {
+		// This makes ConnectEx() fails faster if the target port on the localhost
+		// is not reachable, instead of waiting for 2s.
+		params := windows.TCP_INITIAL_RTO_PARAMETERS{
+			Rtt:                   windows.TCP_INITIAL_RTO_UNSPECIFIED_RTT, // use the default or overridden by the Administrator
+			MaxSynRetransmissions: 1,                                       // minimum possible value before Windows 10.0.16299
+		}
+		if windows.Support_TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS() {
+			// In Windows 10.0.16299 TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS makes ConnectEx() fails instantly.
+			params.MaxSynRetransmissions = windows.TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS
+		}
+		var out uint32
+		// Don't abort the connection if WSAIoctl fails, as it is only an optimization.
+		// If it fails reliably, we expect TestDialClosedPortFailFast to detect it.
+		_ = fd.pfd.WSAIoctl(windows.SIO_TCP_INITIAL_RTO, (*byte)(unsafe.Pointer(&params)), uint32(unsafe.Sizeof(params)), nil, 0, &out, nil, 0)
 	}
 
 	// Wait for the goroutine converting context.Done into a write timeout

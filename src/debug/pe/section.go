@@ -97,11 +97,17 @@ type Section struct {
 }
 
 // Data reads and returns the contents of the PE section s.
+//
+// If s.Offset is 0, the section has no contents,
+// and Data will always return a non-nil error.
 func (s *Section) Data() ([]byte, error) {
 	return saferio.ReadDataAt(s.sr, uint64(s.Size), 0)
 }
 
 // Open returns a new ReadSeeker reading the PE section s.
+//
+// If s.Offset is 0, the section has no contents, and all calls
+// to the returned reader will return a non-nil error.
 func (s *Section) Open() io.ReadSeeker {
 	return io.NewSectionReader(s.sr, 0, 1<<63-1)
 }

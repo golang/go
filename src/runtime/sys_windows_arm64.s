@@ -12,6 +12,7 @@
 // Offsets into Thread Environment Block (pointer in R18)
 #define TEB_error 0x68
 #define TEB_TlsSlots 0x1480
+#define TEB_ArbitraryPtr 0x28
 
 // Note: R0-R7 are args, R8 is indirect return value address,
 // R9-R15 are caller-save, R19-R29 are callee-save.
@@ -19,8 +20,7 @@
 // load_g and save_g (in tls_arm64.s) clobber R27 (REGTMP) and R0.
 
 // void runtime·asmstdcall(void *c);
-TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
-	STP.W	(R29, R30), -32(RSP)	// allocate C ABI stack frame
+TEXT runtime·asmstdcall(SB),NOSPLIT,$16
 	STP	(R19, R20), 16(RSP) // save old R19, R20
 	MOVD	R0, R19	// save libcall pointer
 	MOVD	RSP, R20	// save stack pointer
@@ -96,10 +96,9 @@ _0args:
 
 	// Restore callee-saved registers.
 	LDP	16(RSP), (R19, R20)
-	LDP.P	32(RSP), (R29, R30)
 	RET
 
-TEXT runtime·getlasterror(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVD	TEB_error(R18_PLATFORM), R0
 	MOVD	R0, ret+0(FP)
 	RET
@@ -242,13 +241,6 @@ TEXT runtime·usleep2(SB),NOSPLIT,$32-4
 	RET
 
 // Runs on OS stack.
-// duration (in -100ns units) is in dt+0(FP).
-// g is valid.
-// TODO: needs to be implemented properly.
-TEXT runtime·usleep2HighRes(SB),NOSPLIT,$0-4
-	B	runtime·abort(SB)
-
-// Runs on OS stack.
 TEXT runtime·switchtothread(SB),NOSPLIT,$16-0
 	MOVD	runtime·_SwitchToThread(SB), R0
 	SUB	$16, RSP	// skip over saved frame pointer below RSP
@@ -256,7 +248,7 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$16-0
 	ADD	$16, RSP
 	RET
 
-TEXT runtime·nanotime1(SB),NOSPLIT|NOFRAME,$0-8
+TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
 	MOVB	runtime·useQPCTime(SB), R0
 	CMP	$0, R0
 	BNE	useQPC
@@ -267,7 +259,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT|NOFRAME,$0-8
 	MOVD	R0, ret+0(FP)
 	RET
 useQPC:
-	B	runtime·nanotimeQPC(SB)		// tail call
+	RET	runtime·nanotimeQPC(SB)		// tail call
 
 // This is called from rt0_go, which runs on the system stack
 // using the initial stack allocated by the OS.
@@ -282,12 +274,15 @@ TEXT runtime·wintls(SB),NOSPLIT,$0
 	// Assert that slot is less than 64 so we can use _TEB->TlsSlots
 	CMP	$64, R0
 	BLT	ok
-	MOVD	$runtime·abort(SB), R1
-	BL	(R1)
+	// Fallback to the TEB arbitrary pointer.
+	// TODO: don't use the arbitrary pointer (see go.dev/issue/59824)
+	MOVD	$TEB_ArbitraryPtr, R0
+	B	settls
 ok:
 
 	// Save offset from R18 into tls_g.
 	LSL	$3, R0
 	ADD	$TEB_TlsSlots, R0
+settls:
 	MOVD	R0, runtime·tls_g(SB)
 	RET

@@ -1544,6 +1544,10 @@ type LargeSliceStruct struct {
 	S []StringPair
 }
 
+type LargeSliceString struct {
+	S []string
+}
+
 func testEncodeDecode(t *testing.T, in, out any) {
 	t.Helper()
 	var b bytes.Buffer
@@ -1590,6 +1594,16 @@ func TestLargeSlice(t *testing.T) {
 		}
 		st := &LargeSliceStruct{S: s}
 		rt := &LargeSliceStruct{}
+		testEncodeDecode(t, st, rt)
+	})
+	t.Run("string", func(t *testing.T) {
+		t.Parallel()
+		s := make([]string, 1<<21)
+		for i := range s {
+			s[i] = string(rune(i))
+		}
+		st := &LargeSliceString{S: s}
+		rt := &LargeSliceString{}
 		testEncodeDecode(t, st, rt)
 	})
 }

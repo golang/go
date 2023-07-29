@@ -92,8 +92,7 @@ the Stringer interface for a (default) string representation of the value,
 but also provide SetString methods to initialize a value from a string in
 a variety of supported formats (see the respective SetString documentation).
 
-Finally, *Int, *Rat, and *Float satisfy the fmt package's Scanner interface
-for scanning and (except for *Rat) the Formatter interface for formatted
-printing.
+Finally, *Int, *Rat, and *Float satisfy [fmt.Scanner] for scanning
+and (except for *Rat) the Formatter interface for formatted printing.
 */
 package big

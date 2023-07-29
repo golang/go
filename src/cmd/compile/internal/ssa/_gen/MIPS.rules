@@ -37,6 +37,9 @@
 (Mod8 x y) => (Select0 (DIV (SignExt8to32 x) (SignExt8to32 y)))
 (Mod8u x y) => (Select0 (DIVU (ZeroExt8to32 x) (ZeroExt8to32 y)))
 
+// math package intrinsics
+(Abs ...) => (ABSD ...)
+
 // (x + y) / 2 with x>=y  becomes  (x - y) / 2 + y
 (Avg32u <t> x y) => (ADD (SRLconst <t> (SUB <t> x y) [1]) y)
 
@@ -215,10 +218,10 @@
 
 // loads
 (Load <t> ptr mem) && t.IsBoolean() => (MOVBUload ptr mem)
-(Load <t> ptr mem) && (is8BitInt(t) && isSigned(t)) => (MOVBload ptr mem)
-(Load <t> ptr mem) && (is8BitInt(t) && !isSigned(t)) => (MOVBUload ptr mem)
-(Load <t> ptr mem) && (is16BitInt(t) && isSigned(t)) => (MOVHload ptr mem)
-(Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) => (MOVHUload ptr mem)
+(Load <t> ptr mem) && (is8BitInt(t)  &&  t.IsSigned()) => (MOVBload ptr mem)
+(Load <t> ptr mem) && (is8BitInt(t)  && !t.IsSigned()) => (MOVBUload ptr mem)
+(Load <t> ptr mem) && (is16BitInt(t) &&  t.IsSigned()) => (MOVHload ptr mem)
+(Load <t> ptr mem) && (is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
 (Load <t> ptr mem) && (is32BitInt(t) || isPtr(t)) => (MOVWload ptr mem)
 (Load <t> ptr mem) && is32BitFloat(t) => (MOVFload ptr mem)
 (Load <t> ptr mem) && is64BitFloat(t) => (MOVDload ptr mem)
@@ -226,9 +229,18 @@
 // stores
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 && !is32BitFloat(val.Type) => (MOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (MOVFstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (MOVFstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (MOVDstore ptr val mem)
+
+// float <=> int register moves, with no conversion.
+// These come up when compiling math.{Float32bits, Float32frombits}.
+(MOVWload [off] {sym} ptr (MOVFstore [off] {sym} ptr val _)) => (MOVWfpgp val)
+(MOVFload [off] {sym} ptr (MOVWstore [off] {sym} ptr val _)) => (MOVWgpfp val)
+
+// Similarly for stores, if we see a store after FPR <=> GPR move, then redirect store to use the other register set.
+(MOVWstore [off] {sym} ptr (MOVWfpgp val) mem) => (MOVFstore [off] {sym} ptr val mem)
+(MOVFstore [off] {sym} ptr (MOVWgpfp val) mem) => (MOVWstore [off] {sym} ptr val mem)
 
 // zero instructions
 (Zero [0] _ mem) => mem
@@ -567,7 +579,7 @@
 (MOVWnop (MOVWconst [c])) => (MOVWconst [c])
 
 // fold constant into arithmetic ops
-(ADD x (MOVWconst [c])) => (ADDconst [c] x)
+(ADD x (MOVWconst <t> [c])) && !t.IsPtr() => (ADDconst [c] x)
 (SUB x (MOVWconst [c])) => (SUBconst [c] x)
 (AND x (MOVWconst [c])) => (ANDconst [c] x)
 (OR  x (MOVWconst [c])) => (ORconst  [c] x)

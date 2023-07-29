@@ -1706,6 +1706,12 @@ func TestChan(t *testing.T) {
 		if i, ok := cv.Recv(); i.Int() != 0 || ok {
 			t.Errorf("after close Recv %d, %t", i.Int(), ok)
 		}
+		// Closing a read-only channel
+		shouldPanic("", func() {
+			c := make(<-chan int, 1)
+			cv := ValueOf(c)
+			cv.Close()
+		})
 	}
 
 	// check creation of unbuffered channel
@@ -3281,13 +3287,15 @@ type unexpI interface {
 	f() (int32, int8)
 }
 
-var unexpi unexpI = new(unexp)
-
 func TestUnexportedMethods(t *testing.T) {
-	typ := TypeOf(unexpi)
-
+	typ := TypeOf(new(unexp))
 	if got := typ.NumMethod(); got != 0 {
 		t.Errorf("NumMethod=%d, want 0 satisfied methods", got)
+	}
+
+	typ = TypeOf((*unexpI)(nil))
+	if got := typ.Elem().NumMethod(); got != 1 {
+		t.Errorf("NumMethod=%d, want 1 satisfied methods", got)
 	}
 }
 
@@ -8362,4 +8370,49 @@ func TestInitFuncTypes(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestClear(t *testing.T) {
+	m := make(map[string]any, len(valueTests))
+	for _, tt := range valueTests {
+		m[tt.s] = tt.i
+	}
+	mapTestFn := func(v Value) bool { v.Clear(); return v.Len() == 0 }
+
+	s := make([]*pair, len(valueTests))
+	for i := range s {
+		s[i] = &valueTests[i]
+	}
+	sliceTestFn := func(v Value) bool {
+		v.Clear()
+		for i := 0; i < v.Len(); i++ {
+			if !v.Index(i).IsZero() {
+				return false
+			}
+		}
+		return true
+	}
+
+	panicTestFn := func(v Value) bool { shouldPanic("reflect.Value.Clear", func() { v.Clear() }); return true }
+
+	tests := []struct {
+		name     string
+		value    Value
+		testFunc func(v Value) bool
+	}{
+		{"map", ValueOf(m), mapTestFn},
+		{"slice no pointer", ValueOf([]int{1, 2, 3, 4, 5}), sliceTestFn},
+		{"slice has pointer", ValueOf(s), sliceTestFn},
+		{"non-map/slice", ValueOf(1), panicTestFn},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if !tc.testFunc(tc.value) {
+				t.Errorf("unexpected result for value.Clear(): %value", tc.value)
+			}
+		})
+	}
 }

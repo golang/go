@@ -161,8 +161,13 @@ func sysctl_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func fcntl(fd, cmd, arg int32) int32 {
-	return libcCall(unsafe.Pointer(abi.FuncPCABI0(fcntl_trampoline)), unsafe.Pointer(&fd))
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
+	args := struct {
+		fd, cmd, arg int32
+		ret, errno   int32
+	}{fd, cmd, arg, 0, 0}
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(fcntl_trampoline)), unsafe.Pointer(&args))
+	return args.ret, args.errno
 }
 func fcntl_trampoline()
 
@@ -254,9 +259,12 @@ func exitThread(wait *atomic.Uint32) {
 }
 
 //go:nosplit
-func closeonexec(fd int32) {
-	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+//go:cgo_unsafe_args
+func issetugid() (ret int32) {
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(issetugid_trampoline)), unsafe.Pointer(&ret))
+	return
 }
+func issetugid_trampoline()
 
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
@@ -289,5 +297,7 @@ func closeonexec(fd int32) {
 
 //go:cgo_import_dynamic libc_sigaction sigaction "libc.so"
 //go:cgo_import_dynamic libc_sigaltstack sigaltstack "libc.so"
+
+//go:cgo_import_dynamic libc_issetugid issetugid "libc.so"
 
 //go:cgo_import_dynamic _ _ "libc.so"

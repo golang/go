@@ -42,8 +42,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 		}
 		return
 	case universeAny, universeComparable:
-		if !check.allowVersion(check.pkg, 1, 18) {
-			check.versionErrorf(e, "go1.18", "predeclared %s", e.Value)
+		if !check.verifyVersionf(e, go1_18, "predeclared %s", e.Value) {
 			return // avoid follow-on errors
 		}
 	}
@@ -272,9 +271,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		}
 
 	case *syntax.IndexExpr:
-		if !check.allowVersion(check.pkg, 1, 18) {
-			check.versionErrorf(e.Pos(), "go1.18", "type instantiation")
-		}
+		check.verifyVersionf(e, go1_18, "type instantiation")
 		return check.instantiatedType(e.X, unpackExpr(e.Index), def)
 
 	case *syntax.ParenExpr:
@@ -325,7 +322,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 			// If typ.base is invalid, it's unlikely that *base is particularly
 			// useful - even a valid dereferenciation will lead to an invalid
 			// type again, and in some cases we get unexpected follow-on errors
-			// (e.g., see #49005). Return an invalid type instead.
+			// (e.g., go.dev/issue/49005). Return an invalid type instead.
 			if typ.base == Typ[Invalid] {
 				return Typ[Invalid]
 			}
@@ -489,7 +486,7 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
 	}
 
 	var x operand
-	check.expr(&x, e)
+	check.expr(nil, &x, e)
 	if x.mode != constant_ {
 		if x.mode != invalid {
 			check.errorf(&x, InvalidArrayLen, "array length %s must be constant", &x)
@@ -503,13 +500,17 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
 				if n, ok := constant.Int64Val(val); ok && n >= 0 {
 					return n
 				}
-				check.errorf(&x, InvalidArrayLen, "invalid array length %s", &x)
-				return -1
 			}
 		}
 	}
 
-	check.errorf(&x, InvalidArrayLen, "array length %s must be integer", &x)
+	var msg string
+	if isInteger(x.typ) {
+		msg = "invalid array length %s"
+	} else {
+		msg = "array length %s must be integer"
+	}
+	check.errorf(&x, InvalidArrayLen, msg, &x)
 	return -1
 }
 

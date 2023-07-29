@@ -97,7 +97,7 @@ TEXT ·archLog(SB),NOSPLIT,$0
 	SUBSD   X2, X0 // x0= (hfsq-(s*(hfsq+R)+k*Ln2Lo))-f, x1= k
 	MULSD   $Ln2Hi, X1 // x0= (hfsq-(s*(hfsq+R)+k*Ln2Lo))-f, x1= k*Ln2Hi
 	SUBSD   X0, X1 // x1= k*Ln2Hi-((hfsq-(s*(hfsq+R)+k*Ln2Lo))-f)
-  	MOVSD   X1, ret+8(FP)
+	MOVSD   X1, ret+8(FP)
 	RET
 isInfOrNaN:
 	MOVQ    BX, ret+8(FP) // +Inf or NaN, return x

@@ -10,13 +10,6 @@
 // 4K (smallest case) page size offset mask for PPC64.
 #define PAGE_OFFSET 4095
 
-// TODO: At writing, ISEL and BC do not support CR bit type arguments,
-// define them here for readability.
-#define CR0LT 4*0+0
-#define CR0EQ 4*0+2
-#define CR1LT 4*1+0
-#define CR6LT 4*6+0
-
 // Likewise, the BC opcode is hard to read, and no extended
 // mnemonics are offered for these forms.
 #define BGELR_CR6 BC  4, CR6LT, (LR)
@@ -68,7 +61,7 @@ setup64:
 	MOVD	$48, R16
 	ANDCC	$0x3F, R5, R5	// len%64==0?
 
-	PCALIGN $32
+	PCALIGN $16
 loop64:
 	LXVD2X	(R8+R0), V0
 	LXVD2X	(R4+R0), V1
@@ -90,7 +83,7 @@ loop64:
 	ADD	$64,R4
 	BDNZ	loop64
 
-	ISEL	$CR0EQ, R11, R3, R3	// If no tail, return 1, otherwise R3 remains 0.
+	ISEL	CR0EQ, R11, R3, R3	// If no tail, return 1, otherwise R3 remains 0.
 	BEQLR				// return if no tail.
 
 	ADD	$-64, R9, R8
@@ -110,7 +103,7 @@ loop64:
 	LXVD2X	(R8+R16), V0
 	LXVD2X	(R4+R16), V1
 	VCMPEQUBCC	V0, V1, V2
-	ISEL	$CR6LT, R11, R0, R3
+	ISEL	CR6LT, R11, R0, R3
 	RET
 
 check33_64:
@@ -138,7 +131,7 @@ check17_32:
 	LXVD2X	(R8+R0), V0
 	LXVD2X	(R4+R0), V1
 	VCMPEQUBCC	V0, V1, V2
-	ISEL	$CR6LT, R11, R0, R5
+	ISEL	CR6LT, R11, R0, R5
 
 	// Load sX[len(sX)-16:len(sX)] and compare.
 	ADD	$-16, R9
@@ -146,22 +139,30 @@ check17_32:
 	LXVD2X	(R9+R0), V0
 	LXVD2X	(R10+R0), V1
 	VCMPEQUBCC	V0, V1, V2
-	ISEL	$CR6LT, R5, R0, R3
+	ISEL	CR6LT, R5, R0, R3
 	RET
 
 check0_16:
+#ifdef GOPPC64_power10
+	SLD	$56, R5, R7
+	LXVL	R8, R7, V0
+	LXVL	R4, R7, V1
+	VCMPEQUDCC	V0, V1, V2
+	ISEL	CR6LT, R11, R0, R3
+	RET
+#else
 	CMP	R5, $8
 	BLT	check0_7
 	// Load sX[0:7] and compare.
 	MOVD	(R8), R6
 	MOVD	(R4), R7
 	CMP	R6, R7
-	ISEL	$CR0EQ, R11, R0, R5
+	ISEL	CR0EQ, R11, R0, R5
 	// Load sX[len(sX)-8:len(sX)] and compare.
 	MOVD	-8(R9), R6
 	MOVD	-8(R10), R7
 	CMP	R6, R7
-	ISEL	$CR0EQ, R5, R0, R3
+	ISEL	CR0EQ, R5, R0, R3
 	RET
 
 check0_7:
@@ -183,8 +184,8 @@ check0_7:
 	CMPU	R9, R12, CR0
 	SUB	R12, R8, R6		// compute lower load address
 	SUB	R12, R4, R9
-	ISEL	$CR1LT, R8, R6, R8	// R8 = R6 < 0 ? R8 (&s1) : R6 (&s1 - (8-len))
-	ISEL	$CR0LT, R4, R9, R4	// Similar for s2
+	ISEL	CR1LT, R8, R6, R8	// R8 = R6 < 0 ? R8 (&s1) : R6 (&s1 - (8-len))
+	ISEL	CR0LT, R4, R9, R4	// Similar for s2
 	MOVD	(R8), R15
 	MOVD	(R4), R16
 	SLD	R14, R15, R7
@@ -194,12 +195,13 @@ check0_7:
 	SRD	R14, R15, R6		// Clear the lower (8-len) bytes
 	SRD	R14, R16, R9
 #ifdef GOARCH_ppc64le
-	ISEL	$CR1LT, R7, R6, R8      // Choose the correct len bytes to compare based on alignment
-	ISEL	$CR0LT, R17, R9, R4
+	ISEL	CR1LT, R7, R6, R8      // Choose the correct len bytes to compare based on alignment
+	ISEL	CR0LT, R17, R9, R4
 #else
-	ISEL	$CR1LT, R6, R7, R8
-	ISEL	$CR0LT, R9, R17, R4
+	ISEL	CR1LT, R6, R7, R8
+	ISEL	CR0LT, R9, R17, R4
 #endif
 	CMP	R4, R8
-	ISEL	$CR0EQ, R11, R0, R3
+	ISEL	CR0EQ, R11, R0, R3
 	RET
+#endif	// tail processing if !defined(GOPPC64_power10)

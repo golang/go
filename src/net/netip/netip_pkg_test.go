@@ -24,29 +24,35 @@ func TestPrefixValid(t *testing.T) {
 		ipp  Prefix
 		want bool
 	}{
-		{Prefix{v4, -2}, false},
-		{Prefix{v4, -1}, false},
-		{Prefix{v4, 0}, true},
-		{Prefix{v4, 32}, true},
-		{Prefix{v4, 33}, false},
+		{PrefixFrom(v4, -2), false},
+		{PrefixFrom(v4, -1), false},
+		{PrefixFrom(v4, 0), true},
+		{PrefixFrom(v4, 32), true},
+		{PrefixFrom(v4, 33), false},
 
-		{Prefix{v6, -2}, false},
-		{Prefix{v6, -1}, false},
-		{Prefix{v6, 0}, true},
-		{Prefix{v6, 32}, true},
-		{Prefix{v6, 128}, true},
-		{Prefix{v6, 129}, false},
+		{PrefixFrom(v6, -2), false},
+		{PrefixFrom(v6, -1), false},
+		{PrefixFrom(v6, 0), true},
+		{PrefixFrom(v6, 32), true},
+		{PrefixFrom(v6, 128), true},
+		{PrefixFrom(v6, 129), false},
 
-		{Prefix{Addr{}, -2}, false},
-		{Prefix{Addr{}, -1}, false},
-		{Prefix{Addr{}, 0}, false},
-		{Prefix{Addr{}, 32}, false},
-		{Prefix{Addr{}, 128}, false},
+		{PrefixFrom(Addr{}, -2), false},
+		{PrefixFrom(Addr{}, -1), false},
+		{PrefixFrom(Addr{}, 0), false},
+		{PrefixFrom(Addr{}, 32), false},
+		{PrefixFrom(Addr{}, 128), false},
 	}
 	for _, tt := range tests {
 		got := tt.ipp.IsValid()
 		if got != tt.want {
 			t.Errorf("(%v).IsValid() = %v want %v", tt.ipp, got, tt.want)
+		}
+
+		// Test that there is only one invalid Prefix representation per Addr.
+		invalid := PrefixFrom(tt.ipp.Addr(), -1)
+		if !got && tt.ipp != invalid {
+			t.Errorf("(%v == %v) = false, want true", tt.ipp, invalid)
 		}
 	}
 }
@@ -167,11 +173,11 @@ func TestPrefixContains(t *testing.T) {
 		{mustPrefix("::1/0"), Addr{}, false},
 		{mustPrefix("1.2.3.4/0"), Addr{}, false},
 		// invalid Prefix
-		{Prefix{mustIP("::1"), 129}, mustIP("::1"), false},
-		{Prefix{mustIP("1.2.3.4"), 33}, mustIP("1.2.3.4"), false},
-		{Prefix{Addr{}, 0}, mustIP("1.2.3.4"), false},
-		{Prefix{Addr{}, 32}, mustIP("1.2.3.4"), false},
-		{Prefix{Addr{}, 128}, mustIP("::1"), false},
+		{PrefixFrom(mustIP("::1"), 129), mustIP("::1"), false},
+		{PrefixFrom(mustIP("1.2.3.4"), 33), mustIP("1.2.3.4"), false},
+		{PrefixFrom(Addr{}, 0), mustIP("1.2.3.4"), false},
+		{PrefixFrom(Addr{}, 32), mustIP("1.2.3.4"), false},
+		{PrefixFrom(Addr{}, 128), mustIP("::1"), false},
 		// wrong IP family
 		{mustPrefix("::1/0"), mustIP("1.2.3.4"), false},
 		{mustPrefix("1.2.3.4/0"), mustIP("::1"), false},

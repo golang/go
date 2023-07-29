@@ -210,7 +210,7 @@ TEXT tstart<>(SB),NOSPLIT,$0
 	MOVD	R3, (g_stack+stack_hi)(g)
 	SUB	$(const_threadStackSize), R3		// stack size
 	MOVD	R3, (g_stack+stack_lo)(g)
-	ADD	$const__StackGuard, R3
+	ADD	$const_stackGuard, R3
 	MOVD	R3, g_stackguard0(g)
 	MOVD	R3, g_stackguard1(g)
 

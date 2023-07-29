@@ -49,6 +49,7 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 	}
 
 	testenv.MustHaveGoBuild(t)
+	t.Helper()
 
 	exe, err := buildTestProg(t, binary)
 	if err != nil {
@@ -135,13 +136,15 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 
 		exe := filepath.Join(dir, name+".exe")
 
-		t.Logf("running go build -o %s %s", exe, strings.Join(flags, " "))
+		start := time.Now()
 		cmd := exec.Command(testenv.GoToolPath(t), append([]string{"build", "-o", exe}, flags...)...)
+		t.Logf("running %v", cmd)
 		cmd.Dir = "testdata/" + binary
 		out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 		if err != nil {
 			target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
 		} else {
+			t.Logf("built %v in %v", name, time.Since(start))
 			target.exe = exe
 			target.err = nil
 		}
@@ -181,7 +184,7 @@ func TestCrashHandler(t *testing.T) {
 
 func testDeadlock(t *testing.T, name string) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	output := runTestProg(t, "testprog", name)
 	want := "fatal error: all goroutines are asleep - deadlock!\n"
@@ -208,7 +211,7 @@ func TestLockedDeadlock2(t *testing.T) {
 
 func TestGoexitDeadlock(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	output := runTestProg(t, "testprog", "GoexitDeadlock")
 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
@@ -308,7 +311,7 @@ panic: third panic
 
 func TestGoexitCrash(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	output := runTestProg(t, "testprog", "GoexitExit")
 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
@@ -369,7 +372,7 @@ func TestBreakpoint(t *testing.T) {
 
 func TestGoexitInPanic(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	// see issue 8774: this code used to trigger an infinite recursion
 	output := runTestProg(t, "testprog", "GoexitInPanic")
@@ -436,7 +439,7 @@ func TestPanicAfterGoexit(t *testing.T) {
 
 func TestRecoveredPanicAfterGoexit(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	output := runTestProg(t, "testprog", "RecoveredPanicAfterGoexit")
 	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
@@ -447,7 +450,7 @@ func TestRecoveredPanicAfterGoexit(t *testing.T) {
 
 func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	t.Parallel()
 	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit")
@@ -459,7 +462,7 @@ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
 
 func TestRecoverBeforePanicAfterGoexit2(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	t.Parallel()
 	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit2")
@@ -531,7 +534,7 @@ func TestMemPprof(t *testing.T) {
 
 	got, err := testenv.CleanCmdEnv(exec.Command(exe, "MemProf")).CombinedOutput()
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("testprog failed: %s, output:\n%s", err, got)
 	}
 	fn := strings.TrimSpace(string(got))
 	defer os.Remove(fn)
@@ -779,7 +782,7 @@ func TestG0StackOverflow(t *testing.T) {
 	testenv.MustHaveExec(t)
 
 	switch runtime.GOOS {
-	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "android":
+	case "android", "darwin", "dragonfly", "freebsd", "ios", "linux", "netbsd", "openbsd":
 		t.Skipf("g0 stack is wrong on pthread platforms (see golang.org/issue/26061)")
 	}
 
@@ -864,5 +867,14 @@ func TestPanicOnUnsafeSlice(t *testing.T) {
 	want := "panic: runtime error: unsafe.Slice: ptr is nil and len is not zero"
 	if !strings.Contains(output, want) {
 		t.Errorf("output does not contain %q:\n%s", want, output)
+	}
+}
+
+func TestNetpollWaiters(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprognet", "NetpollWaiters")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("output is not %q\n%s", want, output)
 	}
 }

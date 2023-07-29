@@ -150,15 +150,15 @@ func _() {
 	var send func(chan<- int)
 
 	ffboth(both)
-	ffboth(recv /* ERROR "cannot use" */ )
-	ffboth(send /* ERROR "cannot use" */ )
+	ffboth(recv /* ERROR "does not match" */ )
+	ffboth(send /* ERROR "does not match" */ )
 
-	ffrecv(both /* ERROR "cannot use" */ )
+	ffrecv(both /* ERROR "does not match" */ )
 	ffrecv(recv)
-	ffrecv(send /* ERROR "cannot use" */ )
+	ffrecv(send /* ERROR "does not match" */ )
 
-	ffsend(both /* ERROR "cannot use" */ )
-	ffsend(recv /* ERROR "cannot use" */ )
+	ffsend(both /* ERROR "does not match" */ )
+	ffsend(recv /* ERROR "does not match" */ )
 	ffsend(send)
 }
 
@@ -174,15 +174,15 @@ func g2[T any]([]T, T) {}
 func g3[T any](*T, ...T) {}
 
 func _() {
-	type intSlize []int
+	type intSlice []int
 	g1([]int{})
-	g1(intSlize{})
+	g1(intSlice{})
 	g2(nil, 0)
 
 	type myString string
 	var s1 string
 	g3(nil, "1", myString("2"), "3")
-	g3(& /* ERROR "does not match" */ s1, "1", myString("2"), "3")
+	g3(& /* ERROR "cannot use &s1 (value of type *string) as *myString value in argument to g3" */ s1, "1", myString("2"), "3")
 	_ = s1
 
 	type myStruct struct{x int}

@@ -13,7 +13,6 @@
 package unix
 
 import (
-	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -110,6 +109,20 @@ func direntNamlen(buf []byte) (uint64, bool) {
 	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
 }
 
+func SysctlUvmexp(name string) (*Uvmexp, error) {
+	mib, err := sysctlmib(name)
+	if err != nil {
+		return nil, err
+	}
+
+	n := uintptr(SizeofUvmexp)
+	var u Uvmexp
+	if err := sysctl(mib, (*byte)(unsafe.Pointer(&u)), &n, nil, 0); err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
 func Pipe(p []int) (err error) {
 	return Pipe2(p, 0)
 }
@@ -164,13 +177,13 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 }
 
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
+//sys	ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_IOCTL
 
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
 
 func IoctlGetPtmget(fd int, req uint) (*Ptmget, error) {
 	var value Ptmget
-	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
-	runtime.KeepAlive(value)
+	err := ioctlPtr(fd, req, unsafe.Pointer(&value))
 	return &value, err
 }
 
@@ -245,6 +258,7 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
 //sys	Chmod(path string, mode uint32) (err error)
 //sys	Chown(path string, uid int, gid int) (err error)
 //sys	Chroot(path string) (err error)
+//sys	ClockGettime(clockid int32, time *Timespec) (err error)
 //sys	Close(fd int) (err error)
 //sys	Dup(fd int) (nfd int, err error)
 //sys	Dup2(from int, to int) (err error)
@@ -326,7 +340,6 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
@@ -487,7 +500,6 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
 // compat_43_osendmsg
 // compat_43_osethostid
 // compat_43_osethostname
-// compat_43_osetrlimit
 // compat_43_osigblock
 // compat_43_osigsetmask
 // compat_43_osigstack

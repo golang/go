@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -31,7 +32,7 @@ func TestQuery(t *testing.T) {
 	}
 }
 
-// Issue #25192: Test that ParseForm fails but still parses the form when an URL
+// Issue #25192: Test that ParseForm fails but still parses the form when a URL
 // containing a semicolon is provided.
 func TestParseFormSemicolonSeparator(t *testing.T) {
 	for _, method := range []string{"POST", "PATCH", "PUT", "GET"} {
@@ -379,7 +380,7 @@ func TestMultipartRequest(t *testing.T) {
 }
 
 // Issue #25192: Test that ParseMultipartForm fails but still parses the
-// multi-part form when an URL containing a semicolon is provided.
+// multi-part form when a URL containing a semicolon is provided.
 func TestParseMultipartFormSemicolonSeparator(t *testing.T) {
 	req := newTestMultipartRequest(t)
 	req.URL = &url.URL{RawQuery: "q=foo;q=bar"}
@@ -774,15 +775,8 @@ func TestRequestBadHost(t *testing.T) {
 	}
 	req.Host = "foo.com with spaces"
 	req.URL.Host = "foo.com with spaces"
-	req.Write(logWrites{t, &got})
-	want := []string{
-		"GET /after HTTP/1.1\r\n",
-		"Host: foo.com\r\n",
-		"User-Agent: " + DefaultUserAgent + "\r\n",
-		"\r\n",
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Writes = %q\n  Want = %q", got, want)
+	if err := req.Write(logWrites{t, &got}); err == nil {
+		t.Errorf("Writing request with invalid Host: succeded, want error")
 	}
 }
 
@@ -1097,7 +1091,7 @@ func testMissingFile(t *testing.T, req *Request) {
 		t.Errorf("FormFile file = %v, want nil", f)
 	}
 	if fh != nil {
-		t.Errorf("FormFile file header = %q, want nil", fh)
+		t.Errorf("FormFile file header = %v, want nil", fh)
 	}
 	if err != ErrMissingFile {
 		t.Errorf("FormFile err = %q, want ErrMissingFile", err)
@@ -1386,5 +1380,11 @@ func runFileAndServerBenchmarks(b *testing.B, mode testMode, f *os.File, n int64
 
 		res.Body.Close()
 		b.SetBytes(n)
+	}
+}
+
+func TestErrNotSupported(t *testing.T) {
+	if !errors.Is(ErrNotSupported, errors.ErrUnsupported) {
+		t.Error("errors.Is(ErrNotSupported, errors.ErrUnsupported) failed")
 	}
 }

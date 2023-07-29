@@ -13,7 +13,6 @@ type AlgKind int
 //go:generate stringer -type AlgKind -trimprefix A alg.go
 
 const (
-	// These values are known by runtime.
 	ANOEQ AlgKind = iota
 	AMEM0
 	AMEM8

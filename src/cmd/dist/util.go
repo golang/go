@@ -373,35 +373,36 @@ func xsamefile(f1, f2 string) bool {
 }
 
 func xgetgoarm() string {
-	if goos == "android" {
-		// Assume all android devices have VFPv3.
-		// These ports are also mostly cross-compiled, so it makes little
-		// sense to auto-detect the setting.
-		return "7"
-	}
-	if goos == "windows" {
-		// windows/arm only works with ARMv7 executables.
-		return "7"
-	}
-	if gohostarch != "arm" || goos != gohostos {
-		// Conservative default for cross-compilation.
+	// If we're building on an actual arm system, and not building
+	// a cross-compiling toolchain, try to exec ourselves
+	// to detect whether VFP is supported and set the default GOARM.
+	// Windows requires ARMv7, so we can skip the check.
+	// We've always assumed Android is ARMv7 too.
+	if gohostarch == "arm" && goarch == "arm" && goos == gohostos && goos != "windows" && goos != "android" {
+		// Try to exec ourselves in a mode to detect VFP support.
+		// Seeing how far it gets determines which instructions failed.
+		// The test is OS-agnostic.
+		out := run("", 0, os.Args[0], "-check-goarm")
+		v1ok := strings.Contains(out, "VFPv1 OK.")
+		v3ok := strings.Contains(out, "VFPv3 OK.")
+		if v1ok && v3ok {
+			return "7"
+		}
+		if v1ok {
+			return "6"
+		}
 		return "5"
 	}
 
-	// Try to exec ourselves in a mode to detect VFP support.
-	// Seeing how far it gets determines which instructions failed.
-	// The test is OS-agnostic.
-	out := run("", 0, os.Args[0], "-check-goarm")
-	v1ok := strings.Contains(out, "VFPv1 OK.")
-	v3ok := strings.Contains(out, "VFPv3 OK.")
-
-	if v1ok && v3ok {
-		return "7"
-	}
-	if v1ok {
-		return "6"
-	}
-	return "5"
+	// Otherwise, in the absence of local information, assume GOARM=7.
+	//
+	// We used to assume GOARM=5 in certain contexts but not others,
+	// which produced inconsistent results. For example if you cross-compiled
+	// for linux/arm from a windows/amd64 machine, you got GOARM=7 binaries,
+	// but if you cross-compiled for linux/arm from a linux/amd64 machine,
+	// you got GOARM=5 binaries. Now the default is independent of the
+	// host operating system, for better reproducibility of builds.
+	return "7"
 }
 
 func min(a, b int) int {

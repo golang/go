@@ -536,7 +536,6 @@ func archLoong64(linkArch *obj.LinkArch) *Arch {
 	// Avoid unintentionally clobbering g using R22.
 	delete(register, "R22")
 	register["g"] = loong64.REG_R22
-	register["RSB"] = loong64.REG_R31
 	registerPrefix := map[string]bool{
 		"F":    true,
 		"FCSR": true,

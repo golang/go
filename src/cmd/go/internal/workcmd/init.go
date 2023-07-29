@@ -7,10 +7,15 @@
 package workcmd
 
 import (
-	"cmd/go/internal/base"
-	"cmd/go/internal/modload"
 	"context"
 	"path/filepath"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/fsys"
+	"cmd/go/internal/gover"
+	"cmd/go/internal/modload"
+
+	"golang.org/x/mod/modfile"
 )
 
 var cmdInit = &base.Command{
@@ -43,10 +48,19 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
 
 	modload.ForceUseModules = true
 
-	workFile := modload.WorkFilePath()
-	if workFile == "" {
-		workFile = filepath.Join(base.Cwd(), "go.work")
+	gowork := modload.WorkFilePath()
+	if gowork == "" {
+		gowork = filepath.Join(base.Cwd(), "go.work")
 	}
 
-	modload.CreateWorkFile(ctx, workFile, args)
+	if _, err := fsys.Stat(gowork); err == nil {
+		base.Fatalf("go: %s already exists", gowork)
+	}
+
+	goV := gover.Local() // Use current Go version by default
+	wf := new(modfile.WorkFile)
+	wf.Syntax = new(modfile.FileSyntax)
+	wf.AddGoStmt(goV)
+	workUse(ctx, gowork, wf, args)
+	modload.WriteWorkFile(gowork, wf)
 }

@@ -559,7 +559,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 
 		fn := typecheck.LookupRuntime("slicecopy")
 		fn = typecheck.SubstArgTypes(fn, ptr1.Type().Elem(), ptr2.Type().Elem())
-		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, ptr1, len1, ptr2, len2, ir.NewInt(elemtype.Size()))
+		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, ptr1, len1, ptr2, len2, ir.NewInt(base.Pos, elemtype.Size()))
 	} else {
 		// memmove(&s[idx], &l2[0], len(l2)*sizeof(T))
 		ix := ir.NewIndexExpr(base.Pos, s, idx)
@@ -569,7 +569,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		sptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, l2)
 
 		nwid := cheapExpr(typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, l2), types.Types[types.TUINTPTR]), &nodes)
-		nwid = ir.NewBinaryExpr(base.Pos, ir.OMUL, nwid, ir.NewInt(elemtype.Size()))
+		nwid = ir.NewBinaryExpr(base.Pos, ir.OMUL, nwid, ir.NewInt(base.Pos, elemtype.Size()))
 
 		// instantiate func memmove(to *any, frm *any, length uintptr)
 		fn := typecheck.LookupRuntime("memmove")
@@ -609,7 +609,7 @@ func isAppendOfMake(n ir.Node) bool {
 	}
 
 	// y must be either an integer constant or the largest possible positive value
-	// of variable y needs to fit into an uint.
+	// of variable y needs to fit into a uint.
 
 	// typecheck made sure that constant arguments to make are not negative and fit into an int.
 
@@ -652,7 +652,7 @@ func isAppendOfMake(n ir.Node) bool {
 //	growslice will have done the clearing for us.
 
 func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
-	// isAppendOfMake made sure all possible positive values of l2 fit into an uint.
+	// isAppendOfMake made sure all possible positive values of l2 fit into a uint.
 	// The case of l2 overflow when converting from e.g. uint to int is handled by an explicit
 	// check of l2 < 0 at runtime which is generated below.
 	l2 := typecheck.Conv(n.Args[1].(*ir.MakeExpr).Len, types.Types[types.TINT])
@@ -667,7 +667,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	var nodes []ir.Node
 
 	// if l2 >= 0 (likely happens), do nothing
-	nifneg := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OGE, l2, ir.NewInt(0)), nil, nil)
+	nifneg := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OGE, l2, ir.NewInt(base.Pos, 0)), nil, nil)
 	nifneg.Likely = true
 
 	// else panicmakeslicelen()
@@ -718,7 +718,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	hp := typecheck.ConvNop(typecheck.NodAddr(ix), types.Types[types.TUNSAFEPTR])
 
 	// hn := l2 * sizeof(elem(s))
-	hn := typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, l2, ir.NewInt(elemtype.Size())), types.Types[types.TUINTPTR])
+	hn := typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, l2, ir.NewInt(base.Pos, elemtype.Size())), types.Types[types.TUINTPTR])
 
 	clrname := "memclrNoHeapPointers"
 	hasPointers := elemtype.HasPointers()

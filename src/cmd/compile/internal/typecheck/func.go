@@ -146,26 +146,6 @@ func MethodValueType(n *ir.SelectorExpr) *types.Type {
 	return t
 }
 
-// Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
-// the ->sym can be re-used in the local package, so peel it off the receiver's type.
-func fnpkg(fn *ir.Name) *types.Pkg {
-	if ir.IsMethod(fn) {
-		// method
-		rcvr := fn.Type().Recv().Type
-
-		if rcvr.IsPtr() {
-			rcvr = rcvr.Elem()
-		}
-		if rcvr.Sym() == nil {
-			base.Fatalf("receiver with no sym: [%v] %L  (%v)", fn.Sym(), fn, rcvr)
-		}
-		return rcvr.Sym().Pkg
-	}
-
-	// non-method
-	return fn.Sym().Pkg
-}
-
 // tcClosure typechecks an OCLOSURE node. It also creates the named
 // function associated with the closure.
 // TODO: This creation of the named function should probably really be done in a
@@ -254,13 +234,13 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 		default:
 			base.Fatalf("unknown builtin %v", l)
 
-		case ir.OAPPEND, ir.ODELETE, ir.OMAKE, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
+		case ir.OAPPEND, ir.ODELETE, ir.OMAKE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
 			n.SetOp(l.BuiltinOp)
 			n.X = nil
 			n.SetTypecheck(0) // re-typechecking new op is OK, not a loop
 			return typecheck(n, top)
 
-		case ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
+		case ir.OCAP, ir.OCLEAR, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
 			typecheckargs(n)
 			fallthrough
 		case ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
@@ -438,6 +418,28 @@ func tcAppend(n *ir.CallExpr) ir.Node {
 		as[i] = AssignConv(n, t.Elem(), "append")
 		types.CheckSize(as[i].Type()) // ensure width is calculated for backend
 	}
+	return n
+}
+
+// tcClear typechecks an OCLEAR node.
+func tcClear(n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(n.X)
+	n.X = DefaultLit(n.X, nil)
+	l := n.X
+	t := l.Type()
+	if t == nil {
+		n.SetType(nil)
+		return n
+	}
+
+	switch {
+	case t.IsMap(), t.IsSlice():
+	default:
+		base.Errorf("invalid operation: %v (argument must be a map or slice)", n)
+		n.SetType(nil)
+		return n
+	}
+
 	return n
 }
 
@@ -656,7 +658,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 				return n
 			}
 		} else {
-			l = ir.NewInt(0)
+			l = ir.NewInt(base.Pos, 0)
 		}
 		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKEMAP, l, nil)
 		nn.SetEsc(n.Esc())
@@ -677,7 +679,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 				return n
 			}
 		} else {
-			l = ir.NewInt(0)
+			l = ir.NewInt(base.Pos, 0)
 		}
 		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKECHAN, l, nil)
 	}
@@ -778,6 +780,19 @@ func tcPrint(n *ir.CallExpr) ir.Node {
 			ls[i1] = DefaultLit(ls[i1], nil)
 		}
 	}
+	return n
+}
+
+// tcMinMax typechecks an OMIN or OMAX node.
+func tcMinMax(n *ir.CallExpr) ir.Node {
+	typecheckargs(n)
+	arg0 := n.Args[0]
+	for _, arg := range n.Args[1:] {
+		if !types.Identical(arg.Type(), arg0.Type()) {
+			base.FatalfAt(n.Pos(), "mismatched arguments: %L and %L", arg0, arg)
+		}
+	}
+	n.SetType(arg0.Type())
 	return n
 }
 

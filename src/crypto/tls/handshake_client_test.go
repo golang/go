@@ -900,6 +900,7 @@ func testResumption(t *testing.T, version uint16) {
 	}
 
 	testResumeState := func(test string, didResume bool) {
+		t.Helper()
 		_, hs, err := testHandshake(t, clientConfig, serverConfig)
 		if err != nil {
 			t.Fatalf("%s: handshake failed: %s", test, err)
@@ -916,14 +917,14 @@ func testResumption(t *testing.T, version uint16) {
 	}
 
 	getTicket := func() []byte {
-		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.sessionTicket
+		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.ticket
 	}
 	deleteTicket := func() {
 		ticketKey := clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).sessionKey
 		clientConfig.ClientSessionCache.Put(ticketKey, nil)
 	}
 	corruptTicket := func() {
-		clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.masterSecret[0] ^= 0xff
+		clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.session.secret[0] ^= 0xff
 	}
 	randomKey := func() [32]byte {
 		var k [32]byte
@@ -936,21 +937,20 @@ func testResumption(t *testing.T, version uint16) {
 	testResumeState("Handshake", false)
 	ticket := getTicket()
 	testResumeState("Resume", true)
-	if !bytes.Equal(ticket, getTicket()) && version != VersionTLS13 {
-		t.Fatal("first ticket doesn't match ticket after resumption")
-	}
-	if bytes.Equal(ticket, getTicket()) && version == VersionTLS13 {
+	if bytes.Equal(ticket, getTicket()) {
 		t.Fatal("ticket didn't change after resumption")
 	}
 
-	// An old session ticket can resume, but the server will provide a ticket encrypted with a fresh key.
+	// An old session ticket is replaced with a ticket encrypted with a fresh key.
+	ticket = getTicket()
 	serverConfig.Time = func() time.Time { return time.Now().Add(24*time.Hour + time.Minute) }
 	testResumeState("ResumeWithOldTicket", true)
-	if bytes.Equal(ticket[:ticketKeyNameLen], getTicket()[:ticketKeyNameLen]) {
+	if bytes.Equal(ticket, getTicket()) {
 		t.Fatal("old first ticket matches the fresh one")
 	}
 
-	// Now the session tickey key is expired, so a full handshake should occur.
+	// Once the session master secret is expired, a full handshake should occur.
+	ticket = getTicket()
 	serverConfig.Time = func() time.Time { return time.Now().Add(24*8*time.Hour + time.Minute) }
 	testResumeState("ResumeWithExpiredTicket", false)
 	if bytes.Equal(ticket, getTicket()) {
@@ -986,9 +986,11 @@ func testResumption(t *testing.T, version uint16) {
 
 	// Age the session ticket a bit at a time, but don't expire it.
 	d := 0 * time.Hour
+	serverConfig.Time = func() time.Time { return time.Now().Add(d) }
+	deleteTicket()
+	testResumeState("GetFreshSessionTicket", false)
 	for i := 0; i < 13; i++ {
 		d += 12 * time.Hour
-		serverConfig.Time = func() time.Time { return time.Now().Add(d) }
 		testResumeState("OldSessionTicket", true)
 	}
 	// Expire it (now a little more than 7 days) and make sure a full
@@ -996,7 +998,6 @@ func testResumption(t *testing.T, version uint16) {
 	// TLS 1.3 since the client should be using a fresh ticket sent over
 	// by the server.
 	d += 12 * time.Hour
-	serverConfig.Time = func() time.Time { return time.Now().Add(d) }
 	if version == VersionTLS13 {
 		testResumeState("ExpiredSessionTicket", true)
 	} else {
@@ -1028,6 +1029,27 @@ func testResumption(t *testing.T, version uint16) {
 	deleteTicket()
 	testResumeState("WithoutSessionTicket", false)
 
+	// In TLS 1.3, HelloRetryRequest is sent after incorrect key share.
+	// See https://www.rfc-editor.org/rfc/rfc8446#page-14.
+	if version == VersionTLS13 {
+		deleteTicket()
+		serverConfig = &Config{
+			// Use a different curve than the client to force a HelloRetryRequest.
+			CurvePreferences: []CurveID{CurveP521, CurveP384, CurveP256},
+			MaxVersion:       version,
+			Certificates:     testConfig.Certificates,
+		}
+		testResumeState("InitialHandshake", false)
+		testResumeState("WithHelloRetryRequest", true)
+
+		// Reset serverConfig back.
+		serverConfig = &Config{
+			MaxVersion:   version,
+			CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
+			Certificates: testConfig.Certificates,
+		}
+	}
+
 	// Session resumption should work when using client certificates
 	deleteTicket()
 	serverConfig.ClientCAs = rootCAs
@@ -1049,6 +1071,47 @@ func testResumption(t *testing.T, version uint16) {
 
 	clientConfig.ClientSessionCache = nil
 	testResumeState("WithoutSessionCache", false)
+
+	clientConfig.ClientSessionCache = &serializingClientCache{t: t}
+	testResumeState("BeforeSerializingCache", false)
+	testResumeState("WithSerializingCache", true)
+}
+
+type serializingClientCache struct {
+	t *testing.T
+
+	ticket, state []byte
+}
+
+func (c *serializingClientCache) Get(sessionKey string) (session *ClientSessionState, ok bool) {
+	if c.ticket == nil {
+		return nil, false
+	}
+	state, err := ParseSessionState(c.state)
+	if err != nil {
+		c.t.Error(err)
+		return nil, false
+	}
+	cs, err := NewResumptionState(c.ticket, state)
+	if err != nil {
+		c.t.Error(err)
+		return nil, false
+	}
+	return cs, true
+}
+
+func (c *serializingClientCache) Put(sessionKey string, cs *ClientSessionState) {
+	ticket, state, err := cs.ResumptionState()
+	if err != nil {
+		c.t.Error(err)
+		return
+	}
+	stateBytes, err := state.Bytes()
+	if err != nil {
+		c.t.Error(err)
+		return
+	}
+	c.ticket, c.state = ticket, stateBytes
 }
 
 func TestLRUClientSessionCache(t *testing.T) {
@@ -1257,7 +1320,7 @@ func TestServerSelectingUnconfiguredApplicationProtocol(t *testing.T) {
 		cipherSuite:  TLS_RSA_WITH_AES_128_GCM_SHA256,
 		alpnProtocol: "how-about-this",
 	}
-	serverHelloBytes := serverHello.marshal()
+	serverHelloBytes := mustMarshal(t, serverHello)
 
 	s.Write([]byte{
 		byte(recordTypeHandshake),
@@ -1500,7 +1563,7 @@ func TestServerSelectingUnconfiguredCipherSuite(t *testing.T) {
 		random:      make([]byte, 32),
 		cipherSuite: TLS_RSA_WITH_AES_256_GCM_SHA384,
 	}
-	serverHelloBytes := serverHello.marshal()
+	serverHelloBytes := mustMarshal(t, serverHello)
 
 	s.Write([]byte{
 		byte(recordTypeHandshake),
@@ -2593,5 +2656,68 @@ func TestClientHandshakeContextCancellation(t *testing.T) {
 	err = cli.Close()
 	if err == nil {
 		t.Error("Client connection was not closed when the context was canceled")
+	}
+}
+
+// TestTLS13OnlyClientHelloCipherSuite tests that when a client states that
+// it only supports TLS 1.3, it correctly advertises only TLS 1.3 ciphers.
+func TestTLS13OnlyClientHelloCipherSuite(t *testing.T) {
+	tls13Tests := []struct {
+		name    string
+		ciphers []uint16
+	}{
+		{
+			name:    "nil",
+			ciphers: nil,
+		},
+		{
+			name:    "empty",
+			ciphers: []uint16{},
+		},
+		{
+			name:    "some TLS 1.2 cipher",
+			ciphers: []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+		},
+		{
+			name:    "some TLS 1.3 cipher",
+			ciphers: []uint16{TLS_AES_128_GCM_SHA256},
+		},
+		{
+			name:    "some TLS 1.2 and 1.3 ciphers",
+			ciphers: []uint16{TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_AES_256_GCM_SHA384},
+		},
+	}
+	for _, tt := range tls13Tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			testTLS13OnlyClientHelloCipherSuite(t, tt.ciphers)
+		})
+	}
+}
+
+func testTLS13OnlyClientHelloCipherSuite(t *testing.T, ciphers []uint16) {
+	serverConfig := &Config{
+		Certificates: testConfig.Certificates,
+		GetConfigForClient: func(chi *ClientHelloInfo) (*Config, error) {
+			if len(chi.CipherSuites) != len(defaultCipherSuitesTLS13NoAES) {
+				t.Errorf("only TLS 1.3 suites should be advertised, got=%x", chi.CipherSuites)
+			} else {
+				for i := range defaultCipherSuitesTLS13NoAES {
+					if want, got := defaultCipherSuitesTLS13NoAES[i], chi.CipherSuites[i]; want != got {
+						t.Errorf("cipher at index %d does not match, want=%x, got=%x", i, want, got)
+					}
+				}
+			}
+			return nil, nil
+		},
+	}
+	clientConfig := &Config{
+		MinVersion:         VersionTLS13, // client only supports TLS 1.3
+		CipherSuites:       ciphers,
+		InsecureSkipVerify: true,
+	}
+	if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+		t.Fatalf("handshake failed: %s", err)
 	}
 }

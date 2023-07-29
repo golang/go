@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"internal/types/errors"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -44,8 +45,6 @@ func Call(pos src.XPos, callee ir.Node, args []ir.Node, dots bool) ir.Node {
 func Callee(n ir.Node) ir.Node {
 	return typecheck(n, ctxExpr|ctxCallee)
 }
-
-var importlist []*ir.Func
 
 var traceIndent []byte
 
@@ -286,7 +285,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 						return n
 					}
 				}
-				base.ErrorfAt(n.Pos(), "invalid recursive type alias %v%s", n, cycleTrace(cycle))
+				base.ErrorfAt(n.Pos(), errors.InvalidDeclCycle, "invalid recursive type alias %v%s", n, cycleTrace(cycle))
 			}
 
 		case ir.OLITERAL:
@@ -294,7 +293,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 				base.Errorf("%v is not a type", n)
 				break
 			}
-			base.ErrorfAt(n.Pos(), "constant definition loop%s", cycleTrace(cycleFor(n)))
+			base.ErrorfAt(n.Pos(), errors.InvalidInitCycle, "constant definition loop%s", cycleTrace(cycleFor(n)))
 		}
 
 		if base.Errors() == 0 {
@@ -333,10 +332,10 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 				isExpr = false
 			}
 		}
-	case ir.OAPPEND:
-		// Must be used (and not BinaryExpr/UnaryExpr).
+	case ir.OAPPEND, ir.OMIN, ir.OMAX:
+		// Must be used.
 		isStmt = false
-	case ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN:
+	case ir.OCLEAR, ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN:
 		// Must not be used.
 		isExpr = false
 		isStmt = true
@@ -355,10 +354,6 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 		default:
 			types.CheckSize(t)
 		}
-	}
-	if t != nil {
-		n = EvalConst(n)
-		t = n.Type()
 	}
 
 	// TODO(rsc): Lots of the complexity here is because typecheck can
@@ -517,9 +512,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		if t != nil {
 			n.X, n.Y = l, r
 			n.SetType(types.UntypedBool)
-			if con := EvalConst(n); con.Op() == ir.OLITERAL {
-				return con
-			}
 			n.X, n.Y = defaultlit2(l, r, true)
 		}
 		return n
@@ -607,11 +599,15 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
 		n := n.(*ir.UnaryExpr)
 		n.SetType(types.Types[types.TUINTPTR])
-		return n
+		return OrigInt(n, evalunsafe(n))
 
 	case ir.OCAP, ir.OLEN:
 		n := n.(*ir.UnaryExpr)
 		return tcLenCap(n)
+
+	case ir.OMIN, ir.OMAX:
+		n := n.(*ir.CallExpr)
+		return tcMinMax(n)
 
 	case ir.OREAL, ir.OIMAG:
 		n := n.(*ir.UnaryExpr)
@@ -620,6 +616,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OCOMPLEX:
 		n := n.(*ir.BinaryExpr)
 		return tcComplex(n)
+
+	case ir.OCLEAR:
+		n := n.(*ir.UnaryExpr)
+		return tcClear(n)
 
 	case ir.OCLOSE:
 		n := n.(*ir.UnaryExpr)
@@ -884,7 +884,7 @@ func RewriteNonNameCall(n *ir.CallExpr) {
 
 	tmp := Temp((*np).Type())
 	as := ir.NewAssignStmt(base.Pos, tmp, *np)
-	as.Def = true
+	as.PtrInit().Append(Stmt(ir.NewDecl(n.Pos(), ir.ODCL, tmp)))
 	*np = tmp
 
 	if static {
@@ -1601,7 +1601,7 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 	var l []ir.Node
 	i := 0
 	for _, r := range ir.StringVal(n.X) {
-		l = append(l, ir.NewKeyExpr(base.Pos, ir.NewInt(int64(i)), ir.NewInt(int64(r))))
+		l = append(l, ir.NewKeyExpr(base.Pos, ir.NewInt(base.Pos, int64(i)), ir.NewInt(base.Pos, int64(r))))
 		i++
 	}
 
@@ -1667,147 +1667,6 @@ func checkunsafesliceorstring(op ir.Op, np *ir.Node) bool {
 	*np = n
 
 	return true
-}
-
-// markBreak marks control statements containing break statements with SetHasBreak(true).
-func markBreak(fn *ir.Func) {
-	var labels map[*types.Sym]ir.Node
-	var implicit ir.Node
-
-	var mark func(ir.Node) bool
-	mark = func(n ir.Node) bool {
-		switch n.Op() {
-		default:
-			ir.DoChildren(n, mark)
-
-		case ir.OBREAK:
-			n := n.(*ir.BranchStmt)
-			if n.Label == nil {
-				setHasBreak(implicit)
-			} else {
-				setHasBreak(labels[n.Label])
-			}
-
-		case ir.OFOR, ir.OSWITCH, ir.OSELECT, ir.ORANGE:
-			old := implicit
-			implicit = n
-			var sym *types.Sym
-			switch n := n.(type) {
-			case *ir.ForStmt:
-				sym = n.Label
-			case *ir.RangeStmt:
-				sym = n.Label
-			case *ir.SelectStmt:
-				sym = n.Label
-			case *ir.SwitchStmt:
-				sym = n.Label
-			}
-			if sym != nil {
-				if labels == nil {
-					// Map creation delayed until we need it - most functions don't.
-					labels = make(map[*types.Sym]ir.Node)
-				}
-				labels[sym] = n
-			}
-			ir.DoChildren(n, mark)
-			if sym != nil {
-				delete(labels, sym)
-			}
-			implicit = old
-		}
-		return false
-	}
-
-	mark(fn)
-}
-
-func setHasBreak(n ir.Node) {
-	switch n := n.(type) {
-	default:
-		base.Fatalf("setHasBreak %+v", n.Op())
-	case nil:
-		// ignore
-	case *ir.ForStmt:
-		n.HasBreak = true
-	case *ir.RangeStmt:
-		n.HasBreak = true
-	case *ir.SelectStmt:
-		n.HasBreak = true
-	case *ir.SwitchStmt:
-		n.HasBreak = true
-	}
-}
-
-// isTermNodes reports whether the Nodes list ends with a terminating statement.
-func isTermNodes(l ir.Nodes) bool {
-	s := l
-	c := len(s)
-	if c == 0 {
-		return false
-	}
-	return isTermNode(s[c-1])
-}
-
-// isTermNode reports whether the node n, the last one in a
-// statement list, is a terminating statement.
-func isTermNode(n ir.Node) bool {
-	switch n.Op() {
-	// NOTE: OLABEL is treated as a separate statement,
-	// not a separate prefix, so skipping to the last statement
-	// in the block handles the labeled statement case by
-	// skipping over the label. No case OLABEL here.
-
-	case ir.OBLOCK:
-		n := n.(*ir.BlockStmt)
-		return isTermNodes(n.List)
-
-	case ir.OGOTO, ir.ORETURN, ir.OTAILCALL, ir.OPANIC, ir.OFALL:
-		return true
-
-	case ir.OFOR:
-		n := n.(*ir.ForStmt)
-		if n.Cond != nil {
-			return false
-		}
-		if n.HasBreak {
-			return false
-		}
-		return true
-
-	case ir.OIF:
-		n := n.(*ir.IfStmt)
-		return isTermNodes(n.Body) && isTermNodes(n.Else)
-
-	case ir.OSWITCH:
-		n := n.(*ir.SwitchStmt)
-		if n.HasBreak {
-			return false
-		}
-		def := false
-		for _, cas := range n.Cases {
-			if !isTermNodes(cas.Body) {
-				return false
-			}
-			if len(cas.List) == 0 { // default
-				def = true
-			}
-		}
-		return def
-
-	case ir.OSELECT:
-		n := n.(*ir.SelectStmt)
-		if n.HasBreak {
-			return false
-		}
-		for _, cas := range n.Cases {
-			if !isTermNodes(cas.Body) {
-				return false
-			}
-		}
-		return true
-	}
-
-	return false
 }
 
 func Conv(n ir.Node, t *types.Type) ir.Node {

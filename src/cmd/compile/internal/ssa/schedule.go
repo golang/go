@@ -7,7 +7,6 @@ package ssa
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
-	"cmd/internal/src"
 	"container/heap"
 	"sort"
 )
@@ -15,6 +14,7 @@ import (
 const (
 	ScorePhi       = iota // towards top of block
 	ScoreArg              // must occur at the top of the entry block
+	ScoreInitMem          // after the args - used as mark by debug info generation
 	ScoreReadTuple        // must occur immediately after tuple-generating insn (or call)
 	ScoreNilCheck
 	ScoreMemory
@@ -25,8 +25,9 @@ const (
 )
 
 type ValHeap struct {
-	a     []*Value
-	score []int8
+	a           []*Value
+	score       []int8
+	inBlockUses []bool
 }
 
 func (h ValHeap) Len() int      { return len(h.a) }
@@ -56,11 +57,13 @@ func (h ValHeap) Less(i, j int) bool {
 	// Note: only scores are required for correct scheduling.
 	// Everything else is just heuristics.
 
+	ix := h.inBlockUses[x.ID]
+	iy := h.inBlockUses[y.ID]
+	if ix != iy {
+		return ix // values with in-block uses come earlier
+	}
+
 	if x.Pos != y.Pos { // Favor in-order line stepping
-		if x.Block == x.Block.Func.Entry && x.Pos.IsStmt() != y.Pos.IsStmt() {
-			// In the entry block, put statement-marked instructions earlier.
-			return x.Pos.IsStmt() == src.PosIsStmt && y.Pos.IsStmt() != src.PosIsStmt
-		}
 		return x.Pos.Before(y.Pos)
 	}
 	if x.Op != OpPhi {
@@ -110,6 +113,23 @@ func schedule(f *Func) {
 	nextMem := f.Cache.allocValueSlice(f.NumValues())
 	defer f.Cache.freeValueSlice(nextMem)
 
+	// inBlockUses records whether a value is used in the block
+	// in which it lives. (block control values don't count as uses.)
+	inBlockUses := f.Cache.allocBoolSlice(f.NumValues())
+	defer f.Cache.freeBoolSlice(inBlockUses)
+	if f.Config.optimize {
+		for _, b := range f.Blocks {
+			for _, v := range b.Values {
+				for _, a := range v.Args {
+					if a.Block == b {
+						inBlockUses[a.ID] = true
+					}
+				}
+			}
+		}
+	}
+	priq.inBlockUses = inBlockUses
+
 	for _, b := range f.Blocks {
 		// Compute score. Larger numbers are scheduled closer to the end of the block.
 		for _, v := range b.Values {
@@ -138,9 +158,12 @@ func schedule(f *Func) {
 					f.Fatalf("%s appeared outside of entry block, b=%s", v.Op, b.String())
 				}
 				score[v.ID] = ScorePhi
-			case v.Op == OpArg:
+			case v.Op == OpArg || v.Op == OpSP || v.Op == OpSB:
 				// We want all the args as early as possible, for better debugging.
 				score[v.ID] = ScoreArg
+			case v.Op == OpInitMem:
+				// Early, but after args. See debug.go:buildLocationLists
+				score[v.ID] = ScoreInitMem
 			case v.Type.IsMemory():
 				// Schedule stores as early as possible. This tends to
 				// reduce register pressure.
@@ -157,7 +180,7 @@ func schedule(f *Func) {
 				// Schedule flag register generation as late as possible.
 				// This makes sure that we only have one live flags
 				// value at a time.
-				// Note that this case is afer the case above, so values
+				// Note that this case is after the case above, so values
 				// which both read and generate flags are given ScoreReadFlags.
 				score[v.ID] = ScoreFlags
 			default:

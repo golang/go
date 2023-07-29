@@ -91,24 +91,43 @@ lt32gt8:
 	ADD	$16, R3
 	ADD	$-16, R4
 lt16gt8:
+#ifdef GOPPC64_power10
+	SLD	$56, R4, R7
+	STXVL   V0, R3, R7
+	RET
+#else
 	CMP	R4, $8
 	BLT	nozerolarge
 	MOVD	R0, 0(R3)
 	ADD	$8, R3
 	ADD	$-8, R4
-
+#endif
 nozerolarge:
 	ANDCC $7, R4, R5 // any remaining bytes
 	BC    4, 1, LR   // ble lr
-
-zerotail:
-	MOVD R5, CTR // set up to clear tail bytes
-
-zerotailloop:
-	MOVB R0, 0(R3)           // clear single bytes
-	ADD  $1, R3
-	BDNZ zerotailloop // dec ctr, br zerotailloop if ctr not 0
+#ifdef GOPPC64_power10
+	XXLXOR  VS32, VS32, VS32 // clear VS32 (V0)
+	SLD	$56, R5, R7
+	STXVL   V0, R3, R7
 	RET
+#else
+	CMP   R5, $4
+	BLT   next2
+	MOVW  R0, 0(R3)
+	ADD   $4, R3
+	ADD   $-4, R5
+next2:
+	CMP   R5, $2
+	BLT   next1
+	MOVH  R0, 0(R3)
+	ADD   $2, R3
+	ADD   $-2, R5
+next1:
+	CMP   R5, $0
+	BC    12, 2, LR      // beqlr
+	MOVB  R0, 0(R3)
+	RET
+#endif
 
 zero512xsetup:  // 512 chunk with extra needed
 	ANDCC $8, R3, R11    // 8 byte alignment?
@@ -123,8 +142,6 @@ zero512setup16:
 	MOVD  $128, R15
 	SUB   R14, R15, R14 // find increment to 128 alignment
 	SRD   $4, R14, R15  // number of 16 byte chunks
-
-zero512presetup:
 	MOVD   R15, CTR         // loop counter of 16 bytes
 	XXLXOR VS32, VS32, VS32 // clear VS32 (V0)
 
@@ -142,8 +159,7 @@ zero512setup:  // setup for dcbz loop
 	MOVD $128, R9   // index regs for 128 bytes
 	MOVD $256, R10
 	MOVD $384, R11
-	PCALIGN	$32
-
+	PCALIGN $16
 zero512:
 	DCBZ (R3+R0)        // clear first chunk
 	DCBZ (R3+R9)        // clear second chunk

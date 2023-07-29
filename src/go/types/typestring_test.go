@@ -119,7 +119,7 @@ func TestTypeString(t *testing.T) {
 
 	for _, test := range tests {
 		src := `package p; import "io"; type _ io.Writer; type T ` + test.src
-		pkg, err := typecheck(filename, src, nil, nil)
+		pkg, err := typecheck(src, nil, nil)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)
 			continue
@@ -137,8 +137,8 @@ func TestTypeString(t *testing.T) {
 }
 
 func TestQualifiedTypeString(t *testing.T) {
-	p := mustTypecheck("p.go", "package p; type T int", nil, nil)
-	q := mustTypecheck("q.go", "package q", nil, nil)
+	p := mustTypecheck("package p; type T int", nil, nil)
+	q := mustTypecheck("package q", nil, nil)
 
 	pT := p.Scope().Lookup("T").Type()
 	for _, test := range []struct {

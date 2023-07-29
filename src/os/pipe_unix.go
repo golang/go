@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || (js && wasm)
+//go:build aix || darwin
 
 package os
 
@@ -24,5 +24,5 @@ func Pipe() (r *File, w *File, err error) {
 	syscall.CloseOnExec(p[1])
 	syscall.ForkLock.RUnlock()
 
-	return newFile(uintptr(p[0]), "|0", kindPipe), newFile(uintptr(p[1]), "|1", kindPipe), nil
+	return newFile(p[0], "|0", kindPipe), newFile(p[1], "|1", kindPipe), nil
 }

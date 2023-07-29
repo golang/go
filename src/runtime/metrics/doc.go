@@ -8,7 +8,7 @@
 /*
 Package metrics provides a stable interface to access implementation-defined
 metrics exported by the Go runtime. This package is similar to existing functions
-like runtime.ReadMemStats and debug.ReadGCStats, but significantly more general.
+like [runtime.ReadMemStats] and [debug.ReadGCStats], but significantly more general.
 
 The set of metrics defined by this package may evolve as the runtime itself
 evolves, and also enables variation across Go implementations, whose relevant
@@ -66,11 +66,9 @@ Below is the full list of supported metrics, ordered lexicographically.
 
 	/cpu/classes/gc/mark/dedicated:cpu-seconds
 		Estimated total CPU time spent performing GC tasks on processors
-		(as defined by GOMAXPROCS) dedicated to those tasks. This
-		includes time spent with the world stopped due to the GC. This
-		metric is an overestimate, and not directly comparable to system
-		CPU time measurements. Compare only with other /cpu/classes
-		metrics.
+		(as defined by GOMAXPROCS) dedicated to those tasks. This metric
+		is an overestimate, and not directly comparable to system CPU
+		time measurements. Compare only with other /cpu/classes metrics.
 
 	/cpu/classes/gc/mark/idle:cpu-seconds
 		Estimated total CPU time spent performing GC tasks on spare CPU
@@ -147,10 +145,21 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/gc/cycles/total:gc-cycles
 		Count of all completed GC cycles.
 
+	/gc/gogc:percent
+		Heap size target percentage configured by the user, otherwise
+		100. This value is set by the GOGC environment variable, and the
+		runtime/debug.SetGCPercent function.
+
+	/gc/gomemlimit:bytes
+		Go runtime memory limit configured by the user, otherwise
+		math.MaxInt64. This value is set by the GOMEMLIMIT environment
+		variable, and the runtime/debug.SetMemoryLimit function.
+
 	/gc/heap/allocs-by-size:bytes
 		Distribution of heap allocations by approximate size.
-		Note that this does not include tiny objects as defined by
-		/gc/heap/tiny/allocs:objects, only tiny blocks.
+		Bucket counts increase monotonically. Note that this does not
+		include tiny objects as defined by /gc/heap/tiny/allocs:objects,
+		only tiny blocks.
 
 	/gc/heap/allocs:bytes
 		Cumulative sum of memory allocated to the heap by the
@@ -163,8 +172,9 @@ Below is the full list of supported metrics, ordered lexicographically.
 
 	/gc/heap/frees-by-size:bytes
 		Distribution of freed heap allocations by approximate size.
-		Note that this does not include tiny objects as defined by
-		/gc/heap/tiny/allocs:objects, only tiny blocks.
+		Bucket counts increase monotonically. Note that this does not
+		include tiny objects as defined by /gc/heap/tiny/allocs:objects,
+		only tiny blocks.
 
 	/gc/heap/frees:bytes
 		Cumulative sum of heap memory freed by the garbage collector.
@@ -177,6 +187,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 
 	/gc/heap/goal:bytes
 		Heap size target for the end of the GC cycle.
+
+	/gc/heap/live:bytes
+		Heap memory occupied by live objects that were marked by the
+		previous GC.
 
 	/gc/heap/objects:objects
 		Number of objects, live or unswept, occupying heap memory.
@@ -197,8 +211,21 @@ Below is the full list of supported metrics, ordered lexicographically.
 		1, so a value of 0 indicates that it was never enabled.
 
 	/gc/pauses:seconds
-		Distribution individual GC-related stop-the-world pause
-		latencies.
+		Distribution of individual GC-related stop-the-world pause
+		latencies. Bucket counts increase monotonically.
+
+	/gc/scan/globals:bytes
+		The total amount of global variable space that is scannable.
+
+	/gc/scan/heap:bytes
+		The total amount of heap space that is scannable.
+
+	/gc/scan/stack:bytes
+		The number of bytes of stack that were scanned last GC cycle.
+
+	/gc/scan/total:bytes
+		The total amount space that is scannable. Sum of all metrics in
+		/gc/scan.
 
 	/gc/stack/starting-size:bytes
 		The stack size of new goroutines.
@@ -206,6 +233,18 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/godebug/non-default-behavior/execerrdot:events
 		The number of non-default behaviors executed by the os/exec
 		package due to a non-default GODEBUG=execerrdot=... setting.
+
+	/godebug/non-default-behavior/gocachehash:events
+		The number of non-default behaviors executed by the cmd/go
+		package due to a non-default GODEBUG=gocachehash=... setting.
+
+	/godebug/non-default-behavior/gocachetest:events
+		The number of non-default behaviors executed by the cmd/go
+		package due to a non-default GODEBUG=gocachetest=... setting.
+
+	/godebug/non-default-behavior/gocacheverify:events
+		The number of non-default behaviors executed by the cmd/go
+		package due to a non-default GODEBUG=gocacheverify=... setting.
 
 	/godebug/non-default-behavior/http2client:events
 		The number of non-default behaviors executed by the net/http
@@ -218,6 +257,25 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/godebug/non-default-behavior/installgoroot:events
 		The number of non-default behaviors executed by the go/build
 		package due to a non-default GODEBUG=installgoroot=... setting.
+
+	/godebug/non-default-behavior/jstmpllitinterp:events
+		The number of non-default behaviors executed by
+		the html/template package due to a non-default
+		GODEBUG=jstmpllitinterp=... setting.
+
+	/godebug/non-default-behavior/multipartmaxheaders:events
+		The number of non-default behaviors executed by
+		the mime/multipart package due to a non-default
+		GODEBUG=multipartmaxheaders=... setting.
+
+	/godebug/non-default-behavior/multipartmaxparts:events
+		The number of non-default behaviors executed by
+		the mime/multipart package due to a non-default
+		GODEBUG=multipartmaxparts=... setting.
+
+	/godebug/non-default-behavior/multipathtcp:events
+		The number of non-default behaviors executed by the net package
+		due to a non-default GODEBUG=multipathtcp=... setting.
 
 	/godebug/non-default-behavior/panicnil:events
 		The number of non-default behaviors executed by the runtime
@@ -264,7 +322,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 
 	/memory/classes/heap/stacks:bytes
 		Memory allocated from the heap that is reserved for stack space,
-		whether or not it is currently in-use.
+		whether or not it is currently in-use. Currently, this
+		represents all stack memory for goroutines. It also includes all
+		OS thread stacks in non-cgo programs. Note that stacks may be
+		allocated differently in the future, and this may change.
 
 	/memory/classes/heap/unused:bytes
 		Memory that is reserved for heap objects but is not currently
@@ -291,6 +352,12 @@ Below is the full list of supported metrics, ordered lexicographically.
 
 	/memory/classes/os-stacks:bytes
 		Stack memory allocated by the underlying operating system.
+		In non-cgo programs this metric is currently zero. This may
+		change in the future.In cgo programs this metric includes
+		OS thread stacks allocated directly from the OS. Currently,
+		this only accounts for one stack in c-shared and c-archive build
+		modes, and other sources of stacks from the OS are not measured.
+		This too may change in the future.
 
 	/memory/classes/other:bytes
 		Memory used by execution trace buffers, structures for debugging
@@ -316,7 +383,8 @@ Below is the full list of supported metrics, ordered lexicographically.
 
 	/sched/latencies:seconds
 		Distribution of the time goroutines have spent in the scheduler
-		in a runnable state before actually running.
+		in a runnable state before actually running. Bucket counts
+		increase monotonically.
 
 	/sync/mutex/wait/total:seconds
 		Approximate cumulative time goroutines have spent blocked

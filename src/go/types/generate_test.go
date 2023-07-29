@@ -98,15 +98,19 @@ var filemap = map[string]action{
 	"array.go":        nil,
 	"basic.go":        nil,
 	"chan.go":         nil,
+	"const.go":        func(f *ast.File) { fixTokenPos(f) },
 	"context.go":      nil,
 	"context_test.go": nil,
 	"gccgosizes.go":   nil,
-	"hilbert_test.go": nil,
-	"infer.go":        func(f *ast.File) { fixTokenPos(f); fixInferSig(f) },
+	"hilbert_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
+	"infer.go": func(f *ast.File) {
+		fixTokenPos(f)
+		fixInferSig(f)
+	},
 	// "initorder.go": fixErrErrorfCall, // disabled for now due to unresolved error_ use implications for gopls
 	"instantiate.go":      func(f *ast.File) { fixTokenPos(f); fixCheckErrorfCall(f) },
 	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
-	"lookup.go":           nil,
+	"lookup.go":           func(f *ast.File) { fixTokenPos(f) },
 	"main_test.go":        nil,
 	"map.go":              nil,
 	"named.go":            func(f *ast.File) { fixTokenPos(f); fixTraceSel(f) },
@@ -137,6 +141,7 @@ var filemap = map[string]action{
 	"universe.go":      fixGlobalTypVarDecl,
 	"util_test.go":     fixTokenPos,
 	"validtype.go":     nil,
+	"version_test.go":  nil,
 }
 
 // TODO(gri) We should be able to make these rewriters more configurable/composable.
@@ -206,7 +211,7 @@ func fixInferSig(f *ast.File) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.FuncDecl:
-			if n.Name.Name == "infer" {
+			if n.Name.Name == "infer" || n.Name.Name == "infer1" || n.Name.Name == "infer2" {
 				// rewrite (pos token.Pos, ...) to (posn positioner, ...)
 				par := n.Type.Params.List[0]
 				if len(par.Names) == 1 && par.Names[0].Name == "pos" {
@@ -227,8 +232,10 @@ func fixInferSig(f *ast.File) {
 						n.Args[0] = arg
 						return false
 					}
-				case "errorf":
+				case "errorf", "infer1", "infer2":
 					// rewrite check.errorf(pos, ...) to check.errorf(posn, ...)
+					// rewrite check.infer1(pos, ...) to check.infer1(posn, ...)
+					// rewrite check.infer2(pos, ...) to check.infer2(posn, ...)
 					if ident, _ := n.Args[0].(*ast.Ident); ident != nil && ident.Name == "pos" {
 						pos := n.Args[0].Pos()
 						arg := newIdent(pos, "posn")

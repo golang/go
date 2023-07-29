@@ -86,9 +86,9 @@ The server calls (for HTTP service):
 	arith := new(Arith)
 	rpc.Register(arith)
 	rpc.HandleHTTP()
-	l, e := net.Listen("tcp", ":1234")
-	if e != nil {
-		log.Fatal("listen error:", e)
+	l, err := net.Listen("tcp", ":1234")
+	if err != nil {
+		log.Fatal("listen error:", err)
 	}
 	go http.Serve(l, nil)
 

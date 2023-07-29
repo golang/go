@@ -372,7 +372,7 @@
 (I64LeU (I64Const [1]) x) => (I64Eqz (I64Eqz x))
 (I64Ne x (I64Const [0])) => (I64Eqz (I64Eqz x))
 
-(I64Add x (I64Const [y])) => (I64AddConst [y] x)
+(I64Add x (I64Const <t> [y])) && !t.IsPtr() => (I64AddConst [y] x)
 (I64AddConst [0] x) => x
 (I64Eqz (I64Eqz (I64Eqz x))) => (I64Eqz x)
 

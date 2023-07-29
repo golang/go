@@ -286,7 +286,7 @@ func check() {
 
 	testAtomic64()
 
-	if _FixedStack != round2(_FixedStack) {
+	if fixedStack != round2(fixedStack) {
 		throw("FixedStack is not power-of-2")
 	}
 
@@ -309,6 +309,7 @@ type dbgVar struct {
 var debug struct {
 	cgocheck           int32
 	clobberfree        int32
+	dontfreezetheworld int32
 	efence             int32
 	gccheckmark        int32
 	gcpacertrace       int32
@@ -324,6 +325,7 @@ var debug struct {
 	asyncpreemptoff    int32
 	harddecommit       int32
 	adaptivestackstart int32
+	tracefpunwindoff   int32
 
 	// debug.malloc is used as a combined debug check
 	// in the malloc function and should be set
@@ -340,6 +342,7 @@ var dbgvars = []*dbgVar{
 	{name: "allocfreetrace", value: &debug.allocfreetrace},
 	{name: "clobberfree", value: &debug.clobberfree},
 	{name: "cgocheck", value: &debug.cgocheck},
+	{name: "dontfreezetheworld", value: &debug.dontfreezetheworld},
 	{name: "efence", value: &debug.efence},
 	{name: "gccheckmark", value: &debug.gccheckmark},
 	{name: "gcpacertrace", value: &debug.gcpacertrace},
@@ -357,6 +360,7 @@ var dbgvars = []*dbgVar{
 	{name: "inittrace", value: &debug.inittrace},
 	{name: "harddecommit", value: &debug.harddecommit},
 	{name: "adaptivestackstart", value: &debug.adaptivestackstart},
+	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
 	{name: "panicnil", atomic: &debug.panicnil},
 }
 
@@ -489,6 +493,10 @@ func parsegodebug(godebug string, seen map[string]bool) {
 			}
 		}
 	}
+
+	if debug.cgocheck > 1 {
+		throw("cgocheck > 1 mode is no longer supported at runtime. Use GOEXPERIMENT=cgocheck2 at build time instead.")
+	}
 }
 
 //go:linkname setTraceback runtime/debug.SetTraceback
@@ -505,6 +513,13 @@ func setTraceback(level string) {
 		t = 2<<tracebackShift | tracebackAll
 	case "crash":
 		t = 2<<tracebackShift | tracebackAll | tracebackCrash
+	case "wer":
+		if GOOS == "windows" {
+			t = 2<<tracebackShift | tracebackAll | tracebackCrash
+			enableWER()
+			break
+		}
+		fallthrough
 	default:
 		t = tracebackAll
 		if n, ok := atoi(level); ok && n == int(uint32(n)) {
@@ -586,21 +601,21 @@ func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 //
 //go:linkname reflect_resolveNameOff reflect.resolveNameOff
 func reflect_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
-	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).bytes)
+	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).Bytes)
 }
 
 // reflect_resolveTypeOff resolves an *rtype offset from a base type.
 //
 //go:linkname reflect_resolveTypeOff reflect.resolveTypeOff
 func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
-	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
+	return unsafe.Pointer(toRType((*_type)(rtype)).typeOff(typeOff(off)))
 }
 
 // reflect_resolveTextOff resolves a function pointer offset from a base type.
 //
 //go:linkname reflect_resolveTextOff reflect.resolveTextOff
 func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
-	return (*_type)(rtype).textOff(textOff(off))
+	return toRType((*_type)(rtype)).textOff(textOff(off))
 
 }
 
@@ -608,14 +623,14 @@ func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 //
 //go:linkname reflectlite_resolveNameOff internal/reflectlite.resolveNameOff
 func reflectlite_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
-	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).bytes)
+	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).Bytes)
 }
 
 // reflectlite_resolveTypeOff resolves an *rtype offset from a base type.
 //
 //go:linkname reflectlite_resolveTypeOff internal/reflectlite.resolveTypeOff
 func reflectlite_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
-	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
+	return unsafe.Pointer(toRType((*_type)(rtype)).typeOff(typeOff(off)))
 }
 
 // reflect_addReflectOff adds a pointer to the reflection offset lookup map.

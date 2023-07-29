@@ -70,7 +70,7 @@ type reflectMethodValue struct {
 
 // argBytes returns the argument frame size for a call to frame.fn.
 func (frame *stkframe) argBytes() uintptr {
-	if frame.fn.args != _ArgsSizeUnknown {
+	if frame.fn.args != abi.ArgsSizeUnknown {
 		return uintptr(frame.fn.args)
 	}
 	// This is an uncommon and complicated case. Fall back to fully
@@ -93,7 +93,7 @@ func (frame *stkframe) argBytes() uintptr {
 // function stack object, which the caller must synthesize.
 func (frame *stkframe) argMapInternal() (argMap bitvector, hasReflectStackObj bool) {
 	f := frame.fn
-	if f.args != _ArgsSizeUnknown {
+	if f.args != abi.ArgsSizeUnknown {
 		argMap.n = f.args / goarch.PtrSize
 		return
 	}
@@ -169,7 +169,7 @@ func (frame *stkframe) getStackMap(cache *pcvalueCache, debug bool) (locals, arg
 		// the first instruction of the function changes the
 		// stack map.
 		targetpc--
-		pcdata = pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, cache)
+		pcdata = pcdatavalue(f, abi.PCDATA_StackMapIndex, targetpc, cache)
 	}
 	if pcdata == -1 {
 		// We do not have a valid pcdata value but there might be a
@@ -189,7 +189,7 @@ func (frame *stkframe) getStackMap(cache *pcvalueCache, debug bool) (locals, arg
 	}
 	if size > minsize {
 		stackid := pcdata
-		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
+		stkmap := (*stackmap)(funcdata(f, abi.FUNCDATA_LocalsPointerMaps))
 		if stkmap == nil || stkmap.n <= 0 {
 			print("runtime: frame ", funcname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
 			throw("missing stackmap")
@@ -216,7 +216,7 @@ func (frame *stkframe) getStackMap(cache *pcvalueCache, debug bool) (locals, arg
 	if args.n > 0 && args.bytedata == nil {
 		// Non-empty argument frame, but not a special map.
 		// Fetch the argument map at pcdata.
-		stackmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
+		stackmap := (*stackmap)(funcdata(f, abi.FUNCDATA_ArgsPointerMaps))
 		if stackmap == nil || stackmap.n <= 0 {
 			print("runtime: frame ", funcname(f), " untyped args ", hex(frame.argp), "+", hex(args.n*goarch.PtrSize), "\n")
 			throw("missing stackmap")
@@ -242,7 +242,7 @@ func (frame *stkframe) getStackMap(cache *pcvalueCache, debug bool) (locals, arg
 		// This offset matches the assembly code on amd64 and arm64.
 		objs = methodValueCallFrameObjs[:]
 	} else {
-		p := funcdata(f, _FUNCDATA_StackObjects)
+		p := funcdata(f, abi.FUNCDATA_StackObjects)
 		if p != nil {
 			n := *(*uintptr)(p)
 			p = add(p, goarch.PtrSize)
@@ -264,7 +264,7 @@ var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stackobjecti
 func stkobjinit() {
 	var abiRegArgsEface any = abi.RegArgs{}
 	abiRegArgsType := efaceOf(&abiRegArgsEface)._type
-	if abiRegArgsType.kind&kindGCProg != 0 {
+	if abiRegArgsType.Kind_&kindGCProg != 0 {
 		throw("abiRegArgsType needs GC Prog, update methodValueCallFrameObjs")
 	}
 	// Set methodValueCallFrameObjs[0].gcdataoff so that
@@ -281,9 +281,9 @@ func stkobjinit() {
 		throw("methodValueCallFrameObjs is not in a module")
 	}
 	methodValueCallFrameObjs[0] = stackObjectRecord{
-		off:       -int32(alignUp(abiRegArgsType.size, 8)), // It's always the highest address local.
-		size:      int32(abiRegArgsType.size),
-		_ptrdata:  int32(abiRegArgsType.ptrdata),
-		gcdataoff: uint32(uintptr(unsafe.Pointer(abiRegArgsType.gcdata)) - mod.rodata),
+		off:       -int32(alignUp(abiRegArgsType.Size_, 8)), // It's always the highest address local.
+		size:      int32(abiRegArgsType.Size_),
+		_ptrdata:  int32(abiRegArgsType.PtrBytes),
+		gcdataoff: uint32(uintptr(unsafe.Pointer(abiRegArgsType.GCData)) - mod.rodata),
 	}
 }

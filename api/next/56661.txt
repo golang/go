@@ -1,2 +1,0 @@
-pkg context, func WithDeadlineCause(Context, time.Time, error) (Context, CancelFunc) #56661
-pkg context, func WithTimeoutCause(Context, time.Duration, error) (Context, CancelFunc) #56661

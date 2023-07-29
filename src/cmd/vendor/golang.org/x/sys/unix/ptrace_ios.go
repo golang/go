@@ -7,6 +7,12 @@
 
 package unix
 
+import "unsafe"
+
 func ptrace(request int, pid int, addr uintptr, data uintptr) (err error) {
+	return ENOTSUP
+}
+
+func ptracePtr(request int, pid int, addr uintptr, data unsafe.Pointer) (err error) {
 	return ENOTSUP
 }

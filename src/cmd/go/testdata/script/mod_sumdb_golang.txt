@@ -1,17 +1,18 @@
 # Test default GOPROXY and GOSUMDB
-env GOPROXY=
-env GOSUMDB=
-go env GOPROXY
-stdout '^https://proxy.golang.org,direct$'
-go env GOSUMDB
-stdout '^sum.golang.org$'
-env GOPROXY=https://proxy.golang.org
-go env GOSUMDB
-stdout '^sum.golang.org$'
+[go-builder] env GOPROXY=
+[go-builder] env GOSUMDB=
+[go-builder] go env GOPROXY
+[go-builder] stdout '^https://proxy.golang.org,direct$'
+[go-builder] go env GOSUMDB
+[go-builder] stdout '^sum.golang.org$'
+[go-builder] env GOPROXY=https://proxy.golang.org
+[go-builder] go env GOSUMDB
+[go-builder] stdout '^sum.golang.org$'
 
 # Download direct from github.
 
-[!net] skip
+[!net:proxy.golang.org] skip
+[!net:sum.golang.org] skip
 [!git] skip
 env GOSUMDB=sum.golang.org
 env GOPROXY=direct
@@ -25,8 +26,8 @@ cp go.sum saved.sum
 # files not listed in go.sum.
 
 go clean -modcache
-env GOSUMDB=
-env GOPROXY=
+env GOSUMDB=sum.golang.org
+env GOPROXY=https://proxy.golang.org,direct
 
 go list -x -m all  # Download go.mod files.
 ! stderr github

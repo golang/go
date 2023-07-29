@@ -67,7 +67,7 @@ func marshalECPrivateKeyWithOID(key *ecdsa.PrivateKey, oid asn1.ObjectIdentifier
 	})
 }
 
-// marshalECPrivateKeyWithOID marshals an EC private key into ASN.1, DER format
+// marshalECDHPrivateKey marshals an EC private key into ASN.1, DER format
 // suitable for NIST curves.
 func marshalECDHPrivateKey(key *ecdh.PrivateKey) ([]byte, error) {
 	return asn1.Marshal(ecPrivateKey{

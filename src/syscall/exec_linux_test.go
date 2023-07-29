@@ -8,12 +8,10 @@ package syscall_test
 
 import (
 	"bytes"
-	"errors"
 	"flag"
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"os/user"
@@ -26,39 +24,6 @@ import (
 	"testing"
 	"unsafe"
 )
-
-// isNotSupported reports whether err may indicate that a system call is
-// not supported by the current platform or execution environment.
-func isNotSupported(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	var errno syscall.Errno
-	if errors.As(err, &errno) {
-		switch errno {
-		case syscall.ENOSYS, syscall.ENOTSUP:
-			// Explicitly not supported.
-			return true
-		case syscall.EPERM, syscall.EROFS:
-			// User lacks permission: either the call requires root permission and the
-			// user is not root, or the call is denied by a container security policy.
-			return true
-		case syscall.EINVAL:
-			// Some containers return EINVAL instead of EPERM if a system call is
-			// denied by security policy.
-			return true
-		}
-	}
-
-	if errors.Is(err, fs.ErrPermission) {
-		return true
-	}
-
-	// TODO(#41198): Also return true if errors.Is(err, errors.ErrUnsupported).
-
-	return false
-}
 
 // whoamiNEWUSER returns a command that runs "whoami" with CLONE_NEWUSER,
 // mapping uid and gid 0 to the actual uid and gid of the test.
@@ -96,7 +61,7 @@ func TestCloneNEWUSERAndRemap(t *testing.T) {
 					if err == nil {
 						t.Skipf("unexpected success: probably old kernel without security fix?")
 					}
-					if isNotSupported(err) {
+					if testenv.SyscallIsNotSupported(err) {
 						t.Skipf("skipping: CLONE_NEWUSER appears to be unsupported")
 					}
 					t.Fatalf("got non-permission error") // Already logged above.
@@ -105,7 +70,7 @@ func TestCloneNEWUSERAndRemap(t *testing.T) {
 			}
 
 			if err != nil {
-				if isNotSupported(err) {
+				if testenv.SyscallIsNotSupported(err) {
 					// May be inside a container that disallows CLONE_NEWUSER.
 					t.Skipf("skipping: CLONE_NEWUSER appears to be unsupported")
 				}
@@ -125,7 +90,7 @@ func TestEmptyCredGroupsDisableSetgroups(t *testing.T) {
 	cmd := whoamiNEWUSER(t, os.Getuid(), os.Getgid(), false)
 	cmd.SysProcAttr.Credential = &syscall.Credential{}
 	if err := cmd.Run(); err != nil {
-		if isNotSupported(err) {
+		if testenv.SyscallIsNotSupported(err) {
 			t.Skipf("skipping: %v: %v", cmd, err)
 		}
 		t.Fatal(err)
@@ -144,11 +109,17 @@ func TestUnshare(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	orig, err := os.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	origLines := strings.Split(strings.TrimSpace(string(orig)), "\n")
+	orig := strings.TrimSpace(string(b))
+	if strings.Contains(orig, "lo:") && strings.Count(orig, ":") == 1 {
+		// This test expects there to be at least 1 more network interface
+		// in addition to the local network interface, so that it can tell
+		// that unshare worked.
+		t.Skip("not enough network interfaces to test unshare with")
+	}
 
 	cmd := testenv.Command(t, "cat", path)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -156,22 +127,25 @@ func TestUnshare(t *testing.T) {
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		if isNotSupported(err) {
+		if testenv.SyscallIsNotSupported(err) {
 			// CLONE_NEWNET does not appear to be supported.
 			t.Skipf("skipping due to permission error: %v", err)
 		}
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 
-	// Check there is only the local network interface
+	// Check there is only the local network interface.
 	sout := strings.TrimSpace(string(out))
 	if !strings.Contains(sout, "lo:") {
 		t.Fatalf("Expected lo network interface to exist, got %s", sout)
 	}
 
+	origLines := strings.Split(orig, "\n")
 	lines := strings.Split(sout, "\n")
 	if len(lines) >= len(origLines) {
-		t.Fatalf("Got %d lines of output, want <%d", len(lines), len(origLines))
+		t.Logf("%s before unshare:\n%s", path, orig)
+		t.Logf("%s after unshare:\n%s", path, sout)
+		t.Fatalf("Got %d lines of output, want < %d", len(lines), len(origLines))
 	}
 }
 
@@ -186,7 +160,7 @@ func TestGroupCleanup(t *testing.T) {
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		if isNotSupported(err) {
+		if testenv.SyscallIsNotSupported(err) {
 			t.Skipf("skipping: %v: %v", cmd, err)
 		}
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
@@ -222,7 +196,7 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		if isNotSupported(err) {
+		if testenv.SyscallIsNotSupported(err) {
 			t.Skipf("skipping: %v: %v", cmd, err)
 		}
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
@@ -272,7 +246,15 @@ func TestUnshareMountNameSpace(t *testing.T) {
 
 	o, err := cmd.CombinedOutput()
 	if err != nil {
-		if isNotSupported(err) {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skipf("skipping: could not start process with CLONE_NEWNS: %v", err)
+		}
+		if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
+			// The Go build system's swarming user is known not to support
+			// starting a process with CLONE_NEWNS.
+			// Unfortunately, it doesn't get recognized as such due the current
+			// implementation of a no-network check using 'unshare -n -r'.
+			// Since this test does need start this process, we need to skip it.
 			t.Skipf("skipping: could not start process with CLONE_NEWNS: %v", err)
 		}
 		t.Fatalf("unshare failed: %v\n%s", err, o)
@@ -324,7 +306,15 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 
 	o, err := cmd.CombinedOutput()
 	if err != nil {
-		if isNotSupported(err) {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skipf("skipping: could not start process with CLONE_NEWNS and Chroot %q: %v", d, err)
+		}
+		if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
+			// The Go build system's swarming user is known not to support
+			// starting a process with CLONE_NEWNS and Chroot.
+			// Unfortunately, it doesn't get recognized as such due the current
+			// implementation of a no-network check using 'unshare -n -r'.
+			// Since this test does need start this process, we need to skip it.
 			t.Skipf("skipping: could not start process with CLONE_NEWNS and Chroot %q: %v", d, err)
 		}
 		t.Fatalf("unshare failed: %v\n%s", err, o)
@@ -383,7 +373,7 @@ func TestUnshareUidGidMapping(t *testing.T) {
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		if isNotSupported(err) {
+		if testenv.SyscallIsNotSupported(err) {
 			t.Skipf("skipping: could not start process with CLONE_NEWNS and CLONE_NEWUSER: %v", err)
 		}
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
@@ -423,7 +413,7 @@ func prepareCgroupFD(t *testing.T) (int, string) {
 			CgroupFD:    -1,
 		},
 	})
-	if isNotSupported(err) {
+	if testenv.SyscallIsNotSupported(err) {
 		t.Skipf("clone3 with CLONE_INTO_CGROUP not available: %v", err)
 	}
 
@@ -432,7 +422,7 @@ func prepareCgroupFD(t *testing.T) (int, string) {
 	if err != nil {
 		// ErrPermission or EROFS (#57262) when running in an unprivileged container.
 		// ErrNotExist when cgroupfs is not mounted in chroot/schroot.
-		if os.IsNotExist(err) || isNotSupported(err) {
+		if os.IsNotExist(err) || testenv.SyscallIsNotSupported(err) {
 			t.Skipf("skipping: %v", err)
 		}
 		t.Fatal(err)
@@ -485,6 +475,52 @@ func TestUseCgroupFDHelper(*testing.T) {
 		os.Exit(2)
 	}
 	fmt.Print(string(selfCg))
+}
+
+func TestCloneTimeNamespace(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		timens, err := os.Readlink("/proc/self/ns/time")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		fmt.Print(string(timens))
+		os.Exit(0)
+	}
+
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := testenv.Command(t, exe, "-test.run=TestCloneTimeNamespace")
+	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWTIME,
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			// CLONE_NEWTIME does not appear to be supported.
+			t.Skipf("skipping, CLONE_NEWTIME not supported: %v", err)
+		}
+		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+	}
+
+	// Inode number of the time namespaces should be different.
+	// Based on https://man7.org/linux/man-pages/man7/time_namespaces.7.html#EXAMPLES
+	timens, err := os.Readlink("/proc/self/ns/time")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parentTimeNS := string(timens)
+	childTimeNS := string(out)
+	if childTimeNS == parentTimeNS {
+		t.Fatalf("expected child time namespace to be different from parent time namespace: %s", parentTimeNS)
+	}
 }
 
 type capHeader struct {
@@ -631,7 +667,7 @@ func testAmbientCaps(t *testing.T, userns bool) {
 		}
 	}
 	if err := cmd.Run(); err != nil {
-		if isNotSupported(err) {
+		if testenv.SyscallIsNotSupported(err) {
 			t.Skipf("skipping: %v: %v", cmd, err)
 		}
 		t.Fatal(err.Error())

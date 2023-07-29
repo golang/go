@@ -2,14 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// split 3 operand LEA.
-// Note: Don't split pointer computations in order to avoid invalid pointers.
-(LEA(Q|L|W)1 <t> [c] {s} x y) &&  isPtr(x.Type) && c != 0 && s == nil => (ADD(Q|L|L) x (ADD(Q|L|L)const <y.Type> [c] y))
-(LEA(Q|L|W)1 <t> [c] {s} x y) && !isPtr(x.Type) && c != 0 && s == nil => (ADD(Q|L|L) y (ADD(Q|L|L)const <x.Type> [c] x))
-(LEA(Q|L|W)2 <t> [c] {s} x y) && !isPtr(t)      && c != 0 && s == nil => (ADD(Q|L|L)const [c] (LEA(Q|L|W)2 <x.Type> x y))
-(LEA(Q|L|W)4 <t> [c] {s} x y) && !isPtr(t)      && c != 0 && s == nil => (ADD(Q|L|L)const [c] (LEA(Q|L|W)4 <x.Type> x y))
-(LEA(Q|L|W)8 <t> [c] {s} x y) && !isPtr(t)      && c != 0 && s == nil => (ADD(Q|L|L)const [c] (LEA(Q|L|W)8 <x.Type> x y))
-
 // Prefer SARX/SHLX/SHRX instruction because it has less register restriction on the shift input.
 (SAR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SARX(Q|L) x y)
 (SHL(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHLX(Q|L) x y)

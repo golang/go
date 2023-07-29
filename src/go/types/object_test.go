@@ -58,7 +58,7 @@ func TestIsAlias(t *testing.T) {
 // the same Func Object as the original method. See also go.dev/issue/34421.
 func TestEmbeddedMethod(t *testing.T) {
 	const src = `package p; type I interface { error }`
-	pkg := mustTypecheck("p", src, nil, nil)
+	pkg := mustTypecheck(src, nil, nil)
 
 	// get original error.Error method
 	eface := Universe.Lookup("error")
@@ -112,7 +112,7 @@ func TestObjectString(t *testing.T) {
 
 	for _, test := range testObjects {
 		src := "package p; " + test.src
-		pkg, err := typecheck(filename, src, nil, nil)
+		pkg, err := typecheck(src, nil, nil)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)
 			continue

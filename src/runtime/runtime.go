@@ -151,3 +151,12 @@ func syscall_runtimeUnsetenv(key string) {
 func writeErrStr(s string) {
 	write(2, unsafe.Pointer(unsafe.StringData(s)), int32(len(s)))
 }
+
+// auxv is populated on relevant platforms but defined here for all platforms
+// so x/sys/cpu can assume the getAuxv symbol exists without keeping its list
+// of auxv-using GOOS build tags in sync.
+//
+// It contains an even number of elements, (tag, value) pairs.
+var auxv []uintptr
+
+func getAuxv() []uintptr { return auxv } // accessed from x/sys/cpu; see issue 57336

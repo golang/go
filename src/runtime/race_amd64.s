@@ -333,7 +333,7 @@ TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-25
 TEXT	racecallatomic<>(SB), NOSPLIT|NOFRAME, $0-0
 	// Trigger SIGSEGV early.
 	MOVQ	16(SP), R12
-	MOVL	(R12), R13
+	MOVBLZX	(R12), R13
 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
 	CMPQ	R12, runtime·racearenastart(SB)
 	JB	racecallatomic_data

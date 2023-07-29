@@ -119,7 +119,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		// HI20 PC-relative relocation text symbol, which in turn points to the
 		// given symbol. For further details see the ELF specification for RISC-V:
 		//
-		//   https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md#pc-relative-symbol-addresses
+		//   https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc#pc-relative-symbol-addresses
 		//
 		var hiRel, loRel elf.R_RISCV
 		switch r.Type {

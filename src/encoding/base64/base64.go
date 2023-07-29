@@ -54,7 +54,8 @@ const encodeURL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345678
 
 // NewEncoding returns a new padded Encoding defined by the given alphabet,
 // which must be a 64-byte string that does not contain the padding character
-// or CR / LF ('\r', '\n').
+// or CR / LF ('\r', '\n'). The alphabet is treated as sequence of byte values
+// without any special treatment for multi-byte UTF-8.
 // The resulting Encoding uses the default padding character ('='),
 // which may be changed or disabled via WithPadding.
 func NewEncoding(encoder string) *Encoding {
@@ -83,6 +84,8 @@ func NewEncoding(encoder string) *Encoding {
 // The padding character must not be '\r' or '\n', must not
 // be contained in the encoding's alphabet and must be a rune equal or
 // below '\xff'.
+// Padding characters above '\x7f' are encoded as their exact byte value
+// rather than using the UTF-8 representation of the codepoint.
 func (enc Encoding) WithPadding(padding rune) *Encoding {
 	if padding == '\r' || padding == '\n' || padding > 0xff {
 		panic("invalid padding")
@@ -275,7 +278,7 @@ func NewEncoder(enc *Encoding, w io.Writer) io.WriteCloser {
 // of an input buffer of length n.
 func (enc *Encoding) EncodedLen(n int) int {
 	if enc.padChar == NoPadding {
-		return (n*8 + 5) / 6 // minimum # chars at 6 bits per char
+		return n/3*4 + (n%3*8+5)/6 // minimum # chars at 6 bits per char
 	}
 	return (n + 2) / 3 * 4 // minimum # 4-char quanta, 3 bytes each
 }
@@ -620,7 +623,7 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
 func (enc *Encoding) DecodedLen(n int) int {
 	if enc.padChar == NoPadding {
 		// Unpadded data may end with partial block of 2-3 characters.
-		return n * 6 / 8
+		return n/4*3 + n%4*6/8
 	}
 	// Padded base64 should always be a multiple of 4 characters in length.
 	return n / 4 * 3

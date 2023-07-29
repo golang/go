@@ -62,6 +62,7 @@ type Config struct {
 	Compiler                  string
 	Dir                       string
 	ImportPath                string
+	GoVersion                 string // minimum required Go version, such as "go1.21.0"
 	GoFiles                   []string
 	NonGoFiles                []string
 	IgnoredFiles              []string
@@ -183,11 +184,6 @@ func readConfig(filename string) (*Config, error) {
 	return cfg, nil
 }
 
-var importerForCompiler = func(_ *token.FileSet, compiler string, lookup importer.Lookup) types.Importer {
-	// broken legacy implementation (https://golang.org/issue/28995)
-	return importer.For(compiler, lookup)
-}
-
 func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]result, error) {
 	// Load, parse, typecheck.
 	var files []*ast.File
@@ -203,7 +199,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		}
 		files = append(files, f)
 	}
-	compilerImporter := importerForCompiler(fset, cfg.Compiler, func(path string) (io.ReadCloser, error) {
+	compilerImporter := importer.ForCompiler(fset, cfg.Compiler, func(path string) (io.ReadCloser, error) {
 		// path is a resolved package path, not an import path.
 		file, ok := cfg.PackageFile[path]
 		if !ok {
@@ -222,8 +218,9 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		return compilerImporter.Import(path)
 	})
 	tc := &types.Config{
-		Importer: importer,
-		Sizes:    types.SizesFor("gc", build.Default.GOARCH), // assume gccgo ≡ gc?
+		Importer:  importer,
+		Sizes:     types.SizesFor("gc", build.Default.GOARCH), // assume gccgo ≡ gc?
+		GoVersion: cfg.GoVersion,
 	}
 	info := &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
@@ -249,6 +246,10 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	// In VetxOnly mode, analyzers are only for their facts,
 	// so we can skip any analysis that neither produces facts
 	// nor depends on any analysis that produces facts.
+	//
+	// TODO(adonovan): fix: the command (and logic!) here are backwards.
+	// It should say "...nor is required by any...". (Issue 443099)
+	//
 	// Also build a map to hold working state and result.
 	type action struct {
 		once        sync.Once
@@ -353,6 +354,16 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 
 			t0 := time.Now()
 			act.result, act.err = a.Run(pass)
+
+			if act.err == nil { // resolve URLs on diagnostics.
+				for i := range act.diagnostics {
+					if url, uerr := analysisflags.ResolveURL(a, act.diagnostics[i]); uerr == nil {
+						act.diagnostics[i].URL = url
+					} else {
+						act.err = uerr // keep the last error
+					}
+				}
+			}
 			if false {
 				log.Printf("analysis %s = %s", pass, time.Since(t0))
 			}

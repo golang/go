@@ -49,6 +49,6 @@ func f[T interface{comparable; []byte|string}](x T) {
 }
 
 func _(s []byte) {
-	f /* ERROR "[]byte does not satisfy interface{comparable; []byte | string}" */ (s)
+	f /* ERROR "T (type []byte) does not satisfy interface{comparable; []byte | string}" */ (s) // TODO(gri) better error message (T's type set only contains string!)
         _ = f[[ /* ERROR "does not satisfy" */ ]byte]
 }

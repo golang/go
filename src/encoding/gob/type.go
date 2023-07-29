@@ -109,6 +109,8 @@ var (
 	binaryUnmarshalerInterfaceType = reflect.TypeOf((*encoding.BinaryUnmarshaler)(nil)).Elem()
 	textMarshalerInterfaceType     = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
 	textUnmarshalerInterfaceType   = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+
+	wireTypeType = reflect.TypeOf((*wireType)(nil)).Elem()
 )
 
 // implementsInterface reports whether the type implements the
@@ -262,8 +264,8 @@ var (
 )
 
 // Predefined because it's needed by the Decoder
-var tWireType = mustGetTypeInfo(reflect.TypeOf((*wireType)(nil)).Elem()).id
-var wireTypeUserInfo *userTypeInfo // userTypeInfo of (*wireType)
+var tWireType = mustGetTypeInfo(wireTypeType).id
+var wireTypeUserInfo *userTypeInfo // userTypeInfo of wireType
 
 func init() {
 	// Some magic numbers to make sure there are no surprises.
@@ -284,7 +286,7 @@ func init() {
 	}
 	idToType = idToType[:firstUserId]
 	registerBasics()
-	wireTypeUserInfo = userType(reflect.TypeOf((*wireType)(nil)))
+	wireTypeUserInfo = userType(wireTypeType)
 }
 
 // Array type
@@ -404,7 +406,7 @@ type fieldType struct {
 
 type structType struct {
 	CommonType
-	Field []*fieldType
+	Field []fieldType
 }
 
 func (s *structType) safeString(seen map[typeId]bool) string {
@@ -547,7 +549,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 			if gt.id() == 0 {
 				setTypeId(gt)
 			}
-			st.Field = append(st.Field, &fieldType{f.Name, gt.id()})
+			st.Field = append(st.Field, fieldType{f.Name, gt.id()})
 		}
 		return st, nil
 
@@ -623,7 +625,6 @@ func bootstrapType(name string, e any) typeId {
 	typ := &CommonType{Name: name}
 	types[rt] = typ
 	setTypeId(typ)
-	userType(rt) // might as well cache it now
 	return typ.id()
 }
 
@@ -676,7 +677,7 @@ type typeInfo struct {
 	id      typeId
 	encInit sync.Mutex // protects creation of encoder
 	encoder atomic.Pointer[encEngine]
-	wire    *wireType
+	wire    wireType
 }
 
 // typeInfoMap is an atomic pointer to map[reflect.Type]*typeInfo.
@@ -737,27 +738,27 @@ func buildTypeInfo(ut *userTypeInfo, rt reflect.Type) (*typeInfo, error) {
 		gt := userType.id().gobType().(*gobEncoderType)
 		switch ut.externalEnc {
 		case xGob:
-			info.wire = &wireType{GobEncoderT: gt}
+			info.wire.GobEncoderT = gt
 		case xBinary:
-			info.wire = &wireType{BinaryMarshalerT: gt}
+			info.wire.BinaryMarshalerT = gt
 		case xText:
-			info.wire = &wireType{TextMarshalerT: gt}
+			info.wire.TextMarshalerT = gt
 		}
 		rt = ut.user
 	} else {
 		t := info.id.gobType()
 		switch typ := rt; typ.Kind() {
 		case reflect.Array:
-			info.wire = &wireType{ArrayT: t.(*arrayType)}
+			info.wire.ArrayT = t.(*arrayType)
 		case reflect.Map:
-			info.wire = &wireType{MapT: t.(*mapType)}
+			info.wire.MapT = t.(*mapType)
 		case reflect.Slice:
 			// []byte == []uint8 is a special case handled separately
 			if typ.Elem().Kind() != reflect.Uint8 {
-				info.wire = &wireType{SliceT: t.(*sliceType)}
+				info.wire.SliceT = t.(*sliceType)
 			}
 		case reflect.Struct:
-			info.wire = &wireType{StructT: t.(*structType)}
+			info.wire.StructT = t.(*structType)
 		}
 	}
 

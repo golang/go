@@ -1283,24 +1283,28 @@ func testInterruptWithPanic(t *testing.T, mode testMode, panicValue any) {
 	}
 	wantStackLogged := panicValue != nil && panicValue != ErrAbortHandler
 
-	if err := waitErrCondition(5*time.Second, 10*time.Millisecond, func() error {
+	waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
 		gotLog := logOutput()
 		if !wantStackLogged {
 			if gotLog == "" {
-				return nil
+				return true
 			}
-			return fmt.Errorf("want no log output; got: %s", gotLog)
+			t.Fatalf("want no log output; got: %s", gotLog)
 		}
 		if gotLog == "" {
-			return fmt.Errorf("wanted a stack trace logged; got nothing")
+			if d > 0 {
+				t.Logf("wanted a stack trace logged; got nothing after %v", d)
+			}
+			return false
 		}
 		if !strings.Contains(gotLog, "created by ") && strings.Count(gotLog, "\n") < 6 {
-			return fmt.Errorf("output doesn't look like a panic stack trace. Got: %s", gotLog)
+			if d > 0 {
+				t.Logf("output doesn't look like a panic stack trace after %v. Got: %s", d, gotLog)
+			}
+			return false
 		}
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
+		return true
+	})
 }
 
 type lockedBytesBuffer struct {

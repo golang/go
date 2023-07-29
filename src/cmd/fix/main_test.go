@@ -14,20 +14,6 @@ import (
 	"testing"
 )
 
-func init() {
-	// If cgo is enabled, enforce that cgo commands invoked by cmd/fix
-	// do not fail during testing.
-	if testenv.HasCGO() && testenv.HasGoBuild() {
-		// The reportCgoError hook is global, so we can't set it per-test
-		// if we want to be able to run those tests in parallel.
-		// Instead, simply set it to panic on error: the goroutine dump
-		// from the panic should help us determine which test failed.
-		reportCgoError = func(err error) {
-			panic(fmt.Sprintf("unexpected cgo error: %v", err))
-		}
-	}
-}
-
 type testCase struct {
 	Name    string
 	Fn      func(*ast.File) bool
@@ -91,6 +77,22 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string, mustB
 }
 
 func TestRewrite(t *testing.T) {
+	// If cgo is enabled, enforce that cgo commands invoked by cmd/fix
+	// do not fail during testing.
+	if testenv.HasCGO() {
+		testenv.MustHaveGoBuild(t) // Really just 'go tool cgo', but close enough.
+
+		// The reportCgoError hook is global, so we can't set it per-test
+		// if we want to be able to run those tests in parallel.
+		// Instead, simply set it to panic on error: the goroutine dump
+		// from the panic should help us determine which test failed.
+		prevReportCgoError := reportCgoError
+		reportCgoError = func(err error) {
+			panic(fmt.Sprintf("unexpected cgo error: %v", err))
+		}
+		t.Cleanup(func() { reportCgoError = prevReportCgoError })
+	}
+
 	for _, tt := range testCases {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {

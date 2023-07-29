@@ -182,6 +182,48 @@ func _[
 	_ = make(C3)
 }
 
+// max
+
+func _[
+	P1 ~int|~float64,
+	P2 ~int|~string|~uint,
+	P3 ~int|bool,
+]() {
+	var x1 P1
+	_ = max(x1)
+	_ = max(x1, x1)
+	_ = max(1, x1, 2)
+	const _ = max /* ERROR "max(1, x1, 2) (value of type P1 constrained by ~int | ~float64) is not constant" */ (1, x1, 2)
+
+	var x2 P2
+	_ = max(x2)
+	_ = max(x2, x2)
+	_ = max(1, 2 /* ERROR "cannot convert 2 (untyped int constant) to type P2" */, x2) // error at 2 because max is 2
+
+	_ = max(x1, x2 /* ERROR "mismatched types P1 (previous argument) and P2 (type of x2)" */ )
+}
+
+// min
+
+func _[
+	P1 ~int|~float64,
+	P2 ~int|~string|~uint,
+	P3 ~int|bool,
+]() {
+	var x1 P1
+	_ = min(x1)
+	_ = min(x1, x1)
+	_ = min(1, x1, 2)
+	const _ = min /* ERROR "min(1, x1, 2) (value of type P1 constrained by ~int | ~float64) is not constant" */ (1, x1, 2)
+
+	var x2 P2
+	_ = min(x2)
+	_ = min(x2, x2)
+	_ = min(1 /* ERROR "cannot convert 1 (untyped int constant) to type P2" */ , 2, x2) // error at 1 because min is 1
+
+	_ = min(x1, x2 /* ERROR "mismatched types P1 (previous argument) and P2 (type of x2)" */ )
+}
+
 // unsafe.Alignof
 
 func _[T comparable]() {

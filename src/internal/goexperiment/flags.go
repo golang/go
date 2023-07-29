@@ -96,4 +96,17 @@ type Flags struct {
 	// this compels the Go runtime to write to some arbitrary file, which
 	// may be exploited.
 	PageTrace bool
+
+	// CgoCheck2 enables an expensive cgo rule checker.
+	// When this experiment is enabled, cgo rule checks occur regardless
+	// of the GODEBUG=cgocheck setting provided at runtime.
+	CgoCheck2 bool
+
+	// LoopVar changes loop semantics so that each iteration gets its own
+	// copy of the iteration variable.
+	LoopVar bool
+
+	// CacheProg adds support to cmd/go to use a child process to implement
+	// the build cache; see https://github.com/golang/go/issues/59719.
+	CacheProg bool
 }

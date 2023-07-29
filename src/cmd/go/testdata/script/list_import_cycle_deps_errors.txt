@@ -1,0 +1,75 @@
+go list -e -deps -json=ImportPath,Error,DepsErrors m/a
+cmp stdout want
+
+-- want --
+{
+	"ImportPath": "m/c",
+	"DepsErrors": [
+		{
+			"ImportStack": [
+				"m/a",
+				"m/b",
+				"m/c",
+				"m/a"
+			],
+			"Pos": "",
+			"Err": "import cycle not allowed"
+		}
+	]
+}
+{
+	"ImportPath": "m/b",
+	"DepsErrors": [
+		{
+			"ImportStack": [
+				"m/a",
+				"m/b",
+				"m/c",
+				"m/a"
+			],
+			"Pos": "",
+			"Err": "import cycle not allowed"
+		}
+	]
+}
+{
+	"ImportPath": "m/a",
+	"Error": {
+		"ImportStack": [
+			"m/a",
+			"m/b",
+			"m/c",
+			"m/a"
+		],
+		"Pos": "",
+		"Err": "import cycle not allowed"
+	},
+	"DepsErrors": [
+		{
+			"ImportStack": [
+				"m/a",
+				"m/b",
+				"m/c",
+				"m/a"
+			],
+			"Pos": "",
+			"Err": "import cycle not allowed"
+		}
+	]
+}
+-- go.mod --
+module m
+
+go 1.21
+-- a/a.go --
+package a
+
+import _ "m/b"
+-- b/b.go --
+package b
+
+import _ "m/c"
+-- c/c.go --
+package c
+
+import _ "m/a"

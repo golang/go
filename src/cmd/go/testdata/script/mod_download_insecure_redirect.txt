@@ -1,6 +1,6 @@
 # golang.org/issue/29591: 'go get' was following plain-HTTP redirects even without -insecure (now replaced by GOINSECURE).
 
-[!net] skip
+[short] skip
 [!git] skip
 
 env GO111MODULE=on

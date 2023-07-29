@@ -54,6 +54,7 @@ var (
 	procSetTokenInformation           = modadvapi32.NewProc("SetTokenInformation")
 	procSystemFunction036             = modadvapi32.NewProc("SystemFunction036")
 	procGetAdaptersAddresses          = modiphlpapi.NewProc("GetAdaptersAddresses")
+	procCreateEventW                  = modkernel32.NewProc("CreateEventW")
 	procGetACP                        = modkernel32.NewProc("GetACP")
 	procGetComputerNameExW            = modkernel32.NewProc("GetComputerNameExW")
 	procGetConsoleCP                  = modkernel32.NewProc("GetConsoleCP")
@@ -61,13 +62,15 @@ var (
 	procGetFileInformationByHandleEx  = modkernel32.NewProc("GetFileInformationByHandleEx")
 	procGetFinalPathNameByHandleW     = modkernel32.NewProc("GetFinalPathNameByHandleW")
 	procGetModuleFileNameW            = modkernel32.NewProc("GetModuleFileNameW")
-	procGetVolumeInformationByHandleW = modkernel32.NewProc("GetVolumeInformationByHandleW")
 	procGetTempPath2W                 = modkernel32.NewProc("GetTempPath2W")
+	procGetVolumeInformationByHandleW = modkernel32.NewProc("GetVolumeInformationByHandleW")
 	procLockFileEx                    = modkernel32.NewProc("LockFileEx")
 	procModule32FirstW                = modkernel32.NewProc("Module32FirstW")
 	procModule32NextW                 = modkernel32.NewProc("Module32NextW")
 	procMoveFileExW                   = modkernel32.NewProc("MoveFileExW")
 	procMultiByteToWideChar           = modkernel32.NewProc("MultiByteToWideChar")
+	procRtlLookupFunctionEntry        = modkernel32.NewProc("RtlLookupFunctionEntry")
+	procRtlVirtualUnwind              = modkernel32.NewProc("RtlVirtualUnwind")
 	procSetFileInformationByHandle    = modkernel32.NewProc("SetFileInformationByHandle")
 	procUnlockFileEx                  = modkernel32.NewProc("UnlockFileEx")
 	procVirtualQuery                  = modkernel32.NewProc("VirtualQuery")
@@ -162,6 +165,15 @@ func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapter
 	r0, _, _ := syscall.Syscall6(procGetAdaptersAddresses.Addr(), 5, uintptr(family), uintptr(flags), uintptr(reserved), uintptr(unsafe.Pointer(adapterAddresses)), uintptr(unsafe.Pointer(sizePointer)), 0)
 	if r0 != 0 {
 		errcode = syscall.Errno(r0)
+	}
+	return
+}
+
+func CreateEvent(eventAttrs *SecurityAttributes, manualReset uint32, initialState uint32, name *uint16) (handle syscall.Handle, err error) {
+	r0, _, e1 := syscall.Syscall6(procCreateEventW.Addr(), 4, uintptr(unsafe.Pointer(eventAttrs)), uintptr(manualReset), uintptr(initialState), uintptr(unsafe.Pointer(name)), 0, 0)
+	handle = syscall.Handle(r0)
+	if handle == 0 {
+		err = errnoErr(e1)
 	}
 	return
 }
@@ -276,6 +288,18 @@ func MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32,
 	if nwrite == 0 {
 		err = errnoErr(e1)
 	}
+	return
+}
+
+func RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret uintptr) {
+	r0, _, _ := syscall.Syscall(procRtlLookupFunctionEntry.Addr(), 3, uintptr(pc), uintptr(unsafe.Pointer(baseAddress)), uintptr(unsafe.Pointer(table)))
+	ret = uintptr(r0)
+	return
+}
+
+func RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry uintptr, ctxt uintptr, data *uintptr, frame *uintptr, ctxptrs *byte) (ret uintptr) {
+	r0, _, _ := syscall.Syscall9(procRtlVirtualUnwind.Addr(), 8, uintptr(handlerType), uintptr(baseAddress), uintptr(pc), uintptr(entry), uintptr(ctxt), uintptr(unsafe.Pointer(data)), uintptr(unsafe.Pointer(frame)), uintptr(unsafe.Pointer(ctxptrs)), 0)
+	ret = uintptr(r0)
 	return
 }
 

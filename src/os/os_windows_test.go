@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -434,7 +435,8 @@ func TestNetworkSymbolicLink(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)
 
-	shareName := "GoSymbolicLinkTestShare" // hope no conflictions
+	pid := os.Getpid()
+	shareName := fmt.Sprintf("GoSymbolicLinkTestShare%d", pid)
 	sharePath := filepath.Join(dir, shareName)
 	testDir := "TestDir"
 
@@ -452,11 +454,22 @@ func TestNetworkSymbolicLink(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Per https://learn.microsoft.com/en-us/windows/win32/api/lmshare/ns-lmshare-share_info_2:
+	//
+	// “[The shi2_permissions field] indicates the shared resource's permissions
+	// for servers running with share-level security. A server running user-level
+	// security ignores this member.
+	// …
+	// Note that Windows does not support share-level security.”
+	//
+	// So it shouldn't matter what permissions we set here.
+	const permissions = 0
+
 	p := windows.SHARE_INFO_2{
 		Netname:     wShareName,
-		Type:        windows.STYPE_DISKTREE,
+		Type:        windows.STYPE_DISKTREE | windows.STYPE_TEMPORARY,
 		Remark:      nil,
-		Permissions: 0,
+		Permissions: permissions,
 		MaxUses:     1,
 		CurrentUses: 0,
 		Path:        wSharePath,
@@ -465,11 +478,8 @@ func TestNetworkSymbolicLink(t *testing.T) {
 
 	err = windows.NetShareAdd(nil, 2, (*byte)(unsafe.Pointer(&p)), nil)
 	if err != nil {
-		if err == syscall.ERROR_ACCESS_DENIED {
-			t.Skip("you don't have enough privileges to add network share")
-		}
-		if err == _NERR_ServerNotStarted {
-			t.Skip(_NERR_ServerNotStarted.Error())
+		if err == syscall.ERROR_ACCESS_DENIED || err == _NERR_ServerNotStarted {
+			t.Skipf("skipping: NetShareAdd: %v", err)
 		}
 		t.Fatal(err)
 	}
@@ -508,7 +518,7 @@ func TestNetworkSymbolicLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got != target {
-		t.Errorf(`os.Readlink("%s"): got %v, want %v`, link, got, target)
+		t.Errorf(`os.Readlink(%#q): got %v, want %v`, link, got, target)
 	}
 
 	got, err = filepath.EvalSymlinks(link)
@@ -516,7 +526,7 @@ func TestNetworkSymbolicLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got != target {
-		t.Errorf(`filepath.EvalSymlinks("%s"): got %v, want %v`, link, got, target)
+		t.Errorf(`filepath.EvalSymlinks(%#q): got %v, want %v`, link, got, target)
 	}
 }
 
@@ -1375,5 +1385,80 @@ func TestAppExecLinkStat(t *testing.T) {
 	}
 	if p != pythonPath {
 		t.Errorf("exec.LookPath(%q) = %q; want %q", pythonPath, p, pythonPath)
+	}
+}
+
+func TestIllformedUTF16FileName(t *testing.T) {
+	dir := t.TempDir()
+	const sep = string(os.PathSeparator)
+	if !strings.HasSuffix(dir, sep) {
+		dir += sep
+	}
+
+	// This UTF-16 file name is ill-formed as it contains low surrogates that are not preceded by high surrogates ([1:5]).
+	namew := []uint16{0x2e, 0xdc6d, 0xdc73, 0xdc79, 0xdc73, 0x30, 0x30, 0x30, 0x31, 0}
+
+	// Create a file whose name contains unpaired surrogates.
+	// Use syscall.CreateFile instead of os.Create to simulate a file that is created by
+	// a non-Go program so the file name hasn't gone through syscall.UTF16FromString.
+	dirw := utf16.Encode([]rune(dir))
+	pathw := append(dirw, namew...)
+	fd, err := syscall.CreateFile(&pathw[0], syscall.GENERIC_ALL, 0, nil, syscall.CREATE_NEW, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	syscall.CloseHandle(fd)
+
+	name := syscall.UTF16ToString(namew)
+	path := filepath.Join(dir, name)
+	// Verify that os.Lstat can query the file.
+	fi, err := os.Lstat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := fi.Name(); got != name {
+		t.Errorf("got %q, want %q", got, name)
+	}
+	// Verify that File.Readdirnames lists the file.
+	f, err := os.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := f.Readdirnames(0)
+	f.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(files, name) {
+		t.Error("file not listed")
+	}
+	// Verify that os.RemoveAll can remove the directory
+	// and that it doesn't hang.
+	err = os.RemoveAll(dir)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUTF16Alloc(t *testing.T) {
+	allowsPerRun := func(want int, f func()) {
+		t.Helper()
+		got := int(testing.AllocsPerRun(5, f))
+		if got != want {
+			t.Errorf("got %d allocs, want %d", got, want)
+		}
+	}
+	allowsPerRun(1, func() {
+		syscall.UTF16ToString([]uint16{'a', 'b', 'c'})
+	})
+	allowsPerRun(1, func() {
+		syscall.UTF16FromString("abc")
+	})
+}
+
+func TestNewFileInvalid(t *testing.T) {
+	t.Parallel()
+	if f := os.NewFile(uintptr(syscall.InvalidHandle), "invalid"); f != nil {
+		t.Errorf("NewFile(InvalidHandle) got %v want nil", f)
 	}
 }

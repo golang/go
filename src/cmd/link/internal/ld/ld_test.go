@@ -21,7 +21,7 @@ func TestUndefinedRelocErrors(t *testing.T) {
 
 	// When external linking, symbols may be defined externally, so we allow
 	// undefined symbols and let external linker resolve. Skip the test.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	t.Parallel()
 
@@ -65,6 +65,9 @@ func TestUndefinedRelocErrors(t *testing.T) {
 		case n > 0:
 			t.Errorf("unmatched error: %s (x%d)", want, n)
 		case n < 0:
+			if runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
+				testenv.SkipFlaky(t, 58807)
+			}
 			t.Errorf("extra errors: %s (x%d)", want, -n)
 		}
 	}

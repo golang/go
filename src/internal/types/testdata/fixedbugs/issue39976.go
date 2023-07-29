@@ -12,5 +12,5 @@ func NewCache[K, V any](p policy[K, V]) {}
 func _() {
 	var lru LRU[int, string]
 	NewCache[int, string](&lru)
-	NewCache(& /* ERROR "does not match policy[K, V] (cannot infer K and V)" */ lru)
+	NewCache /* ERROR "cannot infer K" */ (&lru)
 }

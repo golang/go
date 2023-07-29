@@ -6,6 +6,7 @@ package arm64
 
 // This order should be strictly consistent to that in a.out.go
 var cnames7 = []string{
+	"", // C_NONE starts from 1
 	"NONE",
 	"REG",
 	"ZREG",

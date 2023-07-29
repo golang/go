@@ -9,6 +9,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/internal/src"
+	"internal/types/errors"
 )
 
 var PtrSize int
@@ -84,7 +85,7 @@ func expandiface(t *Type) {
 		case !explicit && Identical(m.Type, prev.Type):
 			return
 		default:
-			base.ErrorfAt(m.Pos, "duplicate method %s", m.Sym.Name)
+			base.ErrorfAt(m.Pos, errors.DuplicateDecl, "duplicate method %s", m.Sym.Name)
 		}
 		methods = append(methods, m)
 	}
@@ -147,7 +148,7 @@ func expandiface(t *Type) {
 	sort.Sort(MethodsByName(methods))
 
 	if int64(len(methods)) >= MaxWidth/int64(PtrSize) {
-		base.ErrorfAt(typePos(t), "interface too large")
+		base.ErrorfAt(typePos(t), 0, "interface too large")
 	}
 	for i, m := range methods {
 		m.Offset = int64(i) * int64(PtrSize)
@@ -212,7 +213,7 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 			maxwidth = 1<<31 - 1
 		}
 		if o >= maxwidth {
-			base.ErrorfAt(typePos(errtype), "type %L too large", errtype)
+			base.ErrorfAt(typePos(errtype), 0, "type %L too large", errtype)
 			o = 8 // small but nonzero
 		}
 	}

@@ -236,7 +236,7 @@ func (cdr *CounterDataReader) NumSegments() uint32 {
 	return cdr.ftr.NumSegments
 }
 
-// BeginNextSegment sets up the the reader to read the next segment,
+// BeginNextSegment sets up the reader to read the next segment,
 // returning TRUE if we do have another segment to read, or FALSE
 // if we're done with all the segments (also an error if
 // something went wrong).

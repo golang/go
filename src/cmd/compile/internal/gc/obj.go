@@ -195,7 +195,7 @@ func dumpGlobal(n *ir.Name) {
 	}
 	types.CalcSize(n.Type())
 	ggloblnod(n)
-	if n.CoverageCounter() || n.CoverageAuxVar() {
+	if n.CoverageCounter() || n.CoverageAuxVar() || n.Linksym().Static() {
 		return
 	}
 	base.Ctxt.DwarfGlobal(base.Ctxt.Pkgpath, types.TypeSymName(n.Type()), n.Linksym())

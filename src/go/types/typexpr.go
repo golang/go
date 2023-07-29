@@ -43,8 +43,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 		}
 		return
 	case universeAny, universeComparable:
-		if !check.allowVersion(check.pkg, 1, 18) {
-			check.versionErrorf(e, "go1.18", "predeclared %s", e.Name)
+		if !check.verifyVersionf(e, go1_18, "predeclared %s", e.Name) {
 			return // avoid follow-on errors
 		}
 	}
@@ -273,9 +272,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 
 	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := typeparams.UnpackIndexExpr(e)
-		if !check.allowVersion(check.pkg, 1, 18) {
-			check.softErrorf(inNode(e, ix.Lbrack), UnsupportedFeature, "type instantiation requires go1.18 or later")
-		}
+		check.verifyVersionf(inNode(e, ix.Lbrack), go1_18, "type instantiation")
 		return check.instantiatedType(ix, def)
 
 	case *ast.ParenExpr:
@@ -480,7 +477,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 	}
 
 	var x operand
-	check.expr(&x, e)
+	check.expr(nil, &x, e)
 	if x.mode != constant_ {
 		if x.mode != invalid {
 			check.errorf(&x, InvalidArrayLen, "array length %s must be constant", &x)
@@ -494,13 +491,17 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 				if n, ok := constant.Int64Val(val); ok && n >= 0 {
 					return n
 				}
-				check.errorf(&x, InvalidArrayLen, "invalid array length %s", &x)
-				return -1
 			}
 		}
 	}
 
-	check.errorf(&x, InvalidArrayLen, "array length %s must be integer", &x)
+	var msg string
+	if isInteger(x.typ) {
+		msg = "invalid array length %s"
+	} else {
+		msg = "array length %s must be integer"
+	}
+	check.errorf(&x, InvalidArrayLen, msg, &x)
 	return -1
 }
 

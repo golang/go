@@ -388,11 +388,12 @@ func init() {
 		// See runtime/stubs.go for a more detailed discussion.
 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
 
-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, auxint=# of buffer entries needed
 		// It saves all GP registers if necessary,
 		// but clobbers RA (LR) because it's a call
 		// and T6 (REG_TMP).
-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{regNamed["X5"], regNamed["X6"]}, clobbers: (callerSave &^ (gpMask | regNamed["g"])) | regNamed["X1"]}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+		// Returns a pointer to a write barrier buffer in X24.
+		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ (gpMask | regNamed["g"])) | regNamed["X1"], outputs: []regMask{regNamed["X24"]}}, clobberFlags: true, aux: "Int64"},
 
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the

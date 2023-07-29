@@ -6,6 +6,7 @@ package syntax
 
 import (
 	"fmt"
+	"go/build/constraint"
 	"io"
 	"strconv"
 	"strings"
@@ -21,17 +22,20 @@ type parser struct {
 	pragh PragmaHandler
 	scanner
 
-	base   *PosBase // current position base
-	first  error    // first error encountered
-	errcnt int      // number of errors encountered
-	pragma Pragma   // pragmas
+	base      *PosBase // current position base
+	first     error    // first error encountered
+	errcnt    int      // number of errors encountered
+	pragma    Pragma   // pragmas
+	goVersion string   // Go version from //go:build line
 
+	top    bool   // in top of file (before package clause)
 	fnest  int    // function nesting level (for error handling)
 	xnest  int    // expression nesting level (for complit ambiguity resolution)
 	indent []byte // tracing support
 }
 
 func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) {
+	p.top = true
 	p.file = file
 	p.errh = errh
 	p.mode = mode
@@ -70,8 +74,15 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
 			}
 
 			// go: directive (but be conservative and test)
-			if pragh != nil && strings.HasPrefix(text, "go:") {
-				p.pragma = pragh(p.posAt(line, col+2), p.scanner.blank, text, p.pragma) // +2 to skip over // or /*
+			if strings.HasPrefix(text, "go:") {
+				if p.top && strings.HasPrefix(msg, "//go:build") {
+					if x, err := constraint.Parse(msg); err == nil {
+						p.goVersion = constraint.GoVersion(x)
+					}
+				}
+				if pragh != nil {
+					p.pragma = pragh(p.posAt(line, col+2), p.scanner.blank, text, p.pragma) // +2 to skip over // or /*
+				}
 			}
 		},
 		directives,
@@ -388,6 +399,8 @@ func (p *parser) fileOrNil() *File {
 	f.pos = p.pos()
 
 	// PackageClause
+	f.GoVersion = p.goVersion
+	p.top = false
 	if !p.got(_Package) {
 		p.syntaxError("package statement must be first")
 		return nil
@@ -2356,10 +2369,8 @@ done:
 		// further confusion.
 		var str string
 		if as, ok := s.(*AssignStmt); ok && as.Op == 0 {
-			// Emphasize Lhs and Rhs of assignment with parentheses to highlight '='.
-			// Do it always - it's not worth going through the trouble of doing it
-			// only for "complex" left and right sides.
-			str = "assignment (" + String(as.Lhs) + ") = (" + String(as.Rhs) + ")"
+			// Emphasize complex Lhs and Rhs of assignment with parentheses to highlight '='.
+			str = "assignment " + emphasize(as.Lhs) + " = " + emphasize(as.Rhs)
 		} else {
 			str = String(s)
 		}
@@ -2368,6 +2379,17 @@ done:
 
 	p.xnest = outer
 	return
+}
+
+// emphasize returns a string representation of x, with (top-level)
+// binary expressions emphasized by enclosing them in parentheses.
+func emphasize(x Expr) string {
+	s := String(x)
+	if op, _ := x.(*Operation); op != nil && op.Y != nil {
+		// binary expression
+		return "(" + s + ")"
+	}
+	return s
 }
 
 func (p *parser) ifStmt() *IfStmt {

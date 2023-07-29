@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
+//go:build !js && !wasip1
 
 package net
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"net/netip"
@@ -74,7 +75,7 @@ func TestLookupGoogleSRV(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -123,7 +124,7 @@ func TestLookupGmailMX(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -169,7 +170,7 @@ func TestLookupGmailNS(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -218,7 +219,7 @@ func TestLookupGmailTXT(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -643,7 +644,7 @@ func TestLookupDotsWithRemoteSource(t *testing.T) {
 		t.Skip("IPv4 is required")
 	}
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -791,7 +792,7 @@ func TestLookupPort(t *testing.T) {
 
 	switch runtime.GOOS {
 	case "android":
-		if netGo {
+		if netGoBuildTag {
 			t.Skipf("not supported on %s without cgo; see golang.org/issues/14576", runtime.GOOS)
 		}
 	default:
@@ -1028,10 +1029,10 @@ func (lcr *lookupCustomResolver) dial() func(ctx context.Context, network, addre
 // TestConcurrentPreferGoResolversDial tests that multiple resolvers with the
 // PreferGo option used concurrently are all dialed properly.
 func TestConcurrentPreferGoResolversDial(t *testing.T) {
-	// The windows and plan9 implementation of the resolver does not use
-	// the Dial function.
 	switch runtime.GOOS {
-	case "windows", "plan9":
+	case "plan9":
+		// TODO: plan9 implementation of the resolver uses the Dial function since
+		// https://go.dev/cl/409234, this test could probably be reenabled.
 		t.Skipf("skip on %v", runtime.GOOS)
 	}
 
@@ -1397,4 +1398,67 @@ func TestDNSTimeout(t *testing.T) {
 	checkErr(err1)
 	checkErr(err2)
 	cancel()
+}
+
+func TestLookupNoData(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("not supported on plan9")
+	}
+
+	mustHaveExternalNetwork(t)
+
+	testLookupNoData(t, "default resolver")
+
+	func() {
+		defer forceGoDNS()()
+		testLookupNoData(t, "forced go resolver")
+	}()
+
+	func() {
+		defer forceCgoDNS()()
+		testLookupNoData(t, "forced cgo resolver")
+	}()
+}
+
+func testLookupNoData(t *testing.T, prefix string) {
+	attempts := 0
+	for {
+		// Domain that doesn't have any A/AAAA RRs, but has different one (in this case a TXT),
+		// so that it returns an empty response without any error codes (NXDOMAIN).
+		_, err := LookupHost("golang.rsc.io.")
+		if err == nil {
+			t.Errorf("%v: unexpected success", prefix)
+			return
+		}
+
+		var dnsErr *DNSError
+		if errors.As(err, &dnsErr) {
+			succeeded := true
+			if !dnsErr.IsNotFound {
+				succeeded = false
+				t.Logf("%v: IsNotFound is set to false", prefix)
+			}
+
+			if dnsErr.Err != errNoSuchHost.Error() {
+				succeeded = false
+				t.Logf("%v: error message is not equal to: %v", prefix, errNoSuchHost.Error())
+			}
+
+			if succeeded {
+				return
+			}
+		}
+
+		testenv.SkipFlakyNet(t)
+		if attempts < len(backoffDuration) {
+			dur := backoffDuration[attempts]
+			t.Logf("%v: backoff %v after failure %v\n", prefix, dur, err)
+			time.Sleep(dur)
+			attempts++
+			continue
+		}
+
+		t.Errorf("%v: unexpected error: %v", prefix, err)
+		return
+	}
 }

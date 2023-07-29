@@ -57,6 +57,7 @@ func sqrt(x float64) float64 {
 	// mips64/hardfloat:"SQRTD" mips64/softfloat:-"SQRTD"
 	// wasm:"F64Sqrt"
 	// ppc64x:"FSQRT"
+	// riscv64: "FSQRTD"
 	return math.Sqrt(x)
 }
 
@@ -69,6 +70,7 @@ func sqrt32(x float32) float32 {
 	// mips64/hardfloat:"SQRTF" mips64/softfloat:-"SQRTF"
 	// wasm:"F32Sqrt"
 	// ppc64x:"FSQRTS"
+	// riscv64: "FSQRTS"
 	return float32(math.Sqrt(float64(x)))
 }
 
@@ -81,6 +83,8 @@ func abs(x, y float64) {
 	// riscv64:"FABSD\t"
 	// wasm:"F64Abs"
 	// arm/6:"ABSD\t"
+	// mips64/hardfloat:"ABSD\t"
+	// mips/hardfloat:"ABSD\t"
 	sink64[0] = math.Abs(x)
 
 	// amd64:"BTRQ\t[$]63","PXOR"    (TODO: this should be BTSQ)
@@ -139,13 +143,13 @@ func fms(x, y, z float64) float64 {
 	return math.FMA(x, y, -z)
 }
 
-func fnma(x, y, z float64) float64 {
-	// riscv64:"FNMADDD"
+func fnms(x, y, z float64) float64 {
+	// riscv64:"FNMSUBD",-"FNMADDD"
 	return math.FMA(-x, y, z)
 }
 
-func fnms(x, y, z float64) float64 {
-	// riscv64:"FNMSUBD"
+func fnma(x, y, z float64) float64 {
+	// riscv64:"FNMADDD",-"FNMSUBD"
 	return math.FMA(x, -y, -z)
 }
 
@@ -153,12 +157,14 @@ func fromFloat64(f64 float64) uint64 {
 	// amd64:"MOVQ\tX.*, [^X].*"
 	// arm64:"FMOVD\tF.*, R.*"
 	// ppc64x:"MFVSRD"
+	// mips64/hardfloat:"MOVV\tF.*, R.*"
 	return math.Float64bits(f64+1) + 1
 }
 
 func fromFloat32(f32 float32) uint32 {
 	// amd64:"MOVL\tX.*, [^X].*"
 	// arm64:"FMOVS\tF.*, R.*"
+	// mips64/hardfloat:"MOVW\tF.*, R.*"
 	return math.Float32bits(f32+1) + 1
 }
 
@@ -166,12 +172,14 @@ func toFloat64(u64 uint64) float64 {
 	// amd64:"MOVQ\t[^X].*, X.*"
 	// arm64:"FMOVD\tR.*, F.*"
 	// ppc64x:"MTVSRD"
+	// mips64/hardfloat:"MOVV\tR.*, F.*"
 	return math.Float64frombits(u64+1) + 1
 }
 
 func toFloat32(u32 uint32) float32 {
 	// amd64:"MOVL\t[^X].*, X.*"
 	// arm64:"FMOVS\tR.*, F.*"
+	// mips64/hardfloat:"MOVW\tR.*, F.*"
 	return math.Float32frombits(u32+1) + 1
 }
 

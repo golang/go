@@ -562,11 +562,11 @@ func init() {
 		// InvertFlags is a pseudo-op which can't appear in assembly output.
 		{name: "InvertFlags", argLength: 1}, // reverse direction of arg0
 
-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, auxint=# of buffer entries needed
 		// It saves all GP registers if necessary,
 		// but clobbers R14 (LR) because it's a call, and R12 which is linker trampoline scratch register.
-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R12 R14")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
-	}
+		// Returns a pointer to a write barrier buffer in R8.
+		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R12 R14"), outputs: []regMask{buildReg("R8")}}, clobberFlags: true, aux: "Int64"}}
 
 	blocks := []blockData{
 		{name: "EQ", controls: 1},

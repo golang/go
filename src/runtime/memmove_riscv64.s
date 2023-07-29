@@ -23,12 +23,13 @@ TEXT runtime·memmove<ABIInternal>(SB),NOSPLIT,$-0-24
 	BLT	X12, X9, f_loop4_check
 
 	// Check alignment - if alignment differs we have to do one byte at a time.
-	AND	$3, X10, X5
-	AND	$3, X11, X6
+	AND	$7, X10, X5
+	AND	$7, X11, X6
 	BNE	X5, X6, f_loop8_unaligned_check
 	BEQZ	X5, f_loop_check
 
 	// Move one byte at a time until we reach 8 byte alignment.
+	SUB	X5, X9, X5
 	SUB	X5, X12, X12
 f_align:
 	ADD	$-1, X5
@@ -173,8 +174,8 @@ backward:
 	BLT	X12, X9, b_loop4_check
 
 	// Check alignment - if alignment differs we have to do one byte at a time.
-	AND	$3, X10, X5
-	AND	$3, X11, X6
+	AND	$7, X10, X5
+	AND	$7, X11, X6
 	BNE	X5, X6, b_loop8_unaligned_check
 	BEQZ	X5, b_loop_check
 

@@ -34,6 +34,7 @@ import (
 	"cmd/internal/objabi"
 	"encoding/binary"
 	"fmt"
+	"internal/buildcfg"
 	"log"
 	"math"
 	"math/bits"
@@ -56,6 +57,12 @@ type ctxt9 struct {
 
 const (
 	r0iszero = 1
+)
+
+const (
+	// R bit option in prefixed load/store/add D-form operations
+	PFX_R_ABS   = 0 // Offset is absolute
+	PFX_R_PCREL = 1 // Offset is relative to PC, RA should be 0
 )
 
 type Optab struct {
@@ -108,8 +115,6 @@ var optab = []Optab{
 	{as: AADD, a1: C_UCON, a6: C_REG, type_: 20, size: 4},
 	{as: AADD, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 22, size: 8},
 	{as: AADD, a1: C_ANDCON, a6: C_REG, type_: 22, size: 8},
-	{as: AADD, a1: C_LCON, a2: C_REG, a6: C_REG, type_: 22, size: 12},
-	{as: AADD, a1: C_LCON, a6: C_REG, type_: 22, size: 12},
 	{as: AADDIS, a1: C_ADDCON, a2: C_REG, a6: C_REG, type_: 20, size: 4},
 	{as: AADDIS, a1: C_ADDCON, a6: C_REG, type_: 20, size: 4},
 	{as: AADDC, a1: C_REG, a2: C_REG, a6: C_REG, type_: 2, size: 4},
@@ -211,64 +216,42 @@ var optab = []Optab{
 	{as: AMOVHBR, a1: C_REG, a6: C_XOREG, type_: 44, size: 4},
 	{as: AMOVHBR, a1: C_XOREG, a6: C_REG, type_: 45, size: 4},
 
-	{as: AMOVB, a1: C_ADDR, a6: C_REG, type_: 75, size: 12},
-	{as: AMOVB, a1: C_LOREG, a6: C_REG, type_: 36, size: 12},
 	{as: AMOVB, a1: C_SOREG, a6: C_REG, type_: 8, size: 8},
 	{as: AMOVB, a1: C_XOREG, a6: C_REG, type_: 109, size: 8},
-	{as: AMOVB, a1: C_REG, a6: C_ADDR, type_: 74, size: 8},
 	{as: AMOVB, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
-	{as: AMOVB, a1: C_REG, a6: C_LOREG, type_: 35, size: 8},
 	{as: AMOVB, a1: C_REG, a6: C_XOREG, type_: 108, size: 4},
 	{as: AMOVB, a1: C_REG, a6: C_REG, type_: 13, size: 4},
 
-	{as: AMOVBZ, a1: C_ADDR, a6: C_REG, type_: 75, size: 8},
-	{as: AMOVBZ, a1: C_LOREG, a6: C_REG, type_: 36, size: 8},
 	{as: AMOVBZ, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
 	{as: AMOVBZ, a1: C_XOREG, a6: C_REG, type_: 109, size: 4},
-	{as: AMOVBZ, a1: C_REG, a6: C_ADDR, type_: 74, size: 8},
 	{as: AMOVBZ, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
-	{as: AMOVBZ, a1: C_REG, a6: C_LOREG, type_: 35, size: 8},
 	{as: AMOVBZ, a1: C_REG, a6: C_XOREG, type_: 108, size: 4},
 	{as: AMOVBZ, a1: C_REG, a6: C_REG, type_: 13, size: 4},
 
 	{as: AMOVD, a1: C_ADDCON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVD, a1: C_ANDCON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVD, a1: C_UCON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVD, a1: C_LCON, a6: C_REG, type_: 19, size: 8},
 	{as: AMOVD, a1: C_SACON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVD, a1: C_LACON, a6: C_REG, type_: 26, size: 8},
-	{as: AMOVD, a1: C_ADDR, a6: C_REG, type_: 75, size: 8},
 	{as: AMOVD, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
 	{as: AMOVD, a1: C_XOREG, a6: C_REG, type_: 109, size: 4},
 	{as: AMOVD, a1: C_SOREG, a6: C_SPR, type_: 107, size: 8},
-	{as: AMOVD, a1: C_LOREG, a6: C_REG, type_: 36, size: 8},
-	{as: AMOVD, a1: C_TLS_LE, a6: C_REG, type_: 79, size: 8},
-	{as: AMOVD, a1: C_TLS_IE, a6: C_REG, type_: 80, size: 12},
 	{as: AMOVD, a1: C_SPR, a6: C_REG, type_: 66, size: 4},
-	{as: AMOVD, a1: C_REG, a6: C_ADDR, type_: 74, size: 8},
 	{as: AMOVD, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
 	{as: AMOVD, a1: C_REG, a6: C_XOREG, type_: 108, size: 4},
 	{as: AMOVD, a1: C_SPR, a6: C_SOREG, type_: 106, size: 8},
-	{as: AMOVD, a1: C_REG, a6: C_LOREG, type_: 35, size: 8},
 	{as: AMOVD, a1: C_REG, a6: C_SPR, type_: 66, size: 4},
 	{as: AMOVD, a1: C_REG, a6: C_REG, type_: 13, size: 4},
 
 	{as: AMOVW, a1: C_ADDCON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVW, a1: C_ANDCON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVW, a1: C_UCON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVW, a1: C_LCON, a6: C_REG, type_: 19, size: 8},
 	{as: AMOVW, a1: C_SACON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVW, a1: C_LACON, a6: C_REG, type_: 26, size: 8},
-	{as: AMOVW, a1: C_ADDR, a6: C_REG, type_: 75, size: 8},
 	{as: AMOVW, a1: C_CREG, a6: C_REG, type_: 68, size: 4},
 	{as: AMOVW, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
-	{as: AMOVW, a1: C_LOREG, a6: C_REG, type_: 36, size: 8},
 	{as: AMOVW, a1: C_XOREG, a6: C_REG, type_: 109, size: 4},
 	{as: AMOVW, a1: C_SPR, a6: C_REG, type_: 66, size: 4},
-	{as: AMOVW, a1: C_REG, a6: C_ADDR, type_: 74, size: 8},
 	{as: AMOVW, a1: C_REG, a6: C_CREG, type_: 69, size: 4},
 	{as: AMOVW, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
-	{as: AMOVW, a1: C_REG, a6: C_LOREG, type_: 35, size: 8},
 	{as: AMOVW, a1: C_REG, a6: C_XOREG, type_: 108, size: 4},
 	{as: AMOVW, a1: C_REG, a6: C_SPR, type_: 66, size: 4},
 	{as: AMOVW, a1: C_REG, a6: C_REG, type_: 13, size: 4},
@@ -276,14 +259,10 @@ var optab = []Optab{
 	{as: AFMOVD, a1: C_ADDCON, a6: C_FREG, type_: 24, size: 8},
 	{as: AFMOVD, a1: C_SOREG, a6: C_FREG, type_: 8, size: 4},
 	{as: AFMOVD, a1: C_XOREG, a6: C_FREG, type_: 109, size: 4},
-	{as: AFMOVD, a1: C_LOREG, a6: C_FREG, type_: 36, size: 8},
 	{as: AFMOVD, a1: C_ZCON, a6: C_FREG, type_: 24, size: 4},
-	{as: AFMOVD, a1: C_ADDR, a6: C_FREG, type_: 75, size: 8},
 	{as: AFMOVD, a1: C_FREG, a6: C_FREG, type_: 33, size: 4},
 	{as: AFMOVD, a1: C_FREG, a6: C_SOREG, type_: 7, size: 4},
 	{as: AFMOVD, a1: C_FREG, a6: C_XOREG, type_: 108, size: 4},
-	{as: AFMOVD, a1: C_FREG, a6: C_LOREG, type_: 35, size: 8},
-	{as: AFMOVD, a1: C_FREG, a6: C_ADDR, type_: 74, size: 8},
 
 	{as: AFMOVSX, a1: C_XOREG, a6: C_FREG, type_: 45, size: 4},
 	{as: AFMOVSX, a1: C_FREG, a6: C_XOREG, type_: 44, size: 4},
@@ -345,6 +324,10 @@ var optab = []Optab{
 	{as: AMADDHD, a1: C_REG, a2: C_REG, a3: C_REG, a6: C_REG, type_: 83, size: 4}, /* multiply-add high/low doubleword, va-form */
 	{as: AADDEX, a1: C_REG, a2: C_REG, a3: C_SCON, a6: C_REG, type_: 94, size: 4}, /* add extended using alternate carry, z23-form */
 	{as: ACRAND, a1: C_CRBIT, a2: C_CRBIT, a6: C_CRBIT, type_: 2, size: 4},        /* logical ops for condition register bits xl-form */
+
+	/* Misc ISA 3.0 instructions */
+	{as: ASETB, a1: C_CREG, a6: C_REG, type_: 110, size: 4},
+	{as: AVCLZLSBB, a1: C_VREG, a6: C_REG, type_: 85, size: 4},
 
 	/* Vector instructions */
 
@@ -535,46 +518,84 @@ var optab = []Optab{
 	{as: obj.APCALIGN, a1: C_LCON, type_: 0, size: 0},   // align code
 }
 
+// These are opcodes above which may generate different sequences depending on whether prefix opcode support
+// is available
+type PrefixableOptab struct {
+	Optab
+	minGOPPC64 int  // Minimum GOPPC64 required to support this.
+	pfxsize    int8 // Instruction sequence size when prefixed opcodes are used
+}
+
+// The prefixable optab entry contains the pseudo-opcodes which generate relocations, or may generate
+// a more efficient sequence of instructions if a prefixed version exists (ex. paddi instead of oris/ori/add).
+//
+// This table is meant to transform all sequences which might be TOC-relative into an equivalent PC-relative
+// sequence. It also encompasses several transformations which do not involve relocations, those could be
+// separated and applied to AIX and other non-ELF targets. Likewise, the prefixed forms do not have encoding
+// restrictions on the offset, so they are also used for static binary to allow better code generation. e.x
+//
+//	MOVD something-byte-aligned(Rx), Ry
+//	MOVD 3(Rx), Ry
+//
+// is allowed when the prefixed forms are used.
+//
+// This requires an ISA 3.1 compatible cpu (e.g Power10), and when linking externally an ELFv2 1.5 compliant.
+var prefixableOptab = []PrefixableOptab{
+	{Optab: Optab{as: AMOVD, a1: C_LCON, a6: C_REG, type_: 19, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVD, a1: C_ADDR, a6: C_REG, type_: 75, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVD, a1: C_TLS_LE, a6: C_REG, type_: 79, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVD, a1: C_TLS_IE, a6: C_REG, type_: 80, size: 12}, minGOPPC64: 10, pfxsize: 12},
+	{Optab: Optab{as: AMOVD, a1: C_LACON, a6: C_REG, type_: 26, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVD, a1: C_LOREG, a6: C_REG, type_: 36, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVD, a1: C_REG, a6: C_LOREG, type_: 35, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVD, a1: C_REG, a6: C_ADDR, type_: 74, size: 8}, minGOPPC64: 10, pfxsize: 8},
+
+	{Optab: Optab{as: AMOVW, a1: C_LCON, a6: C_REG, type_: 19, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVW, a1: C_LACON, a6: C_REG, type_: 26, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVW, a1: C_LOREG, a6: C_REG, type_: 36, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVW, a1: C_ADDR, a6: C_REG, type_: 75, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVW, a1: C_REG, a6: C_LOREG, type_: 35, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVW, a1: C_REG, a6: C_ADDR, type_: 74, size: 8}, minGOPPC64: 10, pfxsize: 8},
+
+	{Optab: Optab{as: AMOVB, a1: C_REG, a6: C_LOREG, type_: 35, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVB, a1: C_LOREG, a6: C_REG, type_: 36, size: 12}, minGOPPC64: 10, pfxsize: 12},
+	{Optab: Optab{as: AMOVB, a1: C_ADDR, a6: C_REG, type_: 75, size: 12}, minGOPPC64: 10, pfxsize: 12},
+	{Optab: Optab{as: AMOVB, a1: C_REG, a6: C_ADDR, type_: 74, size: 8}, minGOPPC64: 10, pfxsize: 8},
+
+	{Optab: Optab{as: AMOVBZ, a1: C_LOREG, a6: C_REG, type_: 36, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVBZ, a1: C_ADDR, a6: C_REG, type_: 75, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVBZ, a1: C_REG, a6: C_LOREG, type_: 35, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVBZ, a1: C_REG, a6: C_ADDR, type_: 74, size: 8}, minGOPPC64: 10, pfxsize: 8},
+
+	{Optab: Optab{as: AFMOVD, a1: C_LOREG, a6: C_FREG, type_: 36, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AFMOVD, a1: C_ADDR, a6: C_FREG, type_: 75, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AFMOVD, a1: C_FREG, a6: C_LOREG, type_: 35, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AFMOVD, a1: C_FREG, a6: C_ADDR, type_: 74, size: 8}, minGOPPC64: 10, pfxsize: 8},
+
+	{Optab: Optab{as: AADD, a1: C_LCON, a2: C_REG, a6: C_REG, type_: 22, size: 12}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AADD, a1: C_LCON, a6: C_REG, type_: 22, size: 12}, minGOPPC64: 10, pfxsize: 8},
+}
+
 var oprange [ALAST & obj.AMask][]Optab
 
 var xcmp [C_NCLASS][C_NCLASS]bool
 
+var pfxEnabled = false // ISA 3.1 prefixed instructions are supported.
+var buildOpCfg = ""    // Save the os/cpu/arch tuple used to configure the assembler in buildop
+
 // padding bytes to add to align code as requested.
 func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
-	// For 16 and 32 byte alignment, there is a tradeoff
-	// between aligning the code and adding too many NOPs.
 	switch a {
-	case 8:
-		if pc&7 != 0 {
-			return 4
+	case 8, 16, 32, 64:
+		// By default function alignment is 16. If an alignment > 16 is
+		// requested then the function alignment must also be promoted.
+		// The function alignment is not promoted on AIX at this time.
+		// TODO: Investigate AIX function alignment.
+		if ctxt.Headtype != objabi.Haix && cursym.Func().Align < int32(a) {
+			cursym.Func().Align = int32(a)
 		}
-	case 16:
-		// Align to 16 bytes if possible but add at
-		// most 2 NOPs.
-		switch pc & 15 {
-		case 4, 12:
-			return 4
-		case 8:
-			return 8
-		}
-	case 32:
-		// Align to 32 bytes if possible but add at
-		// most 3 NOPs.
-		switch pc & 31 {
-		case 4, 20:
-			return 12
-		case 8, 24:
-			return 8
-		case 12, 28:
-			return 4
-		}
-		// When 32 byte alignment is requested on Linux,
-		// promote the function's alignment to 32. On AIX
-		// the function alignment is not changed which might
-		// result in 16 byte alignment but that is still fine.
-		// TODO: alignment on AIX
-		if ctxt.Headtype != objabi.Haix && cursym.Func().Align < 32 {
-			cursym.Func().Align = 32
+		if pc&(a-1) != 0 {
+			return int(a - (pc & (a - 1)))
 		}
 	default:
 		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", a)
@@ -582,7 +603,7 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 	return 0
 }
 
-// Get the implied register of a operand which doesn't specify one.  These show up
+// Get the implied register of an operand which doesn't specify one.  These show up
 // in handwritten asm like "MOVD R5, foosymbol" where a base register is not supplied,
 // or "MOVD R5, foo+10(SP) or pseudo-register is used.  The other common case is when
 // generating constants in register like "MOVD $constant, Rx".
@@ -1050,7 +1071,7 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 		}
 
 	case obj.TYPE_BRANCH:
-		if a.Sym != nil && c.ctxt.Flag_dynlink {
+		if a.Sym != nil && c.ctxt.Flag_dynlink && !pfxEnabled {
 			return C_LBRAPIC
 		}
 		return C_SBRA
@@ -1254,13 +1275,40 @@ func opset(a, b0 obj.As) {
 	oprange[a&obj.AMask] = oprange[b0]
 }
 
+// Determine if the build configuration requires a TOC pointer.
+// It is assumed this always called after buildop.
+func NeedTOCpointer(ctxt *obj.Link) bool {
+	return !pfxEnabled && ctxt.Flag_shared
+}
+
 // Build the opcode table
 func buildop(ctxt *obj.Link) {
-	if oprange[AANDN&obj.AMask] != nil {
-		// Already initialized; stop now.
+	// Limit PC-relative prefix instruction usage to supported and tested targets.
+	pfxEnabled = buildcfg.GOPPC64 >= 10 && buildcfg.GOOS == "linux"
+	cfg := fmt.Sprintf("power%d/%s/%s", buildcfg.GOPPC64, buildcfg.GOARCH, buildcfg.GOOS)
+	if cfg == buildOpCfg {
+		// Already initialized to correct OS/cpu; stop now.
 		// This happens in the cmd/asm tests,
 		// each of which re-initializes the arch.
 		return
+	}
+	buildOpCfg = cfg
+
+	// Configure the optab entries which may generate prefix opcodes.
+	prefixOptab := make([]Optab, 0, len(prefixableOptab))
+	for _, entry := range prefixableOptab {
+		entry := entry
+		if pfxEnabled && buildcfg.GOPPC64 >= entry.minGOPPC64 {
+			// Enable prefix opcode generation and resize.
+			entry.ispfx = true
+			entry.size = entry.pfxsize
+		}
+		// Use the legacy assembler function if none provided.
+		if entry.asmout == nil {
+			entry.asmout = asmout
+		}
+		prefixOptab = append(prefixOptab, entry.Optab)
+
 	}
 
 	for i := 0; i < C_NCLASS; i++ {
@@ -1278,7 +1326,9 @@ func buildop(ctxt *obj.Link) {
 	}
 	// Append the generated entries, sort, and fill out oprange.
 	optab = append(optab, optabGen...)
+	optab = append(optab, prefixOptab...)
 	sort.Slice(optab, optabLess)
+
 	for i := 0; i < len(optab); {
 		r := optab[i].as
 		r0 := r & obj.AMask
@@ -2022,6 +2072,9 @@ func buildop(ctxt *obj.Link) {
 		case AMOVW: /* load/store/move word with sign extension; move 32-bit literals  */
 			opset(AMOVWZ, r0) /* Same as above, but zero extended */
 
+		case AVCLZLSBB:
+			opset(AVCTZLSBB, r0)
+
 		case AADD,
 			AADDIS,
 			AANDCC, /* and. Rb,Rs,Ra; andi. $uimm,Rs,Ra */
@@ -2047,6 +2100,7 @@ func buildop(ctxt *obj.Link) {
 			AMTVSRDD,
 			APNOP,
 			AISEL,
+			ASETB,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AUNDEF,
@@ -2227,6 +2281,13 @@ func AOP_ISEL(op uint32, t uint32, a uint32, b uint32, bc uint32) uint32 {
 	return op | (t&31)<<21 | (a&31)<<16 | (b&31)<<11 | (bc&0x1F)<<6
 }
 
+func AOP_PFX_00_8LS(r, ie uint32) uint32 {
+	return 1<<26 | 0<<24 | 0<<23 | (r&1)<<20 | (ie & 0x3FFFF)
+}
+func AOP_PFX_10_MLS(r, ie uint32) uint32 {
+	return 1<<26 | 2<<24 | 0<<23 | (r&1)<<20 | (ie & 0x3FFFF)
+}
+
 const (
 	/* each rhs is OPVCC(_, _, _, _) */
 	OP_ADD      = 31<<26 | 266<<1 | 0<<10 | 0
@@ -2264,7 +2325,54 @@ const (
 	OP_RLDICL   = 30<<26 | 0<<1 | 0<<10 | 0
 	OP_RLDCL    = 30<<26 | 8<<1 | 0<<10 | 0
 	OP_EXTSWSLI = 31<<26 | 445<<2
+	OP_SETB     = 31<<26 | 128<<1
 )
+
+func pfxadd(rt, ra int16, r uint32, imm32 int64) (uint32, uint32) {
+	return AOP_PFX_10_MLS(r, uint32(imm32>>16)), AOP_IRR(14<<26, uint32(rt), uint32(ra), uint32(imm32))
+}
+
+func pfxload(a obj.As, reg int16, base int16, r uint32) (uint32, uint32) {
+	switch a {
+	case AMOVH:
+		return AOP_PFX_10_MLS(r, 0), AOP_IRR(42<<26, uint32(reg), uint32(base), 0)
+	case AMOVW:
+		return AOP_PFX_00_8LS(r, 0), AOP_IRR(41<<26, uint32(reg), uint32(base), 0)
+	case AMOVD:
+		return AOP_PFX_00_8LS(r, 0), AOP_IRR(57<<26, uint32(reg), uint32(base), 0)
+	case AMOVBZ, AMOVB:
+		return AOP_PFX_10_MLS(r, 0), AOP_IRR(34<<26, uint32(reg), uint32(base), 0)
+	case AMOVHZ:
+		return AOP_PFX_10_MLS(r, 0), AOP_IRR(40<<26, uint32(reg), uint32(base), 0)
+	case AMOVWZ:
+		return AOP_PFX_10_MLS(r, 0), AOP_IRR(32<<26, uint32(reg), uint32(base), 0)
+	case AFMOVS:
+		return AOP_PFX_10_MLS(r, 0), AOP_IRR(48<<26, uint32(reg), uint32(base), 0)
+	case AFMOVD:
+		return AOP_PFX_10_MLS(r, 0), AOP_IRR(50<<26, uint32(reg), uint32(base), 0)
+	}
+	log.Fatalf("Error no pfxload for %v\n", a)
+	return 0, 0
+}
+
+func pfxstore(a obj.As, reg int16, base int16, r uint32) (uint32, uint32) {
+	switch a {
+	case AMOVD:
+		return AOP_PFX_00_8LS(r, 0), AOP_IRR(61<<26, uint32(reg), uint32(base), 0)
+	case AMOVBZ, AMOVB:
+		return AOP_PFX_10_MLS(r, 0), AOP_IRR(38<<26, uint32(reg), uint32(base), 0)
+	case AMOVHZ, AMOVH:
+		return AOP_PFX_10_MLS(r, 0), AOP_IRR(44<<26, uint32(reg), uint32(base), 0)
+	case AMOVWZ, AMOVW:
+		return AOP_PFX_10_MLS(r, 0), AOP_IRR(36<<26, uint32(reg), uint32(base), 0)
+	case AFMOVS:
+		return AOP_PFX_10_MLS(r, 0), AOP_IRR(52<<26, uint32(reg), uint32(base), 0)
+	case AFMOVD:
+		return AOP_PFX_10_MLS(r, 0), AOP_IRR(54<<26, uint32(reg), uint32(base), 0)
+	}
+	log.Fatalf("Error no pfxstore for %v\n", a)
+	return 0, 0
+}
 
 func oclass(a *obj.Addr) int {
 	return int(a.Class) - 1
@@ -2324,7 +2432,7 @@ func (c *ctxt9) opform(insn uint32) int {
 
 // Encode instructions and create relocation for accessing s+d according to the
 // instruction op with source or destination (as appropriate) register reg.
-func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32, reuse bool) (o1, o2 uint32) {
+func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32, reuse bool) (o1, o2 uint32, rel *obj.Reloc) {
 	if c.ctxt.Headtype == objabi.Haix {
 		// Every symbol access must be made via a TOC anchor.
 		c.ctxt.Diag("symbolAccess called for %s", s.Name)
@@ -2345,7 +2453,7 @@ func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32, reuse b
 		o1 = AOP_IRR(OP_ADDIS, uint32(reg), base, 0)
 		o2 = AOP_IRR(op, uint32(reg), uint32(reg), 0)
 	}
-	rel := obj.Addrel(c.cursym)
+	rel = obj.Addrel(c.cursym)
 	rel.Off = int32(c.pc)
 	rel.Siz = 8
 	rel.Sym = s
@@ -2841,8 +2949,12 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 
 	case 19: /* mov $lcon,r ==> cau+or */
 		d := c.vregoff(&p.From)
-		o1 = loadu32(int(p.To.Reg), d)
-		o2 = LOP_IRR(OP_ORI, uint32(p.To.Reg), uint32(p.To.Reg), uint32(int32(d)))
+		if o.ispfx {
+			o1, o2 = pfxadd(p.To.Reg, REG_R0, PFX_R_ABS, d)
+		} else {
+			o1 = loadu32(int(p.To.Reg), d)
+			o2 = LOP_IRR(OP_ORI, uint32(p.To.Reg), uint32(p.To.Reg), uint32(int32(d)))
+		}
 
 	case 20: /* add $ucon,,r | addis $addcon,r,r */
 		v := c.regoff(&p.From)
@@ -2881,6 +2993,10 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			o1 = loadu32(REGTMP, d)
 			o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(int32(d)))
 			o3 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
+		}
+
+		if o.ispfx {
+			o1, o2 = pfxadd(int16(p.To.Reg), int16(r), PFX_R_ABS, d)
 		}
 
 	case 23: /* and $lcon/$addcon,r1,r2 ==> oris+ori+and/addi+and */
@@ -2962,11 +3078,12 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 	case 26: /* mov $lsext/auto/oreg,,r2 ==> addis+addi */
 		v := c.vregoff(&p.From)
 		r := int(p.From.Reg)
+		var rel *obj.Reloc
 
 		switch p.From.Name {
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
 			// Load a 32 bit constant, or relocation depending on if a symbol is attached
-			o1, o2 = c.symbolAccess(p.From.Sym, v, p.To.Reg, OP_ADDI, true)
+			o1, o2, rel = c.symbolAccess(p.From.Sym, v, p.To.Reg, OP_ADDI, true)
 		default:
 			if r == 0 {
 				r = c.getimpliedreg(&p.From, p)
@@ -2974,6 +3091,15 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			// Add a 32 bit offset to a register.
 			o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), uint32(r), uint32(high16adjusted(int32(v))))
 			o2 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), uint32(p.To.Reg), uint32(v))
+		}
+
+		if o.ispfx {
+			if rel == nil {
+				o1, o2 = pfxadd(int16(p.To.Reg), int16(r), PFX_R_ABS, v)
+			} else {
+				o1, o2 = pfxadd(int16(p.To.Reg), REG_R0, PFX_R_PCREL, 0)
+				rel.Type = objabi.R_ADDRPOWER_PCREL34
+			}
 		}
 
 	case 27: /* subc ra,$simm,rd => subfic rd,ra,$simm */
@@ -3118,12 +3244,18 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			r = c.getimpliedreg(&p.To, p)
 		}
 		// Offsets in DS form stores must be a multiple of 4
-		inst := c.opstore(p.As)
-		if c.opform(inst) == DS_FORM && v&0x3 != 0 {
-			log.Fatalf("invalid offset for DS form load/store %v", p)
+		if o.ispfx {
+			o1, o2 = pfxstore(p.As, p.From.Reg, int16(r), PFX_R_ABS)
+			o1 |= uint32((v >> 16) & 0x3FFFF)
+			o2 |= uint32(v & 0xFFFF)
+		} else {
+			inst := c.opstore(p.As)
+			if c.opform(inst) == DS_FORM && v&0x3 != 0 {
+				log.Fatalf("invalid offset for DS form load/store %v", p)
+			}
+			o1 = AOP_IRR(OP_ADDIS, REGTMP, uint32(r), uint32(high16adjusted(v)))
+			o2 = AOP_IRR(inst, uint32(p.From.Reg), REGTMP, uint32(v))
 		}
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, uint32(r), uint32(high16adjusted(v)))
-		o2 = AOP_IRR(inst, uint32(p.From.Reg), REGTMP, uint32(v))
 
 	case 36: /* mov b/bz/h/hz lext/lauto/lreg,r ==> lbz+extsb/lbz/lha/lhz etc */
 		v := c.regoff(&p.From)
@@ -3132,8 +3264,22 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		if r == 0 {
 			r = c.getimpliedreg(&p.From, p)
 		}
-		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), uint32(r), uint32(high16adjusted(v)))
-		o2 = AOP_IRR(c.opload(p.As), uint32(p.To.Reg), uint32(p.To.Reg), uint32(v))
+
+		if o.ispfx {
+			o1, o2 = pfxload(p.As, p.To.Reg, int16(r), PFX_R_ABS)
+			o1 |= uint32((v >> 16) & 0x3FFFF)
+			o2 |= uint32(v & 0xFFFF)
+		} else {
+			if o.a6 == C_REG {
+				// Reuse the base register when loading a GPR (C_REG) to avoid
+				// using REGTMP (R31) when possible.
+				o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), uint32(r), uint32(high16adjusted(v)))
+				o2 = AOP_IRR(c.opload(p.As), uint32(p.To.Reg), uint32(p.To.Reg), uint32(v))
+			} else {
+				o1 = AOP_IRR(OP_ADDIS, uint32(REGTMP), uint32(r), uint32(high16adjusted(v)))
+				o2 = AOP_IRR(c.opload(p.As), uint32(p.To.Reg), uint32(REGTMP), uint32(v))
+			}
+		}
 
 		// Sign extend MOVB if needed
 		o3 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
@@ -3484,23 +3630,28 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 
 	/* relocation operations */
 	case 74:
+		var rel *obj.Reloc
 		v := c.vregoff(&p.To)
 		// Offsets in DS form stores must be a multiple of 4
 		inst := c.opstore(p.As)
-		if c.opform(inst) == DS_FORM && v&0x3 != 0 {
+
+		// Can't reuse base for store instructions.
+		o1, o2, rel = c.symbolAccess(p.To.Sym, v, p.From.Reg, inst, false)
+
+		// Rewrite as a prefixed store if supported.
+		if o.ispfx {
+			o1, o2 = pfxstore(p.As, p.From.Reg, REG_R0, PFX_R_PCREL)
+			rel.Type = objabi.R_ADDRPOWER_PCREL34
+		} else if c.opform(inst) == DS_FORM && v&0x3 != 0 {
 			log.Fatalf("invalid offset for DS form load/store %v", p)
 		}
-		// Can't reuse base for store instructions.
-		o1, o2 = c.symbolAccess(p.To.Sym, v, p.From.Reg, inst, false)
 
 	case 75: // 32 bit offset symbol loads (got/toc/addr)
+		var rel *obj.Reloc
 		v := p.From.Offset
 
 		// Offsets in DS form loads must be a multiple of 4
 		inst := c.opload(p.As)
-		if c.opform(inst) == DS_FORM && v&0x3 != 0 {
-			log.Fatalf("invalid offset for DS form load/store %v", p)
-		}
 		switch p.From.Name {
 		case obj.NAME_GOTREF, obj.NAME_TOCREF:
 			if v != 0 {
@@ -3508,7 +3659,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			}
 			o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
 			o2 = AOP_IRR(inst, uint32(p.To.Reg), uint32(p.To.Reg), 0)
-			rel := obj.Addrel(c.cursym)
+			rel = obj.Addrel(c.cursym)
 			rel.Off = int32(c.pc)
 			rel.Siz = 8
 			rel.Sym = p.From.Sym
@@ -3519,9 +3670,30 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 				rel.Type = objabi.R_ADDRPOWER_TOCREL_DS
 			}
 		default:
-			reuseBaseReg := p.As != AFMOVD && p.As != AFMOVS
-			// Reuse To.Reg as base register if not FP move.
-			o1, o2 = c.symbolAccess(p.From.Sym, v, p.To.Reg, inst, reuseBaseReg)
+			reuseBaseReg := o.a6 == C_REG
+			// Reuse To.Reg as base register if it is a GPR.
+			o1, o2, rel = c.symbolAccess(p.From.Sym, v, p.To.Reg, inst, reuseBaseReg)
+		}
+
+		// Convert to prefixed forms if supported.
+		if o.ispfx {
+			switch rel.Type {
+			case objabi.R_ADDRPOWER, objabi.R_ADDRPOWER_DS,
+				objabi.R_ADDRPOWER_TOCREL, objabi.R_ADDRPOWER_TOCREL_DS:
+				o1, o2 = pfxload(p.As, p.To.Reg, REG_R0, PFX_R_PCREL)
+				rel.Type = objabi.R_ADDRPOWER_PCREL34
+			case objabi.R_POWER_TLS_IE:
+				o1, o2 = pfxload(p.As, p.To.Reg, REG_R0, PFX_R_PCREL)
+				rel.Type = objabi.R_POWER_TLS_IE_PCREL34
+			case objabi.R_ADDRPOWER_GOT:
+				o1, o2 = pfxload(p.As, p.To.Reg, REG_R0, PFX_R_PCREL)
+				rel.Type = objabi.R_ADDRPOWER_GOT_PCREL34
+			default:
+				// We've failed to convert a TOC-relative relocation to a PC-relative one.
+				log.Fatalf("Unable convert TOC-relative relocation %v to PC-relative", rel.Type)
+			}
+		} else if c.opform(inst) == DS_FORM && v&0x3 != 0 {
+			log.Fatalf("invalid offset for DS form load/store %v", p)
 		}
 
 		o3 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
@@ -3530,26 +3702,36 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		if p.From.Offset != 0 {
 			c.ctxt.Diag("invalid offset against tls var %v", p)
 		}
-		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R13, 0)
-		o2 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), uint32(p.To.Reg), 0)
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 8
 		rel.Sym = p.From.Sym
-		rel.Type = objabi.R_POWER_TLS_LE
+		if !o.ispfx {
+			o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R13, 0)
+			o2 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), uint32(p.To.Reg), 0)
+			rel.Type = objabi.R_POWER_TLS_LE
+		} else {
+			o1, o2 = pfxadd(p.To.Reg, REG_R13, PFX_R_ABS, 0)
+			rel.Type = objabi.R_POWER_TLS_LE_TPREL34
+		}
 
 	case 80:
 		if p.From.Offset != 0 {
 			c.ctxt.Diag("invalid offset against tls var %v", p)
 		}
-		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
-		o2 = AOP_IRR(c.opload(AMOVD), uint32(p.To.Reg), uint32(p.To.Reg), 0)
-		o3 = AOP_RRR(OP_ADD, uint32(p.To.Reg), uint32(p.To.Reg), REG_R13)
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 8
 		rel.Sym = p.From.Sym
 		rel.Type = objabi.R_POWER_TLS_IE
+		if !o.ispfx {
+			o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
+			o2 = AOP_IRR(c.opload(AMOVD), uint32(p.To.Reg), uint32(p.To.Reg), 0)
+		} else {
+			o1, o2 = pfxload(p.As, p.To.Reg, REG_R0, PFX_R_PCREL)
+			rel.Type = objabi.R_POWER_TLS_IE_PCREL34
+		}
+		o3 = AOP_RRR(OP_ADD, uint32(p.To.Reg), uint32(p.To.Reg), REG_R13)
 		rel = obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc) + 8
 		rel.Siz = 4
@@ -3787,6 +3969,11 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		o1 = AOP_RRR(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))
 		// Sign extend MOVB operations. This is ignored for other cases (o.size == 4).
 		o2 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
+
+	case 110: /* SETB creg, rt */
+		bfa := uint32(p.From.Reg) << 2
+		rt := uint32(p.To.Reg)
+		o1 = LOP_RRR(OP_SETB, bfa, rt, 0)
 	}
 
 	out[0] = o1
@@ -4589,6 +4776,11 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVX(4, 1922, 0, 0) /* vclzw - v2.07 */
 	case AVCLZD:
 		return OPVX(4, 1986, 0, 0) /* vclzd - v2.07 */
+
+	case AVCLZLSBB:
+		return OPVX(4, 1538, 0, 0) /* vclzlsbb - v3.0 */
+	case AVCTZLSBB:
+		return OPVX(4, 1538, 0, 0) | 1<<16 /* vctzlsbb - v3.0 */
 
 	case AVPOPCNTB:
 		return OPVX(4, 1795, 0, 0) /* vpopcntb - v2.07 */

@@ -213,7 +213,9 @@ func pthread_kill_trampoline()
 //
 //go:nosplit
 func osinit_hack() {
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(osinit_hack_trampoline)), nil)
+	if GOOS == "darwin" { // not ios
+		libcCall(unsafe.Pointer(abi.FuncPCABI0(osinit_hack_trampoline)), nil)
+	}
 	return
 }
 func osinit_hack_trampoline()
@@ -432,8 +434,13 @@ func sysctlbyname_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func fcntl(fd, cmd, arg int32) int32 {
-	return libcCall(unsafe.Pointer(abi.FuncPCABI0(fcntl_trampoline)), unsafe.Pointer(&fd))
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
+	args := struct {
+		fd, cmd, arg int32
+		ret, errno   int32
+	}{fd, cmd, arg, 0, 0}
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(fcntl_trampoline)), unsafe.Pointer(&args))
+	return args.ret, args.errno
 }
 func fcntl_trampoline()
 
@@ -530,15 +537,17 @@ func exitThread(wait *atomic.Uint32) {
 }
 
 //go:nosplit
-func closeonexec(fd int32) {
-	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+func setNonblock(fd int32) {
+	flags, _ := fcntl(fd, _F_GETFL, 0)
+	if flags != -1 {
+		fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+	}
 }
 
-//go:nosplit
-func setNonblock(fd int32) {
-	flags := fcntl(fd, _F_GETFL, 0)
-	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+func issetugid() int32 {
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(issetugid_trampoline)), nil)
 }
+func issetugid_trampoline()
 
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
@@ -590,3 +599,5 @@ func setNonblock(fd int32) {
 
 //go:cgo_import_dynamic libc_notify_is_valid_token notify_is_valid_token "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_xpc_date_create_from_current xpc_date_create_from_current "/usr/lib/libSystem.B.dylib"
+
+//go:cgo_import_dynamic libc_issetugid issetugid "/usr/lib/libSystem.B.dylib"

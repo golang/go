@@ -216,6 +216,7 @@ const (
 	_AT_NULL   = 0  // End of vector
 	_AT_PAGESZ = 6  // System physical page size
 	_AT_HWCAP  = 16 // hardware capability bit vector
+	_AT_SECURE = 23 // secure mode boolean
 	_AT_RANDOM = 25 // introduced in 2.6.29
 	_AT_HWCAP2 = 26 // hardware capability bit vector 2
 )
@@ -225,6 +226,8 @@ var procAuxv = []byte("/proc/self/auxv\x00")
 var addrspace_vec [1]byte
 
 func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
+
+var auxvreadbuf [128]uintptr
 
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
@@ -238,8 +241,10 @@ func sysargs(argc int32, argv **byte) {
 	n++
 
 	// now argv+n is auxv
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
-	if sysauxv(auxv[:]) != 0 {
+	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+
+	if pairs := sysauxv(auxvp[:]); pairs != 0 {
+		auxv = auxvp[: pairs*2 : pairs*2]
 		return
 	}
 	// In some situations we don't get a loader-provided
@@ -269,23 +274,27 @@ func sysargs(argc int32, argv **byte) {
 		munmap(p, size)
 		return
 	}
-	var buf [128]uintptr
-	n = read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
+
+	n = read(fd, noescape(unsafe.Pointer(&auxvreadbuf[0])), int32(unsafe.Sizeof(auxvreadbuf)))
 	closefd(fd)
 	if n < 0 {
 		return
 	}
 	// Make sure buf is terminated, even if we didn't read
 	// the whole file.
-	buf[len(buf)-2] = _AT_NULL
-	sysauxv(buf[:])
+	auxvreadbuf[len(auxvreadbuf)-2] = _AT_NULL
+	pairs := sysauxv(auxvreadbuf[:])
+	auxv = auxvreadbuf[: pairs*2 : pairs*2]
 }
 
 // startupRandomData holds random bytes initialized at startup. These come from
 // the ELF AT_RANDOM auxiliary vector.
 var startupRandomData []byte
 
-func sysauxv(auxv []uintptr) int {
+// secureMode holds the value of AT_SECURE passed in the auxiliary vector.
+var secureMode bool
+
+func sysauxv(auxv []uintptr) (pairs int) {
 	var i int
 	for ; auxv[i] != _AT_NULL; i += 2 {
 		tag, val := auxv[i], auxv[i+1]
@@ -297,6 +306,9 @@ func sysauxv(auxv []uintptr) int {
 
 		case _AT_PAGESZ:
 			physPageSize = val
+
+		case _AT_SECURE:
+			secureMode = val == 1
 		}
 
 		archauxv(tag, val)
@@ -419,7 +431,7 @@ func mdestroy(mp *m) {
 //#define sa_handler k_sa_handler
 //#endif
 
-func sigreturn()
+func sigreturn__sigaction()
 func sigtramp() // Called via C ABI
 func cgoSigtramp()
 
@@ -461,6 +473,12 @@ func osyield_no_g() {
 
 func pipe2(flags int32) (r, w int32, errno int32)
 
+//go:nosplit
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
+	r, _, err := syscall.Syscall6(syscall.SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg), 0, 0, 0)
+	return int32(r), int32(err)
+}
+
 const (
 	_si_max_size    = 128
 	_sigev_max_size = 64
@@ -476,7 +494,7 @@ func setsig(i uint32, fn uintptr) {
 	// should not be used". x86_64 kernel requires it. Only use it on
 	// x86.
 	if GOARCH == "386" || GOARCH == "amd64" {
-		sa.sa_restorer = abi.FuncPCABI0(sigreturn)
+		sa.sa_restorer = abi.FuncPCABI0(sigreturn__sigaction)
 	}
 	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
 		if iscgo {
@@ -724,7 +742,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
 	// N.B. Internally, this function does not depend on STW to
 	// successfully change every thread. It is only needed for user
 	// expectations, per above.
-	stopTheWorld("doAllThreadsSyscall")
+	stopTheWorld(stwAllThreadsSyscall)
 
 	// This function depends on several properties:
 	//

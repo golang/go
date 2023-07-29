@@ -92,6 +92,22 @@ func SubAddSimplify(a, b int) int {
 	return r
 }
 
+func SubAddSimplify2(a, b, c int) (int, int, int, int, int, int) {
+	// amd64:-"ADDQ"
+	r := (a + b) - (a + c)
+	// amd64:-"ADDQ"
+	r1 := (a + b) - (c + a)
+	// amd64:-"ADDQ"
+	r2 := (b + a) - (a + c)
+	// amd64:-"ADDQ"
+	r3 := (b + a) - (c + a)
+	// amd64:-"SUBQ"
+	r4 := (a - c) + (c + b)
+	// amd64:-"SUBQ"
+	r5 := (a - c) + (b + c)
+	return r, r1, r2, r3, r4, r5
+}
+
 func SubAddNegSimplify(a, b int) int {
 	// amd64:"NEGQ",-"ADDQ",-"SUBQ"
 	// ppc64x:"NEG",-"ADD",-"SUB"

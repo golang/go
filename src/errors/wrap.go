@@ -12,7 +12,8 @@ import (
 // type contains an Unwrap method returning error.
 // Otherwise, Unwrap returns nil.
 //
-// Unwrap returns nil if the Unwrap method returns []error.
+// Unwrap only calls a method of the form "Unwrap() error".
+// In particular Unwrap does not unwrap errors returned by [Join].
 func Unwrap(err error) error {
 	u, ok := err.(interface {
 		Unwrap() error
@@ -37,7 +38,7 @@ func Unwrap(err error) error {
 //
 //	func (m MyError) Is(target error) bool { return target == fs.ErrExist }
 //
-// then Is(MyError{}, fs.ErrExist) returns true. See syscall.Errno.Is for
+// then Is(MyError{}, fs.ErrExist) returns true. See [syscall.Errno.Is] for
 // an example in the standard library. An Is method should only shallowly
 // compare err and the target and not call Unwrap on either.
 func Is(err, target error) bool {

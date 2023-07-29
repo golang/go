@@ -133,7 +133,7 @@ func init() {
 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},                                                   // returns the PC of the caller of the current function
 		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},                                     // returns the SP of the caller of the current function. arg0=mem.
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil. arg1=mem
-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp}}, aux: "Sym", symEffect: "None"},          // invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: callerSave, outputs: []regMask{gp}}, aux: "Int64"},        // invokes runtime.gcWriteBarrier{auxint}. arg0=mem, auxint=# of buffer entries needed. Returns a pointer to a write barrier buffer.
 
 		// LoweredConvert converts between pointers and integers.
 		// We have a special op for this so as to not confuse GCCallOff

@@ -9,7 +9,7 @@ cp go.mod go.mod.orig
 
 ! go mod tidy
 ! stderr panic
-stderr '^golang\.org/issue46659 imports\n\texample\.com/missingpkg/deprecated: package example\.com/missingpkg/deprecated provided by example\.com/missingpkg at latest version v1\.0\.0 but not at required version v1\.0\.1-beta$'
+stderr '^go: golang\.org/issue46659 imports\n\texample\.com/missingpkg/deprecated: package example\.com/missingpkg/deprecated provided by example\.com/missingpkg at latest version v1\.0\.0 but not at required version v1\.0\.1-beta$'
 
 go mod tidy -e
 
