@@ -1348,8 +1348,8 @@ func TestWriterAddFs(t *testing.T) {
 
 	// Test that we can get the files back from the archive
 	tr := NewReader(&buf)
-	foundFiles := make(map[string][]byte)
-	for {
+
+	for name, file := range fsys {
 		hdr, err := tr.Next()
 		if err == io.EOF {
 			break // End of archive
@@ -1359,20 +1359,19 @@ func TestWriterAddFs(t *testing.T) {
 		}
 
 		data := make([]byte, hdr.Size)
-		_, err = tr.Read(data)
-		foundFiles[hdr.Name] = data
-	}
-
-	for name, file := range fsys {
-		got, ok := foundFiles[name]
-		if !ok {
-			t.Fatalf("got filename %s, want %s",
-				got, name)
+		_, err = io.ReadFull(tr, data)
+		if err != nil {
+			t.Fatal(err)
 		}
 
-		if !reflect.DeepEqual(foundFiles[name], file.Data) {
-			t.Fatalf("got file content %#v, want %#v",
-				foundFiles[name], file.Data)
+		if name != hdr.Name {
+			t.Fatalf("got filename %v, want %v",
+				name, hdr.Name)
+		}
+
+		if string(data) != string(file.Data) {
+			t.Fatalf("got file content %v, want %v",
+				data, file.Data)
 		}
 	}
 }
