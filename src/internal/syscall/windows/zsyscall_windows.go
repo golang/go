@@ -49,7 +49,10 @@ var (
 	procDuplicateTokenEx              = modadvapi32.NewProc("DuplicateTokenEx")
 	procImpersonateSelf               = modadvapi32.NewProc("ImpersonateSelf")
 	procLookupPrivilegeValueW         = modadvapi32.NewProc("LookupPrivilegeValueW")
+	procOpenSCManagerW                = modadvapi32.NewProc("OpenSCManagerW")
+	procOpenServiceW                  = modadvapi32.NewProc("OpenServiceW")
 	procOpenThreadToken               = modadvapi32.NewProc("OpenThreadToken")
+	procQueryServiceStatus            = modadvapi32.NewProc("QueryServiceStatus")
 	procRevertToSelf                  = modadvapi32.NewProc("RevertToSelf")
 	procSetTokenInformation           = modadvapi32.NewProc("SetTokenInformation")
 	procSystemFunction036             = modadvapi32.NewProc("SystemFunction036")
@@ -121,12 +124,38 @@ func LookupPrivilegeValue(systemname *uint16, name *uint16, luid *LUID) (err err
 	return
 }
 
+func OpenSCManager(machineName *uint16, databaseName *uint16, access uint32) (handle syscall.Handle, err error) {
+	r0, _, e1 := syscall.Syscall(procOpenSCManagerW.Addr(), 3, uintptr(unsafe.Pointer(machineName)), uintptr(unsafe.Pointer(databaseName)), uintptr(access))
+	handle = syscall.Handle(r0)
+	if handle == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func OpenService(mgr syscall.Handle, serviceName *uint16, access uint32) (handle syscall.Handle, err error) {
+	r0, _, e1 := syscall.Syscall(procOpenServiceW.Addr(), 3, uintptr(mgr), uintptr(unsafe.Pointer(serviceName)), uintptr(access))
+	handle = syscall.Handle(r0)
+	if handle == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func OpenThreadToken(h syscall.Handle, access uint32, openasself bool, token *syscall.Token) (err error) {
 	var _p0 uint32
 	if openasself {
 		_p0 = 1
 	}
 	r1, _, e1 := syscall.Syscall6(procOpenThreadToken.Addr(), 4, uintptr(h), uintptr(access), uintptr(_p0), uintptr(unsafe.Pointer(token)), 0, 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func QueryServiceStatus(hService syscall.Handle, lpServiceStatus *SERVICE_STATUS) (err error) {
+	r1, _, e1 := syscall.Syscall(procQueryServiceStatus.Addr(), 2, uintptr(hService), uintptr(unsafe.Pointer(lpServiceStatus)), 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
