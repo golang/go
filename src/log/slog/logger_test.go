@@ -12,6 +12,7 @@ import (
 	"io"
 	"log"
 	loginternal "log/internal"
+	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -82,6 +83,13 @@ func TestConnections(t *testing.T) {
 	log.SetFlags(log.Lshortfile &^ log.LstdFlags)
 	Info("msg", "a", 1)
 	checkLogOutput(t, logbuf.String(), `logger_test.go:\d+: INFO msg a=1`)
+	logbuf.Reset()
+	Info("msg", "p", nil)
+	checkLogOutput(t, logbuf.String(), `logger_test.go:\d+: INFO msg p=<nil>`)
+	logbuf.Reset()
+	var r *regexp.Regexp
+	Info("msg", "r", r)
+	checkLogOutput(t, logbuf.String(), `logger_test.go:\d+: INFO msg r=<nil>`)
 	logbuf.Reset()
 	Warn("msg", "b", 2)
 	checkLogOutput(t, logbuf.String(), `logger_test.go:\d+: WARN msg b=2`)
@@ -569,5 +577,64 @@ func wantAllocs(t *testing.T, want int, f func()) {
 	got := int(testing.AllocsPerRun(5, f))
 	if got != want {
 		t.Errorf("got %d allocs, want %d", got, want)
+	}
+}
+
+// panicTextAndJsonMarshaler is a type that panics in MarshalText and MarshalJSON.
+type panicTextAndJsonMarshaler struct {
+	msg any
+}
+
+func (p panicTextAndJsonMarshaler) MarshalText() ([]byte, error) {
+	panic(p.msg)
+}
+
+func (p panicTextAndJsonMarshaler) MarshalJSON() ([]byte, error) {
+	panic(p.msg)
+}
+
+func TestPanics(t *testing.T) {
+	// Revert any changes to the default logger. This is important because other
+	// tests might change the default logger using SetDefault. Also ensure we
+	// restore the default logger at the end of the test.
+	currentLogger := Default()
+	t.Cleanup(func() {
+		SetDefault(currentLogger)
+		log.SetOutput(os.Stderr)
+		log.SetFlags(log.LstdFlags)
+	})
+
+	var logBuf bytes.Buffer
+	log.SetOutput(&logBuf)
+	log.SetFlags(log.Lshortfile &^ log.LstdFlags)
+
+	SetDefault(New(newDefaultHandler(loginternal.DefaultOutput)))
+	for _, pt := range []struct {
+		in  any
+		out string
+	}{
+		{(*panicTextAndJsonMarshaler)(nil), `logger_test.go:\d+: INFO msg p=<nil>`},
+		{panicTextAndJsonMarshaler{io.ErrUnexpectedEOF}, `logger_test.go:\d+: INFO msg p="!PANIC: unexpected EOF"`},
+		{panicTextAndJsonMarshaler{"panicking"}, `logger_test.go:\d+: INFO msg p="!PANIC: panicking"`},
+		{panicTextAndJsonMarshaler{42}, `logger_test.go:\d+: INFO msg p="!PANIC: 42"`},
+	} {
+		Info("msg", "p", pt.in)
+		checkLogOutput(t, logBuf.String(), pt.out)
+		logBuf.Reset()
+	}
+
+	SetDefault(New(NewJSONHandler(&logBuf, nil)))
+	for _, pt := range []struct {
+		in  any
+		out string
+	}{
+		{(*panicTextAndJsonMarshaler)(nil), `{"time":".*?","level":"INFO","msg":"msg","p":null}`},
+		{panicTextAndJsonMarshaler{io.ErrUnexpectedEOF}, `{"time":".*?","level":"INFO","msg":"msg","p":"!PANIC: unexpected EOF"}`},
+		{panicTextAndJsonMarshaler{"panicking"}, `{"time":".*?","level":"INFO","msg":"msg","p":"!PANIC: panicking"}`},
+		{panicTextAndJsonMarshaler{42}, `{"time":".*?","level":"INFO","msg":"msg","p":"!PANIC: 42"}`},
+	} {
+		Info("msg", "p", pt.in)
+		checkLogOutput(t, logBuf.String(), pt.out)
+		logBuf.Reset()
 	}
 }
