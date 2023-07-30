@@ -385,6 +385,19 @@ func BenchmarkUnmarshalInt64(b *testing.B) {
 	})
 }
 
+func BenchmarkUnmarshalMap(b *testing.B) {
+	b.ReportAllocs()
+	data := []byte(`{"key1":"value1","key2":"value2","key3":"value3"}`)
+	b.RunParallel(func(pb *testing.PB) {
+		x := make(map[string]string, 3)
+		for pb.Next() {
+			if err := Unmarshal(data, &x); err != nil {
+				b.Fatal("Unmarshal:", err)
+			}
+		}
+	})
+}
+
 func BenchmarkIssue10335(b *testing.B) {
 	b.ReportAllocs()
 	j := []byte(`{"a":{ }}`)
