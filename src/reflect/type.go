@@ -172,6 +172,8 @@ type Type interface {
 
 	// FieldByName returns the struct field with the given name
 	// and a boolean indicating if the field was found.
+	// When a field is an embedded structure field
+	// StructField.Offset represents the offset in the embedded structure.
 	FieldByName(name string) (StructField, bool)
 
 	// FieldByNameFunc returns the struct field with a name
@@ -877,7 +879,7 @@ type StructField struct {
 
 	Type      Type      // field type
 	Tag       StructTag // field tag string
-	Offset    uintptr   // offset within defined struct, in bytes. If the field is embed in struct, it is the offset within the embedded struct.
+	Offset    uintptr   // offset within struct, in bytes
 	Index     []int     // index sequence for Type.FieldByIndex
 	Anonymous bool      // is an embedded field
 }
