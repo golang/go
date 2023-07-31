@@ -450,7 +450,7 @@ func BenchmarkTypeFieldsCache(b *testing.B) {
 	// Dynamically generate many new types.
 	types := make([]reflect.Type, maxTypes)
 	fs := []reflect.StructField{{
-		Type:  reflect.TypeOf(""),
+		Type:  reflect.TypeFor[string](),
 		Index: []int{0},
 	}}
 	for i := range types {
