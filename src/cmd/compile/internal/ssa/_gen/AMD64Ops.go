@@ -681,6 +681,12 @@ func init() {
 		// Any use must be preceded by a successful check of runtime.support_fma.
 		{name: "VFMADD231SD", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMADD231SD"},
 
+		// Note that these operations don't exactly match the semantics of Go's
+		// builtin min. In particular, these aren't commutative, because on various
+		// special cases the 2nd argument is preferred.
+		{name: "MINSD", argLength: 2, reg: fp21, resultInArg0: true, asm: "MINSD"}, // min(arg0,arg1)
+		{name: "MINSS", argLength: 2, reg: fp21, resultInArg0: true, asm: "MINSS"}, // min(arg0,arg1)
+
 		{name: "SBBQcarrymask", argLength: 1, reg: flagsgp, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
 		{name: "SBBLcarrymask", argLength: 1, reg: flagsgp, asm: "SBBL"}, // (int32)(-1) if carry is set, 0 if carry is clear.
 		// Note: SBBW and SBBB are subsumed by SBBL
@@ -757,7 +763,8 @@ func init() {
 		{name: "MOVLi2f", argLength: 1, reg: gpfp, typ: "Float32"}, // move 32 bits from int to float reg
 		{name: "MOVLf2i", argLength: 1, reg: fpgp, typ: "UInt32"},  // move 32 bits from float to int reg, zero extend
 
-		{name: "PXOR", argLength: 2, reg: fp21, asm: "PXOR", commutative: true, resultInArg0: true}, // exclusive or, applied to X regs for float negation.
+		{name: "PXOR", argLength: 2, reg: fp21, asm: "PXOR", commutative: true, resultInArg0: true}, // exclusive or, applied to X regs (for float negation).
+		{name: "POR", argLength: 2, reg: fp21, asm: "POR", commutative: true, resultInArg0: true},   // inclusive or, applied to X regs (for float min/max).
 
 		{name: "LEAQ", argLength: 1, reg: gp11sb, asm: "LEAQ", aux: "SymOff", rematerializeable: true, symEffect: "Addr"}, // arg0 + auxint + offset encoded in aux
 		{name: "LEAL", argLength: 1, reg: gp11sb, asm: "LEAL", aux: "SymOff", rematerializeable: true, symEffect: "Addr"}, // arg0 + auxint + offset encoded in aux

@@ -3567,11 +3567,32 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 
 	if typ.IsFloat() || typ.IsString() {
 		// min/max semantics for floats are tricky because of NaNs and
-		// negative zero, so we let the runtime handle this instead.
+		// negative zero. Some architectures have instructions which
+		// we can use to generate the right result. For others we must
+		// call into the runtime instead.
 		//
 		// Strings are conceptually simpler, but we currently desugar
 		// string comparisons during walk, not ssagen.
 
+		if typ.IsFloat() {
+			switch Arch.LinkArch.Family {
+			case sys.AMD64, sys.ARM64:
+				var op ssa.Op
+				switch {
+				case typ.Kind() == types.TFLOAT64 && n.Op() == ir.OMIN:
+					op = ssa.OpMin64F
+				case typ.Kind() == types.TFLOAT64 && n.Op() == ir.OMAX:
+					op = ssa.OpMax64F
+				case typ.Kind() == types.TFLOAT32 && n.Op() == ir.OMIN:
+					op = ssa.OpMin32F
+				case typ.Kind() == types.TFLOAT32 && n.Op() == ir.OMAX:
+					op = ssa.OpMax32F
+				}
+				return fold(func(x, a *ssa.Value) *ssa.Value {
+					return s.newValue2(op, typ, x, a)
+				})
+			}
+		}
 		var name string
 		switch typ.Kind() {
 		case types.TFLOAT32:

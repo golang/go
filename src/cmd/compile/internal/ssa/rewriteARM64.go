@@ -816,6 +816,18 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpLsh8x64(v)
 	case OpLsh8x8:
 		return rewriteValueARM64_OpLsh8x8(v)
+	case OpMax32F:
+		v.Op = OpARM64FMAXS
+		return true
+	case OpMax64F:
+		v.Op = OpARM64FMAXD
+		return true
+	case OpMin32F:
+		v.Op = OpARM64FMINS
+		return true
+	case OpMin64F:
+		v.Op = OpARM64FMIND
+		return true
 	case OpMod16:
 		return rewriteValueARM64_OpMod16(v)
 	case OpMod16u:

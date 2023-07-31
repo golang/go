@@ -61,6 +61,9 @@
 
 (Sqrt32 ...) => (FSQRTS ...)
 
+(Min(64|32)F ...) => (FMIN(D|S) ...)
+(Max(64|32)F ...) => (FMAX(D|S) ...)
+
 // lowering rotates
 // we do rotate detection in generic rules, if the following rules need to be changed, check generic rules first.
 (RotateLeft8  <t> x (MOVDconst [c])) => (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))

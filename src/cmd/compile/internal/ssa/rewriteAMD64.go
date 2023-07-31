@@ -871,6 +871,14 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpLsh8x64(v)
 	case OpLsh8x8:
 		return rewriteValueAMD64_OpLsh8x8(v)
+	case OpMax32F:
+		return rewriteValueAMD64_OpMax32F(v)
+	case OpMax64F:
+		return rewriteValueAMD64_OpMax64F(v)
+	case OpMin32F:
+		return rewriteValueAMD64_OpMin32F(v)
+	case OpMin64F:
+		return rewriteValueAMD64_OpMin64F(v)
 	case OpMod16:
 		return rewriteValueAMD64_OpMod16(v)
 	case OpMod16u:
@@ -27351,6 +27359,88 @@ func rewriteValueAMD64_OpLsh8x8(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueAMD64_OpMax32F(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Max32F <t> x y)
+	// result: (Neg32F <t> (Min32F <t> (Neg32F <t> x) (Neg32F <t> y)))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		v.reset(OpNeg32F)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpMin32F, t)
+		v1 := b.NewValue0(v.Pos, OpNeg32F, t)
+		v1.AddArg(x)
+		v2 := b.NewValue0(v.Pos, OpNeg32F, t)
+		v2.AddArg(y)
+		v0.AddArg2(v1, v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpMax64F(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Max64F <t> x y)
+	// result: (Neg64F <t> (Min64F <t> (Neg64F <t> x) (Neg64F <t> y)))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		v.reset(OpNeg64F)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpMin64F, t)
+		v1 := b.NewValue0(v.Pos, OpNeg64F, t)
+		v1.AddArg(x)
+		v2 := b.NewValue0(v.Pos, OpNeg64F, t)
+		v2.AddArg(y)
+		v0.AddArg2(v1, v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpMin32F(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Min32F <t> x y)
+	// result: (POR (MINSS <t> (MINSS <t> x y) x) (MINSS <t> x y))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64POR)
+		v0 := b.NewValue0(v.Pos, OpAMD64MINSS, t)
+		v1 := b.NewValue0(v.Pos, OpAMD64MINSS, t)
+		v1.AddArg2(x, y)
+		v0.AddArg2(v1, x)
+		v.AddArg2(v0, v1)
+		return true
+	}
+}
+func rewriteValueAMD64_OpMin64F(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Min64F <t> x y)
+	// result: (POR (MINSD <t> (MINSD <t> x y) x) (MINSD <t> x y))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64POR)
+		v0 := b.NewValue0(v.Pos, OpAMD64MINSD, t)
+		v1 := b.NewValue0(v.Pos, OpAMD64MINSD, t)
+		v1.AddArg2(x, y)
+		v0.AddArg2(v1, x)
+		v.AddArg2(v0, v1)
+		return true
+	}
 }
 func rewriteValueAMD64_OpMod16(v *Value) bool {
 	v_1 := v.Args[1]

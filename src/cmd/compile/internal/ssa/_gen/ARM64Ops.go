@@ -235,6 +235,10 @@ func init() {
 		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},                                // -arg0, float64
 		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},                              // sqrt(arg0), float64
 		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                              // sqrt(arg0), float32
+		{name: "FMIND", argLength: 2, reg: fp21, asm: "FMIND"},                                // min(arg0, arg1)
+		{name: "FMINS", argLength: 2, reg: fp21, asm: "FMINS"},                                // min(arg0, arg1)
+		{name: "FMAXD", argLength: 2, reg: fp21, asm: "FMAXD"},                                // max(arg0, arg1)
+		{name: "FMAXS", argLength: 2, reg: fp21, asm: "FMAXS"},                                // max(arg0, arg1)
 		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},                                    // byte reverse, 64-bit
 		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},                                  // byte reverse, 32-bit
 		{name: "REV16", argLength: 1, reg: gp11, asm: "REV16"},                                // byte reverse in each 16-bit halfword, 64-bit

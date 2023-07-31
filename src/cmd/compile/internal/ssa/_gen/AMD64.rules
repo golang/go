@@ -172,6 +172,20 @@
 
 (Round(32|64)F ...) => (Copy ...)
 
+// Floating-point min is tricky, as the hardware op isn't right for various special
+// cases (-0 and NaN). We use two hardware ops organized just right to make the
+// result come out how we want it. See https://github.com/golang/go/issues/59488#issuecomment-1553493207
+// (although that comment isn't exactly right, as the value overwritten is not simulated correctly).
+//    t1 = MINSD x, y   => incorrect if x==NaN or x==-0,y==+0
+//    t2 = MINSD t1, x  => fixes x==NaN case
+//   res = POR t1, t2   => fixes x==-0,y==+0 case
+// Note that this trick depends on the special property that (NaN OR x) produces a NaN (although
+// it might not produce the same NaN as the input).
+(Min(64|32)F <t> x y) => (POR (MINS(D|S) <t> (MINS(D|S) <t> x y) x) (MINS(D|S) <t> x y))
+// Floating-point max is even trickier. Punt to using min instead.
+// max(x,y) == -min(-x,-y)
+(Max(64|32)F <t> x y) => (Neg(64|32)F <t> (Min(64|32)F <t> (Neg(64|32)F <t> x) (Neg(64|32)F <t> y)))
+
 (CvtBoolToUint8 ...) => (Copy ...)
 
 // Lowering shifts
