@@ -46,7 +46,7 @@ func IExportShallow(fset *token.FileSet, pkg *types.Package, reportf ReportFunc)
 	// TODO(adonovan): use byte slices throughout, avoiding copying.
 	const bundle, shallow = false, true
 	var out bytes.Buffer
-	err := iexportCommon(&out, fset, bundle, shallow, iexportVersion, []*types.Package{pkg}, reportf)
+	err := iexportCommon(&out, fset, bundle, shallow, iexportVersion, []*types.Package{pkg})
 	return out.Bytes(), err
 }
 
@@ -86,16 +86,16 @@ const bundleVersion = 0
 // so that calls to IImportData can override with a provided package path.
 func IExportData(out io.Writer, fset *token.FileSet, pkg *types.Package) error {
 	const bundle, shallow = false, false
-	return iexportCommon(out, fset, bundle, shallow, iexportVersion, []*types.Package{pkg}, nil)
+	return iexportCommon(out, fset, bundle, shallow, iexportVersion, []*types.Package{pkg})
 }
 
 // IExportBundle writes an indexed export bundle for pkgs to out.
 func IExportBundle(out io.Writer, fset *token.FileSet, pkgs []*types.Package) error {
 	const bundle, shallow = true, false
-	return iexportCommon(out, fset, bundle, shallow, iexportVersion, pkgs, nil)
+	return iexportCommon(out, fset, bundle, shallow, iexportVersion, pkgs)
 }
 
-func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, version int, pkgs []*types.Package, reportf ReportFunc) (err error) {
+func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, version int, pkgs []*types.Package) (err error) {
 	if !debug {
 		defer func() {
 			if e := recover(); e != nil {
@@ -113,7 +113,6 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, ver
 		fset:        fset,
 		version:     version,
 		shallow:     shallow,
-		reportf:     reportf,
 		allPkgs:     map[*types.Package]bool{},
 		stringIndex: map[string]uint64{},
 		declIndex:   map[types.Object]uint64{},
@@ -330,7 +329,6 @@ type iexporter struct {
 
 	shallow    bool                // don't put types from other packages in the index
 	objEncoder *objectpath.Encoder // encodes objects from other packages in shallow mode; lazily allocated
-	reportf    ReportFunc          // if non-nil, used to report bugs
 	localpkg   *types.Package      // (nil in bundle mode)
 
 	// allPkgs tracks all packages that have been referenced by
@@ -917,22 +915,25 @@ func (w *exportWriter) objectPath(obj types.Object) {
 	objectPath, err := w.p.objectpathEncoder().For(obj)
 	if err != nil {
 		// Fall back to the empty string, which will cause the importer to create a
-		// new object.
+		// new object, which matches earlier behavior. Creating a new object is
+		// sufficient for many purposes (such as type checking), but causes certain
+		// references algorithms to fail (golang/go#60819). However, we didn't
+		// notice this problem during months of gopls@v0.12.0 testing.
 		//
-		// This is incorrect in shallow mode (golang/go#60819), but matches
-		// the previous behavior. This code is defensive, as it is hard to
-		// prove that the objectpath algorithm will succeed in all cases, and
-		// creating a new object sort of works.
-		// (we didn't notice the bug during months of gopls@v0.12.0 testing)
+		// TODO(golang/go#61674): this workaround is insufficient, as in the case
+		// where the field forwarded from an instantiated type that may not appear
+		// in the export data of the original package:
 		//
-		// However, report a bug so that we can eventually have confidence
-		// that export/import is producing a correct package.
+		//  // package a
+		//  type A[P any] struct{ F P }
 		//
-		// TODO: remove reportf once we have such confidence.
+		//  // package b
+		//  type B a.A[int]
+		//
+		// We need to update references algorithms not to depend on this
+		// de-duplication, at which point we may want to simply remove the
+		// workaround here.
 		w.string("")
-		if w.p.reportf != nil {
-			w.p.reportf("unable to encode object %q in package %q: %v", obj.Name(), obj.Pkg().Path(), err)
-		}
 		return
 	}
 	w.string(string(objectPath))

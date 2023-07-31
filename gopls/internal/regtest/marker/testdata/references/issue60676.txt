@@ -5,6 +5,9 @@ shared by types from multiple packages. See golang/go#60676.
 Note that the marker test runner awaits the initial workspace load, so export
 data should be populated at the time references are requested.
 
+-- flags --
+-min_go=go1.18
+
 -- go.mod --
 module mod.test
 
@@ -32,7 +35,10 @@ type EI interface {
 	N() //@loc(NDef, "N")
 }
 
+type T[P any] struct{ f P }
+
 type Error error
+
 
 -- b/b.go --
 package b
@@ -42,6 +48,8 @@ import "mod.test/a"
 type B a.A
 
 type BI a.AI
+
+type T a.T[int] // must not panic
 
 -- c/c.go --
 package c

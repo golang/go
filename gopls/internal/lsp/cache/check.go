@@ -1457,8 +1457,10 @@ func typeCheckImpl(ctx context.Context, b *typeCheckBatch, inputs typeCheckInput
 		diags, err := typeErrorDiagnostics(inputs.moduleMode, inputs.linkTarget, pkg, e)
 		if err != nil {
 			// If we fail here and there are no parse errors, it means we are hiding
-			// a valid type-checking error from the user. This must be a bug.
-			if len(pkg.parseErrors) == 0 {
+			// a valid type-checking error from the user. This must be a bug, with
+			// one exception: relocated primary errors may fail processing, because
+			// they reference locations outside of the package.
+			if len(pkg.parseErrors) == 0 && !e.relocated {
 				bug.Reportf("failed to compute position for type error %v: %v", e, err)
 			}
 			continue
@@ -1788,6 +1790,7 @@ func missingPkgError(from PackageID, pkgPath string, moduleMode bool) error {
 }
 
 type extendedError struct {
+	relocated   bool // if set, this is a relocation of a primary error to a secondary location
 	primary     types.Error
 	secondaries []types.Error
 }
@@ -1840,7 +1843,7 @@ func expandErrors(errs []types.Error, supportsRelatedInformation bool) []extende
 
 			// Copy over the secondary errors, noting the location of the
 			// current error we're cloning.
-			clonedError := extendedError{primary: relocatedSecondary, secondaries: []types.Error{original.primary}}
+			clonedError := extendedError{relocated: true, primary: relocatedSecondary, secondaries: []types.Error{original.primary}}
 			for j, secondary := range original.secondaries {
 				if i == j {
 					secondary.Msg += " (this error)"
@@ -1849,7 +1852,6 @@ func expandErrors(errs []types.Error, supportsRelatedInformation bool) []extende
 			}
 			result = append(result, clonedError)
 		}
-
 	}
 	return result
 }
