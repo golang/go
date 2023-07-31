@@ -929,10 +929,11 @@ func (w *exportWriter) objectPath(obj types.Object) {
 		// that export/import is producing a correct package.
 		//
 		// TODO: remove reportf once we have such confidence.
-		objectPath = ""
+		w.string("")
 		if w.p.reportf != nil {
 			w.p.reportf("unable to encode object %q in package %q: %v", obj.Name(), obj.Pkg().Path(), err)
 		}
+		return
 	}
 	w.string(string(objectPath))
 	w.pkg(obj.Pkg())
