@@ -768,7 +768,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 3;
 
 	case ACALL:
-		if(REGEXT && v->type <= REGEXT && v->type > exregoffset)
+		if(REGEXT != 0 && v->type <= REGEXT && v->type > exregoffset)
 			return 2;
 		if(REGARG >= 0 && v->type == (uchar)REGARG)
 			return 2;

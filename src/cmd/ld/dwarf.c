@@ -86,7 +86,7 @@ addrput(vlong addr)
 }
 
 static int
-uleb128enc(uvlong v, char* dst)
+uleb128enc(uvlong v, uchar* dst)
 {
 	uint8 c, len;
 
@@ -104,7 +104,7 @@ uleb128enc(uvlong v, char* dst)
 };
 
 static int
-sleb128enc(vlong v, char *dst)
+sleb128enc(vlong v, uchar *dst)
 {
 	uint8 c, s, len;
 
@@ -125,15 +125,15 @@ sleb128enc(vlong v, char *dst)
 static void
 uleb128put(vlong v)
 {
-	char buf[10];
-	strnput(buf, uleb128enc(v, buf));
+	uchar buf[10];
+	strnput((char*)buf, uleb128enc(v, buf));
 }
 
 static void
 sleb128put(vlong v)
 {
-	char buf[10];
-	strnput(buf, sleb128enc(v, buf));
+	uchar buf[10];
+	strnput((char*)buf, sleb128enc(v, buf));
 }
 
 /*
@@ -854,7 +854,7 @@ reversetree(DWDie** list)
 static void
 newmemberoffsetattr(DWDie *die, int32 offs)
 {
-	char block[10];
+	uchar block[10];
 	int i;
 
 	i = 0;
@@ -1471,7 +1471,7 @@ putpclcdelta(vlong delta_pc, vlong delta_lc)
 static void
 newcfaoffsetattr(DWDie *die, int32 offs)
 {
-	char block[10];
+	uchar block[10];
 	int i;
 
 	i = 0;
@@ -1760,7 +1760,7 @@ writeframes(void)
 	uleb128put(DWARFREGSP);	// register SP (**ABI-dependent, defined in l.h)
 	uleb128put(PtrSize);	// offset
 
-	cput(DW_CFA_offset + FAKERETURNCOLUMN);	 // return address
+	cput((char)(DW_CFA_offset + FAKERETURNCOLUMN));	 // return address
 	uleb128put(-PtrSize / DATAALIGNMENTFACTOR);  // at cfa - x*4
 
 	// 4 is to exclude the length field.

@@ -298,7 +298,7 @@ static Optab	optab[] =
 	{ ASTREXD,	C_SOREG,C_REG,	C_REG,		92, 4, 0 },
 
 	{ APLD,		C_SOREG,C_NONE,	C_NONE,		95, 4, 0 },
-	
+
 	{ AUNDEF,		C_NONE,	C_NONE,	C_NONE,		96, 4, 0 },
 
 	{ ACLZ,		C_REG,	C_NONE,	C_REG,		97, 4, 0 },
@@ -644,11 +644,12 @@ span5(Link *ctxt, LSym *cursym)
 	int m, bflag, i, v, times;
 	int32 c, opc, out[6+3];
 	uchar *bp;
+	int debug = 0;
 
 	p = cursym->text;
 	if(p == nil || p->link == nil) // handle external functions and ELF section symbols
 		return;
- 
+
  	if(oprange[AAND].start == nil)
  		buildop(ctxt);
 
@@ -758,7 +759,7 @@ span5(Link *ctxt, LSym *cursym)
 				m = asmoutnacl(ctxt, c, p, o, nil);
 			if(p->pc != opc) {
 				bflag = 1;
-				//print("%P pc changed %d to %d in iter. %d\n", p, opc, (int32)p->pc, times);
+				if(debug) print("%P pc changed %d to %d in iter. %d\n", p, opc, (int32)p->pc, times);
 			}
 			c = p->pc + m;
 			if(m % 4 != 0 || p->pc % 4 != 0) {
@@ -912,7 +913,7 @@ addpool(Link *ctxt, Prog *p, Addr *a)
 		t.to.sym = a->sym;
 		t.to.type = a->type;
 		t.to.name = a->name;
-		
+
 		if(ctxt->flag_shared && t.to.sym != nil)
 			t.pcrel = p;
 		break;
@@ -1639,7 +1640,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 			rel->siz = 4;
 			rel->sym = p->to.sym;
 			rel->add = p->to.offset;
-			
+
 			// runtime.tlsg is special.
 			// Its "address" is the offset from the TLS thread pointer
 			// to the thread-local g and m pointers.
@@ -1829,7 +1830,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 			o1 |= p->to.reg << 16;
 			aclass(ctxt, &p->to);
 			break;
-	
+
 		case 39:	/* movm oreg,$con -> ldm */
 			o1 = (0x4 << 25) | (1 << 20);
 			o1 |= p->to.offset & 0xffff;
@@ -2305,7 +2306,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
 			o1 = 0xe125be70;
 		break;
 	}
-	
+
 	out[0] = o1;
 	out[1] = o2;
 	out[2] = o3;
