@@ -128,8 +128,8 @@ func indirect(a any) any {
 }
 
 var (
-	errorType       = reflect.TypeOf((*error)(nil)).Elem()
-	fmtStringerType = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
+	errorType       = reflect.TypeFor[error]()
+	fmtStringerType = reflect.TypeFor[fmt.Stringer]()
 )
 
 // indirectToStringerOrError returns the value, after dereferencing as many times
