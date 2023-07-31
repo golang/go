@@ -172,8 +172,9 @@ type Type interface {
 
 	// FieldByName returns the struct field with the given name
 	// and a boolean indicating if the field was found.
-	// When a field is an embedded structure field
-	// StructField.Offset represents the offset in the embedded structure.
+	// If the returned field is promoted from an embedded struct,
+	// then Offset in the returned StructField is the offset in
+	// the embedded struct.
 	FieldByName(name string) (StructField, bool)
 
 	// FieldByNameFunc returns the struct field with a name
