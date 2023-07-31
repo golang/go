@@ -266,6 +266,26 @@ func garbageCollectUnreferencedHiddenClosures() {
 	}
 }
 
+// inlineBudget determines the max budget for function 'fn' prior to
+// analyzing the hairyness of the body of 'fn'. We pass in the pgo
+// profile if available, which can change the budget. If 'verbose' is
+// set, then print a remark where we boost the budget due to PGO.
+func inlineBudget(fn *ir.Func, profile *pgo.Profile, verbose bool) int32 {
+	// Update the budget for profile-guided inlining.
+	budget := int32(inlineMaxBudget)
+	if profile != nil {
+		if n, ok := profile.WeightedCG.IRNodes[ir.LinkFuncName(fn)]; ok {
+			if _, ok := candHotCalleeMap[n]; ok {
+				budget = int32(inlineHotMaxBudget)
+				if verbose {
+					fmt.Printf("hot-node enabled increased budget=%v for func=%v\n", budget, ir.PkgFuncName(fn))
+				}
+			}
+		}
+	}
+	return budget
+}
+
 // CanInline determines whether fn is inlineable.
 // If so, CanInline saves copies of fn.Body and fn.Dcl in fn.Inl.
 // fn and fn.Body will already have been typechecked.
@@ -311,18 +331,8 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 		cc = 1 // this appears to yield better performance than 0.
 	}
 
-	// Update the budget for profile-guided inlining.
-	budget := int32(inlineMaxBudget)
-	if profile != nil {
-		if n, ok := profile.WeightedCG.IRNodes[ir.LinkFuncName(fn)]; ok {
-			if _, ok := candHotCalleeMap[n]; ok {
-				budget = int32(inlineHotMaxBudget)
-				if base.Debug.PGODebug > 0 {
-					fmt.Printf("hot-node enabled increased budget=%v for func=%v\n", budget, ir.PkgFuncName(fn))
-				}
-			}
-		}
-	}
+	// Compute the inline budget for this function.
+	budget := inlineBudget(fn, profile, base.Debug.PGODebug > 0)
 
 	// At this point in the game the function we're looking at may
 	// have "stale" autos, vars that still appear in the Dcl list, but
