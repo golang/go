@@ -581,7 +581,7 @@ func (p *Package) loadDWARF(f *File, conv *typeConv, names []*Name) {
 			// As of https://reviews.llvm.org/D123534, clang
 			// now emits DW_TAG_variable DIEs that have
 			// no name (so as to be able to describe the
-			// type and source locations of constant strings
+			// type and source locations of constant strings)
 			// like the second arg in the call below:
 			//
 			//     myfunction(42, "foo")

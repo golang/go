@@ -470,7 +470,7 @@ func init() {
 		//	MOVD	$16,R31
 		//	loop:
 		//	STXVD2X VS32,(R0)(R3)
-		//	STXVD2X	VS32,(R31),R3)
+		//	STXVD2X	VS32,(R31)(R3)
 		//	ADD	R3,32
 		//	BC	loop
 

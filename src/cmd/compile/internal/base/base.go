@@ -107,7 +107,7 @@ func AdjustStartingHeap(requestedHeapGoal uint64) {
 	//    interface. Instead, live is estimated by knowing the adjusted value of
 	//    GOGC and the new heap goal following a GC (this requires knowing that
 	//    at least one GC has occurred):
-	//		  estLive = 100 * newGoal / (100 + currentGogc)]
+	//		  estLive = 100 * newGoal / (100 + currentGogc)
 	//    this new value of GOGC
 	//		  newGogc = 100*requestedHeapGoal/estLive - 100
 	//    will result in the desired goal. The logging code checks that the
