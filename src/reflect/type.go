@@ -879,7 +879,7 @@ type StructField struct {
 
 	Type      Type      // field type
 	Tag       StructTag // field tag string
-	Offset    uintptr   // offset within struct, in bytes
+	Offset    uintptr   // offset within defined struct, in bytes. If the field is embed in struct, it is the offset within the embedded struct.
 	Index     []int     // index sequence for Type.FieldByIndex
 	Anonymous bool      // is an embedded field
 }
