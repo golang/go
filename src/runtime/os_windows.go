@@ -1266,7 +1266,12 @@ func profileLoop() {
 
 func setProcessCPUProfiler(hz int32) {
 	if profiletimer == 0 {
-		timer := stdcall3(_CreateWaitableTimerA, 0, 0, 0)
+		var timer uintptr
+		if haveHighResTimer {
+			timer = createHighResTimer()
+		} else {
+			timer = stdcall3(_CreateWaitableTimerA, 0, 0, 0)
+		}
 		atomic.Storeuintptr(&profiletimer, timer)
 		newm(profileLoop, nil, -1)
 	}
