@@ -255,6 +255,8 @@ func skipToAnswer(p *dnsmessage.Parser, qtype dnsmessage.Type) error {
 	}
 }
 
+// extractExtendedRCode extracts the extended RCode from the OPT resource (EDNS(0))
+// If an OPT record is not found, the RCode from the hdr is returned.
 func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) dnsmessage.RCode {
 	p.SkipAllAnswers()
 	p.SkipAllAuthorities()
