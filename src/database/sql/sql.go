@@ -3244,7 +3244,7 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 		if prop, ok := rowsi.(driver.RowsColumnTypeScanType); ok {
 			ci.scanType = prop.ColumnTypeScanType(i)
 		} else {
-			ci.scanType = reflect.TypeOf(new(any)).Elem()
+			ci.scanType = reflect.TypeFor[any]()
 		}
 		if prop, ok := rowsi.(driver.RowsColumnTypeDatabaseTypeName); ok {
 			ci.databaseType = prop.ColumnTypeDatabaseTypeName(i)
