@@ -156,21 +156,21 @@ func (m *Map) Store(key, value any) {
 }
 
 func (m *Map) Clear() {
-	/*defer m.mu.Unlock()
-	m.mu.Lock()*/
+	/*	read := m.loadReadOnly()
 
-	/*read := m.loadReadOnly()
+		read.amended = false
 
-	read.amended = false
+		clear(read.m) // FIXME: e.delete()*/
 
-	clear(read.m) // FIXME: e.delete()
+	defer m.mu.Unlock()
+	m.mu.Lock()
 
-	clear(m.dirty)*/
+	clear(m.dirty)
 
-	m.Range(func(key, value any) bool {
+	/*m.Range(func(key, value any) bool {
 		m.Delete(key)
 		return true
-	})
+	})*/
 
 }
 
