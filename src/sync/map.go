@@ -159,6 +159,10 @@ func (m *Map) Clear() {
 	defer m.mu.Unlock()
 	m.mu.Lock()
 
+	read := m.loadReadOnly()
+
+	clear(read.m) // FIXME: e.delete()
+
 	clear(m.dirty)
 
 }
