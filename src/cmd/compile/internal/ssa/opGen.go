@@ -716,12 +716,12 @@ const (
 	OpAMD64BTSQ
 	OpAMD64BTLconst
 	OpAMD64BTQconst
-	OpAMD64BTCLconst
 	OpAMD64BTCQconst
-	OpAMD64BTRLconst
 	OpAMD64BTRQconst
-	OpAMD64BTSLconst
 	OpAMD64BTSQconst
+	OpAMD64BTSQconstmodify
+	OpAMD64BTRQconstmodify
+	OpAMD64BTCQconstmodify
 	OpAMD64TESTQ
 	OpAMD64TESTL
 	OpAMD64TESTW
@@ -8779,44 +8779,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "BTCLconst",
-		auxType:      auxInt8,
-		argLen:       1,
-		resultInArg0: true,
-		clobberFlags: true,
-		asm:          x86.ABTCL,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-			outputs: []outputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-		},
-	},
-	{
 		name:         "BTCQconst",
 		auxType:      auxInt8,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
 		asm:          x86.ABTCQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-			outputs: []outputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-		},
-	},
-	{
-		name:         "BTRLconst",
-		auxType:      auxInt8,
-		argLen:       1,
-		resultInArg0: true,
-		clobberFlags: true,
-		asm:          x86.ABTRL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -8843,22 +8811,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "BTSLconst",
-		auxType:      auxInt8,
-		argLen:       1,
-		resultInArg0: true,
-		clobberFlags: true,
-		asm:          x86.ABTSL,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-			outputs: []outputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-		},
-	},
-	{
 		name:         "BTSQconst",
 		auxType:      auxInt8,
 		argLen:       1,
@@ -8871,6 +8823,48 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:           "BTSQconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.ABTSQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:           "BTRQconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.ABTRQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:           "BTCQconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.ABTCQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},

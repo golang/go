@@ -220,10 +220,10 @@ func biton32(a, b uint32) (n uint32) {
 	// amd64:"BTSL"
 	n += b | (1 << (a & 31))
 
-	// amd64:"BTSL\t[$]31"
+	// amd64:"ORL\t[$]-2147483648"
 	n += a | (1 << 31)
 
-	// amd64:"BTSL\t[$]28"
+	// amd64:"ORL\t[$]268435456"
 	n += a | (1 << 28)
 
 	// amd64:"ORL\t[$]1"
@@ -236,10 +236,10 @@ func bitoff32(a, b uint32) (n uint32) {
 	// amd64:"BTRL"
 	n += b &^ (1 << (a & 31))
 
-	// amd64:"BTRL\t[$]31"
+	// amd64:"ANDL\t[$]2147483647"
 	n += a &^ (1 << 31)
 
-	// amd64:"BTRL\t[$]28"
+	// amd64:"ANDL\t[$]-268435457"
 	n += a &^ (1 << 28)
 
 	// amd64:"ANDL\t[$]-2"
@@ -252,10 +252,10 @@ func bitcompl32(a, b uint32) (n uint32) {
 	// amd64:"BTCL"
 	n += b ^ (1 << (a & 31))
 
-	// amd64:"BTCL\t[$]31"
+	// amd64:"XORL\t[$]-2147483648"
 	n += a ^ (1 << 31)
 
-	// amd64:"BTCL\t[$]28"
+	// amd64:"XORL\t[$]268435456"
 	n += a ^ (1 << 28)
 
 	// amd64:"XORL\t[$]1"
