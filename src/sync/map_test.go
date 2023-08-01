@@ -373,7 +373,7 @@ func TestMapClearRace(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func() {
 			defer wg.Done()
-			// myMap.Clear()
+			myMap.Clear()
 		}()
 	}
 	myMap.Clear()
@@ -381,5 +381,11 @@ func TestMapClearRace(t *testing.T) {
 	wg.Wait()
 
 	myMap.Clear()
+
+	myMap.Range(func(key, val any) bool {
+		t.Errorf("invalid %v:%v", key, val)
+
+		return true
+	})
 
 }
