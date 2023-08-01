@@ -611,6 +611,9 @@ type m struct {
 	// Whether this is a pending preemption signal on this M.
 	signalPending atomic.Uint32
 
+	// pcvalue lookup cache
+	pcvalueCache pcvalueCache
+
 	dlogPerM
 
 	mOS
