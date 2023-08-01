@@ -333,6 +333,10 @@ func TestParseContentLength(t *testing.T) {
 		wantErr error
 	}{
 		{
+			cl:      "",
+			wantErr: badStringError("invalid empty Content-Length", ""),
+		},
+		{
 			cl:      "3",
 			wantErr: nil,
 		},
@@ -356,7 +360,7 @@ func TestParseContentLength(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if _, gotErr := parseContentLength(tt.cl); !reflect.DeepEqual(gotErr, tt.wantErr) {
+		if _, gotErr := parseContentLength([]string{tt.cl}); !reflect.DeepEqual(gotErr, tt.wantErr) {
 			t.Errorf("%q:\n\tgot=%v\n\twant=%v", tt.cl, gotErr, tt.wantErr)
 		}
 	}
