@@ -155,6 +155,14 @@ func (m *Map) Store(key, value any) {
 	_, _ = m.Swap(key, value)
 }
 
+func (m *Map) Clear() {
+	defer m.mu.Unlock()
+	m.mu.Lock()
+
+	clear(m.dirty)
+
+}
+
 // tryCompareAndSwap compare the entry with the given old value and swaps
 // it with a new value if the entry is equal to the old value, and the entry
 // has not been expunged.
