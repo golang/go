@@ -156,21 +156,13 @@ func (m *Map) Store(key, value any) {
 }
 
 func (m *Map) Clear() {
-	/*	read := m.loadReadOnly()
-
-		read.amended = false
-
-		clear(read.m) // FIXME: e.delete()*/
 
 	defer m.mu.Unlock()
 	m.mu.Lock()
 
-	clear(m.dirty)
+	m.read.Store(new(readOnly))
 
-	/*m.Range(func(key, value any) bool {
-		m.Delete(key)
-		return true
-	})*/
+	clear(m.dirty)
 
 }
 
