@@ -376,7 +376,6 @@ func TestMapClearRace(t *testing.T) {
 			myMap.Clear()
 		}()
 	}
-	myMap.Clear()
 
 	wg.Wait()
 
