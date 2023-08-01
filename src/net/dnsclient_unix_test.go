@@ -2625,7 +2625,7 @@ func TestExtendedRCode(t *testing.T) {
 	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
 	_, _, err := r.tryOneName(context.Background(), getSystemDNSConfig(), "go.dev.", dnsmessage.TypeA)
 	var dnsErr *DNSError
-	if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+	if !(errors.As(err, &dnsErr) && dnsErr.Err == errServerMisbehaving.Error()) {
 		t.Fatalf("r.tryOneName(): unexpected error: %v", err)
 	}
 }
