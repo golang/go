@@ -338,6 +338,12 @@ func TestMapClear(t *testing.T) {
 		t.Fatalf("Clear: failed %v:%v", key, nilVal)
 	}
 
+	myMap.Store(key, val)
+
+	if val1, ok := myMap.Load(key); !ok || val1 != val {
+		t.Fatalf("store: failed after clear %v:%v", key, val1)
+	}
+
 	/*if !ok { //FIXME: inherit from [TestMapDelete]
 		t.Fatalf("Clear: failed found val %v:%v", key, nilVal)
 	}*/
