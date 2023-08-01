@@ -125,7 +125,8 @@ func runTestQUICConnection(ctx context.Context, cli, srv *testQUICConn, onHandle
 		case QUICHandshakeDone:
 			a.complete = true
 			if a == srv {
-				if err := srv.conn.SendSessionTicket(false); err != nil {
+				opts := QUICSessionTicketOptions{}
+				if err := srv.conn.SendSessionTicket(opts); err != nil {
 					return err
 				}
 			}

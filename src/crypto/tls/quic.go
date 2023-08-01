@@ -246,10 +246,15 @@ func (q *QUICConn) HandleData(level QUICEncryptionLevel, data []byte) error {
 	return nil
 }
 
+type QUICSessionTicketOptions struct {
+	// EarlyData specifies whether the ticket may be used for 0-RTT.
+	EarlyData bool
+}
+
 // SendSessionTicket sends a session ticket to the client.
 // It produces connection events, which may be read with NextEvent.
 // Currently, it can only be called once.
-func (q *QUICConn) SendSessionTicket(earlyData bool) error {
+func (q *QUICConn) SendSessionTicket(opts QUICSessionTicketOptions) error {
 	c := q.conn
 	if !c.isHandshakeComplete.Load() {
 		return quicError(errors.New("tls: SendSessionTicket called before handshake completed"))
@@ -261,7 +266,7 @@ func (q *QUICConn) SendSessionTicket(earlyData bool) error {
 		return quicError(errors.New("tls: SendSessionTicket called multiple times"))
 	}
 	q.sessionTicketSent = true
-	return quicError(c.sendSessionTicket(earlyData))
+	return quicError(c.sendSessionTicket(opts.EarlyData))
 }
 
 // ConnectionState returns basic TLS details about the connection.
