@@ -168,7 +168,7 @@ func unpackEface(i any) Value {
 }
 
 // A ValueError occurs when a Value method is invoked on
-// a Value that does not support it. Such cases are documented
+// a [Value] that does not support it. Such cases are documented
 // in the description of each method.
 type ValueError struct {
 	Method string
@@ -274,7 +274,7 @@ func (f flag) mustBeAssignableSlow() {
 }
 
 // Addr returns a pointer value representing the address of v.
-// It panics if CanAddr() returns false.
+// It panics if [Value.CanAddr] returns false.
 // Addr is typically used to obtain a pointer to a struct field
 // or slice element in order to call a method that requires a
 // pointer receiver.
@@ -289,7 +289,7 @@ func (v Value) Addr() Value {
 }
 
 // Bool returns v's underlying value.
-// It panics if v's kind is not Bool.
+// It panics if v's kind is not [Bool].
 func (v Value) Bool() bool {
 	// panicNotBool is split out to keep Bool inlineable.
 	if v.kind() != Bool {
@@ -348,27 +348,27 @@ func (v Value) runes() []rune {
 	return *(*[]rune)(v.ptr)
 }
 
-// CanAddr reports whether the value's address can be obtained with Addr.
+// CanAddr reports whether the value's address can be obtained with [Value.Addr].
 // Such values are called addressable. A value is addressable if it is
 // an element of a slice, an element of an addressable array,
 // a field of an addressable struct, or the result of dereferencing a pointer.
-// If CanAddr returns false, calling Addr will panic.
+// If CanAddr returns false, calling [Value.Addr] will panic.
 func (v Value) CanAddr() bool {
 	return v.flag&flagAddr != 0
 }
 
 // CanSet reports whether the value of v can be changed.
-// A Value can be changed only if it is addressable and was not
+// A [Value] can be changed only if it is addressable and was not
 // obtained by the use of unexported struct fields.
-// If CanSet returns false, calling Set or any type-specific
-// setter (e.g., SetBool, SetInt) will panic.
+// If CanSet returns false, calling [Value.Set] or any type-specific
+// setter (e.g., [Value.SetBool], [Value.SetInt]) will panic.
 func (v Value) CanSet() bool {
 	return v.flag&(flagAddr|flagRO) == flagAddr
 }
 
 // Call calls the function v with the input arguments in.
 // For example, if len(in) == 3, v.Call(in) represents the Go call v(in[0], in[1], in[2]).
-// Call panics if v's Kind is not Func.
+// Call panics if v's Kind is not [Func].
 // It returns the output results as Values.
 // As in Go, each input argument must be assignable to the
 // type of the function's corresponding input parameter.
@@ -383,7 +383,7 @@ func (v Value) Call(in []Value) []Value {
 // CallSlice calls the variadic function v with the input arguments in,
 // assigning the slice in[len(in)-1] to v's final variadic argument.
 // For example, if len(in) == 3, v.CallSlice(in) represents the Go call v(in[0], in[1], in[2]...).
-// CallSlice panics if v's Kind is not Func or if v is not variadic.
+// CallSlice panics if v's Kind is not [Func] or if v is not variadic.
 // It returns the output results as Values.
 // As in Go, each input argument must be assignable to the
 // type of the function's corresponding input parameter.
@@ -1161,7 +1161,7 @@ func funcName(f func([]Value) []Value) string {
 }
 
 // Cap returns v's capacity.
-// It panics if v's Kind is not Array, Chan, Slice or pointer to Array.
+// It panics if v's Kind is not [Array], [Chan], [Slice] or pointer to [Array].
 func (v Value) Cap() int {
 	// capNonSlice is split out to keep Cap inlineable for slice kinds.
 	if v.kind() == Slice {
@@ -1187,7 +1187,7 @@ func (v Value) capNonSlice() int {
 }
 
 // Close closes the channel v.
-// It panics if v's Kind is not Chan or
+// It panics if v's Kind is not [Chan] or
 // v is a receive-only channel.
 func (v Value) Close() {
 	v.mustBe(Chan)
@@ -1200,7 +1200,7 @@ func (v Value) Close() {
 	chanclose(v.pointer())
 }
 
-// CanComplex reports whether Complex can be used without panicking.
+// CanComplex reports whether [Value.Complex] can be used without panicking.
 func (v Value) CanComplex() bool {
 	switch v.kind() {
 	case Complex64, Complex128:
@@ -1211,7 +1211,7 @@ func (v Value) CanComplex() bool {
 }
 
 // Complex returns v's underlying value, as a complex128.
-// It panics if v's Kind is not Complex64 or Complex128
+// It panics if v's Kind is not [Complex64] or [Complex128]
 func (v Value) Complex() complex128 {
 	k := v.kind()
 	switch k {
@@ -1225,7 +1225,7 @@ func (v Value) Complex() complex128 {
 
 // Elem returns the value that the interface v contains
 // or that the pointer v points to.
-// It panics if v's Kind is not Interface or Pointer.
+// It panics if v's Kind is not [Interface] or [Pointer].
 // It returns the zero Value if v is nil.
 func (v Value) Elem() Value {
 	k := v.kind()
@@ -1278,7 +1278,7 @@ func (v Value) Elem() Value {
 }
 
 // Field returns the i'th field of the struct v.
-// It panics if v's Kind is not Struct or i is out of range.
+// It panics if v's Kind is not [Struct] or i is out of range.
 func (v Value) Field(i int) Value {
 	if v.kind() != Struct {
 		panic(&ValueError{"reflect.Value.Field", v.kind()})
@@ -1356,7 +1356,7 @@ func (v Value) FieldByIndexErr(index []int) (Value, error) {
 
 // FieldByName returns the struct field with the given name.
 // It returns the zero Value if no field was found.
-// It panics if v's Kind is not struct.
+// It panics if v's Kind is not [Struct].
 func (v Value) FieldByName(name string) Value {
 	v.mustBe(Struct)
 	if f, ok := toRType(v.typ()).FieldByName(name); ok {
@@ -1367,7 +1367,7 @@ func (v Value) FieldByName(name string) Value {
 
 // FieldByNameFunc returns the struct field with a name
 // that satisfies the match function.
-// It panics if v's Kind is not struct.
+// It panics if v's Kind is not [Struct].
 // It returns the zero Value if no field was found.
 func (v Value) FieldByNameFunc(match func(string) bool) Value {
 	if f, ok := toRType(v.typ()).FieldByNameFunc(match); ok {
@@ -1376,7 +1376,7 @@ func (v Value) FieldByNameFunc(match func(string) bool) Value {
 	return Value{}
 }
 
-// CanFloat reports whether Float can be used without panicking.
+// CanFloat reports whether [Value.Float] can be used without panicking.
 func (v Value) CanFloat() bool {
 	switch v.kind() {
 	case Float32, Float64:
@@ -1387,7 +1387,7 @@ func (v Value) CanFloat() bool {
 }
 
 // Float returns v's underlying value, as a float64.
-// It panics if v's Kind is not Float32 or Float64
+// It panics if v's Kind is not [Float32] or [Float64]
 func (v Value) Float() float64 {
 	k := v.kind()
 	switch k {
@@ -1402,7 +1402,7 @@ func (v Value) Float() float64 {
 var uint8Type = rtypeOf(uint8(0))
 
 // Index returns v's i'th element.
-// It panics if v's Kind is not Array, Slice, or String or i is out of range.
+// It panics if v's Kind is not [Array], [Slice], or [String] or i is out of range.
 func (v Value) Index(i int) Value {
 	switch v.kind() {
 	case Array:
@@ -1458,7 +1458,7 @@ func (v Value) CanInt() bool {
 }
 
 // Int returns v's underlying value, as an int64.
-// It panics if v's Kind is not Int, Int8, Int16, Int32, or Int64.
+// It panics if v's Kind is not [Int], [Int8], [Int16], [Int32], or [Int64].
 func (v Value) Int() int64 {
 	k := v.kind()
 	p := v.ptr
@@ -1477,7 +1477,7 @@ func (v Value) Int() int64 {
 	panic(&ValueError{"reflect.Value.Int", v.kind()})
 }
 
-// CanInterface reports whether Interface can be used without panicking.
+// CanInterface reports whether [Value.Interface] can be used without panicking.
 func (v Value) CanInterface() bool {
 	if v.flag == 0 {
 		panic(&ValueError{"reflect.Value.CanInterface", Invalid})
@@ -1646,7 +1646,7 @@ func (v Value) IsZero() bool {
 }
 
 // SetZero sets v to be the zero value of v's type.
-// It panics if CanSet returns false.
+// It panics if [Value.CanSet] returns false.
 func (v Value) SetZero() {
 	v.mustBeAssignable()
 	switch v.kind() {
@@ -1700,13 +1700,13 @@ func (v Value) SetZero() {
 }
 
 // Kind returns v's Kind.
-// If v is the zero Value (IsValid returns false), Kind returns Invalid.
+// If v is the zero Value ([Value.IsValid] returns false), Kind returns Invalid.
 func (v Value) Kind() Kind {
 	return v.kind()
 }
 
 // Len returns v's length.
-// It panics if v's Kind is not Array, Chan, Map, Slice, String, or pointer to Array.
+// It panics if v's Kind is not [Array], [Chan], [Map], [Slice], [String], or pointer to [Array].
 func (v Value) Len() int {
 	// lenNonSlice is split out to keep Len inlineable for slice kinds.
 	if v.kind() == Slice {
@@ -1739,7 +1739,7 @@ func (v Value) lenNonSlice() int {
 var stringType = rtypeOf("")
 
 // MapIndex returns the value associated with key in the map v.
-// It panics if v's Kind is not Map.
+// It panics if v's Kind is not [Map].
 // It returns the zero Value if key is not found in the map or if v represents a nil map.
 // As in Go, the key's value must be assignable to the map's key type.
 func (v Value) MapIndex(key Value) Value {
@@ -1779,7 +1779,7 @@ func (v Value) MapIndex(key Value) Value {
 
 // MapKeys returns a slice containing all the keys present in the map,
 // in unspecified order.
-// It panics if v's Kind is not Map.
+// It panics if v's Kind is not [Map].
 // It returns an empty slice if v represents a nil map.
 func (v Value) MapKeys() []Value {
 	v.mustBe(Map)
@@ -1838,7 +1838,7 @@ func (h *hiter) initialized() bool {
 }
 
 // A MapIter is an iterator for ranging over a map.
-// See Value.MapRange.
+// See [Value.MapRange].
 type MapIter struct {
 	m     Value
 	hiter hiter
@@ -1932,7 +1932,7 @@ func (v Value) SetIterValue(iter *MapIter) {
 
 // Next advances the map iterator and reports whether there is another
 // entry. It returns false when iter is exhausted; subsequent
-// calls to Key, Value, or Next will panic.
+// calls to [MapIter.Key], [MapIter.Value], or [MapIter.Next] will panic.
 func (iter *MapIter) Next() bool {
 	if !iter.m.IsValid() {
 		panic("MapIter.Next called on an iterator that does not have an associated map Value")
@@ -1949,7 +1949,7 @@ func (iter *MapIter) Next() bool {
 }
 
 // Reset modifies iter to iterate over v.
-// It panics if v's Kind is not Map and v is not the zero Value.
+// It panics if v's Kind is not [Map] and v is not the zero Value.
 // Reset(Value{}) causes iter to not to refer to any map,
 // which may allow the previously iterated-over map to be garbage collected.
 func (iter *MapIter) Reset(v Value) {
@@ -1961,10 +1961,10 @@ func (iter *MapIter) Reset(v Value) {
 }
 
 // MapRange returns a range iterator for a map.
-// It panics if v's Kind is not Map.
+// It panics if v's Kind is not [Map].
 //
-// Call Next to advance the iterator, and Key/Value to access each entry.
-// Next returns false when the iterator is exhausted.
+// Call [MapIter.Next] to advance the iterator, and [MapIter.Key]/[MapIter.Value] to access each entry.
+// [MapIter.Next] returns false when the iterator is exhausted.
 // MapRange follows the same iteration semantics as a range statement.
 //
 // Example:
@@ -2063,7 +2063,7 @@ func (v Value) MethodByName(name string) Value {
 }
 
 // NumField returns the number of fields in the struct v.
-// It panics if v's Kind is not Struct.
+// It panics if v's Kind is not [Struct].
 func (v Value) NumField() int {
 	v.mustBe(Struct)
 	tt := (*structType)(unsafe.Pointer(v.typ()))
@@ -2071,7 +2071,7 @@ func (v Value) NumField() int {
 }
 
 // OverflowComplex reports whether the complex128 x cannot be represented by v's type.
-// It panics if v's Kind is not Complex64 or Complex128.
+// It panics if v's Kind is not [Complex64] or [Complex128].
 func (v Value) OverflowComplex(x complex128) bool {
 	k := v.kind()
 	switch k {
@@ -2084,7 +2084,7 @@ func (v Value) OverflowComplex(x complex128) bool {
 }
 
 // OverflowFloat reports whether the float64 x cannot be represented by v's type.
-// It panics if v's Kind is not Float32 or Float64.
+// It panics if v's Kind is not [Float32] or [Float64].
 func (v Value) OverflowFloat(x float64) bool {
 	k := v.kind()
 	switch k {
@@ -2104,7 +2104,7 @@ func overflowFloat32(x float64) bool {
 }
 
 // OverflowInt reports whether the int64 x cannot be represented by v's type.
-// It panics if v's Kind is not Int, Int8, Int16, Int32, or Int64.
+// It panics if v's Kind is not [Int], [Int8], [Int16], [Int32], or [Int64].
 func (v Value) OverflowInt(x int64) bool {
 	k := v.kind()
 	switch k {
@@ -2117,7 +2117,7 @@ func (v Value) OverflowInt(x int64) bool {
 }
 
 // OverflowUint reports whether the uint64 x cannot be represented by v's type.
-// It panics if v's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
+// It panics if v's Kind is not [Uint], [Uintptr], [Uint8], [Uint16], [Uint32], or [Uint64].
 func (v Value) OverflowUint(x uint64) bool {
 	k := v.kind()
 	switch k {
@@ -2135,14 +2135,14 @@ func (v Value) OverflowUint(x uint64) bool {
 // and make an exception.
 
 // Pointer returns v's value as a uintptr.
-// It panics if v's Kind is not Chan, Func, Map, Pointer, Slice, or UnsafePointer.
+// It panics if v's Kind is not [Chan], [Func], [Map], [Pointer], [Slice], or [UnsafePointer].
 //
-// If v's Kind is Func, the returned pointer is an underlying
+// If v's Kind is [Func], the returned pointer is an underlying
 // code pointer, but not necessarily enough to identify a
 // single function uniquely. The only guarantee is that the
 // result is zero if and only if v is a nil func Value.
 //
-// If v's Kind is Slice, the returned pointer is to the first
+// If v's Kind is [Slice], the returned pointer is to the first
 // element of the slice. If the slice is nil the returned value
 // is 0.  If the slice is empty but non-nil the return value is non-zero.
 //
@@ -2191,7 +2191,7 @@ func (v Value) Pointer() uintptr {
 }
 
 // Recv receives and returns a value from the channel v.
-// It panics if v's Kind is not Chan.
+// It panics if v's Kind is not [Chan].
 // The receive blocks until a value is ready.
 // The boolean value ok is true if the value x corresponds to a send
 // on the channel, false if it is a zero value received because the channel is closed.
@@ -2226,7 +2226,7 @@ func (v Value) recv(nb bool) (val Value, ok bool) {
 }
 
 // Send sends x on the channel v.
-// It panics if v's kind is not Chan or if x's type is not the same type as v's element type.
+// It panics if v's kind is not [Chan] or if x's type is not the same type as v's element type.
 // As in Go, x's value must be assignable to the channel's element type.
 func (v Value) Send(x Value) {
 	v.mustBe(Chan)
@@ -2253,7 +2253,7 @@ func (v Value) send(x Value, nb bool) (selected bool) {
 }
 
 // Set assigns x to the value v.
-// It panics if CanSet returns false.
+// It panics if [Value.CanSet] returns false.
 // As in Go, x's value must be assignable to v's type and
 // must not be derived from an unexported field.
 func (v Value) Set(x Value) {
@@ -2276,7 +2276,7 @@ func (v Value) Set(x Value) {
 }
 
 // SetBool sets v's underlying value.
-// It panics if v's Kind is not Bool or if CanSet() is false.
+// It panics if v's Kind is not [Bool] or if [Value.CanSet] returns false.
 func (v Value) SetBool(x bool) {
 	v.mustBeAssignable()
 	v.mustBe(Bool)
@@ -2306,7 +2306,7 @@ func (v Value) setRunes(x []rune) {
 }
 
 // SetComplex sets v's underlying value to x.
-// It panics if v's Kind is not Complex64 or Complex128, or if CanSet() is false.
+// It panics if v's Kind is not [Complex64] or [Complex128], or if [Value.CanSet] returns false.
 func (v Value) SetComplex(x complex128) {
 	v.mustBeAssignable()
 	switch k := v.kind(); k {
@@ -2320,7 +2320,7 @@ func (v Value) SetComplex(x complex128) {
 }
 
 // SetFloat sets v's underlying value to x.
-// It panics if v's Kind is not Float32 or Float64, or if CanSet() is false.
+// It panics if v's Kind is not [Float32] or [Float64], or if [Value.CanSet] returns false.
 func (v Value) SetFloat(x float64) {
 	v.mustBeAssignable()
 	switch k := v.kind(); k {
@@ -2334,7 +2334,7 @@ func (v Value) SetFloat(x float64) {
 }
 
 // SetInt sets v's underlying value to x.
-// It panics if v's Kind is not Int, Int8, Int16, Int32, or Int64, or if CanSet() is false.
+// It panics if v's Kind is not [Int], [Int8], [Int16], [Int32], or [Int64], or if [Value.CanSet] returns false.
 func (v Value) SetInt(x int64) {
 	v.mustBeAssignable()
 	switch k := v.kind(); k {
@@ -2354,7 +2354,7 @@ func (v Value) SetInt(x int64) {
 }
 
 // SetLen sets v's length to n.
-// It panics if v's Kind is not Slice or if n is negative or
+// It panics if v's Kind is not [Slice] or if n is negative or
 // greater than the capacity of the slice.
 func (v Value) SetLen(n int) {
 	v.mustBeAssignable()
@@ -2367,7 +2367,7 @@ func (v Value) SetLen(n int) {
 }
 
 // SetCap sets v's capacity to n.
-// It panics if v's Kind is not Slice or if n is smaller than the length or
+// It panics if v's Kind is not [Slice] or if n is smaller than the length or
 // greater than the capacity of the slice.
 func (v Value) SetCap(n int) {
 	v.mustBeAssignable()
@@ -2380,7 +2380,7 @@ func (v Value) SetCap(n int) {
 }
 
 // SetMapIndex sets the element associated with key in the map v to elem.
-// It panics if v's Kind is not Map.
+// It panics if v's Kind is not [Map].
 // If elem is the zero Value, SetMapIndex deletes the key from the map.
 // Otherwise if v holds a nil map, SetMapIndex will panic.
 // As in Go, key's elem must be assignable to the map's key type,
@@ -2432,7 +2432,7 @@ func (v Value) SetMapIndex(key, elem Value) {
 }
 
 // SetUint sets v's underlying value to x.
-// It panics if v's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64, or if CanSet() is false.
+// It panics if v's Kind is not [Uint], [Uintptr], [Uint8], [Uint16], [Uint32], or [Uint64], or if [Value.CanSet] returns false.
 func (v Value) SetUint(x uint64) {
 	v.mustBeAssignable()
 	switch k := v.kind(); k {
@@ -2462,7 +2462,7 @@ func (v Value) SetPointer(x unsafe.Pointer) {
 }
 
 // SetString sets v's underlying value to x.
-// It panics if v's Kind is not String or if CanSet() is false.
+// It panics if v's Kind is not [String] or if [Value.CanSet] returns false.
 func (v Value) SetString(x string) {
 	v.mustBeAssignable()
 	v.mustBe(String)
@@ -2470,7 +2470,7 @@ func (v Value) SetString(x string) {
 }
 
 // Slice returns v[i:j].
-// It panics if v's Kind is not Array, Slice or String, or if v is an unaddressable array,
+// It panics if v's Kind is not [Array], [Slice] or [String], or if v is an unaddressable array,
 // or if the indexes are out of bounds.
 func (v Value) Slice(i, j int) Value {
 	var (
@@ -2532,7 +2532,7 @@ func (v Value) Slice(i, j int) Value {
 }
 
 // Slice3 is the 3-index form of the slice operation: it returns v[i:j:k].
-// It panics if v's Kind is not Array or Slice, or if v is an unaddressable array,
+// It panics if v's Kind is not [Array] or [Slice], or if v is an unaddressable array,
 // or if the indexes are out of bounds.
 func (v Value) Slice3(i, j, k int) Value {
 	var (
@@ -2585,7 +2585,7 @@ func (v Value) Slice3(i, j, k int) Value {
 
 // String returns the string v's underlying value, as a string.
 // String is a special case because of Go's String method convention.
-// Unlike the other getters, it does not panic if v's Kind is not String.
+// Unlike the other getters, it does not panic if v's Kind is not [String].
 // Instead, it returns a string of the form "<T value>" where T is v's type.
 // The fmt package treats Values specially. It does not call their String
 // method implicitly but instead prints the concrete values they hold.
@@ -2607,7 +2607,7 @@ func (v Value) stringNonString() string {
 }
 
 // TryRecv attempts to receive a value from the channel v but will not block.
-// It panics if v's Kind is not Chan.
+// It panics if v's Kind is not [Chan].
 // If the receive delivers a value, x is the transferred value and ok is true.
 // If the receive cannot finish without blocking, x is the zero Value and ok is false.
 // If the channel is closed, x is the zero value for the channel's element type and ok is false.
@@ -2618,7 +2618,7 @@ func (v Value) TryRecv() (x Value, ok bool) {
 }
 
 // TrySend attempts to send x on the channel v but will not block.
-// It panics if v's Kind is not Chan.
+// It panics if v's Kind is not [Chan].
 // It reports whether the value was sent.
 // As in Go, x's value must be assignable to the channel's element type.
 func (v Value) TrySend(x Value) bool {
@@ -2666,7 +2666,7 @@ func (v Value) typeSlow() Type {
 	return toRType(typeOffFor(typ, m.Mtyp))
 }
 
-// CanUint reports whether Uint can be used without panicking.
+// CanUint reports whether [Value.Uint] can be used without panicking.
 func (v Value) CanUint() bool {
 	switch v.kind() {
 	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
@@ -2677,7 +2677,7 @@ func (v Value) CanUint() bool {
 }
 
 // Uint returns v's underlying value, as a uint64.
-// It panics if v's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
+// It panics if v's Kind is not [Uint], [Uintptr], [Uint8], [Uint16], [Uint32], or [Uint64].
 func (v Value) Uint() uint64 {
 	k := v.kind()
 	p := v.ptr
@@ -2720,14 +2720,14 @@ func (v Value) UnsafeAddr() uintptr {
 }
 
 // UnsafePointer returns v's value as a [unsafe.Pointer].
-// It panics if v's Kind is not Chan, Func, Map, Pointer, Slice, or UnsafePointer.
+// It panics if v's Kind is not [Chan], [Func], [Map], [Pointer], [Slice], or [UnsafePointer].
 //
-// If v's Kind is Func, the returned pointer is an underlying
+// If v's Kind is [Func], the returned pointer is an underlying
 // code pointer, but not necessarily enough to identify a
 // single function uniquely. The only guarantee is that the
 // result is zero if and only if v is a nil func Value.
 //
-// If v's Kind is Slice, the returned pointer is to the first
+// If v's Kind is [Slice], the returned pointer is to the first
 // element of the slice. If the slice is nil the returned value
 // is nil.  If the slice is empty but non-nil the return value is non-nil.
 func (v Value) UnsafePointer() unsafe.Pointer {
@@ -2818,7 +2818,7 @@ func arrayAt(p unsafe.Pointer, i int, eltSize uintptr, whySafe string) unsafe.Po
 // another n elements. After Grow(n), at least n elements can be appended
 // to the slice without another allocation.
 //
-// It panics if v's Kind is not a Slice or if n is negative or too large to
+// It panics if v's Kind is not a [Slice] or if n is negative or too large to
 // allocate the memory.
 func (v Value) Grow(n int) {
 	v.mustBeAssignable()
@@ -2863,7 +2863,7 @@ func (v Value) extendSlice(n int) Value {
 
 // Clear clears the contents of a map or zeros the contents of a slice.
 //
-// It panics if v's Kind is not Map or Slice.
+// It panics if v's Kind is not [Map] or [Slice].
 func (v Value) Clear() {
 	switch v.Kind() {
 	case Slice:
@@ -2905,10 +2905,10 @@ func AppendSlice(s, t Value) Value {
 // Copy copies the contents of src into dst until either
 // dst has been filled or src has been exhausted.
 // It returns the number of elements copied.
-// Dst and src each must have kind Slice or Array, and
+// Dst and src each must have kind [Slice] or [Array], and
 // dst and src must have the same element type.
 //
-// As a special case, src can have kind String if the element type of dst is kind Uint8.
+// As a special case, src can have kind [String] if the element type of dst is kind [Uint8].
 func Copy(dst, src Value) int {
 	dk := dst.kind()
 	if dk != Array && dk != Slice {
@@ -3221,7 +3221,7 @@ func ValueOf(i any) Value {
 // Zero returns a Value representing the zero value for the specified type.
 // The result is different from the zero value of the Value struct,
 // which represents no value at all.
-// For example, Zero(TypeOf(42)) returns a Value with Kind Int and value 0.
+// For example, Zero(TypeOf(42)) returns a Value with Kind [Int] and value 0.
 // The returned value is neither addressable nor settable.
 func Zero(typ Type) Value {
 	if typ == nil {
