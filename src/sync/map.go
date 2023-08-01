@@ -161,6 +161,8 @@ func (m *Map) Clear() {
 
 	read := m.loadReadOnly()
 
+	read.amended = false
+
 	clear(read.m) // FIXME: e.delete()
 
 	clear(m.dirty)
