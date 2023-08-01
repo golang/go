@@ -205,7 +205,9 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
 
 // checkHeader performs basic sanity checks on the header.
 func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
-	if h.RCode == dnsmessage.RCodeNameError {
+	rcode := extractExtendedRCode(*p, h)
+
+	if rcode == dnsmessage.RCodeNameError {
 		return errNoSuchHost
 	}
 
@@ -216,17 +218,17 @@ func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
 
 	// libresolv continues to the next server when it receives
 	// an invalid referral response. See golang.org/issue/15434.
-	if h.RCode == dnsmessage.RCodeSuccess && !h.Authoritative && !h.RecursionAvailable && err == dnsmessage.ErrSectionDone {
+	if rcode == dnsmessage.RCodeSuccess && !h.Authoritative && !h.RecursionAvailable && err == dnsmessage.ErrSectionDone {
 		return errLameReferral
 	}
 
-	if h.RCode != dnsmessage.RCodeSuccess && h.RCode != dnsmessage.RCodeNameError {
+	if rcode != dnsmessage.RCodeSuccess && rcode != dnsmessage.RCodeNameError {
 		// None of the error codes make sense
 		// for the query we sent. If we didn't get
 		// a name error and we didn't get success,
 		// the server is behaving incorrectly or
 		// having temporary trouble.
-		if h.RCode == dnsmessage.RCodeServerFailure {
+		if rcode == dnsmessage.RCodeServerFailure {
 			return errServerTemporarilyMisbehaving
 		}
 		return errServerMisbehaving
@@ -250,6 +252,23 @@ func skipToAnswer(p *dnsmessage.Parser, qtype dnsmessage.Type) error {
 		if err := p.SkipAnswer(); err != nil {
 			return errCannotUnmarshalDNSMessage
 		}
+	}
+}
+
+// extractExtendedRCode extracts the extended RCode from the OPT resource (EDNS(0))
+// If an OPT record is not found, the RCode from the hdr is returned.
+func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) dnsmessage.RCode {
+	p.SkipAllAnswers()
+	p.SkipAllAuthorities()
+	for {
+		ahdr, err := p.AdditionalHeader()
+		if err != nil {
+			return hdr.RCode
+		}
+		if ahdr.Type == dnsmessage.TypeOPT {
+			return ahdr.ExtendedRCode(hdr.RCode)
+		}
+		p.SkipAdditional()
 	}
 }
 

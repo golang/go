@@ -2598,3 +2598,34 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 		}
 	}
 }
+
+func TestExtendedRCode(t *testing.T) {
+	fake := fakeDNSServer{
+		rh: func(_, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			fraudSuccessCode := dnsmessage.RCodeSuccess | 1<<10
+
+			var edns0Hdr dnsmessage.ResourceHeader
+			edns0Hdr.SetEDNS0(maxDNSPacketSize, fraudSuccessCode, false)
+
+			return dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.Header.ID,
+					Response: true,
+					RCode:    fraudSuccessCode,
+				},
+				Questions: []dnsmessage.Question{q.Questions[0]},
+				Additionals: []dnsmessage.Resource{{
+					Header: edns0Hdr,
+					Body:   &dnsmessage.OPTResource{},
+				}},
+			}, nil
+		},
+	}
+
+	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
+	_, _, err := r.tryOneName(context.Background(), getSystemDNSConfig(), "go.dev.", dnsmessage.TypeA)
+	var dnsErr *DNSError
+	if !(errors.As(err, &dnsErr) && dnsErr.Err == errServerMisbehaving.Error()) {
+		t.Fatalf("r.tryOneName(): unexpected error: %v", err)
+	}
+}
