@@ -174,8 +174,19 @@ func fromCallExpr(fset *token.FileSet, ti *types.Info, pos token.Pos, ce *ast.Ca
 	if !ok {
 		return nil
 	}
-	sigVar := sig.Params().At(paramIdx)
-	iface := ifaceObjFromType(sigVar.Type())
+	var paramType types.Type
+	if sig.Variadic() && paramIdx >= sig.Params().Len()-1 {
+		v := sig.Params().At(sig.Params().Len() - 1)
+		if s, _ := v.Type().(*types.Slice); s != nil {
+			paramType = s.Elem()
+		}
+	} else if paramIdx < sig.Params().Len() {
+		paramType = sig.Params().At(paramIdx).Type()
+	}
+	if paramType == nil {
+		return nil // A type error prevents us from determining the param type.
+	}
+	iface := ifaceObjFromType(paramType)
 	if iface == nil {
 		return nil
 	}

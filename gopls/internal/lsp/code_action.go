@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/analysis/fillstruct"
 	"golang.org/x/tools/gopls/internal/lsp/analysis/infertypeargs"
 	"golang.org/x/tools/gopls/internal/lsp/analysis/stubmethods"
@@ -198,26 +199,46 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			if err != nil {
 				return nil, err
 			}
-			for _, pd := range diagnostics {
+			for _, pd := range stubMethodsDiagnostics {
 				start, end, err := pgf.RangePos(pd.Range)
 				if err != nil {
 					return nil, err
 				}
-				if d, ok := stubmethods.DiagnosticForError(pkg.FileSet(), pgf.File, start, end, pd.Message, pkg.GetTypesInfo()); ok {
+				action, ok, err := func() (_ protocol.CodeAction, _ bool, rerr error) {
+					// golang/go#61693: code actions were refactored to run outside of the
+					// analysis framework, but as a result they lost their panic recovery.
+					//
+					// Stubmethods "should never fail"", but put back the panic recovery as a
+					// defensive measure.
+					defer func() {
+						if r := recover(); r != nil {
+							rerr = bug.Errorf("stubmethods panicked: %v", r)
+						}
+					}()
+					d, ok := stubmethods.DiagnosticForError(pkg.FileSet(), pgf.File, start, end, pd.Message, pkg.GetTypesInfo())
+					if !ok {
+						return protocol.CodeAction{}, false, nil
+					}
 					cmd, err := command.NewApplyFixCommand(d.Message, command.ApplyFixArgs{
 						URI:   protocol.URIFromSpanURI(pgf.URI),
 						Fix:   source.StubMethods,
 						Range: pd.Range,
 					})
 					if err != nil {
-						return nil, err
+						return protocol.CodeAction{}, false, err
 					}
-					actions = append(actions, protocol.CodeAction{
+					return protocol.CodeAction{
 						Title:       d.Message,
 						Kind:        protocol.QuickFix,
 						Command:     &cmd,
 						Diagnostics: []protocol.Diagnostic{pd},
-					})
+					}, true, nil
+				}()
+				if err != nil {
+					return nil, err
+				}
+				if ok {
+					actions = append(actions, action)
 				}
 			}
 
@@ -387,7 +408,17 @@ func refactorExtract(ctx context.Context, snapshot source.Snapshot, pgf *source.
 	return actions, nil
 }
 
-func refactorRewrite(ctx context.Context, snapshot source.Snapshot, pkg source.Package, pgf *source.ParsedGoFile, fh source.FileHandle, rng protocol.Range) ([]protocol.CodeAction, error) {
+func refactorRewrite(ctx context.Context, snapshot source.Snapshot, pkg source.Package, pgf *source.ParsedGoFile, fh source.FileHandle, rng protocol.Range) (_ []protocol.CodeAction, rerr error) {
+	// golang/go#61693: code actions were refactored to run outside of the
+	// analysis framework, but as a result they lost their panic recovery.
+	//
+	// These code actions should never fail, but put back the panic recovery as a
+	// defensive measure.
+	defer func() {
+		if r := recover(); r != nil {
+			rerr = bug.Errorf("refactor.rewrite code actions panicked: %v", r)
+		}
+	}()
 	start, end, err := pgf.RangePos(rng)
 	if err != nil {
 		return nil, err
