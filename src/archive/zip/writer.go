@@ -406,8 +406,8 @@ func writeHeader(w io.Writer, h *header) error {
 	// flags.
 	if h.raw && !h.hasDataDescriptor() {
 		b.uint32(h.CRC32)
-		b.uint32(uint32(min64(h.CompressedSize64, uint32max)))
-		b.uint32(uint32(min64(h.UncompressedSize64, uint32max)))
+		b.uint32(uint32(min(h.CompressedSize64, uint32max)))
+		b.uint32(uint32(min(h.UncompressedSize64, uint32max)))
 	} else {
 		// When this package handle the compression, these values are
 		// always written to the trailing data descriptor.
@@ -427,13 +427,6 @@ func writeHeader(w io.Writer, h *header) error {
 	return err
 }
 
-func min64(x, y uint64) uint64 {
-	if x < y {
-		return x
-	}
-	return y
-}
-
 // CreateRaw adds a file to the zip archive using the provided FileHeader and
 // returns a Writer to which the file contents should be written. The file's
 // contents must be written to the io.Writer before the next call to Create,
@@ -445,8 +438,8 @@ func (w *Writer) CreateRaw(fh *FileHeader) (io.Writer, error) {
 		return nil, err
 	}
 
-	fh.CompressedSize = uint32(min64(fh.CompressedSize64, uint32max))
-	fh.UncompressedSize = uint32(min64(fh.UncompressedSize64, uint32max))
+	fh.CompressedSize = uint32(min(fh.CompressedSize64, uint32max))
+	fh.UncompressedSize = uint32(min(fh.UncompressedSize64, uint32max))
 
 	h := &header{
 		FileHeader: fh,
