@@ -366,3 +366,30 @@ const Bar = 42
 		}
 	})
 }
+
+func TestGofumpt_Issue61692(t *testing.T) {
+	testenv.NeedsGo1Point(t, 21)
+
+	const input = `
+-- go.mod --
+module foo
+
+go 1.21rc3
+-- foo.go --
+package foo
+
+func _() {
+	foo :=
+		"bar"
+}
+`
+
+	WithOptions(
+		Settings{
+			"gofumpt": true,
+		},
+	).Run(t, input, func(t *testing.T, env *Env) {
+		env.OpenFile("foo.go")
+		env.FormatBuffer("foo.go") // golang/go#61692: must not panic
+	})
+}
