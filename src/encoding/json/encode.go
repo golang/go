@@ -1168,7 +1168,7 @@ func typeFields(t reflect.Type) structFields {
 					if count[f.typ] > 1 {
 						// If there were multiple instances, add a second,
 						// so that the annihilation code will see a duplicate.
-						// It only cares about the distinction between 1 or 2,
+						// It only cares about the distinction between 1 and 2,
 						// so don't bother generating any more copies.
 						fields = append(fields, fields[len(fields)-1])
 					}
