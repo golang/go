@@ -1479,7 +1479,7 @@ func getgcmask(ep any) (mask []byte) {
 			}
 		}
 		if found {
-			locals, _, _ := u.frame.getStackMap(nil, false)
+			locals, _, _ := u.frame.getStackMap(false)
 			if locals.n == 0 {
 				return
 			}

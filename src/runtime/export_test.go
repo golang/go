@@ -1946,7 +1946,7 @@ func MyGenericFunc[T any]() {
 
 func UnsafePoint(pc uintptr) bool {
 	fi := findfunc(pc)
-	v := pcdatavalue(fi, abi.PCDATA_UnsafePoint, pc, nil)
+	v := pcdatavalue(fi, abi.PCDATA_UnsafePoint, pc)
 	switch v {
 	case abi.UnsafePointUnsafe:
 		return true

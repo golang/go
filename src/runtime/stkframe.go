@@ -154,7 +154,7 @@ func (frame *stkframe) argMapInternal() (argMap bitvector, hasReflectStackObj bo
 
 // getStackMap returns the locals and arguments live pointer maps, and
 // stack object list for frame.
-func (frame *stkframe) getStackMap(cache *pcvalueCache, debug bool) (locals, args bitvector, objs []stackObjectRecord) {
+func (frame *stkframe) getStackMap(debug bool) (locals, args bitvector, objs []stackObjectRecord) {
 	targetpc := frame.continpc
 	if targetpc == 0 {
 		// Frame is dead. Return empty bitvectors.
@@ -169,7 +169,7 @@ func (frame *stkframe) getStackMap(cache *pcvalueCache, debug bool) (locals, arg
 		// the first instruction of the function changes the
 		// stack map.
 		targetpc--
-		pcdata = pcdatavalue(f, abi.PCDATA_StackMapIndex, targetpc, cache)
+		pcdata = pcdatavalue(f, abi.PCDATA_StackMapIndex, targetpc)
 	}
 	if pcdata == -1 {
 		// We do not have a valid pcdata value but there might be a

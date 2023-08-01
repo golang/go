@@ -259,7 +259,7 @@ func dumpframe(s *stkframe, child *childInfo) {
 	pcdata := int32(-1) // Use the entry map at function entry
 	if pc != f.entry() {
 		pc--
-		pcdata = pcdatavalue(f, abi.PCDATA_StackMapIndex, pc, nil)
+		pcdata = pcdatavalue(f, abi.PCDATA_StackMapIndex, pc)
 	}
 	if pcdata == -1 {
 		// We do not have a valid pcdata value but there might be a
