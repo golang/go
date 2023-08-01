@@ -76,6 +76,7 @@ func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
 	if err := cstab.merge(fcstab); err != nil {
 		base.FatalfAt(fn.Pos(), "%v", err)
 	}
+	fn.SetNeverReturns(entry.props.Flags&FuncPropNeverReturns != 0)
 	fpmap[fn] = entry
 	if fn.Inl != nil && fn.Inl.Properties == "" {
 		fn.Inl.Properties = entry.props.SerializeToString()

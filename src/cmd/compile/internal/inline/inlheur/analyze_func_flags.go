@@ -194,7 +194,7 @@ func isExitCall(n ir.Node) bool {
 			return true
 		}
 	}
-	return false
+	return name.Func.NeverReturns()
 }
 
 // pessimize is called to record the fact that we saw something in the
