@@ -99,11 +99,12 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	version version                // accepted language version
-	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
-	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
-	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
-	valids  instanceLookup         // valid *Named (incl. instantiated) types per the validType check
+	version version                 // accepted language version
+	posVers map[*token.File]version // maps files to versions (may be nil)
+	nextID  uint64                  // unique Id for type parameters (first valid Id is 1)
+	objMap  map[Object]*declInfo    // maps package-level objects and (non-interface) methods to declaration info
+	impMap  map[importKey]*Package  // maps (import path, source directory) to (complete or fake) package
+	valids  instanceLookup          // valid *Named (incl. instantiated) types per the validType check
 
 	// pkgPathMap maps package names to the set of distinct import paths we've
 	// seen for that name, anywhere in the import graph. It is used for
@@ -119,7 +120,6 @@ type Checker struct {
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
 	files         []*ast.File               // package files
-	posVers       map[*token.File]version   // Pos -> Go version mapping
 	imports       []*PkgName                // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
 	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type
@@ -306,7 +306,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 			// If there is no check.version, then we don't really know what Go version to apply.
 			// Legacy tools may do this, and they historically have accepted everything.
 			// Preserve that behavior by ignoring //go:build constraints entirely in that case.
-			if (v.before(check.version) && check.version.before(version{1, 21})) || check.version.equal(version{0, 0}) {
+			if (v.before(check.version) && check.version.before(go1_21)) || check.version.equal(go0_0) {
 				continue
 			}
 			if check.posVers == nil {
@@ -350,6 +350,10 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 		return nil
 	}
 
+	// Note: parseGoVersion and the subsequent checks should happen once,
+	//       when we create a new Checker, not for each batch of files.
+	//       We can't change it at this point because NewChecker doesn't
+	//       return an error.
 	check.version, err = parseGoVersion(check.conf.GoVersion)
 	if err != nil {
 		return err
