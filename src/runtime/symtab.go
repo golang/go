@@ -829,8 +829,9 @@ type pcvalueCacheEnt struct {
 	// targetpc and off together are the key of this cache entry.
 	targetpc uintptr
 	off      uint32
-	// val is the value of this cached pcvalue entry.
-	val int32
+
+	val   int32   // The value of this entry.
+	valPC uintptr // The PC at which val starts
 }
 
 // pcvalueCacheKey returns the outermost index in a pcvalueCache to use for targetpc.
@@ -842,7 +843,6 @@ func pcvalueCacheKey(targetpc uintptr) uintptr {
 }
 
 // Returns the PCData value, and the PC where this value starts.
-// TODO: the start PC is returned only when cache is nil.
 func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, strict bool) (int32, uintptr) {
 	if off == 0 {
 		return -1, 0
@@ -864,7 +864,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 			// fail in the first clause.
 			ent := &cache.entries[x][i]
 			if ent.off == off && ent.targetpc == targetpc {
-				return ent.val, 0
+				return ent.val, ent.valPC
 			}
 		}
 	}
@@ -903,6 +903,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 					targetpc: targetpc,
 					off:      off,
 					val:      val,
+					valPC:    prevpc,
 				}
 			}
 
