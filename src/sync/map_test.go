@@ -306,8 +306,8 @@ func TestMapDelete(t *testing.T) {
 		t.Fatalf("Delete: failed %v:%v", key, nilVal)
 	}
 
-	if !ok { // FIXME: failing test
-		t.Fatalf("Delete: failed found val %v:%v", key, nilVal)
+	if ok {
+		t.Fatalf("Delete: failed found %v:%v", key, nilVal)
 	}
 }
 
@@ -332,21 +332,18 @@ func TestMapClear(t *testing.T) {
 
 	myMap.Delete(key)
 
-	nilVal, _ := myMap.Load(key)
+	nilVal, ok := myMap.Load(key)
 
-	if nilVal != nil {
+	if nilVal != nil || ok {
 		t.Fatalf("Clear: failed %v:%v", key, nilVal)
 	}
 
 	myMap.Store(key, val)
 
 	if val1, ok := myMap.Load(key); !ok || val1 != val {
-		t.Fatalf("store: failed after clear %v:%v", key, val1)
+		t.Fatalf("Store: failed after clear %v:%v", key, val1)
 	}
 
-	/*if !ok { //FIXME: inherit from [TestMapDelete]
-		t.Fatalf("Clear: failed found val %v:%v", key, nilVal)
-	}*/
 }
 
 func TestMapClearRace(t *testing.T) {
