@@ -823,6 +823,7 @@ func (s srcFunc) name() string {
 
 type pcvalueCache struct {
 	entries [2][8]pcvalueCacheEnt
+	inUse   int
 }
 
 type pcvalueCacheEnt struct {
@@ -843,7 +844,7 @@ func pcvalueCacheKey(targetpc uintptr) uintptr {
 }
 
 // Returns the PCData value, and the PC where this value starts.
-func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, strict bool) (int32, uintptr) {
+func pcvalue(f funcInfo, off uint32, targetpc uintptr, _ *pcvalueCache, strict bool) (int32, uintptr) {
 	// If true, when we get a cache hit, still look up the data and make sure it
 	// matches the cached contents.
 	const debugCheckCache = false
@@ -853,31 +854,46 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 	}
 
 	// Check the cache. This speeds up walks of deep stacks, which
-	// tend to have the same recursive functions over and over.
-	//
-	// This cache is small enough that full associativity is
-	// cheaper than doing the hashing for a less associative
-	// cache.
+	// tend to have the same recursive functions over and over,
+	// or repetitive stacks between goroutines.
 	var checkVal int32
 	var checkPC uintptr
-	if cache != nil {
-		x := pcvalueCacheKey(targetpc)
-		for i := range cache.entries[x] {
-			// We check off first because we're more
-			// likely to have multiple entries with
-			// different offsets for the same targetpc
-			// than the other way around, so we'll usually
-			// fail in the first clause.
-			ent := &cache.entries[x][i]
-			if ent.off == off && ent.targetpc == targetpc {
-				if debugCheckCache {
-					checkVal, checkPC = ent.val, ent.valPC
-					break
-				} else {
-					return ent.val, ent.valPC
+	ck := pcvalueCacheKey(targetpc)
+	{
+		mp := acquirem()
+		cache := &mp.pcvalueCache
+		// The cache can be used by the signal handler on this M. Avoid
+		// re-entrant use of the cache. The signal handler can also write inUse,
+		// but will always restore its value, so we can use a regular increment
+		// even if we get signaled in the middle of it.
+		cache.inUse++
+		if cache.inUse == 1 {
+			for i := range cache.entries[ck] {
+				// We check off first because we're more
+				// likely to have multiple entries with
+				// different offsets for the same targetpc
+				// than the other way around, so we'll usually
+				// fail in the first clause.
+				ent := &cache.entries[ck][i]
+				if ent.off == off && ent.targetpc == targetpc {
+					val, pc := ent.val, ent.valPC
+					if debugCheckCache {
+						checkVal, checkPC = ent.val, ent.valPC
+						break
+					} else {
+						cache.inUse--
+						releasem(mp)
+						return val, pc
+					}
 				}
 			}
+		} else if debugCheckCache && (cache.inUse < 1 || cache.inUse > 2) {
+			// Catch accounting errors or deeply reentrant use. In principle
+			// "inUse" should never exceed 2.
+			throw("cache.inUse out of range")
 		}
+		cache.inUse--
+		releasem(mp)
 	}
 
 	if !f.valid() {
@@ -910,17 +926,23 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 					print("runtime: table value ", val, "@", prevpc, " != cache value ", checkVal, "@", checkPC, " at PC ", targetpc, " off ", off, "\n")
 					throw("bad pcvalue cache")
 				}
-			} else if cache != nil {
-				x := pcvalueCacheKey(targetpc)
-				e := &cache.entries[x]
-				ci := fastrandn(uint32(len(cache.entries[x])))
-				e[ci] = e[0]
-				e[0] = pcvalueCacheEnt{
-					targetpc: targetpc,
-					off:      off,
-					val:      val,
-					valPC:    prevpc,
+			} else {
+				mp := acquirem()
+				cache := &mp.pcvalueCache
+				cache.inUse++
+				if cache.inUse == 1 {
+					e := &cache.entries[ck]
+					ci := fastrandn(uint32(len(cache.entries[ck])))
+					e[ci] = e[0]
+					e[0] = pcvalueCacheEnt{
+						targetpc: targetpc,
+						off:      off,
+						val:      val,
+						valPC:    prevpc,
+					}
 				}
+				cache.inUse--
+				releasem(mp)
 			}
 
 			return val, prevpc
