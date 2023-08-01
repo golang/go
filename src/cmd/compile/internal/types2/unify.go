@@ -53,11 +53,6 @@ const (
 	// the core types, if any, of non-local (unbound) type parameters.
 	enableCoreTypeUnification = true
 
-	// If enableInterfaceInference is set, type inference uses
-	// shared methods for improved type inference involving
-	// interfaces.
-	enableInterfaceInference = true
-
 	// If traceInference is set, unification will print a trace of its operation.
 	// Interpretation of trace:
 	//   x ≡ y    attempt to unify types x and y
@@ -339,7 +334,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	// we will fail at function instantiation or argument assignment time.
 	//
 	// If we have at least one defined type, there is one in y.
-	if ny, _ := y.(*Named); mode&exact == 0 && ny != nil && isTypeLit(x) && !(enableInterfaceInference && IsInterface(x)) {
+	if ny, _ := y.(*Named); mode&exact == 0 && ny != nil && isTypeLit(x) && !IsInterface(x) {
 		if traceInference {
 			u.tracef("%s ≡ under %s", x, ny)
 		}
@@ -437,12 +432,12 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		emode |= exact
 	}
 
-	// If EnableInterfaceInference is set and we don't require exact unification,
-	// if both types are interfaces, one interface must have a subset of the
-	// methods of the other and corresponding method signatures must unify.
+	// If we don't require exact unification and both types are interfaces,
+	// one interface must have a subset of the methods of the other and
+	// corresponding method signatures must unify.
 	// If only one type is an interface, all its methods must be present in the
 	// other type and corresponding method signatures must unify.
-	if enableInterfaceInference && mode&exact == 0 {
+	if mode&exact == 0 {
 		// One or both interfaces may be defined types.
 		// Look under the name, but not under type parameters (go.dev/issue/60564).
 		xi := asInterface(x)
@@ -632,7 +627,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		}
 
 	case *Interface:
-		assert(!enableInterfaceInference || mode&exact != 0) // handled before this switch
+		assert(mode&exact != 0) // inexact unification is handled before this switch
 
 		// Two interface types unify if they have the same set of methods with
 		// the same names, and corresponding function types unify.
