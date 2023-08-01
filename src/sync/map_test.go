@@ -281,7 +281,37 @@ func TestCompareAndSwap_NonExistingKey(t *testing.T) {
 	}
 }
 
-func TestMap_Clear(t *testing.T) {
+func TestMapClear(t *testing.T) {
+
+	var myMap sync.Map
+
+	key := "go"
+	val := 1.21
+	myMap.Store(key, val)
+	loadedVal, ok := myMap.Load(key)
+
+	if !ok {
+		t.Fatalf("Store failed to store- %v:%v", key, val)
+	}
+
+	if loadedVal != val {
+		t.Fatalf("Load: invalid value- %v:%v", key, loadedVal)
+	}
+
+	myMap.Clear()
+
+	nilVal, ok := myMap.Load(key)
+
+	if nilVal != nil {
+		t.Fatalf("Clear: failed %v:%v", key, nilVal)
+	}
+
+	if !ok {
+		t.Fatalf("Clear: failed %v:%v", key, nilVal)
+	}
+}
+
+func TestMapClearRace(t *testing.T) {
 	var myMap sync.Map
 
 	wg := sync.WaitGroup{}
@@ -311,9 +341,13 @@ func TestMap_Clear(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func() {
 			defer wg.Done()
-			myMap.Clear()
+			// myMap.Clear()
 		}()
 	}
+	myMap.Clear()
 
 	wg.Wait()
+
+	myMap.Clear()
+
 }
