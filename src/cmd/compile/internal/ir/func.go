@@ -232,7 +232,7 @@ const (
 	funcHasDefer                 // contains a defer statement
 	funcNilCheckDisabled         // disable nil checks when compiling this function
 	funcInlinabilityChecked      // inliner has already determined whether the function is inlinable
-	funcExportInline             // include inline body in export data
+	funcNeverReturns             // function never returns (in most cases calls panic(), os.Exit(), or equivalent)
 	funcInstrumentBody           // add race/msan/asan instrumentation during SSA construction
 	funcOpenCodedDeferDisallowed // can't do open-coded defers
 	funcClosureResultsLost       // closure is called indirectly and we lost track of its results; used by escape analysis
@@ -254,7 +254,7 @@ func (f *Func) IsDeadcodeClosure() bool        { return f.flags&funcIsDeadcodeCl
 func (f *Func) HasDefer() bool                 { return f.flags&funcHasDefer != 0 }
 func (f *Func) NilCheckDisabled() bool         { return f.flags&funcNilCheckDisabled != 0 }
 func (f *Func) InlinabilityChecked() bool      { return f.flags&funcInlinabilityChecked != 0 }
-func (f *Func) ExportInline() bool             { return f.flags&funcExportInline != 0 }
+func (f *Func) NeverReturns() bool             { return f.flags&funcNeverReturns != 0 }
 func (f *Func) InstrumentBody() bool           { return f.flags&funcInstrumentBody != 0 }
 func (f *Func) OpenCodedDeferDisallowed() bool { return f.flags&funcOpenCodedDeferDisallowed != 0 }
 func (f *Func) ClosureResultsLost() bool       { return f.flags&funcClosureResultsLost != 0 }
@@ -270,7 +270,7 @@ func (f *Func) SetIsDeadcodeClosure(b bool)        { f.flags.set(funcIsDeadcodeC
 func (f *Func) SetHasDefer(b bool)                 { f.flags.set(funcHasDefer, b) }
 func (f *Func) SetNilCheckDisabled(b bool)         { f.flags.set(funcNilCheckDisabled, b) }
 func (f *Func) SetInlinabilityChecked(b bool)      { f.flags.set(funcInlinabilityChecked, b) }
-func (f *Func) SetExportInline(b bool)             { f.flags.set(funcExportInline, b) }
+func (f *Func) SetNeverReturns(b bool)             { f.flags.set(funcNeverReturns, b) }
 func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentBody, b) }
 func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
 func (f *Func) SetClosureResultsLost(b bool)       { f.flags.set(funcClosureResultsLost, b) }
