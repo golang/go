@@ -347,6 +347,9 @@ var optab = []Optab{
 	// KDSA
 	{i: 125, as: AKDSA, a1: C_REG, a6: C_REG},
 
+	// KMA
+	{i: 126, as: AKMA, a1: C_REG, a2: C_REG, a6: C_REG},
+
 	// vector instructions
 
 	// VRX store
@@ -1492,6 +1495,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AKMC, r)
 			opset(AKLMD, r)
 			opset(AKIMD, r)
+		case AKMA:
+			opset(AKMCTR, r)
 		}
 	}
 }
@@ -1896,6 +1901,7 @@ const (
 	op_KM      uint32 = 0xB92E // FORMAT_RRE        CIPHER MESSAGE
 	op_KMAC    uint32 = 0xB91E // FORMAT_RRE        COMPUTE MESSAGE AUTHENTICATION CODE
 	op_KMC     uint32 = 0xB92F // FORMAT_RRE        CIPHER MESSAGE WITH CHAINING
+	op_KMA     uint32 = 0xB929 // FORMAT_RRF2       CIPHER MESSAGE WITH AUTHENTICATION
 	op_KMCTR   uint32 = 0xB92D // FORMAT_RRF2       CIPHER MESSAGE WITH COUNTER
 	op_KMF     uint32 = 0xB92A // FORMAT_RRE        CIPHER MESSAGE WITH CFB
 	op_KMO     uint32 = 0xB92B // FORMAT_RRE        CIPHER MESSAGE WITH OFB
@@ -4428,6 +4434,40 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 		zRRE(op_KDSA, uint32(p.From.Reg), uint32(p.To.Reg), asm)
 
+	case 126: // KMA and KMCTR - CIPHER MESSAGE WITH AUTHENTICATION; CIPHER MESSAGE WITH
+		var opcode uint32
+		switch p.As {
+		default:
+			c.ctxt.Diag("unexpected opcode %v", p.As)
+		case AKMA, AKMCTR:
+			if p.From.Reg == REG_R0 {
+				c.ctxt.Diag("input argument must not be R0 in %v", p)
+			}
+			if p.From.Reg&1 != 0 {
+				c.ctxt.Diag("input argument must be even register in %v", p)
+			}
+			if p.To.Reg == REG_R0 {
+				c.ctxt.Diag("output argument must not be R0 in %v", p)
+			}
+			if p.To.Reg&1 != 0 {
+				c.ctxt.Diag("output argument must be an even register in %v", p)
+			}
+			if p.Reg == REG_R0 {
+				c.ctxt.Diag("third argument must not be R0 in %v", p)
+			}
+			if p.Reg&1 != 0 {
+				c.ctxt.Diag("third argument must be even register in %v", p)
+			}
+			if p.Reg == p.To.Reg || p.Reg == p.From.Reg {
+				c.ctxt.Diag("third argument must not be input or output argument registers in %v", p)
+			}
+			if p.As == AKMA {
+				opcode = op_KMA
+			} else if p.As == AKMCTR {
+				opcode = op_KMCTR
+			}
+		}
+		zRRF(opcode, uint32(p.From.Reg), 0, uint32(p.Reg), uint32(p.To.Reg), asm)
 	}
 }
 
