@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -739,16 +740,20 @@ func (me mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	e.WriteByte('{')
 
 	// Extract and sort the keys.
-	sv := make([]reflectWithString, v.Len())
-	mi := v.MapRange()
+	var (
+		sv  = make([]reflectWithString, v.Len())
+		mi  = v.MapRange()
+		err error
+	)
 	for i := 0; mi.Next(); i++ {
-		sv[i].k = mi.Key()
-		sv[i].v = mi.Value()
-		if err := sv[i].resolve(); err != nil {
+		if sv[i].ks, err = resolveKeyName(mi.Key()); err != nil {
 			e.error(fmt.Errorf("json: encoding error for type %q: %q", v.Type().String(), err.Error()))
 		}
+		sv[i].v = mi.Value()
 	}
-	sort.Slice(sv, func(i, j int) bool { return sv[i].ks < sv[j].ks })
+	slices.SortFunc(sv, func(i, j reflectWithString) int {
+		return strings.Compare(i.ks, j.ks)
+	})
 
 	for i, kv := range sv {
 		if i > 0 {
@@ -927,31 +932,26 @@ func typeByIndex(t reflect.Type, index []int) reflect.Type {
 }
 
 type reflectWithString struct {
-	k  reflect.Value
 	v  reflect.Value
 	ks string
 }
 
-func (w *reflectWithString) resolve() error {
-	if w.k.Kind() == reflect.String {
-		w.ks = w.k.String()
-		return nil
+func resolveKeyName(k reflect.Value) (string, error) {
+	if k.Kind() == reflect.String {
+		return k.String(), nil
 	}
-	if tm, ok := w.k.Interface().(encoding.TextMarshaler); ok {
-		if w.k.Kind() == reflect.Pointer && w.k.IsNil() {
-			return nil
+	if tm, ok := k.Interface().(encoding.TextMarshaler); ok {
+		if k.Kind() == reflect.Pointer && k.IsNil() {
+			return "", nil
 		}
 		buf, err := tm.MarshalText()
-		w.ks = string(buf)
-		return err
+		return string(buf), err
 	}
-	switch w.k.Kind() {
+	switch k.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		w.ks = strconv.FormatInt(w.k.Int(), 10)
-		return nil
+		return strconv.FormatInt(k.Int(), 10), nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		w.ks = strconv.FormatUint(w.k.Uint(), 10)
-		return nil
+		return strconv.FormatUint(k.Uint(), 10), nil
 	}
 	panic("unexpected map key type")
 }

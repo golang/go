@@ -246,6 +246,22 @@ func BenchmarkMarshalBytesError(b *testing.B) {
 	b.Run("4096", benchMarshalBytesError(4096))
 }
 
+func BenchmarkMarshalMap(b *testing.B) {
+	b.ReportAllocs()
+	m := map[string]int{
+		"key3": 3,
+		"key2": 2,
+		"key1": 1,
+	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if _, err := Marshal(m); err != nil {
+				b.Fatal("Marshal:", err)
+			}
+		}
+	})
+}
+
 func BenchmarkCodeDecoder(b *testing.B) {
 	b.ReportAllocs()
 	if codeJSON == nil {
