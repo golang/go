@@ -2773,3 +2773,55 @@ var _ = f(1, 2)
 		t.Errorf("src1: unexpected error: got %v", err)
 	}
 }
+
+func TestFileVersions(t *testing.T) {
+	for _, test := range []struct {
+		moduleVersion string
+		fileVersion   string
+		want          Version
+	}{
+		{"", "", Version{0, 0}},              // no versions specified
+		{"go1.19", "", Version{1, 19}},       // module version specified
+		{"", "go1.20", Version{0, 0}},        // file upgrade ignored
+		{"go1.19", "go1.20", Version{1, 20}}, // file upgrade permitted
+		{"go1.20", "go1.19", Version{1, 20}}, // file downgrade not permitted
+		{"go1.21", "go1.19", Version{1, 19}}, // file downgrade permitted (module version is >= go1.21)
+	} {
+		var src string
+		if test.fileVersion != "" {
+			src = "//go:build " + test.fileVersion + "\n"
+		}
+		src += "package p"
+
+		conf := Config{GoVersion: test.moduleVersion}
+		versions := make(map[*token.File]Version)
+		var info Info
+		*_FileVersionsAddr(&info) = versions
+		mustTypecheck(src, &conf, &info)
+
+		n := 0
+		for _, v := range versions {
+			want := test.want
+			if v.Major != want.Major || v.Minor != want.Minor {
+				t.Errorf("%q: unexpected file version: got %v, want %v", src, v, want)
+			}
+			n++
+		}
+		if n != 1 {
+			t.Errorf("%q: incorrect number of map entries: got %d", src, n)
+		}
+	}
+}
+
+// Version must match types._Version exactly.
+// TODO(gri) remove this declaration once types.Version is exported.
+type Version struct {
+	Major int
+	Minor int
+}
+
+// _FileVersionsAddr(conf) returns the address of the field info._FileVersions.
+func _FileVersionsAddr(info *Info) *map[*token.File]Version {
+	v := reflect.Indirect(reflect.ValueOf(info))
+	return (*map[*token.File]Version)(v.FieldByName("_FileVersions").Addr().UnsafePointer())
+}

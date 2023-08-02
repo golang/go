@@ -288,6 +288,8 @@ func (check *Checker) initFiles(files []*ast.File) {
 	}
 
 	for _, file := range check.files {
+		tfile := check.fset.File(file.FileStart)
+		check.recordFileVersion(tfile, check.version) // record package version (possibly zero version)
 		v, _ := parseGoVersion(file.GoVersion)
 		if v.major > 0 {
 			if v.equal(check.version) {
@@ -312,7 +314,8 @@ func (check *Checker) initFiles(files []*ast.File) {
 			if check.posVers == nil {
 				check.posVers = make(map[*token.File]version)
 			}
-			check.posVers[check.fset.File(file.FileStart)] = v
+			check.posVers[tfile] = v
+			check.recordFileVersion(tfile, v) // overwrite package version
 		}
 	}
 }
@@ -634,5 +637,11 @@ func (check *Checker) recordScope(node ast.Node, scope *Scope) {
 	assert(scope != nil)
 	if m := check.Scopes; m != nil {
 		m[node] = scope
+	}
+}
+
+func (check *Checker) recordFileVersion(tfile *token.File, v version) {
+	if m := check._FileVersions; m != nil {
+		m[tfile] = _Version{v.major, v.minor}
 	}
 }
