@@ -189,6 +189,7 @@ type Type interface {
 	// and FieldByNameFunc returns no match.
 	// This behavior mirrors Go's handling of name lookup in
 	// structs containing embedded fields.
+	//
 	// If the returned field is promoted from an embedded struct,
 	// then Offset in the returned StructField is the offset in
 	// the embedded struct.
