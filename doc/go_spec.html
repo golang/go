@@ -884,7 +884,7 @@ are required when different numeric types are mixed in an expression
 or assignment. For instance, <code>int32</code> and <code>int</code>
 are not the same type even though they may have the same size on a
 particular architecture.
-
+</p>
 
 <h3 id="String_types">String types</h3>
 
@@ -3910,7 +3910,7 @@ For <code>a</code> of <a href="#Type_parameter_declarations">type parameter type
 	    that <code>P</code> is instantiated with, and the type of <code>a[x]</code> is
 	    the type of the (identical) element types.</li>
 	<li><code>a[x]</code> may not be assigned to if <code>P</code>'s type set
-	    includes string types.
+	    includes string types.</li>
 </ul>
 
 <p>
@@ -4639,7 +4639,7 @@ Type inference succeeds if no unification step fails and the map has
 an entry for each type parameter.
 </p>
 
-</pre>
+<p>
 For example, given the type equation with the bound type parameter
 <code>P</code>
 </p>
@@ -4803,6 +4803,7 @@ As the  <code>++</code> and <code>--</code> operators form
 statements, not expressions, they fall
 outside the operator hierarchy.
 As a consequence, statement <code>*p++</code> is the same as <code>(*p)++</code>.
+</p>
 <p>
 There are five precedence levels for binary operators.
 Multiplication operators bind strongest, followed by addition
