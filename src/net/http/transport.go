@@ -2248,7 +2248,7 @@ func (pc *persistConn) readLoop() {
 			}
 		case <-rc.req.Cancel:
 			alive = false
-			pc.t.CancelRequest(rc.req)
+			pc.t.cancelRequest(rc.cancelKey, errRequestCanceled)
 		case <-rc.req.Context().Done():
 			alive = false
 			pc.t.cancelRequest(rc.cancelKey, rc.req.Context().Err())
