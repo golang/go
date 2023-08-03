@@ -10,7 +10,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"internal/testenv"
 	"os"
 	"path"
 	"path/filepath"
@@ -2200,9 +2199,6 @@ var goLookupIPCNAMEOrderDNSFilesModeTests = []struct {
 }
 
 func TestGoLookupIPCNAMEOrderHostsAliasesDNSFilesMode(t *testing.T) {
-	if testenv.Builder() == "" {
-		t.Skip("Makes assumptions about local networks and (re)naming that aren't always true")
-	}
 	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
 	testHookHostsPath = "testdata/aliases"
 	mode := hostLookupDNSFiles
@@ -2213,9 +2209,29 @@ func TestGoLookupIPCNAMEOrderHostsAliasesDNSFilesMode(t *testing.T) {
 }
 
 func testGoLookupIPCNAMEOrderHostsAliases(t *testing.T, mode hostLookupOrder, lookup, lookupRes string) {
+	fake := fakeDNSServer{
+		rh: func(_, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			var answers []dnsmessage.Resource
+
+			if mode != hostLookupDNSFiles {
+				t.Fatal("received unexpected DNS query")
+			}
+
+			return dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.Header.ID,
+					Response: true,
+				},
+				Questions: []dnsmessage.Question{q.Questions[0]},
+				Answers:   answers,
+			}, nil
+		},
+	}
+
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
 	ins := []string{lookup, absDomainName(lookup), strings.ToLower(lookup), strings.ToUpper(lookup)}
 	for _, in := range ins {
-		_, res, err := goResolver.goLookupIPCNAMEOrder(context.Background(), "ip", in, mode, nil)
+		_, res, err := r.goLookupIPCNAMEOrder(context.Background(), "ip", in, mode, nil)
 		if err != nil {
 			t.Errorf("expected err == nil, but got error: %v", err)
 		}
