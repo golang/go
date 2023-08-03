@@ -83,9 +83,7 @@
 // and the underlying hardware.
 // On Unix, the resolution is approximately 1ms.
 // On Windows, the default resolution is approximately 16ms, but
-// a lower resolution may be requested using [timeBeginPeriod].
-//
-// [timeBeginPeriod]: https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod
+// a higher resolution may be requested using [golang.org/x/sys/windows.TimeBeginPeriod].
 package time
 
 import (
