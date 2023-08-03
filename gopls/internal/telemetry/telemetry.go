@@ -5,6 +5,7 @@
 package telemetry
 
 import (
+	"fmt"
 	"os"
 
 	"golang.org/x/telemetry/counter"
@@ -49,4 +50,13 @@ func RecordClientInfo(params *protocol.ParamInitialize) {
 		}
 	}
 	counter.Inc(client)
+}
+
+// RecordViewGoVersion records the Go minor version number (1.x) used for a view.
+func RecordViewGoVersion(x int) {
+	if x < 0 {
+		return
+	}
+	name := fmt.Sprintf("gopls/goversion:1.%d", x)
+	counter.Inc(name)
 }

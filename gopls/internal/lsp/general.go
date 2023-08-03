@@ -317,6 +317,7 @@ func (s *Server) checkViewGoVersions() {
 		if oldestVersion == -1 || viewVersion < oldestVersion {
 			oldestVersion, fromBuild = viewVersion, false
 		}
+		telemetry.RecordViewGoVersion(viewVersion)
 	}
 
 	if msg, mType := versionMessage(oldestVersion, fromBuild); msg != "" {
