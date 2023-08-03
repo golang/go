@@ -777,9 +777,12 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 		if c.state != c1.state && isComment(c1.state) && c1.delim == delimNone {
 			// Preserve the portion between written and the comment start.
 			cs := i1 - 2
-			if c1.state == stateHTMLCmt {
+			if c1.state == stateHTMLCmt || c1.state == stateJSHTMLOpenCmt {
 				// "<!--" instead of "/*" or "//"
 				cs -= 2
+			} else if c1.state == stateJSHTMLCloseCmt {
+				// "-->" instead of "/*" or "//"
+				cs -= 1
 			}
 			b.Write(s[written:cs])
 			written = i1
