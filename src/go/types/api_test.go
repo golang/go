@@ -1973,6 +1973,29 @@ func TestIdenticalUnions(t *testing.T) {
 	}
 }
 
+func TestIssue61737(t *testing.T) {
+	// This test verifies that it is possible to construct invalid interfaces
+	// containing duplicate methods using the go/types API.
+	//
+	// It must be possible for importers to construct such invalid interfaces.
+	// Previously, this panicked.
+
+	sig1 := NewSignatureType(nil, nil, nil, NewTuple(NewParam(token.NoPos, nil, "", Typ[Int])), nil, false)
+	sig2 := NewSignatureType(nil, nil, nil, NewTuple(NewParam(token.NoPos, nil, "", Typ[String])), nil, false)
+
+	methods := []*Func{
+		NewFunc(token.NoPos, nil, "M", sig1),
+		NewFunc(token.NoPos, nil, "M", sig2),
+	}
+
+	embeddedMethods := []*Func{
+		NewFunc(token.NoPos, nil, "M", sig2),
+	}
+	embedded := NewInterfaceType(embeddedMethods, nil)
+	iface := NewInterfaceType(methods, []Type{embedded})
+	iface.Complete()
+}
+
 func TestIssue15305(t *testing.T) {
 	const src = "package p; func f() int16; var _ = f(undef)"
 	fset := token.NewFileSet()
