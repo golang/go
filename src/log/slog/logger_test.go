@@ -12,7 +12,6 @@ import (
 	"io"
 	"log"
 	loginternal "log/internal"
-	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -73,9 +72,13 @@ func TestConnections(t *testing.T) {
 	// tests might change the default logger using SetDefault. Also ensure we
 	// restore the default logger at the end of the test.
 	currentLogger := Default()
+	currentLogWriter := log.Writer()
+	currentLogFlags := log.Flags()
 	SetDefault(New(newDefaultHandler(loginternal.DefaultOutput)))
 	t.Cleanup(func() {
 		SetDefault(currentLogger)
+		log.SetOutput(currentLogWriter)
+		log.SetFlags(currentLogFlags)
 	})
 
 	// The default slog.Logger's handler uses the log package's default output.
@@ -598,10 +601,12 @@ func TestPanics(t *testing.T) {
 	// tests might change the default logger using SetDefault. Also ensure we
 	// restore the default logger at the end of the test.
 	currentLogger := Default()
+	currentLogWriter := log.Writer()
+	currentLogFlags := log.Flags()
 	t.Cleanup(func() {
 		SetDefault(currentLogger)
-		log.SetOutput(os.Stderr)
-		log.SetFlags(log.LstdFlags)
+		log.SetOutput(currentLogWriter)
+		log.SetFlags(currentLogFlags)
 	})
 
 	var logBuf bytes.Buffer
