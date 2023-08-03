@@ -504,6 +504,16 @@ func TestEscape(t *testing.T) {
 			"<script>var a \nd</script>",
 		},
 		{
+			"JS HTML-like comments",
+			"<script>before <!-- beep\nbetween\nbefore-->boop\n</script>",
+			"<script>before \nbetween\nbefore\n</script>",
+		},
+		{
+			"JS hashbang comment",
+			"<script>#! beep\n</script>",
+			"<script>\n</script>",
+		},
+		{
 			"CSS comments",
 			"<style>p// paragraph\n" +
 				`{border: 1px/* color */{{"#00f"}}}</style>`,
