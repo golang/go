@@ -133,7 +133,8 @@ func (check *Checker) allowVersion(pkg *Package, at positioner, v version) bool 
 
 	// If the source file declares its Go version, use that to decide.
 	if check.posVers != nil {
-		if src, ok := check.posVers[check.fset.File(at.Pos())]; ok && src.major >= 1 {
+		fileStart := check.fset.File(at.Pos()).Pos(0)
+		if src, ok := check.posVers[fileStart]; ok && src.major >= 1 {
 			return !src.before(v)
 		}
 	}

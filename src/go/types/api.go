@@ -286,10 +286,10 @@ type Info struct {
 	// appear in this list.
 	InitOrder []*Initializer
 
-	// _FileVersions maps a file to the file's Go version.
+	// _FileVersions maps a file's start position to the file's Go version.
 	// If the file doesn't specify a version and Config.GoVersion is not
 	// given, the reported version is the zero version (Major, Minor = 0, 0).
-	_FileVersions map[*token.File]_Version
+	_FileVersions map[token.Pos]_Version
 }
 
 func (info *Info) recordTypes() bool {
