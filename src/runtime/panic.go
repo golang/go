@@ -638,6 +638,14 @@ func (p *_panic) start(pc uintptr, sp unsafe.Pointer) {
 	if !p.deferreturn {
 		p.link = gp._panic
 		gp._panic = (*_panic)(noescape(unsafe.Pointer(p)))
+	} else {
+		// Fast path for deferreturn: if there's a pending linked defer
+		// for this frame, then we know there aren't any open-coded
+		// defers, and we don't need to find the parent frame either.
+		if d := gp._defer; d != nil && d.sp == uintptr(sp) {
+			p.sp = sp
+			return
+		}
 	}
 
 	// Initialize state machine, and find the first frame with a defer.
