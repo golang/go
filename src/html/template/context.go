@@ -174,6 +174,20 @@ func isInTag(s state) bool {
 	return false
 }
 
+// isInScriptLiteral returns true if s is one of the literal states within a
+// <script> tag, and as such occurrences of "<!--", "<script", and "</script"
+// need to be treated specially.
+func isInScriptLiteral(s state) bool {
+	// Ignore the comment states (stateJSBlockCmt, stateJSLineCmt,
+	// stateJSHTMLOpenCmt, stateJSHTMLCloseCmt) because their content is already
+	// omitted from the output.
+	switch s {
+	case stateJSDqStr, stateJSSqStr, stateJSBqStr, stateJSRegexp:
+		return true
+	}
+	return false
+}
+
 // delim is the delimiter that will end the current HTML attribute.
 type delim uint8
 

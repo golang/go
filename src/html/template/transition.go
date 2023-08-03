@@ -214,6 +214,11 @@ var (
 // element states.
 func tSpecialTagEnd(c context, s []byte) (context, int) {
 	if c.element != elementNone {
+		// script end tags ("</script") within script literals are ignored, so that
+		// we can properly escape them.
+		if c.element == elementScript && (isInScriptLiteral(c.state) || isComment(c.state)) {
+			return c, len(s)
+		}
 		if i := indexTagEnd(s, specialTagEndMarkers[c.element]); i != -1 {
 			return context{}, i
 		}
@@ -353,6 +358,16 @@ func tJSDelimited(c context, s []byte) (context, int) {
 			inCharset = true
 		case ']':
 			inCharset = false
+		case '/':
+			// If "</script" appears in a regex literal, the '/' should not
+			// close the regex literal, and it will later be escaped to
+			// "\x3C/script" in escapeText.
+			if i > 0 && i+7 <= len(s) && bytes.Compare(bytes.ToLower(s[i-1:i+7]), []byte("</script")) == 0 {
+				i++
+			} else if !inCharset {
+				c.state, c.jsCtx = stateJS, jsCtxDivOp
+				return c, i + 1
+			}
 		default:
 			// end delimiter
 			if !inCharset {
