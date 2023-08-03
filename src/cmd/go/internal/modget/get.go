@@ -53,7 +53,7 @@ import (
 var CmdGet = &base.Command{
 	// Note: flags below are listed explicitly because they're the most common.
 	// Do not send CLs removing them because they're covered by [get flags].
-	UsageLine: "go get [-t] [-u] [-v] [build flags] [packages]",
+	UsageLine: "go get [-t] [-u] [-x] [build flags] [packages]",
 	Short:     "add dependencies to current module and install them",
 	Long: `
 Get resolves its command-line arguments to packages at specific module versions,
