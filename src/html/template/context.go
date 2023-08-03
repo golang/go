@@ -128,6 +128,10 @@ const (
 	stateJSBlockCmt
 	// stateJSLineCmt occurs inside a JavaScript // line comment.
 	stateJSLineCmt
+	// stateJSHTMLOpenCmt occurs inside a JavaScript <!-- HTML-like comment.
+	stateJSHTMLOpenCmt
+	// stateJSHTMLCloseCmt occurs inside a JavaScript --> HTML-like comment.
+	stateJSHTMLCloseCmt
 	// stateCSS occurs inside a <style> element or style attribute.
 	stateCSS
 	// stateCSSDqStr occurs inside a CSS double quoted string.
@@ -155,7 +159,7 @@ const (
 // authors & maintainers, not for end-users or machines.
 func isComment(s state) bool {
 	switch s {
-	case stateHTMLCmt, stateJSBlockCmt, stateJSLineCmt, stateCSSBlockCmt, stateCSSLineCmt:
+	case stateHTMLCmt, stateJSBlockCmt, stateJSLineCmt, stateJSHTMLOpenCmt, stateJSHTMLCloseCmt, stateCSSBlockCmt, stateCSSLineCmt:
 		return true
 	}
 	return false

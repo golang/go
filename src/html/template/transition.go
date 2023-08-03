@@ -14,32 +14,34 @@ import (
 // the updated context and the number of bytes consumed from the front of the
 // input.
 var transitionFunc = [...]func(context, []byte) (context, int){
-	stateText:        tText,
-	stateTag:         tTag,
-	stateAttrName:    tAttrName,
-	stateAfterName:   tAfterName,
-	stateBeforeValue: tBeforeValue,
-	stateHTMLCmt:     tHTMLCmt,
-	stateRCDATA:      tSpecialTagEnd,
-	stateAttr:        tAttr,
-	stateURL:         tURL,
-	stateSrcset:      tURL,
-	stateJS:          tJS,
-	stateJSDqStr:     tJSDelimited,
-	stateJSSqStr:     tJSDelimited,
-	stateJSBqStr:     tJSDelimited,
-	stateJSRegexp:    tJSDelimited,
-	stateJSBlockCmt:  tBlockCmt,
-	stateJSLineCmt:   tLineCmt,
-	stateCSS:         tCSS,
-	stateCSSDqStr:    tCSSStr,
-	stateCSSSqStr:    tCSSStr,
-	stateCSSDqURL:    tCSSStr,
-	stateCSSSqURL:    tCSSStr,
-	stateCSSURL:      tCSSStr,
-	stateCSSBlockCmt: tBlockCmt,
-	stateCSSLineCmt:  tLineCmt,
-	stateError:       tError,
+	stateText:           tText,
+	stateTag:            tTag,
+	stateAttrName:       tAttrName,
+	stateAfterName:      tAfterName,
+	stateBeforeValue:    tBeforeValue,
+	stateHTMLCmt:        tHTMLCmt,
+	stateRCDATA:         tSpecialTagEnd,
+	stateAttr:           tAttr,
+	stateURL:            tURL,
+	stateSrcset:         tURL,
+	stateJS:             tJS,
+	stateJSDqStr:        tJSDelimited,
+	stateJSSqStr:        tJSDelimited,
+	stateJSBqStr:        tJSDelimited,
+	stateJSRegexp:       tJSDelimited,
+	stateJSBlockCmt:     tBlockCmt,
+	stateJSLineCmt:      tLineCmt,
+	stateJSHTMLOpenCmt:  tLineCmt,
+	stateJSHTMLCloseCmt: tLineCmt,
+	stateCSS:            tCSS,
+	stateCSSDqStr:       tCSSStr,
+	stateCSSSqStr:       tCSSStr,
+	stateCSSDqURL:       tCSSStr,
+	stateCSSSqURL:       tCSSStr,
+	stateCSSURL:         tCSSStr,
+	stateCSSBlockCmt:    tBlockCmt,
+	stateCSSLineCmt:     tLineCmt,
+	stateError:          tError,
 }
 
 var commentStart = []byte("<!--")
@@ -263,7 +265,7 @@ func tURL(c context, s []byte) (context, int) {
 
 // tJS is the context transition function for the JS state.
 func tJS(c context, s []byte) (context, int) {
-	i := bytes.IndexAny(s, "\"`'/")
+	i := bytes.IndexAny(s, "\"`'/<-#")
 	if i == -1 {
 		// Entire input is non string, comment, regexp tokens.
 		c.jsCtx = nextJSCtx(s, c.jsCtx)
@@ -292,6 +294,26 @@ func tJS(c context, s []byte) (context, int) {
 				state: stateError,
 				err:   errorf(ErrSlashAmbig, nil, 0, "'/' could start a division or regexp: %.32q", s[i:]),
 			}, len(s)
+		}
+	// ECMAScript supports HTML style comments for legacy reasons, see Appendix
+	// B.1.1 "HTML-like Comments". The handling of these comments is somewhat
+	// confusing. Multi-line comments are not supported, i.e. anything on lines
+	// between the opening and closing tokens is not considered a comment, but
+	// anything following the opening or closing token, on the same line, is
+	// ignored. As such we simply treat any line prefixed with "<!--" or "-->"
+	// as if it were actually prefixed with "//" and move on.
+	case '<':
+		if i+3 < len(s) && bytes.Equal(commentStart, s[i:i+4]) {
+			c.state, i = stateJSHTMLOpenCmt, i+3
+		}
+	case '-':
+		if i+2 < len(s) && bytes.Equal(commentEnd, s[i:i+3]) {
+			c.state, i = stateJSHTMLCloseCmt, i+2
+		}
+	// ECMAScript also supports "hashbang" comment lines, see Section 12.5.
+	case '#':
+		if i+1 < len(s) && s[i+1] == '!' {
+			c.state, i = stateJSLineCmt, i+1
 		}
 	default:
 		panic("unreachable")
@@ -372,12 +394,12 @@ func tBlockCmt(c context, s []byte) (context, int) {
 	return c, i + 2
 }
 
-// tLineCmt is the context transition function for //comment states.
+// tLineCmt is the context transition function for //comment states, and the JS HTML-like comment state.
 func tLineCmt(c context, s []byte) (context, int) {
 	var lineTerminators string
 	var endState state
 	switch c.state {
-	case stateJSLineCmt:
+	case stateJSLineCmt, stateJSHTMLOpenCmt, stateJSHTMLCloseCmt:
 		lineTerminators, endState = "\n\r\u2028\u2029", stateJS
 	case stateCSSLineCmt:
 		lineTerminators, endState = "\n\f\r", stateCSS
