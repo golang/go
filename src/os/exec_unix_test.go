@@ -19,7 +19,7 @@ func TestErrProcessDone(t *testing.T) {
 
 	p, err := StartProcess(testenv.GoToolPath(t), []string{"go"}, &ProcAttr{})
 	if err != nil {
-		t.Errorf("starting test process: %v", err)
+		t.Fatalf("starting test process: %v", err)
 	}
 	p.Wait()
 	if got := p.Signal(Kill); got != ErrProcessDone {
