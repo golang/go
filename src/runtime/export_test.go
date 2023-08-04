@@ -1921,6 +1921,8 @@ func FPCallers(pcBuf []uintptr) int {
 	return fpTracebackPCs(unsafe.Pointer(getfp()), pcBuf)
 }
 
+const FramePointerEnabled = framepointer_enabled
+
 var (
 	IsPinned      = isPinned
 	GetPinCounter = pinnerGetPinCounter

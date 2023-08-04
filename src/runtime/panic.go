@@ -1127,6 +1127,19 @@ func recovery(gp *g) {
 	gp.sched.sp = sp
 	gp.sched.pc = pc
 	gp.sched.lr = 0
+	// Restore the bp on platforms that support frame pointers.
+	// N.B. It's fine to not set anything for platforms that don't
+	// support frame pointers, since nothing consumes them.
+	switch {
+	case goarch.IsAmd64 != 0:
+		// On x86, the architectural bp is stored 2 words below the
+		// stack pointer.
+		gp.sched.bp = *(*uintptr)(unsafe.Pointer(sp - 2*goarch.PtrSize))
+	case goarch.IsArm64 != 0:
+		// on arm64, the architectural bp points one word higher
+		// than the sp.
+		gp.sched.bp = sp - goarch.PtrSize
+	}
 	gp.sched.ret = 1
 	gogo(&gp.sched)
 }

@@ -450,3 +450,75 @@ func fpCallersCached(b *testing.B, n int) int {
 	}
 	return 1 + fpCallersCached(b, n-1)
 }
+
+func TestFPUnwindAfterRecovery(t *testing.T) {
+	if !runtime.FramePointerEnabled {
+		t.Skip("frame pointers not supported for this architecture")
+	}
+	func() {
+		// Make sure that frame pointer unwinding succeeds from a deferred
+		// function run after recovering from a panic. It can fail if the
+		// recovery does not properly restore the caller's frame pointer before
+		// running the remaining deferred functions.
+		//
+		// Wrap this all in an extra function since the unwinding is most likely
+		// to fail trying to unwind *after* the frame we're currently in (since
+		// *that* bp will fail to be restored). Below we'll try to induce a crash,
+		// but if for some reason we can't, let's make sure the stack trace looks
+		// right.
+		want := []string{
+			"runtime_test.TestFPUnwindAfterRecovery.func1.1",
+			"runtime_test.TestFPUnwindAfterRecovery.func1",
+			"runtime_test.TestFPUnwindAfterRecovery",
+		}
+		defer func() {
+			pcs := make([]uintptr, 32)
+			for i := range pcs {
+				// If runtime.recovery doesn't properly restore the
+				// frame pointer before returning control to this
+				// function, it will point somewhere lower in the stack
+				// from one of the frames of runtime.gopanic() or one of
+				// it's callees prior to recovery.  So, we put some
+				// non-zero values on the stack to try and get frame
+				// pointer unwinding to crash if it sees the old,
+				// invalid frame pointer.
+				pcs[i] = 10
+			}
+			runtime.FPCallers(pcs)
+			// If it didn't crash, let's symbolize. Something is going
+			// to look wrong if the bp restoration just happened to
+			// reference a valid frame. Look for
+			var got []string
+			frames := runtime.CallersFrames(pcs)
+			for {
+				frame, more := frames.Next()
+				if !more {
+					break
+				}
+				got = append(got, frame.Function)
+			}
+			// Check that we see the frames in want and in that order.
+			// This is a bit roundabout because FPCallers doesn't do
+			// filtering of runtime internals like Callers.
+			i := 0
+			for _, f := range got {
+				if f != want[i] {
+					continue
+				}
+				i++
+				if i == len(want) {
+					break
+				}
+			}
+			if i != len(want) {
+				t.Fatalf("bad unwind: got %v, want %v in that order", got, want)
+			}
+		}()
+		defer func() {
+			if recover() == nil {
+				t.Fatal("did not recover from panic")
+			}
+		}()
+		panic(1)
+	}()
+}
