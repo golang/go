@@ -34,9 +34,10 @@ func _() {
 	/* reverse! */ //@item(postfixReverse, "reverse!", "reverse slice", "snippet")
 	/* sort! */ //@item(postfixSort, "sort!", "sort.Slice()", "snippet")
 	/* var! */ //@item(postfixVar, "var!", "assign to variable", "snippet")
+	/* ifnotnil! */ //@item(postfixIfNotNil, "ifnotnil!", "if expr != nil", "snippet")
 
 	var foo []int
-	foo. //@complete(" //", postfixAppend, postfixCopy, postfixLast, postfixPrint, postfixRange, postfixReverse, postfixSort, postfixVar)
+	foo. //@complete(" //", postfixAppend, postfixCopy, postfixIfNotNil, postfixLast, postfixPrint, postfixRange, postfixReverse, postfixSort, postfixVar)
 
 		foo = nil
 }

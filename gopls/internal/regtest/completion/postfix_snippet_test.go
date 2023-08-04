@@ -430,6 +430,132 @@ func foo() string {
 	return strings.Join(x, "$0")
 }`,
 		},
+		{
+			name: "if not nil interface",
+			before: `
+package foo
+
+func _() {
+	var foo error
+	foo.ifnotnil
+}
+`,
+			after: `
+package foo
+
+func _() {
+	var foo error
+	if foo != nil {
+	$0
+}
+}
+`,
+		},
+		{
+			name: "if not nil pointer",
+			before: `
+package foo
+
+func _() {
+	var foo *int
+	foo.ifnotnil
+}
+`,
+			after: `
+package foo
+
+func _() {
+	var foo *int
+	if foo != nil {
+	$0
+}
+}
+`,
+		},
+		{
+			name: "if not nil slice",
+			before: `
+package foo
+
+func _() {
+	var foo []int
+	foo.ifnotnil
+}
+`,
+			after: `
+package foo
+
+func _() {
+	var foo []int
+	if foo != nil {
+	$0
+}
+}
+`,
+		},
+		{
+			name: "if not nil map",
+			before: `
+package foo
+
+func _() {
+	var foo map[string]any
+	foo.ifnotnil
+}
+`,
+			after: `
+package foo
+
+func _() {
+	var foo map[string]any
+	if foo != nil {
+	$0
+}
+}
+`,
+		},
+		{
+			name: "if not nil channel",
+			before: `
+package foo
+
+func _() {
+	var foo chan int
+	foo.ifnotnil
+}
+`,
+			after: `
+package foo
+
+func _() {
+	var foo chan int
+	if foo != nil {
+	$0
+}
+}
+`,
+		},
+		{
+			name: "if not nil function",
+			before: `
+package foo
+
+func _() {
+	var foo func()
+	foo.ifnotnil
+}
+`,
+			after: `
+package foo
+
+func _() {
+	var foo func()
+	if foo != nil {
+	$0
+}
+}
+`,
+		},
 	}
 
 	r := WithOptions(
