@@ -90,7 +90,7 @@ func NewFile(fd uintptr, name string) *File {
 func epipecheck(file *File, e error) {
 }
 
-// DevNull is the name of the operating system's “null device.”
+// DevNull is the name of the operating system's “null device”.
 // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
 const DevNull = "NUL"
 
