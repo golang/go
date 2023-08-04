@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/go/analysis/passes/appends"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
 	"golang.org/x/tools/go/analysis/passes/assign"
 	"golang.org/x/tools/go/analysis/passes/atomic"
@@ -47,6 +48,7 @@ import (
 // Keep consistent with the actual vet in GOROOT/src/cmd/vet/main.go.
 func vet() {
 	unitchecker.Main(
+		appends.Analyzer,
 		asmdecl.Analyzer,
 		assign.Analyzer,
 		atomic.Analyzer,

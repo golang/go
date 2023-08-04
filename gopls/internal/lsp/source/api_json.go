@@ -219,6 +219,11 @@ var GeneratedAPIJSON = &APIJSON{
 					ValueType: "bool",
 					Keys: []EnumKey{
 						{
+							Name:    "\"appends\"",
+							Doc:     "check for missing values after append\n\nThis checker reports calls to append that pass\nno values to be appended to the slice.\n\n\ts := []string{\"a\", \"b\", \"c\"}\n\t_ = append(s)\n\nSuch calls are always no-ops and often indicate an\nunderlying mistake.",
+							Default: "true",
+						},
+						{
 							Name:    "\"asmdecl\"",
 							Doc:     "report mismatches between assembly files and Go declarations",
 							Default: "true",
@@ -922,6 +927,12 @@ var GeneratedAPIJSON = &APIJSON{
 		},
 	},
 	Analyzers: []*AnalyzerJSON{
+		{
+			Name:    "appends",
+			Doc:     "check for missing values after append\n\nThis checker reports calls to append that pass\nno values to be appended to the slice.\n\n\ts := []string{\"a\", \"b\", \"c\"}\n\t_ = append(s)\n\nSuch calls are always no-ops and often indicate an\nunderlying mistake.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/appends",
+			Default: true,
+		},
 		{
 			Name:    "asmdecl",
 			Doc:     "report mismatches between assembly files and Go declarations",

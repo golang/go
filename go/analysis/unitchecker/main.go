@@ -19,6 +19,7 @@ package main
 import (
 	"golang.org/x/tools/go/analysis/unitchecker"
 
+	"golang.org/x/tools/go/analysis/passes/appends"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
 	"golang.org/x/tools/go/analysis/passes/assign"
 	"golang.org/x/tools/go/analysis/passes/atomic"
@@ -52,6 +53,7 @@ import (
 
 func main() {
 	unitchecker.Main(
+		appends.Analyzer,
 		asmdecl.Analyzer,
 		assign.Analyzer,
 		atomic.Analyzer,

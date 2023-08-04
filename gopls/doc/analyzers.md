@@ -6,6 +6,21 @@ Details about how to enable/disable these analyses can be found
 [here](settings.md#analyses).
 
 <!-- BEGIN Analyzers: DO NOT MANUALLY EDIT THIS SECTION -->
+## **appends**
+
+check for missing values after append
+
+This checker reports calls to append that pass
+no values to be appended to the slice.
+
+	s := []string{"a", "b", "c"}
+	_ = append(s)
+
+Such calls are always no-ops and often indicate an
+underlying mistake.
+
+**Enabled by default.**
+
 ## **asmdecl**
 
 report mismatches between assembly files and Go declarations

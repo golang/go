@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/appends"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
 	"golang.org/x/tools/go/analysis/passes/assign"
 	"golang.org/x/tools/go/analysis/passes/atomic"
@@ -1547,6 +1548,7 @@ func convenienceAnalyzers() map[string]*Analyzer {
 func defaultAnalyzers() map[string]*Analyzer {
 	return map[string]*Analyzer{
 		// The traditional vet suite:
+		appends.Analyzer.Name:       {Analyzer: appends.Analyzer, Enabled: true},
 		asmdecl.Analyzer.Name:       {Analyzer: asmdecl.Analyzer, Enabled: true},
 		assign.Analyzer.Name:        {Analyzer: assign.Analyzer, Enabled: true},
 		atomic.Analyzer.Name:        {Analyzer: atomic.Analyzer, Enabled: true},
