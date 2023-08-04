@@ -282,22 +282,26 @@ func dvarint(x *obj.LSym, off int, v int64) int {
 // top of the local variables) for their starting address. The format is:
 //
 //   - Offset of the deferBits variable
-//   - Number of defers in the function
-//   - Information about each defer call, in reverse order of appearance in the function:
-//   - Offset of the closure value to call
+//   - Offset of the first closure slot (the rest are laid out consecutively).
 func (s *state) emitOpenDeferInfo() {
+	firstOffset := s.openDefers[0].closureNode.FrameOffset()
+
+	// Verify that cmpstackvarlt laid out the slots in order.
+	for i, r := range s.openDefers {
+		have := r.closureNode.FrameOffset()
+		want := firstOffset + int64(i)*int64(types.PtrSize)
+		if have != want {
+			base.FatalfAt(s.curfn.Pos(), "unexpected frame offset for open-coded defer slot #%v: have %v, want %v", i, have, want)
+		}
+	}
+
 	x := base.Ctxt.Lookup(s.curfn.LSym.Name + ".opendefer")
 	x.Set(obj.AttrContentAddressable, true)
 	s.curfn.LSym.Func().OpenCodedDeferInfo = x
+
 	off := 0
 	off = dvarint(x, off, -s.deferBitsTemp.FrameOffset())
-	off = dvarint(x, off, int64(len(s.openDefers)))
-
-	// Write in reverse-order, for ease of running in that order at runtime
-	for i := len(s.openDefers) - 1; i >= 0; i-- {
-		r := s.openDefers[i]
-		off = dvarint(x, off, -r.closureNode.FrameOffset())
-	}
+	off = dvarint(x, off, -firstOffset)
 }
 
 func okOffset(offset int64) int64 {
@@ -567,7 +571,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
 
-	if s.hasOpenDefers {
+	if len(s.openDefers) != 0 {
 		s.emitOpenDeferInfo()
 	}
 
@@ -5053,6 +5057,7 @@ func (s *state) openDeferSave(t *types.Type, val *ssa.Value) *ssa.Value {
 	pos := val.Pos
 	temp := typecheck.TempAt(pos.WithNotStmt(), s.curfn, t)
 	temp.SetOpenDeferSlot(true)
+	temp.SetFrameOffset(int64(len(s.openDefers))) // so cmpstackvarlt can order them
 	var addrTemp *ssa.Value
 	// Use OpVarLive to make sure stack slot for the closure is not removed by
 	// dead-store elimination

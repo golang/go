@@ -1024,19 +1024,17 @@ type _panic struct {
 	startSP unsafe.Pointer
 
 	// The current stack frame that we're running deferred calls for.
-	sp   unsafe.Pointer
-	lr   uintptr
-	fp   unsafe.Pointer
-	varp unsafe.Pointer
+	sp unsafe.Pointer
+	lr uintptr
+	fp unsafe.Pointer
 
 	// retpc stores the PC where the panic should jump back to, if the
 	// function last returned by _panic.next() recovers the panic.
 	retpc uintptr
 
 	// Extra state for handling open-coded defers.
-	deferBitsPtr   *uint8
-	closureOffsets unsafe.Pointer
-	openDefers     uint8 // count of pending open-coded defers
+	deferBitsPtr *uint8
+	slotsPtr     unsafe.Pointer
 
 	recovered   bool // whether this panic has been recovered
 	goexit      bool

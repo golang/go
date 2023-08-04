@@ -682,24 +682,21 @@ func (p *_panic) nextDefer() (func(), bool) {
 	p.argp = add(p.startSP, sys.MinFrameSize)
 
 	for {
-		for p.openDefers > 0 {
-			p.openDefers--
-
-			// Find the closure offset for the next deferred call.
-			var closureOffset uint32
-			closureOffset, p.closureOffsets = readvarintUnsafe(p.closureOffsets)
-
-			bit := uint8(1 << p.openDefers)
-			if *p.deferBitsPtr&bit == 0 {
-				continue
-			}
-			*p.deferBitsPtr &^= bit
-
-			if *p.deferBitsPtr == 0 {
-				p.openDefers = 0 // short circuit: no more active defers
+		for p.deferBitsPtr != nil {
+			bits := *p.deferBitsPtr
+			if bits == 0 {
+				p.deferBitsPtr = nil
+				break
 			}
 
-			return *(*func())(add(p.varp, -uintptr(closureOffset))), true
+			// Find index of top bit set.
+			i := 7 - uintptr(sys.LeadingZeros8(bits))
+
+			// Clear bit and store it back.
+			bits &^= 1 << i
+			*p.deferBitsPtr = bits
+
+			return *(*func())(add(p.slotsPtr, i*goarch.PtrSize)), true
 		}
 
 		if d := gp._defer; d != nil && d.sp == uintptr(p.sp) {
@@ -752,25 +749,8 @@ func (p *_panic) nextFrame() (ok bool) {
 			// then we can simply loop until we find the next frame where
 			// it's non-zero.
 
-			if fd := funcdata(u.frame.fn, abi.FUNCDATA_OpenCodedDeferInfo); fd != nil {
-				if u.frame.fn.deferreturn == 0 {
-					throw("missing deferreturn")
-				}
-				p.retpc = u.frame.fn.entry() + uintptr(u.frame.fn.deferreturn)
-
-				var deferBitsOffset uint32
-				deferBitsOffset, fd = readvarintUnsafe(fd)
-				deferBitsPtr := (*uint8)(add(unsafe.Pointer(u.frame.varp), -uintptr(deferBitsOffset)))
-
-				if *deferBitsPtr != 0 {
-					var openDefers uint32
-					openDefers, fd = readvarintUnsafe(fd)
-
-					p.openDefers = uint8(openDefers)
-					p.deferBitsPtr = deferBitsPtr
-					p.closureOffsets = fd
-					break // found a frame with open-coded defers
-				}
+			if p.initOpenCodedDefers(u.frame.fn, unsafe.Pointer(u.frame.varp)) {
+				break // found a frame with open-coded defers
 			}
 
 			if u.frame.sp == limit {
@@ -787,12 +767,36 @@ func (p *_panic) nextFrame() (ok bool) {
 		}
 		p.sp = unsafe.Pointer(u.frame.sp)
 		p.fp = unsafe.Pointer(u.frame.fp)
-		p.varp = unsafe.Pointer(u.frame.varp)
 
 		ok = true
 	})
 
 	return
+}
+
+func (p *_panic) initOpenCodedDefers(fn funcInfo, varp unsafe.Pointer) bool {
+	fd := funcdata(fn, abi.FUNCDATA_OpenCodedDeferInfo)
+	if fd == nil {
+		return false
+	}
+
+	if fn.deferreturn == 0 {
+		throw("missing deferreturn")
+	}
+
+	deferBitsOffset, fd := readvarintUnsafe(fd)
+	deferBitsPtr := (*uint8)(add(varp, -uintptr(deferBitsOffset)))
+	if *deferBitsPtr == 0 {
+		return false // has open-coded defers, but none pending
+	}
+
+	slotsOffset, fd := readvarintUnsafe(fd)
+
+	p.retpc = fn.entry() + uintptr(fn.deferreturn)
+	p.deferBitsPtr = deferBitsPtr
+	p.slotsPtr = add(varp, -uintptr(slotsOffset))
+
+	return true
 }
 
 // The implementation of the predeclared function recover.
