@@ -572,14 +572,14 @@ var depsRules = `
 	< testing/iotest
 	< testing/fstest;
 
-	log/slog
-	< testing/slogtest;
-
 	FMT, flag, math/rand
 	< testing/quick;
 
 	FMT, DEBUG, flag, runtime/trace, internal/sysinfo, math/rand
 	< testing;
+
+	log/slog, testing
+	< testing/slogtest;
 
 	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token,
 	internal/godebug, math/rand, encoding/hex, crypto/sha256
