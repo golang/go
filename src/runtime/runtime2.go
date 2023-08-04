@@ -999,18 +999,11 @@ func extendRandom(r []byte, n int) {
 // initialize them are not required. All defers must be manually scanned,
 // and for heap defers, marked.
 type _defer struct {
-	// TODO(mdempsky): Remove blank fields and update cmd/compile.
-	_    bool // was started
 	heap bool
-	_    bool           // was openDefer
-	sp   uintptr        // sp at time of defer
-	pc   uintptr        // pc at time of defer
-	fn   func()         // can be nil for open-coded defers
-	_    unsafe.Pointer // was _panic
-	link *_defer        // next defer on G; can point to either heap or stack!
-	_    unsafe.Pointer // was fd
-	_    uintptr        // was varp
-	_    uintptr        // was framepc
+	sp   uintptr // sp at time of defer
+	pc   uintptr // pc at time of defer
+	fn   func()  // can be nil for open-coded defers
+	link *_defer // next defer on G; can point to either heap or stack!
 }
 
 // A _panic holds information about an active panic.
