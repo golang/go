@@ -22,44 +22,49 @@ import (
 )
 
 // cmpstackvarlt reports whether the stack variable a sorts before b.
-//
-// Sort the list of stack variables. Autos after anything else,
-// within autos, unused after used, within used, things with
-// pointers first, zeroed things first, and then decreasing size.
-// Because autos are laid out in decreasing addresses
-// on the stack, pointers first, zeroed things first and decreasing size
-// really means, in memory, things with pointers needing zeroing at
-// the top of the stack and increasing in size.
-// Non-autos sort on offset.
 func cmpstackvarlt(a, b *ir.Name) bool {
+	// Sort non-autos before autos.
 	if needAlloc(a) != needAlloc(b) {
 		return needAlloc(b)
 	}
 
+	// If both are non-auto (e.g., parameters, results), then sort by
+	// frame offset (defined by ABI).
 	if !needAlloc(a) {
 		return a.FrameOffset() < b.FrameOffset()
 	}
 
+	// From here on, a and b are both autos (i.e., local variables).
+
+	// Sort used before unused (so AllocFrame can truncate unused
+	// variables).
 	if a.Used() != b.Used() {
 		return a.Used()
 	}
 
+	// Sort pointer-typed before non-pointer types.
+	// Keeps the stack's GC bitmap compact.
 	ap := a.Type().HasPointers()
 	bp := b.Type().HasPointers()
 	if ap != bp {
 		return ap
 	}
 
+	// Group variables that need zeroing, so we can efficiently zero
+	// them altogether.
 	ap = a.Needzero()
 	bp = b.Needzero()
 	if ap != bp {
 		return ap
 	}
 
-	if a.Type().Size() != b.Type().Size() {
-		return a.Type().Size() > b.Type().Size()
+	// Sort variables in descending alignment order, so we can optimally
+	// pack variables into the frame.
+	if a.Type().Alignment() != b.Type().Alignment() {
+		return a.Type().Alignment() > b.Type().Alignment()
 	}
 
+	// Tie breaker for stable results.
 	return a.Sym().Name < b.Sym().Name
 }
 
