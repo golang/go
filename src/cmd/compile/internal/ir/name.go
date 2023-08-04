@@ -189,18 +189,12 @@ func newNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
 	return n
 }
 
-func (n *Name) Name() *Name         { return n }
-func (n *Name) Sym() *types.Sym     { return n.sym }
-func (n *Name) SetSym(x *types.Sym) { n.sym = x }
-func (n *Name) SubOp() Op           { return n.BuiltinOp }
-func (n *Name) SetSubOp(x Op)       { n.BuiltinOp = x }
-func (n *Name) SetFunc(x *Func)     { n.Func = x }
-func (n *Name) Offset() int64       { panic("Name.Offset") }
-func (n *Name) SetOffset(x int64) {
-	if x != 0 {
-		panic("Name.SetOffset")
-	}
-}
+func (n *Name) Name() *Name            { return n }
+func (n *Name) Sym() *types.Sym        { return n.sym }
+func (n *Name) SetSym(x *types.Sym)    { n.sym = x }
+func (n *Name) SubOp() Op              { return n.BuiltinOp }
+func (n *Name) SetSubOp(x Op)          { n.BuiltinOp = x }
+func (n *Name) SetFunc(x *Func)        { n.Func = x }
 func (n *Name) FrameOffset() int64     { return n.Offset_ }
 func (n *Name) SetFrameOffset(x int64) { n.Offset_ = x }
 
