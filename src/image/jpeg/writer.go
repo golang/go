@@ -12,14 +12,6 @@ import (
 	"io"
 )
 
-// min returns the minimum of two integers.
-func min(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
-}
-
 // div returns a/b rounded to the nearest integer, instead of rounded to zero.
 func div(a, b int32) int32 {
 	if a >= 0 {
