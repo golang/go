@@ -898,7 +898,7 @@ var paniclk mutex
 // defers instead.
 func recovery(gp *g) {
 	p := gp._panic
-	pc, sp := p.retpc, uintptr(p.sp)
+	pc, sp, fp := p.retpc, uintptr(p.sp), uintptr(p.fp)
 	p0, saveOpenDeferState := p, p.deferBitsPtr != nil && *p.deferBitsPtr != 0
 
 	// Unwind the panic stack.
@@ -990,6 +990,16 @@ func recovery(gp *g) {
 	gp.sched.sp = sp
 	gp.sched.pc = pc
 	gp.sched.lr = 0
+	// fp points to the stack pointer at the caller, which is the top of the
+	// stack frame. The frame pointer used for unwinding is the word
+	// immediately below it.
+	gp.sched.bp = fp - goarch.PtrSize
+	if !usesLR {
+		// on x86, fp actually points one word higher than the top of
+		// the frame since the return address is saved on the stack by
+		// the caller
+		gp.sched.bp -= goarch.PtrSize
+	}
 	gp.sched.ret = 1
 	gogo(&gp.sched)
 }
