@@ -293,7 +293,7 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 	} else if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		// Similarly on Darwin.
 		err1 = execveDarwin(argv0p, &argvp[0], &envvp[0])
-	} else if runtime.GOOS == "openbsd" && (runtime.GOARCH == "386" || runtime.GOARCH == "amd64" || runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	} else if runtime.GOOS == "openbsd" && runtime.GOARCH != "mips64" {
 		// Similarly on OpenBSD.
 		err1 = execveOpenBSD(argv0p, &argvp[0], &envvp[0])
 	} else {
