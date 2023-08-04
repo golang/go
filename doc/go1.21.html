@@ -488,6 +488,17 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl>
 
+
+<dl id="crypto/ecdsa"><dt><a href="/pkg/crypto/ecdsa/">crypto/ecdsa</a></dt>
+  <dd>
+    <p><!-- CL 492955 -->
+      <a href="/pkg/crypto/ecdsa/#PublicKey.Equal"><code>PublicKey.Equal</code></a> and
+      <a href="/pkg/crypto/ecdsa/#PrivateKey.Equal"><code>PrivateKey.Equal</code></a>
+      now execute in constant time.
+    </p>
+  </dd>
+</dl><!-- crypto/ecdsa -->
+
 <dl id="crypto/elliptic"><dt><a href="/pkg/crypto/elliptic/">crypto/elliptic</a></dt>
   <dd>
     <p><!-- CL 459977 -->
@@ -512,6 +523,11 @@ Do not send CLs removing the interior tags from such phrases.
     <p>
       Due to the addition of private fields to <a href="/pkg/crypto/rsa/#PrecomputedValues"><code>PrecomputedValues</code></a>, <a href="/pkg/crypto/rsa/#PrivateKey.Precompute"><code>PrivateKey.Precompute</code></a> must be called for optimal performance even if deserializing (for example from JSON) a previously-precomputed private key.
     </p>
+    <p><!-- CL 492955 -->
+      <a href="/pkg/crypto/rsa/#PublicKey.Equal"><code>PublicKey.Equal</code></a> and
+      <a href="/pkg/crypto/rsa/#PrivateKey.Equal"><code>PrivateKey.Equal</code></a>
+      now execute in constant time.
+    </p>
     <p><!-- https://go.dev/issue/56921, CL 459976 -->
       The <a href="/pkg/crypto/rsa/#GenerateMultiPrimeKey"><code>GenerateMultiPrimeKey</code></a> function and the <a href="/pkg/crypto/rsa/#PrecomputedValues.CRTValues"><code>PrecomputedValues.CRTValues</code></a> field have been deprecated. <a href="/pkg/crypto/rsa/#PrecomputedValues.CRTValues"><code>PrecomputedValues.CRTValues</code></a> will still be populated when <a href="/pkg/crypto/rsa/#PrivateKey.Precompute"><code>PrivateKey.Precompute</code></a> is called, but the values will not be used during decryption operations.
     </p>
@@ -533,6 +549,16 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
+    <p><!-- CL 497895 -->
+      Servers now skip verifying client certificates (including not running
+      <a href="/pkg/crypto/tls/#Config.VerifyPeerCertificate"><code>Config.VerifyPeerCertificate</code></a>)
+      for resumed connections, besides checking the expiration time. This makes
+      session tickets larger when client certificates are in use. Clients were
+      already skipping verification on resumption, but now check the expiration
+      time even if <a href="/pkg/crypto/tls/#Config.InsecureSkipVerify"><code>Config.InsecureSkipVerify</code></a>
+      is set.
+    </p>
+
     <p><!-- https://go.dev/issue/60105, CL 496818, CL 496820, CL 496822, CL 496821, CL 501675 -->
       Applications can now control the content of session tickets.
       <ul>
@@ -548,7 +574,7 @@ Do not send CLs removing the interior tags from such phrases.
         <li>
           The <a href="/pkg/crypto/tls/#Config.WrapSession"><code>Config.WrapSession</code></a> and
           <a href="/pkg/crypto/tls/#Config.UnwrapSession"><code>Config.UnwrapSession</code></a>
-          hooks convert a <code>SessionState</code> to and from a ticket.
+          hooks convert a <code>SessionState</code> to and from a ticket on the server side.
         </li>
         <li>
           The <a href="/pkg/crypto/tls/#Config.EncryptTicket"><code>Config.EncryptTicket</code></a>
@@ -560,25 +586,31 @@ Do not send CLs removing the interior tags from such phrases.
           The <a href="/pkg/crypto/tls/#ClientSessionState.ResumptionState"><code>ClientSessionState.ResumptionState</code></a> method and
           <a href="/pkg/crypto/tls/#NewResumptionState"><code>NewResumptionState</code></a> function
           may be used by a <code>ClientSessionCache</code> implementation to store and
-          resume sessions.
+          resume sessions on the client side.
         </li>
       </ul>
     </p>
 
+    <p><!-- CL 496817 -->
+      To reduce the potential for session tickets to be used as a tracking
+      mechanism across connections, the server now issues new tickets on every
+      resumption (if they are supported and not disabled) and tickets don't bear
+      an identifier for the key that encrypted them anymore. If passing a large
+      number of keys to <a href="/pkg/crypto/tls/#Conn.SetSessionTicketKeys"><code>Conn.SetSessionTicketKeys</code></a>,
+      this might lead to a noticeable performance cost.
+    </p>
+
     <p><!-- CL 497376 -->
-      The package now supports the extended master secret extension (RFC 7627),
-      and enables it by default. Additionally, the deprecation of
-      <a href="/pkg/crypto/tls/#ConnectionState.TLSUnique"><code>ConnectionState.TLSUnique</code></a>
-      has been reverted, and it is populated when a connection which uses
-      extended master secret is resumed. Session tickets produced by
-      Go pre-1.21 are not interoperable with Go 1.21, meaning connections
-      resumed across versions will fall back to full handshakes.
+      Both clients and servers now implement the Extended Master Secret extension (RFC 7627).
+      The deprecation of <a href="/pkg/crypto/tls/#ConnectionState.TLSUnique"><code>ConnectionState.TLSUnique</code></a>
+      has been reverted, and is now set for resumed connections that support Extended Master Secret.
     </p>
 
     <p><!-- https://go.dev/issue/44886, https://go.dev/issue/60107, CL 493655, CL 496995 -->
       The new <a href="/pkg/crypto/tls/#QUICConn"><code>QUICConn</code></a> type
-      provides support for QUIC implementations. Note that this is not itself
-      a QUIC implementation.
+      provides support for QUIC implementations, including 0-RTT support. Note
+      that this is not itself a QUIC implementation, and 0-RTT is still not
+      supported in TLS.
     </p>
 
     <p><!-- https://go.dev/issue/46308, CL 497377 -->
@@ -588,8 +620,8 @@ Do not send CLs removing the interior tags from such phrases.
 
     <p><!-- https://go.dev/issue/52113, CL 410496 -->
       The TLS alert codes sent from the server for client authentication failures have
-      been improved. Prior to Go 1.21, these failures always resulted in a "bad certificate" alert.
-      Starting from Go 1.21, certain failures will result in more appropriate alert codes,
+      been improved. Previously, these failures always resulted in a "bad certificate" alert.
+      Now, certain failures will result in more appropriate alert codes,
       as defined by RFC 5246 and RFC 8446:
       <ul>
         <li>
@@ -618,6 +650,11 @@ Do not send CLs removing the interior tags from such phrases.
   <dd>
     <p><!-- https://go.dev/issue/53573, CL 468875 -->
       <a href="/pkg/crypto/x509/#RevocationList.RevokedCertificates"><code>RevocationList.RevokedCertificates</code></a> has been deprecated and replaced with the new <a href="/pkg/crypto/x509/#RevocationList.RevokedCertificateEntries"><code>RevokedCertificateEntries</code></a> field, which is a slice of <a href="/pkg/crypto/x509/#RevocationListEntry"><code>RevocationListEntry</code></a>. <a href="/pkg/crypto/x509/#RevocationListEntry"><code>RevocationListEntry</code></a> contains all of the fields in <a href="/pkg/crypto/x509/pkix#RevokedCertificate"><code>pkix.RevokedCertificate</code></a>, as well as the revocation reason code.
+    </p>
+
+    <p><!-- CL 478216 -->
+      Name constraints are now correctly enforced on non-leaf certificates, and
+      not on the certificates where they are expressed.
     </p>
   </dd>
 </dl><!-- crypto/x509 -->
