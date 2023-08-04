@@ -65,7 +65,8 @@ func Report(description string) {
 	report(description)
 }
 
-var bugReport = counter.NewStack("gopls/bug", 16)
+// BugReportCount is a telemetry counter that tracks # of bug reports.
+var BugReportCount = counter.NewStack("gopls/bug", 16)
 
 func report(description string) {
 	_, file, line, ok := runtime.Caller(2) // all exported reporting functions call report directly
@@ -102,7 +103,7 @@ func report(description string) {
 	mu.Unlock()
 
 	if newBug {
-		bugReport.Inc()
+		BugReportCount.Inc()
 	}
 	// Call the handlers outside the critical section since a
 	// handler may itself fail and call bug.Report. Since handlers
