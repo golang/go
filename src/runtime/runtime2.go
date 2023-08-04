@@ -433,7 +433,7 @@ type g struct {
 	// param is a generic pointer parameter field used to pass
 	// values in particular contexts where other storage for the
 	// parameter would be difficult to find. It is currently used
-	// in three ways:
+	// in four ways:
 	// 1. When a channel operation wakes up a blocked goroutine, it sets param to
 	//    point to the sudog of the completed blocking operation.
 	// 2. By gcAssistAlloc1 to signal back to its caller that the goroutine completed
@@ -441,6 +441,8 @@ type g struct {
 	//    stack may have moved in the meantime.
 	// 3. By debugCallWrap to pass parameters to a new goroutine because allocating a
 	//    closure in the runtime is forbidden.
+	// 4. When a panic is recovered and control returns to the respective frame,
+	//    param may point to a savedOpenDeferState.
 	param        unsafe.Pointer
 	atomicstatus atomic.Uint32
 	stackLock    uint32 // sigprof/scang lock; TODO: fold in to atomicstatus
@@ -1039,6 +1041,15 @@ type _panic struct {
 	recovered   bool // whether this panic has been recovered
 	goexit      bool
 	deferreturn bool
+}
+
+// savedOpenDeferState tracks the extra state from _panic that's
+// necessary for deferreturn to pick up where gopanic left off,
+// without needing to unwind the stack.
+type savedOpenDeferState struct {
+	retpc           uintptr
+	deferBitsOffset uintptr
+	slotsOffset     uintptr
 }
 
 // ancestorInfo records details of where a goroutine was started.
