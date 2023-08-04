@@ -776,7 +776,7 @@ func TestRequestBadHost(t *testing.T) {
 	req.Host = "foo.com with spaces"
 	req.URL.Host = "foo.com with spaces"
 	if err := req.Write(logWrites{t, &got}); err == nil {
-		t.Errorf("Writing request with invalid Host: succeded, want error")
+		t.Errorf("Writing request with invalid Host: succeeded, want error")
 	}
 }
 
