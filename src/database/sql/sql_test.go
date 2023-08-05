@@ -1928,8 +1928,9 @@ func nullTestRun(t *testing.T, spec nullTestSpec) {
 	}
 
 	// Can't put null val into non-null col
-	if _, err := stmt.Exec(6, "bob", spec.rows[5].nullParam, spec.rows[5].notNullParam); err == nil {
-		t.Errorf("expected error inserting nil val with prepared statement Exec")
+	row5 := spec.rows[5]
+	if _, err := stmt.Exec(6, "bob", row5.nullParam, row5.notNullParam); err == nil {
+		t.Errorf("expected error inserting nil val with prepared statement Exec: NULL=%#v, NOT-NULL=%#v", row5.nullParam, row5.notNullParam)
 	}
 
 	_, err = db.Exec("INSERT|t|id=?,name=?,nullf=?", 999, nil, nil)
