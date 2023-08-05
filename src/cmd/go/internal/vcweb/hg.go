@@ -7,7 +7,6 @@ package vcweb
 import (
 	"bufio"
 	"context"
-	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -59,7 +58,7 @@ func (h *hgHandler) Handler(dir string, env []string, logger *log.Logger) (http.
 
 		cmd.Cancel = func() error {
 			err := cmd.Process.Signal(os.Interrupt)
-			if err != nil && !errors.Is(err, os.ErrProcessDone) {
+			if err != nil && err != os.ErrProcessDone {
 				err = cmd.Process.Kill()
 			}
 			return err

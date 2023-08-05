@@ -771,7 +771,7 @@ func (c *Cmd) watchCtx(resultc chan<- ctxResult) {
 		// exit, and if that does happen we shouldn't report a spurious error,
 		// so don't set err to anything here.
 		killed = true
-	} else if !errors.Is(killErr, os.ErrProcessDone) {
+	} else if killErr != os.ErrProcessDone {
 		err = wrappedError{
 			prefix: "exec: killing Cmd",
 			err:    killErr,

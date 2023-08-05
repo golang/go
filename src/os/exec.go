@@ -15,6 +15,9 @@ import (
 )
 
 // ErrProcessDone indicates a Process has finished.
+//
+// When Cancel of os/exec.Cmd is called, errors will be checked using errors.Is,
+// since an error may wrap ErrProcessDone.
 var ErrProcessDone = errors.New("os: process already finished")
 
 // Process stores the information about a process created by StartProcess.
