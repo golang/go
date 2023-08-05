@@ -25,7 +25,7 @@ const (
 
 // Invalid cases.
 var x int = 1
-var _ = (8 << x /* ERROR "signed shift count .* requires go1.13 or later" */)
+var _ = (8 << x /* ERRORx `signed shift count .* requires go1.13 or later` */)
 
 const _ = (1 << 1.2 /* ERROR "truncated to uint" */)
 

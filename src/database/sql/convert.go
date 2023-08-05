@@ -422,7 +422,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 	switch dv.Kind() {
 	case reflect.Pointer:
 		if src == nil {
-			dv.Set(reflect.Zero(dv.Type()))
+			dv.SetZero()
 			return nil
 		}
 		dv.Set(reflect.New(dv.Type().Elem()))

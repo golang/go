@@ -5,7 +5,6 @@
 package walk
 
 import (
-	"errors"
 	"fmt"
 
 	"cmd/compile/internal/base"
@@ -97,8 +96,6 @@ func convas(n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
 
 	return n
 }
-
-var stop = errors.New("stop")
 
 func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallExpr {
 	if init == nil {
@@ -336,6 +333,10 @@ func mayCall(n ir.Node) bool {
 		case ir.OCONV:
 			n := n.(*ir.ConvExpr)
 			return ssagen.Arch.SoftFloat && (isSoftFloat(n.Type()) || isSoftFloat(n.X.Type()))
+
+		case ir.OMIN, ir.OMAX:
+			// string or float requires runtime call, see (*ssagen.state).minmax method.
+			return n.Type().IsString() || n.Type().IsFloat()
 
 		case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OLINKSYMOFFSET, ir.OMETHEXPR,
 			ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOMPLEX, ir.OEFACE,

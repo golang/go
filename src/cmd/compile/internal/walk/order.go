@@ -44,7 +44,7 @@ type orderState struct {
 	edit func(ir.Node) ir.Node // cached closure of o.exprNoLHS
 }
 
-// Order rewrites fn.Nbody to apply the ordering constraints
+// order rewrites fn.Nbody to apply the ordering constraints
 // described in the comment at the top of the file.
 func order(fn *ir.Func) {
 	if base.Flag.W > 1 {
@@ -303,7 +303,7 @@ func (o *orderState) mapKeyTemp(outerPos src.XPos, t *types.Type, n ir.Node) ir.
 // For:
 //
 //	x = m[string(k)]
-//	x = m[T1{... Tn{..., string(k), ...}]
+//	x = m[T1{... Tn{..., string(k), ...}}]
 //
 // where k is []byte, T1 to Tn is a nesting of struct and array literals,
 // the allocation of backing bytes for the string can be avoided
@@ -433,9 +433,9 @@ func (o *orderState) edge() {
 	// freezes the counter when it reaches the value of 255. However, a range
 	// of experiments showed that that decreases overall performance.
 	o.append(ir.NewIfStmt(base.Pos,
-		ir.NewBinaryExpr(base.Pos, ir.OEQ, counter, ir.NewInt(0xff)),
-		[]ir.Node{ir.NewAssignStmt(base.Pos, counter, ir.NewInt(1))},
-		[]ir.Node{ir.NewAssignOpStmt(base.Pos, ir.OADD, counter, ir.NewInt(1))}))
+		ir.NewBinaryExpr(base.Pos, ir.OEQ, counter, ir.NewInt(base.Pos, 0xff)),
+		[]ir.Node{ir.NewAssignStmt(base.Pos, counter, ir.NewInt(base.Pos, 1))},
+		[]ir.Node{ir.NewAssignOpStmt(base.Pos, ir.OADD, counter, ir.NewInt(base.Pos, 1))}))
 }
 
 // orderBlock orders the block of statements in n into a new slice,
@@ -536,7 +536,7 @@ func (o *orderState) call(nn ir.Node) {
 	}
 
 	n := nn.(*ir.CallExpr)
-	typecheck.FixVariadicCall(n)
+	typecheck.AssertFixedCall(n)
 
 	if isFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function,
@@ -740,7 +740,7 @@ func (o *orderState) stmt(n ir.Node) {
 			}
 		}
 
-	case ir.OCHECKNIL, ir.OCLOSE, ir.OPANIC, ir.ORECV:
+	case ir.OCHECKNIL, ir.OCLEAR, ir.OCLOSE, ir.OPANIC, ir.ORECV:
 		n := n.(*ir.UnaryExpr)
 		t := o.markTemp()
 		n.X = o.expr(n.X, nil)
@@ -1247,6 +1247,8 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		ir.OMAKEMAP,
 		ir.OMAKESLICE,
 		ir.OMAKESLICECOPY,
+		ir.OMAX,
+		ir.OMIN,
 		ir.ONEW,
 		ir.OREAL,
 		ir.ORECOVERFP,

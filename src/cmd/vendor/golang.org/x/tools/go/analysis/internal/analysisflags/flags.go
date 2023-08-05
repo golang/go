@@ -206,7 +206,7 @@ func (versionFlag) Get() interface{} { return nil }
 func (versionFlag) String() string   { return "" }
 func (versionFlag) Set(s string) error {
 	if s != "full" {
-		log.Fatalf("unsupported flag value: -V=%s", s)
+		log.Fatalf("unsupported flag value: -V=%s (use -V=full)", s)
 	}
 
 	// This replicates the minimal subset of
@@ -218,7 +218,10 @@ func (versionFlag) Set(s string) error {
 	// Formats:
 	//   $progname version devel ... buildID=...
 	//   $progname version go1.9.1
-	progname := os.Args[0]
+	progname, err := os.Executable()
+	if err != nil {
+		return err
+	}
 	f, err := os.Open(progname)
 	if err != nil {
 		log.Fatal(err)
@@ -339,8 +342,37 @@ func PrintPlain(fset *token.FileSet, diag analysis.Diagnostic) {
 }
 
 // A JSONTree is a mapping from package ID to analysis name to result.
-// Each result is either a jsonError or a list of jsonDiagnostic.
+// Each result is either a jsonError or a list of JSONDiagnostic.
 type JSONTree map[string]map[string]interface{}
+
+// A TextEdit describes the replacement of a portion of a file.
+// Start and End are zero-based half-open indices into the original byte
+// sequence of the file, and New is the new text.
+type JSONTextEdit struct {
+	Filename string `json:"filename"`
+	Start    int    `json:"start"`
+	End      int    `json:"end"`
+	New      string `json:"new"`
+}
+
+// A JSONSuggestedFix describes an edit that should be applied as a whole or not
+// at all. It might contain multiple TextEdits/text_edits if the SuggestedFix
+// consists of multiple non-contiguous edits.
+type JSONSuggestedFix struct {
+	Message string         `json:"message"`
+	Edits   []JSONTextEdit `json:"edits"`
+}
+
+// A JSONDiagnostic can be used to encode and decode analysis.Diagnostics to and
+// from JSON.
+// TODO(matloob): Should the JSON diagnostics contain ranges?
+// If so, how should they be formatted?
+type JSONDiagnostic struct {
+	Category       string             `json:"category,omitempty"`
+	Posn           string             `json:"posn"`
+	Message        string             `json:"message"`
+	SuggestedFixes []JSONSuggestedFix `json:"suggested_fixes,omitempty"`
+}
 
 // Add adds the result of analysis 'name' on package 'id'.
 // The result is either a list of diagnostics or an error.
@@ -352,20 +384,31 @@ func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.
 		}
 		v = jsonError{err.Error()}
 	} else if len(diags) > 0 {
-		type jsonDiagnostic struct {
-			Category string `json:"category,omitempty"`
-			Posn     string `json:"posn"`
-			Message  string `json:"message"`
-		}
-		var diagnostics []jsonDiagnostic
-		// TODO(matloob): Should the JSON diagnostics contain ranges?
-		// If so, how should they be formatted?
+		diagnostics := make([]JSONDiagnostic, 0, len(diags))
 		for _, f := range diags {
-			diagnostics = append(diagnostics, jsonDiagnostic{
-				Category: f.Category,
-				Posn:     fset.Position(f.Pos).String(),
-				Message:  f.Message,
-			})
+			var fixes []JSONSuggestedFix
+			for _, fix := range f.SuggestedFixes {
+				var edits []JSONTextEdit
+				for _, edit := range fix.TextEdits {
+					edits = append(edits, JSONTextEdit{
+						Filename: fset.Position(edit.Pos).Filename,
+						Start:    fset.Position(edit.Pos).Offset,
+						End:      fset.Position(edit.End).Offset,
+						New:      string(edit.NewText),
+					})
+				}
+				fixes = append(fixes, JSONSuggestedFix{
+					Message: fix.Message,
+					Edits:   edits,
+				})
+			}
+			jdiag := JSONDiagnostic{
+				Category:       f.Category,
+				Posn:           fset.Position(f.Pos).String(),
+				Message:        f.Message,
+				SuggestedFixes: fixes,
+			}
+			diagnostics = append(diagnostics, jdiag)
 		}
 		v = diagnostics
 	}

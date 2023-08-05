@@ -126,6 +126,8 @@ func walkSymlinks(path string) (string, error) {
 			// Symlink to absolute path.
 			dest = link[:1]
 			end = 1
+			vol = link[:1]
+			volLen = 1
 		} else {
 			// Symlink to relative path; replace last
 			// path component in dest.

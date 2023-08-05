@@ -7,6 +7,7 @@ package token
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 )
@@ -41,7 +42,7 @@ func (pos Position) String() string {
 		if s != "" {
 			s += ":"
 		}
-		s += fmt.Sprintf("%d", pos.Line)
+		s += strconv.Itoa(pos.Line)
 		if pos.Column != 0 {
 			s += fmt.Sprintf(":%d", pos.Column)
 		}
@@ -159,6 +160,15 @@ func (f *File) MergeLine(line int) {
 	f.lines = f.lines[:len(f.lines)-1]
 }
 
+// Lines returns the effective line offset table of the form described by SetLines.
+// Callers must not mutate the result.
+func (f *File) Lines() []int {
+	f.mutex.Lock()
+	lines := f.lines
+	f.mutex.Unlock()
+	return lines
+}
+
 // SetLines sets the line offsets for a file and reports whether it succeeded.
 // The line offsets are the offsets of the first character of each line;
 // for instance for the content "ab\nc\n" the line offsets are {0, 3}.
@@ -245,7 +255,7 @@ func (f *File) AddLineInfo(offset int, filename string, line int) {
 // information for line directives such as //line filename:line:column.
 func (f *File) AddLineColumnInfo(offset int, filename string, line, column int) {
 	f.mutex.Lock()
-	if i := len(f.infos); i == 0 || f.infos[i-1].Offset < offset && offset < f.size {
+	if i := len(f.infos); (i == 0 || f.infos[i-1].Offset < offset) && offset < f.size {
 		f.infos = append(f.infos, lineInfo{offset, filename, line, column})
 	}
 	f.mutex.Unlock()
@@ -392,7 +402,6 @@ func (s *FileSet) Base() int {
 	b := s.base
 	s.mutex.RUnlock()
 	return b
-
 }
 
 // AddFile adds a new file with a given filename, base offset, and file size

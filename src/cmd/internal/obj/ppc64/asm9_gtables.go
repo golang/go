@@ -188,6 +188,10 @@ const (
 	ABRW
 	ABRH
 	ABRD
+	AHASHSTP
+	AHASHST
+	AHASHCHKP
+	AHASHCHK
 	AXXSPLTIW
 	AXXSPLTIDP
 	AXXSPLTI32DX
@@ -437,6 +441,10 @@ var GenAnames = []string{
 	"BRW",
 	"BRH",
 	"BRD",
+	"HASHSTP",
+	"HASHST",
+	"HASHCHKP",
+	"HASHCHK",
 	"XXSPLTIW",
 	"XXSPLTIDP",
 	"XXSPLTI32DX",
@@ -684,6 +692,10 @@ var GenOpcodes = [...]uint32{
 	0x7c000136, // ABRW
 	0x7c0001b6, // ABRH
 	0x7c000176, // ABRD
+	0x7c000524, // AHASHSTP
+	0x7c0005a4, // AHASHST
+	0x7c000564, // AHASHCHKP
+	0x7c0005e4, // AHASHCHK
 	0x80060000, // AXXSPLTIW
 	0x80040000, // AXXSPLTIDP
 	0x80000000, // AXXSPLTI32DX
@@ -821,6 +833,8 @@ var optabGen = []Optab{
 	{as: ABRW, a1: C_REG, a6: C_REG, asmout: type_brw, size: 4},
 	{as: ADCFFIXQQ, a1: C_VREG, a6: C_FREGP, asmout: type_xscvuqqp, size: 4},
 	{as: ADCTFIXQQ, a1: C_FREGP, a6: C_VREG, asmout: type_xscvuqqp, size: 4},
+	{as: AHASHCHKP, a1: C_SOREG, a6: C_REG, asmout: type_hashchkp, size: 4},
+	{as: AHASHSTP, a1: C_REG, a6: C_SOREG, asmout: type_hashstp, size: 4},
 	{as: ALXVKQ, a1: C_U5CON, a6: C_VSREG, asmout: type_lxvkq, size: 4},
 	{as: ALXVP, a1: C_SOREG, a6: C_VSREGP, asmout: type_lxvp, size: 4},
 	{as: ALXVPX, a1: C_XOREG, a6: C_VSREGP, asmout: type_lxvpx, size: 4},
@@ -881,6 +895,32 @@ func type_brw(c *ctxt9, p *obj.Prog, t *Optab, out *[5]uint32) {
 	o0 := GenOpcodes[p.As-AXXSETACCZ]
 	o0 |= uint32(p.To.Reg&0x1f) << 16   // RA
 	o0 |= uint32(p.From.Reg&0x1f) << 21 // RS
+	out[0] = o0
+}
+
+// hashchkp RB,offset(RA)
+func type_hashchkp(c *ctxt9, p *obj.Prog, t *Optab, out *[5]uint32) {
+	o0 := GenOpcodes[p.As-AXXSETACCZ]
+	o0 |= uint32(p.To.Reg&0x1f) << 11           // RB
+	o0 |= uint32((p.From.Offset>>8)&0x1) << 0   // DX
+	o0 |= uint32((p.From.Offset>>3)&0x1f) << 21 // D
+	o0 |= uint32(p.From.Reg&0x1f) << 16         // RA
+	if p.From.Offset&0xfffffe07 != 0xfffffe00 {
+		c.ctxt.Diag("Constant(%d) must within the range of [-512,-8] in steps of 8\n%v", p.From.Offset, p)
+	}
+	out[0] = o0
+}
+
+// hashstp RB,offset(RA)
+func type_hashstp(c *ctxt9, p *obj.Prog, t *Optab, out *[5]uint32) {
+	o0 := GenOpcodes[p.As-AXXSETACCZ]
+	o0 |= uint32(p.From.Reg&0x1f) << 11       // RB
+	o0 |= uint32((p.To.Offset>>8)&0x1) << 0   // DX
+	o0 |= uint32((p.To.Offset>>3)&0x1f) << 21 // D
+	o0 |= uint32(p.To.Reg&0x1f) << 16         // RA
+	if p.To.Offset&0xfffffe07 != 0xfffffe00 {
+		c.ctxt.Diag("Constant(%d) must within the range of [-512,-8] in steps of 8\n%v", p.To.Offset, p)
+	}
 	out[0] = o0
 }
 
@@ -1370,6 +1410,10 @@ func opsetGen(from obj.As) bool {
 		opset(ABRD, r0)
 	case ADCFFIXQQ:
 	case ADCTFIXQQ:
+	case AHASHCHKP:
+		opset(AHASHCHK, r0)
+	case AHASHSTP:
+		opset(AHASHST, r0)
 	case ALXVKQ:
 	case ALXVP:
 	case ALXVPX:

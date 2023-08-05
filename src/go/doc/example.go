@@ -112,7 +112,7 @@ func Examples(testFiles ...*ast.File) []*Example {
 
 var outputPrefix = lazyregexp.New(`(?i)^[[:space:]]*(unordered )?output:`)
 
-// Extracts the expected output and whether there was a valid output comment
+// Extracts the expected output and whether there was a valid output comment.
 func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) (output string, unordered, ok bool) {
 	if _, last := lastComment(b, comments); last != nil {
 		// test that it begins with the correct prefix

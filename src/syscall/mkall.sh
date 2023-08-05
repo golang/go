@@ -166,6 +166,13 @@ freebsd_arm64)
 	# API consistent between platforms.
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
 	;;
+freebsd_riscv64)
+	mkerrors="$mkerrors"
+	mksysnum="curl -s 'https://cgit.freebsd.org/src/plain/sys/kern/syscalls.master?h=stable/12' | ./mksysnum_freebsd.pl"
+	# Let the type of C char be signed to make the bare syscall
+	# API consistent between platforms.
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
+	;;
 linux_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32"

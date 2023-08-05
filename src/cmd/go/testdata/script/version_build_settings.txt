@@ -6,7 +6,7 @@ go version -m m$GOEXE
 stdout '^\tbuild\t-compiler=gc$'
 stdout '^\tbuild\tGOOS='
 stdout '^\tbuild\tGOARCH='
-[amd64] stdout '^\tbuild\tGOAMD64='
+[GOARCH:amd64] stdout '^\tbuild\tGOAMD64='
 ! stdout asmflags|gcflags|ldflags|gccgoflags
 
 # Toolchain flags are added if present.

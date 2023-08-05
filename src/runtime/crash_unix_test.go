@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -75,12 +76,20 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
+	if strings.Contains(os.Getenv("GOFLAGS"), "mayMoreStackPreempt") {
+		// This test occasionally times out in this debug mode. This is probably
+		// revealing a real bug in the scheduler, but since it seems to only
+		// affect this test and this is itself a test of a debug mode, it's not
+		// a high priority.
+		testenv.SkipFlaky(t, 55160)
+	}
+
 	exe, err := buildTestProg(t, "testprog")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(exe, "CrashDumpsAllThreads")
+	cmd := testenv.Command(t, exe, "CrashDumpsAllThreads")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env,
 		"GOTRACEBACK=crash",
@@ -198,10 +207,12 @@ func TestPanicSystemstack(t *testing.T) {
 
 	// Traceback should have two testPanicSystemstackInternal's
 	// and two blockOnSystemStackInternal's.
-	if bytes.Count(tb, []byte("testPanicSystemstackInternal")) != 2 {
-		t.Fatal("traceback missing user stack:\n", string(tb))
-	} else if bytes.Count(tb, []byte("blockOnSystemStackInternal")) != 2 {
-		t.Fatal("traceback missing system stack:\n", string(tb))
+	userFunc := "testPanicSystemstackInternal"
+	sysFunc := "blockOnSystemStackInternal"
+	nUser := bytes.Count(tb, []byte(userFunc))
+	nSys := bytes.Count(tb, []byte(sysFunc))
+	if nUser != 2 || nSys != 2 {
+		t.Fatalf("want %d user stack frames in %s and %d system stack frames in %s, got %d and %d:\n%s", 2, userFunc, 2, sysFunc, nUser, nSys, string(tb))
 	}
 }
 

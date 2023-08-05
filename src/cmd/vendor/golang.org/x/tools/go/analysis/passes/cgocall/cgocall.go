@@ -35,6 +35,7 @@ or slice to C, either directly, or via a pointer, array, or struct.`
 var Analyzer = &analysis.Analyzer{
 	Name:             "cgocall",
 	Doc:              Doc,
+	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/cgocall",
 	RunDespiteErrors: true,
 	Run:              run,
 }
@@ -270,6 +271,7 @@ func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*a
 		Sizes: sizes,
 		Error: func(error) {}, // ignore errors (e.g. unused import)
 	}
+	setGoVersion(tc, pkg)
 
 	// It's tempting to record the new types in the
 	// existing pass.TypesInfo, but we don't own it.

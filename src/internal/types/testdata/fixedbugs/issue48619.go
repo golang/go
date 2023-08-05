@@ -7,8 +7,8 @@ package p
 func f[P any](a, _ P) {
 	var x int
 	// TODO(gri) these error messages, while correct, could be better
-	f(a, x /* ERROR type int of x does not match inferred type P for P */)
-	f(x, a /* ERROR type P of a does not match inferred type int for P */)
+	f(a, x /* ERROR "type int of x does not match inferred type P for P" */)
+	f(x, a /* ERROR "type P of a does not match inferred type int for P" */)
 }
 
 func g[P any](a, b P) {

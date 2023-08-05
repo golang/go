@@ -488,9 +488,6 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			}
 			b.WriteString("func")
 		}
-		if t.NumTParams() > 0 {
-			tconv2(b, t.TParams(), 0, mode, visited)
-		}
 		tconv2(b, t.Params(), 0, mode, visited)
 
 		switch t.NumResults() {
@@ -570,27 +567,6 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 
 	case TUNSAFEPTR:
 		b.WriteString("unsafe.Pointer")
-
-	case TTYPEPARAM:
-		if t.Sym() != nil {
-			sconv2(b, t.Sym(), 'v', mode)
-		} else {
-			b.WriteString("tp")
-			// Print out the pointer value for now to disambiguate type params
-			fmt.Fprintf(b, "%p", t)
-		}
-
-	case TUNION:
-		for i := 0; i < t.NumTerms(); i++ {
-			if i > 0 {
-				b.WriteString("|")
-			}
-			elem, tilde := t.Term(i)
-			if tilde {
-				b.WriteString("~")
-			}
-			tconv2(b, elem, 0, mode, visited)
-		}
 
 	case Txxx:
 		b.WriteString("Txxx")

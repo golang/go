@@ -6,11 +6,13 @@ package noder
 
 import (
 	"fmt"
+	"internal/buildcfg"
 	"internal/pkgbits"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
+	"cmd/compile/internal/types"
 	"cmd/compile/internal/types2"
 )
 
@@ -106,7 +108,7 @@ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
 
 // errorf reports a user error about thing p.
 func (pw *pkgWriter) errorf(p poser, msg string, args ...interface{}) {
-	base.ErrorfAt(pw.m.pos(p), msg, args...)
+	base.ErrorfAt(pw.m.pos(p), 0, msg, args...)
 }
 
 // fatalf reports an internal compiler error about thing p.
@@ -120,16 +122,27 @@ func (pw *pkgWriter) unexpected(what string, p poser) {
 	pw.fatalf(p, "unexpected %s: %v (%T)", what, p, p)
 }
 
-func (pw *pkgWriter) typeAndValue(x syntax.Expr) types2.TypeAndValue {
-	tv, ok := pw.info.Types[x]
+func (pw *pkgWriter) typeAndValue(x syntax.Expr) syntax.TypeAndValue {
+	tv, ok := pw.maybeTypeAndValue(x)
 	if !ok {
 		pw.fatalf(x, "missing Types entry: %v", syntax.String(x))
 	}
 	return tv
 }
-func (pw *pkgWriter) maybeTypeAndValue(x syntax.Expr) (types2.TypeAndValue, bool) {
-	tv, ok := pw.info.Types[x]
-	return tv, ok
+
+func (pw *pkgWriter) maybeTypeAndValue(x syntax.Expr) (syntax.TypeAndValue, bool) {
+	tv := x.GetTypeInfo()
+
+	// If x is a generic function whose type arguments are inferred
+	// from assignment context, then we need to find its inferred type
+	// in Info.Instances instead.
+	if name, ok := x.(*syntax.Name); ok {
+		if inst, ok := pw.info.Instances[name]; ok {
+			tv.Type = inst.Type
+		}
+	}
+
+	return tv, tv.Type != nil
 }
 
 // typeOf returns the Type of the given value expression.
@@ -441,8 +454,9 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) pkgbits.Index {
 // @@@ Types
 
 var (
-	anyTypeName  = types2.Universe.Lookup("any").(*types2.TypeName)
-	runeTypeName = types2.Universe.Lookup("rune").(*types2.TypeName)
+	anyTypeName        = types2.Universe.Lookup("any").(*types2.TypeName)
+	comparableTypeName = types2.Universe.Lookup("comparable").(*types2.TypeName)
+	runeTypeName       = types2.Universe.Lookup("rune").(*types2.TypeName)
 )
 
 // typ writes a use of the given type into the bitstream.
@@ -494,7 +508,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 			w.Len(int(kind))
 
 		default:
-			// Handle "byte" and "rune" as references to their TypeName.
+			// Handle "byte" and "rune" as references to their TypeNames.
 			obj := types2.Universe.Lookup(typ.Name())
 			assert(obj.Type() == typ)
 
@@ -552,6 +566,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		w.structType(typ)
 
 	case *types2.Interface:
+		// Handle "any" as reference to its TypeName.
 		if typ == anyTypeName.Type() {
 			w.Code(pkgbits.TypeNamed)
 			w.obj(anyTypeName, nil)
@@ -599,6 +614,23 @@ func (w *writer) unionType(typ *types2.Union) {
 }
 
 func (w *writer) interfaceType(typ *types2.Interface) {
+	// If typ has no embedded types but it's not a basic interface, then
+	// the natural description we write out below will fail to
+	// reconstruct it.
+	if typ.NumEmbeddeds() == 0 && !typ.IsMethodSet() {
+		// Currently, this can only happen for the underlying Interface of
+		// "comparable", which is needed to handle type declarations like
+		// "type C comparable".
+		assert(typ == comparableTypeName.Type().(*types2.Named).Underlying())
+
+		// Export as "interface{ comparable }".
+		w.Len(0)                         // NumExplicitMethods
+		w.Len(1)                         // NumEmbeddeds
+		w.Bool(false)                    // IsImplicit
+		w.typ(comparableTypeName.Type()) // EmbeddedType(0)
+		return
+	}
+
 	w.Len(typ.NumExplicitMethods())
 	w.Len(typ.NumEmbeddeds())
 
@@ -784,9 +816,6 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		return pkgbits.ObjFunc
 
 	case *types2.TypeName:
-		decl, ok := w.p.typDecls[obj]
-		assert(ok)
-
 		if obj.IsAlias() {
 			w.pos(obj)
 			w.typ(obj.Type())
@@ -799,7 +828,7 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		w.pos(obj)
 		w.typeParamNames(named.TypeParams())
 		wext.typeExt(obj)
-		w.typExpr(decl.Type)
+		w.typ(named.Underlying())
 
 		w.Len(named.NumMethods())
 		for i := 0; i < named.NumMethods(); i++ {
@@ -814,15 +843,6 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		wext.varExt(obj)
 		return pkgbits.ObjVar
 	}
-}
-
-// typExpr writes the type represented by the given expression.
-//
-// TODO(mdempsky): Document how this differs from exprType.
-func (w *writer) typExpr(expr syntax.Expr) {
-	tv := w.p.typeAndValue(expr)
-	assert(tv.IsType())
-	w.typ(tv.Type)
 }
 
 // objDict writes the dictionary needed for reading the given object.
@@ -995,10 +1015,14 @@ func (w *writer) funcExt(obj *types2.Func) {
 	if pragma&ir.Systemstack != 0 && pragma&ir.Nosplit != 0 {
 		w.p.errorf(decl, "go:nosplit and go:systemstack cannot be combined")
 	}
+	wi := asWasmImport(decl.Pragma)
 
 	if decl.Body != nil {
 		if pragma&ir.Noescape != 0 {
 			w.p.errorf(decl, "can only use //go:noescape with external func implementations")
+		}
+		if wi != nil {
+			w.p.errorf(decl, "can only use //go:wasmimport with external func implementations")
 		}
 		if (pragma&ir.UintptrKeepAlive != 0 && pragma&ir.UintptrEscapes == 0) && pragma&ir.Nosplit == 0 {
 			// Stack growth can't handle uintptr arguments that may
@@ -1020,7 +1044,8 @@ func (w *writer) funcExt(obj *types2.Func) {
 		if base.Flag.Complete || decl.Name.Value == "init" {
 			// Linknamed functions are allowed to have no body. Hopefully
 			// the linkname target has a body. See issue 23311.
-			if _, ok := w.p.linknames[obj]; !ok {
+			// Wasmimport functions are also allowed to have no body.
+			if _, ok := w.p.linknames[obj]; !ok && wi == nil {
 				w.p.errorf(decl, "missing function body")
 			}
 		}
@@ -1033,6 +1058,17 @@ func (w *writer) funcExt(obj *types2.Func) {
 	w.Sync(pkgbits.SyncFuncExt)
 	w.pragmaFlag(pragma)
 	w.linkname(obj)
+
+	if buildcfg.GOARCH == "wasm" {
+		if wi != nil {
+			w.String(wi.Module)
+			w.String(wi.Name)
+		} else {
+			w.String("")
+			w.String("")
+		}
+	}
+
 	w.Bool(false) // stub extension
 	w.Reloc(pkgbits.RelocBody, body)
 	w.Sync(pkgbits.SyncEOF)
@@ -1420,6 +1456,7 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 	}
 
 	w.blockStmt(stmt.Body)
+	w.Bool(base.Debug.LoopVar > 0)
 	w.closeAnotherScope()
 }
 
@@ -2437,7 +2474,9 @@ func (pw *pkgWriter) collectDecls(noders []*noder) {
 				}
 
 			default:
-				pw.errorf(l.pos, "//go:linkname must refer to declared function or variable")
+				if types.AllowsGoVersion(1, 18) {
+					pw.errorf(l.pos, "//go:linkname must refer to declared function or variable")
+				}
 			}
 		}
 	}
@@ -2573,9 +2612,9 @@ func (w *writer) pkgObjs(names ...*syntax.Name) {
 // hasImplicitTypeParams reports whether obj is a defined type with
 // implicit type parameters (e.g., declared within a generic function
 // or method).
-func (p *pkgWriter) hasImplicitTypeParams(obj *types2.TypeName) bool {
-	if obj.Pkg() == p.curpkg {
-		decl, ok := p.typDecls[obj]
+func (pw *pkgWriter) hasImplicitTypeParams(obj *types2.TypeName) bool {
+	if obj.Pkg() == pw.curpkg {
+		decl, ok := pw.typDecls[obj]
 		assert(ok)
 		if len(decl.implicits) != 0 {
 			return true
@@ -2716,6 +2755,13 @@ func asPragmaFlag(p syntax.Pragma) ir.PragmaFlag {
 		return 0
 	}
 	return p.(*pragmas).Flag
+}
+
+func asWasmImport(p syntax.Pragma) *WasmImport {
+	if p == nil {
+		return nil
+	}
+	return p.(*pragmas).WasmImport
 }
 
 // isPtrTo reports whether from is the type *to.

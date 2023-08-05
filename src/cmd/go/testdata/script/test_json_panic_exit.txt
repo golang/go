@@ -4,7 +4,7 @@
 
 # 'go test -json' should say a test passes if it says it passes.
 go test -json ./pass
-stdout '"Action":"pass".*\n\z'
+stdout '"Action":"pass","Package":"[^"]*","Elapsed":[^"]*}\n\z'
 ! stdout '"Test":.*\n\z'
 
 # 'go test -json' should say a test passes if it exits 0 and prints nothing.

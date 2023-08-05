@@ -219,7 +219,7 @@ func tRunner(t *T, test *InternalTest) {
 	// a call to runtime.Goexit, record the duration and send
 	// a signal saying that the test is done.
 	defer func() {
-		t.duration = time.Now().Sub(t.start)
+		t.duration = time.Since(t.start)
 		t.signal <- t
 	}()
 

@@ -1,4 +1,4 @@
-[gccgo] skip
+[compiler:gccgo] skip
 
 mkdir $WORK/new/bin
 

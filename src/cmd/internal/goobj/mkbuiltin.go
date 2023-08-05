@@ -53,7 +53,7 @@ func main() {
 func mkbuiltin(w io.Writer) {
 	pkg := "runtime"
 	fset := token.NewFileSet()
-	path := filepath.Join("..", "..", "compile", "internal", "typecheck", "builtin", "runtime.go")
+	path := filepath.Join("..", "..", "compile", "internal", "typecheck", "_builtin", "runtime.go")
 	f, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {
 		log.Fatal(err)
@@ -116,7 +116,7 @@ func mkbuiltin(w io.Writer) {
 	fmt.Fprintln(w, "}")
 }
 
-// addBasicTypes returns the symbol names for basic types that are
+// enumerateBasicTypes returns the symbol names for basic types that are
 // defined in the runtime and referenced in other packages.
 // Needs to be kept in sync with reflect.go:WriteBasicTypes() and
 // reflect.go:writeType() in the compiler.

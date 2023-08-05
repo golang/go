@@ -1,6 +1,6 @@
 env GO111MODULE=off
 
-[!gc] skip
+[!compiler:gc] skip
 
 # 'go list' should report imports from _test.go in the TestImports field.
 go list -f '{{.TestImports}}'

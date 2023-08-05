@@ -388,7 +388,12 @@ function initConfigManager() {
   }
 }
 
-function viewer(baseUrl, nodes) {
+// options if present can contain:
+//   hiliter: function(Number, Boolean): Boolean
+//     Overridable mechanism for highlighting/unhighlighting specified node.
+//   current: function() Map[Number,Boolean]
+//     Overridable mechanism for fetching set of currently selected nodes.
+function viewer(baseUrl, nodes, options) {
   'use strict';
 
   // Elements
@@ -402,6 +407,16 @@ function viewer(baseUrl, nodes) {
   let origFill = new Map();
   let searchAlarm = null;
   let buttonsEnabled = true;
+
+  // Return current selection.
+  function getSelection() {
+    if (selected.size > 0) {
+      return selected;
+    } else if (options && options.current) {
+      return options.current();
+    }
+    return new Map();
+  }
 
   function handleDetails(e) {
     e.preventDefault();
@@ -453,7 +468,7 @@ function viewer(baseUrl, nodes) {
     // drop currently selected items that do not match re.
     selected.forEach(function(v, n) {
       if (!match(nodes[n])) {
-        unselect(n, document.getElementById('node' + n));
+        unselect(n);
       }
     })
 
@@ -461,7 +476,7 @@ function viewer(baseUrl, nodes) {
     if (nodes) {
       for (let n = 0; n < nodes.length; n++) {
         if (!selected.has(n) && match(nodes[n])) {
-          select(n, document.getElementById('node' + n));
+          select(n);
         }
       }
     }
@@ -482,23 +497,19 @@ function viewer(baseUrl, nodes) {
     const n = nodeId(elem);
     if (n < 0) return;
     if (selected.has(n)) {
-      unselect(n, elem);
+      unselect(n);
     } else {
-      select(n, elem);
+      select(n);
     }
     updateButtons();
   }
 
-  function unselect(n, elem) {
-    if (elem == null) return;
-    selected.delete(n);
-    setBackground(elem, false);
+  function unselect(n) {
+    if (setNodeHighlight(n, false)) selected.delete(n);
   }
 
   function select(n, elem) {
-    if (elem == null) return;
-    selected.set(n, true);
-    setBackground(elem, true);
+    if (setNodeHighlight(n, true)) selected.set(n, true);
   }
 
   function nodeId(elem) {
@@ -511,11 +522,17 @@ function viewer(baseUrl, nodes) {
     return n;
   }
 
-  function setBackground(elem, set) {
+  // Change highlighting of node (returns true if node was found).
+  function setNodeHighlight(n, set) {
+    if (options && options.hiliter) return options.hiliter(n, set);
+
+    const elem = document.getElementById('node' + n);
+    if (!elem) return false;
+
     // Handle table row highlighting.
     if (elem.nodeName == 'TR') {
       elem.classList.toggle('hilite', set);
-      return;
+      return true;
     }
 
     // Handle svg element highlighting.
@@ -528,6 +545,8 @@ function viewer(baseUrl, nodes) {
         p.style.fill = origFill.get(p);
       }
     }
+
+    return true;
   }
 
   function findPolygon(elem) {
@@ -575,8 +594,8 @@ function viewer(baseUrl, nodes) {
       // The selection can be in one of two modes: regexp-based or
       // list-based.  Construct regular expression depending on mode.
       let re = regexpActive
-        ? search.value
-        : Array.from(selected.keys()).map(key => quotemeta(nodes[key])).join('|');
+          ? search.value
+          : Array.from(getSelection().keys()).map(key => quotemeta(nodes[key])).join('|');
 
       setHrefParams(elem, function (params) {
         if (re != '') {
@@ -639,7 +658,7 @@ function viewer(baseUrl, nodes) {
   }
 
   function updateButtons() {
-    const enable = (search.value != '' || selected.size != 0);
+    const enable = (search.value != '' || getSelection().size != 0);
     if (buttonsEnabled == enable) return;
     buttonsEnabled = enable;
     for (const id of ['focus', 'ignore', 'hide', 'show', 'show-from']) {
@@ -663,8 +682,8 @@ function viewer(baseUrl, nodes) {
     toptable.addEventListener('touchstart', handleTopClick);
   }
 
-  const ids = ['topbtn', 'graphbtn', 'flamegraph', 'peek', 'list', 'disasm',
-               'focus', 'ignore', 'hide', 'show', 'show-from'];
+  const ids = ['topbtn', 'graphbtn', 'flamegraph', 'flamegraph2', 'peek', 'list',
+	       'disasm', 'focus', 'ignore', 'hide', 'show', 'show-from'];
   ids.forEach(makeSearchLinkDynamic);
 
   const sampleIDs = [{{range .SampleTypes}}'{{.}}', {{end}}];

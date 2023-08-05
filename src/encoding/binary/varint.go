@@ -123,7 +123,7 @@ func Varint(buf []byte) (int64, int) {
 	return x, n
 }
 
-var overflow = errors.New("binary: varint overflows a 64-bit integer")
+var errOverflow = errors.New("binary: varint overflows a 64-bit integer")
 
 // ReadUvarint reads an encoded unsigned integer from r and returns it as a uint64.
 // The error is EOF only if no bytes were read.
@@ -142,14 +142,14 @@ func ReadUvarint(r io.ByteReader) (uint64, error) {
 		}
 		if b < 0x80 {
 			if i == MaxVarintLen64-1 && b > 1 {
-				return x, overflow
+				return x, errOverflow
 			}
 			return x | uint64(b)<<s, nil
 		}
 		x |= uint64(b&0x7f) << s
 		s += 7
 	}
-	return x, overflow
+	return x, errOverflow
 }
 
 // ReadVarint reads an encoded signed integer from r and returns it as an int64.

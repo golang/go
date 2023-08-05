@@ -3,15 +3,15 @@
 # The Git test covers common functionality.
 
 # "fossil" is the Fossil file server on Plan 9.
-[plan9] skip
+[GOOS:plan9] skip
 [!exec:fossil] skip
 [short] skip
 env GOBIN=$WORK/gopath/bin
 env oldpath=$PATH
 env HOME=$WORK
 env USER=gopher
-[!windows] env fslckout=.fslckout
-[windows] env fslckout=_FOSSIL_
+[!GOOS:windows] env fslckout=.fslckout
+[GOOS:windows] env fslckout=_FOSSIL_
 exec pwd
 exec fossil init repo.fossil
 cd repo/a
@@ -25,7 +25,7 @@ rm $GOBIN/a$GOEXE
 # If there is a repository, but it can't be used for some reason,
 # there should be an error. It should hint about -buildvcs=false.
 cd ..
-mkdir $fslckout
+mv fslckout $fslckout
 env PATH=$WORK${/}fakebin${:}$oldpath
 chmod 0755 $WORK/fakebin/fossil
 ! exec fossil help
@@ -82,6 +82,7 @@ exit 1
 -- repo/README --
 Far out in the uncharted backwaters of the unfashionable end of the western
 spiral arm of the Galaxy lies a small, unregarded yellow sun.
+-- repo/fslckout --
 -- repo/a/go.mod --
 module example.com/a
 

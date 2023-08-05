@@ -1061,3 +1061,92 @@ func TestIncorrectRotate(t *testing.T) {
 		t.Errorf("got %x want 0", got)
 	}
 }
+
+//go:noinline
+func variableShiftOverflow64x8(x int64, y, z uint8) (a, b, c int64) {
+	// Verify junk bits are ignored when doing a variable shift.
+	return x >> (y + z), x << (y + z), int64(uint64(x) >> (y + z))
+}
+
+//go:noinline
+func variableShiftOverflow32x8(x int32, y, z uint8) (a, b, c int32) {
+	// Verify junk bits are ignored when doing a variable shift.
+	return x >> (y + z), x << (y + z), int32(uint32(x) >> (y + z))
+}
+
+//go:noinline
+func variableShiftOverflow16x8(x int16, y, z uint8) (a, b, c int16) {
+	// Verify junk bits are ignored when doing a variable shift.
+	return x >> (y + z), x << (y + z), int16(uint16(x) >> (y + z))
+}
+
+//go:noinline
+func variableShiftOverflow8x8(x int8, y, z uint8) (a, b, c int8) {
+	// Verify junk bits are ignored when doing a variable shift.
+	return x >> (y + z), x << (y + z), int8(uint8(x) >> (y + z))
+}
+
+//go:noinline
+func variableShiftOverflow64x16(x int64, y, z uint16) (a, b, c int64) {
+	// Verify junk bits are ignored when doing a variable shift.
+	return x >> (y + z), x << (y + z), int64(uint64(x) >> (y + z))
+}
+
+//go:noinline
+func variableShiftOverflow32x16(x int32, y, z uint16) (a, b, c int32) {
+	// Verify junk bits are ignored when doing a variable shift.
+	return x >> (y + z), x << (y + z), int32(uint32(x) >> (y + z))
+}
+
+//go:noinline
+func variableShiftOverflow16x16(x int16, y, z uint16) (a, b, c int16) {
+	// Verify junk bits are ignored when doing a variable shift.
+	return x >> (y + z), x << (y + z), int16(uint16(x) >> (y + z))
+}
+
+//go:noinline
+func variableShiftOverflow8x16(x int8, y, z uint16) (a, b, c int8) {
+	// Verify junk bits are ignored when doing a variable shift.
+	return x >> (y + z), x << (y + z), int8(uint8(x) >> (y + z))
+}
+
+//go:noinline
+func makeU8(x uint64) uint8 {
+	// Ensure the upper portions of the register are clear before testing large shift values
+	// using non-native types (e.g uint8 on PPC64).
+	return uint8(x)
+}
+
+//go:noinline
+func makeU16(x uint64) uint16 {
+	// Ensure the upper portions of the register are clear before testing large shift values
+	// using non-native types (e.g uint8 on PPC64).
+	return uint16(x)
+}
+
+func TestShiftOverflow(t *testing.T) {
+	if v, w, z := variableShiftOverflow64x8(-64, makeU8(255), 2); v != -32 || w != -128 || z != 0x7fffffffffffffe0 {
+		t.Errorf("got %d %d 0x%x, expected -32 -128 0x7fffffffffffffe0", v, w, z)
+	}
+	if v, w, z := variableShiftOverflow32x8(-64, makeU8(255), 2); v != -32 || w != -128 || z != 0x7fffffe0 {
+		t.Errorf("got %d %d 0x%x, expected -32 -128 0x7fffffe0", v, w, z)
+	}
+	if v, w, z := variableShiftOverflow16x8(-64, makeU8(255), 2); v != -32 || w != -128 || z != 0x7fe0 {
+		t.Errorf("got %d %d 0x%x, expected -32 -128 0x7fe0", v, w, z)
+	}
+	if v, w, z := variableShiftOverflow8x8(-64, makeU8(255), 2); v != -32 || w != -128 || z != 0x60 {
+		t.Errorf("got %d %d 0x%x, expected -32 -128 0x60", v, w, z)
+	}
+	if v, w, z := variableShiftOverflow64x16(-64, makeU16(0xffff), 2); v != -32 || w != -128 || z != 0x7fffffffffffffe0 {
+		t.Errorf("got %d %d 0x%x, expected -32 -128 0x7fffffffffffffe0", v, w, z)
+	}
+	if v, w, z := variableShiftOverflow32x16(-64, makeU16(0xffff), 2); v != -32 || w != -128 || z != 0x7fffffe0 {
+		t.Errorf("got %d %d 0x%x, expected -32 -128 0x7fffffe0,", v, w, z)
+	}
+	if v, w, z := variableShiftOverflow16x16(-64, makeU16(0xffff), 2); v != -32 || w != -128 || z != 0x7fe0 {
+		t.Errorf("got %d %d 0x%x, expected -32 -128 0x7fe0", v, w, z)
+	}
+	if v, w, z := variableShiftOverflow8x16(-64, makeU16(0xffff), 2); v != -32 || w != -128 || z != 0x60 {
+		t.Errorf("got %d %d 0x%x, expected -32 -128 0x60", v, w, z)
+	}
+}

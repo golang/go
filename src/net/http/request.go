@@ -17,7 +17,6 @@ import (
 	"io"
 	"mime"
 	"mime/multipart"
-	"net"
 	"net/http/httptrace"
 	"net/http/internal/ascii"
 	"net/textproto"
@@ -27,6 +26,7 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/idna"
 )
 
@@ -48,10 +48,18 @@ type ProtocolError struct {
 
 func (pe *ProtocolError) Error() string { return pe.ErrorString }
 
+// Is lets http.ErrNotSupported match errors.ErrUnsupported.
+func (pe *ProtocolError) Is(err error) bool {
+	return pe == ErrNotSupported && err == errors.ErrUnsupported
+}
+
 var (
-	// ErrNotSupported is returned by the Push method of Pusher
-	// implementations to indicate that HTTP/2 Push support is not
-	// available.
+	// ErrNotSupported indicates that a feature is not supported.
+	//
+	// It is returned by ResponseController methods to indicate that
+	// the handler does not support the method, and by the Push method
+	// of Pusher implementations to indicate that HTTP/2 Push support
+	// is not available.
 	ErrNotSupported = &ProtocolError{"feature not supported"}
 
 	// Deprecated: ErrUnexpectedTrailer is no longer returned by
@@ -572,12 +580,19 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	// is not given, use the host from the request URL.
 	//
 	// Clean the host, in case it arrives with unexpected stuff in it.
-	host := cleanHost(r.Host)
+	host := r.Host
 	if host == "" {
 		if r.URL == nil {
 			return errMissingHost
 		}
-		host = cleanHost(r.URL.Host)
+		host = r.URL.Host
+	}
+	host, err = httpguts.PunycodeHostPort(host)
+	if err != nil {
+		return err
+	}
+	if !httpguts.ValidHostHeader(host) {
+		return errors.New("http: invalid Host header")
 	}
 
 	// According to RFC 6874, an HTTP client, proxy, or other
@@ -732,40 +747,6 @@ func idnaASCII(v string) (string, error) {
 		return v, nil
 	}
 	return idna.Lookup.ToASCII(v)
-}
-
-// cleanHost cleans up the host sent in request's Host header.
-//
-// It both strips anything after '/' or ' ', and puts the value
-// into Punycode form, if necessary.
-//
-// Ideally we'd clean the Host header according to the spec:
-//
-//	https://tools.ietf.org/html/rfc7230#section-5.4 (Host = uri-host [ ":" port ]")
-//	https://tools.ietf.org/html/rfc7230#section-2.7 (uri-host -> rfc3986's host)
-//	https://tools.ietf.org/html/rfc3986#section-3.2.2 (definition of host)
-//
-// But practically, what we are trying to avoid is the situation in
-// issue 11206, where a malformed Host header used in the proxy context
-// would create a bad request. So it is enough to just truncate at the
-// first offending character.
-func cleanHost(in string) string {
-	if i := strings.IndexAny(in, " /"); i != -1 {
-		in = in[:i]
-	}
-	host, port, err := net.SplitHostPort(in)
-	if err != nil { // input was just a host
-		a, err := idnaASCII(in)
-		if err != nil {
-			return in // garbage in, garbage out
-		}
-		return a
-	}
-	a, err := idnaASCII(host)
-	if err != nil {
-		return in // garbage in, garbage out
-	}
-	return net.JoinHostPort(a, port)
 }
 
 // removeZone removes IPv6 zone identifier from host.
@@ -1358,7 +1339,7 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
 }
 
 // FormValue returns the first value for the named component of the query.
-// POST and PUT body parameters take precedence over URL query string values.
+// POST, PUT, and PATCH body parameters take precedence over URL query string values.
 // FormValue calls ParseMultipartForm and ParseForm if necessary and ignores
 // any errors returned by these functions.
 // If key is not present, FormValue returns the empty string.
@@ -1375,7 +1356,7 @@ func (r *Request) FormValue(key string) string {
 }
 
 // PostFormValue returns the first value for the named component of the POST,
-// PATCH, or PUT request body. URL query parameters are ignored.
+// PUT, or PATCH request body. URL query parameters are ignored.
 // PostFormValue calls ParseMultipartForm and ParseForm if necessary and ignores
 // any errors returned by these functions.
 // If key is not present, PostFormValue returns the empty string.

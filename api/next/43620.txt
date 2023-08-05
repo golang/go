@@ -1,1 +1,0 @@
-pkg testing, method (*B) Elapsed() time.Duration #43620

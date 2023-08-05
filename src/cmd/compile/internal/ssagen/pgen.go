@@ -5,12 +5,11 @@
 package ssagen
 
 import (
+	"fmt"
 	"internal/buildcfg"
-	"internal/race"
-	"math/rand"
+	"os"
 	"sort"
 	"sync"
-	"time"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -64,7 +63,7 @@ func cmpstackvarlt(a, b *ir.Name) bool {
 	return a.Sym().Name < b.Sym().Name
 }
 
-// byStackvar implements sort.Interface for []*Node using cmpstackvarlt.
+// byStackVar implements sort.Interface for []*Node using cmpstackvarlt.
 type byStackVar []*ir.Name
 
 func (s byStackVar) Len() int           { return len(s) }
@@ -143,6 +142,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			continue
 		}
 		if !n.Used() {
+			fn.DebugInfo.(*ssa.FuncDebug).OptDcl = fn.Dcl[i:]
 			fn.Dcl = fn.Dcl[:i]
 			break
 		}
@@ -210,13 +210,53 @@ func Compile(fn *ir.Func, worker int) {
 	}
 
 	pp.Flush() // assemble, fill in boilerplate, etc.
+
+	// If we're compiling the package init function, search for any
+	// relocations that target global map init outline functions and
+	// turn them into weak relocs.
+	if fn.IsPackageInit() && base.Debug.WrapGlobalMapCtl != 1 {
+		weakenGlobalMapInitRelocs(fn)
+	}
+
 	// fieldtrack must be called after pp.Flush. See issue 20014.
 	fieldtrack(pp.Text.From.Sym, fn.FieldTrack)
 }
 
-func init() {
-	if race.Enabled {
-		rand.Seed(time.Now().UnixNano())
+// globalMapInitLsyms records the LSym of each map.init.NNN outlined
+// map initializer function created by the compiler.
+var globalMapInitLsyms map[*obj.LSym]struct{}
+
+// RegisterMapInitLsym records "s" in the set of outlined map initializer
+// functions.
+func RegisterMapInitLsym(s *obj.LSym) {
+	if globalMapInitLsyms == nil {
+		globalMapInitLsyms = make(map[*obj.LSym]struct{})
+	}
+	globalMapInitLsyms[s] = struct{}{}
+}
+
+// weakenGlobalMapInitRelocs walks through all of the relocations on a
+// given a package init function "fn" and looks for relocs that target
+// outlined global map initializer functions; if it finds any such
+// relocs, it flags them as R_WEAK.
+func weakenGlobalMapInitRelocs(fn *ir.Func) {
+	if globalMapInitLsyms == nil {
+		return
+	}
+	for i := range fn.LSym.R {
+		tgt := fn.LSym.R[i].Sym
+		if tgt == nil {
+			continue
+		}
+		if _, ok := globalMapInitLsyms[tgt]; !ok {
+			continue
+		}
+		if base.Debug.WrapGlobalMapDbg > 1 {
+			fmt.Fprintf(os.Stderr, "=-= weakify fn %v reloc %d %+v\n", fn, i,
+				fn.LSym.R[i])
+		}
+		// set the R_WEAK bit, leave rest of reloc type intact
+		fn.LSym.R[i].Type |= objabi.R_WEAK
 	}
 }
 
@@ -287,9 +327,9 @@ func CheckLargeStacks() {
 	})
 	for _, large := range largeStackFrames {
 		if large.callee != 0 {
-			base.ErrorfAt(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
+			base.ErrorfAt(large.pos, 0, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
 		} else {
-			base.ErrorfAt(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
+			base.ErrorfAt(large.pos, 0, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
 		}
 	}
 }

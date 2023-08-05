@@ -1,6 +1,0 @@
-pkg net/http/httputil, method (*ProxyRequest) SetURL(*url.URL) #53002
-pkg net/http/httputil, method (*ProxyRequest) SetXForwarded() #53002
-pkg net/http/httputil, type ProxyRequest struct #53002
-pkg net/http/httputil, type ProxyRequest struct, In *http.Request #53002
-pkg net/http/httputil, type ProxyRequest struct, Out *http.Request #53002
-pkg net/http/httputil, type ReverseProxy struct, Rewrite func(*ProxyRequest) #53002

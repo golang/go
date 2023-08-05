@@ -21,17 +21,17 @@ func _(x interface{}) {
 	case map[T[int]] string:
 	case chan T[int]:
 
-	case T /* ERROR cannot use generic type T\[P any\] without instantiation */ :
-	case []T /* ERROR cannot use generic type */ :
-	case [10]T /* ERROR cannot use generic type */ :
-	case struct{T /* ERROR cannot use generic type */ }:
-	case *T /* ERROR cannot use generic type */ :
-	case func(T /* ERROR cannot use generic type */ ):
-	case interface{m(T /* ERROR cannot use generic type */ )}:
-	case map[T /* ERROR cannot use generic type */ ] string:
-	case chan T /* ERROR cannot use generic type */ :
+	case T /* ERROR "cannot use generic type T[P any] without instantiation" */ :
+	case []T /* ERROR "cannot use generic type" */ :
+	case [10]T /* ERROR "cannot use generic type" */ :
+	case struct{T /* ERROR "cannot use generic type" */ }:
+	case *T /* ERROR "cannot use generic type" */ :
+	case func(T /* ERROR "cannot use generic type" */ ):
+	case interface{m(T /* ERROR "cannot use generic type" */ )}:
+	case map[T /* ERROR "cannot use generic type" */ ] string:
+	case chan T /* ERROR "cannot use generic type" */ :
 
-	case T /* ERROR cannot use generic type */ , *T /* ERROR cannot use generic type */ :
+	case T /* ERROR "cannot use generic type" */ , *T /* ERROR "cannot use generic type" */ :
 	}
 }
 
@@ -55,6 +55,6 @@ func _(x interface{}) {
 func _(x interface{}) {
 	var nil int
 	switch x.(type) {
-	case nil /* ERROR not a type */ : // not ok - this is the variable nil
+	case nil /* ERROR "not a type" */ : // not ok - this is the variable nil
 	}
 }

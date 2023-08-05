@@ -11,11 +11,14 @@ import (
 	"os"
 	"strings"
 
+	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/obj/wasm"
 )
 
 // SymABIs records information provided by the assembler about symbol
@@ -143,7 +146,7 @@ func (s *SymABIs) GenABIWrappers() {
 		defABI, hasDefABI := s.defs[symName]
 		if hasDefABI {
 			if len(fn.Body) != 0 {
-				base.ErrorfAt(fn.Pos(), "%v defined in both Go and assembly", fn)
+				base.ErrorfAt(fn.Pos(), 0, "%v defined in both Go and assembly", fn)
 			}
 			fn.ABI = defABI
 		}
@@ -204,7 +207,7 @@ func (s *SymABIs) GenABIWrappers() {
 		// Double check that cgo-exported symbols don't get
 		// any wrappers.
 		if len(cgoExport) > 0 && fn.ABIRefs&^obj.ABISetOf(fn.ABI) != 0 {
-			base.Fatalf("cgo exported function %s cannot have ABI wrappers", fn)
+			base.Fatalf("cgo exported function %v cannot have ABI wrappers", fn)
 		}
 
 		if !buildcfg.Experiment.RegabiWrappers {
@@ -212,30 +215,6 @@ func (s *SymABIs) GenABIWrappers() {
 		}
 
 		forEachWrapperABI(fn, makeABIWrapper)
-	}
-}
-
-// InitLSym defines f's obj.LSym and initializes it based on the
-// properties of f. This includes setting the symbol flags and ABI and
-// creating and initializing related DWARF symbols.
-//
-// InitLSym must be called exactly once per function and must be
-// called for both functions with bodies and functions without bodies.
-// For body-less functions, we only create the LSym; for functions
-// with bodies call a helper to setup up / populate the LSym.
-func InitLSym(f *ir.Func, hasBody bool) {
-	if f.LSym != nil {
-		base.FatalfAt(f.Pos(), "InitLSym called twice on %v", f)
-	}
-
-	if nam := f.Nname; !ir.IsBlank(nam) {
-		f.LSym = nam.LinksymABI(f.ABI)
-		if f.Pragma&ir.Systemstack != 0 {
-			f.LSym.Set(obj.AttrCFunc, true)
-		}
-	}
-	if hasBody {
-		setupTextLSym(f, 0)
 	}
 }
 
@@ -272,7 +251,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// below to handle the receiver. Panic if we see this scenario.
 	ft := f.Nname.Type()
 	if ft.NumRecvs() != 0 {
-		base.ErrorfAt(f.Pos(), "makeABIWrapper support for wrapping methods not implemented")
+		base.ErrorfAt(f.Pos(), 0, "makeABIWrapper support for wrapping methods not implemented")
 		return
 	}
 
@@ -348,9 +327,6 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	fn.Body.Append(tail)
 
 	typecheck.FinishFuncBody()
-	if base.Debug.DclStack != 0 {
-		types.CheckDclstack()
-	}
 
 	typecheck.Func(fn)
 	ir.CurFunc = fn
@@ -364,46 +340,112 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	ir.CurFunc = savedcurfn
 }
 
-// setupTextLsym initializes the LSym for a with-body text symbol.
-func setupTextLSym(f *ir.Func, flag int) {
-	if f.Dupok() {
-		flag |= obj.DUPOK
+// CreateWasmImportWrapper creates a wrapper for imported WASM functions to
+// adapt them to the Go calling convention. The body for this function is
+// generated in cmd/internal/obj/wasm/wasmobj.go
+func CreateWasmImportWrapper(fn *ir.Func) bool {
+	if fn.WasmImport == nil {
+		return false
 	}
-	if f.Wrapper() {
-		flag |= obj.WRAPPER
-	}
-	if f.ABIWrapper() {
-		flag |= obj.ABIWRAPPER
-	}
-	if f.Needctxt() {
-		flag |= obj.NEEDCTXT
-	}
-	if f.Pragma&ir.Nosplit != 0 {
-		flag |= obj.NOSPLIT
-	}
-	if f.ReflectMethod() {
-		flag |= obj.REFLECTMETHOD
+	if buildcfg.GOARCH != "wasm" {
+		base.FatalfAt(fn.Pos(), "CreateWasmImportWrapper call not supported on %s: func was %v", buildcfg.GOARCH, fn)
 	}
 
-	// Clumsy but important.
-	// For functions that could be on the path of invoking a deferred
-	// function that can recover (runtime.reflectcall, reflect.callReflect,
-	// and reflect.callMethod), we want the panic+recover special handling.
-	// See test/recover.go for test cases and src/reflect/value.go
-	// for the actual functions being considered.
-	//
-	// runtime.reflectcall is an assembly function which tailcalls
-	// WRAPPER functions (runtime.callNN). Its ABI wrapper needs WRAPPER
-	// flag as well.
-	fnname := f.Sym().Name
-	if base.Ctxt.Pkgpath == "runtime" && fnname == "reflectcall" {
-		flag |= obj.WRAPPER
-	} else if base.Ctxt.Pkgpath == "reflect" {
-		switch fnname {
-		case "callReflect", "callMethod":
-			flag |= obj.WRAPPER
+	ir.InitLSym(fn, true)
+
+	setupWasmABI(fn)
+
+	pp := objw.NewProgs(fn, 0)
+	defer pp.Free()
+	pp.Text.To.Type = obj.TYPE_TEXTSIZE
+	pp.Text.To.Val = int32(types.RoundUp(fn.Type().ArgWidth(), int64(types.RegSize)))
+	// Wrapper functions never need their own stack frame
+	pp.Text.To.Offset = 0
+	pp.Flush()
+
+	return true
+}
+
+func paramsToWasmFields(f *ir.Func, result *abi.ABIParamResultInfo, abiParams []abi.ABIParamAssignment) []obj.WasmField {
+	wfs := make([]obj.WasmField, len(abiParams))
+	for i, p := range abiParams {
+		t := p.Type
+		switch t.Kind() {
+		case types.TINT32, types.TUINT32:
+			wfs[i].Type = obj.WasmI32
+		case types.TINT64, types.TUINT64:
+			wfs[i].Type = obj.WasmI64
+		case types.TFLOAT32:
+			wfs[i].Type = obj.WasmF32
+		case types.TFLOAT64:
+			wfs[i].Type = obj.WasmF64
+		case types.TUNSAFEPTR:
+			wfs[i].Type = obj.WasmPtr
+		default:
+			base.ErrorfAt(f.Pos(), 0, "go:wasmimport %s %s: unsupported parameter type %s", f.WasmImport.Module, f.WasmImport.Name, t.String())
 		}
+		wfs[i].Offset = p.FrameOffset(result)
 	}
+	return wfs
+}
 
-	base.Ctxt.InitTextSym(f.LSym, flag)
+func resultsToWasmFields(f *ir.Func, result *abi.ABIParamResultInfo, abiParams []abi.ABIParamAssignment) []obj.WasmField {
+	if len(abiParams) > 1 {
+		base.ErrorfAt(f.Pos(), 0, "go:wasmimport %s %s: too many return values", f.WasmImport.Module, f.WasmImport.Name)
+		return nil
+	}
+	wfs := make([]obj.WasmField, len(abiParams))
+	for i, p := range abiParams {
+		t := p.Type
+		switch t.Kind() {
+		case types.TINT32, types.TUINT32:
+			wfs[i].Type = obj.WasmI32
+		case types.TINT64, types.TUINT64:
+			wfs[i].Type = obj.WasmI64
+		case types.TFLOAT32:
+			wfs[i].Type = obj.WasmF32
+		case types.TFLOAT64:
+			wfs[i].Type = obj.WasmF64
+		default:
+			base.ErrorfAt(f.Pos(), 0, "go:wasmimport %s %s: unsupported result type %s", f.WasmImport.Module, f.WasmImport.Name, t.String())
+		}
+		wfs[i].Offset = p.FrameOffset(result)
+	}
+	return wfs
+}
+
+// setupTextLSym initializes the LSym for a with-body text symbol.
+func setupWasmABI(f *ir.Func) {
+	wi := obj.WasmImport{
+		Module: f.WasmImport.Module,
+		Name:   f.WasmImport.Name,
+	}
+	if wi.Module == wasm.GojsModule {
+		// Functions that are imported from the "gojs" module use a special
+		// ABI that just accepts the stack pointer.
+		// Example:
+		//
+		// 	//go:wasmimport gojs add
+		// 	func importedAdd(a, b uint) uint
+		//
+		// will roughly become
+		//
+		// 	(import "gojs" "add" (func (param i32)))
+		wi.Params = []obj.WasmField{{Type: obj.WasmI32}}
+	} else {
+		// All other imported functions use the normal WASM ABI.
+		// Example:
+		//
+		// 	//go:wasmimport a_module add
+		// 	func importedAdd(a, b uint) uint
+		//
+		// will roughly become
+		//
+		// 	(import "a_module" "add" (func (param i32 i32) (result i32)))
+		abiConfig := AbiForBodylessFuncStackMap(f)
+		abiInfo := abiConfig.ABIAnalyzeFuncType(f.Type().FuncType())
+		wi.Params = paramsToWasmFields(f, abiInfo, abiInfo.InParams())
+		wi.Results = resultsToWasmFields(f, abiInfo, abiInfo.OutParams())
+	}
+	f.LSym.Func().WasmImport = &wi
 }

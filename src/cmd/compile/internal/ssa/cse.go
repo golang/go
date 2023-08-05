@@ -31,7 +31,9 @@ func cse(f *Func) {
 	// until it reaches a fixed point.
 
 	// Make initial coarse partitions by using a subset of the conditions above.
-	a := make([]*Value, 0, f.NumValues())
+	a := f.Cache.allocValueSlice(f.NumValues())
+	defer func() { f.Cache.freeValueSlice(a) }() // inside closure to use final value of a
+	a = a[:0]
 	if f.auxmap == nil {
 		f.auxmap = auxmap{}
 	}
@@ -49,7 +51,8 @@ func cse(f *Func) {
 	partition := partitionValues(a, f.auxmap)
 
 	// map from value id back to eqclass id
-	valueEqClass := make([]ID, f.NumValues())
+	valueEqClass := f.Cache.allocIDSlice(f.NumValues())
+	defer f.Cache.freeIDSlice(valueEqClass)
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			// Use negative equivalence class #s for unique values.
@@ -159,7 +162,8 @@ func cse(f *Func) {
 
 	// Compute substitutions we would like to do. We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
-	rewrite := make([]*Value, f.NumValues())
+	rewrite := f.Cache.allocValueSlice(f.NumValues())
+	defer f.Cache.freeValueSlice(rewrite)
 	byDom := new(partitionByDom) // reusable partitionByDom to reduce allocs
 	for _, e := range partition {
 		byDom.a = e

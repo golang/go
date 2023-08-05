@@ -87,8 +87,8 @@ func BenchmarkIntSet(b *testing.B) {
 func TestFloat(t *testing.T) {
 	RemoveAll()
 	reqs := NewFloat("requests-float")
-	if reqs.f != 0.0 {
-		t.Errorf("reqs.f = %v, want 0", reqs.f)
+	if reqs.f.Load() != 0.0 {
+		t.Errorf("reqs.f = %v, want 0", reqs.f.Load())
 	}
 	if reqs != Get("requests-float").(*Float) {
 		t.Errorf("Get() failed.")

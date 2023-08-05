@@ -262,6 +262,9 @@ func NewTokenDecoder(t TokenReader) *Decoder {
 // or EOF before all expected end elements,
 // it will return an error.
 //
+// If CharsetReader is called and returns an error,
+// the error is wrapped and returned.
+//
 // Token implements XML name spaces as described by
 // https://www.w3.org/TR/REC-xml-names/. Each of the
 // Name structures contained in the Token has the Space
@@ -314,15 +317,14 @@ func (d *Decoder) Token() (Token, error) {
 			}
 		}
 
+		d.pushElement(t1.Name)
 		d.translate(&t1.Name, true)
 		for i := range t1.Attr {
 			d.translate(&t1.Attr[i].Name, false)
 		}
-		d.pushElement(t1.Name)
 		t = t1
 
 	case EndElement:
-		d.translate(&t1.Name, true)
 		if !d.popElement(&t1) {
 			return nil, d.err
 		}
@@ -495,6 +497,8 @@ func (d *Decoder) popElement(t *EndElement) bool {
 		return false
 	}
 
+	d.translate(&t.Name, true)
+
 	// Pop stack until a Start or EOF is on the top, undoing the
 	// translations that were associated with the element we just closed.
 	for d.stk != nil && d.stk.kind != stkStart && d.stk.kind != stkEOF {
@@ -633,7 +637,7 @@ func (d *Decoder) rawToken() (Token, error) {
 				}
 				newr, err := d.CharsetReader(enc, d.r.(io.Reader))
 				if err != nil {
-					d.err = fmt.Errorf("xml: opening charset %q: %v", enc, err)
+					d.err = fmt.Errorf("xml: opening charset %q: %w", enc, err)
 					return nil, d.err
 				}
 				if newr == nil {
@@ -1162,7 +1166,7 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 		return
 	}
 	if strings.Count(s, ":") > 1 {
-		name.Local = s
+		return name, false
 	} else if space, local, ok := strings.Cut(s, ":"); !ok || space == "" || local == "" {
 		name.Local = s
 	} else {

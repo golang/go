@@ -1,6 +1,0 @@
-pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV128 = 20776 #54251
-pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV128 ideal-int #54251
-pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV32 = 20530 #54251
-pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV32 ideal-int #54251
-pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV64 = 20580 #54251
-pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV64 ideal-int #54251

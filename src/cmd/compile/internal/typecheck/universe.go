@@ -14,7 +14,6 @@ import (
 
 var (
 	okfor [ir.OEND][]bool
-	iscmp [ir.OEND]bool
 )
 
 var (
@@ -34,6 +33,7 @@ var builtinFuncs = [...]struct {
 }{
 	{"append", ir.OAPPEND},
 	{"cap", ir.OCAP},
+	{"clear", ir.OCLEAR},
 	{"close", ir.OCLOSE},
 	{"complex", ir.OCOMPLEX},
 	{"copy", ir.OCOPY},
@@ -41,6 +41,8 @@ var builtinFuncs = [...]struct {
 	{"imag", ir.OIMAG},
 	{"len", ir.OLEN},
 	{"make", ir.OMAKE},
+	{"max", ir.OMAX},
+	{"min", ir.OMIN},
 	{"new", ir.ONEW},
 	{"panic", ir.OPANIC},
 	{"print", ir.OPRINT},
@@ -95,8 +97,8 @@ func InitUniverse() {
 	s = Lookup("_")
 	types.BlankSym = s
 	s.Def = NewName(s)
-	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 	ir.BlankNode = ir.AsNode(s.Def)
+	ir.BlankNode.SetType(types.Types[types.TBLANK])
 	ir.BlankNode.SetTypecheck(1)
 
 	s = types.BuiltinPkg.Lookup("_")
@@ -203,23 +205,4 @@ func InitUniverse() {
 	// special
 	okfor[ir.OCAP] = okforcap[:]
 	okfor[ir.OLEN] = okforlen[:]
-}
-
-// DeclareUniverse makes the universe block visible within the current package.
-func DeclareUniverse() {
-	// Operationally, this is similar to a dot import of builtinpkg, except
-	// that we silently skip symbols that are already declared in the
-	// package block rather than emitting a redeclared symbol error.
-
-	for _, s := range types.BuiltinPkg.Syms {
-		if s.Def == nil {
-			continue
-		}
-		s1 := Lookup(s.Name)
-		if s1.Def != nil {
-			continue
-		}
-
-		s1.Def = s.Def
-	}
 }

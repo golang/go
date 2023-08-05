@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"errors"
 	"internal/nettrace"
 	"internal/singleflight"
 	"net/netip"
@@ -180,11 +181,10 @@ func LookupHost(host string) (addrs []string, err error) {
 // It returns a slice of that host's addresses.
 func (r *Resolver) LookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	// Make sure that no matter what we do later, host=="" is rejected.
-	// parseIP, for example, does accept empty strings.
 	if host == "" {
 		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
 	}
-	if ip, _ := parseIPZone(host); ip != nil {
+	if _, err := netip.ParseAddr(host); err == nil {
 		return []string{host}, nil
 	}
 	return r.lookupHost(ctx, host)
@@ -293,12 +293,11 @@ func withUnexpiredValuesPreserved(lookupCtx context.Context) context.Context {
 // It returns a slice of that host's IPv4 and IPv6 addresses.
 func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IPAddr, error) {
 	// Make sure that no matter what we do later, host=="" is rejected.
-	// parseIPZone, for example, does accept empty strings.
 	if host == "" {
 		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
 	}
-	if ip, zone := parseIPZone(host); ip != nil {
-		return []IPAddr{{IP: ip, Zone: zone}}, nil
+	if ip, err := netip.ParseAddr(host); err == nil {
+		return []IPAddr{{IP: IP(ip.AsSlice()).To16(), Zone: ip.Zone()}}, nil
 	}
 	trace, _ := ctx.Value(nettrace.TraceKey{}).(*nettrace.Trace)
 	if trace != nil && trace.DNSStart != nil {
@@ -711,7 +710,7 @@ func (r *Resolver) goLookupSRV(ctx context.Context, service, proto, name string)
 	} else {
 		target = "_" + service + "._" + proto + "." + name
 	}
-	p, server, err := r.lookup(ctx, target, dnsmessage.TypeSRV)
+	p, server, err := r.lookup(ctx, target, dnsmessage.TypeSRV, nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -757,7 +756,7 @@ func (r *Resolver) goLookupSRV(ctx context.Context, service, proto, name string)
 
 // goLookupMX returns the MX records for name.
 func (r *Resolver) goLookupMX(ctx context.Context, name string) ([]*MX, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeMX)
+	p, server, err := r.lookup(ctx, name, dnsmessage.TypeMX, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -801,7 +800,7 @@ func (r *Resolver) goLookupMX(ctx context.Context, name string) ([]*MX, error) {
 
 // goLookupNS returns the NS records for name.
 func (r *Resolver) goLookupNS(ctx context.Context, name string) ([]*NS, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeNS)
+	p, server, err := r.lookup(ctx, name, dnsmessage.TypeNS, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -843,7 +842,7 @@ func (r *Resolver) goLookupNS(ctx context.Context, name string) ([]*NS, error) {
 
 // goLookupTXT returns the TXT records from name.
 func (r *Resolver) goLookupTXT(ctx context.Context, name string) ([]string, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeTXT)
+	p, server, err := r.lookup(ctx, name, dnsmessage.TypeTXT, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -895,4 +894,15 @@ func (r *Resolver) goLookupTXT(ctx context.Context, name string) ([]string, erro
 		txts = append(txts, string(txtJoin))
 	}
 	return txts, nil
+}
+
+func parseCNAMEFromResources(resources []dnsmessage.Resource) (string, error) {
+	if len(resources) == 0 {
+		return "", errors.New("no CNAME record received")
+	}
+	c, ok := resources[0].Body.(*dnsmessage.CNAMEResource)
+	if !ok {
+		return "", errors.New("could not parse CNAME record")
+	}
+	return c.CNAME.String(), nil
 }

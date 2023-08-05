@@ -131,6 +131,7 @@ const (
 	MEMGETREGIONCOUNT                = 0x40044d07
 	MEMISLOCKED                      = 0x40084d17
 	MEMLOCK                          = 0x80084d05
+	MEMREAD                          = 0xc0404d1a
 	MEMREADOOB                       = 0xc00c4d04
 	MEMSETBADBLOCK                   = 0x80084d0c
 	MEMUNLOCK                        = 0x80084d06

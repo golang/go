@@ -6,8 +6,8 @@ env GOSUMDB=off
 # tag that appears in any commit that is a (transitive) parent of the commit
 # supplied to 'go get', regardless of branches
 
-[!net] skip
-[!exec:git] skip
+[short] skip
+[!git] skip
 
 # For this test repository:
 #  tag v0.2.1 is most recent tag on master itself

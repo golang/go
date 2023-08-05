@@ -16,11 +16,11 @@ func eql[T comparable](x, y T) bool {
 func _[X comparable, Y interface{comparable; m()}]() {
 	var x X
 	var y Y
-	eql(x, y /* ERROR does not match */ ) // interfaces of different types
+	eql(x, y /* ERROR "does not match" */ ) // interfaces of different types
 	eql(x, x)
 	eql(y, y)
-	eql(y, nil /* ERROR cannot use nil as Y value in argument to eql */ )
-	eql[io /* ERROR does not implement comparable */ .Reader](nil, nil)
+	eql(y, nil /* ERROR "cannot use nil as Y value in argument to eql" */ )
+	eql[io.Reader](nil, nil)
 }
 
 // If we have a receiver of pointer to type parameter type (below: *T)
@@ -31,12 +31,12 @@ type C[T any] interface {
 
 // using type bound C
 func _[T C[T]](x *T) {
-	x.m /* ERROR x\.m undefined */ ()
+	x.m /* ERROR "x.m undefined" */ ()
 }
 
 // using an interface literal as bound
 func _[T interface{ m() }](x *T) {
-	x.m /* ERROR x\.m undefined */ ()
+	x.m /* ERROR "x.m undefined" */ ()
 }
 
 func f2[_ interface{ m1(); m2() }]() {}
@@ -46,7 +46,7 @@ func (T) m1()
 func (*T) m2()
 
 func _() {
-	f2[T /* ERROR m2 has pointer receiver */ ]()
+	f2[T /* ERROR "m2 has pointer receiver" */ ]()
 	f2[*T]()
 }
 
@@ -56,7 +56,7 @@ func _() {
 type T1[P interface{~uint}] struct{}
 
 func _[P any]() {
-    _ = T1[P /* ERROR P does not implement interface{~uint} */ ]{}
+    _ = T1[P /* ERROR "P does not satisfy interface{~uint}" */ ]{}
 }
 
 // This is the original (simplified) program causing the same issue.
@@ -72,8 +72,8 @@ func (u T2[U]) Add1() U {
     return u.s + 1
 }
 
-func NewT2[U any]() T2[U /* ERROR U does not implement Unsigned */ ] {
-    return T2[U /* ERROR U does not implement Unsigned */ ]{}
+func NewT2[U any]() T2[U /* ERROR "U does not satisfy Unsigned" */ ] {
+    return T2[U /* ERROR "U does not satisfy Unsigned" */ ]{}
 }
 
 func _() {
@@ -143,8 +143,8 @@ type List3[TElem any] struct {
 }
 
 // Infinite generic type declarations must lead to an error.
-type inf1[T any] struct{ _ inf1 /* ERROR invalid recursive type */ [T] }
-type inf2[T any] struct{ inf2 /* ERROR invalid recursive type */ [T] }
+type inf1[T any] struct{ _ inf1 /* ERROR "invalid recursive type" */ [T] }
+type inf2[T any] struct{ inf2 /* ERROR "invalid recursive type" */ [T] }
 
 // The implementation of conversions T(x) between integers and floating-point
 // numbers checks that both T and x have either integer or floating-point
@@ -199,7 +199,7 @@ func _[T interface{~int}](x T) {
 // (Example by mdempsky@.)
 func _[T interface { ~[10]int }](x T) {
 	_ = x[9] // ok
-	_ = x[20 /* ERROR out of bounds */ ]
+	_ = x[20 /* ERROR "out of bounds" */ ]
 }
 
 // Pointer indirection of a type parameter.
@@ -246,5 +246,5 @@ var _ = append[context.CancelFunc, []context.CancelFunc, context.CancelFunc](can
 func g[T any](T) T { panic(0) }
 
 var _ = g[int]
-var _ = g[nil /* ERROR is not a type */ ]
+var _ = g[nil /* ERROR "is not a type" */ ]
 var _ = g(0)

@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -129,6 +130,42 @@ func TestReadMIMEHeaderSingle(t *testing.T) {
 	}
 }
 
+// TestReaderUpcomingHeaderKeys is testing an internal function, but it's very
+// difficult to test well via the external API.
+func TestReaderUpcomingHeaderKeys(t *testing.T) {
+	for _, test := range []struct {
+		input string
+		want  int
+	}{{
+		input: "",
+		want:  0,
+	}, {
+		input: "A: v",
+		want:  1,
+	}, {
+		input: "A: v\r\nB: v\r\n",
+		want:  2,
+	}, {
+		input: "A: v\nB: v\n",
+		want:  2,
+	}, {
+		input: "A: v\r\n  continued\r\n  still continued\r\nB: v\r\n\r\n",
+		want:  2,
+	}, {
+		input: "A: v\r\n\r\nB: v\r\nC: v\r\n",
+		want:  1,
+	}, {
+		input: "A: v" + strings.Repeat("\n", 1000),
+		want:  1,
+	}} {
+		r := reader(test.input)
+		got := r.upcomingHeaderKeys()
+		if test.want != got {
+			t.Fatalf("upcomingHeaderKeys(%q): %v; want %v", test.input, got, test.want)
+		}
+	}
+}
+
 func TestReadMIMEHeaderNoKey(t *testing.T) {
 	r := reader(": bar\ntest-1: 1\n\n")
 	m, err := r.ReadMIMEHeader()
@@ -189,12 +226,58 @@ func TestReadMIMEHeaderMalformed(t *testing.T) {
 		"Foo-\r\n\tBar: foo\r\n\r\n",
 		"Foo\r\n\t: foo\r\n\r\n",
 		"Foo-\n\tBar",
+		"Foo \tBar: foo\r\n\r\n",
 	}
-
 	for _, input := range inputs {
 		r := reader(input)
-		if m, err := r.ReadMIMEHeader(); err == nil {
+		if m, err := r.ReadMIMEHeader(); err == nil || err == io.EOF {
 			t.Errorf("ReadMIMEHeader(%q) = %v, %v; want nil, err", input, m, err)
+		}
+	}
+}
+
+func TestReadMIMEHeaderBytes(t *testing.T) {
+	for i := 0; i <= 0xff; i++ {
+		s := "Foo" + string(rune(i)) + "Bar: foo\r\n\r\n"
+		r := reader(s)
+		wantErr := true
+		switch {
+		case i >= '0' && i <= '9':
+			wantErr = false
+		case i >= 'a' && i <= 'z':
+			wantErr = false
+		case i >= 'A' && i <= 'Z':
+			wantErr = false
+		case i == '!' || i == '#' || i == '$' || i == '%' || i == '&' || i == '\'' || i == '*' || i == '+' || i == '-' || i == '.' || i == '^' || i == '_' || i == '`' || i == '|' || i == '~':
+			wantErr = false
+		case i == ':':
+			// Special case: "Foo:Bar: foo" is the header "Foo".
+			wantErr = false
+		case i == ' ':
+			wantErr = false
+		}
+		m, err := r.ReadMIMEHeader()
+		if err != nil != wantErr {
+			t.Errorf("ReadMIMEHeader(%q) = %v, %v; want error=%v", s, m, err, wantErr)
+		}
+	}
+	for i := 0; i <= 0xff; i++ {
+		s := "Foo: foo" + string(rune(i)) + "bar\r\n\r\n"
+		r := reader(s)
+		wantErr := true
+		switch {
+		case i >= 0x21 && i <= 0x7e:
+			wantErr = false
+		case i == ' ':
+			wantErr = false
+		case i == '\t':
+			wantErr = false
+		case i >= 0x80 && i <= 0xff:
+			wantErr = false
+		}
+		m, err := r.ReadMIMEHeader()
+		if (err != nil) != wantErr {
+			t.Errorf("ReadMIMEHeader(%q) = %v, %v; want error=%v", s, m, err, wantErr)
 		}
 	}
 }
@@ -222,6 +305,28 @@ func TestReadMIMEHeaderTrimContinued(t *testing.T) {
 	}
 	if !reflect.DeepEqual(m, want) {
 		t.Fatalf("ReadMIMEHeader mismatch.\n got: %q\nwant: %q", m, want)
+	}
+}
+
+// Test that reading a header doesn't overallocate. Issue 58975.
+func TestReadMIMEHeaderAllocations(t *testing.T) {
+	var totalAlloc uint64
+	const count = 200
+	for i := 0; i < count; i++ {
+		r := reader("A: b\r\n\r\n" + strings.Repeat("\n", 4096))
+		var m1, m2 runtime.MemStats
+		runtime.ReadMemStats(&m1)
+		_, err := r.ReadMIMEHeader()
+		if err != nil {
+			t.Fatalf("ReadMIMEHeader: %v", err)
+		}
+		runtime.ReadMemStats(&m2)
+		totalAlloc += m2.TotalAlloc - m1.TotalAlloc
+	}
+	// 32k is large and we actually allocate substantially less,
+	// but prior to the fix for #58975 we allocated ~400k in this case.
+	if got, want := totalAlloc/count, uint64(32768); got > want {
+		t.Fatalf("ReadMIMEHeader allocated %v bytes, want < %v", got, want)
 	}
 }
 
@@ -317,7 +422,7 @@ func TestCommonHeaders(t *testing.T) {
 	b := []byte("content-Length")
 	want := "Content-Length"
 	n := testing.AllocsPerRun(200, func() {
-		if x := canonicalMIMEHeaderKey(b); x != want {
+		if x, _ := canonicalMIMEHeaderKey(b); x != want {
 			t.Fatalf("canonicalMIMEHeaderKey(%q) = %q; want %q", b, x, want)
 		}
 	})

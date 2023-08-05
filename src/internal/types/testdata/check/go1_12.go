@@ -31,6 +31,6 @@ const (
 // signed shift counts
 var (
 	s int
-	_ = 1 << s // ERROR "invalid operation: signed shift count s \(variable of type int\) requires go1.13 or later"
+	_ = 1 << s // ERROR "invalid operation: signed shift count s (variable of type int) requires go1.13 or later"
 	_ = 1 >> s // ERROR "signed shift count"
 )

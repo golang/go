@@ -29,6 +29,7 @@ TEXT ·Syscall9(SB),NOSPLIT,$28-52
 	MOVW	R10, 24(R29)
 	MOVW	R11, 28(R29)
 	MOVW	trap+0(FP), R2	// syscall entry
+	MOVW	R0, R3	// reset R3 to zero as 1-ret SYSCALL keeps it
 	SYSCALL
 	BEQ	R7, ok9
 	MOVW	$-1, R1
@@ -66,6 +67,7 @@ TEXT ·rawSyscallNoError(SB),NOSPLIT,$20-24
 	MOVW	a2+8(FP), R5
 	MOVW	a3+12(FP), R6
 	MOVW	trap+0(FP), R2	// syscall entry
+	MOVW	R0, R3	// reset R3 to zero as 1-ret SYSCALL keeps it
 	SYSCALL
 	MOVW	R2, r1+16(FP)	// r1
 	MOVW	R3, r2+20(FP)	// r2

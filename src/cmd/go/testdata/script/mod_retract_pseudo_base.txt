@@ -2,8 +2,8 @@
 # as the base.
 # Verifies golang.org/issue/41700.
 
-[!net] skip
-[!exec:git] skip
+[short] skip
+[!git] skip
 env GOPROXY=direct
 env GOSUMDB=off
 go mod init m

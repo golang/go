@@ -373,7 +373,6 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 type decimalSlice struct {
 	d      []byte
 	nd, dp int
-	neg    bool
 }
 
 // %e: -d.ddddde±dd

@@ -7,6 +7,7 @@ package fmt_test
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -20,6 +21,7 @@ func TestErrorf(t *testing.T) {
 		err        error
 		wantText   string
 		wantUnwrap error
+		wantSplit  []error
 	}{{
 		err:        fmt.Errorf("%w", wrapped),
 		wantText:   "inner error",
@@ -53,11 +55,29 @@ func TestErrorf(t *testing.T) {
 		err:      noVetErrorf("%w is not an error", "not-an-error"),
 		wantText: "%!w(string=not-an-error) is not an error",
 	}, {
-		err:      noVetErrorf("wrapped two errors: %w %w", errString("1"), errString("2")),
-		wantText: "wrapped two errors: 1 %!w(fmt_test.errString=2)",
+		err:       noVetErrorf("wrapped two errors: %w %w", errString("1"), errString("2")),
+		wantText:  "wrapped two errors: 1 2",
+		wantSplit: []error{errString("1"), errString("2")},
 	}, {
-		err:      noVetErrorf("wrapped three errors: %w %w %w", errString("1"), errString("2"), errString("3")),
-		wantText: "wrapped three errors: 1 %!w(fmt_test.errString=2) %!w(fmt_test.errString=3)",
+		err:       noVetErrorf("wrapped three errors: %w %w %w", errString("1"), errString("2"), errString("3")),
+		wantText:  "wrapped three errors: 1 2 3",
+		wantSplit: []error{errString("1"), errString("2"), errString("3")},
+	}, {
+		err:       noVetErrorf("wrapped nil error: %w %w %w", errString("1"), nil, errString("2")),
+		wantText:  "wrapped nil error: 1 %!w(<nil>) 2",
+		wantSplit: []error{errString("1"), errString("2")},
+	}, {
+		err:       noVetErrorf("wrapped one non-error: %w %w %w", errString("1"), "not-an-error", errString("3")),
+		wantText:  "wrapped one non-error: 1 %!w(string=not-an-error) 3",
+		wantSplit: []error{errString("1"), errString("3")},
+	}, {
+		err:       fmt.Errorf("wrapped errors out of order: %[3]w %[2]w %[1]w", errString("1"), errString("2"), errString("3")),
+		wantText:  "wrapped errors out of order: 3 2 1",
+		wantSplit: []error{errString("1"), errString("2"), errString("3")},
+	}, {
+		err:       fmt.Errorf("wrapped several times: %[1]w %[1]w %[2]w %[1]w", errString("1"), errString("2")),
+		wantText:  "wrapped several times: 1 1 2 1",
+		wantSplit: []error{errString("1"), errString("2")},
 	}, {
 		err:        fmt.Errorf("%w", nil),
 		wantText:   "%!w(<nil>)",
@@ -66,10 +86,20 @@ func TestErrorf(t *testing.T) {
 		if got, want := errors.Unwrap(test.err), test.wantUnwrap; got != want {
 			t.Errorf("Formatted error: %v\nerrors.Unwrap() = %v, want %v", test.err, got, want)
 		}
+		if got, want := splitErr(test.err), test.wantSplit; !reflect.DeepEqual(got, want) {
+			t.Errorf("Formatted error: %v\nUnwrap() []error = %v, want %v", test.err, got, want)
+		}
 		if got, want := test.err.Error(), test.wantText; got != want {
 			t.Errorf("err.Error() = %q, want %q", got, want)
 		}
 	}
+}
+
+func splitErr(err error) []error {
+	if e, ok := err.(interface{ Unwrap() []error }); ok {
+		return e.Unwrap()
+	}
+	return nil
 }
 
 type errString string

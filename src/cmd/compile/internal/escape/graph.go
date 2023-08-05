@@ -218,7 +218,7 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 		base.Fatalf("e.curfn isn't set")
 	}
 	if n != nil && n.Type() != nil && n.Type().NotInHeap() {
-		base.ErrorfAt(n.Pos(), "%v is incomplete (or unallocatable); stack allocation disallowed", n.Type())
+		base.ErrorfAt(n.Pos(), 0, "%v is incomplete (or unallocatable); stack allocation disallowed", n.Type())
 	}
 
 	if n != nil && n.Op() == ir.ONAME {

@@ -90,6 +90,51 @@ func TestRFC3339Conversion(t *testing.T) {
 	}
 }
 
+func TestAppendInt(t *testing.T) {
+	tests := []struct {
+		in    int
+		width int
+		want  string
+	}{
+		{0, 0, "0"},
+		{0, 1, "0"},
+		{0, 2, "00"},
+		{0, 3, "000"},
+		{1, 0, "1"},
+		{1, 1, "1"},
+		{1, 2, "01"},
+		{1, 3, "001"},
+		{-1, 0, "-1"},
+		{-1, 1, "-1"},
+		{-1, 2, "-01"},
+		{-1, 3, "-001"},
+		{99, 2, "99"},
+		{100, 2, "100"},
+		{1, 4, "0001"},
+		{12, 4, "0012"},
+		{123, 4, "0123"},
+		{1234, 4, "1234"},
+		{12345, 4, "12345"},
+		{1, 5, "00001"},
+		{12, 5, "00012"},
+		{123, 5, "00123"},
+		{1234, 5, "01234"},
+		{12345, 5, "12345"},
+		{123456, 5, "123456"},
+		{0, 9, "000000000"},
+		{123, 9, "000000123"},
+		{123456, 9, "000123456"},
+		{123456789, 9, "123456789"},
+	}
+	var got []byte
+	for _, tt := range tests {
+		got = AppendInt(got[:0], tt.in, tt.width)
+		if string(got) != tt.want {
+			t.Errorf("appendInt(%d, %d) = %s, want %s", tt.in, tt.width, got, tt.want)
+		}
+	}
+}
+
 type FormatTest struct {
 	name   string
 	format string
@@ -575,13 +620,13 @@ type ParseErrorTest struct {
 }
 
 var parseErrorTests = []ParseErrorTest{
-	{ANSIC, "Feb  4 21:00:60 2010", "cannot parse"}, // cannot parse Feb as Mon
-	{ANSIC, "Thu Feb  4 21:00:57 @2010", "cannot parse"},
+	{ANSIC, "Feb  4 21:00:60 2010", `cannot parse "Feb  4 21:00:60 2010" as "Mon"`},
+	{ANSIC, "Thu Feb  4 21:00:57 @2010", `cannot parse "@2010" as "2006"`},
 	{ANSIC, "Thu Feb  4 21:00:60 2010", "second out of range"},
 	{ANSIC, "Thu Feb  4 21:61:57 2010", "minute out of range"},
 	{ANSIC, "Thu Feb  4 24:00:60 2010", "hour out of range"},
-	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59x01 2010", "cannot parse"},
-	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59.xxx 2010", "cannot parse"},
+	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59x01 2010", `cannot parse "x01 2010" as ".000"`},
+	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59.xxx 2010", `cannot parse ".xxx 2010" as ".000"`},
 	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59.-123 2010", "fractional second out of range"},
 	// issue 4502. StampNano requires exactly 9 digits of precision.
 	{StampNano, "Dec  7 11:22:01.000000", `cannot parse ".000000" as ".000000000"`},
@@ -596,8 +641,8 @@ var parseErrorTests = []ParseErrorTest{
 	// issue 54569
 	{RFC3339, "0000-01-01T00:00:.0+00:00", `parsing time "0000-01-01T00:00:.0+00:00" as "2006-01-02T15:04:05Z07:00": cannot parse ".0+00:00" as "05"`},
 	// issue 21113
-	{"_2 Jan 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
-	{"_2 January 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
+	{"_2 Jan 06 15:04 MST", "4 --- 00 00:00 GMT", `cannot parse "--- 00 00:00 GMT" as "Jan"`},
+	{"_2 January 06 15:04 MST", "4 --- 00 00:00 GMT", `cannot parse "--- 00 00:00 GMT" as "January"`},
 
 	// invalid or mismatched day-of-year
 	{"Jan _2 002 2006", "Feb  4 034 2006", "day-of-year does not match day"},
@@ -608,8 +653,14 @@ var parseErrorTests = []ParseErrorTest{
 	{RFC3339, "\"", `parsing time "\"" as "2006-01-02T15:04:05Z07:00": cannot parse "\"" as "2006"`},
 
 	// issue 54570
-	{RFC3339, "0000-01-01T00:00:00+00:+0", `parsing time "0000-01-01T00:00:00+00:+0" as "2006-01-02T15:04:05Z07:00": cannot parse "" as "Z07:00"`},
-	{RFC3339, "0000-01-01T00:00:00+-0:00", `parsing time "0000-01-01T00:00:00+-0:00" as "2006-01-02T15:04:05Z07:00": cannot parse "" as "Z07:00"`},
+	{RFC3339, "0000-01-01T00:00:00+00:+0", `parsing time "0000-01-01T00:00:00+00:+0" as "2006-01-02T15:04:05Z07:00": cannot parse "+00:+0" as "Z07:00"`},
+	{RFC3339, "0000-01-01T00:00:00+-0:00", `parsing time "0000-01-01T00:00:00+-0:00" as "2006-01-02T15:04:05Z07:00": cannot parse "+-0:00" as "Z07:00"`},
+
+	// issue 56730
+	{"2006-01-02", "22-10-25", `parsing time "22-10-25" as "2006-01-02": cannot parse "22-10-25" as "2006"`},
+	{"06-01-02", "a2-10-25", `parsing time "a2-10-25" as "06-01-02": cannot parse "a2-10-25" as "06"`},
+	{"03:04PM", "12:03pM", `parsing time "12:03pM" as "03:04PM": cannot parse "pM" as "PM"`},
+	{"03:04pm", "12:03pM", `parsing time "12:03pM" as "03:04pm": cannot parse "pM" as "pm"`},
 }
 
 func TestParseErrors(t *testing.T) {

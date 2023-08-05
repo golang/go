@@ -40,6 +40,7 @@ var (
 	modadvapi32 = NewLazySystemDLL("advapi32.dll")
 	modcrypt32  = NewLazySystemDLL("crypt32.dll")
 	moddnsapi   = NewLazySystemDLL("dnsapi.dll")
+	moddwmapi   = NewLazySystemDLL("dwmapi.dll")
 	modiphlpapi = NewLazySystemDLL("iphlpapi.dll")
 	modkernel32 = NewLazySystemDLL("kernel32.dll")
 	modmswsock  = NewLazySystemDLL("mswsock.dll")
@@ -85,6 +86,7 @@ var (
 	procDeleteService                                        = modadvapi32.NewProc("DeleteService")
 	procDeregisterEventSource                                = modadvapi32.NewProc("DeregisterEventSource")
 	procDuplicateTokenEx                                     = modadvapi32.NewProc("DuplicateTokenEx")
+	procEnumDependentServicesW                               = modadvapi32.NewProc("EnumDependentServicesW")
 	procEnumServicesStatusExW                                = modadvapi32.NewProc("EnumServicesStatusExW")
 	procEqualSid                                             = modadvapi32.NewProc("EqualSid")
 	procFreeSid                                              = modadvapi32.NewProc("FreeSid")
@@ -175,6 +177,8 @@ var (
 	procDnsNameCompare_W                                     = moddnsapi.NewProc("DnsNameCompare_W")
 	procDnsQuery_W                                           = moddnsapi.NewProc("DnsQuery_W")
 	procDnsRecordListFree                                    = moddnsapi.NewProc("DnsRecordListFree")
+	procDwmGetWindowAttribute                                = moddwmapi.NewProc("DwmGetWindowAttribute")
+	procDwmSetWindowAttribute                                = moddwmapi.NewProc("DwmSetWindowAttribute")
 	procGetAdaptersAddresses                                 = modiphlpapi.NewProc("GetAdaptersAddresses")
 	procGetAdaptersInfo                                      = modiphlpapi.NewProc("GetAdaptersInfo")
 	procGetBestInterfaceEx                                   = modiphlpapi.NewProc("GetBestInterfaceEx")
@@ -249,6 +253,7 @@ var (
 	procGetFileType                                          = modkernel32.NewProc("GetFileType")
 	procGetFinalPathNameByHandleW                            = modkernel32.NewProc("GetFinalPathNameByHandleW")
 	procGetFullPathNameW                                     = modkernel32.NewProc("GetFullPathNameW")
+	procGetLargePageMinimum                                  = modkernel32.NewProc("GetLargePageMinimum")
 	procGetLastError                                         = modkernel32.NewProc("GetLastError")
 	procGetLogicalDriveStringsW                              = modkernel32.NewProc("GetLogicalDriveStringsW")
 	procGetLogicalDrives                                     = modkernel32.NewProc("GetLogicalDrives")
@@ -444,9 +449,18 @@ var (
 	procCommandLineToArgvW                                   = modshell32.NewProc("CommandLineToArgvW")
 	procSHGetKnownFolderPath                                 = modshell32.NewProc("SHGetKnownFolderPath")
 	procShellExecuteW                                        = modshell32.NewProc("ShellExecuteW")
+	procEnumChildWindows                                     = moduser32.NewProc("EnumChildWindows")
+	procEnumWindows                                          = moduser32.NewProc("EnumWindows")
 	procExitWindowsEx                                        = moduser32.NewProc("ExitWindowsEx")
+	procGetClassNameW                                        = moduser32.NewProc("GetClassNameW")
+	procGetDesktopWindow                                     = moduser32.NewProc("GetDesktopWindow")
+	procGetForegroundWindow                                  = moduser32.NewProc("GetForegroundWindow")
+	procGetGUIThreadInfo                                     = moduser32.NewProc("GetGUIThreadInfo")
 	procGetShellWindow                                       = moduser32.NewProc("GetShellWindow")
 	procGetWindowThreadProcessId                             = moduser32.NewProc("GetWindowThreadProcessId")
+	procIsWindow                                             = moduser32.NewProc("IsWindow")
+	procIsWindowUnicode                                      = moduser32.NewProc("IsWindowUnicode")
+	procIsWindowVisible                                      = moduser32.NewProc("IsWindowVisible")
 	procMessageBoxW                                          = moduser32.NewProc("MessageBoxW")
 	procCreateEnvironmentBlock                               = moduserenv.NewProc("CreateEnvironmentBlock")
 	procDestroyEnvironmentBlock                              = moduserenv.NewProc("DestroyEnvironmentBlock")
@@ -461,6 +475,9 @@ var (
 	procWSAEnumProtocolsW                                    = modws2_32.NewProc("WSAEnumProtocolsW")
 	procWSAGetOverlappedResult                               = modws2_32.NewProc("WSAGetOverlappedResult")
 	procWSAIoctl                                             = modws2_32.NewProc("WSAIoctl")
+	procWSALookupServiceBeginW                               = modws2_32.NewProc("WSALookupServiceBeginW")
+	procWSALookupServiceEnd                                  = modws2_32.NewProc("WSALookupServiceEnd")
+	procWSALookupServiceNextW                                = modws2_32.NewProc("WSALookupServiceNextW")
 	procWSARecv                                              = modws2_32.NewProc("WSARecv")
 	procWSARecvFrom                                          = modws2_32.NewProc("WSARecvFrom")
 	procWSASend                                              = modws2_32.NewProc("WSASend")
@@ -712,6 +729,14 @@ func DeregisterEventSource(handle Handle) (err error) {
 
 func DuplicateTokenEx(existingToken Token, desiredAccess uint32, tokenAttributes *SecurityAttributes, impersonationLevel uint32, tokenType uint32, newToken *Token) (err error) {
 	r1, _, e1 := syscall.Syscall6(procDuplicateTokenEx.Addr(), 6, uintptr(existingToken), uintptr(desiredAccess), uintptr(unsafe.Pointer(tokenAttributes)), uintptr(impersonationLevel), uintptr(tokenType), uintptr(unsafe.Pointer(newToken)))
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func EnumDependentServices(service Handle, activityState uint32, services *ENUM_SERVICE_STATUS, buffSize uint32, bytesNeeded *uint32, servicesReturned *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procEnumDependentServicesW.Addr(), 6, uintptr(service), uintptr(activityState), uintptr(unsafe.Pointer(services)), uintptr(buffSize), uintptr(unsafe.Pointer(bytesNeeded)), uintptr(unsafe.Pointer(servicesReturned)))
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
@@ -1525,6 +1550,22 @@ func DnsRecordListFree(rl *DNSRecord, freetype uint32) {
 	return
 }
 
+func DwmGetWindowAttribute(hwnd HWND, attribute uint32, value unsafe.Pointer, size uint32) (ret error) {
+	r0, _, _ := syscall.Syscall6(procDwmGetWindowAttribute.Addr(), 4, uintptr(hwnd), uintptr(attribute), uintptr(value), uintptr(size), 0, 0)
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
+	}
+	return
+}
+
+func DwmSetWindowAttribute(hwnd HWND, attribute uint32, value unsafe.Pointer, size uint32) (ret error) {
+	r0, _, _ := syscall.Syscall6(procDwmSetWindowAttribute.Addr(), 4, uintptr(hwnd), uintptr(attribute), uintptr(value), uintptr(size), 0, 0)
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
+	}
+	return
+}
+
 func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
 	r0, _, _ := syscall.Syscall6(procGetAdaptersAddresses.Addr(), 5, uintptr(family), uintptr(flags), uintptr(reserved), uintptr(unsafe.Pointer(adapterAddresses)), uintptr(unsafe.Pointer(sizePointer)), 0)
 	if r0 != 0 {
@@ -2149,6 +2190,12 @@ func GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (
 	if n == 0 {
 		err = errnoErr(e1)
 	}
+	return
+}
+
+func GetLargePageMinimum() (size uintptr) {
+	r0, _, _ := syscall.Syscall(procGetLargePageMinimum.Addr(), 0, 0, 0, 0)
+	size = uintptr(r0)
 	return
 }
 
@@ -3469,12 +3516,8 @@ func EnumProcessModulesEx(process Handle, module *Handle, cb uint32, cbNeeded *u
 	return
 }
 
-func EnumProcesses(processIds []uint32, bytesReturned *uint32) (err error) {
-	var _p0 *uint32
-	if len(processIds) > 0 {
-		_p0 = &processIds[0]
-	}
-	r1, _, e1 := syscall.Syscall(procEnumProcesses.Addr(), 3, uintptr(unsafe.Pointer(_p0)), uintptr(len(processIds)), uintptr(unsafe.Pointer(bytesReturned)))
+func enumProcesses(processIds *uint32, nSize uint32, bytesReturned *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procEnumProcesses.Addr(), 3, uintptr(unsafe.Pointer(processIds)), uintptr(nSize), uintptr(unsafe.Pointer(bytesReturned)))
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
@@ -3802,8 +3845,50 @@ func ShellExecute(hwnd Handle, verb *uint16, file *uint16, args *uint16, cwd *ui
 	return
 }
 
+func EnumChildWindows(hwnd HWND, enumFunc uintptr, param unsafe.Pointer) {
+	syscall.Syscall(procEnumChildWindows.Addr(), 3, uintptr(hwnd), uintptr(enumFunc), uintptr(param))
+	return
+}
+
+func EnumWindows(enumFunc uintptr, param unsafe.Pointer) (err error) {
+	r1, _, e1 := syscall.Syscall(procEnumWindows.Addr(), 2, uintptr(enumFunc), uintptr(param), 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func ExitWindowsEx(flags uint32, reason uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procExitWindowsEx.Addr(), 2, uintptr(flags), uintptr(reason), 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func GetClassName(hwnd HWND, className *uint16, maxCount int32) (copied int32, err error) {
+	r0, _, e1 := syscall.Syscall(procGetClassNameW.Addr(), 3, uintptr(hwnd), uintptr(unsafe.Pointer(className)), uintptr(maxCount))
+	copied = int32(r0)
+	if copied == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func GetDesktopWindow() (hwnd HWND) {
+	r0, _, _ := syscall.Syscall(procGetDesktopWindow.Addr(), 0, 0, 0, 0)
+	hwnd = HWND(r0)
+	return
+}
+
+func GetForegroundWindow() (hwnd HWND) {
+	r0, _, _ := syscall.Syscall(procGetForegroundWindow.Addr(), 0, 0, 0, 0)
+	hwnd = HWND(r0)
+	return
+}
+
+func GetGUIThreadInfo(thread uint32, info *GUIThreadInfo) (err error) {
+	r1, _, e1 := syscall.Syscall(procGetGUIThreadInfo.Addr(), 2, uintptr(thread), uintptr(unsafe.Pointer(info)), 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
@@ -3822,6 +3907,24 @@ func GetWindowThreadProcessId(hwnd HWND, pid *uint32) (tid uint32, err error) {
 	if tid == 0 {
 		err = errnoErr(e1)
 	}
+	return
+}
+
+func IsWindow(hwnd HWND) (isWindow bool) {
+	r0, _, _ := syscall.Syscall(procIsWindow.Addr(), 1, uintptr(hwnd), 0, 0)
+	isWindow = r0 != 0
+	return
+}
+
+func IsWindowUnicode(hwnd HWND) (isUnicode bool) {
+	r0, _, _ := syscall.Syscall(procIsWindowUnicode.Addr(), 1, uintptr(hwnd), 0, 0)
+	isUnicode = r0 != 0
+	return
+}
+
+func IsWindowVisible(hwnd HWND) (isVisible bool) {
+	r0, _, _ := syscall.Syscall(procIsWindowVisible.Addr(), 1, uintptr(hwnd), 0, 0)
+	isVisible = r0 != 0
 	return
 }
 
@@ -3966,6 +4069,30 @@ func WSAGetOverlappedResult(h Handle, o *Overlapped, bytes *uint32, wait bool, f
 
 func WSAIoctl(s Handle, iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *Overlapped, completionRoutine uintptr) (err error) {
 	r1, _, e1 := syscall.Syscall9(procWSAIoctl.Addr(), 9, uintptr(s), uintptr(iocc), uintptr(unsafe.Pointer(inbuf)), uintptr(cbif), uintptr(unsafe.Pointer(outbuf)), uintptr(cbob), uintptr(unsafe.Pointer(cbbr)), uintptr(unsafe.Pointer(overlapped)), uintptr(completionRoutine))
+	if r1 == socket_error {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func WSALookupServiceBegin(querySet *WSAQUERYSET, flags uint32, handle *Handle) (err error) {
+	r1, _, e1 := syscall.Syscall(procWSALookupServiceBeginW.Addr(), 3, uintptr(unsafe.Pointer(querySet)), uintptr(flags), uintptr(unsafe.Pointer(handle)))
+	if r1 == socket_error {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func WSALookupServiceEnd(handle Handle) (err error) {
+	r1, _, e1 := syscall.Syscall(procWSALookupServiceEnd.Addr(), 1, uintptr(handle), 0, 0)
+	if r1 == socket_error {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func WSALookupServiceNext(handle Handle, flags uint32, size *int32, querySet *WSAQUERYSET) (err error) {
+	r1, _, e1 := syscall.Syscall6(procWSALookupServiceNextW.Addr(), 4, uintptr(handle), uintptr(flags), uintptr(unsafe.Pointer(size)), uintptr(unsafe.Pointer(querySet)), 0, 0)
 	if r1 == socket_error {
 		err = errnoErr(e1)
 	}

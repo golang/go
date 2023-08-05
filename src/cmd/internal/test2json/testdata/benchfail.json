@@ -1,3 +1,4 @@
+{"Action":"start"}
 {"Action":"output","Test":"BenchmarkFoo","Output":"--- FAIL: BenchmarkFoo\n"}
 {"Action":"output","Test":"BenchmarkFoo","Output":"\tx_test.go:8: My benchmark\n"}
 {"Action":"fail","Test":"BenchmarkFoo"}

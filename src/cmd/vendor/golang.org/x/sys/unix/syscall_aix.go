@@ -292,9 +292,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 				break
 			}
 		}
-
-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
-		sa.Name = string(bytes)
+		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
 		return sa, nil
 
 	case AF_INET:
@@ -410,7 +408,8 @@ func (w WaitStatus) CoreDump() bool { return w&0x80 == 0x80 }
 
 func (w WaitStatus) TrapCause() int { return -1 }
 
-//sys	ioctl(fd int, req uint, arg uintptr) (err error)
+//sys	ioctl(fd int, req int, arg uintptr) (err error)
+//sys	ioctlPtr(fd int, req int, arg unsafe.Pointer) (err error) = ioctl
 
 // fcntl must never be called with cmd=F_DUP2FD because it doesn't work on AIX
 // There is no way to create a custom fcntl and to keep //sys fcntl easily,

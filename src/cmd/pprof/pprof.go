@@ -104,7 +104,7 @@ func statusCodeError(resp *http.Response) error {
 // cpuProfileHandler is the Go pprof CPU profile handler URL.
 const cpuProfileHandler = "/debug/pprof/profile"
 
-// adjustURL applies the duration/timeout values and Go specific defaults
+// adjustURL applies the duration/timeout values and Go specific defaults.
 func adjustURL(source string, duration, timeout time.Duration) (string, time.Duration) {
 	u, err := url.Parse(source)
 	if err != nil || (u.Host == "" && u.Scheme != "" && u.Scheme != "file") {

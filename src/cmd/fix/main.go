@@ -75,8 +75,8 @@ func main() {
 		}
 		majorStr := (*goVersionStr)[len("go"):]
 		minorStr := "0"
-		if i := strings.Index(majorStr, "."); i >= 0 {
-			majorStr, minorStr = majorStr[:i], majorStr[i+len("."):]
+		if before, after, found := strings.Cut(majorStr, "."); found {
+			majorStr, minorStr = before, after
 		}
 		major, err1 := strconv.Atoi(majorStr)
 		minor, err2 := strconv.Atoi(minorStr)

@@ -242,6 +242,7 @@ var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
 var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
 var gccgopkgpath = flag.String("gccgopkgpath", "", "-fgo-pkgpath option used with gccgo")
 var gccgoMangler func(string) string
+var gccgoDefineCgoIncomplete = flag.Bool("gccgo_define_cgoincomplete", false, "define cgo.Incomplete for older gccgo/GoLLVM")
 var importRuntimeCgo = flag.Bool("import_runtime_cgo", true, "import runtime/cgo in generated code")
 var importSyscall = flag.Bool("import_syscall", true, "import syscall in generated code")
 var trimpath = flag.String("trimpath", "", "applies supplied rewrites or trims prefixes to recorded source file paths")
@@ -252,6 +253,14 @@ var gccBaseCmd []string
 func main() {
 	objabi.AddVersionFlag() // -V
 	objabi.Flagparse(usage)
+
+	if *gccgoDefineCgoIncomplete {
+		if !*gccgo {
+			fmt.Fprintf(os.Stderr, "cgo: -gccgo_define_cgoincomplete without -gccgo\n")
+			os.Exit(2)
+		}
+		incomplete = "_cgopackage_Incomplete"
+	}
 
 	if *dynobj != "" {
 		// cgo -dynimport is essentially a separate helper command
@@ -354,6 +363,12 @@ func main() {
 
 		// Apply trimpath to the file path. The path won't be read from after this point.
 		input, _ = objabi.ApplyRewrites(input, *trimpath)
+		if strings.ContainsAny(input, "\r\n") {
+			// ParseGo, (*Package).writeOutput, and printer.Fprint in SourcePos mode
+			// all emit line directives, which don't permit newlines in the file path.
+			// Bail early if we see anything newline-like in the trimmed path.
+			fatalf("input path contains newline character: %q", input)
+		}
 		goFiles[i] = input
 
 		f := new(File)

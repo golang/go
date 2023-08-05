@@ -17,7 +17,7 @@ env GOCACHE=$WORK/gocache
 # Finally, note that asm and cgo are run twice.
 
 go build -toolexec=$PWD/mytool
-[amd64] stderr -count=2 '^asm'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withasm"$'
+[GOARCH:amd64] stderr -count=2 '^asm'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withasm"$'
 stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withasm"$'
 [cgo] stderr -count=2 '^cgo'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withcgo"$'
 [cgo] stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withcgo"$'

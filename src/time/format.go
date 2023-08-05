@@ -403,40 +403,62 @@ func appendInt(b []byte, x int, width int) []byte {
 		u = uint(-x)
 	}
 
-	// Assemble decimal in reverse order.
-	var buf [20]byte
-	i := len(buf)
-	for u >= 10 {
-		i--
-		q := u / 10
-		buf[i] = byte('0' + u - q*10)
-		u = q
+	// 2-digit and 4-digit fields are the most common in time formats.
+	utod := func(u uint) byte { return '0' + byte(u) }
+	switch {
+	case width == 2 && u < 1e2:
+		return append(b, utod(u/1e1), utod(u%1e1))
+	case width == 4 && u < 1e4:
+		return append(b, utod(u/1e3), utod(u/1e2%1e1), utod(u/1e1%1e1), utod(u%1e1))
 	}
-	i--
-	buf[i] = byte('0' + u)
+
+	// Compute the number of decimal digits.
+	var n int
+	if u == 0 {
+		n = 1
+	}
+	for u2 := u; u2 > 0; u2 /= 10 {
+		n++
+	}
 
 	// Add 0-padding.
-	for w := len(buf) - i; w < width; w++ {
+	for pad := width - n; pad > 0; pad-- {
 		b = append(b, '0')
 	}
 
-	return append(b, buf[i:]...)
+	// Ensure capacity.
+	if len(b)+n <= cap(b) {
+		b = b[:len(b)+n]
+	} else {
+		b = append(b, make([]byte, n)...)
+	}
+
+	// Assemble decimal in reverse order.
+	i := len(b) - 1
+	for u >= 10 && i > 0 {
+		q := u / 10
+		b[i] = utod(u - q*10)
+		u = q
+		i--
+	}
+	b[i] = utod(u)
+	return b
 }
 
 // Never printed, just needs to be non-nil for return by atoi.
-var atoiError = errors.New("time: invalid number")
+var errAtoi = errors.New("time: invalid number")
 
 // Duplicates functionality in strconv, but avoids dependency.
-func atoi(s string) (x int, err error) {
+func atoi[bytes []byte | string](s bytes) (x int, err error) {
 	neg := false
-	if s != "" && (s[0] == '-' || s[0] == '+') {
+	if len(s) > 0 && (s[0] == '-' || s[0] == '+') {
 		neg = s[0] == '-'
 		s = s[1:]
 	}
 	q, rem, err := leadingInt(s)
 	x = int(q)
-	if err != nil || rem != "" {
-		return 0, atoiError
+	if err != nil || len(rem) > 0 {
+		return 0, errAtoi
 	}
 	if neg {
 		x = -x
@@ -444,7 +466,7 @@ func atoi(s string) (x int, err error) {
 	return x, nil
 }
 
-// The "std" value passed to formatNano contains two packed fields: the number of
+// The "std" value passed to appendNano contains two packed fields: the number of
 // digits after the decimal and the separator character (period or comma).
 // These functions pack and unpack that variable.
 func stdFracSecond(code, n, c int) int {
@@ -466,35 +488,29 @@ func separator(std int) byte {
 	return ','
 }
 
-// formatNano appends a fractional second, as nanoseconds, to b
-// and returns the result.
-func formatNano(b []byte, nanosec uint, std int) []byte {
-	var (
-		n         = digitsLen(std)
-		separator = separator(std)
-		trim      = std&stdMask == stdFracSecond9
-	)
-	u := nanosec
-	var buf [9]byte
-	for start := len(buf); start > 0; {
-		start--
-		buf[start] = byte(u%10 + '0')
-		u /= 10
+// appendNano appends a fractional second, as nanoseconds, to b
+// and returns the result. The nanosec must be within [0, 999999999].
+func appendNano(b []byte, nanosec int, std int) []byte {
+	trim := std&stdMask == stdFracSecond9
+	n := digitsLen(std)
+	if trim && (n == 0 || nanosec == 0) {
+		return b
 	}
-
-	if n > 9 {
-		n = 9
+	dot := separator(std)
+	b = append(b, dot)
+	b = appendInt(b, nanosec, 9)
+	if n < 9 {
+		b = b[:len(b)-9+n]
 	}
 	if trim {
-		for n > 0 && buf[n-1] == '0' {
-			n--
+		for len(b) > 0 && b[len(b)-1] == '0' {
+			b = b[:len(b)-1]
 		}
-		if n == 0 {
-			return b
+		if len(b) > 0 && b[len(b)-1] == dot {
+			b = b[:len(b)-1]
 		}
 	}
-	b = append(b, separator)
-	return append(b, buf[:n]...)
+	return b
 }
 
 // String returns the time formatted using the format string
@@ -791,7 +807,7 @@ func (t Time) appendFormat(b []byte, layout string) []byte {
 			b = appendInt(b, zone/60, 2)
 			b = appendInt(b, zone%60, 2)
 		case stdFracSecond0, stdFracSecond9:
-			b = formatNano(b, uint(t.Nanosecond()), std)
+			b = appendNano(b, t.Nanosecond(), std)
 		}
 	}
 	return b
@@ -880,7 +896,7 @@ func (e *ParseError) Error() string {
 }
 
 // isDigit reports whether s[i] is in range and is a decimal digit.
-func isDigit(s string, i int) bool {
+func isDigit[bytes []byte | string](s bytes, i int) bool {
 	if len(s) <= i {
 		return false
 	}
@@ -1051,18 +1067,19 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		}
 		layout = suffix
 		var p string
+		hold := value
 		switch std & stdMask {
 		case stdYear:
 			if len(value) < 2 {
 				err = errBad
 				break
 			}
-			hold := value
 			p, value = value[0:2], value[2:]
 			year, err = atoi(p)
 			if err != nil {
-				value = hold
-			} else if year >= 69 { // Unix time starts Dec 31 1969 in some time zones
+				break
+			}
+			if year >= 69 { // Unix time starts Dec 31 1969 in some time zones
 				year += 1900
 			} else {
 				year += 2000
@@ -1279,7 +1296,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			return Time{}, newParseError(alayout, avalue, stdstr, value, ": "+rangeErrString+" out of range")
 		}
 		if err != nil {
-			return Time{}, newParseError(alayout, avalue, stdstr, value, "")
+			return Time{}, newParseError(alayout, avalue, stdstr, hold, "")
 		}
 	}
 	if pmSet && hour < 12 {
@@ -1452,7 +1469,7 @@ func parseGMT(value string) int {
 
 // parseSignedOffset parses a signed timezone offset (e.g. "+03" or "-04").
 // The function checks for a signed number in the range -23 through +23 excluding zero.
-// Returns length of the found offset string or 0 otherwise
+// Returns length of the found offset string or 0 otherwise.
 func parseSignedOffset(value string) int {
 	sign := value[0]
 	if sign != '-' && sign != '+' {
@@ -1474,7 +1491,7 @@ func commaOrPeriod(b byte) bool {
 	return b == '.' || b == ','
 }
 
-func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, err error) {
+func parseNanoseconds[bytes []byte | string](value bytes, nbytes int) (ns int, rangeErrString string, err error) {
 	if !commaOrPeriod(value[0]) {
 		err = errBad
 		return
@@ -1502,7 +1519,7 @@ func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, 
 var errLeadingInt = errors.New("time: bad [0-9]*") // never printed
 
 // leadingInt consumes the leading [0-9]* from s.
-func leadingInt(s string) (x uint64, rem string, err error) {
+func leadingInt[bytes []byte | string](s bytes) (x uint64, rem bytes, err error) {
 	i := 0
 	for ; i < len(s); i++ {
 		c := s[i]
@@ -1511,12 +1528,12 @@ func leadingInt(s string) (x uint64, rem string, err error) {
 		}
 		if x > 1<<63/10 {
 			// overflow
-			return 0, "", errLeadingInt
+			return 0, rem, errLeadingInt
 		}
 		x = x*10 + uint64(c) - '0'
 		if x > 1<<63 {
 			// overflow
-			return 0, "", errLeadingInt
+			return 0, rem, errLeadingInt
 		}
 	}
 	return x, s[i:], nil

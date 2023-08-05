@@ -10,12 +10,12 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"math"
 	"mime/multipart"
 	. "net/http"
-	"net/http/httptest"
 	"net/url"
 	"os"
 	"reflect"
@@ -32,7 +32,7 @@ func TestQuery(t *testing.T) {
 	}
 }
 
-// Issue #25192: Test that ParseForm fails but still parses the form when an URL
+// Issue #25192: Test that ParseForm fails but still parses the form when a URL
 // containing a semicolon is provided.
 func TestParseFormSemicolonSeparator(t *testing.T) {
 	for _, method := range []string{"POST", "PATCH", "PUT", "GET"} {
@@ -289,10 +289,11 @@ Content-Type: text/plain
 // the payload size and the internal leeway buffer size of 10MiB overflows, that we
 // correctly return an error.
 func TestMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T) {
-	defer afterTest(t)
-
+	run(t, testMaxInt64ForMultipartFormMaxMemoryOverflow)
+}
+func testMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T, mode testMode) {
 	payloadSize := 1 << 10
-	cst := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
 		// The combination of:
 		//      MaxInt64 + payloadSize + (internal spare of 10MiB)
 		// triggers the overflow. See issue https://golang.org/issue/40430/
@@ -300,8 +301,7 @@ func TestMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T) {
 			Error(rw, err.Error(), StatusBadRequest)
 			return
 		}
-	}))
-	defer cst.Close()
+	})).ts
 	fBuf := new(bytes.Buffer)
 	mw := multipart.NewWriter(fBuf)
 	mf, err := mw.CreateFormFile("file", "myfile.txt")
@@ -329,11 +329,9 @@ func TestMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T) {
 	}
 }
 
-func TestRedirect_h1(t *testing.T) { testRedirect(t, h1Mode) }
-func TestRedirect_h2(t *testing.T) { testRedirect(t, h2Mode) }
-func testRedirect(t *testing.T, h2 bool) {
-	defer afterTest(t)
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+func TestRequestRedirect(t *testing.T) { run(t, testRequestRedirect) }
+func testRequestRedirect(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		switch r.URL.Path {
 		case "/":
 			w.Header().Set("Location", "/foo/")
@@ -344,7 +342,6 @@ func testRedirect(t *testing.T, h2 bool) {
 			w.WriteHeader(StatusBadRequest)
 		}
 	}))
-	defer cst.close()
 
 	var end = regexp.MustCompile("/foo/$")
 	r, err := cst.c.Get(cst.ts.URL)
@@ -383,7 +380,7 @@ func TestMultipartRequest(t *testing.T) {
 }
 
 // Issue #25192: Test that ParseMultipartForm fails but still parses the
-// multi-part form when an URL containing a semicolon is provided.
+// multi-part form when a URL containing a semicolon is provided.
 func TestParseMultipartFormSemicolonSeparator(t *testing.T) {
 	req := newTestMultipartRequest(t)
 	req.URL = &url.URL{RawQuery: "q=foo;q=bar"}
@@ -778,15 +775,8 @@ func TestRequestBadHost(t *testing.T) {
 	}
 	req.Host = "foo.com with spaces"
 	req.URL.Host = "foo.com with spaces"
-	req.Write(logWrites{t, &got})
-	want := []string{
-		"GET /after HTTP/1.1\r\n",
-		"Host: foo.com\r\n",
-		"User-Agent: " + DefaultUserAgent + "\r\n",
-		"\r\n",
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Writes = %q\n  Want = %q", got, want)
+	if err := req.Write(logWrites{t, &got}); err == nil {
+		t.Errorf("Writing request with invalid Host: succeded, want error")
 	}
 }
 
@@ -1035,19 +1025,10 @@ func TestRequestCloneTransferEncoding(t *testing.T) {
 	}
 }
 
-func TestNoPanicOnRoundTripWithBasicAuth_h1(t *testing.T) {
-	testNoPanicWithBasicAuth(t, h1Mode)
-}
-
-func TestNoPanicOnRoundTripWithBasicAuth_h2(t *testing.T) {
-	testNoPanicWithBasicAuth(t, h2Mode)
-}
-
 // Issue 34878: verify we don't panic when including basic auth (Go 1.13 regression)
-func testNoPanicWithBasicAuth(t *testing.T, h2 bool) {
-	defer afterTest(t)
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {}))
-	defer cst.close()
+func TestNoPanicOnRoundTripWithBasicAuth(t *testing.T) { run(t, testNoPanicWithBasicAuth) }
+func testNoPanicWithBasicAuth(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}))
 
 	u, err := url.Parse(cst.ts.URL)
 	if err != nil {
@@ -1110,7 +1091,7 @@ func testMissingFile(t *testing.T, req *Request) {
 		t.Errorf("FormFile file = %v, want nil", f)
 	}
 	if fh != nil {
-		t.Errorf("FormFile file header = %q, want nil", fh)
+		t.Errorf("FormFile file header = %v, want nil", fh)
 	}
 	if err != ErrMissingFile {
 		t.Errorf("FormFile err = %q, want ErrMissingFile", err)
@@ -1207,7 +1188,7 @@ func TestRequestCookie(t *testing.T) {
 			t.Errorf("got %v, want %v", err, tt.expectedErr)
 		}
 
-		// skip if error occured.
+		// skip if error occurred.
 		if err != nil {
 			continue
 		}
@@ -1328,11 +1309,6 @@ Host: localhost:8080
 `)
 }
 
-const (
-	withTLS = true
-	noTLS   = false
-)
-
 func BenchmarkFileAndServer_1KB(b *testing.B) {
 	benchmarkFileAndServer(b, 1<<10)
 }
@@ -1360,16 +1336,12 @@ func benchmarkFileAndServer(b *testing.B, n int64) {
 		b.Fatalf("Failed to copy %d bytes: %v", n, err)
 	}
 
-	b.Run("NoTLS", func(b *testing.B) {
-		runFileAndServerBenchmarks(b, noTLS, f, n)
-	})
-
-	b.Run("TLS", func(b *testing.B) {
-		runFileAndServerBenchmarks(b, withTLS, f, n)
-	})
+	run(b, func(b *testing.B, mode testMode) {
+		runFileAndServerBenchmarks(b, mode, f, n)
+	}, []testMode{http1Mode, https1Mode, http2Mode})
 }
 
-func runFileAndServerBenchmarks(b *testing.B, tlsOption bool, f *os.File, n int64) {
+func runFileAndServerBenchmarks(b *testing.B, mode testMode, f *os.File, n int64) {
 	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
 		defer req.Body.Close()
 		nc, err := io.Copy(io.Discard, req.Body)
@@ -1382,14 +1354,8 @@ func runFileAndServerBenchmarks(b *testing.B, tlsOption bool, f *os.File, n int6
 		}
 	})
 
-	var cst *httptest.Server
-	if tlsOption == withTLS {
-		cst = httptest.NewTLSServer(handler)
-	} else {
-		cst = httptest.NewServer(handler)
-	}
+	cst := newClientServerTest(b, mode, handler).ts
 
-	defer cst.Close()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Perform some setup.
@@ -1414,5 +1380,11 @@ func runFileAndServerBenchmarks(b *testing.B, tlsOption bool, f *os.File, n int6
 
 		res.Body.Close()
 		b.SetBytes(n)
+	}
+}
+
+func TestErrNotSupported(t *testing.T) {
+	if !errors.Is(ErrNotSupported, errors.ErrUnsupported) {
+		t.Error("errors.Is(ErrNotSupported, errors.ErrUnsupported) failed")
 	}
 }

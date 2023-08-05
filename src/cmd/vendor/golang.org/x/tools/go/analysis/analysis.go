@@ -11,8 +11,6 @@ import (
 	"go/token"
 	"go/types"
 	"reflect"
-
-	"golang.org/x/tools/internal/analysisinternal"
 )
 
 // An Analyzer describes an analysis function and its options.
@@ -25,6 +23,10 @@ type Analyzer struct {
 	// The part before the first "\n\n" is the title
 	// (no capital or period, max ~60 letters).
 	Doc string
+
+	// URL holds an optional link to a web page with additional
+	// documentation for this analyzer.
+	URL string
 
 	// Flags defines any flags accepted by the analyzer.
 	// The manner in which these flags are exposed to the user
@@ -48,6 +50,7 @@ type Analyzer struct {
 	// RunDespiteErrors allows the driver to invoke
 	// the Run method of this analyzer even on a
 	// package that contains parse or type errors.
+	// The Pass.TypeErrors field may consequently be non-empty.
 	RunDespiteErrors bool
 
 	// Requires is a set of analyzers that must run successfully
@@ -75,17 +78,6 @@ type Analyzer struct {
 
 func (a *Analyzer) String() string { return a.Name }
 
-func init() {
-	// Set the analysisinternal functions to be able to pass type errors
-	// to the Pass type without modifying the go/analysis API.
-	analysisinternal.SetTypeErrors = func(p interface{}, errors []types.Error) {
-		p.(*Pass).typeErrors = errors
-	}
-	analysisinternal.GetTypeErrors = func(p interface{}) []types.Error {
-		return p.(*Pass).typeErrors
-	}
-}
-
 // A Pass provides information to the Run function that
 // applies a specific analyzer to a single Go package.
 //
@@ -106,6 +98,7 @@ type Pass struct {
 	Pkg          *types.Package // type information about the package
 	TypesInfo    *types.Info    // type information about the syntax trees
 	TypesSizes   types.Sizes    // function for computing sizes of types
+	TypeErrors   []types.Error  // type errors (only if Analyzer.RunDespiteErrors)
 
 	// Report reports a Diagnostic, a finding about a specific location
 	// in the analyzed source code such as a potential mistake.
@@ -156,11 +149,7 @@ type Pass struct {
 	// WARNING: This is an experimental API and may change in the future.
 	AllObjectFacts func() []ObjectFact
 
-	// typeErrors contains types.Errors that are associated with the pkg.
-	typeErrors []types.Error
-
 	/* Further fields may be added in future. */
-	// For example, suggested or applied refactorings.
 }
 
 // PackageFact is a package together with an associated fact.

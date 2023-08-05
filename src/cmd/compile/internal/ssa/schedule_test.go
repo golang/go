@@ -99,3 +99,62 @@ func TestStoreOrder(t *testing.T) {
 		t.Errorf("store order is wrong: got %v, want v2 v3 v4 after v5", order)
 	}
 }
+
+func TestCarryChainOrder(t *testing.T) {
+	// In the function below, there are two carry chains that have no dependencies on each other,
+	// one is A1 -> A1carry -> A1Carryvalue, the other is A2 -> A2carry -> A2Carryvalue. If they
+	// are not scheduled properly, the carry will be clobbered, causing the carry to be regenerated.
+	c := testConfigARM64(t)
+	fun := c.Fun("entry",
+		Bloc("entry",
+			Valu("mem0", OpInitMem, types.TypeMem, 0, nil),
+			Valu("x", OpARM64MOVDconst, c.config.Types.UInt64, 5, nil),
+			Valu("y", OpARM64MOVDconst, c.config.Types.UInt64, 6, nil),
+			Valu("z", OpARM64MOVDconst, c.config.Types.UInt64, 7, nil),
+			Valu("A1", OpARM64ADDSflags, types.NewTuple(c.config.Types.UInt64, types.TypeFlags), 0, nil, "x", "z"), // x+z, set flags
+			Valu("A1carry", OpSelect1, types.TypeFlags, 0, nil, "A1"),
+			Valu("A2", OpARM64ADDSflags, types.NewTuple(c.config.Types.UInt64, types.TypeFlags), 0, nil, "y", "z"), // y+z, set flags
+			Valu("A2carry", OpSelect1, types.TypeFlags, 0, nil, "A2"),
+			Valu("A1value", OpSelect0, c.config.Types.UInt64, 0, nil, "A1"),
+			Valu("A1Carryvalue", OpARM64ADCzerocarry, c.config.Types.UInt64, 0, nil, "A1carry"), // 0+0+A1carry
+			Valu("A2value", OpSelect0, c.config.Types.UInt64, 0, nil, "A2"),
+			Valu("A2Carryvalue", OpARM64ADCzerocarry, c.config.Types.UInt64, 0, nil, "A2carry"), // 0+0+A2carry
+			Valu("ValueSum", OpARM64ADD, c.config.Types.UInt64, 0, nil, "A1value", "A2value"),
+			Valu("CarrySum", OpARM64ADD, c.config.Types.UInt64, 0, nil, "A1Carryvalue", "A2Carryvalue"),
+			Valu("Sum", OpARM64AND, c.config.Types.UInt64, 0, nil, "ValueSum", "CarrySum"),
+			Goto("exit")),
+		Bloc("exit",
+			Exit("mem0")),
+	)
+
+	CheckFunc(fun.f)
+	schedule(fun.f)
+
+	// The expected order is A1 < A1carry < A1Carryvalue < A2 < A2carry < A2Carryvalue.
+	// There is no dependency between the two carry chains, so it doesn't matter which
+	// comes first and which comes after, but the unsorted position of A1 is before A2,
+	// so A1Carryvalue < A2.
+	var ai, bi, ci, di, ei, fi int
+	for i, v := range fun.f.Blocks[0].Values {
+		switch {
+		case fun.values["A1"] == v:
+			ai = i
+		case fun.values["A1carry"] == v:
+			bi = i
+		case fun.values["A1Carryvalue"] == v:
+			ci = i
+		case fun.values["A2"] == v:
+			di = i
+		case fun.values["A2carry"] == v:
+			ei = i
+		case fun.values["A2Carryvalue"] == v:
+			fi = i
+		}
+	}
+	if !(ai < bi && bi < ci && ci < di && di < ei && ei < fi) {
+		t.Logf("Func: %s", fun.f)
+		t.Errorf("carry chain order is wrong: got %v, want V%d after V%d after V%d after V%d after V%d after V%d,",
+			fun.f.Blocks[0], fun.values["A1"].ID, fun.values["A1carry"].ID, fun.values["A1Carryvalue"].ID,
+			fun.values["A2"].ID, fun.values["A2carry"].ID, fun.values["A2Carryvalue"].ID)
+	}
+}

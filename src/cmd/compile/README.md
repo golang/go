@@ -49,7 +49,6 @@ AST instead of `go/ast`.
 
 * `cmd/compile/internal/types` (compiler types)
 * `cmd/compile/internal/ir` (compiler AST)
-* `cmd/compile/internal/typecheck` (AST transformations)
 * `cmd/compile/internal/noder` (create compiler AST)
 
 The compiler middle end uses its own AST definition and representation of Go
@@ -58,19 +57,9 @@ terms of these, so the next step after type checking is to convert the syntax
 and types2 representations to ir and types. This process is referred to as
 "noding."
 
-There are currently two noding implementations:
-
-1. irgen (aka "-G=3" or sometimes "noder2") is the implementation used starting
-   with Go 1.18, and
-
-2. Unified IR is another, in-development implementation (enabled with
-   `GOEXPERIMENT=unified`), which also implements import/export and inlining.
-
-Up through Go 1.18, there was a third noding implementation (just
-"noder" or "-G=0"), which directly converted the pre-type-checked
-syntax representation into IR and then invoked package typecheck's
-type checker. This implementation was removed after Go 1.18, so now
-package typecheck is only used for IR transformations.
+Noding using a process called Unified IR, which builds a node representation
+using a serialized version of the typechecked code from step 2.
+Unified IR is also involved in import/export of packages and inlining.
 
 ### 4. Middle end
 

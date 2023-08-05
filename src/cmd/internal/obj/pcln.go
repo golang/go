@@ -142,7 +142,7 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 	if p.As == ATEXT || p.As == ANOP || p.Pos.Line() == 0 || phase == 1 {
 		return oldval
 	}
-	f, l := getFileIndexAndLine(ctxt, p.Pos)
+	f, l := ctxt.getFileIndexAndLine(p.Pos)
 	if arg == nil {
 		return l
 	}
@@ -294,9 +294,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 		inlMarkProgs[inlMark.p] = struct{}{}
 	}
 	for p := fn.Text; p != nil; p = p.Link {
-		if _, ok := inlMarkProgs[p]; ok {
-			delete(inlMarkProgs, p)
-		}
+		delete(inlMarkProgs, p)
 	}
 	if len(inlMarkProgs) > 0 {
 		ctxt.Diag("one or more instructions used as inline markers are no longer reachable")
@@ -369,7 +367,7 @@ type PCIter struct {
 	Done    bool
 }
 
-// newPCIter creates a PCIter with a scale factor for the PC step size.
+// NewPCIter creates a PCIter with a scale factor for the PC step size.
 func NewPCIter(pcScale uint32) *PCIter {
 	it := new(PCIter)
 	it.PCScale = pcScale

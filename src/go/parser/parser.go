@@ -18,9 +18,11 @@ package parser
 import (
 	"fmt"
 	"go/ast"
+	"go/build/constraint"
 	"go/internal/typeparams"
 	"go/scanner"
 	"go/token"
+	"strings"
 )
 
 // The parser structure holds the parser's internal state.
@@ -38,6 +40,8 @@ type parser struct {
 	comments    []*ast.CommentGroup
 	leadComment *ast.CommentGroup // last lead comment
 	lineComment *ast.CommentGroup // last line comment
+	top         bool              // in top of file (before package clause)
+	goVersion   string            // minimum Go version found in //go:build comment
 
 	// Next token
 	pos token.Pos   // token position
@@ -64,13 +68,10 @@ type parser struct {
 
 func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mode) {
 	p.file = fset.AddFile(filename, -1, len(src))
-	var m scanner.Mode
-	if mode&ParseComments != 0 {
-		m = scanner.ScanComments
-	}
 	eh := func(pos token.Position, msg string) { p.errors.Add(pos, msg) }
-	p.scanner.Init(p.file, src, eh, m)
+	p.scanner.Init(p.file, src, eh, scanner.ScanComments)
 
+	p.top = true
 	p.mode = mode
 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
 	p.next()
@@ -142,7 +143,23 @@ func (p *parser) next0() {
 		}
 	}
 
-	p.pos, p.tok, p.lit = p.scanner.Scan()
+	for {
+		p.pos, p.tok, p.lit = p.scanner.Scan()
+		if p.tok == token.COMMENT {
+			if p.top && strings.HasPrefix(p.lit, "//go:build") {
+				if x, err := constraint.Parse(p.lit); err == nil {
+					p.goVersion = constraint.GoVersion(x)
+				}
+			}
+			if p.mode&ParseComments == 0 {
+				continue
+			}
+		} else {
+			// Found a non-comment; top of file is over.
+			p.top = false
+		}
+		break
+	}
 }
 
 // Consume a comment and return it and the line on which it ends.
@@ -587,15 +604,19 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
 		defer un(trace(p, "ArrayFieldOrTypeInstance"))
 	}
 
-	// TODO(gri) Should we allow a trailing comma in a type argument
-	//           list such as T[P,]? (We do in parseTypeInstance).
 	lbrack := p.expect(token.LBRACK)
+	trailingComma := token.NoPos // if valid, the position of a trailing comma preceding the ']'
 	var args []ast.Expr
 	if p.tok != token.RBRACK {
 		p.exprLev++
 		args = append(args, p.parseRhs())
 		for p.tok == token.COMMA {
+			comma := p.pos
 			p.next()
+			if p.tok == token.RBRACK {
+				trailingComma = comma
+				break
+			}
 			args = append(args, p.parseRhs())
 		}
 		p.exprLev--
@@ -613,6 +634,10 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
 		elt := p.tryIdentOrType()
 		if elt != nil {
 			// x [P]E
+			if trailingComma.IsValid() {
+				// Trailing commas are invalid in array type fields.
+				p.error(trailingComma, "unexpected comma; expecting ]")
+			}
 			return x, &ast.ArrayType{Lbrack: lbrack, Len: args[0], Elt: elt}
 		}
 	}
@@ -1205,7 +1230,7 @@ parseElements:
 	}
 
 	// TODO(rfindley): the error produced here could be improved, since we could
-	// accept a identifier, 'type', or a '}' at this point.
+	// accept an identifier, 'type', or a '}' at this point.
 	rbrace := p.expect(token.RBRACE)
 
 	return &ast.InterfaceType{
@@ -1307,8 +1332,7 @@ func (p *parser) tryIdentOrType() ast.Expr {
 	case token.MUL:
 		return p.parsePointerType()
 	case token.FUNC:
-		typ := p.parseFuncType()
-		return typ
+		return p.parseFuncType()
 	case token.INTERFACE:
 		return p.parseInterfaceType()
 	case token.MAP:
@@ -1388,7 +1412,7 @@ func (p *parser) parseFuncTypeOrLit() ast.Expr {
 }
 
 // parseOperand may return an expression or a raw type (incl. array
-// types of the form [...]T. Callers must verify the result.
+// types of the form [...]T). Callers must verify the result.
 func (p *parser) parseOperand() ast.Expr {
 	if p.trace {
 		defer un(trace(p, "Operand"))
@@ -1630,14 +1654,6 @@ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
 	return &ast.CompositeLit{Type: typ, Lbrace: lbrace, Elts: elts, Rbrace: rbrace}
 }
 
-// If x is of the form (T), unparen returns unparen(T), otherwise it returns x.
-func unparen(x ast.Expr) ast.Expr {
-	if p, isParen := x.(*ast.ParenExpr); isParen {
-		x = unparen(p.X)
-	}
-	return x
-}
-
 func (p *parser) parsePrimaryExpr(x ast.Expr) ast.Expr {
 	if p.trace {
 		defer un(trace(p, "PrimaryExpr"))
@@ -1682,7 +1698,7 @@ func (p *parser) parsePrimaryExpr(x ast.Expr) ast.Expr {
 		case token.LBRACE:
 			// operand may have returned a parenthesized complit
 			// type; accept it but complain if we have a complit
-			t := unparen(x)
+			t := ast.Unparen(x)
 			// determine if '{' belongs to a composite literal or a block statement
 			switch t.(type) {
 			case *ast.BadExpr, *ast.Ident, *ast.SelectorExpr:
@@ -1925,7 +1941,7 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 
 func (p *parser) parseCallExpr(callType string) *ast.CallExpr {
 	x := p.parseRhs() // could be a conversion: (some type)(x)
-	if t := unparen(x); t != x {
+	if t := ast.Unparen(x); t != x {
 		p.error(x.Pos(), fmt.Sprintf("expression in %s must not be parenthesized", callType))
 		x = t
 	}
@@ -2836,12 +2852,15 @@ func (p *parser) parseFile() *ast.File {
 	}
 
 	f := &ast.File{
-		Doc:      doc,
-		Package:  pos,
-		Name:     ident,
-		Decls:    decls,
-		Imports:  p.imports,
-		Comments: p.comments,
+		Doc:       doc,
+		Package:   pos,
+		Name:      ident,
+		Decls:     decls,
+		FileStart: token.Pos(p.file.Base()),
+		FileEnd:   token.Pos(p.file.Base() + p.file.Size()),
+		Imports:   p.imports,
+		Comments:  p.comments,
+		GoVersion: p.goVersion,
 	}
 	var declErr func(token.Pos, string)
 	if p.mode&DeclarationErrors != 0 {

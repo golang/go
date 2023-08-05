@@ -70,6 +70,30 @@ func (a addrRange) subtract(b addrRange) addrRange {
 	return a
 }
 
+// takeFromFront takes len bytes from the front of the address range, aligning
+// the base to align first. On success, returns the aligned start of the region
+// taken and true.
+func (a *addrRange) takeFromFront(len uintptr, align uint8) (uintptr, bool) {
+	base := alignUp(a.base.addr(), uintptr(align)) + len
+	if base > a.limit.addr() {
+		return 0, false
+	}
+	a.base = offAddr{base}
+	return base - len, true
+}
+
+// takeFromBack takes len bytes from the end of the address range, aligning
+// the limit to align after subtracting len. On success, returns the aligned
+// start of the region taken and true.
+func (a *addrRange) takeFromBack(len uintptr, align uint8) (uintptr, bool) {
+	limit := alignDown(a.limit.addr()-len, uintptr(align))
+	if a.base.addr() > limit {
+		return 0, false
+	}
+	a.limit = offAddr{limit}
+	return limit, true
+}
+
 // removeGreaterEqual removes all addresses in a greater than or equal
 // to addr and returns the new range.
 func (a addrRange) removeGreaterEqual(addr uintptr) addrRange {

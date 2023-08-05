@@ -277,7 +277,7 @@ func (l *dlogger) p(x any) *dlogger {
 		l.w.uvarint(0)
 	} else {
 		v := efaceOf(&x)
-		switch v._type.kind & kindMask {
+		switch v._type.Kind_ & kindMask {
 		case kindChan, kindFunc, kindMap, kindPtr, kindUnsafePointer:
 			l.w.uvarint(uint64(uintptr(v.data)))
 		default:
@@ -304,7 +304,12 @@ func (l *dlogger) s(x string) *dlogger {
 		l.w.uvarint(uint64(uintptr(unsafe.Pointer(strData)) - datap.etext))
 	} else {
 		l.w.byte(debugLogString)
-		b := unsafe.Slice(strData, len(x))
+		// We can't use unsafe.Slice as it may panic, which isn't safe
+		// in this (potentially) nowritebarrier context.
+		var b []byte
+		bb := (*slice)(unsafe.Pointer(&b))
+		bb.array = unsafe.Pointer(strData)
+		bb.len, bb.cap = len(x), len(x)
 		if len(b) > debugLogStringLimit {
 			b = b[:debugLogStringLimit]
 		}
@@ -655,7 +660,13 @@ func (r *debugLogReader) printVal() bool {
 	case debugLogConstString:
 		len, ptr := int(r.uvarint()), uintptr(r.uvarint())
 		ptr += firstmoduledata.etext
-		s := unsafe.String((*byte)(unsafe.Pointer(ptr)), len)
+		// We can't use unsafe.String as it may panic, which isn't safe
+		// in this (potentially) nowritebarrier context.
+		str := stringStruct{
+			str: unsafe.Pointer(ptr),
+			len: len,
+		}
+		s := *(*string)(unsafe.Pointer(&str))
 		print(s)
 
 	case debugLogStringOverflow:

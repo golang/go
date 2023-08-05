@@ -9,6 +9,7 @@ import (
 	"internal/coverage"
 	"internal/coverage/decodecounter"
 	"internal/coverage/encodecounter"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,10 +17,6 @@ import (
 
 type ctrVis struct {
 	funcs []decodecounter.FuncPayload
-}
-
-func (v *ctrVis) NumFuncs() (int, error) {
-	return len(v.funcs), nil
 }
 
 func (v *ctrVis) VisitFuncs(f encodecounter.CounterVisitorFn) error {
@@ -91,7 +88,12 @@ func TestCounterDataWriterReader(t *testing.T) {
 		// Decode the same file.
 		var cdr *decodecounter.CounterDataReader
 		inf, err := os.Open(cfpath)
-		defer inf.Close()
+		defer func() {
+			if err := inf.Close(); err != nil {
+				t.Fatalf("close failed with: %v", err)
+			}
+		}()
+
 		if err != nil {
 			t.Fatalf("reopening covcounters file: %v", err)
 		}
@@ -182,7 +184,12 @@ func TestCounterDataAppendSegment(t *testing.T) {
 	// Read the result file.
 	var cdr *decodecounter.CounterDataReader
 	inf, err := os.Open(cfpath)
-	defer inf.Close()
+	defer func() {
+		if err := inf.Close(); err != nil {
+			t.Fatalf("close failed with: %v", err)
+		}
+	}()
+
 	if err != nil {
 		t.Fatalf("reopening covcounters file: %v", err)
 	}
@@ -198,8 +205,7 @@ func TestCounterDataAppendSegment(t *testing.T) {
 	}
 
 	for sidx := 0; sidx < int(ns); sidx++ {
-
-		if off, err := inf.Seek(0, os.SEEK_CUR); err != nil {
+		if off, err := inf.Seek(0, io.SeekCurrent); err != nil {
 			t.Fatalf("Seek failed: %v", err)
 		} else {
 			t.Logf("sidx=%d off=%d\n", sidx, off)

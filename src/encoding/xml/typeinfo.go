@@ -46,7 +46,7 @@ const (
 
 var tinfoMap sync.Map // map[reflect.Type]*typeInfo
 
-var nameType = reflect.TypeOf(Name{})
+var nameType = reflect.TypeFor[Name]()
 
 // getTypeInfo returns the typeInfo structure with details necessary
 // for marshaling and unmarshaling typ.
@@ -292,7 +292,7 @@ Loop:
 				conflicts = append(conflicts, i)
 			}
 		} else {
-			if newf.name == oldf.name {
+			if newf.name == oldf.name && newf.xmlns == oldf.xmlns {
 				conflicts = append(conflicts, i)
 			}
 		}

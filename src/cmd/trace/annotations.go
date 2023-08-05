@@ -446,9 +446,7 @@ func (task *taskDesc) descendants() []*taskDesc {
 	res := []*taskDesc{task}
 	for i := 0; len(res[i:]) > 0; i++ {
 		t := res[i]
-		for _, c := range t.children {
-			res = append(res, c)
-		}
+		res = append(res, t.children...)
 	}
 	return res
 }
@@ -496,7 +494,7 @@ func (region *regionDesc) duration() time.Duration {
 func (task *taskDesc) overlappingGCDuration(evs []*trace.Event) (overlapping time.Duration) {
 	for _, ev := range evs {
 		// make sure we only consider the global GC events.
-		if typ := ev.Type; typ != trace.EvGCStart && typ != trace.EvGCSTWStart {
+		if typ := ev.Type; typ != trace.EvGCStart {
 			continue
 		}
 
@@ -1097,7 +1095,7 @@ Search log text: <form onsubmit="window.location.search+='&logtext='+window.logt
 `))
 
 func elapsed(d time.Duration) string {
-	b := []byte(fmt.Sprintf("%.9f", d.Seconds()))
+	b := fmt.Appendf(nil, "%.9f", d.Seconds())
 
 	// For subsecond durations, blank all zeros before decimal point,
 	// and all zeros between the decimal point and the first non-zero digit.

@@ -14,10 +14,99 @@ package unix
 
 import (
 	"fmt"
-	"runtime"
 	"syscall"
 	"unsafe"
 )
+
+//sys	closedir(dir uintptr) (err error)
+//sys	readdir_r(dir uintptr, entry *Dirent, result **Dirent) (res Errno)
+
+func fdopendir(fd int) (dir uintptr, err error) {
+	r0, _, e1 := syscall_syscallPtr(libc_fdopendir_trampoline_addr, uintptr(fd), 0, 0)
+	dir = uintptr(r0)
+	if e1 != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+var libc_fdopendir_trampoline_addr uintptr
+
+//go:cgo_import_dynamic libc_fdopendir fdopendir "/usr/lib/libSystem.B.dylib"
+
+func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+	// Simulate Getdirentries using fdopendir/readdir_r/closedir.
+	// We store the number of entries to skip in the seek
+	// offset of fd. See issue #31368.
+	// It's not the full required semantics, but should handle the case
+	// of calling Getdirentries or ReadDirent repeatedly.
+	// It won't handle assigning the results of lseek to *basep, or handle
+	// the directory being edited underfoot.
+	skip, err := Seek(fd, 0, 1 /* SEEK_CUR */)
+	if err != nil {
+		return 0, err
+	}
+
+	// We need to duplicate the incoming file descriptor
+	// because the caller expects to retain control of it, but
+	// fdopendir expects to take control of its argument.
+	// Just Dup'ing the file descriptor is not enough, as the
+	// result shares underlying state. Use Openat to make a really
+	// new file descriptor referring to the same directory.
+	fd2, err := Openat(fd, ".", O_RDONLY, 0)
+	if err != nil {
+		return 0, err
+	}
+	d, err := fdopendir(fd2)
+	if err != nil {
+		Close(fd2)
+		return 0, err
+	}
+	defer closedir(d)
+
+	var cnt int64
+	for {
+		var entry Dirent
+		var entryp *Dirent
+		e := readdir_r(d, &entry, &entryp)
+		if e != 0 {
+			return n, errnoErr(e)
+		}
+		if entryp == nil {
+			break
+		}
+		if skip > 0 {
+			skip--
+			cnt++
+			continue
+		}
+
+		reclen := int(entry.Reclen)
+		if reclen > len(buf) {
+			// Not enough room. Return for now.
+			// The counter will let us know where we should start up again.
+			// Note: this strategy for suspending in the middle and
+			// restarting is O(n^2) in the length of the directory. Oh well.
+			break
+		}
+
+		// Copy entry into return buffer.
+		s := unsafe.Slice((*byte)(unsafe.Pointer(&entry)), reclen)
+		copy(buf, s)
+
+		buf = buf[reclen:]
+		n += reclen
+		cnt++
+	}
+	// Set the seek offset of the input fd to record
+	// how many files we've already returned.
+	_, err = Seek(fd, cnt, 0 /* SEEK_SET */)
+	if err != nil {
+		return n, err
+	}
+
+	return n, nil
+}
 
 // SockaddrDatalink implements the Sockaddr interface for AF_LINK type sockets.
 type SockaddrDatalink struct {
@@ -140,6 +229,7 @@ func direntNamlen(buf []byte) (uint64, bool) {
 
 func PtraceAttach(pid int) (err error) { return ptrace(PT_ATTACH, pid, 0, 0) }
 func PtraceDetach(pid int) (err error) { return ptrace(PT_DETACH, pid, 0, 0) }
+func PtraceDenyAttach() (err error)    { return ptrace(PT_DENY_ATTACH, 0, 0, 0) }
 
 //sysnb	pipe(p *[2]int32) (err error)
 
@@ -285,11 +375,10 @@ func Flistxattr(fd int, dest []byte) (sz int, err error) {
 func Kill(pid int, signum syscall.Signal) (err error) { return kill(pid, int(signum), 1) }
 
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
+//sys	ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_IOCTL
 
 func IoctlCtlInfo(fd int, ctlInfo *CtlInfo) error {
-	err := ioctl(fd, CTLIOCGINFO, uintptr(unsafe.Pointer(ctlInfo)))
-	runtime.KeepAlive(ctlInfo)
-	return err
+	return ioctlPtr(fd, CTLIOCGINFO, unsafe.Pointer(ctlInfo))
 }
 
 // IfreqMTU is struct ifreq used to get or set a network device's MTU.
@@ -303,16 +392,14 @@ type IfreqMTU struct {
 func IoctlGetIfreqMTU(fd int, ifname string) (*IfreqMTU, error) {
 	var ifreq IfreqMTU
 	copy(ifreq.Name[:], ifname)
-	err := ioctl(fd, SIOCGIFMTU, uintptr(unsafe.Pointer(&ifreq)))
+	err := ioctlPtr(fd, SIOCGIFMTU, unsafe.Pointer(&ifreq))
 	return &ifreq, err
 }
 
 // IoctlSetIfreqMTU performs the SIOCSIFMTU ioctl operation on fd to set the MTU
 // of the network device specified by ifreq.Name.
 func IoctlSetIfreqMTU(fd int, ifreq *IfreqMTU) error {
-	err := ioctl(fd, SIOCSIFMTU, uintptr(unsafe.Pointer(ifreq)))
-	runtime.KeepAlive(ifreq)
-	return err
+	return ioctlPtr(fd, SIOCSIFMTU, unsafe.Pointer(ifreq))
 }
 
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS_SYSCTL
@@ -526,6 +613,7 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
 //sys	Rmdir(path string) (err error)
 //sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = SYS_LSEEK
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
+//sys	Setattrlist(path string, attrlist *Attrlist, attrBuf []byte, options int) (err error)
 //sys	Setegid(egid int) (err error)
 //sysnb	Seteuid(euid int) (err error)
 //sysnb	Setgid(gid int) (err error)
@@ -535,7 +623,6 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
 //sys	Setprivexec(flag int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
@@ -589,7 +676,6 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
 // Kqueue_from_portset_np
 // Kqueue_portset
 // Getattrlist
-// Setattrlist
 // Getdirentriesattr
 // Searchfs
 // Delete

@@ -1,3 +1,4 @@
+{"Action":"start"}
 {"Action":"run","Test":"TestUnicode"}
 {"Action":"output","Test":"TestUnicode","Output":"=== RUN   TestUnicode\n"}
 {"Action":"output","Test":"TestUnicode","Output":"Μπορώ να φάω σπασμένα γυαλιά χωρίς να πάθω τίποτα. Μπορώ να φάω σπασμένα γυαλιά χωρίς να πάθω τίποτα.\n"}

@@ -65,7 +65,7 @@ type Comments struct {
 }
 
 // Comment returns the receiver. This isn't useful by itself, but
-// a Comments struct is embedded into all the expression
+// a [Comments] struct is embedded into all the expression
 // implementation types, and this gives each of those a Comment
 // method to satisfy the Expr interface.
 func (c *Comments) Comment() *Comments {
@@ -494,7 +494,7 @@ func (in *input) endToken(kind tokenKind) {
 	in.token.endPos = in.pos
 }
 
-// peek returns the kind of the the next token returned by lex.
+// peek returns the kind of the next token returned by lex.
 func (in *input) peek() tokenKind {
 	return in.token.kind
 }

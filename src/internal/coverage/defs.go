@@ -4,7 +4,7 @@
 
 package coverage
 
-// Types and constants related to the output files files written
+// Types and constants related to the output files written
 // by code coverage tooling. When a coverage-instrumented binary
 // is run, it emits two output files: a meta-data output file, and
 // a counter data output file.
@@ -172,7 +172,7 @@ type FuncDesc struct {
 // jumps or control transfers). An "intraline" unit corresponds to a
 // logical clause nested within some other simple unit. A simple unit
 // will have a zero Parent value; for an intraline unit NxStmts will
-// be zero and and Parent will be set to 1 plus the index of the
+// be zero and Parent will be set to 1 plus the index of the
 // containing simple statement. Example:
 //
 //	L7:   q := 1
@@ -363,7 +363,7 @@ func Round4(x int) int {
 // where "numCtrs" is the number of blocks / coverable units within the
 // function, "pkgid" is the unique index assigned to this package by
 // the runtime, "funcid" is the index of this function within its containing
-// packge, and "counterArray" stores the actual counters.
+// package, and "counterArray" stores the actual counters.
 //
 // The counter variable itself is created not as a struct but as a flat
 // array of uint32's; we then use the offsets below to index into it.

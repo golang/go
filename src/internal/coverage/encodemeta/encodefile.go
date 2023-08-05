@@ -70,7 +70,7 @@ func (m *CoverageMetaFileWriter) Write(finalHash [16]byte, blobs [][]byte, mode 
 	}
 	var err error
 	if err = binary.Write(m.w, binary.LittleEndian, mh); err != nil {
-		return fmt.Errorf("error writing %s: %v\n", m.mfname, err)
+		return fmt.Errorf("error writing %s: %v", m.mfname, err)
 	}
 
 	if m.debug {
@@ -84,7 +84,7 @@ func (m *CoverageMetaFileWriter) Write(finalHash [16]byte, blobs [][]byte, mode 
 	for _, blob := range blobs {
 		binary.LittleEndian.PutUint64(buf, off)
 		if _, err = m.w.Write(buf); err != nil {
-			return fmt.Errorf("error writing %s: %v\n", m.mfname, err)
+			return fmt.Errorf("error writing %s: %v", m.mfname, err)
 		}
 		if m.debug {
 			fmt.Fprintf(os.Stderr, "=+= pkg offset %d 0x%x\n", off, off)
@@ -96,7 +96,7 @@ func (m *CoverageMetaFileWriter) Write(finalHash [16]byte, blobs [][]byte, mode 
 		bl := uint64(len(blob))
 		binary.LittleEndian.PutUint64(buf, bl)
 		if _, err = m.w.Write(buf); err != nil {
-			return fmt.Errorf("error writing %s: %v\n", m.mfname, err)
+			return fmt.Errorf("error writing %s: %v", m.mfname, err)
 		}
 		if m.debug {
 			fmt.Fprintf(os.Stderr, "=+= pkg len %d 0x%x\n", bl, bl)
@@ -115,7 +115,7 @@ func (m *CoverageMetaFileWriter) Write(finalHash [16]byte, blobs [][]byte, mode 
 			fmt.Fprintf(os.Stderr, "=+= writing blob %d len %d at off=%d hash %s\n", k, len(blob), off2, fmt.Sprintf("%x", md5.Sum(blob)))
 		}
 		if _, err = m.w.Write(blob); err != nil {
-			return fmt.Errorf("error writing %s: %v\n", m.mfname, err)
+			return fmt.Errorf("error writing %s: %v", m.mfname, err)
 		}
 		if m.debug {
 			fmt.Fprintf(os.Stderr, "=+= wrote package payload of %d bytes\n",
@@ -126,7 +126,7 @@ func (m *CoverageMetaFileWriter) Write(finalHash [16]byte, blobs [][]byte, mode 
 
 	// Flush writer, and we're done.
 	if err = m.w.Flush(); err != nil {
-		return fmt.Errorf("error writing %s: %v\n", m.mfname, err)
+		return fmt.Errorf("error writing %s: %v", m.mfname, err)
 	}
 	return nil
 }

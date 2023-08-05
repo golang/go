@@ -86,7 +86,7 @@ func (stw *Writer) Write(w io.Writer) error {
 			return err
 		}
 		if nw, err := w.Write([]byte(s)); err != nil {
-			return fmt.Errorf("writing string table: %v\n", err)
+			return fmt.Errorf("writing string table: %v", err)
 		} else if nw != len([]byte(s)) {
 			return fmt.Errorf("short write emitting stringtab")
 		}

@@ -296,7 +296,7 @@ const (
 	// Flag to indicate that the sorting from the INF file should be used.
 	DI_INF_IS_SORTED DI_FLAGS = 0x00008000
 
-	// Flag to indicate that only the the INF specified by SP_DEVINSTALL_PARAMS.DriverPath should be searched.
+	// Flag to indicate that only the INF specified by SP_DEVINSTALL_PARAMS.DriverPath should be searched.
 	DI_ENUMSINGLEINF DI_FLAGS = 0x00010000
 
 	// Flag that prevents ConfigMgr from removing/re-enumerating devices during device

@@ -7,6 +7,9 @@ package staticinit
 import (
 	"fmt"
 	"go/constant"
+	"go/token"
+	"os"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -15,6 +18,7 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -48,10 +52,32 @@ func (s *Schedule) append(n ir.Node) {
 func (s *Schedule) StaticInit(n ir.Node) {
 	if !s.tryStaticInit(n) {
 		if base.Flag.Percent != 0 {
-			ir.Dump("nonstatic", n)
+			ir.Dump("StaticInit failed", n)
 		}
 		s.append(n)
 	}
+}
+
+// varToMapInit holds book-keeping state for global map initialization;
+// it records the init function created by the compiler to host the
+// initialization code for the map in question.
+var varToMapInit map[*ir.Name]*ir.Func
+
+// MapInitToVar is the inverse of VarToMapInit; it maintains a mapping
+// from a compiler-generated init function to the map the function is
+// initializing.
+var MapInitToVar map[*ir.Func]*ir.Name
+
+// recordFuncForVar establishes a mapping between global map var "v" and
+// outlined init function "fn" (and vice versa); so that we can use
+// the mappings later on to update relocations.
+func recordFuncForVar(v *ir.Name, fn *ir.Func) {
+	if varToMapInit == nil {
+		varToMapInit = make(map[*ir.Name]*ir.Func)
+		MapInitToVar = make(map[*ir.Func]*ir.Name)
+	}
+	varToMapInit[v] = fn
+	MapInitToVar[fn] = v
 }
 
 // tryStaticInit attempts to statically execute an initialization
@@ -304,6 +330,12 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 			if base.Debug.Closure > 0 {
 				base.WarnfAt(r.Pos(), "closure converted to global")
 			}
+			// Issue 59680: if the closure we're looking at was produced
+			// by inlining, it could be marked as hidden, which we don't
+			// want (moving the func to a static init will effectively
+			// hide it from escape analysis). Mark as non-hidden here.
+			// so that it will participated in escape analysis.
+			r.Func.SetIsHiddenClosure(false)
 			// Closures with no captured variables are globals,
 			// so the assignment can be done at link time.
 			// TODO if roff != 0 { panic }
@@ -330,6 +362,11 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 			// If val is non-nil, we have no concrete type to record,
 			// and we won't be able to statically initialize its value, so report failure.
 			return val.Op() == ir.ONIL
+		}
+
+		if val.Type().HasShape() {
+			// See comment in cmd/compile/internal/walk/convert.go:walkConvInterface
+			return false
 		}
 
 		reflectdata.MarkTypeUsedInInterface(val.Type(), l.Linksym())
@@ -364,9 +401,15 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		}
 
 		return true
+
+	case ir.OINLCALL:
+		r := r.(*ir.InlinedCallExpr)
+		return s.staticAssignInlinedCall(l, loff, r, typ)
 	}
 
-	//dump("not static", r);
+	if base.Flag.Percent != 0 {
+		ir.Dump("not static", r)
+	}
 	return false
 }
 
@@ -443,6 +486,185 @@ func (s *Schedule) addvalue(p *Plan, xoffset int64, n ir.Node) {
 	p.E = append(p.E, Entry{Xoffset: xoffset, Expr: n})
 }
 
+func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.InlinedCallExpr, typ *types.Type) bool {
+	if base.Debug.InlStaticInit == 0 {
+		return false
+	}
+
+	// Handle the special case of an inlined call of
+	// a function body with a single return statement,
+	// which turns into a single assignment plus a goto.
+	//
+	// For example code like this:
+	//
+	//	type T struct{ x int }
+	//	func F(x int) *T { return &T{x} }
+	//	var Global = F(400)
+	//
+	// turns into IR like this:
+	//
+	// 	INLCALL-init
+	// 	.   AS2-init
+	// 	.   .   DCL # x.go:18:13
+	// 	.   .   .   NAME-p.x Class:PAUTO Offset:0 InlFormal OnStack Used int tc(1) # x.go:14:9,x.go:18:13
+	// 	.   AS2 Def tc(1) # x.go:18:13
+	// 	.   AS2-Lhs
+	// 	.   .   NAME-p.x Class:PAUTO Offset:0 InlFormal OnStack Used int tc(1) # x.go:14:9,x.go:18:13
+	// 	.   AS2-Rhs
+	// 	.   .   LITERAL-400 int tc(1) # x.go:18:14
+	// 	.   INLMARK Index:1 # +x.go:18:13
+	// 	INLCALL PTR-*T tc(1) # x.go:18:13
+	// 	INLCALL-Body
+	// 	.   BLOCK tc(1) # x.go:18:13
+	// 	.   BLOCK-List
+	// 	.   .   DCL tc(1) # x.go:18:13
+	// 	.   .   .   NAME-p.~R0 Class:PAUTO Offset:0 OnStack Used PTR-*T tc(1) # x.go:18:13
+	// 	.   .   AS2 tc(1) # x.go:18:13
+	// 	.   .   AS2-Lhs
+	// 	.   .   .   NAME-p.~R0 Class:PAUTO Offset:0 OnStack Used PTR-*T tc(1) # x.go:18:13
+	// 	.   .   AS2-Rhs
+	// 	.   .   .   INLINED RETURN ARGUMENT HERE
+	// 	.   .   GOTO p..i1 tc(1) # x.go:18:13
+	// 	.   LABEL p..i1 # x.go:18:13
+	// 	INLCALL-ReturnVars
+	// 	.   NAME-p.~R0 Class:PAUTO Offset:0 OnStack Used PTR-*T tc(1) # x.go:18:13
+	//
+	// In non-unified IR, the tree is slightly different:
+	//  - if there are no arguments to the inlined function,
+	//    the INLCALL-init omits the AS2.
+	//  - the DCL inside BLOCK is on the AS2's init list,
+	//    not its own statement in the top level of the BLOCK.
+	//
+	// If the init values are side-effect-free and each either only
+	// appears once in the function body or is safely repeatable,
+	// then we inline the value expressions into the return argument
+	// and then call StaticAssign to handle that copy.
+	//
+	// This handles simple cases like
+	//
+	//	var myError = errors.New("mine")
+	//
+	// where errors.New is
+	//
+	//	func New(text string) error {
+	//		return &errorString{text}
+	//	}
+	//
+	// We could make things more sophisticated but this kind of initializer
+	// is the most important case for us to get right.
+
+	init := call.Init()
+	var as2init *ir.AssignListStmt
+	if len(init) == 2 && init[0].Op() == ir.OAS2 && init[1].Op() == ir.OINLMARK {
+		as2init = init[0].(*ir.AssignListStmt)
+	} else if len(init) == 1 && init[0].Op() == ir.OINLMARK {
+		as2init = new(ir.AssignListStmt)
+	} else {
+		return false
+	}
+	if len(call.Body) != 2 || call.Body[0].Op() != ir.OBLOCK || call.Body[1].Op() != ir.OLABEL {
+		return false
+	}
+	label := call.Body[1].(*ir.LabelStmt).Label
+	block := call.Body[0].(*ir.BlockStmt)
+	list := block.List
+	var dcl *ir.Decl
+	if len(list) == 3 && list[0].Op() == ir.ODCL {
+		dcl = list[0].(*ir.Decl)
+		list = list[1:]
+	}
+	if len(list) != 2 ||
+		list[0].Op() != ir.OAS2 ||
+		list[1].Op() != ir.OGOTO ||
+		list[1].(*ir.BranchStmt).Label != label {
+		return false
+	}
+	as2body := list[0].(*ir.AssignListStmt)
+	if dcl == nil {
+		ainit := as2body.Init()
+		if len(ainit) != 1 || ainit[0].Op() != ir.ODCL {
+			return false
+		}
+		dcl = ainit[0].(*ir.Decl)
+	}
+	if len(as2body.Lhs) != 1 || as2body.Lhs[0] != dcl.X {
+		return false
+	}
+
+	// Can't remove the parameter variables if an address is taken.
+	for _, v := range as2init.Lhs {
+		if v.(*ir.Name).Addrtaken() {
+			return false
+		}
+	}
+	// Can't move the computation of the args if they have side effects.
+	for _, r := range as2init.Rhs {
+		if AnySideEffects(r) {
+			return false
+		}
+	}
+
+	// Can only substitute arg for param if param is used
+	// at most once or is repeatable.
+	count := make(map[*ir.Name]int)
+	for _, x := range as2init.Lhs {
+		count[x.(*ir.Name)] = 0
+	}
+
+	hasNonTrivialClosure := false
+	ir.Visit(as2body.Rhs[0], func(n ir.Node) {
+		if name, ok := n.(*ir.Name); ok {
+			if c, ok := count[name]; ok {
+				count[name] = c + 1
+			}
+		}
+		if clo, ok := n.(*ir.ClosureExpr); ok {
+			hasNonTrivialClosure = hasNonTrivialClosure || !ir.IsTrivialClosure(clo)
+		}
+	})
+
+	// If there's a non-trivial closure, it has captured the param,
+	// so we can't substitute arg for param.
+	if hasNonTrivialClosure {
+		return false
+	}
+
+	for name, c := range count {
+		if c > 1 {
+			// Check whether corresponding initializer can be repeated.
+			// Something like 1 can be; make(chan int) or &T{} cannot,
+			// because they need to evaluate to the same result in each use.
+			for i, n := range as2init.Lhs {
+				if n == name && !canRepeat(as2init.Rhs[i]) {
+					return false
+				}
+			}
+		}
+	}
+
+	// Possible static init.
+	// Build tree with args substituted for params and try it.
+	args := make(map[*ir.Name]ir.Node)
+	for i, v := range as2init.Lhs {
+		if ir.IsBlank(v) {
+			continue
+		}
+		args[v.(*ir.Name)] = as2init.Rhs[i]
+	}
+	r, ok := subst(as2body.Rhs[0], args)
+	if !ok {
+		return false
+	}
+	ok = s.StaticAssign(l, loff, r, typ)
+
+	if ok && base.Flag.Percent != 0 {
+		ir.Dump("static inlined-LEFT", l)
+		ir.Dump("static inlined-ORIG", call)
+		ir.Dump("static inlined-RIGHT", r)
+	}
+	return ok
+}
+
 // from here down is the walk analysis
 // of composite literals.
 // most of the work is to generate
@@ -510,91 +732,118 @@ func StaticLoc(n ir.Node) (name *ir.Name, offset int64, ok bool) {
 	return nil, 0, false
 }
 
+func isSideEffect(n ir.Node) bool {
+	switch n.Op() {
+	// Assume side effects unless we know otherwise.
+	default:
+		return true
+
+	// No side effects here (arguments are checked separately).
+	case ir.ONAME,
+		ir.ONONAME,
+		ir.OTYPE,
+		ir.OLITERAL,
+		ir.ONIL,
+		ir.OADD,
+		ir.OSUB,
+		ir.OOR,
+		ir.OXOR,
+		ir.OADDSTR,
+		ir.OADDR,
+		ir.OANDAND,
+		ir.OBYTES2STR,
+		ir.ORUNES2STR,
+		ir.OSTR2BYTES,
+		ir.OSTR2RUNES,
+		ir.OCAP,
+		ir.OCOMPLIT,
+		ir.OMAPLIT,
+		ir.OSTRUCTLIT,
+		ir.OARRAYLIT,
+		ir.OSLICELIT,
+		ir.OPTRLIT,
+		ir.OCONV,
+		ir.OCONVIFACE,
+		ir.OCONVNOP,
+		ir.ODOT,
+		ir.OEQ,
+		ir.ONE,
+		ir.OLT,
+		ir.OLE,
+		ir.OGT,
+		ir.OGE,
+		ir.OKEY,
+		ir.OSTRUCTKEY,
+		ir.OLEN,
+		ir.OMUL,
+		ir.OLSH,
+		ir.ORSH,
+		ir.OAND,
+		ir.OANDNOT,
+		ir.ONEW,
+		ir.ONOT,
+		ir.OBITNOT,
+		ir.OPLUS,
+		ir.ONEG,
+		ir.OOROR,
+		ir.OPAREN,
+		ir.ORUNESTR,
+		ir.OREAL,
+		ir.OIMAG,
+		ir.OCOMPLEX:
+		return false
+
+	// Only possible side effect is division by zero.
+	case ir.ODIV, ir.OMOD:
+		n := n.(*ir.BinaryExpr)
+		if n.Y.Op() != ir.OLITERAL || constant.Sign(n.Y.Val()) == 0 {
+			return true
+		}
+
+	// Only possible side effect is panic on invalid size,
+	// but many makechan and makemap use size zero, which is definitely OK.
+	case ir.OMAKECHAN, ir.OMAKEMAP:
+		n := n.(*ir.MakeExpr)
+		if !ir.IsConst(n.Len, constant.Int) || constant.Sign(n.Len.Val()) != 0 {
+			return true
+		}
+
+	// Only possible side effect is panic on invalid size.
+	// TODO(rsc): Merge with previous case (probably breaks toolstash -cmp).
+	case ir.OMAKESLICE, ir.OMAKESLICECOPY:
+		return true
+	}
+	return false
+}
+
 // AnySideEffects reports whether n contains any operations that could have observable side effects.
 func AnySideEffects(n ir.Node) bool {
-	return ir.Any(n, func(n ir.Node) bool {
-		switch n.Op() {
-		// Assume side effects unless we know otherwise.
-		default:
+	return ir.Any(n, isSideEffect)
+}
+
+// canRepeat reports whether executing n multiple times has the same effect as
+// assigning n to a single variable and using that variable multiple times.
+func canRepeat(n ir.Node) bool {
+	bad := func(n ir.Node) bool {
+		if isSideEffect(n) {
 			return true
-
-		// No side effects here (arguments are checked separately).
-		case ir.ONAME,
-			ir.ONONAME,
-			ir.OTYPE,
-			ir.OLITERAL,
-			ir.ONIL,
-			ir.OADD,
-			ir.OSUB,
-			ir.OOR,
-			ir.OXOR,
-			ir.OADDSTR,
-			ir.OADDR,
-			ir.OANDAND,
-			ir.OBYTES2STR,
-			ir.ORUNES2STR,
-			ir.OSTR2BYTES,
-			ir.OSTR2RUNES,
-			ir.OCAP,
-			ir.OCOMPLIT,
+		}
+		switch n.Op() {
+		case ir.OMAKECHAN,
+			ir.OMAKEMAP,
+			ir.OMAKESLICE,
+			ir.OMAKESLICECOPY,
 			ir.OMAPLIT,
-			ir.OSTRUCTLIT,
-			ir.OARRAYLIT,
-			ir.OSLICELIT,
-			ir.OPTRLIT,
-			ir.OCONV,
-			ir.OCONVIFACE,
-			ir.OCONVNOP,
-			ir.ODOT,
-			ir.OEQ,
-			ir.ONE,
-			ir.OLT,
-			ir.OLE,
-			ir.OGT,
-			ir.OGE,
-			ir.OKEY,
-			ir.OSTRUCTKEY,
-			ir.OLEN,
-			ir.OMUL,
-			ir.OLSH,
-			ir.ORSH,
-			ir.OAND,
-			ir.OANDNOT,
 			ir.ONEW,
-			ir.ONOT,
-			ir.OBITNOT,
-			ir.OPLUS,
-			ir.ONEG,
-			ir.OOROR,
-			ir.OPAREN,
-			ir.ORUNESTR,
-			ir.OREAL,
-			ir.OIMAG,
-			ir.OCOMPLEX:
-			return false
-
-		// Only possible side effect is division by zero.
-		case ir.ODIV, ir.OMOD:
-			n := n.(*ir.BinaryExpr)
-			if n.Y.Op() != ir.OLITERAL || constant.Sign(n.Y.Val()) == 0 {
-				return true
-			}
-
-		// Only possible side effect is panic on invalid size,
-		// but many makechan and makemap use size zero, which is definitely OK.
-		case ir.OMAKECHAN, ir.OMAKEMAP:
-			n := n.(*ir.MakeExpr)
-			if !ir.IsConst(n.Len, constant.Int) || constant.Sign(n.Len.Val()) != 0 {
-				return true
-			}
-
-		// Only possible side effect is panic on invalid size.
-		// TODO(rsc): Merge with previous case (probably breaks toolstash -cmp).
-		case ir.OMAKESLICE, ir.OMAKESLICECOPY:
+			ir.OPTRLIT,
+			ir.OSLICELIT,
+			ir.OSTR2BYTES,
+			ir.OSTR2RUNES:
 			return true
 		}
 		return false
-	})
+	}
+	return !ir.Any(n, bad)
 }
 
 func getlit(lit ir.Node) int {
@@ -606,4 +855,275 @@ func getlit(lit ir.Node) int {
 
 func isvaluelit(n ir.Node) bool {
 	return n.Op() == ir.OARRAYLIT || n.Op() == ir.OSTRUCTLIT
+}
+
+func subst(n ir.Node, m map[*ir.Name]ir.Node) (ir.Node, bool) {
+	valid := true
+	var edit func(ir.Node) ir.Node
+	edit = func(x ir.Node) ir.Node {
+		switch x.Op() {
+		case ir.ONAME:
+			x := x.(*ir.Name)
+			if v, ok := m[x]; ok {
+				return ir.DeepCopy(v.Pos(), v)
+			}
+			return x
+		case ir.ONONAME, ir.OLITERAL, ir.ONIL, ir.OTYPE:
+			return x
+		}
+		x = ir.Copy(x)
+		ir.EditChildrenWithHidden(x, edit)
+
+		// TODO: handle more operations, see details discussion in go.dev/cl/466277.
+		switch x.Op() {
+		case ir.OCONV:
+			x := x.(*ir.ConvExpr)
+			if x.X.Op() == ir.OLITERAL {
+				if x, ok := truncate(x.X, x.Type()); ok {
+					return x
+				}
+				valid = false
+				return x
+			}
+		case ir.OADDSTR:
+			return addStr(x.(*ir.AddStringExpr))
+		}
+		return x
+	}
+	n = edit(n)
+	return n, valid
+}
+
+// truncate returns the result of force converting c to type t,
+// truncating its value as needed, like a conversion of a variable.
+// If the conversion is too difficult, truncate returns nil, false.
+func truncate(c ir.Node, t *types.Type) (ir.Node, bool) {
+	ct := c.Type()
+	cv := c.Val()
+	if ct.Kind() != t.Kind() {
+		switch {
+		default:
+			// Note: float -> float/integer and complex -> complex are valid but subtle.
+			// For example a float32(float64 1e300) evaluates to +Inf at runtime
+			// and the compiler doesn't have any concept of +Inf, so that would
+			// have to be left for runtime code evaluation.
+			// For now
+			return nil, false
+
+		case ct.IsInteger() && t.IsInteger():
+			// truncate or sign extend
+			bits := t.Size() * 8
+			cv = constant.BinaryOp(cv, token.AND, constant.MakeUint64(1<<bits-1))
+			if t.IsSigned() && constant.Compare(cv, token.GEQ, constant.MakeUint64(1<<(bits-1))) {
+				cv = constant.BinaryOp(cv, token.OR, constant.MakeInt64(-1<<(bits-1)))
+			}
+		}
+	}
+	c = ir.NewConstExpr(cv, c)
+	c.SetType(t)
+	return c, true
+}
+
+func addStr(n *ir.AddStringExpr) ir.Node {
+	// Merge adjacent constants in the argument list.
+	s := n.List
+	need := 0
+	for i := 0; i < len(s); i++ {
+		if i == 0 || !ir.IsConst(s[i-1], constant.String) || !ir.IsConst(s[i], constant.String) {
+			// Can't merge s[i] into s[i-1]; need a slot in the list.
+			need++
+		}
+	}
+	if need == len(s) {
+		return n
+	}
+	if need == 1 {
+		var strs []string
+		for _, c := range s {
+			strs = append(strs, ir.StringVal(c))
+		}
+		return typecheck.OrigConst(n, constant.MakeString(strings.Join(strs, "")))
+	}
+	newList := make([]ir.Node, 0, need)
+	for i := 0; i < len(s); i++ {
+		if ir.IsConst(s[i], constant.String) && i+1 < len(s) && ir.IsConst(s[i+1], constant.String) {
+			// merge from i up to but not including i2
+			var strs []string
+			i2 := i
+			for i2 < len(s) && ir.IsConst(s[i2], constant.String) {
+				strs = append(strs, ir.StringVal(s[i2]))
+				i2++
+			}
+
+			nl := ir.Copy(n).(*ir.AddStringExpr)
+			nl.List = s[i:i2]
+			newList = append(newList, typecheck.OrigConst(nl, constant.MakeString(strings.Join(strs, ""))))
+			i = i2 - 1
+		} else {
+			newList = append(newList, s[i])
+		}
+	}
+
+	nn := ir.Copy(n).(*ir.AddStringExpr)
+	nn.List = newList
+	return nn
+}
+
+const wrapGlobalMapInitSizeThreshold = 20
+
+// tryWrapGlobalMapInit examines the node 'n' to see if it is a map
+// variable initialization, and if so, possibly returns the mapvar
+// being assigned, a new function containing the init code, and a call
+// to the function passing the mapvar. Returns will be nil if the
+// assignment is not to a map, or the map init is not big enough,
+// or if the expression being assigned to the map has side effects.
+func tryWrapGlobalMapInit(n ir.Node) (mapvar *ir.Name, genfn *ir.Func, call ir.Node) {
+	// Look for "X = ..." where X has map type.
+	// FIXME: might also be worth trying to look for cases where
+	// the LHS is of interface type but RHS is map type.
+	if n.Op() != ir.OAS {
+		return nil, nil, nil
+	}
+	as := n.(*ir.AssignStmt)
+	if ir.IsBlank(as.X) || as.X.Op() != ir.ONAME {
+		return nil, nil, nil
+	}
+	nm := as.X.(*ir.Name)
+	if !nm.Type().IsMap() {
+		return nil, nil, nil
+	}
+
+	// Determine size of RHS.
+	rsiz := 0
+	ir.Any(as.Y, func(n ir.Node) bool {
+		rsiz++
+		return false
+	})
+	if base.Debug.WrapGlobalMapDbg > 0 {
+		fmt.Fprintf(os.Stderr, "=-= mapassign %s %v rhs size %d\n",
+			base.Ctxt.Pkgpath, n, rsiz)
+	}
+
+	// Reject smaller candidates if not in stress mode.
+	if rsiz < wrapGlobalMapInitSizeThreshold && base.Debug.WrapGlobalMapCtl != 2 {
+		if base.Debug.WrapGlobalMapDbg > 1 {
+			fmt.Fprintf(os.Stderr, "=-= skipping %v size too small at %d\n",
+				nm, rsiz)
+		}
+		return nil, nil, nil
+	}
+
+	// Reject right hand sides with side effects.
+	if AnySideEffects(as.Y) {
+		if base.Debug.WrapGlobalMapDbg > 0 {
+			fmt.Fprintf(os.Stderr, "=-= rejected %v due to side effects\n", nm)
+		}
+		return nil, nil, nil
+	}
+
+	if base.Debug.WrapGlobalMapDbg > 1 {
+		fmt.Fprintf(os.Stderr, "=-= committed for: %+v\n", n)
+	}
+
+	// Create a new function that will (eventually) have this form:
+	//
+	//    func map.init.%d() {
+	//      globmapvar = <map initialization>
+	//    }
+	//
+	minitsym := typecheck.LookupNum("map.init.", mapinitgen)
+	mapinitgen++
+	newfn := typecheck.DeclFunc(minitsym, nil, nil, nil)
+	if base.Debug.WrapGlobalMapDbg > 0 {
+		fmt.Fprintf(os.Stderr, "=-= generated func is %v\n", newfn)
+	}
+
+	// NB: we're relying on this phase being run before inlining;
+	// if for some reason we need to move it after inlining, we'll
+	// need code here that relocates or duplicates inline temps.
+
+	// Insert assignment into function body; mark body finished.
+	newfn.Body = append(newfn.Body, as)
+	typecheck.FinishFuncBody()
+
+	typecheck.Func(newfn)
+
+	const no = `
+	// Register new function with decls.
+	typecheck.Target.Decls = append(typecheck.Target.Decls, newfn)
+`
+
+	// Create call to function, passing mapvar.
+	fncall := ir.NewCallExpr(n.Pos(), ir.OCALL, newfn.Nname, nil)
+
+	if base.Debug.WrapGlobalMapDbg > 1 {
+		fmt.Fprintf(os.Stderr, "=-= mapvar is %v\n", nm)
+		fmt.Fprintf(os.Stderr, "=-= newfunc is %+v\n", newfn)
+		fmt.Fprintf(os.Stderr, "=-= call is %+v\n", fncall)
+	}
+
+	return nm, newfn, typecheck.Stmt(fncall)
+}
+
+// mapinitgen is a counter used to uniquify compiler-generated
+// map init functions.
+var mapinitgen int
+
+// AddKeepRelocations adds a dummy "R_KEEP" relocation from each
+// global map variable V to its associated outlined init function.
+// These relocation ensure that if the map var itself is determined to
+// be reachable at link time, we also mark the init function as
+// reachable.
+func AddKeepRelocations() {
+	if varToMapInit == nil {
+		return
+	}
+	for k, v := range varToMapInit {
+		// Add R_KEEP relocation from map to init function.
+		fs := v.Linksym()
+		if fs == nil {
+			base.Fatalf("bad: func %v has no linksym", v)
+		}
+		vs := k.Linksym()
+		if vs == nil {
+			base.Fatalf("bad: mapvar %v has no linksym", k)
+		}
+		r := obj.Addrel(vs)
+		r.Sym = fs
+		r.Type = objabi.R_KEEP
+		if base.Debug.WrapGlobalMapDbg > 1 {
+			fmt.Fprintf(os.Stderr, "=-= add R_KEEP relo from %s to %s\n",
+				vs.Name, fs.Name)
+		}
+	}
+	varToMapInit = nil
+}
+
+// OutlineMapInits walks through a list of init statements (candidates
+// for inclusion in the package "init" function) and returns an
+// updated list in which items corresponding to map variable
+// initializations have been replaced with calls to outline "map init"
+// functions (if legal/profitable). Return value is an updated list
+// and a list of any newly generated "map init" functions.
+func OutlineMapInits(stmts []ir.Node) ([]ir.Node, []*ir.Func) {
+	if base.Debug.WrapGlobalMapCtl == 1 {
+		return stmts, nil
+	}
+	newfuncs := []*ir.Func{}
+	for i := range stmts {
+		s := stmts[i]
+		// Call the helper tryWrapGlobalMapInit to see if the LHS of
+		// this assignment is to a map var, and if so whether the RHS
+		// should be outlined into a separate init function. If the
+		// outline goes through, then replace the original init
+		// statement with the call to the outlined func, and append
+		// the new outlined func to our return list.
+		if mapvar, genfn, call := tryWrapGlobalMapInit(s); call != nil {
+			stmts[i] = call
+			newfuncs = append(newfuncs, genfn)
+			recordFuncForVar(mapvar, genfn)
+		}
+	}
+
+	return stmts, newfuncs
 }

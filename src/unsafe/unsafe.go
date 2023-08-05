@@ -239,3 +239,31 @@ func Add(ptr Pointer, len IntegerType) Pointer
 // At run time, if len is negative, or if ptr is nil and len is not zero,
 // a run-time panic occurs.
 func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType
+
+// SliceData returns a pointer to the underlying array of the argument
+// slice.
+//   - If cap(slice) > 0, SliceData returns &slice[:1][0].
+//   - If slice == nil, SliceData returns nil.
+//   - Otherwise, SliceData returns a non-nil pointer to an
+//     unspecified memory address.
+func SliceData(slice []ArbitraryType) *ArbitraryType
+
+// String returns a string value whose underlying bytes
+// start at ptr and whose length is len.
+//
+// The len argument must be of integer type or an untyped constant.
+// A constant len argument must be non-negative and representable by a value of type int;
+// if it is an untyped constant it is given type int.
+// At run time, if len is negative, or if ptr is nil and len is not zero,
+// a run-time panic occurs.
+//
+// Since Go strings are immutable, the bytes passed to String
+// must not be modified afterwards.
+func String(ptr *byte, len IntegerType) string
+
+// StringData returns a pointer to the underlying bytes of str.
+// For an empty string the return value is unspecified, and may be nil.
+//
+// Since Go strings are immutable, the bytes returned by StringData
+// must not be modified.
+func StringData(str string) *byte

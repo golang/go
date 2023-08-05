@@ -21,8 +21,8 @@ func (T4) m(x int) {}
 var f4 func(T4)
 
 func _() {
-	f1 = T1 /* ERROR func\(T1, int\) */ .m
-	f2 = T2 /* ERROR func\(t T2, x int\) */ .m
-	f3 = T3 /* ERROR func\(T3, int\) */ .m
-	f4 = T4 /* ERROR func\(_ T4, x int\) */ .m
+	f1 = T1 /* ERROR "func(T1, int)" */ .m
+	f2 = T2 /* ERROR "func(t T2, x int)" */ .m
+	f3 = T3 /* ERROR "func(T3, int)" */ .m
+	f4 = T4 /* ERROR "func(_ T4, x int)" */ .m
 }

@@ -421,7 +421,7 @@ func putfull(b *workbuf) {
 }
 
 // trygetfull tries to get a full or partially empty workbuffer.
-// If one is not immediately available return nil
+// If one is not immediately available return nil.
 //
 //go:nowritebarrier
 func trygetfull() *workbuf {

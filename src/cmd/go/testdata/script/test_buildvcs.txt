@@ -3,7 +3,7 @@
 # test binaries are almost never distributed to users.)
 
 [short] skip
-[!exec:git] skip
+[!git] skip
 
 exec git init
 

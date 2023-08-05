@@ -1,7 +1,7 @@
 env GO111MODULE=off
 [short] skip
 
-[!exec:git] skip
+[!git] skip
 
 # Set up a benign repository and a repository with a dotfile name.
 cd $WORK/_origin/foo

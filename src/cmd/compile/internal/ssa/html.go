@@ -994,6 +994,9 @@ func (v *Value) LongHTML() string {
 	if int(v.ID) < len(r) && r[v.ID] != nil {
 		s += " : " + html.EscapeString(r[v.ID].String())
 	}
+	if reg := v.Block.Func.tempRegs[v.ID]; reg != nil {
+		s += " tmp=" + reg.String()
+	}
 	var names []string
 	for name, values := range v.Block.Func.NamedValues {
 		for _, value := range values {

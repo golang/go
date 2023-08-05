@@ -25,8 +25,6 @@ type stackAllocState struct {
 	values    []stackValState
 	interfere [][]ID // interfere[v.id] = values that interfere with v.
 	names     []LocalSlot
-	slots     []int
-	used      []bool
 
 	nArgSlot, // Number of Values sourced to arg slot
 	nNotNeed, // Number of Values not needing a stack slot
@@ -56,12 +54,6 @@ func putStackAllocState(s *stackAllocState) {
 	}
 	for i := range s.names {
 		s.names[i] = LocalSlot{}
-	}
-	for i := range s.slots {
-		s.slots[i] = 0
-	}
-	for i := range s.used {
-		s.used[i] = false
 	}
 	s.f.Cache.stackAllocState = s
 	s.f = nil
@@ -218,25 +210,15 @@ func (s *stackAllocState) stackalloc() {
 
 	// Each time we assign a stack slot to a value v, we remember
 	// the slot we used via an index into locations[v.Type].
-	slots := s.slots
-	if n := f.NumValues(); cap(slots) >= n {
-		slots = slots[:n]
-	} else {
-		slots = make([]int, n)
-		s.slots = slots
-	}
+	slots := f.Cache.allocIntSlice(f.NumValues())
+	defer f.Cache.freeIntSlice(slots)
 	for i := range slots {
 		slots[i] = -1
 	}
 
 	// Pick a stack slot for each value needing one.
-	var used []bool
-	if n := f.NumValues(); cap(s.used) >= n {
-		used = s.used[:n]
-	} else {
-		used = make([]bool, n)
-		s.used = used
-	}
+	used := f.Cache.allocBoolSlice(f.NumValues())
+	defer f.Cache.freeBoolSlice(used)
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if !s.values[v.ID].needSlot {

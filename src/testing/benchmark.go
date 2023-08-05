@@ -151,9 +151,7 @@ func (b *B) ResetTimer() {
 		// Pre-size it to make more allocation unlikely.
 		b.extra = make(map[string]float64, 16)
 	} else {
-		for k := range b.extra {
-			delete(b.extra, k)
-		}
+		clear(b.extra)
 	}
 	if b.timerOn {
 		runtime.ReadMemStats(&memStats)
@@ -234,7 +232,7 @@ func (b *B) run1() bool {
 	}()
 	<-b.signal
 	if b.failed {
-		fmt.Fprintf(b.w, "--- FAIL: %s\n%s", b.name, b.output)
+		fmt.Fprintf(b.w, "%s--- FAIL: %s\n%s", b.chatty.prefix(), b.name, b.output)
 		return false
 	}
 	// Only print the output if we know we are not going to proceed.
@@ -249,7 +247,7 @@ func (b *B) run1() bool {
 		}
 		if b.chatty != nil && (len(b.output) > 0 || finished) {
 			b.trimOutput()
-			fmt.Fprintf(b.w, "--- %s: %s\n%s", tag, b.name, b.output)
+			fmt.Fprintf(b.w, "%s--- %s: %s\n%s", b.chatty.prefix(), tag, b.name, b.output)
 		}
 		return false
 	}
@@ -602,7 +600,7 @@ func (ctx *benchContext) processBench(b *B) {
 				// The output could be very long here, but probably isn't.
 				// We print it all, regardless, because we don't want to trim the reason
 				// the benchmark failed.
-				fmt.Fprintf(b.w, "--- FAIL: %s\n%s", benchName, b.output)
+				fmt.Fprintf(b.w, "%s--- FAIL: %s\n%s", b.chatty.prefix(), benchName, b.output)
 				continue
 			}
 			results := r.String()
@@ -617,10 +615,13 @@ func (ctx *benchContext) processBench(b *B) {
 			// benchmarks since the output generation time will skew the results.
 			if len(b.output) > 0 {
 				b.trimOutput()
-				fmt.Fprintf(b.w, "--- BENCH: %s\n%s", benchName, b.output)
+				fmt.Fprintf(b.w, "%s--- BENCH: %s\n%s", b.chatty.prefix(), benchName, b.output)
 			}
 			if p := runtime.GOMAXPROCS(-1); p != procs {
 				fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
+			}
+			if b.chatty != nil && b.chatty.json {
+				b.chatty.Updatef("", "=== NAME  %s\n", "")
 			}
 		}
 	}
@@ -687,6 +688,9 @@ func (b *B) Run(name string, f func(b *B)) bool {
 		})
 
 		if !hideStdoutForTesting {
+			if b.chatty.json {
+				b.chatty.Updatef(benchName, "=== RUN   %s\n", benchName)
+			}
 			fmt.Println(benchName)
 		}
 	}
@@ -771,6 +775,9 @@ func (pb *PB) Next() bool {
 // goroutine-local state and then iterate until pb.Next returns false.
 // It should not use the StartTimer, StopTimer, or ResetTimer functions,
 // because they have global effect. It should also not call Run.
+//
+// RunParallel reports ns/op values as wall time for the benchmark as a whole,
+// not the sum of wall time or CPU time over each parallel goroutine.
 func (b *B) RunParallel(body func(*PB)) {
 	if b.N == 0 {
 		return // Nothing to do when probing.

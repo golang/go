@@ -12,7 +12,6 @@ import (
 	"go/token"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -27,28 +26,22 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
 	testenv.MustHaveGoRun(t)
 	gotool := testenv.GoToolPath(t)
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(gotool, "run", filepath.Join("testdata", filename))
+	cmd := testenv.Command(t, gotool, "run", filepath.Join("testdata", filename))
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
 	}
 	// Write stdout into a temporary file
-	tmpdir, ok := os.MkdirTemp("", tmpname)
-	if ok != nil {
-		t.Fatalf("Failed to create temporary directory")
-	}
-	defer os.RemoveAll(tmpdir)
-
-	rungo := filepath.Join(tmpdir, "run.go")
-	ok = os.WriteFile(rungo, stdout.Bytes(), 0600)
+	rungo := filepath.Join(t.TempDir(), "run.go")
+	ok := os.WriteFile(rungo, stdout.Bytes(), 0600)
 	if ok != nil {
 		t.Fatalf("Failed to create temporary file " + rungo)
 	}
 
 	stdout.Reset()
 	stderr.Reset()
-	cmd = exec.Command(gotool, "run", "-gcflags=-d=ssa/check/on", rungo)
+	cmd = testenv.Command(t, gotool, "run", "-gcflags=-d=ssa/check/on", rungo)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	cmd.Env = append(cmd.Env, ev...)
@@ -80,11 +73,7 @@ func TestCode(t *testing.T) {
 	gotool := testenv.GoToolPath(t)
 
 	// Make a temporary directory to work in.
-	tmpdir, err := os.MkdirTemp("", "TestCode")
-	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Find all the test functions (and the files containing them).
 	var srcs []string // files containing Test functions
@@ -167,7 +156,7 @@ func TestCode(t *testing.T) {
 	for _, flag := range flags {
 		args := []string{"test", "-c", "-gcflags=-d=ssa/check/on" + flag, "-o", filepath.Join(tmpdir, "code.test")}
 		args = append(args, srcs...)
-		out, err := exec.Command(gotool, args...).CombinedOutput()
+		out, err := testenv.Command(t, gotool, args...).CombinedOutput()
 		if err != nil || len(out) != 0 {
 			t.Fatalf("Build failed: %v\n%s\n", err, out)
 		}
@@ -180,7 +169,7 @@ func TestCode(t *testing.T) {
 				continue
 			}
 			t.Run(fmt.Sprintf("%s%s", test.name[4:], flag), func(t *testing.T) {
-				out, err := exec.Command(filepath.Join(tmpdir, "code.test"), "-test.run="+test.name).CombinedOutput()
+				out, err := testenv.Command(t, filepath.Join(tmpdir, "code.test"), "-test.run="+test.name).CombinedOutput()
 				if err != nil || string(out) != "PASS\n" {
 					t.Errorf("Failed:\n%s\n", out)
 				}

@@ -11,8 +11,8 @@ stdout 'v/vendor/vendor.org/p'
 go get -d
 go get -t -d
 
-[!net] stop
-[!exec:git] stop
+[!net:github.com] stop
+[!git] stop
 
 cd $GOPATH/src
 

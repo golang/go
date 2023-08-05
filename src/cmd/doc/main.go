@@ -57,12 +57,13 @@ import (
 )
 
 var (
-	unexported bool // -u flag
-	matchCase  bool // -c flag
-	showAll    bool // -all flag
-	showCmd    bool // -cmd flag
-	showSrc    bool // -src flag
-	short      bool // -short flag
+	unexported bool   // -u flag
+	matchCase  bool   // -c flag
+	chdir      string // -C flag
+	showAll    bool   // -all flag
+	showCmd    bool   // -cmd flag
+	showSrc    bool   // -src flag
+	short      bool   // -short flag
 )
 
 // usage is a replacement usage function for the flags package.
@@ -96,6 +97,7 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	flagSet.Usage = usage
 	unexported = false
 	matchCase = false
+	flagSet.StringVar(&chdir, "C", "", "change to `dir` before running command")
 	flagSet.BoolVar(&unexported, "u", false, "show unexported symbols as well as exported")
 	flagSet.BoolVar(&matchCase, "c", false, "symbol matching honors case (paths not affected)")
 	flagSet.BoolVar(&showAll, "all", false, "show all documentation for package")
@@ -103,6 +105,11 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	flagSet.BoolVar(&showSrc, "src", false, "show source code for symbol")
 	flagSet.BoolVar(&short, "short", false, "one-line representation for each symbol")
 	flagSet.Parse(args)
+	if chdir != "" {
+		if err := os.Chdir(chdir); err != nil {
+			return err
+		}
+	}
 	var paths []string
 	var symbol, method string
 	// Loop until something is printed.

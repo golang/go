@@ -144,7 +144,8 @@ type RoundTripper interface {
 
 // refererForURL returns a referer without any authentication info or
 // an empty string if lastReq scheme is https and newReq scheme is http.
-func refererForURL(lastReq, newReq *url.URL) string {
+// If the referer was explicitly set, then it will continue to be used.
+func refererForURL(lastReq, newReq *url.URL, explicitRef string) string {
 	// https://tools.ietf.org/html/rfc7231#section-5.5.2
 	//   "Clients SHOULD NOT include a Referer header field in a
 	//    (non-secure) HTTP request if the referring page was
@@ -152,6 +153,10 @@ func refererForURL(lastReq, newReq *url.URL) string {
 	if lastReq.Scheme == "https" && newReq.Scheme == "http" {
 		return ""
 	}
+	if explicitRef != "" {
+		return explicitRef
+	}
+
 	referer := lastReq.String()
 	if lastReq.User != nil {
 		// This is not very efficient, but is the best we can
@@ -198,6 +203,9 @@ func (c *Client) transport() RoundTripper {
 	}
 	return DefaultTransport
 }
+
+// ErrSchemeMismatch is returned when a server returns an HTTP response to an HTTPS client.
+var ErrSchemeMismatch = errors.New("http: server gave HTTP response to HTTPS client")
 
 // send issues an HTTP request.
 // Caller should close resp.Body when done reading from it.
@@ -260,7 +268,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 			// response looks like HTTP and give a more helpful error.
 			// See golang.org/issue/11111.
 			if string(tlsErr.RecordHeader[:]) == "HTTP/" {
-				err = errors.New("http: server gave HTTP response to HTTPS client")
+				err = ErrSchemeMismatch
 			}
 		}
 		return nil, didTimeout, err
@@ -362,7 +370,7 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 	initialReqCancel := req.Cancel // the user's original Request.Cancel, if any
 
 	var cancelCtx func()
-	if oldCtx := req.Context(); timeBeforeContextDeadline(deadline, oldCtx) {
+	if timeBeforeContextDeadline(deadline, oldCtx) {
 		req.ctx, cancelCtx = context.WithDeadline(oldCtx, deadline)
 	}
 
@@ -499,7 +507,7 @@ func (c *Client) checkRedirect(req *Request, via []*Request) error {
 }
 
 // redirectBehavior describes what should happen when the
-// client encounters a 3xx status code from the server
+// client encounters a 3xx status code from the server.
 func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirectMethod string, shouldRedirect, includeBody bool) {
 	switch resp.StatusCode {
 	case 301, 302, 303:
@@ -676,7 +684,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 
 			// Add the Referer header from the most recent
 			// request URL to the new one, if it's not https->http:
-			if ref := refererForURL(reqs[len(reqs)-1].URL, req.URL); ref != "" {
+			if ref := refererForURL(reqs[len(reqs)-1].URL, req.URL, req.Header.Get("Referer")); ref != "" {
 				req.Header.Set("Referer", ref)
 			}
 			err = c.checkRedirect(req, reqs)
@@ -990,8 +998,8 @@ func shouldCopyHeaderOnRedirect(headerKey string, initial, dest *url.URL) bool {
 		// directly, we don't know their scope, so we assume
 		// it's for *.domain.com.
 
-		ihost := canonicalAddr(initial)
-		dhost := canonicalAddr(dest)
+		ihost := idnaASCIIFromURL(initial)
+		dhost := idnaASCIIFromURL(dest)
 		return isDomainOrSubdomain(dhost, ihost)
 	}
 	// All other headers are copied:

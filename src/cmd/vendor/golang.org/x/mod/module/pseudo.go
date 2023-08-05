@@ -125,7 +125,7 @@ func IsPseudoVersion(v string) bool {
 }
 
 // IsZeroPseudoVersion returns whether v is a pseudo-version with a zero base,
-// timestamp, and revision, as returned by ZeroPseudoVersion.
+// timestamp, and revision, as returned by [ZeroPseudoVersion].
 func IsZeroPseudoVersion(v string) bool {
 	return v == ZeroPseudoVersion(semver.Major(v))
 }

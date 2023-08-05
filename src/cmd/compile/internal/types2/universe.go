@@ -145,6 +145,7 @@ const (
 	// universe scope
 	_Append builtinId = iota
 	_Cap
+	_Clear
 	_Close
 	_Complex
 	_Copy
@@ -152,6 +153,8 @@ const (
 	_Imag
 	_Len
 	_Make
+	_Max
+	_Min
 	_New
 	_Panic
 	_Print
@@ -182,6 +185,7 @@ var predeclaredFuncs = [...]struct {
 }{
 	_Append:  {"append", 1, true, expression},
 	_Cap:     {"cap", 1, false, expression},
+	_Clear:   {"clear", 1, false, statement},
 	_Close:   {"close", 1, false, statement},
 	_Complex: {"complex", 2, false, expression},
 	_Copy:    {"copy", 2, false, statement},
@@ -189,6 +193,9 @@ var predeclaredFuncs = [...]struct {
 	_Imag:    {"imag", 1, false, expression},
 	_Len:     {"len", 1, false, expression},
 	_Make:    {"make", 1, true, expression},
+	// To disable max/min, remove the next two lines.
+	_Max:     {"max", 1, true, expression},
+	_Min:     {"min", 1, true, expression},
 	_New:     {"new", 1, false, expression},
 	_Panic:   {"panic", 1, false, statement},
 	_Print:   {"print", 0, true, statement},

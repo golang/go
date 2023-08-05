@@ -15,6 +15,8 @@ func TestFixLongPath(t *testing.T) {
 	if os.CanUseLongPaths {
 		return
 	}
+	t.Parallel()
+
 	// 248 is long enough to trigger the longer-than-248 checks in
 	// fixLongPath, but short enough not to make a path component
 	// longer than 255, which is illegal on Windows. (which
@@ -50,6 +52,8 @@ func TestFixLongPath(t *testing.T) {
 }
 
 func TestMkdirAllLongPath(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	path := tmpDir
 	for i := 0; i < 100; i++ {
@@ -64,6 +68,7 @@ func TestMkdirAllLongPath(t *testing.T) {
 }
 
 func TestMkdirAllExtendedLength(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	const prefix = `\\?\`
@@ -86,6 +91,8 @@ func TestMkdirAllExtendedLength(t *testing.T) {
 }
 
 func TestOpenRootSlash(t *testing.T) {
+	t.Parallel()
+
 	tests := []string{
 		`/`,
 		`\`,

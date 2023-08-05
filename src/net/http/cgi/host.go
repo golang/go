@@ -39,7 +39,7 @@ var osDefaultInheritEnv = func() []string {
 	switch runtime.GOOS {
 	case "darwin", "ios":
 		return []string{"DYLD_LIBRARY_PATH"}
-	case "linux", "freebsd", "netbsd", "openbsd":
+	case "android", "linux", "freebsd", "netbsd", "openbsd":
 		return []string{"LD_LIBRARY_PATH"}
 	case "hpux":
 		return []string{"LD_LIBRARY_PATH", "SHLIB_PATH"}

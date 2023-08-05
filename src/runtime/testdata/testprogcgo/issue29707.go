@@ -50,7 +50,9 @@ func CgoTraceParser() {
 	trace.Stop()
 
 	_, err := traceparser.Parse(buf, "")
-	if err != nil {
+	if err == traceparser.ErrTimeOrder {
+		fmt.Println("ErrTimeOrder")
+	} else if err != nil {
 		fmt.Println("Parse error: ", err)
 	} else {
 		fmt.Println("OK")

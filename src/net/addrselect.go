@@ -37,7 +37,7 @@ func sortByRFC6724withSrcs(addrs []IPAddr, srcs []netip.Addr) {
 	})
 }
 
-// srcsAddrs tries to UDP-connect to each address to see if it has a
+// srcAddrs tries to UDP-connect to each address to see if it has a
 // route. (This doesn't send any packets). The destination port
 // number is irrelevant.
 func srcAddrs(addrs []IPAddr) []netip.Addr {

@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"unsafe"
@@ -111,7 +110,7 @@ func TestSymbolTooLarge(t *testing.T) { // Issue 42054
 		t.Fatalf("failed to write source file: %v\n", err)
 	}
 	obj := filepath.Join(tmpdir, "p.o")
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", obj, src)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", obj, src)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("did not fail\noutput: %s", out)
@@ -137,7 +136,7 @@ func TestNoRefName(t *testing.T) {
 
 	// Build the fmt package with norefname. Not rebuilding all packages to save time.
 	// Also testing that norefname and non-norefname packages can link together.
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=fmt=-d=norefname", "-o", exe, src)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-gcflags=fmt=-d=norefname", "-o", exe, src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failed: %v, output:\n%s", err, out)

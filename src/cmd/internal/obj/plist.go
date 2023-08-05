@@ -6,7 +6,9 @@ package obj
 
 import (
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"fmt"
+	"internal/abi"
 	"strings"
 )
 
@@ -56,13 +58,13 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			}
 			switch p.To.Sym.Name {
 			case "go_args_stackmap":
-				if p.From.Type != TYPE_CONST || p.From.Offset != objabi.FUNCDATA_ArgsPointerMaps {
-					ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
+				if p.From.Type != TYPE_CONST || p.From.Offset != abi.FUNCDATA_ArgsPointerMaps {
+					ctxt.Diag("%s: FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps", p.Pos)
 				}
 				p.To.Sym = ctxt.LookupDerived(curtext, curtext.Name+".args_stackmap")
 			case "no_pointers_stackmap":
-				if p.From.Type != TYPE_CONST || p.From.Offset != objabi.FUNCDATA_LocalsPointerMaps {
-					ctxt.Diag("FUNCDATA use of no_pointers_stackmap(SB) without FUNCDATA_LocalsPointerMaps")
+				if p.From.Type != TYPE_CONST || p.From.Offset != abi.FUNCDATA_LocalsPointerMaps {
+					ctxt.Diag("%s: FUNCDATA use of no_pointers_stackmap(SB) without FUNCDATA_LocalsPointerMaps", p.Pos)
 				}
 				// funcdata for functions with no local variables in frame.
 				// Define two zero-length bitmaps, because the same index is used
@@ -108,10 +110,10 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			foundArgMap, foundArgInfo := false, false
 			for p := s.Func().Text; p != nil; p = p.Link {
 				if p.As == AFUNCDATA && p.From.Type == TYPE_CONST {
-					if p.From.Offset == objabi.FUNCDATA_ArgsPointerMaps {
+					if p.From.Offset == abi.FUNCDATA_ArgsPointerMaps {
 						foundArgMap = true
 					}
-					if p.From.Offset == objabi.FUNCDATA_ArgInfo {
+					if p.From.Offset == abi.FUNCDATA_ArgInfo {
 						foundArgInfo = true
 					}
 					if foundArgMap && foundArgInfo {
@@ -123,7 +125,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 				p := Appendp(s.Func().Text, newprog)
 				p.As = AFUNCDATA
 				p.From.Type = TYPE_CONST
-				p.From.Offset = objabi.FUNCDATA_ArgsPointerMaps
+				p.From.Offset = abi.FUNCDATA_ArgsPointerMaps
 				p.To.Type = TYPE_MEM
 				p.To.Name = NAME_EXTERN
 				p.To.Sym = ctxt.LookupDerived(s, s.Name+".args_stackmap")
@@ -132,7 +134,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 				p := Appendp(s.Func().Text, newprog)
 				p.As = AFUNCDATA
 				p.From.Type = TYPE_CONST
-				p.From.Offset = objabi.FUNCDATA_ArgInfo
+				p.From.Offset = abi.FUNCDATA_ArgInfo
 				p.To.Type = TYPE_MEM
 				p.To.Name = NAME_EXTERN
 				p.To.Sym = ctxt.LookupDerived(s, fmt.Sprintf("%s.arginfo%d", s.Name, s.ABI()))
@@ -156,25 +158,37 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 		if myimportpath != "" {
 			ctxt.populateDWARF(plist.Curfn, s, myimportpath)
 		}
+		if ctxt.Headtype == objabi.Hwindows && ctxt.Arch.SEH != nil {
+			s.Func().sehUnwindInfoSym = ctxt.Arch.SEH(ctxt, s)
+		}
 	}
 }
 
-func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
 	if s == nil {
 		// func _() { }
 		return
 	}
 	if s.Func() != nil {
-		ctxt.Diag("InitTextSym double init for %s", s.Name)
+		ctxt.Diag("%s: symbol %s redeclared\n\t%s: other declaration of symbol %s", ctxt.PosTable.Pos(start), s.Name, ctxt.PosTable.Pos(s.Func().Text.Pos), s.Name)
+		return
 	}
 	s.NewFuncInfo()
 	if s.OnList() {
-		ctxt.Diag("symbol %s listed multiple times", s.Name)
+		ctxt.Diag("%s: symbol %s redeclared", ctxt.PosTable.Pos(start), s.Name)
+		return
 	}
+
+	// startLine should be the same line number that would be displayed via
+	// pcln, etc for the declaration (i.e., relative line number, as
+	// adjusted by //line).
+	_, startLine := ctxt.getFileSymbolAndLine(start)
+
 	// TODO(mdempsky): Remove once cmd/asm stops writing "" symbols.
 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
 	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
 	s.Func().FuncFlag = ctxt.toFuncFlag(flag)
+	s.Func().StartLine = startLine
 	s.Set(AttrOnList, true)
 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
@@ -183,6 +197,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	s.Set(AttrABIWrapper, flag&ABIWRAPPER != 0)
 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
+	s.Set(AttrPkgInit, flag&PKGINIT != 0)
 	s.Type = objabi.STEXT
 	ctxt.Text = append(ctxt.Text, s)
 
@@ -190,20 +205,24 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	ctxt.dwarfSym(s)
 }
 
-func (ctxt *Link) toFuncFlag(flag int) objabi.FuncFlag {
-	var out objabi.FuncFlag
+func (ctxt *Link) toFuncFlag(flag int) abi.FuncFlag {
+	var out abi.FuncFlag
 	if flag&TOPFRAME != 0 {
-		out |= objabi.FuncFlag_TOPFRAME
+		out |= abi.FuncFlagTopFrame
 	}
 	if ctxt.IsAsm {
-		out |= objabi.FuncFlag_ASM
+		out |= abi.FuncFlagAsm
 	}
 	return out
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+	ctxt.GloblPos(s, size, flag, src.NoXPos)
+}
+func (ctxt *Link) GloblPos(s *LSym, size int64, flag int, pos src.XPos) {
 	if s.OnList() {
-		ctxt.Diag("symbol %s listed multiple times", s.Name)
+		// TODO: print where the first declaration was.
+		ctxt.Diag("%s: symbol %s redeclared", ctxt.PosTable.Pos(pos), s.Name)
 	}
 	s.Set(AttrOnList, true)
 	ctxt.Data = append(ctxt.Data, s)
@@ -242,7 +261,7 @@ func (ctxt *Link) EmitEntryStackMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	pcdata.Pos = s.Func().Text.Pos
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+	pcdata.From.Offset = abi.PCDATA_StackMapIndex
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
 
@@ -255,7 +274,7 @@ func (ctxt *Link) EmitEntryUnsafePoint(s *LSym, p *Prog, newprog ProgAlloc) *Pro
 	pcdata.Pos = s.Func().Text.Pos
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_UnsafePoint
+	pcdata.From.Offset = abi.PCDATA_UnsafePoint
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = -1
 
@@ -270,9 +289,9 @@ func (ctxt *Link) StartUnsafePoint(p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := Appendp(p, newprog)
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_UnsafePoint
+	pcdata.From.Offset = abi.PCDATA_UnsafePoint
 	pcdata.To.Type = TYPE_CONST
-	pcdata.To.Offset = objabi.PCDATA_UnsafePointUnsafe
+	pcdata.To.Offset = abi.UnsafePointUnsafe
 
 	return pcdata
 }
@@ -285,7 +304,7 @@ func (ctxt *Link) EndUnsafePoint(p *Prog, newprog ProgAlloc, oldval int64) *Prog
 	pcdata := Appendp(p, newprog)
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_UnsafePoint
+	pcdata.From.Offset = abi.PCDATA_UnsafePoint
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = oldval
 
@@ -311,11 +330,11 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint, is
 	prevPcdata := int64(-1) // entry PC data value
 	prevRestart := int64(0)
 	for p := prev.Link; p != nil; p, prev = p.Link, p {
-		if p.As == APCDATA && p.From.Offset == objabi.PCDATA_UnsafePoint {
+		if p.As == APCDATA && p.From.Offset == abi.PCDATA_UnsafePoint {
 			prevPcdata = p.To.Offset
 			continue
 		}
-		if prevPcdata == objabi.PCDATA_UnsafePointUnsafe {
+		if prevPcdata == abi.UnsafePointUnsafe {
 			continue // already unsafe
 		}
 		if isUnsafePoint(p) {
@@ -334,15 +353,15 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint, is
 			continue
 		}
 		if isRestartable(p) {
-			val := int64(objabi.PCDATA_Restart1)
+			val := int64(abi.UnsafePointRestart1)
 			if val == prevRestart {
-				val = objabi.PCDATA_Restart2
+				val = abi.UnsafePointRestart2
 			}
 			prevRestart = val
 			q := Appendp(prev, newprog)
 			q.As = APCDATA
 			q.From.Type = TYPE_CONST
-			q.From.Offset = objabi.PCDATA_UnsafePoint
+			q.From.Offset = abi.PCDATA_UnsafePoint
 			q.To.Type = TYPE_CONST
 			q.To.Offset = val
 			q.Pc = p.Pc
@@ -359,7 +378,7 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint, is
 			p = Appendp(p, newprog)
 			p.As = APCDATA
 			p.From.Type = TYPE_CONST
-			p.From.Offset = objabi.PCDATA_UnsafePoint
+			p.From.Offset = abi.PCDATA_UnsafePoint
 			p.To.Type = TYPE_CONST
 			p.To.Offset = prevPcdata
 			p.Pc = p.Link.Pc

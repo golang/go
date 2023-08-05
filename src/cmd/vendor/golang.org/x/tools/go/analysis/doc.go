@@ -177,14 +177,14 @@ Diagnostic is defined as:
 The optional Category field is a short identifier that classifies the
 kind of message when an analysis produces several kinds of diagnostic.
 
-Many analyses want to associate diagnostics with a severity level.
-Because Diagnostic does not have a severity level field, an Analyzer's
-diagnostics effectively all have the same severity level. To separate which
-diagnostics are high severity and which are low severity, expose multiple
-Analyzers instead. Analyzers should also be separated when their
-diagnostics belong in different groups, or could be tagged differently
-before being shown to the end user. Analyzers should document their severity
-level to help downstream tools surface diagnostics properly.
+The Diagnostic struct does not have a field to indicate its severity
+because opinions about the relative importance of Analyzers and their
+diagnostics vary widely among users. The design of this framework does
+not hold each Analyzer responsible for identifying the severity of its
+diagnostics. Instead, we expect that drivers will allow the user to
+customize the filtering and prioritization of diagnostics based on the
+producing Analyzer and optional Category, according to the user's
+preferences.
 
 Most Analyzers inspect typed Go syntax trees, but a few, such as asmdecl
 and buildtag, inspect the raw text of Go source files or even non-Go
@@ -244,6 +244,9 @@ if the default encoding is unsuitable. Facts should be stateless.
 Because serialized facts may appear within build outputs, the gob encoding
 of a fact must be deterministic, to avoid spurious cache misses in
 build systems that use content-addressable caches.
+The driver makes a single call to the gob encoder for all facts
+exported by a given analysis pass, so that the topology of
+shared data structures referenced by multiple facts is preserved.
 
 The Pass type has functions to import and export facts,
 associated either with an object or with a package:
@@ -297,7 +300,7 @@ singlechecker and multichecker subpackages.
 
 The singlechecker package provides the main function for a command that
 runs one analyzer. By convention, each analyzer such as
-go/passes/findcall should be accompanied by a singlechecker-based
+go/analysis/passes/findcall should be accompanied by a singlechecker-based
 command such as go/analysis/passes/findcall/cmd/findcall, defined in its
 entirety as:
 

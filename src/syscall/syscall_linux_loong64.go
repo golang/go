@@ -187,9 +187,15 @@ func Getrlimit(resource int, rlim *Rlimit) error {
 	return prlimit(0, resource, nil, rlim)
 }
 
-// Setrlimit prefers the prlimit64 system call.
-func Setrlimit(resource int, rlim *Rlimit) error {
+// setrlimit prefers the prlimit64 system call.
+func setrlimit(resource int, rlim *Rlimit) error {
 	return prlimit(0, resource, rlim, nil)
+}
+
+//go:nosplit
+func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+	_, _, errno := RawSyscall6(SYS_PRLIMIT64, 0, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
+	return errno
 }
 
 func (r *PtraceRegs) GetEra() uint64 { return r.Era }

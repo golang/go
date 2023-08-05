@@ -47,8 +47,7 @@ cmp stdout out-117.txt
 
 go mod edit -go=1.16
 ! go list -deps -test -f $MODFMT all
-	# TODO(#46160): -count=1 instead of -count=2.
-stderr -count=2 '^go: example.net/lazy@v0.1.0 requires\n\texample.com/retract/incompatible@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download example.com/retract/incompatible$'
+stderr -count=1 '^go: example.net/lazy@v0.1.0 requires\n\texample.com/retract/incompatible@v1.0.0: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/retract/incompatible$'
 
 
 -- go.mod --

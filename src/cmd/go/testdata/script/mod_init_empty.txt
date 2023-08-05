@@ -1,6 +1,6 @@
 env GO111MODULE=on
 
-env GOPATH=$devnull
+env GOPATH=$WORK${/}invalid-gopath
 
 go list -m
 stdout '^example.com$'
@@ -16,3 +16,6 @@ go 1.13
 package main
 
 func main() {}
+
+-- $WORK/invalid-gopath
+This is a text file, not a directory.

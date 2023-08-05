@@ -10,7 +10,10 @@ const (
 	_EFAULT = 0xe
 	_EAGAIN = 0x23
 
+	_O_WRONLY   = 0x1
 	_O_NONBLOCK = 0x4
+	_O_CREAT    = 0x200
+	_O_TRUNC    = 0x400
 	_O_CLOEXEC  = 0x10000
 
 	_PROT_NONE  = 0x0
@@ -31,11 +34,6 @@ const (
 	_SA_ONSTACK = 0x1
 
 	_PTHREAD_CREATE_DETACHED = 0x1
-
-	_F_SETFD    = 0x2
-	_F_GETFL    = 0x3
-	_F_SETFL    = 0x4
-	_FD_CLOEXEC = 0x1
 
 	_SIGHUP    = 0x1
 	_SIGINT    = 0x2

@@ -6,4 +6,4 @@ env GO111MODULE=off
 
 mkdir $WORK/gocache
 env GOCACHE=$WORK/gocache
-go build -i -pkgdir=. runtime
+go build -pkgdir=. runtime

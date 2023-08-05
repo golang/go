@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -60,7 +59,7 @@ func objdumpOutput(t *testing.T, mname, source string) []byte {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(
+	cmd := testenv.Command(t,
 		testenv.GoToolPath(t), "build", "-o",
 		filepath.Join(tmpdir, "output"))
 
@@ -72,7 +71,7 @@ func objdumpOutput(t *testing.T, mname, source string) []byte {
 	if err != nil {
 		t.Fatalf("error %s output %s", err, out)
 	}
-	cmd2 := exec.Command(
+	cmd2 := testenv.Command(t,
 		testenv.GoToolPath(t), "tool", "objdump", "-s", "testASM",
 		filepath.Join(tmpdir, "output"))
 	cmd2.Env = cmd.Env

@@ -48,7 +48,7 @@ func FreeBSDNumCPU() {
 		fmt.Printf("fail to launch '%s', error: %s, output: %s\n", strings.Join(cmd.Args, " "), err, output)
 		return
 	}
-	if bytes.Equal(output, []byte("1\n")) == false {
+	if !bytes.Equal(output, []byte("1\n")) {
 		// SMP mode deactivated in kernel.
 		fmt.Println("OK")
 		return

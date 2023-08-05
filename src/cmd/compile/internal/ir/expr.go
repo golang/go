@@ -174,7 +174,7 @@ func (n *CallExpr) SetOp(op Op) {
 		OCALL, OCALLFUNC, OCALLINTER, OCALLMETH,
 		ODELETE,
 		OGETG, OGETCALLERPC, OGETCALLERSP,
-		OMAKE, OPRINT, OPRINTN,
+		OMAKE, OMAX, OMIN, OPRINT, OPRINTN,
 		ORECOVER, ORECOVERFP:
 		n.op = op
 	}
@@ -380,7 +380,7 @@ func (n *InlinedCallExpr) SingleResult() Node {
 	return n.ReturnVars[0]
 }
 
-// A LogicalExpr is a expression X Op Y where Op is && or ||.
+// A LogicalExpr is an expression X Op Y where Op is && or ||.
 // It is separate from BinaryExpr to make room for statements
 // that must be executed before Y but after X.
 type LogicalExpr struct {
@@ -563,8 +563,7 @@ func (n *SelectorExpr) FuncName() *Name {
 	if n.Selection.Nname != nil {
 		// TODO(austin): Nname is nil for interface method
 		// expressions (I.M), so we can't attach a Func to
-		// those here. reflectdata.methodWrapper generates the
-		// Func.
+		// those here.
 		fn.Func = n.Selection.Nname.(*Name).Func
 	}
 	return fn
@@ -747,7 +746,7 @@ func (n *UnaryExpr) SetOp(op Op) {
 	default:
 		panic(n.no("SetOp " + op.String()))
 	case OBITNOT, ONEG, ONOT, OPLUS, ORECV,
-		OALIGNOF, OCAP, OCLOSE, OIMAG, OLEN, ONEW,
+		OALIGNOF, OCAP, OCLEAR, OCLOSE, OIMAG, OLEN, ONEW,
 		OOFFSETOF, OPANIC, OREAL, OSIZEOF,
 		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR,
 		OUNSAFESTRINGDATA, OUNSAFESLICEDATA:
@@ -957,6 +956,11 @@ func reassigned(name *Name) bool {
 		case OADDR:
 			n := n.(*AddrExpr)
 			if isName(OuterValue(n.X)) {
+				return true
+			}
+		case ORANGE:
+			n := n.(*RangeStmt)
+			if isName(n.Key) || isName(n.Value) {
 				return true
 			}
 		case OCLOSURE:

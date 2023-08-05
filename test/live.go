@@ -698,9 +698,9 @@ func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
 	defer func() {
 		recover()
 	}()
-	printint(0) // ERROR "live at call to printint: q r .autotmp_[0-9]+$"
+	printint(0) // ERROR "live at call to printint: .autotmp_[0-9]+ q r$"
 	r = q
-	return // ERROR "live at call to f41.func1: r .autotmp_[0-9]+$"
+	return // ERROR "live at call to f41.func1: .autotmp_[0-9]+ r$"
 }
 
 func f42() {

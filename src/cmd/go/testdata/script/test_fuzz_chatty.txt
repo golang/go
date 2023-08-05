@@ -1,5 +1,6 @@
 [!fuzz] skip
 [short] skip
+env GOCACHE=$WORK/cache
 
 # Run chatty fuzz targets with an error.
 ! go test -v chatty_error_fuzz_test.go

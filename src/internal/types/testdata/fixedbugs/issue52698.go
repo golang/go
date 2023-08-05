@@ -9,7 +9,7 @@ type T[P any] struct {
 	_ P
 }
 
-type S /* ERROR invalid recursive type */ struct {
+type S /* ERROR "invalid recursive type" */ struct {
 	_ T[S]
 }
 

@@ -50,7 +50,7 @@ cmp stdout m_all.txt
 
 go mod edit -go=1.16
 ! go list -m all
-stderr '^go: example.net/lazy@v0.1.0 requires\n\texample.com/version@v1.0.1: missing go.sum entry; to add it:\n\tgo mod download example.com/version$'
+stderr '^go: example.net/lazy@v0.1.0 requires\n\texample.com/version@v1.0.1: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/version$'
 
 
 -- go.mod --

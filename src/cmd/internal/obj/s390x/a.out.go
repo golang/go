@@ -480,6 +480,12 @@ const (
 	// macros
 	ACLEAR
 
+	// crypto
+	AKM
+	AKMC
+	AKLMD
+	AKIMD
+
 	// vector
 	AVA
 	AVAB
@@ -993,6 +999,9 @@ const (
 	ABYTE
 	AWORD
 	ADWORD
+
+	// Breakpoint
+	ABRRK
 
 	// end marker
 	ALAST

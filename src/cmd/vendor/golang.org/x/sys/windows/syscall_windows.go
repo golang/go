@@ -10,7 +10,6 @@ import (
 	errorspkg "errors"
 	"fmt"
 	"runtime"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -87,22 +86,13 @@ func StringToUTF16(s string) []uint16 {
 // s, with a terminating NUL added. If s contains a NUL byte at any
 // location, it returns (nil, syscall.EINVAL).
 func UTF16FromString(s string) ([]uint16, error) {
-	if strings.IndexByte(s, 0) != -1 {
-		return nil, syscall.EINVAL
-	}
-	return utf16.Encode([]rune(s + "\x00")), nil
+	return syscall.UTF16FromString(s)
 }
 
 // UTF16ToString returns the UTF-8 encoding of the UTF-16 sequence s,
 // with a terminating NUL and any bytes after the NUL removed.
 func UTF16ToString(s []uint16) string {
-	for i, v := range s {
-		if v == 0 {
-			s = s[:i]
-			break
-		}
-	}
-	return string(utf16.Decode(s))
+	return syscall.UTF16ToString(s)
 }
 
 // StringToUTF16Ptr is deprecated. Use UTF16PtrFromString instead.
@@ -138,13 +128,7 @@ func UTF16PtrToString(p *uint16) string {
 		ptr = unsafe.Pointer(uintptr(ptr) + unsafe.Sizeof(*p))
 	}
 
-	var s []uint16
-	h := (*unsafeheader.Slice)(unsafe.Pointer(&s))
-	h.Data = unsafe.Pointer(p)
-	h.Len = n
-	h.Cap = n
-
-	return string(utf16.Decode(s))
+	return string(utf16.Decode(unsafe.Slice(p, n)))
 }
 
 func Getpagesize() int { return 4096 }
@@ -364,6 +348,16 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	SetCommTimeouts(handle Handle, timeouts *CommTimeouts) (err error)
 //sys	GetActiveProcessorCount(groupNumber uint16) (ret uint32)
 //sys	GetMaximumProcessorCount(groupNumber uint16) (ret uint32)
+//sys	EnumWindows(enumFunc uintptr, param unsafe.Pointer) (err error) = user32.EnumWindows
+//sys	EnumChildWindows(hwnd HWND, enumFunc uintptr, param unsafe.Pointer) = user32.EnumChildWindows
+//sys	GetClassName(hwnd HWND, className *uint16, maxCount int32) (copied int32, err error) = user32.GetClassNameW
+//sys	GetDesktopWindow() (hwnd HWND) = user32.GetDesktopWindow
+//sys	GetForegroundWindow() (hwnd HWND) = user32.GetForegroundWindow
+//sys	IsWindow(hwnd HWND) (isWindow bool) = user32.IsWindow
+//sys	IsWindowUnicode(hwnd HWND) (isUnicode bool) = user32.IsWindowUnicode
+//sys	IsWindowVisible(hwnd HWND) (isVisible bool) = user32.IsWindowVisible
+//sys	GetGUIThreadInfo(thread uint32, info *GUIThreadInfo) (err error) = user32.GetGUIThreadInfo
+//sys	GetLargePageMinimum() (size uintptr)
 
 // Volume Management Functions
 //sys	DefineDosDevice(flags uint32, deviceName *uint16, targetPath *uint16) (err error) = DefineDosDeviceW
@@ -411,7 +405,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	VerQueryValue(block unsafe.Pointer, subBlock string, pointerToBufferPointer unsafe.Pointer, bufSize *uint32) (err error) = version.VerQueryValueW
 
 // Process Status API (PSAPI)
-//sys	EnumProcesses(processIds []uint32, bytesReturned *uint32) (err error) = psapi.EnumProcesses
+//sys	enumProcesses(processIds *uint32, nSize uint32, bytesReturned *uint32) (err error) = psapi.EnumProcesses
 //sys	EnumProcessModules(process Handle, module *Handle, cb uint32, cbNeeded *uint32) (err error) = psapi.EnumProcessModules
 //sys	EnumProcessModulesEx(process Handle, module *Handle, cb uint32, cbNeeded *uint32, filterFlag uint32) (err error) = psapi.EnumProcessModulesEx
 //sys	GetModuleInformation(process Handle, module Handle, modinfo *ModuleInfo, cb uint32) (err error) = psapi.GetModuleInformation
@@ -438,6 +432,10 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	NtSetSystemInformation(sysInfoClass int32, sysInfo unsafe.Pointer, sysInfoLen uint32) (ntstatus error) = ntdll.NtSetSystemInformation
 //sys	RtlAddFunctionTable(functionTable *RUNTIME_FUNCTION, entryCount uint32, baseAddress uintptr) (ret bool) = ntdll.RtlAddFunctionTable
 //sys	RtlDeleteFunctionTable(functionTable *RUNTIME_FUNCTION) (ret bool) = ntdll.RtlDeleteFunctionTable
+
+// Desktop Window Manager API (Dwmapi)
+//sys	DwmGetWindowAttribute(hwnd HWND, attribute uint32, value unsafe.Pointer, size uint32) (ret error) = dwmapi.DwmGetWindowAttribute
+//sys	DwmSetWindowAttribute(hwnd HWND, attribute uint32, value unsafe.Pointer, size uint32) (ret error) = dwmapi.DwmSetWindowAttribute
 
 // syscall interface implementation for other packages
 
@@ -748,7 +746,7 @@ func Utimes(path string, tv []Timeval) (err error) {
 	if e != nil {
 		return e
 	}
-	defer Close(h)
+	defer CloseHandle(h)
 	a := NsecToFiletime(tv[0].Nanoseconds())
 	w := NsecToFiletime(tv[1].Nanoseconds())
 	return SetFileTime(h, nil, &a, &w)
@@ -768,7 +766,7 @@ func UtimesNano(path string, ts []Timespec) (err error) {
 	if e != nil {
 		return e
 	}
-	defer Close(h)
+	defer CloseHandle(h)
 	a := NsecToFiletime(TimespecToNsec(ts[0]))
 	w := NsecToFiletime(TimespecToNsec(ts[1]))
 	return SetFileTime(h, nil, &a, &w)
@@ -826,6 +824,9 @@ const socket_error = uintptr(^uint32(0))
 //sys	WSAStartup(verreq uint32, data *WSAData) (sockerr error) = ws2_32.WSAStartup
 //sys	WSACleanup() (err error) [failretval==socket_error] = ws2_32.WSACleanup
 //sys	WSAIoctl(s Handle, iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *Overlapped, completionRoutine uintptr) (err error) [failretval==socket_error] = ws2_32.WSAIoctl
+//sys	WSALookupServiceBegin(querySet *WSAQUERYSET, flags uint32, handle *Handle) (err error) [failretval==socket_error] = ws2_32.WSALookupServiceBeginW
+//sys	WSALookupServiceNext(handle Handle, flags uint32, size *int32, querySet *WSAQUERYSET) (err error) [failretval==socket_error] = ws2_32.WSALookupServiceNextW
+//sys	WSALookupServiceEnd(handle Handle) (err error) [failretval==socket_error] = ws2_32.WSALookupServiceEnd
 //sys	socket(af int32, typ int32, protocol int32) (handle Handle, err error) [failretval==InvalidHandle] = ws2_32.socket
 //sys	sendto(s Handle, buf []byte, flags int32, to unsafe.Pointer, tolen int32) (err error) [failretval==socket_error] = ws2_32.sendto
 //sys	recvfrom(s Handle, buf []byte, flags int32, from *RawSockaddrAny, fromlen *int32) (n int32, err error) [failretval==-1] = ws2_32.recvfrom
@@ -1021,8 +1022,7 @@ func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, error) {
 		for n < len(pp.Path) && pp.Path[n] != 0 {
 			n++
 		}
-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
-		sa.Name = string(bytes)
+		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
 		return sa, nil
 
 	case AF_INET:
@@ -1108,9 +1108,13 @@ func Shutdown(fd Handle, how int) (err error) {
 }
 
 func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to Sockaddr, overlapped *Overlapped, croutine *byte) (err error) {
-	rsa, l, err := to.sockaddr()
-	if err != nil {
-		return err
+	var rsa unsafe.Pointer
+	var l int32
+	if to != nil {
+		rsa, l, err = to.sockaddr()
+		if err != nil {
+			return err
+		}
 	}
 	return WSASendTo(s, bufs, bufcnt, sent, flags, (*RawSockaddrAny)(unsafe.Pointer(rsa)), l, overlapped, croutine)
 }
@@ -1348,6 +1352,17 @@ func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
 }
 func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) {
 	return syscall.EWINDOWS
+}
+
+func EnumProcesses(processIds []uint32, bytesReturned *uint32) error {
+	// EnumProcesses syscall expects the size parameter to be in bytes, but the code generated with mksyscall uses
+	// the length of the processIds slice instead. Hence, this wrapper function is added to fix the discrepancy.
+	var p *uint32
+	if len(processIds) > 0 {
+		p = &processIds[0]
+	}
+	size := uint32(len(processIds) * 4)
+	return enumProcesses(p, size, bytesReturned)
 }
 
 func Getpid() (pid int) { return int(GetCurrentProcessId()) }

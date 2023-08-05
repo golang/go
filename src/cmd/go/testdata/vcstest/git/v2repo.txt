@@ -1,0 +1,26 @@
+handle git
+
+env GIT_AUTHOR_NAME='Bryan C. Mills'
+env GIT_AUTHOR_EMAIL='bcmills@google.com'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2019-04-03T11:52:15-04:00
+env GIT_AUTHOR_DATE=2019-04-03T11:44:11-04:00
+git add go.mod
+git commit -m 'all: add go.mod'
+git branch -m master
+git tag 'v2.0.0'
+
+git show-ref --tags --heads
+cmp stdout .git-refs
+
+-- .git-refs --
+203b91c896acd173aa719e4cdcb7d463c4b090fa refs/heads/master
+203b91c896acd173aa719e4cdcb7d463c4b090fa refs/tags/v2.0.0
+-- go.mod --
+module vcs-test.golang.org/go/v2module/v2
+
+go 1.12

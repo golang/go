@@ -1,4 +1,4 @@
-// +build !js,gc
+// +build !js,!wasip1,gc
 // run
 
 // Copyright 2018 The Go Authors. All rights reserved.

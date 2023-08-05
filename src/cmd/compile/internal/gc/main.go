@@ -16,11 +16,14 @@ import (
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
+	"cmd/compile/internal/loopvar"
 	"cmd/compile/internal/noder"
+	"cmd/compile/internal/pgo"
 	"cmd/compile/internal/pkginit"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
+	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/dwarf"
@@ -73,6 +76,12 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	base.DebugSSA = ssa.PhaseOption
 	base.ParseFlags()
+
+	if os.Getenv("GOGC") == "" { // GOGC set disables starting heap adjustment
+		// More processors will use more heap, but assume that more memory is available.
+		// So 1 processor -> 40MB, 4 -> 64MB, 12 -> 128MB
+		base.AdjustStartingHeap(uint64(32+8*base.Flag.LowerC) << 20)
+	}
 
 	types.LocalPkg = types.NewPkg(base.Ctxt.Pkgpath, "")
 
@@ -203,6 +212,12 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// because it generates itabs for initializing global variables.
 	ssagen.InitConfig()
 
+	// First part of coverage fixup (if applicable).
+	var cnames coverage.Names
+	if base.Flag.Cfg.CoverageInfo != nil {
+		cnames = coverage.FixupVars()
+	}
+
 	// Create "init" function for package-scope variable initialization
 	// statements, if any.
 	//
@@ -212,9 +227,10 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// removal can skew the results (e.g., #43444).
 	pkginit.MakeInit()
 
-	// Fix up init routines if building for code coverage.
+	// Second part of code coverage fixup (init func modification),
+	// if applicable.
 	if base.Flag.Cfg.CoverageInfo != nil {
-		coverage.Fixup()
+		coverage.FixupInit(cnames)
 	}
 
 	// Eliminate some obviously dead code.
@@ -236,23 +252,43 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	}
 	typecheck.IncrementalAddrtaken = true
 
-	if base.Debug.TypecheckInl != 0 {
-		// Typecheck imported function bodies if Debug.l > 1,
-		// otherwise lazily when used or re-exported.
-		typecheck.AllImportedBodies()
+	// Read profile file and build profile-graph and weighted-call-graph.
+	base.Timer.Start("fe", "pgo-load-profile")
+	var profile *pgo.Profile
+	if base.Flag.PgoProfile != "" {
+		var err error
+		profile, err = pgo.New(base.Flag.PgoProfile)
+		if err != nil {
+			log.Fatalf("%s: PGO error: %v", base.Flag.PgoProfile, err)
+		}
+	}
+
+	base.Timer.Start("fe", "pgo-devirtualization")
+	if profile != nil && base.Debug.PGODevirtualize > 0 {
+		// TODO(prattmic): No need to use bottom-up visit order. This
+		// is mirroring the PGO IRGraph visit order, which also need
+		// not be bottom-up.
+		ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
+			for _, fn := range list {
+				devirtualize.ProfileGuided(fn, profile)
+			}
+		})
+		ir.CurFunc = nil
 	}
 
 	// Inlining
 	base.Timer.Start("fe", "inlining")
 	if base.Flag.LowerL != 0 {
-		inline.InlinePackage()
+		inline.InlinePackage(profile)
 	}
 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 
-	// Devirtualize.
+	// Devirtualize and get variable capture right in for loops
+	var transformed []loopvar.VarAndLoop
 	for _, n := range typecheck.Target.Decls {
 		if n.Op() == ir.ODCLFUNC {
-			devirtualize.Func(n.(*ir.Func))
+			devirtualize.Static(n.(*ir.Func))
+			transformed = append(transformed, loopvar.ForCapture(n.(*ir.Func))...)
 		}
 	}
 	ir.CurFunc = nil
@@ -277,10 +313,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "escapes")
 	escape.Funcs(typecheck.Target.Decls)
 
-	// TODO(mdempsky): This is a hack. We need a proper, global work
-	// queue for scheduling function compilation so components don't
-	// need to adjust their behavior depending on when they're called.
-	reflectdata.AfterGlobalEscapeAnalysis = true
+	loopvar.LogTransformations(transformed)
 
 	// Collect information for go:nowritebarrierrec
 	// checking. This must happen before transforming closures during Walk
@@ -313,6 +346,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	if base.Flag.CompilingRuntime {
 		// Write barriers are now known. Check the call graph.
 		ssagen.NoWriteBarrierRecCheck()
+	}
+
+	// Add keep relocations for global maps.
+	if base.Debug.WrapGlobalMapCtl != 1 {
+		staticinit.AddKeepRelocations()
 	}
 
 	// Finalize DWARF inline routine DIEs, then explicitly turn off

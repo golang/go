@@ -6,7 +6,7 @@
 Package gob manages streams of gobs - binary values exchanged between an
 Encoder (transmitter) and a Decoder (receiver). A typical use is transporting
 arguments and results of remote procedure calls (RPCs) such as those provided by
-package "net/rpc".
+[net/rpc].
 
 The implementation compiles a custom codec for each data type in the stream and
 is most efficient when a single Encoder is used to transmit a stream of values,
@@ -276,6 +276,14 @@ document for background: https://golang.org/doc/go1compat
 
 See "Gobs of data" for a design discussion of the gob wire format:
 https://blog.golang.org/gobs-of-data
+
+# Security
+
+This package is not designed to be hardened against adversarial inputs, and is
+outside the scope of https://go.dev/security/policy. In particular, the Decoder
+does only basic sanity checking on decoded input sizes, and its limits are not
+configurable. Care should be taken when decoding gob data from untrusted
+sources, which may consume significant resources.
 */
 package gob
 

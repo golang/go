@@ -37,7 +37,7 @@ var exitHooks struct {
 // runExitHooks runs any registered exit hook functions (funcs
 // previously registered using runtime.addExitHook). Here 'exitCode'
 // is the status code being passed to os.Exit, or zero if the program
-// is terminating normally without calling os.Exit).
+// is terminating normally without calling os.Exit.
 func runExitHooks(exitCode int) {
 	if exitHooks.runningExitHooks {
 		throw("internal error: exit hook invoked exit")
@@ -54,6 +54,7 @@ func runExitHooks(exitCode int) {
 		return
 	}
 
+	finishPageTrace()
 	for i := range exitHooks.hooks {
 		h := exitHooks.hooks[len(exitHooks.hooks)-i-1]
 		if exitCode != 0 && !h.runOnNonZeroExit {

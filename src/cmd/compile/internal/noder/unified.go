@@ -68,11 +68,11 @@ var localPkgReader *pkgReader
 // the unified IR has the full typed AST needed for introspection during step (1).
 // In other words, we have all the necessary information to build the generic IR form
 // (see writer.captureVars for an example).
-func unified(noders []*noder) {
+func unified(m posMap, noders []*noder) {
 	inline.InlineCall = unifiedInlineCall
 	typecheck.HaveInlineBody = unifiedHaveInlineBody
 
-	data := writePkgStub(noders)
+	data := writePkgStub(m, noders)
 
 	// We already passed base.Flag.Lang to types2 to handle validating
 	// the user's source code. Bump it up now to the current version and
@@ -101,7 +101,7 @@ func unified(noders []*noder) {
 		}
 	}
 
-	readBodies(target)
+	readBodies(target, false)
 
 	// Check that nothing snuck past typechecking.
 	for _, n := range target.Decls {
@@ -123,7 +123,13 @@ func unified(noders []*noder) {
 
 // readBodies iteratively expands all pending dictionaries and
 // function bodies.
-func readBodies(target *ir.Package) {
+//
+// If duringInlining is true, then the inline.InlineDecls is called as
+// necessary on instantiations of imported generic functions, so their
+// inlining costs can be computed.
+func readBodies(target *ir.Package, duringInlining bool) {
+	var inlDecls []ir.Node
+
 	// Don't use range--bodyIdx can add closures to todoBodies.
 	for {
 		// The order we expand dictionaries and bodies doesn't matter, so
@@ -152,7 +158,15 @@ func readBodies(target *ir.Package) {
 			// Instantiated generic function: add to Decls for typechecking
 			// and compilation.
 			if fn.OClosure == nil && len(pri.dict.targs) != 0 {
-				target.Decls = append(target.Decls, fn)
+				// cmd/link does not support a type symbol referencing a method symbol
+				// across DSO boundary, so force re-compiling methods on a generic type
+				// even it was seen from imported package in linkshared mode, see #58966.
+				canSkipNonGenericMethod := !(base.Ctxt.Flag_linkshared && ir.IsMethod(fn))
+				if duringInlining && canSkipNonGenericMethod {
+					inlDecls = append(inlDecls, fn)
+				} else {
+					target.Decls = append(target.Decls, fn)
+				}
 			}
 
 			continue
@@ -163,13 +177,37 @@ func readBodies(target *ir.Package) {
 
 	todoDicts = nil
 	todoBodies = nil
+
+	if len(inlDecls) != 0 {
+		// If we instantiated any generic functions during inlining, we need
+		// to call CanInline on them so they'll be transitively inlined
+		// correctly (#56280).
+		//
+		// We know these functions were already compiled in an imported
+		// package though, so we don't need to actually apply InlineCalls or
+		// save the function bodies any further than this.
+		//
+		// We can also lower the -m flag to 0, to suppress duplicate "can
+		// inline" diagnostics reported against the imported package. Again,
+		// we already reported those diagnostics in the original package, so
+		// it's pointless repeating them here.
+
+		oldLowerM := base.Flag.LowerM
+		base.Flag.LowerM = 0
+		inline.InlineDecls(nil, inlDecls, false)
+		base.Flag.LowerM = oldLowerM
+
+		for _, fn := range inlDecls {
+			fn.(*ir.Func).Body = nil // free memory
+		}
+	}
 }
 
 // writePkgStub type checks the given parsed source files,
 // writes an export data package stub representing them,
 // and returns the result.
-func writePkgStub(noders []*noder) string {
-	m, pkg, info := checkFiles(noders)
+func writePkgStub(m posMap, noders []*noder) string {
+	pkg, info := checkFiles(m, noders)
 
 	pw := newPkgWriter(m, pkg, info)
 
@@ -221,7 +259,8 @@ func freePackage(pkg *types2.Package) {
 	// not because of #22350). To avoid imposing unnecessary
 	// restrictions on the GOROOT_BOOTSTRAP toolchain, we skip the test
 	// during bootstrapping.
-	if base.CompilerBootstrap {
+	if base.CompilerBootstrap || base.Debug.GCCheck == 0 {
+		*pkg = types2.Package{}
 		return
 	}
 

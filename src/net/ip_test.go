@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
+//go:build !js && !wasip1
 
 package net
 
@@ -113,6 +113,22 @@ func BenchmarkParseIP(b *testing.B) {
 		for _, tt := range parseIPTests {
 			ParseIP(tt.in)
 		}
+	}
+}
+
+func BenchmarkParseIPValidIPv4(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
+	for i := 0; i < b.N; i++ {
+		ParseIP("192.0.2.1")
+	}
+}
+
+func BenchmarkParseIPValidIPv6(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
+	for i := 0; i < b.N; i++ {
+		ParseIP("2001:DB8::1")
 	}
 }
 

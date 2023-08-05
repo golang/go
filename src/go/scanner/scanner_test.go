@@ -351,7 +351,7 @@ func checkSemi(t *testing.T, input, want string, mode Mode) {
 			break
 		}
 		if tok == token.SEMICOLON && lit != ";" {
-			// Artifical semicolon:
+			// Artificial semicolon:
 			// assert that position is EOF or that of a newline.
 			off := file.Offset(pos)
 			if off != len(input) && input[off] != '\n' {
@@ -666,7 +666,7 @@ func TestInit(t *testing.T) {
 	}
 }
 
-func TestStdErrorHander(t *testing.T) {
+func TestStdErrorHandler(t *testing.T) {
 	const src = "@\n" + // illegal character, cause an error
 		"@ @\n" + // two errors on the same line
 		"//line File2:20\n" +

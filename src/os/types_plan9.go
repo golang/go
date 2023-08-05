@@ -28,5 +28,3 @@ func sameFile(fs1, fs2 *fileStat) bool {
 	b := fs2.sys.(*syscall.Dir)
 	return a.Qid.Path == b.Qid.Path && a.Type == b.Type && a.Dev == b.Dev
 }
-
-const badFd = -1

@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -48,6 +49,17 @@ func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) 
 }
 func syscall6()
 
+//go:linkname syscall_syscall9 syscall.syscall9
+//go:nosplit
+//go:cgo_unsafe_args
+func syscall_syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
+	entersyscall()
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall9)), unsafe.Pointer(&fn))
+	exitsyscall()
+	return
+}
+func syscall9()
+
 //go:linkname syscall_syscall6X syscall.syscall6X
 //go:nosplit
 func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
@@ -86,7 +98,7 @@ func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintpt
 	return args.r1, args.r2, args.err
 }
 
-// syscallNoErr is used in crypto/x509 to call into Security.framework and CF.
+// crypto_x509_syscall is used in crypto/x509/internal/macos to call into Security.framework and CF.
 
 //go:linkname crypto_x509_syscall crypto/x509/internal/macos.syscall
 //go:nosplit
@@ -166,6 +178,47 @@ func pthread_kill(t pthread, sig uint32) {
 	return
 }
 func pthread_kill_trampoline()
+
+// osinit_hack is a clumsy hack to work around Apple libc bugs
+// causing fork+exec to hang in the child process intermittently.
+// See go.dev/issue/33565 and go.dev/issue/56784 for a few reports.
+//
+// The stacks obtained from the hung child processes are in
+// libSystem_atfork_child, which is supposed to reinitialize various
+// parts of the C library in the new process.
+//
+// One common stack dies in _notify_fork_child calling _notify_globals
+// (inlined) calling _os_alloc_once, because _os_alloc_once detects that
+// the once lock is held by the parent process and then calls
+// _os_once_gate_corruption_abort. The allocation is setting up the
+// globals for the notification subsystem. See the source code at [1].
+// To work around this, we can allocate the globals earlier in the Go
+// program's lifetime, before any execs are involved, by calling any
+// notify routine that is exported, calls _notify_globals, and doesn't do
+// anything too expensive otherwise. notify_is_valid_token(0) fits the bill.
+//
+// The other common stack dies in xpc_atfork_child calling
+// _objc_msgSend_uncached which ends up in
+// WAITING_FOR_ANOTHER_THREAD_TO_FINISH_CALLING_+initialize. Of course,
+// whatever thread the child is waiting for is in the parent process and
+// is not going to finish anything in the child process. There is no
+// public source code for these routines, so it is unclear exactly what
+// the problem is. An Apple engineer suggests using xpc_date_create_from_current,
+// which empirically does fix the problem.
+//
+// So osinit_hack_trampoline (in sys_darwin_$GOARCH.s) calls
+// notify_is_valid_token(0) and xpc_date_create_from_current(), which makes the
+// fork+exec hangs stop happening. If Apple fixes the libc bug in
+// some future version of macOS, then we can remove this awful code.
+//
+//go:nosplit
+func osinit_hack() {
+	if GOOS == "darwin" { // not ios
+		libcCall(unsafe.Pointer(abi.FuncPCABI0(osinit_hack_trampoline)), nil)
+	}
+	return
+}
+func osinit_hack_trampoline()
 
 // mmap is used to do low-level memory allocation via mmap. Don't allow stack
 // splits, since this function (used by sysAlloc) is called in a lot of low-level
@@ -381,8 +434,13 @@ func sysctlbyname_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func fcntl(fd, cmd, arg int32) int32 {
-	return libcCall(unsafe.Pointer(abi.FuncPCABI0(fcntl_trampoline)), unsafe.Pointer(&fd))
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
+	args := struct {
+		fd, cmd, arg int32
+		ret, errno   int32
+	}{fd, cmd, arg, 0, 0}
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(fcntl_trampoline)), unsafe.Pointer(&args))
+	return args.ret, args.errno
 }
 func fcntl_trampoline()
 
@@ -474,19 +532,74 @@ func pthread_cond_signal(c *pthreadcond) int32 {
 func pthread_cond_signal_trampoline()
 
 // Not used on Darwin, but must be defined.
-func exitThread(wait *uint32) {
-}
-
-//go:nosplit
-func closeonexec(fd int32) {
-	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+func exitThread(wait *atomic.Uint32) {
+	throw("exitThread")
 }
 
 //go:nosplit
 func setNonblock(fd int32) {
-	flags := fcntl(fd, _F_GETFL, 0)
-	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+	flags, _ := fcntl(fd, _F_GETFL, 0)
+	if flags != -1 {
+		fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+	}
 }
+
+func issetugid() int32 {
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(issetugid_trampoline)), nil)
+}
+func issetugid_trampoline()
+
+// mach_vm_region is used to obtain virtual memory mappings for use by the
+// profiling system and is only exported to runtime/pprof. It is restricted
+// to obtaining mappings for the current process.
+//
+//go:linkname mach_vm_region runtime/pprof.mach_vm_region
+func mach_vm_region(address, region_size *uint64, info unsafe.Pointer) int32 {
+	// kern_return_t mach_vm_region(
+	// 	vm_map_read_t target_task,
+	// 	mach_vm_address_t *address,
+	// 	mach_vm_size_t *size,
+	// 	vm_region_flavor_t flavor,
+	// 	vm_region_info_t info,
+	// 	mach_msg_type_number_t *infoCnt,
+	// 	mach_port_t *object_name);
+	var count machMsgTypeNumber = _VM_REGION_BASIC_INFO_COUNT_64
+	var object_name machPort
+	args := struct {
+		address     *uint64
+		size        *uint64
+		flavor      machVMRegionFlavour
+		info        unsafe.Pointer
+		count       *machMsgTypeNumber
+		object_name *machPort
+	}{
+		address:     address,
+		size:        region_size,
+		flavor:      _VM_REGION_BASIC_INFO_64,
+		info:        info,
+		count:       &count,
+		object_name: &object_name,
+	}
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(mach_vm_region_trampoline)), unsafe.Pointer(&args))
+}
+func mach_vm_region_trampoline()
+
+//go:linkname proc_regionfilename runtime/pprof.proc_regionfilename
+func proc_regionfilename(pid int, address uint64, buf *byte, buflen int64) int32 {
+	args := struct {
+		pid     int
+		address uint64
+		buf     *byte
+		bufSize int64
+	}{
+		pid:     pid,
+		address: address,
+		buf:     buf,
+		bufSize: buflen,
+	}
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(proc_regionfilename_trampoline)), unsafe.Pointer(&args))
+}
+func proc_regionfilename_trampoline()
 
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
@@ -513,6 +626,9 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_error __error "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_usleep usleep "/usr/lib/libSystem.B.dylib"
 
+//go:cgo_import_dynamic libc_proc_regionfilename proc_regionfilename "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_mach_task_self_ mach_task_self_ "/usr/lib/libSystem.B.dylib""
+//go:cgo_import_dynamic libc_mach_vm_region mach_vm_region "/usr/lib/libSystem.B.dylib""
 //go:cgo_import_dynamic libc_mach_timebase_info mach_timebase_info "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_mach_absolute_time mach_absolute_time "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_clock_gettime clock_gettime "/usr/lib/libSystem.B.dylib"
@@ -535,3 +651,8 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_pthread_cond_wait pthread_cond_wait "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
+
+//go:cgo_import_dynamic libc_notify_is_valid_token notify_is_valid_token "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_xpc_date_create_from_current xpc_date_create_from_current "/usr/lib/libSystem.B.dylib"
+
+//go:cgo_import_dynamic libc_issetugid issetugid "/usr/lib/libSystem.B.dylib"

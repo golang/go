@@ -28,8 +28,8 @@ stdout 'example.com/v v1.12.0 => ./v12'
 # TODO(#26909): Ideally these errors should include line numbers for the imports within the main module.
 cd fail
 ! go mod tidy
-stderr '^localhost.fail imports\n\tw: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
-stderr '^localhost.fail imports\n\tnonexist: nonexist@v0.1.0: replacement directory ../nonexist does not exist$'
+stderr '^go: localhost.fail imports\n\tw: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
+stderr '^go: localhost.fail imports\n\tnonexist: nonexist@v0.1.0: replacement directory ../nonexist does not exist$'
 
 -- go.mod --
 module example.com/m

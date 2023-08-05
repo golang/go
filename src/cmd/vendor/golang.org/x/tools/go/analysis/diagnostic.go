@@ -20,6 +20,17 @@ type Diagnostic struct {
 	Category string    // optional
 	Message  string
 
+	// URL is the optional location of a web page that provides
+	// additional documentation for this diagnostic.
+	//
+	// If URL is empty but a Category is specified, then the
+	// Analysis driver should treat the URL as "#"+Category.
+	//
+	// The URL may be relative. If so, the base URL is that of the
+	// Analyzer that produced the diagnostic;
+	// see https://pkg.go.dev/net/url#URL.ResolveReference.
+	URL string
+
 	// SuggestedFixes contains suggested fixes for a diagnostic which can be used to perform
 	// edits to a file that address the diagnostic.
 	// TODO(matloob): Should multiple SuggestedFixes be allowed for a diagnostic?
@@ -37,7 +48,7 @@ type Diagnostic struct {
 // declaration.
 type RelatedInformation struct {
 	Pos     token.Pos
-	End     token.Pos
+	End     token.Pos // optional
 	Message string
 }
 

@@ -195,7 +195,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Setprivexec(flag int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
+//sysnb	setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
@@ -227,7 +227,7 @@ func init() {
 
 func fdopendir(fd int) (dir uintptr, err error) {
 	r0, _, e1 := syscallPtr(abi.FuncPCABI0(libc_fdopendir_trampoline), uintptr(fd), 0, 0)
-	dir = uintptr(r0)
+	dir = r0
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}

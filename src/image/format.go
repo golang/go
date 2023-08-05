@@ -55,7 +55,7 @@ func asReader(r io.Reader) reader {
 	return bufio.NewReader(r)
 }
 
-// Match reports whether magic matches b. Magic may contain "?" wildcards.
+// match reports whether magic matches b. Magic may contain "?" wildcards.
 func match(magic string, b []byte) bool {
 	if len(magic) != len(b) {
 		return false
@@ -68,7 +68,7 @@ func match(magic string, b []byte) bool {
 	return true
 }
 
-// Sniff determines the format of r's data.
+// sniff determines the format of r's data.
 func sniff(r reader) format {
 	formats, _ := atomicFormats.Load().([]format)
 	for _, f := range formats {

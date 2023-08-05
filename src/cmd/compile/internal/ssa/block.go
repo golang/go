@@ -341,7 +341,7 @@ func (b *Block) swapSuccessors() {
 //	if v.Op != OpPhi {
 //	    continue
 //	}
-//	b.removeArg(v, i)
+//	b.removePhiArg(v, i)
 //
 // }
 func (b *Block) removePhiArg(phi *Value, i int) {
@@ -353,6 +353,7 @@ func (b *Block) removePhiArg(phi *Value, i int) {
 	phi.Args[i] = phi.Args[n]
 	phi.Args[n] = nil
 	phi.Args = phi.Args[:n]
+	phielimValue(phi)
 }
 
 // LackingPos indicates whether b is a block whose position should be inherited

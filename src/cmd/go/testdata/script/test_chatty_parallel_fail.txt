@@ -1,17 +1,21 @@
-# Run parallel chatty tests. Assert on CONT lines. This test makes sure that
-# multiple parallel outputs have the appropriate CONT lines between them.
+# Run parallel chatty tests.
+# Check that multiple parallel outputs continue running.
 ! go test -parallel 3 chatty_parallel_test.go -v
 
-stdout -count=1 '^=== CONT  TestChattyParallel/sub-0\n    chatty_parallel_test.go:38: error from sub-0$'
-stdout -count=1 '^=== CONT  TestChattyParallel/sub-1\n    chatty_parallel_test.go:38: error from sub-1$'
-stdout -count=1 '^=== CONT  TestChattyParallel/sub-2\n    chatty_parallel_test.go:38: error from sub-2$'
+stdout -count=1 '^=== CONT  TestChattyParallel/sub-0'
+stdout -count=1 '^=== CONT  TestChattyParallel/sub-1'
+stdout -count=1 '^=== CONT  TestChattyParallel/sub-2'
 
-# Run parallel chatty tests with -json. Assert on CONT lines as above - make
-# sure there are CONT lines before each output line.
+stdout -count=1 '^=== (CONT|NAME)  TestChattyParallel/sub-0\n    chatty_parallel_test.go:38: error from sub-0$'
+stdout -count=1 '^=== (CONT|NAME)  TestChattyParallel/sub-1\n    chatty_parallel_test.go:38: error from sub-1$'
+stdout -count=1 '^=== (CONT|NAME)  TestChattyParallel/sub-2\n    chatty_parallel_test.go:38: error from sub-2$'
+
+# Run parallel chatty tests with -json.
+# Check that each output is attributed to the right test.
 ! go test -json -parallel 3 chatty_parallel_test.go -v
-stdout -count=1 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"=== CONT  TestChattyParallel/sub-0\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"    chatty_parallel_test.go:38: error from sub-0\\n"}'
-stdout -count=1 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"=== CONT  TestChattyParallel/sub-1\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"    chatty_parallel_test.go:38: error from sub-1\\n"}'
-stdout -count=1 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"=== CONT  TestChattyParallel/sub-2\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:38: error from sub-2\\n"}'
+stdout -count=1 '"Test":"TestChattyParallel/sub-0","Output":"    chatty_parallel_test.go:38: error from sub-0\\n"'
+stdout -count=1 '"Test":"TestChattyParallel/sub-1","Output":"    chatty_parallel_test.go:38: error from sub-1\\n"'
+stdout -count=1 '"Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:38: error from sub-2\\n"'
 
 -- chatty_parallel_test.go --
 package chatty_parallel_test

@@ -10,7 +10,6 @@ import (
 	"internal/testenv"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -29,7 +28,7 @@ var platformEnvs = [][]string{
 const invalidPCAlignSrc = `
 TEXT test(SB),0,$0-0
 ADD $2, R3
-PCALIGN $64
+PCALIGN $128
 RET
 `
 
@@ -192,7 +191,7 @@ func TestPfxAlign(t *testing.T) {
 		if err != nil {
 			t.Fatalf("can't write output: %v\n", err)
 		}
-		cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
 		cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=ppc64le")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
@@ -288,7 +287,7 @@ func TestLarge(t *testing.T) {
 
 		// Test on all supported ppc64 platforms
 		for _, platenv := range platformEnvs {
-			cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
 			cmd.Env = append(os.Environ(), platenv...)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
@@ -351,7 +350,7 @@ func TestPCalign(t *testing.T) {
 	}
 
 	// build generated file without errors and assemble it
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), "-S", tmpfile)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), "-S", tmpfile)
 	cmd.Env = append(os.Environ(), "GOARCH=ppc64le", "GOOS=linux")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -391,7 +390,7 @@ func TestPCalign(t *testing.T) {
 	}
 
 	// build test with errors and check for messages
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "xi.o"), "-S", tmpfile)
+	cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "xi.o"), "-S", tmpfile)
 	cmd.Env = append(os.Environ(), "GOARCH=ppc64le", "GOOS=linux")
 	out, err = cmd.CombinedOutput()
 	if !strings.Contains(string(out), "Unexpected alignment") {
@@ -547,7 +546,7 @@ func TestAddrClassifier(t *testing.T) {
 		case int:
 			expect = []int{tst.output.(int), tst.output.(int), tst.output.(int), tst.output.(int)}
 		}
-		for i, _ := range ctxts {
+		for i := range ctxts {
 			if output := ctxts[i].aclass(&tst.arg); output != expect[i] {
 				t.Errorf("%s.aclass(%v) = %v, expected %v\n", name[i], tst.arg, DRconv(output), DRconv(expect[i]))
 			}

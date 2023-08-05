@@ -20,8 +20,8 @@ func IsStandardPackage(goroot, compiler, path string) bool {
 	switch compiler {
 	case "gc":
 		dir := filepath.Join(goroot, "src", path)
-		_, err := os.Stat(dir)
-		return err == nil
+		info, err := os.Stat(dir)
+		return err == nil && info.IsDir()
 	case "gccgo":
 		return gccgoSearch.isStandard(path)
 	default:
@@ -69,8 +69,8 @@ func (gd *gccgoDirs) init() {
 	const prefix = "libraries: ="
 	var dirs []string
 	for _, dirEntry := range dirsEntries {
-		if after, found := strings.CutPrefix(dirEntry, prefix); found {
-			dirs = filepath.SplitList(after)
+		if strings.HasPrefix(dirEntry, prefix) {
+			dirs = filepath.SplitList(strings.TrimPrefix(dirEntry, prefix))
 			break
 		}
 	}

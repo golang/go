@@ -3,13 +3,13 @@
 // license that can be found in the LICENSE file.
 
 //go:build dragonfly || freebsd || linux || netbsd || openbsd
-// +build dragonfly freebsd linux netbsd openbsd
 
 package main
 
 import (
 	"debug/elf"
 	"fmt"
+	"internal/platform"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -19,13 +19,11 @@ import (
 	"sync"
 	"testing"
 	"text/template"
-
-	"cmd/internal/sys"
 )
 
 func getCCAndCCFLAGS(t *testing.T, env []string) (string, []string) {
 	goTool := testenv.GoToolPath(t)
-	cmd := exec.Command(goTool, "env", "CC")
+	cmd := testenv.Command(t, goTool, "env", "CC")
 	cmd.Env = env
 	ccb, err := cmd.Output()
 	if err != nil {
@@ -33,7 +31,7 @@ func getCCAndCCFLAGS(t *testing.T, env []string) (string, []string) {
 	}
 	cc := strings.TrimSpace(string(ccb))
 
-	cmd = exec.Command(goTool, "env", "GOGCCFLAGS")
+	cmd = testenv.Command(t, goTool, "env", "GOGCCFLAGS")
 	cmd.Env = env
 	cflagsb, err := cmd.Output()
 	if err != nil {
@@ -89,14 +87,14 @@ func TestSectionsWithSameName(t *testing.T) {
 
 	asmObj := filepath.Join(dir, "x.o")
 	t.Logf("%s %v -c -o %s %s", cc, cflags, asmObj, asmFile)
-	if out, err := exec.Command(cc, append(cflags, "-c", "-o", asmObj, asmFile)...).CombinedOutput(); err != nil {
+	if out, err := testenv.Command(t, cc, append(cflags, "-c", "-o", asmObj, asmFile)...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
 	}
 
 	asm2Obj := filepath.Join(dir, "x2.syso")
 	t.Logf("%s --rename-section .text2=.text1 %s %s", objcopy, asmObj, asm2Obj)
-	if out, err := exec.Command(objcopy, "--rename-section", ".text2=.text1", asmObj, asm2Obj).CombinedOutput(); err != nil {
+	if out, err := testenv.Command(t, objcopy, "--rename-section", ".text2=.text1", asmObj, asm2Obj).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
 	}
@@ -112,7 +110,7 @@ func TestSectionsWithSameName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(goTool, "build")
+	cmd := testenv.Command(t, goTool, "build")
 	cmd.Dir = dir
 	cmd.Env = env
 	t.Logf("%s build", goTool)
@@ -164,7 +162,7 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 		obj := filepath.Join(dir, fmt.Sprintf("x%d.o", i))
 		objs = append(objs, obj)
 		t.Logf("%s %v -c -o %s %s", cc, cflags, obj, csrcFile)
-		if out, err := exec.Command(cc, append(cflags, "-c", "-o", obj, csrcFile)...).CombinedOutput(); err != nil {
+		if out, err := testenv.Command(t, cc, append(cflags, "-c", "-o", obj, csrcFile)...).CombinedOutput(); err != nil {
 			t.Logf("%s", out)
 			t.Fatal(err)
 		}
@@ -172,7 +170,7 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 
 	sysoObj := filepath.Join(dir, "ldr.syso")
 	t.Logf("%s %v -nostdlib -r -o %s %v", cc, cflags, sysoObj, objs)
-	if out, err := exec.Command(cc, append(cflags, "-nostdlib", "-r", "-o", sysoObj, objs[0], objs[1])...).CombinedOutput(); err != nil {
+	if out, err := testenv.Command(t, cc, append(cflags, "-nostdlib", "-r", "-o", sysoObj, objs[0], objs[1])...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
 	}
@@ -192,7 +190,7 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	}
 
 	t.Logf("%s build", goTool)
-	cmd := exec.Command(goTool, "build")
+	cmd := testenv.Command(t, goTool, "build")
 	cmd.Dir = dir
 	cmd.Env = env
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -206,8 +204,8 @@ func TestMergeNoteSections(t *testing.T) {
 	expected := 1
 
 	switch runtime.GOOS {
-	case "linux", "freebsd", "dragonfly":
-	case "openbsd", "netbsd":
+	case "linux", "dragonfly":
+	case "openbsd", "netbsd", "freebsd":
 		// These OSes require independent segment
 		expected = 2
 	default:
@@ -223,7 +221,7 @@ func TestMergeNoteSections(t *testing.T) {
 	goTool := testenv.GoToolPath(t)
 	// sha1sum of "gopher"
 	id := "0xf4e8cd51ce8bae2996dc3b74639cdeaa1f7fee5f"
-	cmd := exec.Command(goTool, "build", "-o", outFile, "-ldflags",
+	cmd := testenv.Command(t, goTool, "build", "-o", outFile, "-ldflags",
 		"-B "+id, goFile)
 	cmd.Dir = t.TempDir()
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -280,7 +278,7 @@ func TestPIESize(t *testing.T) {
 	// always skip the test if cgo is not supported.
 	testenv.MustHaveCGO(t)
 
-	if !sys.BuildModeSupported(runtime.Compiler, "pie", runtime.GOOS, runtime.GOARCH) {
+	if !platform.BuildModeSupported(runtime.Compiler, "pie", runtime.GOOS, runtime.GOARCH) {
 		t.Skip("-buildmode=pie not supported")
 	}
 
@@ -330,7 +328,7 @@ func TestPIESize(t *testing.T) {
 			}
 
 			build := func(bin, mode string) error {
-				cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", bin, "-buildmode="+mode)
+				cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", bin, "-buildmode="+mode)
 				if external {
 					cmd.Args = append(cmd.Args, "-ldflags=-linkmode=external")
 				}
@@ -342,7 +340,7 @@ func TestPIESize(t *testing.T) {
 					t.Logf("%s", out)
 				}
 				if err != nil {
-					t.Error(err)
+					t.Log(err)
 				}
 				return err
 			}
@@ -360,6 +358,9 @@ func TestPIESize(t *testing.T) {
 			}()
 			wg.Wait()
 			if errexe != nil || errpie != nil {
+				if runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
+					testenv.SkipFlaky(t, 58806)
+				}
 				t.Fatal("link failed")
 			}
 
@@ -480,7 +481,7 @@ func TestIssue51939(t *testing.T) {
 	}
 	outFile := filepath.Join(td, "issue51939.exe")
 	goTool := testenv.GoToolPath(t)
-	cmd := exec.Command(goTool, "build", "-o", outFile, goFile)
+	cmd := testenv.Command(t, goTool, "build", "-o", outFile, goFile)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)

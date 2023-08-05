@@ -8,6 +8,6 @@
 
 package main
 
-var z struct { // GC_ERROR "initialization cycle for z"
+var z struct { // GC_ERROR "initialization cycle: z refers to itself"
 	e [cap(z.e)]int // GCCGO_ERROR "array bound|typechecking loop|invalid array"
 }

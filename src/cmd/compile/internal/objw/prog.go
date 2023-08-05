@@ -34,8 +34,8 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"internal/abi"
 )
 
 var sharedProgArray = new([10000]obj.Prog) // *T instead of T to work around issue 19839
@@ -144,18 +144,18 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
 		idx := pp.NextLive.StackMapIndex
 		pp.PrevLive.StackMapIndex = idx
 		p := pp.Prog(obj.APCDATA)
-		p.From.SetConst(objabi.PCDATA_StackMapIndex)
+		p.From.SetConst(abi.PCDATA_StackMapIndex)
 		p.To.SetConst(int64(idx))
 	}
 	if pp.NextLive.IsUnsafePoint != pp.PrevLive.IsUnsafePoint {
 		// Emit unsafe-point marker.
 		pp.PrevLive.IsUnsafePoint = pp.NextLive.IsUnsafePoint
 		p := pp.Prog(obj.APCDATA)
-		p.From.SetConst(objabi.PCDATA_UnsafePoint)
+		p.From.SetConst(abi.PCDATA_UnsafePoint)
 		if pp.NextLive.IsUnsafePoint {
-			p.To.SetConst(objabi.PCDATA_UnsafePointUnsafe)
+			p.To.SetConst(abi.UnsafePointUnsafe)
 		} else {
-			p.To.SetConst(objabi.PCDATA_UnsafePointSafe)
+			p.To.SetConst(abi.UnsafePointSafe)
 		}
 	}
 

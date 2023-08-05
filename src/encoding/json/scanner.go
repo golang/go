@@ -594,7 +594,7 @@ func (s *scanner) error(c byte, context string) int {
 	return scanError
 }
 
-// quoteChar formats c as a quoted character literal
+// quoteChar formats c as a quoted character literal.
 func quoteChar(c byte) string {
 	// special cases - different from quoted strings
 	if c == '\'' {

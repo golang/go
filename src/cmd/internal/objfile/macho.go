@@ -128,6 +128,9 @@ func (x uint64s) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x uint64s) Less(i, j int) bool { return x[i] < x[j] }
 
 func (f *machoFile) loadAddress() (uint64, error) {
+	if seg := f.macho.Segment("__TEXT"); seg != nil {
+		return seg.Addr, nil
+	}
 	return 0, fmt.Errorf("unknown load address")
 }
 

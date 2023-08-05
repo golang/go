@@ -370,12 +370,40 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 		errorf("bad %s slice length: %d", value.Type(), n)
 	}
 	if value.Cap() < n {
-		value.Set(reflect.MakeSlice(value.Type(), n, n))
+		safe := saferio.SliceCap((*byte)(nil), uint64(n))
+		if safe < 0 {
+			errorf("%s slice too big: %d elements", value.Type(), n)
+		}
+		value.Set(reflect.MakeSlice(value.Type(), safe, safe))
+		ln := safe
+		i := 0
+		for i < n {
+			if i >= ln {
+				// We didn't allocate the entire slice,
+				// due to using saferio.SliceCap.
+				// Grow the slice for one more element.
+				// The slice is full, so this should
+				// bump up the capacity.
+				value.Grow(1)
+			}
+			// Copy into s up to the capacity or n,
+			// whichever is less.
+			ln = value.Cap()
+			if ln > n {
+				ln = n
+			}
+			value.SetLen(ln)
+			sub := value.Slice(i, ln)
+			if _, err := state.b.Read(sub.Bytes()); err != nil {
+				errorf("error decoding []byte at %d: %s", err, i)
+			}
+			i = ln
+		}
 	} else {
 		value.SetLen(n)
-	}
-	if _, err := state.b.Read(value.Bytes()); err != nil {
-		errorf("error decoding []byte: %s", err)
+		if _, err := state.b.Read(value.Bytes()); err != nil {
+			errorf("error decoding []byte: %s", err)
+		}
 	}
 }
 
@@ -450,11 +478,10 @@ func (dec *Decoder) decodeStruct(engine *decEngine, value reflect.Value) {
 		if delta == 0 { // struct terminator is zero delta fieldnum
 			break
 		}
-		fieldnum := state.fieldnum + delta
-		if fieldnum >= len(engine.instr) {
+		if state.fieldnum >= len(engine.instr)-delta { // subtract to compare without overflow
 			error_(errRange)
-			break
 		}
+		fieldnum := state.fieldnum + delta
 		instr := &engine.instr[fieldnum]
 		var field reflect.Value
 		if instr.index != nil {
@@ -522,8 +549,8 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, 
 		}
 		if i >= ln {
 			// This is a slice that we only partially allocated.
-			// Grow it using append, up to length.
-			value = reflect.Append(value, reflect.Zero(value.Type().Elem()))
+			// Grow it up to length.
+			value.Grow(1)
 			cp := value.Cap()
 			if cp > length {
 				cp = length
@@ -574,15 +601,13 @@ func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, value refl
 	keyInstr := &decInstr{keyOp, 0, nil, ovfl}
 	elemInstr := &decInstr{elemOp, 0, nil, ovfl}
 	keyP := reflect.New(mtyp.Key())
-	keyZ := reflect.Zero(mtyp.Key())
 	elemP := reflect.New(mtyp.Elem())
-	elemZ := reflect.Zero(mtyp.Elem())
 	for i := 0; i < n; i++ {
 		key := decodeIntoValue(state, keyOp, keyIsPtr, keyP.Elem(), keyInstr)
 		elem := decodeIntoValue(state, elemOp, elemIsPtr, elemP.Elem(), elemInstr)
 		value.SetMapIndex(key, elem)
-		keyP.Elem().Set(keyZ)
-		elemP.Elem().Set(elemZ)
+		keyP.Elem().SetZero()
+		elemP.Elem().SetZero()
 	}
 }
 
@@ -631,7 +656,7 @@ func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp
 		errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
 	}
 	if value.Cap() < n {
-		safe := saferio.SliceCap(reflect.Zero(reflect.PtrTo(typ.Elem())).Interface(), uint64(n))
+		safe := saferio.SliceCap(reflect.Zero(reflect.PointerTo(typ.Elem())).Interface(), uint64(n))
 		if safe < 0 {
 			errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
 		}
@@ -665,7 +690,7 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, valu
 	// Allocate the destination interface value.
 	if len(name) == 0 {
 		// Copy the nil interface value to the target.
-		value.Set(reflect.Zero(value.Type()))
+		value.SetZero()
 		return
 	}
 	if len(name) > 1024 {
@@ -848,7 +873,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 				break
 			}
 			var elemId typeId
-			if tt, ok := builtinIdToType[wireId]; ok {
+			if tt := builtinIdToType(wireId); tt != nil {
 				elemId = tt.(*sliceType).Elem
 			} else {
 				elemId = dec.wireType[wireId].SliceT.Elem
@@ -1041,7 +1066,7 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId, inProgress map[re
 		}
 		// Extract and compare element types.
 		var sw *sliceType
-		if tt, ok := builtinIdToType[fw]; ok {
+		if tt := builtinIdToType(fw); tt != nil {
 			sw, _ = tt.(*sliceType)
 		} else if wire != nil {
 			sw = wire.SliceT
@@ -1109,7 +1134,7 @@ func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEn
 	var wireStruct *structType
 	// Builtin types can come from global pool; the rest must be defined by the decoder.
 	// Also we know we're decoding a struct now, so the client must have sent one.
-	if t, ok := builtinIdToType[remoteId]; ok {
+	if t := builtinIdToType(remoteId); t != nil {
 		wireStruct, _ = t.(*structType)
 	} else {
 		wire := dec.wireType[remoteId]
@@ -1172,7 +1197,7 @@ func (dec *Decoder) getDecEnginePtr(remoteId typeId, ut *userTypeInfo) (enginePt
 // emptyStruct is the type we compile into when ignoring a struct value.
 type emptyStruct struct{}
 
-var emptyStructType = reflect.TypeOf(emptyStruct{})
+var emptyStructType = reflect.TypeFor[emptyStruct]()
 
 // getIgnoreEnginePtr returns the engine for the specified type when the value is to be discarded.
 func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err error) {

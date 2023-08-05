@@ -23,24 +23,25 @@ func si64(x, y chan int64) {
 }
 
 // Signed 64-bit compare-and-branch with 8-bit immediate.
-func si64x8() {
+func si64x8(doNotOptimize int64) {
+	// take in doNotOptimize as an argument to avoid the loops being rewritten to count down
 	// s390x:"CGIJ\t[$]12, R[0-9]+, [$]127, "
-	for i := int64(0); i < 128; i++ {
+	for i := doNotOptimize; i < 128; i++ {
 		dummy()
 	}
 
 	// s390x:"CGIJ\t[$]10, R[0-9]+, [$]-128, "
-	for i := int64(0); i > -129; i-- {
+	for i := doNotOptimize; i > -129; i-- {
 		dummy()
 	}
 
 	// s390x:"CGIJ\t[$]2, R[0-9]+, [$]127, "
-	for i := int64(0); i >= 128; i++ {
+	for i := doNotOptimize; i >= 128; i++ {
 		dummy()
 	}
 
 	// s390x:"CGIJ\t[$]4, R[0-9]+, [$]-128, "
-	for i := int64(0); i <= -129; i-- {
+	for i := doNotOptimize; i <= -129; i-- {
 		dummy()
 	}
 }
@@ -95,24 +96,25 @@ func si32(x, y chan int32) {
 }
 
 // Signed 32-bit compare-and-branch with 8-bit immediate.
-func si32x8() {
+func si32x8(doNotOptimize int32) {
+	// take in doNotOptimize as an argument to avoid the loops being rewritten to count down
 	// s390x:"CIJ\t[$]12, R[0-9]+, [$]127, "
-	for i := int32(0); i < 128; i++ {
+	for i := doNotOptimize; i < 128; i++ {
 		dummy()
 	}
 
 	// s390x:"CIJ\t[$]10, R[0-9]+, [$]-128, "
-	for i := int32(0); i > -129; i-- {
+	for i := doNotOptimize; i > -129; i-- {
 		dummy()
 	}
 
 	// s390x:"CIJ\t[$]2, R[0-9]+, [$]127, "
-	for i := int32(0); i >= 128; i++ {
+	for i := doNotOptimize; i >= 128; i++ {
 		dummy()
 	}
 
 	// s390x:"CIJ\t[$]4, R[0-9]+, [$]-128, "
-	for i := int32(0); i <= -129; i-- {
+	for i := doNotOptimize; i <= -129; i-- {
 		dummy()
 	}
 }
@@ -201,6 +203,42 @@ func ui32xu8(x chan uint32) {
 
 	// s390x:"CIJ\t[$]6, R[0-9]+, [$]-1, "
 	for <-x != ^uint32(0) {
+		dummy()
+	}
+}
+
+// Signed 64-bit comparison with 1/-1 to comparison with 0.
+func si64x0(x chan int64) {
+	// riscv64:"BGTZ"
+	for <-x >= 1 {
+		dummy()
+	}
+
+	// riscv64:"BLEZ"
+	for <-x < 1 {
+		dummy()
+	}
+
+	// riscv64:"BLTZ"
+	for <-x <= -1 {
+		dummy()
+	}
+
+	// riscv64:"BGEZ"
+	for <-x > -1 {
+		dummy()
+	}
+}
+
+// Unsigned 64-bit comparison with 1 to comparison with 0.
+func ui64x0(x chan uint64) {
+	// riscv64:"BNEZ"
+	for <-x >= 1 {
+		dummy()
+	}
+
+	// riscv64:"BEQZ"
+	for <-x < 1 {
 		dummy()
 	}
 }

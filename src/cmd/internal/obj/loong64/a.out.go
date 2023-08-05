@@ -225,7 +225,8 @@ const (
 	C_LOREG
 	C_GOK
 	C_ADDR
-	C_TLS
+	C_TLS_LE
+	C_TLS_IE
 	C_TEXTSIZE
 
 	C_NCLASS // must be the last
@@ -265,6 +266,7 @@ const (
 	ALU12IW
 	ALU32ID
 	ALU52ID
+	APCALAU12I
 	APCADDU12I
 	AJIRL
 	ABGE
@@ -390,6 +392,11 @@ const (
 	AMOVDV
 	AMOVVF
 	AMOVVD
+
+	// 2.2.10. Other Miscellaneous Instructions
+	ARDTIMELW
+	ARDTIMEHW
+	ARDTIMED
 
 	ALAST
 
