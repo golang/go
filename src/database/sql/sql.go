@@ -399,31 +399,29 @@ func (n NullTime) Value() (driver.Value, error) {
 //	err := db.QueryRow("SELECT name FROM foo WHERE id=?", id).Scan(&s)
 //	...
 //	if s.Valid {
-//	   // use s.X
+//	   // use s.V
 //	} else {
 //	   // NULL value
 //	}
 type Null[T any] struct {
-	X     T
+	V     T
 	Valid bool
 }
 
 func (n *Null[T]) Scan(value any) error {
-	n.Valid = false
 	if value == nil {
-		n.X = *new(T)
+		n.V, n.Valid = *new(T), false
 		return nil
 	}
-	err := convertAssign(&n.X, value)
-	n.Valid = err == nil
-	return err
+	n.Valid = true
+	return convertAssign(&n.V, value)
 }
 
 func (n Null[T]) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
 	}
-	return n.X, nil
+	return n.V, nil
 }
 
 // Scanner is an interface used by Scan.
