@@ -443,6 +443,7 @@ const (
 	TIOCSWINSZ                       = 0x5414
 	TIOCVHANGUP                      = 0x5437
 	TOSTOP                           = 0x100
+	TPIDR2_MAGIC                     = 0x54504902
 	TUNATTACHFILTER                  = 0x401054d5
 	TUNDETACHFILTER                  = 0x401054d6
 	TUNGETDEVNETNS                   = 0x54e3
@@ -515,6 +516,7 @@ const (
 	XCASE                            = 0x4
 	XTABS                            = 0x1800
 	ZA_MAGIC                         = 0x54366345
+	ZT_MAGIC                         = 0x5a544e01
 	_HIDIOCGRAWNAME                  = 0x80804804
 	_HIDIOCGRAWPHYS                  = 0x80404805
 	_HIDIOCGRAWUNIQ                  = 0x80404808

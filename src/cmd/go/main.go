@@ -175,7 +175,11 @@ func main() {
 		if used > 0 {
 			helpArg += " " + strings.Join(args[:used], " ")
 		}
-		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cfg.CmdName, helpArg)
+		cmdName := cfg.CmdName
+		if cmdName == "" {
+			cmdName = args[0]
+		}
+		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cmdName, helpArg)
 		base.SetExitStatus(2)
 		base.Exit()
 	}
@@ -300,10 +304,10 @@ func maybeStartTrace(pctx context.Context) context.Context {
 //
 // We have to handle the -C flag this way for two reasons:
 //
-//   1. Toolchain selection needs to be in the right directory to look for go.mod and go.work.
+//  1. Toolchain selection needs to be in the right directory to look for go.mod and go.work.
 //
-//   2. A toolchain switch later on reinvokes the new go command with the same arguments.
-//      The parent toolchain has already done the chdir; the child must not try to do it again.
+//  2. A toolchain switch later on reinvokes the new go command with the same arguments.
+//     The parent toolchain has already done the chdir; the child must not try to do it again.
 func handleChdirFlag() {
 	_, used := lookupCmd(os.Args[1:])
 	used++ // because of [1:]

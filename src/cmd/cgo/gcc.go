@@ -3325,7 +3325,7 @@ func (c *typeConv) badVoidPointerTypedef(dt *dwarf.TypedefType) bool {
 	return false
 }
 
-// badStructPointerTypedef is like badVoidPointerTypedefs but for structs.
+// badStructPointerTypedef is like badVoidPointerTypedef but for structs.
 func (c *typeConv) badStructPointerTypedef(name string, dt *dwarf.StructType) bool {
 	// Windows handle types can all potentially contain non-pointers.
 	// badVoidPointerTypedef handles the "void *" HANDLE type, but other

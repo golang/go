@@ -333,7 +333,11 @@ const MB_ERR_INVALID_CHARS = 8
 //sys	MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) = kernel32.MultiByteToWideChar
 //sys	GetCurrentThread() (pseudoHandle syscall.Handle, err error) = kernel32.GetCurrentThread
 
-const STYPE_DISKTREE = 0x00
+// Constants from lmshare.h
+const (
+	STYPE_DISKTREE  = 0x00
+	STYPE_TEMPORARY = 0x40000000
+)
 
 type SHARE_INFO_2 struct {
 	Netname     *uint16

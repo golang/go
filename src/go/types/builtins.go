@@ -575,6 +575,16 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// If nargs == 1, make sure x.mode is either a value or a constant.
 		if x.mode != constant_ {
 			x.mode = value
+			// A value must not be untyped.
+			check.assignment(x, &emptyInterface, "argument to "+bin.name)
+			if x.mode == invalid {
+				return
+			}
+		}
+
+		// Use the final type computed above for all arguments.
+		for _, a := range args {
+			check.updateExprType(a.expr, x.typ, true)
 		}
 
 		if check.recordTypes() && x.mode != constant_ {
@@ -1024,13 +1034,4 @@ func arrayPtrDeref(typ Type) Type {
 	return typ
 }
 
-// unparen returns e with any enclosing parentheses stripped.
-func unparen(e ast.Expr) ast.Expr {
-	for {
-		p, ok := e.(*ast.ParenExpr)
-		if !ok {
-			return e
-		}
-		e = p.X
-	}
-}
+func unparen(e ast.Expr) ast.Expr { return ast.Unparen(e) }

@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package slices
+package slices_test
 
 import (
 	"cmp"
 	"internal/race"
 	"internal/testenv"
 	"math"
+	. "slices"
 	"strings"
 	"testing"
 )
@@ -856,7 +857,7 @@ func TestReverse(t *testing.T) {
 		t.Errorf("Reverse(singeleton) = %v, want %v", singleton, want)
 	}
 
-	Reverse[string](nil)
+	Reverse[[]string](nil)
 }
 
 // naiveReplace is a baseline implementation to the Replace function.
@@ -999,25 +1000,6 @@ func BenchmarkReplace(b *testing.B) {
 
 }
 
-func TestRotate(t *testing.T) {
-	const N = 10
-	s := make([]int, 0, N)
-	for n := 0; n < N; n++ {
-		for r := 0; r < n; r++ {
-			s = s[:0]
-			for i := 0; i < n; i++ {
-				s = append(s, i)
-			}
-			rotateLeft(s, r)
-			for i := 0; i < n; i++ {
-				if s[i] != (i+r)%n {
-					t.Errorf("expected n=%d r=%d i:%d want:%d got:%d", n, r, i, (i+r)%n, s[i])
-				}
-			}
-		}
-	}
-}
-
 func TestInsertGrowthRate(t *testing.T) {
 	b := make([]byte, 1)
 	maxCap := cap(b)
@@ -1051,5 +1033,25 @@ func TestReplaceGrowthRate(t *testing.T) {
 	want := int(math.Log(N) / math.Log(1.25)) // 1.25 == growth rate for large slices
 	if nGrow > want {
 		t.Errorf("too many grows. got:%d want:%d", nGrow, want)
+	}
+}
+
+func apply[T any](v T, f func(T)) {
+	f(v)
+}
+
+// Test type inference with a named slice type.
+func TestInference(t *testing.T) {
+	s1 := []int{1, 2, 3}
+	apply(s1, Reverse)
+	if want := []int{3, 2, 1}; !Equal(s1, want) {
+		t.Errorf("Reverse(%v) = %v, want %v", []int{1, 2, 3}, s1, want)
+	}
+
+	type S []int
+	s2 := S{4, 5, 6}
+	apply(s2, Reverse)
+	if want := (S{6, 5, 4}); !Equal(s2, want) {
+		t.Errorf("Reverse(%v) = %v, want %v", S{4, 5, 6}, s2, want)
 	}
 }

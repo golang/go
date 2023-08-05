@@ -77,8 +77,15 @@ var depsRules = `
 	< internal/oserror, math/bits
 	< RUNTIME;
 
-	RUNTIME
-	< sort
+	# slices depends on unsafe for overlapping check, cmp for comparison
+	# semantics, and math/bits for # calculating bitlength of numbers.
+	unsafe, cmp, math/bits
+	< slices;
+
+	RUNTIME, slices
+	< sort;
+
+	sort
 	< container/heap;
 
 	RUNTIME
@@ -223,11 +230,6 @@ var depsRules = `
 	< hash
 	< hash/adler32, hash/crc32, hash/crc64, hash/fnv;
 
-	# slices depends on unsafe for overlapping check, cmp for comparison
-	# semantics, and math/bits for # calculating bitlength of numbers.
-	unsafe, cmp, math/bits
-	< slices;
-
 	# math/big
 	FMT, encoding/binary, math/rand
 	< math/big;
@@ -286,7 +288,7 @@ var depsRules = `
 	math/big, go/token
 	< go/constant;
 
-	container/heap, go/constant, go/parser, internal/types/errors
+	container/heap, go/constant, go/parser, internal/goversion, internal/types/errors
 	< go/types;
 
 	# The vast majority of standard library packages should not be resorting to regexp.

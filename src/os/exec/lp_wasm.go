@@ -21,3 +21,9 @@ func LookPath(file string) (string, error) {
 	// Wasm can not execute processes, so act as if there are no executables at all.
 	return "", &Error{file, ErrNotFound}
 }
+
+// lookExtensions is a no-op on non-Windows platforms, since
+// they do not restrict executables to specific extensions.
+func lookExtensions(path, dir string) (string, error) {
+	return path, nil
+}

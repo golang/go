@@ -591,7 +591,7 @@ func (d *decodeState) array(v reflect.Value) error {
 }
 
 var nullLiteral = []byte("null")
-var textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+var textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
 
 // object consumes an object from d.data[d.off-1:], decoding into v.
 // The first byte ('{') of the object has been read already.
@@ -762,17 +762,17 @@ func (d *decodeState) object(v reflect.Value) error {
 		if v.Kind() == reflect.Map {
 			kt := t.Key()
 			var kv reflect.Value
-			switch {
-			case reflect.PointerTo(kt).Implements(textUnmarshalerType):
+			if reflect.PointerTo(kt).Implements(textUnmarshalerType) {
 				kv = reflect.New(kt)
 				if err := d.literalStore(item, kv, true); err != nil {
 					return err
 				}
 				kv = kv.Elem()
-			case kt.Kind() == reflect.String:
-				kv = reflect.ValueOf(key).Convert(kt)
-			default:
+			} else {
 				switch kt.Kind() {
+				case reflect.String:
+					kv = reflect.New(kt).Elem()
+					kv.SetString(string(key))
 				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 					s := string(key)
 					n, err := strconv.ParseInt(s, 10, 64)
@@ -780,7 +780,8 @@ func (d *decodeState) object(v reflect.Value) error {
 						d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: kt, Offset: int64(start + 1)})
 						break
 					}
-					kv = reflect.ValueOf(n).Convert(kt)
+					kv = reflect.New(kt).Elem()
+					kv.SetInt(n)
 				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 					s := string(key)
 					n, err := strconv.ParseUint(s, 10, 64)
@@ -788,7 +789,8 @@ func (d *decodeState) object(v reflect.Value) error {
 						d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: kt, Offset: int64(start + 1)})
 						break
 					}
-					kv = reflect.ValueOf(n).Convert(kt)
+					kv = reflect.New(kt).Elem()
+					kv.SetUint(n)
 				default:
 					panic("json: Unexpected key type") // should never occur
 				}
@@ -827,12 +829,12 @@ func (d *decodeState) convertNumber(s string) (any, error) {
 	}
 	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		return nil, &UnmarshalTypeError{Value: "number " + s, Type: reflect.TypeOf(0.0), Offset: int64(d.off)}
+		return nil, &UnmarshalTypeError{Value: "number " + s, Type: reflect.TypeFor[float64](), Offset: int64(d.off)}
 	}
 	return f, nil
 }
 
-var numberType = reflect.TypeOf(Number(""))
+var numberType = reflect.TypeFor[Number]()
 
 // literalStore decodes a literal stored in item into v.
 //
@@ -842,7 +844,7 @@ var numberType = reflect.TypeOf(Number(""))
 func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool) error {
 	// Check for unmarshaler.
 	if len(item) == 0 {
-		//Empty string given
+		// Empty string given.
 		d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
 		return nil
 	}

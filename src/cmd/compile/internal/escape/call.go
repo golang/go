@@ -115,7 +115,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 		args := call.Args
 		if recv := fntype.Recv(); recv != nil {
 			if recvp == nil {
-				// Function call using method expression. Recevier argument is
+				// Function call using method expression. Receiver argument is
 				// at the front of the regular arguments list.
 				recvp = &args[0]
 				args = args[1:]

@@ -527,11 +527,13 @@ func (r *Resource) pack(msg []byte, compression map[string]int, compressionOff i
 // When parsing is started, the Header is parsed. Next, each Question can be
 // either parsed or skipped. Alternatively, all Questions can be skipped at
 // once. When all Questions have been parsed, attempting to parse Questions
-// will return (nil, nil) and attempting to skip Questions will return
-// (true, nil). After all Questions have been either parsed or skipped, all
+// will return the [ErrSectionDone] error.
+// After all Questions have been either parsed or skipped, all
 // Answers, Authorities and Additionals can be either parsed or skipped in the
 // same way, and each type of Resource must be fully parsed or skipped before
 // proceeding to the next type of Resource.
+//
+// Parser is safe to copy to preserve the parsing state.
 //
 // Note that there is no requirement to fully skip or parse the message.
 type Parser struct {

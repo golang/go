@@ -339,6 +339,11 @@ var optab = []Optab{
 	// 2 byte no-operation
 	{i: 66, as: ANOPH},
 
+	// crypto instructions
+
+	// KM
+	{i: 124, as: AKM, a1: C_REG, a6: C_REG},
+
 	// vector instructions
 
 	// VRX store
@@ -1480,6 +1485,10 @@ func buildop(ctxt *obj.Link) {
 			opset(AVFMSDB, r)
 			opset(AWFMSDB, r)
 			opset(AVPERM, r)
+		case AKM:
+			opset(AKMC, r)
+			opset(AKLMD, r)
+			opset(AKIMD, r)
 		}
 	}
 }
@@ -4366,6 +4375,42 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		op, _, _ := vop(p.As)
 		m4 := c.regoff(&p.From)
 		zVRRc(op, uint32(p.To.Reg), uint32(p.Reg), uint32(p.GetFrom3().Reg), 0, 0, uint32(m4), asm)
+
+	case 124:
+		var opcode uint32
+		switch p.As {
+		default:
+			c.ctxt.Diag("unexpected opcode %v", p.As)
+		case AKM, AKMC, AKLMD:
+			if p.From.Reg == REG_R0 {
+				c.ctxt.Diag("input must not be R0 in %v", p)
+			}
+			if p.From.Reg&1 != 0 {
+				c.ctxt.Diag("input must be even register in %v", p)
+			}
+			if p.To.Reg == REG_R0 {
+				c.ctxt.Diag("second argument must not be R0 in %v", p)
+			}
+			if p.To.Reg&1 != 0 {
+				c.ctxt.Diag("second argument must be even register in %v", p)
+			}
+			if p.As == AKM {
+				opcode = op_KM
+			} else if p.As == AKMC {
+				opcode = op_KMC
+			} else {
+				opcode = op_KLMD
+			}
+		case AKIMD:
+			if p.To.Reg == REG_R0 {
+				c.ctxt.Diag("second argument must not be R0 in %v", p)
+			}
+			if p.To.Reg&1 != 0 {
+				c.ctxt.Diag("second argument must be even register in %v", p)
+			}
+			opcode = op_KIMD
+		}
+		zRRE(opcode, uint32(p.From.Reg), uint32(p.To.Reg), asm)
 	}
 }
 

@@ -210,10 +210,14 @@ func make(t Type, size ...IntegerType) Type
 
 // The max built-in function returns the largest value of a fixed number of
 // arguments of [cmp.Ordered] types. There must be at least one argument.
+// If T is a floating-point type and any of the arguments are NaNs,
+// max will return NaN.
 func max[T cmp.Ordered](x T, y ...T) T
 
 // The min built-in function returns the smallest value of a fixed number of
 // arguments of [cmp.Ordered] types. There must be at least one argument.
+// If T is a floating-point type and any of the arguments are NaNs,
+// min will return NaN.
 func min[T cmp.Ordered](x T, y ...T) T
 
 // The new built-in function allocates memory. The first argument is a type,

@@ -107,6 +107,18 @@ func BenchmarkDeepEqual(b *testing.B) {
 	}
 }
 
+func BenchmarkMapsDeepEqual(b *testing.B) {
+	m1 := map[int]int{
+		1: 1, 2: 2,
+	}
+	m2 := map[int]int{
+		1: 1, 2: 2,
+	}
+	for i := 0; i < b.N; i++ {
+		DeepEqual(m1, m2)
+	}
+}
+
 func BenchmarkIsZero(b *testing.B) {
 	source := ValueOf(struct {
 		ArrayComparable    [4]T

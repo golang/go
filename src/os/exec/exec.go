@@ -590,32 +590,6 @@ func (c *Cmd) Run() error {
 	return c.Wait()
 }
 
-// lookExtensions finds windows executable by its dir and path.
-// It uses LookPath to try appropriate extensions.
-// lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
-func lookExtensions(path, dir string) (string, error) {
-	if filepath.Base(path) == path {
-		path = "." + string(filepath.Separator) + path
-	}
-	if dir == "" {
-		return LookPath(path)
-	}
-	if filepath.VolumeName(path) != "" {
-		return LookPath(path)
-	}
-	if len(path) > 1 && os.IsPathSeparator(path[0]) {
-		return LookPath(path)
-	}
-	dirandpath := filepath.Join(dir, path)
-	// We assume that LookPath will only add file extension.
-	lp, err := LookPath(dirandpath)
-	if err != nil {
-		return "", err
-	}
-	ext := strings.TrimPrefix(lp, dirandpath)
-	return path + ext, nil
-}
-
 // Start starts the specified command but does not wait for it to complete.
 //
 // If Start returns successfully, the c.Process field will be set.
@@ -649,13 +623,11 @@ func (c *Cmd) Start() error {
 		}
 		return c.Err
 	}
-	if runtime.GOOS == "windows" {
-		lp, err := lookExtensions(c.Path, c.Dir)
-		if err != nil {
-			return err
-		}
-		c.Path = lp
+	lp, err := lookExtensions(c.Path, c.Dir)
+	if err != nil {
+		return err
 	}
+	c.Path = lp
 	if c.Cancel != nil && c.ctx == nil {
 		return errors.New("exec: command with a non-nil Cancel was not created with CommandContext")
 	}
@@ -1124,7 +1096,7 @@ func (w *prefixSuffixSaver) Write(p []byte) (n int, err error) {
 // grow larger than w.N. It returns the un-appended suffix of p.
 func (w *prefixSuffixSaver) fill(dst *[]byte, p []byte) (pRemain []byte) {
 	if remain := w.N - len(*dst); remain > 0 {
-		add := minInt(len(p), remain)
+		add := min(len(p), remain)
 		*dst = append(*dst, p[:add]...)
 		p = p[add:]
 	}
@@ -1147,13 +1119,6 @@ func (w *prefixSuffixSaver) Bytes() []byte {
 	buf.Write(w.suffix[w.suffixOff:])
 	buf.Write(w.suffix[:w.suffixOff])
 	return buf.Bytes()
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // environ returns a best-effort copy of the environment in which the command

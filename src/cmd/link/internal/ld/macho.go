@@ -665,7 +665,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 
 func asmbMacho(ctxt *Link) {
 	machlink := doMachoLink(ctxt)
-	if !*FlagS && ctxt.IsExternal() {
+	if ctxt.IsExternal() {
 		symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))) + uint64(machlink))
 		ctxt.Out.SeekSet(symo)
 		machoEmitReloc(ctxt)
@@ -833,9 +833,9 @@ func asmbMacho(ctxt *Link) {
 		ml.data[2] = uint32(linkoff + s1 + s2 + s3 + s4 + s5) /* stroff */
 		ml.data[3] = uint32(s6)                               /* strsize */
 
-		machodysymtab(ctxt, linkoff+s1+s2)
-
 		if ctxt.LinkMode != LinkExternal {
+			machodysymtab(ctxt, linkoff+s1+s2)
+
 			ml := newMachoLoad(ctxt.Arch, LC_LOAD_DYLINKER, 6)
 			ml.data[0] = 12 /* offset to string */
 			stringtouint32(ml.data[1:], "/usr/lib/dyld")
@@ -877,7 +877,7 @@ func asmbMacho(ctxt *Link) {
 }
 
 func symkind(ldr *loader.Loader, s loader.Sym) int {
-	if ldr.SymType(s) == sym.SDYNIMPORT {
+	if t := ldr.SymType(s); t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
 		return SymKindUndef
 	}
 	if ldr.AttrCgoExport(s) {
@@ -894,30 +894,39 @@ func collectmachosyms(ctxt *Link) {
 		nkind[symkind(ldr, s)]++
 	}
 
-	// Add special runtime.text and runtime.etext symbols.
+	// On Mach-O, even with -s, we still need to keep dynamically exported and
+	// referenced symbols. We can strip defined local text and data symbols.
+	// So *FlagS is applied based on symbol type.
+
+	// Add special runtime.text and runtime.etext symbols (which are local).
 	// We've already included this symbol in Textp on darwin if ctxt.DynlinkingGo().
 	// See data.go:/textaddress
-	if !ctxt.DynlinkingGo() {
-		s := ldr.Lookup("runtime.text", 0)
-		if ldr.SymType(s) == sym.STEXT {
-			addsym(s)
-		}
-		for n := range Segtext.Sections[1:] {
-			s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
-			if s != 0 {
+	if !*FlagS {
+		if !ctxt.DynlinkingGo() {
+			s := ldr.Lookup("runtime.text", 0)
+			if ldr.SymType(s) == sym.STEXT {
 				addsym(s)
-			} else {
-				break
 			}
-		}
-		s = ldr.Lookup("runtime.etext", 0)
-		if ldr.SymType(s) == sym.STEXT {
-			addsym(s)
+			for n := range Segtext.Sections[1:] {
+				s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
+				if s != 0 {
+					addsym(s)
+				} else {
+					break
+				}
+			}
+			s = ldr.Lookup("runtime.etext", 0)
+			if ldr.SymType(s) == sym.STEXT {
+				addsym(s)
+			}
 		}
 	}
 
 	// Add text symbols.
 	for _, s := range ctxt.Textp {
+		if *FlagS && !ldr.AttrCgoExportDynamic(s) {
+			continue
+		}
 		addsym(s)
 	}
 
@@ -946,11 +955,16 @@ func collectmachosyms(ctxt *Link) {
 			if !shouldBeInSymbolTable(s) {
 				continue
 			}
+			if *FlagS && !ldr.AttrCgoExportDynamic(s) {
+				continue
+			}
 			addsym(s)
+			continue
 		}
 
 		switch t {
 		case sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT:
+			// Keep dynamic symbol references even if *FlagS.
 			addsym(s)
 		}
 

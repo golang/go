@@ -68,6 +68,11 @@ Diff:
 			continue
 		}
 
+		// Ignore GLOBL.
+		if strings.HasPrefix(line, "GLOBL ") {
+			continue
+		}
+
 		// The general form of a test input line is:
 		//	// comment
 		//	INST args [// printed form] [// hex encoding]
@@ -272,6 +277,7 @@ var (
 func testErrors(t *testing.T, goarch, file string, flags ...string) {
 	input := filepath.Join("testdata", file+".s")
 	architecture, ctxt := setArch(goarch)
+	architecture.Init(ctxt)
 	lexer := lex.NewLexer(input)
 	parser := NewParser(ctxt, architecture, lexer, false)
 	pList := new(obj.Plist)

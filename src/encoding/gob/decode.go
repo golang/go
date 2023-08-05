@@ -656,7 +656,7 @@ func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp
 		errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
 	}
 	if value.Cap() < n {
-		safe := saferio.SliceCap(reflect.Zero(reflect.PtrTo(typ.Elem())).Interface(), uint64(n))
+		safe := saferio.SliceCap(reflect.Zero(reflect.PointerTo(typ.Elem())).Interface(), uint64(n))
 		if safe < 0 {
 			errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
 		}
@@ -1197,7 +1197,7 @@ func (dec *Decoder) getDecEnginePtr(remoteId typeId, ut *userTypeInfo) (enginePt
 // emptyStruct is the type we compile into when ignoring a struct value.
 type emptyStruct struct{}
 
-var emptyStructType = reflect.TypeOf((*emptyStruct)(nil)).Elem()
+var emptyStructType = reflect.TypeFor[emptyStruct]()
 
 // getIgnoreEnginePtr returns the engine for the specified type when the value is to be discarded.
 func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err error) {

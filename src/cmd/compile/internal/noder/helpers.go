@@ -77,29 +77,6 @@ func Addr(pos src.XPos, x ir.Node) *ir.AddrExpr {
 	return n
 }
 
-func Assert(pos src.XPos, x ir.Node, typ *types.Type) ir.Node {
-	return typed(typ, ir.NewTypeAssertExpr(pos, x, nil))
-}
-
-func Binary(pos src.XPos, op ir.Op, typ *types.Type, x, y ir.Node) *ir.BinaryExpr {
-	switch op {
-	case ir.OADD:
-		n := ir.NewBinaryExpr(pos, op, x, y)
-		typed(typ, n)
-		return n
-	default:
-		n := ir.NewBinaryExpr(pos, op, x, y)
-		typed(x.Type(), n)
-		return n
-	}
-}
-
-func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) *ir.BinaryExpr {
-	n := ir.NewBinaryExpr(pos, op, x, y)
-	typed(typ, n)
-	return n
-}
-
 func Deref(pos src.XPos, typ *types.Type, x ir.Node) *ir.StarExpr {
 	n := ir.NewStarExpr(pos, x)
 	typed(typ, n)
@@ -122,35 +99,6 @@ func DotField(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
 	return dot(pos, field.Type, op, x, field)
 }
 
-func DotMethod(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
-	method := method(x.Type(), index)
-
-	// Method value.
-	typ := typecheck.NewMethodType(method.Type, nil)
-	return dot(pos, typ, ir.OMETHVALUE, x, method)
-}
-
-// MethodExpr returns a OMETHEXPR node with the indicated index into the methods
-// of typ. The receiver type is set from recv, which is different from typ if the
-// method was accessed via embedded fields. Similarly, the X value of the
-// ir.SelectorExpr is recv, the original OTYPE node before passing through the
-// embedded fields.
-func MethodExpr(pos src.XPos, recv ir.Node, embed *types.Type, index int) *ir.SelectorExpr {
-	method := method(embed, index)
-	typ := typecheck.NewMethodType(method.Type, recv.Type())
-	// The method expression T.m requires a wrapper when T
-	// is different from m's declared receiver type. We
-	// normally generate these wrappers while writing out
-	// runtime type descriptors, which is always done for
-	// types declared at package scope. However, we need
-	// to make sure to generate wrappers for anonymous
-	// receiver types too.
-	if recv.Sym() == nil {
-		typecheck.NeedRuntimeType(recv.Type())
-	}
-	return dot(pos, typ, ir.OMETHEXPR, recv, method)
-}
-
 func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Field) *ir.SelectorExpr {
 	n := ir.NewSelectorExpr(pos, op, x, selection.Sym)
 	n.Selection = selection
@@ -158,60 +106,9 @@ func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Fi
 	return n
 }
 
-// TODO(mdempsky): Move to package types.
-func method(typ *types.Type, index int) *types.Field {
-	if typ.IsInterface() {
-		return typ.AllMethods().Index(index)
-	}
-	return types.ReceiverBaseType(typ).Methods().Index(index)
-}
-
-func Index(pos src.XPos, typ *types.Type, x, index ir.Node) *ir.IndexExpr {
-	n := ir.NewIndexExpr(pos, x, index)
-	typed(typ, n)
-	return n
-}
-
-func Slice(pos src.XPos, typ *types.Type, x, low, high, max ir.Node) *ir.SliceExpr {
-	op := ir.OSLICE
-	if max != nil {
-		op = ir.OSLICE3
-	}
-	n := ir.NewSliceExpr(pos, op, x, low, high, max)
-	typed(typ, n)
-	return n
-}
-
-func Unary(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node) ir.Node {
-	switch op {
-	case ir.OADDR:
-		return Addr(pos, x)
-	case ir.ODEREF:
-		return Deref(pos, typ, x)
-	}
-
-	if op == ir.ORECV {
-		if typ.IsFuncArgStruct() && typ.NumFields() == 2 {
-			// Remove the second boolean type (if provided by type2),
-			// since that works better with the rest of the compiler
-			// (which will add it back in later).
-			assert(typ.Field(1).Type.Kind() == types.TBOOL)
-			typ = typ.Field(0).Type
-		}
-	}
-	return typed(typ, ir.NewUnaryExpr(pos, op, x))
-}
-
 // Statements
 
 var one = constant.MakeInt64(1)
-
-func IncDec(pos src.XPos, op ir.Op, x ir.Node) *ir.AssignOpStmt {
-	assert(x.Type() != nil)
-	bl := ir.NewBasicLit(pos, one)
-	bl = typecheck.DefaultLit(bl, x.Type())
-	return ir.NewAssignOpStmt(pos, op, x, bl)
-}
 
 func idealType(tv syntax.TypeAndValue) types2.Type {
 	// The gc backend expects all expressions to have a concrete type, and

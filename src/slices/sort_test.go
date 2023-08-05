@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package slices
+package slices_test
 
 import (
 	"cmp"
 	"fmt"
 	"math"
 	"math/rand"
-	"sort"
+	. "slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -17,7 +17,6 @@ import (
 
 var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
 var float64s = [...]float64{74.3, 59.0, math.Inf(1), 238.2, -784.0, 2.3, math.Inf(-1), 9845.768, -959.7485, 905, 7.8, 7.8, 74.3, 59.0, math.Inf(1), 238.2, -784.0, 2.3}
-var float64sWithNaNs = [...]float64{74.3, 59.0, math.Inf(1), 238.2, -784.0, 2.3, math.NaN(), math.NaN(), math.Inf(-1), 9845.768, -959.7485, 905, 7.8, 7.8}
 var strs = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
 
 func TestSortIntSlice(t *testing.T) {
@@ -44,23 +43,6 @@ func TestSortFloat64Slice(t *testing.T) {
 	if !IsSorted(data) {
 		t.Errorf("sorted %v", float64s)
 		t.Errorf("   got %v", data)
-	}
-}
-
-func TestSortFloat64SliceWithNaNs(t *testing.T) {
-	data := float64sWithNaNs[:]
-	data2 := Clone(data)
-
-	Sort(data)
-	sort.Float64s(data2)
-
-	if !IsSorted(data) {
-		t.Error("IsSorted indicates data isn't sorted")
-	}
-
-	// Compare for equality using cmp.Compare, which considers NaNs equal.
-	if !EqualFunc(data, data2, func(a, b float64) bool { return cmp.Compare(a, b) == 0 }) {
-		t.Errorf("mismatch between Sort and sort.Float64: got %v, want %v", data, data2)
 	}
 }
 
@@ -173,6 +155,15 @@ func TestStability(t *testing.T) {
 	}
 }
 
+type S struct {
+	a int
+	b string
+}
+
+func cmpS(s1, s2 S) int {
+	return cmp.Compare(s1.a, s2.a)
+}
+
 func TestMinMax(t *testing.T) {
 	intCmp := func(a, b int) int { return a - b }
 
@@ -213,6 +204,25 @@ func TestMinMax(t *testing.T) {
 				t.Errorf("MaxFunc got %v, want %v", gotMaxFunc, tt.wantMax)
 			}
 		})
+	}
+
+	svals := []S{
+		{1, "a"},
+		{2, "a"},
+		{1, "b"},
+		{2, "b"},
+	}
+
+	gotMin := MinFunc(svals, cmpS)
+	wantMin := S{1, "a"}
+	if gotMin != wantMin {
+		t.Errorf("MinFunc(%v) = %v, want %v", svals, gotMin, wantMin)
+	}
+
+	gotMax := MaxFunc(svals, cmpS)
+	wantMax := S{2, "a"}
+	if gotMax != wantMax {
+		t.Errorf("MaxFunc(%v) = %v, want %v", svals, gotMax, wantMax)
 	}
 }
 

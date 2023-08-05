@@ -473,6 +473,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			p.Target = ""
 			p.Internal.BuildInfo = nil
 			p.Internal.ForceLibrary = true
+			p.Internal.PGOProfile = preal.Internal.PGOProfile
 		}
 
 		// Update p.Internal.Imports to use test copies.
@@ -494,6 +495,11 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 		// compiled with '-p main' causes duplicate symbol errors.
 		// See golang.org/issue/30907, golang.org/issue/34114.
 		if p.Name == "main" && p != pmain && p != ptest {
+			split()
+		}
+		// Split and attach PGO information to test dependencies if preal
+		// is built with PGO.
+		if preal.Internal.PGOProfile != "" && p.Internal.PGOProfile == "" {
 			split()
 		}
 	}

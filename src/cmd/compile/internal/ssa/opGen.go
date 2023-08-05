@@ -716,12 +716,12 @@ const (
 	OpAMD64BTSQ
 	OpAMD64BTLconst
 	OpAMD64BTQconst
-	OpAMD64BTCLconst
 	OpAMD64BTCQconst
-	OpAMD64BTRLconst
 	OpAMD64BTRQconst
-	OpAMD64BTSLconst
 	OpAMD64BTSQconst
+	OpAMD64BTSQconstmodify
+	OpAMD64BTRQconstmodify
+	OpAMD64BTCQconstmodify
 	OpAMD64TESTQ
 	OpAMD64TESTL
 	OpAMD64TESTW
@@ -912,6 +912,8 @@ const (
 	OpAMD64SQRTSS
 	OpAMD64ROUNDSD
 	OpAMD64VFMADD231SD
+	OpAMD64MINSD
+	OpAMD64MINSS
 	OpAMD64SBBQcarrymask
 	OpAMD64SBBLcarrymask
 	OpAMD64SETEQ
@@ -935,6 +937,16 @@ const (
 	OpAMD64SETBEstore
 	OpAMD64SETAstore
 	OpAMD64SETAEstore
+	OpAMD64SETEQstoreidx1
+	OpAMD64SETNEstoreidx1
+	OpAMD64SETLstoreidx1
+	OpAMD64SETLEstoreidx1
+	OpAMD64SETGstoreidx1
+	OpAMD64SETGEstoreidx1
+	OpAMD64SETBstoreidx1
+	OpAMD64SETBEstoreidx1
+	OpAMD64SETAstoreidx1
+	OpAMD64SETAEstoreidx1
 	OpAMD64SETEQF
 	OpAMD64SETNEF
 	OpAMD64SETORD
@@ -964,6 +976,7 @@ const (
 	OpAMD64MOVLi2f
 	OpAMD64MOVLf2i
 	OpAMD64PXOR
+	OpAMD64POR
 	OpAMD64LEAQ
 	OpAMD64LEAL
 	OpAMD64LEAW
@@ -1441,6 +1454,10 @@ const (
 	OpARM64FNEGD
 	OpARM64FSQRTD
 	OpARM64FSQRTS
+	OpARM64FMIND
+	OpARM64FMINS
+	OpARM64FMAXD
+	OpARM64FMAXS
 	OpARM64REV
 	OpARM64REVW
 	OpARM64REV16
@@ -3006,6 +3023,10 @@ const (
 	OpRoundToEven
 	OpAbs
 	OpCopysign
+	OpMin64F
+	OpMin32F
+	OpMax64F
+	OpMax32F
 	OpFMA
 	OpPhi
 	OpCopy
@@ -8758,44 +8779,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "BTCLconst",
-		auxType:      auxInt8,
-		argLen:       1,
-		resultInArg0: true,
-		clobberFlags: true,
-		asm:          x86.ABTCL,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-			outputs: []outputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-		},
-	},
-	{
 		name:         "BTCQconst",
 		auxType:      auxInt8,
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
 		asm:          x86.ABTCQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-			outputs: []outputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-		},
-	},
-	{
-		name:         "BTRLconst",
-		auxType:      auxInt8,
-		argLen:       1,
-		resultInArg0: true,
-		clobberFlags: true,
-		asm:          x86.ABTRL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -8822,22 +8811,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "BTSLconst",
-		auxType:      auxInt8,
-		argLen:       1,
-		resultInArg0: true,
-		clobberFlags: true,
-		asm:          x86.ABTSL,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-			outputs: []outputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-		},
-	},
-	{
 		name:         "BTSQconst",
 		auxType:      auxInt8,
 		argLen:       1,
@@ -8850,6 +8823,48 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:           "BTSQconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.ABTSQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:           "BTRQconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.ABTRQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:           "BTCQconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.ABTCQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -11891,6 +11906,36 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:         "MINSD",
+		argLen:       2,
+		resultInArg0: true,
+		asm:          x86.AMINSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "MINSS",
+		argLen:       2,
+		resultInArg0: true,
+		asm:          x86.AMINSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "SBBQcarrymask",
 		argLen: 1,
 		asm:    x86.ASBBQ,
@@ -12146,6 +12191,156 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASETCC,
 		reg: regInfo{
 			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETEQstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETEQ,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETNEstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETNE,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETLstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETLT,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETLEstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETLE,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETGstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETGT,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETGEstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETGE,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETBstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETCS,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETBEstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETLS,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETAstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETHI,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:        "SETAEstoreidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         x86.ASETCC,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
@@ -12500,6 +12695,22 @@ var opcodeTable = [...]opInfo{
 		commutative:  true,
 		resultInArg0: true,
 		asm:          x86.APXOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "POR",
+		argLen:       2,
+		commutative:  true,
+		resultInArg0: true,
+		asm:          x86.APOR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -19271,6 +19482,62 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "FMIND",
+		argLen: 2,
+		asm:    arm64.AFMIND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "FMINS",
+		argLen: 2,
+		asm:    arm64.AFMINS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "FMAXD",
+		argLen: 2,
+		asm:    arm64.AFMAXD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "FMAXS",
+		argLen: 2,
+		asm:    arm64.AFMAXS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -38919,6 +39186,26 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Copysign",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Min64F",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Min32F",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Max64F",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Max32F",
 		argLen:  2,
 		generic: true,
 	},

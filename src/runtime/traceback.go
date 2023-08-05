@@ -1147,6 +1147,7 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
 
 // isExportedRuntime reports whether name is an exported runtime function.
 // It is only for runtime functions, so ASCII A-Z is fine.
+// TODO: this handles exported functions but not exported methods.
 func isExportedRuntime(name string) bool {
 	const n = len("runtime.")
 	return len(name) > n && name[:n] == "runtime." && 'A' <= name[n] && name[n] <= 'Z'

@@ -512,22 +512,21 @@ func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
 		return true
 	}
 
-	// Every expected chain should match 1 returned chain
+	// Every expected chain should match one (or more) returned chain. We tolerate multiple
+	// matches, as due to root store semantics it is plausible that (at least on the system
+	// verifiers) multiple identical (looking) chains may be returned when two roots with the
+	// same subject are present.
 	for _, expectedChain := range test.expectedChains {
-		nChainMatched := 0
+		var match bool
 		for _, chain := range chains {
 			if doesMatch(expectedChain, chain) {
-				nChainMatched++
+				match = true
+				break
 			}
 		}
 
-		if nChainMatched != 1 {
-			t.Errorf("Got %v matches instead of %v for expected chain %v", nChainMatched, 1, expectedChain)
-			for _, chain := range chains {
-				if doesMatch(expectedChain, chain) {
-					t.Errorf("\t matched %v", chainToDebugString(chain))
-				}
-			}
+		if !match {
+			t.Errorf("No match found for %v", expectedChain)
 		}
 	}
 
@@ -2420,7 +2419,7 @@ func TestPathBuilding(t *testing.T) {
 		{
 			// A name constraint on the root should apply to any names that appear
 			// on the intermediate, meaning there is no valid chain.
-			name: "contrained root, invalid intermediate",
+			name: "constrained root, invalid intermediate",
 			graph: trustGraphDescription{
 				Roots: []rootDescription{
 					{
@@ -2455,7 +2454,7 @@ func TestPathBuilding(t *testing.T) {
 		{
 			// A name constraint on the intermediate does not apply to the intermediate
 			// itself, so this is a valid chain.
-			name: "contrained intermediate, non-matching SAN",
+			name: "constrained intermediate, non-matching SAN",
 			graph: trustGraphDescription{
 				Roots: []rootDescription{{Subject: "root"}},
 				Leaf:  "leaf",

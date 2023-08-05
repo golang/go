@@ -537,7 +537,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 		// The gcBlackenEnabled check in malloc races with the
 		// store that clears it but an atomic check in every malloc
 		// would be a performance hit.
-		// Instead we recheck it here on the non-preemptable system
+		// Instead we recheck it here on the non-preemptible system
 		// stack to determine if we should perform an assist.
 
 		// GC is done, so ignore any remaining debt.

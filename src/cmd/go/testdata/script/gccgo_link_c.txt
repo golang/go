@@ -4,8 +4,9 @@
 [!cgo] skip
 [!exec:gccgo] skip
 
-go build -n -compiler gccgo
+! go build -x -compiler gccgo
 stderr 'gccgo.*\-L [^ ]*alibpath \-lalib' # make sure that Go-inline "#cgo LDFLAGS:" ("-L alibpath -lalib") passed to gccgo linking stage
+! stderr 'gccgo.*-lalib.*-lalib' # make sure -lalib is only passed once
 
 -- go.mod --
 module m

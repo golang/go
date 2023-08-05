@@ -534,7 +534,7 @@ func TestMemPprof(t *testing.T) {
 
 	got, err := testenv.CleanCmdEnv(exec.Command(exe, "MemProf")).CombinedOutput()
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("testprog failed: %s, output:\n%s", err, got)
 	}
 	fn := strings.TrimSpace(string(got))
 	defer os.Remove(fn)
@@ -867,5 +867,14 @@ func TestPanicOnUnsafeSlice(t *testing.T) {
 	want := "panic: runtime error: unsafe.Slice: ptr is nil and len is not zero"
 	if !strings.Contains(output, want) {
 		t.Errorf("output does not contain %q:\n%s", want, output)
+	}
+}
+
+func TestNetpollWaiters(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprognet", "NetpollWaiters")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("output is not %q\n%s", want, output)
 	}
 }

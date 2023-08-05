@@ -3567,11 +3567,32 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 
 	if typ.IsFloat() || typ.IsString() {
 		// min/max semantics for floats are tricky because of NaNs and
-		// negative zero, so we let the runtime handle this instead.
+		// negative zero. Some architectures have instructions which
+		// we can use to generate the right result. For others we must
+		// call into the runtime instead.
 		//
 		// Strings are conceptually simpler, but we currently desugar
 		// string comparisons during walk, not ssagen.
 
+		if typ.IsFloat() {
+			switch Arch.LinkArch.Family {
+			case sys.AMD64, sys.ARM64:
+				var op ssa.Op
+				switch {
+				case typ.Kind() == types.TFLOAT64 && n.Op() == ir.OMIN:
+					op = ssa.OpMin64F
+				case typ.Kind() == types.TFLOAT64 && n.Op() == ir.OMAX:
+					op = ssa.OpMax64F
+				case typ.Kind() == types.TFLOAT32 && n.Op() == ir.OMIN:
+					op = ssa.OpMin32F
+				case typ.Kind() == types.TFLOAT32 && n.Op() == ir.OMAX:
+					op = ssa.OpMax32F
+				}
+				return fold(func(x, a *ssa.Value) *ssa.Value {
+					return s.newValue2(op, typ, x, a)
+				})
+			}
+		}
 		var name string
 		switch typ.Kind() {
 		case types.TFLOAT32:
@@ -3620,8 +3641,13 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 
 // ternary emits code to evaluate cond ? x : y.
 func (s *state) ternary(cond, x, y *ssa.Value) *ssa.Value {
+	// Note that we need a new ternaryVar each time (unlike okVar where we can
+	// reuse the variable) because it might have a different type every time.
+	ternaryVar := ssaMarker("ternary")
+
 	bThen := s.f.NewBlock(ssa.BlockPlain)
 	bElse := s.f.NewBlock(ssa.BlockPlain)
+	bEnd := s.f.NewBlock(ssa.BlockPlain)
 
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
@@ -3629,11 +3655,18 @@ func (s *state) ternary(cond, x, y *ssa.Value) *ssa.Value {
 	b.AddEdgeTo(bThen)
 	b.AddEdgeTo(bElse)
 
-	s.startBlock(bElse)
-	s.endBlock().AddEdgeTo(bThen)
-
 	s.startBlock(bThen)
-	return s.newValue2(ssa.OpPhi, x.Type, x, y)
+	s.vars[ternaryVar] = x
+	s.endBlock().AddEdgeTo(bEnd)
+
+	s.startBlock(bElse)
+	s.vars[ternaryVar] = y
+	s.endBlock().AddEdgeTo(bEnd)
+
+	s.startBlock(bEnd)
+	r := s.variable(ternaryVar, x.Type)
+	delete(s.vars, ternaryVar)
+	return r
 }
 
 // condBranch evaluates the boolean expression cond and branches to yes
@@ -4831,13 +4864,13 @@ func InitTables() {
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
 		},
-		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64)
+		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64, sys.MIPS64)
 	alias("math/bits", "Add", "math/bits", "Add64", p8...)
 	addF("math/bits", "Sub64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
 		},
-		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64)
+		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64, sys.MIPS64)
 	alias("math/bits", "Sub", "math/bits", "Sub64", p8...)
 	addF("math/bits", "Div64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {

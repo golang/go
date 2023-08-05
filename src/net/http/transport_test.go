@@ -6731,3 +6731,22 @@ func testHandlerAbortRacesBodyRead(t *testing.T, mode testMode) {
 	}
 	wg.Wait()
 }
+
+func TestRequestSanitization(t *testing.T) { run(t, testRequestSanitization) }
+func testRequestSanitization(t *testing.T, mode testMode) {
+	if mode == http2Mode {
+		// Remove this after updating x/net.
+		t.Skip("https://go.dev/issue/60374 test fails when run with HTTP/2")
+	}
+	ts := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+		if h, ok := req.Header["X-Evil"]; ok {
+			t.Errorf("request has X-Evil header: %q", h)
+		}
+	})).ts
+	req, _ := NewRequest("GET", ts.URL, nil)
+	req.Host = "go.dev\r\nX-Evil:evil"
+	resp, _ := ts.Client().Do(req)
+	if resp != nil {
+		resp.Body.Close()
+	}
+}

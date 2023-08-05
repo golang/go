@@ -163,7 +163,17 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, m
 		opt(&conf)
 	}
 
-	conf.Check(pkgName, files, nil)
+	// Provide Config.Info with all maps so that info recording is tested.
+	info := Info{
+		Types:      make(map[syntax.Expr]TypeAndValue),
+		Instances:  make(map[*syntax.Name]Instance),
+		Defs:       make(map[*syntax.Name]Object),
+		Uses:       make(map[*syntax.Name]Object),
+		Implicits:  make(map[syntax.Node]Object),
+		Selections: make(map[*syntax.SelectorExpr]*Selection),
+		Scopes:     make(map[syntax.Node]*Scope),
+	}
+	conf.Check(pkgName, files, &info)
 
 	if listErrors {
 		return
@@ -317,7 +327,32 @@ func TestManual(t *testing.T) {
 	}
 }
 
-// TODO(gri) go/types has extra TestLongConstants and TestIndexRepresentability tests
+func TestLongConstants(t *testing.T) {
+	format := `package longconst; const _ = %s /* ERROR "constant overflow" */; const _ = %s // ERROR "excessively long constant"`
+	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
+	testFiles(t, []string{"longconst.go"}, [][]byte{[]byte(src)}, 0, false)
+}
+
+func withSizes(sizes Sizes) func(*Config) {
+	return func(cfg *Config) {
+		cfg.Sizes = sizes
+	}
+}
+
+// TestIndexRepresentability tests that constant index operands must
+// be representable as int even if they already have a type that can
+// represent larger values.
+func TestIndexRepresentability(t *testing.T) {
+	const src = `package index; var s []byte; var _ = s[int64 /* ERRORx "int64\\(1\\) << 40 \\(.*\\) overflows int" */ (1) << 40]`
+	testFiles(t, []string{"index.go"}, [][]byte{[]byte(src)}, 0, false, withSizes(&StdSizes{4, 4}))
+}
+
+func TestIssue47243_TypedRHS(t *testing.T) {
+	// The RHS of the shift expression below overflows uint on 32bit platforms,
+	// but this is OK as it is explicitly typed.
+	const src = `package issue47243; var a uint64; var _ = a << uint64(4294967296)` // uint64(1<<32)
+	testFiles(t, []string{"p.go"}, [][]byte{[]byte(src)}, 0, false, withSizes(&StdSizes{4, 4}))
+}
 
 func TestCheck(t *testing.T) {
 	DefPredeclaredTestFuncs()

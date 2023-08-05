@@ -114,11 +114,11 @@ type Config struct {
 	// type checker will initialize this field with a newly created context.
 	Context *Context
 
-	// GoVersion describes the accepted Go language version. The string
-	// must follow the format "go%d.%d" (e.g. "go1.12") or it must be
-	// empty; an empty string disables Go language version checks.
-	// If the format is invalid, invoking the type checker will cause a
-	// panic.
+	// GoVersion describes the accepted Go language version. The string must
+	// start with a prefix of the form "go%d.%d" (e.g. "go1.20", "go1.21rc1", or
+	// "go1.21.0") or it must be empty; an empty string disables Go language
+	// version checks. If the format is invalid, invoking the type checker will
+	// result in an error.
 	GoVersion string
 
 	// If IgnoreFuncBodies is set, function bodies are not
@@ -285,6 +285,11 @@ type Info struct {
 	// in source order. Variables without an initialization expression do not
 	// appear in this list.
 	InitOrder []*Initializer
+
+	// _FileVersions maps a file to the file's Go version.
+	// If the file doesn't specify a version and Config.GoVersion is not
+	// given, the reported version is the zero version (Major, Minor = 0, 0).
+	_FileVersions map[*token.File]_Version
 }
 
 func (info *Info) recordTypes() bool {
@@ -407,6 +412,12 @@ func (init *Initializer) String() string {
 	buf.WriteString(" = ")
 	WriteExpr(&buf, init.Rhs)
 	return buf.String()
+}
+
+// A _Version represents a released Go version.
+type _Version struct {
+	_Major int
+	_Minor int
 }
 
 // Check type-checks a package and returns the resulting package object and

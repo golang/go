@@ -143,8 +143,16 @@ func TestReadMetrics(t *testing.T) {
 		case "/gc/heap/frees:objects":
 			frees = samples[i].Value.Uint64()
 		case "/gc/heap/live:bytes":
-			if live := samples[i].Value.Uint64(); live > mstats.HeapAlloc {
-				t.Errorf("live bytes: %d > heap alloc: %d", live, mstats.HeapAlloc)
+			// Check for "obviously wrong" values. We can't check a stronger invariant,
+			// such as live <= HeapAlloc, because live is not 100% accurate. It's computed
+			// under racy conditions, and some objects may be double-counted (this is
+			// intentional and necessary for GC performance).
+			//
+			// Instead, check against a much more reasonable upper-bound: the amount of
+			// mapped heap memory. We can't possibly overcount to the point of exceeding
+			// total mapped heap memory, except if there's an accounting bug.
+			if live := samples[i].Value.Uint64(); live > mstats.HeapSys {
+				t.Errorf("live bytes: %d > heap sys: %d", live, mstats.HeapSys)
 			} else if live == 0 {
 				// Might happen if we don't call runtime.GC() above.
 				t.Error("live bytes is 0")

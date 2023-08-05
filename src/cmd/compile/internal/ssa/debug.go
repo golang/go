@@ -969,7 +969,7 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug, pr
 	}
 
 	state.currentState.reset(abt.T{})
-	// The normal logic of "reset" is incuded in the intersection loop below.
+	// The normal logic of "reset" is included in the intersection loop below.
 
 	slotLocs := state.currentState.slots
 

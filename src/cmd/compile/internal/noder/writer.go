@@ -2612,9 +2612,9 @@ func (w *writer) pkgObjs(names ...*syntax.Name) {
 // hasImplicitTypeParams reports whether obj is a defined type with
 // implicit type parameters (e.g., declared within a generic function
 // or method).
-func (p *pkgWriter) hasImplicitTypeParams(obj *types2.TypeName) bool {
-	if obj.Pkg() == p.curpkg {
-		decl, ok := p.typDecls[obj]
+func (pw *pkgWriter) hasImplicitTypeParams(obj *types2.TypeName) bool {
+	if obj.Pkg() == pw.curpkg {
+		decl, ok := pw.typDecls[obj]
 		assert(ok)
 		if len(decl.implicits) != 0 {
 			return true

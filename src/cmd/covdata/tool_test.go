@@ -672,7 +672,7 @@ func testMergeCombinePrograms(t *testing.T, s state) {
 		t.Errorf("merge run produced unexpected output: %v", lines)
 	}
 
-	// We expect the merge tool to produce exacty two files: a meta
+	// We expect the merge tool to produce exactly two files: a meta
 	// data file and a counter file. If we get more than just this one
 	// pair, something went wrong.
 	podlist, err := pods.CollectPods([]string{moutdir}, true)

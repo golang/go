@@ -23,9 +23,9 @@ cmp go.mod go.mod.orig
 
 
 # When we run 'go mod tidy -e', we should proceed past the first error and follow
-# it with a second error describing the version descrepancy.
+# it with a second error describing the version discrepancy.
 #
-# We should not provide advice on how to push past the version descrepancy,
+# We should not provide advice on how to push past the version discrepancy,
 # because the '-e' flag should already do that, writing out an otherwise-tidied
 # go.mod file.
 

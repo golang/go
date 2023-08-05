@@ -76,6 +76,16 @@
 // For debugging, the result of t.String does include the monotonic
 // clock reading if present. If t != u because of different monotonic clock readings,
 // that difference will be visible when printing t.String() and u.String().
+//
+// # Timer Resolution
+//
+// Timer resolution varies depending on the Go runtime, the operating system
+// and the underlying hardware.
+// On Unix, the resolution is approximately 1ms.
+// On Windows, the default resolution is approximately 16ms, but
+// a lower resolution may be requested using [timeBeginPeriod].
+//
+// [timeBeginPeriod]: https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod
 package time
 
 import (

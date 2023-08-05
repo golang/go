@@ -813,7 +813,7 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
 	return
 }
 
-// whiteWhitespace writes the first n whitespace entries.
+// writeWhitespace writes the first n whitespace entries.
 func (p *printer) writeWhitespace(n int) {
 	// write entries
 	for i := 0; i < n; i++ {

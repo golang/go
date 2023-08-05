@@ -94,7 +94,7 @@ type missingValType struct{}
 
 var missingVal = reflect.ValueOf(missingValType{})
 
-var missingValReflectType = reflect.TypeOf(missingValType{})
+var missingValReflectType = reflect.TypeFor[missingValType]()
 
 func isMissing(v reflect.Value) bool {
 	return v.IsValid() && v.Type() == missingValReflectType
@@ -361,19 +361,27 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	// mark top of stack before any variables in the body are pushed.
 	mark := s.mark()
 	oneIteration := func(index, elem reflect.Value) {
-		// Set top var (lexically the second if there are two) to the element.
 		if len(r.Pipe.Decl) > 0 {
 			if r.Pipe.IsAssign {
-				s.setVar(r.Pipe.Decl[0].Ident[0], elem)
+				// With two variables, index comes first.
+				// With one, we use the element.
+				if len(r.Pipe.Decl) > 1 {
+					s.setVar(r.Pipe.Decl[0].Ident[0], index)
+				} else {
+					s.setVar(r.Pipe.Decl[0].Ident[0], elem)
+				}
 			} else {
+				// Set top var (lexically the second if there
+				// are two) to the element.
 				s.setTopVar(1, elem)
 			}
 		}
-		// Set next var (lexically the first if there are two) to the index.
 		if len(r.Pipe.Decl) > 1 {
 			if r.Pipe.IsAssign {
-				s.setVar(r.Pipe.Decl[1].Ident[0], index)
+				s.setVar(r.Pipe.Decl[1].Ident[0], elem)
 			} else {
+				// Set next var (lexically the first if there
+				// are two) to the index.
 				s.setTopVar(2, index)
 			}
 		}
@@ -700,9 +708,9 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 }
 
 var (
-	errorType        = reflect.TypeOf((*error)(nil)).Elem()
-	fmtStringerType  = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
-	reflectValueType = reflect.TypeOf((*reflect.Value)(nil)).Elem()
+	errorType        = reflect.TypeFor[error]()
+	fmtStringerType  = reflect.TypeFor[fmt.Stringer]()
+	reflectValueType = reflect.TypeFor[reflect.Value]()
 )
 
 // evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so

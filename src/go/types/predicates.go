@@ -451,7 +451,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 					return false
 				}
 			}
-			return indenticalOrigin(x, y)
+			return identicalOrigin(x, y)
 		}
 
 	case *TypeParam:
@@ -468,7 +468,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 }
 
 // identicalOrigin reports whether x and y originated in the same declaration.
-func indenticalOrigin(x, y *Named) bool {
+func identicalOrigin(x, y *Named) bool {
 	// TODO(gri) is this correct?
 	return x.Origin().obj == y.Origin().obj
 }

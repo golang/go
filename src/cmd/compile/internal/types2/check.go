@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"go/constant"
+	"internal/goversion"
 	. "internal/types/errors"
 )
 
@@ -96,11 +97,12 @@ type Checker struct {
 	ctxt *Context // context for de-duplicating instances
 	pkg  *Package
 	*Info
-	version version                // accepted language version
-	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
-	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
-	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
-	valids  instanceLookup         // valid *Named (incl. instantiated) types per the validType check
+	version version                     // accepted language version
+	posVers map[*syntax.PosBase]version // maps file PosBases to versions (may be nil)
+	nextID  uint64                      // unique Id for type parameters (first valid Id is 1)
+	objMap  map[Object]*declInfo        // maps package-level objects and (non-interface) methods to declaration info
+	impMap  map[importKey]*Package      // maps (import path, source directory) to (complete or fake) package
+	valids  instanceLookup              // valid *Named (incl. instantiated) types per the validType check
 
 	// pkgPathMap maps package names to the set of distinct import paths we've
 	// seen for that name, anywhere in the import graph. It is used for
@@ -116,7 +118,6 @@ type Checker struct {
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
 	files         []*syntax.File              // list of package files
-	posVers       map[*syntax.PosBase]version // Pos -> Go version mapping
 	imports       []*PkgName                  // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName   // maps dot-imported objects to the package they were dot-imported through
 	recvTParamMap map[*syntax.Name]*TypeParam // maps blank receiver type parameters to their type
@@ -231,19 +232,19 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 		info = new(Info)
 	}
 
-	version, err := parseGoVersion(conf.GoVersion)
-	if err != nil {
-		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.GoVersion, err))
-	}
+	// Note: clients may call NewChecker with the Unsafe package, which is
+	// globally shared and must not be mutated. Therefore NewChecker must not
+	// mutate *pkg.
+	//
+	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
 
 	return &Checker{
-		conf:    conf,
-		ctxt:    conf.Context,
-		pkg:     pkg,
-		Info:    info,
-		version: version,
-		objMap:  make(map[Object]*declInfo),
-		impMap:  make(map[importKey]*Package),
+		conf:   conf,
+		ctxt:   conf.Context,
+		pkg:    pkg,
+		Info:   info,
+		objMap: make(map[Object]*declInfo),
+		impMap: make(map[importKey]*Package),
 	}
 }
 
@@ -284,6 +285,8 @@ func (check *Checker) initFiles(files []*syntax.File) {
 	}
 
 	for _, file := range check.files {
+		fbase := base(file.Pos())                     // fbase may be nil for tests
+		check.recordFileVersion(fbase, check.version) // record package version (possibly zero version)
 		v, _ := parseGoVersion(file.GoVersion)
 		if v.major > 0 {
 			if v.equal(check.version) {
@@ -302,13 +305,14 @@ func (check *Checker) initFiles(files []*syntax.File) {
 			// If there is no check.version, then we don't really know what Go version to apply.
 			// Legacy tools may do this, and they historically have accepted everything.
 			// Preserve that behavior by ignoring //go:build constraints entirely in that case.
-			if (v.before(check.version) && check.version.before(version{1, 21})) || check.version.equal(version{0, 0}) {
+			if (v.before(check.version) && check.version.before(go1_21)) || check.version.equal(go0_0) {
 				continue
 			}
 			if check.posVers == nil {
 				check.posVers = make(map[*syntax.PosBase]version)
 			}
-			check.posVers[base(file.Pos())] = v
+			check.posVers[fbase] = v
+			check.recordFileVersion(fbase, v) // overwrite package version
 		}
 	}
 }
@@ -333,6 +337,24 @@ func (check *Checker) Files(files []*syntax.File) error { return check.checkFile
 var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
 
 func (check *Checker) checkFiles(files []*syntax.File) (err error) {
+	if check.pkg == Unsafe {
+		// Defensive handling for Unsafe, which cannot be type checked, and must
+		// not be mutated. See https://go.dev/issue/61212 for an example of where
+		// Unsafe is passed to NewChecker.
+		return nil
+	}
+
+	// Note: parseGoVersion and the subsequent checks should happen once,
+	//       when we create a new Checker, not for each batch of files.
+	//       We can't change it at this point because NewChecker doesn't
+	//       return an error.
+	check.version, err = parseGoVersion(check.conf.GoVersion)
+	if err != nil {
+		return err
+	}
+	if check.version.after(version{1, goversion.Version}) {
+		return fmt.Errorf("package requires newer Go version %v", check.version)
+	}
 	if check.conf.FakeImportC && check.conf.go115UsesCgo {
 		return errBadCgo
 	}
@@ -377,6 +399,7 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 		check.monomorph()
 	}
 
+	check.pkg.goVersion = check.conf.GoVersion
 	check.pkg.complete = true
 
 	// no longer needed - release memory
@@ -651,5 +674,11 @@ func (check *Checker) recordScope(node syntax.Node, scope *Scope) {
 	assert(scope != nil)
 	if m := check.Scopes; m != nil {
 		m[node] = scope
+	}
+}
+
+func (check *Checker) recordFileVersion(fbase *syntax.PosBase, v version) {
+	if m := check.FileVersions; m != nil {
+		m[fbase] = Version{v.major, v.minor}
 	}
 }

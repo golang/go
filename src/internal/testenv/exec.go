@@ -163,8 +163,8 @@ func CommandContext(t testing.TB, ctx context.Context, name string, args ...stri
 			// grace periods to clean up: one for the delay between the first
 			// termination signal being sent (via the Cancel callback when the Context
 			// expires) and the process being forcibly terminated (via the WaitDelay
-			// field), and a second one for the delay becween the process being
-			// terminated and and the test logging its output for debugging.
+			// field), and a second one for the delay between the process being
+			// terminated and the test logging its output for debugging.
 			//
 			// (We want to ensure that the test process itself has enough time to
 			// log the output before it is also terminated.)

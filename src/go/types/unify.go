@@ -55,11 +55,6 @@ const (
 	// the core types, if any, of non-local (unbound) type parameters.
 	enableCoreTypeUnification = true
 
-	// If enableInterfaceInference is set, type inference uses
-	// shared methods for improved type inference involving
-	// interfaces.
-	enableInterfaceInference = true
-
 	// If traceInference is set, unification will print a trace of its operation.
 	// Interpretation of trace:
 	//   x ≡ y    attempt to unify types x and y
@@ -125,6 +120,20 @@ const (
 	// interface.
 	exact
 )
+
+func (m unifyMode) String() string {
+	switch m {
+	case 0:
+		return "inexact"
+	case assign:
+		return "assign"
+	case exact:
+		return "exact"
+	case assign | exact:
+		return "assign, exact"
+	}
+	return fmt.Sprintf("mode %d", m)
+}
 
 // unify attempts to unify x and y and reports whether it succeeded.
 // As a side-effect, types may be inferred for type parameters.
@@ -258,6 +267,15 @@ func (u *unifier) inferred(tparams []*TypeParam) []Type {
 	return list
 }
 
+// asInterface returns the underlying type of x as an interface if
+// it is a non-type parameter interface. Otherwise it returns nil.
+func asInterface(x Type) (i *Interface) {
+	if _, ok := x.(*TypeParam); !ok {
+		i, _ = under(x).(*Interface)
+	}
+	return i
+}
+
 // nify implements the core unification algorithm which is an
 // adapted version of Checker.identical. For changes to that
 // code the corresponding changes should be made here.
@@ -265,7 +283,7 @@ func (u *unifier) inferred(tparams []*TypeParam) []Type {
 func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	u.depth++
 	if traceInference {
-		u.tracef("%s ≡ %s (mode %d)", x, y, mode)
+		u.tracef("%s ≡ %s\t// %s", x, y, mode)
 	}
 	defer func() {
 		if traceInference && !result {
@@ -296,7 +314,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	// - type parameter recorded with u, make sure one is in x
 	if _, ok := x.(*Named); ok || u.asTypeParam(y) != nil {
 		if traceInference {
-			u.tracef("%s ≡ %s (swap)", y, x)
+			u.tracef("%s ≡ %s\t// swap", y, x)
 		}
 		x, y = y, x
 	}
@@ -318,7 +336,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	// we will fail at function instantiation or argument assignment time.
 	//
 	// If we have at least one defined type, there is one in y.
-	if ny, _ := y.(*Named); mode&exact == 0 && ny != nil && isTypeLit(x) && !(enableInterfaceInference && IsInterface(x)) {
+	if ny, _ := y.(*Named); mode&exact == 0 && ny != nil && isTypeLit(x) && !IsInterface(x) {
 		if traceInference {
 			u.tracef("%s ≡ under %s", x, ny)
 		}
@@ -352,11 +370,49 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		if x := u.at(px); x != nil {
 			// x has an inferred type which must match y
 			if u.nify(x, y, mode, p) {
-				// If we have a match, possibly through underlying types,
-				// and y is a defined type, make sure we record that type
+				// We have a match, possibly through underlying types.
+				xi := asInterface(x)
+				yi := asInterface(y)
+				_, xn := x.(*Named)
+				_, yn := y.(*Named)
+				// If we have two interfaces, what to do depends on
+				// whether they are named and their method sets.
+				if xi != nil && yi != nil {
+					// Both types are interfaces.
+					// If both types are defined types, they must be identical
+					// because unification doesn't know which type has the "right" name.
+					if xn && yn {
+						return Identical(x, y)
+					}
+					// In all other cases, the method sets must match.
+					// The types unified so we know that corresponding methods
+					// match and we can simply compare the number of methods.
+					// TODO(gri) We may be able to relax this rule and select
+					// the more general interface. But if one of them is a defined
+					// type, it's not clear how to choose and whether we introduce
+					// an order dependency or not. Requiring the same method set
+					// is conservative.
+					if len(xi.typeSet().methods) != len(yi.typeSet().methods) {
+						return false
+					}
+				} else if xi != nil || yi != nil {
+					// One but not both of them are interfaces.
+					// In this case, either x or y could be viable matches for the corresponding
+					// type parameter, which means choosing either introduces an order dependence.
+					// Therefore, we must fail unification (go.dev/issue/60933).
+					return false
+				}
+				// If y is a defined type, make sure we record that type
 				// for type parameter x, which may have until now only
 				// recorded an underlying type (go.dev/issue/43056).
-				if _, ok := y.(*Named); ok {
+				// Either both types are interfaces, or neither type is.
+				// If both are interfaces, they have the same methods.
+				//
+				// Note: Changing the recorded type for a type parameter to
+				// a defined type is only ok when unification is inexact.
+				// But in exact unification, if we have a match, x and y must
+				// be identical, so changing the recorded type for x is a no-op.
+				if yn {
 					u.set(px, y)
 				}
 				return true
@@ -378,22 +434,16 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		emode |= exact
 	}
 
-	// If EnableInterfaceInference is set and we don't require exact unification,
-	// if both types are interfaces, one interface must have a subset of the
-	// methods of the other and corresponding method signatures must unify.
+	// If we don't require exact unification and both types are interfaces,
+	// one interface must have a subset of the methods of the other and
+	// corresponding method signatures must unify.
 	// If only one type is an interface, all its methods must be present in the
 	// other type and corresponding method signatures must unify.
-	if enableInterfaceInference && mode&exact == 0 {
+	if mode&exact == 0 {
 		// One or both interfaces may be defined types.
 		// Look under the name, but not under type parameters (go.dev/issue/60564).
-		var xi *Interface
-		if _, ok := x.(*TypeParam); !ok {
-			xi, _ = under(x).(*Interface)
-		}
-		var yi *Interface
-		if _, ok := y.(*TypeParam); !ok {
-			yi, _ = under(y).(*Interface)
-		}
+		xi := asInterface(x)
+		yi := asInterface(y)
 		// If we have two interfaces, check the type terms for equivalence,
 		// and unify common methods if possible.
 		if xi != nil && yi != nil {
@@ -494,7 +544,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	// TODO(gri) Factor out type parameter handling from the switch.
 	if isTypeParam(y) {
 		if traceInference {
-			u.tracef("%s ≡ %s (swap)", y, x)
+			u.tracef("%s ≡ %s\t// swap", y, x)
 		}
 		x, y = y, x
 	}
@@ -579,7 +629,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		}
 
 	case *Interface:
-		assert(!enableInterfaceInference || mode&exact != 0) // handled before this switch
+		assert(mode&exact != 0) // inexact unification is handled before this switch
 
 		// Two interface types unify if they have the same set of methods with
 		// the same names, and corresponding function types unify.
@@ -671,7 +721,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 					return false
 				}
 			}
-			return indenticalOrigin(x, y)
+			return identicalOrigin(x, y)
 		}
 
 	case *TypeParam:
@@ -702,7 +752,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 				if traceInference {
 					u.tracef("core %s ≡ %s", x, y)
 				}
-				return u.nify(cx, y, mode, p)
+				// If y is a defined type, it may not match against cx which
+				// is an underlying type (incl. int, string, etc.). Use assign
+				// mode here so that the unifier automatically takes under(y)
+				// if necessary.
+				return u.nify(cx, y, assign, p)
 			}
 		}
 		// x != y and there's nothing to do

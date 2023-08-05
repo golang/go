@@ -23,7 +23,7 @@ package cgotest
 #include <unistd.h>
 #include <sys/stat.h>
 #include <errno.h>
-#cgo LDFLAGS: -lm
+#cgo !darwin LDFLAGS: -lm
 
 #ifndef WIN32
 #include <pthread.h>
@@ -115,7 +115,7 @@ int add(int x, int y) {
 	return x+y;
 };
 
-// Following mimicks vulkan complex definitions for benchmarking cgocheck overhead.
+// Following mimics vulkan complex definitions for benchmarking cgocheck overhead.
 
 typedef uint32_t VkFlags;
 typedef VkFlags  VkDeviceQueueCreateFlags;

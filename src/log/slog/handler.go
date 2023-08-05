@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog/internal/buffer"
+	"reflect"
 	"slices"
 	"strconv"
 	"sync"
@@ -140,7 +141,7 @@ type HandlerOptions struct {
 
 	// ReplaceAttr is called to rewrite each non-group attribute before it is logged.
 	// The attribute's value has been resolved (see [Value.Resolve]).
-	// If ReplaceAttr returns an Attr with Key == "", the attribute is discarded.
+	// If ReplaceAttr returns a zero Attr, the attribute is discarded.
 	//
 	// The built-in attributes with keys "time", "level", "source", and "msg"
 	// are passed to this function, except that time is omitted
@@ -193,7 +194,7 @@ type commonHandler struct {
 	groupPrefix string
 	groups      []string // all groups started from WithGroup
 	nOpenGroups int      // the number of groups opened in preformattedAttrs
-	mu          sync.Mutex
+	mu          *sync.Mutex
 	w           io.Writer
 }
 
@@ -207,6 +208,7 @@ func (h *commonHandler) clone() *commonHandler {
 		groups:            slices.Clip(h.groups),
 		nOpenGroups:       h.nOpenGroups,
 		w:                 h.w,
+		mu:                h.mu, // mutex shared among all clones of this handler
 	}
 }
 
@@ -221,6 +223,11 @@ func (h *commonHandler) enabled(l Level) bool {
 }
 
 func (h *commonHandler) withAttrs(as []Attr) *commonHandler {
+	// We are going to ignore empty groups, so if the entire slice consists of
+	// them, there is nothing to do.
+	if countEmptyGroups(as) == len(as) {
+		return h
+	}
 	h2 := h.clone()
 	// Pre-format the attributes as an optimization.
 	state := h2.newHandleState((*buffer.Buffer)(&h2.preformattedAttrs), false, "")
@@ -247,6 +254,8 @@ func (h *commonHandler) withGroup(name string) *commonHandler {
 	return h2
 }
 
+// handle is the internal implementation of Handler.Handle
+// used by TextHandler and JSONHandler.
 func (h *commonHandler) handle(r Record) error {
 	state := h.newHandleState(buffer.New(), true, "")
 	defer state.free()
@@ -308,15 +317,20 @@ func (s *handleState) appendNonBuiltIns(r Record) {
 	}
 	// Attrs in Record -- unlike the built-in ones, they are in groups started
 	// from WithGroup.
-	s.prefix.WriteString(s.h.groupPrefix)
-	s.openGroups()
-	r.Attrs(func(a Attr) bool {
-		s.appendAttr(a)
-		return true
-	})
+	// If the record has no Attrs, don't output any groups.
+	nOpenGroups := s.h.nOpenGroups
+	if r.NumAttrs() > 0 {
+		s.prefix.WriteString(s.h.groupPrefix)
+		s.openGroups()
+		nOpenGroups = len(s.h.groups)
+		r.Attrs(func(a Attr) bool {
+			s.appendAttr(a)
+			return true
+		})
+	}
 	if s.h.json {
 		// Close all open groups.
-		for range s.h.groups {
+		for range s.h.groups[:nOpenGroups] {
 			s.buf.WriteByte('}')
 		}
 		// Close the top-level object.
@@ -499,6 +513,23 @@ func (s *handleState) appendString(str string) {
 }
 
 func (s *handleState) appendValue(v Value) {
+	defer func() {
+		if r := recover(); r != nil {
+			// If it panics with a nil pointer, the most likely cases are
+			// an encoding.TextMarshaler or error fails to guard against nil,
+			// in which case "<nil>" seems to be the feasible choice.
+			//
+			// Adapted from the code in fmt/print.go.
+			if v := reflect.ValueOf(v.any); v.Kind() == reflect.Pointer && v.IsNil() {
+				s.appendString("<nil>")
+				return
+			}
+
+			// Otherwise just print the original panic message.
+			s.appendString(fmt.Sprintf("!PANIC: %v", r))
+		}
+	}()
+
 	var err error
 	if s.h.json {
 		err = appendJSONValue(s, v)

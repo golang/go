@@ -335,7 +335,7 @@ func TestDeferLeafSigpanic(t *testing.T) {
 	}()
 	// Call a leaf function. We must set up the exact call stack:
 	//
-	//  defering function -> leaf function -> sigpanic
+	//  deferring function -> leaf function -> sigpanic
 	//
 	// On LR machines, the leaf function will have the same SP as
 	// the SP pushed for the defer frame.

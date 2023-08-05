@@ -206,6 +206,14 @@ func firstComment(filename string) (first string) {
 func testTestDir(t *testing.T, path string, ignore ...string) {
 	files, err := os.ReadDir(path)
 	if err != nil {
+		// cmd/distpack deletes GOROOT/test, so skip the test if it isn't present.
+		// cmd/distpack also requires GOROOT/VERSION to exist, so use that to
+		// suppress false-positive skips.
+		if _, err := os.Stat(filepath.Join(testenv.GOROOT(t), "test")); os.IsNotExist(err) {
+			if _, err := os.Stat(filepath.Join(testenv.GOROOT(t), "VERSION")); err == nil {
+				t.Skipf("skipping: GOROOT/test not present")
+			}
+		}
 		t.Fatal(err)
 	}
 

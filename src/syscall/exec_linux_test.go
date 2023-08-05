@@ -109,11 +109,17 @@ func TestUnshare(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	orig, err := os.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	origLines := strings.Split(strings.TrimSpace(string(orig)), "\n")
+	orig := strings.TrimSpace(string(b))
+	if strings.Contains(orig, "lo:") && strings.Count(orig, ":") == 1 {
+		// This test expects there to be at least 1 more network interface
+		// in addition to the local network interface, so that it can tell
+		// that unshare worked.
+		t.Skip("not enough network interfaces to test unshare with")
+	}
 
 	cmd := testenv.Command(t, "cat", path)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -128,15 +134,18 @@ func TestUnshare(t *testing.T) {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 
-	// Check there is only the local network interface
+	// Check there is only the local network interface.
 	sout := strings.TrimSpace(string(out))
 	if !strings.Contains(sout, "lo:") {
 		t.Fatalf("Expected lo network interface to exist, got %s", sout)
 	}
 
+	origLines := strings.Split(orig, "\n")
 	lines := strings.Split(sout, "\n")
 	if len(lines) >= len(origLines) {
-		t.Fatalf("Got %d lines of output, want <%d", len(lines), len(origLines))
+		t.Logf("%s before unshare:\n%s", path, orig)
+		t.Logf("%s after unshare:\n%s", path, sout)
+		t.Fatalf("Got %d lines of output, want < %d", len(lines), len(origLines))
 	}
 }
 
@@ -240,6 +249,14 @@ func TestUnshareMountNameSpace(t *testing.T) {
 		if testenv.SyscallIsNotSupported(err) {
 			t.Skipf("skipping: could not start process with CLONE_NEWNS: %v", err)
 		}
+		if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
+			// The Go build system's swarming user is known not to support
+			// starting a process with CLONE_NEWNS.
+			// Unfortunately, it doesn't get recognized as such due the current
+			// implementation of a no-network check using 'unshare -n -r'.
+			// Since this test does need start this process, we need to skip it.
+			t.Skipf("skipping: could not start process with CLONE_NEWNS: %v", err)
+		}
 		t.Fatalf("unshare failed: %v\n%s", err, o)
 	}
 
@@ -290,6 +307,14 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 	o, err := cmd.CombinedOutput()
 	if err != nil {
 		if testenv.SyscallIsNotSupported(err) {
+			t.Skipf("skipping: could not start process with CLONE_NEWNS and Chroot %q: %v", d, err)
+		}
+		if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
+			// The Go build system's swarming user is known not to support
+			// starting a process with CLONE_NEWNS and Chroot.
+			// Unfortunately, it doesn't get recognized as such due the current
+			// implementation of a no-network check using 'unshare -n -r'.
+			// Since this test does need start this process, we need to skip it.
 			t.Skipf("skipping: could not start process with CLONE_NEWNS and Chroot %q: %v", d, err)
 		}
 		t.Fatalf("unshare failed: %v\n%s", err, o)
@@ -484,7 +509,7 @@ func TestCloneTimeNamespace(t *testing.T) {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 
-	// Inode numer of the time namespaces should be different.
+	// Inode number of the time namespaces should be different.
 	// Based on https://man7.org/linux/man-pages/man7/time_namespaces.7.html#EXAMPLES
 	timens, err := os.Readlink("/proc/self/ns/time")
 	if err != nil {

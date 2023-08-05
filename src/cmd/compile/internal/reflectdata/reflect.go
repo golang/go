@@ -158,10 +158,10 @@ func MapBucketType(t *types.Type) *types.Type {
 		base.Fatalf("elem align %d too big for %v, BUCKETSIZE=%d", elemtype.Alignment(), t, BUCKETSIZE)
 	}
 	if keytype.Size() > MAXKEYSIZE {
-		base.Fatalf("key size to large for %v", t)
+		base.Fatalf("key size too large for %v", t)
 	}
 	if elemtype.Size() > MAXELEMSIZE {
-		base.Fatalf("elem size to large for %v", t)
+		base.Fatalf("elem size too large for %v", t)
 	}
 	if t.Key().Size() > MAXKEYSIZE && !keytype.IsPtr() {
 		base.Fatalf("key indirect incorrect for %v", t)
@@ -1224,7 +1224,7 @@ func writeType(t *types.Type) *obj.LSym {
 	keep := base.Ctxt.Flag_dynlink
 	if !keep && t.Sym() == nil {
 		// For an unnamed type, we only need the link if the type can
-		// be created at run time by reflect.PtrTo and similar
+		// be created at run time by reflect.PointerTo and similar
 		// functions. If the type exists in the program, those
 		// functions must return the existing type structure rather
 		// than creating a new one.

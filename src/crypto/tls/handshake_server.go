@@ -864,6 +864,10 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 			c.sendAlert(alertBadCertificate)
 			return errors.New("tls: failed to parse client certificate: " + err.Error())
 		}
+		if certs[i].PublicKeyAlgorithm == x509.RSA && certs[i].PublicKey.(*rsa.PublicKey).N.BitLen() > maxRSAKeySize {
+			c.sendAlert(alertBadCertificate)
+			return fmt.Errorf("tls: client sent certificate containing RSA key larger than %d bits", maxRSAKeySize)
+		}
 	}
 
 	if len(certs) == 0 && requiresClientCert(c.config.ClientAuth) {

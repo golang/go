@@ -7,8 +7,11 @@ package tool
 
 import (
 	"context"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"go/build"
+	"internal/platform"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -68,10 +71,25 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
 			return
 		}
 	}
-	toolPath := base.Tool(toolName)
-	if toolPath == "" {
-		return
+
+	toolPath, err := base.ToolPath(toolName)
+	if err != nil {
+		if toolName == "dist" && len(args) > 1 && args[1] == "list" {
+			// cmd/distpack removes the 'dist' tool from the toolchain to save space,
+			// since it is normally only used for building the toolchain in the first
+			// place. However, 'go tool dist list' is useful for listing all supported
+			// platforms.
+			//
+			// If the dist tool does not exist, impersonate this command.
+			if impersonateDistList(args[2:]) {
+				return
+			}
+		}
+
+		// Emit the usual error for the missing tool.
+		_ = base.Tool(toolName)
 	}
+
 	if toolN {
 		cmd := toolPath
 		if len(args) > 1 {
@@ -88,7 +106,7 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 	}
-	err := toolCmd.Start()
+	err = toolCmd.Start()
 	if err == nil {
 		c := make(chan os.Signal, 100)
 		signal.Notify(c)
@@ -144,4 +162,63 @@ func listTools() {
 		}
 		fmt.Println(name)
 	}
+}
+
+func impersonateDistList(args []string) (handled bool) {
+	fs := flag.NewFlagSet("go tool dist list", flag.ContinueOnError)
+	jsonFlag := fs.Bool("json", false, "produce JSON output")
+	brokenFlag := fs.Bool("broken", false, "include broken ports")
+
+	// The usage for 'go tool dist' claims that
+	// “All commands take -v flags to emit extra information”,
+	// but list -v appears not to have any effect.
+	_ = fs.Bool("v", false, "emit extra information")
+
+	if err := fs.Parse(args); err != nil || len(fs.Args()) > 0 {
+		// Unrecognized flag or argument.
+		// Force fallback to the real 'go tool dist'.
+		return false
+	}
+
+	if !*jsonFlag {
+		for _, p := range platform.List {
+			if !*brokenFlag && platform.Broken(p.GOOS, p.GOARCH) {
+				continue
+			}
+			fmt.Println(p)
+		}
+		return true
+	}
+
+	type jsonResult struct {
+		GOOS         string
+		GOARCH       string
+		CgoSupported bool
+		FirstClass   bool
+		Broken       bool `json:",omitempty"`
+	}
+
+	var results []jsonResult
+	for _, p := range platform.List {
+		broken := platform.Broken(p.GOOS, p.GOARCH)
+		if broken && !*brokenFlag {
+			continue
+		}
+		if *jsonFlag {
+			results = append(results, jsonResult{
+				GOOS:         p.GOOS,
+				GOARCH:       p.GOARCH,
+				CgoSupported: platform.CgoSupported(p.GOOS, p.GOARCH),
+				FirstClass:   platform.FirstClass(p.GOOS, p.GOARCH),
+				Broken:       broken,
+			})
+		}
+	}
+	out, err := json.MarshalIndent(results, "", "\t")
+	if err != nil {
+		return false
+	}
+
+	os.Stdout.Write(out)
+	return true
 }

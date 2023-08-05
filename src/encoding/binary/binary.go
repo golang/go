@@ -479,7 +479,6 @@ func dataSize(v reflect.Value) int {
 		if s := sizeof(v.Type().Elem()); s >= 0 {
 			return s * v.Len()
 		}
-		return -1
 
 	case reflect.Struct:
 		t := v.Type()
@@ -491,8 +490,12 @@ func dataSize(v reflect.Value) int {
 		return size
 
 	default:
-		return sizeof(v.Type())
+		if v.IsValid() {
+			return sizeof(v.Type())
+		}
 	}
+
+	return -1
 }
 
 // sizeof returns the size >= 0 of variables for the given type or -1 if the type is not acceptable.

@@ -51,7 +51,7 @@ fn nogoenv {
 	GO111MODULE=off GOENV=off GOOS=() GOARCH=() GOEXPERIMENT=() GOFLAGS=() $*
 }
 
-bootgo = 1.17.13
+bootgo = 1.20.6
 GOROOT = `{cd .. && pwd}
 goroot_bootstrap_set = 'true'
 if(! ~ $#GOROOT_BOOTSTRAP 1){

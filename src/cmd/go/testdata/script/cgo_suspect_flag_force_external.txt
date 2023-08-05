@@ -18,7 +18,7 @@
 # non-standard host objects.
 #
 # As of 1.21 we continue to use internal linking for programs whose
-# CGO use comes ony from stdlib packages in the absence of any flag
+# CGO use comes only from stdlib packages in the absence of any flag
 # funny business, however if the Go command sees flags that may be suspicious,
 # it signals the Go linker to invoke the external linker.
 

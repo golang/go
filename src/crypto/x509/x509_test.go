@@ -154,7 +154,7 @@ wg/HcAJWY60xZTJDFN+Qfx8ZQvBEin6c2/h+zZi5IVY=
 -----END RSA TESTING KEY-----
 `)
 
-// pemEd25519Key is the example from RFC 8410, Secrion 4.
+// pemEd25519Key is the example from RFC 8410, Section 4.
 var pemEd25519Key = `
 -----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAGb9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=

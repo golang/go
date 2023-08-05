@@ -1654,14 +1654,6 @@ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
 	return &ast.CompositeLit{Type: typ, Lbrace: lbrace, Elts: elts, Rbrace: rbrace}
 }
 
-// If x is of the form (T), unparen returns unparen(T), otherwise it returns x.
-func unparen(x ast.Expr) ast.Expr {
-	if p, isParen := x.(*ast.ParenExpr); isParen {
-		x = unparen(p.X)
-	}
-	return x
-}
-
 func (p *parser) parsePrimaryExpr(x ast.Expr) ast.Expr {
 	if p.trace {
 		defer un(trace(p, "PrimaryExpr"))
@@ -1706,7 +1698,7 @@ func (p *parser) parsePrimaryExpr(x ast.Expr) ast.Expr {
 		case token.LBRACE:
 			// operand may have returned a parenthesized complit
 			// type; accept it but complain if we have a complit
-			t := unparen(x)
+			t := ast.Unparen(x)
 			// determine if '{' belongs to a composite literal or a block statement
 			switch t.(type) {
 			case *ast.BadExpr, *ast.Ident, *ast.SelectorExpr:
@@ -1949,7 +1941,7 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 
 func (p *parser) parseCallExpr(callType string) *ast.CallExpr {
 	x := p.parseRhs() // could be a conversion: (some type)(x)
-	if t := unparen(x); t != x {
+	if t := ast.Unparen(x); t != x {
 		p.error(x.Pos(), fmt.Sprintf("expression in %s must not be parenthesized", callType))
 		x = t
 	}

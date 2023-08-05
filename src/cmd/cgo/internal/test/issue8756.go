@@ -1,7 +1,7 @@
 package cgotest
 
 /*
-#cgo LDFLAGS: -lm
+#cgo !darwin LDFLAGS: -lm
 #include <math.h>
 */
 import "C"

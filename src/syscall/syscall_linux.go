@@ -243,7 +243,7 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 //sys	fchmodat(dirfd int, path string, mode uint32) (err error)
 
 func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) {
-	// Linux fchmodat doesn't support the flags parameter. Mimick glibc's behavior
+	// Linux fchmodat doesn't support the flags parameter. Mimic glibc's behavior
 	// and check the flags. Otherwise the mode would be applied to the symlink
 	// destination which is not what the user expects.
 	if flags&^_AT_SYMLINK_NOFOLLOW != 0 {
@@ -936,12 +936,22 @@ func PtracePokeData(pid int, addr uintptr, data []byte) (count int, err error) {
 	return ptracePoke(PTRACE_POKEDATA, PTRACE_PEEKDATA, pid, addr, data)
 }
 
+const (
+	_NT_PRSTATUS = 1
+)
+
 func PtraceGetRegs(pid int, regsout *PtraceRegs) (err error) {
-	return ptracePtr(PTRACE_GETREGS, pid, 0, unsafe.Pointer(regsout))
+	var iov Iovec
+	iov.Base = (*byte)(unsafe.Pointer(regsout))
+	iov.SetLen(int(unsafe.Sizeof(*regsout)))
+	return ptracePtr(PTRACE_GETREGSET, pid, uintptr(_NT_PRSTATUS), unsafe.Pointer(&iov))
 }
 
 func PtraceSetRegs(pid int, regs *PtraceRegs) (err error) {
-	return ptracePtr(PTRACE_SETREGS, pid, 0, unsafe.Pointer(regs))
+	var iov Iovec
+	iov.Base = (*byte)(unsafe.Pointer(regs))
+	iov.SetLen(int(unsafe.Sizeof(*regs)))
+	return ptracePtr(PTRACE_SETREGSET, pid, uintptr(_NT_PRSTATUS), unsafe.Pointer(&iov))
 }
 
 func PtraceSetOptions(pid int, options int) (err error) {

@@ -32,7 +32,7 @@ stdout 'example.com/b'
 # -mod can only be set to readonly in workspace mode
 go list -mod=readonly all
 ! go list -mod=mod all
-stderr '^go: -mod may only be set to readonly when in workspace mode'
+stderr '^go: -mod may only be set to readonly or vendor when in workspace mode'
 env GOWORK=off
 go list -mod=mod all
 env GOWORK=

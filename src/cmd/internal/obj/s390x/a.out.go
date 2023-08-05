@@ -480,6 +480,12 @@ const (
 	// macros
 	ACLEAR
 
+	// crypto
+	AKM
+	AKMC
+	AKLMD
+	AKIMD
+
 	// vector
 	AVA
 	AVAB

@@ -38,22 +38,41 @@ type netFD struct {
 	*fakeNetFD
 }
 
-func newFD(sysfd int) (*netFD, error) {
-	return newPollFD(poll.FD{
+func newFD(net string, sysfd int) *netFD {
+	return newPollFD(net, poll.FD{
 		Sysfd:         sysfd,
 		IsStream:      true,
 		ZeroReadIsEOF: true,
 	})
 }
 
-func newPollFD(pfd poll.FD) (*netFD, error) {
-	ret := &netFD{
-		pfd:   pfd,
-		net:   "tcp",
-		laddr: unknownAddr{},
-		raddr: unknownAddr{},
+func newPollFD(net string, pfd poll.FD) *netFD {
+	var laddr Addr
+	var raddr Addr
+	// WASI preview 1 does not have functions like getsockname/getpeername,
+	// so we cannot get access to the underlying IP address used by connections.
+	//
+	// However, listeners created by FileListener are of type *TCPListener,
+	// which can be asserted by a Go program. The (*TCPListener).Addr method
+	// documents that the returned value will be of type *TCPAddr, we satisfy
+	// the documented behavior by creating addresses of the expected type here.
+	switch net {
+	case "tcp":
+		laddr = new(TCPAddr)
+		raddr = new(TCPAddr)
+	case "udp":
+		laddr = new(UDPAddr)
+		raddr = new(UDPAddr)
+	default:
+		laddr = unknownAddr{}
+		raddr = unknownAddr{}
 	}
-	return ret, nil
+	return &netFD{
+		pfd:   pfd,
+		net:   net,
+		laddr: laddr,
+		raddr: raddr,
+	}
 }
 
 func (fd *netFD) init() error {
@@ -75,10 +94,7 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
 		}
 		return nil, err
 	}
-	if netfd, err = newFD(d); err != nil {
-		poll.CloseFunc(d)
-		return nil, err
-	}
+	netfd = newFD("tcp", d)
 	if err = netfd.init(); err != nil {
 		netfd.Close()
 		return nil, err

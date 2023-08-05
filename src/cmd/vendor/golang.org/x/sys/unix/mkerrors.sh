@@ -519,7 +519,7 @@ ccflags="$@"
 		$2 ~ /^LOCK_(SH|EX|NB|UN)$/ ||
 		$2 ~ /^LO_(KEY|NAME)_SIZE$/ ||
 		$2 ~ /^LOOP_(CLR|CTL|GET|SET)_/ ||
-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL|TCPOPT|UDP)_/ ||
+		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MREMAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL|TCPOPT|UDP)_/ ||
 		$2 ~ /^NFC_(GENL|PROTO|COMM|RF|SE|DIRECTION|LLCP|SOCKPROTO)_/ ||
 		$2 ~ /^NFC_.*_(MAX)?SIZE$/ ||
 		$2 ~ /^RAW_PAYLOAD_/ ||
@@ -741,7 +741,8 @@ main(void)
 		e = errors[i].num;
 		if(i > 0 && errors[i-1].num == e)
 			continue;
-		strcpy(buf, strerror(e));
+		strncpy(buf, strerror(e), sizeof(buf) - 1);
+		buf[sizeof(buf) - 1] = '\0';
 		// lowercase first letter: Bad -> bad, but STREAM -> STREAM.
 		if(A <= buf[0] && buf[0] <= Z && a <= buf[1] && buf[1] <= z)
 			buf[0] += a - A;
@@ -760,7 +761,8 @@ main(void)
 		e = signals[i].num;
 		if(i > 0 && signals[i-1].num == e)
 			continue;
-		strcpy(buf, strsignal(e));
+		strncpy(buf, strsignal(e), sizeof(buf) - 1);
+		buf[sizeof(buf) - 1] = '\0';
 		// lowercase first letter: Bad -> bad, but STREAM -> STREAM.
 		if(A <= buf[0] && buf[0] <= Z && a <= buf[1] && buf[1] <= z)
 			buf[0] += a - A;

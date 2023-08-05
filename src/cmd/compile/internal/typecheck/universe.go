@@ -14,7 +14,6 @@ import (
 
 var (
 	okfor [ir.OEND][]bool
-	iscmp [ir.OEND]bool
 )
 
 var (
@@ -206,23 +205,4 @@ func InitUniverse() {
 	// special
 	okfor[ir.OCAP] = okforcap[:]
 	okfor[ir.OLEN] = okforlen[:]
-}
-
-// DeclareUniverse makes the universe block visible within the current package.
-func DeclareUniverse() {
-	// Operationally, this is similar to a dot import of builtinpkg, except
-	// that we silently skip symbols that are already declared in the
-	// package block rather than emitting a redeclared symbol error.
-
-	for _, s := range types.BuiltinPkg.Syms {
-		if s.Def == nil {
-			continue
-		}
-		s1 := Lookup(s.Name)
-		if s1.Def != nil {
-			continue
-		}
-
-		s1.Def = s.Def
-	}
 }

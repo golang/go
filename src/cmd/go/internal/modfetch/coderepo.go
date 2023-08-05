@@ -1013,7 +1013,7 @@ func (r *codeRepo) retractedVersions(ctx context.Context) (func(string) bool, er
 	if err != nil {
 		return nil, err
 	}
-	retractions := make([]modfile.VersionInterval, len(f.Retract))
+	retractions := make([]modfile.VersionInterval, 0, len(f.Retract))
 	for _, r := range f.Retract {
 		retractions = append(retractions, r.VersionInterval)
 	}

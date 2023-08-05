@@ -105,6 +105,26 @@ func OriginMethod(fn *types.Func) *types.Func {
 	}
 	orig := NamedTypeOrigin(named)
 	gfn, _, _ := types.LookupFieldOrMethod(orig, true, fn.Pkg(), fn.Name())
+
+	// This is a fix for a gopls crash (#60628) due to a go/types bug (#60634). In:
+	// 	package p
+	//      type T *int
+	//      func (*T) f() {}
+	// LookupFieldOrMethod(T, true, p, f)=nil, but NewMethodSet(*T)={(*T).f}.
+	// Here we make them consistent by force.
+	// (The go/types bug is general, but this workaround is reached only
+	// for generic T thanks to the early return above.)
+	if gfn == nil {
+		mset := types.NewMethodSet(types.NewPointer(orig))
+		for i := 0; i < mset.Len(); i++ {
+			m := mset.At(i)
+			if m.Obj().Id() == fn.Id() {
+				gfn = m.Obj()
+				break
+			}
+		}
+	}
+
 	return gfn.(*types.Func)
 }
 

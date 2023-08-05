@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
+	"sync"
 	"syscall/js"
 )
 
@@ -44,15 +46,19 @@ const jsFetchRedirect = "js.fetch:redirect"
 // the browser globals.
 var jsFetchMissing = js.Global().Get("fetch").IsUndefined()
 
-// jsFetchDisabled will be true if the "process" global is present.
-// We use this as an indicator that we're running in Node.js. We
-// want to disable the Fetch API in Node.js because it breaks
-// our wasm tests. See https://go.dev/issue/57613 for more information.
-var jsFetchDisabled = !js.Global().Get("process").IsUndefined()
+// jsFetchDisabled controls whether the use of Fetch API is disabled.
+// It's set to true when we detect we're running in Node.js, so that
+// RoundTrip ends up talking over the same fake network the HTTP servers
+// currently use in various tests and examples. See go.dev/issue/57613.
+//
+// TODO(go.dev/issue/60810): See if it's viable to test the Fetch API
+// code path.
+var jsFetchDisabled = js.Global().Get("process").Type() == js.TypeObject &&
+	strings.HasPrefix(js.Global().Get("process").Get("argv0").String(), "node")
 
 // Determine whether the JS runtime supports streaming request bodies.
 // Courtesy: https://developer.chrome.com/articles/fetch-streaming-requests/#feature-detection
-func supportsPostRequestStreams() bool {
+var supportsPostRequestStreams = sync.OnceValue(func() bool {
 	requestOpt := js.Global().Get("Object").New()
 	requestBody := js.Global().Get("ReadableStream").New()
 
@@ -80,7 +86,7 @@ func supportsPostRequestStreams() bool {
 	hasContentTypeHeader := requestObject.Get("headers").Call("has", "Content-Type").Bool()
 
 	return duplexCalled && !hasContentTypeHeader
-}
+})
 
 // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
@@ -130,7 +136,6 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	}
 	opt.Set("headers", headers)
 
-	var readableStreamStart, readableStreamPull, readableStreamCancel js.Func
 	if req.Body != nil {
 		if !supportsPostRequestStreams() {
 			body, err := io.ReadAll(req.Body)
@@ -138,6 +143,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 				req.Body.Close() // RoundTrip must always close the body, including on errors.
 				return nil, err
 			}
+			req.Body.Close()
 			if len(body) != 0 {
 				buf := uint8Array.New(len(body))
 				js.CopyBytesToJS(buf, body)
@@ -148,7 +154,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 			readableStreamCtorArg.Set("type", "bytes")
 			readableStreamCtorArg.Set("autoAllocateChunkSize", t.writeBufferSize())
 
-			readableStreamPull = js.FuncOf(func(this js.Value, args []js.Value) any {
+			readableStreamPull := js.FuncOf(func(this js.Value, args []js.Value) any {
 				controller := args[0]
 				byobRequest := controller.Get("byobRequest")
 				if byobRequest.IsNull() {
@@ -176,6 +182,10 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 				// Note: This a return from the pull callback of the controller and *not* RoundTrip().
 				return nil
 			})
+			defer func() {
+				readableStreamPull.Release()
+				req.Body.Close()
+			}()
 			readableStreamCtorArg.Set("pull", readableStreamPull)
 
 			opt.Set("body", js.Global().Get("ReadableStream").New(readableStreamCtorArg))
@@ -196,11 +206,6 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	success = js.FuncOf(func(this js.Value, args []js.Value) any {
 		success.Release()
 		failure.Release()
-		readableStreamCancel.Release()
-		readableStreamPull.Release()
-		readableStreamStart.Release()
-
-		req.Body.Close()
 
 		result := args[0]
 		header := Header{}
@@ -265,11 +270,6 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	failure = js.FuncOf(func(this js.Value, args []js.Value) any {
 		success.Release()
 		failure.Release()
-		readableStreamCancel.Release()
-		readableStreamPull.Release()
-		readableStreamStart.Release()
-
-		req.Body.Close()
 
 		err := args[0]
 		// The error is a JS Error type

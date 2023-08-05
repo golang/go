@@ -70,6 +70,18 @@ func TestStdLib(t *testing.T) {
 			filepath.Join(goroot, "src"),
 			filepath.Join(goroot, "misc"),
 		} {
+			if filepath.Base(dir) == "misc" {
+				// cmd/distpack deletes GOROOT/misc, so skip that directory if it isn't present.
+				// cmd/distpack also requires GOROOT/VERSION to exist, so use that to
+				// suppress false-positive skips.
+				if _, err := os.Stat(dir); os.IsNotExist(err) {
+					if _, err := os.Stat(filepath.Join(testenv.GOROOT(t), "VERSION")); err == nil {
+						fmt.Printf("%s not present; skipping\n", dir)
+						continue
+					}
+				}
+			}
+
 			walkDirs(t, dir, func(filename string) {
 				if skipRx != nil && skipRx.MatchString(filename) {
 					// Always report skipped files since regexp

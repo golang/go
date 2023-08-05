@@ -276,7 +276,7 @@ func (x *expandState) indent(n int) {
 	x.indentLevel += n
 }
 
-// Printf does an indented fmt.Printf on te format and args.
+// Printf does an indented fmt.Printf on the format and args.
 func (x *expandState) Printf(format string, a ...interface{}) (n int, err error) {
 	if x.indentLevel > 0 {
 		fmt.Printf("%[1]*s", x.indentLevel, "")
@@ -1115,7 +1115,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 			}
 			// "Dereference" of addressed (probably not-SSA-eligible) value becomes Move
 			// TODO(register args) this will be more complicated with registers in the picture.
-			mem = x.rewriteDereference(v.Block, sp, a, mem, aOffset, aux.SizeOfArg(auxI), aType, a.Pos)
+			mem = x.rewriteDereference(v.Block, sp, a, mem, aOffset, aux.SizeOfArg(auxI), aType, v.Pos)
 		} else {
 			var rc registerCursor
 			var result *[]*Value
@@ -1137,7 +1137,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 				x.Printf("...storeArg %s, %v, %d\n", a.LongString(), aType, aOffset)
 			}
 			rc.init(aRegs, aux.abiInfo, result, sp)
-			mem = x.storeArgOrLoad(a.Pos, v.Block, a, mem, aType, aOffset, 0, rc)
+			mem = x.storeArgOrLoad(v.Pos, v.Block, a, mem, aType, aOffset, 0, rc)
 		}
 	}
 	var preArgStore [2]*Value

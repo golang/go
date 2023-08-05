@@ -119,7 +119,7 @@ func (c *TCPConn) SyscallConn() (syscall.RawConn, error) {
 	if !c.ok() {
 		return nil, syscall.EINVAL
 	}
-	return newRawConn(c.fd)
+	return newRawConn(c.fd), nil
 }
 
 // ReadFrom implements the io.ReaderFrom ReadFrom method.
@@ -290,7 +290,7 @@ func (l *TCPListener) SyscallConn() (syscall.RawConn, error) {
 	if !l.ok() {
 		return nil, syscall.EINVAL
 	}
-	return newRawListener(l.fd)
+	return newRawListener(l.fd), nil
 }
 
 // AcceptTCP accepts the next incoming call and returns the new

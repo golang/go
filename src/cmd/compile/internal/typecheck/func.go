@@ -146,26 +146,6 @@ func MethodValueType(n *ir.SelectorExpr) *types.Type {
 	return t
 }
 
-// Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
-// the ->sym can be re-used in the local package, so peel it off the receiver's type.
-func fnpkg(fn *ir.Name) *types.Pkg {
-	if ir.IsMethod(fn) {
-		// method
-		rcvr := fn.Type().Recv().Type
-
-		if rcvr.IsPtr() {
-			rcvr = rcvr.Elem()
-		}
-		if rcvr.Sym() == nil {
-			base.Fatalf("receiver with no sym: [%v] %L  (%v)", fn.Sym(), fn, rcvr)
-		}
-		return rcvr.Sym().Pkg
-	}
-
-	// non-method
-	return fn.Sym().Pkg
-}
-
 // tcClosure typechecks an OCLOSURE node. It also creates the named
 // function associated with the closure.
 // TODO: This creation of the named function should probably really be done in a

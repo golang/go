@@ -96,6 +96,10 @@ func goCmd(t *testing.T, args ...string) string {
 
 // TestMain calls testMain so that the latter can use defer (TestMain exits with os.Exit).
 func testMain(m *testing.M) (int, error) {
+	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+		globalSkip = func(t testing.TB) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
+		return m.Run(), nil
+	}
 	if !platform.BuildModeSupported(runtime.Compiler, "shared", runtime.GOOS, runtime.GOARCH) {
 		globalSkip = func(t testing.TB) { t.Skip("shared build mode not supported") }
 		return m.Run(), nil
@@ -731,6 +735,10 @@ func TestThreeGopathShlibs(t *testing.T) {
 func requireGccgo(t *testing.T) {
 	t.Helper()
 
+	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
+		t.Skip("gccgo test skipped on PPC64 until issue #60798 is resolved")
+	}
+
 	gccgoName := os.Getenv("GCCGO")
 	if gccgoName == "" {
 		gccgoName = "gccgo"
@@ -748,7 +756,7 @@ func requireGccgo(t *testing.T) {
 	if dot > 0 {
 		output = output[:dot]
 	}
-	major, err := strconv.Atoi(string(output))
+	major, err := strconv.Atoi(strings.TrimSpace(string(output)))
 	if err != nil {
 		t.Skipf("can't parse gccgo version number %s", output)
 	}

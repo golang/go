@@ -371,8 +371,8 @@ func typeEncoder(t reflect.Type) encoderFunc {
 }
 
 var (
-	marshalerType     = reflect.TypeOf((*Marshaler)(nil)).Elem()
-	textMarshalerType = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
+	marshalerType     = reflect.TypeFor[Marshaler]()
+	textMarshalerType = reflect.TypeFor[encoding.TextMarshaler]()
 )
 
 // newTypeEncoder constructs an encoderFunc for a type.
@@ -1013,7 +1013,7 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
 		// but don't work in JSONP, which has to be evaluated as JavaScript,
 		// and can lead to security holes there. It is valid JSON to
 		// escape them, so we do so unconditionally.
-		// See http://timelessrepo.com/json-isnt-a-javascript-subset for discussion.
+		// See https://en.wikipedia.org/wiki/JSON#Safety.
 		if c == '\u2028' || c == '\u2029' {
 			dst = append(dst, src[start:i]...)
 			dst = append(dst, '\\', 'u', '2', '0', '2', hex[c&0xF])
@@ -1168,7 +1168,7 @@ func typeFields(t reflect.Type) structFields {
 					if count[f.typ] > 1 {
 						// If there were multiple instances, add a second,
 						// so that the annihilation code will see a duplicate.
-						// It only cares about the distinction between 1 or 2,
+						// It only cares about the distinction between 1 and 2,
 						// so don't bother generating any more copies.
 						fields = append(fields, fields[len(fields)-1])
 					}

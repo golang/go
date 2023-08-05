@@ -5,17 +5,17 @@
 // Package modfile implements a parser and formatter for go.mod files.
 //
 // The go.mod syntax is described in
-// https://golang.org/cmd/go/#hdr-The_go_mod_file.
+// https://pkg.go.dev/cmd/go/#hdr-The_go_mod_file.
 //
-// The Parse and ParseLax functions both parse a go.mod file and return an
+// The [Parse] and [ParseLax] functions both parse a go.mod file and return an
 // abstract syntax tree. ParseLax ignores unknown statements and may be used to
 // parse go.mod files that may have been developed with newer versions of Go.
 //
-// The File struct returned by Parse and ParseLax represent an abstract
-// go.mod file. File has several methods like AddNewRequire and DropReplace
-// that can be used to programmatically edit a file.
+// The [File] struct returned by Parse and ParseLax represent an abstract
+// go.mod file. File has several methods like [File.AddNewRequire] and
+// [File.DropReplace] that can be used to programmatically edit a file.
 //
-// The Format function formats a File back to a byte slice which can be
+// The [Format] function formats a File back to a byte slice which can be
 // written to a file.
 package modfile
 
@@ -226,7 +226,7 @@ var dontFixRetract VersionFixer = func(_, vers string) (string, error) {
 // data is the content of the file.
 //
 // fix is an optional function that canonicalizes module versions.
-// If fix is nil, all module versions must be canonical (module.CanonicalVersion
+// If fix is nil, all module versions must be canonical ([module.CanonicalVersion]
 // must return the same string).
 func Parse(file string, data []byte, fix VersionFixer) (*File, error) {
 	return parseToFile(file, data, fix, true)
@@ -923,7 +923,7 @@ func (f *File) Format() ([]byte, error) {
 }
 
 // Cleanup cleans up the file f after any edit operations.
-// To avoid quadratic behavior, modifications like DropRequire
+// To avoid quadratic behavior, modifications like [File.DropRequire]
 // clear the entry but do not remove it from the slice.
 // Cleanup cleans out all the cleared entries.
 func (f *File) Cleanup() {
@@ -1075,8 +1075,8 @@ func (f *File) AddNewRequire(path, vers string, indirect bool) {
 // The requirements in req must specify at most one distinct version for each
 // module path.
 //
-// If any existing requirements may be removed, the caller should call Cleanup
-// after all edits are complete.
+// If any existing requirements may be removed, the caller should call
+// [File.Cleanup] after all edits are complete.
 func (f *File) SetRequire(req []*Require) {
 	type elem struct {
 		version  string

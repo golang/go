@@ -209,16 +209,7 @@ func BenchmarkAll(b *testing.B) {
 	}
 }
 
-func TestIssue21181(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping with -short")
-	}
-	if *flagCheck {
-		// slow, not worth repeating in -check
-		t.Skip("skipping with -check set")
-	}
-	testenv.MustHaveGoBuild(t)
-
+var warmupCache = sync.OnceFunc(func() {
 	// Warm up the import cache in parallel.
 	var wg sync.WaitGroup
 	for _, context := range contexts {
@@ -230,6 +221,19 @@ func TestIssue21181(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+})
+
+func TestIssue21181(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping with -short")
+	}
+	if *flagCheck {
+		// slow, not worth repeating in -check
+		t.Skip("skipping with -check set")
+	}
+	testenv.MustHaveGoBuild(t)
+
+	warmupCache()
 
 	for _, context := range contexts {
 		w := NewWalker(context, "testdata/src/issue21181")
@@ -243,11 +247,17 @@ func TestIssue21181(t *testing.T) {
 }
 
 func TestIssue29837(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping with -short")
+	}
 	if *flagCheck {
 		// slow, not worth repeating in -check
 		t.Skip("skipping with -check set")
 	}
 	testenv.MustHaveGoBuild(t)
+
+	warmupCache()
+
 	for _, context := range contexts {
 		w := NewWalker(context, "testdata/src/issue29837")
 		_, err := w.ImportFrom("p", "", 0)

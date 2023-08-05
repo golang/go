@@ -199,7 +199,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		hu := typecheck.Temp(types.Types[types.TUINTPTR])
 		init = append(init, ir.NewAssignStmt(base.Pos, hu, huVal))
 
-		// Convert hu to hp at the top of the loop (afer the condition has been checked).
+		// Convert hu to hp at the top of the loop (after the condition has been checked).
 		hpVal := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], hu)
 		hpVal.SetCheckPtr(true) // disable checkptr on this conversion
 		hpVal = ir.NewConvExpr(base.Pos, ir.OCONVNOP, elem.PtrTo(), hpVal)
@@ -563,19 +563,4 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
 	n.Cond = typecheck.DefaultLit(n.Cond, nil)
 	typecheck.Stmts(n.Body)
 	return walkStmt(n)
-}
-
-// addptr returns (*T)(uintptr(p) + n).
-func addptr(p ir.Node, n int64) ir.Node {
-	t := p.Type()
-
-	p = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, p)
-	p.SetType(types.Types[types.TUINTPTR])
-
-	p = ir.NewBinaryExpr(base.Pos, ir.OADD, p, ir.NewInt(base.Pos, n))
-
-	p = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, p)
-	p.SetType(t)
-
-	return p
 }

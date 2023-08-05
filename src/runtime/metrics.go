@@ -72,7 +72,7 @@ func initMetrics() {
 		// and exclusive lower bound (e.g. 48-byte size class is
 		// (32, 48]) whereas we want and inclusive lower-bound
 		// and exclusive upper-bound (e.g. 48-byte size class is
-		// [33, 49). We can achieve this by shifting all bucket
+		// [33, 49)). We can achieve this by shifting all bucket
 		// boundaries up by 1.
 		//
 		// Also, a float64 can precisely represent integers with
@@ -660,7 +660,7 @@ type cpuStatsAggregate struct {
 // compute populates the cpuStatsAggregate with values from the runtime.
 func (a *cpuStatsAggregate) compute() {
 	a.cpuStats = work.cpuStats
-	// TODO(mknyszek): Update the the CPU stats again so that we're not
+	// TODO(mknyszek): Update the CPU stats again so that we're not
 	// just relying on the STW snapshot. The issue here is that currently
 	// this will cause non-monotonicity in the "user" CPU time metric.
 	//

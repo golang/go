@@ -13,45 +13,85 @@ import (
 )
 
 func fileListener(f *os.File) (Listener, error) {
-	fd, err := newFileFD(f)
+	filetype, err := fd_fdstat_get_type(f.PollFD().Sysfd)
 	if err != nil {
 		return nil, err
 	}
-	return &TCPListener{fd: fd}, nil
+	net, err := fileListenNet(filetype)
+	if err != nil {
+		return nil, err
+	}
+	pfd := f.PollFD().Copy()
+	fd := newPollFD(net, pfd)
+	if err := fd.init(); err != nil {
+		pfd.Close()
+		return nil, err
+	}
+	return newFileListener(fd), nil
 }
 
 func fileConn(f *os.File) (Conn, error) {
-	fd, err := newFileFD(f)
+	filetype, err := fd_fdstat_get_type(f.PollFD().Sysfd)
 	if err != nil {
 		return nil, err
 	}
-	return &TCPConn{conn{fd: fd}}, nil
+	net, err := fileConnNet(filetype)
+	if err != nil {
+		return nil, err
+	}
+	pfd := f.PollFD().Copy()
+	fd := newPollFD(net, pfd)
+	if err := fd.init(); err != nil {
+		pfd.Close()
+		return nil, err
+	}
+	return newFileConn(fd), nil
 }
 
-func filePacketConn(f *os.File) (PacketConn, error) { return nil, syscall.ENOPROTOOPT }
+func filePacketConn(f *os.File) (PacketConn, error) {
+	return nil, syscall.ENOPROTOOPT
+}
 
-func newFileFD(f *os.File) (fd *netFD, err error) {
-	pfd := f.PollFD().Copy()
-	defer func() {
-		if err != nil {
-			pfd.Close()
-		}
-	}()
-	filetype, err := fd_fdstat_get_type(pfd.Sysfd)
-	if err != nil {
-		return nil, err
+func fileListenNet(filetype syscall.Filetype) (string, error) {
+	switch filetype {
+	case syscall.FILETYPE_SOCKET_STREAM:
+		return "tcp", nil
+	case syscall.FILETYPE_SOCKET_DGRAM:
+		return "", syscall.EOPNOTSUPP
+	default:
+		return "", syscall.ENOTSOCK
 	}
-	if filetype != syscall.FILETYPE_SOCKET_STREAM {
-		return nil, syscall.ENOTSOCK
+}
+
+func fileConnNet(filetype syscall.Filetype) (string, error) {
+	switch filetype {
+	case syscall.FILETYPE_SOCKET_STREAM:
+		return "tcp", nil
+	case syscall.FILETYPE_SOCKET_DGRAM:
+		return "udp", nil
+	default:
+		return "", syscall.ENOTSOCK
 	}
-	fd, err = newPollFD(pfd)
-	if err != nil {
-		return nil, err
+}
+
+func newFileListener(fd *netFD) Listener {
+	switch fd.net {
+	case "tcp":
+		return &TCPListener{fd: fd}
+	default:
+		panic("unsupported network for file listener: " + fd.net)
 	}
-	if err := fd.init(); err != nil {
-		return nil, err
+}
+
+func newFileConn(fd *netFD) Conn {
+	switch fd.net {
+	case "tcp":
+		return &TCPConn{conn{fd: fd}}
+	case "udp":
+		return &UDPConn{conn{fd: fd}}
+	default:
+		panic("unsupported network for file connection: " + fd.net)
 	}
-	return fd, nil
 }
 
 // This helper is implemented in the syscall package. It means we don't have

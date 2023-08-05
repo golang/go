@@ -499,6 +499,8 @@ func combineStores(root *Value, n int64) bool {
 			return false
 		}
 		if x.Aux.(*types.Type).Size() != size {
+			// TODO: the constant source and consecutive load source cases
+			// do not need all the stores to be the same size.
 			return false
 		}
 		base, off := splitPtr(x.Args[0])
@@ -563,6 +565,74 @@ func combineStores(root *Value, n int64) bool {
 				v.Aux = cv.Type // widen store type
 				v.SetArg(0, ptr)
 				v.SetArg(1, cv)
+				v.SetArg(2, mem)
+			} else {
+				clobber(v)
+				v.Type = types.Types[types.TBOOL] // erase memory type
+			}
+		}
+		return true
+	}
+
+	// Check for consecutive loads as the source of the stores.
+	var loadMem *Value
+	var loadBase BaseAddress
+	var loadIdx int64
+	for i := int64(0); i < n; i++ {
+		load := a[i].store.Args[1]
+		if load.Op != OpLoad {
+			loadMem = nil
+			break
+		}
+		if load.Uses != 1 {
+			loadMem = nil
+			break
+		}
+		if load.Type.IsPtr() {
+			// Don't combine stores containing a pointer, as we need
+			// a write barrier for those. This can't currently happen,
+			// but might in the future if we ever have another
+			// 8-byte-reg/4-byte-ptr architecture like amd64p32.
+			loadMem = nil
+			break
+		}
+		mem := load.Args[1]
+		base, idx := splitPtr(load.Args[0])
+		if loadMem == nil {
+			// First one we found
+			loadMem = mem
+			loadBase = base
+			loadIdx = idx
+			continue
+		}
+		if base != loadBase || mem != loadMem {
+			loadMem = nil
+			break
+		}
+		if idx != loadIdx+(a[i].offset-a[0].offset) {
+			loadMem = nil
+			break
+		}
+	}
+	if loadMem != nil {
+		// Modify the first load to do a larger load instead.
+		load := a[0].store.Args[1]
+		switch size * n {
+		case 2:
+			load.Type = types.Types[types.TUINT16]
+		case 4:
+			load.Type = types.Types[types.TUINT32]
+		case 8:
+			load.Type = types.Types[types.TUINT64]
+		}
+
+		// Modify root to do the store.
+		for i := int64(0); i < n; i++ {
+			v := a[i].store
+			if v == root {
+				v.Aux = load.Type // widen store type
+				v.SetArg(0, ptr)
+				v.SetArg(1, load)
 				v.SetArg(2, mem)
 			} else {
 				clobber(v)

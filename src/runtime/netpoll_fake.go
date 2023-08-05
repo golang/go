@@ -30,6 +30,6 @@ func netpollarm(pd *pollDesc, mode int) {
 func netpollBreak() {
 }
 
-func netpoll(delay int64) gList {
-	return gList{}
+func netpoll(delay int64) (gList, int32) {
+	return gList{}, 0
 }

@@ -98,7 +98,7 @@ type query struct {
 	resolved []module.Version
 
 	// matchesPackages is true if the resolved modules provide at least one
-	// package mathcing q.pattern.
+	// package matching q.pattern.
 	matchesPackages bool
 }
 
@@ -239,10 +239,13 @@ func (q *query) matchesPath(path string) bool {
 // canMatchInModule reports whether the given module path can potentially
 // contain q.pattern.
 func (q *query) canMatchInModule(mPath string) bool {
+	if gover.IsToolchain(mPath) {
+		return false
+	}
 	if q.canMatchWildcardInModule != nil {
 		return q.canMatchWildcardInModule(mPath)
 	}
-	return str.HasPathPrefix(q.pattern, mPath) && !gover.IsToolchain(mPath)
+	return str.HasPathPrefix(q.pattern, mPath)
 }
 
 // pathOnce invokes f to generate the pathSet for the given path,

@@ -3919,7 +3919,11 @@ func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
 	// The body of wrapper function after inlining may reveal new ir.OMETHVALUE node,
 	// we don't know whether wrapper function has been generated for it or not, so
 	// generate one immediately here.
-	ir.VisitList(fn.Body, func(n ir.Node) {
+	//
+	// Further, after CL 492017, function that construct closures is allowed to be inlined,
+	// even though the closure itself can't be inline. So we also need to visit body of any
+	// closure that we see when visiting body of the wrapper function.
+	ir.VisitFuncAndClosures(fn, func(n ir.Node) {
 		if n, ok := n.(*ir.SelectorExpr); ok && n.Op() == ir.OMETHVALUE {
 			wrapMethodValue(n.X.Type(), n.Selection, target, true)
 		}

@@ -84,7 +84,7 @@ const (
 	R_USETYPE
 	// R_USEIFACE marks a type is converted to an interface in the function this
 	// relocation is applied to. The target is a type descriptor or an itab
-	// (in the latter case it refers to the conrete type contained in the itab).
+	// (in the latter case it refers to the concrete type contained in the itab).
 	// This is a marker relocation (0-sized), for the linker's reachabililty
 	// analysis.
 	R_USEIFACE
@@ -230,7 +230,7 @@ const (
 	R_ADDRPOWER_GOT
 
 	// R_ADDRPOWER_GOT_PCREL34 is identical to R_ADDRPOWER_GOT, but uses a PC relative
-	// sequence to generate a GOT symbol addresss.
+	// sequence to generate a GOT symbol addresses.
 	R_ADDRPOWER_GOT_PCREL34
 
 	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but
@@ -269,21 +269,21 @@ const (
 	// only used by the linker and are not emitted by the compiler or assembler.
 	R_RISCV_CALL_TRAMP
 
-	// R_RISCV_PCREL_ITYPE resolves a 32-bit PC-relative address using an
+	// R_RISCV_PCREL_ITYPE resolves a 32 bit PC-relative address using an
 	// AUIPC + I-type instruction pair.
 	R_RISCV_PCREL_ITYPE
 
-	// R_RISCV_PCREL_STYPE resolves a 32-bit PC-relative address using an
+	// R_RISCV_PCREL_STYPE resolves a 32 bit PC-relative address using an
 	// AUIPC + S-type instruction pair.
 	R_RISCV_PCREL_STYPE
 
-	// R_RISCV_TLS_IE_ITYPE resolves a 32-bit TLS initial-exec TOC offset
-	// address using an AUIPC + I-type instruction pair.
-	R_RISCV_TLS_IE_ITYPE
+	// R_RISCV_TLS_IE resolves a 32 bit TLS initial-exec address using an
+	// AUIPC + I-type instruction pair.
+	R_RISCV_TLS_IE
 
-	// R_RISCV_TLS_IE_STYPE resolves a 32-bit TLS initial-exec TOC offset
-	// address using an AUIPC + S-type instruction pair.
-	R_RISCV_TLS_IE_STYPE
+	// R_RISCV_TLS_LE resolves a 32 bit TLS local-exec address using an
+	// LUI + I-type instruction sequence.
+	R_RISCV_TLS_LE
 
 	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.

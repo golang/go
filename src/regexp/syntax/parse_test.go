@@ -160,6 +160,7 @@ var parseTests = []parseTest{
 
 	// Test named captures
 	{`(?P<name>a)`, `cap{name:lit{a}}`},
+	{`(?<name>a)`, `cap{name:lit{a}}`},
 
 	// Case-folded literals
 	{`[Aa]`, `litfold{A}`},
@@ -482,6 +483,11 @@ var invalidRegexps = []string{
 	`(?P<name`,
 	`(?P<x y>a)`,
 	`(?P<>a)`,
+	`(?<name>a`,
+	`(?<name>`,
+	`(?<name`,
+	`(?<x y>a)`,
+	`(?<>a)`,
 	`[a-Z]`,
 	`(?i)[a-Z]`,
 	`\Q\E*`,

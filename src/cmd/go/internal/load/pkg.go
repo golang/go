@@ -603,9 +603,7 @@ var packageCache = map[string]*Package{}
 // It is only for use by GOPATH-based "go get".
 // TODO(jayconrod): When GOPATH-based "go get" is removed, delete this function.
 func ClearPackageCache() {
-	for name := range packageCache {
-		delete(packageCache, name)
-	}
+	clear(packageCache)
 	resolvedImportCache.Clear()
 	packageDataCache.Clear()
 }
@@ -2940,7 +2938,7 @@ func setPGOProfilePath(pkgs []*Package) {
 		// Locate PGO profiles from the main packages, and
 		// attach the profile to the main package and its
 		// dependencies.
-		// If we're builing multiple main packages, they may
+		// If we're building multiple main packages, they may
 		// have different profiles. We may need to split (unshare)
 		// the dependency graph so they can attach different
 		// profiles.

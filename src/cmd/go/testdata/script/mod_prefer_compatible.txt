@@ -10,9 +10,9 @@ env GOPROXY=
 env GOSUMDB=
 
 # github.com/russross/blackfriday v2.0.0+incompatible exists,
-# and should be resolved if we ask for v2.0 explicitly.
+# and should be resolved if we ask for it explicitly.
 
-go list -m github.com/russross/blackfriday@v2.0
+go list -m github.com/russross/blackfriday@v2.0.0+incompatible
 stdout '^github.com/russross/blackfriday v2\.0\.0\+incompatible$'
 
 # blackfriday v1.5.2 has a go.mod file, so v1.5.2 should be preferred over
@@ -27,6 +27,7 @@ stdout '^github.com/russross/blackfriday v1\.'
 ! go list -m github.com/russross/blackfriday@patch
 stderr '^go: github.com/russross/blackfriday@patch: can''t query version "patch" of module github.com/russross/blackfriday: no existing version is required$'
 
+
 # If we're fetching directly from version control, ignored +incompatible
 # versions should also be omitted by 'go list'.
 
@@ -38,9 +39,22 @@ stderr '^go: github.com/russross/blackfriday@patch: can''t query version "patch"
 [!git] stop
 env GOPROXY=direct
 
-go list -versions -m github.com/russross/blackfriday github.com/russross/blackfriday
+go list -versions -m github.com/russross/blackfriday
 stdout '^github.com/russross/blackfriday v1\.5\.1 v1\.5\.2' # and possibly others
 ! stdout ' v2\.'
+
+# For this module, v2.1.0 exists and has a go.mod file.
+# 'go list -m github.com/russross/blackfriday@v2.0' will check
+# the latest v2.0 tag, discover that it isn't the right module, and stop there
+# (instead of spending the time to check O(N) previous tags).
+
+! go list -m github.com/russross/blackfriday@v2.0
+stderr '^go: module github.com/russross/blackfriday: no matching versions for query "v2\.0\"'
+
+# (But asking for exactly v2.0.0+incompatible should still succeed.)
+go list -m github.com/russross/blackfriday@v2.0.0+incompatible
+stdout '^github.com/russross/blackfriday v2\.0\.0\+incompatible$'
+
 
 # However, if the latest compatible version does not include a go.mod file,
 # +incompatible versions should still be listed, as they may still reflect the

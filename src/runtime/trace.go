@@ -15,6 +15,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goos"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -452,12 +453,17 @@ func StopTrace() {
 		}
 	}
 
+	// Wait for startNanotime != endNanotime. On Windows the default interval between
+	// system clock ticks is typically between 1 and 15 milliseconds, which may not
+	// have passed since the trace started. Without nanotime moving forward, trace
+	// tooling has no way of identifying how much real time each cputicks time deltas
+	// represent.
 	for {
 		trace.endTime = traceClockNow()
 		trace.endTicks = cputicks()
 		trace.endNanotime = nanotime()
-		// Windows time can tick only every 15ms, wait for at least one tick.
-		if trace.endNanotime != trace.startNanotime {
+
+		if trace.endNanotime != trace.startNanotime || faketime != 0 {
 			break
 		}
 		osyield()
@@ -993,8 +999,9 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
 
 // tracefpunwindoff returns true if frame pointer unwinding for the tracer is
 // disabled via GODEBUG or not supported by the architecture.
+// TODO(#60254): support frame pointer unwinding on plan9/amd64.
 func tracefpunwindoff() bool {
-	return debug.tracefpunwindoff != 0 || (goarch.ArchFamily != goarch.AMD64 && goarch.ArchFamily != goarch.ARM64)
+	return debug.tracefpunwindoff != 0 || (goarch.ArchFamily != goarch.AMD64 && goarch.ArchFamily != goarch.ARM64) || goos.IsPlan9 == 1
 }
 
 // fpTracebackPCs populates pcBuf with the return addresses for each frame and

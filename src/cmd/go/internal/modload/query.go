@@ -473,7 +473,11 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
 // AllowedFunc of qm.
 func (qm *queryMatcher) allowsVersion(ctx context.Context, v string) bool {
 	if qm.prefix != "" && !strings.HasPrefix(v, qm.prefix) {
-		return false
+		if gover.IsToolchain(qm.path) && strings.TrimSuffix(qm.prefix, ".") == v {
+			// Allow 1.21 to match "1.21." prefix.
+		} else {
+			return false
+		}
 	}
 	if qm.filter != nil && !qm.filter(v) {
 		return false

@@ -32,9 +32,7 @@ var funcIDs = map[string]abi.FuncID{
 	"systemstack":        abi.FuncID_systemstack,
 
 	// Don't show in call stack but otherwise not special.
-	"deferreturn":       abi.FuncIDWrapper,
-	"runOpenDeferFrame": abi.FuncIDWrapper,
-	"deferCallSave":     abi.FuncIDWrapper,
+	"deferreturn": abi.FuncIDWrapper,
 }
 
 // Get the function ID for the named function in the named file.

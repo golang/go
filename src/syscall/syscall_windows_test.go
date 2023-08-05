@@ -180,6 +180,30 @@ int main(int argc, char *argv[])
 	}
 }
 
+func TestGetwd_DoesNotPanicWhenPathIsLong(t *testing.T) {
+	// Regression test for https://github.com/golang/go/issues/60051.
+
+	// The length of a filename is also limited, so we can't reproduce the
+	// crash by creating a single directory with a very long name; we need two
+	// layers.
+	a200 := strings.Repeat("a", 200)
+	dirname := filepath.Join(t.TempDir(), a200, a200)
+
+	err := os.MkdirAll(dirname, 0o700)
+	if err != nil {
+		t.Skipf("MkdirAll failed: %v", err)
+	}
+	err = os.Chdir(dirname)
+	if err != nil {
+		t.Skipf("Chdir failed: %v", err)
+	}
+	// Change out of the temporary directory so that we don't inhibit its
+	// removal during test cleanup.
+	defer os.Chdir(`\`)
+
+	syscall.Getwd()
+}
+
 func FuzzUTF16FromString(f *testing.F) {
 	f.Add("hi")           // ASCII
 	f.Add("â")            // latin1

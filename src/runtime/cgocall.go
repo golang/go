@@ -168,7 +168,7 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	// any C on the call stack, which there will be after this point. If
 	// there isn't, we can use frame pointer unwinding to collect call
 	// stacks efficiently. This will be the case for the first Go-to-C call
-	// on a stack, so it's prefereable to update it here, after we emit a
+	// on a stack, so it's preferable to update it here, after we emit a
 	// trace event in entersyscall above.
 	mp.ncgo++
 

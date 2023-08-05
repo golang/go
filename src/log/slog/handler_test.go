@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -106,10 +107,54 @@ func TestDefaultHandle(t *testing.T) {
 	}
 }
 
+func TestConcurrentWrites(t *testing.T) {
+	ctx := context.Background()
+	count := 1000
+	for _, handlerType := range []string{"text", "json"} {
+		t.Run(handlerType, func(t *testing.T) {
+			var buf bytes.Buffer
+			var h Handler
+			switch handlerType {
+			case "text":
+				h = NewTextHandler(&buf, nil)
+			case "json":
+				h = NewJSONHandler(&buf, nil)
+			default:
+				t.Fatalf("unexpected handlerType %q", handlerType)
+			}
+			sub1 := h.WithAttrs([]Attr{Bool("sub1", true)})
+			sub2 := h.WithAttrs([]Attr{Bool("sub2", true)})
+			var wg sync.WaitGroup
+			for i := 0; i < count; i++ {
+				sub1Record := NewRecord(time.Time{}, LevelInfo, "hello from sub1", 0)
+				sub1Record.AddAttrs(Int("i", i))
+				sub2Record := NewRecord(time.Time{}, LevelInfo, "hello from sub2", 0)
+				sub2Record.AddAttrs(Int("i", i))
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					if err := sub1.Handle(ctx, sub1Record); err != nil {
+						t.Error(err)
+					}
+					if err := sub2.Handle(ctx, sub2Record); err != nil {
+						t.Error(err)
+					}
+				}()
+			}
+			wg.Wait()
+			for i := 1; i <= 2; i++ {
+				want := "hello from sub" + strconv.Itoa(i)
+				n := strings.Count(buf.String(), want)
+				if n != count {
+					t.Fatalf("want %d occurrences of %q, got %d", count, want, n)
+				}
+			}
+		})
+	}
+}
+
 // Verify the common parts of TextHandler and JSONHandler.
 func TestJSONAndTextHandlers(t *testing.T) {
-	ctx := context.Background()
-
 	// remove all Attrs
 	removeAll := func(_ []string, a Attr) Attr { return Attr{} }
 
@@ -215,6 +260,28 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			wantJSON: `{"msg":"message","h":{"a":1}}`,
 		},
 		{
+			name:    "nested empty group",
+			replace: removeKeys(TimeKey, LevelKey),
+			attrs: []Attr{
+				Group("g",
+					Group("h",
+						Group("i"), Group("j"))),
+			},
+			wantText: `msg=message`,
+			wantJSON: `{"msg":"message"}`,
+		},
+		{
+			name:    "nested non-empty group",
+			replace: removeKeys(TimeKey, LevelKey),
+			attrs: []Attr{
+				Group("g",
+					Group("h",
+						Group("i"), Group("j", Int("a", 1)))),
+			},
+			wantText: `msg=message g.h.j.a=1`,
+			wantJSON: `{"msg":"message","g":{"h":{"j":{"a":1}}}}`,
+		},
+		{
 			name:    "escapes",
 			replace: removeKeys(TimeKey, LevelKey),
 			attrs: []Attr{
@@ -280,6 +347,34 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			attrs:    attrs,
 			wantText: "msg=message p1=1 s1.s2.a=one s1.s2.b=2",
 			wantJSON: `{"msg":"message","p1":1,"s1":{"s2":{"a":"one","b":2}}}`,
+		},
+		{
+			name:    "empty with-groups",
+			replace: removeKeys(TimeKey, LevelKey),
+			with: func(h Handler) Handler {
+				return h.WithGroup("x").WithGroup("y")
+			},
+			wantText: "msg=message",
+			wantJSON: `{"msg":"message"}`,
+		},
+		{
+			name:    "empty with-groups, no non-empty attrs",
+			replace: removeKeys(TimeKey, LevelKey),
+			with: func(h Handler) Handler {
+				return h.WithGroup("x").WithAttrs([]Attr{Group("g")}).WithGroup("y")
+			},
+			wantText: "msg=message",
+			wantJSON: `{"msg":"message"}`,
+		},
+		{
+			name:    "one empty with-group",
+			replace: removeKeys(TimeKey, LevelKey),
+			with: func(h Handler) Handler {
+				return h.WithGroup("x").WithAttrs([]Attr{Int("a", 1)}).WithGroup("y")
+			},
+			attrs:    []Attr{Group("g", Group("h"))},
+			wantText: "msg=message x.a=1",
+			wantJSON: `{"msg":"message","x":{"a":1}}`,
 		},
 		{
 			name:     "GroupValue as Attr value",
@@ -362,7 +457,7 @@ func TestJSONAndTextHandlers(t *testing.T) {
 						h = test.with(h)
 					}
 					buf.Reset()
-					if err := h.Handle(ctx, r); err != nil {
+					if err := h.Handle(nil, r); err != nil {
 						t.Fatal(err)
 					}
 					want := strings.ReplaceAll(handler.want, "$LINE", line)

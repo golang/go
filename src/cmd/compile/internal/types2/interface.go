@@ -112,6 +112,7 @@ func (t *Interface) String() string   { return TypeString(t, nil) }
 // Implementation
 
 func (t *Interface) cleanup() {
+	t.typeSet() // any interface that escapes type checking must be safe for concurrent use
 	t.check = nil
 	t.embedPos = nil
 }

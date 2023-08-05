@@ -186,7 +186,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	MOVBU.P 42(R2), R12                        // 4ca44238
 	MOVBU.W -27(R2), R14                       // 4e5c5e38
 	MOVBU 2916(R24), R3                        // 03936d39
-	MOVBU (R19)(R14<<0), R23                   // 777a6e38
+	MOVBU (R19)(R14<<0), R23                   // 776a6e38
 	MOVBU (R2)(R8.SXTX), R19                   // 53e86838
 	MOVBU (R27)(R23), R14                      // 6e6b7738
 	MOVHU.P 107(R14), R13                      // cdb54678

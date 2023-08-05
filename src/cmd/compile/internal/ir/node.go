@@ -52,7 +52,6 @@ type Node interface {
 	//  0 means the node is not typechecked
 	//  1 means the node is completely typechecked
 	//  2 means typechecking of the node is in progress
-	//  3 means the node has its type from types2, but may need transformation
 	Typecheck() uint8
 	SetTypecheck(x uint8)
 	NonNil() bool

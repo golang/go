@@ -198,13 +198,6 @@ func (r *rleBuffer) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func min(x, y int64) int64 {
-	if x < y {
-		return x
-	}
-	return y
-}
-
 func memset(a []byte, b byte) {
 	if len(a) == 0 {
 		return

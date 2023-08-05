@@ -124,7 +124,7 @@ var regexpPrecederKeywords = map[string]bool{
 	"void":       true,
 }
 
-var jsonMarshalType = reflect.TypeOf((*json.Marshaler)(nil)).Elem()
+var jsonMarshalType = reflect.TypeFor[json.Marshaler]()
 
 // indirectToJSONMarshaler returns the value, after dereferencing as many times
 // as necessary to reach the base type (or nil) or an implementation of json.Marshal.

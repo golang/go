@@ -11,6 +11,7 @@ import (
 	"hash"
 	"hash/crc32"
 	"io"
+	"io/fs"
 	"strings"
 	"unicode/utf8"
 )
@@ -405,8 +406,8 @@ func writeHeader(w io.Writer, h *header) error {
 	// flags.
 	if h.raw && !h.hasDataDescriptor() {
 		b.uint32(h.CRC32)
-		b.uint32(uint32(min64(h.CompressedSize64, uint32max)))
-		b.uint32(uint32(min64(h.UncompressedSize64, uint32max)))
+		b.uint32(uint32(min(h.CompressedSize64, uint32max)))
+		b.uint32(uint32(min(h.UncompressedSize64, uint32max)))
 	} else {
 		// When this package handle the compression, these values are
 		// always written to the trailing data descriptor.
@@ -426,13 +427,6 @@ func writeHeader(w io.Writer, h *header) error {
 	return err
 }
 
-func min64(x, y uint64) uint64 {
-	if x < y {
-		return x
-	}
-	return y
-}
-
 // CreateRaw adds a file to the zip archive using the provided FileHeader and
 // returns a Writer to which the file contents should be written. The file's
 // contents must be written to the io.Writer before the next call to Create,
@@ -444,8 +438,8 @@ func (w *Writer) CreateRaw(fh *FileHeader) (io.Writer, error) {
 		return nil, err
 	}
 
-	fh.CompressedSize = uint32(min64(fh.CompressedSize64, uint32max))
-	fh.UncompressedSize = uint32(min64(fh.UncompressedSize64, uint32max))
+	fh.CompressedSize = uint32(min(fh.CompressedSize64, uint32max))
+	fh.UncompressedSize = uint32(min(fh.UncompressedSize64, uint32max))
 
 	h := &header{
 		FileHeader: fh,
@@ -493,6 +487,41 @@ func (w *Writer) RegisterCompressor(method uint16, comp Compressor) {
 		w.compressors = make(map[uint16]Compressor)
 	}
 	w.compressors[method] = comp
+}
+
+// AddFS adds the files from fs.FS to the archive.
+// It walks the directory tree starting at the root of the filesystem
+// adding each file to the zip using deflate while maintaining the directory structure.
+func (w *Writer) AddFS(fsys fs.FS) error {
+	return fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		h, err := FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+		h.Name = name
+		h.Method = Deflate
+		fw, err := w.CreateHeader(h)
+		if err != nil {
+			return err
+		}
+		f, err := fsys.Open(name)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		_, err = io.Copy(fw, f)
+		return err
+	})
 }
 
 func (w *Writer) compressor(method uint16) Compressor {

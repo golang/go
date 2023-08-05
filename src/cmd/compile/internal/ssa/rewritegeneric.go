@@ -397,6 +397,8 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpSlicemask(v)
 	case OpSqrt:
 		return rewriteValuegeneric_OpSqrt(v)
+	case OpStaticCall:
+		return rewriteValuegeneric_OpStaticCall(v)
 	case OpStaticLECall:
 		return rewriteValuegeneric_OpStaticLECall(v)
 	case OpStore:
@@ -28219,6 +28221,31 @@ func rewriteValuegeneric_OpSqrt(v *Value) bool {
 	}
 	return false
 }
+func rewriteValuegeneric_OpStaticCall(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (StaticCall {callAux} p q _ mem)
+	// cond: isSameCall(callAux, "runtime.memequal") && isSamePtr(p, q)
+	// result: (MakeResult (ConstBool <typ.Bool> [true]) mem)
+	for {
+		if len(v.Args) != 4 {
+			break
+		}
+		callAux := auxToCall(v.Aux)
+		mem := v.Args[3]
+		p := v.Args[0]
+		q := v.Args[1]
+		if !(isSameCall(callAux, "runtime.memequal") && isSamePtr(p, q)) {
+			break
+		}
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpConstBool, typ.Bool)
+		v0.AuxInt = boolToAuxInt(true)
+		v.AddArg2(v0, mem)
+		return true
+	}
+	return false
+}
 func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
 	b := v.Block
 	config := b.Func.Config
@@ -28498,6 +28525,26 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
 		mem := v.Args[3]
 		v_2 := v.Args[2]
 		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 0 || !(isSameCall(callAux, "runtime.memequal")) {
+			break
+		}
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpConstBool, typ.Bool)
+		v0.AuxInt = boolToAuxInt(true)
+		v.AddArg2(v0, mem)
+		return true
+	}
+	// match: (StaticLECall {callAux} p q _ mem)
+	// cond: isSameCall(callAux, "runtime.memequal") && isSamePtr(p, q)
+	// result: (MakeResult (ConstBool <typ.Bool> [true]) mem)
+	for {
+		if len(v.Args) != 4 {
+			break
+		}
+		callAux := auxToCall(v.Aux)
+		mem := v.Args[3]
+		p := v.Args[0]
+		q := v.Args[1]
+		if !(isSameCall(callAux, "runtime.memequal") && isSamePtr(p, q)) {
 			break
 		}
 		v.reset(OpMakeResult)

@@ -386,15 +386,8 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 	}
 
 	for _, a := range allactions {
-		// Gather CgoLDFLAGS, but not from standard packages.
-		// The go tool can dig up runtime/cgo from GOROOT and
-		// think that it should use its CgoLDFLAGS, but gccgo
-		// doesn't use runtime/cgo.
 		if a.Package == nil {
 			continue
-		}
-		if !a.Package.Standard {
-			cgoldflags = append(cgoldflags, a.Package.CgoLDFLAGS...)
 		}
 		if len(a.Package.CgoFiles) > 0 {
 			usesCgo = true
@@ -425,9 +418,6 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 
 	ldflags = append(ldflags, cgoldflags...)
 	ldflags = append(ldflags, envList("CGO_LDFLAGS", "")...)
-	if root.Package != nil {
-		ldflags = append(ldflags, root.Package.CgoLDFLAGS...)
-	}
 	if cfg.Goos != "aix" {
 		ldflags = str.StringList("-Wl,-(", ldflags, "-Wl,-)")
 	}
