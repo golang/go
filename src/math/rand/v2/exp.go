@@ -29,8 +29,9 @@ const (
 //	sample = ExpFloat64() / desiredRateParameter
 func (r *Rand) ExpFloat64() float64 {
 	for {
-		j := r.Uint32()
-		i := j & 0xFF
+		u := r.Uint64()
+		j := uint32(u)
+		i := uint8(u >> 32)
 		x := float64(j) * float64(we[i])
 		if j < ke[i] {
 			return x

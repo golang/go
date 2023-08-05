@@ -36,8 +36,9 @@ func absInt32(i int32) uint32 {
 //	sample = NormFloat64() * desiredStdDev + desiredMean
 func (r *Rand) NormFloat64() float64 {
 	for {
-		j := int32(r.Uint32()) // Possibly negative
-		i := j & 0x7F
+		u := r.Uint64()
+		j := int32(u) // Possibly negative
+		i := u >> 32 & 0x7F
 		x := float64(j) * float64(wn[i])
 		if absInt32(j) < kn[i] {
 			// This case should be hit better than 99% of the time.
