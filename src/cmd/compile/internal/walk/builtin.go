@@ -255,7 +255,10 @@ func walkLenCap(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 		return mkcall("countrunes", n.Type(), init, typecheck.Conv(n.X.(*ir.ConvExpr).X, types.Types[types.TSTRING]))
 	}
 	if isByteCount(n) {
-		_, len := backingArrayPtrLen(cheapExpr(n.X.(*ir.ConvExpr).X, init))
+		conv := n.X.(*ir.ConvExpr)
+		walkStmtList(conv.Init())
+		init.Append(ir.TakeInit(conv)...)
+		_, len := backingArrayPtrLen(cheapExpr(conv.X, init))
 		return len
 	}
 
