@@ -192,6 +192,7 @@ const (
 	Ytextsize
 	Yindir
 	Ymax
+	Ytr
 )
 
 const (
@@ -311,10 +312,6 @@ const (
 )
 
 const (
-	// Encoding for VEX prefix in tables.
-	// The P, L, and W fields are chosen to match
-	// their eventual locations in the VEX prefix bytes.
-
 	// Encoding for VEX prefix in tables.
 	// The P, L, and W fields are chosen to match
 	// their eventual locations in the VEX prefix bytes.
