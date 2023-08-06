@@ -4,7 +4,7 @@
 
 package rand
 
-func Int31nForTest(r *Rand, n int32) int32 {
+func Int32NForTest(r *Rand, n int32) int32 {
 	return r.int31n(n)
 }
 

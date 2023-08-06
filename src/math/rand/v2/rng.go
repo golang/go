@@ -229,8 +229,8 @@ func (rng *rngSource) Seed(seed int64) {
 	}
 }
 
-// Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
-func (rng *rngSource) Int63() int64 {
+// Int64 returns a non-negative pseudo-random 63-bit integer as an int64.
+func (rng *rngSource) Int64() int64 {
 	return int64(rng.Uint64() & rngMask)
 }
 

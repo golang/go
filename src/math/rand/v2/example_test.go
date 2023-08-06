@@ -38,7 +38,7 @@ func Example() {
 		"Outlook not so good",
 		"Very doubtful",
 	}
-	fmt.Println("Magic 8-Ball says:", answers[rand.Intn(len(answers))])
+	fmt.Println("Magic 8-Ball says:", answers[rand.IntN(len(answers))])
 }
 
 // This example shows the use of each of the methods on a *Rand.
@@ -66,18 +66,18 @@ func Example_rand() {
 	// NormFloat64 values have an average of 0 and a standard deviation of 1.
 	show("NormFloat64", r.NormFloat64(), r.NormFloat64(), r.NormFloat64())
 
-	// Int31, Int63, and Uint32 generate values of the given width.
-	// The Int method (not shown) is like either Int31 or Int63
+	// Int32, Int64, and Uint32 generate values of the given width.
+	// The Int method (not shown) is like either Int32 or Int64
 	// depending on the size of 'int'.
-	show("Int31", r.Int31(), r.Int31(), r.Int31())
-	show("Int63", r.Int63(), r.Int63(), r.Int63())
+	show("Int32", r.Int32(), r.Int32(), r.Int32())
+	show("Int64", r.Int64(), r.Int64(), r.Int64())
 	show("Uint32", r.Uint32(), r.Uint32(), r.Uint32())
 
-	// Intn, Int31n, and Int63n limit their output to be < n.
+	// IntN, Int32N, and Int64N limit their output to be < n.
 	// They do so more carefully than using r.Int()%n.
-	show("Intn(10)", r.Intn(10), r.Intn(10), r.Intn(10))
-	show("Int31n(10)", r.Int31n(10), r.Int31n(10), r.Int31n(10))
-	show("Int63n(10)", r.Int63n(10), r.Int63n(10), r.Int63n(10))
+	show("IntN(10)", r.IntN(10), r.IntN(10), r.IntN(10))
+	show("Int32N(10)", r.Int32N(10), r.Int32N(10), r.Int32N(10))
+	show("Int64N(10)", r.Int64N(10), r.Int64N(10), r.Int64N(10))
 
 	// Perm generates a random permutation of the numbers [0, n).
 	show("Perm", r.Perm(5), r.Perm(5), r.Perm(5))
@@ -86,12 +86,12 @@ func Example_rand() {
 	// Float64     0.628605430454327   0.4504798828572669  0.9562755949377957
 	// ExpFloat64  0.3362240648200941  1.4256072328483647  0.24354758816173044
 	// NormFloat64 0.17233959114940064 1.577014951434847   0.04259129641113857
-	// Int31       1501292890          1486668269          182840835
-	// Int63       3546343826724305832 5724354148158589552 5239846799706671610
+	// Int32       1501292890          1486668269          182840835
+	// Int64       3546343826724305832 5724354148158589552 5239846799706671610
 	// Uint32      2760229429          296659907           1922395059
-	// Intn(10)    1                   2                   5
-	// Int31n(10)  4                   7                   8
-	// Int63n(10)  7                   6                   3
+	// IntN(10)    1                   2                   5
+	// Int32N(10)  4                   7                   8
+	// Int64N(10)  7                   6                   3
 	// Perm        [1 4 2 3 0]         [4 2 1 3 0]         [1 2 4 0 3]
 }
 
@@ -126,8 +126,8 @@ func ExampleShuffle_slicesInUnison() {
 	}
 }
 
-func ExampleIntn() {
-	fmt.Println(rand.Intn(100))
-	fmt.Println(rand.Intn(100))
-	fmt.Println(rand.Intn(100))
+func ExampleIntN() {
+	fmt.Println(rand.IntN(100))
+	fmt.Println(rand.IntN(100))
+	fmt.Println(rand.IntN(100))
 }

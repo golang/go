@@ -29,7 +29,7 @@ import (
 //
 // A Source is not safe for concurrent use by multiple goroutines.
 type Source interface {
-	Int63() int64
+	Int64() int64
 	Seed(seed int64)
 }
 
@@ -38,7 +38,7 @@ type Source interface {
 // the range [0, 1<<64) directly.
 // If a Rand r's underlying Source s implements Source64,
 // then r.Uint64 returns the result of one call to s.Uint64
-// instead of making two calls to s.Int63.
+// instead of making two calls to s.Int64.
 type Source64 interface {
 	Source
 	Uint64() uint64
@@ -92,66 +92,66 @@ func (r *Rand) Seed(seed int64) {
 	r.readPos = 0
 }
 
-// Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
-func (r *Rand) Int63() int64 { return r.src.Int63() }
+// Int64 returns a non-negative pseudo-random 63-bit integer as an int64.
+func (r *Rand) Int64() int64 { return r.src.Int64() }
 
 // Uint32 returns a pseudo-random 32-bit value as a uint32.
-func (r *Rand) Uint32() uint32 { return uint32(r.Int63() >> 31) }
+func (r *Rand) Uint32() uint32 { return uint32(r.Int64() >> 31) }
 
 // Uint64 returns a pseudo-random 64-bit value as a uint64.
 func (r *Rand) Uint64() uint64 {
 	if r.s64 != nil {
 		return r.s64.Uint64()
 	}
-	return uint64(r.Int63())>>31 | uint64(r.Int63())<<32
+	return uint64(r.Int64())>>31 | uint64(r.Int64())<<32
 }
 
-// Int31 returns a non-negative pseudo-random 31-bit integer as an int32.
-func (r *Rand) Int31() int32 { return int32(r.Int63() >> 32) }
+// Int32 returns a non-negative pseudo-random 31-bit integer as an int32.
+func (r *Rand) Int32() int32 { return int32(r.Int64() >> 32) }
 
 // Int returns a non-negative pseudo-random int.
 func (r *Rand) Int() int {
-	u := uint(r.Int63())
+	u := uint(r.Int64())
 	return int(u << 1 >> 1) // clear sign bit if int == int32
 }
 
-// Int63n returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n).
+// Int64N returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n).
 // It panics if n <= 0.
-func (r *Rand) Int63n(n int64) int64 {
+func (r *Rand) Int64N(n int64) int64 {
 	if n <= 0 {
-		panic("invalid argument to Int63n")
+		panic("invalid argument to Int64N")
 	}
 	if n&(n-1) == 0 { // n is power of two, can mask
-		return r.Int63() & (n - 1)
+		return r.Int64() & (n - 1)
 	}
 	max := int64((1 << 63) - 1 - (1<<63)%uint64(n))
-	v := r.Int63()
+	v := r.Int64()
 	for v > max {
-		v = r.Int63()
+		v = r.Int64()
 	}
 	return v % n
 }
 
-// Int31n returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n).
+// Int32N returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n).
 // It panics if n <= 0.
-func (r *Rand) Int31n(n int32) int32 {
+func (r *Rand) Int32N(n int32) int32 {
 	if n <= 0 {
-		panic("invalid argument to Int31n")
+		panic("invalid argument to Int32N")
 	}
 	if n&(n-1) == 0 { // n is power of two, can mask
-		return r.Int31() & (n - 1)
+		return r.Int32() & (n - 1)
 	}
 	max := int32((1 << 31) - 1 - (1<<31)%uint32(n))
-	v := r.Int31()
+	v := r.Int32()
 	for v > max {
-		v = r.Int31()
+		v = r.Int32()
 	}
 	return v % n
 }
 
 // int31n returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n).
 // n must be > 0, but int31n does not check this; the caller must ensure it.
-// int31n exists because Int31n is inefficient, but Go 1 compatibility
+// int31n exists because Int32N is inefficient, but Go 1 compatibility
 // requires that the stream of values produced by math/rand/v2 remain unchanged.
 // int31n can thus only be used internally, by newly introduced APIs.
 //
@@ -173,27 +173,27 @@ func (r *Rand) int31n(n int32) int32 {
 	return int32(prod >> 32)
 }
 
-// Intn returns, as an int, a non-negative pseudo-random number in the half-open interval [0,n).
+// IntN returns, as an int, a non-negative pseudo-random number in the half-open interval [0,n).
 // It panics if n <= 0.
-func (r *Rand) Intn(n int) int {
+func (r *Rand) IntN(n int) int {
 	if n <= 0 {
-		panic("invalid argument to Intn")
+		panic("invalid argument to IntN")
 	}
 	if n <= 1<<31-1 {
-		return int(r.Int31n(int32(n)))
+		return int(r.Int32N(int32(n)))
 	}
-	return int(r.Int63n(int64(n)))
+	return int(r.Int64N(int64(n)))
 }
 
 // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0).
 func (r *Rand) Float64() float64 {
 	// A clearer, simpler implementation would be:
-	//	return float64(r.Int63n(1<<53)) / (1<<53)
+	//	return float64(r.Int64N(1<<53)) / (1<<53)
 	// However, Go 1 shipped with
-	//	return float64(r.Int63()) / (1 << 63)
+	//	return float64(r.Int64()) / (1 << 63)
 	// and we want to preserve that value stream.
 	//
-	// There is one bug in the value stream: r.Int63() may be so close
+	// There is one bug in the value stream: r.Int64() may be so close
 	// to 1<<63 that the division rounds up to 1.0, and we've guaranteed
 	// that the result is always less than 1.0.
 	//
@@ -204,7 +204,7 @@ func (r *Rand) Float64() float64 {
 	// Getting 1 only happens 1/2⁵³ of the time, so most clients
 	// will not observe it anyway.
 again:
-	f := float64(r.Int63()) / (1 << 63)
+	f := float64(r.Int64()) / (1 << 63)
 	if f == 1 {
 		goto again // resample; this branch is taken O(never)
 	}
@@ -234,7 +234,7 @@ func (r *Rand) Perm(n int) []int {
 	// the final state of r. So this change can't be made for compatibility
 	// reasons for Go 1.
 	for i := 0; i < n; i++ {
-		j := r.Intn(i + 1)
+		j := r.IntN(i + 1)
 		m[i] = m[j]
 		m[j] = i
 	}
@@ -257,7 +257,7 @@ func (r *Rand) Shuffle(n int, swap func(i, j int)) {
 	// Nevertheless, the right API signature accepts an int n, so handle it as best we can.
 	i := n - 1
 	for ; i > 1<<31-1-1; i-- {
-		j := int(r.Int63n(int64(i + 1)))
+		j := int(r.Int64N(int64(i + 1)))
 		swap(i, j)
 	}
 	for ; i > 0; i-- {
@@ -286,9 +286,9 @@ func read(p []byte, src Source, readVal *int64, readPos *int8) (n int, err error
 	for n = 0; n < len(p); n++ {
 		if pos == 0 {
 			if rng != nil {
-				val = rng.Int63()
+				val = rng.Int64()
 			} else {
-				val = src.Int63()
+				val = src.Int64()
 			}
 			pos = 7
 		}
@@ -356,7 +356,7 @@ type fastSource struct {
 	mu sync.Mutex
 }
 
-func (*fastSource) Int63() int64 {
+func (*fastSource) Int64() int64 {
 	return int64(fastrand64() & rngMask)
 }
 
@@ -418,9 +418,9 @@ func Seed(seed int64) {
 	}
 }
 
-// Int63 returns a non-negative pseudo-random 63-bit integer as an int64
+// Int64 returns a non-negative pseudo-random 63-bit integer as an int64
 // from the default Source.
-func Int63() int64 { return globalRand().Int63() }
+func Int64() int64 { return globalRand().Int64() }
 
 // Uint32 returns a pseudo-random 32-bit value as a uint32
 // from the default Source.
@@ -430,27 +430,27 @@ func Uint32() uint32 { return globalRand().Uint32() }
 // from the default Source.
 func Uint64() uint64 { return globalRand().Uint64() }
 
-// Int31 returns a non-negative pseudo-random 31-bit integer as an int32
+// Int32 returns a non-negative pseudo-random 31-bit integer as an int32
 // from the default Source.
-func Int31() int32 { return globalRand().Int31() }
+func Int32() int32 { return globalRand().Int32() }
 
 // Int returns a non-negative pseudo-random int from the default Source.
 func Int() int { return globalRand().Int() }
 
-// Int63n returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n)
+// Int64N returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n)
 // from the default Source.
 // It panics if n <= 0.
-func Int63n(n int64) int64 { return globalRand().Int63n(n) }
+func Int64N(n int64) int64 { return globalRand().Int64N(n) }
 
-// Int31n returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n)
+// Int32N returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n)
 // from the default Source.
 // It panics if n <= 0.
-func Int31n(n int32) int32 { return globalRand().Int31n(n) }
+func Int32N(n int32) int32 { return globalRand().Int32N(n) }
 
-// Intn returns, as an int, a non-negative pseudo-random number in the half-open interval [0,n)
+// IntN returns, as an int, a non-negative pseudo-random number in the half-open interval [0,n)
 // from the default Source.
 // It panics if n <= 0.
-func Intn(n int) int { return globalRand().Intn(n) }
+func IntN(n int) int { return globalRand().IntN(n) }
 
 // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0)
 // from the default Source.
@@ -500,9 +500,9 @@ type lockedSource struct {
 	s  *rngSource
 }
 
-func (r *lockedSource) Int63() (n int64) {
+func (r *lockedSource) Int64() (n int64) {
 	r.lk.Lock()
-	n = r.s.Int63()
+	n = r.s.Int64()
 	r.lk.Unlock()
 	return
 }

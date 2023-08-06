@@ -19,7 +19,7 @@ func TestAuto(t *testing.T) {
 	// order in the deterministic Seed(1) result.
 	var out []int64
 	for i := 0; i < 10; i++ {
-		out = append(out, Int63())
+		out = append(out, Int64())
 	}
 
 	// Look for out in Seed(1)'s output.
@@ -29,7 +29,7 @@ func TestAuto(t *testing.T) {
 	Seed(1)
 	found := 0
 	for i := 0; i < 1000; i++ {
-		x := Int63()
+		x := Int64()
 		if x == out[found] {
 			found++
 			if found == len(out) {

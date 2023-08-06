@@ -507,8 +507,8 @@ func TestUniformFactorial(t *testing.T) {
 				name string
 				fn   func() int
 			}{
-				{name: "Int31n", fn: func() int { return int(r.Int31n(int32(nfact))) }},
-				{name: "int31n", fn: func() int { return int(Int31nForTest(r, int32(nfact))) }},
+				{name: "Int32N", fn: func() int { return int(r.Int32N(int32(nfact))) }},
+				{name: "int31n", fn: func() int { return int(Int32NForTest(r, int32(nfact))) }},
 				{name: "Perm", fn: func() int { return encodePerm(r.Perm(n)) }},
 				{name: "Shuffle", fn: func() int {
 					// Generate permutation using Shuffle.
@@ -564,45 +564,45 @@ func TestUniformFactorial(t *testing.T) {
 
 // Benchmarks
 
-func BenchmarkInt63Threadsafe(b *testing.B) {
+func BenchmarkInt64Threadsafe(b *testing.B) {
 	for n := b.N; n > 0; n-- {
-		Int63()
+		Int64()
 	}
 }
 
-func BenchmarkInt63ThreadsafeParallel(b *testing.B) {
+func BenchmarkInt64ThreadsafeParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Int63()
+			Int64()
 		}
 	})
 }
 
-func BenchmarkInt63Unthreadsafe(b *testing.B) {
+func BenchmarkInt64Unthreadsafe(b *testing.B) {
 	r := New(NewSource(1))
 	for n := b.N; n > 0; n-- {
-		r.Int63()
+		r.Int64()
 	}
 }
 
-func BenchmarkIntn1000(b *testing.B) {
+func BenchmarkIntN1000(b *testing.B) {
 	r := New(NewSource(1))
 	for n := b.N; n > 0; n-- {
-		r.Intn(1000)
+		r.IntN(1000)
 	}
 }
 
-func BenchmarkInt63n1000(b *testing.B) {
+func BenchmarkInt64N1000(b *testing.B) {
 	r := New(NewSource(1))
 	for n := b.N; n > 0; n-- {
-		r.Int63n(1000)
+		r.Int64N(1000)
 	}
 }
 
-func BenchmarkInt31n1000(b *testing.B) {
+func BenchmarkInt32N1000(b *testing.B) {
 	r := New(NewSource(1))
 	for n := b.N; n > 0; n-- {
-		r.Int31n(1000)
+		r.Int32N(1000)
 	}
 }
 
@@ -693,7 +693,7 @@ func BenchmarkConcurrent(b *testing.B) {
 		go func() {
 			defer wg.Done()
 			for n := b.N; n > 0; n-- {
-				Int63()
+				Int64()
 			}
 		}()
 	}
