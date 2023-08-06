@@ -16,12 +16,10 @@
 // block runs 4 ChaCha8 block transformations in the four stripes of the V registers.
 
 // func block(seed *[8]uint32, blocks *[4][16]uint32, counter uint32)
-TEXT ·block(SB), NOSPLIT, $16
+TEXT ·block<ABIInternal>(SB), NOSPLIT, $16
 	// seed in R0
 	// blocks in R1
-	MOVD seed+0(FP), R0
-	MOVD blocks+8(FP), R1
-	MOVW counter+16(FP), R2
+	// counter in R2
 
 	// Load initial constants into top row.
 	MOVD $·chachaConst(SB), R10

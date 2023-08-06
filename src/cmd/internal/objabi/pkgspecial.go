@@ -50,6 +50,7 @@ var runtimePkgs = []string{
 
 	"internal/abi",
 	"internal/bytealg",
+	"internal/chacha8rand",
 	"internal/coverage/rtcov",
 	"internal/cpu",
 	"internal/goarch",
@@ -79,6 +80,7 @@ var allowAsmABIPkgs = []string{
 	"reflect",
 	"syscall",
 	"internal/bytealg",
+	"internal/chacha8rand",
 	"runtime/internal/syscall",
 	"runtime/internal/startlinetest",
 }

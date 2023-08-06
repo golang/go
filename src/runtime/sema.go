@@ -338,7 +338,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 	//
 	// s.ticket compared with zero in couple of places, therefore set lowest bit.
 	// It will not affect treap's quality noticeably.
-	s.ticket = fastrand() | 1
+	s.ticket = cheaprand() | 1
 	s.parent = last
 	*pt = s
 

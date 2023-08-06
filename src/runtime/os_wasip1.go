@@ -180,10 +180,11 @@ func usleep(usec uint32) {
 	}
 }
 
-func getRandomData(r []byte) {
+func readRandom(r []byte) int {
 	if random_get(unsafe.Pointer(&r[0]), size(len(r))) != 0 {
-		throw("random_get failed")
+		return 0
 	}
+	return len(r)
 }
 
 func goenvs() {

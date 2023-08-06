@@ -6,8 +6,6 @@ package runtime
 
 import (
 	"internal/abi"
-	"internal/goarch"
-	"runtime/internal/math"
 	"unsafe"
 )
 
@@ -119,94 +117,6 @@ func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
 
 // exported value for testing
 const hashLoad = float32(loadFactorNum) / float32(loadFactorDen)
-
-//go:nosplit
-func fastrand() uint32 {
-	mp := getg().m
-	// Implement wyrand: https://github.com/wangyi-fudan/wyhash
-	// Only the platform that math.Mul64 can be lowered
-	// by the compiler should be in this list.
-	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
-		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
-		goarch.IsS390x|goarch.IsRiscv64|goarch.IsLoong64 == 1 {
-		mp.fastrand += 0xa0761d6478bd642f
-		hi, lo := math.Mul64(mp.fastrand, mp.fastrand^0xe7037ed1a0b428db)
-		return uint32(hi ^ lo)
-	}
-
-	// Implement xorshift64+: 2 32-bit xorshift sequences added together.
-	// Shift triplet [17,7,16] was calculated as indicated in Marsaglia's
-	// Xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
-	// This generator passes the SmallCrush suite, part of TestU01 framework:
-	// http://simul.iro.umontreal.ca/testu01/tu01.html
-	t := (*[2]uint32)(unsafe.Pointer(&mp.fastrand))
-	s1, s0 := t[0], t[1]
-	s1 ^= s1 << 17
-	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16
-	t[0], t[1] = s0, s1
-	return s0 + s1
-}
-
-//go:nosplit
-func fastrandn(n uint32) uint32 {
-	// This is similar to fastrand() % n, but faster.
-	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
-	return uint32(uint64(fastrand()) * uint64(n) >> 32)
-}
-
-func fastrand64() uint64 {
-	mp := getg().m
-	// Implement wyrand: https://github.com/wangyi-fudan/wyhash
-	// Only the platform that math.Mul64 can be lowered
-	// by the compiler should be in this list.
-	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
-		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
-		goarch.IsS390x|goarch.IsRiscv64 == 1 {
-		mp.fastrand += 0xa0761d6478bd642f
-		hi, lo := math.Mul64(mp.fastrand, mp.fastrand^0xe7037ed1a0b428db)
-		return hi ^ lo
-	}
-
-	// Implement xorshift64+: 2 32-bit xorshift sequences added together.
-	// Xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
-	// This generator passes the SmallCrush suite, part of TestU01 framework:
-	// http://simul.iro.umontreal.ca/testu01/tu01.html
-	t := (*[2]uint32)(unsafe.Pointer(&mp.fastrand))
-	s1, s0 := t[0], t[1]
-	s1 ^= s1 << 17
-	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16
-	r := uint64(s0 + s1)
-
-	s0, s1 = s1, s0
-	s1 ^= s1 << 17
-	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16
-	r += uint64(s0+s1) << 32
-
-	t[0], t[1] = s0, s1
-	return r
-}
-
-func fastrandu() uint {
-	if goarch.PtrSize == 4 {
-		return uint(fastrand())
-	}
-	return uint(fastrand64())
-}
-
-//go:linkname rand_fastrand64 math/rand.fastrand64
-func rand_fastrand64() uint64 { return fastrand64() }
-
-//go:linkname rand2_fastrand64 math/rand/v2.fastrand64
-func rand2_fastrand64() uint64 { return fastrand64() }
-
-//go:linkname sync_fastrandn sync.fastrandn
-func sync_fastrandn(n uint32) uint32 { return fastrandn(n) }
-
-//go:linkname net_fastrandu net.fastrandu
-func net_fastrandu() uint { return fastrandu() }
-
-//go:linkname os_fastrand os.fastrand
-func os_fastrand() uint32 { return fastrand() }
 
 // in internal/bytealg/equal_*.s
 //

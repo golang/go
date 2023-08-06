@@ -348,7 +348,7 @@ search:
 			// Reset the hash seed to make it more difficult for attackers to
 			// repeatedly trigger hash collisions. See issue 25237.
 			if h.count == 0 {
-				h.hash0 = fastrand()
+				h.hash0 = uint32(rand())
 			}
 			break search
 		}

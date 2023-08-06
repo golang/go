@@ -498,7 +498,7 @@ func blockevent(cycles int64, skip int) {
 // blocksampled returns true for all events where cycles >= rate. Shorter
 // events have a cycles/rate random chance of returning true.
 func blocksampled(cycles, rate int64) bool {
-	if rate <= 0 || (rate > cycles && int64(fastrand())%rate > cycles) {
+	if rate <= 0 || (rate > cycles && cheaprand64()%rate > cycles) {
 		return false
 	}
 	return true
@@ -589,11 +589,11 @@ func (lt *lockTimer) begin() {
 	if rate != 0 && rate < lt.timeRate {
 		lt.timeRate = rate
 	}
-	if int64(fastrand())%lt.timeRate == 0 {
+	if int64(cheaprand())%lt.timeRate == 0 {
 		lt.timeStart = nanotime()
 	}
 
-	if rate > 0 && int64(fastrand())%rate == 0 {
+	if rate > 0 && int64(cheaprand())%rate == 0 {
 		lt.tickStart = cputicks()
 	}
 }
@@ -645,8 +645,8 @@ func (prof *mLockProfile) recordLock(cycles int64, l *mutex) {
 		// We can only store one call stack for runtime-internal lock contention
 		// on this M, and we've already got one. Decide which should stay, and
 		// add the other to the report for runtime._LostContendedLock.
-		prevScore := fastrand64() % uint64(prev)
-		thisScore := fastrand64() % uint64(cycles)
+		prevScore := uint64(cheaprand64()) % uint64(prev)
+		thisScore := uint64(cheaprand64()) % uint64(cycles)
 		if prevScore > thisScore {
 			prof.cyclesLost += cycles
 			return
@@ -790,7 +790,7 @@ func mutexevent(cycles int64, skip int) {
 		cycles = 0
 	}
 	rate := int64(atomic.Load64(&mutexprofilerate))
-	if rate > 0 && int64(fastrand())%rate == 0 {
+	if rate > 0 && cheaprand64()%rate == 0 {
 		saveblockevent(cycles, rate, skip+1, mutexProfile)
 	}
 }

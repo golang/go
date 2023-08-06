@@ -31,6 +31,8 @@ var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
 var Xadduintptr = atomic.Xadduintptr
 
+var ReadRandomFailed = &readRandomFailed
+
 var Fastlog2 = fastlog2
 
 var Atoi = atoi
@@ -398,9 +400,9 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 	return
 }
 
-func Fastrand() uint32          { return fastrand() }
-func Fastrand64() uint64        { return fastrand64() }
-func Fastrandn(n uint32) uint32 { return fastrandn(n) }
+func Fastrand() uint32          { return uint32(rand()) }
+func Fastrand64() uint64        { return rand() }
+func Fastrandn(n uint32) uint32 { return randn(n) }
 
 type ProfBuf profBuf
 

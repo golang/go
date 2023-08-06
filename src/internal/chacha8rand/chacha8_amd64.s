@@ -52,13 +52,10 @@
 // block runs 4 ChaCha8 block transformations in the four stripes of the X registers.
 
 // func block(seed *[8]uint32, blocks *[16][4]uint32, counter uint32)
-TEXT ·block(SB), NOSPLIT, $16
+TEXT ·block<ABIInternal>(SB), NOSPLIT, $16
 	// seed in AX
 	// blocks in BX
 	// counter in CX
-	MOVQ seed+0(FP), AX
-	MOVQ blocks+8(FP), BX
-	MOVL counter+16(FP), CX
 
 	// Load initial constants into top row.
 	REPL(0x61707865, X0)

@@ -10,8 +10,8 @@ import (
 	"unsafe"
 )
 
-//go:linkname runtime_fastrand64 runtime.fastrand64
-func runtime_fastrand64() uint64
+//go:linkname runtime_rand runtime.rand
+func runtime_rand() uint64
 
 //go:linkname runtime_memhash runtime.memhash
 //go:noescape
@@ -39,5 +39,5 @@ func rthashString(s string, state uint64) uint64 {
 }
 
 func randUint64() uint64 {
-	return runtime_fastrand64()
+	return runtime_rand()
 }

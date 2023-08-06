@@ -10,6 +10,17 @@ import (
 	"testing"
 )
 
+func TestReadRandom(t *testing.T) {
+	if *ReadRandomFailed {
+		switch GOOS {
+		default:
+			t.Fatalf("readRandom failed at startup")
+		case "plan9":
+			// ok
+		}
+	}
+}
+
 func BenchmarkFastrand(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {

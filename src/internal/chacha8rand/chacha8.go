@@ -93,6 +93,25 @@ func (s *State) Refill() {
 	}
 }
 
+// Reseed reseeds the state with new random values.
+// After a call to Reseed, any previously returned random values
+// have been erased from the memory of the state and cannot be
+// recovered.
+func (s *State) Reseed() {
+	var seed [4]uint64
+	for i := range seed {
+		for {
+			x, ok := s.Next()
+			if ok {
+				seed[i] = x
+				break
+			}
+			s.Refill()
+		}
+	}
+	s.Init64(seed)
+}
+
 // Marshal marshals the state into a byte slice.
 // Marshal and Unmarshal are functions, not methods,
 // so that they will not be linked into the runtime

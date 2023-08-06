@@ -53,6 +53,16 @@ func TestMarshal(t *testing.T) {
 	}
 }
 
+func TestReseed(t *testing.T) {
+	var s State
+	s.Init(seed)
+	old := Seed(&s)
+	s.Reseed()
+	if Seed(&s) == old {
+		t.Errorf("Reseed did not change seed")
+	}
+}
+
 func BenchmarkBlock(b *testing.B) {
 	var seed [4]uint64
 	var blocks [32]uint64

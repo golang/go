@@ -238,8 +238,8 @@ func (h *hmap) incrnoverflow() {
 	// as many overflow buckets as buckets.
 	mask := uint32(1)<<(h.B-15) - 1
 	// Example: if h.B == 18, then mask == 7,
-	// and fastrand & 7 == 0 with probability 1/8.
-	if fastrand()&mask == 0 {
+	// and rand() & 7 == 0 with probability 1/8.
+	if uint32(rand())&mask == 0 {
 		h.noverflow++
 	}
 }
@@ -293,7 +293,7 @@ func makemap64(t *maptype, hint int64, h *hmap) *hmap {
 // at compile time and the map needs to be allocated on the heap.
 func makemap_small() *hmap {
 	h := new(hmap)
-	h.hash0 = fastrand()
+	h.hash0 = uint32(rand())
 	return h
 }
 
@@ -312,7 +312,7 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
 	if h == nil {
 		h = new(hmap)
 	}
-	h.hash0 = fastrand()
+	h.hash0 = uint32(rand())
 
 	// Find the size parameter B which will hold the requested # of elements.
 	// For hint < 0 overLoadFactor returns false since hint < bucketCnt.
@@ -797,7 +797,7 @@ search:
 			// Reset the hash seed to make it more difficult for attackers to
 			// repeatedly trigger hash collisions. See issue 25237.
 			if h.count == 0 {
-				h.hash0 = fastrand()
+				h.hash0 = uint32(rand())
 			}
 			break search
 		}
@@ -843,12 +843,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	}
 
 	// decide where to start
-	var r uintptr
-	if h.B > 31-bucketCntBits {
-		r = uintptr(fastrand64())
-	} else {
-		r = uintptr(fastrand())
-	}
+	r := uintptr(rand())
 	it.startBucket = r & bucketMask(h.B)
 	it.offset = uint8(r >> h.B & (bucketCnt - 1))
 
@@ -1032,7 +1027,7 @@ func mapclear(t *maptype, h *hmap) {
 
 	// Reset the hash seed to make it more difficult for attackers to
 	// repeatedly trigger hash collisions. See issue 25237.
-	h.hash0 = fastrand()
+	h.hash0 = uint32(rand())
 
 	// Keep the mapextra allocation but clear any extra information.
 	if h.extra != nil {
@@ -1619,7 +1614,7 @@ func keys(m any, p unsafe.Pointer) {
 		return
 	}
 	s := (*slice)(p)
-	r := int(fastrand())
+	r := int(rand())
 	offset := uint8(r >> h.B & (bucketCnt - 1))
 	if h.B == 0 {
 		copyKeys(t, h, (*bmap)(h.buckets), s, offset)
@@ -1682,7 +1677,7 @@ func values(m any, p unsafe.Pointer) {
 		return
 	}
 	s := (*slice)(p)
-	r := int(fastrand())
+	r := int(rand())
 	offset := uint8(r >> h.B & (bucketCnt - 1))
 	if h.B == 0 {
 		copyValues(t, h, (*bmap)(h.buckets), s, offset)

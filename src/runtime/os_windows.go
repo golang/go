@@ -468,7 +468,10 @@ func initLongPathSupport() {
 	// strictly necessary, but is a nice validity check for the near to
 	// medium term, when this functionality is still relatively new in
 	// Windows.
-	getRandomData(longFileName[len(longFileName)-33 : len(longFileName)-1])
+	targ := longFileName[len(longFileName)-33 : len(longFileName)-1]
+	if readRandom(targ) != len(targ) {
+		readTimeRandom(targ)
+	}
 	start := copy(longFileName[:], sysDirectory[:sysDirectoryLen])
 	const dig = "0123456789abcdef"
 	for i := 0; i < 32; i++ {
@@ -519,12 +522,12 @@ func osinit() {
 }
 
 //go:nosplit
-func getRandomData(r []byte) {
+func readRandom(r []byte) int {
 	n := 0
 	if stdcall2(_ProcessPrng, uintptr(unsafe.Pointer(&r[0])), uintptr(len(r)))&0xff != 0 {
 		n = len(r)
 	}
-	extendRandom(r, n)
+	return n
 }
 
 func goenvs() {

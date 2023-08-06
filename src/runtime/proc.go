@@ -784,8 +784,8 @@ func schedinit() {
 	godebug := getGodebugEarly()
 	initPageTrace(godebug) // must run after mallocinit but before anything allocates
 	cpuinit(godebug)       // must run before alginit
-	alginit()              // maps, hash, fastrand must not be used before this call
-	fastrandinit()         // must run before mcommoninit
+	randinit()             // must run before alginit, mcommoninit
+	alginit()              // maps, hash, rand must not be used before this call
 	mcommoninit(gp.m, -1)
 	modulesinit()   // provides activeModules
 	typelinksinit() // uses maps, activeModules
@@ -900,18 +900,7 @@ func mcommoninit(mp *m, id int64) {
 		mp.id = mReserveID()
 	}
 
-	lo := uint32(int64Hash(uint64(mp.id), fastrandseed))
-	hi := uint32(int64Hash(uint64(cputicks()), ^fastrandseed))
-	if lo|hi == 0 {
-		hi = 1
-	}
-	// Same behavior as for 1.17.
-	// TODO: Simplify this.
-	if goarch.BigEndian {
-		mp.fastrand = uint64(lo)<<32 | uint64(hi)
-	} else {
-		mp.fastrand = uint64(hi)<<32 | uint64(lo)
-	}
+	mrandinit(mp)
 
 	mpreinit(mp)
 	if mp.gsignal != nil {
@@ -956,13 +945,6 @@ const (
 	// low resolution, typically on the order of 1 ms or more.
 	osHasLowResClock = osHasLowResClockInt > 0
 )
-
-var fastrandseed uintptr
-
-func fastrandinit() {
-	s := (*[unsafe.Sizeof(fastrandseed)]byte)(unsafe.Pointer(&fastrandseed))[:]
-	getRandomData(s)
-}
 
 // Mark gp ready to run.
 func ready(gp *g, traceskip int, next bool) {
@@ -3566,7 +3548,7 @@ func stealWork(now int64) (gp *g, inheritTime bool, rnow, pollUntil int64, newWo
 	for i := 0; i < stealTries; i++ {
 		stealTimersOrRunNextG := i == stealTries-1
 
-		for enum := stealOrder.start(fastrand()); !enum.done(); enum.next() {
+		for enum := stealOrder.start(cheaprand()); !enum.done(); enum.next() {
 			if sched.gcwaiting.Load() {
 				// GC work may be available.
 				return nil, false, now, pollUntil, true
@@ -4955,7 +4937,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 		}
 	}
 	// Track initial transition?
-	newg.trackingSeq = uint8(fastrand())
+	newg.trackingSeq = uint8(cheaprand())
 	if newg.trackingSeq%gTrackingPeriod == 0 {
 		newg.tracking = true
 	}
@@ -6636,7 +6618,7 @@ const randomizeScheduler = raceenabled
 // If the run queue is full, runnext puts g on the global queue.
 // Executed only by the owner P.
 func runqput(pp *p, gp *g, next bool) {
-	if randomizeScheduler && next && fastrandn(2) == 0 {
+	if randomizeScheduler && next && randn(2) == 0 {
 		next = false
 	}
 
@@ -6689,7 +6671,7 @@ func runqputslow(pp *p, gp *g, h, t uint32) bool {
 
 	if randomizeScheduler {
 		for i := uint32(1); i <= n; i++ {
-			j := fastrandn(i + 1)
+			j := cheaprandn(i + 1)
 			batch[i], batch[j] = batch[j], batch[i]
 		}
 	}
@@ -6730,7 +6712,7 @@ func runqputbatch(pp *p, q *gQueue, qsize int) {
 			return (pp.runqtail + o) % uint32(len(pp.runq))
 		}
 		for i := uint32(1); i < n; i++ {
-			j := fastrandn(i + 1)
+			j := cheaprandn(i + 1)
 			pp.runq[off(i)], pp.runq[off(j)] = pp.runq[off(j)], pp.runq[off(i)]
 		}
 	}
