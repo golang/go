@@ -12,36 +12,45 @@
 package rand_test
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"go/format"
+	"io"
 	. "math/rand/v2"
+	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
-var printgolden = flag.Bool("printgolden", false, "print golden results for regression test")
+var update = flag.Bool("update", false, "update golden results for regression test")
 
 func TestRegress(t *testing.T) {
 	var int32s = []int32{1, 10, 32, 1 << 20, 1<<20 + 1, 1000000000, 1 << 30, 1<<31 - 2, 1<<31 - 1}
+	var uint32s = []uint32{1, 10, 32, 1 << 20, 1<<20 + 1, 1000000000, 1 << 30, 1<<31 - 2, 1<<31 - 1, 1<<32 - 2, 1<<32 - 1}
 	var int64s = []int64{1, 10, 32, 1 << 20, 1<<20 + 1, 1000000000, 1 << 30, 1<<31 - 2, 1<<31 - 1, 1000000000000000000, 1 << 60, 1<<63 - 2, 1<<63 - 1}
+	var uint64s = []uint64{1, 10, 32, 1 << 20, 1<<20 + 1, 1000000000, 1 << 30, 1<<31 - 2, 1<<31 - 1, 1000000000000000000, 1 << 60, 1<<63 - 2, 1<<63 - 1, 1<<64 - 2, 1<<64 - 1}
 	var permSizes = []int{0, 1, 5, 8, 9, 10, 16}
-	var readBufferSizes = []int{1, 7, 8, 9, 10}
-	r := New(NewSource(0))
 
-	rv := reflect.ValueOf(r)
-	n := rv.NumMethod()
+	n := reflect.TypeOf(New(NewSource(1))).NumMethod()
 	p := 0
-	if *printgolden {
-		fmt.Printf("var regressGolden = []interface{}{\n")
+	var buf bytes.Buffer
+	if *update {
+		fmt.Fprintf(&buf, "var regressGolden = []any{\n")
 	}
 	for i := 0; i < n; i++ {
+		if *update && i > 0 {
+			fmt.Fprintf(&buf, "\n")
+		}
+		r := New(NewSource(1))
+		rv := reflect.ValueOf(r)
 		m := rv.Type().Method(i)
 		mv := rv.Method(i)
 		mt := mv.Type()
 		if mt.NumOut() == 0 {
 			continue
 		}
-		r.Seed(0)
 		for repeat := 0; repeat < 20; repeat++ {
 			var args []reflect.Value
 			var argstr string
@@ -62,8 +71,8 @@ func TestRegress(t *testing.T) {
 						// Consume an Int64 like on a 64-bit machine,
 						// to keep the golden data the same on different architectures.
 						r.Int64N(big)
-						if *printgolden {
-							fmt.Printf("\tskipped, // must run printgolden on 64-bit machine\n")
+						if *update {
+							t.Fatalf("must run -update on 64-bit machine")
 						}
 						p++
 						continue
@@ -76,11 +85,11 @@ func TestRegress(t *testing.T) {
 				case reflect.Int64:
 					x = int64s[repeat%len(int64s)]
 
-				case reflect.Slice:
-					if m.Name == "Read" {
-						n := readBufferSizes[repeat%len(readBufferSizes)]
-						x = make([]byte, n)
-					}
+				case reflect.Uint32:
+					x = uint32s[repeat%len(uint32s)]
+
+				case reflect.Uint64:
+					x = uint64s[repeat%len(uint64s)]
 				}
 				argstr = fmt.Sprint(x)
 				args = append(args, reflect.ValueOf(x))
@@ -91,10 +100,10 @@ func TestRegress(t *testing.T) {
 			if m.Name == "Int" || m.Name == "IntN" {
 				out = int64(out.(int))
 			}
-			if m.Name == "Read" {
-				out = args[0].Interface().([]byte)
+			if m.Name == "Uint" || m.Name == "UintN" {
+				out = uint64(out.(uint))
 			}
-			if *printgolden {
+			if *update {
 				var val string
 				big := int64(1 << 60)
 				if int64(int(big)) != big && (m.Name == "Int" || m.Name == "IntN") {
@@ -105,7 +114,9 @@ func TestRegress(t *testing.T) {
 				} else {
 					val = fmt.Sprintf("%T(%v)", out, out)
 				}
-				fmt.Printf("\t%s, // %s(%s)\n", val, m.Name, argstr)
+				fmt.Fprintf(&buf, "\t%s, // %s(%s)\n", val, m.Name, argstr)
+			} else if p >= len(regressGolden) {
+				t.Errorf("r.%s(%s) = %v, missing golden value", m.Name, argstr, out)
 			} else {
 				want := regressGolden[p]
 				if m.Name == "Int" {
@@ -118,270 +129,360 @@ func TestRegress(t *testing.T) {
 			p++
 		}
 	}
-	if *printgolden {
-		fmt.Printf("}\n")
+	if *update {
+		replace(t, "regress_test.go", buf.Bytes())
+	}
+}
+
+func TestUpdateExample(t *testing.T) {
+	if !*update {
+		t.Skip("-update not given")
+	}
+
+	oldStdout := os.Stdout
+	defer func() {
+		os.Stdout = oldStdout
+	}()
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	go func() {
+		os.Stdout = w
+		Example_rand()
+		os.Stdout = oldStdout
+		w.Close()
+	}()
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "\t// Output:\n")
+	for _, line := range strings.Split(string(out), "\n") {
+		if line != "" {
+			fmt.Fprintf(&buf, "\t// %s\n", line)
+		}
+	}
+
+	replace(t, "example_test.go", buf.Bytes())
+
+	// Exit so that Example_rand cannot fail.
+	fmt.Printf("UPDATED; ignore non-zero exit status\n")
+	os.Exit(1)
+}
+
+// replace substitutes the definition text from new into the content of file.
+// The text in new is of the form
+//
+//	var whatever = T{
+//		...
+//	}
+//
+// Replace searches file for an exact match for the text of the first line,
+// finds the closing brace, and then substitutes new for what used to be in the file.
+// This lets us update the regressGolden table during go test -update.
+func replace(t *testing.T, file string, new []byte) {
+	first, _, _ := bytes.Cut(new, []byte("\n"))
+	first = append(append([]byte("\n"), first...), '\n')
+	data, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	i := bytes.Index(data, first)
+	if i < 0 {
+		t.Fatalf("cannot find %q in %s", first, file)
+	}
+	j := bytes.Index(data[i+1:], []byte("\n}\n"))
+	if j < 0 {
+		t.Fatalf("cannot find end in %s", file)
+	}
+	data = append(append(data[:i+1:i+1], new...), data[i+1+j+1:]...)
+	data, err = format.Source(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, data, 0666); err != nil {
+		t.Fatal(err)
 	}
 }
 
 var regressGolden = []any{
-	float64(4.668112973579268),          // ExpFloat64()
-	float64(0.1601593871172866),         // ExpFloat64()
-	float64(3.0465834105636),            // ExpFloat64()
-	float64(0.06385839451671879),        // ExpFloat64()
-	float64(1.8578917487258961),         // ExpFloat64()
-	float64(0.784676123472182),          // ExpFloat64()
-	float64(0.11225477361256932),        // ExpFloat64()
-	float64(0.20173283329802255),        // ExpFloat64()
-	float64(0.3468619496201105),         // ExpFloat64()
-	float64(0.35601103454384536),        // ExpFloat64()
-	float64(0.888376329507869),          // ExpFloat64()
-	float64(1.4081362450365698),         // ExpFloat64()
-	float64(1.0077753823151994),         // ExpFloat64()
-	float64(0.23594100766227588),        // ExpFloat64()
-	float64(2.777245612300007),          // ExpFloat64()
-	float64(0.5202997830662377),         // ExpFloat64()
-	float64(1.2842705247770294),         // ExpFloat64()
-	float64(0.030307408362776206),       // ExpFloat64()
-	float64(2.204156824853721),          // ExpFloat64()
-	float64(2.09891923895058),           // ExpFloat64()
-	float32(0.94519615),                 // Float32()
-	float32(0.24496509),                 // Float32()
-	float32(0.65595627),                 // Float32()
-	float32(0.05434384),                 // Float32()
-	float32(0.3675872),                  // Float32()
-	float32(0.28948045),                 // Float32()
-	float32(0.1924386),                  // Float32()
-	float32(0.65533215),                 // Float32()
-	float32(0.8971697),                  // Float32()
-	float32(0.16735445),                 // Float32()
-	float32(0.28858566),                 // Float32()
-	float32(0.9026048),                  // Float32()
-	float32(0.84978026),                 // Float32()
-	float32(0.2730468),                  // Float32()
-	float32(0.6090802),                  // Float32()
-	float32(0.253656),                   // Float32()
-	float32(0.7746542),                  // Float32()
-	float32(0.017480763),                // Float32()
-	float32(0.78707397),                 // Float32()
-	float32(0.7993937),                  // Float32()
-	float64(0.9451961492941164),         // Float64()
-	float64(0.24496508529377975),        // Float64()
-	float64(0.6559562651954052),         // Float64()
-	float64(0.05434383959970039),        // Float64()
-	float64(0.36758720663245853),        // Float64()
-	float64(0.2894804331565928),         // Float64()
-	float64(0.19243860967493215),        // Float64()
-	float64(0.6553321508148324),         // Float64()
-	float64(0.897169713149801),          // Float64()
-	float64(0.16735444255905835),        // Float64()
-	float64(0.2885856518054551),         // Float64()
-	float64(0.9026048462705047),         // Float64()
-	float64(0.8497802817628735),         // Float64()
-	float64(0.2730468047134829),         // Float64()
-	float64(0.6090801919903561),         // Float64()
-	float64(0.25365600644283687),        // Float64()
-	float64(0.7746542391859803),         // Float64()
-	float64(0.017480762156647272),       // Float64()
-	float64(0.7870739563039942),         // Float64()
-	float64(0.7993936979594545),         // Float64()
-	int64(8717895732742165505),          // Int()
-	int64(2259404117704393152),          // Int()
-	int64(6050128673802995827),          // Int()
-	int64(501233450539197794),           // Int()
-	int64(3390393562759376202),          // Int()
-	int64(2669985732393126063),          // Int()
-	int64(1774932891286980153),          // Int()
-	int64(6044372234677422456),          // Int()
-	int64(8274930044578894929),          // Int()
-	int64(1543572285742637646),          // Int()
-	int64(2661732831099943416),          // Int()
-	int64(8325060299420976708),          // Int()
-	int64(7837839688282259259),          // Int()
-	int64(2518412263346885298),          // Int()
-	int64(5617773211005988520),          // Int()
-	int64(2339563716805116249),          // Int()
-	int64(7144924247938981575),          // Int()
-	int64(161231572858529631),           // Int()
-	int64(7259475919510918339),          // Int()
-	int64(7373105480197164748),          // Int()
-	int32(2029793274),                   // Int32()
-	int32(526058514),                    // Int32()
-	int32(1408655353),                   // Int32()
-	int32(116702506),                    // Int32()
-	int32(789387515),                    // Int32()
-	int32(621654496),                    // Int32()
-	int32(413258767),                    // Int32()
-	int32(1407315077),                   // Int32()
-	int32(1926657288),                   // Int32()
-	int32(359390928),                    // Int32()
-	int32(619732968),                    // Int32()
-	int32(1938329147),                   // Int32()
-	int32(1824889259),                   // Int32()
-	int32(586363548),                    // Int32()
-	int32(1307989752),                   // Int32()
-	int32(544722126),                    // Int32()
-	int32(1663557311),                   // Int32()
-	int32(37539650),                     // Int32()
-	int32(1690228450),                   // Int32()
-	int32(1716684894),                   // Int32()
-	int32(0),                            // Int32N(1)
-	int32(4),                            // Int32N(10)
-	int32(25),                           // Int32N(32)
-	int32(310570),                       // Int32N(1048576)
-	int32(857611),                       // Int32N(1048577)
-	int32(621654496),                    // Int32N(1000000000)
-	int32(413258767),                    // Int32N(1073741824)
-	int32(1407315077),                   // Int32N(2147483646)
-	int32(1926657288),                   // Int32N(2147483647)
-	int32(0),                            // Int32N(1)
-	int32(8),                            // Int32N(10)
-	int32(27),                           // Int32N(32)
-	int32(367019),                       // Int32N(1048576)
-	int32(209005),                       // Int32N(1048577)
-	int32(307989752),                    // Int32N(1000000000)
-	int32(544722126),                    // Int32N(1073741824)
-	int32(1663557311),                   // Int32N(2147483646)
-	int32(37539650),                     // Int32N(2147483647)
-	int32(0),                            // Int32N(1)
-	int32(4),                            // Int32N(10)
-	int64(8717895732742165505),          // Int64()
-	int64(2259404117704393152),          // Int64()
-	int64(6050128673802995827),          // Int64()
-	int64(501233450539197794),           // Int64()
-	int64(3390393562759376202),          // Int64()
-	int64(2669985732393126063),          // Int64()
-	int64(1774932891286980153),          // Int64()
-	int64(6044372234677422456),          // Int64()
-	int64(8274930044578894929),          // Int64()
-	int64(1543572285742637646),          // Int64()
-	int64(2661732831099943416),          // Int64()
-	int64(8325060299420976708),          // Int64()
-	int64(7837839688282259259),          // Int64()
-	int64(2518412263346885298),          // Int64()
-	int64(5617773211005988520),          // Int64()
-	int64(2339563716805116249),          // Int64()
-	int64(7144924247938981575),          // Int64()
-	int64(161231572858529631),           // Int64()
-	int64(7259475919510918339),          // Int64()
-	int64(7373105480197164748),          // Int64()
-	int64(0),                            // Int64N(1)
-	int64(2),                            // Int64N(10)
-	int64(19),                           // Int64N(32)
-	int64(959842),                       // Int64N(1048576)
-	int64(688912),                       // Int64N(1048577)
-	int64(393126063),                    // Int64N(1000000000)
-	int64(89212473),                     // Int64N(1073741824)
-	int64(834026388),                    // Int64N(2147483646)
-	int64(1577188963),                   // Int64N(2147483647)
-	int64(543572285742637646),           // Int64N(1000000000000000000)
-	int64(355889821886249464),           // Int64N(1152921504606846976)
-	int64(8325060299420976708),          // Int64N(9223372036854775806)
-	int64(7837839688282259259),          // Int64N(9223372036854775807)
-	int64(0),                            // Int64N(1)
-	int64(0),                            // Int64N(10)
-	int64(25),                           // Int64N(32)
-	int64(679623),                       // Int64N(1048576)
-	int64(882178),                       // Int64N(1048577)
-	int64(510918339),                    // Int64N(1000000000)
-	int64(782454476),                    // Int64N(1073741824)
-	int64(0),                            // IntN(1)
-	int64(4),                            // IntN(10)
-	int64(25),                           // IntN(32)
-	int64(310570),                       // IntN(1048576)
-	int64(857611),                       // IntN(1048577)
-	int64(621654496),                    // IntN(1000000000)
-	int64(413258767),                    // IntN(1073741824)
-	int64(1407315077),                   // IntN(2147483646)
-	int64(1926657288),                   // IntN(2147483647)
-	int64(543572285742637646),           // IntN(1000000000000000000)
-	int64(355889821886249464),           // IntN(1152921504606846976)
-	int64(8325060299420976708),          // IntN(9223372036854775806)
-	int64(7837839688282259259),          // IntN(9223372036854775807)
-	int64(0),                            // IntN(1)
-	int64(2),                            // IntN(10)
-	int64(14),                           // IntN(32)
-	int64(515775),                       // IntN(1048576)
-	int64(839455),                       // IntN(1048577)
-	int64(690228450),                    // IntN(1000000000)
-	int64(642943070),                    // IntN(1073741824)
-	float64(-0.28158587086436215),       // NormFloat64()
-	float64(0.570933095808067),          // NormFloat64()
-	float64(-1.6920196326157044),        // NormFloat64()
-	float64(0.1996229111693099),         // NormFloat64()
-	float64(1.9195199291234621),         // NormFloat64()
-	float64(0.8954838794918353),         // NormFloat64()
-	float64(0.41457072128813166),        // NormFloat64()
-	float64(-0.48700161491544713),       // NormFloat64()
-	float64(-0.1684059662402393),        // NormFloat64()
-	float64(0.37056410998929545),        // NormFloat64()
-	float64(1.0156889027029008),         // NormFloat64()
-	float64(-0.5174422210625114),        // NormFloat64()
-	float64(-0.5565834214413804),        // NormFloat64()
-	float64(0.778320596648391),          // NormFloat64()
-	float64(-1.8970718197702225),        // NormFloat64()
-	float64(0.5229525761688676),         // NormFloat64()
-	float64(-1.5515595563231523),        // NormFloat64()
-	float64(0.0182029289376123),         // NormFloat64()
-	float64(-0.6820951356608795),        // NormFloat64()
-	float64(-0.5987943422687668),        // NormFloat64()
+	float64(0.5872982159059681),  // ExpFloat64()
+	float64(0.5372820936538049),  // ExpFloat64()
+	float64(1.2310533463860203),  // ExpFloat64()
+	float64(0.6776268958872181),  // ExpFloat64()
+	float64(0.04451836051028885), // ExpFloat64()
+	float64(0.2228940815087735),  // ExpFloat64()
+	float64(0.09850095778902446), // ExpFloat64()
+	float64(0.18902358546064923), // ExpFloat64()
+	float64(0.18227281316102673), // ExpFloat64()
+	float64(0.31155615099079936), // ExpFloat64()
+	float64(0.9474409467969883),  // ExpFloat64()
+	float64(1.0451058861587306),  // ExpFloat64()
+	float64(0.21497642445756152), // ExpFloat64()
+	float64(1.4215752287217205),  // ExpFloat64()
+	float64(0.755823964126038),   // ExpFloat64()
+	float64(0.38996764757787583), // ExpFloat64()
+	float64(0.13309377582841803), // ExpFloat64()
+	float64(0.2115638815656507),  // ExpFloat64()
+	float64(0.7176288428497417),  // ExpFloat64()
+	float64(0.6120456642749681),  // ExpFloat64()
+
+	float32(0.6046603),  // Float32()
+	float32(0.9405091),  // Float32()
+	float32(0.6645601),  // Float32()
+	float32(0.4377142),  // Float32()
+	float32(0.4246375),  // Float32()
+	float32(0.68682307), // Float32()
+	float32(0.06563702), // Float32()
+	float32(0.15651925), // Float32()
+	float32(0.09696952), // Float32()
+	float32(0.30091187), // Float32()
+	float32(0.51521266), // Float32()
+	float32(0.81363994), // Float32()
+	float32(0.21426387), // Float32()
+	float32(0.3806572),  // Float32()
+	float32(0.31805816), // Float32()
+	float32(0.46888983), // Float32()
+	float32(0.28303415), // Float32()
+	float32(0.29310185), // Float32()
+	float32(0.67908466), // Float32()
+	float32(0.21855305), // Float32()
+
+	float64(0.6046602879796196),  // Float64()
+	float64(0.9405090880450124),  // Float64()
+	float64(0.6645600532184904),  // Float64()
+	float64(0.4377141871869802),  // Float64()
+	float64(0.4246374970712657),  // Float64()
+	float64(0.6868230728671094),  // Float64()
+	float64(0.06563701921747622), // Float64()
+	float64(0.15651925473279124), // Float64()
+	float64(0.09696951891448456), // Float64()
+	float64(0.30091186058528707), // Float64()
+	float64(0.5152126285020654),  // Float64()
+	float64(0.8136399609900968),  // Float64()
+	float64(0.21426387258237492), // Float64()
+	float64(0.380657189299686),   // Float64()
+	float64(0.31805817433032985), // Float64()
+	float64(0.4688898449024232),  // Float64()
+	float64(0.28303415118044517), // Float64()
+	float64(0.29310185733681576), // Float64()
+	float64(0.6790846759202163),  // Float64()
+	float64(0.21855305259276428), // Float64()
+
+	int64(5577006791947779410), // Int()
+	int64(8674665223082153551), // Int()
+	int64(6129484611666145821), // Int()
+	int64(4037200794235010051), // Int()
+	int64(3916589616287113937), // Int()
+	int64(6334824724549167320), // Int()
+	int64(605394647632969758),  // Int()
+	int64(1443635317331776148), // Int()
+	int64(894385949183117216),  // Int()
+	int64(2775422040480279449), // Int()
+	int64(4751997750760398084), // Int()
+	int64(7504504064263669287), // Int()
+	int64(1976235410884491574), // Int()
+	int64(3510942875414458836), // Int()
+	int64(2933568871211445515), // Int()
+	int64(4324745483838182873), // Int()
+	int64(2610529275472644968), // Int()
+	int64(2703387474910584091), // Int()
+	int64(6263450610539110790), // Int()
+	int64(2015796113853353331), // Int()
+
+	int32(1298498081), // Int32()
+	int32(2019727887), // Int32()
+	int32(1427131847), // Int32()
+	int32(939984059),  // Int32()
+	int32(911902081),  // Int32()
+	int32(1474941318), // Int32()
+	int32(140954425),  // Int32()
+	int32(336122540),  // Int32()
+	int32(208240456),  // Int32()
+	int32(646203300),  // Int32()
+	int32(1106410694), // Int32()
+	int32(1747278511), // Int32()
+	int32(460128162),  // Int32()
+	int32(817455089),  // Int32()
+	int32(683024728),  // Int32()
+	int32(1006933274), // Int32()
+	int32(607811211),  // Int32()
+	int32(629431445),  // Int32()
+	int32(1458323237), // Int32()
+	int32(469339106),  // Int32()
+
+	int32(0),          // Int32N(1)
+	int32(7),          // Int32N(10)
+	int32(7),          // Int32N(32)
+	int32(459963),     // Int32N(1048576)
+	int32(688668),     // Int32N(1048577)
+	int32(474941318),  // Int32N(1000000000)
+	int32(140954425),  // Int32N(1073741824)
+	int32(336122540),  // Int32N(2147483646)
+	int32(208240456),  // Int32N(2147483647)
+	int32(0),          // Int32N(1)
+	int32(4),          // Int32N(10)
+	int32(15),         // Int32N(32)
+	int32(851874),     // Int32N(1048576)
+	int32(613606),     // Int32N(1048577)
+	int32(683024728),  // Int32N(1000000000)
+	int32(1006933274), // Int32N(1073741824)
+	int32(607811211),  // Int32N(2147483646)
+	int32(629431445),  // Int32N(2147483647)
+	int32(0),          // Int32N(1)
+	int32(6),          // Int32N(10)
+
+	int64(5577006791947779410), // Int64()
+	int64(8674665223082153551), // Int64()
+	int64(6129484611666145821), // Int64()
+	int64(4037200794235010051), // Int64()
+	int64(3916589616287113937), // Int64()
+	int64(6334824724549167320), // Int64()
+	int64(605394647632969758),  // Int64()
+	int64(1443635317331776148), // Int64()
+	int64(894385949183117216),  // Int64()
+	int64(2775422040480279449), // Int64()
+	int64(4751997750760398084), // Int64()
+	int64(7504504064263669287), // Int64()
+	int64(1976235410884491574), // Int64()
+	int64(3510942875414458836), // Int64()
+	int64(2933568871211445515), // Int64()
+	int64(4324745483838182873), // Int64()
+	int64(2610529275472644968), // Int64()
+	int64(2703387474910584091), // Int64()
+	int64(6263450610539110790), // Int64()
+	int64(2015796113853353331), // Int64()
+
+	int64(0),                   // Int64N(1)
+	int64(1),                   // Int64N(10)
+	int64(29),                  // Int64N(32)
+	int64(883715),              // Int64N(1048576)
+	int64(338103),              // Int64N(1048577)
+	int64(549167320),           // Int64N(1000000000)
+	int64(957743134),           // Int64N(1073741824)
+	int64(1927814468),          // Int64N(2147483646)
+	int64(1375471152),          // Int64N(2147483647)
+	int64(775422040480279449),  // Int64N(1000000000000000000)
+	int64(140311732333010180),  // Int64N(1152921504606846976)
+	int64(7504504064263669287), // Int64N(9223372036854775806)
+	int64(1976235410884491574), // Int64N(9223372036854775807)
+	int64(0),                   // Int64N(1)
+	int64(5),                   // Int64N(10)
+	int64(25),                  // Int64N(32)
+	int64(920424),              // Int64N(1048576)
+	int64(345137),              // Int64N(1048577)
+	int64(539110790),           // Int64N(1000000000)
+	int64(701992307),           // Int64N(1073741824)
+
+	int64(0),                   // IntN(1)
+	int64(7),                   // IntN(10)
+	int64(7),                   // IntN(32)
+	int64(459963),              // IntN(1048576)
+	int64(688668),              // IntN(1048577)
+	int64(474941318),           // IntN(1000000000)
+	int64(140954425),           // IntN(1073741824)
+	int64(336122540),           // IntN(2147483646)
+	int64(208240456),           // IntN(2147483647)
+	int64(775422040480279449),  // IntN(1000000000000000000)
+	int64(140311732333010180),  // IntN(1152921504606846976)
+	int64(7504504064263669287), // IntN(9223372036854775806)
+	int64(1976235410884491574), // IntN(9223372036854775807)
+	int64(0),                   // IntN(1)
+	int64(8),                   // IntN(10)
+	int64(26),                  // IntN(32)
+	int64(685707),              // IntN(1048576)
+	int64(285245),              // IntN(1048577)
+	int64(458323237),           // IntN(1000000000)
+	int64(469339106),           // IntN(1073741824)
+
+	float64(-1.233758177597947),   // NormFloat64()
+	float64(-0.12634751070237293), // NormFloat64()
+	float64(-0.5209945711531503),  // NormFloat64()
+	float64(2.28571911769958),     // NormFloat64()
+	float64(0.3228052526115799),   // NormFloat64()
+	float64(0.5900672875996937),   // NormFloat64()
+	float64(0.15880774017643562),  // NormFloat64()
+	float64(0.9892020842955818),   // NormFloat64()
+	float64(-0.731283016177479),   // NormFloat64()
+	float64(0.6863807850359727),   // NormFloat64()
+	float64(1.585403962280623),    // NormFloat64()
+	float64(0.8382059044208106),   // NormFloat64()
+	float64(1.2988408475174342),   // NormFloat64()
+	float64(0.5273583930598617),   // NormFloat64()
+	float64(0.7324419258045132),   // NormFloat64()
+	float64(-1.0731798210887524),  // NormFloat64()
+	float64(0.7001209024399848),   // NormFloat64()
+	float64(0.4315307186960532),   // NormFloat64()
+	float64(0.9996261210112625),   // NormFloat64()
+	float64(-1.5239676725278932),  // NormFloat64()
+
 	[]int{},                             // Perm(0)
 	[]int{0},                            // Perm(1)
-	[]int{0, 4, 1, 3, 2},                // Perm(5)
-	[]int{3, 1, 0, 4, 7, 5, 2, 6},       // Perm(8)
-	[]int{5, 0, 3, 6, 7, 4, 2, 1, 8},    // Perm(9)
-	[]int{4, 5, 0, 2, 6, 9, 3, 1, 8, 7}, // Perm(10)
-	[]int{14, 2, 0, 8, 3, 5, 13, 12, 1, 4, 6, 7, 11, 9, 15, 10}, // Perm(16)
+	[]int{0, 3, 2, 4, 1},                // Perm(5)
+	[]int{3, 7, 0, 1, 6, 2, 4, 5},       // Perm(8)
+	[]int{2, 3, 7, 6, 1, 8, 0, 5, 4},    // Perm(9)
+	[]int{5, 2, 6, 4, 3, 7, 8, 9, 1, 0}, // Perm(10)
+	[]int{0, 11, 2, 5, 14, 7, 3, 1, 13, 8, 9, 4, 10, 6, 12, 15}, // Perm(16)
 	[]int{},                             // Perm(0)
 	[]int{0},                            // Perm(1)
-	[]int{3, 0, 1, 2, 4},                // Perm(5)
-	[]int{5, 1, 2, 0, 4, 7, 3, 6},       // Perm(8)
-	[]int{4, 0, 6, 8, 1, 5, 2, 7, 3},    // Perm(9)
-	[]int{8, 6, 1, 7, 5, 4, 3, 2, 9, 0}, // Perm(10)
-	[]int{0, 3, 13, 2, 15, 4, 10, 1, 8, 14, 7, 6, 12, 9, 5, 11}, // Perm(16)
+	[]int{4, 1, 0, 3, 2},                // Perm(5)
+	[]int{6, 0, 1, 3, 2, 7, 4, 5},       // Perm(8)
+	[]int{8, 3, 6, 7, 2, 5, 4, 0, 1},    // Perm(9)
+	[]int{2, 5, 4, 9, 7, 0, 8, 3, 6, 1}, // Perm(10)
+	[]int{12, 6, 8, 15, 3, 5, 9, 11, 7, 10, 1, 13, 14, 2, 0, 4}, // Perm(16)
 	[]int{},                             // Perm(0)
 	[]int{0},                            // Perm(1)
-	[]int{0, 4, 2, 1, 3},                // Perm(5)
-	[]int{2, 1, 7, 0, 6, 3, 4, 5},       // Perm(8)
-	[]int{8, 7, 5, 3, 4, 6, 0, 1, 2},    // Perm(9)
-	[]int{1, 0, 2, 5, 7, 6, 9, 8, 3, 4}, // Perm(10)
-	uint32(4059586549),                  // Uint32()
-	uint32(1052117029),                  // Uint32()
-	uint32(2817310706),                  // Uint32()
-	uint32(233405013),                   // Uint32()
-	uint32(1578775030),                  // Uint32()
-	uint32(1243308993),                  // Uint32()
-	uint32(826517535),                   // Uint32()
-	uint32(2814630155),                  // Uint32()
-	uint32(3853314576),                  // Uint32()
-	uint32(718781857),                   // Uint32()
-	uint32(1239465936),                  // Uint32()
-	uint32(3876658295),                  // Uint32()
-	uint32(3649778518),                  // Uint32()
-	uint32(1172727096),                  // Uint32()
-	uint32(2615979505),                  // Uint32()
-	uint32(1089444252),                  // Uint32()
-	uint32(3327114623),                  // Uint32()
-	uint32(75079301),                    // Uint32()
-	uint32(3380456901),                  // Uint32()
-	uint32(3433369789),                  // Uint32()
-	uint64(8717895732742165505),         // Uint64()
-	uint64(2259404117704393152),         // Uint64()
-	uint64(6050128673802995827),         // Uint64()
-	uint64(9724605487393973602),         // Uint64()
-	uint64(12613765599614152010),        // Uint64()
-	uint64(11893357769247901871),        // Uint64()
-	uint64(1774932891286980153),         // Uint64()
-	uint64(15267744271532198264),        // Uint64()
-	uint64(17498302081433670737),        // Uint64()
-	uint64(1543572285742637646),         // Uint64()
-	uint64(11885104867954719224),        // Uint64()
-	uint64(17548432336275752516),        // Uint64()
-	uint64(7837839688282259259),         // Uint64()
-	uint64(2518412263346885298),         // Uint64()
-	uint64(5617773211005988520),         // Uint64()
-	uint64(11562935753659892057),        // Uint64()
-	uint64(16368296284793757383),        // Uint64()
-	uint64(161231572858529631),          // Uint64()
-	uint64(16482847956365694147),        // Uint64()
-	uint64(16596477517051940556),        // Uint64()
+	[]int{0, 2, 4, 3, 1},                // Perm(5)
+	[]int{4, 7, 0, 2, 6, 1, 5, 3},       // Perm(8)
+	[]int{6, 5, 8, 0, 1, 3, 7, 2, 4},    // Perm(9)
+	[]int{8, 1, 9, 7, 6, 5, 2, 0, 4, 3}, // Perm(10)
+
+	uint32(2596996162), // Uint32()
+	uint32(4039455774), // Uint32()
+	uint32(2854263694), // Uint32()
+	uint32(1879968118), // Uint32()
+	uint32(1823804162), // Uint32()
+	uint32(2949882636), // Uint32()
+	uint32(281908850),  // Uint32()
+	uint32(672245080),  // Uint32()
+	uint32(416480912),  // Uint32()
+	uint32(1292406600), // Uint32()
+	uint32(2212821389), // Uint32()
+	uint32(3494557023), // Uint32()
+	uint32(920256325),  // Uint32()
+	uint32(1634910179), // Uint32()
+	uint32(1366049456), // Uint32()
+	uint32(2013866549), // Uint32()
+	uint32(1215622422), // Uint32()
+	uint32(1258862891), // Uint32()
+	uint32(2916646474), // Uint32()
+	uint32(938678213),  // Uint32()
+
+	uint64(5577006791947779410),  // Uint64()
+	uint64(8674665223082153551),  // Uint64()
+	uint64(15352856648520921629), // Uint64()
+	uint64(13260572831089785859), // Uint64()
+	uint64(3916589616287113937),  // Uint64()
+	uint64(6334824724549167320),  // Uint64()
+	uint64(9828766684487745566),  // Uint64()
+	uint64(10667007354186551956), // Uint64()
+	uint64(894385949183117216),   // Uint64()
+	uint64(11998794077335055257), // Uint64()
+	uint64(4751997750760398084),  // Uint64()
+	uint64(7504504064263669287),  // Uint64()
+	uint64(11199607447739267382), // Uint64()
+	uint64(3510942875414458836),  // Uint64()
+	uint64(12156940908066221323), // Uint64()
+	uint64(4324745483838182873),  // Uint64()
+	uint64(11833901312327420776), // Uint64()
+	uint64(11926759511765359899), // Uint64()
+	uint64(6263450610539110790),  // Uint64()
+	uint64(11239168150708129139), // Uint64()
 }
