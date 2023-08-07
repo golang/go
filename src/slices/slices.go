@@ -503,7 +503,7 @@ func Concat[S ~[]E, E any](slices ...S) S {
 			panic("len out of range")
 		}
 	}
-	newslice := make(S, 0, size)
+	newslice := Grow[S](nil, size)
 	for _, s := range slices {
 		newslice = append(newslice, s...)
 	}
