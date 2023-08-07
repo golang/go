@@ -493,3 +493,18 @@ func Reverse[S ~[]E, E any](s S) {
 		s[i], s[j] = s[j], s[i]
 	}
 }
+
+// Concat return a new slice that combines all values of input slices
+func Concat[S ~[]E, E any](dst S, slices ...S) S {
+	sl := 0
+	for i := range slices {
+		sl += len(slices[i])
+	}
+	dst = Grow(dst, len(dst)+sl)
+	for _, s := range slices {
+		if sLen := len(s); sLen != 0 {
+			dst = append(dst, s...)
+		}
+	}
+	return dst
+}

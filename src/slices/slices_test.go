@@ -1055,3 +1055,21 @@ func TestInference(t *testing.T) {
 		t.Errorf("Reverse(%v) = %v, want %v", S{4, 5, 6}, s2, want)
 	}
 }
+
+func TestConcat(t *testing.T) {
+	s1 := Concat([]string{}, []string{"a", "b"}, []string{"c"}, nil)
+	if want := []string{"a", "b", "c"}; !Equal(s1, want) {
+		t.Errorf("want %v, got %v", want, s1)
+	}
+
+	s2 := Concat(nil, []int{1, 2}, []int{4}, nil)
+	if want := []int{1, 2, 4}; !Equal(s2, want) {
+		t.Errorf("want %v, got %v", want, s2)
+	}
+
+	s3 := []bool{false, true}
+	s4 := Concat(s3, nil, []bool{true})
+	if want := []bool{false, true, true}; !Equal(s2, want) {
+		t.Errorf("want %v, got %v", want, s2)
+	}
+}
