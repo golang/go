@@ -553,6 +553,45 @@ func TestNetworkSymbolicLink(t *testing.T) {
 	}
 }
 
+func TestStatLxSymLink(t *testing.T) {
+	if _, err := exec.LookPath("wsl"); err != nil {
+		t.Skip("skipping: WSL not detected")
+	}
+
+	temp := t.TempDir()
+	chdir(t, temp)
+
+	const target = "target"
+	const link = "link"
+
+	_, err := testenv.Command(t, "wsl", "/bin/mkdir", target).Output()
+	if err != nil {
+		// This normally happens when WSL still doesn't have a distro installed to run on.
+		t.Skipf("skipping: WSL is not correctly installed: %v", err)
+	}
+
+	_, err = testenv.Command(t, "wsl", "/bin/ln", "-s", target, link).Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fi, err := os.Lstat(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m := fi.Mode(); m&fs.ModeSymlink != 0 {
+		// This can happen depending on newer WSL versions when running as admin or in developer mode.
+		t.Skip("skipping: WSL created reparse tag IO_REPARSE_TAG_SYMLINK instead of a IO_REPARSE_TAG_LX_SYMLINK")
+	}
+	// Stat'ing a IO_REPARSE_TAG_LX_SYMLINK from outside WSL always return ERROR_CANT_ACCESS_FILE.
+	// We check this condition to validate that os.Stat has tried to follow the link.
+	_, err = os.Stat(link)
+	const ERROR_CANT_ACCESS_FILE = syscall.Errno(1920)
+	if err == nil || !errors.Is(err, ERROR_CANT_ACCESS_FILE) {
+		t.Fatalf("os.Stat(%q): got %v, want ERROR_CANT_ACCESS_FILE", link, err)
+	}
+}
+
 func TestStartProcessAttr(t *testing.T) {
 	t.Parallel()
 

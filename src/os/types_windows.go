@@ -120,6 +120,16 @@ func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
 	return fs
 }
 
+// isReparseTagNameSurrogate determines whether a tag's associated
+// reparse point is a surrogate for another named entity (for example, a mounted folder).
+//
+// See https://learn.microsoft.com/en-us/windows/win32/api/winnt/nf-winnt-isreparsetagnamesurrogate
+// and https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-point-tags.
+func (fs *fileStat) isReparseTagNameSurrogate() bool {
+	// True for IO_REPARSE_TAG_SYMLINK and IO_REPARSE_TAG_MOUNT_POINT.
+	return fs.ReparseTag&0x20000000 != 0
+}
+
 func (fs *fileStat) isSymlink() bool {
 	// As of https://go.dev/cl/86556, we treat MOUNT_POINT reparse points as
 	// symlinks because otherwise certain directory junction tests in the
