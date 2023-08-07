@@ -28,25 +28,25 @@ import (
 // That position information is needed to properly position comments
 // when printing the construct.
 
-// All node types implement the Node interface.
+// Node All node types implement the Node interface.
 type Node interface {
 	Pos() token.Pos // position of first character belonging to the node
 	End() token.Pos // position of first character immediately after the node
 }
 
-// All expression nodes implement the Expr interface.
+// Expr All expression nodes implement the Expr interface.
 type Expr interface {
 	Node
 	exprNode()
 }
 
-// All statement nodes implement the Stmt interface.
+// Stmt All statement nodes implement the Stmt interface.
 type Stmt interface {
 	Node
 	stmtNode()
 }
 
-// All declaration nodes implement the Decl interface.
+// Decl All declaration nodes implement the Decl interface.
 type Decl interface {
 	Node
 	declNode()
@@ -415,7 +415,7 @@ type (
 	}
 )
 
-// The direction of a channel type is indicated by a bit
+// ChanDir The direction of a channel type is indicated by a bit
 // mask including one or both of the following constants.
 type ChanDir int
 
