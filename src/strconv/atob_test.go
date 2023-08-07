@@ -25,12 +25,20 @@ var atobtests = []atobTest{
 	{"FALSE", false, nil},
 	{"false", false, nil},
 	{"False", false, nil},
+	{"n", false, nil},
+	{"N", false, nil},
+	{"no", false, nil},
+	{"NO", false, nil},
 	{"1", true, nil},
 	{"t", true, nil},
 	{"T", true, nil},
 	{"TRUE", true, nil},
 	{"true", true, nil},
 	{"True", true, nil},
+	{"y", true, nil},
+	{"Y", true, nil},
+	{"yes", true, nil},
+	{"YES", true, nil},
 }
 
 func TestParseBool(t *testing.T) {
