@@ -128,7 +128,7 @@ func doinit() {
 	_, ebx7, _, edx7 := cpuid(7, 0)
 	X86.HasBMI1 = isSet(ebx7, cpuid_BMI1)
 	X86.HasAVX2 = isSet(ebx7, cpuid_AVX2) && osSupportsAVX
-	X86.HasAMX = isSet(edx7, cpuid_AMX) && osSupportsAVX
+	X86.HasAMX = isSet(edx7, cpuid_AMX)
 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
 	X86.HasERMS = isSet(ebx7, cpuid_ERMS)
 	X86.HasADX = isSet(ebx7, cpuid_ADX)
