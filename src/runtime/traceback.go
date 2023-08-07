@@ -112,6 +112,9 @@ type unwinder struct {
 	// flags are the flags to this unwind. Some of these are updated as we
 	// unwind (see the flags documentation).
 	flags unwindFlags
+
+	// cache is used to cache pcvalue lookups.
+	cache pcvalueCache
 }
 
 // init initializes u to start unwinding gp's stack and positions the
@@ -304,7 +307,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 			case abi.FuncID_systemstack:
 				// systemstack returns normally, so just follow the
 				// stack transition.
-				if usesLR && funcspdelta(f, frame.pc) == 0 {
+				if usesLR && funcspdelta(f, frame.pc, &u.cache) == 0 {
 					// We're at the function prologue and the stack
 					// switch hasn't happened, or epilogue where we're
 					// about to return. Just unwind normally.
@@ -322,7 +325,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 				flag &^= abi.FuncFlagSPWrite
 			}
 		}
-		frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc))
+		frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc, &u.cache))
 		if !usesLR {
 			// On x86, call instruction pushes return PC before entering new function.
 			frame.fp += goarch.PtrSize
@@ -497,7 +500,7 @@ func (u *unwinder) next() {
 		frame.fn = f
 		if !f.valid() {
 			frame.pc = x
-		} else if funcspdelta(f, frame.pc) == 0 {
+		} else if funcspdelta(f, frame.pc, &u.cache) == 0 {
 			frame.lr = x
 		}
 	}
@@ -617,7 +620,7 @@ func tracebackPCs(u *unwinder, skip int, pcBuf []uintptr) int {
 		cgoN := u.cgoCallers(cgoBuf[:])
 
 		// TODO: Why does &u.cache cause u to escape? (Same in traceback2)
-		for iu, uf := newInlineUnwinder(f, u.symPC()); n < len(pcBuf) && uf.valid(); uf = iu.next(uf) {
+		for iu, uf := newInlineUnwinder(f, u.symPC(), noEscapePtr(&u.cache)); n < len(pcBuf) && uf.valid(); uf = iu.next(uf) {
 			sf := iu.srcFunc(uf)
 			if sf.funcID == abi.FuncIDWrapper && elideWrapperCalling(u.calleeFuncID) {
 				// ignore wrappers
@@ -667,7 +670,7 @@ func printArgs(f funcInfo, argp unsafe.Pointer, pc uintptr) {
 	}
 
 	liveInfo := funcdata(f, abi.FUNCDATA_ArgLiveInfo)
-	liveIdx := pcdatavalue(f, abi.PCDATA_ArgLiveIndex, pc)
+	liveIdx := pcdatavalue(f, abi.PCDATA_ArgLiveIndex, pc, nil)
 	startOffset := uint8(0xff) // smallest offset that needs liveness info (slots with a lower offset is always live)
 	if liveInfo != nil {
 		startOffset = *(*uint8)(liveInfo)
@@ -974,7 +977,7 @@ func traceback2(u *unwinder, showRuntime bool, skip, max int) (n, lastN int) {
 	for ; u.valid(); u.next() {
 		lastN = 0
 		f := u.frame.fn
-		for iu, uf := newInlineUnwinder(f, u.symPC()); uf.valid(); uf = iu.next(uf) {
+		for iu, uf := newInlineUnwinder(f, u.symPC(), noEscapePtr(&u.cache)); uf.valid(); uf = iu.next(uf) {
 			sf := iu.srcFunc(uf)
 			callee := u.calleeFuncID
 			u.calleeFuncID = sf.funcID
@@ -1075,7 +1078,7 @@ func printAncestorTraceback(ancestor ancestorInfo) {
 // due to only have access to the pcs at the time of the caller
 // goroutine being created.
 func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
-	u, uf := newInlineUnwinder(f, pc)
+	u, uf := newInlineUnwinder(f, pc, nil)
 	file, line := u.fileLine(uf)
 	printFuncName(u.srcFunc(uf).name())
 	print("(...)\n")

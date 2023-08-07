@@ -119,7 +119,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 		}
 		// It's important that interpret pc non-strictly as cgoTraceback may
 		// have added bogus PCs with a valid funcInfo but invalid PCDATA.
-		u, uf := newInlineUnwinder(funcInfo, pc)
+		u, uf := newInlineUnwinder(funcInfo, pc, nil)
 		sf := u.srcFunc(uf)
 		if u.isInlined(uf) {
 			// Note: entry is not modified. It always refers to a real frame, not an inlined one.
@@ -180,7 +180,7 @@ func runtime_FrameSymbolName(f *Frame) string {
 	if !f.funcInfo.valid() {
 		return f.Function
 	}
-	u, uf := newInlineUnwinder(f.funcInfo, f.PC)
+	u, uf := newInlineUnwinder(f.funcInfo, f.PC, nil)
 	sf := u.srcFunc(uf)
 	return sf.name()
 }
@@ -204,7 +204,8 @@ func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
 		return stk
 	}
 
-	u, uf := newInlineUnwinder(f, tracepc)
+	var cache pcvalueCache
+	u, uf := newInlineUnwinder(f, tracepc, &cache)
 	if !u.isInlined(uf) {
 		// Nothing inline at tracepc.
 		return stk
@@ -657,7 +658,7 @@ func FuncForPC(pc uintptr) *Func {
 	// We just report the preceding function in that situation. See issue 29735.
 	// TODO: Perhaps we should report no function at all in that case.
 	// The runtime currently doesn't have function end info, alas.
-	u, uf := newInlineUnwinder(f, pc)
+	u, uf := newInlineUnwinder(f, pc, nil)
 	if !u.isInlined(uf) {
 		return f._Func()
 	}
@@ -842,7 +843,7 @@ func pcvalueCacheKey(targetpc uintptr) uintptr {
 }
 
 // Returns the PCData value, and the PC where this value starts.
-func pcvalue(f funcInfo, off uint32, targetpc uintptr, strict bool) (int32, uintptr) {
+func pcvalue(f funcInfo, off uint32, targetpc uintptr, _ *pcvalueCache, strict bool) (int32, uintptr) {
 	if off == 0 {
 		return -1, 0
 	}
@@ -978,8 +979,8 @@ func funcline1(f funcInfo, targetpc uintptr, strict bool) (file string, line int
 	if !f.valid() {
 		return "?", 0
 	}
-	fileno, _ := pcvalue(f, f.pcfile, targetpc, strict)
-	line, _ = pcvalue(f, f.pcln, targetpc, strict)
+	fileno, _ := pcvalue(f, f.pcfile, targetpc, nil, strict)
+	line, _ = pcvalue(f, f.pcln, targetpc, nil, strict)
 	if fileno == -1 || line == -1 || int(fileno) >= len(datap.filetab) {
 		// print("looking for ", hex(targetpc), " in ", funcname(f), " got file=", fileno, " line=", lineno, "\n")
 		return "?", 0
@@ -992,8 +993,8 @@ func funcline(f funcInfo, targetpc uintptr) (file string, line int32) {
 	return funcline1(f, targetpc, true)
 }
 
-func funcspdelta(f funcInfo, targetpc uintptr) int32 {
-	x, _ := pcvalue(f, f.pcsp, targetpc, true)
+func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
+	x, _ := pcvalue(f, f.pcsp, targetpc, cache, true)
 	if debugPcln && x&(goarch.PtrSize-1) != 0 {
 		print("invalid spdelta ", funcname(f), " ", hex(f.entry()), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
 		throw("bad spdelta")
@@ -1024,28 +1025,29 @@ func pcdatastart(f funcInfo, table uint32) uint32 {
 	return *(*uint32)(add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(table)*4))
 }
 
-func pcdatavalue(f funcInfo, table uint32, targetpc uintptr) int32 {
+func pcdatavalue(f funcInfo, table uint32, targetpc uintptr, cache *pcvalueCache) int32 {
 	if table >= f.npcdata {
 		return -1
 	}
-	r, _ := pcvalue(f, pcdatastart(f, table), targetpc, true)
+	r, _ := pcvalue(f, pcdatastart(f, table), targetpc, cache, true)
 	return r
 }
 
-func pcdatavalue1(f funcInfo, table uint32, targetpc uintptr, strict bool) int32 {
+func pcdatavalue1(f funcInfo, table uint32, targetpc uintptr, cache *pcvalueCache, strict bool) int32 {
 	if table >= f.npcdata {
 		return -1
 	}
-	r, _ := pcvalue(f, pcdatastart(f, table), targetpc, strict)
+	r, _ := pcvalue(f, pcdatastart(f, table), targetpc, cache, strict)
 	return r
 }
 
 // Like pcdatavalue, but also return the start PC of this PCData value.
+// It doesn't take a cache.
 func pcdatavalue2(f funcInfo, table uint32, targetpc uintptr) (int32, uintptr) {
 	if table >= f.npcdata {
 		return -1, 0
 	}
-	return pcvalue(f, pcdatastart(f, table), targetpc, true)
+	return pcvalue(f, pcdatastart(f, table), targetpc, nil, true)
 }
 
 // funcdata returns a pointer to the ith funcdata for f.
