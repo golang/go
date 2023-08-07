@@ -843,32 +843,30 @@ func pcvalueCacheKey(targetpc uintptr) uintptr {
 }
 
 // Returns the PCData value, and the PC where this value starts.
-func pcvalue(f funcInfo, off uint32, targetpc uintptr, _ *pcvalueCache, strict bool) (int32, uintptr) {
+func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, strict bool) (int32, uintptr) {
 	if off == 0 {
 		return -1, 0
 	}
 
 	// Check the cache. This speeds up walks of deep stacks, which
-	// tend to have the same recursive functions over and over,
-	// or repetitive stacks between goroutines.
-	ck := pcvalueCacheKey(targetpc)
-	{
-		mp := acquirem()
-		cache := &mp.pcvalueCache
-		for i := range cache.entries[ck] {
+	// tend to have the same recursive functions over and over.
+	//
+	// This cache is small enough that full associativity is
+	// cheaper than doing the hashing for a less associative
+	// cache.
+	if cache != nil {
+		x := pcvalueCacheKey(targetpc)
+		for i := range cache.entries[x] {
 			// We check off first because we're more
 			// likely to have multiple entries with
 			// different offsets for the same targetpc
 			// than the other way around, so we'll usually
 			// fail in the first clause.
-			ent := &cache.entries[ck][i]
+			ent := &cache.entries[x][i]
 			if ent.off == off && ent.targetpc == targetpc {
-				val, pc := ent.val, ent.valPC
-				releasem(mp)
-				return val, pc
+				return ent.val, ent.valPC
 			}
 		}
-		releasem(mp)
 	}
 
 	if !f.valid() {
@@ -896,18 +894,18 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, _ *pcvalueCache, strict b
 			// larger than the cache.
 			// Put the new element at the beginning,
 			// since it is the most likely to be newly used.
-			mp := acquirem()
-			cache := &mp.pcvalueCache
-			e := &cache.entries[ck]
-			ci := fastrandn(uint32(len(cache.entries[ck])))
-			e[ci] = e[0]
-			e[0] = pcvalueCacheEnt{
-				targetpc: targetpc,
-				off:      off,
-				val:      val,
-				valPC:    prevpc,
+			if cache != nil {
+				x := pcvalueCacheKey(targetpc)
+				e := &cache.entries[x]
+				ci := fastrandn(uint32(len(cache.entries[x])))
+				e[ci] = e[0]
+				e[0] = pcvalueCacheEnt{
+					targetpc: targetpc,
+					off:      off,
+					val:      val,
+					valPC:    prevpc,
+				}
 			}
-			releasem(mp)
 
 			return val, prevpc
 		}
