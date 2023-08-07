@@ -5,6 +5,7 @@
 package bench
 
 import (
+	"flag"
 	"fmt"
 	"sync/atomic"
 	"testing"
@@ -145,105 +146,145 @@ func (c *completer) _() {
 	}, b)
 }
 
-// Benchmark completion following an arbitrary edit.
-//
-// Edits force type-checked packages to be invalidated, so we want to measure
-// how long it takes before completion results are available.
-func BenchmarkCompletionFollowingEdit(b *testing.B) {
-	tests := []struct {
-		repo           string
-		file           string // repo-relative file to create
-		content        string // file content
-		locationRegexp string // regexp for completion
-	}{
-		{
-			"tools",
-			"internal/lsp/source/completion/completion2.go",
-			`
+type completionFollowingEditTest struct {
+	repo           string
+	name           string
+	file           string // repo-relative file to create
+	content        string // file content
+	locationRegexp string // regexp for completion
+}
+
+var completionFollowingEditTests = []completionFollowingEditTest{
+	{
+		"tools",
+		"selector",
+		"internal/lsp/source/completion/completion2.go",
+		`
 package completion
 
 func (c *completer) _() {
 	c.inference.kindMatches(c.)
 }
 `,
-			`func \(c \*completer\) _\(\) {\n\tc\.inference\.kindMatches\((c)`,
-		},
-		{
-			"kubernetes",
-			"pkg/kubelet/kubelet2.go",
-			`
+		`func \(c \*completer\) _\(\) {\n\tc\.inference\.kindMatches\((c)`,
+	},
+	{
+		"kubernetes",
+		"selector",
+		"pkg/kubelet/kubelet2.go",
+		`
 package kubelet
 
 func (kl *Kubelet) _() {
 	kl.
 }
 `,
-			`kl\.()`,
-		},
-		{
-			"oracle",
-			"dataintegration/pivot2.go",
-			`
+		`kl\.()`,
+	},
+	{
+		"kubernetes",
+		"identifier",
+		"pkg/kubelet/kubelet2.go",
+		`
+package kubelet
+
+func (kl *Kubelet) _() {
+	k // here
+}
+`,
+		`k() // here`,
+	},
+	{
+		"oracle",
+		"selector",
+		"dataintegration/pivot2.go",
+		`
 package dataintegration
 
 func (p *Pivot) _() {
 	p.
 }
 `,
-			`p\.()`,
-		},
-	}
+		`p\.()`,
+	},
+}
 
-	for _, test := range tests {
-		b.Run(test.repo, func(b *testing.B) {
-			repo := getRepo(b, test.repo)
-			sharedEnv := repo.sharedEnv(b) // ensure cache is warm
-			env := repo.newEnv(b, fake.EditorConfig{
-				Env: map[string]string{
-					"GOPATH": sharedEnv.Sandbox.GOPATH(), // use the warm cache
-				},
-				Settings: map[string]interface{}{
-					"completeUnimported": false,
-				},
-			}, "completionFollowingEdit", false)
-			defer env.Close()
-
-			env.CreateBuffer(test.file, "// __REGTEST_PLACEHOLDER_0__\n"+test.content)
-			editPlaceholder := func() {
-				edits := atomic.AddInt64(&editID, 1)
-				env.EditBuffer(test.file, protocol.TextEdit{
-					Range: protocol.Range{
-						Start: protocol.Position{Line: 0, Character: 0},
-						End:   protocol.Position{Line: 1, Character: 0},
-					},
-					// Increment the placeholder text, to ensure cache misses.
-					NewText: fmt.Sprintf("// __REGTEST_PLACEHOLDER_%d__\n", edits),
+// Benchmark completion following an arbitrary edit.
+//
+// Edits force type-checked packages to be invalidated, so we want to measure
+// how long it takes before completion results are available.
+func BenchmarkCompletionFollowingEdit(b *testing.B) {
+	for _, test := range completionFollowingEditTests {
+		b.Run(fmt.Sprintf("%s_%s", test.repo, test.name), func(b *testing.B) {
+			for _, completeUnimported := range []bool{true, false} {
+				b.Run(fmt.Sprintf("completeUnimported=%v", completeUnimported), func(b *testing.B) {
+					for _, budget := range []string{"0s", "100ms"} {
+						b.Run(fmt.Sprintf("budget=%s", budget), func(b *testing.B) {
+							runCompletionFollowingEdit(b, test, completeUnimported, budget)
+						})
+					}
 				})
 			}
-			env.AfterChange()
-
-			// Run a completion to make sure the system is warm.
-			loc := env.RegexpSearch(test.file, test.locationRegexp)
-			completions := env.Completion(loc)
-
-			if testing.Verbose() {
-				fmt.Println("Results:")
-				for i := 0; i < len(completions.Items); i++ {
-					fmt.Printf("\t%d. %v\n", i, completions.Items[i])
-				}
-			}
-
-			b.ResetTimer()
-
-			if stopAndRecord := startProfileIfSupported(b, env, qualifiedName(test.repo, "completionFollowingEdit")); stopAndRecord != nil {
-				defer stopAndRecord()
-			}
-
-			for i := 0; i < b.N; i++ {
-				editPlaceholder()
-				loc := env.RegexpSearch(test.file, test.locationRegexp)
-				env.Completion(loc)
-			}
 		})
+	}
+}
+
+var gomodcache = flag.String("gomodcache", "", "optional GOMODCACHE for unimported completion benchmarks")
+
+func runCompletionFollowingEdit(b *testing.B, test completionFollowingEditTest, completeUnimported bool, budget string) {
+	repo := getRepo(b, test.repo)
+	sharedEnv := repo.sharedEnv(b) // ensure cache is warm
+	envvars := map[string]string{
+		"GOPATH": sharedEnv.Sandbox.GOPATH(), // use the warm cache
+	}
+
+	if *gomodcache != "" {
+		envvars["GOMODCACHE"] = *gomodcache
+	}
+
+	env := repo.newEnv(b, fake.EditorConfig{
+		Env: envvars,
+		Settings: map[string]interface{}{
+			"completeUnimported": completeUnimported,
+			"completionBudget":   budget,
+		},
+	}, "completionFollowingEdit", false)
+	defer env.Close()
+
+	env.CreateBuffer(test.file, "// __REGTEST_PLACEHOLDER_0__\n"+test.content)
+	editPlaceholder := func() {
+		edits := atomic.AddInt64(&editID, 1)
+		env.EditBuffer(test.file, protocol.TextEdit{
+			Range: protocol.Range{
+				Start: protocol.Position{Line: 0, Character: 0},
+				End:   protocol.Position{Line: 1, Character: 0},
+			},
+			// Increment the placeholder text, to ensure cache misses.
+			NewText: fmt.Sprintf("// __REGTEST_PLACEHOLDER_%d__\n", edits),
+		})
+	}
+	env.AfterChange()
+
+	// Run a completion to make sure the system is warm.
+	loc := env.RegexpSearch(test.file, test.locationRegexp)
+	completions := env.Completion(loc)
+
+	if testing.Verbose() {
+		fmt.Println("Results:")
+		for i, item := range completions.Items {
+			fmt.Printf("\t%d. %v\n", i, item)
+		}
+	}
+
+	b.ResetTimer()
+
+	if stopAndRecord := startProfileIfSupported(b, env, qualifiedName(test.repo, "completionFollowingEdit")); stopAndRecord != nil {
+		defer stopAndRecord()
+	}
+
+	for i := 0; i < b.N; i++ {
+		editPlaceholder()
+		loc := env.RegexpSearch(test.file, test.locationRegexp)
+		env.Completion(loc)
 	}
 }
