@@ -771,7 +771,7 @@ func (p *pageAlloc) scavengeOne(ci chunkIdx, searchIdx uint, max uintptr) uintpt
 
 			// Grab whether the chunk is hugepage backed and if it is,
 			// clear it. We're about to break up this huge page.
-			shouldNoHugePage := p.scav.index.setNoHugePage(ci)
+			p.scav.index.setNoHugePage(ci)
 
 			// With that done, it's safe to unlock.
 			unlock(p.mheapLock)
@@ -781,9 +781,6 @@ func (p *pageAlloc) scavengeOne(ci chunkIdx, searchIdx uint, max uintptr) uintpt
 
 				// Only perform sys* operations if we're not in a test.
 				// It's dangerous to do so otherwise.
-				if shouldNoHugePage {
-					sysNoHugePage(unsafe.Pointer(chunkBase(ci)), pallocChunkBytes)
-				}
 				sysUnused(unsafe.Pointer(addr), uintptr(npages)*pageSize)
 
 				// Update global accounting only when not in test, otherwise
@@ -1134,17 +1131,34 @@ func (s *scavengeIndex) find(force bool) (chunkIdx, uint) {
 }
 
 // alloc updates metadata for chunk at index ci with the fact that
-// an allocation of npages occurred.
+// an allocation of npages occurred. It also eagerly attempts to collapse
+// the chunk's memory into hugepage if the chunk has become sufficiently
+// dense and we're not allocating the whole chunk at once (which suggests
+// the allocation is part of a bigger one and it's probably not worth
+// eagerly collapsing).
 //
 // alloc may only run concurrently with find.
 func (s *scavengeIndex) alloc(ci chunkIdx, npages uint) {
 	sc := s.chunks[ci].load()
 	sc.alloc(npages, s.gen)
 	if !sc.isHugePage() && sc.inUse > scavChunkHiOccPages {
-		// Mark dense chunks as specifically backed by huge pages.
+		// Mark that we're considering this chunk as backed by huge pages.
 		sc.setHugePage()
-		if !s.test {
-			sysHugePage(unsafe.Pointer(chunkBase(ci)), pallocChunkBytes)
+
+		// Collapse dense chunks into huge pages and mark that
+		// we did that, but only if we're not allocating to
+		// use the entire chunk. If we're allocating an entire chunk,
+		// this is likely part of a much bigger allocation. For
+		// instance, if the caller is allocating a 1 GiB slice of bytes, we
+		// don't want to go and manually collapse all those pages; we want
+		// them to be demand-paged. If the caller is actually going to use
+		// all that memory, it'll naturally get backed by huge pages later.
+		//
+		// This also avoids having sysHugePageCollapse fail. On Linux,
+		// the call requires that some part of the huge page being collapsed
+		// is already paged in.
+		if !s.test && npages < pallocChunkPages {
+			sysHugePageCollapse(unsafe.Pointer(chunkBase(ci)), pallocChunkBytes)
 		}
 	}
 	s.chunks[ci].store(sc)
@@ -1204,14 +1218,13 @@ func (s *scavengeIndex) setEmpty(ci chunkIdx) {
 // Returns true if the set was successful (not already backed by huge pages).
 //
 // setNoHugePage may only run concurrently with find.
-func (s *scavengeIndex) setNoHugePage(ci chunkIdx) bool {
+func (s *scavengeIndex) setNoHugePage(ci chunkIdx) {
 	val := s.chunks[ci].load()
 	if !val.isHugePage() {
-		return false
+		return
 	}
 	val.setNoHugePage()
 	s.chunks[ci].store(val)
-	return true
 }
 
 // atomicScavChunkData is an atomic wrapper around a scavChunkData
@@ -1282,8 +1295,9 @@ const (
 	// file. The reason we say "HasFree" here is so the zero value is
 	// correct for a newly-grown chunk. (New memory is scavenged.)
 	scavChunkHasFree scavChunkFlags = 1 << iota
-	// scavChunkNoHugePage indicates whether this chunk has been marked
-	// sysNoHugePage. If not set, it means the chunk is marked sysHugePage.
+	// scavChunkNoHugePage indicates whether this chunk has had any huge
+	// pages broken by the scavenger.
+	//.
 	// The negative here is unfortunate, but necessary to make it so that
 	// the zero value of scavChunkData accurately represents the state of
 	// a newly-grown chunk. (New memory is marked as backed by huge pages.)
