@@ -180,6 +180,18 @@ func (kl *Kubelet) _() {
 `,
 			`kl\.()`,
 		},
+		{
+			"oracle",
+			"dataintegration/pivot2.go",
+			`
+package dataintegration
+
+func (p *Pivot) _() {
+	p.
+}
+`,
+			`p\.()`,
+		},
 	}
 
 	for _, test := range tests {
