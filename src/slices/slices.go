@@ -502,9 +502,7 @@ func Concat[S ~[]E, E any](dst S, slices ...S) S {
 	}
 	dst = Grow(dst, len(dst)+sl)
 	for _, s := range slices {
-		if sLen := len(s); sLen != 0 {
-			dst = append(dst, s...)
-		}
+		dst = append(dst, s...)
 	}
 	return dst
 }

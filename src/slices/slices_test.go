@@ -1069,7 +1069,7 @@ func TestConcat(t *testing.T) {
 
 	s3 := []bool{false, true}
 	s4 := Concat(s3, nil, []bool{true})
-	if want := []bool{false, true, true}; !Equal(s2, want) {
-		t.Errorf("want %v, got %v", want, s2)
+	if want := []bool{false, true, true}; !Equal(s4, want) {
+		t.Errorf("want %v, got %v", want, s4)
 	}
 }
