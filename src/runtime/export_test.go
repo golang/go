@@ -1820,8 +1820,8 @@ func (s *ScavengeIndex) SetEmpty(ci ChunkIdx) {
 	s.i.setEmpty(chunkIdx(ci))
 }
 
-func (s *ScavengeIndex) SetNoHugePage(ci ChunkIdx) bool {
-	return s.i.setNoHugePage(chunkIdx(ci))
+func (s *ScavengeIndex) SetNoHugePage(ci ChunkIdx) {
+	s.i.setNoHugePage(chunkIdx(ci))
 }
 
 func CheckPackScavChunkData(gen uint32, inUse, lastInUse uint16, flags uint8) bool {
