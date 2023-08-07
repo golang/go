@@ -1,0 +1,18 @@
+This test exercises the panic reported in golang/go#61813.
+
+-- p.go --
+package p
+
+type P struct{}
+
+func (P) M() {} //@rename("M", N, MToN)
+
+var x = []*P{{}}
+-- @MToN/p.go --
+package p
+
+type P struct{}
+
+func (P) N() {} //@rename("M", N, MToN)
+
+var x = []*P{{}}

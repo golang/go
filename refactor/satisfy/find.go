@@ -355,7 +355,7 @@ func (f *Finder) expr(e ast.Expr) types.Type {
 		f.sig = saved
 
 	case *ast.CompositeLit:
-		switch T := coreType(tv.Type).(type) {
+		switch T := coreType(deref(tv.Type)).(type) {
 		case *types.Struct:
 			for i, elem := range e.Elts {
 				if kv, ok := elem.(*ast.KeyValueExpr); ok {
@@ -386,7 +386,7 @@ func (f *Finder) expr(e ast.Expr) types.Type {
 			}
 
 		default:
-			panic("unexpected composite literal type: " + tv.Type.String())
+			panic(fmt.Sprintf("unexpected composite literal type %T: %v", tv.Type, tv.Type.String()))
 		}
 
 	case *ast.ParenExpr:
