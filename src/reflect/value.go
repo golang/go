@@ -3211,6 +3211,16 @@ func MakeSlice(typ Type, len, cap int) Value {
 	return Value{&typ.(*rtype).t, unsafe.Pointer(&s), flagIndir | flag(Slice)}
 }
 
+// SliceAt returns a [Value] representing a slice whose underlying
+// data starts at p, with length and capacity equal to n.
+//
+// This is like [unsafe.Slice].
+func SliceAt(typ Type, p unsafe.Pointer, n int) Value {
+	unsafeslice(typ.common(), p, n)
+	s := unsafeheader.Slice{Data: p, Len: n, Cap: n}
+	return Value{SliceOf(typ).common(), unsafe.Pointer(&s), flagIndir | flag(Slice)}
+}
+
 // MakeChan creates a new channel with the specified type and buffer size.
 func MakeChan(typ Type, buffer int) Value {
 	if typ.Kind() != Chan {
@@ -3977,6 +3987,9 @@ func verifyNotInHeapPtr(p uintptr) bool
 
 //go:noescape
 func growslice(t *abi.Type, old unsafeheader.Slice, num int) unsafeheader.Slice
+
+//go:noescape
+func unsafeslice(t *abi.Type, ptr unsafe.Pointer, len int)
 
 // Dummy annotation marking that the value x escapes,
 // for use in cases where the reflect code is so clever that
