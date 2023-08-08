@@ -493,3 +493,19 @@ func Reverse[S ~[]E, E any](s S) {
 		s[i], s[j] = s[j], s[i]
 	}
 }
+
+// Concat returns a new slice concatenating the passed in slices.
+func Concat[S ~[]E, E any](slices ...S) S {
+	size := 0
+	for _, s := range slices {
+		size += len(s)
+		if size < 0 {
+			panic("len out of range")
+		}
+	}
+	newslice := Grow[S](nil, size)
+	for _, s := range slices {
+		newslice = append(newslice, s...)
+	}
+	return newslice
+}
