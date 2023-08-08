@@ -1089,7 +1089,11 @@ func TestConcat(t *testing.T) {
 		})
 		_ = sink
 		if allocs > 1 {
-			t.Fatalf("Concat(%v) had %f allocs; expected 1", tc.s, allocs)
+			errorf := t.Errorf
+			if testenv.OptimizationOff() || race.Enabled {
+				errorf = t.Logf
+			}
+			errorf("Concat(%v) allocated %v times; want 1", tc.s, allocs)
 		}
 	}
 }
