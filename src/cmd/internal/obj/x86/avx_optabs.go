@@ -933,19 +933,19 @@ var _yldtilecfg = []ytab{
 }
 
 var _ytdpbf16ps = []ytab{
-	{zcase: Zvex_v_rm_r, zoffset: 2, args: argList{Ytr, Ytr, Ytr}},
+	{zcase: Zvex_v_rm_r, zoffset: 2, args: argList{Ytm, Ytm, Ytm}},
 }
 
 var _ytileloadd = []ytab{
-	{zcase: Zvex_rm_v_r, zoffset: 2, args: argList{Ym, Ytr}},
+	{zcase: Zvex_rm_v_r, zoffset: 2, args: argList{Ym, Ytm}},
 }
 
 var _ytilestored = []ytab{
-	{zcase: Zvex_r_v_rm, zoffset: 2, args: argList{Ytr, Ym}},
+	{zcase: Zvex_r_v_rm, zoffset: 2, args: argList{Ytm, Ym}},
 }
 
 var _ytilezero = []ytab{
-	{zcase: Zvex_r_v_rm, zoffset: 2, args: argList{Ytr}},
+	{zcase: Zvex_r_v_rm, zoffset: 2, args: argList{Ytm}},
 }
 
 var _ytilerelease = []ytab{

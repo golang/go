@@ -192,7 +192,7 @@ const (
 	Ytextsize
 	Yindir
 	Ymax
-	Ytr
+	Ytm
 )
 
 const (
