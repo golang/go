@@ -8,7 +8,6 @@ package packagesdriver
 import (
 	"context"
 	"fmt"
-	"go/types"
 	"strings"
 
 	"golang.org/x/tools/internal/gocommand"
@@ -16,7 +15,7 @@ import (
 
 var debug = false
 
-func GetSizesGolist(ctx context.Context, inv gocommand.Invocation, gocmdRunner *gocommand.Runner) (types.Sizes, error) {
+func GetSizesForArgsGolist(ctx context.Context, inv gocommand.Invocation, gocmdRunner *gocommand.Runner) (string, string, error) {
 	inv.Verb = "list"
 	inv.Args = []string{"-f", "{{context.GOARCH}} {{context.Compiler}}", "--", "unsafe"}
 	stdout, stderr, friendlyErr, rawErr := gocmdRunner.RunRaw(ctx, inv)
@@ -29,21 +28,21 @@ func GetSizesGolist(ctx context.Context, inv gocommand.Invocation, gocmdRunner *
 			inv.Args = []string{"GOARCH"}
 			envout, enverr := gocmdRunner.Run(ctx, inv)
 			if enverr != nil {
-				return nil, enverr
+				return "", "", enverr
 			}
 			goarch = strings.TrimSpace(envout.String())
 			compiler = "gc"
 		} else {
-			return nil, friendlyErr
+			return "", "", friendlyErr
 		}
 	} else {
 		fields := strings.Fields(stdout.String())
 		if len(fields) < 2 {
-			return nil, fmt.Errorf("could not parse GOARCH and Go compiler in format \"<GOARCH> <compiler>\":\nstdout: <<%s>>\nstderr: <<%s>>",
+			return "", "", fmt.Errorf("could not parse GOARCH and Go compiler in format \"<GOARCH> <compiler>\":\nstdout: <<%s>>\nstderr: <<%s>>",
 				stdout.String(), stderr.String())
 		}
 		goarch = fields[0]
 		compiler = fields[1]
 	}
-	return types.SizesFor(compiler, goarch), nil
+	return compiler, goarch, nil
 }

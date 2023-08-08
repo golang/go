@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go/types"
 	"io/ioutil"
 	"log"
 	"os"
@@ -153,10 +152,10 @@ func goListDriver(cfg *Config, patterns ...string) (*driverResponse, error) {
 	if cfg.Mode&NeedTypesSizes != 0 || cfg.Mode&NeedTypes != 0 {
 		sizeswg.Add(1)
 		go func() {
-			var sizes types.Sizes
-			sizes, sizeserr = packagesdriver.GetSizesGolist(ctx, state.cfgInvocation(), cfg.gocmdRunner)
-			// types.SizesFor always returns nil or a *types.StdSizes.
-			response.dr.Sizes, _ = sizes.(*types.StdSizes)
+			compiler, arch, err := packagesdriver.GetSizesForArgsGolist(ctx, state.cfgInvocation(), cfg.gocmdRunner)
+			sizeserr = err
+			response.dr.Compiler = compiler
+			response.dr.Arch = arch
 			sizeswg.Done()
 		}()
 	}
