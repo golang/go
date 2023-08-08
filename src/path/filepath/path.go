@@ -16,6 +16,7 @@ import (
 	"io/fs"
 	"os"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -50,6 +51,11 @@ func (b *lazybuf) append(c byte) {
 	}
 	b.buf[b.w] = c
 	b.w++
+}
+
+func (b *lazybuf) prepend(prefix ...byte) {
+	b.buf = slices.Insert(b.buf, 0, prefix...)
+	b.w += len(prefix)
 }
 
 func (b *lazybuf) string() string {
@@ -150,18 +156,6 @@ func Clean(path string) string {
 			if rooted && out.w != 1 || !rooted && out.w != 0 {
 				out.append(Separator)
 			}
-			// If a ':' appears in the path element at the start of a Windows path,
-			// insert a .\ at the beginning to avoid converting relative paths
-			// like a/../c: into c:.
-			if runtime.GOOS == "windows" && out.w == 0 && out.volLen == 0 && r != 0 {
-				for i := r; i < n && !os.IsPathSeparator(path[i]); i++ {
-					if path[i] == ':' {
-						out.append('.')
-						out.append(Separator)
-						break
-					}
-				}
-			}
 			// copy element
 			for ; r < n && !os.IsPathSeparator(path[r]); r++ {
 				out.append(path[r])
@@ -172,6 +166,21 @@ func Clean(path string) string {
 	// Turn empty string into "."
 	if out.w == 0 {
 		out.append('.')
+	}
+
+	if runtime.GOOS == "windows" && out.volLen == 0 && out.buf != nil {
+		// If a ':' appears in the path element at the start of a Windows path,
+		// insert a .\ at the beginning to avoid converting relative paths
+		// like a/../c: into c:.
+		for _, c := range out.buf {
+			if os.IsPathSeparator(c) {
+				break
+			}
+			if c == ':' {
+				out.prepend('.', Separator)
+				break
+			}
+		}
 	}
 
 	return FromSlash(out.string())
