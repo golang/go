@@ -14,12 +14,8 @@ static void (*setg_gcc)(void*);
 void
 x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 {
-	size_t size;
-
 	setg_gcc = setg;
-
-	size = pthread_get_stacksize_np(pthread_self());
-	g->stacklo = (uintptr)&size - size + 4096;
+	_cgo_set_stacklo(g, NULL);
 }
 
 

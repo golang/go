@@ -18,7 +18,6 @@ void
 x_cgo_init(G *g, void (*setg)(void*))
 {
 	pthread_attr_t *attr;
-	size_t size;
 
 	// Deal with memory sanitizer/clang interaction.
 	// See gcc_linux_amd64.c for details.
@@ -27,10 +26,7 @@ x_cgo_init(G *g, void (*setg)(void*))
 	if (attr == NULL) {
 		fatalf("malloc failed: %s", strerror(errno));
 	}
-	pthread_attr_init(attr);
-	pthread_attr_getstacksize(attr, &size);
-	g->stacklo = (uintptr)&attr - size + 4096;
-	pthread_attr_destroy(attr);
+	_cgo_set_stacklo(g, attr);
 	free(attr);
 }
 

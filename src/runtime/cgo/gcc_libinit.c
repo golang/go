@@ -82,6 +82,34 @@ _cgo_wait_runtime_init_done(void) {
 	return 0;
 }
 
+// _cgo_set_stacklo sets g->stacklo based on the stack size.
+// This is common code called from x_cgo_init, which is itself
+// called by rt0_go in the runtime package.
+void _cgo_set_stacklo(G *g, pthread_attr_t *pattr)
+{
+	pthread_attr_t attr;
+	size_t size;
+
+	// pattr can be passed in by the caller; see gcc_linux_amd64.c.
+	if (pattr == NULL) {
+		pattr = &attr;
+	}
+
+	pthread_attr_init(pattr);
+	pthread_attr_getstacksize(pattr, &size);
+
+	g->stacklo = (uintptr)(__builtin_frame_address(0)) - size + 4096;
+
+	// Sanity check the results now, rather than getting a
+	// morestack on g0 crash.
+	if (g->stacklo >= g->stackhi) {
+		fprintf(stderr, "runtime/cgo: bad stack bounds: lo=%p hi=%p\n", (void*)(g->stacklo), (void*)(g->stackhi));
+		abort();
+	}
+
+	pthread_attr_destroy(pattr);
+}
+
 // Store the g into a thread-specific value associated with the pthread key pthread_g.
 // And pthread_key_destructor will dropm when the thread is exiting.
 void x_cgo_bindm(void* g) {
