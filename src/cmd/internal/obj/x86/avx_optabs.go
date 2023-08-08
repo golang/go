@@ -944,6 +944,14 @@ var _ytilestored = []ytab{
 	{zcase: Zvex_r_v_rm, zoffset: 2, args: argList{Ytr, Ym}},
 }
 
+var _ytilezero = []ytab{
+	{zcase: Zvex_r_v_rm, zoffset: 2, args: argList{Ytr}},
+}
+
+var _ytilerelease = []ytab{
+	{zcase: Zvex_rm_v_ro, zoffset: 3, args: argList{}},
+}
+
 var avxOptab = [...]Optab{
 	{as: AANDNL, ytab: _yandnl, prefix: Pavx, op: opBytes{
 		avxEscape | vex128 | vex0F38 | vexW0, 0xF2,
@@ -4670,5 +4678,11 @@ var avxOptab = [...]Optab{
 	}},
 	{as: ATILESTORED, ytab: _ytilestored, prefix: Pavx, op: opBytes{
 		avxEscape | vex128 | vexF3 | vex0F38 | vexW0, 0x4B,
+	}},
+	{as: ATILEZERO, ytab: _ytilezero, prefix: Pavx, op: opBytes{
+		avxEscape | vex128 | vexF2 | vex0F38 | vexW0, 0x49,
+	}},
+	{as: ATILERELEASE, ytab: _ytilerelease, prefix: Pavx, op: opBytes{
+		avxEscape | vex128 | vex0F38 | vexW0, 0x49, 00,
 	}},
 }

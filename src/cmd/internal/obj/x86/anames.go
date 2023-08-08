@@ -1615,4 +1615,6 @@ var Anames = []string{
 	"TILELOADD",
 	"TILELOADDT1",
 	"TILESTORED",
+	"TILEZERO",
+	"TILERELEASE",
 }
