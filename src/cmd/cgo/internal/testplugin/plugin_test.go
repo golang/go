@@ -367,25 +367,16 @@ func TestForkExec(t *testing.T) {
 	t.Parallel()
 	goCmd(t, "build", "-o", "forkexec.exe", "./forkexec/main.go")
 
-	var cmd *exec.Cmd
-	done := make(chan int, 1)
-
-	go func() {
-		for i := 0; i < 100; i++ {
-			cmd = exec.Command("./forkexec.exe", "1")
-			err := cmd.Run()
-			if err != nil {
-				t.Errorf("running command failed: %v", err)
-				break
+	for i := 0; i < 100; i++ {
+		cmd := testenv.Command(t, "./forkexec.exe", "1")
+		err := cmd.Run()
+		if err != nil {
+			if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+				t.Logf("stderr:\n%s", ee.Stderr)
 			}
+			t.Errorf("running command failed: %v", err)
+			break
 		}
-		done <- 1
-	}()
-	select {
-	case <-done:
-	case <-time.After(5 * time.Minute):
-		cmd.Process.Kill()
-		t.Fatalf("subprocess hang")
 	}
 }
 
