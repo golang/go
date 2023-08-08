@@ -2184,7 +2184,7 @@ func (v Value) OverflowUint(x uint64) bool {
 // and make an exception.
 
 // Pointer returns v's value as a uintptr.
-// It panics if v's Kind is not [Chan], [Func], [Map], [Pointer], [Slice], or [UnsafePointer].
+// It panics if v's Kind is not [Chan], [Func], [Map], [Pointer], [Slice], [String], or [UnsafePointer].
 //
 // If v's Kind is [Func], the returned pointer is an underlying
 // code pointer, but not necessarily enough to identify a
@@ -2194,6 +2194,9 @@ func (v Value) OverflowUint(x uint64) bool {
 // If v's Kind is [Slice], the returned pointer is to the first
 // element of the slice. If the slice is nil the returned value
 // is 0.  If the slice is empty but non-nil the return value is non-zero.
+//
+// If v's Kind is [String], the returned pointer is to the first
+// element of the underlying bytes of string.
 //
 // It's preferred to use uintptr(Value.UnsafePointer()) to get the equivalent result.
 func (v Value) Pointer() uintptr {
@@ -2232,9 +2235,10 @@ func (v Value) Pointer() uintptr {
 			p = *(*unsafe.Pointer)(p)
 		}
 		return uintptr(p)
-
 	case Slice:
 		return uintptr((*unsafeheader.Slice)(v.ptr).Data)
+	case String:
+		return uintptr((*unsafeheader.String)(v.ptr).Data)
 	}
 	panic(&ValueError{"reflect.Value.Pointer", v.kind()})
 }
@@ -2779,6 +2783,9 @@ func (v Value) UnsafeAddr() uintptr {
 // If v's Kind is [Slice], the returned pointer is to the first
 // element of the slice. If the slice is nil the returned value
 // is nil.  If the slice is empty but non-nil the return value is non-nil.
+//
+// If v's Kind is [String], the returned pointer is to the first
+// element of the underlying bytes of string.
 func (v Value) UnsafePointer() unsafe.Pointer {
 	k := v.kind()
 	switch k {
@@ -2812,9 +2819,10 @@ func (v Value) UnsafePointer() unsafe.Pointer {
 			p = *(*unsafe.Pointer)(p)
 		}
 		return p
-
 	case Slice:
 		return (*unsafeheader.Slice)(v.ptr).Data
+	case String:
+		return (*unsafeheader.String)(v.ptr).Data
 	}
 	panic(&ValueError{"reflect.Value.UnsafePointer", v.kind()})
 }
