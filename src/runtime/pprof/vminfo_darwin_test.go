@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !ios
+
 package pprof
 
 import (
 	"bufio"
 	"bytes"
 	"internal/abi"
+	"internal/testenv"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -51,7 +53,8 @@ func TestVMInfo(t *testing.T) {
 
 func useVMMap(t *testing.T) (hi, lo uint64) {
 	pid := strconv.Itoa(os.Getpid())
-	out, err := exec.Command("vmmap", pid).Output()
+	testenv.MustHaveExecPath(t, "vmmap")
+	out, err := testenv.Command(t, "vmmap", pid).Output()
 	if err != nil {
 		t.Fatal(err)
 	}
