@@ -56,7 +56,7 @@ func MakeInit() {
 	ir.WithFunc(fn, func() {
 		typecheck.Stmts(nf)
 	})
-	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
+	typecheck.Target.Funcs = append(typecheck.Target.Funcs, fn)
 	if base.Debug.WrapGlobalMapDbg > 1 {
 		fmt.Fprintf(os.Stderr, "=-= len(newfuncs) is %d for %v\n",
 			len(newfuncs), fn)
@@ -65,7 +65,7 @@ func MakeInit() {
 		if base.Debug.WrapGlobalMapDbg > 1 {
 			fmt.Fprintf(os.Stderr, "=-= add to target.decls %v\n", nfn)
 		}
-		typecheck.Target.Decls = append(typecheck.Target.Decls, ir.Node(nfn))
+		typecheck.Target.Funcs = append(typecheck.Target.Funcs, nfn)
 	}
 
 	// Prepend to Inits, so it runs first, before any user-declared init
@@ -150,7 +150,7 @@ func Task() *ir.Name {
 			typecheck.Stmts(fnInit.Body)
 			ir.CurFunc = nil
 
-			typecheck.Target.Decls = append(typecheck.Target.Decls, fnInit)
+			typecheck.Target.Funcs = append(typecheck.Target.Funcs, fnInit)
 			typecheck.Target.Inits = append(typecheck.Target.Inits, fnInit)
 		}
 	}

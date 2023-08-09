@@ -462,7 +462,7 @@ func UseClosure(clo *ClosureExpr, pkg *Package) Node {
 	}
 
 	if pkg != nil {
-		pkg.Decls = append(pkg.Decls, fn)
+		pkg.Funcs = append(pkg.Funcs, fn)
 	}
 
 	if false && IsTrivialClosure(clo) {

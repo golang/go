@@ -115,7 +115,7 @@ type escape struct {
 	loopDepth int
 }
 
-func Funcs(all []ir.Node) {
+func Funcs(all []*ir.Func) {
 	ir.VisitFuncsBottomUp(all, Batch)
 }
 

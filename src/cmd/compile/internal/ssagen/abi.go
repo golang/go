@@ -125,11 +125,7 @@ func (s *SymABIs) GenABIWrappers() {
 	// This may generate new decls for the wrappers, but we
 	// specifically *don't* want to visit those, lest we create
 	// wrappers for wrappers.
-	for _, fn := range typecheck.Target.Decls {
-		if fn.Op() != ir.ODCLFUNC {
-			continue
-		}
-		fn := fn.(*ir.Func)
+	for _, fn := range typecheck.Target.Funcs {
 		nam := fn.Nname
 		if ir.IsBlank(nam) {
 			continue
@@ -332,7 +328,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	ir.CurFunc = fn
 	typecheck.Stmts(fn.Body)
 
-	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
+	typecheck.Target.Funcs = append(typecheck.Target.Funcs, fn)
 
 	// Restore previous context.
 	base.Pos = savepos

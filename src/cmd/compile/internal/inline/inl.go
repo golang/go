@@ -78,7 +78,7 @@ var (
 )
 
 // pgoInlinePrologue records the hot callsites from ir-graph.
-func pgoInlinePrologue(p *pgo.Profile, decls []ir.Node) {
+func pgoInlinePrologue(p *pgo.Profile, funcs []*ir.Func) {
 	if base.Debug.PGOInlineCDFThreshold != "" {
 		if s, err := strconv.ParseFloat(base.Debug.PGOInlineCDFThreshold, 64); err == nil && s >= 0 && s <= 100 {
 			inlineCDFHotCallSiteThresholdPercent = s
@@ -161,7 +161,7 @@ func InlinePackage(p *pgo.Profile) {
 		p = nil
 	}
 
-	InlineDecls(p, typecheck.Target.Decls, true)
+	InlineDecls(p, typecheck.Target.Funcs, true)
 
 	// Perform a garbage collection of hidden closures functions that
 	// are no longer reachable from top-level functions following
@@ -174,9 +174,9 @@ func InlinePackage(p *pgo.Profile) {
 }
 
 // InlineDecls applies inlining to the given batch of declarations.
-func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
+func InlineDecls(p *pgo.Profile, funcs []*ir.Func, doInline bool) {
 	if p != nil {
-		pgoInlinePrologue(p, decls)
+		pgoInlinePrologue(p, funcs)
 	}
 
 	doCanInline := func(n *ir.Func, recursive bool, numfns int) {
@@ -192,7 +192,7 @@ func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
 		}
 	}
 
-	ir.VisitFuncsBottomUp(decls, func(list []*ir.Func, recursive bool) {
+	ir.VisitFuncsBottomUp(funcs, func(list []*ir.Func, recursive bool) {
 		numfns := numNonClosures(list)
 		// We visit functions within an SCC in fairly arbitrary order,
 		// so by computing inlinability for all functions in the SCC
@@ -235,33 +235,31 @@ func garbageCollectUnreferencedHiddenClosures() {
 		})
 	}
 
-	for i := 0; i < len(typecheck.Target.Decls); i++ {
-		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
-			if fn.IsHiddenClosure() {
-				continue
-			}
-			markLiveFuncs(fn)
+	for i := 0; i < len(typecheck.Target.Funcs); i++ {
+		fn := typecheck.Target.Funcs[i]
+		if fn.IsHiddenClosure() {
+			continue
 		}
+		markLiveFuncs(fn)
 	}
 
-	for i := 0; i < len(typecheck.Target.Decls); i++ {
-		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
-			if !fn.IsHiddenClosure() {
-				continue
-			}
-			if fn.IsDeadcodeClosure() {
-				continue
-			}
-			if liveFuncs[fn] {
-				continue
-			}
-			fn.SetIsDeadcodeClosure(true)
-			if base.Flag.LowerM > 2 {
-				fmt.Printf("%v: unreferenced closure %v marked as dead\n", ir.Line(fn), fn)
-			}
-			if fn.Inl != nil && fn.LSym == nil {
-				ir.InitLSym(fn, true)
-			}
+	for i := 0; i < len(typecheck.Target.Funcs); i++ {
+		fn := typecheck.Target.Funcs[i]
+		if !fn.IsHiddenClosure() {
+			continue
+		}
+		if fn.IsDeadcodeClosure() {
+			continue
+		}
+		if liveFuncs[fn] {
+			continue
+		}
+		fn.SetIsDeadcodeClosure(true)
+		if base.Flag.LowerM > 2 {
+			fmt.Printf("%v: unreferenced closure %v marked as dead\n", ir.Line(fn), fn)
+		}
+		if fn.Inl != nil && fn.LSym == nil {
+			ir.InitLSym(fn, true)
 		}
 	}
 }

@@ -233,7 +233,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// We compute Addrtaken in bulk here.
 	// After this phase, we maintain Addrtaken incrementally.
 	if typecheck.DirtyAddrtaken {
-		typecheck.ComputeAddrtaken(typecheck.Target.Decls)
+		typecheck.ComputeAddrtaken(typecheck.Target.Funcs)
 		typecheck.DirtyAddrtaken = false
 	}
 	typecheck.IncrementalAddrtaken = true
@@ -254,7 +254,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		// TODO(prattmic): No need to use bottom-up visit order. This
 		// is mirroring the PGO IRGraph visit order, which also need
 		// not be bottom-up.
-		ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
+		ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
 			for _, fn := range list {
 				devirtualize.ProfileGuided(fn, profile)
 			}
@@ -271,11 +271,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	// Devirtualize and get variable capture right in for loops
 	var transformed []loopvar.VarAndLoop
-	for _, n := range typecheck.Target.Decls {
-		if n.Op() == ir.ODCLFUNC {
-			devirtualize.Static(n.(*ir.Func))
-			transformed = append(transformed, loopvar.ForCapture(n.(*ir.Func))...)
-		}
+	for _, n := range typecheck.Target.Funcs {
+		devirtualize.Static(n)
+		transformed = append(transformed, loopvar.ForCapture(n)...)
 	}
 	ir.CurFunc = nil
 
@@ -297,7 +295,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Large values are also moved off stack in escape analysis;
 	// because large values may contain pointers, it must happen early.
 	base.Timer.Start("fe", "escapes")
-	escape.Funcs(typecheck.Target.Decls)
+	escape.Funcs(typecheck.Target.Funcs)
 
 	loopvar.LogTransformations(transformed)
 
@@ -315,15 +313,14 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Don't use range--walk can add functions to Target.Decls.
 	base.Timer.Start("be", "compilefuncs")
 	fcount := int64(0)
-	for i := 0; i < len(typecheck.Target.Decls); i++ {
-		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
-			// Don't try compiling dead hidden closure.
-			if fn.IsDeadcodeClosure() {
-				continue
-			}
-			enqueueFunc(fn)
-			fcount++
+	for i := 0; i < len(typecheck.Target.Funcs); i++ {
+		fn := typecheck.Target.Funcs[i]
+		// Don't try compiling dead hidden closure.
+		if fn.IsDeadcodeClosure() {
+			continue
 		}
+		enqueueFunc(fn)
+		fcount++
 	}
 	base.Timer.AddEvent(fcount, "funcs")
 

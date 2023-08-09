@@ -56,11 +56,8 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 	// important to handle it for this check, so we model it
 	// directly. This has to happen before transforming closures in walk since
 	// it's a lot harder to work out the argument after.
-	for _, n := range typecheck.Target.Decls {
-		if n.Op() != ir.ODCLFUNC {
-			continue
-		}
-		c.curfn = n.(*ir.Func)
+	for _, n := range typecheck.Target.Funcs {
+		c.curfn = n
 		if c.curfn.ABIWrapper() {
 			// We only want "real" calls to these
 			// functions, not the generated ones within
@@ -139,12 +136,7 @@ func (c *nowritebarrierrecChecker) check() {
 	// q is the queue of ODCLFUNC Nodes to visit in BFS order.
 	var q ir.NameQueue
 
-	for _, n := range typecheck.Target.Decls {
-		if n.Op() != ir.ODCLFUNC {
-			continue
-		}
-		fn := n.(*ir.Func)
-
+	for _, fn := range typecheck.Target.Funcs {
 		symToFunc[fn.LSym] = fn
 
 		// Make nowritebarrierrec functions BFS roots.

@@ -53,11 +53,7 @@ func FixupVars() Names {
 		}
 	}
 
-	for _, n := range typecheck.Target.Externs {
-		nm, ok := n.(*ir.Name)
-		if !ok {
-			continue
-		}
+	for _, nm := range typecheck.Target.Externs {
 		s := nm.Sym()
 		switch s.Name {
 		case metaVarName:
@@ -108,8 +104,8 @@ func FixupVars() Names {
 // fixup. It adds calls to the pkg init function as appropriate to
 // register coverage-related variables with the runtime.
 func FixupInit(cnames Names) {
-	for _, n := range typecheck.Target.Decls {
-		if fn, ok := n.(*ir.Func); ok && ir.FuncName(fn) == "init" {
+	for _, fn := range typecheck.Target.Funcs {
+		if ir.FuncName(fn) == "init" {
 			cnames.InitFn = fn
 			break
 		}

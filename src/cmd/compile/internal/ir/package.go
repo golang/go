@@ -19,11 +19,13 @@ type Package struct {
 	// Init functions, listed in source order.
 	Inits []*Func
 
-	// Top-level declarations.
-	Decls []Node
+	// Funcs contains all (instantiated) functions, methods, and
+	// function literals to be compiled.
+	Funcs []*Func
 
-	// Extern (package global) declarations.
-	Externs []Node
+	// Externs holds constants, (non-generic) types, and variables
+	// declared at package scope.
+	Externs []*Name
 
 	// Assembly function declarations.
 	Asms []*Name

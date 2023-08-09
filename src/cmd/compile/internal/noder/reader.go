@@ -3015,7 +3015,14 @@ func (r *reader) tempCopy(pos src.XPos, expr ir.Node, init *ir.Nodes) *ir.Name {
 		assign.Def = true
 		tmp.Defn = assign
 
-		typecheck.Target.Decls = append(typecheck.Target.Decls, typecheck.Stmt(assign))
+		// TODO(mdempsky): This code doesn't work anymore, because we now
+		// rely on types2 to compute InitOrder. If it's going to be used
+		// for testing again, the assignment here probably needs to be
+		// added to typecheck.Target.InitOrder somewhere.
+		//
+		// Probably just easier to address the escape analysis limitation.
+		//
+		// typecheck.Target.Decls = append(typecheck.Target.Decls, typecheck.Stmt(assign))
 
 		return tmp
 	}
@@ -3353,14 +3360,14 @@ func (r *reader) pkgDecls(target *ir.Package) {
 		case declFunc:
 			names := r.pkgObjs(target)
 			assert(len(names) == 1)
-			target.Decls = append(target.Decls, names[0].Func)
+			target.Funcs = append(target.Funcs, names[0].Func)
 
 		case declMethod:
 			typ := r.typ()
 			_, sym := r.selector()
 
 			method := typecheck.Lookdot1(nil, sym, typ, typ.Methods(), 0)
-			target.Decls = append(target.Decls, method.Nname.(*ir.Name).Func)
+			target.Funcs = append(target.Funcs, method.Nname.(*ir.Name).Func)
 
 		case declVar:
 			names := r.pkgObjs(target)
@@ -3629,7 +3636,7 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
 	// with the same information some other way.
 
 	fndcls := len(fn.Dcl)
-	topdcls := len(typecheck.Target.Decls)
+	topdcls := len(typecheck.Target.Funcs)
 
 	tmpfn := ir.NewFunc(fn.Pos())
 	tmpfn.Nname = ir.NewNameAt(fn.Nname.Pos(), fn.Sym())
@@ -3661,7 +3668,7 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
 	// typecheck.Stmts may have added function literals to
 	// typecheck.Target.Decls. Remove them again so we don't risk trying
 	// to compile them multiple times.
-	typecheck.Target.Decls = typecheck.Target.Decls[:topdcls]
+	typecheck.Target.Funcs = typecheck.Target.Funcs[:topdcls]
 }
 
 // usedLocals returns a set of local variables that are used within body.
@@ -3925,7 +3932,7 @@ func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
 		}
 	})
 
-	target.Decls = append(target.Decls, fn)
+	target.Funcs = append(target.Funcs, fn)
 }
 
 // newWrapperType returns a copy of the given signature type, but with

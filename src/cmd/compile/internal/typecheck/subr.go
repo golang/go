@@ -96,25 +96,26 @@ var IncrementalAddrtaken = false
 // have not yet been marked as Addrtaken.
 var DirtyAddrtaken = false
 
-func ComputeAddrtaken(top []ir.Node) {
-	for _, n := range top {
-		var doVisit func(n ir.Node)
-		doVisit = func(n ir.Node) {
-			if n.Op() == ir.OADDR {
-				if x := ir.OuterValue(n.(*ir.AddrExpr).X); x.Op() == ir.ONAME {
-					x.Name().SetAddrtaken(true)
-					if x.Name().IsClosureVar() {
-						// Mark the original variable as Addrtaken so that capturevars
-						// knows not to pass it by value.
-						x.Name().Defn.Name().SetAddrtaken(true)
-					}
+func ComputeAddrtaken(funcs []*ir.Func) {
+	var doVisit func(n ir.Node)
+	doVisit = func(n ir.Node) {
+		if n.Op() == ir.OADDR {
+			if x := ir.OuterValue(n.(*ir.AddrExpr).X); x.Op() == ir.ONAME {
+				x.Name().SetAddrtaken(true)
+				if x.Name().IsClosureVar() {
+					// Mark the original variable as Addrtaken so that capturevars
+					// knows not to pass it by value.
+					x.Name().Defn.Name().SetAddrtaken(true)
 				}
 			}
-			if n.Op() == ir.OCLOSURE {
-				ir.VisitList(n.(*ir.ClosureExpr).Func.Body, doVisit)
-			}
 		}
-		ir.Visit(n, doVisit)
+		if n.Op() == ir.OCLOSURE {
+			ir.VisitList(n.(*ir.ClosureExpr).Func.Body, doVisit)
+		}
+	}
+
+	for _, fn := range funcs {
+		ir.Visit(fn, doVisit)
 	}
 }
 

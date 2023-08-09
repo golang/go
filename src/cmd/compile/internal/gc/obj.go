@@ -111,7 +111,7 @@ func dumpCompilerObj(bout *bio.Writer) {
 
 func dumpdata() {
 	numExterns := len(typecheck.Target.Externs)
-	numDecls := len(typecheck.Target.Decls)
+	numDecls := len(typecheck.Target.Funcs)
 	dumpglobls(typecheck.Target.Externs)
 	reflectdata.CollectPTabs()
 	numExports := len(typecheck.Target.Exports)
@@ -131,15 +131,14 @@ func dumpdata() {
 	// In the typical case, we loop 0 or 1 times.
 	// It was not until issue 24761 that we found any code that required a loop at all.
 	for {
-		for i := numDecls; i < len(typecheck.Target.Decls); i++ {
-			if n, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
-				enqueueFunc(n)
-			}
+		for i := numDecls; i < len(typecheck.Target.Funcs); i++ {
+			fn := typecheck.Target.Funcs[i]
+			enqueueFunc(fn)
 		}
-		numDecls = len(typecheck.Target.Decls)
+		numDecls = len(typecheck.Target.Funcs)
 		compileFunctions()
 		reflectdata.WriteRuntimeTypes()
-		if numDecls == len(typecheck.Target.Decls) {
+		if numDecls == len(typecheck.Target.Funcs) {
 			break
 		}
 	}
@@ -201,7 +200,7 @@ func dumpGlobal(n *ir.Name) {
 	base.Ctxt.DwarfGlobal(base.Ctxt.Pkgpath, types.TypeSymName(n.Type()), n.Linksym())
 }
 
-func dumpGlobalConst(n ir.Node) {
+func dumpGlobalConst(n *ir.Name) {
 	// only export typed constants
 	t := n.Type()
 	if t == nil {
@@ -229,12 +228,12 @@ func dumpGlobalConst(n ir.Node) {
 	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
 }
 
-func dumpglobls(externs []ir.Node) {
+func dumpglobls(externs []*ir.Name) {
 	// add globals
 	for _, n := range externs {
 		switch n.Op() {
 		case ir.ONAME:
-			dumpGlobal(n.(*ir.Name))
+			dumpGlobal(n)
 		case ir.OLITERAL:
 			dumpGlobalConst(n)
 		}
@@ -336,7 +335,7 @@ func dumpembeds() {
 	}
 }
 
-func addsignats(dcls []ir.Node) {
+func addsignats(dcls []*ir.Name) {
 	// copy types from dcl list to signatset
 	for _, n := range dcls {
 		if n.Op() == ir.OTYPE {
