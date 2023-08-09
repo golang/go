@@ -66,7 +66,7 @@
 //
 //	func ShouldEnable(file string, line int) bool {
 //		if m == nil {
-//			return false
+//			return true
 //		}
 //		h := bisect.Hash(file, line)
 //		if m.ShouldPrint(h) {
@@ -83,12 +83,12 @@
 //
 //	func ShouldEnable(file string, line int) bool {
 //		if m == nil {
-//			return false
+//			return true
 //		}
 //		h := bisect.Hash(file, line)
 //		if m.ShouldPrint(h) {
 //			if m.MarkerOnly() {
-//				bisect.PrintMarker(os.Stderr)
+//				bisect.PrintMarker(os.Stderr, h)
 //			} else {
 //				fmt.Fprintf(os.Stderr, "%v %s:%d\n", bisect.Marker(h), file, line)
 //			}
@@ -495,7 +495,7 @@ type Writer interface {
 // It is appropriate to use when [Matcher.ShouldPrint] and [Matcher.MarkerOnly] both return true.
 func PrintMarker(w Writer, h uint64) error {
 	var buf [50]byte
-	b := AppendMarker(buf[:], h)
+	b := AppendMarker(buf[:0], h)
 	b = append(b, '\n')
 	_, err := w.Write(b)
 	return err
