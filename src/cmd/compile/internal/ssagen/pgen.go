@@ -121,6 +121,14 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 
 	// Mark the PAUTO's unused.
 	for _, ln := range fn.Dcl {
+		if ln.OpenDeferSlot() {
+			// Open-coded defer slots have indices that were assigned
+			// upfront during SSA construction, but the defer statement can
+			// later get removed during deadcode elimination (#61895). To
+			// keep their relative offsets correct, treat them all as used.
+			continue
+		}
+
 		if needAlloc(ln) {
 			ln.SetUsed(false)
 		}
