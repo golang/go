@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/coverage"
-	"cmd/compile/internal/deadcode"
 	"cmd/compile/internal/devirtualize"
 	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/escape"
@@ -220,25 +219,12 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	// Create "init" function for package-scope variable initialization
 	// statements, if any.
-	//
-	// Note: This needs to happen early, before any optimizations. The
-	// Go spec defines a precise order than initialization should be
-	// carried out in, and even mundane optimizations like dead code
-	// removal can skew the results (e.g., #43444).
 	pkginit.MakeInit()
 
 	// Second part of code coverage fixup (init func modification),
 	// if applicable.
 	if base.Flag.Cfg.CoverageInfo != nil {
 		coverage.FixupInit(cnames)
-	}
-
-	// Eliminate some obviously dead code.
-	// Must happen after typechecking.
-	for _, n := range typecheck.Target.Decls {
-		if n.Op() == ir.ODCLFUNC {
-			deadcode.Func(n.(*ir.Func))
-		}
 	}
 
 	// Compute Addrtaken for names.

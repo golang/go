@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/deadcode"
 	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
@@ -1900,6 +1899,10 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 	perLoopVars := r.Bool()
 	r.closeAnotherScope()
 
+	if ir.IsConst(cond, constant.Bool) && !ir.BoolVal(cond) {
+		return init // simplify "for init; false; post { ... }" into "init"
+	}
+
 	stmt := ir.NewForStmt(pos, init, cond, post, body, perLoopVars)
 	stmt.Label = label
 	return stmt
@@ -1913,9 +1916,14 @@ func (r *reader) ifStmt() ir.Node {
 	cond := r.expr()
 	then := r.blockStmt()
 	els := r.stmts()
+	r.closeAnotherScope()
+
+	if ir.IsConst(cond, constant.Bool) && len(init)+len(then)+len(els) == 0 {
+		return nil // drop empty if statement
+	}
+
 	n := ir.NewIfStmt(pos, cond, then, els)
 	n.SetInit(init)
-	r.closeAnotherScope()
 	return n
 }
 
@@ -3531,8 +3539,6 @@ func unifiedInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.Inlined
 	// Note issue 28603.
 	init.Append(ir.NewInlineMarkStmt(call.Pos().WithIsStmt(), int64(r.inlTreeIndex)))
 
-	nparams := len(r.curfn.Dcl)
-
 	ir.WithFunc(r.curfn, func() {
 		if !r.syntheticBody(call.Pos()) {
 			assert(r.Bool()) // have body
@@ -3548,8 +3554,6 @@ func unifiedInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.Inlined
 		// themselves. But currently it's an easy fix to #50552.
 		readBodies(typecheck.Target, true)
 
-		deadcode.Func(r.curfn)
-
 		// Replace any "return" statements within the function body.
 		var edit func(ir.Node) ir.Node
 		edit = func(n ir.Node) ir.Node {
@@ -3564,22 +3568,14 @@ func unifiedInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.Inlined
 
 	body := ir.Nodes(r.curfn.Body)
 
-	// Quirkish: We need to eagerly prune variables added during
-	// inlining, but removed by deadcode.FuncBody above. Unused
-	// variables will get removed during stack frame layout anyway, but
-	// len(fn.Dcl) ends up influencing things like autotmp naming.
+	// Reparent any declarations into the caller function.
+	for _, name := range r.curfn.Dcl {
+		name.Curfn = callerfn
+		callerfn.Dcl = append(callerfn.Dcl, name)
 
-	used := usedLocals(body)
-
-	for i, name := range r.curfn.Dcl {
-		if i < nparams || used.Has(name) {
-			name.Curfn = callerfn
-			callerfn.Dcl = append(callerfn.Dcl, name)
-
-			if name.AutoTemp() {
-				name.SetEsc(ir.EscUnknown)
-				name.SetInlLocal(true)
-			}
+		if name.AutoTemp() {
+			name.SetEsc(ir.EscUnknown)
+			name.SetInlLocal(true)
 		}
 	}
 
@@ -3647,10 +3643,6 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
 		r.funarghack = true
 
 		r.funcBody(tmpfn)
-
-		ir.WithFunc(tmpfn, func() {
-			deadcode.Func(tmpfn)
-		})
 	}
 
 	used := usedLocals(tmpfn.Body)

@@ -6,6 +6,8 @@ package noder
 
 import (
 	"fmt"
+	"go/constant"
+	"go/token"
 	"internal/buildcfg"
 	"internal/pkgbits"
 
@@ -1206,9 +1208,18 @@ func (w *writer) stmt(stmt syntax.Stmt) {
 }
 
 func (w *writer) stmts(stmts []syntax.Stmt) {
+	dead := false
 	w.Sync(pkgbits.SyncStmts)
 	for _, stmt := range stmts {
+		if dead {
+			// Any statements after a terminating statement are safe to
+			// omit, at least until the next labeled statement.
+			if _, ok := stmt.(*syntax.LabeledStmt); !ok {
+				continue
+			}
+		}
 		w.stmt1(stmt)
+		dead = w.p.terminates(stmt)
 	}
 	w.Code(stmtEnd)
 	w.Sync(pkgbits.SyncStmtsEnd)
@@ -1449,6 +1460,11 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 		}
 
 	} else {
+		if stmt.Cond != nil && w.p.staticBool(&stmt.Cond) < 0 { // always false
+			stmt.Post = nil
+			stmt.Body.List = nil
+		}
+
 		w.pos(stmt)
 		w.stmt(stmt.Init)
 		w.optExpr(stmt.Cond)
@@ -1504,6 +1520,13 @@ func (pw *pkgWriter) rangeTypes(expr syntax.Expr) (key, value types2.Type) {
 }
 
 func (w *writer) ifStmt(stmt *syntax.IfStmt) {
+	switch cond := w.p.staticBool(&stmt.Cond); {
+	case cond > 0: // always true
+		stmt.Else = nil
+	case cond < 0: // always false
+		stmt.Then.List = nil
+	}
+
 	w.Sync(pkgbits.SyncIfStmt)
 	w.openScope(stmt.Pos())
 	w.pos(stmt)
@@ -1558,10 +1581,56 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 	} else {
 		tag := stmt.Tag
 
+		var tagValue constant.Value
 		if tag != nil {
-			tagType = w.p.typeOf(tag)
+			tv := w.p.typeAndValue(tag)
+			tagType = tv.Type
+			tagValue = tv.Value
 		} else {
 			tagType = types2.Typ[types2.Bool]
+			tagValue = constant.MakeBool(true)
+		}
+
+		if tagValue != nil {
+			// If the switch tag has a constant value, look for a case
+			// clause that we always branch to.
+			func() {
+				var target *syntax.CaseClause
+			Outer:
+				for _, clause := range stmt.Body {
+					if clause.Cases == nil {
+						target = clause
+					}
+					for _, cas := range unpackListExpr(clause.Cases) {
+						tv := w.p.typeAndValue(cas)
+						if tv.Value == nil {
+							return // non-constant case; give up
+						}
+						if constant.Compare(tagValue, token.EQL, tv.Value) {
+							target = clause
+							break Outer
+						}
+					}
+				}
+				// We've found the target clause, if any.
+
+				if target != nil {
+					if hasFallthrough(target.Body) {
+						return // fallthrough is tricky; give up
+					}
+
+					// Rewrite as single "default" case.
+					target.Cases = nil
+					stmt.Body = []*syntax.CaseClause{target}
+				} else {
+					stmt.Body = nil
+				}
+
+				// Clear switch tag (i.e., replace with implicit "true").
+				tag = nil
+				stmt.Tag = nil
+				tagType = types2.Typ[types2.Bool]
+			}()
 		}
 
 		// Walk is going to emit comparisons between the tag value and
@@ -2629,6 +2698,61 @@ func (w *writer) pkgObjs(names ...*syntax.Name) {
 
 // @@@ Helpers
 
+// staticBool analyzes a boolean expression and reports whether it's
+// always true (positive result), always false (negative result), or
+// unknown (zero).
+//
+// It also simplifies the expression while preserving semantics, if
+// possible.
+func (pw *pkgWriter) staticBool(ep *syntax.Expr) int {
+	if val := pw.typeAndValue(*ep).Value; val != nil {
+		if constant.BoolVal(val) {
+			return +1
+		} else {
+			return -1
+		}
+	}
+
+	if e, ok := (*ep).(*syntax.Operation); ok {
+		switch e.Op {
+		case syntax.Not:
+			return pw.staticBool(&e.X)
+
+		case syntax.AndAnd:
+			x := pw.staticBool(&e.X)
+			if x < 0 {
+				*ep = e.X
+				return x
+			}
+
+			y := pw.staticBool(&e.Y)
+			if x > 0 || y < 0 {
+				if pw.typeAndValue(e.X).Value != nil {
+					*ep = e.Y
+				}
+				return y
+			}
+
+		case syntax.OrOr:
+			x := pw.staticBool(&e.X)
+			if x > 0 {
+				*ep = e.X
+				return x
+			}
+
+			y := pw.staticBool(&e.Y)
+			if x < 0 || y > 0 {
+				if pw.typeAndValue(e.X).Value != nil {
+					*ep = e.Y
+				}
+				return y
+			}
+		}
+	}
+
+	return 0
+}
+
 // hasImplicitTypeParams reports whether obj is a defined type with
 // implicit type parameters (e.g., declared within a generic function
 // or method).
@@ -2704,6 +2828,15 @@ func isPkgQual(info *types2.Info, sel *syntax.SelectorExpr) bool {
 func isNil(p *pkgWriter, expr syntax.Expr) bool {
 	tv := p.typeAndValue(expr)
 	return tv.IsNil()
+}
+
+// isBuiltin reports whether expr is a (possibly parenthesized)
+// referenced to the specified built-in function.
+func (p *pkgWriter) isBuiltin(expr syntax.Expr, builtin string) bool {
+	if name, ok := unparen(expr).(*syntax.Name); ok && name.Value == builtin {
+		return p.typeAndValue(name).IsBuiltin()
+	}
+	return false
 }
 
 // recvBase returns the base type for the given receiver parameter.
@@ -2788,4 +2921,57 @@ func asWasmImport(p syntax.Pragma) *WasmImport {
 func isPtrTo(from, to types2.Type) bool {
 	ptr, ok := from.(*types2.Pointer)
 	return ok && types2.Identical(ptr.Elem(), to)
+}
+
+// hasFallthrough reports whether stmts ends in a fallthrough
+// statement.
+func hasFallthrough(stmts []syntax.Stmt) bool {
+	last, ok := lastNonEmptyStmt(stmts).(*syntax.BranchStmt)
+	return ok && last.Tok == syntax.Fallthrough
+}
+
+// lastNonEmptyStmt returns the last non-empty statement in list, if
+// any.
+func lastNonEmptyStmt(stmts []syntax.Stmt) syntax.Stmt {
+	for i := len(stmts) - 1; i >= 0; i-- {
+		stmt := stmts[i]
+		if _, ok := stmt.(*syntax.EmptyStmt); !ok {
+			return stmt
+		}
+	}
+	return nil
+}
+
+// terminates reports whether stmt terminates normal control flow
+// (i.e., does not merely advance to the following statement).
+func (p *pkgWriter) terminates(stmt syntax.Stmt) bool {
+	switch stmt := stmt.(type) {
+	case *syntax.BranchStmt:
+		if stmt.Tok == syntax.Goto {
+			return true
+		}
+	case *syntax.ReturnStmt:
+		return true
+	case *syntax.ExprStmt:
+		if call, ok := unparen(stmt.X).(*syntax.CallExpr); ok {
+			if p.isBuiltin(call.Fun, "panic") {
+				return true
+			}
+		}
+
+		// The handling of BlockStmt here is approximate, but it serves to
+		// allow dead-code elimination for:
+		//
+		//	if true {
+		//		return x
+		//	}
+		//	unreachable
+	case *syntax.IfStmt:
+		cond := p.staticBool(&stmt.Cond)
+		return (cond < 0 || p.terminates(stmt.Then)) && (cond > 0 || p.terminates(stmt.Else))
+	case *syntax.BlockStmt:
+		return p.terminates(lastNonEmptyStmt(stmt.List))
+	}
+
+	return false
 }
