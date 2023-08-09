@@ -100,6 +100,20 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl>
 
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61827, CL 517777 -->
+      The <a href="/pkg/reflect/#Value.IsZero"><code>Value.IsZero</code></a>
+      method will now return true for a floating-point or complex
+      negative zero, and will return true for a struct value if a
+      blank field (a field named <code>_</code>) somehow has a
+      non-zero value.
+      These changes make <code>IsZero</code> consistent with comparing
+      a value to zero using the languague <code>==</code> operator.
+    </p>
+  </dd>
+</dl>
+
 <h2 id="ports">Ports</h2>
 
 <p>
