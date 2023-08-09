@@ -13,6 +13,7 @@ import (
 	"go/parser"
 	"go/token"
 	"internal/coverage"
+	"internal/coverage/covcmd"
 	"internal/coverage/encodemeta"
 	"internal/coverage/slicewriter"
 	"io"
@@ -50,7 +51,7 @@ where -pkgcfg points to a file containing the package path,
 package name, module path, and related info from "go build",
 and -outfilelist points to a file containing the filenames
 of the instrumented output files (one per input file).
-See https://pkg.go.dev/internal/coverage#CoverPkgConfig for
+See https://pkg.go.dev/internal/coverage/covcmd#CoverPkgConfig for
 more on the package config.
 `
 
@@ -72,7 +73,7 @@ var (
 	pkgcfg      = flag.String("pkgcfg", "", "enable full-package instrumentation mode using params from specified config file")
 )
 
-var pkgconfig coverage.CoverPkgConfig
+var pkgconfig covcmd.CoverPkgConfig
 
 // outputfiles is the list of *.cover.go instrumented outputs to write,
 // one per input (set when -pkgcfg is in use)
@@ -1122,7 +1123,7 @@ func (p *Package) emitMetaData(w io.Writer) {
 	}
 	fmt.Fprintf(w, "}\n")
 
-	fixcfg := coverage.CoverFixupConfig{
+	fixcfg := covcmd.CoverFixupConfig{
 		Strategy:           "normal",
 		MetaVar:            mkMetaVar(),
 		MetaLen:            len(payload),

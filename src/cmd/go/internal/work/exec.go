@@ -14,7 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
-	"internal/coverage"
+	"internal/coverage/covcmd"
 	"internal/lazyregexp"
 	"io"
 	"io/fs"
@@ -2064,7 +2064,7 @@ func (b *Builder) cover2(a *Action, infiles, outfiles []string, varName string, 
 func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsfile string, outfiles []string) error {
 	p := a.Package
 	p.Internal.CoverageCfg = a.Objdir + "coveragecfg"
-	pcfg := coverage.CoverPkgConfig{
+	pcfg := covcmd.CoverPkgConfig{
 		PkgPath: p.ImportPath,
 		PkgName: p.Name,
 		// Note: coverage granularity is currently hard-wired to
