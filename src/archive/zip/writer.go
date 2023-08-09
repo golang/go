@@ -504,6 +504,9 @@ func (w *Writer) AddFS(fsys fs.FS) error {
 		if err != nil {
 			return err
 		}
+		if !info.Mode().IsRegular() {
+			return errors.New("zip: cannot add non-regular file")
+		}
 		h, err := FileInfoHeader(info)
 		if err != nil {
 			return err
