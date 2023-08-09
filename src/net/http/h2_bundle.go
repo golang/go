@@ -33,6 +33,7 @@ import (
 	"io/fs"
 	"log"
 	"math"
+	"math/bits"
 	mathrand "math/rand"
 	"net"
 	"net/http/httptrace"
@@ -8702,7 +8703,28 @@ func (cs *http2clientStream) frameScratchBufferLen(maxFrameSize int) int {
 	return int(n) // doesn't truncate; max is 512K
 }
 
-var http2bufPool sync.Pool // of *[]byte
+// Seven bufPools manage different frame sizes. This helps to avoid scenarios where long-running
+// streaming requests using small frame sizes occupy large buffers initially allocated for prior
+// requests needing big buffers. The size ranges are as follows:
+// {0 KB, 16 KB], {16 KB, 32 KB], {32 KB, 64 KB], {64 KB, 128 KB], {128 KB, 256 KB],
+// {256 KB, 512 KB], {512 KB, infinity}
+// In practice, the maximum scratch buffer size should not exceed 512 KB due to
+// frameScratchBufferLen(maxFrameSize), thus the "infinity pool" should never be used.
+// It exists mainly as a safety measure, for potential future increases in max buffer size.
+var http2bufPools [7]sync.Pool // of *[]byte
+
+func http2bufPoolIndex(size int) int {
+	if size <= 16384 {
+		return 0
+	}
+	size -= 1
+	bits := bits.Len(uint(size))
+	index := bits - 14
+	if index >= len(http2bufPools) {
+		return len(http2bufPools) - 1
+	}
+	return index
+}
 
 func (cs *http2clientStream) writeRequestBody(req *Request) (err error) {
 	cc := cs.cc
@@ -8720,12 +8742,13 @@ func (cs *http2clientStream) writeRequestBody(req *Request) (err error) {
 	// Scratch buffer for reading into & writing from.
 	scratchLen := cs.frameScratchBufferLen(maxFrameSize)
 	var buf []byte
-	if bp, ok := http2bufPool.Get().(*[]byte); ok && len(*bp) >= scratchLen {
-		defer http2bufPool.Put(bp)
+	index := http2bufPoolIndex(scratchLen)
+	if bp, ok := http2bufPools[index].Get().(*[]byte); ok && len(*bp) >= scratchLen {
+		defer http2bufPools[index].Put(bp)
 		buf = *bp
 	} else {
 		buf = make([]byte, scratchLen)
-		defer http2bufPool.Put(&buf)
+		defer http2bufPools[index].Put(&buf)
 	}
 
 	var sawEOF bool

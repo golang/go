@@ -129,7 +129,7 @@ func NamedTypeArgs(*types.Named) *TypeList {
 }
 
 // NamedTypeOrigin is the identity method at this Go version.
-func NamedTypeOrigin(named *types.Named) types.Type {
+func NamedTypeOrigin(named *types.Named) *types.Named {
 	return named
 }
 
