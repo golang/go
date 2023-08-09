@@ -558,8 +558,11 @@ func (lv *liveness) markUnsafePoints() {
 
 			// Mark everything after the load unsafe.
 			found := false
-			for _, v := range decisionBlock.Values {
-				if found {
+			for i, v := range decisionBlock.Values {
+				if found || i == len(decisionBlock.Values)-1 {
+					// Note: we need at least one instruction marked so that
+					// the branch instruction at the end of the block also
+					// gets marked.
 					lv.unsafePoints.Set(int32(v.ID))
 				}
 				found = found || v == load
