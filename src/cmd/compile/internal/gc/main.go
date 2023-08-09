@@ -211,21 +211,12 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// because it generates itabs for initializing global variables.
 	ssagen.InitConfig()
 
-	// First part of coverage fixup (if applicable).
-	var cnames coverage.Names
-	if base.Flag.Cfg.CoverageInfo != nil {
-		cnames = coverage.FixupVars()
-	}
-
 	// Create "init" function for package-scope variable initialization
 	// statements, if any.
 	pkginit.MakeInit()
 
-	// Second part of code coverage fixup (init func modification),
-	// if applicable.
-	if base.Flag.Cfg.CoverageInfo != nil {
-		coverage.FixupInit(cnames)
-	}
+	// Apply coverage fixups, if applicable.
+	coverage.Fixup()
 
 	// Compute Addrtaken for names.
 	// We need to wait until typechecking is done so that when we see &x[i]
