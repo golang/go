@@ -3305,6 +3305,30 @@ func (r *reader) pkgInit(self *types.Pkg, target *ir.Package) {
 
 	r.pkgDecls(target)
 
+	initOrder := make([]ir.Node, r.Len())
+	for i := range initOrder {
+		lhs := make([]ir.Node, r.Len())
+		for j := range lhs {
+			lhs[j] = r.obj()
+		}
+		rhs := r.expr()
+		pos := lhs[0].Pos()
+
+		var as ir.Node
+		if len(lhs) == 1 {
+			as = typecheck.Stmt(ir.NewAssignStmt(pos, lhs[0], rhs))
+		} else {
+			as = typecheck.Stmt(ir.NewAssignListStmt(pos, ir.OAS2, lhs, []ir.Node{rhs}))
+		}
+
+		for _, v := range lhs {
+			v.(*ir.Name).Defn = as
+		}
+
+		initOrder[i] = as
+	}
+	target.InitOrder = initOrder
+
 	r.Sync(pkgbits.SyncEOF)
 }
 
@@ -3331,27 +3355,7 @@ func (r *reader) pkgDecls(target *ir.Package) {
 			target.Decls = append(target.Decls, method.Nname.(*ir.Name).Func)
 
 		case declVar:
-			pos := r.pos()
 			names := r.pkgObjs(target)
-			values := r.exprList()
-
-			if len(names) > 1 && len(values) == 1 {
-				as := ir.NewAssignListStmt(pos, ir.OAS2, nil, values)
-				for _, name := range names {
-					as.Lhs.Append(name)
-					name.Defn = as
-				}
-				target.Decls = append(target.Decls, as)
-			} else {
-				for i, name := range names {
-					as := ir.NewAssignStmt(pos, name, nil)
-					if i < len(values) {
-						as.Y = values[i]
-					}
-					name.Defn = as
-					target.Decls = append(target.Decls, as)
-				}
-			}
 
 			if n := r.Len(); n > 0 {
 				assert(len(names) == 1)

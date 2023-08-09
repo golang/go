@@ -2534,6 +2534,15 @@ func (w *writer) pkgInit(noders []*noder) {
 	}
 	w.Code(declEnd)
 
+	w.Len(len(w.p.info.InitOrder))
+	for _, init := range w.p.info.InitOrder {
+		w.Len(len(init.Lhs))
+		for _, v := range init.Lhs {
+			w.obj(v, nil)
+		}
+		w.expr(init.Rhs)
+	}
+
 	w.Sync(pkgbits.SyncEOF)
 }
 
@@ -2591,15 +2600,7 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 
 	case *syntax.VarDecl:
 		w.Code(declVar)
-		w.pos(decl)
 		w.pkgObjs(decl.NameList...)
-
-		// TODO(mdempsky): It would make sense to use multiExpr here, but
-		// that results in IR that confuses pkginit/initorder.go. So we
-		// continue using exprList, and let typecheck handle inserting any
-		// implicit conversions. That's okay though, because package-scope
-		// assignments never require dictionaries.
-		w.exprList(decl.Values)
 
 		var embeds []pragmaEmbed
 		if p, ok := decl.Pragma.(*pragmas); ok {

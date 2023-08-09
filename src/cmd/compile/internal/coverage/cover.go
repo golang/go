@@ -53,12 +53,8 @@ func FixupVars() Names {
 		}
 	}
 
-	for _, n := range typecheck.Target.Decls {
-		as, ok := n.(*ir.AssignStmt)
-		if !ok {
-			continue
-		}
-		nm, ok := as.X.(*ir.Name)
+	for _, n := range typecheck.Target.Externs {
+		nm, ok := n.(*ir.Name)
 		if !ok {
 			continue
 		}

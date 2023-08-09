@@ -113,6 +113,11 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 	if rn.Class != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
 		return false
 	}
+	if rn.Defn == nil {
+		// No explicit initialization value. Probably zeroed but perhaps
+		// supplied externally and of unknown value.
+		return false
+	}
 	if rn.Defn.Op() != ir.OAS {
 		return false
 	}
@@ -125,9 +130,8 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 	orig := rn
 	r := rn.Defn.(*ir.AssignStmt).Y
 	if r == nil {
-		// No explicit initialization value. Probably zeroed but perhaps
-		// supplied externally and of unknown value.
-		return false
+		// types2.InitOrder doesn't include default initializers.
+		base.Fatalf("unexpected initializer: %v", rn.Defn)
 	}
 
 	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), typ) {

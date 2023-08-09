@@ -21,11 +21,8 @@ import (
 
 // MakeInit creates a synthetic init function to handle any
 // package-scope initialization statements.
-//
-// TODO(mdempsky): Move into noder, so that the types2-based frontends
-// can use Info.InitOrder instead.
 func MakeInit() {
-	nf := initOrder(typecheck.Target.Decls)
+	nf := typecheck.Target.InitOrder
 	if len(nf) == 0 {
 		return
 	}
