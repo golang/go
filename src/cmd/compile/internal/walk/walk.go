@@ -275,8 +275,10 @@ func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
 	} else {
 		ptr.SetType(n.Type().Elem().PtrTo())
 	}
+	ptr.SetTypecheck(1)
 	length = ir.NewUnaryExpr(base.Pos, ir.OLEN, n)
 	length.SetType(types.Types[types.TINT])
+	length.SetTypecheck(1)
 	return ptr, length
 }
 
