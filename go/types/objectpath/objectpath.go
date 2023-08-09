@@ -32,6 +32,7 @@ import (
 	_ "unsafe"
 
 	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 // A Path is an opaque name that identifies a types.Object
@@ -127,12 +128,15 @@ type Encoder struct {
 	skipMethodSorting bool
 }
 
-// Exposed to gopls via golang.org/x/tools/internal/typesinternal
-// TODO(golang/go#61443): eliminate this parameter one way or the other.
+// Expose back doors so that gopls can avoid method sorting, which can dominate
+// analysis on certain repositories.
 //
-//go:linkname skipMethodSorting
-func skipMethodSorting(enc *Encoder) {
-	enc.skipMethodSorting = true
+// TODO(golang/go#61443): remove this.
+func init() {
+	typesinternal.SkipEncoderMethodSorting = func(enc interface{}) {
+		enc.(*Encoder).skipMethodSorting = true
+	}
+	typesinternal.ObjectpathObject = object
 }
 
 // For returns the path to an object relative to its package,
@@ -572,17 +576,16 @@ func findTypeParam(obj types.Object, list *typeparams.TypeParamList, path []byte
 
 // Object returns the object denoted by path p within the package pkg.
 func Object(pkg *types.Package, p Path) (types.Object, error) {
-	return object(pkg, p, false)
+	return object(pkg, string(p), false)
 }
 
 // Note: the skipMethodSorting parameter must match the value of
 // Encoder.skipMethodSorting used during encoding.
-func object(pkg *types.Package, p Path, skipMethodSorting bool) (types.Object, error) {
-	if p == "" {
+func object(pkg *types.Package, pathstr string, skipMethodSorting bool) (types.Object, error) {
+	if pathstr == "" {
 		return nil, fmt.Errorf("empty path")
 	}
 
-	pathstr := string(p)
 	var pkgobj, suffix string
 	if dot := strings.IndexByte(pathstr, opType); dot < 0 {
 		pkgobj = pathstr

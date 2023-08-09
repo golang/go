@@ -247,7 +247,7 @@ func (d *Decoder) Decode(skipMethodSorting bool, read func(pkgPath string) ([]by
 			key := key{pkg: factPkg, t: reflect.TypeOf(f.Fact)}
 			if f.Object != "" {
 				// object fact
-				obj, err := typesinternal.ObjectpathObject(factPkg, f.Object, skipMethodSorting)
+				obj, err := typesinternal.ObjectpathObject(factPkg, string(f.Object), skipMethodSorting)
 				if err != nil {
 					// (most likely due to unexported object)
 					// TODO(adonovan): audit for other possibilities.
