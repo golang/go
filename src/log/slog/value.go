@@ -327,22 +327,22 @@ func (v Value) Bool() bool {
 	return v.bool()
 }
 
-func (a Value) bool() bool {
-	return a.num == 1
+func (v Value) bool() bool {
+	return v.num == 1
 }
 
 // Duration returns v's value as a time.Duration. It panics
 // if v is not a time.Duration.
-func (a Value) Duration() time.Duration {
-	if g, w := a.Kind(), KindDuration; g != w {
+func (v Value) Duration() time.Duration {
+	if g, w := v.Kind(), KindDuration; g != w {
 		panic(fmt.Sprintf("Value kind is %s, not %s", g, w))
 	}
 
-	return a.duration()
+	return v.duration()
 }
 
-func (a Value) duration() time.Duration {
-	return time.Duration(int64(a.num))
+func (v Value) duration() time.Duration {
+	return time.Duration(int64(v.num))
 }
 
 // Float64 returns v's value as a float64. It panics
@@ -355,8 +355,8 @@ func (v Value) Float64() float64 {
 	return v.float()
 }
 
-func (a Value) float() float64 {
-	return math.Float64frombits(a.num)
+func (v Value) float() float64 {
+	return math.Float64frombits(v.num)
 }
 
 // Time returns v's value as a time.Time. It panics
