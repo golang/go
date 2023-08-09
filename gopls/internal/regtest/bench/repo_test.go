@@ -65,6 +65,7 @@ var repos = map[string]*repo{
 		name:   "oracle",
 		url:    "https://github.com/oracle/oci-go-sdk.git",
 		commit: "v65.43.0",
+		short:  true,
 		inDir:  flag.String("oracle_dir", "", "if set, reuse this directory as oracle/oci-go-sdk@v65.43.0"),
 	},
 
