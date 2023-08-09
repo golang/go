@@ -2783,19 +2783,44 @@ u58=
 -----END CERTIFICATE-----`
 
 func TestHandshakeRSATooBig(t *testing.T) {
-	testCert, _ := pem.Decode([]byte(largeRSAKeyCertPEM))
+	for _, tc := range []struct {
+		name              string
+		godebug           string
+		expectedServerErr string
+		expectedClientErr string
+	}{
+		{
+			name:              "key too large",
+			expectedServerErr: "tls: server sent certificate containing RSA key larger than 8192 bits",
+			expectedClientErr: "tls: client sent certificate containing RSA key larger than 8192 bits",
+		},
+		{
+			name:    "acceptable key (GODEBUG=tlsmaxrsasize=8193)",
+			godebug: "tlsmaxrsasize=8193",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.godebug != "" {
+				t.Setenv("GODEBUG", tc.godebug)
+			}
 
-	c := &Conn{conn: &discardConn{}, config: testConfig.Clone()}
+			testCert, _ := pem.Decode([]byte(largeRSAKeyCertPEM))
 
-	expectedErr := "tls: server sent certificate containing RSA key larger than 8192 bits"
-	err := c.verifyServerCertificate([][]byte{testCert.Bytes})
-	if err == nil || err.Error() != expectedErr {
-		t.Errorf("Conn.verifyServerCertificate unexpected error: want %q, got %q", expectedErr, err)
-	}
+			c := &Conn{conn: &discardConn{}, config: testConfig.Clone()}
 
-	expectedErr = "tls: client sent certificate containing RSA key larger than 8192 bits"
-	err = c.processCertsFromClient(Certificate{Certificate: [][]byte{testCert.Bytes}})
-	if err == nil || err.Error() != expectedErr {
-		t.Errorf("Conn.processCertsFromClient unexpected error: want %q, got %q", expectedErr, err)
+			err := c.verifyServerCertificate([][]byte{testCert.Bytes})
+			if tc.expectedServerErr == "" && err != nil {
+				t.Errorf("Conn.verifyServerCertificate unexpected error: %s", err)
+			} else if tc.expectedServerErr != "" && (err == nil || err.Error() != tc.expectedServerErr) {
+				t.Errorf("Conn.verifyServerCertificate unexpected error: want %q, got %q", tc.expectedServerErr, err)
+			}
+
+			err = c.processCertsFromClient(Certificate{Certificate: [][]byte{testCert.Bytes}})
+			if tc.expectedClientErr == "" && err != nil {
+				t.Errorf("Conn.processCertsFromClient unexpected error: %s", err)
+			} else if tc.expectedClientErr != "" && (err == nil || err.Error() != tc.expectedClientErr) {
+				t.Errorf("Conn.processCertsFromClient unexpected error: want %q, got %q", tc.expectedClientErr, err)
+			}
+		})
 	}
 }
