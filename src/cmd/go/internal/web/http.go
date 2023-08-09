@@ -212,16 +212,22 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 			}
 		}
 
-		if res == nil || res.Body == nil {
+		if err != nil {
+			// Per the docs for [net/http.Client.Do], “On error, any Response can be
+			// ignored. A non-nil Response with a non-nil error only occurs when
+			// CheckRedirect fails, and even then the returned Response.Body is
+			// already closed.”
 			release()
-		} else {
-			body := res.Body
-			res.Body = hookCloser{
-				ReadCloser: body,
-				afterClose: release,
-			}
+			return nil, nil, err
 		}
 
+		// “If the returned error is nil, the Response will contain a non-nil Body
+		// which the user is expected to close.”
+		body := res.Body
+		res.Body = hookCloser{
+			ReadCloser: body,
+			afterClose: release,
+		}
 		return url, res, err
 	}
 
