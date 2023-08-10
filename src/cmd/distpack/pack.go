@@ -329,8 +329,47 @@ func writeTgz(name string, a *Archive) {
 
 	zw := check(gzip.NewWriterLevel(out, gzip.BestCompression))
 	tw := tar.NewWriter(zw)
+
+	// Find the mode and mtime to use for directory entries,
+	// based on the mode and mtime of the first file we see.
+	// We know that modes and mtimes are uniform across the archive.
+	var dirMode fs.FileMode
+	var mtime time.Time
+	for _, f := range a.Files {
+		dirMode = fs.ModeDir | f.Mode | (f.Mode&0444)>>2 // copy r bits down to x bits
+		mtime = f.Time
+		break
+	}
+
+	// mkdirAll ensures that the tar file contains directory
+	// entries for dir and all its parents. Some programs reading
+	// these tar files expect that. See go.dev/issue/61862.
+	haveDir := map[string]bool{".": true}
+	var mkdirAll func(string)
+	mkdirAll = func(dir string) {
+		if dir == "/" {
+			panic("mkdirAll /")
+		}
+		if haveDir[dir] {
+			return
+		}
+		haveDir[dir] = true
+		mkdirAll(path.Dir(dir))
+		df := &File{
+			Name: dir + "/",
+			Time: mtime,
+			Mode: dirMode,
+		}
+		h := check(tar.FileInfoHeader(df.Info(), ""))
+		h.Name = dir + "/"
+		if err := tw.WriteHeader(h); err != nil {
+			panic(err)
+		}
+	}
+
 	for _, f = range a.Files {
 		h := check(tar.FileInfoHeader(f.Info(), ""))
+		mkdirAll(path.Dir(f.Name))
 		h.Name = f.Name
 		if err := tw.WriteHeader(h); err != nil {
 			panic(err)
