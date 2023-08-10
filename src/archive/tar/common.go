@@ -726,7 +726,7 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 		if err != nil {
 			return nil, err
 		}
-		h.Uname, err = iface.Uname(h.Gid)
+		h.Uname, err = iface.Uname(h.Uid)
 		if err != nil {
 			return nil, err
 		}

@@ -849,6 +849,11 @@ func Benchmark(b *testing.B) {
 
 }
 
+const (
+	testUid = 10
+	testGid = 20
+)
+
 type fileInfoNames struct{}
 
 func (f *fileInfoNames) Name() string {
@@ -876,14 +881,29 @@ func (f *fileInfoNames) Sys() any {
 }
 
 func (f *fileInfoNames) Uname(uid int) (string, error) {
-	return "Uname", nil
+	if uid == testUid {
+		return "Uname", nil
+	}
+	return "", nil
 }
 
 func (f *fileInfoNames) Gname(gid int) (string, error) {
-	return "Gname", nil
+	if gid == testGid {
+		return "Gname", nil
+	}
+	return "", nil
 }
 
 func TestFileInfoHeaderUseFileInfoNames(t *testing.T) {
+	origLoadUidAndGid := loadUidAndGid
+	defer func() {
+		loadUidAndGid = origLoadUidAndGid
+	}()
+	loadUidAndGid = func(fi fs.FileInfo, uid, gid *int) {
+		*uid = testUid
+		*gid = testGid
+	}
+
 	info := &fileInfoNames{}
 	header, err := FileInfoHeader(info, "")
 	if err != nil {
