@@ -891,16 +891,7 @@ func (t Time) Add(d Duration) Time {
 // To compute t-d for a duration d, use t.Add(-d).
 func (t Time) Sub(u Time) Duration {
 	if t.wall&u.wall&hasMonotonic != 0 {
-		te := t.ext
-		ue := u.ext
-		d := Duration(te - ue)
-		if d < 0 && te > ue {
-			return maxDuration // t - u is positive out of range
-		}
-		if d > 0 && te < ue {
-			return minDuration // t - u is negative out of range
-		}
-		return d
+		return subMono(t.ext, u.ext)
 	}
 	d := Duration(t.sec()-u.sec())*Second + Duration(t.nsec()-u.nsec())
 	// Check for overflow or underflow.
@@ -914,17 +905,25 @@ func (t Time) Sub(u Time) Duration {
 	}
 }
 
+func subMono(t, u int64) Duration {
+	d := Duration(t - u)
+	if d < 0 && t > u {
+		return maxDuration // t - u is positive out of range
+	}
+	if d > 0 && t < u {
+		return minDuration // t - u is negative out of range
+	}
+	return d
+}
+
 // Since returns the time elapsed since t.
 // It is shorthand for time.Now().Sub(t).
 func Since(t Time) Duration {
-	var now Time
 	if t.wall&hasMonotonic != 0 {
 		// Common case optimization: if t has monotonic time, then Sub will use only it.
-		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
-	} else {
-		now = Now()
+		return subMono(runtimeNano()-startNano, t.ext)
 	}
-	return now.Sub(t)
+	return Now().Sub(t)
 }
 
 // Until returns the duration until t.
