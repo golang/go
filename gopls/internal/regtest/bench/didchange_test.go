@@ -20,19 +20,20 @@ import (
 var editID int64 = time.Now().UnixNano()
 
 type changeTest struct {
-	repo string
-	file string
+	repo    string
+	file    string
+	canSave bool
 }
 
 var didChangeTests = []changeTest{
-	{"google-cloud-go", "internal/annotate.go"},
-	{"istio", "pkg/fuzz/util.go"},
-	{"kubernetes", "pkg/controller/lookup_cache.go"},
-	{"kuma", "api/generic/insights.go"},
-	{"oracle", "dataintegration/data_type.go"}, // diagnoseSave fails because this package is generated
-	{"pkgsite", "internal/frontend/server.go"},
-	{"starlark", "starlark/eval.go"},
-	{"tools", "internal/lsp/cache/snapshot.go"},
+	{"google-cloud-go", "internal/annotate.go", true},
+	{"istio", "pkg/fuzz/util.go", true},
+	{"kubernetes", "pkg/controller/lookup_cache.go", true},
+	{"kuma", "api/generic/insights.go", true},
+	{"oracle", "dataintegration/data_type.go", false}, // diagnoseSave fails because this package is generated
+	{"pkgsite", "internal/frontend/server.go", true},
+	{"starlark", "starlark/eval.go", true},
+	{"tools", "internal/lsp/cache/snapshot.go", true},
 }
 
 // BenchmarkDidChange benchmarks modifications of a single file by making
@@ -89,6 +90,9 @@ func BenchmarkDiagnoseSave(b *testing.B) {
 // await the resulting diagnostics pass. If save is set, the file is also saved.
 func runChangeDiagnosticsBenchmark(b *testing.B, test changeTest, save bool, operation string) {
 	b.Run(test.repo, func(b *testing.B) {
+		if !test.canSave {
+			b.Skipf("skipping as %s cannot be saved", test.file)
+		}
 		sharedEnv := getRepo(b, test.repo).sharedEnv(b)
 		config := fake.EditorConfig{
 			Env: map[string]string{
