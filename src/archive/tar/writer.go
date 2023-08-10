@@ -5,8 +5,10 @@
 package tar
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"path"
 	"sort"
 	"strings"
@@ -401,6 +403,43 @@ func (tw *Writer) writeRawHeader(blk *block, size int64, flag byte) error {
 	tw.curr = &regFileWriter{tw.w, size}
 	tw.pad = blockPadding(size)
 	return nil
+}
+
+// AddFS adds the files from fs.FS to the archive.
+// It walks the directory tree starting at the root of the filesystem
+// adding each file to the tar archive while maintaining the directory structure.
+func (tw *Writer) AddFS(fsys fs.FS) error {
+	return fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		// TODO(#49580): Handle symlinks when fs.ReadLinkFS is available.
+		if !info.Mode().IsRegular() {
+			return errors.New("tar: cannot add non-regular file")
+		}
+		h, err := FileInfoHeader(info, "")
+		if err != nil {
+			return err
+		}
+		h.Name = name
+		if err := tw.WriteHeader(h); err != nil {
+			return err
+		}
+		f, err := fsys.Open(name)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		_, err = io.Copy(tw, f)
+		return err
+	})
 }
 
 // splitUSTARPath splits a path according to USTAR prefix and suffix rules.
