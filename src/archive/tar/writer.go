@@ -5,6 +5,7 @@
 package tar
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -418,6 +419,10 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
 		info, err := d.Info()
 		if err != nil {
 			return err
+		}
+		// TODO(#49580): Handle symlinks when fs.ReadLinkFS is available.
+		if !info.Mode().IsRegular() {
+			return errors.New("tar: cannot add non-regular file")
 		}
 		h, err := FileInfoHeader(info, "")
 		if err != nil {

@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"reflect"
@@ -1335,7 +1336,7 @@ func TestFileWriter(t *testing.T) {
 	}
 }
 
-func TestWriterAddFs(t *testing.T) {
+func TestWriterAddFS(t *testing.T) {
 	fsys := fstest.MapFS{
 		"file.go":              {Data: []byte("hello")},
 		"subfolder/another.go": {Data: []byte("world")},
@@ -1349,7 +1350,18 @@ func TestWriterAddFs(t *testing.T) {
 	// Test that we can get the files back from the archive
 	tr := NewReader(&buf)
 
-	for name, file := range fsys {
+	entries, err := fsys.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var curfname string
+	for _, entry := range entries {
+		curfname = entry.Name()
+		if entry.IsDir() {
+			curfname += "/"
+			continue
+		}
 		hdr, err := tr.Next()
 		if err == io.EOF {
 			break // End of archive
@@ -1358,20 +1370,32 @@ func TestWriterAddFs(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		data := make([]byte, hdr.Size)
-		_, err = io.ReadFull(tr, data)
+		data, err := io.ReadAll(tr)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if name != hdr.Name {
+		if hdr.Name != curfname {
 			t.Fatalf("got filename %v, want %v",
-				name, hdr.Name)
+				curfname, hdr.Name)
 		}
 
-		if string(data) != string(file.Data) {
+		origdata := fsys[curfname].Data
+		if string(data) != string(origdata) {
 			t.Fatalf("got file content %v, want %v",
-				data, file.Data)
+				data, origdata)
 		}
+	}
+}
+
+func TestWriterAddFSNonRegularFiles(t *testing.T) {
+	fsys := fstest.MapFS{
+		"device":  {Data: []byte("hello"), Mode: 0755 | fs.ModeDevice},
+		"symlink": {Data: []byte("world"), Mode: 0755 | fs.ModeSymlink},
+	}
+	var buf bytes.Buffer
+	tw := NewWriter(&buf)
+	if err := tw.AddFS(fsys); err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }
