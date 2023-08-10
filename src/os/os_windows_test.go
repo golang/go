@@ -1524,3 +1524,73 @@ func TestNewFileInvalid(t *testing.T) {
 		t.Errorf("NewFile(InvalidHandle) got %v want nil", f)
 	}
 }
+
+func TestReadDirPipe(t *testing.T) {
+	dir := `\\.\pipe\`
+	fi, err := os.Stat(dir)
+	if err != nil || !fi.IsDir() {
+		t.Skipf("%s is not a directory", dir)
+	}
+	_, err = os.ReadDir(dir)
+	if err != nil {
+		t.Errorf("ReadDir(%q) = %v", dir, err)
+	}
+}
+
+func TestReadDirNoFileID(t *testing.T) {
+	*os.AllowReadDirFileID = false
+	defer func() { *os.AllowReadDirFileID = true }()
+
+	dir := t.TempDir()
+	pathA := filepath.Join(dir, "a")
+	pathB := filepath.Join(dir, "b")
+	if err := os.WriteFile(pathA, nil, 0666); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pathB, nil, 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("ReadDir(%q) = %v; want 2 files", dir, files)
+	}
+
+	// Check that os.SameFile works with files returned by os.ReadDir.
+	f1, err := files[0].Info()
+	if err != nil {
+		t.Fatal(err)
+	}
+	f2, err := files[1].Info()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(f1, f1) {
+		t.Errorf("SameFile(%v, %v) = false; want true", f1, f1)
+	}
+	if !os.SameFile(f2, f2) {
+		t.Errorf("SameFile(%v, %v) = false; want true", f2, f2)
+	}
+	if os.SameFile(f1, f2) {
+		t.Errorf("SameFile(%v, %v) = true; want false", f1, f2)
+	}
+
+	// Check that os.SameFile works with a mix of os.ReadDir and os.Stat files.
+	f1s, err := os.Stat(pathA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f2s, err := os.Stat(pathB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(f1, f1s) {
+		t.Errorf("SameFile(%v, %v) = false; want true", f1, f1s)
+	}
+	if !os.SameFile(f2, f2s) {
+		t.Errorf("SameFile(%v, %v) = false; want true", f2, f2s)
+	}
+}

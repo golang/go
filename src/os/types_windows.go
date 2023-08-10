@@ -32,10 +32,11 @@ type fileStat struct {
 
 	// used to implement SameFile
 	sync.Mutex
-	path  string
-	vol   uint32
-	idxhi uint32
-	idxlo uint32
+	path             string
+	vol              uint32
+	idxhi            uint32
+	idxlo            uint32
+	appendNameToPath bool
 }
 
 // newFileStatFromGetFileInformationByHandle calls GetFileInformationByHandle
@@ -96,6 +97,20 @@ func newFileStatFromFileIDBothDirInfo(d *windows.FILE_ID_BOTH_DIR_INFO) *fileSta
 		ReparseTag:     d.EaSize,
 		idxhi:          uint32(d.FileID >> 32),
 		idxlo:          uint32(d.FileID),
+	}
+}
+
+// newFileStatFromFileFullDirInfo copies all required information
+// from windows.FILE_FULL_DIR_INFO d into the newly created fileStat.
+func newFileStatFromFileFullDirInfo(d *windows.FILE_FULL_DIR_INFO) *fileStat {
+	return &fileStat{
+		FileAttributes: d.FileAttributes,
+		CreationTime:   d.CreationTime,
+		LastAccessTime: d.LastAccessTime,
+		LastWriteTime:  d.LastWriteTime,
+		FileSizeHigh:   uint32(d.EndOfFile >> 32),
+		FileSizeLow:    uint32(d.EndOfFile),
+		ReparseTag:     d.EaSize,
 	}
 }
 
@@ -198,7 +213,13 @@ func (fs *fileStat) loadFileId() error {
 		// already done
 		return nil
 	}
-	pathp, err := syscall.UTF16PtrFromString(fs.path)
+	var path string
+	if fs.appendNameToPath {
+		path = fixLongPath(fs.path + `\` + fs.name)
+	} else {
+		path = fs.path
+	}
+	pathp, err := syscall.UTF16PtrFromString(path)
 	if err != nil {
 		return err
 	}
