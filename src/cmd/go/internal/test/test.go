@@ -1026,6 +1026,11 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 
 	pmain.Dir = testDir
 	pmain.Internal.OmitDebug = !testC && !testNeedBinary()
+	if pmain.ImportPath == "runtime.test" {
+		// The runtime package needs a symbolized binary for its tests.
+		// See runtime/unsafepoint_test.go.
+		pmain.Internal.OmitDebug = false
+	}
 
 	if !cfg.BuildN {
 		// writeTestmain writes _testmain.go,
