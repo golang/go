@@ -134,6 +134,10 @@ The default is tlsmaxrsasize=8192, limiting RSA to 8192-bit keys. To avoid
 denial of service attacks, this setting and default was backported to Go
 1.19.13, Go 1.20.8, and Go 1.21.1.
 
+Go 1.22 made it an error for a request or response read by a net/http
+client or server to have an empty Content-Length header.
+This behavior is controlled by the `httplaxcontentlength` setting.
+
 ### Go 1.21
 
 Go 1.21 made it a run-time error to call `panic` with a nil interface value,
