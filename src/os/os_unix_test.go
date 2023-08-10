@@ -346,3 +346,59 @@ func TestSplitPath(t *testing.T) {
 		}
 	}
 }
+
+// Test that copying to files opened with O_APPEND works and
+// the copy_file_range syscall isn't used on Linux.
+//
+// Regression test for go.dev/issue/60181
+func TestIssue60181(t *testing.T) {
+	defer chtmpdir(t)()
+
+	want := "hello gopher"
+
+	a, err := CreateTemp("", "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.WriteString(want[:5])
+	a.Close()
+
+	b, err := CreateTemp("", "b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.WriteString(want[5:])
+	b.Close()
+
+	afd, err := syscall.Open(a.Name(), syscall.O_RDWR|syscall.O_APPEND, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bfd, err := syscall.Open(b.Name(), syscall.O_RDONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	aa := NewFile(uintptr(afd), a.Name())
+	defer aa.Close()
+	bb := NewFile(uintptr(bfd), b.Name())
+	defer bb.Close()
+
+	// This would fail on Linux in case the copy_file_range syscall was used because it doesn't
+	// support destination files opened with O_APPEND, see
+	// https://man7.org/linux/man-pages/man2/copy_file_range.2.html#ERRORS
+	_, err = io.Copy(aa, bb)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf, err := ReadFile(aa.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := string(buf); got != want {
+		t.Errorf("files not concatenated: got %q, want %q", got, want)
+	}
+}
