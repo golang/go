@@ -7083,8 +7083,21 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// for an empty block this will be used for its control
 		// instruction. We won't use the actual liveness map on a
 		// control instruction. Just mark it something that is
-		// preemptible, unless this function is "all unsafe".
-		s.pp.NextLive = objw.LivenessIndex{StackMapIndex: -1, IsUnsafePoint: liveness.IsUnsafe(f)}
+		// preemptible, unless this function is "all unsafe", or
+		// the empty block is in a write barrier.
+		unsafe := liveness.IsUnsafe(f)
+		if b.Kind == ssa.BlockPlain {
+			// Empty blocks that are part of write barriers need
+			// to have their control instructions marked unsafe.
+			c := b.Succs[0].Block()
+			for _, v := range c.Values {
+				if v.Op == ssa.OpWBend {
+					unsafe = true
+					break
+				}
+			}
+		}
+		s.pp.NextLive = objw.LivenessIndex{StackMapIndex: -1, IsUnsafePoint: unsafe}
 
 		if idx, ok := argLiveBlockMap[b.ID]; ok && idx != argLiveIdx {
 			argLiveIdx = idx
