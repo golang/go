@@ -1,10 +1,12 @@
-// Copyright 2012 The Go Authors. All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build freebsd && (386 || arm || arm64 || riscv64)
+
 #include <sys/types.h>
-#include <machine/sysarch.h>
 #include <sys/signalvar.h>
+#include <machine/sysarch.h>
 #include <pthread.h>
 #include <signal.h>
 #include <string.h>
@@ -20,8 +22,7 @@
 #endif
 #endif
 
-static void *threadentry(void*);
-
+static void* threadentry(void*);
 static void (*setg_gcc)(void*);
 
 void
@@ -65,6 +66,6 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
-	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+	crosscall1(ts.fn, setg_gcc, ts.g);
 	return nil;
 }
