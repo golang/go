@@ -1,0 +1,36 @@
+This test verifies that method stubbing qualifies types relative to the current
+package.
+
+-- p.go --
+package p
+
+import "io"
+
+type B struct{}
+
+type I interface {
+	M(io.Reader, B)
+}
+
+type A struct{}
+
+var _ I = &A{} //@suggestedfix(re"&A..", re"missing method M", "quickfix", stub)
+-- @stub/p.go --
+package p
+
+import "io"
+
+type B struct{}
+
+type I interface {
+	M(io.Reader, B)
+}
+
+type A struct{}
+
+// M implements I.
+func (*A) M(io.Reader, B) {
+	panic("unimplemented")
+}
+
+var _ I = &A{} //@suggestedfix(re"&A..", re"missing method M", "quickfix", stub)
