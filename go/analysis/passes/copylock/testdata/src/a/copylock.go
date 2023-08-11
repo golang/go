@@ -34,6 +34,9 @@ func OkFunc() {
 	xx := struct{ L *sync.Mutex }{
 		L: new(sync.Mutex),
 	}
+
+	var pz = (sync.Mutex{})
+	pw := (sync.Mutex{})
 }
 
 type Tlock struct {
@@ -213,4 +216,12 @@ func AtomicTypesCheck() {
 	var vYY = vX
 	vP := &vX
 	vZ := &atomic.Value{}
+}
+
+// PointerRhsCheck checks that exceptions are made for pointer return values of
+// function calls. These may be zero initialized so they are considered OK.
+func PointerRhsCheck() {
+	newMutex := func() *sync.Mutex { return new(sync.Mutex) }
+	d := *newMutex()
+	pd := *(newMutex())
 }
