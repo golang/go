@@ -1,0 +1,44 @@
+! go build
+stderr '^m: cannot compile Go 1.22 code$'
+
+cd dep
+! go build
+stderr '^m: cannot compile Go 1.22 code$'
+
+cd ../dep20
+go build
+
+cd ../dep21
+go build
+
+-- go.mod --
+module m
+go 1.22
+
+-- p.go --
+package p
+
+-- dep/go.mod --
+module dep
+go 1.19
+require m v1.0.0
+replace m v1.0.0 => ../
+
+-- dep/p.go --
+package p
+
+import "m"
+
+-- dep20/go.mod --
+module dep
+go 1.20
+
+-- dep20/p.go --
+package p
+
+-- dep21/go.mod --
+module dep
+go 1.21
+
+-- dep21/p.go --
+package p
