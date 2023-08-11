@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build openbsd && (386 || arm || amd64 || arm64 || riscv64)
+
 #include <sys/types.h>
 #include <pthread.h>
 #include <signal.h>
@@ -54,6 +56,6 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
-	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+	crosscall1(ts.fn, setg_gcc, ts.g);
 	return nil;
 }
