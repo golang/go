@@ -304,10 +304,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	fcount := int64(0)
 	for i := 0; i < len(typecheck.Target.Funcs); i++ {
 		fn := typecheck.Target.Funcs[i]
-		// Don't try compiling dead hidden closure.
-		if fn.IsDeadcodeClosure() {
-			continue
-		}
 		enqueueFunc(fn)
 		fcount++
 	}
