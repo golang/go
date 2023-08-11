@@ -152,6 +152,8 @@ func hashFunc(t *types.Type) *ir.Func {
 
 	fn := typecheck.DeclFunc(sym, nil, args, results)
 	sym.Def = fn.Nname
+	fn.Pragma |= ir.Noinline // TODO(mdempsky): We need to emit this during the unified frontend instead, to allow inlining.
+
 	np := ir.AsNode(fn.Type().Params().Field(0).Nname)
 	nh := ir.AsNode(fn.Type().Params().Field(1).Nname)
 
@@ -375,6 +377,8 @@ func eqFunc(t *types.Type) *ir.Func {
 		[]*ir.Field{ir.NewField(base.Pos, typecheck.Lookup("r"), types.Types[types.TBOOL])},
 	)
 	sym.Def = fn.Nname
+	fn.Pragma |= ir.Noinline // TODO(mdempsky): We need to emit this during the unified frontend instead, to allow inlining.
+
 	np := ir.AsNode(fn.Type().Params().Field(0).Nname)
 	nq := ir.AsNode(fn.Type().Params().Field(1).Nname)
 	nr := ir.AsNode(fn.Type().Results().Field(0).Nname)

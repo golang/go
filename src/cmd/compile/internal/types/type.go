@@ -1858,11 +1858,6 @@ func IsReflectPkg(p *Pkg) bool {
 	return p.Path == "reflect"
 }
 
-// IsTypePkg reports whether p is pesudo package type.
-func IsTypePkg(p *Pkg) bool {
-	return p == typepkg
-}
-
 // IsNoInstrumentPkg reports whether p is a package that
 // should not be instrumented.
 func IsNoInstrumentPkg(p *Pkg) bool {

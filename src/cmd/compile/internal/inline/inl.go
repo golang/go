@@ -438,13 +438,6 @@ func InlineImpossible(fn *ir.Func) string {
 		return reason
 	}
 
-	// If fn is synthetic hash or eq function, cannot inline it.
-	// The function is not generated in Unified IR frontend at this moment.
-	if ir.IsEqOrHashFunc(fn) {
-		reason = "type eq/hash function"
-		return reason
-	}
-
 	return ""
 }
 
