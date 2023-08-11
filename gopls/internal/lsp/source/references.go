@@ -580,10 +580,8 @@ func localReferences(pkg Package, targets map[types.Object]bool, correspond bool
 	// matches reports whether obj either is or corresponds to a target.
 	// (Correspondence is defined as usual for interface methods.)
 	matches := func(obj types.Object) bool {
-		for target := range targets {
-			if equalOrigin(obj, target) {
-				return true
-			}
+		if containsOrigin(targets, obj) {
+			return true
 		}
 		if methodRecvs != nil && obj.Name() == methodName {
 			if orecv := effectiveReceiver(obj); orecv != nil {
@@ -609,13 +607,6 @@ func localReferences(pkg Package, targets map[types.Object]bool, correspond bool
 		})
 	}
 	return nil
-}
-
-// equalOrigin reports whether obj1 and obj2 have equivalent origin object.
-// This may be the case even if obj1 != obj2, if one or both of them is
-// instantiated.
-func equalOrigin(obj1, obj2 types.Object) bool {
-	return obj1.Pkg() == obj2.Pkg() && obj1.Pos() == obj2.Pos() && obj1.Name() == obj2.Name()
 }
 
 // effectiveReceiver returns the effective receiver type for method-set

@@ -1054,13 +1054,7 @@ func (r *renamer) update() (map[span.URI][]diff.Edit, error) {
 	// shouldUpdate reports whether obj is one of (or an
 	// instantiation of one of) the target objects.
 	shouldUpdate := func(obj types.Object) bool {
-		if r.objsToUpdate[obj] {
-			return true
-		}
-		if fn, ok := obj.(*types.Func); ok && r.objsToUpdate[funcOrigin(fn)] {
-			return true
-		}
-		return false
+		return containsOrigin(r.objsToUpdate, obj)
 	}
 
 	// Find all identifiers in the package that define or use a

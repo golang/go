@@ -1,0 +1,47 @@
+This test verifies that gopls can rename instantiated fields.
+
+-- flags --
+-min_go=go1.18
+
+-- a.go --
+package a
+
+// This file is adapted from the example in the issue.
+
+type builder[S ~[]int] struct {
+	elements S //@rename("elements", elements2, OneToTwo)
+}
+
+type BuilderImpl[S ~[]int] struct{ builder[S] }
+
+func NewBuilderImpl[S ~[]int](name string)  *BuilderImpl[S] {
+  impl := &BuilderImpl[S]{
+	builder[S]{
+	  elements: S{},
+	},
+  }
+
+  _ = impl.elements
+  return impl
+}
+-- @OneToTwo/a.go --
+package a
+
+// This file is adapted from the example in the issue.
+
+type builder[S ~[]int] struct {
+	elements2 S //@rename("elements", elements2, OneToTwo)
+}
+
+type BuilderImpl[S ~[]int] struct{ builder[S] }
+
+func NewBuilderImpl[S ~[]int](name string)  *BuilderImpl[S] {
+  impl := &BuilderImpl[S]{
+	builder[S]{
+	  elements2: S{},
+	},
+  }
+
+  _ = impl.elements2
+  return impl
+}
