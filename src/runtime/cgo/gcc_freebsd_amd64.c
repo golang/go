@@ -55,6 +55,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	}
 }
 
+extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
 static void*
 threadentry(void *v)
 {
@@ -65,6 +66,6 @@ threadentry(void *v)
 	free(v);
 	_cgo_tsan_release();
 
-	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);
+	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
 	return nil;
 }

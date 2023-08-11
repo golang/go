@@ -69,11 +69,6 @@ void _cgo_sys_thread_start(ThreadStart *ts);
 uintptr_t _cgo_wait_runtime_init_done(void);
 
 /*
- * Call fn in the 6c world.
- */
-void crosscall_amd64(void (*fn)(void), void (*setg_gcc)(void*), void *g);
-
-/*
  * Call fn in the 8c world.
  */
 void crosscall_386(void (*fn)(void));

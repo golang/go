@@ -47,6 +47,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	}
 }
 
+extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
 static void*
 threadentry(void *v)
 {
@@ -67,6 +68,6 @@ threadentry(void *v)
 	ss.ss_flags = SS_DISABLE;
 	sigaltstack(&ss, nil);
 
-	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);
+	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
 	return nil;
 }
