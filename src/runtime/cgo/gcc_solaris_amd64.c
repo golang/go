@@ -31,8 +31,7 @@ x_cgo_init(G *g, void (*setg)(void*))
 	// Sanity check the results now, rather than getting a
 	// morestack on g0 crash.
 	if (g->stacklo >= g->stackhi) {
-		fprintf(stderr, "runtime/cgo: bad stack bounds: lo=%p hi=%p\n", (void*)(g->stacklo), (void*)(g->stackhi));
-		abort();
+		fatalf("bad stack bounds: lo=%p hi=%p", (void*)(g->stacklo), (void*)(g->stackhi));
 	}
 }
 
@@ -66,8 +65,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	pthread_sigmask(SIG_SETMASK, &oset, nil);
 
 	if (err != 0) {
-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
-		abort();
+		fatalf("pthread_create failed: %s", strerror(err));
 	}
 }
 
