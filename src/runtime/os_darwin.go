@@ -81,7 +81,7 @@ func semawakeup(mp *m) {
 // The read and write file descriptors used by the sigNote functions.
 var sigNoteRead, sigNoteWrite int32
 
-// sigNoteSetup initializes an async-signal-safe note.
+// sigNoteSetup initializes a single, there-can-only-be-one, async-signal-safe note.
 //
 // The current implementation of notes on Darwin is not async-signal-safe,
 // because the functions pthread_mutex_lock, pthread_cond_signal, and
@@ -93,6 +93,7 @@ var sigNoteRead, sigNoteWrite int32
 // not support timed waits but is async-signal-safe.
 func sigNoteSetup(*note) {
 	if sigNoteRead != 0 || sigNoteWrite != 0 {
+		// Generalizing this would require avoiding the pipe-fork-closeonexec race, which entangles syscall.
 		throw("duplicate sigNoteSetup")
 	}
 	var errno int32
