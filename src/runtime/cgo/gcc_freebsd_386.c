@@ -47,6 +47,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	}
 }
 
+extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
 static void*
 threadentry(void *v)
 {
@@ -55,11 +56,6 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
-	/*
-	 * Set specific keys.
-	 */
-	setg_gcc((void*)ts.g);
-
-	crosscall_386(ts.fn);
+	crosscall1(ts.fn, setg_gcc, ts.g);
 	return nil;
 }
