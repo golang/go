@@ -1,6 +1,8 @@
-// Copyright 2010 The Go Authors. All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+//go:build linux && (386 || arm || loong64 || mips || mipsle || mips64 || mips64le || riscv64)
 
 #include <pthread.h>
 #include <string.h>
@@ -12,6 +14,18 @@ static void *threadentry(void*);
 
 void (*x_cgo_inittls)(void **tlsg, void **tlsbase) __attribute__((common));
 static void (*setg_gcc)(void*);
+
+void
+x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+{
+	setg_gcc = setg;
+
+	_cgo_set_stacklo(g, NULL);
+
+	if (x_cgo_inittls) {
+		x_cgo_inittls(tlsg, tlsbase);
+	}
+}
 
 void
 _cgo_sys_thread_start(ThreadStart *ts)
@@ -47,17 +61,6 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
-	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+	crosscall1(ts.fn, setg_gcc, ts.g);
 	return nil;
-}
-
-void
-x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
-{
-	setg_gcc = setg;
-	_cgo_set_stacklo(g, NULL);
-
-	if (x_cgo_inittls) {
-		x_cgo_inittls(tlsg, tlsbase);
-	}
 }
