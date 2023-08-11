@@ -518,7 +518,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	fn = typecheck.SubstArgTypes(fn, elemtype, elemtype)
 
 	// else { s = growslice(oldPtr, newLen, oldCap, num, T) }
-	call := mkcall1(fn, s.Type(), nif.PtrInit(), oldPtr, newLen, oldCap, num, reflectdata.TypePtr(elemtype))
+	call := mkcall1(fn, s.Type(), nif.PtrInit(), oldPtr, newLen, oldCap, num, reflectdata.TypePtrAt(base.Pos, elemtype))
 	nif.Else = []ir.Node{ir.NewAssignStmt(base.Pos, s, call)}
 
 	nodes.Append(nif)
@@ -706,7 +706,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 			nn,
 			ir.NewUnaryExpr(base.Pos, ir.OCAP, s),
 			l2,
-			reflectdata.TypePtr(elemtype))),
+			reflectdata.TypePtrAt(base.Pos, elemtype))),
 	}
 
 	nodes = append(nodes, nif)

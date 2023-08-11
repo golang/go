@@ -377,9 +377,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 
 		var itab *ir.AddrExpr
 		if typ.IsEmptyInterface() {
-			itab = reflectdata.TypePtr(val.Type())
+			itab = reflectdata.TypePtrAt(base.Pos, val.Type())
 		} else {
-			itab = reflectdata.ITabAddr(val.Type(), typ)
+			itab = reflectdata.ITabAddrAt(base.Pos, val.Type(), typ)
 		}
 
 		// Create a copy of l to modify while we emit data.

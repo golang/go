@@ -839,11 +839,6 @@ func TypeLinksym(t *types.Type) *obj.LSym {
 	return lsym
 }
 
-// Deprecated: Use TypePtrAt instead.
-func TypePtr(t *types.Type) *ir.AddrExpr {
-	return TypePtrAt(base.Pos, t)
-}
-
 // TypePtrAt returns an expression that evaluates to the
 // *runtime._type value for t.
 func TypePtrAt(pos src.XPos, t *types.Type) *ir.AddrExpr {
@@ -865,11 +860,6 @@ func ITabLsym(typ, iface *types.Type) *obj.LSym {
 		writeITab(lsym, typ, iface, true)
 	}
 	return lsym
-}
-
-// Deprecated: Use ITabAddrAt instead.
-func ITabAddr(typ, iface *types.Type) *ir.AddrExpr {
-	return ITabAddrAt(base.Pos, typ, iface)
 }
 
 // ITabAddrAt returns an expression that evaluates to the

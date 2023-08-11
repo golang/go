@@ -111,7 +111,7 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 			newLen,
 			ir.NewUnaryExpr(base.Pos, ir.OCAP, s),
 			num,
-			reflectdata.TypePtr(s.Type().Elem()))),
+			reflectdata.TypePtrAt(base.Pos, s.Type().Elem()))),
 	}
 
 	l = append(l, nif)
