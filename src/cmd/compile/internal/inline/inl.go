@@ -267,9 +267,12 @@ func garbageCollectUnreferencedHiddenClosures() {
 
 // inlineBudget determines the max budget for function 'fn' prior to
 // analyzing the hairyness of the body of 'fn'. We pass in the pgo
-// profile if available, which can change the budget. If 'verbose' is
-// set, then print a remark where we boost the budget due to PGO.
-func inlineBudget(fn *ir.Func, profile *pgo.Profile, verbose bool) int32 {
+// profile if available (which can change the budget), also a
+// 'relaxed' flag, which expands the budget slightly to allow for the
+// possibility that a call to the function might have its score
+// adjusted downwards. If 'verbose' is set, then print a remark where
+// we boost the budget due to PGO.
+func inlineBudget(fn *ir.Func, profile *pgo.Profile, relaxed bool, verbose bool) int32 {
 	// Update the budget for profile-guided inlining.
 	budget := int32(inlineMaxBudget)
 	if profile != nil {
@@ -281,6 +284,9 @@ func inlineBudget(fn *ir.Func, profile *pgo.Profile, verbose bool) int32 {
 				}
 			}
 		}
+	}
+	if relaxed {
+		budget += inlineMaxBudget
 	}
 	return budget
 }
@@ -332,8 +338,13 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 		cc = 1 // this appears to yield better performance than 0.
 	}
 
-	// Compute the inline budget for this function.
-	budget := inlineBudget(fn, profile, base.Debug.PGODebug > 0)
+	// Used a "relaxed" inline budget if goexperiment.NewInliner is in
+	// effect, or if we're producing a debugging dump for unit testing.
+	relaxed := goexperiment.NewInliner ||
+		(base.Debug.DumpInlFuncProps != "")
+
+	// Compute the inline budget for this func.
+	budget := inlineBudget(fn, profile, relaxed, base.Debug.PGODebug > 0)
 
 	// At this point in the game the function we're looking at may
 	// have "stale" autos, vars that still appear in the Dcl list, but
@@ -604,8 +615,23 @@ opSwitch:
 		}
 
 		if fn := inlCallee(v.curFunc, n.X, v.profile); fn != nil && typecheck.HaveInlineBody(fn) {
-			v.budget -= fn.Inl.Cost
-			break
+			// In the existing inliner, it makes sense to use fn.Inl.Cost
+			// here due to the fact that an "inline F everywhere if F inlinable"
+			// strategy is used. With the new inliner, however, it is not
+			// a given that we'll inline a specific callsite -- it depends
+			// on what score we assign to the callsite. For now, use the
+			// computed cost if lower than the call cost, otherwise
+			// use call cost (we can eventually do away with this when
+			// we move to the "min-heap of callsites" scheme.
+			if !goexperiment.NewInliner {
+				v.budget -= fn.Inl.Cost
+				break
+			} else {
+				if fn.Inl.Cost < inlineExtraCallCost {
+					v.budget -= fn.Inl.Cost
+					break
+				}
+			}
 		}
 
 		// Call cost for non-leaf inlining.
@@ -977,7 +1003,16 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
 		maxCost = inlineBigFunctionMaxCost
 	}
 
-	if callee.Inl.Cost <= maxCost {
+	metric := callee.Inl.Cost
+	if goexperiment.NewInliner {
+		ok, score := inlheur.GetCallSiteScore(n)
+		if ok {
+			metric = int32(score)
+		}
+
+	}
+
+	if metric <= maxCost {
 		// Simple case. Function is already cheap enough.
 		return true, 0
 	}
@@ -1001,7 +1036,7 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
 		return false, maxCost
 	}
 
-	if callee.Inl.Cost > inlineHotMaxBudget {
+	if metric > inlineHotMaxBudget {
 		return false, inlineHotMaxBudget
 	}
 

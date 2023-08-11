@@ -1,9 +1,9 @@
 // errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
 
-//go:build !goexperiment.newinliner
-// +build !goexperiment.newinliner
+//go:build goexperiment.newinliner
+// +build goexperiment.newinliner
 
-// Copyright 2015 The Go Authors. All rights reserved.
+// Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -86,7 +86,7 @@ func m() int {
 }
 
 // address taking prevents closure inlining
-func n() int {
+func n() int { // ERROR "can inline n"
 	foo := func() int { return 1 } // ERROR "can inline n.func1" "func literal does not escape"
 	bar := &foo
 	x := (*bar)() + foo()
@@ -94,7 +94,7 @@ func n() int {
 }
 
 // make sure assignment inside closure is detected
-func o() int {
+func o() int { // ERROR "can inline o"
 	foo := func() int { return 1 } // ERROR "can inline o.func1" "func literal does not escape"
 	func(x int) {                  // ERROR "can inline o.func2"
 		if x > 10 {
@@ -113,7 +113,7 @@ func q(x int) int { // ERROR "can inline q"
 	return foo()                       // ERROR "inlining call to q.func1"
 }
 
-func r(z int) int {
+func r(z int) int { // ERROR "can inline r"
 	foo := func(x int) int { // ERROR "can inline r.func1" "func literal does not escape"
 		return x + z
 	}
@@ -258,10 +258,10 @@ func small2() int { // ERROR "can inline small2"
 func small3(t T) { // ERROR "can inline small3"
 	t.meth2(3, 5)
 }
-func small4(t T) { // not inlineable - has 2 calls.
+func small4(t T) { // ERROR "can inline small4"
 	t.meth2(runtime.GOMAXPROCS(0), 5)
 }
-func (T) meth2(int, int) { // not inlineable - has 2 calls.
+func (T) meth2(int, int) { // ERROR "can inline T.meth2"
 	runtime.GC()
 	runtime.GC()
 }
@@ -394,35 +394,5 @@ loop:
 			break loop
 		}
 		select2(x, y) // ERROR "inlining call to select2"
-	}
-}
-
-// Issue #62211: inlining a function with unreachable "return"
-// statements could trip up phi insertion.
-func issue62211(x bool) { // ERROR "can inline issue62211"
-	if issue62211F(x) { // ERROR "inlining call to issue62211F"
-	}
-	if issue62211G(x) { // ERROR "inlining call to issue62211G"
-	}
-
-	// Initial fix CL caused a "non-monotonic scope positions" failure
-	// on code like this.
-	if z := 0; false {
-		panic(z)
-	}
-}
-
-func issue62211F(x bool) bool { // ERROR "can inline issue62211F"
-	if x || true {
-		return true
-	}
-	return true
-}
-
-func issue62211G(x bool) bool { // ERROR "can inline issue62211G"
-	if x || true {
-		return true
-	} else {
-		return true
 	}
 }

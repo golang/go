@@ -44,6 +44,14 @@ type CallSiteTab map[*ir.CallExpr]*CallSite
 // Package-level table of callsites.
 var cstab = CallSiteTab{}
 
+func GetCallSiteScore(ce *ir.CallExpr) (bool, int) {
+	cs, ok := cstab[ce]
+	if !ok {
+		return false, 0
+	}
+	return true, cs.Score
+}
+
 type CSPropBits uint32
 
 const (
