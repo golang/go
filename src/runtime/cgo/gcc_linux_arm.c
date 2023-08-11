@@ -38,7 +38,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	}
 }
 
-extern void crosscall_arm1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
 static void*
 threadentry(void *v)
 {
@@ -47,7 +47,7 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
-	crosscall_arm1(ts.fn, setg_gcc, (void*)ts.g);
+	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
 	return nil;
 }
 
