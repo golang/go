@@ -1,0 +1,22 @@
+This test verifies that we fine implementations of the built-in error interface.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- p.go --
+package p
+
+type errA struct{ error } //@loc(errA, "errA")
+
+type errB struct{} //@loc(errB, "errB")
+func (errB) Error() string{ return "" } //@loc(errBError, "Error")
+
+type notAnError struct{}
+func (notAnError) Error() int { return 0 }
+
+func _() {
+	var _ error //@implementation("error", errA, errB)
+	var a errA
+	_ = a.Error //@implementation("Error", errBError)
+}

@@ -17,6 +17,7 @@ import (
 	"sync"
 
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/source/methodsets"
@@ -70,60 +71,36 @@ func Implementation(ctx context.Context, snapshot Snapshot, f FileHandle, pp pro
 }
 
 func implementations(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Position) ([]protocol.Location, error) {
-
-	// Type-check the query package, find the query identifier,
-	// and locate the type or method declaration it refers to.
-	declPosn, err := typeDeclPosition(ctx, snapshot, fh.URI(), pp)
+	obj, pkg, err := implementsObj(ctx, snapshot, fh.URI(), pp)
 	if err != nil {
 		return nil, err
 	}
 
-	// Type-check the declaring package (incl. variants) for use
-	// by the "local" search, which uses type information to
-	// enumerate all types within the package that satisfy the
-	// query type, even those defined local to a function.
-	declURI := span.URIFromPath(declPosn.Filename)
-	declMetas, err := snapshot.MetadataForFile(ctx, declURI)
-	if err != nil {
-		return nil, err
+	var localPkgs []Package
+	if obj.Pos().IsValid() { // no local package for error or error.Error
+		declPosn := safetoken.StartPosition(pkg.FileSet(), obj.Pos())
+		// Type-check the declaring package (incl. variants) for use
+		// by the "local" search, which uses type information to
+		// enumerate all types within the package that satisfy the
+		// query type, even those defined local to a function.
+		declURI := span.URIFromPath(declPosn.Filename)
+		declMetas, err := snapshot.MetadataForFile(ctx, declURI)
+		if err != nil {
+			return nil, err
+		}
+		RemoveIntermediateTestVariants(&declMetas)
+		if len(declMetas) == 0 {
+			return nil, fmt.Errorf("no packages for file %s", declURI)
+		}
+		ids := make([]PackageID, len(declMetas))
+		for i, m := range declMetas {
+			ids[i] = m.ID
+		}
+		localPkgs, err = snapshot.TypeCheck(ctx, ids...)
+		if err != nil {
+			return nil, err
+		}
 	}
-	RemoveIntermediateTestVariants(&declMetas)
-	if len(declMetas) == 0 {
-		return nil, fmt.Errorf("no packages for file %s", declURI)
-	}
-	ids := make([]PackageID, len(declMetas))
-	for i, m := range declMetas {
-		ids[i] = m.ID
-	}
-	localPkgs, err := snapshot.TypeCheck(ctx, ids...)
-	if err != nil {
-		return nil, err
-	}
-	// The narrowest package will do, since the local search is based
-	// on position and the global search is based on fingerprint.
-	// (Neither is based on object identity.)
-	declPkg := localPkgs[0]
-	declFile, err := declPkg.File(declURI)
-	if err != nil {
-		return nil, err // "can't happen"
-	}
-
-	// Find declaration of corresponding object
-	// in this package based on (URI, offset).
-	pos, err := safetoken.Pos(declFile.Tok, declPosn.Offset)
-	if err != nil {
-		return nil, err
-	}
-	// TODO(adonovan): simplify: use objectsAt?
-	path := pathEnclosingObjNode(declFile.File, pos)
-	if path == nil {
-		return nil, ErrNoIdentFound // checked earlier
-	}
-	id, ok := path[0].(*ast.Ident)
-	if !ok {
-		return nil, ErrNoIdentFound // checked earlier
-	}
-	obj := declPkg.GetTypesInfo().ObjectOf(id) // may be nil
 
 	// Is the selected identifier a type name or method?
 	// (For methods, report the corresponding method names.)
@@ -140,7 +117,7 @@ func implementations(ctx context.Context, snapshot Snapshot, fh FileHandle, pp p
 		}
 	}
 	if queryType == nil {
-		return nil, fmt.Errorf("%s is not a type or method", id.Name)
+		return nil, bug.Errorf("%s is not a type or method", obj.Name()) // should have been handled by implementsObj
 	}
 
 	// Compute the method-set fingerprint used as a key to the global search.
@@ -166,8 +143,13 @@ func implementations(ctx context.Context, snapshot Snapshot, fh FileHandle, pp p
 	}
 	RemoveIntermediateTestVariants(&globalMetas)
 	globalIDs := make([]PackageID, 0, len(globalMetas))
+
+	var pkgPath PackagePath
+	if obj.Pkg() != nil { // nil for error
+		pkgPath = PackagePath(obj.Pkg().Path())
+	}
 	for _, m := range globalMetas {
-		if m.PkgPath == declPkg.Metadata().PkgPath {
+		if m.PkgPath == pkgPath {
 			continue // declaring package is handled by local implementation
 		}
 		globalIDs = append(globalIDs, m.ID)
@@ -241,18 +223,19 @@ func offsetToLocation(ctx context.Context, snapshot Snapshot, filename string, s
 	return m.OffsetLocation(start, end)
 }
 
-// typeDeclPosition returns the position of the declaration of the
-// type (or one of its methods) referred to at (uri, ppos).
-func typeDeclPosition(ctx context.Context, snapshot Snapshot, uri span.URI, ppos protocol.Position) (token.Position, error) {
-	var noPosn token.Position
-
+// implementsObj returns the object to query for implementations, which is a
+// type name or method.
+//
+// The returned Package is the narrowest package containing ppos, which is the
+// package using the resulting obj but not necessarily the declaring package.
+func implementsObj(ctx context.Context, snapshot Snapshot, uri span.URI, ppos protocol.Position) (types.Object, Package, error) {
 	pkg, pgf, err := NarrowestPackageForFile(ctx, snapshot, uri)
 	if err != nil {
-		return noPosn, err
+		return nil, nil, err
 	}
 	pos, err := pgf.PositionPos(ppos)
 	if err != nil {
-		return noPosn, err
+		return nil, nil, err
 	}
 
 	// This function inherits the limitation of its predecessor in
@@ -267,11 +250,11 @@ func typeDeclPosition(ctx context.Context, snapshot Snapshot, uri span.URI, ppos
 	// TODO(adonovan): simplify: use objectsAt?
 	path := pathEnclosingObjNode(pgf.File, pos)
 	if path == nil {
-		return noPosn, ErrNoIdentFound
+		return nil, nil, ErrNoIdentFound
 	}
 	id, ok := path[0].(*ast.Ident)
 	if !ok {
-		return noPosn, ErrNoIdentFound
+		return nil, nil, ErrNoIdentFound
 	}
 
 	// Is the object a type or method? Reject other kinds.
@@ -287,18 +270,17 @@ func typeDeclPosition(ctx context.Context, snapshot Snapshot, uri span.URI, ppos
 		// ok
 	case *types.Func:
 		if obj.Type().(*types.Signature).Recv() == nil {
-			return noPosn, fmt.Errorf("%s is a function, not a method", id.Name)
+			return nil, nil, fmt.Errorf("%s is a function, not a method", id.Name)
 		}
 	case nil:
-		return noPosn, fmt.Errorf("%s denotes unknown object", id.Name)
+		return nil, nil, fmt.Errorf("%s denotes unknown object", id.Name)
 	default:
 		// e.g. *types.Var -> "var".
 		kind := strings.ToLower(strings.TrimPrefix(reflect.TypeOf(obj).String(), "*types."))
-		return noPosn, fmt.Errorf("%s is a %s, not a type", id.Name, kind)
+		return nil, nil, fmt.Errorf("%s is a %s, not a type", id.Name, kind)
 	}
 
-	declPosn := safetoken.StartPosition(pkg.FileSet(), obj.Pos())
-	return declPosn, nil
+	return obj, pkg, nil
 }
 
 // localImplementations searches within pkg for declarations of all
