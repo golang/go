@@ -7098,14 +7098,6 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		s.lineRunStart = nil
 		s.SetPos(s.pp.Pos.WithNotStmt()) // It needs a non-empty Pos, but cannot be a statement boundary (yet).
 
-		// Attach a "default" liveness info. Normally this will be
-		// overwritten in the Values loop below for each Value. But
-		// for an empty block this will be used for its control
-		// instruction. We won't use the actual liveness map on a
-		// control instruction. Just mark it something that is
-		// preemptible, unless this function is "all unsafe".
-		s.pp.NextLive = objw.LivenessIndex{StackMapIndex: -1, IsUnsafePoint: liveness.IsUnsafe(f)}
-
 		if idx, ok := argLiveBlockMap[b.ID]; ok && idx != argLiveIdx {
 			argLiveIdx = idx
 			p := s.pp.Prog(obj.APCDATA)
@@ -7165,6 +7157,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 				// Attach this safe point to the next
 				// instruction.
 				s.pp.NextLive = s.livenessMap.Get(v)
+				s.pp.NextUnsafe = s.livenessMap.GetUnsafe(v)
 
 				// let the backend handle it
 				Arch.SSAGenValue(&s, v)
@@ -7199,6 +7192,13 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			}
 			b.Pos = b.Pos.WithBogusLine() // Debuggers are not good about infinite loops, force a change in line number
 		}
+
+		// Set unsafe mark for any end-of-block generated instructions
+		// (normally, conditional or unconditional branches).
+		// This is particularly important for empty blocks, as there
+		// are no values to inherit the unsafe mark from.
+		s.pp.NextUnsafe = s.livenessMap.GetUnsafeBlock(b)
+
 		// Emit control flow instructions for block
 		var next *ssa.Block
 		if i < len(f.Blocks)-1 && base.Flag.N == 0 {

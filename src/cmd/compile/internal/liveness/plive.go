@@ -116,6 +116,10 @@ type liveness struct {
 	// unsafePoints bit i is set if Value ID i is an unsafe-point
 	// (preemption is not allowed). Only valid if !allUnsafe.
 	unsafePoints bitvec.BitVec
+	// unsafeBlocks bit i is set if Block ID i is an unsafe-point
+	// (preemption is not allowed on any end-of-block
+	// instructions). Only valid if !allUnsafe.
+	unsafeBlocks bitvec.BitVec
 
 	// An array with a bit vector for each safe point in the
 	// current Block during liveness.epilogue. Indexed in Value
@@ -141,36 +145,61 @@ type liveness struct {
 	noClobberArgs bool // Do not clobber function arguments
 }
 
-// Map maps from *ssa.Value to LivenessIndex.
+// Map maps from *ssa.Value to StackMapIndex.
+// Also keeps track of unsafe ssa.Values and ssa.Blocks.
+// (unsafe = can't be interrupted during GC.)
 type Map struct {
-	Vals map[ssa.ID]objw.LivenessIndex
+	Vals         map[ssa.ID]objw.StackMapIndex
+	UnsafeVals   map[ssa.ID]bool
+	UnsafeBlocks map[ssa.ID]bool
 	// The set of live, pointer-containing variables at the DeferReturn
 	// call (only set when open-coded defers are used).
-	DeferReturn objw.LivenessIndex
+	DeferReturn objw.StackMapIndex
 }
 
 func (m *Map) reset() {
 	if m.Vals == nil {
-		m.Vals = make(map[ssa.ID]objw.LivenessIndex)
+		m.Vals = make(map[ssa.ID]objw.StackMapIndex)
+		m.UnsafeVals = make(map[ssa.ID]bool)
+		m.UnsafeBlocks = make(map[ssa.ID]bool)
 	} else {
 		for k := range m.Vals {
 			delete(m.Vals, k)
 		}
+		for k := range m.UnsafeVals {
+			delete(m.UnsafeVals, k)
+		}
+		for k := range m.UnsafeBlocks {
+			delete(m.UnsafeBlocks, k)
+		}
 	}
-	m.DeferReturn = objw.LivenessDontCare
+	m.DeferReturn = objw.StackMapDontCare
 }
 
-func (m *Map) set(v *ssa.Value, i objw.LivenessIndex) {
+func (m *Map) set(v *ssa.Value, i objw.StackMapIndex) {
 	m.Vals[v.ID] = i
 }
+func (m *Map) setUnsafeVal(v *ssa.Value) {
+	m.UnsafeVals[v.ID] = true
+}
+func (m *Map) setUnsafeBlock(b *ssa.Block) {
+	m.UnsafeBlocks[b.ID] = true
+}
 
-func (m Map) Get(v *ssa.Value) objw.LivenessIndex {
-	// If v isn't in the map, then it's a "don't care" and not an
-	// unsafe-point.
+func (m Map) Get(v *ssa.Value) objw.StackMapIndex {
+	// If v isn't in the map, then it's a "don't care".
 	if idx, ok := m.Vals[v.ID]; ok {
 		return idx
 	}
-	return objw.LivenessIndex{StackMapIndex: objw.StackMapDontCare, IsUnsafePoint: false}
+	return objw.StackMapDontCare
+}
+func (m Map) GetUnsafe(v *ssa.Value) bool {
+	// default is safe
+	return m.UnsafeVals[v.ID]
+}
+func (m Map) GetUnsafeBlock(b *ssa.Block) bool {
+	// default is safe
+	return m.UnsafeBlocks[b.ID]
 }
 
 type progeffectscache struct {
@@ -377,8 +406,15 @@ func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int
 		if cap(lc.be) >= f.NumBlocks() {
 			lv.be = lc.be[:f.NumBlocks()]
 		}
-		lv.livenessMap = Map{Vals: lc.livenessMap.Vals, DeferReturn: objw.LivenessDontCare}
+		lv.livenessMap = Map{
+			Vals:         lc.livenessMap.Vals,
+			UnsafeVals:   lc.livenessMap.UnsafeVals,
+			UnsafeBlocks: lc.livenessMap.UnsafeBlocks,
+			DeferReturn:  objw.StackMapDontCare,
+		}
 		lc.livenessMap.Vals = nil
+		lc.livenessMap.UnsafeVals = nil
+		lc.livenessMap.UnsafeBlocks = nil
 	}
 	if lv.be == nil {
 		lv.be = make([]blockEffects, f.NumBlocks())
@@ -460,6 +496,7 @@ func (lv *liveness) markUnsafePoints() {
 	}
 
 	lv.unsafePoints = bitvec.New(int32(lv.f.NumValues()))
+	lv.unsafeBlocks = bitvec.New(int32(lv.f.NumBlocks()))
 
 	// Mark architecture-specific unsafe points.
 	for _, b := range lv.f.Blocks {
@@ -558,15 +595,13 @@ func (lv *liveness) markUnsafePoints() {
 
 			// Mark everything after the load unsafe.
 			found := false
-			for i, v := range decisionBlock.Values {
-				if found || i == len(decisionBlock.Values)-1 {
-					// Note: we need at least one instruction marked so that
-					// the branch instruction at the end of the block also
-					// gets marked.
+			for _, v := range decisionBlock.Values {
+				if found {
 					lv.unsafePoints.Set(int32(v.ID))
 				}
 				found = found || v == load
 			}
+			lv.unsafeBlocks.Set(int32(decisionBlock.ID))
 
 			// Mark the write barrier on/off blocks as unsafe.
 			for _, e := range decisionBlock.Succs {
@@ -577,6 +612,7 @@ func (lv *liveness) markUnsafePoints() {
 				for _, v := range x.Values {
 					lv.unsafePoints.Set(int32(v.ID))
 				}
+				lv.unsafeBlocks.Set(int32(x.ID))
 			}
 
 			// Mark from the join point up to the WBend as unsafe.
@@ -826,13 +862,10 @@ func (lv *liveness) epilogue() {
 
 	// If we have an open-coded deferreturn call, make a liveness map for it.
 	if lv.fn.OpenCodedDeferDisallowed() {
-		lv.livenessMap.DeferReturn = objw.LivenessDontCare
+		lv.livenessMap.DeferReturn = objw.StackMapDontCare
 	} else {
 		idx, _ := lv.stackMapSet.add(livedefer)
-		lv.livenessMap.DeferReturn = objw.LivenessIndex{
-			StackMapIndex: idx,
-			IsUnsafePoint: false,
-		}
+		lv.livenessMap.DeferReturn = objw.StackMapIndex(idx)
 	}
 
 	// Done compacting. Throw out the stack map set.
@@ -873,16 +906,17 @@ func (lv *liveness) compact(b *ssa.Block) {
 		pos++
 	}
 	for _, v := range b.Values {
-		hasStackMap := lv.hasStackMap(v)
-		isUnsafePoint := lv.allUnsafe || v.Op != ssa.OpClobber && lv.unsafePoints.Get(int32(v.ID))
-		idx := objw.LivenessIndex{StackMapIndex: objw.StackMapDontCare, IsUnsafePoint: isUnsafePoint}
-		if hasStackMap {
-			idx.StackMapIndex, _ = lv.stackMapSet.add(lv.livevars[pos])
+		if lv.hasStackMap(v) {
+			idx, _ := lv.stackMapSet.add(lv.livevars[pos])
 			pos++
+			lv.livenessMap.set(v, objw.StackMapIndex(idx))
 		}
-		if hasStackMap || isUnsafePoint {
-			lv.livenessMap.set(v, idx)
+		if lv.allUnsafe || v.Op != ssa.OpClobber && lv.unsafePoints.Get(int32(v.ID)) {
+			lv.livenessMap.setUnsafeVal(v)
 		}
+	}
+	if lv.allUnsafe || lv.unsafeBlocks.Get(int32(b.ID)) {
+		lv.livenessMap.setUnsafeBlock(b)
 	}
 
 	// Reset livevars.
@@ -1219,7 +1253,7 @@ func (lv *liveness) printDebug() {
 				fmt.Printf("\tlive=")
 				printed = false
 				if pcdata.StackMapValid() {
-					live := lv.stackMaps[pcdata.StackMapIndex]
+					live := lv.stackMaps[pcdata]
 					for j, n := range lv.vars {
 						if !live.Get(int32(j)) {
 							continue
@@ -1234,9 +1268,12 @@ func (lv *liveness) printDebug() {
 				fmt.Printf("\n")
 			}
 
-			if pcdata.IsUnsafePoint {
+			if lv.livenessMap.GetUnsafe(v) {
 				fmt.Printf("\tunsafe-point\n")
 			}
+		}
+		if lv.livenessMap.GetUnsafeBlock(b) {
+			fmt.Printf("\tunsafe-block\n")
 		}
 
 		// bb bitsets
@@ -1331,7 +1368,7 @@ func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs) (Map
 		for _, b := range f.Blocks {
 			for _, val := range b.Values {
 				if idx := lv.livenessMap.Get(val); idx.StackMapValid() {
-					lv.showlive(val, lv.stackMaps[idx.StackMapIndex])
+					lv.showlive(val, lv.stackMaps[idx])
 				}
 			}
 		}
