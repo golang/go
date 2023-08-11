@@ -25,7 +25,6 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/modconv"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/search"
 
@@ -1049,16 +1048,8 @@ func CreateModFile(ctx context.Context, modPath string) {
 	MainModules = makeMainModules([]module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil}, nil)
 	addGoStmt(modFile, modFile.Module.Mod, gover.Local()) // Add the go directive before converted module requirements.
 
-	convertedFrom, err := convertLegacyConfig(modFile, modRoot)
-	if convertedFrom != "" {
-		fmt.Fprintf(os.Stderr, "go: copying requirements from %s\n", base.ShortPath(convertedFrom))
-	}
-	if err != nil {
-		base.Fatal(err)
-	}
-
 	rs := requirementsFromModFiles(ctx, nil, []*modfile.File{modFile}, nil)
-	rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
+	rs, err := updateRoots(ctx, rs.direct, rs, nil, nil, false)
 	if err != nil {
 		base.Fatal(err)
 	}
@@ -1476,36 +1467,6 @@ func mustHaveCompleteRequirements() bool {
 	return cfg.BuildMod != "mod" && !inWorkspaceMode()
 }
 
-// convertLegacyConfig imports module requirements from a legacy vendoring
-// configuration file, if one is present.
-func convertLegacyConfig(modFile *modfile.File, modRoot string) (from string, err error) {
-	noneSelected := func(path string) (version string) { return "none" }
-	queryPackage := func(path, rev string) (module.Version, error) {
-		pkgMods, modOnly, err := QueryPattern(context.Background(), path, rev, noneSelected, nil)
-		if err != nil {
-			return module.Version{}, err
-		}
-		if len(pkgMods) > 0 {
-			return pkgMods[0].Mod, nil
-		}
-		return modOnly.Mod, nil
-	}
-	for _, name := range altConfigs {
-		cfg := filepath.Join(modRoot, name)
-		data, err := os.ReadFile(cfg)
-		if err == nil {
-			convert := modconv.Converters[name]
-			if convert == nil {
-				return "", nil
-			}
-			cfg = filepath.ToSlash(cfg)
-			err := modconv.ConvertLegacyConfig(modFile, cfg, data, queryPackage)
-			return name, err
-		}
-	}
-	return "", nil
-}
-
 // addGoStmt adds a go directive to the go.mod file if it does not already
 // include one. The 'go' version added, if any, is the latest version supported
 // by this toolchain.
@@ -1524,17 +1485,6 @@ func forceGoStmt(modFile *modfile.File, mod module.Version, v string) {
 }
 
 var altConfigs = []string{
-	"Gopkg.lock",
-
-	"GLOCKFILE",
-	"Godeps/Godeps.json",
-	"dependencies.tsv",
-	"glide.lock",
-	"vendor.conf",
-	"vendor.yml",
-	"vendor/manifest",
-	"vendor/vendor.json",
-
 	".git/config",
 }
 
