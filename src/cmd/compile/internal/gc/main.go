@@ -269,9 +269,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	ir.CurFunc = nil
 
 	// Build init task, if needed.
-	if initTask := pkginit.Task(); initTask != nil {
-		typecheck.Export(initTask)
-	}
+	pkginit.MakeTask()
 
 	// Generate ABI wrappers. Must happen before escape analysis
 	// and doesn't benefit from dead-coding or inlining.

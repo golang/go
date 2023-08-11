@@ -27,75 +27,15 @@ func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.F
 
 	var recv1 *types.Field
 	if recv != nil {
-		recv1 = declareParam(ir.PPARAM, -1, recv)
+		recv1 = declareParam(fn, ir.PPARAM, -1, recv)
 	}
 
-	typ := types.NewSignature(recv1, declareParams(ir.PPARAM, params), declareParams(ir.PPARAMOUT, results))
+	typ := types.NewSignature(recv1, declareParams(fn, ir.PPARAM, params), declareParams(fn, ir.PPARAMOUT, results))
 	checkdupfields("argument", typ.Recvs().FieldSlice(), typ.Params().FieldSlice(), typ.Results().FieldSlice())
 	fn.Nname.SetType(typ)
 	fn.Nname.SetTypecheck(1)
 
 	return fn
-}
-
-// Declare records that Node n declares symbol n.Sym in the specified
-// declaration context.
-func Declare(n *ir.Name, ctxt ir.Class) {
-	if ir.IsBlank(n) {
-		return
-	}
-
-	s := n.Sym()
-
-	// kludgy: TypecheckAllowed means we're past parsing. Eg reflectdata.methodWrapper may declare out of package names later.
-	if !inimport && !TypecheckAllowed && s.Pkg != types.LocalPkg {
-		base.ErrorfAt(n.Pos(), 0, "cannot declare name %v", s)
-	}
-
-	if ctxt == ir.PEXTERN {
-		if s.Name == "init" {
-			base.ErrorfAt(n.Pos(), errors.InvalidInitDecl, "cannot declare init - must be func")
-		}
-		if s.Name == "main" && s.Pkg.Name == "main" {
-			base.ErrorfAt(n.Pos(), errors.InvalidMainDecl, "cannot declare main - must be func")
-		}
-		Target.Externs = append(Target.Externs, n)
-		s.Def = n
-	} else {
-		if ir.CurFunc == nil && ctxt == ir.PAUTO {
-			base.Pos = n.Pos()
-			base.Fatalf("automatic outside function")
-		}
-		if ir.CurFunc != nil && ctxt != ir.PFUNC && n.Op() == ir.ONAME {
-			ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
-		}
-		n.Curfn = ir.CurFunc
-	}
-
-	if ctxt == ir.PAUTO {
-		n.SetFrameOffset(0)
-	}
-
-	n.Class = ctxt
-	if ctxt == ir.PFUNC {
-		n.Sym().SetFunc(true)
-	}
-
-	autoexport(n, ctxt)
-}
-
-// Export marks n for export (or reexport).
-func Export(n *ir.Name) {
-	if n.Sym().OnExportList() {
-		return
-	}
-	n.Sym().SetOnExportList(true)
-
-	if base.Flag.E != 0 {
-		fmt.Printf("export symbol %v\n", n.Sym())
-	}
-
-	Target.Exports = append(Target.Exports, n)
 }
 
 // declare the function proper
@@ -125,26 +65,6 @@ func CheckFuncStack() {
 	}
 }
 
-func autoexport(n *ir.Name, ctxt ir.Class) {
-	if n.Sym().Pkg != types.LocalPkg {
-		return
-	}
-	if (ctxt != ir.PEXTERN && ctxt != ir.PFUNC) || DeclContext != ir.PEXTERN {
-		return
-	}
-	if n.Type() != nil && n.Type().IsKind(types.TFUNC) && ir.IsMethod(n) {
-		return
-	}
-
-	if types.IsExported(n.Sym().Name) || n.Sym().Name == "init" {
-		Export(n)
-	}
-	if base.Flag.AsmHdr != "" && !n.Sym().Asm() {
-		n.Sym().SetAsm(true)
-		Target.Asms = append(Target.Asms, n)
-	}
-}
-
 // checkdupfields emits errors for duplicately named fields or methods in
 // a list of struct or interface types.
 func checkdupfields(what string, fss ...[]*types.Field) {
@@ -170,15 +90,15 @@ type funcStackEnt struct {
 	dclcontext ir.Class
 }
 
-func declareParams(ctxt ir.Class, l []*ir.Field) []*types.Field {
+func declareParams(fn *ir.Func, ctxt ir.Class, l []*ir.Field) []*types.Field {
 	fields := make([]*types.Field, len(l))
 	for i, n := range l {
-		fields[i] = declareParam(ctxt, i, n)
+		fields[i] = declareParam(fn, ctxt, i, n)
 	}
 	return fields
 }
 
-func declareParam(ctxt ir.Class, i int, param *ir.Field) *types.Field {
+func declareParam(fn *ir.Func, ctxt ir.Class, i int, param *ir.Field) *types.Field {
 	f := types.NewField(param.Pos, param.Sym, param.Type)
 	f.SetIsDDD(param.IsDDD)
 
@@ -202,7 +122,10 @@ func declareParam(ctxt ir.Class, i int, param *ir.Field) *types.Field {
 		name := ir.NewNameAt(param.Pos, sym)
 		name.SetType(f.Type)
 		name.SetTypecheck(1)
-		Declare(name, ctxt)
+
+		name.Class = ctxt
+		fn.Dcl = append(fn.Dcl, name)
+		name.Curfn = fn
 
 		f.Nname = name
 	}

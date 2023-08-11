@@ -32,10 +32,6 @@ type ptabEntry struct {
 	t *types.Type
 }
 
-func CountPTabs() int {
-	return len(ptabs)
-}
-
 // runtime interface and reflection data structures
 var (
 	// protects signatset and signatslice
@@ -47,8 +43,6 @@ var (
 
 	gcsymmu  sync.Mutex // protects gcsymset and gcsymslice
 	gcsymset = make(map[*types.Type]struct{})
-
-	ptabs []*ir.Name
 )
 
 type typeSig struct {
@@ -1352,39 +1346,41 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
 	lsym.Set(obj.AttrContentAddressable, true)
 }
 
-func WriteTabs() {
-	// process ptabs
-	if types.LocalPkg.Name == "main" && len(ptabs) > 0 {
-		ot := 0
-		s := base.Ctxt.Lookup("go:plugin.tabs")
-		for _, p := range ptabs {
-			// Dump ptab symbol into go.pluginsym package.
-			//
-			// type ptab struct {
-			//	name nameOff
-			//	typ  typeOff // pointer to symbol
-			// }
-			nsym := dname(p.Sym().Name, "", nil, true, false)
-			t := p.Type()
-			if p.Class != ir.PFUNC {
-				t = types.NewPtr(t)
-			}
-			tsym := writeType(t)
-			ot = objw.SymPtrOff(s, ot, nsym)
-			ot = objw.SymPtrOff(s, ot, tsym)
-			// Plugin exports symbols as interfaces. Mark their types
-			// as UsedInIface.
-			tsym.Set(obj.AttrUsedInIface, true)
-		}
-		objw.Global(s, int32(ot), int16(obj.RODATA))
-
-		ot = 0
-		s = base.Ctxt.Lookup("go:plugin.exports")
-		for _, p := range ptabs {
-			ot = objw.SymPtr(s, ot, p.Linksym(), 0)
-		}
-		objw.Global(s, int32(ot), int16(obj.RODATA))
+func WritePluginTable() {
+	ptabs := typecheck.Target.PluginExports
+	if len(ptabs) == 0 {
+		return
 	}
+
+	lsym := base.Ctxt.Lookup("go:plugin.tabs")
+	ot := 0
+	for _, p := range ptabs {
+		// Dump ptab symbol into go.pluginsym package.
+		//
+		// type ptab struct {
+		//	name nameOff
+		//	typ  typeOff // pointer to symbol
+		// }
+		nsym := dname(p.Sym().Name, "", nil, true, false)
+		t := p.Type()
+		if p.Class != ir.PFUNC {
+			t = types.NewPtr(t)
+		}
+		tsym := writeType(t)
+		ot = objw.SymPtrOff(lsym, ot, nsym)
+		ot = objw.SymPtrOff(lsym, ot, tsym)
+		// Plugin exports symbols as interfaces. Mark their types
+		// as UsedInIface.
+		tsym.Set(obj.AttrUsedInIface, true)
+	}
+	objw.Global(lsym, int32(ot), int16(obj.RODATA))
+
+	lsym = base.Ctxt.Lookup("go:plugin.exports")
+	ot = 0
+	for _, p := range ptabs {
+		ot = objw.SymPtr(lsym, ot, p.Linksym(), 0)
+	}
+	objw.Global(lsym, int32(ot), int16(obj.RODATA))
 }
 
 func WriteImportStrings() {
@@ -1752,30 +1748,6 @@ func ZeroAddr(size int64) ir.Node {
 	lsym := base.PkgLinksym("go:map", "zero", obj.ABI0)
 	x := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
 	return typecheck.Expr(typecheck.NodAddr(x))
-}
-
-func CollectPTabs() {
-	if !base.Ctxt.Flag_dynlink || types.LocalPkg.Name != "main" {
-		return
-	}
-	for _, exportn := range typecheck.Target.Exports {
-		s := exportn.Sym()
-		nn := ir.AsNode(s.Def)
-		if nn == nil {
-			continue
-		}
-		if nn.Op() != ir.ONAME {
-			continue
-		}
-		n := nn.(*ir.Name)
-		if !types.IsExported(s.Name) {
-			continue
-		}
-		if s.Pkg.Name != "main" {
-			continue
-		}
-		ptabs = append(ptabs, n)
-	}
 }
 
 // NeedEmit reports whether typ is a type that we need to emit code

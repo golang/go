@@ -81,13 +81,13 @@ func MakeInit() {
 	typecheck.InitTodoFunc = nil
 }
 
-// Task makes and returns an initialization record for the package.
+// MakeTask makes an initialization record for the package, if necessary.
 // See runtime/proc.go:initTask for its layout.
 // The 3 tasks for initialization are:
 //  1. Initialize all of the packages the current package depends on.
 //  2. Initialize all the variables that have initializers.
 //  3. Run any init functions.
-func Task() *ir.Name {
+func MakeTask() {
 	var deps []*obj.LSym // initTask records for packages the current package depends on
 	var fns []*obj.LSym  // functions to call for package initialization
 
@@ -188,7 +188,7 @@ func Task() *ir.Name {
 	}
 
 	if len(deps) == 0 && len(fns) == 0 && types.LocalPkg.Path != "main" && types.LocalPkg.Path != "runtime" {
-		return nil // nothing to initialize
+		return // nothing to initialize
 	}
 
 	// Make an .inittask structure.
@@ -216,7 +216,6 @@ func Task() *ir.Name {
 	// An initTask has pointers, but none into the Go heap.
 	// It's not quite read only, the state field must be modifiable.
 	objw.Global(lsym, int32(ot), obj.NOPTR)
-	return task
 }
 
 // initRequiredForCoverage returns TRUE if we need to force creation

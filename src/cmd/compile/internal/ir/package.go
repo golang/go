@@ -27,8 +27,10 @@ type Package struct {
 	// declared at package scope.
 	Externs []*Name
 
-	// Assembly function declarations.
-	Asms []*Name
+	// AsmHdrDecls holds declared constants and struct types that should
+	// be included in -asmhdr output. It's only populated when -asmhdr
+	// is set.
+	AsmHdrDecls []*Name
 
 	// Cgo directives.
 	CgoPragmas [][]string
@@ -36,6 +38,9 @@ type Package struct {
 	// Variables with //go:embed lines.
 	Embeds []*Name
 
-	// Exported (or re-exported) symbols.
-	Exports []*Name
+	// PluginExports holds exported functions and variables that are
+	// accessible through the package plugin API. It's only populated
+	// for -buildmode=plugin (i.e., compiling package main and -dynlink
+	// is set).
+	PluginExports []*Name
 }

@@ -113,12 +113,9 @@ func dumpdata() {
 	numExterns := len(typecheck.Target.Externs)
 	numDecls := len(typecheck.Target.Funcs)
 	dumpglobls(typecheck.Target.Externs)
-	reflectdata.CollectPTabs()
-	numExports := len(typecheck.Target.Exports)
 	addsignats(typecheck.Target.Externs)
 	reflectdata.WriteRuntimeTypes()
-	reflectdata.WriteTabs()
-	numPTabs := reflectdata.CountPTabs()
+	reflectdata.WritePluginTable()
 	reflectdata.WriteImportStrings()
 	reflectdata.WriteBasicTypes()
 	dumpembeds()
@@ -154,14 +151,6 @@ func dumpdata() {
 
 	staticdata.WriteFuncSyms()
 	addGCLocals()
-
-	if numExports != len(typecheck.Target.Exports) {
-		base.Fatalf("Target.Exports changed after compile functions loop")
-	}
-	newNumPTabs := reflectdata.CountPTabs()
-	if newNumPTabs != numPTabs {
-		base.Fatalf("ptabs changed after compile functions loop")
-	}
 }
 
 func dumpLinkerObj(bout *bio.Writer) {
