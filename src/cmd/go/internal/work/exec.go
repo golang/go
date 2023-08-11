@@ -531,6 +531,19 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		return errors.New("binary-only packages are no longer supported")
 	}
 
+	// Go 1.22 is likely to change for loop semantics.
+	// If we try to build code written for Go 1.22,
+	// it may have aliasing bugs that it shouldn't have.
+	// See go.dev/issue/60078.
+	// When Go 1.22 is released, Go 1.20 will no longer
+	// be supported, so no one should ever run into this condition,
+	// but we are adding this check anyway,
+	// just to help catch some mistakes and usage of old
+	// Go toolchains beyond their end-of-support.
+	if p.Module != nil && !(allowedVersion(p.Module.GoVersion) || p.Module.GoVersion == "1.21") {
+		return errors.New("cannot compile Go " + p.Module.GoVersion + " code")
+	}
+
 	if err := b.Mkdir(a.Objdir); err != nil {
 		return err
 	}
