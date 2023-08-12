@@ -755,12 +755,22 @@ func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source
 		scope := fileLoadScope(uri)
 		err := s.load(ctx, false, scope)
 
-		// Guard against failed loads due to context cancellation.
 		//
 		// Return the context error here as the current operation is no longer
 		// valid.
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return nil, ctxErr
+		if err != nil {
+			// Guard against failed loads due to context cancellation. We don't want
+			// to mark loads as completed if they failed due to context cancellation.
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+
+			// Don't return an error here, as we may still return stale IDs.
+			// Furthermore, the result of MetadataForFile should be consistent upon
+			// subsequent calls, even if the file is marked as unloadable.
+			if !errors.Is(err, errNoPackages) {
+				event.Error(ctx, "MetadataForFile", err)
+			}
 		}
 
 		// We must clear scopes after loading.
@@ -769,13 +779,6 @@ func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source
 		// packages as loaded. We could do this from snapshot.load and avoid
 		// raciness.
 		s.clearShouldLoad(scope)
-
-		// Don't return an error here, as we may still return stale IDs.
-		// Furthermore, the result of MetadataForFile should be consistent upon
-		// subsequent calls, even if the file is marked as unloadable.
-		if err != nil && !errors.Is(err, errNoPackages) {
-			event.Error(ctx, "MetadataForFile", err)
-		}
 	}
 
 	// Retrieve the metadata.

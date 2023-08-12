@@ -1307,7 +1307,14 @@ func _() {
 		env.OpenFile("a/a_exclude.go")
 
 		loadOnce := LogMatching(protocol.Info, "query=.*file=.*a_exclude.go", 1, false)
-		env.Await(loadOnce) // can't use OnceMet or AfterChange as logs are async
+
+		// can't use OnceMet or AfterChange as logs are async
+		env.Await(loadOnce)
+		// ...but ensure that the change has been fully processed before editing.
+		// Otherwise, there may be a race where the snapshot is cloned before all
+		// state changes resulting from the load have been processed
+		// (golang/go#61521).
+		env.AfterChange()
 
 		// Check that orphaned files are not reloaded, by making a change in
 		// a.go file and confirming that the workspace diagnosis did not reload
