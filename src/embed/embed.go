@@ -94,6 +94,7 @@
 // Patterns must not match files whose names include the special punctuation characters  " * < > ? ` ' | / \ and :.
 // Matches for empty directories are ignored. After that, each pattern in a //go:embed line
 // must match at least one file or non-empty directory.
+// If a non empty directory is matched, there must be no files with the name go.mod in the matching directory.
 //
 // If any patterns are invalid or have invalid matches, the build will fail.
 //
