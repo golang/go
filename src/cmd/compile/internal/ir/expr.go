@@ -847,6 +847,20 @@ func IsAddressable(n Node) bool {
 	return false
 }
 
+// StaticValue analyzes n to find the earliest expression that always
+// evaluates to the same value as n, which might be from an enclosing
+// function.
+//
+// For example, given:
+//
+//	var x int = g()
+//	func() {
+//		y := x
+//		*p = int(y)
+//	}
+//
+// calling StaticValue on the "int(y)" expression returns the outer
+// "g()" expression.
 func StaticValue(n Node) Node {
 	for {
 		if n.Op() == OCONVNOP {
@@ -867,14 +881,11 @@ func StaticValue(n Node) Node {
 	}
 }
 
-// staticValue1 implements a simple SSA-like optimization. If n is a local variable
-// that is initialized and never reassigned, staticValue1 returns the initializer
-// expression. Otherwise, it returns nil.
 func staticValue1(nn Node) Node {
 	if nn.Op() != ONAME {
 		return nil
 	}
-	n := nn.(*Name)
+	n := nn.(*Name).Canonical()
 	if n.Class != PAUTO {
 		return nil
 	}
@@ -928,6 +939,10 @@ func Reassigned(name *Name) bool {
 		return true
 	}
 
+	if name.Addrtaken() {
+		return true // conservatively assume it's reassigned indirectly
+	}
+
 	// TODO(mdempsky): This is inefficient and becoming increasingly
 	// unwieldy. Figure out a way to generalize escape analysis's
 	// reassignment detection for use by inlining and devirtualization.
@@ -964,7 +979,7 @@ func Reassigned(name *Name) bool {
 		case OADDR:
 			n := n.(*AddrExpr)
 			if isName(n.X) {
-				return true
+				base.FatalfAt(n.Pos(), "%v not marked addrtaken", name)
 			}
 		case ORANGE:
 			n := n.(*RangeStmt)
@@ -980,6 +995,23 @@ func Reassigned(name *Name) bool {
 		return false
 	}
 	return Any(name.Curfn, do)
+}
+
+// StaticCalleeName returns the ONAME/PFUNC for n, if known.
+func StaticCalleeName(n Node) *Name {
+	switch n.Op() {
+	case OMETHEXPR:
+		n := n.(*SelectorExpr)
+		return MethodExprName(n)
+	case ONAME:
+		n := n.(*Name)
+		if n.Class == PFUNC {
+			return n
+		}
+	case OCLOSURE:
+		return n.(*ClosureExpr).Func.Nname
+	}
+	return nil
 }
 
 // IsIntrinsicCall reports whether the compiler back end will treat the call as an intrinsic operation.

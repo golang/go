@@ -75,16 +75,8 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 				call.X.(*ir.ClosureExpr).Func.SetClosureCalled(true)
 			}
 
-			switch v := ir.StaticValue(call.X); v.Op() {
-			case ir.ONAME:
-				if v := v.(*ir.Name); v.Class == ir.PFUNC {
-					fn = v
-				}
-			case ir.OCLOSURE:
-				fn = v.(*ir.ClosureExpr).Func.Nname
-			case ir.OMETHEXPR:
-				fn = ir.MethodExprName(v)
-			}
+			v := ir.StaticValue(call.X)
+			fn = ir.StaticCalleeName(v)
 		case ir.OCALLMETH:
 			base.FatalfAt(call.Pos(), "OCALLMETH missed by typecheck")
 		}

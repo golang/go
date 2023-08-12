@@ -3483,6 +3483,11 @@ func unifiedInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.Inlined
 
 	r.closureVars = make([]*ir.Name, len(r.inlFunc.ClosureVars))
 	for i, cv := range r.inlFunc.ClosureVars {
+		// TODO(mdempsky): It should be possible to support this case, but
+		// for now we rely on the inliner avoiding it.
+		if cv.Outer.Curfn != callerfn {
+			base.FatalfAt(call.Pos(), "inlining closure call across frames")
+		}
 		r.closureVars[i] = cv.Outer
 	}
 	if len(r.closureVars) != 0 && r.hasTypeParams() {
