@@ -55,7 +55,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 		ir.Dump("esc", call)
 		base.Fatalf("unexpected call op: %v", call.Op())
 
-	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+	case ir.OCALLFUNC, ir.OCALLINTER:
 		call := call.(*ir.CallExpr)
 		typecheck.AssertFixedCall(call)
 
@@ -186,9 +186,8 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 		argument(e.discardHole(), &call.X)
 		argument(e.discardHole(), &call.Y)
 
-	case ir.ODELETE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
+	case ir.ODELETE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
 		call := call.(*ir.CallExpr)
-		fixRecoverCall(call)
 		for i := range call.Args {
 			argument(e.discardHole(), &call.Args[i])
 		}

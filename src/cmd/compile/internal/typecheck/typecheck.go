@@ -661,10 +661,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.CallExpr)
 		return tcRecover(n)
 
-	case ir.ORECOVERFP:
-		n := n.(*ir.CallExpr)
-		return tcRecoverFP(n)
-
 	case ir.OUNSAFEADD:
 		n := n.(*ir.BinaryExpr)
 		return tcUnsafeAdd(n)

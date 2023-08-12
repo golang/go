@@ -626,6 +626,8 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		v.budget -= inlineExtraPanicCost
 
 	case ir.ORECOVER:
+		base.FatalfAt(n.Pos(), "ORECOVER missed typecheck")
+	case ir.ORECOVERFP:
 		// recover matches the argument frame pointer to find
 		// the right panic value, so it needs an argument frame.
 		v.reason = "call to recover"

@@ -283,7 +283,8 @@ func tcGoDefer(n *ir.GoDeferStmt) {
 		ir.OPANIC,
 		ir.OPRINT,
 		ir.OPRINTN,
-		ir.ORECOVER:
+		ir.ORECOVER,
+		ir.ORECOVERFP:
 		return
 
 	case ir.OAPPEND,
