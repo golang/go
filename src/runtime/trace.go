@@ -257,11 +257,15 @@ func traceBufPtrOf(b *traceBuf) traceBufPtr {
 }
 
 // traceEnabled returns true if the trace is currently enabled.
+//
+//go:nosplit
 func traceEnabled() bool {
 	return trace.enabled
 }
 
 // traceShuttingDown returns true if the trace is currently shutting down.
+//
+//go:nosplit
 func traceShuttingDown() bool {
 	return trace.shutdown
 }
