@@ -1,6 +1,5 @@
 package main
 
-import "fmt"
 
 type S1 struct {
 	a, b, c []int //important removing this removes ICE
@@ -21,5 +20,5 @@ func F(i int, f func(S1, S2, int) int) int {
 }
 
 func main() {
-	fmt.Println("Hello, Hiro")
+	println("Hello, Hiro")
 }
