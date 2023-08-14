@@ -900,3 +900,23 @@ func _cgoCheckResult(interface{})
 		*boolFieldAddr(cfg, "go115UsesCgo") = true
 	})
 }
+
+func TestIssue61931(t *testing.T) {
+	const src = `
+package p
+
+func A(func(any), ...any) {}
+func B[T any](T)          {}
+
+func _() {
+	A(B, nil // syntax error: missing ',' before newline in argument list
+}
+`
+	f, err := syntax.Parse(syntax.NewFileBase(pkgName(src)), strings.NewReader(src), func(error) {}, nil, 0)
+	if err == nil {
+		t.Fatal("expected syntax error")
+	}
+
+	var conf Config
+	conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // must not panic
+}

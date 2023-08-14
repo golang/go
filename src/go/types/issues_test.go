@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/importer"
+	"go/parser"
 	"go/token"
 	"internal/testenv"
 	"regexp"
@@ -907,4 +908,25 @@ func _cgoCheckResult(interface{})
 	testFiles(t, []string{"p.go", "_cgo_gotypes.go"}, [][]byte{[]byte(src), []byte(cgoTypes)}, false, func(cfg *Config) {
 		*boolFieldAddr(cfg, "go115UsesCgo") = true
 	})
+}
+
+func TestIssue61931(t *testing.T) {
+	const src = `
+package p
+
+func A(func(any), ...any) {}
+func B[T any](T)          {}
+
+func _() {
+	A(B, nil // syntax error: missing ',' before newline in argument list
+}
+`
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, pkgName(src), src, 0)
+	if err == nil {
+		t.Fatal("expected syntax error")
+	}
+
+	var conf Config
+	conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // must not panic
 }
