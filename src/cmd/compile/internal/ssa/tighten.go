@@ -229,7 +229,7 @@ func memState(f *Func, startMem, endMem []*Value) {
 				if v.Type.IsMemory() {
 					mem = v
 				}
-			} else if v.Op == OpInitMem || v.Op == OpRotateLeft8 || v.Op == OpRotateLeft16 || v.Op == OpRotateLeft32 {
+			} else if v.Op == OpInitMem {
 				mem = v // This is actually not needed.
 			} else if a := v.MemoryArg(); a != nil && a.Block != b {
 				// The only incoming memory value doesn't belong to this block.
@@ -240,6 +240,7 @@ func memState(f *Func, startMem, endMem []*Value) {
 					if old == mem {
 						continue
 					}
+					// hotfix: for literals-61992
 					f.Logf("func %s, startMem[%v] has different values, old %v, new %v", f.Name, b, old, mem)
 				}
 				startMem[b.ID] = mem
