@@ -1,15 +1,26 @@
 package main
 
-func F(i int, f func(int) int) int {
+
+
+type S1 struct {
+	a, b, c []int
+	i       int
+}
+
+type S2 struct {
+	a, b []int
+	m    map[int]int
+}
+
+func F(i int, f func(S1, S2, int) int) int {
 	return f(
-		1 <<i,
+		S1{a: []int{}},
+		S2{b: []int{}},
+		1>>i,
 	)
 }
 
 func main() {
-	println(F(2, func(i int) int {
-		println("i is",i)
-		return i
-	}))
+
 	println("Hello, Hiro")
 }

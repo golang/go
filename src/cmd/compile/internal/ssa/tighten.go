@@ -4,7 +4,9 @@
 
 package ssa
 
-import "cmd/compile/internal/base"
+import (
+	"cmd/compile/internal/base"
+)
 
 // tighten moves Values closer to the Blocks in which they are used.
 // This can reduce the amount of register spilling required,
@@ -218,12 +220,13 @@ func memState(f *Func, startMem, endMem []*Value) {
 	// This slice contains the set of blocks that have had their startMem set but this
 	// startMem value has not yet been propagated to the endMem of its predecessors
 	changed := make([]*Block, 0)
+
 	// First step, init the memory state of some blocks.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			var mem *Value
 			if v.Op == OpPhi {
-				if v.Type.IsMemory() {
+				if !v.Type.IsMemory() {
 					mem = v
 				}
 			} else if v.Op == OpInitMem {
@@ -234,10 +237,11 @@ func memState(f *Func, startMem, endMem []*Value) {
 			}
 			if mem != nil {
 				if old := startMem[b.ID]; old != nil {
-					if old == mem {
+					if old.ID == mem.ID {
 						continue
 					}
-					f.Fatalf("func %s, startMem[%v] has different values, old %v, new %v", f.Name, b, old, mem)
+
+					f.Fatalf("func %s, startMem[%d] has different values, old %v, new %v", f.Name, b.ID, old, mem)
 				}
 				startMem[b.ID] = mem
 				changed = append(changed, b)
