@@ -25,9 +25,9 @@ func GetEntropy(p []byte) error {
 		uintptr(unsafe.Pointer(&mib[0])),
 		uintptr(len(mib)),
 		uintptr(unsafe.Pointer(&p[0])), // olddata
-		uintptr(unsafe.Pointer(&n)),	// &oldlen
-		uintptr(unsafe.Pointer(nil)),	// newdata
-		0)				// newlen
+		uintptr(unsafe.Pointer(&n)),    // &oldlen
+		uintptr(unsafe.Pointer(nil)),   // newdata
+		0)                              // newlen
 	if errno != 0 {
 		return syscall.Errno(errno)
 	}
