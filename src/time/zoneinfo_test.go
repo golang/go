@@ -6,7 +6,6 @@ package time_test
 
 import (
 	"errors"
-	"fmt"
 	"internal/testenv"
 	"os"
 	"reflect"
@@ -16,7 +15,7 @@ import (
 
 func init() {
 	if time.ZoneinfoForTesting() != nil {
-		panic(fmt.Errorf("zoneinfo initialized before first LoadLocation"))
+		panic("zoneinfo initialized before first LoadLocation")
 	}
 }
 

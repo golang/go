@@ -208,7 +208,7 @@ func (p *Package) collectFuncs(funcs []*Func) {
 func NewFromFiles(fset *token.FileSet, files []*ast.File, importPath string, opts ...any) (*Package, error) {
 	// Check for invalid API usage.
 	if fset == nil {
-		panic(fmt.Errorf("doc.NewFromFiles: no token.FileSet provided (fset == nil)"))
+		panic("doc.NewFromFiles: no token.FileSet provided (fset == nil)")
 	}
 	var mode Mode
 	switch len(opts) { // There can only be 0 or 1 options, so a simple switch works for now.
@@ -217,11 +217,11 @@ func NewFromFiles(fset *token.FileSet, files []*ast.File, importPath string, opt
 	case 1:
 		m, ok := opts[0].(Mode)
 		if !ok {
-			panic(fmt.Errorf("doc.NewFromFiles: option argument type must be doc.Mode"))
+			panic("doc.NewFromFiles: option argument type must be doc.Mode")
 		}
 		mode = m
 	default:
-		panic(fmt.Errorf("doc.NewFromFiles: there must not be more than 1 option argument"))
+		panic("doc.NewFromFiles: there must not be more than 1 option argument")
 	}
 
 	// Collect .go and _test.go files.
