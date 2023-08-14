@@ -226,7 +226,7 @@ func memState(f *Func, startMem, endMem []*Value) {
 		for _, v := range b.Values {
 			var mem *Value
 			if v.Op == OpPhi {
-				if !v.Type.IsMemory() {
+				if v.Type.IsMemory() {
 					mem = v
 				}
 			} else if v.Op == OpInitMem {
@@ -240,8 +240,7 @@ func memState(f *Func, startMem, endMem []*Value) {
 					if old.ID == mem.ID {
 						continue
 					}
-
-					f.Fatalf("func %s, startMem[%d] has different values, old %v, new %v", f.Name, b.ID, old, mem)
+					f.Fatalf("func %s, startMem[%v] has different values, old %v, new %v", f.Name, b, old, mem)
 				}
 				startMem[b.ID] = mem
 				changed = append(changed, b)
