@@ -804,6 +804,7 @@ var jsonTests = []struct {
 	{Date(9999, 4, 12, 23, 20, 50, 520*1e6, UTC), `"9999-04-12T23:20:50.52Z"`},
 	{Date(1996, 12, 19, 16, 39, 57, 0, Local), `"1996-12-19T16:39:57-08:00"`},
 	{Date(0, 1, 1, 0, 0, 0, 1, FixedZone("", 1*60)), `"0000-01-01T00:00:00.000000001+00:01"`},
+	{Date(2020, 1, 1, 0, 0, 0, 0, FixedZone("", 23*60*60+59*60)), `"2020-01-01T00:00:00+23:59"`},
 }
 
 func TestTimeJSON(t *testing.T) {
@@ -822,28 +823,67 @@ func TestTimeJSON(t *testing.T) {
 	}
 }
 
-func TestInvalidTimeJSON(t *testing.T) {
-	var tt Time
-	err := json.Unmarshal([]byte(`{"now is the time":"buddy"}`), &tt)
-	_, isParseErr := err.(*ParseError)
-	if !isParseErr {
-		t.Errorf("expected *time.ParseError unmarshaling JSON, got %v", err)
+func TestUnmarshalInvalidTimes(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{`{}`, "Time.UnmarshalJSON: input is not a JSON string"},
+		{`[]`, "Time.UnmarshalJSON: input is not a JSON string"},
+		{`"2000-01-01T1:12:34Z"`, `<nil>`},
+		{`"2000-01-01T00:00:00,000Z"`, `<nil>`},
+		{`"2000-01-01T00:00:00+24:00"`, `<nil>`},
+		{`"2000-01-01T00:00:00+00:60"`, `<nil>`},
+		{`"2000-01-01T00:00:00+123:45"`, `parsing time "2000-01-01T00:00:00+123:45" as "2006-01-02T15:04:05Z07:00": cannot parse "+123:45" as "Z07:00"`},
+	}
+
+	for _, tt := range tests {
+		var ts Time
+
+		want := tt.want
+		err := json.Unmarshal([]byte(tt.in), &ts)
+		if fmt.Sprint(err) != want {
+			t.Errorf("Time.UnmarshalJSON(%s) = %v, want %v", tt.in, err, want)
+		}
+
+		if strings.HasPrefix(tt.in, `"`) && strings.HasSuffix(tt.in, `"`) {
+			err = ts.UnmarshalText([]byte(strings.Trim(tt.in, `"`)))
+			if fmt.Sprint(err) != want {
+				t.Errorf("Time.UnmarshalText(%s) = %v, want %v", tt.in, err, want)
+			}
+		}
 	}
 }
 
-var notJSONEncodableTimes = []struct {
-	time Time
-	want string
-}{
-	{Date(10000, 1, 1, 0, 0, 0, 0, UTC), "Time.MarshalJSON: year outside of range [0,9999]"},
-	{Date(-1, 1, 1, 0, 0, 0, 0, UTC), "Time.MarshalJSON: year outside of range [0,9999]"},
-}
+func TestMarshalInvalidTimes(t *testing.T) {
+	tests := []struct {
+		time Time
+		want string
+	}{
+		{Date(10000, 1, 1, 0, 0, 0, 0, UTC), "Time.MarshalJSON: year outside of range [0,9999]"},
+		{Date(-998, 1, 1, 0, 0, 0, 0, UTC).Add(-Second), "Time.MarshalJSON: year outside of range [0,9999]"},
+		{Date(0, 1, 1, 0, 0, 0, 0, UTC).Add(-Nanosecond), "Time.MarshalJSON: year outside of range [0,9999]"},
+		{Date(2020, 1, 1, 0, 0, 0, 0, FixedZone("", 24*60*60)), "Time.MarshalJSON: timezone hour outside of range [0,23]"},
+		{Date(2020, 1, 1, 0, 0, 0, 0, FixedZone("", 123*60*60)), "Time.MarshalJSON: timezone hour outside of range [0,23]"},
+	}
 
-func TestNotJSONEncodableTime(t *testing.T) {
-	for _, tt := range notJSONEncodableTimes {
-		_, err := tt.time.MarshalJSON()
-		if err == nil || err.Error() != tt.want {
-			t.Errorf("%v MarshalJSON error = %v, want %v", tt.time, err, tt.want)
+	for _, tt := range tests {
+		want := tt.want
+		b, err := tt.time.MarshalJSON()
+		switch {
+		case b != nil:
+			t.Errorf("(%v).MarshalText() = %q, want nil", tt.time, b)
+		case err == nil || err.Error() != want:
+			t.Errorf("(%v).MarshalJSON() error = %v, want %v", tt.time, err, want)
+		}
+
+		want = strings.ReplaceAll(tt.want, "JSON", "Text")
+		b, err = tt.time.MarshalText()
+		switch {
+		case b != nil:
+			t.Errorf("(%v).MarshalText() = %q, want nil", tt.time, b)
+		case err == nil || err.Error() != want:
+			t.Errorf("(%v).MarshalText() error = %v, want %v", tt.time, err, want)
 		}
 	}
 }
@@ -1282,6 +1322,7 @@ var defaultLocTests = []struct {
 	{"After", func(t1, t2 Time) bool { return t1.After(t2) == t2.After(t1) }},
 	{"Before", func(t1, t2 Time) bool { return t1.Before(t2) == t2.Before(t1) }},
 	{"Equal", func(t1, t2 Time) bool { return t1.Equal(t2) == t2.Equal(t1) }},
+	{"Compare", func(t1, t2 Time) bool { return t1.Compare(t2) == t2.Compare(t1) }},
 
 	{"IsZero", func(t1, t2 Time) bool { return t1.IsZero() == t2.IsZero() }},
 	{"Date", func(t1, t2 Time) bool {
@@ -1445,6 +1486,38 @@ func BenchmarkParse(b *testing.B) {
 	}
 }
 
+const testdataRFC3339UTC = "2020-08-22T11:27:43.123456789Z"
+
+func BenchmarkParseRFC3339UTC(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Parse(RFC3339, testdataRFC3339UTC)
+	}
+}
+
+var testdataRFC3339UTCBytes = []byte(testdataRFC3339UTC)
+
+func BenchmarkParseRFC3339UTCBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Parse(RFC3339, string(testdataRFC3339UTCBytes))
+	}
+}
+
+const testdataRFC3339TZ = "2020-08-22T11:27:43.123456789-02:00"
+
+func BenchmarkParseRFC3339TZ(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Parse(RFC3339, testdataRFC3339TZ)
+	}
+}
+
+var testdataRFC3339TZBytes = []byte(testdataRFC3339TZ)
+
+func BenchmarkParseRFC3339TZBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Parse(RFC3339, string(testdataRFC3339TZBytes))
+	}
+}
+
 func BenchmarkParseDuration(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ParseDuration("9007199254.740993ms")
@@ -1484,6 +1557,21 @@ func BenchmarkISOWeek(b *testing.B) {
 	t := Now()
 	for i := 0; i < b.N; i++ {
 		_, _ = t.ISOWeek()
+	}
+}
+
+func BenchmarkGoString(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		_ = t.GoString()
+	}
+}
+
+func BenchmarkUnmarshalText(b *testing.B) {
+	var t Time
+	in := []byte("2020-08-22T11:27:43.123456789-02:00")
+	for i := 0; i < b.N; i++ {
+		t.UnmarshalText(in)
 	}
 }
 
@@ -1530,6 +1618,16 @@ func TestMarshalBinaryVersion2(t *testing.T) {
 		if !t1.Equal(t2) {
 			t.Errorf("The result t2: %+v after Unmarshal is not matched original t1: %+v", t2, t1)
 		}
+	}
+}
+
+func TestUnmarshalTextAllocations(t *testing.T) {
+	in := []byte(testdataRFC3339UTC) // short enough to be stack allocated
+	if allocs := testing.AllocsPerRun(100, func() {
+		var t Time
+		t.UnmarshalText(in)
+	}); allocs != 0 {
+		t.Errorf("got %v allocs, want 0 allocs", allocs)
 	}
 }
 
@@ -1762,16 +1860,26 @@ func TestZoneBounds(t *testing.T) {
 		5: {Date(1991, September, 14, 17, 0, 0, 0, loc), boundTwo, boundThree},
 		6: {Date(1991, September, 15, 0, 50, 0, 0, loc), boundTwo, boundThree},
 
+		// The ZoneBounds of a "Asia/Shanghai" after the last transition (Standard Time)
+		7:  {boundThree, boundThree, Time{}},
+		8:  {Date(1991, December, 15, 1, 50, 0, 0, loc), boundThree, Time{}},
+		9:  {Date(1992, April, 13, 17, 50, 0, 0, loc), boundThree, Time{}},
+		10: {Date(1992, April, 13, 18, 0, 0, 0, loc), boundThree, Time{}},
+		11: {Date(1992, April, 14, 1, 50, 0, 0, loc), boundThree, Time{}},
+		12: {Date(1992, September, 14, 16, 50, 0, 0, loc), boundThree, Time{}},
+		13: {Date(1992, September, 14, 17, 0, 0, 0, loc), boundThree, Time{}},
+		14: {Date(1992, September, 15, 0, 50, 0, 0, loc), boundThree, Time{}},
+
 		// The ZoneBounds of a local time would return two local Time.
 		// Note: We preloaded "America/Los_Angeles" as time.Local for testing
-		7:  {makeLocalTime(0), makeLocalTime(-5756400), makeLocalTime(9972000)},
-		8:  {makeLocalTime(1221681866), makeLocalTime(1205056800), makeLocalTime(1225616400)},
-		9:  {makeLocalTime(2152173599), makeLocalTime(2145916800), makeLocalTime(2152173600)},
-		10: {makeLocalTime(2152173600), makeLocalTime(2152173600), makeLocalTime(2172733200)},
-		11: {makeLocalTime(2152173601), makeLocalTime(2152173600), makeLocalTime(2172733200)},
-		12: {makeLocalTime(2159200800), makeLocalTime(2152173600), makeLocalTime(2172733200)},
-		13: {makeLocalTime(2172733199), makeLocalTime(2152173600), makeLocalTime(2172733200)},
-		14: {makeLocalTime(2172733200), makeLocalTime(2172733200), makeLocalTime(2177452800)},
+		15: {makeLocalTime(0), makeLocalTime(-5756400), makeLocalTime(9972000)},
+		16: {makeLocalTime(1221681866), makeLocalTime(1205056800), makeLocalTime(1225616400)},
+		17: {makeLocalTime(2152173599), makeLocalTime(2145916800), makeLocalTime(2152173600)},
+		18: {makeLocalTime(2152173600), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		19: {makeLocalTime(2152173601), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		20: {makeLocalTime(2159200800), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		21: {makeLocalTime(2172733199), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		22: {makeLocalTime(2172733200), makeLocalTime(2172733200), makeLocalTime(2177452800)},
 	}
 	for i, tt := range realTests {
 		start, end := tt.giveTime.ZoneBounds()

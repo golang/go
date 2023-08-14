@@ -42,6 +42,7 @@ words:
 	// do 8 bytes at a time if there is room
 	ADDV	$-7, R9, R6 // R6 is end pointer-7
 
+	PCALIGN	$16
 	SGTU	R6, R4, R8
 	BEQ	R8, out
 	MOVV	(R5), R7
@@ -86,6 +87,7 @@ words1:
 	// do 8 bytes at a time if there is room
 	ADDV	$7, R4, R6 // R6 is start pointer+7
 
+	PCALIGN	$16
 	SGTU	R9, R6, R8
 	BEQ	R8, out1
 	ADDV	$-8, R5

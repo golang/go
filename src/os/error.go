@@ -5,7 +5,6 @@
 package os
 
 import (
-	"internal/oserror"
 	"internal/poll"
 	"io/fs"
 )
@@ -28,12 +27,11 @@ var (
 	ErrDeadlineExceeded = errDeadlineExceeded() // "i/o timeout"
 )
 
-func errClosed() error     { return oserror.ErrClosed }
 func errNoDeadline() error { return poll.ErrNoDeadline }
 
 // errDeadlineExceeded returns the value for os.ErrDeadlineExceeded.
 // This error comes from the internal/poll package, which is also
-// used by package net. Doing this this way ensures that the net
+// used by package net. Doing it this way ensures that the net
 // package will return os.ErrDeadlineExceeded for an exceeded deadline,
 // as documented by net.Conn.SetDeadline, without requiring any extra
 // work in the net package and without requiring the internal/poll

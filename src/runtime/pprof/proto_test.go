@@ -38,7 +38,7 @@ func translateCPUProfile(data []uint64, count int) (*profile.Profile, error) {
 }
 
 // fmtJSON returns a pretty-printed JSON form for x.
-// It works reasonbly well for printing protocol-buffer
+// It works reasonably well for printing protocol-buffer
 // data structures like profile.Profile.
 func fmtJSON(x any) string {
 	js, _ := json.MarshalIndent(x, "", "\t")
@@ -101,7 +101,32 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 		addr2 = mprof.Mapping[1].Start
 		map2 = mprof.Mapping[1]
 		map2.BuildID, _ = elfBuildID(map2.File)
-	case "js":
+	case "windows", "darwin", "ios":
+		addr1 = uint64(abi.FuncPCABIInternal(f1))
+		addr2 = uint64(abi.FuncPCABIInternal(f2))
+
+		start, end, exe, buildID, err := readMainModuleMapping()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		map1 = &profile.Mapping{
+			ID:           1,
+			Start:        start,
+			Limit:        end,
+			File:         exe,
+			BuildID:      buildID,
+			HasFunctions: true,
+		}
+		map2 = &profile.Mapping{
+			ID:           1,
+			Start:        start,
+			Limit:        end,
+			File:         exe,
+			BuildID:      buildID,
+			HasFunctions: true,
+		}
+	case "js", "wasip1":
 		addr1 = uint64(abi.FuncPCABIInternal(f1))
 		addr2 = uint64(abi.FuncPCABIInternal(f2))
 	default:
@@ -285,7 +310,7 @@ func TestProcSelfMaps(t *testing.T) {
 			if len(out) > 0 && out[len(out)-1] != '\n' {
 				out += "\n"
 			}
-			var buf bytes.Buffer
+			var buf strings.Builder
 			parseProcSelfMaps([]byte(in), func(lo, hi, offset uint64, file, buildID string) {
 				fmt.Fprintf(&buf, "%08x %08x %08x %s\n", lo, hi, offset, file)
 			})

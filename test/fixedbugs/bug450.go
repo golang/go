@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 // Issue 3899: 8g incorrectly thinks a variable is
-// "set but not used" and elides an assignment, causing
+// "set and not used" and elides an assignment, causing
 // variables to end up with wrong data.
 //
 // The reason is a miscalculation of variable width.

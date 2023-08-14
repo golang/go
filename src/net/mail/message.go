@@ -14,6 +14,7 @@ Notable divergences:
     such as breaking addresses across lines.
   - No unicode normalization is performed.
   - The special characters ()[]:;@\, are allowed to appear unquoted in names.
+  - A leading From line is permitted, as in mbox format (RFC 4155).
 */
 package mail
 
@@ -53,8 +54,8 @@ type Message struct {
 func ReadMessage(r io.Reader) (msg *Message, err error) {
 	tp := textproto.NewReader(bufio.NewReader(r))
 
-	hdr, err := tp.ReadMIMEHeader()
-	if err != nil {
+	hdr, err := readHeader(tp)
+	if err != nil && (err != io.EOF || len(hdr) == 0) {
 		return nil, err
 	}
 
@@ -62,6 +63,54 @@ func ReadMessage(r io.Reader) (msg *Message, err error) {
 		Header: Header(hdr),
 		Body:   tp.R,
 	}, nil
+}
+
+// readHeader reads the message headers from r.
+// This is like textproto.ReadMIMEHeader, but doesn't validate.
+// The fix for issue #53188 tightened up net/textproto to enforce
+// restrictions of RFC 7230.
+// This package implements RFC 5322, which does not have those restrictions.
+// This function copies the relevant code from net/textproto,
+// simplified for RFC 5322.
+func readHeader(r *textproto.Reader) (map[string][]string, error) {
+	m := make(map[string][]string)
+
+	// The first line cannot start with a leading space.
+	if buf, err := r.R.Peek(1); err == nil && (buf[0] == ' ' || buf[0] == '\t') {
+		line, err := r.ReadLine()
+		if err != nil {
+			return m, err
+		}
+		return m, errors.New("malformed initial line: " + line)
+	}
+
+	for {
+		kv, err := r.ReadContinuedLine()
+		if kv == "" {
+			return m, err
+		}
+
+		// Key ends at first colon.
+		k, v, ok := strings.Cut(kv, ":")
+		if !ok {
+			return m, errors.New("malformed header line: " + kv)
+		}
+		key := textproto.CanonicalMIMEHeaderKey(k)
+
+		// Permit empty key, because that is what we did in the past.
+		if key == "" {
+			continue
+		}
+
+		// Skip initial spaces in value.
+		value := strings.TrimLeft(v, " \t")
+
+		m[key] = append(m[key], value)
+
+		if err != nil {
+			return m, err
+		}
+	}
 }
 
 // Layouts suitable for passing to time.Parse.
@@ -829,18 +878,18 @@ func isQtext(r rune) bool {
 
 // quoteString renders a string as an RFC 5322 quoted-string.
 func quoteString(s string) string {
-	var buf strings.Builder
-	buf.WriteByte('"')
+	var b strings.Builder
+	b.WriteByte('"')
 	for _, r := range s {
 		if isQtext(r) || isWSP(r) {
-			buf.WriteRune(r)
+			b.WriteRune(r)
 		} else if isVchar(r) {
-			buf.WriteByte('\\')
-			buf.WriteRune(r)
+			b.WriteByte('\\')
+			b.WriteRune(r)
 		}
 	}
-	buf.WriteByte('"')
-	return buf.String()
+	b.WriteByte('"')
+	return b.String()
 }
 
 // isVchar reports whether r is an RFC 5322 VCHAR character.
@@ -850,7 +899,7 @@ func isVchar(r rune) bool {
 }
 
 // isMultibyte reports whether r is a multi-byte UTF-8 character
-// as supported by RFC 6532
+// as supported by RFC 6532.
 func isMultibyte(r rune) bool {
 	return r >= utf8.RuneSelf
 }

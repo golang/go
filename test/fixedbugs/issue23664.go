@@ -9,9 +9,9 @@
 package p
 
 func f() {
-	if f() true { // ERROR "unexpected true, expecting {"
+	if f() true { // ERROR "unexpected true, expected {"
 	}
 	
-	switch f() true { // ERROR "unexpected true, expecting {"
+	switch f() true { // ERROR "unexpected true, expected {"
 	}
 }

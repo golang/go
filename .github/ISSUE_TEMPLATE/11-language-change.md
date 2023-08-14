@@ -2,7 +2,10 @@
 name: Language Change Proposals
 about: Changes to the language
 title: "proposal: Go 2: "
-labels: Proposal Go2 LanguageChange
+labels:
+  - Proposal
+  - v2
+  - LanguageChange
 ---
 
 <!--

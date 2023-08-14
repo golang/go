@@ -2,12 +2,28 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package x509 parses X.509-encoded keys and certificates.
+// Package x509 implements a subset of the X.509 standard.
+//
+// It allows parsing and generating certificates, certificate signing
+// requests, certificate revocation lists, and encoded public and private keys.
+// It provides a certificate verifier, complete with a chain builder.
+//
+// The package targets the X.509 technical profile defined by the IETF (RFC
+// 2459/3280/5280), and as further restricted by the CA/Browser Forum Baseline
+// Requirements. There is minimal support for features outside of these
+// profiles, as the primary goal of the package is to provide compatibility
+// with the publicly trusted TLS certificate ecosystem and its policies and
+// constraints.
+//
+// On macOS and Windows, certificate verification is handled by system APIs, but
+// the package aims to apply consistent validation rules across operating
+// systems.
 package x509
 
 import (
 	"bytes"
 	"crypto"
+	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -44,12 +60,12 @@ type pkixPublicKey struct {
 	BitString asn1.BitString
 }
 
-// ParsePKIXPublicKey parses a public key in PKIX, ASN.1 DER form.
-// The encoded public key is a SubjectPublicKeyInfo structure
-// (see RFC 5280, Section 4.1).
+// ParsePKIXPublicKey parses a public key in PKIX, ASN.1 DER form. The encoded
+// public key is a SubjectPublicKeyInfo structure (see RFC 5280, Section 4.1).
 //
-// It returns a *rsa.PublicKey, *dsa.PublicKey, *ecdsa.PublicKey, or
-// ed25519.PublicKey. More types might be supported in the future.
+// It returns a *rsa.PublicKey, *dsa.PublicKey, *ecdsa.PublicKey,
+// ed25519.PublicKey (not a pointer), or *ecdh.PublicKey (for X25519).
+// More types might be supported in the future.
 //
 // This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
 func ParsePKIXPublicKey(derBytes []byte) (pub any, err error) {
@@ -62,11 +78,7 @@ func ParsePKIXPublicKey(derBytes []byte) (pub any, err error) {
 	} else if len(rest) != 0 {
 		return nil, errors.New("x509: trailing data after ASN.1 of public-key")
 	}
-	algo := getPublicKeyAlgorithmFromOID(pki.Algorithm.Algorithm)
-	if algo == UnknownPublicKeyAlgorithm {
-		return nil, errors.New("x509: unknown public key algorithm")
-	}
-	return parsePublicKey(algo, &pki)
+	return parsePublicKey(&pki)
 }
 
 func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.AlgorithmIdentifier, err error) {
@@ -84,11 +96,14 @@ func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.A
 		// RFC 3279, Section 2.3.1.
 		publicKeyAlgorithm.Parameters = asn1.NullRawValue
 	case *ecdsa.PublicKey:
-		publicKeyBytes = elliptic.Marshal(pub.Curve, pub.X, pub.Y)
 		oid, ok := oidFromNamedCurve(pub.Curve)
 		if !ok {
 			return nil, pkix.AlgorithmIdentifier{}, errors.New("x509: unsupported elliptic curve")
 		}
+		if !pub.Curve.IsOnCurve(pub.X, pub.Y) {
+			return nil, pkix.AlgorithmIdentifier{}, errors.New("x509: invalid elliptic curve public key")
+		}
+		publicKeyBytes = elliptic.Marshal(pub.Curve, pub.X, pub.Y)
 		publicKeyAlgorithm.Algorithm = oidPublicKeyECDSA
 		var paramBytes []byte
 		paramBytes, err = asn1.Marshal(oid)
@@ -99,6 +114,23 @@ func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.A
 	case ed25519.PublicKey:
 		publicKeyBytes = pub
 		publicKeyAlgorithm.Algorithm = oidPublicKeyEd25519
+	case *ecdh.PublicKey:
+		publicKeyBytes = pub.Bytes()
+		if pub.Curve() == ecdh.X25519() {
+			publicKeyAlgorithm.Algorithm = oidPublicKeyX25519
+		} else {
+			oid, ok := oidFromECDHCurve(pub.Curve())
+			if !ok {
+				return nil, pkix.AlgorithmIdentifier{}, errors.New("x509: unsupported elliptic curve")
+			}
+			publicKeyAlgorithm.Algorithm = oidPublicKeyECDSA
+			var paramBytes []byte
+			paramBytes, err = asn1.Marshal(oid)
+			if err != nil {
+				return
+			}
+			publicKeyAlgorithm.Parameters.FullBytes = paramBytes
+		}
 	default:
 		return nil, pkix.AlgorithmIdentifier{}, fmt.Errorf("x509: unsupported public key type: %T", pub)
 	}
@@ -110,8 +142,9 @@ func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.A
 // The encoded public key is a SubjectPublicKeyInfo structure
 // (see RFC 5280, Section 4.1).
 //
-// The following key types are currently supported: *rsa.PublicKey, *ecdsa.PublicKey
-// and ed25519.PublicKey. Unsupported key types result in an error.
+// The following key types are currently supported: *rsa.PublicKey,
+// *ecdsa.PublicKey, ed25519.PublicKey (not a pointer), and *ecdh.PublicKey.
+// Unsupported key types result in an error.
 //
 // This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
 func MarshalPKIXPublicKey(pub any) ([]byte, error) {
@@ -138,7 +171,6 @@ func MarshalPKIXPublicKey(pub any) ([]byte, error) {
 // These structures reflect the ASN.1 structure of X.509 certificates.:
 
 type certificate struct {
-	Raw                asn1.RawContent
 	TBSCertificate     tbsCertificate
 	SignatureAlgorithm pkix.AlgorithmIdentifier
 	SignatureValue     asn1.BitString
@@ -223,7 +255,7 @@ type PublicKeyAlgorithm int
 const (
 	UnknownPublicKeyAlgorithm PublicKeyAlgorithm = iota
 	RSA
-	DSA // Unsupported.
+	DSA // Only supported for parsing.
 	ECDSA
 	Ed25519
 )
@@ -427,27 +459,34 @@ func getSignatureAlgorithmFromAI(ai pkix.AlgorithmIdentifier) SignatureAlgorithm
 	return UnknownSignatureAlgorithm
 }
 
-// RFC 3279, 2.3 Public Key Algorithms
-//
-//	pkcs-1 OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
-//		rsadsi(113549) pkcs(1) 1 }
-//
-// rsaEncryption OBJECT IDENTIFIER ::== { pkcs1-1 1 }
-//
-//	id-dsa OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
-//		x9-57(10040) x9cm(4) 1 }
-//
-// RFC 5480, 2.1.1 Unrestricted Algorithm Identifier and Parameters
-//
-//	id-ecPublicKey OBJECT IDENTIFIER ::= {
-//		iso(1) member-body(2) us(840) ansi-X9-62(10045) keyType(2) 1 }
 var (
-	oidPublicKeyRSA     = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
-	oidPublicKeyDSA     = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
-	oidPublicKeyECDSA   = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
-	oidPublicKeyEd25519 = oidSignatureEd25519
+	// RFC 3279, 2.3 Public Key Algorithms
+	//
+	//	pkcs-1 OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
+	//		rsadsi(113549) pkcs(1) 1 }
+	//
+	// rsaEncryption OBJECT IDENTIFIER ::== { pkcs1-1 1 }
+	//
+	//	id-dsa OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
+	//		x9-57(10040) x9cm(4) 1 }
+	oidPublicKeyRSA = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
+	oidPublicKeyDSA = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
+	// RFC 5480, 2.1.1 Unrestricted Algorithm Identifier and Parameters
+	//
+	//	id-ecPublicKey OBJECT IDENTIFIER ::= {
+	//		iso(1) member-body(2) us(840) ansi-X9-62(10045) keyType(2) 1 }
+	oidPublicKeyECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
+	// RFC 8410, Section 3
+	//
+	//	id-X25519    OBJECT IDENTIFIER ::= { 1 3 101 110 }
+	//	id-Ed25519   OBJECT IDENTIFIER ::= { 1 3 101 112 }
+	oidPublicKeyX25519  = asn1.ObjectIdentifier{1, 3, 101, 110}
+	oidPublicKeyEd25519 = asn1.ObjectIdentifier{1, 3, 101, 112}
 )
 
+// getPublicKeyAlgorithmFromOID returns the exposed PublicKeyAlgorithm
+// identifier for public key types supported in certificates and CSRs. Marshal
+// and Parse functions may support a different set of public key types.
 func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm {
 	switch {
 	case oid.Equal(oidPublicKeyRSA):
@@ -508,6 +547,21 @@ func oidFromNamedCurve(curve elliptic.Curve) (asn1.ObjectIdentifier, bool) {
 	case elliptic.P384():
 		return oidNamedCurveP384, true
 	case elliptic.P521():
+		return oidNamedCurveP521, true
+	}
+
+	return nil, false
+}
+
+func oidFromECDHCurve(curve ecdh.Curve) (asn1.ObjectIdentifier, bool) {
+	switch curve {
+	case ecdh.X25519():
+		return oidPublicKeyX25519, true
+	case ecdh.P256():
+		return oidNamedCurveP256, true
+	case ecdh.P384():
+		return oidNamedCurveP384, true
+	case ecdh.P521():
 		return oidNamedCurveP521, true
 	}
 
@@ -725,9 +779,6 @@ type Certificate struct {
 // involves algorithms that are not currently implemented.
 var ErrUnsupportedAlgorithm = errors.New("x509: cannot verify signature: algorithm unimplemented")
 
-// debugAllowSHA1 allows SHA-1 signatures. See issue 41682.
-var debugAllowSHA1 = godebug.Get("x509sha1") == "1"
-
 // An InsecureAlgorithmError indicates that the SignatureAlgorithm used to
 // generate the signature is not secure, and the signature has been rejected.
 //
@@ -764,8 +815,10 @@ func (c *Certificate) hasSANExtension() bool {
 	return oidInExtensions(oidExtensionSubjectAltName, c.Extensions)
 }
 
-// CheckSignatureFrom verifies that the signature on c is a valid signature
-// from parent. SHA1WithRSA and ECDSAWithSHA1 signatures are not supported.
+// CheckSignatureFrom verifies that the signature on c is a valid signature from parent.
+//
+// This is a low-level API that performs very limited checks, and not a full
+// path verifier. Most users should use [Certificate.Verify] instead.
 func (c *Certificate) CheckSignatureFrom(parent *Certificate) error {
 	// RFC 5280, 4.2.1.9:
 	// "If the basic constraints extension is not present in a version 3
@@ -785,13 +838,16 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) error {
 		return ErrUnsupportedAlgorithm
 	}
 
-	// TODO(agl): don't ignore the path length constraint.
-
-	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature, parent.PublicKey, debugAllowSHA1)
+	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature, parent.PublicKey, false)
 }
 
 // CheckSignature verifies that signature is a valid signature over signed from
 // c's public key.
+//
+// This is a low-level API that performs no validity checks on the certificate.
+//
+// [MD5WithRSA] signatures are rejected, while [SHA1WithRSA] and [ECDSAWithSHA1]
+// signatures are currently accepted.
 func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature []byte) error {
 	return checkSignature(algo, signed, signature, c.PublicKey, true)
 }
@@ -812,6 +868,8 @@ func (c *Certificate) getSANExtension() []byte {
 func signaturePublicKeyAlgoMismatchError(expectedPubKeyAlgo PublicKeyAlgorithm, pubKey any) error {
 	return fmt.Errorf("x509: signature algorithm specifies an %s public key, but have public key of type %T", expectedPubKeyAlgo.String(), pubKey)
 }
+
+var x509sha1 = godebug.New("x509sha1")
 
 // checkSignature verifies that signature is a valid signature over signed from
 // a crypto.PublicKey.
@@ -834,8 +892,12 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 	case crypto.MD5:
 		return InsecureAlgorithmError(algo)
 	case crypto.SHA1:
+		// SHA-1 signatures are mostly disabled. See go.dev/issue/41682.
 		if !allowSHA1 {
-			return InsecureAlgorithmError(algo)
+			if x509sha1.Value() != "1" {
+				return InsecureAlgorithmError(algo)
+			}
+			x509sha1.IncNonDefault()
 		}
 		fallthrough
 	default:
@@ -966,6 +1028,7 @@ var (
 	oidExtensionCRLDistributionPoints = []int{2, 5, 29, 31}
 	oidExtensionAuthorityInfoAccess   = []int{1, 3, 6, 1, 5, 5, 7, 1, 1}
 	oidExtensionCRLNumber             = []int{2, 5, 29, 20}
+	oidExtensionReasonCode            = []int{2, 5, 29, 21}
 )
 
 var (
@@ -973,7 +1036,7 @@ var (
 	oidAuthorityInfoAccessIssuers = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 48, 2}
 )
 
-// oidNotInExtensions reports whether an extension with the given oid exists in
+// oidInExtensions reports whether an extension with the given oid exists in
 // extensions.
 func oidInExtensions(oid asn1.ObjectIdentifier, extensions []pkix.Extension) bool {
 	for _, e := range extensions {
@@ -1504,6 +1567,9 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 	if err != nil {
 		return nil, err
 	}
+	if getPublicKeyAlgorithmFromOID(publicKeyAlgorithm.Algorithm) == UnknownPublicKeyAlgorithm {
+		return nil, fmt.Errorf("x509: unsupported public key type: %T", pub)
+	}
 
 	asn1Issuer, err := subjectBytes(parent)
 	if err != nil {
@@ -1585,7 +1651,6 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 	}
 
 	signedCert, err := asn1.Marshal(certificate{
-		nil,
 		c,
 		signatureAlgorithm,
 		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
@@ -1815,18 +1880,13 @@ func parseCSRExtensions(rawAttributes []asn1.RawValue) ([]pkix.Extension, error)
 	}
 
 	var ret []pkix.Extension
-	seenExts := make(map[string]bool)
+	requestedExts := make(map[string]bool)
 	for _, rawAttr := range rawAttributes {
 		var attr pkcs10Attribute
 		if rest, err := asn1.Unmarshal(rawAttr.FullBytes, &attr); err != nil || len(rest) != 0 || len(attr.Values) == 0 {
 			// Ignore attributes that don't parse.
 			continue
 		}
-		oidStr := attr.Id.String()
-		if seenExts[oidStr] {
-			return nil, errors.New("x509: certificate request contains duplicate extensions")
-		}
-		seenExts[oidStr] = true
 
 		if !attr.Id.Equal(oidExtensionRequest) {
 			continue
@@ -1836,7 +1896,6 @@ func parseCSRExtensions(rawAttributes []asn1.RawValue) ([]pkix.Extension, error)
 		if _, err := asn1.Unmarshal(attr.Values[0].FullBytes, &extensions); err != nil {
 			return nil, err
 		}
-		requestedExts := make(map[string]bool)
 		for _, ext := range extensions {
 			oidStr := ext.Id.String()
 			if requestedExts[oidStr] {
@@ -2058,9 +2117,11 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
 	}
 
 	var err error
-	out.PublicKey, err = parsePublicKey(out.PublicKeyAlgorithm, &in.TBSCSR.PublicKey)
-	if err != nil {
-		return nil, err
+	if out.PublicKeyAlgorithm != UnknownPublicKeyAlgorithm {
+		out.PublicKey, err = parsePublicKey(&in.TBSCSR.PublicKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var subject pkix.RDNSequence
@@ -2094,8 +2155,45 @@ func (c *CertificateRequest) CheckSignature() error {
 	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificateRequest, c.Signature, c.PublicKey, true)
 }
 
-// RevocationList contains the fields used to create an X.509 v2 Certificate
-// Revocation list with CreateRevocationList.
+// RevocationListEntry represents an entry in the revokedCertificates
+// sequence of a CRL.
+type RevocationListEntry struct {
+	// Raw contains the raw bytes of the revokedCertificates entry. It is set when
+	// parsing a CRL; it is ignored when generating a CRL.
+	Raw []byte
+
+	// SerialNumber represents the serial number of a revoked certificate. It is
+	// both used when creating a CRL and populated when parsing a CRL. It must not
+	// be nil.
+	SerialNumber *big.Int
+	// RevocationTime represents the time at which the certificate was revoked. It
+	// is both used when creating a CRL and populated when parsing a CRL. It must
+	// not be the zero time.
+	RevocationTime time.Time
+	// ReasonCode represents the reason for revocation, using the integer enum
+	// values specified in RFC 5280 Section 5.3.1. When creating a CRL, the zero
+	// value will result in the reasonCode extension being omitted. When parsing a
+	// CRL, the zero value may represent either the reasonCode extension being
+	// absent (which implies the default revocation reason of 0/Unspecified), or
+	// it may represent the reasonCode extension being present and explicitly
+	// containing a value of 0/Unspecified (which should not happen according to
+	// the DER encoding rules, but can and does happen anyway).
+	ReasonCode int
+
+	// Extensions contains raw X.509 extensions. When parsing CRL entries,
+	// this can be used to extract non-critical extensions that are not
+	// parsed by this package. When marshaling CRL entries, the Extensions
+	// field is ignored, see ExtraExtensions.
+	Extensions []pkix.Extension
+	// ExtraExtensions contains extensions to be copied, raw, into any
+	// marshaled CRL entries. Values override any extensions that would
+	// otherwise be produced based on the other fields. The ExtraExtensions
+	// field is not populated when parsing CRL entries, see Extensions.
+	ExtraExtensions []pkix.Extension
+}
+
+// RevocationList represents a Certificate Revocation List (CRL) as specified
+// by RFC 5280.
 type RevocationList struct {
 	// Raw contains the complete ASN.1 DER content of the CRL (tbsCertList,
 	// signatureAlgorithm, and signatureValue.)
@@ -2120,9 +2218,17 @@ type RevocationList struct {
 	// key will be used.
 	SignatureAlgorithm SignatureAlgorithm
 
+	// RevokedCertificateEntries represents the revokedCertificates sequence in
+	// the CRL. It is used when creating a CRL and also populated when parsing a
+	// CRL. When creating a CRL, it may be empty or nil, in which case the
+	// revokedCertificates ASN.1 sequence will be omitted from the CRL entirely.
+	RevokedCertificateEntries []RevocationListEntry
+
 	// RevokedCertificates is used to populate the revokedCertificates
-	// sequence in the CRL, it may be empty. RevokedCertificates may be nil,
-	// in which case an empty CRL will be created.
+	// sequence in the CRL if RevokedCertificateEntries is empty. It may be empty
+	// or nil, in which case an empty CRL will be created.
+	//
+	// Deprecated: Use RevokedCertificateEntries instead.
 	RevokedCertificates []pkix.RevokedCertificate
 
 	// Number is used to populate the X.509 v2 cRLNumber extension in the CRL,
@@ -2146,6 +2252,29 @@ type RevocationList struct {
 	// ExtraExtensions contains any additional extensions to add directly to
 	// the CRL.
 	ExtraExtensions []pkix.Extension
+}
+
+// These structures reflect the ASN.1 structure of X.509 CRLs better than
+// the existing crypto/x509/pkix variants do. These mirror the existing
+// certificate structs in this file.
+//
+// Notably, we include issuer as an asn1.RawValue, mirroring the behavior of
+// tbsCertificate and allowing raw (unparsed) subjects to be passed cleanly.
+type certificateList struct {
+	TBSCertList        tbsCertificateList
+	SignatureAlgorithm pkix.AlgorithmIdentifier
+	SignatureValue     asn1.BitString
+}
+
+type tbsCertificateList struct {
+	Raw                 asn1.RawContent
+	Version             int `asn1:"optional,default:0"`
+	Signature           pkix.AlgorithmIdentifier
+	Issuer              asn1.RawValue
+	ThisUpdate          time.Time
+	NextUpdate          time.Time                 `asn1:"optional"`
+	RevokedCertificates []pkix.RevokedCertificate `asn1:"optional"`
+	Extensions          []pkix.Extension          `asn1:"tag:0,optional,explicit"`
 }
 
 // CreateRevocationList creates a new X.509 v2 Certificate Revocation List,
@@ -2185,11 +2314,62 @@ func CreateRevocationList(rand io.Reader, template *RevocationList, issuer *Cert
 		return nil, err
 	}
 
-	// Force revocation times to UTC per RFC 5280.
-	revokedCertsUTC := make([]pkix.RevokedCertificate, len(template.RevokedCertificates))
-	for i, rc := range template.RevokedCertificates {
-		rc.RevocationTime = rc.RevocationTime.UTC()
-		revokedCertsUTC[i] = rc
+	var revokedCerts []pkix.RevokedCertificate
+	// Only process the deprecated RevokedCertificates field if it is populated
+	// and the new RevokedCertificateEntries field is not populated.
+	if len(template.RevokedCertificates) > 0 && len(template.RevokedCertificateEntries) == 0 {
+		// Force revocation times to UTC per RFC 5280.
+		revokedCerts = make([]pkix.RevokedCertificate, len(template.RevokedCertificates))
+		for i, rc := range template.RevokedCertificates {
+			rc.RevocationTime = rc.RevocationTime.UTC()
+			revokedCerts[i] = rc
+		}
+	} else {
+		// Convert the ReasonCode field to a proper extension, and force revocation
+		// times to UTC per RFC 5280.
+		revokedCerts = make([]pkix.RevokedCertificate, len(template.RevokedCertificateEntries))
+		for i, rce := range template.RevokedCertificateEntries {
+			if rce.SerialNumber == nil {
+				return nil, errors.New("x509: template contains entry with nil SerialNumber field")
+			}
+			if rce.RevocationTime.IsZero() {
+				return nil, errors.New("x509: template contains entry with zero RevocationTime field")
+			}
+
+			rc := pkix.RevokedCertificate{
+				SerialNumber:   rce.SerialNumber,
+				RevocationTime: rce.RevocationTime.UTC(),
+			}
+
+			// Copy over any extra extensions, except for a Reason Code extension,
+			// because we'll synthesize that ourselves to ensure it is correct.
+			exts := make([]pkix.Extension, 0, len(rce.ExtraExtensions))
+			for _, ext := range rce.ExtraExtensions {
+				if ext.Id.Equal(oidExtensionReasonCode) {
+					return nil, errors.New("x509: template contains entry with ReasonCode ExtraExtension; use ReasonCode field instead")
+				}
+				exts = append(exts, ext)
+			}
+
+			// Only add a reasonCode extension if the reason is non-zero, as per
+			// RFC 5280 Section 5.3.1.
+			if rce.ReasonCode != 0 {
+				reasonBytes, err := asn1.Marshal(asn1.Enumerated(rce.ReasonCode))
+				if err != nil {
+					return nil, err
+				}
+
+				exts = append(exts, pkix.Extension{
+					Id:    oidExtensionReasonCode,
+					Value: reasonBytes,
+				})
+			}
+
+			if len(exts) > 0 {
+				rc.Extensions = exts
+			}
+			revokedCerts[i] = rc
+		}
 	}
 
 	aki, err := asn1.Marshal(authKeyId{Id: issuer.SubjectKeyId})
@@ -2205,10 +2385,16 @@ func CreateRevocationList(rand io.Reader, template *RevocationList, issuer *Cert
 		return nil, err
 	}
 
-	tbsCertList := pkix.TBSCertificateList{
+	// Correctly use the issuer's subject sequence if one is specified.
+	issuerSubject, err := subjectBytes(issuer)
+	if err != nil {
+		return nil, err
+	}
+
+	tbsCertList := tbsCertificateList{
 		Version:    1, // v2
 		Signature:  signatureAlgorithm,
-		Issuer:     issuer.Subject.ToRDNSequence(),
+		Issuer:     asn1.RawValue{FullBytes: issuerSubject},
 		ThisUpdate: template.ThisUpdate.UTC(),
 		NextUpdate: template.NextUpdate.UTC(),
 		Extensions: []pkix.Extension{
@@ -2222,8 +2408,8 @@ func CreateRevocationList(rand io.Reader, template *RevocationList, issuer *Cert
 			},
 		},
 	}
-	if len(revokedCertsUTC) > 0 {
-		tbsCertList.RevokedCertificates = revokedCertsUTC
+	if len(revokedCerts) > 0 {
+		tbsCertList.RevokedCertificates = revokedCerts
 	}
 
 	if len(template.ExtraExtensions) > 0 {
@@ -2234,6 +2420,10 @@ func CreateRevocationList(rand io.Reader, template *RevocationList, issuer *Cert
 	if err != nil {
 		return nil, err
 	}
+
+	// Optimization to only marshal this struct once, when signing and
+	// then embedding in certificateList below.
+	tbsCertList.Raw = tbsCertListContents
 
 	input := tbsCertListContents
 	if hashFunc != 0 {
@@ -2254,7 +2444,7 @@ func CreateRevocationList(rand io.Reader, template *RevocationList, issuer *Cert
 		return nil, err
 	}
 
-	return asn1.Marshal(pkix.CertificateList{
+	return asn1.Marshal(certificateList{
 		TBSCertList:        tbsCertList,
 		SignatureAlgorithm: signatureAlgorithm,
 		SignatureValue:     asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},

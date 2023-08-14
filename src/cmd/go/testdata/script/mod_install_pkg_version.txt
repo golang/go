@@ -16,7 +16,8 @@ env GO111MODULE=auto
 cd m
 cp go.mod go.mod.orig
 ! go list -m all
-stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
+stderr '^go: example.com/cmd@v1.1.0-doesnotexist: reading http.*/mod/example.com/cmd/@v/v1.1.0-doesnotexist.info: 404 Not Found\n\tserver response: 404 page not found$'
+stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/cmd$'
 go install example.com/cmd/a@latest
 cmp go.mod go.mod.orig
 exists $GOPATH/bin/a$GOEXE
@@ -127,7 +128,7 @@ cd tmp
 go mod init m
 go get example.com/cmd@v1.0.0
 ! go build example.com/cmd/...
-stderr 'err[/\\]err.go:3:9: undefined: DoesNotCompile$'
+stderr 'err[/\\]err.go:3:9: undefined: DoesNotCompile( .*)?$'
 cd ..
 
 go install example.com/cmd/...@v1.0.0
@@ -141,7 +142,7 @@ stderr '^go: example.com/cmd/nomatch\.\.\.@v1.0.0: module example.com/cmd@v1.0.0
 go install example.com/cmd/a@v1.0.0 example.com/cmd/nomatch...@v1.0.0
 stderr '^go: warning: "example.com/cmd/nomatch\.\.\." matched no packages$'
 
-# If a wildcard matches only non-main packges, we should see a different warning.
+# If a wildcard matches only non-main packages, we should see a different warning.
 go install example.com/cmd/err...@v1.0.0
 stderr '^go: warning: "example.com/cmd/err\.\.\." matched only non-main packages$'
 
@@ -159,7 +160,7 @@ cmp stderr exclude-err
 # 'go install pkg@version' should report an error if the module requires a
 # higher version of itself.
 ! go install example.com/cmd/a@v1.0.0-newerself
-stderr '^go: example.com/cmd/a@v1.0.0-newerself: version constraints conflict:\n\texample.com/cmd@v1.0.0-newerself requires example.com/cmd@v1.0.0, but example.com/cmd@v1.0.0-newerself is requested$'
+stderr '^go: example.com/cmd/a@v1.0.0-newerself: version constraints conflict:\n\texample.com/cmd@v1.0.0-newerself requires example.com/cmd@v1.0.0, but v1.0.0-newerself is requested$'
 
 
 # 'go install pkg@version' will only match a retracted version if it's

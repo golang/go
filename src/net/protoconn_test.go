@@ -5,11 +5,12 @@
 // This file implements API tests across platforms and will never have a build
 // tag.
 
-//go:build !js
+//go:build !js && !wasip1
 
 package net
 
 import (
+	"internal/testenv"
 	"os"
 	"runtime"
 	"testing"
@@ -161,16 +162,16 @@ func TestUDPConnSpecificMethods(t *testing.T) {
 }
 
 func TestIPConnSpecificMethods(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("must be root")
-	}
-
 	la, err := ResolveIPAddr("ip4", "127.0.0.1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	c, err := ListenIP("ip4:icmp", la)
-	if err != nil {
+	if testenv.SyscallIsNotSupported(err) {
+		// May be inside a container that disallows creating a socket or
+		// not running as root.
+		t.Skipf("skipping: %v", err)
+	} else if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Close()

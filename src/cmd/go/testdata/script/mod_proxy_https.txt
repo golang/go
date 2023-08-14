@@ -5,7 +5,7 @@ env GOPROXY=$WORK/proxydir
 ! go list -versions -m golang.org/x/text
 stderr 'invalid proxy URL.*proxydir'
 
-[!net] stop
+[!net:proxy.golang.org] stop
 
 # GOPROXY HTTPS paths may elide the "https://" prefix.
 # (See golang.org/issue/32191.)

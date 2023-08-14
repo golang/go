@@ -1894,13 +1894,13 @@ func TestMarshalWriteIOErrors(t *testing.T) {
 }
 
 func TestMarshalFlush(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	enc := NewEncoder(&buf)
 	if err := enc.EncodeToken(CharData("hello world")); err != nil {
 		t.Fatalf("enc.EncodeToken: %v", err)
 	}
 	if buf.Len() > 0 {
-		t.Fatalf("enc.EncodeToken caused actual write: %q", buf.Bytes())
+		t.Fatalf("enc.EncodeToken caused actual write: %q", buf.String())
 	}
 	if err := enc.Flush(); err != nil {
 		t.Fatalf("enc.Flush: %v", err)
@@ -2317,7 +2317,7 @@ var encodeTokenTests = []struct {
 func TestEncodeToken(t *testing.T) {
 loop:
 	for i, tt := range encodeTokenTests {
-		var buf bytes.Buffer
+		var buf strings.Builder
 		enc := NewEncoder(&buf)
 		var err error
 		for j, tok := range tt.toks {
@@ -2437,7 +2437,7 @@ func TestIsValidDirective(t *testing.T) {
 
 // Issue 11719. EncodeToken used to silently eat tokens with an invalid type.
 func TestSimpleUseOfEncodeToken(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	enc := NewEncoder(&buf)
 	if err := enc.EncodeToken(&StartElement{Name: Name{"", "object1"}}); err == nil {
 		t.Errorf("enc.EncodeToken: pointer type should be rejected")
@@ -2529,5 +2529,63 @@ func TestMarshalZeroValue(t *testing.T) {
 	}
 	if string(anotherXML) != proofXml {
 		t.Fatalf("unexpected unmarshal result, want %q but got %q", proofXml, anotherXML)
+	}
+}
+
+var closeTests = []struct {
+	desc string
+	toks []Token
+	want string
+	err  string
+}{{
+	desc: "unclosed start element",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, nil},
+	},
+	want: `<foo>`,
+	err:  "unclosed tag <foo>",
+}, {
+	desc: "closed element",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, nil},
+		EndElement{Name{"", "foo"}},
+	},
+	want: `<foo></foo>`,
+}, {
+	desc: "directive",
+	toks: []Token{
+		Directive("foo"),
+	},
+	want: `<!foo>`,
+}}
+
+func TestClose(t *testing.T) {
+	for _, tt := range closeTests {
+		tt := tt
+		t.Run(tt.desc, func(t *testing.T) {
+			var out strings.Builder
+			enc := NewEncoder(&out)
+			for j, tok := range tt.toks {
+				if err := enc.EncodeToken(tok); err != nil {
+					t.Fatalf("token #%d: %v", j, err)
+				}
+			}
+			err := enc.Close()
+			switch {
+			case tt.err != "" && err == nil:
+				t.Error(" expected error; got none")
+			case tt.err == "" && err != nil:
+				t.Errorf(" got error: %v", err)
+			case tt.err != "" && err != nil && tt.err != err.Error():
+				t.Errorf(" error mismatch; got %v, want %v", err, tt.err)
+			}
+			if got := out.String(); got != tt.want {
+				t.Errorf("\ngot  %v\nwant %v", got, tt.want)
+			}
+			t.Log(enc.p.closed)
+			if err := enc.EncodeToken(Directive("foo")); err == nil {
+				t.Errorf("unexpected success when encoding after Close")
+			}
+		})
 	}
 }

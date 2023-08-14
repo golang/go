@@ -137,7 +137,7 @@ func (n *BinaryExpr) SetOp(op Op) {
 		panic(n.no("SetOp " + op.String()))
 	case OADD, OADDSTR, OAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
 		OLSH, OLT, OMOD, OMUL, ONE, OOR, ORSH, OSUB, OXOR,
-		OCOPY, OCOMPLEX, OUNSAFEADD, OUNSAFESLICE,
+		OCOPY, OCOMPLEX, OUNSAFEADD, OUNSAFESLICE, OUNSAFESTRING,
 		OEFACE:
 		n.op = op
 	}
@@ -174,7 +174,7 @@ func (n *CallExpr) SetOp(op Op) {
 		OCALL, OCALLFUNC, OCALLINTER, OCALLMETH,
 		ODELETE,
 		OGETG, OGETCALLERPC, OGETCALLERSP,
-		OMAKE, OPRINT, OPRINTN,
+		OMAKE, OMAX, OMIN, OPRINT, OPRINTN,
 		ORECOVER, ORECOVERFP:
 		n.op = op
 	}
@@ -289,7 +289,7 @@ func (n *ConvExpr) SetOp(op Op) {
 	switch op {
 	default:
 		panic(n.no("SetOp " + op.String()))
-	case OCONV, OCONVIFACE, OCONVIDATA, OCONVNOP, OBYTES2STR, OBYTES2STRTMP, ORUNES2STR, OSTR2BYTES, OSTR2BYTESTMP, OSTR2RUNES, ORUNESTR, OSLICE2ARRPTR:
+	case OCONV, OCONVIFACE, OCONVIDATA, OCONVNOP, OBYTES2STR, OBYTES2STRTMP, ORUNES2STR, OSTR2BYTES, OSTR2BYTESTMP, OSTR2RUNES, ORUNESTR, OSLICE2ARR, OSLICE2ARRPTR:
 		n.op = op
 	}
 }
@@ -380,7 +380,7 @@ func (n *InlinedCallExpr) SingleResult() Node {
 	return n.ReturnVars[0]
 }
 
-// A LogicalExpr is a expression X Op Y where Op is && or ||.
+// A LogicalExpr is an expression X Op Y where Op is && or ||.
 // It is separate from BinaryExpr to make room for statements
 // that must be executed before Y but after X.
 type LogicalExpr struct {
@@ -563,8 +563,7 @@ func (n *SelectorExpr) FuncName() *Name {
 	if n.Selection.Nname != nil {
 		// TODO(austin): Nname is nil for interface method
 		// expressions (I.M), so we can't attach a Func to
-		// those here. reflectdata.methodWrapper generates the
-		// Func.
+		// those here.
 		fn.Func = n.Selection.Nname.(*Name).Func
 	}
 	return fn
@@ -621,6 +620,21 @@ func NewSliceHeaderExpr(pos src.XPos, typ *types.Type, ptr, len, cap Node) *Slic
 	n.pos = pos
 	n.op = OSLICEHEADER
 	n.typ = typ
+	return n
+}
+
+// A StringHeaderExpr expression constructs a string header from its parts.
+type StringHeaderExpr struct {
+	miniExpr
+	Ptr Node
+	Len Node
+}
+
+func NewStringHeaderExpr(pos src.XPos, ptr, len Node) *StringHeaderExpr {
+	n := &StringHeaderExpr{Ptr: ptr, Len: len}
+	n.pos = pos
+	n.op = OSTRINGHEADER
+	n.typ = types.Types[types.TSTRING]
 	return n
 }
 
@@ -732,9 +746,10 @@ func (n *UnaryExpr) SetOp(op Op) {
 	default:
 		panic(n.no("SetOp " + op.String()))
 	case OBITNOT, ONEG, ONOT, OPLUS, ORECV,
-		OALIGNOF, OCAP, OCLOSE, OIMAG, OLEN, ONEW,
+		OALIGNOF, OCAP, OCLEAR, OCLOSE, OIMAG, OLEN, ONEW,
 		OOFFSETOF, OPANIC, OREAL, OSIZEOF,
-		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR, OVARDEF, OVARKILL, OVARLIVE:
+		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR,
+		OUNSAFESTRINGDATA, OUNSAFESLICEDATA:
 		n.op = op
 	}
 }
@@ -891,20 +906,20 @@ FindRHS:
 		base.Fatalf("RHS is nil: %v", defn)
 	}
 
-	if reassigned(n) {
+	if Reassigned(n) {
 		return nil
 	}
 
 	return rhs
 }
 
-// reassigned takes an ONAME node, walks the function in which it is defined, and returns a boolean
-// indicating whether the name has any assignments other than its declaration.
-// The second return value is the first such assignment encountered in the walk, if any. It is mostly
-// useful for -m output documenting the reason for inhibited optimizations.
+// Reassigned takes an ONAME node, walks the function in which it is
+// defined, and returns a boolean indicating whether the name has any
+// assignments other than its declaration.
 // NB: global variables are always considered to be re-assigned.
-// TODO: handle initial declaration not including an assignment and followed by a single assignment?
-func reassigned(name *Name) bool {
+// TODO: handle initial declaration not including an assignment and
+// followed by a single assignment?
+func Reassigned(name *Name) bool {
 	if name.Op() != ONAME {
 		base.Fatalf("reassigned %v", name)
 	}
@@ -919,7 +934,10 @@ func reassigned(name *Name) bool {
 
 	// isName reports whether n is a reference to name.
 	isName := func(x Node) bool {
-		n, ok := x.(*Name)
+		if x == nil {
+			return false
+		}
+		n, ok := OuterValue(x).(*Name)
 		return ok && n.Canonical() == name
 	}
 
@@ -938,9 +956,19 @@ func reassigned(name *Name) bool {
 					return true
 				}
 			}
+		case OASOP:
+			n := n.(*AssignOpStmt)
+			if isName(n.X) {
+				return true
+			}
 		case OADDR:
 			n := n.(*AddrExpr)
-			if isName(OuterValue(n.X)) {
+			if isName(n.X) {
+				return true
+			}
+		case ORANGE:
+			n := n.(*RangeStmt)
+			if isName(n.Key) || isName(n.Value) {
 				return true
 			}
 		case OCLOSURE:

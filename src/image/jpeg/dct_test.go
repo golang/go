@@ -5,10 +5,10 @@
 package jpeg
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"math/rand"
+	"strings"
 	"testing"
 )
 
@@ -181,7 +181,7 @@ func slowIDCT(b *block) {
 }
 
 func (b *block) String() string {
-	s := bytes.NewBuffer(nil)
+	s := &strings.Builder{}
 	fmt.Fprintf(s, "{\n")
 	for y := 0; y < 8; y++ {
 		fmt.Fprintf(s, "\t")

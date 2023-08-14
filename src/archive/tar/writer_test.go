@@ -780,7 +780,7 @@ func TestUSTARLongName(t *testing.T) {
 	// Test that we can get a long name back out of the archive.
 	reader := NewReader(&buf)
 	hdr, err = reader.Next()
-	if err != nil {
+	if err != nil && err != ErrInsecurePath {
 		t.Fatal(err)
 	}
 	if hdr.Name != longName {
@@ -995,11 +995,38 @@ func TestIssue12594(t *testing.T) {
 
 		tr := NewReader(&b)
 		hdr, err := tr.Next()
-		if err != nil {
+		if err != nil && err != ErrInsecurePath {
 			t.Errorf("test %d, unexpected Next error: %v", i, err)
 		}
 		if hdr.Name != name {
 			t.Errorf("test %d, hdr.Name = %s, want %s", i, hdr.Name, name)
+		}
+	}
+}
+
+func TestWriteLongHeader(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		h    *Header
+	}{{
+		name: "name too long",
+		h:    &Header{Name: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "linkname too long",
+		h:    &Header{Linkname: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "uname too long",
+		h:    &Header{Uname: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "gname too long",
+		h:    &Header{Gname: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "PAX header too long",
+		h:    &Header{PAXRecords: map[string]string{"GOLANG.x": strings.Repeat("a", maxSpecialFileSize)}},
+	}} {
+		w := NewWriter(io.Discard)
+		if err := w.WriteHeader(test.h); err != ErrFieldTooLong {
+			t.Errorf("%v: w.WriteHeader() = %v, want ErrFieldTooLong", test.name, err)
 		}
 	}
 }
@@ -1252,7 +1279,7 @@ func TestFileWriter(t *testing.T) {
 
 	for i, v := range vectors {
 		var wantStr string
-		bb := new(bytes.Buffer)
+		bb := new(strings.Builder)
 		w := testNonEmptyWriter{bb}
 		var fw fileWriter
 		switch maker := v.maker.(type) {

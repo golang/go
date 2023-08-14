@@ -444,13 +444,6 @@ func (x *Float) fmtP(buf []byte) []byte {
 	return strconv.AppendInt(buf, int64(x.exp), 10)
 }
 
-func min(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
-}
-
 var _ fmt.Formatter = &floatZero // *Float must implement fmt.Formatter
 
 // Format implements fmt.Formatter. It accepts all the regular

@@ -15,6 +15,8 @@ import (
 )
 
 func TestCreateTemp(t *testing.T) {
+	t.Parallel()
+
 	dir, err := MkdirTemp("", "TestCreateTempBadDir")
 	if err != nil {
 		t.Fatal(err)
@@ -29,6 +31,8 @@ func TestCreateTemp(t *testing.T) {
 }
 
 func TestCreateTempPattern(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct{ pattern, prefix, suffix string }{
 		{"tempfile_test", "tempfile_test", ""},
 		{"tempfile_test*", "tempfile_test", ""},
@@ -51,6 +55,8 @@ func TestCreateTempPattern(t *testing.T) {
 }
 
 func TestCreateTempBadPattern(t *testing.T) {
+	t.Parallel()
+
 	tmpDir, err := MkdirTemp("", t.Name())
 	if err != nil {
 		t.Fatal(err)
@@ -91,6 +97,8 @@ func TestCreateTempBadPattern(t *testing.T) {
 }
 
 func TestMkdirTemp(t *testing.T) {
+	t.Parallel()
+
 	name, err := MkdirTemp("/_not_exists_", "foo")
 	if name != "" || err == nil {
 		t.Errorf("MkdirTemp(`/_not_exists_`, `foo`) = %v, %v", name, err)
@@ -142,6 +150,8 @@ func TestMkdirTemp(t *testing.T) {
 // test that we return a nice error message if the dir argument to TempDir doesn't
 // exist (or that it's empty and TempDir doesn't exist)
 func TestMkdirTempBadDir(t *testing.T) {
+	t.Parallel()
+
 	dir, err := MkdirTemp("", "MkdirTempBadDir")
 	if err != nil {
 		t.Fatal(err)
@@ -156,6 +166,8 @@ func TestMkdirTempBadDir(t *testing.T) {
 }
 
 func TestMkdirTempBadPattern(t *testing.T) {
+	t.Parallel()
+
 	tmpDir, err := MkdirTemp("", t.Name())
 	if err != nil {
 		t.Fatal(err)

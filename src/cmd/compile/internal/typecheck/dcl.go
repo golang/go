@@ -6,6 +6,7 @@ package typecheck
 
 import (
 	"fmt"
+	"internal/types/errors"
 	"sync"
 
 	"cmd/compile/internal/base"
@@ -26,76 +27,15 @@ func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.F
 
 	var recv1 *types.Field
 	if recv != nil {
-		recv1 = declareParam(ir.PPARAM, -1, recv)
+		recv1 = declareParam(fn, ir.PPARAM, -1, recv)
 	}
 
-	typ := types.NewSignature(types.LocalPkg, recv1, nil, declareParams(ir.PPARAM, params), declareParams(ir.PPARAMOUT, results))
+	typ := types.NewSignature(recv1, declareParams(fn, ir.PPARAM, params), declareParams(fn, ir.PPARAMOUT, results))
 	checkdupfields("argument", typ.Recvs().FieldSlice(), typ.Params().FieldSlice(), typ.Results().FieldSlice())
 	fn.Nname.SetType(typ)
 	fn.Nname.SetTypecheck(1)
 
 	return fn
-}
-
-// Declare records that Node n declares symbol n.Sym in the specified
-// declaration context.
-func Declare(n *ir.Name, ctxt ir.Class) {
-	if ir.IsBlank(n) {
-		return
-	}
-
-	s := n.Sym()
-
-	// kludgy: TypecheckAllowed means we're past parsing. Eg reflectdata.methodWrapper may declare out of package names later.
-	if !inimport && !TypecheckAllowed && s.Pkg != types.LocalPkg {
-		base.ErrorfAt(n.Pos(), "cannot declare name %v", s)
-	}
-
-	if ctxt == ir.PEXTERN {
-		if s.Name == "init" {
-			base.ErrorfAt(n.Pos(), "cannot declare init - must be func")
-		}
-		if s.Name == "main" && s.Pkg.Name == "main" {
-			base.ErrorfAt(n.Pos(), "cannot declare main - must be func")
-		}
-		Target.Externs = append(Target.Externs, n)
-	} else {
-		if ir.CurFunc == nil && ctxt == ir.PAUTO {
-			base.Pos = n.Pos()
-			base.Fatalf("automatic outside function")
-		}
-		if ir.CurFunc != nil && ctxt != ir.PFUNC && n.Op() == ir.ONAME {
-			ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
-		}
-		types.Pushdcl(s)
-		n.Curfn = ir.CurFunc
-	}
-
-	if ctxt == ir.PAUTO {
-		n.SetFrameOffset(0)
-	}
-
-	s.Def = n
-	n.Class = ctxt
-	if ctxt == ir.PFUNC {
-		n.Sym().SetFunc(true)
-	}
-
-	autoexport(n, ctxt)
-}
-
-// Export marks n for export (or reexport).
-func Export(n *ir.Name) {
-	if n.Sym().OnExportList() {
-		return
-	}
-	n.Sym().SetOnExportList(true)
-
-	if base.Flag.E != 0 {
-		fmt.Printf("export symbol %v\n", n.Sym())
-	}
-
-	Target.Exports = append(Target.Exports, n)
 }
 
 // declare the function proper
@@ -107,8 +47,6 @@ func StartFuncBody(fn *ir.Func) {
 	funcStack = append(funcStack, funcStackEnt{ir.CurFunc, DeclContext})
 	ir.CurFunc = fn
 	DeclContext = ir.PAUTO
-
-	types.Markdcl()
 }
 
 // finish the body.
@@ -116,7 +54,6 @@ func StartFuncBody(fn *ir.Func) {
 // returns in extern-declaration context.
 func FinishFuncBody() {
 	// change the declaration context from auto to previous context
-	types.Popdcl()
 	var e funcStackEnt
 	funcStack, e = funcStack[:len(funcStack)-1], funcStack[len(funcStack)-1]
 	ir.CurFunc, DeclContext = e.curfn, e.dclcontext
@@ -125,26 +62,6 @@ func FinishFuncBody() {
 func CheckFuncStack() {
 	if len(funcStack) != 0 {
 		base.Fatalf("funcStack is non-empty: %v", len(funcStack))
-	}
-}
-
-func autoexport(n *ir.Name, ctxt ir.Class) {
-	if n.Sym().Pkg != types.LocalPkg {
-		return
-	}
-	if (ctxt != ir.PEXTERN && ctxt != ir.PFUNC) || DeclContext != ir.PEXTERN {
-		return
-	}
-	if n.Type() != nil && n.Type().IsKind(types.TFUNC) && ir.IsMethod(n) {
-		return
-	}
-
-	if types.IsExported(n.Sym().Name) || n.Sym().Name == "init" {
-		Export(n)
-	}
-	if base.Flag.AsmHdr != "" && !n.Sym().Asm() {
-		n.Sym().SetAsm(true)
-		Target.Asms = append(Target.Asms, n)
 	}
 }
 
@@ -158,32 +75,11 @@ func checkdupfields(what string, fss ...[]*types.Field) {
 				continue
 			}
 			if seen[f.Sym] {
-				base.ErrorfAt(f.Pos, "duplicate %s %s", what, f.Sym.Name)
+				base.ErrorfAt(f.Pos, errors.DuplicateFieldAndMethod, "duplicate %s %s", what, f.Sym.Name)
 				continue
 			}
 			seen[f.Sym] = true
 		}
-	}
-}
-
-// structs, functions, and methods.
-// they don't belong here, but where do they belong?
-func checkembeddedtype(t *types.Type) {
-	if t == nil {
-		return
-	}
-
-	if t.Sym() == nil && t.IsPtr() {
-		t = t.Elem()
-		if t.IsInterface() {
-			base.Errorf("embedded type cannot be a pointer to interface")
-		}
-	}
-
-	if t.IsPtr() || t.IsUnsafePtr() {
-		base.Errorf("embedded type cannot be a pointer")
-	} else if t.Kind() == types.TFORW && !t.ForwardType().Embedlineno.IsKnown() {
-		t.ForwardType().Embedlineno = base.Pos
 	}
 }
 
@@ -194,15 +90,15 @@ type funcStackEnt struct {
 	dclcontext ir.Class
 }
 
-func declareParams(ctxt ir.Class, l []*ir.Field) []*types.Field {
+func declareParams(fn *ir.Func, ctxt ir.Class, l []*ir.Field) []*types.Field {
 	fields := make([]*types.Field, len(l))
 	for i, n := range l {
-		fields[i] = declareParam(ctxt, i, n)
+		fields[i] = declareParam(fn, ctxt, i, n)
 	}
 	return fields
 }
 
-func declareParam(ctxt ir.Class, i int, param *ir.Field) *types.Field {
+func declareParam(fn *ir.Func, ctxt ir.Class, i int, param *ir.Field) *types.Field {
 	f := types.NewField(param.Pos, param.Sym, param.Type)
 	f.SetIsDDD(param.IsDDD)
 
@@ -226,7 +122,10 @@ func declareParam(ctxt ir.Class, i int, param *ir.Field) *types.Field {
 		name := ir.NewNameAt(param.Pos, sym)
 		name.SetType(f.Type)
 		name.SetTypecheck(1)
-		Declare(name, ctxt)
+
+		name.Class = ctxt
+		fn.Dcl = append(fn.Dcl, name)
+		name.Curfn = fn
 
 		f.Nname = name
 	}
@@ -238,7 +137,7 @@ func Temp(t *types.Type) *ir.Name {
 	return TempAt(base.Pos, ir.CurFunc, t)
 }
 
-// make a new Node off the books
+// make a new Node off the books.
 func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	if curfn == nil {
 		base.Fatalf("no curfn for TempAt")
@@ -305,12 +204,6 @@ func autotmpname(n int) string {
 // f is method type, with receiver.
 // return function type, receiver as first argument (or not).
 func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
-	if sig.HasTParam() {
-		base.Fatalf("NewMethodType with type parameters in signature %+v", sig)
-	}
-	if recv != nil && recv.HasTParam() {
-		base.Fatalf("NewMethodType with type parameters in receiver %+v", recv)
-	}
 	nrecvs := 0
 	if recv != nil {
 		nrecvs++
@@ -334,5 +227,5 @@ func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
 		results[i] = types.NewField(base.Pos, nil, t.Type)
 	}
 
-	return types.NewSignature(types.LocalPkg, nil, nil, params, results)
+	return types.NewSignature(nil, params, results)
 }

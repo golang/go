@@ -5,10 +5,10 @@
 # -Os option.
 #
 # Verifies golang.org/issue/52366 for linux/ppc64le
-[!linux] skip
-[!gc] skip
+[!GOOS:linux] skip
+[!compiler:gc] skip
 [!cgo] skip
-[!ppc64le] skip
+[!GOARCH:ppc64le] skip
 
 go build -ldflags='-linkmode=internal'
 exec ./abitest

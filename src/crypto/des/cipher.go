@@ -6,7 +6,7 @@ package des
 
 import (
 	"crypto/cipher"
-	"crypto/internal/subtle"
+	"crypto/internal/alias"
 	"encoding/binary"
 	"strconv"
 )
@@ -45,7 +45,7 @@ func (c *desCipher) Encrypt(dst, src []byte) {
 	if len(dst) < BlockSize {
 		panic("crypto/des: output not full block")
 	}
-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/des: invalid buffer overlap")
 	}
 	encryptBlock(c.subkeys[:], dst, src)
@@ -58,7 +58,7 @@ func (c *desCipher) Decrypt(dst, src []byte) {
 	if len(dst) < BlockSize {
 		panic("crypto/des: output not full block")
 	}
-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/des: invalid buffer overlap")
 	}
 	decryptBlock(c.subkeys[:], dst, src)
@@ -91,7 +91,7 @@ func (c *tripleDESCipher) Encrypt(dst, src []byte) {
 	if len(dst) < BlockSize {
 		panic("crypto/des: output not full block")
 	}
-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/des: invalid buffer overlap")
 	}
 
@@ -126,7 +126,7 @@ func (c *tripleDESCipher) Decrypt(dst, src []byte) {
 	if len(dst) < BlockSize {
 		panic("crypto/des: output not full block")
 	}
-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/des: invalid buffer overlap")
 	}
 

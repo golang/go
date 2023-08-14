@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"unicode"
 )
@@ -74,10 +75,11 @@ type printer struct {
 	// white space). If there's a difference and SourcePos is set in
 	// ConfigMode, //line directives are used in the output to restore
 	// original source positions for a reader.
-	pos     token.Position // current position in AST (source) space
-	out     token.Position // current position in output space
-	last    token.Position // value of pos after calling writeString
-	linePtr *int           // if set, record out.Line for the next token in *linePtr
+	pos          token.Position // current position in AST (source) space
+	out          token.Position // current position in output space
+	last         token.Position // value of pos after calling writeString
+	linePtr      *int           // if set, record out.Line for the next token in *linePtr
+	sourcePosErr error          // if non-nil, the first error emitting a //line directive
 
 	// The list of all source comments, in order of appearance.
 	comments        []*ast.CommentGroup // may be nil
@@ -92,16 +94,6 @@ type printer struct {
 	// Cache of most recently computed line position.
 	cachedPos  token.Pos
 	cachedLine int // line corresponding to cachedPos
-}
-
-func (p *printer) init(cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]int) {
-	p.Config = *cfg
-	p.fset = fset
-	p.pos = token.Position{Line: 1, Column: 1}
-	p.out = token.Position{Line: 1, Column: 1}
-	p.wsbuf = make([]whiteSpace, 0, 16) // whitespace sequences are short
-	p.nodeSizes = nodeSizes
-	p.cachedPos = -1
 }
 
 func (p *printer) internalError(msg ...any) {
@@ -205,6 +197,13 @@ func (p *printer) lineFor(pos token.Pos) int {
 // writeLineDirective writes a //line directive if necessary.
 func (p *printer) writeLineDirective(pos token.Position) {
 	if pos.IsValid() && (p.out.Line != pos.Line || p.out.Filename != pos.Filename) {
+		if strings.ContainsAny(pos.Filename, "\r\n") {
+			if p.sourcePosErr == nil {
+				p.sourcePosErr = fmt.Errorf("go/printer: source filename contains unexpected newline character: %q", pos.Filename)
+			}
+			return
+		}
+
 		p.output = append(p.output, tabwriter.Escape) // protect '\n' in //line from tabwriter interpretation
 		p.output = append(p.output, fmt.Sprintf("//line %s:%d\n", pos.Filename, pos.Line)...)
 		p.output = append(p.output, tabwriter.Escape)
@@ -814,7 +813,7 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
 	return
 }
 
-// whiteWhitespace writes the first n whitespace entries.
+// writeWhitespace writes the first n whitespace entries.
 func (p *printer) writeWhitespace(n int) {
 	// write entries
 	for i := 0; i < n; i++ {
@@ -884,6 +883,12 @@ func mayCombine(prev token.Token, next byte) (b bool) {
 		b = next == '&' || next == '^' // && or &^
 	}
 	return
+}
+
+func (p *printer) setPos(pos token.Pos) {
+	if pos.IsValid() {
+		p.pos = p.posFor(pos) // accurate position of next item
+	}
 }
 
 // print prints a list of "items" (roughly corresponding to syntactic
@@ -982,12 +987,6 @@ func (p *printer) print(args ...any) {
 			}
 			p.lastTok = x
 
-		case token.Pos:
-			if x.IsValid() {
-				p.pos = p.posFor(x) // accurate position of next item
-			}
-			continue
-
 		case string:
 			// incorrect AST - print error message
 			data = x
@@ -1049,7 +1048,7 @@ func (p *printer) flush(next token.Position, tok token.Token) (wroteNewline, dro
 	return
 }
 
-// getNode returns the ast.CommentGroup associated with n, if any.
+// getDoc returns the ast.CommentGroup associated with n, if any.
 func getDoc(n ast.Node) *ast.CommentGroup {
 	switch n := n.(type) {
 	case *ast.Field:
@@ -1178,7 +1177,7 @@ func (p *printer) printNode(node any) error {
 		goto unsupported
 	}
 
-	return nil
+	return p.sourcePosErr
 
 unsupported:
 	return fmt.Errorf("go/printer: unsupported node type %T", node)
@@ -1324,11 +1323,47 @@ type Config struct {
 	Indent   int  // default: 0 (all code is indented at least by this much)
 }
 
+var printerPool = sync.Pool{
+	New: func() any {
+		return &printer{
+			// Whitespace sequences are short.
+			wsbuf: make([]whiteSpace, 0, 16),
+			// We start the printer with a 16K output buffer, which is currently
+			// larger than about 80% of Go files in the standard library.
+			output: make([]byte, 0, 16<<10),
+		}
+	},
+}
+
+func newPrinter(cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]int) *printer {
+	p := printerPool.Get().(*printer)
+	*p = printer{
+		Config:    *cfg,
+		fset:      fset,
+		pos:       token.Position{Line: 1, Column: 1},
+		out:       token.Position{Line: 1, Column: 1},
+		wsbuf:     p.wsbuf[:0],
+		nodeSizes: nodeSizes,
+		cachedPos: -1,
+		output:    p.output[:0],
+	}
+	return p
+}
+
+func (p *printer) free() {
+	// Hard limit on buffer size; see https://golang.org/issue/23199.
+	if cap(p.output) > 64<<10 {
+		return
+	}
+
+	printerPool.Put(p)
+}
+
 // fprint implements Fprint and takes a nodesSizes map for setting up the printer state.
 func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node any, nodeSizes map[ast.Node]int) (err error) {
 	// print node
-	var p printer
-	p.init(cfg, fset, nodeSizes)
+	p := newPrinter(cfg, fset, nodeSizes)
+	defer p.free()
 	if err = p.printNode(node); err != nil {
 		return
 	}

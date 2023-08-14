@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -117,6 +118,23 @@ func init() {
 }
 
 func runClean(ctx context.Context, cmd *base.Command, args []string) {
+	if len(args) > 0 {
+		cacheFlag := ""
+		switch {
+		case cleanCache:
+			cacheFlag = "-cache"
+		case cleanTestcache:
+			cacheFlag = "-testcache"
+		case cleanFuzzcache:
+			cacheFlag = "-fuzzcache"
+		case cleanModcache:
+			cacheFlag = "-modcache"
+		}
+		if cacheFlag != "" {
+			base.Fatalf("go: clean %s cannot be used with package arguments", cacheFlag)
+		}
+	}
+
 	// golang.org/issue/29925: only load packages before cleaning if
 	// either the flags and arguments explicitly imply a package,
 	// or no other target (such as a cache) was requested to be cleaned.
@@ -154,7 +172,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 						// This also mimics what os.RemoveAll(dir) would do.
 						if err := os.RemoveAll(d); err != nil && !printedErrors {
 							printedErrors = true
-							base.Errorf("go: %v", err)
+							base.Error(err)
 						}
 					}
 				}
@@ -167,7 +185,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 			if !cfg.BuildN {
 				if err := os.RemoveAll(logFile); err != nil && !printedErrors {
 					printedErrors = true
-					base.Errorf("go: %v", err)
+					base.Error(err)
 				}
 			}
 		}
@@ -197,7 +215,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 			}
 			if err != nil {
 				if _, statErr := os.Stat(dir); !os.IsNotExist(statErr) {
-					base.Errorf("go: %v", err)
+					base.Error(err)
 				}
 			}
 		}
@@ -212,7 +230,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		if !cfg.BuildN {
 			if err := modfetch.RemoveAll(cfg.GOMODCACHE); err != nil {
-				base.Errorf("go: %v", err)
+				base.Error(err)
 			}
 		}
 	}
@@ -224,7 +242,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		if !cfg.BuildN {
 			if err := os.RemoveAll(fuzzDir); err != nil {
-				base.Errorf("go: %v", err)
+				base.Error(err)
 			}
 		}
 	}
@@ -322,16 +340,14 @@ func clean(p *load.Package) {
 			continue
 		}
 
-		if strings.HasSuffix(name, "_test.go") {
-			base := name[:len(name)-len("_test.go")]
+		if base, found := strings.CutSuffix(name, "_test.go"); found {
 			allRemove = append(allRemove, base+".test", base+".test.exe")
 		}
 
-		if strings.HasSuffix(name, ".go") {
+		if base, found := strings.CutSuffix(name, ".go"); found {
 			// TODO(adg,rsc): check that this .go file is actually
 			// in "package main", and therefore capable of building
 			// to an executable file.
-			base := name[:len(name)-len(".go")]
 			allRemove = append(allRemove, base, base+".exe")
 		}
 	}
@@ -356,7 +372,7 @@ func clean(p *load.Package) {
 					}
 				}
 				if err := os.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
-					base.Errorf("go: %v", err)
+					base.Error(err)
 				}
 			}
 			continue
@@ -395,7 +411,7 @@ func removeFile(f string) {
 		return
 	}
 	// Windows does not allow deletion of a binary file while it is executing.
-	if base.ToolIsWindows {
+	if runtime.GOOS == "windows" {
 		// Remove lingering ~ file from last attempt.
 		if _, err2 := os.Stat(f + "~"); err2 == nil {
 			os.Remove(f + "~")
@@ -408,5 +424,5 @@ func removeFile(f string) {
 			return
 		}
 	}
-	base.Errorf("go: %v", err)
+	base.Error(err)
 }

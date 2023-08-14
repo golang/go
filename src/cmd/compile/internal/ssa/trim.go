@@ -118,7 +118,7 @@ func trim(f *Func) {
 }
 
 // emptyBlock reports whether the block does not contain actual
-// instructions
+// instructions.
 func emptyBlock(b *Block) bool {
 	for _, v := range b.Values {
 		if v.Op != OpPhi {
@@ -130,11 +130,11 @@ func emptyBlock(b *Block) bool {
 
 // trimmableBlock reports whether the block can be trimmed from the CFG,
 // subject to the following criteria:
-//   - it should not be the first block
-//   - it should be BlockPlain
-//   - it should not loop back to itself
+//   - it should not be the first block.
+//   - it should be BlockPlain.
+//   - it should not loop back to itself.
 //   - it either is the single predecessor of the successor block or
-//     contains no actual instructions
+//     contains no actual instructions.
 func trimmableBlock(b *Block) bool {
 	if b.Kind != BlockPlain || b == b.Func.Entry {
 		return false

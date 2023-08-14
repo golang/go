@@ -365,20 +365,27 @@ func (x *Float) validate() {
 		// avoid performance bugs
 		panic("validate called but debugFloat is not set")
 	}
+	if msg := x.validate0(); msg != "" {
+		panic(msg)
+	}
+}
+
+func (x *Float) validate0() string {
 	if x.form != finite {
-		return
+		return ""
 	}
 	m := len(x.mant)
 	if m == 0 {
-		panic("nonzero finite number with empty mantissa")
+		return "nonzero finite number with empty mantissa"
 	}
 	const msb = 1 << (_W - 1)
 	if x.mant[m-1]&msb == 0 {
-		panic(fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.Text('p', 0)))
+		return fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.Text('p', 0))
 	}
 	if x.prec == 0 {
-		panic("zero precision finite number")
+		return "zero precision finite number"
 	}
+	return ""
 }
 
 // round rounds z according to z.mode to z.prec bits and sets z.acc accordingly.

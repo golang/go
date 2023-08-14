@@ -98,6 +98,8 @@ const (
 	SBSS
 	SNOPTRBSS
 	SLIBFUZZER_8BIT_COUNTER
+	SCOVERAGE_COUNTER
+	SCOVERAGE_AUXVAR
 	STLSBSS
 	SXREF
 	SMACHOSYMSTR
@@ -121,6 +123,10 @@ const (
 	SDWARFRANGE
 	SDWARFLOC
 	SDWARFLINES
+
+	// SEH symbol types
+	SSEHUNWINDINFO
+	SSEHSECT
 )
 
 // AbiSymKindToSymKind maps values read from object files (which are
@@ -144,6 +150,9 @@ var AbiSymKindToSymKind = [...]SymKind{
 	objabi.SDWARFLOC:               SDWARFLOC,
 	objabi.SDWARFLINES:             SDWARFLINES,
 	objabi.SLIBFUZZER_8BIT_COUNTER: SLIBFUZZER_8BIT_COUNTER,
+	objabi.SCOVERAGE_COUNTER:       SCOVERAGE_COUNTER,
+	objabi.SCOVERAGE_AUXVAR:        SCOVERAGE_AUXVAR,
+	objabi.SSEHUNWINDINFO:          SSEHUNWINDINFO,
 }
 
 // ReadOnly are the symbol kinds that form read-only sections. In some
@@ -174,4 +183,8 @@ var RelROMap = map[SymKind]SymKind{
 // IsData returns true if the type is a data type.
 func (t SymKind) IsData() bool {
 	return t == SDATA || t == SNOPTRDATA || t == SBSS || t == SNOPTRBSS
+}
+
+func (t SymKind) IsDWARF() bool {
+	return t >= SDWARFSECT && t <= SDWARFLINES
 }

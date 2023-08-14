@@ -14,6 +14,10 @@ import (
 )
 
 func FuzzDecode(f *testing.F) {
+	if testing.Short() {
+		f.Skip("Skipping in short mode")
+	}
+
 	testdata, err := os.ReadDir("../testdata")
 	if err != nil {
 		f.Fatalf("failed to read testdata directory: %s", err)

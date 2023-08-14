@@ -34,10 +34,11 @@ func (*node) aNode()     {}
 
 // package PkgName; DeclList[0], DeclList[1], ...
 type File struct {
-	Pragma   Pragma
-	PkgName  *Name
-	DeclList []Decl
-	EOF      Pos
+	Pragma    Pragma
+	PkgName   *Name
+	DeclList  []Decl
+	EOF       Pos
+	GoVersion string
 	node
 }
 
@@ -132,6 +133,7 @@ func NewName(pos Pos, value string) *Name {
 type (
 	Expr interface {
 		Node
+		typeInfo
 		aExpr()
 	}
 
@@ -308,7 +310,10 @@ type (
 	}
 )
 
-type expr struct{ node }
+type expr struct {
+	node
+	typeAndValue // After typechecking, contains the results of typechecking this expression.
+}
 
 func (*expr) aExpr() {}
 
@@ -385,7 +390,7 @@ type (
 
 	CallStmt struct {
 		Tok  token // Go or Defer
-		Call *CallExpr
+		Call Expr
 		stmt
 	}
 

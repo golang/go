@@ -12,9 +12,11 @@ import (
 	"sync"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
+	"cmd/internal/pkgpattern"
 
 	"golang.org/x/mod/module"
 )
@@ -96,7 +98,7 @@ type query struct {
 	resolved []module.Version
 
 	// matchesPackages is true if the resolved modules provide at least one
-	// package mathcing q.pattern.
+	// package matching q.pattern.
 	matchesPackages bool
 }
 
@@ -137,13 +139,9 @@ func errSet(err error) pathSet { return pathSet{err: err} }
 // newQuery returns a new query parsed from the raw argument,
 // which must be either path or path@version.
 func newQuery(raw string) (*query, error) {
-	pattern := raw
-	rawVers := ""
-	if i := strings.Index(raw, "@"); i >= 0 {
-		pattern, rawVers = raw[:i], raw[i+1:]
-		if strings.Contains(rawVers, "@") || rawVers == "" {
-			return nil, fmt.Errorf("invalid module version syntax %q", raw)
-		}
+	pattern, rawVers, found := strings.Cut(raw, "@")
+	if found && (strings.Contains(rawVers, "@") || rawVers == "") {
+		return nil, fmt.Errorf("invalid module version syntax %q", raw)
 	}
 
 	// If no version suffix is specified, assume @upgrade.
@@ -165,8 +163,8 @@ func newQuery(raw string) (*query, error) {
 		version:        version,
 	}
 	if strings.Contains(q.pattern, "...") {
-		q.matchWildcard = search.MatchPattern(q.pattern)
-		q.canMatchWildcardInModule = search.TreeCanMatchPattern(q.pattern)
+		q.matchWildcard = pkgpattern.MatchPattern(q.pattern)
+		q.canMatchWildcardInModule = pkgpattern.TreeCanMatchPattern(q.pattern)
 	}
 	if err := q.validate(); err != nil {
 		return q, err
@@ -232,7 +230,7 @@ func (q *query) isWildcard() bool {
 
 // matchesPath reports whether the given path matches q.pattern.
 func (q *query) matchesPath(path string) bool {
-	if q.matchWildcard != nil {
+	if q.matchWildcard != nil && !gover.IsToolchain(path) {
 		return q.matchWildcard(path)
 	}
 	return path == q.pattern
@@ -241,6 +239,9 @@ func (q *query) matchesPath(path string) bool {
 // canMatchInModule reports whether the given module path can potentially
 // contain q.pattern.
 func (q *query) canMatchInModule(mPath string) bool {
+	if gover.IsToolchain(mPath) {
+		return false
+	}
 	if q.canMatchWildcardInModule != nil {
 		return q.canMatchWildcardInModule(mPath)
 	}

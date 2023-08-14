@@ -179,7 +179,7 @@ func largestMove(alignment int64) (obj.As, int64) {
 	}
 }
 
-// markMoves marks any MOVXconst ops that need to avoid clobbering flags.
+// ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 // RISC-V has no flags, so this is a no-op.
 func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {}
 
@@ -341,7 +341,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r2
 		p.Reg = r1
-		p.SetRestArgs([]obj.Addr{{Type: obj.TYPE_REG, Reg: r3}})
+		p.AddRestSource(obj.Addr{Type: obj.TYPE_REG, Reg: r3})
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpRISCV64FSQRTS, ssa.OpRISCV64FNEGS, ssa.OpRISCV64FABSD, ssa.OpRISCV64FSQRTD, ssa.OpRISCV64FNEGD,
@@ -433,7 +433,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = v.Aux.(*obj.LSym)
+		// AuxInt encodes how many buffer entries we need.
+		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
 	case ssa.OpRISCV64LoweredPanicBoundsA, ssa.OpRISCV64LoweredPanicBoundsB, ssa.OpRISCV64LoweredPanicBoundsC:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM

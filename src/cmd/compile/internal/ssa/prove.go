@@ -463,15 +463,23 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			if parent.Func.pass.debug > 1 {
 				parent.Func.Warnl(parent.Pos, "x+d %s w; x:%v %v delta:%v w:%v d:%v", r, x, parent.String(), delta, w.AuxInt, d)
 			}
+			underflow := true
+			if l, has := ft.limits[x.ID]; has && delta < 0 {
+				if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
+					(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
+					underflow = false
+				}
+			}
+			if delta < 0 && !underflow {
+				// If delta < 0 and x+delta cannot underflow then x > x+delta (that is, x > v)
+				ft.update(parent, x, v, signed, gt)
+			}
 			if !w.isGenericIntConst() {
 				// If we know that x+delta > w but w is not constant, we can derive:
-				//    if delta < 0 and x > MinInt - delta, then x > w (because x+delta cannot underflow)
+				//    if delta < 0 and x+delta cannot underflow, then x > w
 				// This is useful for loops with bounds "len(slice)-K" (delta = -K)
-				if l, has := ft.limits[x.ID]; has && delta < 0 {
-					if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
-						(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
-						ft.update(parent, x, w, signed, r)
-					}
+				if delta < 0 && !underflow {
+					ft.update(parent, x, w, signed, r)
 				}
 			} else {
 				// With w,delta constants, we want to derive: x+delta > w  ⇒  x > w-delta
@@ -507,6 +515,20 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 
 					vmin = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, min)
 					vmax = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, max)
+
+				case 2:
+					min = int64(int16(w.AuxInt) - int16(delta))
+					max = int64(int16(^uint16(0)>>1) - int16(delta))
+
+					vmin = parent.NewValue0I(parent.Pos, OpConst16, parent.Func.Config.Types.Int16, min)
+					vmax = parent.NewValue0I(parent.Pos, OpConst16, parent.Func.Config.Types.Int16, max)
+
+				case 1:
+					min = int64(int8(w.AuxInt) - int8(delta))
+					max = int64(int8(^uint8(0)>>1) - int8(delta))
+
+					vmin = parent.NewValue0I(parent.Pos, OpConst8, parent.Func.Config.Types.Int8, min)
+					vmax = parent.NewValue0I(parent.Pos, OpConst8, parent.Func.Config.Types.Int8, max)
 
 				default:
 					panic("unimplemented")
@@ -776,10 +798,171 @@ func (ft *factsTable) cleanup(f *Func) {
 // its negation. If either leads to a contradiction, it can trim that
 // successor.
 func prove(f *Func) {
+	// Find induction variables. Currently, findIndVars
+	// is limited to one induction variable per block.
+	var indVars map[*Block]indVar
+	for _, v := range findIndVar(f) {
+		ind := v.ind
+		if len(ind.Args) != 2 {
+			// the rewrite code assumes there is only ever two parents to loops
+			panic("unexpected induction with too many parents")
+		}
+
+		nxt := v.nxt
+		if !(ind.Uses == 2 && // 2 used by comparison and next
+			nxt.Uses == 1) { // 1 used by induction
+			// ind or nxt is used inside the loop, add it for the facts table
+			if indVars == nil {
+				indVars = make(map[*Block]indVar)
+			}
+			indVars[v.entry] = v
+			continue
+		} else {
+			// Since this induction variable is not used for anything but counting the iterations,
+			// no point in putting it into the facts table.
+		}
+
+		// try to rewrite to a downward counting loop checking against start if the
+		// loop body does not depends on ind or nxt and end is known before the loop.
+		// This reduce pressure on the register allocator because this do not need
+		// to use end on each iteration anymore. We compare against the start constant instead.
+		// That means this code:
+		//
+		//	loop:
+		//		ind = (Phi (Const [x]) nxt),
+		//		if ind < end
+		//		then goto enter_loop
+		//		else goto exit_loop
+		//
+		//	enter_loop:
+		//		do something without using ind nor nxt
+		//		nxt = inc + ind
+		//		goto loop
+		//
+		//	exit_loop:
+		//
+		// is rewritten to:
+		//
+		//	loop:
+		//		ind = (Phi end nxt)
+		//		if (Const [x]) < ind
+		//		then goto enter_loop
+		//		else goto exit_loop
+		//
+		//	enter_loop:
+		//		do something without using ind nor nxt
+		//		nxt = ind - inc
+		//		goto loop
+		//
+		//	exit_loop:
+		//
+		// this is better because it only require to keep ind then nxt alive while looping,
+		// while the original form keeps ind then nxt and end alive
+		start, end := v.min, v.max
+		if v.flags&indVarCountDown != 0 {
+			start, end = end, start
+		}
+
+		if !(start.Op == OpConst8 || start.Op == OpConst16 || start.Op == OpConst32 || start.Op == OpConst64) {
+			// if start is not a constant we would be winning nothing from inverting the loop
+			continue
+		}
+		if end.Op == OpConst8 || end.Op == OpConst16 || end.Op == OpConst32 || end.Op == OpConst64 {
+			// TODO: if both start and end are constants we should rewrite such that the comparison
+			// is against zero and nxt is ++ or -- operation
+			// That means:
+			//	for i := 2; i < 11; i += 2 {
+			// should be rewritten to:
+			//	for i := 5; 0 < i; i-- {
+			continue
+		}
+
+		header := ind.Block
+		check := header.Controls[0]
+		if check == nil {
+			// we don't know how to rewrite a loop that not simple comparison
+			continue
+		}
+		switch check.Op {
+		case OpLeq64, OpLeq32, OpLeq16, OpLeq8,
+			OpLess64, OpLess32, OpLess16, OpLess8:
+		default:
+			// we don't know how to rewrite a loop that not simple comparison
+			continue
+		}
+		if !((check.Args[0] == ind && check.Args[1] == end) ||
+			(check.Args[1] == ind && check.Args[0] == end)) {
+			// we don't know how to rewrite a loop that not simple comparison
+			continue
+		}
+		if end.Block == ind.Block {
+			// we can't rewrite loops where the condition depends on the loop body
+			// this simple check is forced to work because if this is true a Phi in ind.Block must exists
+			continue
+		}
+
+		// invert the check
+		check.Args[0], check.Args[1] = check.Args[1], check.Args[0]
+
+		// invert start and end in the loop
+		for i, v := range check.Args {
+			if v != end {
+				continue
+			}
+
+			check.SetArg(i, start)
+			goto replacedEnd
+		}
+		panic(fmt.Sprintf("unreachable, ind: %v, start: %v, end: %v", ind, start, end))
+	replacedEnd:
+
+		for i, v := range ind.Args {
+			if v != start {
+				continue
+			}
+
+			ind.SetArg(i, end)
+			goto replacedStart
+		}
+		panic(fmt.Sprintf("unreachable, ind: %v, start: %v, end: %v", ind, start, end))
+	replacedStart:
+
+		if nxt.Args[0] != ind {
+			// unlike additions subtractions are not commutative so be sure we get it right
+			nxt.Args[0], nxt.Args[1] = nxt.Args[1], nxt.Args[0]
+		}
+
+		switch nxt.Op {
+		case OpAdd8:
+			nxt.Op = OpSub8
+		case OpAdd16:
+			nxt.Op = OpSub16
+		case OpAdd32:
+			nxt.Op = OpSub32
+		case OpAdd64:
+			nxt.Op = OpSub64
+		case OpSub8:
+			nxt.Op = OpAdd8
+		case OpSub16:
+			nxt.Op = OpAdd16
+		case OpSub32:
+			nxt.Op = OpAdd32
+		case OpSub64:
+			nxt.Op = OpAdd64
+		default:
+			panic("unreachable")
+		}
+
+		if f.pass.debug > 0 {
+			f.Warnl(ind.Pos, "Inverted loop iteration")
+		}
+	}
+
 	ft := newFactsTable(f)
 	ft.checkpoint()
 
 	var lensVars map[*Block][]*Value
+	var logicVars map[*Block][]*Value
 
 	// Find length and capacity ops.
 	for _, b := range f.Blocks {
@@ -834,18 +1017,81 @@ func prove(f *Func) {
 			case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
 				ft.update(b, v, v.Args[1], unsigned, lt|eq)
 				ft.update(b, v, v.Args[0], unsigned, lt|eq)
+				for i := 0; i < 2; i++ {
+					if isNonNegative(v.Args[i]) {
+						ft.update(b, v, v.Args[i], signed, lt|eq)
+						ft.update(b, v, ft.zero, signed, gt|eq)
+					}
+				}
+				if logicVars == nil {
+					logicVars = make(map[*Block][]*Value)
+				}
+				logicVars[b] = append(logicVars[b], v)
+			case OpOr64, OpOr32, OpOr16, OpOr8:
+				// TODO: investigate how to always add facts without much slowdown, see issue #57959.
+				if v.Args[0].isGenericIntConst() {
+					ft.update(b, v, v.Args[0], unsigned, gt|eq)
+				}
+				if v.Args[1].isGenericIntConst() {
+					ft.update(b, v, v.Args[1], unsigned, gt|eq)
+				}
+			case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
+				OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
+				OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
+				OpRsh32Ux64, OpRsh32Ux32, OpRsh32Ux16, OpRsh32Ux8,
+				OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8:
+				ft.update(b, v, v.Args[0], unsigned, lt|eq)
+			case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
+				ft.update(b, v, v.Args[0], unsigned, lt|eq)
+				ft.update(b, v, v.Args[1], unsigned, lt)
+			case OpPhi:
+				// Determine the min and max value of OpPhi composed entirely of integer constants.
+				//
+				// For example, for an OpPhi:
+				//
+				// v1 = OpConst64 [13]
+				// v2 = OpConst64 [7]
+				// v3 = OpConst64 [42]
+				//
+				// v4 = OpPhi(v1, v2, v3)
+				//
+				// We can prove:
+				//
+				// v4 >= 7 && v4 <= 42
+				//
+				// TODO(jake-ciolek): Handle nested constant OpPhi's
+				sameConstOp := true
+				min := 0
+				max := 0
+
+				if !v.Args[min].isGenericIntConst() {
+					break
+				}
+
+				for k := range v.Args {
+					if v.Args[k].Op != v.Args[min].Op {
+						sameConstOp = false
+						break
+					}
+					if v.Args[k].AuxInt < v.Args[min].AuxInt {
+						min = k
+					}
+					if v.Args[k].AuxInt > v.Args[max].AuxInt {
+						max = k
+					}
+				}
+
+				if sameConstOp {
+					ft.update(b, v, v.Args[min], signed, gt|eq)
+					ft.update(b, v, v.Args[max], signed, lt|eq)
+				}
+				// One might be tempted to create a v >= ft.zero relation for
+				// all OpPhi's composed of only provably-positive values
+				// but that bloats up the facts table for a very negligible gain.
+				// In Go itself, very few functions get improved (< 5) at a cost of 5-7% total increase
+				// of compile time.
 			}
 		}
-	}
-
-	// Find induction variables. Currently, findIndVars
-	// is limited to one induction variable per block.
-	var indVars map[*Block]indVar
-	for _, v := range findIndVar(f) {
-		if indVars == nil {
-			indVars = make(map[*Block]indVar)
-		}
-		indVars[v.entry] = v
 	}
 
 	// current node state
@@ -906,6 +1152,21 @@ func prove(f *Func) {
 
 			if branch != unknown {
 				addBranchRestrictions(ft, parent, branch)
+				// After we add the branch restriction, re-check the logic operations in the parent block,
+				// it may give us more info to omit some branches
+				if logic, ok := logicVars[parent]; ok {
+					for _, v := range logic {
+						// we only have OpAnd for now
+						ft.update(parent, v, v.Args[1], unsigned, lt|eq)
+						ft.update(parent, v, v.Args[0], unsigned, lt|eq)
+						for i := 0; i < 2; i++ {
+							if isNonNegative(v.Args[i]) {
+								ft.update(parent, v, v.Args[i], signed, lt|eq)
+								ft.update(parent, v, ft.zero, signed, gt|eq)
+							}
+						}
+					}
+				}
 				if ft.unsat {
 					// node.block is unreachable.
 					// Remove it and don't visit
@@ -1085,7 +1346,7 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r relation) {
 	if t == 0 {
 		// Trivial case: nothing to do.
-		// Shoult not happen, but just in case.
+		// Should not happen, but just in case.
 		return
 	}
 	for i := domain(1); i <= t; i <<= 1 {
@@ -1099,8 +1360,7 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
 // addLocalInductiveFacts adds inductive facts when visiting b, where
 // b is a join point in a loop. In contrast with findIndVar, this
 // depends on facts established for b, which is why it happens when
-// visiting b. addLocalInductiveFacts specifically targets the pattern
-// created by OFORUNTIL, which isn't detected by findIndVar.
+// visiting b.
 //
 // TODO: It would be nice to combine this with findIndVar.
 func addLocalInductiveFacts(ft *factsTable, b *Block) {
@@ -1510,16 +1770,20 @@ func isConstDelta(v *Value) (w *Value, delta int64) {
 	switch v.Op {
 	case OpAdd32, OpSub32:
 		cop = OpConst32
+	case OpAdd16, OpSub16:
+		cop = OpConst16
+	case OpAdd8, OpSub8:
+		cop = OpConst8
 	}
 	switch v.Op {
-	case OpAdd64, OpAdd32:
+	case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
 		if v.Args[0].Op == cop {
 			return v.Args[1], v.Args[0].AuxInt
 		}
 		if v.Args[1].Op == cop {
 			return v.Args[0], v.Args[1].AuxInt
 		}
-	case OpSub64, OpSub32:
+	case OpSub64, OpSub32, OpSub16, OpSub8:
 		if v.Args[1].Op == cop {
 			aux := v.Args[1].AuxInt
 			if aux != -aux { // Overflow; too bad
@@ -1531,7 +1795,7 @@ func isConstDelta(v *Value) (w *Value, delta int64) {
 }
 
 // isCleanExt reports whether v is the result of a value-preserving
-// sign or zero extension
+// sign or zero extension.
 func isCleanExt(v *Value) bool {
 	switch v.Op {
 	case OpSignExt8to16, OpSignExt8to32, OpSignExt8to64,

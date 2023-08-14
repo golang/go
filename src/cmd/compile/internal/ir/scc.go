@@ -49,16 +49,13 @@ type bottomUpVisitor struct {
 // If recursive is false, the list consists of only a single function and its closures.
 // If recursive is true, the list may still contain only a single function,
 // if that function is itself recursive.
-func VisitFuncsBottomUp(list []Node, analyze func(list []*Func, recursive bool)) {
+func VisitFuncsBottomUp(list []*Func, analyze func(list []*Func, recursive bool)) {
 	var v bottomUpVisitor
 	v.analyze = analyze
 	v.nodeID = make(map[*Func]uint32)
 	for _, n := range list {
-		if n.Op() == ODCLFUNC {
-			n := n.(*Func)
-			if !n.IsHiddenClosure() {
-				v.visit(n)
-			}
+		if !n.IsHiddenClosure() {
+			v.visit(n)
 		}
 	}
 }
@@ -103,16 +100,13 @@ func (v *bottomUpVisitor) visit(n *Func) uint32 {
 	if (min == id || min == id+1) && !n.IsHiddenClosure() {
 		// This node is the root of a strongly connected component.
 
-		// The original min passed to visitcodelist was v.nodeID[n]+1.
-		// If visitcodelist found its way back to v.nodeID[n], then this
-		// block is a set of mutually recursive functions.
-		// Otherwise it's just a lone function that does not recurse.
+		// The original min was id+1. If the bottomUpVisitor found its way
+		// back to id, then this block is a set of mutually recursive functions.
+		// Otherwise, it's just a lone function that does not recurse.
 		recursive := min == id
 
-		// Remove connected component from stack.
-		// Mark walkgen so that future visits return a large number
-		// so as not to affect the caller's min.
-
+		// Remove connected component from stack and mark v.nodeID so that future
+		// visits return a large number, which will not affect the caller's min.
 		var i int
 		for i = len(v.stack) - 1; i >= 0; i-- {
 			x := v.stack[i]
@@ -122,7 +116,7 @@ func (v *bottomUpVisitor) visit(n *Func) uint32 {
 			}
 		}
 		block := v.stack[i:]
-		// Run escape analysis on this set of functions.
+		// Call analyze on this set of functions.
 		v.stack = v.stack[:i]
 		v.analyze(block, recursive)
 	}

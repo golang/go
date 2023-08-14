@@ -53,7 +53,7 @@ func NewCond(l Locker) *Cond {
 // Wait locks c.L before returning. Unlike in other systems,
 // Wait cannot return unless awoken by Broadcast or Signal.
 //
-// Because c.L is not locked when Wait first resumes, the caller
+// Because c.L is not locked while Wait is waiting, the caller
 // typically cannot assume that the condition is true when
 // Wait returns. Instead, the caller should Wait in a loop:
 //

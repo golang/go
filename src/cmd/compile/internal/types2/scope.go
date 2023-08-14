@@ -7,7 +7,6 @@
 package types2
 
 import (
-	"bytes"
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"io"
@@ -84,7 +83,7 @@ func (s *Scope) Lookup(name string) Object {
 // whose scope is the scope of the package that exported them.
 func (s *Scope) LookupParent(name string, pos syntax.Pos) (*Scope, Object) {
 	for ; s != nil; s = s.parent {
-		if obj := s.Lookup(name); obj != nil && (!pos.IsKnown() || obj.scopePos().Cmp(pos) <= 0) {
+		if obj := s.Lookup(name); obj != nil && (!pos.IsKnown() || cmpPos(obj.scopePos(), pos) <= 0) {
 			return s, obj
 		}
 	}
@@ -176,7 +175,7 @@ func (s *Scope) End() syntax.Pos { return s.end }
 // The result is guaranteed to be valid only if the type-checked
 // AST has complete position information.
 func (s *Scope) Contains(pos syntax.Pos) bool {
-	return s.pos.Cmp(pos) <= 0 && pos.Cmp(s.end) < 0
+	return cmpPos(s.pos, pos) <= 0 && cmpPos(pos, s.end) < 0
 }
 
 // Innermost returns the innermost (child) scope containing
@@ -233,7 +232,7 @@ func (s *Scope) WriteTo(w io.Writer, n int, recurse bool) {
 
 // String returns a string representation of the scope, for debugging.
 func (s *Scope) String() string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	s.WriteTo(&buf, 0, false)
 	return buf.String()
 }

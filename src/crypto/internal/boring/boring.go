@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
-// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
+//go:build boringcrypto && linux && (amd64 || arm64) && !android && !msan
 
 package boring
 
@@ -37,7 +36,7 @@ func Unreachable() {
 	panic("boringcrypto: invalid code execution")
 }
 
-// provided by runtime to avoid os import
+// provided by runtime to avoid os import.
 func runtime_arg0() string
 
 func hasSuffix(s, t string) bool {
@@ -70,6 +69,10 @@ const wordBytes = bits.UintSize / 8
 
 func bigToBN(x BigInt) *C.GO_BIGNUM {
 	return C._goboringcrypto_BN_le2bn(wbase(x), C.size_t(len(x)*wordBytes), nil)
+}
+
+func bytesToBN(x []byte) *C.GO_BIGNUM {
+	return C._goboringcrypto_BN_bin2bn((*C.uint8_t)(&x[0]), C.size_t(len(x)), nil)
 }
 
 func bnToBig(bn *C.GO_BIGNUM) BigInt {

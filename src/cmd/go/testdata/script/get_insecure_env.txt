@@ -1,5 +1,5 @@
-[!net] skip
-[!exec:git] skip
+[!net:insecure.go-get-issue-15410.appspot.com] skip
+[!git] skip
 
 # GOPATH: Set up
 env GO111MODULE=off

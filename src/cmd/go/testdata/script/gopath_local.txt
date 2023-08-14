@@ -24,7 +24,7 @@ stdout '^sub\.Hello'
 ! go install testdata/local/easy.go
 stderr '^go: no install location for \.go files listed on command line \(GOBIN not set\)$'
 
-[windows] stop  # Windows does not allow the ridiculous directory name we're about to use.
+[GOOS:windows] stop  # Windows does not allow the ridiculous directory name we're about to use.
 
 env BAD_DIR_NAME='#$%:, &()*;<=>?\^{}'
 

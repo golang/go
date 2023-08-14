@@ -539,7 +539,7 @@ loop:
 	for n := range seen {
 		// We should never have to update the underlying type of an imported type;
 		// those underlying types should have been resolved during the import.
-		// Also, doing so would lead to a race condition (was issue #31749).
+		// Also, doing so would lead to a race condition (was go.dev/issue/31749).
 		// Do this check always, not just in debug mode (it's cheap).
 		if n.obj.pkg != check.pkg {
 			panic("imported type with unresolved underlying type")
@@ -633,11 +633,18 @@ func (n *Named) expandUnderlying() Type {
 				old := iface
 				iface = check.newInterface()
 				iface.embeddeds = old.embeddeds
+				assert(old.complete) // otherwise we are copying incomplete data
 				iface.complete = old.complete
 				iface.implicit = old.implicit // should be false but be conservative
 				underlying = iface
 			}
 			iface.methods = methods
+			iface.tset = nil // recompute type set with new methods
+
+			// If check != nil, check.newInterface will have saved the interface for later completion.
+			if check == nil { // golang/go#61561: all newly created interfaces must be fully evaluated
+				iface.typeSet()
+			}
 		}
 	}
 

@@ -49,6 +49,7 @@ var badRe = []stringError{
 	{`a**`, "invalid nested repetition operator: `**`"},
 	{`a*+`, "invalid nested repetition operator: `*+`"},
 	{`\x`, "invalid escape sequence: `\\x`"},
+	{strings.Repeat(`\pL`, 27000), "expression too large"},
 }
 
 func compileTest(t *testing.T, expr string, error string) *Regexp {
@@ -945,4 +946,30 @@ func TestMinInputLen(t *testing.T) {
 			t.Errorf("regexp %#q has minInputLen %d, should be %d", tt.Regexp, m, tt.min)
 		}
 	}
+}
+
+func TestUnmarshalText(t *testing.T) {
+	unmarshaled := new(Regexp)
+	for i := range goodRe {
+		re := compileTest(t, goodRe[i], "")
+		marshaled, err := re.MarshalText()
+		if err != nil {
+			t.Errorf("regexp %#q failed to marshal: %s", re, err)
+			continue
+		}
+		if err := unmarshaled.UnmarshalText(marshaled); err != nil {
+			t.Errorf("regexp %#q failed to unmarshal: %s", re, err)
+			continue
+		}
+		if unmarshaled.String() != goodRe[i] {
+			t.Errorf("UnmarshalText returned unexpected value: %s", unmarshaled.String())
+		}
+	}
+	t.Run("invalid pattern", func(t *testing.T) {
+		re := new(Regexp)
+		err := re.UnmarshalText([]byte(`\`))
+		if err == nil {
+			t.Error("unexpected success")
+		}
+	})
 }

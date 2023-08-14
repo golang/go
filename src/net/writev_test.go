@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
+//go:build !js && !wasip1
 
 package net
 
@@ -153,7 +153,7 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
 
 		var wantSum int
 		switch runtime.GOOS {
-		case "android", "darwin", "ios", "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd":
+		case "aix", "android", "darwin", "ios", "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd", "solaris":
 			var wantMinCalls int
 			wantSum = want.Len()
 			v := chunks

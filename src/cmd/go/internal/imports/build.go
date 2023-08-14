@@ -20,6 +20,7 @@ package imports
 
 import (
 	"bytes"
+	"cmd/go/internal/cfg"
 	"errors"
 	"fmt"
 	"go/build/constraint"
@@ -35,8 +36,7 @@ var (
 
 	goBuildComment = []byte("//go:build")
 
-	errGoBuildWithoutBuild = errors.New("//go:build comment without // +build comment")
-	errMultipleGoBuild     = errors.New("multiple //go:build comments")
+	errMultipleGoBuild = errors.New("multiple //go:build comments")
 )
 
 func isGoBuildComment(line []byte) bool {
@@ -201,17 +201,22 @@ func matchTag(name string, tags map[string]bool, prefer bool) bool {
 		return prefer
 	}
 
-	have := tags[name]
-	if name == "linux" {
-		have = have || tags["android"]
+	if tags[name] {
+		return true
 	}
-	if name == "solaris" {
-		have = have || tags["illumos"]
+
+	switch name {
+	case "linux":
+		return tags["android"]
+	case "solaris":
+		return tags["illumos"]
+	case "darwin":
+		return tags["ios"]
+	case "unix":
+		return unixOS[cfg.BuildContext.GOOS]
+	default:
+		return false
 	}
-	if name == "darwin" {
-		have = have || tags["ios"]
-	}
-	return have
 }
 
 // eval is like
@@ -318,8 +323,27 @@ var KnownOS = map[string]bool{
 	"openbsd":   true,
 	"plan9":     true,
 	"solaris":   true,
+	"wasip1":    true,
 	"windows":   true,
 	"zos":       true,
+}
+
+// unixOS is the set of GOOS values matched by the "unix" build tag.
+// This is not used for filename matching.
+// This is the same list as in go/build/syslist.go and cmd/dist/build.go.
+var unixOS = map[string]bool{
+	"aix":       true,
+	"android":   true,
+	"darwin":    true,
+	"dragonfly": true,
+	"freebsd":   true,
+	"hurd":      true,
+	"illumos":   true,
+	"ios":       true,
+	"linux":     true,
+	"netbsd":    true,
+	"openbsd":   true,
+	"solaris":   true,
 }
 
 var KnownArch = map[string]bool{

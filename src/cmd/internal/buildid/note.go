@@ -78,16 +78,19 @@ var elfGNUNote = []byte("GNU\x00")
 // at least 4 kB out, in data.
 func readELF(name string, f *os.File, data []byte) (buildid string, err error) {
 	// Assume the note content is in the data, already read.
-	// Rewrite the ELF header to set shnum to 0, so that we can pass
+	// Rewrite the ELF header to set shoff and shnum to 0, so that we can pass
 	// the data to elf.NewFile and it will decode the Prog list but not
 	// try to read the section headers and the string table from disk.
 	// That's a waste of I/O when all we care about is the Prog list
 	// and the one ELF note.
 	switch elf.Class(data[elf.EI_CLASS]) {
 	case elf.ELFCLASS32:
+		data[32], data[33], data[34], data[35] = 0, 0, 0, 0
 		data[48] = 0
 		data[49] = 0
 	case elf.ELFCLASS64:
+		data[40], data[41], data[42], data[43] = 0, 0, 0, 0
+		data[44], data[45], data[46], data[47] = 0, 0, 0, 0
 		data[60] = 0
 		data[61] = 0
 	}

@@ -111,14 +111,11 @@ func dumpCompilerObj(bout *bio.Writer) {
 
 func dumpdata() {
 	numExterns := len(typecheck.Target.Externs)
-	numDecls := len(typecheck.Target.Decls)
+	numDecls := len(typecheck.Target.Funcs)
 	dumpglobls(typecheck.Target.Externs)
-	reflectdata.CollectPTabs()
-	numExports := len(typecheck.Target.Exports)
 	addsignats(typecheck.Target.Externs)
 	reflectdata.WriteRuntimeTypes()
-	reflectdata.WriteTabs()
-	numPTabs := reflectdata.CountPTabs()
+	reflectdata.WritePluginTable()
 	reflectdata.WriteImportStrings()
 	reflectdata.WriteBasicTypes()
 	dumpembeds()
@@ -131,15 +128,14 @@ func dumpdata() {
 	// In the typical case, we loop 0 or 1 times.
 	// It was not until issue 24761 that we found any code that required a loop at all.
 	for {
-		for i := numDecls; i < len(typecheck.Target.Decls); i++ {
-			if n, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
-				enqueueFunc(n)
-			}
+		for i := numDecls; i < len(typecheck.Target.Funcs); i++ {
+			fn := typecheck.Target.Funcs[i]
+			enqueueFunc(fn)
 		}
-		numDecls = len(typecheck.Target.Decls)
+		numDecls = len(typecheck.Target.Funcs)
 		compileFunctions()
 		reflectdata.WriteRuntimeTypes()
-		if numDecls == len(typecheck.Target.Decls) {
+		if numDecls == len(typecheck.Target.Funcs) {
 			break
 		}
 	}
@@ -155,14 +151,6 @@ func dumpdata() {
 
 	staticdata.WriteFuncSyms()
 	addGCLocals()
-
-	if numExports != len(typecheck.Target.Exports) {
-		base.Fatalf("Target.Exports changed after compile functions loop")
-	}
-	newNumPTabs := reflectdata.CountPTabs()
-	if newNumPTabs != numPTabs {
-		base.Fatalf("ptabs changed after compile functions loop")
-	}
 }
 
 func dumpLinkerObj(bout *bio.Writer) {
@@ -195,10 +183,13 @@ func dumpGlobal(n *ir.Name) {
 	}
 	types.CalcSize(n.Type())
 	ggloblnod(n)
+	if n.CoverageCounter() || n.CoverageAuxVar() || n.Linksym().Static() {
+		return
+	}
 	base.Ctxt.DwarfGlobal(base.Ctxt.Pkgpath, types.TypeSymName(n.Type()), n.Linksym())
 }
 
-func dumpGlobalConst(n ir.Node) {
+func dumpGlobalConst(n *ir.Name) {
 	// only export typed constants
 	t := n.Type()
 	if t == nil {
@@ -226,12 +217,12 @@ func dumpGlobalConst(n ir.Node) {
 	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
 }
 
-func dumpglobls(externs []ir.Node) {
+func dumpglobls(externs []*ir.Name) {
 	// add globals
 	for _, n := range externs {
 		switch n.Op() {
 		case ir.ONAME:
-			dumpGlobal(n.(*ir.Name))
+			dumpGlobal(n)
 		case ir.OLITERAL:
 			dumpGlobalConst(n)
 		}
@@ -316,6 +307,9 @@ func ggloblnod(nam *ir.Name) {
 	if nam.Libfuzzer8BitCounter() {
 		s.Type = objabi.SLIBFUZZER_8BIT_COUNTER
 	}
+	if nam.CoverageCounter() {
+		s.Type = objabi.SCOVERAGE_COUNTER
+	}
 	if nam.Sym().Linkname != "" {
 		// Make sure linkname'd symbol is non-package. When a symbol is
 		// both imported and linkname'd, s.Pkg may not set to "_" in
@@ -330,7 +324,7 @@ func dumpembeds() {
 	}
 }
 
-func addsignats(dcls []ir.Node) {
+func addsignats(dcls []*ir.Name) {
 	// copy types from dcl list to signatset
 	for _, n := range dcls {
 		if n.Op() == ir.OTYPE {

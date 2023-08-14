@@ -566,7 +566,7 @@ type Sysinfo_t struct {
 	Totalhigh uint64
 	Freehigh  uint64
 	Unit      uint32
-	_         [0]uint8
+	X_f       [0]uint8
 	_         [4]byte
 }
 

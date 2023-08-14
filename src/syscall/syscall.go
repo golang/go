@@ -100,3 +100,7 @@ func (tv *Timeval) Nano() int64 {
 
 func Getpagesize() int
 func Exit(code int)
+
+// runtimeSetenv and runtimeUnsetenv are provided by the runtime.
+func runtimeSetenv(k, v string)
+func runtimeUnsetenv(k string)

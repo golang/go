@@ -1,0 +1,19 @@
+[short] skip
+[!buildmode:c-shared] stop
+
+env GO111MODULE=on
+
+go get rsc.io/fortune
+go build -buildmode=c-shared -o external.so rsc.io/fortune
+go version external.so
+stdout '^external.so: .+'
+go version -m external.so
+stdout '^\tpath\trsc.io/fortune'
+stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+
+-- go.mod --
+module m
+
+-- empty.go --
+package main
+func main(){}

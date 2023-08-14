@@ -338,7 +338,7 @@ func parseInt(val, typ string) (any, error) {
 	}
 }
 
-// parseInt returns an unsigned integer of value val and type typ.
+// parseUint returns an unsigned integer of value val and type typ.
 func parseUint(val, typ string) (any, error) {
 	switch typ {
 	case "uint":

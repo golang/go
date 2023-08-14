@@ -6,10 +6,13 @@ package syscall
 
 import "unsafe"
 
-const _SYS_setgroups = SYS_SETGROUPS
+const (
+	_SYS_setgroups  = SYS_SETGROUPS
+	_SYS_clone3     = 435
+	_SYS_faccessat2 = 439
+)
 
 //sys	Dup2(oldfd int, newfd int) (err error)
-//sysnb	EpollCreate(size int) (fd int, err error)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Fstat(fd int, stat *Stat_t) (err error)
@@ -33,7 +36,7 @@ const _SYS_setgroups = SYS_SETGROUPS
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	Setfsgid(gid int) (err error)
 //sys	Setfsuid(uid int) (err error)
-//sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
+//sysnb	setrlimit(resource int, rlim *Rlimit) (err error) = SYS_SETRLIMIT
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 //sys	Stat(path string, stat *Stat_t) (err error)
 //sys	Statfs(path string, buf *Statfs_t) (err error)
@@ -240,6 +243,12 @@ func Shutdown(s, how int) (err error) {
 	return
 }
 
+//go:nosplit
+func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+	_, _, errno := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+	return errno
+}
+
 func (r *PtraceRegs) PC() uint64 { return r.Psw.Addr }
 
 func (r *PtraceRegs) SetPC(pc uint64) { r.Psw.Addr = pc }
@@ -255,5 +264,3 @@ func (msghdr *Msghdr) SetControllen(length int) {
 func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint64(length)
 }
-
-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

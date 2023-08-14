@@ -16,8 +16,8 @@ stderr 'matched no packages'
 # equivalent to an empty directory).
 
 [root] stop # Root typically ignores file permissions.
-[windows] skip # Does not have Unix-style directory permissions.
-[plan9] skip   # Might not have Unix-style directory permissions.
+[GOOS:windows] skip # Does not have Unix-style directory permissions.
+[GOOS:plan9] skip   # Might not have Unix-style directory permissions.
 
 chmod 000 noread
 

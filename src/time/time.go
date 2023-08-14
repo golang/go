@@ -46,7 +46,7 @@
 // The canonical way to strip a monotonic clock reading is to use t = t.Round(0).
 //
 // If Times t and u both contain monotonic clock readings, the operations
-// t.After(u), t.Before(u), t.Equal(u), and t.Sub(u) are carried out
+// t.After(u), t.Before(u), t.Equal(u), t.Compare(u), and t.Sub(u) are carried out
 // using the monotonic clock readings alone, ignoring the wall clock
 // readings. If either t or u contains no monotonic clock reading, these
 // operations fall back to using the wall clock readings.
@@ -76,6 +76,14 @@
 // For debugging, the result of t.String does include the monotonic
 // clock reading if present. If t != u because of different monotonic clock readings,
 // that difference will be visible when printing t.String() and u.String().
+//
+// # Timer Resolution
+//
+// Timer resolution varies depending on the Go runtime, the operating system
+// and the underlying hardware.
+// On Unix, the resolution is approximately 1ms.
+// On Windows, the default resolution is approximately 16ms, but
+// a higher resolution may be requested using [golang.org/x/sys/windows.TimeBeginPeriod].
 package time
 
 import (
@@ -264,6 +272,27 @@ func (t Time) Before(u Time) bool {
 	ts := t.sec()
 	us := u.sec()
 	return ts < us || ts == us && t.nsec() < u.nsec()
+}
+
+// Compare compares the time instant t with u. If t is before u, it returns -1;
+// if t is after u, it returns +1; if they're the same, it returns 0.
+func (t Time) Compare(u Time) int {
+	var tc, uc int64
+	if t.wall&u.wall&hasMonotonic != 0 {
+		tc, uc = t.ext, u.ext
+	} else {
+		tc, uc = t.sec(), u.sec()
+		if tc == uc {
+			tc, uc = int64(t.nsec()), int64(u.nsec())
+		}
+	}
+	switch {
+	case tc < uc:
+		return -1
+	case tc > uc:
+		return +1
+	}
+	return 0
 }
 
 // Equal reports whether t and u represent the same time instant.
@@ -862,16 +891,7 @@ func (t Time) Add(d Duration) Time {
 // To compute t-d for a duration d, use t.Add(-d).
 func (t Time) Sub(u Time) Duration {
 	if t.wall&u.wall&hasMonotonic != 0 {
-		te := t.ext
-		ue := u.ext
-		d := Duration(te - ue)
-		if d < 0 && te > ue {
-			return maxDuration // t - u is positive out of range
-		}
-		if d > 0 && te < ue {
-			return minDuration // t - u is negative out of range
-		}
-		return d
+		return subMono(t.ext, u.ext)
 	}
 	d := Duration(t.sec()-u.sec())*Second + Duration(t.nsec()-u.nsec())
 	// Check for overflow or underflow.
@@ -885,17 +905,25 @@ func (t Time) Sub(u Time) Duration {
 	}
 }
 
+func subMono(t, u int64) Duration {
+	d := Duration(t - u)
+	if d < 0 && t > u {
+		return maxDuration // t - u is positive out of range
+	}
+	if d > 0 && t < u {
+		return minDuration // t - u is negative out of range
+	}
+	return d
+}
+
 // Since returns the time elapsed since t.
 // It is shorthand for time.Now().Sub(t).
 func Since(t Time) Duration {
-	var now Time
 	if t.wall&hasMonotonic != 0 {
 		// Common case optimization: if t has monotonic time, then Sub will use only it.
-		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
-	} else {
-		now = Now()
+		return subMono(runtimeNano()-startNano, t.ext)
 	}
-	return now.Sub(t)
+	return Now().Sub(t)
 }
 
 // Until returns the duration until t.
@@ -1091,6 +1119,9 @@ func Now() Time {
 	mono -= startNano
 	sec += unixToInternal - minWall
 	if uint64(sec)>>33 != 0 {
+		// Seconds field overflowed the 33 bits available when
+		// storing a monotonic time. This will be true after
+		// March 16, 2157.
 		return Time{uint64(nsec), sec + minWall, Local}
 	}
 	return Time{hasMonotonic | uint64(sec)<<nsecShift | uint64(nsec), mono, Local}
@@ -1313,51 +1344,54 @@ func (t *Time) GobDecode(data []byte) error {
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-// The time is a quoted string in RFC 3339 format, with sub-second precision added if present.
+// The time is a quoted string in the RFC 3339 format with sub-second precision.
+// If the timestamp cannot be represented as valid RFC 3339
+// (e.g., the year is out of range), then an error is reported.
 func (t Time) MarshalJSON() ([]byte, error) {
-	if y := t.Year(); y < 0 || y >= 10000 {
-		// RFC 3339 is clear that years are 4 digits exactly.
-		// See golang.org/issue/4556#c15 for more discussion.
-		return nil, errors.New("Time.MarshalJSON: year outside of range [0,9999]")
+	b := make([]byte, 0, len(RFC3339Nano)+len(`""`))
+	b = append(b, '"')
+	b, err := t.appendStrictRFC3339(b)
+	b = append(b, '"')
+	if err != nil {
+		return nil, errors.New("Time.MarshalJSON: " + err.Error())
 	}
-
-	b := make([]byte, 0, len(RFC3339Nano)+2)
-	b = append(b, '"')
-	b = t.AppendFormat(b, RFC3339Nano)
-	b = append(b, '"')
 	return b, nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
-// The time is expected to be a quoted string in RFC 3339 format.
+// The time must be a quoted string in the RFC 3339 format.
 func (t *Time) UnmarshalJSON(data []byte) error {
-	// Ignore null, like in the main JSON package.
 	if string(data) == "null" {
 		return nil
 	}
-	// Fractional seconds are handled implicitly by Parse.
+	// TODO(https://go.dev/issue/47353): Properly unescape a JSON string.
+	if len(data) < 2 || data[0] != '"' || data[len(data)-1] != '"' {
+		return errors.New("Time.UnmarshalJSON: input is not a JSON string")
+	}
+	data = data[len(`"`) : len(data)-len(`"`)]
 	var err error
-	*t, err = Parse(`"`+RFC3339+`"`, string(data))
+	*t, err = parseStrictRFC3339(data)
 	return err
 }
 
 // MarshalText implements the encoding.TextMarshaler interface.
-// The time is formatted in RFC 3339 format, with sub-second precision added if present.
+// The time is formatted in RFC 3339 format with sub-second precision.
+// If the timestamp cannot be represented as valid RFC 3339
+// (e.g., the year is out of range), then an error is reported.
 func (t Time) MarshalText() ([]byte, error) {
-	if y := t.Year(); y < 0 || y >= 10000 {
-		return nil, errors.New("Time.MarshalText: year outside of range [0,9999]")
-	}
-
 	b := make([]byte, 0, len(RFC3339Nano))
-	return t.AppendFormat(b, RFC3339Nano), nil
+	b, err := t.appendStrictRFC3339(b)
+	if err != nil {
+		return nil, errors.New("Time.MarshalText: " + err.Error())
+	}
+	return b, nil
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
-// The time is expected to be in RFC 3339 format.
+// The time must be in the RFC 3339 format.
 func (t *Time) UnmarshalText(data []byte) error {
-	// Fractional seconds are handled implicitly by Parse.
 	var err error
-	*t, err = Parse(RFC3339, string(data))
+	*t, err = parseStrictRFC3339(data)
 	return err
 }
 

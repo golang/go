@@ -5,7 +5,6 @@
 package walk
 
 import (
-	"errors"
 	"fmt"
 
 	"cmd/compile/internal/base"
@@ -97,8 +96,6 @@ func convas(n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
 
 	return n
 }
-
-var stop = errors.New("stop")
 
 func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallExpr {
 	if init == nil {
@@ -278,8 +275,10 @@ func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
 	} else {
 		ptr.SetType(n.Type().Elem().PtrTo())
 	}
+	ptr.SetTypecheck(1)
 	length = ir.NewUnaryExpr(base.Pos, ir.OLEN, n)
 	length.SetType(types.Types[types.TINT])
+	length.SetTypecheck(1)
 	return ptr, length
 }
 
@@ -312,7 +311,8 @@ func mayCall(n ir.Node) bool {
 			return true
 
 		case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
-			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODYNAMICDOTTYPE, ir.ODIV, ir.OMOD, ir.OSLICE2ARRPTR:
+			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODYNAMICDOTTYPE, ir.ODIV, ir.OMOD,
+			ir.OSLICE2ARR, ir.OSLICE2ARRPTR:
 			// These ops might panic, make sure they are done
 			// before we start marshaling args for a call. See issue 16760.
 			return true
@@ -336,13 +336,17 @@ func mayCall(n ir.Node) bool {
 			n := n.(*ir.ConvExpr)
 			return ssagen.Arch.SoftFloat && (isSoftFloat(n.Type()) || isSoftFloat(n.X.Type()))
 
+		case ir.OMIN, ir.OMAX:
+			// string or float requires runtime call, see (*ssagen.state).minmax method.
+			return n.Type().IsString() || n.Type().IsFloat()
+
 		case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OLINKSYMOFFSET, ir.OMETHEXPR,
 			ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOMPLEX, ir.OEFACE,
 			ir.OADDR, ir.OBITNOT, ir.ONOT, ir.OPLUS,
 			ir.OCAP, ir.OIMAG, ir.OLEN, ir.OREAL,
 			ir.OCONVNOP, ir.ODOT,
 			ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.OSPTR,
-			ir.OBYTES2STRTMP, ir.OGETG, ir.OGETCALLERPC, ir.OGETCALLERSP, ir.OSLICEHEADER:
+			ir.OBYTES2STRTMP, ir.OGETG, ir.OGETCALLERPC, ir.OGETCALLERSP, ir.OSLICEHEADER, ir.OSTRINGHEADER:
 			// ok: operations that don't require function calls.
 			// Expand as needed.
 		}

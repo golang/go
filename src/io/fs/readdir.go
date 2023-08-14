@@ -67,6 +67,10 @@ func (di dirInfo) Name() string {
 	return di.fileInfo.Name()
 }
 
+func (di dirInfo) String() string {
+	return FormatDirEntry(di)
+}
+
 // FileInfoToDirEntry returns a DirEntry that returns information from info.
 // If info is nil, FileInfoToDirEntry returns nil.
 func FileInfoToDirEntry(info FileInfo) DirEntry {

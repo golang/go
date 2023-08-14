@@ -11,5 +11,5 @@ func _() {
 	select {
 	default:
 	case <-ch { // GCCGO_ERROR "expected colon"
-	}           // GC_ERROR "expecting :"
+	}           // GC_ERROR "expected :"
 }

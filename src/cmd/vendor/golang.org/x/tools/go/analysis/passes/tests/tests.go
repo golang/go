@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package tests defines an Analyzer that checks for common mistaken
-// usages of tests and examples.
 package tests
 
 import (
+	_ "embed"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -17,22 +16,17 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/internal/typeparams"
 )
 
-const Doc = `check for common mistaken usages of tests and examples
-
-The tests checker walks Test, Benchmark and Example functions checking
-malformed names, wrong signatures and examples documenting non-existent
-identifiers.
-
-Please see the documentation for package testing in golang.org/pkg/testing
-for the conventions that are enforced for Tests, Benchmarks, and Examples.`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name: "tests",
-	Doc:  Doc,
+	Doc:  analysisutil.MustExtractDoc(doc, "tests"),
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/tests",
 	Run:  run,
 }
 
@@ -73,9 +67,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				checkTest(pass, fn, "Test")
 			case strings.HasPrefix(fn.Name.Name, "Benchmark"):
 				checkTest(pass, fn, "Benchmark")
-			}
-			// run fuzz tests diagnostics only for 1.18 i.e. when analysisinternal.DiagnoseFuzzTests is turned on.
-			if strings.HasPrefix(fn.Name.Name, "Fuzz") && analysisinternal.DiagnoseFuzzTests {
+			case strings.HasPrefix(fn.Name.Name, "Fuzz"):
 				checkTest(pass, fn, "Fuzz")
 				checkFuzz(pass, fn)
 			}
@@ -269,7 +261,9 @@ func isTestingType(typ types.Type, testingType string) bool {
 	if !ok {
 		return false
 	}
-	return named.Obj().Pkg().Path() == "testing" && named.Obj().Name() == testingType
+	obj := named.Obj()
+	// obj.Pkg is nil for the error type.
+	return obj != nil && obj.Pkg() != nil && obj.Pkg().Path() == "testing" && obj.Name() == testingType
 }
 
 // Validate that fuzz target function's arguments are of accepted types.

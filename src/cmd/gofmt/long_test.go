@@ -179,3 +179,7 @@ func (d *statDirEntry) Name() string               { return d.info.Name() }
 func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
 func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
 func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
+
+func (d *statDirEntry) String() string {
+	return fs.FormatDirEntry(d)
+}

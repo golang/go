@@ -8,31 +8,28 @@ import (
 	"bufio"
 	"bytes"
 	"flag"
-	"internal/buildcfg"
-	"runtime"
-	"sort"
-
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
+	"sort"
 	"strconv"
+	"strings"
 	"testing"
 )
 
 // Matches lines in genssa output that are marked "isstmt", and the parenthesized plus-prefixed line number is a submatch
-var asmLine *regexp.Regexp = regexp.MustCompile(`^\s[vb][0-9]+\s+[0-9]+\s\(\+([0-9]+)\)`)
+var asmLine *regexp.Regexp = regexp.MustCompile(`^\s[vb]\d+\s+\d+\s\(\+(\d+)\)`)
 
 // this matches e.g.                            `   v123456789   000007   (+9876654310) MOVUPS	X15, ""..autotmp_2-32(SP)`
 
 // Matches lines in genssa output that describe an inlined file.
 // Note it expects an unadventurous choice of basename.
 var sepRE = regexp.QuoteMeta(string(filepath.Separator))
-var inlineLine *regexp.Regexp = regexp.MustCompile(`^#\s.*` + sepRE + `[-a-zA-Z0-9_]+\.go:([0-9]+)`)
+var inlineLine *regexp.Regexp = regexp.MustCompile(`^#\s.*` + sepRE + `[-\w]+\.go:(\d+)`)
 
 // this matches e.g.                                 #  /pa/inline-dumpxxxx.go:6
 
@@ -45,9 +42,9 @@ func testGoArch() string {
 	return *testGoArchFlag
 }
 
-func hasRegisterAbi() bool {
+func hasRegisterABI() bool {
 	switch testGoArch() {
-	case "amd64", "arm64", "ppc64le", "riscv":
+	case "amd64", "arm64", "ppc64", "ppc64le", "riscv":
 		return true
 	}
 	return false
@@ -62,7 +59,7 @@ func unixOnly(t *testing.T) {
 // testDebugLinesDefault removes the first wanted statement on architectures that are not (yet) register ABI.
 func testDebugLinesDefault(t *testing.T, gcflags, file, function string, wantStmts []int, ignoreRepeats bool) {
 	unixOnly(t)
-	if !hasRegisterAbi() {
+	if !hasRegisterABI() {
 		wantStmts = wantStmts[1:]
 	}
 	testDebugLines(t, gcflags, file, function, wantStmts, ignoreRepeats)
@@ -86,9 +83,9 @@ func TestDebugLinesPushback(t *testing.T) {
 
 	case "arm64", "amd64": // register ABI
 		fn := "(*List[go.shape.int_0]).PushBack"
-		if buildcfg.Experiment.Unified {
+		if true /* was buildcfg.Experiment.Unified */ {
 			// Unified mangles differently
-			fn = "(*List[int]).PushBack-shaped"
+			fn = "(*List[go.shape.int]).PushBack"
 		}
 		testDebugLines(t, "-N -l", "pushback.go", fn, []int{17, 18, 19, 20, 21, 22, 24}, true)
 	}
@@ -103,9 +100,9 @@ func TestDebugLinesConvert(t *testing.T) {
 
 	case "arm64", "amd64": // register ABI
 		fn := "G[go.shape.int_0]"
-		if buildcfg.Experiment.Unified {
+		if true /* was buildcfg.Experiment.Unified */ {
 			// Unified mangles differently
-			fn = "G[int]-shaped"
+			fn = "G[go.shape.int]"
 		}
 		testDebugLines(t, "-N -l", "convertline.go", fn, []int{9, 10, 11}, true)
 	}
@@ -128,7 +125,7 @@ func TestDebugLines_53456(t *testing.T) {
 func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
 	testenv.MustHaveGoBuild(t)
 
-	tmpdir, err := ioutil.TempDir("", "debug_lines_test")
+	tmpdir, err := os.MkdirTemp("", "debug_lines_test")
 	if err != nil {
 		panic(fmt.Sprintf("Problem creating TempDir, error %v", err))
 	}
@@ -143,7 +140,7 @@ func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
 		panic(fmt.Sprintf("Could not get abspath of testdata directory and file, %v", err))
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "foo.o", "-gcflags=-d=ssa/genssa/dump="+function+" "+moreGCFlags, source)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "foo.o", "-gcflags=-d=ssa/genssa/dump="+function+" "+moreGCFlags, source)
 	cmd.Dir = tmpdir
 	cmd.Env = replaceEnv(cmd.Env, "GOSSADIR", tmpdir)
 	testGoos := "linux" // default to linux
@@ -157,7 +154,7 @@ func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
 		fmt.Printf("About to run %s\n", asCommandLine("", cmd))
 	}
 
-	var stdout, stderr bytes.Buffer
+	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
@@ -224,7 +221,7 @@ func testInlineStack(t *testing.T, file, function string, wantStacks [][]int) {
 	sortInlineStacks(gotStacks)
 	sortInlineStacks(wantStacks)
 	if !reflect.DeepEqual(wantStacks, gotStacks) {
-		t.Errorf("wanted inlines %+v but got %+v", wantStacks, gotStacks)
+		t.Errorf("wanted inlines %+v but got %+v\n%s", wantStacks, gotStacks, dumpBytes)
 	}
 
 }

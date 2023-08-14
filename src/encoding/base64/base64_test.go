@@ -9,8 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"reflect"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -119,7 +121,7 @@ func TestEncode(t *testing.T) {
 
 func TestEncoder(t *testing.T) {
 	for _, p := range pairs {
-		bb := &bytes.Buffer{}
+		bb := &strings.Builder{}
 		encoder := NewEncoder(StdEncoding, bb)
 		encoder.Write([]byte(p.decoded))
 		encoder.Close()
@@ -130,7 +132,7 @@ func TestEncoder(t *testing.T) {
 func TestEncoderBuffering(t *testing.T) {
 	input := []byte(bigtest.decoded)
 	for bs := 1; bs <= 12; bs++ {
-		bb := &bytes.Buffer{}
+		bb := &strings.Builder{}
 		encoder := NewEncoder(StdEncoding, bb)
 		for pos := 0; pos < len(input); pos += bs {
 			end := pos + bs
@@ -262,11 +264,12 @@ func TestDecodeBounds(t *testing.T) {
 }
 
 func TestEncodedLen(t *testing.T) {
-	for _, tt := range []struct {
+	type test struct {
 		enc  *Encoding
 		n    int
-		want int
-	}{
+		want int64
+	}
+	tests := []test{
 		{RawStdEncoding, 0, 0},
 		{RawStdEncoding, 1, 2},
 		{RawStdEncoding, 2, 3},
@@ -278,19 +281,30 @@ func TestEncodedLen(t *testing.T) {
 		{StdEncoding, 3, 4},
 		{StdEncoding, 4, 8},
 		{StdEncoding, 7, 12},
-	} {
-		if got := tt.enc.EncodedLen(tt.n); got != tt.want {
+	}
+	// check overflow
+	switch strconv.IntSize {
+	case 32:
+		tests = append(tests, test{RawStdEncoding, (math.MaxInt-5)/8 + 1, 357913942})
+		tests = append(tests, test{RawStdEncoding, math.MaxInt/4*3 + 2, math.MaxInt})
+	case 64:
+		tests = append(tests, test{RawStdEncoding, (math.MaxInt-5)/8 + 1, 1537228672809129302})
+		tests = append(tests, test{RawStdEncoding, math.MaxInt/4*3 + 2, math.MaxInt})
+	}
+	for _, tt := range tests {
+		if got := tt.enc.EncodedLen(tt.n); int64(got) != tt.want {
 			t.Errorf("EncodedLen(%d): got %d, want %d", tt.n, got, tt.want)
 		}
 	}
 }
 
 func TestDecodedLen(t *testing.T) {
-	for _, tt := range []struct {
+	type test struct {
 		enc  *Encoding
 		n    int
-		want int
-	}{
+		want int64
+	}
+	tests := []test{
 		{RawStdEncoding, 0, 0},
 		{RawStdEncoding, 2, 1},
 		{RawStdEncoding, 3, 2},
@@ -299,8 +313,18 @@ func TestDecodedLen(t *testing.T) {
 		{StdEncoding, 0, 0},
 		{StdEncoding, 4, 3},
 		{StdEncoding, 8, 6},
-	} {
-		if got := tt.enc.DecodedLen(tt.n); got != tt.want {
+	}
+	// check overflow
+	switch strconv.IntSize {
+	case 32:
+		tests = append(tests, test{RawStdEncoding, math.MaxInt/6 + 1, 268435456})
+		tests = append(tests, test{RawStdEncoding, math.MaxInt, 1610612735})
+	case 64:
+		tests = append(tests, test{RawStdEncoding, math.MaxInt/6 + 1, 1152921504606846976})
+		tests = append(tests, test{RawStdEncoding, math.MaxInt, 6917529027641081855})
+	}
+	for _, tt := range tests {
+		if got := tt.enc.DecodedLen(tt.n); int64(got) != tt.want {
 			t.Errorf("DecodedLen(%d): got %d, want %d", tt.n, got, tt.want)
 		}
 	}
@@ -501,6 +525,16 @@ func BenchmarkDecodeString(b *testing.B) {
 		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
 			benchFunc(b, size)
 		})
+	}
+}
+
+func BenchmarkNewEncoding(b *testing.B) {
+	b.SetBytes(int64(len(Encoding{}.decodeMap)))
+	for i := 0; i < b.N; i++ {
+		e := NewEncoding(encodeStd)
+		for _, v := range e.decodeMap {
+			_ = v
+		}
 	}
 }
 

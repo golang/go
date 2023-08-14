@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
-// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
+//go:build boringcrypto && linux && (amd64 || arm64) && !android && !msan
 
 package boring
 
 // #include "goboringcrypto.h"
 import "C"
 import (
+	"bytes"
 	"crypto"
 	"hash"
 	"runtime"
@@ -68,8 +68,7 @@ func NewHMAC(h func() hash.Hash, key []byte) hash.Hash {
 	}
 
 	// Note: Could hash down long keys here using EVP_Digest.
-	hkey := make([]byte, len(key))
-	copy(hkey, key)
+	hkey := bytes.Clone(key)
 	hmac := &boringHMAC{
 		md:        md,
 		size:      ch.Size(),

@@ -98,6 +98,10 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.SelectorExpr)
 		return n.FuncName()
 
+	case ir.OMIN, ir.OMAX:
+		n := n.(*ir.CallExpr)
+		return walkMinMax(n, init)
+
 	case ir.ONOT, ir.ONEG, ir.OPLUS, ir.OBITNOT, ir.OREAL, ir.OIMAG, ir.OSPTR, ir.OITAB, ir.OIDATA:
 		n := n.(*ir.UnaryExpr)
 		n.X = walkExpr(n.X, init)
@@ -128,6 +132,14 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	case ir.OUNSAFESLICE:
 		n := n.(*ir.BinaryExpr)
 		return walkUnsafeSlice(n, init)
+
+	case ir.OUNSAFESTRING:
+		n := n.(*ir.BinaryExpr)
+		return walkUnsafeString(n, init)
+
+	case ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
+		n := n.(*ir.UnaryExpr)
+		return walkUnsafeData(n, init)
 
 	case ir.ODOT, ir.ODOTPTR:
 		n := n.(*ir.SelectorExpr)
@@ -219,6 +231,10 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.ConvExpr)
 		return walkConv(n, init)
 
+	case ir.OSLICE2ARR:
+		n := n.(*ir.ConvExpr)
+		return walkSliceToArray(n, init)
+
 	case ir.OSLICE2ARRPTR:
 		n := n.(*ir.ConvExpr)
 		n.X = walkExpr(n.X, init)
@@ -244,6 +260,10 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.SliceHeaderExpr)
 		return walkSliceHeader(n, init)
 
+	case ir.OSTRINGHEADER:
+		n := n.(*ir.StringHeaderExpr)
+		return walkStringHeader(n, init)
+
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICESTR, ir.OSLICE3, ir.OSLICE3ARR:
 		n := n.(*ir.SliceExpr)
 		return walkSlice(n, init)
@@ -262,6 +282,10 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 
 	case ir.OCOPY:
 		return walkCopy(n.(*ir.BinaryExpr), init, base.Flag.Cfg.Instrumenting && !base.Flag.CompilingRuntime)
+
+	case ir.OCLEAR:
+		n := n.(*ir.UnaryExpr)
+		return walkClear(n)
 
 	case ir.OCLOSE:
 		n := n.(*ir.UnaryExpr)
@@ -330,7 +354,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 // expression or simple statement.
 // the types expressions are calculated.
 // compile-time constants are evaluated.
-// complex side effects like statements are appended to init
+// complex side effects like statements are appended to init.
 func walkExprList(s []ir.Node, init *ir.Nodes) {
 	for i := range s {
 		s[i] = walkExpr(s[i], init)
@@ -540,24 +564,25 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 			fn := arg.(*ir.ConvExpr).X.(*ir.Name)
 			abi := fn.Func.ABI
 			if abi != wantABI {
-				base.ErrorfAt(n.Pos(), "internal/abi.%s expects an %v function, %s is defined as %v", name, wantABI, fn.Sym().Name, abi)
+				base.ErrorfAt(n.Pos(), 0, "internal/abi.%s expects an %v function, %s is defined as %v", name, wantABI, fn.Sym().Name, abi)
 			}
 			var e ir.Node = ir.NewLinksymExpr(n.Pos(), fn.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
 			e = ir.NewAddrExpr(n.Pos(), e)
 			e.SetType(types.Types[types.TUINTPTR].PtrTo())
-			e = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, n.Type(), e)
-			return e
+			return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, n.Type(), e))
 		}
 		// fn is not a defined function. It must be ABIInternal.
 		// Read the address from func value, i.e. *(*uintptr)(idata(fn)).
 		if wantABI != obj.ABIInternal {
-			base.ErrorfAt(n.Pos(), "internal/abi.%s does not accept func expression, which is ABIInternal", name)
+			base.ErrorfAt(n.Pos(), 0, "internal/abi.%s does not accept func expression, which is ABIInternal", name)
 		}
 		arg = walkExpr(arg, init)
 		var e ir.Node = ir.NewUnaryExpr(n.Pos(), ir.OIDATA, arg)
 		e.SetType(n.Type().PtrTo())
+		e.SetTypecheck(1)
 		e = ir.NewStarExpr(n.Pos(), e)
 		e.SetType(n.Type())
+		e.SetTypecheck(1)
 		return e
 	}
 
@@ -600,7 +625,6 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 		}
 	}
 
-	n.Args = args
 	funSym := n.X.Sym()
 	if base.Debug.Libfuzzer != 0 && funSym != nil {
 		if hook, found := hooks[funSym.Pkg.Path+"."+funSym.Name]; found {
@@ -695,7 +719,7 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 	return n
 }
 
-// walkDynamicdotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
+// walkDynamicDotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
 func walkDynamicDotType(n *ir.DynamicTypeAssertExpr, init *ir.Nodes) ir.Node {
 	n.X = walkExpr(n.X, init)
 	n.RType = walkExpr(n.RType, init)
@@ -738,7 +762,7 @@ func walkIndex(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 
 // mapKeyArg returns an expression for key that is suitable to be passed
 // as the key argument for runtime map* functions.
-// n is is the map indexing or delete Node (to provide Pos).
+// n is the map indexing or delete Node (to provide Pos).
 func mapKeyArg(fast int, n, key ir.Node, assigned bool) ir.Node {
 	if fast == mapslow {
 		// standard version takes key by reference.
@@ -825,35 +849,6 @@ func walkSlice(n *ir.SliceExpr, init *ir.Nodes) ir.Node {
 	n.High = walkExpr(n.High, init)
 	n.Max = walkExpr(n.Max, init)
 
-	if n.Op().IsSlice3() {
-		if n.Max != nil && n.Max.Op() == ir.OCAP && ir.SameSafeExpr(n.X, n.Max.(*ir.UnaryExpr).X) {
-			// Reduce x[i:j:cap(x)] to x[i:j].
-			if n.Op() == ir.OSLICE3 {
-				n.SetOp(ir.OSLICE)
-			} else {
-				n.SetOp(ir.OSLICEARR)
-			}
-			return reduceSlice(n)
-		}
-		return n
-	}
-	return reduceSlice(n)
-}
-
-// walkSliceHeader walks an OSLICEHEADER node.
-func walkSliceHeader(n *ir.SliceHeaderExpr, init *ir.Nodes) ir.Node {
-	n.Ptr = walkExpr(n.Ptr, init)
-	n.Len = walkExpr(n.Len, init)
-	n.Cap = walkExpr(n.Cap, init)
-	return n
-}
-
-// TODO(josharian): combine this with its caller and simplify
-func reduceSlice(n *ir.SliceExpr) ir.Node {
-	if n.High != nil && n.High.Op() == ir.OLEN && ir.SameSafeExpr(n.X, n.High.(*ir.UnaryExpr).X) {
-		// Reduce x[i:len(x)] to x[i:].
-		n.High = nil
-	}
 	if (n.Op() == ir.OSLICE || n.Op() == ir.OSLICESTR) && n.Low == nil && n.High == nil {
 		// Reduce x[:] to x.
 		if base.Debug.Slice > 0 {
@@ -864,7 +859,22 @@ func reduceSlice(n *ir.SliceExpr) ir.Node {
 	return n
 }
 
-// return 1 if integer n must be in range [0, max), 0 otherwise
+// walkSliceHeader walks an OSLICEHEADER node.
+func walkSliceHeader(n *ir.SliceHeaderExpr, init *ir.Nodes) ir.Node {
+	n.Ptr = walkExpr(n.Ptr, init)
+	n.Len = walkExpr(n.Len, init)
+	n.Cap = walkExpr(n.Cap, init)
+	return n
+}
+
+// walkStringHeader walks an OSTRINGHEADER node.
+func walkStringHeader(n *ir.StringHeaderExpr, init *ir.Nodes) ir.Node {
+	n.Ptr = walkExpr(n.Ptr, init)
+	n.Len = walkExpr(n.Len, init)
+	return n
+}
+
+// return 1 if integer n must be in range [0, max), 0 otherwise.
 func bounded(n ir.Node, max int64) bool {
 	if n.Type() == nil || !n.Type().IsInteger() {
 		return false

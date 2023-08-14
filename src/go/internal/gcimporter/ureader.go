@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"go/types"
 	"internal/pkgbits"
+	"sort"
 )
 
 // A pkgReader holds the shared state for reading a unified IR package
@@ -29,21 +30,14 @@ type pkgReader struct {
 	// laterFns holds functions that need to be invoked at the end of
 	// import reading.
 	laterFns []func()
-	// laterFors is used in case of 'type A B' to ensure that B is processed before A.
-	laterFors map[types.Type]int
+
+	// ifaces holds a list of constructed Interfaces, which need to have
+	// Complete called after importing is done.
+	ifaces []*types.Interface
 }
 
 // later adds a function to be invoked at the end of import reading.
 func (pr *pkgReader) later(fn func()) {
-	pr.laterFns = append(pr.laterFns, fn)
-}
-
-// laterFor adds a function to be invoked at the end of import reading, and records the type that function is finishing.
-func (pr *pkgReader) laterFor(t types.Type, fn func()) {
-	if pr.laterFors == nil {
-		pr.laterFors = make(map[types.Type]int)
-	}
-	pr.laterFors[t] = len(pr.laterFns)
 	pr.laterFns = append(pr.laterFns, fn)
 }
 
@@ -86,6 +80,20 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
 		fn()
 	}
 
+	for _, iface := range pr.ifaces {
+		iface.Complete()
+	}
+
+	// Imports() of pkg are all of the transitive packages that were loaded.
+	var imps []*types.Package
+	for _, imp := range pr.pkgs {
+		if imp != nil && imp != pkg {
+			imps = append(imps, imp)
+		}
+	}
+	sort.Sort(byPath(imps))
+	pkg.SetImports(imps)
+
 	pkg.MarkComplete()
 	return pkg
 }
@@ -123,6 +131,17 @@ func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pk
 	}
 }
 
+func (pr *pkgReader) tempReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
+	return &reader{
+		Decoder: pr.TempDecoder(k, idx, marker),
+		p:       pr,
+	}
+}
+
+func (pr *pkgReader) retireReader(r *reader) {
+	pr.RetireDecoder(&r.Decoder)
+}
+
 // @@@ Positions
 
 func (r *reader) pos() token.Pos {
@@ -147,26 +166,29 @@ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) string {
 		return b
 	}
 
-	r := pr.newReader(pkgbits.RelocPosBase, idx, pkgbits.SyncPosBase)
+	var filename string
+	{
+		r := pr.tempReader(pkgbits.RelocPosBase, idx, pkgbits.SyncPosBase)
 
-	// Within types2, position bases have a lot more details (e.g.,
-	// keeping track of where //line directives appeared exactly).
-	//
-	// For go/types, we just track the file name.
+		// Within types2, position bases have a lot more details (e.g.,
+		// keeping track of where //line directives appeared exactly).
+		//
+		// For go/types, we just track the file name.
 
-	filename := r.String()
+		filename = r.String()
 
-	if r.Bool() { // file base
-		// Was: "b = token.NewTrimmedFileBase(filename, true)"
-	} else { // line base
-		pos := r.pos()
-		line := r.Uint()
-		col := r.Uint()
+		if r.Bool() { // file base
+			// Was: "b = token.NewTrimmedFileBase(filename, true)"
+		} else { // line base
+			pos := r.pos()
+			line := r.Uint()
+			col := r.Uint()
 
-		// Was: "b = token.NewLineBase(pos, filename, true, line, col)"
-		_, _, _ = pos, line, col
+			// Was: "b = token.NewLineBase(pos, filename, true, line, col)"
+			_, _, _ = pos, line, col
+		}
+		pr.retireReader(r)
 	}
-
 	b := filename
 	pr.posBases[idx] = b
 	return b
@@ -211,43 +233,7 @@ func (r *reader) doPkg() *types.Package {
 	pkg := types.NewPackage(path, name)
 	r.p.imports[path] = pkg
 
-	imports := make([]*types.Package, r.Len())
-	for i := range imports {
-		imports[i] = r.pkg()
-	}
-
-	// The documentation for (*types.Package).Imports requires
-	// flattening the import graph when reading from export data, as
-	// obviously incorrect as that is.
-	//
-	// TODO(mdempsky): Remove this if go.dev/issue/54096 is accepted.
-	pkg.SetImports(flattenImports(imports))
-
 	return pkg
-}
-
-// flattenImports returns the transitive closure of all imported
-// packages rooted from pkgs.
-func flattenImports(pkgs []*types.Package) []*types.Package {
-	var res []*types.Package
-
-	seen := make(map[*types.Package]bool)
-	var add func(pkg *types.Package)
-	add = func(pkg *types.Package) {
-		if seen[pkg] {
-			return
-		}
-		seen[pkg] = true
-		res = append(res, pkg)
-		for _, imp := range pkg.Imports() {
-			add(imp)
-		}
-	}
-
-	for _, pkg := range pkgs {
-		add(pkg)
-	}
-	return res
 }
 
 // @@@ Types
@@ -278,12 +264,15 @@ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict) types.Type {
 		return typ
 	}
 
-	r := pr.newReader(pkgbits.RelocType, idx, pkgbits.SyncTypeIdx)
-	r.dict = dict
+	var typ types.Type
+	{
+		r := pr.tempReader(pkgbits.RelocType, idx, pkgbits.SyncTypeIdx)
+		r.dict = dict
 
-	typ := r.doTyp()
-	assert(typ != nil)
-
+		typ = r.doTyp()
+		assert(typ != nil)
+		pr.retireReader(r)
+	}
 	// See comment in pkgReader.typIdx explaining how this happens.
 	if prev := *where; prev != nil {
 		return prev
@@ -386,6 +375,16 @@ func (r *reader) interfaceType() *types.Interface {
 	if implicit {
 		iface.MarkImplicit()
 	}
+
+	// We need to call iface.Complete(), but if there are any embedded
+	// defined types, then we may not have set their underlying
+	// interface type yet. So we need to defer calling Complete until
+	// after we've called SetUnderlying everywhere.
+	//
+	// TODO(mdempsky): After CL 424876 lands, it should be safe to call
+	// iface.Complete() immediately.
+	r.p.ifaces = append(r.p.ifaces, iface)
+
 	return iface
 }
 
@@ -439,15 +438,27 @@ func (r *reader) obj() (types.Object, []types.Type) {
 }
 
 func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
-	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
 
-	objPkg, objName := rname.qualifiedIdent()
-	assert(objName != "")
+	var objPkg *types.Package
+	var objName string
+	var tag pkgbits.CodeObj
+	{
+		rname := pr.tempReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
 
-	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
+		objPkg, objName = rname.qualifiedIdent()
+		assert(objName != "")
+
+		tag = pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
+		pr.retireReader(rname)
+	}
 
 	if tag == pkgbits.ObjStub {
 		assert(objPkg == nil || objPkg == types.Unsafe)
+		return objPkg, objName
+	}
+
+	// Ignore local types promoted to global scope (#55110).
+	if _, suffix := splitVargenSuffix(objName); suffix != "" {
 		return objPkg, objName
 	}
 
@@ -491,41 +502,32 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 
 			named.SetTypeParams(r.typeParamNames())
 
-			rhs := r.typ()
-			pk := r.p
-			pk.laterFor(named, func() {
-				// First be sure that the rhs is initialized, if it needs to be initialized.
-				delete(pk.laterFors, named) // prevent cycles
-				if i, ok := pk.laterFors[rhs]; ok {
-					f := pk.laterFns[i]
-					pk.laterFns[i] = func() {} // function is running now, so replace it with a no-op
-					f()                        // initialize RHS
-				}
-				underlying := rhs.Underlying()
+			underlying := r.typ().Underlying()
 
-				// If the underlying type is an interface, we need to
-				// duplicate its methods so we can replace the receiver
-				// parameter's type (#49906).
-				if iface, ok := underlying.(*types.Interface); ok && iface.NumExplicitMethods() != 0 {
-					methods := make([]*types.Func, iface.NumExplicitMethods())
-					for i := range methods {
-						fn := iface.ExplicitMethod(i)
-						sig := fn.Type().(*types.Signature)
+			// If the underlying type is an interface, we need to
+			// duplicate its methods so we can replace the receiver
+			// parameter's type (#49906).
+			if iface, ok := underlying.(*types.Interface); ok && iface.NumExplicitMethods() != 0 {
+				methods := make([]*types.Func, iface.NumExplicitMethods())
+				for i := range methods {
+					fn := iface.ExplicitMethod(i)
+					sig := fn.Type().(*types.Signature)
 
-						recv := types.NewVar(fn.Pos(), fn.Pkg(), "", named)
-						methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignature(recv, sig.Params(), sig.Results(), sig.Variadic()))
-					}
-
-					embeds := make([]types.Type, iface.NumEmbeddeds())
-					for i := range embeds {
-						embeds[i] = iface.EmbeddedType(i)
-					}
-
-					underlying = types.NewInterfaceType(methods, embeds)
+					recv := types.NewVar(fn.Pos(), fn.Pkg(), "", named)
+					methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignature(recv, sig.Params(), sig.Results(), sig.Variadic()))
 				}
 
-				named.SetUnderlying(underlying)
-			})
+				embeds := make([]types.Type, iface.NumEmbeddeds())
+				for i := range embeds {
+					embeds[i] = iface.EmbeddedType(i)
+				}
+
+				newIface := types.NewInterfaceType(methods, embeds)
+				r.p.ifaces = append(r.p.ifaces, newIface)
+				underlying = newIface
+			}
+
+			named.SetUnderlying(underlying)
 
 			for i, n := 0, r.Len(); i < n; i++ {
 				named.AddMethod(r.method())
@@ -542,25 +544,28 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 }
 
 func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
-	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
 
 	var dict readerDict
 
-	if implicits := r.Len(); implicits != 0 {
-		errorf("unexpected object with %v implicit type parameter(s)", implicits)
-	}
+	{
+		r := pr.tempReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
+		if implicits := r.Len(); implicits != 0 {
+			errorf("unexpected object with %v implicit type parameter(s)", implicits)
+		}
 
-	dict.bounds = make([]typeInfo, r.Len())
-	for i := range dict.bounds {
-		dict.bounds[i] = r.typInfo()
-	}
+		dict.bounds = make([]typeInfo, r.Len())
+		for i := range dict.bounds {
+			dict.bounds[i] = r.typInfo()
+		}
 
-	dict.derived = make([]derivedInfo, r.Len())
-	dict.derivedTypes = make([]types.Type, len(dict.derived))
-	for i := range dict.derived {
-		dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
-	}
+		dict.derived = make([]derivedInfo, r.Len())
+		dict.derivedTypes = make([]types.Type, len(dict.derived))
+		for i := range dict.derived {
+			dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
+		}
 
+		pr.retireReader(r)
+	}
 	// function references follow, but reader doesn't need those
 
 	return &dict

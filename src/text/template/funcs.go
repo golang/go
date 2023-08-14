@@ -5,7 +5,6 @@
 package template
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -24,7 +23,7 @@ import (
 // Execute returns that error.
 //
 // Errors returned by Execute wrap the underlying error; call errors.As to
-// uncover them.
+// unwrap them.
 //
 // When template execution invokes a function with an argument list, that list
 // must be assignable to the function's parameter types. Functions meant to
@@ -438,7 +437,7 @@ func basicKind(v reflect.Value) (kind, error) {
 
 // isNil returns true if v is the zero reflect.Value, or nil of its type.
 func isNil(v reflect.Value) bool {
-	if v == zero {
+	if !v.IsValid() {
 		return true
 	}
 	switch v.Kind() {
@@ -479,7 +478,7 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
 			case k1 == uintKind && k2 == intKind:
 				truth = arg.Int() >= 0 && arg1.Uint() == uint64(arg.Int())
 			default:
-				if arg1 != zero && arg != zero {
+				if arg1.IsValid() && arg.IsValid() {
 					return false, errBadComparison
 				}
 			}
@@ -642,7 +641,7 @@ func HTMLEscapeString(s string) string {
 	if !strings.ContainsAny(s, "'\"&<>\000") {
 		return s
 	}
-	var b bytes.Buffer
+	var b strings.Builder
 	HTMLEscape(&b, []byte(s))
 	return b.String()
 }
@@ -725,7 +724,7 @@ func JSEscapeString(s string) string {
 	if strings.IndexFunc(s, jsIsSpecial) < 0 {
 		return s
 	}
-	var b bytes.Buffer
+	var b strings.Builder
 	JSEscape(&b, []byte(s))
 	return b.String()
 }

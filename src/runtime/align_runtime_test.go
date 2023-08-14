@@ -14,8 +14,6 @@ import "unsafe"
 // operations (all the *64 operations in runtime/internal/atomic).
 var AtomicFields = []uintptr{
 	unsafe.Offsetof(m{}.procid),
-	unsafe.Offsetof(p{}.timer0When),
-	unsafe.Offsetof(p{}.timerModifiedEarliest),
 	unsafe.Offsetof(p{}.gcFractionalMarkTime),
 	unsafe.Offsetof(profBuf{}.overflow),
 	unsafe.Offsetof(profBuf{}.overflowTime),
@@ -35,7 +33,6 @@ var AtomicFields = []uintptr{
 	unsafe.Offsetof(lfnode{}.next),
 	unsafe.Offsetof(mstats{}.last_gc_nanotime),
 	unsafe.Offsetof(mstats{}.last_gc_unix),
-	unsafe.Offsetof(ticksType{}.val),
 	unsafe.Offsetof(workType{}.bytesMarked),
 }
 

@@ -25,6 +25,7 @@ var nameTests = []nameTest{
 	{PF_W + PF_R + 0x50, "PF_W+PF_R+0x50"},
 	{DT_SYMBOLIC, "DT_SYMBOLIC"},
 	{DF_BIND_NOW, "DF_BIND_NOW"},
+	{DF_1_PIE, "DF_1_PIE"},
 	{NT_FPREGSET, "NT_FPREGSET"},
 	{STB_GLOBAL, "STB_GLOBAL"},
 	{STT_COMMON, "STT_COMMON"},
@@ -37,6 +38,7 @@ var nameTests = []nameTest{
 	{R_SPARC_GOT22, "R_SPARC_GOT22"},
 	{ET_LOOS + 5, "ET_LOOS+5"},
 	{ProgFlag(0x50), "0x50"},
+	{COMPRESS_ZLIB + 2, "COMPRESS_ZSTD+1"},
 }
 
 func TestNames(t *testing.T) {
@@ -44,28 +46,6 @@ func TestNames(t *testing.T) {
 		s := fmt.Sprint(tt.val)
 		if s != tt.str {
 			t.Errorf("#%d: Sprint(%d) = %q, want %q", i, tt.val, s, tt.str)
-		}
-	}
-}
-
-func TestNobitsSection(t *testing.T) {
-	const testdata = "testdata/gcc-amd64-linux-exec"
-	f, err := Open(testdata)
-	if err != nil {
-		t.Fatalf("could not read %s: %v", testdata, err)
-	}
-	defer f.Close()
-	bss := f.Section(".bss")
-	bssData, err := bss.Data()
-	if err != nil {
-		t.Fatalf("error reading .bss section: %v", err)
-	}
-	if g, w := uint64(len(bssData)), bss.Size; g != w {
-		t.Errorf(".bss section length mismatch: got %d, want %d", g, w)
-	}
-	for i := range bssData {
-		if bssData[i] != 0 {
-			t.Fatalf("unexpected non-zero byte at offset %d: %#x", i, bssData[i])
 		}
 	}
 }

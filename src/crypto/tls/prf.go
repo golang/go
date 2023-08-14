@@ -80,6 +80,7 @@ const (
 )
 
 var masterSecretLabel = []byte("master secret")
+var extendedMasterSecretLabel = []byte("extended master secret")
 var keyExpansionLabel = []byte("key expansion")
 var clientFinishedLabel = []byte("client finished")
 var serverFinishedLabel = []byte("server finished")
@@ -112,6 +113,14 @@ func masterFromPreMasterSecret(version uint16, suite *cipherSuite, preMasterSecr
 
 	masterSecret := make([]byte, masterSecretLength)
 	prfForVersion(version, suite)(masterSecret, preMasterSecret, masterSecretLabel, seed)
+	return masterSecret
+}
+
+// extMasterFromPreMasterSecret generates the extended master secret from the
+// pre-master secret. See RFC 7627.
+func extMasterFromPreMasterSecret(version uint16, suite *cipherSuite, preMasterSecret, transcript []byte) []byte {
+	masterSecret := make([]byte, masterSecretLength)
+	prfForVersion(version, suite)(masterSecret, preMasterSecret, extendedMasterSecretLabel, transcript)
 	return masterSecret
 }
 
@@ -215,7 +224,7 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
 
 // hashForClientCertificate returns the handshake messages so far, pre-hashed if
 // necessary, suitable for signing by a TLS client certificate.
-func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash, masterSecret []byte) []byte {
+func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash) []byte {
 	if (h.version >= VersionTLS12 || sigType == signatureEd25519) && h.buffer == nil {
 		panic("tls: handshake hash for a client certificate requested after discarding the handshake buffer")
 	}

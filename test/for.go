@@ -44,15 +44,33 @@ func main() {
 	for sum < 100 {
 		sum = sum + 9
 	}
-	assertequal(sum, 99 + 9, "only one")
+	assertequal(sum, 99+9, "only one")
 
 	sum = 0
 	for i := 0; i <= 10; i++ {
-		if i % 2 == 0 {
+		if i%2 == 0 {
 			continue
 		}
 		sum = sum + i
 	}
 	assertequal(sum, 1+3+5+7+9, "continue")
 
+	i = 0
+	for i = range [5]struct{}{} {
+	}
+	assertequal(i, 4, " incorrect index value after range loop")
+
+	i = 0
+	var a1 [5]struct{}
+	for i = range a1 {
+		a1[i] = struct{}{}
+	}
+	assertequal(i, 4, " incorrect index value after array with zero size elem range clear")
+
+	i = 0
+	var a2 [5]int
+	for i = range a2 {
+		a2[i] = 0
+	}
+	assertequal(i, 4, " incorrect index value after array range clear")
 }

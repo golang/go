@@ -11,7 +11,7 @@ import (
 	"sort"
 )
 
-const indexVersion = "go index v1" // 11 bytes (plus \n), to align uint32s in index
+const indexVersion = "go index v2" // 11 bytes (plus \n), to align uint32s in index
 
 // encodeModuleBytes produces the encoded representation of the module index.
 // encodeModuleBytes may modify the packages slice.
@@ -84,6 +84,12 @@ func encodeFile(e *encoder, f *rawFile) {
 		e.String(embed.pattern)
 		e.Position(embed.position)
 	}
+
+	e.Int(len(f.directives))
+	for _, d := range f.directives {
+		e.String(d.Text)
+		e.Position(d.Pos)
+	}
 }
 
 func newEncoder() *encoder {
@@ -126,7 +132,7 @@ func (e *encoder) String(s string) {
 	e.strings[s] = pos
 	e.Int(pos)
 	e.stringTable = binary.AppendUvarint(e.stringTable, uint64(len(s)))
-	e.stringTable = append(e.stringTable, []byte(s)...)
+	e.stringTable = append(e.stringTable, s...)
 }
 
 func (e *encoder) Bool(b bool) {

@@ -255,8 +255,8 @@ func TestGcPacer(t *testing.T) {
 					// After the 12th GC, the heap will stop growing. Now, just make sure that:
 					// 1. Utilization isn't varying _too_ much, and
 					// 2. The pacer is mostly keeping up with the goal.
-					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.05)
-					assertInRange(t, "GC utilization", c[n-1].gcUtilization, 0.25, 0.3)
+					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.025)
+					assertInRange(t, "GC utilization", c[n-1].gcUtilization, 0.25, 0.275)
 				}
 			},
 		},
@@ -417,7 +417,7 @@ func TestGcPacer(t *testing.T) {
 			length:        50,
 			checker: func(t *testing.T, c []gcCycleResult) {
 				n := len(c)
-				if peak := c[n-1].heapPeak; peak >= (512<<20)-MemoryLimitHeapGoalHeadroom {
+				if peak := c[n-1].heapPeak; peak >= applyMemoryLimitHeapGoalHeadroom(512<<20) {
 					t.Errorf("peak heap size reaches heap limit: %d", peak)
 				}
 				if n >= 25 {
@@ -446,7 +446,7 @@ func TestGcPacer(t *testing.T) {
 			length:        50,
 			checker: func(t *testing.T, c []gcCycleResult) {
 				n := len(c)
-				if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+				if goal := c[n-1].heapGoal; goal != applyMemoryLimitHeapGoalHeadroom(512<<20) {
 					t.Errorf("heap goal is not the heap limit: %d", goal)
 				}
 				if n >= 25 {
@@ -510,7 +510,7 @@ func TestGcPacer(t *testing.T) {
 			checker: func(t *testing.T, c []gcCycleResult) {
 				n := len(c)
 				if n < 10 {
-					if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+					if goal := c[n-1].heapGoal; goal != applyMemoryLimitHeapGoalHeadroom(512<<20) {
 						t.Errorf("heap goal is not the heap limit: %d", goal)
 					}
 				}
@@ -550,7 +550,7 @@ func TestGcPacer(t *testing.T) {
 				n := len(c)
 				if n > 12 {
 					// We're trying to saturate the memory limit.
-					if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+					if goal := c[n-1].heapGoal; goal != applyMemoryLimitHeapGoalHeadroom(512<<20) {
 						t.Errorf("heap goal is not the heap limit: %d", goal)
 					}
 				}
@@ -581,7 +581,7 @@ func TestGcPacer(t *testing.T) {
 			length:        50,
 			checker: func(t *testing.T, c []gcCycleResult) {
 				n := len(c)
-				if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+				if goal := c[n-1].heapGoal; goal != applyMemoryLimitHeapGoalHeadroom(512<<20) {
 					t.Errorf("heap goal is not the heap limit: %d", goal)
 				}
 				if n >= 25 {
@@ -1019,49 +1019,17 @@ func (f float64Stream) limit(min, max float64) float64Stream {
 	}
 }
 
-func FuzzPIController(f *testing.F) {
-	isNormal := func(x float64) bool {
-		return !math.IsInf(x, 0) && !math.IsNaN(x)
+func applyMemoryLimitHeapGoalHeadroom(goal uint64) uint64 {
+	headroom := goal / 100 * MemoryLimitHeapGoalHeadroomPercent
+	if headroom < MemoryLimitMinHeapGoalHeadroom {
+		headroom = MemoryLimitMinHeapGoalHeadroom
 	}
-	isPositive := func(x float64) bool {
-		return isNormal(x) && x > 0
+	if goal < headroom || goal-headroom < headroom {
+		goal = headroom
+	} else {
+		goal -= headroom
 	}
-	// Seed with constants from controllers in the runtime.
-	// It's not critical that we keep these in sync, they're just
-	// reasonable seed inputs.
-	f.Add(0.3375, 3.2e6, 1e9, 0.001, 1000.0, 0.01)
-	f.Add(0.9, 4.0, 1000.0, -1000.0, 1000.0, 0.84)
-	f.Fuzz(func(t *testing.T, kp, ti, tt, min, max, setPoint float64) {
-		// Ignore uninteresting invalid parameters. These parameters
-		// are constant, so in practice surprising values will be documented
-		// or will be other otherwise immediately visible.
-		//
-		// We just want to make sure that given a non-Inf, non-NaN input,
-		// we always get a non-Inf, non-NaN output.
-		if !isPositive(kp) || !isPositive(ti) || !isPositive(tt) {
-			return
-		}
-		if !isNormal(min) || !isNormal(max) || min > max {
-			return
-		}
-		// Use a random source, but make it deterministic.
-		rs := rand.New(rand.NewSource(800))
-		randFloat64 := func() float64 {
-			return math.Float64frombits(rs.Uint64())
-		}
-		p := NewPIController(kp, ti, tt, min, max)
-		state := float64(0)
-		for i := 0; i < 100; i++ {
-			input := randFloat64()
-			// Ignore the "ok" parameter. We're just trying to break it.
-			// state is intentionally completely uncorrelated with the input.
-			var ok bool
-			state, ok = p.Next(input, setPoint, 1.0)
-			if !isNormal(state) {
-				t.Fatalf("got NaN or Inf result from controller: %f %v", state, ok)
-			}
-		}
-	})
+	return goal
 }
 
 func TestIdleMarkWorkerCount(t *testing.T) {

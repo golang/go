@@ -6,7 +6,9 @@ package pe
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"internal/saferio"
 	"io"
 	"unsafe"
 )
@@ -57,29 +59,35 @@ func readCOFFSymbols(fh *FileHeader, r io.ReadSeeker) ([]COFFSymbol, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fail to seek to symbol table: %v", err)
 	}
-	syms := make([]COFFSymbol, fh.NumberOfSymbols)
+	c := saferio.SliceCap((*COFFSymbol)(nil), uint64(fh.NumberOfSymbols))
+	if c < 0 {
+		return nil, errors.New("too many symbols; file may be corrupt")
+	}
+	syms := make([]COFFSymbol, 0, c)
 	naux := 0
-	for k := range syms {
+	for k := uint32(0); k < fh.NumberOfSymbols; k++ {
+		var sym COFFSymbol
 		if naux == 0 {
 			// Read a primary symbol.
-			err = binary.Read(r, binary.LittleEndian, &syms[k])
+			err = binary.Read(r, binary.LittleEndian, &sym)
 			if err != nil {
 				return nil, fmt.Errorf("fail to read symbol table: %v", err)
 			}
 			// Record how many auxiliary symbols it has.
-			naux = int(syms[k].NumberOfAuxSymbols)
+			naux = int(sym.NumberOfAuxSymbols)
 		} else {
 			// Read an aux symbol. At the moment we assume all
 			// aux symbols are format 5 (obviously this doesn't always
 			// hold; more cases will be needed below if more aux formats
 			// are supported in the future).
 			naux--
-			aux := (*COFFSymbolAuxFormat5)(unsafe.Pointer(&syms[k]))
+			aux := (*COFFSymbolAuxFormat5)(unsafe.Pointer(&sym))
 			err = binary.Read(r, binary.LittleEndian, aux)
 			if err != nil {
 				return nil, fmt.Errorf("fail to read symbol table: %v", err)
 			}
 		}
+		syms = append(syms, sym)
 	}
 	if naux != 0 {
 		return nil, fmt.Errorf("fail to read symbol table: %d aux symbols unread", naux)
@@ -172,7 +180,7 @@ const (
 	IMAGE_COMDAT_SELECT_LARGEST      = 6
 )
 
-// COFFSymbolReadSectionDefAux returns a blob of axiliary information
+// COFFSymbolReadSectionDefAux returns a blob of auxiliary information
 // (including COMDAT info) for a section definition symbol. Here 'idx'
 // is the index of a section symbol in the main COFFSymbol array for
 // the File. Return value is a pointer to the appropriate aux symbol

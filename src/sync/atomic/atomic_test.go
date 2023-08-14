@@ -2526,3 +2526,9 @@ func TestNilDeref(t *testing.T) {
 		}()
 	}
 }
+
+// Test that this compiles.
+// When atomic.Pointer used _ [0]T, it did not.
+type List struct {
+	Next Pointer[List]
+}

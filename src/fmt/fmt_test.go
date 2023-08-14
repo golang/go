@@ -249,6 +249,7 @@ var fmtTests = []struct {
 	{"%.0c", '⌘', "⌘"}, // Specifying precision should have no effect.
 	{"%3c", '⌘', "  ⌘"},
 	{"%-3c", '⌘', "⌘  "},
+	{"%c", uint64(0x100000000), "\ufffd"},
 	// Runes that are not printable.
 	{"%c", '\U00000e00', "\u0e00"},
 	{"%c", '\U0010ffff', "\U0010ffff"},
@@ -1237,7 +1238,7 @@ func TestReorder(t *testing.T) {
 func BenchmarkSprintfPadding(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%16f", 1.0)
+			_ = Sprintf("%16f", 1.0)
 		}
 	})
 }
@@ -1245,7 +1246,7 @@ func BenchmarkSprintfPadding(b *testing.B) {
 func BenchmarkSprintfEmpty(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("")
+			_ = Sprintf("")
 		}
 	})
 }
@@ -1253,7 +1254,7 @@ func BenchmarkSprintfEmpty(b *testing.B) {
 func BenchmarkSprintfString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%s", "hello")
+			_ = Sprintf("%s", "hello")
 		}
 	})
 }
@@ -1261,7 +1262,7 @@ func BenchmarkSprintfString(b *testing.B) {
 func BenchmarkSprintfTruncateString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%.3s", "日本語日本語日本語日本語")
+			_ = Sprintf("%.3s", "日本語日本語日本語日本語")
 		}
 	})
 }
@@ -1270,7 +1271,7 @@ func BenchmarkSprintfTruncateBytes(b *testing.B) {
 	var bytes any = []byte("日本語日本語日本語日本語")
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%.3s", bytes)
+			_ = Sprintf("%.3s", bytes)
 		}
 	})
 }
@@ -1278,7 +1279,7 @@ func BenchmarkSprintfTruncateBytes(b *testing.B) {
 func BenchmarkSprintfSlowParsingPath(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%.v", nil)
+			_ = Sprintf("%.v", nil)
 		}
 	})
 }
@@ -1286,7 +1287,7 @@ func BenchmarkSprintfSlowParsingPath(b *testing.B) {
 func BenchmarkSprintfQuoteString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%q", "日本語日本語日本語")
+			_ = Sprintf("%q", "日本語日本語日本語")
 		}
 	})
 }
@@ -1294,7 +1295,7 @@ func BenchmarkSprintfQuoteString(b *testing.B) {
 func BenchmarkSprintfInt(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%d", 5)
+			_ = Sprintf("%d", 5)
 		}
 	})
 }
@@ -1302,7 +1303,7 @@ func BenchmarkSprintfInt(b *testing.B) {
 func BenchmarkSprintfIntInt(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%d %d", 5, 6)
+			_ = Sprintf("%d %d", 5, 6)
 		}
 	})
 }
@@ -1310,7 +1311,7 @@ func BenchmarkSprintfIntInt(b *testing.B) {
 func BenchmarkSprintfPrefixedInt(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("This is some meaningless prefix text that needs to be scanned %d", 6)
+			_ = Sprintf("This is some meaningless prefix text that needs to be scanned %d", 6)
 		}
 	})
 }
@@ -1318,7 +1319,7 @@ func BenchmarkSprintfPrefixedInt(b *testing.B) {
 func BenchmarkSprintfFloat(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%g", 5.23184)
+			_ = Sprintf("%g", 5.23184)
 		}
 	})
 }
@@ -1326,7 +1327,7 @@ func BenchmarkSprintfFloat(b *testing.B) {
 func BenchmarkSprintfComplex(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%f", 5.23184+5.23184i)
+			_ = Sprintf("%f", 5.23184+5.23184i)
 		}
 	})
 }
@@ -1334,7 +1335,7 @@ func BenchmarkSprintfComplex(b *testing.B) {
 func BenchmarkSprintfBoolean(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%t", true)
+			_ = Sprintf("%t", true)
 		}
 	})
 }
@@ -1342,7 +1343,7 @@ func BenchmarkSprintfBoolean(b *testing.B) {
 func BenchmarkSprintfHexString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("% #x", "0123456789abcdef")
+			_ = Sprintf("% #x", "0123456789abcdef")
 		}
 	})
 }
@@ -1351,7 +1352,7 @@ func BenchmarkSprintfHexBytes(b *testing.B) {
 	data := []byte("0123456789abcdef")
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("% #x", data)
+			_ = Sprintf("% #x", data)
 		}
 	})
 }
@@ -1360,7 +1361,7 @@ func BenchmarkSprintfBytes(b *testing.B) {
 	data := []byte("0123456789abcdef")
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%v", data)
+			_ = Sprintf("%v", data)
 		}
 	})
 }
@@ -1369,7 +1370,7 @@ func BenchmarkSprintfStringer(b *testing.B) {
 	stringer := I(12345)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%v", stringer)
+			_ = Sprintf("%v", stringer)
 		}
 	})
 }
@@ -1378,7 +1379,7 @@ func BenchmarkSprintfStructure(b *testing.B) {
 	s := &[]any{SI{12345}, map[int]string{0: "hello"}}
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%#v", s)
+			_ = Sprintf("%#v", s)
 		}
 	})
 }
@@ -1427,13 +1428,18 @@ var mallocTest = []struct {
 	desc  string
 	fn    func()
 }{
-	{0, `Sprintf("")`, func() { Sprintf("") }},
-	{1, `Sprintf("xxx")`, func() { Sprintf("xxx") }},
-	{2, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
-	{2, `Sprintf("%s")`, func() { Sprintf("%s", "hello") }},
-	{3, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
-	{2, `Sprintf("%g")`, func() { Sprintf("%g", float32(3.14159)) }}, // TODO: Can this be 1?
-	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
+	{0, `Sprintf("")`, func() { _ = Sprintf("") }},
+	{1, `Sprintf("xxx")`, func() { _ = Sprintf("xxx") }},
+	{0, `Sprintf("%x")`, func() { _ = Sprintf("%x", 7) }},
+	{1, `Sprintf("%x")`, func() { _ = Sprintf("%x", 1<<16) }},
+	{3, `Sprintf("%80000s")`, func() { _ = Sprintf("%80000s", "hello") }}, // large buffer (>64KB)
+	{1, `Sprintf("%s")`, func() { _ = Sprintf("%s", "hello") }},
+	{1, `Sprintf("%x %x")`, func() { _ = Sprintf("%x %x", 7, 112) }},
+	{1, `Sprintf("%g")`, func() { _ = Sprintf("%g", float32(3.14159)) }},
+	{0, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
+	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 7) }},
+	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 1<<16) }},
+	{2, `Fprintf(buf, "%80000s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%80000s", "hello") }}, // large buffer (>64KB)
 	// If the interface value doesn't need to allocate, amortized allocation overhead should be zero.
 	{0, `Fprintf(buf, "%x %x %x")`, func() {
 		mallocBuf.Reset()
@@ -1767,13 +1773,13 @@ func (r *Recur) String() string {
 func TestBadVerbRecursion(t *testing.T) {
 	failed := false
 	r := &Recur{3, &failed}
-	Sprintf("recur@%p value: %d\n", &r, r.i)
+	_ = Sprintf("recur@%p value: %d\n", &r, r.i)
 	if failed {
 		t.Error("fail with pointer")
 	}
 	failed = false
 	r = &Recur{4, &failed}
-	Sprintf("recur@%p, value: %d\n", r, r.i)
+	_ = Sprintf("recur@%p, value: %d\n", r, r.i)
 	if failed {
 		t.Error("fail with value")
 	}

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
+//go:build !js && !wasip1
 
 package net
 
@@ -464,12 +464,9 @@ func TestAllocs(t *testing.T) {
 		// Plan9 wasn't optimized.
 		t.Skipf("skipping on %v", runtime.GOOS)
 	}
-	builder := os.Getenv("GO_BUILDER_NAME")
-	switch builder {
-	case "linux-amd64-noopt":
-		// Optimizations are required to remove the allocs.
-		t.Skipf("skipping on %v", builder)
-	}
+	// Optimizations are required to remove the allocs.
+	testenv.SkipIfOptimizationOff(t)
+
 	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
 	if err != nil {
 		t.Fatal(err)

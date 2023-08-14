@@ -35,7 +35,7 @@ func DumpDebugLog() string {
 }
 
 func ResetDebugLog() {
-	stopTheWorld("ResetDebugLog")
+	stopTheWorld(stwForTestResetDebugLog)
 	for l := allDloggers; l != nil; l = l.allLink {
 		l.w.write = 0
 		l.w.tick, l.w.nano = 0, 0

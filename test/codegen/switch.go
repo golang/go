@@ -72,3 +72,30 @@ func length(x string) int {
 		return len(x)
 	}
 }
+
+// Use single-byte ordered comparisons for binary searching strings.
+// See issue 53333.
+func mimetype(ext string) string {
+	// amd64: `CMPB\s1\(.*\), \$104$`,-`cmpstring`
+	// arm64: `MOVB\s1\(R.*\), R.*$`, `CMPW\s\$104, R.*$`, -`cmpstring`
+	switch ext {
+	// amd64: `CMPL\s\(.*\), \$1836345390$`
+	// arm64: `MOVD\s\$1836345390`, `CMPW\sR.*, R.*$`
+	case ".htm":
+		return "A"
+	// amd64: `CMPL\s\(.*\), \$1953457454$`
+	// arm64: `MOVD\s\$1953457454`, `CMPW\sR.*, R.*$`
+	case ".eot":
+		return "B"
+	// amd64: `CMPL\s\(.*\), \$1735815982$`
+	// arm64: `MOVD\s\$1735815982`, `CMPW\sR.*, R.*$`
+	case ".svg":
+		return "C"
+	// amd64: `CMPL\s\(.*\), \$1718907950$`
+	// arm64: `MOVD\s\$1718907950`, `CMPW\sR.*, R.*$`
+	case ".ttf":
+		return "D"
+	default:
+		return ""
+	}
+}

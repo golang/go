@@ -8,7 +8,6 @@ package rand
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	prand "math/rand"
 	"testing"
@@ -33,10 +32,6 @@ func TestBatched(t *testing.T) {
 }
 
 func TestBatchedBuffering(t *testing.T) {
-	var prandSeed [8]byte
-	Read(prandSeed[:])
-	prand.Seed(int64(binary.LittleEndian.Uint64(prandSeed[:])))
-
 	backingStore := make([]byte, 1<<23)
 	prand.Read(backingStore)
 	backingMarker := backingStore[:]

@@ -525,7 +525,7 @@ func induceSubS_8_32(text []byte, sa, freq, bucket []int32) {
 // Second, to avoid text comparison entirely, if an LMS-substring is very short,
 // sa[j/2] records its actual text instead of its length, so that if two such
 // substrings have matching “length,” the text need not be read at all.
-// The definition of “very short” is that the text bytes must pack into an uint32,
+// The definition of “very short” is that the text bytes must pack into a uint32,
 // and the unsigned encoding e must be ≥ len(text), so that it can be
 // distinguished from a valid length.
 func length_8_32(text []byte, sa []int32, numLMS int) {

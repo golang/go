@@ -399,6 +399,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	case objabi.R_ADDR:
 		v = ld.IMAGE_REL_I386_DIR32
 
+	case objabi.R_PEIMAGEOFF:
+		v = ld.IMAGE_REL_I386_DIR32NB
+
 	case objabi.R_CALL,
 		objabi.R_PCREL:
 		v = ld.IMAGE_REL_I386_REL32

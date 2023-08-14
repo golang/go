@@ -60,6 +60,9 @@ TEXT ·setgid(SB),NOSPLIT,$0
 TEXT ·setgroups1(SB),NOSPLIT,$0
 	JMP	runtime·syscall_setgroups(SB)
 
+TEXT ·setrlimit1(SB),NOSPLIT,$0
+	JMP	runtime·syscall_setrlimit(SB)
+
 TEXT ·setsid(SB),NOSPLIT,$0
 	JMP	runtime·syscall_setsid(SB)
 

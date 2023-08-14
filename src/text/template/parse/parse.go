@@ -210,7 +210,6 @@ func (t *Tree) recover(errp *error) {
 			panic(e)
 		}
 		if t != nil {
-			t.lex.drain()
 			t.stopParse()
 		}
 		*errp = e.(error)
@@ -224,6 +223,11 @@ func (t *Tree) startParse(funcs []map[string]any, lex *lexer, treeSet map[string
 	t.vars = []string{"$"}
 	t.funcs = funcs
 	t.treeSet = treeSet
+	lex.options = lexOptions{
+		emitComment: t.Mode&ParseComments != 0,
+		breakOK:     !t.hasFunction("break"),
+		continueOK:  !t.hasFunction("continue"),
+	}
 }
 
 // stopParse terminates parsing.
@@ -241,10 +245,7 @@ func (t *Tree) stopParse() {
 func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]any) (tree *Tree, err error) {
 	defer t.recover(&err)
 	t.ParseName = t.Name
-	emitComment := t.Mode&ParseComments != 0
-	breakOK := !t.hasFunction("break")
-	continueOK := !t.hasFunction("continue")
-	lexer := lex(t.Name, text, leftDelim, rightDelim, emitComment, breakOK, continueOK)
+	lexer := lex(t.Name, text, leftDelim, rightDelim)
 	t.startParse(funcs, lexer, treeSet)
 	t.text = text
 	t.parse()

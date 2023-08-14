@@ -5,10 +5,8 @@
 package windows
 
 import (
-	"internal/unsafeheader"
 	"sync"
 	"syscall"
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -18,24 +16,17 @@ func UTF16PtrToString(p *uint16) string {
 	if p == nil {
 		return ""
 	}
-	// Find NUL terminator.
 	end := unsafe.Pointer(p)
 	n := 0
 	for *(*uint16)(end) != 0 {
 		end = unsafe.Pointer(uintptr(end) + unsafe.Sizeof(*p))
 		n++
 	}
-	// Turn *uint16 into []uint16.
-	var s []uint16
-	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(p)
-	hdr.Cap = n
-	hdr.Len = n
-	// Decode []uint16 into string.
-	return string(utf16.Decode(s))
+	return syscall.UTF16ToString(unsafe.Slice(p, n))
 }
 
 const (
+	ERROR_BAD_LENGTH             syscall.Errno = 24
 	ERROR_SHARING_VIOLATION      syscall.Errno = 32
 	ERROR_LOCK_VIOLATION         syscall.Errno = 33
 	ERROR_NOT_SUPPORTED          syscall.Errno = 50
@@ -131,6 +122,12 @@ type IpAdapterAddresses struct {
 	/* more fields might be present here. */
 }
 
+type SecurityAttributes struct {
+	Length             uint16
+	SecurityDescriptor uintptr
+	InheritHandle      bool
+}
+
 type FILE_BASIC_INFO struct {
 	CreationTime   syscall.Filetime
 	LastAccessTime syscall.Filetime
@@ -155,6 +152,33 @@ const (
 //sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
 //sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
 //sys	VirtualQuery(address uintptr, buffer *MemoryBasicInformation, length uintptr) (err error) = kernel32.VirtualQuery
+//sys	GetTempPath2(buflen uint32, buf *uint16) (n uint32, err error) = GetTempPath2W
+
+const (
+	// flags for CreateToolhelp32Snapshot
+	TH32CS_SNAPMODULE   = 0x08
+	TH32CS_SNAPMODULE32 = 0x10
+)
+
+const MAX_MODULE_NAME32 = 255
+
+type ModuleEntry32 struct {
+	Size         uint32
+	ModuleID     uint32
+	ProcessID    uint32
+	GlblcntUsage uint32
+	ProccntUsage uint32
+	ModBaseAddr  uintptr
+	ModBaseSize  uint32
+	ModuleHandle syscall.Handle
+	Module       [MAX_MODULE_NAME32 + 1]uint16
+	ExePath      [syscall.MAX_PATH]uint16
+}
+
+const SizeofModuleEntry32 = unsafe.Sizeof(ModuleEntry32{})
+
+//sys	Module32First(snapshot syscall.Handle, moduleEntry *ModuleEntry32) (err error) = kernel32.Module32FirstW
+//sys	Module32Next(snapshot syscall.Handle, moduleEntry *ModuleEntry32) (err error) = kernel32.Module32NextW
 
 const (
 	WSA_FLAG_OVERLAPPED        = 0x01
@@ -309,7 +333,11 @@ const MB_ERR_INVALID_CHARS = 8
 //sys	MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) = kernel32.MultiByteToWideChar
 //sys	GetCurrentThread() (pseudoHandle syscall.Handle, err error) = kernel32.GetCurrentThread
 
-const STYPE_DISKTREE = 0x00
+// Constants from lmshare.h
+const (
+	STYPE_DISKTREE  = 0x00
+	STYPE_TEMPORARY = 0x40000000
+)
 
 type SHARE_INFO_2 struct {
 	Netname     *uint16
@@ -341,7 +369,55 @@ func LoadGetFinalPathNameByHandle() error {
 	return procGetFinalPathNameByHandleW.Find()
 }
 
+func ErrorLoadingGetTempPath2() error {
+	return procGetTempPath2W.Find()
+}
+
 //sys	CreateEnvironmentBlock(block **uint16, token syscall.Token, inheritExisting bool) (err error) = userenv.CreateEnvironmentBlock
 //sys	DestroyEnvironmentBlock(block *uint16) (err error) = userenv.DestroyEnvironmentBlock
+//sys	CreateEvent(eventAttrs *SecurityAttributes, manualReset uint32, initialState uint32, name *uint16) (handle syscall.Handle, err error) = kernel32.CreateEventW
 
 //sys	RtlGenRandom(buf []byte) (err error) = advapi32.SystemFunction036
+
+type FILE_ID_BOTH_DIR_INFO struct {
+	NextEntryOffset uint32
+	FileIndex       uint32
+	CreationTime    syscall.Filetime
+	LastAccessTime  syscall.Filetime
+	LastWriteTime   syscall.Filetime
+	ChangeTime      syscall.Filetime
+	EndOfFile       uint64
+	AllocationSize  uint64
+	FileAttributes  uint32
+	FileNameLength  uint32
+	EaSize          uint32
+	ShortNameLength uint32
+	ShortName       [12]uint16
+	FileID          uint64
+	FileName        [1]uint16
+}
+
+//sys	GetVolumeInformationByHandle(file syscall.Handle, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) = GetVolumeInformationByHandleW
+//sys	GetVolumeNameForVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint16, bufferlength uint32) (err error) = GetVolumeNameForVolumeMountPointW
+
+//sys	RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret uintptr) = kernel32.RtlLookupFunctionEntry
+//sys	RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry uintptr, ctxt uintptr, data *uintptr, frame *uintptr, ctxptrs *byte) (ret uintptr) = kernel32.RtlVirtualUnwind
+
+type SERVICE_STATUS struct {
+	ServiceType             uint32
+	CurrentState            uint32
+	ControlsAccepted        uint32
+	Win32ExitCode           uint32
+	ServiceSpecificExitCode uint32
+	CheckPoint              uint32
+	WaitHint                uint32
+}
+
+const (
+	SERVICE_RUNNING      = 4
+	SERVICE_QUERY_STATUS = 4
+)
+
+//sys    OpenService(mgr syscall.Handle, serviceName *uint16, access uint32) (handle syscall.Handle, err error) = advapi32.OpenServiceW
+//sys	QueryServiceStatus(hService syscall.Handle, lpServiceStatus *SERVICE_STATUS) (err error)  = advapi32.QueryServiceStatus
+//sys    OpenSCManager(machineName *uint16, databaseName *uint16, access uint32) (handle syscall.Handle, err error)  [failretval==0] = advapi32.OpenSCManagerW

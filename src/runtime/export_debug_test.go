@@ -32,19 +32,19 @@ func InjectDebugCall(gp *g, fn any, regArgs *abi.RegArgs, stackArgs any, tkill f
 	}
 
 	f := efaceOf(&fn)
-	if f._type == nil || f._type.kind&kindMask != kindFunc {
+	if f._type == nil || f._type.Kind_&kindMask != kindFunc {
 		return nil, plainError("fn must be a function")
 	}
 	fv := (*funcval)(f.data)
 
 	a := efaceOf(&stackArgs)
-	if a._type != nil && a._type.kind&kindMask != kindPtr {
+	if a._type != nil && a._type.Kind_&kindMask != kindPtr {
 		return nil, plainError("args must be a pointer or nil")
 	}
 	argp := a.data
 	var argSize uintptr
 	if argp != nil {
-		argSize = (*ptrtype)(unsafe.Pointer(a._type)).elem.size
+		argSize = (*ptrtype)(unsafe.Pointer(a._type)).Elem.Size_
 	}
 
 	h := new(debugCallHandler)
@@ -109,7 +109,7 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 	// a signal handler. Add the go:nowritebarrierrec annotation and restructure
 	// this to avoid write barriers.
 
-	switch h.gp.atomicstatus {
+	switch h.gp.atomicstatus.Load() {
 	case _Grunning:
 		if getg().m != h.mp {
 			println("trap on wrong M", getg().m, h.mp)

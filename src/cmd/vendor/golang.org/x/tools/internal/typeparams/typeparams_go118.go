@@ -103,7 +103,7 @@ func NamedTypeArgs(named *types.Named) *TypeList {
 }
 
 // NamedTypeOrigin returns named.Orig().
-func NamedTypeOrigin(named *types.Named) types.Type {
+func NamedTypeOrigin(named *types.Named) *types.Named {
 	return named.Origin()
 }
 

@@ -53,6 +53,12 @@ const maxInt = int(^uint(0) >> 1)
 // so immediate changes to the slice will affect the result of future reads.
 func (b *Buffer) Bytes() []byte { return b.buf[b.off:] }
 
+// AvailableBuffer returns an empty buffer with b.Available() capacity.
+// This buffer is intended to be appended to and
+// passed to an immediately succeeding Write call.
+// The buffer is only valid until the next write operation on b.
+func (b *Buffer) AvailableBuffer() []byte { return b.buf[len(b.buf):] }
+
 // String returns the contents of the unread portion of the buffer
 // as a string. If the Buffer is a nil pointer, it returns "<nil>".
 //
@@ -75,6 +81,9 @@ func (b *Buffer) Len() int { return len(b.buf) - b.off }
 // Cap returns the capacity of the buffer's underlying byte slice, that is, the
 // total space allocated for the buffer's data.
 func (b *Buffer) Cap() int { return cap(b.buf) }
+
+// Available returns how many bytes are unused in the buffer.
+func (b *Buffer) Available() int { return cap(b.buf) - len(b.buf) }
 
 // Truncate discards all but the first n unread bytes from the buffer
 // but continues to use the same allocated storage.
@@ -100,7 +109,7 @@ func (b *Buffer) Reset() {
 	b.lastRead = opInvalid
 }
 
-// tryGrowByReslice is a inlineable version of grow for the fast-case where the
+// tryGrowByReslice is an inlineable version of grow for the fast-case where the
 // internal buffer only needs to be resliced.
 // It returns the index where bytes should be written and whether it succeeded.
 func (b *Buffer) tryGrowByReslice(n int) (int, bool) {
@@ -298,9 +307,8 @@ func (b *Buffer) WriteRune(r rune) (n int, err error) {
 	if !ok {
 		m = b.grow(utf8.UTFMax)
 	}
-	n = utf8.EncodeRune(b.buf[m:m+utf8.UTFMax], r)
-	b.buf = b.buf[:m+n]
-	return n, nil
+	b.buf = utf8.AppendRune(b.buf[:m], r)
+	return len(b.buf) - m, nil
 }
 
 // Read reads the next len(p) bytes from the buffer or until the buffer

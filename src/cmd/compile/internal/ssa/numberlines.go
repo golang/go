@@ -62,7 +62,7 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
 // statement boundary.
 func notStmtBoundary(op Op) bool {
 	switch op {
-	case OpCopy, OpPhi, OpVarKill, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg, OpArgIntReg, OpArgFloatReg:
+	case OpCopy, OpPhi, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg, OpArgIntReg, OpArgFloatReg:
 		return true
 	}
 	return false

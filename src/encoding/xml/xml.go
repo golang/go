@@ -80,21 +80,15 @@ type EndElement struct {
 // the characters they represent.
 type CharData []byte
 
-func makeCopy(b []byte) []byte {
-	b1 := make([]byte, len(b))
-	copy(b1, b)
-	return b1
-}
-
 // Copy creates a new copy of CharData.
-func (c CharData) Copy() CharData { return CharData(makeCopy(c)) }
+func (c CharData) Copy() CharData { return CharData(bytes.Clone(c)) }
 
 // A Comment represents an XML comment of the form <!--comment-->.
 // The bytes do not include the <!-- and --> comment markers.
 type Comment []byte
 
 // Copy creates a new copy of Comment.
-func (c Comment) Copy() Comment { return Comment(makeCopy(c)) }
+func (c Comment) Copy() Comment { return Comment(bytes.Clone(c)) }
 
 // A ProcInst represents an XML processing instruction of the form <?target inst?>
 type ProcInst struct {
@@ -104,7 +98,7 @@ type ProcInst struct {
 
 // Copy creates a new copy of ProcInst.
 func (p ProcInst) Copy() ProcInst {
-	p.Inst = makeCopy(p.Inst)
+	p.Inst = bytes.Clone(p.Inst)
 	return p
 }
 
@@ -113,7 +107,7 @@ func (p ProcInst) Copy() ProcInst {
 type Directive []byte
 
 // Copy creates a new copy of Directive.
-func (d Directive) Copy() Directive { return Directive(makeCopy(d)) }
+func (d Directive) Copy() Directive { return Directive(bytes.Clone(d)) }
 
 // CopyToken returns a copy of a Token.
 func CopyToken(t Token) Token {
@@ -268,6 +262,9 @@ func NewTokenDecoder(t TokenReader) *Decoder {
 // or EOF before all expected end elements,
 // it will return an error.
 //
+// If CharsetReader is called and returns an error,
+// the error is wrapped and returned.
+//
 // Token implements XML name spaces as described by
 // https://www.w3.org/TR/REC-xml-names/. Each of the
 // Name structures contained in the Token has the Space
@@ -320,15 +317,14 @@ func (d *Decoder) Token() (Token, error) {
 			}
 		}
 
+		d.pushElement(t1.Name)
 		d.translate(&t1.Name, true)
 		for i := range t1.Attr {
 			d.translate(&t1.Attr[i].Name, false)
 		}
-		d.pushElement(t1.Name)
 		t = t1
 
 	case EndElement:
-		d.translate(&t1.Name, true)
 		if !d.popElement(&t1) {
 			return nil, d.err
 		}
@@ -501,6 +497,8 @@ func (d *Decoder) popElement(t *EndElement) bool {
 		return false
 	}
 
+	d.translate(&t.Name, true)
+
 	// Pop stack until a Start or EOF is on the top, undoing the
 	// translations that were associated with the element we just closed.
 	for d.stk != nil && d.stk.kind != stkStart && d.stk.kind != stkEOF {
@@ -639,7 +637,7 @@ func (d *Decoder) rawToken() (Token, error) {
 				}
 				newr, err := d.CharsetReader(enc, d.r.(io.Reader))
 				if err != nil {
-					d.err = fmt.Errorf("xml: opening charset %q: %v", enc, err)
+					d.err = fmt.Errorf("xml: opening charset %q: %w", enc, err)
 					return nil, d.err
 				}
 				if newr == nil {
@@ -1168,7 +1166,7 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 		return
 	}
 	if strings.Count(s, ":") > 1 {
-		name.Local = s
+		return name, false
 	} else if space, local, ok := strings.Cut(s, ":"); !ok || space == "" || local == "" {
 		name.Local = s
 	} else {

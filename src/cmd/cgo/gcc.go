@@ -47,6 +47,8 @@ var nameToC = map[string]string{
 	"complexdouble": "double _Complex",
 }
 
+var incomplete = "_cgopackage.Incomplete"
+
 // cname returns the C name to use for C.s.
 // The expansions are listed in nameToC and also
 // struct_foo becomes "struct foo", and similarly for
@@ -936,7 +938,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 		// constants to the parameter type, to avoid a type mismatch.
 		ptype := p.rewriteUnsafe(param.Go)
 
-		if !p.needsPointerCheck(f, param.Go, args[i]) || param.BadPointer {
+		if !p.needsPointerCheck(f, param.Go, args[i]) || param.BadPointer || p.checkUnsafeStringData(args[i]) {
 			if ptype != param.Go {
 				needsUnsafe = true
 			}
@@ -952,6 +954,11 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 
 		// Check for &x.
 		if p.checkAddr(&sb, &sbCheck, arg, i) {
+			continue
+		}
+
+		// Check for a[:].
+		if p.checkSlice(&sb, &sbCheck, arg, i) {
 			continue
 		}
 
@@ -1176,7 +1183,10 @@ func (p *Package) checkIndex(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) boo
 	x := arg
 	for {
 		c, ok := x.(*ast.CallExpr)
-		if !ok || len(c.Args) != 1 || !p.isType(c.Fun) {
+		if !ok || len(c.Args) != 1 {
+			break
+		}
+		if !p.isType(c.Fun) && !p.isUnsafeData(c.Fun, false) {
 			break
 		}
 		x = c.Args[0]
@@ -1230,7 +1240,10 @@ func (p *Package) checkAddr(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool
 	px := &arg
 	for {
 		c, ok := (*px).(*ast.CallExpr)
-		if !ok || len(c.Args) != 1 || !p.isType(c.Fun) {
+		if !ok || len(c.Args) != 1 {
+			break
+		}
+		if !p.isType(c.Fun) && !p.isUnsafeData(c.Fun, false) {
 			break
 		}
 		px = &c.Args[0]
@@ -1251,6 +1264,71 @@ func (p *Package) checkAddr(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool
 	fmt.Fprintf(sbCheck, "_cgoCheckPointer(_cgoBase%d, 0 == 0); ", i)
 
 	return true
+}
+
+// checkSlice checks whether arg has the form x[i:j], possibly inside
+// type conversions. If so, it writes
+//
+//	_cgoSliceNN := x[i:j]
+//	_cgoNN := _cgoSliceNN // with type conversions, if any
+//
+// to sb, and writes
+//
+//	_cgoCheckPointer(_cgoSliceNN, true)
+//
+// to sbCheck, and returns true. This tells _cgoCheckPointer to check
+// just the contents of the slice being passed, not any other part
+// of the memory allocation.
+func (p *Package) checkSlice(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool {
+	// Strip type conversions.
+	px := &arg
+	for {
+		c, ok := (*px).(*ast.CallExpr)
+		if !ok || len(c.Args) != 1 {
+			break
+		}
+		if !p.isType(c.Fun) && !p.isUnsafeData(c.Fun, false) {
+			break
+		}
+		px = &c.Args[0]
+	}
+	if _, ok := (*px).(*ast.SliceExpr); !ok {
+		return false
+	}
+
+	fmt.Fprintf(sb, "_cgoSlice%d := %s; ", i, gofmtPos(*px, (*px).Pos()))
+
+	origX := *px
+	*px = ast.NewIdent(fmt.Sprintf("_cgoSlice%d", i))
+	fmt.Fprintf(sb, "_cgo%d := %s; ", i, gofmtPos(arg, arg.Pos()))
+	*px = origX
+
+	// Use 0 == 0 to do the right thing in the unlikely event
+	// that "true" is shadowed.
+	fmt.Fprintf(sbCheck, "_cgoCheckPointer(_cgoSlice%d, 0 == 0); ", i)
+
+	return true
+}
+
+// checkUnsafeStringData checks for a call to unsafe.StringData.
+// The result of that call can't contain a pointer so there is
+// no need to call _cgoCheckPointer.
+func (p *Package) checkUnsafeStringData(arg ast.Expr) bool {
+	x := arg
+	for {
+		c, ok := x.(*ast.CallExpr)
+		if !ok || len(c.Args) != 1 {
+			break
+		}
+		if p.isUnsafeData(c.Fun, true) {
+			return true
+		}
+		if !p.isType(c.Fun) {
+			break
+		}
+		x = c.Args[0]
+	}
+	return false
 }
 
 // isType reports whether the expression is definitely a type.
@@ -1295,6 +1373,28 @@ func (p *Package) isType(t ast.Expr) bool {
 		return true
 	}
 	return false
+}
+
+// isUnsafeData reports whether the expression is unsafe.StringData
+// or unsafe.SliceData. We can ignore these when checking for pointers
+// because they don't change whether or not their argument contains
+// any Go pointers. If onlyStringData is true we only check for StringData.
+func (p *Package) isUnsafeData(x ast.Expr, onlyStringData bool) bool {
+	st, ok := x.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	id, ok := st.X.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	if id.Name != "unsafe" {
+		return false
+	}
+	if !onlyStringData && st.Sel.Name == "SliceData" {
+		return true
+	}
+	return st.Sel.Name == "StringData"
 }
 
 // isVariable reports whether x is a variable, possibly with field references.
@@ -2154,8 +2254,8 @@ type typeConv struct {
 	// Type names X for which there exists an XGetTypeID function with type func() CFTypeID.
 	getTypeIDs map[string]bool
 
-	// badStructs contains C structs that should be marked NotInHeap.
-	notInHeapStructs map[string]bool
+	// incompleteStructs contains C structs that should be marked Incomplete.
+	incompleteStructs map[string]bool
 
 	// Predeclared types.
 	bool                                   ast.Expr
@@ -2168,7 +2268,6 @@ type typeConv struct {
 	string                                 ast.Expr
 	goVoid                                 ast.Expr // _Ctype_void, denotes C's void
 	goVoidPtr                              ast.Expr // unsafe.Pointer or *byte
-	goVoidPtrNoHeap                        ast.Expr // *_Ctype_void_notinheap, like goVoidPtr but marked NotInHeap
 
 	ptrSize int64
 	intSize int64
@@ -2192,7 +2291,7 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
 	c.m = make(map[string]*Type)
 	c.ptrs = make(map[string][]*Type)
 	c.getTypeIDs = make(map[string]bool)
-	c.notInHeapStructs = make(map[string]bool)
+	c.incompleteStructs = make(map[string]bool)
 	c.bool = c.Ident("bool")
 	c.byte = c.Ident("byte")
 	c.int8 = c.Ident("int8")
@@ -2211,7 +2310,6 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
 	c.void = c.Ident("void")
 	c.string = c.Ident("string")
 	c.goVoid = c.Ident("_Ctype_void")
-	c.goVoidPtrNoHeap = c.Ident("*_Ctype_void_notinheap")
 
 	// Normally cgo translates void* to unsafe.Pointer,
 	// but for historical reasons -godefs uses *byte instead.
@@ -2222,7 +2320,7 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
 	}
 }
 
-// base strips away qualifiers and typedefs to get the underlying type
+// base strips away qualifiers and typedefs to get the underlying type.
 func base(dt dwarf.Type) dwarf.Type {
 	for {
 		if d, ok := dt.(*dwarf.QualType); ok {
@@ -2561,19 +2659,13 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			// other than try to determine a Go representation.
 			tt := *t
 			tt.C = &TypeRepr{"%s %s", []interface{}{dt.Kind, tag}}
-			tt.Go = c.Ident("struct{}")
-			if dt.Kind == "struct" {
-				// We don't know what the representation of this struct is, so don't let
-				// anyone allocate one on the Go side. As a side effect of this annotation,
-				// pointers to this type will not be considered pointers in Go. They won't
-				// get writebarrier-ed or adjusted during a stack copy. This should handle
-				// all the cases badPointerTypedef used to handle, but hopefully will
-				// continue to work going forward without any more need for cgo changes.
-				tt.NotInHeap = true
-				// TODO: we should probably do the same for unions. Unions can't live
-				// on the Go heap, right? It currently doesn't work for unions because
-				// they are defined as a type alias for struct{}, not a defined type.
-			}
+			// We don't know what the representation of this struct is, so don't let
+			// anyone allocate one on the Go side. As a side effect of this annotation,
+			// pointers to this type will not be considered pointers in Go. They won't
+			// get writebarrier-ed or adjusted during a stack copy. This should handle
+			// all the cases badPointerTypedef used to handle, but hopefully will
+			// continue to work going forward without any more need for cgo changes.
+			tt.Go = c.Ident(incomplete)
 			typedef[name.Name] = &tt
 			break
 		}
@@ -2599,7 +2691,9 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 				tt.C = &TypeRepr{"struct %s", []interface{}{tag}}
 			}
 			tt.Go = g
-			tt.NotInHeap = c.notInHeapStructs[tag]
+			if c.incompleteStructs[tag] {
+				tt.Go = c.Ident(incomplete)
+			}
 			typedef[name.Name] = &tt
 		}
 
@@ -2644,9 +2738,9 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			}
 		}
 		if c.badVoidPointerTypedef(dt) {
-			// Treat this typedef as a pointer to a NotInHeap void.
+			// Treat this typedef as a pointer to a _cgopackage.Incomplete.
 			s := *sub
-			s.Go = c.goVoidPtrNoHeap
+			s.Go = c.Ident("*" + incomplete)
 			sub = &s
 			// Make sure we update any previously computed type.
 			if oldType := typedef[name.Name]; oldType != nil {
@@ -2654,22 +2748,21 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			}
 		}
 		// Check for non-pointer "struct <tag>{...}; typedef struct <tag> *<name>"
-		// typedefs that should be marked NotInHeap.
+		// typedefs that should be marked Incomplete.
 		if ptr, ok := dt.Type.(*dwarf.PtrType); ok {
 			if strct, ok := ptr.Type.(*dwarf.StructType); ok {
 				if c.badStructPointerTypedef(dt.Name, strct) {
-					c.notInHeapStructs[strct.StructName] = true
+					c.incompleteStructs[strct.StructName] = true
 					// Make sure we update any previously computed type.
 					name := "_Ctype_struct_" + strct.StructName
 					if oldType := typedef[name]; oldType != nil {
-						oldType.NotInHeap = true
+						oldType.Go = c.Ident(incomplete)
 					}
 				}
 			}
 		}
 		t.Go = name
 		t.BadPointer = sub.BadPointer
-		t.NotInHeap = sub.NotInHeap
 		if unionWithPointer[sub.Go] {
 			unionWithPointer[t.Go] = true
 		}
@@ -2680,7 +2773,6 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			tt := *t
 			tt.Go = sub.Go
 			tt.BadPointer = sub.BadPointer
-			tt.NotInHeap = sub.NotInHeap
 			typedef[name.Name] = &tt
 		}
 
@@ -2923,7 +3015,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 	// Minimum alignment for a struct is 1 byte.
 	align = 1
 
-	var buf bytes.Buffer
+	var buf strings.Builder
 	buf.WriteString("struct {")
 	fld := make([]*ast.Field, 0, 2*len(dt.Field)+1) // enough for padding around every field
 	sizes := make([]int64, 0, 2*len(dt.Field)+1)
@@ -3204,7 +3296,7 @@ func (c *typeConv) anonymousStructTypedef(dt *dwarf.TypedefType) bool {
 // non-pointers in this type.
 // TODO: Currently our best solution is to find these manually and list them as
 // they come up. A better solution is desired.
-// Note: DEPRECATED. There is now a better solution. Search for NotInHeap in this file.
+// Note: DEPRECATED. There is now a better solution. Search for incomplete in this file.
 func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {
 	if c.badCFType(dt) {
 		return true
@@ -3218,7 +3310,7 @@ func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {
 	return false
 }
 
-// badVoidPointerTypedef is like badPointerTypeDef, but for "void *" typedefs that should be NotInHeap.
+// badVoidPointerTypedef is like badPointerTypeDef, but for "void *" typedefs that should be _cgopackage.Incomplete.
 func (c *typeConv) badVoidPointerTypedef(dt *dwarf.TypedefType) bool {
 	// Match the Windows HANDLE type (#42018).
 	if goos != "windows" || dt.Name != "HANDLE" {
@@ -3233,7 +3325,7 @@ func (c *typeConv) badVoidPointerTypedef(dt *dwarf.TypedefType) bool {
 	return false
 }
 
-// badStructPointerTypedef is like badVoidPointerTypedefs but for structs.
+// badStructPointerTypedef is like badVoidPointerTypedef but for structs.
 func (c *typeConv) badStructPointerTypedef(name string, dt *dwarf.StructType) bool {
 	// Windows handle types can all potentially contain non-pointers.
 	// badVoidPointerTypedef handles the "void *" HANDLE type, but other

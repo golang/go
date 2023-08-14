@@ -5,10 +5,12 @@
 package sort_test
 
 import (
+	"cmp"
 	"fmt"
 	"internal/testenv"
 	"math"
 	"math/rand"
+	"slices"
 	. "sort"
 	"strconv"
 	stringspkg "strings"
@@ -36,6 +38,20 @@ func TestSortFloat64Slice(t *testing.T) {
 	if !IsSorted(a) {
 		t.Errorf("sorted %v", float64s)
 		t.Errorf("   got %v", data)
+	}
+}
+
+// Compare Sort with slices.Sort sorting a float64 slice containing NaNs.
+func TestSortFloat64sCompareSlicesSort(t *testing.T) {
+	slice1 := slices.Clone(float64s[:])
+	slice2 := slices.Clone(float64s[:])
+
+	Sort(Float64Slice(slice1))
+	slices.Sort(slice2)
+
+	// Compare for equality using cmp.Compare, which considers NaNs equal.
+	if !slices.EqualFunc(slice1, slice1, func(a, b float64) bool { return cmp.Compare(a, b) == 0 }) {
+		t.Errorf("mismatch between Sort and slices.Sort: got %v, want %v", slice1, slice2)
 	}
 }
 
@@ -397,13 +413,6 @@ func (d *testingData) Swap(i, j int) {
 	}
 	d.nswap++
 	d.data[i], d.data[j] = d.data[j], d.data[i]
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 func lg(n int) int {

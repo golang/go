@@ -8,7 +8,6 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -70,7 +69,7 @@ func selparkcommit(gp *g, _ unsafe.Pointer) bool {
 	// Mark that it's safe for stack shrinking to occur now,
 	// because any thread acquiring this G's stack for shrinking
 	// is guaranteed to observe activeStackChans after this store.
-	atomic.Store8(&gp.parkingOnChan, 0)
+	gp.parkingOnChan.Store(false)
 	// Make sure we unlock after setting activeStackChans and
 	// unsetting parkingOnChan. The moment we unlock any of the
 	// channel locks we risk gp getting readied by a channel operation
@@ -101,7 +100,7 @@ func selparkcommit(gp *g, _ unsafe.Pointer) bool {
 }
 
 func block() {
-	gopark(nil, nil, waitReasonSelectNoCases, traceEvGoStop, 1) // forever
+	gopark(nil, nil, waitReasonSelectNoCases, traceBlockForever, 1) // forever
 }
 
 // selectgo implements the select statement.
@@ -324,13 +323,13 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 	// to park on a channel. The window between when this G's status
 	// changes and when we set gp.activeStackChans is not safe for
 	// stack shrinking.
-	atomic.Store8(&gp.parkingOnChan, 1)
-	gopark(selparkcommit, nil, waitReasonSelect, traceEvGoBlockSelect, 1)
+	gp.parkingOnChan.Store(true)
+	gopark(selparkcommit, nil, waitReasonSelect, traceBlockSelect, 1)
 	gp.activeStackChans = false
 
 	sellock(scases, lockorder)
 
-	gp.selectDone = 0
+	gp.selectDone.Store(0)
 	sg = (*sudog)(gp.param)
 	gp.param = nil
 
@@ -401,16 +400,16 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 	}
 	if msanenabled {
 		if casi < nsends {
-			msanread(cas.elem, c.elemtype.size)
+			msanread(cas.elem, c.elemtype.Size_)
 		} else if cas.elem != nil {
-			msanwrite(cas.elem, c.elemtype.size)
+			msanwrite(cas.elem, c.elemtype.Size_)
 		}
 	}
 	if asanenabled {
 		if casi < nsends {
-			asanread(cas.elem, c.elemtype.size)
+			asanread(cas.elem, c.elemtype.Size_)
 		} else if cas.elem != nil {
-			asanwrite(cas.elem, c.elemtype.size)
+			asanwrite(cas.elem, c.elemtype.Size_)
 		}
 	}
 
@@ -426,10 +425,10 @@ bufrecv:
 		racenotify(c, c.recvx, nil)
 	}
 	if msanenabled && cas.elem != nil {
-		msanwrite(cas.elem, c.elemtype.size)
+		msanwrite(cas.elem, c.elemtype.Size_)
 	}
 	if asanenabled && cas.elem != nil {
-		asanwrite(cas.elem, c.elemtype.size)
+		asanwrite(cas.elem, c.elemtype.Size_)
 	}
 	recvOK = true
 	qp = chanbuf(c, c.recvx)
@@ -452,10 +451,10 @@ bufsend:
 		raceReadObjectPC(c.elemtype, cas.elem, casePC(casi), chansendpc)
 	}
 	if msanenabled {
-		msanread(cas.elem, c.elemtype.size)
+		msanread(cas.elem, c.elemtype.Size_)
 	}
 	if asanenabled {
-		asanread(cas.elem, c.elemtype.size)
+		asanread(cas.elem, c.elemtype.Size_)
 	}
 	typedmemmove(c.elemtype, chanbuf(c, c.sendx), cas.elem)
 	c.sendx++
@@ -493,10 +492,10 @@ send:
 		raceReadObjectPC(c.elemtype, cas.elem, casePC(casi), chansendpc)
 	}
 	if msanenabled {
-		msanread(cas.elem, c.elemtype.size)
+		msanread(cas.elem, c.elemtype.Size_)
 	}
 	if asanenabled {
-		asanread(cas.elem, c.elemtype.size)
+		asanread(cas.elem, c.elemtype.Size_)
 	}
 	send(c, sg, cas.elem, func() { selunlock(scases, lockorder) }, 2)
 	if debugSelect {

@@ -31,10 +31,7 @@ func (G[P]) N() (p P) { return }
 
 type Inst = G[int]
 	`
-	pkg, err := pkgFor("p", src, nil)
-	if err != nil {
-		b.Fatal(err)
-	}
+	pkg := mustTypecheck(src, nil, nil)
 
 	var (
 		T        = pkg.Scope().Lookup("T").Type()
@@ -75,7 +72,7 @@ func mustInstantiate(tb testing.TB, orig Type, targs ...Type) Type {
 	return inst
 }
 
-// Test that types do not expand infinitely, as in golang/go#52715.
+// Test that types do not expand infinitely, as in go.dev/issue/52715.
 func TestFiniteTypeExpansion(t *testing.T) {
 	const src = `
 package p
@@ -95,10 +92,7 @@ func (Node[Q]) M(Q) {}
 type Inst = *Tree[int]
 `
 
-	f, err := parseSrc("foo.go", src)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse(src)
 	pkg := NewPackage("p", f.PkgName.Value)
 	if err := NewChecker(nil, pkg, nil).Files([]*syntax.File{f}); err != nil {
 		t.Fatal(err)

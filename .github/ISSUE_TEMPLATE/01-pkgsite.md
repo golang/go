@@ -34,6 +34,8 @@ Please paste a screenshot of the page.
 
 <!--
 If possible, provide a recipe for reproducing the error.
+
+Starting with a Private/Incognito tab/window may help rule out problematic browser extensions.
 -->
 
 

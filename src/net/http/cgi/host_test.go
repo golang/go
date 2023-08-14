@@ -8,7 +8,6 @@ package cgi
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -540,7 +539,7 @@ func TestEnvOverride(t *testing.T) {
 
 func TestHandlerStderr(t *testing.T) {
 	check(t)
-	var stderr bytes.Buffer
+	var stderr strings.Builder
 	h := &Handler{
 		Path:   "testdata/test.cgi",
 		Root:   "/test.cgi",

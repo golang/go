@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 var doFuzzTests = flag.Bool("gob.fuzz", false, "run the fuzz tests, which are large and very slow")
@@ -1467,7 +1468,7 @@ func TestFuzzOneByte(t *testing.T) {
 		t.Skipf("disabled; run with -gob.fuzz to enable")
 	}
 
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	Register(OnTheFly{})
 	dt := newDT()
 	if err := NewEncoder(buf).Encode(dt); err != nil {
@@ -1526,4 +1527,92 @@ func TestErrorInvalidTypeId(t *testing.T) {
 			t.Fatalf("decode: expected %s, got %s", errBadType, err)
 		}
 	}
+}
+
+type LargeSliceByte struct {
+	S []byte
+}
+
+type LargeSliceInt8 struct {
+	S []int8
+}
+
+type StringPair struct {
+	A, B string
+}
+
+type LargeSliceStruct struct {
+	S []StringPair
+}
+
+type LargeSliceString struct {
+	S []string
+}
+
+func testEncodeDecode(t *testing.T, in, out any) {
+	t.Helper()
+	var b bytes.Buffer
+	err := NewEncoder(&b).Encode(in)
+	if err != nil {
+		t.Fatal("encode:", err)
+	}
+	err = NewDecoder(&b).Decode(out)
+	if err != nil {
+		t.Fatal("decode:", err)
+	}
+	if !reflect.DeepEqual(in, out) {
+		t.Errorf("output mismatch")
+	}
+}
+
+func TestLargeSlice(t *testing.T) {
+	t.Run("byte", func(t *testing.T) {
+		if unsafe.Sizeof(uintptr(0)) > 4 {
+			t.Parallel() // Only run in parallel in a large address space
+		}
+		s := make([]byte, 10<<21)
+		for i := range s {
+			s[i] = byte(i)
+		}
+		st := &LargeSliceByte{S: s}
+		rt := &LargeSliceByte{}
+		testEncodeDecode(t, st, rt)
+	})
+	t.Run("int8", func(t *testing.T) {
+		if unsafe.Sizeof(uintptr(0)) > 4 {
+			t.Parallel()
+		}
+		s := make([]int8, 10<<21)
+		for i := range s {
+			s[i] = int8(i)
+		}
+		st := &LargeSliceInt8{S: s}
+		rt := &LargeSliceInt8{}
+		testEncodeDecode(t, st, rt)
+	})
+	t.Run("struct", func(t *testing.T) {
+		if unsafe.Sizeof(uintptr(0)) > 4 {
+			t.Parallel()
+		}
+		s := make([]StringPair, 1<<21)
+		for i := range s {
+			s[i].A = string(rune(i))
+			s[i].B = s[i].A
+		}
+		st := &LargeSliceStruct{S: s}
+		rt := &LargeSliceStruct{}
+		testEncodeDecode(t, st, rt)
+	})
+	t.Run("string", func(t *testing.T) {
+		if unsafe.Sizeof(uintptr(0)) > 4 {
+			t.Parallel()
+		}
+		s := make([]string, 1<<21)
+		for i := range s {
+			s[i] = string(rune(i))
+		}
+		st := &LargeSliceString{S: s}
+		rt := &LargeSliceString{}
+		testEncodeDecode(t, st, rt)
+	})
 }

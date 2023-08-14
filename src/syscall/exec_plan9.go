@@ -135,6 +135,8 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 		errbuf   [ERRMAX]byte
 		statbuf  [STATMAX]byte
 		dupdevfd int
+		n        int
+		b        []byte
 	)
 
 	// Guard against side effects of shuffling fds below.
@@ -177,14 +179,14 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 dirloop:
 	for {
 		r1, _, _ = RawSyscall6(SYS_PREAD, uintptr(dupdevfd), uintptr(unsafe.Pointer(&statbuf[0])), uintptr(len(statbuf)), ^uintptr(0), ^uintptr(0), 0)
-		n := int(r1)
+		n = int(r1)
 		switch n {
 		case -1:
 			goto childerror
 		case 0:
 			break dirloop
 		}
-		for b := statbuf[:n]; len(b) > 0; {
+		for b = statbuf[:n]; len(b) > 0; {
 			var s []byte
 			s, b = gdirname(b)
 			if s == nil {
@@ -245,7 +247,7 @@ dirloop:
 		nextfd++
 	}
 	for i = 0; i < len(fd); i++ {
-		if fd[i] >= 0 && fd[i] < int(i) {
+		if fd[i] >= 0 && fd[i] < i {
 			if nextfd == pipe { // don't stomp on pipe
 				nextfd++
 			}
@@ -265,7 +267,7 @@ dirloop:
 			RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
 			continue
 		}
-		if fd[i] == int(i) {
+		if fd[i] == i {
 			continue
 		}
 		r1, _, _ = RawSyscall(SYS_DUP, uintptr(fd[i]), uintptr(i), 0)
@@ -276,7 +278,7 @@ dirloop:
 
 	// Pass 3: close fd[i] if it was moved in the previous pass.
 	for i = 0; i < len(fd); i++ {
-		if fd[i] >= 0 && fd[i] != int(i) {
+		if fd[i] >= len(fd) {
 			RawSyscall(SYS_CLOSE, uintptr(fd[i]), 0, 0)
 		}
 	}

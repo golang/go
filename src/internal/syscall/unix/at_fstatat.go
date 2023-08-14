@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (linux && !loong64) || openbsd || netbsd || dragonfly
+//go:build dragonfly || (linux && !loong64) || netbsd || (openbsd && mips64)
 
 package unix
 

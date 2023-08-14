@@ -5,7 +5,6 @@
 package exec_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -28,7 +27,7 @@ func ExampleLookPath() {
 func ExampleCommand() {
 	cmd := exec.Command("tr", "a-z", "A-Z")
 	cmd.Stdin = strings.NewReader("some input")
-	var out bytes.Buffer
+	var out strings.Builder
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {

@@ -1,0 +1,28 @@
+handle git
+
+env GIT_AUTHOR_NAME='Bryan C. Mills'
+env GIT_AUTHOR_EMAIL='bcmills@google.com'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2019-07-15T14:01:24-04:00
+env GIT_AUTHOR_DATE=2019-07-15T13:59:34-04:00
+git add go.mod v3pkg.go
+git commit -a -m 'all: add go.mod with v3 path'
+git branch -m master
+git tag 'v3.0.0'
+
+git show-ref --tags --heads
+cmp stdout .git-refs
+
+-- .git-refs --
+a3eab1261b8e3164bcbde9171c23d5fd36e32a85 refs/heads/master
+a3eab1261b8e3164bcbde9171c23d5fd36e32a85 refs/tags/v3.0.0
+-- go.mod --
+module vcs-test.golang.org/git/v3pkg.git/v3
+
+go 1.13
+-- v3pkg.go --
+package v3pkg

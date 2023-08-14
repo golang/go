@@ -57,7 +57,6 @@ void
 x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 {
 	pthread_attr_t *attr;
-	size_t size;
 
 	/* The memory sanitizer distributed with versions of clang
 	   before 3.8 has a bug: if you call mmap before malloc, mmap
@@ -79,10 +78,7 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 	if (attr == NULL) {
 		fatalf("malloc failed: %s", strerror(errno));
 	}
-	pthread_attr_init(attr);
-	pthread_attr_getstacksize(attr, &size);
-	g->stacklo = (uintptr)&size - size + 4096;
-	pthread_attr_destroy(attr);
+	_cgo_set_stacklo(g, attr);
 	free(attr);
 
 	if (x_cgo_inittls) {

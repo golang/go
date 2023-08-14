@@ -1,3 +1,4 @@
+{"Action":"start"}
 {"Action":"run","Test":"TestOutputWithSubtest"}
 {"Action":"output","Test":"TestOutputWithSubtest","Output":"=== RUN   TestOutputWithSubtest\n"}
 {"Action":"run","Test":"TestOutputWithSubtest/sub_test"}

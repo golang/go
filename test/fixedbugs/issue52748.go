@@ -10,4 +10,4 @@ import "unsafe"
 
 type S[T any] struct{}
 
-const c = unsafe.Sizeof(S[[c]byte]{}) // ERROR "initialization loop"
+const c = unsafe.Sizeof(S[[c]byte]{}) // ERROR "initialization cycle"

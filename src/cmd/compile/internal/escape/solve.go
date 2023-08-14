@@ -193,7 +193,7 @@ func (b *batch) explainFlow(pos string, dst, srcloc *location, derefs int, notes
 			epos = srcloc.n.Pos()
 		}
 		var e_curfn *ir.Func // TODO(mdempsky): Fix.
-		explanation = append(explanation, logopt.NewLoggedOpt(epos, "escflow", "escape", ir.FuncName(e_curfn), flow))
+		explanation = append(explanation, logopt.NewLoggedOpt(epos, epos, "escflow", "escape", ir.FuncName(e_curfn), flow))
 	}
 
 	for note := notes; note != nil; note = note.next {
@@ -202,7 +202,8 @@ func (b *batch) explainFlow(pos string, dst, srcloc *location, derefs int, notes
 		}
 		if logopt.Enabled() {
 			var e_curfn *ir.Func // TODO(mdempsky): Fix.
-			explanation = append(explanation, logopt.NewLoggedOpt(note.where.Pos(), "escflow", "escape", ir.FuncName(e_curfn),
+			notePos := note.where.Pos()
+			explanation = append(explanation, logopt.NewLoggedOpt(notePos, notePos, "escflow", "escape", ir.FuncName(e_curfn),
 				fmt.Sprintf("     from %v (%v)", note.where, note.why)))
 		}
 	}

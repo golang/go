@@ -5,6 +5,7 @@
 package strings
 
 import (
+	"internal/bytealg"
 	"unicode/utf8"
 	"unsafe"
 )
@@ -45,7 +46,7 @@ func (b *Builder) copyCheck() {
 
 // String returns the accumulated string.
 func (b *Builder) String() string {
-	return *(*string)(unsafe.Pointer(&b.buf))
+	return unsafe.String(unsafe.SliceData(b.buf), len(b.buf))
 }
 
 // Len returns the number of accumulated bytes; b.Len() == len(b.String()).
@@ -65,7 +66,7 @@ func (b *Builder) Reset() {
 // grow copies the buffer to a new, larger buffer so that there are at least n
 // bytes of capacity beyond len(b.buf).
 func (b *Builder) grow(n int) {
-	buf := make([]byte, len(b.buf), 2*cap(b.buf)+n)
+	buf := bytealg.MakeNoZero(2*cap(b.buf) + n)[:len(b.buf)]
 	copy(buf, b.buf)
 	b.buf = buf
 }
@@ -103,18 +104,9 @@ func (b *Builder) WriteByte(c byte) error {
 // It returns the length of r and a nil error.
 func (b *Builder) WriteRune(r rune) (int, error) {
 	b.copyCheck()
-	// Compare as uint32 to correctly handle negative runes.
-	if uint32(r) < utf8.RuneSelf {
-		b.buf = append(b.buf, byte(r))
-		return 1, nil
-	}
-	l := len(b.buf)
-	if cap(b.buf)-l < utf8.UTFMax {
-		b.grow(utf8.UTFMax)
-	}
-	n := utf8.EncodeRune(b.buf[l:l+utf8.UTFMax], r)
-	b.buf = b.buf[:l+n]
-	return n, nil
+	n := len(b.buf)
+	b.buf = utf8.AppendRune(b.buf, r)
+	return len(b.buf) - n, nil
 }
 
 // WriteString appends the contents of s to b's buffer.

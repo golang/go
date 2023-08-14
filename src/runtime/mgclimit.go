@@ -55,8 +55,6 @@ type gcCPULimiterState struct {
 	// the mark and sweep phases.
 	transitioning bool
 
-	_ uint32 // Align assistTimePool and lastUpdate on 32-bit platforms.
-
 	// assistTimePool is the accumulated assist time since the last update.
 	assistTimePool atomic.Int64
 
@@ -176,7 +174,7 @@ func (l *gcCPULimiterState) update(now int64) {
 	l.unlock()
 }
 
-// updatedLocked is the implementation of update. l.lock must be held.
+// updateLocked is the implementation of update. l.lock must be held.
 func (l *gcCPULimiterState) updateLocked(now int64) {
 	lastUpdate := l.lastUpdate.Load()
 	if now < lastUpdate {
@@ -214,6 +212,7 @@ func (l *gcCPULimiterState) updateLocked(now int64) {
 				fallthrough
 			case limiterEventIdle:
 				idleTime += duration
+				sched.idleTime.Add(duration)
 			case limiterEventMarkAssist:
 				fallthrough
 			case limiterEventScavengeAssist:
@@ -339,7 +338,7 @@ func (l *gcCPULimiterState) resetCapacity(now int64, nprocs int32) {
 	l.unlock()
 }
 
-// limiterEventType indicates the type of an event occuring on some P.
+// limiterEventType indicates the type of an event occurring on some P.
 //
 // These events represent the full set of events that the GC CPU limiter tracks
 // to execute its function.
@@ -471,9 +470,10 @@ func (e *limiterEvent) stop(typ limiterEventType, now int64) {
 	// Account for the event.
 	switch typ {
 	case limiterEventIdleMarkWork:
-		fallthrough
+		gcCPULimiter.addIdleTime(duration)
 	case limiterEventIdle:
 		gcCPULimiter.addIdleTime(duration)
+		sched.idleTime.Add(duration)
 	case limiterEventMarkAssist:
 		fallthrough
 	case limiterEventScavengeAssist:

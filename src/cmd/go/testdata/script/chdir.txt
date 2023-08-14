@@ -1,0 +1,35 @@
+env OLD=$PWD
+
+# basic -C functionality
+cd $GOROOT/src/math
+go list -C ../strings
+stdout strings
+! go list -C ../nonexist
+stderr 'chdir.*nonexist'
+
+# check for -C in subcommands with custom flag parsing
+# cmd/go/chdir_test.go handles the normal ones more directly.
+
+# go doc
+go doc -C ../strings HasPrefix
+
+# go env
+go env -C $OLD/custom GOMOD
+stdout 'custom[\\/]go.mod'
+! go env -C ../nonexist
+stderr '^go: chdir ../nonexist: '
+
+# go test
+go test -C ../strings -n
+stderr 'strings\.test'
+
+# go vet
+go vet -C ../strings -n
+stderr strings_test
+
+# -C must be first on command line (as of Go 1.21)
+! go test -n -C ../strings
+stderr '^invalid value "../strings" for flag -C: -C flag must be first flag on command line$'
+
+-- custom/go.mod --
+module m

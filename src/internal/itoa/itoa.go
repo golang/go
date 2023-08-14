@@ -31,3 +31,27 @@ func Uitoa(val uint) string {
 	buf[i] = byte('0' + val)
 	return string(buf[i:])
 }
+
+const hex = "0123456789abcdef"
+
+// Uitox converts val (a uint) to a hexadecimal string.
+func Uitox(val uint) string {
+	if val == 0 { // avoid string allocation
+		return "0x0"
+	}
+	var buf [20]byte // big enough for 64bit value base 16 + 0x
+	i := len(buf) - 1
+	for val >= 16 {
+		q := val / 16
+		buf[i] = hex[val%16]
+		i--
+		val = q
+	}
+	// val < 16
+	buf[i] = hex[val%16]
+	i--
+	buf[i] = 'x'
+	i--
+	buf[i] = '0'
+	return string(buf[i:])
+}

@@ -1,0 +1,34 @@
+# Check that go line in go.work is always >= go line of used modules.
+
+# Using an old Go version, fails during module loading, but we rewrite the error to the
+# same one a switching version would use, without the auto-switch.
+# This is a misconfigured system that should not arise in practice.
+env TESTGO_VERSION=go1.21.1
+env TESTGO_VERSION_SWITCH=switch
+cp go.work go.work.orig
+! go list
+stderr '^go: module . listed in go.work file requires go >= 1.21.2, but go.work lists go 1.21.1; to update it:\n\tgo work use$'
+go work use
+go list
+
+# Using a new enough Go version, fails later and can suggest 'go work use'.
+env TESTGO_VERSION=go1.21.2
+env TESTGO_VERSION_SWITCH=switch
+cp go.work.orig go.work
+! go list
+stderr '^go: module . listed in go.work file requires go >= 1.21.2, but go.work lists go 1.21.1; to update it:\n\tgo work use$'
+
+# go work use fixes the problem.
+go work use
+go list
+
+-- go.work --
+go 1.21.1
+use .
+
+-- go.mod --
+module m
+go 1.21.2
+
+-- p.go --
+package p

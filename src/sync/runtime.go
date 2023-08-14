@@ -13,11 +13,17 @@ import "unsafe"
 // library and should not be used directly.
 func runtime_Semacquire(s *uint32)
 
-// SemacquireMutex is like Semacquire, but for profiling contended Mutexes.
+// Semacquire(RW)Mutex(R) is like Semacquire, but for profiling contended
+// Mutexes and RWMutexes.
 // If lifo is true, queue waiter at the head of wait queue.
 // skipframes is the number of frames to omit during tracing, counting from
 // runtime_SemacquireMutex's caller.
+// The different forms of this function just tell the runtime how to present
+// the reason for waiting in a backtrace, and is used to compute some metrics.
+// Otherwise they're functionally identical.
 func runtime_SemacquireMutex(s *uint32, lifo bool, skipframes int)
+func runtime_SemacquireRWMutexR(s *uint32, lifo bool, skipframes int)
+func runtime_SemacquireRWMutex(s *uint32, lifo bool, skipframes int)
 
 // Semrelease atomically increments *s and notifies a waiting goroutine
 // if one is blocked in Semacquire.

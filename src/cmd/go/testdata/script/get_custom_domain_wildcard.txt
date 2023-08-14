@@ -1,5 +1,5 @@
-[!net] skip
-[!exec:git] skip
+[!net:rsc.io] skip
+[!git] skip
 env GO111MODULE=off
 
 go get -u rsc.io/pdf/...

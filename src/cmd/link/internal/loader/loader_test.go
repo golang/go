@@ -26,9 +26,8 @@ func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
 }
 
 func mkLoader() *Loader {
-	edummy := func(str string, off int) {}
 	er := ErrorReporter{}
-	ldr := NewLoader(0, edummy, &er)
+	ldr := NewLoader(0, &er)
 	er.ldr = ldr
 	return ldr
 }
@@ -337,6 +336,17 @@ func TestAddDataMethods(t *testing.T) {
 			expData: []byte{0, 0, 0, 0, 0, 0, 0, 0},
 			expKind: sym.SDATA,
 			expRel:  []Reloc{mkReloc(ldr, objabi.R_ADDRCUOFF, 0, 8, 7, 8)},
+		},
+		{
+			which: "AddPEImageRelativeAddrPlus",
+			addDataFunc: func(l *Loader, s Sym, s2 Sym) Sym {
+				sb := l.MakeSymbolUpdater(s)
+				sb.AddPEImageRelativeAddrPlus(arch, s2, 3)
+				return s
+			},
+			expData: []byte{0, 0, 0, 0},
+			expKind: sym.SDATA,
+			expRel:  []Reloc{mkReloc(ldr, objabi.R_PEIMAGEOFF, 0, 4, 3, 9)},
 		},
 	}
 

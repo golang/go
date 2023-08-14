@@ -68,10 +68,11 @@ var localPkgReader *pkgReader
 // the unified IR has the full typed AST needed for introspection during step (1).
 // In other words, we have all the necessary information to build the generic IR form
 // (see writer.captureVars for an example).
-func unified(noders []*noder) {
-	inline.NewInline = InlineCall
+func unified(m posMap, noders []*noder) {
+	inline.InlineCall = unifiedInlineCall
+	typecheck.HaveInlineBody = unifiedHaveInlineBody
 
-	data := writePkgStub(noders)
+	data := writePkgStub(m, noders)
 
 	// We already passed base.Flag.Lang to types2 to handle validating
 	// the user's source code. Bump it up now to the current version and
@@ -90,63 +91,121 @@ func unified(noders []*noder) {
 	r := localPkgReader.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
 	r.pkgInit(types.LocalPkg, target)
 
-	// Type-check any top-level assignments. We ignore non-assignments
-	// here because other declarations are typechecked as they're
-	// constructed.
-	for i, ndecls := 0, len(target.Decls); i < ndecls; i++ {
-		switch n := target.Decls[i]; n.Op() {
-		case ir.OAS, ir.OAS2:
-			target.Decls[i] = typecheck.Stmt(n)
-		}
-	}
-
-	readBodies(target)
+	readBodies(target, false)
 
 	// Check that nothing snuck past typechecking.
-	for _, n := range target.Decls {
-		if n.Typecheck() == 0 {
-			base.FatalfAt(n.Pos(), "missed typecheck: %v", n)
+	for _, fn := range target.Funcs {
+		if fn.Typecheck() == 0 {
+			base.FatalfAt(fn.Pos(), "missed typecheck: %v", fn)
 		}
 
 		// For functions, check that at least their first statement (if
 		// any) was typechecked too.
-		if fn, ok := n.(*ir.Func); ok && len(fn.Body) != 0 {
+		if len(fn.Body) != 0 {
 			if stmt := fn.Body[0]; stmt.Typecheck() == 0 {
 				base.FatalfAt(stmt.Pos(), "missed typecheck: %v", stmt)
 			}
 		}
 	}
 
+	// For functions originally came from package runtime,
+	// mark as norace to prevent instrumenting, see issue #60439.
+	for _, fn := range target.Funcs {
+		if !base.Flag.CompilingRuntime && types.IsRuntimePkg(fn.Sym().Pkg) {
+			fn.Pragma |= ir.Norace
+		}
+	}
+
 	base.ExitIfErrors() // just in case
 }
 
-// readBodies reads in bodies for any
-func readBodies(target *ir.Package) {
+// readBodies iteratively expands all pending dictionaries and
+// function bodies.
+//
+// If duringInlining is true, then the inline.InlineDecls is called as
+// necessary on instantiations of imported generic functions, so their
+// inlining costs can be computed.
+func readBodies(target *ir.Package, duringInlining bool) {
+	var inlDecls []*ir.Func
+
 	// Don't use range--bodyIdx can add closures to todoBodies.
-	for len(todoBodies) > 0 {
-		// The order we expand bodies doesn't matter, so pop from the end
-		// to reduce todoBodies reallocations if it grows further.
-		fn := todoBodies[len(todoBodies)-1]
-		todoBodies = todoBodies[:len(todoBodies)-1]
+	for {
+		// The order we expand dictionaries and bodies doesn't matter, so
+		// pop from the end to reduce todoBodies reallocations if it grows
+		// further.
+		//
+		// However, we do at least need to flush any pending dictionaries
+		// before reading bodies, because bodies might reference the
+		// dictionaries.
 
-		pri, ok := bodyReader[fn]
-		assert(ok)
-		pri.funcBody(fn)
+		if len(todoDicts) > 0 {
+			fn := todoDicts[len(todoDicts)-1]
+			todoDicts = todoDicts[:len(todoDicts)-1]
+			fn()
+			continue
+		}
 
-		// Instantiated generic function: add to Decls for typechecking
-		// and compilation.
-		if fn.OClosure == nil && len(pri.dict.targs) != 0 {
-			target.Decls = append(target.Decls, fn)
+		if len(todoBodies) > 0 {
+			fn := todoBodies[len(todoBodies)-1]
+			todoBodies = todoBodies[:len(todoBodies)-1]
+
+			pri, ok := bodyReader[fn]
+			assert(ok)
+			pri.funcBody(fn)
+
+			// Instantiated generic function: add to Decls for typechecking
+			// and compilation.
+			if fn.OClosure == nil && len(pri.dict.targs) != 0 {
+				// cmd/link does not support a type symbol referencing a method symbol
+				// across DSO boundary, so force re-compiling methods on a generic type
+				// even it was seen from imported package in linkshared mode, see #58966.
+				canSkipNonGenericMethod := !(base.Ctxt.Flag_linkshared && ir.IsMethod(fn))
+				if duringInlining && canSkipNonGenericMethod {
+					inlDecls = append(inlDecls, fn)
+				} else {
+					target.Funcs = append(target.Funcs, fn)
+				}
+			}
+
+			continue
+		}
+
+		break
+	}
+
+	todoDicts = nil
+	todoBodies = nil
+
+	if len(inlDecls) != 0 {
+		// If we instantiated any generic functions during inlining, we need
+		// to call CanInline on them so they'll be transitively inlined
+		// correctly (#56280).
+		//
+		// We know these functions were already compiled in an imported
+		// package though, so we don't need to actually apply InlineCalls or
+		// save the function bodies any further than this.
+		//
+		// We can also lower the -m flag to 0, to suppress duplicate "can
+		// inline" diagnostics reported against the imported package. Again,
+		// we already reported those diagnostics in the original package, so
+		// it's pointless repeating them here.
+
+		oldLowerM := base.Flag.LowerM
+		base.Flag.LowerM = 0
+		inline.InlineDecls(nil, inlDecls, false)
+		base.Flag.LowerM = oldLowerM
+
+		for _, fn := range inlDecls {
+			fn.Body = nil // free memory
 		}
 	}
-	todoBodies = nil
 }
 
 // writePkgStub type checks the given parsed source files,
 // writes an export data package stub representing them,
 // and returns the result.
-func writePkgStub(noders []*noder) string {
-	m, pkg, info := checkFiles(noders)
+func writePkgStub(m posMap, noders []*noder) string {
+	pkg, info := checkFiles(m, noders)
 
 	pw := newPkgWriter(m, pkg, info)
 
@@ -166,7 +225,7 @@ func writePkgStub(noders []*noder) string {
 		scope := pkg.Scope()
 		names := scope.Names()
 		w.Len(len(names))
-		for _, name := range scope.Names() {
+		for _, name := range names {
 			w.obj(scope.Lookup(name), nil)
 		}
 
@@ -198,7 +257,8 @@ func freePackage(pkg *types2.Package) {
 	// not because of #22350). To avoid imposing unnecessary
 	// restrictions on the GOROOT_BOOTSTRAP toolchain, we skip the test
 	// during bootstrapping.
-	if base.CompilerBootstrap {
+	if base.CompilerBootstrap || base.Debug.GCCheck == 0 {
+		*pkg = types2.Package{}
 		return
 	}
 
@@ -247,7 +307,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 
 			path, name, code := r.p.PeekObj(idx)
 			if code != pkgbits.ObjStub {
-				objReader[types.NewPkg(path, "").Lookup(name)] = pkgReaderIndex{pr, idx, nil, nil}
+				objReader[types.NewPkg(path, "").Lookup(name)] = pkgReaderIndex{pr, idx, nil, nil, nil}
 			}
 		}
 
@@ -271,7 +331,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 
 			sym := types.NewPkg(path, "").Lookup(name)
 			if _, ok := importBodyReader[sym]; !ok {
-				importBodyReader[sym] = pkgReaderIndex{pr, idx, nil, nil}
+				importBodyReader[sym] = pkgReaderIndex{pr, idx, nil, nil, nil}
 			}
 		}
 

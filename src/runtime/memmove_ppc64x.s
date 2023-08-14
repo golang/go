@@ -39,6 +39,15 @@ TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-24
 	// Determine if there are doublewords to
 	// copy so a more efficient move can be done
 check:
+#ifdef GOPPC64_power10
+	CMP	LEN, $16
+	BGT	mcopy
+	SLD	$56, LEN, TMP
+	LXVL	SRC, TMP, V0
+	STXVL	V0, TGT, TMP
+	RET
+#endif
+mcopy:
 	ANDCC	$7, LEN, BYTES	// R7: bytes to copy
 	SRD	$3, LEN, DWORDS	// R6: double words to copy
 	MOVFL	CR0, CR3	// save CR from ANDCC
@@ -68,7 +77,7 @@ forward64setup:
 	MOVD	OCTWORDS, CTR		// Number of 64 byte chunks
 	MOVD	$32, IDX32
 	MOVD	$48, IDX48
-	PCALIGN	$32
+	PCALIGN	$16
 
 forward64:
 	LXVD2X	(R0)(SRC), VS32		// load 64 bytes
@@ -97,7 +106,7 @@ lt64gt8:
 	ADD	$32, TGT
 
 lt32gt8:
-        // At this point >= 8 and < 32
+	// At this point >= 8 and < 32
 	// Move 16 bytes if possible
 	CMP     DWORDS, $2
 	BLT     lt16
@@ -110,12 +119,26 @@ lt32gt8:
 lt16:	// Move 8 bytes if possible
 	CMP     DWORDS, $1
 	BLT     checkbytes
+#ifdef GOPPC64_power10
+	ADD	$8, BYTES
+	SLD	$56, BYTES, TMP
+	LXVL	SRC, TMP, V0
+	STXVL	V0, TGT, TMP
+	RET
+#endif
+
 	MOVD    0(SRC), TMP
 	ADD	$8, SRC
 	MOVD    TMP, 0(TGT)
 	ADD     $8, TGT
 checkbytes:
 	BC	12, 14, LR		// BEQ lr
+#ifdef GOPPC64_power10
+	SLD	$56, BYTES, TMP
+	LXVL	SRC, TMP, V0
+	STXVL	V0, TGT, TMP
+	RET
+#endif
 lt8:	// Move word if possible
 	CMP BYTES, $4
 	BLT lt4
@@ -183,6 +206,7 @@ backward32setup:
 	ANDCC   $3,DWORDS		// Compute remaining DWORDS and compare to 0
 	MOVD	QWORDS, CTR		// set up loop ctr
 	MOVD	$16, IDX16		// 32 bytes at a time
+	PCALIGN	$16
 
 backward32loop:
 	SUB	$32, TGT

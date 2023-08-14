@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/constant"
 	"io"
-	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -25,71 +24,76 @@ import (
 // Op
 
 var OpNames = []string{
-	OADDR:        "&",
-	OADD:         "+",
-	OADDSTR:      "+",
-	OALIGNOF:     "unsafe.Alignof",
-	OANDAND:      "&&",
-	OANDNOT:      "&^",
-	OAND:         "&",
-	OAPPEND:      "append",
-	OAS:          "=",
-	OAS2:         "=",
-	OBREAK:       "break",
-	OCALL:        "function call", // not actual syntax
-	OCAP:         "cap",
-	OCASE:        "case",
-	OCLOSE:       "close",
-	OCOMPLEX:     "complex",
-	OBITNOT:      "^",
-	OCONTINUE:    "continue",
-	OCOPY:        "copy",
-	ODELETE:      "delete",
-	ODEFER:       "defer",
-	ODIV:         "/",
-	OEQ:          "==",
-	OFALL:        "fallthrough",
-	OFOR:         "for",
-	OFORUNTIL:    "foruntil", // not actual syntax; used to avoid off-end pointer live on backedge.892
-	OGE:          ">=",
-	OGOTO:        "goto",
-	OGT:          ">",
-	OIF:          "if",
-	OIMAG:        "imag",
-	OINLMARK:     "inlmark",
-	ODEREF:       "*",
-	OLEN:         "len",
-	OLE:          "<=",
-	OLSH:         "<<",
-	OLT:          "<",
-	OMAKE:        "make",
-	ONEG:         "-",
-	OMOD:         "%",
-	OMUL:         "*",
-	ONEW:         "new",
-	ONE:          "!=",
-	ONOT:         "!",
-	OOFFSETOF:    "unsafe.Offsetof",
-	OOROR:        "||",
-	OOR:          "|",
-	OPANIC:       "panic",
-	OPLUS:        "+",
-	OPRINTN:      "println",
-	OPRINT:       "print",
-	ORANGE:       "range",
-	OREAL:        "real",
-	ORECV:        "<-",
-	ORECOVER:     "recover",
-	ORETURN:      "return",
-	ORSH:         ">>",
-	OSELECT:      "select",
-	OSEND:        "<-",
-	OSIZEOF:      "unsafe.Sizeof",
-	OSUB:         "-",
-	OSWITCH:      "switch",
-	OUNSAFEADD:   "unsafe.Add",
-	OUNSAFESLICE: "unsafe.Slice",
-	OXOR:         "^",
+	OADDR:             "&",
+	OADD:              "+",
+	OADDSTR:           "+",
+	OALIGNOF:          "unsafe.Alignof",
+	OANDAND:           "&&",
+	OANDNOT:           "&^",
+	OAND:              "&",
+	OAPPEND:           "append",
+	OAS:               "=",
+	OAS2:              "=",
+	OBREAK:            "break",
+	OCALL:             "function call", // not actual syntax
+	OCAP:              "cap",
+	OCASE:             "case",
+	OCLEAR:            "clear",
+	OCLOSE:            "close",
+	OCOMPLEX:          "complex",
+	OBITNOT:           "^",
+	OCONTINUE:         "continue",
+	OCOPY:             "copy",
+	ODELETE:           "delete",
+	ODEFER:            "defer",
+	ODIV:              "/",
+	OEQ:               "==",
+	OFALL:             "fallthrough",
+	OFOR:              "for",
+	OGE:               ">=",
+	OGOTO:             "goto",
+	OGT:               ">",
+	OIF:               "if",
+	OIMAG:             "imag",
+	OINLMARK:          "inlmark",
+	ODEREF:            "*",
+	OLEN:              "len",
+	OLE:               "<=",
+	OLSH:              "<<",
+	OLT:               "<",
+	OMAKE:             "make",
+	ONEG:              "-",
+	OMAX:              "max",
+	OMIN:              "min",
+	OMOD:              "%",
+	OMUL:              "*",
+	ONEW:              "new",
+	ONE:               "!=",
+	ONOT:              "!",
+	OOFFSETOF:         "unsafe.Offsetof",
+	OOROR:             "||",
+	OOR:               "|",
+	OPANIC:            "panic",
+	OPLUS:             "+",
+	OPRINTN:           "println",
+	OPRINT:            "print",
+	ORANGE:            "range",
+	OREAL:             "real",
+	ORECV:             "<-",
+	ORECOVER:          "recover",
+	ORETURN:           "return",
+	ORSH:              ">>",
+	OSELECT:           "select",
+	OSEND:             "<-",
+	OSIZEOF:           "unsafe.Sizeof",
+	OSUB:              "-",
+	OSWITCH:           "switch",
+	OUNSAFEADD:        "unsafe.Add",
+	OUNSAFESLICE:      "unsafe.Slice",
+	OUNSAFESLICEDATA:  "unsafe.SliceData",
+	OUNSAFESTRING:     "unsafe.String",
+	OUNSAFESTRINGDATA: "unsafe.StringData",
+	OXOR:              "^",
 }
 
 // GoString returns the Go syntax for the Op, or else its name.
@@ -121,8 +125,8 @@ func (o Op) Format(s fmt.State, verb rune) {
 
 // Node
 
-// FmtNode implements formatting for a Node n.
-// Every Node implementation must define a Format method that calls FmtNode.
+// fmtNode implements formatting for a Node n.
+// Every Node implementation must define a Format method that calls fmtNode.
 // The valid formats are:
 //
 //	%v	Go syntax
@@ -169,94 +173,102 @@ func fmtNode(n Node, s fmt.State, verb rune) {
 }
 
 var OpPrec = []int{
-	OALIGNOF:       8,
-	OAPPEND:        8,
-	OBYTES2STR:     8,
-	OARRAYLIT:      8,
-	OSLICELIT:      8,
-	ORUNES2STR:     8,
-	OCALLFUNC:      8,
-	OCALLINTER:     8,
-	OCALLMETH:      8,
-	OCALL:          8,
-	OCAP:           8,
-	OCLOSE:         8,
-	OCOMPLIT:       8,
-	OCONVIFACE:     8,
-	OCONVIDATA:     8,
-	OCONVNOP:       8,
-	OCONV:          8,
-	OCOPY:          8,
-	ODELETE:        8,
-	OGETG:          8,
-	OLEN:           8,
-	OLITERAL:       8,
-	OMAKESLICE:     8,
-	OMAKESLICECOPY: 8,
-	OMAKE:          8,
-	OMAPLIT:        8,
-	ONAME:          8,
-	ONEW:           8,
-	ONIL:           8,
-	ONONAME:        8,
-	OOFFSETOF:      8,
-	OPANIC:         8,
-	OPAREN:         8,
-	OPRINTN:        8,
-	OPRINT:         8,
-	ORUNESTR:       8,
-	OSIZEOF:        8,
-	OSLICE2ARRPTR:  8,
-	OSTR2BYTES:     8,
-	OSTR2RUNES:     8,
-	OSTRUCTLIT:     8,
-	OTYPE:          8,
-	OUNSAFEADD:     8,
-	OUNSAFESLICE:   8,
-	OINDEXMAP:      8,
-	OINDEX:         8,
-	OSLICE:         8,
-	OSLICESTR:      8,
-	OSLICEARR:      8,
-	OSLICE3:        8,
-	OSLICE3ARR:     8,
-	OSLICEHEADER:   8,
-	ODOTINTER:      8,
-	ODOTMETH:       8,
-	ODOTPTR:        8,
-	ODOTTYPE2:      8,
-	ODOTTYPE:       8,
-	ODOT:           8,
-	OXDOT:          8,
-	OMETHVALUE:     8,
-	OMETHEXPR:      8,
-	OPLUS:          7,
-	ONOT:           7,
-	OBITNOT:        7,
-	ONEG:           7,
-	OADDR:          7,
-	ODEREF:         7,
-	ORECV:          7,
-	OMUL:           6,
-	ODIV:           6,
-	OMOD:           6,
-	OLSH:           6,
-	ORSH:           6,
-	OAND:           6,
-	OANDNOT:        6,
-	OADD:           5,
-	OSUB:           5,
-	OOR:            5,
-	OXOR:           5,
-	OEQ:            4,
-	OLT:            4,
-	OLE:            4,
-	OGE:            4,
-	OGT:            4,
-	ONE:            4,
-	OSEND:          3,
-	OANDAND:        2,
-	OOROR:          1,
+	OALIGNOF:          8,
+	OAPPEND:           8,
+	OBYTES2STR:        8,
+	OARRAYLIT:         8,
+	OSLICELIT:         8,
+	ORUNES2STR:        8,
+	OCALLFUNC:         8,
+	OCALLINTER:        8,
+	OCALLMETH:         8,
+	OCALL:             8,
+	OCAP:              8,
+	OCLEAR:            8,
+	OCLOSE:            8,
+	OCOMPLIT:          8,
+	OCONVIFACE:        8,
+	OCONVIDATA:        8,
+	OCONVNOP:          8,
+	OCONV:             8,
+	OCOPY:             8,
+	ODELETE:           8,
+	OGETG:             8,
+	OLEN:              8,
+	OLITERAL:          8,
+	OMAKESLICE:        8,
+	OMAKESLICECOPY:    8,
+	OMAKE:             8,
+	OMAPLIT:           8,
+	OMAX:              8,
+	OMIN:              8,
+	ONAME:             8,
+	ONEW:              8,
+	ONIL:              8,
+	ONONAME:           8,
+	OOFFSETOF:         8,
+	OPANIC:            8,
+	OPAREN:            8,
+	OPRINTN:           8,
+	OPRINT:            8,
+	ORUNESTR:          8,
+	OSIZEOF:           8,
+	OSLICE2ARR:        8,
+	OSLICE2ARRPTR:     8,
+	OSTR2BYTES:        8,
+	OSTR2RUNES:        8,
+	OSTRUCTLIT:        8,
+	OTYPE:             8,
+	OUNSAFEADD:        8,
+	OUNSAFESLICE:      8,
+	OUNSAFESLICEDATA:  8,
+	OUNSAFESTRING:     8,
+	OUNSAFESTRINGDATA: 8,
+	OINDEXMAP:         8,
+	OINDEX:            8,
+	OSLICE:            8,
+	OSLICESTR:         8,
+	OSLICEARR:         8,
+	OSLICE3:           8,
+	OSLICE3ARR:        8,
+	OSLICEHEADER:      8,
+	OSTRINGHEADER:     8,
+	ODOTINTER:         8,
+	ODOTMETH:          8,
+	ODOTPTR:           8,
+	ODOTTYPE2:         8,
+	ODOTTYPE:          8,
+	ODOT:              8,
+	OXDOT:             8,
+	OMETHVALUE:        8,
+	OMETHEXPR:         8,
+	OPLUS:             7,
+	ONOT:              7,
+	OBITNOT:           7,
+	ONEG:              7,
+	OADDR:             7,
+	ODEREF:            7,
+	ORECV:             7,
+	OMUL:              6,
+	ODIV:              6,
+	OMOD:              6,
+	OLSH:              6,
+	ORSH:              6,
+	OAND:              6,
+	OANDNOT:           6,
+	OADD:              5,
+	OSUB:              5,
+	OOR:               5,
+	OXOR:              5,
+	OEQ:               4,
+	OLT:               4,
+	OLE:               4,
+	OGE:               4,
+	OGT:               4,
+	ONE:               4,
+	OSEND:             3,
+	OANDAND:           2,
+	OOROR:             1,
 
 	// Statements handled by stmtfmt
 	OAS:         -1,
@@ -274,7 +286,6 @@ var OpPrec = []int{
 	ODEFER:      -1,
 	OFALL:       -1,
 	OFOR:        -1,
-	OFORUNTIL:   -1,
 	OGOTO:       -1,
 	OIF:         -1,
 	OLABEL:      -1,
@@ -290,7 +301,7 @@ var OpPrec = []int{
 // StmtWithInit reports whether op is a statement with an explicit init list.
 func StmtWithInit(op Op) bool {
 	switch op {
-	case OIF, OFOR, OFORUNTIL, OSWITCH:
+	case OIF, OFOR, OSWITCH:
 		return true
 	}
 	return false
@@ -401,18 +412,17 @@ func stmtFmt(n Node, s fmt.State) {
 			fmt.Fprintf(s, " else { %v }", n.Else)
 		}
 
-	case OFOR, OFORUNTIL:
+	case OFOR:
 		n := n.(*ForStmt)
-		opname := "for"
-		if n.Op() == OFORUNTIL {
-			opname = "foruntil"
-		}
 		if !exportFormat { // TODO maybe only if FmtShort, same below
-			fmt.Fprintf(s, "%s loop", opname)
+			fmt.Fprintf(s, "for loop")
 			break
 		}
 
-		fmt.Fprint(s, opname)
+		fmt.Fprint(s, "for")
+		if n.DistinctVars {
+			fmt.Fprint(s, " /* distinct */")
+		}
 		if simpleinit {
 			fmt.Fprintf(s, " %v;", n.Init()[0])
 		} else if n.Post != nil {
@@ -427,10 +437,6 @@ func stmtFmt(n Node, s fmt.State) {
 			fmt.Fprintf(s, "; %v", n.Post)
 		} else if simpleinit {
 			fmt.Fprint(s, ";")
-		}
-
-		if n.Op() == OFORUNTIL && len(n.Late) != 0 {
-			fmt.Fprintf(s, "; %v", n.Late)
 		}
 
 		fmt.Fprintf(s, " { %v }", n.Body)
@@ -451,6 +457,9 @@ func stmtFmt(n Node, s fmt.State) {
 			fmt.Fprint(s, " =")
 		}
 		fmt.Fprintf(s, " range %v { %v }", n.X, n.Body)
+		if n.DistinctVars {
+			fmt.Fprint(s, " /* distinct vars */")
+		}
 
 	case OSELECT:
 		n := n.(*SelectStmt)
@@ -756,6 +765,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		OSTR2BYTES,
 		OSTR2RUNES,
 		ORUNESTR,
+		OSLICE2ARR,
 		OSLICE2ARRPTR:
 		n := n.(*ConvExpr)
 		if n.Type() == nil || n.Type().Sym() == nil {
@@ -768,6 +778,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case OREAL,
 		OIMAG,
 		OCAP,
+		OCLEAR,
 		OCLOSE,
 		OLEN,
 		ONEW,
@@ -781,6 +792,8 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case OAPPEND,
 		ODELETE,
 		OMAKE,
+		OMAX,
+		OMIN,
 		ORECOVER,
 		OPRINT,
 		OPRINTN:
@@ -1014,7 +1027,7 @@ func dumpNodeHeader(w io.Writer, n Node) {
 			name := strings.TrimSuffix(tf.Name, "_")
 			vf := v.Field(i)
 			vfi := vf.Interface()
-			if name == "Offset" && vfi == types.BADWIDTH || name != "Offset" && isZero(vf) {
+			if name == "Offset" && vfi == types.BADWIDTH || name != "Offset" && vf.IsZero() {
 				continue
 			}
 			if vfi == true {
@@ -1078,15 +1091,15 @@ func dumpNodeHeader(w io.Writer, n Node) {
 		case src.PosIsStmt:
 			fmt.Fprint(w, "+")
 		}
-		for i, pos := range base.Ctxt.AllPos(n.Pos(), nil) {
-			if i > 0 {
-				fmt.Fprint(w, ",")
-			}
+		sep := ""
+		base.Ctxt.AllPos(n.Pos(), func(pos src.Pos) {
+			fmt.Fprint(w, sep)
+			sep = " "
 			// TODO(mdempsky): Print line pragma details too.
 			file := filepath.Base(pos.Filename())
 			// Note: this output will be parsed by ssa/html.go:(*HTMLWriter).WriteAST. Keep in sync.
 			fmt.Fprintf(w, "%s:%d:%d", file, pos.Line(), pos.Col())
-		}
+		})
 	}
 }
 
@@ -1251,42 +1264,5 @@ func dumpNodes(w io.Writer, list Nodes, depth int) {
 
 	for _, n := range list {
 		dumpNode(w, n, depth)
-	}
-}
-
-// reflect.IsZero is not available in Go 1.4 (added in Go 1.13), so we use this copy instead.
-func isZero(v reflect.Value) bool {
-	switch v.Kind() {
-	case reflect.Bool:
-		return !v.Bool()
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return v.Int() == 0
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return v.Uint() == 0
-	case reflect.Float32, reflect.Float64:
-		return math.Float64bits(v.Float()) == 0
-	case reflect.Complex64, reflect.Complex128:
-		c := v.Complex()
-		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
-	case reflect.Array:
-		for i := 0; i < v.Len(); i++ {
-			if !isZero(v.Index(i)) {
-				return false
-			}
-		}
-		return true
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
-		return v.IsNil()
-	case reflect.String:
-		return v.Len() == 0
-	case reflect.Struct:
-		for i := 0; i < v.NumField(); i++ {
-			if !isZero(v.Field(i)) {
-				return false
-			}
-		}
-		return true
-	default:
-		return false
 	}
 }

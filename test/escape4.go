@@ -38,7 +38,7 @@ func f2() {} // ERROR "can inline f2"
 func f3() { panic(1) } // ERROR "can inline f3" "1 escapes to heap"
 func f4() { recover() }
 
-func f5() *byte {
+func f5() *byte { // ERROR "can inline f5"
 	type T struct {
 		x [1]byte
 	}
@@ -46,7 +46,7 @@ func f5() *byte {
 	return &t.x[0]
 }
 
-func f6() *byte {
+func f6() *byte { // ERROR "can inline f6"
 	type T struct {
 		x struct {
 			y byte

@@ -204,7 +204,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 				}
 				r = kv.Value
 			}
-			a := ir.NewIndexExpr(base.Pos, var_, ir.NewInt(k))
+			a := ir.NewIndexExpr(base.Pos, var_, ir.NewInt(base.Pos, k))
 			k++
 			if isBlank {
 				return ir.BlankNode, r
@@ -243,6 +243,8 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 					// confuses about variables lifetime. So making sure those expressions
 					// are ordered correctly here. See issue #52673.
 					orderBlock(&sinit, map[string][]*ir.Name{})
+					typecheck.Stmts(sinit)
+					walkStmtList(sinit)
 				}
 				init.Append(sinit...)
 				continue
@@ -375,7 +377,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 			}
 			value = kv.Value
 		}
-		a := ir.NewIndexExpr(base.Pos, vauto, ir.NewInt(index))
+		a := ir.NewIndexExpr(base.Pos, vauto, ir.NewInt(base.Pos, index))
 		a.SetBounded(true)
 		index++
 
@@ -414,7 +416,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// make the map var
-	args := []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(n.Len + int64(len(n.List)))}
+	args := []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(base.Pos, n.Len+int64(len(n.List)))}
 	a := typecheck.Expr(ir.NewCallExpr(base.Pos, ir.OMAKE, nil, args)).(*ir.MakeExpr)
 	a.RType = n.RType
 	a.SetEsc(n.Esc())
@@ -474,15 +476,15 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
 		lhs.RType = n.RType
 
-		zero := ir.NewAssignStmt(base.Pos, i, ir.NewInt(0))
-		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(tk.NumElem()))
-		incr := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(1)))
+		zero := ir.NewAssignStmt(base.Pos, i, ir.NewInt(base.Pos, 0))
+		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(base.Pos, tk.NumElem()))
+		incr := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(base.Pos, 1)))
 
 		var body ir.Node = ir.NewAssignStmt(base.Pos, lhs, rhs)
 		body = typecheck.Stmt(body)
 		body = orderStmtInPlace(body, map[string][]*ir.Name{})
 
-		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil)
+		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil, false)
 		loop.Body = []ir.Node{body}
 		loop.SetInit([]ir.Node{zero})
 
@@ -494,6 +496,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// Build list of var[c] = expr.
 	// Use temporaries so that mapassign1 can have addressable key, elem.
 	// TODO(josharian): avoid map key temporaries for mapfast_* assignments with literal keys.
+	// TODO(khr): assign these temps in order phase so we can reuse them across multiple maplits?
 	tmpkey := typecheck.Temp(m.Type().Key())
 	tmpelem := typecheck.Temp(m.Type().Elem())
 
@@ -519,9 +522,6 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		a = orderStmtInPlace(a, map[string][]*ir.Name{})
 		appendWalkStmt(init, a)
 	}
-
-	appendWalkStmt(init, ir.NewUnaryExpr(base.Pos, ir.OVARKILL, tmpkey))
-	appendWalkStmt(init, ir.NewUnaryExpr(base.Pos, ir.OVARKILL, tmpelem))
 }
 
 func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {

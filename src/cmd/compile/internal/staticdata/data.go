@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/constant"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strconv"
@@ -124,7 +123,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 	}
 	size := info.Size()
 	if size <= 1*1024 {
-		data, err := ioutil.ReadAll(f)
+		data, err := io.ReadAll(f)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -215,7 +214,7 @@ func dstringdata(s *obj.LSym, off int, t string, pos src.XPos, what string) int 
 	// causing a cryptic error message by the linker. Check for oversize objects here
 	// and provide a useful error message instead.
 	if int64(len(t)) > 2e9 {
-		base.ErrorfAt(pos, "%v with length %v is too big", what, len(t))
+		base.ErrorfAt(pos, 0, "%v with length %v is too big", what, len(t))
 		return 0
 	}
 

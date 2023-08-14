@@ -332,10 +332,6 @@ func (sb *SymbolBuilder) Addstring(str string) int64 {
 		sb.kind = sym.SNOPTRDATA
 	}
 	r := sb.size
-	if sb.name == ".shstrtab" {
-		// FIXME: find a better mechanism for this
-		sb.l.elfsetstring(str, int(r))
-	}
 	sb.data = append(sb.data, str...)
 	sb.data = append(sb.data, 0)
 	sb.size = int64(len(sb.data))
@@ -385,6 +381,10 @@ func (sb *SymbolBuilder) AddAddrPlus4(arch *sys.Arch, tgt Sym, add int64) int64 
 
 func (sb *SymbolBuilder) AddAddr(arch *sys.Arch, tgt Sym) int64 {
 	return sb.AddAddrPlus(arch, tgt, 0)
+}
+
+func (sb *SymbolBuilder) AddPEImageRelativeAddrPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
+	return sb.addSymRef(tgt, add, objabi.R_PEIMAGEOFF, 4)
 }
 
 func (sb *SymbolBuilder) AddPCRelPlus(arch *sys.Arch, tgt Sym, add int64) int64 {

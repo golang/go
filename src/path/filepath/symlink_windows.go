@@ -63,8 +63,6 @@ func toNorm(path string, normBase func(string) (string, error)) (string, error) 
 		return path, nil
 	}
 
-	path = Clean(path)
-
 	volume := normVolumeName(path)
 	path = path[len(volume):]
 

@@ -567,10 +567,7 @@ func (p *Parser) atRegisterExtension() bool {
 		return false
 	}
 	// R1.xxx
-	if p.peek() == '.' {
-		return true
-	}
-	return false
+	return p.peek() == '.'
 }
 
 // registerReference parses a register given either the name, R10, or a parenthesized form, SPR(10).
@@ -931,7 +928,7 @@ func (p *Parser) funcAddress() (string, obj.ABI, bool) {
 }
 
 // registerIndirect parses the general form of a register indirection.
-// It is can be (R1), (R2*scale), (R1)(R2*scale), (R1)(R2.SXTX<<3) or (R1)(R2<<3)
+// It can be (R1), (R2*scale), (R1)(R2*scale), (R1)(R2.SXTX<<3) or (R1)(R2<<3)
 // where R1 may be a simple register or register pair R:R or (R, R) or (R+R).
 // Or it might be a pseudo-indirection like (FP).
 // We are sitting on the opening parenthesis.
@@ -975,13 +972,13 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 			return
 		}
 		if p.arch.Family == sys.PPC64 {
-			// Special form for PPC64: (R1+R2); alias for (R1)(R2*1).
+			// Special form for PPC64: (R1+R2); alias for (R1)(R2).
 			if prefix != 0 || scale != 0 {
 				p.errorf("illegal address mode for register+register")
 				return
 			}
 			a.Type = obj.TYPE_MEM
-			a.Scale = 1
+			a.Scale = 0
 			a.Index = r2
 			// Nothing may follow.
 			return
@@ -1014,9 +1011,10 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 				p.errorf("unimplemented two-register form")
 			}
 			a.Index = r1
-			if scale != 0 && scale != 1 && p.arch.Family == sys.ARM64 {
+			if scale != 0 && scale != 1 && (p.arch.Family == sys.ARM64 ||
+				p.arch.Family == sys.PPC64) {
 				// Support (R1)(R2) (no scaling) and (R1)(R2*1).
-				p.errorf("arm64 doesn't support scaled register format")
+				p.errorf("%s doesn't support scaled register format", p.arch.Name)
 			} else {
 				a.Scale = int16(scale)
 			}
@@ -1151,7 +1149,7 @@ ListLoop:
 		}
 		a.Offset = offset
 	default:
-		p.errorf("register list not supported on this architecuture")
+		p.errorf("register list not supported on this architecture")
 	}
 }
 
@@ -1188,7 +1186,7 @@ func (p *Parser) registerListX86(a *obj.Addr) {
 	a.Offset = x86.EncodeRegisterRange(lo, hi)
 }
 
-// register number is ARM-specific. It returns the number of the specified register.
+// registerNumber is ARM-specific. It returns the number of the specified register.
 func (p *Parser) registerNumber(name string) uint16 {
 	if p.arch.Family == sys.ARM && name == "g" {
 		return 10

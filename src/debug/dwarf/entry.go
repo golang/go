@@ -13,6 +13,7 @@ package dwarf
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"strconv"
 )
 
@@ -33,7 +34,7 @@ type afield struct {
 // a map from entry format ids to their descriptions
 type abbrevTable map[uint32]abbrev
 
-// ParseAbbrev returns the abbreviation table that starts at byte off
+// parseAbbrev returns the abbreviation table that starts at byte off
 // in the .debug_abbrev section.
 func (d *Data) parseAbbrev(off uint64, vers int) (abbrevTable, error) {
 	if m, ok := d.abbrevCache[off]; ok {
@@ -974,8 +975,11 @@ func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
 		u := &r.d.unit[unit]
 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
 		e, err := r.Next()
-		if err != nil || e == nil || e.Tag == 0 {
+		if err != nil {
 			return nil, err
+		}
+		if e == nil || e.Tag == 0 {
+			return nil, ErrUnknownPC
 		}
 		ranges, err := r.d.Ranges(e)
 		if err != nil {
@@ -1103,6 +1107,9 @@ func (d *Data) baseAddressForEntry(e *Entry) (*Entry, uint64, error) {
 }
 
 func (d *Data) dwarf2Ranges(u *unit, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
+	if ranges < 0 || ranges > int64(len(d.ranges)) {
+		return nil, fmt.Errorf("invalid range offset %d (max %d)", ranges, len(d.ranges))
+	}
 	buf := makeBuf(d, u, "ranges", Offset(ranges), d.ranges[ranges:])
 	for len(buf.data) > 0 {
 		low := buf.addr()
@@ -1125,6 +1132,9 @@ func (d *Data) dwarf2Ranges(u *unit, base uint64, ranges int64, ret [][2]uint64)
 // dwarf5Ranges interprets a debug_rnglists sequence, see DWARFv5 section
 // 2.17.3 (page 53).
 func (d *Data) dwarf5Ranges(u *unit, cu *Entry, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
+	if ranges < 0 || ranges > int64(len(d.rngLists)) {
+		return nil, fmt.Errorf("invalid rnglist offset %d (max %d)", ranges, len(d.ranges))
+	}
 	var addrBase int64
 	if cu != nil {
 		addrBase, _ = cu.Val(AttrAddrBase).(int64)

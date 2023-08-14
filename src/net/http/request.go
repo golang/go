@@ -17,7 +17,6 @@ import (
 	"io"
 	"mime"
 	"mime/multipart"
-	"net"
 	"net/http/httptrace"
 	"net/http/internal/ascii"
 	"net/textproto"
@@ -27,6 +26,7 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/idna"
 )
 
@@ -48,10 +48,18 @@ type ProtocolError struct {
 
 func (pe *ProtocolError) Error() string { return pe.ErrorString }
 
+// Is lets http.ErrNotSupported match errors.ErrUnsupported.
+func (pe *ProtocolError) Is(err error) bool {
+	return pe == ErrNotSupported && err == errors.ErrUnsupported
+}
+
 var (
-	// ErrNotSupported is returned by the Push method of Pusher
-	// implementations to indicate that HTTP/2 Push support is not
-	// available.
+	// ErrNotSupported indicates that a feature is not supported.
+	//
+	// It is returned by ResponseController methods to indicate that
+	// the handler does not support the method, and by the Push method
+	// of Pusher implementations to indicate that HTTP/2 Push support
+	// is not available.
 	ErrNotSupported = &ProtocolError{"feature not supported"}
 
 	// Deprecated: ErrUnexpectedTrailer is no longer returned by
@@ -317,14 +325,14 @@ type Request struct {
 	Response *Response
 
 	// ctx is either the client or server context. It should only
-	// be modified via copying the whole Request using WithContext.
+	// be modified via copying the whole Request using Clone or WithContext.
 	// It is unexported to prevent people from using Context wrong
 	// and mutating the contexts held by callers of the same request.
 	ctx context.Context
 }
 
 // Context returns the request's context. To change the context, use
-// WithContext.
+// Clone or WithContext.
 //
 // The returned context is always non-nil; it defaults to the
 // background context.
@@ -349,9 +357,7 @@ func (r *Request) Context() context.Context {
 // sending the request, and reading the response headers and body.
 //
 // To create a new request with a context, use NewRequestWithContext.
-// To change the context of a request, such as an incoming request you
-// want to modify before sending back out, use Request.Clone. Between
-// those two uses, it's rare to need WithContext.
+// To make a deep copy of a request with a new context, use Request.Clone.
 func (r *Request) WithContext(ctx context.Context) *Request {
 	if ctx == nil {
 		panic("nil context")
@@ -418,6 +424,9 @@ var ErrNoCookie = errors.New("http: named cookie not present")
 // If multiple cookies match the given name, only one cookie will
 // be returned.
 func (r *Request) Cookie(name string) (*Cookie, error) {
+	if name == "" {
+		return nil, ErrNoCookie
+	}
 	for _, c := range readCookies(r.Header, name) {
 		return c, nil
 	}
@@ -571,12 +580,40 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	// is not given, use the host from the request URL.
 	//
 	// Clean the host, in case it arrives with unexpected stuff in it.
-	host := cleanHost(r.Host)
+	host := r.Host
 	if host == "" {
 		if r.URL == nil {
 			return errMissingHost
 		}
-		host = cleanHost(r.URL.Host)
+		host = r.URL.Host
+	}
+	host, err = httpguts.PunycodeHostPort(host)
+	if err != nil {
+		return err
+	}
+	// Validate that the Host header is a valid header in general,
+	// but don't validate the host itself. This is sufficient to avoid
+	// header or request smuggling via the Host field.
+	// The server can (and will, if it's a net/http server) reject
+	// the request if it doesn't consider the host valid.
+	if !httpguts.ValidHostHeader(host) {
+		// Historically, we would truncate the Host header after '/' or ' '.
+		// Some users have relied on this truncation to convert a network
+		// address such as Unix domain socket path into a valid, ignored
+		// Host header (see https://go.dev/issue/61431).
+		//
+		// We don't preserve the truncation, because sending an altered
+		// header field opens a smuggling vector. Instead, zero out the
+		// Host header entirely if it isn't valid. (An empty Host is valid;
+		// see RFC 9112 Section 3.2.)
+		//
+		// Return an error if we're sending to a proxy, since the proxy
+		// probably can't do anything useful with an empty Host header.
+		if !usingProxy {
+			host = ""
+		} else {
+			return errors.New("http: invalid Host header")
+		}
 	}
 
 	// According to RFC 6874, an HTTP client, proxy, or other
@@ -632,6 +669,8 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 		userAgent = r.Header.Get("User-Agent")
 	}
 	if userAgent != "" {
+		userAgent = headerNewlineToSpace.Replace(userAgent)
+		userAgent = textproto.TrimString(userAgent)
 		_, err = fmt.Fprintf(w, "User-Agent: %s\r\n", userAgent)
 		if err != nil {
 			return err
@@ -731,40 +770,6 @@ func idnaASCII(v string) (string, error) {
 		return v, nil
 	}
 	return idna.Lookup.ToASCII(v)
-}
-
-// cleanHost cleans up the host sent in request's Host header.
-//
-// It both strips anything after '/' or ' ', and puts the value
-// into Punycode form, if necessary.
-//
-// Ideally we'd clean the Host header according to the spec:
-//
-//	https://tools.ietf.org/html/rfc7230#section-5.4 (Host = uri-host [ ":" port ]")
-//	https://tools.ietf.org/html/rfc7230#section-2.7 (uri-host -> rfc3986's host)
-//	https://tools.ietf.org/html/rfc3986#section-3.2.2 (definition of host)
-//
-// But practically, what we are trying to avoid is the situation in
-// issue 11206, where a malformed Host header used in the proxy context
-// would create a bad request. So it is enough to just truncate at the
-// first offending character.
-func cleanHost(in string) string {
-	if i := strings.IndexAny(in, " /"); i != -1 {
-		in = in[:i]
-	}
-	host, port, err := net.SplitHostPort(in)
-	if err != nil { // input was just a host
-		a, err := idnaASCII(in)
-		if err != nil {
-			return in // garbage in, garbage out
-		}
-		return a
-	}
-	a, err := idnaASCII(host)
-	if err != nil {
-		return in // garbage in, garbage out
-	}
-	return net.JoinHostPort(a, port)
 }
 
 // removeZone removes IPv6 zone identifier from host.
@@ -1029,6 +1034,8 @@ func ReadRequest(b *bufio.Reader) (*Request, error) {
 
 func readRequest(b *bufio.Reader) (req *Request, err error) {
 	tp := newTextprotoReader(b)
+	defer putTextprotoReader(tp)
+
 	req = new(Request)
 
 	// First line: GET /index.html HTTP/1.0
@@ -1037,7 +1044,6 @@ func readRequest(b *bufio.Reader) (req *Request, err error) {
 		return nil, err
 	}
 	defer func() {
-		putTextprotoReader(tp)
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
@@ -1168,7 +1174,8 @@ func (l *maxBytesReader) Read(p []byte) (n int, err error) {
 	// If they asked for a 32KB byte read but only 5 bytes are
 	// remaining, no need to read 32KB. 6 bytes will answer the
 	// question of the whether we hit the limit or go past it.
-	if int64(len(p)) > l.n+1 {
+	// 0 < len(p) < 2^63
+	if int64(len(p))-1 > l.n {
 		p = p[:l.n+1]
 	}
 	n, err = l.r.Read(p)
@@ -1355,7 +1362,7 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
 }
 
 // FormValue returns the first value for the named component of the query.
-// POST and PUT body parameters take precedence over URL query string values.
+// POST, PUT, and PATCH body parameters take precedence over URL query string values.
 // FormValue calls ParseMultipartForm and ParseForm if necessary and ignores
 // any errors returned by these functions.
 // If key is not present, FormValue returns the empty string.
@@ -1372,7 +1379,7 @@ func (r *Request) FormValue(key string) string {
 }
 
 // PostFormValue returns the first value for the named component of the POST,
-// PATCH, or PUT request body. URL query parameters are ignored.
+// PUT, or PATCH request body. URL query parameters are ignored.
 // PostFormValue calls ParseMultipartForm and ParseForm if necessary and ignores
 // any errors returned by these functions.
 // If key is not present, PostFormValue returns the empty string.

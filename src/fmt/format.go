@@ -461,13 +461,14 @@ func (f *fmt) fmtQ(s string) {
 // fmtC formats an integer as a Unicode character.
 // If the character is not valid Unicode, it will print '\ufffd'.
 func (f *fmt) fmtC(c uint64) {
+	// Explicitly check whether c exceeds utf8.MaxRune since the conversion
+	// of a uint64 to a rune may lose precision that indicates an overflow.
 	r := rune(c)
 	if c > utf8.MaxRune {
 		r = utf8.RuneError
 	}
 	buf := f.intbuf[:0]
-	w := utf8.EncodeRune(buf[:utf8.UTFMax], r)
-	f.pad(buf[:w])
+	f.pad(utf8.AppendRune(buf, r))
 }
 
 // fmtQc formats an integer as a single-quoted, escaped Go character constant.

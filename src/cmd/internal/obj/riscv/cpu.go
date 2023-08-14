@@ -309,12 +309,6 @@ const (
 	ASUB
 	ASRA
 
-	// The SLL/SRL/SRA instructions differ slightly between RV32 and RV64,
-	// hence there are pseudo-opcodes for the RV32 specific versions.
-	ASLLIRV32
-	ASRLIRV32
-	ASRAIRV32
-
 	// 2.5: Control Transfer Instructions
 	AJAL
 	AJALR
@@ -338,8 +332,8 @@ const (
 
 	// 2.7: Memory Ordering Instructions
 	AFENCE
-	AFENCEI
 	AFENCETSO
+	APAUSE
 
 	// 5.2: Integer Computational Instructions (RV64I)
 	AADDIW
@@ -532,8 +526,6 @@ const (
 	AFSGNJQ
 	AFSGNJNQ
 	AFSGNJXQ
-	AFMVXQ
-	AFMVQX
 
 	// 13.4 Quad-Precision Floating-Point Compare Instructions
 	AFEQQ
@@ -562,7 +554,6 @@ const (
 	// 3.2.2: Trap-Return Instructions
 	AMRET
 	ASRET
-	AURET
 	ADRET
 
 	// 3.2.3: Wait for Interrupt
@@ -570,10 +561,6 @@ const (
 
 	// 4.2.1: Supervisor Memory-Management Fence Instruction
 	ASFENCEVMA
-
-	// Hypervisor Memory-Management Instructions
-	AHFENCEGVMA
-	AHFENCEVVMA
 
 	// The escape hatch. Inserts a single 32-bit word.
 	AWORD

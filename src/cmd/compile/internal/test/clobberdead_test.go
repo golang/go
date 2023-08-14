@@ -6,8 +6,7 @@ package test
 
 import (
 	"internal/testenv"
-	"io/ioutil"
-	"os/exec"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -39,12 +38,12 @@ func runHello(t *testing.T, flag string) {
 
 	tmpdir := t.TempDir()
 	src := filepath.Join(tmpdir, "x.go")
-	err := ioutil.WriteFile(src, []byte(helloSrc), 0644)
+	err := os.WriteFile(src, []byte(helloSrc), 0644)
 	if err != nil {
 		t.Fatalf("write file failed: %v", err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "run", "-gcflags=all="+flag, src)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "run", "-gcflags=all="+flag, src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go run failed: %v\n%s", err, out)

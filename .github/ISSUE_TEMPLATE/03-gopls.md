@@ -2,7 +2,9 @@
 name: Gopls bugs or feature requests
 about: Issues or feature requests for the Go language server (gopls)
 title: "x/tools/gopls: "
-labels: gopls Tools
+labels:
+  - gopls
+  - Tools
 ---
 
 <!--

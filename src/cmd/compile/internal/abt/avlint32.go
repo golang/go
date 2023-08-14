@@ -7,6 +7,7 @@ package abt
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -36,7 +37,7 @@ func makeNode(key int32) *node32 {
 	return &node32{key: key, height_: LEAF_HEIGHT}
 }
 
-// IsSingle returns true iff t is empty.
+// IsEmpty returns true iff t is empty.
 func (t *T) IsEmpty() bool {
 	return t.root == nil
 }
@@ -326,39 +327,21 @@ func (t *T) Equals(u *T) bool {
 	return t.root.equals(u.root)
 }
 
-// This doesn't build with go1.4, sigh
-// func (t *T) String() string {
-// 	var b strings.Builder
-// 	first := true
-// 	for it := t.Iterator(); !it.IsEmpty(); {
-// 		k, v := it.Next()
-// 		if first {
-// 			first = false
-// 		} else {
-// 			b.WriteString("; ")
-// 		}
-// 		b.WriteString(strconv.FormatInt(int64(k), 10))
-// 		b.WriteString(":")
-// 		b.WriteString(v.String())
-// 	}
-// 	return b.String()
-// }
-
 func (t *T) String() string {
-	var b string
+	var b strings.Builder
 	first := true
 	for it := t.Iterator(); !it.Done(); {
 		k, v := it.Next()
 		if first {
 			first = false
 		} else {
-			b += ("; ")
+			b.WriteString("; ")
 		}
-		b += (strconv.FormatInt(int64(k), 10))
-		b += (":")
-		b += fmt.Sprint(v)
+		b.WriteString(strconv.FormatInt(int64(k), 10))
+		b.WriteString(":")
+		fmt.Fprint(&b, v)
 	}
-	return b
+	return b.String()
 }
 
 func (t *node32) equals(u *node32) bool {
@@ -587,7 +570,7 @@ func (t *node32) lub(key int32, allow_eq bool) *node32 {
 			// t is too small, lub is to right.
 			t = t.right
 		} else {
-			// t is a upper bound, record it and seek a better one.
+			// t is an upper bound, record it and seek a better one.
 			best = t
 			t = t.left
 		}

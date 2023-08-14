@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build cgo
-// +build linux
-// +build mips mipsle
+//go:build linux && (mips || mipsle)
 
 #include <pthread.h>
 #include <string.h>
@@ -58,15 +56,9 @@ threadentry(void *v)
 void
 x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 {
-	pthread_attr_t attr;
-	size_t size;
-
 	setg_gcc = setg;
 
-	pthread_attr_init(&attr);
-	pthread_attr_getstacksize(&attr, &size);
-	g->stacklo = (uintptr)&attr - size + 4096;
-	pthread_attr_destroy(&attr);
+	_cgo_set_stacklo(g, NULL);
 
 	if (x_cgo_inittls) {
 		x_cgo_inittls(tlsg, tlsbase);

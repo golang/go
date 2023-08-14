@@ -88,11 +88,12 @@ run="sh"
 
 case "$1" in
 -syscalls)
-	for i in zsyscall*go
+	shift
+	for i in ${@:-zsyscall*go}
 	do
 		# Run the command line that appears in the first line
 		# of the generated file to regenerate it.
-		sed 1q $i | sed 's;^// ;;' | sh > _$i && gofmt < _$i > $i
+		sed 1q $i | sed 's;^// ;./;' | sh > _$i && gofmt < _$i > $i
 		rm _$i
 	done
 	exit 0
@@ -161,6 +162,13 @@ freebsd_arm)
 freebsd_arm64)
 	mkerrors="$mkerrors"
 	mksysnum="curl -s 'http://svn.freebsd.org/base/stable/10/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
+	# Let the type of C char be signed to make the bare syscall
+	# API consistent between platforms.
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
+	;;
+freebsd_riscv64)
+	mkerrors="$mkerrors"
+	mksysnum="curl -s 'https://cgit.freebsd.org/src/plain/sys/kern/syscalls.master?h=stable/12' | ./mksysnum_freebsd.pl"
 	# Let the type of C char be signed to make the bare syscall
 	# API consistent between platforms.
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"

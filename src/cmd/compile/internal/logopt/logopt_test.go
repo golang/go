@@ -6,9 +6,7 @@ package logopt
 
 import (
 	"internal/testenv"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -88,15 +86,9 @@ func TestLogOpt(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := ioutil.TempDir("", "TestLogOpt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
-	dir = fixSlash(dir) // Normalize the directory name as much as possible, for Windows testing
+	dir := fixSlash(t.TempDir()) // Normalize the directory name as much as possible, for Windows testing
 	src := filepath.Join(dir, "file.go")
-	if err := ioutil.WriteFile(src, []byte(srcCode), 0644); err != nil {
+	if err := os.WriteFile(src, []byte(srcCode), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -146,7 +138,7 @@ func s15a8(x *[15]int64) [15]int64 {
 }
 `
 		copy := filepath.Join(dir, "copy.go")
-		if err := ioutil.WriteFile(copy, []byte(copyCode), 0644); err != nil {
+		if err := os.WriteFile(copy, []byte(copyCode), 0644); err != nil {
 			t.Fatal(err)
 		}
 		outcopy := filepath.Join(dir, "copy.o")
@@ -169,7 +161,7 @@ func s15a8(x *[15]int64) [15]int64 {
 				if err != nil {
 					t.Error("-json=0,file://log/opt should have succeeded")
 				}
-				logged, err := ioutil.ReadFile(filepath.Join(dir, "log", "opt", "x", "copy.json"))
+				logged, err := os.ReadFile(filepath.Join(dir, "log", "opt", "x", "copy.json"))
 				if err != nil {
 					t.Error("-json=0,file://log/opt missing expected log file")
 				}
@@ -196,7 +188,7 @@ func s15a8(x *[15]int64) [15]int64 {
 		if err != nil {
 			t.Error("-json=0,file://log/opt should have succeeded")
 		}
-		logged, err := ioutil.ReadFile(filepath.Join(dir, "log", "opt", "x", "file.json"))
+		logged, err := os.ReadFile(filepath.Join(dir, "log", "opt", "x", "file.json"))
 		if err != nil {
 			t.Error("-json=0,file://log/opt missing expected log file")
 		}
@@ -228,7 +220,7 @@ func s15a8(x *[15]int64) [15]int64 {
 func testLogOpt(t *testing.T, flag, src, outfile string) (string, error) {
 	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=p", flag, "-o", outfile, src}
 	t.Log(run)
-	cmd := exec.Command(run[0], run[1:]...)
+	cmd := testenv.Command(t, run[0], run[1:]...)
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
 	return string(out), err
@@ -238,7 +230,7 @@ func testLogOptDir(t *testing.T, dir, flag, src, outfile string) (string, error)
 	// Notice the specified import path "x"
 	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=x", flag, "-o", outfile, src}
 	t.Log(run)
-	cmd := exec.Command(run[0], run[1:]...)
+	cmd := testenv.Command(t, run[0], run[1:]...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
@@ -249,7 +241,7 @@ func testCopy(t *testing.T, dir, goarch, goos, src, outfile string) (string, err
 	// Notice the specified import path "x"
 	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=x", "-json=0,file://log/opt", "-o", outfile, src}
 	t.Log(run)
-	cmd := exec.Command(run[0], run[1:]...)
+	cmd := testenv.Command(t, run[0], run[1:]...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOARCH="+goarch, "GOOS="+goos)
 	out, err := cmd.CombinedOutput()

@@ -1,5 +1,4 @@
-// Code generated from gen/ARM.rules; DO NOT EDIT.
-// generated with: cd gen; go run *.go
+// Code generated from _gen/ARM.rules using 'go generate'; DO NOT EDIT.
 
 package ssa
 
@@ -1316,7 +1315,8 @@ func rewriteValueARM_OpARMADD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ADD x (MOVWconst [c]))
+	// match: (ADD x (MOVWconst <t> [c]))
+	// cond: !t.IsPtr()
 	// result: (ADDconst [c] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1324,7 +1324,11 @@ func rewriteValueARM_OpARMADD(v *Value) bool {
 			if v_1.Op != OpARMMOVWconst {
 				continue
 			}
+			t := v_1.Type
 			c := auxIntToInt32(v_1.AuxInt)
+			if !(!t.IsPtr()) {
+				continue
+			}
 			v.reset(OpARMADDconst)
 			v.AuxInt = int32ToAuxInt(c)
 			v.AddArg(x)
@@ -2080,22 +2084,6 @@ func rewriteValueARM_OpARMADDshiftLL(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (ADDshiftLL [c] (SRLconst x [32-c]) x)
-	// result: (SRRconst [32-c] x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		if v_0.Op != OpARMSRLconst || auxIntToInt32(v_0.AuxInt) != 32-c {
-			break
-		}
-		x := v_0.Args[0]
-		if x != v_1 {
-			break
-		}
-		v.reset(OpARMSRRconst)
-		v.AuxInt = int32ToAuxInt(32 - c)
-		v.AddArg(x)
-		return true
-	}
 	// match: (ADDshiftLL <typ.UInt16> [8] (BFXU <typ.UInt16> [int32(armBFAuxInt(8, 8))] x) x)
 	// result: (REV16 x)
 	for {
@@ -2282,22 +2270,6 @@ func rewriteValueARM_OpARMADDshiftRL(v *Value) bool {
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpARMADDconst)
 		v.AuxInt = int32ToAuxInt(int32(uint32(c) >> uint64(d)))
-		v.AddArg(x)
-		return true
-	}
-	// match: (ADDshiftRL [c] (SLLconst x [32-c]) x)
-	// result: (SRRconst [ c] x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		if v_0.Op != OpARMSLLconst || auxIntToInt32(v_0.AuxInt) != 32-c {
-			break
-		}
-		x := v_0.Args[0]
-		if x != v_1 {
-			break
-		}
-		v.reset(OpARMSRRconst)
-		v.AuxInt = int32ToAuxInt(c)
 		v.AddArg(x)
 		return true
 	}
@@ -8596,22 +8568,6 @@ func rewriteValueARM_OpARMORshiftLL(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: ( ORshiftLL [c] (SRLconst x [32-c]) x)
-	// result: (SRRconst [32-c] x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		if v_0.Op != OpARMSRLconst || auxIntToInt32(v_0.AuxInt) != 32-c {
-			break
-		}
-		x := v_0.Args[0]
-		if x != v_1 {
-			break
-		}
-		v.reset(OpARMSRRconst)
-		v.AuxInt = int32ToAuxInt(32 - c)
-		v.AddArg(x)
-		return true
-	}
 	// match: (ORshiftLL <typ.UInt16> [8] (BFXU <typ.UInt16> [int32(armBFAuxInt(8, 8))] x) x)
 	// result: (REV16 x)
 	for {
@@ -8828,22 +8784,6 @@ func rewriteValueARM_OpARMORshiftRL(v *Value) bool {
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpARMORconst)
 		v.AuxInt = int32ToAuxInt(int32(uint32(c) >> uint64(d)))
-		v.AddArg(x)
-		return true
-	}
-	// match: ( ORshiftRL [c] (SLLconst x [32-c]) x)
-	// result: (SRRconst [ c] x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		if v_0.Op != OpARMSLLconst || auxIntToInt32(v_0.AuxInt) != 32-c {
-			break
-		}
-		x := v_0.Args[0]
-		if x != v_1 {
-			break
-		}
-		v.reset(OpARMSRRconst)
-		v.AuxInt = int32ToAuxInt(c)
 		v.AddArg(x)
 		return true
 	}
@@ -12755,22 +12695,6 @@ func rewriteValueARM_OpARMXORshiftLL(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (XORshiftLL [c] (SRLconst x [32-c]) x)
-	// result: (SRRconst [32-c] x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		if v_0.Op != OpARMSRLconst || auxIntToInt32(v_0.AuxInt) != 32-c {
-			break
-		}
-		x := v_0.Args[0]
-		if x != v_1 {
-			break
-		}
-		v.reset(OpARMSRRconst)
-		v.AuxInt = int32ToAuxInt(32 - c)
-		v.AddArg(x)
-		return true
-	}
 	// match: (XORshiftLL <typ.UInt16> [8] (BFXU <typ.UInt16> [int32(armBFAuxInt(8, 8))] x) x)
 	// result: (REV16 x)
 	for {
@@ -12987,22 +12911,6 @@ func rewriteValueARM_OpARMXORshiftRL(v *Value) bool {
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpARMXORconst)
 		v.AuxInt = int32ToAuxInt(int32(uint32(c) >> uint64(d)))
-		v.AddArg(x)
-		return true
-	}
-	// match: (XORshiftRL [c] (SLLconst x [32-c]) x)
-	// result: (SRRconst [ c] x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		if v_0.Op != OpARMSLLconst || auxIntToInt32(v_0.AuxInt) != 32-c {
-			break
-		}
-		x := v_0.Args[0]
-		if x != v_1 {
-			break
-		}
-		v.reset(OpARMSRRconst)
-		v.AuxInt = int32ToAuxInt(c)
 		v.AddArg(x)
 		return true
 	}
@@ -14044,13 +13952,13 @@ func rewriteValueARM_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: (is8BitInt(t) && isSigned(t))
+	// cond: (is8BitInt(t) && t.IsSigned())
 	// result: (MOVBload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is8BitInt(t) && isSigned(t)) {
+		if !(is8BitInt(t) && t.IsSigned()) {
 			break
 		}
 		v.reset(OpARMMOVBload)
@@ -14058,13 +13966,13 @@ func rewriteValueARM_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: (is8BitInt(t) && !isSigned(t))
+	// cond: (is8BitInt(t) && !t.IsSigned())
 	// result: (MOVBUload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is8BitInt(t) && !isSigned(t)) {
+		if !(is8BitInt(t) && !t.IsSigned()) {
 			break
 		}
 		v.reset(OpARMMOVBUload)
@@ -14072,13 +13980,13 @@ func rewriteValueARM_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: (is16BitInt(t) && isSigned(t))
+	// cond: (is16BitInt(t) && t.IsSigned())
 	// result: (MOVHload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is16BitInt(t) && isSigned(t)) {
+		if !(is16BitInt(t) && t.IsSigned()) {
 			break
 		}
 		v.reset(OpARMMOVHload)
@@ -14086,13 +13994,13 @@ func rewriteValueARM_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: (is16BitInt(t) && !isSigned(t))
+	// cond: (is16BitInt(t) && !t.IsSigned())
 	// result: (MOVHUload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is16BitInt(t) && !isSigned(t)) {
+		if !(is16BitInt(t) && !t.IsSigned()) {
 			break
 		}
 		v.reset(OpARMMOVHUload)
@@ -14144,17 +14052,44 @@ func rewriteValueARM_OpLoad(v *Value) bool {
 	return false
 }
 func rewriteValueARM_OpLocalAddr(v *Value) bool {
+	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (LocalAddr {sym} base _)
-	// result: (MOVWaddr {sym} base)
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (LocalAddr <t> {sym} base mem)
+	// cond: t.Elem().HasPointers()
+	// result: (MOVWaddr {sym} (SPanchored base mem))
 	for {
+		t := v.Type
 		sym := auxToSym(v.Aux)
 		base := v_0
+		mem := v_1
+		if !(t.Elem().HasPointers()) {
+			break
+		}
+		v.reset(OpARMMOVWaddr)
+		v.Aux = symToAux(sym)
+		v0 := b.NewValue0(v.Pos, OpSPanchored, typ.Uintptr)
+		v0.AddArg2(base, mem)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (LocalAddr <t> {sym} base _)
+	// cond: !t.Elem().HasPointers()
+	// result: (MOVWaddr {sym} base)
+	for {
+		t := v.Type
+		sym := auxToSym(v.Aux)
+		base := v_0
+		if !(!t.Elem().HasPointers()) {
+			break
+		}
 		v.reset(OpARMMOVWaddr)
 		v.Aux = symToAux(sym)
 		v.AddArg(base)
 		return true
 	}
+	return false
 }
 func rewriteValueARM_OpLsh16x16(v *Value) bool {
 	v_1 := v.Args[1]
@@ -15977,14 +15912,14 @@ func rewriteValueARM_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.Size() == 4 && !is32BitFloat(val.Type)
+	// cond: t.Size() == 4 && !t.IsFloat()
 	// result: (MOVWstore ptr val mem)
 	for {
 		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.Size() == 4 && !is32BitFloat(val.Type)) {
+		if !(t.Size() == 4 && !t.IsFloat()) {
 			break
 		}
 		v.reset(OpARMMOVWstore)
@@ -15992,14 +15927,14 @@ func rewriteValueARM_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.Size() == 4 && is32BitFloat(val.Type)
+	// cond: t.Size() == 4 && t.IsFloat()
 	// result: (MOVFstore ptr val mem)
 	for {
 		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.Size() == 4 && is32BitFloat(val.Type)) {
+		if !(t.Size() == 4 && t.IsFloat()) {
 			break
 		}
 		v.reset(OpARMMOVFstore)
@@ -16007,14 +15942,14 @@ func rewriteValueARM_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.Size() == 8 && is64BitFloat(val.Type)
+	// cond: t.Size() == 8 && t.IsFloat()
 	// result: (MOVDstore ptr val mem)
 	for {
 		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.Size() == 8 && is64BitFloat(val.Type)) {
+		if !(t.Size() == 8 && t.IsFloat()) {
 			break
 		}
 		v.reset(OpARMMOVDstore)

@@ -7,30 +7,43 @@ package field
 import "testing"
 
 func BenchmarkAdd(b *testing.B) {
-	var x, y Element
-	x.One()
-	y.Add(feOne, feOne)
+	x := new(Element).One()
+	y := new(Element).Add(x, x)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Add(&x, &y)
+		x.Add(x, y)
 	}
 }
 
 func BenchmarkMultiply(b *testing.B) {
-	var x, y Element
-	x.One()
-	y.Add(feOne, feOne)
+	x := new(Element).One()
+	y := new(Element).Add(x, x)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Multiply(&x, &y)
+		x.Multiply(x, y)
+	}
+}
+
+func BenchmarkSquare(b *testing.B) {
+	x := new(Element).Add(feOne, feOne)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		x.Square(x)
+	}
+}
+
+func BenchmarkInvert(b *testing.B) {
+	x := new(Element).Add(feOne, feOne)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		x.Invert(x)
 	}
 }
 
 func BenchmarkMult32(b *testing.B) {
-	var x Element
-	x.One()
+	x := new(Element).One()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Mult32(&x, 0xaa42aa42)
+		x.Mult32(x, 0xaa42aa42)
 	}
 }

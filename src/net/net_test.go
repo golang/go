@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
+//go:build !js && !wasip1
 
 package net
 
@@ -430,6 +430,7 @@ func TestZeroByteRead(t *testing.T) {
 // runs peer1 and peer2 concurrently. withTCPConnPair returns when
 // both have completed.
 func withTCPConnPair(t *testing.T, peer1, peer2 func(c *TCPConn) error) {
+	t.Helper()
 	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 	errc := make(chan error, 2)

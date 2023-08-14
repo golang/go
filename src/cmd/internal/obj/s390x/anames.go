@@ -207,6 +207,11 @@ var Anames = []string{
 	"STCKE",
 	"STCKF",
 	"CLEAR",
+	"KM",
+	"KMC",
+	"KLMD",
+	"KIMD",
+	"KDSA",
 	"VA",
 	"VAB",
 	"VAH",
@@ -716,5 +721,6 @@ var Anames = []string{
 	"BYTE",
 	"WORD",
 	"DWORD",
+	"BRRK",
 	"LAST",
 }

@@ -1,0 +1,16 @@
+go work vendor
+stderr 'go: no dependencies to vendor'
+! exists vendor/modules.txt
+! go list .
+stderr 'go: no modules were found in the current workspace'
+mkdir vendor
+mv bad_modules.txt vendor/modules.txt
+! go list .
+stderr 'go: no modules were found in the current workspace'
+
+-- bad_modules.txt --
+# a/module
+a/package
+-- go.work --
+go 1.21
+

@@ -61,7 +61,7 @@ func isShellSpecialVar(c uint8) bool {
 	return false
 }
 
-// isAlphaNum reports whether the byte is an ASCII letter, number, or underscore
+// isAlphaNum reports whether the byte is an ASCII letter, number, or underscore.
 func isAlphaNum(c uint8) bool {
 	return c == '_' || '0' <= c && c <= '9' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
 }

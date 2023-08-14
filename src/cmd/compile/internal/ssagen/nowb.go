@@ -5,8 +5,8 @@
 package ssagen
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -45,7 +45,7 @@ type nowritebarrierrecCall struct {
 }
 
 // newNowritebarrierrecChecker creates a nowritebarrierrecChecker. It
-// must be called before walk
+// must be called before walk.
 func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 	c := &nowritebarrierrecChecker{
 		extraCalls: make(map[*ir.Func][]nowritebarrierrecCall),
@@ -56,11 +56,8 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 	// important to handle it for this check, so we model it
 	// directly. This has to happen before transforming closures in walk since
 	// it's a lot harder to work out the argument after.
-	for _, n := range typecheck.Target.Decls {
-		if n.Op() != ir.ODCLFUNC {
-			continue
-		}
-		c.curfn = n.(*ir.Func)
+	for _, n := range typecheck.Target.Funcs {
+		c.curfn = n
 		if c.curfn.ABIWrapper() {
 			// We only want "real" calls to these
 			// functions, not the generated ones within
@@ -139,12 +136,7 @@ func (c *nowritebarrierrecChecker) check() {
 	// q is the queue of ODCLFUNC Nodes to visit in BFS order.
 	var q ir.NameQueue
 
-	for _, n := range typecheck.Target.Decls {
-		if n.Op() != ir.ODCLFUNC {
-			continue
-		}
-		fn := n.(*ir.Func)
-
+	for _, fn := range typecheck.Target.Funcs {
 		symToFunc[fn.LSym] = fn
 
 		// Make nowritebarrierrec functions BFS roots.
@@ -154,7 +146,7 @@ func (c *nowritebarrierrecChecker) check() {
 		}
 		// Check go:nowritebarrier functions.
 		if fn.Pragma&ir.Nowritebarrier != 0 && fn.WBPos.IsKnown() {
-			base.ErrorfAt(fn.WBPos, "write barrier prohibited")
+			base.ErrorfAt(fn.WBPos, 0, "write barrier prohibited")
 		}
 	}
 
@@ -179,13 +171,13 @@ func (c *nowritebarrierrecChecker) check() {
 
 		// Check fn.
 		if fn.WBPos.IsKnown() {
-			var err bytes.Buffer
+			var err strings.Builder
 			call := funcs[fn]
 			for call.target != nil {
 				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Nname)
 				call = funcs[call.target]
 			}
-			base.ErrorfAt(fn.WBPos, "write barrier prohibited by caller; %v%s", fn.Nname, err.String())
+			base.ErrorfAt(fn.WBPos, 0, "write barrier prohibited by caller; %v%s", fn.Nname, err.String())
 			continue
 		}
 

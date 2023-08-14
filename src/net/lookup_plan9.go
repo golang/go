@@ -13,6 +13,11 @@ import (
 	"os"
 )
 
+// cgoAvailable set to true to indicate that the cgo resolver
+// is available on Plan 9. Note that on Plan 9 the cgo resolver
+// does not actually use cgo.
+const cgoAvailable = true
+
 func query(ctx context.Context, filename, query string, bufSize int) (addrs []string, err error) {
 	queryAddrs := func() (addrs []string, err error) {
 		file, err := os.OpenFile(filename, os.O_RDWR, 0)
@@ -183,8 +188,12 @@ loop:
 // "PreferGo" implementation rather than asking plan9 services
 // for the answers.
 func (r *Resolver) preferGoOverPlan9() bool {
-	conf := systemConf()
-	order := conf.hostLookupOrder(r, "") // name is unused
+	_, _, res := r.preferGoOverPlan9WithOrderAndConf()
+	return res
+}
+
+func (r *Resolver) preferGoOverPlan9WithOrderAndConf() (hostLookupOrder, *dnsConfig, bool) {
+	order, conf := systemConf().hostLookupOrder(r, "") // name is unused
 
 	// TODO(bradfitz): for now we only permit use of the PreferGo
 	// implementation when there's a non-nil Resolver with a
@@ -193,7 +202,7 @@ func (r *Resolver) preferGoOverPlan9() bool {
 	// DNS cache) and they don't want to actually hit the network.
 	// Once we add support for looking the default DNS servers
 	// from plan9, though, then we can relax this.
-	return order != hostLookupCgo && r != nil && r.Dial != nil
+	return order, conf, order != hostLookupCgo && r != nil && r.Dial != nil
 }
 
 func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
@@ -244,9 +253,10 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port 
 }
 
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
-	if r.preferGoOverPlan9() {
-		return r.goLookupCNAME(ctx, name)
+	if order, conf, preferGo := r.preferGoOverPlan9WithOrderAndConf(); preferGo {
+		return r.goLookupCNAME(ctx, name, order, conf)
 	}
+
 	lines, err := queryDNS(ctx, name, "cname")
 	if err != nil {
 		if stringsHasSuffix(err.Error(), "dns failure") || stringsHasSuffix(err.Error(), "resource does not exist; negrcode 0") {
@@ -351,8 +361,8 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) (txt []string, er
 }
 
 func (r *Resolver) lookupAddr(ctx context.Context, addr string) (name []string, err error) {
-	if r.preferGoOverPlan9() {
-		return r.goLookupPTR(ctx, addr)
+	if order, conf, preferGo := r.preferGoOverPlan9WithOrderAndConf(); preferGo {
+		return r.goLookupPTR(ctx, addr, order, conf)
 	}
 	arpa, err := reverseaddr(addr)
 	if err != nil {

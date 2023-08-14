@@ -30,6 +30,13 @@ func testClientHello(t *testing.T, serverConfig *Config, m handshakeMessage) {
 	testClientHelloFailure(t, serverConfig, m, "")
 }
 
+// testFatal is a hack to prevent the compiler from complaining that there is a
+// call to t.Fatal from a non-test goroutine
+func testFatal(t *testing.T, err error) {
+	t.Helper()
+	t.Fatal(err)
+}
+
 func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessage, expectedSubStr string) {
 	c, s := localPipe(t)
 	go func() {
@@ -37,7 +44,9 @@ func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessa
 		if ch, ok := m.(*clientHelloMsg); ok {
 			cli.vers = ch.vers
 		}
-		cli.writeRecord(recordTypeHandshake, m.marshal())
+		if _, err := cli.writeHandshakeRecord(m, nil); err != nil {
+			testFatal(t, err)
+		}
 		c.Close()
 	}()
 	ctx := context.Background()
@@ -194,7 +203,9 @@ func TestRenegotiationExtension(t *testing.T) {
 	go func() {
 		cli := Client(c, testConfig)
 		cli.vers = clientHello.vers
-		cli.writeRecord(recordTypeHandshake, clientHello.marshal())
+		if _, err := cli.writeHandshakeRecord(clientHello, nil); err != nil {
+			testFatal(t, err)
+		}
 
 		buf := make([]byte, 1024)
 		n, err := c.Read(buf)
@@ -253,8 +264,10 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 	go func() {
 		cli := Client(c, testConfig)
 		cli.vers = clientHello.vers
-		cli.writeRecord(recordTypeHandshake, clientHello.marshal())
-		reply, err := cli.readHandshake()
+		if _, err := cli.writeHandshakeRecord(clientHello, nil); err != nil {
+			testFatal(t, err)
+		}
+		reply, err := cli.readHandshake(nil)
 		c.Close()
 		if err != nil {
 			replyChan <- err
@@ -281,7 +294,7 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 
 func TestTLSPointFormats(t *testing.T) {
 	// Test that a Server returns the ec_point_format extension when ECC is
-	// negotiated, and not returned on RSA handshake.
+	// negotiated, and not on a RSA handshake or if ec_point_format is missing.
 	tests := []struct {
 		name                string
 		cipherSuites        []uint16
@@ -289,8 +302,11 @@ func TestTLSPointFormats(t *testing.T) {
 		supportedPoints     []uint8
 		wantSupportedPoints bool
 	}{
-		{"ECC", []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}, []CurveID{CurveP256}, []uint8{compressionNone}, true},
+		{"ECC", []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}, []CurveID{CurveP256}, []uint8{pointFormatUncompressed}, true},
+		{"ECC without ec_point_format", []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}, []CurveID{CurveP256}, nil, false},
+		{"ECC with extra values", []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}, []CurveID{CurveP256}, []uint8{13, 37, pointFormatUncompressed, 42}, true},
 		{"RSA", []uint16{TLS_RSA_WITH_AES_256_GCM_SHA384}, nil, nil, false},
+		{"RSA with ec_point_format", []uint16{TLS_RSA_WITH_AES_256_GCM_SHA384}, nil, []uint8{pointFormatUncompressed}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -308,8 +324,10 @@ func TestTLSPointFormats(t *testing.T) {
 			go func() {
 				cli := Client(c, testConfig)
 				cli.vers = clientHello.vers
-				cli.writeRecord(recordTypeHandshake, clientHello.marshal())
-				reply, err := cli.readHandshake()
+				if _, err := cli.writeHandshakeRecord(clientHello, nil); err != nil {
+					testFatal(t, err)
+				}
+				reply, err := cli.readHandshake(nil)
 				c.Close()
 				if err != nil {
 					replyChan <- err
@@ -330,18 +348,8 @@ func TestTLSPointFormats(t *testing.T) {
 				t.Fatalf("didn't get ServerHello message in reply. Got %v\n", reply)
 			}
 			if tt.wantSupportedPoints {
-				if len(serverHello.supportedPoints) < 1 {
-					t.Fatal("missing ec_point_format extension from server")
-				}
-				found := false
-				for _, p := range serverHello.supportedPoints {
-					if p == pointFormatUncompressed {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Fatal("missing uncompressed format in ec_point_format extension from server")
+				if !bytes.Equal(serverHello.supportedPoints, []uint8{pointFormatUncompressed}) {
+					t.Fatal("incorrect ec_point_format extension from server")
 				}
 			} else {
 				if len(serverHello.supportedPoints) != 0 {
@@ -1433,7 +1441,9 @@ func TestSNIGivenOnFailure(t *testing.T) {
 	go func() {
 		cli := Client(c, testConfig)
 		cli.vers = clientHello.vers
-		cli.writeRecord(recordTypeHandshake, clientHello.marshal())
+		if _, err := cli.writeHandshakeRecord(clientHello, nil); err != nil {
+			testFatal(t, err)
+		}
 		c.Close()
 	}()
 	conn := Server(s, serverConfig)

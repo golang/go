@@ -7,12 +7,14 @@
 package syscall
 
 import (
+	"internal/bytealg"
 	"runtime"
 	"sync"
 	"unicode/utf16"
 	"unsafe"
 )
 
+// ForkLock is not used on Windows.
 var ForkLock sync.RWMutex
 
 // EscapeArg rewrites command line argument s as prescribed
@@ -115,12 +117,16 @@ func makeCmdLine(args []string) string {
 // the representation required by CreateProcess: a sequence of NUL
 // terminated strings followed by a nil.
 // Last bytes are two UCS-2 NULs, or four NUL bytes.
-func createEnvBlock(envv []string) *uint16 {
+// If any string contains a NUL, it returns (nil, EINVAL).
+func createEnvBlock(envv []string) (*uint16, error) {
 	if len(envv) == 0 {
-		return &utf16.Encode([]rune("\x00\x00"))[0]
+		return &utf16.Encode([]rune("\x00\x00"))[0], nil
 	}
 	length := 0
 	for _, s := range envv {
+		if bytealg.IndexByteString(s, 0) != -1 {
+			return nil, EINVAL
+		}
 		length += len(s) + 1
 	}
 	length += 1
@@ -135,7 +141,7 @@ func createEnvBlock(envv []string) *uint16 {
 	}
 	copy(b[i:i+1], []byte{0})
 
-	return &utf16.Encode([]rune(string(b)))[0]
+	return &utf16.Encode([]rune(string(b)))[0], nil
 }
 
 func CloseOnExec(fd Handle) {
@@ -242,7 +248,7 @@ type SysProcAttr struct {
 	Token                      Token               // if set, runs new process in the security context represented by the token
 	ProcessAttributes          *SecurityAttributes // if set, applies these security attributes as the descriptor for the new process
 	ThreadAttributes           *SecurityAttributes // if set, applies these security attributes as the descriptor for the main thread of the new process
-	NoInheritHandles           bool                // if set, each inheritable handle in the calling process is not inherited by the new process
+	NoInheritHandles           bool                // if set, no handles are inherited by the new process, not even the standard handles, contained in ProcAttr.Files, nor the ones contained in AdditionalInheritedHandles
 	AdditionalInheritedHandles []Handle            // a list of additional handles, already marked as inheritable, that will be inherited by the new process
 	ParentProcess              Handle              // if non-zero, the new process regards the process given by this handle as its parent process, and AdditionalInheritedHandles, if set, should exist in this parent process
 }
@@ -400,12 +406,17 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 		}
 	}
 
+	envBlock, err := createEnvBlock(attr.Env)
+	if err != nil {
+		return 0, 0, err
+	}
+
 	pi := new(ProcessInformation)
 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT | _EXTENDED_STARTUPINFO_PRESENT
 	if sys.Token != 0 {
-		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
+		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, envBlock, dirp, &si.StartupInfo, pi)
 	} else {
-		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
+		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, envBlock, dirp, &si.StartupInfo, pi)
 	}
 	if err != nil {
 		return 0, 0, err

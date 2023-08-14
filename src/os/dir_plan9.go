@@ -6,6 +6,7 @@ package os
 
 import (
 	"io"
+	"io/fs"
 	"syscall"
 )
 
@@ -79,3 +80,7 @@ func (de dirEntry) Name() string            { return de.fs.Name() }
 func (de dirEntry) IsDir() bool             { return de.fs.IsDir() }
 func (de dirEntry) Type() FileMode          { return de.fs.Mode().Type() }
 func (de dirEntry) Info() (FileInfo, error) { return de.fs, nil }
+
+func (de dirEntry) String() string {
+	return fs.FormatDirEntry(de)
+}

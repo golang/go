@@ -15,14 +15,8 @@ static void (*setg_gcc)(void*);
 void
 x_cgo_init(G *g, void (*setg)(void*))
 {
-	pthread_attr_t attr;
-	size_t size;
-
 	setg_gcc = setg;
-	pthread_attr_init(&attr);
-	pthread_attr_getstacksize(&attr, &size);
-	g->stacklo = (uintptr)&attr - size + 4096;
-	pthread_attr_destroy(&attr);
+	_cgo_set_stacklo(g, NULL);
 }
 
 
@@ -52,6 +46,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	}
 }
 
+extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
 static void*
 threadentry(void *v)
 {
@@ -60,11 +55,6 @@ threadentry(void *v)
 
 	ts = *(ThreadStart*)v;
 	free(v);
-
-	/*
-	 * Set specific keys.
-	 */
-	setg_gcc((void*)ts.g);
 
 	// On NetBSD, a new thread inherits the signal stack of the
 	// creating thread. That confuses minit, so we remove that
@@ -77,6 +67,6 @@ threadentry(void *v)
 	ss.ss_flags = SS_DISABLE;
 	sigaltstack(&ss, nil);
 
-	crosscall_386(ts.fn);
+	crosscall1(ts.fn, setg_gcc, ts.g);
 	return nil;
 }

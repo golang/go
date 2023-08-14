@@ -7,6 +7,7 @@ package base
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -14,14 +15,22 @@ import (
 var cwd string
 var cwdOnce sync.Once
 
+// UncachedCwd returns the current working directory.
+// Most callers should use Cwd, which caches the result for future use.
+// UncachedCwd is appropriate to call early in program startup before flag parsing,
+// because the -C flag may change the current directory.
+func UncachedCwd() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		Fatalf("cannot determine current directory: %v", err)
+	}
+	return wd
+}
+
 // Cwd returns the current working directory at the time of the first call.
 func Cwd() string {
 	cwdOnce.Do(func() {
-		var err error
-		cwd, err = os.Getwd()
-		if err != nil {
-			Fatalf("cannot determine current directory: %v", err)
-		}
+		cwd = UncachedCwd()
 	})
 	return cwd
 }
@@ -53,4 +62,18 @@ func RelPaths(paths []string) []string {
 func IsTestFile(file string) bool {
 	// We don't cover tests, only the code they test.
 	return strings.HasSuffix(file, "_test.go")
+}
+
+// IsNull reports whether the path is a common name for the null device.
+// It returns true for /dev/null on Unix, or NUL (case-insensitive) on Windows.
+func IsNull(path string) bool {
+	if path == os.DevNull {
+		return true
+	}
+	if runtime.GOOS == "windows" {
+		if strings.EqualFold(path, "NUL") {
+			return true
+		}
+	}
+	return false
 }

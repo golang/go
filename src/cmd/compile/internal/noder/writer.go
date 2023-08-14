@@ -6,11 +6,15 @@ package noder
 
 import (
 	"fmt"
+	"go/constant"
+	"go/token"
+	"internal/buildcfg"
 	"internal/pkgbits"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
+	"cmd/compile/internal/types"
 	"cmd/compile/internal/types2"
 )
 
@@ -106,7 +110,7 @@ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
 
 // errorf reports a user error about thing p.
 func (pw *pkgWriter) errorf(p poser, msg string, args ...interface{}) {
-	base.ErrorfAt(pw.m.pos(p), msg, args...)
+	base.ErrorfAt(pw.m.pos(p), 0, msg, args...)
 }
 
 // fatalf reports an internal compiler error about thing p.
@@ -120,12 +124,32 @@ func (pw *pkgWriter) unexpected(what string, p poser) {
 	pw.fatalf(p, "unexpected %s: %v (%T)", what, p, p)
 }
 
+func (pw *pkgWriter) typeAndValue(x syntax.Expr) syntax.TypeAndValue {
+	tv, ok := pw.maybeTypeAndValue(x)
+	if !ok {
+		pw.fatalf(x, "missing Types entry: %v", syntax.String(x))
+	}
+	return tv
+}
+
+func (pw *pkgWriter) maybeTypeAndValue(x syntax.Expr) (syntax.TypeAndValue, bool) {
+	tv := x.GetTypeInfo()
+
+	// If x is a generic function whose type arguments are inferred
+	// from assignment context, then we need to find its inferred type
+	// in Info.Instances instead.
+	if name, ok := x.(*syntax.Name); ok {
+		if inst, ok := pw.info.Instances[name]; ok {
+			tv.Type = inst.Type
+		}
+	}
+
+	return tv, tv.Type != nil
+}
+
 // typeOf returns the Type of the given value expression.
 func (pw *pkgWriter) typeOf(expr syntax.Expr) types2.Type {
-	tv, ok := pw.info.Types[expr]
-	if !ok {
-		pw.fatalf(expr, "missing Types entry: %v", syntax.String(expr))
-	}
+	tv := pw.typeAndValue(expr)
 	if !tv.IsValue() {
 		pw.fatalf(expr, "expected value: %v", syntax.String(expr))
 	}
@@ -172,12 +196,37 @@ type writerDict struct {
 	// derivedIdx maps a Type to its corresponding index within the
 	// derived slice, if present.
 	derivedIdx map[types2.Type]pkgbits.Index
+
+	// These slices correspond to entries in the runtime dictionary.
+	typeParamMethodExprs []writerMethodExprInfo
+	subdicts             []objInfo
+	rtypes               []typeInfo
+	itabs                []itabInfo
+}
+
+type itabInfo struct {
+	typ   typeInfo
+	iface typeInfo
+}
+
+// typeParamIndex returns the index of the given type parameter within
+// the dictionary. This may differ from typ.Index() when there are
+// implicit type parameters due to defined types declared within a
+// generic function or method.
+func (dict *writerDict) typeParamIndex(typ *types2.TypeParam) int {
+	for idx, implicit := range dict.implicits {
+		if implicit.Type().(*types2.TypeParam) == typ {
+			return idx
+		}
+	}
+
+	return len(dict.implicits) + typ.Index()
 }
 
 // A derivedInfo represents a reference to an encoded generic Go type.
 type derivedInfo struct {
 	idx    pkgbits.Index
-	needed bool
+	needed bool // TODO(mdempsky): Remove.
 }
 
 // A typeInfo represents a reference to an encoded Go type.
@@ -232,6 +281,75 @@ func (info objInfo) equals(other objInfo) bool {
 		}
 	}
 	return true
+}
+
+type writerMethodExprInfo struct {
+	typeParamIdx int
+	methodInfo   selectorInfo
+}
+
+// typeParamMethodExprIdx returns the index where the given encoded
+// method expression function pointer appears within this dictionary's
+// type parameters method expressions section, adding it if necessary.
+func (dict *writerDict) typeParamMethodExprIdx(typeParamIdx int, methodInfo selectorInfo) int {
+	newInfo := writerMethodExprInfo{typeParamIdx, methodInfo}
+
+	for idx, oldInfo := range dict.typeParamMethodExprs {
+		if oldInfo == newInfo {
+			return idx
+		}
+	}
+
+	idx := len(dict.typeParamMethodExprs)
+	dict.typeParamMethodExprs = append(dict.typeParamMethodExprs, newInfo)
+	return idx
+}
+
+// subdictIdx returns the index where the given encoded object's
+// runtime dictionary appears within this dictionary's subdictionary
+// section, adding it if necessary.
+func (dict *writerDict) subdictIdx(newInfo objInfo) int {
+	for idx, oldInfo := range dict.subdicts {
+		if oldInfo.equals(newInfo) {
+			return idx
+		}
+	}
+
+	idx := len(dict.subdicts)
+	dict.subdicts = append(dict.subdicts, newInfo)
+	return idx
+}
+
+// rtypeIdx returns the index where the given encoded type's
+// *runtime._type value appears within this dictionary's rtypes
+// section, adding it if necessary.
+func (dict *writerDict) rtypeIdx(newInfo typeInfo) int {
+	for idx, oldInfo := range dict.rtypes {
+		if oldInfo == newInfo {
+			return idx
+		}
+	}
+
+	idx := len(dict.rtypes)
+	dict.rtypes = append(dict.rtypes, newInfo)
+	return idx
+}
+
+// itabIdx returns the index where the given encoded type pair's
+// *runtime.itab value appears within this dictionary's itabs section,
+// adding it if necessary.
+func (dict *writerDict) itabIdx(typInfo, ifaceInfo typeInfo) int {
+	newInfo := itabInfo{typInfo, ifaceInfo}
+
+	for idx, oldInfo := range dict.itabs {
+		if oldInfo == newInfo {
+			return idx
+		}
+	}
+
+	idx := len(dict.itabs)
+	dict.itabs = append(dict.itabs, newInfo)
+	return idx
 }
 
 func (pw *pkgWriter) newWriter(k pkgbits.RelocKind, marker pkgbits.SyncMarker) *writer {
@@ -338,8 +456,9 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) pkgbits.Index {
 // @@@ Types
 
 var (
-	anyTypeName  = types2.Universe.Lookup("any").(*types2.TypeName)
-	runeTypeName = types2.Universe.Lookup("rune").(*types2.TypeName)
+	anyTypeName        = types2.Universe.Lookup("any").(*types2.TypeName)
+	comparableTypeName = types2.Universe.Lookup("comparable").(*types2.TypeName)
+	runeTypeName       = types2.Universe.Lookup("rune").(*types2.TypeName)
 )
 
 // typ writes a use of the given type into the bitstream.
@@ -391,7 +510,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 			w.Len(int(kind))
 
 		default:
-			// Handle "byte" and "rune" as references to their TypeName.
+			// Handle "byte" and "rune" as references to their TypeNames.
 			obj := types2.Universe.Lookup(typ.Name())
 			assert(obj.Type() == typ)
 
@@ -412,19 +531,9 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		w.obj(obj, targs)
 
 	case *types2.TypeParam:
-		index := func() int {
-			for idx, name := range w.dict.implicits {
-				if name.Type().(*types2.TypeParam) == typ {
-					return idx
-				}
-			}
-
-			return len(w.dict.implicits) + typ.Index()
-		}()
-
 		w.derived = true
 		w.Code(pkgbits.TypeTypeParam)
-		w.Len(index)
+		w.Len(w.dict.typeParamIndex(typ))
 
 	case *types2.Array:
 		w.Code(pkgbits.TypeArray)
@@ -459,6 +568,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		w.structType(typ)
 
 	case *types2.Interface:
+		// Handle "any" as reference to its TypeName.
 		if typ == anyTypeName.Type() {
 			w.Code(pkgbits.TypeNamed)
 			w.obj(anyTypeName, nil)
@@ -506,6 +616,23 @@ func (w *writer) unionType(typ *types2.Union) {
 }
 
 func (w *writer) interfaceType(typ *types2.Interface) {
+	// If typ has no embedded types but it's not a basic interface, then
+	// the natural description we write out below will fail to
+	// reconstruct it.
+	if typ.NumEmbeddeds() == 0 && !typ.IsMethodSet() {
+		// Currently, this can only happen for the underlying Interface of
+		// "comparable", which is needed to handle type declarations like
+		// "type C comparable".
+		assert(typ == comparableTypeName.Type().(*types2.Named).Underlying())
+
+		// Export as "interface{ comparable }".
+		w.Len(0)                         // NumExplicitMethods
+		w.Len(1)                         // NumEmbeddeds
+		w.Bool(false)                    // IsImplicit
+		w.typ(comparableTypeName.Type()) // EmbeddedType(0)
+		return
+	}
+
 	w.Len(typ.NumExplicitMethods())
 	w.Len(typ.NumEmbeddeds())
 
@@ -691,9 +818,6 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		return pkgbits.ObjFunc
 
 	case *types2.TypeName:
-		decl, ok := w.p.typDecls[obj]
-		assert(ok)
-
 		if obj.IsAlias() {
 			w.pos(obj)
 			w.typ(obj.Type())
@@ -706,7 +830,7 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		w.pos(obj)
 		w.typeParamNames(named.TypeParams())
 		wext.typeExt(obj)
-		w.typExpr(decl.Type)
+		w.typ(named.Underlying())
 
 		w.Len(named.NumMethods())
 		for i := 0; i < named.NumMethods(); i++ {
@@ -721,16 +845,6 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		wext.varExt(obj)
 		return pkgbits.ObjVar
 	}
-}
-
-// typExpr writes the type represented by the given expression.
-//
-// TODO(mdempsky): Document how this differs from exprType.
-func (w *writer) typExpr(expr syntax.Expr) {
-	tv, ok := w.p.info.Types[expr]
-	assert(ok)
-	assert(tv.IsType())
-	w.typ(tv.Type)
 }
 
 // objDict writes the dictionary needed for reading the given object.
@@ -755,6 +869,52 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	for _, typ := range dict.derived {
 		w.Reloc(pkgbits.RelocType, typ.idx)
 		w.Bool(typ.needed)
+	}
+
+	// Write runtime dictionary information.
+	//
+	// N.B., the go/types importer reads up to the section, but doesn't
+	// read any further, so it's safe to change. (See TODO above.)
+
+	// For each type parameter, write out whether the constraint is a
+	// basic interface. This is used to determine how aggressively we
+	// can shape corresponding type arguments.
+	//
+	// This is somewhat redundant with writing out the full type
+	// parameter constraints above, but the compiler currently skips
+	// over those. Also, we don't care about the *declared* constraints,
+	// but how the type parameters are actually *used*. E.g., if a type
+	// parameter is constrained to `int | uint` but then never used in
+	// arithmetic/conversions/etc, we could shape those together.
+	for _, implicit := range dict.implicits {
+		tparam := implicit.Type().(*types2.TypeParam)
+		w.Bool(tparam.Underlying().(*types2.Interface).IsMethodSet())
+	}
+	for i := 0; i < ntparams; i++ {
+		tparam := tparams.At(i)
+		w.Bool(tparam.Underlying().(*types2.Interface).IsMethodSet())
+	}
+
+	w.Len(len(dict.typeParamMethodExprs))
+	for _, info := range dict.typeParamMethodExprs {
+		w.Len(info.typeParamIdx)
+		w.selectorInfo(info.methodInfo)
+	}
+
+	w.Len(len(dict.subdicts))
+	for _, info := range dict.subdicts {
+		w.objInfo(info)
+	}
+
+	w.Len(len(dict.rtypes))
+	for _, info := range dict.rtypes {
+		w.typInfo(info)
+	}
+
+	w.Len(len(dict.itabs))
+	for _, info := range dict.itabs {
+		w.typInfo(info.typ)
+		w.typInfo(info.iface)
 	}
 
 	assert(len(dict.derived) == nderived)
@@ -797,8 +957,11 @@ func (w *writer) qualifiedIdent(obj types2.Object) {
 		decl, ok := w.p.typDecls[obj.(*types2.TypeName)]
 		assert(ok)
 		if decl.gen != 0 {
-			// TODO(mdempsky): Find a better solution than embedding middle
-			// dot in the symbol name; this is terrible.
+			// For local defined types, we embed a scope-disambiguation
+			// number directly into their name. types.SplitVargenSuffix then
+			// knows to look for this.
+			//
+			// TODO(mdempsky): Find a better solution; this is terrible.
 			name = fmt.Sprintf("%s·%v", name, decl.gen)
 		}
 	}
@@ -854,10 +1017,14 @@ func (w *writer) funcExt(obj *types2.Func) {
 	if pragma&ir.Systemstack != 0 && pragma&ir.Nosplit != 0 {
 		w.p.errorf(decl, "go:nosplit and go:systemstack cannot be combined")
 	}
+	wi := asWasmImport(decl.Pragma)
 
 	if decl.Body != nil {
 		if pragma&ir.Noescape != 0 {
 			w.p.errorf(decl, "can only use //go:noescape with external func implementations")
+		}
+		if wi != nil {
+			w.p.errorf(decl, "can only use //go:wasmimport with external func implementations")
 		}
 		if (pragma&ir.UintptrKeepAlive != 0 && pragma&ir.UintptrEscapes == 0) && pragma&ir.Nosplit == 0 {
 			// Stack growth can't handle uintptr arguments that may
@@ -879,7 +1046,8 @@ func (w *writer) funcExt(obj *types2.Func) {
 		if base.Flag.Complete || decl.Name.Value == "init" {
 			// Linknamed functions are allowed to have no body. Hopefully
 			// the linkname target has a body. See issue 23311.
-			if _, ok := w.p.linknames[obj]; !ok {
+			// Wasmimport functions are also allowed to have no body.
+			if _, ok := w.p.linknames[obj]; !ok && wi == nil {
 				w.p.errorf(decl, "missing function body")
 			}
 		}
@@ -892,6 +1060,17 @@ func (w *writer) funcExt(obj *types2.Func) {
 	w.Sync(pkgbits.SyncFuncExt)
 	w.pragmaFlag(pragma)
 	w.linkname(obj)
+
+	if buildcfg.GOARCH == "wasm" {
+		if wi != nil {
+			w.String(wi.Module)
+			w.String(wi.Name)
+		} else {
+			w.String("")
+			w.String("")
+		}
+	}
+
 	w.Bool(false) // stub extension
 	w.Reloc(pkgbits.RelocBody, body)
 	w.Sync(pkgbits.SyncEOF)
@@ -966,11 +1145,14 @@ func (w *writer) funcarg(param *types2.Var, result bool) {
 
 // addLocal records the declaration of a new local variable.
 func (w *writer) addLocal(obj *types2.Var) {
-	w.Sync(pkgbits.SyncAddLocal)
 	idx := len(w.localsIdx)
+
+	w.Sync(pkgbits.SyncAddLocal)
 	if w.p.SyncMarkers() {
 		w.Int(idx)
 	}
+	w.varDictIndex(obj)
+
 	if w.localsIdx == nil {
 		w.localsIdx = make(map[*types2.Var]int)
 	}
@@ -1026,9 +1208,18 @@ func (w *writer) stmt(stmt syntax.Stmt) {
 }
 
 func (w *writer) stmts(stmts []syntax.Stmt) {
+	dead := false
 	w.Sync(pkgbits.SyncStmts)
 	for _, stmt := range stmts {
+		if dead {
+			// Any statements after a terminating statement are safe to
+			// omit, at least until the next labeled statement.
+			if _, ok := stmt.(*syntax.LabeledStmt); !ok {
+				continue
+			}
+		}
 		w.stmt1(stmt)
+		dead = w.p.terminates(stmt)
 	}
 	w.Code(stmtEnd)
 	w.Sync(pkgbits.SyncStmtsEnd)
@@ -1269,6 +1460,11 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 		}
 
 	} else {
+		if stmt.Cond != nil && w.p.staticBool(&stmt.Cond) < 0 { // always false
+			stmt.Post = nil
+			stmt.Body.List = nil
+		}
+
 		w.pos(stmt)
 		w.stmt(stmt.Init)
 		w.optExpr(stmt.Cond)
@@ -1276,7 +1472,27 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 	}
 
 	w.blockStmt(stmt.Body)
+	w.Bool(w.distinctVars(stmt))
 	w.closeAnotherScope()
+}
+
+func (w *writer) distinctVars(stmt *syntax.ForStmt) bool {
+	lv := base.Debug.LoopVar
+	v := w.p.info.FileVersions[stmt.Pos().Base()]
+	is122 := v.Major == 0 && v.Minor == 0 || v.Major == 1 && v.Minor >= 22
+
+	// Turning off loopvar for 1.22 is only possible with loopvarhash=qn
+	//
+	// Debug.LoopVar values to be preserved for 1.21 compatibility are 1 and 2,
+	// which are also set (=1) by GOEXPERIMENT=loopvar.  The knobs for turning on
+	// the new, unshared, loopvar behavior apply to versions less than 1.21 because
+	// (1) 1.21 also did that and (2) this is believed to be the likely use case;
+	// anyone checking to see if it affects their code will just run the GOEXPERIMENT
+	// but will not also update all their go.mod files to 1.21.
+	//
+	// -gcflags=-d=loopvar=3 enables logging for 1.22 but does not turn loopvar on for <= 1.21.
+
+	return is122 || lv > 0 && lv != 3
 }
 
 // rangeTypes returns the types of values produced by ranging over
@@ -1304,6 +1520,13 @@ func (pw *pkgWriter) rangeTypes(expr syntax.Expr) (key, value types2.Type) {
 }
 
 func (w *writer) ifStmt(stmt *syntax.IfStmt) {
+	switch cond := w.p.staticBool(&stmt.Cond); {
+	case cond > 0: // always true
+		stmt.Else = nil
+	case cond < 0: // always false
+		stmt.Then.List = nil
+	}
+
 	w.Sync(pkgbits.SyncIfStmt)
 	w.openScope(stmt.Pos())
 	w.pos(stmt)
@@ -1348,16 +1571,66 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 		w.pos(guard)
 		if tag := guard.Lhs; w.Bool(tag != nil) {
 			w.pos(tag)
+
+			// Like w.localIdent, but we don't have a types2.Object.
+			w.Sync(pkgbits.SyncLocalIdent)
+			w.pkg(w.p.curpkg)
 			w.String(tag.Value)
 		}
 		w.expr(guard.X)
 	} else {
 		tag := stmt.Tag
 
+		var tagValue constant.Value
 		if tag != nil {
-			tagType = w.p.typeOf(tag)
+			tv := w.p.typeAndValue(tag)
+			tagType = tv.Type
+			tagValue = tv.Value
 		} else {
 			tagType = types2.Typ[types2.Bool]
+			tagValue = constant.MakeBool(true)
+		}
+
+		if tagValue != nil {
+			// If the switch tag has a constant value, look for a case
+			// clause that we always branch to.
+			func() {
+				var target *syntax.CaseClause
+			Outer:
+				for _, clause := range stmt.Body {
+					if clause.Cases == nil {
+						target = clause
+					}
+					for _, cas := range unpackListExpr(clause.Cases) {
+						tv := w.p.typeAndValue(cas)
+						if tv.Value == nil {
+							return // non-constant case; give up
+						}
+						if constant.Compare(tagValue, token.EQL, tv.Value) {
+							target = clause
+							break Outer
+						}
+					}
+				}
+				// We've found the target clause, if any.
+
+				if target != nil {
+					if hasFallthrough(target.Body) {
+						return // fallthrough is tricky; give up
+					}
+
+					// Rewrite as single "default" case.
+					target.Cases = nil
+					stmt.Body = []*syntax.CaseClause{target}
+				} else {
+					stmt.Body = nil
+				}
+
+				// Clear switch tag (i.e., replace with implicit "true").
+				tag = nil
+				stmt.Tag = nil
+				tagType = types2.Typ[types2.Bool]
+			}()
 		}
 
 		// Walk is going to emit comparisons between the tag value and
@@ -1393,7 +1666,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 		if iface != nil {
 			w.Len(len(cases))
 			for _, cas := range cases {
-				if w.Bool(isNil(w.p.info, cas)) {
+				if w.Bool(isNil(w.p, cas)) {
 					continue
 				}
 				w.exprType(iface, cas)
@@ -1458,10 +1731,10 @@ func (w *writer) expr(expr syntax.Expr) {
 
 	expr = unparen(expr) // skip parens; unneeded after typecheck
 
-	obj, inst := lookupObj(w.p.info, expr)
+	obj, inst := lookupObj(w.p, expr)
 	targs := inst.TypeArgs
 
-	if tv, ok := w.p.info.Types[expr]; ok {
+	if tv, ok := w.p.maybeTypeAndValue(expr); ok {
 		if tv.IsType() {
 			w.p.fatalf(expr, "unexpected type expression %v", syntax.String(expr))
 		}
@@ -1487,6 +1760,16 @@ func (w *writer) expr(expr syntax.Expr) {
 			w.typ(tv.Type)
 			return
 		}
+
+		// With shape types (and particular pointer shaping), we may have
+		// an expression of type "go.shape.*uint8", but need to reshape it
+		// to another shape-identical type to allow use in field
+		// selection, indexing, etc.
+		if typ := tv.Type; !tv.IsBuiltin() && !isTuple(typ) && !isUntyped(typ) {
+			w.Code(exprReshape)
+			w.typ(typ)
+			// fallthrough
+		}
 	}
 
 	if obj != nil {
@@ -1494,7 +1777,8 @@ func (w *writer) expr(expr syntax.Expr) {
 			obj := obj.(*types2.Func)
 
 			w.Code(exprFuncInst)
-			w.obj(obj, targs)
+			w.pos(expr)
+			w.funcInst(obj, targs)
 			return
 		}
 
@@ -1540,20 +1824,37 @@ func (w *writer) expr(expr syntax.Expr) {
 
 		case types2.MethodVal:
 			w.Code(exprMethodVal)
-			w.recvExpr(expr, sel)
+			typ := w.recvExpr(expr, sel)
 			w.pos(expr)
-			w.selector(sel.Obj())
+			w.methodExpr(expr, typ, sel)
 
 		case types2.MethodExpr:
 			w.Code(exprMethodExpr)
 
-			tv, ok := w.p.info.Types[expr.X]
-			assert(ok)
+			tv := w.p.typeAndValue(expr.X)
 			assert(tv.IsType())
 
-			w.typ(tv.Type)
+			index := sel.Index()
+			implicits := index[:len(index)-1]
+
+			typ := tv.Type
+			w.typ(typ)
+
+			w.Len(len(implicits))
+			for _, ix := range implicits {
+				w.Len(ix)
+				typ = deref2(typ).Underlying().(*types2.Struct).Field(ix).Type()
+			}
+
+			recv := sel.Obj().(*types2.Func).Type().(*types2.Signature).Recv().Type()
+			if w.Bool(isPtrTo(typ, recv)) { // need deref
+				typ = recv
+			} else if w.Bool(isPtrTo(recv, typ)) { // need addr
+				typ = recv
+			}
+
 			w.pos(expr)
-			w.selector(sel.Obj())
+			w.methodExpr(expr, typ, sel)
 		}
 
 	case *syntax.IndexExpr:
@@ -1624,25 +1925,17 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.implicitConvExpr(commonType, expr.Y)
 
 	case *syntax.CallExpr:
-		tv, ok := w.p.info.Types[expr.Fun]
-		assert(ok)
+		tv := w.p.typeAndValue(expr.Fun)
 		if tv.IsType() {
 			assert(len(expr.ArgList) == 1)
 			assert(!expr.HasDots)
-
-			w.Code(exprConvert)
-			w.Bool(false) // explicit
-			w.typ(tv.Type)
-			w.pos(expr)
-			w.convRTTI(w.p.typeOf(expr.ArgList[0]), tv.Type)
-			w.Bool(isTypeParam(tv.Type))
-			w.expr(expr.ArgList[0])
+			w.convertExpr(tv.Type, expr.ArgList[0], false)
 			break
 		}
 
 		var rtype types2.Type
 		if tv.IsBuiltin() {
-			switch obj, _ := lookupObj(w.p.info, expr.Fun); obj.Name() {
+			switch obj, _ := lookupObj(w.p, expr.Fun); obj.Name() {
 			case "make":
 				assert(len(expr.ArgList) >= 1)
 				assert(!expr.HasDots)
@@ -1695,18 +1988,28 @@ func (w *writer) expr(expr syntax.Expr) {
 		}
 
 		writeFunExpr := func() {
-			if selector, ok := unparen(expr.Fun).(*syntax.SelectorExpr); ok {
+			fun := unparen(expr.Fun)
+
+			if selector, ok := fun.(*syntax.SelectorExpr); ok {
 				if sel, ok := w.p.info.Selections[selector]; ok && sel.Kind() == types2.MethodVal {
-					w.recvExpr(selector, sel)
 					w.Bool(true) // method call
-					w.pos(selector)
-					w.selector(sel.Obj())
+					typ := w.recvExpr(selector, sel)
+					w.methodExpr(selector, typ, sel)
 					return
 				}
 			}
 
-			w.expr(expr.Fun)
 			w.Bool(false) // not a method call (i.e., normal function call)
+
+			if obj, inst := lookupObj(w.p, fun); w.Bool(obj != nil && inst.TypeArgs.Len() != 0) {
+				obj := obj.(*types2.Func)
+
+				w.pos(fun)
+				w.funcInst(obj, inst.TypeArgs)
+				return
+			}
+
+			w.expr(fun)
 		}
 
 		sigType := types2.CoreType(tv.Type).(*types2.Signature)
@@ -1742,7 +2045,8 @@ func (w *writer) optExpr(expr syntax.Expr) {
 }
 
 // recvExpr writes out expr.X, but handles any implicit addressing,
-// dereferencing, and field selections.
+// dereferencing, and field selections appropriate for the method
+// selection.
 func (w *writer) recvExpr(expr *syntax.SelectorExpr, sel *types2.Selection) types2.Type {
 	index := sel.Index()
 	implicits := index[:len(index)-1]
@@ -1758,13 +2062,6 @@ func (w *writer) recvExpr(expr *syntax.SelectorExpr, sel *types2.Selection) type
 		w.Len(ix)
 	}
 
-	isPtrTo := func(from, to types2.Type) bool {
-		if from, ok := from.(*types2.Pointer); ok {
-			return types2.Identical(from.Elem(), to)
-		}
-		return false
-	}
-
 	recv := sel.Obj().(*types2.Func).Type().(*types2.Signature).Recv().Type()
 	if w.Bool(isPtrTo(typ, recv)) { // needs deref
 		typ = recv
@@ -1773,6 +2070,84 @@ func (w *writer) recvExpr(expr *syntax.SelectorExpr, sel *types2.Selection) type
 	}
 
 	return typ
+}
+
+// funcInst writes a reference to an instantiated function.
+func (w *writer) funcInst(obj *types2.Func, targs *types2.TypeList) {
+	info := w.p.objInstIdx(obj, targs, w.dict)
+
+	// Type arguments list contains derived types; we can emit a static
+	// call to the shaped function, but need to dynamically compute the
+	// runtime dictionary pointer.
+	if w.Bool(info.anyDerived()) {
+		w.Len(w.dict.subdictIdx(info))
+		return
+	}
+
+	// Type arguments list is statically known; we can emit a static
+	// call with a statically reference to the respective runtime
+	// dictionary.
+	w.objInfo(info)
+}
+
+// methodExpr writes out a reference to the method selected by
+// expr. sel should be the corresponding types2.Selection, and recv
+// the type produced after any implicit addressing, dereferencing, and
+// field selection. (Note: recv might differ from sel.Obj()'s receiver
+// parameter in the case of interface types, and is needed for
+// handling type parameter methods.)
+func (w *writer) methodExpr(expr *syntax.SelectorExpr, recv types2.Type, sel *types2.Selection) {
+	fun := sel.Obj().(*types2.Func)
+	sig := fun.Type().(*types2.Signature)
+
+	w.typ(recv)
+	w.typ(sig)
+	w.pos(expr)
+	w.selector(fun)
+
+	// Method on a type parameter. These require an indirect call
+	// through the current function's runtime dictionary.
+	if typeParam, ok := recv.(*types2.TypeParam); w.Bool(ok) {
+		typeParamIdx := w.dict.typeParamIndex(typeParam)
+		methodInfo := w.p.selectorIdx(fun)
+
+		w.Len(w.dict.typeParamMethodExprIdx(typeParamIdx, methodInfo))
+		return
+	}
+
+	if isInterface(recv) != isInterface(sig.Recv().Type()) {
+		w.p.fatalf(expr, "isInterface inconsistency: %v and %v", recv, sig.Recv().Type())
+	}
+
+	if !isInterface(recv) {
+		if named, ok := deref2(recv).(*types2.Named); ok {
+			obj, targs := splitNamed(named)
+			info := w.p.objInstIdx(obj, targs, w.dict)
+
+			// Method on a derived receiver type. These can be handled by a
+			// static call to the shaped method, but require dynamically
+			// looking up the appropriate dictionary argument in the current
+			// function's runtime dictionary.
+			if w.p.hasImplicitTypeParams(obj) || info.anyDerived() {
+				w.Bool(true) // dynamic subdictionary
+				w.Len(w.dict.subdictIdx(info))
+				return
+			}
+
+			// Method on a fully known receiver type. These can be handled
+			// by a static call to the shaped method, and with a static
+			// reference to the receiver type's dictionary.
+			if targs.Len() != 0 {
+				w.Bool(false) // no dynamic subdictionary
+				w.Bool(true)  // static dictionary
+				w.objInfo(info)
+				return
+			}
+		}
+	}
+
+	w.Bool(false) // no dynamic subdictionary
+	w.Bool(false) // no static dictionary
 }
 
 // multiExpr writes a sequence of expressions, where the i'th value is
@@ -1822,19 +2197,30 @@ func (w *writer) multiExpr(pos poser, dstType func(int) types2.Type, exprs []syn
 // from expr's type, then an implicit conversion operation is inserted
 // at expr's position.
 func (w *writer) implicitConvExpr(dst types2.Type, expr syntax.Expr) {
+	w.convertExpr(dst, expr, true)
+}
+
+func (w *writer) convertExpr(dst types2.Type, expr syntax.Expr, implicit bool) {
 	src := w.p.typeOf(expr)
-	if dst != nil && !types2.Identical(src, dst) {
-		if !types2.AssignableTo(src, dst) {
-			w.p.fatalf(expr.Pos(), "%v is not assignable to %v", src, dst)
-		}
-		w.Code(exprConvert)
-		w.Bool(true) // implicit
-		w.typ(dst)
-		w.pos(expr)
-		w.convRTTI(src, dst)
-		w.Bool(isTypeParam(dst))
-		// fallthrough
+
+	// Omit implicit no-op conversions.
+	identical := dst == nil || types2.Identical(src, dst)
+	if implicit && identical {
+		w.expr(expr)
+		return
 	}
+
+	if implicit && !types2.AssignableTo(src, dst) {
+		w.p.fatalf(expr, "%v is not assignable to %v", src, dst)
+	}
+
+	w.Code(exprConvert)
+	w.Bool(implicit)
+	w.typ(dst)
+	w.pos(expr)
+	w.convRTTI(src, dst)
+	w.Bool(isTypeParam(dst))
+	w.Bool(identical)
 	w.expr(expr)
 }
 
@@ -1930,18 +2316,52 @@ func (w *writer) exprs(exprs []syntax.Expr) {
 // rtype writes information so that the reader can construct an
 // expression of type *runtime._type representing typ.
 func (w *writer) rtype(typ types2.Type) {
-	w.Sync(pkgbits.SyncRType)
-	w.typNeeded(typ)
+	typ = types2.Default(typ)
+
+	info := w.p.typIdx(typ, w.dict)
+	w.rtypeInfo(info)
 }
 
-// typNeeded writes a reference to typ, and records that its
-// *runtime._type is needed.
-func (w *writer) typNeeded(typ types2.Type) {
-	info := w.p.typIdx(typ, w.dict)
-	w.typInfo(info)
+func (w *writer) rtypeInfo(info typeInfo) {
+	w.Sync(pkgbits.SyncRType)
 
-	if info.derived {
-		w.dict.derived[info.idx].needed = true
+	if w.Bool(info.derived) {
+		w.Len(w.dict.rtypeIdx(info))
+	} else {
+		w.typInfo(info)
+	}
+}
+
+// varDictIndex writes out information for populating DictIndex for
+// the ir.Name that will represent obj.
+func (w *writer) varDictIndex(obj *types2.Var) {
+	info := w.p.typIdx(obj.Type(), w.dict)
+	if w.Bool(info.derived) {
+		w.Len(w.dict.rtypeIdx(info))
+	}
+}
+
+func isUntyped(typ types2.Type) bool {
+	basic, ok := typ.(*types2.Basic)
+	return ok && basic.Info()&types2.IsUntyped != 0
+}
+
+func isTuple(typ types2.Type) bool {
+	_, ok := typ.(*types2.Tuple)
+	return ok
+}
+
+func (w *writer) itab(typ, iface types2.Type) {
+	typ = types2.Default(typ)
+	iface = types2.Default(iface)
+
+	typInfo := w.p.typIdx(typ, w.dict)
+	ifaceInfo := w.p.typIdx(iface, w.dict)
+
+	w.rtypeInfo(typInfo)
+	w.rtypeInfo(ifaceInfo)
+	if w.Bool(typInfo.derived || ifaceInfo.derived) {
+		w.Len(w.dict.itabIdx(typInfo, ifaceInfo))
 	}
 }
 
@@ -1949,23 +2369,25 @@ func (w *writer) typNeeded(typ types2.Type) {
 // expressions for converting from src to dst.
 func (w *writer) convRTTI(src, dst types2.Type) {
 	w.Sync(pkgbits.SyncConvRTTI)
-	w.typNeeded(src)
-	w.typNeeded(dst)
+	w.itab(src, dst)
 }
 
 func (w *writer) exprType(iface types2.Type, typ syntax.Expr) {
 	base.Assertf(iface == nil || isInterface(iface), "%v must be nil or an interface type", iface)
 
-	tv, ok := w.p.info.Types[typ]
-	assert(ok)
+	tv := w.p.typeAndValue(typ)
 	assert(tv.IsType())
 
 	w.Sync(pkgbits.SyncExprType)
 	w.pos(typ)
 
-	w.typNeeded(tv.Type)
 	if w.Bool(iface != nil && !iface.Underlying().(*types2.Interface).Empty()) {
-		w.typ(iface)
+		w.itab(tv.Type, iface)
+	} else {
+		w.rtype(tv.Type)
+
+		info := w.p.typIdx(tv.Type, w.dict)
+		w.Bool(info.derived)
 	}
 }
 
@@ -2075,7 +2497,7 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
 		if n.Alias {
 			pw.checkPragmas(n.Pragma, 0, false)
 		} else {
-			pw.checkPragmas(n.Pragma, typePragmas, false)
+			pw.checkPragmas(n.Pragma, 0, false)
 
 			// Assign a unique ID to function-scoped defined types.
 			if c.withinFunc {
@@ -2140,7 +2562,9 @@ func (pw *pkgWriter) collectDecls(noders []*noder) {
 				}
 
 			default:
-				pw.errorf(l.pos, "//go:linkname must refer to declared function or variable")
+				if types.AllowsGoVersion(1, 18) {
+					pw.errorf(l.pos, "//go:linkname must refer to declared function or variable")
+				}
 			}
 		}
 	}
@@ -2178,6 +2602,15 @@ func (w *writer) pkgInit(noders []*noder) {
 		}
 	}
 	w.Code(declEnd)
+
+	w.Len(len(w.p.info.InitOrder))
+	for _, init := range w.p.info.InitOrder {
+		w.Len(len(init.Lhs))
+		for _, v := range init.Lhs {
+			w.obj(v, nil)
+		}
+		w.expr(init.Rhs)
+	}
 
 	w.Sync(pkgbits.SyncEOF)
 }
@@ -2236,15 +2669,7 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 
 	case *syntax.VarDecl:
 		w.Code(declVar)
-		w.pos(decl)
 		w.pkgObjs(decl.NameList...)
-
-		// TODO(mdempsky): It would make sense to use multiExpr here, but
-		// that results in IR that confuses pkginit/initorder.go. So we
-		// continue using exprList, and let typecheck handle inserting any
-		// implicit conversions. That's okay though, because package-scope
-		// assignments never require dictionaries.
-		w.exprList(decl.Values)
 
 		var embeds []pragmaEmbed
 		if p, ok := decl.Pragma.(*pragmas); ok {
@@ -2273,12 +2698,67 @@ func (w *writer) pkgObjs(names ...*syntax.Name) {
 
 // @@@ Helpers
 
+// staticBool analyzes a boolean expression and reports whether it's
+// always true (positive result), always false (negative result), or
+// unknown (zero).
+//
+// It also simplifies the expression while preserving semantics, if
+// possible.
+func (pw *pkgWriter) staticBool(ep *syntax.Expr) int {
+	if val := pw.typeAndValue(*ep).Value; val != nil {
+		if constant.BoolVal(val) {
+			return +1
+		} else {
+			return -1
+		}
+	}
+
+	if e, ok := (*ep).(*syntax.Operation); ok {
+		switch e.Op {
+		case syntax.Not:
+			return pw.staticBool(&e.X)
+
+		case syntax.AndAnd:
+			x := pw.staticBool(&e.X)
+			if x < 0 {
+				*ep = e.X
+				return x
+			}
+
+			y := pw.staticBool(&e.Y)
+			if x > 0 || y < 0 {
+				if pw.typeAndValue(e.X).Value != nil {
+					*ep = e.Y
+				}
+				return y
+			}
+
+		case syntax.OrOr:
+			x := pw.staticBool(&e.X)
+			if x > 0 {
+				*ep = e.X
+				return x
+			}
+
+			y := pw.staticBool(&e.Y)
+			if x < 0 || y > 0 {
+				if pw.typeAndValue(e.X).Value != nil {
+					*ep = e.Y
+				}
+				return y
+			}
+		}
+	}
+
+	return 0
+}
+
 // hasImplicitTypeParams reports whether obj is a defined type with
 // implicit type parameters (e.g., declared within a generic function
 // or method).
-func (p *pkgWriter) hasImplicitTypeParams(obj *types2.TypeName) bool {
-	if obj.Pkg() == p.curpkg {
-		decl, ok := p.typDecls[obj]
+func (pw *pkgWriter) hasImplicitTypeParams(obj *types2.TypeName) bool {
+	if obj.Pkg() == pw.curpkg {
+		decl, ok := pw.typDecls[obj]
 		assert(ok)
 		if len(decl.implicits) != 0 {
 			return true
@@ -2305,12 +2785,11 @@ func isGlobal(obj types2.Object) bool {
 // lookupObj returns the object that expr refers to, if any. If expr
 // is an explicit instantiation of a generic object, then the instance
 // object is returned as well.
-func lookupObj(info *types2.Info, expr syntax.Expr) (obj types2.Object, inst types2.Instance) {
+func lookupObj(p *pkgWriter, expr syntax.Expr) (obj types2.Object, inst types2.Instance) {
 	if index, ok := expr.(*syntax.IndexExpr); ok {
 		args := unpackListExpr(index.Index)
 		if len(args) == 1 {
-			tv, ok := info.Types[args[0]]
-			assert(ok)
+			tv := p.typeAndValue(args[0])
 			if tv.IsValue() {
 				return // normal index expression
 			}
@@ -2321,15 +2800,15 @@ func lookupObj(info *types2.Info, expr syntax.Expr) (obj types2.Object, inst typ
 
 	// Strip package qualifier, if present.
 	if sel, ok := expr.(*syntax.SelectorExpr); ok {
-		if !isPkgQual(info, sel) {
+		if !isPkgQual(p.info, sel) {
 			return // normal selector expression
 		}
 		expr = sel.Sel
 	}
 
 	if name, ok := expr.(*syntax.Name); ok {
-		obj = info.Uses[name]
-		inst = info.Instances[name]
+		obj = p.info.Uses[name]
+		inst = p.info.Instances[name]
 	}
 	return
 }
@@ -2344,25 +2823,20 @@ func isPkgQual(info *types2.Info, sel *syntax.SelectorExpr) bool {
 	return false
 }
 
-// isMultiValueExpr reports whether expr is a function call expression
-// that yields multiple values.
-func isMultiValueExpr(info *types2.Info, expr syntax.Expr) bool {
-	tv, ok := info.Types[expr]
-	assert(ok)
-	assert(tv.IsValue())
-	if tuple, ok := tv.Type.(*types2.Tuple); ok {
-		assert(tuple.Len() > 1)
-		return true
-	}
-	return false
-}
-
 // isNil reports whether expr is a (possibly parenthesized) reference
 // to the predeclared nil value.
-func isNil(info *types2.Info, expr syntax.Expr) bool {
-	tv, ok := info.Types[expr]
-	assert(ok)
+func isNil(p *pkgWriter, expr syntax.Expr) bool {
+	tv := p.typeAndValue(expr)
 	return tv.IsNil()
+}
+
+// isBuiltin reports whether expr is a (possibly parenthesized)
+// referenced to the specified built-in function.
+func (p *pkgWriter) isBuiltin(expr syntax.Expr, builtin string) bool {
+	if name, ok := unparen(expr).(*syntax.Name); ok && name.Value == builtin {
+		return p.typeAndValue(name).IsBuiltin()
+	}
+	return false
 }
 
 // recvBase returns the base type for the given receiver parameter.
@@ -2434,4 +2908,70 @@ func asPragmaFlag(p syntax.Pragma) ir.PragmaFlag {
 		return 0
 	}
 	return p.(*pragmas).Flag
+}
+
+func asWasmImport(p syntax.Pragma) *WasmImport {
+	if p == nil {
+		return nil
+	}
+	return p.(*pragmas).WasmImport
+}
+
+// isPtrTo reports whether from is the type *to.
+func isPtrTo(from, to types2.Type) bool {
+	ptr, ok := from.(*types2.Pointer)
+	return ok && types2.Identical(ptr.Elem(), to)
+}
+
+// hasFallthrough reports whether stmts ends in a fallthrough
+// statement.
+func hasFallthrough(stmts []syntax.Stmt) bool {
+	last, ok := lastNonEmptyStmt(stmts).(*syntax.BranchStmt)
+	return ok && last.Tok == syntax.Fallthrough
+}
+
+// lastNonEmptyStmt returns the last non-empty statement in list, if
+// any.
+func lastNonEmptyStmt(stmts []syntax.Stmt) syntax.Stmt {
+	for i := len(stmts) - 1; i >= 0; i-- {
+		stmt := stmts[i]
+		if _, ok := stmt.(*syntax.EmptyStmt); !ok {
+			return stmt
+		}
+	}
+	return nil
+}
+
+// terminates reports whether stmt terminates normal control flow
+// (i.e., does not merely advance to the following statement).
+func (p *pkgWriter) terminates(stmt syntax.Stmt) bool {
+	switch stmt := stmt.(type) {
+	case *syntax.BranchStmt:
+		if stmt.Tok == syntax.Goto {
+			return true
+		}
+	case *syntax.ReturnStmt:
+		return true
+	case *syntax.ExprStmt:
+		if call, ok := unparen(stmt.X).(*syntax.CallExpr); ok {
+			if p.isBuiltin(call.Fun, "panic") {
+				return true
+			}
+		}
+
+		// The handling of BlockStmt here is approximate, but it serves to
+		// allow dead-code elimination for:
+		//
+		//	if true {
+		//		return x
+		//	}
+		//	unreachable
+	case *syntax.IfStmt:
+		cond := p.staticBool(&stmt.Cond)
+		return (cond < 0 || p.terminates(stmt.Then)) && (cond > 0 || p.terminates(stmt.Else))
+	case *syntax.BlockStmt:
+		return p.terminates(lastNonEmptyStmt(stmt.List))
+	}
+
+	return false
 }

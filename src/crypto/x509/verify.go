@@ -591,22 +591,19 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 	}
 	comparisonCount := 0
 
-	var leaf *Certificate
 	if certType == intermediateCertificate || certType == rootCertificate {
 		if len(currentChain) == 0 {
 			return errors.New("x509: internal error: empty chain when appending CA cert")
 		}
-		leaf = currentChain[0]
 	}
 
 	if (certType == intermediateCertificate || certType == rootCertificate) &&
 		c.hasNameConstraints() {
 		toCheck := []*Certificate{}
-		if leaf.hasSANExtension() {
-			toCheck = append(toCheck, leaf)
-		}
-		if c.hasSANExtension() {
-			toCheck = append(toCheck, c)
+		for _, c := range currentChain {
+			if c.hasSANExtension() {
+				toCheck = append(toCheck, c)
+			}
 		}
 		for _, sanCert := range toCheck {
 			err := forEachSAN(sanCert.getSANExtension(), func(tag int, data []byte) error {
@@ -745,6 +742,8 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // Certificates that use SHA1WithRSA and ECDSAWithSHA1 signatures are not supported,
 // and will not be used to build chains.
 //
+// Certificates other than c in the returned chains should not be modified.
+//
 // WARNING: this function doesn't do any revocation checking.
 func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
 	// Platform-specific verification needs the ASN.1 contents so
@@ -764,7 +763,10 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 
 	// Use platform verifiers, where available, if Roots is from SystemCertPool.
 	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
-		if opts.Roots == nil {
+		// Don't use the system verifier if the system pool was replaced with a non-system pool,
+		// i.e. if SetFallbackRoots was called with x509usefallbackroots=1.
+		systemPool := systemRootsPool()
+		if opts.Roots == nil && (systemPool == nil || systemPool.systemPool) {
 			return c.systemVerify(&opts)
 		}
 		if opts.Roots != nil && opts.Roots.systemPool {
@@ -920,6 +922,10 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
 
 		err = candidate.isValid(certType, currentChain, opts)
 		if err != nil {
+			if hintErr == nil {
+				hintErr = err
+				hintCert = candidate
+			}
 			return
 		}
 
@@ -1072,7 +1078,7 @@ func toLowerCaseASCII(in string) string {
 // IP addresses can be optionally enclosed in square brackets and are checked
 // against the IPAddresses field. Other names are checked case insensitively
 // against the DNSNames field. If the names are valid hostnames, the certificate
-// fields can have a wildcard as the left-most label.
+// fields can have a wildcard as the complete left-most label (e.g. *.example.com).
 //
 // Note that the legacy Common Name field is ignored.
 func (c *Certificate) VerifyHostname(h string) error {

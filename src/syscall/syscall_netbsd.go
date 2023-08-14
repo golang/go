@@ -20,7 +20,10 @@ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, 
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 
-const _SYS_DUP3 = SYS_DUP3
+const (
+	_SYS_DUP3         = SYS_DUP3
+	_F_DUP2FD_CLOEXEC = 0
+)
 
 type SockaddrDatalink struct {
 	Len    uint8
@@ -221,7 +224,7 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
+//sysnb	setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)

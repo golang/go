@@ -16,6 +16,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/modindex"
@@ -23,7 +24,6 @@ import (
 	"cmd/go/internal/search"
 
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 var (
@@ -76,8 +76,7 @@ func PackageModRoot(ctx context.Context, pkgpath string) string {
 	if !ok {
 		return ""
 	}
-	const needSum = true
-	root, _, err := fetch(ctx, m, needSum)
+	root, _, err := fetch(ctx, m)
 	if err != nil {
 		return ""
 	}
@@ -89,8 +88,8 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		return nil
 	}
 
-	if i := strings.Index(path, "@"); i >= 0 {
-		m := module.Version{Path: path[:i], Version: path[i+1:]}
+	if path, vers, found := strings.Cut(path, "@"); found {
+		m := module.Version{Path: path, Version: vers}
 		return moduleInfo(ctx, nil, m, 0, nil)
 	}
 
@@ -106,7 +105,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 	if !ok {
 		mg, err := rs.Graph(ctx)
 		if err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 		v = mg.Selected(path)
 	}
@@ -153,7 +152,7 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 		return
 	}
 
-	if semver.Compare(info.Version, m.Version) > 0 {
+	if gover.ModCompare(m.Path, info.Version, m.Version) > 0 {
 		m.Update = &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: info.Version,
@@ -182,23 +181,27 @@ func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
 	if !m2.Checkable() {
 		return m2
 	}
+
+	merged := new(codehost.Origin)
+	*merged = *m1 // Clone to avoid overwriting fields in cached results.
+
 	if m2.TagSum != "" {
 		if m1.TagSum != "" && (m1.TagSum != m2.TagSum || m1.TagPrefix != m2.TagPrefix) {
-			m1.ClearCheckable()
-			return m1
+			merged.ClearCheckable()
+			return merged
 		}
-		m1.TagSum = m2.TagSum
-		m1.TagPrefix = m2.TagPrefix
+		merged.TagSum = m2.TagSum
+		merged.TagPrefix = m2.TagPrefix
 	}
 	if m2.Hash != "" {
 		if m1.Hash != "" && (m1.Hash != m2.Hash || m1.Ref != m2.Ref) {
-			m1.ClearCheckable()
-			return m1
+			merged.ClearCheckable()
+			return merged
 		}
-		m1.Hash = m2.Hash
-		m1.Ref = m2.Ref
+		merged.Hash = m2.Hash
+		merged.Ref = m2.Ref
 	}
-	return m1
+	return merged
 }
 
 // addVersions fills in m.Versions with the list of known versions.
@@ -306,6 +309,10 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 
 	// completeFromModCache fills in the extra fields in m using the module cache.
 	completeFromModCache := func(m *modinfo.ModulePublic) {
+		if gover.IsToolchain(m.Path) {
+			return
+		}
+
 		if old := reuse[module.Version{Path: m.Path, Version: m.Version}]; old != nil {
 			if err := checkReuse(ctx, m.Path, old.Origin); err == nil {
 				*m = *old
@@ -316,7 +323,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 		}
 
 		checksumOk := func(suffix string) bool {
-			return rs == nil || m.Version == "" || cfg.BuildMod == "mod" ||
+			return rs == nil || m.Version == "" || !mustHaveSums() ||
 				modfetch.HaveSum(module.Version{Path: m.Path, Version: m.Version + suffix})
 		}
 
@@ -340,7 +347,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 
 		if m.Version != "" {
 			if checksumOk("/go.mod") {
-				gomod, err := modfetch.CachePath(mod, "mod")
+				gomod, err := modfetch.CachePath(ctx, mod, "mod")
 				if err == nil {
 					if info, err := os.Stat(gomod); err == nil && info.Mode().IsRegular() {
 						m.GoMod = gomod
@@ -348,7 +355,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 				}
 			}
 			if checksumOk("") {
-				dir, err := modfetch.DownloadDir(mod)
+				dir, err := modfetch.DownloadDir(ctx, mod)
 				if err == nil {
 					m.Dir = dir
 				}
@@ -414,7 +421,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 // If the package was loaded, its containing module and true are returned.
 // Otherwise, module.Version{} and false are returned.
 func findModule(ld *loader, path string) (module.Version, bool) {
-	if pkg, ok := ld.pkgCache.Get(path).(*loadPkg); ok {
+	if pkg, ok := ld.pkgCache.Get(path); ok {
 		return pkg.mod, pkg.mod != module.Version{}
 	}
 	return module.Version{}, false
@@ -427,12 +434,12 @@ func ModInfoProg(info string, isgccgo bool) []byte {
 	// look at the module info in their init functions (see issue 29628),
 	// which won't work. See also issue 30344.
 	if isgccgo {
-		return []byte(fmt.Sprintf(`package main
+		return fmt.Appendf(nil, `package main
 import _ "unsafe"
 //go:linkname __set_debug_modinfo__ runtime.setmodinfo
 func __set_debug_modinfo__(string)
 func init() { __set_debug_modinfo__(%q) }
-`, ModInfoData(info)))
+`, ModInfoData(info))
 	}
 	return nil
 }

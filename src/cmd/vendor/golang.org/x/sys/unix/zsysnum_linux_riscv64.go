@@ -251,6 +251,8 @@ const (
 	SYS_ACCEPT4                 = 242
 	SYS_RECVMMSG                = 243
 	SYS_ARCH_SPECIFIC_SYSCALL   = 244
+	SYS_RISCV_HWPROBE           = 258
+	SYS_RISCV_FLUSH_ICACHE      = 259
 	SYS_WAIT4                   = 260
 	SYS_PRLIMIT64               = 261
 	SYS_FANOTIFY_INIT           = 262

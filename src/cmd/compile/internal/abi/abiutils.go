@@ -92,7 +92,7 @@ type RegIndex uint8
 // ABIParamAssignment holds information about how a specific param or
 // result will be passed: in registers (in which case 'Registers' is
 // populated) or on the stack (in which case 'Offset' is set to a
-// non-negative stack offset. The values in 'Registers' are indices
+// non-negative stack offset). The values in 'Registers' are indices
 // (as described above), not architected registers.
 type ABIParamAssignment struct {
 	Type      *types.Type
@@ -529,7 +529,7 @@ type assignState struct {
 	spillOffset int64      // current spill offset
 }
 
-// align returns a rounded up to t's alignment
+// align returns a rounded up to t's alignment.
 func align(a int64, t *types.Type) int64 {
 	return alignTo(a, int(uint8(t.Alignment())))
 }
@@ -717,19 +717,19 @@ func setup() {
 		nxp := src.NoXPos
 		bp := types.NewPtr(types.Types[types.TUINT8])
 		it := types.Types[types.TINT]
-		synthSlice = types.NewStruct(types.NoPkg, []*types.Field{
+		synthSlice = types.NewStruct([]*types.Field{
 			types.NewField(nxp, fname("ptr"), bp),
 			types.NewField(nxp, fname("len"), it),
 			types.NewField(nxp, fname("cap"), it),
 		})
 		types.CalcStructSize(synthSlice)
-		synthString = types.NewStruct(types.NoPkg, []*types.Field{
+		synthString = types.NewStruct([]*types.Field{
 			types.NewField(nxp, fname("data"), bp),
 			types.NewField(nxp, fname("len"), it),
 		})
 		types.CalcStructSize(synthString)
 		unsp := types.Types[types.TUNSAFEPTR]
-		synthIface = types.NewStruct(types.NoPkg, []*types.Field{
+		synthIface = types.NewStruct([]*types.Field{
 			types.NewField(nxp, fname("f1"), unsp),
 			types.NewField(nxp, fname("f2"), unsp),
 		})

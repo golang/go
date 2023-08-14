@@ -7,6 +7,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -37,7 +38,7 @@ func usleep_no_g(usec uint32) {
 	usleep(usec)
 }
 
-// write calls the write system call.
+// write1 calls the write system call.
 // It returns a non-negative number of bytes written or a negative errno value.
 //
 //go:noescape
@@ -46,14 +47,14 @@ func write1(fd uintptr, p unsafe.Pointer, n int32) int32
 //go:noescape
 func open(name *byte, mode, perm int32) int32
 
-// return value is only set on linux to be used in osinit()
+// return value is only set on linux to be used in osinit().
 func madvise(addr unsafe.Pointer, n uintptr, flags int32) int32
 
-// exitThread terminates the current thread, writing *wait = 0 when
+// exitThread terminates the current thread, writing *wait = freeMStack when
 // the stack is safe to reclaim.
 //
 //go:noescape
-func exitThread(wait *uint32)
+func exitThread(wait *atomic.Uint32)
 
 //go:noescape
 func obsdsigprocmask(how int32, new sigset) sigset
@@ -94,6 +95,8 @@ func nanotime1() int64
 //go:noescape
 func sigaltstack(new, old *stackt)
 
-func closeonexec(fd int32)
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32)
 
 func walltime() (sec int64, nsec int32)
+
+func issetugid() int32

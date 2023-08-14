@@ -253,6 +253,12 @@ type Sigset_t struct {
 
 const _C__NSIG = 0x41
 
+const (
+	SIG_BLOCK   = 0x1
+	SIG_UNBLOCK = 0x2
+	SIG_SETMASK = 0x4
+)
+
 type Siginfo struct {
 	Signo int32
 	Errno int32
@@ -328,6 +334,8 @@ type Taskstats struct {
 	Ac_exe_inode              uint64
 	Wpcopy_count              uint64
 	Wpcopy_delay_total        uint64
+	Irq_count                 uint64
+	Irq_delay_total           uint64
 }
 
 type cpuMask uint64
@@ -405,7 +413,7 @@ const (
 
 type SockaddrStorage struct {
 	Family uint16
-	_      [118]int8
+	Data   [118]byte
 	_      uint64
 }
 

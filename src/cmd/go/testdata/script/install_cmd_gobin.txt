@@ -3,8 +3,8 @@
 env GOBIN=gobin
 mkdir gobin
 go list -f '{{.Target}}' cmd/go
-stdout $GOROOT[/\\]bin[/\\]go$GOEXE
+stdout $GOROOT${/}bin${/}go$GOEXE
 
 # Check that tools are installed to $GOTOOLDIR, not $GOBIN.
 go list -f '{{.Target}}' cmd/compile
-stdout $GOROOT[/\\]pkg[/\\]tool[/\\]${GOOS}_${GOARCH}[/\\]compile$GOEXE
+stdout $GOROOT${/}pkg${/}tool${/}${GOOS}_${GOARCH}${/}compile$GOEXE

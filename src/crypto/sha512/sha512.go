@@ -153,17 +153,17 @@ func (d *digest) MarshalBinary() ([]byte, error) {
 	default:
 		return nil, errors.New("crypto/sha512: invalid hash function")
 	}
-	b = appendUint64(b, d.h[0])
-	b = appendUint64(b, d.h[1])
-	b = appendUint64(b, d.h[2])
-	b = appendUint64(b, d.h[3])
-	b = appendUint64(b, d.h[4])
-	b = appendUint64(b, d.h[5])
-	b = appendUint64(b, d.h[6])
-	b = appendUint64(b, d.h[7])
+	b = binary.BigEndian.AppendUint64(b, d.h[0])
+	b = binary.BigEndian.AppendUint64(b, d.h[1])
+	b = binary.BigEndian.AppendUint64(b, d.h[2])
+	b = binary.BigEndian.AppendUint64(b, d.h[3])
+	b = binary.BigEndian.AppendUint64(b, d.h[4])
+	b = binary.BigEndian.AppendUint64(b, d.h[5])
+	b = binary.BigEndian.AppendUint64(b, d.h[6])
+	b = binary.BigEndian.AppendUint64(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
-	b = appendUint64(b, d.len)
+	b = b[:len(b)+len(d.x)-d.nx] // already zero
+	b = binary.BigEndian.AppendUint64(b, d.len)
 	return b, nil
 }
 
@@ -195,12 +195,6 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	b, d.len = consumeUint64(b)
 	d.nx = int(d.len % chunk)
 	return nil
-}
-
-func appendUint64(b []byte, x uint64) []byte {
-	var a [8]byte
-	binary.BigEndian.PutUint64(a[:], x)
-	return append(b, a[:]...)
 }
 
 func consumeUint64(b []byte) ([]byte, uint64) {
@@ -308,19 +302,23 @@ func (d *digest) Sum(in []byte) []byte {
 func (d *digest) checkSum() [Size]byte {
 	// Padding. Add a 1 bit and 0 bits until 112 bytes mod 128.
 	len := d.len
-	var tmp [128]byte
+	var tmp [128 + 16]byte // padding + length buffer
 	tmp[0] = 0x80
+	var t uint64
 	if len%128 < 112 {
-		d.Write(tmp[0 : 112-len%128])
+		t = 112 - len%128
 	} else {
-		d.Write(tmp[0 : 128+112-len%128])
+		t = 128 + 112 - len%128
 	}
 
 	// Length in bits.
 	len <<= 3
-	binary.BigEndian.PutUint64(tmp[0:], 0) // upper 64 bits are always zero, because len variable has type uint64
-	binary.BigEndian.PutUint64(tmp[8:], len)
-	d.Write(tmp[0:16])
+	padlen := tmp[:t+16]
+	// Upper 64 bits are always zero, because len variable has type uint64,
+	// and tmp is already zeroed at that index, so we can skip updating it.
+	// binary.BigEndian.PutUint64(padlen[t+0:], 0)
+	binary.BigEndian.PutUint64(padlen[t+8:], len)
+	d.Write(padlen)
 
 	if d.nx != 0 {
 		panic("d.nx != 0")
