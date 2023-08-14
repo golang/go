@@ -229,7 +229,7 @@ func (c *ProgCache) readLoop(readLoopDone chan<- struct{}) {
 			if c.closing.Load() {
 				return // quietly
 			}
-			if errors.Is(err, io.EOF) {
+			if err == io.EOF {
 				c.mu.Lock()
 				inFlight := len(c.inFlight)
 				c.mu.Unlock()
