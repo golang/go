@@ -123,8 +123,7 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 
 	// 1-byte version, then 15 bytes of padding
 	var version int
-	var p []byte
-	if p = d.read(16); len(p) != 16 {
+	if p := d.read(16); len(p) != 16 {
 		return nil, errBadData
 	} else {
 		switch p[0] {
