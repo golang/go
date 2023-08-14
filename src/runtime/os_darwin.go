@@ -41,7 +41,12 @@ func semasleep(ns int64) int32 {
 	if ns >= 0 {
 		start = nanotime()
 	}
-	mp := getg().m
+	g := getg()
+	mp := g.m
+	if g == mp.gsignal {
+		// sema sleep/wakeup are implemented with pthreads, which are not async-signal-safe on Darwin.
+		throw("semasleep on Darwin signal stack")
+	}
 	pthread_mutex_lock(&mp.mutex)
 	for {
 		if mp.count > 0 {
@@ -70,6 +75,9 @@ func semasleep(ns int64) int32 {
 
 //go:nosplit
 func semawakeup(mp *m) {
+	if g := getg(); g == g.m.gsignal {
+		throw("semawakeup on Darwin signal stack")
+	}
 	pthread_mutex_lock(&mp.mutex)
 	mp.count++
 	if mp.count > 0 {
