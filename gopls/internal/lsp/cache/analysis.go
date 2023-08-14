@@ -707,10 +707,9 @@ func (an *analysisNode) cacheKey() [sha256.Size]byte {
 	// uses those fields, we account for them by hashing vdeps.
 
 	// type sizes
-	// This assertion is safe, but if a black-box implementation
-	// is ever needed, record Sizeof(*int) and Alignof(int64).
-	sz := m.TypesSizes.(*types.StdSizes)
-	fmt.Fprintf(hasher, "sizes: %d %d\n", sz.WordSize, sz.MaxAlign)
+	wordSize := an.m.TypesSizes.Sizeof(types.Typ[types.Int])
+	maxAlign := an.m.TypesSizes.Alignof(types.NewPointer(types.Typ[types.Int64]))
+	fmt.Fprintf(hasher, "sizes: %d %d\n", wordSize, maxAlign)
 
 	// metadata errors: used for 'compiles' field
 	fmt.Fprintf(hasher, "errors: %d", len(m.Errors))

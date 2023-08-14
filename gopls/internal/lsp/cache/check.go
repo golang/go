@@ -1401,8 +1401,9 @@ func localPackageKey(inputs typeCheckInputs) source.Hash {
 	}
 
 	// types sizes
-	sz := inputs.sizes.(*types.StdSizes)
-	fmt.Fprintf(hasher, "sizes: %d %d\n", sz.WordSize, sz.MaxAlign)
+	wordSize := inputs.sizes.Sizeof(types.Typ[types.Int])
+	maxAlign := inputs.sizes.Alignof(types.NewPointer(types.Typ[types.Int64]))
+	fmt.Fprintf(hasher, "sizes: %d %d\n", wordSize, maxAlign)
 
 	fmt.Fprintf(hasher, "relatedInformation: %t\n", inputs.relatedInformation)
 	fmt.Fprintf(hasher, "linkTarget: %s\n", inputs.linkTarget)
