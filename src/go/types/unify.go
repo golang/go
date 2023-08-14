@@ -427,13 +427,6 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	// x != y if we get here
 	assert(x != y)
 
-	// Type elements (array, slice, etc. elements) use emode for unification.
-	// Element types must match exactly if the types are used in an assignment.
-	emode := mode
-	if mode&assign != 0 {
-		emode |= exact
-	}
-
 	// If we don't require exact unification and both types are interfaces,
 	// one interface must have a subset of the methods of the other and
 	// corresponding method signatures must unify.
@@ -547,6 +540,13 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 			u.tracef("%s ≡ %s\t// swap", y, x)
 		}
 		x, y = y, x
+	}
+
+	// Type elements (array, slice, etc. elements) use emode for unification.
+	// Element types must match exactly if the types are used in an assignment.
+	emode := mode
+	if mode&assign != 0 {
+		emode |= exact
 	}
 
 	switch x := x.(type) {
