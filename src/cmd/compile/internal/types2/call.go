@@ -610,20 +610,17 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 			return // error already reported
 		}
 
-		// compute result signature: instantiate if needed
-		rsig = sig
+		// update result signature: instantiate if needed
 		if n > 0 {
 			rsig = check.instantiateSignature(call.Pos(), call.Fun, sig, targs[:n], xlist)
-		}
-
-		// Optimization: Only if the callee's parameter list was adjusted do we need to
-		// compute it from the adjusted list; otherwise we can simply use the result
-		// signature's parameter list. We only need the n type parameters and arguments
-		// of the callee.
-		if n > 0 && adjusted {
-			sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(tparams[:n], targs[:n]), nil, check.context()).(*Tuple)
-		} else {
-			sigParams = rsig.params
+			// If the callee's parameter list was adjusted we need to update (instantiate)
+			// it separately. Otherwise we can simply use the result signature's parameter
+			// list.
+			if adjusted {
+				sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(tparams[:n], targs[:n]), nil, check.context()).(*Tuple)
+			} else {
+				sigParams = rsig.params
+			}
 		}
 
 		// compute argument signatures: instantiate if needed
