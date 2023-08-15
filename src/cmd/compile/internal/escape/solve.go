@@ -21,7 +21,7 @@ func (b *batch) walkAll() {
 	//
 	// We walk once from each location (including the heap), and
 	// then re-enqueue each location on its transition from
-	// transient->!transient and !escapes->escapes, which can each
+	// !persists->persists and !escapes->escapes, which can each
 	// happen at most once. So we take Θ(len(e.allLocs)) walks.
 
 	// LIFO queue, has enough room for e.allLocs and e.heapLoc.
@@ -77,11 +77,10 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
 			// derefs at 0.
 			derefs = 0
 
-			// If l's address flows to a non-transient
-			// location, then l can't be transiently
-			// allocated.
-			if !root.transient && l.transient {
-				l.transient = false
+			// If l's address flows to a persistent location, then l needs
+			// to persist too.
+			if root.persists && !l.persists {
+				l.persists = true
 				enqueue(l)
 			}
 		}

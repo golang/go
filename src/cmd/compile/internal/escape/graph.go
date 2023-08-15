@@ -71,10 +71,10 @@ type location struct {
 	// allocated.
 	escapes bool
 
-	// transient reports whether the represented expression's
-	// address does not outlive the statement; that is, whether
-	// its storage can be immediately reused.
-	transient bool
+	// persists reports whether the represented expression's address
+	// outlives the statement; that is, whether its storage cannot be
+	// immediately reused.
+	persists bool
 
 	// paramEsc records the represented parameter's leak set.
 	paramEsc leaks
@@ -213,7 +213,7 @@ func (b *batch) oldLoc(n *ir.Name) *location {
 	return n.Canonical().Opt.(*location)
 }
 
-func (e *escape) newLoc(n ir.Node, transient bool) *location {
+func (e *escape) newLoc(n ir.Node, persists bool) *location {
 	if e.curfn == nil {
 		base.Fatalf("e.curfn isn't set")
 	}
@@ -230,7 +230,7 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 		n:         n,
 		curfn:     e.curfn,
 		loopDepth: e.loopDepth,
-		transient: transient,
+		persists:  persists,
 	}
 	e.allLocs = append(e.allLocs, loc)
 	if n != nil {
@@ -265,7 +265,7 @@ func (e *escape) teeHole(ks ...hole) hole {
 	// Given holes "l1 = _", "l2 = **_", "l3 = *_", ..., create a
 	// new temporary location ltmp, wire it into place, and return
 	// a hole for "ltmp = _".
-	loc := e.newLoc(nil, true)
+	loc := e.newLoc(nil, false)
 	for _, k := range ks {
 		// N.B., "p = &q" and "p = &tmp; tmp = q" are not
 		// semantically equivalent. To combine holes like "l1
@@ -285,7 +285,7 @@ func (e *escape) teeHole(ks ...hole) hole {
 // Its main effect is to prevent immediate reuse of temporary
 // variables introduced during Order.
 func (e *escape) later(k hole) hole {
-	loc := e.newLoc(nil, false)
+	loc := e.newLoc(nil, true)
 	e.flow(k, loc)
 	return loc.asHole()
 }

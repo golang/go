@@ -92,8 +92,9 @@ func (e *escape) stmt(n ir.Node) {
 		n := n.(*ir.RangeStmt)
 		base.Assert(!n.DistinctVars) // Should all be rewritten before escape analysis
 
-		// X is evaluated outside the loop.
-		tmp := e.newLoc(nil, false)
+		// X is evaluated outside the loop and persists until the loop
+		// terminates.
+		tmp := e.newLoc(nil, true)
 		e.expr(tmp.asHole(), n.X)
 
 		e.loopDepth++

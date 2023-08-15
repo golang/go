@@ -130,7 +130,7 @@ func Batch(fns []*ir.Func, recursive bool) {
 
 	var b batch
 	b.heapLoc.escapes = true
-	b.blankLoc.transient = true
+	b.heapLoc.persists = true
 
 	// Construct data-flow graph from syntax trees.
 	for _, fn := range fns {
@@ -185,14 +185,14 @@ func (b *batch) initFunc(fn *ir.Func) {
 
 	// Allocate locations for local variables.
 	for _, n := range fn.Dcl {
-		e.newLoc(n, false)
+		e.newLoc(n, true)
 	}
 
 	// Also for hidden parameters (e.g., the ".this" parameter to a
 	// method value wrapper).
 	if fn.OClosure == nil {
 		for _, n := range fn.ClosureVars {
-			e.newLoc(n.Canonical(), false)
+			e.newLoc(n.Canonical(), true)
 		}
 	}
 
@@ -324,7 +324,7 @@ func (b *batch) finish(fns []*ir.Func) {
 				base.WarnfAt(n.Pos(), "%v does not escape", n)
 			}
 			n.SetEsc(ir.EscNone)
-			if loc.transient {
+			if !loc.persists {
 				switch n.Op() {
 				case ir.OCLOSURE:
 					n := n.(*ir.ClosureExpr)

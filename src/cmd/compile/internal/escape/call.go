@@ -430,7 +430,7 @@ func (e *escape) copyExpr(pos src.XPos, expr ir.Node, init *ir.Nodes, fn *ir.Fun
 	init.Append(stmts...)
 
 	if analyze {
-		e.newLoc(tmp, false)
+		e.newLoc(tmp, true)
 		e.stmts(stmts)
 	}
 
