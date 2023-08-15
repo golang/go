@@ -27,6 +27,8 @@ func RecordClientInfo(params *protocol.ParamInitialize) {
 		switch params.ClientInfo.Name {
 		case "Visual Studio Code":
 			client = "gopls/client:vscode"
+		case "Visual Studio Code - Insiders":
+			client = "gopls/client:vscode-insiders"
 		case "VSCodium":
 			client = "gopls/client:vscodium"
 		case "code-server":
@@ -47,6 +49,10 @@ func RecordClientInfo(params *protocol.ParamInitialize) {
 		case "Sublime Text LSP":
 			// https://github.com/sublimelsp/LSP/blob/e608f878e7e9dd34aabe4ff0462540fadcd88fcc/plugin/core/sessions.py#L493
 			client = "gopls/client:sublimetext"
+		default:
+			// at least accumulate the client name locally
+			counter.New(fmt.Sprintf("gopls/client-other:%s", params.ClientInfo.Name)).Inc()
+			// but also record client:other
 		}
 	}
 	counter.Inc(client)
