@@ -55,11 +55,6 @@ const (
 	// the core types, if any, of non-local (unbound) type parameters.
 	enableCoreTypeUnification = true
 
-	// If enableInterfaceInference is set, type inference uses
-	// shared methods for improved type inference involving
-	// interfaces.
-	enableInterfaceInference = true
-
 	// If traceInference is set, unification will print a trace of its operation.
 	// Interpretation of trace:
 	//   x ≡ y    attempt to unify types x and y
@@ -83,15 +78,16 @@ type unifier struct {
 	// that inferring the type for a given type parameter P will
 	// automatically infer the same type for all other parameters
 	// unified (joined) with P.
-	handles map[*TypeParam]*Type
-	depth   int // recursion depth during unification
+	handles                  map[*TypeParam]*Type
+	depth                    int  // recursion depth during unification
+	enableInterfaceInference bool // use shared methods for better inference
 }
 
 // newUnifier returns a new unifier initialized with the given type parameter
 // and corresponding type argument lists. The type argument list may be shorter
 // than the type parameter list, and it may contain nil types. Matching type
 // parameters and arguments must have the same index.
-func newUnifier(tparams []*TypeParam, targs []Type) *unifier {
+func newUnifier(tparams []*TypeParam, targs []Type, enableInterfaceInference bool) *unifier {
 	assert(len(tparams) >= len(targs))
 	handles := make(map[*TypeParam]*Type, len(tparams))
 	// Allocate all handles up-front: in a correct program, all type parameters
@@ -105,7 +101,7 @@ func newUnifier(tparams []*TypeParam, targs []Type) *unifier {
 		}
 		handles[x] = &t
 	}
-	return &unifier{handles, 0}
+	return &unifier{handles, 0, enableInterfaceInference}
 }
 
 // unifyMode controls the behavior of the unifier.
@@ -341,7 +337,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	// we will fail at function instantiation or argument assignment time.
 	//
 	// If we have at least one defined type, there is one in y.
-	if ny, _ := y.(*Named); mode&exact == 0 && ny != nil && isTypeLit(x) && !(enableInterfaceInference && IsInterface(x)) {
+	if ny, _ := y.(*Named); mode&exact == 0 && ny != nil && isTypeLit(x) && !(u.enableInterfaceInference && IsInterface(x)) {
 		if traceInference {
 			u.tracef("%s ≡ under %s", x, ny)
 		}
@@ -432,12 +428,12 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	// x != y if we get here
 	assert(x != y)
 
-	// If EnableInterfaceInference is set and we don't require exact unification,
+	// If u.EnableInterfaceInference is set and we don't require exact unification,
 	// if both types are interfaces, one interface must have a subset of the
 	// methods of the other and corresponding method signatures must unify.
 	// If only one type is an interface, all its methods must be present in the
 	// other type and corresponding method signatures must unify.
-	if enableInterfaceInference && mode&exact == 0 {
+	if u.enableInterfaceInference && mode&exact == 0 {
 		// One or both interfaces may be defined types.
 		// Look under the name, but not under type parameters (go.dev/issue/60564).
 		xi := asInterface(x)
@@ -634,7 +630,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		}
 
 	case *Interface:
-		assert(!enableInterfaceInference || mode&exact != 0) // handled before this switch
+		assert(!u.enableInterfaceInference || mode&exact != 0) // handled before this switch
 
 		// Two interface types unify if they have the same set of methods with
 		// the same names, and corresponding function types unify.
