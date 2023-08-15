@@ -75,6 +75,12 @@ func TestChown(t *testing.T) {
 	t.Log("groups: ", groups)
 	for _, g := range groups {
 		if err = Chown(f.Name(), -1, g); err != nil {
+			if testenv.SyscallIsNotSupported(err) {
+				t.Logf("chown %s -1 %d: %s (error ignored)", f.Name(), g, err)
+				// Since the Chown call failed, the file should be unmodified.
+				checkUidGid(t, f.Name(), int(sys.Uid), gid)
+				continue
+			}
 			t.Fatalf("chown %s -1 %d: %s", f.Name(), g, err)
 		}
 		checkUidGid(t, f.Name(), int(sys.Uid), g)
@@ -123,6 +129,12 @@ func TestFileChown(t *testing.T) {
 	t.Log("groups: ", groups)
 	for _, g := range groups {
 		if err = f.Chown(-1, g); err != nil {
+			if testenv.SyscallIsNotSupported(err) {
+				t.Logf("chown %s -1 %d: %s (error ignored)", f.Name(), g, err)
+				// Since the Chown call failed, the file should be unmodified.
+				checkUidGid(t, f.Name(), int(sys.Uid), gid)
+				continue
+			}
 			t.Fatalf("fchown %s -1 %d: %s", f.Name(), g, err)
 		}
 		checkUidGid(t, f.Name(), int(sys.Uid), g)
@@ -181,12 +193,22 @@ func TestLchown(t *testing.T) {
 	t.Log("groups: ", groups)
 	for _, g := range groups {
 		if err = Lchown(linkname, -1, g); err != nil {
+			if testenv.SyscallIsNotSupported(err) {
+				t.Logf("lchown %s -1 %d: %s (error ignored)", f.Name(), g, err)
+				// Since the Lchown call failed, the file should be unmodified.
+				checkUidGid(t, f.Name(), int(sys.Uid), gid)
+				continue
+			}
 			t.Fatalf("lchown %s -1 %d: %s", linkname, g, err)
 		}
 		checkUidGid(t, linkname, int(sys.Uid), g)
 
 		// Check that link target's gid is unchanged.
 		checkUidGid(t, f.Name(), int(sys.Uid), int(sys.Gid))
+
+		if err = Lchown(linkname, -1, gid); err != nil {
+			t.Fatalf("lchown %s -1 %d: %s", f.Name(), gid, err)
+		}
 	}
 }
 
