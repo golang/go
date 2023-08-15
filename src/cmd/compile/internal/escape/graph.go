@@ -66,15 +66,8 @@ type location struct {
 	// in the walk queue.
 	queued bool
 
-	// escapes reports whether the represented variable's address
-	// escapes; that is, whether the variable must be heap
-	// allocated.
-	escapes bool
-
-	// persists reports whether the represented expression's address
-	// outlives the statement; that is, whether its storage cannot be
-	// immediately reused.
-	persists bool
+	// attrs is a bitset of location attributes.
+	attrs locAttr
 
 	// paramEsc records the represented parameter's leak set.
 	paramEsc leaks
@@ -83,6 +76,21 @@ type location struct {
 	reassigned bool // has this variable been reassigned?
 	addrtaken  bool // has this variable's address been taken?
 }
+
+type locAttr uint8
+
+const (
+	// attrEscapes indicates whether the represented variable's address
+	// escapes; that is, whether the variable must be heap allocated.
+	attrEscapes locAttr = 1 << iota
+
+	// attrPersists indicates whether the represented expression's
+	// address outlives the statement; that is, whether its storage
+	// cannot be immediately reused.
+	attrPersists
+)
+
+func (l *location) hasAttr(attr locAttr) bool { return l.attrs&attr != 0 }
 
 // An edge represents an assignment edge between two Go variables.
 type edge struct {
@@ -100,7 +108,7 @@ func (l *location) leakTo(sink *location, derefs int) {
 	// If sink is a result parameter that doesn't escape (#44614)
 	// and we can fit return bits into the escape analysis tag,
 	// then record as a result leak.
-	if !sink.escapes && sink.isName(ir.PPARAMOUT) && sink.curfn == l.curfn {
+	if !sink.hasAttr(attrEscapes) && sink.isName(ir.PPARAMOUT) && sink.curfn == l.curfn {
 		ri := sink.resultIndex - 1
 		if ri < numEscResults {
 			// Leak to result parameter.
@@ -182,7 +190,7 @@ func (b *batch) flow(k hole, src *location) {
 	if dst == src && k.derefs >= 0 { // dst = dst, dst = *dst, ...
 		return
 	}
-	if dst.escapes && k.derefs < 0 { // dst = &src
+	if dst.hasAttr(attrEscapes) && k.derefs < 0 { // dst = &src
 		if base.Flag.LowerM >= 2 || logopt.Enabled() {
 			pos := base.FmtPos(src.n.Pos())
 			if base.Flag.LowerM >= 2 {
@@ -195,7 +203,7 @@ func (b *batch) flow(k hole, src *location) {
 			}
 
 		}
-		src.escapes = true
+		src.attrs |= attrEscapes
 		return
 	}
 
@@ -230,7 +238,9 @@ func (e *escape) newLoc(n ir.Node, persists bool) *location {
 		n:         n,
 		curfn:     e.curfn,
 		loopDepth: e.loopDepth,
-		persists:  persists,
+	}
+	if persists {
+		loc.attrs |= attrPersists
 	}
 	e.allLocs = append(e.allLocs, loc)
 	if n != nil {

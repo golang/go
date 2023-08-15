@@ -129,8 +129,7 @@ func Batch(fns []*ir.Func, recursive bool) {
 	}
 
 	var b batch
-	b.heapLoc.escapes = true
-	b.heapLoc.persists = true
+	b.heapLoc.attrs = attrEscapes | attrPersists
 
 	// Construct data-flow graph from syntax trees.
 	for _, fn := range fns {
@@ -301,7 +300,7 @@ func (b *batch) finish(fns []*ir.Func) {
 		// TODO(mdempsky): Update tests to expect this.
 		goDeferWrapper := n.Op() == ir.OCLOSURE && n.(*ir.ClosureExpr).Func.Wrapper()
 
-		if loc.escapes {
+		if loc.hasAttr(attrEscapes) {
 			if n.Op() == ir.ONAME {
 				if base.Flag.CompilingRuntime {
 					base.ErrorfAt(n.Pos(), 0, "%v escapes to heap, not allowed in runtime", n)
@@ -324,7 +323,7 @@ func (b *batch) finish(fns []*ir.Func) {
 				base.WarnfAt(n.Pos(), "%v does not escape", n)
 			}
 			n.SetEsc(ir.EscNone)
-			if !loc.persists {
+			if !loc.hasAttr(attrPersists) {
 				switch n.Op() {
 				case ir.OCLOSURE:
 					n := n.(*ir.ClosureExpr)
@@ -453,7 +452,7 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 	esc := loc.paramEsc
 	esc.Optimize()
 
-	if diagnose && !loc.escapes {
+	if diagnose && !loc.hasAttr(attrEscapes) {
 		if esc.Empty() {
 			base.WarnfAt(f.Pos, "%v does not escape", name())
 		}

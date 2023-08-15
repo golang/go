@@ -79,8 +79,8 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
 
 			// If l's address flows to a persistent location, then l needs
 			// to persist too.
-			if root.persists && !l.persists {
-				l.persists = true
+			if root.hasAttr(attrPersists) && !l.hasAttr(attrPersists) {
+				l.attrs |= attrPersists
 				enqueue(l)
 			}
 		}
@@ -92,7 +92,7 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
 			// that value flow for tagging the function
 			// later.
 			if l.isName(ir.PPARAM) {
-				if (logopt.Enabled() || base.Flag.LowerM >= 2) && !l.escapes {
+				if (logopt.Enabled() || base.Flag.LowerM >= 2) && !l.hasAttr(attrEscapes) {
 					if base.Flag.LowerM >= 2 {
 						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", base.FmtPos(l.n.Pos()), l.n, b.explainLoc(root), derefs)
 					}
@@ -109,7 +109,7 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
 			// If l's address flows somewhere that
 			// outlives it, then l needs to be heap
 			// allocated.
-			if addressOf && !l.escapes {
+			if addressOf && !l.hasAttr(attrEscapes) {
 				if logopt.Enabled() || base.Flag.LowerM >= 2 {
 					if base.Flag.LowerM >= 2 {
 						fmt.Printf("%s: %v escapes to heap:\n", base.FmtPos(l.n.Pos()), l.n)
@@ -120,14 +120,14 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
 						logopt.LogOpt(l.n.Pos(), "escape", "escape", ir.FuncName(e_curfn), fmt.Sprintf("%v escapes to heap", l.n), explanation)
 					}
 				}
-				l.escapes = true
+				l.attrs |= attrEscapes
 				enqueue(l)
 				continue
 			}
 		}
 
 		for i, edge := range l.edges {
-			if edge.src.escapes {
+			if edge.src.hasAttr(attrEscapes) {
 				continue
 			}
 			d := derefs + edge.derefs
@@ -227,7 +227,7 @@ func (b *batch) explainLoc(l *location) string {
 // other's lifetime if stack allocated.
 func (b *batch) outlives(l, other *location) bool {
 	// The heap outlives everything.
-	if l.escapes {
+	if l.hasAttr(attrEscapes) {
 		return true
 	}
 
