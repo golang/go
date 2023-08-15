@@ -130,6 +130,7 @@ func Batch(fns []*ir.Func, recursive bool) {
 
 	var b batch
 	b.heapLoc.escapes = true
+	b.blankLoc.transient = true
 
 	// Construct data-flow graph from syntax trees.
 	for _, fn := range fns {
