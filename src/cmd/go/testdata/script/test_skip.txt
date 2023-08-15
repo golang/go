@@ -26,6 +26,7 @@ go test -v -skip Example skip_test.go
 stdout RUN.*Test1
 stdout RUN.*Test2
 stdout RUN.*Test2/3
+! stdout ExampleTest1
 
 -- skip_test.go --
 package skip_test
