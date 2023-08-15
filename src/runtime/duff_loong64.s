@@ -4,7 +4,7 @@
 
 #include "textflag.h"
 
-TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
+TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0
 	MOVV	R0, (R20)
 	ADDV	$8, R20
 	MOVV	R0, (R20)
@@ -263,7 +263,7 @@ TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
 	ADDV	$8, R20
 	RET
 
-TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0
+TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0
 	MOVV	(R20), R30
 	ADDV	$8, R20
 	MOVV	R30, (R21)
