@@ -88,6 +88,17 @@ const (
 	// address outlives the statement; that is, whether its storage
 	// cannot be immediately reused.
 	attrPersists
+
+	// attrMutates indicates whether pointers that are reachable from
+	// this location may have their addressed memory mutated. This is
+	// used to detect string->[]byte conversions that can be safely
+	// optimized away.
+	attrMutates
+
+	// attrCalls indicates whether closures that are reachable from this
+	// location may be called without tracking their results. This is
+	// used to better optimize indirect closure calls.
+	attrCalls
 )
 
 func (l *location) hasAttr(attr locAttr) bool { return l.attrs&attr != 0 }
@@ -111,6 +122,35 @@ func (l *location) leakTo(sink *location, derefs int) {
 	if !sink.hasAttr(attrEscapes) && sink.isName(ir.PPARAMOUT) && sink.curfn == l.curfn {
 		ri := sink.resultIndex - 1
 		if ri < numEscResults {
+			// Leak to result parameter.
+			l.paramEsc.AddResult(ri, derefs)
+			return
+		}
+	}
+
+	// Otherwise, record as heap leak.
+	l.paramEsc.AddHeap(derefs)
+}
+
+// leakTo records that parameter l leaks to sink.
+func (b *batch) leakTo(l, sink *location, derefs int) {
+	if (logopt.Enabled() || base.Flag.LowerM >= 2) && !l.hasAttr(attrEscapes) {
+		if base.Flag.LowerM >= 2 {
+			fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", base.FmtPos(l.n.Pos()), l.n, b.explainLoc(sink), derefs)
+		}
+		explanation := b.explainPath(sink, l)
+		if logopt.Enabled() {
+			var e_curfn *ir.Func // TODO(mdempsky): Fix.
+			logopt.LogOpt(l.n.Pos(), "leak", "escape", ir.FuncName(e_curfn),
+				fmt.Sprintf("parameter %v leaks to %s with derefs=%d", l.n, b.explainLoc(sink), derefs), explanation)
+		}
+	}
+
+	// If sink is a result parameter that doesn't escape (#44614)
+	// and we can fit return bits into the escape analysis tag,
+	// then record as a result leak.
+	if !sink.hasAttr(attrEscapes) && sink.isName(ir.PPARAMOUT) && sink.curfn == l.curfn {
+		if ri := sink.resultIndex - 1; ri < numEscResults {
 			// Leak to result parameter.
 			l.paramEsc.AddResult(ri, derefs)
 			return
@@ -203,7 +243,7 @@ func (b *batch) flow(k hole, src *location) {
 			}
 
 		}
-		src.attrs |= attrEscapes
+		src.attrs |= attrEscapes | attrPersists | attrMutates | attrCalls
 		return
 	}
 
@@ -212,11 +252,13 @@ func (b *batch) flow(k hole, src *location) {
 }
 
 func (b *batch) heapHole() hole    { return b.heapLoc.asHole() }
+func (b *batch) mutatorHole() hole { return b.mutatorLoc.asHole() }
+func (b *batch) calleeHole() hole  { return b.calleeLoc.asHole() }
 func (b *batch) discardHole() hole { return b.blankLoc.asHole() }
 
 func (b *batch) oldLoc(n *ir.Name) *location {
 	if n.Canonical().Opt == nil {
-		base.Fatalf("%v has no location", n)
+		base.FatalfAt(n.Pos(), "%v has no location", n)
 	}
 	return n.Canonical().Opt.(*location)
 }
@@ -231,7 +273,7 @@ func (e *escape) newLoc(n ir.Node, persists bool) *location {
 
 	if n != nil && n.Op() == ir.ONAME {
 		if canon := n.(*ir.Name).Canonical(); n != canon {
-			base.Fatalf("newLoc on non-canonical %v (canonical is %v)", n, canon)
+			base.FatalfAt(n.Pos(), "newLoc on non-canonical %v (canonical is %v)", n, canon)
 		}
 	}
 	loc := &location{
@@ -249,11 +291,11 @@ func (e *escape) newLoc(n ir.Node, persists bool) *location {
 			if n.Class == ir.PPARAM && n.Curfn == nil {
 				// ok; hidden parameter
 			} else if n.Curfn != e.curfn {
-				base.Fatalf("curfn mismatch: %v != %v for %v", n.Curfn, e.curfn, n)
+				base.FatalfAt(n.Pos(), "curfn mismatch: %v != %v for %v", n.Curfn, e.curfn, n)
 			}
 
 			if n.Opt != nil {
-				base.Fatalf("%v already has a location", n)
+				base.FatalfAt(n.Pos(), "%v already has a location", n)
 			}
 			n.Opt = loc
 		}

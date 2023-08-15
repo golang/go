@@ -68,17 +68,8 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 		var fn *ir.Name
 		switch call.Op() {
 		case ir.OCALLFUNC:
-			// If we have a direct call to a closure (not just one we were
-			// able to statically resolve with ir.StaticValue), mark it as
-			// such so batch.outlives can optimize the flow results.
-			if call.X.Op() == ir.OCLOSURE {
-				call.X.(*ir.ClosureExpr).Func.SetClosureCalled(true)
-			}
-
 			v := ir.StaticValue(call.X)
 			fn = ir.StaticCalleeName(v)
-		case ir.OCALLMETH:
-			base.FatalfAt(call.Pos(), "OCALLMETH missed by typecheck")
 		}
 
 		fntype := call.X.Type()
@@ -88,7 +79,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 
 		if ks != nil && fn != nil && e.inMutualBatch(fn) {
 			for i, result := range fn.Type().Results().FieldSlice() {
-				e.expr(ks[i], ir.AsNode(result.Nname))
+				e.expr(ks[i], result.Nname.(*ir.Name))
 			}
 		}
 
@@ -99,7 +90,20 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 			// Note: We use argument and not argumentFunc, because while
 			// call.X here may be an argument to runtime.{new,defer}proc,
 			// it's not an argument to fn itself.
-			argument(e.discardHole(), &call.X)
+			calleeK := e.discardHole()
+			if fn == nil { // unknown callee
+				for _, k := range ks {
+					if k.dst != &e.blankLoc {
+						// The results flow somewhere, but we don't statically
+						// know the callee function. If a closure flows here, we
+						// need to conservatively assume its results might flow to
+						// the heap.
+						calleeK = e.calleeHole()
+						break
+					}
+				}
+			}
+			argument(calleeK, &call.X)
 		} else {
 			recvp = &call.X.(*ir.SelectorExpr).X
 		}
@@ -139,7 +143,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 		// it has enough capacity. Alternatively, a new heap
 		// slice might be allocated, and all slice elements
 		// might flow to heap.
-		appendeeK := ks[0]
+		appendeeK := e.teeHole(ks[0], e.mutatorHole())
 		if args[0].Type().Elem().HasPointers() {
 			appendeeK = e.teeHole(appendeeK, e.heapHole().deref(call, "appendee slice"))
 		}
@@ -160,7 +164,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 
 	case ir.OCOPY:
 		call := call.(*ir.BinaryExpr)
-		argument(e.discardHole(), &call.X)
+		argument(e.mutatorHole(), &call.X)
 
 		copiedK := e.discardHole()
 		if call.Y.Type().IsSlice() && call.Y.Type().Elem().HasPointers() {
@@ -185,9 +189,13 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 		}
 		argumentRType(&call.RType)
 
-	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE, ir.OCLEAR:
+	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE:
 		call := call.(*ir.UnaryExpr)
 		argument(e.discardHole(), &call.X)
+
+	case ir.OCLEAR:
+		call := call.(*ir.UnaryExpr)
+		argument(e.mutatorHole(), &call.X)
 
 	case ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
 		call := call.(*ir.UnaryExpr)
@@ -251,6 +259,7 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 	fn := ir.NewClosureFunc(n.Pos(), true)
 	fn.SetWrapper(true)
 	fn.Nname.SetType(types.NewSignature(nil, nil, nil))
+	fn.SetEsc(escFuncTagged) // no params; effectively tagged already
 	fn.Body = []ir.Node{call}
 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
 		// If the callee is a named function, link to the original callee.
@@ -310,9 +319,11 @@ func (e *escape) rewriteArgument(argp *ir.Node, init *ir.Nodes, call ir.Node, fn
 		// Create and declare a new pointer-typed temp variable.
 		tmp := e.wrapExpr(arg.Pos(), &arg.X, init, call, wrapper)
 
+		k := e.mutatorHole()
 		if pragma&ir.UintptrEscapes != 0 {
-			e.flow(e.heapHole().note(arg, "//go:uintptrescapes"), e.oldLoc(tmp))
+			k = e.heapHole().note(arg, "//go:uintptrescapes")
 		}
+		e.flow(k, e.oldLoc(tmp))
 
 		if pragma&ir.UintptrKeepAlive != 0 {
 			call := call.(*ir.CallExpr)
@@ -454,10 +465,16 @@ func (e *escape) tagHole(ks []hole, fn *ir.Name, param *types.Field) hole {
 	// Call to previously tagged function.
 
 	var tagKs []hole
-
 	esc := parseLeaks(param.Note)
+
 	if x := esc.Heap(); x >= 0 {
 		tagKs = append(tagKs, e.heapHole().shift(x))
+	}
+	if x := esc.Mutator(); x >= 0 {
+		tagKs = append(tagKs, e.mutatorHole().shift(x))
+	}
+	if x := esc.Callee(); x >= 0 {
+		tagKs = append(tagKs, e.calleeHole().shift(x))
 	}
 
 	if ks != nil {

@@ -215,7 +215,7 @@ const (
 	funcExportInline             // include inline body in export data
 	funcInstrumentBody           // add race/msan/asan instrumentation during SSA construction
 	funcOpenCodedDeferDisallowed // can't do open-coded defers
-	funcClosureCalled            // closure is only immediately called; used by escape analysis
+	funcClosureResultsLost       // closure is called indirectly and we lost track of its results; used by escape analysis
 	funcPackageInit              // compiler emitted .init func for package
 )
 
@@ -237,7 +237,7 @@ func (f *Func) InlinabilityChecked() bool      { return f.flags&funcInlinability
 func (f *Func) ExportInline() bool             { return f.flags&funcExportInline != 0 }
 func (f *Func) InstrumentBody() bool           { return f.flags&funcInstrumentBody != 0 }
 func (f *Func) OpenCodedDeferDisallowed() bool { return f.flags&funcOpenCodedDeferDisallowed != 0 }
-func (f *Func) ClosureCalled() bool            { return f.flags&funcClosureCalled != 0 }
+func (f *Func) ClosureResultsLost() bool       { return f.flags&funcClosureResultsLost != 0 }
 func (f *Func) IsPackageInit() bool            { return f.flags&funcPackageInit != 0 }
 
 func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
@@ -253,7 +253,7 @@ func (f *Func) SetInlinabilityChecked(b bool)      { f.flags.set(funcInlinabilit
 func (f *Func) SetExportInline(b bool)             { f.flags.set(funcExportInline, b) }
 func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentBody, b) }
 func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
-func (f *Func) SetClosureCalled(b bool)            { f.flags.set(funcClosureCalled, b) }
+func (f *Func) SetClosureResultsLost(b bool)       { f.flags.set(funcClosureResultsLost, b) }
 func (f *Func) SetIsPackageInit(b bool)            { f.flags.set(funcPackageInit, b) }
 
 func (f *Func) SetWBPos(pos src.XPos) {

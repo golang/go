@@ -9,18 +9,18 @@
 
 package foo
 
-func small(a []int) int { // ERROR "can inline small with cost .* as:.*" "a does not escape"
+func small(a []int) int { // ERROR "can inline small with cost .* as:.*" "a does not escape" "does not mutate param: a" "does not call param: a"
 	// Cost 16 body (need cost < 20).
 	// See cmd/compile/internal/gc/inl.go:inlineBigFunction*
 	return a[0] + a[1] + a[2] + a[3]
 }
-func medium(a []int) int { // ERROR "can inline medium with cost .* as:.*" "a does not escape"
+func medium(a []int) int { // ERROR "can inline medium with cost .* as:.*" "a does not escape" "does not mutate param: a" "does not call param: a"
 	// Cost 32 body (need cost > 20 and cost < 80).
 	// See cmd/compile/internal/gc/inl.go:inlineBigFunction*
 	return a[0] + a[1] + a[2] + a[3] + a[4] + a[5] + a[6] + a[7]
 }
 
-func f(a []int) int { // ERROR "cannot inline f:.*" "a does not escape" "function f considered 'big'"
+func f(a []int) int { // ERROR "cannot inline f:.*" "a does not escape" "function f considered 'big'" "mutates param: a derefs=0" "does not call param: a"
 	// Add lots of nodes to f's body. We need >5000.
 	// See cmd/compile/internal/gc/inl.go:inlineBigFunction*
 	a[0] = 0
