@@ -24911,8 +24911,8 @@ var opcodeTable = [...]opInfo{
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65536}, // R17
-				{1, 8},     // R4
+				{0, 4194304}, // R23
+				{1, 8388608}, // R24
 			},
 		},
 	},
@@ -24923,8 +24923,8 @@ var opcodeTable = [...]opInfo{
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 131072}, // R18
-				{1, 65536},  // R17
+				{0, 1048576}, // R21
+				{1, 4194304}, // R23
 			},
 		},
 	},
@@ -24935,8 +24935,8 @@ var opcodeTable = [...]opInfo{
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 262144}, // R19
-				{1, 131072}, // R18
+				{0, 524288},  // R20
+				{1, 1048576}, // R21
 			},
 		},
 	},

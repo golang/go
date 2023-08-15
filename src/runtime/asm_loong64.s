@@ -214,7 +214,7 @@ noswitch:
 
 // Called during function prolog when more stack is needed.
 // Caller has already loaded:
-// loong64: R5: LR
+// loong64: R31: LR
 //
 // The traceback routines see morestack on a g0 as being
 // the top of a stack (for example, morestack calling newstack
@@ -238,12 +238,12 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Set g->sched to context in f.
 	MOVV	R3, (g_sched+gobuf_sp)(g)
 	MOVV	R1, (g_sched+gobuf_pc)(g)
-	MOVV	R5, (g_sched+gobuf_lr)(g)
+	MOVV	R31, (g_sched+gobuf_lr)(g)
 	MOVV	REGCTXT, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
-	MOVV	R5, (m_morebuf+gobuf_pc)(R7)	// f's caller's PC
+	MOVV	R31, (m_morebuf+gobuf_pc)(R7)	// f's caller's PC
 	MOVV	R3, (m_morebuf+gobuf_sp)(R7)	// f's caller's SP
 	MOVV	g, (m_morebuf+gobuf_g)(R7)
 
@@ -775,70 +775,70 @@ TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
 // then tail call to the corresponding runtime handler.
 // The tail call makes these stubs disappear in backtraces.
 TEXT runtime·panicIndex(SB),NOSPLIT,$0-16
-	MOVV	R19, x+0(FP)
-	MOVV	R18, y+8(FP)
+	MOVV	R20, x+0(FP)
+	MOVV	R21, y+8(FP)
 	JMP	runtime·goPanicIndex(SB)
 TEXT runtime·panicIndexU(SB),NOSPLIT,$0-16
-	MOVV	R19, x+0(FP)
-	MOVV	R18, y+8(FP)
+	MOVV	R20, x+0(FP)
+	MOVV	R21, y+8(FP)
 	JMP	runtime·goPanicIndexU(SB)
 TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-16
-	MOVV	R18, x+0(FP)
-	MOVV	R17, y+8(FP)
+	MOVV	R21, x+0(FP)
+	MOVV	R23, y+8(FP)
 	JMP	runtime·goPanicSliceAlen(SB)
 TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-16
-	MOVV	R18, x+0(FP)
-	MOVV	R17, y+8(FP)
+	MOVV	R21, x+0(FP)
+	MOVV	R23, y+8(FP)
 	JMP	runtime·goPanicSliceAlenU(SB)
 TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-16
-	MOVV	R18, x+0(FP)
-	MOVV	R17, y+8(FP)
+	MOVV	R21, x+0(FP)
+	MOVV	R23, y+8(FP)
 	JMP	runtime·goPanicSliceAcap(SB)
 TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-16
-	MOVV	R18, x+0(FP)
-	MOVV	R17, y+8(FP)
+	MOVV	R21, x+0(FP)
+	MOVV	R23, y+8(FP)
 	JMP	runtime·goPanicSliceAcapU(SB)
 TEXT runtime·panicSliceB(SB),NOSPLIT,$0-16
-	MOVV	R19, x+0(FP)
-	MOVV	R18, y+8(FP)
+	MOVV	R20, x+0(FP)
+	MOVV	R21, y+8(FP)
 	JMP	runtime·goPanicSliceB(SB)
 TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-16
-	MOVV	R19, x+0(FP)
-	MOVV	R18, y+8(FP)
+	MOVV	R20, x+0(FP)
+	MOVV	R21, y+8(FP)
 	JMP	runtime·goPanicSliceBU(SB)
 TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-16
-	MOVV	R17, x+0(FP)
-	MOVV	R4, y+8(FP)
+	MOVV	R23, x+0(FP)
+	MOVV	R24, y+8(FP)
 	JMP	runtime·goPanicSlice3Alen(SB)
 TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-16
-	MOVV	R17, x+0(FP)
-	MOVV	R4, y+8(FP)
+	MOVV	R23, x+0(FP)
+	MOVV	R24, y+8(FP)
 	JMP	runtime·goPanicSlice3AlenU(SB)
 TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-16
-	MOVV	R17, x+0(FP)
-	MOVV	R4, y+8(FP)
+	MOVV	R23, x+0(FP)
+	MOVV	R24, y+8(FP)
 	JMP	runtime·goPanicSlice3Acap(SB)
 TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-16
-	MOVV	R17, x+0(FP)
-	MOVV	R4, y+8(FP)
+	MOVV	R23, x+0(FP)
+	MOVV	R24, y+8(FP)
 	JMP	runtime·goPanicSlice3AcapU(SB)
 TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-16
-	MOVV	R18, x+0(FP)
-	MOVV	R17, y+8(FP)
+	MOVV	R21, x+0(FP)
+	MOVV	R23, y+8(FP)
 	JMP	runtime·goPanicSlice3B(SB)
 TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-16
-	MOVV	R18, x+0(FP)
-	MOVV	R17, y+8(FP)
+	MOVV	R21, x+0(FP)
+	MOVV	R23, y+8(FP)
 	JMP	runtime·goPanicSlice3BU(SB)
 TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-16
-	MOVV	R19, x+0(FP)
-	MOVV	R18, y+8(FP)
+	MOVV	R20, x+0(FP)
+	MOVV	R21, y+8(FP)
 	JMP	runtime·goPanicSlice3C(SB)
 TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
-	MOVV	R19, x+0(FP)
-	MOVV	R18, y+8(FP)
+	MOVV	R20, x+0(FP)
+	MOVV	R21, y+8(FP)
 	JMP	runtime·goPanicSlice3CU(SB)
 TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
-	MOVV	R17, x+0(FP)
-	MOVV	R4, y+8(FP)
+	MOVV	R23, x+0(FP)
+	MOVV	R24, y+8(FP)
 	JMP	runtime·goPanicSliceConvert(SB)
