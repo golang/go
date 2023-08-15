@@ -195,7 +195,7 @@ There is no plan to remove this setting.
 ### Go 1.18
 
 Go 1.18 removed support for SHA1 in most X.509 certificates,
-controlled by the [`x509sha1` setting](/crypto/x509#InsecureAlgorithmError).
+controlled by the [`x509sha1` setting](/pkg/crypto/x509#InsecureAlgorithmError).
 This setting will be removed in a future release, Go 1.22 at the earliest.
 
 ### Go 1.10
