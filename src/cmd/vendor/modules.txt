@@ -1,5 +1,5 @@
-# github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26
-## explicit; go 1.18
+# github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17
+## explicit; go 1.19
 github.com/google/pprof/driver
 github.com/google/pprof/internal/binutils
 github.com/google/pprof/internal/driver
@@ -14,8 +14,8 @@ github.com/google/pprof/internal/transport
 github.com/google/pprof/profile
 github.com/google/pprof/third_party/d3flamegraph
 github.com/google/pprof/third_party/svgpan
-# github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2
-## explicit; go 1.12
+# github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab
+## explicit; go 1.13
 github.com/ianlancetaylor/demangle
 # golang.org/x/arch v0.4.0
 ## explicit; go 1.17
