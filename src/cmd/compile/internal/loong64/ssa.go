@@ -144,6 +144,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r
 		ssagen.AddrAuto(&p.To, v)
+	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
+		ssagen.CheckArgReg(v)
 	case ssa.OpLOONG64ADDV,
 		ssa.OpLOONG64SUBV,
 		ssa.OpLOONG64AND,

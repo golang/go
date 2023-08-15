@@ -40751,8 +40751,8 @@ var registersLOONG64 = [...]Register{
 	{61, loong64.REG_F31, -1, "F31"},
 	{62, 0, -1, "SB"},
 }
-var paramIntRegLOONG64 = []int8{3, 4, 5, 6, 7, 8, 9, 10}
-var paramFloatRegLOONG64 = []int8{30, 31, 32, 33, 34, 35, 36, 37}
+var paramIntRegLOONG64 = []int8{3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18}
+var paramFloatRegLOONG64 = []int8{30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45}
 var gpRegMaskLOONG64 = regMask(1071644664)
 var fpRegMaskLOONG64 = regMask(4611686017353646080)
 var specialRegMaskLOONG64 = regMask(0)

@@ -476,8 +476,8 @@ func init() {
 		blocks:   blocks,
 		regnames: regNamesLOONG64,
 		// TODO: support register ABI on loong64
-		ParamIntRegNames:   "R4 R5 R6 R7 R8 R9 R10 R11",
-		ParamFloatRegNames: "F0 F1 F2 F3 F4 F5 F6 F7",
+		ParamIntRegNames:   "R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19",
+		ParamFloatRegNames: "F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15",
 		gpregmask:          gp,
 		fpregmask:          fp,
 		framepointerreg:    -1, // not used
