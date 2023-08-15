@@ -920,3 +920,19 @@ func _() {
 	var conf Config
 	conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // must not panic
 }
+
+func TestIssue61938(t *testing.T) {
+	const src = `
+package p
+
+func f[T any]() {}
+func _()        { f() }
+`
+	// no error handler provided (this issue)
+	var conf Config
+	typecheck(src, &conf, nil) // must not panic
+
+	// with error handler (sanity check)
+	conf.Error = func(error) {}
+	typecheck(src, &conf, nil) // must not panic
+}
