@@ -1453,3 +1453,15 @@ func TestNewFileInvalid(t *testing.T) {
 		t.Errorf("NewFile(InvalidHandle) got %v want nil", f)
 	}
 }
+
+func TestReadDirPipe(t *testing.T) {
+	dir := `\\.\pipe\`
+	fi, err := os.Stat(dir)
+	if err != nil || !fi.IsDir() {
+		t.Skipf("%s is not a directory", dir)
+	}
+	_, err = os.ReadDir(dir)
+	if err != nil {
+		t.Errorf("ReadDir(%q) = %v", dir, err)
+	}
+}
