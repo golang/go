@@ -264,7 +264,7 @@ func NewCallbackCDecl(fn any) uintptr {
 //sys	OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle Handle, err error)
 //sys	TerminateProcess(handle Handle, exitcode uint32) (err error)
 //sys	GetExitCodeProcess(handle Handle, exitcode *uint32) (err error)
-//sys	GetStartupInfo(startupInfo *StartupInfo) (err error) = GetStartupInfoW
+//sys	getStartupInfo(startupInfo *StartupInfo) = GetStartupInfoW
 //sys	GetCurrentProcess() (pseudoHandle Handle, err error)
 //sys	GetProcessTimes(handle Handle, creationTime *Filetime, exitTime *Filetime, kernelTime *Filetime, userTime *Filetime) (err error)
 //sys	DuplicateHandle(hSourceProcessHandle Handle, hSourceHandle Handle, hTargetProcessHandle Handle, lpTargetHandle *Handle, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (err error)
@@ -1436,4 +1436,9 @@ func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LI
 // so call runtime.LockOSThread before calling this function.
 func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) {
 	return regEnumKeyEx(key, index, name, nameLen, reserved, class, classLen, lastWriteTime)
+}
+
+func GetStartupInfo(startupInfo *StartupInfo) error {
+	getStartupInfo(startupInfo)
+	return nil
 }
