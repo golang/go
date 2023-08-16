@@ -259,28 +259,31 @@ const (
 
 	// RISC-V.
 
-	// R_RISCV_CALL relocates a J-type instruction with a 21 bit PC-relative
-	// address.
-	R_RISCV_CALL
+	// R_RISCV_JAL resolves a 20 bit offset for a J-type instruction.
+	R_RISCV_JAL
 
-	// R_RISCV_CALL_TRAMP is the same as R_RISCV_CALL but denotes the use of a
+	// R_RISCV_JAL_TRAMP is the same as R_RISCV_JAL but denotes the use of a
 	// trampoline, which we may be able to avoid during relocation. These are
 	// only used by the linker and are not emitted by the compiler or assembler.
-	R_RISCV_CALL_TRAMP
+	R_RISCV_JAL_TRAMP
 
-	// R_RISCV_PCREL_ITYPE resolves a 32 bit PC-relative address using an
+	// R_RISCV_CALL resolves a 32 bit PC-relative address for an AUIPC + JALR
+	// instruction pair.
+	R_RISCV_CALL
+
+	// R_RISCV_PCREL_ITYPE resolves a 32 bit PC-relative address for an
 	// AUIPC + I-type instruction pair.
 	R_RISCV_PCREL_ITYPE
 
-	// R_RISCV_PCREL_STYPE resolves a 32 bit PC-relative address using an
+	// R_RISCV_PCREL_STYPE resolves a 32 bit PC-relative address for an
 	// AUIPC + S-type instruction pair.
 	R_RISCV_PCREL_STYPE
 
-	// R_RISCV_TLS_IE resolves a 32 bit TLS initial-exec address using an
+	// R_RISCV_TLS_IE resolves a 32 bit TLS initial-exec address for an
 	// AUIPC + I-type instruction pair.
 	R_RISCV_TLS_IE
 
-	// R_RISCV_TLS_LE resolves a 32 bit TLS local-exec address using an
+	// R_RISCV_TLS_LE resolves a 32 bit TLS local-exec address for a
 	// LUI + I-type instruction sequence.
 	R_RISCV_TLS_LE
 
@@ -387,12 +390,13 @@ const (
 
 // IsDirectCall reports whether r is a relocation for a direct call.
 // A direct call is a CALL instruction that takes the target address
-// as an immediate. The address is embedded into the instruction, possibly
+// as an immediate. The address is embedded into the instruction(s), possibly
 // with limited width. An indirect call is a CALL instruction that takes
 // the target address in register or memory.
 func (r RelocType) IsDirectCall() bool {
 	switch r {
-	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLLOONG64, R_CALLMIPS, R_CALLPOWER, R_RISCV_CALL, R_RISCV_CALL_TRAMP:
+	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLLOONG64, R_CALLMIPS, R_CALLPOWER,
+		R_RISCV_CALL, R_RISCV_JAL, R_RISCV_JAL_TRAMP:
 		return true
 	}
 	return false

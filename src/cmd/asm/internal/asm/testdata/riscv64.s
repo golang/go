@@ -381,7 +381,7 @@ start:
 	JMP	4(X5)					// 67804200
 
 	// CALL and JMP to symbol are encoded as JAL (using LR or ZERO
-	// respectively), with a R_RISCV_CALL relocation. The linker resolves
+	// respectively), with a R_RISCV_JAL relocation. The linker resolves
 	// the real address and updates the immediate, using a trampoline in
 	// the case where the address is not directly reachable.
 	CALL	asmtest(SB)				// ef000000

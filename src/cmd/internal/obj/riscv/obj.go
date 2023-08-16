@@ -41,7 +41,7 @@ func jalToSym(ctxt *obj.Link, p *obj.Prog, lr int16) {
 	}
 
 	p.As = AJAL
-	p.Mark |= NEED_CALL_RELOC
+	p.Mark |= NEED_JAL_RELOC
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = lr
 	p.Reg = obj.REG_NONE
@@ -610,7 +610,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var callCount int
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		markRelocs(p)
-		if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
+		if p.Mark&NEED_JAL_RELOC == NEED_JAL_RELOC {
 			callCount++
 		}
 	}
@@ -664,7 +664,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					jmp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
 
 					p.As = AAUIPC
-					p.Mark = (p.Mark &^ NEED_CALL_RELOC) | NEED_PCREL_ITYPE_RELOC
+					p.Mark = (p.Mark &^ NEED_JAL_RELOC) | NEED_CALL_RELOC
 					p.AddRestSource(obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym})
 					p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 					p.Reg = obj.REG_NONE
@@ -2345,13 +2345,13 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case AJAL:
-			if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
+			if p.Mark&NEED_JAL_RELOC == NEED_JAL_RELOC {
 				rel := obj.Addrel(cursym)
 				rel.Off = int32(p.Pc)
 				rel.Siz = 4
 				rel.Sym = p.To.Sym
 				rel.Add = p.To.Offset
-				rel.Type = objabi.R_RISCV_CALL
+				rel.Type = objabi.R_RISCV_JAL
 			}
 		case AJALR:
 			if p.To.Sym != nil {
@@ -2361,7 +2361,10 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		case AAUIPC, AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
 			var addr *obj.Addr
 			var rt objabi.RelocType
-			if p.Mark&NEED_PCREL_ITYPE_RELOC == NEED_PCREL_ITYPE_RELOC {
+			if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
+				rt = objabi.R_RISCV_CALL
+				addr = &p.From
+			} else if p.Mark&NEED_PCREL_ITYPE_RELOC == NEED_PCREL_ITYPE_RELOC {
 				rt = objabi.R_RISCV_PCREL_ITYPE
 				addr = &p.From
 			} else if p.Mark&NEED_PCREL_STYPE_RELOC == NEED_PCREL_STYPE_RELOC {
