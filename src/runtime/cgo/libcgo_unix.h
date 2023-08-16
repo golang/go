@@ -5,7 +5,7 @@
 /*
  * Initialize g->stacklo.
  */
-extern void _cgo_set_stacklo(G *, pthread_attr_t*);
+extern void _cgo_set_stacklo(G *, uintptr *);
 
 /*
  * Call pthread_create, retrying on EAGAIN.

@@ -19,7 +19,7 @@ void (*x_cgo_inittls)(void **tlsg, void **tlsbase) __attribute__((common));
 void
 x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 {
-	pthread_attr_t *attr;
+	uintptr *pbounds;
 
 	/* The memory sanitizer distributed with versions of clang
 	   before 3.8 has a bug: if you call mmap before malloc, mmap
@@ -37,12 +37,12 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 	   malloc, so we actually use the memory we allocate.  */
 
 	setg_gcc = setg;
-	attr = (pthread_attr_t*)malloc(sizeof *attr);
-	if (attr == NULL) {
+	pbounds = (uintptr*)malloc(2 * sizeof(uintptr));
+	if (pbounds == NULL) {
 		fatalf("malloc failed: %s", strerror(errno));
 	}
-	_cgo_set_stacklo(g, attr);
-	free(attr);
+	_cgo_set_stacklo(g, pbounds);
+	free(pbounds);
 
 	if (x_cgo_inittls) {
 		x_cgo_inittls(tlsg, tlsbase);
