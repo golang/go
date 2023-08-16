@@ -2,22 +2,34 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build go1.19
+// +build go1.19
+
 package telemetry
 
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"golang.org/x/telemetry/counter"
+	"golang.org/x/telemetry/upload"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
 
 // Start starts telemetry instrumentation.
 func Start() {
+	counter.Open()
 	if os.Getenv("GOPLS_TELEMETRY_EXP") != "" {
-		counter.Open()
-		// TODO: add upload logic.
+		go packAndUpload()
 	}
+}
+
+func packAndUpload() {
+	start := time.Now()
+	upload.Run(nil)
+	elapsed := time.Since(start)
+	time.AfterFunc(24*time.Hour-elapsed, packAndUpload)
 }
 
 // RecordClientInfo records gopls client info.
