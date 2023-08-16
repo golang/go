@@ -183,8 +183,8 @@ func zeroLOONG64(w io.Writer) {
 	// On return, R19 points to the last zeroed dword.
 	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOVV\tR0, (R19)")
-		fmt.Fprintln(w, "\tADDV\t$8, R19")
+		fmt.Fprintln(w, "\tMOVV\tR0, (R20)")
+		fmt.Fprintln(w, "\tADDV\t$8, R20")
 	}
 	fmt.Fprintln(w, "\tRET")
 }
@@ -192,10 +192,10 @@ func zeroLOONG64(w io.Writer) {
 func copyLOONG64(w io.Writer) {
 	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOVV\t(R19), R30")
-		fmt.Fprintln(w, "\tADDV\t$8, R19")
-		fmt.Fprintln(w, "\tMOVV\tR30, (R20)")
+		fmt.Fprintln(w, "\tMOVV\t(R20), R30")
 		fmt.Fprintln(w, "\tADDV\t$8, R20")
+		fmt.Fprintln(w, "\tMOVV\tR30, (R21)")
+		fmt.Fprintln(w, "\tADDV\t$8, R21")
 		fmt.Fprintln(w)
 	}
 	fmt.Fprintln(w, "\tRET")

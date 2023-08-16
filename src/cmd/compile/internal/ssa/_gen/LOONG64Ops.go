@@ -123,7 +123,7 @@ func init() {
 
 	// Common individual register masks
 	var (
-		gp         = buildReg("R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31") // R1 is LR, R2 is thread pointer, R3 is stack pointer, R21-unused, R22 is g, R30 is REGTMP
+		gp         = buildReg("R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31") // R1 is LR, R2 is thread pointer, R3 is stack pointer, R22 is g, R30 is REGTMP
 		gpg        = gp | buildReg("g")
 		gpsp       = gp | buildReg("SP")
 		gpspg      = gpg | buildReg("SP")
@@ -283,22 +283,22 @@ func init() {
 		// arg1 = mem
 		// auxint = offset into duffzero code to start executing
 		// returns mem
-		// R19 aka loong64.REGRT1 changed as side effect
+		// R20 aka loong64.REGRT1 changed as side effect
 		{
 			name:      "DUFFZERO",
 			aux:       "Int64",
 			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R19")},
-				clobbers: buildReg("R19 R1"),
+				inputs:   []regMask{buildReg("R20")},
+				clobbers: buildReg("R20 R1"),
 			},
 			typ:            "Mem",
 			faultOnNilArg0: true,
 		},
 
 		// duffcopy
-		// arg0 = address of dst memory (in R20, changed as side effect) REGRT2
-		// arg1 = address of src memory (in R19, changed as side effect) REGRT1
+		// arg0 = address of dst memory (in R21, changed as side effect)
+		// arg1 = address of src memory (in R20, changed as side effect)
 		// arg2 = mem
 		// auxint = offset into duffcopy code to start executing
 		// returns mem
@@ -307,8 +307,8 @@ func init() {
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R20"), buildReg("R19")},
-				clobbers: buildReg("R19 R20 R1"),
+				inputs:   []regMask{buildReg("R21"), buildReg("R20")},
+				clobbers: buildReg("R20 R21 R1"),
 			},
 			typ:            "Mem",
 			faultOnNilArg0: true,
@@ -316,45 +316,45 @@ func init() {
 		},
 
 		// large or unaligned zeroing
-		// arg0 = address of memory to zero (in R19, changed as side effect)
+		// arg0 = address of memory to zero (in R20, changed as side effect)
 		// arg1 = address of the last element to zero
 		// arg2 = mem
 		// auxint = alignment
 		// returns mem
-		//	MOVx	R0, (R19)
-		//	ADDV	$sz, R19
-		//	BGEU	Rarg1, R19, -2(PC)
+		//	MOVx	R0, (R20)
+		//	ADDV	$sz, R20
+		//	BGEU	Rarg1, R20, -2(PC)
 		{
 			name:      "LoweredZero",
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R19"), gp},
-				clobbers: buildReg("R19"),
+				inputs:   []regMask{buildReg("R20"), gp},
+				clobbers: buildReg("R20"),
 			},
 			typ:            "Mem",
 			faultOnNilArg0: true,
 		},
 
 		// large or unaligned move
-		// arg0 = address of dst memory (in R20, changed as side effect)
-		// arg1 = address of src memory (in R19, changed as side effect)
+		// arg0 = address of dst memory (in R21, changed as side effect)
+		// arg1 = address of src memory (in R20, changed as side effect)
 		// arg2 = address of the last element of src
 		// arg3 = mem
 		// auxint = alignment
 		// returns mem
-		//	MOVx	(R19), Rtmp
-		//	MOVx	Rtmp, (R20)
-		//	ADDV	$sz, R19
+		//	MOVx	(R20), Rtmp
+		//	MOVx	Rtmp, (R21)
 		//	ADDV	$sz, R20
-		//	BGEU	Rarg2, R19, -4(PC)
+		//	ADDV	$sz, R21
+		//	BGEU	Rarg2, R20, -4(PC)
 		{
 			name:      "LoweredMove",
 			aux:       "Int64",
 			argLength: 4,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R20"), buildReg("R19"), gp},
-				clobbers: buildReg("R19 R20"),
+				inputs:   []regMask{buildReg("R21"), buildReg("R20"), gp},
+				clobbers: buildReg("R20 R21"),
 			},
 			typ:            "Mem",
 			faultOnNilArg0: true,
