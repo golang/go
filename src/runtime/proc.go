@@ -244,8 +244,10 @@ func main() {
 	// list can arrive a few different ways, but it will always
 	// contain the init tasks computed by the linker for all the
 	// packages in the program (excluding those added at runtime
-	// by package plugin).
-	for _, m := range activeModules() {
+	// by package plugin). Run through the modules in dependency
+	// order (the order they are initialized by the dynamic
+	// loader, i.e. they are added to the moduledata linked list).
+	for m := &firstmoduledata; m != nil; m = m.next {
 		doInit(m.inittasks)
 	}
 

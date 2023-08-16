@@ -7,7 +7,23 @@ package depBase
 import (
 	"os"
 	"reflect"
+
+	"testshared/depBaseInternal"
 )
+
+// Issue 61973: indirect dependencies are not initialized.
+func init() {
+	if !depBaseInternal.Initialized {
+		panic("depBaseInternal not initialized")
+	}
+	if os.Stdout == nil {
+		panic("os.Stdout is nil")
+	}
+
+	Initialized = true
+}
+
+var Initialized bool
 
 var SlicePtr interface{} = &[]int{}
 
