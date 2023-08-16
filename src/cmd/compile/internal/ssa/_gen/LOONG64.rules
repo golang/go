@@ -416,7 +416,7 @@
 (GetCallerSP ...) => (LoweredGetCallerSP ...)
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 
-(If cond yes no) => (NE cond yes no)
+(If cond yes no) => (NE (MOVBUreg <typ.UInt64> cond) yes no)
 
 // Write barrier.
 (WB ...) => (LoweredWB ...)
@@ -450,6 +450,7 @@
 (EQ (SGTconst [0] x) yes no) => (GEZ x yes no)
 (NE (SGT x (MOVVconst [0])) yes no) => (GTZ x yes no)
 (EQ (SGT x (MOVVconst [0])) yes no) => (LEZ x yes no)
+(MOVBUreg x:((SGT|SGTU) _ _)) => x
 
 // fold offset into address
 (ADDVconst [off1] (MOVVaddr [off2] {sym} ptr)) && is32Bit(off1+int64(off2)) => (MOVVaddr [int32(off1)+int32(off2)] {sym} ptr)

@@ -1773,6 +1773,26 @@ func rewriteValueLOONG64_OpLOONG64MOVBUload(v *Value) bool {
 }
 func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (MOVBUreg x:(SGT _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64SGT {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (MOVBUreg x:(SGTU _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64SGTU {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	// match: (MOVBUreg x:(MOVBUload _ _))
 	// result: (MOVVreg x)
 	for {
@@ -7608,6 +7628,7 @@ func rewriteValueLOONG64_OpZero(v *Value) bool {
 	return false
 }
 func rewriteBlockLOONG64(b *Block) bool {
+	typ := &b.Func.Config.Types
 	switch b.Kind {
 	case BlockLOONG64EQ:
 		// match: (EQ (FPFlagTrue cmp) yes no)
@@ -7807,10 +7828,12 @@ func rewriteBlockLOONG64(b *Block) bool {
 		}
 	case BlockIf:
 		// match: (If cond yes no)
-		// result: (NE cond yes no)
+		// result: (NE (MOVBUreg <typ.UInt64> cond) yes no)
 		for {
 			cond := b.Controls[0]
-			b.resetWithControl(BlockLOONG64NE, cond)
+			v0 := b.NewValue0(cond.Pos, OpLOONG64MOVBUreg, typ.UInt64)
+			v0.AddArg(cond)
+			b.resetWithControl(BlockLOONG64NE, v0)
 			return true
 		}
 	case BlockLOONG64LEZ:
