@@ -620,6 +620,10 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 		p = c.ctxt.StartUnsafePoint(p, c.newprog)
 
+		// Spill Arguments. This has to happen before we open
+		// any more frame space.
+		p = c.cursym.Func().SpillRegisterArgs(p, c.newprog)
+
 		// MOV	REGLINK, -8/-16(SP)
 		p = obj.Appendp(p, c.newprog)
 		p.As = mov
@@ -684,6 +688,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Reg = REGSP
 		p.Spadj = int32(-frameSize)
 
+		// Unspill arguments
+		p = c.cursym.Func().UnspillRegisterArgs(p, c.newprog)
 		p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 	}
 
@@ -795,6 +801,10 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 	p = c.ctxt.EmitEntryStackMap(c.cursym, p, c.newprog)
 
+	// Spill the register args that could be clobbered by the
+	// morestack code
+	p = c.cursym.Func().SpillRegisterArgs(p, c.newprog)
+
 	// JAL	runtime.morestack(SB)
 	p = obj.Appendp(p, c.newprog)
 
@@ -809,6 +819,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	}
 	p.Mark |= BRANCH
 
+	p = c.cursym.Func().UnspillRegisterArgs(p, c.newprog)
 	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 
 	// JMP	start
