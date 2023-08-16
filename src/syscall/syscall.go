@@ -18,11 +18,11 @@
 // err is an operating system error describing the failure.
 // On most systems, that error has type syscall.Errno.
 //
-// Deprecated: this package is locked down. Callers should use the
-// corresponding package in the golang.org/x/sys repository instead.
-// That is also where updates required by new systems or versions
-// should be applied. See https://golang.org/s/go1.4-syscall for more
-// information.
+// NOTE: Most of the functions, types, and constants defined in
+// this package are also available in the [golang.org/x/sys] package.
+// That package has more system call support than this one,
+// and most new code should prefer that package where possible.
+// See https://golang.org/s/go1.4-syscall for more information.
 package syscall
 
 import "internal/bytealg"
