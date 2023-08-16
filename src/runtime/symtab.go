@@ -844,6 +844,10 @@ func pcvalueCacheKey(targetpc uintptr) uintptr {
 
 // Returns the PCData value, and the PC where this value starts.
 func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, strict bool) (int32, uintptr) {
+	// If true, when we get a cache hit, still look up the data and make sure it
+	// matches the cached contents.
+	const debugCheckCache = false
+
 	if off == 0 {
 		return -1, 0
 	}
@@ -854,6 +858,8 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 	// This cache is small enough that full associativity is
 	// cheaper than doing the hashing for a less associative
 	// cache.
+	var checkVal int32
+	var checkPC uintptr
 	if cache != nil {
 		x := pcvalueCacheKey(targetpc)
 		for i := range cache.entries[x] {
@@ -864,7 +870,12 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 			// fail in the first clause.
 			ent := &cache.entries[x][i]
 			if ent.off == off && ent.targetpc == targetpc {
-				return ent.val, ent.valPC
+				if debugCheckCache {
+					checkVal, checkPC = ent.val, ent.valPC
+					break
+				} else {
+					return ent.val, ent.valPC
+				}
 			}
 		}
 	}
@@ -894,7 +905,12 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 			// larger than the cache.
 			// Put the new element at the beginning,
 			// since it is the most likely to be newly used.
-			if cache != nil {
+			if debugCheckCache && checkPC != 0 {
+				if checkVal != val || checkPC != prevpc {
+					print("runtime: table value ", val, "@", prevpc, " != cache value ", checkVal, "@", checkPC, " at PC ", targetpc, " off ", off, "\n")
+					throw("bad pcvalue cache")
+				}
+			} else if cache != nil {
 				x := pcvalueCacheKey(targetpc)
 				e := &cache.entries[x]
 				ci := fastrandn(uint32(len(cache.entries[x])))
