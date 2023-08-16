@@ -1015,11 +1015,11 @@ var defaultGOVCS = govcsConfig{
 	{"public", []string{"git", "hg"}},
 }
 
-// CheckGOVCS checks whether the policy defined by the environment variable
+// checkGOVCS checks whether the policy defined by the environment variable
 // GOVCS allows the given vcs command to be used with the given repository
 // root path. Note that root may not be a real package or module path; it's
 // the same as the root path in the go-import meta tag.
-func CheckGOVCS(vcs *Cmd, root string) error {
+func checkGOVCS(vcs *Cmd, root string) error {
 	if vcs == vcsMod {
 		// Direct module (proxy protocol) fetches don't
 		// involve an external version control system
@@ -1042,37 +1042,6 @@ func CheckGOVCS(vcs *Cmd, root string) error {
 			what = "private"
 		}
 		return fmt.Errorf("GOVCS disallows using %s for %s %s; see 'go help vcs'", vcs.Cmd, what, root)
-	}
-
-	return nil
-}
-
-// CheckNested checks for an incorrectly-nested VCS-inside-VCS
-// situation for dir, checking parents up until srcRoot.
-func CheckNested(vcs *Cmd, dir, srcRoot string) error {
-	if len(dir) <= len(srcRoot) || dir[len(srcRoot)] != filepath.Separator {
-		return fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
-	}
-
-	otherDir := dir
-	for len(otherDir) > len(srcRoot) {
-		for _, otherVCS := range vcsList {
-			if isVCSRoot(otherDir, otherVCS.RootNames) {
-				// Allow expected vcs in original dir.
-				if otherDir == dir && otherVCS == vcs {
-					continue
-				}
-				// Otherwise, we have one VCS inside a different VCS.
-				return fmt.Errorf("directory %q uses %s, but parent %q uses %s", dir, vcs.Cmd, otherDir, otherVCS.Cmd)
-			}
-		}
-		// Move to parent.
-		newDir := filepath.Dir(otherDir)
-		if len(newDir) >= len(otherDir) {
-			// Shouldn't happen, but just in case, stop.
-			break
-		}
-		otherDir = newDir
 	}
 
 	return nil
@@ -1193,7 +1162,7 @@ func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths
 		if vcs == nil {
 			return nil, fmt.Errorf("unknown version control system %q", match["vcs"])
 		}
-		if err := CheckGOVCS(vcs, match["root"]); err != nil {
+		if err := checkGOVCS(vcs, match["root"]); err != nil {
 			return nil, err
 		}
 		var repoURL string
@@ -1369,7 +1338,7 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 		}
 	}
 
-	if err := CheckGOVCS(vcs, mmi.Prefix); err != nil {
+	if err := checkGOVCS(vcs, mmi.Prefix); err != nil {
 		return nil, err
 	}
 
