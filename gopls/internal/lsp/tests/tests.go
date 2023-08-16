@@ -246,7 +246,7 @@ func DefaultOptions(o *source.Options) {
 	o.CompletionBudget = time.Minute
 	o.HierarchicalDocumentSymbolSupport = true
 	o.SemanticTokens = true
-	o.InternalOptions.NewDiff = "both"
+	o.InternalOptions.NewDiff = "new"
 }
 
 func RunTests(t *testing.T, dataDir string, includeMultiModule bool, f func(*testing.T, *Data)) {

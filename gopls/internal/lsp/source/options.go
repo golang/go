@@ -171,7 +171,7 @@ func DefaultOptions() *Options {
 				CompletionDocumentation:     true,
 				DeepCompletion:              true,
 				ChattyDiagnostics:           true,
-				NewDiff:                     "both",
+				NewDiff:                     "new",
 				SubdirWatchPatterns:         SubdirWatchPatternsAuto,
 				ReportAnalysisProgressAfter: 5 * time.Second,
 			},
