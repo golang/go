@@ -336,7 +336,7 @@ func Appendln(b []byte, a ...any) []byte {
 }
 
 // getField gets the i'th field of the struct value.
-// If the field is itself is an interface, return a value for
+// If the field itself is a non-nil interface, return a value for
 // the thing inside the interface, not the interface itself.
 func getField(v reflect.Value, i int) reflect.Value {
 	val := v.Field(i)
