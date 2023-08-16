@@ -112,8 +112,8 @@ func (b *buffer) writeByte(c byte) {
 	*b = append(*b, c)
 }
 
-func (bp *buffer) writeRune(r rune) {
-	*bp = utf8.AppendRune(*bp, r)
+func (b *buffer) writeRune(r rune) {
+	*b = utf8.AppendRune(*b, r)
 }
 
 // pp is used to store a printer's state and is reused with sync.Pool to avoid allocations.
