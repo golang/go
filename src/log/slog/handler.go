@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// A Handler handles log records produced by a Logger..
+// A Handler handles log records produced by a Logger.
 //
 // A typical handler may print log records to standard error,
 // or write them to a file or database, or perhaps augment them
