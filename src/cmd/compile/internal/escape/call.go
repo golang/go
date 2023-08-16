@@ -210,17 +210,6 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 }
 
 // goDeferStmt analyzes a "go" or "defer" statement.
-//
-// In the process, it also normalizes the statement to always use a
-// simple function call with no arguments and no results. For example,
-// it rewrites:
-//
-//	defer f(x, y)
-//
-// into:
-//
-//	x1, y1 := x, y
-//	defer func() { f(x1, y1) }()
 func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 	k := e.heapHole()
 	if n.Op() == ir.ODEFER && e.loopDepth == 1 {
@@ -233,57 +222,26 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 		n.SetEsc(ir.EscNever)
 	}
 
-	call := n.Call
-
-	init := n.PtrInit()
-	init.Append(ir.TakeInit(call)...)
-	e.stmts(*init)
-
 	// If the function is already a zero argument/result function call,
 	// just escape analyze it normally.
 	//
 	// Note that the runtime is aware of this optimization for
 	// "go" statements that start in reflect.makeFuncStub or
 	// reflect.methodValueCall.
-	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
-		if sig := call.X.Type(); sig.NumParams()+sig.NumResults() == 0 {
-			if clo, ok := call.X.(*ir.ClosureExpr); ok && n.Op() == ir.OGO {
-				clo.IsGoWrap = true
-			}
-			e.expr(k, call.X)
-			return
-		}
+
+	call, ok := n.Call.(*ir.CallExpr)
+	if !ok || call.Op() != ir.OCALLFUNC {
+		base.FatalfAt(n.Pos(), "expected function call: %v", n.Call)
+	}
+	if sig := call.X.Type(); sig.NumParams()+sig.NumResults() != 0 {
+		base.FatalfAt(n.Pos(), "expected signature without parameters or results: %v", sig)
 	}
 
-	// Create a new no-argument function that we'll hand off to defer.
-	fn := ir.NewClosureFunc(n.Pos(), n.Pos(), types.NewSignature(nil, nil, nil), e.curfn, typecheck.Target)
-	fn.SetWrapper(true)
-	fn.SetEsc(escFuncTagged) // no params; effectively tagged already
-	fn.Body = []ir.Node{call}
-	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
-		// If the callee is a named function, link to the original callee.
-		x := call.X
-		if x.Op() == ir.ONAME && x.(*ir.Name).Class == ir.PFUNC {
-			fn.WrappedFunc = call.X.(*ir.Name).Func
-		} else if x.Op() == ir.OMETHEXPR && ir.MethodExprFunc(x).Nname != nil {
-			fn.WrappedFunc = ir.MethodExprName(x).Func
-		}
-	}
-
-	clo := fn.OClosure
-
-	if n.Op() == ir.OGO {
+	if clo, ok := call.X.(*ir.ClosureExpr); ok && n.Op() == ir.OGO {
 		clo.IsGoWrap = true
 	}
 
-	e.callCommon(nil, call, init, fn)
-	e.closures = append(e.closures, closure{e.spill(k, clo), clo})
-
-	// Create new top level call to closure.
-	n.Call = ir.NewCallExpr(call.Pos(), ir.OCALL, clo, nil)
-	ir.WithFunc(e.curfn, func() {
-		typecheck.Stmt(n.Call)
-	})
+	e.expr(k, call.X)
 }
 
 // rewriteArgument rewrites the argument *argp of the given call expression.
@@ -317,6 +275,10 @@ func (e *escape) rewriteArgument(argp *ir.Node, init *ir.Nodes, call ir.Node, fn
 		}
 
 		// Create and declare a new pointer-typed temp variable.
+		//
+		// TODO(mdempsky): This potentially violates the Go spec's order
+		// of evaluations, by evaluating arg.X before any other
+		// operands.
 		tmp := e.wrapExpr(arg.Pos(), &arg.X, init, call, wrapper)
 
 		k := e.mutatorHole()

@@ -1,4 +1,4 @@
-// errorcheck -0 -m
+// errorcheck -0 -m -l
 
 // Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6,7 +6,7 @@
 
 package p
 
-func f(...*int) {} // ERROR "can inline f$"
+func f(...*int) {}
 
 func g() {
 	defer f()

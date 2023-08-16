@@ -3143,7 +3143,7 @@ func (r *reader) inlClosureFunc(origPos src.XPos, sig *types.Type) *ir.Func {
 	}
 
 	// TODO(mdempsky): Remove hard-coding of typecheck.Target.
-	return ir.NewClosureFunc(origPos, r.inlPos(origPos), sig, curfn, typecheck.Target)
+	return ir.NewClosureFunc(origPos, r.inlPos(origPos), ir.OCLOSURE, sig, curfn, typecheck.Target)
 }
 
 func (r *reader) exprList() []ir.Node {

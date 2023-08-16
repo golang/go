@@ -96,10 +96,15 @@ type Func struct {
 
 	Inl *Inline
 
-	// Closgen tracks how many closures have been generated within
-	// this function. Used by closurename for creating unique
+	// funcLitGen and goDeferGen track how many closures have been
+	// created in this function for function literals and go/defer
+	// wrappers, respectively. Used by closureName for creating unique
 	// function names.
-	Closgen int32
+	//
+	// Tracking goDeferGen separately avoids wrappers throwing off
+	// function literal numbering (e.g., runtime/trace_test.TestTraceSymbolize.func11).
+	funcLitGen int32
+	goDeferGen int32
 
 	Label int32 // largest auto-generated label in this function
 
@@ -358,25 +363,35 @@ func IsTrivialClosure(clo *ClosureExpr) bool {
 var globClosgen int32
 
 // closureName generates a new unique name for a closure within outerfn at pos.
-func closureName(outerfn *Func, pos src.XPos) *types.Sym {
+func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
 	pkg := types.LocalPkg
 	outer := "glob."
-	prefix := "func"
+	var prefix string
+	switch why {
+	default:
+		base.FatalfAt(pos, "closureName: bad Op: %v", why)
+	case OCLOSURE:
+		if outerfn == nil || outerfn.OClosure == nil {
+			prefix = "func"
+		}
+	case OGO:
+		prefix = "gowrap"
+	case ODEFER:
+		prefix = "deferwrap"
+	}
 	gen := &globClosgen
 
-	if outerfn != nil {
-		if outerfn.OClosure != nil {
-			prefix = ""
-		}
-
+	// There may be multiple functions named "_". In those
+	// cases, we can't use their individual Closgens as it
+	// would lead to name clashes.
+	if outerfn != nil && !IsBlank(outerfn.Nname) {
 		pkg = outerfn.Sym().Pkg
 		outer = FuncName(outerfn)
 
-		// There may be multiple functions named "_". In those
-		// cases, we can't use their individual Closgens as it
-		// would lead to name clashes.
-		if !IsBlank(outerfn.Nname) {
-			gen = &outerfn.Closgen
+		if why == OCLOSURE {
+			gen = &outerfn.funcLitGen
+		} else {
+			gen = &outerfn.goDeferGen
 		}
 	}
 
@@ -406,8 +421,12 @@ func closureName(outerfn *Func, pos src.XPos) *types.Sym {
 //
 // outerfn is the enclosing function, if any. The returned function is
 // appending to pkg.Funcs.
-func NewClosureFunc(fpos, cpos src.XPos, typ *types.Type, outerfn *Func, pkg *Package) *Func {
-	fn := NewFunc(fpos, fpos, closureName(outerfn, cpos), typ)
+//
+// why is the reason we're generating this Func. It can be OCLOSURE
+// (for a normal function literal) or OGO or ODEFER (for wrapping a
+// call expression that has parameters or results).
+func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func, pkg *Package) *Func {
+	fn := NewFunc(fpos, fpos, closureName(outerfn, cpos, why), typ)
 	fn.SetIsHiddenClosure(outerfn != nil)
 
 	clo := &ClosureExpr{Func: fn}
