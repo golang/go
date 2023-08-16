@@ -8,7 +8,7 @@ import (
 	"fmt"
 )
 
-//  For each D, vec[D] has length D+1,
+// For each D, vec[D] has length D+1,
 // and the label for (D, k) is stored in vec[D][(D+k)/2].
 type label struct {
 	vec [][]int

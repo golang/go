@@ -12,8 +12,8 @@ import (
 	"go/types"
 	"text/template"
 
-	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/gopls/internal/lsp/command/commandmeta"
+	"golang.org/x/tools/internal/imports"
 )
 
 const src = `// Copyright 2021 The Go Authors. All rights reserved.
