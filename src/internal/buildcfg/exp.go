@@ -65,6 +65,8 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	case "amd64", "arm64", "ppc64le", "ppc64", "riscv64":
 		regabiAlwaysOn = true
 		regabiSupported = true
+	case "loong64":
+		regabiSupported = true
 	}
 
 	baseline := goexperiment.Flags{
@@ -130,7 +132,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		flags.RegabiWrappers = true
 		flags.RegabiArgs = true
 	}
-	// regabi is only supported on amd64, arm64, riscv64, ppc64 and ppc64le.
+	// regabi is only supported on amd64, arm64, loong64, riscv64, ppc64 and ppc64le.
 	if !regabiSupported {
 		flags.RegabiWrappers = false
 		flags.RegabiArgs = false
