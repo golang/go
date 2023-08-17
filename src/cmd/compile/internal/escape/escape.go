@@ -12,6 +12,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
 // Escape analysis.
@@ -345,10 +346,7 @@ func (b *batch) finish(fns []*ir.Func) {
 
 		// If the result of a string->[]byte conversion is never mutated,
 		// then it can simply reuse the string's memory directly.
-		//
-		// TODO(mdempsky): Enable in a subsequent CL. We need to ensure
-		// []byte("") evaluates to []byte{}, not []byte(nil).
-		if false {
+		if base.Debug.ZeroCopy != 0 {
 			if n, ok := n.(*ir.ConvExpr); ok && n.Op() == ir.OSTR2BYTES && !loc.hasAttr(attrMutates) {
 				if base.Flag.LowerM >= 1 {
 					base.WarnfAt(n.Pos(), "zero-copy string->[]byte conversion")
@@ -474,40 +472,48 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 	esc.Optimize()
 
 	if diagnose && !loc.hasAttr(attrEscapes) {
-		anyLeaks := false
-		if x := esc.Heap(); x >= 0 {
-			if x == 0 {
-				base.WarnfAt(f.Pos, "leaking param: %v", name())
-			} else {
-				// TODO(mdempsky): Mention level=x like below?
-				base.WarnfAt(f.Pos, "leaking param content: %v", name())
-			}
-			anyLeaks = true
-		}
-		for i := 0; i < numEscResults; i++ {
-			if x := esc.Result(i); x >= 0 {
-				res := fn.Type().Results().Field(i).Sym
-				base.WarnfAt(f.Pos, "leaking param: %v to result %v level=%d", name(), res, x)
-				anyLeaks = true
-			}
-		}
-		if !anyLeaks {
-			base.WarnfAt(f.Pos, "%v does not escape", name())
-		}
-
-		if base.Flag.LowerM >= 2 {
-			if x := esc.Mutator(); x >= 0 {
-				base.WarnfAt(f.Pos, "mutates param: %v derefs=%v", name(), x)
-			} else {
-				base.WarnfAt(f.Pos, "does not mutate param: %v", name())
-			}
-			if x := esc.Callee(); x >= 0 {
-				base.WarnfAt(f.Pos, "calls param: %v derefs=%v", name(), x)
-			} else {
-				base.WarnfAt(f.Pos, "does not call param: %v", name())
-			}
-		}
+		b.reportLeaks(f.Pos, name(), esc, fn.Type())
 	}
 
 	return esc.Encode()
+}
+
+func (b *batch) reportLeaks(pos src.XPos, name string, esc leaks, sig *types.Type) {
+	warned := false
+	if x := esc.Heap(); x >= 0 {
+		if x == 0 {
+			base.WarnfAt(pos, "leaking param: %v", name)
+		} else {
+			// TODO(mdempsky): Mention level=x like below?
+			base.WarnfAt(pos, "leaking param content: %v", name)
+		}
+		warned = true
+	}
+	for i := 0; i < numEscResults; i++ {
+		if x := esc.Result(i); x >= 0 {
+			res := sig.Results().Field(i).Sym
+			base.WarnfAt(pos, "leaking param: %v to result %v level=%d", name, res, x)
+			warned = true
+		}
+	}
+
+	if base.Debug.EscapeMutationsCalls <= 0 {
+		if !warned {
+			base.WarnfAt(pos, "%v does not escape", name)
+		}
+		return
+	}
+
+	if x := esc.Mutator(); x >= 0 {
+		base.WarnfAt(pos, "mutates param: %v derefs=%v", name, x)
+		warned = true
+	}
+	if x := esc.Callee(); x >= 0 {
+		base.WarnfAt(pos, "calls param: %v derefs=%v", name, x)
+		warned = true
+	}
+
+	if !warned {
+		base.WarnfAt(pos, "%v does not escape, mutate, or call", name)
+	}
 }

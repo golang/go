@@ -41,8 +41,12 @@ func (e *escape) addr(n ir.Node) hole {
 		} else {
 			e.mutate(n.X)
 		}
-	case ir.ODEREF, ir.ODOTPTR:
-		e.mutate(n)
+	case ir.ODEREF:
+		n := n.(*ir.StarExpr)
+		e.mutate(n.X)
+	case ir.ODOTPTR:
+		n := n.(*ir.SelectorExpr)
+		e.mutate(n.X)
 	case ir.OINDEXMAP:
 		n := n.(*ir.IndexExpr)
 		e.discard(n.X)

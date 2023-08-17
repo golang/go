@@ -815,8 +815,14 @@ func (o *orderState) stmt(n ir.Node) {
 		// Mark []byte(str) range expression to reuse string backing storage.
 		// It is safe because the storage cannot be mutated.
 		n := n.(*ir.RangeStmt)
-		if n.X.Op() == ir.OSTR2BYTES {
-			n.X.(*ir.ConvExpr).SetOp(ir.OSTR2BYTESTMP)
+		if x, ok := n.X.(*ir.ConvExpr); ok {
+			switch x.Op() {
+			case ir.OSTR2BYTES:
+				x.SetOp(ir.OSTR2BYTESTMP)
+				fallthrough
+			case ir.OSTR2BYTESTMP:
+				x.MarkNonNil() // "range []byte(nil)" is fine
+			}
 		}
 
 		t := o.markTemp()
