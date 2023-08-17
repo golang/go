@@ -9,7 +9,6 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"cmd/internal/src"
 )
 
 func LookupRuntime(name string) *ir.Name {
@@ -74,9 +73,9 @@ func InitRuntime() {
 		typ := typs[d.typ]
 		switch d.tag {
 		case funcTag:
-			importfunc(src.NoXPos, sym, typ)
+			importfunc(sym, typ)
 		case varTag:
-			importvar(src.NoXPos, sym, typ)
+			importvar(sym, typ)
 		default:
 			base.Fatalf("unhandled declaration tag %v", d.tag)
 		}
@@ -110,9 +109,9 @@ func InitCoverage() {
 		typ := typs[d.typ]
 		switch d.tag {
 		case funcTag:
-			importfunc(src.NoXPos, sym, typ)
+			importfunc(sym, typ)
 		case varTag:
-			importvar(src.NoXPos, sym, typ)
+			importvar(sym, typ)
 		default:
 			base.Fatalf("unhandled declaration tag %v", d.tag)
 		}

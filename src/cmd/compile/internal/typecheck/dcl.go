@@ -18,11 +18,7 @@ import (
 var DeclContext ir.Class = ir.PEXTERN // PEXTERN/PAUTO
 
 func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.Func {
-	fn := ir.NewFunc(base.Pos)
-	fn.Nname = ir.NewNameAt(base.Pos, sym, nil)
-	fn.Nname.Func = fn
-	fn.Nname.Defn = fn
-	ir.MarkFunc(fn.Nname)
+	fn := ir.NewFunc(base.Pos, base.Pos, sym, nil)
 	StartFuncBody(fn)
 
 	var recv1 *types.Field
@@ -32,9 +28,12 @@ func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.F
 
 	typ := types.NewSignature(recv1, declareParams(fn, ir.PPARAM, params), declareParams(fn, ir.PPARAMOUT, results))
 	checkdupfields("argument", typ.Recvs().FieldSlice(), typ.Params().FieldSlice(), typ.Results().FieldSlice())
+
 	fn.Nname.SetType(typ)
 	fn.Nname.SetTypecheck(1)
-	fn.SetTypecheck(1)
+
+	fn.Nname.Defn = fn
+	Target.Funcs = append(Target.Funcs, fn)
 
 	return fn
 }

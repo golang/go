@@ -19,7 +19,7 @@ import (
 
 // Function collecting autotmps generated during typechecking,
 // to be included in the package-level init function.
-var InitTodoFunc = ir.NewFunc(base.Pos)
+var InitTodoFunc = ir.NewFunc(base.Pos, base.Pos, Lookup("$InitTodo"), types.NewSignature(nil, nil, nil))
 
 var (
 	NeedRuntimeType = func(*types.Type) {}

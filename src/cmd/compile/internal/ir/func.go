@@ -147,14 +147,29 @@ type WasmImport struct {
 	Name   string
 }
 
-func NewFunc(pos src.XPos) *Func {
-	f := new(Func)
-	f.pos = pos
-	f.op = ODCLFUNC
+// NewFunc returns a new Func with the given name and type.
+//
+// fpos is the position of the "func" token, and npos is the position
+// of the name identifier.
+//
+// TODO(mdempsky): I suspect there's no need for separate fpos and
+// npos.
+func NewFunc(fpos, npos src.XPos, sym *types.Sym, typ *types.Type) *Func {
+	name := NewNameAt(npos, sym, typ)
+	name.Class = PFUNC
+	sym.SetFunc(true)
+
+	fn := &Func{Nname: name}
+	fn.pos = fpos
+	fn.op = ODCLFUNC
 	// Most functions are ABIInternal. The importer or symabis
 	// pass may override this.
-	f.ABI = obj.ABIInternal
-	return f
+	fn.ABI = obj.ABIInternal
+	fn.SetTypecheck(1)
+
+	name.Func = fn
+
+	return fn
 }
 
 func (f *Func) isStmt() {}
@@ -318,16 +333,6 @@ func FuncSymName(s *types.Sym) string {
 	return s.Name + "·f"
 }
 
-// MarkFunc marks a node as a function.
-func MarkFunc(n *Name) {
-	if n.Op() != ONAME || n.Class != Pxxx {
-		base.FatalfAt(n.Pos(), "expected ONAME/Pxxx node, got %v (%v/%v)", n, n.Op(), n.Class)
-	}
-
-	n.Class = PFUNC
-	n.Sym().SetFunc(true)
-}
-
 // ClosureDebugRuntimeCheck applies boilerplate checks for debug flags
 // and compiling runtime.
 func ClosureDebugRuntimeCheck(clo *ClosureExpr) {
@@ -402,24 +407,17 @@ func closureName(outerfn *Func, pos src.XPos) *types.Sym {
 // outerfn is the enclosing function, if any. The returned function is
 // appending to pkg.Funcs.
 func NewClosureFunc(fpos, cpos src.XPos, typ *types.Type, outerfn *Func, pkg *Package) *Func {
-	fn := NewFunc(fpos)
+	fn := NewFunc(fpos, fpos, closureName(outerfn, cpos), typ)
 	fn.SetIsHiddenClosure(outerfn != nil)
-
-	name := NewNameAt(fpos, closureName(outerfn, cpos), typ)
-	MarkFunc(name)
-	name.Func = fn
-	name.Defn = fn
-	fn.Nname = name
 
 	clo := &ClosureExpr{Func: fn}
 	clo.op = OCLOSURE
 	clo.pos = cpos
-	fn.OClosure = clo
-
-	fn.SetTypecheck(1)
 	clo.SetType(typ)
 	clo.SetTypecheck(1)
+	fn.OClosure = clo
 
+	fn.Nname.Defn = fn
 	pkg.Funcs = append(pkg.Funcs, fn)
 
 	return fn

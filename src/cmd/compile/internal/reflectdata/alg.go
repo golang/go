@@ -243,7 +243,6 @@ func hashFunc(t *types.Type) *ir.Func {
 	})
 
 	fn.SetNilCheckDisabled(true)
-	typecheck.Target.Funcs = append(typecheck.Target.Funcs, fn)
 
 	return fn
 }
@@ -632,7 +631,6 @@ func eqFunc(t *types.Type) *ir.Func {
 	// neither of which can be nil, and our comparisons
 	// are shallow.
 	fn.SetNilCheckDisabled(true)
-	typecheck.Target.Funcs = append(typecheck.Target.Funcs, fn)
 	return fn
 }
 

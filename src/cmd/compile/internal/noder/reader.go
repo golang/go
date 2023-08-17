@@ -750,12 +750,22 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 		if sym.Name == "init" {
 			sym = Renameinit()
 		}
-		name := do(ir.ONAME, true)
-		setType(name, r.signature(nil))
 
-		name.Func = ir.NewFunc(r.pos())
-		name.Func.Nname = name
-		name.Func.SetTypecheck(1)
+		npos := r.pos()
+		setBasePos(npos)
+		r.typeParamNames()
+		typ := r.signature(nil)
+		fpos := r.pos()
+
+		fn := ir.NewFunc(fpos, npos, sym, typ)
+		name := fn.Nname
+		if !sym.IsBlank() {
+			if sym.Def != nil {
+				base.FatalfAt(name.Pos(), "already have a definition for %v", name)
+			}
+			assert(sym.Def == nil)
+			sym.Def = name
+		}
 
 		if r.hasTypeParams() {
 			name.Func.SetDupok(true)
@@ -990,17 +1000,15 @@ func (r *reader) typeParamNames() {
 
 func (r *reader) method(rext *reader) *types.Field {
 	r.Sync(pkgbits.SyncMethod)
-	pos := r.pos()
+	npos := r.pos()
 	_, sym := r.selector()
 	r.typeParamNames()
 	_, recv := r.param()
 	typ := r.signature(recv)
 
-	name := ir.NewNameAt(pos, ir.MethodSym(recv.Type, sym), typ)
-
-	name.Func = ir.NewFunc(r.pos())
-	name.Func.Nname = name
-	name.Func.SetTypecheck(1)
+	fpos := r.pos()
+	fn := ir.NewFunc(fpos, npos, ir.MethodSym(recv.Type, sym), typ)
+	name := fn.Nname
 
 	if r.hasTypeParams() {
 		name.Func.SetDupok(true)
@@ -1061,9 +1069,6 @@ func (dict *readerDict) hasTypeParams() bool {
 
 func (r *reader) funcExt(name *ir.Name, method *types.Sym) {
 	r.Sync(pkgbits.SyncFuncExt)
-
-	name.Class = 0 // so MarkFunc doesn't complain
-	ir.MarkFunc(name)
 
 	fn := name.Func
 
@@ -3447,9 +3452,7 @@ func unifiedInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.Inlined
 	r := pri.asReader(pkgbits.RelocBody, pkgbits.SyncFuncBody)
 
 	// TODO(mdempsky): This still feels clumsy. Can we do better?
-	tmpfn := ir.NewFunc(fn.Pos())
-	tmpfn.Nname = ir.NewNameAt(fn.Nname.Pos(), callerfn.Sym(), fn.Type())
-	tmpfn.SetTypecheck(1)
+	tmpfn := ir.NewFunc(fn.Pos(), fn.Nname.Pos(), callerfn.Sym(), fn.Type())
 	tmpfn.Closgen = callerfn.Closgen
 	defer func() { callerfn.Closgen = tmpfn.Closgen }()
 
@@ -3623,9 +3626,7 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
 	fndcls := len(fn.Dcl)
 	topdcls := len(typecheck.Target.Funcs)
 
-	tmpfn := ir.NewFunc(fn.Pos())
-	tmpfn.Nname = ir.NewNameAt(fn.Nname.Pos(), fn.Sym(), fn.Type())
-	tmpfn.SetTypecheck(1)
+	tmpfn := ir.NewFunc(fn.Pos(), fn.Nname.Pos(), fn.Sym(), fn.Type())
 	tmpfn.ClosureVars = fn.ClosureVars
 
 	{
@@ -3860,17 +3861,8 @@ func wrapMethodValue(recvType *types.Type, method *types.Field, target *ir.Packa
 func newWrapperFunc(pos src.XPos, sym *types.Sym, wrapper *types.Type, method *types.Field) *ir.Func {
 	sig := newWrapperType(wrapper, method)
 
-	fn := ir.NewFunc(pos)
+	fn := ir.NewFunc(pos, pos, sym, sig)
 	fn.SetDupok(true) // TODO(mdempsky): Leave unset for local, non-generic wrappers?
-
-	name := ir.NewNameAt(pos, sym, sig)
-	ir.MarkFunc(name)
-	name.Func = fn
-	name.Defn = fn
-	fn.Nname = name
-
-	setType(name, sig)
-	fn.SetTypecheck(1)
 
 	// TODO(mdempsky): De-duplicate with similar logic in funcargs.
 	defParams := func(class ir.Class, params *types.Type) {
@@ -3909,6 +3901,7 @@ func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
 		}
 	})
 
+	fn.Nname.Defn = fn
 	target.Funcs = append(target.Funcs, fn)
 }
 

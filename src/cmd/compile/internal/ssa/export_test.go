@@ -55,8 +55,7 @@ type Conf struct {
 
 func (c *Conf) Frontend() Frontend {
 	if c.fe == nil {
-		f := ir.NewFunc(src.NoXPos)
-		f.Nname = ir.NewNameAt(f.Pos(), &types.Sym{
+		f := ir.NewFunc(src.NoXPos, src.NoXPos, &types.Sym{
 			Pkg:  types.NewPkg("my/import/path", "path"),
 			Name: "function",
 		}, nil)

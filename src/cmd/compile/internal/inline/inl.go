@@ -818,9 +818,8 @@ func inlcopy(n ir.Node) ir.Node {
 			// x.Func.Nname.Ntype, x.Func.Dcl, x.Func.ClosureVars, and
 			// x.Func.Body for iexport and local inlining.
 			oldfn := x.Func
-			newfn := ir.NewFunc(oldfn.Pos())
+			newfn := ir.NewFunc(oldfn.Pos(), oldfn.Nname.Pos(), oldfn.Nname.Sym(), oldfn.Nname.Type())
 			m.(*ir.ClosureExpr).Func = newfn
-			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), oldfn.Nname.Sym(), oldfn.Nname.Type())
 			// XXX OK to share fn.Type() ??
 			newfn.Body = inlcopylist(oldfn.Body)
 			// Make shallow copy of the Dcl and ClosureVar slices
