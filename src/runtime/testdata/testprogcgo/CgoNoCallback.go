@@ -1,15 +1,14 @@
-// Copyright 2020 The Go Authors. All rights reserved.
+// Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package main
 
-// #cgo noescape/nocallback annotations for a C function means it should not callback to Go.
+// #cgo nocallback annotations for a C function means it should not callback to Go.
 // But it do callback to go in this test, Go should crash here.
 
 /*
 #cgo nocallback runCShouldNotCallback
-#cgo noescape runCShouldNotCallback
 
 extern void runCShouldNotCallback();
 */

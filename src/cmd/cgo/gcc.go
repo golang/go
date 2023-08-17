@@ -74,8 +74,8 @@ func cname(s string) string {
 }
 
 // ProcessCgoDirectives processes the import C preamble:
-//  1. discards all #cgo CFLAGS and LDFLAGS directives, so they don't make their
-//     way into _cgo_export.h.
+//  1. discards all #cgo CFLAGS, LDFLAGS, nocallback and noescape directives,
+//     so they don't make their way into _cgo_export.h.
 //  2. parse the nocallback and noescape directives.
 func (f *File) ProcessCgoDirectives() {
 	linesIn := strings.Split(f.Preamble, "\n")

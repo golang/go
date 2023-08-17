@@ -18,6 +18,7 @@ import (
 	"go/token"
 	"internal/buildcfg"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -48,8 +49,8 @@ type Package struct {
 	Preamble    string          // collected preamble for _cgo_export.h
 	typedefs    map[string]bool // type names that appear in the types of the objects we're interested in
 	typedefList []typedefInfo
-	noCallbacks map[string]bool // C function names that with #cgo nocallback directive
-	noEscapes   map[string]bool // C function names that with #cgo noescape directive
+	noCallbacks map[string]bool // C function names with #cgo nocallback directive
+	noEscapes   map[string]bool // C function names with #cgo noescape directive
 }
 
 // A typedefInfo is an element on Package.typedefList: a typedef name
@@ -494,12 +495,8 @@ func (p *Package) Record(f *File) {
 	}
 
 	// merge nocallback & noescape
-	for k, v := range f.NoCallbacks {
-		p.noCallbacks[k] = v
-	}
-	for k, v := range f.NoEscapes {
-		p.noEscapes[k] = v
-	}
+	maps.Copy(p.noCallbacks, f.NoCallbacks)
+	maps.Copy(p.noEscapes, f.NoEscapes)
 
 	if f.ExpFunc != nil {
 		p.ExpFunc = append(p.ExpFunc, f.ExpFunc...)

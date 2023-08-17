@@ -761,6 +761,14 @@ func TestCgoNoCallback(t *testing.T) {
 	}
 }
 
+func TestCgoNoEscape(t *testing.T) {
+	got := runTestProg(t, "testprogcgo", "CgoNoEscape")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("want %s, got %s\n", want, got)
+	}
+}
+
 func TestCgoTracebackGoroutineProfile(t *testing.T) {
 	output := runTestProg(t, "testprogcgo", "GoroutineProfile")
 	want := "OK\n"
