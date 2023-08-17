@@ -345,11 +345,16 @@ func (b *batch) finish(fns []*ir.Func) {
 
 		// If the result of a string->[]byte conversion is never mutated,
 		// then it can simply reuse the string's memory directly.
-		if n, ok := n.(*ir.ConvExpr); ok && n.Op() == ir.OSTR2BYTES && !loc.hasAttr(attrMutates) {
-			if base.Flag.LowerM >= 1 {
-				base.WarnfAt(n.Pos(), "zero-copy string->[]byte conversion")
+		//
+		// TODO(mdempsky): Enable in a subsequent CL. We need to ensure
+		// []byte("") evaluates to []byte{}, not []byte(nil).
+		if false {
+			if n, ok := n.(*ir.ConvExpr); ok && n.Op() == ir.OSTR2BYTES && !loc.hasAttr(attrMutates) {
+				if base.Flag.LowerM >= 1 {
+					base.WarnfAt(n.Pos(), "zero-copy string->[]byte conversion")
+				}
+				n.SetOp(ir.OSTR2BYTESTMP)
 			}
-			n.SetOp(ir.OSTR2BYTESTMP)
 		}
 	}
 }

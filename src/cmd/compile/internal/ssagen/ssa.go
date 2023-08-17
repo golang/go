@@ -2659,14 +2659,6 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		n := n.(*ir.ConvExpr)
 		str := s.expr(n.X)
 		ptr := s.newValue1(ssa.OpStringPtr, s.f.Config.Types.BytePtr, str)
-		if !n.NonNil() {
-			// We need to ensure []byte("") evaluates to []byte{}, and not []byte(nil).
-			//
-			// TODO(mdempsky): Investigate using "len != 0" instead of "ptr != nil".
-			cond := s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], ptr, s.constNil(ptr.Type))
-			zerobase := s.newValue1A(ssa.OpAddr, ptr.Type, ir.Syms.Zerobase, s.sb)
-			ptr = s.ternary(cond, ptr, zerobase)
-		}
 		len := s.newValue1(ssa.OpStringLen, types.Types[types.TINT], str)
 		return s.newValue3(ssa.OpSliceMake, n.Type(), ptr, len, len)
 	case ir.OCFUNC:
