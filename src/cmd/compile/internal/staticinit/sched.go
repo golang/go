@@ -1055,8 +1055,6 @@ func tryWrapGlobalMapInit(n ir.Node) (mapvar *ir.Name, genfn *ir.Func, call ir.N
 	newfn.Body = append(newfn.Body, as)
 	typecheck.FinishFuncBody()
 
-	typecheck.Func(newfn)
-
 	const no = `
 	// Register new function with decls.
 	typecheck.Target.Decls = append(typecheck.Target.Decls, newfn)

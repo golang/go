@@ -63,7 +63,6 @@ func assign(stmt ir.Node, lhs, rhs []ir.Node) {
 	// so that the conversion below happens).
 
 	checkLHS := func(i int, typ *types.Type) {
-		lhs[i] = Resolve(lhs[i])
 		if n := lhs[i]; typ != nil && ir.DeclaredBy(n, stmt) && n.Type() == nil {
 			base.Assertf(typ.Kind() == types.TNIL, "unexpected untyped nil")
 			n.SetType(defaultType(typ))

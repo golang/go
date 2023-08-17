@@ -21,10 +21,6 @@ import (
 // to be included in the package-level init function.
 var InitTodoFunc = ir.NewFunc(base.Pos)
 
-var inimport bool // set during import
-
-var TypecheckAllowed bool
-
 var (
 	NeedRuntimeType = func(*types.Type) {}
 )
@@ -104,20 +100,6 @@ const (
 // evaluates compile time constants.
 // marks variables that escape the local frame.
 // rewrites n.Op to be more specific in some cases.
-
-// Resolve resolves an ONONAME node to a definition, if any. If n is not an ONONAME node,
-// Resolve returns n unchanged. If n is an ONONAME node and not in the same package,
-// then n.Sym() is resolved using import data. Otherwise, Resolve returns
-// n.Sym().Def. An ONONAME node can be created using ir.NewIdent(), so an imported
-// symbol can be resolved via Resolve(ir.NewIdent(src.NoXPos, sym)).
-func Resolve(n ir.Node) (res ir.Node) {
-	if n == nil || n.Op() != ir.ONONAME {
-		return n
-	}
-
-	base.Fatalf("unexpected NONAME node: %+v", n)
-	panic("unreachable")
-}
 
 func typecheckslice(l []ir.Node, top int) {
 	for i := range l {
@@ -203,23 +185,11 @@ func cycleTrace(cycle []ir.Node) string {
 
 var typecheck_tcstack []ir.Node
 
-func Func(fn *ir.Func) {
-	new := Stmt(fn)
-	if new != fn {
-		base.Fatalf("typecheck changed func")
-	}
-}
-
 // typecheck type checks node n.
 // The result of typecheck MUST be assigned back to n, e.g.
 //
 //	n.Left = typecheck(n.Left, top)
 func typecheck(n ir.Node, top int) (res ir.Node) {
-	// cannot type check until all the source has been parsed
-	if !TypecheckAllowed {
-		base.Fatalf("early typecheck")
-	}
-
 	if n == nil {
 		return nil
 	}
@@ -235,9 +205,6 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	for n.Op() == ir.OPAREN {
 		n = n.(*ir.ParenExpr).X
 	}
-
-	// Resolve definition of name and value of iota lazily.
-	n = Resolve(n)
 
 	// Skip typecheck if already done.
 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
@@ -680,10 +647,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OUNSAFESTRINGDATA:
 		n := n.(*ir.UnaryExpr)
 		return tcUnsafeData(n)
-
-	case ir.OCLOSURE:
-		n := n.(*ir.ClosureExpr)
-		return tcClosure(n, top)
 
 	case ir.OITAB:
 		n := n.(*ir.UnaryExpr)

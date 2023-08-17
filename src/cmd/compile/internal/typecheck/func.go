@@ -146,62 +146,6 @@ func MethodValueType(n *ir.SelectorExpr) *types.Type {
 	return t
 }
 
-// tcClosure typechecks an OCLOSURE node. It also creates the named
-// function associated with the closure.
-// TODO: This creation of the named function should probably really be done in a
-// separate pass from type-checking.
-func tcClosure(clo *ir.ClosureExpr, top int) ir.Node {
-	fn := clo.Func
-
-	// We used to allow IR builders to typecheck the underlying Func
-	// themselves, but that led to too much variety and inconsistency
-	// around who's responsible for naming the function, typechecking
-	// it, or adding it to Target.Decls.
-	//
-	// It's now all or nothing. Callers are still allowed to do these
-	// themselves, but then they assume responsibility for all of them.
-	if fn.Typecheck() == 1 {
-		base.FatalfAt(fn.Pos(), "underlying closure func already typechecked: %v", fn)
-	}
-
-	ir.NameClosure(clo, ir.CurFunc)
-	Func(fn)
-
-	// Type check the body now, but only if we're inside a function.
-	// At top level (in a variable initialization: curfn==nil) we're not
-	// ready to type check code yet; we'll check it later, because the
-	// underlying closure function we create is added to Target.Decls.
-	if ir.CurFunc != nil {
-		oldfn := ir.CurFunc
-		ir.CurFunc = fn
-		Stmts(fn.Body)
-		ir.CurFunc = oldfn
-	}
-
-	out := 0
-	for _, v := range fn.ClosureVars {
-		if v.Type() == nil {
-			// If v.Type is nil, it means v looked like it was going to be
-			// used in the closure, but isn't. This happens in struct
-			// literals like s{f: x} where we can't distinguish whether f is
-			// a field identifier or expression until resolving s.
-			continue
-		}
-
-		// type check closed variables outside the closure, so that the
-		// outer frame also captures them.
-		Expr(v.Outer)
-
-		fn.ClosureVars[out] = v
-		out++
-	}
-	fn.ClosureVars = fn.ClosureVars[:out]
-
-	clo.SetType(fn.Type())
-
-	return ir.UseClosure(clo, Target)
-}
-
 // type check function definition
 // To be called by typecheck, not directly.
 // (Call typecheck.Func instead.)

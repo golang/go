@@ -390,80 +390,37 @@ func closureName(outerfn *Func, pos src.XPos) *types.Sym {
 	return pkg.Lookup(fmt.Sprintf("%s.%s%d", outer, prefix, *gen))
 }
 
-// NewClosureFunc creates a new Func to represent a function literal.
-// If hidden is true, then the closure is marked hidden (i.e., as a
-// function literal contained within another function, rather than a
-// package-scope variable initialization expression).
-func NewClosureFunc(pos src.XPos, hidden bool) *Func {
-	fn := NewFunc(pos)
-	fn.SetIsHiddenClosure(hidden)
+// NewClosureFunc creates a new Func to represent a function literal
+// with the given type.
+//
+// fpos the position used for the underlying ODCLFUNC and ONAME,
+// whereas cpos is the position used for the OCLOSURE. They're
+// separate because in the presence of inlining, the OCLOSURE node
+// should have an inline-adjusted position, whereas the ODCLFUNC and
+// ONAME must not.
+//
+// outerfn is the enclosing function, if any. The returned function is
+// appending to pkg.Funcs.
+func NewClosureFunc(fpos, cpos src.XPos, typ *types.Type, outerfn *Func, pkg *Package) *Func {
+	fn := NewFunc(fpos)
+	fn.SetIsHiddenClosure(outerfn != nil)
 
-	fn.Nname = NewNameAt(pos, BlankNode.Sym(), nil)
-	fn.Nname.Func = fn
-	fn.Nname.Defn = fn
+	name := NewNameAt(fpos, closureName(outerfn, cpos), typ)
+	MarkFunc(name)
+	name.Func = fn
+	name.Defn = fn
+	fn.Nname = name
 
-	fn.OClosure = &ClosureExpr{Func: fn}
-	fn.OClosure.op = OCLOSURE
-	fn.OClosure.pos = pos
+	clo := &ClosureExpr{Func: fn}
+	clo.op = OCLOSURE
+	clo.pos = cpos
+	fn.OClosure = clo
+
+	fn.SetTypecheck(1)
+	clo.SetType(typ)
+	clo.SetTypecheck(1)
+
+	pkg.Funcs = append(pkg.Funcs, fn)
 
 	return fn
-}
-
-// NameClosure generates a unique for the given function literal,
-// which must have appeared within outerfn.
-func NameClosure(clo *ClosureExpr, outerfn *Func) {
-	fn := clo.Func
-	if fn.IsHiddenClosure() != (outerfn != nil) {
-		base.FatalfAt(clo.Pos(), "closure naming inconsistency: hidden %v, but outer %v", fn.IsHiddenClosure(), outerfn)
-	}
-
-	name := fn.Nname
-	if !IsBlank(name) {
-		base.FatalfAt(clo.Pos(), "closure already named: %v", name)
-	}
-
-	name.SetSym(closureName(outerfn, clo.Pos()))
-	MarkFunc(name)
-}
-
-// UseClosure checks that the given function literal has been setup
-// correctly, and then returns it as an expression.
-// It must be called after clo.Func.ClosureVars has been set.
-func UseClosure(clo *ClosureExpr, pkg *Package) Node {
-	fn := clo.Func
-	name := fn.Nname
-
-	if IsBlank(name) {
-		base.FatalfAt(fn.Pos(), "unnamed closure func: %v", fn)
-	}
-	// Caution: clo.Typecheck() is still 0 when UseClosure is called by
-	// tcClosure.
-	if fn.Typecheck() != 1 || name.Typecheck() != 1 {
-		base.FatalfAt(fn.Pos(), "missed typecheck: %v", fn)
-	}
-	if clo.Type() == nil || name.Type() == nil {
-		base.FatalfAt(fn.Pos(), "missing types: %v", fn)
-	}
-	if !types.Identical(clo.Type(), name.Type()) {
-		base.FatalfAt(fn.Pos(), "mismatched types: %v", fn)
-	}
-
-	if base.Flag.W > 1 {
-		s := fmt.Sprintf("new closure func: %v", fn)
-		Dump(s, fn)
-	}
-
-	if pkg != nil {
-		pkg.Funcs = append(pkg.Funcs, fn)
-	}
-
-	if false && IsTrivialClosure(clo) {
-		// TODO(mdempsky): Investigate if we can/should optimize this
-		// case. walkClosure already handles it later, but it could be
-		// useful to recognize earlier (e.g., it might allow multiple
-		// inlined calls to a function to share a common trivial closure
-		// func, rather than cloning it for each inlined call).
-	}
-
-	return clo
 }

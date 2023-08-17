@@ -237,7 +237,6 @@ func hashFunc(t *types.Type) *ir.Func {
 	typecheck.FinishFuncBody()
 
 	fn.SetDupok(true)
-	typecheck.Func(fn)
 
 	ir.WithFunc(fn, func() {
 		typecheck.Stmts(fn.Body)
@@ -623,7 +622,6 @@ func eqFunc(t *types.Type) *ir.Func {
 	typecheck.FinishFuncBody()
 
 	fn.SetDupok(true)
-	typecheck.Func(fn)
 
 	ir.WithFunc(fn, func() {
 		typecheck.Stmts(fn.Body)

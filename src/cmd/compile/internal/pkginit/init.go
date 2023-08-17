@@ -52,7 +52,6 @@ func MakeInit() {
 	fn.Body = nf
 	typecheck.FinishFuncBody()
 
-	typecheck.Func(fn)
 	ir.WithFunc(fn, func() {
 		typecheck.Stmts(nf)
 	})
@@ -145,7 +144,6 @@ func MakeTask() {
 
 			fnInit.Body.Append(asancall)
 			typecheck.FinishFuncBody()
-			typecheck.Func(fnInit)
 			ir.CurFunc = fnInit
 			typecheck.Stmts(fnInit.Body)
 			ir.CurFunc = nil

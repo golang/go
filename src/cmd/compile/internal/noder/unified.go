@@ -83,8 +83,6 @@ func unified(m posMap, noders []*noder) {
 
 	target := typecheck.Target
 
-	typecheck.TypecheckAllowed = true
-
 	localPkgReader = newPkgReader(pkgbits.NewPkgDecoder(types.LocalPkg.Path, data))
 	readPackage(localPkgReader, types.LocalPkg, true)
 

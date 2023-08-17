@@ -324,7 +324,6 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 
 	typecheck.FinishFuncBody()
 
-	typecheck.Func(fn)
 	ir.CurFunc = fn
 	typecheck.Stmts(fn.Body)
 

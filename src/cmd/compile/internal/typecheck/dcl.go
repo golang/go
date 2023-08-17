@@ -34,6 +34,7 @@ func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.F
 	checkdupfields("argument", typ.Recvs().FieldSlice(), typ.Params().FieldSlice(), typ.Results().FieldSlice())
 	fn.Nname.SetType(typ)
 	fn.Nname.SetTypecheck(1)
+	fn.SetTypecheck(1)
 
 	return fn
 }

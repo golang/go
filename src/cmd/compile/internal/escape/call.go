@@ -256,9 +256,8 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 	}
 
 	// Create a new no-argument function that we'll hand off to defer.
-	fn := ir.NewClosureFunc(n.Pos(), true)
+	fn := ir.NewClosureFunc(n.Pos(), n.Pos(), types.NewSignature(nil, nil, nil), e.curfn, typecheck.Target)
 	fn.SetWrapper(true)
-	fn.Nname.SetType(types.NewSignature(nil, nil, nil))
 	fn.SetEsc(escFuncTagged) // no params; effectively tagged already
 	fn.Body = []ir.Node{call}
 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
@@ -272,6 +271,7 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 	}
 
 	clo := fn.OClosure
+
 	if n.Op() == ir.OGO {
 		clo.IsGoWrap = true
 	}
