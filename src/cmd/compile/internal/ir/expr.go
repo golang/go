@@ -557,9 +557,8 @@ func (n *SelectorExpr) FuncName() *Name {
 	if n.Op() != OMETHEXPR {
 		panic(n.no("FuncName"))
 	}
-	fn := NewNameAt(n.Selection.Pos, MethodSym(n.X.Type(), n.Sel))
+	fn := NewNameAt(n.Selection.Pos, MethodSym(n.X.Type(), n.Sel), n.Type())
 	fn.Class = PFUNC
-	fn.SetType(n.Type())
 	if n.Selection.Nname != nil {
 		// TODO(austin): Nname is nil for interface method
 		// expressions (I.M), so we can't attach a Func to

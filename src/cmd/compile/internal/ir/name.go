@@ -147,11 +147,42 @@ func (n *Name) RecordFrameOffset(offset int64) {
 
 // NewNameAt returns a new ONAME Node associated with symbol s at position pos.
 // The caller is responsible for setting Curfn.
-func NewNameAt(pos src.XPos, sym *types.Sym) *Name {
+func NewNameAt(pos src.XPos, sym *types.Sym, typ *types.Type) *Name {
 	if sym == nil {
 		base.Fatalf("NewNameAt nil")
 	}
-	return newNameAt(pos, ONAME, sym)
+	n := newNameAt(pos, ONAME, sym)
+	if typ != nil {
+		n.SetType(typ)
+		n.SetTypecheck(1)
+	}
+	return n
+}
+
+// NewBuiltin returns a new Name representing a builtin function,
+// either predeclared or from package unsafe.
+func NewBuiltin(sym *types.Sym, op Op) *Name {
+	n := newNameAt(src.NoXPos, ONAME, sym)
+	n.BuiltinOp = op
+	n.SetTypecheck(1)
+	sym.Def = n
+	return n
+}
+
+// NewLocal returns a new function-local variable with the given name and type.
+func (fn *Func) NewLocal(pos src.XPos, sym *types.Sym, class Class, typ *types.Type) *Name {
+	switch class {
+	case PPARAM, PPARAMOUT, PAUTO:
+		// ok
+	default:
+		base.FatalfAt(pos, "NewLocal: unexpected class for %v: %v", sym, class)
+	}
+
+	n := NewNameAt(pos, sym, typ)
+	n.Class = class
+	n.Curfn = fn
+	fn.Dcl = append(fn.Dcl, n)
+	return n
 }
 
 // NewDeclNameAt returns a new Name associated with symbol s at position pos.
@@ -345,15 +376,12 @@ func NewClosureVar(pos src.XPos, fn *Func, n *Name) *Name {
 		base.Fatalf("NewClosureVar: %+v", n)
 	}
 
-	c := NewNameAt(pos, n.Sym())
+	c := NewNameAt(pos, n.Sym(), n.Type())
 	c.Curfn = fn
 	c.Class = PAUTOHEAP
 	c.SetIsClosureVar(true)
 	c.Defn = n.Canonical()
 	c.Outer = n
-
-	c.SetType(n.Type())
-	c.SetTypecheck(n.Typecheck())
 
 	fn.ClosureVars = append(fn.ClosureVars, c)
 
@@ -371,9 +399,8 @@ func NewHiddenParam(pos src.XPos, fn *Func, sym *types.Sym, typ *types.Type) *Na
 
 	// Create a fake parameter, disassociated from any real function, to
 	// pretend to capture.
-	fake := NewNameAt(pos, sym)
+	fake := NewNameAt(pos, sym, typ)
 	fake.Class = PPARAM
-	fake.SetType(typ)
 	fake.SetByval(true)
 
 	return NewClosureVar(pos, fn, fake)

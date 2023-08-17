@@ -684,13 +684,12 @@ func StaticName(t *types.Type) *ir.Name {
 	sym := typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen))
 	statuniqgen++
 
-	n := typecheck.NewName(sym)
+	n := ir.NewNameAt(base.Pos, sym, t)
 	sym.Def = n
 
 	n.Class = ir.PEXTERN
 	typecheck.Target.Externs = append(typecheck.Target.Externs, n)
 
-	n.SetType(t)
 	n.Linksym().Set(obj.AttrStatic, true)
 	return n
 }

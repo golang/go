@@ -47,9 +47,8 @@ func directClosureCall(n *ir.CallExpr) {
 			// and v remains PAUTOHEAP with &v heapaddr
 			// (accesses will implicitly deref &v).
 
-			addr := ir.NewNameAt(clofn.Pos(), typecheck.Lookup("&"+v.Sym().Name))
+			addr := ir.NewNameAt(clofn.Pos(), typecheck.Lookup("&"+v.Sym().Name), types.NewPtr(v.Type()))
 			addr.Curfn = clofn
-			addr.SetType(types.NewPtr(v.Type()))
 			v.Heapaddr = addr
 			v = addr
 		}

@@ -319,7 +319,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 
 		if r.Bool() {
 			sym := importpkg.Lookup(".inittask")
-			task := ir.NewNameAt(src.NoXPos, sym)
+			task := ir.NewNameAt(src.NoXPos, sym, nil)
 			task.Class = ir.PEXTERN
 			sym.Def = task
 		}

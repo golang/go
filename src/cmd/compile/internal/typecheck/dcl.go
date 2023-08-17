@@ -19,7 +19,7 @@ var DeclContext ir.Class = ir.PEXTERN // PEXTERN/PAUTO
 
 func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.Func {
 	fn := ir.NewFunc(base.Pos)
-	fn.Nname = ir.NewNameAt(base.Pos, sym)
+	fn.Nname = ir.NewNameAt(base.Pos, sym, nil)
 	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
 	ir.MarkFunc(fn.Nname)
@@ -119,15 +119,7 @@ func declareParam(fn *ir.Func, ctxt ir.Class, i int, param *ir.Field) *types.Fie
 	}
 
 	if sym != nil {
-		name := ir.NewNameAt(param.Pos, sym)
-		name.SetType(f.Type)
-		name.SetTypecheck(1)
-
-		name.Class = ctxt
-		fn.Dcl = append(fn.Dcl, name)
-		name.Curfn = fn
-
-		f.Nname = name
+		f.Nname = fn.NewLocal(param.Pos, sym, ctxt, f.Type)
 	}
 
 	return f
@@ -157,16 +149,11 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 		Name: autotmpname(len(curfn.Dcl)),
 		Pkg:  types.LocalPkg,
 	}
-	n := ir.NewNameAt(pos, s)
-	s.Def = n
-	n.SetType(t)
-	n.SetTypecheck(1)
-	n.Class = ir.PAUTO
+	n := curfn.NewLocal(pos, s, ir.PAUTO, t)
+	s.Def = n // TODO(mdempsky): Should be unnecessary.
 	n.SetEsc(ir.EscNever)
-	n.Curfn = curfn
 	n.SetUsed(true)
 	n.SetAutoTemp(true)
-	curfn.Dcl = append(curfn.Dcl, n)
 
 	types.CalcSize(t)
 

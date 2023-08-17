@@ -398,7 +398,7 @@ func NewClosureFunc(pos src.XPos, hidden bool) *Func {
 	fn := NewFunc(pos)
 	fn.SetIsHiddenClosure(hidden)
 
-	fn.Nname = NewNameAt(pos, BlankNode.Sym())
+	fn.Nname = NewNameAt(pos, BlankNode.Sym(), nil)
 	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
 

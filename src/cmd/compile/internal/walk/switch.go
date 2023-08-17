@@ -548,7 +548,7 @@ func (s *typeSwitch) Add(pos src.XPos, n1 ir.Node, caseVar *ir.Name, jmp ir.Node
 		typecheck.Stmts(l)
 		body.Append(l...)
 	} else {
-		caseVar = ir.BlankNode.(*ir.Name)
+		caseVar = ir.BlankNode
 	}
 
 	// cv, ok = iface.(type)

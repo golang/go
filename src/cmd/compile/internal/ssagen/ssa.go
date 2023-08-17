@@ -675,12 +675,9 @@ func (s *state) setHeapaddr(pos src.XPos, n *ir.Name, ptr *ssa.Value) {
 	}
 
 	// Declare variable to hold address.
-	addr := ir.NewNameAt(pos, &types.Sym{Name: "&" + n.Sym().Name, Pkg: types.LocalPkg})
-	addr.SetType(types.NewPtr(n.Type()))
-	addr.Class = ir.PAUTO
+	sym := &types.Sym{Name: "&" + n.Sym().Name, Pkg: types.LocalPkg}
+	addr := s.curfn.NewLocal(pos, sym, ir.PAUTO, types.NewPtr(n.Type()))
 	addr.SetUsed(true)
-	addr.Curfn = s.curfn
-	s.curfn.Dcl = append(s.curfn.Dcl, addr)
 	types.CalcSize(addr.Type())
 
 	if n.Class == ir.PPARAMOUT {
@@ -939,7 +936,7 @@ func (s *state) Warnl(pos src.XPos, msg string, args ...interface{}) { s.f.Warnl
 func (s *state) Debug_checknil() bool                                { return s.f.Frontend().Debug_checknil() }
 
 func ssaMarker(name string) *ir.Name {
-	return typecheck.NewName(&types.Sym{Name: name})
+	return ir.NewNameAt(base.Pos, &types.Sym{Name: name}, nil)
 }
 
 var (
@@ -7976,15 +7973,10 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t 
 		return ssa.LocalSlot{N: node, Type: t, Off: parent.Off + offset}
 	}
 
-	s := &types.Sym{Name: node.Sym().Name + suffix, Pkg: types.LocalPkg}
-	n := ir.NewNameAt(parent.N.Pos(), s)
-	s.Def = n
-	ir.AsNode(s.Def).Name().SetUsed(true)
-	n.SetType(t)
-	n.Class = ir.PAUTO
+	sym := &types.Sym{Name: node.Sym().Name + suffix, Pkg: types.LocalPkg}
+	n := e.curfn.NewLocal(parent.N.Pos(), sym, ir.PAUTO, t)
+	n.SetUsed(true)
 	n.SetEsc(ir.EscNever)
-	n.Curfn = e.curfn
-	e.curfn.Dcl = append(e.curfn.Dcl, n)
 	types.CalcSize(t)
 	return ssa.LocalSlot{N: n, Type: t, Off: 0, SplitOf: parent, SplitOffset: offset}
 }

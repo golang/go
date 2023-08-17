@@ -23,8 +23,7 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 	// var asanglobals []asanGlobalStruct
 	arraytype := types.NewArray(asanGlobalStruct, int64(len(InstrumentGlobalsMap)))
 	symG := lname(".asanglobals")
-	globals := typecheck.NewName(symG)
-	globals.SetType(arraytype)
+	globals := ir.NewNameAt(base.Pos, symG, arraytype)
 	globals.Class = ir.PEXTERN
 	symG.Def = globals
 	typecheck.Target.Externs = append(typecheck.Target.Externs, globals)
@@ -32,8 +31,7 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 	// var asanL []asanLocationStruct
 	arraytype = types.NewArray(asanLocationStruct, int64(len(InstrumentGlobalsMap)))
 	symL := lname(".asanL")
-	asanlocation := typecheck.NewName(symL)
-	asanlocation.SetType(arraytype)
+	asanlocation := ir.NewNameAt(base.Pos, symL, arraytype)
 	asanlocation.Class = ir.PEXTERN
 	symL.Def = asanlocation
 	typecheck.Target.Externs = append(typecheck.Target.Externs, asanlocation)
@@ -43,22 +41,19 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 	// var asanModulename string
 	// var asanFilename string
 	symL = lname(".asanName")
-	asanName := typecheck.NewName(symL)
-	asanName.SetType(types.Types[types.TSTRING])
+	asanName := ir.NewNameAt(base.Pos, symL, types.Types[types.TSTRING])
 	asanName.Class = ir.PEXTERN
 	symL.Def = asanName
 	typecheck.Target.Externs = append(typecheck.Target.Externs, asanName)
 
 	symL = lname(".asanModulename")
-	asanModulename := typecheck.NewName(symL)
-	asanModulename.SetType(types.Types[types.TSTRING])
+	asanModulename := ir.NewNameAt(base.Pos, symL, types.Types[types.TSTRING])
 	asanModulename.Class = ir.PEXTERN
 	symL.Def = asanModulename
 	typecheck.Target.Externs = append(typecheck.Target.Externs, asanModulename)
 
 	symL = lname(".asanFilename")
-	asanFilename := typecheck.NewName(symL)
-	asanFilename.SetType(types.Types[types.TSTRING])
+	asanFilename := ir.NewNameAt(base.Pos, symL, types.Types[types.TSTRING])
 	asanFilename.Class = ir.PEXTERN
 	symL.Def = asanFilename
 	typecheck.Target.Externs = append(typecheck.Target.Externs, asanFilename)

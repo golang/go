@@ -48,13 +48,6 @@ func NewFuncParams(tl *types.Type, mustname bool) []*ir.Field {
 	return args
 }
 
-// NewName returns a new ONAME Node associated with symbol s.
-func NewName(s *types.Sym) *ir.Name {
-	n := ir.NewNameAt(base.Pos, s)
-	n.Curfn = ir.CurFunc
-	return n
-}
-
 // NodAddr returns a node representing &n at base.Pos.
 func NodAddr(n ir.Node) *ir.AddrExpr {
 	return NodAddrAt(base.Pos, n)

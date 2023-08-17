@@ -132,12 +132,12 @@ func MakeTask() {
 
 			// Call runtime.asanregisterglobals function to poison redzones.
 			// runtime.asanregisterglobals(unsafe.Pointer(&globals[0]), ni)
-			asanf := typecheck.NewName(ir.Pkgs.Runtime.Lookup("asanregisterglobals"))
+			asanf := ir.NewNameAt(base.Pos, ir.Pkgs.Runtime.Lookup("asanregisterglobals"),
+				types.NewSignature(nil, []*types.Field{
+					types.NewField(base.Pos, nil, types.Types[types.TUNSAFEPTR]),
+					types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+				}, nil))
 			ir.MarkFunc(asanf)
-			asanf.SetType(types.NewSignature(nil, []*types.Field{
-				types.NewField(base.Pos, nil, types.Types[types.TUNSAFEPTR]),
-				types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
-			}, nil))
 			asancall := ir.NewCallExpr(base.Pos, ir.OCALL, asanf, nil)
 			asancall.Args.Append(typecheck.ConvNop(typecheck.NodAddr(
 				ir.NewIndexExpr(base.Pos, globals, ir.NewInt(base.Pos, 0))), types.Types[types.TUNSAFEPTR]))
@@ -193,8 +193,7 @@ func MakeTask() {
 
 	// Make an .inittask structure.
 	sym := typecheck.Lookup(".inittask")
-	task := typecheck.NewName(sym)
-	task.SetType(types.Types[types.TUINT8]) // fake type
+	task := ir.NewNameAt(base.Pos, sym, types.Types[types.TUINT8]) // fake type
 	task.Class = ir.PEXTERN
 	sym.Def = task
 	lsym := task.Linksym()

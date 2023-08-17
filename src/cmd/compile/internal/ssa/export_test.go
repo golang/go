@@ -59,7 +59,7 @@ func (c *Conf) Frontend() Frontend {
 		f.Nname = ir.NewNameAt(f.Pos(), &types.Sym{
 			Pkg:  types.NewPkg("my/import/path", "path"),
 			Name: "function",
-		})
+		}, nil)
 		f.LSym = &obj.LSym{Name: "my/import/path.function"}
 
 		c.fe = TestFrontend{
@@ -83,8 +83,7 @@ func (TestFrontend) StringData(s string) *obj.LSym {
 	return nil
 }
 func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Name {
-	n := ir.NewNameAt(pos, &types.Sym{Name: "aFakeAuto"})
-	n.SetType(t)
+	n := ir.NewNameAt(pos, &types.Sym{Name: "aFakeAuto"}, t)
 	n.Class = ir.PAUTO
 	return n
 }

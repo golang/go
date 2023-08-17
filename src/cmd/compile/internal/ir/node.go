@@ -470,7 +470,7 @@ func AsNode(n types.Object) Node {
 	return n.(Node)
 }
 
-var BlankNode Node
+var BlankNode *Name
 
 func IsConst(n Node, ct constant.Kind) bool {
 	return ConstType(n) == ct
