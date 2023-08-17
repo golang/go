@@ -20,7 +20,8 @@ func _() {
 	_ = x[passFuncToNestedIndCallAdj-256]
 	_ = x[passInlinableFuncToIndCallAdj-512]
 	_ = x[passInlinableFuncToNestedIndCallAdj-1024]
-	_ = x[lastAdj-1024]
+	_ = x[callResultRescoreAdj-2048]
+	_ = x[lastAdj-2048]
 }
 
 var _scoreAdjustTyp_value = [...]uint64{
@@ -35,12 +36,13 @@ var _scoreAdjustTyp_value = [...]uint64{
 	0x100, /* passFuncToNestedIndCallAdj */
 	0x200, /* passInlinableFuncToIndCallAdj */
 	0x400, /* passInlinableFuncToNestedIndCallAdj */
-	0x400, /* lastAdj */
+	0x800, /* callResultRescoreAdj */
+	0x800, /* lastAdj */
 }
 
-const _scoreAdjustTyp_name = "panicPathAdjinitFuncAdjinLoopAdjpassConstToIfAdjpassConstToNestedIfAdjpassConcreteToItfCallAdjpassConcreteToNestedItfCallAdjpassFuncToIndCallAdjpassFuncToNestedIndCallAdjpassInlinableFuncToIndCallAdjpassInlinableFuncToNestedIndCallAdjlastAdj"
+const _scoreAdjustTyp_name = "panicPathAdjinitFuncAdjinLoopAdjpassConstToIfAdjpassConstToNestedIfAdjpassConcreteToItfCallAdjpassConcreteToNestedItfCallAdjpassFuncToIndCallAdjpassFuncToNestedIndCallAdjpassInlinableFuncToIndCallAdjpassInlinableFuncToNestedIndCallAdjcallResultRescoreAdjlastAdj"
 
-var _scoreAdjustTyp_index = [...]uint8{0, 12, 23, 32, 48, 70, 94, 124, 144, 170, 199, 234, 241}
+var _scoreAdjustTyp_index = [...]uint16{0, 12, 23, 32, 48, 70, 94, 124, 144, 170, 199, 234, 254, 261}
 
 func (i scoreAdjustTyp) String() string {
 	var b bytes.Buffer

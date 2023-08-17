@@ -37,7 +37,7 @@ func TestFuncProperties(t *testing.T) {
 	// scheme.
 
 	testcases := []string{"funcflags", "returns", "params",
-		"acrosscall", "calls"}
+		"acrosscall", "calls", "returns2"}
 	for _, tc := range testcases {
 		dumpfile, err := gatherPropsDumpForFile(t, tc, td)
 		if err != nil {

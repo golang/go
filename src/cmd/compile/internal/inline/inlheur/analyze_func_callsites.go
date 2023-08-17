@@ -182,6 +182,8 @@ func ScoreCalls(fn *ir.Func) {
 		return
 	}
 
+	resultNameTab := make(map[*ir.Name]resultPropAndCS)
+
 	// Sort callsites to avoid any surprises with non deterministic
 	// map iteration order (this is probably not needed, but here just
 	// in case).
@@ -214,10 +216,14 @@ func ScoreCalls(fn *ir.Func) {
 		}
 		cs.Score, cs.ScoreMask = computeCallSiteScore(cs.Callee, cprops, cs.Call, cs.Flags)
 
+		examineCallResults(cs, resultNameTab)
+
 		if debugTrace&debugTraceScoring != 0 {
 			fmt.Fprintf(os.Stderr, "=-= scoring call at %s: flags=%d score=%d fih=%v deser=%v\n", fmtFullPos(cs.Call.Pos()), cs.Flags, cs.Score, fihcprops, desercprops)
 		}
 	}
+
+	rescoreBasedOnCallResultUses(fn, resultNameTab, fih.cstab)
 }
 
 func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {
@@ -290,12 +296,12 @@ func hasTopLevelLoopBodyReturnOrBreak(loopBody ir.Nodes) bool {
 //
 // Here the top-level assignment statement for the foo() call is the
 // statement assigning to "x"; the top-level assignment for "bar()"
-// call is the assignment to x,y.   For the baz() and blah() calls,
+// call is the assignment to x,y. For the baz() and blah() calls,
 // there is no top level assignment statement.
 //
-// The unstated goal here is that we want to use the containing assignment
-// to establish a connection between a given call and the variables
-// to which its results/returns are being assigned.
+// The unstated goal here is that we want to use the containing
+// assignment to establish a connection between a given call and the
+// variables to which its results/returns are being assigned.
 //
 // Note that for the "bar" command above, the front end sometimes
 // decomposes this into two assignments, the first one assigning the

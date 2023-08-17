@@ -31,7 +31,8 @@ const (
 	passFuncToNestedIndCallAdj
 	passInlinableFuncToIndCallAdj
 	passInlinableFuncToNestedIndCallAdj
-	lastAdj scoreAdjustTyp = passInlinableFuncToNestedIndCallAdj
+	callResultRescoreAdj
+	lastAdj scoreAdjustTyp = callResultRescoreAdj
 )
 
 // This table records the specific values we use to adjust call
@@ -52,6 +53,7 @@ var adjValues = map[scoreAdjustTyp]int{
 	passFuncToNestedIndCallAdj:          -20,
 	passInlinableFuncToIndCallAdj:       -45,
 	passInlinableFuncToNestedIndCallAdj: -40,
+	callResultRescoreAdj:                0,
 }
 
 func adjValue(x scoreAdjustTyp) int {

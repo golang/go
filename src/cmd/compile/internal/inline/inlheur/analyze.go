@@ -222,11 +222,6 @@ func emitDumpToFile(dumpfile string) {
 // "-d=dumpinlfuncprops=..." command line flag, intended for use
 // primarily in unit testing.
 func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
-	if debugTrace&debugTraceFuncs != 0 {
-		fmt.Fprintf(os.Stderr, "=-= capturing dump for %v:\n",
-			fn.Sym().Name)
-	}
-
 	// avoid capturing compiler-generated equality funcs.
 	if strings.HasPrefix(fn.Sym().Name, ".eq.") {
 		return
@@ -248,6 +243,9 @@ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
 		// we can wind up seeing closures multiple times here,
 		// so don't add them more than once.
 		return
+	}
+	if debugTrace&debugTraceFuncs != 0 {
+		fmt.Fprintf(os.Stderr, "=-= capturing dump for %v:\n", fn)
 	}
 	dumpBuffer[fn] = fih
 }
