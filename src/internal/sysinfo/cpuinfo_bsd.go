@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !(darwin || freebsd || linux || netbsd || openbsd)
+//go:build darwin || freebsd || netbsd || openbsd
 
 package sysinfo
 
+import "syscall"
+
 func osCpuInfoName() string {
-	return ""
+	cpu, _ := syscall.Sysctl("machdep.cpu.brand_string")
+	return cpu
 }
