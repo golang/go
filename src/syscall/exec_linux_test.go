@@ -410,17 +410,6 @@ func prepareCgroupFD(t *testing.T) (int, string) {
 		t.Skipf("cgroup v2 not available (/proc/self/cgroup contents: %q)", selfCg)
 	}
 
-	// Need clone3 with CLONE_INTO_CGROUP support.
-	_, err = syscall.ForkExec("non-existent binary", nil, &syscall.ProcAttr{
-		Sys: &syscall.SysProcAttr{
-			UseCgroupFD: true,
-			CgroupFD:    -1,
-		},
-	})
-	if testenv.SyscallIsNotSupported(err) {
-		t.Skipf("clone3 with CLONE_INTO_CGROUP not available: %v", err)
-	}
-
 	// Need an ability to create a sub-cgroup.
 	subCgroup, err := os.MkdirTemp(prefix+string(bytes.TrimSpace(cg)), "subcg-")
 	if err != nil {
@@ -459,6 +448,13 @@ func TestUseCgroupFD(t *testing.T) {
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		if err != syscall.EINVAL && testenv.SyscallIsNotSupported(err) {
+			// Can be one of:
+			// - clone3 not supported (old kernel);
+			// - clone3 not allowed (by e.g. seccomp);
+			// - lack of CAP_SYS_ADMIN.
+			t.Skipf("clone3 with CLONE_INTO_CGROUP not available: %v", err)
+		}
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	// NB: this wouldn't work with cgroupns.
