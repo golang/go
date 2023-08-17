@@ -241,7 +241,7 @@ func tcGoDefer(n *ir.GoDeferStmt) {
 		// the wrapper, so we don't need to allocate space for them within
 		// the closure.
 		switch arg.Op() {
-		case ir.OLITERAL, ir.ONIL, ir.OMETHEXPR:
+		case ir.OLITERAL, ir.ONIL, ir.OMETHEXPR, ir.ONEW:
 			return
 		case ir.ONAME:
 			arg := arg.(*ir.Name)
