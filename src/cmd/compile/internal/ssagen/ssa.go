@@ -8086,7 +8086,7 @@ func max8(a, b int8) int8 {
 	return b
 }
 
-var deferStructFnField = -1
+const deferStructFnField = 4
 
 // deferstruct makes a runtime._defer structure.
 func deferstruct() *types.Type {
@@ -8111,14 +8111,8 @@ func deferstruct() *types.Type {
 		makefield("link", types.Types[types.TUINTPTR]),
 		makefield("head", types.Types[types.TUINTPTR]),
 	}
-	for i, f := range fields {
-		if f.Sym.Name == "fn" {
-			deferStructFnField = i
-			break
-		}
-	}
-	if deferStructFnField < 0 {
-		base.Fatalf("deferstruct has no fn field")
+	if name := fields[deferStructFnField].Sym.Name; name != "fn" {
+		base.Fatalf("deferStructFnField is %q, not fn", name)
 	}
 
 	// build struct holding the above fields
