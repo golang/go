@@ -223,6 +223,8 @@ func (path typePath) String() string {
 }
 
 func lockPathRhs(pass *analysis.Pass, x ast.Expr) typePath {
+	x = analysisutil.Unparen(x) // ignore parens on rhs
+
 	if _, ok := x.(*ast.CompositeLit); ok {
 		return nil
 	}
@@ -231,7 +233,7 @@ func lockPathRhs(pass *analysis.Pass, x ast.Expr) typePath {
 		return nil
 	}
 	if star, ok := x.(*ast.StarExpr); ok {
-		if _, ok := star.X.(*ast.CallExpr); ok {
+		if _, ok := analysisutil.Unparen(star.X).(*ast.CallExpr); ok {
 			// A call may return a pointer to a zero value.
 			return nil
 		}

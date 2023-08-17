@@ -46,7 +46,7 @@ golang.org/x/sys/windows
 # golang.org/x/term v0.11.0
 ## explicit; go 1.17
 golang.org/x/term
-# golang.org/x/tools v0.12.1-0.20230809190736-59fd05da6bc1
+# golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846
 ## explicit; go 1.18
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
