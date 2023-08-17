@@ -24,6 +24,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -519,6 +520,73 @@ func TestCloneTimeNamespace(t *testing.T) {
 	childTimeNS := string(out)
 	if childTimeNS == parentTimeNS {
 		t.Fatalf("expected child time namespace to be different from parent time namespace: %s", parentTimeNS)
+	}
+}
+
+func testPidFD(t *testing.T) error {
+	testenv.MustHaveExec(t)
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		// Child: wait for a signal.
+		time.Sleep(time.Hour)
+	}
+
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var pidfd int
+	cmd := testenv.Command(t, exe, "-test.run=^TestPidFD$")
+	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		PidFD: &pidfd,
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	defer func() {
+		cmd.Process.Kill()
+		cmd.Wait()
+	}()
+	t.Log("got pidfd:", pidfd)
+	// If pidfd is not supported by the kernel, -1 is returned.
+	if pidfd == -1 {
+		t.Skip("pidfd not supported")
+	}
+	defer syscall.Close(pidfd)
+
+	// Use pidfd to send a signal to the child.
+	sig := syscall.SIGINT
+	if _, _, e := syscall.Syscall(syscall.Sys_pidfd_send_signal, uintptr(pidfd), uintptr(sig), 0); e != 0 {
+		if e != syscall.EINVAL && testenv.SyscallIsNotSupported(e) {
+			t.Skip("pidfd_send_signal syscall not supported:", e)
+		}
+		t.Fatal("pidfd_send_signal syscall failed:", e)
+	}
+	// Check if the child received our signal.
+	err = cmd.Wait()
+	if cmd.ProcessState == nil || cmd.ProcessState.Sys().(syscall.WaitStatus).Signal() != sig {
+		t.Fatal("unexpected child error:", err)
+	}
+	return nil
+}
+
+func TestPidFD(t *testing.T) {
+	if err := testPidFD(t); err != nil {
+		t.Fatal("can't start a process:", err)
+	}
+}
+
+func TestPidFDClone3(t *testing.T) {
+	*syscall.ForceClone3 = true
+	defer func() { *syscall.ForceClone3 = false }()
+
+	if err := testPidFD(t); err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skip("clone3 not supported:", err)
+		}
+		t.Fatal("can't start a process:", err)
 	}
 }
 
