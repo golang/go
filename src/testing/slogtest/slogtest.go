@@ -36,6 +36,7 @@ type testCase struct {
 //
 // TestHandler installs the given Handler in a [slog.Logger] and
 // makes several calls to the Logger's output methods.
+// The Handler should be enabled for levels Info and above.
 //
 // The results function is invoked after all such calls.
 // It should return a slice of map[string]any, one for each call to a Logger output method.
