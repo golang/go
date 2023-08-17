@@ -256,10 +256,10 @@ func main() {
 			b := 3
 			return func(y int) int { // ERROR "can inline main.func27.1" "can inline main.main.func27.func34"
 				c := 5
-				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.main.func27.func34.1" "can inline main.func27.main.func27.1.func2" "can inline main.main.func27.main.main.func27.func34.func36"
+				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.main.func27.func34.1" "can inline main.func27.main.func27.1.2" "can inline main.main.func27.main.main.func27.func34.func36"
 					return a*x + b*y + c*z
 				}(10) // ERROR "inlining call to main.func27.1.1"
-			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.main.func27.1.func2"
+			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.main.func27.1.2"
 		}(1000); r != 2350 { // ERROR "inlining call to main.func27" "inlining call to main.main.func27.func34" "inlining call to main.main.func27.main.main.func27.func34.func36"
 			ppanic("r != 2350")
 		}
@@ -271,13 +271,13 @@ func main() {
 			b := 3
 			return func(y int) int { // ERROR "can inline main.func28.1" "can inline main.main.func28.func35"
 				c := 5
-				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.main.func28.1.func2" "can inline main.main.func28.func35.1" "can inline main.main.func28.main.main.func28.func35.func37"
+				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.main.func28.1.2" "can inline main.main.func28.func35.1" "can inline main.main.func28.main.main.func28.func35.func37"
 					a = a * x
 					b = b * y
 					c = c * z
 				}(10) // ERROR "inlining call to main.func28.1.1"
 				return a + c
-			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.main.func28.1.func2"
+			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.main.func28.1.2"
 		}(1000); r != 2350 { // ERROR "inlining call to main.func28" "inlining call to main.main.func28.func35" "inlining call to main.main.func28.main.main.func28.func35.func37"
 			ppanic("r != 2350")
 		}

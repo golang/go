@@ -2722,14 +2722,11 @@ func (r *reader) syntheticClosure(origPos src.XPos, typ *types.Type, ifaceHack b
 		return false
 	}
 
-	// The ODCLFUNC and its body need to use the original position, but
-	// the OCLOSURE node and any Init statements should use the inlined
-	// position instead. See also the explanation in reader.funcLit.
-	inlPos := r.inlPos(origPos)
-
-	// TODO(mdempsky): Remove hard-coding of typecheck.Target.
-	fn := ir.NewClosureFunc(origPos, inlPos, typ, r.curfn, typecheck.Target)
+	fn := r.inlClosureFunc(origPos, typ)
 	fn.SetWrapper(true)
+
+	clo := fn.OClosure
+	inlPos := clo.Pos()
 
 	var init ir.Nodes
 	for i, n := range captures {
@@ -2766,7 +2763,7 @@ func (r *reader) syntheticClosure(origPos src.XPos, typ *types.Type, ifaceHack b
 	bodyReader[fn] = pri
 	pri.funcBody(fn)
 
-	return ir.InitExpr(init, fn.OClosure)
+	return ir.InitExpr(init, clo)
 }
 
 // syntheticSig duplicates and returns the params and results lists
@@ -3114,15 +3111,16 @@ func (r *reader) funcLit() ir.Node {
 	// OCLOSURE node, because that position represents where any heap
 	// allocation of the closure is credited (#49171).
 	r.suppressInlPos++
-	pos := r.pos()
-	xtype2 := r.signature(nil)
+	origPos := r.pos()
+	sig := r.signature(nil)
 	r.suppressInlPos--
 
-	// TODO(mdempsky): Remove hard-coding of typecheck.Target.
-	fn := ir.NewClosureFunc(pos, r.inlPos(pos), xtype2, r.curfn, typecheck.Target)
+	fn := r.inlClosureFunc(origPos, sig)
 
 	fn.ClosureVars = make([]*ir.Name, 0, r.Len())
 	for len(fn.ClosureVars) < cap(fn.ClosureVars) {
+		// TODO(mdempsky): I think these should be original positions too
+		// (i.e., not inline-adjusted).
 		ir.NewClosureVar(r.pos(), fn, r.useLocal())
 	}
 	if param := r.dictParam; param != nil {
@@ -3134,6 +3132,18 @@ func (r *reader) funcLit() ir.Node {
 	r.addBody(fn, nil)
 
 	return fn.OClosure
+}
+
+// inlClosureFunc constructs a new closure function, but correctly
+// handles inlining.
+func (r *reader) inlClosureFunc(origPos src.XPos, sig *types.Type) *ir.Func {
+	curfn := r.inlCaller
+	if curfn == nil {
+		curfn = r.curfn
+	}
+
+	// TODO(mdempsky): Remove hard-coding of typecheck.Target.
+	return ir.NewClosureFunc(origPos, r.inlPos(origPos), sig, curfn, typecheck.Target)
 }
 
 func (r *reader) exprList() []ir.Node {
@@ -3451,10 +3461,7 @@ func unifiedInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.Inlined
 
 	r := pri.asReader(pkgbits.RelocBody, pkgbits.SyncFuncBody)
 
-	// TODO(mdempsky): This still feels clumsy. Can we do better?
 	tmpfn := ir.NewFunc(fn.Pos(), fn.Nname.Pos(), callerfn.Sym(), fn.Type())
-	tmpfn.Closgen = callerfn.Closgen
-	defer func() { callerfn.Closgen = tmpfn.Closgen }()
 
 	r.curfn = tmpfn
 
