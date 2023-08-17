@@ -145,11 +145,12 @@ func ExampleOr_sort() {
 		{"bar", "carol", 1.00},
 		{"foo", "bob", 4.00},
 	}
+	// Sort by customer first, product second, and last by higher price
 	slices.SortFunc(orders, func(a, b Order) int {
 		return cmp.Or(
 			cmp.Compare(a.Customer, b.Customer),
 			cmp.Compare(a.Product, b.Product),
-			cmp.Compare(a.Price, b.Price),
+			cmp.Compare(b.Price, a.Price),
 		)
 	})
 	for _, order := range orders {
@@ -157,8 +158,8 @@ func ExampleOr_sort() {
 	}
 
 	// Output:
-	// foo alice 1.00
 	// foo alice 2.00
+	// foo alice 1.00
 	// bar bob 3.00
 	// foo bob 4.00
 	// bar carol 1.00
