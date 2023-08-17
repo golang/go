@@ -123,14 +123,7 @@ func MakeTask() {
 
 			// Call runtime.asanregisterglobals function to poison redzones.
 			// runtime.asanregisterglobals(unsafe.Pointer(&globals[0]), ni)
-			//
-			// TODO(mdempsky): Move into typecheck builtins.
-			asanf := ir.NewFunc(src.NoXPos, src.NoXPos, ir.Pkgs.Runtime.Lookup("asanregisterglobals"),
-				types.NewSignature(nil, []*types.Field{
-					types.NewField(base.Pos, nil, types.Types[types.TUNSAFEPTR]),
-					types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
-				}, nil))
-			asancall := ir.NewCallExpr(base.Pos, ir.OCALL, asanf.Nname, nil)
+			asancall := ir.NewCallExpr(base.Pos, ir.OCALL, typecheck.LookupRuntime("asanregisterglobals"), nil)
 			asancall.Args.Append(typecheck.ConvNop(typecheck.NodAddr(
 				ir.NewIndexExpr(base.Pos, globals, ir.NewInt(base.Pos, 0))), types.Types[types.TUNSAFEPTR]))
 			asancall.Args.Append(typecheck.DefaultLit(ir.NewInt(base.Pos, int64(ni)), types.Types[types.TUINTPTR]))

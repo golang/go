@@ -231,6 +231,7 @@ var runtimeDecls = [...]struct {
 	{"x86HasFMA", varTag, 6},
 	{"armHasVFPv4", varTag, 6},
 	{"arm64HasATOMICS", varTag, 6},
+	{"asanregisterglobals", funcTag, 122},
 }
 
 func runtimeTypes() []*types.Type {
