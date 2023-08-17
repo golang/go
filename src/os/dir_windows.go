@@ -153,10 +153,12 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 			if islast {
 				d.bufp = 0
 			}
-			name := syscall.UTF16ToString(nameslice)
-			if name == "." || name == ".." { // Useless names
+			if (len(nameslice) == 1 && nameslice[0] == '.') ||
+				(len(nameslice) == 2 && nameslice[0] == '.' && nameslice[1] == '.') {
+				// Ignore "." and ".." and avoid allocating a string for them.
 				continue
 			}
+			name := syscall.UTF16ToString(nameslice)
 			if mode == readdirName {
 				names = append(names, name)
 			} else {
