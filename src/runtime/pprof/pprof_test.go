@@ -1245,7 +1245,9 @@ func TestMutexProfile(t *testing.T) {
 		N = 100
 		D = 100 * time.Millisecond
 	)
+	start := time.Now()
 	blockMutexN(t, N, D)
+	blockMutexNTime := time.Since(start)
 
 	t.Run("debug=1", func(t *testing.T) {
 		var w strings.Builder
@@ -1307,9 +1309,22 @@ func TestMutexProfile(t *testing.T) {
 		for _, s := range p.Sample {
 			total += s.Value[i]
 		}
+		// Want d to be at least N*D, but give some wiggle-room to avoid
+		// a test flaking. Set an upper-bound proportional to the total
+		// wall time spent in blockMutexN. Generally speaking, the total
+		// contention time could be arbitrarily high when considering
+		// OS scheduler delays, or any other delays from the environment:
+		// time keeps ticking during these delays. By making the upper
+		// bound proportional to the wall time in blockMutexN, in theory
+		// we're accounting for all these possible delays.
 		d := time.Duration(total)
-		if d < N*D*9/10 || d > N*D*2 { // want N*D but allow [0.9,2.0]*that.
-			t.Fatalf("profile samples total %v, want %v", d, N*D)
+		lo := time.Duration(N * D * 9 / 10)
+		hi := time.Duration(N) * blockMutexNTime * 11 / 10
+		if d < lo || d > hi {
+			for _, s := range p.Sample {
+				t.Logf("sample: %s", time.Duration(s.Value[i]))
+			}
+			t.Fatalf("profile samples total %v, want within range [%v, %v] (target: %v)", d, lo, hi, N*D)
 		}
 	})
 }
