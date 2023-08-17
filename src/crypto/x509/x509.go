@@ -773,6 +773,10 @@ type Certificate struct {
 	CRLDistributionPoints []string
 
 	PolicyIdentifiers []asn1.ObjectIdentifier
+
+	// Policies contains policy OIDs included in any certificatePolicies extensions
+	// in the certificate.
+	Policies []OID
 }
 
 // ErrUnsupportedAlgorithm results from attempting to perform an operation that
