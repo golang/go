@@ -1440,8 +1440,7 @@ func (s *state) stmt(n ir.Node) {
 		n := n.(*ir.BlockStmt)
 		s.stmtList(n.List)
 
-	// No-ops
-	case ir.ODCLCONST, ir.ODCLTYPE, ir.OFALL:
+	case ir.OFALL: // no-op
 
 	// Expression statements
 	case ir.OCALLFUNC:

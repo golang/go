@@ -802,17 +802,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.ODCLFUNC:
 		tcFunc(n.(*ir.Func))
 		return n
-
-	case ir.ODCLCONST:
-		n := n.(*ir.Decl)
-		n.X = Expr(n.X).(*ir.Name)
-		return n
-
-	case ir.ODCLTYPE:
-		n := n.(*ir.Decl)
-		n.X = typecheck(n.X, ctxType).(*ir.Name)
-		types.CheckSize(n.X.Type())
-		return n
 	}
 
 	// No return n here!

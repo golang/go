@@ -31,7 +31,7 @@ func (e *escape) stmt(n ir.Node) {
 	default:
 		base.Fatalf("unexpected stmt: %v", n)
 
-	case ir.ODCLCONST, ir.ODCLTYPE, ir.OFALL, ir.OINLMARK:
+	case ir.OFALL, ir.OINLMARK:
 		// nop
 
 	case ir.OBREAK, ir.OCONTINUE, ir.OGOTO:

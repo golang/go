@@ -175,9 +175,7 @@ const (
 	ODCL       // var X (declares X of type X.Type)
 
 	// Used during parsing but don't last.
-	ODCLFUNC  // func f() or func (r) f()
-	ODCLCONST // const pi = 3.14
-	ODCLTYPE  // type Int int or type Int = int
+	ODCLFUNC // func f() or func (r) f()
 
 	ODELETE        // delete(Args)
 	ODOT           // X.Sel (X is of struct type)

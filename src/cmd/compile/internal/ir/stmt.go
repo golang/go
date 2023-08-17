@@ -23,7 +23,7 @@ func NewDecl(pos src.XPos, op Op, x *Name) *Decl {
 	switch op {
 	default:
 		panic("invalid Decl op " + op.String())
-	case ODCL, ODCLCONST, ODCLTYPE:
+	case ODCL:
 		n.op = op
 	}
 	return n

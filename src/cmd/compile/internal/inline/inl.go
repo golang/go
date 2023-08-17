@@ -647,10 +647,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		// should try to account for that if we're going to account for captures.
 		v.budget -= 15
 
-	case ir.OGO,
-		ir.ODEFER,
-		ir.ODCLTYPE, // can't print yet
-		ir.OTAILCALL:
+	case ir.OGO, ir.ODEFER, ir.OTAILCALL:
 		v.reason = "unhandled op " + n.Op().String()
 		return true
 
@@ -682,7 +679,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		// This doesn't produce code, but the children might.
 		v.budget++ // undo default cost
 
-	case ir.ODCLCONST, ir.OFALL, ir.OTYPE:
+	case ir.OFALL, ir.OTYPE:
 		// These nodes don't produce code; omit from inlining budget.
 		return false
 
