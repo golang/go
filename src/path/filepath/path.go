@@ -13,6 +13,7 @@ package filepath
 
 import (
 	"errors"
+	"internal/safefilepath"
 	"io/fs"
 	"os"
 	"runtime"
@@ -680,4 +681,13 @@ func Dir(path string) string {
 // On other platforms it returns "".
 func VolumeName(path string) string {
 	return FromSlash(path[:volumeNameLen(path)])
+}
+
+// Localize converts a slash-separated path into an operating-system path.
+//
+// Localize returns an error if the path cannot be represented by the operating
+// system. For example, paths containing '\' and ':' characters are rejected
+// on Windows.
+func Localize(path string) (string, error) {
+	return safefilepath.FromFS(path)
 }
