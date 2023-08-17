@@ -7,6 +7,7 @@ package walk
 import (
 	"go/constant"
 	"go/token"
+	"math/bits"
 	"sort"
 
 	"cmd/compile/internal/base"
@@ -617,7 +618,9 @@ func (s *typeSwitch) flush() {
 	}
 	cc = merged
 
-	// TODO: figure out if we could use a jump table using some low bits of the type hashes.
+	if s.tryJumpTable(cc, &s.done) {
+		return
+	}
 	binarySearch(len(cc), &s.done,
 		func(i int) ir.Node {
 			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.hashname, ir.NewInt(base.Pos, int64(cc[i-1].hash)))
@@ -630,6 +633,83 @@ func (s *typeSwitch) flush() {
 			nif.Body.Append(c.body.Take()...)
 		},
 	)
+}
+
+// Try to implement the clauses with a jump table. Returns true if successful.
+func (s *typeSwitch) tryJumpTable(cc []typeClause, out *ir.Nodes) bool {
+	const minCases = 5 // have at least minCases cases in the switch
+	if base.Flag.N != 0 || !ssagen.Arch.LinkArch.CanJumpTable || base.Ctxt.Retpoline {
+		return false
+	}
+	if len(cc) < minCases {
+		return false // not enough cases for it to be worth it
+	}
+	hashes := make([]uint32, len(cc))
+	// b = # of bits to use. Start with the minimum number of
+	// bits possible, but try a few larger sizes if needed.
+	b0 := bits.Len(uint(len(cc) - 1))
+	for b := b0; b < b0+3; b++ {
+	pickI:
+		for i := 0; i <= 32-b; i++ { // starting bit position
+			// Compute the hash we'd get from all the cases,
+			// selecting b bits starting at bit i.
+			hashes = hashes[:0]
+			for _, c := range cc {
+				h := c.hash >> i & (1<<b - 1)
+				hashes = append(hashes, h)
+			}
+			// Order by increasing hash.
+			sort.Slice(hashes, func(j, k int) bool {
+				return hashes[j] < hashes[k]
+			})
+			for j := 1; j < len(hashes); j++ {
+				if hashes[j] == hashes[j-1] {
+					// There is a duplicate hash; try a different b/i pair.
+					continue pickI
+				}
+			}
+
+			// All hashes are distinct. Use these values of b and i.
+			h := s.hashname
+			if i != 0 {
+				h = ir.NewBinaryExpr(base.Pos, ir.ORSH, h, ir.NewInt(base.Pos, int64(i)))
+			}
+			h = ir.NewBinaryExpr(base.Pos, ir.OAND, h, ir.NewInt(base.Pos, int64(1<<b-1)))
+			h = typecheck.Expr(h)
+
+			// Build jump table.
+			jt := ir.NewJumpTableStmt(base.Pos, h)
+			jt.Cases = make([]constant.Value, 1<<b)
+			jt.Targets = make([]*types.Sym, 1<<b)
+			out.Append(jt)
+
+			// Start with all hashes going to the didn't-match target.
+			noMatch := typecheck.AutoLabel(".s")
+			for j := 0; j < 1<<b; j++ {
+				jt.Cases[j] = constant.MakeInt64(int64(j))
+				jt.Targets[j] = noMatch
+			}
+			// This statement is not reachable, but it will make it obvious that we don't
+			// fall through to the first case.
+			out.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, noMatch))
+
+			// Emit each of the actual cases.
+			for _, c := range cc {
+				h := c.hash >> i & (1<<b - 1)
+				label := typecheck.AutoLabel(".s")
+				jt.Targets[h] = label
+				out.Append(ir.NewLabelStmt(base.Pos, label))
+				out.Append(c.body...)
+				// We reach here if the hash matches but the type equality test fails.
+				out.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, noMatch))
+			}
+			// Emit point to go to if type doesn't match any case.
+			out.Append(ir.NewLabelStmt(base.Pos, noMatch))
+			return true
+		}
+	}
+	// Couldn't find a perfect hash. Fall back to binary search.
+	return false
 }
 
 // binarySearch constructs a binary search tree for handling n cases,

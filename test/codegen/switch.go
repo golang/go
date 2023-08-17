@@ -99,3 +99,22 @@ func mimetype(ext string) string {
 		return ""
 	}
 }
+
+// use jump tables for type switches to concrete types.
+func typeSwitch(x any) int {
+	// amd64:`JMP\s\(.*\)\(.*\)$`
+	// arm64:`MOVD\s\(R.*\)\(R.*<<3\)`,`JMP\s\(R.*\)$`
+	switch x.(type) {
+	case int:
+		return 0
+	case int8:
+		return 1
+	case int16:
+		return 2
+	case int32:
+		return 3
+	case int64:
+		return 4
+	}
+	return 7
+}
