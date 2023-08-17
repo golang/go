@@ -48,7 +48,7 @@ func (c *desCipher) Encrypt(dst, src []byte) {
 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/des: invalid buffer overlap")
 	}
-	encryptBlock(c.subkeys[:], dst, src)
+	cryptBlock(c.subkeys[:], dst, src, false)
 }
 
 func (c *desCipher) Decrypt(dst, src []byte) {
@@ -61,7 +61,7 @@ func (c *desCipher) Decrypt(dst, src []byte) {
 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/des: invalid buffer overlap")
 	}
-	decryptBlock(c.subkeys[:], dst, src)
+	cryptBlock(c.subkeys[:], dst, src, true)
 }
 
 // A tripleDESCipher is an instance of TripleDES encryption.
