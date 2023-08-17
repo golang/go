@@ -204,6 +204,7 @@ func runMain() (int, error) {
 		`; export GOPROXY=` + os.Getenv("GOPROXY") +
 		`; export GOCACHE="` + deviceRoot + `/gocache"` +
 		`; export PATH="` + deviceGoroot + `/bin":$PATH` +
+		`; export HOME="` + deviceRoot + `/home"` +
 		`; cd "` + deviceCwd + `"` +
 		"; '" + deviceBin + "' " + strings.Join(os.Args[2:], " ")
 	code, err := adbRun(cmd)

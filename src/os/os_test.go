@@ -2823,6 +2823,53 @@ func TestDoubleCloseError(t *testing.T) {
 	t.Run("dir", testDoubleCloseError(sfdir))
 }
 
+func TestUserCacheDir(t *testing.T) {
+	t.Parallel()
+
+	dir, err := UserCacheDir()
+	if err != nil {
+		t.Skipf("skipping: %v", err)
+	}
+	if dir == "" {
+		t.Fatalf("UserCacheDir returned %q; want non-empty path or error", dir)
+	}
+
+	if err := MkdirAll(dir, 0777); err != nil {
+		t.Fatalf("could not create UserCacheDir: %v", err)
+	}
+	d, err := MkdirTemp(dir, "TestUserCacheDir")
+	if err != nil {
+		t.Fatalf("could not create a directory in UserCacheDir: %v", err)
+	}
+	if err := Remove(d); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUserConfigDir(t *testing.T) {
+	t.Parallel()
+
+	dir, err := UserConfigDir()
+	if err != nil {
+		t.Skipf("skipping: %v", err)
+	}
+	if dir == "" {
+		t.Fatalf("UserConfigDir returned %q; want non-empty path or error", dir)
+	}
+
+	if err := MkdirAll(dir, 0777); err != nil {
+		t.Fatalf("could not create UserConfigDir: %v", err)
+	}
+
+	d, err := MkdirTemp(dir, "TestUserConfigDir")
+	if err != nil {
+		t.Fatalf("could not create a directory in UserConfigDir: %v", err)
+	}
+	if err := Remove(d); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestUserHomeDir(t *testing.T) {
 	t.Parallel()
 
