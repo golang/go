@@ -411,7 +411,13 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 // and returns the extended buffer.
 // If the input is malformed, it returns the partially decoded src and an error.
 func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
-	n := enc.DecodedLen(len(src))
+	// Compute the output size without padding to avoid over allocating.
+	n := len(src)
+	for n > 0 && rune(src[n-1]) == enc.padChar {
+		n--
+	}
+	n = decodedLen(n, NoPadding)
+
 	dst = slices.Grow(dst, n)
 	n, err := enc.Decode(dst[len(dst):][:n], src)
 	return dst[:len(dst)+n], err
@@ -643,7 +649,11 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
 // DecodedLen returns the maximum length in bytes of the decoded data
 // corresponding to n bytes of base64-encoded data.
 func (enc *Encoding) DecodedLen(n int) int {
-	if enc.padChar == NoPadding {
+	return decodedLen(n, enc.padChar)
+}
+
+func decodedLen(n int, padChar rune) int {
+	if padChar == NoPadding {
 		// Unpadded data may end with partial block of 2-3 characters.
 		return n/4*3 + n%4*6/8
 	}

@@ -110,6 +110,13 @@ func TestDecode(t *testing.T) {
 		dst, err := StdEncoding.AppendDecode([]byte("lead"), []byte(p.encoded))
 		testEqual(t, "AppendDecode(%q) = error %v, want %v", p.encoded, err, error(nil))
 		testEqual(t, `AppendDecode("lead", %q) = %q, want %q`, p.encoded, string(dst), "lead"+p.decoded)
+
+		dst2, err := StdEncoding.AppendDecode(dst[:0:len(p.decoded)], []byte(p.encoded))
+		testEqual(t, "AppendDecode(%q) = error %v, want %v", p.encoded, err, error(nil))
+		testEqual(t, `AppendDecode("", %q) = %q, want %q`, p.encoded, string(dst2), p.decoded)
+		if len(dst) > 0 && len(dst2) > 0 && &dst[0] != &dst2[0] {
+			t.Errorf("unexpected capacity growth: got %d, want %d", cap(dst2), cap(dst))
+		}
 	}
 }
 

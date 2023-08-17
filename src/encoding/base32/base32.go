@@ -402,7 +402,13 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 // and returns the extended buffer.
 // If the input is malformed, it returns the partially decoded src and an error.
 func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
-	n := enc.DecodedLen(len(src))
+	// Compute the output size without padding to avoid over allocating.
+	n := len(src)
+	for n > 0 && rune(src[n-1]) == enc.padChar {
+		n--
+	}
+	n = decodedLen(n, NoPadding)
+
 	dst = slices.Grow(dst, n)
 	n, err := enc.Decode(dst[len(dst):][:n], src)
 	return dst[:len(dst)+n], err
@@ -567,7 +573,11 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
 // DecodedLen returns the maximum length in bytes of the decoded data
 // corresponding to n bytes of base32-encoded data.
 func (enc *Encoding) DecodedLen(n int) int {
-	if enc.padChar == NoPadding {
+	return decodedLen(n, enc.padChar)
+}
+
+func decodedLen(n int, padChar rune) int {
+	if padChar == NoPadding {
 		return n/8*5 + n%8*5/8
 	}
 	return n / 8 * 5
