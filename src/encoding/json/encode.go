@@ -781,15 +781,11 @@ func encodeByteSlice(e *encodeState, v reflect.Value, _ encOpts) {
 		e.WriteString("null")
 		return
 	}
-	s := v.Bytes()
-	encodedLen := base64.StdEncoding.EncodedLen(len(s))
-	e.Grow(len(`"`) + encodedLen + len(`"`))
 
-	// TODO(https://go.dev/issue/53693): Use base64.Encoding.AppendEncode.
+	s := v.Bytes()
 	b := e.AvailableBuffer()
 	b = append(b, '"')
-	base64.StdEncoding.Encode(b[len(b):][:encodedLen], s)
-	b = b[:len(b)+encodedLen]
+	b = base64.StdEncoding.AppendEncode(b, s)
 	b = append(b, '"')
 	e.Write(b)
 }
