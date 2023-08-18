@@ -993,6 +993,11 @@ func typeSymbolMangle(name string) string {
 	if strings.HasPrefix(name, "type:runtime.") {
 		return name
 	}
+	if strings.HasPrefix(name, "go:string.") {
+		// String symbols will be grouped to a single go:string.* symbol.
+		// No need to mangle individual symbol names.
+		return name
+	}
 	if len(name) <= 14 && !strings.Contains(name, "@") { // Issue 19529
 		return name
 	}
@@ -1007,7 +1012,7 @@ func typeSymbolMangle(name string) string {
 	// instantiated symbol, replace type name in []
 	i := strings.IndexByte(name, '[')
 	j := strings.LastIndexByte(name, ']')
-	if j == -1 {
+	if j == -1 || j <= i {
 		j = len(name)
 	}
 	hash := notsha256.Sum256([]byte(name[i+1 : j]))

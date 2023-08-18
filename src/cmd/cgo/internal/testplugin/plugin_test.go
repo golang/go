@@ -380,9 +380,11 @@ func TestForkExec(t *testing.T) {
 	}
 }
 
-func TestGeneric(t *testing.T) {
+func TestSymbolNameMangle(t *testing.T) {
 	// Issue 58800: generic function name may contain weird characters
 	// that confuse the external linker.
+	// Issue 62098: the name mangling code doesn't handle some string
+	// symbols correctly.
 	globalSkip(t)
-	goCmd(t, "build", "-buildmode=plugin", "-o", "generic.so", "./generic/plugin.go")
+	goCmd(t, "build", "-buildmode=plugin", "-o", "mangle.so", "./mangle/plugin.go")
 }
