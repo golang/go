@@ -490,25 +490,43 @@ func findGOROOT(env string) string {
 		// depend on the executable's location.
 		return def
 	}
+
+	// canonical returns a directory path that represents
+	// the same directory as dir,
+	// preferring the spelling in def if the two are the same.
+	canonical := func(dir string) string {
+		if isSameDir(def, dir) {
+			return def
+		}
+		return dir
+	}
+
 	exe, err := os.Executable()
 	if err == nil {
 		exe, err = filepath.Abs(exe)
 		if err == nil {
+			// cmd/go may be installed in GOROOT/bin or GOROOT/bin/GOOS_GOARCH,
+			// depending on whether it was cross-compiled with a different
+			// GOHOSTOS (see https://go.dev/issue/62119). Try both.
 			if dir := filepath.Join(exe, "../.."); isGOROOT(dir) {
-				// If def (runtime.GOROOT()) and dir are the same
-				// directory, prefer the spelling used in def.
-				if isSameDir(def, dir) {
-					return def
-				}
-				return dir
+				return canonical(dir)
 			}
+			if dir := filepath.Join(exe, "../../.."); isGOROOT(dir) {
+				return canonical(dir)
+			}
+
+			// Depending on what was passed on the command line, it is possible
+			// that os.Executable is a symlink (like /usr/local/bin/go) referring
+			// to a binary installed in a real GOROOT elsewhere
+			// (like /usr/lib/go/bin/go).
+			// Try to find that GOROOT by resolving the symlinks.
 			exe, err = filepath.EvalSymlinks(exe)
 			if err == nil {
 				if dir := filepath.Join(exe, "../.."); isGOROOT(dir) {
-					if isSameDir(def, dir) {
-						return def
-					}
-					return dir
+					return canonical(dir)
+				}
+				if dir := filepath.Join(exe, "../../.."); isGOROOT(dir) {
+					return canonical(dir)
 				}
 			}
 		}
