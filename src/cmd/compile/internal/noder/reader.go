@@ -3287,10 +3287,7 @@ func (r *reader) exprType() ir.Node {
 		typ, rtype = r.rtype0(pos)
 
 		if !r.Bool() { // not derived
-			// TODO(mdempsky): ir.TypeNode should probably return a typecheck'd node.
-			n := ir.TypeNode(typ)
-			n.SetTypecheck(1)
-			return n
+			return ir.TypeNode(typ)
 		}
 	}
 

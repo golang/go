@@ -1799,27 +1799,3 @@ func editNodes(list []Node, edit func(Node) Node) {
 		}
 	}
 }
-
-func copyNtypes(list []Ntype) []Ntype {
-	if list == nil {
-		return nil
-	}
-	c := make([]Ntype, len(list))
-	copy(c, list)
-	return c
-}
-func doNtypes(list []Ntype, do func(Node) bool) bool {
-	for _, x := range list {
-		if x != nil && do(x) {
-			return true
-		}
-	}
-	return false
-}
-func editNtypes(list []Ntype, edit func(Node) Node) {
-	for i, x := range list {
-		if x != nil {
-			list[i] = edit(x).(Ntype)
-		}
-	}
-}
