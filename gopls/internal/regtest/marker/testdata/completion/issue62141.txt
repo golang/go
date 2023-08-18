@@ -1,0 +1,39 @@
+This test checks that we don't suggest completion to an untyped conversion such
+as "untyped float(abcdef)".
+
+-- main.go --
+package main
+
+func main() {
+	abcdef := 32 //@diag("abcdef", re"not used")
+	x := 1.0 / abcd //@acceptcompletion(re"abcd()", "abcdef", int), diag("x", re"not used"), diag("abcd", re"(undefined|undeclared)")
+
+	// Verify that we don't suggest converting compatible untyped constants.
+	const untypedConst = 42
+	y := 1.1 / untypedC //@acceptcompletion(re"untypedC()", "untypedConst", untyped), diag("y", re"not used"), diag("untypedC", re"(undefined|undeclared)")
+}
+
+-- @int/main.go --
+package main
+
+func main() {
+	abcdef := 32 //@diag("abcdef", re"not used")
+	x := 1.0 / float64(abcdef) //@acceptcompletion(re"abcd()", "abcdef", int), diag("x", re"not used"), diag("abcd", re"(undefined|undeclared)")
+
+	// Verify that we don't suggest converting compatible untyped constants.
+	const untypedConst = 42
+	y := 1.1 / untypedC //@acceptcompletion(re"untypedC()", "untypedConst", untyped), diag("y", re"not used"), diag("untypedC", re"(undefined|undeclared)")
+}
+
+-- @untyped/main.go --
+package main
+
+func main() {
+	abcdef := 32 //@diag("abcdef", re"not used")
+	x := 1.0 / abcd //@acceptcompletion(re"abcd()", "abcdef", int), diag("x", re"not used"), diag("abcd", re"(undefined|undeclared)")
+
+	// Verify that we don't suggest converting compatible untyped constants.
+	const untypedConst = 42
+	y := 1.1 / untypedConst //@acceptcompletion(re"untypedC()", "untypedConst", untyped), diag("y", re"not used"), diag("untypedC", re"(undefined|undeclared)")
+}
+

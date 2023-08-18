@@ -132,6 +132,10 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //
 // The following markers are supported within marker tests:
 //
+//   - acceptcompletion(location, label, golden): specifies that accepting the
+//     completion candidate produced at the given location with provided label
+//     results in the given golden state.
+//
 //   - codeaction(kind, start, end, golden): specifies a codeaction to request
 //     for the given range. To support multi-line ranges, the range is defined
 //     to be between start.Start and end.End. The golden directory contains
@@ -546,21 +550,22 @@ arity:
 // Marker funcs should not mutate the test environment (e.g. via opening files
 // or applying edits in the editor).
 var markerFuncs = map[string]markerFunc{
-	"codeaction":      makeMarkerFunc(codeActionMarker),
-	"codeactionerr":   makeMarkerFunc(codeActionErrMarker),
-	"complete":        makeMarkerFunc(completeMarker),
-	"def":             makeMarkerFunc(defMarker),
-	"diag":            makeMarkerFunc(diagMarker),
-	"hover":           makeMarkerFunc(hoverMarker),
-	"format":          makeMarkerFunc(formatMarker),
-	"implementation":  makeMarkerFunc(implementationMarker),
-	"loc":             makeMarkerFunc(locMarker),
-	"rename":          makeMarkerFunc(renameMarker),
-	"renameerr":       makeMarkerFunc(renameErrMarker),
-	"suggestedfix":    makeMarkerFunc(suggestedfixMarker),
-	"symbol":          makeMarkerFunc(symbolMarker),
-	"refs":            makeMarkerFunc(refsMarker),
-	"workspacesymbol": makeMarkerFunc(workspaceSymbolMarker),
+	"acceptcompletion": makeMarkerFunc(acceptCompletionMarker),
+	"codeaction":       makeMarkerFunc(codeActionMarker),
+	"codeactionerr":    makeMarkerFunc(codeActionErrMarker),
+	"complete":         makeMarkerFunc(completeMarker),
+	"def":              makeMarkerFunc(defMarker),
+	"diag":             makeMarkerFunc(diagMarker),
+	"hover":            makeMarkerFunc(hoverMarker),
+	"format":           makeMarkerFunc(formatMarker),
+	"implementation":   makeMarkerFunc(implementationMarker),
+	"loc":              makeMarkerFunc(locMarker),
+	"rename":           makeMarkerFunc(renameMarker),
+	"renameerr":        makeMarkerFunc(renameErrMarker),
+	"suggestedfix":     makeMarkerFunc(suggestedfixMarker),
+	"symbol":           makeMarkerFunc(symbolMarker),
+	"refs":             makeMarkerFunc(refsMarker),
+	"workspacesymbol":  makeMarkerFunc(workspaceSymbolMarker),
 }
 
 // markerTest holds all the test data extracted from a test txtar archive.
@@ -1292,6 +1297,43 @@ func completeMarker(mark marker, src protocol.Location, want ...string) {
 	if diff := cmp.Diff(want, got); diff != "" {
 		mark.errorf("Completion(...) returned unexpect results (-want +got):\n%s", diff)
 	}
+}
+
+// acceptCompletionMarker implements the @acceptCompletion marker, running
+// textDocument/completion at the given src location and accepting the
+// candidate with the given label. The resulting source must match the provided
+// golden content.
+func acceptCompletionMarker(mark marker, src protocol.Location, label string, golden *Golden) {
+	list := mark.run.env.Completion(src)
+	var selected *protocol.CompletionItem
+	for _, item := range list.Items {
+		if item.Label == label {
+			selected = &item
+			break
+		}
+	}
+	if selected == nil {
+		mark.errorf("Completion(...) did not return an item labeled %q", label)
+		return
+	}
+	filename := mark.run.env.Sandbox.Workdir.URIToPath(mark.uri())
+	mapper, err := mark.run.env.Editor.Mapper(filename)
+	if err != nil {
+		mark.errorf("Editor.Mapper(%s) failed: %v", filename, err)
+		return
+	}
+
+	patched, _, err := source.ApplyProtocolEdits(mapper, append([]protocol.TextEdit{
+		*selected.TextEdit,
+	}, selected.AdditionalTextEdits...))
+
+	if err != nil {
+		mark.errorf("ApplyProtocolEdits failed: %v", err)
+		return
+	}
+	changes := map[string][]byte{filename: patched}
+	// Check the file state.
+	checkChangedFiles(mark, changes, golden)
 }
 
 // defMarker implements the @def marker, running textDocument/definition at
