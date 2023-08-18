@@ -940,7 +940,7 @@ func intFromArg(a []any, argNum int) (num int, isInt bool, newArgNum int) {
 		if !isInt {
 			// Work harder.
 			switch v := reflect.ValueOf(a[argNum]); v.Kind() {
-			case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64: // Not reflect.Int already.
+			case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64: // Known not to be Int.
 				n := v.Int()
 				if int64(int(n)) == n {
 					num = int(n)
