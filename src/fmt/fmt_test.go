@@ -1947,7 +1947,7 @@ func TestAppendln(t *testing.T) {
 	}
 }
 
-func Test_intFromArg(t *testing.T) {
+func TestIntFromArg(t *testing.T) {
 	type myint int
 	type args struct {
 		a      []any
