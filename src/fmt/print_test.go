@@ -22,7 +22,7 @@ func Test_intFromArg(t *testing.T) {
 		args
 		want
 	}{
-		{"myint", args{[]any{myint(0)}, 0}, want{0, true, 1}},
+		{"myint", args{[]any{myint(1024)}, 0}, want{1024, true, 1}},
 
 		{"int", args{[]any{1}, 0}, want{1, true, 1}},
 		{"int8", args{[]any{int8(2)}, 0}, want{2, true, 1}},
