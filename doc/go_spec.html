@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Aug 18, 2023",
+	"Subtitle": "Version of Aug 21, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -5570,7 +5570,7 @@ myString([]myRune{0x1f30e})              // "\U0001f30e" == "🌎"
 
 <li>
 Converting a value of a string type to a slice of bytes type
-yields a slice whose successive elements are the bytes of the string.
+yields a non-nil slice whose successive elements are the bytes of the string.
 
 <pre>
 []byte("hellø")             // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
