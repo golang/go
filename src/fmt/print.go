@@ -932,7 +932,8 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 	}
 }
 
-// intFromArg gets the argNumth element of a. On return, isInt reports whether the argument has integer type.
+// intFromArg gets the argNumth element of a. On return, isInt reports whether the argument's
+// underlying type is integer.
 func intFromArg(a []any, argNum int) (num int, isInt bool, newArgNum int) {
 	newArgNum = argNum
 	if argNum < len(a) {
@@ -940,7 +941,7 @@ func intFromArg(a []any, argNum int) (num int, isInt bool, newArgNum int) {
 		if !isInt {
 			// Work harder.
 			switch v := reflect.ValueOf(a[argNum]); v.Kind() {
-			case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64: // Known not to be Int.
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				n := v.Int()
 				if int64(int(n)) == n {
 					num = int(n)
