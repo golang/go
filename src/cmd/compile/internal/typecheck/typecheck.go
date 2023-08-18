@@ -20,10 +20,6 @@ import (
 // to be included in the package-level init function.
 var InitTodoFunc = ir.NewFunc(base.Pos, base.Pos, Lookup("$InitTodo"), types.NewSignature(nil, nil, nil))
 
-var (
-	NeedRuntimeType = func(*types.Type) {}
-)
-
 func AssignExpr(n ir.Node) ir.Node { return typecheck(n, ctxExpr|ctxAssign) }
 func Expr(n ir.Node) ir.Node       { return typecheck(n, ctxExpr) }
 func Stmt(n ir.Node) ir.Node       { return typecheck(n, ctxStmt) }
@@ -869,17 +865,6 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
 		}
 		CalcMethods(mt)
 		ms = mt.AllMethods()
-
-		// The method expression T.m requires a wrapper when T
-		// is different from m's declared receiver type. We
-		// normally generate these wrappers while writing out
-		// runtime type descriptors, which is always done for
-		// types declared at package scope. However, we need
-		// to make sure to generate wrappers for anonymous
-		// receiver types too.
-		if mt.Sym() == nil {
-			NeedRuntimeType(t)
-		}
 	}
 
 	s := n.Sel
