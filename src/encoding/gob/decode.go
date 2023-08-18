@@ -1082,7 +1082,7 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId, inProgress map[re
 func (dec *Decoder) typeString(remoteId typeId) string {
 	typeLock.Lock()
 	defer typeLock.Unlock()
-	if t := idToType[remoteId]; t != nil {
+	if t := idToType(remoteId); t != nil {
 		// globally known type.
 		return t.string()
 	}
