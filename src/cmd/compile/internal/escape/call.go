@@ -321,7 +321,10 @@ func (e *escape) tagHole(ks []hole, fn *ir.Name, param *types.Field) hole {
 	}
 
 	if e.inMutualBatch(fn) {
-		return e.addr(ir.AsNode(param.Nname))
+		if param.Nname == nil {
+			return e.discardHole()
+		}
+		return e.addr(param.Nname.(*ir.Name))
 	}
 
 	// Call to previously tagged function.

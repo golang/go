@@ -16,7 +16,7 @@ func LookupRuntime(name string) *ir.Name {
 	if s == nil || s.Def == nil {
 		base.Fatalf("LookupRuntime: can't find runtime.%s", name)
 	}
-	return ir.AsNode(s.Def).(*ir.Name)
+	return s.Def.(*ir.Name)
 }
 
 // SubstArgTypes substitutes the given list of types for
@@ -126,5 +126,5 @@ func LookupCoverage(name string) *ir.Name {
 	if sym == nil {
 		base.Fatalf("LookupCoverage: can't find runtime/coverage.%s", name)
 	}
-	return ir.AsNode(sym.Def).(*ir.Name)
+	return sym.Def.(*ir.Name)
 }

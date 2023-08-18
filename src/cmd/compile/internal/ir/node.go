@@ -462,13 +462,6 @@ const (
 
 )
 
-func AsNode(n types.Object) Node {
-	if n == nil {
-		return nil
-	}
-	return n.(Node)
-}
-
 var BlankNode *Name
 
 func IsConst(n Node, ct constant.Kind) bool {

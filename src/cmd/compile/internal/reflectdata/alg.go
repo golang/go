@@ -153,8 +153,8 @@ func hashFunc(t *types.Type) *ir.Func {
 	sym.Def = fn.Nname
 	fn.Pragma |= ir.Noinline // TODO(mdempsky): We need to emit this during the unified frontend instead, to allow inlining.
 
-	np := ir.AsNode(fn.Type().Params().Field(0).Nname)
-	nh := ir.AsNode(fn.Type().Params().Field(1).Nname)
+	np := fn.Type().Params().Field(0).Nname.(*ir.Name)
+	nh := fn.Type().Params().Field(1).Nname.(*ir.Name)
 
 	switch t.Kind() {
 	case types.TARRAY:
@@ -375,9 +375,9 @@ func eqFunc(t *types.Type) *ir.Func {
 	sym.Def = fn.Nname
 	fn.Pragma |= ir.Noinline // TODO(mdempsky): We need to emit this during the unified frontend instead, to allow inlining.
 
-	np := ir.AsNode(fn.Type().Params().Field(0).Nname)
-	nq := ir.AsNode(fn.Type().Params().Field(1).Nname)
-	nr := ir.AsNode(fn.Type().Results().Field(0).Nname)
+	np := fn.Type().Params().Field(0).Nname.(*ir.Name)
+	nq := fn.Type().Params().Field(1).Nname.(*ir.Name)
+	nr := fn.Type().Results().Field(0).Nname.(*ir.Name)
 
 	// Label to jump to if an equality test fails.
 	neq := typecheck.AutoLabel(".neq")
