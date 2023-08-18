@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
-	"internal/types/errors"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -152,39 +151,6 @@ func typekind(t *types.Type) string {
 	return fmt.Sprintf("etype=%d", et)
 }
 
-func cycleFor(start ir.Node) []ir.Node {
-	// Find the start node in typecheck_tcstack.
-	// We know that it must exist because each time we mark
-	// a node with n.SetTypecheck(2) we push it on the stack,
-	// and each time we mark a node with n.SetTypecheck(2) we
-	// pop it from the stack. We hit a cycle when we encounter
-	// a node marked 2 in which case is must be on the stack.
-	i := len(typecheck_tcstack) - 1
-	for i > 0 && typecheck_tcstack[i] != start {
-		i--
-	}
-
-	// collect all nodes with same Op
-	var cycle []ir.Node
-	for _, n := range typecheck_tcstack[i:] {
-		if n.Op() == start.Op() {
-			cycle = append(cycle, n)
-		}
-	}
-
-	return cycle
-}
-
-func cycleTrace(cycle []ir.Node) string {
-	var s string
-	for i, n := range cycle {
-		s += fmt.Sprintf("\n\t%v: %v uses %v", ir.Line(n), n, cycle[(i+1)%len(cycle)])
-	}
-	return s
-}
-
-var typecheck_tcstack []ir.Node
-
 // typecheck type checks node n.
 // The result of typecheck MUST be assigned back to n, e.g.
 //
@@ -200,6 +166,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	}
 
 	lno := ir.SetPos(n)
+	defer func() { base.Pos = lno }()
 
 	// Skip over parens.
 	for n.Op() == ir.OPAREN {
@@ -214,102 +181,17 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 			break
 
 		default:
-			base.Pos = lno
 			return n
 		}
 	}
 
 	if n.Typecheck() == 2 {
-		// Typechecking loop. Trying printing a meaningful message,
-		// otherwise a stack trace of typechecking.
-		switch n.Op() {
-		// We can already diagnose variables used as types.
-		case ir.ONAME:
-			n := n.(*ir.Name)
-			if top&(ctxExpr|ctxType) == ctxType {
-				base.Errorf("%v is not a type", n)
-			}
-
-		case ir.OTYPE:
-			// Only report a type cycle if we are expecting a type.
-			// Otherwise let other code report an error.
-			if top&ctxType == ctxType {
-				// A cycle containing only alias types is an error
-				// since it would expand indefinitely when aliases
-				// are substituted.
-				cycle := cycleFor(n)
-				for _, n1 := range cycle {
-					if n1.Name() != nil && !n1.Name().Alias() {
-						// Cycle is ok. But if n is an alias type and doesn't
-						// have a type yet, we have a recursive type declaration
-						// with aliases that we can't handle properly yet.
-						// Report an error rather than crashing later.
-						if n.Name() != nil && n.Name().Alias() && n.Type() == nil {
-							base.Pos = n.Pos()
-							base.Fatalf("cannot handle alias type declaration (issue #25838): %v", n)
-						}
-						base.Pos = lno
-						return n
-					}
-				}
-				base.ErrorfAt(n.Pos(), errors.InvalidDeclCycle, "invalid recursive type alias %v%s", n, cycleTrace(cycle))
-			}
-
-		case ir.OLITERAL:
-			if top&(ctxExpr|ctxType) == ctxType {
-				base.Errorf("%v is not a type", n)
-				break
-			}
-			base.ErrorfAt(n.Pos(), errors.InvalidInitCycle, "constant definition loop%s", cycleTrace(cycleFor(n)))
-		}
-
-		if base.Errors() == 0 {
-			var trace string
-			for i := len(typecheck_tcstack) - 1; i >= 0; i-- {
-				x := typecheck_tcstack[i]
-				trace += fmt.Sprintf("\n\t%v %v", ir.Line(x), x)
-			}
-			base.Errorf("typechecking loop involving %v%s", n, trace)
-		}
-
-		base.Pos = lno
-		return n
+		base.FatalfAt(n.Pos(), "typechecking loop")
 	}
-
-	typecheck_tcstack = append(typecheck_tcstack, n)
 
 	n.SetTypecheck(2)
 	n = typecheck1(n, top)
 	n.SetTypecheck(1)
-
-	last := len(typecheck_tcstack) - 1
-	typecheck_tcstack[last] = nil
-	typecheck_tcstack = typecheck_tcstack[:last]
-
-	_, isExpr := n.(ir.Expr)
-	_, isStmt := n.(ir.Stmt)
-	isMulti := false
-	switch n.Op() {
-	case ir.OCALLFUNC, ir.OCALLINTER, ir.OCALLMETH:
-		n := n.(*ir.CallExpr)
-		if t := n.X.Type(); t != nil && t.Kind() == types.TFUNC {
-			nr := t.NumResults()
-			isMulti = nr > 1
-			if nr == 0 {
-				isExpr = false
-			}
-		}
-	case ir.OAPPEND, ir.OMIN, ir.OMAX:
-		// Must be used.
-		isStmt = false
-	case ir.OCLEAR, ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN:
-		// Must not be used.
-		isExpr = false
-		isStmt = true
-	case ir.OCOPY, ir.ORECOVER, ir.ORECV:
-		// Can be used or not.
-		isStmt = true
-	}
 
 	t := n.Type()
 	if t != nil && !t.IsFuncArgStruct() && n.Op() != ir.OTYPE {
@@ -323,25 +205,6 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 		}
 	}
 
-	// TODO(rsc): Lots of the complexity here is because typecheck can
-	// see OTYPE, ONAME, and OLITERAL nodes multiple times.
-	// Once we make the IR a proper tree, we should be able to simplify
-	// this code a bit, especially the final case.
-	switch {
-	case top&(ctxStmt|ctxExpr) == ctxExpr && !isExpr && n.Op() != ir.OTYPE && !isMulti:
-		base.Fatalf("%v used as value", n)
-
-	case top&ctxType == 0 && n.Op() == ir.OTYPE && t != nil:
-		base.Fatalf("type %v is not an expression", n.Type())
-
-	case top&(ctxStmt|ctxExpr) == ctxStmt && !isStmt && t != nil:
-		base.Fatalf("%v evaluated but not used", n)
-
-	case top&(ctxType|ctxExpr) == ctxType && n.Op() != ir.OTYPE && n.Op() != ir.ONONAME && (t != nil || n.Op() == ir.ONAME):
-		base.Fatalf("%v is not a type", n)
-	}
-
-	base.Pos = lno
 	return n
 }
 
