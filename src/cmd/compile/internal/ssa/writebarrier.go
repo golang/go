@@ -250,6 +250,7 @@ func writebarrier(f *Func) {
 		// to a new block.
 		var last *Value
 		var start, end int
+		var nonPtrStores int
 		values := b.Values
 	FindSeq:
 		for i := len(values) - 1; i >= 0; i-- {
@@ -261,8 +262,17 @@ func writebarrier(f *Func) {
 					last = w
 					end = i + 1
 				}
+				nonPtrStores = 0
 			case OpVarDef, OpVarLive:
 				continue
+			case OpStore:
+				if last == nil {
+					continue
+				}
+				nonPtrStores++
+				if nonPtrStores > 2 {
+					break FindSeq
+				}
 			default:
 				if last == nil {
 					continue
@@ -484,6 +494,10 @@ func writebarrier(f *Func) {
 				mem.Aux = w.Aux
 			case OpVarDef, OpVarLive:
 				mem = bEnd.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, mem)
+			case OpStore:
+				ptr := w.Args[0]
+				val := w.Args[1]
+				mem = bEnd.NewValue3A(pos, OpStore, types.TypeMem, w.Aux, ptr, val, mem)
 			}
 		}
 
