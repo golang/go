@@ -16,16 +16,6 @@ func hasRType(n, rtype ir.Node, fieldName string) bool {
 		return true
 	}
 
-	// We make an exception for `init`, because we still depend on
-	// pkginit for sorting package initialization statements, and it
-	// gets confused by implicit conversions. Also, because
-	// package-scope statements can never be generic, so they'll never
-	// require dictionary lookups.
-	if ir.CurFunc.Nname.Sym().Name != "init" {
-		ir.Dump("CurFunc", ir.CurFunc)
-		base.FatalfAt(n.Pos(), "missing %s in %v: %+v", fieldName, ir.CurFunc, n)
-	}
-
 	return false
 }
 
