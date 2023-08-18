@@ -298,18 +298,47 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	ir.CurFunc = nil
 
-	// Compile top level functions.
-	// Don't use range--walk can add functions to Target.Decls.
-	base.Timer.Start("be", "compilefuncs")
-	fcount := int64(0)
-	for i := 0; i < len(typecheck.Target.Funcs); i++ {
-		fn := typecheck.Target.Funcs[i]
-		enqueueFunc(fn)
-		fcount++
-	}
-	base.Timer.AddEvent(fcount, "funcs")
+	reflectdata.WriteBasicTypes()
 
-	compileFunctions()
+	// Compile top-level declarations.
+	//
+	// There are cyclic dependencies between all of these phases, so we
+	// need to iterate all of them until we reach a fixed point.
+	base.Timer.Start("be", "compilefuncs")
+	for nextFunc, nextExtern := 0, 0; ; {
+		reflectdata.WriteRuntimeTypes()
+
+		if nextExtern < len(typecheck.Target.Externs) {
+			switch n := typecheck.Target.Externs[nextExtern]; n.Op() {
+			case ir.ONAME:
+				dumpGlobal(n)
+			case ir.OLITERAL:
+				dumpGlobalConst(n)
+			case ir.OTYPE:
+				reflectdata.NeedRuntimeType(n.Type())
+			}
+			nextExtern++
+			continue
+		}
+
+		if nextFunc < len(typecheck.Target.Funcs) {
+			enqueueFunc(typecheck.Target.Funcs[nextFunc])
+			nextFunc++
+			continue
+		}
+
+		// The SSA backend supports using multiple goroutines, so keep it
+		// as the last step to maximize how much work we can batch and
+		// process concurrently.
+		if len(compilequeue) != 0 {
+			compileFunctions()
+			continue
+		}
+
+		break
+	}
+
+	base.Timer.AddEvent(int64(len(typecheck.Target.Funcs)), "funcs")
 
 	if base.Flag.CompilingRuntime {
 		// Write barriers are now known. Check the call graph.
