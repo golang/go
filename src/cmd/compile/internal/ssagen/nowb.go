@@ -98,9 +98,6 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
 	default:
 		base.Fatalf("expected ONAME or OCLOSURE node, got %+v", arg)
 	}
-	if callee.Op() != ir.ODCLFUNC {
-		base.Fatalf("expected ODCLFUNC node, got %+v", callee)
-	}
 	c.extraCalls[c.curfn] = append(c.extraCalls[c.curfn], nowritebarrierrecCall{callee, n.Pos()})
 }
 

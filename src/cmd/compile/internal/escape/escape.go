@@ -125,12 +125,6 @@ func Funcs(all []*ir.Func) {
 // Batch performs escape analysis on a minimal batch of
 // functions.
 func Batch(fns []*ir.Func, recursive bool) {
-	for _, fn := range fns {
-		if fn.Op() != ir.ODCLFUNC {
-			base.Fatalf("unexpected node: %v", fn)
-		}
-	}
-
 	var b batch
 	b.heapLoc.attrs = attrEscapes | attrPersists | attrMutates | attrCalls
 	b.mutatorLoc.attrs = attrMutates

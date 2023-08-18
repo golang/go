@@ -199,18 +199,3 @@ func MakeTask() {
 	// It's not quite read only, the state field must be modifiable.
 	objw.Global(lsym, int32(ot), obj.NOPTR)
 }
-
-// initRequiredForCoverage returns TRUE if we need to force creation
-// of an init function for the package so as to insert a coverage
-// runtime registration call.
-func initRequiredForCoverage(l []ir.Node) bool {
-	if base.Flag.Cfg.CoverageInfo == nil {
-		return false
-	}
-	for _, n := range l {
-		if n.Op() == ir.ODCLFUNC {
-			return true
-		}
-	}
-	return false
-}
