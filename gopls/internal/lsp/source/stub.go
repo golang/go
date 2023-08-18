@@ -125,6 +125,12 @@ func stub(ctx context.Context, snapshot Snapshot, si *stubmethods.StubInfo) (*to
 	var newImports []newImport // for AddNamedImport
 	qual := func(pkg *types.Package) string {
 		// TODO(adonovan): don't ignore vendor prefix.
+		//
+		// Ignore the current package import.
+		if pkg.Path() == conc.Pkg().Path() {
+			return ""
+		}
+
 		importPath := ImportPath(pkg.Path())
 		name, ok := importEnv[importPath]
 		if !ok {
