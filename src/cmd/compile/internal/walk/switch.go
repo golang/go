@@ -383,7 +383,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 
 	s.facename = walkExpr(s.facename, sw.PtrInit())
 	s.facename = copyExpr(s.facename, s.facename.Type(), &sw.Compiled)
-	s.okname = typecheck.Temp(types.Types[types.TBOOL])
+	s.okname = typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
 
 	// Get interface descriptor word.
 	// For empty interfaces this will be the type.

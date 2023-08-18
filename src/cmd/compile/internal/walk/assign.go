@@ -191,7 +191,7 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 		return walkExpr(typecheck.Stmt(n), init)
 	}
 
-	var_ := typecheck.Temp(types.NewPtr(t.Elem()))
+	var_ := typecheck.TempAt(base.Pos, ir.CurFunc, types.NewPtr(t.Elem()))
 	var_.SetTypecheck(1)
 	var_.MarkNonNil() // mapaccess always returns a non-nil pointer
 
@@ -484,7 +484,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	var nodes ir.Nodes
 
 	// var s []T
-	s := typecheck.Temp(l1.Type())
+	s := typecheck.TempAt(base.Pos, ir.CurFunc, l1.Type())
 	nodes.Append(ir.NewAssignStmt(base.Pos, s, l1)) // s = l1
 
 	elemtype := s.Type().Elem()
@@ -498,7 +498,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	num := ir.NewUnaryExpr(base.Pos, ir.OLEN, l2)
 
 	// newLen := oldLen + num
-	newLen := typecheck.Temp(types.Types[types.TINT])
+	newLen := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
 	nodes.Append(ir.NewAssignStmt(base.Pos, newLen, ir.NewBinaryExpr(base.Pos, ir.OADD, oldLen, num)))
 
 	// if uint(newLen) <= uint(oldCap)
@@ -675,13 +675,13 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	nodes = append(nodes, nifneg)
 
 	// s := l1
-	s := typecheck.Temp(l1.Type())
+	s := typecheck.TempAt(base.Pos, ir.CurFunc, l1.Type())
 	nodes = append(nodes, ir.NewAssignStmt(base.Pos, s, l1))
 
 	elemtype := s.Type().Elem()
 
 	// n := s.len + l2
-	nn := typecheck.Temp(types.Types[types.TINT])
+	nn := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
 	nodes = append(nodes, ir.NewAssignStmt(base.Pos, nn, ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), l2)))
 
 	// if uint(n) <= uint(s.cap)

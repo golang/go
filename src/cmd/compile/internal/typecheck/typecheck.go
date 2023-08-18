@@ -830,7 +830,7 @@ func RewriteNonNameCall(n *ir.CallExpr) {
 		ir.CurFunc = InitTodoFunc
 	}
 
-	tmp := Temp((*np).Type())
+	tmp := TempAt(base.Pos, ir.CurFunc, (*np).Type())
 	as := ir.NewAssignStmt(base.Pos, tmp, *np)
 	as.PtrInit().Append(Stmt(ir.NewDecl(n.Pos(), ir.ODCL, tmp)))
 	*np = tmp
@@ -859,7 +859,7 @@ func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
 	results := call.Type().FieldSlice()
 	list := make([]ir.Node, len(results))
 	for i, result := range results {
-		tmp := Temp(result.Type)
+		tmp := TempAt(base.Pos, ir.CurFunc, result.Type)
 		as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, tmp))
 		as.Lhs.Append(tmp)
 		list[i] = tmp

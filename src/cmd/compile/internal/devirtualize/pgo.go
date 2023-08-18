@@ -302,7 +302,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 	sig := call.X.Type()
 
 	for _, ret := range sig.Results().FieldSlice() {
-		retvars = append(retvars, typecheck.Temp(ret.Type))
+		retvars = append(retvars, typecheck.TempAt(base.Pos, ir.CurFunc, ret.Type))
 	}
 
 	sel := call.X.(*ir.SelectorExpr)
@@ -317,7 +317,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 	// recv must be first in the assignment list as its side effects must
 	// be ordered before argument side effects.
 	var lhs, rhs []ir.Node
-	recv := typecheck.Temp(sel.X.Type())
+	recv := typecheck.TempAt(base.Pos, ir.CurFunc, sel.X.Type())
 	lhs = append(lhs, recv)
 	rhs = append(rhs, sel.X)
 
@@ -326,7 +326,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 	// such as labels (possible in InlinedCall nodes).
 	args := call.Args.Take()
 	for _, arg := range args {
-		argvar := typecheck.Temp(arg.Type())
+		argvar := typecheck.TempAt(base.Pos, ir.CurFunc, arg.Type())
 
 		lhs = append(lhs, argvar)
 		rhs = append(rhs, arg)
@@ -339,8 +339,8 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 	argvars := append([]ir.Node(nil), lhs[1:]...)
 	call.Args = argvars
 
-	tmpnode := typecheck.Temp(concretetyp)
-	tmpok := typecheck.Temp(types.Types[types.TBOOL])
+	tmpnode := typecheck.TempAt(base.Pos, ir.CurFunc, concretetyp)
+	tmpok := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
 
 	assert := ir.NewTypeAssertExpr(pos, recv, concretetyp)
 

@@ -459,7 +459,7 @@ func safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
 }
 
 func copyExpr(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
-	l := typecheck.Temp(t)
+	l := typecheck.TempAt(base.Pos, ir.CurFunc, t)
 	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, l, n))
 	return l
 }
@@ -618,7 +618,7 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 		// to prevent that calls from clobbering arguments already on the stack.
 		if mayCall(arg) {
 			// assignment of arg to Temp
-			tmp := typecheck.Temp(param.Type)
+			tmp := typecheck.TempAt(base.Pos, ir.CurFunc, param.Type)
 			init.Append(convas(typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, arg)).(*ir.AssignStmt), init))
 			// replace arg with temp
 			args[i] = tmp

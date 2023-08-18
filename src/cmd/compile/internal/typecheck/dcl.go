@@ -125,18 +125,10 @@ func declareParam(fn *ir.Func, ctxt ir.Class, i int, param *ir.Field) *types.Fie
 	return f
 }
 
-func Temp(t *types.Type) *ir.Name {
-	return TempAt(base.Pos, ir.CurFunc, t)
-}
-
 // make a new Node off the books.
 func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	if curfn == nil {
 		base.Fatalf("no curfn for TempAt")
-	}
-	if curfn.Op() == ir.OCLOSURE {
-		ir.Dump("TempAt", curfn)
-		base.Fatalf("adding TempAt to wrong closure function")
 	}
 	if t == nil {
 		base.Fatalf("TempAt called with nil type")

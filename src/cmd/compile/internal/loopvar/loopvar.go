@@ -107,7 +107,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 				if base.LoopVarHash.MatchPos(n.Pos(), desc) {
 					// Rename the loop key, prefix body with assignment from loop key
 					transformed = append(transformed, VarAndLoop{n, x, lastPos})
-					tk := typecheck.Temp(n.Type())
+					tk := typecheck.TempAt(base.Pos, ir.CurFunc, n.Type())
 					tk.SetTypecheck(1)
 					as := ir.NewAssignStmt(x.Pos(), n, tk)
 					as.Def = true
@@ -298,7 +298,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 					for _, z := range leaked {
 						transformed = append(transformed, VarAndLoop{z, x, lastPos})
 
-						tz := typecheck.Temp(z.Type())
+						tz := typecheck.TempAt(base.Pos, ir.CurFunc, z.Type())
 						tz.SetTypecheck(1)
 						zPrimeForZ[z] = tz
 
@@ -360,7 +360,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 						// body' = prebody +
 						// (6)     if tmp_first {tmp_first = false} else {Post} +
 						//         if !cond {break} + ...
-						tmpFirst := typecheck.Temp(types.Types[types.TBOOL])
+						tmpFirst := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
 
 						// tmpFirstAssign assigns val to tmpFirst
 						tmpFirstAssign := func(val bool) *ir.AssignStmt {

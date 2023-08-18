@@ -79,14 +79,14 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 	var l []ir.Node
 
 	// s = slice to append to
-	s := typecheck.Temp(nsrc.Type())
+	s := typecheck.TempAt(base.Pos, ir.CurFunc, nsrc.Type())
 	l = append(l, ir.NewAssignStmt(base.Pos, s, nsrc))
 
 	// num = number of things to append
 	num := ir.NewInt(base.Pos, int64(argc))
 
 	// newLen := s.len + num
-	newLen := typecheck.Temp(types.Types[types.TINT])
+	newLen := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
 	l = append(l, ir.NewAssignStmt(base.Pos, newLen, ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), num)))
 
 	// if uint(newLen) <= uint(s.cap)
@@ -193,8 +193,8 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 
 	n.X = walkExpr(n.X, init)
 	n.Y = walkExpr(n.Y, init)
-	nl := typecheck.Temp(n.X.Type())
-	nr := typecheck.Temp(n.Y.Type())
+	nl := typecheck.TempAt(base.Pos, ir.CurFunc, n.X.Type())
+	nr := typecheck.TempAt(base.Pos, ir.CurFunc, n.Y.Type())
 	var l []ir.Node
 	l = append(l, ir.NewAssignStmt(base.Pos, nl, n.X))
 	l = append(l, ir.NewAssignStmt(base.Pos, nr, n.Y))
@@ -202,7 +202,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 	nfrm := ir.NewUnaryExpr(base.Pos, ir.OSPTR, nr)
 	nto := ir.NewUnaryExpr(base.Pos, ir.OSPTR, nl)
 
-	nlen := typecheck.Temp(types.Types[types.TINT])
+	nlen := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
 
 	// n = len(to)
 	l = append(l, ir.NewAssignStmt(base.Pos, nlen, ir.NewUnaryExpr(base.Pos, ir.OLEN, nl)))
@@ -221,7 +221,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 
 	fn := typecheck.LookupRuntime("memmove")
 	fn = typecheck.SubstArgTypes(fn, nl.Type().Elem(), nl.Type().Elem())
-	nwid := ir.Node(typecheck.Temp(types.Types[types.TUINTPTR]))
+	nwid := ir.Node(typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINTPTR]))
 	setwid := ir.NewAssignStmt(base.Pos, nwid, typecheck.Conv(nlen, types.Types[types.TUINTPTR]))
 	ne.Body.Append(setwid)
 	nwid = ir.NewBinaryExpr(base.Pos, ir.OMUL, nwid, ir.NewInt(base.Pos, nl.Type().Elem().Size()))
@@ -434,7 +434,7 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		init.Append(typecheck.Stmt(nif))
 
 		t = types.NewArray(t.Elem(), i) // [r]T
-		var_ := typecheck.Temp(t)
+		var_ := typecheck.TempAt(base.Pos, ir.CurFunc, t)
 		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil))  // zero temp
 		r := ir.NewSliceExpr(base.Pos, ir.OSLICE, var_, nil, l, nil) // arr[:l]
 		// The conv is necessary in case n.Type is named.
@@ -497,7 +497,7 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		ptr.MarkNonNil()
 		sh := ir.NewSliceHeaderExpr(base.Pos, t, ptr, length, length)
 
-		s := typecheck.Temp(t)
+		s := typecheck.TempAt(base.Pos, ir.CurFunc, t)
 		r := typecheck.Stmt(ir.NewAssignStmt(base.Pos, s, sh))
 		r = walkExpr(r, init)
 		init.Append(r)
@@ -754,8 +754,8 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		}
 
 		// mem, overflow := runtime.mulUintptr(et.size, len)
-		mem := typecheck.Temp(types.Types[types.TUINTPTR])
-		overflow := typecheck.Temp(types.Types[types.TBOOL])
+		mem := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINTPTR])
+		overflow := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
 		fn := typecheck.LookupRuntime("mulUintptr")
 		call := mkcall1(fn, fn.Type().Results(), init, ir.NewInt(base.Pos, sliceType.Elem().Size()), typecheck.Conv(typecheck.Conv(len, lenType), types.Types[types.TUINTPTR]))
 		appendWalkStmt(init, ir.NewAssignListStmt(base.Pos, ir.OAS2, []ir.Node{mem, overflow}, []ir.Node{call}))

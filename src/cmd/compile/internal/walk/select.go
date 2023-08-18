@@ -125,7 +125,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 			if ir.IsBlank(elem) {
 				elem = typecheck.NodNil()
 			}
-			cond = typecheck.Temp(types.Types[types.TBOOL])
+			cond = typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
 			fn := chanfn("selectnbrecv", 2, ch.Type())
 			call := mkcall1(fn, fn.Type().Results(), r.PtrInit(), elem, ch)
 			as := ir.NewAssignListStmt(r.Pos(), ir.OAS2, []ir.Node{cond, n.Lhs[1]}, []ir.Node{call})
@@ -148,15 +148,15 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 
 	// generate sel-struct
 	base.Pos = sellineno
-	selv := typecheck.Temp(types.NewArray(scasetype(), int64(ncas)))
+	selv := typecheck.TempAt(base.Pos, ir.CurFunc, types.NewArray(scasetype(), int64(ncas)))
 	init = append(init, typecheck.Stmt(ir.NewAssignStmt(base.Pos, selv, nil)))
 
 	// No initialization for order; runtime.selectgo is responsible for that.
-	order := typecheck.Temp(types.NewArray(types.Types[types.TUINT16], 2*int64(ncas)))
+	order := typecheck.TempAt(base.Pos, ir.CurFunc, types.NewArray(types.Types[types.TUINT16], 2*int64(ncas)))
 
 	var pc0, pcs ir.Node
 	if base.Flag.Race {
-		pcs = typecheck.Temp(types.NewArray(types.Types[types.TUINTPTR], int64(ncas)))
+		pcs = typecheck.TempAt(base.Pos, ir.CurFunc, types.NewArray(types.Types[types.TUINTPTR], int64(ncas)))
 		pc0 = typecheck.Expr(typecheck.NodAddr(ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(base.Pos, 0))))
 	} else {
 		pc0 = typecheck.NodNil()
@@ -220,8 +220,8 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 
 	// run the select
 	base.Pos = sellineno
-	chosen := typecheck.Temp(types.Types[types.TINT])
-	recvOK := typecheck.Temp(types.Types[types.TBOOL])
+	chosen := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+	recvOK := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
 	r := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 	r.Lhs = []ir.Node{chosen, recvOK}
 	fn := typecheck.LookupRuntime("selectgo")

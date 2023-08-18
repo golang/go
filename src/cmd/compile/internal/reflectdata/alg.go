@@ -165,7 +165,7 @@ func hashFunc(t *types.Type) *ir.Func {
 		hashel := hashfor(t.Elem())
 
 		// for i := 0; i < nelem; i++
-		ni := typecheck.Temp(types.Types[types.TINT])
+		ni := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
 		init := ir.NewAssignStmt(base.Pos, ni, ir.NewInt(base.Pos, 0))
 		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, ni, ir.NewInt(base.Pos, t.NumElem()))
 		post := ir.NewAssignStmt(base.Pos, ni, ir.NewBinaryExpr(base.Pos, ir.OADD, ni, ir.NewInt(base.Pos, 1)))
@@ -442,7 +442,7 @@ func eqFunc(t *types.Type) *ir.Func {
 			if iterateTo > 0 {
 				// Generate an unrolled for loop.
 				// for i := 0; i < nelem/unroll*unroll; i += unroll
-				i := typecheck.Temp(types.Types[types.TINT])
+				i := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
 				init := ir.NewAssignStmt(base.Pos, i, ir.NewInt(base.Pos, 0))
 				cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(base.Pos, iterateTo))
 				loop := ir.NewForStmt(base.Pos, nil, cond, nil, nil, false)
