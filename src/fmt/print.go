@@ -932,8 +932,7 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 	}
 }
 
-// intFromArg gets the argNumth element of a. On return, isInt reports whether the argument's
-// underlying type is integer.
+// intFromArg gets the argNumth element of a. On return, isInt reports whether the argument has integer type.
 func intFromArg(a []any, argNum int) (num int, isInt bool, newArgNum int) {
 	newArgNum = argNum
 	if argNum < len(a) {
