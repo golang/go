@@ -19,6 +19,7 @@ import (
 	"cmd/compile/internal/noder"
 	"cmd/compile/internal/pgo"
 	"cmd/compile/internal/pkginit"
+	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticinit"
@@ -295,18 +296,62 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	ir.CurFunc = nil
 
-	// Compile top level functions.
-	// Don't use range--walk can add functions to Target.Decls.
-	base.Timer.Start("be", "compilefuncs")
-	fcount := int64(0)
-	for i := 0; i < len(typecheck.Target.Funcs); i++ {
-		fn := typecheck.Target.Funcs[i]
-		enqueueFunc(fn)
-		fcount++
-	}
-	base.Timer.AddEvent(fcount, "funcs")
+	reflectdata.WriteBasicTypes()
 
-	compileFunctions()
+	// Compile top-level declarations.
+	//
+	// There are cyclic dependencies between all of these phases, so we
+	// need to iterate all of them until we reach a fixed point.
+	base.Timer.Start("be", "compilefuncs")
+	for nextFunc, nextExtern := 0, 0; ; {
+		reflectdata.WriteRuntimeTypes()
+
+		if nextExtern < len(typecheck.Target.Externs) {
+			switch n := typecheck.Target.Externs[nextExtern]; n.Op() {
+			case ir.ONAME:
+				dumpGlobal(n)
+			case ir.OLITERAL:
+				dumpGlobalConst(n)
+			case ir.OTYPE:
+				reflectdata.NeedRuntimeType(n.Type())
+			}
+			nextExtern++
+			continue
+		}
+
+		if nextFunc < len(typecheck.Target.Funcs) {
+			enqueueFunc(typecheck.Target.Funcs[nextFunc])
+			nextFunc++
+			continue
+		}
+
+		// The SSA backend supports using multiple goroutines, so keep it
+		// as late as possible to maximize how much work we can batch and
+		// process concurrently.
+		if len(compilequeue) != 0 {
+			compileFunctions()
+			continue
+		}
+
+		// Finalize DWARF inline routine DIEs, then explicitly turn off
+		// further DWARF inlining generation to avoid problems with
+		// generated method wrappers.
+		//
+		// Note: The DWARF fixup code for inlined calls currently doesn't
+		// allow multiple invocations, so we intentionally run it just
+		// once after everything else. Worst case, some generated
+		// functions have slightly larger DWARF DIEs.
+		if base.Ctxt.DwFixups != nil {
+			base.Ctxt.DwFixups.Finalize(base.Ctxt.Pkgpath, base.Debug.DwarfInl != 0)
+			base.Ctxt.DwFixups = nil
+			base.Flag.GenDwarfInl = 0
+			continue // may have called reflectdata.TypeLinksym (#62156)
+		}
+
+		break
+	}
+
+	base.Timer.AddEvent(int64(len(typecheck.Target.Funcs)), "funcs")
 
 	if base.Flag.CompilingRuntime {
 		// Write barriers are now known. Check the call graph.
@@ -316,15 +361,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Add keep relocations for global maps.
 	if base.Debug.WrapGlobalMapCtl != 1 {
 		staticinit.AddKeepRelocations()
-	}
-
-	// Finalize DWARF inline routine DIEs, then explicitly turn off
-	// DWARF inlining gen so as to avoid problems with generated
-	// method wrappers.
-	if base.Ctxt.DwFixups != nil {
-		base.Ctxt.DwFixups.Finalize(base.Ctxt.Pkgpath, base.Debug.DwarfInl != 0)
-		base.Ctxt.DwFixups = nil
-		base.Flag.GenDwarfInl = 0
 	}
 
 	// Write object data to disk.

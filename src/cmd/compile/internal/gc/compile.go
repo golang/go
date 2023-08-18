@@ -113,10 +113,6 @@ func prepareFunc(fn *ir.Func) {
 // It fans out nBackendWorkers to do the work
 // and waits for them to complete.
 func compileFunctions() {
-	if len(compilequeue) == 0 {
-		return
-	}
-
 	if race.Enabled {
 		// Randomize compilation order to try to shake out races.
 		tmp := make([]*ir.Func, len(compilequeue))

@@ -1266,7 +1266,9 @@ func WriteRuntimeTypes() {
 		}
 		signatslice = signatslice[len(signats):]
 	}
+}
 
+func WriteGCSymbols() {
 	// Emit GC data symbols.
 	gcsyms := make([]typeAndStr, 0, len(gcsymset))
 	for t := range gcsymset {
