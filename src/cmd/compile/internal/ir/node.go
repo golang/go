@@ -280,7 +280,6 @@ const (
 	// OTYPESW:  X := Y.(type) (appears as .Tag of OSWITCH)
 	//   X is nil if there is no type-switch variable
 	OTYPESW
-	OFUNCINST // instantiation of a generic function
 
 	// misc
 	// intermediate representation of an inlined call.  Uses Init (assignments

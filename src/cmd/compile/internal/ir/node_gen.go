@@ -866,40 +866,6 @@ func (n *InlinedCallExpr) editChildrenWithHidden(edit func(Node) Node) {
 	editNodes(n.ReturnVars, edit)
 }
 
-func (n *InstExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *InstExpr) copy() Node {
-	c := *n
-	c.init = copyNodes(c.init)
-	c.Targs = copyNtypes(c.Targs)
-	return &c
-}
-func (n *InstExpr) doChildren(do func(Node) bool) bool {
-	if doNodes(n.init, do) {
-		return true
-	}
-	if n.X != nil && do(n.X) {
-		return true
-	}
-	if doNtypes(n.Targs, do) {
-		return true
-	}
-	return false
-}
-func (n *InstExpr) editChildren(edit func(Node) Node) {
-	editNodes(n.init, edit)
-	if n.X != nil {
-		n.X = edit(n.X).(Node)
-	}
-	editNtypes(n.Targs, edit)
-}
-func (n *InstExpr) editChildrenWithHidden(edit func(Node) Node) {
-	editNodes(n.init, edit)
-	if n.X != nil {
-		n.X = edit(n.X).(Node)
-	}
-	editNtypes(n.Targs, edit)
-}
-
 func (n *JumpTableStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *JumpTableStmt) copy() Node {
 	c := *n
