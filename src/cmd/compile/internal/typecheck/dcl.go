@@ -15,11 +15,13 @@ import (
 	"cmd/internal/src"
 )
 
-var DeclContext ir.Class = ir.PEXTERN // PEXTERN/PAUTO
+var funcStack []*ir.Func // stack of previous values of ir.CurFunc
 
 func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.Func {
 	fn := ir.NewFunc(base.Pos, base.Pos, sym, nil)
-	StartFuncBody(fn)
+
+	funcStack = append(funcStack, ir.CurFunc)
+	ir.CurFunc = fn
 
 	var recv1 *types.Field
 	if recv != nil {
@@ -38,25 +40,11 @@ func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.F
 	return fn
 }
 
-// declare the function proper
-// and declare the arguments.
-// called in extern-declaration context
-// returns in auto-declaration context.
-func StartFuncBody(fn *ir.Func) {
-	// change the declaration context from extern to auto
-	funcStack = append(funcStack, funcStackEnt{ir.CurFunc, DeclContext})
-	ir.CurFunc = fn
-	DeclContext = ir.PAUTO
-}
-
 // finish the body.
 // called in auto-declaration context.
 // returns in extern-declaration context.
 func FinishFuncBody() {
-	// change the declaration context from auto to previous context
-	var e funcStackEnt
-	funcStack, e = funcStack[:len(funcStack)-1], funcStack[len(funcStack)-1]
-	ir.CurFunc, DeclContext = e.curfn, e.dclcontext
+	funcStack, ir.CurFunc = funcStack[:len(funcStack)-1], funcStack[len(funcStack)-1]
 }
 
 func CheckFuncStack() {
@@ -81,13 +69,6 @@ func checkdupfields(what string, fss ...[]*types.Field) {
 			seen[f.Sym] = true
 		}
 	}
-}
-
-var funcStack []funcStackEnt // stack of previous values of ir.CurFunc/DeclContext
-
-type funcStackEnt struct {
-	curfn      *ir.Func
-	dclcontext ir.Class
 }
 
 func declareParams(fn *ir.Func, ctxt ir.Class, l []*ir.Field) []*types.Field {

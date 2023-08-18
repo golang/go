@@ -16,7 +16,6 @@ import (
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticinit"
-	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/compile/internal/walk"
 	"cmd/internal/obj"
@@ -105,11 +104,9 @@ func prepareFunc(fn *ir.Func) {
 	// Calculate parameter offsets.
 	types.CalcSize(fn.Type())
 
-	typecheck.DeclContext = ir.PAUTO
 	ir.CurFunc = fn
 	walk.Walk(fn)
 	ir.CurFunc = nil // enforce no further uses of CurFunc
-	typecheck.DeclContext = ir.PEXTERN
 }
 
 // compileFunctions compiles all functions in compilequeue.
