@@ -262,9 +262,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	// Devirtualize and get variable capture right in for loops
 	var transformed []loopvar.VarAndLoop
-	for _, n := range typecheck.Target.Funcs {
-		devirtualize.Static(n)
-		transformed = append(transformed, loopvar.ForCapture(n)...)
+	for _, fn := range typecheck.Target.Funcs {
+		devirtualize.Static(fn)
+		transformed = append(transformed, loopvar.ForCapture(fn)...)
 	}
 	ir.CurFunc = nil
 
