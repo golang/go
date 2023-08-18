@@ -181,6 +181,7 @@ func ParseFlags() {
 	Debug.PGOInline = 1
 	Debug.PGODevirtualize = 1
 	Debug.SyncFrames = -1 // disable sync markers by default
+	Debug.ZeroCopy = 1
 
 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
 
