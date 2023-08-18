@@ -66,7 +66,7 @@ func FixValue(typ *types.Type, val constant.Value) constant.Value {
 }
 
 func Nil(pos src.XPos, typ *types.Type) ir.Node {
-	return typed(typ, ir.NewNilExpr(pos))
+	return ir.NewNilExpr(pos, typ)
 }
 
 // Expressions

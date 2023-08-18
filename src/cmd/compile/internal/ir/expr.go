@@ -106,9 +106,8 @@ func NewBasicLit(pos src.XPos, val constant.Value) Node {
 	n := &BasicLit{val: val}
 	n.op = OLITERAL
 	n.pos = pos
-	if k := val.Kind(); k != constant.Unknown {
-		n.SetType(idealType(k))
-	}
+	n.SetType(idealType(val.Kind()))
+	n.SetTypecheck(1)
 	return n
 }
 
@@ -432,15 +431,19 @@ func (n *MakeExpr) SetOp(op Op) {
 }
 
 // A NilExpr represents the predefined untyped constant nil.
-// (It may be copied and assigned a type, though.)
 type NilExpr struct {
 	miniExpr
 }
 
-func NewNilExpr(pos src.XPos) *NilExpr {
+func NewNilExpr(pos src.XPos, typ *types.Type) *NilExpr {
+	if typ == nil {
+		base.FatalfAt(pos, "missing type")
+	}
 	n := &NilExpr{}
 	n.pos = pos
 	n.op = ONIL
+	n.SetType(typ)
+	n.SetTypecheck(1)
 	return n
 }
 
@@ -498,9 +501,13 @@ type LinksymOffsetExpr struct {
 }
 
 func NewLinksymOffsetExpr(pos src.XPos, lsym *obj.LSym, offset int64, typ *types.Type) *LinksymOffsetExpr {
+	if typ == nil {
+		base.FatalfAt(pos, "nil type")
+	}
 	n := &LinksymOffsetExpr{Linksym: lsym, Offset_: offset}
 	n.typ = typ
 	n.op = OLINKSYMOFFSET
+	n.SetTypecheck(1)
 	return n
 }
 

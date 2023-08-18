@@ -120,9 +120,7 @@ func LinksymAddr(pos src.XPos, lsym *obj.LSym, typ *types.Type) *ir.AddrExpr {
 }
 
 func NodNil() ir.Node {
-	n := ir.NewNilExpr(base.Pos)
-	n.SetType(types.Types[types.TNIL])
-	return n
+	return ir.NewNilExpr(base.Pos, types.Types[types.TNIL])
 }
 
 // AddImplicitDots finds missing fields in obj.field that

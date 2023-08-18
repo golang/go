@@ -70,6 +70,7 @@ func InitUniverse() {
 	types.InitTypes(func(sym *types.Sym, typ *types.Type) types.Object {
 		n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, sym)
 		n.SetType(typ)
+		n.SetTypecheck(1)
 		sym.Def = n
 		return n
 	})

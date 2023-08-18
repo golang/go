@@ -177,7 +177,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
 	if n.Typecheck() == 1 || n.Typecheck() == 3 {
 		switch n.Op() {
-		case ir.ONAME, ir.OTYPE, ir.OLITERAL:
+		case ir.ONAME:
 			break
 
 		default:
@@ -230,22 +230,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		base.Fatalf("typecheck %v", n.Op())
 		panic("unreachable")
 
-	case ir.OLITERAL:
-		if n.Sym() == nil && n.Type() == nil {
-			base.Fatalf("literal missing type: %v", n)
-		}
-		return n
-
-	case ir.ONIL:
-		return n
-
-	// names
-	case ir.ONONAME:
-		// Note: adderrorname looks for this string and
-		// adds context about the outer expression
-		base.FatalfAt(n.Pos(), "undefined: %v", n.Sym())
-		panic("unreachable")
-
 	case ir.ONAME:
 		n := n.(*ir.Name)
 		if n.BuiltinOp != 0 {
@@ -265,14 +249,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 			}
 			n.SetUsed(true)
 		}
-		return n
-
-	case ir.OLINKSYMOFFSET:
-		// type already set
-		return n
-
-	// types (ODEREF is with exprs)
-	case ir.OTYPE:
 		return n
 
 	// type or expr

@@ -17,18 +17,15 @@ import (
 
 // MakeDotArgs package all the arguments that match a ... T parameter into a []T.
 func MakeDotArgs(pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
-	var n ir.Node
 	if len(args) == 0 {
-		n = ir.NewNilExpr(pos)
-		n.SetType(typ)
-	} else {
-		args = append([]ir.Node(nil), args...)
-		lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, args)
-		lit.SetImplicit(true)
-		n = lit
+		return ir.NewNilExpr(pos, typ)
 	}
 
-	n = Expr(n)
+	args = append([]ir.Node(nil), args...)
+	lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, args)
+	lit.SetImplicit(true)
+
+	n := Expr(lit)
 	if n.Type() == nil {
 		base.FatalfAt(pos, "mkdotargslice: typecheck failed")
 	}
