@@ -45,7 +45,7 @@ func cmdExec(args ...string) {
 		fmt.Fprintf(os.Stderr, "Child: %s %s", err, string(output))
 		os.Exit(1)
 	}
-	fmt.Printf("%s", string(output))
+	fmt.Printf("%s", output)
 }
 
 func installExe(t *testing.T, dest, src string) {
