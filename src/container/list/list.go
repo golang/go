@@ -116,9 +116,6 @@ func (l *List) remove(e *Element) {
 
 // move moves e to next to at.
 func (l *List) move(e, at *Element) {
-	if e == at {
-		return
-	}
 	e.prev.next = e.next
 	e.next.prev = e.prev
 
@@ -178,7 +175,7 @@ func (l *List) InsertAfter(v any, mark *Element) *Element {
 // If e is not an element of l, the list is not modified.
 // The element must not be nil.
 func (l *List) MoveToFront(e *Element) {
-	if e.list != l || l.root.next == e {
+	if l.root.next == e || e.list != l {
 		return
 	}
 	// see comment in List.Remove about initialization of l
@@ -189,7 +186,7 @@ func (l *List) MoveToFront(e *Element) {
 // If e is not an element of l, the list is not modified.
 // The element must not be nil.
 func (l *List) MoveToBack(e *Element) {
-	if e.list != l || l.root.prev == e {
+	if l.root.prev == e || e.list != l {
 		return
 	}
 	// see comment in List.Remove about initialization of l
@@ -200,7 +197,7 @@ func (l *List) MoveToBack(e *Element) {
 // If e or mark is not an element of l, or e == mark, the list is not modified.
 // The element and mark must not be nil.
 func (l *List) MoveBefore(e, mark *Element) {
-	if e.list != l || e == mark || mark.list != l {
+	if e == mark.prev || e == mark || e.list != l || mark.list != l {
 		return
 	}
 	l.move(e, mark.prev)
@@ -210,7 +207,7 @@ func (l *List) MoveBefore(e, mark *Element) {
 // If e or mark is not an element of l, or e == mark, the list is not modified.
 // The element and mark must not be nil.
 func (l *List) MoveAfter(e, mark *Element) {
-	if e.list != l || e == mark || mark.list != l {
+	if e == mark.next || e == mark || e.list != l || mark.list != l {
 		return
 	}
 	l.move(e, mark)
