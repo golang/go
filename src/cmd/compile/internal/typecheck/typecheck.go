@@ -843,6 +843,14 @@ func Lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs *types.Fields, do
 	return r
 }
 
+// NewMethodExpr returns an OMETHEXPR node representing method
+// expression "recv.sym".
+func NewMethodExpr(pos src.XPos, recv *types.Type, sym *types.Sym) *ir.SelectorExpr {
+	n := Expr(ir.NewSelectorExpr(pos, ir.OXDOT, ir.TypeNode(recv), sym)).(*ir.SelectorExpr)
+	base.Assert(n.Op() == ir.OMETHEXPR)
+	return n
+}
+
 // typecheckMethodExpr checks selector expressions (ODOT) where the
 // base expression is a type expression (OTYPE).
 func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {

@@ -62,7 +62,7 @@ func FixMethodCall(call *ir.CallExpr) {
 
 	dot := call.X.(*ir.SelectorExpr)
 
-	fn := Expr(ir.NewSelectorExpr(dot.Pos(), ir.OXDOT, ir.TypeNode(dot.X.Type()), dot.Selection.Sym))
+	fn := NewMethodExpr(dot.Pos(), dot.X.Type(), dot.Selection.Sym)
 
 	args := make([]ir.Node, 1+len(call.Args))
 	args[0] = dot.X
