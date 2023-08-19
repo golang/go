@@ -26,26 +26,22 @@ func LookupNum(prefix string, n int) *types.Sym {
 }
 
 // Given funarg struct list, return list of fn args.
-func NewFuncParams(tl *types.Type, mustname bool) []*ir.Field {
-	var args []*ir.Field
-	gen := 0
-	for _, t := range tl.Fields().Slice() {
-		s := t.Sym
+func NewFuncParams(origs []*types.Field, mustname bool) []*types.Field {
+	res := make([]*types.Field, len(origs))
+	for i, orig := range origs {
+		s := orig.Sym
 		if mustname && (s == nil || s.Name == "_") {
 			// invent a name so that we can refer to it in the trampoline
-			s = LookupNum(".anon", gen)
-			gen++
+			s = LookupNum(".anon", i)
 		} else if s != nil && s.Pkg != types.LocalPkg {
 			// TODO(mdempsky): Preserve original position, name, and package.
 			s = Lookup(s.Name)
 		}
-		a := ir.NewField(base.Pos, s, t.Type)
-		a.Pos = t.Pos
-		a.IsDDD = t.IsDDD()
-		args = append(args, a)
+		p := types.NewField(orig.Pos, s, orig.Type)
+		p.SetIsDDD(orig.IsDDD())
+		res[i] = p
 	}
-
-	return args
+	return res
 }
 
 // NodAddr returns a node representing &n at base.Pos.

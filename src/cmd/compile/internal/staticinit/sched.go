@@ -1042,7 +1042,9 @@ func tryWrapGlobalMapInit(n ir.Node) (mapvar *ir.Name, genfn *ir.Func, call ir.N
 	//
 	minitsym := typecheck.LookupNum("map.init.", mapinitgen)
 	mapinitgen++
-	newfn := typecheck.DeclFunc(minitsym, nil, nil, nil)
+
+	newfn := ir.NewFunc(base.Pos, base.Pos, minitsym, types.NewSignature(nil, nil, nil))
+	typecheck.DeclFunc(newfn)
 	if base.Debug.WrapGlobalMapDbg > 0 {
 		fmt.Fprintf(os.Stderr, "=-= generated func is %v\n", newfn)
 	}

@@ -6,7 +6,6 @@ package typecheck
 
 import (
 	"fmt"
-	"internal/types/errors"
 	"sync"
 
 	"cmd/compile/internal/base"
@@ -17,32 +16,36 @@ import (
 
 var funcStack []*ir.Func // stack of previous values of ir.CurFunc
 
-func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.Func {
-	fn := ir.NewFunc(base.Pos, base.Pos, sym, nil)
+// DeclFunc creates and returns ONAMEs for the parameters and results
+// of the given function. It also sets ir.CurFunc, and adds fn to
+// Target.Funcs.
+//
+// After the caller is done constructing fn, it must call
+// FinishFuncBody.
+func DeclFunc(fn *ir.Func) (params, results []*ir.Name) {
+	typ := fn.Type()
+
+	// Currently, DeclFunc is only used to create normal functions, not
+	// methods. If a use case for creating methods shows up, we can
+	// extend it to support those too.
+	if typ.Recv() != nil {
+		base.FatalfAt(fn.Pos(), "unexpected receiver parameter")
+	}
+
+	params = declareParams(fn, ir.PPARAM, typ.Params().FieldSlice())
+	results = declareParams(fn, ir.PPARAMOUT, typ.Results().FieldSlice())
 
 	funcStack = append(funcStack, ir.CurFunc)
 	ir.CurFunc = fn
 
-	var recv1 *types.Field
-	if recv != nil {
-		recv1 = declareParam(fn, ir.PPARAM, -1, recv)
-	}
-
-	typ := types.NewSignature(recv1, declareParams(fn, ir.PPARAM, params), declareParams(fn, ir.PPARAMOUT, results))
-	checkdupfields("argument", typ.Recvs().FieldSlice(), typ.Params().FieldSlice(), typ.Results().FieldSlice())
-
-	fn.Nname.SetType(typ)
-	fn.Nname.SetTypecheck(1)
-
 	fn.Nname.Defn = fn
 	Target.Funcs = append(Target.Funcs, fn)
 
-	return fn
+	return
 }
 
-// finish the body.
-// called in auto-declaration context.
-// returns in extern-declaration context.
+// FinishFuncBody restores ir.CurFunc to its state before the last
+// call to DeclFunc.
 func FinishFuncBody() {
 	funcStack, ir.CurFunc = funcStack[:len(funcStack)-1], funcStack[len(funcStack)-1]
 }
@@ -53,36 +56,15 @@ func CheckFuncStack() {
 	}
 }
 
-// checkdupfields emits errors for duplicately named fields or methods in
-// a list of struct or interface types.
-func checkdupfields(what string, fss ...[]*types.Field) {
-	seen := make(map[*types.Sym]bool)
-	for _, fs := range fss {
-		for _, f := range fs {
-			if f.Sym == nil || f.Sym.IsBlank() {
-				continue
-			}
-			if seen[f.Sym] {
-				base.ErrorfAt(f.Pos, errors.DuplicateFieldAndMethod, "duplicate %s %s", what, f.Sym.Name)
-				continue
-			}
-			seen[f.Sym] = true
-		}
+func declareParams(fn *ir.Func, ctxt ir.Class, params []*types.Field) []*ir.Name {
+	names := make([]*ir.Name, len(params))
+	for i, param := range params {
+		names[i] = declareParam(fn, ctxt, i, param)
 	}
+	return names
 }
 
-func declareParams(fn *ir.Func, ctxt ir.Class, l []*ir.Field) []*types.Field {
-	fields := make([]*types.Field, len(l))
-	for i, n := range l {
-		fields[i] = declareParam(fn, ctxt, i, n)
-	}
-	return fields
-}
-
-func declareParam(fn *ir.Func, ctxt ir.Class, i int, param *ir.Field) *types.Field {
-	f := types.NewField(param.Pos, param.Sym, param.Type)
-	f.SetIsDDD(param.IsDDD)
-
+func declareParam(fn *ir.Func, ctxt ir.Class, i int, param *types.Field) *ir.Name {
 	sym := param.Sym
 	if ctxt == ir.PPARAMOUT {
 		if sym == nil {
@@ -99,11 +81,13 @@ func declareParam(fn *ir.Func, ctxt ir.Class, i int, param *ir.Field) *types.Fie
 		}
 	}
 
-	if sym != nil {
-		f.Nname = fn.NewLocal(param.Pos, sym, ctxt, f.Type)
+	if sym == nil {
+		return nil
 	}
 
-	return f
+	name := fn.NewLocal(param.Pos, sym, ctxt, param.Type)
+	param.Nname = name
+	return name
 }
 
 // make a new Node off the books.

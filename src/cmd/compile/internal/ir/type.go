@@ -8,30 +8,9 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
-	"fmt"
 )
 
 // Calling TypeNode converts a *types.Type to a Node shell.
-
-// A Field is a declared function parameter.
-// It is not a Node.
-type Field struct {
-	Pos   src.XPos
-	Sym   *types.Sym
-	Type  *types.Type
-	IsDDD bool
-}
-
-func NewField(pos src.XPos, sym *types.Sym, typ *types.Type) *Field {
-	return &Field{Pos: pos, Sym: sym, Type: typ}
-}
-
-func (f *Field) String() string {
-	if f.Sym != nil {
-		return fmt.Sprintf("%v %v", f.Sym, f.Type)
-	}
-	return fmt.Sprint(f.Type)
-}
 
 // A typeNode is a Node wrapper for type t.
 type typeNode struct {
