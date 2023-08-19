@@ -19,7 +19,6 @@ import (
 	"cmd/compile/internal/noder"
 	"cmd/compile/internal/pgo"
 	"cmd/compile/internal/pkginit"
-	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticinit"
