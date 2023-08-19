@@ -43,6 +43,14 @@ func newOIDFromDER(der []byte) (OID, bool) {
 	return OID{der}, true
 }
 
+func mustNewOIDFromInts(ints []uint64) OID {
+	oid, err := OIDFromInts(ints)
+	if err != nil {
+		panic("crypto/x509: mustNewOIDFromInts: " + err.Error())
+	}
+	return oid
+}
+
 // OIDFromInts creates a new OID using ints, each integer is a separate component.
 func OIDFromInts(oid []uint64) (OID, error) {
 	if len(oid) < 2 || oid[0] > 2 || (oid[0] < 2 && oid[1] >= 40) {
