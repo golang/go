@@ -203,8 +203,7 @@ func hashFunc(t *types.Type) *ir.Func {
 			if !compare.IsRegularMemory(f.Type) {
 				hashel := hashfor(f.Type)
 				call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
-				nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
-				na := typecheck.NodAddr(nx)
+				na := typecheck.NodAddr(typecheck.DotField(base.Pos, np, i))
 				call.Args.Append(na)
 				call.Args.Append(nh)
 				fn.Body.Append(ir.NewAssignStmt(base.Pos, nh, call))
@@ -218,8 +217,7 @@ func hashFunc(t *types.Type) *ir.Func {
 			// h = hashel(&p.first, size, h)
 			hashel := hashmem(f.Type)
 			call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
-			nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
-			na := typecheck.NodAddr(nx)
+			na := typecheck.NodAddr(typecheck.DotField(base.Pos, np, i))
 			call.Args.Append(na)
 			call.Args.Append(nh)
 			call.Args.Append(ir.NewInt(base.Pos, size))

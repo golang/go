@@ -113,10 +113,9 @@ func staticCall(call *ir.CallExpr) {
 
 	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, nil)
 	dt.SetType(typ)
-	x := typecheck.Callee(ir.NewSelectorExpr(sel.Pos(), ir.OXDOT, dt, sel.Sel))
+	x := typecheck.XDotMethod(sel.Pos(), dt, sel.Sel, true)
 	switch x.Op() {
 	case ir.ODOTMETH:
-		x := x.(*ir.SelectorExpr)
 		if base.Flag.LowerM != 0 {
 			base.WarnfAt(call.Pos(), "devirtualizing %v to %v", sel, typ)
 		}
@@ -124,7 +123,6 @@ func staticCall(call *ir.CallExpr) {
 		call.X = x
 	case ir.ODOTINTER:
 		// Promoted method from embedded interface-typed field (#42279).
-		x := x.(*ir.SelectorExpr)
 		if base.Flag.LowerM != 0 {
 			base.WarnfAt(call.Pos(), "partially devirtualizing %v to %v", sel, typ)
 		}

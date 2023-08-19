@@ -418,7 +418,7 @@ func soleComponent(init *ir.Nodes, n ir.Node) ir.Node {
 				appendWalkStmt(init, ir.NewAssignStmt(base.Pos, n, nil))
 				continue
 			}
-			n = typecheck.Expr(ir.NewSelectorExpr(n.Pos(), ir.OXDOT, n, n.Type().Field(0).Sym))
+			n = typecheck.DotField(n.Pos(), n, 0)
 		case n.Type().IsArray():
 			n = typecheck.Expr(ir.NewIndexExpr(n.Pos(), n, ir.NewInt(base.Pos, 0)))
 		default:

@@ -347,7 +347,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 	assertAsList := ir.NewAssignListStmt(pos, ir.OAS2, []ir.Node{tmpnode, tmpok}, []ir.Node{typecheck.Expr(assert)})
 	init.Append(typecheck.Stmt(assertAsList))
 
-	concreteCallee := typecheck.Callee(ir.NewSelectorExpr(pos, ir.OXDOT, tmpnode, method))
+	concreteCallee := typecheck.XDotMethod(pos, tmpnode, method, true)
 	// Copy slice so edits in one location don't affect another.
 	argvars = append([]ir.Node(nil), argvars...)
 	concreteCall := typecheck.Call(pos, concreteCallee, argvars, call.IsDDD)

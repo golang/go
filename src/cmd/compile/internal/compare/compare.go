@@ -198,15 +198,15 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 				// Enforce ordering by starting a new set of reorderable conditions.
 				conds = append(conds, []ir.Node{})
 			}
-			p := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym)
-			q := ir.NewSelectorExpr(base.Pos, ir.OXDOT, nq, f.Sym)
 			switch {
 			case f.Type.IsString():
+				p := typecheck.DotField(base.Pos, typecheck.Expr(np), i)
+				q := typecheck.DotField(base.Pos, typecheck.Expr(nq), i)
 				eqlen, eqmem := EqString(p, q)
 				and(eqlen)
 				and(eqmem)
 			default:
-				and(ir.NewBinaryExpr(base.Pos, ir.OEQ, p, q))
+				and(eqfield(np, nq, i))
 			}
 			if typeCanPanic {
 				// Also enforce ordering after something that can panic.
@@ -219,13 +219,12 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 		cost, size, next := eqStructFieldCost(t, i)
 		if cost <= 4 {
 			// Cost of 4 or less: use plain field equality.
-			s := fields[i:next]
-			for _, f := range s {
-				and(eqfield(np, nq, ir.OEQ, f.Sym))
+			for j := i; j < next; j++ {
+				and(eqfield(np, nq, j))
 			}
 		} else {
 			// Higher cost: use memequal.
-			cc := eqmem(np, nq, f.Sym, size)
+			cc := eqmem(np, nq, i, size)
 			and(cc)
 		}
 		i = next
@@ -348,19 +347,18 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 // eqfield returns the node
 //
 //	p.field == q.field
-func eqfield(p ir.Node, q ir.Node, op ir.Op, field *types.Sym) ir.Node {
-	nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)
-	ny := ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)
-	ne := ir.NewBinaryExpr(base.Pos, op, nx, ny)
-	return ne
+func eqfield(p, q ir.Node, field int) ir.Node {
+	nx := typecheck.DotField(base.Pos, typecheck.Expr(p), field)
+	ny := typecheck.DotField(base.Pos, typecheck.Expr(q), field)
+	return typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.OEQ, nx, ny))
 }
 
 // eqmem returns the node
 //
 //	memequal(&p.field, &q.field, size)
-func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
-	nx := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)))
-	ny := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)))
+func eqmem(p, q ir.Node, field int, size int64) ir.Node {
+	nx := typecheck.Expr(typecheck.NodAddr(typecheck.DotField(base.Pos, p, field)))
+	ny := typecheck.Expr(typecheck.NodAddr(typecheck.DotField(base.Pos, q, field)))
 
 	fn, needsize := eqmemfunc(size, nx.Type().Elem())
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
