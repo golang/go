@@ -110,10 +110,38 @@ func dumpCompilerObj(bout *bio.Writer) {
 }
 
 func dumpdata() {
-	reflectdata.WriteGCSymbols()
+	numExterns := len(typecheck.Target.Externs)
+	numDecls := len(typecheck.Target.Funcs)
+	dumpglobls(typecheck.Target.Externs)
+	addsignats(typecheck.Target.Externs)
+	reflectdata.WriteRuntimeTypes()
 	reflectdata.WritePluginTable()
 	reflectdata.WriteImportStrings()
+	reflectdata.WriteBasicTypes()
 	dumpembeds()
+
+	// Calls to WriteRuntimeTypes can generate functions,
+	// like method wrappers and hash and equality routines.
+	// Compile any generated functions, process any new resulting types, repeat.
+	// This can't loop forever, because there is no way to generate an infinite
+	// number of types in a finite amount of code.
+	// In the typical case, we loop 0 or 1 times.
+	// It was not until issue 24761 that we found any code that required a loop at all.
+	for {
+		for i := numDecls; i < len(typecheck.Target.Funcs); i++ {
+			fn := typecheck.Target.Funcs[i]
+			enqueueFunc(fn)
+		}
+		numDecls = len(typecheck.Target.Funcs)
+		compileFunctions()
+		reflectdata.WriteRuntimeTypes()
+		if numDecls == len(typecheck.Target.Funcs) {
+			break
+		}
+	}
+
+	// Dump extra globals.
+	dumpglobls(typecheck.Target.Externs[numExterns:])
 
 	if reflectdata.ZeroSize > 0 {
 		zero := base.PkgLinksym("go:map", "zero", obj.ABI0)
@@ -187,6 +215,18 @@ func dumpGlobalConst(n *ir.Name) {
 		_ = reflectdata.TypeLinksym(t)
 	}
 	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
+}
+
+func dumpglobls(externs []*ir.Name) {
+	// add globals
+	for _, n := range externs {
+		switch n.Op() {
+		case ir.ONAME:
+			dumpGlobal(n)
+		case ir.OLITERAL:
+			dumpGlobalConst(n)
+		}
+	}
 }
 
 // addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
@@ -281,5 +321,14 @@ func ggloblnod(nam *ir.Name) {
 func dumpembeds() {
 	for _, v := range typecheck.Target.Embeds {
 		staticdata.WriteEmbed(v)
+	}
+}
+
+func addsignats(dcls []*ir.Name) {
+	// copy types from dcl list to signatset
+	for _, n := range dcls {
+		if n.Op() == ir.OTYPE {
+			reflectdata.NeedRuntimeType(n.Type())
+		}
 	}
 }
