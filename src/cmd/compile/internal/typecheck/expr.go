@@ -447,7 +447,7 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 		}
 	}
 
-	n.X = typecheck(n.X, ctxExpr|ctxType)
+	n.X = Expr(n.X)
 	n.X = DefaultLit(n.X, nil)
 
 	t := n.X.Type()
@@ -458,7 +458,7 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 	}
 
 	if n.X.Op() == ir.OTYPE {
-		return typecheckMethodExpr(n)
+		base.FatalfAt(n.Pos(), "use NewMethodExpr to construct OMETHEXPR")
 	}
 
 	if t.IsPtr() && !t.Elem().IsInterface() {

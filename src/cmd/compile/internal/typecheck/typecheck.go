@@ -846,58 +846,32 @@ func Lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs *types.Fields, do
 // NewMethodExpr returns an OMETHEXPR node representing method
 // expression "recv.sym".
 func NewMethodExpr(pos src.XPos, recv *types.Type, sym *types.Sym) *ir.SelectorExpr {
-	n := Expr(ir.NewSelectorExpr(pos, ir.OXDOT, ir.TypeNode(recv), sym)).(*ir.SelectorExpr)
-	base.Assert(n.Op() == ir.OMETHEXPR)
-	return n
-}
-
-// typecheckMethodExpr checks selector expressions (ODOT) where the
-// base expression is a type expression (OTYPE).
-func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
-	if base.EnableTrace && base.Flag.LowerT {
-		defer tracePrint("typecheckMethodExpr", n)(&res)
-	}
-
-	t := n.X.Type()
-
-	// Compute the method set for t.
+	// Compute the method set for recv.
 	var ms *types.Fields
-	if t.IsInterface() {
-		ms = t.AllMethods()
+	if recv.IsInterface() {
+		ms = recv.AllMethods()
 	} else {
-		mt := types.ReceiverBaseType(t)
+		mt := types.ReceiverBaseType(recv)
 		if mt == nil {
-			base.Errorf("%v undefined (type %v has no method %v)", n, t, n.Sel)
-			n.SetType(nil)
-			return n
+			base.FatalfAt(pos, "type %v has no receiver base type", recv)
 		}
 		CalcMethods(mt)
 		ms = mt.AllMethods()
 	}
 
-	s := n.Sel
-	m := Lookdot1(n, s, t, ms, 0)
+	m := Lookdot1(nil, sym, recv, ms, 0)
 	if m == nil {
-		if Lookdot1(n, s, t, ms, 1) != nil {
-			base.Errorf("%v undefined (cannot refer to unexported method %v)", n, s)
-		} else if _, ambig := dotpath(s, t, nil, false); ambig {
-			base.Errorf("%v undefined (ambiguous selector)", n) // method or field
-		} else {
-			base.Errorf("%v undefined (type %v has no method %v)", n, t, s)
-		}
-		n.SetType(nil)
-		return n
+		base.FatalfAt(pos, "type %v has no method %v", recv, sym)
 	}
 
-	if !types.IsMethodApplicable(t, m) {
-		base.Errorf("invalid method expression %v (needs pointer receiver: (*%v).%S)", n, t, s)
-		n.SetType(nil)
-		return n
+	if !types.IsMethodApplicable(recv, m) {
+		base.FatalfAt(pos, "invalid method expression %v.%v (needs pointer receiver)", recv, sym)
 	}
 
-	n.SetOp(ir.OMETHEXPR)
+	n := ir.NewSelectorExpr(pos, ir.OMETHEXPR, ir.TypeNode(recv), sym)
 	n.Selection = m
-	n.SetType(NewMethodType(m.Type, n.X.Type()))
+	n.SetType(NewMethodType(m.Type, recv))
+	n.SetTypecheck(1)
 	return n
 }
 
