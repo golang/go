@@ -56,7 +56,7 @@ func enqueueFunc(fn *ir.Func) {
 		ir.InitLSym(fn, false)
 		types.CalcSize(fn.Type())
 		a := ssagen.AbiForBodylessFuncStackMap(fn)
-		abiInfo := a.ABIAnalyzeFuncType(fn.Type().FuncType()) // abiInfo has spill/home locations for wrapper
+		abiInfo := a.ABIAnalyzeFuncType(fn.Type()) // abiInfo has spill/home locations for wrapper
 		liveness.WriteFuncMap(fn, abiInfo)
 		if fn.ABI == obj.ABI0 {
 			x := ssagen.EmitArgInfo(fn, abiInfo)

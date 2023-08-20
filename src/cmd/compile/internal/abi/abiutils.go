@@ -380,25 +380,24 @@ func (config *ABIConfig) ABIAnalyzeTypes(rcvr *types.Type, ins, outs []*types.Ty
 // 'config' and analyzes the function to determine how its parameters
 // and results will be passed (in registers or on the stack), returning
 // an ABIParamResultInfo object that holds the results of the analysis.
-func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Func) *ABIParamResultInfo {
+func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Type) *ABIParamResultInfo {
 	setup()
 	s := assignState{
 		stackOffset: config.offsetForLocals,
 		rTotal:      config.regAmounts,
 	}
 	result := &ABIParamResultInfo{config: config}
-	result.preAllocateParams(ft.Receiver != nil, ft.Params.NumFields(), ft.Results.NumFields())
+	result.preAllocateParams(ft.Recv() != nil, ft.NumParams(), ft.NumResults())
 
 	// Receiver
 	// TODO(register args) ? seems like "struct" and "fields" is not right anymore for describing function parameters
-	if ft.Receiver != nil && ft.Receiver.NumFields() != 0 {
-		r := ft.Receiver.FieldSlice()[0]
+	if r := ft.Recv(); r != nil {
 		result.inparams = append(result.inparams,
 			s.assignParamOrReturn(r.Type, r.Nname, false))
 	}
 
 	// Inputs
-	ifsl := ft.Params.FieldSlice()
+	ifsl := ft.Params().FieldSlice()
 	for _, f := range ifsl {
 		result.inparams = append(result.inparams,
 			s.assignParamOrReturn(f.Type, f.Nname, false))
@@ -408,7 +407,7 @@ func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Func) *ABIParamResultInfo 
 
 	// Outputs
 	s.rUsed = RegAmounts{}
-	ofsl := ft.Results.FieldSlice()
+	ofsl := ft.Results().FieldSlice()
 	for _, f := range ofsl {
 		result.outparams = append(result.outparams, s.assignParamOrReturn(f.Type, f.Nname, true))
 	}
@@ -428,19 +427,18 @@ func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Func) *ABIParamResultInfo 
 // outputs because their frame location transitions from BOGUS_FUNARG_OFFSET
 // to zero to an as-if-AUTO offset that has no use for callers.
 func (config *ABIConfig) ABIAnalyze(t *types.Type, setNname bool) *ABIParamResultInfo {
-	ft := t.FuncType()
-	result := config.ABIAnalyzeFuncType(ft)
+	result := config.ABIAnalyzeFuncType(t)
 
 	// Fill in the frame offsets for receiver, inputs, results
 	k := 0
 	if t.NumRecvs() != 0 {
-		config.updateOffset(result, ft.Receiver.FieldSlice()[0], result.inparams[0], false, setNname)
+		config.updateOffset(result, t.Recv(), result.inparams[0], false, setNname)
 		k++
 	}
-	for i, f := range ft.Params.FieldSlice() {
+	for i, f := range t.Params().FieldSlice() {
 		config.updateOffset(result, f, result.inparams[k+i], false, setNname)
 	}
-	for i, f := range ft.Results.FieldSlice() {
+	for i, f := range t.Results().FieldSlice() {
 		config.updateOffset(result, f, result.outparams[i], true, setNname)
 	}
 	return result

@@ -1384,12 +1384,11 @@ func WriteImportStrings() {
 // WriteBasicTypes always writes pointer types; any pointer has been stripped off typ already.
 func writtenByWriteBasicTypes(typ *types.Type) bool {
 	if typ.Sym() == nil && typ.Kind() == types.TFUNC {
-		f := typ.FuncType()
 		// func(error) string
-		if f.Receiver.NumFields() == 0 &&
-			f.Params.NumFields() == 1 && f.Results.NumFields() == 1 &&
-			f.Params.FieldType(0) == types.ErrorType &&
-			f.Results.FieldType(0) == types.Types[types.TSTRING] {
+		if typ.NumRecvs() == 0 &&
+			typ.NumParams() == 1 && typ.NumResults() == 1 &&
+			typ.Params().FieldType(0) == types.ErrorType &&
+			typ.Results().FieldType(0) == types.Types[types.TSTRING] {
 			return true
 		}
 	}

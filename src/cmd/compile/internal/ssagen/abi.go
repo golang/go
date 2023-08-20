@@ -436,7 +436,7 @@ func setupWasmABI(f *ir.Func) {
 		//
 		// 	(import "a_module" "add" (func (param i32 i32) (result i32)))
 		abiConfig := AbiForBodylessFuncStackMap(f)
-		abiInfo := abiConfig.ABIAnalyzeFuncType(f.Type().FuncType())
+		abiInfo := abiConfig.ABIAnalyzeFuncType(f.Type())
 		wi.Params = paramsToWasmFields(f, abiInfo, abiInfo.InParams())
 		wi.Results = resultsToWasmFields(f, abiInfo, abiInfo.OutParams())
 	}

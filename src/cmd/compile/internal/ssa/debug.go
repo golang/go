@@ -433,7 +433,7 @@ func (sc *slotCanonicalizer) canonSlot(idx SlKeyIdx) LocalSlot {
 // synthesizes new (dead) values for the non-live params or the
 // non-live pieces of partially live params.
 func PopulateABIInRegArgOps(f *Func) {
-	pri := f.ABISelf.ABIAnalyzeFuncType(f.Type.FuncType())
+	pri := f.ABISelf.ABIAnalyzeFuncType(f.Type)
 
 	// When manufacturing new slots that correspond to splits of
 	// composite parameters, we want to avoid creating a new sub-slot
@@ -1754,7 +1754,7 @@ func isNamedRegParam(p abi.ABIParamAssignment) bool {
 // each input param reg will be spilled in the prolog).
 func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset func(LocalSlot) int32, rval *FuncDebug) {
 
-	pri := f.ABISelf.ABIAnalyzeFuncType(f.Type.FuncType())
+	pri := f.ABISelf.ABIAnalyzeFuncType(f.Type)
 
 	// Look to see if we have any named register-promoted parameters.
 	// If there are none, bail early and let the caller sort things

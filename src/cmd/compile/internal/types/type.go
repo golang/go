@@ -292,8 +292,8 @@ type Forward struct {
 	Embedlineno src.XPos // first use of this type as an embedded type
 }
 
-// ForwardType returns t's extra forward-type-specific fields.
-func (t *Type) ForwardType() *Forward {
+// forwardType returns t's extra forward-type-specific fields.
+func (t *Type) forwardType() *Forward {
 	t.wantEtype(TFORW)
 	return t.extra.(*Forward)
 }
@@ -310,8 +310,8 @@ type Func struct {
 	Argwid int64
 }
 
-// FuncType returns t's extra func-specific fields.
-func (t *Type) FuncType() *Func {
+// funcType returns t's extra func-specific fields.
+func (t *Type) funcType() *Func {
 	t.wantEtype(TFUNC)
 	return t.extra.(*Func)
 }
@@ -369,8 +369,8 @@ type Chan struct {
 	Dir  ChanDir // channel direction
 }
 
-// ChanType returns t's extra channel-specific fields.
-func (t *Type) ChanType() *Chan {
+// chanType returns t's extra channel-specific fields.
+func (t *Type) chanType() *Chan {
 	t.wantEtype(TCHAN)
 	return t.extra.(*Chan)
 }
@@ -570,7 +570,7 @@ func NewSlice(elem *Type) *Type {
 // NewChan returns a new chan Type with direction dir.
 func NewChan(elem *Type, dir ChanDir) *Type {
 	t := newType(TCHAN)
-	ct := t.ChanType()
+	ct := t.chanType()
 	ct.Elem = elem
 	ct.Dir = dir
 	if elem.HasShape() {
@@ -742,9 +742,9 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 		results := SubstAny(t.Results(), types)
 		if recvs != t.Recvs() || params != t.Params() || results != t.Results() {
 			t = t.copy()
-			t.FuncType().Receiver = recvs
-			t.FuncType().Results = results
-			t.FuncType().Params = params
+			t.funcType().Receiver = recvs
+			t.funcType().Results = results
+			t.funcType().Params = params
 		}
 
 	case TSTRUCT:
@@ -815,13 +815,13 @@ func (t *Type) wantEtype(et Kind) {
 	}
 }
 
-func (t *Type) Recvs() *Type   { return t.FuncType().Receiver }
-func (t *Type) Params() *Type  { return t.FuncType().Params }
-func (t *Type) Results() *Type { return t.FuncType().Results }
+func (t *Type) Recvs() *Type   { return t.funcType().Receiver }
+func (t *Type) Params() *Type  { return t.funcType().Params }
+func (t *Type) Results() *Type { return t.funcType().Results }
 
-func (t *Type) NumRecvs() int   { return t.FuncType().Receiver.NumFields() }
-func (t *Type) NumParams() int  { return t.FuncType().Params.NumFields() }
-func (t *Type) NumResults() int { return t.FuncType().Results.NumFields() }
+func (t *Type) NumRecvs() int   { return t.funcType().Receiver.NumFields() }
+func (t *Type) NumParams() int  { return t.funcType().Params.NumFields() }
+func (t *Type) NumResults() int { return t.funcType().Results.NumFields() }
 
 // IsVariadic reports whether function type t is variadic.
 func (t *Type) IsVariadic() bool {
@@ -1628,11 +1628,11 @@ func (t *Type) SetVargen() {
 func (t *Type) SetUnderlying(underlying *Type) {
 	if underlying.kind == TFORW {
 		// This type isn't computed yet; when it is, update n.
-		underlying.ForwardType().Copyto = append(underlying.ForwardType().Copyto, t)
+		underlying.forwardType().Copyto = append(underlying.forwardType().Copyto, t)
 		return
 	}
 
-	ft := t.ForwardType()
+	ft := t.forwardType()
 
 	// TODO(mdempsky): Fix Type rekinding.
 	t.kind = underlying.kind
@@ -1717,7 +1717,7 @@ func NewSignature(recv *Field, params, results []*Field) *Type {
 	}
 
 	t := newType(TFUNC)
-	ft := t.FuncType()
+	ft := t.funcType()
 
 	funargs := func(fields []*Field, funarg Funarg) *Type {
 		s := NewStruct(fields)
