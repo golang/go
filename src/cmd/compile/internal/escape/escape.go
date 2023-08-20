@@ -273,12 +273,8 @@ func (b *batch) finish(fns []*ir.Func) {
 	for _, fn := range fns {
 		fn.SetEsc(escFuncTagged)
 
-		narg := 0
-		for _, fs := range &types.RecvsParams {
-			for _, f := range fs(fn.Type()) {
-				narg++
-				f.Note = b.paramTag(fn, narg, f)
-			}
+		for i, param := range fn.Type().RecvParams() {
+			param.Note = b.paramTag(fn, 1+i, param)
 		}
 	}
 

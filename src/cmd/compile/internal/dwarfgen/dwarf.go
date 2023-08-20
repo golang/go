@@ -270,12 +270,10 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 func sortDeclsAndVars(fn *ir.Func, decls []*ir.Name, vars []*dwarf.Var) {
 	paramOrder := make(map[*ir.Name]int)
 	idx := 1
-	for _, selfn := range &types.RecvsParamsResults {
-		for _, f := range selfn(fn.Type()) {
-			if n, ok := f.Nname.(*ir.Name); ok {
-				paramOrder[n] = idx
-				idx++
-			}
+	for _, f := range fn.Type().RecvParamsResults() {
+		if n, ok := f.Nname.(*ir.Name); ok {
+			paramOrder[n] = idx
+			idx++
 		}
 	}
 	sort.Stable(varsAndDecls{decls, vars, paramOrder})

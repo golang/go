@@ -312,9 +312,11 @@ type Func struct {
 	Argwid int64
 }
 
-func (ft *Func) recvs() []*Field   { return ft.allParams[:ft.startParams] }
-func (ft *Func) params() []*Field  { return ft.allParams[ft.startParams:ft.startResults] }
-func (ft *Func) results() []*Field { return ft.allParams[ft.startResults:] }
+func (ft *Func) recvs() []*Field         { return ft.allParams[:ft.startParams] }
+func (ft *Func) params() []*Field        { return ft.allParams[ft.startParams:ft.startResults] }
+func (ft *Func) results() []*Field       { return ft.allParams[ft.startResults:] }
+func (ft *Func) recvParams() []*Field    { return ft.allParams[:ft.startResults] }
+func (ft *Func) paramsResults() []*Field { return ft.allParams[ft.startParams:] }
 
 // funcType returns t's extra func-specific fields.
 func (t *Type) funcType() *Func {
@@ -807,6 +809,19 @@ func (t *Type) Params() []*Field { return t.funcType().params() }
 // Results returns a slice of result parameters of signature type t.
 func (t *Type) Results() []*Field { return t.funcType().results() }
 
+// RecvsParamsResults returns a slice containing all of the
+// signature's parameters in receiver (if any), (normal) parameters,
+// and then results.
+func (t *Type) RecvParamsResults() []*Field { return t.funcType().allParams }
+
+// RecvParams returns a slice containing the signature's receiver (if
+// any) followed by its (normal) parameters.
+func (t *Type) RecvParams() []*Field { return t.funcType().recvParams() }
+
+// ParamsResults returns a slice containing the signature's (normal)
+// parameters followed by its results.
+func (t *Type) ParamsResults() []*Field { return t.funcType().paramsResults() }
+
 func (t *Type) NumRecvs() int   { return len(t.Recvs()) }
 func (t *Type) NumParams() int  { return len(t.Params()) }
 func (t *Type) NumResults() int { return len(t.Results()) }
@@ -830,23 +845,6 @@ func (t *Type) Param(i int) *Field { return t.Params()[i] }
 
 // Result returns the i'th result of signature type t.
 func (t *Type) Result(i int) *Field { return t.Results()[i] }
-
-// RecvsParamsResults stores the accessor functions for a function Type's
-// receiver, parameters, and result parameters, in that order.
-// It can be used to iterate over all of a function's parameter lists.
-var RecvsParamsResults = [3]func(*Type) []*Field{
-	(*Type).Recvs, (*Type).Params, (*Type).Results,
-}
-
-// RecvsParams is like RecvsParamsResults, but omits result parameters.
-var RecvsParams = [2]func(*Type) []*Field{
-	(*Type).Recvs, (*Type).Params,
-}
-
-// ParamsResults is like RecvsParamsResults, but omits receiver parameters.
-var ParamsResults = [2]func(*Type) []*Field{
-	(*Type).Params, (*Type).Results,
-}
 
 // Key returns the key type of map type t.
 func (t *Type) Key() *Type {
@@ -1221,22 +1219,24 @@ func (t *Type) cmp(x *Type) Cmp {
 		return CMPeq
 
 	case TFUNC:
-		for _, f := range &RecvsParamsResults {
-			// Loop over fields in structs, ignoring argument names.
-			tfs := f(t)
-			xfs := f(x)
-			for i := 0; i < len(tfs) && i < len(xfs); i++ {
-				ta := tfs[i]
-				tb := xfs[i]
-				if ta.IsDDD() != tb.IsDDD() {
-					return cmpForNe(!ta.IsDDD())
-				}
-				if c := ta.Type.cmp(tb.Type); c != CMPeq {
-					return c
-				}
-			}
-			if len(tfs) != len(xfs) {
-				return cmpForNe(len(tfs) < len(xfs))
+		if tn, xn := t.NumRecvs(), x.NumRecvs(); tn != xn {
+			return cmpForNe(tn < xn)
+		}
+		if tn, xn := t.NumParams(), x.NumParams(); tn != xn {
+			return cmpForNe(tn < xn)
+		}
+		if tn, xn := t.NumResults(), x.NumResults(); tn != xn {
+			return cmpForNe(tn < xn)
+		}
+		if tv, xv := t.IsVariadic(), x.IsVariadic(); tv != xv {
+			return cmpForNe(!tv)
+		}
+
+		tfs := t.RecvParamsResults()
+		xfs := x.RecvParamsResults()
+		for i, tf := range tfs {
+			if c := tf.Type.cmp(xfs[i].Type); c != CMPeq {
+				return c
 			}
 		}
 		return CMPeq

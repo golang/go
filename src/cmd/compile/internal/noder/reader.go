@@ -1109,10 +1109,8 @@ func (r *reader) funcExt(name *ir.Name, method *types.Sym) {
 		fn.ABI = obj.ABI(r.Uint64())
 
 		// Escape analysis.
-		for _, fs := range &types.RecvsParams {
-			for _, f := range fs(name.Type()) {
-				f.Note = r.String()
-			}
+		for _, f := range name.Type().RecvParams() {
+			f.Note = r.String()
 		}
 
 		if r.Bool() {

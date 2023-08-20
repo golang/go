@@ -122,17 +122,17 @@ cont:
 		// Check parameters and result parameters for type equality.
 		// We intentionally ignore receiver parameters for type
 		// equality, because they're never relevant.
-		for _, f := range &ParamsResults {
-			// Loop over fields in structs, ignoring argument names.
-			fs1, fs2 := f(t1), f(t2)
-			if len(fs1) != len(fs2) {
+		if t1.NumParams() != t2.NumParams() ||
+			t1.NumResults() != t2.NumResults() ||
+			t1.IsVariadic() != t2.IsVariadic() {
+			return false
+		}
+
+		fs1 := t1.ParamsResults()
+		fs2 := t2.ParamsResults()
+		for i, f1 := range fs1 {
+			if !identical(f1.Type, fs2[i].Type, flags, assumedEqual) {
 				return false
-			}
-			for i, f1 := range fs1 {
-				f2 := fs2[i]
-				if f1.IsDDD() != f2.IsDDD() || !identical(f1.Type, f2.Type, flags, assumedEqual) {
-					return false
-				}
 			}
 		}
 		return true
