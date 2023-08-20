@@ -6,6 +6,12 @@ package main
 
 // #cgo noescape annotations for a C function means its arguments won't escape to heap.
 
+// We assume that there won't be 100 new allocated heap objects in other places,
+// i.e. runtime.ReadMemStats or other runtime background works.
+// So, the tests are:
+// 1. at least 100 new allocated heap objects after invoking withoutNoEscape 100 times.
+// 2. less than 100 new allocated heap objects after invoking withoutNoEscape 100 times.
+
 /*
 #cgo noescape runCWithNoEscape
 

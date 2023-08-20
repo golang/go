@@ -1628,9 +1628,11 @@ const goProlog = `
 func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
 
 //go:linkname _cgoCheckPointer runtime.cgoCheckPointer
+//go:noescape
 func _cgoCheckPointer(interface{}, interface{})
 
 //go:linkname _cgoCheckResult runtime.cgoCheckResult
+//go:noescape
 func _cgoCheckResult(interface{})
 `
 
