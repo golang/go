@@ -129,11 +129,7 @@ func staticCall(call *ir.CallExpr) {
 		call.SetOp(ir.OCALLINTER)
 		call.X = x
 	default:
-		// TODO(mdempsky): Turn back into Fatalf after more testing.
-		if base.Flag.LowerM != 0 {
-			base.WarnfAt(call.Pos(), "failed to devirtualize %v (%v)", x, x.Op())
-		}
-		return
+		base.FatalfAt(call.Pos(), "failed to devirtualize %v (%v)", x, x.Op())
 	}
 
 	// Duplicated logic from typecheck for function call return

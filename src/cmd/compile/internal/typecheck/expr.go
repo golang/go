@@ -469,7 +469,9 @@ func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Fi
 // inserted too.
 func XDotField(pos src.XPos, x ir.Node, sym *types.Sym) *ir.SelectorExpr {
 	n := Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
-	// TODO(mdempsky): Assert n is ODOT/ODOTPTR.
+	if n.Op() != ir.ODOT && n.Op() != ir.ODOTPTR {
+		base.FatalfAt(pos, "unexpected result op: %v (%v)", n.Op(), n)
+	}
 	return n
 }
 
@@ -483,10 +485,14 @@ func XDotMethod(pos src.XPos, x ir.Node, sym *types.Sym, callee bool) *ir.Select
 	n := ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)
 	if callee {
 		n = Callee(n).(*ir.SelectorExpr)
-		// TODO(mdempsky): Assert n is ODOTMETH/ODOTINTER.
+		if n.Op() != ir.ODOTMETH && n.Op() != ir.ODOTINTER {
+			base.FatalfAt(pos, "unexpected result op: %v (%v)", n.Op(), n)
+		}
 	} else {
 		n = Expr(n).(*ir.SelectorExpr)
-		// TODO(mdempsky): Assert n is OMETHVALUE.
+		if n.Op() != ir.OMETHVALUE {
+			base.FatalfAt(pos, "unexpected result op: %v (%v)", n.Op(), n)
+		}
 	}
 	return n
 }
