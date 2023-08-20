@@ -483,12 +483,12 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 		} else {
 			if t.Recv() != nil {
 				b.WriteString("method")
-				tconv2(b, t.recvsTuple(), 0, mode, visited)
+				formatParams(b, t.Recvs(), mode, visited)
 				b.WriteByte(' ')
 			}
 			b.WriteString("func")
 		}
-		tconv2(b, t.paramsTuple(), 0, mode, visited)
+		formatParams(b, t.Params(), mode, visited)
 
 		switch t.NumResults() {
 		case 0:
@@ -500,7 +500,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 
 		default:
 			b.WriteByte(' ')
-			tconv2(b, t.ResultsTuple(), 0, mode, visited)
+			formatParams(b, t.Results(), mode, visited)
 		}
 
 	case TSTRUCT:
@@ -520,35 +520,18 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			break
 		}
 
-		if t.StructType().ParamTuple {
-			b.WriteByte('(')
-			fieldVerb := 'v'
-			switch mode {
-			case fmtTypeID, fmtTypeIDName, fmtGo:
-				// no argument names on function signature, and no "noescape"/"nosplit" tags
-				fieldVerb = 'S'
+		b.WriteString("struct {")
+		for i, f := range t.Fields() {
+			if i != 0 {
+				b.WriteByte(';')
 			}
-			for i, f := range t.Fields() {
-				if i != 0 {
-					b.WriteString(", ")
-				}
-				fldconv(b, f, fieldVerb, mode, visited, true)
-			}
-			b.WriteByte(')')
-		} else {
-			b.WriteString("struct {")
-			for i, f := range t.Fields() {
-				if i != 0 {
-					b.WriteByte(';')
-				}
-				b.WriteByte(' ')
-				fldconv(b, f, 'L', mode, visited, false)
-			}
-			if t.NumFields() != 0 {
-				b.WriteByte(' ')
-			}
-			b.WriteByte('}')
+			b.WriteByte(' ')
+			fldconv(b, f, 'L', mode, visited, false)
 		}
+		if t.NumFields() != 0 {
+			b.WriteByte(' ')
+		}
+		b.WriteByte('}')
 
 	case TFORW:
 		b.WriteString("undefined")
@@ -571,6 +554,23 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 		b.WriteString(">")
 
 	}
+}
+
+func formatParams(b *bytes.Buffer, params []*Field, mode fmtMode, visited map[*Type]int) {
+	b.WriteByte('(')
+	fieldVerb := 'v'
+	switch mode {
+	case fmtTypeID, fmtTypeIDName, fmtGo:
+		// no argument names on function signature, and no "noescape"/"nosplit" tags
+		fieldVerb = 'S'
+	}
+	for i, param := range params {
+		if i != 0 {
+			b.WriteString(", ")
+		}
+		fldconv(b, param, fieldVerb, mode, visited, true)
+	}
+	b.WriteByte(')')
 }
 
 func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Type]int, isParam bool) {
