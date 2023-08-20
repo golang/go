@@ -306,13 +306,6 @@ func (s *state) emitOpenDeferInfo() {
 	off = dvarint(x, off, -firstOffset)
 }
 
-func okOffset(offset int64) int64 {
-	if offset == types.BOGUS_FUNARG_OFFSET {
-		panic(fmt.Errorf("Bogus offset %d", offset))
-	}
-	return offset
-}
-
 // buildssa builds an SSA function for fn.
 // worker indicates which of the backend workers is doing the processing.
 func buildssa(fn *ir.Func, worker int) *ssa.Func {

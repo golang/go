@@ -445,19 +445,18 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type, setNname bool) *ABIParamResul
 }
 
 func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isReturn, setNname bool) {
+	if f.Offset != types.BADWIDTH {
+		base.Fatalf("field offset for %s at %s has been set to %d", f.Sym.Name, base.FmtPos(f.Pos), f.Offset)
+	}
+
 	// Everything except return values in registers has either a frame home (if not in a register) or a frame spill location.
 	if !isReturn || len(a.Registers) == 0 {
 		// The type frame offset DOES NOT show effects of minimum frame size.
 		// Getting this wrong breaks stackmaps, see liveness/plive.go:WriteFuncMap and typebits/typebits.go:Set
 		off := a.FrameOffset(result)
-		fOffset := f.Offset
-		if fOffset == types.BOGUS_FUNARG_OFFSET {
-			if setNname && f.Nname != nil {
-				f.Nname.(*ir.Name).SetFrameOffset(off)
-				f.Nname.(*ir.Name).SetIsOutputParamInRegisters(false)
-			}
-		} else {
-			base.Fatalf("field offset for %s at %s has been set to %d", f.Sym.Name, base.FmtPos(f.Pos), fOffset)
+		if setNname && f.Nname != nil {
+			f.Nname.(*ir.Name).SetFrameOffset(off)
+			f.Nname.(*ir.Name).SetIsOutputParamInRegisters(false)
 		}
 	} else {
 		if setNname && f.Nname != nil {
