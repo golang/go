@@ -1027,22 +1027,14 @@ func writeType(t *types.Type) *obj.LSym {
 		ot = dextratype(lsym, ot, t, 0)
 
 	case types.TFUNC:
-		for _, t1 := range t.Recvs() {
-			writeType(t1.Type)
-		}
-		isddd := false
-		for _, t1 := range t.Params() {
-			isddd = t1.IsDDD()
-			writeType(t1.Type)
-		}
-		for _, t1 := range t.Results() {
+		for _, t1 := range t.RecvParamsResults() {
 			writeType(t1.Type)
 		}
 
 		ot = dcommontype(lsym, t)
 		inCount := t.NumRecvs() + t.NumParams()
 		outCount := t.NumResults()
-		if isddd {
+		if t.IsVariadic() {
 			outCount |= 1 << 15
 		}
 		ot = objw.Uint16(lsym, ot, uint16(inCount))
@@ -1055,13 +1047,7 @@ func writeType(t *types.Type) *obj.LSym {
 		ot = dextratype(lsym, ot, t, dataAdd)
 
 		// Array of rtype pointers follows funcType.
-		for _, t1 := range t.Recvs() {
-			ot = objw.SymPtr(lsym, ot, writeType(t1.Type), 0)
-		}
-		for _, t1 := range t.Params() {
-			ot = objw.SymPtr(lsym, ot, writeType(t1.Type), 0)
-		}
-		for _, t1 := range t.Results() {
+		for _, t1 := range t.RecvParamsResults() {
 			ot = objw.SymPtr(lsym, ot, writeType(t1.Type), 0)
 		}
 

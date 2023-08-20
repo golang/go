@@ -657,7 +657,7 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, sp, mem *Value, args ...*Value
 	for i := 0; i < nargs; i++ {
 		argTypes[i] = typ
 	}
-	call := b.NewValue0A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)))
+	call := b.NewValue0A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, b.Func.ABIDefault.ABIAnalyzeTypes(argTypes, nil)))
 	call.AddArgs(args...)
 	call.AuxInt = int64(nargs) * typ.Size()
 	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, call)
