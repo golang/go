@@ -520,12 +520,8 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			break
 		}
 
-		if funarg := t.StructType().Funarg; funarg != FunargNone {
-			open, close := '(', ')'
-			if funarg == FunargTparams {
-				open, close = '[', ']'
-			}
-			b.WriteByte(byte(open))
+		if t.StructType().ParamTuple {
+			b.WriteByte('(')
 			fieldVerb := 'v'
 			switch mode {
 			case fmtTypeID, fmtTypeIDName, fmtGo:
@@ -536,9 +532,9 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 				if i != 0 {
 					b.WriteString(", ")
 				}
-				fldconv(b, f, fieldVerb, mode, visited, funarg)
+				fldconv(b, f, fieldVerb, mode, visited, true)
 			}
-			b.WriteByte(byte(close))
+			b.WriteByte(')')
 		} else {
 			b.WriteString("struct {")
 			for i, f := range t.Fields() {
@@ -546,7 +542,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 					b.WriteByte(';')
 				}
 				b.WriteByte(' ')
-				fldconv(b, f, 'L', mode, visited, funarg)
+				fldconv(b, f, 'L', mode, visited, false)
 			}
 			if t.NumFields() != 0 {
 				b.WriteByte(' ')
@@ -577,7 +573,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 	}
 }
 
-func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Type]int, funarg Funarg) {
+func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Type]int, isParam bool) {
 	if f == nil {
 		b.WriteString("<T>")
 		return
@@ -634,7 +630,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 		}
 
 		if s != nil {
-			if funarg != FunargNone {
+			if isParam {
 				name = fmt.Sprint(f.Nname)
 			} else if verb == 'L' {
 				name = s.Name
@@ -666,7 +662,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 		tconv2(b, f.Type, 0, mode, visited)
 	}
 
-	if verb != 'S' && funarg == FunargNone && f.Note != "" {
+	if verb != 'S' && !isParam && f.Note != "" {
 		b.WriteString(" ")
 		b.WriteString(strconv.Quote(f.Note))
 	}

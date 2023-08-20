@@ -323,19 +323,8 @@ type Struct struct {
 	// Map links such structs back to their map type.
 	Map *Type
 
-	Funarg Funarg // type of function arguments for arg struct
+	ParamTuple bool // whether this struct is actually a tuple of signature parameters
 }
-
-// Funarg records the kind of function argument
-type Funarg uint8
-
-const (
-	FunargNone    Funarg = iota
-	FunargRcvr           // receiver
-	FunargParams         // input parameters
-	FunargResults        // output results
-	FunargTparams        // type params
-)
 
 // StructType returns t's extra struct-specific fields.
 func (t *Type) StructType() *Struct {
@@ -890,7 +879,7 @@ func (t *Type) FuncArgs() *Type {
 
 // IsFuncArgStruct reports whether t is a struct representing function parameters or results.
 func (t *Type) IsFuncArgStruct() bool {
-	return t.kind == TSTRUCT && t.extra.(*Struct).Funarg != FunargNone
+	return t.kind == TSTRUCT && t.extra.(*Struct).ParamTuple
 }
 
 // Methods returns a pointer to the base methods (excluding embedding) for type t.
@@ -1716,9 +1705,9 @@ func NewSignature(recv *Field, params, results []*Field) *Type {
 	t := newType(TFUNC)
 	ft := t.funcType()
 
-	funargs := func(fields []*Field, funarg Funarg) *Type {
+	funargs := func(fields []*Field) *Type {
 		s := NewStruct(fields)
-		s.StructType().Funarg = funarg
+		s.StructType().ParamTuple = true
 		return s
 	}
 
@@ -1727,9 +1716,9 @@ func NewSignature(recv *Field, params, results []*Field) *Type {
 	}
 	unzeroFieldOffsets(params)
 	unzeroFieldOffsets(results)
-	ft.Receiver = funargs(recvs, FunargRcvr)
-	ft.Params = funargs(params, FunargParams)
-	ft.Results = funargs(results, FunargResults)
+	ft.Receiver = funargs(recvs)
+	ft.Params = funargs(params)
+	ft.Results = funargs(results)
 	if fieldsHasShape(recvs) || fieldsHasShape(params) || fieldsHasShape(results) {
 		t.SetHasShape(true)
 	}
