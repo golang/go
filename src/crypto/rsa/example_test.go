@@ -78,7 +78,7 @@ func ExampleDecryptPKCS1v15SessionKey() {
 		return
 	}
 
-	fmt.Printf("Plaintext: %s\n", string(plaintext))
+	fmt.Printf("Plaintext: %s\n", plaintext)
 }
 
 func ExampleSignPKCS1v15() {
@@ -149,7 +149,7 @@ func ExampleDecryptOAEP() {
 		return
 	}
 
-	fmt.Printf("Plaintext: %s\n", string(plaintext))
+	fmt.Printf("Plaintext: %s\n", plaintext)
 
 	// Remember that encryption only provides confidentiality. The
 	// ciphertext should be signed before authenticity is assumed and, even
