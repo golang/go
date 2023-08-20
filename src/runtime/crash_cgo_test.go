@@ -769,6 +769,14 @@ func TestCgoNoEscape(t *testing.T) {
 	}
 }
 
+func TestCgoNoMatchedCFunction(t *testing.T) {
+	_, err := buildTestProg(t, "testbadcgo")
+	want := "no matched C function"
+	if !strings.Contains(err.Error(), want) {
+		t.Fatalf("did not see %q in error: %q", want, err.Error())
+	}
+}
+
 func TestCgoTracebackGoroutineProfile(t *testing.T) {
 	output := runTestProg(t, "testprogcgo", "GoroutineProfile")
 	want := "OK\n"

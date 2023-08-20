@@ -418,6 +418,25 @@ func main() {
 			p.writeOutput(f, input)
 		}
 	}
+	cFunctions := make(map[string]bool)
+	for _, key := range nameKeys(p.Name) {
+		n := p.Name[key]
+		if n.FuncType != nil {
+			cFunctions[n.C] = true
+		}
+	}
+
+	for funcName, _ := range p.noEscapes {
+		if found, _ := cFunctions[funcName]; !found {
+			error_(token.NoPos, "#cgo noescape %s: no matched C function", funcName)
+		}
+	}
+
+	for funcName, _ := range p.noCallbacks {
+		if found, _ := cFunctions[funcName]; !found {
+			error_(token.NoPos, "#cgo nocallback %s: no matched C function", funcName)
+		}
+	}
 
 	if !*godefs {
 		p.writeDefs()
