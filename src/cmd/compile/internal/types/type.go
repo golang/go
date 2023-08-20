@@ -299,15 +299,22 @@ func (t *Type) forwardType() *Forward {
 
 // Func contains Type fields specific to func types.
 type Func struct {
-	Receiver *Type // function receiver
-	Results  *Type // function results
-	Params   *Type // function params
+	allParams []*Field // slice of all parameters, in receiver/params/results order
+
+	startParams  int // index of the start of the (regular) parameters section
+	startResults int // index of the start of the results section
+
+	resultsTuple *Type // struct-like type representing multi-value results
 
 	// Argwid is the total width of the function receiver, params, and results.
 	// It gets calculated via a temporary TFUNCARGS type.
 	// Note that TFUNC's Width is Widthptr.
 	Argwid int64
 }
+
+func (ft *Func) recvs() []*Field   { return ft.allParams[:ft.startParams] }
+func (ft *Func) params() []*Field  { return ft.allParams[ft.startParams:ft.startResults] }
+func (ft *Func) results() []*Field { return ft.allParams[ft.startResults:] }
 
 // funcType returns t's extra func-specific fields.
 func (t *Type) funcType() *Func {
@@ -702,32 +709,38 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 		}
 
 	case TFUNC:
-		recvs := SubstAny(t.recvsTuple(), types)
-		params := SubstAny(t.paramsTuple(), types)
-		results := SubstAny(t.ResultsTuple(), types)
-		if recvs != t.recvsTuple() || params != t.paramsTuple() || results != t.ResultsTuple() {
-			t = t.copy()
-			t.funcType().Receiver = recvs
-			t.funcType().Results = results
-			t.funcType().Params = params
-		}
+		ft := t.funcType()
+		allParams := substFields(ft.allParams, types)
+
+		t = t.copy()
+		ft = t.funcType()
+		ft.allParams = allParams
+
+		rt := ft.resultsTuple
+		rt = rt.copy()
+		ft.resultsTuple = rt
+		rt.setFields(t.Results())
 
 	case TSTRUCT:
 		// Make a copy of all fields, including ones whose type does not change.
 		// This prevents aliasing across functions, which can lead to later
 		// fields getting their Offset incorrectly overwritten.
-		fields := t.Fields()
-		nfs := make([]*Field, len(fields))
-		for i, f := range fields {
-			nft := SubstAny(f.Type, types)
-			nfs[i] = f.Copy()
-			nfs[i].Type = nft
-		}
+		nfs := substFields(t.Fields(), types)
 		t = t.copy()
 		t.setFields(nfs)
 	}
 
 	return t
+}
+
+func substFields(fields []*Field, types *[]*Type) []*Field {
+	nfs := make([]*Field, len(fields))
+	for i, f := range fields {
+		nft := SubstAny(f.Type, types)
+		nfs[i] = f.Copy()
+		nfs[i].Type = nft
+	}
+	return nfs
 }
 
 // copy returns a shallow copy of the Type.
@@ -780,26 +793,23 @@ func (t *Type) wantEtype(et Kind) {
 	}
 }
 
-func (t *Type) recvsTuple() *Type  { return t.funcType().Receiver }
-func (t *Type) paramsTuple() *Type { return t.funcType().Params }
-
 // ResultTuple returns the result type of signature type t as a tuple.
 // This can be used as the type of multi-valued call expressions.
-func (t *Type) ResultsTuple() *Type { return t.funcType().Results }
+func (t *Type) ResultsTuple() *Type { return t.funcType().resultsTuple }
 
 // Recvs returns a slice of receiver parameters of signature type t.
 // The returned slice always has length 0 or 1.
-func (t *Type) Recvs() []*Field { return t.funcType().Receiver.Fields() }
+func (t *Type) Recvs() []*Field { return t.funcType().recvs() }
 
 // Params returns a slice of regular parameters of signature type t.
-func (t *Type) Params() []*Field { return t.funcType().Params.Fields() }
+func (t *Type) Params() []*Field { return t.funcType().params() }
 
 // Results returns a slice of result parameters of signature type t.
-func (t *Type) Results() []*Field { return t.funcType().Results.Fields() }
+func (t *Type) Results() []*Field { return t.funcType().results() }
 
-func (t *Type) NumRecvs() int   { return t.funcType().Receiver.NumFields() }
-func (t *Type) NumParams() int  { return t.funcType().Params.NumFields() }
-func (t *Type) NumResults() int { return t.funcType().Results.NumFields() }
+func (t *Type) NumRecvs() int   { return len(t.Recvs()) }
+func (t *Type) NumParams() int  { return len(t.Params()) }
+func (t *Type) NumResults() int { return len(t.Results()) }
 
 // IsVariadic reports whether function type t is variadic.
 func (t *Type) IsVariadic() bool {
@@ -809,11 +819,10 @@ func (t *Type) IsVariadic() bool {
 
 // Recv returns the receiver of function type t, if any.
 func (t *Type) Recv() *Field {
-	s := t.recvsTuple()
-	if s.NumFields() == 0 {
-		return nil
+	if s := t.Recvs(); len(s) == 1 {
+		return s[0]
 	}
-	return s.Field(0)
+	return nil
 }
 
 // Param returns the i'th parameter of signature type t.
@@ -1688,10 +1697,18 @@ func NewInterface(methods []*Field) *Type {
 // NewSignature returns a new function type for the given receiver,
 // parameters, and results, any of which may be nil.
 func NewSignature(recv *Field, params, results []*Field) *Type {
-	var recvs []*Field
+	startParams := 0
 	if recv != nil {
-		recvs = []*Field{recv}
+		startParams = 1
 	}
+	startResults := startParams + len(params)
+
+	allParams := make([]*Field, startResults+len(results))
+	if recv != nil {
+		allParams[0] = recv
+	}
+	copy(allParams[startParams:], params)
+	copy(allParams[startResults:], results)
 
 	t := newType(TFUNC)
 	ft := t.funcType()
@@ -1702,10 +1719,13 @@ func NewSignature(recv *Field, params, results []*Field) *Type {
 		return s
 	}
 
-	ft.Receiver = funargs(recvs)
-	ft.Params = funargs(params)
-	ft.Results = funargs(results)
-	if fieldsHasShape(recvs) || fieldsHasShape(params) || fieldsHasShape(results) {
+	ft.allParams = allParams
+	ft.startParams = startParams
+	ft.startResults = startResults
+
+	ft.resultsTuple = funargs(allParams[startResults:])
+
+	if fieldsHasShape(allParams) {
 		t.SetHasShape(true)
 	}
 
