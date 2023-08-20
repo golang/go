@@ -70,7 +70,7 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
 
 				// Re-flow from the closure's results, now that we're aware
 				// we lost track of them.
-				for _, result := range fn.Type().Results().FieldSlice() {
+				for _, result := range fn.Type().Results() {
 					enqueue(b.oldLoc(result.Nname.(*ir.Name)))
 				}
 			}

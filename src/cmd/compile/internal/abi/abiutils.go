@@ -173,7 +173,7 @@ func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
 				rts = appendParamTypes(rts, t.Elem())
 			}
 		case types.TSTRUCT:
-			for _, f := range t.FieldSlice() {
+			for _, f := range t.Fields() {
 				if f.Type.Size() > 0 { // embedded zero-width types receive no registers
 					rts = appendParamTypes(rts, f.Type)
 				}
@@ -212,7 +212,7 @@ func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int6
 				offsets, at = appendParamOffsets(offsets, at, t.Elem())
 			}
 		case types.TSTRUCT:
-			for i, f := range t.FieldSlice() {
+			for i, f := range t.Fields() {
 				offsets, at = appendParamOffsets(offsets, at, f.Type)
 				if f.Type.Size() == 0 && i == t.NumFields()-1 {
 					at++ // last field has zero width
@@ -310,7 +310,7 @@ func (a *ABIConfig) NumParamRegs(t *types.Type) int {
 		case types.TARRAY:
 			n = a.NumParamRegs(t.Elem()) * int(t.NumElem())
 		case types.TSTRUCT:
-			for _, f := range t.FieldSlice() {
+			for _, f := range t.Fields() {
 				n += a.NumParamRegs(f.Type)
 			}
 		case types.TSLICE:
@@ -397,7 +397,7 @@ func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Type) *ABIParamResultInfo 
 	}
 
 	// Inputs
-	ifsl := ft.Params().FieldSlice()
+	ifsl := ft.Params()
 	for _, f := range ifsl {
 		result.inparams = append(result.inparams,
 			s.assignParamOrReturn(f.Type, f.Nname, false))
@@ -407,7 +407,7 @@ func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Type) *ABIParamResultInfo 
 
 	// Outputs
 	s.rUsed = RegAmounts{}
-	ofsl := ft.Results().FieldSlice()
+	ofsl := ft.Results()
 	for _, f := range ofsl {
 		result.outparams = append(result.outparams, s.assignParamOrReturn(f.Type, f.Nname, true))
 	}
@@ -435,10 +435,10 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type, setNname bool) *ABIParamResul
 		config.updateOffset(result, t.Recv(), result.inparams[0], false, setNname)
 		k++
 	}
-	for i, f := range t.Params().FieldSlice() {
+	for i, f := range t.Params() {
 		config.updateOffset(result, f, result.inparams[k+i], false, setNname)
 	}
-	for i, f := range t.Results().FieldSlice() {
+	for i, f := range t.Results() {
 		config.updateOffset(result, f, result.outparams[i], true, setNname)
 	}
 	return result
@@ -583,7 +583,7 @@ func (state *assignState) allocateRegs(regs []RegIndex, t *types.Type) []RegInde
 			}
 			return regs
 		case types.TSTRUCT:
-			for _, f := range t.FieldSlice() {
+			for _, f := range t.Fields() {
 				regs = state.allocateRegs(regs, f.Type)
 			}
 			return regs
@@ -690,7 +690,7 @@ func (state *assignState) regassignArray(t *types.Type) bool {
 // some other enclosing type) to determine if it can be register
 // assigned. Returns TRUE if we can register allocate, FALSE otherwise.
 func (state *assignState) regassignStruct(t *types.Type) bool {
-	for _, field := range t.FieldSlice() {
+	for _, field := range t.Fields() {
 		if !state.regassign(field.Type) {
 			return false
 		}

@@ -1071,7 +1071,7 @@ func clobberWalk(b *ssa.Block, v *ir.Name, offset int64, t *types.Type) {
 		}
 
 	case types.TSTRUCT:
-		for _, t1 := range t.Fields().Slice() {
+		for _, t1 := range t.Fields() {
 			clobberWalk(b, v, offset+t1.Offset, t1.Type)
 		}
 

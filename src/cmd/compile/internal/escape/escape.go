@@ -195,7 +195,7 @@ func (b *batch) initFunc(fn *ir.Func) {
 	}
 
 	// Initialize resultIndex for result parameters.
-	for i, f := range fn.Type().Results().FieldSlice() {
+	for i, f := range fn.Type().Results() {
 		e.oldLoc(f.Nname.(*ir.Name)).resultIndex = 1 + i
 	}
 }
@@ -275,7 +275,7 @@ func (b *batch) finish(fns []*ir.Func) {
 
 		narg := 0
 		for _, fs := range &types.RecvsParams {
-			for _, f := range fs(fn.Type()).Fields().Slice() {
+			for _, f := range fs(fn.Type()) {
 				narg++
 				f.Note = b.paramTag(fn, narg, f)
 			}
@@ -485,7 +485,7 @@ func (b *batch) reportLeaks(pos src.XPos, name string, esc leaks, sig *types.Typ
 	}
 	for i := 0; i < numEscResults; i++ {
 		if x := esc.Result(i); x >= 0 {
-			res := sig.Results().Field(i).Sym
+			res := sig.Result(i).Sym
 			base.WarnfAt(pos, "leaking param: %v to result %v level=%d", name, res, x)
 			warned = true
 		}

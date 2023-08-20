@@ -201,7 +201,7 @@ func (l *linker) relocObj(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
 
 		if obj.Op() == ir.OTYPE && !obj.Alias() {
 			if typ := obj.Type(); !typ.IsInterface() {
-				for _, method := range typ.Methods().Slice() {
+				for _, method := range typ.Methods() {
 					l.exportBody(method.Nname.(*ir.Name), local)
 				}
 			}
@@ -290,7 +290,7 @@ func (l *linker) relocFuncExt(w *pkgbits.Encoder, name *ir.Name) {
 
 	// Escape analysis.
 	for _, fs := range &types.RecvsParams {
-		for _, f := range fs(name.Type()).FieldSlice() {
+		for _, f := range fs(name.Type()) {
 			w.String(f.Note)
 		}
 	}
@@ -315,7 +315,7 @@ func (l *linker) relocTypeExt(w *pkgbits.Encoder, name *ir.Name) {
 	l.lsymIdx(w, "", reflectdata.TypeLinksym(typ.PtrTo()))
 
 	if typ.Kind() != types.TINTER {
-		for _, method := range typ.Methods().Slice() {
+		for _, method := range typ.Methods() {
 			l.relocFuncExt(w, method.Nname.(*ir.Name))
 		}
 	}

@@ -327,7 +327,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		// } else {
 		// hv2, hv1 = decoderune(ha, hv1)
 		fn := typecheck.LookupRuntime("decoderune")
-		call := mkcall1(fn, fn.Type().Results(), &nif.Else, ha, hv1)
+		call := mkcall1(fn, fn.Type().ResultsTuple(), &nif.Else, ha, hv1)
 		a := ir.NewAssignListStmt(base.Pos, ir.OAS2, []ir.Node{hv2, hv1}, []ir.Node{call})
 		nif.Else.Append(a)
 

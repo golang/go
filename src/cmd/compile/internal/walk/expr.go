@@ -608,7 +608,7 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 
 	for i, arg := range args {
 		// Validate argument and parameter types match.
-		param := params.Field(i)
+		param := params[i]
 		if !types.Identical(arg.Type(), param.Type) {
 			base.FatalfAt(n.Pos(), "assigning %L to parameter %v (type %v)", arg, param.Sym, param.Type)
 		}
@@ -977,14 +977,14 @@ func usemethod(n *ir.CallExpr) {
 	}
 
 	t := dot.Selection.Type
-	if t.NumParams() != 1 || t.Params().Field(0).Type.Kind() != pKind {
+	if t.NumParams() != 1 || t.Param(0).Type.Kind() != pKind {
 		return
 	}
 	switch t.NumResults() {
 	case 1:
 		// ok
 	case 2:
-		if t.Results().Field(1).Type.Kind() != types.TBOOL {
+		if t.Result(1).Type.Kind() != types.TBOOL {
 			return
 		}
 	default:
@@ -993,7 +993,7 @@ func usemethod(n *ir.CallExpr) {
 
 	// Check that first result type is "reflect.Method". Note that we have to check sym name and sym package
 	// separately, as we can't check for exact string "reflect.Method" reliably (e.g., see #19028 and #38515).
-	if s := t.Results().Field(0).Type.Sym(); s != nil && s.Name == "Method" && types.IsReflectPkg(s.Pkg) {
+	if s := t.Result(0).Type.Sym(); s != nil && s.Name == "Method" && types.IsReflectPkg(s.Pkg) {
 		ir.CurFunc.SetReflectMethod(true)
 		// The LSym is initialized at this point. We need to set the attribute on the LSym.
 		ir.CurFunc.LSym.Set(obj.AttrReflectMethod, true)

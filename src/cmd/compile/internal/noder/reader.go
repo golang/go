@@ -809,7 +809,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 			methods[i] = r.method(rext)
 		}
 		if len(methods) != 0 {
-			typ.Methods().Set(methods)
+			typ.SetMethods(methods)
 		}
 
 		if !r.dict.shaped {
@@ -1110,7 +1110,7 @@ func (r *reader) funcExt(name *ir.Name, method *types.Sym) {
 
 		// Escape analysis.
 		for _, fs := range &types.RecvsParams {
-			for _, f := range fs(name.Type()).FieldSlice() {
+			for _, f := range fs(name.Type()) {
 				f.Note = r.String()
 			}
 		}
@@ -1355,8 +1355,8 @@ func (r *reader) syntheticArgs(pos src.XPos) (recvs, params ir.Nodes) {
 		}
 	}
 
-	addParams(&recvs, sig.Recvs().FieldSlice())
-	addParams(&params, sig.Params().FieldSlice())
+	addParams(&recvs, sig.Recvs())
+	addParams(&params, sig.Params())
 	return
 }
 
@@ -1500,11 +1500,11 @@ func (r *reader) funcargs(fn *ir.Func) {
 	if recv := sig.Recv(); recv != nil {
 		r.funcarg(recv, recv.Sym, ir.PPARAM)
 	}
-	for _, param := range sig.Params().FieldSlice() {
+	for _, param := range sig.Params() {
 		r.funcarg(param, param.Sym, ir.PPARAM)
 	}
 
-	for i, param := range sig.Results().FieldSlice() {
+	for i, param := range sig.Results() {
 		sym := types.OrigSym(param.Sym)
 
 		if sym == nil || sym.IsBlank() {
@@ -2201,7 +2201,7 @@ func (r *reader) expr() (res ir.Node) {
 			// interface method values).
 			//
 			if recv.Type().HasShape() {
-				typ := wrapperFn.Type().Params().Field(0).Type
+				typ := wrapperFn.Type().Param(0).Type
 				if !types.Identical(typ, recv.Type()) {
 					base.FatalfAt(wrapperFn.Pos(), "receiver %L does not match %L", recv, wrapperFn)
 				}
@@ -2263,7 +2263,7 @@ func (r *reader) expr() (res ir.Node) {
 		// rather than types.Identical, because the latter can be confused
 		// by tricky promoted methods (e.g., typeparam/mdempsky/21.go).
 		if wrapperFn != nil && len(implicits) == 0 && !deref && !addr {
-			if !types.Identical(recv, wrapperFn.Type().Params().Field(0).Type) {
+			if !types.Identical(recv, wrapperFn.Type().Param(0).Type) {
 				base.FatalfAt(pos, "want receiver type %v, but have method %L", recv, wrapperFn)
 			}
 			return wrapperFn
@@ -2563,7 +2563,7 @@ func (r *reader) funcInst(pos src.XPos) (wrapperFn, baseFn, dictPtr ir.Node) {
 
 		// TODO(mdempsky): Is there a more robust way to get the
 		// dictionary pointer type here?
-		dictPtrType := baseFn.Type().Params().Field(0).Type
+		dictPtrType := baseFn.Type().Param(0).Type
 		dictPtr = typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, dictPtrType, r.dictWord(pos, r.dict.subdictsOffset()+idx)))
 
 		return
@@ -2788,7 +2788,7 @@ func syntheticSig(sig *types.Type) (params, results []*types.Field) {
 		return res
 	}
 
-	return clone(sig.Params().FieldSlice()), clone(sig.Results().FieldSlice())
+	return clone(sig.Params()), clone(sig.Results())
 }
 
 func (r *reader) optExpr() ir.Node {
@@ -2866,7 +2866,7 @@ func (r *reader) methodExpr() (wrapperFn, baseFn, dictPtr ir.Node) {
 
 		// TODO(mdempsky): Is there a more robust way to get the
 		// dictionary pointer type here?
-		dictPtrType := shapedFn.Type().Params().Field(1).Type
+		dictPtrType := shapedFn.Type().Param(1).Type
 		dictPtr := typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, dictPtrType, r.dictWord(pos, r.dict.subdictsOffset()+idx)))
 
 		return nil, shapedFn, dictPtr
@@ -2883,7 +2883,7 @@ func (r *reader) methodExpr() (wrapperFn, baseFn, dictPtr ir.Node) {
 		dictPtr := typecheck.Expr(ir.NewAddrExpr(pos, dict))
 
 		// Check that dictPtr matches shapedFn's dictionary parameter.
-		if !types.Identical(dictPtr.Type(), shapedFn.Type().Params().Field(1).Type) {
+		if !types.Identical(dictPtr.Type(), shapedFn.Type().Param(1).Type) {
 			base.FatalfAt(pos, "dict %L, but shaped method %L", dict, shapedFn)
 		}
 
@@ -2911,7 +2911,7 @@ func shapedMethodExpr(pos src.XPos, obj *ir.Name, sym *types.Sym) *ir.SelectorEx
 	assert(typ.HasShape())
 
 	method := func() *types.Field {
-		for _, method := range typ.Methods().Slice() {
+		for _, method := range typ.Methods() {
 			if method.Sym == sym {
 				return method
 			}
@@ -3770,7 +3770,7 @@ func wrapType(typ *types.Type, target *ir.Package, seen map[string]*types.Type, 
 	if !typ.IsInterface() {
 		typecheck.CalcMethods(typ)
 	}
-	for _, meth := range typ.AllMethods().Slice() {
+	for _, meth := range typ.AllMethods() {
 		if meth.Sym.IsBlank() || !meth.IsMethod() {
 			base.FatalfAt(meth.Pos, "invalid method: %v", meth)
 		}
@@ -3865,8 +3865,8 @@ func newWrapperFunc(pos src.XPos, sym *types.Sym, wrapper *types.Type, method *t
 	fn.SetDupok(true) // TODO(mdempsky): Leave unset for local, non-generic wrappers?
 
 	// TODO(mdempsky): De-duplicate with similar logic in funcargs.
-	defParams := func(class ir.Class, params *types.Type) {
-		for _, param := range params.FieldSlice() {
+	defParams := func(class ir.Class, params []*types.Field) {
+		for _, param := range params {
 			param.Nname = fn.NewLocal(param.Pos, param.Sym, class, param.Type)
 		}
 	}
@@ -3929,8 +3929,8 @@ func newWrapperType(recvType *types.Type, method *types.Field) *types.Type {
 	if recvType != nil {
 		recv = types.NewField(sig.Recv().Pos, typecheck.Lookup(".this"), recvType)
 	}
-	params := clone(sig.Params().FieldSlice())
-	results := clone(sig.Results().FieldSlice())
+	params := clone(sig.Params())
+	results := clone(sig.Results())
 
 	return types.NewSignature(recv, params, results)
 }
@@ -3938,7 +3938,7 @@ func newWrapperType(recvType *types.Type, method *types.Field) *types.Type {
 func addTailCall(pos src.XPos, fn *ir.Func, recv ir.Node, method *types.Field) {
 	sig := fn.Nname.Type()
 	args := make([]ir.Node, sig.NumParams())
-	for i, param := range sig.Params().FieldSlice() {
+	for i, param := range sig.Params() {
 		args[i] = param.Nname.(*ir.Name)
 	}
 
@@ -3987,16 +3987,16 @@ func shapeSig(fn *ir.Func, dict *readerDict) *types.Type {
 		recv = types.NewField(oldRecv.Pos, oldRecv.Sym, oldRecv.Type)
 	}
 
-	params := make([]*types.Field, 1+sig.Params().Fields().Len())
+	params := make([]*types.Field, 1+sig.NumParams())
 	params[0] = types.NewField(fn.Pos(), fn.Sym().Pkg.Lookup(dictParamName), types.NewPtr(dict.varType()))
-	for i, param := range sig.Params().Fields().Slice() {
+	for i, param := range sig.Params() {
 		d := types.NewField(param.Pos, param.Sym, param.Type)
 		d.SetIsDDD(param.IsDDD())
 		params[1+i] = d
 	}
 
-	results := make([]*types.Field, sig.Results().Fields().Len())
-	for i, result := range sig.Results().Fields().Slice() {
+	results := make([]*types.Field, sig.NumResults())
+	for i, result := range sig.Results() {
 		results[i] = types.NewField(result.Pos, result.Sym, result.Type)
 	}
 

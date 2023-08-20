@@ -142,9 +142,9 @@ func staticCall(call *ir.CallExpr) {
 	switch ft := x.Type(); ft.NumResults() {
 	case 0:
 	case 1:
-		call.SetType(ft.Results().Field(0).Type)
+		call.SetType(ft.Result(0).Type)
 	default:
-		call.SetType(ft.Results())
+		call.SetType(ft.ResultsTuple())
 	}
 
 	// Desugar OCALLMETH, if we created one (#57309).

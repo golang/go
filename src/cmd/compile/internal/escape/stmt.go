@@ -177,7 +177,7 @@ func (e *escape) stmt(n ir.Node) {
 		e.reassigned(ks, n)
 	case ir.ORETURN:
 		n := n.(*ir.ReturnStmt)
-		results := e.curfn.Type().Results().FieldSlice()
+		results := e.curfn.Type().Results()
 		dsts := make([]ir.Node, len(results))
 		for i, res := range results {
 			dsts[i] = res.Nname.(*ir.Name)

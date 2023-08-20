@@ -41,7 +41,7 @@ func FixVariadicCall(call *ir.CallExpr) {
 	}
 
 	vi := fntype.NumParams() - 1
-	vt := fntype.Params().Field(vi).Type
+	vt := fntype.Param(vi).Type
 
 	args := call.Args
 	extra := args[vi:]
@@ -275,7 +275,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 		return n
 	}
 	if t.NumResults() == 1 {
-		n.SetType(l.Type().Results().Field(0).Type)
+		n.SetType(l.Type().Result(0).Type)
 
 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME {
 			if sym := n.X.(*ir.Name).Sym(); types.IsRuntimePkg(sym.Pkg) && sym.Name == "getg" {
@@ -297,7 +297,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 		return n
 	}
 
-	n.SetType(l.Type().Results())
+	n.SetType(l.Type().ResultsTuple())
 	return n
 }
 

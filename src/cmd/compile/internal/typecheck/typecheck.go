@@ -688,7 +688,7 @@ func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
 	}
 
 	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, []ir.Node{call})
-	results := call.Type().FieldSlice()
+	results := call.Type().Fields()
 	list := make([]ir.Node, len(results))
 	for i, result := range results {
 		tmp := TempAt(base.Pos, ir.CurFunc, result.Type)
@@ -814,9 +814,9 @@ func needTwoArgs(n *ir.CallExpr) (ir.Node, ir.Node, bool) {
 // the matching field or nil. If dostrcmp is 0, it matches the symbols. If
 // dostrcmp is 1, it matches by name exactly. If dostrcmp is 2, it matches names
 // with case folding.
-func Lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs *types.Fields, dostrcmp int) *types.Field {
+func Lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs []*types.Field, dostrcmp int) *types.Field {
 	var r *types.Field
-	for _, f := range fs.Slice() {
+	for _, f := range fs {
 		if dostrcmp != 0 && f.Sym.Name == s.Name {
 			return f
 		}
@@ -847,7 +847,7 @@ func Lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs *types.Fields, do
 // expression "recv.sym".
 func NewMethodExpr(pos src.XPos, recv *types.Type, sym *types.Sym) *ir.SelectorExpr {
 	// Compute the method set for recv.
-	var ms *types.Fields
+	var ms []*types.Field
 	if recv.IsInterface() {
 		ms = recv.AllMethods()
 	} else {
@@ -1011,8 +1011,9 @@ func nokeys(l ir.Nodes) bool {
 	return true
 }
 
-func hasddd(t *types.Type) bool {
-	for _, tl := range t.Fields().Slice() {
+func hasddd(params []*types.Field) bool {
+	// TODO(mdempsky): Simply check the last param.
+	for _, tl := range params {
 		if tl.IsDDD() {
 			return true
 		}
@@ -1022,7 +1023,7 @@ func hasddd(t *types.Type) bool {
 }
 
 // typecheck assignment: type list = expression list
-func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl ir.Nodes, desc func() string) {
+func typecheckaste(op ir.Op, call ir.Node, isddd bool, params []*types.Field, nl ir.Nodes, desc func() string) {
 	var t *types.Type
 	var i int
 
@@ -1034,9 +1035,9 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
 		n = nl[0]
 	}
 
-	n1 := tstruct.NumFields()
+	n1 := len(params)
 	n2 := len(nl)
-	if !hasddd(tstruct) {
+	if !hasddd(params) {
 		if isddd {
 			goto invalidddd
 		}
@@ -1062,7 +1063,7 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
 	}
 
 	i = 0
-	for _, tl := range tstruct.Fields().Slice() {
+	for _, tl := range params {
 		t = tl.Type
 		if tl.IsDDD() {
 			if isddd {
@@ -1118,98 +1119,12 @@ invalidddd:
 
 notenough:
 	if n == nil || n.Type() != nil {
-		details := errorDetails(nl, tstruct, isddd)
-		if call != nil {
-			// call is the expression being called, not the overall call.
-			// Method expressions have the form T.M, and the compiler has
-			// rewritten those to ONAME nodes but left T in Left.
-			if call.Op() == ir.OMETHEXPR {
-				call := call.(*ir.SelectorExpr)
-				base.Errorf("not enough arguments in call to method expression %v%s", call, details)
-			} else {
-				base.Errorf("not enough arguments in call to %v%s", call, details)
-			}
-		} else {
-			base.Errorf("not enough arguments to %v%s", op, details)
-		}
-		if n != nil {
-			base.Fatalf("invalid call")
-		}
+		base.Fatalf("not enough arguments to %v", op)
 	}
 	return
 
 toomany:
-	details := errorDetails(nl, tstruct, isddd)
-	if call != nil {
-		base.Errorf("too many arguments in call to %v%s", call, details)
-	} else {
-		base.Errorf("too many arguments to %v%s", op, details)
-	}
-}
-
-func errorDetails(nl ir.Nodes, tstruct *types.Type, isddd bool) string {
-	// Suppress any return message signatures if:
-	//
-	// (1) We don't know any type at a call site (see #19012).
-	// (2) Any node has an unknown type.
-	// (3) Invalid type for variadic parameter (see #46957).
-	if tstruct == nil {
-		return "" // case 1
-	}
-
-	if isddd && !nl[len(nl)-1].Type().IsSlice() {
-		return "" // case 3
-	}
-
-	for _, n := range nl {
-		if n.Type() == nil {
-			return "" // case 2
-		}
-	}
-	return fmt.Sprintf("\n\thave %s\n\twant %v", fmtSignature(nl, isddd), tstruct)
-}
-
-// sigrepr is a type's representation to the outside world,
-// in string representations of return signatures
-// e.g in error messages about wrong arguments to return.
-func sigrepr(t *types.Type, isddd bool) string {
-	switch t {
-	case types.UntypedString:
-		return "string"
-	case types.UntypedBool:
-		return "bool"
-	}
-
-	if t.Kind() == types.TIDEAL {
-		// "untyped number" is not commonly used
-		// outside of the compiler, so let's use "number".
-		// TODO(mdempsky): Revisit this.
-		return "number"
-	}
-
-	// Turn []T... argument to ...T for clearer error message.
-	if isddd {
-		if !t.IsSlice() {
-			base.Fatalf("bad type for ... argument: %v", t)
-		}
-		return "..." + t.Elem().String()
-	}
-	return t.String()
-}
-
-// fmtSignature returns the signature of the types at the call or return.
-func fmtSignature(nl ir.Nodes, isddd bool) string {
-	if len(nl) < 1 {
-		return "()"
-	}
-
-	var typeStrings []string
-	for i, n := range nl {
-		isdddArg := isddd && i == len(nl)-1
-		typeStrings = append(typeStrings, sigrepr(n.Type(), isdddArg))
-	}
-
-	return fmt.Sprintf("(%s)", strings.Join(typeStrings, ", "))
+	base.Fatalf("too many arguments to %v", op)
 }
 
 // type check composite.

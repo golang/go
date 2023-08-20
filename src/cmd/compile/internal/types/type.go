@@ -159,9 +159,9 @@ type Type struct {
 	width int64 // valid if Align > 0
 
 	// list of base methods (excluding embedding)
-	methods Fields
+	methods fields
 	// list of all methods (including embedding)
-	allMethods Fields
+	allMethods fields
 
 	// canonical OTYPE node for a named type (should be an ir.Name node with same sym)
 	obj Object
@@ -316,7 +316,7 @@ func (t *Type) funcType() *Func {
 
 // StructType contains Type fields specific to struct types.
 type Struct struct {
-	fields Fields
+	fields fields
 
 	// Maps have three associated internal structs (see struct MapType).
 	// Map links such structs back to their map type.
@@ -445,39 +445,25 @@ func (f *Field) IsMethod() bool {
 	return f.Type.kind == TFUNC && f.Type.Recv() != nil
 }
 
-// Fields is a pointer to a slice of *Field.
+// fields is a pointer to a slice of *Field.
 // This saves space in Types that do not have fields or methods
 // compared to a simple slice of *Field.
-type Fields struct {
+type fields struct {
 	s *[]*Field
-}
-
-// Len returns the number of entries in f.
-func (f *Fields) Len() int {
-	if f.s == nil {
-		return 0
-	}
-	return len(*f.s)
 }
 
 // Slice returns the entries in f as a slice.
 // Changes to the slice entries will be reflected in f.
-func (f *Fields) Slice() []*Field {
+func (f *fields) Slice() []*Field {
 	if f.s == nil {
 		return nil
 	}
 	return *f.s
 }
 
-// Index returns the i'th element of Fields.
-// It panics if f does not have at least i+1 elements.
-func (f *Fields) Index(i int) *Field {
-	return (*f.s)[i]
-}
-
 // Set sets f to a slice.
 // This takes ownership of the slice.
-func (f *Fields) Set(s []*Field) {
+func (f *fields) Set(s []*Field) {
 	if len(s) == 0 {
 		f.s = nil
 	} else {
@@ -486,14 +472,6 @@ func (f *Fields) Set(s []*Field) {
 		t := s
 		f.s = &t
 	}
-}
-
-// Append appends entries to f.
-func (f *Fields) Append(s ...*Field) {
-	if f.s == nil {
-		f.s = new([]*Field)
-	}
-	*f.s = append(*f.s, s...)
 }
 
 // newType returns a new Type of the specified kind.
@@ -735,10 +713,10 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 		}
 
 	case TFUNC:
-		recvs := SubstAny(t.Recvs(), types)
-		params := SubstAny(t.Params(), types)
-		results := SubstAny(t.Results(), types)
-		if recvs != t.Recvs() || params != t.Params() || results != t.Results() {
+		recvs := SubstAny(t.recvsTuple(), types)
+		params := SubstAny(t.paramsTuple(), types)
+		results := SubstAny(t.ResultsTuple(), types)
+		if recvs != t.recvsTuple() || params != t.paramsTuple() || results != t.ResultsTuple() {
 			t = t.copy()
 			t.funcType().Receiver = recvs
 			t.funcType().Results = results
@@ -749,7 +727,7 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 		// Make a copy of all fields, including ones whose type does not change.
 		// This prevents aliasing across functions, which can lead to later
 		// fields getting their Offset incorrectly overwritten.
-		fields := t.FieldSlice()
+		fields := t.Fields()
 		nfs := make([]*Field, len(fields))
 		for i, f := range fields {
 			nft := SubstAny(f.Type, types)
@@ -757,7 +735,7 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 			nfs[i].Type = nft
 		}
 		t = t.copy()
-		t.SetFields(nfs)
+		t.setFields(nfs)
 	}
 
 	return t
@@ -813,9 +791,22 @@ func (t *Type) wantEtype(et Kind) {
 	}
 }
 
-func (t *Type) Recvs() *Type   { return t.funcType().Receiver }
-func (t *Type) Params() *Type  { return t.funcType().Params }
-func (t *Type) Results() *Type { return t.funcType().Results }
+func (t *Type) recvsTuple() *Type  { return t.funcType().Receiver }
+func (t *Type) paramsTuple() *Type { return t.funcType().Params }
+
+// ResultTuple returns the result type of signature type t as a tuple.
+// This can be used as the type of multi-valued call expressions.
+func (t *Type) ResultsTuple() *Type { return t.funcType().Results }
+
+// Recvs returns a slice of receiver parameters of signature type t.
+// The returned slice always has length 0 or 1.
+func (t *Type) Recvs() []*Field { return t.funcType().Receiver.Fields() }
+
+// Params returns a slice of regular parameters of signature type t.
+func (t *Type) Params() []*Field { return t.funcType().Params.Fields() }
+
+// Results returns a slice of result parameters of signature type t.
+func (t *Type) Results() []*Field { return t.funcType().Results.Fields() }
 
 func (t *Type) NumRecvs() int   { return t.funcType().Receiver.NumFields() }
 func (t *Type) NumParams() int  { return t.funcType().Params.NumFields() }
@@ -824,32 +815,38 @@ func (t *Type) NumResults() int { return t.funcType().Results.NumFields() }
 // IsVariadic reports whether function type t is variadic.
 func (t *Type) IsVariadic() bool {
 	n := t.NumParams()
-	return n > 0 && t.Params().Field(n-1).IsDDD()
+	return n > 0 && t.Param(n-1).IsDDD()
 }
 
 // Recv returns the receiver of function type t, if any.
 func (t *Type) Recv() *Field {
-	s := t.Recvs()
+	s := t.recvsTuple()
 	if s.NumFields() == 0 {
 		return nil
 	}
 	return s.Field(0)
 }
 
+// Param returns the i'th parameter of signature type t.
+func (t *Type) Param(i int) *Field { return t.Params()[i] }
+
+// Result returns the i'th result of signature type t.
+func (t *Type) Result(i int) *Field { return t.Results()[i] }
+
 // RecvsParamsResults stores the accessor functions for a function Type's
 // receiver, parameters, and result parameters, in that order.
 // It can be used to iterate over all of a function's parameter lists.
-var RecvsParamsResults = [3]func(*Type) *Type{
+var RecvsParamsResults = [3]func(*Type) []*Field{
 	(*Type).Recvs, (*Type).Params, (*Type).Results,
 }
 
 // RecvsParams is like RecvsParamsResults, but omits result parameters.
-var RecvsParams = [2]func(*Type) *Type{
+var RecvsParams = [2]func(*Type) []*Field{
 	(*Type).Recvs, (*Type).Params,
 }
 
 // ParamsResults is like RecvsParamsResults, but omits receiver parameters.
-var ParamsResults = [2]func(*Type) *Type{
+var ParamsResults = [2]func(*Type) []*Field{
 	(*Type).Params, (*Type).Results,
 }
 
@@ -898,49 +895,50 @@ func (t *Type) IsFuncArgStruct() bool {
 // Methods returns a pointer to the base methods (excluding embedding) for type t.
 // These can either be concrete methods (for non-interface types) or interface
 // methods (for interface types).
-func (t *Type) Methods() *Fields {
-	return &t.methods
+func (t *Type) Methods() []*Field {
+	return t.methods.Slice()
 }
 
 // AllMethods returns a pointer to all the methods (including embedding) for type t.
 // For an interface type, this is the set of methods that are typically iterated
 // over. For non-interface types, AllMethods() only returns a valid result after
 // CalcMethods() has been called at least once.
-func (t *Type) AllMethods() *Fields {
+func (t *Type) AllMethods() []*Field {
 	if t.kind == TINTER {
 		// Calculate the full method set of an interface type on the fly
 		// now, if not done yet.
 		CalcSize(t)
 	}
-	return &t.allMethods
+	return t.allMethods.Slice()
 }
 
-// SetAllMethods sets the set of all methods (including embedding) for type t.
-// Use this method instead of t.AllMethods().Set(), which might call CalcSize() on
-// an uninitialized interface type.
+// SetMethods sets the direct method set for type t (i.e., *not*
+// including promoted methods from embedded types).
+func (t *Type) SetMethods(fs []*Field) {
+	t.methods.Set(fs)
+}
+
+// SetAllMethods sets the set of all methods for type t (i.e.,
+// including promoted methods from embedded types).
 func (t *Type) SetAllMethods(fs []*Field) {
 	t.allMethods.Set(fs)
 }
 
-// Fields returns the fields of struct type t.
-func (t *Type) Fields() *Fields {
+// fields returns the fields of struct type t.
+func (t *Type) fields() *fields {
 	t.wantEtype(TSTRUCT)
 	return &t.extra.(*Struct).fields
 }
 
 // Field returns the i'th field of struct type t.
-func (t *Type) Field(i int) *Field {
-	return t.Fields().Slice()[i]
-}
+func (t *Type) Field(i int) *Field { return t.Fields()[i] }
 
-// FieldSlice returns a slice of containing all fields of
+// Fields returns a slice of containing all fields of
 // a struct type t.
-func (t *Type) FieldSlice() []*Field {
-	return t.Fields().Slice()
-}
+func (t *Type) Fields() []*Field { return t.fields().Slice() }
 
-// SetFields sets struct type t's fields to fields.
-func (t *Type) SetFields(fields []*Field) {
+// setFields sets struct type t's fields to fields.
+func (t *Type) setFields(fields []*Field) {
 	// If we've calculated the width of t before,
 	// then some other type such as a function signature
 	// might now have the wrong type.
@@ -951,13 +949,13 @@ func (t *Type) SetFields(fields []*Field) {
 		base.Fatalf("SetFields of %v: width previously calculated", t)
 	}
 	t.wantEtype(TSTRUCT)
-	t.Fields().Set(fields)
+	t.fields().Set(fields)
 }
 
 // SetInterface sets the base methods of an interface type t.
 func (t *Type) SetInterface(methods []*Field) {
 	t.wantEtype(TINTER)
-	t.Methods().Set(methods)
+	t.methods.Set(methods)
 }
 
 // ArgWidth returns the total aligned argument size for a function.
@@ -1185,8 +1183,8 @@ func (t *Type) cmp(x *Type) Cmp {
 			return CMPgt // bucket maps are least
 		} // If t != t.Map.Bucket, fall through to general case
 
-		tfs := t.FieldSlice()
-		xfs := x.FieldSlice()
+		tfs := t.Fields()
+		xfs := x.Fields()
 		for i := 0; i < len(tfs) && i < len(xfs); i++ {
 			t1, x1 := tfs[i], xfs[i]
 			if t1.Embedded != x1.Embedded {
@@ -1208,8 +1206,8 @@ func (t *Type) cmp(x *Type) Cmp {
 		return CMPeq
 
 	case TINTER:
-		tfs := t.AllMethods().Slice()
-		xfs := x.AllMethods().Slice()
+		tfs := t.AllMethods()
+		xfs := x.AllMethods()
 		for i := 0; i < len(tfs) && i < len(xfs); i++ {
 			t1, x1 := tfs[i], xfs[i]
 			if c := t1.Sym.cmpsym(x1.Sym); c != CMPeq {
@@ -1225,10 +1223,10 @@ func (t *Type) cmp(x *Type) Cmp {
 		return CMPeq
 
 	case TFUNC:
-		for _, f := range RecvsParamsResults {
+		for _, f := range &RecvsParamsResults {
 			// Loop over fields in structs, ignoring argument names.
-			tfs := f(t).FieldSlice()
-			xfs := f(x).FieldSlice()
+			tfs := f(t)
+			xfs := f(x)
 			for i := 0; i < len(tfs) && i < len(xfs); i++ {
 				ta := tfs[i]
 				tb := xfs[i]
@@ -1397,7 +1395,7 @@ func (t *Type) IsInterface() bool {
 
 // IsEmptyInterface reports whether t is an empty interface type.
 func (t *Type) IsEmptyInterface() bool {
-	return t.IsInterface() && t.AllMethods().Len() == 0
+	return t.IsInterface() && len(t.AllMethods()) == 0
 }
 
 // IsScalar reports whether 't' is a scalar Go type, e.g.
@@ -1422,7 +1420,7 @@ func (t *Type) NumFields() int {
 	if t.kind == TRESULTS {
 		return len(t.extra.(*Results).Types)
 	}
-	return t.Fields().Len()
+	return len(t.Fields())
 }
 func (t *Type) FieldType(i int) *Type {
 	if t.kind == TTUPLE {
@@ -1472,7 +1470,7 @@ func (t *Type) NumComponents(countBlank componentsIncludeBlankFields) int64 {
 			base.Fatalf("NumComponents func arg struct")
 		}
 		var n int64
-		for _, f := range t.FieldSlice() {
+		for _, f := range t.Fields() {
 			if countBlank == IgnoreBlankFields && f.Sym.IsBlank() {
 				continue
 			}
@@ -1741,7 +1739,7 @@ func NewSignature(recv *Field, params, results []*Field) *Type {
 // NewStruct returns a new struct with the given fields.
 func NewStruct(fields []*Field) *Type {
 	t := newType(TSTRUCT)
-	t.SetFields(fields)
+	t.setFields(fields)
 	if fieldsHasShape(fields) {
 		t.SetHasShape(true)
 	}
@@ -1790,7 +1788,7 @@ func IsReflexive(t *Type) bool {
 		return IsReflexive(t.Elem())
 
 	case TSTRUCT:
-		for _, t1 := range t.Fields().Slice() {
+		for _, t1 := range t.Fields() {
 			if !IsReflexive(t1.Type) {
 				return false
 			}

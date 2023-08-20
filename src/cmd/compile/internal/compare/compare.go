@@ -70,7 +70,7 @@ func EqCanPanic(t *types.Type) bool {
 	case types.TARRAY:
 		return EqCanPanic(t.Elem())
 	case types.TSTRUCT:
-		for _, f := range t.FieldSlice() {
+		for _, f := range t.Fields() {
 			if !f.Sym.IsBlank() && EqCanPanic(f.Type) {
 				return true
 			}
@@ -87,7 +87,7 @@ func EqCanPanic(t *types.Type) bool {
 func EqStructCost(t *types.Type) int64 {
 	cost := int64(0)
 
-	for i, fields := 0, t.FieldSlice(); i < len(fields); {
+	for i, fields := 0, t.Fields(); i < len(fields); {
 		f := fields[i]
 
 		// Skip blank-named fields.
@@ -181,7 +181,7 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 
 	// Walk the struct using memequal for runs of AMEM
 	// and calling specific equality tests for the others.
-	for i, fields := 0, t.FieldSlice(); i < len(fields); {
+	for i, fields := 0, t.Fields(); i < len(fields); {
 		f := fields[i]
 
 		// Skip blank-named fields.

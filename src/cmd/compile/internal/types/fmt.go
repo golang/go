@@ -452,7 +452,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			break
 		}
 		b.WriteString("interface {")
-		for i, f := range t.AllMethods().Slice() {
+		for i, f := range t.AllMethods() {
 			if i != 0 {
 				b.WriteByte(';')
 			}
@@ -472,7 +472,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			}
 			tconv2(b, f.Type, 'S', mode, visited)
 		}
-		if t.AllMethods().Len() != 0 {
+		if len(t.AllMethods()) != 0 {
 			b.WriteByte(' ')
 		}
 		b.WriteByte('}')
@@ -483,12 +483,12 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 		} else {
 			if t.Recv() != nil {
 				b.WriteString("method")
-				tconv2(b, t.Recvs(), 0, mode, visited)
+				tconv2(b, t.recvsTuple(), 0, mode, visited)
 				b.WriteByte(' ')
 			}
 			b.WriteString("func")
 		}
-		tconv2(b, t.Params(), 0, mode, visited)
+		tconv2(b, t.paramsTuple(), 0, mode, visited)
 
 		switch t.NumResults() {
 		case 0:
@@ -496,11 +496,11 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 
 		case 1:
 			b.WriteByte(' ')
-			tconv2(b, t.Results().Field(0).Type, 0, mode, visited) // struct->field->field's type
+			tconv2(b, t.Result(0).Type, 0, mode, visited) // struct->field->field's type
 
 		default:
 			b.WriteByte(' ')
-			tconv2(b, t.Results(), 0, mode, visited)
+			tconv2(b, t.ResultsTuple(), 0, mode, visited)
 		}
 
 	case TSTRUCT:
@@ -532,7 +532,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 				// no argument names on function signature, and no "noescape"/"nosplit" tags
 				fieldVerb = 'S'
 			}
-			for i, f := range t.Fields().Slice() {
+			for i, f := range t.Fields() {
 				if i != 0 {
 					b.WriteString(", ")
 				}
@@ -541,7 +541,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			b.WriteByte(byte(close))
 		} else {
 			b.WriteString("struct {")
-			for i, f := range t.Fields().Slice() {
+			for i, f := range t.Fields() {
 				if i != 0 {
 					b.WriteByte(';')
 				}

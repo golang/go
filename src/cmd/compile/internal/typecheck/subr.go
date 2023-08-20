@@ -158,13 +158,13 @@ func AddImplicitDots(n *ir.SelectorExpr) *ir.SelectorExpr {
 // CalcMethods calculates all the methods (including embedding) of a non-interface
 // type t.
 func CalcMethods(t *types.Type) {
-	if t == nil || t.AllMethods().Len() != 0 {
+	if t == nil || len(t.AllMethods()) != 0 {
 		return
 	}
 
 	// mark top-level method symbols
 	// so that expand1 doesn't consider them.
-	for _, f := range t.Methods().Slice() {
+	for _, f := range t.Methods() {
 		f.Sym.SetUniq(true)
 	}
 
@@ -201,11 +201,11 @@ func CalcMethods(t *types.Type) {
 		ms = append(ms, f)
 	}
 
-	for _, f := range t.Methods().Slice() {
+	for _, f := range t.Methods() {
 		f.Sym.SetUniq(false)
 	}
 
-	ms = append(ms, t.Methods().Slice()...)
+	ms = append(ms, t.Methods()...)
 	sort.Sort(types.MethodsByName(ms))
 	t.SetAllMethods(ms)
 }
@@ -243,13 +243,13 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase 
 		return c, false
 	}
 
-	var fields *types.Fields
+	var fields []*types.Field
 	if u.IsStruct() {
 		fields = u.Fields()
 	} else {
 		fields = u.AllMethods()
 	}
-	for _, f := range fields.Slice() {
+	for _, f := range fields {
 		if f.Embedded == 0 || f.Sym == nil {
 			continue
 		}
@@ -592,7 +592,7 @@ func expand0(t *types.Type) {
 	}
 
 	if u.IsInterface() {
-		for _, f := range u.AllMethods().Slice() {
+		for _, f := range u.AllMethods() {
 			if f.Sym.Uniq() {
 				continue
 			}
@@ -605,7 +605,7 @@ func expand0(t *types.Type) {
 
 	u = types.ReceiverBaseType(t)
 	if u != nil {
-		for _, f := range u.Methods().Slice() {
+		for _, f := range u.Methods() {
 			if f.Sym.Uniq() {
 				continue
 			}
@@ -631,13 +631,13 @@ func expand1(t *types.Type, top bool) {
 	}
 
 	if u.IsStruct() || u.IsInterface() {
-		var fields *types.Fields
+		var fields []*types.Field
 		if u.IsStruct() {
 			fields = u.Fields()
 		} else {
 			fields = u.AllMethods()
 		}
-		for _, f := range fields.Slice() {
+		for _, f := range fields {
 			if f.Embedded == 0 {
 				continue
 			}
@@ -716,8 +716,8 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 
 	if t.IsInterface() {
 		i := 0
-		tms := t.AllMethods().Slice()
-		for _, im := range iface.AllMethods().Slice() {
+		tms := t.AllMethods()
+		for _, im := range iface.AllMethods() {
 			for i < len(tms) && tms[i].Sym != im.Sym {
 				i++
 			}
@@ -743,10 +743,10 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 	var tms []*types.Field
 	if t != nil {
 		CalcMethods(t)
-		tms = t.AllMethods().Slice()
+		tms = t.AllMethods()
 	}
 	i := 0
-	for _, im := range iface.AllMethods().Slice() {
+	for _, im := range iface.AllMethods() {
 		for i < len(tms) && tms[i].Sym != im.Sym {
 			i++
 		}
@@ -811,13 +811,13 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) 
 
 	c := 0
 	if u.IsStruct() || u.IsInterface() {
-		var fields *types.Fields
+		var fields []*types.Field
 		if u.IsStruct() {
 			fields = u.Fields()
 		} else {
 			fields = u.AllMethods()
 		}
-		for _, f := range fields.Slice() {
+		for _, f := range fields {
 			if f.Sym == s || (ignorecase && f.IsMethod() && strings.EqualFold(f.Sym.Name, s.Name)) {
 				if save != nil {
 					*save = f
@@ -834,7 +834,7 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) 
 	}
 	u = types.ReceiverBaseType(u)
 	if u != nil {
-		for _, f := range u.Methods().Slice() {
+		for _, f := range u.Methods() {
 			if f.Embedded == 0 && (f.Sym == s || (ignorecase && strings.EqualFold(f.Sym.Name, s.Name))) {
 				if save != nil {
 					*save = f

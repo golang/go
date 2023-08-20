@@ -32,8 +32,8 @@ func DeclFunc(fn *ir.Func) (params, results []*ir.Name) {
 		base.FatalfAt(fn.Pos(), "unexpected receiver parameter")
 	}
 
-	params = declareParams(fn, ir.PPARAM, typ.Params().FieldSlice())
-	results = declareParams(fn, ir.PPARAMOUT, typ.Results().FieldSlice())
+	params = declareParams(fn, ir.PPARAM, typ.Params())
+	results = declareParams(fn, ir.PPARAMOUT, typ.Results())
 
 	funcStack = append(funcStack, ir.CurFunc)
 	ir.CurFunc = fn
@@ -156,18 +156,18 @@ func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
 	// TODO(mdempsky): Move this function to types.
 	// TODO(mdempsky): Preserve positions, names, and package from sig+recv.
 
-	params := make([]*types.Field, nrecvs+sig.Params().Fields().Len())
+	params := make([]*types.Field, nrecvs+sig.NumParams())
 	if recv != nil {
 		params[0] = types.NewField(base.Pos, nil, recv)
 	}
-	for i, param := range sig.Params().Fields().Slice() {
+	for i, param := range sig.Params() {
 		d := types.NewField(base.Pos, nil, param.Type)
 		d.SetIsDDD(param.IsDDD())
 		params[nrecvs+i] = d
 	}
 
-	results := make([]*types.Field, sig.Results().Fields().Len())
-	for i, t := range sig.Results().Fields().Slice() {
+	results := make([]*types.Field, sig.NumResults())
+	for i, t := range sig.Results() {
 		results[i] = types.NewField(base.Pos, nil, t.Type)
 	}
 

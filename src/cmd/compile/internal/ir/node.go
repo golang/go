@@ -490,7 +490,7 @@ func IsMethod(n Node) bool {
 
 func HasNamedResults(fn *Func) bool {
 	typ := fn.Type()
-	return typ.NumResults() > 0 && types.OrigSym(typ.Results().Field(0).Sym) != nil
+	return typ.NumResults() > 0 && types.OrigSym(typ.Result(0).Sym) != nil
 }
 
 // HasUniquePos reports whether n has a unique position that can be

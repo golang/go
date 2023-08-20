@@ -170,11 +170,11 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	var call *ir.CallExpr
 	if w := t.Elem().Size(); w <= zeroValSize {
 		fn := mapfn(mapaccess2[fast], t, false)
-		call = mkcall1(fn, fn.Type().Results(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key)
+		call = mkcall1(fn, fn.Type().ResultsTuple(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key)
 	} else {
 		fn := mapfn("mapaccess2_fat", t, true)
 		z := reflectdata.ZeroAddr(w)
-		call = mkcall1(fn, fn.Type().Results(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key, z)
+		call = mkcall1(fn, fn.Type().ResultsTuple(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key, z)
 	}
 
 	// mapaccess2* returns a typed bool, but due to spec changes,
@@ -230,7 +230,7 @@ func walkReturn(n *ir.ReturnStmt) ir.Node {
 		return n
 	}
 
-	results := fn.Type().Results().FieldSlice()
+	results := fn.Type().Results()
 	dsts := make([]ir.Node, len(results))
 	for i, v := range results {
 		// TODO(mdempsky): typecheck should have already checked the result variables.

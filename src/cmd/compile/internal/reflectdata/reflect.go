@@ -329,7 +329,7 @@ func methods(t *types.Type) []*typeSig {
 	// make list of methods for t,
 	// generating code if necessary.
 	var ms []*typeSig
-	for _, f := range mt.AllMethods().Slice() {
+	for _, f := range mt.AllMethods() {
 		if f.Sym == nil {
 			base.Fatalf("method with no sym on %v", mt)
 		}
@@ -376,7 +376,7 @@ func methods(t *types.Type) []*typeSig {
 // imethods returns the methods of the interface type t, sorted by name.
 func imethods(t *types.Type) []*typeSig {
 	var methods []*typeSig
-	for _, f := range t.AllMethods().Slice() {
+	for _, f := range t.AllMethods() {
 		if f.Type.Kind() != types.TFUNC || f.Sym == nil {
 			continue
 		}
@@ -901,7 +901,7 @@ func needkeyupdate(t *types.Type) bool {
 		return needkeyupdate(t.Elem())
 
 	case types.TSTRUCT:
-		for _, t1 := range t.Fields().Slice() {
+		for _, t1 := range t.Fields() {
 			if needkeyupdate(t1.Type) {
 				return true
 			}
@@ -924,7 +924,7 @@ func hashMightPanic(t *types.Type) bool {
 		return hashMightPanic(t.Elem())
 
 	case types.TSTRUCT:
-		for _, t1 := range t.Fields().Slice() {
+		for _, t1 := range t.Fields() {
 			if hashMightPanic(t1.Type) {
 				return true
 			}
@@ -1027,15 +1027,15 @@ func writeType(t *types.Type) *obj.LSym {
 		ot = dextratype(lsym, ot, t, 0)
 
 	case types.TFUNC:
-		for _, t1 := range t.Recvs().Fields().Slice() {
+		for _, t1 := range t.Recvs() {
 			writeType(t1.Type)
 		}
 		isddd := false
-		for _, t1 := range t.Params().Fields().Slice() {
+		for _, t1 := range t.Params() {
 			isddd = t1.IsDDD()
 			writeType(t1.Type)
 		}
-		for _, t1 := range t.Results().Fields().Slice() {
+		for _, t1 := range t.Results() {
 			writeType(t1.Type)
 		}
 
@@ -1055,13 +1055,13 @@ func writeType(t *types.Type) *obj.LSym {
 		ot = dextratype(lsym, ot, t, dataAdd)
 
 		// Array of rtype pointers follows funcType.
-		for _, t1 := range t.Recvs().Fields().Slice() {
+		for _, t1 := range t.Recvs() {
 			ot = objw.SymPtr(lsym, ot, writeType(t1.Type), 0)
 		}
-		for _, t1 := range t.Params().Fields().Slice() {
+		for _, t1 := range t.Params() {
 			ot = objw.SymPtr(lsym, ot, writeType(t1.Type), 0)
 		}
-		for _, t1 := range t.Results().Fields().Slice() {
+		for _, t1 := range t.Results() {
 			ot = objw.SymPtr(lsym, ot, writeType(t1.Type), 0)
 		}
 
@@ -1169,7 +1169,7 @@ func writeType(t *types.Type) *obj.LSym {
 	// ../../../../runtime/type.go:/structType
 	// for security, only the exported fields.
 	case types.TSTRUCT:
-		fields := t.Fields().Slice()
+		fields := t.Fields()
 		for _, t1 := range fields {
 			writeType(t1.Type)
 		}
@@ -1305,7 +1305,7 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
 		base.Fatalf("writeITab(%v, %v)", typ, iface)
 	}
 
-	sigs := iface.AllMethods().Slice()
+	sigs := iface.AllMethods()
 	entries := make([]*obj.LSym, 0, len(sigs))
 
 	// both sigs and methods are sorted by name,
@@ -1403,8 +1403,8 @@ func writtenByWriteBasicTypes(typ *types.Type) bool {
 		// func(error) string
 		if typ.NumRecvs() == 0 &&
 			typ.NumParams() == 1 && typ.NumResults() == 1 &&
-			typ.Params().FieldType(0) == types.ErrorType &&
-			typ.Results().FieldType(0) == types.Types[types.TSTRING] {
+			typ.Param(0).Type == types.ErrorType &&
+			typ.Result(0).Type == types.Types[types.TSTRING] {
 			return true
 		}
 	}
@@ -1510,8 +1510,8 @@ func (a typesByString) Less(i, j int) bool {
 	// will be equal for the above checks, but different in DWARF output.
 	// Sort by source position to ensure deterministic order.
 	// See issues 27013 and 30202.
-	if a[i].t.Kind() == types.TINTER && a[i].t.AllMethods().Len() > 0 {
-		return a[i].t.AllMethods().Index(0).Pos.Before(a[j].t.AllMethods().Index(0).Pos)
+	if a[i].t.Kind() == types.TINTER && len(a[i].t.AllMethods()) > 0 {
+		return a[i].t.AllMethods()[0].Pos.Before(a[j].t.AllMethods()[0].Pos)
 	}
 	return false
 }
@@ -1735,7 +1735,7 @@ func (p *gcProg) emit(t *types.Type, offset int64) {
 		p.w.Repeat(elem.Size()/int64(types.PtrSize), count-1)
 
 	case types.TSTRUCT:
-		for _, t1 := range t.Fields().Slice() {
+		for _, t1 := range t.Fields() {
 			p.emit(t1.Type, offset+t1.Offset)
 		}
 	}

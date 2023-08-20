@@ -49,7 +49,7 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		}
 
 		if ks != nil && fn != nil && e.inMutualBatch(fn) {
-			for i, result := range fn.Type().Results().FieldSlice() {
+			for i, result := range fn.Type().Results() {
 				e.expr(ks[i], result.Nname.(*ir.Name))
 			}
 		}
@@ -93,7 +93,7 @@ func (e *escape) call(ks []hole, call ir.Node) {
 			argumentParam(recvParam, recvArg)
 		}
 
-		for i, param := range fntype.Params().FieldSlice() {
+		for i, param := range fntype.Params() {
 			argumentParam(param, args[i])
 		}
 

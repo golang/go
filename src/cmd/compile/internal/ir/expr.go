@@ -1116,7 +1116,7 @@ func IsReflectHeaderDataField(l Node) bool {
 
 func ParamNames(ft *types.Type) []Node {
 	args := make([]Node, ft.NumParams())
-	for i, f := range ft.Params().FieldSlice() {
+	for i, f := range ft.Params() {
 		args[i] = f.Nname.(*Name)
 	}
 	return args

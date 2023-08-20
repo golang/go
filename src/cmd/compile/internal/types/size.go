@@ -91,7 +91,7 @@ func expandiface(t *Type) {
 	}
 
 	{
-		methods := t.Methods().Slice()
+		methods := t.Methods()
 		sort.SliceStable(methods, func(i, j int) bool {
 			mi, mj := methods[i], methods[j]
 
@@ -110,7 +110,7 @@ func expandiface(t *Type) {
 		})
 	}
 
-	for _, m := range t.Methods().Slice() {
+	for _, m := range t.Methods() {
 		if m.Sym == nil {
 			continue
 		}
@@ -119,7 +119,7 @@ func expandiface(t *Type) {
 		addMethod(m, true)
 	}
 
-	for _, m := range t.Methods().Slice() {
+	for _, m := range t.Methods() {
 		if m.Sym != nil || m.Type == nil {
 			continue
 		}
@@ -133,7 +133,7 @@ func expandiface(t *Type) {
 
 		// Embedded interface: duplicate all methods
 		// and add to t's method set.
-		for _, t1 := range m.Type.AllMethods().Slice() {
+		for _, t1 := range m.Type.AllMethods() {
 			f := NewField(m.Pos, t1.Sym, t1.Type)
 			addMethod(f, false)
 
@@ -173,7 +173,7 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 		maxalign = 8
 	}
 	lastzero := int64(0)
-	for _, f := range t.Fields().Slice() {
+	for _, f := range t.Fields() {
 		if f.Type == nil {
 			// broken field, just skip it so that other valid fields
 			// get a width.
@@ -428,9 +428,9 @@ func CalcSize(t *Type) {
 	// compute their widths as side-effect.
 	case TFUNCARGS:
 		t1 := t.FuncArgs()
-		w = calcStructOffset(t1, t1.Recvs(), 0, 0)
-		w = calcStructOffset(t1, t1.Params(), w, RegSize)
-		w = calcStructOffset(t1, t1.Results(), w, RegSize)
+		w = calcStructOffset(t1, t1.recvsTuple(), 0, 0)
+		w = calcStructOffset(t1, t1.paramsTuple(), w, RegSize)
+		w = calcStructOffset(t1, t1.ResultsTuple(), w, RegSize)
 		t1.extra.(*Func).Argwid = w
 		if w%int64(RegSize) != 0 {
 			base.Warn("bad type %v %d\n", t1, w)
@@ -583,7 +583,7 @@ func PtrDataSize(t *Type) int64 {
 
 	case TSTRUCT:
 		// Find the last field that has pointers, if any.
-		fs := t.Fields().Slice()
+		fs := t.Fields()
 		for i := len(fs) - 1; i >= 0; i-- {
 			if size := PtrDataSize(fs[i].Type); size > 0 {
 				return fs[i].Offset + size

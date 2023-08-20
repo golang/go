@@ -115,7 +115,7 @@ func genhash(t *types.Type) *obj.LSym {
 	case types.TARRAY:
 		genhash(t.Elem())
 	case types.TSTRUCT:
-		for _, f := range t.FieldSlice() {
+		for _, f := range t.Fields() {
 			genhash(f.Type)
 		}
 	}
@@ -190,7 +190,7 @@ func hashFunc(t *types.Type) *ir.Func {
 	case types.TSTRUCT:
 		// Walk the struct using memhash for runs of AMEM
 		// and calling specific hash functions for the others.
-		for i, fields := 0, t.FieldSlice(); i < len(fields); {
+		for i, fields := 0, t.Fields(); i < len(fields); {
 			f := fields[i]
 
 			// Skip blank fields.

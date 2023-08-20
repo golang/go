@@ -301,7 +301,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 
 	sig := call.X.Type()
 
-	for _, ret := range sig.Results().FieldSlice() {
+	for _, ret := range sig.Results() {
 		retvars = append(retvars, typecheck.TempAt(base.Pos, curfn, ret.Type))
 	}
 

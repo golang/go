@@ -411,7 +411,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	if s.hasOpenDefers {
 		// Similarly, skip if there are any heap-allocated result
 		// parameters that need to be copied back to their stack slots.
-		for _, f := range s.curfn.Type().Results().FieldSlice() {
+		for _, f := range s.curfn.Type().Results() {
 			if !f.Nname.(*ir.Name).OnStack() {
 				s.hasOpenDefers = false
 				break
@@ -619,7 +619,7 @@ func (s *state) storeParameterRegsToStack(abi *abi.ABIConfig, paramAssignment *a
 // are always live, so we need to zero them before any allocations,
 // even allocations to move params/results to the heap.
 func (s *state) zeroResults() {
-	for _, f := range s.curfn.Type().Results().FieldSlice() {
+	for _, f := range s.curfn.Type().Results() {
 		n := f.Nname.(*ir.Name)
 		if !n.OnStack() {
 			// The local which points to the return value is the
@@ -642,8 +642,8 @@ func (s *state) zeroResults() {
 // paramsToHeap produces code to allocate memory for heap-escaped parameters
 // and to copy non-result parameters' values from the stack.
 func (s *state) paramsToHeap() {
-	do := func(params *types.Type) {
-		for _, f := range params.FieldSlice() {
+	do := func(params []*types.Field) {
+		for _, f := range params {
 			if f.Nname == nil {
 				continue // anonymous or blank parameter
 			}
@@ -1248,7 +1248,7 @@ func (s *state) instrumentFields(t *types.Type, addr *ssa.Value, kind instrument
 		s.instrument(t, addr, kind)
 		return
 	}
-	for _, f := range t.Fields().Slice() {
+	for _, f := range t.Fields() {
 		if f.Sym.IsBlank() {
 			continue
 		}
@@ -2032,7 +2032,7 @@ func (s *state) exit() *ssa.Block {
 	var m *ssa.Value
 	// Do actual return.
 	// These currently turn into self-copies (in many cases).
-	resultFields := s.curfn.Type().Results().FieldSlice()
+	resultFields := s.curfn.Type().Results()
 	results := make([]*ssa.Value, len(resultFields)+1, len(resultFields)+1)
 	m = s.newValue0(ssa.OpMakeResult, s.f.OwnAux.LateExpansionResultType())
 	// Store SSAable and heap-escaped PPARAMOUT variables back to stack locations.
@@ -5318,7 +5318,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		}
 
 		for i, n := range args {
-			callArgs = append(callArgs, s.putArg(n, t.Params().Field(i).Type))
+			callArgs = append(callArgs, s.putArg(n, t.Param(i).Type))
 		}
 
 		callArgs = append(callArgs, s.mem())
@@ -5388,11 +5388,11 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		s.startBlock(bNext)
 	}
 
-	if res.NumFields() == 0 || k != callNormal {
+	if len(res) == 0 || k != callNormal {
 		// call has no return value. Continue with the next statement.
 		return nil
 	}
-	fp := res.Field(0)
+	fp := res[0]
 	if returnResultAddr {
 		return s.resultAddrOfCall(call, 0, fp.Type)
 	}
@@ -5621,7 +5621,7 @@ func TypeOK(t *types.Type) bool {
 		if t.NumFields() > ssa.MaxStruct {
 			return false
 		}
-		for _, t1 := range t.Fields().Slice() {
+		for _, t1 := range t.Fields() {
 			if !TypeOK(t1.Type) {
 				return false
 			}
@@ -6964,7 +6964,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 				n++ // {} counts as a component
 				break
 			}
-			for _, field := range t.Fields().Slice() {
+			for _, field := range t.Fields() {
 				if !visitType(baseOffset+field.Offset, field.Type, depth) {
 					break
 				}
@@ -7924,7 +7924,7 @@ func fieldIdx(n *ir.SelectorExpr) int {
 		panic("ODOT's LHS is not a struct")
 	}
 
-	for i, f := range t.Fields().Slice() {
+	for i, f := range t.Fields() {
 		if f.Sym == n.Sel {
 			if f.Offset != n.Offset() {
 				panic("field offset doesn't match")
