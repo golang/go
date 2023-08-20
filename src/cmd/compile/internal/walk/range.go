@@ -231,14 +231,11 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		keysym := th.Field(0).Sym
 		elemsym := th.Field(1).Sym // ditto
 
-		fn := typecheck.LookupRuntime("mapiterinit")
-
-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), th)
+		fn := typecheck.LookupRuntime("mapiterinit", t.Key(), t.Elem(), th)
 		init = append(init, mkcallstmt1(fn, reflectdata.RangeMapRType(base.Pos, nrange), ha, typecheck.NodAddr(hit)))
 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), typecheck.NodNil())
 
-		fn = typecheck.LookupRuntime("mapiternext")
-		fn = typecheck.SubstArgTypes(fn, th)
+		fn = typecheck.LookupRuntime("mapiternext", th)
 		nfor.Post = mkcallstmt1(fn, typecheck.NodAddr(hit))
 
 		key := ir.NewStarExpr(base.Pos, typecheck.ConvNop(ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), types.NewPtr(t.Key())))
@@ -454,8 +451,7 @@ func mapClear(m, rtyp ir.Node) ir.Node {
 	t := m.Type()
 
 	// instantiate mapclear(typ *type, hmap map[any]any)
-	fn := typecheck.LookupRuntime("mapclear")
-	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
+	fn := typecheck.LookupRuntime("mapclear", t.Key(), t.Elem())
 	n := mkcallstmt1(fn, rtyp, m)
 	return walkStmt(typecheck.Stmt(n))
 }

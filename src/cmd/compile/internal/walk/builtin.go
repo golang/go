@@ -101,8 +101,8 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 		ir.NewAssignStmt(base.Pos, s, slice),
 	}
 
-	fn := typecheck.LookupRuntime("growslice") //   growslice(ptr *T, newLen, oldCap, num int, <type>) (ret []T)
-	fn = typecheck.SubstArgTypes(fn, s.Type().Elem(), s.Type().Elem())
+	//   growslice(ptr *T, newLen, oldCap, num int, <type>) (ret []T)
+	fn := typecheck.LookupRuntime("growslice", s.Type().Elem(), s.Type().Elem())
 
 	// else { s = growslice(s.ptr, n, s.cap, a, T) }
 	nif.Else = []ir.Node{
@@ -149,8 +149,7 @@ func walkClear(n *ir.UnaryExpr) ir.Node {
 // walkClose walks an OCLOSE node.
 func walkClose(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 	// cannot use chanfn - closechan takes any, not chan any
-	fn := typecheck.LookupRuntime("closechan")
-	fn = typecheck.SubstArgTypes(fn, n.X.Type())
+	fn := typecheck.LookupRuntime("closechan", n.X.Type())
 	return mkcall1(fn, nil, init, n.X)
 }
 
@@ -185,8 +184,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 		n.Y = cheapExpr(n.Y, init)
 		ptrR, lenR := backingArrayPtrLen(n.Y)
 
-		fn := typecheck.LookupRuntime("slicecopy")
-		fn = typecheck.SubstArgTypes(fn, ptrL.Type().Elem(), ptrR.Type().Elem())
+		fn := typecheck.LookupRuntime("slicecopy", ptrL.Type().Elem(), ptrR.Type().Elem())
 
 		return mkcall1(fn, n.Type(), init, ptrL, lenL, ptrR, lenR, ir.NewInt(base.Pos, n.X.Type().Elem().Size()))
 	}
@@ -219,8 +217,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
 	ne.Likely = true
 	l = append(l, ne)
 
-	fn := typecheck.LookupRuntime("memmove")
-	fn = typecheck.SubstArgTypes(fn, nl.Type().Elem(), nl.Type().Elem())
+	fn := typecheck.LookupRuntime("memmove", nl.Type().Elem(), nl.Type().Elem())
 	nwid := ir.Node(typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINTPTR]))
 	setwid := ir.NewAssignStmt(base.Pos, nwid, typecheck.Conv(nlen, types.Types[types.TUINTPTR]))
 	ne.Body.Append(setwid)
@@ -365,8 +362,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		}
 		// Call runtime.makehmap to allocate an
 		// hmap on the heap and initialize hmap's hash0 field.
-		fn := typecheck.LookupRuntime("makemap_small")
-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
+		fn := typecheck.LookupRuntime("makemap_small", t.Key(), t.Elem())
 		return mkcall1(fn, n.Type(), init)
 	}
 
@@ -392,8 +388,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		argtype = types.Types[types.TINT]
 	}
 
-	fn := typecheck.LookupRuntime(fnname)
-	fn = typecheck.SubstArgTypes(fn, hmapType, t.Key(), t.Elem())
+	fn := typecheck.LookupRuntime(fnname, hmapType, t.Key(), t.Elem())
 	return mkcall1(fn, n.Type(), init, reflectdata.MakeMapRType(base.Pos, n), typecheck.Conv(hint, argtype), h)
 }
 
@@ -503,8 +498,7 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		init.Append(r)
 
 		// instantiate memmove(to *any, frm *any, size uintptr)
-		fn = typecheck.LookupRuntime("memmove")
-		fn = typecheck.SubstArgTypes(fn, t.Elem(), t.Elem())
+		fn = typecheck.LookupRuntime("memmove", t.Elem(), t.Elem())
 		ncopy := mkcall1(fn, nil, init, ir.NewUnaryExpr(base.Pos, ir.OSPTR, s), copyptr, size)
 		init.Append(walkExpr(typecheck.Stmt(ncopy), init))
 
@@ -609,11 +603,10 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 		switch n.Type().Kind() {
 		case types.TINTER:
 			if n.Type().IsEmptyInterface() {
-				on = typecheck.LookupRuntime("printeface")
+				on = typecheck.LookupRuntime("printeface", n.Type())
 			} else {
-				on = typecheck.LookupRuntime("printiface")
+				on = typecheck.LookupRuntime("printiface", n.Type())
 			}
-			on = typecheck.SubstArgTypes(on, n.Type()) // any-1
 		case types.TPTR:
 			if n.Type().Elem().NotInHeap() {
 				on = typecheck.LookupRuntime("printuintptr")
@@ -625,11 +618,9 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 			}
 			fallthrough
 		case types.TCHAN, types.TMAP, types.TFUNC, types.TUNSAFEPTR:
-			on = typecheck.LookupRuntime("printpointer")
-			on = typecheck.SubstArgTypes(on, n.Type()) // any-1
+			on = typecheck.LookupRuntime("printpointer", n.Type())
 		case types.TSLICE:
-			on = typecheck.LookupRuntime("printslice")
-			on = typecheck.SubstArgTypes(on, n.Type()) // any-1
+			on = typecheck.LookupRuntime("printslice", n.Type())
 		case types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64, types.TUINTPTR:
 			if types.RuntimeSymName(n.Type().Sym()) == "hex" {
 				on = typecheck.LookupRuntime("printhex")
@@ -863,9 +854,7 @@ func badtype(op ir.Op, tl, tr *types.Type) {
 }
 
 func writebarrierfn(name string, l *types.Type, r *types.Type) ir.Node {
-	fn := typecheck.LookupRuntime(name)
-	fn = typecheck.SubstArgTypes(fn, l, r)
-	return fn
+	return typecheck.LookupRuntime(name, l, r)
 }
 
 // isRuneCount reports whether n is of the form len([]rune(string)).

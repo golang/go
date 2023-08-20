@@ -141,42 +141,34 @@ func chanfn(name string, n int, t *types.Type) ir.Node {
 	if !t.IsChan() {
 		base.Fatalf("chanfn %v", t)
 	}
-	fn := typecheck.LookupRuntime(name)
 	switch n {
-	default:
-		base.Fatalf("chanfn %d", n)
 	case 1:
-		fn = typecheck.SubstArgTypes(fn, t.Elem())
+		return typecheck.LookupRuntime(name, t.Elem())
 	case 2:
-		fn = typecheck.SubstArgTypes(fn, t.Elem(), t.Elem())
+		return typecheck.LookupRuntime(name, t.Elem(), t.Elem())
 	}
-	return fn
+	base.Fatalf("chanfn %d", n)
+	return nil
 }
 
 func mapfn(name string, t *types.Type, isfat bool) ir.Node {
 	if !t.IsMap() {
 		base.Fatalf("mapfn %v", t)
 	}
-	fn := typecheck.LookupRuntime(name)
 	if mapfast(t) == mapslow || isfat {
-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key(), t.Elem())
-	} else {
-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Elem())
+		return typecheck.LookupRuntime(name, t.Key(), t.Elem(), t.Key(), t.Elem())
 	}
-	return fn
+	return typecheck.LookupRuntime(name, t.Key(), t.Elem(), t.Elem())
 }
 
 func mapfndel(name string, t *types.Type) ir.Node {
 	if !t.IsMap() {
 		base.Fatalf("mapfn %v", t)
 	}
-	fn := typecheck.LookupRuntime(name)
 	if mapfast(t) == mapslow {
-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key())
-	} else {
-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
+		return typecheck.LookupRuntime(name, t.Key(), t.Elem(), t.Key())
 	}
-	return fn
+	return typecheck.LookupRuntime(name, t.Key(), t.Elem())
 }
 
 const (

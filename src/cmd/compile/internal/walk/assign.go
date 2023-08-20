@@ -514,8 +514,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, s, slice)}
 
 	// func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) []T
-	fn := typecheck.LookupRuntime("growslice")
-	fn = typecheck.SubstArgTypes(fn, elemtype, elemtype)
+	fn := typecheck.LookupRuntime("growslice", elemtype, elemtype)
 
 	// else { s = growslice(oldPtr, newLen, oldCap, num, T) }
 	call := mkcall1(fn, s.Type(), nif.PtrInit(), oldPtr, newLen, oldCap, num, reflectdata.TypePtrAt(base.Pos, elemtype))
@@ -541,8 +540,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		ir.CurFunc.SetWBPos(n.Pos())
 
 		// instantiate typedslicecopy(typ *type, dstPtr *any, dstLen int, srcPtr *any, srcLen int) int
-		fn := typecheck.LookupRuntime("typedslicecopy")
-		fn = typecheck.SubstArgTypes(fn, l1.Type().Elem(), l2.Type().Elem())
+		fn := typecheck.LookupRuntime("typedslicecopy", l1.Type().Elem(), l2.Type().Elem())
 		ptr1, len1 := backingArrayPtrLen(cheapExpr(slice, &nodes))
 		ptr2, len2 := backingArrayPtrLen(l2)
 		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, reflectdata.AppendElemRType(base.Pos, n), ptr1, len1, ptr2, len2)
@@ -557,8 +555,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		ptr1, len1 := backingArrayPtrLen(cheapExpr(slice, &nodes))
 		ptr2, len2 := backingArrayPtrLen(l2)
 
-		fn := typecheck.LookupRuntime("slicecopy")
-		fn = typecheck.SubstArgTypes(fn, ptr1.Type().Elem(), ptr2.Type().Elem())
+		fn := typecheck.LookupRuntime("slicecopy", ptr1.Type().Elem(), ptr2.Type().Elem())
 		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, ptr1, len1, ptr2, len2, ir.NewInt(base.Pos, elemtype.Size()))
 	} else {
 		// memmove(&s[idx], &l2[0], len(l2)*sizeof(T))
@@ -572,8 +569,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		nwid = ir.NewBinaryExpr(base.Pos, ir.OMUL, nwid, ir.NewInt(base.Pos, elemtype.Size()))
 
 		// instantiate func memmove(to *any, frm *any, length uintptr)
-		fn := typecheck.LookupRuntime("memmove")
-		fn = typecheck.SubstArgTypes(fn, elemtype, elemtype)
+		fn := typecheck.LookupRuntime("memmove", elemtype, elemtype)
 		ncopy = mkcall1(fn, nil, &nodes, addr, sptr, nwid)
 	}
 	ln := append(nodes, ncopy)
@@ -696,8 +692,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, s, nt)}
 
 	// instantiate growslice(oldPtr *any, newLen, oldCap, num int, typ *type) []any
-	fn := typecheck.LookupRuntime("growslice")
-	fn = typecheck.SubstArgTypes(fn, elemtype, elemtype)
+	fn := typecheck.LookupRuntime("growslice", elemtype, elemtype)
 
 	// else { s = growslice(s.ptr, n, s.cap, l2, T) }
 	nif.Else = []ir.Node{

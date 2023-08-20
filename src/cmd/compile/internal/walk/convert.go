@@ -165,7 +165,7 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 
 	// Time to do an allocation. We'll call into the runtime for that.
 	fnname, argType, needsaddr := dataWordFuncName(fromType)
-	fn := typecheck.LookupRuntime(fnname)
+	var fn *ir.Name
 
 	var args []ir.Node
 	if needsaddr {
@@ -178,11 +178,12 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		if !ir.IsAddressable(n) {
 			n = copyExpr(n, fromType, init)
 		}
-		fn = typecheck.SubstArgTypes(fn, fromType)
+		fn = typecheck.LookupRuntime(fnname, fromType)
 		args = []ir.Node{reflectdata.ConvIfaceSrcRType(base.Pos, conv), typecheck.NodAddr(n)}
 	} else {
 		// Use a specialized conversion routine that takes the type being
 		// converted by value, not by pointer.
+		fn = typecheck.LookupRuntime(fnname)
 		var arg ir.Node
 		switch {
 		case fromType == argType:

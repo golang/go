@@ -11,21 +11,25 @@ import (
 	"cmd/internal/obj"
 )
 
-func LookupRuntime(name string) *ir.Name {
+// LookupRuntime returns a function or variable declared in
+// _builtin/runtime.go. If types_ is non-empty, successive occurrences
+// of the "any" placeholder type will be substituted.
+func LookupRuntime(name string, types_ ...*types.Type) *ir.Name {
 	s := ir.Pkgs.Runtime.Lookup(name)
 	if s == nil || s.Def == nil {
 		base.Fatalf("LookupRuntime: can't find runtime.%s", name)
 	}
-	return s.Def.(*ir.Name)
+	n := s.Def.(*ir.Name)
+	if len(types_) != 0 {
+		n = substArgTypes(n, types_...)
+	}
+	return n
 }
 
 // SubstArgTypes substitutes the given list of types for
 // successive occurrences of the "any" placeholder in the
 // type syntax expression n.Type.
-// The result of SubstArgTypes MUST be assigned back to old, e.g.
-//
-//	n.Left = SubstArgTypes(n.Left, t1, t2)
-func SubstArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
+func substArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
 	for _, t := range types_ {
 		types.CalcSize(t)
 	}

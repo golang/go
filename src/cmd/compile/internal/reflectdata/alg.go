@@ -249,9 +249,7 @@ func hashFunc(t *types.Type) *ir.Func {
 }
 
 func runtimeHashFor(name string, t *types.Type) *ir.Name {
-	n := typecheck.LookupRuntime(name)
-	n = typecheck.SubstArgTypes(n, t)
-	return n
+	return typecheck.LookupRuntime(name, t)
 }
 
 // hashfor returns the function to compute the hash of a value of type t.
@@ -647,9 +645,7 @@ func eqFunc(t *types.Type) *ir.Func {
 func EqFor(t *types.Type) (ir.Node, bool) {
 	switch a, _ := types.AlgType(t); a {
 	case types.AMEM:
-		n := typecheck.LookupRuntime("memequal")
-		n = typecheck.SubstArgTypes(n, t, t)
-		return n, true
+		return typecheck.LookupRuntime("memequal", t, t), true
 	case types.ASPECIAL:
 		fn := eqFunc(t)
 		return fn.Nname, false
@@ -667,7 +663,5 @@ func anyCall(fn *ir.Func) bool {
 }
 
 func hashmem(t *types.Type) ir.Node {
-	n := typecheck.LookupRuntime("memhash")
-	n = typecheck.SubstArgTypes(n, t)
-	return n
+	return typecheck.LookupRuntime("memhash", t)
 }

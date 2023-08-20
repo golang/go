@@ -294,8 +294,7 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 		cmplen = tlen
 	}
 
-	fn := typecheck.LookupRuntime("memequal")
-	fn = typecheck.SubstArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
+	fn := typecheck.LookupRuntime("memequal", types.Types[types.TUINT8], types.Types[types.TUINT8])
 	call := typecheck.Call(base.Pos, fn, []ir.Node{sptr, tptr, ir.Copy(cmplen)}, false).(*ir.CallExpr)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
@@ -373,14 +372,10 @@ func eqmem(p, q ir.Node, field int, size int64) ir.Node {
 
 func eqmemfunc(size int64, t *types.Type) (fn *ir.Name, needsize bool) {
 	switch size {
-	default:
-		fn = typecheck.LookupRuntime("memequal")
-		needsize = true
 	case 1, 2, 4, 8, 16:
 		buf := fmt.Sprintf("memequal%d", int(size)*8)
-		fn = typecheck.LookupRuntime(buf)
+		return typecheck.LookupRuntime(buf, t, t), false
 	}
 
-	fn = typecheck.SubstArgTypes(fn, t, t)
-	return fn, needsize
+	return typecheck.LookupRuntime("memequal", t, t), true
 }
