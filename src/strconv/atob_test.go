@@ -65,7 +65,7 @@ var boolString = map[bool]string{
 func TestFormatBool(t *testing.T) {
 	for b, s := range boolString {
 		if f := FormatBool(b); f != s {
-			t.Errorf(`FormatBool(%v): expected %q but got %q`, b, s, f)
+			t.Errorf("FormatBool(%v): expected %q but got %q", b, s, f)
 		}
 	}
 }
