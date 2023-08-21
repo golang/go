@@ -380,7 +380,23 @@
 			(MOVQstoreconst [makeValAndOff(0,8)] destptr
 				(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))))
 
-(Zero [s] destptr mem) && s > 8 && s < 16 && config.useSSE =>
+(Zero [9] destptr mem) && config.useSSE =>
+	(MOVBstoreconst [makeValAndOff(0,8)] destptr
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
+
+(Zero [10] destptr mem) && config.useSSE =>
+	(MOVWstoreconst [makeValAndOff(0,8)] destptr
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
+
+(Zero [11] destptr mem) && config.useSSE =>
+	(MOVLstoreconst [makeValAndOff(0,7)] destptr
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
+
+(Zero [12] destptr mem) && config.useSSE =>
+	(MOVLstoreconst [makeValAndOff(0,8)] destptr
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
+
+(Zero [s] destptr mem) && s > 12 && s < 16 && config.useSSE =>
 	(MOVQstoreconst [makeValAndOff(0,int32(s-8))] destptr
 		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 
