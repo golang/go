@@ -39,19 +39,19 @@ func TestParseBool(t *testing.T) {
 		if test.err != nil {
 			// expect an error
 			if e == nil {
-				t.Errorf("%s: expected %s but got nil", test.in, test.err)
+				t.Errorf("ParseBool(%s): expected %s but got nil", test.in, test.err)
 			} else {
 				// NumError assertion must succeed; it's the only thing we return.
 				if test.err != e.(*NumError).Err {
-					t.Errorf("%s: expected %s but got %s", test.in, test.err, e)
+					t.Errorf("ParseBool(%s): expected %s but got %s", test.in, test.err, e)
 				}
 			}
 		} else {
 			if e != nil {
-				t.Errorf("%s: expected no error but got %s", test.in, e)
+				t.Errorf("ParseBool(%s): expected no error but got %s", test.in, e)
 			}
 			if b != test.out {
-				t.Errorf("%s: expected %t but got %t", test.in, test.out, b)
+				t.Errorf("ParseBool(%s): expected %t but got %t", test.in, test.out, b)
 			}
 		}
 	}
