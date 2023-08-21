@@ -8472,6 +8472,17 @@ func rewriteValueARM64_OpARM64MOVBUreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVBUreg x)
+	// cond: v.Type.Size() <= 1
+	// result: x
+	for {
+		x := v_0
+		if !(v.Type.Size() <= 1) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	// match: (MOVBUreg (SLLconst [lc] x))
 	// cond: lc >= 8
 	// result: (MOVDconst [0])
@@ -8733,6 +8744,17 @@ func rewriteValueARM64_OpARM64MOVBreg(v *Value) bool {
 		c := auxIntToInt64(v_0.AuxInt)
 		v.reset(OpARM64MOVDconst)
 		v.AuxInt = int64ToAuxInt(int64(int8(c)))
+		return true
+	}
+	// match: (MOVBreg x)
+	// cond: v.Type.Size() <= 1
+	// result: x
+	for {
+		x := v_0
+		if !(v.Type.Size() <= 1) {
+			break
+		}
+		v.copyOf(x)
 		return true
 	}
 	// match: (MOVBreg <t> (ANDconst x [c]))
@@ -10386,6 +10408,17 @@ func rewriteValueARM64_OpARM64MOVHUreg(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		return true
 	}
+	// match: (MOVHUreg x)
+	// cond: v.Type.Size() <= 2
+	// result: x
+	for {
+		x := v_0
+		if !(v.Type.Size() <= 2) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	// match: (MOVHUreg (SLLconst [lc] x))
 	// cond: lc >= 16
 	// result: (MOVDconst [0])
@@ -10830,6 +10863,17 @@ func rewriteValueARM64_OpARM64MOVHreg(v *Value) bool {
 		c := auxIntToInt64(v_0.AuxInt)
 		v.reset(OpARM64MOVDconst)
 		v.AuxInt = int64ToAuxInt(int64(int16(c)))
+		return true
+	}
+	// match: (MOVHreg x)
+	// cond: v.Type.Size() <= 2
+	// result: x
+	for {
+		x := v_0
+		if !(v.Type.Size() <= 2) {
+			break
+		}
+		v.copyOf(x)
 		return true
 	}
 	// match: (MOVHreg <t> (ANDconst x [c]))
@@ -12011,6 +12055,17 @@ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWUreg x)
+	// cond: v.Type.Size() <= 4
+	// result: x
+	for {
+		x := v_0
+		if !(v.Type.Size() <= 4) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (MOVWUreg x)
 	// cond: zeroUpper32Bits(x, 3)
 	// result: x
 	for {
@@ -12523,6 +12578,17 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
 		c := auxIntToInt64(v_0.AuxInt)
 		v.reset(OpARM64MOVDconst)
 		v.AuxInt = int64ToAuxInt(int64(int32(c)))
+		return true
+	}
+	// match: (MOVWreg x)
+	// cond: v.Type.Size() <= 4
+	// result: x
+	for {
+		x := v_0
+		if !(v.Type.Size() <= 4) {
+			break
+		}
+		v.copyOf(x)
 		return true
 	}
 	// match: (MOVWreg <t> (ANDconst x [c]))

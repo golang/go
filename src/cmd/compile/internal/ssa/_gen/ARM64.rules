@@ -1574,6 +1574,11 @@
 // zero upper bit of the register; no need to zero-extend
 (MOVBUreg x:((Equal|NotEqual|LessThan|LessThanU|LessThanF|LessEqual|LessEqualU|LessEqualF|GreaterThan|GreaterThanU|GreaterThanF|GreaterEqual|GreaterEqualU|GreaterEqualF) _)) => (MOVDreg x)
 
+// Don't bother extending if we're not using the higher bits.
+(MOV(B|BU)reg x) && v.Type.Size() <= 1 => x
+(MOV(H|HU)reg x) && v.Type.Size() <= 2 => x
+(MOV(W|WU)reg x) && v.Type.Size() <= 4 => x
+
 // omit unsign extension
 (MOVWUreg x) && zeroUpper32Bits(x, 3) => x
 
