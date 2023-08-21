@@ -353,7 +353,7 @@ func writebarrier(f *Func) {
 		memThen := mem
 		var curCall *Value
 		var curPtr *Value
-		addEntry := func(v *Value) {
+		addEntry := func(pos src.XPos, v *Value) {
 			if curCall == nil || curCall.AuxInt == maxEntries {
 				t := types.NewTuple(types.Types[types.TUINTPTR].PtrTo(), types.TypeMem)
 				curCall = bThen.NewValue1(pos, OpWB, t, memThen)
@@ -394,7 +394,7 @@ func writebarrier(f *Func) {
 			val := w.Args[1]
 			if !srcs.contains(val.ID) && needWBsrc(val) {
 				srcs.add(val.ID)
-				addEntry(val)
+				addEntry(pos, val)
 			}
 			if !dsts.contains(ptr.ID) && needWBdst(ptr, w.Args[2], zeroes) {
 				dsts.add(ptr.ID)
@@ -407,7 +407,7 @@ func writebarrier(f *Func) {
 				// combine the read and the write.
 				oldVal := bThen.NewValue2(pos, OpLoad, types.Types[types.TUINTPTR], ptr, memThen)
 				// Save old value to write buffer.
-				addEntry(oldVal)
+				addEntry(pos, oldVal)
 			}
 			f.fe.Func().SetWBPos(pos)
 			nWBops--
@@ -449,6 +449,7 @@ func writebarrier(f *Func) {
 
 		// Do raw stores after merge point.
 		for _, w := range stores {
+			pos := w.Pos
 			switch w.Op {
 			case OpStoreWB:
 				ptr := w.Args[0]
