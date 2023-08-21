@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
 func walkSelect(sel *ir.SelectStmt) {
@@ -287,11 +288,15 @@ var scase *types.Type
 // Keep in sync with src/runtime/select.go.
 func scasetype() *types.Type {
 	if scase == nil {
-		scase = types.NewStruct([]*types.Field{
+		n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.Pkgs.Runtime.Lookup("scase"))
+		scase = types.NewNamed(n)
+		n.SetType(scase)
+		n.SetTypecheck(1)
+
+		scase.SetUnderlying(types.NewStruct([]*types.Field{
 			types.NewField(base.Pos, typecheck.Lookup("c"), types.Types[types.TUNSAFEPTR]),
 			types.NewField(base.Pos, typecheck.Lookup("elem"), types.Types[types.TUNSAFEPTR]),
-		})
-		scase.SetNoalg(true)
+		}))
 	}
 	return scase
 }
