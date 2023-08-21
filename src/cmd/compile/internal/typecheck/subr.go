@@ -763,12 +763,10 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 			*ptr = 0
 			return false
 		}
-		followptr := tm.Embedded == 2
 
 		// if pointer receiver in method,
 		// the method does not exist for value types.
-		rcvr := tm.Type.Recv().Type
-		if rcvr.IsPtr() && !t0.IsPtr() && !followptr && !types.IsInterfaceMethod(tm.Type) {
+		if !types.IsMethodApplicable(t0, tm) {
 			if false && base.Flag.LowerR != 0 {
 				base.Errorf("interface pointer mismatch")
 			}
