@@ -87,6 +87,7 @@ func InitConfig() {
 	_ = types.NewPtr(types.Types[types.TINT64])                             // *int64
 	_ = types.NewPtr(types.ErrorType)                                       // *error
 	_ = types.NewPtr(reflectdata.MapType())                                 // *runtime.hmap
+	_ = types.NewPtr(deferstruct())                                         // *runtime._defer
 	types.NewPtrCacheEnabled = false
 	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, Arch.SoftFloat)
 	ssaConfig.Race = base.Flag.Race
@@ -8094,19 +8095,23 @@ func max8(a, b int8) int8 {
 	return b
 }
 
+// deferStructFnField is the field index of _defer.fn.
 const deferStructFnField = 4
 
-// deferstruct makes a runtime._defer structure.
+var deferType *types.Type
+
+// deferstruct returns a type interchangeable with runtime._defer.
+// Make sure this stays in sync with runtime/runtime2.go:_defer.
 func deferstruct() *types.Type {
-	makefield := func(name string, typ *types.Type) *types.Field {
-		// Unlike the global makefield function, this one needs to set Pkg
-		// because these types might be compared (in SSA CSE sorting).
-		// TODO: unify this makefield and the global one above.
-		sym := &types.Sym{Name: name, Pkg: types.LocalPkg}
-		return types.NewField(src.NoXPos, sym, typ)
+	if deferType != nil {
+		return deferType
 	}
-	// These fields must match the ones in runtime/runtime2.go:_defer and
-	// (*state).call above.
+
+	makefield := func(name string, t *types.Type) *types.Field {
+		sym := (*types.Pkg)(nil).Lookup(name)
+		return types.NewField(src.NoXPos, sym, t)
+	}
+
 	fields := []*types.Field{
 		makefield("heap", types.Types[types.TBOOL]),
 		makefield("rangefunc", types.Types[types.TBOOL]),
@@ -8123,11 +8128,17 @@ func deferstruct() *types.Type {
 		base.Fatalf("deferStructFnField is %q, not fn", name)
 	}
 
+	n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.Pkgs.Runtime.Lookup("_defer"))
+	typ := types.NewNamed(n)
+	n.SetType(typ)
+	n.SetTypecheck(1)
+
 	// build struct holding the above fields
-	s := types.NewStruct(fields)
-	s.SetNoalg(true)
-	types.CalcStructSize(s)
-	return s
+	typ.SetUnderlying(types.NewStruct(fields))
+	types.CalcStructSize(typ)
+
+	deferType = typ
+	return typ
 }
 
 // SpillSlotAddr uses LocalSlot information to initialize an obj.Addr
