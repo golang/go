@@ -1468,6 +1468,7 @@
   && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off()))
   && a.Val() == 0
   && c.Val() == 0
+  && setPos(v, x.Pos)
   && clobber(x)
   => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
 (MOVQstoreconst [a] {s} p0 x:(MOVQstoreconst [c] {s} p1 mem))
@@ -1476,6 +1477,7 @@
   && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off()))
   && a.Val() == 0
   && c.Val() == 0
+  && setPos(v, x.Pos)
   && clobber(x)
   => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
 

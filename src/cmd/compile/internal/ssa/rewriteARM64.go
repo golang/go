@@ -9867,7 +9867,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero(v *Value) bool {
 	b := v.Block
 	config := b.Func.Config
 	// match: (MOVDstorezero {s} [i] ptr x:(MOVDstorezero {s} [i+8] ptr mem))
-	// cond: x.Uses == 1 && clobber(x)
+	// cond: x.Uses == 1 && setPos(v, x.Pos) && clobber(x)
 	// result: (MOVQstorezero {s} [i] ptr mem)
 	for {
 		i := auxIntToInt32(v.AuxInt)
@@ -9878,7 +9878,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero(v *Value) bool {
 			break
 		}
 		mem := x.Args[1]
-		if ptr != x.Args[0] || !(x.Uses == 1 && clobber(x)) {
+		if ptr != x.Args[0] || !(x.Uses == 1 && setPos(v, x.Pos) && clobber(x)) {
 			break
 		}
 		v.reset(OpARM64MOVQstorezero)
@@ -9888,7 +9888,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero(v *Value) bool {
 		return true
 	}
 	// match: (MOVDstorezero {s} [i] ptr x:(MOVDstorezero {s} [i-8] ptr mem))
-	// cond: x.Uses == 1 && clobber(x)
+	// cond: x.Uses == 1 && setPos(v, x.Pos) && clobber(x)
 	// result: (MOVQstorezero {s} [i-8] ptr mem)
 	for {
 		i := auxIntToInt32(v.AuxInt)
@@ -9899,7 +9899,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero(v *Value) bool {
 			break
 		}
 		mem := x.Args[1]
-		if ptr != x.Args[0] || !(x.Uses == 1 && clobber(x)) {
+		if ptr != x.Args[0] || !(x.Uses == 1 && setPos(v, x.Pos) && clobber(x)) {
 			break
 		}
 		v.reset(OpARM64MOVQstorezero)
