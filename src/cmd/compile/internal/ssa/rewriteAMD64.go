@@ -27456,6 +27456,27 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 		v.AddArg3(dst, v0, v1)
 		return true
 	}
+	// match: (Move [11] dst src mem)
+	// result: (MOVLstore [7] dst (MOVLload [7] src mem) (MOVQstore dst (MOVQload src mem) mem))
+	for {
+		if auxIntToInt64(v.AuxInt) != 11 {
+			break
+		}
+		dst := v_0
+		src := v_1
+		mem := v_2
+		v.reset(OpAMD64MOVLstore)
+		v.AuxInt = int32ToAuxInt(7)
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, typ.UInt32)
+		v0.AuxInt = int32ToAuxInt(7)
+		v0.AddArg2(src, mem)
+		v1 := b.NewValue0(v.Pos, OpAMD64MOVQstore, types.TypeMem)
+		v2 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
+		v2.AddArg2(src, mem)
+		v1.AddArg3(dst, v2, mem)
+		v.AddArg3(dst, v0, v1)
+		return true
+	}
 	// match: (Move [12] dst src mem)
 	// result: (MOVLstore [8] dst (MOVLload [8] src mem) (MOVQstore dst (MOVQload src mem) mem))
 	for {
@@ -27478,14 +27499,14 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s == 11 || s >= 13 && s <= 15
+	// cond: s >= 13 && s <= 15
 	// result: (MOVQstore [int32(s-8)] dst (MOVQload [int32(s-8)] src mem) (MOVQstore dst (MOVQload src mem) mem))
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s == 11 || s >= 13 && s <= 15) {
+		if !(s >= 13 && s <= 15) {
 			break
 		}
 		v.reset(OpAMD64MOVQstore)

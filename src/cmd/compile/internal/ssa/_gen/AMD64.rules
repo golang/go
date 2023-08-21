@@ -303,10 +303,13 @@
 (Move [10] dst src mem) =>
 	(MOVWstore [8] dst (MOVWload [8] src mem)
 		(MOVQstore dst (MOVQload src mem) mem))
+(Move [11] dst src mem) =>
+	(MOVLstore [7] dst (MOVLload [7] src mem)
+		(MOVQstore dst (MOVQload src mem) mem))
 (Move [12] dst src mem) =>
 	(MOVLstore [8] dst (MOVLload [8] src mem)
 		(MOVQstore dst (MOVQload src mem) mem))
-(Move [s] dst src mem) && s == 11 || s >= 13 && s <= 15 =>
+(Move [s] dst src mem) && s >= 13 && s <= 15 =>
 	(MOVQstore [int32(s-8)] dst (MOVQload [int32(s-8)] src mem)
 		(MOVQstore dst (MOVQload src mem) mem))
 
