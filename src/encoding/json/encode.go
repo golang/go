@@ -969,6 +969,10 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
 			switch b {
 			case '\\', '"':
 				dst = append(dst, '\\', b)
+			case '\b':
+				dst = append(dst, '\\', 'b')
+			case '\f':
+				dst = append(dst, '\\', 'f')
 			case '\n':
 				dst = append(dst, '\\', 'n')
 			case '\r':
