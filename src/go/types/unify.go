@@ -403,18 +403,40 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 					// Therefore, we must fail unification (go.dev/issue/60933).
 					return false
 				}
-				// If y is a defined type, make sure we record that type
-				// for type parameter x, which may have until now only
-				// recorded an underlying type (go.dev/issue/43056).
-				// Either both types are interfaces, or neither type is.
-				// If both are interfaces, they have the same methods.
+				// If we have inexact unification and one of x or y is a defined type, select the
+				// defined type. This ensures that in a series of types, all matching against the
+				// same type parameter, we infer a defined type if there is one, independent of
+				// order. Type inference or assignment may fail, which is ok.
+				// Selecting a defined type, if any, ensures that we don't lose the type name;
+				// and since we have inexact unification, a value of equally named or matching
+				// undefined type remains assignable (go.dev/issue/43056).
 				//
-				// Note: Changing the recorded type for a type parameter to
-				// a defined type is only ok when unification is inexact.
-				// But in exact unification, if we have a match, x and y must
-				// be identical, so changing the recorded type for x is a no-op.
-				if yn {
-					u.set(px, y)
+				// Similarly, if we have inexact unification and there are no defined types but
+				// channel types, select a directed channel, if any. This ensures that in a series
+				// of unnamed types, all matching against the same type parameter, we infer the
+				// directed channel if there is one, independent of order.
+				// Selecting a directional channel, if any, ensures that a value of another
+				// inexactly unifying channel type remains assignable (go.dev/issue/62157).
+				//
+				// If we have multiple defined channel types, they are either identical or we
+				// have assignment conflicts, so we can ignore directionality in this case.
+				//
+				// If we have defined and literal channel types, a defined type wins to avoid
+				// order dependencies.
+				if mode&exact == 0 {
+					switch {
+					case xn:
+						// x is a defined type: nothing to do.
+					case yn:
+						// x is not a defined type and y is a defined type: select y.
+						u.set(px, y)
+					default:
+						// Neither x nor y are defined types.
+						if yc, _ := under(y).(*Chan); yc != nil && yc.dir != SendRecv {
+							// y is a directed channel type: select y.
+							u.set(px, y)
+						}
+					}
 				}
 				return true
 			}
