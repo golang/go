@@ -1383,7 +1383,7 @@ func gcBgMarkWorker() {
 			default:
 				throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
 			case gcMarkWorkerDedicatedMode:
-				gcDrain(&pp.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
+				gcDrainMarkWorkerDedicated(&pp.gcw, true)
 				if gp.preempt {
 					// We were preempted. This is
 					// a useful signal to kick
@@ -1398,11 +1398,11 @@ func gcBgMarkWorker() {
 				}
 				// Go back to draining, this time
 				// without preemption.
-				gcDrain(&pp.gcw, gcDrainFlushBgCredit)
+				gcDrainMarkWorkerDedicated(&pp.gcw, false)
 			case gcMarkWorkerFractionalMode:
-				gcDrain(&pp.gcw, gcDrainFractional|gcDrainUntilPreempt|gcDrainFlushBgCredit)
+				gcDrainMarkWorkerFractional(&pp.gcw)
 			case gcMarkWorkerIdleMode:
-				gcDrain(&pp.gcw, gcDrainIdle|gcDrainUntilPreempt|gcDrainFlushBgCredit)
+				gcDrainMarkWorkerIdle(&pp.gcw)
 			}
 			casgstatus(gp, _Gwaiting, _Grunning)
 		})
