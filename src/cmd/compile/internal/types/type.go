@@ -276,8 +276,6 @@ type Map struct {
 	Elem *Type // Val (elem) type
 
 	Bucket *Type // internal struct type representing a hash bucket
-	Hmap   *Type // internal struct type representing the Hmap (map header object)
-	Hiter  *Type // internal struct type representing hash iterator state
 }
 
 // MapType returns t's extra map-specific fields.

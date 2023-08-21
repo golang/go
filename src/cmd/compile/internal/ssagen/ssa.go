@@ -86,6 +86,7 @@ func InitConfig() {
 	_ = types.NewPtr(types.Types[types.TINT16])                             // *int16
 	_ = types.NewPtr(types.Types[types.TINT64])                             // *int64
 	_ = types.NewPtr(types.ErrorType)                                       // *error
+	_ = types.NewPtr(reflectdata.MapType())                                 // *runtime.hmap
 	types.NewPtrCacheEnabled = false
 	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, Arch.SoftFloat)
 	ssaConfig.Race = base.Flag.Race
@@ -2802,8 +2803,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		}
 
 		// map <--> *hmap
-		if to.Kind() == types.TMAP && from.IsPtr() &&
-			to.MapType().Hmap == from.Elem() {
+		if to.Kind() == types.TMAP && from == types.NewPtr(reflectdata.MapType()) {
 			return v
 		}
 

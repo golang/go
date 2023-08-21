@@ -302,7 +302,7 @@ func walkMakeChan(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 // walkMakeMap walks an OMAKEMAP node.
 func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	t := n.Type()
-	hmapType := reflectdata.MapType(t)
+	hmapType := reflectdata.MapType()
 	hint := n.Len
 
 	// var h *hmap
@@ -340,7 +340,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 
 			// h.buckets = b
 			bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
-			na := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, h, bsym), b)
+			na := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, h, bsym), typecheck.ConvNop(b, types.Types[types.TUNSAFEPTR]))
 			nif.Body.Append(na)
 			appendWalkStmt(init, nif)
 		}

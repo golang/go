@@ -511,10 +511,6 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			switch t {
 			case mt.Bucket:
 				b.WriteString("map.bucket[")
-			case mt.Hmap:
-				b.WriteString("map.hdr[")
-			case mt.Hiter:
-				b.WriteString("map.iter[")
 			default:
 				base.Fatalf("unknown internal map type")
 			}
