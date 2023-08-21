@@ -47,3 +47,4 @@ package builtins
 /* uint64 */ //@item(uint64, "uint64", "", "type")
 /* uint8 */ //@item(uint8, "uint8", "", "type")
 /* uintptr */ //@item(uintptr, "uintptr", "", "type")
+/* zero */ //@item(zero, "zero", "", "var")
