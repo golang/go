@@ -14,9 +14,9 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"internal/testenv"
 	"internal/testpty"
 	"os"
-	"os/exec"
 	"os/signal"
 	"runtime"
 	"strconv"
@@ -93,7 +93,7 @@ func TestTerminalSignal(t *testing.T) {
 		// Main test process, run code below.
 		break
 	case "1":
-		runSessionLeader(pause)
+		runSessionLeader(t, pause)
 		panic("unreachable")
 	case "2":
 		runStoppingChild()
@@ -128,9 +128,22 @@ func TestTerminalSignal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestTerminalSignal")
+	var (
+		ctx     = context.Background()
+		cmdArgs = []string{"-test.run=TestTerminalSignal"}
+	)
+	if deadline, ok := t.Deadline(); ok {
+		d := time.Until(deadline)
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, d)
+		t.Cleanup(cancel)
+
+		// We run the subprocess with an additional 20% margin to allow it to fail
+		// and clean up gracefully if it times out.
+		cmdArgs = append(cmdArgs, fmt.Sprintf("-test.timeout=%v", d*5/4))
+	}
+
+	cmd := testenv.CommandContext(t, ctx, os.Args[0], cmdArgs...)
 	cmd.Env = append(os.Environ(), "GO_TEST_TERMINAL_SIGNALS=1")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout // for logging
@@ -216,7 +229,7 @@ func TestTerminalSignal(t *testing.T) {
 }
 
 // GO_TEST_TERMINAL_SIGNALS=1 subprocess above.
-func runSessionLeader(pause time.Duration) {
+func runSessionLeader(t *testing.T, pause time.Duration) {
 	// "Attempts to use tcsetpgrp() from a process which is a
 	// member of a background process group on a fildes associated
 	// with its controlling terminal shall cause the process group
@@ -235,10 +248,22 @@ func runSessionLeader(pause time.Duration) {
 	pty := os.NewFile(ptyFD, "pty")
 	controlW := os.NewFile(controlFD, "control-pipe")
 
-	// Slightly shorter timeout than in the parent.
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestTerminalSignal")
+	var (
+		ctx     = context.Background()
+		cmdArgs = []string{"-test.run=TestTerminalSignal"}
+	)
+	if deadline, ok := t.Deadline(); ok {
+		d := time.Until(deadline)
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, d)
+		t.Cleanup(cancel)
+
+		// We run the subprocess with an additional 20% margin to allow it to fail
+		// and clean up gracefully if it times out.
+		cmdArgs = append(cmdArgs, fmt.Sprintf("-test.timeout=%v", d*5/4))
+	}
+
+	cmd := testenv.CommandContext(t, ctx, os.Args[0], cmdArgs...)
 	cmd.Env = append(os.Environ(), "GO_TEST_TERMINAL_SIGNALS=2")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

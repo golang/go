@@ -483,7 +483,7 @@ func TestNohup(t *testing.T) {
 			defer wg.Done()
 
 			// POSIX specifies that nohup writes to a file named nohup.out if standard
-			// output is a terminal. However, for an exec.Command, standard output is
+			// output is a terminal. However, for an exec.Cmd, standard output is
 			// not a terminal — so we don't need to read or remove that file (and,
 			// indeed, cannot even create it if the current user is unable to write to
 			// GOROOT/src, such as when GOROOT is installed and owned by root).
