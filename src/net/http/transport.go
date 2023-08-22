@@ -957,7 +957,7 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 			// Loop over the waiting list until we find a w that isn't done already, and hand it pconn.
 			for q.len() > 0 {
 				w := q.popFront()
-				if w.tryDeliver(pconn, nil) {
+				if w.tryDeliver(pconn, nil, time.Time{}) {
 					done = true
 					break
 				}
@@ -969,7 +969,7 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 			// list unconditionally, for any future clients too.
 			for q.len() > 0 {
 				w := q.popFront()
-				w.tryDeliver(pconn, nil)
+				w.tryDeliver(pconn, nil, time.Time{})
 			}
 		}
 		if q.len() == 0 {
@@ -1073,7 +1073,7 @@ func (t *Transport) queueForIdleConn(w *wantConn) (delivered bool) {
 				list = list[:len(list)-1]
 				continue
 			}
-			delivered = w.tryDeliver(pconn, nil)
+			delivered = w.tryDeliver(pconn, nil, pconn.idleAt)
 			if delivered {
 				if pconn.alt != nil {
 					// HTTP/2: multiple clients can share pconn.
@@ -1207,9 +1207,8 @@ func (t *Transport) dial(ctx context.Context, network, addr string) (net.Conn, e
 // These three options are racing against each other and use
 // wantConn to coordinate and agree about the winning outcome.
 type wantConn struct {
-	cm    connectMethod
-	key   connectMethodKey // cm.key()
-	ready chan struct{}    // closed when pc, err pair is delivered
+	cm  connectMethod
+	key connectMethodKey // cm.key()
 
 	// hooks for testing to know when dials are done
 	// beforeDial is called in the getConn goroutine when the dial is queued.
@@ -1217,45 +1216,51 @@ type wantConn struct {
 	beforeDial func()
 	afterDial  func()
 
-	mu  sync.Mutex      // protects ctx, pc, err, close(ready)
-	ctx context.Context // context for dial, cleared after delivered or canceled
-	pc  *persistConn
-	err error
+	mu     sync.Mutex       // protects ctx, done and sending of the result
+	ctx    context.Context  // context for dial, cleared after delivered or canceled
+	done   bool             // true after delivered or canceled
+	result chan connOrError // channel to deliver connection or error
+}
+
+type connOrError struct {
+	pc     *persistConn
+	err    error
+	idleAt time.Time
 }
 
 // waiting reports whether w is still waiting for an answer (connection or error).
 func (w *wantConn) waiting() bool {
-	select {
-	case <-w.ready:
-		return false
-	default:
-		return true
-	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	return !w.done
 }
 
 // getCtxForDial returns context for dial or nil if connection was delivered or canceled.
 func (w *wantConn) getCtxForDial() context.Context {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
 	return w.ctx
 }
 
 // tryDeliver attempts to deliver pc, err to w and reports whether it succeeded.
-func (w *wantConn) tryDeliver(pc *persistConn, err error) bool {
+func (w *wantConn) tryDeliver(pc *persistConn, err error, idleAt time.Time) bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	if w.pc != nil || w.err != nil {
+	if w.done {
 		return false
 	}
-
-	w.ctx = nil
-	w.pc = pc
-	w.err = err
-	if w.pc == nil && w.err == nil {
+	if (pc == nil) == (err == nil) {
 		panic("net/http: internal error: misuse of tryDeliver")
 	}
-	close(w.ready)
+	w.ctx = nil
+	w.done = true
+
+	w.result <- connOrError{pc: pc, err: err, idleAt: idleAt}
+	close(w.result)
+
 	return true
 }
 
@@ -1263,13 +1268,16 @@ func (w *wantConn) tryDeliver(pc *persistConn, err error) bool {
 // If a connection has been delivered already, cancel returns it with t.putOrCloseIdleConn.
 func (w *wantConn) cancel(t *Transport, err error) {
 	w.mu.Lock()
-	if w.pc == nil && w.err == nil {
-		close(w.ready) // catch misbehavior in future delivery
+	var pc *persistConn
+	if w.done {
+		if r, ok := <-w.result; ok {
+			pc = r.pc
+		}
+	} else {
+		close(w.result)
 	}
-	pc := w.pc
 	w.ctx = nil
-	w.pc = nil
-	w.err = err
+	w.done = true
 	w.mu.Unlock()
 
 	if pc != nil {
@@ -1359,7 +1367,7 @@ func (t *Transport) customDialTLS(ctx context.Context, network, addr string) (co
 // specified in the connectMethod. This includes doing a proxy CONNECT
 // and/or setting up TLS.  If this doesn't return an error, the persistConn
 // is ready to write requests to.
-func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persistConn, err error) {
+func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (_ *persistConn, err error) {
 	req := treq.Request
 	trace := treq.trace
 	ctx := req.Context()
@@ -1371,7 +1379,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
 		cm:         cm,
 		key:        cm.key(),
 		ctx:        ctx,
-		ready:      make(chan struct{}, 1),
+		result:     make(chan connOrError, 1),
 		beforeDial: testHookPrePendingDial,
 		afterDial:  testHookPostPendingDial,
 	}
@@ -1381,38 +1389,41 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
 		}
 	}()
 
+	var cancelc chan error
+
 	// Queue for idle connection.
 	if delivered := t.queueForIdleConn(w); delivered {
-		pc := w.pc
-		// Trace only for HTTP/1.
-		// HTTP/2 calls trace.GotConn itself.
-		if pc.alt == nil && trace != nil && trace.GotConn != nil {
-			trace.GotConn(pc.gotIdleConnTrace(pc.idleAt))
-		}
 		// set request canceler to some non-nil function so we
 		// can detect whether it was cleared between now and when
 		// we enter roundTrip
 		t.setReqCanceler(treq.cancelKey, func(error) {})
-		return pc, nil
+	} else {
+		cancelc = make(chan error, 1)
+		t.setReqCanceler(treq.cancelKey, func(err error) { cancelc <- err })
+
+		// Queue for permission to dial.
+		t.queueForDial(w)
 	}
-
-	cancelc := make(chan error, 1)
-	t.setReqCanceler(treq.cancelKey, func(err error) { cancelc <- err })
-
-	// Queue for permission to dial.
-	t.queueForDial(w)
 
 	// Wait for completion or cancellation.
 	select {
-	case <-w.ready:
+	case r := <-w.result:
 		// Trace success but only for HTTP/1.
 		// HTTP/2 calls trace.GotConn itself.
-		if w.pc != nil && w.pc.alt == nil && trace != nil && trace.GotConn != nil {
-			trace.GotConn(httptrace.GotConnInfo{Conn: w.pc.conn, Reused: w.pc.isReused()})
+		if r.pc != nil && r.pc.alt == nil && trace != nil && trace.GotConn != nil {
+			info := httptrace.GotConnInfo{
+				Conn:   r.pc.conn,
+				Reused: r.pc.isReused(),
+			}
+			if !r.idleAt.IsZero() {
+				info.WasIdle = true
+				info.IdleTime = time.Since(r.idleAt)
+			}
+			trace.GotConn(info)
 		}
-		if w.err != nil {
+		if r.err != nil {
 			// If the request has been canceled, that's probably
-			// what caused w.err; if so, prefer to return the
+			// what caused r.err; if so, prefer to return the
 			// cancellation error (see golang.org/issue/16049).
 			select {
 			case <-req.Cancel:
@@ -1428,7 +1439,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
 				// return below
 			}
 		}
-		return w.pc, w.err
+		return r.pc, r.err
 	case <-req.Cancel:
 		return nil, errRequestCanceledConn
 	case <-req.Context().Done():
@@ -1483,7 +1494,7 @@ func (t *Transport) dialConnFor(w *wantConn) {
 	}
 
 	pc, err := t.dialConn(ctx, w.cm)
-	delivered := w.tryDeliver(pc, err)
+	delivered := w.tryDeliver(pc, err, time.Time{})
 	if err == nil && (!delivered || pc.alt != nil) {
 		// pconn was not passed to w,
 		// or it is HTTP/2 and can be shared.
@@ -2005,18 +2016,6 @@ func (pc *persistConn) isReused() bool {
 	r := pc.reused
 	pc.mu.Unlock()
 	return r
-}
-
-func (pc *persistConn) gotIdleConnTrace(idleAt time.Time) (t httptrace.GotConnInfo) {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-	t.Reused = pc.reused
-	t.Conn = pc.conn
-	t.WasIdle = true
-	if !idleAt.IsZero() {
-		t.IdleTime = time.Since(idleAt)
-	}
-	return
 }
 
 func (pc *persistConn) cancelRequest(err error) {
