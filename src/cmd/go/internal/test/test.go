@@ -1400,25 +1400,6 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		cmd.Stdout = stdout
 		cmd.Stderr = stdout
 
-		// If there are any local SWIG dependencies, we want to load
-		// the shared library from the build directory.
-		if a.Package.UsesSwig() {
-			env := cmd.Env
-			found := false
-			prefix := "LD_LIBRARY_PATH="
-			for i, v := range env {
-				if strings.HasPrefix(v, prefix) {
-					env[i] = v + ":."
-					found = true
-					break
-				}
-			}
-			if !found {
-				env = append(env, "LD_LIBRARY_PATH=.")
-			}
-			cmd.Env = env
-		}
-
 		cmd.Cancel = func() error {
 			if base.SignalTrace == nil {
 				err := cmd.Process.Kill()
