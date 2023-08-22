@@ -617,6 +617,16 @@ var (
 	errNoSuchHost = errors.New("no such host")
 )
 
+func isErrorNoSuchHost(err error) bool {
+	var e *DNSError
+	if errors.As(err, &e) {
+		if e.IsNotFound {
+			return true
+		}
+	}
+	return false
+}
+
 // DNSError represents a DNS lookup error.
 type DNSError struct {
 	Err         string // description of the error
@@ -625,6 +635,10 @@ type DNSError struct {
 	IsTimeout   bool   // if true, timed out; not all timeouts set this
 	IsTemporary bool   // if true, error is temporary; not all errors set this
 	IsNotFound  bool   // if true, host could not be found
+
+	// used internally: if true, dns query returned with
+	// success, but with no answer records
+	isNoData bool
 }
 
 func (e *DNSError) Error() string {

@@ -49,20 +49,12 @@ func reverseaddr(addr string) (arpa string, err error) {
 	return string(buf), nil
 }
 
-func equalASCIIName(x, y dnsmessage.Name) bool {
+func equalASCIIName(x, y *dnsmessage.Name) bool {
 	if x.Length != y.Length {
 		return false
 	}
 	for i := 0; i < int(x.Length); i++ {
-		a := x.Data[i]
-		b := y.Data[i]
-		if 'A' <= a && a <= 'Z' {
-			a += 0x20
-		}
-		if 'A' <= b && b <= 'Z' {
-			b += 0x20
-		}
-		if a != b {
+		if lowerASCII(x.Data[i]) != lowerASCII(y.Data[i]) {
 			return false
 		}
 	}

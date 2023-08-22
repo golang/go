@@ -6,7 +6,6 @@ package net
 
 import (
 	"context"
-	"errors"
 	"internal/nettrace"
 	"internal/singleflight"
 	"net/netip"
@@ -453,7 +452,8 @@ func (r *Resolver) LookupPort(ctx context.Context, network, service string) (por
 // the canonical name as part of the lookup.
 //
 // A canonical name is the final name after following zero
-// or more CNAME records.
+// or more CNAME records or an os-dependent canonical name of
+// the given host.
 // LookupCNAME does not return an error if host does not
 // contain DNS "CNAME" records, as long as host resolves to
 // address records.
@@ -473,7 +473,8 @@ func LookupCNAME(host string) (cname string, err error) {
 // the canonical name as part of the lookup.
 //
 // A canonical name is the final name after following zero
-// or more CNAME records.
+// or more CNAME records or an os-dependent canonical name of
+// the given host.
 // LookupCNAME does not return an error if host does not
 // contain DNS "CNAME" records, as long as host resolves to
 // address records.
@@ -722,7 +723,7 @@ func (r *Resolver) goLookupSRV(ctx context.Context, service, proto, name string)
 	} else {
 		target = "_" + service + "._" + proto + "." + name
 	}
-	p, server, err := r.lookup(ctx, target, dnsmessage.TypeSRV, nil)
+	p, server, _, err := r.lookup(ctx, target, dnsmessage.TypeSRV, nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -768,7 +769,7 @@ func (r *Resolver) goLookupSRV(ctx context.Context, service, proto, name string)
 
 // goLookupMX returns the MX records for name.
 func (r *Resolver) goLookupMX(ctx context.Context, name string) ([]*MX, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeMX, nil)
+	p, server, _, err := r.lookup(ctx, name, dnsmessage.TypeMX, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -812,7 +813,7 @@ func (r *Resolver) goLookupMX(ctx context.Context, name string) ([]*MX, error) {
 
 // goLookupNS returns the NS records for name.
 func (r *Resolver) goLookupNS(ctx context.Context, name string) ([]*NS, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeNS, nil)
+	p, server, _, err := r.lookup(ctx, name, dnsmessage.TypeNS, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -854,7 +855,7 @@ func (r *Resolver) goLookupNS(ctx context.Context, name string) ([]*NS, error) {
 
 // goLookupTXT returns the TXT records from name.
 func (r *Resolver) goLookupTXT(ctx context.Context, name string) ([]string, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeTXT, nil)
+	p, server, _, err := r.lookup(ctx, name, dnsmessage.TypeTXT, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -906,15 +907,4 @@ func (r *Resolver) goLookupTXT(ctx context.Context, name string) ([]string, erro
 		txts = append(txts, string(txtJoin))
 	}
 	return txts, nil
-}
-
-func parseCNAMEFromResources(resources []dnsmessage.Resource) (string, error) {
-	if len(resources) == 0 {
-		return "", errors.New("no CNAME record received")
-	}
-	c, ok := resources[0].Body.(*dnsmessage.CNAMEResource)
-	if !ok {
-		return "", errors.New("could not parse CNAME record")
-	}
-	return c.CNAME.String(), nil
 }

@@ -89,11 +89,41 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
 	order, conf := systemConf().hostLookupOrder(r, name)
 	if order == hostLookupCgo {
-		if cname, err, ok := cgoLookupCNAME(ctx, name); ok {
+		cname, err := cgoLookupCanonicalName(ctx, "ip", name)
+		if err == nil || !isErrorNoSuchHost(err) {
 			return cname, err
 		}
+
+		cname, errCgo := cgoLookupCNAME(ctx, name)
+		if errCgo != nil {
+			// errCgoDNSLookupFailed is returned from cgoLookupCNAME on systems
+			// for which we don't detect the concrete error, if so
+			// return the noSuchHost error returned from cgoLookupCanonicalName.
+			// In most cases this is going to be the right error cause here too,
+			// because cgoLookupCNAME is only executed when cgoLookupCanonicalName returns
+			// errNosuchHost.
+			if errCgo == errCgoDNSLookupFailed {
+				return "", err
+			}
+			return "", errCgo
+		}
+		return cname, nil
 	}
-	return r.goLookupCNAME(ctx, name, order, conf)
+
+	if conf == nil {
+		conf = getSystemDNSConfig()
+	}
+
+	if !isDomainName(name) {
+		return "", &DNSError{Err: errNoSuchHost.Error(), Name: name, IsNotFound: true}
+	}
+
+	cname, err := r.goLookupCanonicalName(ctx, name, order, conf)
+	if err == nil || !isErrorNoSuchHost(err) {
+		return cname, err
+	}
+
+	return r.goLookupCNAME(ctx, name, conf)
 }
 
 func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {

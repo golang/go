@@ -14,6 +14,12 @@ import (
 )
 
 const (
+	_C_HOST_NOT_FOUND = 1
+	_C_TRY_AGAIN      = 2
+	_C_NO_DATA        = 4
+)
+
+const (
 	_C_AF_INET      = syscall.AF_INET
 	_C_AF_INET6     = syscall.AF_INET6
 	_C_AF_UNSPEC    = syscall.AF_UNSPEC
@@ -40,6 +46,10 @@ type (
 	_C_struct_sockaddr    = syscall.RawSockaddr
 )
 
+func _C_GoString(p *_C_char) string {
+	return unix.GoString(p)
+}
+
 func _C_free(p unsafe.Pointer) { runtime.KeepAlive(p) }
 
 func _C_malloc(n uintptr) unsafe.Pointer {
@@ -50,6 +60,7 @@ func _C_malloc(n uintptr) unsafe.Pointer {
 }
 
 func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.Addr }
+func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.Canonname }
 func _C_ai_family(ai *_C_struct_addrinfo) *_C_int            { return &ai.Family }
 func _C_ai_flags(ai *_C_struct_addrinfo) *_C_int             { return &ai.Flags }
 func _C_ai_next(ai *_C_struct_addrinfo) **_C_struct_addrinfo { return &ai.Next }
@@ -73,8 +84,12 @@ func _C_res_ninit(state *_C_struct___res_state) error {
 	return nil
 }
 
-func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_char, anslen int) (int, error) {
-	return unix.ResNsearch(state, dname, class, typ, ans, anslen)
+func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_char, anslen int) (ret int, herrno int, err error) {
+	x, _ := unix.ResNsearch(state, dname, class, typ, ans, anslen)
+	if x <= 0 {
+		return -1, int(state.Res_h_errno), nil
+	}
+	return x, 0, nil
 }
 
 func _C_res_nclose(state *_C_struct___res_state) {

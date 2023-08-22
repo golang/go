@@ -145,7 +145,7 @@ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (p
 	return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
 }
 
-func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
+func cgoLookupHostIP(network, name string) (addrs []IPAddr, cname string, err error) {
 	acquireThread()
 	defer releaseThread()
 
@@ -162,7 +162,7 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 
 	h, err := syscall.BytePtrFromString(name)
 	if err != nil {
-		return nil, &DNSError{Err: err.Error(), Name: name}
+		return nil, "", &DNSError{Err: err.Error(), Name: name}
 	}
 	var res *_C_struct_addrinfo
 	gerrno, err := _C_getaddrinfo((*_C_char)(unsafe.Pointer(h)), nil, &hints, &res)
@@ -189,9 +189,19 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 			isTemporary = addrinfoErrno(gerrno).Temporary()
 		}
 
-		return nil, &DNSError{Err: err.Error(), Name: name, IsNotFound: isErrorNoSuchHost, IsTemporary: isTemporary}
+		return nil, "", &DNSError{Err: err.Error(), Name: name, IsNotFound: isErrorNoSuchHost, IsTemporary: isTemporary}
 	}
 	defer _C_freeaddrinfo(res)
+
+	if res != nil {
+		cname = _C_GoString(*_C_ai_canonname(res))
+		if cname == "" {
+			cname = name
+		}
+		if len(cname) > 0 && cname[len(cname)-1] != '.' {
+			cname += "."
+		}
+	}
 
 	for r := res; r != nil; r = *_C_ai_next(r) {
 		// We only asked for SOCK_STREAM, but check anyhow.
@@ -209,12 +219,13 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 			addrs = append(addrs, addr)
 		}
 	}
-	return addrs, nil
+	return addrs, cname, nil
 }
 
 func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error) {
 	return doBlockingWithCtx(ctx, func() ([]IPAddr, error) {
-		return cgoLookupHostIP(network, name)
+		addrs, _, err := cgoLookupHostIP(network, name)
+		return addrs, err
 	})
 }
 
@@ -295,45 +306,97 @@ func cgoSockaddr(ip IP, zone string) (*_C_struct_sockaddr, _C_socklen_t) {
 	return nil, 0
 }
 
-func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
-	resources, err := resSearch(ctx, name, int(dnsmessage.TypeCNAME), int(dnsmessage.ClassINET))
-	if err != nil {
-		return
-	}
-	cname, err = parseCNAMEFromResources(resources)
-	if err != nil {
-		return "", err, false
-	}
-	return cname, nil, true
+// cgoLookupCanonicalName returns the host canonical name.
+func cgoLookupCanonicalName(ctx context.Context, network string, name string) (cname string, err error) {
+	return doBlockingWithCtx(ctx, func() (string, error) {
+		_, cname, err := cgoLookupHostIP(network, name)
+		return cname, err
+	})
 }
+
+// cgoLookupCNAME queries the CNAME resource using cgo resSearch.
+// It returns the last CNAME found in the entire CNAME chain or the queried name when
+// query returns with no answer resources.
+func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error) {
+	msg, err := resSearch(ctx, name, int(dnsmessage.TypeCNAME), int(dnsmessage.ClassINET))
+
+	noData := false
+	if err != nil {
+		var dnsErr *DNSError
+		if !errors.As(err, &dnsErr) {
+			// Not a DNS error.
+			return "", err
+		} else if dnsErr.isNoData && msg != nil {
+			// DNS query succeeded, without error code (like NXDOMAIN),
+			// but it has zero answer records.
+			noData = true
+		} else {
+			return "", err
+		}
+	}
+
+	var p dnsmessage.Parser
+	_, err = p.Start(msg)
+	if err != nil {
+		return "", &DNSError{Err: errCannotUnmarshalDNSMessage.Error(), Name: name}
+	}
+
+	q, err := p.Question()
+	if err != nil {
+		return "", &DNSError{Err: errCannotUnmarshalDNSMessage.Error(), Name: name}
+	}
+
+	// Multiple questions, this should never happen.
+	if err := p.SkipQuestion(); err != dnsmessage.ErrSectionDone {
+		return "", &DNSError{Err: errCannotUnmarshalDNSMessage.Error(), Name: name}
+	}
+
+	if noData {
+		return q.Name.String(), nil
+	}
+
+	// Using name from question, not the one provided in function arguments,
+	// because of possible search domain in resolv.conf.
+	cname, err = lastCNAMEinChain(q.Name, p)
+	if err != nil {
+		return "", &DNSError{
+			Err:  err.Error(),
+			Name: name,
+		}
+	}
+
+	return cname, nil
+}
+
+// errCgoDNSLookupFailed is returned from resSearch on systems with non thread safe h_errno.
+var errCgoDNSLookupFailed = errors.New("res_nsearch lookup failed")
 
 // resSearch will make a call to the 'res_nsearch' routine in the C library
 // and parse the output as a slice of DNS resources.
-func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmessage.Resource, error) {
-	return doBlockingWithCtx(ctx, func() ([]dnsmessage.Resource, error) {
+// In case of an error, the msg might be populated with a raw DNS response (it might
+// be partial or with junk after the DNS message).
+func resSearch(ctx context.Context, hostname string, rtype, class int) (msg []byte, err error) {
+	return doBlockingWithCtx(ctx, func() ([]byte, error) {
 		return cgoResSearch(hostname, rtype, class)
 	})
 }
 
-func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, error) {
+func cgoResSearch(hostname string, rtype, class int) ([]byte, error) {
 	acquireThread()
 	defer releaseThread()
 
-	state := (*_C_struct___res_state)(_C_malloc(unsafe.Sizeof(_C_struct___res_state{})))
-	defer _C_free(unsafe.Pointer(state))
+	var state *_C_struct___res_state
+	if unsafe.Sizeof(_C_struct___res_state{}) != 0 {
+		state = (*_C_struct___res_state)(_C_malloc(unsafe.Sizeof(_C_struct___res_state{})))
+		defer _C_free(unsafe.Pointer(state))
+		*state = _C_struct___res_state{}
+	}
+
 	if err := _C_res_ninit(state); err != nil {
 		return nil, errors.New("res_ninit failure: " + err.Error())
 	}
 	defer _C_res_nclose(state)
 
-	// Some res_nsearch implementations (like macOS) do not set errno.
-	// They set h_errno, which is not per-thread and useless to us.
-	// res_nsearch returns the size of the DNS response packet.
-	// But if the DNS response packet contains failure-like response codes,
-	// res_search returns -1 even though it has copied the packet into buf,
-	// giving us no way to find out how big the packet is.
-	// For now, we are willing to take res_search's word that there's nothing
-	// useful in the response, even though there *is* a response.
 	bufSize := maxDNSPacketSize
 	buf := (*_C_uchar)(_C_malloc(uintptr(bufSize)))
 	defer _C_free(unsafe.Pointer(buf))
@@ -345,10 +408,44 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 
 	var size int
 	for {
-		size, _ = _C_res_nsearch(state, (*_C_char)(unsafe.Pointer(s)), class, rtype, buf, bufSize)
+		var herrno int
+		var err error
+		size, herrno, err = _C_res_nsearch(state, (*_C_char)(unsafe.Pointer(s)), class, rtype, buf, bufSize)
 		if size <= 0 || size > 0xffff {
-			return nil, errors.New("res_nsearch failure")
+			// Copy from c to go memory.
+			msgC := unsafe.Slice((*byte)(unsafe.Pointer(buf)), bufSize)
+			msg := make([]byte, len(msgC))
+			copy(msg, msgC)
+
+			// We use -1 to indicate that h_errno is available, -2 otherwise.
+			if size == -1 {
+				if herrno == _C_HOST_NOT_FOUND || herrno == _C_NO_DATA {
+					return msg, &DNSError{
+						Err:        errNoSuchHost.Error(),
+						IsNotFound: true,
+						isNoData:   herrno == _C_NO_DATA,
+						Name:       hostname,
+					}
+				}
+
+				if err != nil {
+					return msg, &DNSError{
+						Err:         "dns lookup failure: " + err.Error(),
+						IsTemporary: herrno == _C_TRY_AGAIN,
+						Name:        hostname,
+					}
+				}
+
+				return msg, &DNSError{
+					Err:         "dns lookup failure",
+					IsTemporary: herrno == _C_TRY_AGAIN,
+					Name:        hostname,
+				}
+			}
+
+			return msg, errCgoDNSLookupFailed
 		}
+
 		if size <= bufSize {
 			break
 		}
@@ -359,14 +456,9 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 		buf = (*_C_uchar)(_C_malloc(uintptr(bufSize)))
 	}
 
-	var p dnsmessage.Parser
-	if _, err := p.Start(unsafe.Slice((*byte)(unsafe.Pointer(buf)), size)); err != nil {
-		return nil, err
-	}
-	p.SkipAllQuestions()
-	resources, err := p.AllAnswers()
-	if err != nil {
-		return nil, err
-	}
-	return resources, nil
+	// Copy from c to go memory.
+	msgC := unsafe.Slice((*byte)(unsafe.Pointer(buf)), size)
+	msg := make([]byte, len(msgC))
+	copy(msg, msgC)
+	return msg, nil
 }

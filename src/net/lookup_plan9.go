@@ -245,14 +245,14 @@ func (*Resolver) lookupPortWithNetwork(ctx context.Context, network, errNetwork,
 }
 
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
-	if order, conf := systemConf().hostLookupOrder(r, name); order != hostLookupCgo {
-		return r.goLookupCNAME(ctx, name, order, conf)
+	if systemConf().mustUseGoResolver(r) {
+		return r.goLookupCNAME(ctx, name, getSystemDNSConfig())
 	}
 
 	lines, err := queryDNS(ctx, name, "cname")
 	if err != nil {
 		if stringsHasSuffix(err.Error(), "dns failure") || stringsHasSuffix(err.Error(), "resource does not exist; negrcode 0") {
-			cname = name + "."
+			cname = absDomainName(name)
 			err = nil
 		}
 		return
