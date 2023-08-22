@@ -199,13 +199,25 @@ require golang.org/x/hello v1.2.3
 	}
 	for _, vendoring := range []bool{false, true} {
 		t.Run(fmt.Sprintf("Upgrade individual dependency vendoring=%v", vendoring), func(t *testing.T) {
-			WithOptions(ProxyFiles(proxyWithLatest)).Run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
+			WithOptions(
+				ProxyFiles(proxyWithLatest),
+			).Run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
 				if vendoring {
 					env.RunGoCommandInDirWithEnv("a", []string{"GOWORK=off"}, "mod", "vendor")
 				}
 				env.AfterChange()
 				env.OpenFile("a/go.mod")
 				env.OpenFile("b/go.mod")
+
+				// Await the diagnostics resulting from opening the modfiles, because
+				// otherwise they may cause races when running asynchronously to the
+				// explicit re-diagnosing below.
+				//
+				// TODO(golang/go#58750): there is still a race here, inherent to
+				// accessing state on the View; we should create a new snapshot when
+				// the view diagnostics change.
+				env.AfterChange()
+
 				env.ExecuteCodeLensCommand("a/go.mod", command.CheckUpgrades, nil)
 				d := &protocol.PublishDiagnosticsParams{}
 				env.OnceMet(
