@@ -1,4 +1,4 @@
-// -alias=false
+// -alias
 
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -137,7 +137,7 @@ type (
 type (
 	a struct{ *b }
 	b = c
-	c struct{ *b /* ERROR "invalid use of type alias" */ }
+	c struct{ *b }
 )
 
 // issue #24939
@@ -147,7 +147,7 @@ type (
 	}
 
 	M interface {
-		F() P // ERROR "invalid use of type alias"
+		F() P
 	}
 
 	P = interface {

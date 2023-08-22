@@ -1,4 +1,4 @@
-// -alias=false
+// -alias
 
 // Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -17,7 +17,7 @@ type R[S any, P any] struct{}
 type SR = R[SS, ST]
 
 type SS interface {
-	NSR(any) *SR // ERROR "invalid use of type alias SR in recursive type"
+	NSR(any) *SR
 }
 
 type C interface {
