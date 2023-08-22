@@ -18,7 +18,6 @@ import (
 	"go/token"
 	"internal/buildcfg"
 	"io"
-	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -514,8 +513,12 @@ func (p *Package) Record(f *File) {
 	}
 
 	// merge nocallback & noescape
-	maps.Copy(p.noCallbacks, f.NoCallbacks)
-	maps.Copy(p.noEscapes, f.NoEscapes)
+	for k, v := range f.NoCallbacks {
+		p.noCallbacks[k] = v
+	}
+	for k, v := range f.NoEscapes {
+		p.noEscapes[k] = v
+	}
 
 	if f.ExpFunc != nil {
 		p.ExpFunc = append(p.ExpFunc, f.ExpFunc...)
