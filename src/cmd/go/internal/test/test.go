@@ -1368,65 +1368,87 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	ctx, cancel := context.WithTimeout(ctx, testKillTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-	cmd.Dir = a.Package.Dir
-
-	env := slices.Clip(cfg.OrigEnv)
-	env = base.AppendPATH(env)
-	env = base.AppendPWD(env, cmd.Dir)
-	cmd.Env = env
-	if addToEnv != "" {
-		cmd.Env = append(cmd.Env, addToEnv)
-	}
-
-	cmd.Stdout = stdout
-	cmd.Stderr = stdout
-
-	// If there are any local SWIG dependencies, we want to load
-	// the shared library from the build directory.
-	if a.Package.UsesSwig() {
-		env := cmd.Env
-		found := false
-		prefix := "LD_LIBRARY_PATH="
-		for i, v := range env {
-			if strings.HasPrefix(v, prefix) {
-				env[i] = v + ":."
-				found = true
-				break
-			}
-		}
-		if !found {
-			env = append(env, "LD_LIBRARY_PATH=.")
-		}
-		cmd.Env = env
-	}
+	// Now we're ready to actually run the command.
+	//
+	// If the -o flag is set, or if at some point we change cmd/go to start
+	// copying test executables into the build cache, we may run into spurious
+	// ETXTBSY errors on Unix platforms (see https://go.dev/issue/22315).
+	//
+	// Since we know what causes those, and we know that they should resolve
+	// quickly (the ETXTBSY error will resolve as soon as the subprocess
+	// holding the descriptor open reaches its 'exec' call), we retry them
+	// in a loop.
 
 	var (
+		cmd            *exec.Cmd
+		t0             time.Time
 		cancelKilled   = false
 		cancelSignaled = false
 	)
-	cmd.Cancel = func() error {
-		if base.SignalTrace == nil {
-			err := cmd.Process.Kill()
+	for {
+		cmd = exec.CommandContext(ctx, args[0], args[1:]...)
+		cmd.Dir = a.Package.Dir
+
+		env := slices.Clip(cfg.OrigEnv)
+		env = base.AppendPATH(env)
+		env = base.AppendPWD(env, cmd.Dir)
+		cmd.Env = env
+		if addToEnv != "" {
+			cmd.Env = append(cmd.Env, addToEnv)
+		}
+
+		cmd.Stdout = stdout
+		cmd.Stderr = stdout
+
+		// If there are any local SWIG dependencies, we want to load
+		// the shared library from the build directory.
+		if a.Package.UsesSwig() {
+			env := cmd.Env
+			found := false
+			prefix := "LD_LIBRARY_PATH="
+			for i, v := range env {
+				if strings.HasPrefix(v, prefix) {
+					env[i] = v + ":."
+					found = true
+					break
+				}
+			}
+			if !found {
+				env = append(env, "LD_LIBRARY_PATH=.")
+			}
+			cmd.Env = env
+		}
+
+		cmd.Cancel = func() error {
+			if base.SignalTrace == nil {
+				err := cmd.Process.Kill()
+				if err == nil {
+					cancelKilled = true
+				}
+				return err
+			}
+
+			// Send a quit signal in the hope that the program will print
+			// a stack trace and exit.
+			err := cmd.Process.Signal(base.SignalTrace)
 			if err == nil {
-				cancelKilled = true
+				cancelSignaled = true
 			}
 			return err
 		}
+		cmd.WaitDelay = testWaitDelay
 
-		// Send a quit signal in the hope that the program will print
-		// a stack trace and exit.
-		err := cmd.Process.Signal(base.SignalTrace)
-		if err == nil {
-			cancelSignaled = true
+		base.StartSigHandlers()
+		t0 = time.Now()
+		err = cmd.Run()
+
+		if !isETXTBSY(err) {
+			// We didn't hit the race in #22315, so there is no reason to retry the
+			// command.
+			break
 		}
-		return err
 	}
-	cmd.WaitDelay = testWaitDelay
 
-	base.StartSigHandlers()
-	t0 := time.Now()
-	err = cmd.Run()
 	out := buf.Bytes()
 	a.TestOutput = &buf
 	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
