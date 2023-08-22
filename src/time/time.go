@@ -939,14 +939,11 @@ func Since(t Time) Duration {
 // Until returns the duration until t.
 // It is shorthand for t.Sub(time.Now()).
 func Until(t Time) Duration {
-	var now Time
 	if t.wall&hasMonotonic != 0 {
 		// Common case optimization: if t has monotonic time, then Sub will use only it.
-		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
-	} else {
-		now = Now()
+		return subMono(t.ext, runtimeNano()-startNano)
 	}
-	return t.Sub(now)
+	return t.Sub(Now())
 }
 
 // AddDate returns the time corresponding to adding the
