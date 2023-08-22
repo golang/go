@@ -661,11 +661,6 @@ func (ip Addr) Prefix(b int) (Prefix, error) {
 	return PrefixFrom(ip, b), nil
 }
 
-const (
-	netIPv4len = 4
-	netIPv6len = 16
-)
-
 // As16 returns the IP address in its 16-byte representation.
 // IPv4 addresses are returned as IPv4-mapped IPv6 addresses.
 // IPv6 addresses with zones are returned without their zone (use the
