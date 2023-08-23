@@ -2267,7 +2267,6 @@ func (pc *persistConn) readLoop() {
 			pc.t.cancelRequest(rc.cancelKey, rc.req.Context().Err())
 		case <-pc.closech:
 			alive = false
-			pc.t.setReqCanceler(rc.cancelKey, nil)
 		}
 
 		testHookReadLoopBeforeNextRead()
