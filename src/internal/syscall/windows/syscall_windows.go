@@ -365,10 +365,6 @@ const (
 
 //sys	GetFinalPathNameByHandle(file syscall.Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) = kernel32.GetFinalPathNameByHandleW
 
-func LoadGetFinalPathNameByHandle() error {
-	return procGetFinalPathNameByHandleW.Find()
-}
-
 func ErrorLoadingGetTempPath2() error {
 	return procGetTempPath2W.Find()
 }
