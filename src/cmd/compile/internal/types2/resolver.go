@@ -351,7 +351,7 @@ func (check *Checker) collectObjects() {
 				}
 
 				// declare all constants
-				values := unpackExpr(last.Values)
+				values := syntax.UnpackListExpr(last.Values)
 				for i, name := range s.NameList {
 					obj := NewConst(name.Pos(), pkg, name.Value, nil, iota)
 
@@ -382,7 +382,7 @@ func (check *Checker) collectObjects() {
 				}
 
 				// declare all variables
-				values := unpackExpr(s.Values)
+				values := syntax.UnpackListExpr(s.Values)
 				for i, name := range s.NameList {
 					obj := NewVar(name.Pos(), pkg, name.Value, nil)
 					lhs[i] = obj
@@ -538,7 +538,7 @@ L: // unpack receiver type
 	if ptyp, _ := rtyp.(*syntax.IndexExpr); ptyp != nil {
 		rtyp = ptyp.X
 		if unpackParams {
-			for _, arg := range unpackExpr(ptyp.Index) {
+			for _, arg := range syntax.UnpackListExpr(ptyp.Index) {
 				var par *syntax.Name
 				switch arg := arg.(type) {
 				case *syntax.Name:
@@ -588,7 +588,7 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, typ syntax.Expr, fileSco
 				return false, nil
 			}
 			ptr = true
-			typ = unparen(pexpr.X) // continue with pointer base type
+			typ = syntax.Unparen(pexpr.X) // continue with pointer base type
 		}
 
 		// typ must be a name, or a C.name cgo selector.

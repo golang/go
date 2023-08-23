@@ -1304,7 +1304,7 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 		dstType := func(i int) types2.Type {
 			return resultTypes.At(i).Type()
 		}
-		w.multiExpr(stmt, dstType, unpackListExpr(stmt.Results))
+		w.multiExpr(stmt, dstType, syntax.UnpackListExpr(stmt.Results))
 
 	case *syntax.SelectStmt:
 		w.Code(stmtSelect)
@@ -1325,7 +1325,7 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 }
 
 func (w *writer) assignList(expr syntax.Expr) {
-	exprs := unpackListExpr(expr)
+	exprs := syntax.UnpackListExpr(expr)
 	w.Len(len(exprs))
 
 	for _, expr := range exprs {
@@ -1334,7 +1334,7 @@ func (w *writer) assignList(expr syntax.Expr) {
 }
 
 func (w *writer) assign(expr syntax.Expr) {
-	expr = unparen(expr)
+	expr = syntax.Unparen(expr)
 
 	if name, ok := expr.(*syntax.Name); ok {
 		if name.Value == "_" {
@@ -1375,8 +1375,8 @@ func (w *writer) declStmt(decl syntax.Decl) {
 
 // assignStmt writes out an assignment for "lhs = rhs".
 func (w *writer) assignStmt(pos poser, lhs0, rhs0 syntax.Expr) {
-	lhs := unpackListExpr(lhs0)
-	rhs := unpackListExpr(rhs0)
+	lhs := syntax.UnpackListExpr(lhs0)
+	rhs := syntax.UnpackListExpr(rhs0)
 
 	w.Code(stmtAssign)
 	w.pos(pos)
@@ -1393,7 +1393,7 @@ func (w *writer) assignStmt(pos poser, lhs0, rhs0 syntax.Expr) {
 		// Finding dstType is somewhat involved, because for VarDecl
 		// statements, the Names are only added to the info.{Defs,Uses}
 		// maps, not to info.Types.
-		if name, ok := unparen(dst).(*syntax.Name); ok {
+		if name, ok := syntax.Unparen(dst).(*syntax.Name); ok {
 			if name.Value == "_" {
 				return nil // ok: no implicit conversion
 			} else if def, ok := w.p.info.Defs[name].(*types2.Var); ok {
@@ -1432,12 +1432,12 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 			w.rtype(xtyp)
 		}
 		{
-			lhs := unpackListExpr(rang.Lhs)
+			lhs := syntax.UnpackListExpr(rang.Lhs)
 			assign := func(i int, src types2.Type) {
 				if i >= len(lhs) {
 					return
 				}
-				dst := unparen(lhs[i])
+				dst := syntax.Unparen(lhs[i])
 				if name, ok := dst.(*syntax.Name); ok && name.Value == "_" {
 					return
 				}
@@ -1603,7 +1603,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 					if clause.Cases == nil {
 						target = clause
 					}
-					for _, cas := range unpackListExpr(clause.Cases) {
+					for _, cas := range syntax.UnpackListExpr(clause.Cases) {
 						tv := w.p.typeAndValue(cas)
 						if tv.Value == nil {
 							return // non-constant case; give up
@@ -1642,7 +1642,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 		// `any` instead.
 	Outer:
 		for _, clause := range stmt.Body {
-			for _, cas := range unpackListExpr(clause.Cases) {
+			for _, cas := range syntax.UnpackListExpr(clause.Cases) {
 				if casType := w.p.typeOf(cas); !types2.AssignableTo(casType, tagType) {
 					tagType = types2.NewInterfaceType(nil, nil)
 					break Outer
@@ -1664,7 +1664,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 
 		w.pos(clause)
 
-		cases := unpackListExpr(clause.Cases)
+		cases := syntax.UnpackListExpr(clause.Cases)
 		if iface != nil {
 			w.Len(len(cases))
 			for _, cas := range cases {
@@ -1692,7 +1692,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 			// instead just set the variable's DWARF scoping info earlier so
 			// we can give it the correct position information.
 			pos := clause.Pos()
-			if typs := unpackListExpr(clause.Cases); len(typs) != 0 {
+			if typs := syntax.UnpackListExpr(clause.Cases); len(typs) != 0 {
 				pos = typeExprEndPos(typs[len(typs)-1])
 			}
 			w.pos(pos)
@@ -1731,7 +1731,7 @@ func (w *writer) optLabel(label *syntax.Name) {
 func (w *writer) expr(expr syntax.Expr) {
 	base.Assertf(expr != nil, "missing expression")
 
-	expr = unparen(expr) // skip parens; unneeded after typecheck
+	expr = syntax.Unparen(expr) // skip parens; unneeded after typecheck
 
 	obj, inst := lookupObj(w.p, expr)
 	targs := inst.TypeArgs
@@ -1990,7 +1990,7 @@ func (w *writer) expr(expr syntax.Expr) {
 		}
 
 		writeFunExpr := func() {
-			fun := unparen(expr.Fun)
+			fun := syntax.Unparen(expr.Fun)
 
 			if selector, ok := fun.(*syntax.SelectorExpr); ok {
 				if sel, ok := w.p.info.Selections[selector]; ok && sel.Kind() == types2.MethodVal {
@@ -2304,7 +2304,7 @@ type posVar struct {
 
 func (w *writer) exprList(expr syntax.Expr) {
 	w.Sync(pkgbits.SyncExprList)
-	w.exprs(unpackListExpr(expr))
+	w.exprs(syntax.UnpackListExpr(expr))
 }
 
 func (w *writer) exprs(exprs []syntax.Expr) {
@@ -2789,7 +2789,7 @@ func isGlobal(obj types2.Object) bool {
 // object is returned as well.
 func lookupObj(p *pkgWriter, expr syntax.Expr) (obj types2.Object, inst types2.Instance) {
 	if index, ok := expr.(*syntax.IndexExpr); ok {
-		args := unpackListExpr(index.Index)
+		args := syntax.UnpackListExpr(index.Index)
 		if len(args) == 1 {
 			tv := p.typeAndValue(args[0])
 			if tv.IsValue() {
@@ -2835,7 +2835,7 @@ func isNil(p *pkgWriter, expr syntax.Expr) bool {
 // isBuiltin reports whether expr is a (possibly parenthesized)
 // referenced to the specified built-in function.
 func (pw *pkgWriter) isBuiltin(expr syntax.Expr, builtin string) bool {
-	if name, ok := unparen(expr).(*syntax.Name); ok && name.Value == builtin {
+	if name, ok := syntax.Unparen(expr).(*syntax.Name); ok && name.Value == builtin {
 		return pw.typeAndValue(name).IsBuiltin()
 	}
 	return false
@@ -2955,7 +2955,7 @@ func (pw *pkgWriter) terminates(stmt syntax.Stmt) bool {
 	case *syntax.ReturnStmt:
 		return true
 	case *syntax.ExprStmt:
-		if call, ok := unparen(stmt.X).(*syntax.CallExpr); ok {
+		if call, ok := syntax.Unparen(stmt.X).(*syntax.CallExpr); ok {
 			if pw.isBuiltin(call.Fun, "panic") {
 				return true
 			}

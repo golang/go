@@ -147,7 +147,7 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 	case syntax.And:
 		// spec: "As an exception to the addressability
 		// requirement x may also be a composite literal."
-		if _, ok := unparen(e.X).(*syntax.CompositeLit); !ok && x.mode != variable {
+		if _, ok := syntax.Unparen(e.X).(*syntax.CompositeLit); !ok && x.mode != variable {
 			check.errorf(x, UnaddressableOperand, invalidOp+"cannot take address of %s", x)
 			x.mode = invalid
 			return

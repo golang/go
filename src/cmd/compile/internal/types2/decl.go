@@ -777,7 +777,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 
 			// declare all constants
 			lhs := make([]*Const, len(s.NameList))
-			values := unpackExpr(last.Values)
+			values := syntax.UnpackListExpr(last.Values)
 			for i, name := range s.NameList {
 				obj := NewConst(name.Pos(), pkg, name.Value, nil, iota)
 				lhs[i] = obj
@@ -814,7 +814,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			}
 
 			// initialize all variables
-			values := unpackExpr(s.Values)
+			values := syntax.UnpackListExpr(s.Values)
 			for i, obj := range lhs0 {
 				var lhs []*Var
 				var init syntax.Expr

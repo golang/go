@@ -47,7 +47,7 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
 	var targs []Type
 	var xlist []syntax.Expr
 	if inst != nil {
-		xlist = unpackExpr(inst.Index)
+		xlist = syntax.UnpackListExpr(inst.Index)
 		targs = check.typeList(xlist)
 		if targs == nil {
 			x.mode = invalid
@@ -258,7 +258,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	var xlist []syntax.Expr
 	var targs []Type
 	if inst != nil {
-		xlist = unpackExpr(inst.Index)
+		xlist = syntax.UnpackListExpr(inst.Index)
 		targs = check.typeList(xlist)
 		if targs == nil {
 			check.use(call.ArgList...)
@@ -953,7 +953,7 @@ func (check *Checker) useN(args []syntax.Expr, lhs bool) bool {
 func (check *Checker) use1(e syntax.Expr, lhs bool) bool {
 	var x operand
 	x.mode = value // anything but invalid
-	switch n := unparen(e).(type) {
+	switch n := syntax.Unparen(e).(type) {
 	case nil:
 		// nothing to do
 	case *syntax.Name:

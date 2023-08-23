@@ -170,7 +170,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) {
 // and Typ[Invalid] if it is an invalid lhs expression.
 func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 	// Determine if the lhs is a (possibly parenthesized) identifier.
-	ident, _ := unparen(lhs).(*syntax.Name)
+	ident, _ := syntax.Unparen(lhs).(*syntax.Name)
 
 	// Don't evaluate lhs if it is the blank identifier.
 	if ident != nil && ident.Value == "_" {
@@ -320,7 +320,7 @@ func (check *Checker) assignError(rhs []syntax.Expr, l, r int) {
 	rhs0 := rhs[0]
 
 	if len(rhs) == 1 {
-		if call, _ := unparen(rhs0).(*syntax.CallExpr); call != nil {
+		if call, _ := syntax.Unparen(rhs0).(*syntax.CallExpr); call != nil {
 			check.errorf(rhs0, WrongAssignCount, "assignment mismatch: %s but %s returns %s", vars, call.Fun, vals)
 			return
 		}
@@ -361,7 +361,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 	// error message don't handle it as n:n mapping below.
 	isCall := false
 	if r == 1 {
-		_, isCall = unparen(orig_rhs[0]).(*syntax.CallExpr)
+		_, isCall = syntax.Unparen(orig_rhs[0]).(*syntax.CallExpr)
 	}
 
 	// If we have a n:n mapping from lhs variable to rhs expression,
@@ -436,7 +436,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 	// error message don't handle it as n:n mapping below.
 	isCall := false
 	if r == 1 {
-		_, isCall = unparen(orig_rhs[0]).(*syntax.CallExpr)
+		_, isCall = syntax.Unparen(orig_rhs[0]).(*syntax.CallExpr)
 	}
 
 	// If we have a n:n mapping from lhs variable to rhs expression,
@@ -481,21 +481,6 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 	}
 	check.useLHS(lhs...)
 	// orig_rhs[0] was already evaluated
-}
-
-// unpackExpr unpacks a *syntax.ListExpr into a list of syntax.Expr.
-// Helper introduced for the go/types -> types2 port.
-// TODO(gri) Should find a more efficient solution that doesn't
-// require introduction of a new slice for simple
-// expressions.
-func unpackExpr(x syntax.Expr) []syntax.Expr {
-	if x, _ := x.(*syntax.ListExpr); x != nil {
-		return x.ElemList
-	}
-	if x != nil {
-		return []syntax.Expr{x}
-	}
-	return nil
 }
 
 func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {

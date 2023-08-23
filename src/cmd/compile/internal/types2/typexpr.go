@@ -272,7 +272,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 
 	case *syntax.IndexExpr:
 		check.verifyVersionf(e, go1_18, "type instantiation")
-		return check.instantiatedType(e.X, unpackExpr(e.Index), def)
+		return check.instantiatedType(e.X, syntax.UnpackListExpr(e.Index), def)
 
 	case *syntax.ParenExpr:
 		// Generic types must be instantiated before they can be used in any form.

@@ -11,17 +11,6 @@ import (
 	"cmd/compile/internal/syntax"
 )
 
-func unpackListExpr(expr syntax.Expr) []syntax.Expr {
-	switch expr := expr.(type) {
-	case nil:
-		return nil
-	case *syntax.ListExpr:
-		return expr.ElemList
-	default:
-		return []syntax.Expr{expr}
-	}
-}
-
 // constExprOp returns an ir.Op that represents the outermost
 // operation of the given constant expression. It's intended for use
 // with ir.RawOrigExpr.
@@ -41,15 +30,5 @@ func constExprOp(expr syntax.Expr) ir.Op {
 			return unOps[expr.Op]
 		}
 		return binOps[expr.Op]
-	}
-}
-
-func unparen(expr syntax.Expr) syntax.Expr {
-	for {
-		paren, ok := expr.(*syntax.ParenExpr)
-		if !ok {
-			return expr
-		}
-		expr = paren.X
 	}
 }
