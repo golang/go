@@ -1520,20 +1520,22 @@ func (pw *pkgWriter) rangeTypes(expr syntax.Expr) (key, value types2.Type) {
 }
 
 func (w *writer) ifStmt(stmt *syntax.IfStmt) {
-	switch cond := w.p.staticBool(&stmt.Cond); {
-	case cond > 0: // always true
-		stmt.Else = nil
-	case cond < 0: // always false
-		stmt.Then.List = nil
-	}
+	cond := w.p.staticBool(&stmt.Cond)
 
 	w.Sync(pkgbits.SyncIfStmt)
 	w.openScope(stmt.Pos())
 	w.pos(stmt)
 	w.stmt(stmt.Init)
 	w.expr(stmt.Cond)
-	w.blockStmt(stmt.Then)
-	w.stmt(stmt.Else)
+	w.Int(cond)
+	if cond >= 0 {
+		w.blockStmt(stmt.Then)
+	} else {
+		w.pos(stmt.Then.Rbrace)
+	}
+	if cond <= 0 {
+		w.stmt(stmt.Else)
+	}
 	w.closeAnotherScope()
 }
 

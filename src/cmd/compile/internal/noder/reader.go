@@ -1677,7 +1677,11 @@ func (r *reader) closeAnotherScope() {
 // @@@ Statements
 
 func (r *reader) stmt() ir.Node {
-	switch stmts := r.stmts(); len(stmts) {
+	return block(r.stmts())
+}
+
+func block(stmts []ir.Node) ir.Node {
+	switch len(stmts) {
 	case 0:
 		return nil
 	case 1:
@@ -1687,7 +1691,7 @@ func (r *reader) stmt() ir.Node {
 	}
 }
 
-func (r *reader) stmts() []ir.Node {
+func (r *reader) stmts() ir.Nodes {
 	assert(ir.CurFunc == r.curfn)
 	var res ir.Nodes
 
@@ -1912,12 +1916,29 @@ func (r *reader) ifStmt() ir.Node {
 	pos := r.pos()
 	init := r.stmts()
 	cond := r.expr()
-	then := r.blockStmt()
-	els := r.stmts()
+	staticCond := r.Int()
+	var then, els []ir.Node
+	if staticCond >= 0 {
+		then = r.blockStmt()
+	} else {
+		r.lastCloseScopePos = r.pos()
+	}
+	if staticCond <= 0 {
+		els = r.stmts()
+	}
 	r.closeAnotherScope()
 
-	if ir.IsConst(cond, constant.Bool) && len(init)+len(then)+len(els) == 0 {
-		return nil // drop empty if statement
+	if staticCond != 0 {
+		// We may have removed a dead return statement, which can trip up
+		// later passes (#62211). To avoid confusion, we instead flatten
+		// the if statement into a block.
+
+		if cond.Op() != ir.OLITERAL {
+			init.Append(typecheck.Stmt(ir.NewAssignStmt(pos, ir.BlankNode, cond))) // for side effects
+		}
+		init.Append(then...)
+		init.Append(els...)
+		return block(init)
 	}
 
 	n := ir.NewIfStmt(pos, cond, then, els)

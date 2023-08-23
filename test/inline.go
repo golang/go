@@ -393,3 +393,33 @@ loop:
 		select2(x, y) // ERROR "inlining call to select2"
 	}
 }
+
+// Issue #62211: inlining a function with unreachable "return"
+// statements could trip up phi insertion.
+func issue62211(x bool) { // ERROR "can inline issue62211"
+	if issue62211F(x) { // ERROR "inlining call to issue62211F"
+	}
+	if issue62211G(x) { // ERROR "inlining call to issue62211G"
+	}
+
+	// Initial fix CL caused a "non-monotonic scope positions" failure
+	// on code like this.
+	if z := 0; false {
+		panic(z)
+	}
+}
+
+func issue62211F(x bool) bool { // ERROR "can inline issue62211F"
+	if x || true {
+		return true
+	}
+	return true
+}
+
+func issue62211G(x bool) bool { // ERROR "can inline issue62211G"
+	if x || true {
+		return true
+	} else {
+		return true
+	}
+}
