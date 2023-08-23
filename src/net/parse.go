@@ -180,17 +180,6 @@ func xtoi2(s string, e byte) (byte, bool) {
 	return byte(n), ok && ei == 2
 }
 
-// Number of occurrences of b in s.
-func count(s string, b byte) int {
-	n := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == b {
-			n++
-		}
-	}
-	return n
-}
-
 // Index of rightmost occurrence of b in s.
 func last(s string, b byte) int {
 	i := len(s)

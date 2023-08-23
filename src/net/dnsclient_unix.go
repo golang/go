@@ -17,6 +17,7 @@ package net
 import (
 	"context"
 	"errors"
+	"internal/bytealg"
 	"internal/itoa"
 	"io"
 	"os"
@@ -513,7 +514,7 @@ func (conf *dnsConfig) nameList(name string) []string {
 		return []string{name}
 	}
 
-	hasNdots := count(name, '.') >= conf.ndots
+	hasNdots := bytealg.CountString(name, '.') >= conf.ndots
 	name += "."
 	l++
 
