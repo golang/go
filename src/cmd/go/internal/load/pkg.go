@@ -1920,7 +1920,12 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 
 		// The linker loads implicit dependencies.
 		if p.Name == "main" && !p.Internal.ForceLibrary {
-			for _, dep := range LinkerDeps(p) {
+			ldDeps, err := LinkerDeps(p)
+			if err != nil {
+				setError(err)
+				return
+			}
+			for _, dep := range ldDeps {
 				addImport(dep, false)
 			}
 		}
@@ -2556,12 +2561,15 @@ func SafeArg(name string) bool {
 }
 
 // LinkerDeps returns the list of linker-induced dependencies for main package p.
-func LinkerDeps(p *Package) []string {
+func LinkerDeps(p *Package) ([]string, error) {
 	// Everything links runtime.
 	deps := []string{"runtime"}
 
 	// External linking mode forces an import of runtime/cgo.
-	if externalLinkingForced(p) && cfg.BuildContext.Compiler != "gccgo" {
+	if what := externalLinkingReason(p); what != "" && cfg.BuildContext.Compiler != "gccgo" {
+		if !cfg.BuildContext.CgoEnabled {
+			return nil, fmt.Errorf("%s requires external (cgo) linking, but cgo is not enabled", what)
+		}
 		deps = append(deps, "runtime/cgo")
 	}
 	// On ARM with GOARM=5, it forces an import of math, for soft floating point.
@@ -2585,30 +2593,27 @@ func LinkerDeps(p *Package) []string {
 		deps = append(deps, "runtime/coverage")
 	}
 
-	return deps
+	return deps, nil
 }
 
-// externalLinkingForced reports whether external linking is being
-// forced even for programs that do not use cgo.
-func externalLinkingForced(p *Package) bool {
-	if !cfg.BuildContext.CgoEnabled {
-		return false
-	}
-
+// externalLinkingForced reports the reason external linking is required
+// even for programs that do not use cgo, or the empty string if external
+// linking is not required.
+func externalLinkingReason(p *Package) (what string) {
 	// Some targets must use external linking even inside GOROOT.
-	if platform.MustLinkExternal(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH, false) {
-		return true
+	if platform.MustLinkExternal(cfg.Goos, cfg.Goarch, false) {
+		return cfg.Goos + "/" + cfg.Goarch
 	}
 
 	// Some build modes always require external linking.
 	switch cfg.BuildBuildmode {
 	case "c-shared", "plugin":
-		return true
+		return "-buildmode=" + cfg.BuildBuildmode
 	}
 
 	// Using -linkshared always requires external linking.
 	if cfg.BuildLinkshared {
-		return true
+		return "-linkshared"
 	}
 
 	// Decide whether we are building a PIE,
@@ -2623,27 +2628,29 @@ func externalLinkingForced(p *Package) bool {
 	// that does not support PIE with internal linking mode,
 	// then we must use external linking.
 	if isPIE && !platform.InternalLinkPIESupported(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH) {
-		return true
+		if cfg.BuildBuildmode == "pie" {
+			return "-buildmode=pie"
+		}
+		return "default PIE binary"
 	}
 
 	// Using -ldflags=-linkmode=external forces external linking.
 	// If there are multiple -linkmode options, the last one wins.
-	linkmodeExternal := false
 	if p != nil {
 		ldflags := BuildLdflags.For(p)
 		for i := len(ldflags) - 1; i >= 0; i-- {
 			a := ldflags[i]
 			if a == "-linkmode=external" ||
 				a == "-linkmode" && i+1 < len(ldflags) && ldflags[i+1] == "external" {
-				linkmodeExternal = true
-				break
+				return a
 			} else if a == "-linkmode=internal" ||
 				a == "-linkmode" && i+1 < len(ldflags) && ldflags[i+1] == "internal" {
-				break
+				return ""
 			}
 		}
 	}
-	return linkmodeExternal
+
+	return ""
 }
 
 // mkAbs rewrites list, which must be paths relative to p.Dir,
