@@ -5249,19 +5249,12 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 
 	var call *ssa.Value
 	if k == callDeferStack {
-		// Make a defer struct d on the stack.
 		if stksize != 0 {
 			s.Fatalf("deferprocStack with non-zero stack size %d: %v", stksize, n)
 		}
-
+		// Make a defer struct on the stack.
 		t := deferstruct()
-		d := typecheck.TempAt(n.Pos(), s.curfn, t)
-
-		if t.HasPointers() {
-			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, d, s.mem())
-		}
-		addr := s.addr(d)
-
+		_, addr := s.temp(n.Pos(), t)
 		s.store(closure.Type,
 			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(deferStructFnField), addr),
 			closure)
