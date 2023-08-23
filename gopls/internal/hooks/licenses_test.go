@@ -18,7 +18,7 @@ func TestLicenses(t *testing.T) {
 	// License text differs for older Go versions because staticcheck or gofumpt
 	// isn't supported for those versions, and this fails for unknown, unrelated
 	// reasons on Kokoro legacy CI.
-	testenv.NeedsGo1Point(t, 19)
+	testenv.NeedsGo1Point(t, 21)
 
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		t.Skip("generating licenses only works on Unixes")
