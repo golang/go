@@ -29,7 +29,7 @@ import (
 	"unsafe"
 )
 
-var NUM uint64 = 100
+const num = 100
 
 func init() {
 	register("CgoNoEscape", CgoNoEscape)
@@ -48,36 +48,36 @@ func withoutNoEscape() {
 }
 
 func CgoNoEscape() {
-	// make GC nearly stop
-	debug.SetGCPercent(1000)
+	// make GC stop to see the heap objects allocated
+	debug.SetGCPercent(-1)
 
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
 	preHeapObjects := stats.HeapObjects
 
-	for i := uint64(0); i < NUM; i++ {
+	for i := 0; i < num; i++ {
 		withNoEscape()
 	}
 
 	runtime.ReadMemStats(&stats)
 	nowHeapObjects := stats.HeapObjects
 
-	if nowHeapObjects-preHeapObjects >= NUM {
-		fmt.Printf("too much heap objects allocated, pre: %v, now: %v\n", preHeapObjects, nowHeapObjects)
+	if nowHeapObjects-preHeapObjects >= num {
+		fmt.Printf("too many heap objects allocated, pre: %v, now: %v\n", preHeapObjects, nowHeapObjects)
 	}
 
 	runtime.ReadMemStats(&stats)
 	preHeapObjects = stats.HeapObjects
 
-	for i := uint64(0); i < NUM; i++ {
+	for i := 0; i < num; i++ {
 		withoutNoEscape()
 	}
 
 	runtime.ReadMemStats(&stats)
 	nowHeapObjects = stats.HeapObjects
 
-	if nowHeapObjects-preHeapObjects < NUM {
-		fmt.Printf("too less too heap objects allocated, pre: %v, now: %v\n", preHeapObjects, nowHeapObjects)
+	if nowHeapObjects-preHeapObjects < num {
+		fmt.Printf("too few heap objects allocated, pre: %v, now: %v\n", preHeapObjects, nowHeapObjects)
 	}
 
 	fmt.Println("OK")

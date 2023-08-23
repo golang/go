@@ -614,7 +614,7 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 		arg = "uintptr(unsafe.Pointer(&r1))"
 	}
 
-	noCallback, _ := p.noCallbacks[n.C]
+	noCallback := p.noCallbacks[n.C]
 	if noCallback {
 		// disable cgocallback, will check it in runtime.
 		fmt.Fprintf(fgo2, "\t_Cgo_no_callback(true)\n")
@@ -632,9 +632,9 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 		fmt.Fprintf(fgo2, "\t_Cgo_no_callback(false)\n")
 	}
 
-	if noEscape, _ := p.noEscapes[n.C]; !noEscape {
-		// skip _Cgo_use when noescape exist,
-		// so that the compiler won't force to escape them to heap.
+	// skip _Cgo_use when noescape exist,
+	// so that the compiler won't force to escape them to heap.
+	if !p.noEscapes[n.C] {
 		fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
 		if d.Type.Params != nil {
 			for i := range d.Type.Params.List {

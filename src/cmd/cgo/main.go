@@ -425,14 +425,14 @@ func main() {
 		}
 	}
 
-	for funcName, _ := range p.noEscapes {
-		if found, _ := cFunctions[funcName]; !found {
+	for funcName := range p.noEscapes {
+		if _, found := cFunctions[funcName]; !found {
 			error_(token.NoPos, "#cgo noescape %s: no matched C function", funcName)
 		}
 	}
 
-	for funcName, _ := range p.noCallbacks {
-		if found, _ := cFunctions[funcName]; !found {
+	for funcName := range p.noCallbacks {
+		if _, found := cFunctions[funcName]; !found {
 			error_(token.NoPos, "#cgo nocallback %s: no matched C function", funcName)
 		}
 	}
