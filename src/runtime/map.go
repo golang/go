@@ -1553,7 +1553,7 @@ func mapclone2(t *maptype, src *hmap) *hmap {
 		}
 
 		if oldB >= dst.B { // main bucket bits in dst is less than oldB bits in src
-			dstBmap := (*bmap)(add(dst.buckets, uintptr(i)&bucketMask(dst.B)))
+			dstBmap := (*bmap)(add(dst.buckets, (uintptr(i)&bucketMask(dst.B))*uintptr(t.BucketSize)))
 			for dstBmap.overflow(t) != nil {
 				dstBmap = dstBmap.overflow(t)
 			}
