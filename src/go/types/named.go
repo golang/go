@@ -143,7 +143,7 @@ const (
 // If the given type name obj doesn't have a type yet, its type is set to the returned named type.
 // The underlying type must not be a *Named.
 func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
-	if _, ok := underlying.(*Named); ok {
+	if asNamed(underlying) != nil {
 		panic("underlying type must not be *Named")
 	}
 	return (*Checker)(nil).newNamed(obj, underlying, methods)
@@ -436,7 +436,7 @@ func (t *Named) SetUnderlying(underlying Type) {
 	if underlying == nil {
 		panic("underlying type must not be nil")
 	}
-	if _, ok := underlying.(*Named); ok {
+	if asNamed(underlying) != nil {
 		panic("underlying type must not be *Named")
 	}
 	t.resolve().underlying = underlying
@@ -600,7 +600,7 @@ func (n *Named) expandUnderlying() Type {
 	orig := n.inst.orig
 	targs := n.inst.targs
 
-	if _, unexpanded := orig.underlying.(*Named); unexpanded {
+	if asNamed(orig.underlying) != nil {
 		// We should only get a Named underlying type here during type checking
 		// (for example, in recursive type declarations).
 		assert(check != nil)
@@ -658,7 +658,7 @@ func (n *Named) expandUnderlying() Type {
 //
 // TODO(rfindley): eliminate this function or give it a better name.
 func safeUnderlying(typ Type) Type {
-	if t, _ := typ.(*Named); t != nil {
+	if t := asNamed(typ); t != nil {
 		return t.underlying
 	}
 	return typ.Underlying()

@@ -104,7 +104,7 @@ func (t *Interface) NumEmbeddeds() int { return len(t.embeddeds) }
 // The result is nil if the i'th embedded type is not a defined type.
 //
 // Deprecated: Use EmbeddedType which is not restricted to defined (*Named) types.
-func (t *Interface) Embedded(i int) *Named { tname, _ := t.embeddeds[i].(*Named); return tname }
+func (t *Interface) Embedded(i int) *Named { return asNamed(t.embeddeds[i]) }
 
 // EmbeddedType returns the i'th embedded type of interface t for 0 <= i < t.NumEmbeddeds().
 func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }

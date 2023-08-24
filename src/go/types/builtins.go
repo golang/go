@@ -922,7 +922,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
 	// Cycles are only possible through *Named types.
 	// The seen map is used to detect cycles and track
 	// the results of previously seen types.
-	if named, _ := t.(*Named); named != nil {
+	if named := asNamed(t); named != nil {
 		if v, ok := seen[named]; ok {
 			return v
 		}

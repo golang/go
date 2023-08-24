@@ -420,7 +420,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 		return gtyp // error already reported
 	}
 
-	orig, _ := gtyp.(*Named)
+	orig := asNamed(gtyp)
 	if orig == nil {
 		panic(fmt.Sprintf("%v: cannot instantiate %v", x.Pos(), gtyp))
 	}
@@ -433,7 +433,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 	}
 
 	// create the instance
-	inst := check.instance(x.Pos(), orig, targs, nil, check.context()).(*Named)
+	inst := asNamed(check.instance(x.Pos(), orig, targs, nil, check.context()))
 	def.setUnderlying(inst)
 
 	// orig.tparams may not be set up, so we need to do expansion later.

@@ -112,8 +112,8 @@ func (s *StdSizes) Alignof(T Type) (result int64) {
 }
 
 func IsSyncAtomicAlign64(T Type) bool {
-	named, ok := T.(*Named)
-	if !ok {
+	named := asNamed(T)
+	if named == nil {
 		return false
 	}
 	obj := named.Obj()

@@ -95,6 +95,7 @@ func generate(t *testing.T, filename string, write bool) {
 type action func(in *ast.File)
 
 var filemap = map[string]action{
+	"alias.go":        nil,
 	"array.go":        nil,
 	"basic.go":        nil,
 	"chan.go":         nil,
