@@ -74,7 +74,7 @@ func (s *stats) Run(ctx context.Context, args ...string) error {
 		GOARCH:       runtime.GOARCH,
 		GOPLSCACHE:   os.Getenv("GOPLSCACHE"),
 		GoVersion:    runtime.Version(),
-		GoplsVersion: debug.Version,
+		GoplsVersion: debug.Version(),
 	}
 
 	opts := s.app.options

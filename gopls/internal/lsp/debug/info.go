@@ -30,12 +30,19 @@ const (
 )
 
 // Version is a manually-updated mechanism for tracking versions.
-const Version = "master"
+func Version() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if info.Main.Version != "" {
+			return info.Main.Version
+		}
+	}
+	return "(unknown)"
+}
 
 // ServerVersion is the format used by gopls to report its version to the
 // client. This format is structured so that the client can parse it easily.
 type ServerVersion struct {
-	*BuildInfo
+	*debug.BuildInfo
 	Version string
 }
 
@@ -43,23 +50,18 @@ type ServerVersion struct {
 // built in module mode, we return a GOPATH-specific message with the
 // hardcoded version.
 func VersionInfo() *ServerVersion {
-	if info, ok := readBuildInfo(); ok {
-		return getVersion(info)
+	if info, ok := debug.ReadBuildInfo(); ok {
+		return &ServerVersion{
+			Version:   Version(),
+			BuildInfo: info,
+		}
 	}
-	buildInfo := &BuildInfo{}
-	// go1.17 or earlier, part of s.BuildInfo are embedded fields.
-	buildInfo.Path = "gopls, built in GOPATH mode"
-	buildInfo.GoVersion = runtime.Version()
 	return &ServerVersion{
-		Version:   Version,
-		BuildInfo: buildInfo,
-	}
-}
-
-func getVersion(info *BuildInfo) *ServerVersion {
-	return &ServerVersion{
-		Version:   Version,
-		BuildInfo: info,
+		Version: Version(),
+		BuildInfo: &debug.BuildInfo{
+			Path:      "gopls, built in GOPATH mode",
+			GoVersion: runtime.Version(),
+		},
 	}
 }
 
@@ -125,7 +127,7 @@ func section(w io.Writer, mode PrintMode, title string, body func()) {
 }
 
 func printBuildInfo(w io.Writer, info *ServerVersion, verbose bool, mode PrintMode) {
-	fmt.Fprintf(w, "%v %v\n", info.Path, Version)
+	fmt.Fprintf(w, "%v %v\n", info.Path, Version())
 	printModuleInfo(w, info.Main, mode)
 	if !verbose {
 		return

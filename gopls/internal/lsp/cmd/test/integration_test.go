@@ -55,7 +55,7 @@ func TestVersion(t *testing.T) {
 	tree := writeTree(t, "")
 
 	// There's not much we can robustly assert about the actual version.
-	const want = debug.Version // e.g. "master"
+	want := debug.Version() // e.g. "master"
 
 	// basic
 	{
