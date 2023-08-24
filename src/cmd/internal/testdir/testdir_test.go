@@ -477,16 +477,20 @@ func (t test) run() error {
 	}
 	src := string(srcBytes)
 
-	// Execution recipe stops at first blank line.
-	action, _, ok := strings.Cut(src, "\n\n")
-	if !ok {
-		t.Fatalf("double newline ending execution recipe not found in GOROOT/test/%s", t.goFileName())
+	// Execution recipe is contained in a comment in
+	// the first non-empty line that is not a build constraint.
+	var action string
+	for actionSrc := src; action == "" && actionSrc != ""; {
+		var line string
+		line, actionSrc, _ = strings.Cut(actionSrc, "\n")
+		if constraint.IsGoBuild(line) || constraint.IsPlusBuild(line) {
+			continue
+		}
+		action = strings.TrimSpace(strings.TrimPrefix(line, "//"))
 	}
-	if firstLine, rest, ok := strings.Cut(action, "\n"); ok && strings.Contains(firstLine, "+build") {
-		// skip first line
-		action = rest
+	if action == "" {
+		t.Fatalf("execution recipe not found in GOROOT/test/%s", t.goFileName())
 	}
-	action = strings.TrimPrefix(action, "//")
 
 	// Check for build constraints only up to the actual code.
 	header, _, ok := strings.Cut(src, "\npackage")
