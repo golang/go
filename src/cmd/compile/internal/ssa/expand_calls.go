@@ -64,15 +64,15 @@ type registerCursor struct {
 	regValues *[]*Value // values assigned to registers accumulate here
 }
 
-func (rc *registerCursor) String() string {
+func (c *registerCursor) String() string {
 	dest := "<none>"
-	if rc.storeDest != nil {
-		dest = rc.storeDest.String()
+	if c.storeDest != nil {
+		dest = c.storeDest.String()
 	}
 	regs := "<none>"
-	if rc.regValues != nil {
+	if c.regValues != nil {
 		regs = ""
-		for i, x := range *rc.regValues {
+		for i, x := range *c.regValues {
 			if i > 0 {
 				regs = regs + "; "
 			}
@@ -80,7 +80,7 @@ func (rc *registerCursor) String() string {
 		}
 	}
 	// not printing the config because that has not been useful
-	return fmt.Sprintf("RCSR{storeDest=%v, regsLen=%d, nextSlice=%d, regValues=[%s]}", dest, rc.regsLen, rc.nextSlice, regs)
+	return fmt.Sprintf("RCSR{storeDest=%v, regsLen=%d, nextSlice=%d, regValues=[%s]}", dest, c.regsLen, c.nextSlice, regs)
 }
 
 // next effectively post-increments the register cursor; the receiver is advanced,

@@ -2834,9 +2834,9 @@ func isNil(p *pkgWriter, expr syntax.Expr) bool {
 
 // isBuiltin reports whether expr is a (possibly parenthesized)
 // referenced to the specified built-in function.
-func (p *pkgWriter) isBuiltin(expr syntax.Expr, builtin string) bool {
+func (pw *pkgWriter) isBuiltin(expr syntax.Expr, builtin string) bool {
 	if name, ok := unparen(expr).(*syntax.Name); ok && name.Value == builtin {
-		return p.typeAndValue(name).IsBuiltin()
+		return pw.typeAndValue(name).IsBuiltin()
 	}
 	return false
 }
@@ -2946,7 +2946,7 @@ func lastNonEmptyStmt(stmts []syntax.Stmt) syntax.Stmt {
 
 // terminates reports whether stmt terminates normal control flow
 // (i.e., does not merely advance to the following statement).
-func (p *pkgWriter) terminates(stmt syntax.Stmt) bool {
+func (pw *pkgWriter) terminates(stmt syntax.Stmt) bool {
 	switch stmt := stmt.(type) {
 	case *syntax.BranchStmt:
 		if stmt.Tok == syntax.Goto {
@@ -2956,7 +2956,7 @@ func (p *pkgWriter) terminates(stmt syntax.Stmt) bool {
 		return true
 	case *syntax.ExprStmt:
 		if call, ok := unparen(stmt.X).(*syntax.CallExpr); ok {
-			if p.isBuiltin(call.Fun, "panic") {
+			if pw.isBuiltin(call.Fun, "panic") {
 				return true
 			}
 		}
@@ -2969,10 +2969,10 @@ func (p *pkgWriter) terminates(stmt syntax.Stmt) bool {
 		//	}
 		//	unreachable
 	case *syntax.IfStmt:
-		cond := p.staticBool(&stmt.Cond)
-		return (cond < 0 || p.terminates(stmt.Then)) && (cond > 0 || p.terminates(stmt.Else))
+		cond := pw.staticBool(&stmt.Cond)
+		return (cond < 0 || pw.terminates(stmt.Then)) && (cond > 0 || pw.terminates(stmt.Else))
 	case *syntax.BlockStmt:
-		return p.terminates(lastNonEmptyStmt(stmt.List))
+		return pw.terminates(lastNonEmptyStmt(stmt.List))
 	}
 
 	return false
