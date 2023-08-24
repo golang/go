@@ -181,10 +181,9 @@ func commentText(s string) string {
 }
 
 func trailingDigits(text string) (uint, uint, bool) {
-	// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
-	i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
+	i := strings.LastIndexByte(text, ':') // look from right (Windows filenames may contain ':')
 	if i < 0 {
-		return 0, 0, false // no ":"
+		return 0, 0, false // no ':'
 	}
 	// i >= 0
 	n, err := strconv.ParseUint(text[i+1:], 10, 0)
