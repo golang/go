@@ -104,15 +104,16 @@ type CompletionItem struct {
 
 // completionOptions holds completion specific configuration.
 type completionOptions struct {
-	unimported        bool
-	documentation     bool
-	fullDocumentation bool
-	placeholders      bool
-	literal           bool
-	snippets          bool
-	postfix           bool
-	matcher           source.Matcher
-	budget            time.Duration
+	unimported            bool
+	documentation         bool
+	fullDocumentation     bool
+	placeholders          bool
+	literal               bool
+	snippets              bool
+	postfix               bool
+	matcher               source.Matcher
+	budget                time.Duration
+	completeFunctionCalls bool
 }
 
 // Snippet is a convenience returns the snippet if available, otherwise
@@ -543,15 +544,16 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 			enabled: opts.DeepCompletion,
 		},
 		opts: &completionOptions{
-			matcher:           opts.Matcher,
-			unimported:        opts.CompleteUnimported,
-			documentation:     opts.CompletionDocumentation && opts.HoverKind != source.NoDocumentation,
-			fullDocumentation: opts.HoverKind == source.FullDocumentation,
-			placeholders:      opts.UsePlaceholders,
-			literal:           opts.LiteralCompletions && opts.InsertTextFormat == protocol.SnippetTextFormat,
-			budget:            opts.CompletionBudget,
-			snippets:          opts.InsertTextFormat == protocol.SnippetTextFormat,
-			postfix:           opts.ExperimentalPostfixCompletions,
+			matcher:               opts.Matcher,
+			unimported:            opts.CompleteUnimported,
+			documentation:         opts.CompletionDocumentation && opts.HoverKind != source.NoDocumentation,
+			fullDocumentation:     opts.HoverKind == source.FullDocumentation,
+			placeholders:          opts.UsePlaceholders,
+			literal:               opts.LiteralCompletions && opts.InsertTextFormat == protocol.SnippetTextFormat,
+			budget:                opts.CompletionBudget,
+			snippets:              opts.InsertTextFormat == protocol.SnippetTextFormat,
+			postfix:               opts.ExperimentalPostfixCompletions,
+			completeFunctionCalls: opts.CompleteFunctionCalls,
 		},
 		// default to a matcher that always matches
 		matcher:        prefixMatcher(""),

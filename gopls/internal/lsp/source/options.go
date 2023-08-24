@@ -155,6 +155,7 @@ func DefaultOptions(overrides ...func(*Options)) *Options {
 						Matcher:                        Fuzzy,
 						CompletionBudget:               100 * time.Millisecond,
 						ExperimentalPostfixCompletions: true,
+						CompleteFunctionCalls:          true,
 					},
 					Codelenses: map[string]bool{
 						string(command.Generate):          true,
@@ -388,6 +389,13 @@ type CompletionOptions struct {
 	// ExperimentalPostfixCompletions enables artificial method snippets
 	// such as "someSlice.sort!".
 	ExperimentalPostfixCompletions bool `status:"experimental"`
+
+	// CompleteFunctionCalls enables function call completion.
+	//
+	// When completing a statement, or when a function return type matches the
+	// expected of the expression being completed, completion may suggest call
+	// expressions (i.e. may include parentheses).
+	CompleteFunctionCalls bool
 }
 
 type DocumentationOptions struct {
@@ -1186,6 +1194,8 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 					" rebuild gopls with a more recent version of Go", result.Name, runtime.Version())
 			}
 		}
+	case "completeFunctionCalls":
+		result.setBool(&o.CompleteFunctionCalls)
 
 	case "semanticTokens":
 		result.setBool(&o.SemanticTokens)

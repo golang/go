@@ -51,6 +51,11 @@ func (c *completer) structFieldSnippet(cand candidate, detail string, snip *snip
 
 // functionCallSnippet calculates the snippet for function calls.
 func (c *completer) functionCallSnippet(name string, tparams, params []string, snip *snippet.Builder) {
+	if !c.opts.completeFunctionCalls {
+		snip.WriteText(name)
+		return
+	}
+
 	// If there is no suffix then we need to reuse existing call parens
 	// "()" if present. If there is an identifier suffix then we always
 	// need to include "()" since we don't overwrite the suffix.

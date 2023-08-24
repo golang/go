@@ -147,6 +147,13 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy: "ui.completion",
 			},
 			{
+				Name:      "completeFunctionCalls",
+				Type:      "bool",
+				Doc:       "completeFunctionCalls enables function call completion.\n\nWhen completing a statement, or when a function return type matches the\nexpected of the expression being completed, completion may suggest call\nexpressions (i.e. may include parentheses).\n",
+				Default:   "true",
+				Hierarchy: "ui.completion",
+			},
+			{
 				Name: "importShortcut",
 				Type: "enum",
 				Doc:  "importShortcut specifies whether import statements should link to\ndocumentation or go to definitions.\n",

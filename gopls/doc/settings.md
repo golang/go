@@ -269,6 +269,16 @@ such as "someSlice.sort!".
 
 Default: `true`.
 
+##### **completeFunctionCalls** *bool*
+
+completeFunctionCalls enables function call completion.
+
+When completing a statement, or when a function return type matches the
+expected of the expression being completed, completion may suggest call
+expressions (i.e. may include parentheses).
+
+Default: `true`.
+
 #### Diagnostic
 
 ##### **analyses** *map[string]bool*
