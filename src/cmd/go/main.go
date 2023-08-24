@@ -71,6 +71,7 @@ func init() {
 		vet.CmdVet,
 
 		help.HelpBuildConstraint,
+		help.HelpBuildJSON,
 		help.HelpBuildmode,
 		help.HelpC,
 		help.HelpCache,

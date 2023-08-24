@@ -65,31 +65,34 @@ func ToolExeSuffix() string {
 
 // These are general "build flags" used by build and other commands.
 var (
-	BuildA             bool     // -a flag
-	BuildBuildmode     string   // -buildmode flag
-	BuildBuildvcs      = "auto" // -buildvcs flag: "true", "false", or "auto"
-	BuildContext       = defaultContext()
-	BuildMod           string                  // -mod flag
-	BuildModExplicit   bool                    // whether -mod was set explicitly
-	BuildModReason     string                  // reason -mod was set, if set by default
-	BuildLinkshared    bool                    // -linkshared flag
-	BuildMSan          bool                    // -msan flag
-	BuildASan          bool                    // -asan flag
-	BuildCover         bool                    // -cover flag
-	BuildCoverMode     string                  // -covermode flag
-	BuildCoverPkg      []string                // -coverpkg flag
-	BuildN             bool                    // -n flag
-	BuildO             string                  // -o flag
-	BuildP             = runtime.GOMAXPROCS(0) // -p flag
-	BuildPGO           string                  // -pgo flag
-	BuildPkgdir        string                  // -pkgdir flag
-	BuildRace          bool                    // -race flag
-	BuildToolexec      []string                // -toolexec flag
-	BuildToolchainName string
-	BuildTrimpath      bool // -trimpath flag
-	BuildV             bool // -v flag
-	BuildWork          bool // -work flag
-	BuildX             bool // -x flag
+	BuildA                 bool     // -a flag
+	BuildBuildmode         string   // -buildmode flag
+	BuildBuildvcs          = "auto" // -buildvcs flag: "true", "false", or "auto"
+	BuildContext           = defaultContext()
+	BuildMod               string                  // -mod flag
+	BuildModExplicit       bool                    // whether -mod was set explicitly
+	BuildModReason         string                  // reason -mod was set, if set by default
+	BuildLinkshared        bool                    // -linkshared flag
+	BuildMSan              bool                    // -msan flag
+	BuildASan              bool                    // -asan flag
+	BuildCover             bool                    // -cover flag
+	BuildCoverMode         string                  // -covermode flag
+	BuildCoverPkg          []string                // -coverpkg flag
+	BuildJSON              bool                    // -json flag
+	BuildN                 bool                    // -n flag
+	BuildO                 string                  // -o flag
+	BuildP                 = runtime.GOMAXPROCS(0) // -p flag
+	BuildPGO               string                  // -pgo flag
+	BuildPkgdir            string                  // -pkgdir flag
+	BuildRace              bool                    // -race flag
+	BuildToolexec          []string                // -toolexec flag
+	BuildToolchainName     string
+	BuildToolchainCompiler func() string
+	BuildToolchainLinker   func() string
+	BuildTrimpath          bool // -trimpath flag
+	BuildV                 bool // -v flag
+	BuildWork              bool // -work flag
+	BuildX                 bool // -x flag
 
 	ModCacheRW bool   // -modcacherw flag
 	ModFile    string // -modfile flag

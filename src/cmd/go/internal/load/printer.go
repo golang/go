@@ -6,6 +6,8 @@ package load
 
 import (
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -45,7 +47,9 @@ func DefaultPrinter() Printer {
 }
 
 var defaultPrinter = sync.OnceValue(func() Printer {
-	// TODO: This will return a JSON printer once that's an option.
+	if cfg.BuildJSON {
+		return NewJSONPrinter(os.Stdout)
+	}
 	return &TextPrinter{os.Stderr}
 })
 
@@ -70,5 +74,53 @@ func (p *TextPrinter) Output(_ *Package, args ...any) {
 
 func (p *TextPrinter) Errorf(_ *Package, format string, args ...any) {
 	fmt.Fprint(p.Writer, ensureNewline(fmt.Sprintf(format, args...)))
+	base.SetExitStatus(1)
+}
+
+// A JSONPrinter emits output about a build in JSON format.
+type JSONPrinter struct {
+	enc *json.Encoder
+}
+
+func NewJSONPrinter(w io.Writer) *JSONPrinter {
+	return &JSONPrinter{json.NewEncoder(w)}
+}
+
+type jsonBuildEvent struct {
+	ImportPath string
+	Action     string
+	Output     string `json:",omitempty"` // Non-empty if Action == “build-output”
+}
+
+func (p *JSONPrinter) Output(pkg *Package, args ...any) {
+	ev := &jsonBuildEvent{
+		Action: "build-output",
+		Output: fmt.Sprint(args...),
+	}
+	if ev.Output == "" {
+		// There's no point in emitting a completely empty output event.
+		return
+	}
+	if pkg != nil {
+		ev.ImportPath = pkg.Desc()
+	}
+	p.enc.Encode(ev)
+}
+
+func (p *JSONPrinter) Errorf(pkg *Package, format string, args ...any) {
+	s := ensureNewline(fmt.Sprintf(format, args...))
+	// For clarity, emit each line as a separate output event.
+	for len(s) > 0 {
+		i := strings.IndexByte(s, '\n')
+		p.Output(pkg, s[:i+1])
+		s = s[i+1:]
+	}
+	ev := &jsonBuildEvent{
+		Action: "build-fail",
+	}
+	if pkg != nil {
+		ev.ImportPath = pkg.Desc()
+	}
+	p.enc.Encode(ev)
 	base.SetExitStatus(1)
 }

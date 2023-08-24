@@ -176,7 +176,7 @@ var (
 )
 
 func init() {
-	work.AddBuildFlags(CmdGenerate, work.DefaultBuildFlags)
+	work.AddBuildFlags(CmdGenerate, work.OmitBuildOnlyFlags)
 	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
 	CmdGenerate.Flag.StringVar(&generateSkipFlag, "skip", "", "")
 }

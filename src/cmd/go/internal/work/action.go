@@ -269,6 +269,7 @@ func NewBuilder(workDir string) *Builder {
 	b.toolIDCache = make(map[string]string)
 	b.buildIDCache = make(map[string]string)
 
+	printWorkDir := false
 	if workDir != "" {
 		b.WorkDir = workDir
 	} else if cfg.BuildN {
@@ -291,12 +292,14 @@ func NewBuilder(workDir string) *Builder {
 		}
 		b.WorkDir = tmp
 		builderWorkDirs.Store(b, b.WorkDir)
-		if cfg.BuildX || cfg.BuildWork {
-			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.WorkDir)
-		}
+		printWorkDir = cfg.BuildX || cfg.BuildWork
 	}
 
 	b.backgroundSh = NewShell(b.WorkDir, nil)
+
+	if printWorkDir {
+		b.BackgroundShell().Print("WORK=", b.WorkDir, "\n")
+	}
 
 	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
 		fmt.Fprintf(os.Stderr, "go: %v\n", err)

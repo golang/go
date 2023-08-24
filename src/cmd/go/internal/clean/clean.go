@@ -114,7 +114,7 @@ func init() {
 	// mentioned explicitly in the docs but they
 	// are part of the build flags.
 
-	work.AddBuildFlags(CmdClean, work.DefaultBuildFlags)
+	work.AddBuildFlags(CmdClean, work.OmitBuildOnlyFlags)
 }
 
 func runClean(ctx context.Context, cmd *base.Command, args []string) {
