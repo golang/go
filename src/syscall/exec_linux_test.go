@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/platform"
 	"internal/testenv"
 	"io"
 	"os"
@@ -285,6 +286,9 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 	// Since we are doing a chroot, we need the binary there,
 	// and it must be statically linked.
 	testenv.MustHaveGoBuild(t)
+	if platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH, false) {
+		t.Skipf("skipping: can't build static binary because %s/%s requires external linking", runtime.GOOS, runtime.GOARCH)
+	}
 	x := filepath.Join(d, "syscall.test")
 	t.Cleanup(func() {
 		// If the subprocess fails to unshare the parent directory, force-unmount it
@@ -297,7 +301,7 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", "-c", "-o", x, "syscall")
 	cmd.Env = append(cmd.Environ(), "CGO_ENABLED=0")
 	if o, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Build of syscall in chroot failed, output %v, err %v", o, err)
+		t.Fatalf("%v: %v\n%s", cmd, err, o)
 	}
 
 	cmd = testenv.Command(t, "/syscall.test", "-test.run=TestUnshareMountNameSpaceChroot", "/")
