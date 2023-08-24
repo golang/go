@@ -2683,7 +2683,11 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 			}
 		}
 
-		if err != nil || os.Getenv("GO_BUILDER_NAME") != "" {
+		if err == nil && os.Getenv("GO_BUILDER_NAME") != "" {
+			output = append(output, "C compiler warning promoted to error on Go builders\n"...)
+			err = errors.New("warning promoted to error")
+		}
+		if err != nil {
 			err = formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), b.processOutput(output))
 		} else {
 			b.showOutput(a, p.Dir, p.Desc(), b.processOutput(output))
