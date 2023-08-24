@@ -951,8 +951,17 @@ func usemethod(n *ir.CallExpr) {
 	// Those functions may be alive via the itab, which should not cause all methods
 	// alive. We only want to mark their callers.
 	if base.Ctxt.Pkgpath == "reflect" {
-		switch ir.CurFunc.Nname.Sym().Name { // TODO: is there a better way than hardcoding the names?
-		case "(*rtype).Method", "(*rtype).MethodByName", "(*interfaceType).Method", "(*interfaceType).MethodByName":
+		// TODO: is there a better way than hardcoding the names?
+		switch fn := ir.CurFunc.Nname.Sym().Name; {
+		case fn == "(*rtype).Method", fn == "(*rtype).MethodByName":
+			return
+		case fn == "(*interfaceType).Method", fn == "(*interfaceType).MethodByName":
+			return
+		// StructOf defines closures that look up methods. They only look up methods
+		// reachable via interfaces. The DCE does not remove such methods. It is ok
+		// to not flag closures in StructOf as ReflectMethods and let the DCE run
+		// even if StructOf is reachable.
+		case strings.HasPrefix(fn, "StructOf.func"):
 			return
 		}
 	}
