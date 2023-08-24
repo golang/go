@@ -5,8 +5,6 @@
 package noder
 
 import (
-	"fmt"
-	"internal/goversion"
 	"internal/pkgbits"
 	"io"
 	"runtime"
@@ -73,13 +71,6 @@ func unified(m posMap, noders []*noder) {
 	typecheck.HaveInlineBody = unifiedHaveInlineBody
 
 	data := writePkgStub(m, noders)
-
-	// We already passed base.Flag.Lang to types2 to handle validating
-	// the user's source code. Bump it up now to the current version and
-	// re-parse, so typecheck doesn't complain if we construct IR that
-	// utilizes newer Go features.
-	base.Flag.Lang = fmt.Sprintf("go1.%d", goversion.Version)
-	types.ParseLangFlag()
 
 	target := typecheck.Target
 
