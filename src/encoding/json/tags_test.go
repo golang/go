@@ -22,7 +22,7 @@ func TestTagParsing(t *testing.T) {
 		{"bar", false},
 	} {
 		if opts.Contains(tt.opt) != tt.want {
-			t.Errorf("Contains(%q) = %v", tt.opt, !tt.want)
+			t.Errorf("Contains(%q) = %v, want %v", tt.opt, !tt.want, tt.want)
 		}
 	}
 }
