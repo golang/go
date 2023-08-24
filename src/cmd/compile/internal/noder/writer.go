@@ -2597,6 +2597,8 @@ func (w *writer) pkgInit(noders []*noder) {
 		w.Strings(cgoPragma)
 	}
 
+	w.pkgInitOrder()
+
 	w.Sync(pkgbits.SyncDecls)
 	for _, p := range noders {
 		for _, decl := range p.file.DeclList {
@@ -2605,6 +2607,11 @@ func (w *writer) pkgInit(noders []*noder) {
 	}
 	w.Code(declEnd)
 
+	w.Sync(pkgbits.SyncEOF)
+}
+
+func (w *writer) pkgInitOrder() {
+	// TODO(mdempsky): Write as a function body instead?
 	w.Len(len(w.p.info.InitOrder))
 	for _, init := range w.p.info.InitOrder {
 		w.Len(len(init.Lhs))
@@ -2613,8 +2620,6 @@ func (w *writer) pkgInit(noders []*noder) {
 		}
 		w.expr(init.Rhs)
 	}
-
-	w.Sync(pkgbits.SyncEOF)
 }
 
 func (w *writer) pkgDecl(decl syntax.Decl) {

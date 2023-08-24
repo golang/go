@@ -16,10 +16,6 @@ import (
 	"cmd/internal/src"
 )
 
-// Function collecting autotmps generated during typechecking,
-// to be included in the package-level init function.
-var InitTodoFunc = ir.NewFunc(base.Pos, base.Pos, Lookup("$InitTodo"), types.NewSignature(nil, nil, nil))
-
 func AssignExpr(n ir.Node) ir.Node { return typecheck(n, ctxExpr|ctxAssign) }
 func Expr(n ir.Node) ir.Node       { return typecheck(n, ctxExpr) }
 func Stmt(n ir.Node) ir.Node       { return typecheck(n, ctxStmt) }
@@ -656,20 +652,10 @@ func RewriteNonNameCall(n *ir.CallExpr) {
 		return
 	}
 
-	// See comment (1) in RewriteMultiValueCall.
-	static := ir.CurFunc == nil
-	if static {
-		ir.CurFunc = InitTodoFunc
-	}
-
 	tmp := TempAt(base.Pos, ir.CurFunc, (*np).Type())
 	as := ir.NewAssignStmt(base.Pos, tmp, *np)
 	as.PtrInit().Append(Stmt(ir.NewDecl(n.Pos(), ir.ODCL, tmp)))
 	*np = tmp
-
-	if static {
-		ir.CurFunc = nil
-	}
 
 	n.PtrInit().Append(Stmt(as))
 }
@@ -677,16 +663,6 @@ func RewriteNonNameCall(n *ir.CallExpr) {
 // RewriteMultiValueCall rewrites multi-valued f() to use temporaries,
 // so the backend wouldn't need to worry about tuple-valued expressions.
 func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
-	// If we're outside of function context, then this call will
-	// be executed during the generated init function. However,
-	// init.go hasn't yet created it. Instead, associate the
-	// temporary variables with  InitTodoFunc for now, and init.go
-	// will reassociate them later when it's appropriate. (1)
-	static := ir.CurFunc == nil
-	if static {
-		ir.CurFunc = InitTodoFunc
-	}
-
 	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, []ir.Node{call})
 	results := call.Type().Fields()
 	list := make([]ir.Node, len(results))
@@ -695,9 +671,6 @@ func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
 		as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, tmp))
 		as.Lhs.Append(tmp)
 		list[i] = tmp
-	}
-	if static {
-		ir.CurFunc = nil
 	}
 
 	n.PtrInit().Append(Stmt(as))

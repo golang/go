@@ -15,66 +15,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
-	"fmt"
-	"os"
 )
-
-// MakeInit creates a synthetic init function to handle any
-// package-scope initialization statements.
-func MakeInit() {
-	nf := typecheck.Target.InitOrder
-	if len(nf) == 0 {
-		return
-	}
-
-	// Make a function that contains all the initialization statements.
-	pos := nf[0].Pos() // prolog/epilog gets line number of first init stmt
-	base.Pos = pos
-
-	sym := typecheck.Lookup("init")
-	fn := ir.NewFunc(pos, pos, sym, types.NewSignature(nil, nil, nil))
-	typecheck.DeclFunc(fn)
-
-	for _, dcl := range typecheck.InitTodoFunc.Dcl {
-		dcl.Curfn = fn
-	}
-	fn.Dcl = append(fn.Dcl, typecheck.InitTodoFunc.Dcl...)
-	typecheck.InitTodoFunc.Dcl = nil
-	fn.SetIsPackageInit(true)
-
-	// Outline (if legal/profitable) global map inits.
-	nf, newfuncs := staticinit.OutlineMapInits(nf)
-
-	// Suppress useless "can inline" diagnostics.
-	// Init functions are only called dynamically.
-	fn.SetInlinabilityChecked(true)
-	for _, nfn := range newfuncs {
-		nfn.SetInlinabilityChecked(true)
-	}
-
-	fn.Body = nf
-	typecheck.FinishFuncBody()
-
-	ir.WithFunc(fn, func() {
-		typecheck.Stmts(nf)
-	})
-	if base.Debug.WrapGlobalMapDbg > 1 {
-		fmt.Fprintf(os.Stderr, "=-= len(newfuncs) is %d for %v\n",
-			len(newfuncs), fn)
-	}
-
-	// Prepend to Inits, so it runs first, before any user-declared init
-	// functions.
-	typecheck.Target.Inits = append([]*ir.Func{fn}, typecheck.Target.Inits...)
-
-	if typecheck.InitTodoFunc.Dcl != nil {
-		// We only generate temps using InitTodoFunc if there
-		// are package-scope initialization statements, so
-		// something's weird if we get here.
-		base.Fatalf("InitTodoFunc still has declarations")
-	}
-	typecheck.InitTodoFunc = nil
-}
 
 // MakeTask makes an initialization record for the package, if necessary.
 // See runtime/proc.go:initTask for its layout.

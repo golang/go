@@ -12,10 +12,6 @@ type Package struct {
 	// See golang.org/issue/31636.
 	Imports []*types.Pkg
 
-	// InitOrder is the list of package-level initializers in the order
-	// in which they must be executed.
-	InitOrder []Node
-
 	// Init functions, listed in source order.
 	Inits []*Func
 

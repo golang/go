@@ -205,13 +205,8 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	dwarfgen.RecordPackageName()
 
-	// Prepare for backend processing. This must happen before pkginit,
-	// because it generates itabs for initializing global variables.
+	// Prepare for backend processing.
 	ssagen.InitConfig()
-
-	// Create "init" function for package-scope variable initialization
-	// statements, if any.
-	pkginit.MakeInit()
 
 	// Apply coverage fixups, if applicable.
 	coverage.Fixup()
