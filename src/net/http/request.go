@@ -845,8 +845,9 @@ func NewRequest(method, url string, body io.Reader) (*Request, error) {
 // optional body.
 //
 // If the provided body is also an io.Closer, the returned
-// Request.Body is set to body and will be closed by the Client
-// methods Do, Post, and PostForm, and Transport.RoundTrip.
+// Request.Body is set to body and will be closed (possibly
+// asynchronously) by the Client methods Do, Post, and PostForm,
+// and Transport.RoundTrip.
 //
 // NewRequestWithContext returns a Request suitable for use with
 // Client.Do or Transport.RoundTrip. To create a request for use with
