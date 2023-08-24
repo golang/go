@@ -1,4 +1,4 @@
-// +build linux,!ppc64,gc
+// +build linux,!ppc64,gc,cgo
 // run
 
 // Copyright 2015 The Go Authors. All rights reserved.
@@ -19,7 +19,7 @@ import (
 
 func main() {
 	test("internal")
-	test("external")
+	test("external") // The 'cgo' build constraint should imply that a linker is available.
 }
 
 func test(linkmode string) {
