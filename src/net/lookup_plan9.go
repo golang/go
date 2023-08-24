@@ -254,7 +254,7 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, 
 }
 
 func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
-	if systemConf().mustUseGoResolver(r, "SRV", name) {
+	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupSRV(ctx, service, proto, name)
 	}
 	var target string
@@ -286,7 +286,7 @@ func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (
 }
 
 func (r *Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
-	if systemConf().mustUseGoResolver(r, "MX", name) {
+	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupMX(ctx, name)
 	}
 	lines, err := queryDNS(ctx, name, "mx")
@@ -307,7 +307,7 @@ func (r *Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err err
 }
 
 func (r *Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err error) {
-	if systemConf().mustUseGoResolver(r, "NS", name) {
+	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupNS(ctx, name)
 	}
 	lines, err := queryDNS(ctx, name, "ns")
@@ -325,7 +325,7 @@ func (r *Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err err
 }
 
 func (r *Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err error) {
-	if systemConf().mustUseGoResolver(r, "TXT", name) {
+	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupTXT(ctx, name)
 	}
 	lines, err := queryDNS(ctx, name, "txt")

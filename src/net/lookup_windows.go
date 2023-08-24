@@ -192,7 +192,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 }
 
 func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
-	if systemConf().mustUseGoResolver(r, "port", service) {
+	if systemConf().mustUseGoResolver(r) {
 		return lookupPortMap(network, service)
 	}
 
@@ -266,7 +266,7 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error)
 }
 
 func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
-	if systemConf().mustUseGoResolver(r, "SRV", name) {
+	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupSRV(ctx, service, proto, name)
 	}
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
@@ -295,7 +295,7 @@ func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (
 }
 
 func (r *Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
-	if systemConf().mustUseGoResolver(r, "MX", name) {
+	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupMX(ctx, name)
 	}
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
@@ -318,7 +318,7 @@ func (r *Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
 }
 
 func (r *Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
-	if systemConf().mustUseGoResolver(r, "NS", name) {
+	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupNS(ctx, name)
 	}
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
@@ -340,7 +340,7 @@ func (r *Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
 }
 
 func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error) {
-	if systemConf().mustUseGoResolver(r, "TXT", name) {
+	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupTXT(ctx, name)
 	}
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.

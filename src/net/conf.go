@@ -208,10 +208,10 @@ func (c *conf) isGoResolverForced(r *Resolver) bool {
 // mustUseGoResolver determines whether the use of the Go resolver for
 // non-hostname and non-address resolutions (e.g., DNS, port lookup) is required.
 // The provided Resolver is optional. nil means to not consider its options.
-func (c *conf) mustUseGoResolver(r *Resolver, qType, host string) (ret bool) {
+func (c *conf) mustUseGoResolver(r *Resolver) (ret bool) {
 	if c.dnsDebugLevel > 1 {
 		defer func() {
-			print("go package net: mustUseGoResolver(", qType, ", ", host, ") = ", ret, "\n")
+			print("go package net: mustUseGoResolver() = ", ret, "\n")
 		}()
 	}
 	return c.isGoResolverForced(r)
