@@ -1038,7 +1038,7 @@ func (p AddrPort) Port() uint16 { return p.port }
 // ip string should parse as an IPv6 address or an IPv4 address, in
 // order for s to be a valid ip:port string.
 func splitAddrPort(s string) (ip, port string, v6 bool, err error) {
-	i := stringsLastIndexByte(s, ':')
+	i := bytealg.LastIndexByteString(s, ':')
 	if i == -1 {
 		return "", "", false, errors.New("not an ip:port")
 	}
@@ -1269,7 +1269,7 @@ func (p Prefix) IsSingleIP() bool { return p.IsValid() && p.Bits() == p.ip.BitLe
 //
 // Note that masked address bits are not zeroed. Use Masked for that.
 func ParsePrefix(s string) (Prefix, error) {
-	i := stringsLastIndexByte(s, '/')
+	i := bytealg.LastIndexByteString(s, '/')
 	if i < 0 {
 		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): no '/'")
 	}

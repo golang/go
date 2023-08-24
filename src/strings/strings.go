@@ -83,7 +83,7 @@ func LastIndex(s, substr string) int {
 	case n == 0:
 		return len(s)
 	case n == 1:
-		return LastIndexByte(s, substr[0])
+		return bytealg.LastIndexByteString(s, substr[0])
 	case n == len(s):
 		if substr == s {
 			return 0
@@ -227,12 +227,7 @@ func LastIndexAny(s, chars string) int {
 
 // LastIndexByte returns the index of the last instance of c in s, or -1 if c is not present in s.
 func LastIndexByte(s string, c byte) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
+	return bytealg.LastIndexByteString(s, c)
 }
 
 // Generic split: splits after each instance of sep,

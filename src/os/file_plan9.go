@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/bytealg"
 	"internal/poll"
 	"io"
 	"runtime"
@@ -387,7 +388,7 @@ func hasPrefix(s, prefix string) bool {
 }
 
 func rename(oldname, newname string) error {
-	dirname := oldname[:lastIndex(oldname, '/')+1]
+	dirname := oldname[:bytealg.LastIndexByteString(oldname, '/')+1]
 	if hasPrefix(newname, dirname) {
 		newname = newname[len(dirname):]
 	} else {
@@ -396,7 +397,7 @@ func rename(oldname, newname string) error {
 
 	// If newname still contains slashes after removing the oldname
 	// prefix, the rename is cross-directory and must be rejected.
-	if lastIndex(newname, '/') >= 0 {
+	if bytealg.LastIndexByteString(newname, '/') >= 0 {
 		return &LinkError{"rename", oldname, newname, ErrInvalid}
 	}
 
