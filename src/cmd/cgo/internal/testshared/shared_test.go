@@ -1159,6 +1159,12 @@ func TestIssue47873(t *testing.T) {
 	goCmd(t, "run", "-linkshared", "./issue47837/main")
 }
 
+func TestIssue62277(t *testing.T) {
+	globalSkip(t)
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue62277/p")
+	goCmd(t, "test", "-linkshared", "./issue62277")
+}
+
 // Test that we can build std in shared mode.
 func TestStd(t *testing.T) {
 	if testing.Short() {
