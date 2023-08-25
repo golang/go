@@ -9,7 +9,7 @@
 // func rt0_go()
 TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// X2 = stack; A0 = argc; A1 = argv
-	ADD	$-24, X2
+	SUB	$24, X2
 	MOV	A0, 8(X2)	// argc
 	MOV	A1, 16(X2)	// argv
 
@@ -57,7 +57,7 @@ nocgo:
 
 	// create a new goroutine to start program
 	MOV	$runtime·mainPC(SB), T0		// entry
-	ADD	$-16, X2
+	SUB	$16, X2
 	MOV	T0, 8(X2)
 	MOV	ZERO, 0(X2)
 	CALL	runtime·newproc(SB)
@@ -161,7 +161,7 @@ TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
 
 	// switch to crashstack
 	MOV	(g_stack+stack_hi)(g), X11
-	ADD	$(-4*8), X11
+	SUB	$(4*8), X11
 	MOV	X11, X2
 
 	// call target function
@@ -219,7 +219,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	MOV	(g_sched+gobuf_sp)(g), X2
 	// Create a stack frame on g0 to call newstack.
 	MOV	ZERO, -8(X2)	// Zero saved LR in frame
-	ADD	$-8, X2
+	SUB	$8, X2
 	CALL	runtime·newstack(SB)
 
 	// Not reached, but make sure the return PC from the call to newstack
@@ -304,7 +304,7 @@ TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
 	MOV	0(CTXT), T1			// code pointer
 	MOV	(g_sched+gobuf_sp)(g), X2	// sp = m->g0->sched.sp
 	// we don't need special macro for regabi since arg0(X10) = g
-	ADD	$-16, X2
+	SUB	$16, X2
 	MOV	X10, 8(X2)			// setup g
 	MOV	ZERO, 0(X2)			// clear return address
 	JALR	RA, T1
@@ -366,7 +366,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	// Now on a scheduling stack (a pthread-created stack).
 g0:
 	// Save room for two of our pointers.
-	ADD	$-16, X2
+	SUB	$16, X2
 	MOV	X9, 0(X2)	// save old g on stack
 	MOV	(g_stack+stack_hi)(X9), X9
 	SUB	X8, X9, X8
