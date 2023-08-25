@@ -13,21 +13,21 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
+	"testing"
 
 	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/unitchecker"
 	"golang.org/x/tools/go/gcexportdata"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/txtar"
 )
 
-// ExampleSeparateAnalysis demonstrates the principle of separate
+// TestExampleSeparateAnalysis demonstrates the principle of separate
 // analysis, the distribution of units of type-checking and analysis
 // work across several processes, using serialized summaries to
 // communicate between them.
@@ -49,7 +49,12 @@ import (
 // different modes: the Example function is the manager, and the same
 // executable invoked with ENTRYPOINT=worker is the worker.
 // (See TestIntegration for how this happens.)
-func ExampleSeparateAnalysis() {
+//
+// Unfortunately this can't be a true Example because of the skip,
+// which requires a testing.T.
+func TestExampleSeparateAnalysis(t *testing.T) {
+	testenv.NeedsGoPackages(t)
+
 	// src is an archive containing a module with a printf mistake.
 	const src = `
 -- go.mod --
@@ -76,12 +81,9 @@ func MyPrintf(format string, args ...any) {
 `
 
 	// Expand archive into tmp tree.
-	tmpdir, err := os.MkdirTemp("", "SeparateAnalysis")
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpdir := t.TempDir()
 	if err := extractTxtar(txtar.Parse([]byte(src)), tmpdir); err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	// Load metadata for the main package and all its dependencies.
@@ -92,14 +94,15 @@ func MyPrintf(format string, args ...any) {
 			"GOPROXY=off", // disable network
 			"GOWORK=off",  // an ambient GOWORK value would break package loading
 		),
+		Logf: t.Logf,
 	}
 	pkgs, err := packages.Load(cfg, "separate/main")
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	// Stop if any package had a metadata error.
 	if packages.PrintErrors(pkgs) > 0 {
-		os.Exit(1)
+		t.Fatal("there were errors among loaded packages")
 	}
 
 	// Now we have loaded the import graph,
@@ -116,6 +119,8 @@ func MyPrintf(format string, args ...any) {
 	// nextID generates sequence numbers for each unit of work.
 	// We use it to create names of temporary files.
 	var nextID atomic.Int32
+
+	var allDiagnostics []string
 
 	// Visit all packages in postorder: dependencies first.
 	// TODO(adonovan): opt: use parallel postorder.
@@ -165,23 +170,23 @@ func MyPrintf(format string, args ...any) {
 		// Write the JSON configuration message to a file.
 		cfgData, err := json.Marshal(cfg)
 		if err != nil {
-			log.Fatal(err)
+			t.Fatalf("internal error in json.Marshal: %v", err)
 		}
 		cfgFile := prefix + ".cfg"
 		if err := os.WriteFile(cfgFile, cfgData, 0666); err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		}
 
 		// Send the request to the worker.
-		cmd := exec.Command(os.Args[0], "-json", cfgFile)
+		cmd := testenv.Command(t, os.Args[0], "-json", cfgFile)
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = new(bytes.Buffer)
 		cmd.Env = append(os.Environ(), "ENTRYPOINT=worker")
 		if err := cmd.Run(); err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		}
 
-		// Parse JSON output and print plainly.
+		// Parse JSON output and gather in allDiagnostics.
 		dec := json.NewDecoder(cmd.Stdout.(io.Reader))
 		for {
 			type jsonDiagnostic struct {
@@ -194,15 +199,15 @@ func MyPrintf(format string, args ...any) {
 				if err == io.EOF {
 					break
 				}
-				log.Fatal(err)
+				t.Fatalf("internal error decoding JSON: %v", err)
 			}
 			for _, result := range results {
 				for analyzer, diags := range result {
 					for _, diag := range diags {
 						rel := strings.ReplaceAll(diag.Posn, tmpdir, "")
 						rel = filepath.ToSlash(rel)
-						fmt.Printf("%s: [%s] %s\n",
-							rel, analyzer, diag.Message)
+						msg := fmt.Sprintf("%s: [%s] %s", rel, analyzer, diag.Message)
+						allDiagnostics = append(allDiagnostics, msg)
 					}
 				}
 			}
@@ -212,8 +217,10 @@ func MyPrintf(format string, args ...any) {
 	// Observe that the example produces a fact-based diagnostic
 	// from separate analysis of "main", "lib", and "fmt":
 
-	// Output:
-	// /main/main.go:6:2: [printf] separate/lib.MyPrintf format %s has arg 123 of wrong type int
+	const want = `/main/main.go:6:2: [printf] separate/lib.MyPrintf format %s has arg 123 of wrong type int`
+	if got := strings.Join(allDiagnostics, "\n"); got != want {
+		t.Errorf("Got: %s\nWant: %s", got, want)
+	}
 }
 
 // -- worker process --
