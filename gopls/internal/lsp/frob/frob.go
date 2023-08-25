@@ -95,7 +95,7 @@ func frobFor(t reflect.Type) *frob {
 
 		case reflect.Array,
 			reflect.Slice,
-			reflect.Pointer:
+			reflect.Ptr: // TODO(adonovan): after go1.18, use Pointer
 			fr.addElem(fr.t.Elem())
 
 		case reflect.Map:
@@ -213,7 +213,7 @@ func (fr *frob) encode(out *writer, v reflect.Value) {
 			}
 		}
 
-	case reflect.Pointer:
+	case reflect.Ptr: // TODO(adonovan): after go1.18, use Pointer
 		if v.IsNil() {
 			out.uint8(0)
 		} else {
@@ -337,7 +337,7 @@ func (fr *frob) decode(in *reader, addr reflect.Value) {
 			}
 		}
 
-	case reflect.Pointer:
+	case reflect.Ptr: // TODO(adonovan): after go1.18, use Pointer
 		isNil := in.uint8() == 0
 		if !isNil {
 			ptr := reflect.New(fr.elems[0].t)
@@ -398,7 +398,38 @@ func (r *reader) bytes(n int) []byte {
 type writer struct{ data []byte }
 
 func (w *writer) uint8(v uint8)   { w.data = append(w.data, v) }
-func (w *writer) uint16(v uint16) { w.data = le.AppendUint16(w.data, v) }
-func (w *writer) uint32(v uint32) { w.data = le.AppendUint32(w.data, v) }
-func (w *writer) uint64(v uint64) { w.data = le.AppendUint64(w.data, v) }
+func (w *writer) uint16(v uint16) { w.data = appendUint16(w.data, v) }
+func (w *writer) uint32(v uint32) { w.data = appendUint32(w.data, v) }
+func (w *writer) uint64(v uint64) { w.data = appendUint64(w.data, v) }
 func (w *writer) bytes(v []byte)  { w.data = append(w.data, v...) }
+
+// TODO(adonovan): delete these as in go1.19 they are methods on LittleEndian:
+
+func appendUint16(b []byte, v uint16) []byte {
+	return append(b,
+		byte(v),
+		byte(v>>8),
+	)
+}
+
+func appendUint32(b []byte, v uint32) []byte {
+	return append(b,
+		byte(v),
+		byte(v>>8),
+		byte(v>>16),
+		byte(v>>24),
+	)
+}
+
+func appendUint64(b []byte, v uint64) []byte {
+	return append(b,
+		byte(v),
+		byte(v>>8),
+		byte(v>>16),
+		byte(v>>24),
+		byte(v>>32),
+		byte(v>>40),
+		byte(v>>48),
+		byte(v>>56),
+	)
+}
