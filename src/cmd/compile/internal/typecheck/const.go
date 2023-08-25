@@ -113,7 +113,7 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 		base.Fatalf("unexpected untyped expression: %v", n)
 
 	case ir.OLITERAL:
-		v := convertVal(n.Val(), t, explicit)
+		v := ConvertVal(n.Val(), t, explicit)
 		if v.Kind() == constant.Unknown {
 			n = ir.NewConstExpr(n.Val(), n)
 			break
@@ -219,12 +219,13 @@ func operandType(op ir.Op, t *types.Type) *types.Type {
 	return nil
 }
 
-// convertVal converts v into a representation appropriate for t. If
-// no such representation exists, it returns Val{} instead.
+// ConvertVal converts v into a representation appropriate for t. If
+// no such representation exists, it returns constant.MakeUnknown()
+// instead.
 //
 // If explicit is true, then conversions from integer to string are
 // also allowed.
-func convertVal(v constant.Value, t *types.Type, explicit bool) constant.Value {
+func ConvertVal(v constant.Value, t *types.Type, explicit bool) constant.Value {
 	switch ct := v.Kind(); ct {
 	case constant.Bool:
 		if t.IsBoolean() {
@@ -344,7 +345,7 @@ var overflowNames = [...]string{
 // OrigConst returns an OLITERAL with orig n and value v.
 func OrigConst(n ir.Node, v constant.Value) ir.Node {
 	lno := ir.SetPos(n)
-	v = convertVal(v, n.Type(), false)
+	v = ConvertVal(v, n.Type(), false)
 	base.Pos = lno
 
 	switch v.Kind() {

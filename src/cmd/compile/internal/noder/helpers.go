@@ -58,7 +58,7 @@ func FixValue(typ *types.Type, val constant.Value) constant.Value {
 		val = constant.ToComplex(val)
 	}
 	if !typ.IsUntyped() {
-		val = typecheck.DefaultLit(ir.NewBasicLit(src.NoXPos, val), typ).Val()
+		val = typecheck.ConvertVal(val, typ, false)
 	}
 	ir.AssertValidTypeForConst(typ, val)
 	return val
