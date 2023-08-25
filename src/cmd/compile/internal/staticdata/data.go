@@ -96,6 +96,16 @@ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
 	return symdata
 }
 
+// StringSymNoCommon is like StringSym, but produces a symbol that is not content-
+// addressable. This symbol is not supposed to appear in the final binary, it is
+// only used to pass string arguments to the linker like R_USENAMEDMETHOD does.
+func StringSymNoCommon(s string) (data *obj.LSym) {
+	var nameSym obj.LSym
+	nameSym.WriteString(base.Ctxt, 0, len(s), s)
+	objw.Global(&nameSym, int32(len(s)), obj.RODATA)
+	return &nameSym
+}
+
 // maxFileSize is the maximum file size permitted by the linker
 // (see issue #9862).
 const maxFileSize = int64(2e9)

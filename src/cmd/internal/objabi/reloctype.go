@@ -94,11 +94,10 @@ const (
 	// This is a marker relocation (0-sized), for the linker's reachabililty
 	// analysis.
 	R_USEIFACEMETHOD
-	// Similar to R_USEIFACEMETHOD, except instead of indicating a type +
-	// method offset with Sym+Add, Sym points to a symbol containing the name
-	// of the method being called. See the description in
-	// cmd/compile/internal/reflectdata/reflect.go:MarkUsedIfaceMethod for details.
-	R_USEGENERICIFACEMETHOD
+	// R_USENAMEDMETHOD marks that methods with a specific name must not be eliminated.
+	// The target is a symbol containing the name of a method called via a generic
+	// interface or looked up via MethodByName("F").
+	R_USENAMEDMETHOD
 	// R_METHODOFF resolves to a 32-bit offset from the beginning of the section
 	// holding the data being relocated to the referenced symbol.
 	// It is a variant of R_ADDROFF used when linking from the uncommonType of a

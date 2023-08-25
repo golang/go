@@ -18,6 +18,7 @@ import (
 	"cmd/compile/internal/compare"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -1848,17 +1849,8 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 		// some sort of fuzzy shape matching. For now, only use the name
 		// of the method for matching.
 		r := obj.Addrel(ir.CurFunc.LSym)
-		// We use a separate symbol just to tell the linker the method name.
-		// (The symbol itself is not needed in the final binary. Do not use
-		// staticdata.StringSym, which creates a content addessable symbol,
-		// which may have trailing zero bytes. This symbol doesn't need to
-		// be deduplicated anyway.)
-		name := dot.Sel.Name
-		var nameSym obj.LSym
-		nameSym.WriteString(base.Ctxt, 0, len(name), name)
-		objw.Global(&nameSym, int32(len(name)), obj.RODATA)
-		r.Sym = &nameSym
-		r.Type = objabi.R_USEGENERICIFACEMETHOD
+		r.Sym = staticdata.StringSymNoCommon(dot.Sel.Name)
+		r.Type = objabi.R_USENAMEDMETHOD
 		return
 	}
 

@@ -12,7 +12,6 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
@@ -1034,13 +1033,9 @@ func usemethod(n *ir.CallExpr) {
 	if ir.IsConst(targetName, constant.String) {
 		name := constant.StringVal(targetName.Val())
 
-		var nameSym obj.LSym
-		nameSym.WriteString(base.Ctxt, 0, len(name), name)
-		objw.Global(&nameSym, int32(len(name)), obj.RODATA)
-
 		r := obj.Addrel(ir.CurFunc.LSym)
-		r.Type = objabi.R_USEGENERICIFACEMETHOD
-		r.Sym = &nameSym
+		r.Type = objabi.R_USENAMEDMETHOD
+		r.Sym = staticdata.StringSymNoCommon(name)
 	} else {
 		ir.CurFunc.SetReflectMethod(true)
 		// The LSym is initialized at this point. We need to set the attribute on the LSym.

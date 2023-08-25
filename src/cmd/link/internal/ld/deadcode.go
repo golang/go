@@ -214,7 +214,7 @@ func (d *deadcodePass) flood() {
 				}
 				d.ifaceMethod[m] = true
 				continue
-			case objabi.R_USEGENERICIFACEMETHOD:
+			case objabi.R_USENAMEDMETHOD:
 				name := d.decodeGenericIfaceMethod(d.ldr, r.Sym())
 				if d.ctxt.Debugvlog > 1 {
 					d.ctxt.Logf("reached generic iface method: %s\n", name)
