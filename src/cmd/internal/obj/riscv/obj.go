@@ -69,6 +69,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		switch p.As {
 		case AADD:
 			p.As = AADDI
+		case ASUB:
+			p.As, p.From.Offset = AADDI, -p.From.Offset
 		case ASLT:
 			p.As = ASLTI
 		case ASLTU:
@@ -87,6 +89,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.As = ASRAI
 		case AADDW:
 			p.As = AADDIW
+		case ASUBW:
+			p.As, p.From.Offset = AADDIW, -p.From.Offset
 		case ASLLW:
 			p.As = ASLLIW
 		case ASRLW:
