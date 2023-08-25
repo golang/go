@@ -211,17 +211,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Apply coverage fixups, if applicable.
 	coverage.Fixup()
 
-	// Compute Addrtaken for names.
-	// We need to wait until typechecking is done so that when we see &x[i]
-	// we know that x has its address taken if x is an array, but not if x is a slice.
-	// We compute Addrtaken in bulk here.
-	// After this phase, we maintain Addrtaken incrementally.
-	if typecheck.DirtyAddrtaken {
-		typecheck.ComputeAddrtaken(typecheck.Target.Funcs)
-		typecheck.DirtyAddrtaken = false
-	}
-	typecheck.IncrementalAddrtaken = true
-
 	// Read profile file and build profile-graph and weighted-call-graph.
 	base.Timer.Start("fe", "pgo-load-profile")
 	var profile *pgo.Profile

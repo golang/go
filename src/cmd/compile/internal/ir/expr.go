@@ -78,9 +78,26 @@ type AddrExpr struct {
 }
 
 func NewAddrExpr(pos src.XPos, x Node) *AddrExpr {
+	if x == nil || x.Typecheck() != 1 {
+		base.FatalfAt(pos, "missed typecheck: %L", x)
+	}
 	n := &AddrExpr{X: x}
-	n.op = OADDR
 	n.pos = pos
+
+	switch x.Op() {
+	case OARRAYLIT, OMAPLIT, OSLICELIT, OSTRUCTLIT:
+		n.op = OPTRLIT
+
+	default:
+		n.op = OADDR
+		if r, ok := OuterValue(x).(*Name); ok && r.Op() == ONAME {
+			r.SetAddrtaken(true)
+		}
+	}
+
+	n.SetType(types.NewPtr(x.Type()))
+	n.SetTypecheck(1)
+
 	return n
 }
 

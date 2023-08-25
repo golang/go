@@ -346,10 +346,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		return tcUnaryArith(n)
 
 	// exprs
-	case ir.OADDR:
-		n := n.(*ir.AddrExpr)
-		return tcAddr(n)
-
 	case ir.OCOMPLIT:
 		return tcCompLit(n.(*ir.CompLitExpr))
 

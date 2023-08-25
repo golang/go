@@ -16,38 +16,6 @@ import (
 	"cmd/internal/src"
 )
 
-// tcAddr typechecks an OADDR node.
-func tcAddr(n *ir.AddrExpr) ir.Node {
-	n.X = Expr(n.X)
-	if n.X.Type() == nil {
-		n.SetType(nil)
-		return n
-	}
-
-	switch n.X.Op() {
-	case ir.OARRAYLIT, ir.OMAPLIT, ir.OSLICELIT, ir.OSTRUCTLIT:
-		n.SetOp(ir.OPTRLIT)
-
-	default:
-		checklvalue(n.X, "take the address of")
-		r := ir.OuterValue(n.X)
-		if r.Op() == ir.ONAME {
-			r := r.(*ir.Name)
-			if ir.Orig(r) != r {
-				base.Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
-			}
-		}
-		n.X = DefaultLit(n.X, nil)
-		if n.X.Type() == nil {
-			n.SetType(nil)
-			return n
-		}
-	}
-
-	n.SetType(types.NewPtr(n.X.Type()))
-	return n
-}
-
 func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 	if l.Type() == nil || r.Type() == nil {
 		return l, r, nil
