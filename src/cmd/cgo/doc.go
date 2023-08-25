@@ -432,7 +432,7 @@ pointer safely, the program may crash or see memory corruption.
 
 For example:
 
-	// #cgo nocallback cFunctionName
+	// #cgo noescape cFunctionName
 
 When a Go function calls a C function, it prepares for the C function to
 call back to a Go function. the #cgo nocallback directive may be used to
@@ -442,7 +442,7 @@ Go code, the program will panic.
 
 For example:
 
-	// #cgo noescape cFunctionName
+	// #cgo nocallback cFunctionName
 
 # Special cases
 
