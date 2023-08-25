@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Aug 21, 2023",
+	"Subtitle": "Version of Sep 13, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -5208,7 +5208,7 @@ Specifically:
 <p>
 Logical operators apply to <a href="#Boolean_types">boolean</a> values
 and yield a result of the same type as the operands.
-The right operand is evaluated conditionally.
+The left operand is evaluated, and then the right if the condition requires it.
 </p>
 
 <pre class="grammar">
@@ -5786,24 +5786,28 @@ determine the evaluation order of individual initialization expressions in
 Otherwise, when evaluating the <a href="#Operands">operands</a> of an
 expression, assignment, or
 <a href="#Return_statements">return statement</a>,
-all function calls, method calls, and
-communication operations are evaluated in lexical left-to-right
-order.
+all function calls, method calls,
+<a href="#Receive operator">receive operations</a>,
+and <a href="#Logical_operators">binary logical operations</a>
+are evaluated in lexical left-to-right order.
 </p>
 
 <p>
 For example, in the (function-local) assignment
 </p>
 <pre>
-y[f()], ok = g(h(), i()+x[j()], &lt;-c), k()
+y[f()], ok = g(z || h(), i()+x[j()], &lt;-c), k()
 </pre>
 <p>
 the function calls and communication happen in the order
-<code>f()</code>, <code>h()</code>, <code>i()</code>, <code>j()</code>,
+<code>f()</code>, <code>h()</code> (if <code>z</code>
+evaluates to false), <code>i()</code>, <code>j()</code>,
 <code>&lt;-c</code>, <code>g()</code>, and <code>k()</code>.
 However, the order of those events compared to the evaluation
 and indexing of <code>x</code> and the evaluation
-of <code>y</code> is not specified.
+of <code>y</code> and <code>z</code> is not specified,
+except as required lexically. For instance, <code>g</code>
+cannot be called before its arguments are evaluated.
 </p>
 
 <pre>
