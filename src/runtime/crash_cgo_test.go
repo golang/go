@@ -753,6 +753,22 @@ func TestNeedmDeadlock(t *testing.T) {
 	}
 }
 
+func TestCgoNoCallback(t *testing.T) {
+	got := runTestProg(t, "testprogcgo", "CgoNoCallback")
+	want := "function marked with #cgo nocallback called back into Go"
+	if !strings.Contains(got, want) {
+		t.Fatalf("did not see %q in output:\n%s", want, got)
+	}
+}
+
+func TestCgoNoEscape(t *testing.T) {
+	got := runTestProg(t, "testprogcgo", "CgoNoEscape")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("want %s, got %s\n", want, got)
+	}
+}
+
 func TestCgoTracebackGoroutineProfile(t *testing.T) {
 	output := runTestProg(t, "testprogcgo", "GoroutineProfile")
 	want := "OK\n"

@@ -106,6 +106,8 @@ func (p *Package) writeDefs() {
 		fmt.Fprintf(fgo2, "//go:linkname _Cgo_use runtime.cgoUse\n")
 		fmt.Fprintf(fgo2, "func _Cgo_use(interface{})\n")
 	}
+	fmt.Fprintf(fgo2, "//go:linkname _Cgo_no_callback runtime.cgoNoCallback\n")
+	fmt.Fprintf(fgo2, "func _Cgo_no_callback(bool)\n")
 
 	typedefNames := make([]string, 0, len(typedef))
 	for name := range typedef {
@@ -612,6 +614,12 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 		arg = "uintptr(unsafe.Pointer(&r1))"
 	}
 
+	noCallback := p.noCallbacks[n.C]
+	if noCallback {
+		// disable cgocallback, will check it in runtime.
+		fmt.Fprintf(fgo2, "\t_Cgo_no_callback(true)\n")
+	}
+
 	prefix := ""
 	if n.AddError {
 		prefix = "errno := "
@@ -620,13 +628,21 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 	if n.AddError {
 		fmt.Fprintf(fgo2, "\tif errno != 0 { r2 = syscall.Errno(errno) }\n")
 	}
-	fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
-	if d.Type.Params != nil {
-		for i := range d.Type.Params.List {
-			fmt.Fprintf(fgo2, "\t\t_Cgo_use(p%d)\n", i)
-		}
+	if noCallback {
+		fmt.Fprintf(fgo2, "\t_Cgo_no_callback(false)\n")
 	}
-	fmt.Fprintf(fgo2, "\t}\n")
+
+	// skip _Cgo_use when noescape exist,
+	// so that the compiler won't force to escape them to heap.
+	if !p.noEscapes[n.C] {
+		fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
+		if d.Type.Params != nil {
+			for i := range d.Type.Params.List {
+				fmt.Fprintf(fgo2, "\t\t_Cgo_use(p%d)\n", i)
+			}
+		}
+		fmt.Fprintf(fgo2, "\t}\n")
+	}
 	fmt.Fprintf(fgo2, "\treturn\n")
 	fmt.Fprintf(fgo2, "}\n")
 }
@@ -1612,9 +1628,11 @@ const goProlog = `
 func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
 
 //go:linkname _cgoCheckPointer runtime.cgoCheckPointer
+//go:noescape
 func _cgoCheckPointer(interface{}, interface{})
 
 //go:linkname _cgoCheckResult runtime.cgoCheckResult
+//go:noescape
 func _cgoCheckResult(interface{})
 `
 

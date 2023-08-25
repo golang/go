@@ -481,6 +481,7 @@ type g struct {
 	parkingOnChan atomic.Bool
 
 	raceignore    int8  // ignore race detection events
+	nocgocallback bool  // whether disable callback from C
 	tracking      bool  // whether we're tracking this G for sched latency statistics
 	trackingSeq   uint8 // used to decide whether to track this G
 	trackingStamp int64 // timestamp of when the G last started being tracked

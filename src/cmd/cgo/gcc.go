@@ -73,18 +73,32 @@ func cname(s string) string {
 	return s
 }
 
-// DiscardCgoDirectives processes the import C preamble, and discards
-// all #cgo CFLAGS and LDFLAGS directives, so they don't make their
-// way into _cgo_export.h.
-func (f *File) DiscardCgoDirectives() {
+// ProcessCgoDirectives processes the import C preamble:
+//  1. discards all #cgo CFLAGS, LDFLAGS, nocallback and noescape directives,
+//     so they don't make their way into _cgo_export.h.
+//  2. parse the nocallback and noescape directives.
+func (f *File) ProcessCgoDirectives() {
 	linesIn := strings.Split(f.Preamble, "\n")
 	linesOut := make([]string, 0, len(linesIn))
+	f.NoCallbacks = make(map[string]bool)
+	f.NoEscapes = make(map[string]bool)
 	for _, line := range linesIn {
 		l := strings.TrimSpace(line)
 		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(rune(l[4])) {
 			linesOut = append(linesOut, line)
 		} else {
 			linesOut = append(linesOut, "")
+
+			// #cgo (nocallback|noescape) <function name>
+			if fields := strings.Fields(l); len(fields) == 3 {
+				directive := fields[1]
+				funcName := fields[2]
+				if directive == "nocallback" {
+					f.NoCallbacks[funcName] = true
+				} else if directive == "noescape" {
+					f.NoEscapes[funcName] = true
+				}
+			}
 		}
 	}
 	f.Preamble = strings.Join(linesOut, "\n")
