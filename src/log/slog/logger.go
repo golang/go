@@ -14,14 +14,14 @@ import (
 	"time"
 )
 
-var defaultLogger atomic.Value
+var defaultLogger atomic.Pointer[Logger]
 
 func init() {
 	defaultLogger.Store(New(newDefaultHandler(loginternal.DefaultOutput)))
 }
 
 // Default returns the default Logger.
-func Default() *Logger { return defaultLogger.Load().(*Logger) }
+func Default() *Logger { return defaultLogger.Load() }
 
 // SetDefault makes l the default Logger.
 // After this call, output from the log package's default Logger
