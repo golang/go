@@ -3094,6 +3094,22 @@ func rewriteValueAMD64_OpAMD64ANDQ(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
+	// match: (ANDQ x y)
+	// cond: (zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3))
+	// result: (ANDL x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			y := v_1
+			if !(zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3)) {
+				continue
+			}
+			v.reset(OpAMD64ANDL)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
 	// match: (ANDQ x l:(MOVQload [off] {sym} ptr mem))
 	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
 	// result: (ANDQload x [off] {sym} ptr mem)
@@ -22698,6 +22714,22 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value) bool {
 			v.reset(OpAMD64TESTQconst)
 			v.AuxInt = int32ToAuxInt(int32(c))
 			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	// match: (TESTQ x y)
+	// cond: (zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3))
+	// result: (TESTL x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			y := v_1
+			if !(zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3)) {
+				continue
+			}
+			v.reset(OpAMD64TESTL)
+			v.AddArg2(x, y)
 			return true
 		}
 		break

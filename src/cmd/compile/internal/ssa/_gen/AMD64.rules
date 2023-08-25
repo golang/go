@@ -1449,6 +1449,10 @@
 (TESTW (MOVLconst [c]) x) => (TESTWconst [int16(c)] x)
 (TESTB (MOVLconst [c]) x) => (TESTBconst [int8(c)] x)
 
+// shorten bitwise AND/TESTQ if upper 32 bits are known to be zero.
+(ANDQ x y) && (zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3)) => (ANDL x y)
+(TESTQ x y) && (zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3)) => (TESTL x y)
+
 // TEST %reg,%reg is shorter than CMP
 (CMPQconst x [0]) => (TESTQ x x)
 (CMPLconst x [0]) => (TESTL x x)
