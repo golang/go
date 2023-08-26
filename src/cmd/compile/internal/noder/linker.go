@@ -233,7 +233,7 @@ func (l *linker) exportBody(obj *ir.Name, local bool) {
 	//
 	// TODO(mdempsky): Reimplement the reachable method crawling logic
 	// from typecheck/crawler.go.
-	exportBody := local || fn.Inl.Body != nil
+	exportBody := local || fn.Inl.HaveDcl
 	if !exportBody {
 		return
 	}

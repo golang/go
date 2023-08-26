@@ -3463,7 +3463,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
 		base.FatalfAt(call.Pos(), "cannot inline call to %v: missing inline body", fn)
 	}
 
-	if fn.Inl.Body == nil {
+	if !fn.Inl.HaveDcl {
 		expandInline(fn, pri)
 	}
 
@@ -3631,7 +3631,7 @@ func (r *reader) inlReturn(ret *ir.ReturnStmt) *ir.BlockStmt {
 }
 
 // expandInline reads in an extra copy of IR to populate
-// fn.Inl.{Dcl,Body}.
+// fn.Inl.Dcl.
 func expandInline(fn *ir.Func, pri pkgReaderIndex) {
 	// TODO(mdempsky): Remove this function. It's currently needed by
 	// dwarfgen/dwarf.go:preInliningDcls, which requires fn.Inl.Dcl to
@@ -3659,9 +3659,13 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
 		if name.Class != ir.PAUTO || used.Has(name) {
 			name.Curfn = fn
 			fn.Inl.Dcl = append(fn.Inl.Dcl, name)
+		} else {
+			// TODO(mdempsky): Simplify code after confident that this never
+			// happens anymore.
+			base.FatalfAt(name.Pos(), "unused auto: %v", name)
 		}
 	}
-	fn.Inl.Body = tmpfn.Body
+	fn.Inl.HaveDcl = true
 
 	// Double check that we didn't change fn.Dcl by accident.
 	assert(fndcls == len(fn.Dcl))

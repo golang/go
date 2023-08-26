@@ -339,7 +339,7 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 	// when creating the "Inline.Dcl" field below; to accomplish this,
 	// the hairyVisitor below builds up a map of used/referenced
 	// locals, and we use this map to produce a pruned Inline.Dcl
-	// list. See issue 25249 for more context.
+	// list. See issue 25459 for more context.
 
 	visitor := hairyVisitor{
 		curFunc:       fn,
@@ -354,15 +354,15 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 	}
 
 	n.Func.Inl = &ir.Inline{
-		Cost: budget - visitor.budget,
-		Dcl:  pruneUnusedAutos(n.Defn.(*ir.Func).Dcl, &visitor),
-		Body: inlcopylist(fn.Body),
+		Cost:    budget - visitor.budget,
+		Dcl:     pruneUnusedAutos(n.Func.Dcl, &visitor),
+		HaveDcl: true,
 
 		CanDelayResults: canDelayResults(fn),
 	}
 
 	if base.Flag.LowerM > 1 {
-		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, budget-visitor.budget, fn.Type(), ir.Nodes(n.Func.Inl.Body))
+		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, budget-visitor.budget, fn.Type(), ir.Nodes(fn.Body))
 	} else if base.Flag.LowerM != 0 {
 		fmt.Printf("%v: can inline %v\n", ir.Line(fn), n)
 	}
@@ -789,46 +789,6 @@ func isBigFunc(fn *ir.Func) bool {
 	})
 }
 
-// inlcopylist (together with inlcopy) recursively copies a list of nodes, except
-// that it keeps the same ONAME, OTYPE, and OLITERAL nodes. It is used for copying
-// the body and dcls of an inlineable function.
-func inlcopylist(ll []ir.Node) []ir.Node {
-	s := make([]ir.Node, len(ll))
-	for i, n := range ll {
-		s[i] = inlcopy(n)
-	}
-	return s
-}
-
-// inlcopy is like DeepCopy(), but does extra work to copy closures.
-func inlcopy(n ir.Node) ir.Node {
-	var edit func(ir.Node) ir.Node
-	edit = func(x ir.Node) ir.Node {
-		switch x.Op() {
-		case ir.ONAME, ir.OTYPE, ir.OLITERAL, ir.ONIL:
-			return x
-		}
-		m := ir.Copy(x)
-		ir.EditChildren(m, edit)
-		if x.Op() == ir.OCLOSURE {
-			x := x.(*ir.ClosureExpr)
-			// Need to save/duplicate x.Func.Nname,
-			// x.Func.Nname.Ntype, x.Func.Dcl, x.Func.ClosureVars, and
-			// x.Func.Body for iexport and local inlining.
-			oldfn := x.Func
-			newfn := ir.NewFunc(oldfn.Pos(), oldfn.Nname.Pos(), oldfn.Nname.Sym(), oldfn.Nname.Type())
-			m.(*ir.ClosureExpr).Func = newfn
-			// XXX OK to share fn.Type() ??
-			newfn.Body = inlcopylist(oldfn.Body)
-			// Make shallow copy of the Dcl and ClosureVar slices
-			newfn.Dcl = append([]*ir.Name(nil), oldfn.Dcl...)
-			newfn.ClosureVars = append([]*ir.Name(nil), oldfn.ClosureVars...)
-		}
-		return m
-	}
-	return edit(n)
-}
-
 // InlineCalls/inlnode walks fn's statements and expressions and substitutes any
 // calls made to inlineable functions. This is the external entry point.
 func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
@@ -1208,6 +1168,9 @@ func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
 	for _, n := range ll {
 		if n.Class == ir.PAUTO {
 			if !vis.usedLocals.Has(n) {
+				// TODO(mdempsky): Simplify code after confident that this
+				// never happens anymore.
+				base.FatalfAt(n.Pos(), "unused auto: %v", n)
 				continue
 			}
 		}
