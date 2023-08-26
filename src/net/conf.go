@@ -181,10 +181,10 @@ func goosPrefersCgo() bool {
 	}
 }
 
-// isGoResolverForced reports whether a DNS lookup of any sort is
+// mustUseGoResolver reports whether a DNS lookup of any sort is
 // required to use the go resolver. The provided Resolver is optional.
 // This will report true if the cgo resolver is not available.
-func (c *conf) isGoResolverForced(r *Resolver) bool {
+func (c *conf) mustUseGoResolver(r *Resolver) (ret bool) {
 	if !cgoAvailable {
 		return true
 	}
@@ -203,18 +203,6 @@ func (c *conf) isGoResolverForced(r *Resolver) bool {
 	}
 
 	return c.netGo || r.preferGo()
-}
-
-// mustUseGoResolver determines whether the use of the Go resolver for
-// non-hostname and non-address resolutions (e.g., DNS, port lookup) is required.
-// The provided Resolver is optional. nil means to not consider its options.
-func (c *conf) mustUseGoResolver(r *Resolver) (ret bool) {
-	if c.dnsDebugLevel > 1 {
-		defer func() {
-			print("go package net: mustUseGoResolver() = ", ret, "\n")
-		}()
-	}
-	return c.isGoResolverForced(r)
 }
 
 // addrLookupOrder determines which strategy to use to resolve addresses.
@@ -246,7 +234,7 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 	var fallbackOrder hostLookupOrder
 
 	var canUseCgo bool
-	if c.isGoResolverForced(r) {
+	if c.mustUseGoResolver(r) {
 		// Go resolver was explicitly requested
 		// or cgo resolver is not available.
 		// Figure out the order below.
