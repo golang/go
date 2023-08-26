@@ -179,7 +179,7 @@ const (
 	// message of the log call. The associated value is a string.
 	MessageKey = "msg"
 	// SourceKey is the key used by the built-in handlers for the source file
-	// and line of the log call. The associated value is a string.
+	// and line of the log call. The associated value is a *[Source].
 	SourceKey = "source"
 )
 
