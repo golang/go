@@ -6810,3 +6810,79 @@ func testRequestSanitization(t *testing.T, mode testMode) {
 		resp.Body.Close()
 	}
 }
+
+// chunkedReader is an io.Reader that reads one chunk at a time
+// and adds a delay between each read operation.
+// When the channel is closed, the reader returns io.EOF.
+type chunkedReader struct {
+	data  [][]byte
+	index int
+	delay time.Duration
+}
+
+func (cr *chunkedReader) Read(p []byte) (int, error) {
+	if cr.index >= len(cr.data) {
+		return 0, io.EOF
+	}
+
+	n := copy(p, cr.data[cr.index])
+	cr.index++
+
+	time.Sleep(cr.delay)
+	return n, nil
+}
+
+// Issue 61708
+// Test that a write error from writeLoop should not cause request leak
+// in transport.reqCanceler.
+func TestHttp1TransportReqCancelerLeakOnWriteLoopError(t *testing.T) {
+	defer afterTest(t)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, req *Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Length", "1")
+		w.WriteHeader(StatusOK)
+		w.Write([]byte("x"))
+		w.(Flusher).Flush()
+	}))
+	defer ts.Close()
+
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
+
+	// reqBodySize should be large enough.
+	const reqBodySize = 1 << 20
+	const repeat = 5
+	reqData := [][]byte{
+		[]byte("x"),
+	}
+
+	for i := 0; i < repeat; i++ {
+		cr := &chunkedReader{data: reqData, delay: time.Millisecond * 2}
+		req, _ := NewRequest("POST", ts.URL, cr)
+		req.ContentLength = reqBodySize
+
+		resp, _ := tr.RoundTrip(req)
+
+		// Wait a little bit more time than read delay so that
+		// pc.closech can be received before waitForBodyRead in readLoop.
+		time.Sleep(time.Millisecond * 10)
+		req.Body.Close()
+		if resp != nil {
+			resp.Body.Close()
+		}
+	}
+
+	// Verify no outstanding requests after readLoop/writeLoop
+	// goroutines shut down.
+	for tries := 5; tries > 0; tries-- {
+		n := tr.NumPendingRequestsForTesting()
+		if n == 0 {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+		if tries == 1 {
+			t.Errorf("pending requests = %d; want 0", n)
+		}
+	}
+}
