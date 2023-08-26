@@ -35,10 +35,7 @@ import (
 
 var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
 
-var osDefaultInheritEnv = getOSDefaultInheritEnv()
-
-// TODO(mdempsky): Revert CL 522935 after #62277 is fixed.
-func getOSDefaultInheritEnv() []string {
+var osDefaultInheritEnv = func() []string {
 	switch runtime.GOOS {
 	case "darwin", "ios":
 		return []string{"DYLD_LIBRARY_PATH"}
@@ -54,7 +51,7 @@ func getOSDefaultInheritEnv() []string {
 		return []string{"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"}
 	}
 	return nil
-}
+}()
 
 // Handler runs an executable in a subprocess with a CGI environment.
 type Handler struct {
