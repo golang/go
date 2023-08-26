@@ -285,7 +285,7 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
 //
 // Note that a JumpTableStmt is more like a multiway-goto than
 // a multiway-if. In particular, the case bodies are just
-// labels to jump to, not not full Nodes lists.
+// labels to jump to, not full Nodes lists.
 type JumpTableStmt struct {
 	miniStmt
 
