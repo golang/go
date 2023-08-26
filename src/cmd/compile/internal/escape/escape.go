@@ -139,7 +139,7 @@ func Batch(fns []*ir.Func, recursive bool) {
 		b.initFunc(fn)
 	}
 	for _, fn := range fns {
-		if !fn.IsHiddenClosure() {
+		if !fn.IsClosure() {
 			b.walkFunc(fn)
 		}
 	}

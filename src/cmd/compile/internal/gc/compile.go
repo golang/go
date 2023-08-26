@@ -39,12 +39,7 @@ func enqueueFunc(fn *ir.Func) {
 		return
 	}
 
-	// Don't try compiling dead hidden closure.
-	if fn.IsDeadcodeClosure() {
-		return
-	}
-
-	if clo := fn.OClosure; clo != nil && !ir.IsTrivialClosure(clo) {
+	if fn.IsClosure() {
 		return // we'll get this as part of its enclosing function
 	}
 

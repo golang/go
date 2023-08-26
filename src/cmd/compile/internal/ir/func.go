@@ -222,21 +222,17 @@ type Mark struct {
 type ScopeID int32
 
 const (
-	funcDupok      = 1 << iota // duplicate definitions ok
-	funcWrapper                // hide frame from users (elide in tracebacks, don't count as a frame for recover())
-	funcABIWrapper             // is an ABI wrapper (also set flagWrapper)
-	funcNeedctxt               // function uses context register (has closure variables)
-	// true if closure inside a function; false if a simple function or a
-	// closure in a global variable initialization
-	funcIsHiddenClosure
-	funcIsDeadcodeClosure        // true if closure is deadcode
-	funcHasDefer                 // contains a defer statement
-	funcNilCheckDisabled         // disable nil checks when compiling this function
-	funcInlinabilityChecked      // inliner has already determined whether the function is inlinable
-	funcNeverReturns             // function never returns (in most cases calls panic(), os.Exit(), or equivalent)
-	funcOpenCodedDeferDisallowed // can't do open-coded defers
-	funcClosureResultsLost       // closure is called indirectly and we lost track of its results; used by escape analysis
-	funcPackageInit              // compiler emitted .init func for package
+	funcDupok                    = 1 << iota // duplicate definitions ok
+	funcWrapper                              // hide frame from users (elide in tracebacks, don't count as a frame for recover())
+	funcABIWrapper                           // is an ABI wrapper (also set flagWrapper)
+	funcNeedctxt                             // function uses context register (has closure variables)
+	funcHasDefer                             // contains a defer statement
+	funcNilCheckDisabled                     // disable nil checks when compiling this function
+	funcInlinabilityChecked                  // inliner has already determined whether the function is inlinable
+	funcNeverReturns                         // function never returns (in most cases calls panic(), os.Exit(), or equivalent)
+	funcOpenCodedDeferDisallowed             // can't do open-coded defers
+	funcClosureResultsLost                   // closure is called indirectly and we lost track of its results; used by escape analysis
+	funcPackageInit                          // compiler emitted .init func for package
 )
 
 type SymAndPos struct {
@@ -248,8 +244,6 @@ func (f *Func) Dupok() bool                    { return f.flags&funcDupok != 0 }
 func (f *Func) Wrapper() bool                  { return f.flags&funcWrapper != 0 }
 func (f *Func) ABIWrapper() bool               { return f.flags&funcABIWrapper != 0 }
 func (f *Func) Needctxt() bool                 { return f.flags&funcNeedctxt != 0 }
-func (f *Func) IsHiddenClosure() bool          { return f.flags&funcIsHiddenClosure != 0 }
-func (f *Func) IsDeadcodeClosure() bool        { return f.flags&funcIsDeadcodeClosure != 0 }
 func (f *Func) HasDefer() bool                 { return f.flags&funcHasDefer != 0 }
 func (f *Func) NilCheckDisabled() bool         { return f.flags&funcNilCheckDisabled != 0 }
 func (f *Func) InlinabilityChecked() bool      { return f.flags&funcInlinabilityChecked != 0 }
@@ -262,8 +256,6 @@ func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
 func (f *Func) SetWrapper(b bool)                  { f.flags.set(funcWrapper, b) }
 func (f *Func) SetABIWrapper(b bool)               { f.flags.set(funcABIWrapper, b) }
 func (f *Func) SetNeedctxt(b bool)                 { f.flags.set(funcNeedctxt, b) }
-func (f *Func) SetIsHiddenClosure(b bool)          { f.flags.set(funcIsHiddenClosure, b) }
-func (f *Func) SetIsDeadcodeClosure(b bool)        { f.flags.set(funcIsDeadcodeClosure, b) }
 func (f *Func) SetHasDefer(b bool)                 { f.flags.set(funcHasDefer, b) }
 func (f *Func) SetNilCheckDisabled(b bool)         { f.flags.set(funcNilCheckDisabled, b) }
 func (f *Func) SetInlinabilityChecked(b bool)      { f.flags.set(funcInlinabilityChecked, b) }
@@ -279,6 +271,14 @@ func (f *Func) SetWBPos(pos src.XPos) {
 	if !f.WBPos.IsKnown() {
 		f.WBPos = pos
 	}
+}
+
+func (f *Func) IsClosure() bool {
+	if f.OClosure == nil {
+		return false
+	}
+	// Trivial closure will be converted to global.
+	return !IsTrivialClosure(f.OClosure)
 }
 
 // FuncName returns the name (without the package) of the function f.
@@ -484,18 +484,19 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
 // should have an inline-adjusted position, whereas the ODCLFUNC and
 // ONAME must not.
 //
-// outerfn is the enclosing function, if any. The returned function is
+// outerfn is the enclosing function. The returned function is
 // appending to pkg.Funcs.
 //
 // why is the reason we're generating this Func. It can be OCLOSURE
 // (for a normal function literal) or OGO or ODEFER (for wrapping a
 // call expression that has parameters or results).
 func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func, pkg *Package) *Func {
-	fn := NewFunc(fpos, fpos, closureName(outerfn, cpos, why), typ)
-	fn.SetIsHiddenClosure(outerfn != nil)
-	if outerfn != nil {
-		fn.SetDupok(outerfn.Dupok()) // if the outer function is dupok, so is the closure
+	if outerfn == nil {
+		base.FatalfAt(fpos, "outerfn is nil")
 	}
+
+	fn := NewFunc(fpos, fpos, closureName(outerfn, cpos, why), typ)
+	fn.SetDupok(outerfn.Dupok()) // if the outer function is dupok, so is the closure
 
 	clo := &ClosureExpr{Func: fn}
 	clo.op = OCLOSURE

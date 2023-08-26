@@ -230,7 +230,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		k = e.spill(k, n)
 		e.closures = append(e.closures, closure{k, n})
 
-		if fn := n.Func; fn.IsHiddenClosure() {
+		if fn := n.Func; fn.IsClosure() {
 			for _, cv := range fn.ClosureVars {
 				if loc := e.oldLoc(cv); !loc.captured {
 					loc.captured = true

@@ -3061,11 +3061,6 @@ func (r *reader) funcLit() ir.Node {
 
 	r.addBody(fn, nil)
 
-	// un-hide closures belong to init function.
-	if (r.curfn.IsPackageInit() || strings.HasPrefix(r.curfn.Sym().Name, "init.")) && ir.IsTrivialClosure(fn.OClosure) {
-		fn.SetIsHiddenClosure(false)
-	}
-
 	return fn.OClosure
 }
 

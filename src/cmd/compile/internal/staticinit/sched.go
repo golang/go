@@ -393,12 +393,6 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 			if base.Debug.Closure > 0 {
 				base.WarnfAt(r.Pos(), "closure converted to global")
 			}
-			// Issue 59680: if the closure we're looking at was produced
-			// by inlining, it could be marked as hidden, which we don't
-			// want (moving the func to a static init will effectively
-			// hide it from escape analysis). Mark as non-hidden here.
-			// so that it will participated in escape analysis.
-			r.Func.SetIsHiddenClosure(false)
 			// Closures with no captured variables are globals,
 			// so the assignment can be done at link time.
 			// TODO if roff != 0 { panic }

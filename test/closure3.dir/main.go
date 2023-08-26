@@ -94,7 +94,7 @@ func main() {
 			return x + 2
 		}
 		y, sink = func() (func(int) int, int) { // ERROR "can inline main.func12"
-			return func(x int) int { // ERROR "can inline main.func12"
+			return func(x int) int { // ERROR "can inline main.func12" "func literal escapes to heap"
 				return x + 1
 			}, 42
 		}() // ERROR "func literal does not escape" "inlining call to main.func12"
@@ -109,7 +109,7 @@ func main() {
 				return x + 2
 			}
 			y, sink = func() (func(int) int, int) { // ERROR "can inline main.func13.2"
-				return func(x int) int { // ERROR   "can inline main.func13.2"
+				return func(x int) int { // ERROR   "can inline main.func13.2" "func literal escapes to heap"
 					return x + 1
 				}, 42
 			}() // ERROR "func literal does not escape" "inlining call to main.func13.2"

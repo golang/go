@@ -49,11 +49,6 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 	}
 
 	if base.Flag.LowerL != 0 {
-		// Perform a garbage collection of hidden closures functions that
-		// are no longer reachable from top-level functions following
-		// inlining. See #59404 and #59638 for more context.
-		inline.GarbageCollectUnreferencedHiddenClosures()
-
 		if base.Debug.DumpInlFuncProps != "" {
 			inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps)
 		}
