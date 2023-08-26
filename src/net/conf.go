@@ -184,7 +184,7 @@ func goosPrefersCgo() bool {
 // mustUseGoResolver reports whether a DNS lookup of any sort is
 // required to use the go resolver. The provided Resolver is optional.
 // This will report true if the cgo resolver is not available.
-func (c *conf) mustUseGoResolver(r *Resolver) (ret bool) {
+func (c *conf) mustUseGoResolver(r *Resolver) bool {
 	if !cgoAvailable {
 		return true
 	}
