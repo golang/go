@@ -185,7 +185,24 @@ func goosPrefersCgo() bool {
 // required to use the go resolver. The provided Resolver is optional.
 // This will report true if the cgo resolver is not available.
 func (c *conf) mustUseGoResolver(r *Resolver) bool {
-	return c.netGo || r.preferGo() || !cgoAvailable
+	if !cgoAvailable {
+		return true
+	}
+
+	if runtime.GOOS == "plan9" {
+		// TODO(bradfitz): for now we only permit use of the PreferGo
+		// implementation when there's a non-nil Resolver with a
+		// non-nil Dialer. This is a sign that they the code is trying
+		// to use their DNS-speaking net.Conn (such as an in-memory
+		// DNS cache) and they don't want to actually hit the network.
+		// Once we add support for looking the default DNS servers
+		// from plan9, though, then we can relax this.
+		if r == nil || r.Dial == nil {
+			return false
+		}
+	}
+
+	return c.netGo || r.preferGo()
 }
 
 // addrLookupOrder determines which strategy to use to resolve addresses.
