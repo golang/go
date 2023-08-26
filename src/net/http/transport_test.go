@@ -6969,3 +6969,65 @@ func testProxyAuthHeader(t *testing.T, mode testMode) {
 	}
 	resp.Body.Close()
 }
+
+// Issue 61708
+func TestTransportReqCancelerCleanupOnRequestBodyWriteError(t *testing.T) {
+	ln := newLocalListener(t)
+	addr := ln.Addr().String()
+
+	done := make(chan struct{})
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			t.Errorf("ln.Accept: %v", err)
+			return
+		}
+		// Start reading request before sending response to avoid
+		// "Unsolicited response received on idle HTTP channel" RoundTrip error.
+		if _, err := io.ReadFull(conn, make([]byte, 1)); err != nil {
+			t.Errorf("conn.Read: %v", err)
+			return
+		}
+		io.WriteString(conn, "HTTP/1.1 200\r\nContent-Length: 3\r\n\r\nfoo")
+		<-done
+		conn.Close()
+	}()
+
+	didRead := make(chan bool)
+	SetReadLoopBeforeNextReadHook(func() { didRead <- true })
+	defer SetReadLoopBeforeNextReadHook(nil)
+
+	tr := &Transport{}
+
+	// Send a request with a body guaranteed to fail on write.
+	req, err := NewRequest("POST", "http://"+addr, io.LimitReader(neverEnding('x'), 1<<30))
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+
+	resp, err := tr.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("tr.RoundTrip: %v", err)
+	}
+
+	close(done)
+
+	// Before closing response body wait for readLoopDone goroutine
+	// to complete due to closed connection by writeLoop.
+	<-didRead
+
+	resp.Body.Close()
+
+	// Verify no outstanding requests after readLoop/writeLoop
+	// goroutines shut down.
+	waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
+		n := tr.NumPendingRequestsForTesting()
+		if n > 0 {
+			if d > 0 {
+				t.Logf("pending requests = %d after %v (want 0)", n, d)
+			}
+			return false
+		}
+		return true
+	})
+}
