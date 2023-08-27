@@ -96,8 +96,9 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 
 	// Add reference to Go arguments for assembly functions without them.
 	if ctxt.IsAsm {
+		pkgPrefix := objabi.PathToPrefix(ctxt.Pkgpath) + "."
 		for _, s := range text {
-			if !strings.HasPrefix(s.Name, "\"\".") {
+			if !strings.HasPrefix(s.Name, `"".`) && !strings.HasPrefix(s.Name, pkgPrefix) {
 				continue
 			}
 			// The current args_stackmap generation in the compiler assumes
@@ -105,6 +106,16 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 			// an args_stackmap reference if the func is not ABI0 (better to
 			// have no stackmap than an incorrect/lying stackmap).
 			if s.ABI() != ABI0 {
+				continue
+			}
+			// runtime.addmoduledata is a host ABI function, so it doesn't
+			// need FUNCDATA anyway. Moreover, cmd/link has special logic
+			// for linking it in eccentric build modes, which breaks if it
+			// has FUNCDATA references (e.g., cmd/cgo/internal/testplugin).
+			//
+			// TODO(cherryyz): Fix cmd/link's handling of plugins (see
+			// discussion on CL 523355).
+			if s.Name == "runtime.addmoduledata" {
 				continue
 			}
 			foundArgMap, foundArgInfo := false, false

@@ -727,6 +727,17 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 		for j := range funcdata {
 			dataoff := off + int64(4*j)
 			fdsym := funcdata[j]
+
+			// cmd/internal/obj optimistically populates ArgsPointerMaps and
+			// ArgInfo for assembly functions, hoping that the compiler will
+			// emit appropriate symbols from their Go stub declarations. If
+			// it didn't though, just ignore it.
+			//
+			// TODO(cherryyz): Fix arg map generation (see discussion on CL 523335).
+			if fdsym != 0 && (j == abi.FUNCDATA_ArgsPointerMaps || j == abi.FUNCDATA_ArgInfo) && ldr.IsFromAssembly(s) && ldr.Data(fdsym) == nil {
+				fdsym = 0
+			}
+
 			if fdsym == 0 {
 				sb.SetUint32(ctxt.Arch, dataoff, ^uint32(0)) // ^0 is a sentinel for "no value"
 				continue
