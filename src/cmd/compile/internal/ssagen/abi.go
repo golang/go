@@ -41,12 +41,8 @@ func NewSymABIs() *SymABIs {
 // both to use the full path, which matches compiler-generated linker
 // symbol names.
 func (s *SymABIs) canonicalize(linksym string) string {
-	// If the symbol is already prefixed with "", rewrite it to start
-	// with LocalPkg.Prefix.
-	//
-	// TODO(mdempsky): Have cmd/asm stop writing out symbols like this.
 	if strings.HasPrefix(linksym, `"".`) {
-		return types.LocalPkg.Prefix + linksym[2:]
+		panic("non-canonical symbol name: " + linksym)
 	}
 	return linksym
 }
