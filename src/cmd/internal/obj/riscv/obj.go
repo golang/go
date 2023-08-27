@@ -942,12 +942,12 @@ func signExtend(val int64, bit uint) int64 {
 // result. For example, high may be used in LUI and low in a following ADDI to
 // generate a full 32-bit constant.
 func Split32BitImmediate(imm int64) (low, high int64, err error) {
-	if !immIFits(imm, 32) {
-		return 0, 0, fmt.Errorf("immediate does not fit in 32 bits: %d", imm)
+	if err := immIFits(imm, 32); err != nil {
+		return 0, 0, err
 	}
 
 	// Nothing special needs to be done if the immediate fits in 12 bits.
-	if immIFits(imm, 12) {
+	if err := immIFits(imm, 12); err == nil {
 		return imm, 0, nil
 	}
 
@@ -1007,26 +1007,41 @@ func regFAddr(a obj.Addr) uint32 {
 	return regAddr(a, REG_F0, REG_F31)
 }
 
-// immIFits reports whether immediate value x fits in nbits bits
-// as a signed integer.
-func immIFits(x int64, nbits uint) bool {
+// immEven checks that the immediate is a multiple of two. If it
+// is not, an error is returned.
+func immEven(x int64) error {
+	if x&1 != 0 {
+		return fmt.Errorf("immediate %#x is not a multiple of two", x)
+	}
+	return nil
+}
+
+// immIFits checks whether the immediate value x fits in nbits bits
+// as a signed integer. If it does not, an error is returned.
+func immIFits(x int64, nbits uint) error {
 	nbits--
-	var min int64 = -1 << nbits
-	var max int64 = 1<<nbits - 1
-	return min <= x && x <= max
+	min := int64(-1) << nbits
+	max := int64(1)<<nbits - 1
+	if x < min || x > max {
+		if nbits <= 16 {
+			return fmt.Errorf("signed immediate %d must be in range [%d, %d] (%d bits)", x, min, max, nbits)
+		}
+		return fmt.Errorf("signed immediate %#x must be in range [%#x, %#x] (%d bits)", x, min, max, nbits)
+	}
+	return nil
 }
 
 // immI extracts the signed integer of the specified size from an immediate.
 func immI(as obj.As, imm int64, nbits uint) uint32 {
-	if !immIFits(imm, nbits) {
-		panic(fmt.Sprintf("%v: signed immediate %d cannot fit in %d bits", as, imm, nbits))
+	if err := immIFits(imm, nbits); err != nil {
+		panic(fmt.Sprintf("%v: %v", as, err))
 	}
 	return uint32(imm)
 }
 
 func wantImmI(ctxt *obj.Link, as obj.As, imm int64, nbits uint) {
-	if !immIFits(imm, nbits) {
-		ctxt.Diag("%v: signed immediate %d cannot be larger than %d bits", as, imm, nbits)
+	if err := immIFits(imm, nbits); err != nil {
+		ctxt.Diag("%v: %v", as, err)
 	}
 }
 
@@ -1058,8 +1073,8 @@ func wantFloatReg(ctxt *obj.Link, as obj.As, pos string, r uint32) {
 
 // wantEvenOffset checks that the offset is a multiple of two.
 func wantEvenOffset(ctxt *obj.Link, as obj.As, offset int64) {
-	if offset%1 != 0 {
-		ctxt.Diag("%v: jump offset %d must be a multiple of two", as, offset)
+	if err := immEven(offset); err != nil {
+		ctxt.Diag("%v: %v", as, err)
 	}
 }
 
@@ -1368,62 +1383,62 @@ func encodeRawIns(ins *instruction) uint32 {
 }
 
 func EncodeBImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 13) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 13 bits", imm)
+	if err := immIFits(imm, 13); err != nil {
+		return 0, err
 	}
-	if imm&1 != 0 {
-		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+	if err := immEven(imm); err != nil {
+		return 0, err
 	}
 	return int64(encodeBImmediate(uint32(imm))), nil
 }
 
 func EncodeCBImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 9) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 9 bits", imm)
+	if err := immIFits(imm, 9); err != nil {
+		return 0, err
 	}
-	if imm&1 != 0 {
-		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+	if err := immEven(imm); err != nil {
+		return 0, err
 	}
 	return int64(encodeCBImmediate(uint32(imm))), nil
 }
 
 func EncodeCJImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 12) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+	if err := immIFits(imm, 12); err != nil {
+		return 0, err
 	}
-	if imm&1 != 0 {
-		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+	if err := immEven(imm); err != nil {
+		return 0, err
 	}
 	return int64(encodeCJImmediate(uint32(imm))), nil
 }
 
 func EncodeIImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 12) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+	if err := immIFits(imm, 12); err != nil {
+		return 0, err
 	}
 	return imm << 20, nil
 }
 
 func EncodeJImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 21) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 21 bits", imm)
+	if err := immIFits(imm, 21); err != nil {
+		return 0, err
 	}
-	if imm&1 != 0 {
-		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+	if err := immEven(imm); err != nil {
+		return 0, err
 	}
 	return int64(encodeJImmediate(uint32(imm))), nil
 }
 
 func EncodeSImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 12) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+	if err := immIFits(imm, 12); err != nil {
+		return 0, err
 	}
 	return ((imm >> 5) << 25) | ((imm & 0x1f) << 7), nil
 }
 
 func EncodeUImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 20) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 20 bits", imm)
+	if err := immIFits(imm, 20); err != nil {
+		return 0, err
 	}
 	return imm << 12, nil
 }
@@ -1975,9 +1990,9 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 		// 	MOV $1, X10
 		// 	SLLI $63, X10, X10
 		var insSLLI *instruction
-		if !immIFits(ins.imm, 32) {
+		if err := immIFits(ins.imm, 32); err != nil {
 			ctz := bits.TrailingZeros64(uint64(ins.imm))
-			if immIFits(ins.imm>>ctz, 32) {
+			if err := immIFits(ins.imm>>ctz, 32); err == nil {
 				ins.imm = ins.imm >> ctz
 				insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(ctz)}
 			}
