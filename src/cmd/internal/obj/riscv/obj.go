@@ -1722,10 +1722,10 @@ func (ins *instruction) encode() (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	if enc.length > 0 {
-		return enc.encode(ins), nil
+	if enc.length <= 0 {
+		return 0, fmt.Errorf("%v: encoding called for a pseudo instruction", ins.as)
 	}
-	return 0, fmt.Errorf("fixme")
+	return enc.encode(ins), nil
 }
 
 func (ins *instruction) length() int {
