@@ -1992,20 +1992,15 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 		ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, REG_ZERO, obj.REG_NONE, low
 
 		// LUI is only necessary if the constant does not fit in 12 bits.
-		if high == 0 {
-			if insSLLI != nil {
-				inss = append(inss, insSLLI)
+		if high != 0 {
+			// LUI top20bits(c), R
+			// ADD bottom12bits(c), R, R
+			insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
+			inss = []*instruction{insLUI}
+			if low != 0 {
+				ins.as, ins.rs1 = AADDIW, ins.rd
+				inss = append(inss, ins)
 			}
-			break
-		}
-
-		// LUI top20bits(c), R
-		// ADD bottom12bits(c), R, R
-		insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
-		inss = []*instruction{insLUI}
-		if low != 0 {
-			ins.as, ins.rs1 = AADDIW, ins.rd
-			inss = append(inss, ins)
 		}
 		if insSLLI != nil {
 			inss = append(inss, insSLLI)
