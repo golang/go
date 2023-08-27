@@ -4799,9 +4799,16 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			v := pcAlignPadLength(p.Pc, alignedValue)
 			offset := p.Pc
 			for ; v >= 4; v -= 4 {
-				// NOP
-				cursym.WriteBytes(ctxt, offset, []byte{0x13, 0, 0, 0})
+				// NOP (ADDI $0, X0, X0)
+				cursym.WriteBytes(ctxt, offset, []byte{0x13, 0x00, 0x00, 0x00})
 				offset += 4
+			}
+			if v == 2 {
+				// CNOP
+				cursym.WriteBytes(ctxt, offset, []byte{0x01, 0x00})
+				offset += 2
+			} else if v != 0 {
+				ctxt.Diag("bad PCALIGN pad length")
 			}
 			continue
 		}
