@@ -1233,7 +1233,6 @@ func putPrunedScopes(ctxt Context, s *FnState, fnabbrev int) error {
 // DIE (as a space-saving measure, so that name/type etc doesn't have
 // to be repeated for each inlined copy).
 func PutAbstractFunc(ctxt Context, s *FnState) error {
-
 	if logDwarf {
 		ctxt.Logf("PutAbstractFunc(%v)\n", s.Absfn)
 	}

@@ -158,7 +158,7 @@ func dumpGlobal(n *ir.Name) {
 	if n.CoverageCounter() || n.CoverageAuxVar() || n.Linksym().Static() {
 		return
 	}
-	base.Ctxt.DwarfGlobal(base.Ctxt.Pkgpath, types.TypeSymName(n.Type()), n.Linksym())
+	base.Ctxt.DwarfGlobal(types.TypeSymName(n.Type()), n.Linksym())
 }
 
 func dumpGlobalConst(n *ir.Name) {
@@ -186,7 +186,7 @@ func dumpGlobalConst(n *ir.Name) {
 		// that type so the linker knows about it. See issue 51245.
 		_ = reflectdata.TypeLinksym(t)
 	}
-	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
+	base.Ctxt.DwarfIntConst(n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
 }
 
 // addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.

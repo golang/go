@@ -28,7 +28,7 @@ func setArch(goarch string) (*arch.Arch, *obj.Link) {
 
 func newParser(goarch string) *Parser {
 	architecture, ctxt := setArch(goarch)
-	return NewParser(ctxt, architecture, nil, false)
+	return NewParser(ctxt, architecture, nil)
 }
 
 // tryParse executes parse func in panicOnError=true context.
@@ -76,7 +76,7 @@ func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
 		addr := obj.Addr{}
 		parser.operand(&addr)
 		var result string
-		if parser.compilingRuntime {
+		if parser.allowABI {
 			result = obj.DconvWithABIDetail(&emptyProg, &addr)
 		} else {
 			result = obj.Dconv(&emptyProg, &addr)
@@ -91,7 +91,7 @@ func TestAMD64OperandParser(t *testing.T) {
 	parser := newParser("amd64")
 	testOperandParser(t, parser, amd64OperandTests)
 	testBadOperandParser(t, parser, amd64BadOperandTests)
-	parser.compilingRuntime = true
+	parser.allowABI = true
 	testOperandParser(t, parser, amd64RuntimeOperandTests)
 	testBadOperandParser(t, parser, amd64BadOperandRuntimeTests)
 }

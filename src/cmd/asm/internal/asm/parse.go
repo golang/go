@@ -21,31 +21,32 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
 	"cmd/internal/obj/x86"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 )
 
 type Parser struct {
-	lex              lex.TokenReader
-	lineNum          int   // Line number in source file.
-	errorLine        int   // Line number of last error.
-	errorCount       int   // Number of errors.
-	sawCode          bool  // saw code in this file (as opposed to comments and blank lines)
-	pc               int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
-	input            []lex.Token
-	inputPos         int
-	pendingLabels    []string // Labels to attach to next instruction.
-	labels           map[string]*obj.Prog
-	toPatch          []Patch
-	addr             []obj.Addr
-	arch             *arch.Arch
-	ctxt             *obj.Link
-	firstProg        *obj.Prog
-	lastProg         *obj.Prog
-	dataAddr         map[string]int64 // Most recent address for DATA for this symbol.
-	isJump           bool             // Instruction being assembled is a jump.
-	compilingRuntime bool
-	errorWriter      io.Writer
+	lex           lex.TokenReader
+	lineNum       int   // Line number in source file.
+	errorLine     int   // Line number of last error.
+	errorCount    int   // Number of errors.
+	sawCode       bool  // saw code in this file (as opposed to comments and blank lines)
+	pc            int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
+	input         []lex.Token
+	inputPos      int
+	pendingLabels []string // Labels to attach to next instruction.
+	labels        map[string]*obj.Prog
+	toPatch       []Patch
+	addr          []obj.Addr
+	arch          *arch.Arch
+	ctxt          *obj.Link
+	firstProg     *obj.Prog
+	lastProg      *obj.Prog
+	dataAddr      map[string]int64 // Most recent address for DATA for this symbol.
+	isJump        bool             // Instruction being assembled is a jump.
+	allowABI      bool             // Whether ABI selectors are allowed.
+	errorWriter   io.Writer
 }
 
 type Patch struct {
@@ -53,15 +54,15 @@ type Patch struct {
 	label string
 }
 
-func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader, compilingRuntime bool) *Parser {
+func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
 	return &Parser{
-		ctxt:             ctxt,
-		arch:             ar,
-		lex:              lexer,
-		labels:           make(map[string]*obj.Prog),
-		dataAddr:         make(map[string]int64),
-		errorWriter:      os.Stderr,
-		compilingRuntime: compilingRuntime,
+		ctxt:        ctxt,
+		arch:        ar,
+		lex:         lexer,
+		labels:      make(map[string]*obj.Prog),
+		dataAddr:    make(map[string]int64),
+		errorWriter: os.Stderr,
+		allowABI:    ctxt != nil && objabi.LookupPkgSpecial(ctxt.Pkgpath).AllowAsmABI,
 	}
 }
 
@@ -864,7 +865,7 @@ func (p *Parser) symRefAttrs(name string, issueError bool) (bool, obj.ABI) {
 		isStatic = true
 	} else if tok == scanner.Ident {
 		abistr := p.get(scanner.Ident).String()
-		if !p.compilingRuntime {
+		if !p.allowABI {
 			if issueError {
 				p.errorf("ABI selector only permitted when compiling runtime, reference was to %q", name)
 			}

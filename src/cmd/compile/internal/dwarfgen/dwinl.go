@@ -217,7 +217,7 @@ func AbstractFunc(fn *obj.LSym) {
 	if base.Debug.DwarfInl != 0 {
 		base.Ctxt.Logf("DwarfAbstractFunc(%v)\n", fn.Name)
 	}
-	base.Ctxt.DwarfAbstractFunc(ifn, fn, base.Ctxt.Pkgpath)
+	base.Ctxt.DwarfAbstractFunc(ifn, fn)
 }
 
 // Undo any versioning performed when a name was written

@@ -6,7 +6,6 @@ package lex
 
 import (
 	"fmt"
-	"internal/buildcfg"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -34,33 +33,18 @@ type Input struct {
 }
 
 // NewInput returns an Input from the given path.
-func NewInput(name string, compilingRuntime bool) *Input {
+func NewInput(name string) *Input {
 	return &Input{
 		// include directories: look in source dir, then -I directories.
 		includes:        append([]string{filepath.Dir(name)}, flags.I...),
 		beginningOfLine: true,
-		macros:          predefine(flags.D, compilingRuntime),
+		macros:          predefine(flags.D),
 	}
 }
 
 // predefine installs the macros set by the -D flag on the command line.
-func predefine(defines flags.MultiFlag, compilingRuntime bool) map[string]*Macro {
+func predefine(defines flags.MultiFlag) map[string]*Macro {
 	macros := make(map[string]*Macro)
-
-	// Set macros for GOEXPERIMENTs so we can easily switch
-	// runtime assembly code based on them.
-	if compilingRuntime {
-		for _, exp := range buildcfg.Experiment.Enabled() {
-			// Define macro.
-			name := "GOEXPERIMENT_" + exp
-			macros[name] = &Macro{
-				name:   name,
-				args:   nil,
-				tokens: Tokenize("1"),
-			}
-		}
-	}
-
 	for _, name := range defines {
 		value := "1"
 		i := strings.IndexRune(name, '=')

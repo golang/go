@@ -60,8 +60,8 @@ func (t ScanToken) String() string {
 }
 
 // NewLexer returns a lexer for the named file and the given link context.
-func NewLexer(name string, compilingRuntime bool) TokenReader {
-	input := NewInput(name, compilingRuntime)
+func NewLexer(name string) TokenReader {
+	input := NewInput(name)
 	fd, err := os.Open(name)
 	if err != nil {
 		log.Fatalf("%s\n", err)

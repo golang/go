@@ -21,7 +21,7 @@ type Plist struct {
 // It is used to provide access to cached/bulk-allocated Progs to the assemblers.
 type ProgAlloc func() *Prog
 
-func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string) {
+func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 	// Build list of symbols, and assign instructions to lists.
 	var curtext *LSym
 	var etext *Prog
@@ -155,9 +155,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			continue
 		}
 		linkpcln(ctxt, s)
-		if myimportpath != "" {
-			ctxt.populateDWARF(plist.Curfn, s, myimportpath)
-		}
+		ctxt.populateDWARF(plist.Curfn, s)
 		if ctxt.Headtype == objabi.Hwindows && ctxt.Arch.SEH != nil {
 			s.Func().sehUnwindInfoSym = ctxt.Arch.SEH(ctxt, s)
 		}

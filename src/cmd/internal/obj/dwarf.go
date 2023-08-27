@@ -345,7 +345,12 @@ func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
 // populateDWARF fills in the DWARF Debugging Information Entries for
 // TEXT symbol 's'. The various DWARF symbols must already have been
 // initialized in InitTextSym.
-func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string) {
+func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym) {
+	myimportpath := ctxt.Pkgpath
+	if myimportpath == "" {
+		return
+	}
+
 	info, loc, ranges, absfunc, lines := ctxt.dwarfSym(s)
 	if info.Size != 0 {
 		ctxt.Diag("makeFuncDebugEntry double process %v", s)
@@ -394,7 +399,8 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
 
 // DwarfIntConst creates a link symbol for an integer constant with the
 // given name, type and value.
-func (ctxt *Link) DwarfIntConst(myimportpath, name, typename string, val int64) {
+func (ctxt *Link) DwarfIntConst(name, typename string, val int64) {
+	myimportpath := ctxt.Pkgpath
 	if myimportpath == "" {
 		return
 	}
@@ -407,7 +413,8 @@ func (ctxt *Link) DwarfIntConst(myimportpath, name, typename string, val int64) 
 
 // DwarfGlobal creates a link symbol containing a DWARF entry for
 // a global variable.
-func (ctxt *Link) DwarfGlobal(myimportpath, typename string, varSym *LSym) {
+func (ctxt *Link) DwarfGlobal(typename string, varSym *LSym) {
+	myimportpath := ctxt.Pkgpath
 	if myimportpath == "" || varSym.Local() {
 		return
 	}
@@ -421,7 +428,7 @@ func (ctxt *Link) DwarfGlobal(myimportpath, typename string, varSym *LSym) {
 	dwarf.PutGlobal(dwCtxt{ctxt}, dieSym, typeSym, varSym, varname)
 }
 
-func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath string) {
+func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym) {
 	absfn := ctxt.DwFixups.AbsFuncDwarfSym(s)
 	if absfn.Size != 0 {
 		ctxt.Diag("internal error: DwarfAbstractFunc double process %v", s)
@@ -434,7 +441,7 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
 	dwctxt := dwCtxt{ctxt}
 	fnstate := dwarf.FnState{
 		Name:          s.Name,
-		Importpath:    myimportpath,
+		Importpath:    ctxt.Pkgpath,
 		Info:          absfn,
 		Absfn:         absfn,
 		StartLine:     startLine,

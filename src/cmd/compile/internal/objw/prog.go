@@ -109,7 +109,7 @@ func (pp *Progs) NewProg() *obj.Prog {
 // Flush converts from pp to machine code.
 func (pp *Progs) Flush() {
 	plist := &obj.Plist{Firstpc: pp.Text, Curfn: pp.CurFunc}
-	obj.Flushplist(base.Ctxt, plist, pp.NewProg, base.Ctxt.Pkgpath)
+	obj.Flushplist(base.Ctxt, plist, pp.NewProg)
 }
 
 // Free clears pp and any associated resources.
