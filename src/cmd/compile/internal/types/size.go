@@ -195,8 +195,10 @@ func calcStructOffset(t *Type, fields []*Field, offset int64) int64 {
 }
 
 func isAtomicStdPkg(p *Pkg) bool {
-	return (p.Prefix == "sync/atomic" || p.Prefix == `""` && base.Ctxt.Pkgpath == "sync/atomic") ||
-		(p.Prefix == "runtime/internal/atomic" || p.Prefix == `""` && base.Ctxt.Pkgpath == "runtime/internal/atomic")
+	if p.Prefix == `""` {
+		panic("bad package prefix")
+	}
+	return p.Prefix == "sync/atomic" || p.Prefix == "runtime/internal/atomic"
 }
 
 // CalcSize calculates and stores the size and alignment for t.

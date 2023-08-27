@@ -524,9 +524,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 // in the DWARF info.
 func RecordFlags(flags ...string) {
 	if base.Ctxt.Pkgpath == "" {
-		// We can't record the flags if we don't know what the
-		// package name is.
-		return
+		panic("missing pkgpath")
 	}
 
 	type BoolFlag interface {

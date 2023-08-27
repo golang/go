@@ -432,13 +432,7 @@ func dgopkgpath(s *obj.LSym, ot int, pkg *types.Pkg) int {
 	}
 
 	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
-		// If we don't know the full import path of the package being compiled
-		// (i.e. -p was not passed on the compiler command line), emit a reference to
-		// type:.importpath.""., which the linker will rewrite using the correct import path.
-		// Every package that imports this one directly defines the symbol.
-		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
-		ns := base.Ctxt.Lookup(`type:.importpath."".`)
-		return objw.SymPtr(s, ot, ns, 0)
+		panic("missing pkgpath")
 	}
 
 	dimportpath(pkg)
@@ -451,13 +445,7 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
 		return objw.Uint32(s, ot, 0)
 	}
 	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
-		// If we don't know the full import path of the package being compiled
-		// (i.e. -p was not passed on the compiler command line), emit a reference to
-		// type:.importpath.""., which the linker will rewrite using the correct import path.
-		// Every package that imports this one directly defines the symbol.
-		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
-		ns := base.Ctxt.Lookup(`type:.importpath."".`)
-		return objw.SymPtrOff(s, ot, ns)
+		panic("missing pkgpath")
 	}
 
 	dimportpath(pkg)
@@ -546,7 +534,9 @@ func dname(name, tag string, pkg *types.Pkg, exported, embedded bool) *obj.LSym 
 			}
 		}
 	} else {
-		sname = fmt.Sprintf(`%s"".%d`, sname, dnameCount)
+		// TODO(mdempsky): We should be able to share these too (except
+		// maybe when dynamic linking).
+		sname = fmt.Sprintf("%s%s.%d", sname, types.LocalPkg.Prefix, dnameCount)
 		dnameCount++
 	}
 	if embedded {

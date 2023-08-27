@@ -1507,7 +1507,7 @@ func isFuncPCIntrinsic(n *ir.CallExpr) bool {
 	}
 	fn := n.X.(*ir.Name).Sym()
 	return (fn.Name == "FuncPCABI0" || fn.Name == "FuncPCABIInternal") &&
-		(fn.Pkg.Path == "internal/abi" || fn.Pkg == types.LocalPkg && base.Ctxt.Pkgpath == "internal/abi")
+		fn.Pkg.Path == "internal/abi"
 }
 
 // isIfaceOfFunc returns whether n is an interface conversion from a direct reference of a func.
