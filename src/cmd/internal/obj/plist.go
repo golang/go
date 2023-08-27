@@ -22,6 +22,10 @@ type Plist struct {
 type ProgAlloc func() *Prog
 
 func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
+	if ctxt.Pkgpath == "" {
+		panic("Flushplist called without Pkgpath")
+	}
+
 	// Build list of symbols, and assign instructions to lists.
 	var curtext *LSym
 	var etext *Prog
@@ -98,7 +102,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 	if ctxt.IsAsm {
 		pkgPrefix := objabi.PathToPrefix(ctxt.Pkgpath) + "."
 		for _, s := range text {
-			if !strings.HasPrefix(s.Name, `"".`) && !strings.HasPrefix(s.Name, pkgPrefix) {
+			if !strings.HasPrefix(s.Name, pkgPrefix) {
 				continue
 			}
 			// The current args_stackmap generation in the compiler assumes
@@ -187,15 +191,16 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
 		ctxt.Diag("%s: symbol %s redeclared", ctxt.PosTable.Pos(start), s.Name)
 		return
 	}
+	if strings.HasPrefix(s.Name, `"".`) {
+		ctxt.Diag("%s: unqualified symbol name: %s", ctxt.PosTable.Pos(start), s.Name)
+	}
 
 	// startLine should be the same line number that would be displayed via
 	// pcln, etc for the declaration (i.e., relative line number, as
 	// adjusted by //line).
 	_, startLine := ctxt.getFileSymbolAndLine(start)
 
-	// TODO(mdempsky): Remove once cmd/asm stops writing "" symbols.
-	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
-	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
+	s.Func().FuncID = objabi.GetFuncID(s.Name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
 	s.Func().FuncFlag = ctxt.toFuncFlag(flag)
 	s.Func().StartLine = startLine
 	s.Set(AttrOnList, true)

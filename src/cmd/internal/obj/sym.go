@@ -219,6 +219,10 @@ func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
 // asm is set to true if this is called by the assembler (i.e. not the compiler),
 // in which case all the symbols are non-package (for now).
 func (ctxt *Link) NumberSyms() {
+	if ctxt.Pkgpath == "" {
+		panic("NumberSyms called without package path")
+	}
+
 	if ctxt.Headtype == objabi.Haix {
 		// Data must be in a reliable order for reproducible builds.
 		// The original entries are in a reliable order, but the TOC symbols
@@ -249,9 +253,7 @@ func (ctxt *Link) NumberSyms() {
 
 	var idx, hashedidx, hashed64idx, nonpkgidx int32
 	ctxt.traverseSyms(traverseDefs|traversePcdata, func(s *LSym) {
-		// if Pkgpath is unknown, cannot hash symbols with relocations, as it
-		// may reference named symbols whose names are not fully expanded.
-		if s.ContentAddressable() && (ctxt.Pkgpath != "" || len(s.R) == 0) {
+		if s.ContentAddressable() {
 			if s.Size <= 8 && len(s.R) == 0 && contentHashSection(s) == 0 {
 				// We can use short hash only for symbols without relocations.
 				// Don't use short hash for symbols that belong in a particular section

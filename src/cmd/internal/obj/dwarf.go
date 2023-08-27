@@ -367,7 +367,6 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym) {
 	filesym := ctxt.fileSymbol(s)
 	fnstate := &dwarf.FnState{
 		Name:          s.Name,
-		Importpath:    myimportpath,
 		Info:          info,
 		Filesym:       filesym,
 		Loc:           loc,
@@ -441,7 +440,6 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym) {
 	dwctxt := dwCtxt{ctxt}
 	fnstate := dwarf.FnState{
 		Name:          s.Name,
-		Importpath:    ctxt.Pkgpath,
 		Info:          absfn,
 		Absfn:         absfn,
 		StartLine:     startLine,

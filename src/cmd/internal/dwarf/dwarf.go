@@ -16,8 +16,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"cmd/internal/objabi"
 )
 
 // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
@@ -86,7 +84,6 @@ type Range struct {
 // creating the DWARF subprogram DIE(s) for a function.
 type FnState struct {
 	Name          string
-	Importpath    string
 	Info          Sym
 	Filesym       Sym
 	Loc           Sym
@@ -1241,15 +1238,8 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 	Uleb128put(ctxt, s.Absfn, int64(abbrev))
 
 	fullname := s.Name
-	if strings.HasPrefix(s.Name, "\"\".") {
-		// Generate a fully qualified name for the function in the
-		// abstract case. This is so as to avoid the need for the
-		// linker to process the DIE with patchDWARFName(); we can't
-		// allow the name attribute of an abstract subprogram DIE to
-		// be rewritten, since it would change the offsets of the
-		// child DIEs (which we're relying on in order for abstract
-		// origin references to work).
-		fullname = objabi.PathToPrefix(s.Importpath) + "." + s.Name[3:]
+	if strings.HasPrefix(s.Name, `"".`) {
+		return fmt.Errorf("unqualified symbol name: %v", s.Name)
 	}
 	putattr(ctxt, s.Absfn, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(fullname)), fullname)
 
@@ -1436,10 +1426,9 @@ func PutDefaultFunc(ctxt Context, s *FnState, isWrapper bool) error {
 	}
 	Uleb128put(ctxt, s.Info, int64(abbrev))
 
-	// Expand '"".' to import path.
 	name := s.Name
-	if s.Importpath != "" {
-		name = strings.Replace(name, "\"\".", objabi.PathToPrefix(s.Importpath)+".", -1)
+	if strings.HasPrefix(name, `"".`) {
+		return fmt.Errorf("unqualified symbol name: %v", name)
 	}
 
 	putattr(ctxt, s.Info, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
