@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"text/scanner"
 	"unicode/utf8"
 
@@ -46,6 +47,7 @@ type Parser struct {
 	dataAddr      map[string]int64 // Most recent address for DATA for this symbol.
 	isJump        bool             // Instruction being assembled is a jump.
 	allowABI      bool             // Whether ABI selectors are allowed.
+	pkgPrefix     string           // Prefix to add to local symbols.
 	errorWriter   io.Writer
 }
 
@@ -55,6 +57,10 @@ type Patch struct {
 }
 
 func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
+	pkgPrefix := obj.UnlinkablePkg
+	if ctxt != nil {
+		pkgPrefix = objabi.PathToPrefix(ctxt.Pkgpath)
+	}
 	return &Parser{
 		ctxt:        ctxt,
 		arch:        ar,
@@ -63,6 +69,7 @@ func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
 		dataAddr:    make(map[string]int64),
 		errorWriter: os.Stderr,
 		allowABI:    ctxt != nil && objabi.LookupPkgSpecial(ctxt.Pkgpath).AllowAsmABI,
+		pkgPrefix:   pkgPrefix,
 	}
 }
 
@@ -402,7 +409,7 @@ func (p *Parser) operand(a *obj.Addr) {
 			fallthrough
 		default:
 			// We have a symbol. Parse $sym±offset(symkind)
-			p.symbolReference(a, name, prefix)
+			p.symbolReference(a, p.qualifySymbol(name), prefix)
 		}
 		// fmt.Printf("SYM %s\n", obj.Dconv(&emptyProg, 0, a))
 		if p.peek() == scanner.EOF {
@@ -770,6 +777,16 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
 	}
 }
 
+// qualifySymbol returns name as a package-qualified symbol name. If
+// name starts with a period, qualifySymbol prepends the package
+// prefix. Otherwise it returns name unchanged.
+func (p *Parser) qualifySymbol(name string) string {
+	if strings.HasPrefix(name, ".") {
+		name = p.pkgPrefix + name
+	}
+	return name
+}
+
 // symbolReference parses a symbol that is known not to be a register.
 func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 	// Identifier is a name.
@@ -902,6 +919,7 @@ func (p *Parser) funcAddress() (string, obj.ABI, bool) {
 	if tok.ScanToken != scanner.Ident || p.atStartOfRegister(name) {
 		return "", obj.ABI0, false
 	}
+	name = p.qualifySymbol(name)
 	// Parse optional <> (indicates a static symbol) or
 	// <ABIxxx> (selecting text symbol with specific ABI).
 	noErrMsg := false
