@@ -79,7 +79,7 @@ func (ctxt *Context) instanceHash(orig Type, targs []Type) string {
 		h.typeList(targs)
 	}
 
-	return strings.Replace(buf.String(), " ", "#", -1) // ReplaceAll is not available in Go1.4
+	return strings.ReplaceAll(buf.String(), " ", "#")
 }
 
 // lookup returns an existing instantiation of orig with targs, if it exists.
