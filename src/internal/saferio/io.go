@@ -126,7 +126,7 @@ func SliceCap(v any, c uint64) int {
 		return -1
 	}
 	if c*size > chunk {
-		c = uint64(chunk / size)
+		c = chunk / size
 		if c == 0 {
 			c = 1
 		}
