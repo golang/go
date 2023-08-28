@@ -478,6 +478,7 @@ func TestFPUnwindAfterRecovery(t *testing.T) {
 			pcs[i] = 10
 		}
 		runtime.FPCallers(pcs)
+		t.Logf("%v", pcs)
 	}()
 	defer func() {
 		if recover() == nil {

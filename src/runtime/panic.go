@@ -313,10 +313,10 @@ func deferproc(fn func()) {
 // The g._defer list is now a linked list of deferred calls,
 // but an atomic list hanging off:
 //
-//	g._defer => d4 -> d3 -> drangefunc -> d2 -> d1 -> nil
-//                              | .head
-//                              |
-//                              +--> dY -> dX -> nil
+//		g._defer => d4 -> d3 -> drangefunc -> d2 -> d1 -> nil
+//	                             | .head
+//	                             |
+//	                             +--> dY -> dX -> nil
 //
 // with each -> indicating a d.link pointer, and where drangefunc
 // has the d.rangefunc = true bit set.
@@ -340,10 +340,10 @@ func deferproc(fn func()) {
 //
 // That is, deferconvert changes this list:
 //
-//	g._defer => drangefunc -> d2 -> d1 -> nil
-//                  | .head
-//                  |
-//                  +--> dY -> dX -> nil
+//		g._defer => drangefunc -> d2 -> d1 -> nil
+//	                 | .head
+//	                 |
+//	                 +--> dY -> dX -> nil
 //
 // into this list:
 //
@@ -1149,15 +1149,20 @@ func recovery(gp *g) {
 	gp.sched.sp = sp
 	gp.sched.pc = pc
 	gp.sched.lr = 0
-	// fp points to the stack pointer at the caller, which is the top of the
-	// stack frame. The frame pointer used for unwinding is the word
-	// immediately below it.
-	gp.sched.bp = fp - goarch.PtrSize
-	if !usesLR {
+	// Restore the bp on platforms that support frame pointers.
+	// N.B. It's fine to not set anything for platforms that don't
+	// support frame pointers, since nothing consumes them.
+	switch {
+	case goarch.IsAmd64 != 0:
 		// on x86, fp actually points one word higher than the top of
 		// the frame since the return address is saved on the stack by
 		// the caller
-		gp.sched.bp -= goarch.PtrSize
+		gp.sched.bp = fp - 2*goarch.PtrSize
+	case goarch.IsArm64 != 0:
+		// on arm64, the architectural bp points one word higher
+		// than the sp. fp is totally useless to us here, because it
+		// only gets us to the caller's fp.
+		gp.sched.bp = sp - goarch.PtrSize
 	}
 	gp.sched.ret = 1
 	gogo(&gp.sched)
