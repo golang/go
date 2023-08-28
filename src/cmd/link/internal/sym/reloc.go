@@ -37,12 +37,8 @@ func RelocName(arch *sys.Arch, r objabi.RelocType) string {
 		switch arch.Family {
 		case sys.AMD64:
 			return macho.RelocTypeX86_64(nr).String()
-		case sys.ARM:
-			return macho.RelocTypeARM(nr).String()
 		case sys.ARM64:
 			return macho.RelocTypeARM64(nr).String()
-		case sys.I386:
-			return macho.RelocTypeGeneric(nr).String()
 		default:
 			panic("unreachable")
 		}
