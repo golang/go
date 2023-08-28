@@ -92,6 +92,19 @@ func NewAddrExpr(pos src.XPos, x Node) *AddrExpr {
 		n.op = OADDR
 		if r, ok := OuterValue(x).(*Name); ok && r.Op() == ONAME {
 			r.SetAddrtaken(true)
+
+			// If r is a closure variable, we need to mark its canonical
+			// variable as addrtaken too, so that closure conversion
+			// captures it by reference.
+			//
+			// Exception: if we've already marked the variable as
+			// capture-by-value, then that means this variable isn't
+			// logically modified, and we must be taking its address to pass
+			// to a runtime function that won't mutate it. In that case, we
+			// only need to make sure our own copy is addressable.
+			if r.IsClosureVar() && !r.Byval() {
+				r.Canonical().SetAddrtaken(true)
+			}
 		}
 	}
 
