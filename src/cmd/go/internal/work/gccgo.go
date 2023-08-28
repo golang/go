@@ -658,8 +658,8 @@ func (tools gccgoToolchain) supportsCgoIncomplete(b *Builder) bool {
 		cmd.Stdout = &buf
 		cmd.Stderr = &buf
 		err = cmd.Run()
-		if out := buf.String(); len(out) > 0 {
-			b.showOutput(nil, tmpdir, b.fmtcmd(tmpdir, "%s -c -o %s %s", tools.compiler(), on, fn), buf.String())
+		if out := buf.String(); len(out) > 0 && cfg.BuildX {
+			b.showOutput(nil, tmpdir, b.fmtcmd(tmpdir, "%s -c -o %s %s", tools.compiler(), on, fn), out)
 		}
 		gccgoSupportsCgoIncomplete = err == nil
 	})
