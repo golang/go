@@ -524,7 +524,10 @@ func (c *cmdClient) Configuration(ctx context.Context, p *protocol.ParamConfigur
 }
 
 func (c *cmdClient) ApplyEdit(ctx context.Context, p *protocol.ApplyWorkspaceEditParams) (*protocol.ApplyWorkspaceEditResult, error) {
-	return &protocol.ApplyWorkspaceEditResult{Applied: false, FailureReason: "not implemented"}, nil
+	return &protocol.ApplyWorkspaceEditResult{
+		Applied:       false,
+		FailureReason: "the gopls command-line client does not apply edits",
+	}, nil
 }
 
 func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishDiagnosticsParams) error {

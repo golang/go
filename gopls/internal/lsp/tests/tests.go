@@ -230,6 +230,7 @@ func DefaultOptions(o *source.Options) {
 			protocol.SourceOrganizeImports: true,
 			protocol.QuickFix:              true,
 			protocol.RefactorRewrite:       true,
+			protocol.RefactorInline:        true,
 			protocol.RefactorExtract:       true,
 			protocol.SourceFixAll:          true,
 		},

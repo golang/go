@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/analysis/stubmethods"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
+	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/tokeninternal"
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -231,15 +232,19 @@ func (%s%s%s) %s%s {
 
 	// Report the diff.
 	diffs := snapshot.View().Options().ComputeEdits(string(input), output.String())
-	var edits []analysis.TextEdit
+	return tokeninternal.FileSetFor(declPGF.Tok), // edits use declPGF.Tok
+		&analysis.SuggestedFix{TextEdits: diffToTextEdits(declPGF.Tok, diffs)},
+		nil
+}
+
+func diffToTextEdits(tok *token.File, diffs []diff.Edit) []analysis.TextEdit {
+	edits := make([]analysis.TextEdit, 0, len(diffs))
 	for _, edit := range diffs {
 		edits = append(edits, analysis.TextEdit{
-			Pos:     declPGF.Tok.Pos(edit.Start),
-			End:     declPGF.Tok.Pos(edit.End),
+			Pos:     tok.Pos(edit.Start),
+			End:     tok.Pos(edit.End),
 			NewText: []byte(edit.New),
 		})
 	}
-	return tokeninternal.FileSetFor(declPGF.Tok), // edits use declPGF.Tok
-		&analysis.SuggestedFix{TextEdits: edits},
-		nil
+	return edits
 }

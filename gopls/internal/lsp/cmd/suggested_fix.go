@@ -101,12 +101,30 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 	// Gather edits from matching code actions.
 	var edits []protocol.TextEdit
 	for _, a := range actions {
-		if a.Command != nil {
-			return fmt.Errorf("ExecuteCommand is not yet supported on the command line (action: %v)", a.Title)
-		}
+		// Without -all, apply only "preferred" fixes.
 		if !a.IsPreferred && !s.All {
 			continue
 		}
+
+		// Execute any command.
+		// This may cause the server to make
+		// an ApplyEdit downcall to the client.
+		if a.Command != nil {
+			if _, err := conn.ExecuteCommand(ctx, &protocol.ExecuteCommandParams{
+				Command:   a.Command.Command,
+				Arguments: a.Command.Arguments,
+			}); err != nil {
+				return err
+			}
+			// The specification says that commands should
+			// be executed _after_ edits are applied, not
+			// instead of them, but we don't want to
+			// duplicate edits.
+			continue
+		}
+
+		// Partially apply CodeAction.Edit, a WorkspaceEdit.
+		// (See also conn.Client.applyWorkspaceEdit(a.Edit)).
 		if !from.HasPosition() {
 			for _, c := range a.Edit.DocumentChanges {
 				if c.TextDocumentEdit != nil {

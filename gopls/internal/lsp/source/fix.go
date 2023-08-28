@@ -35,6 +35,8 @@ type (
 	singleFileFixFunc func(fset *token.FileSet, start, end token.Pos, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error)
 )
 
+// These strings identify kinds of suggested fix, both in Analyzer.Fix
+// and in the ApplyFix subcommand (see ExecuteCommand and ApplyFixArgs.Fix).
 const (
 	FillStruct        = "fill_struct"
 	StubMethods       = "stub_methods"
@@ -42,6 +44,7 @@ const (
 	ExtractVariable   = "extract_variable"
 	ExtractFunction   = "extract_function"
 	ExtractMethod     = "extract_method"
+	InlineCall        = "inline_call"
 	InvertIfCondition = "invert_if_condition"
 	AddEmbedImport    = "add_embed_import"
 )
@@ -51,6 +54,7 @@ var suggestedFixes = map[string]SuggestedFixFunc{
 	FillStruct:        singleFile(fillstruct.SuggestedFix),
 	UndeclaredName:    singleFile(undeclaredname.SuggestedFix),
 	ExtractVariable:   singleFile(extractVariable),
+	InlineCall:        inlineCall,
 	ExtractFunction:   singleFile(extractFunction),
 	ExtractMethod:     singleFile(extractMethod),
 	InvertIfCondition: singleFile(invertIfCondition),

@@ -1,0 +1,23 @@
+This is a minimal test of the refactor.inline code action.
+
+-- go.mod --
+module testdata/codeaction
+go 1.18
+
+-- a/a.go --
+package a
+
+func _() {
+	println(add(1, 2)) //@codeaction("refactor.inline", "add", ")", inline)
+}
+
+func add(x, y int) int { return x + y }
+
+-- @inline/a/a.go --
+package a
+
+func _() {
+	println(func(x, y int) int { return x + y }(1, 2)) //@codeaction("refactor.inline", "add", ")", inline)
+}
+
+func add(x, y int) int { return x + y }

@@ -194,7 +194,10 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		}
 
 		// Code actions requiring type information.
-		if len(stubMethodsDiagnostics) > 0 || want[protocol.RefactorRewrite] || want[protocol.GoTest] {
+		if len(stubMethodsDiagnostics) > 0 ||
+			want[protocol.RefactorRewrite] ||
+			want[protocol.RefactorInline] ||
+			want[protocol.GoTest] {
 			pkg, pgf, err := source.NarrowestPackageForFile(ctx, snapshot, fh.URI())
 			if err != nil {
 				return nil, err
@@ -244,6 +247,14 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 
 			if want[protocol.RefactorRewrite] {
 				rewrites, err := refactorRewrite(ctx, snapshot, pkg, pgf, fh, params.Range)
+				if err != nil {
+					return nil, err
+				}
+				actions = append(actions, rewrites...)
+			}
+
+			if want[protocol.RefactorInline] {
+				rewrites, err := refactorInline(ctx, snapshot, pkg, pgf, fh, params.Range)
 				if err != nil {
 					return nil, err
 				}
@@ -496,6 +507,35 @@ func refactorRewrite(ctx context.Context, snapshot source.Snapshot, pkg source.P
 		}
 	}
 
+	return actions, nil
+}
+
+// refactorInline returns inline actions available at the specified range.
+func refactorInline(ctx context.Context, snapshot source.Snapshot, pkg source.Package, pgf *source.ParsedGoFile, fh source.FileHandle, rng protocol.Range) ([]protocol.CodeAction, error) {
+	var commands []protocol.Command
+
+	// If range is within call expression, offer inline action.
+	if _, fn, err := source.EnclosingStaticCall(pkg, pgf, rng); err == nil {
+		cmd, err := command.NewApplyFixCommand(fmt.Sprintf("Inline call to %s", fn.Name()), command.ApplyFixArgs{
+			URI:   protocol.URIFromSpanURI(pgf.URI),
+			Fix:   source.InlineCall,
+			Range: rng,
+		})
+		if err != nil {
+			return nil, err
+		}
+		commands = append(commands, cmd)
+	}
+
+	// Convert commands to actions.
+	var actions []protocol.CodeAction
+	for i := range commands {
+		actions = append(actions, protocol.CodeAction{
+			Title:   commands[i].Title,
+			Kind:    protocol.RefactorInline,
+			Command: &commands[i],
+		})
+	}
 	return actions, nil
 }
 
