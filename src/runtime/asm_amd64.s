@@ -537,6 +537,30 @@ bad:
 	CALL	AX
 	INT	$3
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
+	MOVQ	g_m(R14), BX // curm
+
+	// set g to gcrash
+	LEAQ	runtime·gcrash(SB), R14 // g = &gcrash
+	MOVQ	BX, g_m(R14)            // g.m = curm
+	MOVQ	R14, m_g0(BX)           // curm.g0 = g
+	get_tls(CX)
+	MOVQ	R14, g(CX)
+
+	// switch to crashstack
+	MOVQ	(g_stack+stack_hi)(R14), BX
+	SUBQ	$(4*8), BX
+	MOVQ	BX, SP
+
+	// call target function
+	MOVQ	AX, DX
+	MOVQ	0(AX), AX
+	CALL	AX
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
 
 /*
  * support for morestack
@@ -551,17 +575,26 @@ bad:
 TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Cannot grow scheduler stack (m->g0).
 	get_tls(CX)
-	MOVQ	g(CX), BX
-	MOVQ	g_m(BX), BX
-	MOVQ	m_g0(BX), SI
-	CMPQ	g(CX), SI
+	MOVQ	g(CX), DI     // DI = g
+	MOVQ	g_m(DI), BX   // BX = m
+
+	// Set g->sched to context in f.
+	MOVQ	0(SP), AX // f's PC
+	MOVQ	AX, (g_sched+gobuf_pc)(DI)
+	LEAQ	8(SP), AX // f's SP
+	MOVQ	AX, (g_sched+gobuf_sp)(DI)
+	MOVQ	BP, (g_sched+gobuf_bp)(DI)
+	MOVQ	DX, (g_sched+gobuf_ctxt)(DI)
+
+	MOVQ	m_g0(BX), SI  // SI = m.g0
+	CMPQ	DI, SI
 	JNE	3(PC)
 	CALL	runtime·badmorestackg0(SB)
 	CALL	runtime·abort(SB)
 
 	// Cannot grow signal stack (m->gsignal).
 	MOVQ	m_gsignal(BX), SI
-	CMPQ	g(CX), SI
+	CMPQ	DI, SI
 	JNE	3(PC)
 	CALL	runtime·badmorestackgsignal(SB)
 	CALL	runtime·abort(SB)
@@ -573,17 +606,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
 	LEAQ	16(SP), AX	// f's caller's SP
 	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
-	get_tls(CX)
-	MOVQ	g(CX), SI
-	MOVQ	SI, (m_morebuf+gobuf_g)(BX)
-
-	// Set g->sched to context in f.
-	MOVQ	0(SP), AX // f's PC
-	MOVQ	AX, (g_sched+gobuf_pc)(SI)
-	LEAQ	8(SP), AX // f's SP
-	MOVQ	AX, (g_sched+gobuf_sp)(SI)
-	MOVQ	BP, (g_sched+gobuf_bp)(SI)
-	MOVQ	DX, (g_sched+gobuf_ctxt)(SI)
+	MOVQ	DI, (m_morebuf+gobuf_g)(BX)
 
 	// Call newstack on m->g0's stack.
 	MOVQ	m_g0(BX), BX

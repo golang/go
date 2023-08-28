@@ -694,7 +694,7 @@ func G0StackOverflow() {
 		// The stack bounds for g0 stack is not always precise.
 		// Use an artificially small stack, to trigger a stack overflow
 		// without actually run out of the system stack (which may seg fault).
-		g0.stack.lo = sp - 4096
+		g0.stack.lo = sp - 4096 - stackSystem
 		g0.stackguard0 = g0.stack.lo + stackGuard
 		g0.stackguard1 = g0.stackguard0
 

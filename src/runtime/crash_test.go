@@ -804,6 +804,14 @@ func TestG0StackOverflow(t *testing.T) {
 		if n := strings.Count(string(out), "morestack on g0\n"); n != 1 {
 			t.Fatalf("%s\n(exit status %v)", out, err)
 		}
+		if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" {
+			// check for a stack trace
+			want := "runtime.stackOverflow"
+			if n := strings.Count(string(out), want); n < 5 {
+				t.Errorf("output does not contain %q at least 5 times:\n%s", want, out)
+			}
+			return // it's not a signal-style traceback
+		}
 		// Check that it's a signal-style traceback.
 		if runtime.GOOS != "windows" {
 			if want := "PC="; !strings.Contains(string(out), want) {

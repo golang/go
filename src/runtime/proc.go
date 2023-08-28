@@ -516,7 +516,20 @@ func badreflectcall() {
 //go:nosplit
 //go:nowritebarrierrec
 func badmorestackg0() {
-	writeErrStr("fatal: morestack on g0\n")
+	if !crashStackImplemented {
+		writeErrStr("fatal: morestack on g0\n")
+		return
+	}
+
+	g := getg()
+	switchToCrashStack(func() {
+		print("runtime: morestack on g0, stack [", hex(g.stack.lo), " ", hex(g.stack.hi), "], sp=", hex(g.sched.sp), ", called from\n")
+		g.m.traceback = 2 // include pc and sp in stack trace
+		traceback1(g.sched.pc, g.sched.sp, g.sched.lr, g, 0)
+		print("\n")
+
+		throw("morestack on g0")
+	})
 }
 
 //go:nosplit
@@ -529,6 +542,49 @@ func badmorestackgsignal() {
 func badctxt() {
 	throw("ctxt != 0")
 }
+
+// crashstack is a space that can be used as the stack when it is
+// crashing on bad stack conditions, e.g. morestack on g0.
+// gcrash is the corresponding (fake) g.
+var crashstack [16384]byte
+
+var gcrash = g{
+	stack:       stack{uintptr(unsafe.Pointer(&crashstack)), uintptr(unsafe.Pointer(&crashstack)) + unsafe.Sizeof(crashstack)},
+	stackguard0: uintptr(unsafe.Pointer(&crashstack)) + 1000,
+	stackguard1: uintptr(unsafe.Pointer(&crashstack)) + 1000,
+}
+
+var crashingG atomic.Pointer[g]
+
+// Switch to crashstack and call fn, with special handling of
+// concurrent and recursive cases.
+//
+// Nosplit as it is called in a bad stack condition (we know
+// morestack would fail).
+//
+//go:nosplit
+//go:nowritebarrierrec
+func switchToCrashStack(fn func()) {
+	me := getg()
+	if crashingG.CompareAndSwapNoWB(nil, me) {
+		switchToCrashStack0(fn) // should never return
+		abort()
+	}
+	if crashingG.Load() == me {
+		// recursive crashing. too bad.
+		writeErrStr("fatal: recursive switchToCrashStack\n")
+		abort()
+	}
+	// Another g is crashing. Give it some time, hopefully it will finish traceback.
+	usleep_no_g(100)
+	writeErrStr("fatal: concurrent switchToCrashStack\n")
+	abort()
+}
+
+const crashStackImplemented = GOARCH == "amd64" || GOARCH == "arm64"
+
+//go:noescape
+func switchToCrashStack0(func()) // in assembly
 
 func lockedOSThread() bool {
 	gp := getg()
