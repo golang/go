@@ -14,7 +14,7 @@ import (
 
 type Plist struct {
 	Firstpc *Prog
-	Curfn   interface{} // holds a *gc.Node, if non-nil
+	Curfn   Func
 }
 
 // ProgAlloc is a function that allocates Progs.
