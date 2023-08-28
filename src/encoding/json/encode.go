@@ -980,7 +980,7 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
 			case '\t':
 				dst = append(dst, '\\', 't')
 			default:
-				// This encodes bytes < 0x20 except for \t, \n and \r.
+				// This encodes bytes < 0x20 except for \b, \f, \n, \r and \t.
 				// If escapeHTML is set, it also escapes <, >, and &
 				// because they can lead to security holes when
 				// user-controlled strings are rendered into JSON
