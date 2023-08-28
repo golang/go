@@ -243,6 +243,11 @@ func initSysDirectory() {
 	sysDirectoryLen = l + 1
 }
 
+//go:linkname windows_GetSystemDirectory internal/syscall/windows.GetSystemDirectory
+func windows_GetSystemDirectory() string {
+	return unsafe.String(&sysDirectory[0], sysDirectoryLen)
+}
+
 func windowsLoadSystemLib(name []uint16) uintptr {
 	return stdcall3(_LoadLibraryExW, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
 }

@@ -619,8 +619,8 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Redirect host file lookups.
-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
-	testHookHostsPath = "testdata/hosts"
+	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
+	hostsFilePath = "testdata/hosts"
 
 	for _, order := range []hostLookupOrder{hostLookupFilesDNS, hostLookupDNSFiles} {
 		name := fmt.Sprintf("order %v", order)
@@ -1966,8 +1966,8 @@ func TestCVE202133195(t *testing.T) {
 	DefaultResolver = &r
 	defer func() { DefaultResolver = originalDefault }()
 	// Redirect host file lookups.
-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
-	testHookHostsPath = "testdata/hosts"
+	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
+	hostsFilePath = "testdata/hosts"
 
 	tests := []struct {
 		name string
@@ -2186,8 +2186,8 @@ func TestRootNS(t *testing.T) {
 }
 
 func TestGoLookupIPCNAMEOrderHostsAliasesFilesOnlyMode(t *testing.T) {
-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
-	testHookHostsPath = "testdata/aliases"
+	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
+	hostsFilePath = "testdata/aliases"
 	mode := hostLookupFiles
 
 	for _, v := range lookupStaticHostAliasesTest {
@@ -2196,8 +2196,8 @@ func TestGoLookupIPCNAMEOrderHostsAliasesFilesOnlyMode(t *testing.T) {
 }
 
 func TestGoLookupIPCNAMEOrderHostsAliasesFilesDNSMode(t *testing.T) {
-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
-	testHookHostsPath = "testdata/aliases"
+	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
+	hostsFilePath = "testdata/aliases"
 	mode := hostLookupFilesDNS
 
 	for _, v := range lookupStaticHostAliasesTest {
@@ -2213,8 +2213,8 @@ var goLookupIPCNAMEOrderDNSFilesModeTests = []struct {
 }
 
 func TestGoLookupIPCNAMEOrderHostsAliasesDNSFilesMode(t *testing.T) {
-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
-	testHookHostsPath = "testdata/aliases"
+	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
+	hostsFilePath = "testdata/aliases"
 	mode := hostLookupDNSFiles
 
 	for _, v := range goLookupIPCNAMEOrderDNSFilesModeTests {
@@ -2541,7 +2541,7 @@ func TestDNSConfigNoReload(t *testing.T) {
 }
 
 func TestLookupOrderFilesNoSuchHost(t *testing.T) {
-	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+	defer func(orig string) { hostsFilePath = orig }(hostsFilePath)
 	if runtime.GOOS != "openbsd" {
 		defer setSystemNSS(getSystemNSS(), 0)
 		setSystemNSS(nssStr(t, "hosts: files"), time.Hour)
@@ -2568,7 +2568,7 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 	if err := os.WriteFile(tmpFile, []byte{}, 0660); err != nil {
 		t.Fatal(err)
 	}
-	testHookHostsPath = tmpFile
+	hostsFilePath = tmpFile
 
 	const testName = "test.invalid"
 

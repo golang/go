@@ -238,16 +238,7 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 		// Go resolver was explicitly requested
 		// or cgo resolver is not available.
 		// Figure out the order below.
-		switch c.goos {
-		case "windows":
-			// TODO(bradfitz): implement files-based
-			// lookup on Windows too? I guess /etc/hosts
-			// kinda exists on Windows. But for now, only
-			// do DNS.
-			fallbackOrder = hostLookupDNS
-		default:
-			fallbackOrder = hostLookupFilesDNS
-		}
+		fallbackOrder = hostLookupFilesDNS
 		canUseCgo = false
 	} else if c.netCgo {
 		// Cgo resolver was explicitly requested.
