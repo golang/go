@@ -198,7 +198,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
 	// startLine should be the same line number that would be displayed via
 	// pcln, etc for the declaration (i.e., relative line number, as
 	// adjusted by //line).
-	_, startLine := ctxt.getFileSymbolAndLine(start)
+	_, startLine := ctxt.getFileIndexAndLine(start)
 
 	s.Func().FuncID = objabi.GetFuncID(s.Name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
 	s.Func().FuncFlag = ctxt.toFuncFlag(flag)

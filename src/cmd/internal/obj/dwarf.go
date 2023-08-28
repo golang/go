@@ -48,7 +48,7 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
 	line := int64(1)
 	pc := s.Func().Text.Pc
 	var lastpc int64 // last PC written to line table, not last PC in func
-	name := ""
+	fileIndex := 1
 	prologue, wrotePrologue := false, false
 	// Walk the progs, generating the DWARF table.
 	for p := s.Func().Text; p != nil; p = p.Link {
@@ -58,15 +58,15 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
 			continue
 		}
 		newStmt := p.Pos.IsStmt() != src.PosNotStmt
-		newName, newLine := ctxt.getFileSymbolAndLine(p.Pos)
+		newFileIndex, newLine := ctxt.getFileIndexAndLine(p.Pos)
+		newFileIndex++ // 1 indexing for the table
 
 		// Output debug info.
 		wrote := false
-		if name != newName {
-			newFile := ctxt.PosTable.FileIndex(newName) + 1 // 1 indexing for the table.
+		if newFileIndex != fileIndex {
 			dctxt.AddUint8(lines, dwarf.DW_LNS_set_file)
-			dwarf.Uleb128put(dctxt, lines, int64(newFile))
-			name = newName
+			dwarf.Uleb128put(dctxt, lines, int64(newFileIndex))
+			fileIndex = newFileIndex
 			wrote = true
 		}
 		if prologue && !wrotePrologue {
@@ -258,16 +258,6 @@ func (c dwCtxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64)
 	r.Type = objabi.R_DWARFSECREF
 }
 
-func (c dwCtxt) AddFileRef(s dwarf.Sym, f interface{}) {
-	ls := s.(*LSym)
-	rsym := f.(*LSym)
-	fidx := c.Link.PosTable.FileIndex(rsym.Name)
-	// Note the +1 here -- the value we're writing is going to be an
-	// index into the DWARF line table file section, whose entries
-	// are numbered starting at 1, not 0.
-	ls.WriteInt(c.Link, ls.Size, 4, int64(fidx+1))
-}
-
 func (c dwCtxt) CurrentOffset(s dwarf.Sym) int64 {
 	ls := s.(*LSym)
 	return ls.Size
@@ -329,17 +319,13 @@ func (s *LSym) Length(dwarfContext interface{}) int64 {
 	return s.Size
 }
 
-// fileSymbol returns a symbol corresponding to the source file of the
-// first instruction (prog) of the specified function. This will
-// presumably be the file in which the function is defined.
-func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
-	p := fn.Func().Text
-	if p != nil {
-		f, _ := ctxt.getFileSymbolAndLine(p.Pos)
-		fsym := ctxt.Lookup(f)
-		return fsym
+// textPos returns the source position of the first instruction (prog)
+// of the specified function.
+func textPos(fn *LSym) src.XPos {
+	if p := fn.Func().Text; p != nil {
+		return p.Pos
 	}
-	return nil
+	return src.NoXPos
 }
 
 // populateDWARF fills in the DWARF Debugging Information Entries for
@@ -362,17 +348,19 @@ func (ctxt *Link) populateDWARF(curfn Func, s *LSym) {
 	}
 	var err error
 	dwctxt := dwCtxt{ctxt}
-	filesym := ctxt.fileSymbol(s)
+	startPos := ctxt.InnermostPos(textPos(s))
+	if !startPos.IsKnown() || startPos.RelLine() != uint(s.Func().StartLine) {
+		panic("bad startPos")
+	}
 	fnstate := &dwarf.FnState{
 		Name:          s.Name,
 		Info:          info,
-		Filesym:       filesym,
 		Loc:           loc,
 		Ranges:        ranges,
 		Absfn:         absfunc,
 		StartPC:       s,
 		Size:          s.Size,
-		StartLine:     s.Func().StartLine,
+		StartPos:      startPos,
 		External:      !s.Static(),
 		Scopes:        scopes,
 		InlCalls:      inlcalls,
@@ -434,13 +422,12 @@ func (ctxt *Link) DwarfAbstractFunc(curfn Func, s *LSym) {
 		s.NewFuncInfo()
 	}
 	scopes, _ := ctxt.DebugInfo(s, absfn, curfn)
-	_, startLine := ctxt.getFileSymbolAndLine(curfn.Pos())
 	dwctxt := dwCtxt{ctxt}
 	fnstate := dwarf.FnState{
 		Name:          s.Name,
 		Info:          absfn,
 		Absfn:         absfn,
-		StartLine:     startLine,
+		StartPos:      ctxt.InnermostPos(curfn.Pos()),
 		External:      !s.Static(),
 		Scopes:        scopes,
 		UseBASEntries: ctxt.UseBASEntries,

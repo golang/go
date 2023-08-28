@@ -9,6 +9,7 @@ package dwarf
 
 import (
 	"bytes"
+	"cmd/internal/src"
 	"errors"
 	"fmt"
 	"internal/buildcfg"
@@ -85,13 +86,12 @@ type Range struct {
 type FnState struct {
 	Name          string
 	Info          Sym
-	Filesym       Sym
 	Loc           Sym
 	Ranges        Sym
 	Absfn         Sym
 	StartPC       Sym
+	StartPos      src.Pos
 	Size          int64
-	StartLine     int32
 	External      bool
 	Scopes        []Scope
 	InlCalls      InlCalls
@@ -166,11 +166,8 @@ type InlCall struct {
 	// index into ctx.InlTree describing the call inlined here
 	InlIndex int
 
-	// Symbol of file containing inlined call site (really *obj.LSym).
-	CallFile Sym
-
-	// Line number of inlined call site.
-	CallLine uint32
+	// Position of the inlined call site.
+	CallPos src.Pos
 
 	// Dwarf abstract subroutine symbol (really *obj.LSym).
 	AbsFunSym Sym
@@ -202,7 +199,6 @@ type Context interface {
 	RecordDclReference(from Sym, to Sym, dclIdx int, inlIndex int)
 	RecordChildDieOffsets(s Sym, vars []*Var, offsets []int32)
 	AddString(s Sym, v string)
-	AddFileRef(s Sym, f interface{})
 	Logf(format string, args ...interface{})
 }
 
@@ -1246,7 +1242,8 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 	// DW_AT_inlined value
 	putattr(ctxt, s.Absfn, abbrev, DW_FORM_data1, DW_CLS_CONSTANT, int64(DW_INL_inlined), nil)
 
-	putattr(ctxt, s.Absfn, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartLine), nil)
+	// TODO(mdempsky): Shouldn't we write out StartPos.FileIndex() too?
+	putattr(ctxt, s.Absfn, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartPos.RelLine()), nil)
 
 	var ev int64
 	if s.External {
@@ -1335,9 +1332,9 @@ func putInlinedFunc(ctxt Context, s *FnState, callIdx int) error {
 	}
 
 	// Emit call file, line attrs.
-	ctxt.AddFileRef(s.Info, ic.CallFile)
+	putattr(ctxt, s.Info, abbrev, DW_FORM_data4, DW_CLS_CONSTANT, int64(1+ic.CallPos.FileIndex()), nil) // 1-based file table
 	form := int(expandPseudoForm(DW_FORM_udata_pseudo))
-	putattr(ctxt, s.Info, abbrev, form, DW_CLS_CONSTANT, int64(ic.CallLine), nil)
+	putattr(ctxt, s.Info, abbrev, form, DW_CLS_CONSTANT, int64(ic.CallPos.RelLine()), nil)
 
 	// Variables associated with this inlined routine instance.
 	vars := ic.InlVars
@@ -1438,8 +1435,8 @@ func PutDefaultFunc(ctxt Context, s *FnState, isWrapper bool) error {
 	if isWrapper {
 		putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, int64(1), 0)
 	} else {
-		ctxt.AddFileRef(s.Info, s.Filesym)
-		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartLine), nil)
+		putattr(ctxt, s.Info, abbrev, DW_FORM_data4, DW_CLS_CONSTANT, int64(1+s.StartPos.FileIndex()), nil) // 1-based file index
+		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartPos.RelLine()), nil)
 
 		var ev int64
 		if s.External {

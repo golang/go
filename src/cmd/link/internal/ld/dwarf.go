@@ -154,10 +154,6 @@ func (c dwctxt) Logf(format string, args ...interface{}) {
 
 // At the moment these interfaces are only used in the compiler.
 
-func (c dwctxt) AddFileRef(s dwarf.Sym, f interface{}) {
-	panic("should be used only in the compiler")
-}
-
 func (c dwctxt) CurrentOffset(s dwarf.Sym) int64 {
 	panic("should be used only in the compiler")
 }

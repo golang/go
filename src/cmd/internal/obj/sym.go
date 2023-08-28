@@ -449,10 +449,6 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 		if call.Func != nil {
 			fn(fsym, call.Func)
 		}
-		f, _ := ctxt.getFileSymbolAndLine(call.Pos)
-		if filesym := ctxt.Lookup(f); filesym != nil {
-			fn(fsym, filesym)
-		}
 	}
 
 	auxsyms := []*LSym{fninfo.dwarfRangesSym, fninfo.dwarfLocSym, fninfo.dwarfDebugLinesSym, fninfo.dwarfInfoSym, fninfo.WasmImportSym, fninfo.sehUnwindInfoSym}
