@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/telemetry/counter"
 	"golang.org/x/telemetry/counter/countertest" // requires go1.21+
@@ -58,6 +59,7 @@ func TestTelemetry(t *testing.T) {
 		count, err := countertest.ReadCounter(c)
 		if err != nil || count != 1 {
 			t.Errorf("ReadCounter(%q) = (%v, %v), want (1, nil)", c.Name(), count, err)
+			t.Logf("Current timestamp = %v", time.Now().UTC())
 		}
 	}
 
@@ -69,6 +71,7 @@ func TestTelemetry(t *testing.T) {
 	}
 	if len(counts) != 1 || !hasEntry(counts, t.Name(), 1) {
 		t.Errorf("read stackcounter(%q) = (%#v, %v), want one entry", "gopls/bug", counts, err)
+		t.Logf("Current timestamp = %v", time.Now().UTC())
 	}
 }
 
