@@ -989,21 +989,18 @@ OverlayLoop:
 }
 
 func (b *Builder) checkDirectives(a *Action) error {
-	var msg *bytes.Buffer
+	var msg []byte
 	p := a.Package
 	var seen map[string]token.Position
 	for _, d := range p.Internal.Build.Directives {
 		if strings.HasPrefix(d.Text, "//go:debug") {
 			key, _, err := load.ParseGoDebug(d.Text)
 			if err != nil && err != load.ErrNotGoDebug {
-				if msg == nil {
-					msg = new(bytes.Buffer)
-				}
-				fmt.Fprintf(msg, "%s: invalid //go:debug: %v\n", d.Pos, err)
+				msg = fmt.Appendf(msg, "%s: invalid //go:debug: %v\n", d.Pos, err)
 				continue
 			}
 			if pos, ok := seen[key]; ok {
-				fmt.Fprintf(msg, "%s: repeated //go:debug for %v\n\t%s: previous //go:debug\n", d.Pos, key, pos)
+				msg = fmt.Appendf(msg, "%s: repeated //go:debug for %v\n\t%s: previous //go:debug\n", d.Pos, key, pos)
 				continue
 			}
 			if seen == nil {
@@ -1012,12 +1009,12 @@ func (b *Builder) checkDirectives(a *Action) error {
 			seen[key] = d.Pos
 		}
 	}
-	if msg != nil {
+	if len(msg) > 0 {
 		// We pass a non-nil error to reportCmd to trigger the failure reporting
 		// path, but the content of the error doesn't matter because msg is
 		// non-empty.
 		err := errors.New("invalid directive")
-		return b.Shell(a).reportCmd("", "", msg.Bytes(), err)
+		return b.Shell(a).reportCmd("", "", msg, err)
 	}
 	return nil
 }
