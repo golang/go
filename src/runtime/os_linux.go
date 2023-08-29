@@ -213,12 +213,13 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 }
 
 const (
-	_AT_NULL   = 0  // End of vector
-	_AT_PAGESZ = 6  // System physical page size
-	_AT_HWCAP  = 16 // hardware capability bit vector
-	_AT_SECURE = 23 // secure mode boolean
-	_AT_RANDOM = 25 // introduced in 2.6.29
-	_AT_HWCAP2 = 26 // hardware capability bit vector 2
+	_AT_NULL     = 0  // End of vector
+	_AT_PAGESZ   = 6  // System physical page size
+	_AT_PLATFORM = 15 // string identifying platform
+	_AT_HWCAP    = 16 // hardware capability bit vector
+	_AT_SECURE   = 23 // secure mode boolean
+	_AT_RANDOM   = 25 // introduced in 2.6.29
+	_AT_HWCAP2   = 26 // hardware capability bit vector 2
 )
 
 var procAuxv = []byte("/proc/self/auxv\x00")

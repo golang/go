@@ -48,10 +48,11 @@ var X86 struct {
 // The booleans in ARM contain the correspondingly named cpu feature bit.
 // The struct is padded to avoid false sharing.
 var ARM struct {
-	_        CacheLinePad
-	HasVFPv4 bool
-	HasIDIVA bool
-	_        CacheLinePad
+	_            CacheLinePad
+	HasVFPv4     bool
+	HasIDIVA     bool
+	HasV7Atomics bool
+	_            CacheLinePad
 }
 
 // The booleans in ARM64 contain the correspondingly named cpu feature bit.
