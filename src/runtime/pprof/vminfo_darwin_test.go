@@ -12,6 +12,7 @@ import (
 	"internal/abi"
 	"internal/testenv"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -54,9 +55,14 @@ func TestVMInfo(t *testing.T) {
 func useVMMap(t *testing.T) (hi, lo uint64) {
 	pid := strconv.Itoa(os.Getpid())
 	testenv.MustHaveExecPath(t, "vmmap")
-	out, err := testenv.Command(t, "vmmap", pid).Output()
+	cmd := testenv.Command(t, "vmmap", pid)
+	out, err := cmd.Output()
 	if err != nil {
-		t.Fatal(err)
+		t.Logf("vmmap failed: %s", out)
+		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+			t.Fatalf("%v: %v\n%s", cmd, err, ee.Stderr)
+		}
+		t.Fatalf("%v: %v", cmd, err)
 	}
 	return parseVmmap(t, out)
 }
