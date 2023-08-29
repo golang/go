@@ -21,11 +21,14 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/refactor/inline"
+	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/txtar"
 )
 
 // Test executes test scenarios specified by files in testdata/*.txtar.
 func Test(t *testing.T) {
+	testenv.NeedsGoPackages(t)
+
 	files, err := filepath.Glob("testdata/*.txtar")
 	if err != nil {
 		t.Fatal(err)
