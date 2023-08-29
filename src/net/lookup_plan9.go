@@ -149,7 +149,7 @@ func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
 }
 
 func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
-	if order, conf, preferGo := r.preferGoOverPlan9WithOrderAndConf(); preferGo {
+	if order, conf := systemConf().hostLookupOrder(r, host); order != hostLookupCgo {
 		return r.goLookupHostOrder(ctx, host, order, conf)
 	}
 
@@ -208,7 +208,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 }
 
 func (r *Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
-	if r.preferGoOverPlan9() {
+	if systemConf().mustUseGoResolver(r) {
 		return lookupPortMap(network, service)
 	}
 
