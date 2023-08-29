@@ -112,7 +112,6 @@ func dumpCompilerObj(bout *bio.Writer) {
 func dumpdata() {
 	reflectdata.WriteGCSymbols()
 	reflectdata.WritePluginTable()
-	reflectdata.WriteImportStrings()
 	dumpembeds()
 
 	if reflectdata.ZeroSize > 0 {

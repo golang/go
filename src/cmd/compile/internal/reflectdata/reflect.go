@@ -412,6 +412,10 @@ func dimportpath(p *types.Pkg) {
 		return
 	}
 
+	if p == types.LocalPkg && base.Ctxt.Pkgpath == "" {
+		panic("missing pkgpath")
+	}
+
 	// If we are compiling the runtime package, there are two runtime packages around
 	// -- localpkg and Pkgs.Runtime. We don't want to produce import path symbols for
 	// both of them, so just produce one for localpkg.
@@ -431,10 +435,6 @@ func dgopkgpath(s *obj.LSym, ot int, pkg *types.Pkg) int {
 		return objw.Uintptr(s, ot, 0)
 	}
 
-	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
-		panic("missing pkgpath")
-	}
-
 	dimportpath(pkg)
 	return objw.SymPtr(s, ot, pkg.Pathsym, 0)
 }
@@ -443,9 +443,6 @@ func dgopkgpath(s *obj.LSym, ot int, pkg *types.Pkg) int {
 func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
 	if pkg == nil {
 		return objw.Uint32(s, ot, 0)
-	}
-	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
-		panic("missing pkgpath")
 	}
 
 	dimportpath(pkg)
@@ -1367,13 +1364,6 @@ func WritePluginTable() {
 	objw.Global(lsym, int32(ot), int16(obj.RODATA))
 }
 
-func WriteImportStrings() {
-	// generate import strings for imported packages
-	for _, p := range types.ImportedPkgList() {
-		dimportpath(p)
-	}
-}
-
 // writtenByWriteBasicTypes reports whether typ is written by WriteBasicTypes.
 // WriteBasicTypes always writes pointer types; any pointer has been stripped off typ already.
 func writtenByWriteBasicTypes(typ *types.Type) bool {
@@ -1410,45 +1400,32 @@ func WriteBasicTypes() {
 	// another possible choice would be package main,
 	// but using runtime means fewer copies in object files.
 	// The code here needs to be in sync with writtenByWriteBasicTypes above.
-	if base.Ctxt.Pkgpath == "runtime" {
-		// Note: always write NewPtr(t) because NeedEmit's caller strips the pointer.
-		var list []*types.Type
-		for i := types.Kind(1); i <= types.TBOOL; i++ {
-			list = append(list, types.Types[i])
-		}
-		list = append(list,
-			types.Types[types.TSTRING],
-			types.Types[types.TUNSAFEPTR],
-			types.AnyType,
-			types.ErrorType)
-		for _, t := range list {
-			writeType(types.NewPtr(t))
-			writeType(types.NewPtr(types.NewSlice(t)))
-		}
-
-		// emit type for func(error) string,
-		// which is the type of an auto-generated wrapper.
-		writeType(types.NewPtr(types.NewSignature(nil, []*types.Field{
-			types.NewField(base.Pos, nil, types.ErrorType),
-		}, []*types.Field{
-			types.NewField(base.Pos, nil, types.Types[types.TSTRING]),
-		})))
-
-		// add paths for runtime and main, which 6l imports implicitly.
-		dimportpath(ir.Pkgs.Runtime)
-
-		if base.Flag.Race {
-			dimportpath(types.NewPkg("runtime/race", ""))
-		}
-		if base.Flag.MSan {
-			dimportpath(types.NewPkg("runtime/msan", ""))
-		}
-		if base.Flag.ASan {
-			dimportpath(types.NewPkg("runtime/asan", ""))
-		}
-
-		dimportpath(types.NewPkg("main", ""))
+	if base.Ctxt.Pkgpath != "runtime" {
+		return
 	}
+
+	// Note: always write NewPtr(t) because NeedEmit's caller strips the pointer.
+	var list []*types.Type
+	for i := types.Kind(1); i <= types.TBOOL; i++ {
+		list = append(list, types.Types[i])
+	}
+	list = append(list,
+		types.Types[types.TSTRING],
+		types.Types[types.TUNSAFEPTR],
+		types.AnyType,
+		types.ErrorType)
+	for _, t := range list {
+		writeType(types.NewPtr(t))
+		writeType(types.NewPtr(types.NewSlice(t)))
+	}
+
+	// emit type for func(error) string,
+	// which is the type of an auto-generated wrapper.
+	writeType(types.NewPtr(types.NewSignature(nil, []*types.Field{
+		types.NewField(base.Pos, nil, types.ErrorType),
+	}, []*types.Field{
+		types.NewField(base.Pos, nil, types.Types[types.TSTRING]),
+	})))
 }
 
 type typeAndStr struct {
