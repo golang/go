@@ -545,25 +545,12 @@ func WalkDir(root string, fn fs.WalkDirFunc) error {
 	if err != nil {
 		err = fn(root, nil, err)
 	} else {
-		err = walkDir(root, &statDirEntry{info}, fn)
+		err = walkDir(root, fs.FileInfoToDirEntry(info), fn)
 	}
 	if err == SkipDir || err == SkipAll {
 		return nil
 	}
 	return err
-}
-
-type statDirEntry struct {
-	info fs.FileInfo
-}
-
-func (d *statDirEntry) Name() string               { return d.info.Name() }
-func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
-func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
-func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
-
-func (d *statDirEntry) String() string {
-	return fs.FormatDirEntry(d)
 }
 
 // Walk walks the file tree rooted at root, calling fn for each file or
