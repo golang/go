@@ -1080,7 +1080,7 @@ func clobberWalk(b *ssa.Block, v *ir.Name, offset int64, t *types.Type) {
 	}
 }
 
-// clobberPtr generates a clobber of the pointer at offset in v.
+// clobberPtr generates a clobber of the pointer at offset offset in v.
 // The clobber instruction is added at the end of b.
 func clobberPtr(b *ssa.Block, v *ir.Name, offset int64) {
 	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, v)
