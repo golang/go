@@ -47,7 +47,7 @@ type Name struct {
 	Embed     *[]Embed    // list of embedded files, for ONAME var
 
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
-	// For a closure var, the ONAME node of the outer captured variable.
+	// For a closure var, the ONAME node of the original (outermost) captured variable.
 	// For the case-local variables of a type switch, the type switch guard (OTYPESW).
 	// For a range variable, the range statement (ORANGE)
 	// For a recv variable in a case of a select statement, the receive assignment (OSELRECV2)
@@ -59,77 +59,9 @@ type Name struct {
 
 	Heapaddr *Name // temp holding heap address of param
 
-	// ONAME closure linkage
-	// Consider:
-	//
-	//	func f() {
-	//		x := 1 // x1
-	//		func() {
-	//			use(x) // x2
-	//			func() {
-	//				use(x) // x3
-	//				--- parser is here ---
-	//			}()
-	//		}()
-	//	}
-	//
-	// There is an original declaration of x and then a chain of mentions of x
-	// leading into the current function. Each time x is mentioned in a new closure,
-	// we create a variable representing x for use in that specific closure,
-	// since the way you get to x is different in each closure.
-	//
-	// Let's number the specific variables as shown in the code:
-	// x1 is the original x, x2 is when mentioned in the closure,
-	// and x3 is when mentioned in the closure in the closure.
-	//
-	// We keep these linked (assume N > 1):
-	//
-	//   - x1.Defn = original declaration statement for x (like most variables)
-	//   - x1.Innermost = current innermost closure x (in this case x3), or nil for none
-	//   - x1.IsClosureVar() = false
-	//
-	//   - xN.Defn = x1, N > 1
-	//   - xN.IsClosureVar() = true, N > 1
-	//   - x2.Outer = nil
-	//   - xN.Outer = x(N-1), N > 2
-	//
-	//
-	// When we look up x in the symbol table, we always get x1.
-	// Then we can use x1.Innermost (if not nil) to get the x
-	// for the innermost known closure function,
-	// but the first reference in a closure will find either no x1.Innermost
-	// or an x1.Innermost with .Funcdepth < Funcdepth.
-	// In that case, a new xN must be created, linked in with:
-	//
-	//     xN.Defn = x1
-	//     xN.Outer = x1.Innermost
-	//     x1.Innermost = xN
-	//
-	// When we finish the function, we'll process its closure variables
-	// and find xN and pop it off the list using:
-	//
-	//     x1 := xN.Defn
-	//     x1.Innermost = xN.Outer
-	//
-	// We leave x1.Innermost set so that we can still get to the original
-	// variable quickly. Not shown here, but once we're
-	// done parsing a function and no longer need xN.Outer for the
-	// lexical x reference links as described above, funcLit
-	// recomputes xN.Outer as the semantic x reference link tree,
-	// even filling in x in intermediate closures that might not
-	// have mentioned it along the way to inner closures that did.
-	// See funcLit for details.
-	//
-	// During the eventual compilation, then, for closure variables we have:
-	//
-	//     xN.Defn = original variable
-	//     xN.Outer = variable captured in next outward scope
-	//                to make closure where xN appears
-	//
-	// Because of the sharding of pieces of the node, x.Defn means x.Name.Defn
-	// and x.Innermost/Outer means x.Name.Param.Innermost/Outer.
-	Innermost *Name
-	Outer     *Name
+	// Outer points to the immediately enclosing function's copy of this
+	// closure variable. If not a closure variable, then Outer is nil.
+	Outer *Name
 }
 
 func (n *Name) isExpr() {}
@@ -404,80 +336,6 @@ func NewHiddenParam(pos src.XPos, fn *Func, sym *types.Sym, typ *types.Type) *Na
 	fake.SetByval(true)
 
 	return NewClosureVar(pos, fn, fake)
-}
-
-// CaptureName returns a Name suitable for referring to n from within function
-// fn or from the package block if fn is nil. If n is a free variable declared
-// within a function that encloses fn, then CaptureName returns the closure
-// variable that refers to n within fn, creating it if necessary.
-// Otherwise, it simply returns n.
-func CaptureName(pos src.XPos, fn *Func, n *Name) *Name {
-	if n.Op() != ONAME || n.Curfn == nil {
-		return n // okay to use directly
-	}
-	if n.IsClosureVar() {
-		base.FatalfAt(pos, "misuse of CaptureName on closure variable: %v", n)
-	}
-
-	c := n.Innermost
-	if c == nil {
-		c = n
-	}
-	if c.Curfn == fn {
-		return c
-	}
-
-	if fn == nil {
-		base.FatalfAt(pos, "package-block reference to %v, declared in %v", n, n.Curfn)
-	}
-
-	// Do not have a closure var for the active closure yet; make one.
-	c = NewClosureVar(pos, fn, c)
-
-	// Link into list of active closure variables.
-	// Popped from list in FinishCaptureNames.
-	n.Innermost = c
-
-	return c
-}
-
-// FinishCaptureNames handles any work leftover from calling CaptureName
-// earlier. outerfn should be the function that immediately encloses fn.
-func FinishCaptureNames(pos src.XPos, outerfn, fn *Func) {
-	// closure-specific variables are hanging off the
-	// ordinary ones; see CaptureName above.
-	// unhook them.
-	// make the list of pointers for the closure call.
-	for _, cv := range fn.ClosureVars {
-		// Unlink from n; see comment above on type Name for these fields.
-		n := cv.Defn.(*Name)
-		n.Innermost = cv.Outer
-
-		// If the closure usage of n is not dense, we need to make it
-		// dense by recapturing n within the enclosing function.
-		//
-		// That is, suppose we just finished parsing the innermost
-		// closure f4 in this code:
-		//
-		//	func f() {
-		//		n := 1
-		//		func() { // f2
-		//			use(n)
-		//			func() { // f3
-		//				func() { // f4
-		//					use(n)
-		//				}()
-		//			}()
-		//		}()
-		//	}
-		//
-		// At this point cv.Outer is f2's n; there is no n for f3. To
-		// construct the closure f4 from within f3, we need to use f3's
-		// n and in this case we need to create f3's n with CaptureName.
-		//
-		// We'll decide later in walk whether to use v directly or &v.
-		cv.Outer = CaptureName(pos, outerfn, n)
-	}
 }
 
 // SameSource reports whether two nodes refer to the same source
