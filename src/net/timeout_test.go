@@ -11,9 +11,9 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"net/internal/socktest"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -22,62 +22,113 @@ import (
 var dialTimeoutTests = []struct {
 	timeout time.Duration
 	delta   time.Duration // for deadline
-
-	guard time.Duration
 }{
 	// Tests that dial timeouts, deadlines in the past work.
-	{-5 * time.Second, 0, -5 * time.Second},
-	{0, -5 * time.Second, -5 * time.Second},
-	{-5 * time.Second, 5 * time.Second, -5 * time.Second}, // timeout over deadline
-	{-1 << 63, 0, time.Second},
-	{0, -1 << 63, time.Second},
+	{-5 * time.Second, 0},
+	{0, -5 * time.Second},
+	{-5 * time.Second, 5 * time.Second}, // timeout over deadline
+	{-1 << 63, 0},
+	{0, -1 << 63},
 
-	{50 * time.Millisecond, 0, 100 * time.Millisecond},
-	{0, 50 * time.Millisecond, 100 * time.Millisecond},
-	{50 * time.Millisecond, 5 * time.Second, 100 * time.Millisecond}, // timeout over deadline
+	{1 * time.Millisecond, 0},
+	{0, 1 * time.Millisecond},
+	{1 * time.Millisecond, 5 * time.Second}, // timeout over deadline
 }
 
 func TestDialTimeout(t *testing.T) {
-	// Cannot use t.Parallel - modifies global hooks.
-	origTestHookDialChannel := testHookDialChannel
-	defer func() { testHookDialChannel = origTestHookDialChannel }()
-	defer sw.Set(socktest.FilterConnect, nil)
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
 
-	for i, tt := range dialTimeoutTests {
-		switch runtime.GOOS {
-		case "plan9", "windows":
-			testHookDialChannel = func() { time.Sleep(tt.guard) }
-			if runtime.GOOS == "plan9" {
-				break
-			}
-			fallthrough
-		default:
-			sw.Set(socktest.FilterConnect, func(so *socktest.Status) (socktest.AfterFilter, error) {
-				time.Sleep(tt.guard)
-				return nil, errTimedout
-			})
+	t.Parallel()
+
+	ln := newLocalListener(t, "tcp")
+	defer func() {
+		if err := ln.Close(); err != nil {
+			t.Error(err)
 		}
+	}()
 
-		d := Dialer{Timeout: tt.timeout}
-		if tt.delta != 0 {
-			d.Deadline = time.Now().Add(tt.delta)
-		}
-
-		// This dial never starts to send any TCP SYN
-		// segment because of above socket filter and
-		// test hook.
-		c, err := d.Dial("tcp", "127.0.0.1:0")
-		if err == nil {
-			err = fmt.Errorf("unexpectedly established: tcp:%s->%s", c.LocalAddr(), c.RemoteAddr())
+	// We expect the kernel to spuriously accept some number of connections on
+	// behalf of the listener, even when it hasn't called Accept yet.
+	var bufferedConns []Conn
+	t.Cleanup(func() {
+		t.Logf("ignored %d spurious connections", len(bufferedConns))
+		for _, c := range bufferedConns {
 			c.Close()
 		}
+	})
 
-		if perr := parseDialError(err); perr != nil {
-			t.Errorf("#%d: %v", i, perr)
-		}
-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
-			t.Fatalf("#%d: %v", i, err)
-		}
+	for _, tt := range dialTimeoutTests {
+		t.Run(fmt.Sprintf("%v/%v", tt.timeout, tt.delta), func(t *testing.T) {
+			// We don't run these subtests in parallel because (at least on Linux)
+			// that empirically causes many of the Dial calls to fail with
+			// ECONNREFUSED instead of a timeout error.
+			d := Dialer{Timeout: tt.timeout}
+			if tt.delta != 0 {
+				d.Deadline = time.Now().Add(tt.delta)
+			}
+
+			var (
+				beforeDial time.Time
+				afterDial  time.Time
+				err        error
+			)
+			for err == nil {
+				beforeDial = time.Now()
+				var c Conn
+				c, err = d.Dial(ln.Addr().Network(), ln.Addr().String())
+				afterDial = time.Now()
+				if err == nil {
+					// The connection was accepted before the timeout took effect; leave
+					// the connection open and try again. Eventually we will have so many
+					// open connections that the kernel stops buffering new ones, in which
+					// case the Dial calls should start to time out and return errors.
+					bufferedConns = append(bufferedConns, c)
+				}
+			}
+
+			if strings.Contains(err.Error(), "connection reset by peer") && (testenv.Builder() == "" || runtime.GOOS == "freebsd") {
+				// After we set up the connection on Unix, we make a call to
+				// getsockopt to retrieve its status. Empirically, on some platforms
+				// (notably FreeBSD 13), we may see ECONNRESET from that call instead
+				// of a timeout when the listener's accept queue is full.
+				//
+				// We don't retry ECONNRESET errors in the saturation loop above,
+				// because there is no upper bound on how often they will occur.
+				// Empirically, with a 1ms timeout a single run of the test could
+				// provoke upward of 100k ECONNRESETS, running for over 15s before
+				// it finally trigged a timeout.
+				//
+				// We record this as a skipped subtest rather than a passing test so
+				// that we can (potentially, one day) analyze it as such: this test
+				// didn't fail, but it also didn't successfully provoke the intended
+				// timeout behavior.
+				//
+				// We don't allow this on Go builders other than the freebsd builder
+				// because we're not aware of any other platforms with this behavior,
+				// and if the test suddenly starts skipping on other platforms we want
+				// to know about it so that we can fix either the test or our Dial
+				// implementation.
+				t.Logf("Dial: %v", err)
+				t.Skipf("skipping due to ECONNRESET with full accept queue")
+			}
+
+			if d.Deadline.IsZero() || afterDial.Before(d.Deadline) {
+				delay := afterDial.Sub(beforeDial)
+				if delay < tt.timeout {
+					t.Errorf("Dial returned after %v; want ≥%v", delay, tt.timeout)
+				}
+			}
+
+			if perr := parseDialError(err); perr != nil {
+				t.Errorf("unexpected error from Dial: %v", perr)
+			}
+			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+				t.Errorf("Dial: %v, want timeout", err)
+			}
+		})
 	}
 }
 
