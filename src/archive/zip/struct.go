@@ -17,7 +17,7 @@ for normal archives both fields will be the same. For files requiring
 the ZIP64 format the 32 bit fields will be 0xffffffff and the 64 bit
 fields must be used instead.
 
-[ZIP specification]: https://www.pkware.com/appnote
+[ZIP specification]: https://support.pkware.com/pkzip/appnote
 */
 package zip
 
@@ -82,7 +82,7 @@ const (
 // FileHeader describes a file within a ZIP file.
 // See the [ZIP specification] for details.
 //
-// [ZIP specification]: https://www.pkware.com/appnote
+// [ZIP specification]: https://support.pkware.com/pkzip/appnote
 type FileHeader struct {
 	// Name is the name of the file.
 	//
