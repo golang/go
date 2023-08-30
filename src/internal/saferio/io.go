@@ -11,7 +11,7 @@ package saferio
 
 import (
 	"io"
-	"reflect"
+	"unsafe"
 )
 
 // chunk is an arbitrary limit on how much memory we are willing
@@ -102,34 +102,31 @@ func ReadDataAt(r io.ReaderAt, n uint64, off int64) ([]byte, error) {
 	return buf, nil
 }
 
-// SliceCap returns the capacity to use when allocating a slice.
+// SliceCapWithSize returns the capacity to use when allocating a slice.
 // After the slice is allocated with the capacity, it should be
 // built using append. This will avoid allocating too much memory
 // if the capacity is large and incorrect.
 //
 // A negative result means that the value is always too big.
-//
-// The element type is described by passing a pointer to a value of that type.
-// This would ideally use generics, but this code is built with
-// the bootstrap compiler which need not support generics.
-// We use a pointer so that we can handle slices of interface type.
-func SliceCap(v any, c uint64) int {
+func SliceCapWithSize(size, c uint64) int {
 	if int64(c) < 0 || c != uint64(int(c)) {
 		return -1
 	}
-	typ := reflect.TypeOf(v)
-	if typ.Kind() != reflect.Ptr {
-		panic("SliceCap called with non-pointer type")
-	}
-	size := uint64(typ.Elem().Size())
 	if size > 0 && c > (1<<64-1)/size {
 		return -1
 	}
 	if c*size > chunk {
-		c = uint64(chunk / size)
+		c = chunk / size
 		if c == 0 {
 			c = 1
 		}
 	}
 	return int(c)
+}
+
+// SliceCap is like SliceCapWithSize but using generics.
+func SliceCap[E any](c uint64) int {
+	var v E
+	size := uint64(unsafe.Sizeof(v))
+	return SliceCapWithSize(size, c)
 }

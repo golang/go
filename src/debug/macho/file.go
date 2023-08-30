@@ -263,7 +263,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := saferio.SliceCap((*Load)(nil), uint64(f.Ncmd))
+	c := saferio.SliceCap[Load](uint64(f.Ncmd))
 	if c < 0 {
 		return nil, &FormatError{offset, "too many load commands", nil}
 	}
@@ -472,7 +472,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 
 func (f *File) parseSymtab(symdat, strtab, cmddat []byte, hdr *SymtabCmd, offset int64) (*Symtab, error) {
 	bo := f.ByteOrder
-	c := saferio.SliceCap((*Symbol)(nil), uint64(hdr.Nsyms))
+	c := saferio.SliceCap[Symbol](uint64(hdr.Nsyms))
 	if c < 0 {
 		return nil, &FormatError{offset, "too many symbols", nil}
 	}
