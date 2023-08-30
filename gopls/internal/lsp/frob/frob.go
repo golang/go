@@ -5,8 +5,8 @@
 // Package frob is a fast restricted object encoder/decoder in the
 // spirit of encoding/gob.
 //
-// As with gob, types that recursively contain functions,
-// channels, and unsafe.Pointers cannot encoded, but frob has these
+// As with gob, types that recursively contain functions, channels,
+// and unsafe.Pointers cannot be encoded, but frob has these
 // additional restrictions:
 //
 //   - Interface values are not supported; this avoids the need for
@@ -23,8 +23,6 @@
 //     fit in 32 bits.
 //
 //   - There is no error handling. All errors are reported by panicking.
-//
-//   - Types that (recursively) contain private struct fields are not permitted.
 //
 //   - Values are serialized as trees, not graphs, so shared subgraphs
 //     are encoded repeatedly.
@@ -123,12 +121,15 @@ func (fr *frob) addElem(t reflect.Type) {
 	fr.elems = append(fr.elems, frobFor(t))
 }
 
+const magic = "frob"
+
 func (fr *frob) Encode(v any) []byte {
 	rv := reflect.ValueOf(v)
 	if rv.Type() != fr.t {
 		panic(fmt.Sprintf("got %v, want %v", rv.Type(), fr.t))
 	}
 	w := &writer{}
+	w.bytes([]byte(magic))
 	fr.encode(w, rv)
 	if uint64(len(w.data))>>32 != 0 {
 		panic("too large") // includes all cases where len doesn't fit in 32 bits
@@ -244,6 +245,9 @@ func (fr *frob) Decode(data []byte, ptr any) {
 		panic(fmt.Sprintf("got %v, want %v", rv.Type(), fr.t))
 	}
 	rd := &reader{data}
+	if string(rd.bytes(4)) != magic {
+		panic("not a frob-encoded message")
+	}
 	fr.decode(rd, rv)
 	if len(rd.data) > 0 {
 		panic("surplus bytes")

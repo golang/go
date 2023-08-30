@@ -18,6 +18,8 @@ func TestBasics(t *testing.T) {
 		B [2]int
 		C *Basics
 		D map[string]int
+		E []byte
+		F []string
 	}
 	codec := frob.CodecFor[Basics]()
 
@@ -29,6 +31,8 @@ func TestBasics(t *testing.T) {
 			B: [...]int{3, 4},
 			D: map[string]int{"one": 1},
 		},
+		E: []byte("hello"),
+		F: []string{s1, s2},
 	}
 	var y Basics
 	codec.Decode(codec.Encode(x), &y)

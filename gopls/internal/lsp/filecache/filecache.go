@@ -60,10 +60,11 @@ type memKey struct {
 	key  [32]byte
 }
 
-// Get retrieves from the cache and returns a newly allocated
-// copy of the value most recently supplied to Set(kind, key),
-// possibly by another process.
+// Get retrieves from the cache and returns the value most recently
+// supplied to Set(kind, key), possibly by another process.
 // Get returns ErrNotFound if the value was not found.
+//
+// Callers should not modify the returned array.
 func Get(kind string, key [32]byte) ([]byte, error) {
 	// First consult the read-through memory cache.
 	// Note that memory cache hits do not update the times
