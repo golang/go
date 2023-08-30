@@ -27,3 +27,12 @@ func isENOBUFS(err error) bool {
 	// defined in the syscall package we may as well check for it.
 	return errors.Is(err, syscall.ENOBUFS)
 }
+
+func isECONNRESET(err error) bool {
+	return errors.Is(err, syscall.ECONNRESET)
+}
+
+func isWSAECONNREFUSED(err error) bool {
+	const WSAECONNREFUSED = syscall.Errno(10061)
+	return errors.Is(err, WSAECONNREFUSED)
+}

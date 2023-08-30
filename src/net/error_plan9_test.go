@@ -21,3 +21,11 @@ func isPlatformError(err error) bool {
 func isENOBUFS(err error) bool {
 	return false // ENOBUFS is Unix-specific
 }
+
+func isECONNRESET(err error) bool {
+	return false // ECONNRESET is Unix-specific
+}
+
+func isWSAECONNREFUSED(err error) bool {
+	return false // WSAECONNREFUSED is Windows-specific
+}

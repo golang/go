@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"runtime"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -89,7 +88,7 @@ func TestDialTimeout(t *testing.T) {
 				}
 			}
 
-			if strings.Contains(err.Error(), "connection reset by peer") && (testenv.Builder() == "" || runtime.GOOS == "freebsd") {
+			if isECONNRESET(err) && (testenv.Builder() == "" || runtime.GOOS == "freebsd") {
 				// After we set up the connection on Unix, we make a call to
 				// getsockopt to retrieve its status. Empirically, on some platforms
 				// (notably FreeBSD 13), we may see ECONNRESET from that call instead
@@ -113,6 +112,13 @@ func TestDialTimeout(t *testing.T) {
 				// implementation.
 				t.Logf("Dial: %v", err)
 				t.Skipf("skipping due to ECONNRESET with full accept queue")
+			}
+
+			if isWSAECONNREFUSED(err) && (testenv.Builder() == "" || runtime.GOARCH == "arm64") {
+				// A similar situation seems to occur on windows/arm64, but returning
+				// WSAECONNREFUSED from ConnectEx instead of ECONNRESET from getsockopt.
+				t.Logf("Dial: %v", err)
+				t.Skipf("skipping due to WSAECONNREFUSED with full accept queue")
 			}
 
 			if d.Deadline.IsZero() || afterDial.Before(d.Deadline) {
