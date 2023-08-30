@@ -370,7 +370,7 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 		errorf("bad %s slice length: %d", value.Type(), n)
 	}
 	if value.Cap() < n {
-		safe := saferio.SliceCap((*byte)(nil), uint64(n))
+		safe := saferio.SliceCap[byte](uint64(n))
 		if safe < 0 {
 			errorf("%s slice too big: %d elements", value.Type(), n)
 		}
@@ -656,7 +656,7 @@ func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp
 		errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
 	}
 	if value.Cap() < n {
-		safe := saferio.SliceCap(reflect.Zero(reflect.PointerTo(typ.Elem())).Interface(), uint64(n))
+		safe := saferio.SliceCapWithSize(size, uint64(n))
 		if safe < 0 {
 			errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
 		}
