@@ -45,18 +45,17 @@ func (p *Package) writeDefs() {
 
 	var gccgoInit strings.Builder
 
-	fflg := creat(*objDir + "_cgo_flags")
-	for k, v := range p.CgoFlags {
-		for _, arg := range v {
-			fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, arg)
+	if !*gccgo {
+		for _, arg := range p.LdFlags {
+			fmt.Fprintf(fgo2, "//go:cgo_ldflag %q\n", arg)
 		}
-		if k == "LDFLAGS" && !*gccgo {
-			for _, arg := range v {
-				fmt.Fprintf(fgo2, "//go:cgo_ldflag %q\n", arg)
-			}
+	} else {
+		fflg := creat(*objDir + "_cgo_flags")
+		for _, arg := range p.LdFlags {
+			fmt.Fprintf(fflg, "_CGO_LDFLAGS=%s\n", arg)
 		}
+		fflg.Close()
 	}
-	fflg.Close()
 
 	// Write C main file for using gcc to resolve imports.
 	fmt.Fprintf(fm, "#include <stddef.h>\n") // For size_t below.

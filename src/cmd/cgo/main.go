@@ -38,7 +38,7 @@ type Package struct {
 	IntSize     int64
 	GccOptions  []string
 	GccIsClang  bool
-	CgoFlags    map[string][]string // #cgo flags (CFLAGS, LDFLAGS)
+	LdFlags     []string // #cgo LDFLAGS
 	Written     map[string]bool
 	Name        map[string]*Name // accumulated Name from Files
 	ExpFunc     []*ExpFunc       // accumulated ExpFunc from Files
@@ -475,7 +475,6 @@ func newPackage(args []string) *Package {
 	p := &Package{
 		PtrSize:     ptrSize,
 		IntSize:     intSize,
-		CgoFlags:    make(map[string][]string),
 		Written:     make(map[string]bool),
 		noCallbacks: make(map[string]bool),
 		noEscapes:   make(map[string]bool),
