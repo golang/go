@@ -19,8 +19,8 @@ import (
 )
 
 var dialTimeoutTests = []struct {
-	timeout time.Duration
-	delta   time.Duration // for deadline
+	initialTimeout time.Duration
+	initialDelta   time.Duration // for deadline
 }{
 	// Tests that dial timeouts, deadlines in the past work.
 	{-5 * time.Second, 0},
@@ -49,82 +49,65 @@ func TestDialTimeout(t *testing.T) {
 		}
 	}()
 
-	// We expect the kernel to spuriously accept some number of connections on
-	// behalf of the listener, even when it hasn't called Accept yet.
-	var bufferedConns []Conn
-	t.Cleanup(func() {
-		t.Logf("ignored %d spurious connections", len(bufferedConns))
-		for _, c := range bufferedConns {
-			c.Close()
-		}
-	})
-
 	for _, tt := range dialTimeoutTests {
-		t.Run(fmt.Sprintf("%v/%v", tt.timeout, tt.delta), func(t *testing.T) {
-			// We don't run these subtests in parallel because (at least on Linux)
-			// that empirically causes many of the Dial calls to fail with
-			// ECONNREFUSED instead of a timeout error.
-			d := Dialer{Timeout: tt.timeout}
-			if tt.delta != 0 {
-				d.Deadline = time.Now().Add(tt.delta)
-			}
+		t.Run(fmt.Sprintf("%v/%v", tt.initialTimeout, tt.initialDelta), func(t *testing.T) {
+			// We don't run these subtests in parallel because we don't know how big
+			// the kernel's accept queue is, and we don't want to accidentally saturate
+			// it with concurrent calls. (That could cause the Dial to fail with
+			// ECONNREFUSED or ECONNRESET instead of a timeout error.)
+			d := Dialer{Timeout: tt.initialTimeout}
+			delta := tt.initialDelta
 
 			var (
 				beforeDial time.Time
 				afterDial  time.Time
 				err        error
 			)
-			for err == nil {
+			for {
+				if delta != 0 {
+					d.Deadline = time.Now().Add(delta)
+				}
+
 				beforeDial = time.Now()
+
 				var c Conn
 				c, err = d.Dial(ln.Addr().Network(), ln.Addr().String())
 				afterDial = time.Now()
-				if err == nil {
-					// The connection was accepted before the timeout took effect; leave
-					// the connection open and try again. Eventually we will have so many
-					// open connections that the kernel stops buffering new ones, in which
-					// case the Dial calls should start to time out and return errors.
-					bufferedConns = append(bufferedConns, c)
+
+				if err != nil {
+					break
 				}
-			}
 
-			if isECONNRESET(err) && (testenv.Builder() == "" || runtime.GOOS == "freebsd") {
-				// After we set up the connection on Unix, we make a call to
-				// getsockopt to retrieve its status. Empirically, on some platforms
-				// (notably FreeBSD 13), we may see ECONNRESET from that call instead
-				// of a timeout when the listener's accept queue is full.
+				// Even though we're not calling Accept on the Listener, the kernel may
+				// spuriously accept connections on its behalf. If that happens, we will
+				// close the connection (to try to get it out of the kernel's accept
+				// queue) and try a shorter timeout.
 				//
-				// We don't retry ECONNRESET errors in the saturation loop above,
-				// because there is no upper bound on how often they will occur.
-				// Empirically, with a 1ms timeout a single run of the test could
-				// provoke upward of 100k ECONNRESETS, running for over 15s before
-				// it finally trigged a timeout.
-				//
-				// We record this as a skipped subtest rather than a passing test so
-				// that we can (potentially, one day) analyze it as such: this test
-				// didn't fail, but it also didn't successfully provoke the intended
-				// timeout behavior.
-				//
-				// We don't allow this on Go builders other than the freebsd builder
-				// because we're not aware of any other platforms with this behavior,
-				// and if the test suddenly starts skipping on other platforms we want
-				// to know about it so that we can fix either the test or our Dial
-				// implementation.
-				t.Logf("Dial: %v", err)
-				t.Skipf("skipping due to ECONNRESET with full accept queue")
-			}
+				// We assume that we will reach a point where the call actually does
+				// time out, although in theory (since this socket is on a loopback
+				// address) a sufficiently clever kernel could notice that no Accept
+				// call is pending and bypass both the queue and the timeout to return
+				// another error immediately.
+				t.Logf("closing spurious connection from Dial")
+				c.Close()
 
-			if isWSAECONNREFUSED(err) && (testenv.Builder() == "" || runtime.GOARCH == "arm64") {
-				// A similar situation seems to occur on windows/arm64, but returning
-				// WSAECONNREFUSED from ConnectEx instead of ECONNRESET from getsockopt.
-				t.Logf("Dial: %v", err)
-				t.Skipf("skipping due to WSAECONNREFUSED with full accept queue")
+				if delta <= 1 && d.Timeout <= 1 {
+					t.Fatalf("can't reduce Timeout or Deadline")
+				}
+				if delta > 1 {
+					delta /= 2
+					t.Logf("reducing Deadline delta to %v", delta)
+				}
+				if d.Timeout > 1 {
+					d.Timeout /= 2
+					t.Logf("reducing Timeout to %v", d.Timeout)
+				}
 			}
 
 			if d.Deadline.IsZero() || afterDial.Before(d.Deadline) {
 				delay := afterDial.Sub(beforeDial)
-				if delay < tt.timeout {
-					t.Errorf("Dial returned after %v; want ≥%v", delay, tt.timeout)
+				if delay < d.Timeout {
+					t.Errorf("Dial returned after %v; want ≥%v", delay, d.Timeout)
 				}
 			}
 

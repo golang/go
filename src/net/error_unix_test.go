@@ -37,11 +37,3 @@ func samePlatformError(err, want error) bool {
 func isENOBUFS(err error) bool {
 	return errors.Is(err, syscall.ENOBUFS)
 }
-
-func isECONNRESET(err error) bool {
-	return errors.Is(err, syscall.ECONNRESET)
-}
-
-func isWSAECONNREFUSED(err error) bool {
-	return false // WSAECONNREFUSED is Windows-specific
-}
