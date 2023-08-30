@@ -395,7 +395,7 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 			value.SetLen(ln)
 			sub := value.Slice(i, ln)
 			if _, err := state.b.Read(sub.Bytes()); err != nil {
-				errorf("error decoding []byte at %d: %s", err, i)
+				errorf("error decoding []byte at %d: %s", i, err)
 			}
 			i = ln
 		}
