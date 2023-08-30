@@ -10,6 +10,7 @@ import (
 	"errors"
 	"os"
 	"runtime"
+	"sync"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -17,6 +18,7 @@ import (
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/toolchain"
 
 	"golang.org/x/mod/module"
 )
@@ -153,7 +155,10 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 				// 'go mod graph', and similar commands.
 				_, err := modload.LoadModGraph(ctx, "")
 				if err != nil {
-					base.Fatal(err)
+					// TODO(#64008): call base.Fatalf instead of toolchain.SwitchOrFatal
+					// here, since we can only reach this point with an outdated toolchain
+					// if the go.mod file is inconsistent.
+					toolchain.SwitchOrFatal(ctx, err)
 				}
 
 				for _, m := range modFile.Require {
@@ -194,8 +199,26 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// from the resulting TooNewError), all before we try the actual full download
 	// of each module.
 	//
-	// For now, we just let it fail: the user can explicitly set GOTOOLCHAIN
-	// and retry if they want to.
+	// For now, we go ahead and try all the downloads and collect the errors, and
+	// if any download failed due to a TooNewError, we switch toolchains and try
+	// again. Any downloads that already succeeded will still be in cache.
+	// That won't give optimal concurrency (we'll do two batches of concurrent
+	// downloads instead of all in one batch), and it might add a little overhead
+	// to look up the downloads from the first batch in the module cache when
+	// we see them again in the second batch. On the other hand, it's way simpler
+	// to implement, and not really any more expensive if the user is requesting
+	// no explicit arguments (their go.mod file should already list an appropriate
+	// toolchain version) or only one module (as is used by the Go Module Proxy).
+
+	if infosErr != nil {
+		var sw toolchain.Switcher
+		sw.Error(infosErr)
+		if sw.NeedSwitch() {
+			sw.Switch(ctx)
+		}
+		// Otherwise, wait to report infosErr after we have downloaded
+		// when we can.
+	}
 
 	if !haveExplicitArgs && modload.WorkFilePath() == "" {
 		// 'go mod download' is sometimes run without arguments to pre-populate the
@@ -205,7 +228,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		// (golang.org/issue/45332). We do still fix inconsistencies in go.mod
 		// though.
 		//
-		// TODO(#45551): In the future, report an error if go.mod or go.sum need to
+		// TODO(#64008): In the future, report an error if go.mod or go.sum need to
 		// be updated after loading the build list. This may require setting
 		// the mode to "mod" or "readonly" depending on haveExplicitArgs.
 		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
@@ -213,6 +236,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	var downloadErrs sync.Map
 	for _, info := range infos {
 		if info.Replace != nil {
 			info = info.Replace
@@ -239,7 +263,11 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		sem <- token{}
 		go func() {
-			DownloadModule(ctx, m)
+			err := DownloadModule(ctx, m)
+			if err != nil {
+				downloadErrs.Store(m, err)
+				m.Error = err.Error()
+			}
 			<-sem
 		}()
 	}
@@ -247,6 +275,39 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// Fill semaphore channel to wait for goroutines to finish.
 	for n := cap(sem); n > 0; n-- {
 		sem <- token{}
+	}
+
+	// If there were explicit arguments
+	// (like 'go mod download golang.org/x/tools@latest'),
+	// check whether we need to upgrade the toolchain in order to download them.
+	//
+	// (If invoked without arguments, we expect the module graph to already
+	// be tidy and the go.mod file to declare a 'go' version that satisfies
+	// transitive requirements. If that invariant holds, then we should have
+	// already upgraded when we loaded the module graph, and should not need
+	// an additional check here. See https://go.dev/issue/45551.)
+	//
+	// We also allow upgrades if in a workspace because in workspace mode
+	// with no arguments we download the module pattern "all",
+	// which may include dependencies that are normally pruned out
+	// of the individual modules in the workspace.
+	if haveExplicitArgs || modload.WorkFilePath() != "" {
+		var sw toolchain.Switcher
+		// Add errors to the Switcher in deterministic order so that they will be
+		// logged deterministically.
+		for _, m := range mods {
+			if erri, ok := downloadErrs.Load(m); ok {
+				sw.Error(erri.(error))
+			}
+		}
+		// Only call sw.Switch if it will actually switch.
+		// Otherwise, we may want to write the errors as JSON
+		// (instead of using base.Error as sw.Switch would),
+		// and we may also have other errors to report from the
+		// initial infos returned by ListModules.
+		if sw.NeedSwitch() {
+			sw.Switch(ctx)
+		}
 	}
 
 	if *downloadJSON {
@@ -302,34 +363,27 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 
 // DownloadModule runs 'go mod download' for m.Path@m.Version,
 // leaving the results (including any error) in m itself.
-func DownloadModule(ctx context.Context, m *ModuleJSON) {
+func DownloadModule(ctx context.Context, m *ModuleJSON) error {
 	var err error
 	_, file, err := modfetch.InfoFile(ctx, m.Path, m.Version)
 	if err != nil {
-		m.Error = err.Error()
-		return
+		return err
 	}
 	m.Info = file
 	m.GoMod, err = modfetch.GoModFile(ctx, m.Path, m.Version)
 	if err != nil {
-		m.Error = err.Error()
-		return
+		return err
 	}
 	m.GoModSum, err = modfetch.GoModSum(ctx, m.Path, m.Version)
 	if err != nil {
-		m.Error = err.Error()
-		return
+		return err
 	}
 	mod := module.Version{Path: m.Path, Version: m.Version}
 	m.Zip, err = modfetch.DownloadZip(ctx, mod)
 	if err != nil {
-		m.Error = err.Error()
-		return
+		return err
 	}
 	m.Sum = modfetch.Sum(ctx, mod)
 	m.Dir, err = modfetch.Download(ctx, mod)
-	if err != nil {
-		m.Error = err.Error()
-		return
-	}
+	return err
 }
