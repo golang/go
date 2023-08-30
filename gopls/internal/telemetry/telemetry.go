@@ -9,7 +9,6 @@ package telemetry
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"golang.org/x/telemetry/counter"
@@ -20,9 +19,7 @@ import (
 // Start starts telemetry instrumentation.
 func Start() {
 	counter.Open()
-	if os.Getenv("GOPLS_TELEMETRY_EXP") != "" {
-		go packAndUpload()
-	}
+	go packAndUpload()
 }
 
 func packAndUpload() {
