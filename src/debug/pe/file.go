@@ -27,9 +27,6 @@ import (
 	"strings"
 )
 
-// Avoid use of post-Go 1.4 io features, to make safe for toolchain bootstrap.
-const seekStart = 0
-
 // A File represents an open PE file.
 type File struct {
 	FileHeader
@@ -92,7 +89,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	} else {
 		base = int64(0)
 	}
-	sr.Seek(base, seekStart)
+	sr.Seek(base, io.SeekStart)
 	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
 		return nil, err
 	}
@@ -129,7 +126,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 
 	// Seek past file header.
-	_, err = sr.Seek(base+int64(binary.Size(f.FileHeader)), seekStart)
+	_, err = sr.Seek(base+int64(binary.Size(f.FileHeader)), io.SeekStart)
 	if err != nil {
 		return nil, err
 	}
