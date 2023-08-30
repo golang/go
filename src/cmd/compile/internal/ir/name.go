@@ -139,6 +139,7 @@ func NewConstAt(pos src.XPos, sym *types.Sym, typ *types.Type, val constant.Valu
 	}
 	n := newNameAt(pos, OLITERAL, sym)
 	n.SetType(typ)
+	n.SetTypecheck(1)
 	n.SetVal(val)
 	return n
 }
