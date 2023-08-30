@@ -1,8 +1,9 @@
 package a
 
 func f() {
-	_ = one                             // want `inline call of a.One`
-	func(_ T) int { return 2 }(*new(T)) // want `inline call of \(a.T\).Two`
+	_ = one // want `inline call of a.One`
+
+	_ = 2 // want `inline call of \(a.T\).Two`
 }
 
 type T struct{}

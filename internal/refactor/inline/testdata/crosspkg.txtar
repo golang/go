@@ -46,7 +46,6 @@ package a
 import (
 	"fmt"
 	"testdata/b"
-
 	c "testdata/c"
 )
 
@@ -54,8 +53,8 @@ import (
 
 func A() {
 	fmt.Println()
-	func() { c.C() }() //@ inline(re"B1", b1result)
-	b.B2()             //@ inline(re"B2", b2result)
+	c.C()  //@ inline(re"B1", b1result)
+	b.B2() //@ inline(re"B2", b2result)
 }
 
 -- b2result --
@@ -72,6 +71,6 @@ import (
 
 func A() {
 	fmt.Println()
-	b.B1()                     //@ inline(re"B1", b1result)
-	func() { fmt.Println() }() //@ inline(re"B2", b2result)
+	b.B1()        //@ inline(re"B1", b1result)
+	fmt.Println() //@ inline(re"B2", b2result)
 }

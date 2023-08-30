@@ -1,19 +1,27 @@
-Most basic test of inlining by literalization.
+Basic tests of inlining by literalization.
+
+recover() is an example of a function with effects,
+so it (currently) defeats reduction. But note that the
+other parameter of 'add' is eliminated.
 
 -- go.mod --
 module testdata
 go 1.12
 
--- a/a.go --
+-- a/a1.go --
 package a
 
-var _ = add(1, 2) //@ inline(re"add", add)
+func _() {
+	add(recover().(int), 2) //@ inline(re"add", add1)
+}
 
 func add(x, y int) int { return x + y }
 
--- add --
+-- add1 --
 package a
 
-var _ = func(x, y int) int { return x + y }(1, 2) //@ inline(re"add", add)
+func _() {
+	func(x int) int { return x + 2 }(recover().(int)) //@ inline(re"add", add1)
+}
 
 func add(x, y int) int { return x + y }

@@ -18,7 +18,19 @@
 // caller and callee belong to the same token.FileSet or
 // types.Importer realms.
 //
-// In general, inlining consists of modifying a function or method
+// There are many aspects to a function call. It is the only construct
+// that can simultaneously bind multiple variables of different
+// explicit types, with implicit assignment conversions. (Neither var
+// nor := declarations can do that.) It defines the scope of control
+// labels, of return statements, and of defer statements. Arguments
+// and results of function calls may be tuples even though tuples are
+// not first-class values in Go, and a tuple-valued call expression
+// may be "spread" across the argument list of a call or the operands
+// of a return statement. All these unique features mean that in the
+// general case, not everything that can be expressed by a function
+// call can be expressed without one.
+//
+// So, in general, inlining consists of modifying a function or method
 // call expression f(a1, ..., an) so that the name of the function f
 // is replaced ("literalized") by a literal copy of the function
 // declaration, with free identifiers suitably modified to use the
@@ -33,19 +45,35 @@
 // reflection over the call stack, but this exception to the rule is
 // explicitly allowed.)
 //
-// In some special cases it is possible to entirely replace ("reduce")
-// the call by a copy of the function's body in which parameters have
-// been replaced by arguments, but this is surprisingly tricky for a
-// number of reasons, some of which are listed here for illustration:
+// In a number of special cases it is possible to entirely replace
+// ("reduce") the call by a copy of the function's body in which
+// parameters have been replaced by arguments. The inliner supports a
+// small number of reduction strategies, and we expect this set to
+// grow. Nonetheless, sound reduction is surprisingly tricky. The
+// following section lists some of the challenges.
 //
-//   - Any effects of the call argument expressions must be preserved,
-//     even if the corresponding parameters are never referenced, or are
-//     referenced multiple times, or are referenced in a different order
-//     from the arguments.
+//   - All effects of the call argument expressions must be preserved,
+//     both in their number (they must not be eliminated or repeated),
+//     and in their order (both with respect to other arguments, and any
+//     effects in the callee function).
+//
+//     This must be the case even if the corresponding parameters are
+//     never referenced, are referenced multiple times, referenced in
+//     a different order from the arguments, or referenced within a
+//     nested function that may be executed an arbitrary number of
+//     times.
+//
+//     Currently, parameter replacement is not applied to arguments
+//     with effects, but with further analysis of the sequence of
+//     strict effects within the callee we could relax this constraint.
 //
 //   - Even an argument expression as simple as ptr.x may not be
 //     referentially transparent, because another argument may have the
 //     effect of changing the value of ptr.
+//
+//     This constraint could be relaxed by some kind of alias or
+//     escape analysis that proves that ptr cannot be mutated during
+//     the call.
 //
 //   - Although constants are referentially transparent, as a matter of
 //     style we do not wish to duplicate literals that are referenced
@@ -54,18 +82,30 @@
 //
 //   - If the function body consists of statements other than just
 //     "return expr", in some contexts it may be syntactically
-//     impossible to replace the call expression by the body statements.
-//     Consider "} else if x := f(); cond { ... }".
-//     (Go has no equivalent to Lisp's progn or Rust's blocks.)
+//     impossible to reduce the call. Consider:
+//
+//     } else if x := f(); cond { ... }
+//
+//     Go has no equivalent to Lisp's progn or Rust's blocks,
+//     nor ML's let expressions (let param = arg in body);
+//     its closest equivalent is func(param){body}(arg).
+//     Reduction strategies must therefore consider the syntactic
+//     context of the call.
 //
 //   - Similarly, without the equivalent of Rust-style blocks and
 //     first-class tuples, there is no general way to reduce a call
 //     to a function such as
-//     >	func(params)(args)(results) { stmts; return body }
+//
+//     func(params)(args)(results) { stmts; return expr }
+//
 //     to an expression such as
-//     >	{ var params = args; stmts; body }
+//
+//     { var params = args; stmts; expr }
+//
 //     or even a statement such as
-//     >	results = { var params = args; stmts; body }
+//
+//     results = { var params = args; stmts; expr }
+//
 //     Consequently the declaration and scope of the result variables,
 //     and the assignment and control-flow implications of the return
 //     statement, must be dealt with by cases.
@@ -83,7 +123,9 @@
 //   - If a parameter or result variable is updated by an assignment
 //     within the function body, it cannot always be safely replaced
 //     by a variable in the caller. For example, given
-//     >	func f(a int) int { a++; return a }
+//
+//     func f(a int) int { a++; return a }
+//
 //     The call y = f(x) cannot be replaced by { x++; y = x } because
 //     this would change the value of the caller's variable x.
 //     Only if the caller is finished with x is this safe.
@@ -99,13 +141,33 @@
 //     be α-renamed.
 //
 //   - Given
-//     >	func f() uint8 { return 0 }
-//     >	var x any = f()
+//
+//     func f() uint8 { return 0 }
+//
+//     var x any = f()
+//
 //     reducing the call to var x any = 0 is unsound because it
-//     discards the implicit conversion. We may need to make each
-//     argument->parameter and return->result assignment conversion
-//     implicit if the types differ. Assignments to variadic
-//     parameters may need to explicitly construct a slice.
+//     discards the implicit conversion to uint8. We may need to make
+//     each argument-to-parameter conversion explicit if the types
+//     differ. Assignments to variadic parameters may need to
+//     explicitly construct a slice.
+//
+//     An analogous problem applies to the implicit assignments in
+//     return statements:
+//
+//     func g() any { return f() }
+//
+//     Replacing the call f() with 0 would silently lose a
+//     conversion to uint8 and change the behavior of the program.
+//
+//   - When inlining a call f(1, x, g()) where those parameters are
+//     unreferenced, we should be able to avoid evaluating 1 and x
+//     since they are pure and thus have no effect. But x may be the
+//     last reference to a local variable in the caller, so removing
+//     it would cause a compilation error. Argument elimination must
+//     avoid making the caller's local variables unreferenced (or must
+//     be prepared to eliminate the declaration too---this is where an
+//     iterative framework for simplification would really help).
 //
 // More complex callee functions are inlinable with more elaborate and
 // invasive changes to the statements surrounding the call expression.
@@ -120,8 +182,10 @@
 //     random in the corpus, inlines them, and checks that the
 //     result is either a sensible error or a valid transformation.
 //
-//   - Eliminate parameters that are unreferenced in the callee
-//     and whose argument expression is side-effect free.
+//   - Compute precisely (not conservatively) when parameter
+//     elimination would remove the last reference to a caller local
+//     variable, and blank out the local instead of retreating from
+//     the elimination.
 //
 //   - Afford the client more control such as a limit on the total
 //     increase in line count, or a refusal to inline using the
@@ -141,7 +205,9 @@
 //     cannot declare all the parameters and initialize them to their
 //     arguments in one go if they have varied types. Instead,
 //     one must use multiple specs such as:
-//     >	{ var x int = 1; var y int32 = 2; body ...}
+//
+//     { var x int = 1; var y int32 = 2; body ...}
+//
 //     but this means that the initializer expression for y is
 //     within the scope of x, so it may require α-renaming.
 //
@@ -159,12 +225,19 @@
 //     by their instantiations.
 //
 //   - Support inlining of calls to function literals such as:
-//     >	f := func(...) { ...}
-//     >	f()
+//
+//     f := func(...) { ... }
+//
+//     f()
+//
 //     including recursive ones:
-//     >	var f func(...)
-//     >	f = func(...) { ...f...}
-//     >	f()
+//
+//     var f func(...)
+//
+//     f = func(...) { ...f...}
+//
+//     f()
+//
 //     But note that the existing algorithm makes widespread assumptions
 //     that the callee is a package-level function or method.
 //
@@ -173,7 +246,7 @@
 //   - Allow non-'go' build systems such as Bazel/Blaze a chance to
 //     decide whether an import is accessible using logic other than
 //     "/internal/" path segments. This could be achieved by returning
-//     the list of added import paths.
+//     the list of added import paths instead of a text diff.
 //
 //   - Inlining a function from another module may change the
 //     effective version of the Go language spec that governs it. We
@@ -195,18 +268,18 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/format"
+	"go/parser"
 	"go/token"
 	"go/types"
-	"log"
 	pathpkg "path"
 	"reflect"
-	"sort"
+	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/imports"
-	"golang.org/x/tools/internal/typeparams"
 )
 
 // A Caller describes the function call and its enclosing context.
@@ -221,18 +294,178 @@ type Caller struct {
 	Content []byte
 }
 
-func (caller *Caller) offset(pos token.Pos) int { return offsetOf(caller.Fset, pos) }
-
 // Inline inlines the called function (callee) into the function call (caller)
 // and returns the updated, formatted content of the caller source file.
-func Inline(caller *Caller, callee_ *Callee) ([]byte, error) {
-	callee := &callee_.impl
+//
+// Inline does not mutate any part of Caller or Callee.
+//
+// The caller may supply a log function to observe the decision-making process.
+//
+// TODO(adonovan): provide an API for clients that want structured
+// output: a list of import additions and deletions plus one or more
+// localized diffs (or even AST transformations, though ownership and
+// mutation are tricky) near the call site.
+func Inline(logf func(string, ...any), caller *Caller, callee *Callee) ([]byte, error) {
+	if logf == nil {
+		logf = func(string, ...any) {} // discard
+	}
+	logf("inline %s @ %v",
+		formatNode(caller.Fset, caller.Call),
+		caller.Fset.Position(caller.Call.Lparen))
 
-	// -- check caller --
+	res, err := inline(logf, caller, &callee.impl)
+	if err != nil {
+		return nil, err
+	}
 
+	// Replace the call (or some node that encloses it) by new syntax.
+	assert(res.old != nil, "old is nil")
+	assert(res.new != nil, "new is nil")
+
+	// Don't call replaceNode(caller.File, res.old, res.new)
+	// as it mutates the caller's syntax tree.
+	// Instead, splice the file, replacing the extent of the "old"
+	// node by a formatting of the "new" node, and re-parse.
+	// We'll fix up the imports on this new tree, and format again.
+	var f *ast.File
+	{
+		start := offsetOf(caller.Fset, res.old.Pos())
+		end := offsetOf(caller.Fset, res.old.End())
+		// TODO(adonovan): might it make more sense to use
+		// callee.Fset when formatting res.new??
+		newFile := string(caller.Content[:start]) +
+			formatNode(caller.Fset, res.new) +
+			string(caller.Content[end:])
+		const mode = parser.ParseComments | parser.SkipObjectResolution | parser.AllErrors
+		var err error
+		f, err = parser.ParseFile(caller.Fset, "callee.go", newFile, mode)
+		if err != nil {
+			// Something has gone very wrong.
+			logf("failed to parse <<%s>>", newFile) // debugging
+			return nil, err
+		}
+	}
+
+	// Add new imports.
+	//
+	// Insert new imports after last existing import,
+	// to avoid migration of pre-import comments.
+	// The imports will be organized below.
+	if len(res.newImports) > 0 {
+		var importDecl *ast.GenDecl
+		if len(f.Imports) > 0 {
+			// Append specs to existing import decl
+			importDecl = f.Decls[0].(*ast.GenDecl)
+		} else {
+			// Insert new import decl.
+			importDecl = &ast.GenDecl{Tok: token.IMPORT}
+			f.Decls = prepend[ast.Decl](importDecl, f.Decls...)
+		}
+		for _, spec := range res.newImports {
+			// Check that all imports (in particular, the new ones) are accessible.
+			// TODO(adonovan): allow customization of the accessibility relation
+			// (e.g. for Bazel).
+			path, _ := strconv.Unquote(spec.Path.Value)
+			// TODO(adonovan): better segment hygiene.
+			if i := strings.Index(path, "/internal/"); i >= 0 {
+				if !strings.HasPrefix(caller.Types.Path(), path[:i]) {
+					return nil, fmt.Errorf("can't inline function %v as its body refers to inaccessible package %q", callee.impl.Name, path)
+				}
+			}
+			importDecl.Specs = append(importDecl.Specs, spec)
+		}
+	}
+
+	// Remove imports that are no longer referenced.
+	//
+	// It ought to be possible to compute the set of PkgNames used
+	// by the "old" code, compute the free identifiers of the
+	// "new" code using a syntax-only (no go/types) algorithm, and
+	// see if the reduction in the number of uses of any PkgName
+	// equals the number of times it appears in caller.Info.Uses,
+	// indicating that it is no longer referenced by res.new.
+	//
+	// However, the notorious ambiguity of resolving T{F: 0} makes this
+	// unreliable: without types, we can't tell whether F refers to
+	// a field of struct T, or a package-level const/var of a
+	// dot-imported (!) package.
+	//
+	// So, for now, we run imports.Process, which is
+	// unsatisfactory as it has to run the go command, and it
+	// looks at the user's module cache state--unnecessarily,
+	// since this step cannot add new imports.
+	//
+	// TODO(adonovan): replace with a simpler implementation since
+	// all the necessary imports are present but merely untidy.
+	// That will be faster, and also less prone to nondeterminism
+	// if there are bugs in our logic for import maintenance.
+	//
+	// However, golang.org/x/tools/internal/imports.ApplyFixes is
+	// too simple as it requires the caller to have figured out
+	// all the logical edits. In our case, we know all the new
+	// imports that are needed (see newImports), each of which can
+	// be specified as:
+	//
+	//   &imports.ImportFix{
+	//     StmtInfo: imports.ImportInfo{path, name,
+	//     IdentName: name,
+	//     FixType:   imports.AddImport,
+	//   }
+	//
+	// but we don't know which imports are made redundant by the
+	// inlining itself. For example, inlining a call to
+	// fmt.Println may make the "fmt" import redundant.
+	//
+	// Also, both imports.Process and internal/imports.ApplyFixes
+	// reformat the entire file, which is not ideal for clients
+	// such as gopls. (That said, the point of a canonical format
+	// is arguably that any tool can reformat as needed without
+	// this being inconvenient.)
+	//
+	// We could invoke imports.Process and parse its result,
+	// compare against the original AST, compute a list of import
+	// fixes, and return that too.
+	var out bytes.Buffer
+	if err := format.Node(&out, caller.Fset, f); err != nil {
+		return nil, err
+	}
+	formatted, err := imports.Process("output", out.Bytes(), nil)
+	if err != nil {
+		logf("cannot reformat: %v <<%s>>", err, &out)
+		return nil, err // cannot reformat (a bug?)
+	}
+	return formatted, nil
+}
+
+type result struct {
+	newImports []*ast.ImportSpec
+	old, new   ast.Node // e.g. replace call expr by callee function body expression
+}
+
+// inline returns a pair of an old node (the call, or something
+// enclosing it) and a new node (its replacement, which may be a
+// combination of caller, callee, and new nodes), along with the set
+// of new imports needed.
+//
+// TODO(adonovan): rethink the 'result' interface. The assumption of a
+// one-to-one replacement seems fragile. One can easily imagine the
+// transformation replacing the call and adding new variable
+// declarations, for example, or replacing a call statement by zero or
+// many statements.)
+//
+// TODO(adonovan): in earlier drafts, the transformation was expressed
+// by splicing substrings of the two source files because syntax
+// trees don't preserve comments faithfully (see #20744), but such
+// transformations don't compose. The current implementation is
+// tree-based but is very lossy wrt comments. It would make a good
+// candidate for evaluating an alternative fully self-contained tree
+// representation, such as any proposed solution to #20744, or even
+// dst or some private fork of go/ast.)
+func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*result, error) {
 	// Inlining of dynamic calls is not currently supported,
-	// even for local closure calls.
-	if typeutil.StaticCallee(caller.Info, caller.Call) == nil {
+	// even for local closure calls. (This would be a lot of work.)
+	calleeSymbol := typeutil.StaticCallee(caller.Info, caller.Call)
+	if calleeSymbol == nil {
 		// e.g. interface method
 		return nil, fmt.Errorf("cannot inline: not a static function call")
 	}
@@ -249,7 +482,8 @@ func Inline(caller *Caller, callee_ *Callee) ([]byte, error) {
 
 	// syntax path enclosing Call, innermost first (Path[0]=Call)
 	callerPath, _ := astutil.PathEnclosingInterval(caller.File, caller.Call.Pos(), caller.Call.End())
-	callerLookup := func(name string, pos token.Pos) types.Object {
+	callerLookup := func(name string) types.Object {
+		pos := caller.Call.Pos()
 		for _, n := range callerPath {
 			// The function body scope (containing not just params)
 			// is associated with FuncDecl.Type, not FuncDecl.Body.
@@ -279,7 +513,7 @@ func Inline(caller *Caller, callee_ *Callee) ([]byte, error) {
 	}
 
 	// localImportName returns the local name for a given imported package path.
-	var newImports []string
+	var newImports []*ast.ImportSpec
 	localImportName := func(path string) string {
 		name, ok := importMap[path]
 		if !ok {
@@ -294,7 +528,7 @@ func Inline(caller *Caller, callee_ *Callee) ([]byte, error) {
 			// use the package's declared name.
 			base := pathpkg.Base(path)
 			name = base
-			for n := 0; callerLookup(name, caller.Call.Pos()) != nil; n++ {
+			for n := 0; callerLookup(name) != nil; n++ {
 				name = fmt.Sprintf("%s%d", base, n)
 			}
 
@@ -303,19 +537,25 @@ func Inline(caller *Caller, callee_ *Callee) ([]byte, error) {
 			// the package name or the last segment of path.
 			// This requires that we tabulate (path, declared name, local name)
 			// triples for each package referenced by the callee.
-			newImports = append(newImports, fmt.Sprintf("%s %q", name, path))
+			newImports = append(newImports, &ast.ImportSpec{
+				Name: makeIdent(name),
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: strconv.Quote(path),
+				},
+			})
 			importMap[path] = name
 		}
 		return name
 	}
 
 	// Compute the renaming of the callee's free identifiers.
-	objRenames := make([]string, len(callee.FreeObjs)) // "" => no rename
+	objRenames := make([]ast.Expr, len(callee.FreeObjs)) // nil => no change
 	for i, obj := range callee.FreeObjs {
 		// obj is a free object of the callee.
 		//
 		// Possible cases are:
-		// - nil or a builtin
+		// - builtin function, type, or value (e.g. nil, zero)
 		//   => check not shadowed in caller.
 		// - package-level var/func/const/types
 		//   => same package: check not shadowed in caller.
@@ -328,33 +568,31 @@ func Inline(caller *Caller, callee_ *Callee) ([]byte, error) {
 		//
 		// There can be no free references to labels, fields, or methods.
 
-		var newName string
+		var newName ast.Expr
 		if obj.Kind == "pkgname" {
 			// Use locally appropriate import, creating as needed.
-			newName = localImportName(obj.PkgPath) // imported package
+			newName = makeIdent(localImportName(obj.PkgPath)) // imported package
 
 		} else if !obj.ValidPos {
-			// Built-in function, type, or nil: check not shadowed at caller.
-			found := callerLookup(obj.Name, caller.Call.Pos()) // can't fail
+			// Built-in function, type, or value (e.g. nil, zero):
+			// check not shadowed at caller.
+			found := callerLookup(obj.Name) // always finds something
 			if found.Pos().IsValid() {
 				return nil, fmt.Errorf("cannot inline because built-in %q is shadowed in caller by a %s (line %d)",
 					obj.Name, objectKind(found),
 					caller.Fset.Position(found.Pos()).Line)
 			}
 
-			newName = obj.Name
-
 		} else {
 			// Must be reference to package-level var/func/const/type,
 			// since type parameters are not yet supported.
-			newName = obj.Name
 			qualify := false
 			if obj.PkgPath == callee.PkgPath {
 				// reference within callee package
 				if samePkg {
 					// Caller and callee are in same package.
 					// Check caller has not shadowed the decl.
-					found := callerLookup(obj.Name, caller.Call.Pos()) // can't fail
+					found := callerLookup(obj.Name) // can't fail
 					if !isPkgLevel(found) {
 						return nil, fmt.Errorf("cannot inline because %q is shadowed in caller by a %s (line %d)",
 							obj.Name, objectKind(found),
@@ -374,271 +612,717 @@ func Inline(caller *Caller, callee_ *Callee) ([]byte, error) {
 			// Form a qualified identifier, pkg.Name.
 			if qualify {
 				pkgName := localImportName(obj.PkgPath)
-				newName = pkgName + "." + newName
+				newName = &ast.SelectorExpr{
+					X:   makeIdent(pkgName),
+					Sel: makeIdent(obj.Name),
+				}
 			}
 		}
 		objRenames[i] = newName
 	}
 
-	// Compute edits to inlined callee.
-	type edit struct {
-		start, end int // byte offsets wrt callee.content
-		new        string
+	res := &result{
+		newImports: newImports,
 	}
-	var edits []edit
 
-	// Give explicit blank "_" names to all method parameters
-	// (including receiver) since we will make the receiver a regular
-	// parameter and one cannot mix named and unnamed parameters.
-	// e.g. func (T) f(int, string) -> (_ T, _ int, _ string)
-	if callee.decl.Recv != nil {
-		ensureNamed := func(params *ast.FieldList) {
-			for _, param := range params.List {
-				if param.Names == nil {
-					offset := callee.offset(param.Type.Pos())
-					edits = append(edits, edit{
-						start: offset,
-						end:   offset,
-						new:   "_ ",
-					})
-				}
-			}
-		}
-		ensureNamed(callee.decl.Recv)
-		ensureNamed(callee.decl.Type.Params)
+	// Parse callee function declaration.
+	calleeFset, calleeDecl, err := parseCompact(callee.Content)
+	if err != nil {
+		return nil, err // "can't happen"
+	}
+
+	// replaceCalleeID replaces an identifier in the callee.
+	replaceCalleeID := func(offset int, repl ast.Expr) {
+		id := findIdent(calleeDecl, calleeDecl.Pos()+token.Pos(offset))
+		logf("- replace id %q @ #%d to %q", id.Name, offset, formatNode(calleeFset, repl))
+		replaceNode(calleeDecl, id, repl)
 	}
 
 	// Generate replacements for each free identifier.
+	// (The same tree may be spliced in multiple times, resulting in a DAG.)
 	for _, ref := range callee.FreeRefs {
-		if repl := objRenames[ref.Object]; repl != "" {
-			edits = append(edits, edit{
-				start: ref.Start,
-				end:   ref.End,
-				new:   repl,
-			})
+		if repl := objRenames[ref.Object]; repl != nil {
+			replaceCalleeID(ref.Offset, repl)
 		}
 	}
 
-	// Edits are non-overlapping but insertions and edits may be coincident.
-	// Preserve original order.
-	sort.SliceStable(edits, func(i, j int) bool {
-		return edits[i].start < edits[j].start
-	})
+	sig := calleeSymbol.Type().(*types.Signature)
 
-	// Check that all imports (in particular, the new ones) are accessible.
-	// TODO(adonovan): allow customization of the accessibility relation (e.g. for Bazel).
-	for path := range importMap {
-		// TODO(adonovan): better segment hygiene.
-		if i := strings.Index(path, "/internal/"); i >= 0 {
-			if !strings.HasPrefix(caller.Types.Path(), path[:i]) {
-				return nil, fmt.Errorf("can't inline function %v as its body refers to inaccessible package %q", callee.Name, path)
+	// Gather effective argument tuple, including receiver.
+	//
+	// If the receiver argument and parameter have
+	// different pointerness, make the "&" or "*" explicit.
+	//
+	// Beware that:
+	//
+	// - a method can only be called through a selection, but only
+	//   the first of these two forms needs special treatment:
+	//
+	//   expr.f(args)     -> ([&*]expr, args)	MethodVal
+	//   T.f(recv, args)  -> (    expr, args)	MethodExpr
+	//
+	// - the presence of a value in receiver-position in the call
+	//   is a property of the caller, not the callee. A method
+	//   (calleeDecl.Recv != nil) may be called like an ordinary
+	//   function.
+	//
+	// - the types.Signatures seen by the caller (from
+	//   StaticCallee) and by the callee (from decl type)
+	//   differ in this case.
+	//
+	// In a spread call f(g()), the sole ordinary argument g(),
+	// always last in args, has a tuple type.
+	//
+	// We compute type-based predicates like pure, duplicable,
+	// freevars, etc, now, before we start modifying things.
+	type argument struct {
+		expr       ast.Expr
+		typ        types.Type      // may be tuple for sole non-receiver arg in spread call
+		pure       bool            // expr has no effects
+		duplicable bool            // expr may be duplicated
+		freevars   map[string]bool // free names of expr
+	}
+	var args []*argument // effective arguments; nil => eliminated
+	if calleeDecl.Recv != nil {
+		sel := astutil.Unparen(caller.Call.Fun).(*ast.SelectorExpr)
+		if caller.Info.Selections[sel].Kind() == types.MethodVal {
+			// Move receiver argument recv.f(args) to argument list f(&recv, args).
+			arg := &argument{
+				expr:       sel.X,
+				typ:        caller.Info.TypeOf(sel.X),
+				pure:       pure(caller.Info, sel.X),
+				duplicable: duplicable(caller.Info, sel.X),
+				freevars:   freevars(caller.Info, sel.X),
+			}
+			args = append(args, arg)
+
+			// Make * or & explicit.
+			//
+			// We do this after we've computed the type-based
+			// predicates (pure et al) above, as they won't
+			// work on synthetic syntax.
+			argIsPtr := arg.typ != deref(arg.typ)
+			paramIsPtr := is[*types.Pointer](sig.Recv().Type())
+			if !argIsPtr && paramIsPtr {
+				// &recv
+				arg.expr = &ast.UnaryExpr{Op: token.AND, X: arg.expr}
+				arg.typ = types.NewPointer(arg.typ)
+			} else if argIsPtr && !paramIsPtr {
+				// *recv
+				arg.expr = &ast.StarExpr{X: arg.expr}
+				arg.typ = deref(arg.typ)
+
+				// Technically *recv is non-pure and
+				// non-duplicable, as side effects
+				// could change the pointer between
+				// multiple reads. But unfortunately
+				// this really degrades many of our tests.
+				//
+				// TODO(adonovan): improve the precision
+				// purity and duplicability.
+				// For example, *new(T) is actually pure.
+				// And *ptr, where ptr doesn't escape and
+				// has no assignments other than its decl,
+				// is also pure; this is very common.
+				//
+				// arg.pure = false
+				// arg.duplicable = false
 			}
 		}
 	}
-
-	// The transformation is expressed by splicing substrings of
-	// the two source files, because syntax trees don't preserve
-	// comments faithfully (see #20744).
-	var out bytes.Buffer
-
-	// 'replace' emits to out the specified range of the callee,
-	// applying all edits that fall completely within it.
-	replace := func(start, end int) {
-		off := start
-		for _, edit := range edits {
-			if start <= edit.start && edit.end <= end {
-				out.Write(callee.Content[off:edit.start])
-				out.WriteString(edit.new)
-				off = edit.end
-			}
-		}
-		out.Write(callee.Content[off:end])
+	for _, arg := range caller.Call.Args {
+		args = append(args, &argument{
+			expr:       arg,
+			typ:        caller.Info.TypeOf(arg),
+			pure:       pure(caller.Info, arg),
+			duplicable: duplicable(caller.Info, arg),
+			freevars:   freevars(caller.Info, arg),
+		})
 	}
 
-	// Insert new imports after last existing import,
-	// to avoid migration of pre-import comments.
-	// The imports will be organized later.
+	// Parameter elimination
+	//
+	// Consider each parameter and its corresponding argument in turn
+	// and evaluate these conditions:
+	//
+	// - the parameter is neither address-taken nor assigned;
+	// - the argument is pure;
+	// - if the parameter refcount is zero, the argument must
+	//   not contain the last use of a local var;
+	// - if the parameter refcount is > 1, the argument must be duplicable;
+	// - the argument (or types.Default(argument) if it's untyped) has
+	//   the same type as the parameter.
+	//
+	// If all conditions are met then the parameter can be eliminated
+	// and each reference to it replaced by the argument.
+	var eliminatedParams []bool // (recv, params...)
 	{
-		offset := caller.offset(caller.File.Name.End()) // after package decl
-		if len(caller.File.Imports) > 0 {
-			// It's tempting to insert the new import after the last ImportSpec,
-			// but that may not be at the end of the import decl.
-			// Consider: import ( "a"; "b" ‸ )
-			for _, decl := range caller.File.Decls {
-				if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.IMPORT {
-					offset = caller.offset(decl.End()) // after import decl
-				}
+		// Gather effective parameter objects,
+		// including the receiver if any.
+		var paramObjs []*types.Var
+		if sig.Recv() != nil {
+			paramObjs = append(paramObjs, sig.Recv())
+		}
+		for i := 0; i < sig.Params().Len(); i++ {
+			paramObjs = append(paramObjs, sig.Params().At(i))
+		}
+
+		// In most calls, args and paramObjs correspond.
+		//
+		// Edge case: in a variadic call, len(args) >= len(params)-1.
+		//
+		// Edge case: in a spread call f(g()) where g is n-ary (n > 1),
+		//  len(args) = 1 and len(params) = n,
+		//  unless (corner case!) f is variadic,
+		//  in which case both are again 1.
+		//
+		// TODO(adonovan): support elimination of variadic parameters,
+		// and of spread arguments.
+
+		eliminatedParams = make([]bool, len(paramObjs))
+	nextParam:
+		for i, param := range callee.Params {
+			if param.Kind == "result" {
+				break // end of parameters
 			}
-		}
-		out.Write(caller.Content[:offset])
-		out.WriteString("\n")
-		for _, imp := range newImports {
-			fmt.Fprintf(&out, "import %s\n", imp)
-		}
-		out.Write(caller.Content[offset:caller.offset(caller.Call.Pos())])
-	}
+			if sig.Variadic() && i == len(paramObjs)-1 {
+				// final ...T parameter
+				// TODO(adonovan): decouple the param and arg parts of this
+				// loop so that we can handle variadic cases.
+				logf("keeping param %q: variadic elimination not yet supported",
+					param.Name)
+				continue
+			}
+			if param.Escapes {
+				logf("keeping param %q: escapes from callee", param.Name)
+				continue
+			}
+			if param.Assigned {
+				logf("keeping param %q: assigned by callee", param.Name)
+				continue // callee needs the parameter variable
+			}
 
-	// Special case: a call to a function whose body consists only
-	// of "return expr" may be replaced by the expression, so long as:
-	//
-	// (a) There are no receiver or parameter argument expressions
-	//     whose side effects must be considered.
-	// (b) There are no named parameter or named result variables
-	//     that could potentially escape.
-	//
-	// TODO(adonovan): expand this special case to cover more scenarios.
-	// Consider each parameter in turn. If:
-	// - the parameter does not escape and is never assigned;
-	// - its argument is pure (no effects or panics--basically just idents and literals)
-	//   and referentially transparent (not new(T) or &T{...}) or referenced at most once; and
-	// - the argument and parameter have the same type
-	// then the parameter can be eliminated and each reference
-	// to it replaced by the argument.
-	// If:
-	// - all parameters can be so replaced;
-	// - and the body is just "return expr";
-	// - and the result vars are unnamed or never referenced (and thus cannot escape);
-	// then the call expression can be replaced by its body expression.
-	if callee.BodyIsReturnExpr &&
-		callee.decl.Recv == nil && // no receiver arg effects to consider
-		len(caller.Call.Args) == 0 && // no argument effects to consider
-		!hasNamedVars(callee.decl.Type.Params) && // no param vars escape
-		!hasNamedVars(callee.decl.Type.Results) { // no result vars escape
-
-		// A single return operand inlined to an expression
-		// context may need parens. Otherwise:
-		//    func two() int { return 1+1 }
-		//    print(-two())  =>  print(-1+1) // oops!
-		parens := callee.NumResults == 1
-
-		// If the call is a standalone statement, but the
-		// callee body is not suitable as a standalone statement
-		// (f() or <-ch), explicitly discard the results:
-		// _, _ = expr
-		if isCallStmt(callerPath) {
-			parens = false
-
-			if !callee.ValidForCallStmt {
-				for i := 0; i < callee.NumResults; i++ {
-					if i > 0 {
-						out.WriteString(", ")
+			// Check argument against parameter.
+			//
+			// Beware: don't use types.Info on arg since
+			// the syntax may be synthetic (not created by parser)
+			// and thus lacking positions and types;
+			// do it earlier (see pure/duplicable/freevars).
+			arg := args[i]
+			if is[*types.Tuple](arg.typ) {
+				// TODO(adonovan): handle elimination of spread arguments.
+				logf("keeping param %q: argument %s is spread",
+					param.Name, formatNode(caller.Fset, arg.expr))
+				continue
+			}
+			if !arg.pure {
+				logf("keeping param %q: argument %s is impure",
+					param.Name, formatNode(caller.Fset, arg.expr))
+				continue // unsafe to change order or cardinality of effects
+			}
+			if len(param.Refs) > 1 && !arg.duplicable {
+				logf("keeping param %q: argument is not duplicable", param.Name)
+				continue // incorrect or poor style to duplicate an expression
+			}
+			if len(param.Refs) == 0 {
+				// Eliminating an unreferenced parameter might
+				// remove the last reference to a caller local var.
+				for free := range arg.freevars {
+					if v, ok := callerLookup(free).(*types.Var); ok {
+						// TODO(adonovan): be more precise and check
+						// that v is defined within the body of the caller
+						// function (if any) and is indeed referenced
+						// only by the call.
+						logf("keeping param %q: arg contains perhaps the last reference to possible caller local %v @ %v",
+							param.Name, v, caller.Fset.Position(v.Pos()))
+						continue nextParam
 					}
-					out.WriteString("_")
 				}
-				out.WriteString(" = ")
 			}
-		}
 
-		// Emit the body expression(s).
-		for i, res := range callee.decl.Body.List[0].(*ast.ReturnStmt).Results {
-			if i > 0 {
-				out.WriteString(", ")
+			// Check that eliminating the parameter wouldn't materially
+			// change the type.
+			//
+			// (We don't simply wrap the argument in an explicit conversion
+			// to the parameter type because that could increase allocation
+			// in the number of (e.g.) string -> any conversions.
+			// Even when Uses = 1, the sole ref might be in a lambda that
+			// is multiply executed.)
+			if len(param.Refs) > 0 && !trivialConversion(args[i].typ, paramObjs[i]) {
+				logf("keeping param %q: argument passing converts %s to type %s",
+					param.Name, args[i].typ, paramObjs[i].Type())
+				continue // implicit conversion is significant
 			}
-			if parens {
-				out.WriteString("(")
+
+			// Check for shadowing.
+			//
+			// Consider inlining a call f(z, 1) to
+			// func f(x, y int) int { z := y; return x + y + z }:
+			// we can't replace x in the body by z (or any
+			// expression that has z as a free identifier)
+			// because there's an intervening declaration of z
+			// that would shadow the caller's one.
+			for free := range arg.freevars {
+				if param.Shadow[free] {
+					logf("keeping param %q: cannot replace with argument as it has free ref to %s that is shadowed", param.Name, free)
+					continue nextParam // shadowing conflict
+				}
 			}
-			replace(callee.offset(res.Pos()), callee.offset(res.End()))
-			if parens {
-				out.WriteString(")")
+
+			// It is safe to eliminate param and replace it with arg.
+			// No additional parens are required around arg for
+			// the supported "pure" expressions.
+			logf("replacing parameter %q by argument %q",
+				param.Name, formatNode(caller.Fset, arg.expr))
+			for _, ref := range param.Refs {
+				replaceCalleeID(ref, arg.expr)
 			}
+			eliminatedParams[i] = true
+			args[i] = nil
 		}
-		goto rest
 	}
 
-	// Emit a function literal in place of the callee name,
-	// with appropriate replacements.
-	out.WriteString("func (")
-	if recv := callee.decl.Recv; recv != nil {
-		// Move method receiver to head of ordinary parameters.
-		replace(callee.offset(recv.Opening+1), callee.offset(recv.Closing))
-		if len(callee.decl.Type.Params.List) > 0 {
-			out.WriteString(", ")
+	var remainingArgs []ast.Expr
+	for _, arg := range args {
+		if arg != nil {
+			remainingArgs = append(remainingArgs, arg.expr)
 		}
 	}
-	replace(callee.offset(callee.decl.Type.Params.Opening+1),
-		callee.offset(callee.decl.End()))
 
-	// Emit call arguments.
-	out.WriteString("(")
-	if callee.decl.Recv != nil {
-		// Move receiver argument x.f(...) to argument list f(x, ...).
-		recv := astutil.Unparen(caller.Call.Fun).(*ast.SelectorExpr).X
+	// -- let the inlining strategies begin --
 
-		// If the receiver argument and parameter have
-		// different pointerness, make the "&" or "*" explicit.
-		argPtr := is[*types.Pointer](typeparams.CoreType(caller.Info.TypeOf(recv)))
-		paramPtr := is[*ast.StarExpr](callee.decl.Recv.List[0].Type)
-		if !argPtr && paramPtr {
-			out.WriteString("&")
-		} else if argPtr && !paramPtr {
-			out.WriteString("*")
+	// Special case: eliminate a call to a function whose body is empty.
+	// (=> callee has no results and caller is a statement.)
+	//
+	//    func f(params) {}
+	//    f(args)
+	//    => _, _ = args
+	//
+	if len(calleeDecl.Body.List) == 0 {
+		logf("strategy: reduce call to empty body")
+
+		// Evaluate the arguments for effects and delete the call entirely.
+		stmt := callStmt(callerPath) // cannot fail
+		res.old = stmt
+		if nargs := len(remainingArgs); nargs > 0 {
+			// Emit "_, _ = args" to discard results.
+			// Make correction for spread calls
+			// f(g()) or x.f(g()) where g() is a tuple.
+			if last := args[len(args)-1]; last != nil {
+				if tuple, ok := last.typ.(*types.Tuple); ok {
+					nargs += tuple.Len() - 1
+				}
+			}
+			res.new = &ast.AssignStmt{
+				Lhs: blanks[ast.Expr](nargs),
+				Tok: token.ASSIGN,
+				Rhs: remainingArgs,
+			}
+		} else {
+			// No remaining arguments: delete call statement entirely
+			res.new = &ast.EmptyStmt{}
 		}
-
-		out.Write(caller.Content[caller.offset(recv.Pos()):caller.offset(recv.End())])
-
-		if len(caller.Call.Args) > 0 {
-			out.WriteString(", ")
-		}
+		return res, nil
 	}
-	// Append ordinary args, sans initial "(".
-	out.Write(caller.Content[caller.offset(caller.Call.Lparen+1):caller.offset(caller.Call.End())])
 
-	// Append rest of caller file.
-rest:
-	out.Write(caller.Content[caller.offset(caller.Call.End()):])
-
-	// Reformat, and organize imports.
-	//
-	// TODO(adonovan): this looks at the user's cache state.
-	// Replace with a simpler implementation since
-	// all the necessary imports are present but merely untidy.
-	// That will be faster, and also less prone to nondeterminism
-	// if there are bugs in our logic for import maintenance.
-	//
-	// However, golang.org/x/tools/internal/imports.ApplyFixes is
-	// too simple as it requires the caller to have figured out
-	// all the logical edits. In our case, we know all the new
-	// imports that are needed (see newImports), each of which can
-	// be specified as:
-	//
-	//   &imports.ImportFix{
-	//     StmtInfo: imports.ImportInfo{path, name,
-	//     IdentName: name,
-	//     FixType:   imports.AddImport,
-	//   }
-	//
-	// but we don't know which imports are made redundant by the
-	// inlining itself. For example, inlining a call to
-	// fmt.Println may make the "fmt" import redundant.
-	//
-	// Also, both imports.Process and internal/imports.ApplyFixes
-	// reformat the entire file, which is not ideal for clients
-	// such as gopls. (That said, the point of a canonical format
-	// is arguably that any tool can reformat as needed without
-	// this being inconvenient.)
-	res, err := imports.Process("output", out.Bytes(), nil)
-	if err != nil {
-		if false { // debugging
-			log.Printf("cannot reformat: %v <<%s>>", err, &out)
+	// Attempt to reduce parameterless calls
+	// whose result variables do not escape.
+	if func() bool {
+		for i, param := range callee.Params {
+			if param.Kind != "result" { // recv or param
+				if !eliminatedParams[i] {
+					logf("param %q not eliminated", param.Name)
+					return false
+				}
+			} else if param.Escapes {
+				logf("result variable %s escapes", param.Name)
+				return false
+			}
 		}
-		return nil, err // cannot reformat (a bug?)
+		return true
+	}() {
+		logf("all params eliminated and no result vars escape")
+
+		// Special case: parameterless call to { return expr(s) }.
+		//
+		// If:
+		// - the body is just "return expr" with trivial implicit conversions,
+		// - all parameters have been eliminated, and
+		// - no result var escapes,
+		// then the call expression can be replaced by the
+		// callee's body expression, suitably substituted.
+		if callee.BodyIsReturnExpr {
+			logf("strategy: reduce parameterless call to { return expr }")
+
+			results := calleeDecl.Body.List[0].(*ast.ReturnStmt).Results
+
+			clearPositions(calleeDecl.Body)
+
+			context := callContext(callerPath)
+			if stmt, ok := context.(*ast.ExprStmt); ok {
+				logf("call in statement context")
+
+				if callee.ValidForCallStmt {
+					logf("callee body is valid as statement")
+					// Replace the statement with the callee expr.
+					res.old = caller.Call
+					res.new = results[0] // Inv: len(results) == 1
+				} else {
+					logf("callee body is not valid as statement")
+					// The call is a standalone statement, but the
+					// callee body is not suitable as a standalone statement
+					// (f() or <-ch), explicitly discard the results:
+					// _, _ = expr
+					res.old = stmt
+					res.new = &ast.AssignStmt{
+						Lhs: blanks[ast.Expr](callee.NumResults),
+						Tok: token.ASSIGN,
+						Rhs: results,
+					}
+				}
+
+			} else if callee.NumResults == 1 {
+				logf("call in expression context")
+
+				// A single return operand inlined to a unary
+				// expression context may need parens. Otherwise:
+				//    func two() int { return 1+1 }
+				//    print(-two())  =>  print(-1+1) // oops!
+				//
+				// TODO(adonovan): do better by analyzing 'context'
+				// to see whether ambiguity is possible.
+				// For example, if the context is x[y:z], then
+				// the x subtree is subject to precedence ambiguity
+				// (replacing x by p+q would give p+q[y:z] which is wrong)
+				// but the y and z subtrees are safe.
+				res.old = caller.Call
+				res.new = &ast.ParenExpr{X: results[0]}
+
+			} else {
+				logf("call in spread context")
+
+				// The call returns multiple results but is
+				// not a standalone call statement. It must
+				// be the RHS of a spread assignment:
+				//   var x, y  = f()
+				//       x, y := f()
+				//       x, y  = f()
+				// or the sole argument to a spread call:
+				//        printf(f())
+				res.old = context
+				switch context := context.(type) {
+				case *ast.AssignStmt:
+					// Inv: the call is in Rhs[0], not Lhs.
+					assign := shallowCopy(context)
+					assign.Rhs = results
+					res.new = assign
+				case *ast.ValueSpec:
+					// Inv: the call is in Values[0], not Names.
+					spec := shallowCopy(context)
+					spec.Values = results
+					res.new = spec
+				case *ast.CallExpr:
+					// Inv: the Call is Args[0], not Fun.
+					call := shallowCopy(context)
+					call.Args = results
+					res.new = call
+				default:
+					return nil, fmt.Errorf("internal error: unexpected context %T for spread call", context)
+				}
+			}
+			return res, nil
+		}
+
+		// Special case: parameterless call to void function
+		//
+		// Inlining:
+		//         f(args)
+		// where:
+		//	   func f(params) { stmts }
+		// reduces to:
+		//         { stmts }
+		// so long as:
+		// - callee is a void function (no returns)
+		// - callee does not use defer
+		// - there is no label conflict between caller and callee
+		// - all parameters have been eliminated.
+		//
+		// If there is only a single statement, the braces are omitted.
+		body := calleeDecl.Body
+		if stmt := callStmt(callerPath); stmt != nil && !hasControl(body) {
+			logf("strategy: reduce parameterless call to { stmt } from a call stmt")
+
+			var repl ast.Stmt = body
+			if len(body.List) == 1 {
+				repl = body.List[0] // omit braces around singleton statement
+			}
+			clearPositions(repl)
+			res.old = stmt
+			res.new = repl
+			return res, nil
+		}
+
+		// TODO(adonovan): parameterless call to { stmt; return expr }
+		// from one of these contexts:
+		//    x, y     = f()
+		//    x, y    := f()
+		//    var x, y = f()
+		// =>
+		//    var (x T1, y T2); { stmts; x, y = expr }
+		//
+		// Because the params are no longer declared simultaneously
+		// we need to check that (for example) x ∉ freevars(T2),
+		// in addition to the usual checks for arg/result conversions,
+		// complex control, etc.
+		// Also test cases where expr is an n-ary call (spread returns).
+
+		// TODO(adonovan): replace a call f(a1, a2)
+		// to func f(x T1, y T2) {body} by
+		//    { var x T1 = a1
+		//      var y T2 = a2
+		//      body }
+		// if x ∉ freevars(a2) or freevars(T2), and so on,
+		// plus the usual checks for return conversions (if any),
+		// complex control, etc.
+
+		// TODO(adonovan): a parameterless tail-call to a
+		// function with a single final return, no defer/label
+		// control, and no trivial return conversions, can be
+		// inlined to the body of the function (perhaps even
+		// omitting the braces.)
 	}
+
+	// Infallible general case: literalization.
+	logf("strategy: literalization")
+
+	// Modify callee's FuncDecl.Type.Params to remove eliminated
+	// parameters and move the receiver (if any) to the head of
+	// the ordinary parameters.
+	//
+	// The logic is fiddly because of the three forms of ast.Field:
+	//   func(int), func(x int), func(x, y int)
+	//
+	// Also, ensure that all remaining parameters are named
+	// to avoid a mix of named/unnamed when joining (recv, params...).
+	// func (T) f(int, bool) -> (_ T, _ int, _ bool)
+	{
+		paramIdx := 0 // index in original parameter list (incl. receiver)
+		var newParams []*ast.Field
+		filterParams := func(field *ast.Field) {
+			var names []*ast.Ident
+			if field.Names == nil {
+				// Unnamed parameter field (e.g. func f(int)
+				if !eliminatedParams[paramIdx] {
+					// Give it an explicit name "_" since we will
+					// make the receiver (if any) a regular parameter
+					// and one cannot mix named and unnamed parameters.
+					names = blanks[*ast.Ident](1)
+				}
+				paramIdx++
+			} else {
+				// Named parameter field e.g. func f(x, y int)
+				// Remove eliminated parameters in place.
+				// If all were eliminated, delete field.
+				for _, id := range field.Names {
+					if !eliminatedParams[paramIdx] {
+						names = append(names, id)
+					}
+					paramIdx++
+				}
+			}
+			if names != nil {
+				newParams = append(newParams, &ast.Field{
+					Names: names,
+					Type:  field.Type,
+				})
+			}
+		}
+		if calleeDecl.Recv != nil {
+			filterParams(calleeDecl.Recv.List[0])
+			calleeDecl.Recv = nil
+		}
+		for _, field := range calleeDecl.Type.Params.List {
+			filterParams(field)
+		}
+		calleeDecl.Type.Params.List = newParams
+	}
+	// Emit a new call to a function literal in place of
+	// the callee name, with appropriate replacements.
+	newCall := &ast.CallExpr{
+		Fun: &ast.FuncLit{
+			Type: calleeDecl.Type,
+			Body: calleeDecl.Body,
+		},
+		Args: remainingArgs,
+	}
+	clearPositions(newCall.Fun)
+	res.old = caller.Call
+	res.new = newCall
 	return res, nil
 }
 
-// -- helpers --
+// -- predicates over expressions --
 
-func is[T any](x any) bool {
-	_, ok := x.(T)
-	return ok
+// freevars returns the names of all free identifiers of e:
+// those lexically referenced by it but not defined within it.
+// (Fields and methods are not included.)
+func freevars(info *types.Info, e ast.Expr) map[string]bool {
+	free := make(map[string]bool)
+	ast.Inspect(e, func(n ast.Node) bool {
+		if id, ok := n.(*ast.Ident); ok {
+			// The isField check is so that we don't treat T{f: 0} as a ref to f.
+			if obj, ok := info.Uses[id]; ok && !within(obj.Pos(), e) && !isField(obj) {
+				free[obj.Name()] = true
+			}
+		}
+		return true
+	})
+	return free
 }
 
-func within(pos token.Pos, n ast.Node) bool {
-	return n.Pos() <= pos && pos <= n.End()
+// pure reports whether the expression is pure, that is,
+// has no side effects nor potential to panic.
+//
+// Beware that pure does not imply referentially transparent: for
+// example, new(T) is a pure expression but it returns a different
+// value each time it is evaluated. (One could say that is has effects
+// on the memory allocator.)
+//
+// TODO(adonovan):
+//   - add a unit test of this function.
+//   - "potential to panic": I'm not sure this is an important
+//     criterion. We should be allowed to assume that good programs
+//     don't rely on runtime panics for correct behavior.
+//   - Should a binary + operator be considered pure? For strings, it
+//     allocates memory, but so does a composite literal and that's pure
+//     (but not duplicable). We need clearer definitions here.
+func pure(info *types.Info, e ast.Expr) bool {
+	switch e := e.(type) {
+	case *ast.ParenExpr:
+		return pure(info, e.X)
+	case *ast.Ident:
+		return true
+	case *ast.FuncLit:
+		return true
+	case *ast.BasicLit:
+		return true
+	case *ast.UnaryExpr: // + - ! ^ & but not <-
+		return e.Op != token.ARROW && pure(info, e.X)
+	case *ast.CallExpr:
+		// A conversion is considered pure
+		if info.Types[e.Fun].IsType() {
+			// TODO(adonovan): fix: reject the newly allowed
+			// conversions between T[] and *[k]T, as they may panic.
+			return pure(info, e.Args[0])
+		}
+
+		// Call to these built-ins are pure if their arguments are pure.
+		if id, ok := astutil.Unparen(e.Fun).(*ast.Ident); ok {
+			if b, ok := info.ObjectOf(id).(*types.Builtin); ok {
+				switch b.Name() {
+				case "len", "cap", "complex", "imag", "real", "make", "new", "max", "min":
+					for _, arg := range e.Args {
+						if !pure(info, arg) {
+							return false
+						}
+					}
+					return true
+				}
+			}
+		}
+
+		return false
+	case *ast.KeyValueExpr:
+		// map {key: value} or struct {field: value}
+		return pure(info, e.Key) && pure(info, e.Value)
+	case *ast.CompositeLit:
+		// T{x: 0} is pure (though it may imply
+		// an allocation, so it is not duplicable).
+		for _, elt := range e.Elts {
+			if !pure(info, elt) {
+				return false
+			}
+		}
+		return true
+	case *ast.SelectorExpr:
+		if sel, ok := info.Selections[e]; ok {
+			// A field or method selection x.f is pure
+			// if it does not indirect a pointer.
+			return !sel.Indirect()
+		}
+		// A qualified identifier pkg.Name is pure.
+		return true
+	case *ast.StarExpr:
+		return false // *ptr may panic
+	default:
+		return false
+	}
 }
 
-func offsetOf(fset *token.FileSet, pos token.Pos) int {
-	return fset.PositionFor(pos, false).Offset
+// duplicable reports whether it is appropriate for the expression to
+// be freely duplicated.
+//
+// Given the declaration
+//
+//	func f(x T) T { return x + g() + x }
+//
+// an argument y is considered duplicable if we would wish to see a
+// call f(y) simplified to y+g()+y. This is true for identifiers,
+// integer literals, unary negation, and selectors x.f where x is not
+// a pointer. But we would not wish to duplicate expressions that:
+// - have side effects (e.g. nearly all calls),
+// - are not referentially transparent (e.g. &T{}, ptr.field), or
+// - are long (e.g. "huge string literal").
+func duplicable(info *types.Info, e ast.Expr) bool {
+	switch e := e.(type) {
+	case *ast.ParenExpr:
+		return duplicable(info, e.X)
+	case *ast.Ident:
+		return true
+	case *ast.BasicLit:
+		return e.Kind == token.INT
+	case *ast.UnaryExpr: // e.g. +1, -1
+		return (e.Op == token.ADD || e.Op == token.SUB) && duplicable(info, e.X)
+	case *ast.CallExpr:
+		// Don't treat a conversion T(x) as duplicable even
+		// if x is duplicable because it could duplicate
+		// allocations. There may be cases to tease apart here.
+		return false
+	case *ast.SelectorExpr:
+		if sel, ok := info.Selections[e]; ok {
+			// A field or method selection x.f is referentially
+			// transparent if it does not indirect a pointer.
+			return !sel.Indirect()
+		}
+		// A qualified identifier pkg.Name is referentially transparent.
+		return true
+	default:
+		return false
+	}
+}
+
+// -- inline helpers --
+
+func assert(cond bool, msg string) {
+	if !cond {
+		panic(msg)
+	}
+}
+
+// blanks returns a slice of n > 0 blank identifiers.
+func blanks[E ast.Expr](n int) []E {
+	if n == 0 {
+		panic("blanks(0)")
+	}
+	res := make([]E, n)
+	for i := range res {
+		res[i] = any(makeIdent("_")).(E) // ugh
+	}
+	return res
+}
+
+func makeIdent(name string) *ast.Ident {
+	return &ast.Ident{Name: name}
 }
 
 // importedPkgName returns the PkgName object declared by an ImportSpec.
@@ -658,31 +1342,214 @@ func isPkgLevel(obj types.Object) bool {
 	return obj.Pkg().Scope().Lookup(obj.Name()) == obj
 }
 
-// objectKind returns an object's kind (e.g. var, func, const, typename).
-func objectKind(obj types.Object) string {
-	return strings.TrimPrefix(strings.ToLower(reflect.TypeOf(obj).String()), "*types.")
-}
-
-// isCallStmt reports whether the function call (specified
-// as a PathEnclosingInterval) appears within an ExprStmt.
-func isCallStmt(callPath []ast.Node) bool {
-	_ = callPath[0].(*ast.CallExpr)
+// callContext returns the node immediately enclosing the call
+// (specified as a PathEnclosingInterval), ignoring parens.
+func callContext(callPath []ast.Node) ast.Node {
+	_ = callPath[0].(*ast.CallExpr) // sanity check
 	for _, n := range callPath[1:] {
-		switch n.(type) {
-		case *ast.ParenExpr:
-			continue
-		case *ast.ExprStmt:
-			return true
+		if !is[*ast.ParenExpr](n) {
+			return n
 		}
-		break
 	}
-	return false
+	return nil
 }
 
-// hasNamedVars reports whether a function parameter tuple uses named variables.
+// callStmt reports whether the function call (specified
+// as a PathEnclosingInterval) appears within an ExprStmt,
+// and returns it if so.
+func callStmt(callPath []ast.Node) *ast.ExprStmt {
+	stmt, _ := callContext(callPath).(*ast.ExprStmt)
+	return stmt
+}
+
+// hasControl reports whether the body of the function uses control
+// constructs such as defer, return, or labels.
 //
-// TODO(adonovan): this is a placeholder for a more complex analysis to detect
-// whether inlining might cause named param/result variables to escape.
-func hasNamedVars(tuple *ast.FieldList) bool {
-	return tuple != nil && len(tuple.List) > 0 && tuple.List[0].Names != nil
+// TODO(adonovan): refine disposition w.r.t. return:
+// a single, unnested final return may be ok for some callers.
+func hasControl(body *ast.BlockStmt) (res bool) {
+	ast.Inspect(body, func(n ast.Node) bool {
+		switch n.(type) {
+		case *ast.FuncLit:
+			return false // prune traversal
+		case *ast.DeferStmt, *ast.LabeledStmt, *ast.ReturnStmt:
+			res = true
+		}
+		return true
+	})
+	return
+}
+
+// replaceNode performs a destructive update of the tree rooted at
+// root, replacing each occurrence of "from" with "to". If to is nil and
+// the element is within a slice, the slice element is removed.
+//
+// The root itself cannot be replaced; an attempt will panic.
+//
+// This function must not be called on the caller's syntax tree.
+//
+// TODO(adonovan): polish this up and move it to astutil package.
+// TODO(adonovan): needs a unit test.
+func replaceNode(root ast.Node, from, to ast.Node) {
+	if from == nil {
+		panic("from == nil")
+	}
+	if reflect.ValueOf(from).IsNil() {
+		panic(fmt.Sprintf("from == (%T)(nil)", from))
+	}
+	if from == root {
+		panic("from == root")
+	}
+	found := false
+	var parent reflect.Value // parent variable of interface type, containing a pointer
+	var visit func(reflect.Value)
+	visit = func(v reflect.Value) {
+		switch v.Kind() {
+		case reflect.Ptr:
+			if v.Interface() == from {
+				found = true
+
+				// If v is a struct field or array element
+				// (e.g. Field.Comment or Field.Names[i])
+				// then it is addressable (a pointer variable).
+				//
+				// But if it was the value an interface
+				// (e.g. *ast.Ident within ast.Node)
+				// then it is non-addressable, and we need
+				// to set the enclosing interface (parent).
+				if !v.CanAddr() {
+					v = parent
+				}
+
+				// to=nil => use zero value
+				var toV reflect.Value
+				if to != nil {
+					toV = reflect.ValueOf(to)
+				} else {
+					toV = reflect.Zero(v.Type()) // e.g. ast.Expr(nil)
+				}
+				v.Set(toV)
+
+			} else if !v.IsNil() {
+				switch v.Interface().(type) {
+				case *ast.Object, *ast.Scope:
+					// Skip fields of types potentially involved in cycles.
+				default:
+					visit(v.Elem())
+				}
+			}
+
+		case reflect.Struct:
+			for i := 0; i < v.Type().NumField(); i++ {
+				visit(v.Field(i))
+			}
+
+		case reflect.Slice:
+			compact := false
+			for i := 0; i < v.Len(); i++ {
+				visit(v.Index(i))
+				if v.Index(i).IsNil() {
+					compact = true
+				}
+			}
+			if compact {
+				// Elements were deleted. Eliminate nils.
+				// (Do this is a second pass to avoid
+				// unnecessary writes in the common case.)
+				j := 0
+				for i := 0; i < v.Len(); i++ {
+					if !v.Index(i).IsNil() {
+						v.Index(j).Set(v.Index(i))
+						j++
+					}
+				}
+				v.SetLen(j)
+			}
+		case reflect.Interface:
+			parent = v
+			visit(v.Elem())
+
+		case reflect.Array, reflect.Chan, reflect.Func, reflect.Map, reflect.UnsafePointer:
+			panic(v) // unreachable in AST
+		default:
+			// bool, string, number: nop
+		}
+		parent = reflect.Value{}
+	}
+	visit(reflect.ValueOf(root))
+	if !found {
+		panic(fmt.Sprintf("%T not found", from))
+	}
+}
+
+// clearPositions destroys token.Pos information within the tree rooted at root,
+// as positions in callee trees may cause caller comments to be emitted prematurely.
+//
+// In general it isn't safe to clear a valid Pos because some of them
+// (e.g. CallExpr.Ellipsis, TypeSpec.Assign) are significant to
+// go/printer, so this function sets each non-zero Pos to 1, which
+// suffices to avoid advancing the printer's comment cursor.
+//
+// This function mutates its argument; do not invoke on caller syntax.
+//
+// TODO(adonovan): remove this horrendous workaround when #20744 is finally fixed.
+func clearPositions(root ast.Node) {
+	posType := reflect.TypeOf(token.NoPos)
+	ast.Inspect(root, func(n ast.Node) bool {
+		if n != nil {
+			v := reflect.ValueOf(n).Elem() // deref the pointer to struct
+			fields := v.Type().NumField()
+			for i := 0; i < fields; i++ {
+				f := v.Field(i)
+				if f.Type() == posType {
+					// Clearing Pos arbitrarily is destructive,
+					// as its presence may be semantically significant
+					// (e.g. CallExpr.Ellipsis, TypeSpec.Assign)
+					// or affect formatting preferences (e.g. GenDecl.Lparen).
+					if f.Interface() != token.NoPos {
+						f.Set(reflect.ValueOf(token.Pos(1)))
+					}
+				}
+			}
+		}
+		return true
+	})
+}
+
+// findIdent returns the Ident beneath root that has the given pos.
+func findIdent(root ast.Node, pos token.Pos) *ast.Ident {
+	// TODO(adonovan): opt: skip subtrees that don't contain pos.
+	var found *ast.Ident
+	ast.Inspect(root, func(n ast.Node) bool {
+		if found != nil {
+			return false
+		}
+		if id, ok := n.(*ast.Ident); ok {
+			if id.Pos() == pos {
+				found = id
+			}
+		}
+		return true
+	})
+	if found == nil {
+		panic(fmt.Sprintf("findIdent %d not found", pos))
+	}
+	return found
+}
+
+func prepend[T any](elem T, slice ...T) []T {
+	return append([]T{elem}, slice...)
+}
+
+func formatNode(fset *token.FileSet, n ast.Node) string {
+	var out strings.Builder
+	if err := format.Node(&out, fset, n); err != nil {
+		out.WriteString(err.Error())
+	}
+	return out.String()
+}
+
+func shallowCopy[T any](ptr *T) *T {
+	copy := *ptr
+	return &copy
 }

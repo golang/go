@@ -33,11 +33,10 @@ package c
 
 import (
 	. "testdata/a"
-
 	a "testdata/a"
 )
 
 func _() {
 	A()
-	func() { a.A() }() //@ inline(re"B", result)
+	a.A() //@ inline(re"B", result)
 }

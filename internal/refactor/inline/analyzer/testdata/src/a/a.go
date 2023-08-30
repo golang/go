@@ -1,7 +1,8 @@
 package a
 
 func f() {
-	One()        // want `inline call of a.One`
+	One() // want `inline call of a.One`
+
 	new(T).Two() // want `inline call of \(a.T\).Two`
 }
 

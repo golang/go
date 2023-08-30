@@ -28,8 +28,10 @@ func _() {
 -- result --
 package c
 
-import a "testdata/a"
+import (
+	a "testdata/a"
+)
 
 func _() {
-	func() { a.A() }() //@ inline(re"B", result)
+	a.A() //@ inline(re"B", result)
 }

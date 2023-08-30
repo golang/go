@@ -31,11 +31,13 @@ func C() {}
 -- result --
 package a
 
-import c1 "testdata/c"
+import (
+	c1 "testdata/c"
+)
 
 func A() {
 	const c = 1
 	type c0 int
-	func() { c1.C() }() //@ inline(re"B", result)
+	c1.C() //@ inline(re"B", result)
 }
 

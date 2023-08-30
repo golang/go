@@ -1,0 +1,103 @@
+Test of elimination of calls to functions with completely empty bodies.
+The arguments must still be evaluated and their results discarded.
+The number of discard blanks must match the type, not the syntax (see 2-ary f).
+If there are no arguments, the entire call is eliminated.
+
+We cannot eliminate some pure argument expressions because they
+may contain the last reference to a local variable.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a0.go --
+package a
+
+func _() {
+	empty() //@ inline(re"empty", empty0)
+}
+
+func empty(...any) {}
+
+-- empty0 --
+package a
+
+func _() {
+	//@ inline(re"empty", empty0)
+}
+
+func empty(...any) {}
+
+-- a/a1.go --
+package a
+
+func _(ch chan int) {
+	empty(f()) //@ inline(re"empty", empty1)
+}
+
+func f() (int, int)
+
+-- empty1 --
+package a
+
+func _(ch chan int) {
+	_, _ = f() //@ inline(re"empty", empty1)
+}
+
+func f() (int, int)
+
+-- a/a2.go --
+package a
+
+func _(ch chan int) {
+	empty(-1, ch, len(""), g(), <-ch) //@ inline(re"empty", empty2)
+}
+
+func g() int
+
+-- empty2 --
+package a
+
+func _(ch chan int) {
+	_, _, _, _, _ = -1, ch, len(""), g(), <-ch //@ inline(re"empty", empty2)
+}
+
+func g() int
+
+-- a/a3.go --
+package a
+
+func _() {
+	new(T).empty() //@ inline(re"empty", empty3)
+}
+
+type T int
+
+func (T) empty() int {}
+
+-- empty3 --
+package a
+
+func _() {
+	//@ inline(re"empty", empty3)
+}
+
+type T int
+
+func (T) empty() int {}
+
+-- a/a4.go --
+package a
+
+func _() {
+	var x T
+	x.empty() //@ inline(re"empty", empty4)
+}
+
+-- empty4 --
+package a
+
+func _() {
+	var x T
+	_ = x //@ inline(re"empty", empty4)
+}

@@ -6,14 +6,18 @@ package inline_test
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/gob"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"testing"
+	"unsafe"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/expect"
@@ -121,8 +125,7 @@ func Test(t *testing.T) {
 							t.Errorf("%s: @inline(rx, want): want file name (to assert success) or error message regexp (to assert failure)", posn)
 							continue
 						}
-						t.Log("doInlineNote", posn)
-						if err := doInlineNote(pkg, file, content, pattern, posn, want); err != nil {
+						if err := doInlineNote(t.Logf, pkg, file, content, pattern, posn, want); err != nil {
 							t.Errorf("%s: @inline(%v, %v): %v", posn, note.Args[0], note.Args[1], err)
 							continue
 						}
@@ -141,7 +144,7 @@ func Test(t *testing.T) {
 // Finally it checks that, on success, the transformed file is equal
 // to want (a []byte), or on failure that the error message matches
 // want (a *Regexp).
-func doInlineNote(pkg *packages.Package, file *ast.File, content []byte, pattern *regexp.Regexp, posn token.Position, want any) error {
+func doInlineNote(logf func(string, ...any), pkg *packages.Package, file *ast.File, content []byte, pattern *regexp.Regexp, posn token.Position, want any) error {
 	// Find extent of pattern match within commented line.
 	var startPos, endPos token.Pos
 	{
@@ -284,7 +287,16 @@ func doInlineNote(pkg *packages.Package, file *ast.File, content []byte, pattern
 			return nil, fmt.Errorf("internal error: gob decoding failed: %v", err)
 		}
 
-		return inline.Inline(caller, callee)
+		// Check that the operation didn't mutate the tree.
+		pre := deepHash(caller.File)
+		defer func() {
+			post := deepHash(caller.File)
+			if pre != post {
+				panic("Inline mutated caller.File")
+			}
+		}()
+
+		return inline.Inline(logf, caller, callee)
 	}()
 	if err != nil {
 		if wantRE, ok := want.(*regexp.Regexp); ok {
@@ -322,4 +334,84 @@ func extractTxtar(ar *txtar.Archive, dir string) error {
 		}
 	}
 	return nil
+}
+
+// deepHash computes a cryptographic hash of an ast.Node so that
+// if the data structure is mutated, the hash changes.
+// It assumes Go variables do not change address.
+//
+// TODO(adonovan): consider publishing this in the astutil package.
+//
+// TODO(adonovan): consider a variant that reports where in the tree
+// the mutation occurred (obviously at a cost in space).
+func deepHash(n ast.Node) [sha256.Size]byte {
+	seen := make(map[unsafe.Pointer]bool) // to break cycles
+
+	hasher := sha256.New()
+	le := binary.LittleEndian
+	writeUint64 := func(v uint64) {
+		var bs [8]byte
+		le.PutUint64(bs[:], v)
+		hasher.Write(bs[:])
+	}
+
+	var visit func(reflect.Value)
+	visit = func(v reflect.Value) {
+		switch v.Kind() {
+		case reflect.Ptr:
+			ptr := v.UnsafePointer()
+			writeUint64(uint64(uintptr(ptr)))
+			if !v.IsNil() {
+				if !seen[ptr] {
+					seen[ptr] = true
+					// Skip types we don't handle yet, but don't care about.
+					switch v.Interface().(type) {
+					case *ast.Scope:
+						return // involves a map
+					}
+
+					visit(v.Elem())
+				}
+			}
+
+		case reflect.Struct:
+			for i := 0; i < v.Type().NumField(); i++ {
+				visit(v.Field(i))
+			}
+
+		case reflect.Slice:
+			ptr := v.UnsafePointer()
+			// We may encounter different slices at the same address,
+			// so don't mark ptr as "seen".
+			writeUint64(uint64(uintptr(ptr)))
+			writeUint64(uint64(v.Len()))
+			writeUint64(uint64(v.Cap()))
+			for i := 0; i < v.Len(); i++ {
+				visit(v.Index(i))
+			}
+
+		case reflect.Interface:
+			if v.IsNil() {
+				writeUint64(0)
+			} else {
+				rtype := reflect.ValueOf(v.Type()).UnsafePointer()
+				writeUint64(uint64(uintptr(rtype)))
+				visit(v.Elem())
+			}
+
+		case reflect.Array, reflect.Chan, reflect.Func, reflect.Map, reflect.UnsafePointer:
+			panic(v) // unreachable in AST
+
+		default: // bool, string, number
+			if v.Kind() == reflect.String { // proper framing
+				writeUint64(uint64(v.Len()))
+			}
+			binary.Write(hasher, le, v.Interface())
+		}
+	}
+	visit(reflect.ValueOf(n))
+
+	var hash [sha256.Size]byte
+	hasher.Sum(hash[:0])
+	return hash
 }

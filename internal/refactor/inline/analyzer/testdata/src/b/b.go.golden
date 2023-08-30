@@ -5,5 +5,5 @@ import "a"
 func f() {
 	a.One() // want `cannot inline call to a.One because body refers to non-exported one`
 
-	func(_ a.T) int { return 2 }(*new(a.T)) // want `inline call of \(a.T\).Two`
+	_ = 2 // want `inline call of \(a.T\).Two`
 }

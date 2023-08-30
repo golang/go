@@ -1,0 +1,83 @@
+Tests of reduction of calls to multi-statement bodies.
+
+a1: literalized,  because replacing parameter x with
+argument z would cause a shadowing conflict.
+
+a2: reduced (no shadowing).
+
+a3: literalized, because of the return statement.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a1.go --
+package a
+
+func _() {
+	z := 1
+	f(z, 2) //@ inline(re"f", out1)
+}
+
+func f(x, y int) {
+	z := 1
+	print(x + y + z)
+}
+
+-- out1 --
+package a
+
+func _() {
+	z := 1
+	func(x int) { z := 1; print(x + 2 + z) }(z) //@ inline(re"f", out1)
+}
+
+func f(x, y int) {
+	z := 1
+	print(x + y + z)
+}
+
+-- a/a2.go --
+package a
+
+func _() {
+	a := 1
+	f(a, 2) //@ inline(re"f", out2)
+}
+
+-- out2 --
+package a
+
+func _() {
+	a := 1
+	{
+		z := 1
+		print(a + 2 + z)
+	} //@ inline(re"f", out2)
+}
+
+-- a/a3.go --
+package a
+
+func _() {
+	a := 1
+	g(a, 2) //@ inline(re"g", out3)
+}
+
+func g(x, y int) int {
+	z := 1
+	return x + y + z
+}
+
+-- out3 --
+package a
+
+func _() {
+	a := 1
+	func() int { z := 1; return a + 2 + z }() //@ inline(re"g", out3)
+}
+
+func g(x, y int) int {
+	z := 1
+	return x + y + z
+}

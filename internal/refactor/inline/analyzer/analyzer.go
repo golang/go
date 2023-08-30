@@ -126,7 +126,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				Call:    call,
 				Content: content,
 			}
-			got, err := inline.Inline(caller, callee)
+			got, err := inline.Inline(nil, caller, callee)
 			if err != nil {
 				pass.Reportf(call.Lparen, "%v", err)
 				return

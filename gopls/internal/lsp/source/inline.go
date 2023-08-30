@@ -100,7 +100,9 @@ func inlineCall(ctx context.Context, snapshot Snapshot, fh FileHandle, rng proto
 		Call:    call,
 		Content: callerPGF.Src,
 	}
-	got, err := inline.Inline(caller, callee)
+
+	// Pass log.Printf here when debugging.
+	got, err := inline.Inline(nil, caller, callee)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -4,7 +4,7 @@ Most basic test of inlining by reduction.
 module testdata
 go 1.12
 
--- a/a.go --
+-- a/a0.go --
 package a
 
 var _ = zero() //@ inline(re"zero", zero)
@@ -17,3 +17,34 @@ package a
 var _ = (0) //@ inline(re"zero", zero)
 
 func zero() int { return 0 }
+
+-- a/a1.go --
+package a
+
+func _() {
+	one := 1
+	add(one, 2) //@ inline(re"add", add1)
+}
+
+func add(x, y int) int { return x + y }
+
+-- add1 --
+package a
+
+func _() {
+	one := 1
+	_ = one + 2 //@ inline(re"add", add1)
+}
+
+func add(x, y int) int { return x + y }
+
+-- a/a2.go --
+package a
+
+var _ = add(len(""), 2) //@ inline(re"add", add2)
+
+-- add2 --
+package a
+
+var _ = (len("") + 2) //@ inline(re"add", add2)
+

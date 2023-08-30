@@ -30,25 +30,23 @@ func (callee *Callee) String() string { return callee.impl.Name }
 type gobCallee struct {
 	Content []byte // file content, compacted to a single func decl
 
-	// syntax derived from compacted Content (not serialized)
-	fset *token.FileSet
-	decl *ast.FuncDecl
-
 	// results of type analysis (does not reach go/types data structures)
-	PkgPath          string    // package path of declaring package
-	Name             string    // user-friendly name for error messages
-	Unexported       []string  // names of free objects that are unexported
-	FreeRefs         []freeRef // locations of references to free objects
-	FreeObjs         []object  // descriptions of free objects
-	BodyIsReturnExpr bool      // function body is "return expr(s)"
-	ValidForCallStmt bool      // => bodyIsReturnExpr and sole expr is f() or <-ch
-	NumResults       int       // number of results (according to type, not ast.FieldList)
+	PkgPath          string       // package path of declaring package
+	Name             string       // user-friendly name for error messages
+	Unexported       []string     // names of free objects that are unexported
+	FreeRefs         []freeRef    // locations of references to free objects
+	FreeObjs         []object     // descriptions of free objects
+	BodyIsReturnExpr bool         // function body is "return expr(s)" with trivial conversion
+	ValidForCallStmt bool         // => bodyIsReturnExpr and sole expr is f() or <-ch
+	NumResults       int          // number of results (according to type, not ast.FieldList)
+	Params           []*paramInfo // information about receiver, params, and results
 }
 
 // A freeRef records a reference to a free object.  Gob-serializable.
+// (This means free relative to the FuncDecl as a whole, i.e. excluding parameters.)
 type freeRef struct {
-	Start, End int // Callee.content[start:end] is extent of the reference
-	Object     int // index into Callee.freeObjs
+	Offset int // byte offset of the reference relative to the FuncDecl
+	Object int // index into Callee.freeObjs
 }
 
 // An object abstracts a free types.Object referenced by the callee. Gob-serializable.
@@ -58,8 +56,6 @@ type object struct {
 	PkgPath  string // pkgpath of object (or of imported package if kind="pkgname")
 	ValidPos bool   // Object.Pos().IsValid()
 }
-
-func (callee *gobCallee) offset(pos token.Pos) int { return offsetOf(callee.fset, pos) }
 
 // AnalyzeCallee analyzes a function that is a candidate for inlining
 // and returns a Callee that describes it. The Callee object, which is
@@ -99,7 +95,8 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 		return nil, fmt.Errorf("cannot inline generic function %s: type parameters are not yet supported", name)
 	}
 
-	// Record the location of all free references in the callee body.
+	// Record the location of all free references in the FuncDecl.
+	// (Parameters are not free by this definition.)
 	var (
 		freeObjIndex = make(map[types.Object]int)
 		freeObjs     []object
@@ -182,9 +179,9 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 						})
 						freeObjIndex[obj] = objidx
 					}
+
 					freeRefs = append(freeRefs, freeRef{
-						Start:  offsetOf(fset, n.Pos()),
-						End:    offsetOf(fset, n.End()),
+						Offset: int(n.Pos() - decl.Pos()),
 						Object: objidx,
 					})
 				}
@@ -195,12 +192,37 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 	ast.Inspect(decl, visit)
 
 	// Analyze callee body for "return results" form, where
-	// results is one or more expressions or an n-ary call.
+	// results is one or more expressions or an n-ary call,
+	// and the implied conversions are trivial.
 	validForCallStmt := false
-	bodyIsReturnExpr := decl.Type.Results != nil && len(decl.Type.Results.List) > 0 &&
-		len(decl.Body.List) == 1 &&
-		is[*ast.ReturnStmt](decl.Body.List[0]) &&
-		len(decl.Body.List[0].(*ast.ReturnStmt).Results) > 0
+	bodyIsReturnExpr := func() bool {
+		if decl.Type.Results != nil &&
+			len(decl.Type.Results.List) > 0 &&
+			len(decl.Body.List) == 1 {
+			if ret, ok := decl.Body.List[0].(*ast.ReturnStmt); ok && len(ret.Results) > 0 {
+				// Don't reduce calls to functions whose
+				// return statement has non trivial conversions.
+				argType := func(i int) types.Type {
+					return info.TypeOf(ret.Results[i])
+				}
+				if len(ret.Results) == 1 && sig.Results().Len() > 1 {
+					// Spread return: return f() where f.Results > 1.
+					tuple := info.TypeOf(ret.Results[0]).(*types.Tuple)
+					argType = func(i int) types.Type {
+						return tuple.At(i).Type()
+					}
+				}
+				for i := 0; i < sig.Results().Len(); i++ {
+					if !trivialConversion(argType(i), sig.Results().At(i)) {
+						return false
+					}
+				}
+
+				return true
+			}
+		}
+		return false
+	}()
 	if bodyIsReturnExpr {
 		ret := decl.Body.List[0].(*ast.ReturnStmt)
 
@@ -237,45 +259,26 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 		}()
 	}
 
+	// Compact content to just the FuncDecl.
+	//
 	// As a space optimization, we don't retain the complete
 	// callee file content; all we need is "package _; func f() { ... }".
 	// This reduces the size of analysis facts.
 	//
-	// The FileSet file/line info is no longer meaningful
-	// and should not be used in error messages.
-	// But the FileSet offsets are valid w.r.t. the content.
-	//
 	// (For ease of debugging we could insert a //line directive after
 	// the package decl but it seems more trouble than it's worth.)
-	{
-		start, end := offsetOf(fset, decl.Pos()), offsetOf(fset, decl.End())
-
-		var compact bytes.Buffer
-		compact.WriteString("package _\n")
-		compact.Write(content[start:end])
-		content = compact.Bytes()
-
-		// Re-parse the compacted content.
-		var err error
-		decl, err = parseCompact(fset, content)
-		if err != nil {
-			return nil, err
-		}
-
-		// (content, decl) are now updated.
-
-		// Adjust the freeRefs offsets.
-		delta := int(offsetOf(fset, decl.Pos()) - start)
-		for i := range freeRefs {
-			freeRefs[i].Start += delta
-			freeRefs[i].End += delta
-		}
+	//
+	// Offsets in the callee information are "relocatable"
+	// since they are all relative to the FuncDecl.
+	content = append([]byte("package _\n"),
+		content[offsetOf(fset, decl.Pos()):offsetOf(fset, decl.End())]...)
+	// Sanity check: re-parse the compacted content.
+	if _, _, err := parseCompact(content); err != nil {
+		return nil, err
 	}
 
 	return &Callee{gobCallee{
 		Content:          content,
-		fset:             fset,
-		decl:             decl,
 		PkgPath:          pkg.Path(),
 		Name:             name,
 		Unexported:       unexported,
@@ -284,19 +287,182 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 		BodyIsReturnExpr: bodyIsReturnExpr,
 		ValidForCallStmt: validForCallStmt,
 		NumResults:       sig.Results().Len(),
+		Params:           analyzeParams(fset, info, decl),
 	}}, nil
 }
 
 // parseCompact parses a Go source file of the form "package _\n func f() { ... }"
 // and returns the sole function declaration.
-func parseCompact(fset *token.FileSet, content []byte) (*ast.FuncDecl, error) {
+func parseCompact(content []byte) (*token.FileSet, *ast.FuncDecl, error) {
+	fset := token.NewFileSet()
 	const mode = parser.ParseComments | parser.SkipObjectResolution | parser.AllErrors
 	f, err := parser.ParseFile(fset, "callee.go", content, mode)
 	if err != nil {
-		return nil, fmt.Errorf("internal error: cannot compact file: %v", err)
+		return nil, nil, fmt.Errorf("internal error: cannot compact file: %v", err)
 	}
-	return f.Decls[0].(*ast.FuncDecl), nil
+	return fset, f.Decls[0].(*ast.FuncDecl), nil
 }
+
+// A paramInfo records information about a callee receiver, parameter, or result variable.
+type paramInfo struct {
+	Name     string          // parameter name (may be blank, or even "")
+	Kind     string          // one of {recv,param,result}
+	Assigned bool            // parameter appears on left side of an assignment statement
+	Escapes  bool            // parameter has its address taken
+	Refs     []int           // FuncDecl-relative byte offset of parameter ref within body
+	Shadow   map[string]bool // names shadowed at one of the above refs
+}
+
+// analyzeParams computes information about parameters of function fn,
+// including a simple "address taken" escape analysis.
+//
+// It returns a new array with an entry for each receiver,
+// parameter, and result variable of function fn.
+//
+// The input must be well-typed.
+func analyzeParams(fset *token.FileSet, info *types.Info, decl *ast.FuncDecl) (res []*paramInfo) {
+	fnobj, ok := info.Defs[decl.Name]
+	if !ok {
+		panic(fmt.Sprintf("%s: no func object for %q",
+			fset.Position(decl.Name.Pos()), decl.Name)) // ill-typed?
+	}
+
+	paramInfos := make(map[*types.Var]*paramInfo)
+	{
+		sig := fnobj.Type().(*types.Signature)
+		newParamInfo := func(param *types.Var, kind string) *paramInfo {
+			info := &paramInfo{Name: param.Name(), Kind: kind}
+			res = append(res, info)
+			paramInfos[param] = info
+			return info
+		}
+		if sig.Recv() != nil {
+			newParamInfo(sig.Recv(), "recv")
+		}
+		for i := 0; i < sig.Params().Len(); i++ {
+			newParamInfo(sig.Params().At(i), "param")
+		}
+		for i := 0; i < sig.Results().Len(); i++ {
+			newParamInfo(sig.Results().At(i), "result")
+		}
+	}
+
+	// lvalue is called for each address-taken expression or LHS of assignment.
+	// Supported forms are: x, (x), x[i], x.f, *x, T{}.
+	var lvalue func(e ast.Expr, escapes bool)
+	lvalue = func(e ast.Expr, escapes bool) {
+		switch e := e.(type) {
+		case *ast.Ident:
+			if v, ok := info.Uses[e].(*types.Var); ok {
+				if info := paramInfos[v]; info != nil {
+					// e is a use of parameter v.
+					if escapes {
+						info.Escapes = true
+					} else {
+						info.Assigned = true
+					}
+				}
+			}
+		case *ast.ParenExpr:
+			lvalue(e.X, escapes)
+		case *ast.IndexExpr:
+			// TODO(adonovan): support generics without assuming e.X has a core type.
+			// Consider:
+			//
+			// func Index[T interface{ [3]int | []int }](t T, i int) *int {
+			//     return &t[i]
+			// }
+			//
+			// We must traverse the normal terms and check
+			// whether any of them is an array.
+			if _, ok := info.TypeOf(e.X).Underlying().(*types.Array); ok {
+				lvalue(e.X, escapes) // &a[i] on array
+			}
+		case *ast.SelectorExpr:
+			if _, ok := info.TypeOf(e.X).Underlying().(*types.Struct); ok {
+				lvalue(e.X, escapes) // &s.f on struct
+			}
+		case *ast.StarExpr:
+			// *ptr indirects an existing pointer
+		case *ast.CompositeLit:
+			// &T{...} creates a new variable
+		default:
+			panic(fmt.Sprintf("&x on %T", e)) // unreachable in well-typed code
+		}
+	}
+
+	// Search function body for operations &x, x.f(), and x = y
+	// where x is a parameter. Each of these treats x as an address.
+	//
+	// Also record locations of all references to parameters.
+	// And record the set of intervening definitions for each parameter.
+	if decl.Body != nil {
+		var stack []ast.Node
+		stack = append(stack, decl.Type) // for scope of function itself
+		ast.Inspect(decl.Body, func(n ast.Node) bool {
+			if n != nil {
+				stack = append(stack, n) // push
+			} else {
+				stack = stack[:len(stack)-1] // pop
+			}
+
+			switch n := n.(type) {
+			case *ast.Ident:
+				if v, ok := info.Uses[n].(*types.Var); ok {
+					if pinfo, ok := paramInfos[v]; ok {
+						// Record location of ref to parameter.
+						offset := int(n.Pos() - decl.Pos())
+						pinfo.Refs = append(pinfo.Refs, offset)
+
+						// Find set of names shadowed within body
+						// (excluding the parameter itself).
+						// If these names are free in the arg expression,
+						// we can't substitute the parameter.
+						for _, n := range stack {
+							if scope, ok := info.Scopes[n]; ok {
+								for _, name := range scope.Names() {
+									if name != pinfo.Name {
+										if pinfo.Shadow == nil {
+											pinfo.Shadow = make(map[string]bool)
+										}
+										pinfo.Shadow[name] = true
+									}
+								}
+							}
+						}
+					}
+				}
+
+			case *ast.UnaryExpr:
+				if n.Op == token.AND {
+					lvalue(n.X, true) // &x
+				}
+
+			case *ast.CallExpr:
+				// implicit &x in method call x.f(),
+				// where x has type T and method is (*T).f
+				if sel, ok := n.Fun.(*ast.SelectorExpr); ok {
+					if seln, ok := info.Selections[sel]; ok &&
+						seln.Kind() == types.MethodVal &&
+						!seln.Indirect() &&
+						is[*types.Pointer](seln.Obj().Type().(*types.Signature).Recv().Type()) {
+						lvalue(sel.X, true) // &x.f
+					}
+				}
+
+			case *ast.AssignStmt:
+				for _, lhs := range n.Lhs {
+					lvalue(lhs, false)
+				}
+			}
+			return true
+		})
+	}
+
+	return res
+}
+
+// -- callee helpers --
 
 // deref removes a pointer type constructor from the core type of t.
 func deref(t types.Type) types.Type {
@@ -336,15 +502,5 @@ func (callee *Callee) GobEncode() ([]byte, error) {
 }
 
 func (callee *Callee) GobDecode(data []byte) error {
-	if err := gob.NewDecoder(bytes.NewReader(data)).Decode(&callee.impl); err != nil {
-		return err
-	}
-	fset := token.NewFileSet()
-	decl, err := parseCompact(fset, callee.impl.Content)
-	if err != nil {
-		return err
-	}
-	callee.impl.fset = fset
-	callee.impl.decl = decl
-	return nil
+	return gob.NewDecoder(bytes.NewReader(data)).Decode(&callee.impl)
 }

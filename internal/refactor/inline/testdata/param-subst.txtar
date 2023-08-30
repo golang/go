@@ -1,0 +1,19 @@
+Test of parameter substitution.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a0.go --
+package a
+
+var _ = add(2, 1+1) //@ inline(re"add", add)
+
+func add(x, y int) int { return x + 2*y }
+
+-- add --
+package a
+
+var _ = func(y int) int { return 2 + 2*y }(1 + 1) //@ inline(re"add", add)
+
+func add(x, y int) int { return x + 2*y }

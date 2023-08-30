@@ -1,5 +1,11 @@
-Inlining, whether by literalization or reduction,
-preserves comments in the callee.
+Test of (lack of) comment preservation by inlining,
+whether by literalization or reduction.
+
+Comment handling was better in an earlier implementation
+based on byte-oriented file surgery; switching to AST
+manipulation (though better in all other respects) was
+a regression. The underlying problem of AST comment fidelity
+is Go issue #20744.
 
 -- go.mod --
 module testdata
@@ -22,12 +28,7 @@ func f() {
 package a
 
 func _() {
-	func() {
-		// a
-		/* b */
-		g() /* c */
-		// d
-	}() //@ inline(re"f", f)
+	g() //@ inline(re"f", f)
 }
 
 func f() {
@@ -50,7 +51,7 @@ func g() int { return 1 /*hello*/ + /*there*/ 1 }
 package a
 
 func _() {
-	println((1 /*hello*/ + /*there*/ 1)) //@ inline(re"g", g)
+	println((1 + 1)) //@ inline(re"g", g)
 }
 
 func g() int { return 1 /*hello*/ + /*there*/ 1 }
