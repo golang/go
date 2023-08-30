@@ -656,14 +656,14 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 }
 
 var (
-	bitStringType        = reflect.TypeOf(BitString{})
-	objectIdentifierType = reflect.TypeOf(ObjectIdentifier{})
-	enumeratedType       = reflect.TypeOf(Enumerated(0))
-	flagType             = reflect.TypeOf(Flag(false))
-	timeType             = reflect.TypeOf(time.Time{})
-	rawValueType         = reflect.TypeOf(RawValue{})
-	rawContentsType      = reflect.TypeOf(RawContent(nil))
-	bigIntType           = reflect.TypeOf((*big.Int)(nil))
+	bitStringType        = reflect.TypeFor[BitString]()
+	objectIdentifierType = reflect.TypeFor[ObjectIdentifier]()
+	enumeratedType       = reflect.TypeFor[Enumerated]()
+	flagType             = reflect.TypeFor[Flag]()
+	timeType             = reflect.TypeFor[time.Time]()
+	rawValueType         = reflect.TypeFor[RawValue]()
+	rawContentsType      = reflect.TypeFor[RawContent]()
+	bigIntType           = reflect.TypeFor[*big.Int]()
 )
 
 // invalidLength reports whether offset + length > sliceLength, or if the
