@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !wasip1
-
 package net
 
 import (
@@ -584,7 +582,7 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
 			t.Error(err)
 		}
 		maxch <- time.NewTimer(100 * time.Millisecond)
-		var b [1]byte
+		var b [1024]byte
 		for {
 			if _, err := c.Write(b[:]); err != nil {
 				ch <- err

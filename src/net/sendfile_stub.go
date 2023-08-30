@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || (js && wasm) || netbsd || openbsd || ios || wasip1
+//go:build aix || js || netbsd || openbsd || ios || wasip1
 
 package net
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (js && wasm) || wasip1
+//go:build js || wasip1
 
 package net
 
@@ -21,10 +21,16 @@ func setDefaultMulticastSockopts(s int) error {
 }
 
 func setReadBuffer(fd *netFD, bytes int) error {
+	if fd.fakeNetFD != nil {
+		return fd.fakeNetFD.setReadBuffer(bytes)
+	}
 	return syscall.ENOPROTOOPT
 }
 
 func setWriteBuffer(fd *netFD, bytes int) error {
+	if fd.fakeNetFD != nil {
+		return fd.fakeNetFD.setWriteBuffer(bytes)
+	}
 	return syscall.ENOPROTOOPT
 }
 
@@ -33,5 +39,8 @@ func setKeepAlive(fd *netFD, keepalive bool) error {
 }
 
 func setLinger(fd *netFD, sec int) error {
+	if fd.fakeNetFD != nil {
+		return fd.fakeNetFD.setLinger(sec)
+	}
 	return syscall.ENOPROTOOPT
 }

@@ -3,9 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Fake networking for js/wasm and wasip1/wasm.
-// This file only exists to make the compiler happy.
 
-//go:build (js && wasm) || wasip1
+//go:build js || wasip1
 
 package syscall
 
@@ -32,9 +31,12 @@ const (
 )
 
 const (
+	SOMAXCONN = 0x80
+)
+
+const (
 	_ = iota
 	IPV6_V6ONLY
-	SOMAXCONN
 	SO_ERROR
 )
 
