@@ -17,18 +17,19 @@ func needFIPS() bool {
 
 // fipsMinVersion replaces c.minVersion in FIPS-only mode.
 func fipsMinVersion(c *Config) uint16 {
-	// FIPS requires TLS 1.2.
+	// FIPS required minimum of TLS 1.2 (see NIST SP 800-52).
 	return VersionTLS12
 }
 
 // fipsMaxVersion replaces c.maxVersion in FIPS-only mode.
 func fipsMaxVersion(c *Config) uint16 {
-	// FIPS requires TLS 1.2.
-	return VersionTLS12
+	// FIPS required maximum of TLS 1.3 (see NIST SP 800-52).
+	return VersionTLS13
 }
 
 // default defaultFIPSCurvePreferences is the FIPS-allowed curves,
 // in preference order (most preferable first).
+// See NIST SP 800-186.
 var defaultFIPSCurvePreferences = []CurveID{CurveP256, CurveP384, CurveP521}
 
 // fipsCurvePreferences replaces c.curvePreferences in FIPS-only mode.
@@ -49,7 +50,10 @@ func fipsCurvePreferences(c *Config) []CurveID {
 }
 
 // defaultCipherSuitesFIPS are the FIPS-allowed cipher suites.
+// See NIST SP 800-52.
 var defaultCipherSuitesFIPS = []uint16{
+	TLS_AES_128_GCM_SHA256,
+	TLS_AES_256_GCM_SHA384,
 	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
@@ -77,6 +81,7 @@ func fipsCipherSuites(c *Config) []uint16 {
 
 // fipsSupportedSignatureAlgorithms currently are a subset of
 // defaultSupportedSignatureAlgorithms without Ed25519 and SHA-1.
+// See FIPS 186-5.
 var fipsSupportedSignatureAlgorithms = []SignatureScheme{
 	PSSWithSHA256,
 	PSSWithSHA384,

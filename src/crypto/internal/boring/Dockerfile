@@ -13,7 +13,7 @@ WORKDIR /boring
 ENV LANG=C
 ENV LANGUAGE=
 
-# Following NIST submission draft dated July 3, 2021.
+# Following NIST submission dated May 6, 2022.
 # This corresponds to boringssl.googlesource.com/boringssl tag fips-20210429.
 ENV ClangV=12
 RUN apt-get update && \

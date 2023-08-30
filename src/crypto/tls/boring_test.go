@@ -52,16 +52,22 @@ func TestBoringServerProtocolVersion(t *testing.T) {
 	test("VersionTLS10", VersionTLS10, "client offered only unsupported versions")
 	test("VersionTLS11", VersionTLS11, "client offered only unsupported versions")
 	test("VersionTLS12", VersionTLS12, "")
-	test("VersionTLS13", VersionTLS13, "client offered only unsupported versions")
+	test("VersionTLS13", VersionTLS13, "")
 }
 
 func isBoringVersion(v uint16) bool {
-	return v == VersionTLS12
+	switch v {
+	case VersionTLS12, VersionTLS13:
+		return true
+	}
+	return false
 }
 
 func isBoringCipherSuite(id uint16) bool {
 	switch id {
-	case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+	case TLS_AES_128_GCM_SHA256,
+		TLS_AES_256_GCM_SHA384,
+		TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 		TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 		TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,

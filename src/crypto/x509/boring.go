@@ -23,6 +23,7 @@ func boringAllowCert(c *Certificate) bool {
 
 	// The key must be RSA 2048, RSA 3072, RSA 4096,
 	// or ECDSA P-256, P-384, P-521.
+	// See FIPS 186-5 and NIST SP 800-186.
 	switch k := c.PublicKey.(type) {
 	default:
 		return false
