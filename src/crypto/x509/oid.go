@@ -204,17 +204,14 @@ func (oid OID) String() string {
 		val |= uint64(curVal)
 		if valEnd {
 			if start == 0 {
-				var val1, val2 uint64
 				if val < 80 {
-					val1 = val / 40
-					val2 = val % 40
+					b.Write(strconv.AppendUint(numBuf, val/40, 10))
+					b.WriteByte('.')
+					b.Write(strconv.AppendUint(numBuf, val%40, 10))
 				} else {
-					val1 = 2
-					val2 = val - 80
+					b.WriteString("2.")
+					b.Write(strconv.AppendUint(numBuf, val-80, 10))
 				}
-				b.Write(strconv.AppendUint(numBuf, val1, 10))
-				b.WriteByte('.')
-				b.Write(strconv.AppendUint(numBuf, val2, 10))
 			} else {
 				b.Write(strconv.AppendUint(numBuf, val, 10))
 			}
