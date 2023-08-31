@@ -117,7 +117,7 @@ func (t *Interface) cleanup() {
 	t.embedPos = nil
 }
 
-func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType, def *Named) {
+func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType, def *TypeName) {
 	addEmbedded := func(pos syntax.Pos, typ Type) {
 		ityp.embeddeds = append(ityp.embeddeds, typ)
 		if ityp.embedPos == nil {
@@ -152,7 +152,9 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 		// use named receiver type if available (for better error messages)
 		var recvTyp Type = ityp
 		if def != nil {
-			recvTyp = def
+			if named, _ := def.typ.(*Named); named != nil {
+				recvTyp = named
+			}
 		}
 		sig.recv = NewVar(f.Name.Pos(), check.pkg, "", recvTyp)
 

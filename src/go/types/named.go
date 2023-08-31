@@ -552,12 +552,6 @@ loop:
 	return u
 }
 
-func (n *Named) setUnderlying(typ Type) {
-	if n != nil {
-		n.underlying = typ
-	}
-}
-
 func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
 	n.resolve()
 	// If n is an instance, we may not have yet instantiated all of its methods.
