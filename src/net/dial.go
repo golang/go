@@ -457,6 +457,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 	}
 	deadline := d.deadline(ctx, time.Now())
 	if !deadline.IsZero() {
+		testHookStepTime()
 		if d, ok := ctx.Deadline(); !ok || deadline.Before(d) {
 			subCtx, cancel := context.WithDeadline(ctx, deadline)
 			defer cancel()

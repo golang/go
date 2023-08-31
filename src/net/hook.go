@@ -23,4 +23,10 @@ var (
 		return fn(ctx, network, host)
 	}
 	testHookSetKeepAlive = func(time.Duration) {}
+
+	// testHookStepTime sleeps until time has moved forward by a nonzero amount.
+	// This helps to avoid flakes in timeout tests by ensuring that an implausibly
+	// short deadline (such as 1ns in the future) is always expired by the time
+	// a relevant system call occurs.
+	testHookStepTime = func() {}
 )
