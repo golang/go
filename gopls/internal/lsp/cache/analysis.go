@@ -1395,14 +1395,6 @@ func requiredAnalyzers(analyzers []*analysis.Analyzer) []*analysis.Analyzer {
 	return result
 }
 
-func mustEncode(x interface{}) []byte {
-	var buf bytes.Buffer
-	if err := gob.NewEncoder(&buf).Encode(x); err != nil {
-		log.Fatalf("internal error encoding %T: %v", x, err)
-	}
-	return buf.Bytes()
-}
-
 var analyzeSummaryCodec = frob.CodecFor[*analyzeSummary]()
 
 // -- data types for serialization of analysis.Diagnostic and source.Diagnostic --
