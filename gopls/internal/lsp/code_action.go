@@ -38,8 +38,8 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	uri := fh.URI()
 
 	// Determine the supported actions for this file kind.
-	kind := snapshot.View().FileKind(fh)
-	supportedCodeActions, ok := snapshot.View().Options().SupportedCodeActions[kind]
+	kind := snapshot.FileKind(fh)
+	supportedCodeActions, ok := snapshot.Options().SupportedCodeActions[kind]
 	if !ok {
 		return nil, fmt.Errorf("no supported code actions for %v file kind", kind)
 	}
@@ -185,7 +185,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		}
 
 		var stubMethodsDiagnostics []protocol.Diagnostic
-		if wantQuickFixes && snapshot.View().Options().IsAnalyzerEnabled(stubmethods.Analyzer.Name) {
+		if wantQuickFixes && snapshot.Options().IsAnalyzerEnabled(stubmethods.Analyzer.Name) {
 			for _, pd := range diagnostics {
 				if stubmethods.MatchesMessage(pd.Message) {
 					stubMethodsDiagnostics = append(stubMethodsDiagnostics, pd)
@@ -453,7 +453,7 @@ func refactorRewrite(ctx context.Context, snapshot source.Snapshot, pkg source.P
 	//
 	// TODO: Consider removing the inspection after convenienceAnalyzers are removed.
 	inspect := inspector.New([]*ast.File{pgf.File})
-	if snapshot.View().Options().IsAnalyzerEnabled(fillstruct.Analyzer.Name) {
+	if snapshot.Options().IsAnalyzerEnabled(fillstruct.Analyzer.Name) {
 		for _, d := range fillstruct.DiagnoseFillableStructs(inspect, start, end, pkg.GetTypes(), pkg.GetTypesInfo()) {
 			rng, err := pgf.Mapper.PosRange(pgf.Tok, d.Pos, d.End)
 			if err != nil {
@@ -480,7 +480,7 @@ func refactorRewrite(ctx context.Context, snapshot source.Snapshot, pkg source.P
 		})
 	}
 
-	if snapshot.View().Options().IsAnalyzerEnabled(infertypeargs.Analyzer.Name) {
+	if snapshot.Options().IsAnalyzerEnabled(infertypeargs.Analyzer.Name) {
 		for _, d := range infertypeargs.DiagnoseInferableTypeArgs(pkg.FileSet(), inspect, start, end, pkg.GetTypes(), pkg.GetTypesInfo()) {
 			if len(d.SuggestedFixes) != 1 {
 				panic(fmt.Sprintf("unexpected number of suggested fixes from infertypeargs: %v", len(d.SuggestedFixes)))

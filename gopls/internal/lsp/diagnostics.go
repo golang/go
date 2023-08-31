@@ -161,7 +161,7 @@ func (s *Server) diagnoseSnapshots(snapshots map[source.Snapshot][]span.URI, onD
 		diagnosticWG.Add(1)
 		go func(snapshot source.Snapshot, uris []span.URI) {
 			defer diagnosticWG.Done()
-			s.diagnoseSnapshot(snapshot, uris, onDisk, snapshot.View().Options().DiagnosticsDelay)
+			s.diagnoseSnapshot(snapshot, uris, onDisk, snapshot.Options().DiagnosticsDelay)
 		}(snapshot, uris)
 	}
 	diagnosticWG.Wait()

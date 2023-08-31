@@ -23,7 +23,7 @@ func (s *Server) inlayHint(ctx context.Context, params *protocol.InlayHintParams
 	if !ok {
 		return nil, err
 	}
-	switch snapshot.View().FileKind(fh) {
+	switch snapshot.FileKind(fh) {
 	case source.Mod:
 		return mod.InlayHint(ctx, snapshot, fh, params.Range)
 	case source.Go:

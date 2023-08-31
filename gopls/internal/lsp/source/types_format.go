@@ -115,7 +115,7 @@ func NewBuiltinSignature(ctx context.Context, s Snapshot, name string) (*signatu
 	params, _ := formatFieldList(ctx, fset, decl.Type.Params, variadic)
 	results, needResultParens := formatFieldList(ctx, fset, decl.Type.Results, false)
 	d := decl.Doc.Text()
-	switch s.View().Options().HoverKind {
+	switch s.Options().HoverKind {
 	case SynopsisDocumentation:
 		d = doc.Synopsis(d)
 	case NoDocumentation:
@@ -245,7 +245,7 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 	if comment != nil {
 		d = comment.Text()
 	}
-	switch s.View().Options().HoverKind {
+	switch s.Options().HoverKind {
 	case SynopsisDocumentation:
 		d = doc.Synopsis(d)
 	case NoDocumentation:

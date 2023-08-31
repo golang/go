@@ -88,7 +88,7 @@ func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng proto
 	}
 
 	// Collect a list of the inlay hints that are enabled.
-	inlayHintOptions := snapshot.View().Options().InlayHintOptions
+	inlayHintOptions := snapshot.Options().InlayHintOptions
 	var enabledHints []InlayHintFunc
 	for hint, enabled := range inlayHintOptions.Hints {
 		if !enabled {

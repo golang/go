@@ -58,6 +58,18 @@ type Snapshot interface {
 	// subsequent snapshots in a view may not have adjacent global IDs.
 	GlobalID() GlobalSnapshotID
 
+	// FileKind returns the type of a file.
+	//
+	// We can't reliably deduce the kind from the file name alone,
+	// as some editors can be told to interpret a buffer as
+	// language different from the file name heuristic, e.g. that
+	// an .html file actually contains Go "html/template" syntax,
+	// or even that a .go file contains Python.
+	FileKind(FileHandle) FileKind
+
+	// Options returns the options associated with this snapshot.
+	Options() *Options
+
 	// View returns the View associated with this snapshot.
 	View() View
 
@@ -353,9 +365,6 @@ type View interface {
 	// Folder returns the folder with which this view was created.
 	Folder() span.URI
 
-	// Options returns a copy of the Options for this view.
-	Options() *Options
-
 	// Snapshot returns the current snapshot for the view, and a
 	// release function that must be called when the Snapshot is
 	// no longer needed.
@@ -387,15 +396,6 @@ type View interface {
 	// SetVulnerabilities resets the list of vulnerabilities that exists for the given modules
 	// required by modfile.
 	SetVulnerabilities(modfile span.URI, vulncheckResult *govulncheck.Result)
-
-	// FileKind returns the type of a file.
-	//
-	// We can't reliably deduce the kind from the file name alone,
-	// as some editors can be told to interpret a buffer as
-	// language different from the file name heuristic, e.g. that
-	// an .html file actually contains Go "html/template" syntax,
-	// or even that a .go file contains Python.
-	FileKind(FileHandle) FileKind
 
 	// GoVersion returns the configured Go version for this view.
 	GoVersion() int

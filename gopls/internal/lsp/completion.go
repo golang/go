@@ -29,7 +29,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}
 	var candidates []completion.CompletionItem
 	var surrounding *completion.Selection
-	switch snapshot.View().FileKind(fh) {
+	switch snapshot.FileKind(fh) {
 	case source.Go:
 		candidates, surrounding, err = completion.Completion(ctx, snapshot, fh, params.Position, params.Context)
 	case source.Mod:
@@ -65,7 +65,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 
 	// When using deep completions/fuzzy matching, report results as incomplete so
 	// client fetches updated completions after every key stroke.
-	options := snapshot.View().Options()
+	options := snapshot.Options()
 	incompleteResults := options.DeepCompletion || options.Matcher == source.Fuzzy
 
 	items := toProtocolCompletionItems(candidates, rng, options)

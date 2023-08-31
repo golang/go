@@ -152,7 +152,7 @@ func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp prot
 func prepareRenamePackageName(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile) (*PrepareItem, error) {
 	// Does the client support file renaming?
 	fileRenameSupported := false
-	for _, op := range snapshot.View().Options().SupportedResourceOperations {
+	for _, op := range snapshot.Options().SupportedResourceOperations {
 		if op == protocol.Rename {
 			fileRenameSupported = true
 			break
@@ -727,7 +727,7 @@ func renamePackageName(ctx context.Context, s Snapshot, f FileHandle, newName Pa
 		}
 
 		// Calculate the edits to be made due to the change.
-		edits := s.View().Options().ComputeEdits(string(pm.Mapper.Content), string(newContent))
+		edits := s.Options().ComputeEdits(string(pm.Mapper.Content), string(newContent))
 		renamingEdits[pm.URI] = append(renamingEdits[pm.URI], edits...)
 	}
 

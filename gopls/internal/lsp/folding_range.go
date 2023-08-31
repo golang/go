@@ -23,7 +23,7 @@ func (s *Server) foldingRange(ctx context.Context, params *protocol.FoldingRange
 		return nil, err
 	}
 
-	ranges, err := source.FoldingRange(ctx, snapshot, fh, snapshot.View().Options().LineFoldingOnly)
+	ranges, err := source.FoldingRange(ctx, snapshot, fh, snapshot.Options().LineFoldingOnly)
 	if err != nil {
 		return nil, err
 	}

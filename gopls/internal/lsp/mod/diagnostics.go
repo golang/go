@@ -192,7 +192,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 
 	diagSource := source.Govulncheck
 	vs := snapshot.View().Vulnerabilities(fh.URI())[fh.URI()]
-	if vs == nil && snapshot.View().Options().Vulncheck == source.ModeVulncheckImports {
+	if vs == nil && snapshot.Options().Vulncheck == source.ModeVulncheckImports {
 		vs, err = snapshot.ModVuln(ctx, fh.URI())
 		if err != nil {
 			return nil, err

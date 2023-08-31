@@ -74,7 +74,7 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, m *Metadata) 
 		return nil, err
 	}
 	reports := make(map[span.URI][]*Diagnostic)
-	opts := snapshot.View().Options()
+	opts := snapshot.Options()
 	var parseError error
 	for _, fn := range files {
 		uri, diagnostics, err := parseDetailsFile(fn, opts)

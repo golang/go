@@ -117,7 +117,7 @@ FindCall:
 	}
 	return &protocol.SignatureInformation{
 		Label:         name + s.Format(),
-		Documentation: stringToSigInfoDocumentation(s.doc, snapshot.View().Options()),
+		Documentation: stringToSigInfoDocumentation(s.doc, snapshot.Options()),
 		Parameters:    paramInfo,
 	}, activeParam, nil
 }
@@ -134,7 +134,7 @@ func builtinSignature(ctx context.Context, snapshot Snapshot, callExpr *ast.Call
 	activeParam := activeParameter(callExpr, len(sig.params), sig.variadic, pos)
 	return &protocol.SignatureInformation{
 		Label:         sig.name + sig.Format(),
-		Documentation: stringToSigInfoDocumentation(sig.doc, snapshot.View().Options()),
+		Documentation: stringToSigInfoDocumentation(sig.doc, snapshot.Options()),
 		Parameters:    paramInfo,
 	}, activeParam, nil
 

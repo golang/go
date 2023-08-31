@@ -283,6 +283,14 @@ func (s *snapshot) View() source.View {
 	return s.view
 }
 
+func (s *snapshot) FileKind(h source.FileHandle) source.FileKind {
+	return s.view.FileKind(h)
+}
+
+func (s *snapshot) Options() *source.Options {
+	return s.view.Options() // temporarily return view options.
+}
+
 func (s *snapshot) BackgroundContext() context.Context {
 	return s.backgroundCtx
 }
@@ -894,7 +902,7 @@ const fileExtensions = "go,mod,sum,work"
 
 func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]struct{} {
 	extensions := fileExtensions
-	for _, ext := range s.View().Options().TemplateExtensions {
+	for _, ext := range s.Options().TemplateExtensions {
 		extensions += "," + ext
 	}
 	// Work-around microsoft/vscode#100870 by making sure that we are,

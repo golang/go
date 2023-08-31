@@ -32,7 +32,7 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkgIDs map[PackageID]unit, 
 		return nil, ctx.Err()
 	}
 
-	options := snapshot.View().Options()
+	options := snapshot.Options()
 	categories := []map[string]*Analyzer{
 		options.DefaultAnalyzers,
 		options.StaticcheckAnalyzers,

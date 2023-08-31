@@ -24,7 +24,7 @@ func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSy
 		return []interface{}{}, err
 	}
 	var docSymbols []protocol.DocumentSymbol
-	switch snapshot.View().FileKind(fh) {
+	switch snapshot.FileKind(fh) {
 	case source.Tmpl:
 		docSymbols, err = template.DocumentSymbols(snapshot, fh)
 	case source.Go:
@@ -40,7 +40,7 @@ func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSy
 	// TODO: Remove this once the lsp deprecates SymbolInformation.
 	symbols := make([]interface{}, len(docSymbols))
 	for i, s := range docSymbols {
-		if snapshot.View().Options().HierarchicalDocumentSymbolSupport {
+		if snapshot.Options().HierarchicalDocumentSymbolSupport {
 			symbols[i] = s
 			continue
 		}

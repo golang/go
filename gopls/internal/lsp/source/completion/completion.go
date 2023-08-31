@@ -508,7 +508,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	scopes := source.CollectScopes(pkg.GetTypesInfo(), path, pos)
 	scopes = append(scopes, pkg.GetTypes().Scope(), types.Universe)
 
-	opts := snapshot.View().Options()
+	opts := snapshot.Options()
 	c := &completer{
 		pkg:      pkg,
 		snapshot: snapshot,

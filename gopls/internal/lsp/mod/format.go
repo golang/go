@@ -25,6 +25,6 @@ func Format(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle)
 		return nil, err
 	}
 	// Calculate the edits to be made due to the change.
-	diffs := snapshot.View().Options().ComputeEdits(string(pm.Mapper.Content), string(formatted))
+	diffs := snapshot.Options().ComputeEdits(string(pm.Mapper.Content), string(formatted))
 	return source.ToProtocolEdits(pm.Mapper, diffs)
 }

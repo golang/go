@@ -168,7 +168,7 @@ func modTidyDiagnostics(ctx context.Context, snapshot *snapshot, pm *source.Pars
 	for _, req := range wrongDirectness {
 		// Handle dependencies that are incorrectly labeled indirect and
 		// vice versa.
-		srcDiag, err := directnessDiagnostic(pm.Mapper, req, snapshot.View().Options().ComputeEdits)
+		srcDiag, err := directnessDiagnostic(pm.Mapper, req, snapshot.Options().ComputeEdits)
 		if err != nil {
 			// We're probably in a bad state if we can't compute a
 			// directnessDiagnostic, but try to keep going so as to not suppress

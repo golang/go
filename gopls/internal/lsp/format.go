@@ -24,7 +24,7 @@ func (s *Server) formatting(ctx context.Context, params *protocol.DocumentFormat
 	if !ok {
 		return nil, err
 	}
-	switch snapshot.View().FileKind(fh) {
+	switch snapshot.FileKind(fh) {
 	case source.Mod:
 		return mod.Format(ctx, snapshot, fh)
 	case source.Go:

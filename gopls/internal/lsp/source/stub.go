@@ -231,7 +231,7 @@ func (%s%s%s) %s%s {
 	}
 
 	// Report the diff.
-	diffs := snapshot.View().Options().ComputeEdits(string(input), output.String())
+	diffs := snapshot.Options().ComputeEdits(string(input), output.String())
 	return tokeninternal.FileSetFor(declPGF.Tok), // edits use declPGF.Tok
 		&analysis.SuggestedFix{TextEdits: diffToTextEdits(declPGF.Tok, diffs)},
 		nil

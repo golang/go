@@ -62,7 +62,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	if err != nil {
 		return nil, err
 	}
-	options := snapshot.View().Options()
+	options := snapshot.Options()
 	return &protocol.Hover{
 		Contents: protocol.MarkupContent{
 			Kind:  options.PreferredContentFormat,

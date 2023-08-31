@@ -71,13 +71,13 @@ func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position proto
 	if h == nil {
 		return nil, nil
 	}
-	hover, err := formatHover(h, snapshot.View().Options())
+	hover, err := formatHover(h, snapshot.Options())
 	if err != nil {
 		return nil, err
 	}
 	return &protocol.Hover{
 		Contents: protocol.MarkupContent{
-			Kind:  snapshot.View().Options().PreferredContentFormat,
+			Kind:  snapshot.Options().PreferredContentFormat,
 			Value: hover,
 		},
 		Range: rng,

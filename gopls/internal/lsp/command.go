@@ -426,7 +426,7 @@ func dropDependency(snapshot source.Snapshot, pm *source.ParsedModule, modulePat
 		return nil, err
 	}
 	// Calculate the edits to be made due to the change.
-	diff := snapshot.View().Options().ComputeEdits(string(pm.Mapper.Content), string(newContent))
+	diff := snapshot.Options().ComputeEdits(string(pm.Mapper.Content), string(newContent))
 	return source.ToProtocolEdits(pm.Mapper, diff)
 }
 
@@ -633,7 +633,7 @@ func collectFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.UR
 	}
 
 	m := protocol.NewMapper(fh.URI(), oldContent)
-	diff := snapshot.View().Options().ComputeEdits(string(oldContent), string(newContent))
+	diff := snapshot.Options().ComputeEdits(string(oldContent), string(newContent))
 	edits, err := source.ToProtocolEdits(m, diff)
 	if err != nil {
 		return nil, err
@@ -899,7 +899,7 @@ type pkgLoadConfig struct {
 func (c *commandHandler) FetchVulncheckResult(ctx context.Context, arg command.URIArg) (map[protocol.DocumentURI]*govulncheck.Result, error) {
 	ret := map[protocol.DocumentURI]*govulncheck.Result{}
 	err := c.run(ctx, commandConfig{forURI: arg.URI}, func(ctx context.Context, deps commandDeps) error {
-		if deps.snapshot.View().Options().Vulncheck == source.ModeVulncheckImports {
+		if deps.snapshot.Options().Vulncheck == source.ModeVulncheckImports {
 			for _, modfile := range deps.snapshot.ModFiles() {
 				res, err := deps.snapshot.ModVuln(ctx, modfile)
 				if err != nil {
@@ -936,8 +936,7 @@ func (c *commandHandler) RunGovulncheck(ctx context.Context, args command.Vulnch
 	}, func(ctx context.Context, deps commandDeps) error {
 		tokenChan <- deps.work.Token()
 
-		view := deps.snapshot.View()
-		opts := view.Options()
+		opts := deps.snapshot.Options()
 		// quickly test if gopls is compiled to support govulncheck
 		// by checking vulncheck.Main. Alternatively, we can continue and
 		// let the `gopls vulncheck` command fail. This is lighter-weight.

@@ -26,7 +26,7 @@ func (s *Server) definition(ctx context.Context, params *protocol.DefinitionPara
 	if !ok {
 		return nil, err
 	}
-	switch kind := snapshot.View().FileKind(fh); kind {
+	switch kind := snapshot.FileKind(fh); kind {
 	case source.Tmpl:
 		return template.Definition(snapshot, fh, params.Position)
 	case source.Go:
@@ -51,7 +51,7 @@ func (s *Server) typeDefinition(ctx context.Context, params *protocol.TypeDefini
 	if !ok {
 		return nil, err
 	}
-	switch kind := snapshot.View().FileKind(fh); kind {
+	switch kind := snapshot.FileKind(fh); kind {
 	case source.Go:
 		return source.TypeDefinition(ctx, snapshot, fh, params.Position)
 	default:

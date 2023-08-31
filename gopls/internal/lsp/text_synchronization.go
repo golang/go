@@ -280,7 +280,7 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 	for snapshot, uris := range snapshots {
 		for _, uri := range uris {
 			mod := modMap[uri]
-			if snapshot.View().Options().ChattyDiagnostics || mod.Action == source.Open || mod.Action == source.Close {
+			if snapshot.Options().ChattyDiagnostics || mod.Action == source.Open || mod.Action == source.Close {
 				s.mustPublishDiagnostics(uri)
 			}
 		}

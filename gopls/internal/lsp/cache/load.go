@@ -67,7 +67,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 				panic(fmt.Sprintf("internal error: load called with multiple scopes when a file scope is present (file: %s)", uri))
 			}
 			fh := s.FindFile(uri)
-			if fh == nil || s.View().FileKind(fh) != source.Go {
+			if fh == nil || s.FileKind(fh) != source.Go {
 				// Don't try to load a file that doesn't exist, or isn't a go file.
 				continue
 			}

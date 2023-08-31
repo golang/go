@@ -197,7 +197,7 @@ func vulnerablePackages(ctx context.Context, snapshot source.Snapshot, modfile s
 		return nil, err
 	}
 	cli, err := client.NewClient(
-		findGOVULNDB(snapshot.View().Options().EnvSlice()),
+		findGOVULNDB(snapshot.Options().EnvSlice()),
 		client.Options{HTTPCache: govulncheck.NewInMemoryCache(fsCache)})
 	if err != nil {
 		return nil, err
@@ -209,7 +209,7 @@ func vulnerablePackages(ctx context.Context, snapshot source.Snapshot, modfile s
 		mu    sync.Mutex
 	)
 
-	goVersion := snapshot.View().Options().Env[GoVersionForVulnTest]
+	goVersion := snapshot.Options().Env[GoVersionForVulnTest]
 	if goVersion == "" {
 		goVersion = snapshot.View().GoVersionString()
 	}

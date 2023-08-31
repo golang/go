@@ -313,12 +313,12 @@ func collectSymbols(ctx context.Context, views []View, matcherType SymbolMatcher
 		// whether a URI is in any open workspace.
 		roots = append(roots, strings.TrimRight(string(v.Folder()), "/"))
 
-		filters := v.Options().DirectoryFilters
+		filters := snapshot.Options().DirectoryFilters
 		filterer := NewFilterer(filters)
 		folder := filepath.ToSlash(v.Folder().Filename())
 
 		workspaceOnly := true
-		if v.Options().SymbolScope == AllSymbolScope {
+		if snapshot.Options().SymbolScope == AllSymbolScope {
 			workspaceOnly = false
 		}
 		symbols, err := snapshot.Symbols(ctx, workspaceOnly)

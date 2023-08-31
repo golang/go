@@ -23,7 +23,7 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 	if !ok {
 		return nil, err
 	}
-	if snapshot.View().FileKind(fh) == source.Tmpl {
+	if snapshot.FileKind(fh) == source.Tmpl {
 		return template.References(ctx, snapshot, fh, params)
 	}
 	return source.References(ctx, snapshot, fh, params.Position, params.Context.IncludeDeclaration)

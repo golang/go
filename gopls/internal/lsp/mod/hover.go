@@ -82,7 +82,7 @@ func hoverOnRequireStatement(ctx context.Context, pm *source.ParsedModule, offse
 	// Get the vulnerability info.
 	fromGovulncheck := true
 	vs := snapshot.View().Vulnerabilities(fh.URI())[fh.URI()]
-	if vs == nil && snapshot.View().Options().Vulncheck == source.ModeVulncheckImports {
+	if vs == nil && snapshot.Options().Vulncheck == source.ModeVulncheckImports {
 		var err error
 		vs, err = snapshot.ModVuln(ctx, fh.URI())
 		if err != nil {
@@ -109,7 +109,7 @@ func hoverOnRequireStatement(ctx context.Context, pm *source.ParsedModule, offse
 	if err != nil {
 		return nil, err
 	}
-	options := snapshot.View().Options()
+	options := snapshot.Options()
 	isPrivate := snapshot.View().IsGoPrivatePath(req.Mod.Path)
 	header := formatHeader(req.Mod.Path, options)
 	explanation = formatExplanation(explanation, req, options, isPrivate)
@@ -140,7 +140,7 @@ func hoverOnModuleStatement(ctx context.Context, pm *source.ParsedModule, offset
 	fromGovulncheck := true
 	vs := snapshot.View().Vulnerabilities(fh.URI())[fh.URI()]
 
-	if vs == nil && snapshot.View().Options().Vulncheck == source.ModeVulncheckImports {
+	if vs == nil && snapshot.Options().Vulncheck == source.ModeVulncheckImports {
 		vs, err = snapshot.ModVuln(ctx, fh.URI())
 		if err != nil {
 			return nil, false
@@ -150,7 +150,7 @@ func hoverOnModuleStatement(ctx context.Context, pm *source.ParsedModule, offset
 	modpath := "stdlib"
 	goVersion := snapshot.View().GoVersionString()
 	affecting, nonaffecting := lookupVulns(vs, modpath, goVersion)
-	options := snapshot.View().Options()
+	options := snapshot.Options()
 	vulns := formatVulnerabilities(modpath, affecting, nonaffecting, options, fromGovulncheck)
 
 	return &protocol.Hover{

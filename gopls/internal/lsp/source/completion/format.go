@@ -263,9 +263,9 @@ Suffixes:
 	// TODO(rfindley): It doesn't look like this does the right thing for
 	// multi-line comments.
 	if strings.HasPrefix(comment.Text(), "Deprecated") {
-		if c.snapshot.View().Options().CompletionTags {
+		if c.snapshot.Options().CompletionTags {
 			item.Tags = []protocol.CompletionItemTag{protocol.ComplDeprecated}
-		} else if c.snapshot.View().Options().CompletionDeprecated {
+		} else if c.snapshot.Options().CompletionDeprecated {
 			item.Deprecated = true
 		}
 	}

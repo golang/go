@@ -32,7 +32,7 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	if !ok {
 		return nil, err
 	}
-	switch snapshot.View().FileKind(fh) {
+	switch snapshot.FileKind(fh) {
 	case source.Mod:
 		links, err = modLinks(ctx, snapshot, fh)
 	case source.Go:
@@ -69,7 +69,7 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 		}
 		// Shift the start position to the location of the
 		// dependency within the require statement.
-		target := source.BuildLink(snapshot.View().Options().LinkTarget, "mod/"+req.Mod.String(), "")
+		target := source.BuildLink(snapshot.Options().LinkTarget, "mod/"+req.Mod.String(), "")
 		l, err := toProtocolLink(pm.Mapper, target, start+i, start+i+len(dep))
 		if err != nil {
 			return nil, err
@@ -82,7 +82,7 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 	}
 
 	// Get all the links that are contained in the comments of the file.
-	urlRegexp := snapshot.View().Options().URLRegexp
+	urlRegexp := snapshot.Options().URLRegexp
 	for _, expr := range pm.File.Syntax.Stmt {
 		comments := expr.Comment()
 		if comments == nil {
@@ -103,7 +103,6 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 
 // goLinks returns the set of hyperlink annotations for the specified Go file.
 func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.DocumentLink, error) {
-	view := snapshot.View()
 
 	pgf, err := snapshot.ParseGo(ctx, fh, source.ParseFull)
 	if err != nil {
@@ -113,12 +112,12 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 	var links []protocol.DocumentLink
 
 	// Create links for import specs.
-	if view.Options().ImportShortcut.ShowLinks() {
+	if snapshot.Options().ImportShortcut.ShowLinks() {
 
 		// If links are to pkg.go.dev, append module version suffixes.
 		// This requires the import map from the package metadata. Ignore errors.
 		var depsByImpPath map[source.ImportPath]source.PackageID
-		if strings.ToLower(view.Options().LinkTarget) == "pkg.go.dev" {
+		if strings.ToLower(snapshot.Options().LinkTarget) == "pkg.go.dev" {
 			if meta, err := source.NarrowestMetadataForFile(ctx, snapshot, fh.URI()); err == nil {
 				depsByImpPath = meta.DepsByImpPath
 			}
@@ -130,7 +129,7 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 				continue // bad import
 			}
 			// See golang/go#36998: don't link to modules matching GOPRIVATE.
-			if view.IsGoPrivatePath(string(importPath)) {
+			if snapshot.View().IsGoPrivatePath(string(importPath)) {
 				continue
 			}
 
@@ -145,7 +144,7 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 			if err != nil {
 				return nil, err
 			}
-			targetURL := source.BuildLink(view.Options().LinkTarget, urlPath, "")
+			targetURL := source.BuildLink(snapshot.Options().LinkTarget, urlPath, "")
 			// Account for the quotation marks in the positions.
 			l, err := toProtocolLink(pgf.Mapper, targetURL, start+len(`"`), end-len(`"`))
 			if err != nil {
@@ -155,7 +154,7 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 		}
 	}
 
-	urlRegexp := snapshot.View().Options().URLRegexp
+	urlRegexp := snapshot.Options().URLRegexp
 
 	// Gather links found in string literals.
 	var str []*ast.BasicLit

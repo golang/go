@@ -213,7 +213,7 @@ func sumFilename(modURI span.URI) string {
 func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string]string, error) {
 	uri := fh.URI()
 
-	if s.View().FileKind(fh) != source.Mod {
+	if s.FileKind(fh) != source.Mod {
 		return nil, fmt.Errorf("%s is not a go.mod file", uri)
 	}
 
