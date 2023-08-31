@@ -39,7 +39,7 @@ func NewEncoder(w io.Writer) *Encoder {
 	return enc
 }
 
-// writer() returns the innermost writer the encoder is using
+// writer returns the innermost writer the encoder is using.
 func (enc *Encoder) writer() io.Writer {
 	return enc.w[len(enc.w)-1]
 }
