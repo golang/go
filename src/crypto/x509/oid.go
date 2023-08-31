@@ -9,6 +9,7 @@ import (
 	"encoding/asn1"
 	"errors"
 	"math/big"
+	"math/bits"
 	"strconv"
 	"strings"
 )
@@ -74,11 +75,7 @@ func base128IntLength(n uint64) int {
 	if n == 0 {
 		return 1
 	}
-	l := 0
-	for i := n; i > 0; i >>= 7 {
-		l++
-	}
-	return l
+	return (bits.Len64(n) + 6) / 7
 }
 
 func appendBase128Int(dst []byte, n uint64) []byte {
