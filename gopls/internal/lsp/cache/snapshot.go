@@ -14,7 +14,6 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -456,11 +455,11 @@ func (s *snapshot) RunGoCommands(ctx context.Context, allowNetwork bool, wd stri
 		return false, nil, nil, nil
 	}
 	var modBytes, sumBytes []byte
-	modBytes, err = ioutil.ReadFile(tmpURI.Filename())
+	modBytes, err = os.ReadFile(tmpURI.Filename())
 	if err != nil && !os.IsNotExist(err) {
 		return false, nil, nil, err
 	}
-	sumBytes, err = ioutil.ReadFile(strings.TrimSuffix(tmpURI.Filename(), ".mod") + ".sum")
+	sumBytes, err = os.ReadFile(strings.TrimSuffix(tmpURI.Filename(), ".mod") + ".sum")
 	if err != nil && !os.IsNotExist(err) {
 		return false, nil, nil, err
 	}

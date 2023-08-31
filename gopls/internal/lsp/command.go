@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -629,7 +628,7 @@ func collectFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.UR
 	// file and leave it unsaved. We would rather apply the changes directly,
 	// especially to go.sum, which should be mostly invisible to the user.
 	if !snapshot.IsOpen(uri) {
-		err := ioutil.WriteFile(uri.Filename(), newContent, 0666)
+		err := os.WriteFile(uri.Filename(), newContent, 0666)
 		return nil, err
 	}
 

@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -351,7 +350,7 @@ func (v *View) ID() string { return v.id }
 // longer needed.
 func tempModFile(modFh source.FileHandle, gosum []byte) (tmpURI span.URI, cleanup func(), err error) {
 	filenameHash := source.Hashf("%s", modFh.URI().Filename())
-	tmpMod, err := ioutil.TempFile("", fmt.Sprintf("go.%s.*.mod", filenameHash))
+	tmpMod, err := os.CreateTemp("", fmt.Sprintf("go.%s.*.mod", filenameHash))
 	if err != nil {
 		return "", nil, err
 	}
@@ -386,7 +385,7 @@ func tempModFile(modFh source.FileHandle, gosum []byte) (tmpURI span.URI, cleanu
 
 	// Create an analogous go.sum, if one exists.
 	if gosum != nil {
-		if err := ioutil.WriteFile(tmpSumName, gosum, 0655); err != nil {
+		if err := os.WriteFile(tmpSumName, gosum, 0655); err != nil {
 			return "", nil, err
 		}
 	}

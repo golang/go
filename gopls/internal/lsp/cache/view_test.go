@@ -6,7 +6,6 @@ package cache
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,17 +19,14 @@ import (
 )
 
 func TestCaseInsensitiveFilesystem(t *testing.T) {
-	base, err := ioutil.TempDir("", t.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
+	base := t.TempDir()
 
 	inner := filepath.Join(base, "a/B/c/DEFgh")
 	if err := os.MkdirAll(inner, 0777); err != nil {
 		t.Fatal(err)
 	}
 	file := filepath.Join(inner, "f.go")
-	if err := ioutil.WriteFile(file, []byte("hi"), 0777); err != nil {
+	if err := os.WriteFile(file, []byte("hi"), 0777); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(inner, "F.go")); err != nil {

@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,7 +44,7 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, m *Metadata) 
 	if err := os.MkdirAll(outDir, 0700); err != nil {
 		return nil, err
 	}
-	tmpFile, err := ioutil.TempFile(os.TempDir(), "gopls-x")
+	tmpFile, err := os.CreateTemp(os.TempDir(), "gopls-x")
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +98,7 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, m *Metadata) 
 }
 
 func parseDetailsFile(filename string, options *Options) (span.URI, []*Diagnostic, error) {
-	buf, err := ioutil.ReadFile(filename)
+	buf, err := os.ReadFile(filename)
 	if err != nil {
 		return "", nil, err
 	}

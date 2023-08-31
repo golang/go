@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -118,7 +117,7 @@ func modTidyImpl(ctx context.Context, snapshot *snapshot, filename string, pm *s
 
 	// Go directly to disk to get the temporary mod file,
 	// since it is always on disk.
-	tempContents, err := ioutil.ReadFile(tmpURI.Filename())
+	tempContents, err := os.ReadFile(tmpURI.Filename())
 	if err != nil {
 		return nil, err
 	}
