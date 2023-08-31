@@ -410,7 +410,7 @@ var GeneratedAPIJSON = &APIJSON{
 						},
 						{
 							Name:    "\"unusedparams\"",
-							Doc:     "check for unused parameters of functions\n\nThe unusedparams analyzer checks functions to see if there are\nany parameters that are not being used.\n\nTo reduce false positives it ignores:\n- methods\n- parameters that do not have a name or are underscored\n- functions in test files\n- functions with empty bodies or those with just a return stmt",
+							Doc:     "check for unused parameters of functions\n\nThe unusedparams analyzer checks functions to see if there are\nany parameters that are not being used.\n\nTo reduce false positives it ignores:\n- methods\n- parameters that do not have a name or have the name '_' (the blank identifier)\n- functions in test files\n- functions with empty bodies or those with just a return stmt",
 							Default: "false",
 						},
 						{
@@ -1132,7 +1132,7 @@ var GeneratedAPIJSON = &APIJSON{
 		},
 		{
 			Name: "unusedparams",
-			Doc:  "check for unused parameters of functions\n\nThe unusedparams analyzer checks functions to see if there are\nany parameters that are not being used.\n\nTo reduce false positives it ignores:\n- methods\n- parameters that do not have a name or are underscored\n- functions in test files\n- functions with empty bodies or those with just a return stmt",
+			Doc:  "check for unused parameters of functions\n\nThe unusedparams analyzer checks functions to see if there are\nany parameters that are not being used.\n\nTo reduce false positives it ignores:\n- methods\n- parameters that do not have a name or have the name '_' (the blank identifier)\n- functions in test files\n- functions with empty bodies or those with just a return stmt",
 		},
 		{
 			Name:    "unusedresult",

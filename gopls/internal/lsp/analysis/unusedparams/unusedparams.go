@@ -24,7 +24,7 @@ any parameters that are not being used.
 
 To reduce false positives it ignores:
 - methods
-- parameters that do not have a name or are underscored
+- parameters that do not have a name or have the name '_' (the blank identifier)
 - functions in test files
 - functions with empty bodies or those with just a return stmt`
 
