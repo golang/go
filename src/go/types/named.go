@@ -226,7 +226,7 @@ func (n *Named) setState(state namedState) {
 	atomic.StoreUint32(&n.state_, uint32(state))
 }
 
-// newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
+// newNamed is like NewNamed but with a *Checker receiver.
 func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	typ := &Named{check: check, obj: obj, fromRHS: underlying, underlying: underlying, methods: methods}
 	if obj.typ == nil {
