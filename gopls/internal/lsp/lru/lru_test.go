@@ -17,8 +17,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/lru"
 )
 
-type any = interface{} // TODO: remove once gopls only builds at go1.18+
-
 func TestCache(t *testing.T) {
 	type get struct {
 		key  string

@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -370,7 +369,7 @@ func (r *Runner) separateProcessServer(optsHook func(*source.Options)) jsonrpc2.
 	}
 
 	r.startRemoteOnce.Do(func() {
-		socketDir, err := ioutil.TempDir(r.tempDir, "gopls-regtest-socket")
+		socketDir, err := os.MkdirTemp(r.tempDir, "gopls-regtest-socket")
 		if err != nil {
 			r.remoteErr = err
 			return

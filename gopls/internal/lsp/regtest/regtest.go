@@ -8,7 +8,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"testing"
@@ -133,7 +132,7 @@ func Main(m *testing.M, hook func(*source.Options)) {
 		}
 	}
 
-	dir, err := ioutil.TempDir("", "gopls-regtest-")
+	dir, err := os.MkdirTemp("", "gopls-regtest-")
 	if err != nil {
 		panic(fmt.Errorf("creating regtest temp directory: %v", err))
 	}

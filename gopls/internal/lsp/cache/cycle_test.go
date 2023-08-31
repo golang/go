@@ -76,7 +76,7 @@ func TestBreakImportCycles(t *testing.T) {
 		}
 		if s != "" {
 			for _, item := range strings.Split(s, ";") {
-				nodeID, succIDs, ok := cut(item, "->")
+				nodeID, succIDs, ok := strings.Cut(item, "->")
 				node := makeNode(nodeID)
 				if ok {
 					for _, succID := range strings.Split(succIDs, ",") {

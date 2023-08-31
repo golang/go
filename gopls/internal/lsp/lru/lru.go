@@ -11,8 +11,6 @@ import (
 	"sync"
 )
 
-type any = interface{} // TODO: remove once gopls only builds at go1.18+
-
 // A Cache is a fixed-size in-memory LRU cache.
 type Cache struct {
 	capacity int

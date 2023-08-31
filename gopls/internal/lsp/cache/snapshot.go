@@ -1874,18 +1874,10 @@ https://github.com/golang/tools/blob/master/gopls/doc/settings.md#buildflags-str
 // Most likely, each call site of inVendor needs to be reconsidered to
 // understand and correctly implement the desired behavior.
 func inVendor(uri span.URI) bool {
-	_, after, found := cut(string(uri), "/vendor/")
+	_, after, found := strings.Cut(string(uri), "/vendor/")
 	// Only subdirectories of /vendor/ are considered vendored
 	// (/vendor/a/foo.go is vendored, /vendor/foo.go is not).
 	return found && strings.Contains(after, "/")
-}
-
-// TODO(adonovan): replace with strings.Cut when we can assume go1.18.
-func cut(s, sep string) (before, after string, found bool) {
-	if i := strings.Index(s, sep); i >= 0 {
-		return s[:i], s[i+len(sep):], true
-	}
-	return s, "", false
 }
 
 // unappliedChanges is a file source that handles an uncloned snapshot.

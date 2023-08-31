@@ -746,8 +746,7 @@ func loadMarkerTest(name string, content []byte) (*markerTest, error) {
 			test.env = make(map[string]string)
 			fields := strings.Fields(string(file.Data))
 			for _, field := range fields {
-				// TODO: use strings.Cut once we are on 1.18+.
-				key, value, ok := cut(field, "=")
+				key, value, ok := strings.Cut(field, "=")
 				if !ok {
 					return nil, fmt.Errorf("env vars must be formatted as var=value, got %q", field)
 				}
@@ -755,7 +754,7 @@ func loadMarkerTest(name string, content []byte) (*markerTest, error) {
 			}
 
 		case strings.HasPrefix(file.Name, "@"): // golden content
-			id, name, _ := cut(file.Name[len("@"):], "/")
+			id, name, _ := strings.Cut(file.Name[len("@"):], "/")
 			// Note that a file.Name of just "@id" gives (id, name) = ("id", "").
 			if _, ok := test.golden[id]; !ok {
 				test.golden[id] = &Golden{
@@ -798,16 +797,6 @@ func loadMarkerTest(name string, content []byte) (*markerTest, error) {
 	}
 
 	return test, nil
-}
-
-// cut is a copy of strings.Cut.
-//
-// TODO: once we only support Go 1.18+, just use strings.Cut.
-func cut(s, sep string) (before, after string, found bool) {
-	if i := strings.Index(s, sep); i >= 0 {
-		return s[:i], s[i+len(sep):], true
-	}
-	return s, "", false
 }
 
 // formatTest formats the test as a txtar archive.
