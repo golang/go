@@ -29,13 +29,37 @@ func newFileMap() *fileMap {
 	}
 }
 
-func (m *fileMap) Clone() *fileMap {
+// Clone creates a copy of the fileMap, incorporating the changes specified by
+// the changes map.
+func (m *fileMap) Clone(changes map[span.URI]*fileChange) *fileMap {
 	m2 := &fileMap{
 		files:    m.files.Clone(),
 		overlays: m.overlays.Clone(),
 	}
 	if m.dirs != nil {
 		m2.dirs = m.dirs.Clone()
+	}
+
+	// Handle file changes.
+	//
+	// Note, we can't simply delete the file unconditionally and let it be
+	// re-read by the snapshot, as (1) the snapshot must always observe all
+	// overlays, and (2) deleting a file forces directories to be reevaluated, as
+	// it may be the last file in a directory. We want to avoid that work in the
+	// common case where a file has simply changed.
+	//
+	// For that reason, we also do this in two passes, processing deletions
+	// first, as interleaved deletions and sets would result in the dirs map
+	// being recreated multiple times.
+	for uri, change := range changes {
+		if !change.exists {
+			m2.Delete(uri)
+		}
+	}
+	for uri, change := range changes {
+		if change.exists {
+			m2.Set(uri, change.fileHandle)
+		}
 	}
 	return m2
 }

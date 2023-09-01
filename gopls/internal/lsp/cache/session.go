@@ -435,6 +435,8 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 	checkViews := false
 
 	for _, c := range changes {
+		// TODO(rfindley): go.work files need not be named "go.work" -- we need to
+		// check each view's source.
 		if isGoMod(c.URI) || isGoWork(c.URI) {
 			// Change, InvalidateMetadata, and UnknownFileAction actions do not cause
 			// us to re-evaluate views.

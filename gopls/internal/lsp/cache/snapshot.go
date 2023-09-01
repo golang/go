@@ -120,6 +120,7 @@ type snapshot struct {
 
 	// workspacePackages contains the workspace's packages, which are loaded
 	// when the view is created. It contains no intermediate test variants.
+	// TODO(rfindley): use a persistent.Map.
 	workspacePackages map[PackageID]PackagePath
 
 	// shouldLoad tracks packages that need to be reloaded, mapping a PackageID
@@ -1869,6 +1870,8 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// (e.g. "inconsistent vendoring detected"), or because
 	// one or more modules may have moved into or out of the
 	// vendor tree after 'go mod vendor' or 'rm -fr vendor/'.
+	//
+	// TODO(rfindley): revisit the location of this check.
 	for uri := range changes {
 		if inVendor(uri) && s.initializedErr != nil ||
 			strings.HasSuffix(string(uri), "/vendor/modules.txt") {
@@ -1890,15 +1893,15 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		initializedErr:       s.initializedErr,
 		packages:             s.packages.Clone(),
 		activePackages:       s.activePackages.Clone(),
-		files:                s.files.Clone(),
-		symbolizeHandles:     s.symbolizeHandles.Clone(),
+		files:                s.files.Clone(changes),
+		symbolizeHandles:     cloneWithout(s.symbolizeHandles, changes),
 		workspacePackages:    make(map[PackageID]PackagePath, len(s.workspacePackages)),
-		unloadableFiles:      s.unloadableFiles.Clone(), // see the TODO for unloadableFiles below
-		parseModHandles:      s.parseModHandles.Clone(),
-		parseWorkHandles:     s.parseWorkHandles.Clone(),
-		modTidyHandles:       s.modTidyHandles.Clone(),
-		modWhyHandles:        s.modWhyHandles.Clone(),
-		modVulnHandles:       s.modVulnHandles.Clone(),
+		unloadableFiles:      s.unloadableFiles.Clone(), // not cloneWithout: typing in a file doesn't necessarily make it loadable
+		parseModHandles:      cloneWithout(s.parseModHandles, changes),
+		parseWorkHandles:     cloneWithout(s.parseWorkHandles, changes),
+		modTidyHandles:       cloneWithout(s.modTidyHandles, changes),
+		modWhyHandles:        cloneWithout(s.modWhyHandles, changes),
+		modVulnHandles:       cloneWithout(s.modVulnHandles, changes),
 		workspaceModFiles:    wsModFiles,
 		workspaceModFilesErr: wsModFilesErr,
 		importGraph:          s.importGraph,
@@ -1916,12 +1919,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// incref/decref operation that might destroy it prematurely.)
 	release := result.Acquire()
 
-	// TODO(rfindley): this looks wrong. Should we clear unloadableFiles on
-	// changes to environment or workspace layout, or more generally on any
-	// metadata change?
-	//
-	// Maybe not, as major configuration changes cause a new view.
-
 	// directIDs keeps track of package IDs that have directly changed.
 	// Note: this is not a set, it's a map from id to invalidateMetadata.
 	directIDs := map[PackageID]bool{}
@@ -1929,6 +1926,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// Invalidate all package metadata if the workspace module has changed.
 	if reinit {
 		for k := range s.meta.metadata {
+			// TODO(rfindley): this seems brittle; can we just start over?
 			directIDs[k] = true
 		}
 	}
@@ -1939,14 +1937,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	anyFileAdded := false          // adding a file can resolve missing dependencies
 
 	for uri, change := range changes {
-		// Invalidate go.mod-related handles.
-		result.modTidyHandles.Delete(uri)
-		result.modWhyHandles.Delete(uri)
-		result.modVulnHandles.Delete(uri)
-
-		// Invalidate handles for cached symbols.
-		result.symbolizeHandles.Delete(uri)
-
 		// The original FileHandle for this URI is cached on the snapshot.
 		originalFH, _ := s.files.Get(uri)
 		var originalOpen, newOpen bool
@@ -1962,6 +1952,10 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		var invalidateMetadata, pkgFileChanged, importDeleted bool
 		if strings.HasSuffix(uri.Filename(), ".go") {
 			invalidateMetadata, pkgFileChanged, importDeleted = metadataChanges(ctx, s, originalFH, change.fileHandle)
+		}
+		if invalidateMetadata {
+			// If this is a metadata-affecting change, perhaps a reload will succeed.
+			result.unloadableFiles.Remove(uri)
 		}
 
 		invalidateMetadata = invalidateMetadata || forceReloadMetadata || reinit
@@ -2009,29 +2003,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 			result.modWhyHandles.Clear()
 			result.modVulnHandles.Clear()
 		}
-
-		result.parseModHandles.Delete(uri)
-		result.parseWorkHandles.Delete(uri)
-
-		// Handle the invalidated file; it may have new contents or not exist.
-		//
-		// Note, we can't simply delete the file unconditionally and let it be
-		// re-read, as (1) the snapshot must observe all overlays, and (2) deleting
-		// a file forces directories to be reevaluated, as it may be the last file
-		// in a directory. We want to avoid that work in the common case where a
-		// file has simply changed.
-		if !change.exists {
-			result.files.Delete(uri)
-		} else {
-			result.files.Set(uri, change.fileHandle)
-		}
-
-		// Make sure to remove the changed file from the unloadable set.
-		//
-		// TODO(rfindley): this also looks wrong, as typing in an unloadable file
-		// will result in repeated reloads. We should only delete if metadata
-		// changed.
-		result.unloadableFiles.Remove(uri)
 	}
 
 	// Deleting an import can cause list errors due to import cycles to be
@@ -2193,6 +2164,14 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		result.workspacePackages = map[PackageID]PackagePath{}
 	}
 	return result, release
+}
+
+func cloneWithout[V any](m *persistent.Map[span.URI, V], changes map[span.URI]*fileChange) *persistent.Map[span.URI, V] {
+	m2 := m.Clone()
+	for k := range changes {
+		m2.Delete(k)
+	}
+	return m2
 }
 
 // deleteMostRelevantModFile deletes the mod file most likely to be the mod
