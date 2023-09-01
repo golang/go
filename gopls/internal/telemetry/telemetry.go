@@ -9,7 +9,6 @@ package telemetry
 
 import (
 	"fmt"
-	"time"
 
 	"golang.org/x/telemetry/counter"
 	"golang.org/x/telemetry/upload"
@@ -19,14 +18,8 @@ import (
 // Start starts telemetry instrumentation.
 func Start() {
 	counter.Open()
-	go packAndUpload()
-}
-
-func packAndUpload() {
-	start := time.Now()
-	upload.Run(nil)
-	elapsed := time.Since(start)
-	time.AfterFunc(24*time.Hour-elapsed, packAndUpload)
+	// upload only once at startup, hoping that users restart gopls often.
+	go upload.Run(nil)
 }
 
 // RecordClientInfo records gopls client info.
