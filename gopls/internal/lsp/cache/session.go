@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/persistent"
 	"golang.org/x/tools/internal/xcontext"
 )
@@ -169,18 +170,18 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		backgroundCtx:        backgroundCtx,
 		cancel:               cancel,
 		store:                s.cache.store,
-		packages:             persistent.NewMap(packageIDLessInterface),
+		packages:             new(persistent.Map[PackageID, *packageHandle]),
 		meta:                 new(metadataGraph),
 		files:                newFilesMap(),
-		activePackages:       persistent.NewMap(packageIDLessInterface),
-		symbolizeHandles:     persistent.NewMap(uriLessInterface),
+		activePackages:       new(persistent.Map[PackageID, *Package]),
+		symbolizeHandles:     new(persistent.Map[span.URI, *memoize.Promise]),
 		workspacePackages:    make(map[PackageID]PackagePath),
 		unloadableFiles:      make(map[span.URI]struct{}),
-		parseModHandles:      persistent.NewMap(uriLessInterface),
-		parseWorkHandles:     persistent.NewMap(uriLessInterface),
-		modTidyHandles:       persistent.NewMap(uriLessInterface),
-		modVulnHandles:       persistent.NewMap(uriLessInterface),
-		modWhyHandles:        persistent.NewMap(uriLessInterface),
+		parseModHandles:      new(persistent.Map[span.URI, *memoize.Promise]),
+		parseWorkHandles:     new(persistent.Map[span.URI, *memoize.Promise]),
+		modTidyHandles:       new(persistent.Map[span.URI, *memoize.Promise]),
+		modVulnHandles:       new(persistent.Map[span.URI, *memoize.Promise]),
+		modWhyHandles:        new(persistent.Map[span.URI, *memoize.Promise]),
 		knownSubdirs:         newKnownDirsSet(),
 		workspaceModFiles:    wsModFiles,
 		workspaceModFilesErr: wsModFilesErr,

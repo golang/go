@@ -55,7 +55,7 @@ func (s *snapshot) ModVuln(ctx context.Context, modURI span.URI) (*govulncheck.R
 	}
 
 	// Await result.
-	v, err := s.awaitPromise(ctx, entry.(*memoize.Promise))
+	v, err := s.awaitPromise(ctx, entry)
 	if err != nil {
 		return nil, err
 	}

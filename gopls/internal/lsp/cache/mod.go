@@ -52,7 +52,7 @@ func (s *snapshot) ParseMod(ctx context.Context, fh source.FileHandle) (*source.
 	}
 
 	// Await result.
-	v, err := s.awaitPromise(ctx, entry.(*memoize.Promise))
+	v, err := s.awaitPromise(ctx, entry)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (s *snapshot) ParseWork(ctx context.Context, fh source.FileHandle) (*source
 	}
 
 	// Await result.
-	v, err := s.awaitPromise(ctx, entry.(*memoize.Promise))
+	v, err := s.awaitPromise(ctx, entry)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +240,7 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 	}
 
 	// Await result.
-	v, err := s.awaitPromise(ctx, entry.(*memoize.Promise))
+	v, err := s.awaitPromise(ctx, entry)
 	if err != nil {
 		return nil, err
 	}

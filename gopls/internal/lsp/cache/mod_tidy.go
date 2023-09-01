@@ -85,7 +85,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 	}
 
 	// Await result.
-	v, err := s.awaitPromise(ctx, entry.(*memoize.Promise))
+	v, err := s.awaitPromise(ctx, entry)
 	if err != nil {
 		return nil, err
 	}

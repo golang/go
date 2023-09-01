@@ -12,6 +12,8 @@ import (
 	"math/rand"
 	"strings"
 	"sync/atomic"
+
+	"golang.org/x/tools/internal/constraints"
 )
 
 // Implementation details:
@@ -25,9 +27,7 @@ import (
 // Each argument is followed by a delta change to its reference counter.
 // In case if no change is expected, the delta will be `-0`.
 
-// Map is an associative mapping from keys to values, both represented as
-// interface{}. Key comparison and iteration order is defined by a
-// client-provided function that implements a strict weak order.
+// Map is an associative mapping from keys to values.
 //
 // Maps can be Cloned in constant time.
 // Get, Store, and Delete operations are done on average in logarithmic time.
@@ -38,16 +38,23 @@ import (
 //
 // Internally the implementation is based on a randomized persistent treap:
 // https://en.wikipedia.org/wiki/Treap.
-type Map struct {
-	less func(a, b interface{}) bool
+//
+// The zero value is ready to use.
+type Map[K constraints.Ordered, V any] struct {
+	// Map is a generic wrapper around a non-generic implementation to avoid a
+	// significant increase in the size of the executable.
 	root *mapNode
 }
 
-func (m *Map) String() string {
+func (*Map[K, V]) less(l, r any) bool {
+	return l.(K) < r.(K)
+}
+
+func (m *Map[K, V]) String() string {
 	var buf strings.Builder
 	buf.WriteByte('{')
 	var sep string
-	m.Range(func(k, v interface{}) {
+	m.Range(func(k K, v V) {
 		fmt.Fprintf(&buf, "%s%v: %v", sep, k, v)
 		sep = ", "
 	})
@@ -56,7 +63,7 @@ func (m *Map) String() string {
 }
 
 type mapNode struct {
-	key         interface{}
+	key         any
 	value       *refValue
 	weight      uint64
 	refCount    int32
@@ -65,11 +72,11 @@ type mapNode struct {
 
 type refValue struct {
 	refCount int32
-	value    interface{}
-	release  func(key, value interface{})
+	value    any
+	release  func(key, value any)
 }
 
-func newNodeWithRef(key, value interface{}, release func(key, value interface{})) *mapNode {
+func newNodeWithRef[K constraints.Ordered, V any](key K, value V, release func(key, value any)) *mapNode {
 	return &mapNode{
 		key: key,
 		value: &refValue{
@@ -116,20 +123,10 @@ func (node *mapNode) decref() {
 	}
 }
 
-// NewMap returns a new map whose keys are ordered by the given comparison
-// function (a strict weak order). It is the responsibility of the caller to
-// Destroy it at later time.
-func NewMap(less func(a, b interface{}) bool) *Map {
-	return &Map{
-		less: less,
-	}
-}
-
 // Clone returns a copy of the given map. It is a responsibility of the caller
 // to Destroy it at later time.
-func (pm *Map) Clone() *Map {
-	return &Map{
-		less: pm.less,
+func (pm *Map[K, V]) Clone() *Map[K, V] {
+	return &Map[K, V]{
 		root: pm.root.incref(),
 	}
 }
@@ -137,24 +134,26 @@ func (pm *Map) Clone() *Map {
 // Destroy destroys the map.
 //
 // After Destroy, the Map should not be used again.
-func (pm *Map) Destroy() {
+func (pm *Map[K, V]) Destroy() {
 	// The implementation of these two functions is the same,
 	// but their intent is different.
 	pm.Clear()
 }
 
 // Clear removes all entries from the map.
-func (pm *Map) Clear() {
+func (pm *Map[K, V]) Clear() {
 	pm.root.decref()
 	pm.root = nil
 }
 
 // Range calls f sequentially in ascending key order for all entries in the map.
-func (pm *Map) Range(f func(key, value interface{})) {
-	pm.root.forEach(f)
+func (pm *Map[K, V]) Range(f func(key K, value V)) {
+	pm.root.forEach(func(k, v any) {
+		f(k.(K), v.(V))
+	})
 }
 
-func (node *mapNode) forEach(f func(key, value interface{})) {
+func (node *mapNode) forEach(f func(key, value any)) {
 	if node == nil {
 		return
 	}
@@ -163,26 +162,26 @@ func (node *mapNode) forEach(f func(key, value interface{})) {
 	node.right.forEach(f)
 }
 
-// Get returns the map value associated with the specified key, or nil if no entry
-// is present. The ok result indicates whether an entry was found in the map.
-func (pm *Map) Get(key interface{}) (interface{}, bool) {
+// Get returns the map value associated with the specified key.
+// The ok result indicates whether an entry was found in the map.
+func (pm *Map[K, V]) Get(key K) (V, bool) {
 	node := pm.root
 	for node != nil {
-		if pm.less(key, node.key) {
+		if key < node.key.(K) {
 			node = node.left
-		} else if pm.less(node.key, key) {
+		} else if node.key.(K) < key {
 			node = node.right
 		} else {
-			return node.value.value, true
+			return node.value.value.(V), true
 		}
 	}
-	return nil, false
+	var zero V
+	return zero, false
 }
 
 // SetAll updates the map with key/value pairs from the other map, overwriting existing keys.
 // It is equivalent to calling Set for each entry in the other map but is more efficient.
-// Both maps must have the same comparison function, otherwise behavior is undefined.
-func (pm *Map) SetAll(other *Map) {
+func (pm *Map[K, V]) SetAll(other *Map[K, V]) {
 	root := pm.root
 	pm.root = union(root, other.root, pm.less, true)
 	root.decref()
@@ -191,7 +190,7 @@ func (pm *Map) SetAll(other *Map) {
 // Set updates the value associated with the specified key.
 // If release is non-nil, it will be called with entry's key and value once the
 // key is no longer contained in the map or any clone.
-func (pm *Map) Set(key, value interface{}, release func(key, value interface{})) {
+func (pm *Map[K, V]) Set(key K, value V, release func(key, value any)) {
 	first := pm.root
 	second := newNodeWithRef(key, value, release)
 	pm.root = union(first, second, pm.less, true)
@@ -205,7 +204,7 @@ func (pm *Map) Set(key, value interface{}, release func(key, value interface{}))
 // union(first:-0, second:-0) (result:+1)
 // Union borrows both subtrees without affecting their refcount and returns a
 // new reference that the caller is expected to call decref.
-func union(first, second *mapNode, less func(a, b interface{}) bool, overwrite bool) *mapNode {
+func union(first, second *mapNode, less func(any, any) bool, overwrite bool) *mapNode {
 	if first == nil {
 		return second.incref()
 	}
@@ -243,7 +242,7 @@ func union(first, second *mapNode, less func(a, b interface{}) bool, overwrite b
 // split(n:-0) (left:+1, mid:+1, right:+1)
 // Split borrows n without affecting its refcount, and returns three
 // new references that the caller is expected to call decref.
-func split(n *mapNode, key interface{}, less func(a, b interface{}) bool, requireMid bool) (left, mid, right *mapNode) {
+func split(n *mapNode, key any, less func(any, any) bool, requireMid bool) (left, mid, right *mapNode) {
 	if n == nil {
 		return nil, nil, nil
 	}
@@ -272,7 +271,7 @@ func split(n *mapNode, key interface{}, less func(a, b interface{}) bool, requir
 }
 
 // Delete deletes the value for a key.
-func (pm *Map) Delete(key interface{}) {
+func (pm *Map[K, V]) Delete(key K) {
 	root := pm.root
 	left, mid, right := split(root, key, pm.less, true)
 	if mid == nil {

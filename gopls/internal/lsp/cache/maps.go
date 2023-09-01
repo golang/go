@@ -10,21 +10,14 @@ import (
 	"golang.org/x/tools/internal/persistent"
 )
 
-// TODO(euroelessar): Use generics once support for go1.17 is dropped.
-
 type filesMap struct {
-	impl       *persistent.Map
+	impl       *persistent.Map[span.URI, source.FileHandle]
 	overlayMap map[span.URI]*Overlay // the subset that are overlays
-}
-
-// uriLessInterface is the < relation for "any" values containing span.URIs.
-func uriLessInterface(a, b interface{}) bool {
-	return a.(span.URI) < b.(span.URI)
 }
 
 func newFilesMap() filesMap {
 	return filesMap{
-		impl:       persistent.NewMap(uriLessInterface),
+		impl:       new(persistent.Map[span.URI, source.FileHandle]),
 		overlayMap: make(map[span.URI]*Overlay),
 	}
 }
@@ -53,9 +46,7 @@ func (m filesMap) Get(key span.URI) (source.FileHandle, bool) {
 }
 
 func (m filesMap) Range(do func(key span.URI, value source.FileHandle)) {
-	m.impl.Range(func(key, value interface{}) {
-		do(key.(span.URI), value.(source.FileHandle))
-	})
+	m.impl.Range(do)
 }
 
 func (m filesMap) Set(key span.URI, value source.FileHandle) {
@@ -86,19 +77,13 @@ func (m filesMap) overlays() []*Overlay {
 	return overlays
 }
 
-func packageIDLessInterface(x, y interface{}) bool {
-	return x.(PackageID) < y.(PackageID)
-}
-
 type knownDirsSet struct {
-	impl *persistent.Map
+	impl *persistent.Map[span.URI, struct{}]
 }
 
 func newKnownDirsSet() knownDirsSet {
 	return knownDirsSet{
-		impl: persistent.NewMap(func(a, b interface{}) bool {
-			return a.(span.URI) < b.(span.URI)
-		}),
+		impl: new(persistent.Map[span.URI, struct{}]),
 	}
 }
 
@@ -118,8 +103,8 @@ func (s knownDirsSet) Contains(key span.URI) bool {
 }
 
 func (s knownDirsSet) Range(do func(key span.URI)) {
-	s.impl.Range(func(key, value interface{}) {
-		do(key.(span.URI))
+	s.impl.Range(func(key span.URI, value struct{}) {
+		do(key)
 	})
 }
 
@@ -128,7 +113,7 @@ func (s knownDirsSet) SetAll(other knownDirsSet) {
 }
 
 func (s knownDirsSet) Insert(key span.URI) {
-	s.impl.Set(key, nil, nil)
+	s.impl.Set(key, struct{}{}, nil)
 }
 
 func (s knownDirsSet) Remove(key span.URI) {

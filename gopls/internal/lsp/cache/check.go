@@ -849,7 +849,7 @@ func (s *snapshot) getPackageHandles(ctx context.Context, ids []PackageID) (map[
 				unfinishedSuccs: int32(len(m.DepsByPkgPath)),
 			}
 			if entry, hit := b.s.packages.Get(m.ID); hit {
-				n.ph = entry.(*packageHandle)
+				n.ph = entry
 			}
 			if n.unfinishedSuccs == 0 {
 				leaves = append(leaves, n)
@@ -1118,12 +1118,11 @@ func (b *packageHandleBuilder) buildPackageHandle(ctx context.Context, n *handle
 	}
 
 	// Check the packages map again in case another goroutine got there first.
-	if alt, ok := b.s.packages.Get(n.m.ID); ok && alt.(*packageHandle).validated {
-		altPH := alt.(*packageHandle)
-		if altPH.m != n.m {
+	if alt, ok := b.s.packages.Get(n.m.ID); ok && alt.validated {
+		if alt.m != n.m {
 			bug.Reportf("existing package handle does not match for %s", n.m.ID)
 		}
-		n.ph = altPH
+		n.ph = alt
 	} else {
 		b.s.packages.Set(n.m.ID, n.ph, nil)
 	}

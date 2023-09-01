@@ -217,8 +217,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	s.mu.Lock()
 
 	// Assert the invariant s.packages.Get(id).m == s.meta.metadata[id].
-	s.packages.Range(func(k, v interface{}) {
-		id, ph := k.(PackageID), v.(*packageHandle)
+	s.packages.Range(func(id PackageID, ph *packageHandle) {
 		if s.meta.metadata[id] != ph.m {
 			panic("inconsistent metadata")
 		}
