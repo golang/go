@@ -57,7 +57,7 @@ const (
 // The alphabet is treated as a sequence of byte values
 // without any special treatment for multi-byte UTF-8.
 // The resulting Encoding uses the default padding character ('='),
-// which may be changed or disabled via WithPadding.
+// which may be changed or disabled via [Encoding.WithPadding].
 func NewEncoding(encoder string) *Encoding {
 	if len(encoder) != 32 {
 		panic("encoding alphabet is not 32-bytes long")
@@ -112,12 +112,12 @@ func (enc Encoding) WithPadding(padding rune) *Encoding {
  * Encoder
  */
 
-// Encode encodes src using the encoding enc, writing
-// EncodedLen(len(src)) bytes to dst.
+// Encode encodes src using the encoding enc,
+// writing [Encoding.EncodedLen](len(src)) bytes to dst.
 //
 // The encoding pads the output to a multiple of 8 bytes,
 // so Encode is not appropriate for use on individual blocks
-// of a large data stream. Use NewEncoder() instead.
+// of a large data stream. Use [NewEncoder] instead.
 func (enc *Encoding) Encode(dst, src []byte) {
 	if len(src) == 0 {
 		return
@@ -386,10 +386,10 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 }
 
 // Decode decodes src using the encoding enc. It writes at most
-// DecodedLen(len(src)) bytes to dst and returns the number of bytes
+// [Encoding.DecodedLen](len(src)) bytes to dst and returns the number of bytes
 // written. If src contains invalid base32 data, it will return the
-// number of bytes successfully written and CorruptInputError.
-// New line characters (\r and \n) are ignored.
+// number of bytes successfully written and [CorruptInputError].
+// Newline characters (\r and \n) are ignored.
 func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 	buf := make([]byte, len(src))
 	l := stripNewlines(buf, src)

@@ -828,7 +828,7 @@ var (
 	concreteTypeToName sync.Map // map[reflect.Type]string
 )
 
-// RegisterName is like Register but uses the provided name rather than the
+// RegisterName is like [Register] but uses the provided name rather than the
 // type's default.
 func RegisterName(name string, value any) {
 	if name == "" {
