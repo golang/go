@@ -24,10 +24,21 @@ import (
 var toRemove []string
 
 func TestMain(m *testing.M) {
+	_, coreErrBefore := os.Stat("core")
+
 	status := m.Run()
 	for _, file := range toRemove {
 		os.RemoveAll(file)
 	}
+
+	_, coreErrAfter := os.Stat("core")
+	if coreErrBefore != nil && coreErrAfter == nil {
+		fmt.Fprintln(os.Stderr, "runtime.test: some test left a core file behind")
+		if status == 0 {
+			status = 1
+		}
+	}
+
 	os.Exit(status)
 }
 
