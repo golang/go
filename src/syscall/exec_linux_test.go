@@ -433,6 +433,18 @@ func prepareCgroupFD(t *testing.T) (int, string) {
 
 func TestUseCgroupFD(t *testing.T) {
 	testenv.MustHaveExec(t)
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		// Read and print own cgroup path.
+		selfCg, err := os.ReadFile("/proc/self/cgroup")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		fmt.Print(string(selfCg))
+		os.Exit(0)
+	}
+
 	exe, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -440,7 +452,7 @@ func TestUseCgroupFD(t *testing.T) {
 
 	fd, suffix := prepareCgroupFD(t)
 
-	cmd := testenv.Command(t, exe, "-test.run=TestUseCgroupFDHelper")
+	cmd := testenv.Command(t, exe, "-test.run=TestUseCgroupFD")
 	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		UseCgroupFD: true,
@@ -461,20 +473,6 @@ func TestUseCgroupFD(t *testing.T) {
 	if !bytes.HasSuffix(bytes.TrimSpace(out), []byte(suffix)) {
 		t.Fatalf("got: %q, want: a line that ends with %q", out, suffix)
 	}
-}
-
-func TestUseCgroupFDHelper(*testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
-	}
-	defer os.Exit(0)
-	// Read and print own cgroup path.
-	selfCg, err := os.ReadFile("/proc/self/cgroup")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	fmt.Print(string(selfCg))
 }
 
 func TestCloneTimeNamespace(t *testing.T) {
