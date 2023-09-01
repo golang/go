@@ -130,7 +130,7 @@ type snapshot struct {
 	shouldLoad map[PackageID][]PackagePath
 
 	// unloadableFiles keeps track of files that we've failed to load.
-	unloadableFiles map[span.URI]struct{}
+	unloadableFiles *persistent.Set[span.URI]
 
 	// TODO(rfindley): rename the handles below to "promises". A promise is
 	// different from a handle (we mutate the package handle.)
@@ -152,7 +152,7 @@ type snapshot struct {
 
 	// knownSubdirs is the set of subdirectory URIs in the workspace,
 	// used to create glob patterns for file watching.
-	knownSubdirs      knownDirsSet
+	knownSubdirs      *persistent.Set[span.URI]
 	knownSubdirsCache map[string]struct{} // memo of knownSubdirs as a set of filenames
 	// unprocessedSubdirChanges are any changes that might affect the set of
 	// subdirectories in the workspace. They are not reflected to knownSubdirs
@@ -269,6 +269,7 @@ func (s *snapshot) destroy(destroyedBy string) {
 	s.modTidyHandles.Destroy()
 	s.modVulnHandles.Destroy()
 	s.modWhyHandles.Destroy()
+	s.unloadableFiles.Destroy()
 }
 
 func (s *snapshot) SequenceID() uint64 {
@@ -750,7 +751,7 @@ func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source
 	}
 
 	// Check if uri is known to be unloadable.
-	_, unloadable := s.unloadableFiles[uri]
+	unloadable := s.unloadableFiles.Contains(uri)
 
 	s.mu.Unlock()
 
@@ -803,7 +804,7 @@ func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source
 	// so if we get here and still have
 	// no IDs, uri is unloadable.
 	if !unloadable && len(ids) == 0 {
-		s.unloadableFiles[uri] = struct{}{}
+		s.unloadableFiles.Add(uri)
 	}
 
 	// Sort packages "narrowest" to "widest" (in practice:
@@ -1017,14 +1018,14 @@ func (s *snapshot) collectAllKnownSubdirs(ctx context.Context) {
 	defer s.mu.Unlock()
 
 	s.knownSubdirs.Destroy()
-	s.knownSubdirs = newKnownDirsSet()
+	s.knownSubdirs = new(persistent.Set[span.URI])
 	s.knownSubdirsCache = nil
 	s.files.Range(func(uri span.URI, fh source.FileHandle) {
 		s.addKnownSubdirLocked(uri, dirs)
 	})
 }
 
-func (s *snapshot) getKnownSubdirs(wsDirs []span.URI) knownDirsSet {
+func (s *snapshot) getKnownSubdirs(wsDirs []span.URI) *persistent.Set[span.URI] {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -1075,7 +1076,7 @@ func (s *snapshot) addKnownSubdirLocked(uri span.URI, dirs []span.URI) {
 		if s.knownSubdirs.Contains(uri) {
 			break
 		}
-		s.knownSubdirs.Insert(uri)
+		s.knownSubdirs.Add(uri)
 		dir = filepath.Dir(dir)
 		s.knownSubdirsCache = nil
 	}
@@ -1592,7 +1593,7 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 	s.mu.Lock()
 	loadable := files[:0]
 	for _, file := range files {
-		if _, unloadable := s.unloadableFiles[file.URI()]; !unloadable {
+		if !s.unloadableFiles.Contains(file.URI()) {
 			loadable = append(loadable, file)
 		}
 	}
@@ -1655,7 +1656,7 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 		// metadata graph that resulted from loading.
 		uri := file.URI()
 		if len(s.meta.ids[uri]) == 0 {
-			s.unloadableFiles[uri] = struct{}{}
+			s.unloadableFiles.Add(uri)
 		}
 	}
 
@@ -1969,7 +1970,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		files:                s.files.Clone(),
 		symbolizeHandles:     s.symbolizeHandles.Clone(),
 		workspacePackages:    make(map[PackageID]PackagePath, len(s.workspacePackages)),
-		unloadableFiles:      make(map[span.URI]struct{}, len(s.unloadableFiles)),
+		unloadableFiles:      s.unloadableFiles.Clone(), // see the TODO for unloadableFiles below
 		parseModHandles:      s.parseModHandles.Clone(),
 		parseWorkHandles:     s.parseWorkHandles.Clone(),
 		modTidyHandles:       s.modTidyHandles.Clone(),
@@ -1993,16 +1994,11 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// incref/decref operation that might destroy it prematurely.)
 	release := result.Acquire()
 
-	// Copy the set of unloadable files.
-	//
-	// TODO(rfindley): this looks wrong. Shouldn't we clear unloadableFiles on
+	// TODO(rfindley): this looks wrong. Should we clear unloadableFiles on
 	// changes to environment or workspace layout, or more generally on any
 	// metadata change?
 	//
 	// Maybe not, as major configuration changes cause a new view.
-	for k, v := range s.unloadableFiles {
-		result.unloadableFiles[k] = v
-	}
 
 	// Add all of the known subdirectories, but don't update them for the
 	// changed files. We need to rebuild the workspace module to know the
@@ -2119,7 +2115,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		// TODO(rfindley): this also looks wrong, as typing in an unloadable file
 		// will result in repeated reloads. We should only delete if metadata
 		// changed.
-		delete(result.unloadableFiles, uri)
+		result.unloadableFiles.Remove(uri)
 	}
 
 	// Deleting an import can cause list errors due to import cycles to be

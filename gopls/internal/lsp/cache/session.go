@@ -176,13 +176,13 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		activePackages:       new(persistent.Map[PackageID, *Package]),
 		symbolizeHandles:     new(persistent.Map[span.URI, *memoize.Promise]),
 		workspacePackages:    make(map[PackageID]PackagePath),
-		unloadableFiles:      make(map[span.URI]struct{}),
+		unloadableFiles:      new(persistent.Set[span.URI]),
 		parseModHandles:      new(persistent.Map[span.URI, *memoize.Promise]),
 		parseWorkHandles:     new(persistent.Map[span.URI, *memoize.Promise]),
 		modTidyHandles:       new(persistent.Map[span.URI, *memoize.Promise]),
 		modVulnHandles:       new(persistent.Map[span.URI, *memoize.Promise]),
 		modWhyHandles:        new(persistent.Map[span.URI, *memoize.Promise]),
-		knownSubdirs:         newKnownDirsSet(),
+		knownSubdirs:         new(persistent.Set[span.URI]),
 		workspaceModFiles:    wsModFiles,
 		workspaceModFilesErr: wsModFilesErr,
 		pkgIndex:             typerefs.NewPackageIndex(),
@@ -619,15 +619,15 @@ func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes 
 // knownDirectories returns all of the directories known to the given
 // snapshots, including workspace directories and their subdirectories.
 // It is responsibility of the caller to destroy the returned set.
-func knownDirectories(ctx context.Context, snapshots []*snapshot) knownDirsSet {
-	result := newKnownDirsSet()
+func knownDirectories(ctx context.Context, snapshots []*snapshot) *persistent.Set[span.URI] {
+	result := new(persistent.Set[span.URI])
 	for _, snapshot := range snapshots {
 		dirs := snapshot.dirs(ctx)
 		for _, dir := range dirs {
-			result.Insert(dir)
+			result.Add(dir)
 		}
 		knownSubdirs := snapshot.getKnownSubdirs(dirs)
-		result.SetAll(knownSubdirs)
+		result.AddAll(knownSubdirs)
 		knownSubdirs.Destroy()
 	}
 	return result
