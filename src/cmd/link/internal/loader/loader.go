@@ -27,7 +27,7 @@ var _ = fmt.Print
 
 // Sym encapsulates a global symbol index, used to identify a specific
 // Go symbol. The 0-valued Sym is corresponds to an invalid symbol.
-type Sym uint32
+type Sym = sym.LoaderSym
 
 // Relocs encapsulates the set of relocations on a given symbol; an
 // instance of this type is returned by the Loader Relocs() method.

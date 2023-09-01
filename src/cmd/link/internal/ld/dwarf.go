@@ -1513,16 +1513,6 @@ const (
 	COMPUNITHEADERSIZE = 4 + 2 + 4 + 1
 )
 
-// appendSyms appends the syms from 'src' into 'syms' and returns the
-// result. This can go away once we do away with sym.LoaderSym
-// entirely.
-func appendSyms(syms []loader.Sym, src []sym.LoaderSym) []loader.Sym {
-	for _, s := range src {
-		syms = append(syms, loader.Sym(s))
-	}
-	return syms
-}
-
 func (d *dwctxt) writeUnitInfo(u *sym.CompilationUnit, abbrevsym loader.Sym, infoEpilog loader.Sym) []loader.Sym {
 	syms := []loader.Sym{}
 	if len(u.Textp) == 0 && u.DWInfo.Child == nil && len(u.VarDIEs) == 0 {
@@ -1551,12 +1541,12 @@ func (d *dwctxt) writeUnitInfo(u *sym.CompilationUnit, abbrevsym loader.Sym, inf
 	// This is an under-estimate; more will be needed for type DIEs.
 	cu := make([]loader.Sym, 0, len(u.AbsFnDIEs)+len(u.FuncDIEs))
 	cu = append(cu, s)
-	cu = appendSyms(cu, u.AbsFnDIEs)
-	cu = appendSyms(cu, u.FuncDIEs)
+	cu = append(cu, u.AbsFnDIEs...)
+	cu = append(cu, u.FuncDIEs...)
 	if u.Consts != 0 {
 		cu = append(cu, loader.Sym(u.Consts))
 	}
-	cu = appendSyms(cu, u.VarDIEs)
+	cu = append(cu, u.VarDIEs...)
 	var cusize int64
 	for _, child := range cu {
 		cusize += int64(len(d.ldr.Data(child)))
