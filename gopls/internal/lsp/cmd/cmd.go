@@ -348,15 +348,6 @@ func (app *Application) connect(ctx context.Context, onProgress func(*protocol.P
 	}
 }
 
-// CloseTestConnections terminates shared connections used in command tests. It
-// should only be called from tests.
-func CloseTestConnections(ctx context.Context) {
-	for _, c := range internalConnections {
-		c.Shutdown(ctx)
-		c.Exit(ctx)
-	}
-}
-
 func (app *Application) connectRemote(ctx context.Context, remote string) (*connection, error) {
 	conn, err := lsprpc.ConnectToRemote(ctx, remote)
 	if err != nil {

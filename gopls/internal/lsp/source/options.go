@@ -1311,14 +1311,6 @@ func (e *SoftError) Error() string {
 	return e.msg
 }
 
-// softErrorf reports an error that does not affect the functionality of gopls
-// (a warning in the UI).
-// The formatted message will be shown to the user unmodified.
-func (r *OptionResult) softErrorf(format string, values ...interface{}) {
-	msg := fmt.Sprintf(format, values...)
-	r.Error = &SoftError{msg}
-}
-
 // deprecated reports the current setting as deprecated. If 'replacement' is
 // non-nil, it is suggested to the user.
 func (r *OptionResult) deprecated(replacement string) {
