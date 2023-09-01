@@ -73,13 +73,12 @@ type dwctxt struct {
 // DwAttr objects contain references to symbols via this type.
 type dwSym loader.Sym
 
-func (s dwSym) Length(dwarfContext interface{}) int64 {
-	l := dwarfContext.(dwctxt).ldr
-	return int64(len(l.Data(loader.Sym(s))))
-}
-
 func (c dwctxt) PtrSize() int {
 	return c.arch.PtrSize
+}
+
+func (c dwctxt) Size(s dwarf.Sym) int64 {
+	return int64(len(c.ldr.Data(loader.Sym(s.(dwSym)))))
 }
 
 func (c dwctxt) AddInt(s dwarf.Sym, size int, i int64) {

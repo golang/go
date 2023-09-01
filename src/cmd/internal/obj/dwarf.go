@@ -207,6 +207,9 @@ type dwCtxt struct{ *Link }
 func (c dwCtxt) PtrSize() int {
 	return c.Arch.PtrSize
 }
+func (c dwCtxt) Size(s dwarf.Sym) int64 {
+	return s.(*LSym).Size
+}
 func (c dwCtxt) AddInt(s dwarf.Sym, size int, i int64) {
 	ls := s.(*LSym)
 	ls.WriteInt(c.Link, ls.Size, size, i)
@@ -313,10 +316,6 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, 
 		}
 	}
 	return fn.dwarfInfoSym, fn.dwarfLocSym, fn.dwarfRangesSym, fn.dwarfAbsFnSym, fn.dwarfDebugLinesSym
-}
-
-func (s *LSym) Length(dwarfContext interface{}) int64 {
-	return s.Size
 }
 
 // textPos returns the source position of the first instruction (prog)
