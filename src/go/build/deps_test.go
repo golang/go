@@ -157,7 +157,7 @@ var depsRules = `
 
 	unicode, fmt !< net, os, os/signal;
 
-	os/signal, STR
+	os/signal, internal/safefilepath, STR
 	< path/filepath
 	< io/ioutil;
 
