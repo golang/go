@@ -392,13 +392,15 @@ import (
 	"unicode/utf8"
 )
 
+var initOnce sync.Once
+
 // Init registers testing flags. These flags are automatically registered by
 // the "go test" command before running test functions, so Init is only needed
 // when calling functions such as Benchmark without using "go test".
 //
 // Init has no effect if it was already called.
 func Init() {
-	sync.OnceFunc(initFlags)()
+	initOnce.Do(initFlags)
 }
 
 func initFlags() {
