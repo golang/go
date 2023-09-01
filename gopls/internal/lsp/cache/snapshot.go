@@ -97,7 +97,7 @@ type snapshot struct {
 
 	// files maps file URIs to their corresponding FileHandles.
 	// It may invalidated when a file's content changes.
-	files filesMap
+	files *fileMap
 
 	// symbolizeHandles maps each file URI to a handle for the future
 	// result of computing the symbols declared in that file.
@@ -149,15 +149,6 @@ type snapshot struct {
 	modTidyHandles *persistent.Map[span.URI, *memoize.Promise] // *memoize.Promise[modTidyResult]
 	modWhyHandles  *persistent.Map[span.URI, *memoize.Promise] // *memoize.Promise[modWhyResult]
 	modVulnHandles *persistent.Map[span.URI, *memoize.Promise] // *memoize.Promise[modVulnResult]
-
-	// knownSubdirs is the set of subdirectory URIs in the workspace,
-	// used to create glob patterns for file watching.
-	knownSubdirs      *persistent.Set[span.URI]
-	knownSubdirsCache map[string]struct{} // memo of knownSubdirs as a set of filenames
-	// unprocessedSubdirChanges are any changes that might affect the set of
-	// subdirectories in the workspace. They are not reflected to knownSubdirs
-	// during the snapshot cloning step as it can slow down cloning.
-	unprocessedSubdirChanges []*fileChange
 
 	// workspaceModFiles holds the set of mod files active in this snapshot.
 	//
@@ -262,7 +253,6 @@ func (s *snapshot) destroy(destroyedBy string) {
 	s.packages.Destroy()
 	s.activePackages.Destroy()
 	s.files.Destroy()
-	s.knownSubdirs.Destroy()
 	s.symbolizeHandles.Destroy()
 	s.parseModHandles.Destroy()
 	s.parseWorkHandles.Destroy()
@@ -629,7 +619,7 @@ func (s *snapshot) overlays() []*Overlay {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.files.overlays()
+	return s.files.Overlays()
 }
 
 // Package data kinds, identifying various package data that may be stored in
@@ -899,10 +889,8 @@ func (s *snapshot) resetActivePackagesLocked() {
 	s.activePackages = new(persistent.Map[PackageID, *Package])
 }
 
-const fileExtensions = "go,mod,sum,work"
-
 func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]struct{} {
-	extensions := fileExtensions
+	extensions := "go,mod,sum,work"
 	for _, ext := range s.Options().TemplateExtensions {
 		extensions += "," + ext
 	}
@@ -920,19 +908,17 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 	}
 
 	// Add a pattern for each Go module in the workspace that is not within the view.
-	dirs := s.dirs(ctx)
+	dirs := s.workspaceDirs(ctx)
 	for _, dir := range dirs {
-		dirName := dir.Filename()
-
 		// If the directory is within the view's folder, we're already watching
 		// it with the first pattern above.
-		if source.InDir(s.view.folder.Filename(), dirName) {
+		if source.InDir(s.view.folder.Filename(), dir) {
 			continue
 		}
 		// TODO(rstambler): If microsoft/vscode#3025 is resolved before
 		// microsoft/vscode#101042, we will need a work-around for Windows
 		// drive letter casing.
-		patterns[fmt.Sprintf("%s/**/*.{%s}", dirName, extensions)] = struct{}{}
+		patterns[fmt.Sprintf("%s/**/*.{%s}", dir, extensions)] = struct{}{}
 	}
 
 	if s.watchSubdirs() {
@@ -942,6 +928,11 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 		// by adding the directories of every file in the snapshot's workspace
 		// directories. There may be thousands of patterns, each a single
 		// directory.
+		//
+		// We compute this set by looking at files that we've previously observed.
+		// This may miss changed to directories that we haven't observed, but that
+		// shouldn't matter as there is nothing to invalidate (if a directory falls
+		// in forest, etc).
 		//
 		// (A previous iteration created a single glob pattern holding a union of
 		// all the directories, but this was found to cause VS Code to get stuck
@@ -954,6 +945,46 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 	}
 
 	return patterns
+}
+
+func (s *snapshot) addKnownSubdirs(patterns map[string]unit, wsDirs []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.files.Dirs().Range(func(dir string) {
+		for _, wsDir := range wsDirs {
+			if source.InDir(wsDir, dir) {
+				patterns[dir] = unit{}
+			}
+		}
+	})
+}
+
+// workspaceDirs returns the workspace directories for the loaded modules.
+//
+// A workspace directory is, roughly speaking, a directory for which we care
+// about file changes.
+func (s *snapshot) workspaceDirs(ctx context.Context) []string {
+	dirSet := make(map[string]unit)
+
+	// Dirs should, at the very least, contain the working directory and folder.
+	dirSet[s.view.workingDir().Filename()] = unit{}
+	dirSet[s.view.folder.Filename()] = unit{}
+
+	// Additionally, if e.g. go.work indicates other workspace modules, we should
+	// include their directories too.
+	if s.workspaceModFilesErr == nil {
+		for modFile := range s.workspaceModFiles {
+			dir := filepath.Dir(modFile.Filename())
+			dirSet[dir] = unit{}
+		}
+	}
+	var dirs []string
+	for d := range dirSet {
+		dirs = append(dirs, d)
+	}
+	sort.Strings(dirs)
+	return dirs
 }
 
 // watchSubdirs reports whether gopls should request separate file watchers for
@@ -985,127 +1016,19 @@ func (s *snapshot) watchSubdirs() bool {
 	}
 }
 
-func (s *snapshot) addKnownSubdirs(patterns map[string]struct{}, wsDirs []span.URI) {
+// filesInDir returns all files observed by the snapshot that are contained in
+// a directory with the provided URI.
+func (s *snapshot) filesInDir(uri span.URI) []span.URI {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// First, process any pending changes and update the set of known
-	// subdirectories.
-	// It may change list of known subdirs and therefore invalidate the cache.
-	s.applyKnownSubdirsChangesLocked(wsDirs)
-
-	// TODO(adonovan): is it still necessary to memoize the Range
-	// and URI.Filename operations?
-	if s.knownSubdirsCache == nil {
-		s.knownSubdirsCache = make(map[string]struct{})
-		s.knownSubdirs.Range(func(uri span.URI) {
-			s.knownSubdirsCache[uri.Filename()] = struct{}{}
-		})
+	dir := uri.Filename()
+	if !s.files.Dirs().Contains(dir) {
+		return nil
 	}
-
-	for pattern := range s.knownSubdirsCache {
-		patterns[pattern] = struct{}{}
-	}
-}
-
-// collectAllKnownSubdirs collects all of the subdirectories within the
-// snapshot's workspace directories. None of the workspace directories are
-// included.
-func (s *snapshot) collectAllKnownSubdirs(ctx context.Context) {
-	dirs := s.dirs(ctx)
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.knownSubdirs.Destroy()
-	s.knownSubdirs = new(persistent.Set[span.URI])
-	s.knownSubdirsCache = nil
-	s.files.Range(func(uri span.URI, fh source.FileHandle) {
-		s.addKnownSubdirLocked(uri, dirs)
-	})
-}
-
-func (s *snapshot) getKnownSubdirs(wsDirs []span.URI) *persistent.Set[span.URI] {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// First, process any pending changes and update the set of known
-	// subdirectories.
-	s.applyKnownSubdirsChangesLocked(wsDirs)
-
-	return s.knownSubdirs.Clone()
-}
-
-func (s *snapshot) applyKnownSubdirsChangesLocked(wsDirs []span.URI) {
-	for _, c := range s.unprocessedSubdirChanges {
-		if c.isUnchanged {
-			continue
-		}
-		if !c.exists {
-			s.removeKnownSubdirLocked(c.fileHandle.URI())
-		} else {
-			s.addKnownSubdirLocked(c.fileHandle.URI(), wsDirs)
-		}
-	}
-	s.unprocessedSubdirChanges = nil
-}
-
-func (s *snapshot) addKnownSubdirLocked(uri span.URI, dirs []span.URI) {
-	dir := filepath.Dir(uri.Filename())
-	// First check if the directory is already known, because then we can
-	// return early.
-	if s.knownSubdirs.Contains(span.URIFromPath(dir)) {
-		return
-	}
-	var matched span.URI
-	for _, wsDir := range dirs {
-		if source.InDir(wsDir.Filename(), dir) {
-			matched = wsDir
-			break
-		}
-	}
-	// Don't watch any directory outside of the workspace directories.
-	if matched == "" {
-		return
-	}
-	for {
-		if dir == "" || dir == matched.Filename() {
-			break
-		}
-		uri := span.URIFromPath(dir)
-		if s.knownSubdirs.Contains(uri) {
-			break
-		}
-		s.knownSubdirs.Add(uri)
-		dir = filepath.Dir(dir)
-		s.knownSubdirsCache = nil
-	}
-}
-
-func (s *snapshot) removeKnownSubdirLocked(uri span.URI) {
-	dir := filepath.Dir(uri.Filename())
-	for dir != "" {
-		uri := span.URIFromPath(dir)
-		if !s.knownSubdirs.Contains(uri) {
-			break
-		}
-		if info, _ := os.Stat(dir); info == nil {
-			s.knownSubdirs.Remove(uri)
-			s.knownSubdirsCache = nil
-		}
-		dir = filepath.Dir(dir)
-	}
-}
-
-// knownFilesInDir returns the files known to the given snapshot that are in
-// the given directory. It does not respect symlinks.
-func (s *snapshot) knownFilesInDir(ctx context.Context, dir span.URI) []span.URI {
 	var files []span.URI
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.files.Range(func(uri span.URI, fh source.FileHandle) {
-		if source.InDir(dir.Filename(), uri.Filename()) {
+	s.files.Range(func(uri span.URI, _ source.FileHandle) {
+		if source.InDir(dir, uri.Filename()) {
 			files = append(files, uri)
 		}
 	})
@@ -1976,7 +1899,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		modTidyHandles:       s.modTidyHandles.Clone(),
 		modWhyHandles:        s.modWhyHandles.Clone(),
 		modVulnHandles:       s.modVulnHandles.Clone(),
-		knownSubdirs:         s.knownSubdirs.Clone(),
 		workspaceModFiles:    wsModFiles,
 		workspaceModFilesErr: wsModFilesErr,
 		importGraph:          s.importGraph,
@@ -1999,15 +1921,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// metadata change?
 	//
 	// Maybe not, as major configuration changes cause a new view.
-
-	// Add all of the known subdirectories, but don't update them for the
-	// changed files. We need to rebuild the workspace module to know the
-	// true set of known subdirectories, but we don't want to do that in clone.
-	result.knownSubdirs = s.knownSubdirs.Clone()
-	result.knownSubdirsCache = s.knownSubdirsCache
-	for _, c := range changes {
-		result.unprocessedSubdirChanges = append(result.unprocessedSubdirChanges, c)
-	}
 
 	// directIDs keeps track of package IDs that have directly changed.
 	// Note: this is not a set, it's a map from id to invalidateMetadata.
@@ -2099,14 +2012,17 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 		result.parseModHandles.Delete(uri)
 		result.parseWorkHandles.Delete(uri)
+
 		// Handle the invalidated file; it may have new contents or not exist.
+		//
+		// Note, we can't simply delete the file unconditionally and let it be
+		// re-read, as (1) the snapshot must observe all overlays, and (2) deleting
+		// a file forces directories to be reevaluated, as it may be the last file
+		// in a directory. We want to avoid that work in the common case where a
+		// file has simply changed.
 		if !change.exists {
 			result.files.Delete(uri)
 		} else {
-			// TODO(golang/go#57558): the line below is strictly necessary to ensure
-			// that snapshots have each overlay, but it is problematic that we must
-			// set any content in snapshot.clone: if the file has changed, let it be
-			// re-read.
 			result.files.Set(uri, change.fileHandle)
 		}
 

@@ -11,7 +11,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"golang.org/x/mod/modfile"
@@ -58,38 +57,6 @@ func computeWorkspaceModFiles(ctx context.Context, gomod, gowork span.URI, go111
 		return map[span.URI]struct{}{gomod: {}}, nil
 	}
 	return nil, nil
-}
-
-// dirs returns the workspace directories for the loaded modules.
-//
-// A workspace directory is, roughly speaking, a directory for which we care
-// about file changes. This is used for the purpose of registering file
-// watching patterns, and expanding directory modifications to their adjacent
-// files.
-//
-// TODO(rfindley): move this to snapshot.go.
-// TODO(rfindley): can we make this abstraction simpler and/or more accurate?
-func (s *snapshot) dirs(ctx context.Context) []span.URI {
-	dirSet := make(map[span.URI]struct{})
-
-	// Dirs should, at the very least, contain the working directory and folder.
-	dirSet[s.view.workingDir()] = struct{}{}
-	dirSet[s.view.folder] = struct{}{}
-
-	// Additionally, if e.g. go.work indicates other workspace modules, we should
-	// include their directories too.
-	if s.workspaceModFilesErr == nil {
-		for modFile := range s.workspaceModFiles {
-			dir := filepath.Dir(modFile.Filename())
-			dirSet[span.URIFromPath(dir)] = struct{}{}
-		}
-	}
-	var dirs []span.URI
-	for d := range dirSet {
-		dirs = append(dirs, d)
-	}
-	sort.Slice(dirs, func(i, j int) bool { return dirs[i] < dirs[j] })
-	return dirs
 }
 
 // isGoMod reports if uri is a go.mod file.

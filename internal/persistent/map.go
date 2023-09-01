@@ -30,8 +30,8 @@ import (
 // Map is an associative mapping from keys to values.
 //
 // Maps can be Cloned in constant time.
-// Get, Store, and Delete operations are done on average in logarithmic time.
-// Maps can be Updated in O(m log(n/m)) time for maps of size n and m, where m < n.
+// Get, Set, and Delete operations are done on average in logarithmic time.
+// Maps can be merged (via SetAll) in O(m log(n/m)) time for maps of size n and m, where m < n.
 //
 // Values are reference counted, and a client-supplied release function
 // is called when a value is no longer referenced by a map or any clone.

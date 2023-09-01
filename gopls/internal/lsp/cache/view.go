@@ -778,7 +778,6 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 	}
 
 	s.loadWorkspace(ctx, firstAttempt)
-	s.collectAllKnownSubdirs(ctx)
 }
 
 func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) (loadErr error) {

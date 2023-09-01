@@ -172,7 +172,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		store:                s.cache.store,
 		packages:             new(persistent.Map[PackageID, *packageHandle]),
 		meta:                 new(metadataGraph),
-		files:                newFilesMap(),
+		files:                newFileMap(),
 		activePackages:       new(persistent.Map[PackageID, *Package]),
 		symbolizeHandles:     new(persistent.Map[span.URI, *memoize.Promise]),
 		workspacePackages:    make(map[PackageID]PackagePath),
@@ -182,7 +182,6 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		modTidyHandles:       new(persistent.Map[span.URI, *memoize.Promise]),
 		modVulnHandles:       new(persistent.Map[span.URI, *memoize.Promise]),
 		modWhyHandles:        new(persistent.Map[span.URI, *memoize.Promise]),
-		knownSubdirs:         new(persistent.Set[span.URI]),
 		workspaceModFiles:    wsModFiles,
 		workspaceModFilesErr: wsModFilesErr,
 		pkgIndex:             typerefs.NewPackageIndex(),
@@ -594,15 +593,23 @@ func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes 
 	}
 	s.viewMu.Unlock()
 
-	knownDirs := knownDirectories(ctx, snapshots)
-	defer knownDirs.Destroy()
-
+	// Expand the modification to any file we could care about, which we define
+	// to be any file observed by any of the snapshots.
+	//
+	// There may be other files in the directory, but if we haven't read them yet
+	// we don't need to invalidate them.
 	var result []source.FileModification
 	for _, c := range changes {
-		if !knownDirs.Contains(c.URI) {
+		expanded := make(map[span.URI]bool)
+		for _, snapshot := range snapshots {
+			for _, uri := range snapshot.filesInDir(c.URI) {
+				expanded[uri] = true
+			}
+		}
+		if len(expanded) == 0 {
 			result = append(result, c)
 		} else {
-			for uri := range knownFilesInDir(ctx, snapshots, c.URI) {
+			for uri := range expanded {
 				result = append(result, source.FileModification{
 					URI:        uri,
 					Action:     c.Action,
@@ -614,36 +621,6 @@ func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes 
 		}
 	}
 	return result
-}
-
-// knownDirectories returns all of the directories known to the given
-// snapshots, including workspace directories and their subdirectories.
-// It is responsibility of the caller to destroy the returned set.
-func knownDirectories(ctx context.Context, snapshots []*snapshot) *persistent.Set[span.URI] {
-	result := new(persistent.Set[span.URI])
-	for _, snapshot := range snapshots {
-		dirs := snapshot.dirs(ctx)
-		for _, dir := range dirs {
-			result.Add(dir)
-		}
-		knownSubdirs := snapshot.getKnownSubdirs(dirs)
-		result.AddAll(knownSubdirs)
-		knownSubdirs.Destroy()
-	}
-	return result
-}
-
-// knownFilesInDir returns the files known to the snapshots in the session.
-// It does not respect symlinks.
-func knownFilesInDir(ctx context.Context, snapshots []*snapshot, dir span.URI) map[span.URI]struct{} {
-	files := map[span.URI]struct{}{}
-
-	for _, snapshot := range snapshots {
-		for _, uri := range snapshot.knownFilesInDir(ctx, dir) {
-			files[uri] = struct{}{}
-		}
-	}
-	return files
 }
 
 // Precondition: caller holds s.viewMu lock.
