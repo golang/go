@@ -21,7 +21,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"golang.org/x/exp/slices"
 	"golang.org/x/tools/gopls/internal/lsp"
 	"golang.org/x/tools/gopls/internal/lsp/browser"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
@@ -547,13 +546,13 @@ func (c *cmdClient) ApplyEdit(ctx context.Context, p *protocol.ApplyWorkspaceEdi
 // files, honoring the preferred edit mode specified by cli.app.editMode.
 // (Used by rename and by ApplyEdit downcalls.)
 func (cli *cmdClient) applyWorkspaceEdit(edit *protocol.WorkspaceEdit) error {
-	var orderedURIs []span.URI
+	var orderedURIs []string
 	edits := map[span.URI][]protocol.TextEdit{}
 	for _, c := range edit.DocumentChanges {
 		if c.TextDocumentEdit != nil {
 			uri := fileURI(c.TextDocumentEdit.TextDocument.URI)
 			edits[uri] = append(edits[uri], c.TextDocumentEdit.Edits...)
-			orderedURIs = append(orderedURIs, uri)
+			orderedURIs = append(orderedURIs, string(uri))
 		}
 		if c.RenameFile != nil {
 			return fmt.Errorf("client does not support file renaming (%s -> %s)",
@@ -561,8 +560,9 @@ func (cli *cmdClient) applyWorkspaceEdit(edit *protocol.WorkspaceEdit) error {
 				c.RenameFile.NewURI)
 		}
 	}
-	slices.Sort(orderedURIs)
-	for _, uri := range orderedURIs {
+	sort.Strings(orderedURIs)
+	for _, u := range orderedURIs {
+		uri := span.URIFromURI(u)
 		f := cli.openFile(uri)
 		if f.err != nil {
 			return f.err
