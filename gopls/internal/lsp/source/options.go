@@ -39,6 +39,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/passes/shadow"
 	"golang.org/x/tools/go/analysis/passes/shift"
+	"golang.org/x/tools/go/analysis/passes/slog"
 	"golang.org/x/tools/go/analysis/passes/sortslice"
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
 	"golang.org/x/tools/go/analysis/passes/stringintconv"
@@ -1549,6 +1550,7 @@ func defaultAnalyzers() map[string]*Analyzer {
 		nilfunc.Analyzer.Name:       {Analyzer: nilfunc.Analyzer, Enabled: true},
 		printf.Analyzer.Name:        {Analyzer: printf.Analyzer, Enabled: true},
 		shift.Analyzer.Name:         {Analyzer: shift.Analyzer, Enabled: true},
+		slog.Analyzer.Name:          {Analyzer: slog.Analyzer, Enabled: true},
 		stdmethods.Analyzer.Name:    {Analyzer: stdmethods.Analyzer, Enabled: true},
 		stringintconv.Analyzer.Name: {Analyzer: stringintconv.Analyzer, Enabled: true},
 		structtag.Analyzer.Name:     {Analyzer: structtag.Analyzer, Enabled: true},
