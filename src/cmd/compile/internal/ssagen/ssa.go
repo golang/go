@@ -118,6 +118,7 @@ func InitConfig() {
 	ir.Syms.GCWriteBarrier[7] = typecheck.LookupRuntimeFunc("gcWriteBarrier8")
 	ir.Syms.Goschedguarded = typecheck.LookupRuntimeFunc("goschedguarded")
 	ir.Syms.Growslice = typecheck.LookupRuntimeFunc("growslice")
+	ir.Syms.InterfaceSwitch = typecheck.LookupRuntimeFunc("interfaceSwitch")
 	ir.Syms.Memmove = typecheck.LookupRuntimeFunc("memmove")
 	ir.Syms.Msanread = typecheck.LookupRuntimeFunc("msanread")
 	ir.Syms.Msanwrite = typecheck.LookupRuntimeFunc("msanwrite")
@@ -2016,6 +2017,15 @@ func (s *state) stmt(n ir.Node) {
 		s.endBlock()
 
 		s.startBlock(bEnd)
+
+	case ir.OINTERFACESWITCH:
+		n := n.(*ir.InterfaceSwitchStmt)
+
+		t := s.expr(n.RuntimeType)
+		d := s.newValue1A(ssa.OpAddr, s.f.Config.Types.BytePtr, n.Descriptor, s.sb)
+		r := s.rtcall(ir.Syms.InterfaceSwitch, true, []*types.Type{s.f.Config.Types.Int, s.f.Config.Types.BytePtr}, d, t)
+		s.assign(n.Case, r[0], false, 0)
+		s.assign(n.Itab, r[1], false, 0)
 
 	case ir.OCHECKNIL:
 		n := n.(*ir.UnaryExpr)

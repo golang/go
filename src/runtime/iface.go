@@ -468,6 +468,22 @@ func assertE2I2(inter *interfacetype, e eface) (r iface) {
 	return
 }
 
+// interfaceSwitch compares t against the list of cases in s.
+// If t matches case i, interfaceSwitch returns the case index i and
+// an itab for the pair <t, s.Cases[i]>.
+// If there is no match, return N,nil, where N is the number
+// of cases.
+func interfaceSwitch(s *abi.InterfaceSwitch, t *_type) (int, *itab) {
+	cases := unsafe.Slice(&s.Cases[0], s.NCases)
+	for i, c := range cases {
+		tab := getitab(c, t, true)
+		if tab != nil {
+			return i, tab
+		}
+	}
+	return len(cases), nil
+}
+
 //go:linkname reflect_ifaceE2I reflect.ifaceE2I
 func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
 	*dst = iface{assertE2I(inter, e._type), e.data}

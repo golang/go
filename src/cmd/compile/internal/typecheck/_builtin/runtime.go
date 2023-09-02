@@ -112,6 +112,9 @@ func panicdottypeE(have, want, iface *byte)
 func panicdottypeI(have, want, iface *byte)
 func panicnildottype(want *byte)
 
+// interface switches
+func interfaceSwitch(s *byte, t *byte) (int, *byte)
+
 // interface equality. Type/itab pointers are already known to be equal, so
 // we only need to pass one.
 func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)

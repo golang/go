@@ -118,3 +118,24 @@ func typeSwitch(x any) int {
 	}
 	return 7
 }
+
+type I interface {
+	foo()
+}
+type J interface {
+	bar()
+}
+
+// use a runtime call for type switches to interface types.
+func interfaceSwitch(x any) int {
+	// amd64:`CALL\truntime.interfaceSwitch`
+	// arm64:`CALL\truntime.interfaceSwitch`
+	switch x.(type) {
+	case I:
+		return 1
+	case J:
+		return 2
+	default:
+		return 3
+	}
+}
