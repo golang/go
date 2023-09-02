@@ -392,18 +392,20 @@ import (
 	"unicode/utf8"
 )
 
-var initOnce sync.Once
+var initRan bool
 
 // Init registers testing flags. These flags are automatically registered by
 // the "go test" command before running test functions, so Init is only needed
 // when calling functions such as Benchmark without using "go test".
+// It must be called before these flags are accessed by the program.
 //
-// Init has no effect if it was already called.
+// Init has no effect if it was already called, and note that
+// it is not safe to be called concurrently.
 func Init() {
-	initOnce.Do(initFlags)
-}
-
-func initFlags() {
+	if initRan {
+		return
+	}
+	initRan = true
 	// The short flag requests that tests run more quickly, but its functionality
 	// is provided by test writers themselves. The testing package is just its
 	// home. The all.bash installation script sets it to make installation more
