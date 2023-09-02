@@ -24,7 +24,7 @@ type userTypeInfo struct {
 	base        reflect.Type // the base type after all indirections
 	indir       int          // number of indirections to reach the base type
 	externalEnc int          // xGob, xBinary, or xText
-	externalDec int          // xGob, xBinary or xText
+	externalDec int          // xGob, xBinary, or xText
 	encIndir    int8         // number of indirections to reach the receiver type; may be negative
 	decIndir    int8         // number of indirections to reach the receiver type; may be negative
 }
