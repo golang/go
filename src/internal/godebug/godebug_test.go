@@ -72,7 +72,7 @@ func TestMetrics(t *testing.T) {
 
 func TestCmdBisect(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	out, err := exec.Command("go", "run", "cmd/vendor/golang.org/x/tools/cmd/bisect", "GODEBUG=buggy=1#PATTERN", os.Args[0], "-test.run=BisectTestCase").CombinedOutput()
+	out, err := exec.Command("go", "run", "cmd/vendor/golang.org/x/tools/cmd/bisect", "GODEBUG=buggy=1#PATTERN", os.Args[0], "-test.run=^TestBisectTestCase$").CombinedOutput()
 	if err != nil {
 		t.Fatalf("exec bisect: %v\n%s", err, out)
 	}
@@ -101,7 +101,7 @@ func TestCmdBisect(t *testing.T) {
 
 // This test does nothing by itself, but you can run
 //
-//	bisect 'GODEBUG=buggy=1#PATTERN' go test -run=BisectTestCase
+//	bisect 'GODEBUG=buggy=1#PATTERN' go test -run='^TestBisectTestCase$'
 //
 // to see that the GODEBUG bisect support is working.
 // TestCmdBisect above does exactly that.

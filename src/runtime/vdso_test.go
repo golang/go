@@ -47,8 +47,8 @@ func TestUsingVDSO(t *testing.T) {
 		t.Skipf("skipping because Executable failed: %v", err)
 	}
 
-	t.Logf("GO_WANT_HELPER_PROCESS=1 %s -f -e clock_gettime %s -test.run=TestUsingVDSO", strace, exe)
-	cmd := testenv.Command(t, strace, "-f", "-e", "clock_gettime", exe, "-test.run=TestUsingVDSO")
+	t.Logf("GO_WANT_HELPER_PROCESS=1 %s -f -e clock_gettime %s -test.run=^TestUsingVDSO$", strace, exe)
+	cmd := testenv.Command(t, strace, "-f", "-e", "clock_gettime", exe, "-test.run=^TestUsingVDSO$")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
 	out, err := cmd.CombinedOutput()

@@ -242,7 +242,7 @@ func TestUnshareMountNameSpace(t *testing.T) {
 			syscall.Unmount(d, syscall.MNT_FORCE)
 		}
 	})
-	cmd := testenv.Command(t, exe, "-test.run=TestUnshareMountNameSpace", d)
+	cmd := testenv.Command(t, exe, "-test.run=^TestUnshareMountNameSpace$", d)
 	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNS}
 
@@ -305,7 +305,7 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 		t.Fatalf("%v: %v\n%s", cmd, err, o)
 	}
 
-	cmd = testenv.Command(t, "/syscall.test", "-test.run=TestUnshareMountNameSpaceChroot", "/")
+	cmd = testenv.Command(t, "/syscall.test", "-test.run=^TestUnshareMountNameSpaceChroot$", "/")
 	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Chroot: d, Unshareflags: syscall.CLONE_NEWNS}
 
@@ -356,7 +356,7 @@ func TestUnshareUidGidMapping(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := testenv.Command(t, exe, "-test.run=TestUnshareUidGidMapping")
+	cmd := testenv.Command(t, exe, "-test.run=^TestUnshareUidGidMapping$")
 	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Unshareflags:               syscall.CLONE_NEWNS | syscall.CLONE_NEWUSER,
@@ -453,7 +453,7 @@ func TestUseCgroupFD(t *testing.T) {
 
 	fd, suffix := prepareCgroupFD(t)
 
-	cmd := testenv.Command(t, exe, "-test.run=TestUseCgroupFD")
+	cmd := testenv.Command(t, exe, "-test.run=^TestUseCgroupFD$")
 	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		UseCgroupFD: true,
@@ -494,7 +494,7 @@ func TestCloneTimeNamespace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := testenv.Command(t, exe, "-test.run=TestCloneTimeNamespace")
+	cmd := testenv.Command(t, exe, "-test.run=^TestCloneTimeNamespace$")
 	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWTIME,
@@ -632,7 +632,7 @@ func testAmbientCaps(t *testing.T, userns bool) {
 		t.Fatal(err)
 	}
 
-	cmd := testenv.Command(t, f.Name(), "-test.run="+t.Name())
+	cmd := testenv.Command(t, f.Name(), "-test.run=^"+t.Name()+"$")
 	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

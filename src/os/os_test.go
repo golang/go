@@ -2609,7 +2609,7 @@ func TestGetppid(t *testing.T) {
 	testenv.MustHaveExec(t)
 	t.Parallel()
 
-	cmd := testenv.Command(t, Args[0], "-test.run=TestGetppid")
+	cmd := testenv.Command(t, Args[0], "-test.run=^TestGetppid$")
 	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
 
 	// verify that Getppid() from the forked process reports our process id

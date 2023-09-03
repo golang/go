@@ -85,7 +85,7 @@ func test18146(t *testing.T) {
 		}
 	}()
 
-	args := append(append([]string(nil), os.Args[1:]...), "-test.run=Test18146")
+	args := append(append([]string(nil), os.Args[1:]...), "-test.run=^Test18146$")
 	for n := attempts; n > 0; n-- {
 		cmd := exec.Command(os.Args[0], args...)
 		cmd.Env = append(os.Environ(), "test18146=exec")

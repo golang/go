@@ -1280,7 +1280,7 @@ func TestLinuxSendfile(t *testing.T) {
 	defer os.Remove(filepath)
 
 	var buf strings.Builder
-	child := testenv.Command(t, "strace", "-f", "-q", os.Args[0], "-test.run=TestLinuxSendfileChild")
+	child := testenv.Command(t, "strace", "-f", "-q", os.Args[0], "-test.run=^TestLinuxSendfileChild$")
 	child.ExtraFiles = append(child.ExtraFiles, lnf)
 	child.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
 	child.Stdout = &buf

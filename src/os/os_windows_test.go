@@ -1228,7 +1228,7 @@ func TestRootDirAsTemp(t *testing.T) {
 		t.Skip(err)
 	}
 
-	cmd := testenv.Command(t, exe, "-test.run=TestRootDirAsTemp")
+	cmd := testenv.Command(t, exe, "-test.run=^TestRootDirAsTemp$")
 	cmd.Env = cmd.Environ()
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
 	cmd.Env = append(cmd.Env, "TMP="+newtmp)

@@ -130,7 +130,7 @@ func TestTerminalSignal(t *testing.T) {
 
 	var (
 		ctx     = context.Background()
-		cmdArgs = []string{"-test.run=TestTerminalSignal"}
+		cmdArgs = []string{"-test.run=^TestTerminalSignal$"}
 	)
 	if deadline, ok := t.Deadline(); ok {
 		d := time.Until(deadline)
@@ -250,7 +250,7 @@ func runSessionLeader(t *testing.T, pause time.Duration) {
 
 	var (
 		ctx     = context.Background()
-		cmdArgs = []string{"-test.run=TestTerminalSignal"}
+		cmdArgs = []string{"-test.run=^TestTerminalSignal$"}
 	)
 	if deadline, ok := t.Deadline(); ok {
 		d := time.Until(deadline)

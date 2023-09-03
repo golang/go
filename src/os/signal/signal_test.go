@@ -304,7 +304,7 @@ func TestDetectNohup(t *testing.T) {
 		// We have no intention of reading from c.
 		c := make(chan os.Signal, 1)
 		Notify(c, syscall.SIGHUP)
-		if out, err := testenv.Command(t, os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput(); err == nil {
+		if out, err := testenv.Command(t, os.Args[0], "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput(); err == nil {
 			t.Errorf("ran test with -check_sighup_ignored and it succeeded: expected failure.\nOutput:\n%s", out)
 		}
 		Stop(c)
@@ -315,7 +315,7 @@ func TestDetectNohup(t *testing.T) {
 		}
 		Ignore(syscall.SIGHUP)
 		os.Remove("nohup.out")
-		out, err := testenv.Command(t, "/usr/bin/nohup", os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput()
+		out, err := testenv.Command(t, "/usr/bin/nohup", os.Args[0], "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput()
 
 		data, _ := os.ReadFile("nohup.out")
 		os.Remove("nohup.out")
@@ -440,7 +440,7 @@ func TestNohup(t *testing.T) {
 
 			args := []string{
 				"-test.v",
-				"-test.run=TestStop",
+				"-test.run=^TestStop$",
 				"-send_uncaught_sighup=" + strconv.Itoa(i),
 				"-die_from_sighup",
 			}
@@ -491,7 +491,7 @@ func TestNohup(t *testing.T) {
 			args := []string{
 				os.Args[0],
 				"-test.v",
-				"-test.run=TestStop",
+				"-test.run=^TestStop$",
 				"-send_uncaught_sighup=" + strconv.Itoa(i),
 			}
 			if subTimeout != 0 {
@@ -546,7 +546,7 @@ func TestAtomicStop(t *testing.T) {
 		if deadline, ok := t.Deadline(); ok {
 			timeout = time.Until(deadline).String()
 		}
-		cmd := testenv.Command(t, os.Args[0], "-test.run=TestAtomicStop", "-test.timeout="+timeout)
+		cmd := testenv.Command(t, os.Args[0], "-test.run=^TestAtomicStop$", "-test.timeout="+timeout)
 		cmd.Env = append(os.Environ(), "GO_TEST_ATOMIC_STOP=1")
 		out, err := cmd.CombinedOutput()
 		if err == nil {
@@ -742,7 +742,7 @@ func TestNotifyContextNotifications(t *testing.T) {
 
 			args := []string{
 				"-test.v",
-				"-test.run=TestNotifyContextNotifications$",
+				"-test.run=^TestNotifyContextNotifications$",
 				"-check_notify_ctx",
 				fmt.Sprintf("-ctx_notify_times=%d", tc.n),
 			}

@@ -4992,7 +4992,7 @@ func benchmarkClientServerParallel(b *testing.B, parallelism int, mode testMode)
 // For use like:
 //
 //	$ go test -c
-//	$ ./http.test -test.run=XX -test.bench=BenchmarkServer -test.benchtime=15s -test.cpuprofile=http.prof
+//	$ ./http.test -test.run=XX -test.bench='^BenchmarkServer$' -test.benchtime=15s -test.cpuprofile=http.prof
 //	$ go tool pprof http.test http.prof
 //	(pprof) web
 func BenchmarkServer(b *testing.B) {
@@ -5031,7 +5031,7 @@ func BenchmarkServer(b *testing.B) {
 	defer ts.Close()
 	b.StartTimer()
 
-	cmd := testenv.Command(b, os.Args[0], "-test.run=XXXX", "-test.bench=BenchmarkServer$")
+	cmd := testenv.Command(b, os.Args[0], "-test.run=XXXX", "-test.bench=^BenchmarkServer$")
 	cmd.Env = append([]string{
 		fmt.Sprintf("TEST_BENCH_CLIENT_N=%d", b.N),
 		fmt.Sprintf("TEST_BENCH_SERVER_URL=%s", ts.URL),
@@ -5086,7 +5086,7 @@ func BenchmarkClient(b *testing.B) {
 
 	// Start server process.
 	ctx, cancel := context.WithCancel(context.Background())
-	cmd := testenv.CommandContext(b, ctx, os.Args[0], "-test.run=XXXX", "-test.bench=BenchmarkClient$")
+	cmd := testenv.CommandContext(b, ctx, os.Args[0], "-test.run=XXXX", "-test.bench=^BenchmarkClient$")
 	cmd.Env = append(cmd.Environ(), "TEST_BENCH_SERVER=yes")
 	cmd.Stderr = os.Stderr
 	stdout, err := cmd.StdoutPipe()
