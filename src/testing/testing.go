@@ -397,10 +397,8 @@ var initRan bool
 // Init registers testing flags. These flags are automatically registered by
 // the "go test" command before running test functions, so Init is only needed
 // when calling functions such as Benchmark without using "go test".
-// It must be called before these flags are accessed by the program.
 //
-// Init has no effect if it was already called, and note that
-// it is not safe to be called concurrently.
+// Init is not safe to call concurrently. It has no effect if it was already called.
 func Init() {
 	if initRan {
 		return
