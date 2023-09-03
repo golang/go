@@ -145,7 +145,7 @@ type FileHeader struct {
 
 	// UncompressedSize is the uncompressed size of the file in bytes.
 	// If either the uncompressed or compressed size of the file
-	// does not fit in 32 bits, CompressedSize is set to ^uint32(0).
+	// does not fit in 32 bits, UncompressedSize is set to ^uint32(0).
 	//
 	// Deprecated: Use UncompressedSize64 instead.
 	UncompressedSize uint32
