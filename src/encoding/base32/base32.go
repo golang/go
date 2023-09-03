@@ -26,9 +26,12 @@ type Encoding struct {
 }
 
 const (
-	StdPadding          rune = '=' // Standard padding character
-	NoPadding           rune = -1  // No padding
-	decodeMapInitialize      = "" +
+	StdPadding rune = '=' // Standard padding character
+	NoPadding  rune = -1  // No padding
+)
+
+const (
+	decodeMapInitialize = "" +
 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
@@ -47,9 +50,6 @@ const (
 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
 	invalidIndex = '\xff'
 )
-
-const encodeStd = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
-const encodeHex = "0123456789ABCDEFGHIJKLMNOPQRSTUV"
 
 // NewEncoding returns a new padded Encoding defined by the given alphabet,
 // which must be a 32-byte string that contains unique byte values and
@@ -83,13 +83,12 @@ func NewEncoding(encoder string) *Encoding {
 	return e
 }
 
-// StdEncoding is the standard base32 encoding, as defined in
-// RFC 4648.
-var StdEncoding = NewEncoding(encodeStd)
+// StdEncoding is the standard base32 encoding, as defined in RFC 4648.
+var StdEncoding = NewEncoding("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567")
 
 // HexEncoding is the “Extended Hex Alphabet” defined in RFC 4648.
 // It is typically used in DNS.
-var HexEncoding = NewEncoding(encodeHex)
+var HexEncoding = NewEncoding("0123456789ABCDEFGHIJKLMNOPQRSTUV")
 
 // WithPadding creates a new encoding identical to enc except
 // with a specified padding character, or NoPadding to disable padding.
