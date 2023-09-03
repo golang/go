@@ -75,8 +75,8 @@ type SysProcAttr struct {
 	// in the child process: an index into ProcAttr.Files.
 	// This is only meaningful if Setsid is true.
 	Setctty bool
-	Noctty  bool // Detach fd 0 from controlling terminal
-	Ctty    int  // Controlling TTY fd
+	Noctty  bool // Detach fd 0 from controlling terminal.
+	Ctty    int  // Controlling TTY fd.
 	// Foreground places the child process group in the foreground.
 	// This implies Setpgid. The Ctty field must be set to
 	// the descriptor of the controlling TTY.
@@ -89,8 +89,8 @@ type SysProcAttr struct {
 	// is sent on thread termination, which may happen before process termination.
 	// There are more details at https://go.dev/issue/27505.
 	Pdeathsig    Signal
-	Cloneflags   uintptr        // Flags for clone calls (Linux only)
-	Unshareflags uintptr        // Flags for unshare calls (Linux only)
+	Cloneflags   uintptr        // Flags for clone calls.
+	Unshareflags uintptr        // Flags for unshare calls.
 	UidMappings  []SysProcIDMap // User ID mappings for user namespaces.
 	GidMappings  []SysProcIDMap // Group ID mappings for user namespaces.
 	// GidMappingsEnableSetgroups enabling setgroups syscall.
@@ -98,7 +98,7 @@ type SysProcAttr struct {
 	// This parameter is no-op if GidMappings == nil. Otherwise for unprivileged
 	// users this should be set to false for mappings work.
 	GidMappingsEnableSetgroups bool
-	AmbientCaps                []uintptr // Ambient capabilities (Linux only)
+	AmbientCaps                []uintptr // Ambient capabilities.
 	UseCgroupFD                bool      // Whether to make use of the CgroupFD field.
 	CgroupFD                   int       // File descriptor of a cgroup to put the new process into.
 	// PidFD, if not nil, is used to store the pidfd of a child, if the
