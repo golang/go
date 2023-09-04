@@ -8,6 +8,7 @@ package syscall_test
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"internal/platform"
@@ -460,7 +461,7 @@ func TestUseCgroupFD(t *testing.T) {
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		if err != syscall.EINVAL && testenv.SyscallIsNotSupported(err) {
+		if testenv.SyscallIsNotSupported(err) && !errors.Is(err, syscall.EINVAL) {
 			// Can be one of:
 			// - clone3 not supported (old kernel);
 			// - clone3 not allowed (by e.g. seccomp);
