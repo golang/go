@@ -853,3 +853,20 @@ func TestEnsureBindM(t *testing.T) {
 		t.Errorf("expected %q, got %v", want, got)
 	}
 }
+
+func TestStackSwitchCallback(t *testing.T) {
+	t.Parallel()
+	switch runtime.GOOS {
+	case "windows", "plan9", "android", "ios", "openbsd": // no getcontext
+		t.Skipf("skipping test on %s", runtime.GOOS)
+	}
+	got := runTestProg(t, "testprogcgo", "StackSwitchCallback")
+	skip := "SKIP\n"
+	if got == skip {
+		t.Skip("skipping on musl/bionic libc")
+	}
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q, got %v", want, got)
+	}
+}
