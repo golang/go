@@ -2374,6 +2374,11 @@ func TestStatStdin(t *testing.T) {
 		Exit(0)
 	}
 
+	exe, err := Executable()
+	if err != nil {
+		t.Skipf("can't find executable: %v", err)
+	}
+
 	testenv.MustHaveExec(t)
 	t.Parallel()
 
@@ -2388,13 +2393,11 @@ func TestStatStdin(t *testing.T) {
 		t.Fatalf("unexpected Stdin mode (%v), want ModeCharDevice or ModeNamedPipe", mode)
 	}
 
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = testenv.Command(t, "cmd", "/c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
-	} else {
-		cmd = testenv.Command(t, "/bin/sh", "-c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
-	}
-	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd := testenv.Command(t, exe, "-test.run=^TestStatStdin$")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	// This will make standard input a pipe.
+	cmd.Stdin = strings.NewReader("output")
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
