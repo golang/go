@@ -506,3 +506,16 @@ func Concat[S ~[]E, E any](slices ...S) S {
 	}
 	return newslice
 }
+
+// Remove duplicates from slice.
+func Unique[T any](duplicateSlice []T) []T {
+	keys := make(map[any]bool)
+	var noDuplicateSlice[]T
+	for _, str := range duplicateSlice {
+		if value := keys[str]; !value {
+			keys[str] = true
+			noDuplicateSlice = append(noDuplicateSlice, str)
+		}
+	}
+	return noDuplicateSlice
+}
