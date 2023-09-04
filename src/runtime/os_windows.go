@@ -44,6 +44,8 @@ const (
 //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._RaiseFailFastException RaiseFailFastException%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._RtlLookupFunctionEntry RtlLookupFunctionEntry%3 "kernel32.dll"
+//go:cgo_import_dynamic runtime._RtlVirtualUnwind  RtlVirtualUnwind%8 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetEvent SetEvent%1 "kernel32.dll"
@@ -99,6 +101,8 @@ var (
 	_QueryPerformanceCounter,
 	_RaiseFailFastException,
 	_ResumeThread,
+	_RtlLookupFunctionEntry,
+	_RtlVirtualUnwind,
 	_SetConsoleCtrlHandler,
 	_SetErrorMode,
 	_SetEvent,
@@ -1062,6 +1066,15 @@ func stdcall6(fn stdFunction, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 7
+	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
+	return stdcall(fn)
+}
+
+//go:nosplit
+//go:cgo_unsafe_args
+func stdcall8(fn stdFunction, a0, a1, a2, a3, a4, a5, a6, a7 uintptr) uintptr {
+	mp := getg().m
+	mp.libcall.n = 8
 	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
 	return stdcall(fn)
 }

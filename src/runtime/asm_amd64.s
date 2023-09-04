@@ -825,6 +825,33 @@ TEXT ·asmcgocall_no_g(SB),NOSPLIT,$32-16
 	MOVQ	DX, SP
 	RET
 
+// asmcgocall_landingpad calls AX with BX as argument.
+// Must be called on the system stack.
+TEXT ·asmcgocall_landingpad(SB),NOSPLIT,$0-0
+#ifdef GOOS_windows
+	// Make sure we have enough room for 4 stack-backed fast-call
+	// registers as per Windows amd64 calling convention.
+	ADJSP	$32
+	// On Windows, asmcgocall_landingpad acts as landing pad for exceptions
+	// thrown in the cgo call. Exceptions that reach this function will be
+	// handled by runtime.sehtramp thanks to the SEH metadata added
+	// by the compiler.
+	// Note that runtime.sehtramp can't be attached directly to asmcgocall
+	// because its initial stack pointer can be outside the system stack bounds,
+	// and Windows stops the stack unwinding without calling the exception handler
+	// when it reaches that point.
+	MOVQ	BX, CX		// CX = first argument in Win64
+	CALL	AX
+	// The exception handler is not called if the next instruction is part of
+	// the epilogue, which includes the RET instruction, so we need to add a NOP here.
+	BYTE	$0x90
+	ADJSP	$-32
+	RET
+#endif
+	// Tail call AX on non-Windows, as the extra stack frame is not needed.
+	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
+	JMP	AX
+
 // func asmcgocall(fn, arg unsafe.Pointer) int32
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
@@ -859,23 +886,19 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
 
 	// Now on a scheduling stack (a pthread-created stack).
-	// Make sure we have enough room for 4 stack-backed fast-call
-	// registers as per windows amd64 calling convention.
-	SUBQ	$64, SP
+	SUBQ	$16, SP
 	ANDQ	$~15, SP	// alignment for gcc ABI
-	MOVQ	DI, 48(SP)	// save g
+	MOVQ	DI, 8(SP)	// save g
 	MOVQ	(g_stack+stack_hi)(DI), DI
 	SUBQ	DX, DI
-	MOVQ	DI, 40(SP)	// save depth in stack (can't just save SP, as stack might be copied during a callback)
-	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
-	MOVQ	BX, CX		// CX = first argument in Win64
-	CALL	AX
+	MOVQ	DI, 0(SP)	// save depth in stack (can't just save SP, as stack might be copied during a callback)
+	CALL	runtime·asmcgocall_landingpad(SB)
 
 	// Restore registers, g, stack pointer.
 	get_tls(CX)
-	MOVQ	48(SP), DI
+	MOVQ	8(SP), DI
 	MOVQ	(g_stack+stack_hi)(DI), SI
-	SUBQ	40(SP), SI
+	SUBQ	0(SP), SI
 	MOVQ	DI, g(CX)
 	MOVQ	SI, SP
 
@@ -893,14 +916,12 @@ nosave:
 	// but then the only path through this code would be a rare case on Solaris.
 	// Using this code for all "already on system stack" calls exercises it more,
 	// which should help keep it correct.
-	SUBQ	$64, SP
+	SUBQ	$16, SP
 	ANDQ	$~15, SP
-	MOVQ	$0, 48(SP)		// where above code stores g, in case someone looks during debugging
-	MOVQ	DX, 40(SP)	// save original stack pointer
-	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
-	MOVQ	BX, CX		// CX = first argument in Win64
-	CALL	AX
-	MOVQ	40(SP), SI	// restore original stack pointer
+	MOVQ	$0, 8(SP)		// where above code stores g, in case someone looks during debugging
+	MOVQ	DX, 0(SP)	// save original stack pointer
+	CALL	runtime·asmcgocall_landingpad(SB)
+	MOVQ	0(SP), SI	// restore original stack pointer
 	MOVQ	SI, SP
 	MOVL	AX, ret+16(FP)
 	RET
