@@ -2198,6 +2198,191 @@ func (b *Builder) Showcmd(dir string, format string, args ...any) {
 	b.Print(b.fmtcmd(dir, format, args...) + "\n")
 }
 
+// reportCmd reports the output and exit status of a command. The cmdOut and
+// cmdErr arguments are the output and exit error of the command, respectively.
+//
+// The exact reporting behavior is as follows:
+//
+//	cmdOut  cmdErr  Result
+//	""      nil     print nothing, return nil
+//	!=""    nil     print output, return nil
+//	""      !=nil   print nothing, return cmdErr (later printed)
+//	!=""    !=nil   print nothing, ignore err, return output as error (later printed)
+//
+// reportCmd returns a non-nil error if and only if cmdErr != nil. It assumes
+// that the command output, if non-empty, is more detailed than the command
+// error (which is usually just an exit status), so prefers using the output as
+// the ultimate error. Typically, the caller should return this error from an
+// Action, which it will be printed by the Builder.
+//
+// reportCmd formats the output as "# desc" followed by the given output. The
+// output is expected to contain references to 'dir', usually the source
+// directory for the package that has failed to build. reportCmd rewrites
+// mentions of dir with a relative path to dir when the relative path is
+// shorter. This is usually more pleasant. For example, if fmt doesn't compile
+// and we are in src/html, the output is
+//
+//	$ go build
+//	# fmt
+//	../fmt/print.go:1090: undefined: asdf
+//	$
+//
+// instead of
+//
+//	$ go build
+//	# fmt
+//	/usr/gopher/go/src/fmt/print.go:1090: undefined: asdf
+//	$
+//
+// reportCmd also replaces references to the work directory with $WORK, replaces
+// cgo file paths with the original file path, and replaces cgo-mangled names
+// with "C.name".
+//
+// p is optional. If nil, a.Package is used.
+//
+// desc is optional. If "", p.Desc() is used.
+//
+// dir is optional. If "", p.Dir is used.
+func (b *Builder) reportCmd(a *Action, p *load.Package, desc, dir string, cmdOut []byte, cmdErr error) error {
+	// TODO: It seems we can always get p from a.Package, so it should be
+	// possible to drop the "p" argument. However, a lot of callers take both
+	// Action and Package, so we'd want to drop the Package argument from those,
+	// too.
+	if len(cmdOut) == 0 && cmdErr == nil {
+		// Common case
+		return nil
+	}
+	if len(cmdOut) == 0 && cmdErr != nil {
+		// Just return the error.
+		//
+		// TODO: This is what we've done for a long time, but it may be a
+		// mistake because it loses all of the extra context and results in
+		// ultimately less descriptive output. We should probably just take the
+		// text of cmdErr as the output in this case and do everything we
+		// otherwise would. We could chain the errors if we feel like it.
+		return cmdErr
+	}
+
+	// Fetch defaults from the package.
+	if a != nil && p == nil {
+		p = a.Package
+	}
+	var importPath string
+	if p != nil {
+		importPath = p.ImportPath
+		if desc == "" {
+			desc = p.Desc()
+		}
+		if dir == "" {
+			dir = p.Dir
+		}
+	}
+
+	out := string(cmdOut)
+
+	if !strings.HasSuffix(out, "\n") {
+		out = out + "\n"
+	}
+
+	// Replace workDir with $WORK
+	out = replacePrefix(out, b.WorkDir, "$WORK")
+
+	// Rewrite mentions of dir with a relative path to dir
+	// when the relative path is shorter.
+	for {
+		// Note that dir starts out long, something like
+		// /foo/bar/baz/root/a
+		// The target string to be reduced is something like
+		// (blah-blah-blah) /foo/bar/baz/root/sibling/whatever.go:blah:blah
+		// /foo/bar/baz/root/a doesn't match /foo/bar/baz/root/sibling, but the prefix
+		// /foo/bar/baz/root does.  And there may be other niblings sharing shorter
+		// prefixes, the only way to find them is to look.
+		// This doesn't always produce a relative path --
+		// /foo is shorter than ../../.., for example.
+		if reldir := base.ShortPath(dir); reldir != dir {
+			out = replacePrefix(out, dir, reldir)
+			if filepath.Separator == '\\' {
+				// Don't know why, sometimes this comes out with slashes, not backslashes.
+				wdir := strings.ReplaceAll(dir, "\\", "/")
+				out = replacePrefix(out, wdir, reldir)
+			}
+		}
+		dirP := filepath.Dir(dir)
+		if dir == dirP {
+			break
+		}
+		dir = dirP
+	}
+
+	// Fix up output referring to cgo-generated code to be more readable.
+	// Replace x.go:19[/tmp/.../x.cgo1.go:18] with x.go:19.
+	// Replace *[100]_Ctype_foo with *[100]C.foo.
+	// If we're using -x, assume we're debugging and want the full dump, so disable the rewrite.
+	if !cfg.BuildX && cgoLine.MatchString(out) {
+		out = cgoLine.ReplaceAllString(out, "")
+		out = cgoTypeSigRe.ReplaceAllString(out, "C.")
+	}
+
+	err := &cmdError{desc, out, importPath}
+	if cmdErr != nil {
+		// The command failed. Report the output up as an error.
+		return err
+	}
+	// The command didn't fail, so just print the output as appropriate.
+	if a != nil && a.output != nil {
+		// The Action is capturing output.
+		a.output = append(a.output, err.Error()...)
+	} else {
+		// Write directly to the Builder output.
+		b.output.Lock()
+		defer b.output.Unlock()
+		b.Print(err.Error())
+	}
+	return nil
+}
+
+// replacePrefix is like strings.ReplaceAll, but only replaces instances of old
+// that are preceded by ' ', '\t', or appear at the beginning of a line.
+func replacePrefix(s, old, new string) string {
+	n := strings.Count(s, old)
+	if n == 0 {
+		return s
+	}
+
+	s = strings.ReplaceAll(s, " "+old, " "+new)
+	s = strings.ReplaceAll(s, "\n"+old, "\n"+new)
+	s = strings.ReplaceAll(s, "\n\t"+old, "\n\t"+new)
+	if strings.HasPrefix(s, old) {
+		s = new + s[len(old):]
+	}
+	return s
+}
+
+type cmdError struct {
+	desc       string
+	text       string
+	importPath string
+}
+
+func (e *cmdError) Error() string {
+	msg := "# " + e.desc + "\n" + e.text
+	if e.importPath != "" && !strings.HasPrefix(e.desc, e.importPath) {
+		// Ensure the import path is part of the message. We checked the prefix
+		// because desc can be a package ID, which may have text in addition to
+		// the import path.
+		//
+		// TODO(austin): Checking the prefix seems flimsy. reportCmd could
+		// instead check if desc != p.Desc() and leave a flag in cmdError to
+		// signal this code path.
+		msg = fmt.Sprintf("go build %s:\n%s", e.importPath, msg)
+	}
+	return msg
+}
+
+func (e *cmdError) ImportPath() string {
+	return e.importPath
+}
+
 // showOutput prints "# desc" followed by the given output.
 // The output is expected to contain references to 'dir', usually
 // the source directory for the package that has failed to build.
