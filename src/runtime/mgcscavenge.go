@@ -172,7 +172,7 @@ func gcPaceScavenger(memoryLimit int64, heapGoal, lastHeapGoal uint64) {
 	// it's simpler.
 
 	// We want to target retaining (100-reduceExtraPercent)% of the heap.
-	memoryLimitGoal := uint64(float64(memoryLimit) * (100.0 - reduceExtraPercent))
+	memoryLimitGoal := uint64(float64(memoryLimit) * (1 - reduceExtraPercent/100.0))
 
 	// mappedReady is comparable to memoryLimit, and represents how much total memory
 	// the Go runtime has committed now (estimated).
@@ -1297,7 +1297,7 @@ const (
 	scavChunkHasFree scavChunkFlags = 1 << iota
 	// scavChunkNoHugePage indicates whether this chunk has had any huge
 	// pages broken by the scavenger.
-	//.
+	//
 	// The negative here is unfortunate, but necessary to make it so that
 	// the zero value of scavChunkData accurately represents the state of
 	// a newly-grown chunk. (New memory is marked as backed by huge pages.)
