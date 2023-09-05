@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-const timeRE = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2})`
+const timeRE = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{1,9}(Z|[+-]\d{2}:\d{2})`
 
 func TestLogTextHandler(t *testing.T) {
 	ctx := context.Background()
@@ -633,10 +633,10 @@ func TestPanics(t *testing.T) {
 		in  any
 		out string
 	}{
-		{(*panicTextAndJsonMarshaler)(nil), `{"time":".*?","level":"INFO","msg":"msg","p":null}`},
-		{panicTextAndJsonMarshaler{io.ErrUnexpectedEOF}, `{"time":".*?","level":"INFO","msg":"msg","p":"!PANIC: unexpected EOF"}`},
-		{panicTextAndJsonMarshaler{"panicking"}, `{"time":".*?","level":"INFO","msg":"msg","p":"!PANIC: panicking"}`},
-		{panicTextAndJsonMarshaler{42}, `{"time":".*?","level":"INFO","msg":"msg","p":"!PANIC: 42"}`},
+		{(*panicTextAndJsonMarshaler)(nil), `{"time":"` + timeRE + `","level":"INFO","msg":"msg","p":null}`},
+		{panicTextAndJsonMarshaler{io.ErrUnexpectedEOF}, `{"time":"` + timeRE + `","level":"INFO","msg":"msg","p":"!PANIC: unexpected EOF"}`},
+		{panicTextAndJsonMarshaler{"panicking"}, `{"time":"` + timeRE + `","level":"INFO","msg":"msg","p":"!PANIC: panicking"}`},
+		{panicTextAndJsonMarshaler{42}, `{"time":"` + timeRE + `","level":"INFO","msg":"msg","p":"!PANIC: 42"}`},
 	} {
 		Info("msg", "p", pt.in)
 		checkLogOutput(t, logBuf.String(), pt.out)
