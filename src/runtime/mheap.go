@@ -122,6 +122,8 @@ type mheap struct {
 	// credit pool.
 	reclaimCredit atomic.Uintptr
 
+	_ cpu.CacheLinePad // prevents false-sharing between arenas and preceding variables
+
 	// arenas is the heap arena map. It points to the metadata for
 	// the heap for every arena frame of the entire usable virtual
 	// address space.
