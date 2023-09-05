@@ -10,52 +10,70 @@ package vulntest
 import (
 	"context"
 	"encoding/json"
+	"flag"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
+
+	"github.com/google/go-cmp/cmp"
+	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/gopls/internal/vulncheck/osv"
 )
+
+var update = flag.Bool("update", false, "update golden files in testdata/")
 
 func TestNewDatabase(t *testing.T) {
 	ctx := context.Background()
-	in := []byte(`
--- GO-2020-0001.yaml --
-modules:
-  - module: github.com/gin-gonic/gin
-    versions:
-      - fixed: 1.6.0
-    packages:
-      - package: github.com/gin-gonic/gin
-        symbols:
-          - defaultLogFormatter
-description: |
-    Something.
-published: 2021-04-14T20:04:52Z
-references:
-  - fix: https://github.com/gin-gonic/gin/pull/2237
-`)
+
+	in, err := os.ReadFile("testdata/report.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	in = append([]byte("-- GO-2020-0001.yaml --\n"), in...)
 
 	db, err := NewDatabase(ctx, in)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Clean()
+	dbpath := span.URIFromURI(db.URI()).Filename()
 
-	cli, err := NewClient(db)
+	// The generated JSON file will be in DB/GO-2022-0001.json.
+	got := readOSVEntry(t, filepath.Join(dbpath, "GO-2020-0001.json"))
+	got.Modified = time.Time{}
+
+	if *update {
+		updateTestData(t, got, "testdata/GO-2020-0001.json")
+	}
+
+	want := readOSVEntry(t, "testdata/GO-2020-0001.json")
+	want.Modified = time.Time{}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func updateTestData(t *testing.T, got *osv.Entry, fname string) {
+	content, err := json.MarshalIndent(got, "", "\t")
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := cli.GetByID(ctx, "GO-2020-0001")
+	if err := os.WriteFile(fname, content, 0666); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("updated %v", fname)
+}
+
+func readOSVEntry(t *testing.T, filename string) *osv.Entry {
+	t.Helper()
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.ID != "GO-2020-0001" {
-		m, _ := json.Marshal(got)
-		t.Errorf("got %s\nwant GO-2020-0001 entry", m)
-	}
-	gotAll, err := cli.GetByModule(ctx, "github.com/gin-gonic/gin")
-	if err != nil {
+	var entry osv.Entry
+	if err := json.Unmarshal(content, &entry); err != nil {
 		t.Fatal(err)
 	}
-	if len(gotAll) != 1 || gotAll[0].ID != "GO-2020-0001" {
-		m, _ := json.Marshal(got)
-		t.Errorf("got %s\nwant GO-2020-0001 entry", m)
-	}
+	return &entry
 }

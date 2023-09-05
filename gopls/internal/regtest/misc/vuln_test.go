@@ -10,20 +10,19 @@ package misc
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 
-	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/gopls/internal/vulncheck"
+	"golang.org/x/tools/gopls/internal/vulncheck/scan"
 	"golang.org/x/tools/gopls/internal/vulncheck/vulntest"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -86,7 +85,7 @@ func F() { // build error incomplete
 		env.Await(
 			CompletedProgress(result.Token, &ws),
 		)
-		wantEndMsg, wantMsgPart := "failed", "failed to load packages due to errors"
+		wantEndMsg, wantMsgPart := "failed", "There are errors with the provided package patterns:"
 		if ws.EndMsg != "failed" || !strings.Contains(ws.Msg, wantMsgPart) {
 			t.Errorf("work status = %+v, want {EndMessage: %q, Message: %q}", ws, wantEndMsg, wantMsgPart)
 		}
@@ -100,14 +99,14 @@ modules:
     versions:
       - introduced: 1.0.0
       - fixed: 1.0.4
-      - introduced: 1.1.2
     packages:
       - package: golang.org/amod/avuln
         symbols:
           - VulnData.Vuln1
           - VulnData.Vuln2
 description: >
-    vuln in amod
+    vuln in amod is found
+summary: vuln in amod
 references:
   - href: pkg.go.dev/vuln/GO-2022-01
 -- GO-2022-03.yaml --
@@ -121,7 +120,8 @@ modules:
         symbols:
           - nonExisting
 description: >
-  unaffecting vulnerability  
+  unaffecting vulnerability is found
+summary: unaffecting vulnerability
 -- GO-2022-02.yaml --
 modules:
   - module: golang.org/bmod
@@ -130,10 +130,11 @@ modules:
         symbols:
           - Vuln
 description: |
-    vuln in bmod
+    vuln in bmod is found.
     
     This is a long description
     of this vulnerability.
+summary: vuln in bmod (no fix)
 references:
   - href: pkg.go.dev/vuln/GO-2022-03
 -- GO-2022-04.yaml --
@@ -144,7 +145,8 @@ modules:
         symbols:
           - Vuln
 description: |
-    vuln in bmod/somtrhingelse
+    vuln in bmod/somethingelse is found
+summary: vuln in bmod/somethingelse
 references:
   - href: pkg.go.dev/vuln/GO-2022-04
 -- GOSTDLIB.yaml --
@@ -156,6 +158,7 @@ modules:
       - package: archive/zip
         symbols:
           - OpenReader
+summary: vuln in GOSTDLIB
 references:
   - href: pkg.go.dev/vuln/GOSTDLIB
 `
@@ -193,7 +196,7 @@ func main() {
 			// When fetchinging stdlib package vulnerability info,
 			// behave as if our go version is go1.18 for this testing.
 			// The default behavior is to run `go env GOVERSION` (which isn't mutable env var).
-			vulncheck.GoVersionForVulnTest:    "go1.18",
+			scan.GoVersionForVulnTest:         "go1.18",
 			"_GOPLS_TEST_BINARY_RUN_AS_GOPLS": "true", // needed to run `gopls vulncheck`.
 		},
 		Settings{
@@ -233,7 +236,7 @@ func main() {
 			NoDiagnostics(ForFile("go.mod")),
 		)
 		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
-			"go.mod": {IDs: []string{"GOSTDLIB"}, Mode: govulncheck.ModeGovulncheck}})
+			"go.mod": {IDs: []string{"GOSTDLIB"}, Mode: vulncheck.ModeGovulncheck}})
 	})
 }
 
@@ -269,7 +272,7 @@ func main() {
 			"GOVULNDB": db.URI(),
 			// When fetchinging stdlib package vulnerability info,
 			// behave as if our go version is go1.18 for this testing.
-			vulncheck.GoVersionForVulnTest:    "go1.18",
+			scan.GoVersionForVulnTest:         "go1.18",
 			"_GOPLS_TEST_BINARY_RUN_AS_GOPLS": "true", // needed to run `gopls vulncheck`.
 		},
 		Settings{"ui.diagnostic.vulncheck": "Imports"},
@@ -282,7 +285,7 @@ func main() {
 		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
 			"go.mod": {
 				IDs:  []string{"GOSTDLIB"},
-				Mode: govulncheck.ModeImports,
+				Mode: vulncheck.ModeImports,
 			},
 		})
 	})
@@ -290,13 +293,13 @@ func main() {
 
 type fetchVulncheckResult struct {
 	IDs  []string
-	Mode govulncheck.AnalysisMode
+	Mode vulncheck.AnalysisMode
 }
 
 func testFetchVulncheckResult(t *testing.T, env *Env, want map[string]fetchVulncheckResult) {
 	t.Helper()
 
-	var result map[protocol.DocumentURI]*govulncheck.Result
+	var result map[protocol.DocumentURI]*vulncheck.Result
 	fetchCmd, err := command.NewFetchVulncheckResultCommand("fetch", command.URIArg{
 		URI: env.Sandbox.Workdir.URI("go.mod"),
 	})
@@ -313,14 +316,18 @@ func testFetchVulncheckResult(t *testing.T, env *Env, want map[string]fetchVulnc
 	}
 	got := map[string]fetchVulncheckResult{}
 	for k, r := range result {
-		var osv []string
-		for _, v := range r.Vulns {
-			osv = append(osv, v.OSV.ID)
+		osv := map[string]bool{}
+		for _, v := range r.Findings {
+			osv[v.OSV] = true
 		}
-		sort.Strings(osv)
+		ids := make([]string, 0, len(osv))
+		for id := range osv {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
 		modfile := env.Sandbox.Workdir.RelPath(k.SpanURI().Filename())
 		got[modfile] = fetchVulncheckResult{
-			IDs:  osv,
+			IDs:  ids,
 			Mode: r.Mode,
 		}
 	}
@@ -466,7 +473,7 @@ func vulnTestEnv(vulnsDB, proxyData string) (*vulntest.DB, []RunOption, error) {
 		// When fetching stdlib package vulnerability info,
 		// behave as if our go version is go1.18 for this testing.
 		// The default behavior is to run `go env GOVERSION` (which isn't mutable env var).
-		vulncheck.GoVersionForVulnTest:    "go1.18",
+		scan.GoVersionForVulnTest:         "go1.18",
 		"_GOPLS_TEST_BINARY_RUN_AS_GOPLS": "true", // needed to run `gopls vulncheck`.
 		"GOSUMDB":                         "off",
 	}
@@ -494,7 +501,7 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
 			"go.mod": {
 				IDs:  []string{"GO-2022-01", "GO-2022-02", "GO-2022-03"},
-				Mode: govulncheck.ModeImports,
+				Mode: vulncheck.ModeImports,
 			},
 		})
 
@@ -533,7 +540,7 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 				codeActions: []string{
 					"Run govulncheck to verify",
 				},
-				hover: []string{"GO-2022-02", "This is a long description of this vulnerability.", "No fix is available."},
+				hover: []string{"GO-2022-02", "vuln in bmod (no fix)", "No fix is available."},
 			},
 		}
 
@@ -645,12 +652,10 @@ func TestRunVulncheckWarning(t *testing.T) {
 		)
 
 		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
-			"go.mod": {IDs: []string{"GO-2022-01", "GO-2022-02", "GO-2022-03"}, Mode: govulncheck.ModeGovulncheck},
+			"go.mod": {IDs: []string{"GO-2022-01", "GO-2022-02", "GO-2022-03"}, Mode: vulncheck.ModeGovulncheck},
 		})
 		env.OpenFile("x/x.go")
-		lineX := env.RegexpSearch("x/x.go", `c\.C1\(\)\.Vuln1\(\)`).Range.Start
 		env.OpenFile("y/y.go")
-		lineY := env.RegexpSearch("y/y.go", `c\.C2\(\)\(\)`).Range.Start
 		wantDiagnostics := map[string]vulnDiagExpectation{
 			"golang.org/amod": {
 				applyAction: "Upgrade to v1.0.6",
@@ -663,10 +668,6 @@ func TestRunVulncheckWarning(t *testing.T) {
 							"Upgrade to v1.0.4",
 							"Upgrade to latest",
 							"Reset govulncheck result",
-						},
-						relatedInfo: []vulnRelatedInfo{
-							{"x.go", uint32(lineX.Line), "[GO-2022-01]"}, // avuln.VulnData.Vuln1
-							{"x.go", uint32(lineX.Line), "[GO-2022-01]"}, // avuln.VulnData.Vuln2
 						},
 					},
 					{
@@ -696,15 +697,12 @@ func TestRunVulncheckWarning(t *testing.T) {
 						codeActions: []string{
 							"Reset govulncheck result", // no fix, but we should give an option to reset.
 						},
-						relatedInfo: []vulnRelatedInfo{
-							{"y.go", uint32(lineY.Line), "[GO-2022-02]"}, // bvuln.Vuln
-						},
 					},
 				},
 				codeActions: []string{
 					"Reset govulncheck result", // no fix, but we should give an option to reset.
 				},
-				hover: []string{"GO-2022-02", "This is a long description of this vulnerability.", "No fix is available."},
+				hover: []string{"GO-2022-02", "vuln in bmod (no fix)", "No fix is available."},
 			},
 		}
 
@@ -810,7 +808,7 @@ func TestGovulncheckInfo(t *testing.T) {
 			ReadDiagnostics("go.mod", gotDiagnostics),
 		)
 
-		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{"go.mod": {IDs: []string{"GO-2022-02"}, Mode: govulncheck.ModeGovulncheck}})
+		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{"go.mod": {IDs: []string{"GO-2022-02"}, Mode: vulncheck.ModeGovulncheck}})
 		// wantDiagnostics maps a module path in the require
 		// section of a go.mod to diagnostics that will be returned
 		// when running vulncheck.
@@ -829,7 +827,7 @@ func TestGovulncheckInfo(t *testing.T) {
 				codeActions: []string{
 					"Reset govulncheck result",
 				},
-				hover: []string{"GO-2022-02", "This is a long description of this vulnerability.", "No fix is available."},
+				hover: []string{"GO-2022-02", "vuln in bmod (no fix)", "No fix is available."},
 			},
 		}
 
@@ -886,10 +884,6 @@ func testVulnDiagnostics(t *testing.T, env *Env, pattern string, want vulnDiagEx
 		if diag.Severity != w.severity || diag.Source != w.source {
 			t.Errorf("incorrect (severity, source) for %q, want (%s, %s) got (%s, %s)\n", w.msg, w.severity, w.source, diag.Severity, diag.Source)
 		}
-		sort.Slice(w.relatedInfo, func(i, j int) bool { return w.relatedInfo[i].less(w.relatedInfo[j]) })
-		if got, want := summarizeRelatedInfo(diag.RelatedInformation), w.relatedInfo; !cmp.Equal(got, want) {
-			t.Errorf("related info for %q do not match, want %v, got %v\n", w.msg, want, got)
-		}
 		// Check expected code actions appear.
 		gotActions := env.CodeAction("go.mod", []protocol.Diagnostic{*diag})
 		if diff := diffCodeActions(gotActions, w.codeActions); diff != "" {
@@ -908,22 +902,6 @@ func testVulnDiagnostics(t *testing.T, env *Env, pattern string, want vulnDiagEx
 		}
 	}
 	return modPathDiagnostics
-}
-
-// summarizeRelatedInfo converts protocol.DiagnosticRelatedInformation to vulnRelatedInfo
-// that captures only the part that we want to test.
-func summarizeRelatedInfo(rinfo []protocol.DiagnosticRelatedInformation) []vulnRelatedInfo {
-	var res []vulnRelatedInfo
-	for _, r := range rinfo {
-		filename := filepath.Base(r.Location.URI.SpanURI().Filename())
-		message, _, _ := strings.Cut(r.Message, " ")
-		line := r.Location.Range.Start.Line
-		res = append(res, vulnRelatedInfo{filename, line, message})
-	}
-	sort.Slice(res, func(i, j int) bool {
-		return res[i].less(res[j])
-	})
-	return res
 }
 
 type vulnRelatedInfo struct {

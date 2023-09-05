@@ -12,6 +12,8 @@ package semver
 import (
 	"regexp"
 	"strings"
+
+	"golang.org/x/mod/semver"
 )
 
 // addSemverPrefix adds a 'v' prefix to s if it isn't already prefixed
@@ -38,6 +40,12 @@ func removeSemverPrefix(s string) string {
 // or already canonical SEMVER ("v1.2.3").
 func CanonicalizeSemverPrefix(s string) string {
 	return addSemverPrefix(removeSemverPrefix(s))
+}
+
+// Valid returns whether v is valid semver, allowing
+// either a "v", "go" or no prefix.
+func Valid(v string) bool {
+	return semver.IsValid(CanonicalizeSemverPrefix(v))
 }
 
 var (

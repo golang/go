@@ -12,18 +12,15 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"sort"
 	"strings"
-	"time"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/gopls/internal/bug"
-	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
@@ -32,6 +29,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/gopls/internal/vulncheck"
+	"golang.org/x/tools/gopls/internal/vulncheck/scan"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/tokeninternal"
@@ -896,8 +894,8 @@ type pkgLoadConfig struct {
 	Tests bool
 }
 
-func (c *commandHandler) FetchVulncheckResult(ctx context.Context, arg command.URIArg) (map[protocol.DocumentURI]*govulncheck.Result, error) {
-	ret := map[protocol.DocumentURI]*govulncheck.Result{}
+func (c *commandHandler) FetchVulncheckResult(ctx context.Context, arg command.URIArg) (map[protocol.DocumentURI]*vulncheck.Result, error) {
+	ret := map[protocol.DocumentURI]*vulncheck.Result{}
 	err := c.run(ctx, commandConfig{forURI: arg.URI}, func(ctx context.Context, deps commandDeps) error {
 		if deps.snapshot.Options().Vulncheck == source.ModeVulncheckImports {
 			for _, modfile := range deps.snapshot.ModFiles() {
@@ -936,59 +934,22 @@ func (c *commandHandler) RunGovulncheck(ctx context.Context, args command.Vulnch
 	}, func(ctx context.Context, deps commandDeps) error {
 		tokenChan <- deps.work.Token()
 
-		opts := deps.snapshot.Options()
-		// quickly test if gopls is compiled to support govulncheck
-		// by checking vulncheck.Main. Alternatively, we can continue and
-		// let the `gopls vulncheck` command fail. This is lighter-weight.
-		if vulncheck.Main == nil {
-			return errors.New("vulncheck feature is not available")
-		}
+		workDoneWriter := progress.NewWorkDoneWriter(ctx, deps.work)
+		dir := filepath.Dir(args.URI.SpanURI().Filename())
+		pattern := args.Pattern
 
-		cmd := exec.CommandContext(ctx, os.Args[0], "vulncheck", "-config", args.Pattern)
-		cmd.Dir = filepath.Dir(args.URI.SpanURI().Filename())
-
-		var viewEnv []string
-		if e := opts.EnvSlice(); e != nil {
-			viewEnv = append(os.Environ(), e...)
-		}
-		cmd.Env = viewEnv
-
-		// stdin: gopls vulncheck expects JSON-encoded configuration from STDIN when -config flag is set.
-		var stdin bytes.Buffer
-		cmd.Stdin = &stdin
-
-		if err := json.NewEncoder(&stdin).Encode(pkgLoadConfig{
-			BuildFlags: opts.BuildFlags,
-			// TODO(hyangah): add `tests` flag in command.VulncheckArgs
-		}); err != nil {
-			return fmt.Errorf("failed to pass package load config: %v", err)
-		}
-
-		// stderr: stream gopls vulncheck's STDERR as progress reports
-		er := progress.NewEventWriter(ctx, "vulncheck")
-		stderr := io.MultiWriter(er, progress.NewWorkDoneWriter(ctx, deps.work))
-		cmd.Stderr = stderr
-		// TODO: can we stream stdout?
-		stdout, err := cmd.Output()
+		result, err := scan.RunGovulncheck(ctx, pattern, deps.snapshot, dir, workDoneWriter)
 		if err != nil {
-			return fmt.Errorf("failed to run govulncheck: %v", err)
+			return err
 		}
 
-		var result govulncheck.Result
-		if err := json.Unmarshal(stdout, &result); err != nil {
-			// TODO: for easy debugging, log the failed stdout somewhere?
-			return fmt.Errorf("failed to parse govulncheck output: %v", err)
-		}
-		result.Mode = govulncheck.ModeGovulncheck
-		result.AsOf = time.Now()
-		deps.snapshot.View().SetVulnerabilities(args.URI.SpanURI(), &result)
-
+		deps.snapshot.View().SetVulnerabilities(args.URI.SpanURI(), result)
 		c.s.diagnoseSnapshot(deps.snapshot, nil, false, 0)
-		vulns := result.Vulns
-		affecting := make([]string, 0, len(vulns))
-		for _, v := range vulns {
-			if v.IsCalled() {
-				affecting = append(affecting, v.OSV.ID)
+
+		affecting := make(map[string]bool, len(result.Entries))
+		for _, finding := range result.Findings {
+			if len(finding.Trace) > 1 { // at least 2 frames if callstack exists (vulnerability, entry)
+				affecting[finding.OSV] = true
 			}
 		}
 		if len(affecting) == 0 {
@@ -997,10 +958,14 @@ func (c *commandHandler) RunGovulncheck(ctx context.Context, args command.Vulnch
 				Message: "No vulnerabilities found",
 			})
 		}
-		sort.Strings(affecting)
+		affectingOSVs := make([]string, 0, len(affecting))
+		for id := range affecting {
+			affectingOSVs = append(affectingOSVs, id)
+		}
+		sort.Strings(affectingOSVs)
 		return c.s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 			Type:    protocol.Warning,
-			Message: fmt.Sprintf("Found %v", strings.Join(affecting, ", ")),
+			Message: fmt.Sprintf("Found %v", strings.Join(affectingOSVs, ", ")),
 		})
 	})
 	if err != nil {

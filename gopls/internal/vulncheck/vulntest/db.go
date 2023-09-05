@@ -21,9 +21,8 @@ import (
 	"time"
 
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/gopls/internal/vulncheck/osv"
 	"golang.org/x/tools/txtar"
-	"golang.org/x/vuln/client"
-	"golang.org/x/vuln/osv"
 )
 
 // NewDatabase returns a read-only DB containing the provided
@@ -64,18 +63,13 @@ type DB struct {
 // URI returns the file URI that can be used for VULNDB environment
 // variable.
 func (db *DB) URI() string {
-	u := span.URIFromPath(db.disk)
+	u := span.URIFromPath(filepath.Join(db.disk, "ID"))
 	return string(u)
 }
 
 // Clean deletes the database.
 func (db *DB) Clean() error {
 	return os.RemoveAll(db.disk)
-}
-
-// NewClient returns a vuln DB client that works with the given DB.
-func NewClient(db *DB) (client.Client, error) {
-	return client.NewClient([]string{db.URI()}, client.Options{})
 }
 
 //
@@ -89,14 +83,6 @@ const (
 	// listed by their IDs.
 	idDirectory = "ID"
 
-	// stdFileName is the name of the .json file in the vulndb repo
-	// that will contain info on standard library vulnerabilities.
-	stdFileName = "stdlib"
-
-	// toolchainFileName is the name of the .json file in the vulndb repo
-	// that will contain info on toolchain (cmd/...) vulnerabilities.
-	toolchainFileName = "toolchain"
-
 	// cmdModule is the name of the module containing Go toolchain
 	// binaries.
 	cmdModule = "cmd"
@@ -109,38 +95,15 @@ const (
 func generateDB(ctx context.Context, txtarData []byte, jsonDir string, indent bool) error {
 	archive := txtar.Parse(txtarData)
 
-	jsonVulns, entries, err := generateEntries(ctx, archive)
+	entries, err := generateEntries(ctx, archive)
 	if err != nil {
-		return err
-	}
-
-	index := make(client.DBIndex, len(jsonVulns))
-	for modulePath, vulns := range jsonVulns {
-		epath, err := client.EscapeModulePath(modulePath)
-		if err != nil {
-			return err
-		}
-		if err := writeVulns(filepath.Join(jsonDir, epath), vulns, indent); err != nil {
-			return err
-		}
-		for _, v := range vulns {
-			if v.Modified.After(index[modulePath]) {
-				index[modulePath] = v.Modified
-			}
-		}
-	}
-	if err := writeJSON(filepath.Join(jsonDir, "index.json"), index, indent); err != nil {
-		return err
-	}
-	if err := writeAliasIndex(jsonDir, entries, indent); err != nil {
 		return err
 	}
 	return writeEntriesByID(filepath.Join(jsonDir, idDirectory), entries, indent)
 }
 
-func generateEntries(_ context.Context, archive *txtar.Archive) (map[string][]osv.Entry, []osv.Entry, error) {
+func generateEntries(_ context.Context, archive *txtar.Archive) ([]osv.Entry, error) {
 	now := time.Now()
-	jsonVulns := map[string][]osv.Entry{}
 	var entries []osv.Entry
 	for _, f := range archive.Files {
 		if !strings.HasSuffix(f.Name, ".yaml") {
@@ -148,17 +111,14 @@ func generateEntries(_ context.Context, archive *txtar.Archive) (map[string][]os
 		}
 		r, err := readReport(bytes.NewReader(f.Data))
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		name := strings.TrimSuffix(filepath.Base(f.Name), filepath.Ext(f.Name))
 		linkName := fmt.Sprintf("%s%s", dbURL, name)
-		entry, modulePaths := generateOSVEntry(name, linkName, now, *r)
-		for _, modulePath := range modulePaths {
-			jsonVulns[modulePath] = append(jsonVulns[modulePath], entry)
-		}
+		entry := generateOSVEntry(name, linkName, now, *r)
 		entries = append(entries, entry)
 	}
-	return jsonVulns, entries, nil
+	return entries, nil
 }
 
 func writeVulns(outPath string, vulns []osv.Entry, indent bool) error {
@@ -173,27 +133,13 @@ func writeEntriesByID(idDir string, entries []osv.Entry, indent bool) error {
 	if err := os.MkdirAll(idDir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %q: %v", idDir, err)
 	}
-	var idIndex []string
 	for _, e := range entries {
 		outPath := filepath.Join(idDir, e.ID+".json")
 		if err := writeJSON(outPath, e, indent); err != nil {
 			return err
 		}
-		idIndex = append(idIndex, e.ID)
 	}
-	// Write an index.json in the ID directory with a list of all the IDs.
-	return writeJSON(filepath.Join(idDir, "index.json"), idIndex, indent)
-}
-
-// Write a JSON file containing a map from alias to GO IDs.
-func writeAliasIndex(dir string, entries []osv.Entry, indent bool) error {
-	aliasToGoIDs := map[string][]string{}
-	for _, e := range entries {
-		for _, a := range e.Aliases {
-			aliasToGoIDs[a] = append(aliasToGoIDs[a], e.ID)
-		}
-	}
-	return writeJSON(filepath.Join(dir, "aliases.json"), aliasToGoIDs, indent)
+	return nil
 }
 
 func writeJSON(filename string, value any, indent bool) (err error) {
@@ -214,45 +160,40 @@ func jsonMarshal(v any, indent bool) ([]byte, error) {
 // generateOSVEntry create an osv.Entry for a report. In addition to the report, it
 // takes the ID for the vuln and a URL that will point to the entry in the vuln DB.
 // It returns the osv.Entry and a list of module paths that the vuln affects.
-func generateOSVEntry(id, url string, lastModified time.Time, r Report) (osv.Entry, []string) {
+func generateOSVEntry(id, url string, lastModified time.Time, r Report) osv.Entry {
 	entry := osv.Entry{
-		ID:        id,
-		Published: r.Published,
-		Modified:  lastModified,
-		Withdrawn: r.Withdrawn,
-		Details:   r.Description,
+		ID:               id,
+		Published:        r.Published,
+		Modified:         lastModified,
+		Withdrawn:        r.Withdrawn,
+		Summary:          r.Summary,
+		Details:          r.Description,
+		DatabaseSpecific: &osv.DatabaseSpecific{URL: url},
 	}
 
 	moduleMap := make(map[string]bool)
 	for _, m := range r.Modules {
 		switch m.Module {
 		case stdModule:
-			moduleMap[stdFileName] = true
+			moduleMap[osv.GoStdModulePath] = true
 		case cmdModule:
-			moduleMap[toolchainFileName] = true
+			moduleMap[osv.GoCmdModulePath] = true
 		default:
 			moduleMap[m.Module] = true
 		}
-		entry.Affected = append(entry.Affected, generateAffected(m, url))
+		entry.Affected = append(entry.Affected, toAffected(m))
 	}
 	for _, ref := range r.References {
 		entry.References = append(entry.References, osv.Reference{
-			Type: string(ref.Type),
+			Type: ref.Type,
 			URL:  ref.URL,
 		})
 	}
-
-	var modulePaths []string
-	for module := range moduleMap {
-		modulePaths = append(modulePaths, module)
-	}
-	// TODO: handle missing fields - Aliases
-
-	return entry, modulePaths
+	return entry
 }
 
-func generateAffectedRanges(versions []VersionRange) osv.Affects {
-	a := osv.AffectsRange{Type: osv.TypeSemver}
+func AffectedRanges(versions []VersionRange) []osv.Range {
+	a := osv.Range{Type: osv.RangeTypeSemver}
 	if len(versions) == 0 || versions[0].Introduced == "" {
 		a.Events = append(a.Events, osv.RangeEvent{Introduced: "0"})
 	}
@@ -264,15 +205,15 @@ func generateAffectedRanges(versions []VersionRange) osv.Affects {
 			a.Events = append(a.Events, osv.RangeEvent{Fixed: v.Fixed.Canonical()})
 		}
 	}
-	return osv.Affects{a}
+	return []osv.Range{a}
 }
 
-func generateImports(m *Module) (imps []osv.EcosystemSpecificImport) {
-	for _, p := range m.Packages {
+func toOSVPackages(pkgs []*Package) (imps []osv.Package) {
+	for _, p := range pkgs {
 		syms := append([]string{}, p.Symbols...)
 		syms = append(syms, p.DerivedSymbols...)
 		sort.Strings(syms)
-		imps = append(imps, osv.EcosystemSpecificImport{
+		imps = append(imps, osv.Package{
 			Path:    p.Package,
 			GOOS:    p.GOOS,
 			GOARCH:  p.GOARCH,
@@ -281,23 +222,23 @@ func generateImports(m *Module) (imps []osv.EcosystemSpecificImport) {
 	}
 	return imps
 }
-func generateAffected(m *Module, url string) osv.Affected {
+
+func toAffected(m *Module) osv.Affected {
 	name := m.Module
 	switch name {
 	case stdModule:
-		name = "stdlib"
+		name = osv.GoStdModulePath
 	case cmdModule:
-		name = "toolchain"
+		name = osv.GoCmdModulePath
 	}
 	return osv.Affected{
-		Package: osv.Package{
-			Name:      name,
+		Module: osv.Module{
+			Path:      name,
 			Ecosystem: osv.GoEcosystem,
 		},
-		Ranges:           generateAffectedRanges(m.Versions),
-		DatabaseSpecific: osv.DatabaseSpecific{URL: url},
+		Ranges: AffectedRanges(m.Versions),
 		EcosystemSpecific: osv.EcosystemSpecific{
-			Imports: generateImports(m),
+			Packages: toOSVPackages(m.Packages),
 		},
 	}
 }

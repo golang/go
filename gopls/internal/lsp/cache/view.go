@@ -24,10 +24,10 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 	exec "golang.org/x/sys/execabs"
-	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/gopls/internal/vulncheck"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
@@ -66,7 +66,7 @@ type View struct {
 
 	// vulns maps each go.mod file's URI to its known vulnerabilities.
 	vulnsMu sync.Mutex
-	vulns   map[span.URI]*govulncheck.Result
+	vulns   map[span.URI]*vulncheck.Result
 
 	// parseCache holds an LRU cache of recently parsed files.
 	parseCache *parseCache
@@ -1125,8 +1125,8 @@ func (v *View) ClearModuleUpgrades(modfile span.URI) {
 const maxGovulncheckResultAge = 1 * time.Hour // Invalidate results older than this limit.
 var timeNow = time.Now                        // for testing
 
-func (v *View) Vulnerabilities(modfiles ...span.URI) map[span.URI]*govulncheck.Result {
-	m := make(map[span.URI]*govulncheck.Result)
+func (v *View) Vulnerabilities(modfiles ...span.URI) map[span.URI]*vulncheck.Result {
+	m := make(map[span.URI]*vulncheck.Result)
 	now := timeNow()
 	v.vulnsMu.Lock()
 	defer v.vulnsMu.Unlock()
@@ -1147,7 +1147,7 @@ func (v *View) Vulnerabilities(modfiles ...span.URI) map[span.URI]*govulncheck.R
 	return m
 }
 
-func (v *View) SetVulnerabilities(modfile span.URI, vulns *govulncheck.Result) {
+func (v *View) SetVulnerabilities(modfile span.URI, vulns *vulncheck.Result) {
 	v.vulnsMu.Lock()
 	defer v.vulnsMu.Unlock()
 

@@ -2,15 +2,25 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package govulncheck
+// go:generate go run copier.go
 
-import "time"
+package vulncheck
+
+import (
+	"time"
+
+	gvc "golang.org/x/tools/gopls/internal/vulncheck/govulncheck"
+	"golang.org/x/tools/gopls/internal/vulncheck/osv"
+)
 
 // Result is the result of vulnerability scanning.
 type Result struct {
-	// Vulns contains all vulnerabilities that are called or imported by
-	// the analyzed module.
-	Vulns []*Vuln `json:",omitempty"`
+	// Entries contains all vulnerabilities that are called or imported by
+	// the analyzed module. Keys are Entry.IDs.
+	Entries map[string]*osv.Entry
+	// Findings are vulnerabilities found by vulncheck or import-based analysis.
+	// Ordered by the OSV IDs and the package names.
+	Findings []*gvc.Finding
 
 	// Mode contains the source of the vulnerability info.
 	// Clients of the gopls.fetch_vulncheck_result command may need

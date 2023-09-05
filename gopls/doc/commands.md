@@ -117,7 +117,7 @@ Args:
 Result:
 
 ```
-map[golang.org/x/tools/gopls/internal/lsp/protocol.DocumentURI]*golang.org/x/tools/gopls/internal/govulncheck.Result
+map[golang.org/x/tools/gopls/internal/lsp/protocol.DocumentURI]*golang.org/x/tools/gopls/internal/vulncheck.Result
 ```
 
 ### **Toggle gc_details**
@@ -307,7 +307,7 @@ Args:
 }
 ```
 
-### **Run govulncheck.**
+### **Run vulncheck.**
 Identifier: `gopls.run_govulncheck`
 
 Run vulnerability check (`govulncheck`).

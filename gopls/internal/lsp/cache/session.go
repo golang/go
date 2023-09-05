@@ -13,10 +13,10 @@ import (
 	"sync/atomic"
 
 	"golang.org/x/tools/gopls/internal/bug"
-	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/typerefs"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/gopls/internal/vulncheck"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
@@ -123,7 +123,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		baseCtx:              baseCtx,
 		name:                 name,
 		moduleUpgrades:       map[span.URI]map[string]string{},
-		vulns:                map[span.URI]*govulncheck.Result{},
+		vulns:                map[span.URI]*vulncheck.Result{},
 		parseCache:           s.parseCache,
 		fs:                   s.overlayFS,
 		workspaceInformation: info,

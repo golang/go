@@ -17,8 +17,8 @@ package command
 import (
 	"context"
 
-	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/vulncheck"
 )
 
 // Interface defines the interface gopls exposes for the
@@ -160,7 +160,7 @@ type Interface interface {
 	// runner.
 	StopProfile(context.Context, StopProfileArgs) (StopProfileResult, error)
 
-	// RunGovulncheck: Run govulncheck.
+	// RunGovulncheck: Run vulncheck.
 	//
 	// Run vulnerability check (`govulncheck`).
 	RunGovulncheck(context.Context, VulncheckArgs) (RunVulncheckResult, error)
@@ -168,7 +168,7 @@ type Interface interface {
 	// FetchVulncheckResult: Get known vulncheck result
 	//
 	// Fetch the result of latest vulnerability check (`govulncheck`).
-	FetchVulncheckResult(context.Context, URIArg) (map[protocol.DocumentURI]*govulncheck.Result, error)
+	FetchVulncheckResult(context.Context, URIArg) (map[protocol.DocumentURI]*vulncheck.Result, error)
 
 	// MemStats: fetch memory statistics
 	//

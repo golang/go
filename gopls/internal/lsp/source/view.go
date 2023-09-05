@@ -22,12 +22,12 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/objectpath"
-	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/progress"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/source/methodsets"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/gopls/internal/vulncheck"
 	"golang.org/x/tools/internal/event/label"
 	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/gocommand"
@@ -148,7 +148,7 @@ type Snapshot interface {
 
 	// ModVuln returns import vulnerability analysis for the given go.mod URI.
 	// Concurrent requests are combined into a single command.
-	ModVuln(ctx context.Context, modURI span.URI) (*govulncheck.Result, error)
+	ModVuln(ctx context.Context, modURI span.URI) (*vulncheck.Result, error)
 
 	// GoModForFile returns the URI of the go.mod file for the given URI.
 	GoModForFile(uri span.URI) span.URI
@@ -391,11 +391,11 @@ type View interface {
 	// Vulnerabilities returns known vulnerabilities for the given modfile.
 	// TODO(suzmue): replace command.Vuln with a different type, maybe
 	// https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck/govulnchecklib#Summary?
-	Vulnerabilities(modfile ...span.URI) map[span.URI]*govulncheck.Result
+	Vulnerabilities(modfile ...span.URI) map[span.URI]*vulncheck.Result
 
 	// SetVulnerabilities resets the list of vulnerabilities that exists for the given modules
 	// required by modfile.
-	SetVulnerabilities(modfile span.URI, vulncheckResult *govulncheck.Result)
+	SetVulnerabilities(modfile span.URI, vulncheckResult *vulncheck.Result)
 
 	// GoVersion returns the configured Go version for this view.
 	GoVersion() int

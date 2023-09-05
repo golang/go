@@ -12,8 +12,8 @@ require (
 	golang.org/x/sys v0.12.0
 	golang.org/x/telemetry v0.0.0-20230822160736-17171dbf1d76
 	golang.org/x/text v0.13.0
-	golang.org/x/tools v0.9.4-0.20230601214343-86c93e8732cc
-	golang.org/x/vuln v0.0.0-20230110180137-6ad3e3d07815
+	golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846
+	golang.org/x/vuln v1.0.1
 	gopkg.in/yaml.v3 v3.0.1
 	honnef.co/go/tools v0.4.5
 	mvdan.cc/gofumpt v0.4.0
@@ -23,8 +23,8 @@ require (
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/google/safehtml v0.1.0 // indirect
-	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 	golang.org/x/exp/typeparams v0.0.0-20221212164502-fae10dda9338 // indirect
+
 )
 
 replace golang.org/x/tools => ../

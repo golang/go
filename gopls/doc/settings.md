@@ -529,7 +529,7 @@ Runs `go generate` for a given directory.
 Identifier: `regenerate_cgo`
 
 Regenerates cgo definitions.
-### **Run govulncheck.**
+### **Run vulncheck.**
 
 Identifier: `run_govulncheck`
 
