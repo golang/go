@@ -333,30 +333,40 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 	if flag&abi.FuncFlagTopFrame != 0 {
 		// This function marks the top of the stack. Stop the traceback.
 		frame.lr = 0
-	} else if flag&abi.FuncFlagSPWrite != 0 {
+	} else if flag&abi.FuncFlagSPWrite != 0 && (!innermost || u.flags&(unwindPrintErrors|unwindSilentErrors) != 0) {
 		// The function we are in does a write to SP that we don't know
 		// how to encode in the spdelta table. Examples include context
 		// switch routines like runtime.gogo but also any code that switches
 		// to the g0 stack to run host C code.
-		if u.flags&(unwindPrintErrors|unwindSilentErrors) != 0 {
-			// We can't reliably unwind the SP (we might
-			// not even be on the stack we think we are),
-			// so stop the traceback here.
-			frame.lr = 0
-		} else {
-			// For a GC stack traversal, we should only see
-			// an SPWRITE function when it has voluntarily preempted itself on entry
-			// during the stack growth check. In that case, the function has
-			// not yet had a chance to do any writes to SP and is safe to unwind.
-			// isAsyncSafePoint does not allow assembly functions to be async preempted,
-			// and preemptPark double-checks that SPWRITE functions are not async preempted.
-			// So for GC stack traversal, we can safely ignore SPWRITE for the innermost frame,
-			// but farther up the stack we'd better not find any.
-			if !innermost {
-				println("traceback: unexpected SPWRITE function", funcname(f))
+		// We can't reliably unwind the SP (we might not even be on
+		// the stack we think we are), so stop the traceback here.
+		//
+		// The one exception (encoded in the complex condition above) is that
+		// we assume if we're doing a precise traceback, and this is the
+		// innermost frame, that the SPWRITE function voluntarily preempted itself on entry
+		// during the stack growth check. In that case, the function has
+		// not yet had a chance to do any writes to SP and is safe to unwind.
+		// isAsyncSafePoint does not allow assembly functions to be async preempted,
+		// and preemptPark double-checks that SPWRITE functions are not async preempted.
+		// So for GC stack traversal, we can safely ignore SPWRITE for the innermost frame,
+		// but farther up the stack we'd better not find any.
+		// This is somewhat imprecise because we're just guessing that we're in the stack
+		// growth check. It would be better if SPWRITE were encoded in the spdelta
+		// table so we would know for sure that we were still in safe code.
+		//
+		// uSE uPE inn | action
+		//  T   _   _  | frame.lr = 0
+		//  F   T   F  | frame.lr = 0; print
+		//  F   T   T  | frame.lr = 0
+		//  F   F   F  | print; panic
+		//  F   F   T  | ignore SPWrite
+		if u.flags&unwindSilentErrors == 0 && !innermost {
+			println("traceback: unexpected SPWRITE function", funcname(f))
+			if u.flags&unwindPrintErrors == 0 {
 				throw("traceback")
 			}
 		}
+		frame.lr = 0
 	} else {
 		var lrPtr uintptr
 		if usesLR {
