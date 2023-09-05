@@ -2596,7 +2596,7 @@ func LinkerDeps(p *Package) ([]string, error) {
 	return deps, nil
 }
 
-// externalLinkingForced reports the reason external linking is required
+// externalLinkingReason reports the reason external linking is required
 // even for programs that do not use cgo, or the empty string if external
 // linking is not required.
 func externalLinkingReason(p *Package) (what string) {
