@@ -639,33 +639,17 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		}
 		fmt.Fprintf(s, "%v { %v }", n.Type(), n.Func.Body)
 
-	case OCOMPLIT:
-		n := n.(*CompLitExpr)
-		if !exportFormat {
-			if n.Implicit() {
-				fmt.Fprintf(s, "... argument")
-				return
-			}
-			if typ := n.Type(); typ != nil {
-				fmt.Fprintf(s, "%v{%s}", typ, ellipsisIf(len(n.List) != 0))
-				return
-			}
-			fmt.Fprint(s, "composite literal")
-			return
-		}
-		fmt.Fprintf(s, "(%v{ %.v })", n.Type(), n.List)
-
 	case OPTRLIT:
 		n := n.(*AddrExpr)
 		fmt.Fprintf(s, "&%v", n.X)
 
-	case OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
+	case OCOMPLIT, OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
 		n := n.(*CompLitExpr)
-		if !exportFormat {
-			fmt.Fprintf(s, "%v{%s}", n.Type(), ellipsisIf(len(n.List) != 0))
+		if n.Implicit() {
+			fmt.Fprintf(s, "... argument")
 			return
 		}
-		fmt.Fprintf(s, "(%v{ %.v })", n.Type(), n.List)
+		fmt.Fprintf(s, "%v{%s}", n.Type(), ellipsisIf(len(n.List) != 0))
 
 	case OKEY:
 		n := n.(*KeyExpr)
