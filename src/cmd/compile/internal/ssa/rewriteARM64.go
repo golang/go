@@ -154,6 +154,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64GreaterEqual(v)
 	case OpARM64GreaterEqualF:
 		return rewriteValueARM64_OpARM64GreaterEqualF(v)
+	case OpARM64GreaterEqualNoov:
+		return rewriteValueARM64_OpARM64GreaterEqualNoov(v)
 	case OpARM64GreaterEqualU:
 		return rewriteValueARM64_OpARM64GreaterEqualU(v)
 	case OpARM64GreaterThan:
@@ -174,6 +176,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64LessThan(v)
 	case OpARM64LessThanF:
 		return rewriteValueARM64_OpARM64LessThanF(v)
+	case OpARM64LessThanNoov:
+		return rewriteValueARM64_OpARM64LessThanNoov(v)
 	case OpARM64LessThanU:
 		return rewriteValueARM64_OpARM64LessThanU(v)
 	case OpARM64MADD:
@@ -5965,6 +5969,27 @@ func rewriteValueARM64_OpARM64GreaterEqualF(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueARM64_OpARM64GreaterEqualNoov(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (GreaterEqualNoov (InvertFlags x))
+	// result: (OR (LessThanNoov <typ.Bool> x) (Equal <typ.Bool> x))
+	for {
+		if v_0.Op != OpARM64InvertFlags {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARM64OR)
+		v0 := b.NewValue0(v.Pos, OpARM64LessThanNoov, typ.Bool)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpARM64Equal, typ.Bool)
+		v1.AddArg(x)
+		v.AddArg2(v0, v1)
+		return true
+	}
+	return false
+}
 func rewriteValueARM64_OpARM64GreaterEqualU(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (GreaterEqualU (FlagConstant [fc]))
@@ -6675,6 +6700,27 @@ func rewriteValueARM64_OpARM64LessThanF(v *Value) bool {
 		x := v_0.Args[0]
 		v.reset(OpARM64GreaterThanF)
 		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64LessThanNoov(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (LessThanNoov (InvertFlags x))
+	// result: (BIC (GreaterEqualNoov <typ.Bool> x) (Equal <typ.Bool> x))
+	for {
+		if v_0.Op != OpARM64InvertFlags {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARM64BIC)
+		v0 := b.NewValue0(v.Pos, OpARM64GreaterEqualNoov, typ.Bool)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Pos, OpARM64Equal, typ.Bool)
+		v1.AddArg(x)
+		v.AddArg2(v0, v1)
 		return true
 	}
 	return false
