@@ -526,12 +526,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
 			return
 		}
 
-		// We always want the original, if any.
-		if o := Orig(n); o != n {
-			n = o
-			continue
-		}
-
 		// Skip implicit operations introduced during typechecking.
 		switch nn := n; nn.Op() {
 		case OADDR:

@@ -255,7 +255,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 	default:
 		n.SetOp(ir.OCALLFUNC)
 		if t.Kind() != types.TFUNC {
-			if o := ir.Orig(l); o.Name() != nil && types.BuiltinPkg.Lookup(o.Sym().Name).Def != nil {
+			if o := l; o.Name() != nil && types.BuiltinPkg.Lookup(o.Sym().Name).Def != nil {
 				// be more specific when the non-function
 				// name matches a predeclared function
 				base.Errorf("cannot call non-function %L, declared at %s",

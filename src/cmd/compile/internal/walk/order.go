@@ -128,7 +128,7 @@ func (o *orderState) cheapExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.UnaryExpr)
+		a := ir.Copy(n).(*ir.UnaryExpr)
 		a.X = l
 		return typecheck.Expr(a)
 	}
@@ -154,7 +154,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.UnaryExpr)
+		a := ir.Copy(n).(*ir.UnaryExpr)
 		a.X = l
 		return typecheck.Expr(a)
 
@@ -164,7 +164,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.SelectorExpr)
+		a := ir.Copy(n).(*ir.SelectorExpr)
 		a.X = l
 		return typecheck.Expr(a)
 
@@ -174,7 +174,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.SelectorExpr)
+		a := ir.Copy(n).(*ir.SelectorExpr)
 		a.X = l
 		return typecheck.Expr(a)
 
@@ -184,7 +184,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.StarExpr)
+		a := ir.Copy(n).(*ir.StarExpr)
 		a.X = l
 		return typecheck.Expr(a)
 
@@ -200,7 +200,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X && r == n.Index {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.IndexExpr)
+		a := ir.Copy(n).(*ir.IndexExpr)
 		a.X = l
 		a.Index = r
 		return typecheck.Expr(a)

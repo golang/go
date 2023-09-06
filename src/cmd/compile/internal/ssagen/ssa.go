@@ -7658,16 +7658,10 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	case *ir.Name:
 		if n.Class == ir.PPARAM || (n.Class == ir.PPARAMOUT && !n.IsOutputParamInRegisters()) {
 			a.Name = obj.NAME_PARAM
-			a.Sym = ir.Orig(n).(*ir.Name).Linksym()
-			a.Offset += n.FrameOffset()
-			break
-		}
-		a.Name = obj.NAME_AUTO
-		if n.Class == ir.PPARAMOUT {
-			a.Sym = ir.Orig(n).(*ir.Name).Linksym()
 		} else {
-			a.Sym = n.Linksym()
+			a.Name = obj.NAME_AUTO
 		}
+		a.Sym = n.Linksym()
 		a.Offset += n.FrameOffset()
 	default:
 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)

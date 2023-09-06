@@ -470,9 +470,7 @@ func IsConst(n Node, ct constant.Kind) bool {
 
 // IsNil reports whether n represents the universal untyped zero value "nil".
 func IsNil(n Node) bool {
-	// Check n.Orig because constant propagation may produce typed nil constants,
-	// which don't exist in the Go spec.
-	return n != nil && Orig(n).Op() == ONIL
+	return n != nil && n.Op() == ONIL
 }
 
 func IsBlank(n Node) bool {

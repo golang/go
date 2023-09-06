@@ -3053,7 +3053,7 @@ func (r *reader) compLit() ir.Node {
 func wrapName(pos src.XPos, x ir.Node) ir.Node {
 	// These nodes do not carry line numbers.
 	// Introduce a wrapper node to give them the correct line.
-	switch ir.Orig(x).Op() {
+	switch x.Op() {
 	case ir.OTYPE, ir.OLITERAL:
 		if x.Sym() == nil {
 			break

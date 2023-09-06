@@ -8,20 +8,6 @@ import (
 	"cmd/internal/src"
 )
 
-// Orig returns n.
-//
-// TODO(mdempsky): Remove.
-func Orig(n Node) Node {
-	return n
-}
-
-// SepCopy returns a shallow copy of n.
-//
-// TODO(mdempsky): Replace with Copy.
-func SepCopy(n Node) Node {
-	return n.copy()
-}
-
 // Copy returns a shallow copy of n.
 func Copy(n Node) Node {
 	return n.copy()
