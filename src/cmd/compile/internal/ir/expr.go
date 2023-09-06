@@ -133,10 +133,14 @@ type BasicLit struct {
 }
 
 func NewBasicLit(pos src.XPos, val constant.Value) Node {
+	if val == nil || val.Kind() == constant.Unknown {
+		base.FatalfAt(pos, "bad value: %v", val)
+	}
+
 	n := &BasicLit{val: val}
 	n.op = OLITERAL
 	n.pos = pos
-	n.SetType(idealType(val.Kind()))
+	n.SetType(types.UntypedTypes[val.Kind()])
 	n.SetTypecheck(1)
 	return n
 }

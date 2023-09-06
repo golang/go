@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"go/constant"
 	"strconv"
 	"strings"
 	"sync"
@@ -681,41 +680,6 @@ func SplitVargenSuffix(name string) (base, suffix string) {
 		return name[:i], name[i:]
 	}
 	return name, ""
-}
-
-// Val
-
-func FmtConst(v constant.Value, sharp bool) string {
-	if !sharp && v.Kind() == constant.Complex {
-		real, imag := constant.Real(v), constant.Imag(v)
-
-		var re string
-		sre := constant.Sign(real)
-		if sre != 0 {
-			re = real.String()
-		}
-
-		var im string
-		sim := constant.Sign(imag)
-		if sim != 0 {
-			im = imag.String()
-		}
-
-		switch {
-		case sre == 0 && sim == 0:
-			return "0"
-		case sre == 0:
-			return im + "i"
-		case sim == 0:
-			return re
-		case sim < 0:
-			return fmt.Sprintf("(%s%si)", re, im)
-		default:
-			return fmt.Sprintf("(%s+%si)", re, im)
-		}
-	}
-
-	return v.String()
 }
 
 // TypeHash computes a hash value for type t to use in type switch statements.

@@ -9,6 +9,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
+	"go/constant"
 	"internal/types/errors"
 	"sync"
 )
@@ -127,6 +128,25 @@ var (
 	UntypedFloat   = newType(TIDEAL)
 	UntypedComplex = newType(TIDEAL)
 )
+
+// UntypedTypes maps from a constant.Kind to its untyped Type
+// representation.
+var UntypedTypes = [...]*Type{
+	constant.Bool:    UntypedBool,
+	constant.String:  UntypedString,
+	constant.Int:     UntypedInt,
+	constant.Float:   UntypedFloat,
+	constant.Complex: UntypedComplex,
+}
+
+// DefaultKinds maps from a constant.Kind to its default Kind.
+var DefaultKinds = [...]Kind{
+	constant.Bool:    TBOOL,
+	constant.String:  TSTRING,
+	constant.Int:     TINT,
+	constant.Float:   TFLOAT64,
+	constant.Complex: TCOMPLEX128,
+}
 
 // A Type represents a Go type.
 //

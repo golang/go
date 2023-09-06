@@ -60,23 +60,6 @@ func ValidTypeForConst(t *types.Type, v constant.Value) bool {
 	panic("unreachable")
 }
 
-func idealType(ct constant.Kind) *types.Type {
-	switch ct {
-	case constant.String:
-		return types.UntypedString
-	case constant.Bool:
-		return types.UntypedBool
-	case constant.Int:
-		return types.UntypedInt
-	case constant.Float:
-		return types.UntypedFloat
-	case constant.Complex:
-		return types.UntypedComplex
-	}
-	base.Fatalf("unexpected Ctype: %v", ct)
-	return nil
-}
-
 var OKForConst [types.NTYPE]bool
 
 // Int64Val returns n as an int64.

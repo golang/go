@@ -580,46 +580,29 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case ONIL:
 		fmt.Fprint(s, "nil")
 
-	case OLITERAL: // this is a bit of a mess
-		if !exportFormat && n.Sym() != nil {
+	case OLITERAL:
+		if n.Sym() != nil {
 			fmt.Fprint(s, n.Sym())
 			return
 		}
 
-		needUnparen := false
-		if n.Type() != nil && !n.Type().IsUntyped() {
-			// Need parens when type begins with what might
-			// be misinterpreted as a unary operator: * or <-.
-			if n.Type().IsPtr() || (n.Type().IsChan() && n.Type().ChanDir() == types.Crecv) {
-				fmt.Fprintf(s, "(%v)(", n.Type())
-			} else {
-				fmt.Fprintf(s, "%v(", n.Type())
-			}
-			needUnparen = true
-		}
+		typ := n.Type()
+		val := n.Val()
 
-		if n.Type() == types.UntypedRune {
-			switch x, ok := constant.Uint64Val(n.Val()); {
-			case !ok:
-				fallthrough
-			default:
-				fmt.Fprintf(s, "('\\x00' + %v)", n.Val())
-
-			case x < utf8.RuneSelf:
+		// Special case for rune constants.
+		if typ == types.RuneType || typ == types.UntypedRune {
+			if x, ok := constant.Uint64Val(val); ok && x <= utf8.MaxRune {
 				fmt.Fprintf(s, "%q", x)
-
-			case x < 1<<16:
-				fmt.Fprintf(s, "'\\u%04x'", x)
-
-			case x <= utf8.MaxRune:
-				fmt.Fprintf(s, "'\\U%08x'", x)
+				return
 			}
-		} else {
-			fmt.Fprint(s, types.FmtConst(n.Val(), s.Flag('#')))
 		}
 
-		if needUnparen {
-			fmt.Fprintf(s, ")")
+		// Only include typ if it's neither the default nor untyped type
+		// for the constant value.
+		if k := val.Kind(); typ == types.Types[types.DefaultKinds[k]] || typ == types.UntypedTypes[k] {
+			fmt.Fprint(s, val)
+		} else {
+			fmt.Fprintf(s, "%v(%v)", typ, val)
 		}
 
 	case ODCLFUNC:
