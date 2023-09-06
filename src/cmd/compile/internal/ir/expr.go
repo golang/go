@@ -188,7 +188,6 @@ func (n *BinaryExpr) SetOp(op Op) {
 // A CallExpr is a function call X(Args).
 type CallExpr struct {
 	miniExpr
-	origNode
 	X         Node
 	Args      Nodes
 	RType     Node    `mknode:"-"` // see reflectdata/helpers.go
@@ -200,7 +199,6 @@ type CallExpr struct {
 func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
 	n := &CallExpr{X: fun}
 	n.pos = pos
-	n.orig = n
 	n.SetOp(op)
 	n.Args = args
 	return n
@@ -234,7 +232,6 @@ type ClosureExpr struct {
 // Before type-checking, the type is Ntype.
 type CompLitExpr struct {
 	miniExpr
-	origNode
 	List     Nodes // initialized values
 	RType    Node  `mknode:"-"` // *runtime._type for OMAPLIT map types
 	Prealloc *Name
@@ -251,7 +248,6 @@ func NewCompLitExpr(pos src.XPos, op Op, typ *types.Type, list []Node) *CompLitE
 	if typ != nil {
 		n.SetType(typ)
 	}
-	n.orig = n
 	return n
 }
 

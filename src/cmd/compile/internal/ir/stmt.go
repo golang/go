@@ -373,15 +373,13 @@ func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node, distinctVars bo
 // A ReturnStmt is a return statement.
 type ReturnStmt struct {
 	miniStmt
-	origNode       // for typecheckargs rewrite
-	Results  Nodes // return list
+	Results Nodes // return list
 }
 
 func NewReturnStmt(pos src.XPos, results []Node) *ReturnStmt {
 	n := &ReturnStmt{}
 	n.pos = pos
 	n.op = ORETURN
-	n.orig = n
 	n.Results = results
 	return n
 }

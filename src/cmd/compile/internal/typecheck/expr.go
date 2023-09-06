@@ -169,9 +169,6 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 		base.Pos = lno
 	}()
 
-	// Save original node (including n.Right)
-	n.SetOrig(ir.Copy(n))
-
 	ir.SetPos(n)
 
 	t := n.Type()

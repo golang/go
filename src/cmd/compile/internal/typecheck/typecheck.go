@@ -624,11 +624,6 @@ func typecheckargs(n ir.InitNode) {
 		return
 	}
 
-	// Save n as n.Orig for fmt.go.
-	if ir.Orig(n) == n {
-		n.(ir.OrigNode).SetOrig(ir.SepCopy(n))
-	}
-
 	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
 	RewriteMultiValueCall(n, list[0])
 }
