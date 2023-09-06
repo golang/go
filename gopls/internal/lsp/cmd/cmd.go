@@ -316,7 +316,7 @@ func (app *Application) connect(ctx context.Context, onProgress func(*protocol.P
 	switch {
 	case app.Remote == "":
 		client := newClient(app, onProgress)
-		server := lsp.NewServer(cache.NewSession(ctx, cache.New(nil), app.options), client)
+		server := lsp.NewServer(cache.NewSession(ctx, cache.New(nil)), client, app.options)
 		conn := newConnection(server, client)
 		if err := conn.initialize(protocol.WithClient(ctx, client), app.options); err != nil {
 			return nil, err

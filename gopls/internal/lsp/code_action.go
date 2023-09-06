@@ -299,7 +299,7 @@ func (s *Server) findMatchingDiagnostics(uri span.URI, pd protocol.Diagnostic) [
 
 func (s *Server) getSupportedCodeActions() []protocol.CodeActionKind {
 	allCodeActionKinds := make(map[protocol.CodeActionKind]struct{})
-	for _, kinds := range s.session.Options().SupportedCodeActions {
+	for _, kinds := range s.Options().SupportedCodeActions {
 		for kind := range kinds {
 			allCodeActionKinds[kind] = struct{}{}
 		}

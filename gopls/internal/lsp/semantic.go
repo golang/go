@@ -76,8 +76,8 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 			ctx:            ctx,
 			metadataSource: snapshot,
 			rng:            rng,
-			tokTypes:       s.session.Options().SemanticTypes,
-			tokMods:        s.session.Options().SemanticMods,
+			tokTypes:       snapshot.Options().SemanticTypes,
+			tokMods:        snapshot.Options().SemanticMods,
 		}
 		add := func(line, start uint32, len uint32) {
 			e.add(line, start, len, tokMacro, nil)
@@ -108,8 +108,8 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		ti:             pkg.GetTypesInfo(),
 		pkg:            pkg,
 		fset:           pkg.FileSet(),
-		tokTypes:       s.session.Options().SemanticTypes,
-		tokMods:        s.session.Options().SemanticMods,
+		tokTypes:       snapshot.Options().SemanticTypes,
+		tokMods:        snapshot.Options().SemanticMods,
 		noStrings:      snapshot.Options().NoSemanticString,
 		noNumbers:      snapshot.Options().NoSemanticNumber,
 	}

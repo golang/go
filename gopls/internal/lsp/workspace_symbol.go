@@ -17,8 +17,8 @@ func (s *Server) symbol(ctx context.Context, params *protocol.WorkspaceSymbolPar
 	defer done()
 
 	views := s.session.Views()
-	matcher := s.session.Options().SymbolMatcher
-	style := s.session.Options().SymbolStyle
+	matcher := s.Options().SymbolMatcher
+	style := s.Options().SymbolStyle
 	// TODO(rfindley): it looks wrong that we need to pass views here.
 	//
 	// Evidence:

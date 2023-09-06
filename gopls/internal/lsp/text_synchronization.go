@@ -88,6 +88,8 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 	// views, but it won't because ViewOf only returns an error when there
 	// are no views in the session. I don't know if that logic should go
 	// here, or if we can continue to rely on that implementation detail.
+	//
+	// TODO(golang/go#57979): this will be generalized to a different view calculation.
 	if _, err := s.session.ViewOf(uri); err != nil {
 		dir := filepath.Dir(uri.Filename())
 		if err := s.addFolders(ctx, []protocol.WorkspaceFolder{{
@@ -239,7 +241,7 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 	wg.Add(1)
 	defer wg.Done()
 
-	if s.session.Options().VerboseWorkDoneProgress {
+	if s.Options().VerboseWorkDoneProgress {
 		work := s.progress.Start(ctx, DiagnosticWorkTitle(cause), "Calculating file diagnostics...", nil, nil)
 		go func() {
 			wg.Wait()

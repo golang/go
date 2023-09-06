@@ -36,8 +36,8 @@ func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source
 	if state < serverInitialized {
 		return nil, nil, fmt.Errorf("addView called before server initialized")
 	}
-	options := s.session.Options().Clone()
-	if err := s.fetchConfig(ctx, name, uri, options); err != nil {
+	options, err := s.fetchFolderOptions(ctx, uri)
+	if err != nil {
 		return nil, nil, err
 	}
 	_, snapshot, release, err := s.session.NewView(ctx, name, uri, options)
@@ -49,22 +49,24 @@ func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 	defer done()
 
 	// Apply any changes to the session-level settings.
-	options := s.session.Options().Clone()
-	if err := s.fetchConfig(ctx, "", "", options); err != nil {
+	options, err := s.fetchFolderOptions(ctx, "")
+	if err != nil {
 		return err
 	}
-	s.session.SetOptions(options)
+	s.SetOptions(options)
 
-	// Go through each view, getting and updating its configuration.
+	// Collect options for all workspace folders.
+	seen := make(map[span.URI]bool)
 	for _, view := range s.session.Views() {
-		options := s.session.Options().Clone()
-		if err := s.fetchConfig(ctx, view.Name(), view.Folder(), options); err != nil {
-			return err
+		if seen[view.Folder()] {
+			continue
 		}
-		_, err := s.session.SetViewOptions(ctx, view, options)
+		seen[view.Folder()] = true
+		options, err := s.fetchFolderOptions(ctx, view.Folder())
 		if err != nil {
 			return err
 		}
+		s.session.SetFolderOptions(ctx, view.Folder(), options)
 	}
 
 	// Now that all views have been updated: reset vulncheck diagnostics, rerun

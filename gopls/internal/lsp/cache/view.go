@@ -482,21 +482,35 @@ func minorOptionsChange(a, b *source.Options) bool {
 	return reflect.DeepEqual(aBuildFlags, bBuildFlags)
 }
 
-// SetViewOptions sets the options of the given view to new values. Calling
-// this may cause the view to be invalidated and a replacement view added to
-// the session. If so the new view will be returned, otherwise the original one
-// will be returned.
-func (s *Session) SetViewOptions(ctx context.Context, v *View, options *source.Options) (*View, error) {
+// SetFolderOptions updates the options of each View associated with the folder
+// of the given URI.
+//
+// Calling this may cause each related view to be invalidated and a replacement
+// view added to the session.
+func (s *Session) SetFolderOptions(ctx context.Context, uri span.URI, options *source.Options) error {
+	s.viewMu.Lock()
+	defer s.viewMu.Unlock()
+
+	for _, v := range s.views {
+		if v.folder == uri {
+			if err := s.setViewOptions(ctx, v, options); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (s *Session) setViewOptions(ctx context.Context, v *View, options *source.Options) error {
 	// no need to rebuild the view if the options were not materially changed
 	v.optionsMu.Lock()
 	if minorOptionsChange(v.options, options) {
 		v.options = options
 		v.optionsMu.Unlock()
-		return v, nil
+		return nil
 	}
 	v.optionsMu.Unlock()
-	newView, err := s.updateView(ctx, v, options)
-	return newView, err
+	return s.updateViewLocked(ctx, v, options)
 }
 
 // viewEnv returns a string describing the environment of a newly created view.

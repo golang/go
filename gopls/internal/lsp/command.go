@@ -43,7 +43,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 	defer done()
 
 	var found bool
-	for _, name := range s.session.Options().SupportedCommands {
+	for _, name := range s.Options().SupportedCommands {
 		if name == params.Command {
 			found = true
 			break
