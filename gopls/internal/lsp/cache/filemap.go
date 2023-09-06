@@ -49,8 +49,7 @@ func (m *fileMap) Clone(changes map[span.URI]*fileChange) *fileMap {
 	// common case where a file has simply changed.
 	//
 	// For that reason, we also do this in two passes, processing deletions
-	// first, as interleaved deletions and sets would result in the dirs map
-	// being recreated multiple times.
+	// first, as a set before a deletion would result in pointless work.
 	for uri, change := range changes {
 		if !change.exists {
 			m2.Delete(uri)
@@ -97,19 +96,10 @@ func (m *fileMap) Set(key span.URI, fh source.FileHandle) {
 		m.overlays.Delete(key)
 	}
 
-	// update dirs
-	if m.dirs == nil {
-		m.initDirs()
-	} else {
+	// update dirs, if they have been computed
+	if m.dirs != nil {
 		m.addDirs(key)
 	}
-}
-
-func (m *fileMap) initDirs() {
-	m.dirs = new(persistent.Set[string])
-	m.files.Range(func(u span.URI, _ source.FileHandle) {
-		m.addDirs(u)
-	})
 }
 
 // addDirs adds all directories containing u to the dirs set.
@@ -152,7 +142,10 @@ func (m *fileMap) Overlays() []*Overlay {
 // The result must not be mutated by the caller.
 func (m *fileMap) Dirs() *persistent.Set[string] {
 	if m.dirs == nil {
-		m.initDirs()
+		m.dirs = new(persistent.Set[string])
+		m.files.Range(func(u span.URI, _ source.FileHandle) {
+			m.addDirs(u)
+		})
 	}
 	return m.dirs
 }
