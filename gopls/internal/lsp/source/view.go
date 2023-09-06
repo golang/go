@@ -409,6 +409,9 @@ type View interface {
 type FileSource interface {
 	// ReadFile returns the FileHandle for a given URI, either by
 	// reading the content of the file or by obtaining it from a cache.
+	//
+	// Invariant: ReadFile must only return an error in the case of context
+	// cancellation. If ctx.Err() is nil, the resulting error must also be nil.
 	ReadFile(ctx context.Context, uri span.URI) (FileHandle, error)
 }
 
@@ -768,9 +771,9 @@ type FileHandle interface {
 	// FileIdentity returns a FileIdentity for the file, even if there was an
 	// error reading it.
 	FileIdentity() FileIdentity
-	// Saved reports whether the file has the same content on disk:
+	// SameContentsOnDisk reports whether the file has the same content on disk:
 	// it is false for files open on an editor with unsaved edits.
-	Saved() bool
+	SameContentsOnDisk() bool
 	// Version returns the file version, as defined by the LSP client.
 	// For on-disk file handles, Version returns 0.
 	Version() int32

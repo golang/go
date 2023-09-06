@@ -96,7 +96,7 @@ func (c *commandHandler) run(ctx context.Context, cfg commandConfig, run command
 	if cfg.requireSave {
 		var unsaved []string
 		for _, overlay := range c.s.session.Overlays() {
-			if !overlay.Saved() {
+			if !overlay.SameContentsOnDisk() {
 				unsaved = append(unsaved, overlay.URI().Filename())
 			}
 		}
@@ -1155,7 +1155,7 @@ func (c *commandHandler) RunGoWorkCommand(ctx context.Context, args command.RunG
 			if err != nil {
 				return fmt.Errorf("reading current go.work file: %v", err)
 			}
-			if !fh.Saved() {
+			if !fh.SameContentsOnDisk() {
 				return fmt.Errorf("must save workspace file %s before running go work commands", goworkURI)
 			}
 		} else {

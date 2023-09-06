@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -69,25 +68,11 @@ func isGoWork(uri span.URI) bool {
 	return filepath.Base(uri.Filename()) == "go.work"
 }
 
-// fileExists reports if the file uri exists within source.
-func fileExists(ctx context.Context, uri span.URI, source source.FileSource) (bool, error) {
-	fh, err := source.ReadFile(ctx, uri)
-	if err != nil {
-		return false, err
-	}
-	return fileHandleExists(fh)
-}
-
-// fileHandleExists reports if the file underlying fh actually exists.
-func fileHandleExists(fh source.FileHandle) (bool, error) {
+// fileExists reports whether the file has a Content (which may be empty).
+// An overlay exists even if it is not reflected in the file system.
+func fileExists(fh source.FileHandle) bool {
 	_, err := fh.Content()
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, err
+	return err == nil
 }
 
 // errExhausted is returned by findModules if the file scan limit is reached.

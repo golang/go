@@ -1805,80 +1805,12 @@ func inVendor(uri span.URI) bool {
 	return found && strings.Contains(after, "/")
 }
 
-// unappliedChanges is a file source that handles an uncloned snapshot.
-type unappliedChanges struct {
-	originalSnapshot *snapshot
-	changes          map[span.URI]*fileChange
-}
-
-func (ac *unappliedChanges) ReadFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
-	if c, ok := ac.changes[uri]; ok {
-		return c.fileHandle, nil
-	}
-	return ac.originalSnapshot.ReadFile(ctx, uri)
-}
-
-func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (*snapshot, func()) {
+func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]source.FileHandle, forceReloadMetadata bool) (*snapshot, func()) {
 	ctx, done := event.Start(ctx, "cache.snapshot.clone")
 	defer done()
 
-	reinit := false
-	wsModFiles, wsModFilesErr := s.workspaceModFiles, s.workspaceModFilesErr
-
-	if workURI, _ := s.view.GOWORK(); workURI != "" {
-		if change, ok := changes[workURI]; ok {
-			wsModFiles, wsModFilesErr = computeWorkspaceModFiles(ctx, s.view.gomod, workURI, s.view.effectiveGO111MODULE(), &unappliedChanges{
-				originalSnapshot: s,
-				changes:          changes,
-			})
-			// TODO(rfindley): don't rely on 'isUnchanged' here. Use a content hash instead.
-			reinit = change.fileHandle.Saved() && !change.isUnchanged
-		}
-	}
-
-	// Reinitialize if any workspace mod file has changed on disk.
-	for uri, change := range changes {
-		if _, ok := wsModFiles[uri]; ok && change.fileHandle.Saved() && !change.isUnchanged {
-			reinit = true
-		}
-	}
-
-	// Finally, process sumfile changes that may affect loading.
-	for uri, change := range changes {
-		if !change.fileHandle.Saved() {
-			continue // like with go.mod files, we only reinit when things are saved
-		}
-		if filepath.Base(uri.Filename()) == "go.work.sum" && s.view.gowork != "" {
-			if filepath.Dir(uri.Filename()) == filepath.Dir(s.view.gowork) {
-				reinit = true
-			}
-		}
-		if filepath.Base(uri.Filename()) == "go.sum" {
-			dir := filepath.Dir(uri.Filename())
-			modURI := span.URIFromPath(filepath.Join(dir, "go.mod"))
-			if _, active := wsModFiles[modURI]; active {
-				reinit = true
-			}
-		}
-	}
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	// Changes to vendor tree may require reinitialization,
-	// either because of an initialization error
-	// (e.g. "inconsistent vendoring detected"), or because
-	// one or more modules may have moved into or out of the
-	// vendor tree after 'go mod vendor' or 'rm -fr vendor/'.
-	//
-	// TODO(rfindley): revisit the location of this check.
-	for uri := range changes {
-		if inVendor(uri) && s.initializedErr != nil ||
-			strings.HasSuffix(string(uri), "/vendor/modules.txt") {
-			reinit = true
-			break
-		}
-	}
 
 	bgCtx, cancel := context.WithCancel(bgCtx)
 	result := &snapshot{
@@ -1902,10 +1834,92 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		modTidyHandles:       cloneWithout(s.modTidyHandles, changes),
 		modWhyHandles:        cloneWithout(s.modWhyHandles, changes),
 		modVulnHandles:       cloneWithout(s.modVulnHandles, changes),
-		workspaceModFiles:    wsModFiles,
-		workspaceModFilesErr: wsModFilesErr,
+		workspaceModFiles:    s.workspaceModFiles,
+		workspaceModFilesErr: s.workspaceModFilesErr,
 		importGraph:          s.importGraph,
 		pkgIndex:             s.pkgIndex,
+	}
+
+	// Create a lease on the new snapshot.
+	// (Best to do this early in case the code below hides an
+	// incref/decref operation that might destroy it prematurely.)
+	release := result.Acquire()
+
+	reinit := false
+
+	// Changes to vendor tree may require reinitialization,
+	// either because of an initialization error
+	// (e.g. "inconsistent vendoring detected"), or because
+	// one or more modules may have moved into or out of the
+	// vendor tree after 'go mod vendor' or 'rm -fr vendor/'.
+	//
+	// TODO(rfindley): revisit the location of this check.
+	for uri := range changes {
+		if inVendor(uri) && s.initializedErr != nil ||
+			strings.HasSuffix(string(uri), "/vendor/modules.txt") {
+			reinit = true
+			break
+		}
+	}
+
+	// Collect observed file handles for changed URIs from the old snapshot, if
+	// they exist. Importantly, we don't call ReadFile here: consider the case
+	// where a file is added on disk; we don't want to read the newly added file
+	// into the old snapshot, as that will break our change detection below.
+	oldFiles := make(map[span.URI]source.FileHandle)
+	for uri := range changes {
+		if fh, ok := s.files.Get(uri); ok {
+			oldFiles[uri] = fh
+		}
+	}
+	// changedOnDisk determines if the new file handle may have changed on disk.
+	// It over-approximates, returning true if the new file is saved and either
+	// the old file wasn't saved, or the on-disk contents changed.
+	//
+	// oldFH may be nil.
+	changedOnDisk := func(oldFH, newFH source.FileHandle) bool {
+		if !newFH.SameContentsOnDisk() {
+			return false
+		}
+		if oe, ne := (oldFH != nil && fileExists(oldFH)), fileExists(newFH); !oe || !ne {
+			return oe != ne
+		}
+		return !oldFH.SameContentsOnDisk() || oldFH.FileIdentity() != newFH.FileIdentity()
+	}
+
+	if workURI, _ := s.view.GOWORK(); workURI != "" {
+		if newFH, ok := changes[workURI]; ok {
+			result.workspaceModFiles, result.workspaceModFilesErr = computeWorkspaceModFiles(ctx, s.view.gomod, workURI, s.view.effectiveGO111MODULE(), result)
+			if changedOnDisk(oldFiles[workURI], newFH) {
+				reinit = true
+			}
+		}
+	}
+
+	// Reinitialize if any workspace mod file has changed on disk.
+	for uri, newFH := range changes {
+		if _, ok := result.workspaceModFiles[uri]; ok && changedOnDisk(oldFiles[uri], newFH) {
+			reinit = true
+		}
+	}
+
+	// Finally, process sumfile changes that may affect loading.
+	for uri, newFH := range changes {
+		if !changedOnDisk(oldFiles[uri], newFH) {
+			continue // like with go.mod files, we only reinit when things change on disk
+		}
+		dir, base := filepath.Split(uri.Filename())
+		if base == "go.work.sum" && s.view.gowork != "" {
+			if dir == filepath.Dir(s.view.gowork) {
+				reinit = true
+			}
+		}
+		if base == "go.sum" {
+			modURI := span.URIFromPath(filepath.Join(dir, "go.mod"))
+			if _, active := result.workspaceModFiles[modURI]; active {
+				reinit = true
+			}
+		}
 	}
 
 	// The snapshot should be initialized if either s was uninitialized, or we've
@@ -1913,11 +1927,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	if reinit {
 		result.initialized = false
 	}
-
-	// Create a lease on the new snapshot.
-	// (Best to do this early in case the code below hides an
-	// incref/decref operation that might destroy it prematurely.)
-	release := result.Acquire()
 
 	// directIDs keeps track of package IDs that have directly changed.
 	// Note: this is not a set, it's a map from id to invalidateMetadata.
@@ -1936,14 +1945,14 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	anyFileOpenedOrClosed := false // opened files affect workspace packages
 	anyFileAdded := false          // adding a file can resolve missing dependencies
 
-	for uri, change := range changes {
+	for uri, newFH := range changes {
 		// The original FileHandle for this URI is cached on the snapshot.
-		originalFH, _ := s.files.Get(uri)
-		var originalOpen, newOpen bool
-		_, originalOpen = originalFH.(*Overlay)
-		_, newOpen = change.fileHandle.(*Overlay)
-		anyFileOpenedOrClosed = anyFileOpenedOrClosed || (originalOpen != newOpen)
-		anyFileAdded = anyFileAdded || (originalFH == nil && change.fileHandle != nil)
+		oldFH, _ := oldFiles[uri] // may be nil
+		_, oldOpen := oldFH.(*Overlay)
+		_, newOpen := newFH.(*Overlay)
+
+		anyFileOpenedOrClosed = anyFileOpenedOrClosed || (oldOpen != newOpen)
+		anyFileAdded = anyFileAdded || (oldFH == nil || !fileExists(oldFH)) && fileExists(newFH)
 
 		// If uri is a Go file, check if it has changed in a way that would
 		// invalidate metadata. Note that we can't use s.view.FileKind here,
@@ -1951,7 +1960,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		// but what the Go command sees.
 		var invalidateMetadata, pkgFileChanged, importDeleted bool
 		if strings.HasSuffix(uri.Filename(), ".go") {
-			invalidateMetadata, pkgFileChanged, importDeleted = metadataChanges(ctx, s, originalFH, change.fileHandle)
+			invalidateMetadata, pkgFileChanged, importDeleted = metadataChanges(ctx, s, oldFH, newFH)
 		}
 		if invalidateMetadata {
 			// If this is a metadata-affecting change, perhaps a reload will succeed.
@@ -1969,7 +1978,12 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 		// Invalidate the previous modTidyHandle if any of the files have been
 		// saved or if any of the metadata has been invalidated.
-		if invalidateMetadata || fileWasSaved(originalFH, change.fileHandle) {
+		//
+		// TODO(rfindley): this seems like too-aggressive invalidation of mod
+		// results. We should instead thread through overlays to the Go command
+		// invocation and only run this if invalidateMetadata (and perhaps then
+		// still do it less frequently).
+		if invalidateMetadata || fileWasSaved(oldFH, newFH) {
 			// Only invalidate mod tidy results for the most relevant modfile in the
 			// workspace. This is a potentially lossy optimization for workspaces
 			// with many modules (such as google-cloud-go, which has 145 modules as
@@ -1996,10 +2010,10 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 				result.modTidyHandles.Clear()
 			}
 
-			// TODO(rfindley): should we apply the above heuristic to mod vuln
-			// or mod handles as well?
+			// TODO(rfindley): should we apply the above heuristic to mod vuln or mod
+			// why handles as well?
 			//
-			// TODO(rfindley): no tests fail if I delete the below line.
+			// TODO(rfindley): no tests fail if I delete the line below.
 			result.modWhyHandles.Clear()
 			result.modVulnHandles.Clear()
 		}
@@ -2079,25 +2093,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		result.activePackages.Delete(id)
 	}
 
-	// If a file has been deleted, we must delete metadata for all packages
-	// containing that file.
-	//
-	// TODO(rfindley): why not keep invalid metadata in this case? If we
-	// otherwise allow operate on invalid metadata, why not continue to do so,
-	// skipping the missing file?
-	skipID := map[PackageID]bool{}
-	for _, c := range changes {
-		if c.exists {
-			continue
-		}
-		// The file has been deleted.
-		if ids, ok := s.meta.ids[c.fileHandle.URI()]; ok {
-			for _, id := range ids {
-				skipID[id] = true
-			}
-		}
-	}
-
 	// Any packages that need loading in s still need loading in the new
 	// snapshot.
 	for k, v := range s.shouldLoad {
@@ -2134,10 +2129,11 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 
 		// Check whether the metadata should be deleted.
-		if skipID[k] || invalidateMetadata {
+		if invalidateMetadata {
 			metadataUpdates[k] = nil
 			continue
 		}
+
 	}
 
 	// Update metadata, if necessary.
@@ -2166,7 +2162,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	return result, release
 }
 
-func cloneWithout[V any](m *persistent.Map[span.URI, V], changes map[span.URI]*fileChange) *persistent.Map[span.URI, V] {
+func cloneWithout[V any](m *persistent.Map[span.URI, V], changes map[span.URI]source.FileHandle) *persistent.Map[span.URI, V] {
 	m2 := m.Clone()
 	for k := range changes {
 		m2.Delete(k)
@@ -2291,9 +2287,9 @@ func fileWasSaved(originalFH, currentFH source.FileHandle) bool {
 //   - importDeleted means that an import has been deleted, or we can't
 //     determine if an import was deleted due to errors.
 func metadataChanges(ctx context.Context, lockedSnapshot *snapshot, oldFH, newFH source.FileHandle) (invalidate, pkgFileChanged, importDeleted bool) {
-	if oldFH == nil || newFH == nil { // existential changes
-		changed := (oldFH == nil) != (newFH == nil)
-		return changed, changed, (newFH == nil) // we don't know if an import was deleted
+	if oe, ne := oldFH != nil && fileExists(oldFH), fileExists(newFH); !oe || !ne { // existential changes
+		changed := oe != ne
+		return changed, changed, !ne // we don't know if an import was deleted
 	}
 
 	// If the file hasn't changed, there's no need to reload.
@@ -2307,11 +2303,6 @@ func metadataChanges(ctx context.Context, lockedSnapshot *snapshot, oldFH, newFH
 	newHeads, newErr := lockedSnapshot.view.parseCache.parseFiles(ctx, fset, source.ParseHeader, false, newFH)
 
 	if oldErr != nil || newErr != nil {
-		// TODO(rfindley): we can get here if newFH does not exist. There is
-		// asymmetry, in that newFH may be non-nil even if the underlying file does
-		// not exist.
-		//
-		// We should not produce a non-nil filehandle for a file that does not exist.
 		errChanged := (oldErr == nil) != (newErr == nil)
 		return errChanged, errChanged, (newErr != nil) // we don't know if an import was deleted
 	}

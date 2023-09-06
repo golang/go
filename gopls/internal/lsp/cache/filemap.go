@@ -31,7 +31,7 @@ func newFileMap() *fileMap {
 
 // Clone creates a copy of the fileMap, incorporating the changes specified by
 // the changes map.
-func (m *fileMap) Clone(changes map[span.URI]*fileChange) *fileMap {
+func (m *fileMap) Clone(changes map[span.URI]source.FileHandle) *fileMap {
 	m2 := &fileMap{
 		files:    m.files.Clone(),
 		overlays: m.overlays.Clone(),
@@ -50,14 +50,14 @@ func (m *fileMap) Clone(changes map[span.URI]*fileChange) *fileMap {
 	//
 	// For that reason, we also do this in two passes, processing deletions
 	// first, as a set before a deletion would result in pointless work.
-	for uri, change := range changes {
-		if !change.exists {
+	for uri, fh := range changes {
+		if !fileExists(fh) {
 			m2.Delete(uri)
 		}
 	}
-	for uri, change := range changes {
-		if change.exists {
-			m2.Set(uri, change.fileHandle)
+	for uri, fh := range changes {
+		if fileExists(fh) {
+			m2.Set(uri, fh)
 		}
 	}
 	return m2

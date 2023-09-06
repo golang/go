@@ -74,5 +74,5 @@ func (o *Overlay) FileIdentity() source.FileIdentity {
 
 func (o *Overlay) Content() ([]byte, error) { return o.content, nil }
 func (o *Overlay) Version() int32           { return o.version }
-func (o *Overlay) Saved() bool              { return o.saved }
+func (o *Overlay) SameContentsOnDisk() bool { return o.saved }
 func (o *Overlay) Kind() source.FileKind    { return o.kind }

@@ -573,7 +573,7 @@ func (s *Server) diagnosePkgs(ctx context.Context, snapshot source.Snapshot, toD
 				fh := snapshot.FindFile(uri)
 				// Don't publish gc details for unsaved buffers, since the underlying
 				// logic operates on the file on disk.
-				if fh == nil || !fh.Saved() {
+				if fh == nil || !fh.SameContentsOnDisk() {
 					continue
 				}
 				s.storeDiagnostics(snapshot, uri, gcDetailsSource, diags, true)

@@ -72,7 +72,7 @@ type View struct {
 	// fs is the file source used to populate this view.
 	fs *overlayFS
 
-	// seenFiles tracks files that the view has accessed.
+	// knownFiles tracks files that the view has accessed.
 	// TODO(golang/go#57558): this notion is fundamentally problematic, and
 	// should be removed.
 	knownFilesMu sync.Mutex
@@ -910,7 +910,7 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) (loadEr
 //
 // invalidateContent returns a non-nil snapshot for the new content, along with
 // a callback which the caller must invoke to release that snapshot.
-func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (*snapshot, func()) {
+func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]source.FileHandle, forceReloadMetadata bool) (*snapshot, func()) {
 	// Detach the context so that content invalidation cannot be canceled.
 	ctx = xcontext.Detach(ctx)
 
@@ -1052,11 +1052,11 @@ func (v *View) workingDir() span.URI {
 func findRootPattern(ctx context.Context, dir, basename string, fs source.FileSource) (string, error) {
 	for dir != "" {
 		target := filepath.Join(dir, basename)
-		exists, err := fileExists(ctx, span.URIFromPath(target), fs)
+		fh, err := fs.ReadFile(ctx, span.URIFromPath(target))
 		if err != nil {
-			return "", err // not readable or context cancelled
+			return "", err // context cancelled
 		}
-		if exists {
+		if fileExists(fh) {
 			return target, nil
 		}
 		// Trailing separators must be trimmed, otherwise filepath.Split is a noop.

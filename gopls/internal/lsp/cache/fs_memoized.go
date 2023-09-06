@@ -46,7 +46,7 @@ func (h *DiskFile) FileIdentity() source.FileIdentity {
 	}
 }
 
-func (h *DiskFile) Saved() bool              { return true }
+func (h *DiskFile) SameContentsOnDisk() bool { return true }
 func (h *DiskFile) Version() int32           { return 0 }
 func (h *DiskFile) Content() ([]byte, error) { return h.content, h.err }
 
