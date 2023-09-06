@@ -913,8 +913,9 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 	}
 	jalToSym(ctxt, p, REG_X5)
 
-	p = cursym.Func().UnspillRegisterArgs(p, newprog)
+	// The instructions which unspill regs should be preemptible.
 	p = ctxt.EndUnsafePoint(p, newprog, -1)
+	p = cursym.Func().UnspillRegisterArgs(p, newprog)
 
 	// JMP start
 	p = obj.Appendp(p, newprog)

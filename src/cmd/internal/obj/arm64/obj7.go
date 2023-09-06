@@ -289,11 +289,12 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	}
 	call.To.Sym = c.ctxt.Lookup(morestack)
 
-	unspill := c.cursym.Func().UnspillRegisterArgs(call, c.newprog)
-	pcdata = c.ctxt.EndUnsafePoint(unspill, c.newprog, -1)
+	// The instructions which unspill regs should be preemptible.
+	pcdata = c.ctxt.EndUnsafePoint(call, c.newprog, -1)
+	unspill := c.cursym.Func().UnspillRegisterArgs(pcdata, c.newprog)
 
 	// B	start
-	jmp := obj.Appendp(pcdata, c.newprog)
+	jmp := obj.Appendp(unspill, c.newprog)
 	jmp.As = AB
 	jmp.To.Type = obj.TYPE_BRANCH
 	jmp.To.SetTarget(startPred.Link)

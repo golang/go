@@ -1363,11 +1363,12 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Reg = REG_R2
 	}
 
+	// The instructions which unspill regs should be preemptible.
+	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 	unspill := c.cursym.Func().UnspillRegisterArgs(p, c.newprog)
-	p = c.ctxt.EndUnsafePoint(unspill, c.newprog, -1)
 
 	// BR	start
-	p = obj.Appendp(p, c.newprog)
+	p = obj.Appendp(unspill, c.newprog)
 	p.As = ABR
 	p.To.Type = obj.TYPE_BRANCH
 	p.To.SetTarget(startPred.Link)
