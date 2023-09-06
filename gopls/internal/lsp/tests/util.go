@@ -441,38 +441,3 @@ func summarizeCompletionItems(i int, want, got []protocol.CompletionItem, reason
 	}
 	return msg.String()
 }
-
-func EnableAllAnalyzers(opts *source.Options) {
-	if opts.Analyses == nil {
-		opts.Analyses = make(map[string]bool)
-	}
-	for _, a := range opts.DefaultAnalyzers {
-		if !a.IsEnabled(opts) {
-			opts.Analyses[a.Analyzer.Name] = true
-		}
-	}
-	for _, a := range opts.TypeErrorAnalyzers {
-		if !a.IsEnabled(opts) {
-			opts.Analyses[a.Analyzer.Name] = true
-		}
-	}
-	for _, a := range opts.ConvenienceAnalyzers {
-		if !a.IsEnabled(opts) {
-			opts.Analyses[a.Analyzer.Name] = true
-		}
-	}
-	for _, a := range opts.StaticcheckAnalyzers {
-		if !a.IsEnabled(opts) {
-			opts.Analyses[a.Analyzer.Name] = true
-		}
-	}
-}
-
-func EnableAllInlayHints(opts *source.Options) {
-	if opts.Hints == nil {
-		opts.Hints = make(map[string]bool)
-	}
-	for name := range source.AllInlayHints {
-		opts.Hints[name] = true
-	}
-}

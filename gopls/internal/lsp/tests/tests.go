@@ -248,6 +248,14 @@ func DefaultOptions(o *source.Options) {
 	o.HierarchicalDocumentSymbolSupport = true
 	o.SemanticTokens = true
 	o.InternalOptions.NewDiff = "new"
+
+	// Enable all inlay hints.
+	if o.Hints == nil {
+		o.Hints = make(map[string]bool)
+	}
+	for name := range source.AllInlayHints {
+		o.Hints[name] = true
+	}
 }
 
 func RunTests(t *testing.T, dataDir string, includeMultiModule bool, f func(*testing.T, *Data)) {
