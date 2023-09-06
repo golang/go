@@ -33,3 +33,27 @@ func TestTypeFor(t *testing.T) {
 		}
 	}
 }
+
+func TestStructOfEmbeddedIfaceMethodCall(t *testing.T) {
+	type Named interface {
+		Name() string
+	}
+
+	typ := reflect.StructOf([]reflect.StructField{
+		{
+			Anonymous: true,
+			Name:      "Named",
+			Type:      reflect.TypeFor[Named](),
+		},
+	})
+
+	v := reflect.New(typ).Elem()
+	v.Field(0).Set(
+		reflect.ValueOf(reflect.TypeFor[string]()),
+	)
+
+	x := v.Interface().(Named)
+	shouldPanic("StructOf does not support methods of embedded interfaces", func() {
+		_ = x.Name()
+	})
+}

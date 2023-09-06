@@ -968,16 +968,6 @@ func usemethod(n *ir.CallExpr) {
 			return
 		case fn == "Value.Method", fn == "Value.MethodByName":
 			return
-		// StructOf defines closures that look up methods. They only look up methods
-		// reachable via interfaces. The DCE does not remove such methods. It is ok
-		// to not flag closures in StructOf as ReflectMethods and let the DCE run
-		// even if StructOf is reachable.
-		//
-		// (*rtype).MethodByName calls into StructOf so flagging StructOf as
-		// ReflectMethod would disable the DCE even when the name of a method
-		// to look up is a compile-time constant.
-		case strings.HasPrefix(fn, "StructOf.func"):
-			return
 		}
 	}
 
