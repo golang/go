@@ -26,11 +26,7 @@ const concurrentAnalyses = 1
 
 // NewServer creates an LSP server and binds it to handle incoming client
 // messages on the supplied stream.
-func NewServer(session *cache.Session, client protocol.ClientCloser, optionsOverrides func(*source.Options)) *Server {
-	options := source.DefaultOptions().Clone()
-	if optionsOverrides != nil {
-		optionsOverrides(options)
-	}
+func NewServer(session *cache.Session, client protocol.ClientCloser, options *source.Options) *Server {
 	return &Server{
 		diagnostics:           map[span.URI]*fileReports{},
 		gcOptimizationDetails: make(map[source.PackageID]struct{}),

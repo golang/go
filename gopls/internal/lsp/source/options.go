@@ -81,7 +81,7 @@ var (
 // DefaultOptions is the options that are used for Gopls execution independent
 // of any externally provided configuration (LSP initialization, command
 // invocation, etc.).
-func DefaultOptions() *Options {
+func DefaultOptions(overrides ...func(*Options)) *Options {
 	optionsOnce.Do(func() {
 		var commands []string
 		for _, c := range command.Commands {
@@ -189,7 +189,13 @@ func DefaultOptions() *Options {
 			},
 		}
 	})
-	return defaultOptions
+	options := defaultOptions.Clone()
+	for _, override := range overrides {
+		if override != nil {
+			override(options)
+		}
+	}
+	return options
 }
 
 // Options holds various configuration that affects Gopls execution, organized

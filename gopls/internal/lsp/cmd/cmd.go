@@ -316,7 +316,8 @@ func (app *Application) connect(ctx context.Context, onProgress func(*protocol.P
 	switch {
 	case app.Remote == "":
 		client := newClient(app, onProgress)
-		server := lsp.NewServer(cache.NewSession(ctx, cache.New(nil)), client, app.options)
+		options := source.DefaultOptions(app.options)
+		server := lsp.NewServer(cache.NewSession(ctx, cache.New(nil)), client, options)
 		conn := newConnection(server, client)
 		if err := conn.initialize(protocol.WithClient(ctx, client), app.options); err != nil {
 			return nil, err
@@ -326,10 +327,7 @@ func (app *Application) connect(ctx context.Context, onProgress func(*protocol.P
 	case strings.HasPrefix(app.Remote, "internal@"):
 		internalMu.Lock()
 		defer internalMu.Unlock()
-		opts := source.DefaultOptions().Clone()
-		if app.options != nil {
-			app.options(opts)
-		}
+		opts := source.DefaultOptions(app.options)
 		key := fmt.Sprintf("%s %v %v %v", app.wd, opts.PreferredContentFormat, opts.HierarchicalDocumentSymbolSupport, opts.SymbolMatcher)
 		if c := internalConnections[key]; c != nil {
 			return c, nil
@@ -376,10 +374,7 @@ func (c *connection) initialize(ctx context.Context, options func(*source.Option
 	params.Capabilities.Workspace.Configuration = true
 
 	// Make sure to respect configured options when sending initialize request.
-	opts := source.DefaultOptions().Clone()
-	if options != nil {
-		options(opts)
-	}
+	opts := source.DefaultOptions(options)
 	// If you add an additional option here, you must update the map key in connect.
 	params.Capabilities.TextDocument.Hover = &protocol.HoverClientCapabilities{
 		ContentFormat: []protocol.MarkupKind{opts.PreferredContentFormat},

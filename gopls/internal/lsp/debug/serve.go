@@ -846,8 +846,6 @@ var ViewTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "body"}}
 Name: <b>{{.Name}}</b><br>
 Folder: <b>{{.Folder}}</b><br>
-<h2>Environment</h2>
-<ul>{{range .Options.Env}}<li>{{.}}</li>{{end}}</ul>
 {{end}}
 `))
 

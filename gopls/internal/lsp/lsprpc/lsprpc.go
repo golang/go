@@ -59,7 +59,8 @@ func (s *StreamServer) Binder() *ServerBinder {
 		session := cache.NewSession(ctx, s.cache)
 		server := s.serverForTest
 		if server == nil {
-			server = lsp.NewServer(session, client, s.optionsOverrides)
+			options := source.DefaultOptions(s.optionsOverrides)
+			server = lsp.NewServer(session, client, options)
 			if instance := debug.GetInstance(ctx); instance != nil {
 				instance.AddService(server, session)
 			}
@@ -76,7 +77,8 @@ func (s *StreamServer) ServeStream(ctx context.Context, conn jsonrpc2.Conn) erro
 	session := cache.NewSession(ctx, s.cache)
 	server := s.serverForTest
 	if server == nil {
-		server = lsp.NewServer(session, client, s.optionsOverrides)
+		options := source.DefaultOptions(s.optionsOverrides)
+		server = lsp.NewServer(session, client, options)
 		if instance := debug.GetInstance(ctx); instance != nil {
 			instance.AddService(server, session)
 		}

@@ -171,13 +171,12 @@ func (r *runner) toggleOptions(t *testing.T, uri span.URI, options func(*source.
 	}
 	folder := view.Folder()
 
-	original := view.Options()
-	modified := view.Options().Clone()
+	modified := r.server.Options().Clone()
 	options(modified)
 	if err = r.server.session.SetFolderOptions(r.ctx, folder, modified); err != nil {
 		t.Fatal(err)
 	}
 	return func() {
-		r.server.session.SetFolderOptions(r.ctx, folder, original)
+		r.server.session.SetFolderOptions(r.ctx, folder, r.server.Options())
 	}
 }

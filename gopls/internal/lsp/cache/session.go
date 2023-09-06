@@ -117,9 +117,9 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	v := &View{
 		id:                   strconv.FormatInt(index, 10),
 		gocmdRunner:          s.gocmdRunner,
+		lastOptions:          options,
 		initialWorkspaceLoad: make(chan struct{}),
 		initializationSema:   make(chan struct{}, 1),
-		options:              options,
 		baseCtx:              baseCtx,
 		name:                 name,
 		moduleUpgrades:       map[span.URI]map[string]string{},
@@ -167,6 +167,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		workspaceModFiles:    wsModFiles,
 		workspaceModFilesErr: wsModFilesErr,
 		pkgIndex:             typerefs.NewPackageIndex(),
+		options:              options,
 	}
 	// Save one reference in the view.
 	v.releaseSnapshot = v.snapshot.Acquire()
@@ -255,9 +256,15 @@ func bestViewForURI(uri span.URI, views []*View) *View {
 		}
 		// TODO(rfindley): this should consider the workspace layout (i.e.
 		// go.work).
-		if view.contains(uri) {
+		snapshot, release, err := view.getSnapshot()
+		if err != nil {
+			// view is shutdown
+			continue
+		}
+		if snapshot.contains(uri) {
 			longest = view
 		}
+		release()
 	}
 	if longest != nil {
 		return longest
@@ -420,7 +427,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			// synchronously to change processing? Can we assume that the env did not
 			// change, and derive go.work using a combination of the configured
 			// GOWORK value and filesystem?
-			info, err := s.getWorkspaceInformation(ctx, view.folder, view.Options())
+			info, err := s.getWorkspaceInformation(ctx, view.folder, view.lastOptions)
 			if err != nil {
 				// Catastrophic failure, equivalent to a failure of session
 				// initialization and therefore should almost never happen. One
@@ -434,7 +441,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			}
 
 			if info != view.workspaceInformation {
-				if err := s.updateViewLocked(ctx, view, view.Options()); err != nil {
+				if err := s.updateViewLocked(ctx, view, view.lastOptions); err != nil {
 					// More catastrophic failure. The view may or may not still exist.
 					// The best we can do is log and move on.
 					event.Error(ctx, "recreating view", err)
@@ -492,7 +499,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 	var releases []func()
 	viewToSnapshot := map[*View]*snapshot{}
 	for view, changed := range views {
-		snapshot, release := view.invalidateContent(ctx, changed, forceReloadMetadata)
+		snapshot, release := view.invalidateContent(ctx, changed, nil, forceReloadMetadata)
 		releases = append(releases, release)
 		viewToSnapshot[view] = snapshot
 	}

@@ -75,7 +75,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 			if err != nil {
 				continue
 			}
-			if isStandaloneFile(contents, s.view.Options().StandaloneTags) {
+			if isStandaloneFile(contents, s.options.StandaloneTags) {
 				standalone = true
 				query = append(query, uri.Filename())
 			} else {
@@ -160,7 +160,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	}
 
 	moduleErrs := make(map[string][]packages.Error) // module path -> errors
-	filterFunc := s.view.filterFunc()
+	filterFunc := s.filterFunc()
 	newMetadata := make(map[PackageID]*source.Metadata)
 	for _, pkg := range pkgs {
 		// The Go command returns synthetic list results for module queries that
@@ -178,7 +178,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 			continue
 		}
 
-		if !containsDir || s.view.Options().VerboseOutput {
+		if !containsDir || s.options.VerboseOutput {
 			event.Log(ctx, eventName, append(
 				source.SnapshotLabels(s),
 				tag.Package.Of(pkg.ID),
@@ -359,7 +359,7 @@ func (s *snapshot) applyCriticalErrorToFiles(ctx context.Context, msg string, fi
 	for _, fh := range files {
 		// Place the diagnostics on the package or module declarations.
 		var rng protocol.Range
-		switch s.view.FileKind(fh) {
+		switch s.FileKind(fh) {
 		case source.Go:
 			if pgf, err := s.ParseGo(ctx, fh, source.ParseHeader); err == nil {
 				// Check that we have a valid `package foo` range to use for positioning the error.
@@ -616,7 +616,7 @@ func containsPackageLocked(s *snapshot, m *source.Metadata) bool {
 			uris[uri] = struct{}{}
 		}
 
-		filterFunc := s.view.filterFunc()
+		filterFunc := s.filterFunc()
 		for uri := range uris {
 			// Don't use view.contains here. go.work files may include modules
 			// outside of the workspace folder.
@@ -671,7 +671,7 @@ func containsFileInWorkspaceLocked(s *snapshot, m *source.Metadata) bool {
 
 		// The package's files are in this view. It may be a workspace package.
 		// Vendored packages are not likely to be interesting to the user.
-		if !strings.Contains(string(uri), "/vendor/") && s.view.contains(uri) {
+		if !strings.Contains(string(uri), "/vendor/") && s.contains(uri) {
 			return true
 		}
 	}

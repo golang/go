@@ -52,8 +52,7 @@ func testLSP(t *testing.T, datum *tests.Data) {
 	ctx = debug.WithInstance(ctx, "", "off")
 
 	session := cache.NewSession(ctx, cache.New(nil))
-	options := source.DefaultOptions().Clone()
-	tests.DefaultOptions(options)
+	options := source.DefaultOptions(tests.DefaultOptions)
 	options.SetEnvSlice(datum.Config.Env)
 	view, snapshot, release, err := session.NewView(ctx, datum.Config.Dir, span.URIFromPath(datum.Config.Dir), options)
 	if err != nil {
@@ -112,7 +111,7 @@ func testLSP(t *testing.T, datum *tests.Data) {
 		editRecv: make(chan map[span.URI][]byte, 1),
 	}
 
-	r.server = NewServer(session, testClient{runner: r}, nil)
+	r.server = NewServer(session, testClient{runner: r}, options)
 	tests.Run(t, r, datum)
 }
 

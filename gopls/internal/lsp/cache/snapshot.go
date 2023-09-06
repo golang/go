@@ -187,6 +187,10 @@ type snapshot struct {
 	//     active packages. Running type checking batches in parallel after an
 	//     invalidation can cause redundant calculation of this shared state.
 	typeCheckMu sync.Mutex
+
+	// options holds the user configuration at the time this snapshot was
+	// created.
+	options *source.Options
 }
 
 var globalSnapshotID uint64
@@ -275,12 +279,39 @@ func (s *snapshot) View() source.View {
 	return s.view
 }
 
-func (s *snapshot) FileKind(h source.FileHandle) source.FileKind {
-	return s.view.FileKind(h)
+func (s *snapshot) FileKind(fh source.FileHandle) source.FileKind {
+	// The kind of an unsaved buffer comes from the
+	// TextDocumentItem.LanguageID field in the didChange event,
+	// not from the file name. They may differ.
+	if o, ok := fh.(*Overlay); ok {
+		if o.kind != source.UnknownKind {
+			return o.kind
+		}
+	}
+
+	fext := filepath.Ext(fh.URI().Filename())
+	switch fext {
+	case ".go":
+		return source.Go
+	case ".mod":
+		return source.Mod
+	case ".sum":
+		return source.Sum
+	case ".work":
+		return source.Work
+	}
+	exts := s.options.TemplateExtensions
+	for _, ext := range exts {
+		if fext == ext || fext == "."+ext {
+			return source.Tmpl
+		}
+	}
+	// and now what? This should never happen, but it does for cgo before go1.15
+	return source.Go
 }
 
 func (s *snapshot) Options() *source.Options {
-	return s.view.Options() // temporarily return view options.
+	return s.options // temporarily return view options.
 }
 
 func (s *snapshot) BackgroundContext() context.Context {
@@ -306,7 +337,7 @@ func (s *snapshot) Templates() map[span.URI]source.FileHandle {
 
 	tmpls := map[span.URI]source.FileHandle{}
 	s.files.Range(func(k span.URI, fh source.FileHandle) {
-		if s.view.FileKind(fh) == source.Tmpl {
+		if s.FileKind(fh) == source.Tmpl {
 			tmpls[k] = fh
 		}
 	})
@@ -354,8 +385,7 @@ func (s *snapshot) workspaceMode() workspaceMode {
 		return mode
 	}
 	mode |= moduleMode
-	options := s.view.Options()
-	if options.TempModfile {
+	if s.options.TempModfile {
 		mode |= tempModfile
 	}
 	return mode
@@ -368,9 +398,6 @@ func (s *snapshot) workspaceMode() workspaceMode {
 // multiple modules in on config, so buildOverlay needs to filter overlays by
 // module.
 func (s *snapshot) config(ctx context.Context, inv *gocommand.Invocation) *packages.Config {
-	s.view.optionsMu.Lock()
-	verboseOutput := s.view.options.VerboseOutput
-	s.view.optionsMu.Unlock()
 
 	cfg := &packages.Config{
 		Context:    ctx,
@@ -393,7 +420,7 @@ func (s *snapshot) config(ctx context.Context, inv *gocommand.Invocation) *packa
 			panic("go/packages must not be used to parse files")
 		},
 		Logf: func(format string, args ...interface{}) {
-			if verboseOutput {
+			if s.options.VerboseOutput {
 				event.Log(ctx, fmt.Sprintf(format, args...))
 			}
 		},
@@ -475,18 +502,16 @@ func (s *snapshot) RunGoCommands(ctx context.Context, allowNetwork bool, wd stri
 // it used only after call to tempModFile. Clarify that it is only
 // non-nil on success.
 func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.InvocationFlags, inv *gocommand.Invocation) (tmpURI span.URI, updatedInv *gocommand.Invocation, cleanup func(), err error) {
-	s.view.optionsMu.Lock()
-	allowModfileModificationOption := s.view.options.AllowModfileModifications
-	allowNetworkOption := s.view.options.AllowImplicitNetworkAccess
+	allowModfileModificationOption := s.options.AllowModfileModifications
+	allowNetworkOption := s.options.AllowImplicitNetworkAccess
 
 	// TODO(rfindley): this is very hard to follow, and may not even be doing the
 	// right thing: should inv.Env really trample view.options? Do we ever invoke
 	// this with a non-empty inv.Env?
 	//
 	// We should refactor to make it clearer that the correct env is being used.
-	inv.Env = append(append(append(os.Environ(), s.view.options.EnvSlice()...), inv.Env...), "GO111MODULE="+s.view.GO111MODULE())
-	inv.BuildFlags = append([]string{}, s.view.options.BuildFlags...)
-	s.view.optionsMu.Unlock()
+	inv.Env = append(append(append(os.Environ(), s.options.EnvSlice()...), inv.Env...), "GO111MODULE="+s.view.GO111MODULE())
+	inv.BuildFlags = append([]string{}, s.options.BuildFlags...)
 	cleanup = func() {} // fallback
 
 	// All logic below is for module mode.
@@ -993,8 +1018,7 @@ func (s *snapshot) workspaceDirs(ctx context.Context) []string {
 // Code) that do not send notifications for individual files in a directory
 // when the entire directory is deleted.
 func (s *snapshot) watchSubdirs() bool {
-	opts := s.view.Options()
-	switch p := opts.SubdirWatchPatterns; p {
+	switch p := s.options.SubdirWatchPatterns; p {
 	case source.SubdirWatchPatternsOn:
 		return true
 	case source.SubdirWatchPatternsOff:
@@ -1007,7 +1031,7 @@ func (s *snapshot) watchSubdirs() bool {
 		// requirements that client names do not change. We should update the VS
 		// Code extension to set a default value of "subdirWatchPatterns" to "on",
 		// so that this workaround is only temporary.
-		if opts.ClientInfo != nil && opts.ClientInfo.Name == "Visual Studio Code" {
+		if s.options.ClientInfo != nil && s.options.ClientInfo.Name == "Visual Studio Code" {
 			return true
 		}
 		return false
@@ -1505,7 +1529,7 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 	var files []*Overlay
 	for _, o := range open {
 		uri := o.URI()
-		if s.IsBuiltin(uri) || s.view.FileKind(o) != source.Go {
+		if s.IsBuiltin(uri) || s.FileKind(o) != source.Go {
 			continue
 		}
 		if len(meta.ids[uri]) == 0 {
@@ -1606,7 +1630,7 @@ func (s *snapshot) OrphanedFileDiagnostics(ctx context.Context) (map[span.URI]*s
 searchOverlays:
 	for _, o := range s.overlays() {
 		uri := o.URI()
-		if s.IsBuiltin(uri) || s.view.FileKind(o) != source.Go {
+		if s.IsBuiltin(uri) || s.FileKind(o) != source.Go {
 			continue
 		}
 		md, err := s.MetadataForFile(ctx, uri)
@@ -1805,7 +1829,7 @@ func inVendor(uri span.URI) bool {
 	return found && strings.Contains(after, "/")
 }
 
-func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]source.FileHandle, forceReloadMetadata bool) (*snapshot, func()) {
+func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]source.FileHandle, newOptions *source.Options, forceReloadMetadata bool) (*snapshot, func()) {
 	ctx, done := event.Start(ctx, "cache.snapshot.clone")
 	defer done()
 
@@ -1838,6 +1862,11 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]source
 		workspaceModFilesErr: s.workspaceModFilesErr,
 		importGraph:          s.importGraph,
 		pkgIndex:             s.pkgIndex,
+		options:              s.options,
+	}
+
+	if newOptions != nil {
+		result.options = newOptions
 	}
 
 	// Create a lease on the new snapshot.

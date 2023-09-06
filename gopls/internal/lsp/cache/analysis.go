@@ -192,7 +192,7 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 	toSrc := make(map[*analysis.Analyzer]*source.Analyzer)
 	var enabled []*analysis.Analyzer // enabled subset + transitive requirements
 	for _, a := range analyzers {
-		if a.IsEnabled(snapshot.view.Options()) {
+		if a.IsEnabled(snapshot.options) {
 			toSrc[a.Analyzer] = a
 			enabled = append(enabled, a.Analyzer)
 		}
@@ -309,7 +309,7 @@ func (snapshot *snapshot) Analyze(ctx context.Context, pkgs map[PackageID]unit, 
 	// Now that we have read all files,
 	// we no longer need the snapshot.
 	// (but options are needed for progress reporting)
-	options := snapshot.view.Options()
+	options := snapshot.options
 	snapshot = nil
 
 	// Progress reporting. If supported, gopls reports progress on analysis

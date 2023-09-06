@@ -46,8 +46,11 @@ type View struct {
 	// name is the user-specified name of this view.
 	name string
 
-	optionsMu sync.Mutex
-	options   *source.Options
+	// lastOptions holds the most recent options on this view, used for detecting
+	// major changes.
+	//
+	// Guarded by Session.viewMu.
+	lastOptions *source.Options
 
 	// Workspace information. The fields below are immutable, and together with
 	// options define the build list. Any change to these fields results in a new
@@ -412,48 +415,18 @@ func (v *View) Folder() span.URI {
 	return v.folder
 }
 
-func (v *View) Options() *source.Options {
-	v.optionsMu.Lock()
-	defer v.optionsMu.Unlock()
-	return v.options
-}
-
-func (v *View) FileKind(fh source.FileHandle) source.FileKind {
-	// The kind of an unsaved buffer comes from the
-	// TextDocumentItem.LanguageID field in the didChange event,
-	// not from the file name. They may differ.
-	if o, ok := fh.(*Overlay); ok {
-		if o.kind != source.UnknownKind {
-			return o.kind
-		}
-	}
-
-	fext := filepath.Ext(fh.URI().Filename())
-	switch fext {
-	case ".go":
-		return source.Go
-	case ".mod":
-		return source.Mod
-	case ".sum":
-		return source.Sum
-	case ".work":
-		return source.Work
-	}
-	exts := v.Options().TemplateExtensions
-	for _, ext := range exts {
-		if fext == ext || fext == "."+ext {
-			return source.Tmpl
-		}
-	}
-	// and now what? This should never happen, but it does for cgo before go1.15
-	return source.Go
-}
-
 func minorOptionsChange(a, b *source.Options) bool {
 	// TODO(rfindley): this function detects whether a view should be recreated,
 	// but this is also checked by the getWorkspaceInformation logic.
 	//
 	// We should eliminate this redundancy.
+	//
+	// Additionally, this function has existed for a long time, but git history
+	// suggests that it was added arbitrarily, not due to an actual performance
+	// problem.
+	//
+	// Especially now that we have optimized reinitialization of the session, we
+	// should consider just always creating a new view on any options change.
 
 	// Check if any of the settings that modify our understanding of files have
 	// been changed.
@@ -503,13 +476,12 @@ func (s *Session) SetFolderOptions(ctx context.Context, uri span.URI, options *s
 
 func (s *Session) setViewOptions(ctx context.Context, v *View, options *source.Options) error {
 	// no need to rebuild the view if the options were not materially changed
-	v.optionsMu.Lock()
-	if minorOptionsChange(v.options, options) {
-		v.options = options
-		v.optionsMu.Unlock()
+	if minorOptionsChange(v.lastOptions, options) {
+		_, release := v.invalidateContent(ctx, nil, options, false)
+		release()
+		v.lastOptions = options
 		return nil
 	}
-	v.optionsMu.Unlock()
 	return s.updateViewLocked(ctx, v, options)
 }
 
@@ -517,8 +489,8 @@ func (s *Session) setViewOptions(ctx context.Context, v *View, options *source.O
 //
 // It must not be called concurrently with any other view methods.
 func viewEnv(v *View) string {
-	env := v.options.EnvSlice()
-	buildFlags := append([]string{}, v.options.BuildFlags...)
+	env := v.snapshot.options.EnvSlice()
+	buildFlags := append([]string{}, v.snapshot.options.BuildFlags...)
 
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, `go info for %v
@@ -567,13 +539,13 @@ func fileHasExtension(path string, suffixes []string) bool {
 // locateTemplateFiles ensures that the snapshot has mapped template files
 // within the workspace folder.
 func (s *snapshot) locateTemplateFiles(ctx context.Context) {
-	if len(s.view.Options().TemplateExtensions) == 0 {
+	if len(s.options.TemplateExtensions) == 0 {
 		return
 	}
-	suffixes := s.view.Options().TemplateExtensions
+	suffixes := s.options.TemplateExtensions
 
 	searched := 0
-	filterFunc := s.view.filterFunc()
+	filterFunc := s.filterFunc()
 	err := filepath.WalkDir(s.view.folder.Filename(), func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -607,33 +579,33 @@ func (s *snapshot) locateTemplateFiles(ctx context.Context) {
 	}
 }
 
-func (v *View) contains(uri span.URI) bool {
+func (s *snapshot) contains(uri span.URI) bool {
 	// If we've expanded the go dir to a parent directory, consider if the
 	// expanded dir contains the uri.
 	// TODO(rfindley): should we ignore the root here? It is not provided by the
 	// user. It would be better to explicitly consider the set of active modules
 	// wherever relevant.
 	inGoDir := false
-	if source.InDir(v.goCommandDir.Filename(), v.folder.Filename()) {
-		inGoDir = source.InDir(v.goCommandDir.Filename(), uri.Filename())
+	if source.InDir(s.view.goCommandDir.Filename(), s.view.folder.Filename()) {
+		inGoDir = source.InDir(s.view.goCommandDir.Filename(), uri.Filename())
 	}
-	inFolder := source.InDir(v.folder.Filename(), uri.Filename())
+	inFolder := source.InDir(s.view.folder.Filename(), uri.Filename())
 
 	if !inGoDir && !inFolder {
 		return false
 	}
 
-	return !v.filterFunc()(uri)
+	return !s.filterFunc()(uri)
 }
 
 // filterFunc returns a func that reports whether uri is filtered by the currently configured
 // directoryFilters.
-func (v *View) filterFunc() func(span.URI) bool {
-	filterer := buildFilterer(v.folder.Filename(), v.gomodcache, v.Options())
+func (s *snapshot) filterFunc() func(span.URI) bool {
+	filterer := buildFilterer(s.view.folder.Filename(), s.view.gomodcache, s.options)
 	return func(uri span.URI) bool {
 		// Only filter relative to the configured root directory.
-		if source.InDir(v.folder.Filename(), uri.Filename()) {
-			return pathExcludedByFilter(strings.TrimPrefix(uri.Filename(), v.folder.Filename()), filterer)
+		if source.InDir(s.view.folder.Filename(), uri.Filename()) {
+			return pathExcludedByFilter(strings.TrimPrefix(uri.Filename(), s.view.folder.Filename()), filterer)
 		}
 		return false
 	}
@@ -660,7 +632,12 @@ func (v *View) relevantChange(c source.FileModification) bool {
 	// had neither test nor associated issue, and cited only emacs behavior, this
 	// logic was deleted.
 
-	return v.contains(c.URI)
+	snapshot, release, err := v.getSnapshot()
+	if err != nil {
+		return false // view was shut down
+	}
+	defer release()
+	return snapshot.contains(c.URI)
 }
 
 func (v *View) markKnown(uri span.URI) {
@@ -938,7 +915,9 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) (loadEr
 //
 // invalidateContent returns a non-nil snapshot for the new content, along with
 // a callback which the caller must invoke to release that snapshot.
-func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]source.FileHandle, forceReloadMetadata bool) (*snapshot, func()) {
+//
+// newOptions may be nil, in which case options remain unchanged.
+func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]source.FileHandle, newOptions *source.Options, forceReloadMetadata bool) (*snapshot, func()) {
 	// Detach the context so that content invalidation cannot be canceled.
 	ctx = xcontext.Detach(ctx)
 
@@ -960,7 +939,7 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]sourc
 	prevSnapshot.AwaitInitialized(ctx)
 
 	// Save one lease of the cloned snapshot in the view.
-	v.snapshot, v.releaseSnapshot = prevSnapshot.clone(ctx, v.baseCtx, changes, forceReloadMetadata)
+	v.snapshot, v.releaseSnapshot = prevSnapshot.clone(ctx, v.baseCtx, changes, newOptions, forceReloadMetadata)
 
 	prevReleaseSnapshot()
 	v.destroy(prevSnapshot, "View.invalidateContent")
