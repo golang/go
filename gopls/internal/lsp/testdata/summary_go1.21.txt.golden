@@ -9,7 +9,6 @@ FuzzyCompletionsCount = 8
 RankedCompletionsCount = 174
 CaseSensitiveCompletionsCount = 4
 DiagnosticsCount = 24
-FoldingRangesCount = 2
 SemanticTokenCount = 3
 SuggestedFixCount = 80
 MethodExtractionCount = 8

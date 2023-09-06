@@ -1,0 +1,154 @@
+This test checks basic behavior of textDocument/foldingRange.
+
+-- a.go --
+package folding //@foldingrange(raw)
+
+import (
+	"fmt"
+	_ "log"
+)
+
+import _ "os"
+
+// bar is a function.
+// With a multiline doc comment.
+func bar() string {
+	/* This is a single line comment */
+	switch {
+	case true:
+		if true {
+			fmt.Println("true")
+		} else {
+			fmt.Println("false")
+		}
+	case false:
+		fmt.Println("false")
+	default:
+		fmt.Println("default")
+	}
+	/* This is a multiline
+	block
+	comment */
+
+	/* This is a multiline
+	block
+	comment */
+	// Followed by another comment.
+	_ = []int{
+		1,
+		2,
+		3,
+	}
+	_ = [2]string{"d",
+		"e",
+	}
+	_ = map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	type T struct {
+		f string
+		g int
+		h string
+	}
+	_ = T{
+		f: "j",
+		g: 4,
+		h: "i",
+	}
+	x, y := make(chan bool), make(chan bool)
+	select {
+	case val := <-x:
+		if val {
+			fmt.Println("true from x")
+		} else {
+			fmt.Println("false from x")
+		}
+	case <-y:
+		fmt.Println("y")
+	default:
+		fmt.Println("default")
+	}
+	// This is a multiline comment
+	// that is not a doc comment.
+	return `
+this string
+is not indented`
+}
+-- @raw --
+package folding //@foldingrange(raw)
+
+import (<0 kind="imports">
+	"fmt"
+	_ "log"
+</0>)
+
+import _ "os"
+
+// bar is a function.<1 kind="comment">
+// With a multiline doc comment.</1>
+func bar(<2 kind=""></2>) string {<3 kind="">
+	/* This is a single line comment */
+	switch {<4 kind="">
+	case true:<5 kind="">
+		if true {<6 kind="">
+			fmt.Println(<7 kind="">"true"</7>)
+		</6>} else {<8 kind="">
+			fmt.Println(<9 kind="">"false"</9>)
+		</8>}</5>
+	case false:<10 kind="">
+		fmt.Println(<11 kind="">"false"</11>)</10>
+	default:<12 kind="">
+		fmt.Println(<13 kind="">"default"</13>)</12>
+	</4>}
+	/* This is a multiline<14 kind="comment">
+	block
+	comment */</14>
+
+	/* This is a multiline<15 kind="comment">
+	block
+	comment */
+	// Followed by another comment.</15>
+	_ = []int{<16 kind="">
+		1,
+		2,
+		3,
+	</16>}
+	_ = [2]string{<17 kind="">"d",
+		"e",
+	</17>}
+	_ = map[string]int{<18 kind="">
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	</18>}
+	type T struct {<19 kind="">
+		f string
+		g int
+		h string
+	</19>}
+	_ = T{<20 kind="">
+		f: "j",
+		g: 4,
+		h: "i",
+	</20>}
+	x, y := make(<21 kind="">chan bool</21>), make(<22 kind="">chan bool</22>)
+	select {<23 kind="">
+	case val := <-x:<24 kind="">
+		if val {<25 kind="">
+			fmt.Println(<26 kind="">"true from x"</26>)
+		</25>} else {<27 kind="">
+			fmt.Println(<28 kind="">"false from x"</28>)
+		</27>}</24>
+	case <-y:<29 kind="">
+		fmt.Println(<30 kind="">"y"</30>)</29>
+	default:<31 kind="">
+		fmt.Println(<32 kind="">"default"</32>)</31>
+	</23>}
+	// This is a multiline comment<33 kind="comment">
+	// that is not a doc comment.</33>
+	return <34 kind="">`
+this string
+is not indented`</34>
+</3>}

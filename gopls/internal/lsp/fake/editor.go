@@ -7,6 +7,7 @@ package fake
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -109,6 +110,13 @@ type EditorConfig struct {
 
 	// Settings holds user-provided configuration for the LSP server.
 	Settings map[string]interface{}
+
+	// CapabilitiesJSON holds JSON client capabilities to overlay over the
+	// editor's default client capabilities.
+	//
+	// Specifically, this JSON string will be unmarshalled into the editor's
+	// client capabilities struct, before sending to the server.
+	CapabilitiesJSON []byte
 }
 
 // NewEditor creates a new Editor.
@@ -249,15 +257,13 @@ func (e *Editor) initialize(ctx context.Context) error {
 	}
 	params.InitializationOptions = makeSettings(e.sandbox, config)
 	params.WorkspaceFolders = makeWorkspaceFolders(e.sandbox, config.WorkspaceFolders)
+
+	// Set various client capabilities that are sought by gopls.
 	params.Capabilities.Workspace.Configuration = true // support workspace/configuration
 	params.Capabilities.Window.WorkDoneProgress = true // support window/workDoneProgress
-
-	// TODO(rfindley): set client capabilities (note from the future: why?)
-
 	params.Capabilities.TextDocument.Completion.CompletionItem.TagSupport.ValueSet = []protocol.CompletionItemTag{protocol.ComplDeprecated}
 	params.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport = true
 	params.Capabilities.TextDocument.SemanticTokens.Requests.Full.Value = true
-	// copied from lsp/semantic.go to avoid import cycle in tests
 	params.Capabilities.TextDocument.SemanticTokens.TokenTypes = []string{
 		"namespace", "type", "class", "enum", "interface",
 		"struct", "typeParameter", "parameter", "variable", "property", "enumMember",
@@ -268,14 +274,11 @@ func (e *Editor) initialize(ctx context.Context) error {
 		"declaration", "definition", "readonly", "static",
 		"deprecated", "abstract", "async", "modification", "documentation", "defaultLibrary",
 	}
-
 	// The LSP tests have historically enabled this flag,
 	// but really we should test both ways for older editors.
 	params.Capabilities.TextDocument.DocumentSymbol.HierarchicalDocumentSymbolSupport = true
-
 	// Glob pattern watching is enabled.
 	params.Capabilities.Workspace.DidChangeWatchedFiles.DynamicRegistration = true
-
 	// "rename" operations are used for package renaming.
 	//
 	// TODO(rfindley): add support for other resource operations (create, delete, ...)
@@ -283,6 +286,12 @@ func (e *Editor) initialize(ctx context.Context) error {
 		ResourceOperations: []protocol.ResourceOperationKind{
 			"rename",
 		},
+	}
+	// Apply capabilities overlay.
+	if config.CapabilitiesJSON != nil {
+		if err := json.Unmarshal(config.CapabilitiesJSON, &params.Capabilities); err != nil {
+			return fmt.Errorf("unmarshalling EditorConfig.CapabilitiesJSON: %v", err)
+		}
 	}
 
 	trace := protocol.TraceValues("messages")

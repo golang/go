@@ -1,0 +1,41 @@
+This test verifies behavior of textDocument/foldingRange in the presence of
+unformatted syntax.
+
+-- a.go --
+package folding //@foldingrange(raw)
+
+import ( "fmt"
+	_ "log"
+)
+
+import ( 
+	_ "os" )
+	
+// badBar is a function.
+func badBar() string { x := true
+	if x { 
+		// This is the only foldable thing in this file when lineFoldingOnly
+		fmt.Println("true")
+	} else {
+		fmt.Println("false") }
+	return ""
+}
+-- @raw --
+package folding //@foldingrange(raw)
+
+import (<0 kind="imports"> "fmt"
+	_ "log"
+</0>)
+
+import (<1 kind="imports"> 
+	_ "os" </1>)
+	
+// badBar is a function.
+func badBar(<2 kind=""></2>) string {<3 kind=""> x := true
+	if x {<4 kind=""> 
+		// This is the only foldable thing in this file when lineFoldingOnly
+		fmt.Println(<5 kind="">"true"</5>)
+	</4>} else {<6 kind="">
+		fmt.Println(<7 kind="">"false"</7>) </6>}
+	return ""
+</3>}

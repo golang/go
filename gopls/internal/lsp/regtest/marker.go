@@ -115,6 +115,10 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //     TODO(rfindley): support flag values containing whitespace.
 //   - "settings.json": this file is parsed as JSON, and used as the
 //     session configuration (see gopls/doc/settings.md)
+//   - "capabilities.json": this file is parsed as JSON client capabilities,
+//     and applied as an overlay over the default editor client capabilities.
+//     see https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#clientCapabilities
+//     for more details.
 //   - "env": this file is parsed as a list of VAR=VALUE fields specifying the
 //     editor environment.
 //   - Golden files: Within the archive, file names starting with '@' are
@@ -160,6 +164,11 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //
 //   - def(src, dst location): perform a textDocument/definition request at
 //     the src location, and check the result points to the dst location.
+//
+//   - foldingrange(golden): perform a textDocument/foldingRange for the
+//     current document, and compare with the golden content, which is the
+//     original source annotated with numbered tags delimiting the resulting
+//     ranges (e.g. <1 kind="..."> ... </1>).
 //
 //   - format(golden): perform a textDocument/format request for the enclosing
 //     file, and compare against the named golden file. If the formatting
@@ -319,7 +328,6 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //   - FuzzyCompletions
 //   - CaseSensitiveCompletions
 //   - RankCompletions
-//   - FoldingRanges
 //   - Formats
 //   - Imports
 //   - SemanticTokens
@@ -371,8 +379,9 @@ func RunMarkerTests(t *testing.T, dir string) {
 				testenv.NeedsTool(t, "cgo")
 			}
 			config := fake.EditorConfig{
-				Settings: test.settings,
-				Env:      test.env,
+				Settings:         test.settings,
+				CapabilitiesJSON: test.capabilities,
+				Env:              test.env,
 			}
 			if _, ok := config.Settings["diagnosticsDelay"]; !ok {
 				if config.Settings == nil {
@@ -380,12 +389,15 @@ func RunMarkerTests(t *testing.T, dir string) {
 				}
 				config.Settings["diagnosticsDelay"] = "10ms"
 			}
+			// inv: config.Settings != nil
 
 			run := &markerTestRun{
-				test:      test,
-				env:       newEnv(t, cache, test.files, test.proxyFiles, test.writeGoSum, config),
-				locations: make(map[expect.Identifier]protocol.Location),
-				diags:     make(map[protocol.Location][]protocol.Diagnostic),
+				test:       test,
+				env:        newEnv(t, cache, test.files, test.proxyFiles, test.writeGoSum, config),
+				settings:   config.Settings,
+				locations:  make(map[expect.Identifier]protocol.Location),
+				diags:      make(map[protocol.Location][]protocol.Diagnostic),
+				extraNotes: make(map[protocol.DocumentURI]map[string][]*expect.Note),
 			}
 			// TODO(rfindley): make it easier to clean up the regtest environment.
 			defer run.env.Editor.Shutdown(context.Background()) // ignore error
@@ -403,9 +415,19 @@ func RunMarkerTests(t *testing.T, dir string) {
 			// Pre-process locations.
 			var markers []marker
 			for _, note := range test.notes {
-				mark := marker{run: run, note: note}
+				fn, ok := markerFuncs[note.Name]
+				if !ok {
+					// TODO(rfindley): simplify these deeply nested APIs.
+					uri := run.env.Sandbox.Workdir.URI(run.test.fset.File(note.Pos).Name())
+					if run.extraNotes[uri] == nil {
+						run.extraNotes[uri] = make(map[string][]*expect.Note)
+					}
+					run.extraNotes[uri][note.Name] = append(run.extraNotes[uri][note.Name], note)
+					continue
+				}
+				mark := marker{run: run, note: note, fn: fn}
 				switch note.Name {
-				case "loc":
+				case "loc": // as a special case, locations are collected before other markers
 					mark.execute()
 				default:
 					markers = append(markers, mark)
@@ -439,6 +461,15 @@ func RunMarkerTests(t *testing.T, dir string) {
 			for loc, diags := range run.diags {
 				for _, diag := range diags {
 					t.Errorf("%s: unexpected diagnostic: %q", run.fmtLoc(loc), diag.Message)
+				}
+			}
+
+			// TODO(rfindley): use these for whole-file marker tests.
+			for uri, extras := range run.extraNotes {
+				for name, extra := range extras {
+					if len(extra) > 0 {
+						t.Errorf("%s: %d unused %q markers", run.env.Sandbox.Workdir.URIToPath(uri), len(extra), name)
+					}
 				}
 			}
 
@@ -478,6 +509,7 @@ func RunMarkerTests(t *testing.T, dir string) {
 type marker struct {
 	run  *markerTestRun
 	note *expect.Note
+	fn   markerFunc
 }
 
 // server returns the LSP server for the marker test run.
@@ -499,26 +531,20 @@ func (mark marker) errorf(format string, args ...interface{}) {
 
 // execute invokes the marker's function with the arguments from note.
 func (mark marker) execute() {
-	fn, ok := markerFuncs[mark.note.Name]
-	if !ok {
-		mark.errorf("no marker function named %s", mark.note.Name)
-		return
-	}
-
 	// The first converter corresponds to the *Env argument.
 	// All others must be converted from the marker syntax.
 	args := []reflect.Value{reflect.ValueOf(mark)}
 	var convert converter
 	for i, in := range mark.note.Args {
-		if i < len(fn.converters) {
-			convert = fn.converters[i]
-		} else if !fn.variadic {
+		if i < len(mark.fn.converters) {
+			convert = mark.fn.converters[i]
+		} else if !mark.fn.variadic {
 			goto arity // too many args
 		}
 
 		// Special handling for the blank identifier: treat it as the zero value.
 		if ident, ok := in.(expect.Identifier); ok && ident == "_" {
-			zero := reflect.Zero(fn.paramTypes[i])
+			zero := reflect.Zero(mark.fn.paramTypes[i])
 			args = append(args, zero)
 			continue
 		}
@@ -530,16 +556,16 @@ func (mark marker) execute() {
 		}
 		args = append(args, reflect.ValueOf(out))
 	}
-	if len(args) < len(fn.converters) {
+	if len(args) < len(mark.fn.converters) {
 		goto arity // too few args
 	}
 
-	fn.fn.Call(args)
+	mark.fn.fn.Call(args)
 	return
 
 arity:
 	mark.errorf("got %d arguments to %s, want %d",
-		len(mark.note.Args), mark.note.Name, len(fn.converters))
+		len(mark.note.Args), mark.note.Name, len(mark.fn.converters))
 }
 
 // Supported marker functions.
@@ -556,8 +582,9 @@ var markerFuncs = map[string]markerFunc{
 	"complete":         makeMarkerFunc(completeMarker),
 	"def":              makeMarkerFunc(defMarker),
 	"diag":             makeMarkerFunc(diagMarker),
-	"hover":            makeMarkerFunc(hoverMarker),
+	"foldingrange":     makeMarkerFunc(foldingRangeMarker),
 	"format":           makeMarkerFunc(formatMarker),
+	"hover":            makeMarkerFunc(hoverMarker),
 	"implementation":   makeMarkerFunc(implementationMarker),
 	"loc":              makeMarkerFunc(locMarker),
 	"rename":           makeMarkerFunc(renameMarker),
@@ -573,16 +600,17 @@ var markerFuncs = map[string]markerFunc{
 // See the documentation for RunMarkerTests for more information on the archive
 // format.
 type markerTest struct {
-	name       string                 // relative path to the txtar file in the testdata dir
-	fset       *token.FileSet         // fileset used for parsing notes
-	content    []byte                 // raw test content
-	archive    *txtar.Archive         // original test archive
-	settings   map[string]interface{} // gopls settings
-	env        map[string]string      // editor environment
-	proxyFiles map[string][]byte      // proxy content
-	files      map[string][]byte      // data files from the archive (excluding special files)
-	notes      []*expect.Note         // extracted notes from data files
-	golden     map[string]*Golden     // extracted golden content, by identifier name
+	name         string                 // relative path to the txtar file in the testdata dir
+	fset         *token.FileSet         // fileset used for parsing notes
+	content      []byte                 // raw test content
+	archive      *txtar.Archive         // original test archive
+	settings     map[string]interface{} // gopls settings
+	capabilities []byte                 // content of capabilities.json file
+	env          map[string]string      // editor environment
+	proxyFiles   map[string][]byte      // proxy content
+	files        map[string][]byte      // data files from the archive (excluding special files)
+	notes        []*expect.Note         // extracted notes from data files
+	golden       map[string]*Golden     // extracted golden content, by identifier name
 
 	skipReason string   // the skip reason extracted from the "skip" archive file
 	flags      []string // flags extracted from the special "flags" archive file.
@@ -742,6 +770,9 @@ func loadMarkerTest(name string, content []byte) (*markerTest, error) {
 				return nil, err
 			}
 
+		case file.Name == "capabilities.json":
+			test.capabilities = file.Data // lazily unmarshalled by the editor
+
 		case file.Name == "env":
 			test.env = make(map[string]string)
 			fields := strings.Fields(string(file.Data))
@@ -818,7 +849,7 @@ func formatTest(test *markerTest) ([]byte, error) {
 		switch file.Name {
 		// Preserve configuration files exactly as they were. They must have parsed
 		// if we got this far.
-		case "skip", "flags", "settings.json", "env":
+		case "skip", "flags", "settings.json", "capabilities.json", "env":
 			arch.Files = append(arch.Files, file)
 		default:
 			if _, ok := test.files[file.Name]; ok { // ordinary file
@@ -903,13 +934,18 @@ type markerFunc struct {
 
 // A markerTestRun holds the state of one run of a marker test archive.
 type markerTestRun struct {
-	test *markerTest
-	env  *Env
+	test     *markerTest
+	env      *Env
+	settings map[string]interface{}
 
 	// Collected information.
 	// Each @diag/@suggestedfix marker eliminates an entry from diags.
 	locations map[expect.Identifier]protocol.Location
 	diags     map[protocol.Location][]protocol.Diagnostic // diagnostics by position; location end == start
+
+	// Notes that weren't consumed by a marker.
+	// TODO(rfindley): use this for markers that must collect related notes, or delete it.
+	extraNotes map[protocol.DocumentURI]map[string][]*expect.Note
 }
 
 // sprintf returns a formatted string after applying pre-processing to
@@ -1335,6 +1371,47 @@ func defMarker(mark marker, src, dst protocol.Location) {
 	if got != dst {
 		mark.errorf("definition location does not match:\n\tgot: %s\n\twant %s",
 			mark.run.fmtLoc(got), mark.run.fmtLoc(dst))
+	}
+}
+
+func foldingRangeMarker(mark marker, g *Golden) {
+	env := mark.run.env
+	ranges, err := mark.server().FoldingRange(env.Ctx, &protocol.FoldingRangeParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: mark.uri()},
+	})
+	if err != nil {
+		mark.errorf("foldingRange failed: %v", err)
+		return
+	}
+	var edits []protocol.TextEdit
+	insert := func(line, char uint32, text string) {
+		pos := protocol.Position{Line: line, Character: char}
+		edits = append(edits, protocol.TextEdit{
+			Range: protocol.Range{
+				Start: pos,
+				End:   pos,
+			},
+			NewText: text,
+		})
+	}
+	for i, rng := range ranges {
+		insert(rng.StartLine, rng.StartCharacter, fmt.Sprintf("<%d kind=%q>", i, rng.Kind))
+		insert(rng.EndLine, rng.EndCharacter, fmt.Sprintf("</%d>", i))
+	}
+	filename := env.Sandbox.Workdir.URIToPath(mark.uri())
+	mapper, err := env.Editor.Mapper(filename)
+	if err != nil {
+		mark.errorf("Editor.Mapper(%s) failed: %v", filename, err)
+		return
+	}
+	got, _, err := source.ApplyProtocolEdits(mapper, edits)
+	if err != nil {
+		mark.errorf("ApplyProtocolEdits failed: %v", err)
+		return
+	}
+	want, _ := g.Get(mark.run.env.T, "", got)
+	if diff := compare.Bytes(want, got); diff != "" {
+		mark.errorf("foldingRange mismatch:\n%s", diff)
 	}
 }
 

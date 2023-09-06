@@ -74,7 +74,6 @@ type DeepCompletions = map[span.Span][]Completion
 type FuzzyCompletions = map[span.Span][]Completion
 type CaseSensitiveCompletions = map[span.Span][]Completion
 type RankCompletions = map[span.Span][]Completion
-type FoldingRanges = []span.Span
 type SemanticTokens = []span.Span
 type SuggestedFixes = map[span.Span][]SuggestedFix
 type MethodExtractions = map[span.Span]span.Span
@@ -102,7 +101,6 @@ type Data struct {
 	FuzzyCompletions         FuzzyCompletions
 	CaseSensitiveCompletions CaseSensitiveCompletions
 	RankCompletions          RankCompletions
-	FoldingRanges            FoldingRanges
 	SemanticTokens           SemanticTokens
 	SuggestedFixes           SuggestedFixes
 	MethodExtractions        MethodExtractions
@@ -144,7 +142,6 @@ type Tests interface {
 	FuzzyCompletion(*testing.T, span.Span, Completion, CompletionItems)
 	CaseSensitiveCompletion(*testing.T, span.Span, Completion, CompletionItems)
 	RankCompletion(*testing.T, span.Span, Completion, CompletionItems)
-	FoldingRanges(*testing.T, span.Span)
 	SemanticTokens(*testing.T, span.Span)
 	SuggestedFix(*testing.T, span.Span, []SuggestedFix, int)
 	MethodExtraction(*testing.T, span.Span, span.Span)
@@ -435,7 +432,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		"casesensitive":  datum.collectCompletions(CompletionCaseSensitive),
 		"rank":           datum.collectCompletions(CompletionRank),
 		"snippet":        datum.collectCompletionSnippets,
-		"fold":           datum.collectFoldingRanges,
 		"semantic":       datum.collectSemanticTokens,
 		"godef":          datum.collectDefinitions,
 		"typdef":         datum.collectTypeDefinitions,
@@ -613,16 +609,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Run(uriName(uri), func(t *testing.T) {
 				t.Helper()
 				tests.Diagnostics(t, uri, want)
-			})
-		}
-	})
-
-	t.Run("FoldingRange", func(t *testing.T) {
-		t.Helper()
-		for _, spn := range data.FoldingRanges {
-			t.Run(uriName(spn.URI()), func(t *testing.T) {
-				t.Helper()
-				tests.FoldingRanges(t, spn)
 			})
 		}
 	})
@@ -832,7 +818,6 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "RankedCompletionsCount = %v\n", countCompletions(data.RankCompletions))
 	fmt.Fprintf(buf, "CaseSensitiveCompletionsCount = %v\n", countCompletions(data.CaseSensitiveCompletions))
 	fmt.Fprintf(buf, "DiagnosticsCount = %v\n", diagnosticsCount)
-	fmt.Fprintf(buf, "FoldingRangesCount = %v\n", len(data.FoldingRanges))
 	fmt.Fprintf(buf, "SemanticTokenCount = %v\n", len(data.SemanticTokens))
 	fmt.Fprintf(buf, "SuggestedFixCount = %v\n", len(data.SuggestedFixes))
 	fmt.Fprintf(buf, "MethodExtractionCount = %v\n", len(data.MethodExtractions))
@@ -1001,10 +986,6 @@ func (data *Data) collectCompletionItems(pos token.Pos, label, detail, kind stri
 		Kind:          protocol.ParseCompletionItemKind(kind),
 		Documentation: documentation,
 	}
-}
-
-func (data *Data) collectFoldingRanges(spn span.Span) {
-	data.FoldingRanges = append(data.FoldingRanges, spn)
 }
 
 func (data *Data) collectAddImports(spn span.Span, imp string) {
