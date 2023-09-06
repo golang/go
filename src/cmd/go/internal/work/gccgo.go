@@ -45,12 +45,8 @@ func (gccgoToolchain) linker() string {
 	return GccgoBin
 }
 
-func (gccgoToolchain) ar() string {
-	ar := cfg.Getenv("AR")
-	if ar == "" {
-		ar = "ar"
-	}
-	return ar
+func (gccgoToolchain) ar() []string {
+	return envList("AR", "ar")
 }
 
 func checkGccgoBin() {
