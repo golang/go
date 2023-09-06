@@ -128,8 +128,8 @@ type J interface {
 
 // use a runtime call for type switches to interface types.
 func interfaceSwitch(x any) int {
-	// amd64:`CALL\truntime.interfaceSwitch`
-	// arm64:`CALL\truntime.interfaceSwitch`
+	// amd64:`CALL\truntime.interfaceSwitch`,`MOVL\t16\(.*\)`,`MOVQ\t8\(.*\)(.*\*8)`
+	// arm64:`CALL\truntime.interfaceSwitch`,`LDAR`,`MOVWU`,`MOVD\t\(R.*\)\(R.*\)`
 	switch x.(type) {
 	case I:
 		return 1

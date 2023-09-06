@@ -527,12 +527,15 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 			lsym := types.LocalPkg.Lookup(fmt.Sprintf(".interfaceSwitch.%d", interfaceSwitchGen)).LinksymABI(obj.ABI0)
 			interfaceSwitchGen++
 			off := 0
+			off = objw.SymPtr(lsym, off, typecheck.LookupRuntimeVar("emptyInterfaceSwitchCache"), 0)
 			off = objw.Uintptr(lsym, off, uint64(len(interfaceCases)))
 			for _, c := range interfaceCases {
 				off = objw.SymPtr(lsym, off, reflectdata.TypeSym(c.typ.Type()).Linksym(), 0)
 			}
-			// Note: it has pointers, just not ones the GC cares about.
-			objw.Global(lsym, int32(off), obj.LOCAL|obj.NOPTR)
+			objw.Global(lsym, int32(off), obj.LOCAL)
+			// Set the type to be just a single pointer, as the cache pointer is the
+			// only one that GC needs to see.
+			lsym.Gotype = reflectdata.TypeLinksym(types.Types[types.TUINT8].PtrTo())
 
 			// Call runtime to do switch
 			// case, itab = runtime.interfaceSwitch(&descriptor, typeof(arg))
@@ -546,7 +549,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 			isw := ir.NewInterfaceSwitchStmt(base.Pos, caseVar, s.itabName, typeArg, lsym)
 			sw.Compiled.Append(isw)
 
-			// Switch on the result of the call.
+			// Switch on the result of the call (or cache lookup).
 			var newCases []*ir.CaseClause
 			for i, c := range interfaceCases {
 				newCases = append(newCases, &ir.CaseClause{

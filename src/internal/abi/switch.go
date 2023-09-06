@@ -5,9 +5,40 @@
 package abi
 
 type InterfaceSwitch struct {
+	Cache  *InterfaceSwitchCache
 	NCases int
 
 	// Array of NCases elements.
 	// Each case must be a non-empty interface type.
 	Cases [1]*InterfaceType
+}
+
+type InterfaceSwitchCache struct {
+	Mask    uintptr                      // mask for index. Must be a power of 2 minus 1
+	Entries [1]InterfaceSwitchCacheEntry // Mask+1 entries total
+}
+
+type InterfaceSwitchCacheEntry struct {
+	// type of source value (a *Type)
+	Typ uintptr
+	// case # to dispatch to
+	Case int
+	// itab to use for resulting case variable (a *runtime.itab)
+	Itab uintptr
+}
+
+const go122InterfaceSwitchCache = true
+
+func UseInterfaceSwitchCache(goarch string) bool {
+	if !go122InterfaceSwitchCache {
+		return false
+	}
+	// We need an atomic load instruction to make the cache multithreaded-safe.
+	// (AtomicLoadPtr needs to be implemented in cmd/compile/internal/ssa/_gen/ARCH.rules.)
+	switch goarch {
+	case "amd64", "arm64", "loong64", "mips", "mipsle", "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x":
+		return true
+	default:
+		return false
+	}
 }

@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -475,14 +476,105 @@ func assertE2I2(inter *interfacetype, e eface) (r iface) {
 // of cases.
 func interfaceSwitch(s *abi.InterfaceSwitch, t *_type) (int, *itab) {
 	cases := unsafe.Slice(&s.Cases[0], s.NCases)
+
+	// Results if we don't find a match.
+	case_ := len(cases)
+	var tab *itab
+
+	// Look through each case in order.
 	for i, c := range cases {
-		tab := getitab(c, t, true)
+		tab = getitab(c, t, true)
 		if tab != nil {
-			return i, tab
+			case_ = i
+			break
 		}
 	}
-	return len(cases), nil
+
+	if !abi.UseInterfaceSwitchCache(GOARCH) {
+		return case_, tab
+	}
+
+	// Maybe update the cache, so the next time the generated code
+	// doesn't need to call into the runtime.
+	if fastrand()&1023 != 0 {
+		// Only bother updating the cache ~1 in 1000 times.
+		// This ensures we don't waste memory on switches, or
+		// switch arguments, that only happen a few times.
+		return case_, tab
+	}
+	// Load the current cache.
+	oldC := (*abi.InterfaceSwitchCache)(atomic.Loadp(unsafe.Pointer(&s.Cache)))
+
+	if fastrand()&uint32(oldC.Mask) != 0 {
+		// As cache gets larger, choose to update it less often
+		// so we can amortize the cost of building a new cache
+		// (that cost is linear in oldc.Mask).
+		return case_, tab
+	}
+
+	// Make a new cache.
+	newC := buildInterfaceSwitchCache(oldC, t, case_, tab)
+
+	// Update cache. Use compare-and-swap so if multiple threads
+	// are fighting to update the cache, at least one of their
+	// updates will stick.
+	atomic_casPointer((*unsafe.Pointer)(unsafe.Pointer(&s.Cache)), unsafe.Pointer(oldC), unsafe.Pointer(newC))
+
+	return case_, tab
 }
+
+// buildInterfaceSwitchCache constructs a interface switch cache
+// containing all the entries from oldC plus the new entry
+// (typ,case_,tab).
+func buildInterfaceSwitchCache(oldC *abi.InterfaceSwitchCache, typ *_type, case_ int, tab *itab) *abi.InterfaceSwitchCache {
+	oldEntries := unsafe.Slice(&oldC.Entries[0], oldC.Mask+1)
+
+	// Count the number of entries we need.
+	n := 1
+	for _, e := range oldEntries {
+		if e.Typ != 0 {
+			n++
+		}
+	}
+
+	// Figure out how big a table we need.
+	// We need at least one more slot than the number of entries
+	// so that we are guaranteed an empty slot (for termination).
+	newN := n * 2                         // make it at most 50% full
+	newN = 1 << sys.Len64(uint64(newN-1)) // round up to a power of 2
+
+	// Allocate the new table.
+	newSize := unsafe.Sizeof(abi.InterfaceSwitchCache{}) + uintptr(newN-1)*unsafe.Sizeof(abi.InterfaceSwitchCacheEntry{})
+	newC := (*abi.InterfaceSwitchCache)(mallocgc(newSize, nil, true))
+	newC.Mask = uintptr(newN - 1)
+	newEntries := unsafe.Slice(&newC.Entries[0], newN)
+
+	// Fill the new table.
+	addEntry := func(typ *_type, case_ int, tab *itab) {
+		h := int(typ.Hash) & (newN - 1)
+		for {
+			if newEntries[h].Typ == 0 {
+				newEntries[h].Typ = uintptr(unsafe.Pointer(typ))
+				newEntries[h].Case = case_
+				newEntries[h].Itab = uintptr(unsafe.Pointer(tab))
+				return
+			}
+			h = (h + 1) & (newN - 1)
+		}
+	}
+	for _, e := range oldEntries {
+		if e.Typ != 0 {
+			addEntry((*_type)(unsafe.Pointer(e.Typ)), e.Case, (*itab)(unsafe.Pointer(e.Itab)))
+		}
+	}
+	addEntry(typ, case_, tab)
+
+	return newC
+}
+
+// Empty interface switch cache. Contains one entry with a nil Typ (which
+// causes a cache lookup to fail immediately.)
+var emptyInterfaceSwitchCache = abi.InterfaceSwitchCache{Mask: 0}
 
 //go:linkname reflect_ifaceE2I reflect.ifaceE2I
 func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
