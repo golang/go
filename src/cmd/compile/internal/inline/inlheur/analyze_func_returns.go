@@ -222,14 +222,13 @@ func isAllocatedMem(n ir.Node) bool {
 
 func isLiteral(n ir.Node) (constant.Value, bool) {
 	sv := ir.StaticValue(n)
-	if sv.Op() == ir.ONIL {
+	switch sv.Op() {
+	case ir.ONIL:
 		return nil, true
+	case ir.OLITERAL:
+		return sv.Val(), true
 	}
-	if sv.Op() != ir.OLITERAL {
-		return nil, false
-	}
-	ce := sv.(*ir.ConstExpr)
-	return ce.Val(), true
+	return nil, false
 }
 
 // isSameLiteral checks to see if 'v1' and 'v2' correspond to the same
