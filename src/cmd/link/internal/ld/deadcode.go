@@ -143,10 +143,26 @@ func (d *deadcodePass) flood() {
 		methods = methods[:0]
 		for i := 0; i < relocs.Count(); i++ {
 			r := relocs.At(i)
-			// When build with "-linkshared", we can't tell if the interface
-			// method in itab will be used or not. Ignore the weak attribute.
-			if r.Weak() && !(d.ctxt.linkShared && d.ldr.IsItab(symIdx)) {
-				continue
+			if r.Weak() {
+				convertWeakToStrong := false
+				// When build with "-linkshared", we can't tell if the
+				// interface method in itab will be used or not.
+				// Ignore the weak attribute.
+				if d.ctxt.linkShared && d.ldr.IsItab(symIdx) {
+					convertWeakToStrong = true
+				}
+				// If the program uses plugins, we can no longer treat
+				// relocs from pkg init functions to outlined map init
+				// fragments as weak, since doing so can cause package
+				// init clashes between the main program and the
+				// plugin. See #62430 for more details.
+				if d.ctxt.canUsePlugins && r.Type().IsDirectCall() {
+					convertWeakToStrong = true
+				}
+				if !convertWeakToStrong {
+					// skip this reloc
+					continue
+				}
 			}
 			t := r.Type()
 			switch t {

@@ -388,3 +388,10 @@ func TestSymbolNameMangle(t *testing.T) {
 	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "mangle.so", "./mangle/plugin.go")
 }
+
+func TestIssue62430(t *testing.T) {
+	globalSkip(t)
+	goCmd(t, "build", "-buildmode=plugin", "-o", "issue62430.so", "./issue62430/plugin.go")
+	goCmd(t, "build", "-o", "issue62430.exe", "./issue62430/main.go")
+	run(t, "./issue62430.exe")
+}
