@@ -926,18 +926,6 @@ func removeAll(dir string) error {
 	return robustio.RemoveAll(dir)
 }
 
-// failSSH puts an ssh executable in the PATH that always fails.
-// This is to stub out uses of ssh by go get.
-func (tg *testgoData) failSSH() {
-	tg.t.Helper()
-	wd, err := os.Getwd()
-	if err != nil {
-		tg.t.Fatal(err)
-	}
-	fail := filepath.Join(wd, "testdata/failssh")
-	tg.setenv("PATH", fmt.Sprintf("%v%c%v", fail, filepath.ListSeparator, os.Getenv("PATH")))
-}
-
 func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping lengthy test in short mode")
