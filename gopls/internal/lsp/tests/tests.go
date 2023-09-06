@@ -56,8 +56,6 @@ var summaryFile = "summary.txt"
 func init() {
 	if testenv.Go1Point() >= 21 {
 		summaryFile = "summary_go1.21.txt"
-	} else if testenv.Go1Point() >= 18 {
-		summaryFile = "summary_go1.18.txt"
 	}
 }
 
