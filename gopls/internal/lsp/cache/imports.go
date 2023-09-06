@@ -135,7 +135,7 @@ func populateProcessEnvFromSnapshot(ctx context.Context, pe *imports.ProcessEnv,
 	// and has led to memory leaks in the past, when the snapshot was
 	// unintentionally held past its lifetime.
 	_, inv, cleanupInvocation, err := snapshot.goCommandInvocation(ctx, source.LoadWorkspace, &gocommand.Invocation{
-		WorkingDir: snapshot.view.workingDir().Filename(),
+		WorkingDir: snapshot.view.goCommandDir.Filename(),
 	})
 	if err != nil {
 		return err
@@ -154,7 +154,7 @@ func populateProcessEnvFromSnapshot(ctx context.Context, pe *imports.ProcessEnv,
 	// We don't actually use the invocation, so clean it up now.
 	cleanupInvocation()
 	// TODO(rfindley): should this simply be inv.WorkingDir?
-	pe.WorkingDir = snapshot.view.workingDir().Filename()
+	pe.WorkingDir = snapshot.view.goCommandDir.Filename()
 	return nil
 }
 

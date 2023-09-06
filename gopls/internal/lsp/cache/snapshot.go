@@ -969,7 +969,7 @@ func (s *snapshot) workspaceDirs(ctx context.Context) []string {
 	dirSet := make(map[string]unit)
 
 	// Dirs should, at the very least, contain the working directory and folder.
-	dirSet[s.view.workingDir().Filename()] = unit{}
+	dirSet[s.view.goCommandDir.Filename()] = unit{}
 	dirSet[s.view.folder.Filename()] = unit{}
 
 	// Additionally, if e.g. go.work indicates other workspace modules, we should

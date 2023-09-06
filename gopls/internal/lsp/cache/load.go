@@ -117,7 +117,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 		flags |= source.AllowNetwork
 	}
 	_, inv, cleanup, err := s.goCommandInvocation(ctx, flags, &gocommand.Invocation{
-		WorkingDir: s.view.workingDir().Filename(),
+		WorkingDir: s.view.goCommandDir.Filename(),
 	})
 	if err != nil {
 		return err

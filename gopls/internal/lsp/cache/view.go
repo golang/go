@@ -52,8 +52,7 @@ type View struct {
 	// Workspace information. The fields below are immutable, and together with
 	// options define the build list. Any change to these fields results in a new
 	// View.
-	folder               span.URI // user-specified workspace folder
-	workspaceInformation          // Go environment information
+	workspaceInformation // Go environment information
 
 	importsState *importsState
 
@@ -114,6 +113,9 @@ type View struct {
 //
 // This type is compared to see if the View needs to be reconstructed.
 type workspaceInformation struct {
+	// folder is the LSP workspace folder.
+	folder span.URI
+
 	// `go env` variables that need to be tracked by gopls.
 	goEnv
 
@@ -136,6 +138,13 @@ type workspaceInformation struct {
 	// inGOPATH reports whether the workspace directory is contained in a GOPATH
 	// directory.
 	inGOPATH bool
+
+	// goCommandDir is the dir to use for running go commands.
+	//
+	// The only case where this should matter is if we've narrowed the workspace to
+	// a single nested module. In that case, the go command won't be able to find
+	// the module unless we tell it the nested directory.
+	goCommandDir span.URI
 }
 
 // effectiveGO111MODULE reports the value of GO111MODULE effective in the go
@@ -441,6 +450,11 @@ func (v *View) FileKind(fh source.FileHandle) source.FileKind {
 }
 
 func minorOptionsChange(a, b *source.Options) bool {
+	// TODO(rfindley): this function detects whether a view should be recreated,
+	// but this is also checked by the getWorkspaceInformation logic.
+	//
+	// We should eliminate this redundancy.
+
 	// Check if any of the settings that modify our understanding of files have
 	// been changed.
 	if !reflect.DeepEqual(a.Env, b.Env) {
@@ -501,7 +515,7 @@ func viewEnv(v *View) string {
 (selected go env: %v)
 `,
 		v.folder.Filename(),
-		v.workingDir().Filename(),
+		v.goCommandDir.Filename(),
 		strings.TrimRight(v.workspaceInformation.goversionOutput, "\n"),
 		v.snapshot.validBuildConfiguration(),
 		buildFlags,
@@ -586,8 +600,8 @@ func (v *View) contains(uri span.URI) bool {
 	// user. It would be better to explicitly consider the set of active modules
 	// wherever relevant.
 	inGoDir := false
-	if source.InDir(v.workingDir().Filename(), v.folder.Filename()) {
-		inGoDir = source.InDir(v.workingDir().Filename(), uri.Filename())
+	if source.InDir(v.goCommandDir.Filename(), v.folder.Filename()) {
+		inGoDir = source.InDir(v.goCommandDir.Filename(), uri.Filename())
 	}
 	inFolder := source.InDir(v.folder.Filename(), uri.Filename())
 
@@ -946,7 +960,9 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 		return workspaceInformation{}, fmt.Errorf("invalid workspace folder path: %w; check that the casing of the configured workspace folder path agrees with the casing reported by the operating system", err)
 	}
 	var err error
-	var info workspaceInformation
+	info := workspaceInformation{
+		folder: folder,
+	}
 	inv := gocommand.Invocation{
 		WorkingDir: folder.Filename(),
 		Env:        options.EnvSlice(),
@@ -983,6 +999,20 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 			info.inGOPATH = true
 			break
 		}
+	}
+
+	// Compute the "working directory", which is where we run go commands.
+	//
+	// Note: if gowork is in use, this will default to the workspace folder. In
+	// the past, we would instead use the folder containing go.work. This should
+	// not make a difference, and in fact may improve go list error messages.
+	//
+	// TODO(golang/go#57514): eliminate the expandWorkspaceToModule setting
+	// entirely.
+	if options.ExpandWorkspaceToModule && info.gomod != "" {
+		info.goCommandDir = span.URIFromPath(filepath.Dir(info.gomod.Filename()))
+	} else {
+		info.goCommandDir = folder
 	}
 	return info, nil
 }
@@ -1023,24 +1053,6 @@ func findWorkspaceModFile(ctx context.Context, folderURI span.URI, fs source.Fil
 		}
 	}
 	return "", nil
-}
-
-// workingDir returns the directory from which to run Go commands.
-//
-// The only case where this should matter is if we've narrowed the workspace to
-// a singular nested module. In that case, the go command won't be able to find
-// the module unless we tell it the nested directory.
-func (v *View) workingDir() span.URI {
-	// Note: if gowork is in use, this will default to the workspace folder. In
-	// the past, we would instead use the folder containing go.work. This should
-	// not make a difference, and in fact may improve go list error messages.
-	//
-	// TODO(golang/go#57514): eliminate the expandWorkspaceToModule setting
-	// entirely.
-	if v.Options().ExpandWorkspaceToModule && v.gomod != "" {
-		return span.URIFromPath(filepath.Dir(v.gomod.Filename()))
-	}
-	return v.folder
 }
 
 // findRootPattern looks for files with the given basename in dir or any parent
@@ -1231,7 +1243,7 @@ func (s *snapshot) vendorEnabled(ctx context.Context, modURI span.URI, modConten
 	// No vendor directory?
 	// TODO(golang/go#57514): this is wrong if the working dir is not the module
 	// root.
-	if fi, err := os.Stat(filepath.Join(s.view.workingDir().Filename(), "vendor")); err != nil || !fi.IsDir() {
+	if fi, err := os.Stat(filepath.Join(s.view.goCommandDir.Filename(), "vendor")); err != nil || !fi.IsDir() {
 		return false, nil
 	}
 
