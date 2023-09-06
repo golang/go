@@ -1010,6 +1010,8 @@ func unminit() {
 		mp.thread = 0
 	}
 	unlock(&mp.threadLock)
+
+	mp.procid = 0
 }
 
 // Called from exitm, but not from drop, to undo the effect of thread-owned

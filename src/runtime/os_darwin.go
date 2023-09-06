@@ -344,6 +344,7 @@ func unminit() {
 	if !(GOOS == "ios" && GOARCH == "arm64") {
 		unminitSignals()
 	}
+	getg().m.procid = 0
 }
 
 // Called from exitm, but not from drop, to undo the effect of thread-owned
