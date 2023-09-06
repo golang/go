@@ -1171,25 +1171,6 @@ func (n *RangeStmt) editChildrenWithHidden(edit func(Node) Node) {
 	}
 }
 
-func (n *RawOrigExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *RawOrigExpr) copy() Node {
-	c := *n
-	c.init = copyNodes(c.init)
-	return &c
-}
-func (n *RawOrigExpr) doChildren(do func(Node) bool) bool {
-	if doNodes(n.init, do) {
-		return true
-	}
-	return false
-}
-func (n *RawOrigExpr) editChildren(edit func(Node) Node) {
-	editNodes(n.init, edit)
-}
-func (n *RawOrigExpr) editChildrenWithHidden(edit func(Node) Node) {
-	editNodes(n.init, edit)
-}
-
 func (n *ResultExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ResultExpr) copy() Node {
 	c := *n

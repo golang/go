@@ -1748,11 +1748,6 @@ func (w *writer) expr(expr syntax.Expr) {
 			assert(typ != nil)
 			w.typ(typ)
 			w.Value(tv.Value)
-
-			// TODO(mdempsky): These details are only important for backend
-			// diagnostics. Explore writing them out separately.
-			w.op(constExprOp(expr))
-			w.String(syntax.String(expr))
 			return
 		}
 

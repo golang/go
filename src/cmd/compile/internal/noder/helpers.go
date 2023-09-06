@@ -40,11 +40,6 @@ func typed(typ *types.Type, n ir.Node) ir.Node {
 
 // Values
 
-func OrigConst(pos src.XPos, typ *types.Type, val constant.Value, op ir.Op, raw string) ir.Node {
-	orig := ir.NewRawOrigExpr(pos, op, raw)
-	return ir.NewConstExpr(val, typed(typ, orig))
-}
-
 // FixValue returns val after converting and truncating it as
 // appropriate for typ.
 func FixValue(typ *types.Type, val constant.Value) constant.Value {

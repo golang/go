@@ -498,20 +498,6 @@ func NewParenExpr(pos src.XPos, x Node) *ParenExpr {
 func (n *ParenExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
 func (n *ParenExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
 
-// A RawOrigExpr represents an arbitrary Go expression as a string value.
-// When printed in diagnostics, the string value is written out exactly as-is.
-type RawOrigExpr struct {
-	miniExpr
-	Raw string
-}
-
-func NewRawOrigExpr(pos src.XPos, op Op, raw string) *RawOrigExpr {
-	n := &RawOrigExpr{Raw: raw}
-	n.pos = pos
-	n.op = op
-	return n
-}
-
 // A ResultExpr represents a direct access to a result.
 type ResultExpr struct {
 	miniExpr

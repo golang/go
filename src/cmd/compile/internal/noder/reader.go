@@ -2172,9 +2172,7 @@ func (r *reader) expr() (res ir.Node) {
 		pos := r.pos()
 		typ := r.typ()
 		val := FixValue(typ, r.Value())
-		op := r.op()
-		orig := r.String()
-		return typecheck.Expr(OrigConst(pos, typ, val, op, orig))
+		return typed(typ, ir.NewBasicLit(pos, val))
 
 	case exprNil:
 		pos := r.pos()
