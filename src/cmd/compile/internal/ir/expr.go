@@ -148,6 +148,15 @@ func NewBasicLit(pos src.XPos, val constant.Value) Node {
 func (n *BasicLit) Val() constant.Value       { return n.val }
 func (n *BasicLit) SetVal(val constant.Value) { n.val = val }
 
+// NewConstExpr returns an OLITERAL representing val, copying the
+// position and type from orig.
+func NewConstExpr(val constant.Value, orig Node) Node {
+	n := NewBasicLit(orig.Pos(), val)
+	n.SetType(orig.Type())
+	n.SetTypecheck(orig.Typecheck())
+	return n
+}
+
 // A BinaryExpr is a binary expression X Op Y,
 // or Op(X, Y) for builtin functions that do not become calls.
 type BinaryExpr struct {
@@ -257,25 +266,6 @@ func (n *CompLitExpr) SetOp(op Op) {
 		n.op = op
 	}
 }
-
-type ConstExpr struct {
-	miniExpr
-	origNode
-	val constant.Value
-}
-
-func NewConstExpr(val constant.Value, orig Node) Node {
-	n := &ConstExpr{val: val}
-	n.op = OLITERAL
-	n.pos = orig.Pos()
-	n.orig = orig
-	n.SetType(orig.Type())
-	n.SetTypecheck(orig.Typecheck())
-	return n
-}
-
-func (n *ConstExpr) Sym() *types.Sym     { return n.orig.Sym() }
-func (n *ConstExpr) Val() constant.Value { return n.val }
 
 // A ConvExpr is a conversion Type(X).
 // It may end up being a value or a type.

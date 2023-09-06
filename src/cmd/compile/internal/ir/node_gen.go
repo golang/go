@@ -471,25 +471,6 @@ func (n *CompLitExpr) editChildrenWithHidden(edit func(Node) Node) {
 	}
 }
 
-func (n *ConstExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
-func (n *ConstExpr) copy() Node {
-	c := *n
-	c.init = copyNodes(c.init)
-	return &c
-}
-func (n *ConstExpr) doChildren(do func(Node) bool) bool {
-	if doNodes(n.init, do) {
-		return true
-	}
-	return false
-}
-func (n *ConstExpr) editChildren(edit func(Node) Node) {
-	editNodes(n.init, edit)
-}
-func (n *ConstExpr) editChildrenWithHidden(edit func(Node) Node) {
-	editNodes(n.init, edit)
-}
-
 func (n *ConvExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ConvExpr) copy() Node {
 	c := *n
