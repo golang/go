@@ -3769,7 +3769,7 @@ func TestIssue18719(t *testing.T) {
 		cancel()
 
 		// Wait for the context to cancel and tx to rollback.
-		for tx.isDone() == false {
+		for !tx.isDone() {
 			time.Sleep(pollDuration)
 		}
 	}
