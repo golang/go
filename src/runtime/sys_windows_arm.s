@@ -231,11 +231,6 @@ TEXT runtime·read_tls_fallback(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
-	MOVW	$0, R0
-	MOVB	runtime·useQPCTime(SB), R0
-	CMP	$0, R0
-	BNE	useQPC
-	MOVW	$_INTERRUPT_TIME, R3
 loop:
 	MOVW	time_hi1(R3), R1
 	DMB	MB_ISH
@@ -254,8 +249,6 @@ loop:
 	MOVW	R3, ret_lo+0(FP)
 	MOVW	R4, ret_hi+4(FP)
 	RET
-useQPC:
-	RET	runtime·nanotimeQPC(SB)		// tail call
 
 // save_g saves the g register (R10) into thread local memory
 // so that we can call externally compiled

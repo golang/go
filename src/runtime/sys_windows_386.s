@@ -251,8 +251,6 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
-	CMPB	runtime·useQPCTime(SB), $0
-	JNE	useQPC
 loop:
 	MOVL	(_INTERRUPT_TIME+time_hi1), AX
 	MOVL	(_INTERRUPT_TIME+time_lo), CX
@@ -268,9 +266,6 @@ loop:
 	// wintime*100 = DX:AX
 	MOVL	AX, ret_lo+0(FP)
 	MOVL	DX, ret_hi+4(FP)
-	RET
-useQPC:
-	JMP	runtime·nanotimeQPC(SB)
 	RET
 
 // This is called from rt0_go, which runs on the system stack
