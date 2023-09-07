@@ -344,8 +344,6 @@ func TestMapClear(t *testing.T) {
 
 	myMap.Clear()
 
-	myMap.Delete(key)
-
 	nilVal, ok := myMap.Load(key)
 
 	if nilVal != nil || ok {
