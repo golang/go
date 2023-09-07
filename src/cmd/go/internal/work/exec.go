@@ -8,13 +8,13 @@ package work
 
 import (
 	"bytes"
+	"cmd/internal/cov/covcmd"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"go/token"
-	"internal/coverage/covcmd"
 	"internal/lazyregexp"
 	"io"
 	"io/fs"

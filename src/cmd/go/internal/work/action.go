@@ -9,12 +9,12 @@ package work
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/cov/covcmd"
 	"container/heap"
 	"context"
 	"debug/elf"
 	"encoding/json"
 	"fmt"
-	"internal/coverage/covcmd"
 	"internal/platform"
 	"os"
 	"path/filepath"

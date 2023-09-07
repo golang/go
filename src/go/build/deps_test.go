@@ -625,7 +625,7 @@ var depsRules = `
 	< internal/coverage/cformat;
 
 	internal/coverage, crypto/sha256, FMT
-	< internal/coverage/covcmd;
+	< cmd/internal/cov/covcmd;
 
     encoding/json,
 	runtime/debug,
