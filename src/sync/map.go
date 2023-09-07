@@ -155,6 +155,7 @@ func (m *Map) Store(key, value any) {
 	_, _ = m.Swap(key, value)
 }
 
+// Clear deletes all the keys.
 func (m *Map) Clear() {
 
 	defer m.mu.Unlock()
@@ -163,7 +164,6 @@ func (m *Map) Clear() {
 	m.read.Store(new(readOnly))
 
 	clear(m.dirty)
-
 }
 
 // tryCompareAndSwap compare the entry with the given old value and swaps
