@@ -1,1 +1,1 @@
-pkg sync, method (m *Map) Clear() #61696
+pkg sync, method (*Map) Clear() #61696
