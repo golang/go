@@ -1116,13 +1116,15 @@ func (f *FlagSet) parseOne() (bool, error) {
 	}
 
 	if fv, ok := flag.Value.(boolFlag); ok && fv.IsBoolFlag() { // special case: doesn't need an arg
+		// It must have a value, which might be the next argument.
+		if !hasValue && len(f.args) > 0 {
+			// value is the next arg
+			hasValue = true
+			value, f.args = f.args[0], f.args[1:]
+		}
 		if hasValue {
 			if err := fv.Set(value); err != nil {
 				return false, f.failf("invalid boolean value %q for -%s: %v", value, name, err)
-			}
-		} else {
-			if err := fv.Set("true"); err != nil {
-				return false, f.failf("invalid boolean flag %s: %v", name, err)
 			}
 		}
 	} else {
