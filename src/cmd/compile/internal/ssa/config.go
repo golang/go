@@ -154,9 +154,6 @@ type Frontend interface {
 	// for the parts of that compound type.
 	SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot
 
-	// AllocFrame assigns frame offsets to all live auto variables.
-	AllocFrame(f *Func)
-
 	// Syslook returns a symbol of the runtime function/variable with the
 	// given name.
 	Syslook(string) *obj.LSym

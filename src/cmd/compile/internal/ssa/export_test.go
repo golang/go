@@ -89,8 +89,6 @@ func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Name {
 func (d TestFrontend) SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot {
 	return LocalSlot{N: parent.N, Type: t, Off: offset}
 }
-func (TestFrontend) AllocFrame(f *Func) {
-}
 func (d TestFrontend) Syslook(s string) *obj.LSym {
 	return d.ctxt.Lookup(s)
 }

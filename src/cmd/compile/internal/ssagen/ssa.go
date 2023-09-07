@@ -566,6 +566,8 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
 
+	fe.AllocFrame(s.f)
+
 	if len(s.openDefers) != 0 {
 		s.emitOpenDeferInfo()
 	}
