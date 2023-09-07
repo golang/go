@@ -234,23 +234,6 @@ TEXT runtime·setldt(SB),NOSPLIT,$0-12
 	MOVL	DX, 0(CX)(FS)
 	RET
 
-// Runs on OS stack.
-// duration (in -100ns units) is in dt+0(FP).
-// g may be nil.
-TEXT runtime·usleep2(SB),NOSPLIT,$20-4
-	MOVL	dt+0(FP), BX
-	MOVL	$-1, hi-4(SP)
-	MOVL	BX, lo-8(SP)
-	LEAL	lo-8(SP), BX
-	MOVL	BX, ptime-12(SP)
-	MOVL	$0, alertable-16(SP)
-	MOVL	$-1, handle-20(SP)
-	MOVL	SP, BP
-	MOVL	runtime·_NtWaitForSingleObject(SB), AX
-	CALL	AX
-	MOVL	BP, SP
-	RET
-
 TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
 loop:
 	MOVL	(_INTERRUPT_TIME+time_hi1), AX

@@ -228,21 +228,6 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$96-0
 	MOVD	$0, R0
 	RET
 
-// Runs on OS stack.
-// duration (in -100ns units) is in dt+0(FP).
-// g may be nil.
-TEXT runtime·usleep2(SB),NOSPLIT,$32-4
-	MOVW	dt+0(FP), R0
-	MOVD	$16(RSP), R2		// R2 = pTime
-	MOVD	R0, 0(R2)		// *pTime = -dt
-	MOVD	$-1, R0			// R0 = handle
-	MOVD	$0, R1			// R1 = FALSE (alertable)
-	MOVD	runtime·_NtWaitForSingleObject(SB), R3
-	SUB	$16, RSP	// skip over saved frame pointer below RSP
-	BL	(R3)
-	ADD	$16, RSP
-	RET
-
 TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
 	MOVD	$_INTERRUPT_TIME, R3
 	MOVD	time_lo(R3), R0

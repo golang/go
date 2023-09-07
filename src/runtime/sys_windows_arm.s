@@ -195,25 +195,6 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$0, R0
 	MOVM.IA.W (R13), [R4-R11, R15]		// pop {r4-r11, pc}
 
-// Runs on OS stack.
-// duration (in -100ns units) is in dt+0(FP).
-// g may be nil.
-TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	dt+0(FP), R3
-	MOVM.DB.W [R4, R14], (R13)	// push {r4, lr}
-	MOVW	R13, R4			// Save SP
-	SUB	$8, R13			// R13 = R13 - 8
-	BIC	$0x7, R13		// Align SP for ABI
-	MOVW	$0, R1			// R1 = FALSE (alertable)
-	MOVW	$-1, R0			// R0 = handle
-	MOVW	R13, R2			// R2 = pTime
-	MOVW	R3, 0(R2)		// time_lo
-	MOVW	R0, 4(R2)		// time_hi
-	MOVW	runtime·_NtWaitForSingleObject(SB), R3
-	BL	(R3)
-	MOVW	R4, R13			// Restore SP
-	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
-
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·armPublicationBarrier(SB)
 

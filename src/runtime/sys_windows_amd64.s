@@ -243,25 +243,6 @@ TEXT runtime·settls(SB),NOSPLIT,$0
 	MOVQ	DI, 0(CX)(GS)
 	RET
 
-// Runs on OS stack.
-// duration (in -100ns units) is in dt+0(FP).
-// g may be nil.
-// The function leaves room for 4 syscall parameters
-// (as per windows amd64 calling convention).
-TEXT runtime·usleep2(SB),NOSPLIT,$48-4
-	MOVLQSX	dt+0(FP), BX
-	MOVQ	SP, AX
-	ANDQ	$~15, SP	// alignment as per Windows requirement
-	MOVQ	AX, 40(SP)
-	LEAQ	32(SP), R8  // ptime
-	MOVQ	BX, (R8)
-	MOVQ	$-1, CX // handle
-	MOVQ	$0, DX // alertable
-	MOVQ	runtime·_NtWaitForSingleObject(SB), AX
-	CALL	AX
-	MOVQ	40(SP), SP
-	RET
-
 TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
 	MOVQ	$_INTERRUPT_TIME, DI
 	MOVQ	time_lo(DI), AX
