@@ -65,7 +65,7 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 		t.Skipf("skipping; not supported on %v", runtime.GOOS)
 	}
 
-	if runtime.GOOS == "openbsd" && (runtime.GOARCH == "arm" || runtime.GOARCH == "mips64") {
+	if runtime.GOOS == "openbsd" && (runtime.GOARCH == "arm" || runtime.GOARCH == "mips64" || runtime.GOARCH == "ppc64") {
 		// This may be ncpu < 2 related...
 		t.Skipf("skipping; test fails on %s/%s - see issue #42464", runtime.GOOS, runtime.GOARCH)
 	}
@@ -91,6 +91,7 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 
 	cmd := testenv.Command(t, exe, "CrashDumpsAllThreads")
 	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Dir = t.TempDir() // put any core file in tempdir
 	cmd.Env = append(cmd.Env,
 		"GOTRACEBACK=crash",
 		// Set GOGC=off. Because of golang.org/issue/10958, the tight
@@ -164,6 +165,7 @@ func TestPanicSystemstack(t *testing.T) {
 	t.Parallel()
 	cmd := exec.Command(os.Args[0], "testPanicSystemstackInternal")
 	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Dir = t.TempDir() // put any core file in tempdir
 	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
 	pr, pw, err := os.Pipe()
 	if err != nil {

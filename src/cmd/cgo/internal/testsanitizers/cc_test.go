@@ -293,11 +293,17 @@ func compilerRequiredAsanVersion(goos, goarch string) bool {
 	}
 	switch compiler.name {
 	case "gcc":
+		if goarch == "loong64" {
+			return compiler.major >= 14
+		}
 		if goarch == "ppc64le" {
 			return compiler.major >= 9
 		}
 		return compiler.major >= 7
 	case "clang":
+		if goarch == "loong64" {
+			return compiler.major >= 16
+		}
 		return compiler.major >= 9
 	default:
 		return false

@@ -242,6 +242,10 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 
 	osPreemptExtExit(gp.m)
 
+	if gp.nocgocallback {
+		panic("runtime: function marked with #cgo nocallback called back into Go")
+	}
+
 	cgocallbackg1(fn, frame, ctxt) // will call unlockOSThread
 
 	// At this point unlockOSThread has been called.

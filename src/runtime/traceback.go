@@ -112,9 +112,6 @@ type unwinder struct {
 	// flags are the flags to this unwind. Some of these are updated as we
 	// unwind (see the flags documentation).
 	flags unwindFlags
-
-	// cache is used to cache pcvalue lookups.
-	cache pcvalueCache
 }
 
 // init initializes u to start unwinding gp's stack and positions the
@@ -307,7 +304,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 			case abi.FuncID_systemstack:
 				// systemstack returns normally, so just follow the
 				// stack transition.
-				if usesLR && funcspdelta(f, frame.pc, &u.cache) == 0 {
+				if usesLR && funcspdelta(f, frame.pc) == 0 {
 					// We're at the function prologue and the stack
 					// switch hasn't happened, or epilogue where we're
 					// about to return. Just unwind normally.
@@ -325,7 +322,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 				flag &^= abi.FuncFlagSPWrite
 			}
 		}
-		frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc, &u.cache))
+		frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc))
 		if !usesLR {
 			// On x86, call instruction pushes return PC before entering new function.
 			frame.fp += goarch.PtrSize
@@ -336,30 +333,40 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 	if flag&abi.FuncFlagTopFrame != 0 {
 		// This function marks the top of the stack. Stop the traceback.
 		frame.lr = 0
-	} else if flag&abi.FuncFlagSPWrite != 0 {
+	} else if flag&abi.FuncFlagSPWrite != 0 && (!innermost || u.flags&(unwindPrintErrors|unwindSilentErrors) != 0) {
 		// The function we are in does a write to SP that we don't know
 		// how to encode in the spdelta table. Examples include context
 		// switch routines like runtime.gogo but also any code that switches
 		// to the g0 stack to run host C code.
-		if u.flags&(unwindPrintErrors|unwindSilentErrors) != 0 {
-			// We can't reliably unwind the SP (we might
-			// not even be on the stack we think we are),
-			// so stop the traceback here.
-			frame.lr = 0
-		} else {
-			// For a GC stack traversal, we should only see
-			// an SPWRITE function when it has voluntarily preempted itself on entry
-			// during the stack growth check. In that case, the function has
-			// not yet had a chance to do any writes to SP and is safe to unwind.
-			// isAsyncSafePoint does not allow assembly functions to be async preempted,
-			// and preemptPark double-checks that SPWRITE functions are not async preempted.
-			// So for GC stack traversal, we can safely ignore SPWRITE for the innermost frame,
-			// but farther up the stack we'd better not find any.
-			if !innermost {
-				println("traceback: unexpected SPWRITE function", funcname(f))
+		// We can't reliably unwind the SP (we might not even be on
+		// the stack we think we are), so stop the traceback here.
+		//
+		// The one exception (encoded in the complex condition above) is that
+		// we assume if we're doing a precise traceback, and this is the
+		// innermost frame, that the SPWRITE function voluntarily preempted itself on entry
+		// during the stack growth check. In that case, the function has
+		// not yet had a chance to do any writes to SP and is safe to unwind.
+		// isAsyncSafePoint does not allow assembly functions to be async preempted,
+		// and preemptPark double-checks that SPWRITE functions are not async preempted.
+		// So for GC stack traversal, we can safely ignore SPWRITE for the innermost frame,
+		// but farther up the stack we'd better not find any.
+		// This is somewhat imprecise because we're just guessing that we're in the stack
+		// growth check. It would be better if SPWRITE were encoded in the spdelta
+		// table so we would know for sure that we were still in safe code.
+		//
+		// uSE uPE inn | action
+		//  T   _   _  | frame.lr = 0
+		//  F   T   F  | frame.lr = 0; print
+		//  F   T   T  | frame.lr = 0
+		//  F   F   F  | print; panic
+		//  F   F   T  | ignore SPWrite
+		if u.flags&unwindSilentErrors == 0 && !innermost {
+			println("traceback: unexpected SPWRITE function", funcname(f))
+			if u.flags&unwindPrintErrors == 0 {
 				throw("traceback")
 			}
 		}
+		frame.lr = 0
 	} else {
 		var lrPtr uintptr
 		if usesLR {
@@ -500,7 +507,7 @@ func (u *unwinder) next() {
 		frame.fn = f
 		if !f.valid() {
 			frame.pc = x
-		} else if funcspdelta(f, frame.pc, &u.cache) == 0 {
+		} else if funcspdelta(f, frame.pc) == 0 {
 			frame.lr = x
 		}
 	}
@@ -620,7 +627,7 @@ func tracebackPCs(u *unwinder, skip int, pcBuf []uintptr) int {
 		cgoN := u.cgoCallers(cgoBuf[:])
 
 		// TODO: Why does &u.cache cause u to escape? (Same in traceback2)
-		for iu, uf := newInlineUnwinder(f, u.symPC(), noEscapePtr(&u.cache)); n < len(pcBuf) && uf.valid(); uf = iu.next(uf) {
+		for iu, uf := newInlineUnwinder(f, u.symPC()); n < len(pcBuf) && uf.valid(); uf = iu.next(uf) {
 			sf := iu.srcFunc(uf)
 			if sf.funcID == abi.FuncIDWrapper && elideWrapperCalling(u.calleeFuncID) {
 				// ignore wrappers
@@ -670,7 +677,7 @@ func printArgs(f funcInfo, argp unsafe.Pointer, pc uintptr) {
 	}
 
 	liveInfo := funcdata(f, abi.FUNCDATA_ArgLiveInfo)
-	liveIdx := pcdatavalue(f, abi.PCDATA_ArgLiveIndex, pc, nil)
+	liveIdx := pcdatavalue(f, abi.PCDATA_ArgLiveIndex, pc)
 	startOffset := uint8(0xff) // smallest offset that needs liveness info (slots with a lower offset is always live)
 	if liveInfo != nil {
 		startOffset = *(*uint8)(liveInfo)
@@ -977,7 +984,7 @@ func traceback2(u *unwinder, showRuntime bool, skip, max int) (n, lastN int) {
 	for ; u.valid(); u.next() {
 		lastN = 0
 		f := u.frame.fn
-		for iu, uf := newInlineUnwinder(f, u.symPC(), noEscapePtr(&u.cache)); uf.valid(); uf = iu.next(uf) {
+		for iu, uf := newInlineUnwinder(f, u.symPC()); uf.valid(); uf = iu.next(uf) {
 			sf := iu.srcFunc(uf)
 			callee := u.calleeFuncID
 			u.calleeFuncID = sf.funcID
@@ -1078,7 +1085,7 @@ func printAncestorTraceback(ancestor ancestorInfo) {
 // due to only have access to the pcs at the time of the caller
 // goroutine being created.
 func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
-	u, uf := newInlineUnwinder(f, pc, nil)
+	u, uf := newInlineUnwinder(f, pc)
 	file, line := u.fileLine(uf)
 	printFuncName(u.srcFunc(uf).name())
 	print("(...)\n")

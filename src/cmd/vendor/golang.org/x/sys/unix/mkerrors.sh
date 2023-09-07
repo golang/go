@@ -583,6 +583,7 @@ ccflags="$@"
 		$2 ~ /^PERF_/ ||
 		$2 ~ /^SECCOMP_MODE_/ ||
 		$2 ~ /^SEEK_/ ||
+		$2 ~ /^SCHED_/ ||
 		$2 ~ /^SPLICE_/ ||
 		$2 ~ /^SYNC_FILE_RANGE_/ ||
 		$2 !~ /IOC_MAGIC/ &&
@@ -624,7 +625,7 @@ ccflags="$@"
 		$2 ~ /^MEM/ ||
 		$2 ~ /^WG/ ||
 		$2 ~ /^FIB_RULE_/ ||
-		$2 ~ /^BLK[A-Z]*(GET$|SET$|BUF$|PART$|SIZE)/ {printf("\t%s = C.%s\n", $2, $2)}
+		$2 ~ /^BLK[A-Z]*(GET$|SET$|BUF$|PART$|SIZE|IOMIN$|IOOPT$|ALIGNOFF$|DISCARD|ROTATIONAL$|ZEROOUT$|GETDISKSEQ$)/ {printf("\t%s = C.%s\n", $2, $2)}
 		$2 ~ /^__WCOREFLAG$/ {next}
 		$2 ~ /^__W[A-Z0-9]+$/ {printf("\t%s = C.%s\n", substr($2,3), $2)}
 

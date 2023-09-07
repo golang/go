@@ -1497,7 +1497,7 @@ func usesLibcall() bool {
 	case "aix", "darwin", "illumos", "ios", "solaris", "windows":
 		return true
 	case "openbsd":
-		return GOARCH == "386" || GOARCH == "amd64" || GOARCH == "arm" || GOARCH == "arm64"
+		return GOARCH != "mips64"
 	}
 	return false
 }
@@ -1509,10 +1509,7 @@ func mStackIsSystemAllocated() bool {
 	case "aix", "darwin", "plan9", "illumos", "ios", "solaris", "windows":
 		return true
 	case "openbsd":
-		switch GOARCH {
-		case "386", "amd64", "arm", "arm64":
-			return true
-		}
+		return GOARCH != "mips64"
 	}
 	return false
 }
@@ -4543,12 +4540,14 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 	totalSize := uintptr(4*goarch.PtrSize + sys.MinFrameSize) // extra space in case of reads slightly beyond frame
 	totalSize = alignUp(totalSize, sys.StackAlign)
 	sp := newg.stack.hi - totalSize
-	spArg := sp
 	if usesLR {
 		// caller's LR
 		*(*uintptr)(unsafe.Pointer(sp)) = 0
 		prepGoExitFrame(sp)
-		spArg += sys.MinFrameSize
+	}
+	if GOARCH == "arm64" {
+		// caller's FP
+		*(*uintptr)(unsafe.Pointer(sp - goarch.PtrSize)) = 0
 	}
 
 	memclrNoHeapPointers(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))

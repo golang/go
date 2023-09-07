@@ -25,7 +25,7 @@ import (
 func initBenchmarkFlags() {
 	matchBenchmarks = flag.String("test.bench", "", "run only benchmarks matching `regexp`")
 	benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
-	flag.Var(&benchTime, "test.benchtime", "run each benchmark for duration `d`")
+	flag.Var(&benchTime, "test.benchtime", "run each benchmark for duration `d` or N times if `d` is of the form Nx")
 }
 
 var (
@@ -198,20 +198,6 @@ func (b *B) runN(n int) {
 	}
 }
 
-func min(x, y int64) int64 {
-	if x > y {
-		return y
-	}
-	return x
-}
-
-func max(x, y int64) int64 {
-	if x < y {
-		return y
-	}
-	return x
-}
-
 // run1 runs the first iteration of benchFunc. It reports whether more
 // iterations of this benchmarks should be run.
 func (b *B) run1() bool {
@@ -265,7 +251,7 @@ func (b *B) run() {
 		if b.importPath != "" {
 			fmt.Fprintf(b.w, "pkg: %s\n", b.importPath)
 		}
-		if cpu := sysinfo.CPU.Name(); cpu != "" {
+		if cpu := sysinfo.CPUName(); cpu != "" {
 			fmt.Fprintf(b.w, "cpu: %s\n", cpu)
 		}
 	})
@@ -682,7 +668,7 @@ func (b *B) Run(name string, f func(b *B)) bool {
 			if b.importPath != "" {
 				fmt.Printf("pkg: %s\n", b.importPath)
 			}
-			if cpu := sysinfo.CPU.Name(); cpu != "" {
+			if cpu := sysinfo.CPUName(); cpu != "" {
 				fmt.Printf("cpu: %s\n", cpu)
 			}
 		})

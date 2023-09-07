@@ -13,39 +13,8 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
-
-// tcAddr typechecks an OADDR node.
-func tcAddr(n *ir.AddrExpr) ir.Node {
-	n.X = Expr(n.X)
-	if n.X.Type() == nil {
-		n.SetType(nil)
-		return n
-	}
-
-	switch n.X.Op() {
-	case ir.OARRAYLIT, ir.OMAPLIT, ir.OSLICELIT, ir.OSTRUCTLIT:
-		n.SetOp(ir.OPTRLIT)
-
-	default:
-		checklvalue(n.X, "take the address of")
-		r := ir.OuterValue(n.X)
-		if r.Op() == ir.ONAME {
-			r := r.(*ir.Name)
-			if ir.Orig(r) != r {
-				base.Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
-			}
-		}
-		n.X = DefaultLit(n.X, nil)
-		if n.X.Type() == nil {
-			n.SetType(nil)
-			return n
-		}
-	}
-
-	n.SetType(types.NewPtr(n.X.Type()))
-	return n
-}
 
 func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 	if l.Type() == nil || r.Type() == nil {
@@ -436,6 +405,66 @@ func tcConv(n *ir.ConvExpr) ir.Node {
 	return n
 }
 
+// DotField returns a field selector expression that selects the
+// index'th field of the given expression, which must be of struct or
+// pointer-to-struct type.
+func DotField(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
+	op, typ := ir.ODOT, x.Type()
+	if typ.IsPtr() {
+		op, typ = ir.ODOTPTR, typ.Elem()
+	}
+	if !typ.IsStruct() {
+		base.FatalfAt(pos, "DotField of non-struct: %L", x)
+	}
+
+	// TODO(mdempsky): This is the backend's responsibility.
+	types.CalcSize(typ)
+
+	field := typ.Field(index)
+	return dot(pos, field.Type, op, x, field)
+}
+
+func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Field) *ir.SelectorExpr {
+	n := ir.NewSelectorExpr(pos, op, x, selection.Sym)
+	n.Selection = selection
+	n.SetType(typ)
+	n.SetTypecheck(1)
+	return n
+}
+
+// XDotMethod returns an expression representing the field selection
+// x.sym. If any implicit field selection are necessary, those are
+// inserted too.
+func XDotField(pos src.XPos, x ir.Node, sym *types.Sym) *ir.SelectorExpr {
+	n := Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
+	if n.Op() != ir.ODOT && n.Op() != ir.ODOTPTR {
+		base.FatalfAt(pos, "unexpected result op: %v (%v)", n.Op(), n)
+	}
+	return n
+}
+
+// XDotMethod returns an expression representing the method value
+// x.sym (i.e., x is a value, not a type). If any implicit field
+// selection are necessary, those are inserted too.
+//
+// If callee is true, the result is an ODOTMETH/ODOTINTER, otherwise
+// an OMETHVALUE.
+func XDotMethod(pos src.XPos, x ir.Node, sym *types.Sym, callee bool) *ir.SelectorExpr {
+	n := ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)
+	if callee {
+		n = Callee(n).(*ir.SelectorExpr)
+		if n.Op() != ir.ODOTMETH && n.Op() != ir.ODOTINTER {
+			base.FatalfAt(pos, "unexpected result op: %v (%v)", n.Op(), n)
+		}
+	} else {
+		n = Expr(n).(*ir.SelectorExpr)
+		if n.Op() != ir.OMETHVALUE {
+			base.FatalfAt(pos, "unexpected result op: %v (%v)", n.Op(), n)
+		}
+	}
+	return n
+}
+
 // tcDot typechecks an OXDOT or ODOT node.
 func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 	if n.Op() == ir.OXDOT {
@@ -447,7 +476,7 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 		}
 	}
 
-	n.X = typecheck(n.X, ctxExpr|ctxType)
+	n.X = Expr(n.X)
 	n.X = DefaultLit(n.X, nil)
 
 	t := n.X.Type()
@@ -458,7 +487,7 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 	}
 
 	if n.X.Op() == ir.OTYPE {
-		return typecheckMethodExpr(n)
+		base.FatalfAt(n.Pos(), "use NewMethodExpr to construct OMETHEXPR")
 	}
 
 	if t.IsPtr() && !t.Elem().IsInterface() {

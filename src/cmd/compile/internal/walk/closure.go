@@ -47,9 +47,8 @@ func directClosureCall(n *ir.CallExpr) {
 			// and v remains PAUTOHEAP with &v heapaddr
 			// (accesses will implicitly deref &v).
 
-			addr := ir.NewNameAt(clofn.Pos(), typecheck.Lookup("&"+v.Sym().Name))
+			addr := ir.NewNameAt(clofn.Pos(), typecheck.Lookup("&"+v.Sym().Name), types.NewPtr(v.Type()))
 			addr.Curfn = clofn
-			addr.SetType(types.NewPtr(v.Type()))
 			v.Heapaddr = addr
 			v = addr
 		}
@@ -68,7 +67,7 @@ func directClosureCall(n *ir.CallExpr) {
 
 	// Create new function type with parameters prepended, and
 	// then update type and declarations.
-	typ = types.NewSignature(nil, append(params, typ.Params().FieldSlice()...), typ.Results().FieldSlice())
+	typ = types.NewSignature(nil, append(params, typ.Params()...), typ.Results())
 	f.SetType(typ)
 	clofn.Dcl = append(decls, clofn.Dcl...)
 
@@ -81,9 +80,9 @@ func directClosureCall(n *ir.CallExpr) {
 	// node, but we only rewrote the ONAME node's type. Logically,
 	// they're the same, but the stack offsets probably changed.
 	if typ.NumResults() == 1 {
-		n.SetType(typ.Results().Field(0).Type)
+		n.SetType(typ.Result(0).Type)
 	} else {
-		n.SetType(typ.Results())
+		n.SetType(typ.ResultsTuple())
 	}
 
 	// Add to Closures for enqueueFunc. It's no longer a proper

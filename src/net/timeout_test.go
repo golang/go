@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"net/internal/socktest"
 	"os"
 	"runtime"
 	"sync"
@@ -19,65 +18,121 @@ import (
 	"time"
 )
 
-var dialTimeoutTests = []struct {
-	timeout time.Duration
-	delta   time.Duration // for deadline
+func init() {
+	// Install a hook to ensure that a 1ns timeout will always
+	// be exceeded by the time Dial gets to the relevant system call.
+	//
+	// Without this, systems with a very large timer granularity — such as
+	// Windows — may be able to accept connections without measurably exceeding
+	// even an implausibly short deadline.
+	testHookStepTime = func() {
+		now := time.Now()
+		for time.Since(now) == 0 {
+			time.Sleep(1 * time.Nanosecond)
+		}
+	}
+}
 
-	guard time.Duration
+var dialTimeoutTests = []struct {
+	initialTimeout time.Duration
+	initialDelta   time.Duration // for deadline
 }{
 	// Tests that dial timeouts, deadlines in the past work.
-	{-5 * time.Second, 0, -5 * time.Second},
-	{0, -5 * time.Second, -5 * time.Second},
-	{-5 * time.Second, 5 * time.Second, -5 * time.Second}, // timeout over deadline
-	{-1 << 63, 0, time.Second},
-	{0, -1 << 63, time.Second},
+	{-5 * time.Second, 0},
+	{0, -5 * time.Second},
+	{-5 * time.Second, 5 * time.Second}, // timeout over deadline
+	{-1 << 63, 0},
+	{0, -1 << 63},
 
-	{50 * time.Millisecond, 0, 100 * time.Millisecond},
-	{0, 50 * time.Millisecond, 100 * time.Millisecond},
-	{50 * time.Millisecond, 5 * time.Second, 100 * time.Millisecond}, // timeout over deadline
+	{1 * time.Millisecond, 0},
+	{0, 1 * time.Millisecond},
+	{1 * time.Millisecond, 5 * time.Second}, // timeout over deadline
 }
 
 func TestDialTimeout(t *testing.T) {
-	// Cannot use t.Parallel - modifies global hooks.
-	origTestHookDialChannel := testHookDialChannel
-	defer func() { testHookDialChannel = origTestHookDialChannel }()
-	defer sw.Set(socktest.FilterConnect, nil)
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
 
-	for i, tt := range dialTimeoutTests {
-		switch runtime.GOOS {
-		case "plan9", "windows":
-			testHookDialChannel = func() { time.Sleep(tt.guard) }
-			if runtime.GOOS == "plan9" {
-				break
+	t.Parallel()
+
+	ln := newLocalListener(t, "tcp")
+	defer func() {
+		if err := ln.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+
+	for _, tt := range dialTimeoutTests {
+		t.Run(fmt.Sprintf("%v/%v", tt.initialTimeout, tt.initialDelta), func(t *testing.T) {
+			// We don't run these subtests in parallel because we don't know how big
+			// the kernel's accept queue is, and we don't want to accidentally saturate
+			// it with concurrent calls. (That could cause the Dial to fail with
+			// ECONNREFUSED or ECONNRESET instead of a timeout error.)
+			d := Dialer{Timeout: tt.initialTimeout}
+			delta := tt.initialDelta
+
+			var (
+				beforeDial time.Time
+				afterDial  time.Time
+				err        error
+			)
+			for {
+				if delta != 0 {
+					d.Deadline = time.Now().Add(delta)
+				}
+
+				beforeDial = time.Now()
+
+				var c Conn
+				c, err = d.Dial(ln.Addr().Network(), ln.Addr().String())
+				afterDial = time.Now()
+
+				if err != nil {
+					break
+				}
+
+				// Even though we're not calling Accept on the Listener, the kernel may
+				// spuriously accept connections on its behalf. If that happens, we will
+				// close the connection (to try to get it out of the kernel's accept
+				// queue) and try a shorter timeout.
+				//
+				// We assume that we will reach a point where the call actually does
+				// time out, although in theory (since this socket is on a loopback
+				// address) a sufficiently clever kernel could notice that no Accept
+				// call is pending and bypass both the queue and the timeout to return
+				// another error immediately.
+				t.Logf("closing spurious connection from Dial")
+				c.Close()
+
+				if delta <= 1 && d.Timeout <= 1 {
+					t.Fatalf("can't reduce Timeout or Deadline")
+				}
+				if delta > 1 {
+					delta /= 2
+					t.Logf("reducing Deadline delta to %v", delta)
+				}
+				if d.Timeout > 1 {
+					d.Timeout /= 2
+					t.Logf("reducing Timeout to %v", d.Timeout)
+				}
 			}
-			fallthrough
-		default:
-			sw.Set(socktest.FilterConnect, func(so *socktest.Status) (socktest.AfterFilter, error) {
-				time.Sleep(tt.guard)
-				return nil, errTimedout
-			})
-		}
 
-		d := Dialer{Timeout: tt.timeout}
-		if tt.delta != 0 {
-			d.Deadline = time.Now().Add(tt.delta)
-		}
+			if d.Deadline.IsZero() || afterDial.Before(d.Deadline) {
+				delay := afterDial.Sub(beforeDial)
+				if delay < d.Timeout {
+					t.Errorf("Dial returned after %v; want ≥%v", delay, d.Timeout)
+				}
+			}
 
-		// This dial never starts to send any TCP SYN
-		// segment because of above socket filter and
-		// test hook.
-		c, err := d.Dial("tcp", "127.0.0.1:0")
-		if err == nil {
-			err = fmt.Errorf("unexpectedly established: tcp:%s->%s", c.LocalAddr(), c.RemoteAddr())
-			c.Close()
-		}
-
-		if perr := parseDialError(err); perr != nil {
-			t.Errorf("#%d: %v", i, perr)
-		}
-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
-			t.Fatalf("#%d: %v", i, err)
-		}
+			if perr := parseDialError(err); perr != nil {
+				t.Errorf("unexpected error from Dial: %v", perr)
+			}
+			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+				t.Errorf("Dial: %v, want timeout", err)
+			}
+		})
 	}
 }
 

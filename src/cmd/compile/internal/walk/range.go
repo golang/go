@@ -96,8 +96,8 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		// order.stmt arranged for a copy of the array/slice variable if needed.
 		ha := a
 
-		hv1 := typecheck.Temp(types.Types[types.TINT])
-		hn := typecheck.Temp(types.Types[types.TINT])
+		hv1 := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+		hn := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
 
 		init = append(init, ir.NewAssignStmt(base.Pos, hv1, nil))
 		init = append(init, ir.NewAssignStmt(base.Pos, hn, ir.NewUnaryExpr(base.Pos, ir.OLEN, ha)))
@@ -196,14 +196,14 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		ptr.SetBounded(true)
 		huVal := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], ptr)
 		huVal = ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUINTPTR], huVal)
-		hu := typecheck.Temp(types.Types[types.TUINTPTR])
+		hu := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINTPTR])
 		init = append(init, ir.NewAssignStmt(base.Pos, hu, huVal))
 
 		// Convert hu to hp at the top of the loop (after the condition has been checked).
 		hpVal := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], hu)
 		hpVal.SetCheckPtr(true) // disable checkptr on this conversion
 		hpVal = ir.NewConvExpr(base.Pos, ir.OCONVNOP, elem.PtrTo(), hpVal)
-		hp := typecheck.Temp(elem.PtrTo())
+		hp := typecheck.TempAt(base.Pos, ir.CurFunc, elem.PtrTo())
 		body = append(body, ir.NewAssignStmt(base.Pos, hp, hpVal))
 
 		// Assign variables on the LHS of the range statement. Use *hp to get the element.
@@ -231,23 +231,20 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		keysym := th.Field(0).Sym
 		elemsym := th.Field(1).Sym // ditto
 
-		fn := typecheck.LookupRuntime("mapiterinit")
-
-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), th)
+		fn := typecheck.LookupRuntime("mapiterinit", t.Key(), t.Elem(), th)
 		init = append(init, mkcallstmt1(fn, reflectdata.RangeMapRType(base.Pos, nrange), ha, typecheck.NodAddr(hit)))
 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), typecheck.NodNil())
 
-		fn = typecheck.LookupRuntime("mapiternext")
-		fn = typecheck.SubstArgTypes(fn, th)
+		fn = typecheck.LookupRuntime("mapiternext", th)
 		nfor.Post = mkcallstmt1(fn, typecheck.NodAddr(hit))
 
-		key := ir.NewStarExpr(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym))
+		key := ir.NewStarExpr(base.Pos, typecheck.ConvNop(ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), types.NewPtr(t.Key())))
 		if v1 == nil {
 			body = nil
 		} else if v2 == nil {
 			body = []ir.Node{rangeAssign(nrange, key)}
 		} else {
-			elem := ir.NewStarExpr(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, elemsym))
+			elem := ir.NewStarExpr(base.Pos, typecheck.ConvNop(ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, elemsym), types.NewPtr(t.Elem())))
 			body = []ir.Node{rangeAssign2(nrange, key, elem)}
 		}
 
@@ -255,12 +252,12 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		// order.stmt arranged for a copy of the channel variable.
 		ha := a
 
-		hv1 := typecheck.Temp(t.Elem())
+		hv1 := typecheck.TempAt(base.Pos, ir.CurFunc, t.Elem())
 		hv1.SetTypecheck(1)
 		if t.Elem().HasPointers() {
 			init = append(init, ir.NewAssignStmt(base.Pos, hv1, nil))
 		}
-		hb := typecheck.Temp(types.Types[types.TBOOL])
+		hb := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
 
 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, hb, ir.NewBool(base.Pos, false))
 		lhs := []ir.Node{hv1, hb}
@@ -297,9 +294,9 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		// order.stmt arranged for a copy of the string variable.
 		ha := a
 
-		hv1 := typecheck.Temp(types.Types[types.TINT])
-		hv1t := typecheck.Temp(types.Types[types.TINT])
-		hv2 := typecheck.Temp(types.RuneType)
+		hv1 := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+		hv1t := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+		hv2 := typecheck.TempAt(base.Pos, ir.CurFunc, types.RuneType)
 
 		// hv1 := 0
 		init = append(init, ir.NewAssignStmt(base.Pos, hv1, nil))
@@ -327,7 +324,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		// } else {
 		// hv2, hv1 = decoderune(ha, hv1)
 		fn := typecheck.LookupRuntime("decoderune")
-		call := mkcall1(fn, fn.Type().Results(), &nif.Else, ha, hv1)
+		call := mkcall1(fn, fn.Type().ResultsTuple(), &nif.Else, ha, hv1)
 		a := ir.NewAssignListStmt(base.Pos, ir.OAS2, []ir.Node{hv2, hv1}, []ir.Node{call})
 		nif.Else.Append(a)
 
@@ -454,8 +451,7 @@ func mapClear(m, rtyp ir.Node) ir.Node {
 	t := m.Type()
 
 	// instantiate mapclear(typ *type, hmap map[any]any)
-	fn := typecheck.LookupRuntime("mapclear")
-	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
+	fn := typecheck.LookupRuntime("mapclear", t.Key(), t.Elem())
 	n := mkcallstmt1(fn, rtyp, m)
 	return walkStmt(typecheck.Stmt(n))
 }
@@ -529,7 +525,7 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
 	n.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(base.Pos, 0))
 
 	// hp = &a[0]
-	hp := typecheck.Temp(types.Types[types.TUNSAFEPTR])
+	hp := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUNSAFEPTR])
 
 	ix := ir.NewIndexExpr(base.Pos, a, ir.NewInt(base.Pos, 0))
 	ix.SetBounded(true)
@@ -537,7 +533,7 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
 	n.Body.Append(ir.NewAssignStmt(base.Pos, hp, addr))
 
 	// hn = len(a) * sizeof(elem(a))
-	hn := typecheck.Temp(types.Types[types.TUINTPTR])
+	hn := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINTPTR])
 	mul := typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(base.Pos, elemsize)), types.Types[types.TUINTPTR])
 	n.Body.Append(ir.NewAssignStmt(base.Pos, hn, mul))
 

@@ -254,6 +254,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the net/http
 		package due to a non-default GODEBUG=http2server=... setting.
 
+	/godebug/non-default-behavior/httplaxcontentlength:events
+		The number of non-default behaviors executed by the net/http
+		package due to a non-default GODEBUG=httplaxcontentlength=...
+		setting.
+
 	/godebug/non-default-behavior/installgoroot:events
 		The number of non-default behaviors executed by the go/build
 		package due to a non-default GODEBUG=installgoroot=... setting.
@@ -289,6 +294,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the archive/tar
 		package due to a non-default GODEBUG=tarinsecurepath=...
 		setting.
+
+	/godebug/non-default-behavior/tlsmaxrsasize:events
+		The number of non-default behaviors executed by the crypto/tls
+		package due to a non-default GODEBUG=tlsmaxrsasize=... setting.
 
 	/godebug/non-default-behavior/x509sha1:events
 		The number of non-default behaviors executed by the crypto/x509

@@ -48,6 +48,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/types/objectpath"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 const debug = false
@@ -195,7 +196,7 @@ func NewDecoderFunc(pkg *types.Package, getPackage GetPackageFunc) *Decoder {
 type GetPackageFunc = func(pkgPath string) *types.Package
 
 // Decode decodes all the facts relevant to the analysis of package
-// pkg. The read function reads serialized fact data from an external
+// pkgPath. The read function reads serialized fact data from an external
 // source for one of pkg's direct imports, identified by package path.
 // The empty file is a valid encoding of an empty fact set.
 //
@@ -204,7 +205,9 @@ type GetPackageFunc = func(pkgPath string) *types.Package
 //
 // Concurrent calls to Decode are safe, so long as the
 // [GetPackageFunc] (if any) is also concurrency-safe.
-func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error) {
+//
+// TODO(golang/go#61443): eliminate skipMethodSorting one way or the other.
+func (d *Decoder) Decode(skipMethodSorting bool, read func(pkgPath string) ([]byte, error)) (*Set, error) {
 	// Read facts from imported packages.
 	// Facts may describe indirectly imported packages, or their objects.
 	m := make(map[key]analysis.Fact) // one big bucket
@@ -218,7 +221,7 @@ func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error
 		}
 
 		// Read the gob-encoded facts.
-		data, err := read(imp)
+		data, err := read(imp.Path())
 		if err != nil {
 			return nil, fmt.Errorf("in %s, can't import facts for package %q: %v",
 				d.pkg.Path(), imp.Path(), err)
@@ -244,7 +247,7 @@ func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error
 			key := key{pkg: factPkg, t: reflect.TypeOf(f.Fact)}
 			if f.Object != "" {
 				// object fact
-				obj, err := objectpath.Object(factPkg, f.Object)
+				obj, err := typesinternal.ObjectpathObject(factPkg, string(f.Object), skipMethodSorting)
 				if err != nil {
 					// (most likely due to unexported object)
 					// TODO(adonovan): audit for other possibilities.
@@ -268,7 +271,11 @@ func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error
 //
 // It may fail if one of the Facts could not be gob-encoded, but this is
 // a sign of a bug in an Analyzer.
-func (s *Set) Encode() []byte {
+func (s *Set) Encode(skipMethodSorting bool) []byte {
+	encoder := new(objectpath.Encoder)
+	if skipMethodSorting {
+		typesinternal.SkipEncoderMethodSorting(encoder)
+	}
 
 	// TODO(adonovan): opt: use a more efficient encoding
 	// that avoids repeating PkgPath for each fact.
@@ -281,9 +288,36 @@ func (s *Set) Encode() []byte {
 		if debug {
 			log.Printf("%v => %s\n", k, fact)
 		}
+
+		// Don't export facts that we imported from another
+		// package, unless they represent fields or methods,
+		// or package-level types.
+		// (Facts about packages, and other package-level
+		// objects, are only obtained from direct imports so
+		// they needn't be reexported.)
+		//
+		// This is analogous to the pruning done by "deep"
+		// export data for types, but not as precise because
+		// we aren't careful about which structs or methods
+		// we rexport: it should be only those referenced
+		// from the API of s.pkg.
+		// TOOD(adonovan): opt: be more precise. e.g.
+		// intersect with the set of objects computed by
+		// importMap(s.pkg.Imports()).
+		// TOOD(adonovan): opt: implement "shallow" facts.
+		if k.pkg != s.pkg {
+			if k.obj == nil {
+				continue // imported package fact
+			}
+			if _, isType := k.obj.(*types.TypeName); !isType &&
+				k.obj.Parent() == k.obj.Pkg().Scope() {
+				continue // imported fact about package-level non-type object
+			}
+		}
+
 		var object objectpath.Path
 		if k.obj != nil {
-			path, err := objectpath.For(k.obj)
+			path, err := encoder.For(k.obj)
 			if err != nil {
 				if debug {
 					log.Printf("discarding fact %s about %s\n", fact, k.obj)

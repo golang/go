@@ -241,7 +241,7 @@ func (r *Reader) Reset(src io.Reader, order Order, litWidth int) {
 
 // NewReader creates a new io.ReadCloser.
 // Reads from the returned io.ReadCloser read and decompress data from r.
-// If r does not also implement io.ByteReader,
+// If r does not also implement [io.ByteReader],
 // the decompressor may read more data than necessary from r.
 // It is the caller's responsibility to call Close on the ReadCloser when
 // finished reading.

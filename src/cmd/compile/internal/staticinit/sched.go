@@ -113,6 +113,11 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 	if rn.Class != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
 		return false
 	}
+	if rn.Defn == nil {
+		// No explicit initialization value. Probably zeroed but perhaps
+		// supplied externally and of unknown value.
+		return false
+	}
 	if rn.Defn.Op() != ir.OAS {
 		return false
 	}
@@ -125,9 +130,8 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 	orig := rn
 	r := rn.Defn.(*ir.AssignStmt).Y
 	if r == nil {
-		// No explicit initialization value. Probably zeroed but perhaps
-		// supplied externally and of unknown value.
-		return false
+		// types2.InitOrder doesn't include default initializers.
+		base.Fatalf("unexpected initializer: %v", rn.Defn)
 	}
 
 	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), typ) {
@@ -373,9 +377,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 
 		var itab *ir.AddrExpr
 		if typ.IsEmptyInterface() {
-			itab = reflectdata.TypePtr(val.Type())
+			itab = reflectdata.TypePtrAt(base.Pos, val.Type())
 		} else {
-			itab = reflectdata.ITabAddr(val.Type(), typ)
+			itab = reflectdata.ITabAddrAt(base.Pos, val.Type(), typ)
 		}
 
 		// Create a copy of l to modify while we emit data.
@@ -677,10 +681,15 @@ var statuniqgen int // name generator for static temps
 // Use readonlystaticname for read-only node.
 func StaticName(t *types.Type) *ir.Name {
 	// Don't use LookupNum; it interns the resulting string, but these are all unique.
-	n := typecheck.NewName(typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
+	sym := typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen))
 	statuniqgen++
-	typecheck.Declare(n, ir.PEXTERN)
-	n.SetType(t)
+
+	n := ir.NewNameAt(base.Pos, sym, t)
+	sym.Def = n
+
+	n.Class = ir.PEXTERN
+	typecheck.Target.Externs = append(typecheck.Target.Externs, n)
+
 	n.Linksym().Set(obj.AttrStatic, true)
 	return n
 }
@@ -971,26 +980,26 @@ func addStr(n *ir.AddStringExpr) ir.Node {
 
 const wrapGlobalMapInitSizeThreshold = 20
 
-// tryWrapGlobalMapInit examines the node 'n' to see if it is a map
-// variable initialization, and if so, possibly returns the mapvar
-// being assigned, a new function containing the init code, and a call
-// to the function passing the mapvar. Returns will be nil if the
-// assignment is not to a map, or the map init is not big enough,
-// or if the expression being assigned to the map has side effects.
-func tryWrapGlobalMapInit(n ir.Node) (mapvar *ir.Name, genfn *ir.Func, call ir.Node) {
+// tryWrapGlobalInit returns a new outlined function to contain global
+// initializer statement n, if possible and worthwhile. Otherwise, it
+// returns nil.
+//
+// Currently, it outlines map assignment statements with large,
+// side-effect-free RHS expressions.
+func tryWrapGlobalInit(n ir.Node) *ir.Func {
 	// Look for "X = ..." where X has map type.
 	// FIXME: might also be worth trying to look for cases where
 	// the LHS is of interface type but RHS is map type.
 	if n.Op() != ir.OAS {
-		return nil, nil, nil
+		return nil
 	}
 	as := n.(*ir.AssignStmt)
 	if ir.IsBlank(as.X) || as.X.Op() != ir.ONAME {
-		return nil, nil, nil
+		return nil
 	}
 	nm := as.X.(*ir.Name)
 	if !nm.Type().IsMap() {
-		return nil, nil, nil
+		return nil
 	}
 
 	// Determine size of RHS.
@@ -1010,7 +1019,7 @@ func tryWrapGlobalMapInit(n ir.Node) (mapvar *ir.Name, genfn *ir.Func, call ir.N
 			fmt.Fprintf(os.Stderr, "=-= skipping %v size too small at %d\n",
 				nm, rsiz)
 		}
-		return nil, nil, nil
+		return nil
 	}
 
 	// Reject right hand sides with side effects.
@@ -1018,7 +1027,7 @@ func tryWrapGlobalMapInit(n ir.Node) (mapvar *ir.Name, genfn *ir.Func, call ir.N
 		if base.Debug.WrapGlobalMapDbg > 0 {
 			fmt.Fprintf(os.Stderr, "=-= rejected %v due to side effects\n", nm)
 		}
-		return nil, nil, nil
+		return nil
 	}
 
 	if base.Debug.WrapGlobalMapDbg > 1 {
@@ -1027,15 +1036,19 @@ func tryWrapGlobalMapInit(n ir.Node) (mapvar *ir.Name, genfn *ir.Func, call ir.N
 
 	// Create a new function that will (eventually) have this form:
 	//
-	//    func map.init.%d() {
-	//      globmapvar = <map initialization>
-	//    }
+	//	func map.init.%d() {
+	//		globmapvar = <map initialization>
+	//	}
 	//
+	// Note: cmd/link expects the function name to contain "map.init".
 	minitsym := typecheck.LookupNum("map.init.", mapinitgen)
 	mapinitgen++
-	newfn := typecheck.DeclFunc(minitsym, nil, nil, nil)
+
+	fn := ir.NewFunc(n.Pos(), n.Pos(), minitsym, types.NewSignature(nil, nil, nil))
+	fn.SetInlinabilityChecked(true) // suppress inlining (which would defeat the point)
+	typecheck.DeclFunc(fn)
 	if base.Debug.WrapGlobalMapDbg > 0 {
-		fmt.Fprintf(os.Stderr, "=-= generated func is %v\n", newfn)
+		fmt.Fprintf(os.Stderr, "=-= generated func is %v\n", fn)
 	}
 
 	// NB: we're relying on this phase being run before inlining;
@@ -1043,26 +1056,17 @@ func tryWrapGlobalMapInit(n ir.Node) (mapvar *ir.Name, genfn *ir.Func, call ir.N
 	// need code here that relocates or duplicates inline temps.
 
 	// Insert assignment into function body; mark body finished.
-	newfn.Body = append(newfn.Body, as)
+	fn.Body = []ir.Node{as}
 	typecheck.FinishFuncBody()
-
-	typecheck.Func(newfn)
-
-	const no = `
-	// Register new function with decls.
-	typecheck.Target.Decls = append(typecheck.Target.Decls, newfn)
-`
-
-	// Create call to function, passing mapvar.
-	fncall := ir.NewCallExpr(n.Pos(), ir.OCALL, newfn.Nname, nil)
 
 	if base.Debug.WrapGlobalMapDbg > 1 {
 		fmt.Fprintf(os.Stderr, "=-= mapvar is %v\n", nm)
-		fmt.Fprintf(os.Stderr, "=-= newfunc is %+v\n", newfn)
-		fmt.Fprintf(os.Stderr, "=-= call is %+v\n", fncall)
+		fmt.Fprintf(os.Stderr, "=-= newfunc is %+v\n", fn)
 	}
 
-	return nm, newfn, typecheck.Stmt(fncall)
+	recordFuncForVar(nm, fn)
+
+	return fn
 }
 
 // mapinitgen is a counter used to uniquify compiler-generated
@@ -1099,31 +1103,28 @@ func AddKeepRelocations() {
 	varToMapInit = nil
 }
 
-// OutlineMapInits walks through a list of init statements (candidates
-// for inclusion in the package "init" function) and returns an
-// updated list in which items corresponding to map variable
-// initializations have been replaced with calls to outline "map init"
-// functions (if legal/profitable). Return value is an updated list
-// and a list of any newly generated "map init" functions.
-func OutlineMapInits(stmts []ir.Node) ([]ir.Node, []*ir.Func) {
+// OutlineMapInits replaces global map initializers with outlined
+// calls to separate "map init" functions (where possible and
+// profitable), to facilitate better dead-code elimination by the
+// linker.
+func OutlineMapInits(fn *ir.Func) {
 	if base.Debug.WrapGlobalMapCtl == 1 {
-		return stmts, nil
+		return
 	}
-	newfuncs := []*ir.Func{}
-	for i := range stmts {
-		s := stmts[i]
-		// Call the helper tryWrapGlobalMapInit to see if the LHS of
-		// this assignment is to a map var, and if so whether the RHS
-		// should be outlined into a separate init function. If the
-		// outline goes through, then replace the original init
-		// statement with the call to the outlined func, and append
-		// the new outlined func to our return list.
-		if mapvar, genfn, call := tryWrapGlobalMapInit(s); call != nil {
-			stmts[i] = call
-			newfuncs = append(newfuncs, genfn)
-			recordFuncForVar(mapvar, genfn)
+
+	outlined := 0
+	for i, stmt := range fn.Body {
+		// Attempt to outline stmt. If successful, replace it with a call
+		// to the returned wrapper function.
+		if wrapperFn := tryWrapGlobalInit(stmt); wrapperFn != nil {
+			ir.WithFunc(fn, func() {
+				fn.Body[i] = typecheck.Call(stmt.Pos(), wrapperFn.Nname, nil, false)
+			})
+			outlined++
 		}
 	}
 
-	return stmts, newfuncs
+	if base.Debug.WrapGlobalMapDbg > 1 {
+		fmt.Fprintf(os.Stderr, "=-= outlined %v map initializations\n", outlined)
+	}
 }

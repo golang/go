@@ -78,9 +78,39 @@ type AddrExpr struct {
 }
 
 func NewAddrExpr(pos src.XPos, x Node) *AddrExpr {
+	if x == nil || x.Typecheck() != 1 {
+		base.FatalfAt(pos, "missed typecheck: %L", x)
+	}
 	n := &AddrExpr{X: x}
-	n.op = OADDR
 	n.pos = pos
+
+	switch x.Op() {
+	case OARRAYLIT, OMAPLIT, OSLICELIT, OSTRUCTLIT:
+		n.op = OPTRLIT
+
+	default:
+		n.op = OADDR
+		if r, ok := OuterValue(x).(*Name); ok && r.Op() == ONAME {
+			r.SetAddrtaken(true)
+
+			// If r is a closure variable, we need to mark its canonical
+			// variable as addrtaken too, so that closure conversion
+			// captures it by reference.
+			//
+			// Exception: if we've already marked the variable as
+			// capture-by-value, then that means this variable isn't
+			// logically modified, and we must be taking its address to pass
+			// to a runtime function that won't mutate it. In that case, we
+			// only need to make sure our own copy is addressable.
+			if r.IsClosureVar() && !r.Byval() {
+				r.Canonical().SetAddrtaken(true)
+			}
+		}
+	}
+
+	n.SetType(types.NewPtr(x.Type()))
+	n.SetTypecheck(1)
+
 	return n
 }
 
@@ -103,12 +133,15 @@ type BasicLit struct {
 }
 
 func NewBasicLit(pos src.XPos, val constant.Value) Node {
+	if val == nil || val.Kind() == constant.Unknown {
+		base.FatalfAt(pos, "bad value: %v", val)
+	}
+
 	n := &BasicLit{val: val}
 	n.op = OLITERAL
 	n.pos = pos
-	if k := val.Kind(); k != constant.Unknown {
-		n.SetType(idealType(k))
-	}
+	n.SetType(types.UntypedTypes[val.Kind()])
+	n.SetTypecheck(1)
 	return n
 }
 
@@ -432,15 +465,19 @@ func (n *MakeExpr) SetOp(op Op) {
 }
 
 // A NilExpr represents the predefined untyped constant nil.
-// (It may be copied and assigned a type, though.)
 type NilExpr struct {
 	miniExpr
 }
 
-func NewNilExpr(pos src.XPos) *NilExpr {
+func NewNilExpr(pos src.XPos, typ *types.Type) *NilExpr {
+	if typ == nil {
+		base.FatalfAt(pos, "missing type")
+	}
 	n := &NilExpr{}
 	n.pos = pos
 	n.op = ONIL
+	n.SetType(typ)
+	n.SetTypecheck(1)
 	return n
 }
 
@@ -498,9 +535,13 @@ type LinksymOffsetExpr struct {
 }
 
 func NewLinksymOffsetExpr(pos src.XPos, lsym *obj.LSym, offset int64, typ *types.Type) *LinksymOffsetExpr {
+	if typ == nil {
+		base.FatalfAt(pos, "nil type")
+	}
 	n := &LinksymOffsetExpr{Linksym: lsym, Offset_: offset}
 	n.typ = typ
 	n.op = OLINKSYMOFFSET
+	n.SetTypecheck(1)
 	return n
 }
 
@@ -557,9 +598,8 @@ func (n *SelectorExpr) FuncName() *Name {
 	if n.Op() != OMETHEXPR {
 		panic(n.no("FuncName"))
 	}
-	fn := NewNameAt(n.Selection.Pos, MethodSym(n.X.Type(), n.Sel))
+	fn := NewNameAt(n.Selection.Pos, MethodSym(n.X.Type(), n.Sel), n.Type())
 	fn.Class = PFUNC
-	fn.SetType(n.Type())
 	if n.Selection.Nname != nil {
 		// TODO(austin): Nname is nil for interface method
 		// expressions (I.M), so we can't attach a Func to
@@ -754,25 +794,6 @@ func (n *UnaryExpr) SetOp(op Op) {
 	}
 }
 
-// Probably temporary: using Implicit() flag to mark generic function nodes that
-// are called to make getGfInfo analysis easier in one pre-order pass.
-func (n *InstExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
-func (n *InstExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
-
-// An InstExpr is a generic function or type instantiation.
-type InstExpr struct {
-	miniExpr
-	X     Node
-	Targs []Ntype
-}
-
-func NewInstExpr(pos src.XPos, op Op, x Node, targs []Ntype) *InstExpr {
-	n := &InstExpr{X: x, Targs: targs}
-	n.pos = pos
-	n.op = op
-	return n
-}
-
 func IsZero(n Node) bool {
 	switch n.Op() {
 	case ONIL:
@@ -847,6 +868,20 @@ func IsAddressable(n Node) bool {
 	return false
 }
 
+// StaticValue analyzes n to find the earliest expression that always
+// evaluates to the same value as n, which might be from an enclosing
+// function.
+//
+// For example, given:
+//
+//	var x int = g()
+//	func() {
+//		y := x
+//		*p = int(y)
+//	}
+//
+// calling StaticValue on the "int(y)" expression returns the outer
+// "g()" expression.
 func StaticValue(n Node) Node {
 	for {
 		if n.Op() == OCONVNOP {
@@ -867,14 +902,11 @@ func StaticValue(n Node) Node {
 	}
 }
 
-// staticValue1 implements a simple SSA-like optimization. If n is a local variable
-// that is initialized and never reassigned, staticValue1 returns the initializer
-// expression. Otherwise, it returns nil.
 func staticValue1(nn Node) Node {
 	if nn.Op() != ONAME {
 		return nil
 	}
-	n := nn.(*Name)
+	n := nn.(*Name).Canonical()
 	if n.Class != PAUTO {
 		return nil
 	}
@@ -906,20 +938,20 @@ FindRHS:
 		base.Fatalf("RHS is nil: %v", defn)
 	}
 
-	if reassigned(n) {
+	if Reassigned(n) {
 		return nil
 	}
 
 	return rhs
 }
 
-// reassigned takes an ONAME node, walks the function in which it is defined, and returns a boolean
-// indicating whether the name has any assignments other than its declaration.
-// The second return value is the first such assignment encountered in the walk, if any. It is mostly
-// useful for -m output documenting the reason for inhibited optimizations.
+// Reassigned takes an ONAME node, walks the function in which it is
+// defined, and returns a boolean indicating whether the name has any
+// assignments other than its declaration.
 // NB: global variables are always considered to be re-assigned.
-// TODO: handle initial declaration not including an assignment and followed by a single assignment?
-func reassigned(name *Name) bool {
+// TODO: handle initial declaration not including an assignment and
+// followed by a single assignment?
+func Reassigned(name *Name) bool {
 	if name.Op() != ONAME {
 		base.Fatalf("reassigned %v", name)
 	}
@@ -928,13 +960,20 @@ func reassigned(name *Name) bool {
 		return true
 	}
 
+	if name.Addrtaken() {
+		return true // conservatively assume it's reassigned indirectly
+	}
+
 	// TODO(mdempsky): This is inefficient and becoming increasingly
 	// unwieldy. Figure out a way to generalize escape analysis's
 	// reassignment detection for use by inlining and devirtualization.
 
 	// isName reports whether n is a reference to name.
 	isName := func(x Node) bool {
-		n, ok := x.(*Name)
+		if x == nil {
+			return false
+		}
+		n, ok := OuterValue(x).(*Name)
 		return ok && n.Canonical() == name
 	}
 
@@ -953,10 +992,15 @@ func reassigned(name *Name) bool {
 					return true
 				}
 			}
+		case OASOP:
+			n := n.(*AssignOpStmt)
+			if isName(n.X) {
+				return true
+			}
 		case OADDR:
 			n := n.(*AddrExpr)
-			if isName(OuterValue(n.X)) {
-				return true
+			if isName(n.X) {
+				base.FatalfAt(n.Pos(), "%v not marked addrtaken", name)
 			}
 		case ORANGE:
 			n := n.(*RangeStmt)
@@ -972,6 +1016,23 @@ func reassigned(name *Name) bool {
 		return false
 	}
 	return Any(name.Curfn, do)
+}
+
+// StaticCalleeName returns the ONAME/PFUNC for n, if known.
+func StaticCalleeName(n Node) *Name {
+	switch n.Op() {
+	case OMETHEXPR:
+		n := n.(*SelectorExpr)
+		return MethodExprName(n)
+	case ONAME:
+		n := n.(*Name)
+		if n.Class == PFUNC {
+			return n
+		}
+	case OCLOSURE:
+		return n.(*ClosureExpr).Func.Nname
+	}
+	return nil
 }
 
 // IsIntrinsicCall reports whether the compiler back end will treat the call as an intrinsic operation.
@@ -1089,8 +1150,8 @@ func IsReflectHeaderDataField(l Node) bool {
 
 func ParamNames(ft *types.Type) []Node {
 	args := make([]Node, ft.NumParams())
-	for i, f := range ft.Params().FieldSlice() {
-		args[i] = AsNode(f.Nname)
+	for i, f := range ft.Params() {
+		args[i] = f.Nname.(*Name)
 	}
 	return args
 }

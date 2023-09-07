@@ -301,7 +301,7 @@ const (
 	Py   = 0x80 // defaults to 64-bit mode
 	Py1  = 0x81 // symbolic; exact value doesn't matter
 	Py3  = 0x83 // symbolic; exact value doesn't matter
-	Pavx = 0x84 // symbolic: exact value doesn't matter
+	Pavx = 0x84 // symbolic; exact value doesn't matter
 
 	RxrEvex = 1 << 4 // AVX512 extension to REX.R/VEX.R
 	Rxw     = 1 << 3 // =1, 64-bit operand size

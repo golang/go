@@ -573,18 +573,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
-		// Mask has been set as sh
-	case ssa.OpPPC64RLDICL:
-		r := v.Reg()
-		r1 := v.Args[0].Reg()
-		shifts := v.AuxInt
-		p := s.Prog(v.Op.Asm())
-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)}
-		p.AddRestSourceConst(ssa.GetPPC64Shiftmb(shifts))
-		p.Reg = r1
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-
 	case ssa.OpPPC64ADD, ssa.OpPPC64FADD, ssa.OpPPC64FADDS, ssa.OpPPC64SUB, ssa.OpPPC64FSUB, ssa.OpPPC64FSUBS,
 		ssa.OpPPC64MULLD, ssa.OpPPC64MULLW, ssa.OpPPC64DIVDU, ssa.OpPPC64DIVWU,
 		ssa.OpPPC64SRAD, ssa.OpPPC64SRAW, ssa.OpPPC64SRD, ssa.OpPPC64SRW, ssa.OpPPC64SLD, ssa.OpPPC64SLW,
@@ -623,13 +611,27 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 		// Auxint holds encoded rotate + mask
 	case ssa.OpPPC64RLWINM, ssa.OpPPC64RLWMI:
-		rot, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
+		sh, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
 		p.Reg = v.Args[0].Reg()
-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(rot)}
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(sh)}
 		p.AddRestSourceArgs([]obj.Addr{{Type: obj.TYPE_CONST, Offset: mb}, {Type: obj.TYPE_CONST, Offset: me}})
 		// Auxint holds mask
+
+	case ssa.OpPPC64RLDICL, ssa.OpPPC64RLDICR:
+		sh, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
+		p := s.Prog(v.Op.Asm())
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: sh}
+		switch v.Op {
+		case ssa.OpPPC64RLDICL:
+			p.AddRestSourceConst(mb)
+		case ssa.OpPPC64RLDICR:
+			p.AddRestSourceConst(me)
+		}
+		p.Reg = v.Args[0].Reg()
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+
 	case ssa.OpPPC64RLWNM:
 		_, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
 		p := s.Prog(v.Op.Asm())

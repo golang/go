@@ -265,15 +265,10 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
-	CMPB	runtime·useQPCTime(SB), $0
-	JNE	useQPC
 	MOVQ	$_INTERRUPT_TIME, DI
 	MOVQ	time_lo(DI), AX
 	IMULQ	$100, AX
 	MOVQ	AX, ret+0(FP)
-	RET
-useQPC:
-	JMP	runtime·nanotimeQPC(SB)
 	RET
 
 // func osSetupTLS(mp *m)

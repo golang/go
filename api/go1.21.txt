@@ -60,7 +60,9 @@ pkg crypto/tls, method (*QUICConn) Close() error #44886
 pkg crypto/tls, method (*QUICConn) ConnectionState() ConnectionState #44886
 pkg crypto/tls, method (*QUICConn) HandleData(QUICEncryptionLevel, []uint8) error #44886
 pkg crypto/tls, method (*QUICConn) NextEvent() QUICEvent #44886
-pkg crypto/tls, method (*QUICConn) SendSessionTicket(bool) error #60107
+pkg crypto/tls, method (*QUICConn) SendSessionTicket(QUICSessionTicketOptions) error #60107
+pkg crypto/tls, type QUICSessionTicketOptions struct #60107
+pkg crypto/tls, type QUICSessionTicketOptions struct, EarlyData bool #60107
 pkg crypto/tls, method (*QUICConn) SetTransportParameters([]uint8) #44886
 pkg crypto/tls, method (*QUICConn) Start(context.Context) error #44886
 pkg crypto/tls, method (QUICEncryptionLevel) String() string #44886
@@ -165,7 +167,12 @@ pkg errors, var ErrUnsupported error #41198
 pkg flag, func BoolFunc(string, string, func(string) error) #53747
 pkg flag, method (*FlagSet) BoolFunc(string, string, func(string) error) #53747
 pkg go/ast, func IsGenerated(*File) bool #28089
+pkg go/ast, func NewPackage //deprecated #52463
 pkg go/ast, type File struct, GoVersion string #59033
+pkg go/ast, type Importer //deprecated #52463
+pkg go/ast, type Object //deprecated #52463
+pkg go/ast, type Package //deprecated #52463
+pkg go/ast, type Scope //deprecated #52463
 pkg go/build/constraint, func GoVersion(Expr) string #59033
 pkg go/build, type Directive struct #56986
 pkg go/build, type Directive struct, Pos token.Position #56986

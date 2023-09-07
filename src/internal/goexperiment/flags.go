@@ -109,4 +109,8 @@ type Flags struct {
 	// CacheProg adds support to cmd/go to use a child process to implement
 	// the build cache; see https://github.com/golang/go/issues/59719.
 	CacheProg bool
+
+	// NewInliner enables a new+improved version of the function
+	// inlining phase within the Go compiler.
+	NewInliner bool
 }

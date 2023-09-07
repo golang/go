@@ -391,6 +391,39 @@ func (n NullTime) Value() (driver.Value, error) {
 	return n.Time, nil
 }
 
+// Null represents a value that may be null.
+// Null implements the Scanner interface so
+// it can be used as a scan destination:
+//
+//	var s Null[string]
+//	err := db.QueryRow("SELECT name FROM foo WHERE id=?", id).Scan(&s)
+//	...
+//	if s.Valid {
+//	   // use s.V
+//	} else {
+//	   // NULL value
+//	}
+type Null[T any] struct {
+	V     T
+	Valid bool
+}
+
+func (n *Null[T]) Scan(value any) error {
+	if value == nil {
+		n.V, n.Valid = *new(T), false
+		return nil
+	}
+	n.Valid = true
+	return convertAssign(&n.V, value)
+}
+
+func (n Null[T]) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return n.V, nil
+}
+
 // Scanner is an interface used by Scan.
 type Scanner interface {
 	// Scan assigns a value from a database driver.
@@ -3211,7 +3244,7 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 		if prop, ok := rowsi.(driver.RowsColumnTypeScanType); ok {
 			ci.scanType = prop.ColumnTypeScanType(i)
 		} else {
-			ci.scanType = reflect.TypeOf(new(any)).Elem()
+			ci.scanType = reflect.TypeFor[any]()
 		}
 		if prop, ok := rowsi.(driver.RowsColumnTypeDatabaseTypeName); ok {
 			ci.databaseType = prop.ColumnTypeDatabaseTypeName(i)

@@ -175,9 +175,7 @@ const (
 	ODCL       // var X (declares X of type X.Type)
 
 	// Used during parsing but don't last.
-	ODCLFUNC  // func f() or func (r) f()
-	ODCLCONST // const pi = 3.14
-	ODCLTYPE  // type Int int or type Int = int
+	ODCLFUNC // func f() or func (r) f()
 
 	ODELETE        // delete(Args)
 	ODOT           // X.Sel (X is of struct type)
@@ -282,7 +280,6 @@ const (
 	// OTYPESW:  X := Y.(type) (appears as .Tag of OSWITCH)
 	//   X is nil if there is no type-switch variable
 	OTYPESW
-	OFUNCINST // instantiation of a generic function
 
 	// misc
 	// intermediate representation of an inlined call.  Uses Init (assignments
@@ -465,14 +462,7 @@ const (
 
 )
 
-func AsNode(n types.Object) Node {
-	if n == nil {
-		return nil
-	}
-	return n.(Node)
-}
-
-var BlankNode Node
+var BlankNode *Name
 
 func IsConst(n Node, ct constant.Kind) bool {
 	return ConstType(n) == ct
@@ -500,7 +490,7 @@ func IsMethod(n Node) bool {
 
 func HasNamedResults(fn *Func) bool {
 	typ := fn.Type()
-	return typ.NumResults() > 0 && types.OrigSym(typ.Results().Field(0).Sym) != nil
+	return typ.NumResults() > 0 && types.OrigSym(typ.Result(0).Sym) != nil
 }
 
 // HasUniquePos reports whether n has a unique position that can be

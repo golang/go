@@ -8,6 +8,7 @@ package base64
 import (
 	"encoding/binary"
 	"io"
+	"slices"
 	"strconv"
 )
 
@@ -21,16 +22,19 @@ import (
 // (RFC 1421).  RFC 4648 also defines an alternate encoding, which is
 // the standard encoding with - and _ substituted for + and /.
 type Encoding struct {
-	encode    [64]byte
-	decodeMap [256]byte
+	encode    [64]byte   // mapping of symbol index to symbol byte value
+	decodeMap [256]uint8 // mapping of symbol byte value to symbol index
 	padChar   rune
 	strict    bool
 }
 
 const (
-	StdPadding          rune = '=' // Standard padding character
-	NoPadding           rune = -1  // No padding
-	decodeMapInitialize      = "" +
+	StdPadding rune = '=' // Standard padding character
+	NoPadding  rune = -1  // No padding
+)
+
+const (
+	decodeMapInitialize = "" +
 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
@@ -47,25 +51,19 @@ const (
 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
+	invalidIndex = '\xff'
 )
 
-const encodeStd = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-const encodeURL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
-
 // NewEncoding returns a new padded Encoding defined by the given alphabet,
-// which must be a 64-byte string that does not contain the padding character
-// or CR / LF ('\r', '\n'). The alphabet is treated as sequence of byte values
+// which must be a 64-byte string that contains unique byte values and
+// does not contain the padding character or CR / LF ('\r', '\n').
+// The alphabet is treated as a sequence of byte values
 // without any special treatment for multi-byte UTF-8.
 // The resulting Encoding uses the default padding character ('='),
 // which may be changed or disabled via WithPadding.
 func NewEncoding(encoder string) *Encoding {
 	if len(encoder) != 64 {
 		panic("encoding alphabet is not 64-bytes long")
-	}
-	for i := 0; i < len(encoder); i++ {
-		if encoder[i] == '\n' || encoder[i] == '\r' {
-			panic("encoding alphabet contains newline character")
-		}
 	}
 
 	e := new(Encoding)
@@ -74,29 +72,34 @@ func NewEncoding(encoder string) *Encoding {
 	copy(e.decodeMap[:], decodeMapInitialize)
 
 	for i := 0; i < len(encoder); i++ {
-		e.decodeMap[encoder[i]] = byte(i)
+		// Note: While we document that the alphabet cannot contain
+		// the padding character, we do not enforce it since we do not know
+		// if the caller intends to switch the padding from StdPadding later.
+		switch {
+		case encoder[i] == '\n' || encoder[i] == '\r':
+			panic("encoding alphabet contains newline character")
+		case e.decodeMap[encoder[i]] != invalidIndex:
+			panic("encoding alphabet includes duplicate symbols")
+		}
+		e.decodeMap[encoder[i]] = uint8(i)
 	}
 	return e
 }
 
 // WithPadding creates a new encoding identical to enc except
 // with a specified padding character, or NoPadding to disable padding.
-// The padding character must not be '\r' or '\n', must not
-// be contained in the encoding's alphabet and must be a rune equal or
-// below '\xff'.
+// The padding character must not be '\r' or '\n',
+// must not be contained in the encoding's alphabet,
+// must not be negative, and must be a rune equal or below '\xff'.
 // Padding characters above '\x7f' are encoded as their exact byte value
 // rather than using the UTF-8 representation of the codepoint.
 func (enc Encoding) WithPadding(padding rune) *Encoding {
-	if padding == '\r' || padding == '\n' || padding > 0xff {
+	switch {
+	case padding < NoPadding || padding == '\r' || padding == '\n' || padding > 0xff:
 		panic("invalid padding")
+	case padding != NoPadding && enc.decodeMap[byte(padding)] != invalidIndex:
+		panic("padding contained in alphabet")
 	}
-
-	for i := 0; i < len(enc.encode); i++ {
-		if rune(enc.encode[i]) == padding {
-			panic("padding contained in alphabet")
-		}
-	}
-
 	enc.padChar = padding
 	return &enc
 }
@@ -112,13 +115,12 @@ func (enc Encoding) Strict() *Encoding {
 	return &enc
 }
 
-// StdEncoding is the standard base64 encoding, as defined in
-// RFC 4648.
-var StdEncoding = NewEncoding(encodeStd)
+// StdEncoding is the standard base64 encoding, as defined in RFC 4648.
+var StdEncoding = NewEncoding("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
 
 // URLEncoding is the alternate base64 encoding defined in RFC 4648.
 // It is typically used in URLs and file names.
-var URLEncoding = NewEncoding(encodeURL)
+var URLEncoding = NewEncoding("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
 
 // RawStdEncoding is the standard raw, unpadded base64 encoding,
 // as defined in RFC 4648 section 3.2.
@@ -189,6 +191,15 @@ func (enc *Encoding) Encode(dst, src []byte) {
 			dst[di+3] = byte(enc.padChar)
 		}
 	}
+}
+
+// AppendEncode appends the base64 encoded src to dst
+// and returns the extended buffer.
+func (enc *Encoding) AppendEncode(dst, src []byte) []byte {
+	n := enc.EncodedLen(len(src))
+	dst = slices.Grow(dst, n)
+	enc.Encode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n]
 }
 
 // EncodeToString returns the base64 encoding of src.
@@ -393,6 +404,22 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 	}
 
 	return si, dlen - 1, err
+}
+
+// AppendDecode appends the base64 decoded src to dst
+// and returns the extended buffer.
+// If the input is malformed, it returns the partially decoded src and an error.
+func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
+	// Compute the output size without padding to avoid over allocating.
+	n := len(src)
+	for n > 0 && rune(src[n-1]) == enc.padChar {
+		n--
+	}
+	n = decodedLen(n, NoPadding)
+
+	dst = slices.Grow(dst, n)
+	n, err := enc.Decode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n], err
 }
 
 // DecodeString returns the bytes represented by the base64 string s.
@@ -621,7 +648,11 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
 // DecodedLen returns the maximum length in bytes of the decoded data
 // corresponding to n bytes of base64-encoded data.
 func (enc *Encoding) DecodedLen(n int) int {
-	if enc.padChar == NoPadding {
+	return decodedLen(n, enc.padChar)
+}
+
+func decodedLen(n int, padChar rune) int {
+	if padChar == NoPadding {
 		// Unpadded data may end with partial block of 2-3 characters.
 		return n/4*3 + n%4*6/8
 	}

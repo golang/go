@@ -180,7 +180,7 @@ func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*a
 		// If f is a cgo-generated file, Position reports
 		// the original file, honoring //line directives.
 		filename := fset.Position(raw.Pos()).Filename
-		f, err := parser.ParseFile(fset, filename, nil, parser.Mode(0))
+		f, err := parser.ParseFile(fset, filename, nil, parser.SkipObjectResolution)
 		if err != nil {
 			return nil, nil, fmt.Errorf("can't parse raw cgo file: %v", err)
 		}

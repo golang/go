@@ -18,6 +18,7 @@ stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]z
 cmp $GOPATH/src/vendor/example.com/q/q.go q1_1_0/q.go
 
 -- modules.txt.want --
+## workspace
 # example.com/b v1.0.0 => ./b
 ## explicit; go 1.18
 example.com/b

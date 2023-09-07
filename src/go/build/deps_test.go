@@ -210,7 +210,7 @@ var depsRules = `
 
 	# encodings
 	# core ones do not use fmt.
-	io, strconv
+	io, strconv, slices
 	< encoding;
 
 	encoding, reflect
@@ -247,14 +247,14 @@ var depsRules = `
 	< text/template
 	< internal/lazytemplate;
 
-	encoding/json, html, text/template
-	< html/template;
-
 	# regexp
 	FMT
 	< regexp/syntax
 	< regexp
 	< internal/lazyregexp;
+
+	encoding/json, html, text/template, regexp
+	< html/template;
 
 	# suffix array
 	encoding/binary, regexp
@@ -564,7 +564,7 @@ var depsRules = `
 	< net/rpc/jsonrpc;
 
 	# System Information
-	internal/cpu, sync
+	bufio, bytes, internal/cpu, io, os, strings, sync
 	< internal/sysinfo;
 
 	# Test-only

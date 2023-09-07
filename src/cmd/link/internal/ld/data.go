@@ -582,19 +582,17 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		case 1:
 			P[off] = byte(int8(o))
 		case 2:
-			if o != int64(int16(o)) {
-				st.err.Errorf(s, "relocation address for %s is too big: %#x", ldr.SymName(rs), o)
+			if (rt == objabi.R_PCREL || rt == objabi.R_CALL) && o != int64(int16(o)) {
+				st.err.Errorf(s, "pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), o)
+			} else if o != int64(int16(o)) && o != int64(uint16(o)) {
+				st.err.Errorf(s, "non-pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), uint64(o))
 			}
 			target.Arch.ByteOrder.PutUint16(P[off:], uint16(o))
 		case 4:
-			if rt == objabi.R_PCREL || rt == objabi.R_CALL {
-				if o != int64(int32(o)) {
-					st.err.Errorf(s, "pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), o)
-				}
-			} else {
-				if o != int64(int32(o)) && o != int64(uint32(o)) {
-					st.err.Errorf(s, "non-pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), uint64(o))
-				}
+			if (rt == objabi.R_PCREL || rt == objabi.R_CALL) && o != int64(int32(o)) {
+				st.err.Errorf(s, "pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), o)
+			} else if o != int64(int32(o)) && o != int64(uint32(o)) {
+				st.err.Errorf(s, "non-pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), uint64(o))
 			}
 			target.Arch.ByteOrder.PutUint32(P[off:], uint32(o))
 		case 8:

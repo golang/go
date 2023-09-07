@@ -411,7 +411,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 		return gtyp // error already reported
 	}
 
-	orig, _ := gtyp.(*Named)
+	orig := asNamed(gtyp)
 	if orig == nil {
 		panic(fmt.Sprintf("%v: cannot instantiate %v", ix.Pos(), gtyp))
 	}
@@ -424,7 +424,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 	}
 
 	// create the instance
-	inst := check.instance(ix.Pos(), orig, targs, nil, check.context()).(*Named)
+	inst := asNamed(check.instance(ix.Pos(), orig, targs, nil, check.context()))
 	def.setUnderlying(inst)
 
 	// orig.tparams may not be set up, so we need to do expansion later.

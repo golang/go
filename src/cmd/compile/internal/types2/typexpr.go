@@ -207,7 +207,7 @@ func (check *Checker) genericType(e syntax.Expr, cause *string) Type {
 // goTypeName returns the Go type name for typ and
 // removes any occurrences of "types2." from that name.
 func goTypeName(typ Type) string {
-	return strings.Replace(fmt.Sprintf("%T", typ), "types2.", "", -1) // strings.ReplaceAll is not available in Go 1.4
+	return strings.ReplaceAll(fmt.Sprintf("%T", typ), "types2.", "")
 }
 
 // typInternal drives type checking of types.
@@ -272,7 +272,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 
 	case *syntax.IndexExpr:
 		check.verifyVersionf(e, go1_18, "type instantiation")
-		return check.instantiatedType(e.X, unpackExpr(e.Index), def)
+		return check.instantiatedType(e.X, syntax.UnpackListExpr(e.Index), def)
 
 	case *syntax.ParenExpr:
 		// Generic types must be instantiated before they can be used in any form.
@@ -420,7 +420,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 		return gtyp // error already reported
 	}
 
-	orig, _ := gtyp.(*Named)
+	orig := asNamed(gtyp)
 	if orig == nil {
 		panic(fmt.Sprintf("%v: cannot instantiate %v", x.Pos(), gtyp))
 	}
@@ -433,7 +433,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 	}
 
 	// create the instance
-	inst := check.instance(x.Pos(), orig, targs, nil, check.context()).(*Named)
+	inst := asNamed(check.instance(x.Pos(), orig, targs, nil, check.context()))
 	def.setUnderlying(inst)
 
 	// orig.tparams may not be set up, so we need to do expansion later.

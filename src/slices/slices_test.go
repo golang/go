@@ -1055,3 +1055,101 @@ func TestInference(t *testing.T) {
 		t.Errorf("Reverse(%v) = %v, want %v", S{4, 5, 6}, s2, want)
 	}
 }
+
+func TestConcat(t *testing.T) {
+	cases := []struct {
+		s    [][]int
+		want []int
+	}{
+		{
+			s:    [][]int{nil},
+			want: nil,
+		},
+		{
+			s:    [][]int{{1}},
+			want: []int{1},
+		},
+		{
+			s:    [][]int{{1}, {2}},
+			want: []int{1, 2},
+		},
+		{
+			s:    [][]int{{1}, nil, {2}},
+			want: []int{1, 2},
+		},
+	}
+	for _, tc := range cases {
+		got := Concat(tc.s...)
+		if !Equal(tc.want, got) {
+			t.Errorf("Concat(%v) = %v, want %v", tc.s, got, tc.want)
+		}
+		var sink []int
+		allocs := testing.AllocsPerRun(5, func() {
+			sink = Concat(tc.s...)
+		})
+		_ = sink
+		if allocs > 1 {
+			errorf := t.Errorf
+			if testenv.OptimizationOff() || race.Enabled {
+				errorf = t.Logf
+			}
+			errorf("Concat(%v) allocated %v times; want 1", tc.s, allocs)
+		}
+	}
+}
+
+func TestConcat_too_large(t *testing.T) {
+	// Use zero length element to minimize memory in testing
+	type void struct{}
+	cases := []struct {
+		lengths     []int
+		shouldPanic bool
+	}{
+		{
+			lengths:     []int{0, 0},
+			shouldPanic: false,
+		},
+		{
+			lengths:     []int{math.MaxInt, 0},
+			shouldPanic: false,
+		},
+		{
+			lengths:     []int{0, math.MaxInt},
+			shouldPanic: false,
+		},
+		{
+			lengths:     []int{math.MaxInt - 1, 1},
+			shouldPanic: false,
+		},
+		{
+			lengths:     []int{math.MaxInt - 1, 1, 1},
+			shouldPanic: true,
+		},
+		{
+			lengths:     []int{math.MaxInt, 1},
+			shouldPanic: true,
+		},
+		{
+			lengths:     []int{math.MaxInt, math.MaxInt},
+			shouldPanic: true,
+		},
+	}
+	for _, tc := range cases {
+		var r any
+		ss := make([][]void, 0, len(tc.lengths))
+		for _, l := range tc.lengths {
+			s := make([]void, l)
+			ss = append(ss, s)
+		}
+		func() {
+			defer func() {
+				r = recover()
+			}()
+			_ = Concat(ss...)
+		}()
+		if didPanic := r != nil; didPanic != tc.shouldPanic {
+			t.Errorf("slices.Concat(lens(%v)) got panic == %v",
+				tc.lengths, didPanic)
+		}
+	}
+}

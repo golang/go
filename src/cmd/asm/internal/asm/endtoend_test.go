@@ -30,7 +30,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
 	architecture, ctxt := setArch(goarch)
 	architecture.Init(ctxt)
 	lexer := lex.NewLexer(input)
-	parser := NewParser(ctxt, architecture, lexer, false)
+	parser := NewParser(ctxt, architecture, lexer)
 	pList := new(obj.Plist)
 	var ok bool
 	testOut = new(strings.Builder) // The assembler writes test output to this buffer.
@@ -65,6 +65,11 @@ Diff:
 
 		// Ignore include of textflag.h.
 		if strings.HasPrefix(line, "#include ") {
+			continue
+		}
+
+		// Ignore GLOBL.
+		if strings.HasPrefix(line, "GLOBL ") {
 			continue
 		}
 
@@ -186,7 +191,7 @@ Diff:
 		t.Errorf(format, args...)
 		ok = false
 	}
-	obj.Flushplist(ctxt, pList, nil, "")
+	obj.Flushplist(ctxt, pList, nil)
 
 	for p := top; p != nil; p = p.Link {
 		if p.As == obj.ATEXT {
@@ -274,7 +279,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
 	architecture, ctxt := setArch(goarch)
 	architecture.Init(ctxt)
 	lexer := lex.NewLexer(input)
-	parser := NewParser(ctxt, architecture, lexer, false)
+	parser := NewParser(ctxt, architecture, lexer)
 	pList := new(obj.Plist)
 	var ok bool
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
@@ -300,7 +305,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
 		}
 	}
 	pList.Firstpc, ok = parser.Parse()
-	obj.Flushplist(ctxt, pList, nil, "")
+	obj.Flushplist(ctxt, pList, nil)
 	if ok && !failed {
 		t.Errorf("asm: %s had no errors", file)
 	}

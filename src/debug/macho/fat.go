@@ -86,7 +86,7 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
 
 	// Following the fat_header comes narch fat_arch structs that index
 	// Mach-O images further in the file.
-	c := saferio.SliceCap((*FatArch)(nil), uint64(narch))
+	c := saferio.SliceCap[FatArch](uint64(narch))
 	if c < 0 {
 		return nil, &FormatError{offset, "too many images", nil}
 	}

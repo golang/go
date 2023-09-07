@@ -124,7 +124,7 @@ func hasEmptyTypeset(t Type) bool {
 // TODO(gri) should we include signatures or assert that they are not present?
 func isGeneric(t Type) bool {
 	// A parameterized type is only generic if it doesn't have an instantiation already.
-	named, _ := t.(*Named)
+	named := asNamed(t)
 	return named != nil && named.obj != nil && named.inst == nil && named.TypeParams().Len() > 0
 }
 
@@ -435,7 +435,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 		// Two named types are identical if their type names originate
 		// in the same type declaration; if they are instantiated they
 		// must have identical type argument lists.
-		if y, ok := y.(*Named); ok {
+		if y := asNamed(y); y != nil {
 			// check type arguments before origins to match unifier
 			// (for correct source code we need to do all checks so
 			// order doesn't matter)

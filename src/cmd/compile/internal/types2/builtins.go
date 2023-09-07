@@ -706,7 +706,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// unsafe.Offsetof(x T) uintptr, where x must be a selector
 		// (no argument evaluated yet)
 		arg0 := argList[0]
-		selx, _ := unparen(arg0).(*syntax.SelectorExpr)
+		selx, _ := syntax.Unparen(arg0).(*syntax.SelectorExpr)
 		if selx == nil {
 			check.errorf(arg0, BadOffsetofSyntax, invalidArg+"%s is not a selector expression", arg0)
 			check.use(arg0)
@@ -923,7 +923,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
 	// Cycles are only possible through *Named types.
 	// The seen map is used to detect cycles and track
 	// the results of previously seen types.
-	if named, _ := t.(*Named); named != nil {
+	if named := asNamed(t); named != nil {
 		if v, ok := seen[named]; ok {
 			return v
 		}

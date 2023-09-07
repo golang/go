@@ -117,6 +117,10 @@ type Transport struct {
 	// "https", and "socks5" are supported. If the scheme is empty,
 	// "http" is assumed.
 	//
+	// If the proxy URL contains a userinfo subcomponent,
+	// the proxy request will pass the username and password
+	// in a Proxy-Authorization header.
+	//
 	// If Proxy is nil or returns a nil *URL, no proxy is used.
 	Proxy func(*Request) (*url.URL, error)
 
@@ -1205,7 +1209,6 @@ func (t *Transport) dial(ctx context.Context, network, addr string) (net.Conn, e
 type wantConn struct {
 	cm    connectMethod
 	key   connectMethodKey // cm.key()
-	ctx   context.Context  // context for dial
 	ready chan struct{}    // closed when pc, err pair is delivered
 
 	// hooks for testing to know when dials are done
@@ -1214,7 +1217,8 @@ type wantConn struct {
 	beforeDial func()
 	afterDial  func()
 
-	mu  sync.Mutex // protects pc, err, close(ready)
+	mu  sync.Mutex      // protects ctx, pc, err, close(ready)
+	ctx context.Context // context for dial, cleared after delivered or canceled
 	pc  *persistConn
 	err error
 }
@@ -1229,6 +1233,13 @@ func (w *wantConn) waiting() bool {
 	}
 }
 
+// getCtxForDial returns context for dial or nil if connection was delivered or canceled.
+func (w *wantConn) getCtxForDial() context.Context {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.ctx
+}
+
 // tryDeliver attempts to deliver pc, err to w and reports whether it succeeded.
 func (w *wantConn) tryDeliver(pc *persistConn, err error) bool {
 	w.mu.Lock()
@@ -1238,6 +1249,7 @@ func (w *wantConn) tryDeliver(pc *persistConn, err error) bool {
 		return false
 	}
 
+	w.ctx = nil
 	w.pc = pc
 	w.err = err
 	if w.pc == nil && w.err == nil {
@@ -1255,6 +1267,7 @@ func (w *wantConn) cancel(t *Transport, err error) {
 		close(w.ready) // catch misbehavior in future delivery
 	}
 	pc := w.pc
+	w.ctx = nil
 	w.pc = nil
 	w.err = err
 	w.mu.Unlock()
@@ -1463,8 +1476,12 @@ func (t *Transport) queueForDial(w *wantConn) {
 // If the dial is canceled or unsuccessful, dialConnFor decrements t.connCount[w.cm.key()].
 func (t *Transport) dialConnFor(w *wantConn) {
 	defer w.afterDial()
+	ctx := w.getCtxForDial()
+	if ctx == nil {
+		return
+	}
 
-	pc, err := t.dialConn(w.ctx, w.cm)
+	pc, err := t.dialConn(ctx, w.cm)
 	delivered := w.tryDeliver(pc, err)
 	if err == nil && (!delivered || pc.alt != nil) {
 		// pconn was not passed to w,
@@ -2248,7 +2265,7 @@ func (pc *persistConn) readLoop() {
 			}
 		case <-rc.req.Cancel:
 			alive = false
-			pc.t.CancelRequest(rc.req)
+			pc.t.cancelRequest(rc.cancelKey, errRequestCanceled)
 		case <-rc.req.Context().Done():
 			alive = false
 			pc.t.cancelRequest(rc.cancelKey, rc.req.Context().Err())

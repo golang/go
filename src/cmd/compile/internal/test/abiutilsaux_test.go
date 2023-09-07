@@ -21,10 +21,9 @@ import (
 
 func mkParamResultField(t *types.Type, s *types.Sym, which ir.Class) *types.Field {
 	field := types.NewField(src.NoXPos, s, t)
-	n := typecheck.NewName(s)
+	n := ir.NewNameAt(src.NoXPos, s, t)
 	n.Class = which
 	field.Nname = n
-	n.SetType(t)
 	return field
 }
 
@@ -77,7 +76,7 @@ func tokenize(src string) []string {
 }
 
 func verifyParamResultOffset(t *testing.T, f *types.Field, r abi.ABIParamAssignment, which string, idx int) int {
-	n := ir.AsNode(f.Nname).(*ir.Name)
+	n := f.Nname.(*ir.Name)
 	if n.FrameOffset() != int64(r.Offset()) {
 		t.Errorf("%s %d: got offset %d wanted %d t=%v",
 			which, idx, r.Offset(), n.Offset_, f.Type)

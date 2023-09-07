@@ -257,11 +257,15 @@ func traceBufPtrOf(b *traceBuf) traceBufPtr {
 }
 
 // traceEnabled returns true if the trace is currently enabled.
+//
+//go:nosplit
 func traceEnabled() bool {
 	return trace.enabled
 }
 
 // traceShuttingDown returns true if the trace is currently shutting down.
+//
+//go:nosplit
 func traceShuttingDown() bool {
 	return trace.shutdown
 }
@@ -1345,7 +1349,6 @@ func fpunwindExpand(pcBuf []uintptr) []uintptr {
 	}
 
 	var (
-		cache      pcvalueCache
 		lastFuncID = abi.FuncIDNormal
 		newPCBuf   = make([]uintptr, 0, traceStackSize)
 		skip       = pcBuf[0]
@@ -1374,7 +1377,7 @@ outer:
 			continue
 		}
 
-		u, uf := newInlineUnwinder(fi, callPC, &cache)
+		u, uf := newInlineUnwinder(fi, callPC)
 		for ; uf.valid(); uf = u.next(uf) {
 			sf := u.srcFunc(uf)
 			if sf.funcID == abi.FuncIDWrapper && elideWrapperCalling(lastFuncID) {

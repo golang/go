@@ -190,24 +190,28 @@ func initMetrics() {
 			},
 		},
 		"/gc/scan/globals:bytes": {
+			deps: makeStatDepSet(gcStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
 				out.scalar = in.gcStats.globalsScan
 			},
 		},
 		"/gc/scan/heap:bytes": {
+			deps: makeStatDepSet(gcStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
 				out.scalar = in.gcStats.heapScan
 			},
 		},
 		"/gc/scan/stack:bytes": {
+			deps: makeStatDepSet(gcStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
 				out.scalar = in.gcStats.stackScan
 			},
 		},
 		"/gc/scan/total:bytes": {
+			deps: makeStatDepSet(gcStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
 				out.scalar = in.gcStats.totalScan
@@ -667,7 +671,7 @@ func (a *cpuStatsAggregate) compute() {
 	// a.cpuStats.accumulate(nanotime(), gcphase == _GCmark)
 }
 
-// cpuStatsAggregate represents various GC stats obtained from the runtime
+// gcStatsAggregate represents various GC stats obtained from the runtime
 // acquired together to avoid skew and inconsistencies.
 type gcStatsAggregate struct {
 	heapScan    uint64

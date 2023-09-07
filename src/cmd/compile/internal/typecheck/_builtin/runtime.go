@@ -280,3 +280,5 @@ var x86HasSSE41 bool
 var x86HasFMA bool
 var armHasVFPv4 bool
 var arm64HasATOMICS bool
+
+func asanregisterglobals(unsafe.Pointer, uintptr)

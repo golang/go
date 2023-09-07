@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,14 +29,14 @@ import (
 // Marshal returns the JSON encoding of v.
 //
 // Marshal traverses the value v recursively.
-// If an encountered value implements the Marshaler interface
-// and is not a nil pointer, Marshal calls its MarshalJSON method
-// to produce JSON. If no MarshalJSON method is present but the
-// value implements encoding.TextMarshaler instead, Marshal calls
-// its MarshalText method and encodes the result as a JSON string.
+// If an encountered value implements [Marshaler]
+// and is not a nil pointer, Marshal calls [Marshaler.MarshalJSON]
+// to produce JSON. If no [Marshaler.MarshalJSON] method is present but the
+// value implements [encoding.TextMarshaler] instead, Marshal calls
+// [encoding.TextMarshaler.MarshalText] and encodes the result as a JSON string.
 // The nil pointer exception is not strictly necessary
 // but mimics a similar, necessary exception in the behavior of
-// UnmarshalJSON.
+// [Unmarshaler.UnmarshalJSON].
 //
 // Otherwise, Marshal uses the following type-dependent default encodings:
 //
@@ -245,7 +246,7 @@ func (e *MarshalerError) Error() string {
 // Unwrap returns the underlying error.
 func (e *MarshalerError) Unwrap() error { return e.Err }
 
-var hex = "0123456789abcdef"
+const hex = "0123456789abcdef"
 
 // An encodeState encodes JSON into a bytes.Buffer.
 type encodeState struct {
@@ -739,16 +740,20 @@ func (me mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	e.WriteByte('{')
 
 	// Extract and sort the keys.
-	sv := make([]reflectWithString, v.Len())
-	mi := v.MapRange()
+	var (
+		sv  = make([]reflectWithString, v.Len())
+		mi  = v.MapRange()
+		err error
+	)
 	for i := 0; mi.Next(); i++ {
-		sv[i].k = mi.Key()
-		sv[i].v = mi.Value()
-		if err := sv[i].resolve(); err != nil {
+		if sv[i].ks, err = resolveKeyName(mi.Key()); err != nil {
 			e.error(fmt.Errorf("json: encoding error for type %q: %q", v.Type().String(), err.Error()))
 		}
+		sv[i].v = mi.Value()
 	}
-	sort.Slice(sv, func(i, j int) bool { return sv[i].ks < sv[j].ks })
+	slices.SortFunc(sv, func(i, j reflectWithString) int {
+		return strings.Compare(i.ks, j.ks)
+	})
 
 	for i, kv := range sv {
 		if i > 0 {
@@ -781,15 +786,11 @@ func encodeByteSlice(e *encodeState, v reflect.Value, _ encOpts) {
 		e.WriteString("null")
 		return
 	}
-	s := v.Bytes()
-	encodedLen := base64.StdEncoding.EncodedLen(len(s))
-	e.Grow(len(`"`) + encodedLen + len(`"`))
 
-	// TODO(https://go.dev/issue/53693): Use base64.Encoding.AppendEncode.
+	s := v.Bytes()
 	b := e.AvailableBuffer()
 	b = append(b, '"')
-	base64.StdEncoding.Encode(b[len(b):][:encodedLen], s)
-	b = b[:len(b)+encodedLen]
+	b = base64.StdEncoding.AppendEncode(b, s)
 	b = append(b, '"')
 	e.Write(b)
 }
@@ -931,31 +932,26 @@ func typeByIndex(t reflect.Type, index []int) reflect.Type {
 }
 
 type reflectWithString struct {
-	k  reflect.Value
 	v  reflect.Value
 	ks string
 }
 
-func (w *reflectWithString) resolve() error {
-	if w.k.Kind() == reflect.String {
-		w.ks = w.k.String()
-		return nil
+func resolveKeyName(k reflect.Value) (string, error) {
+	if k.Kind() == reflect.String {
+		return k.String(), nil
 	}
-	if tm, ok := w.k.Interface().(encoding.TextMarshaler); ok {
-		if w.k.Kind() == reflect.Pointer && w.k.IsNil() {
-			return nil
+	if tm, ok := k.Interface().(encoding.TextMarshaler); ok {
+		if k.Kind() == reflect.Pointer && k.IsNil() {
+			return "", nil
 		}
 		buf, err := tm.MarshalText()
-		w.ks = string(buf)
-		return err
+		return string(buf), err
 	}
-	switch w.k.Kind() {
+	switch k.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		w.ks = strconv.FormatInt(w.k.Int(), 10)
-		return nil
+		return strconv.FormatInt(k.Int(), 10), nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		w.ks = strconv.FormatUint(w.k.Uint(), 10)
-		return nil
+		return strconv.FormatUint(k.Uint(), 10), nil
 	}
 	panic("unexpected map key type")
 }
@@ -973,6 +969,10 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
 			switch b {
 			case '\\', '"':
 				dst = append(dst, '\\', b)
+			case '\b':
+				dst = append(dst, '\\', 'b')
+			case '\f':
+				dst = append(dst, '\\', 'f')
 			case '\n':
 				dst = append(dst, '\\', 'n')
 			case '\r':
@@ -980,7 +980,7 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
 			case '\t':
 				dst = append(dst, '\\', 't')
 			default:
-				// This encodes bytes < 0x20 except for \t, \n and \r.
+				// This encodes bytes < 0x20 except for \b, \f, \n, \r and \t.
 				// If escapeHTML is set, it also escapes <, >, and &
 				// because they can lead to security holes when
 				// user-controlled strings are rendered into JSON
@@ -1168,7 +1168,7 @@ func typeFields(t reflect.Type) structFields {
 					if count[f.typ] > 1 {
 						// If there were multiple instances, add a second,
 						// so that the annihilation code will see a duplicate.
-						// It only cares about the distinction between 1 or 2,
+						// It only cares about the distinction between 1 and 2,
 						// so don't bother generating any more copies.
 						fields = append(fields, fields[len(fields)-1])
 					}

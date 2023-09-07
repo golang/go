@@ -208,7 +208,7 @@ type ELFArch struct {
 
 	Reloc1    func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int, int64) bool
 	RelocSize uint32 // size of an ELF relocation record, must match Reloc1.
-	SetupPLT  func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
+	SetupPLT  func(ctxt *Link, ldr *loader.Loader, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
 
 	// DynamicReadOnly can be set to true to make the .dynamic
 	// section read-only. By default it is writable.
@@ -243,7 +243,7 @@ func Elfinit(ctxt *Link) {
 	switch ctxt.Arch.Family {
 	// 64-bit architectures
 	case sys.PPC64, sys.S390X:
-		if ctxt.Arch.ByteOrder == binary.BigEndian {
+		if ctxt.Arch.ByteOrder == binary.BigEndian && ctxt.HeadType != objabi.Hopenbsd {
 			ehdr.Flags = 1 /* Version 1 ABI */
 		} else {
 			ehdr.Flags = 2 /* Version 2 ABI */
@@ -1585,7 +1585,7 @@ func (ctxt *Link) doelf() {
 			// S390X uses .got instead of .got.plt
 			gotplt = got
 		}
-		thearch.ELF.SetupPLT(ctxt, plt, gotplt, dynamic.Sym())
+		thearch.ELF.SetupPLT(ctxt, ctxt.loader, plt, gotplt, dynamic.Sym())
 
 		/*
 		 * .dynamic table

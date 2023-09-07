@@ -498,7 +498,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 
 	// Read section headers
-	c := saferio.SliceCap((*Section)(nil), uint64(shnum))
+	c := saferio.SliceCap[Section](uint64(shnum))
 	if c < 0 {
 		return nil, &FormatError{0, "too many sections", shnum}
 	}

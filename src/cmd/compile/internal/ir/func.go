@@ -96,10 +96,15 @@ type Func struct {
 
 	Inl *Inline
 
-	// Closgen tracks how many closures have been generated within
-	// this function. Used by closurename for creating unique
+	// funcLitGen and goDeferGen track how many closures have been
+	// created in this function for function literals and go/defer
+	// wrappers, respectively. Used by closureName for creating unique
 	// function names.
-	Closgen int32
+	//
+	// Tracking goDeferGen separately avoids wrappers throwing off
+	// function literal numbering (e.g., runtime/trace_test.TestTraceSymbolize.func11).
+	funcLitGen int32
+	goDeferGen int32
 
 	Label int32 // largest auto-generated label in this function
 
@@ -147,14 +152,29 @@ type WasmImport struct {
 	Name   string
 }
 
-func NewFunc(pos src.XPos) *Func {
-	f := new(Func)
-	f.pos = pos
-	f.op = ODCLFUNC
+// NewFunc returns a new Func with the given name and type.
+//
+// fpos is the position of the "func" token, and npos is the position
+// of the name identifier.
+//
+// TODO(mdempsky): I suspect there's no need for separate fpos and
+// npos.
+func NewFunc(fpos, npos src.XPos, sym *types.Sym, typ *types.Type) *Func {
+	name := NewNameAt(npos, sym, typ)
+	name.Class = PFUNC
+	sym.SetFunc(true)
+
+	fn := &Func{Nname: name}
+	fn.pos = fpos
+	fn.op = ODCLFUNC
 	// Most functions are ABIInternal. The importer or symabis
 	// pass may override this.
-	f.ABI = obj.ABIInternal
-	return f
+	fn.ABI = obj.ABIInternal
+	fn.SetTypecheck(1)
+
+	name.Func = fn
+
+	return fn
 }
 
 func (f *Func) isStmt() {}
@@ -173,12 +193,12 @@ func (f *Func) LinksymABI(abi obj.ABI) *obj.LSym { return f.Nname.LinksymABI(abi
 type Inline struct {
 	Cost int32 // heuristic cost of inlining this function
 
-	// Copies of Func.Dcl and Func.Body for use during inlining. Copies are
-	// needed because the function's dcl/body may be changed by later compiler
-	// transformations. These fields are also populated when a function from
-	// another package is imported.
-	Dcl  []*Name
-	Body []Node
+	// Copy of Func.Dcl for use during inlining. This copy is needed
+	// because the function's Dcl may change from later compiler
+	// transformations. This field is also populated when a function
+	// from another package is imported and inlined.
+	Dcl     []*Name
+	HaveDcl bool // whether we've loaded Dcl
 
 	// CanDelayResults reports whether it's safe for the inliner to delay
 	// initializing the result parameters until immediately before the
@@ -212,10 +232,10 @@ const (
 	funcHasDefer                 // contains a defer statement
 	funcNilCheckDisabled         // disable nil checks when compiling this function
 	funcInlinabilityChecked      // inliner has already determined whether the function is inlinable
-	funcExportInline             // include inline body in export data
+	funcNeverReturns             // function never returns (in most cases calls panic(), os.Exit(), or equivalent)
 	funcInstrumentBody           // add race/msan/asan instrumentation during SSA construction
 	funcOpenCodedDeferDisallowed // can't do open-coded defers
-	funcClosureCalled            // closure is only immediately called; used by escape analysis
+	funcClosureResultsLost       // closure is called indirectly and we lost track of its results; used by escape analysis
 	funcPackageInit              // compiler emitted .init func for package
 )
 
@@ -234,10 +254,10 @@ func (f *Func) IsDeadcodeClosure() bool        { return f.flags&funcIsDeadcodeCl
 func (f *Func) HasDefer() bool                 { return f.flags&funcHasDefer != 0 }
 func (f *Func) NilCheckDisabled() bool         { return f.flags&funcNilCheckDisabled != 0 }
 func (f *Func) InlinabilityChecked() bool      { return f.flags&funcInlinabilityChecked != 0 }
-func (f *Func) ExportInline() bool             { return f.flags&funcExportInline != 0 }
+func (f *Func) NeverReturns() bool             { return f.flags&funcNeverReturns != 0 }
 func (f *Func) InstrumentBody() bool           { return f.flags&funcInstrumentBody != 0 }
 func (f *Func) OpenCodedDeferDisallowed() bool { return f.flags&funcOpenCodedDeferDisallowed != 0 }
-func (f *Func) ClosureCalled() bool            { return f.flags&funcClosureCalled != 0 }
+func (f *Func) ClosureResultsLost() bool       { return f.flags&funcClosureResultsLost != 0 }
 func (f *Func) IsPackageInit() bool            { return f.flags&funcPackageInit != 0 }
 
 func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
@@ -250,10 +270,10 @@ func (f *Func) SetIsDeadcodeClosure(b bool)        { f.flags.set(funcIsDeadcodeC
 func (f *Func) SetHasDefer(b bool)                 { f.flags.set(funcHasDefer, b) }
 func (f *Func) SetNilCheckDisabled(b bool)         { f.flags.set(funcNilCheckDisabled, b) }
 func (f *Func) SetInlinabilityChecked(b bool)      { f.flags.set(funcInlinabilityChecked, b) }
-func (f *Func) SetExportInline(b bool)             { f.flags.set(funcExportInline, b) }
+func (f *Func) SetNeverReturns(b bool)             { f.flags.set(funcNeverReturns, b) }
 func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentBody, b) }
 func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
-func (f *Func) SetClosureCalled(b bool)            { f.flags.set(funcClosureCalled, b) }
+func (f *Func) SetClosureResultsLost(b bool)       { f.flags.set(funcClosureResultsLost, b) }
 func (f *Func) SetIsPackageInit(b bool)            { f.flags.set(funcPackageInit, b) }
 
 func (f *Func) SetWBPos(pos src.XPos) {
@@ -301,14 +321,6 @@ func LinkFuncName(f *Func) string {
 	return objabi.PathToPrefix(pkg.Path) + "." + s.Name
 }
 
-// IsEqOrHashFunc reports whether f is type eq/hash function.
-func IsEqOrHashFunc(f *Func) bool {
-	if f == nil || f.Nname == nil {
-		return false
-	}
-	return types.IsTypePkg(f.Sym().Pkg)
-}
-
 var CurFunc *Func
 
 // WithFunc invokes do with CurFunc and base.Pos set to curfn and
@@ -324,16 +336,6 @@ func WithFunc(curfn *Func, do func()) {
 
 func FuncSymName(s *types.Sym) string {
 	return s.Name + "·f"
-}
-
-// MarkFunc marks a node as a function.
-func MarkFunc(n *Name) {
-	if n.Op() != ONAME || n.Class != Pxxx {
-		base.FatalfAt(n.Pos(), "expected ONAME/Pxxx node, got %v (%v/%v)", n, n.Op(), n.Class)
-	}
-
-	n.Class = PFUNC
-	n.Sym().SetFunc(true)
 }
 
 // ClosureDebugRuntimeCheck applies boilerplate checks for debug flags
@@ -361,25 +363,35 @@ func IsTrivialClosure(clo *ClosureExpr) bool {
 var globClosgen int32
 
 // closureName generates a new unique name for a closure within outerfn at pos.
-func closureName(outerfn *Func, pos src.XPos) *types.Sym {
+func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
 	pkg := types.LocalPkg
 	outer := "glob."
-	prefix := "func"
+	var prefix string
+	switch why {
+	default:
+		base.FatalfAt(pos, "closureName: bad Op: %v", why)
+	case OCLOSURE:
+		if outerfn == nil || outerfn.OClosure == nil {
+			prefix = "func"
+		}
+	case OGO:
+		prefix = "gowrap"
+	case ODEFER:
+		prefix = "deferwrap"
+	}
 	gen := &globClosgen
 
-	if outerfn != nil {
-		if outerfn.OClosure != nil {
-			prefix = ""
-		}
-
+	// There may be multiple functions named "_". In those
+	// cases, we can't use their individual Closgens as it
+	// would lead to name clashes.
+	if outerfn != nil && !IsBlank(outerfn.Nname) {
 		pkg = outerfn.Sym().Pkg
 		outer = FuncName(outerfn)
 
-		// There may be multiple functions named "_". In those
-		// cases, we can't use their individual Closgens as it
-		// would lead to name clashes.
-		if !IsBlank(outerfn.Nname) {
-			gen = &outerfn.Closgen
+		if why == OCLOSURE {
+			gen = &outerfn.funcLitGen
+		} else {
+			gen = &outerfn.goDeferGen
 		}
 	}
 
@@ -398,80 +410,34 @@ func closureName(outerfn *Func, pos src.XPos) *types.Sym {
 	return pkg.Lookup(fmt.Sprintf("%s.%s%d", outer, prefix, *gen))
 }
 
-// NewClosureFunc creates a new Func to represent a function literal.
-// If hidden is true, then the closure is marked hidden (i.e., as a
-// function literal contained within another function, rather than a
-// package-scope variable initialization expression).
-func NewClosureFunc(pos src.XPos, hidden bool) *Func {
-	fn := NewFunc(pos)
-	fn.SetIsHiddenClosure(hidden)
+// NewClosureFunc creates a new Func to represent a function literal
+// with the given type.
+//
+// fpos the position used for the underlying ODCLFUNC and ONAME,
+// whereas cpos is the position used for the OCLOSURE. They're
+// separate because in the presence of inlining, the OCLOSURE node
+// should have an inline-adjusted position, whereas the ODCLFUNC and
+// ONAME must not.
+//
+// outerfn is the enclosing function, if any. The returned function is
+// appending to pkg.Funcs.
+//
+// why is the reason we're generating this Func. It can be OCLOSURE
+// (for a normal function literal) or OGO or ODEFER (for wrapping a
+// call expression that has parameters or results).
+func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func, pkg *Package) *Func {
+	fn := NewFunc(fpos, fpos, closureName(outerfn, cpos, why), typ)
+	fn.SetIsHiddenClosure(outerfn != nil)
 
-	fn.Nname = NewNameAt(pos, BlankNode.Sym())
-	fn.Nname.Func = fn
+	clo := &ClosureExpr{Func: fn}
+	clo.op = OCLOSURE
+	clo.pos = cpos
+	clo.SetType(typ)
+	clo.SetTypecheck(1)
+	fn.OClosure = clo
+
 	fn.Nname.Defn = fn
-
-	fn.OClosure = &ClosureExpr{Func: fn}
-	fn.OClosure.op = OCLOSURE
-	fn.OClosure.pos = pos
+	pkg.Funcs = append(pkg.Funcs, fn)
 
 	return fn
-}
-
-// NameClosure generates a unique for the given function literal,
-// which must have appeared within outerfn.
-func NameClosure(clo *ClosureExpr, outerfn *Func) {
-	fn := clo.Func
-	if fn.IsHiddenClosure() != (outerfn != nil) {
-		base.FatalfAt(clo.Pos(), "closure naming inconsistency: hidden %v, but outer %v", fn.IsHiddenClosure(), outerfn)
-	}
-
-	name := fn.Nname
-	if !IsBlank(name) {
-		base.FatalfAt(clo.Pos(), "closure already named: %v", name)
-	}
-
-	name.SetSym(closureName(outerfn, clo.Pos()))
-	MarkFunc(name)
-}
-
-// UseClosure checks that the given function literal has been setup
-// correctly, and then returns it as an expression.
-// It must be called after clo.Func.ClosureVars has been set.
-func UseClosure(clo *ClosureExpr, pkg *Package) Node {
-	fn := clo.Func
-	name := fn.Nname
-
-	if IsBlank(name) {
-		base.FatalfAt(fn.Pos(), "unnamed closure func: %v", fn)
-	}
-	// Caution: clo.Typecheck() is still 0 when UseClosure is called by
-	// tcClosure.
-	if fn.Typecheck() != 1 || name.Typecheck() != 1 {
-		base.FatalfAt(fn.Pos(), "missed typecheck: %v", fn)
-	}
-	if clo.Type() == nil || name.Type() == nil {
-		base.FatalfAt(fn.Pos(), "missing types: %v", fn)
-	}
-	if !types.Identical(clo.Type(), name.Type()) {
-		base.FatalfAt(fn.Pos(), "mismatched types: %v", fn)
-	}
-
-	if base.Flag.W > 1 {
-		s := fmt.Sprintf("new closure func: %v", fn)
-		Dump(s, fn)
-	}
-
-	if pkg != nil {
-		pkg.Decls = append(pkg.Decls, fn)
-	}
-
-	if false && IsTrivialClosure(clo) {
-		// TODO(mdempsky): Investigate if we can/should optimize this
-		// case. walkClosure already handles it later, but it could be
-		// useful to recognize earlier (e.g., it might allow multiple
-		// inlined calls to a function to share a common trivial closure
-		// func, rather than cloning it for each inlined call).
-	}
-
-	return clo
 }

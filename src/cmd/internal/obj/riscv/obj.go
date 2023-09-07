@@ -1181,6 +1181,12 @@ func validateRaw(ctxt *obj.Link, ins *instruction) {
 	}
 }
 
+// extractBitAndShift extracts the specified bit from the given immediate,
+// before shifting it to the requested position and returning it.
+func extractBitAndShift(imm uint32, bit, pos int) uint32 {
+	return ((imm >> bit) & 1) << pos
+}
+
 // encodeR encodes an R-type RISC-V instruction.
 func encodeR(as obj.As, rs1, rs2, rd, funct3, funct7 uint32) uint32 {
 	enc := encode(as)
@@ -1272,6 +1278,11 @@ func encodeSF(ins *instruction) uint32 {
 	return encodeS(ins.as, regI(ins.rd), regF(ins.rs1), uint32(ins.imm))
 }
 
+// encodeBImmediate encodes an immediate for a B-type RISC-V instruction.
+func encodeBImmediate(imm uint32) uint32 {
+	return (imm>>12)<<31 | ((imm>>5)&0x3f)<<25 | ((imm>>1)&0xf)<<8 | ((imm>>11)&0x1)<<7
+}
+
 // encodeB encodes a B-type RISC-V instruction.
 func encodeB(ins *instruction) uint32 {
 	imm := immI(ins.as, ins.imm, 13)
@@ -1281,7 +1292,7 @@ func encodeB(ins *instruction) uint32 {
 	if enc == nil {
 		panic("encodeB: could not encode instruction")
 	}
-	return (imm>>12)<<31 | ((imm>>5)&0x3f)<<25 | rs2<<20 | rs1<<15 | enc.funct3<<12 | ((imm>>1)&0xf)<<8 | ((imm>>11)&0x1)<<7 | enc.opcode
+	return encodeBImmediate(imm) | rs2<<20 | rs1<<15 | enc.funct3<<12 | enc.opcode
 }
 
 // encodeU encodes a U-type RISC-V instruction.
@@ -1315,6 +1326,37 @@ func encodeJ(ins *instruction) uint32 {
 	return encodeJImmediate(imm) | rd<<7 | enc.opcode
 }
 
+// encodeCBImmediate encodes an immediate for a CB-type RISC-V instruction.
+func encodeCBImmediate(imm uint32) uint32 {
+	// Bit order - [8|4:3|7:6|2:1|5]
+	bits := extractBitAndShift(imm, 8, 7)
+	bits |= extractBitAndShift(imm, 4, 6)
+	bits |= extractBitAndShift(imm, 3, 5)
+	bits |= extractBitAndShift(imm, 7, 4)
+	bits |= extractBitAndShift(imm, 6, 3)
+	bits |= extractBitAndShift(imm, 2, 2)
+	bits |= extractBitAndShift(imm, 1, 1)
+	bits |= extractBitAndShift(imm, 5, 0)
+	return (bits>>5)<<10 | (bits&0x1f)<<2
+}
+
+// encodeCJImmediate encodes an immediate for a CJ-type RISC-V instruction.
+func encodeCJImmediate(imm uint32) uint32 {
+	// Bit order - [11|4|9:8|10|6|7|3:1|5]
+	bits := extractBitAndShift(imm, 11, 10)
+	bits |= extractBitAndShift(imm, 4, 9)
+	bits |= extractBitAndShift(imm, 9, 8)
+	bits |= extractBitAndShift(imm, 8, 7)
+	bits |= extractBitAndShift(imm, 10, 6)
+	bits |= extractBitAndShift(imm, 6, 5)
+	bits |= extractBitAndShift(imm, 7, 4)
+	bits |= extractBitAndShift(imm, 3, 3)
+	bits |= extractBitAndShift(imm, 2, 2)
+	bits |= extractBitAndShift(imm, 1, 1)
+	bits |= extractBitAndShift(imm, 5, 0)
+	return bits << 2
+}
+
 func encodeRawIns(ins *instruction) uint32 {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
@@ -1322,6 +1364,43 @@ func encodeRawIns(ins *instruction) uint32 {
 		panic(fmt.Sprintf("immediate %d cannot fit in 32 bits", ins.imm))
 	}
 	return uint32(ins.imm)
+}
+
+func EncodeBImmediate(imm int64) (int64, error) {
+	if !immIFits(imm, 13) {
+		return 0, fmt.Errorf("immediate %#x does not fit in 13 bits", imm)
+	}
+	if imm&1 != 0 {
+		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+	}
+	return int64(encodeBImmediate(uint32(imm))), nil
+}
+
+func EncodeCBImmediate(imm int64) (int64, error) {
+	if !immIFits(imm, 9) {
+		return 0, fmt.Errorf("immediate %#x does not fit in 9 bits", imm)
+	}
+	if imm&1 != 0 {
+		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+	}
+	return int64(encodeCBImmediate(uint32(imm))), nil
+}
+
+func EncodeCJImmediate(imm int64) (int64, error) {
+	if !immIFits(imm, 12) {
+		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+	}
+	if imm&1 != 0 {
+		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+	}
+	return int64(encodeCJImmediate(uint32(imm))), nil
+}
+
+func EncodeIImmediate(imm int64) (int64, error) {
+	if !immIFits(imm, 12) {
+		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+	}
+	return imm << 20, nil
 }
 
 func EncodeJImmediate(imm int64) (int64, error) {
@@ -1332,13 +1411,6 @@ func EncodeJImmediate(imm int64) (int64, error) {
 		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
 	}
 	return int64(encodeJImmediate(uint32(imm))), nil
-}
-
-func EncodeIImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 12) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
-	}
-	return imm << 20, nil
 }
 
 func EncodeSImmediate(imm int64) (int64, error) {
@@ -1827,6 +1899,53 @@ func instructionsForStore(p *obj.Prog, as obj.As, rd int16) []*instruction {
 	return []*instruction{insLUI, insADD, ins}
 }
 
+func instructionsForTLS(p *obj.Prog, ins *instruction) []*instruction {
+	insAddTP := &instruction{as: AADD, rd: REG_TMP, rs1: REG_TMP, rs2: REG_TP}
+
+	var inss []*instruction
+	if p.Ctxt.Flag_shared {
+		// TLS initial-exec mode - load TLS offset from GOT, add the thread pointer
+		// register, then load from or store to the resulting memory location.
+		insAUIPC := &instruction{as: AAUIPC, rd: REG_TMP}
+		insLoadTLSOffset := &instruction{as: ALD, rd: REG_TMP, rs1: REG_TMP}
+		inss = []*instruction{insAUIPC, insLoadTLSOffset, insAddTP, ins}
+	} else {
+		// TLS local-exec mode - load upper TLS offset, add the lower TLS offset,
+		// add the thread pointer register, then load from or store to the resulting
+		// memory location. Note that this differs from the suggested three
+		// instruction sequence, as the Go linker does not currently have an
+		// easy way to handle relocation across 12 bytes of machine code.
+		insLUI := &instruction{as: ALUI, rd: REG_TMP}
+		insADDIW := &instruction{as: AADDIW, rd: REG_TMP, rs1: REG_TMP}
+		inss = []*instruction{insLUI, insADDIW, insAddTP, ins}
+	}
+	return inss
+}
+
+func instructionsForTLSLoad(p *obj.Prog) []*instruction {
+	if p.From.Sym.Type != objabi.STLSBSS {
+		p.Ctxt.Diag("%v: %v is not a TLS symbol", p, p.From.Sym)
+		return nil
+	}
+
+	ins := instructionForProg(p)
+	ins.as, ins.rs1, ins.rs2, ins.imm = movToLoad(p.As), REG_TMP, obj.REG_NONE, 0
+
+	return instructionsForTLS(p, ins)
+}
+
+func instructionsForTLSStore(p *obj.Prog) []*instruction {
+	if p.To.Sym.Type != objabi.STLSBSS {
+		p.Ctxt.Diag("%v: %v is not a TLS symbol", p, p.To.Sym)
+		return nil
+	}
+
+	ins := instructionForProg(p)
+	ins.as, ins.rd, ins.rs1, ins.rs2, ins.imm = movToStore(p.As), REG_TMP, uint32(p.From.Reg), obj.REG_NONE, 0
+
+	return instructionsForTLS(p, ins)
+}
+
 // instructionsForMOV returns the machine instructions for an *obj.Prog that
 // uses a MOV pseudo-instruction.
 func instructionsForMOV(p *obj.Prog) []*instruction {
@@ -1939,6 +2058,10 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			inss = instructionsForLoad(p, movToLoad(p.As), addrToReg(p.From))
 
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			if p.From.Sym.Type == objabi.STLSBSS {
+				return instructionsForTLSLoad(p)
+			}
+
 			// Note that the values for $off_hi and $off_lo are currently
 			// zero and will be assigned during relocation.
 			//
@@ -1966,6 +2089,10 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			inss = instructionsForStore(p, movToStore(p.As), addrToReg(p.To))
 
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			if p.To.Sym.Type == objabi.STLSBSS {
+				return instructionsForTLSStore(p)
+			}
+
 			// Note that the values for $off_hi and $off_lo are currently
 			// zero and will be assigned during relocation.
 			//
@@ -2244,10 +2371,10 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				break
 			}
 			if addr.Sym.Type == objabi.STLSBSS {
-				if rt == objabi.R_RISCV_PCREL_ITYPE {
-					rt = objabi.R_RISCV_TLS_IE_ITYPE
-				} else if rt == objabi.R_RISCV_PCREL_STYPE {
-					rt = objabi.R_RISCV_TLS_IE_STYPE
+				if ctxt.Flag_shared {
+					rt = objabi.R_RISCV_TLS_IE
+				} else {
+					rt = objabi.R_RISCV_TLS_LE
 				}
 			}
 

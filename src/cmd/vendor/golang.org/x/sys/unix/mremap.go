@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build linux
-// +build linux
+//go:build linux || netbsd
+// +build linux netbsd
 
 package unix
 
@@ -14,8 +14,17 @@ type mremapMmapper struct {
 	mremap func(oldaddr uintptr, oldlength uintptr, newlength uintptr, flags int, newaddr uintptr) (xaddr uintptr, err error)
 }
 
+var mapper = &mremapMmapper{
+	mmapper: mmapper{
+		active: make(map[*byte][]byte),
+		mmap:   mmap,
+		munmap: munmap,
+	},
+	mremap: mremap,
+}
+
 func (m *mremapMmapper) Mremap(oldData []byte, newLength int, flags int) (data []byte, err error) {
-	if newLength <= 0 || len(oldData) == 0 || len(oldData) != cap(oldData) || flags&MREMAP_FIXED != 0 {
+	if newLength <= 0 || len(oldData) == 0 || len(oldData) != cap(oldData) || flags&mremapFixed != 0 {
 		return nil, EINVAL
 	}
 
@@ -32,9 +41,13 @@ func (m *mremapMmapper) Mremap(oldData []byte, newLength int, flags int) (data [
 	}
 	bNew := unsafe.Slice((*byte)(unsafe.Pointer(newAddr)), newLength)
 	pNew := &bNew[cap(bNew)-1]
-	if flags&MREMAP_DONTUNMAP == 0 {
+	if flags&mremapDontunmap == 0 {
 		delete(m.active, pOld)
 	}
 	m.active[pNew] = bNew
 	return bNew, nil
+}
+
+func Mremap(oldData []byte, newLength int, flags int) (data []byte, err error) {
+	return mapper.Mremap(oldData, newLength, flags)
 }

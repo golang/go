@@ -47,8 +47,12 @@ func Is(err, target error) bool {
 	}
 
 	isComparable := reflectlite.TypeOf(target).Comparable()
+	return is(err, target, isComparable)
+}
+
+func is(err, target error, targetComparable bool) bool {
 	for {
-		if isComparable && err == target {
+		if targetComparable && err == target {
 			return true
 		}
 		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(target) {
@@ -62,7 +66,7 @@ func Is(err, target error) bool {
 			}
 		case interface{ Unwrap() []error }:
 			for _, err := range x.Unwrap() {
-				if Is(err, target) {
+				if is(err, target, targetComparable) {
 					return true
 				}
 			}
@@ -106,9 +110,13 @@ func As(err error, target any) bool {
 	if targetType.Kind() != reflectlite.Interface && !targetType.Implements(errorType) {
 		panic("errors: *target must be interface or implement error")
 	}
+	return as(err, target, val, targetType)
+}
+
+func as(err error, target any, targetVal reflectlite.Value, targetType reflectlite.Type) bool {
 	for {
 		if reflectlite.TypeOf(err).AssignableTo(targetType) {
-			val.Elem().Set(reflectlite.ValueOf(err))
+			targetVal.Elem().Set(reflectlite.ValueOf(err))
 			return true
 		}
 		if x, ok := err.(interface{ As(any) bool }); ok && x.As(target) {
@@ -122,7 +130,10 @@ func As(err error, target any) bool {
 			}
 		case interface{ Unwrap() []error }:
 			for _, err := range x.Unwrap() {
-				if As(err, target) {
+				if err == nil {
+					continue
+				}
+				if as(err, target, targetVal, targetType) {
 					return true
 				}
 			}

@@ -177,3 +177,17 @@ func ClosureIndirect() {
 }
 
 func nopFunc(p *int) {} // ERROR "p does not escape"
+
+func ClosureIndirect2() {
+	f := func(p *int) *int { return p } // ERROR "leaking param: p to result ~r0 level=0" "func literal does not escape"
+
+	f(new(int)) // ERROR "new\(int\) does not escape"
+
+	g := f
+	g(new(int)) // ERROR "new\(int\) does not escape"
+
+	h := nopFunc2
+	h(new(int)) // ERROR "new\(int\) does not escape"
+}
+
+func nopFunc2(p *int) *int { return p } // ERROR "leaking param: p to result ~r0 level=0"

@@ -249,17 +249,12 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$16-0
 	RET
 
 TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
-	MOVB	runtime·useQPCTime(SB), R0
-	CMP	$0, R0
-	BNE	useQPC
 	MOVD	$_INTERRUPT_TIME, R3
 	MOVD	time_lo(R3), R0
 	MOVD	$100, R1
 	MUL	R1, R0
 	MOVD	R0, ret+0(FP)
 	RET
-useQPC:
-	RET	runtime·nanotimeQPC(SB)		// tail call
 
 // This is called from rt0_go, which runs on the system stack
 // using the initial stack allocated by the OS.

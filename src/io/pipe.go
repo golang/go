@@ -123,9 +123,7 @@ func (p *pipe) writeCloseError() error {
 }
 
 // A PipeReader is the read half of a pipe.
-type PipeReader struct {
-	p *pipe
-}
+type PipeReader struct{ pipe }
 
 // Read implements the standard Read interface:
 // it reads data from the pipe, blocking until a writer
@@ -133,7 +131,7 @@ type PipeReader struct {
 // If the write end is closed with an error, that error is
 // returned as err; otherwise err is EOF.
 func (r *PipeReader) Read(data []byte) (n int, err error) {
-	return r.p.read(data)
+	return r.pipe.read(data)
 }
 
 // Close closes the reader; subsequent writes to the
@@ -148,13 +146,11 @@ func (r *PipeReader) Close() error {
 // CloseWithError never overwrites the previous error if it exists
 // and always returns nil.
 func (r *PipeReader) CloseWithError(err error) error {
-	return r.p.closeRead(err)
+	return r.pipe.closeRead(err)
 }
 
 // A PipeWriter is the write half of a pipe.
-type PipeWriter struct {
-	p *pipe
-}
+type PipeWriter struct{ r PipeReader }
 
 // Write implements the standard Write interface:
 // it writes data to the pipe, blocking until one or more readers
@@ -162,7 +158,7 @@ type PipeWriter struct {
 // If the read end is closed with an error, that err is
 // returned as err; otherwise err is ErrClosedPipe.
 func (w *PipeWriter) Write(data []byte) (n int, err error) {
-	return w.p.write(data)
+	return w.r.pipe.write(data)
 }
 
 // Close closes the writer; subsequent reads from the
@@ -178,7 +174,7 @@ func (w *PipeWriter) Close() error {
 // CloseWithError never overwrites the previous error if it exists
 // and always returns nil.
 func (w *PipeWriter) CloseWithError(err error) error {
-	return w.p.closeWrite(err)
+	return w.r.pipe.closeWrite(err)
 }
 
 // Pipe creates a synchronous in-memory pipe.
@@ -197,10 +193,10 @@ func (w *PipeWriter) CloseWithError(err error) error {
 // Parallel calls to Read and parallel calls to Write are also safe:
 // the individual calls will be gated sequentially.
 func Pipe() (*PipeReader, *PipeWriter) {
-	p := &pipe{
+	pw := &PipeWriter{r: PipeReader{pipe: pipe{
 		wrCh: make(chan []byte),
 		rdCh: make(chan int),
 		done: make(chan struct{}),
-	}
-	return &PipeReader{p}, &PipeWriter{p}
+	}}}
+	return &pw.r, pw
 }

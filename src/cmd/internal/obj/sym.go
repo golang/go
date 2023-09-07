@@ -36,6 +36,7 @@ import (
 	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"internal/buildcfg"
 	"log"
@@ -162,11 +163,41 @@ func (ctxt *Link) Float64Sym(f float64) *LSym {
 	})
 }
 
+func (ctxt *Link) Int32Sym(i int64) *LSym {
+	name := fmt.Sprintf("$i32.%08x", uint64(i))
+	return ctxt.LookupInit(name, func(s *LSym) {
+		s.Size = 4
+		s.WriteInt(ctxt, 0, 4, i)
+		s.Type = objabi.SRODATA
+		s.Set(AttrLocal, true)
+		s.Set(AttrContentAddressable, true)
+		ctxt.constSyms = append(ctxt.constSyms, s)
+	})
+}
+
 func (ctxt *Link) Int64Sym(i int64) *LSym {
 	name := fmt.Sprintf("$i64.%016x", uint64(i))
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 8
 		s.WriteInt(ctxt, 0, 8, i)
+		s.Type = objabi.SRODATA
+		s.Set(AttrLocal, true)
+		s.Set(AttrContentAddressable, true)
+		ctxt.constSyms = append(ctxt.constSyms, s)
+	})
+}
+
+func (ctxt *Link) Int128Sym(hi, lo int64) *LSym {
+	name := fmt.Sprintf("$i128.%016x%016x", uint64(hi), uint64(lo))
+	return ctxt.LookupInit(name, func(s *LSym) {
+		s.Size = 16
+		if ctxt.Arch.ByteOrder == binary.LittleEndian {
+			s.WriteInt(ctxt, 0, 8, lo)
+			s.WriteInt(ctxt, 8, 8, hi)
+		} else {
+			s.WriteInt(ctxt, 0, 8, hi)
+			s.WriteInt(ctxt, 8, 8, lo)
+		}
 		s.Type = objabi.SRODATA
 		s.Set(AttrLocal, true)
 		s.Set(AttrContentAddressable, true)
@@ -188,6 +219,10 @@ func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
 // asm is set to true if this is called by the assembler (i.e. not the compiler),
 // in which case all the symbols are non-package (for now).
 func (ctxt *Link) NumberSyms() {
+	if ctxt.Pkgpath == "" {
+		panic("NumberSyms called without package path")
+	}
+
 	if ctxt.Headtype == objabi.Haix {
 		// Data must be in a reliable order for reproducible builds.
 		// The original entries are in a reliable order, but the TOC symbols
@@ -218,9 +253,7 @@ func (ctxt *Link) NumberSyms() {
 
 	var idx, hashedidx, hashed64idx, nonpkgidx int32
 	ctxt.traverseSyms(traverseDefs|traversePcdata, func(s *LSym) {
-		// if Pkgpath is unknown, cannot hash symbols with relocations, as it
-		// may reference named symbols whose names are not fully expanded.
-		if s.ContentAddressable() && (ctxt.Pkgpath != "" || len(s.R) == 0) {
+		if s.ContentAddressable() {
 			if s.Size <= 8 && len(s.R) == 0 && contentHashSection(s) == 0 {
 				// We can use short hash only for symbols without relocations.
 				// Don't use short hash for symbols that belong in a particular section
@@ -415,10 +448,6 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 	for _, call := range pc.InlTree.nodes {
 		if call.Func != nil {
 			fn(fsym, call.Func)
-		}
-		f, _ := ctxt.getFileSymbolAndLine(call.Pos)
-		if filesym := ctxt.Lookup(f); filesym != nil {
-			fn(fsym, filesym)
 		}
 	}
 

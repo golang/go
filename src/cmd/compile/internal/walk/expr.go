@@ -17,6 +17,7 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 )
 
 // The result of walkExpr MUST be assigned back to n, e.g.
@@ -459,7 +460,7 @@ func safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
 }
 
 func copyExpr(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
-	l := typecheck.Temp(t)
+	l := typecheck.TempAt(base.Pos, ir.CurFunc, t)
 	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, l, n))
 	return l
 }
@@ -608,7 +609,7 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 
 	for i, arg := range args {
 		// Validate argument and parameter types match.
-		param := params.Field(i)
+		param := params[i]
 		if !types.Identical(arg.Type(), param.Type) {
 			base.FatalfAt(n.Pos(), "assigning %L to parameter %v (type %v)", arg, param.Sym, param.Type)
 		}
@@ -618,7 +619,7 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 		// to prevent that calls from clobbering arguments already on the stack.
 		if mayCall(arg) {
 			// assignment of arg to Temp
-			tmp := typecheck.Temp(param.Type)
+			tmp := typecheck.TempAt(base.Pos, ir.CurFunc, param.Type)
 			init.Append(convas(typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, arg)).(*ir.AssignStmt), init))
 			// replace arg with temp
 			args[i] = tmp
@@ -714,7 +715,7 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 	n.X = walkExpr(n.X, init)
 	// Set up interface type addresses for back end.
 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
-		n.ITab = reflectdata.ITabAddr(n.Type(), n.X.Type())
+		n.ITab = reflectdata.ITabAddrAt(base.Pos, n.Type(), n.X.Type())
 	}
 	return n
 }
@@ -945,14 +946,30 @@ func bounded(n ir.Node, max int64) bool {
 	return false
 }
 
-// usemethod checks calls for uses of reflect.Type.{Method,MethodByName}.
+// usemethod checks calls for uses of Method and MethodByName of reflect.Value,
+// reflect.Type, reflect.(*rtype), and reflect.(*interfaceType).
 func usemethod(n *ir.CallExpr) {
 	// Don't mark reflect.(*rtype).Method, etc. themselves in the reflect package.
 	// Those functions may be alive via the itab, which should not cause all methods
 	// alive. We only want to mark their callers.
 	if base.Ctxt.Pkgpath == "reflect" {
-		switch ir.CurFunc.Nname.Sym().Name { // TODO: is there a better way than hardcoding the names?
-		case "(*rtype).Method", "(*rtype).MethodByName", "(*interfaceType).Method", "(*interfaceType).MethodByName":
+		// TODO: is there a better way than hardcoding the names?
+		switch fn := ir.CurFunc.Nname.Sym().Name; {
+		case fn == "(*rtype).Method", fn == "(*rtype).MethodByName":
+			return
+		case fn == "(*interfaceType).Method", fn == "(*interfaceType).MethodByName":
+			return
+		case fn == "Value.Method", fn == "Value.MethodByName":
+			return
+		// StructOf defines closures that look up methods. They only look up methods
+		// reachable via interfaces. The DCE does not remove such methods. It is ok
+		// to not flag closures in StructOf as ReflectMethods and let the DCE run
+		// even if StructOf is reachable.
+		//
+		// (*rtype).MethodByName calls into StructOf so flagging StructOf as
+		// ReflectMethod would disable the DCE even when the name of a method
+		// to look up is a compile-time constant.
+		case strings.HasPrefix(fn, "StructOf.func"):
 			return
 		}
 	}
@@ -962,38 +979,64 @@ func usemethod(n *ir.CallExpr) {
 		return
 	}
 
-	// Looking for either direct method calls and interface method calls of:
-	//	reflect.Type.Method       - func(int) reflect.Method
-	//	reflect.Type.MethodByName - func(string) (reflect.Method, bool)
-	var pKind types.Kind
-
-	switch dot.Sel.Name {
-	case "Method":
-		pKind = types.TINT
-	case "MethodByName":
-		pKind = types.TSTRING
-	default:
-		return
-	}
-
+	// looking for either direct method calls and interface method calls of:
+	//	reflect.Type.Method        - func(int) reflect.Method
+	//	reflect.Type.MethodByName  - func(string) (reflect.Method, bool)
+	//
+	//	reflect.Value.Method       - func(int) reflect.Value
+	//	reflect.Value.MethodByName - func(string) reflect.Value
+	methodName := dot.Sel.Name
 	t := dot.Selection.Type
-	if t.NumParams() != 1 || t.Params().Field(0).Type.Kind() != pKind {
+
+	// Check the number of arguments and return values.
+	if t.NumParams() != 1 || (t.NumResults() != 1 && t.NumResults() != 2) {
 		return
 	}
-	switch t.NumResults() {
-	case 1:
-		// ok
-	case 2:
-		if t.Results().Field(1).Type.Kind() != types.TBOOL {
-			return
+
+	// Check the type of the argument.
+	switch pKind := t.Param(0).Type.Kind(); {
+	case methodName == "Method" && pKind == types.TINT,
+		methodName == "MethodByName" && pKind == types.TSTRING:
+
+	default:
+		// not a call to Method or MethodByName of reflect.{Type,Value}.
+		return
+	}
+
+	// Check that first result type is "reflect.Method" or "reflect.Value".
+	// Note that we have to check sym name and sym package separately, as
+	// we can't check for exact string "reflect.Method" reliably
+	// (e.g., see #19028 and #38515).
+	switch s := t.Result(0).Type.Sym(); {
+	case s != nil && types.ReflectSymName(s) == "Method",
+		s != nil && types.ReflectSymName(s) == "Value":
+
+	default:
+		// not a call to Method or MethodByName of reflect.{Type,Value}.
+		return
+	}
+
+	var targetName ir.Node
+	switch dot.Op() {
+	case ir.ODOTINTER:
+		if methodName == "MethodByName" {
+			targetName = n.Args[0]
+		}
+	case ir.OMETHEXPR:
+		if methodName == "MethodByName" {
+			targetName = n.Args[1]
 		}
 	default:
-		return
+		base.FatalfAt(dot.Pos(), "usemethod: unexpected dot.Op() %s", dot.Op())
 	}
 
-	// Check that first result type is "reflect.Method". Note that we have to check sym name and sym package
-	// separately, as we can't check for exact string "reflect.Method" reliably (e.g., see #19028 and #38515).
-	if s := t.Results().Field(0).Type.Sym(); s != nil && s.Name == "Method" && types.IsReflectPkg(s.Pkg) {
+	if ir.IsConst(targetName, constant.String) {
+		name := constant.StringVal(targetName.Val())
+
+		r := obj.Addrel(ir.CurFunc.LSym)
+		r.Type = objabi.R_USENAMEDMETHOD
+		r.Sym = staticdata.StringSymNoCommon(name)
+	} else {
 		ir.CurFunc.SetReflectMethod(true)
 		// The LSym is initialized at this point. We need to set the attribute on the LSym.
 		ir.CurFunc.LSym.Set(obj.AttrReflectMethod, true)

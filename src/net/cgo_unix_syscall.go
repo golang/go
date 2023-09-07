@@ -39,10 +39,6 @@ type (
 	_C_struct_sockaddr    = syscall.RawSockaddr
 )
 
-func _C_GoString(p *_C_char) string {
-	return unix.GoString(p)
-}
-
 func _C_free(p unsafe.Pointer) { runtime.KeepAlive(p) }
 
 func _C_malloc(n uintptr) unsafe.Pointer {

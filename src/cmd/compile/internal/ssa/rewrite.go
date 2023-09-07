@@ -1499,6 +1499,25 @@ func encodePPC64RotateMask(rotate, mask, nbits int64) int64 {
 	return int64(me) | int64(mb<<8) | int64(rotate<<16) | int64(nbits<<24)
 }
 
+// Merge (RLDICL [encoded] (SRDconst [s] x)) into (RLDICL [new_encoded] x)
+// SRDconst on PPC64 is an extended mnemonic of RLDICL. If the input to an
+// RLDICL is an SRDconst, and the RLDICL does not rotate its value, the two
+// operations can be combined. This functions assumes the two opcodes can
+// be merged, and returns an encoded rotate+mask value of the combined RLDICL.
+func mergePPC64RLDICLandSRDconst(encoded, s int64) int64 {
+	mb := s
+	r := 64 - s
+	// A larger mb is a smaller mask.
+	if (encoded>>8)&0xFF < mb {
+		encoded = (encoded &^ 0xFF00) | mb<<8
+	}
+	// The rotate is expected to be 0.
+	if (encoded & 0xFF0000) != 0 {
+		panic("non-zero rotate")
+	}
+	return encoded | r<<16
+}
+
 // DecodePPC64RotateMask is the inverse operation of encodePPC64RotateMask.  The values returned as
 // mb and me satisfy the POWER ISA definition of MASK(x,y) where MASK(mb,me) = mask.
 func DecodePPC64RotateMask(sauxint int64) (rotate, mb, me int64, mask uint64) {

@@ -219,7 +219,7 @@ func (w *typeWriter) typ(typ Type) {
 				w.string("any")
 				break
 			}
-			if t == universeComparable.Type().(*Named).underlying {
+			if t == asNamed(universeComparable.Type()).underlying {
 				w.string("interface{comparable}")
 				break
 			}

@@ -37,6 +37,27 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section, or delete if not needed
 </p>
 
+<h3 id="cgo">Cgo</h3>
+
+<p><!-- CL 497837 --> The special comment that precedes
+  <code>import</code> <code>"C"</code> may now include two
+  new <code>#cgo</code> directives.
+  <ul>
+    <li>
+      <code>#cgo</code> <code>noescape</code> <code>cFunctionName</code>
+      tells cgo that Go pointers passed to the C function
+      <code>cFunctionName</code> do not escape.
+    </li>
+    <li>
+      <code>#cgo</code> <code>nocallback</code> <code>cFunctionName</code>
+      tells cgo that the C function <code>cFunctionName</code> does
+      not call any Go functions.
+    </li>
+  </ul>
+  See <a href="/cmd/cgo#hdr-Optimizing_calls_of_C_code">the <code>cgo</code>
+  documentation</a> for more details.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>
@@ -69,6 +90,29 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   TODO: complete this section
 </p>
+
+<dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/60370, CL 501700 -->
+      The new <a href="/pkg/database/sql/#Null"><code>Null[T]</code></a> type
+      provide a way to scan nullable columns for any column types.
+    </p>
+  </dd>
+</dl>
+
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61827, CL 517777 -->
+      The <a href="/pkg/reflect/#Value.IsZero"><code>Value.IsZero</code></a>
+      method will now return true for a floating-point or complex
+      negative zero, and will return true for a struct value if a
+      blank field (a field named <code>_</code>) somehow has a
+      non-zero value.
+      These changes make <code>IsZero</code> consistent with comparing
+      a value to zero using the languague <code>==</code> operator.
+    </p>
+  </dd>
+</dl>
 
 <h2 id="ports">Ports</h2>
 

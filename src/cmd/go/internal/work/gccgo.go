@@ -45,12 +45,8 @@ func (gccgoToolchain) linker() string {
 	return GccgoBin
 }
 
-func (gccgoToolchain) ar() string {
-	ar := cfg.Getenv("AR")
-	if ar == "" {
-		ar = "ar"
-	}
-	return ar
+func (gccgoToolchain) ar() []string {
+	return envList("AR", "ar")
 }
 
 func checkGccgoBin() {
@@ -658,8 +654,8 @@ func (tools gccgoToolchain) supportsCgoIncomplete(b *Builder) bool {
 		cmd.Stdout = &buf
 		cmd.Stderr = &buf
 		err = cmd.Run()
-		if out := buf.String(); len(out) > 0 {
-			b.showOutput(nil, tmpdir, b.fmtcmd(tmpdir, "%s -c -o %s %s", tools.compiler(), on, fn), buf.String())
+		if out := buf.String(); len(out) > 0 && cfg.BuildX {
+			b.showOutput(nil, tmpdir, b.fmtcmd(tmpdir, "%s -c -o %s %s", tools.compiler(), on, fn), out)
 		}
 		gccgoSupportsCgoIncomplete = err == nil
 	})

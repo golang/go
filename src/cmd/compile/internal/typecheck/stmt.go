@@ -20,70 +20,6 @@ func RangeExprType(t *types.Type) *types.Type {
 }
 
 func typecheckrangeExpr(n *ir.RangeStmt) {
-	n.X = Expr(n.X)
-	if n.X.Type() == nil {
-		return
-	}
-
-	t := RangeExprType(n.X.Type())
-	// delicate little dance.  see tcAssignList
-	if n.Key != nil && !ir.DeclaredBy(n.Key, n) {
-		n.Key = AssignExpr(n.Key)
-	}
-	if n.Value != nil && !ir.DeclaredBy(n.Value, n) {
-		n.Value = AssignExpr(n.Value)
-	}
-
-	var tk, tv *types.Type
-	toomany := false
-	switch t.Kind() {
-	default:
-		base.ErrorfAt(n.Pos(), errors.InvalidRangeExpr, "cannot range over %L", n.X)
-		return
-
-	case types.TARRAY, types.TSLICE:
-		tk = types.Types[types.TINT]
-		tv = t.Elem()
-
-	case types.TMAP:
-		tk = t.Key()
-		tv = t.Elem()
-
-	case types.TCHAN:
-		if !t.ChanDir().CanRecv() {
-			base.ErrorfAt(n.Pos(), errors.InvalidRangeExpr, "invalid operation: range %v (receive from send-only type %v)", n.X, n.X.Type())
-			return
-		}
-
-		tk = t.Elem()
-		tv = nil
-		if n.Value != nil {
-			toomany = true
-		}
-
-	case types.TSTRING:
-		tk = types.Types[types.TINT]
-		tv = types.RuneType
-	}
-
-	if toomany {
-		base.ErrorfAt(n.Pos(), errors.InvalidIterVar, "too many variables in range")
-	}
-
-	do := func(nn ir.Node, t *types.Type) {
-		if nn != nil {
-			if ir.DeclaredBy(nn, n) && nn.Type() == nil {
-				nn.SetType(t)
-			} else if nn.Type() != nil {
-				if op, why := Assignop(t, nn.Type()); op == ir.OXXX {
-					base.ErrorfAt(n.Pos(), errors.InvalidIterVar, "cannot assign type %v to %L in range%s", t, nn, why)
-				}
-			}
-			checkassign(nn)
-		}
-	}
-	do(n.Key, tk)
-	do(n.Value, tv)
 }
 
 // type check assignment.
@@ -127,7 +63,6 @@ func assign(stmt ir.Node, lhs, rhs []ir.Node) {
 	// so that the conversion below happens).
 
 	checkLHS := func(i int, typ *types.Type) {
-		lhs[i] = Resolve(lhs[i])
 		if n := lhs[i]; typ != nil && ir.DeclaredBy(n, stmt) && n.Type() == nil {
 			base.Assertf(typ.Kind() == types.TNIL, "unexpected untyped nil")
 			n.SetType(defaultType(typ))
@@ -263,57 +198,181 @@ func tcFor(n *ir.ForStmt) ir.Node {
 	return n
 }
 
+// tcGoDefer typechecks an OGO/ODEFER statement.
+//
+// Really, this means normalizing the statement to always use a simple
+// function call with no arguments and no results. For example, it
+// rewrites:
+//
+//	defer f(x, y)
+//
+// into:
+//
+//	x1, y1 := x, y
+//	defer func() { f(x1, y1) }()
 func tcGoDefer(n *ir.GoDeferStmt) {
-	what := "defer"
-	if n.Op() == ir.OGO {
-		what = "go"
-	}
+	call := n.Call
 
-	switch n.Call.Op() {
-	// ok
-	case ir.OCALLINTER,
-		ir.OCALLMETH,
-		ir.OCALLFUNC,
-		ir.OCLEAR,
-		ir.OCLOSE,
-		ir.OCOPY,
-		ir.ODELETE,
-		ir.OMAX,
-		ir.OMIN,
-		ir.OPANIC,
-		ir.OPRINT,
-		ir.OPRINTN,
-		ir.ORECOVER:
-		return
+	init := n.PtrInit()
+	init.Append(ir.TakeInit(call)...)
 
-	case ir.OAPPEND,
-		ir.OCAP,
-		ir.OCOMPLEX,
-		ir.OIMAG,
-		ir.OLEN,
-		ir.OMAKE,
-		ir.OMAKESLICE,
-		ir.OMAKECHAN,
-		ir.OMAKEMAP,
-		ir.ONEW,
-		ir.OREAL,
-		ir.OLITERAL: // conversion or unsafe.Alignof, Offsetof, Sizeof
-		if orig := ir.Orig(n.Call); orig.Op() == ir.OCONV {
-			break
+	if call, ok := n.Call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
+		if sig := call.X.Type(); sig.NumParams()+sig.NumResults() == 0 {
+			return // already in normal form
 		}
-		base.ErrorfAt(n.Pos(), errors.UnusedResults, "%s discards result of %v", what, n.Call)
-		return
 	}
 
-	// type is broken or missing, most likely a method call on a broken type
-	// we will warn about the broken type elsewhere. no need to emit a potentially confusing error
-	if n.Call.Type() == nil {
-		return
+	// Create a new wrapper function without parameters or results.
+	wrapperFn := ir.NewClosureFunc(n.Pos(), n.Pos(), n.Op(), types.NewSignature(nil, nil, nil), ir.CurFunc, Target)
+	wrapperFn.SetWrapper(true)
+
+	// argps collects the list of operands within the call expression
+	// that must be evaluated at the go/defer statement.
+	var argps []*ir.Node
+
+	var visit func(argp *ir.Node)
+	visit = func(argp *ir.Node) {
+		arg := *argp
+		if arg == nil {
+			return
+		}
+
+		// Recognize a few common expressions that can be evaluated within
+		// the wrapper, so we don't need to allocate space for them within
+		// the closure.
+		switch arg.Op() {
+		case ir.OLITERAL, ir.ONIL, ir.OMETHEXPR, ir.ONEW:
+			return
+		case ir.ONAME:
+			arg := arg.(*ir.Name)
+			if arg.Class == ir.PFUNC {
+				return // reference to global function
+			}
+		case ir.OADDR:
+			arg := arg.(*ir.AddrExpr)
+			if arg.X.Op() == ir.OLINKSYMOFFSET {
+				return // address of global symbol
+			}
+
+		case ir.OCONVNOP:
+			arg := arg.(*ir.ConvExpr)
+
+			// For unsafe.Pointer->uintptr conversion arguments, save the
+			// unsafe.Pointer argument. This is necessary to handle cases
+			// like fixedbugs/issue24491a.go correctly.
+			//
+			// TODO(mdempsky): Limit to static callees with
+			// //go:uintptr{escapes,keepalive}?
+			if arg.Type().IsUintptr() && arg.X.Type().IsUnsafePtr() {
+				visit(&arg.X)
+				return
+			}
+
+		case ir.OARRAYLIT, ir.OSLICELIT, ir.OSTRUCTLIT:
+			// TODO(mdempsky): For very large slices, it may be preferable
+			// to construct them at the go/defer statement instead.
+			list := arg.(*ir.CompLitExpr).List
+			for i, el := range list {
+				switch el := el.(type) {
+				case *ir.KeyExpr:
+					visit(&el.Value)
+				case *ir.StructKeyExpr:
+					visit(&el.Value)
+				default:
+					visit(&list[i])
+				}
+			}
+			return
+		}
+
+		argps = append(argps, argp)
 	}
 
-	// The syntax made sure it was a call, so this must be
-	// a conversion.
-	base.FatalfAt(n.Pos(), "%s requires function call, not conversion", what)
+	visitList := func(list []ir.Node) {
+		for i := range list {
+			visit(&list[i])
+		}
+	}
+
+	switch call.Op() {
+	default:
+		base.Fatalf("unexpected call op: %v", call.Op())
+
+	case ir.OCALLFUNC:
+		call := call.(*ir.CallExpr)
+
+		// If the callee is a named function, link to the original callee.
+		if wrapped := ir.StaticCalleeName(call.X); wrapped != nil {
+			wrapperFn.WrappedFunc = wrapped.Func
+		}
+
+		visit(&call.X)
+		visitList(call.Args)
+
+	case ir.OCALLINTER:
+		call := call.(*ir.CallExpr)
+		argps = append(argps, &call.X.(*ir.SelectorExpr).X) // must be first for OCHECKNIL; see below
+		visitList(call.Args)
+
+	case ir.OAPPEND, ir.ODELETE, ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
+		call := call.(*ir.CallExpr)
+		visitList(call.Args)
+		visit(&call.RType)
+
+	case ir.OCOPY:
+		call := call.(*ir.BinaryExpr)
+		visit(&call.X)
+		visit(&call.Y)
+		visit(&call.RType)
+
+	case ir.OCLEAR, ir.OCLOSE, ir.OPANIC:
+		call := call.(*ir.UnaryExpr)
+		visit(&call.X)
+	}
+
+	if len(argps) != 0 {
+		// Found one or more operands that need to be evaluated upfront
+		// and spilled to temporary variables, which can be captured by
+		// the wrapper function.
+
+		stmtPos := base.Pos
+		callPos := base.Pos
+
+		as := ir.NewAssignListStmt(callPos, ir.OAS2, make([]ir.Node, len(argps)), make([]ir.Node, len(argps)))
+		for i, argp := range argps {
+			arg := *argp
+
+			pos := callPos
+			if ir.HasUniquePos(arg) {
+				pos = arg.Pos()
+			}
+
+			// tmp := arg
+			tmp := TempAt(pos, ir.CurFunc, arg.Type())
+			init.Append(Stmt(ir.NewDecl(pos, ir.ODCL, tmp)))
+			tmp.Defn = as
+			as.Lhs[i] = tmp
+			as.Rhs[i] = arg
+
+			// Rewrite original expression to use/capture tmp.
+			*argp = ir.NewClosureVar(pos, wrapperFn, tmp)
+		}
+		init.Append(Stmt(as))
+
+		// For "go/defer iface.M()", if iface is nil, we need to panic at
+		// the point of the go/defer statement.
+		if call.Op() == ir.OCALLINTER {
+			iface := as.Lhs[0]
+			init.Append(Stmt(ir.NewUnaryExpr(stmtPos, ir.OCHECKNIL, ir.NewUnaryExpr(iface.Pos(), ir.OITAB, iface))))
+		}
+	}
+
+	// Move call into the wrapper function, now that it's safe to
+	// evaluate there.
+	wrapperFn.Body = []ir.Node{call}
+
+	// Finally, rewrite the go/defer statement to call the wrapper.
+	n.Call = Call(call.Pos(), wrapperFn.OClosure, nil, false)
 }
 
 // tcIf typechecks an OIF node.
@@ -334,18 +393,23 @@ func tcIf(n *ir.IfStmt) ir.Node {
 
 // range
 func tcRange(n *ir.RangeStmt) {
-	// Typechecking order is important here:
-	// 0. first typecheck range expression (slice/map/chan),
-	//	it is evaluated only once and so logically it is not part of the loop.
-	// 1. typecheck produced values,
-	//	this part can declare new vars and so it must be typechecked before body,
-	//	because body can contain a closure that captures the vars.
-	// 2. decldepth++ to denote loop body.
-	// 3. typecheck body.
-	// 4. decldepth--.
-	typecheckrangeExpr(n)
+	n.X = Expr(n.X)
 
-	// second half of dance, the first half being typecheckrangeExpr
+	// delicate little dance.  see tcAssignList
+	if n.Key != nil {
+		if !ir.DeclaredBy(n.Key, n) {
+			n.Key = AssignExpr(n.Key)
+		}
+		checkassign(n.Key)
+	}
+	if n.Value != nil {
+		if !ir.DeclaredBy(n.Value, n) {
+			n.Value = AssignExpr(n.Value)
+		}
+		checkassign(n.Value)
+	}
+
+	// second half of dance
 	n.SetTypecheck(1)
 	if n.Key != nil && n.Key.Typecheck() == 0 {
 		n.Key = AssignExpr(n.Key)

@@ -576,9 +576,7 @@ func setup() {
 func mustLinkExternal(goos, goarch string, cgoEnabled bool) bool {
 	if cgoEnabled {
 		switch goarch {
-		case "loong64",
-			"mips", "mipsle", "mips64", "mips64le",
-			"riscv64":
+		case "loong64", "mips", "mipsle", "mips64", "mips64le":
 			// Internally linking cgo is incomplete on some architectures.
 			// https://golang.org/issue/14449
 			return true
@@ -589,7 +587,9 @@ func mustLinkExternal(goos, goarch string, cgoEnabled bool) bool {
 			}
 		case "ppc64":
 			// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
-			return true
+			if goos == "aix" || goos == "linux" {
+				return true
+			}
 		}
 
 		switch goos {
@@ -892,9 +892,6 @@ func runInstall(pkg string, ch chan struct{}) {
 		}
 	}
 	goasmh := pathf("%s/go_asm.h", workdir)
-	if IsRuntimePackagePath(pkg) {
-		asmArgs = append(asmArgs, "-compiling-runtime")
-	}
 
 	// Collect symabis from assembly code.
 	var symabis string
@@ -948,9 +945,6 @@ func runInstall(pkg string, ch chan struct{}) {
 	compile := []string{pathf("%s/compile", tooldir), "-std", "-pack", "-o", b, "-p", pkgName, "-importcfg", importcfg}
 	if gogcflags != "" {
 		compile = append(compile, strings.Fields(gogcflags)...)
-	}
-	if pkg == "runtime" {
-		compile = append(compile, "-+")
 	}
 	if len(sfiles) > 0 {
 		compile = append(compile, "-asmhdr", goasmh)
@@ -1577,6 +1571,9 @@ func cmdbootstrap() {
 		ok[f] = true
 	}
 	for _, f := range binFiles {
+		if gohostos == "darwin" && filepath.Base(f) == ".DS_Store" {
+			continue // unfortunate but not unexpected
+		}
 		elem := strings.TrimSuffix(filepath.Base(f), ".exe")
 		if !ok[f] && elem != "go" && elem != "gofmt" && elem != goos+"_"+goarch {
 			fatalf("unexpected new file in $GOROOT/bin: %s", elem)
@@ -1942,29 +1939,6 @@ func cmdlist() {
 	if _, err := os.Stdout.Write(out); err != nil {
 		fatalf("write failed: %v", err)
 	}
-}
-
-// IsRuntimePackagePath examines 'pkgpath' and returns TRUE if it
-// belongs to the collection of "runtime-related" packages, including
-// "runtime" itself, "reflect", "syscall", and the
-// "runtime/internal/*" packages.
-//
-// Keep in sync with cmd/internal/objabi/path.go:IsRuntimePackagePath.
-func IsRuntimePackagePath(pkgpath string) bool {
-	rval := false
-	switch pkgpath {
-	case "runtime":
-		rval = true
-	case "reflect":
-		rval = true
-	case "syscall":
-		rval = true
-	case "internal/bytealg":
-		rval = true
-	default:
-		rval = strings.HasPrefix(pkgpath, "runtime/internal")
-	}
-	return rval
 }
 
 func setNoOpt() {

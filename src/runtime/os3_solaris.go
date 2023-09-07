@@ -231,6 +231,7 @@ func minit() {
 // Called from dropm to undo the effect of an minit.
 func unminit() {
 	unminitSignals()
+	getg().m.procid = 0
 }
 
 // Called from exitm, but not from drop, to undo the effect of thread-owned

@@ -619,13 +619,25 @@ var unaryDst = map[obj.As]bool{
 
 // Instruction encoding masks.
 const (
-	// JTypeImmMask is a mask including only the immediate portion of
-	// J-type instructions.
-	JTypeImmMask = 0xfffff000
+	// BTypeImmMask is a mask including only the immediate portion of
+	// B-type instructions.
+	BTypeImmMask = 0xfe000f80
+
+	// CBTypeImmMask is a mask including only the immediate portion of
+	// CB-type instructions.
+	CBTypeImmMask = 0x1c7c
+
+	// CJTypeImmMask is a mask including only the immediate portion of
+	// CJ-type instructions.
+	CJTypeImmMask = 0x1f7c
 
 	// ITypeImmMask is a mask including only the immediate portion of
 	// I-type instructions.
 	ITypeImmMask = 0xfff00000
+
+	// JTypeImmMask is a mask including only the immediate portion of
+	// J-type instructions.
+	JTypeImmMask = 0xfffff000
 
 	// STypeImmMask is a mask including only the immediate portion of
 	// S-type instructions.

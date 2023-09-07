@@ -24,10 +24,21 @@ import (
 var toRemove []string
 
 func TestMain(m *testing.M) {
+	_, coreErrBefore := os.Stat("core")
+
 	status := m.Run()
 	for _, file := range toRemove {
 		os.RemoveAll(file)
 	}
+
+	_, coreErrAfter := os.Stat("core")
+	if coreErrBefore != nil && coreErrAfter == nil {
+		fmt.Fprintln(os.Stderr, "runtime.test: some test left a core file behind")
+		if status == 0 {
+			status = 1
+		}
+	}
+
 	os.Exit(status)
 }
 
@@ -766,7 +777,7 @@ func init() {
 
 func TestRuntimePanic(t *testing.T) {
 	testenv.MustHaveExec(t)
-	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestRuntimePanic"))
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestRuntimePanic$"))
 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_PANIC=1")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
@@ -787,7 +798,7 @@ func TestG0StackOverflow(t *testing.T) {
 	}
 
 	if os.Getenv("TEST_G0_STACK_OVERFLOW") != "1" {
-		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestG0StackOverflow", "-test.v"))
+		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestG0StackOverflow$", "-test.v"))
 		cmd.Env = append(cmd.Env, "TEST_G0_STACK_OVERFLOW=1")
 		out, err := cmd.CombinedOutput()
 		// Don't check err since it's expected to crash.

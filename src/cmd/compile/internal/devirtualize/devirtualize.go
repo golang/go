@@ -113,10 +113,9 @@ func staticCall(call *ir.CallExpr) {
 
 	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, nil)
 	dt.SetType(typ)
-	x := typecheck.Callee(ir.NewSelectorExpr(sel.Pos(), ir.OXDOT, dt, sel.Sel))
+	x := typecheck.XDotMethod(sel.Pos(), dt, sel.Sel, true)
 	switch x.Op() {
 	case ir.ODOTMETH:
-		x := x.(*ir.SelectorExpr)
 		if base.Flag.LowerM != 0 {
 			base.WarnfAt(call.Pos(), "devirtualizing %v to %v", sel, typ)
 		}
@@ -124,18 +123,13 @@ func staticCall(call *ir.CallExpr) {
 		call.X = x
 	case ir.ODOTINTER:
 		// Promoted method from embedded interface-typed field (#42279).
-		x := x.(*ir.SelectorExpr)
 		if base.Flag.LowerM != 0 {
 			base.WarnfAt(call.Pos(), "partially devirtualizing %v to %v", sel, typ)
 		}
 		call.SetOp(ir.OCALLINTER)
 		call.X = x
 	default:
-		// TODO(mdempsky): Turn back into Fatalf after more testing.
-		if base.Flag.LowerM != 0 {
-			base.WarnfAt(call.Pos(), "failed to devirtualize %v (%v)", x, x.Op())
-		}
-		return
+		base.FatalfAt(call.Pos(), "failed to devirtualize %v (%v)", x, x.Op())
 	}
 
 	// Duplicated logic from typecheck for function call return
@@ -148,9 +142,9 @@ func staticCall(call *ir.CallExpr) {
 	switch ft := x.Type(); ft.NumResults() {
 	case 0:
 	case 1:
-		call.SetType(ft.Results().Field(0).Type)
+		call.SetType(ft.Result(0).Type)
 	default:
-		call.SetType(ft.Results())
+		call.SetType(ft.ResultsTuple())
 	}
 
 	// Desugar OCALLMETH, if we created one (#57309).

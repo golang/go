@@ -204,6 +204,15 @@ func TestGetwd_DoesNotPanicWhenPathIsLong(t *testing.T) {
 	syscall.Getwd()
 }
 
+func TestGetStartupInfo(t *testing.T) {
+	var si syscall.StartupInfo
+	err := syscall.GetStartupInfo(&si)
+	if err != nil {
+		// see https://go.dev/issue/31316
+		t.Fatalf("GetStartupInfo: got error %v, want nil", err)
+	}
+}
+
 func FuzzUTF16FromString(f *testing.F) {
 	f.Add("hi")           // ASCII
 	f.Add("â")            // latin1

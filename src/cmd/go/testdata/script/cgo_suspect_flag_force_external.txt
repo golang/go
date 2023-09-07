@@ -95,6 +95,9 @@ go build -ldflags=-tmpdir=tmp4 -o $devnull ./usesExplicitCgo &
 [cgolinkext] go list ./usesInternalCgo
 [!cgolinkext] go build '-ldflags=-tmpdir=tmp5 -linkmode=internal' -o $devnull ./usesInternalCgo &
 
+# Sixth build: explicit CGO use in a non-main package.
+go build -o p.a ./nonMainPackageUsesExplicitCgo &
+
 wait
 
 # Check first build: no external linking expected
@@ -112,6 +115,10 @@ exists tmp4/go.o
 
 # Fifth build: explicit CGO, -linkmode=internal.
 ! exists tmp5/go.o
+
+# Sixth build: make sure that "go tool nm" doesn't get confused
+# by the presence of the "preferlinkext" sentinel.
+go tool nm p.a
 
 -- go.mod --
 
@@ -151,5 +158,18 @@ int meaningOfLife() { return 42; }
 import "C"
 
 func main() {
+     println(C.meaningOfLife())
+}
+
+-- nonMainPackageUsesExplicitCgo/main.go --
+
+package p
+
+/*
+int meaningOfLife() { return 42; }
+*/
+import "C"
+
+func PrintIt() {
      println(C.meaningOfLife())
 }

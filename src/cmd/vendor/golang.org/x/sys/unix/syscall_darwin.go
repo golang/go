@@ -510,30 +510,36 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
 		return nil, err
 	}
 
-	// Find size.
-	n := uintptr(0)
-	if err := sysctl(mib, nil, &n, nil, 0); err != nil {
-		return nil, err
-	}
-	if n == 0 {
-		return nil, nil
-	}
-	if n%SizeofKinfoProc != 0 {
-		return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
-	}
+	for {
+		// Find size.
+		n := uintptr(0)
+		if err := sysctl(mib, nil, &n, nil, 0); err != nil {
+			return nil, err
+		}
+		if n == 0 {
+			return nil, nil
+		}
+		if n%SizeofKinfoProc != 0 {
+			return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
+		}
 
-	// Read into buffer of that size.
-	buf := make([]KinfoProc, n/SizeofKinfoProc)
-	if err := sysctl(mib, (*byte)(unsafe.Pointer(&buf[0])), &n, nil, 0); err != nil {
-		return nil, err
-	}
-	if n%SizeofKinfoProc != 0 {
-		return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
-	}
+		// Read into buffer of that size.
+		buf := make([]KinfoProc, n/SizeofKinfoProc)
+		if err := sysctl(mib, (*byte)(unsafe.Pointer(&buf[0])), &n, nil, 0); err != nil {
+			if err == ENOMEM {
+				// Process table grew. Try again.
+				continue
+			}
+			return nil, err
+		}
+		if n%SizeofKinfoProc != 0 {
+			return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
+		}
 
-	// The actual call may return less than the original reported required
-	// size so ensure we deal with that.
-	return buf[:n/SizeofKinfoProc], nil
+		// The actual call may return less than the original reported required
+		// size so ensure we deal with that.
+		return buf[:n/SizeofKinfoProc], nil
+	}
 }
 
 //sys	sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error)

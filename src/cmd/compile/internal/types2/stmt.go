@@ -279,7 +279,7 @@ L:
 // isNil reports whether the expression e denotes the predeclared value nil.
 func (check *Checker) isNil(e syntax.Expr) bool {
 	// The only way to express the nil value is by literally writing nil (possibly in parentheses).
-	if name, _ := unparen(e).(*syntax.Name); name != nil {
+	if name, _ := syntax.Unparen(e).(*syntax.Name); name != nil {
 		_, ok := check.lookup(name.Value).(*Nil)
 		return ok
 	}
@@ -462,8 +462,8 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			return
 		}
 
-		lhs := unpackExpr(s.Lhs)
-		rhs := unpackExpr(s.Rhs)
+		lhs := syntax.UnpackListExpr(s.Lhs)
+		rhs := syntax.UnpackListExpr(s.Rhs)
 		switch s.Op {
 		case 0:
 			check.assignVars(lhs, rhs)
@@ -494,7 +494,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		res := check.sig.results
 		// Return with implicit results allowed for function with named results.
 		// (If one is named, all are named.)
-		results := unpackExpr(s.Results)
+		results := syntax.UnpackListExpr(s.Results)
 		if len(results) == 0 && res.Len() > 0 && res.vars[0].name != "" {
 			// spec: "Implementation restriction: A compiler may disallow an empty expression
 			// list in a "return" statement if a different entity (constant, type, or variable)
@@ -621,7 +621,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 			// if present, rhs must be a receive operation
 			if rhs != nil {
-				if x, _ := unparen(rhs).(*syntax.Operation); x != nil && x.Y == nil && x.Op == syntax.Recv {
+				if x, _ := syntax.Unparen(rhs).(*syntax.Operation); x != nil && x.Y == nil && x.Op == syntax.Recv {
 					valid = true
 				}
 			}
@@ -718,7 +718,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 		} else {
 			inner |= finalSwitchCase
 		}
-		check.caseValues(&x, unpackExpr(clause.Cases), seen)
+		check.caseValues(&x, syntax.UnpackListExpr(clause.Cases), seen)
 		check.openScopeUntil(clause, end, "case")
 		check.stmtList(inner, clause.Body)
 		check.closeScope()
@@ -778,7 +778,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 			end = s.Body[i+1].Pos()
 		}
 		// Check each type in this type switch case.
-		cases := unpackExpr(clause.Cases)
+		cases := syntax.UnpackListExpr(clause.Cases)
 		T := check.caseTypes(sx, cases, seen)
 		check.openScopeUntil(clause, end, "case")
 		// If lhs exists, declare a corresponding variable in the case-local scope.

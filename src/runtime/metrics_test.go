@@ -405,6 +405,9 @@ func TestReadMetricsConsistency(t *testing.T) {
 	if gc.pauses < gc.numGC*2 {
 		t.Errorf("fewer pauses than expected: got %d, want at least %d", gc.pauses, gc.numGC*2)
 	}
+	if totalScan.got <= 0 {
+		t.Errorf("scannable GC space is empty: %d", totalScan.got)
+	}
 	if totalScan.got != totalScan.want {
 		t.Errorf("/gc/scan/total:bytes doesn't line up with sum of /gc/scan*: total %d vs. sum %d", totalScan.got, totalScan.want)
 	}

@@ -1,9 +1,0 @@
-# Test that the Version Control error message includes the correct directory
-env GO111MODULE=off
-! go get -u foo
-stderr gopath(\\\\|/)src(\\\\|/)foo
-
--- foo/foo.go --
-package foo
--- math/math.go --
-package math

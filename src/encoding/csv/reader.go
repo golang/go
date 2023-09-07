@@ -62,7 +62,7 @@ import (
 )
 
 // A ParseError is returned for parsing errors.
-// Line numbers are 1-indexed and columns are 0-indexed.
+// Line and column numbers are 1-indexed.
 type ParseError struct {
 	StartLine int   // Line where the record starts
 	Line      int   // Line where the error occurred

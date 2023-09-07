@@ -7,7 +7,6 @@ package noder
 import (
 	"go/constant"
 
-	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/typecheck"
@@ -59,14 +58,14 @@ func FixValue(typ *types.Type, val constant.Value) constant.Value {
 		val = constant.ToComplex(val)
 	}
 	if !typ.IsUntyped() {
-		val = typecheck.DefaultLit(ir.NewBasicLit(src.NoXPos, val), typ).Val()
+		val = typecheck.ConvertVal(val, typ, false)
 	}
 	ir.AssertValidTypeForConst(typ, val)
 	return val
 }
 
 func Nil(pos src.XPos, typ *types.Type) ir.Node {
-	return typed(typ, ir.NewNilExpr(pos))
+	return ir.NewNilExpr(pos, typ)
 }
 
 // Expressions
@@ -79,29 +78,6 @@ func Addr(pos src.XPos, x ir.Node) *ir.AddrExpr {
 
 func Deref(pos src.XPos, typ *types.Type, x ir.Node) *ir.StarExpr {
 	n := ir.NewStarExpr(pos, x)
-	typed(typ, n)
-	return n
-}
-
-func DotField(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
-	op, typ := ir.ODOT, x.Type()
-	if typ.IsPtr() {
-		op, typ = ir.ODOTPTR, typ.Elem()
-	}
-	if !typ.IsStruct() {
-		base.FatalfAt(pos, "DotField of non-struct: %L", x)
-	}
-
-	// TODO(mdempsky): This is the backend's responsibility.
-	types.CalcSize(typ)
-
-	field := typ.Field(index)
-	return dot(pos, field.Type, op, x, field)
-}
-
-func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Field) *ir.SelectorExpr {
-	n := ir.NewSelectorExpr(pos, op, x, selection.Sym)
-	n.Selection = selection
 	typed(typ, n)
 	return n
 }

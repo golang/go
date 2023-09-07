@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 )
 
@@ -49,6 +50,15 @@ func Encode(dst, src []byte) int {
 		j += 2
 	}
 	return len(src) * 2
+}
+
+// AppendEncode appends the hexadecimally encoded src to dst
+// and returns the extended buffer.
+func AppendEncode(dst, src []byte) []byte {
+	n := EncodedLen(len(src))
+	dst = slices.Grow(dst, n)
+	Encode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n]
 }
 
 // ErrLength reports an attempt to decode an odd-length input
@@ -100,6 +110,16 @@ func Decode(dst, src []byte) (int, error) {
 		return i, ErrLength
 	}
 	return i, nil
+}
+
+// AppendDecode appends the hexadecimally decoded src to dst
+// and returns the extended buffer.
+// If the input is malformed, it returns the partially decoded src and an error.
+func AppendDecode(dst, src []byte) ([]byte, error) {
+	n := DecodedLen(len(src))
+	dst = slices.Grow(dst, n)
+	n, err := Decode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n], err
 }
 
 // EncodeToString returns the hexadecimal encoding of src.

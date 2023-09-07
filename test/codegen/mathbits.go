@@ -335,7 +335,7 @@ func TrailingZeros32(n uint32) int {
 }
 
 func TrailingZeros16(n uint16) int {
-	// amd64:"BSFL","BTSL\\t\\$16"
+	// amd64:"BSFL","ORL\\t\\$65536"
 	// 386:"BSFL\t"
 	// arm:"ORR\t\\$65536","CLZ",-"MOVHU\tR"
 	// arm64:"ORR\t\\$65536","RBITW","CLZW",-"MOVHU\tR",-"RBIT\t",-"CLZ\t"
@@ -347,7 +347,7 @@ func TrailingZeros16(n uint16) int {
 }
 
 func TrailingZeros8(n uint8) int {
-	// amd64:"BSFL","BTSL\\t\\$8"
+	// amd64:"BSFL","ORL\\t\\$256"
 	// 386:"BSFL"
 	// arm:"ORR\t\\$256","CLZ",-"MOVBU\tR"
 	// arm64:"ORR\t\\$256","RBITW","CLZW",-"MOVBU\tR",-"RBIT\t",-"CLZ\t"

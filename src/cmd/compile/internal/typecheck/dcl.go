@@ -6,7 +6,6 @@ package typecheck
 
 import (
 	"fmt"
-	"internal/types/errors"
 	"sync"
 
 	"cmd/compile/internal/base"
@@ -15,108 +14,40 @@ import (
 	"cmd/internal/src"
 )
 
-var DeclContext ir.Class = ir.PEXTERN // PEXTERN/PAUTO
+var funcStack []*ir.Func // stack of previous values of ir.CurFunc
 
-func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.Func {
-	fn := ir.NewFunc(base.Pos)
-	fn.Nname = ir.NewNameAt(base.Pos, sym)
-	fn.Nname.Func = fn
-	fn.Nname.Defn = fn
-	ir.MarkFunc(fn.Nname)
-	StartFuncBody(fn)
+// DeclFunc creates and returns ONAMEs for the parameters and results
+// of the given function. It also sets ir.CurFunc, and adds fn to
+// Target.Funcs.
+//
+// After the caller is done constructing fn, it must call
+// FinishFuncBody.
+func DeclFunc(fn *ir.Func) (params, results []*ir.Name) {
+	typ := fn.Type()
 
-	var recv1 *types.Field
-	if recv != nil {
-		recv1 = declareParam(ir.PPARAM, -1, recv)
+	// Currently, DeclFunc is only used to create normal functions, not
+	// methods. If a use case for creating methods shows up, we can
+	// extend it to support those too.
+	if typ.Recv() != nil {
+		base.FatalfAt(fn.Pos(), "unexpected receiver parameter")
 	}
 
-	typ := types.NewSignature(recv1, declareParams(ir.PPARAM, params), declareParams(ir.PPARAMOUT, results))
-	checkdupfields("argument", typ.Recvs().FieldSlice(), typ.Params().FieldSlice(), typ.Results().FieldSlice())
-	fn.Nname.SetType(typ)
-	fn.Nname.SetTypecheck(1)
+	params = declareParams(fn, ir.PPARAM, typ.Params())
+	results = declareParams(fn, ir.PPARAMOUT, typ.Results())
 
-	return fn
-}
-
-// Declare records that Node n declares symbol n.Sym in the specified
-// declaration context.
-func Declare(n *ir.Name, ctxt ir.Class) {
-	if ir.IsBlank(n) {
-		return
-	}
-
-	s := n.Sym()
-
-	// kludgy: TypecheckAllowed means we're past parsing. Eg reflectdata.methodWrapper may declare out of package names later.
-	if !inimport && !TypecheckAllowed && s.Pkg != types.LocalPkg {
-		base.ErrorfAt(n.Pos(), 0, "cannot declare name %v", s)
-	}
-
-	if ctxt == ir.PEXTERN {
-		if s.Name == "init" {
-			base.ErrorfAt(n.Pos(), errors.InvalidInitDecl, "cannot declare init - must be func")
-		}
-		if s.Name == "main" && s.Pkg.Name == "main" {
-			base.ErrorfAt(n.Pos(), errors.InvalidMainDecl, "cannot declare main - must be func")
-		}
-		Target.Externs = append(Target.Externs, n)
-		s.Def = n
-	} else {
-		if ir.CurFunc == nil && ctxt == ir.PAUTO {
-			base.Pos = n.Pos()
-			base.Fatalf("automatic outside function")
-		}
-		if ir.CurFunc != nil && ctxt != ir.PFUNC && n.Op() == ir.ONAME {
-			ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
-		}
-		n.Curfn = ir.CurFunc
-	}
-
-	if ctxt == ir.PAUTO {
-		n.SetFrameOffset(0)
-	}
-
-	n.Class = ctxt
-	if ctxt == ir.PFUNC {
-		n.Sym().SetFunc(true)
-	}
-
-	autoexport(n, ctxt)
-}
-
-// Export marks n for export (or reexport).
-func Export(n *ir.Name) {
-	if n.Sym().OnExportList() {
-		return
-	}
-	n.Sym().SetOnExportList(true)
-
-	if base.Flag.E != 0 {
-		fmt.Printf("export symbol %v\n", n.Sym())
-	}
-
-	Target.Exports = append(Target.Exports, n)
-}
-
-// declare the function proper
-// and declare the arguments.
-// called in extern-declaration context
-// returns in auto-declaration context.
-func StartFuncBody(fn *ir.Func) {
-	// change the declaration context from extern to auto
-	funcStack = append(funcStack, funcStackEnt{ir.CurFunc, DeclContext})
+	funcStack = append(funcStack, ir.CurFunc)
 	ir.CurFunc = fn
-	DeclContext = ir.PAUTO
+
+	fn.Nname.Defn = fn
+	Target.Funcs = append(Target.Funcs, fn)
+
+	return
 }
 
-// finish the body.
-// called in auto-declaration context.
-// returns in extern-declaration context.
+// FinishFuncBody restores ir.CurFunc to its state before the last
+// call to DeclFunc.
 func FinishFuncBody() {
-	// change the declaration context from auto to previous context
-	var e funcStackEnt
-	funcStack, e = funcStack[:len(funcStack)-1], funcStack[len(funcStack)-1]
-	ir.CurFunc, DeclContext = e.curfn, e.dclcontext
+	funcStack, ir.CurFunc = funcStack[:len(funcStack)-1], funcStack[len(funcStack)-1]
 }
 
 func CheckFuncStack() {
@@ -125,63 +56,15 @@ func CheckFuncStack() {
 	}
 }
 
-func autoexport(n *ir.Name, ctxt ir.Class) {
-	if n.Sym().Pkg != types.LocalPkg {
-		return
+func declareParams(fn *ir.Func, ctxt ir.Class, params []*types.Field) []*ir.Name {
+	names := make([]*ir.Name, len(params))
+	for i, param := range params {
+		names[i] = declareParam(fn, ctxt, i, param)
 	}
-	if (ctxt != ir.PEXTERN && ctxt != ir.PFUNC) || DeclContext != ir.PEXTERN {
-		return
-	}
-	if n.Type() != nil && n.Type().IsKind(types.TFUNC) && ir.IsMethod(n) {
-		return
-	}
-
-	if types.IsExported(n.Sym().Name) || n.Sym().Name == "init" {
-		Export(n)
-	}
-	if base.Flag.AsmHdr != "" && !n.Sym().Asm() {
-		n.Sym().SetAsm(true)
-		Target.Asms = append(Target.Asms, n)
-	}
+	return names
 }
 
-// checkdupfields emits errors for duplicately named fields or methods in
-// a list of struct or interface types.
-func checkdupfields(what string, fss ...[]*types.Field) {
-	seen := make(map[*types.Sym]bool)
-	for _, fs := range fss {
-		for _, f := range fs {
-			if f.Sym == nil || f.Sym.IsBlank() {
-				continue
-			}
-			if seen[f.Sym] {
-				base.ErrorfAt(f.Pos, errors.DuplicateFieldAndMethod, "duplicate %s %s", what, f.Sym.Name)
-				continue
-			}
-			seen[f.Sym] = true
-		}
-	}
-}
-
-var funcStack []funcStackEnt // stack of previous values of ir.CurFunc/DeclContext
-
-type funcStackEnt struct {
-	curfn      *ir.Func
-	dclcontext ir.Class
-}
-
-func declareParams(ctxt ir.Class, l []*ir.Field) []*types.Field {
-	fields := make([]*types.Field, len(l))
-	for i, n := range l {
-		fields[i] = declareParam(ctxt, i, n)
-	}
-	return fields
-}
-
-func declareParam(ctxt ir.Class, i int, param *ir.Field) *types.Field {
-	f := types.NewField(param.Pos, param.Sym, param.Type)
-	f.SetIsDDD(param.IsDDD)
-
+func declareParam(fn *ir.Func, ctxt ir.Class, i int, param *types.Field) *ir.Name {
 	sym := param.Sym
 	if ctxt == ir.PPARAMOUT {
 		if sym == nil {
@@ -198,30 +81,19 @@ func declareParam(ctxt ir.Class, i int, param *ir.Field) *types.Field {
 		}
 	}
 
-	if sym != nil {
-		name := ir.NewNameAt(param.Pos, sym)
-		name.SetType(f.Type)
-		name.SetTypecheck(1)
-		Declare(name, ctxt)
-
-		f.Nname = name
+	if sym == nil {
+		return nil
 	}
 
-	return f
-}
-
-func Temp(t *types.Type) *ir.Name {
-	return TempAt(base.Pos, ir.CurFunc, t)
+	name := fn.NewLocal(param.Pos, sym, ctxt, param.Type)
+	param.Nname = name
+	return name
 }
 
 // make a new Node off the books.
 func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	if curfn == nil {
 		base.Fatalf("no curfn for TempAt")
-	}
-	if curfn.Op() == ir.OCLOSURE {
-		ir.Dump("TempAt", curfn)
-		base.Fatalf("adding TempAt to wrong closure function")
 	}
 	if t == nil {
 		base.Fatalf("TempAt called with nil type")
@@ -234,16 +106,11 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 		Name: autotmpname(len(curfn.Dcl)),
 		Pkg:  types.LocalPkg,
 	}
-	n := ir.NewNameAt(pos, s)
-	s.Def = n
-	n.SetType(t)
-	n.SetTypecheck(1)
-	n.Class = ir.PAUTO
+	n := curfn.NewLocal(pos, s, ir.PAUTO, t)
+	s.Def = n // TODO(mdempsky): Should be unnecessary.
 	n.SetEsc(ir.EscNever)
-	n.Curfn = curfn
 	n.SetUsed(true)
 	n.SetAutoTemp(true)
-	curfn.Dcl = append(curfn.Dcl, n)
 
 	types.CalcSize(t)
 
@@ -289,18 +156,18 @@ func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
 	// TODO(mdempsky): Move this function to types.
 	// TODO(mdempsky): Preserve positions, names, and package from sig+recv.
 
-	params := make([]*types.Field, nrecvs+sig.Params().Fields().Len())
+	params := make([]*types.Field, nrecvs+sig.NumParams())
 	if recv != nil {
 		params[0] = types.NewField(base.Pos, nil, recv)
 	}
-	for i, param := range sig.Params().Fields().Slice() {
+	for i, param := range sig.Params() {
 		d := types.NewField(base.Pos, nil, param.Type)
 		d.SetIsDDD(param.IsDDD())
 		params[nrecvs+i] = d
 	}
 
-	results := make([]*types.Field, sig.Results().Fields().Len())
-	for i, t := range sig.Results().Fields().Slice() {
+	results := make([]*types.Field, sig.NumResults())
+	for i, t := range sig.Results() {
 		results[i] = types.NewField(base.Pos, nil, t.Type)
 	}
 

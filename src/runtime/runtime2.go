@@ -342,7 +342,7 @@ type gobuf struct {
 	bp   uintptr // for framepointer-enabled architectures
 }
 
-// sudog represents a g in a wait list, such as for sending/receiving
+// sudog (pseudo-g) represents a g in a wait list, such as for sending/receiving
 // on a channel.
 //
 // sudog is necessary because the g ↔ synchronization object relation
@@ -381,6 +381,13 @@ type sudog struct {
 	// value was delivered over channel c, and false if awoken
 	// because c was closed.
 	success bool
+
+	// waiters is a count of semaRoot waiting list other than head of list,
+	// clamped to a uint16 to fit in unused space.
+	// Only meaningful at the head of the list.
+	// (If we wanted to be overly clever, we could store a high 16 bits
+	// in the second entry in the list.)
+	waiters uint16
 
 	parent   *sudog // semaRoot binary tree
 	waitlink *sudog // g.waiting list or semaRoot
@@ -433,7 +440,7 @@ type g struct {
 	// param is a generic pointer parameter field used to pass
 	// values in particular contexts where other storage for the
 	// parameter would be difficult to find. It is currently used
-	// in three ways:
+	// in four ways:
 	// 1. When a channel operation wakes up a blocked goroutine, it sets param to
 	//    point to the sudog of the completed blocking operation.
 	// 2. By gcAssistAlloc1 to signal back to its caller that the goroutine completed
@@ -441,6 +448,8 @@ type g struct {
 	//    stack may have moved in the meantime.
 	// 3. By debugCallWrap to pass parameters to a new goroutine because allocating a
 	//    closure in the runtime is forbidden.
+	// 4. When a panic is recovered and control returns to the respective frame,
+	//    param may point to a savedOpenDeferState.
 	param        unsafe.Pointer
 	atomicstatus atomic.Uint32
 	stackLock    uint32 // sigprof/scang lock; TODO: fold in to atomicstatus
@@ -472,6 +481,7 @@ type g struct {
 	parkingOnChan atomic.Bool
 
 	raceignore    int8  // ignore race detection events
+	nocgocallback bool  // whether disable callback from C
 	tracking      bool  // whether we're tracking this G for sched latency statistics
 	trackingSeq   uint8 // used to decide whether to track this G
 	trackingStamp int64 // timestamp of when the G last started being tracked
@@ -574,7 +584,7 @@ type m struct {
 	alllink       *m // on allm
 	schedlink     muintptr
 	lockedg       guintptr
-	createstack   [32]uintptr // stack that created this thread.
+	createstack   [32]uintptr // stack that created this thread, it's used for StackRecord.Stack0, so it must align with it.
 	lockedExt     uint32      // tracking for external LockOSThread
 	lockedInt     uint32      // tracking for internal lockOSThread
 	nextwaitm     muintptr    // next m waiting for lock
@@ -608,6 +618,9 @@ type m struct {
 
 	// Whether this is a pending preemption signal on this M.
 	signalPending atomic.Uint32
+
+	// pcvalue lookup cache
+	pcvalueCache pcvalueCache
 
 	dlogPerM
 
@@ -999,18 +1012,16 @@ func extendRandom(r []byte, n int) {
 // initialize them are not required. All defers must be manually scanned,
 // and for heap defers, marked.
 type _defer struct {
-	// TODO(mdempsky): Remove blank fields and update cmd/compile.
-	_    bool // was started
-	heap bool
-	_    bool           // was openDefer
-	sp   uintptr        // sp at time of defer
-	pc   uintptr        // pc at time of defer
-	fn   func()         // can be nil for open-coded defers
-	_    unsafe.Pointer // was _panic
-	link *_defer        // next defer on G; can point to either heap or stack!
-	_    unsafe.Pointer // was fd
-	_    uintptr        // was varp
-	_    uintptr        // was framepc
+	heap      bool
+	rangefunc bool    // true for rangefunc list
+	sp        uintptr // sp at time of defer
+	pc        uintptr // pc at time of defer
+	fn        func()  // can be nil for open-coded defers
+	link      *_defer // next defer on G; can point to either heap or stack!
+
+	// If rangefunc is true, *head is the head of the atomic linked list
+	// during a range-over-func execution.
+	head *atomic.Pointer[_defer]
 }
 
 // A _panic holds information about an active panic.
@@ -1031,23 +1042,30 @@ type _panic struct {
 	startSP unsafe.Pointer
 
 	// The current stack frame that we're running deferred calls for.
-	sp   unsafe.Pointer
-	lr   uintptr
-	fp   unsafe.Pointer
-	varp unsafe.Pointer
+	sp unsafe.Pointer
+	lr uintptr
+	fp unsafe.Pointer
 
 	// retpc stores the PC where the panic should jump back to, if the
 	// function last returned by _panic.next() recovers the panic.
 	retpc uintptr
 
 	// Extra state for handling open-coded defers.
-	deferBitsPtr   *uint8
-	closureOffsets unsafe.Pointer
-	openDefers     uint8 // count of pending open-coded defers
+	deferBitsPtr *uint8
+	slotsPtr     unsafe.Pointer
 
 	recovered   bool // whether this panic has been recovered
 	goexit      bool
 	deferreturn bool
+}
+
+// savedOpenDeferState tracks the extra state from _panic that's
+// necessary for deferreturn to pick up where gopanic left off,
+// without needing to unwind the stack.
+type savedOpenDeferState struct {
+	retpc           uintptr
+	deferBitsOffset uintptr
+	slotsOffset     uintptr
 }
 
 // ancestorInfo records details of where a goroutine was started.

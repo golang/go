@@ -767,16 +767,42 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
 	}
 }
 
-func TestRequestBadHost(t *testing.T) {
+func TestRequestBadHostHeader(t *testing.T) {
 	got := []string{}
 	req, err := NewRequest("GET", "http://foo/after", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Host = "foo.com with spaces"
-	req.URL.Host = "foo.com with spaces"
-	if err := req.Write(logWrites{t, &got}); err == nil {
-		t.Errorf("Writing request with invalid Host: succeded, want error")
+	req.Host = "foo.com\nnewline"
+	req.URL.Host = "foo.com\nnewline"
+	req.Write(logWrites{t, &got})
+	want := []string{
+		"GET /after HTTP/1.1\r\n",
+		"Host: \r\n",
+		"User-Agent: " + DefaultUserAgent + "\r\n",
+		"\r\n",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Writes = %q\n  Want = %q", got, want)
+	}
+}
+
+func TestRequestBadUserAgent(t *testing.T) {
+	got := []string{}
+	req, err := NewRequest("GET", "http://foo/after", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("User-Agent", "evil\r\nX-Evil: evil")
+	req.Write(logWrites{t, &got})
+	want := []string{
+		"GET /after HTTP/1.1\r\n",
+		"Host: foo\r\n",
+		"User-Agent: evil  X-Evil: evil\r\n",
+		"\r\n",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Writes = %q\n  Want = %q", got, want)
 	}
 }
 

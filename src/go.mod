@@ -3,11 +3,11 @@ module std
 go 1.22
 
 require (
-	golang.org/x/crypto v0.11.1-0.20230711161743-2e82bdd1719d
-	golang.org/x/net v0.12.1-0.20230712162946-57553cbff163
+	golang.org/x/crypto v0.12.0
+	golang.org/x/net v0.14.1-0.20230809150940-1e23797619c9
 )
 
 require (
-	golang.org/x/sys v0.10.0 // indirect
-	golang.org/x/text v0.11.0 // indirect
+	golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c // indirect
+	golang.org/x/text v0.12.0 // indirect
 )

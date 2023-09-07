@@ -252,7 +252,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpAMD64RORQ, ssa.OpAMD64RORL, ssa.OpAMD64RORW, ssa.OpAMD64RORB,
 		ssa.OpAMD64ADDSS, ssa.OpAMD64ADDSD, ssa.OpAMD64SUBSS, ssa.OpAMD64SUBSD,
 		ssa.OpAMD64MULSS, ssa.OpAMD64MULSD, ssa.OpAMD64DIVSS, ssa.OpAMD64DIVSD,
-		ssa.OpAMD64PXOR,
+		ssa.OpAMD64MINSS, ssa.OpAMD64MINSD,
+		ssa.OpAMD64POR, ssa.OpAMD64PXOR,
 		ssa.OpAMD64BTSL, ssa.OpAMD64BTSQ,
 		ssa.OpAMD64BTCL, ssa.OpAMD64BTCQ,
 		ssa.OpAMD64BTRL, ssa.OpAMD64BTRQ:
@@ -713,9 +714,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Offset = v.AuxInt
 	case ssa.OpAMD64BTLconst, ssa.OpAMD64BTQconst,
 		ssa.OpAMD64TESTQconst, ssa.OpAMD64TESTLconst, ssa.OpAMD64TESTWconst, ssa.OpAMD64TESTBconst,
-		ssa.OpAMD64BTSLconst, ssa.OpAMD64BTSQconst,
-		ssa.OpAMD64BTCLconst, ssa.OpAMD64BTCQconst,
-		ssa.OpAMD64BTRLconst, ssa.OpAMD64BTRQconst:
+		ssa.OpAMD64BTSQconst,
+		ssa.OpAMD64BTCQconst,
+		ssa.OpAMD64BTRQconst:
 		op := v.Op
 		if op == ssa.OpAMD64BTQconst && v.AuxInt < 32 {
 			// Emit 32-bit version because it's shorter
@@ -850,7 +851,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		fallthrough
 	case ssa.OpAMD64ANDQconstmodify, ssa.OpAMD64ANDLconstmodify, ssa.OpAMD64ORQconstmodify, ssa.OpAMD64ORLconstmodify,
-		ssa.OpAMD64XORQconstmodify, ssa.OpAMD64XORLconstmodify:
+		ssa.OpAMD64XORQconstmodify, ssa.OpAMD64XORLconstmodify,
+		ssa.OpAMD64BTSQconstmodify, ssa.OpAMD64BTRQconstmodify, ssa.OpAMD64BTCQconstmodify:
 		sc := v.AuxValAndOff()
 		off := sc.Off64()
 		val := sc.Val64()

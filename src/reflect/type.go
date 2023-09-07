@@ -172,6 +172,9 @@ type Type interface {
 
 	// FieldByName returns the struct field with the given name
 	// and a boolean indicating if the field was found.
+	// If the returned field is promoted from an embedded struct,
+	// then Offset in the returned StructField is the offset in
+	// the embedded struct.
 	FieldByName(name string) (StructField, bool)
 
 	// FieldByNameFunc returns the struct field with a name
@@ -186,6 +189,10 @@ type Type interface {
 	// and FieldByNameFunc returns no match.
 	// This behavior mirrors Go's handling of name lookup in
 	// structs containing embedded fields.
+	//
+	// If the returned field is promoted from an embedded struct,
+	// then Offset in the returned StructField is the offset in
+	// the embedded struct.
 	FieldByNameFunc(match func(string) bool) (StructField, bool)
 
 	// In returns the type of a function type's i'th input parameter.
@@ -236,7 +243,7 @@ type Type interface {
  * They are also known to ../runtime/type.go.
  */
 
-// A Kind represents the specific kind of type that a Type represents.
+// A Kind represents the specific kind of type that a [Type] represents.
 // The zero Kind is not a valid kind.
 type Kind uint
 
@@ -270,7 +277,7 @@ const (
 	UnsafePointer
 )
 
-// Ptr is the old name for the Pointer kind.
+// Ptr is the old name for the [Pointer] kind.
 const Ptr = Pointer
 
 // uncommonType is present only for defined types or types with methods
@@ -1148,7 +1155,7 @@ func (t *structType) FieldByName(name string) (f StructField, present bool) {
 	return t.FieldByNameFunc(func(s string) bool { return s == name })
 }
 
-// TypeOf returns the reflection Type that represents the dynamic type of i.
+// TypeOf returns the reflection [Type] that represents the dynamic type of i.
 // If i is a nil interface value, TypeOf returns nil.
 func TypeOf(i any) Type {
 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
@@ -1169,7 +1176,7 @@ var ptrMap sync.Map // map[*rtype]*ptrType
 // PtrTo returns the pointer type with element t.
 // For example, if t represents type Foo, PtrTo(t) represents *Foo.
 //
-// PtrTo is the old spelling of PointerTo.
+// PtrTo is the old spelling of [PointerTo].
 // The two functions behave identically.
 //
 // Deprecated: Superseded by [PointerTo].

@@ -67,7 +67,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	}
 
 	// Evaluate the input interface.
-	c := typecheck.Temp(fromType)
+	c := typecheck.TempAt(base.Pos, ir.CurFunc, fromType)
 	init.Append(ir.NewAssignStmt(base.Pos, c, n.X))
 
 	// Grab its parts.
@@ -87,7 +87,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		// if res != nil {
 		//    res = res.type
 		// }
-		typeWord = typecheck.Temp(types.NewPtr(types.Types[types.TUINT8]))
+		typeWord = typecheck.TempAt(base.Pos, ir.CurFunc, types.NewPtr(types.Types[types.TUINT8]))
 		init.Append(ir.NewAssignStmt(base.Pos, typeWord, typecheck.Conv(typecheck.Conv(itab, types.Types[types.TUNSAFEPTR]), typeWord.Type())))
 		nif := ir.NewIfStmt(base.Pos, typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.ONE, typeWord, typecheck.NodNil())), nil, nil)
 		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, typeWord, itabType(typeWord))}
@@ -155,7 +155,7 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		value = n
 	case conv.Esc() == ir.EscNone && fromType.Size() <= 1024:
 		// n does not escape. Use a stack temporary initialized to n.
-		value = typecheck.Temp(fromType)
+		value = typecheck.TempAt(base.Pos, ir.CurFunc, fromType)
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, value, n)))
 	}
 	if value != nil {
@@ -165,7 +165,7 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 
 	// Time to do an allocation. We'll call into the runtime for that.
 	fnname, argType, needsaddr := dataWordFuncName(fromType)
-	fn := typecheck.LookupRuntime(fnname)
+	var fn *ir.Name
 
 	var args []ir.Node
 	if needsaddr {
@@ -178,11 +178,12 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		if !ir.IsAddressable(n) {
 			n = copyExpr(n, fromType, init)
 		}
-		fn = typecheck.SubstArgTypes(fn, fromType)
+		fn = typecheck.LookupRuntime(fnname, fromType)
 		args = []ir.Node{reflectdata.ConvIfaceSrcRType(base.Pos, conv), typecheck.NodAddr(n)}
 	} else {
 		// Use a specialized conversion routine that takes the type being
 		// converted by value, not by pointer.
+		fn = typecheck.LookupRuntime(fnname)
 		var arg ir.Node
 		switch {
 		case fromType == argType:
@@ -276,7 +277,7 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 			a.SetTypecheck(1)
 			a.MarkNonNil()
 		}
-		p := typecheck.Temp(t.PtrTo()) // *[n]byte
+		p := typecheck.TempAt(base.Pos, ir.CurFunc, t.PtrTo()) // *[n]byte
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, p, a)))
 
 		// Copy from the static string data to the [n]byte.
@@ -414,11 +415,11 @@ func soleComponent(init *ir.Nodes, n ir.Node) ir.Node {
 		case n.Type().IsStruct():
 			if n.Type().Field(0).Sym.IsBlank() {
 				// Treat blank fields as the zero value as the Go language requires.
-				n = typecheck.Temp(n.Type().Field(0).Type)
+				n = typecheck.TempAt(base.Pos, ir.CurFunc, n.Type().Field(0).Type)
 				appendWalkStmt(init, ir.NewAssignStmt(base.Pos, n, nil))
 				continue
 			}
-			n = typecheck.Expr(ir.NewSelectorExpr(n.Pos(), ir.OXDOT, n, n.Type().Field(0).Sym))
+			n = typecheck.DotField(n.Pos(), n, 0)
 		case n.Type().IsArray():
 			n = typecheck.Expr(ir.NewIndexExpr(n.Pos(), n, ir.NewInt(base.Pos, 0)))
 		default:

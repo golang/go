@@ -55,6 +55,7 @@ var (
 	moduser32   = NewLazySystemDLL("user32.dll")
 	moduserenv  = NewLazySystemDLL("userenv.dll")
 	modversion  = NewLazySystemDLL("version.dll")
+	modwinmm    = NewLazySystemDLL("winmm.dll")
 	modwintrust = NewLazySystemDLL("wintrust.dll")
 	modws2_32   = NewLazySystemDLL("ws2_32.dll")
 	modwtsapi32 = NewLazySystemDLL("wtsapi32.dll")
@@ -468,6 +469,8 @@ var (
 	procGetFileVersionInfoSizeW                              = modversion.NewProc("GetFileVersionInfoSizeW")
 	procGetFileVersionInfoW                                  = modversion.NewProc("GetFileVersionInfoW")
 	procVerQueryValueW                                       = modversion.NewProc("VerQueryValueW")
+	proctimeBeginPeriod                                      = modwinmm.NewProc("timeBeginPeriod")
+	proctimeEndPeriod                                        = modwinmm.NewProc("timeEndPeriod")
 	procWinVerifyTrustEx                                     = modwintrust.NewProc("WinVerifyTrustEx")
 	procFreeAddrInfoW                                        = modws2_32.NewProc("FreeAddrInfoW")
 	procGetAddrInfoW                                         = modws2_32.NewProc("GetAddrInfoW")
@@ -4012,6 +4015,22 @@ func VerQueryValue(block unsafe.Pointer, subBlock string, pointerToBufferPointer
 func _VerQueryValue(block unsafe.Pointer, subBlock *uint16, pointerToBufferPointer unsafe.Pointer, bufSize *uint32) (err error) {
 	r1, _, e1 := syscall.Syscall6(procVerQueryValueW.Addr(), 4, uintptr(block), uintptr(unsafe.Pointer(subBlock)), uintptr(pointerToBufferPointer), uintptr(unsafe.Pointer(bufSize)), 0, 0)
 	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func TimeBeginPeriod(period uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(proctimeBeginPeriod.Addr(), 1, uintptr(period), 0, 0)
+	if r1 != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func TimeEndPeriod(period uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(proctimeEndPeriod.Addr(), 1, uintptr(period), 0, 0)
+	if r1 != 0 {
 		err = errnoErr(e1)
 	}
 	return

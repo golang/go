@@ -504,6 +504,31 @@ func TestEscape(t *testing.T) {
 			"<script>var a \nd</script>",
 		},
 		{
+			"JS HTML-like comments",
+			"<script>before <!-- beep\nbetween\nbefore-->boop\n</script>",
+			"<script>before \nbetween\nbefore\n</script>",
+		},
+		{
+			"JS hashbang comment",
+			"<script>#! beep\n</script>",
+			"<script>\n</script>",
+		},
+		{
+			"Special tags in <script> string literals",
+			`<script>var a = "asd < 123 <!-- 456 < fgh <script jkl < 789 </script"</script>`,
+			`<script>var a = "asd < 123 \x3C!-- 456 < fgh \x3Cscript jkl < 789 \x3C/script"</script>`,
+		},
+		{
+			"Special tags in <script> string literals (mixed case)",
+			`<script>var a = "<!-- <ScripT </ScripT"</script>`,
+			`<script>var a = "\x3C!-- \x3CScripT \x3C/ScripT"</script>`,
+		},
+		{
+			"Special tags in <script> regex literals (mixed case)",
+			`<script>var a = /<!-- <ScripT </ScripT/</script>`,
+			`<script>var a = /\x3C!-- \x3CScripT \x3C/ScripT/</script>`,
+		},
+		{
 			"CSS comments",
 			"<style>p// paragraph\n" +
 				`{border: 1px/* color */{{"#00f"}}}</style>`,
@@ -1523,8 +1548,38 @@ func TestEscapeText(t *testing.T) {
 			context{state: stateJS, element: elementScript},
 		},
 		{
+			// <script and </script tags are escaped, so </script> should not
+			// cause us to exit the JS state.
 			`<script>document.write("<script>alert(1)</script>");`,
-			context{state: stateText},
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			`<script>document.write("<script>`,
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			`<script>document.write("<script>alert(1)</script>`,
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			`<script>document.write("<script>alert(1)<!--`,
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			`<script>document.write("<script>alert(1)</Script>");`,
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			`<script>document.write("<!--");`,
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			`<script>let a = /</script`,
+			context{state: stateJSRegexp, element: elementScript},
+		},
+		{
+			`<script>let a = /</script/`,
+			context{state: stateJS, element: elementScript, jsCtx: jsCtxDivOp},
 		},
 		{
 			`<script type="text/template">`,

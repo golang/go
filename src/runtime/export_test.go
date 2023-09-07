@@ -7,6 +7,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goarch"
 	"internal/goos"
 	"runtime/internal/atomic"
@@ -1329,7 +1330,7 @@ func (t *SemTable) Enqueue(addr *uint32) {
 //
 // Returns true if there actually was a waiter to be dequeued.
 func (t *SemTable) Dequeue(addr *uint32) bool {
-	s, _ := t.semTable.rootFor(addr).dequeue(addr)
+	s, _, _ := t.semTable.rootFor(addr).dequeue(addr)
 	if s != nil {
 		releaseSudog(s)
 		return true
@@ -1819,8 +1820,8 @@ func (s *ScavengeIndex) SetEmpty(ci ChunkIdx) {
 	s.i.setEmpty(chunkIdx(ci))
 }
 
-func (s *ScavengeIndex) SetNoHugePage(ci ChunkIdx) bool {
-	return s.i.setNoHugePage(chunkIdx(ci))
+func (s *ScavengeIndex) SetNoHugePage(ci ChunkIdx) {
+	s.i.setNoHugePage(chunkIdx(ci))
 }
 
 func CheckPackScavChunkData(gen uint32, inUse, lastInUse uint16, flags uint8) bool {
@@ -1921,6 +1922,8 @@ func FPCallers(pcBuf []uintptr) int {
 	return fpTracebackPCs(unsafe.Pointer(getfp()), pcBuf)
 }
 
+const FramePointerEnabled = framepointer_enabled
+
 var (
 	IsPinned      = isPinned
 	GetPinCounter = pinnerGetPinCounter
@@ -1931,4 +1934,30 @@ func SetPinnerLeakPanic(f func()) {
 }
 func GetPinnerLeakPanic() func() {
 	return pinnerLeakPanic
+}
+
+var testUintptr uintptr
+
+func MyGenericFunc[T any]() {
+	systemstack(func() {
+		testUintptr = 4
+	})
+}
+
+func UnsafePoint(pc uintptr) bool {
+	fi := findfunc(pc)
+	v := pcdatavalue(fi, abi.PCDATA_UnsafePoint, pc)
+	switch v {
+	case abi.UnsafePointUnsafe:
+		return true
+	case abi.UnsafePointSafe:
+		return false
+	case abi.UnsafePointRestart1, abi.UnsafePointRestart2, abi.UnsafePointRestartAtEntry:
+		// These are all interruptible, they just encode a nonstandard
+		// way of recovering when interrupted.
+		return false
+	default:
+		var buf [20]byte
+		panic("invalid unsafe point code " + string(itoa(buf[:], uint64(v))))
+	}
 }

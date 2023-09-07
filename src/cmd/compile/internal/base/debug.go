@@ -21,8 +21,10 @@ type DebugFlags struct {
 	Closure               int    `help:"print information about closure compilation"`
 	Defer                 int    `help:"print information about defer compilation"`
 	DisableNil            int    `help:"disable nil checks" concurrent:"ok"`
+	DumpInlFuncProps      string `help:"dump function properties from inl heuristics to specified file"`
 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
+	EscapeMutationsCalls  int    `help:"print extra escape analysis diagnostics about mutations and calls" concurrent:"ok"`
 	Export                int    `help:"print export data"`
 	Fmahash               string `help:"hash value for use in debugging platform-dependent multiply-add use" concurrent:"ok"`
 	GCAdjust              int    `help:"log adjustments to GOGC" concurrent:"ok"`
@@ -57,6 +59,7 @@ type DebugFlags struct {
 	PGODevirtualize       int    `help:"enable profile-guided devirtualization" concurrent:"ok"`
 	WrapGlobalMapDbg      int    `help:"debug trace output for global map init wrapping"`
 	WrapGlobalMapCtl      int    `help:"global map init wrap control (0 => default, 1 => off, 2 => stress mode, no size cutoff)"`
+	ZeroCopy              int    `help:"enable zero-copy string->[]byte conversions" concurrent:"ok"`
 
 	ConcurrentOk bool // true if only concurrentOk flags seen
 }

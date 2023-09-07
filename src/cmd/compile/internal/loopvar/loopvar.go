@@ -107,7 +107,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 				if base.LoopVarHash.MatchPos(n.Pos(), desc) {
 					// Rename the loop key, prefix body with assignment from loop key
 					transformed = append(transformed, VarAndLoop{n, x, lastPos})
-					tk := typecheck.Temp(n.Type())
+					tk := typecheck.TempAt(base.Pos, fn, n.Type())
 					tk.SetTypecheck(1)
 					as := ir.NewAssignStmt(x.Pos(), n, tk)
 					as.Def = true
@@ -298,7 +298,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 					for _, z := range leaked {
 						transformed = append(transformed, VarAndLoop{z, x, lastPos})
 
-						tz := typecheck.Temp(z.Type())
+						tz := typecheck.TempAt(base.Pos, fn, z.Type())
 						tz.SetTypecheck(1)
 						zPrimeForZ[z] = tz
 
@@ -360,7 +360,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 						// body' = prebody +
 						// (6)     if tmp_first {tmp_first = false} else {Post} +
 						//         if !cond {break} + ...
-						tmpFirst := typecheck.Temp(types.Types[types.TBOOL])
+						tmpFirst := typecheck.TempAt(base.Pos, fn, types.Types[types.TBOOL])
 
 						// tmpFirstAssign assigns val to tmpFirst
 						tmpFirstAssign := func(val bool) *ir.AssignStmt {
@@ -605,7 +605,7 @@ func LogTransformations(transformed []VarAndLoop) {
 				// Intended to help with performance debugging, we record whole loop ranges
 				logopt.LogOptRange(pos, last, "loop-modified-"+loopKind, "loopvar", ir.FuncName(l.curfn))
 			}
-			if print && 3 <= base.Debug.LoopVar {
+			if print && 4 <= base.Debug.LoopVar {
 				// TODO decide if we want to keep this, or not.  It was helpful for validating logopt, otherwise, eh.
 				inner := base.Ctxt.InnermostPos(pos)
 				outer := base.Ctxt.OutermostPos(pos)

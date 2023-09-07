@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate go test cmd/go -v -run=TestDocsUpToDate -fixdocs
+//go:generate go test cmd/go -v -run=^TestDocsUpToDate$ -fixdocs
 
 package main
 
@@ -30,7 +30,6 @@ import (
 	"cmd/go/internal/fix"
 	"cmd/go/internal/fmtcmd"
 	"cmd/go/internal/generate"
-	"cmd/go/internal/get"
 	"cmd/go/internal/help"
 	"cmd/go/internal/list"
 	"cmd/go/internal/modcmd"
@@ -75,11 +74,9 @@ func init() {
 		help.HelpFileType,
 		modload.HelpGoMod,
 		help.HelpGopath,
-		get.HelpGopathGet,
 		modfetch.HelpGoproxy,
 		help.HelpImportPath,
 		modload.HelpModules,
-		modget.HelpModuleGet,
 		modfetch.HelpModuleAuth,
 		help.HelpPackages,
 		modfetch.HelpPrivate,
@@ -102,13 +99,6 @@ func main() {
 	args := flag.Args()
 	if len(args) < 1 {
 		base.Usage()
-	}
-
-	if args[0] == "get" || args[0] == "help" {
-		if !modload.WillBeEnabled() {
-			// Replace module-aware get with GOPATH get if appropriate.
-			*modget.CmdGet = *get.CmdGet
-		}
 	}
 
 	cfg.CmdName = args[0] // for error messages
@@ -175,7 +165,11 @@ func main() {
 		if used > 0 {
 			helpArg += " " + strings.Join(args[:used], " ")
 		}
-		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cfg.CmdName, helpArg)
+		cmdName := cfg.CmdName
+		if cmdName == "" {
+			cmdName = args[0]
+		}
+		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cmdName, helpArg)
 		base.SetExitStatus(2)
 		base.Exit()
 	}

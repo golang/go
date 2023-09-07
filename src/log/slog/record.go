@@ -109,7 +109,9 @@ func (r *Record) AddAttrs(attrs ...Attr) {
 	if cap(r.back) > len(r.back) {
 		end := r.back[:len(r.back)+1][len(r.back)]
 		if !end.isEmpty() {
-			panic("copies of a slog.Record were both modified")
+			// Don't panic; copy and muddle through.
+			r.back = slices.Clip(r.back)
+			r.back = append(r.back, String("!BUG", "AddAttrs unsafely called on copy of Record made without using Record.Clone"))
 		}
 	}
 	ne := countEmptyGroups(attrs[i:])

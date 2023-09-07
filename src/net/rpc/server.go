@@ -146,9 +146,8 @@ const (
 	DefaultDebugPath = "/debug/rpc"
 )
 
-// Precompute the reflect type for error. Can't use error directly
-// because Typeof takes an empty interface value. This is annoying.
-var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
+// Precompute the reflect type for error.
+var typeOfError = reflect.TypeFor[error]()
 
 type methodType struct {
 	sync.Mutex // protects counters

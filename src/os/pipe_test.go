@@ -263,7 +263,7 @@ func TestReadNonblockingFd(t *testing.T) {
 	}
 	defer r.Close()
 	defer w.Close()
-	cmd := testenv.Command(t, os.Args[0], "-test.run="+t.Name())
+	cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$")
 	cmd.Env = append(cmd.Environ(), "GO_WANT_READ_NONBLOCKING_FD=1")
 	cmd.Stdin = r
 	output, err := cmd.CombinedOutput()

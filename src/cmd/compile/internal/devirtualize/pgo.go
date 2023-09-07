@@ -301,8 +301,8 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 
 	sig := call.X.Type()
 
-	for _, ret := range sig.Results().FieldSlice() {
-		retvars = append(retvars, typecheck.Temp(ret.Type))
+	for _, ret := range sig.Results() {
+		retvars = append(retvars, typecheck.TempAt(base.Pos, curfn, ret.Type))
 	}
 
 	sel := call.X.(*ir.SelectorExpr)
@@ -317,7 +317,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 	// recv must be first in the assignment list as its side effects must
 	// be ordered before argument side effects.
 	var lhs, rhs []ir.Node
-	recv := typecheck.Temp(sel.X.Type())
+	recv := typecheck.TempAt(base.Pos, curfn, sel.X.Type())
 	lhs = append(lhs, recv)
 	rhs = append(rhs, sel.X)
 
@@ -326,7 +326,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 	// such as labels (possible in InlinedCall nodes).
 	args := call.Args.Take()
 	for _, arg := range args {
-		argvar := typecheck.Temp(arg.Type())
+		argvar := typecheck.TempAt(base.Pos, curfn, arg.Type())
 
 		lhs = append(lhs, argvar)
 		rhs = append(rhs, arg)
@@ -339,15 +339,15 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 	argvars := append([]ir.Node(nil), lhs[1:]...)
 	call.Args = argvars
 
-	tmpnode := typecheck.Temp(concretetyp)
-	tmpok := typecheck.Temp(types.Types[types.TBOOL])
+	tmpnode := typecheck.TempAt(base.Pos, curfn, concretetyp)
+	tmpok := typecheck.TempAt(base.Pos, curfn, types.Types[types.TBOOL])
 
 	assert := ir.NewTypeAssertExpr(pos, recv, concretetyp)
 
 	assertAsList := ir.NewAssignListStmt(pos, ir.OAS2, []ir.Node{tmpnode, tmpok}, []ir.Node{typecheck.Expr(assert)})
 	init.Append(typecheck.Stmt(assertAsList))
 
-	concreteCallee := typecheck.Callee(ir.NewSelectorExpr(pos, ir.OXDOT, tmpnode, method))
+	concreteCallee := typecheck.XDotMethod(pos, tmpnode, method, true)
 	// Copy slice so edits in one location don't affect another.
 	argvars = append([]ir.Node(nil), argvars...)
 	concreteCall := typecheck.Call(pos, concreteCallee, argvars, call.IsDDD)

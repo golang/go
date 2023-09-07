@@ -17,7 +17,6 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
-	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/notsha256"
 	"cmd/internal/obj"
@@ -56,7 +55,7 @@ func InitSliceBytes(nam *ir.Name, off int64, s string) {
 	if nam.Op() != ir.ONAME {
 		base.Fatalf("InitSliceBytes %v", nam)
 	}
-	InitSlice(nam, off, slicedata(nam.Pos(), s).Linksym(), int64(len(s)))
+	InitSlice(nam, off, slicedata(nam.Pos(), s), int64(len(s)))
 }
 
 const (
@@ -97,6 +96,16 @@ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
 	return symdata
 }
 
+// StringSymNoCommon is like StringSym, but produces a symbol that is not content-
+// addressable. This symbol is not supposed to appear in the final binary, it is
+// only used to pass string arguments to the linker like R_USENAMEDMETHOD does.
+func StringSymNoCommon(s string) (data *obj.LSym) {
+	var nameSym obj.LSym
+	nameSym.WriteString(base.Ctxt, 0, len(s), s)
+	objw.Global(&nameSym, int32(len(s)), obj.RODATA)
+	return &nameSym
+}
+
 // maxFileSize is the maximum file size permitted by the linker
 // (see issue #9862).
 const maxFileSize = int64(2e9)
@@ -134,7 +143,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 		if readonly {
 			sym = StringSym(pos, string(data))
 		} else {
-			sym = slicedata(pos, string(data)).Linksym()
+			sym = slicedata(pos, string(data))
 		}
 		if len(hash) > 0 {
 			sum := notsha256.Sum256(data)
@@ -182,7 +191,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 	} else {
 		// Emit a zero-length data symbol
 		// and then fix up length and content to use file.
-		symdata = slicedata(pos, "").Linksym()
+		symdata = slicedata(pos, "")
 		symdata.Size = size
 		symdata.Type = objabi.SNOPTRDATA
 		info := symdata.NewFileInfo()
@@ -195,18 +204,14 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 
 var slicedataGen int
 
-func slicedata(pos src.XPos, s string) *ir.Name {
+func slicedata(pos src.XPos, s string) *obj.LSym {
 	slicedataGen++
 	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
-	sym := types.LocalPkg.Lookup(symname)
-	symnode := typecheck.NewName(sym)
-	sym.Def = symnode
-
-	lsym := symnode.Linksym()
+	lsym := types.LocalPkg.Lookup(symname).LinksymABI(obj.ABI0)
 	off := dstringdata(lsym, 0, s, pos, "slice")
 	objw.Global(lsym, int32(off), obj.NOPTR|obj.LOCAL)
 
-	return symnode
+	return lsym
 }
 
 func dstringdata(s *obj.LSym, off int, t string, pos src.XPos, what string) int {

@@ -73,13 +73,12 @@ type dwctxt struct {
 // DwAttr objects contain references to symbols via this type.
 type dwSym loader.Sym
 
-func (s dwSym) Length(dwarfContext interface{}) int64 {
-	l := dwarfContext.(dwctxt).ldr
-	return int64(len(l.Data(loader.Sym(s))))
-}
-
 func (c dwctxt) PtrSize() int {
 	return c.arch.PtrSize
+}
+
+func (c dwctxt) Size(s dwarf.Sym) int64 {
+	return int64(len(c.ldr.Data(loader.Sym(s.(dwSym)))))
 }
 
 func (c dwctxt) AddInt(s dwarf.Sym, size int, i int64) {
@@ -153,10 +152,6 @@ func (c dwctxt) Logf(format string, args ...interface{}) {
 }
 
 // At the moment these interfaces are only used in the compiler.
-
-func (c dwctxt) AddFileRef(s dwarf.Sym, f interface{}) {
-	panic("should be used only in the compiler")
-}
 
 func (c dwctxt) CurrentOffset(s dwarf.Sym) int64 {
 	panic("should be used only in the compiler")
@@ -1517,16 +1512,6 @@ const (
 	COMPUNITHEADERSIZE = 4 + 2 + 4 + 1
 )
 
-// appendSyms appends the syms from 'src' into 'syms' and returns the
-// result. This can go away once we do away with sym.LoaderSym
-// entirely.
-func appendSyms(syms []loader.Sym, src []sym.LoaderSym) []loader.Sym {
-	for _, s := range src {
-		syms = append(syms, loader.Sym(s))
-	}
-	return syms
-}
-
 func (d *dwctxt) writeUnitInfo(u *sym.CompilationUnit, abbrevsym loader.Sym, infoEpilog loader.Sym) []loader.Sym {
 	syms := []loader.Sym{}
 	if len(u.Textp) == 0 && u.DWInfo.Child == nil && len(u.VarDIEs) == 0 {
@@ -1555,12 +1540,12 @@ func (d *dwctxt) writeUnitInfo(u *sym.CompilationUnit, abbrevsym loader.Sym, inf
 	// This is an under-estimate; more will be needed for type DIEs.
 	cu := make([]loader.Sym, 0, len(u.AbsFnDIEs)+len(u.FuncDIEs))
 	cu = append(cu, s)
-	cu = appendSyms(cu, u.AbsFnDIEs)
-	cu = appendSyms(cu, u.FuncDIEs)
+	cu = append(cu, u.AbsFnDIEs...)
+	cu = append(cu, u.FuncDIEs...)
 	if u.Consts != 0 {
 		cu = append(cu, loader.Sym(u.Consts))
 	}
-	cu = appendSyms(cu, u.VarDIEs)
+	cu = append(cu, u.VarDIEs...)
 	var cusize int64
 	for _, child := range cu {
 		cusize += int64(len(d.ldr.Data(child)))

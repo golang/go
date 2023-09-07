@@ -78,7 +78,7 @@ Examples:
 	MOVD $8, R2
 	RET
 
-On arm64, functions in Go are aligned to 16 bytes by default, we can also use PCALGIN to set the
+On arm64, functions in Go are aligned to 16 bytes by default, we can also use PCALIGN to set the
 function alignment. The functions that need to be aligned are preferably using NOFRAME and NOSPLIT
 to avoid the impact of the prologues inserted by the assembler, so that the function address will
 have the same alignment as the first hand-written instruction.

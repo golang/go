@@ -22,6 +22,13 @@ import (
 //	FromToolchain("go1.2.3-bigcorp") == "1.2.3"
 //	FromToolchain("invalid") == ""
 func FromToolchain(name string) string {
+	if strings.ContainsAny(name, "\\/") {
+		// The suffix must not include a path separator, since that would cause
+		// exec.LookPath to resolve it from a relative directory instead of from
+		// $PATH.
+		return ""
+	}
+
 	var v string
 	if strings.HasPrefix(name, "go") {
 		v = name[2:]

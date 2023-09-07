@@ -475,7 +475,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
 
 // isImportedConstraint reports whether typ is an imported type constraint.
 func (check *Checker) isImportedConstraint(typ Type) bool {
-	named, _ := typ.(*Named)
+	named := asNamed(typ)
 	if named == nil || named.obj.pkg == check.pkg || named.obj.pkg == nil {
 		return false
 	}
@@ -488,7 +488,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 
 	var rhs Type
 	check.later(func() {
-		if t, _ := obj.typ.(*Named); t != nil { // type may be invalid
+		if t := asNamed(obj.typ); t != nil { // type may be invalid
 			check.validType(t)
 		}
 		// If typ is local, an error was already reported where typ is specified/defined.
@@ -638,7 +638,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 
 	// spec: "If the base type is a struct type, the non-blank method
 	// and field names must be distinct."
-	base, _ := obj.typ.(*Named) // shouldn't fail but be conservative
+	base := asNamed(obj.typ) // shouldn't fail but be conservative
 	if base != nil {
 		assert(base.TypeArgs().Len() == 0) // collectMethods should not be called on an instantiated type
 
@@ -777,7 +777,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 
 			// declare all constants
 			lhs := make([]*Const, len(s.NameList))
-			values := unpackExpr(last.Values)
+			values := syntax.UnpackListExpr(last.Values)
 			for i, name := range s.NameList {
 				obj := NewConst(name.Pos(), pkg, name.Value, nil, iota)
 				lhs[i] = obj
@@ -814,7 +814,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			}
 
 			// initialize all variables
-			values := unpackExpr(s.Values)
+			values := syntax.UnpackListExpr(s.Values)
 			for i, obj := range lhs0 {
 				var lhs []*Var
 				var init syntax.Expr

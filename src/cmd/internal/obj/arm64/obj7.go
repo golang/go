@@ -329,8 +329,33 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		break
 	}
 
-	// Rewrite float constants to values stored in memory.
+	// Rewrite float and vector constants to values stored in memory.
 	switch p.As {
+	case AVMOVS:
+		if p.From.Type == obj.TYPE_CONST {
+			p.From.Type = obj.TYPE_MEM
+			p.From.Sym = c.ctxt.Int32Sym(p.From.Offset)
+			p.From.Name = obj.NAME_EXTERN
+			p.From.Offset = 0
+		}
+
+	case AVMOVD:
+		if p.From.Type == obj.TYPE_CONST {
+			p.From.Type = obj.TYPE_MEM
+			p.From.Sym = c.ctxt.Int64Sym(p.From.Offset)
+			p.From.Name = obj.NAME_EXTERN
+			p.From.Offset = 0
+		}
+
+	case AVMOVQ:
+		if p.From.Type == obj.TYPE_CONST {
+			p.From.Type = obj.TYPE_MEM
+			p.From.Sym = c.ctxt.Int128Sym(p.GetFrom3().Offset, p.From.Offset)
+			p.From.Name = obj.NAME_EXTERN
+			p.From.Offset = 0
+			p.RestArgs = nil
+		}
+
 	case AFMOVS:
 		if p.From.Type == obj.TYPE_FCONST {
 			f64 := p.From.Val.(float64)
@@ -365,8 +390,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
-
-		break
 	}
 
 	if c.ctxt.Flag_dynlink {
