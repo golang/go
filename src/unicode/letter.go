@@ -140,7 +140,7 @@ func is32(ranges []Range32, r uint32) bool {
 	hi := len(ranges)
 	for lo < hi {
 		m := lo + (hi-lo)/2
-		range_ := ranges[m]
+		range_ := &ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
 			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
 		}
