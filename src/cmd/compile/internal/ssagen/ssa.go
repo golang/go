@@ -7918,10 +7918,6 @@ func (e *ssafn) StringData(s string) *obj.LSym {
 	return data
 }
 
-func (e *ssafn) Auto(pos src.XPos, t *types.Type) *ir.Name {
-	return typecheck.TempAt(pos, e.curfn, t) // Note: adds new auto to e.curfn.Func.Dcl list
-}
-
 // SplitSlot returns a slot representing the data of parent starting at offset.
 func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
 	node := parent.N

@@ -319,7 +319,7 @@ func writebarrier(f *Func) {
 						}
 
 						t := val.Type.Elem()
-						tmp := f.fe.Auto(w.Pos, t)
+						tmp := f.NewLocal(w.Pos, t)
 						mem = b.NewValue1A(w.Pos, OpVarDef, types.TypeMem, tmp, mem)
 						tmpaddr := b.NewValue2A(w.Pos, OpLocalAddr, t.PtrTo(), tmp, sp, mem)
 						siz := t.Size()

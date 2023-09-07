@@ -7,6 +7,8 @@ package ssa
 import (
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -817,4 +819,9 @@ func (f *Func) useFMA(v *Value) bool {
 		return true
 	}
 	return base.FmaHash.MatchPos(v.Pos, nil)
+}
+
+// NewLocal returns a new anonymous local variable of the given type.
+func (f *Func) NewLocal(pos src.XPos, typ *types.Type) *ir.Name {
+	return typecheck.TempAt(pos, f.fe.Func(), typ) // Note: adds new auto to fn.Dcl list
 }

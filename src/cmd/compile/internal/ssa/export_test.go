@@ -70,6 +70,12 @@ func (c *Conf) Frontend() Frontend {
 	return c.fe
 }
 
+func (c *Conf) Temp(typ *types.Type) *ir.Name {
+	n := ir.NewNameAt(src.NoXPos, &types.Sym{Name: "aFakeAuto"}, typ)
+	n.Class = ir.PAUTO
+	return n
+}
+
 // TestFrontend is a test-only frontend.
 // It assumes 64 bit integers and pointers.
 type TestFrontend struct {
@@ -80,11 +86,6 @@ type TestFrontend struct {
 
 func (TestFrontend) StringData(s string) *obj.LSym {
 	return nil
-}
-func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Name {
-	n := ir.NewNameAt(pos, &types.Sym{Name: "aFakeAuto"}, t)
-	n.Class = ir.PAUTO
-	return n
 }
 func (d TestFrontend) SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot {
 	return LocalSlot{N: parent.N, Type: t, Off: offset}
