@@ -7,6 +7,7 @@ package lsp
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
@@ -69,31 +70,26 @@ func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 		s.session.SetFolderOptions(ctx, view.Folder(), options)
 	}
 
-	// Now that all views have been updated: reset vulncheck diagnostics, rerun
-	// diagnostics, and hope for the best...
-	//
-	// TODO(golang/go#60465): this not a reliable way to ensure the correctness
-	// of the resulting diagnostics below. A snapshot could still be in the
-	// process of diagnosing the workspace, and not observe the configuration
-	// changes above.
-	//
-	// The real fix is golang/go#42814: we should create a new snapshot on any
-	// change that could affect the derived results in that snapshot. However, we
-	// are currently (2023-05-26) on the verge of a release, and the proper fix
-	// is too risky a change. Since in the common case a configuration change is
-	// only likely to occur during a period of quiescence on the server, it is
-	// likely that the clearing below will have the desired effect.
-	s.clearDiagnosticSource(modVulncheckSource)
-
+	var wg sync.WaitGroup
 	for _, view := range s.session.Views() {
 		view := view
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			snapshot, release, err := view.Snapshot()
 			if err != nil {
 				return // view is shut down; no need to diagnose
 			}
 			defer release()
 			s.diagnoseSnapshot(snapshot, nil, false, 0)
+		}()
+	}
+
+	if s.Options().VerboseWorkDoneProgress {
+		work := s.progress.Start(ctx, DiagnosticWorkTitle(FromDidChangeConfiguration), "Calculating diagnostics...", nil, nil)
+		go func() {
+			wg.Wait()
+			work.End(ctx, "Done.")
 		}()
 	}
 

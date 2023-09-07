@@ -20,28 +20,27 @@ import (
 	"golang.org/x/tools/internal/jsonrpc2"
 )
 
-// ModificationSource identifies the originating cause of a file modification.
+// ModificationSource identifies the origin of a change.
 type ModificationSource int
 
 const (
-	// FromDidOpen is a file modification caused by opening a file.
+	// FromDidOpen is from a didOpen notification.
 	FromDidOpen = ModificationSource(iota)
 
-	// FromDidChange is a file modification caused by changing a file.
+	// FromDidChange is from a didChange notification.
 	FromDidChange
 
-	// FromDidChangeWatchedFiles is a file modification caused by a change to a
-	// watched file.
+	// FromDidChangeWatchedFiles is from didChangeWatchedFiles notification.
 	FromDidChangeWatchedFiles
 
-	// FromDidSave is a file modification caused by a file save.
+	// FromDidSave is from a didSave notification.
 	FromDidSave
 
-	// FromDidClose is a file modification caused by closing a file.
+	// FromDidClose is from a didClose notification.
 	FromDidClose
 
-	// TODO: add FromDidChangeConfiguration, once configuration changes cause a
-	// new snapshot to be created.
+	// FromDidChangeConfiguration is from a didChangeConfiguration notification.
+	FromDidChangeConfiguration
 
 	// FromRegenerateCgo refers to file modifications caused by regenerating
 	// the cgo sources for the workspace.

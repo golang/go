@@ -56,7 +56,7 @@ type Editor struct {
 
 // CallCounts tracks the number of protocol notifications of different types.
 type CallCounts struct {
-	DidOpen, DidChange, DidSave, DidChangeWatchedFiles, DidClose uint64
+	DidOpen, DidChange, DidSave, DidChangeWatchedFiles, DidClose, DidChangeConfiguration uint64
 }
 
 // buffer holds information about an open buffer in the editor.
@@ -1367,6 +1367,9 @@ func (e *Editor) ChangeConfiguration(ctx context.Context, newConfig EditorConfig
 		if err := e.Server.DidChangeConfiguration(ctx, &params); err != nil {
 			return err
 		}
+		e.callsMu.Lock()
+		e.calls.DidChangeConfiguration++
+		e.callsMu.Unlock()
 	}
 	return nil
 }

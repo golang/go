@@ -312,11 +312,12 @@ func ShowMessageRequest(title string) Expectation {
 func (e *Env) DoneDiagnosingChanges() Expectation {
 	stats := e.Editor.Stats()
 	statsBySource := map[lsp.ModificationSource]uint64{
-		lsp.FromDidOpen:               stats.DidOpen,
-		lsp.FromDidChange:             stats.DidChange,
-		lsp.FromDidSave:               stats.DidSave,
-		lsp.FromDidChangeWatchedFiles: stats.DidChangeWatchedFiles,
-		lsp.FromDidClose:              stats.DidClose,
+		lsp.FromDidOpen:                stats.DidOpen,
+		lsp.FromDidChange:              stats.DidChange,
+		lsp.FromDidSave:                stats.DidSave,
+		lsp.FromDidChangeWatchedFiles:  stats.DidChangeWatchedFiles,
+		lsp.FromDidClose:               stats.DidClose,
+		lsp.FromDidChangeConfiguration: stats.DidChangeConfiguration,
 	}
 
 	var expected []lsp.ModificationSource

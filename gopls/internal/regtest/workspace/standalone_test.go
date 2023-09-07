@@ -198,11 +198,6 @@ func main() {}
 			"standaloneTags": []string{"ignore"},
 		}
 		env.ChangeConfiguration(cfg)
-
-		// TODO(golang/go#56158): gopls does not purge previously published
-		// diagnostice when configuration changes.
-		env.RegexpReplace("ignore.go", "arbitrary", "meaningless")
-
 		env.AfterChange(
 			NoDiagnostics(ForFile("ignore.go")),
 			Diagnostics(env.AtRegexp("standalone.go", "package (main)")),
