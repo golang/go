@@ -875,7 +875,7 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 				if f.Kind() == reflect.Slice || f.CanAddr() {
 					bytes = f.Bytes()
 				} else {
-					// We have an array, but we cannot Slice() a non-addressable array,
+					// We have an array, but we cannot Bytes() a non-addressable array,
 					// so we build a slice by hand. This is a rare case but it would be nice
 					// if reflection could help a little more.
 					bytes = make([]byte, f.Len())
