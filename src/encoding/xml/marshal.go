@@ -797,7 +797,7 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) (string, []
 		// [...]byte
 		var bytes []byte
 		if val.CanAddr() {
-			bytes = val.Slice(0, val.Len()).Bytes()
+			bytes = val.Bytes()
 		} else {
 			bytes = make([]byte, val.Len())
 			reflect.Copy(reflect.ValueOf(bytes), val)
