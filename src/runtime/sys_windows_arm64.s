@@ -19,6 +19,9 @@
 //
 // load_g and save_g (in tls_arm64.s) clobber R27 (REGTMP) and R0.
 
+TEXT runtime·asmstdcall_trampoline<ABIInternal>(SB),NOSPLIT,$0
+	B	runtime·asmstdcall(SB)
+
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT,$16
 	STP	(R19, R20), 16(RSP) // save old R19, R20
@@ -237,14 +240,6 @@ TEXT runtime·usleep2(SB),NOSPLIT,$32-4
 	MOVD	runtime·_NtWaitForSingleObject(SB), R3
 	SUB	$16, RSP	// skip over saved frame pointer below RSP
 	BL	(R3)
-	ADD	$16, RSP
-	RET
-
-// Runs on OS stack.
-TEXT runtime·switchtothread(SB),NOSPLIT,$16-0
-	MOVD	runtime·_SwitchToThread(SB), R0
-	SUB	$16, RSP	// skip over saved frame pointer below RSP
-	BL	(R0)
 	ADD	$16, RSP
 	RET
 

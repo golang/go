@@ -955,6 +955,22 @@ func mdestroy(mp *m) {
 	}
 }
 
+// asmstdcall_trampoline calls asmstdcall converting from Go to C calling convention.
+func asmstdcall_trampoline(args unsafe.Pointer)
+
+// stdcall_no_g calls asmstdcall on os stack without using g.
+//
+//go:nosplit
+func stdcall_no_g(fn stdFunction, n int, args uintptr) uintptr {
+	libcall := libcall{
+		fn:   uintptr(unsafe.Pointer(fn)),
+		n:    uintptr(n),
+		args: args,
+	}
+	asmstdcall_trampoline(noescape(unsafe.Pointer(&libcall)))
+	return libcall.r1
+}
+
 // Calling stdcall on os stack.
 // May run during STW, so write barriers are not allowed.
 //
@@ -1054,16 +1070,17 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 
 // These must run on the system stack only.
 func usleep2(dt int32)
-func switchtothread()
 
 //go:nosplit
 func osyield_no_g() {
-	switchtothread()
+	stdcall_no_g(_SwitchToThread, 0, 0)
 }
 
 //go:nosplit
 func osyield() {
-	systemstack(switchtothread)
+	systemstack(func() {
+		stdcall0(_SwitchToThread)
+	})
 }
 
 //go:nosplit

@@ -11,6 +11,9 @@
 #define TEB_TlsSlots 0xE10
 #define TEB_ArbitraryPtr 0x14
 
+TEXT runtime·asmstdcall_trampoline<ABIInternal>(SB),NOSPLIT,$0
+	JMP	runtime·asmstdcall(SB)
+
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT,$0
 	MOVL	fn+0(FP), BX
@@ -244,14 +247,6 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20-4
 	MOVL	$-1, handle-20(SP)
 	MOVL	SP, BP
 	MOVL	runtime·_NtWaitForSingleObject(SB), AX
-	CALL	AX
-	MOVL	BP, SP
-	RET
-
-// Runs on OS stack.
-TEXT runtime·switchtothread(SB),NOSPLIT,$0
-	MOVL	SP, BP
-	MOVL	runtime·_SwitchToThread(SB), AX
 	CALL	AX
 	MOVL	BP, SP
 	RET

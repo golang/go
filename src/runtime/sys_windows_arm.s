@@ -9,6 +9,9 @@
 
 // Note: For system ABI, R0-R3 are args, R4-R11 are callee-save.
 
+TEXT runtime·asmstdcall_trampoline<ABIInternal>(SB),NOSPLIT,$0
+	B	runtime·asmstdcall(SB)
+
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
 	MOVM.DB.W [R4, R5, R14], (R13)	// push {r4, r5, lr}
@@ -209,16 +212,6 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	runtime·_NtWaitForSingleObject(SB), R3
 	BL	(R3)
 	MOVW	R4, R13			// Restore SP
-	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
-
-// Runs on OS stack.
-TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
-	MOVM.DB.W [R4, R14], (R13)  	// push {R4, lr}
-	MOVW    R13, R4
-	BIC	$0x7, R13		// alignment for ABI
-	MOVW	runtime·_SwitchToThread(SB), R0
-	BL	(R0)
-	MOVW 	R4, R13			// restore stack pointer
 	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
 
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
