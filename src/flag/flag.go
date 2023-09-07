@@ -1114,32 +1114,22 @@ func (f *FlagSet) parseOne() (bool, error) {
 		}
 		return false, f.failf("flag provided but not defined: -%s", name)
 	}
-
-	if fv, ok := flag.Value.(boolFlag); ok && fv.IsBoolFlag() { // special case: doesn't need an arg
-		// It must have a value, which might be the next argument.
-		if !hasValue && len(f.args) > 0 {
-			// value is the next arg
-			hasValue = true
-			value, f.args = f.args[0], f.args[1:]
-		}
-		if hasValue {
-			if err := fv.Set(value); err != nil {
-				return false, f.failf("invalid boolean value %q for -%s: %v", value, name, err)
-			}
-		}
-	} else {
-		// It must have a value, which might be the next argument.
-		if !hasValue && len(f.args) > 0 {
-			// value is the next arg
-			hasValue = true
-			value, f.args = f.args[0], f.args[1:]
-		}
+	
+	// It must have a value, which might be the next argument.
+	if !hasValue && len(f.args) > 0 {
+		// value is the next arg
+		hasValue = true
+		value, f.args = f.args[0], f.args[1:]
+	}
+	if _, ok := flag.Value.(boolFlag); !ok {
 		if !hasValue {
 			return false, f.failf("flag needs an argument: -%s", name)
 		}
-		if err := flag.Value.Set(value); err != nil {
-			return false, f.failf("invalid value %q for flag -%s: %v", value, name, err)
-		}
+	} else if !hasValue {
+		value = "false"
+	}
+	if err := flag.Value.Set(value); err != nil {
+		return false, f.failf("invalid value %q for flag -%s: %v", value, name, err)
 	}
 	if f.actual == nil {
 		f.actual = make(map[string]*Flag)
