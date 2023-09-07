@@ -8025,10 +8025,6 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
 	return nil
 }
 
-func (e *ssafn) MyImportPath() string {
-	return base.Ctxt.Pkgpath
-}
-
 func (e *ssafn) Func() *ir.Func {
 	return e.curfn
 }

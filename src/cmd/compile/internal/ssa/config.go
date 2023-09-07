@@ -167,9 +167,6 @@ type Frontend interface {
 	// UseWriteBarrier reports whether write barrier is enabled
 	UseWriteBarrier() bool
 
-	// MyImportPath provides the import name (roughly, the package) for the function being compiled.
-	MyImportPath() string
-
 	// Func returns the ir.Func of the function being compiled.
 	Func() *ir.Func
 }

@@ -105,9 +105,6 @@ func (d TestFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.
 func (d TestFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
 func (d TestFrontend) Debug_checknil() bool                               { return false }
 
-func (d TestFrontend) MyImportPath() string {
-	return d.f.Sym().Pkg.Path
-}
 func (d TestFrontend) Func() *ir.Func {
 	return d.f
 }

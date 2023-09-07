@@ -781,7 +781,8 @@ func (f *Func) DebugHashMatch() bool {
 	if !base.HasDebugHash() {
 		return true
 	}
-	return base.DebugHashMatchPkgFunc(f.fe.MyImportPath(), f.Name)
+	sym := f.fe.Func().Sym()
+	return base.DebugHashMatchPkgFunc(sym.Pkg.Path, sym.Name)
 }
 
 func (f *Func) spSb() (sp, sb *Value) {
