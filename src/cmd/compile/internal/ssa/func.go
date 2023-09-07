@@ -84,9 +84,17 @@ type LocalSlotSplitKey struct {
 }
 
 // NewFunc returns a new, empty function object.
-// Caller must set f.Config and f.Cache before using f.
-func NewFunc(fe Frontend) *Func {
-	return &Func{fe: fe, NamedValues: make(map[LocalSlot][]*Value), CanonicalLocalSlots: make(map[LocalSlot]*LocalSlot), CanonicalLocalSplits: make(map[LocalSlotSplitKey]*LocalSlot)}
+// Caller must reset cache before calling NewFunc.
+func (c *Config) NewFunc(fe Frontend, cache *Cache) *Func {
+	return &Func{
+		fe:     fe,
+		Config: c,
+		Cache:  cache,
+
+		NamedValues:          make(map[LocalSlot][]*Value),
+		CanonicalLocalSlots:  make(map[LocalSlot]*LocalSlot),
+		CanonicalLocalSplits: make(map[LocalSlotSplitKey]*LocalSlot),
+	}
 }
 
 // NumBlocks returns an integer larger than the id of any Block in the Func.

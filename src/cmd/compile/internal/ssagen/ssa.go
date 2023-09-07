@@ -344,12 +344,12 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	}
 	s.curfn = fn
 
-	s.f = ssa.NewFunc(&fe)
+	cache := &ssaCaches[worker]
+	cache.Reset()
+
+	s.f = ssaConfig.NewFunc(&fe, cache)
 	s.config = ssaConfig
 	s.f.Type = fn.Type()
-	s.f.Config = ssaConfig
-	s.f.Cache = &ssaCaches[worker]
-	s.f.Cache.Reset()
 	s.f.Name = name
 	s.f.PrintOrHtmlSSA = printssa
 	if fn.Pragma&ir.Nosplit != 0 {
