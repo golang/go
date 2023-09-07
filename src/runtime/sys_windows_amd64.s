@@ -29,6 +29,11 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$16
 
 	SUBQ	$(const_maxArgs*8), SP	// room for args
 
+	// Fast version, do not store args on the stack nor
+	// load them into registers.
+	CMPL	CX, $0
+	JE	docall
+
 	// Fast version, do not store args on the stack.
 	CMPL	CX, $4
 	JLE	loadregs
@@ -59,6 +64,7 @@ loadregs:
 	MOVQ	R8, X2
 	MOVQ	R9, X3
 
+docall:
 	// Call stdcall function.
 	CALL	AX
 

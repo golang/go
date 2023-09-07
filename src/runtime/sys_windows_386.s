@@ -14,13 +14,18 @@
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT,$0
 	MOVL	fn+0(FP), BX
+	MOVL	SP, BP	// save stack pointer
 
 	// SetLastError(0).
 	MOVL	$0, 0x34(FS)
 
+	MOVL	libcall_n(BX), CX
+
+	// Fast version, do not store args on the stack.
+	CMPL	CX, $0
+	JE	docall
+
 	// Copy args to the stack.
-	MOVL	SP, BP
-	MOVL	libcall_n(BX), CX	// words
 	MOVL	CX, AX
 	SALL	$2, AX
 	SUBL	AX, SP			// room for args
@@ -29,6 +34,7 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
 	CLD
 	REP; MOVSL
 
+docall:
 	// Call stdcall or cdecl function.
 	// DI SI BP BX are preserved, SP is not
 	CALL	libcall_fn(BX)

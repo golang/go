@@ -985,7 +985,7 @@ func stdcall(fn stdFunction) uintptr {
 func stdcall0(fn stdFunction) uintptr {
 	mp := getg().m
 	mp.libcall.n = 0
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&fn))) // it's unused but must be non-nil, otherwise crashes
+	mp.libcall.args = 0
 	return stdcall(fn)
 }
 
