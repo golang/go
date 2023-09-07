@@ -296,7 +296,6 @@ func TestMapRangeNoAllocations(t *testing.T) { // Issue 62404
 }
 
 func TestMapDelete(t *testing.T) {
-
 	var myMap sync.Map
 
 	key := "go"
