@@ -33,12 +33,13 @@ type Cookie struct {
 	// MaxAge=0 means no 'Max-Age' attribute specified.
 	// MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'
 	// MaxAge>0 means Max-Age attribute present and given in seconds
-	MaxAge   int
-	Secure   bool
-	HttpOnly bool
-	SameSite SameSite
-	Raw      string
-	Unparsed []string // Raw text of unparsed attribute-value pairs
+	MaxAge      int
+	Secure      bool
+	HttpOnly    bool
+	SameSite    SameSite
+	Partitioned bool
+	Raw         string
+	Unparsed    []string // Raw text of unparsed attribute-value pairs
 }
 
 // SameSite allows a server to define a cookie attribute making it impossible for
@@ -185,6 +186,9 @@ func ParseSetCookie(line string) (*Cookie, error) {
 		case "path":
 			c.Path = val
 			continue
+		case "partitioned":
+			c.Partitioned = true
+			continue
 		}
 		c.Unparsed = append(c.Unparsed, parts[i])
 	}
@@ -280,6 +284,9 @@ func (c *Cookie) String() string {
 	case SameSiteStrictMode:
 		b.WriteString("; SameSite=Strict")
 	}
+	if c.Partitioned {
+		b.WriteString("; Partitioned")
+	}
 	return b.String()
 }
 
@@ -309,6 +316,11 @@ func (c *Cookie) Valid() error {
 	if len(c.Domain) > 0 {
 		if !validCookieDomain(c.Domain) {
 			return errors.New("http: invalid Cookie.Domain")
+		}
+	}
+	if c.Partitioned {
+		if !c.Secure || c.Path != "/" {
+			return errors.New("http: partitioned cookies must be set with Secure and Path=/")
 		}
 	}
 	return nil
