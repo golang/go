@@ -491,7 +491,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 			} else { // address was taken AND/OR too large for SSA
 				paramAssignment := ssa.ParamAssignmentForArgName(s.f, n)
 				if len(paramAssignment.Registers) > 0 {
-					if TypeOK(n.Type()) { // SSA-able type, so address was taken -- receive value in OpArg, DO NOT bind to var, store immediately to memory.
+					if ssa.CanSSA(n.Type()) { // SSA-able type, so address was taken -- receive value in OpArg, DO NOT bind to var, store immediately to memory.
 						v := s.newValue0A(ssa.OpArg, n.Type(), n)
 						s.store(n.Type(), s.decladdrs[n], v)
 					} else { // Too big for SSA.
@@ -526,7 +526,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 			// runtime calls that did (#43701). Since we don't
 			// convert Addrtaken variables to SSA anyway, no point
 			// in promoting them either.
-			if n.Byval() && !n.Addrtaken() && TypeOK(n.Type()) {
+			if n.Byval() && !n.Addrtaken() && ssa.CanSSA(n.Type()) {
 				n.Class = ir.PAUTO
 				fn.Dcl = append(fn.Dcl, n)
 				s.assign(n, s.load(n.Type(), ptr), false, 0)
@@ -621,7 +621,7 @@ func (s *state) zeroResults() {
 			continue
 		}
 		// Zero the stack location containing f.
-		if typ := n.Type(); TypeOK(typ) {
+		if typ := n.Type(); ssa.CanSSA(typ) {
 			s.assign(n, s.zeroVal(typ), false, 0)
 		} else {
 			if typ.HasPointers() {
@@ -1493,7 +1493,7 @@ func (s *state) stmt(n ir.Node) {
 			res, resok = s.dynamicDottype(n.Rhs[0].(*ir.DynamicTypeAssertExpr), true)
 		}
 		deref := false
-		if !TypeOK(n.Rhs[0].Type()) {
+		if !ssa.CanSSA(n.Rhs[0].Type()) {
 			if res.Op != ssa.OpLoad {
 				s.Fatalf("dottype of non-load")
 			}
@@ -1652,7 +1652,7 @@ func (s *state) stmt(n ir.Node) {
 		}
 
 		var r *ssa.Value
-		deref := !TypeOK(t)
+		deref := !ssa.CanSSA(t)
 		if deref {
 			if rhs == nil {
 				r = nil // Signal assign to use OpZero.
@@ -3156,7 +3156,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 			p := s.addr(n)
 			return s.load(n.X.Type().Elem(), p)
 		case n.X.Type().IsArray():
-			if TypeOK(n.X.Type()) {
+			if ssa.CanSSA(n.X.Type()) {
 				// SSA can handle arrays of length at most 1.
 				bound := n.X.Type().NumElem()
 				a := s.expr(n.X)
@@ -3359,7 +3359,7 @@ func (s *state) resultOfCall(c *ssa.Value, which int64, t *types.Type) *ssa.Valu
 	pa := aux.ParamAssignmentForResult(which)
 	// TODO(register args) determine if in-memory TypeOK is better loaded early from SelectNAddr or later when SelectN is expanded.
 	// SelectN is better for pattern-matching and possible call-aware analysis we might want to do in the future.
-	if len(pa.Registers) == 0 && !TypeOK(t) {
+	if len(pa.Registers) == 0 && !ssa.CanSSA(t) {
 		addr := s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(t), which, c)
 		return s.rawLoad(t, addr)
 	}
@@ -3515,7 +3515,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	}
 	args := make([]argRec, 0, len(n.Args[1:]))
 	for _, n := range n.Args[1:] {
-		if TypeOK(n.Type()) {
+		if ssa.CanSSA(n.Type()) {
 			args = append(args, argRec{v: s.expr(n), store: true})
 		} else {
 			v := s.addr(n)
@@ -5047,7 +5047,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
 // (therefore SSAable). val is the value to be stored. The function returns an SSA
 // value representing a pointer to the autotmp location.
 func (s *state) openDeferSave(t *types.Type, val *ssa.Value) *ssa.Value {
-	if !TypeOK(t) {
+	if !ssa.CanSSA(t) {
 		s.Fatalf("openDeferSave of non-SSA-able type %v val=%v", t, val)
 	}
 	if !t.HasPointers() {
@@ -5558,7 +5558,7 @@ func (s *state) canSSA(n ir.Node) bool {
 	if n.Op() != ir.ONAME {
 		return false
 	}
-	return s.canSSAName(n.(*ir.Name)) && TypeOK(n.Type())
+	return s.canSSAName(n.(*ir.Name)) && ssa.CanSSA(n.Type())
 }
 
 func (s *state) canSSAName(name *ir.Name) bool {
@@ -5583,39 +5583,6 @@ func (s *state) canSSAName(name *ir.Name) bool {
 	}
 	return true
 	// TODO: try to make more variables SSAable?
-}
-
-// TypeOK reports whether variables of type t are SSA-able.
-func TypeOK(t *types.Type) bool {
-	types.CalcSize(t)
-	if t.Size() > int64(4*types.PtrSize) {
-		// 4*Widthptr is an arbitrary constant. We want it
-		// to be at least 3*Widthptr so slices can be registerized.
-		// Too big and we'll introduce too much register pressure.
-		return false
-	}
-	switch t.Kind() {
-	case types.TARRAY:
-		// We can't do larger arrays because dynamic indexing is
-		// not supported on SSA variables.
-		// TODO: allow if all indexes are constant.
-		if t.NumElem() <= 1 {
-			return TypeOK(t.Elem())
-		}
-		return false
-	case types.TSTRUCT:
-		if t.NumFields() > ssa.MaxStruct {
-			return false
-		}
-		for _, t1 := range t.Fields() {
-			if !TypeOK(t1.Type) {
-				return false
-			}
-		}
-		return true
-	default:
-		return true
-	}
 }
 
 // exprPtr evaluates n to a pointer and nil-checks it.
@@ -5943,7 +5910,7 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 // putArg evaluates n for the purpose of passing it as an argument to a function and returns the value for the call.
 func (s *state) putArg(n ir.Node, t *types.Type) *ssa.Value {
 	var a *ssa.Value
-	if !TypeOK(t) {
+	if !ssa.CanSSA(t) {
 		a = s.newValue2(ssa.OpDereference, t, s.addr(n), s.mem())
 	} else {
 		a = s.expr(n)
@@ -5961,7 +5928,7 @@ func (s *state) storeArgWithBase(n ir.Node, t *types.Type, base *ssa.Value, off 
 		addr = s.newValue1I(ssa.OpOffPtr, pt, off, base)
 	}
 
-	if !TypeOK(t) {
+	if !ssa.CanSSA(t) {
 		a := s.addr(n)
 		s.move(t, addr, a)
 		return
@@ -6546,7 +6513,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 
 	var tmp ir.Node     // temporary for use with large types
 	var addr *ssa.Value // address of tmp
-	if commaok && !TypeOK(dst) {
+	if commaok && !ssa.CanSSA(dst) {
 		// unSSAable type, use temporary.
 		// TODO: get rid of some of these temporaries.
 		tmp, addr = s.temp(pos, dst)
@@ -7530,7 +7497,7 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
 				continue
 			}
 			n, off := ssa.AutoVar(v)
-			if n.Class != ir.PPARAM || n.Addrtaken() || !TypeOK(n.Type()) || !s.partLiveArgs[n] {
+			if n.Class != ir.PPARAM || n.Addrtaken() || !ssa.CanSSA(n.Type()) || !s.partLiveArgs[n] {
 				continue
 			}
 			partLiveArgsSpilled[nameOff{n, off}] = true
@@ -7539,7 +7506,7 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
 		// Then, insert code to spill registers if not already.
 		for _, a := range f.OwnAux.ABIInfo().InParams() {
 			n, ok := a.Name.(*ir.Name)
-			if !ok || n.Addrtaken() || !TypeOK(n.Type()) || !s.partLiveArgs[n] || len(a.Registers) <= 1 {
+			if !ok || n.Addrtaken() || !ssa.CanSSA(n.Type()) || !s.partLiveArgs[n] || len(a.Registers) <= 1 {
 				continue
 			}
 			rts, offs := a.RegisterTypesAndOffsets()
@@ -7968,10 +7935,6 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t 
 	n.SetEsc(ir.EscNever)
 	types.CalcSize(t)
 	return ssa.LocalSlot{N: n, Type: t, Off: 0, SplitOf: parent, SplitOffset: offset}
-}
-
-func (e *ssafn) CanSSA(t *types.Type) bool {
-	return TypeOK(t)
 }
 
 // Logf logs a message from the compiler.

@@ -7,7 +7,7 @@ package walk
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/ssagen"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
@@ -18,7 +18,7 @@ import (
 // walkCompLit walks a composite literal node:
 // OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT (all CompLitExpr), or OPTRLIT (AddrExpr).
 func walkCompLit(n ir.Node, init *ir.Nodes) ir.Node {
-	if isStaticCompositeLiteral(n) && !ssagen.TypeOK(n.Type()) {
+	if isStaticCompositeLiteral(n) && !ssa.CanSSA(n.Type()) {
 		n := n.(*ir.CompLitExpr) // not OPTRLIT
 		// n can be directly represented in the read-only data section.
 		// Make direct reference to the static data. See issue 12841.

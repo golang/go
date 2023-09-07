@@ -143,9 +143,6 @@ type Logger interface {
 type Frontend interface {
 	Logger
 
-	// CanSSA reports whether variables of type t are SSA-able.
-	CanSSA(t *types.Type) bool
-
 	// StringData returns a symbol pointing to the given string's contents.
 	StringData(string) *obj.LSym
 

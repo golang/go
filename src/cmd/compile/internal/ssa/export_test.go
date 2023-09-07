@@ -120,10 +120,3 @@ func init() {
 	typecheck.InitUniverse()
 	testTypes.SetTypPtrs()
 }
-
-func (d TestFrontend) DerefItab(sym *obj.LSym, off int64) *obj.LSym { return nil }
-
-func (d TestFrontend) CanSSA(t *types.Type) bool {
-	// There are no un-SSAable types in test land.
-	return true
-}

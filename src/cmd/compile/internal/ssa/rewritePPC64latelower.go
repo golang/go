@@ -152,7 +152,7 @@ func rewriteValuePPC64latelower_OpPPC64ISEL(v *Value) bool {
 func rewriteValuePPC64latelower_OpPPC64RLDICL(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (RLDICL [em] x:(SRDconst [s] a))
-	// cond: (em&0xFF0000)==0
+	// cond: (em&0xFF0000) == 0
 	// result: (RLDICL [mergePPC64RLDICLandSRDconst(em, s)] a)
 	for {
 		em := auxIntToInt64(v.AuxInt)

@@ -177,7 +177,6 @@ type expandState struct {
 	f                  *Func
 	abi1               *abi.ABIConfig
 	debug              int // odd values log lost statement markers, so likely settings are 1 (stmts), 2 (expansion), and 3 (both)
-	canSSAType         func(*types.Type) bool
 	regSize            int64
 	sp                 *Value
 	typs               *Types
@@ -211,7 +210,7 @@ func (x *expandState) intPairTypes(et types.Kind) (tHi, tLo *types.Type) {
 // so this is all aggregate types -- small struct and array, complex, interface, string, slice, and 64-bit
 // integer on 32-bit).
 func (x *expandState) isAlreadyExpandedAggregateType(t *types.Type) bool {
-	if !x.canSSAType(t) {
+	if !CanSSA(t) {
 		return false
 	}
 	return t.IsStruct() || t.IsArray() || t.IsComplex() || t.IsInterface() || t.IsString() || t.IsSlice() ||
@@ -426,7 +425,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 
 		} else {
 			leafType := removeTrivialWrapperTypes(leaf.Type)
-			if x.canSSAType(leafType) {
+			if CanSSA(leafType) {
 				pt := types.NewPtr(leafType)
 				// Any selection right out of the arg area/registers has to be same Block as call, use call as mem input.
 				// Create a "mem" for any loads that need to occur.
@@ -1195,7 +1194,6 @@ func expandCalls(f *Func) {
 		f:                  f,
 		abi1:               f.ABI1,
 		debug:              f.pass.debug,
-		canSSAType:         f.fe.CanSSA,
 		regSize:            f.Config.RegSize,
 		sp:                 sp,
 		typs:               &f.Config.Types,
