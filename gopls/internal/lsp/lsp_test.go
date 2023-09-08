@@ -496,50 +496,6 @@ func (r *runner) Definition(t *testing.T, _ span.Span, d tests.Definition) {
 	}
 }
 
-func (r *runner) Highlight(t *testing.T, src span.Span, spans []span.Span) {
-	m, err := r.data.Mapper(src.URI())
-	if err != nil {
-		t.Fatal(err)
-	}
-	loc, err := m.SpanLocation(src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	params := &protocol.DocumentHighlightParams{
-		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
-	}
-	highlights, err := r.server.DocumentHighlight(r.ctx, params)
-	if err != nil {
-		t.Fatalf("DocumentHighlight(%v) failed: %v", params, err)
-	}
-	var got []protocol.Range
-	for _, h := range highlights {
-		got = append(got, h.Range)
-	}
-
-	var want []protocol.Range
-	for _, s := range spans {
-		rng, err := m.SpanRange(s)
-		if err != nil {
-			t.Fatalf("Mapper.SpanRange(%v) failed: %v", s, err)
-		}
-		want = append(want, rng)
-	}
-
-	sortRanges := func(s []protocol.Range) {
-		sort.Slice(s, func(i, j int) bool {
-			return protocol.CompareRange(s[i], s[j]) < 0
-		})
-	}
-
-	sortRanges(got)
-	sortRanges(want)
-
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("DocumentHighlight(%v) mismatch (-want +got):\n%s", src, diff)
-	}
-}
-
 func (r *runner) InlayHints(t *testing.T, spn span.Span) {
 	uri := spn.URI()
 	filename := uri.Filename()

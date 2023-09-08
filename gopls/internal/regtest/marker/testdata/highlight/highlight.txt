@@ -1,0 +1,158 @@
+This test checks basic functionality of the textDocument/highlight request.
+
+-- highlights.go --
+package highlights
+
+import (
+	"fmt"         //@loc(fmtImp, "\"fmt\""),highlight(fmtImp, fmtImp, fmt1, fmt2, fmt3, fmt4)
+	h2 "net/http" //@loc(hImp, "h2"),highlight(hImp, hImp, hUse)
+	"sort"
+)
+
+type F struct{ bar int } //@loc(barDeclaration, "bar"),highlight(barDeclaration, barDeclaration, bar1, bar2, bar3)
+
+func _() F {
+	return F{
+		bar: 123, //@loc(bar1, "bar"),highlight(bar1, barDeclaration, bar1, bar2, bar3)
+	}
+}
+
+var foo = F{bar: 52} //@loc(fooDeclaration, "foo"),loc(bar2, "bar"),highlight(fooDeclaration, fooDeclaration, fooUse),highlight(bar2, barDeclaration, bar1, bar2, bar3)
+
+func Print() { //@loc(printFunc, "Print"),highlight(printFunc, printFunc, printTest)
+	_ = h2.Client{} //@loc(hUse, "h2"),highlight(hUse, hImp, hUse)
+
+	fmt.Println(foo) //@loc(fooUse, "foo"),highlight(fooUse, fooDeclaration, fooUse),loc(fmt1, "fmt"),highlight(fmt1, fmtImp, fmt1, fmt2, fmt3, fmt4)
+	fmt.Print("yo")  //@loc(printSep, "Print"),highlight(printSep, printSep, print1, print2),loc(fmt2, "fmt"),highlight(fmt2, fmtImp, fmt1, fmt2, fmt3, fmt4)
+}
+
+func (x *F) Inc() { //@loc(xRightDecl, "x"),loc(xLeftDecl, " *"),highlight(xRightDecl, xRightDecl, xUse),highlight(xLeftDecl, xRightDecl, xUse)
+	x.bar++ //@loc(xUse, "x"),loc(bar3, "bar"),highlight(xUse, xRightDecl, xUse),highlight(bar3, barDeclaration, bar1, bar2, bar3)
+}
+
+func testFunctions() {
+	fmt.Print("main start") //@loc(print1, "Print"),highlight(print1, printSep, print1, print2),loc(fmt3, "fmt"),highlight(fmt3, fmtImp, fmt1, fmt2, fmt3, fmt4)
+	fmt.Print("ok")         //@loc(print2, "Print"),highlight(print2, printSep, print1, print2),loc(fmt4, "fmt"),highlight(fmt4, fmtImp, fmt1, fmt2, fmt3, fmt4)
+	Print()                 //@loc(printTest, "Print"),highlight(printTest, printFunc, printTest)
+}
+
+// DocumentHighlight is undefined, so its uses below are type errors.
+// Nevertheless, document highlighting should still work.
+//@diag(doc1, re"undefined|undeclared"), diag(doc2, re"undefined|undeclared"), diag(doc3, re"undefined|undeclared")
+
+func toProtocolHighlight(rngs []int) []DocumentHighlight { //@loc(doc1, "DocumentHighlight"),loc(docRet1, "[]DocumentHighlight"),highlight(doc1, docRet1, doc1, doc2, doc3, result)
+	result := make([]DocumentHighlight, 0, len(rngs)) //@loc(doc2, "DocumentHighlight"),highlight(doc2, doc1, doc2, doc3)
+	for _, rng := range rngs {
+		result = append(result, DocumentHighlight{ //@loc(doc3, "DocumentHighlight"),highlight(doc3, doc1, doc2, doc3)
+			Range: rng,
+		})
+	}
+	return result //@loc(result, "result")
+}
+
+func testForLoops() {
+	for i := 0; i < 10; i++ { //@loc(forDecl1, "for"),highlight(forDecl1, forDecl1, brk1, cont1)
+		if i > 8 {
+			break //@loc(brk1, "break"),highlight(brk1, forDecl1, brk1, cont1)
+		}
+		if i < 2 {
+			for j := 1; j < 10; j++ { //@loc(forDecl2, "for"),highlight(forDecl2, forDecl2, cont2)
+				if j < 3 {
+					for k := 1; k < 10; k++ { //@loc(forDecl3, "for"),highlight(forDecl3, forDecl3, cont3)
+						if k < 3 {
+							continue //@loc(cont3, "continue"),highlight(cont3, forDecl3, cont3)
+						}
+					}
+					continue //@loc(cont2, "continue"),highlight(cont2, forDecl2, cont2)
+				}
+			}
+			continue //@loc(cont1, "continue"),highlight(cont1, forDecl1, brk1, cont1)
+		}
+	}
+
+	arr := []int{}
+	for i := range arr { //@loc(forDecl4, "for"),highlight(forDecl4, forDecl4, brk4, cont4)
+		if i > 8 {
+			break //@loc(brk4, "break"),highlight(brk4, forDecl4, brk4, cont4)
+		}
+		if i < 4 {
+			continue //@loc(cont4, "continue"),highlight(cont4, forDecl4, brk4, cont4)
+		}
+	}
+
+Outer:
+	for i := 0; i < 10; i++ { //@loc(forDecl5, "for"),highlight(forDecl5, forDecl5, brk5, brk6, brk8)
+		break //@loc(brk5, "break"),highlight(brk5, forDecl5, brk5, brk6, brk8)
+		for { //@loc(forDecl6, "for"),highlight(forDecl6, forDecl6, cont5), diag("for", re"unreachable")
+			if i == 1 {
+				break Outer //@loc(brk6, "break Outer"),highlight(brk6, forDecl5, brk5, brk6, brk8)
+			}
+			switch i { //@loc(switch1, "switch"),highlight(switch1, switch1, brk7)
+			case 5:
+				break //@loc(brk7, "break"),highlight(brk7, switch1, brk7)
+			case 6:
+				continue //@loc(cont5, "continue"),highlight(cont5, forDecl6, cont5)
+			case 7:
+				break Outer //@loc(brk8, "break Outer"),highlight(brk8, forDecl5, brk5, brk6, brk8)
+			}
+		}
+	}
+}
+
+func testSwitch() {
+	var i, j int
+
+L1:
+	for { //@loc(forDecl7, "for"),highlight(forDecl7, forDecl7, brk10, cont6)
+	L2:
+		switch i { //@loc(switch2, "switch"),highlight(switch2, switch2, brk11, brk12, brk13)
+		case 1:
+			switch j { //@loc(switch3, "switch"),highlight(switch3, switch3, brk9)
+			case 1:
+				break //@loc(brk9, "break"),highlight(brk9, switch3, brk9)
+			case 2:
+				break L1 //@loc(brk10, "break L1"),highlight(brk10, forDecl7, brk10, cont6)
+			case 3:
+				break L2 //@loc(brk11, "break L2"),highlight(brk11, switch2, brk11, brk12, brk13)
+			default:
+				continue //@loc(cont6, "continue"),highlight(cont6, forDecl7, brk10, cont6)
+			}
+		case 2:
+			break //@loc(brk12, "break"),highlight(brk12, switch2, brk11, brk12, brk13)
+		default:
+			break L2 //@loc(brk13, "break L2"),highlight(brk13, switch2, brk11, brk12, brk13)
+		}
+	}
+}
+
+func testReturn() bool { //@loc(func1, "func"),loc(bool1, "bool"),highlight(func1, func1, fullRet11, fullRet12),highlight(bool1, bool1, false1, bool2, true1)
+	if 1 < 2 {
+		return false //@loc(ret11, "return"),loc(fullRet11, "return false"),loc(false1, "false"),highlight(ret11, func1, fullRet11, fullRet12)
+	}
+	candidates := []int{}
+	sort.SliceStable(candidates, func(i, j int) bool { //@loc(func2, "func"),loc(bool2, "bool"),highlight(func2, func2, fullRet2)
+		return candidates[i] > candidates[j] //@loc(ret2, "return"),loc(fullRet2, "return candidates[i] > candidates[j]"),highlight(ret2, func2, fullRet2)
+	})
+	return true //@loc(ret12, "return"),loc(fullRet12, "return true"),loc(true1, "true"),highlight(ret12, func1, fullRet11, fullRet12)
+}
+
+func testReturnFields() float64 { //@loc(retVal1, "float64"),highlight(retVal1, retVal1, retVal11, retVal21)
+	if 1 < 2 {
+		return 20.1 //@loc(retVal11, "20.1"),highlight(retVal11, retVal1, retVal11, retVal21)
+	}
+	z := 4.3 //@loc(zDecl, "z")
+	return z //@loc(retVal21, "z"),highlight(retVal21, retVal1, retVal11, zDecl, retVal21)
+}
+
+func testReturnMultipleFields() (float32, string) { //@loc(retVal31, "float32"),loc(retVal32, "string"),highlight(retVal31, retVal31, retVal41, retVal51),highlight(retVal32, retVal32, retVal42, retVal52)
+	y := "im a var" //@loc(yDecl, "y"),
+	if 1 < 2 {
+		return 20.1, y //@loc(retVal41, "20.1"),loc(retVal42, "y"),highlight(retVal41, retVal31, retVal41, retVal51),highlight(retVal42, retVal32, yDecl, retVal42, retVal52)
+	}
+	return 4.9, "test" //@loc(retVal51, "4.9"),loc(retVal52, "\"test\""),highlight(retVal51, retVal31, retVal41, retVal51),highlight(retVal52, retVal32, retVal42, retVal52)
+}
+
+func testReturnFunc() int32 { //@loc(retCall, "int32")
+	mulch := 1          //@loc(mulchDec, "mulch"),highlight(mulchDec, mulchDec, mulchRet)
+	return int32(mulch) //@loc(mulchRet, "mulch"),loc(retFunc, "int32"),loc(retTotal, "int32(mulch)"),highlight(mulchRet, mulchDec, mulchRet),highlight(retFunc, retCall, retFunc, retTotal)
+}

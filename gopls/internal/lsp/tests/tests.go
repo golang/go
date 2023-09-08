@@ -13,7 +13,6 @@ import (
 	"go/ast"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -78,7 +77,6 @@ type SemanticTokens = []span.Span
 type SuggestedFixes = map[span.Span][]SuggestedFix
 type MethodExtractions = map[span.Span]span.Span
 type Definitions = map[span.Span]Definition
-type Highlights = map[span.Span][]span.Span
 type Renames = map[span.Span]string
 type PrepareRenames = map[span.Span]*source.PrepareItem
 type InlayHints = []span.Span
@@ -105,7 +103,6 @@ type Data struct {
 	SuggestedFixes           SuggestedFixes
 	MethodExtractions        MethodExtractions
 	Definitions              Definitions
-	Highlights               Highlights
 	Renames                  Renames
 	InlayHints               InlayHints
 	PrepareRenames           PrepareRenames
@@ -146,7 +143,6 @@ type Tests interface {
 	SuggestedFix(*testing.T, span.Span, []SuggestedFix, int)
 	MethodExtraction(*testing.T, span.Span, span.Span)
 	Definition(*testing.T, span.Span, Definition)
-	Highlight(*testing.T, span.Span, []span.Span)
 	InlayHints(*testing.T, span.Span)
 	Rename(*testing.T, span.Span, string)
 	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
@@ -282,7 +278,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		RankCompletions:          make(RankCompletions),
 		CaseSensitiveCompletions: make(CaseSensitiveCompletions),
 		Definitions:              make(Definitions),
-		Highlights:               make(Highlights),
 		Renames:                  make(Renames),
 		PrepareRenames:           make(PrepareRenames),
 		SuggestedFixes:           make(SuggestedFixes),
@@ -341,7 +336,7 @@ func load(t testing.TB, mode string, dir string) *Data {
 		} else if index := strings.Index(fragment, overlayFileSuffix); index >= 0 {
 			delete(files, fragment)
 			partial := fragment[:index] + fragment[index+len(overlayFileSuffix):]
-			contents, err := ioutil.ReadFile(filepath.Join(dir, fragment))
+			contents, err := os.ReadFile(filepath.Join(dir, fragment))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -436,7 +431,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		"godef":          datum.collectDefinitions,
 		"typdef":         datum.collectTypeDefinitions,
 		"hoverdef":       datum.collectHoverDefinitions,
-		"highlight":      datum.collectHighlights,
 		"inlayHint":      datum.collectInlayHints,
 		"rename":         datum.collectRenames,
 		"prepare":        datum.collectPrepareRenames,
@@ -664,16 +658,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		}
 	})
 
-	t.Run("Highlight", func(t *testing.T) {
-		t.Helper()
-		for pos, locations := range data.Highlights {
-			t.Run(SpanName(pos), func(t *testing.T) {
-				t.Helper()
-				tests.Highlight(t, pos, locations)
-			})
-		}
-	})
-
 	t.Run("InlayHints", func(t *testing.T) {
 		t.Helper()
 		for _, src := range data.InlayHints {
@@ -762,7 +746,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			sort.Slice(golden.Archive.Files, func(i, j int) bool {
 				return golden.Archive.Files[i].Name < golden.Archive.Files[j].Name
 			})
-			if err := ioutil.WriteFile(golden.Filename, txtar.Format(golden.Archive), 0666); err != nil {
+			if err := os.WriteFile(golden.Filename, txtar.Format(golden.Archive), 0666); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -823,7 +807,6 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "MethodExtractionCount = %v\n", len(data.MethodExtractions))
 	fmt.Fprintf(buf, "DefinitionsCount = %v\n", definitionCount)
 	fmt.Fprintf(buf, "TypeDefinitionsCount = %v\n", typeDefinitionCount)
-	fmt.Fprintf(buf, "HighlightsCount = %v\n", len(data.Highlights))
 	fmt.Fprintf(buf, "InlayHintsCount = %v\n", len(data.InlayHints))
 	fmt.Fprintf(buf, "RenamesCount = %v\n", len(data.Renames))
 	fmt.Fprintf(buf, "PrepareRenamesCount = %v\n", len(data.PrepareRenames))
@@ -1071,11 +1054,6 @@ func (data *Data) collectDefinitionNames(src span.Span, name string) {
 	d := data.Definitions[src]
 	d.Name = name
 	data.Definitions[src] = d
-}
-
-func (data *Data) collectHighlights(src span.Span, expected []span.Span) {
-	// Declaring a highlight in a test file: @highlight(src, expected1, expected2)
-	data.Highlights[src] = append(data.Highlights[src], expected...)
 }
 
 func (data *Data) collectInlayHints(src span.Span) {

@@ -176,6 +176,10 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //     source. If the formatting request fails, the golden file must contain
 //     the error message.
 //
+//   - highlight(src location, dsts ...location): makes a
+//     textDocument/highlight request at the given src location, which should
+//     highlight the provided dst locations.
+//
 //   - hover(src, dst location, g Golden): perform a textDocument/hover at the
 //     src location, and checks that the result is the dst location, with hover
 //     content matching "hover.md" in the golden data g.
@@ -333,7 +337,6 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //   - SemanticTokens
 //   - FunctionExtractions
 //   - MethodExtractions
-//   - Highlights
 //   - Renames
 //   - PrepareRenames
 //   - InlayHints
@@ -584,6 +587,7 @@ var markerFuncs = map[string]markerFunc{
 	"diag":             makeMarkerFunc(diagMarker),
 	"foldingrange":     makeMarkerFunc(foldingRangeMarker),
 	"format":           makeMarkerFunc(formatMarker),
+	"highlight":        makeMarkerFunc(highlightMarker),
 	"hover":            makeMarkerFunc(hoverMarker),
 	"implementation":   makeMarkerFunc(implementationMarker),
 	"loc":              makeMarkerFunc(locMarker),
@@ -1446,6 +1450,32 @@ func formatMarker(mark marker, golden *Golden) {
 
 	if diff := compare.Bytes(want, got); diff != "" {
 		mark.errorf("golden file @%s does not match format results:\n%s", golden.id, diff)
+	}
+}
+
+func highlightMarker(mark marker, src protocol.Location, dsts ...protocol.Location) {
+	highlights := mark.run.env.DocumentHighlight(src)
+	var got []protocol.Range
+	for _, h := range highlights {
+		got = append(got, h.Range)
+	}
+
+	var want []protocol.Range
+	for _, d := range dsts {
+		want = append(want, d.Range)
+	}
+
+	sortRanges := func(s []protocol.Range) {
+		sort.Slice(s, func(i, j int) bool {
+			return protocol.CompareRange(s[i], s[j]) < 0
+		})
+	}
+
+	sortRanges(got)
+	sortRanges(want)
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		mark.errorf("DocumentHighlight(%v) mismatch (-want +got):\n%s", src, diff)
 	}
 }
 
