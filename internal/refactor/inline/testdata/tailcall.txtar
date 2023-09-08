@@ -1,0 +1,122 @@
+Reduction of parameterless tail-call to functions.
+
+1. a0 (sum) is reduced, despite the complexity of the callee.
+
+2. a1 (conflict) is not reduced, because the caller and callee have
+   intersecting sets of labels.
+
+3. a2 (usesResult) is not reduced, because it refers to a result variable.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a0.go --
+package a
+
+func _() int {
+	return sum(1, 2) //@ inline(re"sum", sum)
+}
+
+func sum(lo, hi int) int {
+	total := 0
+start:
+	for i := lo; i <= hi; i++ {
+		total += i
+		if i == 6 {
+			goto start
+		} else if i == 7 {
+			return -1
+		}
+	}
+	return total
+}
+
+-- sum --
+package a
+
+func _() int {
+	{
+		total := 0
+	start:
+		for i := 1; i <= 2; i++ {
+			total += i
+			if i == 6 {
+				goto start
+			} else if i == 7 {
+				return -1
+			}
+		}
+		return total
+	} //@ inline(re"sum", sum)
+}
+
+func sum(lo, hi int) int {
+	total := 0
+start:
+	for i := lo; i <= hi; i++ {
+		total += i
+		if i == 6 {
+			goto start
+		} else if i == 7 {
+			return -1
+		}
+	}
+	return total
+}
+
+-- a/a1.go --
+package a
+
+func _() int {
+	hello:
+	return conflict(1, 2) //@ inline(re"conflict", conflict)
+	goto hello
+}
+
+func conflict(lo, hi int) int {
+hello:
+	return lo + hi
+}
+
+-- conflict --
+package a
+
+func _() int {
+hello:
+	return func() int {
+	hello:
+		return 1 + 2
+	}() //@ inline(re"conflict", conflict)
+	goto hello
+}
+
+func conflict(lo, hi int) int {
+hello:
+	return lo + hi
+}
+
+-- a/a2.go --
+package a
+
+func _() int {
+	return usesResult(1, 2) //@ inline(re"usesResult", usesResult)
+}
+
+func usesResult(lo, hi int) (z int) {
+	z = y + x
+	return
+}
+
+-- usesResult --
+package a
+
+func _() int {
+	return func() (z int) { z = y + x; return }() //@ inline(re"usesResult", usesResult)
+}
+
+func usesResult(lo, hi int) (z int) {
+	z = y + x
+	return
+}
+

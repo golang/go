@@ -40,6 +40,10 @@ type gobCallee struct {
 	ValidForCallStmt bool         // => bodyIsReturnExpr and sole expr is f() or <-ch
 	NumResults       int          // number of results (according to type, not ast.FieldList)
 	Params           []*paramInfo // information about receiver, params, and results
+	HasDefer         bool         // uses defer
+	TotalReturns     int          // number of return statements
+	TrivialReturns   int          // number of return statements with trivial result conversions
+	Labels           []string     // names of all control labels
 }
 
 // A freeRef records a reference to a free object.  Gob-serializable.
@@ -259,6 +263,53 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 		}()
 	}
 
+	// Record information about control flow in the callee
+	// (but not any nested functions).
+	var (
+		hasDefer       = false
+		totalReturns   = 0
+		trivialReturns = 0
+		labels         []string
+	)
+	ast.Inspect(decl.Body, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.FuncLit:
+			return false // prune traversal
+		case *ast.DeferStmt:
+			hasDefer = true
+		case *ast.LabeledStmt:
+			labels = append(labels, n.Label.Name)
+		case *ast.ReturnStmt:
+			totalReturns++
+
+			// Are implicit assignment conversions
+			// to result variables all trivial?
+			trivial := true
+			if len(n.Results) > 0 {
+				argType := func(i int) types.Type {
+					return info.TypeOf(n.Results[i])
+				}
+				if len(n.Results) == 1 && sig.Results().Len() > 1 {
+					// Spread return: return f() where f.Results > 1.
+					tuple := info.TypeOf(n.Results[0]).(*types.Tuple)
+					argType = func(i int) types.Type {
+						return tuple.At(i).Type()
+					}
+				}
+				for i := 0; i < sig.Results().Len(); i++ {
+					if !trivialConversion(argType(i), sig.Results().At(i)) {
+						trivial = false
+						break
+					}
+				}
+			}
+			if trivial {
+				trivialReturns++
+			}
+		}
+		return true
+	})
+
 	// Compact content to just the FuncDecl.
 	//
 	// As a space optimization, we don't retain the complete
@@ -288,6 +339,10 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 		ValidForCallStmt: validForCallStmt,
 		NumResults:       sig.Results().Len(),
 		Params:           analyzeParams(fset, info, decl),
+		HasDefer:         hasDefer,
+		TotalReturns:     totalReturns,
+		TrivialReturns:   trivialReturns,
+		Labels:           labels,
 	}}, nil
 }
 

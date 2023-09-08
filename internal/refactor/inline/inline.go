@@ -369,7 +369,7 @@ func Inline(logf func(string, ...any), caller *Caller, callee *Callee) ([]byte, 
 			// TODO(adonovan): better segment hygiene.
 			if i := strings.Index(path, "/internal/"); i >= 0 {
 				if !strings.HasPrefix(caller.Types.Path(), path[:i]) {
-					return nil, fmt.Errorf("can't inline function %v as its body refers to inaccessible package %q", callee.impl.Name, path)
+					return nil, fmt.Errorf("can't inline function %v as its body refers to inaccessible package %q", callee, path)
 				}
 			}
 			importDecl.Specs = append(importDecl.Specs, spec)
@@ -891,6 +891,11 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 
 	// -- let the inlining strategies begin --
 
+	// TODO(adonovan): split this huge function into a sequence of
+	// function calls with an error sentinel that means "try the
+	// next strategy", and make sure each strategy writes to the
+	// log the reason it didn't match.
+
 	// Special case: eliminate a call to a function whose body is empty.
 	// (=> callee has no results and caller is a statement.)
 	//
@@ -927,23 +932,24 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 
 	// Attempt to reduce parameterless calls
 	// whose result variables do not escape.
-	if func() bool {
-		for i, param := range callee.Params {
-			if param.Kind != "result" { // recv or param
-				if !eliminatedParams[i] {
-					logf("param %q not eliminated", param.Name)
-					return false
-				}
-			} else if param.Escapes {
-				logf("result variable %s escapes", param.Name)
+	if forall(callee.Params, func(i int, param *paramInfo) bool {
+		if param.Kind != "result" { // recv or param
+			if !eliminatedParams[i] {
+				logf("param %q not eliminated", param.Name)
 				return false
 			}
+		} else if param.Escapes {
+			logf("result variable %s escapes", param.Name)
+			return false
 		}
 		return true
-	}() {
+	}) {
 		logf("all params eliminated and no result vars escape")
 
-		// Special case: parameterless call to { return expr(s) }.
+		// Special case: parameterless call to { return exprs }.
+		//
+		// => reduce to:  exprs			(if legal)
+		//           or:  _, _ = expr		(otherwise)
 		//
 		// If:
 		// - the body is just "return expr" with trivial implicit conversions,
@@ -1033,6 +1039,44 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			return res, nil
 		}
 
+		// Special case: parameterless tail-call.
+		//
+		// Inlining:
+		//         return f(args)
+		// where:
+		//         func f(params) (results) { ...body... }
+		// reduces to:
+		//         ...body...
+		// so long as:
+		// - all parameters are eliminated;
+		// - call is a tail-call;
+		// - all returns in body have trivial result conversions;
+		// - there is no label conflict;
+		// - no result variable is referenced by name.
+		//
+		// The body may use defer, arbitrary control flow, and
+		// multiple returns.
+		//
+		// TODO(adonovan): omit the braces if the sets of
+		// names in the two blocks are disjoint.
+		if ret, ok := callContext(callerPath).(*ast.ReturnStmt); ok &&
+			len(ret.Results) == 1 &&
+			callee.TrivialReturns == callee.TotalReturns &&
+			!hasLabelConflict(callerPath, callee.Labels) &&
+			forall(callee.Params, func(i int, p *paramInfo) bool {
+				// all result vars are unreferenced
+				return p.Kind != "result" || len(p.Refs) == 0
+			}) {
+			logf("strategy: reduce parameterless tail-call")
+			res.old = ret
+			res.new = calleeDecl.Body
+			clearPositions(calleeDecl.Body)
+			return res, nil
+		}
+
+		// Special case: parameterless call to void function
+		//
+		// Inlining:
 		// Special case: parameterless call to void function
 		//
 		// Inlining:
@@ -1048,13 +1092,16 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		// - all parameters have been eliminated.
 		//
 		// If there is only a single statement, the braces are omitted.
-		body := calleeDecl.Body
-		if stmt := callStmt(callerPath); stmt != nil && !hasControl(body) {
+		if stmt := callStmt(callerPath); stmt != nil &&
+			!callee.HasDefer &&
+			!hasLabelConflict(callerPath, callee.Labels) &&
+			callee.TotalReturns == 0 {
 			logf("strategy: reduce parameterless call to { stmt } from a call stmt")
 
+			body := calleeDecl.Body
 			var repl ast.Stmt = body
 			if len(body.List) == 1 {
-				repl = body.List[0] // omit braces around singleton statement
+				repl = body.List[0] // singleton: omit braces
 			}
 			clearPositions(repl)
 			res.old = stmt
@@ -1084,12 +1131,6 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		// if x ∉ freevars(a2) or freevars(T2), and so on,
 		// plus the usual checks for return conversions (if any),
 		// complex control, etc.
-
-		// TODO(adonovan): a parameterless tail-call to a
-		// function with a single final return, no defer/label
-		// control, and no trivial return conversions, can be
-		// inlined to the body of the function (perhaps even
-		// omitting the braces.)
 	}
 
 	// Infallible general case: literalization.
@@ -1354,30 +1395,54 @@ func callContext(callPath []ast.Node) ast.Node {
 	return nil
 }
 
+// hasLabelConflict reports whether the set of labels of the function
+// enclosing the call (specified as a PathEnclosingInterval)
+// intersects with the set of callee labels.
+func hasLabelConflict(callPath []ast.Node, calleeLabels []string) bool {
+	var callerBody *ast.BlockStmt
+	switch f := callerFunc(callPath).(type) {
+	case *ast.FuncDecl:
+		callerBody = f.Body
+	case *ast.FuncLit:
+		callerBody = f.Body
+	}
+	conflict := false
+	if callerBody != nil {
+		ast.Inspect(callerBody, func(n ast.Node) bool {
+			switch n := n.(type) {
+			case *ast.FuncLit:
+				return false // prune traversal
+			case *ast.LabeledStmt:
+				for _, label := range calleeLabels {
+					if label == n.Label.Name {
+						conflict = true
+					}
+				}
+			}
+			return true
+		})
+	}
+	return conflict
+}
+
+// callerFunc returns the innermost Func{Decl,Lit} node enclosing the
+// call (specified as a PathEnclosingInterval).
+func callerFunc(callPath []ast.Node) ast.Node {
+	_ = callPath[0].(*ast.CallExpr) // sanity check
+	for _, n := range callPath[1:] {
+		if is[*ast.FuncDecl](n) || is[*ast.FuncLit](n) {
+			return n
+		}
+	}
+	return nil
+}
+
 // callStmt reports whether the function call (specified
 // as a PathEnclosingInterval) appears within an ExprStmt,
 // and returns it if so.
 func callStmt(callPath []ast.Node) *ast.ExprStmt {
 	stmt, _ := callContext(callPath).(*ast.ExprStmt)
 	return stmt
-}
-
-// hasControl reports whether the body of the function uses control
-// constructs such as defer, return, or labels.
-//
-// TODO(adonovan): refine disposition w.r.t. return:
-// a single, unnested final return may be ok for some callers.
-func hasControl(body *ast.BlockStmt) (res bool) {
-	ast.Inspect(body, func(n ast.Node) bool {
-		switch n.(type) {
-		case *ast.FuncLit:
-			return false // prune traversal
-		case *ast.DeferStmt, *ast.LabeledStmt, *ast.ReturnStmt:
-			res = true
-		}
-		return true
-	})
-	return
 }
 
 // replaceNode performs a destructive update of the tree rooted at
@@ -1552,4 +1617,24 @@ func formatNode(fset *token.FileSet, n ast.Node) string {
 func shallowCopy[T any](ptr *T) *T {
 	copy := *ptr
 	return &copy
+}
+
+// ∀
+func forall[T any](list []T, f func(i int, x T) bool) bool {
+	for i, x := range list {
+		if !f(i, x) {
+			return false
+		}
+	}
+	return true
+}
+
+// ∃
+func exists[T any](list []T, f func(i int, x T) bool) bool {
+	for i, x := range list {
+		if f(i, x) {
+			return true
+		}
+	}
+	return false
 }
