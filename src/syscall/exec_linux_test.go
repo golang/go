@@ -218,18 +218,20 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
 // Test for https://go.dev/issue/19661: unshare fails because systemd
 // has forced / to be shared
 func TestUnshareMountNameSpace(t *testing.T) {
-	testenv.MustHaveExec(t)
-
+	const mountNotSupported = "mount is not supported: " // Output prefix indicatating a test skip.
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		dir := flag.Args()[0]
 		err := syscall.Mount("none", dir, "proc", 0, "")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "unshare: mount %v failed: %#v", dir, err)
+		if testenv.SyscallIsNotSupported(err) {
+			fmt.Print(mountNotSupported, err)
+		} else if err != nil {
+			fmt.Fprintf(os.Stderr, "unshare: mount %s: %v\n", dir, err)
 			os.Exit(2)
 		}
 		os.Exit(0)
 	}
 
+	testenv.MustHaveExec(t)
 	exe, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -247,20 +249,17 @@ func TestUnshareMountNameSpace(t *testing.T) {
 	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNS}
 
-	o, err := cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		if testenv.SyscallIsNotSupported(err) {
 			t.Skipf("skipping: could not start process with CLONE_NEWNS: %v", err)
 		}
-		if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
-			// The Go build system's swarming user is known not to support
-			// starting a process with CLONE_NEWNS.
-			// Unfortunately, it doesn't get recognized as such due the current
-			// implementation of a no-network check using 'unshare -n -r'.
-			// Since this test does need start this process, we need to skip it.
-			t.Skipf("skipping: could not start process with CLONE_NEWNS: %v", err)
+		t.Fatalf("unshare failed: %v\n%s", err, out)
+	} else if len(out) != 0 {
+		if bytes.HasPrefix(out, []byte(mountNotSupported)) {
+			t.Skipf("skipping: helper process reported %s", out)
 		}
-		t.Fatalf("unshare failed: %v\n%s", err, o)
+		t.Fatalf("unexpected output from helper process: %s", out)
 	}
 
 	// How do we tell if the namespace was really unshared? It turns out
@@ -273,11 +272,14 @@ func TestUnshareMountNameSpace(t *testing.T) {
 
 // Test for Issue 20103: unshare fails when chroot is used
 func TestUnshareMountNameSpaceChroot(t *testing.T) {
+	const mountNotSupported = "mount is not supported: " // Output prefix indicatating a test skip.
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		dir := flag.Args()[0]
 		err := syscall.Mount("none", dir, "proc", 0, "")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "unshare: mount %v failed: %#v", dir, err)
+		if testenv.SyscallIsNotSupported(err) {
+			fmt.Print(mountNotSupported, err)
+		} else if err != nil {
+			fmt.Fprintf(os.Stderr, "unshare: mount %s: %v\n", dir, err)
 			os.Exit(2)
 		}
 		os.Exit(0)
@@ -310,20 +312,17 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Chroot: d, Unshareflags: syscall.CLONE_NEWNS}
 
-	o, err := cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		if testenv.SyscallIsNotSupported(err) {
 			t.Skipf("skipping: could not start process with CLONE_NEWNS and Chroot %q: %v", d, err)
 		}
-		if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
-			// The Go build system's swarming user is known not to support
-			// starting a process with CLONE_NEWNS and Chroot.
-			// Unfortunately, it doesn't get recognized as such due the current
-			// implementation of a no-network check using 'unshare -n -r'.
-			// Since this test does need start this process, we need to skip it.
-			t.Skipf("skipping: could not start process with CLONE_NEWNS and Chroot %q: %v", d, err)
+		t.Fatalf("unshare failed: %v\n%s", err, out)
+	} else if len(out) != 0 {
+		if bytes.HasPrefix(out, []byte(mountNotSupported)) {
+			t.Skipf("skipping: helper process reported %s", out)
 		}
-		t.Fatalf("unshare failed: %v\n%s", err, o)
+		t.Fatalf("unexpected output from helper process: %s", out)
 	}
 
 	// How do we tell if the namespace was really unshared? It turns out
