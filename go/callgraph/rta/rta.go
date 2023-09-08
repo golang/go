@@ -45,6 +45,7 @@ import (
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/compat"
 )
 
 // A Result holds the results of Rapid Type Analysis, which includes the
@@ -538,7 +539,7 @@ func fingerprint(mset *types.MethodSet) uint64 {
 	for i := 0; i < mset.Len(); i++ {
 		method := mset.At(i).Obj()
 		sig := method.Type().(*types.Signature)
-		sum := crc32.ChecksumIEEE(fmt.Appendf(space[:], "%s/%d/%d",
+		sum := crc32.ChecksumIEEE(compat.Appendf(space[:], "%s/%d/%d",
 			method.Id(),
 			sig.Params().Len(),
 			sig.Results().Len()))

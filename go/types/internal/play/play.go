@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build go1.19
+
 // The play program is a playground for go/types: a simple web-based
 // text editor into which the user can enter a Go program, select a
 // region, and see type information about it.
