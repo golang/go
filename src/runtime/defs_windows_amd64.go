@@ -80,6 +80,7 @@ func dumpregs(r *context) {
 	print("rax     ", hex(r.rax), "\n")
 	print("rbx     ", hex(r.rbx), "\n")
 	print("rcx     ", hex(r.rcx), "\n")
+	print("rdx     ", hex(r.rdx), "\n")
 	print("rdi     ", hex(r.rdi), "\n")
 	print("rsi     ", hex(r.rsi), "\n")
 	print("rbp     ", hex(r.rbp), "\n")
