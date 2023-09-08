@@ -1542,7 +1542,7 @@ func mstart0() {
 		// but is somewhat arbitrary.
 		size := gp.stack.hi
 		if size == 0 {
-			size = 8192 * sys.StackGuardMultiplier
+			size = 16384 * sys.StackGuardMultiplier
 		}
 		gp.stack.hi = uintptr(noescape(unsafe.Pointer(&size)))
 		gp.stack.lo = gp.stack.hi - size + 1024
@@ -1938,7 +1938,7 @@ func allocm(pp *p, fn func(), id int64) *m {
 	if iscgo || mStackIsSystemAllocated() {
 		mp.g0 = malg(-1)
 	} else {
-		mp.g0 = malg(8192 * sys.StackGuardMultiplier)
+		mp.g0 = malg(16384 * sys.StackGuardMultiplier)
 	}
 	mp.g0.m = mp
 
