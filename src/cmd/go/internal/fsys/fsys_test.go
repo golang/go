@@ -25,22 +25,11 @@ func initOverlay(t *testing.T, config string) {
 	t.Helper()
 
 	// Create a temporary directory and chdir to it.
-	prevwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
 	cwd = filepath.Join(t.TempDir(), "root")
 	if err := os.Mkdir(cwd, 0777); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chdir(cwd); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := os.Chdir(prevwd); err != nil {
-			t.Fatal(err)
-		}
-	})
+	t.Chdir(cwd)
 
 	a := txtar.Parse([]byte(config))
 	for _, f := range a.Files {

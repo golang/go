@@ -169,28 +169,6 @@ func helperCommandContext(t *testing.T, ctx context.Context, name string, args .
 	return cmd
 }
 
-func chdir(t *testing.T, dir string) {
-	t.Helper()
-
-	prev, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("Chdir(%#q)", dir)
-
-	t.Cleanup(func() {
-		if err := os.Chdir(prev); err != nil {
-			// Couldn't chdir back to the original working directory.
-			// panic instead of t.Fatal so that we don't run other tests
-			// in an unexpected location.
-			panic("couldn't restore working directory: " + err.Error())
-		}
-	})
-}
-
 var helperCommandUsed sync.Map
 
 var helperCommands = map[string]func(...string){

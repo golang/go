@@ -408,12 +408,7 @@ func TestToNorm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		err := os.Chdir(cwd)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
+	t.Chdir(".") // Ensure cwd is restored after the test.
 
 	tmpVol := filepath.VolumeName(ctmp)
 	if len(tmpVol) != 2 {

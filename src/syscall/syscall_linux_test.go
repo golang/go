@@ -23,28 +23,6 @@ import (
 	"unsafe"
 )
 
-// chtmpdir changes the working directory to a new temporary directory and
-// provides a cleanup function. Used when PWD is read-only.
-func chtmpdir(t *testing.T) func() {
-	oldwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("chtmpdir: %v", err)
-	}
-	d, err := os.MkdirTemp("", "test")
-	if err != nil {
-		t.Fatalf("chtmpdir: %v", err)
-	}
-	if err := os.Chdir(d); err != nil {
-		t.Fatalf("chtmpdir: %v", err)
-	}
-	return func() {
-		if err := os.Chdir(oldwd); err != nil {
-			t.Fatalf("chtmpdir: %v", err)
-		}
-		os.RemoveAll(d)
-	}
-}
-
 func touch(t *testing.T, name string) {
 	f, err := os.Create(name)
 	if err != nil {
@@ -64,7 +42,7 @@ const (
 )
 
 func TestFaccessat(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	touch(t, "file1")
 
 	err := syscall.Faccessat(_AT_FDCWD, "file1", _R_OK, 0)
@@ -116,7 +94,7 @@ func TestFaccessat(t *testing.T) {
 }
 
 func TestFchmodat(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 
 	touch(t, "file1")
 	os.Symlink("file1", "symlink1")

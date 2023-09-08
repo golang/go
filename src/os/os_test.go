@@ -195,7 +195,7 @@ func TestStat(t *testing.T) {
 }
 
 func TestStatError(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 
 	path := "no-such-file"
 
@@ -232,8 +232,7 @@ func TestStatError(t *testing.T) {
 
 func TestStatSymlinkLoop(t *testing.T) {
 	testenv.MustHaveSymlink(t)
-
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 
 	err := Symlink("x", "y")
 	if err != nil {
@@ -851,8 +850,8 @@ func TestReaddirOfFile(t *testing.T) {
 
 func TestHardLink(t *testing.T) {
 	testenv.MustHaveLink(t)
+	t.Chdir(t.TempDir())
 
-	defer chtmpdir(t)()
 	from, to := "hardlinktestfrom", "hardlinktestto"
 	file, err := Create(to)
 	if err != nil {
@@ -907,32 +906,10 @@ func TestHardLink(t *testing.T) {
 	}
 }
 
-// chtmpdir changes the working directory to a new temporary directory and
-// provides a cleanup function.
-func chtmpdir(t *testing.T) func() {
-	oldwd, err := Getwd()
-	if err != nil {
-		t.Fatalf("chtmpdir: %v", err)
-	}
-	d, err := MkdirTemp("", "test")
-	if err != nil {
-		t.Fatalf("chtmpdir: %v", err)
-	}
-	if err := Chdir(d); err != nil {
-		t.Fatalf("chtmpdir: %v", err)
-	}
-	return func() {
-		if err := Chdir(oldwd); err != nil {
-			t.Fatalf("chtmpdir: %v", err)
-		}
-		RemoveAll(d)
-	}
-}
-
 func TestSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
+	t.Chdir(t.TempDir())
 
-	defer chtmpdir(t)()
 	from, to := "symlinktestfrom", "symlinktestto"
 	file, err := Create(to)
 	if err != nil {
@@ -992,8 +969,8 @@ func TestSymlink(t *testing.T) {
 
 func TestLongSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
+	t.Chdir(t.TempDir())
 
-	defer chtmpdir(t)()
 	s := "0123456789abcdef"
 	// Long, but not too long: a common limit is 255.
 	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s
@@ -1012,7 +989,7 @@ func TestLongSymlink(t *testing.T) {
 }
 
 func TestRename(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	from, to := "renamefrom", "renameto"
 
 	file, err := Create(from)
@@ -1033,7 +1010,7 @@ func TestRename(t *testing.T) {
 }
 
 func TestRenameOverwriteDest(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	from, to := "renamefrom", "renameto"
 
 	toData := []byte("to")
@@ -1070,7 +1047,7 @@ func TestRenameOverwriteDest(t *testing.T) {
 }
 
 func TestRenameFailed(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	from, to := "renamefrom", "renameto"
 
 	err := Rename(from, to)
@@ -1093,7 +1070,7 @@ func TestRenameFailed(t *testing.T) {
 }
 
 func TestRenameNotExisting(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	from, to := "doesnt-exist", "dest"
 
 	Mkdir(to, 0777)
@@ -1104,7 +1081,7 @@ func TestRenameNotExisting(t *testing.T) {
 }
 
 func TestRenameToDirFailed(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	from, to := "renamefrom", "renameto"
 
 	Mkdir(from, 0777)
@@ -1149,7 +1126,7 @@ func TestRenameCaseDifference(pt *testing.T) {
 
 	for _, test := range tests {
 		pt.Run(test.name, func(t *testing.T) {
-			defer chtmpdir(t)()
+			t.Chdir(t.TempDir())
 
 			if err := test.create(); err != nil {
 				t.Fatalf("failed to create test file: %s", err)
@@ -1571,7 +1548,7 @@ func TestFileChdir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Getwd: %s", err)
 	}
-	defer Chdir(wd)
+	t.Chdir(".") // Ensure wd is restored after the test.
 
 	fd, err := Open(".")
 	if err != nil {
@@ -1606,10 +1583,8 @@ func TestFileChdir(t *testing.T) {
 }
 
 func TestChdirAndGetwd(t *testing.T) {
-	fd, err := Open(".")
-	if err != nil {
-		t.Fatalf("Open .: %s", err)
-	}
+	t.Chdir(t.TempDir()) // Ensure wd is restored after the test.
+
 	// These are chosen carefully not to be symlinks on a Mac
 	// (unlike, say, /var, /etc), except /tmp, which we handle below.
 	dirs := []string{"/", "/usr/bin", "/tmp"}
@@ -1623,16 +1598,16 @@ func TestChdirAndGetwd(t *testing.T) {
 		dirs = nil
 		for _, dir := range []string{t.TempDir(), t.TempDir()} {
 			// Expand symlinks so path equality tests work.
-			dir, err = filepath.EvalSymlinks(dir)
+			dir, err := filepath.EvalSymlinks(dir)
 			if err != nil {
 				t.Fatalf("EvalSymlinks: %v", err)
 			}
 			dirs = append(dirs, dir)
 		}
 	}
-	oldwd := Getenv("PWD")
 	for mode := 0; mode < 2; mode++ {
 		for _, d := range dirs {
+			var err error
 			if mode == 0 {
 				err = Chdir(d)
 			} else {
@@ -1648,30 +1623,17 @@ func TestChdirAndGetwd(t *testing.T) {
 				Setenv("PWD", "/tmp")
 			}
 			pwd, err1 := Getwd()
-			Setenv("PWD", oldwd)
-			err2 := fd.Chdir()
-			if err2 != nil {
-				// We changed the current directory and cannot go back.
-				// Don't let the tests continue; they'll scribble
-				// all over some other directory.
-				fmt.Fprintf(Stderr, "fchdir back to dot failed: %s\n", err2)
-				Exit(1)
-			}
 			if err != nil {
-				fd.Close()
 				t.Fatalf("Chdir %s: %s", d, err)
 			}
 			if err1 != nil {
-				fd.Close()
 				t.Fatalf("Getwd in %s: %s", d, err1)
 			}
 			if !equal(pwd, d) {
-				fd.Close()
 				t.Fatalf("Getwd returned %q want %q", pwd, d)
 			}
 		}
 	}
-	fd.Close()
 }
 
 // Test that Chdir+Getwd is program-wide.
@@ -1682,17 +1644,7 @@ func TestProgWideChdir(t *testing.T) {
 	done := make(chan struct{})
 
 	d := t.TempDir()
-	oldwd, err := Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		if err := Chdir(oldwd); err != nil {
-			// It's not safe to continue with tests if we can't get back to
-			// the original working directory.
-			panic(err)
-		}
-	}()
+	t.Chdir(d)
 
 	// Note the deferred Wait must be called after the deferred close(done),
 	// to ensure the N goroutines have been released even if the main goroutine
@@ -1747,6 +1699,7 @@ func TestProgWideChdir(t *testing.T) {
 			}
 		}(i)
 	}
+	var err error
 	if err = Chdir(d); err != nil {
 		t.Fatalf("Chdir: %v", err)
 	}
@@ -2103,7 +2056,7 @@ func TestWriteAtNegativeOffset(t *testing.T) {
 
 // Verify that WriteAt doesn't work in append mode.
 func TestWriteAtInAppendMode(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	f, err := OpenFile("write_at_in_append_mode.txt", O_APPEND|O_CREATE, 0666)
 	if err != nil {
 		t.Fatalf("OpenFile: %v", err)
@@ -2134,7 +2087,7 @@ func writeFile(t *testing.T, fname string, flag int, text string) string {
 }
 
 func TestAppend(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	const f = "append.txt"
 	s := writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
 	if s != "new" {
@@ -2193,7 +2146,7 @@ func TestNilProcessStateString(t *testing.T) {
 }
 
 func TestSameFile(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	fa, err := Create("a")
 	if err != nil {
 		t.Fatalf("Create(a): %v", err)

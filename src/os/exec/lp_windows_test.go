@@ -314,7 +314,7 @@ func TestLookPathWindows(t *testing.T) {
 			t.Setenv("PATH", pathVar)
 			t.Logf("set PATH=%s", pathVar)
 
-			chdir(t, root)
+			t.Chdir(root)
 
 			if !testing.Short() && !(tt.skipCmdExeCheck || errors.Is(tt.wantErr, exec.ErrDot)) {
 				// Check that cmd.exe, which is our source of ground truth,
@@ -549,7 +549,7 @@ func TestCommand(t *testing.T) {
 			t.Setenv("PATH", pathVar)
 			t.Logf("set PATH=%s", pathVar)
 
-			chdir(t, root)
+			t.Chdir(root)
 
 			cmd := exec.Command(tt.arg0, "printpath")
 			cmd.Dir = filepath.Join(root, tt.dir)

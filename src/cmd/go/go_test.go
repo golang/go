@@ -2790,11 +2790,8 @@ func TestExecInDeletedDir(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 
-	wd, err := os.Getwd()
-	tg.check(err)
 	tg.makeTempdir()
-	tg.check(os.Chdir(tg.tempdir))
-	defer func() { tg.check(os.Chdir(wd)) }()
+	t.Chdir(tg.tempdir)
 
 	tg.check(os.Remove(tg.tempdir))
 

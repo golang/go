@@ -144,20 +144,7 @@ func TestExtract(t *testing.T) {
 	ar.addFile(goodbyeFile.Reset())
 	ar.a.File().Close()
 	// Now extract one file. We chdir to the directory of the archive for simplicity.
-	pwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("os.Getwd: ", err)
-	}
-	err = os.Chdir(dir)
-	if err != nil {
-		t.Fatal("os.Chdir: ", err)
-	}
-	defer func() {
-		err := os.Chdir(pwd)
-		if err != nil {
-			t.Fatal("os.Chdir: ", err)
-		}
-	}()
+	t.Chdir(dir)
 	ar = openArchive(name, os.O_RDONLY, []string{goodbyeFile.name})
 	ar.scan(ar.extractContents)
 	ar.a.File().Close()
