@@ -55,6 +55,9 @@ const (
 	exprConvert
 	exprNew
 	exprMake
+	exprSizeof
+	exprAlignof
+	exprOffsetof
 	exprNil
 	exprFuncInst
 	exprRecv

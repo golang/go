@@ -2459,6 +2459,26 @@ func (r *reader) expr() (res ir.Node) {
 		typ := r.exprType()
 		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, typ))
 
+	case exprSizeof:
+		return ir.NewUintptr(r.pos(), r.typ().Size())
+
+	case exprAlignof:
+		return ir.NewUintptr(r.pos(), r.typ().Alignment())
+
+	case exprOffsetof:
+		pos := r.pos()
+		typ := r.typ()
+		types.CalcSize(typ)
+
+		var offset int64
+		for i := r.Len(); i >= 0; i-- {
+			field := typ.Field(r.Len())
+			offset += field.Offset
+			typ = field.Type
+		}
+
+		return ir.NewUintptr(pos, offset)
+
 	case exprReshape:
 		typ := r.typ()
 		x := r.expr()

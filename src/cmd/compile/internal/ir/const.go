@@ -29,6 +29,11 @@ func NewString(pos src.XPos, s string) Node {
 	return NewBasicLit(pos, types.UntypedString, constant.MakeString(s))
 }
 
+// NewUintptr returns an OLITERAL representing v as a uintptr.
+func NewUintptr(pos src.XPos, v int64) Node {
+	return NewBasicLit(pos, types.Types[types.TUINTPTR], constant.MakeInt64(v))
+}
+
 // NewOne returns an OLITERAL representing 1 with the given type.
 func NewOne(pos src.XPos, typ *types.Type) Node {
 	var val constant.Value
