@@ -168,7 +168,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 		case ir.OCAP, ir.OCLEAR, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
 			typecheckargs(n)
 			fallthrough
-		case ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+		case ir.ONEW:
 			arg, ok := needOneArg(n, "%v", n.Op())
 			if !ok {
 				n.SetType(nil)

@@ -390,11 +390,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.CallExpr)
 		return tcCall(n, top)
 
-	case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
-		n := n.(*ir.UnaryExpr)
-		n.SetType(types.Types[types.TUINTPTR])
-		return OrigInt(n, evalunsafe(n))
-
 	case ir.OCAP, ir.OLEN:
 		n := n.(*ir.UnaryExpr)
 		return tcLenCap(n)

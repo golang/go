@@ -27,7 +27,6 @@ var OpNames = []string{
 	OADDR:             "&",
 	OADD:              "+",
 	OADDSTR:           "+",
-	OALIGNOF:          "unsafe.Alignof",
 	OANDAND:           "&&",
 	OANDNOT:           "&^",
 	OAND:              "&",
@@ -70,7 +69,6 @@ var OpNames = []string{
 	ONEW:              "new",
 	ONE:               "!=",
 	ONOT:              "!",
-	OOFFSETOF:         "unsafe.Offsetof",
 	OOROR:             "||",
 	OOR:               "|",
 	OPANIC:            "panic",
@@ -85,7 +83,6 @@ var OpNames = []string{
 	ORSH:              ">>",
 	OSELECT:           "select",
 	OSEND:             "<-",
-	OSIZEOF:           "unsafe.Sizeof",
 	OSUB:              "-",
 	OSWITCH:           "switch",
 	OUNSAFEADD:        "unsafe.Add",
@@ -173,7 +170,6 @@ func fmtNode(n Node, s fmt.State, verb rune) {
 }
 
 var OpPrec = []int{
-	OALIGNOF:          8,
 	OAPPEND:           8,
 	OBYTES2STR:        8,
 	OARRAYLIT:         8,
@@ -206,13 +202,11 @@ var OpPrec = []int{
 	ONEW:              8,
 	ONIL:              8,
 	ONONAME:           8,
-	OOFFSETOF:         8,
 	OPANIC:            8,
 	OPAREN:            8,
 	OPRINTN:           8,
 	OPRINT:            8,
 	ORUNESTR:          8,
-	OSIZEOF:           8,
 	OSLICE2ARR:        8,
 	OSLICE2ARRPTR:     8,
 	OSTR2BYTES:        8,
@@ -738,10 +732,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		OCLOSE,
 		OLEN,
 		ONEW,
-		OPANIC,
-		OALIGNOF,
-		OOFFSETOF,
-		OSIZEOF:
+		OPANIC:
 		n := n.(*UnaryExpr)
 		fmt.Fprintf(s, "%v(%v)", n.Op(), n.X)
 
