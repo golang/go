@@ -14,17 +14,43 @@ import (
 	"cmd/internal/src"
 )
 
+// NewBool returns an OLITERAL representing b as an untyped boolean.
 func NewBool(pos src.XPos, b bool) Node {
-	return NewBasicLit(pos, constant.MakeBool(b))
+	return NewBasicLit(pos, types.UntypedBool, constant.MakeBool(b))
 }
 
+// NewInt returns an OLITERAL representing v as an untyped integer.
 func NewInt(pos src.XPos, v int64) Node {
-	return NewBasicLit(pos, constant.MakeInt64(v))
+	return NewBasicLit(pos, types.UntypedInt, constant.MakeInt64(v))
 }
 
+// NewString returns an OLITERAL representing s as an untyped string.
 func NewString(pos src.XPos, s string) Node {
-	return NewBasicLit(pos, constant.MakeString(s))
+	return NewBasicLit(pos, types.UntypedString, constant.MakeString(s))
 }
+
+// NewOne returns an OLITERAL representing 1 with the given type.
+func NewOne(pos src.XPos, typ *types.Type) Node {
+	var val constant.Value
+	switch {
+	case typ.IsInteger():
+		val = intOne
+	case typ.IsFloat():
+		val = floatOne
+	case typ.IsComplex():
+		val = complexOne
+	default:
+		base.FatalfAt(pos, "%v cannot represent 1", typ)
+	}
+
+	return NewBasicLit(pos, typ, val)
+}
+
+var (
+	intOne     = constant.MakeInt64(1)
+	floatOne   = constant.ToFloat(intOne)
+	complexOne = constant.ToComplex(intOne)
+)
 
 const (
 	// Maximum size in bits for big.Ints before signaling

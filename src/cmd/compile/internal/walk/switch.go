@@ -233,7 +233,7 @@ func (s *exprSwitch) flush() {
 			s.done.Append(ir.NewBranchStmt(pos, ir.OGOTO, endLabel))
 
 			// Add length case to outer switch.
-			cas := ir.NewBasicLit(pos, constant.MakeInt64(runLen(run)))
+			cas := ir.NewInt(pos, runLen(run))
 			jmp := ir.NewBranchStmt(pos, ir.OGOTO, label)
 			outer.Add(pos, cas, nil, jmp)
 		}

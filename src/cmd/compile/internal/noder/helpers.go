@@ -79,8 +79,6 @@ func Deref(pos src.XPos, typ *types.Type, x ir.Node) *ir.StarExpr {
 
 // Statements
 
-var one = constant.MakeInt64(1)
-
 func idealType(tv syntax.TypeAndValue) types2.Type {
 	// The gc backend expects all expressions to have a concrete type, and
 	// types2 mostly satisfies this expectation already. But there are a few

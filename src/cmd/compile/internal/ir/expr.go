@@ -132,15 +132,14 @@ type BasicLit struct {
 	val constant.Value
 }
 
-func NewBasicLit(pos src.XPos, val constant.Value) Node {
-	if val == nil || val.Kind() == constant.Unknown {
-		base.FatalfAt(pos, "bad value: %v", val)
-	}
+// NewBasicLit returns an OLITERAL representing val with the given type.
+func NewBasicLit(pos src.XPos, typ *types.Type, val constant.Value) Node {
+	AssertValidTypeForConst(typ, val)
 
 	n := &BasicLit{val: val}
 	n.op = OLITERAL
 	n.pos = pos
-	n.SetType(types.UntypedTypes[val.Kind()])
+	n.SetType(typ)
 	n.SetTypecheck(1)
 	return n
 }
@@ -151,10 +150,7 @@ func (n *BasicLit) SetVal(val constant.Value) { n.val = val }
 // NewConstExpr returns an OLITERAL representing val, copying the
 // position and type from orig.
 func NewConstExpr(val constant.Value, orig Node) Node {
-	n := NewBasicLit(orig.Pos(), val)
-	n.SetType(orig.Type())
-	n.SetTypecheck(orig.Typecheck())
-	return n
+	return NewBasicLit(orig.Pos(), orig.Type(), val)
 }
 
 // A BinaryExpr is a binary expression X Op Y,
