@@ -316,7 +316,8 @@ func minit() {
 //go:nosplit
 func unminit() {
 	unminitSignals()
-	getg().m.procid = 0
+	// Don't clear procid, it is used by locking (semawake), and locking
+	// must continue working after unminit.
 }
 
 // Called from exitm, but not from drop, to undo the effect of thread-owned
