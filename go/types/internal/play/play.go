@@ -137,9 +137,26 @@ func handleSelectJSON(w http.ResponseWriter, req *http.Request) {
 	// Expression type information
 	if innermostExpr != nil {
 		if tv, ok := pkg.TypesInfo.Types[innermostExpr]; ok {
-			// TODO(adonovan): show tv.mode.
-			// e.g. IsVoid IsType IsBuiltin IsValue IsNil Addressable Assignable HasOk
-			fmt.Fprintf(out, "%T has type %v", innermostExpr, tv.Type)
+			var modes []string
+			for _, mode := range []struct {
+				name      string
+				condition func(types.TypeAndValue) bool
+			}{
+				{"IsVoid", types.TypeAndValue.IsVoid},
+				{"IsType", types.TypeAndValue.IsType},
+				{"IsBuiltin", types.TypeAndValue.IsBuiltin},
+				{"IsValue", types.TypeAndValue.IsValue},
+				{"IsNil", types.TypeAndValue.IsNil},
+				{"Addressable", types.TypeAndValue.Addressable},
+				{"Assignable", types.TypeAndValue.Assignable},
+				{"HasOk", types.TypeAndValue.HasOk},
+			} {
+				if mode.condition(tv) {
+					modes = append(modes, mode.name)
+				}
+			}
+			fmt.Fprintf(out, "%T has type %v and mode %s",
+				innermostExpr, tv.Type, modes)
 			if tv.Value != nil {
 				fmt.Fprintf(out, " and constant value %v", tv.Value)
 			}
