@@ -139,8 +139,7 @@ func (ec *exprClassifier) Visit(n ir.Node) {
 			ndisp = exprLiterals
 
 		case ir.OLITERAL:
-			if _, ok := n.(*ir.ConstExpr); ok {
-			} else if _, ok := n.(*ir.BasicLit); ok {
+			if _, ok := n.(*ir.BasicLit); ok {
 			} else {
 				panic("unexpected")
 			}
