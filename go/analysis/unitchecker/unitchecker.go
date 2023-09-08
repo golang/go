@@ -193,13 +193,7 @@ type factImporter = func(pkgPath string) ([]byte, error)
 // The defaults honor a Config in a manner compatible with 'go vet'.
 var (
 	makeTypesImporter = func(cfg *Config, fset *token.FileSet) types.Importer {
-		return importer.ForCompiler(fset, cfg.Compiler, func(importPath string) (io.ReadCloser, error) {
-			// Resolve import path to package path (vendoring, etc)
-			path, ok := cfg.ImportMap[importPath]
-			if !ok {
-				return nil, fmt.Errorf("can't resolve import %q", path)
-			}
-
+		compilerImporter := importer.ForCompiler(fset, cfg.Compiler, func(path string) (io.ReadCloser, error) {
 			// path is a resolved package path, not an import path.
 			file, ok := cfg.PackageFile[path]
 			if !ok {
@@ -209,6 +203,13 @@ var (
 				return nil, fmt.Errorf("no package file for %q", path)
 			}
 			return os.Open(file)
+		})
+		return importerFunc(func(importPath string) (*types.Package, error) {
+			path, ok := cfg.ImportMap[importPath] // resolve vendoring, etc
+			if !ok {
+				return nil, fmt.Errorf("can't resolve import %q", path)
+			}
+			return compilerImporter.Import(path)
 		})
 	}
 
@@ -433,3 +434,7 @@ type result struct {
 	diagnostics []analysis.Diagnostic
 	err         error
 }
+
+type importerFunc func(path string) (*types.Package, error)
+
+func (f importerFunc) Import(path string) (*types.Package, error) { return f(path) }
