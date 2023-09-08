@@ -440,8 +440,9 @@ func withTCPConnPair(t *testing.T, peer1, peer2 func(c *TCPConn) error) {
 			errc <- err
 			return
 		}
-		defer c1.Close()
-		errc <- peer1(c1.(*TCPConn))
+		err = peer1(c1.(*TCPConn))
+		c1.Close()
+		errc <- err
 	}()
 	go func() {
 		c2, err := Dial("tcp", ln.Addr().String())
@@ -449,12 +450,13 @@ func withTCPConnPair(t *testing.T, peer1, peer2 func(c *TCPConn) error) {
 			errc <- err
 			return
 		}
-		defer c2.Close()
-		errc <- peer2(c2.(*TCPConn))
+		err = peer2(c2.(*TCPConn))
+		c2.Close()
+		errc <- err
 	}()
 	for i := 0; i < 2; i++ {
 		if err := <-errc; err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
 	}
 }
