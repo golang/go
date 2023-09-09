@@ -115,10 +115,13 @@ var (
 	bigDataErr   error
 )
 
-// bigData returns the contents of our large test file.
+// bigData returns the contents of our large test file repeated multiple times.
 func bigData(t testing.TB) []byte {
 	bigDataOnce.Do(func() {
 		bigDataBytes, bigDataErr = os.ReadFile("../../testdata/Isaac.Newton-Opticks.txt")
+		if bigDataErr == nil {
+			bigDataBytes = bytes.Repeat(bigDataBytes, 3)
+		}
 	})
 	if bigDataErr != nil {
 		t.Fatal(bigDataErr)

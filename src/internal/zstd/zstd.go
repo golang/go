@@ -466,6 +466,7 @@ func (r *Reader) saveWindow(buf []byte) {
 	if keep < len(r.window) {
 		remove := len(r.window) - keep
 		copy(r.window[:], r.window[remove:])
+		r.window = r.window[:keep]
 	}
 
 	r.window = append(r.window, buf...)
