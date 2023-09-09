@@ -270,7 +270,7 @@ func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
 		}
 		exe = fields[0]
 		if !strings.ContainsAny(exe, `/\`) {
-			if lp, err := exec.LookPath(exe); err == nil {
+			if lp, err := cfg.LookPath(exe); err == nil {
 				exe = lp
 			}
 		}

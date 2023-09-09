@@ -2373,7 +2373,11 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...any) ([
 	}
 
 	var buf bytes.Buffer
-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+	path, err := cfg.LookPath(cmdline[0])
+	if err != nil {
+		return nil, err
+	}
+	cmd := exec.Command(path, cmdline[1:]...)
 	if cmd.Path != "" {
 		cmd.Args[0] = cmd.Path
 	}
@@ -2397,7 +2401,7 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...any) ([
 
 	cmd.Env = append(cmd.Env, env...)
 	start := time.Now()
-	err := cmd.Run()
+	err = cmd.Run()
 	if a != nil && a.json != nil {
 		aj := a.json
 		aj.Cmd = append(aj.Cmd, joinUnambiguously(cmdline))
@@ -3017,7 +3021,7 @@ func (b *Builder) gccCompilerID(compiler string) (id cache.ActionID, ok bool) {
 	//
 	// Otherwise, we compute a new validation description
 	// and compiler id (below).
-	exe, err := exec.LookPath(compiler)
+	exe, err := cfg.LookPath(compiler)
 	if err != nil {
 		return cache.ActionID{}, false
 	}

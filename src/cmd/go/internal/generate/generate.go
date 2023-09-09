@@ -487,7 +487,7 @@ func (g *Generator) exec(words []string) {
 		// intends to use the same 'go' as 'go generate' itself.
 		// Prefer to resolve the binary from GOROOT/bin, and for consistency
 		// prefer to resolve any other commands there too.
-		gorootBinPath, err := exec.LookPath(filepath.Join(cfg.GOROOTbin, path))
+		gorootBinPath, err := cfg.LookPath(filepath.Join(cfg.GOROOTbin, path))
 		if err == nil {
 			path = gorootBinPath
 		}

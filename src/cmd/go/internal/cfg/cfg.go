@@ -15,7 +15,6 @@ import (
 	"internal/cfg"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -161,7 +160,7 @@ func defaultContext() build.Context {
 		if ctxt.CgoEnabled {
 			if os.Getenv("CC") == "" {
 				cc := DefaultCC(ctxt.GOOS, ctxt.GOARCH)
-				if _, err := exec.LookPath(cc); err != nil {
+				if _, err := LookPath(cc); err != nil {
 					ctxt.CgoEnabled = false
 				}
 			}
