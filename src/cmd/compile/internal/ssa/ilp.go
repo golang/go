@@ -4,7 +4,7 @@
 
 package ssa
 
-// ilp pass (Instruction Level Parallelism) balances trees of commutative computation
+// ilp pass (Instruction Level Parallelism) balances trees of associative computation
 // to help CPU pipeline instructions more efficiently. It only works block by block
 // so that it doesn't end up pulling loop invariant expressions into tight loops
 func ilp(f *Func) {
@@ -15,15 +15,15 @@ func ilp(f *Func) {
 	}
 }
 
-// isILPOp only returns true if the operation is commutative
-// and associative, which for our case would be only commutative integer ops.
+// isILPOp only returns true if the operation is associative,
+// which for our case would be only commutative integer ops.
 func isILPOp(o Op) bool {
-	// if the op isn't commutative it won't be useable for ilp
+	// if the op isn't a commutative integer op, it won't be associative
 	if !opcodeTable[o].commutative {
 		return false
 	}
 
-	// filter out float ops because they are not associative
+	// filter out float ops because they are not associative, leaving int ops
 	switch o {
 	case OpAdd32F, OpAdd64F, OpMul32F, OpMul64F:
 		return false
@@ -87,7 +87,7 @@ func balanceExprTree(nodes, leaves []*Value) {
 	subTrees := leaves
 	i := len(nodes)-1
 	for len(subTrees) != 1 {
-		nextSubTrees := make([]*Value, 0, (len(subTrees)+1)/2)
+		nextSubTrees := subTrees[:0]
 
 		start := len(subTrees) % 2
 		if start != 0 {
@@ -142,7 +142,7 @@ func rebalance(v *Value) {
 		}
 	}
 
-	// we need at least 3 nodes (root, two children) and len(args)^2 leaves
+	// we need at least 3 nodes (root, two children) and 4 leaves
 	// for this expression to be rebalanceable
 	if len(nodes) < 3 || len(leaves) < 4 {
 		return
