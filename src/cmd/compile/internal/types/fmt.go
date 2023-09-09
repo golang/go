@@ -633,9 +633,6 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 				name = fmt.Sprint(f.Nname)
 			} else if verb == 'L' {
 				name = s.Name
-				if name == ".F" {
-					name = "F" // Hack for toolstash -cmp.
-				}
 				if !IsExported(name) && mode != fmtTypeIDName {
 					name = sconv(s, 0, mode) // qualify non-exported names (used on structs, not on funarg)
 				}
