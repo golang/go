@@ -16,7 +16,7 @@ func ilp(f *Func) {
 }
 
 // isILPOp only returns true if the operation is commutative
-// and associative, which for our case would be only commutative integer ops
+// and associative, which for our case would be only commutative integer ops.
 func isILPOp(o Op) bool {
 	// if the op isn't commutative it won't be useable for ilp
 	if !opcodeTable[o].commutative {
