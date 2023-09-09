@@ -1180,6 +1180,7 @@ func TestRenameCaseDifference(pt *testing.T) {
 			// Stat does not return the real case of the file (it returns what the called asked for)
 			// So we have to use readdir to get the real name of the file.
 			dirNames, err := fd.Readdirnames(-1)
+			fd.Close()
 			if err != nil {
 				t.Fatalf("readdirnames: %s", err)
 			}
