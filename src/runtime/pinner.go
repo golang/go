@@ -59,8 +59,9 @@ func (p *Pinner) Pin(pointer any) {
 		}
 	}
 	ptr := pinnerGetPtr(&pointer)
-	setPinned(ptr, true)
-	p.refs = append(p.refs, ptr)
+	if setPinned(ptr, true) {
+		p.refs = append(p.refs, ptr)
+	}
 }
 
 // Unpin unpins all pinned objects of the Pinner.
@@ -144,14 +145,15 @@ func isPinned(ptr unsafe.Pointer) bool {
 }
 
 // setPinned marks or unmarks a Go pointer as pinned.
-func setPinned(ptr unsafe.Pointer, pin bool) {
+func setPinned(ptr unsafe.Pointer, pin bool) bool {
 	span := spanOfHeap(uintptr(ptr))
 	if span == nil {
-		if isGoPointerWithoutSpan(ptr) {
-			// this is a linker-allocated or zero size object, nothing to do.
-			return
+		if !pin {
+			panic(errorString("runtime.Pinner.Unpin: unexpected non Go pointer"))
 		}
-		panic(errorString("runtime.Pinner.Pin: argument is not a Go pointer"))
+		// this is a linker-allocated, zero size object or other object,
+		// nothing to do, silently ignore it.
+		return false
 	}
 
 	// ensure that the span is swept, b/c sweeping accesses the specials list
@@ -209,7 +211,7 @@ func setPinned(ptr unsafe.Pointer, pin bool) {
 	}
 	unlock(&span.speciallock)
 	releasem(mp)
-	return
+	return true
 }
 
 type pinState struct {
