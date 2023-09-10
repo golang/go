@@ -310,7 +310,7 @@ func Inline(logf func(string, ...any), caller *Caller, callee *Callee) ([]byte, 
 		logf = func(string, ...any) {} // discard
 	}
 	logf("inline %s @ %v",
-		formatNode(caller.Fset, caller.Call),
+		debugFormatNode(caller.Fset, caller.Call),
 		caller.Fset.Position(caller.Call.Lparen))
 
 	res, err := inline(logf, caller, &callee.impl)
@@ -331,17 +331,19 @@ func Inline(logf func(string, ...any), caller *Caller, callee *Callee) ([]byte, 
 	{
 		start := offsetOf(caller.Fset, res.old.Pos())
 		end := offsetOf(caller.Fset, res.old.End())
+		var out bytes.Buffer
+		out.Write(caller.Content[:start])
 		// TODO(adonovan): might it make more sense to use
 		// callee.Fset when formatting res.new??
-		newFile := string(caller.Content[:start]) +
-			formatNode(caller.Fset, res.new) +
-			string(caller.Content[end:])
+		if err := format.Node(&out, caller.Fset, res.new); err != nil {
+			return nil, err
+		}
+		out.Write(caller.Content[end:])
 		const mode = parser.ParseComments | parser.SkipObjectResolution | parser.AllErrors
-		var err error
-		f, err = parser.ParseFile(caller.Fset, "callee.go", newFile, mode)
+		f, err = parser.ParseFile(caller.Fset, "callee.go", &out, mode)
 		if err != nil {
 			// Something has gone very wrong.
-			logf("failed to parse <<%s>>", newFile) // debugging
+			logf("failed to parse <<%s>>", &out) // debugging
 			return nil, err
 		}
 	}
@@ -375,6 +377,12 @@ func Inline(logf func(string, ...any), caller *Caller, callee *Callee) ([]byte, 
 			importDecl.Specs = append(importDecl.Specs, spec)
 		}
 	}
+
+	var out bytes.Buffer
+	if err := format.Node(&out, caller.Fset, f); err != nil {
+		return nil, err
+	}
+	newSrc := out.Bytes()
 
 	// Remove imports that are no longer referenced.
 	//
@@ -425,16 +433,17 @@ func Inline(logf func(string, ...any), caller *Caller, callee *Callee) ([]byte, 
 	// We could invoke imports.Process and parse its result,
 	// compare against the original AST, compute a list of import
 	// fixes, and return that too.
-	var out bytes.Buffer
-	if err := format.Node(&out, caller.Fset, f); err != nil {
-		return nil, err
+
+	// Recompute imports only if there were existing ones.
+	if len(f.Imports) > 0 {
+		formatted, err := imports.Process("output", newSrc, nil)
+		if err != nil {
+			logf("cannot reformat: %v <<%s>>", err, &out)
+			return nil, err // cannot reformat (a bug?)
+		}
+		newSrc = formatted
 	}
-	formatted, err := imports.Process("output", out.Bytes(), nil)
-	if err != nil {
-		logf("cannot reformat: %v <<%s>>", err, &out)
-		return nil, err // cannot reformat (a bug?)
-	}
-	return formatted, nil
+	return newSrc, nil
 }
 
 type result struct {
@@ -462,6 +471,8 @@ type result struct {
 // representation, such as any proposed solution to #20744, or even
 // dst or some private fork of go/ast.)
 func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*result, error) {
+	checkInfoFields(caller.Info)
+
 	// Inlining of dynamic calls is not currently supported,
 	// even for local closure calls. (This would be a lot of work.)
 	calleeSymbol := typeutil.StaticCallee(caller.Info, caller.Call)
@@ -632,9 +643,10 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	}
 
 	// replaceCalleeID replaces an identifier in the callee.
+	// The replacement tree must not belong to the caller; use cloneNode as needed.
 	replaceCalleeID := func(offset int, repl ast.Expr) {
 		id := findIdent(calleeDecl, calleeDecl.Pos()+token.Pos(offset))
-		logf("- replace id %q @ #%d to %q", id.Name, offset, formatNode(calleeFset, repl))
+		logf("- replace id %q @ #%d to %q", id.Name, offset, debugFormatNode(calleeFset, repl))
 		replaceNode(calleeDecl, id, repl)
 	}
 
@@ -812,12 +824,12 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			if is[*types.Tuple](arg.typ) {
 				// TODO(adonovan): handle elimination of spread arguments.
 				logf("keeping param %q: argument %s is spread",
-					param.Name, formatNode(caller.Fset, arg.expr))
-				continue
+					param.Name, debugFormatNode(caller.Fset, arg.expr))
+				break // spread => last argument, but not last parameter
 			}
 			if !arg.pure {
 				logf("keeping param %q: argument %s is impure",
-					param.Name, formatNode(caller.Fset, arg.expr))
+					param.Name, debugFormatNode(caller.Fset, arg.expr))
 				continue // unsafe to change order or cardinality of effects
 			}
 			if len(param.Refs) > 1 && !arg.duplicable {
@@ -872,10 +884,13 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			// It is safe to eliminate param and replace it with arg.
 			// No additional parens are required around arg for
 			// the supported "pure" expressions.
+			//
+			// Because arg.expr belongs to the caller,
+			// we clone it before splicing it into the callee tree.
 			logf("replacing parameter %q by argument %q",
-				param.Name, formatNode(caller.Fset, arg.expr))
+				param.Name, debugFormatNode(caller.Fset, arg.expr))
 			for _, ref := range param.Refs {
-				replaceCalleeID(ref, arg.expr)
+				replaceCalleeID(ref, cloneNode(arg.expr).(ast.Expr))
 			}
 			eliminatedParams[i] = true
 			args[i] = nil
@@ -888,6 +903,19 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			remainingArgs = append(remainingArgs, arg.expr)
 		}
 	}
+
+	// TODO(adonovan): eliminate all remaining parameters
+	// by replacing a call f(a1, a2)
+	// to func f(x T1, y T2) {body} by
+	//    { var x T1 = a1
+	//      var y T2 = a2
+	//      body }
+	// if x ∉ freevars(a2) or freevars(T2), and so on,
+	// plus the usual checks for return conversions (if any),
+	// complex control, etc.
+	//
+	// If viable, use this with the reduction strategies below
+	// that produce a block (not a value).
 
 	// -- let the inlining strategies begin --
 
@@ -1044,9 +1072,9 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		// Inlining:
 		//         return f(args)
 		// where:
-		//         func f(params) (results) { ...body... }
+		//         func f(params) (results) { body }
 		// reduces to:
-		//         ...body...
+		//         { body }
 		// so long as:
 		// - all parameters are eliminated;
 		// - call is a tail-call;
@@ -1059,6 +1087,10 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		//
 		// TODO(adonovan): omit the braces if the sets of
 		// names in the two blocks are disjoint.
+		//
+		// TODO(adonovan): add a strategy for a 'void tail
+		// call', i.e. a call statement prior to an (explicit
+		// or implicit) return.
 		if ret, ok := callContext(callerPath).(*ast.ReturnStmt); ok &&
 			len(ret.Results) == 1 &&
 			callee.TrivialReturns == callee.TotalReturns &&
@@ -1122,15 +1154,21 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		// in addition to the usual checks for arg/result conversions,
 		// complex control, etc.
 		// Also test cases where expr is an n-ary call (spread returns).
+	}
 
-		// TODO(adonovan): replace a call f(a1, a2)
-		// to func f(x T1, y T2) {body} by
-		//    { var x T1 = a1
-		//      var y T2 = a2
-		//      body }
-		// if x ∉ freevars(a2) or freevars(T2), and so on,
-		// plus the usual checks for return conversions (if any),
-		// complex control, etc.
+	// Literalization isn't quite infallible.
+	// Consider a spread call to a method in which
+	// no parameters are eliminated, e.g.
+	// 	new(T).f(g())
+	// where
+	//  	func (recv *T) f(x, y int) { body }
+	//  	func g() (int, int)
+	// This would be literalized to:
+	// 	func (recv *T, x, y int) { body }(new(T), g()),
+	// which is not a valid argument list because g() must appear alone.
+	// Reject this case for now.
+	if len(args) == 2 && args[0] != nil && args[1] != nil && is[*types.Tuple](args[1].typ) {
+		return nil, fmt.Errorf("can't yet inline spread call to method")
 	}
 
 	// Infallible general case: literalization.
@@ -1547,6 +1585,54 @@ func replaceNode(root ast.Node, from, to ast.Node) {
 	}
 }
 
+// cloneNode returns a deep copy of a Node.
+// It omits pointers to ast.{Scope,Object} variables.
+func cloneNode(n ast.Node) ast.Node {
+	var clone func(x reflect.Value) reflect.Value
+	clone = func(x reflect.Value) reflect.Value {
+		switch x.Kind() {
+		case reflect.Ptr:
+			if x.IsNil() {
+				return x
+			}
+			// Skip fields of types potentially involved in cycles.
+			switch x.Interface().(type) {
+			case *ast.Object, *ast.Scope:
+				return reflect.Zero(x.Type())
+			}
+			y := reflect.New(x.Type().Elem())
+			y.Elem().Set(clone(x.Elem()))
+			return y
+
+		case reflect.Struct:
+			y := reflect.New(x.Type()).Elem()
+			for i := 0; i < x.Type().NumField(); i++ {
+				y.Field(i).Set(clone(x.Field(i)))
+			}
+			return y
+
+		case reflect.Slice:
+			y := reflect.MakeSlice(x.Type(), x.Len(), x.Cap())
+			for i := 0; i < x.Len(); i++ {
+				y.Index(i).Set(clone(x.Index(i)))
+			}
+			return y
+
+		case reflect.Interface:
+			y := reflect.New(x.Type()).Elem()
+			y.Set(clone(x.Elem()))
+			return y
+
+		case reflect.Array, reflect.Chan, reflect.Func, reflect.Map, reflect.UnsafePointer:
+			panic(x) // unreachable in AST
+
+		default:
+			return x // bool, string, number
+		}
+	}
+	return clone(reflect.ValueOf(n)).Interface().(ast.Node)
+}
+
 // clearPositions destroys token.Pos information within the tree rooted at root,
 // as positions in callee trees may cause caller comments to be emitted prematurely.
 //
@@ -1606,7 +1692,9 @@ func prepend[T any](elem T, slice ...T) []T {
 	return append([]T{elem}, slice...)
 }
 
-func formatNode(fset *token.FileSet, n ast.Node) string {
+// debugFormatNode formats a node or returns a formatting error.
+// Its sloppy treatment of errors is appropriate only for logging.
+func debugFormatNode(fset *token.FileSet, n ast.Node) string {
 	var out strings.Builder
 	if err := format.Node(&out, fset, n); err != nil {
 		out.WriteString(err.Error())

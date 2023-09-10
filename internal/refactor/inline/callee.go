@@ -70,6 +70,7 @@ type object struct {
 // golang.org/x/tools/go/analysis framework: the inlining information
 // about a callee can be recorded as a "fact".
 func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, decl *ast.FuncDecl, content []byte) (*Callee, error) {
+	checkInfoFields(info)
 
 	// The client is expected to have determined that the callee
 	// is a function with a declaration (not a built-in or var).

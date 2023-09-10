@@ -44,3 +44,12 @@ func within(pos token.Pos, n ast.Node) bool {
 func trivialConversion(val types.Type, obj *types.Var) bool {
 	return types.Identical(types.Default(val), obj.Type())
 }
+
+func checkInfoFields(info *types.Info) {
+	assert(info.Defs != nil, "types.Info.Defs is nil")
+	assert(info.Implicits != nil, "types.Info.Implicits is nil")
+	assert(info.Scopes != nil, "types.Info.Scopes is nil")
+	assert(info.Selections != nil, "types.Info.Selections is nil")
+	assert(info.Types != nil, "types.Info.Types is nil")
+	assert(info.Uses != nil, "types.Info.Uses is nil")
+}
