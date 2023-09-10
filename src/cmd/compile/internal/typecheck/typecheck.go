@@ -496,7 +496,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		if len(n.Args) != 0 {
 			base.FatalfAt(n.Pos(), "unexpected arguments: %v", n)
 		}
-		n.SetType(types.Types[types.TUINTPTR])
+		n.SetType(types.Types[types.TUNSAFEPTR])
 		return n
 
 	case ir.OCONVNOP:

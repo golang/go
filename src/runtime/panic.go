@@ -981,7 +981,7 @@ func (p *_panic) initOpenCodedDefers(fn funcInfo, varp unsafe.Pointer) bool {
 // this doesn't need to be nosplit.
 //
 //go:nosplit
-func gorecover(argp uintptr) any {
+func gorecover(argp unsafe.Pointer) any {
 	// Must be in a function running as part of a deferred call during the panic.
 	// Must be called from the topmost function of the call
 	// (the function used in the defer statement).
@@ -990,7 +990,7 @@ func gorecover(argp uintptr) any {
 	// If they match, the caller is the one who can recover.
 	gp := getg()
 	p := gp._panic
-	if p != nil && !p.goexit && !p.recovered && argp == uintptr(p.argp) {
+	if p != nil && !p.goexit && !p.recovered && argp == p.argp {
 		p.recovered = true
 		return p.arg
 	}

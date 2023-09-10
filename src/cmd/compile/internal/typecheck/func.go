@@ -758,10 +758,9 @@ func tcRecover(n *ir.CallExpr) ir.Node {
 	// FP is equal to caller's SP plus FixedFrameSize.
 	var fp ir.Node = ir.NewCallExpr(n.Pos(), ir.OGETCALLERSP, nil, nil)
 	if off := base.Ctxt.Arch.FixedFrameSize; off != 0 {
-		fp = ir.NewBinaryExpr(n.Pos(), ir.OADD, fp, ir.NewInt(base.Pos, off))
+		fp = ir.NewBinaryExpr(n.Pos(), ir.OUNSAFEADD, fp, ir.NewInt(base.Pos, off))
 	}
-	// TODO(mdempsky): Replace *int32 with unsafe.Pointer, without upsetting checkptr.
-	fp = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, types.NewPtr(types.Types[types.TINT32]), fp)
+	fp = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, types.Types[types.TUNSAFEPTR], fp)
 
 	n.SetOp(ir.ORECOVERFP)
 	n.SetType(types.Types[types.TINTER])
