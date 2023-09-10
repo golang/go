@@ -33,11 +33,12 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
 	// iteration
 	n = 0
 	s := 0
-	r.Do(func(p any) {
+	r.Do(func(p any) bool {
 		n++
 		if p != nil {
 			s += p.(int)
 		}
+		return true
 	})
 	if n != N {
 		t.Errorf("number of forward iterations == %d; expected %d", n, N)
@@ -225,4 +226,31 @@ func TestMoveEmptyRing(t *testing.T) {
 
 	r.Move(1)
 	verify(t, &r, 1, 0)
+}
+
+func TestLoopFun(t *testing.T) {
+	r := New(10)
+	testArrays := []int{0, 1, 2, 3}
+	loopResultArrays := []int{}
+	for i := 0; i < 10; i++ {
+		r.Move(i).Value = i
+	}
+	r.Do(
+		func(a any) bool {
+			v := a.(int)
+			if v > 3 {
+				return false
+			}
+			loopResultArrays = append(loopResultArrays, v)
+			return true
+		},
+	)
+	if len(testArrays) != len(loopResultArrays) {
+		t.Errorf("number of forward iterations == %d; expected %d", len(loopResultArrays), len(testArrays))
+	}
+	for i, v := range testArrays {
+		if loopResultArrays[i] != v {
+			t.Errorf("result of iterations %d is %d; expected %d", i, loopResultArrays[i], v)
+		}
+	}
 }

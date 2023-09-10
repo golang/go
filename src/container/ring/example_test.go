@@ -88,8 +88,9 @@ func ExampleRing_Do() {
 	}
 
 	// Iterate through the ring and print its contents
-	r.Do(func(p any) {
+	r.Do(func(p any) bool {
 		fmt.Println(p.(int))
+		return true
 	})
 
 	// Output:
@@ -117,8 +118,9 @@ func ExampleRing_Move() {
 	r = r.Move(3)
 
 	// Iterate through the ring and print its contents
-	r.Do(func(p any) {
+	r.Do(func(p any) bool {
 		fmt.Println(p.(int))
+		return true
 	})
 
 	// Output:
@@ -182,8 +184,9 @@ func ExampleRing_Unlink() {
 	r.Unlink(3)
 
 	// Iterate through the remaining ring and print its contents
-	r.Do(func(p any) {
+	r.Do(func(p any) bool {
 		fmt.Println(p.(int))
+		return true
 	})
 
 	// Output:
