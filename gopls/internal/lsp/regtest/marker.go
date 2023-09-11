@@ -313,7 +313,7 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 // internal/lsp/tests.
 //
 // Remaining TODO:
-//   - parallelize/optimize test execution
+//   - optimize test execution
 //   - reorganize regtest packages (and rename to just 'test'?)
 //   - Rename the files .txtar.
 //   - Provide some means by which locations in the standard library
@@ -359,7 +359,9 @@ func RunMarkerTests(t *testing.T, dir string) {
 	cache := cache.New(nil)
 
 	for _, test := range tests {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			if test.skipReason != "" {
 				t.Skip(test.skipReason)
 			}
