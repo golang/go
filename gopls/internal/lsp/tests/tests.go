@@ -26,7 +26,6 @@ import (
 	"golang.org/x/tools/go/expect"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/packages/packagestest"
-	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/source"
@@ -63,7 +62,6 @@ var UpdateGolden = flag.Bool("golden", false, "Update golden files")
 // These type names apparently avoid the need to repeat the
 // type in the field name and the make() expression.
 type CallHierarchy = map[span.Span]*CallHierarchyResult
-type CodeLens = map[span.URI][]protocol.CodeLens
 type Diagnostics = map[span.URI][]*source.Diagnostic
 type CompletionItems = map[token.Pos]*completion.CompletionItem
 type Completions = map[span.Span][]Completion
@@ -89,7 +87,6 @@ type Data struct {
 	Config                   packages.Config
 	Exported                 *packagestest.Exported
 	CallHierarchy            CallHierarchy
-	CodeLens                 CodeLens
 	Diagnostics              Diagnostics
 	CompletionItems          CompletionItems
 	Completions              Completions
@@ -123,14 +120,13 @@ type Data struct {
 }
 
 // The Tests interface abstracts the LSP-based implementation of the marker
-// test operators (such as @codelens) appearing in files beneath ../testdata/.
+// test operators appearing in files beneath ../testdata/.
 //
 // TODO(adonovan): reduce duplication; see https://github.com/golang/go/issues/54845.
 // There is only one implementation (*runner in ../lsp_test.go), so
 // we can abolish the interface now.
 type Tests interface {
 	CallHierarchy(*testing.T, span.Span, *CallHierarchyResult)
-	CodeLens(*testing.T, span.URI, []protocol.CodeLens)
 	Diagnostics(*testing.T, span.URI, []*source.Diagnostic)
 	Completion(*testing.T, span.Span, Completion, CompletionItems)
 	CompletionSnippet(*testing.T, span.Span, CompletionSnippet, bool, CompletionItems)
@@ -232,7 +228,6 @@ func DefaultOptions(o *source.Options) {
 		source.Work: {},
 		source.Tmpl: {},
 	}
-	o.UserOptions.Codelenses[string(command.Test)] = true
 	o.HoverKind = source.SynopsisDocumentation
 	o.InsertTextFormat = protocol.SnippetTextFormat
 	o.CompletionBudget = time.Minute
@@ -267,7 +262,6 @@ func RunTests(t *testing.T, dataDir string, includeMultiModule bool, f func(*tes
 func load(t testing.TB, mode string, dir string) *Data {
 	datum := &Data{
 		CallHierarchy:            make(CallHierarchy),
-		CodeLens:                 make(CodeLens),
 		Diagnostics:              make(Diagnostics),
 		CompletionItems:          make(CompletionItems),
 		Completions:              make(Completions),
@@ -417,7 +411,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 
 	// Collect any data that needs to be used by subsequent tests.
 	if err := datum.Exported.Expect(map[string]interface{}{
-		"codelens":       datum.collectCodeLens,
 		"diag":           datum.collectDiagnostics,
 		"item":           datum.collectCompletionItems,
 		"complete":       datum.collectCompletions(CompletionDefault),
@@ -577,20 +570,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("RankCompletions", func(t *testing.T) {
 		t.Helper()
 		eachCompletion(t, data.RankCompletions, tests.RankCompletion)
-	})
-
-	t.Run("CodeLens", func(t *testing.T) {
-		t.Helper()
-		for uri, want := range data.CodeLens {
-			// Check if we should skip this URI if the -modfile flag is not available.
-			if shouldSkip(data, uri) {
-				continue
-			}
-			t.Run(uriName(uri), func(t *testing.T) {
-				t.Helper()
-				tests.CodeLens(t, uri, want)
-			})
-		}
 	})
 
 	t.Run("Diagnostics", func(t *testing.T) {
@@ -785,15 +764,7 @@ func checkData(t *testing.T, data *Data) {
 		return count
 	}
 
-	countCodeLens := func(c map[span.URI][]protocol.CodeLens) (count int) {
-		for _, want := range c {
-			count += len(want)
-		}
-		return count
-	}
-
 	fmt.Fprintf(buf, "CallHierarchyCount = %v\n", len(data.CallHierarchy))
-	fmt.Fprintf(buf, "CodeLensCount = %v\n", countCodeLens(data.CodeLens))
 	fmt.Fprintf(buf, "CompletionsCount = %v\n", countCompletions(data.Completions))
 	fmt.Fprintf(buf, "CompletionSnippetCount = %v\n", snippetCount)
 	fmt.Fprintf(buf, "UnimportedCompletionsCount = %v\n", countCompletions(data.UnimportedCompletions))
@@ -891,16 +862,6 @@ func (data *Data) Golden(t *testing.T, tag, target string, update func() ([]byte
 		return file.Data
 	}
 	return file.Data[:len(file.Data)-1] // drop the trailing \n
-}
-
-func (data *Data) collectCodeLens(spn span.Span, title, cmd string) {
-	data.CodeLens[spn.URI()] = append(data.CodeLens[spn.URI()], protocol.CodeLens{
-		Range: data.mustRange(spn),
-		Command: &protocol.Command{
-			Title:   title,
-			Command: cmd,
-		},
-	})
 }
 
 func (data *Data) collectDiagnostics(spn span.Span, msgSource, msgPattern, msgSeverity string) {

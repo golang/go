@@ -1,0 +1,9 @@
+This test exercises the "generate" codelens.
+
+-- generate.go --
+//@codelenses()
+
+package generate
+
+//go:generate echo Hi //@ codelens("//go:generate", "run go generate"), codelens("//go:generate", "run go generate ./...")
+//go:generate echo I shall have no CodeLens

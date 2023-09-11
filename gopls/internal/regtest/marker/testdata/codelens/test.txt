@@ -1,0 +1,31 @@
+This file tests codelenses for test functions.
+
+TODO: for some reason these code lens have zero width. Does that affect their
+utility/visibility in various LSP clients?
+
+-- settings.json --
+{
+	"codelenses": {
+		"test": true
+	}
+}
+
+-- p_test.go --
+//@codelenses()
+
+package codelens //@codelens(re"()package codelens", "run file benchmarks")
+
+import "testing"
+
+func TestMain(m *testing.M) {} // no code lens for TestMain
+
+func TestFuncWithCodeLens(t *testing.T) { //@codelens(re"()func", "run test")
+}
+
+func thisShouldNotHaveACodeLens(t *testing.T) {
+}
+
+func BenchmarkFuncWithCodeLens(b *testing.B) { //@codelens(re"()func", "run benchmark")
+}
+
+func helper() {} // expect no code lens

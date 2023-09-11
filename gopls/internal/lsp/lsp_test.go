@@ -35,8 +35,8 @@ func TestMain(m *testing.M) {
 }
 
 // TestLSP runs the marker tests in files beneath testdata/ using
-// implementations of each of the marker operations (e.g. @codelens) that
-// make LSP RPCs (e.g. textDocument/codeLens) to a gopls server.
+// implementations of each of the marker operations that make LSP RPCs to a
+// gopls server.
 func TestLSP(t *testing.T) {
 	tests.RunTests(t, "testdata", true, testLSP)
 }
@@ -207,23 +207,6 @@ func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests
 	msg = tests.DiffCallHierarchyItems(outgoingCallItems, expectedCalls.OutgoingCalls)
 	if msg != "" {
 		t.Errorf("outgoing calls: %s", msg)
-	}
-}
-
-func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) {
-	if !strings.HasSuffix(uri.Filename(), "go.mod") {
-		return
-	}
-	got, err := r.server.codeLens(r.ctx, &protocol.CodeLensParams{
-		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.DocumentURI(uri),
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if diff := tests.DiffCodeLens(uri, want, got); diff != "" {
-		t.Errorf("%s: %s", uri, diff)
 	}
 }
 

@@ -172,67 +172,6 @@ func inRange(p protocol.Position, r protocol.Range) bool {
 	return false
 }
 
-func DiffCodeLens(uri span.URI, want, got []protocol.CodeLens) string {
-	sortCodeLens(want)
-	sortCodeLens(got)
-
-	if len(got) != len(want) {
-		return summarizeCodeLens(-1, uri, want, got, "different lengths got %v want %v", len(got), len(want))
-	}
-	for i, w := range want {
-		g := got[i]
-		if w.Command.Command != g.Command.Command {
-			return summarizeCodeLens(i, uri, want, got, "incorrect Command Name got %v want %v", g.Command.Command, w.Command.Command)
-		}
-		if w.Command.Title != g.Command.Title {
-			return summarizeCodeLens(i, uri, want, got, "incorrect Command Title got %v want %v", g.Command.Title, w.Command.Title)
-		}
-		if protocol.ComparePosition(w.Range.Start, g.Range.Start) != 0 {
-			return summarizeCodeLens(i, uri, want, got, "incorrect Start got %v want %v", g.Range.Start, w.Range.Start)
-		}
-		if !protocol.IsPoint(g.Range) { // Accept any 'want' range if the codelens returns a zero-length range.
-			if protocol.ComparePosition(w.Range.End, g.Range.End) != 0 {
-				return summarizeCodeLens(i, uri, want, got, "incorrect End got %v want %v", g.Range.End, w.Range.End)
-			}
-		}
-	}
-	return ""
-}
-
-func sortCodeLens(c []protocol.CodeLens) {
-	sort.Slice(c, func(i int, j int) bool {
-		if r := protocol.CompareRange(c[i].Range, c[j].Range); r != 0 {
-			return r < 0
-		}
-		if c[i].Command.Command < c[j].Command.Command {
-			return true
-		} else if c[i].Command.Command == c[j].Command.Command {
-			return c[i].Command.Title < c[j].Command.Title
-		} else {
-			return false
-		}
-	})
-}
-
-func summarizeCodeLens(i int, uri span.URI, want, got []protocol.CodeLens, reason string, args ...interface{}) string {
-	msg := &bytes.Buffer{}
-	fmt.Fprint(msg, "codelens failed")
-	if i >= 0 {
-		fmt.Fprintf(msg, " at %d", i)
-	}
-	fmt.Fprint(msg, " because of ")
-	fmt.Fprintf(msg, reason, args...)
-	fmt.Fprint(msg, ":\nexpected:\n")
-	for _, d := range want {
-		fmt.Fprintf(msg, "  %s:%v: %s | %s\n", uri, d.Range, d.Command.Command, d.Command.Title)
-	}
-	fmt.Fprintf(msg, "got:\n")
-	for _, d := range got {
-		fmt.Fprintf(msg, "  %s:%v: %s | %s\n", uri, d.Range, d.Command.Command, d.Command.Title)
-	}
-	return msg.String()
-}
-
 func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) string {
 	decorate := func(f string, args ...interface{}) string {
 		return fmt.Sprintf("invalid signature at %s: %s", spn, fmt.Sprintf(f, args...))
