@@ -30,6 +30,7 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // TODO(adonovan):
@@ -155,10 +156,16 @@ func handleSelectJSON(w http.ResponseWriter, req *http.Request) {
 					modes = append(modes, mode.name)
 				}
 			}
-			fmt.Fprintf(out, "%T has type %v and mode %s",
+			fmt.Fprintf(out, "%T has type %v, mode %s",
 				innermostExpr, tv.Type, modes)
+			if tu := tv.Type.Underlying(); tu != tv.Type {
+				fmt.Fprintf(out, ", underlying type %v", tu)
+			}
+			if tc := typeparams.CoreType(tv.Type); tc != tv.Type {
+				fmt.Fprintf(out, ", core type %v", tc)
+			}
 			if tv.Value != nil {
-				fmt.Fprintf(out, " and constant value %v", tv.Value)
+				fmt.Fprintf(out, ", and constant value %v", tv.Value)
 			}
 			fmt.Fprintf(out, "\n\n")
 		}
