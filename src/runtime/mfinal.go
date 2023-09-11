@@ -464,7 +464,7 @@ func SetFinalizer(obj any, finalizer any) {
 			// ok - satisfies empty interface
 			goto okarg
 		}
-		if iface := assertE2I2(ityp, *efaceOf(&obj)); iface.tab != nil {
+		if itab := assertE2I2(ityp, efaceOf(&obj)._type); itab != nil {
 			goto okarg
 		}
 	}

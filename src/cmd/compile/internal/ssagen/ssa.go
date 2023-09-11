@@ -6631,23 +6631,26 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 		if base.Debug.TypeAssert > 0 {
 			base.WarnfAt(pos, "type assertion not inlined")
 		}
-		if !commaok {
-			fn := ir.Syms.AssertI2I
+		var fn *obj.LSym
+		if commaok {
+			fn = ir.Syms.AssertI2I2
+			if src.IsEmptyInterface() {
+				fn = ir.Syms.AssertE2I2
+			}
+		} else {
+			fn = ir.Syms.AssertI2I
 			if src.IsEmptyInterface() {
 				fn = ir.Syms.AssertE2I
 			}
-			data := s.newValue1(ssa.OpIData, types.Types[types.TUNSAFEPTR], iface)
-			tab := s.newValue1(ssa.OpITab, byteptr, iface)
-			tab = s.rtcall(fn, true, []*types.Type{byteptr}, target, tab)[0]
-			return s.newValue2(ssa.OpIMake, dst, tab, data), nil
 		}
-		fn := ir.Syms.AssertI2I2
-		if src.IsEmptyInterface() {
-			fn = ir.Syms.AssertE2I2
+		data := s.newValue1(ssa.OpIData, types.Types[types.TUNSAFEPTR], iface)
+		tab := s.newValue1(ssa.OpITab, byteptr, iface)
+		tab = s.rtcall(fn, true, []*types.Type{byteptr}, target, tab)[0]
+		var ok *ssa.Value
+		if commaok {
+			ok = s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], tab, s.constNil(byteptr))
 		}
-		res = s.rtcall(fn, true, []*types.Type{dst}, target, iface)[0]
-		resok = s.newValue2(ssa.OpNeqInter, types.Types[types.TBOOL], res, s.constInterface(dst))
-		return
+		return s.newValue2(ssa.OpIMake, dst, tab, data), ok
 	}
 
 	if base.Debug.TypeAssert > 0 {

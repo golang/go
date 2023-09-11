@@ -414,9 +414,6 @@ func convI2I(dst *interfacetype, src *itab) *itab {
 	if src == nil {
 		return nil
 	}
-	if src.inter == dst {
-		return src
-	}
 	return getitab(dst, src._type, false)
 }
 
@@ -425,26 +422,14 @@ func assertI2I(inter *interfacetype, tab *itab) *itab {
 		// explicit conversions require non-nil interface value.
 		panic(&TypeAssertionError{nil, nil, &inter.Type, ""})
 	}
-	if tab.inter == inter {
-		return tab
-	}
 	return getitab(inter, tab._type, false)
 }
 
-func assertI2I2(inter *interfacetype, i iface) (r iface) {
-	tab := i.tab
+func assertI2I2(inter *interfacetype, tab *itab) *itab {
 	if tab == nil {
-		return
+		return nil
 	}
-	if tab.inter != inter {
-		tab = getitab(inter, tab._type, true)
-		if tab == nil {
-			return
-		}
-	}
-	r.tab = tab
-	r.data = i.data
-	return
+	return getitab(inter, tab._type, true)
 }
 
 func assertE2I(inter *interfacetype, t *_type) *itab {
@@ -455,18 +440,11 @@ func assertE2I(inter *interfacetype, t *_type) *itab {
 	return getitab(inter, t, false)
 }
 
-func assertE2I2(inter *interfacetype, e eface) (r iface) {
-	t := e._type
+func assertE2I2(inter *interfacetype, t *_type) *itab {
 	if t == nil {
-		return
+		return nil
 	}
-	tab := getitab(inter, t, true)
-	if tab == nil {
-		return
-	}
-	r.tab = tab
-	r.data = e.data
-	return
+	return getitab(inter, t, true)
 }
 
 // interfaceSwitch compares t against the list of cases in s.
