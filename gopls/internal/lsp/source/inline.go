@@ -12,10 +12,12 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"runtime/debug"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
@@ -56,7 +58,7 @@ loop:
 	return call, fn, nil
 }
 
-func inlineCall(ctx context.Context, snapshot Snapshot, fh FileHandle, rng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error) {
+func inlineCall(ctx context.Context, snapshot Snapshot, fh FileHandle, rng protocol.Range) (_ *token.FileSet, _ *analysis.SuggestedFix, err error) {
 	// Find enclosing static call.
 	callerPkg, callerPGF, err := NarrowestPackageForFile(ctx, snapshot, fh.URI())
 	if err != nil {
@@ -86,6 +88,21 @@ func inlineCall(ctx context.Context, snapshot Snapshot, fh FileHandle, rng proto
 	if calleeDecl == nil {
 		return nil, nil, fmt.Errorf("can't find callee")
 	}
+
+	// The inliner assumes that input is well-typed,
+	// but that is frequently not the case within gopls.
+	// Until we are able to harden the inliner,
+	// report panics as errors to avoid crashing the server.
+	bad := func(p Package) bool { return len(p.GetParseErrors())+len(p.GetTypeErrors()) > 0 }
+	if bad(calleePkg) || bad(callerPkg) {
+		defer func() {
+			if x := recover(); x != nil {
+				err = bug.Errorf("inlining failed unexpectedly: %v\nstack: %v",
+					x, debug.Stack())
+			}
+		}()
+	}
+
 	callee, err := inline.AnalyzeCallee(calleePkg.FileSet(), calleePkg.GetTypes(), calleePkg.GetTypesInfo(), calleeDecl, calleePGF.Src)
 	if err != nil {
 		return nil, nil, err
