@@ -57,7 +57,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 
 	if !fromType.IsInterface() {
 		typeWord := reflectdata.ConvIfaceTypeWord(base.Pos, n)
-		l := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeWord, dataWord(n, init))
+		l := ir.NewBinaryExpr(base.Pos, ir.OMAKEFACE, typeWord, dataWord(n, init))
 		l.SetType(toType)
 		l.SetTypecheck(n.Typecheck())
 		return l
@@ -104,7 +104,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 
 	// Build the result.
 	// e = iface{typeWord, data}
-	e := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeWord, data)
+	e := ir.NewBinaryExpr(base.Pos, ir.OMAKEFACE, typeWord, data)
 	e.SetType(toType) // assign type manually, typecheck doesn't understand OEFACE.
 	e.SetTypecheck(1)
 	return e
@@ -210,12 +210,6 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
 	call.Args = args
 	return safeExpr(walkExpr(typecheck.Expr(call), init), init)
-}
-
-// walkConvIData walks an OCONVIDATA node.
-func walkConvIData(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
-	n.X = walkExpr(n.X, init)
-	return dataWord(n, init)
 }
 
 // walkBytesRunesToString walks an OBYTES2STR or ORUNES2STR node.

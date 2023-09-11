@@ -3222,7 +3222,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		a := s.expr(n.X)
 		return s.newValue1(ssa.OpIData, n.Type(), a)
 
-	case ir.OEFACE:
+	case ir.OMAKEFACE:
 		n := n.(*ir.BinaryExpr)
 		tab := s.expr(n.X)
 		data := s.expr(n.Y)

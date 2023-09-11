@@ -113,13 +113,13 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		} else {
 			e.expr(k, n.X)
 		}
-	case ir.OCONVIFACE, ir.OCONVIDATA:
+	case ir.OCONVIFACE:
 		n := n.(*ir.ConvExpr)
 		if !n.X.Type().IsInterface() && !types.IsDirectIface(n.X.Type()) {
 			k = e.spill(k, n)
 		}
 		e.expr(k.note(n, "interface-converted"), n.X)
-	case ir.OEFACE:
+	case ir.OMAKEFACE:
 		n := n.(*ir.BinaryExpr)
 		// Note: n.X is not needed because it can never point to memory that might escape.
 		e.expr(k, n.Y)

@@ -169,7 +169,6 @@ const (
 	OPTRLIT    // &X (X is composite literal)
 	OCONV      // Type(X) (type conversion)
 	OCONVIFACE // Type(X) (type conversion, to interface)
-	OCONVIDATA // Builds a data word to store X in an interface. Equivalent to IDATA(CONVIFACE(X)). Is an ir.ConvExpr.
 	OCONVNOP   // Type(X) (type conversion, no effect)
 	OCOPY      // copy(X, Y)
 	ODCL       // var X (declares X of type X.Type)
@@ -284,9 +283,9 @@ const (
 	// Body (body of the inlined function), and ReturnVars (list of
 	// return values)
 	OINLCALL       // intermediary representation of an inlined call.
-	OEFACE         // itable and data words of an empty-interface value.
-	OITAB          // itable word of an interface value.
-	OIDATA         // data word of an interface value in X
+	OMAKEFACE      // construct an interface value from rtype/itab and data pointers
+	OITAB          // rtype/itab pointer of an interface value
+	OIDATA         // data pointer of an interface value
 	OSPTR          // base pointer of a slice or string. Bounded==1 means known non-nil.
 	OCFUNC         // reference to c function pointer (not go func value)
 	OCHECKNIL      // emit code to ensure pointer/interface not nil
