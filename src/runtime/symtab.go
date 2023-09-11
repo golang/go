@@ -622,7 +622,7 @@ func (md *moduledata) textOff(pc uintptr) (uint32, bool) {
 			}
 			end := sect.baseaddr + (sect.end - sect.vaddr)
 			// For the last section, include the end address (etext), as it is included in the functab.
-			if i == len(md.textsectmap) {
+			if i == len(md.textsectmap)-1 {
 				end++
 			}
 			if pc < end {
