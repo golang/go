@@ -2099,25 +2099,50 @@ func testIssue3644(t *testing.T, mode testMode) {
 
 // Test that a client receives a server's reply, even if the server doesn't read
 // the entire request body.
-func TestIssue3595(t *testing.T) { run(t, testIssue3595) }
+func TestIssue3595(t *testing.T) {
+	// Not parallel: modifies the global rstAvoidanceDelay.
+	run(t, testIssue3595, testNotParallel)
+}
 func testIssue3595(t *testing.T, mode testMode) {
-	const deniedMsg = "sorry, denied."
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		Error(w, deniedMsg, StatusUnauthorized)
-	})).ts
-	c := ts.Client()
-	res, err := c.Post(ts.URL, "application/octet-stream", neverEnding('a'))
-	if err != nil {
-		t.Errorf("Post: %v", err)
-		return
-	}
-	got, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Fatalf("Body ReadAll: %v", err)
-	}
-	if !strings.Contains(string(got), deniedMsg) {
-		t.Errorf("Known bug: response %q does not contain %q", got, deniedMsg)
-	}
+	runTimeSensitiveTest(t, []time.Duration{
+		1 * time.Millisecond,
+		5 * time.Millisecond,
+		10 * time.Millisecond,
+		50 * time.Millisecond,
+		100 * time.Millisecond,
+		500 * time.Millisecond,
+		time.Second,
+		5 * time.Second,
+	}, func(t *testing.T, timeout time.Duration) error {
+		SetRSTAvoidanceDelay(t, timeout)
+		t.Logf("set RST avoidance delay to %v", timeout)
+
+		const deniedMsg = "sorry, denied."
+		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+			Error(w, deniedMsg, StatusUnauthorized)
+		}))
+		// We need to close cst explicitly here so that in-flight server
+		// requests don't race with the call to SetRSTAvoidanceDelay for a retry.
+		defer cst.close()
+		ts := cst.ts
+		c := ts.Client()
+
+		res, err := c.Post(ts.URL, "application/octet-stream", neverEnding('a'))
+		if err != nil {
+			return fmt.Errorf("Post: %v", err)
+		}
+		got, err := io.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("Body ReadAll: %v", err)
+		}
+		t.Logf("server response:\n%s", got)
+		if !strings.Contains(string(got), deniedMsg) {
+			// If we got an RST packet too early, we should have seen an error
+			// from io.ReadAll, not a silently-truncated body.
+			t.Errorf("Known bug: response %q does not contain %q", got, deniedMsg)
+		}
+		return nil
+	})
 }
 
 // From https://golang.org/issue/4454 ,
@@ -4327,68 +4352,78 @@ func (c *wgReadCloser) Close() error {
 
 // Issue 11745.
 func TestTransportPrefersResponseOverWriteError(t *testing.T) {
-	run(t, testTransportPrefersResponseOverWriteError)
+	// Not parallel: modifies the global rstAvoidanceDelay.
+	run(t, testTransportPrefersResponseOverWriteError, testNotParallel)
 }
 func testTransportPrefersResponseOverWriteError(t *testing.T, mode testMode) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
-	const contentLengthLimit = 1024 * 1024 // 1MB
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		if r.ContentLength >= contentLengthLimit {
-			w.WriteHeader(StatusBadRequest)
-			r.Body.Close()
-			return
+
+	runTimeSensitiveTest(t, []time.Duration{
+		1 * time.Millisecond,
+		5 * time.Millisecond,
+		10 * time.Millisecond,
+		50 * time.Millisecond,
+		100 * time.Millisecond,
+		500 * time.Millisecond,
+		time.Second,
+		5 * time.Second,
+	}, func(t *testing.T, timeout time.Duration) error {
+		SetRSTAvoidanceDelay(t, timeout)
+		t.Logf("set RST avoidance delay to %v", timeout)
+
+		const contentLengthLimit = 1024 * 1024 // 1MB
+		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+			if r.ContentLength >= contentLengthLimit {
+				w.WriteHeader(StatusBadRequest)
+				r.Body.Close()
+				return
+			}
+			w.WriteHeader(StatusOK)
+		}))
+		// We need to close cst explicitly here so that in-flight server
+		// requests don't race with the call to SetRSTAvoidanceDelay for a retry.
+		defer cst.close()
+		ts := cst.ts
+		c := ts.Client()
+
+		count := 100
+
+		bigBody := strings.Repeat("a", contentLengthLimit*2)
+		var wg sync.WaitGroup
+		defer wg.Wait()
+		getBody := func() (io.ReadCloser, error) {
+			wg.Add(1)
+			body := &wgReadCloser{
+				Reader: strings.NewReader(bigBody),
+				wg:     &wg,
+			}
+			return body, nil
 		}
-		w.WriteHeader(StatusOK)
-	})).ts
-	c := ts.Client()
 
-	fail := 0
-	count := 100
+		for i := 0; i < count; i++ {
+			reqBody, _ := getBody()
+			req, err := NewRequest("PUT", ts.URL, reqBody)
+			if err != nil {
+				reqBody.Close()
+				t.Fatal(err)
+			}
+			req.ContentLength = int64(len(bigBody))
+			req.GetBody = getBody
 
-	bigBody := strings.Repeat("a", contentLengthLimit*2)
-	var wg sync.WaitGroup
-	defer wg.Wait()
-	getBody := func() (io.ReadCloser, error) {
-		wg.Add(1)
-		body := &wgReadCloser{
-			Reader: strings.NewReader(bigBody),
-			wg:     &wg,
-		}
-		return body, nil
-	}
-
-	for i := 0; i < count; i++ {
-		reqBody, _ := getBody()
-		req, err := NewRequest("PUT", ts.URL, reqBody)
-		if err != nil {
-			reqBody.Close()
-			t.Fatal(err)
-		}
-		req.ContentLength = int64(len(bigBody))
-		req.GetBody = getBody
-
-		resp, err := c.Do(req)
-		if err != nil {
-			fail++
-			t.Logf("%d = %#v", i, err)
-			if ue, ok := err.(*url.Error); ok {
-				t.Logf("urlErr = %#v", ue.Err)
-				if ne, ok := ue.Err.(*net.OpError); ok {
-					t.Logf("netOpError = %#v", ne.Err)
+			resp, err := c.Do(req)
+			if err != nil {
+				return fmt.Errorf("Do %d: %v", i, err)
+			} else {
+				resp.Body.Close()
+				if resp.StatusCode != 400 {
+					t.Errorf("Expected status code 400, got %v", resp.Status)
 				}
 			}
-		} else {
-			resp.Body.Close()
-			if resp.StatusCode != 400 {
-				t.Errorf("Expected status code 400, got %v", resp.Status)
-			}
 		}
-	}
-	if fail > 0 {
-		t.Errorf("Failed %v out of %v\n", fail, count)
-	}
+		return nil
+	})
 }
 
 func TestTransportAutomaticHTTP2(t *testing.T) {

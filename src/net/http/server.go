@@ -1750,8 +1750,12 @@ func (c *conn) close() {
 // and processes its final data before they process the subsequent RST
 // from closing a connection with known unread data.
 // This RST seems to occur mostly on BSD systems. (And Windows?)
-// This timeout is somewhat arbitrary (~latency around the planet).
-const rstAvoidanceDelay = 500 * time.Millisecond
+// This timeout is somewhat arbitrary (~latency around the planet),
+// and may be modified by tests.
+//
+// TODO(bcmills): This should arguably be a server configuration parameter,
+// not a hard-coded value.
+var rstAvoidanceDelay = 500 * time.Millisecond
 
 type closeWriter interface {
 	CloseWrite() error
@@ -1770,6 +1774,27 @@ func (c *conn) closeWriteAndWait() {
 	if tcp, ok := c.rwc.(closeWriter); ok {
 		tcp.CloseWrite()
 	}
+
+	// When we return from closeWriteAndWait, the caller will fully close the
+	// connection. If client is still writing to the connection, this will cause
+	// the write to fail with ECONNRESET or similar. Unfortunately, many TCP
+	// implementations will also drop unread packets from the client's read buffer
+	// when a write fails, causing our final response to be truncated away too.
+	//
+	// As a result, https://www.rfc-editor.org/rfc/rfc7230#section-6.6 recommends
+	// that “[t]he server … continues to read from the connection until it
+	// receives a corresponding close by the client, or until the server is
+	// reasonably certain that its own TCP stack has received the client's
+	// acknowledgement of the packet(s) containing the server's last response.”
+	//
+	// Unfortunately, we have no straightforward way to be “reasonably certain”
+	// that we have received the client's ACK, and at any rate we don't want to
+	// allow a misbehaving client to soak up server connections indefinitely by
+	// withholding an ACK, nor do we want to go through the complexity or overhead
+	// of using low-level APIs to figure out when a TCP round-trip has completed.
+	//
+	// Instead, we declare that we are “reasonably certain” that we received the
+	// ACK if maxRSTAvoidanceDelay has elapsed.
 	time.Sleep(rstAvoidanceDelay)
 }
 
