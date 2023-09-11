@@ -57,11 +57,11 @@ func un(op ir.Op, x ir.Node) ir.Node {
 }
 
 func liti(i int64) ir.Node {
-	return ir.NewBasicLit(pos, constant.MakeInt64(i))
+	return ir.NewBasicLit(pos, types.Types[types.TINT64], constant.MakeInt64(i))
 }
 
 func lits(s string) ir.Node {
-	return ir.NewBasicLit(pos, constant.MakeString(s))
+	return ir.NewBasicLit(pos, types.Types[types.TSTRING], constant.MakeString(s))
 }
 
 func (s *state) nm(name string, t *types.Type) *ir.Name {
