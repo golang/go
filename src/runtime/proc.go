@@ -2036,10 +2036,30 @@ func needm(signal bool) {
 	osSetupTLS(mp)
 
 	// Install g (= m->g0) and set the stack bounds
-	// to match the current stack.
+	// to match the current stack. If we don't actually know
+	// how big the stack is, like we don't know how big any
+	// scheduling stack is, but we assume there's at least 32 kB.
+	// If we can get a more accurate stack bound from pthread,
+	// use that.
 	setg(mp.g0)
-	sp := getcallersp()
-	callbackUpdateSystemStack(mp, sp, signal)
+	gp := getg()
+	gp.stack.hi = getcallersp() + 1024
+	gp.stack.lo = getcallersp() - 32*1024
+	if !signal && _cgo_getstackbound != nil {
+		// Don't adjust if called from the signal handler.
+		// We are on the signal stack, not the pthread stack.
+		// (We could get the stack bounds from sigaltstack, but
+		// we're getting out of the signal handler very soon
+		// anyway. Not worth it.)
+		var bounds [2]uintptr
+		asmcgocall(_cgo_getstackbound, unsafe.Pointer(&bounds))
+		// getstackbound is an unsupported no-op on Windows.
+		if bounds[0] != 0 {
+			gp.stack.lo = bounds[0]
+			gp.stack.hi = bounds[1]
+		}
+	}
+	gp.stackguard0 = gp.stack.lo + stackGuard
 
 	// Should mark we are already in Go now.
 	// Otherwise, we may call needm again when we get a signal, before cgocallbackg1,
@@ -2156,14 +2176,9 @@ func oneNewExtraM() {
 // So that the destructor would invoke dropm while the non-Go thread is exiting.
 // This is much faster since it avoids expensive signal-related syscalls.
 //
-// This always runs without a P, so //go:nowritebarrierrec is required.
-//
-// This may run with a different stack than was recorded in g0 (there is no
-// call to callbackUpdateSystemStack prior to dropm), so this must be
-// //go:nosplit to avoid the stack bounds check.
+// NOTE: this always runs without a P, so, nowritebarrierrec required.
 //
 //go:nowritebarrierrec
-//go:nosplit
 func dropm() {
 	// Clear m and g, and return m to the extra list.
 	// After the call to setg we can only call nosplit functions
