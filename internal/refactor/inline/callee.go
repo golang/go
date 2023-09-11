@@ -39,7 +39,8 @@ type gobCallee struct {
 	BodyIsReturnExpr bool         // function body is "return expr(s)" with trivial conversion
 	ValidForCallStmt bool         // => bodyIsReturnExpr and sole expr is f() or <-ch
 	NumResults       int          // number of results (according to type, not ast.FieldList)
-	Params           []*paramInfo // information about receiver, params, and results
+	Params           []*paramInfo // information about parameters (incl. receiver)
+	Results          []*paramInfo // information about result variables
 	HasDefer         bool         // uses defer
 	TotalReturns     int          // number of return statements
 	TrivialReturns   int          // number of return statements with trivial result conversions
@@ -329,6 +330,7 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 		return nil, err
 	}
 
+	params, results := analyzeParams(fset, info, decl)
 	return &Callee{gobCallee{
 		Content:          content,
 		PkgPath:          pkg.Path(),
@@ -339,7 +341,8 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 		BodyIsReturnExpr: bodyIsReturnExpr,
 		ValidForCallStmt: validForCallStmt,
 		NumResults:       sig.Results().Len(),
-		Params:           analyzeParams(fset, info, decl),
+		Params:           params,
+		Results:          results,
 		HasDefer:         hasDefer,
 		TotalReturns:     totalReturns,
 		TrivialReturns:   trivialReturns,
@@ -362,7 +365,6 @@ func parseCompact(content []byte) (*token.FileSet, *ast.FuncDecl, error) {
 // A paramInfo records information about a callee receiver, parameter, or result variable.
 type paramInfo struct {
 	Name     string          // parameter name (may be blank, or even "")
-	Kind     string          // one of {recv,param,result}
 	Assigned bool            // parameter appears on left side of an assignment statement
 	Escapes  bool            // parameter has its address taken
 	Refs     []int           // FuncDecl-relative byte offset of parameter ref within body
@@ -372,11 +374,11 @@ type paramInfo struct {
 // analyzeParams computes information about parameters of function fn,
 // including a simple "address taken" escape analysis.
 //
-// It returns a new array with an entry for each receiver,
-// parameter, and result variable of function fn.
+// It returns two new arrays, one of the receiver and parameters, and
+// the other of the result variables of function fn.
 //
 // The input must be well-typed.
-func analyzeParams(fset *token.FileSet, info *types.Info, decl *ast.FuncDecl) (res []*paramInfo) {
+func analyzeParams(fset *token.FileSet, info *types.Info, decl *ast.FuncDecl) (params, results []*paramInfo) {
 	fnobj, ok := info.Defs[decl.Name]
 	if !ok {
 		panic(fmt.Sprintf("%s: no func object for %q",
@@ -386,20 +388,19 @@ func analyzeParams(fset *token.FileSet, info *types.Info, decl *ast.FuncDecl) (r
 	paramInfos := make(map[*types.Var]*paramInfo)
 	{
 		sig := fnobj.Type().(*types.Signature)
-		newParamInfo := func(param *types.Var, kind string) *paramInfo {
-			info := &paramInfo{Name: param.Name(), Kind: kind}
-			res = append(res, info)
+		newParamInfo := func(param *types.Var) *paramInfo {
+			info := &paramInfo{Name: param.Name()}
 			paramInfos[param] = info
 			return info
 		}
 		if sig.Recv() != nil {
-			newParamInfo(sig.Recv(), "recv")
+			params = append(params, newParamInfo(sig.Recv()))
 		}
 		for i := 0; i < sig.Params().Len(); i++ {
-			newParamInfo(sig.Params().At(i), "param")
+			params = append(params, newParamInfo(sig.Params().At(i)))
 		}
 		for i := 0; i < sig.Results().Len(); i++ {
-			newParamInfo(sig.Results().At(i), "result")
+			results = append(results, newParamInfo(sig.Results().At(i)))
 		}
 	}
 
@@ -515,7 +516,7 @@ func analyzeParams(fset *token.FileSet, info *types.Info, decl *ast.FuncDecl) (r
 		})
 	}
 
-	return res
+	return params, results
 }
 
 // -- callee helpers --

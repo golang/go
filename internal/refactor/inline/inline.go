@@ -658,8 +658,6 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		}
 	}
 
-	sig := calleeSymbol.Type().(*types.Signature)
-
 	// Gather effective argument tuple, including receiver.
 	//
 	// If the receiver argument and parameter have
@@ -690,6 +688,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	type argument struct {
 		expr       ast.Expr
 		typ        types.Type      // may be tuple for sole non-receiver arg in spread call
+		spread     bool            // final arg is call() assigned to multiple params
 		pure       bool            // expr has no effects
 		duplicable bool            // expr may be duplicated
 		freevars   map[string]bool // free names of expr
@@ -714,7 +713,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			// predicates (pure et al) above, as they won't
 			// work on synthetic syntax.
 			argIsPtr := arg.typ != deref(arg.typ)
-			paramIsPtr := is[*types.Pointer](sig.Recv().Type())
+			paramIsPtr := is[*types.Pointer](calleeSymbol.Type().(*types.Signature).Recv().Type())
 			if !argIsPtr && paramIsPtr {
 				// &recv
 				arg.expr = &ast.UnaryExpr{Op: token.AND, X: arg.expr}
@@ -743,13 +742,64 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		}
 	}
 	for _, arg := range caller.Call.Args {
+		typ := caller.Info.TypeOf(arg)
 		args = append(args, &argument{
 			expr:       arg,
-			typ:        caller.Info.TypeOf(arg),
+			typ:        typ,
+			spread:     is[*types.Tuple](typ), // => last
 			pure:       pure(caller.Info, arg),
 			duplicable: duplicable(caller.Info, arg),
 			freevars:   freevars(caller.Info, arg),
 		})
+	}
+
+	// Gather effective parameter tuple, including the receiver if any.
+	type parameter struct {
+		obj      *types.Var // parameter var from caller's signature
+		info     *paramInfo // information from AnalyzeCallee
+		variadic bool       // final T... parameter accumulates slice of arguments
+	}
+	var params []*parameter // including receiver; nil => parameter eliminated
+	{
+		sig := calleeSymbol.Type().(*types.Signature)
+		if sig.Recv() != nil {
+			params = append(params, &parameter{
+				obj:  sig.Recv(),
+				info: callee.Params[0],
+			})
+		}
+		for i := 0; i < sig.Params().Len(); i++ {
+			params = append(params, &parameter{
+				obj:  sig.Params().At(i),
+				info: callee.Params[len(params)],
+			})
+		}
+		if sig.Variadic() {
+			last(params).variadic = true
+		}
+	}
+
+	// Note: computation below should be expressed in terms of
+	// the args and params slices, not the raw material.
+
+	// In most calls, args and params correspond.
+	//
+	// Edge case: in a variadic call, len(args) >= len(params)-1.
+	//
+	// Edge case: in a spread call f(g()) where g is n-ary (n > 1),
+	//  len(args) = 1 and len(params) = n,
+	//  unless (corner case!) f is variadic,
+	//  in which case both are again 1.
+	//
+	// If the last arg is f(slice...), the last param must be func(...T).
+	// We can immediately simplify both to f(slice) and func([]T),
+	// without changing the types of either.
+	if caller.Call.Ellipsis.IsValid() {
+		lastParamField := last(calleeDecl.Type.Params.List)
+		lastParamField.Type = &ast.ArrayType{
+			Elt: lastParamField.Type.(*ast.Ellipsis).Elt,
+		}
+		last(params).variadic = false
 	}
 
 	// Parameter elimination
@@ -767,50 +817,26 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	//
 	// If all conditions are met then the parameter can be eliminated
 	// and each reference to it replaced by the argument.
-	var eliminatedParams []bool // (recv, params...)
+	//
+	// TODO(adonovan): support elimination of variadic parameters,
+	// and of spread arguments.
 	{
-		// Gather effective parameter objects,
-		// including the receiver if any.
-		var paramObjs []*types.Var
-		if sig.Recv() != nil {
-			paramObjs = append(paramObjs, sig.Recv())
-		}
-		for i := 0; i < sig.Params().Len(); i++ {
-			paramObjs = append(paramObjs, sig.Params().At(i))
-		}
-
-		// In most calls, args and paramObjs correspond.
-		//
-		// Edge case: in a variadic call, len(args) >= len(params)-1.
-		//
-		// Edge case: in a spread call f(g()) where g is n-ary (n > 1),
-		//  len(args) = 1 and len(params) = n,
-		//  unless (corner case!) f is variadic,
-		//  in which case both are again 1.
-		//
-		// TODO(adonovan): support elimination of variadic parameters,
-		// and of spread arguments.
-
-		eliminatedParams = make([]bool, len(paramObjs))
 	nextParam:
-		for i, param := range callee.Params {
-			if param.Kind == "result" {
-				break // end of parameters
-			}
-			if sig.Variadic() && i == len(paramObjs)-1 {
+		for i, param := range params {
+			if param.variadic {
 				// final ...T parameter
 				// TODO(adonovan): decouple the param and arg parts of this
 				// loop so that we can handle variadic cases.
 				logf("keeping param %q: variadic elimination not yet supported",
-					param.Name)
+					param.info.Name)
 				continue
 			}
-			if param.Escapes {
-				logf("keeping param %q: escapes from callee", param.Name)
+			if param.info.Escapes {
+				logf("keeping param %q: escapes from callee", param.info.Name)
 				continue
 			}
-			if param.Assigned {
-				logf("keeping param %q: assigned by callee", param.Name)
+			if param.info.Assigned {
+				logf("keeping param %q: assigned by callee", param.info.Name)
 				continue // callee needs the parameter variable
 			}
 
@@ -821,22 +847,22 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			// and thus lacking positions and types;
 			// do it earlier (see pure/duplicable/freevars).
 			arg := args[i]
-			if is[*types.Tuple](arg.typ) {
+			if arg.spread {
 				// TODO(adonovan): handle elimination of spread arguments.
 				logf("keeping param %q: argument %s is spread",
-					param.Name, debugFormatNode(caller.Fset, arg.expr))
+					param.info.Name, debugFormatNode(caller.Fset, arg.expr))
 				break // spread => last argument, but not last parameter
 			}
 			if !arg.pure {
 				logf("keeping param %q: argument %s is impure",
-					param.Name, debugFormatNode(caller.Fset, arg.expr))
+					param.info.Name, debugFormatNode(caller.Fset, arg.expr))
 				continue // unsafe to change order or cardinality of effects
 			}
-			if len(param.Refs) > 1 && !arg.duplicable {
-				logf("keeping param %q: argument is not duplicable", param.Name)
+			if len(param.info.Refs) > 1 && !arg.duplicable {
+				logf("keeping param %q: argument is not duplicable", param.info.Name)
 				continue // incorrect or poor style to duplicate an expression
 			}
-			if len(param.Refs) == 0 {
+			if len(param.info.Refs) == 0 {
 				// Eliminating an unreferenced parameter might
 				// remove the last reference to a caller local var.
 				for free := range arg.freevars {
@@ -846,7 +872,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 						// function (if any) and is indeed referenced
 						// only by the call.
 						logf("keeping param %q: arg contains perhaps the last reference to possible caller local %v @ %v",
-							param.Name, v, caller.Fset.Position(v.Pos()))
+							param.info.Name, v, caller.Fset.Position(v.Pos()))
 						continue nextParam
 					}
 				}
@@ -858,11 +884,11 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			// (We don't simply wrap the argument in an explicit conversion
 			// to the parameter type because that could increase allocation
 			// in the number of (e.g.) string -> any conversions.
-			// Even when Uses = 1, the sole ref might be in a lambda that
+			// Even when Uses = 1, the sole ref might be in a loop or lambda that
 			// is multiply executed.)
-			if len(param.Refs) > 0 && !trivialConversion(args[i].typ, paramObjs[i]) {
+			if len(param.info.Refs) > 0 && !trivialConversion(args[i].typ, params[i].obj) {
 				logf("keeping param %q: argument passing converts %s to type %s",
-					param.Name, args[i].typ, paramObjs[i].Type())
+					param.info.Name, args[i].typ, params[i].obj.Type())
 				continue // implicit conversion is significant
 			}
 
@@ -875,8 +901,8 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			// because there's an intervening declaration of z
 			// that would shadow the caller's one.
 			for free := range arg.freevars {
-				if param.Shadow[free] {
-					logf("keeping param %q: cannot replace with argument as it has free ref to %s that is shadowed", param.Name, free)
+				if param.info.Shadow[free] {
+					logf("keeping param %q: cannot replace with argument as it has free ref to %s that is shadowed", param.info.Name, free)
 					continue nextParam // shadowing conflict
 				}
 			}
@@ -888,12 +914,12 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			// Because arg.expr belongs to the caller,
 			// we clone it before splicing it into the callee tree.
 			logf("replacing parameter %q by argument %q",
-				param.Name, debugFormatNode(caller.Fset, arg.expr))
-			for _, ref := range param.Refs {
+				param.info.Name, debugFormatNode(caller.Fset, arg.expr))
+			for _, ref := range param.info.Refs {
 				replaceCalleeID(ref, cloneNode(arg.expr).(ast.Expr))
 			}
-			eliminatedParams[i] = true
-			args[i] = nil
+			params[i] = nil // eliminated
+			args[i] = nil   // eliminated
 		}
 	}
 
@@ -941,7 +967,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			// Emit "_, _ = args" to discard results.
 			// Make correction for spread calls
 			// f(g()) or x.f(g()) where g() is a tuple.
-			if last := args[len(args)-1]; last != nil {
+			if last := last(args); last != nil {
 				if tuple, ok := last.typ.(*types.Tuple); ok {
 					nargs += tuple.Len() - 1
 				}
@@ -960,18 +986,13 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 
 	// Attempt to reduce parameterless calls
 	// whose result variables do not escape.
-	if forall(callee.Params, func(i int, param *paramInfo) bool {
-		if param.Kind != "result" { // recv or param
-			if !eliminatedParams[i] {
-				logf("param %q not eliminated", param.Name)
-				return false
-			}
-		} else if param.Escapes {
-			logf("result variable %s escapes", param.Name)
-			return false
-		}
-		return true
-	}) {
+	allParamsEliminated := forall(params, func(i int, p *parameter) bool {
+		return p == nil
+	})
+	noResultEscapes := !exists(callee.Results, func(i int, r *paramInfo) bool {
+		return r.Escapes
+	})
+	if allParamsEliminated && noResultEscapes {
 		logf("all params eliminated and no result vars escape")
 
 		// Special case: parameterless call to { return exprs }.
@@ -1095,9 +1116,9 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			len(ret.Results) == 1 &&
 			callee.TrivialReturns == callee.TotalReturns &&
 			!hasLabelConflict(callerPath, callee.Labels) &&
-			forall(callee.Params, func(i int, p *paramInfo) bool {
+			forall(callee.Results, func(i int, p *paramInfo) bool {
 				// all result vars are unreferenced
-				return p.Kind != "result" || len(p.Refs) == 0
+				return len(p.Refs) == 0
 			}) {
 			logf("strategy: reduce parameterless tail-call")
 			res.old = ret
@@ -1191,7 +1212,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			var names []*ast.Ident
 			if field.Names == nil {
 				// Unnamed parameter field (e.g. func f(int)
-				if !eliminatedParams[paramIdx] {
+				if params[paramIdx] != nil {
 					// Give it an explicit name "_" since we will
 					// make the receiver (if any) a regular parameter
 					// and one cannot mix named and unnamed parameters.
@@ -1203,7 +1224,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 				// Remove eliminated parameters in place.
 				// If all were eliminated, delete field.
 				for _, id := range field.Names {
-					if !eliminatedParams[paramIdx] {
+					if params[paramIdx] != nil {
 						names = append(names, id)
 					}
 					paramIdx++
@@ -1232,7 +1253,8 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			Type: calleeDecl.Type,
 			Body: calleeDecl.Body,
 		},
-		Args: remainingArgs,
+		Ellipsis: token.NoPos, // f(slice...) is always simplified
+		Args:     remainingArgs,
 	}
 	clearPositions(newCall.Fun)
 	res.old = caller.Call
@@ -1725,4 +1747,13 @@ func exists[T any](list []T, f func(i int, x T) bool) bool {
 		}
 	}
 	return false
+}
+
+// last returns the last element of a slice, or zero if empty.
+func last[T any](slice []T) T {
+	n := len(slice)
+	if n > 0 {
+		return slice[n-1]
+	}
+	return *new(T)
 }

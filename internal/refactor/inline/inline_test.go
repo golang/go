@@ -371,6 +371,24 @@ func TestTable(t *testing.T) {
 			`func _() I { return recover().(I).f(g()) }`,
 			`error: can't yet inline spread call to method`,
 		},
+		{
+			"Variadic cancellation (basic).",
+			`func f(args ...any) { defer f(&args); println(args) }`,
+			`func _(slice []any) { f(slice...) }`,
+			`func _(slice []any) { func(args []any) { defer f(&args); println(args) }(slice) }`,
+		},
+		{
+			"Variadic cancellation (literalization with parameter elimination).",
+			`func f(args ...any) { defer f(); println(args) }`,
+			`func _(slice []any) { f(slice...) }`,
+			`func _(slice []any) { func() { defer f(); println(slice) }() }`,
+		},
+		{
+			"Variadic cancellation (reduction).",
+			`func f(args ...any) { println(args) }`,
+			`func _(slice []any) { f(slice...) }`,
+			`func _(slice []any) { println(slice) }`,
+		},
 		// TODO(adonovan): improve coverage of the cross
 		// product of each strategy with the checklist of
 		// concerns enumerated in the package doc comment.

@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"log"
 	"runtime/debug"
 
 	"golang.org/x/tools/go/analysis"
@@ -118,8 +119,9 @@ func inlineCall(ctx context.Context, snapshot Snapshot, fh FileHandle, rng proto
 		Content: callerPGF.Src,
 	}
 
-	// Pass log.Printf here when debugging.
-	got, err := inline.Inline(nil, caller, callee)
+	// Users can consult the gopls log to see
+	// why a particular inlining strategy was chosen.
+	got, err := inline.Inline(log.Printf, caller, callee)
 	if err != nil {
 		return nil, nil, err
 	}
