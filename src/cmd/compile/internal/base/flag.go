@@ -334,6 +334,7 @@ func ParseFlags() {
 		// It is not possible to build the runtime with no optimizations,
 		// because the compiler cannot eliminate enough write barriers.
 		Flag.N = 0
+		Ctxt.Flag_optimize = true
 
 		// Runtime can't use -d=checkptr, at least not yet.
 		Debug.Checkptr = 0
