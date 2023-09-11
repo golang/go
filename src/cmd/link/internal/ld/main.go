@@ -245,6 +245,9 @@ func Main(arch *sys.Arch, theArch Arch) {
 		*FlagW = true
 	case ternaryFlagUnset:
 		*FlagW = *FlagS // -s implies -w if not explicitly set
+		if ctxt.IsDarwin() && ctxt.BuildMode == BuildModeCShared {
+			*FlagW = true // default to -w in c-shared mode on darwin, see #61229
+		}
 	}
 
 	if !buildcfg.Experiment.RegabiWrappers {
