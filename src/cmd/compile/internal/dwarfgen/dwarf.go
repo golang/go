@@ -323,7 +323,7 @@ func preInliningDcls(fnsym *obj.LSym) []*ir.Name {
 		c := n.Sym().Name[0]
 		// Avoid reporting "_" parameters, since if there are more than
 		// one, it can result in a collision later on, as in #23179.
-		if unversion(n.Sym().Name) == "_" || c == '.' || n.Type().IsUntyped() {
+		if n.Sym().Name == "_" || c == '.' || n.Type().IsUntyped() {
 			continue
 		}
 		rdcl = append(rdcl, n)

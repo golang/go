@@ -124,18 +124,16 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 		// caller.
 		synthCount := len(m)
 		for _, v := range sl {
-			canonName := unversion(v.Name)
 			vp := varPos{
-				DeclName: canonName,
+				DeclName: v.Name,
 				DeclFile: v.DeclFile,
 				DeclLine: v.DeclLine,
 				DeclCol:  v.DeclCol,
 			}
-			synthesized := strings.HasPrefix(v.Name, "~r") || canonName == "_" || strings.HasPrefix(v.Name, "~b")
+			synthesized := strings.HasPrefix(v.Name, "~") || v.Name == "_"
 			if idx, found := m[vp]; found {
 				v.ChildIndex = int32(idx)
 				v.IsInAbstract = !synthesized
-				v.Name = canonName
 			} else {
 				// Variable can't be found in the pre-inline dcl list.
 				// In the top-level case (ii=0) this can happen
@@ -220,15 +218,6 @@ func AbstractFunc(fn *obj.LSym) {
 	base.Ctxt.DwarfAbstractFunc(ifn, fn)
 }
 
-// Undo any versioning performed when a name was written
-// out as part of export data.
-func unversion(name string) string {
-	if i := strings.Index(name, "·"); i > 0 {
-		name = name[:i]
-	}
-	return name
-}
-
 // Given a function that was inlined as part of the compilation, dig
 // up the pre-inlining DCL list for the function and create a map that
 // supports lookup of pre-inline dcl index, based on variable
@@ -241,7 +230,7 @@ func makePreinlineDclMap(fnsym *obj.LSym) map[varPos]int {
 	for i, n := range dcl {
 		pos := base.Ctxt.InnermostPos(n.Pos())
 		vp := varPos{
-			DeclName: unversion(n.Sym().Name),
+			DeclName: n.Sym().Name,
 			DeclFile: pos.RelFilename(),
 			DeclLine: pos.RelLine(),
 			DeclCol:  pos.RelCol(),
