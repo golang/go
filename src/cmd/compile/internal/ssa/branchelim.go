@@ -22,7 +22,7 @@ import "cmd/internal/src"
 func branchelim(f *Func) {
 	// FIXME: add support for lowering CondSelects on more architectures
 	switch f.Config.arch {
-	case "arm64", "ppc64le", "ppc64", "amd64", "wasm", "loong64":
+	case "amd64", "arm64", "loong64", "ppc64", "ppc64le", "wasm":
 		// implemented
 	default:
 		return
