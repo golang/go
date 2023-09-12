@@ -223,6 +223,18 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
 
 	offset := pgo.NodeLineOffset(call, fn)
 
+	hotter := func(e *pgo.IREdge) bool {
+		if stat.Hottest == "" {
+			return true
+		}
+		if e.Weight != stat.HottestWeight {
+			return e.Weight > stat.HottestWeight
+		}
+		// If weight is the same, arbitrarily sort lexicographally, as
+		// findHotConcreteCallee does.
+		return e.Dst.Name() < stat.Hottest
+	}
+
 	// Sum of all edges from this callsite, regardless of callee.
 	// For direct calls, this should be the same as the single edge
 	// weight (except for multiple calls on one line, which we
@@ -233,7 +245,7 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
 			continue
 		}
 		stat.Weight += edge.Weight
-		if edge.Weight > stat.HottestWeight {
+		if hotter(edge) {
 			stat.HottestWeight = edge.Weight
 			stat.Hottest = edge.Dst.Name()
 		}
