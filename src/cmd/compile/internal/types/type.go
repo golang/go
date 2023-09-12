@@ -156,7 +156,7 @@ var DefaultKinds = [...]Kind{
 // package.Lookup(name)) and checking sym.Def. If sym.Def is non-nil, the type
 // already exists at package scope and is available at sym.Def.(*ir.Name).Type().
 // Local types (which may have the same name as a package-level type) are
-// distinguished by the value of vargen.
+// distinguished by their vargen, which is embedded in their symbol name.
 type Type struct {
 	// extra contains extra etype-specific fields.
 	// As an optimization, those etype-specific structs which contain exactly
@@ -194,8 +194,6 @@ type Type struct {
 		ptr   *Type // *T, or nil
 		slice *Type // []T, or nil
 	}
-
-	vargen int32 // unique name for OTYPE/ONAME
 
 	kind  Kind  // kind of type
 	align uint8 // the required alignment of this type, in bytes (0 means Width and Align have not yet been computed)
@@ -1114,10 +1112,6 @@ func (t *Type) cmp(x *Type) Cmp {
 	}
 
 	if x.obj != nil {
-		// Syms non-nil, if vargens match then equal.
-		if t.vargen != x.vargen {
-			return cmpForNe(t.vargen < x.vargen)
-		}
 		return CMPeq
 	}
 	// both syms nil, look at structure below.
@@ -1615,25 +1609,6 @@ func NewNamed(obj Object) *Type {
 // Obj returns the canonical type name node for a named type t, nil for an unnamed type.
 func (t *Type) Obj() Object {
 	return t.obj
-}
-
-// typeGen tracks the number of function-scoped defined types that
-// have been declared. It's used to generate unique linker symbols for
-// their runtime type descriptors.
-var typeGen int32
-
-// SetVargen assigns a unique generation number to type t, which must
-// be a defined type declared within function scope. The generation
-// number is used to distinguish it from other similarly spelled
-// defined types from the same package.
-//
-// TODO(mdempsky): Come up with a better solution.
-func (t *Type) SetVargen() {
-	base.Assertf(t.Sym() != nil, "SetVargen on anonymous type %v", t)
-	base.Assertf(t.vargen == 0, "type %v already has Vargen %v", t, t.vargen)
-
-	typeGen++
-	t.vargen = typeGen
 }
 
 // SetUnderlying sets the underlying type of an incomplete type (i.e. type whose kind
