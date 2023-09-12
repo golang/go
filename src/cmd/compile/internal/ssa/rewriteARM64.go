@@ -5974,18 +5974,19 @@ func rewriteValueARM64_OpARM64GreaterEqualNoov(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (GreaterEqualNoov (InvertFlags x))
-	// result: (OR (LessThanNoov <typ.Bool> x) (Equal <typ.Bool> x))
+	// result: (CSINC [OpARM64NotEqual] (LessThanNoov <typ.Bool> x) (MOVDconst [0]) x)
 	for {
 		if v_0.Op != OpARM64InvertFlags {
 			break
 		}
 		x := v_0.Args[0]
-		v.reset(OpARM64OR)
+		v.reset(OpARM64CSINC)
+		v.AuxInt = opToAuxInt(OpARM64NotEqual)
 		v0 := b.NewValue0(v.Pos, OpARM64LessThanNoov, typ.Bool)
 		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpARM64Equal, typ.Bool)
-		v1.AddArg(x)
-		v.AddArg2(v0, v1)
+		v1 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v1.AuxInt = int64ToAuxInt(0)
+		v.AddArg3(v0, v1, x)
 		return true
 	}
 	return false
@@ -6709,18 +6710,17 @@ func rewriteValueARM64_OpARM64LessThanNoov(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (LessThanNoov (InvertFlags x))
-	// result: (BIC (GreaterEqualNoov <typ.Bool> x) (Equal <typ.Bool> x))
+	// result: (CSEL0 [OpARM64NotEqual] (GreaterEqualNoov <typ.Bool> x) x)
 	for {
 		if v_0.Op != OpARM64InvertFlags {
 			break
 		}
 		x := v_0.Args[0]
-		v.reset(OpARM64BIC)
+		v.reset(OpARM64CSEL0)
+		v.AuxInt = opToAuxInt(OpARM64NotEqual)
 		v0 := b.NewValue0(v.Pos, OpARM64GreaterEqualNoov, typ.Bool)
 		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpARM64Equal, typ.Bool)
-		v1.AddArg(x)
-		v.AddArg2(v0, v1)
+		v.AddArg2(v0, x)
 		return true
 	}
 	return false

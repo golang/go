@@ -1569,8 +1569,8 @@
 (LessEqualF       (InvertFlags x)) => (GreaterEqualF x)
 (GreaterThanF     (InvertFlags x)) => (LessThanF x)
 (GreaterEqualF    (InvertFlags x)) => (LessEqualF x)
-(LessThanNoov     (InvertFlags x)) => (BIC (GreaterEqualNoov <typ.Bool> x) (Equal <typ.Bool> x))
-(GreaterEqualNoov (InvertFlags x)) => (OR (LessThanNoov <typ.Bool> x) (Equal <typ.Bool> x))
+(LessThanNoov     (InvertFlags x)) => (CSEL0 [OpARM64NotEqual] (GreaterEqualNoov <typ.Bool> x) x)
+(GreaterEqualNoov (InvertFlags x)) => (CSINC [OpARM64NotEqual] (LessThanNoov <typ.Bool> x) (MOVDconst [0]) x)
 
 // Boolean-generating instructions (NOTE: NOT all boolean Values) always
 // zero upper bit of the register; no need to zero-extend
