@@ -37,7 +37,7 @@ func Fstatat(fd int, path string, stat *Stat_t, flags int) error {
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	Setfsgid(gid int) (err error)
 //sys	Setfsuid(uid int) (err error)
-//sysnb	setrlimit1(resource int, rlim *Rlimit) (err error)
+//sysnb	setrlimit1(resource int, rlim *Rlimit) (err error) = SYS_SETRLIMIT
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 
