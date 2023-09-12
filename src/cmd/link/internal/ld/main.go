@@ -185,6 +185,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	checkStrictDups = *FlagStrictDups
 
+	if ctxt.IsDarwin() && ctxt.BuildMode == BuildModeCShared {
+		*FlagW = true // default to -w in c-shared mode on darwin, see #61229
+	}
+
 	if !buildcfg.Experiment.RegabiWrappers {
 		abiInternalVer = 0
 	}
