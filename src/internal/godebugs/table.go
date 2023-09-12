@@ -55,7 +55,7 @@ func Lookup(name string) *Info {
 	lo := 0
 	hi := len(All)
 	for lo < hi {
-		m := lo + (hi-lo)>>1
+		m := int(uint(lo+hi) >> 1)
 		mid := All[m].Name
 		if name == mid {
 			return &All[m]
