@@ -1367,6 +1367,10 @@ func (ctxt *Link) hostlink() {
 
 	switch ctxt.HeadType {
 	case objabi.Hdarwin:
+		if linkerFlagSupported(ctxt.Arch, argv[0], "", "-Wl,-ld_classic") {
+			// Force old linker to work around bugs in Apple's new linker.
+			argv = append(argv, "-Wl,-ld_classic")
+		}
 		if combineDwarf {
 			// Leave room for DWARF combining.
 			// -headerpad is incompatible with -fembed-bitcode.
