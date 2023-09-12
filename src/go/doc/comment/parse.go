@@ -260,10 +260,10 @@ func (d *parseDoc) lookupPkg(pkg string) (importPath string, ok bool) {
 }
 
 func isStdPkg(path string) bool {
-	// TODO(rsc): Use sort.Find once we don't have to worry about
-	// copying this code into older Go environments.
-	i := sort.Search(len(stdPkgs), func(i int) bool { return stdPkgs[i] >= path })
-	return i < len(stdPkgs) && stdPkgs[i] == path
+	_, ok := sort.Find(len(stdPkgs), func(i int) int {
+		return strings.Compare(path, stdPkgs[i])
+	})
+	return ok
 }
 
 // DefaultLookupPackage is the default package lookup
