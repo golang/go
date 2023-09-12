@@ -58,7 +58,7 @@ loadregs:
 	// Floating point arguments are passed in the XMM
 	// registers. Set them here in case any of the arguments
 	// are floating point values. For details see
-	//	https://msdn.microsoft.com/en-us/library/zthk2dkh.aspx
+	//	https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170
 	MOVQ	CX, X0
 	MOVQ	DX, X1
 	MOVQ	R8, X2
