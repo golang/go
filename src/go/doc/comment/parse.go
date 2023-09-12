@@ -260,8 +260,7 @@ func (d *parseDoc) lookupPkg(pkg string) (importPath string, ok bool) {
 }
 
 func isStdPkg(path string) bool {
-	// TODO(rsc): Use sort.Find once we don't have to worry about
-	// copying this code into older Go environments.
+	// TODO: Use slices.BinarySearch when possible.
 	i := sort.Search(len(stdPkgs), func(i int) bool { return stdPkgs[i] >= path })
 	return i < len(stdPkgs) && stdPkgs[i] == path
 }
