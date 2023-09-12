@@ -423,7 +423,7 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type, setNname bool) *ABIParamResul
 
 func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isResult, setNname bool) {
 	if f.Offset != types.BADWIDTH {
-		base.Fatalf("field offset for %s at %s has been set to %d", f.Sym.Name, base.FmtPos(f.Pos), f.Offset)
+		base.Fatalf("field offset for %s at %s has been set to %d", f.Sym, base.FmtPos(f.Pos), f.Offset)
 	}
 
 	// Everything except return values in registers has either a frame home (if not in a register) or a frame spill location.

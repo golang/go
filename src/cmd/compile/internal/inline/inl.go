@@ -471,7 +471,7 @@ func canDelayResults(fn *ir.Func) bool {
 
 	// temporaries for return values.
 	for _, param := range fn.Type().Results() {
-		if sym := types.OrigSym(param.Sym); sym != nil && !sym.IsBlank() {
+		if sym := param.Sym; sym != nil && !sym.IsBlank() {
 			return false // found a named result parameter (case 3)
 		}
 	}

@@ -392,7 +392,7 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
 			continue
 		}
 
-		if sym := types.OrigSym(name.Sym()); sym == nil || sym.IsBlank() {
+		if ir.IsBlank(name) {
 			// We can ignore assignments to blank or anonymous result parameters.
 			// These can't appear in expressions anyway.
 			continue

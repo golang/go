@@ -1507,7 +1507,7 @@ func (r *reader) funcargs(fn *ir.Func) {
 	}
 
 	for i, param := range sig.Results() {
-		sym := types.OrigSym(param.Sym)
+		sym := param.Sym
 
 		if sym == nil || sym.IsBlank() {
 			prefix := "~r"
@@ -1536,7 +1536,6 @@ func (r *reader) funcarg(param *types.Field, sym *types.Sym, ctxt ir.Class) {
 
 	if r.inlCall == nil {
 		if !r.funarghack {
-			param.Sym = sym
 			param.Nname = name
 		}
 	} else {
