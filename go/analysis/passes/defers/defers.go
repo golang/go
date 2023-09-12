@@ -19,11 +19,12 @@ import (
 //go:embed doc.go
 var doc string
 
-// Analyzer is the defer analyzer.
+// Analyzer is the defers analyzer.
 var Analyzer = &analysis.Analyzer{
-	Name:     "defer",
+	Name:     "defers",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
-	Doc:      analysisutil.MustExtractDoc(doc, "defer"),
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/defers",
+	Doc:      analysisutil.MustExtractDoc(doc, "defers"),
 	Run:      run,
 }
 

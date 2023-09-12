@@ -5,11 +5,11 @@
 // Package defers defines an Analyzer that checks for common mistakes in defer
 // statements.
 //
-// # Analyzer defer
+// # Analyzer defers
 //
-// defer: report common mistakes in defer statements
+// defers: report common mistakes in defer statements
 //
-// The defer analyzer reports a diagnostic when a defer statement would
+// The defers analyzer reports a diagnostic when a defer statement would
 // result in a non-deferred call to time.Since, as experience has shown
 // that this is nearly always a mistake.
 //

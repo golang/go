@@ -269,8 +269,8 @@ var GeneratedAPIJSON = &APIJSON{
 							Default: "true",
 						},
 						{
-							Name:    "\"defer\"",
-							Doc:     "report common mistakes in defer statements\n\nThe defer analyzer reports a diagnostic when a defer statement would\nresult in a non-deferred call to time.Since, as experience has shown\nthat this is nearly always a mistake.\n\nFor example:\n\n\tstart := time.Now()\n\t...\n\tdefer recordLatency(time.Since(start)) // error: call to time.Since is not deferred\n\nThe correct code is:\n\n\tdefer func() { recordLatency(time.Since(start)) }()",
+							Name:    "\"defers\"",
+							Doc:     "report common mistakes in defer statements\n\nThe defers analyzer reports a diagnostic when a defer statement would\nresult in a non-deferred call to time.Since, as experience has shown\nthat this is nearly always a mistake.\n\nFor example:\n\n\tstart := time.Now()\n\t...\n\tdefer recordLatency(time.Since(start)) // error: call to time.Since is not deferred\n\nThe correct code is:\n\n\tdefer func() { recordLatency(time.Since(start)) }()",
 							Default: "true",
 						},
 						{
@@ -977,8 +977,9 @@ var GeneratedAPIJSON = &APIJSON{
 			Default: true,
 		},
 		{
-			Name:    "defer",
-			Doc:     "report common mistakes in defer statements\n\nThe defer analyzer reports a diagnostic when a defer statement would\nresult in a non-deferred call to time.Since, as experience has shown\nthat this is nearly always a mistake.\n\nFor example:\n\n\tstart := time.Now()\n\t...\n\tdefer recordLatency(time.Since(start)) // error: call to time.Since is not deferred\n\nThe correct code is:\n\n\tdefer func() { recordLatency(time.Since(start)) }()",
+			Name:    "defers",
+			Doc:     "report common mistakes in defer statements\n\nThe defers analyzer reports a diagnostic when a defer statement would\nresult in a non-deferred call to time.Since, as experience has shown\nthat this is nearly always a mistake.\n\nFor example:\n\n\tstart := time.Now()\n\t...\n\tdefer recordLatency(time.Since(start)) // error: call to time.Since is not deferred\n\nThe correct code is:\n\n\tdefer func() { recordLatency(time.Since(start)) }()",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/defers",
 			Default: true,
 		},
 		{
