@@ -238,6 +238,8 @@
 (LocalAddr <t> {sym} base mem) && t.Elem().HasPointers() => (MOVDaddr {sym} (SPanchored base mem))
 (LocalAddr <t> {sym} base _)  && !t.Elem().HasPointers() => (MOVDaddr {sym} base)
 (OffPtr [off] ptr) => (ADD (MOVDconst <typ.Int64> [off]) ptr)
+(MOVDaddr {sym} [n] p:(ADD x y)) && sym == nil && n == 0 => p
+(MOVDaddr {sym} [n] ptr) && sym == nil && n == 0 && (ptr.Op == OpArgIntReg || ptr.Op == OpPhi) => ptr
 
 // TODO: optimize these cases?
 (Ctz32NonZero ...) => (Ctz32 ...)
