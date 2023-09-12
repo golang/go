@@ -97,8 +97,8 @@ func ArgLiveness(fn *ir.Func, f *ssa.Func, pp *objw.Progs) (blockIdx, valueIdx m
 	}
 	// Gather all register arg spill slots.
 	for _, a := range f.OwnAux.ABIInfo().InParams() {
-		n, ok := a.Name.(*ir.Name)
-		if !ok || len(a.Registers) == 0 {
+		n := a.Name
+		if n == nil || len(a.Registers) == 0 {
 			continue
 		}
 		_, offs := a.RegisterTypesAndOffsets()

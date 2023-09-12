@@ -519,7 +519,7 @@ func PopulateABIInRegArgOps(f *Func) {
 		if !isNamedRegParam(inp) {
 			continue
 		}
-		n := inp.Name.(*ir.Name)
+		n := inp.Name
 
 		// Param is spread across one or more registers. Walk through
 		// each piece to see whether we've seen an arg reg op for it.
@@ -1734,7 +1734,7 @@ func isNamedRegParam(p abi.ABIParamAssignment) bool {
 	if p.Name == nil {
 		return false
 	}
-	n := p.Name.(*ir.Name)
+	n := p.Name
 	if n.Sym() == nil || n.Sym().IsBlank() {
 		return false
 	}
@@ -1790,7 +1790,7 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 			continue
 		}
 
-		n := inp.Name.(*ir.Name)
+		n := inp.Name
 		sl := LocalSlot{N: n, Type: inp.Type, Off: 0}
 		rval.Vars = append(rval.Vars, n)
 		rval.Slots = append(rval.Slots, sl)

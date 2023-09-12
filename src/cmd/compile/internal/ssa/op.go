@@ -240,11 +240,7 @@ func (a *AuxCall) RegsOfArg(which int64) []abi.RegIndex {
 
 // NameOfResult returns the type of result which (indexed 0, 1, etc).
 func (a *AuxCall) NameOfResult(which int64) *ir.Name {
-	name := a.abiInfo.OutParam(int(which)).Name
-	if name == nil {
-		return nil
-	}
-	return name.(*ir.Name)
+	return a.abiInfo.OutParam(int(which)).Name
 }
 
 // TypeOfResult returns the type of result which (indexed 0, 1, etc).

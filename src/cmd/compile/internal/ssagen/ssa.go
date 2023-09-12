@@ -7194,7 +7194,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// The results are already in memory, because they are not SSA'd
 		// when the function has defers (see canSSAName).
 		for _, o := range f.OwnAux.ABIInfo().OutParams() {
-			n := o.Name.(*ir.Name)
+			n := o.Name
 			rts, offs := o.RegisterTypesAndOffsets()
 			for i := range o.Registers {
 				Arch.LoadRegResult(&s, f, rts[i], ssa.ObjRegForAbiReg(o.Registers[i], f.Config), n, offs[i])
@@ -7507,8 +7507,8 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
 
 		// Then, insert code to spill registers if not already.
 		for _, a := range f.OwnAux.ABIInfo().InParams() {
-			n, ok := a.Name.(*ir.Name)
-			if !ok || n.Addrtaken() || !ssa.CanSSA(n.Type()) || !s.partLiveArgs[n] || len(a.Registers) <= 1 {
+			n := a.Name
+			if n == nil || n.Addrtaken() || !ssa.CanSSA(n.Type()) || !s.partLiveArgs[n] || len(a.Registers) <= 1 {
 				continue
 			}
 			rts, offs := a.RegisterTypesAndOffsets()

@@ -97,7 +97,7 @@ type RegIndex uint8
 // (as described above), not architected registers.
 type ABIParamAssignment struct {
 	Type      *types.Type
-	Name      types.Object // should always be *ir.Name, used to match with a particular ssa.OpArg.
+	Name      *ir.Name
 	Registers []RegIndex
 	offset    int32
 }
@@ -353,7 +353,11 @@ func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Type) *ABIParamResultInfo 
 	assignParams := func(params []*types.Field, isResult bool) []ABIParamAssignment {
 		res := make([]ABIParamAssignment, len(params))
 		for i, param := range params {
-			res[i] = s.assignParam(param.Type, param.Nname, isResult)
+			var name *ir.Name
+			if param.Nname != nil {
+				name = param.Nname.(*ir.Name)
+			}
+			res[i] = s.assignParam(param.Type, name, isResult)
 		}
 		return res
 	}
@@ -589,7 +593,7 @@ func setup() {
 // of field f to determine whether it can be register assigned.
 // The result of the analysis is recorded in the result
 // ABIParamResultInfo held in 'state'.
-func (state *assignState) assignParam(typ *types.Type, name types.Object, isResult bool) ABIParamAssignment {
+func (state *assignState) assignParam(typ *types.Type, name *ir.Name, isResult bool) ABIParamAssignment {
 	registers := state.tryAllocRegs(typ)
 
 	var offset int64 = -1
