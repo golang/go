@@ -198,6 +198,8 @@ type Type struct {
 	kind  Kind  // kind of type
 	align uint8 // the required alignment of this type, in bytes (0 means Width and Align have not yet been computed)
 
+	intRegs, floatRegs uint8 // registers needed for ABIInternal
+
 	flags bitset8
 
 	// For defined (named) generic types, a pointer to the list of type params
@@ -209,6 +211,17 @@ type Type struct {
 	// instantiated from a generic type, and is otherwise set to nil.
 	// TODO(danscales): choose a better name.
 	rparams *[]*Type
+}
+
+// Registers returns the number of integer and floating-point
+// registers required to represent a parameter of this type under the
+// ABIInternal calling conventions.
+//
+// If t must be passed by memory, Registers returns (math.MaxUint8,
+// math.MaxUint8).
+func (t *Type) Registers() (uint8, uint8) {
+	CalcSize(t)
+	return t.intRegs, t.floatRegs
 }
 
 func (*Type) CanBeAnSSAAux() {}
@@ -637,6 +650,7 @@ func NewPtr(elem *Type) *Type {
 	t.extra = Ptr{Elem: elem}
 	t.width = int64(PtrSize)
 	t.align = uint8(PtrSize)
+	t.intRegs = 1
 	if NewPtrCacheEnabled {
 		elem.cache.ptr = t
 	}
@@ -1628,6 +1642,8 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	t.extra = underlying.extra
 	t.width = underlying.width
 	t.align = underlying.align
+	t.intRegs = underlying.intRegs
+	t.floatRegs = underlying.floatRegs
 	t.underlying = underlying.underlying
 
 	if underlying.NotInHeap() {
