@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
-	"internal/types/errors"
 	"math"
 	"math/big"
 	"unicode"
@@ -328,50 +327,6 @@ func makeFloat64(f float64) constant.Value {
 
 func makeComplex(real, imag constant.Value) constant.Value {
 	return constant.BinaryOp(constant.ToFloat(real), token.ADD, constant.MakeImag(constant.ToFloat(imag)))
-}
-
-// For matching historical "constant OP overflow" error messages.
-// TODO(mdempsky): Replace with error messages like go/types uses.
-var overflowNames = [...]string{
-	ir.OADD:    "addition",
-	ir.OSUB:    "subtraction",
-	ir.OMUL:    "multiplication",
-	ir.OLSH:    "shift",
-	ir.OXOR:    "bitwise XOR",
-	ir.OBITNOT: "bitwise complement",
-}
-
-// OrigConst returns an OLITERAL with orig n and value v.
-func OrigConst(n ir.Node, v constant.Value) ir.Node {
-	lno := ir.SetPos(n)
-	v = ConvertVal(v, n.Type(), false)
-	base.Pos = lno
-
-	switch v.Kind() {
-	case constant.Int:
-		if constant.BitLen(v) <= ir.ConstPrec {
-			break
-		}
-		fallthrough
-	case constant.Unknown:
-		what := overflowNames[n.Op()]
-		if what == "" {
-			base.Fatalf("unexpected overflow: %v", n.Op())
-		}
-		base.ErrorfAt(n.Pos(), errors.NumericOverflow, "constant %v overflow", what)
-		n.SetType(nil)
-		return n
-	}
-
-	return ir.NewConstExpr(v, n)
-}
-
-func OrigBool(n ir.Node, v bool) ir.Node {
-	return OrigConst(n, constant.MakeBool(v))
-}
-
-func OrigInt(n ir.Node, v int64) ir.Node {
-	return OrigConst(n, constant.MakeInt64(v))
 }
 
 // DefaultLit on both nodes simultaneously;

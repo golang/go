@@ -1033,7 +1033,7 @@ func addStr(n *ir.AddStringExpr) ir.Node {
 		for _, c := range s {
 			strs = append(strs, ir.StringVal(c))
 		}
-		return typecheck.OrigConst(n, constant.MakeString(strings.Join(strs, "")))
+		return ir.NewConstExpr(constant.MakeString(strings.Join(strs, "")), n)
 	}
 	newList := make([]ir.Node, 0, need)
 	for i := 0; i < len(s); i++ {
@@ -1046,9 +1046,7 @@ func addStr(n *ir.AddStringExpr) ir.Node {
 				i2++
 			}
 
-			nl := ir.Copy(n).(*ir.AddStringExpr)
-			nl.List = s[i:i2]
-			newList = append(newList, typecheck.OrigConst(nl, constant.MakeString(strings.Join(strs, ""))))
+			newList = append(newList, ir.NewConstExpr(constant.MakeString(strings.Join(strs, "")), s[i]))
 			i = i2 - 1
 		} else {
 			newList = append(newList, s[i])

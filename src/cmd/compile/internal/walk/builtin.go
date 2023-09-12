@@ -274,7 +274,7 @@ func walkLenCap(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 	}
 	if t.IsArray() {
 		safeExpr(n.X, init)
-		con := typecheck.OrigInt(n, t.NumElem())
+		con := ir.NewConstExpr(constant.MakeInt64(t.NumElem()), n)
 		con.SetTypecheck(1)
 		return con
 	}
