@@ -29,7 +29,7 @@ func mkParamResultField(t *types.Type, s *types.Sym, which ir.Class) *types.Fiel
 
 // mkstruct is a helper routine to create a struct type with fields
 // of the types specified in 'fieldtypes'.
-func mkstruct(fieldtypes []*types.Type) *types.Type {
+func mkstruct(fieldtypes ...*types.Type) *types.Type {
 	fields := make([]*types.Field, len(fieldtypes))
 	for k, t := range fieldtypes {
 		if t == nil {
