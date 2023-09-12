@@ -423,17 +423,14 @@ func tcRange(n *ir.RangeStmt) {
 
 // tcReturn typechecks an ORETURN node.
 func tcReturn(n *ir.ReturnStmt) ir.Node {
-	typecheckargs(n)
 	if ir.CurFunc == nil {
-		base.Errorf("return outside function")
-		n.SetType(nil)
-		return n
+		base.FatalfAt(n.Pos(), "return outside function")
 	}
 
-	if ir.HasNamedResults(ir.CurFunc) && len(n.Results) == 0 {
-		return n
+	typecheckargs(n)
+	if len(n.Results) != 0 {
+		typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), n.Results, func() string { return "return argument" })
 	}
-	typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), n.Results, func() string { return "return argument" })
 	return n
 }
 

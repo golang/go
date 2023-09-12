@@ -482,11 +482,6 @@ func IsMethod(n Node) bool {
 	return n.Type().Recv() != nil
 }
 
-func HasNamedResults(fn *Func) bool {
-	typ := fn.Type()
-	return typ.NumResults() > 0 && types.OrigSym(typ.Result(0).Sym) != nil
-}
-
 // HasUniquePos reports whether n has a unique position that can be
 // used for reporting error messages.
 //
