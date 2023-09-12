@@ -6,6 +6,8 @@
 
 // Required for darwin ucontext.
 #define _XOPEN_SOURCE
+// Required for netbsd stack_t if _XOPEN_SOURCE is set.
+#define _XOPEN_SOURCE_EXTENDED
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
 #include <assert.h>
