@@ -8,7 +8,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,7 +18,7 @@ func TestDownloadGoVersion(t *testing.T) {
 		t.Skipf("Skipping download in short mode")
 	}
 
-	tmpd, err := ioutil.TempDir("", "go")
+	tmpd, err := os.MkdirTemp("", "go")
 	if err != nil {
 		t.Fatal(err)
 	}

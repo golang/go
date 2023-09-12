@@ -6,7 +6,7 @@ package hooks
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"runtime"
 	"testing"
@@ -23,7 +23,7 @@ func TestLicenses(t *testing.T) {
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		t.Skip("generating licenses only works on Unixes")
 	}
-	tmp, err := ioutil.TempFile("", "")
+	tmp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,11 +33,11 @@ func TestLicenses(t *testing.T) {
 		t.Fatalf("generating licenses failed: %q, %v", out, err)
 	}
 
-	got, err := ioutil.ReadFile(tmp.Name())
+	got, err := os.ReadFile(tmp.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, err := ioutil.ReadFile("licenses.go")
+	want, err := os.ReadFile("licenses.go")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -765,7 +765,7 @@ func (r *referrersPackageResult) foreachRef(f func(id *ast.Ident, text string)) 
 	}
 }
 
-// readFile is like ioutil.ReadFile, but
+// readFile is like os.ReadFile, but
 // it goes through the virtualized build.Context.
 // If non-nil, buf must have been reset.
 func readFile(ctxt *build.Context, filename string, buf *bytes.Buffer) ([]byte, error) {

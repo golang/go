@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/build"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1302,7 +1301,7 @@ func TestDiff(t *testing.T) {
 
 	// Set up a fake GOPATH in a temporary directory,
 	// and ensure we're in GOPATH mode.
-	tmpdir, err := ioutil.TempDir("", "TestDiff")
+	tmpdir, err := os.MkdirTemp("", "TestDiff")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1329,7 +1328,7 @@ func TestDiff(t *testing.T) {
 
 go 1.15
 `
-	if err := ioutil.WriteFile(filepath.Join(pkgDir, "go.mod"), []byte(modFile), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pkgDir, "go.mod"), []byte(modFile), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1339,7 +1338,7 @@ func justHereForTestingDiff() {
 	justHereForTestingDiff()
 }
 `
-	if err := ioutil.WriteFile(filepath.Join(pkgDir, "rename_test.go"), []byte(goFile), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pkgDir, "rename_test.go"), []byte(goFile), 0644); err != nil {
 		t.Fatal(err)
 	}
 

@@ -13,7 +13,6 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
@@ -33,7 +32,7 @@ func TestObjValueLookup(t *testing.T) {
 	}
 
 	conf := loader.Config{ParserMode: parser.ParseComments}
-	src, err := ioutil.ReadFile("testdata/objlookup.go")
+	src, err := os.ReadFile("testdata/objlookup.go")
 	if err != nil {
 		t.Fatal(err)
 	}

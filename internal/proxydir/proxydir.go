@@ -11,7 +11,6 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,13 +43,13 @@ func WriteModuleVersion(rootDir, module, ver string, files map[string][]byte) (r
 	if !ok {
 		modContents = []byte("module " + module)
 	}
-	if err := ioutil.WriteFile(filepath.Join(dir, ver+".mod"), modContents, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ver+".mod"), modContents, 0644); err != nil {
 		return err
 	}
 
 	// info file, just the bare bones.
 	infoContents := []byte(fmt.Sprintf(`{"Version": "%v", "Time":"2017-12-14T13:08:43Z"}`, ver))
-	if err := ioutil.WriteFile(filepath.Join(dir, ver+".info"), infoContents, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ver+".info"), infoContents, 0644); err != nil {
 		return err
 	}
 

@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"context"
 	"flag"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -41,12 +41,12 @@ func TestHelpFiles(t *testing.T) {
 			helpFile := filepath.Join("usage", name+".hlp")
 			got := buf.Bytes()
 			if *updateHelpFiles {
-				if err := ioutil.WriteFile(helpFile, got, 0666); err != nil {
+				if err := os.WriteFile(helpFile, got, 0666); err != nil {
 					t.Errorf("Failed writing %v: %v", helpFile, err)
 				}
 				return
 			}
-			want, err := ioutil.ReadFile(helpFile)
+			want, err := os.ReadFile(helpFile)
 			if err != nil {
 				t.Fatalf("Missing help file %q", helpFile)
 			}

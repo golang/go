@@ -6,7 +6,6 @@ package buildutil_test
 
 import (
 	"go/build"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -53,7 +52,7 @@ func TestContainingPackage(t *testing.T) {
 
 	if runtime.GOOS != "windows" && runtime.GOOS != "plan9" {
 		// Make a symlink to gopath for test
-		tmp, err := ioutil.TempDir(os.TempDir(), "go")
+		tmp, err := os.MkdirTemp(os.TempDir(), "go")
 		if err != nil {
 			t.Errorf("Unable to create a temporary directory in %s", os.TempDir())
 		}

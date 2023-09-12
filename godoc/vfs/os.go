@@ -7,7 +7,7 @@ package vfs
 import (
 	"fmt"
 	"go/build"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	pathpkg "path"
 	"path/filepath"
@@ -101,5 +101,22 @@ func (root osFS) Stat(path string) (os.FileInfo, error) {
 }
 
 func (root osFS) ReadDir(path string) ([]os.FileInfo, error) {
-	return ioutil.ReadDir(root.resolve(path)) // is sorted
+	return ioutilReadDir(root.resolve(path)) // is sorted
+}
+
+func ioutilReadDir(dirname string) ([]fs.FileInfo, error) {
+	entries, err := os.ReadDir(dirname)
+	if err != nil {
+		return nil, err
+	}
+
+	infos := make([]fs.FileInfo, 0, len(entries))
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			return infos, err
+		}
+		infos = append(infos, info)
+	}
+	return infos, nil
 }

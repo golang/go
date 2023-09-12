@@ -5,7 +5,6 @@
 package packagestest_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -197,7 +196,7 @@ func TestMustCopyFiles(t *testing.T) {
 		"nested/b/b.go": "package b",
 	}
 
-	tmpDir, err := ioutil.TempDir("", t.Name())
+	tmpDir, err := os.MkdirTemp("", t.Name())
 	if err != nil {
 		t.Fatalf("failed to create a temporary directory: %v", err)
 	}
@@ -208,7 +207,7 @@ func TestMustCopyFiles(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(fullpath), 0755); err != nil {
 			t.Fatal(err)
 		}
-		if err := ioutil.WriteFile(fullpath, []byte(contents), 0644); err != nil {
+		if err := os.WriteFile(fullpath, []byte(contents), 0644); err != nil {
 			t.Fatal(err)
 		}
 	}

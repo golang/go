@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -35,7 +34,7 @@ func formatFileModes(m map[string]os.FileMode) string {
 }
 
 func testFastWalk(t *testing.T, files map[string]string, callback func(path string, typ os.FileMode) error, want map[string]os.FileMode) {
-	tempdir, err := ioutil.TempDir("", "test-fast-walk")
+	tempdir, err := os.MkdirTemp("", "test-fast-walk")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +50,7 @@ func testFastWalk(t *testing.T, files map[string]string, callback func(path stri
 		if strings.HasPrefix(contents, "LINK:") {
 			symlinks[file] = filepath.FromSlash(strings.TrimPrefix(contents, "LINK:"))
 		} else {
-			err = ioutil.WriteFile(file, []byte(contents), 0644)
+			err = os.WriteFile(file, []byte(contents), 0644)
 		}
 		if err != nil {
 			t.Fatal(err)
@@ -63,7 +62,7 @@ func testFastWalk(t *testing.T, files map[string]string, callback func(path stri
 	for file, dst := range symlinks {
 		err = os.Symlink(dst, file)
 		if err != nil {
-			if writeErr := ioutil.WriteFile(file, []byte(dst), 0644); writeErr == nil {
+			if writeErr := os.WriteFile(file, []byte(dst), 0644); writeErr == nil {
 				// Couldn't create symlink, but could write the file.
 				// Probably this filesystem doesn't support symlinks.
 				// (Perhaps we are on an older Windows and not running as administrator.)

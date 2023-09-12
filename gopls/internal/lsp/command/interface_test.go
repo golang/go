@@ -5,7 +5,7 @@
 package command_test
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -17,7 +17,7 @@ func TestGenerated(t *testing.T) {
 	testenv.NeedsGoPackages(t)
 	testenv.NeedsLocalXTools(t)
 
-	onDisk, err := ioutil.ReadFile("command_gen.go")
+	onDisk, err := os.ReadFile("command_gen.go")
 	if err != nil {
 		t.Fatal(err)
 	}

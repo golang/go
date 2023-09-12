@@ -6,7 +6,6 @@ package checker_test
 
 import (
 	"flag"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -151,7 +150,7 @@ func Foo() {
 
 	for name, want := range fixed {
 		path := path.Join(dir, "src", name)
-		contents, err := ioutil.ReadFile(path)
+		contents, err := os.ReadFile(path)
 		if err != nil {
 			t.Errorf("error reading %s: %v", path, err)
 		}
@@ -224,7 +223,7 @@ func Foo() {
 	// No files updated
 	for name, want := range files {
 		path := path.Join(dir, "src", name)
-		contents, err := ioutil.ReadFile(path)
+		contents, err := os.ReadFile(path)
 		if err != nil {
 			t.Errorf("error reading %s: %v", path, err)
 		}
@@ -298,7 +297,7 @@ func Foo() {
 	// No files updated
 	for name, want := range files {
 		path := path.Join(dir, "src", name)
-		contents, err := ioutil.ReadFile(path)
+		contents, err := os.ReadFile(path)
 		if err != nil {
 			t.Errorf("error reading %s: %v", path, err)
 		}

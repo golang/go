@@ -6,7 +6,7 @@ package checker_test
 
 import (
 	"go/ast"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -40,7 +40,7 @@ package comment
 	checker.Fix = true
 	checker.Run([]string{"file=" + path}, []*analysis.Analyzer{commentAnalyzer})
 
-	contents, err := ioutil.ReadFile(path)
+	contents, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -10,7 +10,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"testing"
@@ -37,7 +36,7 @@ func TestMain(m *testing.M) {
 }
 
 func createTmpHome(t *testing.T) string {
-	tmpd, err := ioutil.TempDir("", "testgetgo")
+	tmpd, err := os.MkdirTemp("", "testgetgo")
 	if err != nil {
 		t.Fatalf("creating test tempdir failed: %v", err)
 	}
@@ -86,7 +85,7 @@ func TestCommandVerbose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := ioutil.ReadFile(shellConfig)
+	b, err := os.ReadFile(shellConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +121,7 @@ func TestCommandPathExists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := ioutil.ReadFile(shellConfig)
+	b, err := os.ReadFile(shellConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +145,7 @@ export PATH=$PATH:%s/go/bin
 		t.Fatal(err)
 	}
 
-	b, err = ioutil.ReadFile(shellConfig)
+	b, err = os.ReadFile(shellConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

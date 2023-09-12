@@ -15,7 +15,6 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -931,7 +930,7 @@ func TestAdHocPackagesBadImport(t *testing.T) {
 
 	// This test doesn't use packagestest because we are testing ad-hoc packages,
 	// which are outside of $GOPATH and outside of a module.
-	tmp, err := ioutil.TempDir("", "a")
+	tmp, err := os.MkdirTemp("", "a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -942,7 +941,7 @@ func TestAdHocPackagesBadImport(t *testing.T) {
 import _ "badimport"
 const A = 1
 `)
-	if err := ioutil.WriteFile(filename, content, 0775); err != nil {
+	if err := os.WriteFile(filename, content, 0775); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1748,7 +1747,7 @@ func testAdHocContains(t *testing.T, exporter packagestest.Exporter) {
 		}}})
 	defer exported.Cleanup()
 
-	tmpfile, err := ioutil.TempFile("", "adhoc*.go")
+	tmpfile, err := os.CreateTemp("", "adhoc*.go")
 	filename := tmpfile.Name()
 	if err != nil {
 		t.Fatal(err)
@@ -1985,11 +1984,11 @@ import "C"`,
 }
 
 func buildFakePkgconfig(t *testing.T, env []string) string {
-	tmpdir, err := ioutil.TempDir("", "fakepkgconfig")
+	tmpdir, err := os.MkdirTemp("", "fakepkgconfig")
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ioutil.WriteFile(filepath.Join(tmpdir, "pkg-config.go"), []byte(`
+	err = os.WriteFile(filepath.Join(tmpdir, "pkg-config.go"), []byte(`
 package main
 
 import "fmt"
@@ -2452,7 +2451,7 @@ func testIssue37098(t *testing.T, exporter packagestest.Exporter) {
 			if err != nil {
 				t.Errorf("Failed to parse file '%s' as a Go source: %v", file, err)
 
-				contents, err := ioutil.ReadFile(file)
+				contents, err := os.ReadFile(file)
 				if err != nil {
 					t.Fatalf("Failed to read the un-parsable file '%s': %v", file, err)
 				}
@@ -2633,7 +2632,7 @@ func testExternal_NotHandled(t *testing.T, exporter packagestest.Exporter) {
 	skipIfShort(t, "builds and links fake driver binaries")
 	testenv.NeedsGoBuild(t)
 
-	tempdir, err := ioutil.TempDir("", "testexternal")
+	tempdir, err := os.MkdirTemp("", "testexternal")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2652,7 +2651,7 @@ import (
 )
 
 func main() {
-	ioutil.ReadAll(os.Stdin)
+	io.ReadAll(os.Stdin)
 	fmt.Println("{}")
 }
 `,
@@ -2665,7 +2664,7 @@ import (
 )
 
 func main() {
-	ioutil.ReadAll(os.Stdin)
+	io.ReadAll(os.Stdin)
 	fmt.Println("{\"NotHandled\": true}")
 }
 `,
@@ -2755,7 +2754,7 @@ func TestEmptyEnvironment(t *testing.T) {
 func TestPackageLoadSingleFile(t *testing.T) {
 	testenv.NeedsTool(t, "go")
 
-	tmp, err := ioutil.TempDir("", "a")
+	tmp, err := os.MkdirTemp("", "a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2763,7 +2762,7 @@ func TestPackageLoadSingleFile(t *testing.T) {
 
 	filename := filepath.Join(tmp, "a.go")
 
-	if err := ioutil.WriteFile(filename, []byte(`package main; func main() { println("hello world") }`), 0775); err != nil {
+	if err := os.WriteFile(filename, []byte(`package main; func main() { println("hello world") }`), 0775); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2899,7 +2898,7 @@ func copyAll(srcPath, dstPath string) error {
 		if info.IsDir() {
 			return nil
 		}
-		contents, err := ioutil.ReadFile(path)
+		contents, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
@@ -2911,7 +2910,7 @@ func copyAll(srcPath, dstPath string) error {
 		if err := os.MkdirAll(filepath.Dir(dstFilePath), 0755); err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(dstFilePath, contents, 0644); err != nil {
+		if err := os.WriteFile(dstFilePath, contents, 0644); err != nil {
 			return err
 		}
 		return nil

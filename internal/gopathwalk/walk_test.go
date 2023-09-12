@@ -5,7 +5,6 @@
 package gopathwalk
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -22,7 +21,7 @@ func TestShouldTraverse(t *testing.T) {
 		t.Skipf("skipping symlink-requiring test on %s", runtime.GOOS)
 	}
 
-	dir, err := ioutil.TempDir("", "goimports-")
+	dir, err := os.MkdirTemp("", "goimports-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +89,7 @@ func TestShouldTraverse(t *testing.T) {
 
 // TestSkip tests that various goimports rules are followed in non-modules mode.
 func TestSkip(t *testing.T) {
-	dir, err := ioutil.TempDir("", "goimports-")
+	dir, err := os.MkdirTemp("", "goimports-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +124,7 @@ func TestSkip(t *testing.T) {
 
 // TestSkipFunction tests that scan successfully skips directories from user callback.
 func TestSkipFunction(t *testing.T) {
-	dir, err := ioutil.TempDir("", "goimports-")
+	dir, err := os.MkdirTemp("", "goimports-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +164,7 @@ func mapToDir(destDir string, files map[string]string) error {
 		if strings.HasPrefix(contents, "LINK:") {
 			err = os.Symlink(strings.TrimPrefix(contents, "LINK:"), file)
 		} else {
-			err = ioutil.WriteFile(file, []byte(contents), 0644)
+			err = os.WriteFile(file, []byte(contents), 0644)
 		}
 		if err != nil {
 			return err

@@ -13,7 +13,6 @@ import (
 	"go/scanner"
 	exec "golang.org/x/sys/execabs"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -106,7 +105,7 @@ func processFile(filename string, in io.Reader, out io.Writer, argType argumentT
 		in = f
 	}
 
-	src, err := ioutil.ReadAll(in)
+	src, err := io.ReadAll(in)
 	if err != nil {
 		return err
 	}
@@ -159,7 +158,7 @@ func processFile(filename string, in io.Reader, out io.Writer, argType argumentT
 			if fi, err := os.Stat(filename); err == nil {
 				perms = fi.Mode() & os.ModePerm
 			}
-			err = ioutil.WriteFile(filename, res, perms)
+			err = os.WriteFile(filename, res, perms)
 			if err != nil {
 				return err
 			}
@@ -296,7 +295,7 @@ func gofmtMain() {
 }
 
 func writeTempFile(dir, prefix string, data []byte) (string, error) {
-	file, err := ioutil.TempFile(dir, prefix)
+	file, err := os.CreateTemp(dir, prefix)
 	if err != nil {
 		return "", err
 	}

@@ -11,7 +11,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"golang.org/x/tools/godoc/static"
@@ -29,7 +28,7 @@ func makestatic() error {
 	if err != nil {
 		return fmt.Errorf("error while generating static.go: %v\n", err)
 	}
-	err = ioutil.WriteFile("static.go", buf, 0666)
+	err = os.WriteFile("static.go", buf, 0666)
 	if err != nil {
 		return fmt.Errorf("error while writing static.go: %v\n", err)
 	}

@@ -8,7 +8,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +15,7 @@ import (
 )
 
 func TestAppendPath(t *testing.T) {
-	tmpd, err := ioutil.TempDir("", "go")
+	tmpd, err := os.MkdirTemp("", "go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +34,7 @@ func TestAppendPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := ioutil.ReadFile(shellConfig)
+	b, err := os.ReadFile(shellConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +48,7 @@ func TestAppendPath(t *testing.T) {
 	if err := appendToPATH(filepath.Join(GOPATH, "bin")); err != nil {
 		t.Fatal(err)
 	}
-	b, err = ioutil.ReadFile(shellConfig)
+	b, err = os.ReadFile(shellConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,7 +7,6 @@ package packagestest
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -90,11 +89,11 @@ func (modules) Finalize(exported *Exported) error {
 	// If the primary module already has a go.mod, write the contents to a temp
 	// go.mod for now and then we will reset it when we are getting all the markers.
 	if gomod := exported.written[exported.primary]["go.mod"]; gomod != "" {
-		contents, err := ioutil.ReadFile(gomod)
+		contents, err := os.ReadFile(gomod)
 		if err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(gomod+".temp", contents, 0644); err != nil {
+		if err := os.WriteFile(gomod+".temp", contents, 0644); err != nil {
 			return err
 		}
 	}
@@ -115,7 +114,7 @@ func (modules) Finalize(exported *Exported) error {
 		primaryGomod += fmt.Sprintf("\t%v %v\n", other, version)
 	}
 	primaryGomod += ")\n"
-	if err := ioutil.WriteFile(filepath.Join(primaryDir, "go.mod"), []byte(primaryGomod), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(primaryDir, "go.mod"), []byte(primaryGomod), 0644); err != nil {
 		return err
 	}
 
@@ -136,7 +135,7 @@ func (modules) Finalize(exported *Exported) error {
 		if v, ok := versions[module]; ok {
 			module = v.module
 		}
-		if err := ioutil.WriteFile(modfile, []byte("module "+module+"\n"), 0644); err != nil {
+		if err := os.WriteFile(modfile, []byte("module "+module+"\n"), 0644); err != nil {
 			return err
 		}
 		files["go.mod"] = modfile
@@ -193,7 +192,7 @@ func (modules) Finalize(exported *Exported) error {
 func writeModuleFiles(rootDir, module, ver string, filePaths map[string]string) error {
 	fileData := make(map[string][]byte)
 	for name, path := range filePaths {
-		contents, err := ioutil.ReadFile(path)
+		contents, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}

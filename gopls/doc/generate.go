@@ -18,7 +18,6 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -573,7 +572,7 @@ func fileForPos(pkg *packages.Package, pos token.Pos) (*ast.File, error) {
 }
 
 func rewriteFile(file string, api *source.APIJSON, write bool, rewrite func([]byte, *source.APIJSON) ([]byte, error)) (bool, error) {
-	old, err := ioutil.ReadFile(file)
+	old, err := os.ReadFile(file)
 	if err != nil {
 		return false, err
 	}
@@ -587,7 +586,7 @@ func rewriteFile(file string, api *source.APIJSON, write bool, rewrite func([]by
 		return bytes.Equal(old, new), nil
 	}
 
-	if err := ioutil.WriteFile(file, new, 0); err != nil {
+	if err := os.WriteFile(file, new, 0); err != nil {
 		return false, err
 	}
 

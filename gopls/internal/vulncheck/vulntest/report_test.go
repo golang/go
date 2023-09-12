@@ -10,7 +10,6 @@ package vulntest
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,7 +18,7 @@ import (
 )
 
 func readAll(t *testing.T, filename string) io.Reader {
-	d, err := ioutil.ReadFile(filename)
+	d, err := os.ReadFile(filename)
 	if err != nil {
 		t.Fatal(err)
 	}

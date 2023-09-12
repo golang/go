@@ -16,7 +16,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
-	"io/ioutil"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -98,7 +98,7 @@ func TestCHAGenerics(t *testing.T) {
 }
 
 func loadProgInfo(filename string, mode ssa.BuilderMode) (*ssa.Program, *ast.File, *ssa.Package, error) {
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("couldn't read file '%s': %s", filename, err)
 	}

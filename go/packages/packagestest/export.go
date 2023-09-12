@@ -69,7 +69,6 @@ import (
 	"fmt"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -198,7 +197,7 @@ func Export(t testing.TB, exporter Exporter, modules []Module) *Exported {
 
 	dirname := strings.Replace(t.Name(), "/", "_", -1)
 	dirname = strings.Replace(dirname, "#", "_", -1) // duplicate subtests get a #NNN suffix.
-	temp, err := ioutil.TempDir("", dirname)
+	temp, err := os.MkdirTemp("", dirname)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,7 +253,7 @@ func Export(t testing.TB, exporter Exporter, modules []Module) *Exported {
 					t.Fatal(err)
 				}
 			case string:
-				if err := ioutil.WriteFile(fullpath, []byte(value), 0644); err != nil {
+				if err := os.WriteFile(fullpath, []byte(value), 0644); err != nil {
 					t.Fatal(err)
 				}
 			default:
@@ -278,7 +277,7 @@ func Export(t testing.TB, exporter Exporter, modules []Module) *Exported {
 // It is intended for source files that are shell scripts.
 func Script(contents string) Writer {
 	return func(filename string) error {
-		return ioutil.WriteFile(filename, []byte(contents), 0755)
+		return os.WriteFile(filename, []byte(contents), 0755)
 	}
 }
 
@@ -659,7 +658,7 @@ func (e *Exported) FileContents(filename string) ([]byte, error) {
 	if content, found := e.Config.Overlay[filename]; found {
 		return content, nil
 	}
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}

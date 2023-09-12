@@ -6,7 +6,7 @@ package buildutil_test
 
 import (
 	"go/build"
-	"io/ioutil"
+	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -63,7 +63,7 @@ func TestOverlay(t *testing.T) {
 		if err != nil {
 			t.Errorf("unexpected error %v", err)
 		}
-		b, err := ioutil.ReadAll(f)
+		b, err := io.ReadAll(f)
 		if err != nil {
 			t.Errorf("unexpected error %v", err)
 		}

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"go/build"
 	"io"
-	"io/ioutil"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -33,7 +32,7 @@ func OverlayContext(orig *build.Context, overlay map[string][]byte) *build.Conte
 	// TODO(dominikh): Implement IsDir, HasSubdir and ReadDir
 
 	rc := func(data []byte) (io.ReadCloser, error) {
-		return ioutil.NopCloser(bytes.NewBuffer(data)), nil
+		return io.NopCloser(bytes.NewBuffer(data)), nil
 	}
 
 	copy := *orig // make a copy

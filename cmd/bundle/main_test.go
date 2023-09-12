@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
@@ -18,7 +17,7 @@ import (
 func TestBundle(t *testing.T) { packagestest.TestAll(t, testBundle) }
 func testBundle(t *testing.T, x packagestest.Exporter) {
 	load := func(name string) string {
-		data, err := ioutil.ReadFile(name)
+		data, err := os.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -53,7 +52,7 @@ func testBundle(t *testing.T, x packagestest.Exporter) {
 	if got, want := string(out), load("testdata/out.golden"); got != want {
 		t.Errorf("-- got --\n%s\n-- want --\n%s\n-- diff --", got, want)
 
-		if err := ioutil.WriteFile("testdata/out.got", out, 0644); err != nil {
+		if err := os.WriteFile("testdata/out.got", out, 0644); err != nil {
 			t.Fatal(err)
 		}
 		t.Log(diff("testdata/out.golden", "testdata/out.got"))

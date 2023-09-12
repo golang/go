@@ -7,7 +7,6 @@ package main
 import (
 	"fmt"
 	"go/build"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -27,7 +26,7 @@ func TestIssue17515(t *testing.T) {
 	// (4) symlink & absolute:  GOPATH=$HOME/src file= $HOME/go/src/test/test.go
 
 	// Create a temporary home directory under /tmp
-	home, err := ioutil.TempDir(os.TempDir(), "home")
+	home, err := os.MkdirTemp(os.TempDir(), "home")
 	if err != nil {
 		t.Errorf("Unable to create a temporary directory in %s", os.TempDir())
 	}

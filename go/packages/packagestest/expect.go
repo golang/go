@@ -7,7 +7,6 @@ package packagestest
 import (
 	"fmt"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -226,7 +225,7 @@ func goModMarkers(e *Exported, gomod string) ([]*expect.Note, error) {
 	}
 	gomod = strings.TrimSuffix(gomod, ".temp")
 	// If we are in Modules mode, copy the original contents file back into go.mod
-	if err := ioutil.WriteFile(gomod, content, 0644); err != nil {
+	if err := os.WriteFile(gomod, content, 0644); err != nil {
 		return nil, nil
 	}
 	return expect.Parse(e.ExpectFileSet, gomod, content)

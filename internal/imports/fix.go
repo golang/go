@@ -13,7 +13,6 @@ import (
 	"go/build"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -107,7 +106,7 @@ func parseOtherFiles(fset *token.FileSet, srcDir, filename string) []*ast.File {
 	considerTests := strings.HasSuffix(filename, "_test.go")
 
 	fileBase := filepath.Base(filename)
-	packageFileInfos, err := ioutil.ReadDir(srcDir)
+	packageFileInfos, err := ioutilReadDir(srcDir)
 	if err != nil {
 		return nil
 	}
@@ -974,7 +973,7 @@ func (e *ProcessEnv) buildContext() (*build.Context, error) {
 	// HACK: setting any of the Context I/O hooks prevents Import from invoking
 	// 'go list', regardless of GO111MODULE. This is undocumented, but it's
 	// unlikely to change before GOPATH support is removed.
-	ctx.ReadDir = ioutil.ReadDir
+	ctx.ReadDir = ioutilReadDir
 
 	return &ctx, nil
 }
@@ -1469,7 +1468,7 @@ func VendorlessPath(ipath string) string {
 
 func loadExportsFromFiles(ctx context.Context, env *ProcessEnv, dir string, includeTest bool) (string, []string, error) {
 	// Look for non-test, buildable .go files which could provide exports.
-	all, err := ioutil.ReadDir(dir)
+	all, err := ioutilReadDir(dir)
 	if err != nil {
 		return "", nil, err
 	}

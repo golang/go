@@ -9,7 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -265,7 +265,7 @@ func (r *ModuleResolver) findPackage(importPath string) (*gocommand.ModuleJSON, 
 		}
 
 		// Not cached. Read the filesystem.
-		pkgFiles, err := ioutil.ReadDir(pkgDir)
+		pkgFiles, err := ioutilReadDir(pkgDir)
 		if err != nil {
 			continue
 		}
@@ -370,7 +370,7 @@ func (r *ModuleResolver) dirIsNestedModule(dir string, mod *gocommand.ModuleJSON
 
 func (r *ModuleResolver) modInfo(dir string) (modDir string, modName string) {
 	readModName := func(modFile string) string {
-		modBytes, err := ioutil.ReadFile(modFile)
+		modBytes, err := os.ReadFile(modFile)
 		if err != nil {
 			return ""
 		}
@@ -721,4 +721,21 @@ func modulePath(mod []byte) string {
 		return string(line)
 	}
 	return "" // missing module path
+}
+
+func ioutilReadDir(dirname string) ([]fs.FileInfo, error) {
+	entries, err := os.ReadDir(dirname)
+	if err != nil {
+		return nil, err
+	}
+
+	infos := make([]fs.FileInfo, 0, len(entries))
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			return infos, err
+		}
+		infos = append(infos, info)
+	}
+	return infos, nil
 }

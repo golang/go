@@ -16,7 +16,6 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -1127,7 +1126,7 @@ func (ld *loader) parseFile(filename string) (*ast.File, error) {
 		var err error
 		if src == nil {
 			ioLimit <- true // wait
-			src, err = ioutil.ReadFile(filename)
+			src, err = os.ReadFile(filename)
 			<-ioLimit // signal
 		}
 		if err != nil {

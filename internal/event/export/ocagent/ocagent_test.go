@@ -9,7 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sync"
 	"testing"
@@ -191,7 +191,7 @@ func (s *fakeSender) RoundTrip(req *http.Request) (*http.Response, error) {
 	if s.data == nil {
 		s.data = make(map[string][]byte)
 	}
-	data, err := ioutil.ReadAll(req.Body)
+	data, err := io.ReadAll(req.Body)
 	if err != nil {
 		return nil, err
 	}

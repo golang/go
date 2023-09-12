@@ -6,9 +6,9 @@ package lcs
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math/rand"
+	"os"
 	"strings"
 	"testing"
 )
@@ -218,7 +218,7 @@ func genBench(set string, n int) []struct{ before, after string } {
 // itself minus the last byte is faster still; I don't know why.
 // There is much low-hanging fruit here for further improvement.
 func BenchmarkLargeFileSmallDiff(b *testing.B) {
-	data, err := ioutil.ReadFile("old.go") // large file
+	data, err := os.ReadFile("old.go") // large file
 	if err != nil {
 		log.Fatal(err)
 	}

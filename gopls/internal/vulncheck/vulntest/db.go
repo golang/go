@@ -13,7 +13,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -41,7 +40,7 @@ import (
 // The returned DB's Clean method must be called to clean up the
 // generated database.
 func NewDatabase(ctx context.Context, txtarReports []byte) (*DB, error) {
-	disk, err := ioutil.TempDir("", "vulndb-test")
+	disk, err := os.MkdirTemp("", "vulndb-test")
 	if err != nil {
 		return nil, err
 	}

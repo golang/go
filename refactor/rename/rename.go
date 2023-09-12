@@ -19,7 +19,6 @@ import (
 	"go/types"
 	exec "golang.org/x/sys/execabs"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -579,12 +578,12 @@ func plural(n int) string {
 var writeFile = reallyWriteFile
 
 func reallyWriteFile(filename string, content []byte) error {
-	return ioutil.WriteFile(filename, content, 0644)
+	return os.WriteFile(filename, content, 0644)
 }
 
 func diff(filename string, content []byte) error {
 	renamed := fmt.Sprintf("%s.%d.renamed", filename, os.Getpid())
-	if err := ioutil.WriteFile(renamed, content, 0644); err != nil {
+	if err := os.WriteFile(renamed, content, 0644); err != nil {
 		return err
 	}
 	defer os.Remove(renamed)

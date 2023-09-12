@@ -128,7 +128,7 @@ import (
 	"fmt"
 	exec "golang.org/x/sys/execabs"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -553,7 +553,7 @@ func save() {
 	}
 
 	toolDir := filepath.Join(goroot, fmt.Sprintf("pkg/tool/%s_%s", runtime.GOOS, runtime.GOARCH))
-	files, err := ioutil.ReadDir(toolDir)
+	files, err := ioutilReadDir(toolDir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -578,7 +578,7 @@ func save() {
 }
 
 func restore() {
-	files, err := ioutil.ReadDir(stashDir)
+	files, err := ioutilReadDir(stashDir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -626,11 +626,28 @@ func cp(src, dst string) {
 	if *verbose {
 		fmt.Printf("cp %s %s\n", src, dst)
 	}
-	data, err := ioutil.ReadFile(src)
+	data, err := os.ReadFile(src)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := ioutil.WriteFile(dst, data, 0777); err != nil {
+	if err := os.WriteFile(dst, data, 0777); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func ioutilReadDir(dirname string) ([]fs.FileInfo, error) {
+	entries, err := os.ReadDir(dirname)
+	if err != nil {
+		return nil, err
+	}
+
+	infos := make([]fs.FileInfo, 0, len(entries))
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			return infos, err
+		}
+		infos = append(infos, info)
+	}
+	return infos, nil
 }

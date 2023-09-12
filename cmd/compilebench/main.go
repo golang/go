@@ -81,7 +81,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -388,7 +387,7 @@ func (c compile) run(name string, count int) error {
 	opath := pkg.Dir + "/_compilebench_.o"
 	if *flagObj {
 		// TODO(josharian): object files are big; just read enough to find what we seek.
-		data, err := ioutil.ReadFile(opath)
+		data, err := os.ReadFile(opath)
 		if err != nil {
 			log.Print(err)
 		}
@@ -498,7 +497,7 @@ func runBuildCmd(name string, count int, dir, tool string, args []string) error 
 	haveAllocs, haveRSS := false, false
 	var allocs, allocbytes, rssbytes int64
 	if *flagAlloc || *flagMemprofile != "" {
-		out, err := ioutil.ReadFile(dir + "/_compilebench_.memprof")
+		out, err := os.ReadFile(dir + "/_compilebench_.memprof")
 		if err != nil {
 			log.Print("cannot find memory profile after compilation")
 		}
@@ -531,7 +530,7 @@ func runBuildCmd(name string, count int, dir, tool string, args []string) error 
 			if *flagCount != 1 {
 				outpath = fmt.Sprintf("%s_%d", outpath, count)
 			}
-			if err := ioutil.WriteFile(outpath, out, 0666); err != nil {
+			if err := os.WriteFile(outpath, out, 0666); err != nil {
 				log.Print(err)
 			}
 		}
@@ -539,7 +538,7 @@ func runBuildCmd(name string, count int, dir, tool string, args []string) error 
 	}
 
 	if *flagCpuprofile != "" {
-		out, err := ioutil.ReadFile(dir + "/_compilebench_.cpuprof")
+		out, err := os.ReadFile(dir + "/_compilebench_.cpuprof")
 		if err != nil {
 			log.Print(err)
 		}
@@ -547,7 +546,7 @@ func runBuildCmd(name string, count int, dir, tool string, args []string) error 
 		if *flagCount != 1 {
 			outpath = fmt.Sprintf("%s_%d", outpath, count)
 		}
-		if err := ioutil.WriteFile(outpath, out, 0666); err != nil {
+		if err := os.WriteFile(outpath, out, 0666); err != nil {
 			log.Print(err)
 		}
 		os.Remove(dir + "/_compilebench_.cpuprof")

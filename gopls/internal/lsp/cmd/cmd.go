@@ -11,7 +11,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"reflect"
@@ -703,7 +702,7 @@ func (c *cmdClient) getFile(uri span.URI) *cmdFile {
 		c.files[uri] = file
 	}
 	if file.mapper == nil {
-		content, err := ioutil.ReadFile(uri.Filename())
+		content, err := os.ReadFile(uri.Filename())
 		if err != nil {
 			file.err = fmt.Errorf("getFile: %v: %v", uri, err)
 			return file

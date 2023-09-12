@@ -8,7 +8,6 @@ import (
 	"archive/zip"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -197,7 +196,7 @@ import _ "rsc.io/quote"
 	if err := os.Chmod(filepath.Join(found.dir, "go.mod"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(found.dir, "go.mod"), []byte("module bad.com\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(found.dir, "go.mod"), []byte("module bad.com\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -205,10 +204,10 @@ import _ "rsc.io/quote"
 	mt.assertScanFinds("rsc.io/quote", "quote")
 
 	// Rewrite the main package so that rsc.io/quote is not in scope.
-	if err := ioutil.WriteFile(filepath.Join(mt.env.WorkingDir, "go.mod"), []byte("module x\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(mt.env.WorkingDir, "go.mod"), []byte("module x\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(mt.env.WorkingDir, "x.go"), []byte("package x\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(mt.env.WorkingDir, "x.go"), []byte("package x\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1000,7 +999,7 @@ func setup(t *testing.T, extraEnv map[string]string, main, wd string) *modTest {
 
 	proxyOnce.Do(func() {
 		var err error
-		proxyDir, err = ioutil.TempDir("", "proxy-")
+		proxyDir, err = os.MkdirTemp("", "proxy-")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1009,7 +1008,7 @@ func setup(t *testing.T, extraEnv map[string]string, main, wd string) *modTest {
 		}
 	})
 
-	dir, err := ioutil.TempDir("", t.Name())
+	dir, err := os.MkdirTemp("", t.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1070,7 +1069,7 @@ func writeModule(dir, ar string) error {
 			return err
 		}
 
-		if err := ioutil.WriteFile(fpath, f.Data, 0644); err != nil {
+		if err := os.WriteFile(fpath, f.Data, 0644); err != nil {
 			return err
 		}
 	}
@@ -1080,7 +1079,7 @@ func writeModule(dir, ar string) error {
 // writeProxy writes all the txtar-formatted modules in arDir to a proxy
 // directory in dir.
 func writeProxy(dir, arDir string) error {
-	files, err := ioutil.ReadDir(arDir)
+	files, err := ioutilReadDir(arDir)
 	if err != nil {
 		return err
 	}
@@ -1123,7 +1122,7 @@ func writeProxyModule(base, arPath string) error {
 	z := zip.NewWriter(f)
 	for _, f := range a.Files {
 		if f.Name[0] == '.' {
-			if err := ioutil.WriteFile(filepath.Join(dir, ver+f.Name), f.Data, 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, ver+f.Name), f.Data, 0644); err != nil {
 				return err
 			}
 		} else {
@@ -1194,7 +1193,7 @@ import _ "rsc.io/quote"
 func TestInvalidModCache(t *testing.T) {
 	testenv.NeedsTool(t, "go")
 
-	dir, err := ioutil.TempDir("", t.Name())
+	dir, err := os.MkdirTemp("", t.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1204,7 +1203,7 @@ func TestInvalidModCache(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "gopath/pkg/mod/sabotage"), 0777); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(dir, "gopath/pkg/mod/sabotage/x.go"), []byte("package foo\n"), 0777); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "gopath/pkg/mod/sabotage/x.go"), []byte("package foo\n"), 0777); err != nil {
 		t.Fatal(err)
 	}
 	env := &ProcessEnv{

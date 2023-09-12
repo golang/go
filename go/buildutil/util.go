@@ -11,7 +11,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -174,13 +174,13 @@ func IsDir(ctxt *build.Context, path string) bool {
 	return err == nil && fi.IsDir()
 }
 
-// ReadDir behaves like ioutil.ReadDir,
+// ReadDir behaves like ioutilReadDir,
 // but uses the build context's file system interface, if any.
 func ReadDir(ctxt *build.Context, path string) ([]os.FileInfo, error) {
 	if ctxt.ReadDir != nil {
 		return ctxt.ReadDir(path)
 	}
-	return ioutil.ReadDir(path)
+	return ioutilReadDir(path)
 }
 
 // SplitPathList behaves like filepath.SplitList,
@@ -206,4 +206,21 @@ func sameFile(x, y string) bool {
 		}
 	}
 	return false
+}
+
+func ioutilReadDir(dirname string) ([]fs.FileInfo, error) {
+	entries, err := os.ReadDir(dirname)
+	if err != nil {
+		return nil, err
+	}
+
+	infos := make([]fs.FileInfo, 0, len(entries))
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			return infos, err
+		}
+		infos = append(infos, info)
+	}
+	return infos, nil
 }

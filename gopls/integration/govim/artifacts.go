@@ -7,7 +7,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -56,11 +56,11 @@ func download(artifactURL string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("got status code %d from GCS", resp.StatusCode)
 	}
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("reading result: %v", err)
 	}
-	if err := ioutil.WriteFile(name, data, 0644); err != nil {
+	if err := os.WriteFile(name, data, 0644); err != nil {
 		return fmt.Errorf("writing artifact: %v", err)
 	}
 	return nil

@@ -7,7 +7,7 @@ package checker_test
 import (
 	"fmt"
 	"go/ast"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -51,7 +51,7 @@ func Foo() {
 	checker.Fix = true
 	checker.Run([]string{"file=" + path}, []*analysis.Analyzer{analyzer})
 
-	contents, err := ioutil.ReadFile(path)
+	contents, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}

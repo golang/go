@@ -79,7 +79,6 @@ import (
 	"go/printer"
 	"go/token"
 	"go/types"
-	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -149,7 +148,7 @@ func main() {
 		log.Fatal(err)
 	}
 	if *outputFile != "" {
-		err := ioutil.WriteFile(*outputFile, code, 0666)
+		err := os.WriteFile(*outputFile, code, 0666)
 		if err != nil {
 			log.Fatal(err)
 		}

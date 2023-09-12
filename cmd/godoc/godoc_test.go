@@ -9,7 +9,7 @@ import (
 	"context"
 	"fmt"
 	"go/build"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -111,7 +111,7 @@ func waitForServer(t *testing.T, ctx context.Context, url, match string, reverse
 		if err != nil {
 			continue
 		}
-		body, err := ioutil.ReadAll(res.Body)
+		body, err := io.ReadAll(res.Body)
 		res.Body.Close()
 		if err != nil || res.StatusCode != http.StatusOK {
 			continue
@@ -396,7 +396,7 @@ package a; import _ "godoc.test/repo2/a"; const Name = "repo1a"`,
 			t.Errorf("GET %s failed: %s", url, err)
 			continue
 		}
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		strBody := string(body)
 		resp.Body.Close()
 		if err != nil {

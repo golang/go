@@ -15,7 +15,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -51,7 +50,7 @@ func downloadGoVersion(version, ops, arch, dest string) error {
 	}
 	defer resp.Body.Close()
 
-	tmpf, err := ioutil.TempFile("", "go")
+	tmpf, err := os.CreateTemp("", "go")
 	if err != nil {
 		return err
 	}
@@ -75,7 +74,7 @@ func downloadGoVersion(version, ops, arch, dest string) error {
 		return fmt.Errorf("Downloading Go sha256 from %s.sha256 failed with HTTP status %s", uri, sresp.Status)
 	}
 
-	shasum, err := ioutil.ReadAll(sresp.Body)
+	shasum, err := io.ReadAll(sresp.Body)
 	if err != nil {
 		return err
 	}
@@ -174,7 +173,7 @@ func getLatestGoVersion() (string, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		b, _ := ioutil.ReadAll(io.LimitReader(resp.Body, 1024))
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 		return "", fmt.Errorf("Could not get current Go release: HTTP %d: %q", resp.StatusCode, b)
 	}
 	var releases []struct {

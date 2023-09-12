@@ -7,7 +7,6 @@ package hooks
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -42,7 +41,7 @@ var (
 // save writes a JSON record of statistics about diff requests to a temporary file.
 func (s *diffstat) save() {
 	diffStatsOnce.Do(func() {
-		f, err := ioutil.TempFile("", "gopls-diff-stats-*")
+		f, err := os.CreateTemp("", "gopls-diff-stats-*")
 		if err != nil {
 			log.Printf("can't create diff stats temp file: %v", err) // e.g. disk full
 			return
@@ -91,7 +90,7 @@ func disaster(before, after string) string {
 	// We use NUL as a separator: it should never appear in Go source.
 	data := before + "\x00" + after
 
-	if err := ioutil.WriteFile(filename, []byte(data), 0600); err != nil {
+	if err := os.WriteFile(filename, []byte(data), 0600); err != nil {
 		log.Printf("failed to write diff bug report: %v", err)
 		return ""
 	}

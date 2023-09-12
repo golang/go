@@ -7,7 +7,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -28,15 +27,15 @@ func TestCapabilities(t *testing.T) {
 	// Is there some missing error reporting somewhere?
 	testenv.NeedsTool(t, "go")
 
-	tmpDir, err := ioutil.TempDir("", "fake")
+	tmpDir, err := os.MkdirTemp("", "fake")
 	if err != nil {
 		t.Fatal(err)
 	}
 	tmpFile := filepath.Join(tmpDir, "fake.go")
-	if err := ioutil.WriteFile(tmpFile, []byte(""), 0775); err != nil {
+	if err := os.WriteFile(tmpFile, []byte(""), 0775); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module fake\n\ngo 1.12\n"), 0775); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module fake\n\ngo 1.12\n"), 0775); err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)

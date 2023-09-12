@@ -40,7 +40,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"go/types"
-	"io/ioutil"
+	"io"
 	"log"
 	"reflect"
 	"sort"
@@ -356,7 +356,7 @@ func (s *Set) Encode(skipMethodSorting bool) []byte {
 		if err := gob.NewEncoder(&buf).Encode(gobFacts); err != nil {
 			// Fact encoding should never fail. Identify the culprit.
 			for _, gf := range gobFacts {
-				if err := gob.NewEncoder(ioutil.Discard).Encode(gf); err != nil {
+				if err := gob.NewEncoder(io.Discard).Encode(gf); err != nil {
 					fact := gf.Fact
 					pkgpath := reflect.TypeOf(fact).Elem().PkgPath()
 					log.Panicf("internal error: gob encoding of analysis fact %s failed: %v; please report a bug against fact %T in package %q",

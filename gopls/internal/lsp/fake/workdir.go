@@ -10,7 +10,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -57,7 +56,7 @@ func writeFileData(path string, content []byte, rel RelativeTo) error {
 	}
 	backoff := 1 * time.Millisecond
 	for {
-		err := ioutil.WriteFile(fp, []byte(content), 0644)
+		err := os.WriteFile(fp, []byte(content), 0644)
 		if err != nil {
 			// This lock file violation is not handled by the robustio package, as it
 			// indicates a real race condition that could be avoided.
@@ -160,7 +159,7 @@ func toURI(fp string) protocol.DocumentURI {
 func (w *Workdir) ReadFile(path string) ([]byte, error) {
 	backoff := 1 * time.Millisecond
 	for {
-		b, err := ioutil.ReadFile(w.AbsPath(path))
+		b, err := os.ReadFile(w.AbsPath(path))
 		if err != nil {
 			if runtime.GOOS == "plan9" && strings.HasSuffix(err.Error(), " exclusive use file already open") {
 				// Plan 9 enforces exclusive access to locked files.
@@ -370,7 +369,7 @@ func (w *Workdir) pollFiles() ([]protocol.FileEvent, error) {
 		// must read the file contents.
 		id := fileID{mtime: info.ModTime()}
 		if time.Since(info.ModTime()) < 2*time.Second {
-			data, err := ioutil.ReadFile(fp)
+			data, err := os.ReadFile(fp)
 			if err != nil {
 				return err
 			}
@@ -397,7 +396,7 @@ func (w *Workdir) pollFiles() ([]protocol.FileEvent, error) {
 				// In this case, read the content to check whether the file actually
 				// changed.
 				if oldID.mtime.Equal(id.mtime) && oldID.hash != "" && id.hash == "" {
-					data, err := ioutil.ReadFile(fp)
+					data, err := os.ReadFile(fp)
 					if err != nil {
 						return err
 					}
