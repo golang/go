@@ -59,10 +59,6 @@ func FixValue(typ *types.Type, val constant.Value) constant.Value {
 	return val
 }
 
-func Nil(pos src.XPos, typ *types.Type) ir.Node {
-	return ir.NewNilExpr(pos, typ)
-}
-
 // Expressions
 
 func Addr(pos src.XPos, x ir.Node) *ir.AddrExpr {

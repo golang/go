@@ -58,7 +58,7 @@ const (
 	exprSizeof
 	exprAlignof
 	exprOffsetof
-	exprNil
+	exprZero
 	exprFuncInst
 	exprRecv
 	exprReshape

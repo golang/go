@@ -34,6 +34,36 @@ func NewUintptr(pos src.XPos, v int64) Node {
 	return NewBasicLit(pos, types.Types[types.TUINTPTR], constant.MakeInt64(v))
 }
 
+// NewZero returns a zero value of the given type.
+func NewZero(pos src.XPos, typ *types.Type) Node {
+	switch {
+	case typ.HasNil():
+		return NewNilExpr(pos, typ)
+	case typ.IsInteger():
+		return NewBasicLit(pos, typ, intZero)
+	case typ.IsFloat():
+		return NewBasicLit(pos, typ, floatZero)
+	case typ.IsComplex():
+		return NewBasicLit(pos, typ, complexZero)
+	case typ.IsBoolean():
+		return NewBasicLit(pos, typ, constant.MakeBool(false))
+	case typ.IsString():
+		return NewBasicLit(pos, typ, constant.MakeString(""))
+	case typ.IsArray() || typ.IsStruct():
+		// TODO(mdempsky): Return a typechecked expression instead.
+		return NewCompLitExpr(pos, OCOMPLIT, typ, nil)
+	}
+
+	base.FatalfAt(pos, "unexpected type: %v", typ)
+	panic("unreachable")
+}
+
+var (
+	intZero     = constant.MakeInt64(0)
+	floatZero   = constant.ToFloat(intZero)
+	complexZero = constant.ToComplex(intZero)
+)
+
 // NewOne returns an OLITERAL representing 1 with the given type.
 func NewOne(pos src.XPos, typ *types.Type) Node {
 	var val constant.Value
