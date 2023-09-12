@@ -352,12 +352,6 @@ func (p *Profile) addIREdge(callerNode *IRNode, callerName string, call ir.Node,
 // addIndirectEdges adds indirect call edges found in the profile to the graph,
 // to be used for devirtualization.
 //
-// targetDeclFuncs is the set of functions in typecheck.Target.Decls. Only
-// edges from these functions will be added.
-//
-// Devirtualization is only applied to typecheck.Target.Decls functions, so there
-// is no need to add edges from other functions.
-//
 // N.B. despite the name, addIndirectEdges will add any edges discovered via
 // the profile. We don't know for sure that they are indirect, but assume they
 // are since direct calls would already be added. (e.g., direct calls that have
