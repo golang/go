@@ -41,6 +41,7 @@ func memcombineLoads(f *Func) {
 		}
 	}
 	for _, b := range f.Blocks {
+		order = order[:0]
 		for _, v := range b.Values {
 			if v.Op != OpOr16 && v.Op != OpOr32 && v.Op != OpOr64 {
 				continue
