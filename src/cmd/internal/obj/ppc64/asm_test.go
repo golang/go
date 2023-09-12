@@ -7,6 +7,7 @@ package ppc64
 import (
 	"bytes"
 	"fmt"
+	"internal/buildcfg"
 	"internal/testenv"
 	"math"
 	"os"
@@ -551,5 +552,20 @@ func TestAddrClassifier(t *testing.T) {
 				t.Errorf("%s.aclass(%v) = %v, expected %v\n", name[i], tst.arg, DRconv(output), DRconv(expect[i]))
 			}
 		}
+	}
+}
+
+// The optab size should remain constant when reinitializing the PPC64 assembler backend.
+func TestOptabReinit(t *testing.T) {
+	buildcfg.GOOS = "linux"
+	buildcfg.GOARCH = "ppc64le"
+	buildcfg.GOPPC64 = 8
+	buildop(nil)
+	optabLen := len(optab)
+	buildcfg.GOPPC64 = 9
+	buildop(nil)
+	reinitOptabLen := len(optab)
+	if reinitOptabLen != optabLen {
+		t.Errorf("rerunning buildop changes optab size from %d to %d", optabLen, reinitOptabLen)
 	}
 }

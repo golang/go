@@ -99,7 +99,11 @@ type Optab struct {
 //
 // Likewise, each slice of optab is dynamically sorted using the ocmp Sort interface
 // to arrange entries to minimize text size of each opcode.
-var optab = []Optab{
+//
+// optab is the sorted result of combining optabBase, optabGen, and prefixableOptab.
+var optab []Optab
+
+var optabBase = []Optab{
 	{as: obj.ATEXT, a1: C_LOREG, a6: C_TEXTSIZE, type_: 0, size: 0},
 	{as: obj.ATEXT, a1: C_LOREG, a3: C_LCON, a6: C_TEXTSIZE, type_: 0, size: 0},
 	{as: obj.ATEXT, a1: C_ADDR, a6: C_TEXTSIZE, type_: 0, size: 0},
@@ -1303,10 +1307,6 @@ func buildop(ctxt *obj.Link) {
 			entry.ispfx = true
 			entry.size = entry.pfxsize
 		}
-		// Use the legacy assembler function if none provided.
-		if entry.asmout == nil {
-			entry.asmout = asmout
-		}
 		prefixOptab = append(prefixOptab, entry.Optab)
 
 	}
@@ -1318,16 +1318,20 @@ func buildop(ctxt *obj.Link) {
 			}
 		}
 	}
+
+	// Append the generated entries, sort, and fill out oprange.
+	optab = make([]Optab, 0, len(optabBase)+len(optabGen)+len(prefixOptab))
+	optab = append(optab, optabBase...)
+	optab = append(optab, optabGen...)
+	optab = append(optab, prefixOptab...)
+	sort.Slice(optab, optabLess)
+
 	for i := range optab {
 		// Use the legacy assembler function if none provided.
 		if optab[i].asmout == nil {
 			optab[i].asmout = asmout
 		}
 	}
-	// Append the generated entries, sort, and fill out oprange.
-	optab = append(optab, optabGen...)
-	optab = append(optab, prefixOptab...)
-	sort.Slice(optab, optabLess)
 
 	for i := 0; i < len(optab); {
 		r := optab[i].as
