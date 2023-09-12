@@ -590,6 +590,32 @@ func (c *Cmd) Run() error {
 	return c.Wait()
 }
 
+// lookExtensions finds windows executable by its dir and path.
+// It uses LookPath to try appropriate extensions.
+// lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
+func lookExtensions(path, dir string) (string, error) {
+	if filepath.Base(path) == path {
+		path = "." + string(filepath.Separator) + path
+	}
+	if dir == "" {
+		return LookPath(path)
+	}
+	if filepath.VolumeName(path) != "" {
+		return LookPath(path)
+	}
+	if len(path) > 1 && os.IsPathSeparator(path[0]) {
+		return LookPath(path)
+	}
+	dirandpath := filepath.Join(dir, path)
+	// We assume that LookPath will only add file extension.
+	lp, err := LookPath(dirandpath)
+	if err != nil {
+		return "", err
+	}
+	ext := strings.TrimPrefix(lp, dirandpath)
+	return path + ext, nil
+}
+
 // Start starts the specified command but does not wait for it to complete.
 //
 // If Start returns successfully, the c.Process field will be set.
@@ -623,11 +649,13 @@ func (c *Cmd) Start() error {
 		}
 		return c.Err
 	}
-	lp, err := lookExtensions(c.Path, c.Dir)
-	if err != nil {
-		return err
+	if runtime.GOOS == "windows" {
+		lp, err := lookExtensions(c.Path, c.Dir)
+		if err != nil {
+			return err
+		}
+		c.Path = lp
 	}
-	c.Path = lp
 	if c.Cancel != nil && c.ctx == nil {
 		return errors.New("exec: command with a non-nil Cancel was not created with CommandContext")
 	}

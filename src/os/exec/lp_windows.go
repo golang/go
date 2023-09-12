@@ -63,45 +63,6 @@ func findExecutable(file string, exts []string) (string, error) {
 // As of Go 1.19, LookPath will instead return that path along with an error satisfying
 // errors.Is(err, ErrDot). See the package documentation for more details.
 func LookPath(file string) (string, error) {
-	return lookPath(file, pathExt())
-}
-
-// lookExtensions finds windows executable by its dir and path.
-// It uses LookPath to try appropriate extensions.
-// lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
-func lookExtensions(path, dir string) (string, error) {
-	if filepath.Base(path) == path {
-		path = "." + string(filepath.Separator) + path
-	}
-	exts := pathExt()
-	if ext := filepath.Ext(path); ext != "" {
-		for _, e := range exts {
-			if strings.EqualFold(ext, e) {
-				// Assume that path has already been resolved.
-				return path, nil
-			}
-		}
-	}
-	if dir == "" {
-		return lookPath(path, exts)
-	}
-	if filepath.VolumeName(path) != "" {
-		return lookPath(path, exts)
-	}
-	if len(path) > 1 && os.IsPathSeparator(path[0]) {
-		return lookPath(path, exts)
-	}
-	dirandpath := filepath.Join(dir, path)
-	// We assume that LookPath will only add file extension.
-	lp, err := lookPath(dirandpath, exts)
-	if err != nil {
-		return "", err
-	}
-	ext := strings.TrimPrefix(lp, dirandpath)
-	return path + ext, nil
-}
-
-func pathExt() []string {
 	var exts []string
 	x := os.Getenv(`PATHEXT`)
 	if x != "" {
@@ -117,11 +78,7 @@ func pathExt() []string {
 	} else {
 		exts = []string{".com", ".exe", ".bat", ".cmd"}
 	}
-	return exts
-}
 
-// lookPath implements LookPath for the given PATHEXT list.
-func lookPath(file string, exts []string) (string, error) {
 	if strings.ContainsAny(file, `:\/`) {
 		f, err := findExecutable(file, exts)
 		if err == nil {
