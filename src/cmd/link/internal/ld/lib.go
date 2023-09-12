@@ -1418,6 +1418,10 @@ func (ctxt *Link) hostlink() {
 			// resolving a lazy binding. See issue 38824.
 			// Force eager resolution to work around.
 			argv = append(argv, "-Wl,-flat_namespace", "-Wl,-bind_at_load")
+			if linkerFlagSupported(ctxt.Arch, argv[0], "", "-Wl,-ld_classic") {
+				// Force old linker to work around a bug in Apple's new linker.
+				argv = append(argv, "-Wl,-ld_classic")
+			}
 		}
 		if !combineDwarf {
 			argv = append(argv, "-Wl,-S") // suppress STAB (symbolic debugging) symbols
