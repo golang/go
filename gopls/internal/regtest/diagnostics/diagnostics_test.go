@@ -559,7 +559,7 @@ func f() {
 		// Deleting the import dismisses the warning.
 		env.RegexpReplace("a.go", `import "mod.com/hello"`, "")
 		env.AfterChange(
-			NoOutstandingWork(),
+			NoOutstandingWork(IgnoreTelemetryPromptWork),
 		)
 	})
 }
@@ -576,7 +576,7 @@ hi mom
 			).Run(t, files, func(t *testing.T, env *Env) {
 				env.OnceMet(
 					InitialWorkspaceLoad,
-					NoOutstandingWork(),
+					NoOutstandingWork(IgnoreTelemetryPromptWork),
 				)
 			})
 		})
@@ -1469,7 +1469,7 @@ package foo_
 		env.RegexpReplace("foo/foo_test.go", "_t", "_test")
 		env.AfterChange(
 			NoDiagnostics(ForFile("foo/foo_test.go")),
-			NoOutstandingWork(),
+			NoOutstandingWork(IgnoreTelemetryPromptWork),
 		)
 	})
 }
@@ -1503,7 +1503,7 @@ go 1.hello
 		env.RegexpReplace("go.mod", "go 1.hello", "go 1.12")
 		env.SaveBufferWithoutActions("go.mod")
 		env.AfterChange(
-			NoOutstandingWork(),
+			NoOutstandingWork(IgnoreTelemetryPromptWork),
 		)
 	})
 }

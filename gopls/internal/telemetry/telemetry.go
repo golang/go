@@ -10,10 +10,21 @@ package telemetry
 import (
 	"fmt"
 
+	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/counter"
 	"golang.org/x/telemetry/upload"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
+
+// Mode calls x/telemetry.Mode.
+func Mode() string {
+	return telemetry.Mode()
+}
+
+// SetMode calls x/telemetry.SetMode.
+func SetMode(mode string) error {
+	return telemetry.SetMode(mode)
+}
 
 // Start starts telemetry instrumentation.
 func Start() {

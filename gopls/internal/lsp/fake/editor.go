@@ -117,6 +117,10 @@ type EditorConfig struct {
 	// Specifically, this JSON string will be unmarshalled into the editor's
 	// client capabilities struct, before sending to the server.
 	CapabilitiesJSON []byte
+
+	// If non-nil, MessageResponder is used to respond to ShowMessageRequest
+	// messages.
+	MessageResponder func(params *protocol.ShowMessageRequestParams) (*protocol.MessageActionItem, error)
 }
 
 // NewEditor creates a new Editor.

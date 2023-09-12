@@ -4,7 +4,10 @@
 
 package regtest
 
-import "golang.org/x/tools/gopls/internal/lsp/fake"
+import (
+	"golang.org/x/tools/gopls/internal/lsp/fake"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
+)
 
 type runConfig struct {
 	editor    fake.EditorConfig
@@ -119,5 +122,13 @@ func (e EnvVars) set(opts *runConfig) {
 func InGOPATH() RunOption {
 	return optionSetter(func(opts *runConfig) {
 		opts.sandbox.InGoPath = true
+	})
+}
+
+// MessageResponder configures the editor to respond to
+// window/showMessageRequest messages using the provided function.
+func MessageResponder(f func(*protocol.ShowMessageRequestParams) (*protocol.MessageActionItem, error)) RunOption {
+	return optionSetter(func(opts *runConfig) {
+		opts.editor.MessageResponder = f
 	})
 }

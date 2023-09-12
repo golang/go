@@ -9,6 +9,14 @@ package telemetry
 
 import "golang.org/x/tools/gopls/internal/lsp/protocol"
 
+func Mode() string {
+	return "local"
+}
+
+func SetMode(mode string) error {
+	return nil
+}
+
 func Start() {
 }
 

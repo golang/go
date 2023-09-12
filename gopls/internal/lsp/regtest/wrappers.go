@@ -256,7 +256,7 @@ func (e *Env) RunGenerate(dir string) {
 	if err := e.Editor.RunGenerate(e.Ctx, dir); err != nil {
 		e.T.Fatal(err)
 	}
-	e.Await(NoOutstandingWork())
+	e.Await(NoOutstandingWork(IgnoreTelemetryPromptWork))
 	// Ideally the fake.Workspace would handle all synthetic file watching, but
 	// we help it out here as we need to wait for the generate command to
 	// complete before checking the filesystem.

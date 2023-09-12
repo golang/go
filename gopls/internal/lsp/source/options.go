@@ -176,6 +176,7 @@ func DefaultOptions(overrides ...func(*Options)) *Options {
 				NewDiff:                     "new",
 				SubdirWatchPatterns:         SubdirWatchPatternsAuto,
 				ReportAnalysisProgressAfter: 5 * time.Second,
+				TelemetryPrompt:             false,
 			},
 			Hooks: Hooks{
 				// TODO(adonovan): switch to new diff.Strings implementation.
@@ -675,6 +676,12 @@ type InternalOptions struct {
 	//
 	// It is intended to be used for testing only.
 	ReportAnalysisProgressAfter time.Duration
+
+	// TelemetryPrompt controls whether gopls prompts about enabling Go telemetry.
+	//
+	// Once the prompt is answered, gopls doesn't ask again, but TelemetryPrompt
+	// can prevent the question from ever being asked in the first place.
+	TelemetryPrompt bool
 }
 
 type SubdirWatchPatterns string
@@ -1258,6 +1265,9 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 
 	case "reportAnalysisProgressAfter":
 		result.setDuration(&o.ReportAnalysisProgressAfter)
+
+	case "telemetryPrompt":
+		result.setBool(&o.TelemetryPrompt)
 
 	// Replaced settings.
 	case "experimentalDisabledAnalyses":

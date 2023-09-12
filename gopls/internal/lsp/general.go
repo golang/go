@@ -238,6 +238,11 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 			return err
 		}
 	}
+
+	// Ask (maybe) about enabling telemetry. Do this asynchronously, as it's OK
+	// for users to ignore or dismiss the question.
+	go s.maybePromptForTelemetry(ctx)
+
 	return nil
 }
 

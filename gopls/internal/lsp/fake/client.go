@@ -63,10 +63,10 @@ func (c *Client) ShowMessageRequest(ctx context.Context, params *protocol.ShowMe
 			return nil, err
 		}
 	}
-	if len(params.Actions) == 0 || len(params.Actions) > 1 {
-		return nil, fmt.Errorf("fake editor cannot handle multiple action items")
+	if c.editor.config.MessageResponder != nil {
+		return c.editor.config.MessageResponder(params)
 	}
-	return &params.Actions[0], nil
+	return nil, nil // don't choose, which is effectively dismissing the message
 }
 
 func (c *Client) LogMessage(ctx context.Context, params *protocol.LogMessageParams) error {

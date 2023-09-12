@@ -212,21 +212,6 @@ func ReadAllDiagnostics(into *map[string]*protocol.PublishDiagnosticsParams) Exp
 	}
 }
 
-// NoOutstandingWork asserts that there is no work initiated using the LSP
-// $/progress API that has not completed.
-func NoOutstandingWork() Expectation {
-	check := func(s State) Verdict {
-		if len(s.outstandingWork()) == 0 {
-			return Met
-		}
-		return Unmet
-	}
-	return Expectation{
-		Check:       check,
-		Description: "no outstanding work",
-	}
-}
-
 // ShownDocument asserts that the client has received a
 // ShowDocumentRequest for the given URI.
 func ShownDocument(uri protocol.URI) Expectation {
@@ -277,26 +262,24 @@ func ShownMessage(containing string) Expectation {
 	}
 }
 
-// ShowMessageRequest asserts that the editor has received a ShowMessageRequest
-// with an action item that has the given title.
-func ShowMessageRequest(title string) Expectation {
+// ShownMessageRequest asserts that the editor has received a
+// ShowMessageRequest with message matching the given regular expression.
+func ShownMessageRequest(messageRegexp string) Expectation {
+	msgRE := regexp.MustCompile(messageRegexp)
 	check := func(s State) Verdict {
 		if len(s.showMessageRequest) == 0 {
 			return Unmet
 		}
-		// Only check the most recent one.
-		m := s.showMessageRequest[len(s.showMessageRequest)-1]
-		if len(m.Actions) == 0 || len(m.Actions) > 1 {
-			return Unmet
-		}
-		if m.Actions[0].Title == title {
-			return Met
+		for _, m := range s.showMessageRequest {
+			if msgRE.MatchString(m.Message) {
+				return Met
+			}
 		}
 		return Unmet
 	}
 	return Expectation{
 		Check:       check,
-		Description: "received ShowMessageRequest",
+		Description: fmt.Sprintf("ShowMessageRequest matching %q", messageRegexp),
 	}
 }
 
@@ -494,6 +477,46 @@ func OutstandingWork(title, msg string) Expectation {
 		Check:       check,
 		Description: fmt.Sprintf("outstanding work: %q containing %q", title, msg),
 	}
+}
+
+// NoOutstandingWork asserts that there is no work initiated using the LSP
+// $/progress API that has not completed.
+//
+// If non-nil, the ignore func is used to ignore certain work items for the
+// purpose of this check.
+//
+// TODO(rfindley): consider refactoring to treat outstanding work the same way
+// we treat diagnostics: with an algebra of filters.
+func NoOutstandingWork(ignore func(title, msg string) bool) Expectation {
+	check := func(s State) Verdict {
+		for _, w := range s.work {
+			if w.complete {
+				continue
+			}
+			if w.title == "" {
+				// A token that has been created but not yet used.
+				//
+				// TODO(rfindley): this should be separated in the data model: until
+				// the "begin" notification, work should not be in progress.
+				continue
+			}
+			if ignore(w.title, w.msg) {
+				continue
+			}
+			return Unmet
+		}
+		return Met
+	}
+	return Expectation{
+		Check:       check,
+		Description: "no outstanding work",
+	}
+}
+
+// IgnoreTelemetryPromptWork may be used in conjunction with NoOutStandingWork
+// to ignore the telemetry prompt.
+func IgnoreTelemetryPromptWork(title, msg string) bool {
+	return title == lsp.TelemetryPromptWorkTitle
 }
 
 // NoErrorLogs asserts that the client has not received any log messages of

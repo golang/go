@@ -109,7 +109,7 @@ const CompleteMe = 222
 			./package2/vendor/example.com/foo
 		)
 		`)
-		env.AfterChange(NoOutstandingWork())
+		env.AfterChange(NoOutstandingWork(IgnoreTelemetryPromptWork))
 
 		// Check that definitions in package1 go to the copy vendored in package2.
 		location := string(env.GoToDefinition(env.RegexpSearch("package1/main.go", "CompleteMe")).URI)
@@ -220,7 +220,7 @@ package b
 				env.Await(
 					NoDiagnostics(ForFile("a/a.go")),
 					NoDiagnostics(ForFile("b/go.mod")),
-					NoOutstandingWork(),
+					NoOutstandingWork(IgnoreTelemetryPromptWork),
 				)
 
 				env.ChangeWorkspaceFolders(".")
@@ -256,7 +256,7 @@ package b
 			env.OpenFile("a/a.go")
 			env.AfterChange(
 				NoDiagnostics(ForFile("a/a.go")),
-				NoOutstandingWork(),
+				NoOutstandingWork(IgnoreTelemetryPromptWork),
 			)
 		})
 	})
