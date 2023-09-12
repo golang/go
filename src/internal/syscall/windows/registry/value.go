@@ -115,9 +115,6 @@ func (k Key) GetStringValue(name string) (val string, valtype uint32, err error)
 // the specified value name associated with an open key k.
 // If the value name doesn't exist or the localized string value
 // can't be resolved, GetMUIStringValue returns ErrNotExist.
-// GetMUIStringValue panics if the system doesn't support
-// regLoadMUIString; use LoadRegLoadMUIString to check if
-// regLoadMUIString is supported before calling this function.
 func (k Key) GetMUIStringValue(name string) (string, error) {
 	pname, err := syscall.UTF16PtrFromString(name)
 	if err != nil {
