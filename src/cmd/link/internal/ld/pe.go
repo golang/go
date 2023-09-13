@@ -1149,11 +1149,11 @@ func Peinit(ctxt *Link) {
 	}
 
 	HEADR = PEFILEHEADR
-	if *FlagTextAddr == -1 {
-		*FlagTextAddr = PEBASE + int64(PESECTHEADR)
-	}
 	if *FlagRound == -1 {
-		*FlagRound = int(PESECTALIGN)
+		*FlagRound = PESECTALIGN
+	}
+	if *FlagTextAddr == -1 {
+		*FlagTextAddr = Rnd(PEBASE, *FlagRound) + int64(PESECTHEADR)
 	}
 }
 

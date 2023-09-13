@@ -498,3 +498,28 @@ func TestIssue51939(t *testing.T) {
 		}
 	}
 }
+
+func TestFlagR(t *testing.T) {
+	// Test that using the -R flag to specify a (large) alignment generates
+	// a working binary.
+	// (Test only on ELF for now. The alignment allowed differs from platform
+	// to platform.)
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(goSource), 0444); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "x.exe")
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-R=0x100000", "-o", exe, src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed: %v, output:\n%s", err, out)
+	}
+
+	cmd = testenv.Command(t, exe)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+}

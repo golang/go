@@ -544,15 +544,14 @@ func Xcoffinit(ctxt *Link) {
 	xfile.dynLibraries = make(map[string]int)
 
 	HEADR = int32(Rnd(XCOFFHDRRESERVE, XCOFFSECTALIGN))
-	if *FlagTextAddr != -1 {
-		Errorf(nil, "-T not available on AIX")
-	}
-	*FlagTextAddr = XCOFFTEXTBASE + int64(HEADR)
 	if *FlagRound != -1 {
 		Errorf(nil, "-R not available on AIX")
 	}
-	*FlagRound = int(XCOFFSECTALIGN)
-
+	*FlagRound = XCOFFSECTALIGN
+	if *FlagTextAddr != -1 {
+		Errorf(nil, "-T not available on AIX")
+	}
+	*FlagTextAddr = Rnd(XCOFFTEXTBASE, *FlagRound) + int64(HEADR)
 }
 
 // SYMBOL TABLE
