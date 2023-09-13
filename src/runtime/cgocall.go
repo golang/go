@@ -525,7 +525,7 @@ func cgoCheckPointer(ptr any, arg any) {
 }
 
 const cgoCheckPointerFail = "cgo argument has Go pointer to unpinned Go pointer"
-const cgoResultFail = "cgo result has Go pointer"
+const cgoResultFail = "cgo result is unpinned Go pointer or points to unpinned Go pointer"
 
 // cgoCheckArg is the real work of cgoCheckPointer. The argument p
 // is either a pointer to the value (of type t), or the value itself,
@@ -718,8 +718,8 @@ func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {
 }
 
 // cgoCheckResult is called to check the result parameter of an
-// exported Go function. It panics if the result is or contains a Go
-// pointer.
+// exported Go function. It panics if the result is or contains any
+// other pointer into unpinned Go memory.
 func cgoCheckResult(val any) {
 	if !goexperiment.CgoCheck2 && debug.cgocheck == 0 {
 		return
