@@ -140,42 +140,60 @@ cd "$dir"
 git clone 'https://github.com/neovim/nvim-lspconfig.git' .
 ```
 
-### <a href="#neovim-config" id="neovim-config">Custom Configuration</a>
+### <a href="#neovim-config" id="neovim-config">Configuration</a>
 
-You can add custom configuration using Lua.  Here is an example of enabling the
-`unusedparams` check as well as `staticcheck`:
-
-```vim
-lua <<EOF
-  lspconfig = require "lspconfig"
-  util = require "lspconfig/util"
-
-  lspconfig.gopls.setup {
-    cmd = {"gopls", "serve"},
-    filetypes = {"go", "gomod"},
-    root_dir = util.root_pattern("go.work", "go.mod", ".git"),
-    settings = {
-      gopls = {
-        analyses = {
-          unusedparams = true,
-        },
-        staticcheck = true,
-      },
-    },
-  }
-EOF
-```
-
-### <a href="#neovim-imports" id="neovim-imports">Imports</a>
-
-Use the following configuration to have your imports organized on save using
-the logic of `goimports`. Note: this requires Neovim v0.7.0 or later.
+nvim-lspconfig aims to provide reasonable defaults, so your setup can be very
+brief.
 
 ```lua
-vim.api.nvim_create_autocmd('BufWritePre', {
-  pattern = '*.go',
+local lspconfig = require("lspconfig")
+lspconfig.gopls.setup({})
+```
+
+However, you can also configure `gopls` for your preferences. Here's an
+example that enables `unusedparams`, `staticcheck`, and `gofumpt`.
+
+```lua
+local lspconfig = require("lspconfig")
+lspconfig.gopls.setup({
+  settings = {
+    gopls = {
+      analyses = {
+        unusedparams = true,
+      },
+      staticcheck = true,
+      gofumpt = true,
+    },
+  },
+})
+```
+
+### <a href="#neovim-imports" id="neovim-imports">Imports and Formatting</a>
+
+Use the following configuration to have your imports organized on save using
+the logic of `goimports` and your code formatted.
+
+```lua
+autocmd("BufWritePre", {
+  pattern = "*.go",
   callback = function()
-    vim.lsp.buf.code_action({ context = { only = { 'source.organizeImports' } }, apply = true })
+    local params = vim.lsp.util.make_range_params()
+    params.context = {only = {"source.organizeImports"}}
+    -- buf_request_sync defaults to a 1000ms timeout. Depending on your
+    -- machine and codebase, you may want longer. Add an additional
+    -- argument after params if you find that you have to write the file
+    -- twice for changes to be saved.
+    -- E.g., vim.lsp.buf_request_sync(0, "textDocument/codeAction", params, 3000)
+    local result = vim.lsp.buf_request_sync(0, "textDocument/codeAction", params)
+    for cid, res in pairs(result or {}) do
+      for _, r in pairs(res.result or {}) do
+        if r.edit then
+          local enc = (vim.lsp.get_client_by_id(cid) or {}).offset_encoding or "utf-16"
+          vim.lsp.util.apply_workspace_edit(r.edit, enc)
+        end
+      end
+    end
+    vim.lsp.buf.format({async = false})
   end
 })
 ```
