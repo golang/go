@@ -72,6 +72,49 @@ func concatstring5(buf *tmpBuf, a0, a1, a2, a3, a4 string) string {
 	return concatstrings(buf, []string{a0, a1, a2, a3, a4})
 }
 
+// concatbytes implements a Go string concatenation x+y+z+... returning a slice
+// of bytes.
+// The operands are passed in the slice a.
+func concatbytes(a []string) []byte {
+	l := 0
+	for _, x := range a {
+		n := len(x)
+		if l+n < l {
+			throw("string concatenation too long")
+		}
+		l += n
+	}
+	if l == 0 {
+		// This is to match the return type of the non-optimized concatenation.
+		return []byte{}
+	}
+
+	b := rawbyteslice(l)
+	offset := 0
+	for _, x := range a {
+		copy(b[offset:], x)
+		offset += len(x)
+	}
+
+	return b
+}
+
+func concatbyte2(a0, a1 string) []byte {
+	return concatbytes([]string{a0, a1})
+}
+
+func concatbyte3(a0, a1, a2 string) []byte {
+	return concatbytes([]string{a0, a1, a2})
+}
+
+func concatbyte4(a0, a1, a2, a3 string) []byte {
+	return concatbytes([]string{a0, a1, a2, a3})
+}
+
+func concatbyte5(a0, a1, a2, a3, a4 string) []byte {
+	return concatbytes([]string{a0, a1, a2, a3, a4})
+}
+
 // slicebytetostring converts a byte slice to a string.
 // It is inserted by the compiler into generated code.
 // ptr is a pointer to the first element of the slice;

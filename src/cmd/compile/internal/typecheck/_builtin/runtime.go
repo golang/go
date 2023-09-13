@@ -71,6 +71,12 @@ func concatstring4(*[32]byte, string, string, string, string) string
 func concatstring5(*[32]byte, string, string, string, string, string) string
 func concatstrings(*[32]byte, []string) string
 
+func concatbyte2(string, string) []byte
+func concatbyte3(string, string, string) []byte
+func concatbyte4(string, string, string, string) []byte
+func concatbyte5(string, string, string, string, string) []byte
+func concatbytes([]string) []byte
+
 func cmpstring(string, string) int
 func intstring(*[4]byte, int64) string
 func slicebytetostring(buf *[32]byte, ptr *byte, n int) string
