@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/platform"
+	"internal/syscall/unix"
 	"internal/testenv"
 	"io"
 	"os"
@@ -560,11 +561,11 @@ func testPidFD(t *testing.T, userns bool) error {
 
 	// Use pidfd to send a signal to the child.
 	sig := syscall.SIGINT
-	if _, _, e := syscall.Syscall(syscall.Sys_pidfd_send_signal, uintptr(pidfd), uintptr(sig), 0); e != 0 {
-		if e != syscall.EINVAL && testenv.SyscallIsNotSupported(e) {
-			t.Skip("pidfd_send_signal syscall not supported:", e)
+	if err := unix.PidFDSendSignal(uintptr(pidfd), sig); err != nil {
+		if err != syscall.EINVAL && testenv.SyscallIsNotSupported(err) {
+			t.Skip("pidfd_send_signal syscall not supported:", err)
 		}
-		t.Fatal("pidfd_send_signal syscall failed:", e)
+		t.Fatal("pidfd_send_signal syscall failed:", err)
 	}
 	// Check if the child received our signal.
 	err = cmd.Wait()

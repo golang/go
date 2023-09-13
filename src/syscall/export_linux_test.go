@@ -10,6 +10,5 @@ var (
 )
 
 const (
-	Sys_GETEUID           = sys_GETEUID
-	Sys_pidfd_send_signal = _SYS_pidfd_send_signal
+	Sys_GETEUID = sys_GETEUID
 )
