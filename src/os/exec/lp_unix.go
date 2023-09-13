@@ -80,3 +80,9 @@ func LookPath(file string) (string, error) {
 	}
 	return "", &Error{file, ErrNotFound}
 }
+
+// lookExtensions is a no-op on non-Windows platforms, since
+// they do not restrict executables to specific extensions.
+func lookExtensions(path, dir string) (string, error) {
+	return path, nil
+}

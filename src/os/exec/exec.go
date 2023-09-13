@@ -429,9 +429,6 @@ func Command(name string, arg ...string) *Cmd {
 	} else if runtime.GOOS == "windows" && filepath.IsAbs(name) {
 		// We may need to add a filename extension from PATHEXT
 		// or verify an extension that is already present.
-		// (We need to do this even for names that already have an extension
-		// in case of weird names like "foo.bat.exe".)
-		//
 		// Since the path is absolute, its extension should be unambiguous
 		// and independent of cmd.Dir, and we can go ahead and update cmd.Path to
 		// reflect it.
@@ -439,7 +436,7 @@ func Command(name string, arg ...string) *Cmd {
 		// Note that we cannot add an extension here for relative paths, because
 		// cmd.Dir may be set after we return from this function and that may cause
 		// the command to resolve to a different extension.
-		lp, err := LookPath(name)
+		lp, err := lookExtensions(name, "")
 		if lp != "" {
 			cmd.Path = lp
 		}
@@ -608,32 +605,6 @@ func (c *Cmd) Run() error {
 		return err
 	}
 	return c.Wait()
-}
-
-// lookExtensions finds windows executable by its dir and path.
-// It uses LookPath to try appropriate extensions.
-// lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
-func lookExtensions(path, dir string) (string, error) {
-	if filepath.Base(path) == path {
-		path = "." + string(filepath.Separator) + path
-	}
-	if dir == "" {
-		return LookPath(path)
-	}
-	if filepath.VolumeName(path) != "" {
-		return LookPath(path)
-	}
-	if len(path) > 1 && os.IsPathSeparator(path[0]) {
-		return LookPath(path)
-	}
-	dirandpath := filepath.Join(dir, path)
-	// We assume that LookPath will only add file extension.
-	lp, err := LookPath(dirandpath)
-	if err != nil {
-		return "", err
-	}
-	ext := strings.TrimPrefix(lp, dirandpath)
-	return path + ext, nil
 }
 
 // Start starts the specified command but does not wait for it to complete.

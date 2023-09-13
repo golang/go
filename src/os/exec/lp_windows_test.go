@@ -611,22 +611,27 @@ func TestCommand(t *testing.T) {
 func TestAbsCommandWithDoubledExtension(t *testing.T) {
 	t.Parallel()
 
+	// We expect that ".com" is always included in PATHEXT, but it may also be
+	// found in the import path of a Go package. If it is at the root of the
+	// import path, the resulting executable may be named like "example.com.exe".
+	//
+	// Since "example.com" looks like a proper executable name, it is probably ok
+	// for exec.Command to try to run it directly without re-resolving it.
+	// However, exec.LookPath should try a little harder to figure it out.
+
 	comPath := filepath.Join(t.TempDir(), "example.com")
 	batPath := comPath + ".bat"
 	installBat(t, batPath)
 
 	cmd := exec.Command(comPath)
 	out, err := cmd.CombinedOutput()
-	t.Logf("%v:\n%s", cmd, out)
-	if err == nil {
-		got := strings.TrimSpace(string(out))
-		if got != batPath {
-			t.Errorf("wanted output %#q", batPath)
-		}
-	} else {
-		t.Errorf("%v: %v", cmd, err)
+	t.Logf("%v: %v\n%s", cmd, err, out)
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("Command(%#q).Run: %v\nwant fs.ErrNotExist", comPath, err)
 	}
-	if cmd.Path != batPath {
-		t.Errorf("exec.Command(%#q).Path =\n     %#q\nwant %#q", comPath, cmd.Path, batPath)
+
+	resolved, err := exec.LookPath(comPath)
+	if err != nil || resolved != batPath {
+		t.Fatalf("LookPath(%#q) = %v, %v; want %#q, <nil>", comPath, resolved, err, batPath)
 	}
 }
