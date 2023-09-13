@@ -45,12 +45,27 @@
 // reflection over the call stack, but this exception to the rule is
 // explicitly allowed.)
 //
-// In a number of special cases it is possible to entirely replace
-// ("reduce") the call by a copy of the function's body in which
-// parameters have been replaced by arguments. The inliner supports a
-// small number of reduction strategies, and we expect this set to
-// grow. Nonetheless, sound reduction is surprisingly tricky. The
-// following section lists some of the challenges.
+// In many cases it is possible to entirely replace ("reduce") the
+// call by a copy of the function's body in which parameters have been
+// replaced by arguments. The inliner supports a number of reduction
+// strategies, and we expect this set to grow. Nonetheless, sound
+// reduction is surprisingly tricky.
+//
+// The inliner is in some ways like an optimizing compiler. A compiler
+// is considered correct if it doesn't change the meaning of the
+// program in translation from source language to target language. An
+// optimizing compiler exploits the particulars of the input to
+// generate better code, where "better" usually means more efficient.
+// When a case is found in which it emits suboptimal code, the
+// compiler is improved to recognize more cases, or more rules, and
+// more exceptions to rules; this process has no end. Inlining is
+// similar except that "better" code means tidier code. The baseline
+// translation (literalization) is correct, but there are endless
+// rules--and exceptions to rules--by which the output can be
+// improved.
+//
+// The following section lists some of the challenges, and ways in
+// which they can be addressed.
 //
 //   - All effects of the call argument expressions must be preserved,
 //     both in their number (they must not be eliminated or repeated),
@@ -137,8 +152,12 @@
 //   - If the function body uses 'defer' and the inlined call is not a
 //     tail-call, inlining may delay the deferred effects.
 //
-//   - Each control label that is used by both caller and callee must
-//     be α-renamed.
+//   - Because the scope of a control label is the entire function, a
+//     call cannot be reduced if the caller and callee have intersecting
+//     sets of control labels. (It is possible to α-rename any
+//     conflicting ones, but our colleagues building C++ refactoring
+//     tools report that, when tools must choose new identifiers, they
+//     generally do a poor job.)
 //
 //   - Given
 //
