@@ -1819,3 +1819,19 @@ func TestConcurrentExec(t *testing.T) {
 	cancel()
 	hangs.Wait()
 }
+
+// TestPathRace tests that [Cmd.String] can be called concurrently
+// with [Cmd.Start].
+func TestPathRace(t *testing.T) {
+	cmd := helperCommand(t, "exit", "0")
+
+	done := make(chan struct{})
+	go func() {
+		out, err := cmd.CombinedOutput()
+		t.Logf("%v: %v\n%s", cmd, err, out)
+		close(done)
+	}()
+
+	t.Logf("running in background: %v", cmd)
+	<-done
+}

@@ -554,14 +554,8 @@ func TestCommand(t *testing.T) {
 			if wantPath == "" {
 				if strings.Contains(tt.arg0, `\`) {
 					wantPath = tt.arg0
-					if filepath.Ext(wantPath) == "" {
-						wantPath += filepath.Ext(tt.want)
-					}
 				} else if tt.wantErrDot {
 					wantPath = strings.TrimPrefix(tt.want, tt.dir+`\`)
-					if filepath.Base(wantPath) == wantPath {
-						wantPath = `.\` + wantPath
-					}
 				} else {
 					wantPath = filepath.Join(root, tt.want)
 				}
@@ -570,5 +564,28 @@ func TestCommand(t *testing.T) {
 				t.Errorf("\ncmd.Path = %#q\nwant       %#q", gotPath, wantPath)
 			}
 		})
+	}
+}
+
+func TestAbsCommandWithDoubledExtension(t *testing.T) {
+	t.Parallel()
+
+	comPath := filepath.Join(t.TempDir(), "example.com")
+	batPath := comPath + ".bat"
+	installBat(t, batPath)
+
+	cmd := exec.Command(comPath)
+	out, err := cmd.CombinedOutput()
+	t.Logf("%v:\n%s", cmd, out)
+	if err == nil {
+		got := strings.TrimSpace(string(out))
+		if got != batPath {
+			t.Errorf("wanted output %#q", batPath)
+		}
+	} else {
+		t.Errorf("%v: %v", cmd, err)
+	}
+	if cmd.Path != batPath {
+		t.Errorf("exec.Command(%#q).Path =\n     %#q\nwant %#q", comPath, cmd.Path, batPath)
 	}
 }
