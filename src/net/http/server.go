@@ -2605,7 +2605,7 @@ func (mux *ServeMux) registerErr(pattern string, handler Handler) error {
 
 	pat, err := parsePattern(pattern)
 	if err != nil {
-		return err
+		return fmt.Errorf("parsing %q: %w", pattern, err)
 	}
 
 	// Get the caller's location, for better conflict error messages.

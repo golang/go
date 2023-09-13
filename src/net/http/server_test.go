@@ -9,6 +9,7 @@ package http
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"testing"
 	"time"
 )
@@ -114,6 +115,35 @@ func TestFindHandler(t *testing.T) {
 		if got != test.wantHandler {
 			t.Errorf("%s %q: got %q, want %q", test.method, test.path, got, test.wantHandler)
 		}
+	}
+}
+
+func TestRegisterErr(t *testing.T) {
+	mux := NewServeMux()
+	h := &handler{}
+	mux.Handle("/a", h)
+
+	for _, test := range []struct {
+		pattern    string
+		handler    Handler
+		wantRegexp string
+	}{
+		{"", h, "invalid pattern"},
+		{"/", nil, "nil handler"},
+		{"/", HandlerFunc(nil), "nil handler"},
+		{"/{x", h, `parsing "/\{x": bad wildcard segment`},
+		{"/a", h, `conflicts with pattern.* \(registered at .*/server_test.go:\d+`},
+	} {
+		t.Run(fmt.Sprintf("%s:%#v", test.pattern, test.handler), func(t *testing.T) {
+			err := mux.registerErr(test.pattern, test.handler)
+			if err == nil {
+				t.Fatal("got nil error")
+			}
+			re := regexp.MustCompile(test.wantRegexp)
+			if g := err.Error(); !re.MatchString(g) {
+				t.Errorf("\ngot %q\nwant string matching %q", g, test.wantRegexp)
+			}
+		})
 	}
 }
 
