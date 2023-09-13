@@ -389,6 +389,36 @@ func TestTable(t *testing.T) {
 			`func _(slice []any) { f(slice...) }`,
 			`func _(slice []any) { println(slice) }`,
 		},
+		{
+			"Variadic elimination (literalization).",
+			`func f(x any, rest ...any) { println(x, rest) }`,
+			`func _() { f(1, 2, 3) }`, // NB: x int->any causes literalization, for now
+			`func _() { func(x any) { println(x, []any{2, 3}) }(1) }`,
+		},
+		{
+			"Variadic elimination (reduction).",
+			`func f(x int, rest ...int) { println(x, rest) }`,
+			`func _() { f(1, 2, 3) }`,
+			`func _() { println(1, []int{2, 3}) }`,
+		},
+		{
+			"Spread call to variadic (1 arg, 1 param).",
+			`func f(rest ...int) { println(rest) }; func g() (a, b int)`,
+			`func _() { f(g()) }`,
+			`func _() { func(rest ...int) { println(rest) }(g()) }`,
+		},
+		{
+			"Spread call to variadic (1 arg, 2 params).",
+			`func f(x int, rest ...int) { println(x, rest) }; func g() (a, b int)`,
+			`func _() { f(g()) }`,
+			`func _() { func(x int, rest ...int) { println(x, rest) }(g()) }`,
+		},
+		{
+			"Spread call to variadic (1 arg, 3 params).",
+			`func f(x, y int, rest ...int) { println(x, y, rest) }; func g() (a, b, c int)`,
+			`func _() { f(g()) }`,
+			`func _() { func(x, y int, rest ...int) { println(x, y, rest) }(g()) }`,
+		},
 		// TODO(adonovan): improve coverage of the cross
 		// product of each strategy with the checklist of
 		// concerns enumerated in the package doc comment.
@@ -516,7 +546,7 @@ func TestTable(t *testing.T) {
 			got := strings.Join(gotLines, "\n")
 
 			if strings.TrimSpace(got) != strings.TrimSpace(test.want) {
-				t.Errorf("\nInlining this call:\t%s\nof this callee:    \t%s\nproduced:\n%s\nWant:\n\n%s",
+				t.Fatalf("\nInlining this call:\t%s\nof this callee:    \t%s\nproduced:\n%s\nWant:\n\n%s",
 					test.caller,
 					test.callee,
 					got,

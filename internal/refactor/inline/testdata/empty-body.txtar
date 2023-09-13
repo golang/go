@@ -59,7 +59,7 @@ func g() int
 package a
 
 func _(ch chan int) {
-	_, _, _, _, _ = -1, ch, len(""), g(), <-ch //@ inline(re"empty", empty2)
+	_ = []any{-1, ch, len(""), g(), <-ch} //@ inline(re"empty", empty2)
 }
 
 func g() int

@@ -741,23 +741,24 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			}
 		}
 	}
-	for _, arg := range caller.Call.Args {
-		typ := caller.Info.TypeOf(arg)
+	for _, expr := range caller.Call.Args {
+		typ := caller.Info.TypeOf(expr)
 		args = append(args, &argument{
-			expr:       arg,
+			expr:       expr,
 			typ:        typ,
 			spread:     is[*types.Tuple](typ), // => last
-			pure:       pure(caller.Info, arg),
-			duplicable: duplicable(caller.Info, arg),
-			freevars:   freevars(caller.Info, arg),
+			pure:       pure(caller.Info, expr),
+			duplicable: duplicable(caller.Info, expr),
+			freevars:   freevars(caller.Info, expr),
 		})
 	}
 
 	// Gather effective parameter tuple, including the receiver if any.
+	// Simplify variadic parameters to slices (in all cases but one).
 	type parameter struct {
 		obj      *types.Var // parameter var from caller's signature
 		info     *paramInfo // information from AnalyzeCallee
-		variadic bool       // final T... parameter accumulates slice of arguments
+		variadic bool       // (final) parameter is unsimplified ...T
 	}
 	var params []*parameter // including receiver; nil => parameter eliminated
 	{
@@ -774,33 +775,62 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 				info: callee.Params[len(params)],
 			})
 		}
+
+		// Variadic function?
+		//
+		// There are three possible types of call:
+		// - ordinary f(a1, ..., aN)
+		// - ellipsis f(a1, ..., slice...)
+		// - spread   f(recv?, g()) where g() is a tuple.
+		// The first two are desugared to non-variadic calls
+		// with an ordinary slice parameter;
+		// the third is tricky and cannot be reduced, and (if
+		// a receiver is present) cannot even be literalized.
+		// Fortunately it is vanishingly rare.
 		if sig.Variadic() {
-			last(params).variadic = true
+			lastParam := last(params)
+			if len(args) > 0 && last(args).spread {
+				// spread call to variadic: tricky
+				lastParam.variadic = true
+			} else {
+				// ordinary/ellipsis call to variadic
+
+				// simplify decl: func(T...) -> func([]T)
+				lastParamField := last(calleeDecl.Type.Params.List)
+				lastParamField.Type = &ast.ArrayType{
+					Elt: lastParamField.Type.(*ast.Ellipsis).Elt,
+				}
+
+				if caller.Call.Ellipsis.IsValid() {
+					// ellipsis call: f(slice...) -> f(slice)
+					// nop
+				} else {
+					// ordinary call: f(a1, ... aN) -> f([]T{a1, ..., aN})
+					n := len(params) - 1
+					ordinary, extra := args[:n], args[n:]
+					var elts []ast.Expr
+					pure := true
+					for _, arg := range extra {
+						elts = append(elts, arg.expr)
+						pure = pure && arg.pure
+					}
+					args = append(ordinary, &argument{
+						expr: &ast.CompositeLit{
+							Type: lastParamField.Type,
+							Elts: elts,
+						},
+						typ:        lastParam.obj.Type(),
+						pure:       pure,
+						duplicable: false,
+						freevars:   nil, // not needed
+					})
+				}
+			}
 		}
 	}
 
 	// Note: computation below should be expressed in terms of
 	// the args and params slices, not the raw material.
-
-	// In most calls, args and params correspond.
-	//
-	// Edge case: in a variadic call, len(args) >= len(params)-1.
-	//
-	// Edge case: in a spread call f(g()) where g is n-ary (n > 1),
-	//  len(args) = 1 and len(params) = n,
-	//  unless (corner case!) f is variadic,
-	//  in which case both are again 1.
-	//
-	// If the last arg is f(slice...), the last param must be func(...T).
-	// We can immediately simplify both to f(slice) and func([]T),
-	// without changing the types of either.
-	if caller.Call.Ellipsis.IsValid() {
-		lastParamField := last(calleeDecl.Type.Params.List)
-		lastParamField.Type = &ast.ArrayType{
-			Elt: lastParamField.Type.(*ast.Ellipsis).Elt,
-		}
-		last(params).variadic = false
-	}
 
 	// Parameter elimination
 	//
@@ -817,20 +847,23 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	//
 	// If all conditions are met then the parameter can be eliminated
 	// and each reference to it replaced by the argument.
-	//
-	// TODO(adonovan): support elimination of variadic parameters,
-	// and of spread arguments.
 	{
-	nextParam:
+		// Inv:
+		//  in        calls to     variadic, len(args) >= len(params)-1
+		//  in spread calls to non-variadic, len(args) <  len(params)
+		//  in spread calls to     variadic, len(args) <= len(params)
+		// (In spread calls len(args) = 1, or 2 if call has receiver.)
+		// Non-spread variadics have been simplified away already,
+		// so the args[i] lookup is safe if we stop after the spread arg.
+	next:
 		for i, param := range params {
-			if param.variadic {
-				// final ...T parameter
-				// TODO(adonovan): decouple the param and arg parts of this
-				// loop so that we can handle variadic cases.
-				logf("keeping param %q: variadic elimination not yet supported",
-					param.info.Name)
-				continue
+			arg := args[i]
+			if arg.spread {
+				logf("keeping param %q and following ones: argument %s is spread",
+					param.info.Name, debugFormatNode(caller.Fset, arg.expr))
+				break // spread => last argument, but not always last parameter
 			}
+			assert(!param.variadic, "unsimplfied variadic parameter")
 			if param.info.Escapes {
 				logf("keeping param %q: escapes from callee", param.info.Name)
 				continue
@@ -846,13 +879,6 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			// the syntax may be synthetic (not created by parser)
 			// and thus lacking positions and types;
 			// do it earlier (see pure/duplicable/freevars).
-			arg := args[i]
-			if arg.spread {
-				// TODO(adonovan): handle elimination of spread arguments.
-				logf("keeping param %q: argument %s is spread",
-					param.info.Name, debugFormatNode(caller.Fset, arg.expr))
-				break // spread => last argument, but not last parameter
-			}
 			if !arg.pure {
 				logf("keeping param %q: argument %s is impure",
 					param.info.Name, debugFormatNode(caller.Fset, arg.expr))
@@ -873,7 +899,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 						// only by the call.
 						logf("keeping param %q: arg contains perhaps the last reference to possible caller local %v @ %v",
 							param.info.Name, v, caller.Fset.Position(v.Pos()))
-						continue nextParam
+						continue next
 					}
 				}
 			}
@@ -903,7 +929,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			for free := range arg.freevars {
 				if param.info.Shadow[free] {
 					logf("keeping param %q: cannot replace with argument as it has free ref to %s that is shadowed", param.info.Name, free)
-					continue nextParam // shadowing conflict
+					continue next // shadowing conflict
 				}
 			}
 
@@ -967,6 +993,15 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			// Emit "_, _ = args" to discard results.
 			// Make correction for spread calls
 			// f(g()) or x.f(g()) where g() is a tuple.
+			//
+			// TODO(adonovan): fix: it's not valid for a
+			// single AssignStmt to discard a receiver and
+			// a spread argument; use a var decl with two specs.
+			//
+			// TODO(adonovan): if args is the []T{a1, ..., an}
+			// literal synthesized during variadic simplification,
+			// consider unwrapping it to its (pure) elements.
+			// Perhaps there's no harm doing this for any slice literal.
 			if last := last(args); last != nil {
 				if tuple, ok := last.typ.(*types.Tuple); ok {
 					nargs += tuple.Len() - 1
@@ -1611,6 +1646,12 @@ func replaceNode(root ast.Node, from, to ast.Node) {
 // It omits pointers to ast.{Scope,Object} variables.
 func cloneNode(n ast.Node) ast.Node {
 	var clone func(x reflect.Value) reflect.Value
+	set := func(dst, src reflect.Value) {
+		src = clone(src)
+		if src.IsValid() {
+			dst.Set(src)
+		}
+	}
 	clone = func(x reflect.Value) reflect.Value {
 		switch x.Kind() {
 		case reflect.Ptr:
@@ -1623,26 +1664,26 @@ func cloneNode(n ast.Node) ast.Node {
 				return reflect.Zero(x.Type())
 			}
 			y := reflect.New(x.Type().Elem())
-			y.Elem().Set(clone(x.Elem()))
+			set(y.Elem(), x.Elem())
 			return y
 
 		case reflect.Struct:
 			y := reflect.New(x.Type()).Elem()
 			for i := 0; i < x.Type().NumField(); i++ {
-				y.Field(i).Set(clone(x.Field(i)))
+				set(y.Field(i), x.Field(i))
 			}
 			return y
 
 		case reflect.Slice:
 			y := reflect.MakeSlice(x.Type(), x.Len(), x.Cap())
 			for i := 0; i < x.Len(); i++ {
-				y.Index(i).Set(clone(x.Index(i)))
+				set(y.Index(i), x.Index(i))
 			}
 			return y
 
 		case reflect.Interface:
 			y := reflect.New(x.Type()).Elem()
-			y.Set(clone(x.Elem()))
+			set(y, x.Elem())
 			return y
 
 		case reflect.Array, reflect.Chan, reflect.Func, reflect.Map, reflect.UnsafePointer:
