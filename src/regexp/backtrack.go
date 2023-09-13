@@ -116,7 +116,7 @@ func (b *bitState) reset(prog *syntax.Prog, end int, ncap int) {
 }
 
 // shouldVisit reports whether the combination of (pc, pos) has not
-// been visited yet; if true, mark the combination visited.
+// been visited yet, if true, mark the combination visited.
 func (b *bitState) shouldVisit(pc uint32, pos int) bool {
 	n := uint(int(pc)*(b.end+1) + pos)
 	if b.visited[n/visitedBits]&(1<<(n&(visitedBits-1))) != 0 {
