@@ -110,7 +110,7 @@ func TestFindHandler(t *testing.T) {
 		r.Method = test.method
 		r.Host = "example.com"
 		r.URL = &url.URL{Path: test.path}
-		gotH, _ := mux.findHandler(&r)
+		gotH, _, _, _ := mux.findHandler(&r)
 		got := fmt.Sprintf("%#v", gotH)
 		if got != test.wantHandler {
 			t.Errorf("%s %q: got %q, want %q", test.method, test.path, got, test.wantHandler)
@@ -204,7 +204,7 @@ func BenchmarkServerMatch(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		if h, p := mux.findHandler(r); h != nil && p == "" {
+		if h, p, _, _ := mux.findHandler(r); h != nil && p == "" {
 			b.Error("impossible")
 		}
 	}

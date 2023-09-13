@@ -2410,14 +2410,15 @@ func stripHostPort(h string) string {
 // If there is no registered handler that applies to the request,
 // Handler returns a “page not found” handler and an empty pattern.
 func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
-	return mux.findHandler(r)
+	h, p, _, _ := mux.findHandler(r)
+	return h, p
 }
 
 // findHandler finds a handler for a request.
 // If there is a matching handler, it returns it and the pattern that matched.
 // Otherwise it returns a Redirect or NotFound handler with the path that would match
 // after the redirect.
-func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string) {
+func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *pattern, matches []string) {
 	var n *routingNode
 	// TODO(jba): use escaped path. This is an independent change that is also part
 	// of proposal https://go.dev/issue/61410.
@@ -2430,11 +2431,11 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string) {
 		// but the path canonicalization does not.
 		_, _, u := mux.matchOrRedirect(r.URL.Host, r.Method, path, r.URL)
 		if u != nil {
-			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path
+			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path, nil, nil
 		}
 		// Redo the match, this time with r.Host instead of r.URL.Host.
 		// Pass a nil URL to skip the trailing-slash redirect logic.
-		n, _, _ = mux.matchOrRedirect(r.Host, r.Method, path, nil)
+		n, matches, _ = mux.matchOrRedirect(r.Host, r.Method, path, nil)
 	} else {
 		// All other requests have any port stripped and path cleaned
 		// before passing to mux.handler.
@@ -2444,9 +2445,9 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string) {
 		// If the given path is /tree and its handler is not registered,
 		// redirect for /tree/.
 		var u *url.URL
-		n, _, u = mux.matchOrRedirect(host, r.Method, path, r.URL)
+		n, matches, u = mux.matchOrRedirect(host, r.Method, path, r.URL)
 		if u != nil {
-			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path
+			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path, nil, nil
 		}
 		if path != r.URL.Path {
 			// Redirect to cleaned path.
@@ -2455,14 +2456,14 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string) {
 				patStr = n.pattern.String()
 			}
 			u := &url.URL{Path: path, RawQuery: r.URL.RawQuery}
-			return RedirectHandler(u.String(), StatusMovedPermanently), patStr
+			return RedirectHandler(u.String(), StatusMovedPermanently), patStr, nil, nil
 		}
 	}
 	if n == nil {
 		// TODO(jba): support 405 (MethodNotAllowed) by checking for patterns with different methods.
-		return NotFoundHandler(), ""
+		return NotFoundHandler(), "", nil, nil
 	}
-	return n.handler, n.pattern.String()
+	return n.handler, n.pattern.String(), n.pattern, matches
 }
 
 // matchOrRedirect looks up a node in the tree that matches the host, method and path.
@@ -2551,8 +2552,9 @@ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
 		w.WriteHeader(StatusBadRequest)
 		return
 	}
-	h, _ := mux.findHandler(r)
-	// TODO(jba); save matches in Request.
+	h, _, pat, matches := mux.findHandler(r)
+	r.pat = pat
+	r.matches = matches
 	h.ServeHTTP(w, r)
 }
 

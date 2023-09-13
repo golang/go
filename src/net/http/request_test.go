@@ -16,6 +16,7 @@ import (
 	"math"
 	"mime/multipart"
 	. "net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"reflect"
@@ -1412,5 +1413,94 @@ func runFileAndServerBenchmarks(b *testing.B, mode testMode, f *os.File, n int64
 func TestErrNotSupported(t *testing.T) {
 	if !errors.Is(ErrNotSupported, errors.ErrUnsupported) {
 		t.Error("errors.Is(ErrNotSupported, errors.ErrUnsupported) failed")
+	}
+}
+
+func TestPathValueNoMatch(t *testing.T) {
+	// Check that PathValue and SetPathValue work on a Request that was never matched.
+	var r Request
+	if g, w := r.PathValue("x"), ""; g != w {
+		t.Errorf("got %q, want %q", g, w)
+	}
+	r.SetPathValue("x", "a")
+	if g, w := r.PathValue("x"), "a"; g != w {
+		t.Errorf("got %q, want %q", g, w)
+	}
+}
+
+func TestPathValue(t *testing.T) {
+	for _, test := range []struct {
+		pattern string
+		url     string
+		want    map[string]string
+	}{
+		{
+			"/{a}/is/{b}/{c...}",
+			"/now/is/the/time/for/all",
+			map[string]string{
+				"a": "now",
+				"b": "the",
+				"c": "time/for/all",
+				"d": "",
+			},
+		},
+		// TODO(jba): uncomment these tests when we implement path escaping (forthcoming).
+		// {
+		// 	"/names/{name}/{other...}",
+		// 	"/names/" + url.PathEscape("/john") + "/address",
+		// 	map[string]string{
+		// 		"name":  "/john",
+		// 		"other": "address",
+		// 	},
+		// },
+		// {
+		// 	"/names/{name}/{other...}",
+		// 	"/names/" + url.PathEscape("john/doe") + "/address",
+		// 	map[string]string{
+		// 		"name":  "john/doe",
+		// 		"other": "address",
+		// 	},
+		// },
+	} {
+		mux := NewServeMux()
+		mux.HandleFunc(test.pattern, func(w ResponseWriter, r *Request) {
+			for name, want := range test.want {
+				got := r.PathValue(name)
+				if got != want {
+					t.Errorf("%q, %q: got %q, want %q", test.pattern, name, got, want)
+				}
+			}
+		})
+		server := httptest.NewServer(mux)
+		defer server.Close()
+		_, err := Get(server.URL + test.url)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestSetPathValue(t *testing.T) {
+	mux := NewServeMux()
+	mux.HandleFunc("/a/{b}/c/{d...}", func(_ ResponseWriter, r *Request) {
+		kvs := map[string]string{
+			"b": "X",
+			"d": "Y",
+			"a": "Z",
+		}
+		for k, v := range kvs {
+			r.SetPathValue(k, v)
+		}
+		for k, w := range kvs {
+			if g := r.PathValue(k); g != w {
+				t.Errorf("got %q, want %q", g, w)
+			}
+		}
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	_, err := Get(server.URL + "/a/b/c/d/e")
+	if err != nil {
+		t.Fatal(err)
 	}
 }
