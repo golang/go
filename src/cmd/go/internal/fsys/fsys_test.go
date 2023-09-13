@@ -7,7 +7,6 @@ package fsys
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"internal/testenv"
 	"internal/txtar"
 	"io"
@@ -38,7 +37,6 @@ func initOverlay(t *testing.T, config string) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		overlay = nil
 		if err := os.Chdir(prevwd); err != nil {
 			t.Fatal(err)
 		}
@@ -57,10 +55,13 @@ func initOverlay(t *testing.T, config string) {
 
 	var overlayJSON OverlayJSON
 	if err := json.Unmarshal(a.Comment, &overlayJSON); err != nil {
-		t.Fatal(fmt.Errorf("parsing overlay JSON: %v", err))
+		t.Fatal("parsing overlay JSON:", err)
 	}
 
-	initFromJSON(overlayJSON)
+	if err := initFromJSON(overlayJSON); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { overlay = nil })
 }
 
 func TestIsDir(t *testing.T) {
