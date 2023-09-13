@@ -2428,13 +2428,13 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string) {
 		// If r.URL.Path is /tree and its handler is not registered,
 		// the /tree -> /tree/ redirect applies to CONNECT requests
 		// but the path canonicalization does not.
-		_, _, u := mux.handler(r.URL.Host, r.Method, path, r.URL)
+		_, _, u := mux.matchOrRedirect(r.URL.Host, r.Method, path, r.URL)
 		if u != nil {
 			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path
 		}
 		// Redo the match, this time with r.Host instead of r.URL.Host.
 		// Pass a nil URL to skip the trailing-slash redirect logic.
-		n, _, _ = mux.handler(r.Host, r.Method, path, nil)
+		n, _, _ = mux.matchOrRedirect(r.Host, r.Method, path, nil)
 	} else {
 		// All other requests have any port stripped and path cleaned
 		// before passing to mux.handler.
@@ -2444,7 +2444,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string) {
 		// If the given path is /tree and its handler is not registered,
 		// redirect for /tree/.
 		var u *url.URL
-		n, _, u = mux.handler(host, r.Method, path, r.URL)
+		n, _, u = mux.matchOrRedirect(host, r.Method, path, r.URL)
 		if u != nil {
 			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path
 		}
@@ -2465,18 +2465,14 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string) {
 	return n.handler, n.pattern.String()
 }
 
-// handler looks up a node in the tree that matches the host, method and path.
+// matchOrRedirect looks up a node in the tree that matches the host, method and path.
 // The path is known to be in canonical form, except for CONNECT methods.
 
 // If the url argument is non-nil, handler also deals with trailing-slash
 // redirection: when a path doesn't match exactly, the match is tried again
-
 // after appending "/" to the path. If that second match succeeds, the last
 // return value is the URL to redirect to.
-//
-// TODO(jba): give this a better name. For now we're keeping the name of the closest
-// corresponding function in the original code.
-func (mux *ServeMux) handler(host, method, path string, u *url.URL) (_ *routingNode, matches []string, redirectTo *url.URL) {
+func (mux *ServeMux) matchOrRedirect(host, method, path string, u *url.URL) (_ *routingNode, matches []string, redirectTo *url.URL) {
 	mux.mu.RLock()
 	defer mux.mu.RUnlock()
 
