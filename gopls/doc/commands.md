@@ -41,6 +41,22 @@ Args:
 }
 ```
 
+### **update the given telemetry counters.**
+Identifier: `gopls.add_telemetry_counters`
+
+Gopls will prepend "fwd/" to all the counters updated using this command
+to avoid conflicts with other counters gopls collects.
+
+Args:
+
+```
+{
+	// Names and Values must have the same length.
+	"Names": []string,
+	"Values": []int64,
+}
+```
+
 ### **Apply a fix**
 Identifier: `gopls.apply_fix`
 

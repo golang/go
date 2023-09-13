@@ -28,6 +28,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/gopls/internal/telemetry"
 	"golang.org/x/tools/gopls/internal/vulncheck"
 	"golang.org/x/tools/gopls/internal/vulncheck/scan"
 	"golang.org/x/tools/internal/event"
@@ -61,6 +62,16 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 type commandHandler struct {
 	s      *Server
 	params *protocol.ExecuteCommandParams
+}
+
+// AddTelemetryCounters implements command.Interface.
+func (*commandHandler) AddTelemetryCounters(_ context.Context, args command.AddTelemetryCountersArgs) error {
+	if len(args.Names) != len(args.Values) {
+		return fmt.Errorf("Names and Values must have the same length")
+	}
+	// invalid counter update requests will be silently dropped. (no audience)
+	telemetry.AddForwardedCounters(args.Names, args.Values)
+	return nil
 }
 
 // commandConfig configures common command set-up and execution.

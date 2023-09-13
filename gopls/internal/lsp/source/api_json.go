@@ -710,6 +710,12 @@ var GeneratedAPIJSON = &APIJSON{
 			ArgDoc:  "{\n\t// ImportPath is the target import path that should\n\t// be added to the URI file\n\t\"ImportPath\": string,\n\t// URI is the file that the ImportPath should be\n\t// added to\n\t\"URI\": string,\n}",
 		},
 		{
+			Command: "gopls.add_telemetry_counters",
+			Title:   "update the given telemetry counters.",
+			Doc:     "Gopls will prepend \"fwd/\" to all the counters updated using this command\nto avoid conflicts with other counters gopls collects.",
+			ArgDoc:  "{\n\t// Names and Values must have the same length.\n\t\"Names\": []string,\n\t\"Values\": []int64,\n}",
+		},
+		{
 			Command: "gopls.apply_fix",
 			Title:   "Apply a fix",
 			Doc:     "Applies a fix to a region of source code.",

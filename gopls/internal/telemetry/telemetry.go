@@ -68,3 +68,15 @@ func RecordViewGoVersion(x int) {
 	name := fmt.Sprintf("gopls/goversion:1.%d", x)
 	counter.Inc(name)
 }
+
+// AddForwardedCounters adds the given counters on behalf of clients.
+// Names and values must have the same length.
+func AddForwardedCounters(names []string, values []int64) {
+	for i, n := range names {
+		v := values[i]
+		if n == "" || v < 0 {
+			continue // Should we report an error? Who is the audience?
+		}
+		counter.Add("fwd/"+n, v)
+	}
+}

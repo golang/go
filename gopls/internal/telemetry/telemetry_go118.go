@@ -17,3 +17,6 @@ func RecordClientInfo(params *protocol.ParamInitialize) {
 
 func RecordViewGoVersion(x int) {
 }
+
+func AddForwardedCounters(names []string, values []int64) {
+}

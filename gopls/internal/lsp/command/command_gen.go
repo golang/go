@@ -21,6 +21,7 @@ import (
 const (
 	AddDependency         Command = "add_dependency"
 	AddImport             Command = "add_import"
+	AddTelemetryCounters  Command = "add_telemetry_counters"
 	ApplyFix              Command = "apply_fix"
 	CheckUpgrades         Command = "check_upgrades"
 	EditGoDirective       Command = "edit_go_directive"
@@ -52,6 +53,7 @@ const (
 var Commands = []Command{
 	AddDependency,
 	AddImport,
+	AddTelemetryCounters,
 	ApplyFix,
 	CheckUpgrades,
 	EditGoDirective,
@@ -94,6 +96,12 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 			return nil, err
 		}
 		return nil, s.AddImport(ctx, a0)
+	case "gopls.add_telemetry_counters":
+		var a0 AddTelemetryCountersArgs
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		return nil, s.AddTelemetryCounters(ctx, a0)
 	case "gopls.apply_fix":
 		var a0 ApplyFixArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
@@ -268,6 +276,18 @@ func NewAddImportCommand(title string, a0 AddImportArgs) (protocol.Command, erro
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.add_import",
+		Arguments: args,
+	}, nil
+}
+
+func NewAddTelemetryCountersCommand(title string, a0 AddTelemetryCountersArgs) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.add_telemetry_counters",
 		Arguments: args,
 	}, nil
 }

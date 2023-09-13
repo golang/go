@@ -18,6 +18,8 @@ import (
 	"golang.org/x/telemetry/counter/countertest" // requires go1.21+
 	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/hooks"
+	"golang.org/x/tools/gopls/internal/lsp/command"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 )
 
@@ -43,8 +45,9 @@ func TestTelemetry(t *testing.T) {
 		Modes(Default), // must be in-process to receive the bug report below
 		Settings{"showBugReports": true},
 		ClientName("Visual Studio Code"),
-	).Run(t, "", func(t *testing.T, env *Env) {
+	).Run(t, "", func(_ *testing.T, env *Env) {
 		goversion = strconv.Itoa(env.GoVersion())
+		addForwardedCounters(env, []string{"vscode/linter:a"}, []int64{1})
 		const desc = "got a bug"
 		bug.Report(desc) // want a stack counter with the trace starting from here.
 		env.Await(ShownMessage(desc))
@@ -52,9 +55,11 @@ func TestTelemetry(t *testing.T) {
 
 	// gopls/editor:client
 	// gopls/goversion:1.x
+	// fwd/vscode/linter:a
 	for _, c := range []*counter.Counter{
 		counter.New("gopls/client:" + editor),
 		counter.New("gopls/goversion:1." + goversion),
+		counter.New("fwd/vscode/linter:a"),
 	} {
 		count, err := countertest.ReadCounter(c)
 		if err != nil || count != 1 {
@@ -72,6 +77,23 @@ func TestTelemetry(t *testing.T) {
 	if len(counts) != 1 || !hasEntry(counts, t.Name(), 1) {
 		t.Errorf("read stackcounter(%q) = (%#v, %v), want one entry", "gopls/bug", counts, err)
 		t.Logf("Current timestamp = %v", time.Now().UTC())
+	}
+}
+
+func addForwardedCounters(env *Env, names []string, values []int64) {
+	args, err := command.MarshalArgs(command.AddTelemetryCountersArgs{
+		Names: names, Values: values,
+	})
+	if err != nil {
+		env.T.Fatal(err)
+	}
+	var res error
+	env.ExecuteCommand(&protocol.ExecuteCommandParams{
+		Command:   command.AddTelemetryCounters.ID(),
+		Arguments: args,
+	}, res)
+	if res != nil {
+		env.T.Errorf("%v failed - %v", command.AddTelemetryCounters.ID(), res)
 	}
 }
 

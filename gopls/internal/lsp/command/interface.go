@@ -189,6 +189,12 @@ type Interface interface {
 	// RunGoWorkCommand: run `go work [args...]`, and apply the resulting go.work
 	// edits to the current go.work file.
 	RunGoWorkCommand(context.Context, RunGoWorkArgs) error
+
+	// AddTelemetryCounters: update the given telemetry counters.
+	//
+	// Gopls will prepend "fwd/" to all the counters updated using this command
+	// to avoid conflicts with other counters gopls collects.
+	AddTelemetryCounters(context.Context, AddTelemetryCountersArgs) error
 }
 
 type RunTestsArgs struct {
@@ -498,4 +504,12 @@ type RunGoWorkArgs struct {
 	ViewID    string   // ID of the view to run the command from
 	InitFirst bool     // Whether to run `go work init` first
 	Args      []string // Args to pass to `go work`
+}
+
+// AddTelemetryCountersArgs holds the arguments to the AddCounters command
+// that updates the telemetry counters.
+type AddTelemetryCountersArgs struct {
+	// Names and Values must have the same length.
+	Names  []string // Name of counters.
+	Values []int64  // Values added to the corresponding counters. Must be non-negative.
 }
