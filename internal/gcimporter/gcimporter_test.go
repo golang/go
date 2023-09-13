@@ -17,7 +17,6 @@ import (
 	goparser "go/parser"
 	"go/token"
 	"go/types"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path"
@@ -286,7 +285,7 @@ func TestVersionHandling(t *testing.T) {
 	needsCompiler(t, "gc")
 
 	const dir = "./testdata/versions"
-	list, err := ioutilReadDir(dir)
+	list, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1007,21 +1006,4 @@ func lookupObj(t *testing.T, scope *types.Scope, name string) types.Object {
 	}
 	t.Fatalf("%s not found", name)
 	return nil
-}
-
-func ioutilReadDir(dirname string) ([]fs.FileInfo, error) {
-	entries, err := os.ReadDir(dirname)
-	if err != nil {
-		return nil, err
-	}
-
-	infos := make([]fs.FileInfo, 0, len(entries))
-	for _, entry := range entries {
-		info, err := entry.Info()
-		if err != nil {
-			return infos, err
-		}
-		infos = append(infos, info)
-	}
-	return infos, nil
 }

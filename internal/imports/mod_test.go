@@ -1079,7 +1079,7 @@ func writeModule(dir, ar string) error {
 // writeProxy writes all the txtar-formatted modules in arDir to a proxy
 // directory in dir.
 func writeProxy(dir, arDir string) error {
-	files, err := ioutilReadDir(arDir)
+	files, err := os.ReadDir(arDir)
 	if err != nil {
 		return err
 	}

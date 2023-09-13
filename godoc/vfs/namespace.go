@@ -77,7 +77,7 @@ const debugNS = false
 // just "/src" in the final two calls.
 //
 // OS is itself an implementation of a file system: it implements
-// OS(`c:\Go`).ReadDir("/src/pkg/code") as ioutilReadDir(`c:\Go\src\pkg\code`).
+// OS(`c:\Go`).ReadDir("/src/pkg/code") as ioutil.ReadDir(`c:\Go\src\pkg\code`).
 //
 // Because the new path is evaluated by fs (here OS(root)), another way
 // to read the mount table is to mentally combine fs+new, so that this table:

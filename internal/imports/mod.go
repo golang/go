@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -265,7 +264,7 @@ func (r *ModuleResolver) findPackage(importPath string) (*gocommand.ModuleJSON, 
 		}
 
 		// Not cached. Read the filesystem.
-		pkgFiles, err := ioutilReadDir(pkgDir)
+		pkgFiles, err := os.ReadDir(pkgDir)
 		if err != nil {
 			continue
 		}
@@ -721,21 +720,4 @@ func modulePath(mod []byte) string {
 		return string(line)
 	}
 	return "" // missing module path
-}
-
-func ioutilReadDir(dirname string) ([]fs.FileInfo, error) {
-	entries, err := os.ReadDir(dirname)
-	if err != nil {
-		return nil, err
-	}
-
-	infos := make([]fs.FileInfo, 0, len(entries))
-	for _, entry := range entries {
-		info, err := entry.Info()
-		if err != nil {
-			return infos, err
-		}
-		infos = append(infos, info)
-	}
-	return infos, nil
 }

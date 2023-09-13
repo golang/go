@@ -8,7 +8,6 @@
 package fastwalk
 
 import (
-	"io/fs"
 	"os"
 )
 
@@ -17,16 +16,20 @@ import (
 // If fn returns a non-nil error, readDir returns with that error
 // immediately.
 func readDir(dirName string, fn func(dirName, entName string, typ os.FileMode) error) error {
-	fis, err := ioutilReadDir(dirName)
+	fis, err := os.ReadDir(dirName)
 	if err != nil {
 		return err
 	}
 	skipFiles := false
 	for _, fi := range fis {
-		if fi.Mode().IsRegular() && skipFiles {
+		info, err := fi.Info()
+		if err != nil {
+			return err
+		}
+		if info.Mode().IsRegular() && skipFiles {
 			continue
 		}
-		if err := fn(dirName, fi.Name(), fi.Mode()&os.ModeType); err != nil {
+		if err := fn(dirName, fi.Name(), info.Mode()&os.ModeType); err != nil {
 			if err == ErrSkipFiles {
 				skipFiles = true
 				continue
@@ -35,21 +38,4 @@ func readDir(dirName string, fn func(dirName, entName string, typ os.FileMode) e
 		}
 	}
 	return nil
-}
-
-func ioutilReadDir(dirname string) ([]fs.FileInfo, error) {
-	entries, err := os.ReadDir(dirname)
-	if err != nil {
-		return nil, err
-	}
-
-	infos := make([]fs.FileInfo, 0, len(entries))
-	for _, entry := range entries {
-		info, err := entry.Info()
-		if err != nil {
-			return infos, err
-		}
-		infos = append(infos, info)
-	}
-	return infos, nil
 }

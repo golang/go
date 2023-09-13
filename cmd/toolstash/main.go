@@ -126,15 +126,15 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	exec "golang.org/x/sys/execabs"
 	"io"
-	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	exec "golang.org/x/sys/execabs"
 )
 
 var usageMessage = `usage: toolstash [-n] [-v] [-cmp] command line
@@ -553,13 +553,17 @@ func save() {
 	}
 
 	toolDir := filepath.Join(goroot, fmt.Sprintf("pkg/tool/%s_%s", runtime.GOOS, runtime.GOARCH))
-	files, err := ioutilReadDir(toolDir)
+	files, err := os.ReadDir(toolDir)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	for _, file := range files {
-		if shouldSave(file.Name()) && file.Mode().IsRegular() {
+		info, err := file.Info()
+		if err != nil {
+			log.Fatal(err)
+		}
+		if shouldSave(file.Name()) && info.Mode().IsRegular() {
 			cp(filepath.Join(toolDir, file.Name()), filepath.Join(stashDir, file.Name()))
 		}
 	}
@@ -578,13 +582,17 @@ func save() {
 }
 
 func restore() {
-	files, err := ioutilReadDir(stashDir)
+	files, err := os.ReadDir(stashDir)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	for _, file := range files {
-		if shouldSave(file.Name()) && file.Mode().IsRegular() {
+		info, err := file.Info()
+		if err != nil {
+			log.Fatal(err)
+		}
+		if shouldSave(file.Name()) && info.Mode().IsRegular() {
 			targ := toolDir
 			if isBinTool(file.Name()) {
 				targ = binDir
@@ -633,21 +641,4 @@ func cp(src, dst string) {
 	if err := os.WriteFile(dst, data, 0777); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func ioutilReadDir(dirname string) ([]fs.FileInfo, error) {
-	entries, err := os.ReadDir(dirname)
-	if err != nil {
-		return nil, err
-	}
-
-	infos := make([]fs.FileInfo, 0, len(entries))
-	for _, entry := range entries {
-		info, err := entry.Info()
-		if err != nil {
-			return infos, err
-		}
-		infos = append(infos, info)
-	}
-	return infos, nil
 }
