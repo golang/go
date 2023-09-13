@@ -43,13 +43,18 @@ func findExecutable(file string, exts []string) (string, error) {
 		if chkStat(file) == nil {
 			return file, nil
 		}
+		// Keep checking exts below, so that programs with weird names
+		// like "foo.bat.exe" will resolve instead of failing.
 	}
 	for _, e := range exts {
 		if f := file + e; chkStat(f) == nil {
 			return f, nil
 		}
 	}
-	return "", fs.ErrNotExist
+	if hasExt(file) {
+		return "", fs.ErrNotExist
+	}
+	return "", ErrNotFound
 }
 
 // LookPath searches for an executable named file in the
@@ -112,6 +117,12 @@ func LookPath(file string) (string, error) {
 
 	path := os.Getenv("path")
 	for _, dir := range filepath.SplitList(path) {
+		if dir == "" {
+			// Skip empty entries, consistent with what PowerShell does.
+			// (See https://go.dev/issue/61493#issuecomment-1649724826.)
+			continue
+		}
+
 		if f, err := findExecutable(filepath.Join(dir, file), exts); err == nil {
 			if dotErr != nil {
 				// https://go.dev/issue/53536: if we resolved a relative path implicitly,
@@ -130,7 +141,14 @@ func LookPath(file string) (string, error) {
 
 			if !filepath.IsAbs(f) {
 				if execerrdot.Value() != "0" {
-					return f, &Error{file, ErrDot}
+					// If this is the same relative path that we already found,
+					// dotErr is non-nil and we already checked it above.
+					// Otherwise, record this path as the one to which we must resolve,
+					// with or without a dotErr.
+					if dotErr == nil {
+						dotf, dotErr = f, &Error{file, ErrDot}
+					}
+					continue
 				}
 				execerrdot.IncNonDefault()
 			}

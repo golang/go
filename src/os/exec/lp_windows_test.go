@@ -34,6 +34,26 @@ func cmdPrintPath(args ...string) {
 	fmt.Println(exe)
 }
 
+// makePATH returns a PATH variable referring to the
+// given directories relative to a root directory.
+//
+// The empty string results in an empty entry.
+// Paths beginning with . are kept as relative entries.
+func makePATH(root string, dirs []string) string {
+	paths := make([]string, 0, len(dirs))
+	for _, d := range dirs {
+		switch {
+		case d == "":
+			paths = append(paths, "")
+		case d == "." || (len(d) >= 2 && d[0] == '.' && os.IsPathSeparator(d[1])):
+			paths = append(paths, filepath.Clean(d))
+		default:
+			paths = append(paths, filepath.Join(root, d))
+		}
+	}
+	return strings.Join(paths, string(os.PathListSeparator))
+}
+
 // installProgs creates executable files (or symlinks to executable files) at
 // multiple destination paths. It uses root as prefix for all destination files.
 func installProgs(t *testing.T, root string, files []string) {
@@ -103,12 +123,14 @@ func installBat(t *testing.T, dstPath string) {
 }
 
 type lookPathTest struct {
-	name      string
-	PATHEXT   string   // empty to use default
-	files     []string // PATH contains all named directories
-	searchFor string
-	want      string
-	wantErr   error
+	name            string
+	PATHEXT         string // empty to use default
+	files           []string
+	PATH            []string // if nil, use all parent directories from files
+	searchFor       string
+	want            string
+	wantErr         error
+	skipCmdExeCheck bool // if true, do not check want against the behavior of cmd.exe
 }
 
 var lookPathTests = []lookPathTest{
@@ -158,7 +180,7 @@ var lookPathTests = []lookPathTest{
 		name:      "no match with dir",
 		files:     []string{`p1\b.exe`, `p2\a.exe`},
 		searchFor: `p2\b`,
-		wantErr:   fs.ErrNotExist,
+		wantErr:   exec.ErrNotFound,
 	},
 	{
 		name:      "extensionless file in CWD ignored",
@@ -224,6 +246,31 @@ var lookPathTests = []lookPathTest{
 		searchFor: `a`,
 		wantErr:   exec.ErrNotFound,
 	},
+	{
+		name:      "ignore empty PATH entry",
+		files:     []string{`a.bat`, `p\a.bat`},
+		PATH:      []string{`p`},
+		searchFor: `a`,
+		want:      `p\a.bat`,
+		// If cmd.exe is too old it might not respect NoDefaultCurrentDirectoryInExePath,
+		// so skip that check.
+		skipCmdExeCheck: true,
+	},
+	{
+		name:      "return ErrDot if found by a different absolute path",
+		files:     []string{`p1\a.bat`, `p2\a.bat`},
+		PATH:      []string{`.\p1`, `p2`},
+		searchFor: `a`,
+		want:      `p1\a.bat`,
+		wantErr:   exec.ErrDot,
+	},
+	{
+		name:      "suppress ErrDot if also found in absolute path",
+		files:     []string{`p1\a.bat`, `p2\a.bat`},
+		PATH:      []string{`.\p1`, `p1`, `p2`},
+		searchFor: `a`,
+		want:      `p1\a.bat`,
+	},
 }
 
 func TestLookPathWindows(t *testing.T) {
@@ -257,7 +304,7 @@ func TestLookPathWindows(t *testing.T) {
 			}
 
 			var pathVar string
-			{
+			if tt.PATH == nil {
 				paths := make([]string, 0, len(tt.files))
 				for _, f := range tt.files {
 					dir := filepath.Join(root, filepath.Dir(f))
@@ -266,13 +313,15 @@ func TestLookPathWindows(t *testing.T) {
 					}
 				}
 				pathVar = strings.Join(paths, string(os.PathListSeparator))
+			} else {
+				pathVar = makePATH(root, tt.PATH)
 			}
 			t.Setenv("PATH", pathVar)
 			t.Logf("set PATH=%s", pathVar)
 
 			chdir(t, root)
 
-			if !testing.Short() {
+			if !testing.Short() && !(tt.skipCmdExeCheck || errors.Is(tt.wantErr, exec.ErrDot)) {
 				// Check that cmd.exe, which is our source of ground truth,
 				// agrees that our test case is correct.
 				cmd := testenv.Command(t, cmdExe, "/c", tt.searchFor, "printpath")
@@ -501,15 +550,7 @@ func TestCommand(t *testing.T) {
 			root := t.TempDir()
 			installProgs(t, root, tt.files)
 
-			paths := make([]string, 0, len(tt.PATH))
-			for _, p := range tt.PATH {
-				if p == "." {
-					paths = append(paths, ".")
-				} else {
-					paths = append(paths, filepath.Join(root, p))
-				}
-			}
-			pathVar := strings.Join(paths, string(os.PathListSeparator))
+			pathVar := makePATH(root, tt.PATH)
 			t.Setenv("PATH", pathVar)
 			t.Logf("set PATH=%s", pathVar)
 
