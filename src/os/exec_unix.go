@@ -17,6 +17,15 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	if p.Pid == -1 {
 		return nil, syscall.EINVAL
 	}
+	// Wait on pidfd if possible; fallback to using pid on ENOSYS.
+	//
+	// When pidfd is used, there is no wait/kill race (described in CL 23967)
+	// because PID recycle issue doesn't exist (IOW, pidfd, unlike PID, is
+	// guaranteed to refer to one particular process). Thus, there is no
+	// need for the workaround (blockUntilWaitable + sigMu) below.
+	if ps, e := p.pidfdWait(); e != syscall.ENOSYS {
+		return ps, NewSyscallError("waitid", e)
+	}
 
 	// If we can block until Wait4 will succeed immediately, do so.
 	ready, err := p.blockUntilWaitable()
@@ -64,26 +73,31 @@ func (p *Process) signal(sig Signal) error {
 	if p.Pid == 0 {
 		return errors.New("os: process not initialized")
 	}
+	s, ok := sig.(syscall.Signal)
+	if !ok {
+		return errors.New("os: unsupported signal type")
+	}
+	// Use pidfd if possible; fallback on ENOSYS.
+	if err := p.pidfdSendSignal(s); err != syscall.ENOSYS {
+		return err
+	}
 	p.sigMu.RLock()
 	defer p.sigMu.RUnlock()
 	if p.done() {
 		return ErrProcessDone
 	}
-	s, ok := sig.(syscall.Signal)
-	if !ok {
-		return errors.New("os: unsupported signal type")
+	return convertESRCH(syscall.Kill(p.Pid, s))
+}
+
+func convertESRCH(err error) error {
+	if err == syscall.ESRCH {
+		return ErrProcessDone
 	}
-	if e := syscall.Kill(p.Pid, s); e != nil {
-		if e == syscall.ESRCH {
-			return ErrProcessDone
-		}
-		return e
-	}
-	return nil
+	return err
 }
 
 func (p *Process) release() error {
-	// NOOP for unix.
+	p.pidfdRelease()
 	p.Pid = -1
 	// no need for a finalizer anymore
 	runtime.SetFinalizer(p, nil)
@@ -92,7 +106,7 @@ func (p *Process) release() error {
 
 func findProcess(pid int) (p *Process, err error) {
 	// NOOP for unix.
-	return newProcess(pid, 0), nil
+	return newProcess(pid, unsetHandle), nil
 }
 
 func (p *ProcessState) userTime() time.Duration {

@@ -8,4 +8,5 @@ var (
 	PollCopyFileRangeP  = &pollCopyFileRange
 	PollSpliceFile      = &pollSplice
 	GetPollFDAndNetwork = getPollFDAndNetwork
+	CheckPidfdOnce      = checkPidfdOnce
 )
