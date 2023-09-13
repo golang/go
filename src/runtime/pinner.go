@@ -25,10 +25,8 @@ type Pinner struct {
 // objects, these objects must be pinned separately if they are going to be
 // accessed from C code.
 //
-// The argument must be a pointer of any type or an
-// unsafe.Pointer. It must be the result of calling new,
-// taking the address of a composite literal, or taking the address of a
-// local variable. If one of these conditions is not met, Pin will panic.
+// The argument must be a pointer of any type or an unsafe.Pointer.
+// It's safe to call Pin on non-Go pointers, in which case Pin will do nothing.
 func (p *Pinner) Pin(pointer any) {
 	if p.pinner == nil {
 		// Check the pinner cache first.
@@ -144,14 +142,17 @@ func isPinned(ptr unsafe.Pointer) bool {
 	return pinState.isPinned()
 }
 
-// setPinned marks or unmarks a Go pointer as pinned.
+// setPinned marks or unmarks a Go pointer as pinned, when the ptr is a Go pointer.
+// It will be ignored while try to pin a non-Go pointer,
+// and it will be panic while try to unpin a non-Go pointer,
+// which should not happen in normal usage.
 func setPinned(ptr unsafe.Pointer, pin bool) bool {
 	span := spanOfHeap(uintptr(ptr))
 	if span == nil {
 		if !pin {
-			panic(errorString("runtime.Pinner.Unpin: unexpected non Go pointer"))
+			panic(errorString("tried to unpin non-Go pointer"))
 		}
-		// this is a linker-allocated, zero size object or other object,
+		// This is a linker-allocated, zero size object or other object,
 		// nothing to do, silently ignore it.
 		return false
 	}
