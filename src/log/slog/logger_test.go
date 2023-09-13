@@ -276,7 +276,7 @@ func TestAlloc(t *testing.T) {
 		s := "abc"
 		i := 2000
 		d := time.Second
-		wantAllocs(t, 11, func() {
+		wantAllocs(t, 10, func() {
 			dl.Info("hello",
 				"n", i, "s", s, "d", d,
 				"n", i, "s", s, "d", d,

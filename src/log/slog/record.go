@@ -139,8 +139,6 @@ func (r *Record) Add(args ...any) {
 		} else {
 			if r.back == nil {
 				r.back = make([]Attr, 0, countAttrs(args)+1)
-			} else {
-				r.back = slices.Grow(r.back, countAttrs(args)+1)
 			}
 			r.back = append(r.back, a)
 		}
