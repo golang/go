@@ -13,7 +13,7 @@ package a
 
 func One()
 
-func Two(One int) //@rename("One", Three, OneToThree)
+func Two(One int) //@rename("One", "Three", OneToThree)
 
 -- b/b.go --
 package b
@@ -25,5 +25,5 @@ package a
 
 func One()
 
-func Two(Three int) //@rename("One", Three, OneToThree)
+func Two(Three int) //@rename("One", "Three", OneToThree)
 

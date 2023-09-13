@@ -9,8 +9,10 @@ module example.com
 package a
 
 func _() {
-	b.(foo) //@complete(re"b.()", "B"), diag("b", re"(undefined|undeclared name): b")
+	b.(foo) //@complete(re"b.()", B), diag("b", re"(undefined|undeclared name): b")
 }
+
+//@item(B, "B", "const (from \"example.com/b\")", "const")
 
 -- b/b.go --
 package b

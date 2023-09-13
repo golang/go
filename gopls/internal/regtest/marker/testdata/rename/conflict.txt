@@ -12,7 +12,7 @@ var x int
 
 func f(y int) {
 	println(x)
-	println(y) //@renameerr("y", x, errSuperBlockConflict)
+	println(y) //@renameerr("y", "x", errSuperBlockConflict)
 }
 
 -- @errSuperBlockConflict --
@@ -25,7 +25,7 @@ package sub
 var a int
 
 func f2(b int) {
-	println(a) //@renameerr("a", b, errSubBlockConflict)
+	println(a) //@renameerr("a", "b", errSubBlockConflict)
 	println(b)
 }
 
@@ -36,7 +36,7 @@ sub/p.go:5:9:	by this intervening var definition
 -- pkgname/p.go --
 package pkgname
 
-import e1 "errors" //@renameerr("e1", errors, errImportConflict)
+import e1 "errors" //@renameerr("e1", "errors", errImportConflict)
 import "errors"
 
 var _ = errors.New
@@ -51,7 +51,7 @@ var x int
 
 -- pkgname2/p2.go --
 package pkgname2
-import "errors" //@renameerr("errors", x, errImportConflict2)
+import "errors" //@renameerr("errors", "x", errImportConflict2)
 var _ = errors.New
 
 -- @errImportConflict2 --

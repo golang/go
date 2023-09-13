@@ -13,8 +13,8 @@ go 1.12
 -- a/a.go --
 package a
 
-type unexported int 
-func (unexported) F() {} //@rename("F", G, fToG)
+type unexported int
+func (unexported) F() {} //@rename("F", "G", fToG)
 
 var _ = unexported(0).F
 
@@ -29,8 +29,8 @@ import _ "example.com/a"
 -- @fToG/a/a.go --
 package a
 
-type unexported int 
-func (unexported) G() {} //@rename("F", G, fToG)
+type unexported int
+func (unexported) G() {} //@rename("F", "G", fToG)
 
 var _ = unexported(0).G
 

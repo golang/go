@@ -9,7 +9,7 @@ package a
 // This file is adapted from the example in the issue.
 
 type builder[S ~[]int] struct {
-	elements S //@rename("elements", elements2, OneToTwo)
+	elements S //@rename("elements", "elements2", OneToTwo)
 }
 
 type BuilderImpl[S ~[]int] struct{ builder[S] }
@@ -30,7 +30,7 @@ package a
 // This file is adapted from the example in the issue.
 
 type builder[S ~[]int] struct {
-	elements2 S //@rename("elements", elements2, OneToTwo)
+	elements2 S //@rename("elements", "elements2", OneToTwo)
 }
 
 type BuilderImpl[S ~[]int] struct{ builder[S] }

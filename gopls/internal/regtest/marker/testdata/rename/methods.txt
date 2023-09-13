@@ -12,7 +12,7 @@ package a
 
 type A int
 
-func (A) F() {} //@renameerr("F", G, errAfToG)
+func (A) F() {} //@renameerr("F", "G", errAfToG)
 
 -- b/b.go --
 package b
@@ -20,7 +20,7 @@ package b
 import "example.com/a"
 import "example.com/c"
 
-type B interface { F() } //@rename("F", G, BfToG)
+type B interface { F() } //@rename("F", "G", BfToG)
 
 var _ B = a.A(0)
 var _ B = c.C(0)
@@ -30,7 +30,7 @@ package c
 
 type C int
 
-func (C) F() {} //@renameerr("F", G, errCfToG)
+func (C) F() {} //@renameerr("F", "G", errCfToG)
 
 -- d/d.go --
 package d
@@ -49,7 +49,7 @@ package b
 import "example.com/a"
 import "example.com/c"
 
-type B interface { G() } //@rename("F", G, BfToG)
+type B interface { G() } //@rename("F", "G", BfToG)
 
 var _ B = a.A(0)
 var _ B = c.C(0)

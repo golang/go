@@ -1,0 +1,21 @@
+This test checks a diagnostic for invalid use of internal packages.
+
+This list error changed in Go 1.21.
+
+-- flags --
+-min_go=go1.21
+
+-- go.mod --
+module bad.test
+
+go 1.18
+
+-- assign/internal/secret/secret.go --
+package secret
+
+func Hello() {}
+
+-- bad/bad.go --
+package bad
+
+import _ "bad.test/assign/internal/secret" //@diag("\"bad.test/assign/internal/secret\"", re"could not import bad.test/assign/internal/secret \\(invalid use of internal package \"bad.test/assign/internal/secret\"\\)"),diag("_", re"use of internal package bad.test/assign/internal/secret not allowed")

@@ -11,7 +11,7 @@ go 1.12
 -- a/a.go --
 package a
 
-var S struct{ X int } //@renameerr("X", x, oops)
+var S struct{ X int } //@renameerr("X", "x", oops)
 
 -- a/a_test.go --
 package a_test

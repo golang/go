@@ -4,11 +4,11 @@ This test covers the special case of renaming a type switch var.
 package p
 
 func _(x interface{}) {
-	switch y := x.(type) { //@rename("y", z, yToZ)
+	switch y := x.(type) { //@rename("y", "z", yToZ)
 	case string:
-		print(y) //@rename("y", z, yToZ)
+		print(y) //@rename("y", "z", yToZ)
 	default:
-		print(y) //@rename("y", z, yToZ)
+		print(y) //@rename("y", "z", yToZ)
 	}
 }
 
@@ -16,11 +16,11 @@ func _(x interface{}) {
 package p
 
 func _(x interface{}) {
-	switch z := x.(type) { //@rename("y", z, yToZ)
+	switch z := x.(type) { //@rename("y", "z", yToZ)
 	case string:
-		print(z) //@rename("y", z, yToZ)
+		print(z) //@rename("y", "z", yToZ)
 	default:
-		print(z) //@rename("y", z, yToZ)
+		print(z) //@rename("y", "z", yToZ)
 	}
 }
 

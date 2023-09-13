@@ -1,0 +1,68 @@
+This test exercises completion in the presence of type errors.
+
+Note: this test was ported from the old marker tests, which did not enable
+unimported completion. Enabling it causes matches in e.g. crypto/rand.
+
+-- settings.json --
+{
+	"completeUnimported": false
+}
+
+-- go.mod --
+module bad.test
+
+go 1.18
+
+-- bad/bad0.go --
+package bad
+
+func stuff() { //@item(stuff, "stuff", "func()", "func")
+	x := "heeeeyyyy"
+	random2(x) //@diag("x", re"cannot use x \\(variable of type string\\) as int value in argument to random2")
+	random2(1) //@complete("dom", random, random2, random3)
+	y := 3     //@diag("y", re"y declared (and|but) not used")
+}
+
+type bob struct { //@item(bob, "bob", "struct{...}", "struct")
+	x int
+}
+
+func _() {
+	var q int
+	_ = &bob{
+		f: q, //@diag("f: q", re"unknown field f in struct literal")
+	}
+}
+
+-- bad/bad1.go --
+package bad
+
+// See #36637
+type stateFunc func() stateFunc //@item(stateFunc, "stateFunc", "func() stateFunc", "type")
+
+var a unknown //@item(global_a, "a", "unknown", "var"),diag("unknown", re"(undeclared name|undefined): unknown")
+
+func random() int { //@item(random, "random", "func() int", "func")
+	//@complete("", global_a, bob, random, random2, random3, stateFunc, stuff)
+	return 0
+}
+
+func random2(y int) int { //@item(random2, "random2", "func(y int) int", "func"),item(bad_y_param, "y", "int", "var")
+	x := 6       //@item(x, "x", "int", "var"),diag("x", re"x declared (and|but) not used")
+	var q blah   //@item(q, "q", "blah", "var"),diag("q", re"q declared (and|but) not used"),diag("blah", re"(undeclared name|undefined): blah")
+	var t **blob //@item(t, "t", "**blob", "var"),diag("t", re"t declared (and|but) not used"),diag("blob", re"(undeclared name|undefined): blob")
+	//@complete("", q, t, x, bad_y_param, global_a, bob, random, random2, random3, stateFunc, stuff)
+
+	return y
+}
+
+func random3(y ...int) { //@item(random3, "random3", "func(y ...int)", "func"),item(y_variadic_param, "y", "[]int", "var")
+	//@complete("", y_variadic_param, global_a, bob, random, random2, random3, stateFunc, stuff)
+
+	var ch chan (favType1)   //@item(ch, "ch", "chan (favType1)", "var"),diag("ch", re"ch declared (and|but) not used"),diag("favType1", re"(undeclared name|undefined): favType1")
+	var m map[keyType]int    //@item(m, "m", "map[keyType]int", "var"),diag("m", re"m declared (and|but) not used"),diag("keyType", re"(undeclared name|undefined): keyType")
+	var arr []favType2       //@item(arr, "arr", "[]favType2", "var"),diag("arr", re"arr declared (and|but) not used"),diag("favType2", re"(undeclared name|undefined): favType2")
+	var fn1 func() badResult //@item(fn1, "fn1", "func() badResult", "var"),diag("fn1", re"fn1 declared (and|but) not used"),diag("badResult", re"(undeclared name|undefined): badResult")
+	var fn2 func(badParam)   //@item(fn2, "fn2", "func(badParam)", "var"),diag("fn2", re"fn2 declared (and|but) not used"),diag("badParam", re"(undeclared name|undefined): badParam")
+	//@complete("", arr, ch, fn1, fn2, m, y_variadic_param, global_a, bob, random, random2, random3, stateFunc, stuff)
+}

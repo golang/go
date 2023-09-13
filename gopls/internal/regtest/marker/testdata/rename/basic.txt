@@ -3,36 +3,36 @@ This test performs basic coverage of 'rename' within a single package.
 -- basic.go --
 package p
 
-func f(x int) { println(x) } //@rename("x", y, xToy)
+func f(x int) { println(x) } //@rename("x", "y", xToy)
 
 -- @xToy/basic.go --
 package p
 
-func f(y int) { println(y) } //@rename("x", y, xToy)
+func f(y int) { println(y) } //@rename("x", "y", xToy)
 
 -- alias.go --
 package p
 
 // from golang/go#61625
 type LongNameHere struct{}
-type A = LongNameHere //@rename("A", B, AToB)
+type A = LongNameHere //@rename("A", "B", AToB)
 func Foo() A
+
+-- errors.go --
+package p
+
+func _(x []int) { //@renameerr("_", "blank", `can't rename "_"`)
+	x = append(x, 1) //@renameerr("append", "blank", "built in and cannot be renamed")
+	x = nil //@renameerr("nil", "blank", "built in and cannot be renamed")
+	x = nil //@renameerr("x", "x", "old and new names are the same: x")
+	_ = 1 //@renameerr("1", "x", "no identifier found")
+}
 
 -- @AToB/alias.go --
 package p
 
 // from golang/go#61625
 type LongNameHere struct{}
-type B = LongNameHere //@rename("A", B, AToB)
+type B = LongNameHere //@rename("A", "B", AToB)
 func Foo() B
-
--- errors.go --
-package p
-
-func _(x []int) { //@renameerr("_", blank, `can't rename "_"`)
-	x = append(x, 1) //@renameerr("append", blank, "built in and cannot be renamed")
-	x = nil //@renameerr("nil", blank, "built in and cannot be renamed")
-	x = nil //@renameerr("x", x, "old and new names are the same: x")
-	_ = 1 //@renameerr("1", x, "no identifier found")
-}
 

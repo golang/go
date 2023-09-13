@@ -8,8 +8,12 @@ go 1.18
 -- main.go --
 package main
 
+//@item(Print, "Print", "func (from \"fmt\")", "func")
+//@item(Printf, "Printf", "func (from \"fmt\")", "func")
+//@item(Println, "Println", "func (from \"fmt\")", "func")
+
 func main() {
-	fmt.p //@complete(re"p()","Print", "Printf", "Println"), diag("fmt", re"(undefined|undeclared)")
+	fmt.p //@complete(re"fmt.p()", Print, Printf, Println), diag("fmt", re"(undefined|undeclared)")
 }
 
 -- other.go --
