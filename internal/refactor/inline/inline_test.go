@@ -391,9 +391,9 @@ func TestTable(t *testing.T) {
 		},
 		{
 			"Variadic elimination (literalization).",
-			`func f(x any, rest ...any) { println(x, rest) }`,
-			`func _() { f(1, 2, 3) }`, // NB: x int->any causes literalization, for now
-			`func _() { func(x any) { println(x, []any{2, 3}) }(1) }`,
+			`func f(x any, rest ...any) { defer println(x, rest) }`, // defer => literalization
+			`func _() { f(1, 2, 3) }`,
+			`func _() { func(x any) { defer println(x, []any{2, 3}) }(1) }`,
 		},
 		{
 			"Variadic elimination (reduction).",
@@ -418,6 +418,38 @@ func TestTable(t *testing.T) {
 			`func f(x, y int, rest ...int) { println(x, y, rest) }; func g() (a, b, c int)`,
 			`func _() { f(g()) }`,
 			`func _() { func(x, y int, rest ...int) { println(x, y, rest) }(g()) }`,
+		},
+		{
+			"Binding declaration (x eliminated).",
+			`func f(w, x, y any, z int) { println(w, y, z) }; func g(int) int`,
+			`func _() { f(g(0), g(1), g(2), g(3)) }`,
+			`func _() {
+	{
+		var (
+			w, _, y any = g(0), g(1), g(2)
+			z       int = g(3)
+		)
+		println(w, y, z)
+	}
+}`,
+		},
+		{
+			"Binding decl in reduction of stmt-context call to { return exprs }",
+			`func f(ch chan int) int { return <-ch }; func g() chan int`,
+			`func _() { f(g()) }`,
+			`func _() {
+	{
+		var ch chan int = g()
+		<-ch
+	}
+}`,
+		},
+		{
+			"No binding decl due to shadowing of int",
+			`func f(int, y any, z int) { defer println(int, y, z) }; func g() int`,
+			`func _() { f(g(), g(), g()) }`,
+			`func _() { func(int, y any, z int) { defer println(int, y, z) }(g(), g(), g()) }
+`,
 		},
 		// TODO(adonovan): improve coverage of the cross
 		// product of each strategy with the checklist of

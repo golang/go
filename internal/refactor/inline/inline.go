@@ -99,13 +99,18 @@
 //     "return expr", in some contexts it may be syntactically
 //     impossible to reduce the call. Consider:
 //
-//     } else if x := f(); cond { ... }
+//     if x := f(); cond { ... }
 //
 //     Go has no equivalent to Lisp's progn or Rust's blocks,
 //     nor ML's let expressions (let param = arg in body);
 //     its closest equivalent is func(param){body}(arg).
 //     Reduction strategies must therefore consider the syntactic
 //     context of the call.
+//
+//     In such situations we could work harder to extract a statement
+//     context for the call, by transforming it to:
+//
+//     { x := f(); if cond { ... } }
 //
 //   - Similarly, without the equivalent of Rust-style blocks and
 //     first-class tuples, there is no general way to reduce a call
@@ -260,7 +265,8 @@
 //     But note that the existing algorithm makes widespread assumptions
 //     that the callee is a package-level function or method.
 //
-//   - Eliminate parens inserted conservatively when they are redundant.
+//   - Eliminate parens and braces inserted conservatively when they
+//     are redundant.
 //
 //   - Allow non-'go' build systems such as Bazel/Blaze a chance to
 //     decide whether an import is accessible using logic other than
@@ -722,7 +728,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 				typ:        caller.Info.TypeOf(sel.X),
 				pure:       pure(caller.Info, sel.X),
 				duplicable: duplicable(caller.Info, sel.X),
-				freevars:   freevars(caller.Info, sel.X),
+				freevars:   freeVars(caller.Info, sel.X),
 			}
 			args = append(args, arg)
 
@@ -768,7 +774,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			spread:     is[*types.Tuple](typ), // => last
 			pure:       pure(caller.Info, expr),
 			duplicable: duplicable(caller.Info, expr),
-			freevars:   freevars(caller.Info, expr),
+			freevars:   freeVars(caller.Info, expr),
 		})
 	}
 
@@ -853,6 +859,11 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 
 	// Parameter elimination
 	//
+	// TODO(adonovan): use the term "parameter substitution"
+	// instead because a "binding decl" (see below) is an
+	// alternative way that parameters can be eliminated even when
+	// they can't be substituted.
+	//
 	// Consider each parameter and its corresponding argument in turn
 	// and evaluate these conditions:
 	//
@@ -882,7 +893,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 					param.info.Name, debugFormatNode(caller.Fset, arg.expr))
 				break // spread => last argument, but not always last parameter
 			}
-			assert(!param.variadic, "unsimplfied variadic parameter")
+			assert(!param.variadic, "unsimplified variadic parameter")
 			if param.info.Escapes {
 				logf("keeping param %q: escapes from callee", param.info.Name)
 				continue
@@ -975,20 +986,176 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		}
 	}
 
-	// TODO(adonovan): eliminate all remaining parameters
-	// by replacing a call f(a1, a2)
-	// to func f(x T1, y T2) {body} by
-	//    { var x T1 = a1
-	//      var y T2 = a2
-	//      body }
-	// if x ∉ freevars(a2) or freevars(T2), and so on,
-	// plus the usual checks for return conversions (if any),
-	// complex control, etc.
+	// Modify callee's FuncDecl.Type.Params to remove eliminated
+	// parameters and move the receiver (if any) to the head of
+	// the ordinary parameters.
 	//
-	// If viable, use this with the reduction strategies below
-	// that produce a block (not a value).
+	// The logic is fiddly because of the three forms of ast.Field:
+	//   func(int), func(x int), func(x, y int)
+	//
+	// Also, ensure that all remaining parameters are named
+	// to avoid a mix of named/unnamed when joining (recv, params...).
+	// func (T) f(int, bool) -> (_ T, _ int, _ bool)
+	// (Strictly, we need do this only for methods and only when
+	// the namednesses of Recv and Params differ; that might be tidier.)
+	{
+		paramIdx := 0 // index in original parameter list (incl. receiver)
+		var newParams []*ast.Field
+		filterParams := func(field *ast.Field) {
+			var names []*ast.Ident
+			if field.Names == nil {
+				// Unnamed parameter field (e.g. func f(int)
+				if params[paramIdx] != nil {
+					// Give it an explicit name "_" since we will
+					// make the receiver (if any) a regular parameter
+					// and one cannot mix named and unnamed parameters.
+					names = append(names, makeIdent("_"))
+				}
+				paramIdx++
+			} else {
+				// Named parameter field e.g. func f(x, y int)
+				// Remove eliminated parameters in place.
+				// If all were eliminated, delete field.
+				for _, id := range field.Names {
+					if pinfo := params[paramIdx]; pinfo != nil {
+						// Rename unreferenced parameters with "_".
+						// This is crucial for binding decls, since
+						// unlike parameters, they are subject to
+						// "unreferenced var" checks.
+						if len(pinfo.info.Refs) == 0 {
+							id = makeIdent("_")
+						}
+						names = append(names, id)
+					}
+					paramIdx++
+				}
+			}
+			if names != nil {
+				newParams = append(newParams, &ast.Field{
+					Names: names,
+					Type:  field.Type,
+				})
+			}
+		}
+		if calleeDecl.Recv != nil {
+			filterParams(calleeDecl.Recv.List[0])
+			calleeDecl.Recv = nil
+		}
+		for _, field := range calleeDecl.Type.Params.List {
+			filterParams(field)
+		}
+		calleeDecl.Type.Params.List = newParams
+	}
+
+	// Construct a "binding decl" that implements parameter assignment.
+	//
+	// If we succeed, the declaration may be used by reduction
+	// strategies to relax the requirement that all parameters
+	// have been eliminated.
+	//
+	// For example, a call:
+	//    f(a0, a1, a2)
+	// where:
+	//    func f(p0, p1 T0, p2 T1) { body }
+	// reduces to:
+	//    {
+	//      var (
+	//        p0, p1 T0 = a0, a1
+	//        p2     T1 = a2
+	//      )
+	//      body
+	//    }
+	//
+	// so long as p0, p1 ∉ freevars(T1) or freevars(a2), and so on,
+	// because each spec is statically resolved in sequence and
+	// dynamically assigned in sequence. By contrast, all
+	// parameters are resolved simultaneously and assigned
+	// simultaneously.
+	//
+	// The pX names should already be blank ("_") if the parameter
+	// is unreferenced; this avoids "unreferenced local var" checks.
+	//
+	// Strategies may impose additional checks on return
+	// conversions, labels, defer, etc.
+	bindingDeclStmt := func() ast.Stmt {
+		// Spread calls are tricky as they may not align with the
+		// parameters' field groupings nor types.
+		// For example, given
+		//   func g() (int, string)
+		// the call
+		//   f(g())
+		// is legal with these decls of f:
+		//   func f(int, string)
+		//   func f(x, y any)
+		//   func f(x, y ...any)
+		// TODO(adonovan): support binding decls for spread calls by
+		// splitting parameter groupings as needed.
+		if lastArg := last(args); lastArg != nil && lastArg.spread {
+			logf("binding decls not yet supported for spread calls")
+			return nil
+		}
+
+		var (
+			values   = remainingArgs
+			specs    []ast.Spec
+			shadowed = make(map[string]bool) // names defined by previous specs
+		)
+		for _, field := range calleeDecl.Type.Params.List {
+			// Each field (param group) becomes a ValueSpec.
+			spec := &ast.ValueSpec{
+				Names:  field.Names,
+				Type:   field.Type,
+				Values: values[:len(field.Names)],
+			}
+			values = values[len(field.Names):]
+
+			// Compute union of free names of type and values
+			// and detect shadowing. Values is the arguments
+			// (caller syntax), so we can use type info.
+			// But Type is the untyped callee syntax,
+			// so we have to use a syntax-only algorithm.
+			free := make(map[string]bool)
+			for _, value := range spec.Values {
+				for name := range freeVars(caller.Info, value) {
+					free[name] = true
+				}
+			}
+			freeishNames(free, field.Type)
+			for name := range free {
+				if shadowed[name] {
+					logf("binding decl would shadow free name %q", name)
+					return nil
+				}
+			}
+			for _, id := range spec.Names {
+				if id.Name != "_" {
+					shadowed[id.Name] = true
+				}
+			}
+
+			specs = append(specs, spec)
+		}
+		decl := &ast.DeclStmt{
+			Decl: &ast.GenDecl{
+				Tok:   token.VAR,
+				Specs: specs,
+			},
+		}
+		logf("binding decl: %s", debugFormatNode(caller.Fset, decl))
+		return decl
+	}()
 
 	// -- let the inlining strategies begin --
+	//
+	// When we commit to a strategy, we log a message of the form:
+	//
+	//   "strategy: reduce expr-context call to { return expr }"
+	//
+	// This is a terse way of saying:
+	//
+	//    we plan to reduce a call
+	//    that appears in expression context
+	//    to a function whose body is of the form { return expr }
 
 	// TODO(adonovan): split this huge function into a sequence of
 	// function calls with an error sentinel that means "try the
@@ -1027,7 +1194,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 				}
 			}
 			res.new = &ast.AssignStmt{
-				Lhs: blanks[ast.Expr](nargs),
+				Lhs: blanks(nargs),
 				Tok: token.ASSIGN,
 				Rhs: remainingArgs,
 			}
@@ -1046,52 +1213,83 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	noResultEscapes := !exists(callee.Results, func(i int, r *paramInfo) bool {
 		return r.Escapes
 	})
-	if allParamsEliminated && noResultEscapes {
-		logf("all params eliminated and no result vars escape")
 
-		// Special case: parameterless call to { return exprs }.
-		//
-		// => reduce to:  exprs			(if legal)
-		//           or:  _, _ = expr		(otherwise)
-		//
-		// If:
-		// - the body is just "return expr" with trivial implicit conversions,
-		// - all parameters have been eliminated, and
-		// - no result var escapes,
-		// then the call expression can be replaced by the
-		// callee's body expression, suitably substituted.
-		if callee.BodyIsReturnExpr {
-			logf("strategy: reduce parameterless call to { return expr }")
+	// Special case: call to { return exprs }.
+	//
+	// Reduces to:
+	//	    { var (bindings); _, _ = exprs }
+	//     or   _, _ = exprs
+	//     or   expr
+	//
+	// If:
+	// - the body is just "return expr" with trivial implicit conversions,
+	// - all parameters have been eliminated or
+	//   can be replaced by a binding decl, and
+	// - no result var escapes,
+	// then the call expression can be replaced by the
+	// callee's body expression, suitably substituted.
+	if callee.BodyIsReturnExpr {
+		results := calleeDecl.Body.List[0].(*ast.ReturnStmt).Results
 
-			results := calleeDecl.Body.List[0].(*ast.ReturnStmt).Results
+		context := callContext(callerPath)
 
+		// statement context
+		if stmt, ok := context.(*ast.ExprStmt); ok &&
+			(allParamsEliminated && noResultEscapes || bindingDeclStmt != nil) {
+			logf("strategy: reduce stmt-context call to { return exprs }")
 			clearPositions(calleeDecl.Body)
 
-			context := callContext(callerPath)
-			if stmt, ok := context.(*ast.ExprStmt); ok {
-				logf("call in statement context")
-
-				if callee.ValidForCallStmt {
-					logf("callee body is valid as statement")
-					// Replace the statement with the callee expr.
+			if callee.ValidForCallStmt {
+				logf("callee body is valid as statement")
+				// Inv: len(results) == 1
+				if allParamsEliminated && noResultEscapes {
+					// Reduces to: expr
 					res.old = caller.Call
-					res.new = results[0] // Inv: len(results) == 1
+					res.new = results[0]
 				} else {
-					logf("callee body is not valid as statement")
-					// The call is a standalone statement, but the
-					// callee body is not suitable as a standalone statement
-					// (f() or <-ch), explicitly discard the results:
-					// _, _ = expr
+					// Reduces to: { var (bindings); expr }
 					res.old = stmt
-					res.new = &ast.AssignStmt{
-						Lhs: blanks[ast.Expr](callee.NumResults),
-						Tok: token.ASSIGN,
-						Rhs: results,
+					res.new = &ast.BlockStmt{
+						List: []ast.Stmt{
+							bindingDeclStmt,
+							&ast.ExprStmt{X: results[0]},
+						},
 					}
 				}
+			} else {
+				logf("callee body is not valid as statement")
+				// The call is a standalone statement, but the
+				// callee body is not suitable as a standalone statement
+				// (f() or <-ch), explicitly discard the results:
+				// Reduces to: _, _ = exprs
+				discard := &ast.AssignStmt{
+					Lhs: blanks(callee.NumResults),
+					Tok: token.ASSIGN,
+					Rhs: results,
+				}
+				res.old = stmt
+				if allParamsEliminated && noResultEscapes {
+					// Reduces to: _, _ = exprs
+					res.new = discard
+				} else {
+					// Reduces to: { var (bindings); _, _ = exprs }
+					res.new = &ast.BlockStmt{
+						List: []ast.Stmt{
+							bindingDeclStmt,
+							discard,
+						},
+					}
+				}
+			}
+			return res, nil
+		}
 
-			} else if callee.NumResults == 1 {
-				logf("call in expression context")
+		// expression context
+		if allParamsEliminated && noResultEscapes {
+			clearPositions(calleeDecl.Body)
+
+			if callee.NumResults == 1 {
+				logf("strategy: reduce expr-context call to { return expr }")
 
 				// A single return operand inlined to a unary
 				// expression context may need parens. Otherwise:
@@ -1106,9 +1304,8 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 				// but the y and z subtrees are safe.
 				res.old = caller.Call
 				res.new = &ast.ParenExpr{X: results[0]}
-
 			} else {
-				logf("call in spread context")
+				logf("strategy: reduce spread-context call to { return expr }")
 
 				// The call returns multiple results but is
 				// not a standalone call statement. It must
@@ -1141,95 +1338,104 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			}
 			return res, nil
 		}
-
-		// Special case: parameterless tail-call.
-		//
-		// Inlining:
-		//         return f(args)
-		// where:
-		//         func f(params) (results) { body }
-		// reduces to:
-		//         { body }
-		// so long as:
-		// - all parameters are eliminated;
-		// - call is a tail-call;
-		// - all returns in body have trivial result conversions;
-		// - there is no label conflict;
-		// - no result variable is referenced by name.
-		//
-		// The body may use defer, arbitrary control flow, and
-		// multiple returns.
-		//
-		// TODO(adonovan): omit the braces if the sets of
-		// names in the two blocks are disjoint.
-		//
-		// TODO(adonovan): add a strategy for a 'void tail
-		// call', i.e. a call statement prior to an (explicit
-		// or implicit) return.
-		if ret, ok := callContext(callerPath).(*ast.ReturnStmt); ok &&
-			len(ret.Results) == 1 &&
-			callee.TrivialReturns == callee.TotalReturns &&
-			!hasLabelConflict(callerPath, callee.Labels) &&
-			forall(callee.Results, func(i int, p *paramInfo) bool {
-				// all result vars are unreferenced
-				return len(p.Refs) == 0
-			}) {
-			logf("strategy: reduce parameterless tail-call")
-			res.old = ret
-			res.new = calleeDecl.Body
-			clearPositions(calleeDecl.Body)
-			return res, nil
-		}
-
-		// Special case: parameterless call to void function
-		//
-		// Inlining:
-		// Special case: parameterless call to void function
-		//
-		// Inlining:
-		//         f(args)
-		// where:
-		//	   func f(params) { stmts }
-		// reduces to:
-		//         { stmts }
-		// so long as:
-		// - callee is a void function (no returns)
-		// - callee does not use defer
-		// - there is no label conflict between caller and callee
-		// - all parameters have been eliminated.
-		//
-		// If there is only a single statement, the braces are omitted.
-		if stmt := callStmt(callerPath); stmt != nil &&
-			!callee.HasDefer &&
-			!hasLabelConflict(callerPath, callee.Labels) &&
-			callee.TotalReturns == 0 {
-			logf("strategy: reduce parameterless call to { stmt } from a call stmt")
-
-			body := calleeDecl.Body
-			var repl ast.Stmt = body
-			if len(body.List) == 1 {
-				repl = body.List[0] // singleton: omit braces
-			}
-			clearPositions(repl)
-			res.old = stmt
-			res.new = repl
-			return res, nil
-		}
-
-		// TODO(adonovan): parameterless call to { stmt; return expr }
-		// from one of these contexts:
-		//    x, y     = f()
-		//    x, y    := f()
-		//    var x, y = f()
-		// =>
-		//    var (x T1, y T2); { stmts; x, y = expr }
-		//
-		// Because the params are no longer declared simultaneously
-		// we need to check that (for example) x ∉ freevars(T2),
-		// in addition to the usual checks for arg/result conversions,
-		// complex control, etc.
-		// Also test cases where expr is an n-ary call (spread returns).
 	}
+
+	// Special case: tail-call.
+	//
+	// Inlining:
+	//         return f(args)
+	// where:
+	//         func f(params) (results) { body }
+	// reduces to:
+	//         { var (bindings); body }
+	//         { body }
+	// so long as:
+	// - all parameters have been eliminated or
+	//   can be replaced by a binding declaration;
+	// - call is a tail-call;
+	// - all returns in body have trivial result conversions;
+	// - there is no label conflict;
+	// - no result variable is referenced by name.
+	//
+	// The body may use defer, arbitrary control flow, and
+	// multiple returns.
+	//
+	// TODO(adonovan): omit the braces if the sets of
+	// names in the two blocks are disjoint.
+	//
+	// TODO(adonovan): add a strategy for a 'void tail
+	// call', i.e. a call statement prior to an (explicit
+	// or implicit) return.
+	if ret, ok := callContext(callerPath).(*ast.ReturnStmt); ok &&
+		len(ret.Results) == 1 &&
+		callee.TrivialReturns == callee.TotalReturns &&
+		(allParamsEliminated && noResultEscapes || bindingDeclStmt != nil) &&
+		!hasLabelConflict(callerPath, callee.Labels) &&
+		forall(callee.Results, func(i int, p *paramInfo) bool {
+			// all result vars are unreferenced
+			return len(p.Refs) == 0
+		}) {
+		logf("strategy: reduce tail-call")
+		body := calleeDecl.Body
+		clearPositions(body)
+		if !(allParamsEliminated && noResultEscapes) {
+			body.List = prepend(bindingDeclStmt, body.List...)
+		}
+		res.old = ret
+		res.new = body
+		return res, nil
+	}
+
+	// Special case: call to void function
+	//
+	// Inlining:
+	//         f(args)
+	// where:
+	//	   func f(params) { stmts }
+	// reduces to:
+	//         { var (bindings); stmts }
+	//         { stmts }
+	// so long as:
+	// - callee is a void function (no returns)
+	// - callee does not use defer
+	// - there is no label conflict between caller and callee
+	// - all parameters have been eliminated or
+	//   can be replaced by a binding decl.
+	//
+	// If there is only a single statement, the braces are omitted.
+	if stmt := callStmt(callerPath); stmt != nil &&
+		(allParamsEliminated && noResultEscapes || bindingDeclStmt != nil) &&
+		!callee.HasDefer &&
+		!hasLabelConflict(callerPath, callee.Labels) &&
+		callee.TotalReturns == 0 {
+		logf("strategy: reduce stmt-context call to { stmts }")
+		body := calleeDecl.Body
+		var repl ast.Stmt = body
+		clearPositions(repl)
+		if !(allParamsEliminated && noResultEscapes) {
+			body.List = prepend(bindingDeclStmt, body.List...)
+		}
+		if len(body.List) == 1 {
+			repl = body.List[0] // singleton: omit braces
+		}
+		res.old = stmt
+		res.new = repl
+		return res, nil
+	}
+
+	// TODO(adonovan): parameterless call to { stmt; return expr }
+	// from one of these contexts:
+	//    x, y     = f()
+	//    x, y    := f()
+	//    var x, y = f()
+	// =>
+	//    var (x T1, y T2); { stmts; x, y = expr }
+	//
+	// Because the params are no longer declared simultaneously
+	// we need to check that (for example) x ∉ freevars(T2),
+	// in addition to the usual checks for arg/result conversions,
+	// complex control, etc.
+	// Also test cases where expr is an n-ary call (spread returns).
 
 	// Literalization isn't quite infallible.
 	// Consider a spread call to a method in which
@@ -1249,57 +1455,6 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	// Infallible general case: literalization.
 	logf("strategy: literalization")
 
-	// Modify callee's FuncDecl.Type.Params to remove eliminated
-	// parameters and move the receiver (if any) to the head of
-	// the ordinary parameters.
-	//
-	// The logic is fiddly because of the three forms of ast.Field:
-	//   func(int), func(x int), func(x, y int)
-	//
-	// Also, ensure that all remaining parameters are named
-	// to avoid a mix of named/unnamed when joining (recv, params...).
-	// func (T) f(int, bool) -> (_ T, _ int, _ bool)
-	{
-		paramIdx := 0 // index in original parameter list (incl. receiver)
-		var newParams []*ast.Field
-		filterParams := func(field *ast.Field) {
-			var names []*ast.Ident
-			if field.Names == nil {
-				// Unnamed parameter field (e.g. func f(int)
-				if params[paramIdx] != nil {
-					// Give it an explicit name "_" since we will
-					// make the receiver (if any) a regular parameter
-					// and one cannot mix named and unnamed parameters.
-					names = blanks[*ast.Ident](1)
-				}
-				paramIdx++
-			} else {
-				// Named parameter field e.g. func f(x, y int)
-				// Remove eliminated parameters in place.
-				// If all were eliminated, delete field.
-				for _, id := range field.Names {
-					if params[paramIdx] != nil {
-						names = append(names, id)
-					}
-					paramIdx++
-				}
-			}
-			if names != nil {
-				newParams = append(newParams, &ast.Field{
-					Names: names,
-					Type:  field.Type,
-				})
-			}
-		}
-		if calleeDecl.Recv != nil {
-			filterParams(calleeDecl.Recv.List[0])
-			calleeDecl.Recv = nil
-		}
-		for _, field := range calleeDecl.Type.Params.List {
-			filterParams(field)
-		}
-		calleeDecl.Type.Params.List = newParams
-	}
 	// Emit a new call to a function literal in place of
 	// the callee name, with appropriate replacements.
 	newCall := &ast.CallExpr{
@@ -1318,10 +1473,10 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 
 // -- predicates over expressions --
 
-// freevars returns the names of all free identifiers of e:
+// freeVars returns the names of all free identifiers of e:
 // those lexically referenced by it but not defined within it.
 // (Fields and methods are not included.)
-func freevars(info *types.Info, e ast.Expr) map[string]bool {
+func freeVars(info *types.Info, e ast.Expr) map[string]bool {
 	free := make(map[string]bool)
 	ast.Inspect(e, func(n ast.Node) bool {
 		if id, ok := n.(*ast.Ident); ok {
@@ -1333,6 +1488,36 @@ func freevars(info *types.Info, e ast.Expr) map[string]bool {
 		return true
 	})
 	return free
+}
+
+// freeishNames computes an over-approximation to the free names
+// of the type syntax t, inserting values into the map.
+//
+// Because we don't have go/types annotations, we can't give an exact
+// result in all cases. In particular, an array type [n]T might have a
+// size such as unsafe.Sizeof(func() int{stmts...}()) and now the
+// precise answer depends upon all the statement syntax too. But that
+// never happens in practice.
+func freeishNames(free map[string]bool, t ast.Expr) {
+	var visit func(n ast.Node) bool
+	visit = func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.Ident:
+			free[n.Name] = true
+
+		case *ast.SelectorExpr:
+			ast.Inspect(n.X, visit)
+			return false // don't visit .Sel
+
+		case *ast.Field:
+			ast.Inspect(n.Type, visit)
+			// Don't visit .Names:
+			// FuncType parameters, interface methods, struct fields
+			return false
+		}
+		return true
+	}
+	ast.Inspect(t, visit)
 }
 
 // pure reports whether the expression is pure, that is,
@@ -1465,13 +1650,13 @@ func assert(cond bool, msg string) {
 }
 
 // blanks returns a slice of n > 0 blank identifiers.
-func blanks[E ast.Expr](n int) []E {
+func blanks(n int) []ast.Expr {
 	if n == 0 {
 		panic("blanks(0)")
 	}
-	res := make([]E, n)
+	res := make([]ast.Expr, n)
 	for i := range res {
-		res[i] = any(makeIdent("_")).(E) // ugh
+		res[i] = makeIdent("_")
 	}
 	return res
 }

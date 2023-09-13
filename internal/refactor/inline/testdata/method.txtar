@@ -29,7 +29,10 @@ type T int
 func (T) f0() { println() }
 
 func _(x T) {
-	func(_ T) { println() }(x) //@ inline(re"f0", f0)
+	{
+		var _ T = x
+		println()
+	} //@ inline(re"f0", f0)
 }
 
 -- a/g0.go --
@@ -47,7 +50,10 @@ package a
 func (recv *T) g0() { println() }
 
 func _(x T) {
-	func(recv *T) { println() }(&x) //@ inline(re"g0", g0)
+	{
+		var _ *T = &x
+		println()
+	} //@ inline(re"g0", g0)
 }
 
 -- a/f1.go --
@@ -65,7 +71,10 @@ package a
 func (T) f1(int, int) { println() }
 
 func _(x T) {
-	func(_ T) { println() }(x) //@ inline(re"f1", f1)
+	{
+		var _ T = x
+		println()
+	} //@ inline(re"f1", f1)
 }
 
 -- a/g1.go --
@@ -83,7 +92,10 @@ package a
 func (recv *T) g1(int, int) { println() }
 
 func _(x T) {
-	func(recv *T) { println() }(&x) //@ inline(re"g1", g1)
+	{
+		var _ *T = &x
+		println()
+	} //@ inline(re"g1", g1)
 }
 
 -- a/h.go --
@@ -103,7 +115,10 @@ func (T) h() int { return 1 }
 
 func _() {
 	var ptr *T
-	func(_ T) int { return 1 }(*ptr) //@ inline(re"h", h)
+	{
+		var _ T = *ptr
+		_ = 1
+	} //@ inline(re"h", h)
 }
 
 -- a/i.go --

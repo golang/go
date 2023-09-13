@@ -1,9 +1,9 @@
 Tests of reduction of calls to multi-statement bodies.
 
-a1: literalized,  because replacing parameter x with
-argument z would cause a shadowing conflict.
+a1: reduced to a block with a parameter binding decl.
+   (Parameter x can't be substituted by z without a shadowing conflict.)
 
-a2: reduced (no shadowing).
+a2: reduced with parameter substitution (no shadowing).
 
 a3: literalized, because of the return statement.
 
@@ -29,7 +29,11 @@ package a
 
 func _() {
 	z := 1
-	func(x int) { z := 1; print(x + 2 + z) }(z) //@ inline(re"f", out1)
+	{
+		var x int = z
+		z := 1
+		print(x + 2 + z)
+	} //@ inline(re"f", out1)
 }
 
 func f(x, y int) {

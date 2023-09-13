@@ -1,8 +1,10 @@
 Basic tests of inlining by literalization.
 
+The use of defer forces literalization.
+
 recover() is an example of a function with effects,
-so it (currently) defeats reduction. But note that the
-other parameter of 'add' is eliminated.
+defeating elimination of parameter x; but parameter
+y is eliminated by substitution.
 
 -- go.mod --
 module testdata
@@ -15,13 +17,13 @@ func _() {
 	add(recover().(int), 2) //@ inline(re"add", add1)
 }
 
-func add(x, y int) int { return x + y }
+func add(x, y int) int { defer print(); return x + y }
 
 -- add1 --
 package a
 
 func _() {
-	func(x int) int { return x + 2 }(recover().(int)) //@ inline(re"add", add1)
+	func(x int) int { defer print(); return x + 2 }(recover().(int)) //@ inline(re"add", add1)
 }
 
-func add(x, y int) int { return x + y }
+func add(x, y int) int { defer print(); return x + y }
