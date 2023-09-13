@@ -408,8 +408,9 @@ func testLayers(t *testing.T, seed int64, testTimeout bool) {
 	t.Parallel()
 
 	r := rand.New(rand.NewSource(seed))
+	prefix := fmt.Sprintf("seed=%d", seed)
 	errorf := func(format string, a ...any) {
-		t.Errorf(fmt.Sprintf("seed=%d: %s", seed, format), a...)
+		t.Errorf(prefix+format, a...)
 	}
 	const (
 		minLayers = 30

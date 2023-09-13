@@ -198,11 +198,11 @@ func TestPfxAlign(t *testing.T) {
 			t.Errorf("Failed to compile %v: %v\n", pgm, err)
 		}
 		if !strings.Contains(string(out), pgm.align) {
-			t.Errorf(fmt.Sprintf("Fatal, misaligned text with prefixed instructions:\n%s\n", string(out)))
+			t.Errorf("Fatal, misaligned text with prefixed instructions:\n%s", out)
 		}
 		hasNop := strings.Contains(string(out), "00 00 00 60")
 		if hasNop != pgm.hasNop {
-			t.Errorf(fmt.Sprintf("Fatal, prefixed instruction is missing nop padding:\n%s\n", string(out)))
+			t.Errorf("Fatal, prefixed instruction is missing nop padding:\n%s", out)
 		}
 	}
 }
