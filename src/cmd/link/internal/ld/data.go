@@ -2667,7 +2667,7 @@ func (ctxt *Link) address() []*sym.Segment {
 		//
 		// Ideally the last page of the text segment would not be
 		// writable even for this short period.
-		va = uint64(Rnd(int64(va), int64(*FlagRound)))
+		va = uint64(Rnd(int64(va), *FlagRound))
 
 		order = append(order, &Segrodata)
 		Segrodata.Rwx = 04
@@ -2683,7 +2683,7 @@ func (ctxt *Link) address() []*sym.Segment {
 	if len(Segrelrodata.Sections) > 0 {
 		// align to page boundary so as not to mix
 		// rodata, rel-ro data, and executable text.
-		va = uint64(Rnd(int64(va), int64(*FlagRound)))
+		va = uint64(Rnd(int64(va), *FlagRound))
 		if ctxt.HeadType == objabi.Haix {
 			// Relro data are inside data segment on AIX.
 			va += uint64(XCOFFDATABASE) - uint64(XCOFFTEXTBASE)
@@ -2701,7 +2701,7 @@ func (ctxt *Link) address() []*sym.Segment {
 		Segrelrodata.Length = va - Segrelrodata.Vaddr
 	}
 
-	va = uint64(Rnd(int64(va), int64(*FlagRound)))
+	va = uint64(Rnd(int64(va), *FlagRound))
 	if ctxt.HeadType == objabi.Haix && len(Segrelrodata.Sections) == 0 {
 		// Data sections are moved to an unreachable segment
 		// to ensure that they are position-independent.
@@ -2746,7 +2746,7 @@ func (ctxt *Link) address() []*sym.Segment {
 	Segdata.Filelen = bss.Vaddr - Segdata.Vaddr
 
 	if len(Segpdata.Sections) > 0 {
-		va = uint64(Rnd(int64(va), int64(*FlagRound)))
+		va = uint64(Rnd(int64(va), *FlagRound))
 		order = append(order, &Segpdata)
 		Segpdata.Rwx = 04
 		Segpdata.Vaddr = va
@@ -2761,7 +2761,7 @@ func (ctxt *Link) address() []*sym.Segment {
 	}
 
 	if len(Segxdata.Sections) > 0 {
-		va = uint64(Rnd(int64(va), int64(*FlagRound)))
+		va = uint64(Rnd(int64(va), *FlagRound))
 		order = append(order, &Segxdata)
 		Segxdata.Rwx = 04
 		Segxdata.Vaddr = va
@@ -2775,7 +2775,7 @@ func (ctxt *Link) address() []*sym.Segment {
 		Segxdata.Length = va - Segxdata.Vaddr
 	}
 
-	va = uint64(Rnd(int64(va), int64(*FlagRound)))
+	va = uint64(Rnd(int64(va), *FlagRound))
 	order = append(order, &Segdwarf)
 	Segdwarf.Rwx = 06
 	Segdwarf.Vaddr = va
@@ -2952,7 +2952,7 @@ func (ctxt *Link) layout(order []*sym.Segment) uint64 {
 				// aligned, the following rounding
 				// should ensure that this segment's
 				// VA ≡ Fileoff mod FlagRound.
-				seg.Fileoff = uint64(Rnd(int64(prev.Fileoff+prev.Filelen), int64(*FlagRound)))
+				seg.Fileoff = uint64(Rnd(int64(prev.Fileoff+prev.Filelen), *FlagRound))
 				if seg.Vaddr%uint64(*FlagRound) != seg.Fileoff%uint64(*FlagRound) {
 					Exitf("bad segment rounding (Vaddr=%#x Fileoff=%#x FlagRound=%#x)", seg.Vaddr, seg.Fileoff, *FlagRound)
 				}

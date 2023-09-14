@@ -1580,7 +1580,7 @@ func xcoffwrite(ctxt *Link) {
 func asmbXcoff(ctxt *Link) {
 	ctxt.Out.SeekSet(0)
 	fileoff := int64(Segdwarf.Fileoff + Segdwarf.Filelen)
-	fileoff = int64(Rnd(int64(fileoff), int64(*FlagRound)))
+	fileoff = int64(Rnd(int64(fileoff), *FlagRound))
 
 	xfile.sectNameToScnum = make(map[string]int16)
 
