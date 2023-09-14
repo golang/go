@@ -109,8 +109,9 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 		freeRefs     []freeRef // free refs that may need renaming
 		unexported   []string  // free refs to unexported objects, for later error checks
 	)
-	var visit func(n ast.Node) bool
-	visit = func(n ast.Node) bool {
+	var f func(n ast.Node) bool
+	visit := func(n ast.Node) { ast.Inspect(n, f) }
+	f = func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.SelectorExpr:
 			// Check selections of free fields/methods.
@@ -130,6 +131,9 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 			// whether keyed or unkeyed. (Logic assumes well-typedness.)
 			litType := deref(info.TypeOf(n))
 			if s, ok := typeparams.CoreType(litType).(*types.Struct); ok {
+				if n.Type != nil {
+					visit(n.Type)
+				}
 				for i, elt := range n.Elts {
 					var field *types.Var
 					var value ast.Expr
@@ -195,7 +199,7 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 		}
 		return true
 	}
-	ast.Inspect(decl, visit)
+	visit(decl)
 
 	// Analyze callee body for "return results" form, where
 	// results is one or more expressions or an n-ary call,
