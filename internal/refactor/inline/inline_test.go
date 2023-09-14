@@ -93,7 +93,7 @@ func TestData(t *testing.T) {
 						continue
 					}
 					for _, note := range notes {
-						posn := pkg.Fset.Position(note.Pos)
+						posn := pkg.Fset.PositionFor(note.Pos, false)
 						if note.Name != "inline" {
 							t.Errorf("%s: invalid marker @%s", posn, note.Name)
 							continue

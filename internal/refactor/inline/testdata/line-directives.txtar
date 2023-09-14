@@ -1,0 +1,35 @@
+Test of line directives in caller and caller.
+Neither should have any effect on inlining.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+import "testdata/b"
+
+func A() {
+//line b2.go:3:3
+	b.F() //@ inline(re"F", result)
+}
+
+-- b/b.go --
+package b
+
+//line b2.go:1:1
+func F() { println("hi") }
+
+-- b/b2.go --
+package b
+
+func NotWhatYouWereLookingFor() {}
+
+-- result --
+package a
+
+func A() {
+//line b2.go:3:3
+	println("hi") //@ inline(re"F", result)
+}

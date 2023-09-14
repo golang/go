@@ -70,6 +70,10 @@ type object struct {
 // This design allows separate analysis of callers and callees in the
 // golang.org/x/tools/go/analysis framework: the inlining information
 // about a callee can be recorded as a "fact".
+//
+// The content should be the actual input to the compiler, not the
+// apparent source file according to any //line directives that
+// may be present within it.
 func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, decl *ast.FuncDecl, content []byte) (*Callee, error) {
 	checkInfoFields(info)
 
@@ -322,11 +326,9 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 	// callee file content; all we need is "package _; func f() { ... }".
 	// This reduces the size of analysis facts.
 	//
-	// (For ease of debugging we could insert a //line directive after
-	// the package decl but it seems more trouble than it's worth.)
-	//
 	// Offsets in the callee information are "relocatable"
 	// since they are all relative to the FuncDecl.
+
 	content = append([]byte("package _\n"),
 		content[offsetOf(fset, decl.Pos()):offsetOf(fset, decl.End())]...)
 	// Sanity check: re-parse the compacted content.
@@ -386,7 +388,7 @@ func analyzeParams(fset *token.FileSet, info *types.Info, decl *ast.FuncDecl) (p
 	fnobj, ok := info.Defs[decl.Name]
 	if !ok {
 		panic(fmt.Sprintf("%s: no func object for %q",
-			fset.Position(decl.Name.Pos()), decl.Name)) // ill-typed?
+			fset.PositionFor(decl.Name.Pos(), false), decl.Name)) // ill-typed?
 	}
 
 	paramInfos := make(map[*types.Var]*paramInfo)

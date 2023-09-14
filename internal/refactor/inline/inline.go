@@ -305,7 +305,7 @@ type Caller struct {
 	Info    *types.Info
 	File    *ast.File
 	Call    *ast.CallExpr
-	Content []byte
+	Content []byte // source of file containing
 }
 
 // Inline inlines the called function (callee) into the function call (caller)
@@ -325,7 +325,11 @@ func Inline(logf func(string, ...any), caller *Caller, callee *Callee) ([]byte, 
 	}
 	logf("inline %s @ %v",
 		debugFormatNode(caller.Fset, caller.Call),
-		caller.Fset.Position(caller.Call.Lparen))
+		caller.Fset.PositionFor(caller.Call.Lparen, false))
+
+	if !consistentOffsets(caller) {
+		return nil, fmt.Errorf("internal error: caller syntax positions are inconsistent with file content (did you forget to use FileSet.PositionFor when computing the file name?)")
+	}
 
 	res, err := inline(logf, caller, &callee.impl)
 	if err != nil {
@@ -611,7 +615,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			if found.Pos().IsValid() {
 				return nil, fmt.Errorf("cannot inline because built-in %q is shadowed in caller by a %s (line %d)",
 					obj.Name, objectKind(found),
-					caller.Fset.Position(found.Pos()).Line)
+					caller.Fset.PositionFor(found.Pos(), false).Line)
 			}
 
 		} else {
@@ -627,7 +631,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 					if !isPkgLevel(found) {
 						return nil, fmt.Errorf("cannot inline because %q is shadowed in caller by a %s (line %d)",
 							obj.Name, objectKind(found),
-							caller.Fset.Position(found.Pos()).Line)
+							caller.Fset.PositionFor(found.Pos(), false).Line)
 					}
 				} else {
 					// Cross-package reference.
@@ -957,7 +961,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 						// function (if any) and is indeed referenced
 						// only by the call.
 						logf("keeping param %q: arg contains perhaps the last reference to possible caller local %v @ %v",
-							param.info.Name, v, caller.Fset.Position(v.Pos()))
+							param.info.Name, v, caller.Fset.PositionFor(v.Pos(), false))
 						continue next
 					}
 				}
@@ -2054,4 +2058,23 @@ func canImport(from, to string) bool {
 		return strings.HasPrefix(from, to[:i])
 	}
 	return true
+}
+
+// consistentOffsets reports whether the portion of caller.Content
+// that corresponds to caller.Call can be parsed as a call expression.
+// If not, the client has provided inconsistent information, possibly
+// because they forgot to ignore line directives when computing the
+// filename enclosing the call.
+// This is just a heuristic.
+func consistentOffsets(caller *Caller) bool {
+	start := offsetOf(caller.Fset, caller.Call.Pos())
+	end := offsetOf(caller.Fset, caller.Call.End())
+	if !(0 < start && start < end && end <= len(caller.Content)) {
+		return false
+	}
+	expr, err := parser.ParseExpr(string(caller.Content[start:end]))
+	if err != nil {
+		return false
+	}
+	return is[*ast.CallExpr](expr)
 }
