@@ -172,7 +172,7 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 	j, k := 0, 0
 
 	// The port starts after the last colon.
-	i := last(hostport, ':')
+	i := bytealg.LastIndexByteString(hostport, ':')
 	if i < 0 {
 		return addrErr(hostport, missingPort)
 	}
@@ -219,7 +219,7 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 func splitHostZone(s string) (host, zone string) {
 	// The IPv6 scoped addressing zone identifier starts after the
 	// last percent sign.
-	if i := last(s, '%'); i > 0 {
+	if i := bytealg.LastIndexByteString(s, '%'); i > 0 {
 		host, zone = s[:i], s[i+1:]
 	} else {
 		host = s
