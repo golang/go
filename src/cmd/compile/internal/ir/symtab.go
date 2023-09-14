@@ -40,6 +40,8 @@ var Syms struct {
 	PanicdottypeI     *obj.LSym
 	Panicnildottype   *obj.LSym
 	Panicoverflow     *obj.LSym
+	Racefuncenter     *obj.LSym
+	Racefuncexit      *obj.LSym
 	Raceread          *obj.LSym
 	Racereadrange     *obj.LSym
 	Racewrite         *obj.LSym

@@ -45,10 +45,6 @@ func Walk(fn *ir.Func) {
 		ir.DumpList(s, ir.CurFunc.Body)
 	}
 
-	if base.Flag.Cfg.Instrumenting {
-		instrument(fn)
-	}
-
 	// Eagerly compute sizes of all variables for SSA.
 	for _, n := range fn.Dcl {
 		types.CalcSize(n.Type())

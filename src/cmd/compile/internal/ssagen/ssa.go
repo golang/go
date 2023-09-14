@@ -27,6 +27,7 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 
@@ -130,6 +131,8 @@ func InitConfig() {
 	ir.Syms.Panicnildottype = typecheck.LookupRuntimeFunc("panicnildottype")
 	ir.Syms.Panicoverflow = typecheck.LookupRuntimeFunc("panicoverflow")
 	ir.Syms.Panicshift = typecheck.LookupRuntimeFunc("panicshift")
+	ir.Syms.Racefuncenter = typecheck.LookupRuntimeFunc("racefuncenter")
+	ir.Syms.Racefuncexit = typecheck.LookupRuntimeFunc("racefuncexit")
 	ir.Syms.Raceread = typecheck.LookupRuntimeFunc("raceread")
 	ir.Syms.Racereadrange = typecheck.LookupRuntimeFunc("racereadrange")
 	ir.Syms.Racewrite = typecheck.LookupRuntimeFunc("racewrite")
@@ -319,9 +322,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	var astBuf *bytes.Buffer
 	if printssa {
 		astBuf = &bytes.Buffer{}
-		ir.FDumpList(astBuf, "buildssa-enter", fn.Enter)
 		ir.FDumpList(astBuf, "buildssa-body", fn.Body)
-		ir.FDumpList(astBuf, "buildssa-exit", fn.Exit)
 		if ssaDumpStdout {
 			fmt.Println("generating SSA for", name)
 			fmt.Print(astBuf.String())
@@ -337,6 +338,15 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 		s.cgoUnsafeArgs = true
 	}
 	s.checkPtrEnabled = ir.ShouldCheckPtr(fn, 1)
+
+	if base.Flag.Cfg.Instrumenting && fn.Pragma&ir.Norace == 0 && !fn.Linksym().ABIWrapper() {
+		if !base.Flag.Race || !objabi.LookupPkgSpecial(fn.Sym().Pkg.Path).NoRaceFunc {
+			s.instrumentMemory = true
+		}
+		if base.Flag.Race {
+			s.instrumentEnterExit = true
+		}
+	}
 
 	fe := ssafn{
 		curfn: fn,
@@ -395,10 +405,10 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 		// preceding the deferreturn/ret code that we don't track correctly.
 		s.hasOpenDefers = false
 	}
-	if s.hasOpenDefers && len(s.curfn.Exit) > 0 {
-		// Skip doing open defers if there is any extra exit code (likely
-		// race detection), since we will not generate that code in the
-		// case of the extra deferreturn/ret segment.
+	if s.hasOpenDefers && s.instrumentEnterExit {
+		// Skip doing open defers if we need to instrument function
+		// returns for the race detector, since we will not generate that
+		// code in the case of the extra deferreturn/ret segment.
 		s.hasOpenDefers = false
 	}
 	if s.hasOpenDefers {
@@ -541,7 +551,9 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	}
 
 	// Convert the AST-based IR to the SSA-based IR
-	s.stmtList(fn.Enter)
+	if s.instrumentEnterExit {
+		s.rtcall(ir.Syms.Racefuncenter, true, nil, s.newValue0(ssa.OpGetCallerPC, types.Types[types.TUINTPTR]))
+	}
 	s.zeroResults()
 	s.paramsToHeap()
 	s.stmtList(fn.Body)
@@ -881,11 +893,13 @@ type state struct {
 	// Used to deduplicate panic calls.
 	panics map[funcLine]*ssa.Block
 
-	cgoUnsafeArgs   bool
-	hasdefer        bool // whether the function contains a defer statement
-	softFloat       bool
-	hasOpenDefers   bool // whether we are doing open-coded defers
-	checkPtrEnabled bool // whether to insert checkptr instrumentation
+	cgoUnsafeArgs       bool
+	hasdefer            bool // whether the function contains a defer statement
+	softFloat           bool
+	hasOpenDefers       bool // whether we are doing open-coded defers
+	checkPtrEnabled     bool // whether to insert checkptr instrumentation
+	instrumentEnterExit bool // whether to instrument function enter/exit
+	instrumentMemory    bool // whether to instrument memory operations
 
 	// If doing open-coded defers, list of info about the defer calls in
 	// scanning order. Hence, at exit we should run these defers in reverse
@@ -1262,7 +1276,7 @@ func (s *state) instrumentMove(t *types.Type, dst, src *ssa.Value) {
 }
 
 func (s *state) instrument2(t *types.Type, addr, addr2 *ssa.Value, kind instrumentKind) {
-	if !s.curfn.InstrumentBody() {
+	if !s.instrumentMemory {
 		return
 	}
 
@@ -2023,13 +2037,10 @@ func (s *state) exit() *ssa.Block {
 		}
 	}
 
-	var b *ssa.Block
-	var m *ssa.Value
 	// Do actual return.
 	// These currently turn into self-copies (in many cases).
 	resultFields := s.curfn.Type().Results()
 	results := make([]*ssa.Value, len(resultFields)+1, len(resultFields)+1)
-	m = s.newValue0(ssa.OpMakeResult, s.f.OwnAux.LateExpansionResultType())
 	// Store SSAable and heap-escaped PPARAMOUT variables back to stack locations.
 	for i, f := range resultFields {
 		n := f.Nname.(*ir.Name)
@@ -2055,15 +2066,18 @@ func (s *state) exit() *ssa.Block {
 		}
 	}
 
-	// Run exit code. Today, this is just racefuncexit, in -race mode.
-	// TODO(register args) this seems risky here with a register-ABI, but not clear it is right to do it earlier either.
-	// Spills in register allocation might just fix it.
-	s.stmtList(s.curfn.Exit)
+	// In -race mode, we need to call racefuncexit.
+	// Note: This has to happen after we load any heap-allocated results,
+	// otherwise races will be attributed to the caller instead.
+	if s.instrumentEnterExit {
+		s.rtcall(ir.Syms.Racefuncexit, true, nil)
+	}
 
 	results[len(results)-1] = s.mem()
+	m := s.newValue0(ssa.OpMakeResult, s.f.OwnAux.LateExpansionResultType())
 	m.AddArgs(results...)
 
-	b = s.endBlock()
+	b := s.endBlock()
 	b.Kind = ssa.BlockRet
 	b.SetControl(m)
 	if s.hasdefer && s.hasOpenDefers {

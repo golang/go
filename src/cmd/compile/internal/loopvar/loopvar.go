@@ -487,8 +487,6 @@ func rewriteNodes(fn *ir.Func, editNodes func(c ir.Nodes) ir.Nodes) {
 		switch x := n.(type) {
 		case *ir.Func:
 			x.Body = editNodes(x.Body)
-			x.Enter = editNodes(x.Enter)
-			x.Exit = editNodes(x.Exit)
 		case *ir.InlinedCallExpr:
 			x.Body = editNodes(x.Body)
 

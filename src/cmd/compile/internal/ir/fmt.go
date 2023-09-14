@@ -1129,11 +1129,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
 				dumpNode(w, cv, depth+1)
 			}
 		}
-		if len(fn.Enter) > 0 {
-			indent(w, depth)
-			fmt.Fprintf(w, "%+v-Enter", n.Op())
-			dumpNodes(w, fn.Enter, depth+1)
-		}
 		if len(fn.Body) > 0 {
 			indent(w, depth)
 			fmt.Fprintf(w, "%+v-body", n.Op())
