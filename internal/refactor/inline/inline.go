@@ -227,10 +227,6 @@
 //     thoughtful factoring of the large design space, and thorough
 //     test coverage.
 //
-//   - Write a fuzz-like test that selects function calls at
-//     random in the corpus, inlines them, and checks that the
-//     result is either a sensible error or a valid transformation.
-//
 //   - Compute precisely (not conservatively) when parameter
 //     elimination would remove the last reference to a caller local
 //     variable, and blank out the local instead of retreating from
@@ -686,6 +682,9 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	//
 	// If the receiver argument and parameter have
 	// different pointerness, make the "&" or "*" explicit.
+	//
+	// Also, if x.f() is shorthand for promoted method x.y.f(),
+	// make the .y explicit in T.f(x.y, ...).
 	//
 	// Beware that:
 	//
@@ -1983,7 +1982,8 @@ func findIdent(root ast.Node, pos token.Pos) *ast.Ident {
 		return true
 	})
 	if found == nil {
-		panic(fmt.Sprintf("findIdent %d not found", pos))
+		panic(fmt.Sprintf("findIdent %d not found in %s",
+			pos, debugFormatNode(token.NewFileSet(), root)))
 	}
 	return found
 }

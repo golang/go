@@ -203,18 +203,11 @@ func doInlineNote(logf func(string, ...any), pkg *packages.Package, file *ast.Fi
 	}
 
 	// Find callee function.
-	var (
-		calleePkg  *packages.Package
-		calleeDecl *ast.FuncDecl
-	)
+	var calleePkg *packages.Package
 	{
-		var same func(*ast.FuncDecl) bool
 		// Is the call within the package?
 		if fn.Pkg() == caller.Types {
 			calleePkg = pkg // same as caller
-			same = func(decl *ast.FuncDecl) bool {
-				return decl.Name.Pos() == fn.Pos()
-			}
 		} else {
 			// Different package. Load it now.
 			// (The primary load loaded all dependencies,
@@ -235,31 +228,12 @@ func doInlineNote(logf func(string, ...any), pkg *packages.Package, file *ast.Fi
 				return fmt.Errorf("callee package had errors") // (see log)
 			}
 			calleePkg = roots[0]
-			posn := caller.Fset.Position(fn.Pos()) // callee posn wrt caller package
-			same = func(decl *ast.FuncDecl) bool {
-				// We can't rely on columns in export data:
-				// some variants replace it with 1.
-				// We can't expect file names to have the same prefix.
-				// export data for go1.20 std packages have  $GOROOT written in
-				// them, so how are we supposed to find the source? Yuck!
-				// Ugh. need to samefile? Nope $GOROOT just won't work
-				// This is highly client specific anyway.
-				posn2 := calleePkg.Fset.Position(decl.Name.Pos())
-				return posn.Filename == posn2.Filename &&
-					posn.Line == posn2.Line
-			}
 		}
+	}
 
-		for _, file := range calleePkg.Syntax {
-			for _, decl := range file.Decls {
-				if decl, ok := decl.(*ast.FuncDecl); ok && same(decl) {
-					calleeDecl = decl
-					goto found
-				}
-			}
-		}
-		return fmt.Errorf("can't find FuncDecl for callee") // can't happen?
-	found:
+	calleeDecl, err := findFuncByPosition(calleePkg, caller.Fset.Position(fn.Pos()))
+	if err != nil {
+		return err
 	}
 
 	// Do the inlining. For the purposes of the test,
@@ -310,6 +284,30 @@ func doInlineNote(logf func(string, ...any), pkg *packages.Package, file *ast.Fi
 	}
 	return fmt.Errorf("Inline succeeded unexpectedly: want error matching %q, got <<%s>>", want, got)
 
+}
+
+// findFuncByPosition returns the FuncDecl at the specified (package-agnostic) position.
+func findFuncByPosition(pkg *packages.Package, posn token.Position) (*ast.FuncDecl, error) {
+	same := func(decl *ast.FuncDecl) bool {
+		// We can't rely on columns in export data:
+		// some variants replace it with 1.
+		// We can't expect file names to have the same prefix.
+		// export data for go1.20 std packages have  $GOROOT written in
+		// them, so how are we supposed to find the source? Yuck!
+		// Ugh. need to samefile? Nope $GOROOT just won't work
+		// This is highly client specific anyway.
+		posn2 := pkg.Fset.Position(decl.Name.Pos())
+		return posn.Filename == posn2.Filename &&
+			posn.Line == posn2.Line
+	}
+	for _, file := range pkg.Syntax {
+		for _, decl := range file.Decls {
+			if decl, ok := decl.(*ast.FuncDecl); ok && same(decl) {
+				return decl, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("can't find FuncDecl at %v in package %q", posn, pkg.PkgPath)
 }
 
 // TestTable is a table driven test, enabling more compact expression
