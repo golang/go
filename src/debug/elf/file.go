@@ -628,6 +628,9 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot load symbol section: %w", err)
 	}
+	if len(data) == 0 {
+		return nil, nil, errors.New("symbol section is empty")
+	}
 	if len(data)%Sym32Size != 0 {
 		return nil, nil, errors.New("length of symbol section is not a multiple of SymSize")
 	}
