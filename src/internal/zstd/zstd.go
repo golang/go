@@ -59,8 +59,7 @@ type Reader struct {
 	huffmanTableBits int
 
 	// The window for back references.
-	windowSize int    // maximum required window size
-	window     []byte // window data
+	window window
 
 	// A buffer available to hold a compressed block.
 	compressedBuf []byte
@@ -112,7 +111,6 @@ func (r *Reader) Reset(input io.Reader) {
 	// repeatedOffset3
 	// huffmanTable
 	// huffmanTableBits
-	// windowSize
 	// window
 	// compressedBuf
 	// literals
@@ -236,10 +234,10 @@ retry:
 
 	// Figure out the maximum amount of data we need to retain
 	// for backreferences.
-
+	var windowSize int
 	if singleSegment {
 		// No window required, as all the data is in a single buffer.
-		r.windowSize = 0
+		windowSize = 0
 	} else {
 		// Window descriptor. RFC 3.1.1.1.2.
 		windowDescriptor := r.scratch[0]
@@ -248,7 +246,7 @@ retry:
 		windowLog := exponent + 10
 		windowBase := uint64(1) << windowLog
 		windowAdd := (windowBase / 8) * mantissa
-		windowSize := windowBase + windowAdd
+		windowSize = int(windowBase + windowAdd)
 
 		// Default zstd sets limits on the window size.
 		if fuzzing && (windowLog > 31 || windowSize > 1<<27) {
@@ -259,8 +257,6 @@ retry:
 		if windowSize > 8<<20 {
 			windowSize = 8 << 20
 		}
-
-		r.windowSize = int(windowSize)
 	}
 
 	// Frame_Content_Size. RFC 3.1.1.4.
@@ -293,7 +289,7 @@ retry:
 	r.repeatedOffset2 = 4
 	r.repeatedOffset3 = 8
 	r.huffmanTableBits = 0
-	r.window = r.window[:0]
+	r.window.reset(windowSize)
 	r.seqTables[0] = nil
 	r.seqTables[1] = nil
 	r.seqTables[2] = nil
@@ -368,7 +364,7 @@ func (r *Reader) readBlock() error {
 	// Maximum block size is smaller of window size and 128K.
 	// We don't record the window size for a single segment frame,
 	// so just use 128K. RFC 3.1.1.2.3, 3.1.1.2.4.
-	if blockSize > 128<<10 || (r.windowSize > 0 && blockSize > r.windowSize) {
+	if blockSize > 128<<10 || (r.window.size > 0 && blockSize > r.window.size) {
 		return r.makeError(relativeOffset, "block size too large")
 	}
 
@@ -414,7 +410,7 @@ func (r *Reader) readBlock() error {
 	}
 
 	if !lastBlock {
-		r.saveWindow(r.buffer)
+		r.window.save(r.buffer)
 	} else {
 		if !r.frameSizeUnknown && r.remainingFrameSize != 0 {
 			return r.makeError(relativeOffset, "not enough uncompressed bytes for frame")
@@ -447,29 +443,6 @@ func (r *Reader) setBufferSize(size int) {
 		r.buffer = append(r.buffer[:cap(r.buffer)], make([]byte, need)...)
 	}
 	r.buffer = r.buffer[:size]
-}
-
-// saveWindow saves bytes in the backreference window.
-// TODO: use a circular buffer for less data movement.
-func (r *Reader) saveWindow(buf []byte) {
-	if r.windowSize == 0 {
-		return
-	}
-
-	if len(buf) >= r.windowSize {
-		from := len(buf) - r.windowSize
-		r.window = append(r.window[:0], buf[from:]...)
-		return
-	}
-
-	keep := r.windowSize - len(buf) // must be positive
-	if keep < len(r.window) {
-		remove := len(r.window) - keep
-		copy(r.window[:], r.window[remove:])
-		r.window = r.window[:keep]
-	}
-
-	r.window = append(r.window, buf...)
 }
 
 // zstdError is an error while decompressing.
