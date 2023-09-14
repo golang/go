@@ -658,10 +658,9 @@ func testServerTimeouts(t *testing.T, mode testMode) {
 }
 
 func testServerTimeoutsWithTimeout(t *testing.T, timeout time.Duration, mode testMode) error {
-	reqNum := 0
+	var reqNum atomic.Int32
 	ts := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
-		reqNum++
-		fmt.Fprintf(res, "req=%d", reqNum)
+		fmt.Fprintf(res, "req=%d", reqNum.Add(1))
 	}), func(ts *httptest.Server) {
 		ts.Config.ReadTimeout = timeout
 		ts.Config.WriteTimeout = timeout
@@ -861,13 +860,15 @@ func TestWriteDeadlineEnforcedPerStream(t *testing.T) {
 }
 
 func testWriteDeadlineEnforcedPerStream(t *testing.T, mode testMode, timeout time.Duration) error {
-	reqNum := 0
+	firstRequest := make(chan bool, 1)
 	ts := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
-		reqNum++
-		if reqNum == 1 {
-			return // first request succeeds
+		select {
+		case firstRequest <- true:
+			// first request succeeds
+		default:
+			// second request times out
+			time.Sleep(timeout)
 		}
-		time.Sleep(timeout) // second request times out
 	}), func(ts *httptest.Server) {
 		ts.Config.WriteTimeout = timeout / 2
 	}).ts
@@ -917,13 +918,15 @@ func TestNoWriteDeadline(t *testing.T) {
 }
 
 func testNoWriteDeadline(t *testing.T, mode testMode, timeout time.Duration) error {
-	reqNum := 0
+	firstRequest := make(chan bool, 1)
 	ts := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
-		reqNum++
-		if reqNum == 1 {
-			return // first request succeeds
+		select {
+		case firstRequest <- true:
+			// first request succeeds
+		default:
+			// second request times out
+			time.Sleep(timeout)
 		}
-		time.Sleep(timeout) // second request timesout
 	})).ts
 
 	c := ts.Client()
