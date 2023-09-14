@@ -530,47 +530,58 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	// qualified identifier (QI) in the callee is always
 	// represented by a QI in the caller, allowing us to treat a
 	// QI like a selection on a package name.
-	importMap := make(map[string]string) // maps package path to local name
+	importMap := make(map[string][]string) // maps package path to local name(s)
 	for _, imp := range caller.File.Imports {
-		if pkgname, ok := importedPkgName(caller.Info, imp); ok && pkgname.Name() != "." {
-			importMap[pkgname.Imported().Path()] = pkgname.Name()
+		if pkgname, ok := importedPkgName(caller.Info, imp); ok &&
+			pkgname.Name() != "." &&
+			pkgname.Name() != "_" {
+			path := pkgname.Imported().Path()
+			importMap[path] = append(importMap[path], pkgname.Name())
 		}
 	}
 
 	// localImportName returns the local name for a given imported package path.
 	var newImports []*ast.ImportSpec
 	localImportName := func(path string) string {
-		name, ok := importMap[path]
-		if !ok {
-			// import added by callee
-			//
-			// Choose local PkgName based on last segment of
-			// package path plus, if needed, a numeric suffix to
-			// ensure uniqueness.
-			//
-			// TODO(adonovan): preserve the PkgName used
-			// in the original source, or, for a dot import,
-			// use the package's declared name.
-			base := pathpkg.Base(path)
-			name = base
-			for n := 0; callerLookup(name) != nil; n++ {
-				name = fmt.Sprintf("%s%d", base, n)
+		// Does an import exist?
+		for _, name := range importMap[path] {
+			// Check that either the import preexisted,
+			// or that it was newly added (no PkgName) but is not shadowed.
+			found := callerLookup(name)
+			if is[*types.PkgName](found) || found == nil {
+				return name
 			}
-
-			// TODO(adonovan): don't use a renaming import
-			// unless the local name differs from either
-			// the package name or the last segment of path.
-			// This requires that we tabulate (path, declared name, local name)
-			// triples for each package referenced by the callee.
-			newImports = append(newImports, &ast.ImportSpec{
-				Name: makeIdent(name),
-				Path: &ast.BasicLit{
-					Kind:  token.STRING,
-					Value: strconv.Quote(path),
-				},
-			})
-			importMap[path] = name
 		}
+
+		// import added by callee
+		//
+		// Choose local PkgName based on last segment of
+		// package path plus, if needed, a numeric suffix to
+		// ensure uniqueness.
+		//
+		// TODO(adonovan): preserve the PkgName used
+		// in the original source, or, for a dot import,
+		// use the package's declared name.
+		base := pathpkg.Base(path)
+		name := base
+		for n := 0; callerLookup(name) != nil; n++ {
+			name = fmt.Sprintf("%s%d", base, n)
+		}
+
+		// TODO(adonovan): don't use a renaming import
+		// unless the local name differs from either
+		// the package name or the last segment of path.
+		// This requires that we tabulate (path, declared name, local name)
+		// triples for each package referenced by the callee.
+		logf("adding import %s %q", name, path)
+		newImports = append(newImports, &ast.ImportSpec{
+			Name: makeIdent(name),
+			Path: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: strconv.Quote(path),
+			},
+		})
+		importMap[path] = append(importMap[path], name)
 		return name
 	}
 

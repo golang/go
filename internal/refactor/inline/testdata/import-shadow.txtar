@@ -1,5 +1,55 @@
-Test of heuristic for generating a fresh import PkgName.
-The names c and c0 are taken, so it uses c1.
+Just because a package (e.g. log) is imported by the caller,
+and the name log is in scope, doesn't mean the name in scope
+refers to the package: it could be locally shadowed.
+
+Two scenarios below:
+
+1. a second (renaming) import is added because the first import is
+   locally shadowed.
+
+2. a new import is added with a fresh name because the default
+   name is locally shadowed.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+import "testdata/b"
+import "log"
+
+func A() {
+	const log = "shadow"
+	b.B() //@ inline(re"B", bresult)
+}
+
+var _ log.Logger
+
+-- b/b.go --
+package b
+
+import "log"
+
+func B() {
+	log.Printf("")
+}
+
+-- bresult --
+package a
+
+import (
+	"log"
+	log0 "log"
+)
+
+func A() {
+	const log = "shadow"
+	log0.Printf("") //@ inline(re"B", bresult)
+}
+
+var _ log.Logger
 
 -- go.mod --
 module testdata
@@ -10,34 +60,39 @@ package a
 
 import "testdata/b"
 
-func A() {
-	const c = 1
-	type c0 int
-	b.B() //@ inline(re"B", result)
+var x b.T
+
+func A(b int) {
+	x.F() //@ inline(re"F", fresult)
 }
 
 -- b/b.go --
 package b
 
-import "testdata/c"
+type T struct{}
 
-func B() { c.C() }
+func (T) F() {
+	One()
+	Two()
+}
 
--- c/c.go --
-package c
+func One() {}
+func Two() {}
 
-func C() {}
-
--- result --
+-- fresult --
 package a
 
 import (
-	c1 "testdata/c"
+	"testdata/b"
+	b0 "testdata/b"
 )
 
-func A() {
-	const c = 1
-	type c0 int
-	c1.C() //@ inline(re"B", result)
-}
+var x b.T
 
+func A(b int) {
+	{
+		var _ b0.T = x
+		b0.One()
+		b0.Two()
+	} //@ inline(re"F", fresult)
+}
