@@ -569,10 +569,7 @@ func (r *reader) interfaceType() *types.Type {
 	methods, embeddeds := fields[:nmethods], fields[nmethods:]
 
 	for i := range methods {
-		pos := r.pos()
-		_, sym := r.selector()
-		mtyp := r.signature(types.FakeRecv())
-		methods[i] = types.NewField(pos, sym, mtyp)
+		methods[i] = types.NewField(r.pos(), r.selector(), r.signature(types.FakeRecv()))
 	}
 	for i := range embeddeds {
 		embeddeds[i] = types.NewField(src.NoXPos, nil, r.typ())
@@ -587,18 +584,12 @@ func (r *reader) interfaceType() *types.Type {
 func (r *reader) structType() *types.Type {
 	fields := make([]*types.Field, r.Len())
 	for i := range fields {
-		pos := r.pos()
-		_, sym := r.selector()
-		ftyp := r.typ()
-		tag := r.String()
-		embedded := r.Bool()
-
-		f := types.NewField(pos, sym, ftyp)
-		f.Note = tag
-		if embedded {
-			f.Embedded = 1
+		field := types.NewField(r.pos(), r.selector(), r.typ())
+		field.Note = r.String()
+		if r.Bool() {
+			field.Embedded = 1
 		}
-		fields[i] = f
+		fields[i] = field
 	}
 	return types.NewStruct(fields)
 }
@@ -617,21 +608,16 @@ func (r *reader) signature(recv *types.Field) *types.Type {
 
 func (r *reader) params() []*types.Field {
 	r.Sync(pkgbits.SyncParams)
-	fields := make([]*types.Field, r.Len())
-	for i := range fields {
-		_, fields[i] = r.param()
+	params := make([]*types.Field, r.Len())
+	for i := range params {
+		params[i] = r.param()
 	}
-	return fields
+	return params
 }
 
-func (r *reader) param() (*types.Pkg, *types.Field) {
+func (r *reader) param() *types.Field {
 	r.Sync(pkgbits.SyncParam)
-
-	pos := r.pos()
-	pkg, sym := r.localIdent()
-	typ := r.typ()
-
-	return pkg, types.NewField(pos, sym, typ)
+	return types.NewField(r.pos(), r.localIdent(), r.typ())
 }
 
 // @@@ Objects
@@ -964,7 +950,7 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, ex
 	dict.typeParamMethodExprs = make([]readerMethodExprInfo, r.Len())
 	for i := range dict.typeParamMethodExprs {
 		typeParamIdx := r.Len()
-		_, method := r.selector()
+		method := r.selector()
 
 		dict.typeParamMethodExprs[i] = readerMethodExprInfo{typeParamIdx, method}
 	}
@@ -999,9 +985,9 @@ func (r *reader) typeParamNames() {
 func (r *reader) method(rext *reader) *types.Field {
 	r.Sync(pkgbits.SyncMethod)
 	npos := r.pos()
-	_, sym := r.selector()
+	sym := r.selector()
 	r.typeParamNames()
-	_, recv := r.param()
+	recv := r.param()
 	typ := r.signature(recv)
 
 	fpos := r.pos()
@@ -1034,25 +1020,23 @@ func (r *reader) qualifiedIdent() (pkg *types.Pkg, sym *types.Sym) {
 	return
 }
 
-func (r *reader) localIdent() (pkg *types.Pkg, sym *types.Sym) {
+func (r *reader) localIdent() *types.Sym {
 	r.Sync(pkgbits.SyncLocalIdent)
-	pkg = r.pkg()
+	pkg := r.pkg()
 	if name := r.String(); name != "" {
-		sym = pkg.Lookup(name)
+		return pkg.Lookup(name)
 	}
-	return
+	return nil
 }
 
-func (r *reader) selector() (origPkg *types.Pkg, sym *types.Sym) {
+func (r *reader) selector() *types.Sym {
 	r.Sync(pkgbits.SyncSelector)
-	origPkg = r.pkg()
+	pkg := r.pkg()
 	name := r.String()
-	pkg := origPkg
 	if types.IsExported(name) {
 		pkg = types.LocalPkg
 	}
-	sym = pkg.Lookup(name)
-	return
+	return pkg.Lookup(name)
 }
 
 func (r *reader) hasTypeParams() bool {
@@ -1724,11 +1708,8 @@ func (r *reader) assign() (ir.Node, bool) {
 
 	case assignDef:
 		pos := r.pos()
-		setBasePos(pos)
-		_, sym := r.localIdent()
-		typ := r.typ()
-
-		name := r.curfn.NewLocal(pos, sym, typ)
+		setBasePos(pos) // test/fixedbugs/issue49767.go depends on base.Pos being set for the r.typ() call here, ugh
+		name := r.curfn.NewLocal(pos, r.localIdent(), r.typ())
 		r.addLocal(name)
 		return name, true
 
@@ -1911,9 +1892,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 	if r.Bool() {
 		pos := r.pos()
 		if r.Bool() {
-			pos := r.pos()
-			_, sym := r.localIdent()
-			ident = ir.NewIdent(pos, sym)
+			ident = ir.NewIdent(r.pos(), r.localIdent())
 		}
 		x := r.expr()
 		iface = x.Type()
@@ -2075,7 +2054,7 @@ func (r *reader) expr() (res ir.Node) {
 	case exprFieldVal:
 		x := r.expr()
 		pos := r.pos()
-		_, sym := r.selector()
+		sym := r.selector()
 
 		return typecheck.XDotField(pos, x, sym)
 
@@ -2740,7 +2719,7 @@ func (r *reader) methodExpr() (wrapperFn, baseFn, dictPtr ir.Node) {
 	recv := r.typ()
 	sig0 := r.typ()
 	pos := r.pos()
-	_, sym := r.selector()
+	sym := r.selector()
 
 	// Signature type to return (i.e., recv prepended to the method's
 	// normal parameters list).
@@ -3266,7 +3245,7 @@ func (r *reader) pkgDecls(target *ir.Package) {
 
 		case declMethod:
 			typ := r.typ()
-			_, sym := r.selector()
+			sym := r.selector()
 
 			method := typecheck.Lookdot1(nil, sym, typ, typ.Methods(), 0)
 			target.Funcs = append(target.Funcs, method.Nname.(*ir.Name).Func)
