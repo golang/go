@@ -1033,8 +1033,6 @@ func usemethod(n *ir.CallExpr) {
 		r.Type = objabi.R_USENAMEDMETHOD
 		r.Sym = staticdata.StringSymNoCommon(name)
 	} else {
-		ir.CurFunc.SetReflectMethod(true)
-		// The LSym is initialized at this point. We need to set the attribute on the LSym.
 		ir.CurFunc.LSym.Set(obj.AttrReflectMethod, true)
 	}
 }

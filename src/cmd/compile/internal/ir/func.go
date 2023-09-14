@@ -217,11 +217,10 @@ type Mark struct {
 type ScopeID int32
 
 const (
-	funcDupok         = 1 << iota // duplicate definitions ok
-	funcWrapper                   // hide frame from users (elide in tracebacks, don't count as a frame for recover())
-	funcABIWrapper                // is an ABI wrapper (also set flagWrapper)
-	funcNeedctxt                  // function uses context register (has closure variables)
-	funcReflectMethod             // function calls reflect.Type.Method or MethodByName
+	funcDupok      = 1 << iota // duplicate definitions ok
+	funcWrapper                // hide frame from users (elide in tracebacks, don't count as a frame for recover())
+	funcABIWrapper             // is an ABI wrapper (also set flagWrapper)
+	funcNeedctxt               // function uses context register (has closure variables)
 	// true if closure inside a function; false if a simple function or a
 	// closure in a global variable initialization
 	funcIsHiddenClosure
@@ -244,7 +243,6 @@ func (f *Func) Dupok() bool                    { return f.flags&funcDupok != 0 }
 func (f *Func) Wrapper() bool                  { return f.flags&funcWrapper != 0 }
 func (f *Func) ABIWrapper() bool               { return f.flags&funcABIWrapper != 0 }
 func (f *Func) Needctxt() bool                 { return f.flags&funcNeedctxt != 0 }
-func (f *Func) ReflectMethod() bool            { return f.flags&funcReflectMethod != 0 }
 func (f *Func) IsHiddenClosure() bool          { return f.flags&funcIsHiddenClosure != 0 }
 func (f *Func) IsDeadcodeClosure() bool        { return f.flags&funcIsDeadcodeClosure != 0 }
 func (f *Func) HasDefer() bool                 { return f.flags&funcHasDefer != 0 }
@@ -259,7 +257,6 @@ func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
 func (f *Func) SetWrapper(b bool)                  { f.flags.set(funcWrapper, b) }
 func (f *Func) SetABIWrapper(b bool)               { f.flags.set(funcABIWrapper, b) }
 func (f *Func) SetNeedctxt(b bool)                 { f.flags.set(funcNeedctxt, b) }
-func (f *Func) SetReflectMethod(b bool)            { f.flags.set(funcReflectMethod, b) }
 func (f *Func) SetIsHiddenClosure(b bool)          { f.flags.set(funcIsHiddenClosure, b) }
 func (f *Func) SetIsDeadcodeClosure(b bool)        { f.flags.set(funcIsDeadcodeClosure, b) }
 func (f *Func) SetHasDefer(b bool)                 { f.flags.set(funcHasDefer, b) }
