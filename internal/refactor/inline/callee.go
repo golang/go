@@ -170,8 +170,8 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 					unexported = append(unexported, n.Name)
 				}
 
-				// Record free reference.
-				if !within(obj.Pos(), decl) {
+				// Record free reference (incl. self-reference).
+				if obj == fn || !within(obj.Pos(), decl) {
 					objidx, ok := freeObjIndex[obj]
 					if !ok {
 						objidx = len(freeObjIndex)

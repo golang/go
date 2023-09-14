@@ -1,0 +1,32 @@
+A self-reference counts as a free reference,
+so that it gets properly package-qualified as needed.
+(Regression test for a bug.)
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+import "testdata/b"
+
+func _() {
+	b.F(1) //@ inline(re"F", output)
+}
+
+-- b/b.go --
+package b
+
+func F(x int) {
+	F(x + 2)
+}
+
+-- output --
+package a
+
+import "testdata/b"
+
+func _() {
+	b.F(1 + 2) //@ inline(re"F", output)
+}
