@@ -6,6 +6,7 @@ package completion
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -865,6 +866,52 @@ use ./dir/foobar/
 			if diff != "" {
 				t.Errorf("%s: %s", tt.re, diff)
 			}
+		}
+	})
+}
+
+func TestBuiltinCompletion(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.18
+-- a.go --
+package a
+
+func _() {
+	// here
+}
+`
+
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("a.go")
+		result := env.Completion(env.RegexpSearch("a.go", `// here`))
+		builtins := []string{
+			"any", "append", "bool", "byte", "cap", "close",
+			"comparable", "complex", "complex128", "complex64", "copy", "delete",
+			"error", "false", "float32", "float64", "imag", "int", "int16", "int32",
+			"int64", "int8", "len", "make", "new", "panic", "print", "println", "real",
+			"recover", "rune", "string", "true", "uint", "uint16", "uint32", "uint64",
+			"uint8", "uintptr", "nil",
+		}
+		if testenv.Go1Point() >= 21 {
+			builtins = append(builtins, "clear", "max", "min")
+		}
+		sort.Strings(builtins)
+		var got []string
+
+		for _, item := range result.Items {
+			// TODO(rfindley): for flexibility, ignore zero while it is being
+			// implemented. Remove this if/when zero lands.
+			if item.Label != "zero" {
+				got = append(got, item.Label)
+			}
+		}
+		sort.Strings(got)
+
+		if diff := cmp.Diff(builtins, got); diff != "" {
+			t.Errorf("Completion: unexpected mismatch:\n%s", diff)
 		}
 	})
 }

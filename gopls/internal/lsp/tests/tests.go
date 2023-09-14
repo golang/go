@@ -41,6 +41,7 @@ const (
 	overlayFileSuffix = ".overlay"
 	goldenFileSuffix  = ".golden"
 	inFileSuffix      = ".in"
+	summaryFile       = "summary.txt"
 
 	// The module path containing the testdata packages.
 	//
@@ -48,14 +49,6 @@ const (
 	// against command-line limitations on windows (golang/go#54800).
 	testModule = "golang.org/lsptests"
 )
-
-var summaryFile = "summary.txt"
-
-func init() {
-	if testenv.Go1Point() >= 21 {
-		summaryFile = "summary_go1.21.txt"
-	}
-}
 
 var UpdateGolden = flag.Bool("golden", false, "Update golden files")
 
