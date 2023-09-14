@@ -293,6 +293,7 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/imports"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // A Caller describes the function call and its enclosing context.
@@ -707,63 +708,97 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		freevars   map[string]bool // free names of expr
 	}
 	var args []*argument // effective arguments; nil => eliminated
-	if calleeDecl.Recv != nil {
-		sel := astutil.Unparen(caller.Call.Fun).(*ast.SelectorExpr)
-		if caller.Info.Selections[sel].Kind() == types.MethodVal {
-			// Move receiver argument recv.f(args) to argument list f(&recv, args).
-			arg := &argument{
-				expr:       sel.X,
-				typ:        caller.Info.TypeOf(sel.X),
-				pure:       pure(caller.Info, sel.X),
-				duplicable: duplicable(caller.Info, sel.X),
-				freevars:   freeVars(caller.Info, sel.X),
+	{
+		// TODO(adonovan): extract to a function (in a separate CL).
+		callArgs := caller.Call.Args
+		if calleeDecl.Recv != nil {
+			sel := astutil.Unparen(caller.Call.Fun).(*ast.SelectorExpr)
+			seln := caller.Info.Selections[sel]
+			var recvArg ast.Expr
+			switch seln.Kind() {
+			case types.MethodVal: // recv.f(callArgs)
+				recvArg = sel.X
+			case types.MethodExpr: // T.f(recv, callArgs)
+				recvArg = callArgs[0]
+				callArgs = callArgs[1:]
 			}
-			args = append(args, arg)
+			if recvArg != nil {
+				// Compute all the type-based predicates now,
+				// before we start meddling with the syntax;
+				// the meddling will update them.
+				arg := &argument{
+					expr:       recvArg,
+					typ:        caller.Info.TypeOf(recvArg),
+					pure:       pure(caller.Info, recvArg),
+					duplicable: duplicable(caller.Info, recvArg),
+					freevars:   freeVars(caller.Info, recvArg),
+				}
+				recvArg = nil // prevent accidental use
 
-			// Make * or & explicit.
-			//
-			// We do this after we've computed the type-based
-			// predicates (pure et al) above, as they won't
-			// work on synthetic syntax.
-			argIsPtr := arg.typ != deref(arg.typ)
-			paramIsPtr := is[*types.Pointer](calleeSymbol.Type().(*types.Signature).Recv().Type())
-			if !argIsPtr && paramIsPtr {
-				// &recv
-				arg.expr = &ast.UnaryExpr{Op: token.AND, X: arg.expr}
-				arg.typ = types.NewPointer(arg.typ)
-			} else if argIsPtr && !paramIsPtr {
-				// *recv
-				arg.expr = &ast.StarExpr{X: arg.expr}
-				arg.typ = deref(arg.typ)
+				// Move receiver argument recv.f(args) to argument list f(&recv, args).
+				args = append(args, arg)
 
-				// Technically *recv is non-pure and
-				// non-duplicable, as side effects
-				// could change the pointer between
-				// multiple reads. But unfortunately
-				// this really degrades many of our tests.
-				//
-				// TODO(adonovan): improve the precision
-				// purity and duplicability.
-				// For example, *new(T) is actually pure.
-				// And *ptr, where ptr doesn't escape and
-				// has no assignments other than its decl,
-				// is also pure; this is very common.
-				//
-				// arg.pure = false
-				// arg.duplicable = false
+				// Make field selections explicit (recv.f -> recv.y.f),
+				// updating arg.{expr,typ}.
+				indices := seln.Index()
+				for _, index := range indices[:len(indices)-1] {
+					t := deref(arg.typ)
+					fld := typeparams.CoreType(t).(*types.Struct).Field(index)
+					if fld.Pkg() != caller.Types && !fld.Exported() {
+						return nil, fmt.Errorf("in %s, implicit reference to unexported field .%s cannot be made explicit",
+							debugFormatNode(caller.Fset, caller.Call.Fun),
+							fld.Name())
+					}
+					arg.expr = &ast.SelectorExpr{
+						X:   arg.expr,
+						Sel: makeIdent(fld.Name()),
+					}
+					arg.typ = fld.Type()
+				}
+
+				// Make * or & explicit.
+				argIsPtr := arg.typ != deref(arg.typ)
+				paramIsPtr := is[*types.Pointer](seln.Obj().Type().(*types.Signature).Recv().Type())
+				if !argIsPtr && paramIsPtr {
+					// &recv
+					arg.expr = &ast.UnaryExpr{Op: token.AND, X: arg.expr}
+					arg.typ = types.NewPointer(arg.typ)
+				} else if argIsPtr && !paramIsPtr {
+					// *recv
+					arg.expr = &ast.StarExpr{X: arg.expr}
+					arg.typ = deref(arg.typ)
+
+					// Technically *recv is non-pure and
+					// non-duplicable, as side effects
+					// could change the pointer between
+					// multiple reads. But unfortunately
+					// this really degrades many of our tests.
+					// (The indices loop above should similarly
+					// update these flags when traversing pointers.)
+					//
+					// TODO(adonovan): improve the precision of
+					// purity and duplicability.
+					// For example, *new(T) is actually pure.
+					// And *ptr, where ptr doesn't escape and
+					// has no assignments other than its decl,
+					// is also pure; this is very common.
+					//
+					// arg.pure = false
+					// arg.duplicable = false
+				}
 			}
 		}
-	}
-	for _, expr := range caller.Call.Args {
-		typ := caller.Info.TypeOf(expr)
-		args = append(args, &argument{
-			expr:       expr,
-			typ:        typ,
-			spread:     is[*types.Tuple](typ), // => last
-			pure:       pure(caller.Info, expr),
-			duplicable: duplicable(caller.Info, expr),
-			freevars:   freeVars(caller.Info, expr),
-		})
+		for _, expr := range callArgs {
+			typ := caller.Info.TypeOf(expr)
+			args = append(args, &argument{
+				expr:       expr,
+				typ:        typ,
+				spread:     is[*types.Tuple](typ), // => last
+				pure:       pure(caller.Info, expr),
+				duplicable: duplicable(caller.Info, expr),
+				freevars:   freeVars(caller.Info, expr),
+			})
+		}
 	}
 
 	// Gather effective parameter tuple, including the receiver if any.

@@ -1,0 +1,28 @@
+Test of implicit field selections in method calls.
+
+The two level wrapping T -> unexported -> U is required
+to exercise the implicit selections exportedness check;
+with only a single level, the receiver declaration in
+"func (unexported) F()" would fail the earlier
+unexportedness check.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+import "testdata/b"
+
+func _(x b.T) {
+	x.F() //@ inline(re"F", re"in x.F, implicit reference to unexported field .unexported cannot be made explicit")
+}
+
+-- b/b.go --
+package b
+
+type T struct { unexported }
+type unexported struct { U }
+type U struct{}
+func (U) F() {}
