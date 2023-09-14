@@ -673,7 +673,7 @@ func (s *state) setHeapaddr(pos src.XPos, n *ir.Name, ptr *ssa.Value) {
 
 	// Declare variable to hold address.
 	sym := &types.Sym{Name: "&" + n.Sym().Name, Pkg: types.LocalPkg}
-	addr := s.curfn.NewLocal(pos, sym, ir.PAUTO, types.NewPtr(n.Type()))
+	addr := s.curfn.NewLocal(pos, sym, types.NewPtr(n.Type()))
 	addr.SetUsed(true)
 	types.CalcSize(addr.Type())
 
@@ -7928,7 +7928,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t 
 	}
 
 	sym := &types.Sym{Name: node.Sym().Name + suffix, Pkg: types.LocalPkg}
-	n := e.curfn.NewLocal(parent.N.Pos(), sym, ir.PAUTO, t)
+	n := e.curfn.NewLocal(parent.N.Pos(), sym, t)
 	n.SetUsed(true)
 	n.SetEsc(ir.EscNever)
 	types.CalcSize(t)

@@ -16,32 +16,18 @@ import (
 
 var funcStack []*ir.Func // stack of previous values of ir.CurFunc
 
-// DeclFunc creates and returns ONAMEs for the parameters and results
-// of the given function. It also sets ir.CurFunc, and adds fn to
+// DeclFunc declares the parameters for fn and adds it to
 // Target.Funcs.
 //
-// After the caller is done constructing fn, it must call
-// FinishFuncBody.
-func DeclFunc(fn *ir.Func) (params, results []*ir.Name) {
-	typ := fn.Type()
-
-	// Currently, DeclFunc is only used to create normal functions, not
-	// methods. If a use case for creating methods shows up, we can
-	// extend it to support those too.
-	if typ.Recv() != nil {
-		base.FatalfAt(fn.Pos(), "unexpected receiver parameter")
-	}
-
-	params = declareParams(fn, ir.PPARAM, typ.Params())
-	results = declareParams(fn, ir.PPARAMOUT, typ.Results())
-
-	funcStack = append(funcStack, ir.CurFunc)
-	ir.CurFunc = fn
-
+// Before returning, it sets CurFunc to fn. When the caller is done
+// constructing fn, it must call FinishFuncBody to restore CurFunc.
+func DeclFunc(fn *ir.Func) {
+	fn.DeclareParams(true)
 	fn.Nname.Defn = fn
 	Target.Funcs = append(Target.Funcs, fn)
 
-	return
+	funcStack = append(funcStack, ir.CurFunc)
+	ir.CurFunc = fn
 }
 
 // FinishFuncBody restores ir.CurFunc to its state before the last
@@ -56,65 +42,29 @@ func CheckFuncStack() {
 	}
 }
 
-func declareParams(fn *ir.Func, ctxt ir.Class, params []*types.Field) []*ir.Name {
-	names := make([]*ir.Name, len(params))
-	for i, param := range params {
-		names[i] = declareParam(fn, ctxt, i, param)
-	}
-	return names
-}
-
-func declareParam(fn *ir.Func, ctxt ir.Class, i int, param *types.Field) *ir.Name {
-	sym := param.Sym
-	if ctxt == ir.PPARAMOUT {
-		if sym == nil {
-			// Name so that escape analysis can track it. ~r stands for 'result'.
-			sym = LookupNum("~r", i)
-		} else if sym.IsBlank() {
-			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
-			// The name must be different from ~r above because if you have
-			//	func f() (_ int)
-			//	func g() int
-			// f is allowed to use a plain 'return' with no arguments, while g is not.
-			// So the two cases must be distinguished.
-			sym = LookupNum("~b", i)
-		}
-	}
-
-	if sym == nil {
-		return nil
-	}
-
-	name := fn.NewLocal(param.Pos, sym, ctxt, param.Type)
-	param.Nname = name
-	return name
-}
-
 // make a new Node off the books.
-func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
+func TempAt(pos src.XPos, curfn *ir.Func, typ *types.Type) *ir.Name {
 	if curfn == nil {
-		base.Fatalf("no curfn for TempAt")
+		base.FatalfAt(pos, "no curfn for TempAt")
 	}
-	if t == nil {
-		base.Fatalf("TempAt called with nil type")
+	if typ == nil {
+		base.FatalfAt(pos, "TempAt called with nil type")
 	}
-	if t.Kind() == types.TFUNC && t.Recv() != nil {
-		base.Fatalf("misuse of method type: %v", t)
+	if typ.Kind() == types.TFUNC && typ.Recv() != nil {
+		base.FatalfAt(pos, "misuse of method type: %v", typ)
 	}
+	types.CalcSize(typ)
 
-	s := &types.Sym{
+	sym := &types.Sym{
 		Name: autotmpname(len(curfn.Dcl)),
 		Pkg:  types.LocalPkg,
 	}
-	n := curfn.NewLocal(pos, s, ir.PAUTO, t)
-	s.Def = n // TODO(mdempsky): Should be unnecessary.
-	n.SetEsc(ir.EscNever)
-	n.SetUsed(true)
-	n.SetAutoTemp(true)
+	name := curfn.NewLocal(pos, sym, typ)
+	name.SetEsc(ir.EscNever)
+	name.SetUsed(true)
+	name.SetAutoTemp(true)
 
-	types.CalcSize(t)
-
-	return n
+	return name
 }
 
 var (

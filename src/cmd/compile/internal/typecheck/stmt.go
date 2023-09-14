@@ -224,6 +224,7 @@ func tcGoDefer(n *ir.GoDeferStmt) {
 
 	// Create a new wrapper function without parameters or results.
 	wrapperFn := ir.NewClosureFunc(n.Pos(), n.Pos(), n.Op(), types.NewSignature(nil, nil, nil), ir.CurFunc, Target)
+	wrapperFn.DeclareParams(true)
 	wrapperFn.SetWrapper(true)
 
 	// argps collects the list of operands within the call expression

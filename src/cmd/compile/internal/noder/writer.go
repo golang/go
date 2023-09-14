@@ -1114,7 +1114,7 @@ func (pw *pkgWriter) bodyIdx(sig *types2.Signature, block *syntax.BlockStmt, dic
 	w.sig = sig
 	w.dict = dict
 
-	w.funcargs(sig)
+	w.declareParams(sig)
 	if w.Bool(block != nil) {
 		w.stmts(block.List)
 		w.pos(block.Rbrace)
@@ -1123,24 +1123,18 @@ func (pw *pkgWriter) bodyIdx(sig *types2.Signature, block *syntax.BlockStmt, dic
 	return w.Flush(), w.closureVars
 }
 
-func (w *writer) funcargs(sig *types2.Signature) {
-	do := func(params *types2.Tuple, result bool) {
+func (w *writer) declareParams(sig *types2.Signature) {
+	addLocals := func(params *types2.Tuple) {
 		for i := 0; i < params.Len(); i++ {
-			w.funcarg(params.At(i), result)
+			w.addLocal(params.At(i))
 		}
 	}
 
 	if recv := sig.Recv(); recv != nil {
-		w.funcarg(recv, false)
+		w.addLocal(recv)
 	}
-	do(sig.Params(), false)
-	do(sig.Results(), true)
-}
-
-func (w *writer) funcarg(param *types2.Var, result bool) {
-	if param.Name() != "" || result {
-		w.addLocal(param)
-	}
+	addLocals(sig.Params())
+	addLocals(sig.Results())
 }
 
 // addLocal records the declaration of a new local variable.

@@ -318,10 +318,17 @@ func (op Op) IsCmp() bool {
 	return false
 }
 
-// Nodes is a pointer to a slice of *Node.
-// For fields that are not used in most nodes, this is used instead of
-// a slice to save space.
+// Nodes is a slice of Node.
 type Nodes []Node
+
+// ToNodes returns s as a slice of Nodes.
+func ToNodes[T Node](s []T) Nodes {
+	res := make(Nodes, len(s))
+	for i, n := range s {
+		res[i] = n
+	}
+	return res
+}
 
 // Append appends entries to Nodes.
 func (n *Nodes) Append(a ...Node) {

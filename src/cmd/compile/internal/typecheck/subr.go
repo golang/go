@@ -26,18 +26,10 @@ func LookupNum(prefix string, n int) *types.Sym {
 }
 
 // Given funarg struct list, return list of fn args.
-func NewFuncParams(origs []*types.Field, mustname bool) []*types.Field {
+func NewFuncParams(origs []*types.Field) []*types.Field {
 	res := make([]*types.Field, len(origs))
 	for i, orig := range origs {
-		s := orig.Sym
-		if mustname && (s == nil || s.Name == "_") {
-			// invent a name so that we can refer to it in the trampoline
-			s = LookupNum(".anon", i)
-		} else if s != nil && s.Pkg != types.LocalPkg {
-			// TODO(mdempsky): Preserve original position, name, and package.
-			s = Lookup(s.Name)
-		}
-		p := types.NewField(orig.Pos, s, orig.Type)
+		p := types.NewField(orig.Pos, orig.Sym, orig.Type)
 		p.SetIsDDD(orig.IsDDD())
 		res[i] = p
 	}

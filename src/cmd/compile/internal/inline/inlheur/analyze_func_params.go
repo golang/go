@@ -21,42 +21,12 @@ type paramsAnalyzer struct {
 	*condLevelTracker
 }
 
-// dclParams returns a slice containing the non-blank, named params
-// for the specific function (plus rcvr as well if applicable) in
-// declaration order.
-func dclParams(fn *ir.Func) []*ir.Name {
-	params := []*ir.Name{}
-	for _, n := range fn.Dcl {
-		if n.Op() != ir.ONAME {
-			continue
-		}
-		if n.Class != ir.PPARAM {
-			continue
-		}
-		params = append(params, n)
-	}
-	return params
-}
-
 // getParams returns an *ir.Name slice containing all params for the
-// function (plus rcvr as well if applicable). Note that this slice
-// includes entries for blanks; entries in the returned slice corresponding
-// to blanks or unnamed params will be nil.
+// function (plus rcvr as well if applicable).
 func getParams(fn *ir.Func) []*ir.Name {
-	dclparms := dclParams(fn)
-	dclidx := 0
-	recvrParms := fn.Type().RecvParams()
-	params := make([]*ir.Name, len(recvrParms))
-	for i := range recvrParms {
-		var v *ir.Name
-		if recvrParms[i].Sym != nil &&
-			!recvrParms[i].Sym.IsBlank() {
-			v = dclparms[dclidx]
-			dclidx++
-		}
-		params[i] = v
-	}
-	return params
+	sig := fn.Type()
+	numParams := sig.NumRecvs() + sig.NumParams()
+	return fn.Dcl[:numParams]
 }
 
 func makeParamsAnalyzer(fn *ir.Func) *paramsAnalyzer {

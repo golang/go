@@ -102,16 +102,13 @@ func NewBuiltin(sym *types.Sym, op Op) *Name {
 }
 
 // NewLocal returns a new function-local variable with the given name and type.
-func (fn *Func) NewLocal(pos src.XPos, sym *types.Sym, class Class, typ *types.Type) *Name {
-	switch class {
-	case PPARAM, PPARAMOUT, PAUTO:
-		// ok
-	default:
-		base.FatalfAt(pos, "NewLocal: unexpected class for %v: %v", sym, class)
+func (fn *Func) NewLocal(pos src.XPos, sym *types.Sym, typ *types.Type) *Name {
+	if fn.Dcl == nil {
+		base.FatalfAt(pos, "must call DeclParams on %v first", fn)
 	}
 
 	n := NewNameAt(pos, sym, typ)
-	n.Class = class
+	n.Class = PAUTO
 	n.Curfn = fn
 	fn.Dcl = append(fn.Dcl, n)
 	return n

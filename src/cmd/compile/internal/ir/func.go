@@ -65,9 +65,7 @@ type Func struct {
 	// include closurevars until transforming closures during walk.
 	// Names must be listed PPARAMs, PPARAMOUTs, then PAUTOs,
 	// with PPARAMs and PPARAMOUTs in order corresponding to the function signature.
-	// However, as anonymous or blank PPARAMs are not actually declared,
-	// they are omitted from Dcl.
-	// Anonymous and blank PPARAMOUTs are declared as ~rNN and ~bNN Names, respectively.
+	// Anonymous and blank params are declared as ~pNN (for PPARAMs) and ~rNN (for PPARAMOUTs).
 	Dcl []*Name
 
 	// ClosureVars lists the free variables that are used within a
@@ -454,4 +452,41 @@ func IsFuncPCIntrinsic(n *CallExpr) bool {
 	fn := n.X.(*Name).Sym()
 	return (fn.Name == "FuncPCABI0" || fn.Name == "FuncPCABIInternal") &&
 		fn.Pkg.Path == "internal/abi"
+}
+
+// DeclareParams creates Names for all of the parameters in fn's
+// signature and adds them to fn.Dcl.
+//
+// If setNname is true, then it also sets types.Field.Nname for each
+// parameter.
+func (fn *Func) DeclareParams(setNname bool) {
+	if fn.Dcl != nil {
+		base.FatalfAt(fn.Pos(), "%v already has Dcl", fn)
+	}
+
+	declareParams := func(params []*types.Field, ctxt Class, prefix string, offset int) {
+		for i, param := range params {
+			sym := param.Sym
+			if sym == nil || sym.IsBlank() {
+				sym = fn.Sym().Pkg.LookupNum(prefix, i)
+			}
+
+			name := NewNameAt(param.Pos, sym, param.Type)
+			name.Class = ctxt
+			name.Curfn = fn
+			fn.Dcl[offset+i] = name
+
+			if setNname {
+				param.Nname = name
+			}
+		}
+	}
+
+	sig := fn.Type()
+	params := sig.RecvParams()
+	results := sig.Results()
+
+	fn.Dcl = make([]*Name, len(params)+len(results))
+	declareParams(params, PPARAM, "~p", 0)
+	declareParams(results, PPARAMOUT, "~r", len(params))
 }

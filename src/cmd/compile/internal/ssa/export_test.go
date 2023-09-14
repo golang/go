@@ -55,16 +55,15 @@ type Conf struct {
 
 func (c *Conf) Frontend() Frontend {
 	if c.fe == nil {
-		f := ir.NewFunc(src.NoXPos, src.NoXPos, &types.Sym{
-			Pkg:  types.NewPkg("my/import/path", "path"),
-			Name: "function",
-		}, nil)
-		f.LSym = &obj.LSym{Name: "my/import/path.function"}
+		pkg := types.NewPkg("my/import/path", "path")
+		fn := ir.NewFunc(src.NoXPos, src.NoXPos, pkg.Lookup("function"), types.NewSignature(nil, nil, nil))
+		fn.DeclareParams(true)
+		fn.LSym = &obj.LSym{Name: "my/import/path.function"}
 
 		c.fe = TestFrontend{
 			t:    c.tb,
 			ctxt: c.config.ctxt,
-			f:    f,
+			f:    fn,
 		}
 	}
 	return c.fe
