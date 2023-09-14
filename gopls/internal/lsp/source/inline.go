@@ -12,7 +12,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"log"
 	"runtime/debug"
 
 	"golang.org/x/tools/go/analysis"
@@ -23,6 +22,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/diff"
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/refactor/inline"
 )
 
@@ -119,9 +119,12 @@ func inlineCall(ctx context.Context, snapshot Snapshot, fh FileHandle, rng proto
 		Content: callerPGF.Src,
 	}
 
-	// Users can consult the gopls log to see
+	// Users can consult the gopls event log to see
 	// why a particular inlining strategy was chosen.
-	got, err := inline.Inline(log.Printf, caller, callee)
+	logf := func(format string, args ...any) {
+		event.Log(ctx, "inliner: "+fmt.Sprintf(format, args...))
+	}
+	got, err := inline.Inline(logf, caller, callee)
 	if err != nil {
 		return nil, nil, err
 	}
