@@ -82,6 +82,31 @@
 //     with effects, but with further analysis of the sequence of
 //     strict effects within the callee we could relax this constraint.
 //
+//   - When not all parameters can be substituted by their arguments
+//     (e.g. due to possible effects), if the call appears in a
+//     statement context, the inliner may introduce a var declaration
+//     that declares the parameter variables (with the correct types)
+//     and assigns them to their corresponding argument values.
+//     The rest of the function body may then follow.
+//     For example, the call
+//
+//     f(1, 2)
+//
+//     to the function
+//
+//     func f(x, y int32) { stmts }
+//
+//     may be reduced to
+//
+//     { var x, y int32 = 1, 2; stmts }.
+//
+//     There are many reasons why this is not always possible. For
+//     example, true parameters are statically resolved in the same
+//     scope, and are dynamically assigned their arguments in
+//     parallel; but each spec in a var declaration is statically
+//     resolved in sequence and dynamically executed in sequence, so
+//     earlier parameters may shadow references in later ones.
+//
 //   - Even an argument expression as simple as ptr.x may not be
 //     referentially transparent, because another argument may have the
 //     effect of changing the value of ptr.
@@ -221,47 +246,10 @@
 //     panics? Can we avoid evaluating an argument x.f
 //     or a[i] when the corresponding parameter is unused?
 //
-//   - When caller syntax permits a block, replace argument-to-parameter
-//     assignment by a set of local var decls, e.g. f(1, 2) would
-//     become { var x, y = 1, 2; body... }.
-//
-//     But even this is complicated: a single var decl initializer
-//     cannot declare all the parameters and initialize them to their
-//     arguments in one go if they have varied types. Instead,
-//     one must use multiple specs such as:
-//
-//     { var x int = 1; var y int32 = 2; body ...}
-//
-//     but this means that the initializer expression for y is
-//     within the scope of x, so it may require α-renaming.
-//
-//     It is tempting to use a short var decl { x, y := 1, 2; body ...}
-//     as it permits simultaneous declaration and initialization
-//     of many variables of varied type. However, one must take care
-//     to convert each argument expression to the correct parameter
-//     variable type, perhaps explicitly. (Consider "x := 1 << 64".)
-//
-//     Also, as a matter of style, having all parameter declarations
-//     and argument expressions in a single statement is potentially
-//     unwieldy.
-//
 //   - Support inlining of generic functions, replacing type parameters
 //     by their instantiations.
 //
-//   - Support inlining of calls to function literals such as:
-//
-//     f := func(...) { ... }
-//
-//     f()
-//
-//     including recursive ones:
-//
-//     var f func(...)
-//
-//     f = func(...) { ...f...}
-//
-//     f()
-//
+//   - Support inlining of calls to function literals ("closures").
 //     But note that the existing algorithm makes widespread assumptions
 //     that the callee is a package-level function or method.
 //
