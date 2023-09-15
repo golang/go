@@ -43,6 +43,7 @@ func (r *Ring) Move(n int) *Ring {
 	if r.next == nil {
 		return r.init()
 	}
+	n = n % r.Len()
 	switch {
 	case n < 0:
 		for ; n < 0; n++ {
