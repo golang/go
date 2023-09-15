@@ -296,7 +296,7 @@ type spanSetSpinePointer struct {
 
 // lookup returns &s[idx].
 func (s spanSetSpinePointer) lookup(idx uintptr) *atomic.Pointer[spanSetBlock] {
-	return (*atomic.Pointer[spanSetBlock])(add(unsafe.Pointer(s.p), goarch.PtrSize*idx))
+	return (*atomic.Pointer[spanSetBlock])(add(s.p, goarch.PtrSize*idx))
 }
 
 // spanSetBlockPool is a global pool of spanSetBlocks.

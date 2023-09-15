@@ -74,7 +74,7 @@ func (m *mutator) mutate(vals []any, maxBytes int) {
 	case uint32:
 		vals[i] = uint32(m.mutateUInt(uint64(v), math.MaxUint32))
 	case uint64:
-		vals[i] = m.mutateUInt(uint64(v), maxUint)
+		vals[i] = m.mutateUInt(v, maxUint)
 	case float32:
 		vals[i] = float32(m.mutateFloat(float64(v), math.MaxFloat32))
 	case float64:

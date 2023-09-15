@@ -975,7 +975,7 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
 		// to include that huge page.
 
 		// Compute the huge page boundary above our candidate.
-		pagesPerHugePage := uintptr(physHugePageSize / pageSize)
+		pagesPerHugePage := physHugePageSize / pageSize
 		hugePageAbove := uint(alignUp(uintptr(start), pagesPerHugePage))
 
 		// If that boundary is within our current candidate, then we may be breaking
@@ -1098,7 +1098,7 @@ func (s *scavengeIndex) find(force bool) (chunkIdx, uint) {
 	// Starting from searchAddr's chunk, iterate until we find a chunk with pages to scavenge.
 	gen := s.gen
 	min := chunkIdx(s.minHeapIdx.Load())
-	start := chunkIndex(uintptr(searchAddr))
+	start := chunkIndex(searchAddr)
 	// N.B. We'll never map the 0'th chunk, so minHeapIdx ensures this loop overflow.
 	for i := start; i >= min; i-- {
 		// Skip over chunks.
@@ -1107,7 +1107,7 @@ func (s *scavengeIndex) find(force bool) (chunkIdx, uint) {
 		}
 		// We're still scavenging this chunk.
 		if i == start {
-			return i, chunkPageIndex(uintptr(searchAddr))
+			return i, chunkPageIndex(searchAddr)
 		}
 		// Try to reduce searchAddr to newSearchAddr.
 		newSearchAddr := chunkBase(i) + pallocChunkBytes - pageSize

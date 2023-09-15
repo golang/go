@@ -678,7 +678,7 @@ func readvarintUnsafe(fd unsafe.Pointer) (uint32, unsafe.Pointer) {
 	var r uint32
 	var shift int
 	for {
-		b := *(*uint8)((unsafe.Pointer(fd)))
+		b := *(*uint8)(fd)
 		fd = add(fd, unsafe.Sizeof(b))
 		if b < 128 {
 			return r + uint32(b)<<shift, fd
@@ -906,7 +906,7 @@ func (p *_panic) nextFrame() (ok bool) {
 	systemstack(func() {
 		var limit uintptr
 		if d := gp._defer; d != nil {
-			limit = uintptr(d.sp)
+			limit = d.sp
 		}
 
 		var u unwinder

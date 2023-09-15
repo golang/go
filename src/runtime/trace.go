@@ -944,7 +944,7 @@ func traceReadCPU() {
 			}
 			stackID := trace.stackTab.put(buf.stk[:nstk])
 
-			traceEventLocked(0, nil, 0, bufp, traceEvCPUSample, stackID, 1, uint64(timestamp), ppid, goid)
+			traceEventLocked(0, nil, 0, bufp, traceEvCPUSample, stackID, 1, timestamp, ppid, goid)
 		}
 	}
 }

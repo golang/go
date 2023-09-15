@@ -284,7 +284,7 @@ func (c *mcache) releaseAll() {
 				//
 				// If this span was cached before sweep, then gcController.heapLive was totally
 				// recomputed since caching this span, so we don't do this for stale spans.
-				dHeapLive -= int64(uintptr(s.nelems)-uintptr(s.allocCount)) * int64(s.elemsize)
+				dHeapLive -= int64(s.nelems-uintptr(s.allocCount)) * int64(s.elemsize)
 			}
 
 			// Release the span to the mcentral.
