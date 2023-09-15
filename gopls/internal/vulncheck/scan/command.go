@@ -8,6 +8,7 @@
 package scan
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -67,6 +68,7 @@ func RunGovulncheck(ctx context.Context, pattern string, snapshot source.Snapsho
 	ir, iw := io.Pipe()
 	handler := &govulncheckHandler{logger: log, osvs: map[string]*osv.Entry{}}
 
+	stderr := new(bytes.Buffer)
 	var g errgroup.Group
 	// We run the govulncheck's analysis in a separate process as it can
 	// consume a lot of CPUs and memory, and terminates: a separate process
@@ -81,8 +83,8 @@ func RunGovulncheck(ctx context.Context, pattern string, snapshot source.Snapsho
 			// in https://go.googlesource.com/vuln/+/v1.0.1/internal/scan/run.go#76
 			cmd.Env = append(cmd.Env, "GOVERSION="+goversion)
 		}
-		cmd.Stderr = log // stream vulncheck's STDERR as progress reports
-		cmd.Stdout = iw  // let the other goroutine parses the result.
+		cmd.Stderr = stderr // stream vulncheck's STDERR as progress reports
+		cmd.Stdout = iw     // let the other goroutine parses the result.
 
 		if err := cmd.Start(); err != nil {
 			return fmt.Errorf("failed to start govulncheck: %v", err)
@@ -96,6 +98,9 @@ func RunGovulncheck(ctx context.Context, pattern string, snapshot source.Snapsho
 		return govulncheck.HandleJSON(ir, handler)
 	})
 	if err := g.Wait(); err != nil {
+		if stderr.Len() > 0 {
+			log.Write(stderr.Bytes())
+		}
 		return nil, fmt.Errorf("failed to read govulncheck output: %v", err)
 	}
 
