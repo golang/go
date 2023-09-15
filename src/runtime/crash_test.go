@@ -792,6 +792,10 @@ func TestRuntimePanic(t *testing.T) {
 func TestG0StackOverflow(t *testing.T) {
 	testenv.MustHaveExec(t)
 
+	if runtime.GOOS == "ios" {
+		testenv.SkipFlaky(t, 62671)
+	}
+
 	if os.Getenv("TEST_G0_STACK_OVERFLOW") != "1" {
 		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestG0StackOverflow$", "-test.v"))
 		cmd.Env = append(cmd.Env, "TEST_G0_STACK_OVERFLOW=1")
