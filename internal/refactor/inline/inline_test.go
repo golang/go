@@ -325,6 +325,18 @@ func TestTable(t *testing.T) {
 		want           string // expected new portion of caller file, or "error: regexp"
 	}{
 		{
+			"Generic functions are not yet supported.",
+			`func f[T any](x T) T { return x }`,
+			`var _ = f(0)`,
+			`error: type parameters are not yet supported`,
+		},
+		{
+			"Methods on generic types are not yet supported.",
+			`type G[T any] struct{}; func (G[T]) f(x T) T { return x }`,
+			`var _ = G[int]{}.f(0)`,
+			`error: type parameters are not yet supported`,
+		},
+		{
 			"Basic",
 			`func f(x int) int { return x }`,
 			`var _ = f(0)`,

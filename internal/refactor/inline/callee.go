@@ -97,7 +97,7 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 	// ident or qualified ident to prevent "if x == struct{}"
 	// parsing ambiguity, or "T(x)" where T = "*int" or "func()"
 	// from misparsing.
-	if decl.Type.TypeParams != nil {
+	if funcHasTypeParams(decl) {
 		return nil, fmt.Errorf("cannot inline generic function %s: type parameters are not yet supported", name)
 	}
 
