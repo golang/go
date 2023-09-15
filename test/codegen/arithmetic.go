@@ -11,6 +11,21 @@ package codegen
 // For codegen tests on float types, see floats.go.
 
 // ----------------- //
+//    Addition       //
+// ----------------- //
+
+func AddLargeConst(a uint64, out []uint64) {
+	// ppc64x/power10:"ADD\t[$]4294967296,"
+	// ppc64x/power9:"MOVD\t[$]i64.0000000100000000[(]SB[)]", "ADD\tR[0-9]*"
+	// ppc64x/power8:"MOVD\t[$]i64.0000000100000000[(]SB[)]", "ADD\tR[0-9]*"
+	out[0] = a + 0x100000000
+	// ppc64x/power10:"ADD\t[$]-8589934592,"
+	// ppc64x/power9:"MOVD\t[$]i64.fffffffe00000000[(]SB[)]", "ADD\tR[0-9]*"
+	// ppc64x/power8:"MOVD\t[$]i64.fffffffe00000000[(]SB[)]", "ADD\tR[0-9]*"
+	out[1] = a + 0xFFFFFFFE00000000
+}
+
+// ----------------- //
 //    Subtraction    //
 // ----------------- //
 

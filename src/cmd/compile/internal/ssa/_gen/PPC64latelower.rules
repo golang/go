@@ -33,3 +33,6 @@
 
 // Convert rotated 32 bit masks on 32 bit values into rlwinm. In general, this leaves the upper 32 bits in an undefined state.
 (AND <t> x:(MOVDconst [m]) n) && t.Size() == 4 && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(0,m,32)] n)
+
+// When PCRel is supported, paddi can add a 34b signed constant in one instruction.
+(ADD (MOVDconst [m]) x) && supportsPPC64PCRel() && (m<<30)>>30 == m => (ADDconst [m] x)
