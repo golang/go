@@ -3135,12 +3135,19 @@ func testServerGracefulClose(t *testing.T, mode testMode) {
 		if err != nil {
 			return err
 		}
-		defer conn.Close()
 		writeErr := make(chan error)
 		go func() {
 			_, err := conn.Write(req)
 			writeErr <- err
 		}()
+		defer func() {
+			conn.Close()
+			// Wait for write to finish. This is a broken pipe on both
+			// Darwin and Linux, but checking this isn't the point of
+			// the test.
+			<-writeErr
+		}()
+
 		br := bufio.NewReader(conn)
 		lineNum := 0
 		for {
@@ -3156,10 +3163,6 @@ func testServerGracefulClose(t *testing.T, mode testMode) {
 				t.Errorf("Response line = %q; want a 401", line)
 			}
 		}
-		// Wait for write to finish. This is a broken pipe on both
-		// Darwin and Linux, but checking this isn't the point of
-		// the test.
-		<-writeErr
 		return nil
 	})
 }
