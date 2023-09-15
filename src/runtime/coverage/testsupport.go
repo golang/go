@@ -294,19 +294,22 @@ func snapshot() float64 {
 	totExec := uint64(0)
 	for _, c := range cl {
 		sd := unsafe.Slice((*atomic.Uint32)(unsafe.Pointer(c.Counters)), c.Len)
-		tot += uint64(len(sd))
 		for i := 0; i < len(sd); i++ {
+			nCtrs := sd[i+coverage.NumCtrsOffset].Load()
+
 			// Skip ahead until the next non-zero value.
-			if sd[i].Load() == 0 {
+			if nCtrs == 0 {
 				continue
 			}
+
 			// We found a function that was executed.
-			nCtrs := sd[i+coverage.NumCtrsOffset].Load()
 			cst := i + coverage.FirstCtrOffset
 
 			if cst+int(nCtrs) > len(sd) {
 				break
 			}
+
+			tot += uint64(nCtrs)
 			counters := sd[cst : cst+int(nCtrs)]
 			for i := range counters {
 				if counters[i].Load() != 0 {

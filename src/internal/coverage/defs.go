@@ -371,7 +371,7 @@ func Round4(x int) int {
 //     numCtrs uint32
 //     pkgid uint32
 //     funcid uint32
-//     counterArray [numBlocks]uint32
+//     counterArray [numCtrs]uint32
 // }
 //
 // where "numCtrs" is the number of blocks / coverable units within the
