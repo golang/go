@@ -155,6 +155,11 @@ func ProfileGuided(fn *ir.Func, p *pgo.Profile) {
 			return n
 		}
 
+		if !base.PGOHash.MatchPosWithInfo(n.Pos(), "devirt", nil) {
+			// De-selected by PGO Hash.
+			return n
+		}
+
 		if stat != nil {
 			stat.Devirtualized = ir.LinkFuncName(callee)
 			stat.DevirtualizedWeight = weight

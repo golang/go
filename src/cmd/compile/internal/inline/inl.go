@@ -1044,6 +1044,11 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
 		return false, inlineHotMaxBudget
 	}
 
+	if !base.PGOHash.MatchPosWithInfo(n.Pos(), "inline", nil) {
+		// De-selected by PGO Hash.
+		return false, maxCost
+	}
+
 	if base.Debug.PGODebug > 0 {
 		fmt.Printf("hot-budget check allows inlining for call %s (cost %d) at %v in function %s\n", ir.PkgFuncName(callee), callee.Inl.Cost, ir.Line(n), ir.PkgFuncName(caller))
 	}
