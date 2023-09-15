@@ -878,7 +878,7 @@ func hello() {}
 		}
 		// Confirm that we no longer have metadata when the file is saved.
 		env.SaveBufferWithoutActions("go.mod")
-		_, err := env.Editor.GoToDefinition(env.Ctx, env.RegexpSearch("main.go", "hello"))
+		_, err := env.Editor.Definition(env.Ctx, env.RegexpSearch("main.go", "hello"))
 		if err == nil {
 			t.Fatalf("expected error, got none")
 		}

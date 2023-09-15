@@ -1,0 +1,406 @@
+This test was ported from 'godef' in the old marker tests.
+It tests various hover and definition requests.
+
+-- flags --
+-min_go=go1.20
+
+-- go.mod --
+module godef.test
+
+go 1.18
+
+-- a/a_x_test.go --
+package a_test
+
+import (
+	"testing"
+)
+
+func TestA2(t *testing.T) { //@hover("TestA2", "TestA2", TestA2)
+	Nonexistant() //@diag("Nonexistant", re"(undeclared name|undefined): Nonexistant")
+}
+
+-- @TestA2/hover.md --
+```go
+func TestA2(t *testing.T)
+```
+-- @ember/hover.md --
+```go
+field Member string
+```
+
+@loc(Member, "Member")
+
+
+[`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/godef.test/a#Thing.Member)
+-- a/d.go --
+package a //@hover("a", _, a)
+
+import "fmt"
+
+type Thing struct { //@loc(Thing, "Thing")
+	Member string //@loc(Member, "Member")
+}
+
+var Other Thing //@loc(Other, "Other")
+
+func Things(val []string) []Thing { //@loc(Things, "Things")
+	return nil
+}
+
+func (t Thing) Method(i int) string { //@loc(Method, "Method")
+	return t.Member
+}
+
+func (t Thing) Method3() {
+}
+
+func (t *Thing) Method2(i int, j int) (error, string) {
+	return nil, t.Member
+}
+
+func (t *Thing) private() {
+}
+
+func useThings() {
+	t := Thing{ //@hover("ing", "Thing", ing)
+		Member: "string", //@hover("ember", "Member", ember), def("ember", Member)
+	}
+	fmt.Print(t.Member) //@hover("ember", "Member", ember), def("ember", Member)
+	fmt.Print(Other)    //@hover("ther", "Other", ther), def("ther", Other)
+	Things(nil)         //@hover("ings", "Things", ings), def("ings", Things)
+	t.Method(0)         //@hover("eth", "Method", eth), def("eth", Method)
+}
+
+type NextThing struct { //@loc(NextThing, "NextThing")
+	Thing
+	Value int
+}
+
+func (n NextThing) another() string {
+	return n.Member
+}
+
+// Shadows Thing.Method3
+func (n *NextThing) Method3() int {
+	return n.Value
+}
+
+var nextThing NextThing //@hover("NextThing", "NextThing", NextThing), def("NextThing", NextThing)
+
+-- @ings/hover.md --
+```go
+func Things(val []string) []Thing
+```
+
+[`a.Things` on pkg.go.dev](https://pkg.go.dev/godef.test/a#Things)
+-- @ther/hover.md --
+```go
+var Other Thing
+```
+
+@loc(Other, "Other")
+
+
+[`a.Other` on pkg.go.dev](https://pkg.go.dev/godef.test/a#Other)
+-- @a/hover.md --
+-- @ing/hover.md --
+```go
+type Thing struct {
+	Member string //@loc(Member, "Member")
+}
+
+func (Thing).Method(i int) string
+func (*Thing).Method2(i int, j int) (error, string)
+func (Thing).Method3()
+func (*Thing).private()
+```
+
+[`a.Thing` on pkg.go.dev](https://pkg.go.dev/godef.test/a#Thing)
+-- @NextThing/hover.md --
+```go
+type NextThing struct {
+	Thing
+	Value int
+}
+
+func (*NextThing).Method3() int
+func (NextThing).another() string
+```
+
+[`a.NextThing` on pkg.go.dev](https://pkg.go.dev/godef.test/a#NextThing)
+-- @eth/hover.md --
+```go
+func (Thing).Method(i int) string
+```
+
+[`(a.Thing).Method` on pkg.go.dev](https://pkg.go.dev/godef.test/a#Thing.Method)
+-- a/f.go --
+// Package a is a package for testing go to definition.
+package a
+
+import "fmt"
+
+func TypeStuff() {
+	var x string
+
+	switch y := interface{}(x).(type) { //@loc(y, "y"), hover("y", "y", y) , def("y", y)
+	case int: //@loc(intY, "int")
+		fmt.Printf("%v", y) //@hover("y", "y", inty), def("y", y)
+	case string: //@loc(stringY, "string")
+		fmt.Printf("%v", y) //@hover("y", "y", stringy), def("y", y)
+	}
+
+}
+-- @inty/hover.md --
+```go
+var y int
+```
+-- @stringy/hover.md --
+```go
+var y string
+```
+-- @y/hover.md --
+```go
+var y interface{}
+```
+-- a/h.go --
+package a
+
+func _() {
+	type s struct {
+		nested struct {
+			// nested number
+			number int64 //@loc(nestedNumber, "number")
+		}
+		nested2 []struct {
+			// nested string
+			str string //@loc(nestedString, "str")
+		}
+		x struct {
+			x struct {
+				x struct {
+					x struct {
+						x struct {
+							// nested map
+							m map[string]float64 //@loc(nestedMap, "m")
+						}
+					}
+				}
+			}
+		}
+	}
+
+	var t s
+	_ = t.nested.number  //@hover("number", "number", nestedNumber), def("number", nestedNumber)
+	_ = t.nested2[0].str //@hover("str", "str", nestedString), def("str", nestedString)
+	_ = t.x.x.x.x.x.m    //@hover("m", "m", nestedMap), def("m", nestedMap)
+}
+
+func _() {
+	var s struct {
+		// a field
+		a int //@loc(structA, "a")
+		// b nested struct
+		b struct { //@loc(structB, "b")
+			// c field of nested struct
+			c int //@loc(structC, "c")
+		}
+	}
+	_ = s.a   //@def("a", structA)
+	_ = s.b   //@def("b", structB)
+	_ = s.b.c //@def("c", structC)
+
+	var arr []struct {
+		// d field
+		d int //@loc(arrD, "d")
+		// e nested struct
+		e struct { //@loc(arrE, "e")
+			// f field of nested struct
+			f int //@loc(arrF, "f")
+		}
+	}
+	_ = arr[0].d   //@def("d", arrD)
+	_ = arr[0].e   //@def("e", arrE)
+	_ = arr[0].e.f //@def("f", arrF)
+
+	var complex []struct {
+		c <-chan map[string][]struct {
+			// h field
+			h int //@loc(complexH, "h")
+			// i nested struct
+			i struct { //@loc(complexI, "i")
+				// j field of nested struct
+				j int //@loc(complexJ, "j")
+			}
+		}
+	}
+	_ = (<-complex[0].c)["0"][0].h   //@def("h", complexH)
+	_ = (<-complex[0].c)["0"][0].i   //@def("i", complexI)
+	_ = (<-complex[0].c)["0"][0].i.j //@def("j", complexJ)
+
+	var mapWithStructKey map[struct { //@diag("struct", re"invalid map key")
+		// X key field
+		x []string //@loc(mapStructKeyX, "x")
+	}]int
+	for k := range mapWithStructKey {
+		_ = k.x //@def("x", mapStructKeyX)
+	}
+
+	var mapWithStructKeyAndValue map[struct {
+		// Y key field
+		y string //@loc(mapStructKeyY, "y")
+	}]struct {
+		// X value field
+		x string //@loc(mapStructValueX, "x")
+	}
+	for k, v := range mapWithStructKeyAndValue {
+		// TODO: we don't show docs for y field because both map key and value
+		// are structs. And in this case, we parse only map value
+		_ = k.y //@hover("y", "y", hoverStructKeyY), def("y", mapStructKeyY)
+		_ = v.x //@hover("x", "x", hoverStructKeyX), def("x", mapStructValueX)
+	}
+
+	var i []map[string]interface {
+		// open method comment
+		open() error //@loc(openMethod, "open")
+	}
+	i[0]["1"].open() //@hover("pen","open", openMethod), def("open", openMethod)
+}
+
+func _() {
+	test := struct {
+		// test description
+		desc string //@loc(testDescription, "desc")
+	}{}
+	_ = test.desc //@def("desc", testDescription)
+
+	for _, tt := range []struct {
+		// test input
+		in map[string][]struct { //@loc(testInput, "in")
+			// test key
+			key string //@loc(testInputKey, "key")
+			// test value
+			value interface{} //@loc(testInputValue, "value")
+		}
+		result struct {
+			v <-chan struct {
+				// expected test value
+				value int //@loc(testResultValue, "value")
+			}
+		}
+	}{} {
+		_ = tt.in               //@def("in", testInput)
+		_ = tt.in["0"][0].key   //@def("key", testInputKey)
+		_ = tt.in["0"][0].value //@def("value", testInputValue)
+
+		_ = (<-tt.result.v).value //@def("value", testResultValue)
+	}
+}
+
+func _() {
+	getPoints := func() []struct {
+		// X coord
+		x int //@loc(returnX, "x")
+		// Y coord
+		y int //@loc(returnY, "y")
+	} {
+		return nil
+	}
+
+	r := getPoints()
+	_ = r[0].x //@def("x", returnX)
+	_ = r[0].y //@def("y", returnY)
+}
+-- @hoverStructKeyX/hover.md --
+```go
+field x string
+```
+
+X value field
+-- @hoverStructKeyY/hover.md --
+```go
+field y string
+```
+
+Y key field
+-- @nestedNumber/hover.md --
+```go
+field number int64
+```
+
+nested number
+-- @nestedString/hover.md --
+```go
+field str string
+```
+
+nested string
+-- @openMethod/hover.md --
+```go
+func (interface).open() error
+```
+
+open method comment
+-- @nestedMap/hover.md --
+```go
+field m map[string]float64
+```
+
+nested map
+-- b/e.go --
+package b
+
+import (
+	"fmt"
+
+	"godef.test/a"
+)
+
+func useThings() {
+	t := a.Thing{}      //@loc(bStructType, "ing")
+	fmt.Print(t.Member) //@loc(bMember, "ember")
+	fmt.Print(a.Other)  //@loc(bVar, "ther")
+	a.Things(nil)          //@loc(bFunc, "ings")
+}
+
+/*@
+def(bStructType, Thing)
+def(bMember, Member)
+def(bVar, Other)
+def(bFunc, Things)
+*/
+
+func _() {
+	var x interface{}
+	switch x := x.(type) { //@hover("x", "x", xInterface)
+	case string: //@loc(eString, "string")
+		fmt.Println(x) //@hover("x", "x", xString)
+	case int: //@loc(eInt, "int")
+		fmt.Println(x) //@hover("x", "x", xInt)
+	}
+}
+-- @xInt/hover.md --
+```go
+var x int
+```
+-- @xInterface/hover.md --
+```go
+var x interface{}
+```
+-- @xString/hover.md --
+```go
+var x string
+```
+-- broken/unclosedIf.go --
+package broken
+
+import "fmt"
+
+func unclosedIf() {
+	if false {
+		var myUnclosedIf string              //@loc(myUnclosedIf, "myUnclosedIf")
+		fmt.Printf("s = %v\n", myUnclosedIf) //@def("my", myUnclosedIf)
+}
+
+func _() {} //@diag("_", re"expected")

@@ -1,0 +1,49 @@
+
+-- flags --
+-ignore_extra_diags
+
+-- go.mod --
+module mod.test
+
+go 1.18
+
+-- foo/foo.go --
+package foo
+
+type StructFoo struct{ F int }
+
+-- a.go --
+package a
+
+import "mod.test/foo"
+
+func _() {
+	StructFoo{} //@item(litStructFoo, "StructFoo{}", "struct{...}", "struct")
+
+	var sfp *foo.StructFoo
+	// Don't insert the "&" before "StructFoo{}".
+	sfp = foo.Str //@snippet(" //", litStructFoo, "StructFoo{$0\\}")
+
+	var sf foo.StructFoo
+	sf = foo.Str //@snippet(" //", litStructFoo, "StructFoo{$0\\}")
+	sf = foo. //@snippet(" //", litStructFoo, "StructFoo{$0\\}")
+}
+
+-- http.go --
+package a
+
+import (
+	"net/http"
+	"sort"
+)
+
+func _() {
+	sort.Slice(nil, fun) //@snippet(")", litFunc, "func(i, j int) bool {$0\\}")
+
+	http.HandleFunc("", f) //@snippet(")", litFunc, "func(w http.ResponseWriter, r *http.Request) {$0\\}")
+
+	//@item(litFunc, "func(...) {}", "", "var")
+	http.HandlerFunc() //@item(handlerFunc, "http.HandlerFunc()", "", "var")
+	http.Handle("", http.HandlerFunc()) //@snippet("))", litFunc, "func(w http.ResponseWriter, r *http.Request) {$0\\}")
+	http.Handle("", h) //@snippet(")", handlerFunc, "http.HandlerFunc($0)")
+}

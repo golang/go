@@ -1,0 +1,68 @@
+This test exercises the textDocument/typeDefinition action.
+
+-- typedef.go --
+package typedef
+
+type Struct struct { //@loc(Struct, "Struct"),
+	Field string
+}
+
+type Int int //@loc(Int, "Int")
+
+func _() {
+	var (
+		value Struct
+		point *Struct
+	)
+	_ = value //@typedef("value", Struct)
+	_ = point //@typedef("point", Struct)
+
+	var (
+		array   [3]Struct
+		slice   []Struct
+		ch      chan Struct
+		complex [3]chan *[5][]Int
+	)
+	_ = array   //@typedef("array", Struct)
+	_ = slice   //@typedef("slice", Struct)
+	_ = ch      //@typedef("ch", Struct)
+	_ = complex //@typedef("complex", Int)
+
+	var s struct {
+		x struct {
+			xx struct {
+				field1 []Struct
+				field2 []Int
+			}
+		}
+	}
+	_ = s.x.xx.field1 //@typedef("field1", Struct)
+	_ = s.x.xx.field2 //@typedef("field2", Int)
+}
+
+func F1() Int                              { return 0 }
+func F2() (Int, float64)                   { return 0, 0 }
+func F3() (Struct, int, bool, error)       { return Struct{}, 0, false, nil }
+func F4() (**int, Int, bool, *error)       { return nil, 0, false, nil }
+func F5() (int, float64, error, Struct)    { return 0, 0, nil, Struct{} }
+func F6() (int, float64, ***Struct, error) { return 0, 0, nil, nil }
+
+func _() {
+	F1() //@typedef("F1", Int)
+	F2() //@typedef("F2", Int)
+	F3() //@typedef("F3", Struct)
+	F4() //@typedef("F4", Int)
+	F5() //@typedef("F5", Struct)
+	F6() //@typedef("F6", Struct)
+
+	f := func() Int { return 0 }
+	f() //@typedef("f", Int)
+}
+
+// https://github.com/golang/go/issues/38589#issuecomment-620350922
+func _() {
+	type myFunc func(int) Int //@loc(myFunc, "myFunc")
+
+	var foo myFunc
+	_ = foo() //@typedef("foo", myFunc), diag(")", re"not enough arguments")
+}

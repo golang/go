@@ -8,17 +8,13 @@ import (
 	"bytes"
 	"fmt"
 	"go/token"
-	"path"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/completion"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/gopls/internal/span"
@@ -90,73 +86,6 @@ func DiffLinks(mapper *protocol.Mapper, wantLinks []Link, gotLinks []protocol.Do
 		fmt.Fprintf(&msg, "%s: expected link with target %q is missing\n", spn, target)
 	}
 	return msg.String()
-}
-
-// CompareDiagnostics reports testing errors to t when the diagnostic set got
-// does not match want.
-func CompareDiagnostics(t *testing.T, uri span.URI, want, got []*source.Diagnostic) {
-	t.Helper()
-	fileName := path.Base(string(uri))
-
-	// Build a helper function to match an actual diagnostic to an overlapping
-	// expected diagnostic (if any).
-	unmatched := make([]*source.Diagnostic, len(want))
-	copy(unmatched, want)
-	source.SortDiagnostics(unmatched)
-	match := func(g *source.Diagnostic) *source.Diagnostic {
-		// Find the last expected diagnostic d for which start(d) < end(g), and
-		// check to see if it overlaps.
-		i := sort.Search(len(unmatched), func(i int) bool {
-			d := unmatched[i]
-			// See rangeOverlaps: if a range is a single point, we consider End to be
-			// included in the range...
-			if g.Range.Start == g.Range.End {
-				return protocol.ComparePosition(d.Range.Start, g.Range.End) > 0
-			}
-			// ...otherwise the end position of a range is not included.
-			return protocol.ComparePosition(d.Range.Start, g.Range.End) >= 0
-		})
-		if i == 0 {
-			return nil
-		}
-		w := unmatched[i-1]
-		if rangeOverlaps(w.Range, g.Range) {
-			unmatched = append(unmatched[:i-1], unmatched[i:]...)
-			return w
-		}
-		return nil
-	}
-
-	for _, g := range got {
-		w := match(g)
-		if w == nil {
-			t.Errorf("%s:%s: unexpected diagnostic %q", fileName, g.Range, g.Message)
-			continue
-		}
-		if match, err := regexp.MatchString(w.Message, g.Message); err != nil {
-			t.Errorf("%s:%s: invalid regular expression %q: %v", fileName, w.Range.Start, w.Message, err)
-		} else if !match {
-			t.Errorf("%s:%s: got Message %q, want match for pattern %q", fileName, g.Range.Start, g.Message, w.Message)
-		}
-		if w.Severity != g.Severity {
-			t.Errorf("%s:%s: got Severity %v, want %v", fileName, g.Range.Start, g.Severity, w.Severity)
-		}
-		if w.Source != g.Source {
-			t.Errorf("%s:%s: got Source %v, want %v", fileName, g.Range.Start, g.Source, w.Source)
-		}
-	}
-
-	for _, w := range unmatched {
-		t.Errorf("%s:%s: unmatched diagnostic pattern %q", fileName, w.Range, w.Message)
-	}
-}
-
-// rangeOverlaps reports whether r1 and r2 overlap.
-func rangeOverlaps(r1, r2 protocol.Range) bool {
-	if inRange(r2.Start, r1) || inRange(r1.Start, r2) {
-		return true
-	}
-	return false
 }
 
 // inRange reports whether p is contained within [r.Start, r.End), or if p ==

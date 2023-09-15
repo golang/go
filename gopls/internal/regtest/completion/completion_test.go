@@ -911,7 +911,44 @@ func _() {
 		sort.Strings(got)
 
 		if diff := cmp.Diff(builtins, got); diff != "" {
-			t.Errorf("Completion: unexpected mismatch:\n%s", diff)
+			t.Errorf("Completion: unexpected mismatch (-want +got):\n%s", diff)
+		}
+	})
+}
+
+func TestOverlayCompletion(t *testing.T) {
+	const files = `
+-- go.mod --
+module foo.test
+
+go 1.18
+
+-- foo/foo.go --
+package foo
+
+type Foo struct{}
+`
+
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.CreateBuffer("nodisk/nodisk.go", `
+package nodisk
+
+import (
+	"foo.test/foo"
+)
+
+func _() {
+	foo.Foo()
+}
+`)
+		list := env.Completion(env.RegexpSearch("nodisk/nodisk.go", "foo.(Foo)"))
+		want := []string{"Foo"}
+		var got []string
+		for _, item := range list.Items {
+			got = append(got, item.Label)
+		}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("Completion: unexpected mismatch (-want +got):\n%s", diff)
 		}
 	})
 }

@@ -1,0 +1,541 @@
+This test ports some arbitrary tests from the old marker framework, that were
+*mostly* about completion.
+
+-- flags --
+-ignore_extra_diags
+-min_go=go1.20
+
+-- settings.json --
+{
+	"completeUnimported": false,
+	"deepCompletion": false,
+	"experimentalPostfixCompletions": false
+}
+
+-- go.mod --
+module foobar.test
+
+go 1.18
+
+-- foo/foo.go --
+package foo //@loc(PackageFoo, "foo"),item(PackageFooItem, "foo", "\"foobar.test/foo\"", "package")
+
+type StructFoo struct { //@loc(StructFooLoc, "StructFoo"), item(StructFoo, "StructFoo", "struct{...}", "struct")
+	Value int //@item(Value, "Value", "int", "field")
+}
+
+// Pre-set this marker, as we don't have a "source" for it in this package.
+/* Error() */ //@item(Error, "Error", "func() string", "method")
+
+func Foo() { //@item(Foo, "Foo", "func()", "func")
+	var err error
+	err.Error() //@complete("E", Error)
+}
+
+func _() {
+	var sFoo StructFoo           //@complete("t", StructFoo)
+	if x := sFoo; x.Value == 1 { //@complete("V", Value), typedef("sFoo", StructFooLoc)
+		return
+	}
+}
+
+func _() {
+	shadowed := 123
+	{
+		shadowed := "hi" //@item(shadowed, "shadowed", "string", "var")
+		sha              //@complete("a", shadowed), diag("sha", re"(undefined|undeclared)")
+		_ = shadowed
+	}
+}
+
+type IntFoo int //@loc(IntFooLoc, "IntFoo"), item(IntFoo, "IntFoo", "int", "type")
+
+-- bar/bar.go --
+package bar
+
+import (
+	"foobar.test/foo" //@item(foo, "foo", "\"foobar.test/foo\"", "package")
+)
+
+func helper(i foo.IntFoo) {} //@item(helper, "helper", "func(i foo.IntFoo)", "func")
+
+func _() {
+	help //@complete("l", helper)
+	_ = foo.StructFoo{} //@complete("S", IntFoo, StructFoo)
+}
+
+// Bar is a function.
+func Bar() { //@item(Bar, "Bar", "func()", "func", "Bar is a function.")
+	foo.Foo()        //@complete("F", Foo, IntFoo, StructFoo)
+	var _ foo.IntFoo //@complete("I", IntFoo, StructFoo)
+	foo.()           //@complete("(", Foo, IntFoo, StructFoo), diag(")", re"expected type")
+}
+
+// These items weren't present in the old marker tests (due to settings), but
+// we may as well include them.
+//@item(intConversion, "int()"), item(fooFoo, "foo.Foo")
+//@item(fooIntFoo, "foo.IntFoo"), item(fooStructFoo, "foo.StructFoo")
+
+func _() {
+	var Valentine int //@item(Valentine, "Valentine", "int", "var")
+
+	_ = foo.StructFoo{ //@diag("foo", re"unkeyed fields")
+		Valu //@complete(" //", Value)
+	}
+  	_ = foo.StructFoo{ //@diag("foo", re"unkeyed fields")
+		Va        //@complete("a", Value, Valentine)
+
+	}
+	_ = foo.StructFoo{
+		Value: 5, //@complete("a", Value)
+	}
+	_ = foo.StructFoo{
+		//@complete("//", Value, Valentine, intConversion, foo, helper, Bar)
+	}
+	_ = foo.StructFoo{
+		Value: Valen //@complete("le", Valentine)
+	}
+	_ = foo.StructFoo{
+		Value:       //@complete(" //", Valentine, intConversion, foo, helper, Bar)
+	}
+	_ = foo.StructFoo{
+		Value:       //@complete(" ", Valentine, intConversion, foo, helper, Bar)
+	}
+}
+
+-- baz/baz.go --
+package baz
+
+import (
+	"foobar.test/bar"
+
+	f "foobar.test/foo"
+)
+
+var FooStruct f.StructFoo
+
+func Baz() {
+	defer bar.Bar() //@complete("B", Bar)
+	// TODO: Test completion here.
+	defer bar.B //@diag(re"bar.B()", re"must be function call")
+	var x f.IntFoo  //@complete("n", IntFoo), typedef("x", IntFooLoc)
+	bar.Bar()       //@complete("B", Bar)
+}
+
+func _() {
+	bob := f.StructFoo{Value: 5}
+	if x := bob. //@complete(" //", Value)
+	switch true == false {
+		case true:
+			if x := bob. //@complete(" //", Value)
+		case false:
+	}
+	if x := bob.Va //@complete("a", Value)
+	switch true == true {
+		default:
+	}
+}
+
+-- arraytype/arraytype.go --
+package arraytype
+
+import (
+	"foobar.test/foo"
+)
+
+func _() {
+	var (
+		val string //@item(atVal, "val", "string", "var")
+	)
+
+	[] //@complete(" //", atVal, PackageFooItem)
+
+	[]val //@complete(" //")
+
+	[]foo.StructFoo //@complete(" //", StructFoo)
+
+	[]foo.StructFoo(nil) //@complete("(", StructFoo)
+
+	[]*foo.StructFoo //@complete(" //", StructFoo)
+
+	[...]foo.StructFoo //@complete(" //", StructFoo)
+
+	[2][][4]foo.StructFoo //@complete(" //", StructFoo)
+
+	[]struct { f []foo.StructFoo } //@complete(" }", StructFoo)
+}
+
+func _() {
+	type myInt int //@item(atMyInt, "myInt", "int", "type")
+
+	var mark []myInt //@item(atMark, "mark", "[]myInt", "var")
+
+	var s []myInt //@item(atS, "s", "[]myInt", "var")
+	s = []m //@complete(" //", atMyInt)
+
+	var a [1]myInt
+	a = [1]m //@complete(" //", atMyInt)
+
+	var ds [][]myInt
+	ds = [][]m //@complete(" //", atMyInt)
+}
+
+func _() {
+	var b [0]byte //@item(atByte, "b", "[0]byte", "var")
+	var _ []byte = b //@snippet(" //", atByte, "b[:]")
+}
+
+-- badstmt/badstmt.go --
+package badstmt
+
+import (
+	"foobar.test/foo"
+)
+
+// (The syntax error causes suppression of diagnostics for type errors.
+// See issue #59888.)
+
+func _(x int) {
+	defer foo.F //@complete(" //", Foo, IntFoo, StructFoo)
+	defer foo.F //@complete(" //", Foo, IntFoo, StructFoo)
+}
+
+func _() {
+	switch true {
+	case true:
+		go foo.F //@complete(" //", Foo, IntFoo, StructFoo)
+	}
+}
+
+func _() {
+	defer func() {
+		foo.F //@complete(" //", Foo, IntFoo, StructFoo), snippet(" //", Foo, "Foo()")
+
+		foo. //@rank(" //", Foo)
+	}
+}
+
+-- badstmt/badstmt_2.go --
+package badstmt
+
+import (
+	"foobar.test/foo"
+)
+
+func _() {
+	defer func() { foo. } //@rank(" }", Foo)
+}
+
+-- badstmt/badstmt_3.go --
+package badstmt
+
+import (
+	"foobar.test/foo"
+)
+
+func _() {
+	go foo. //@rank(" //", Foo, IntFoo), snippet(" //", Foo, "Foo()")
+}
+
+-- badstmt/badstmt_4.go --
+package badstmt
+
+import (
+	"foobar.test/foo"
+)
+
+func _() {
+	go func() {
+		defer foo. //@rank(" //", Foo, IntFoo)
+	}
+}
+
+-- selector/selector.go --
+package selector
+
+import (
+	"foobar.test/bar"
+)
+
+type S struct {
+	B, A, C int //@item(Bf, "B", "int", "field"),item(Af, "A", "int", "field"),item(Cf, "C", "int", "field")
+}
+
+func _() {
+	_ = S{}.; //@complete(";", Af, Bf, Cf)
+}
+
+type bob struct { a int } //@item(a, "a", "int", "field")
+type george struct { b int }
+type jack struct { c int } //@item(c, "c", "int", "field")
+type jill struct { d int }
+
+func (b *bob) george() *george {} //@item(george, "george", "func() *george", "method")
+func (g *george) jack() *jack {}
+func (j *jack) jill() *jill {} //@item(jill, "jill", "func() *jill", "method")
+
+func _() {
+	b := &bob{}
+	y := b.george().
+		jack();
+	y.; //@complete(";", c, jill)
+}
+
+func _() {
+	bar. //@complete(" /", Bar)
+	x := 5
+
+	var b *bob
+	b. //@complete(" /", a, george)
+	y, z := 5, 6
+
+	b. //@complete(" /", a, george)
+	y, z, a, b, c := 5, 6
+}
+
+func _() {
+	bar. //@complete(" /", Bar)
+	bar.Bar()
+
+	bar. //@complete(" /", Bar)
+	go f()
+}
+
+func _() {
+	var b *bob
+	if y != b. //@complete(" /", a, george)
+	z := 5
+
+	if z + y + 1 + b. //@complete(" /", a, george)
+	r, s, t := 4, 5
+
+	if y != b. //@complete(" /", a, george)
+	z = 5
+
+	if z + y + 1 + b. //@complete(" /", a, george)
+	r = 4
+}
+
+-- literal_snippets/literal_snippets.go --
+package literal_snippets
+
+import (
+	"bytes"
+	"context"
+	"go/ast"
+	"net/http"
+	"sort"
+
+	"golang.org/lsptests/foo"
+)
+
+func _() {
+	[]int{}        //@item(litIntSlice, "[]int{}", "", "var")
+	&[]int{}       //@item(litIntSliceAddr, "&[]int{}", "", "var")
+	make([]int, 0) //@item(makeIntSlice, "make([]int, 0)", "", "func")
+
+	var _ *[]int = in //@snippet(" //", litIntSliceAddr, "&[]int{$0\\}")
+	var _ **[]int = in //@complete(" //")
+
+	var slice []int
+	slice = i //@snippet(" //", litIntSlice, "[]int{$0\\}")
+	slice = m //@snippet(" //", makeIntSlice, "make([]int, ${1:})")
+}
+
+func _() {
+	type namedInt []int
+
+	namedInt{}        //@item(litNamedSlice, "namedInt{}", "", "var")
+	make(namedInt, 0) //@item(makeNamedSlice, "make(namedInt, 0)", "", "func")
+
+	var namedSlice namedInt
+	namedSlice = n //@snippet(" //", litNamedSlice, "namedInt{$0\\}")
+	namedSlice = m //@snippet(" //", makeNamedSlice, "make(namedInt, ${1:})")
+}
+
+func _() {
+	make(chan int) //@item(makeChan, "make(chan int)", "", "func")
+
+	var ch chan int
+	ch = m //@snippet(" //", makeChan, "make(chan int)")
+}
+
+func _() {
+	map[string]struct{}{}     //@item(litMap, "map[string]struct{}{}", "", "var")
+	make(map[string]struct{}) //@item(makeMap, "make(map[string]struct{})", "", "func")
+
+	var m map[string]struct{}
+	m = m //@snippet(" //", litMap, "map[string]struct{\\}{$0\\}")
+	m = m //@snippet(" //", makeMap, "make(map[string]struct{\\})")
+
+	struct{}{} //@item(litEmptyStruct, "struct{}{}", "", "var")
+
+	m["hi"] = s //@snippet(" //", litEmptyStruct, "struct{\\}{\\}")
+}
+
+func _() {
+	type myStruct struct{ i int } //@item(myStructType, "myStruct", "struct{...}", "struct")
+
+	myStruct{}  //@item(litStruct, "myStruct{}", "", "var")
+	&myStruct{} //@item(litStructPtr, "&myStruct{}", "", "var")
+
+	var ms myStruct
+	ms = m //@snippet(" //", litStruct, "myStruct{$0\\}")
+
+	var msPtr *myStruct
+	msPtr = m //@snippet(" //", litStructPtr, "&myStruct{$0\\}")
+
+	msPtr = &m //@snippet(" //", litStruct, "myStruct{$0\\}")
+
+	type myStructCopy struct { i int } //@item(myStructCopyType, "myStructCopy", "struct{...}", "struct")
+
+	// Don't offer literal completion for convertible structs.
+	ms = myStruct //@complete(" //", litStruct, myStructType, myStructCopyType)
+}
+
+type myImpl struct{}
+
+func (myImpl) foo() {}
+
+func (*myImpl) bar() {}
+
+type myBasicImpl string
+
+func (myBasicImpl) foo() {}
+
+func _() {
+	type myIntf interface {
+		foo()
+	}
+
+	myImpl{} //@item(litImpl, "myImpl{}", "", "var")
+
+	var mi myIntf
+	mi = m //@snippet(" //", litImpl, "myImpl{\\}")
+
+	myBasicImpl() //@item(litBasicImpl, "myBasicImpl()", "string", "var")
+
+	mi = m //@snippet(" //", litBasicImpl, "myBasicImpl($0)")
+
+	// only satisfied by pointer to myImpl
+	type myPtrIntf interface {
+		bar()
+	}
+
+	&myImpl{} //@item(litImplPtr, "&myImpl{}", "", "var")
+
+	var mpi myPtrIntf
+	mpi = m //@snippet(" //", litImplPtr, "&myImpl{\\}")
+}
+
+func _() {
+	var s struct{ i []int } //@item(litSliceField, "i", "[]int", "field")
+	var foo []int
+	// no literal completions after selector
+	foo = s.i //@complete(" //", litSliceField)
+}
+
+func _() {
+	type myStruct struct{ i int } //@item(litMyStructType, "myStruct", "struct{...}", "struct")
+	myStruct{} //@item(litMyStruct, "myStruct{}", "", "var")
+
+	foo := func(s string, args ...myStruct) {}
+	// Don't give literal slice candidate for variadic arg.
+	// Do give literal candidates for variadic element.
+	foo("", myStruct) //@complete(")", litMyStruct, litMyStructType)
+}
+
+func _() {
+	Buffer{} //@item(litBuffer, "Buffer{}", "", "var")
+
+	var b *bytes.Buffer
+	b = bytes.Bu //@snippet(" //", litBuffer, "Buffer{\\}")
+}
+
+func _() {
+	_ = "func(...) {}" //@item(litFunc, "func(...) {}", "", "var")
+
+	// no literal "func" completions
+	http.Handle("", fun) //@complete(")")
+
+	var namedReturn func(s string) (b bool)
+	namedReturn = f //@snippet(" //", litFunc, "func(s string) (b bool) {$0\\}")
+
+	var multiReturn func() (bool, int)
+	multiReturn = f //@snippet(" //", litFunc, "func() (bool, int) {$0\\}")
+
+	var multiNamedReturn func() (b bool, i int)
+	multiNamedReturn = f //@snippet(" //", litFunc, "func() (b bool, i int) {$0\\}")
+
+	var duplicateParams func(myImpl, int, myImpl)
+	duplicateParams = f //@snippet(" //", litFunc, "func(mi1 myImpl, i int, mi2 myImpl) {$0\\}")
+
+	type aliasImpl = myImpl
+	var aliasParams func(aliasImpl) aliasImpl
+	aliasParams = f //@snippet(" //", litFunc, "func(ai aliasImpl) aliasImpl {$0\\}")
+
+	const two = 2
+	var builtinTypes func([]int, [two]bool, map[string]string, struct{ i int }, interface{ foo() }, <-chan int)
+	builtinTypes = f //@snippet(" //", litFunc, "func(i1 []int, b [two]bool, m map[string]string, s struct{ i int \\}, i2 interface{ foo() \\}, c <-chan int) {$0\\}")
+
+	var _ func(ast.Node) = f //@snippet(" //", litFunc, "func(n ast.Node) {$0\\}")
+	var _ func(error) = f //@snippet(" //", litFunc, "func(err error) {$0\\}")
+	var _ func(context.Context) = f //@snippet(" //", litFunc, "func(ctx context.Context) {$0\\}")
+
+	type context struct {}
+	var _ func(context) = f //@snippet(" //", litFunc, "func(ctx context) {$0\\}")
+}
+
+func _() {
+	float64() //@item(litFloat64, "float64()", "float64", "var")
+
+	// don't complete to "&float64()"
+	var _ *float64 = float64 //@complete(" //")
+
+	var f float64
+	f = fl //@complete(" //", litFloat64),snippet(" //", litFloat64, "float64($0)")
+
+	type myInt int
+	myInt() //@item(litMyInt, "myInt()", "", "var")
+
+	var mi myInt
+	mi = my //@snippet(" //", litMyInt, "myInt($0)")
+}
+
+func _() {
+	type ptrStruct struct {
+		p *ptrStruct
+	}
+
+	ptrStruct{} //@item(litPtrStruct, "ptrStruct{}", "", "var")
+
+	ptrStruct{
+		p: &ptrSt, //@rank(",", litPtrStruct)
+	}
+
+	&ptrStruct{} //@item(litPtrStructPtr, "&ptrStruct{}", "", "var")
+
+	&ptrStruct{
+		p: ptrSt, //@rank(",", litPtrStructPtr)
+	}
+}
+
+func _() {
+	f := func(...[]int) {}
+	f() //@snippet(")", litIntSlice, "[]int{$0\\}")
+}
+
+
+func _() {
+	// don't complete to "untyped int()"
+	[]int{}[untyped] //@complete("] //")
+}
+
+type Tree[T any] struct{}
+
+func (tree Tree[T]) Do(f func(s T)) {}
+
+func _() {
+	var t Tree[string]
+	t.Do(fun) //@complete(")", litFunc), snippet(")", litFunc, "func(s string) {$0\\}")
+}

@@ -133,10 +133,8 @@ var _ = unsafe.Slice(nil, 0)
 			loc := env.RegexpSearch("a.go", `\b`+name+`\b`)
 
 			// definition -> {builtin,unsafe}.go
-			def, err := env.Editor.GoToDefinition(env.Ctx, loc)
-			if err != nil {
-				t.Errorf("definition(%q) failed: %v", name, err)
-			} else if (!strings.HasSuffix(string(def.URI), "builtin.go") &&
+			def := env.GoToDefinition(loc)
+			if (!strings.HasSuffix(string(def.URI), "builtin.go") &&
 				!strings.HasSuffix(string(def.URI), "unsafe.go")) ||
 				def.Range.Start.Line == 0 {
 				t.Errorf("definition(%q) = %v, want {builtin,unsafe}.go",
@@ -144,7 +142,7 @@ var _ = unsafe.Slice(nil, 0)
 			}
 
 			// "references to (builtin "Foo"|unsafe.Foo) are not supported"
-			_, err = env.Editor.References(env.Ctx, loc)
+			_, err := env.Editor.References(env.Ctx, loc)
 			gotErr := fmt.Sprint(err)
 			if !strings.Contains(gotErr, "references to") ||
 				!strings.Contains(gotErr, "not supported") ||

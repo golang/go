@@ -1,22 +1,32 @@
 package importedcomplit
 
 import (
-	"golang.org/lsptests/foo"
+	// TODO(rfindley): re-enable after moving to new framework
+	// "golang.org/lsptests/foo"
 
-	// import completions
-	"fm" //@complete("\" //", fmtImport)
-	"go/pars" //@complete("\" //", parserImport)
-	"golang.org/lsptests/signa" //@complete("na\" //", signatureImport)
-	"golang.org/lspte" //@complete("\" //", lsptestsImport)
+	// import completions (separate blocks to avoid comment alignment)
 	"crypto/elli" //@complete("\" //", cryptoImport)
-	"golang.org/lsptests/sign" //@complete("\" //", signatureImport)
-	"golang.org/lsptests/sign" //@complete("ests", lsptestsImport)
+
+	"fm" //@complete("\" //", fmtImport)
+
+	"go/pars" //@complete("\" //", parserImport)
+
 	namedParser "go/pars" //@complete("\" //", parserImport)
+
+	"golang.org/lspte" //@complete("\" //", lsptestsImport)
+
+	"golang.org/lsptests/sign" //@complete("\" //", signatureImport)
+
+	"golang.org/lsptests/sign" //@complete("ests", lsptestsImport)
+
+	"golang.org/lsptests/signa" //@complete("na\" //", signatureImport)
 )
 
 func _() {
 	var V int //@item(icVVar, "V", "int", "var")
-	_ = foo.StructFoo{V} //@complete("}", Value, icVVar)
+
+	// TODO(rfindley): re-enable after moving to new framework
+	// _ = foo.StructFoo{V} // complete("}", Value, icVVar)
 }
 
 func _() {
@@ -25,14 +35,16 @@ func _() {
 		ab int    //@item(icABVar, "ab", "int", "var")
 	)
 
-	_ = foo.StructFoo{a} //@complete("}", abVar, aaVar)
+	// TODO(rfindley): re-enable after moving to new framework
+	// _ = foo.StructFoo{a} // complete("}", abVar, aaVar)
 
 	var s struct {
 		AA string //@item(icFieldAA, "AA", "string", "field")
 		AB int    //@item(icFieldAB, "AB", "int", "field")
 	}
 
-	_ = foo.StructFoo{s.} //@complete("}", icFieldAB, icFieldAA)
+	// TODO(rfindley): re-enable after moving to new framework
+	//_ = foo.StructFoo{s.} // complete("}", icFieldAB, icFieldAA)
 }
 
 /* "fmt" */ //@item(fmtImport, "fmt", "\"fmt\"", "package")

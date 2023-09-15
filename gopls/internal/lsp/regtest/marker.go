@@ -111,6 +111,7 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //     in these directories before running the test.
 //     -skip_goos=a,b,c instructs the test runner to skip the test for the
 //     listed GOOS values.
+//     -ignore_extra_diags suppresses errors for unmatched diagnostics
 //     TODO(rfindley): using build constraint expressions for -skip_goos would
 //     be clearer.
 //     TODO(rfindley): support flag values containing whitespace.
@@ -199,7 +200,8 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //
 //   - item(label, details, kind): defines a completion item with the provided
 //     fields. This information is not positional, and therefore @item markers
-//     may occur anywhere in the source. Used in conjunction with @complete.
+//     may occur anywhere in the source. Used in conjunction with @complete,
+//     snippet, or rank.
 //
 //     TODO(rfindley): rethink whether floating @item annotations are the best
 //     way to specify completion results.
@@ -220,9 +222,23 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //     This action is executed for its editing effects on the source files.
 //     Like rename, the golden directory contains the expected transformed files.
 //
-//   - refs(location, want ...location): executes a 'references' query at the
-//     first location and asserts that the result is the set of 'want' locations.
-//     The first want location must be the declaration (assumedly unique).
+//   - rank(location, ...completionItem): executes a textDocument/completion
+//     request at the given location, and verifies that each expected
+//     completion item occurs in the results, in the expected order. Other
+//     unexpected completion items may occur in the results.
+//     TODO(rfindley): this should accept a slice of labels, rather than
+//     completion items.
+//
+//   - refs(location, want ...location): executes a textDocument/references
+//     request at the first location and asserts that the result is the set of
+//     'want' locations. The first want location must be the declaration
+//     (assumedly unique).
+//
+//   - snippet(location, completionItem, snippet): executes a
+//     textDocument/completion request at the location, and searches for a
+//     result with label matching that of the provided completion item
+//     (TODO(rfindley): accept a label rather than a completion item). Check
+//     the the result snippet matches the provided snippet.
 //
 //   - symbol(golden): makes a textDocument/documentSymbol request
 //     for the enclosing file, formats the response with one symbol
@@ -342,7 +358,6 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //   - CompletionItems
 //   - Completions
 //   - CompletionSnippets
-//   - UnimportedCompletions
 //   - DeepCompletions
 //   - FuzzyCompletions
 //   - CaseSensitiveCompletions
@@ -471,9 +486,11 @@ func RunMarkerTests(t *testing.T, dir string) {
 			}
 
 			// Any remaining (un-eliminated) diagnostics are an error.
-			for loc, diags := range run.diags {
-				for _, diag := range diags {
-					t.Errorf("%s: unexpected diagnostic: %q", run.fmtLoc(loc), diag.Message)
+			if !test.ignoreExtraDiags {
+				for loc, diags := range run.diags {
+					for _, diag := range diags {
+						t.Errorf("%s: unexpected diagnostic: %q", run.fmtLoc(loc), diag.Message)
+					}
 				}
 			}
 
@@ -691,11 +708,15 @@ var actionFuncs = map[string]func(marker){
 	"highlight":        markerFunc(highlightMarker),
 	"hover":            markerFunc(hoverMarker),
 	"implementation":   markerFunc(implementationMarker),
+	"rank":             markerFunc(rankMarker),
+	"refs":             markerFunc(refsMarker),
 	"rename":           markerFunc(renameMarker),
 	"renameerr":        markerFunc(renameErrMarker),
+	"signature":        markerFunc(signatureMarker),
+	"snippet":          markerFunc(snippetMarker),
 	"suggestedfix":     markerFunc(suggestedfixMarker),
 	"symbol":           markerFunc(symbolMarker),
-	"refs":             markerFunc(refsMarker),
+	"typedef":          markerFunc(typedefMarker),
 	"workspacesymbol":  markerFunc(workspaceSymbolMarker),
 }
 
@@ -720,10 +741,11 @@ type markerTest struct {
 	flags      []string // flags extracted from the special "flags" archive file.
 
 	// Parsed flags values.
-	minGoVersion string
-	cgo          bool
-	writeGoSum   []string // comma separated dirs to write go sum for
-	skipGOOS     []string // comma separated GOOS values to skip
+	minGoVersion     string
+	cgo              bool
+	writeGoSum       []string // comma separated dirs to write go sum for
+	skipGOOS         []string // comma separated GOOS values to skip
+	ignoreExtraDiags bool
 }
 
 // flagSet returns the flagset used for parsing the special "flags" file in the
@@ -734,6 +756,7 @@ func (t *markerTest) flagSet() *flag.FlagSet {
 	flags.BoolVar(&t.cgo, "cgo", false, "if set, requires cgo (both the cgo tool and CGO_ENABLED=1)")
 	flags.Var((*stringListValue)(&t.writeGoSum), "write_sumfile", "if set, write the sumfile for these directories")
 	flags.Var((*stringListValue)(&t.skipGOOS), "skip_goos", "if set, skip this test on these GOOS values")
+	flags.BoolVar(&t.ignoreExtraDiags, "ignore_extra_diags", false, "if set, suppress errors for unmatched diagnostics")
 	return flags
 }
 
@@ -1188,11 +1211,13 @@ func convert(mark marker, arg any, paramType reflect.Type) (any, error) {
 	}
 	if id, ok := arg.(expect.Identifier); ok {
 		if arg, ok := mark.run.data[id]; ok {
+			if !reflect.TypeOf(arg).AssignableTo(paramType) {
+				return nil, fmt.Errorf("cannot convert %v to %s", arg, paramType)
+			}
 			return arg, nil
 		}
 	}
-	argType := reflect.TypeOf(arg)
-	if argType.AssignableTo(paramType) {
+	if reflect.TypeOf(arg).AssignableTo(paramType) {
 		return arg, nil // no conversion required
 	}
 	switch paramType {
@@ -1201,7 +1226,7 @@ func convert(mark marker, arg any, paramType reflect.Type) (any, error) {
 	case wantErrorType:
 		return convertWantError(mark, arg)
 	default:
-		return nil, fmt.Errorf("cannot convert type %s to %s", argType, paramType)
+		return nil, fmt.Errorf("cannot convert %v to %s", arg, paramType)
 	}
 }
 
@@ -1374,18 +1399,78 @@ func checkChangedFiles(mark marker, changed map[string][]byte, golden *Golden) {
 
 // ---- marker functions ----
 
+// TODO(rfindley): consolidate documentation of these markers. They are already
+// documented above, so much of the documentation here is redundant.
+
 // completionItem is a simplified summary of a completion item.
 type completionItem struct {
-	Label, Detail, Kind string
+	Label, Detail, Kind, Documentation string
 }
 
-func completionItemMarker(mark marker, label, detail, kind string) completionItem {
-	return completionItem{
-		Label:  label,
-		Detail: detail,
-		Kind:   kind,
-		// TODO(rfindley): add variadic documentation? It is supported by the old
-		// marker tests but almost no test cases use it.
+func completionItemMarker(mark marker, label string, other ...string) completionItem {
+	if len(other) > 3 {
+		mark.errorf("too many arguments to @item: expect at most 4")
+	}
+	item := completionItem{
+		Label: label,
+	}
+	if len(other) > 0 {
+		item.Detail = other[0]
+	}
+	if len(other) > 1 {
+		item.Kind = other[1]
+	}
+	if len(other) > 2 {
+		item.Documentation = other[2]
+	}
+	return item
+}
+
+func rankMarker(mark marker, src protocol.Location, items ...completionItem) {
+	list := mark.run.env.Completion(src)
+	var got []string
+	// Collect results that are present in items, preserving their order.
+	for _, g := range list.Items {
+		for _, w := range items {
+			if g.Label == w.Label {
+				got = append(got, g.Label)
+				break
+			}
+		}
+	}
+	var want []string
+	for _, w := range items {
+		want = append(want, w.Label)
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		mark.errorf("completion rankings do not match (-want +got):\n%s", diff)
+	}
+}
+
+func snippetMarker(mark marker, src protocol.Location, item completionItem, want string) {
+	list := mark.run.env.Completion(src)
+	var (
+		found bool
+		got   string
+		all   []string // for errors
+	)
+	items := filterBuiltinsAndKeywords(list.Items)
+	for _, i := range items {
+		all = append(all, i.Label)
+		if i.Label == item.Label {
+			found = true
+			if i.TextEdit != nil {
+				got = i.TextEdit.NewText
+			}
+			break
+		}
+	}
+	if !found {
+		mark.errorf("no completion item found matching %s (got: %v)", item.Label, all)
+		return
+	}
+	if got != want {
+		mark.errorf("snippets do not match: got %q, want %q", got, want)
 	}
 }
 
@@ -1402,7 +1487,15 @@ func completeMarker(mark marker, src protocol.Location, want ...completionItem) 
 			Detail: item.Detail,
 			Kind:   fmt.Sprint(item.Kind),
 		}
-		// Support short-hand notation: if Detail or Kind are omitted from the
+		if item.Documentation != nil {
+			switch v := item.Documentation.Value.(type) {
+			case string:
+				simplified.Documentation = v
+			case protocol.MarkupContent:
+				simplified.Documentation = strings.TrimSpace(v.Value) // trim newlines
+			}
+		}
+		// Support short-hand notation: if Detail, Kind, or Documentation are omitted from the
 		// item, don't match them.
 		if i < len(want) {
 			if want[i].Detail == "" {
@@ -1411,13 +1504,15 @@ func completeMarker(mark marker, src protocol.Location, want ...completionItem) 
 			if want[i].Kind == "" {
 				simplified.Kind = ""
 			}
-		}
-		if i < len(want) && want[i].Detail == "" {
-			simplified.Detail = ""
+			if want[i].Documentation == "" {
+				simplified.Documentation = ""
+			}
 		}
 		got = append(got, simplified)
 	}
-
+	if len(want) == 0 {
+		want = nil // got is nil if empty
+	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		mark.errorf("Completion(...) returned unexpect results (-want +got):\n%s", diff)
 	}
@@ -1484,6 +1579,14 @@ func defMarker(mark marker, src, dst protocol.Location) {
 	got := mark.run.env.GoToDefinition(src)
 	if got != dst {
 		mark.errorf("definition location does not match:\n\tgot: %s\n\twant %s",
+			mark.run.fmtLoc(got), mark.run.fmtLoc(dst))
+	}
+}
+
+func typedefMarker(mark marker, src, dst protocol.Location) {
+	got := mark.run.env.TypeDefinition(src)
+	if got != dst {
+		mark.errorf("type definition location does not match:\n\tgot: %s\n\twant %s",
 			mark.run.fmtLoc(got), mark.run.fmtLoc(dst))
 	}
 }
@@ -1661,6 +1764,17 @@ func renameMarker(mark marker, loc protocol.Location, newName string, golden *Go
 func renameErrMarker(mark marker, loc protocol.Location, newName string, wantErr wantError) {
 	_, err := rename(mark.run.env, loc, newName)
 	wantErr.check(mark, err)
+}
+
+func signatureMarker(mark marker, src protocol.Location, want string) {
+	got := mark.run.env.SignatureHelp(src)
+	if got == nil || len(got.Signatures) != 1 {
+		mark.errorf("signatureHelp = %v, want exactly 1 signature", got)
+		return
+	}
+	if got := got.Signatures[0].Label; got != want {
+		mark.errorf("signatureHelp: got %q, want %q", got, want)
+	}
 }
 
 // rename returns the new contents of the files that would be modified

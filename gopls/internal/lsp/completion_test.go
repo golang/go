@@ -49,15 +49,6 @@ func (r *runner) CompletionSnippet(t *testing.T, src span.Span, expected tests.C
 	}
 }
 
-func (r *runner) UnimportedCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
-	got := r.callCompletion(t, src, func(opts *source.Options) {})
-	got = tests.FilterBuiltins(src, got)
-	want := expected(t, test, items)
-	if diff := tests.CheckCompletionOrder(want, got, false); diff != "" {
-		t.Errorf("%s", diff)
-	}
-}
-
 func (r *runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
 	got := r.callCompletion(t, src, func(opts *source.Options) {
 		opts.DeepCompletion = true

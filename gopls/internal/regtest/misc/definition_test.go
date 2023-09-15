@@ -351,7 +351,7 @@ func main() {}
 			Run(t, mod, func(t *testing.T, env *Env) {
 				env.OpenFile("main.go")
 
-				loc, err := env.Editor.GoToTypeDefinition(env.Ctx, env.RegexpSearch("main.go", tt.re))
+				loc, err := env.Editor.TypeDefinition(env.Ctx, env.RegexpSearch("main.go", tt.re))
 				if tt.wantError {
 					if err == nil {
 						t.Fatal("expected error, got nil")
@@ -386,10 +386,7 @@ func F[T comparable]() {}
 	Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 
-		_, err := env.Editor.GoToTypeDefinition(env.Ctx, env.RegexpSearch("main.go", "comparable")) // must not panic
-		if err != nil {
-			t.Fatal(err)
-		}
+		_ = env.TypeDefinition(env.RegexpSearch("main.go", "comparable")) // must not panic
 	})
 }
 

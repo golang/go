@@ -1,9 +1,0 @@
-package badstmt
-
-import (
-	"golang.org/lsptests/foo"
-)
-
-func _() {
-	go foo. //@rank(" //", Foo, IntFoo),snippet(" //", Foo, "Foo()", "Foo()")
-}

@@ -1,9 +1,0 @@
-package cgoimport
-
-import (
-	"golang.org/lsptests/cgo"
-)
-
-func _() {
-	cgo.Example() //@godef("ample", funccgoexample),complete("ample", funccgoexample)
-}

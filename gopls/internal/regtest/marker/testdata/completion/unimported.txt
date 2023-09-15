@@ -1,0 +1,88 @@
+
+-- flags --
+-ignore_extra_diags
+
+-- go.mod --
+module unimported.test
+
+go 1.18
+
+-- unimported/export_test.go --
+package unimported
+
+var TestExport int //@item(testexport, "TestExport", "var (from \"unimported.test/unimported\")", "var")
+
+-- signature/signature.go --
+package signature
+
+func Foo() {}
+
+-- foo/foo.go --
+package foo
+
+type StructFoo struct{ F int }
+
+-- baz/baz.go --
+package baz
+
+import (
+	f "unimported.test/foo"
+)
+
+var FooStruct f.StructFoo
+
+-- unimported/unimported.go --
+package unimported
+
+func _() {
+	http //@complete("p", http, httptest, httptrace, httputil)
+	// container/ring is extremely unlikely to be imported by anything, so shouldn't have type information.
+	ring.Ring     //@complete(re"R()ing", ringring)
+	signature.Foo //@complete("Foo", signaturefoo)
+
+	context.Bac //@complete(" //", contextBackground)
+}
+
+// Create markers for unimported std lib packages. Only for use by this test.
+/* http */ //@item(http, "http", "\"net/http\"", "package")
+/* httptest */ //@item(httptest, "httptest", "\"net/http/httptest\"", "package")
+/* httptrace */ //@item(httptrace, "httptrace", "\"net/http/httptrace\"", "package")
+/* httputil */ //@item(httputil, "httputil", "\"net/http/httputil\"", "package")
+
+/* ring.Ring */ //@item(ringring, "Ring", "(from \"container/ring\")", "var")
+
+/* signature.Foo */ //@item(signaturefoo, "Foo", "func (from \"unimported.test/signature\")", "func")
+
+/* context.Background */ //@item(contextBackground, "Background", "func (from \"context\")", "func")
+
+// Now that we no longer type-check imported completions,
+// we don't expect the context.Background().Err method (see golang/go#58663).
+/* context.Background().Err */ //@item(contextBackgroundErr, "Background().Err", "func (from \"context\")", "method")
+
+-- unimported/unimported_cand_type.go --
+package unimported
+
+import (
+	_ "context"
+
+	"unimported.test/baz"
+)
+
+func _() {
+	foo.StructFoo{} //@item(litFooStructFoo, "foo.StructFoo{}", "struct{...}", "struct")
+
+	// We get the literal completion for "foo.StructFoo{}" even though we haven't
+	// imported "foo" yet.
+	baz.FooStruct = f //@snippet(" //", litFooStructFoo, "foo.StructFoo{$0\\}")
+}
+
+-- unimported/x_test.go --
+package unimported_test
+
+import (
+	"testing"
+)
+
+func TestSomething(t *testing.T) {
+	_ = unimported.TestExport //@complete("TestExport", testexport)
+}

@@ -55,11 +55,9 @@ var UpdateGolden = flag.Bool("golden", false, "Update golden files")
 // These type names apparently avoid the need to repeat the
 // type in the field name and the make() expression.
 type CallHierarchy = map[span.Span]*CallHierarchyResult
-type Diagnostics = map[span.URI][]*source.Diagnostic
 type CompletionItems = map[token.Pos]*completion.CompletionItem
 type Completions = map[span.Span][]Completion
 type CompletionSnippets = map[span.Span][]CompletionSnippet
-type UnimportedCompletions = map[span.Span][]Completion
 type DeepCompletions = map[span.Span][]Completion
 type FuzzyCompletions = map[span.Span][]Completion
 type CaseSensitiveCompletions = map[span.Span][]Completion
@@ -67,7 +65,6 @@ type RankCompletions = map[span.Span][]Completion
 type SemanticTokens = []span.Span
 type SuggestedFixes = map[span.Span][]SuggestedFix
 type MethodExtractions = map[span.Span]span.Span
-type Definitions = map[span.Span]Definition
 type Renames = map[span.Span]string
 type PrepareRenames = map[span.Span]*source.PrepareItem
 type InlayHints = []span.Span
@@ -80,11 +77,9 @@ type Data struct {
 	Config                   packages.Config
 	Exported                 *packagestest.Exported
 	CallHierarchy            CallHierarchy
-	Diagnostics              Diagnostics
 	CompletionItems          CompletionItems
 	Completions              Completions
 	CompletionSnippets       CompletionSnippets
-	UnimportedCompletions    UnimportedCompletions
 	DeepCompletions          DeepCompletions
 	FuzzyCompletions         FuzzyCompletions
 	CaseSensitiveCompletions CaseSensitiveCompletions
@@ -92,7 +87,6 @@ type Data struct {
 	SemanticTokens           SemanticTokens
 	SuggestedFixes           SuggestedFixes
 	MethodExtractions        MethodExtractions
-	Definitions              Definitions
 	Renames                  Renames
 	InlayHints               InlayHints
 	PrepareRenames           PrepareRenames
@@ -120,10 +114,8 @@ type Data struct {
 // we can abolish the interface now.
 type Tests interface {
 	CallHierarchy(*testing.T, span.Span, *CallHierarchyResult)
-	Diagnostics(*testing.T, span.URI, []*source.Diagnostic)
 	Completion(*testing.T, span.Span, Completion, CompletionItems)
 	CompletionSnippet(*testing.T, span.Span, CompletionSnippet, bool, CompletionItems)
-	UnimportedCompletion(*testing.T, span.Span, Completion, CompletionItems)
 	DeepCompletion(*testing.T, span.Span, Completion, CompletionItems)
 	FuzzyCompletion(*testing.T, span.Span, Completion, CompletionItems)
 	CaseSensitiveCompletion(*testing.T, span.Span, Completion, CompletionItems)
@@ -131,7 +123,6 @@ type Tests interface {
 	SemanticTokens(*testing.T, span.Span)
 	SuggestedFix(*testing.T, span.Span, []SuggestedFix, int)
 	MethodExtraction(*testing.T, span.Span, span.Span)
-	Definition(*testing.T, span.Span, Definition)
 	InlayHints(*testing.T, span.Span)
 	Rename(*testing.T, span.Span, string)
 	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
@@ -141,21 +132,11 @@ type Tests interface {
 	SelectionRanges(*testing.T, span.Span)
 }
 
-type Definition struct {
-	Name      string
-	IsType    bool
-	OnlyHover bool
-	Src, Def  span.Span
-}
-
 type CompletionTestType int
 
 const (
 	// Default runs the standard completion tests.
 	CompletionDefault = CompletionTestType(iota)
-
-	// Unimported tests the autocompletion of unimported packages.
-	CompletionUnimported
 
 	// Deep tests deep completion.
 	CompletionDeep
@@ -221,7 +202,6 @@ func DefaultOptions(o *source.Options) {
 		source.Work: {},
 		source.Tmpl: {},
 	}
-	o.HoverKind = source.SynopsisDocumentation
 	o.InsertTextFormat = protocol.SnippetTextFormat
 	o.CompletionBudget = time.Minute
 	o.HierarchicalDocumentSymbolSupport = true
@@ -255,16 +235,13 @@ func RunTests(t *testing.T, dataDir string, includeMultiModule bool, f func(*tes
 func load(t testing.TB, mode string, dir string) *Data {
 	datum := &Data{
 		CallHierarchy:            make(CallHierarchy),
-		Diagnostics:              make(Diagnostics),
 		CompletionItems:          make(CompletionItems),
 		Completions:              make(Completions),
 		CompletionSnippets:       make(CompletionSnippets),
-		UnimportedCompletions:    make(UnimportedCompletions),
 		DeepCompletions:          make(DeepCompletions),
 		FuzzyCompletions:         make(FuzzyCompletions),
 		RankCompletions:          make(RankCompletions),
 		CaseSensitiveCompletions: make(CaseSensitiveCompletions),
-		Definitions:              make(Definitions),
 		Renames:                  make(Renames),
 		PrepareRenames:           make(PrepareRenames),
 		SuggestedFixes:           make(SuggestedFixes),
@@ -404,19 +381,14 @@ func load(t testing.TB, mode string, dir string) *Data {
 
 	// Collect any data that needs to be used by subsequent tests.
 	if err := datum.Exported.Expect(map[string]interface{}{
-		"diag":           datum.collectDiagnostics,
 		"item":           datum.collectCompletionItems,
 		"complete":       datum.collectCompletions(CompletionDefault),
-		"unimported":     datum.collectCompletions(CompletionUnimported),
 		"deep":           datum.collectCompletions(CompletionDeep),
 		"fuzzy":          datum.collectCompletions(CompletionFuzzy),
 		"casesensitive":  datum.collectCompletions(CompletionCaseSensitive),
 		"rank":           datum.collectCompletions(CompletionRank),
 		"snippet":        datum.collectCompletionSnippets,
 		"semantic":       datum.collectSemanticTokens,
-		"godef":          datum.collectDefinitions,
-		"typdef":         datum.collectTypeDefinitions,
-		"hoverdef":       datum.collectHoverDefinitions,
 		"inlayHint":      datum.collectInlayHints,
 		"rename":         datum.collectRenames,
 		"prepare":        datum.collectPrepareRenames,
@@ -432,13 +404,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		t.Fatal(err)
 	}
 
-	// Collect names for the entries that require golden files.
-	if err := datum.Exported.Expect(map[string]interface{}{
-		"godef":    datum.collectDefinitionNames,
-		"hoverdef": datum.collectDefinitionNames,
-	}); err != nil {
-		t.Fatal(err)
-	}
 	if mode == "MultiModule" {
 		if err := moveFile(filepath.Join(datum.Config.Dir, "go.mod"), filepath.Join(datum.Config.Dir, "testmodule/go.mod")); err != nil {
 			t.Fatal(err)
@@ -540,11 +505,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		}
 	})
 
-	t.Run("UnimportedCompletion", func(t *testing.T) {
-		t.Helper()
-		eachCompletion(t, data.UnimportedCompletions, tests.UnimportedCompletion)
-	})
-
 	t.Run("DeepCompletion", func(t *testing.T) {
 		t.Helper()
 		eachCompletion(t, data.DeepCompletions, tests.DeepCompletion)
@@ -563,20 +523,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("RankCompletions", func(t *testing.T) {
 		t.Helper()
 		eachCompletion(t, data.RankCompletions, tests.RankCompletion)
-	})
-
-	t.Run("Diagnostics", func(t *testing.T) {
-		t.Helper()
-		for uri, want := range data.Diagnostics {
-			// Check if we should skip this URI if the -modfile flag is not available.
-			if shouldSkip(data, uri) {
-				continue
-			}
-			t.Run(uriName(uri), func(t *testing.T) {
-				t.Helper()
-				tests.Diagnostics(t, uri, want)
-			})
-		}
 	})
 
 	t.Run("SemanticTokens", func(t *testing.T) {
@@ -613,19 +559,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Run(SpanName(start), func(t *testing.T) {
 				t.Helper()
 				tests.MethodExtraction(t, start, end)
-			})
-		}
-	})
-
-	t.Run("Definition", func(t *testing.T) {
-		t.Helper()
-		for spn, d := range data.Definitions {
-			t.Run(SpanName(spn), func(t *testing.T) {
-				t.Helper()
-				if strings.Contains(t.Name(), "cgo") {
-					testenv.NeedsTool(t, "cgo")
-				}
-				tests.Definition(t, spn, d)
 			})
 		}
 	})
@@ -727,22 +660,9 @@ func Run(t *testing.T, tests Tests, data *Data) {
 
 func checkData(t *testing.T, data *Data) {
 	buf := &bytes.Buffer{}
-	diagnosticsCount := 0
-	for _, want := range data.Diagnostics {
-		diagnosticsCount += len(want)
-	}
 	linksCount := 0
 	for _, want := range data.Links {
 		linksCount += len(want)
-	}
-	definitionCount := 0
-	typeDefinitionCount := 0
-	for _, d := range data.Definitions {
-		if d.IsType {
-			typeDefinitionCount++
-		} else {
-			definitionCount++
-		}
 	}
 
 	snippetCount := 0
@@ -760,17 +680,13 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "CallHierarchyCount = %v\n", len(data.CallHierarchy))
 	fmt.Fprintf(buf, "CompletionsCount = %v\n", countCompletions(data.Completions))
 	fmt.Fprintf(buf, "CompletionSnippetCount = %v\n", snippetCount)
-	fmt.Fprintf(buf, "UnimportedCompletionsCount = %v\n", countCompletions(data.UnimportedCompletions))
 	fmt.Fprintf(buf, "DeepCompletionsCount = %v\n", countCompletions(data.DeepCompletions))
 	fmt.Fprintf(buf, "FuzzyCompletionsCount = %v\n", countCompletions(data.FuzzyCompletions))
 	fmt.Fprintf(buf, "RankedCompletionsCount = %v\n", countCompletions(data.RankCompletions))
 	fmt.Fprintf(buf, "CaseSensitiveCompletionsCount = %v\n", countCompletions(data.CaseSensitiveCompletions))
-	fmt.Fprintf(buf, "DiagnosticsCount = %v\n", diagnosticsCount)
 	fmt.Fprintf(buf, "SemanticTokenCount = %v\n", len(data.SemanticTokens))
 	fmt.Fprintf(buf, "SuggestedFixCount = %v\n", len(data.SuggestedFixes))
 	fmt.Fprintf(buf, "MethodExtractionCount = %v\n", len(data.MethodExtractions))
-	fmt.Fprintf(buf, "DefinitionsCount = %v\n", definitionCount)
-	fmt.Fprintf(buf, "TypeDefinitionsCount = %v\n", typeDefinitionCount)
 	fmt.Fprintf(buf, "InlayHintsCount = %v\n", len(data.InlayHints))
 	fmt.Fprintf(buf, "RenamesCount = %v\n", len(data.Renames))
 	fmt.Fprintf(buf, "PrepareRenamesCount = %v\n", len(data.PrepareRenames))
@@ -857,27 +773,6 @@ func (data *Data) Golden(t *testing.T, tag, target string, update func() ([]byte
 	return file.Data[:len(file.Data)-1] // drop the trailing \n
 }
 
-func (data *Data) collectDiagnostics(spn span.Span, msgSource, msgPattern, msgSeverity string) {
-	severity := protocol.SeverityError
-	switch msgSeverity {
-	case "error":
-		severity = protocol.SeverityError
-	case "warning":
-		severity = protocol.SeverityWarning
-	case "hint":
-		severity = protocol.SeverityHint
-	case "information":
-		severity = protocol.SeverityInformation
-	}
-
-	data.Diagnostics[spn.URI()] = append(data.Diagnostics[spn.URI()], &source.Diagnostic{
-		Range:    data.mustRange(spn),
-		Severity: severity,
-		Source:   source.DiagnosticSource(msgSource),
-		Message:  msgPattern,
-	})
-}
-
 func (data *Data) collectCompletions(typ CompletionTestType) func(span.Span, []token.Pos) {
 	result := func(m map[span.Span][]Completion, src span.Span, expected []token.Pos) {
 		m[src] = append(m[src], Completion{
@@ -888,10 +783,6 @@ func (data *Data) collectCompletions(typ CompletionTestType) func(span.Span, []t
 	case CompletionDeep:
 		return func(src span.Span, expected []token.Pos) {
 			result(data.DeepCompletions, src, expected)
-		}
-	case CompletionUnimported:
-		return func(src span.Span, expected []token.Pos) {
-			result(data.UnimportedCompletions, src, expected)
 		}
 	case CompletionFuzzy:
 		return func(src span.Span, expected []token.Pos) {
@@ -943,13 +834,6 @@ func (data *Data) collectMethodExtractions(start span.Span, end span.Span) {
 	}
 }
 
-func (data *Data) collectDefinitions(src, target span.Span) {
-	data.Definitions[src] = Definition{
-		Src: src,
-		Def: target,
-	}
-}
-
 func (data *Data) collectSelectionRanges(spn span.Span) {
 	data.SelectionRanges = append(data.SelectionRanges, spn)
 }
@@ -986,28 +870,6 @@ func (data *Data) collectOutgoingCalls(src span.Span, calls []span.Span) {
 				Range: data.mustRange(call),
 			})
 	}
-}
-
-func (data *Data) collectHoverDefinitions(src, target span.Span) {
-	data.Definitions[src] = Definition{
-		Src:       src,
-		Def:       target,
-		OnlyHover: true,
-	}
-}
-
-func (data *Data) collectTypeDefinitions(src, target span.Span) {
-	data.Definitions[src] = Definition{
-		Src:    src,
-		Def:    target,
-		IsType: true,
-	}
-}
-
-func (data *Data) collectDefinitionNames(src span.Span, name string) {
-	d := data.Definitions[src]
-	d.Name = name
-	data.Definitions[src] = d
 }
 
 func (data *Data) collectInlayHints(src span.Span) {

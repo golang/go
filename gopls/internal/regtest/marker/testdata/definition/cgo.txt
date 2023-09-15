@@ -1,0 +1,62 @@
+This test is ported from the old marker tests.
+It tests hover and definition for cgo declarations.
+
+-- flags --
+-cgo
+
+-- go.mod --
+module cgo.test
+
+go 1.18
+
+-- cgo/cgo.go --
+package cgo
+
+/*
+#include <stdio.h>
+#include <stdlib.h>
+
+void myprint(char* s) {
+	printf("%s\n", s);
+}
+*/
+import "C"
+
+import (
+	"fmt"
+	"unsafe"
+)
+
+func Example() { //@loc(cgoexample, "Example"), item(cgoexampleItem, "Example", "func()", "func")
+	fmt.Println()
+	cs := C.CString("Hello from stdio\n")
+	C.myprint(cs)
+	C.free(unsafe.Pointer(cs))
+}
+
+func _() {
+	Example() //@hover("ample", "Example", hoverExample), def("ample", cgoexample), complete("ample", cgoexampleItem)
+}
+
+-- @hoverExample/hover.md --
+```go
+func Example()
+```
+
+[`cgo.Example` on pkg.go.dev](https://pkg.go.dev/cgo.test/cgo#Example)
+-- usecgo/usecgo.go --
+package cgoimport
+
+import (
+	"cgo.test/cgo"
+)
+
+func _() {
+	cgo.Example() //@hover("ample", "Example", hoverImportedExample), def("ample", cgoexample), complete("ample", cgoexampleItem)
+}
+-- @hoverImportedExample/hover.md --
+```go
+func cgo.Example()
+```
+
+[`cgo.Example` on pkg.go.dev](https://pkg.go.dev/cgo.test/cgo#Example)

@@ -1,0 +1,57 @@
+
+-- flags --
+-ignore_extra_diags
+
+-- go.mod --
+module testy.test
+
+go 1.18
+
+-- types/types.go --
+package types
+
+
+-- signature/signature.go --
+package signature
+
+type Alias = int
+
+-- snippets/snippets.go --
+package snippets
+
+import (
+	"testy.test/signature"
+	t "testy.test/types"
+)
+
+func X(_ map[signature.Alias]t.CoolAlias) (map[signature.Alias]t.CoolAlias) {
+	return nil
+}
+
+-- testy/testy.go --
+package testy
+
+func a() { //@item(funcA, "a", "func()", "func")
+	//@complete("", funcA)
+}
+
+
+-- testy/testy_test.go --
+package testy
+
+import (
+	"testing"
+
+	sig "testy.test/signature"
+	"testy.test/snippets"
+)
+
+func TestSomething(t *testing.T) { //@item(TestSomething, "TestSomething(t *testing.T)", "", "func")
+	var x int //@loc(testyX, "x"), diag("x", re"x declared (and|but) not used")
+	a()       //@loc(testyA, "a")
+}
+
+func _() {
+	_ = snippets.X(nil) //@signature("nil", "X(_ map[sig.Alias]types.CoolAlias) map[sig.Alias]types.CoolAlias")
+	var _ sig.Alias
+}
