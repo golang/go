@@ -392,7 +392,7 @@ func (check *Checker) updateExprVal(x syntax.Expr, val constant.Value) {
 // If x is a constant operand, the returned constant.Value will be the
 // representation of x in this context.
 func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, constant.Value, Code) {
-	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
+	if x.mode == invalid || isTyped(x.typ) || !isValid(target) {
 		return x.typ, nil, 0
 	}
 	// x is untyped
@@ -474,7 +474,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 // If switchCase is true, the operator op is ignored.
 func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase bool) {
 	// Avoid spurious errors if any of the operands has an invalid type (go.dev/issue/54405).
-	if x.typ == Typ[Invalid] || y.typ == Typ[Invalid] {
+	if !isValid(x.typ) || !isValid(y.typ) {
 		x.mode = invalid
 		return
 	}
@@ -828,7 +828,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 	if !Identical(x.typ, y.typ) {
 		// only report an error if we have valid types
 		// (otherwise we had an error reported elsewhere already)
-		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
+		if isValid(x.typ) && isValid(y.typ) {
 			if e != nil {
 				check.errorf(x, MismatchedTypes, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
 			} else {
@@ -1308,7 +1308,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e syntax.Expr, hint Type)
 				check.use(e)
 			}
 			// if utyp is invalid, an error was reported before
-			if utyp != Typ[Invalid] {
+			if isValid(utyp) {
 				check.errorf(e, InvalidLit, "invalid composite literal type %s", typ)
 				goto Error
 			}
@@ -1363,7 +1363,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e syntax.Expr, hint Type)
 			goto Error
 		}
 		T := check.varType(e.Type)
-		if T == Typ[Invalid] {
+		if !isValid(T) {
 			goto Error
 		}
 		check.typeAssertion(e, x, T, false)

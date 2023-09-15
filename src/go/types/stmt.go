@@ -291,7 +291,7 @@ L:
 			check.expr(nil, &dummy, e) // run e through expr so we get the usual Info recordings
 		} else {
 			T = check.varType(e)
-			if T == Typ[Invalid] {
+			if !isValid(T) {
 				continue L
 			}
 		}
@@ -332,7 +332,7 @@ L:
 // 			hash = "<nil>" // avoid collision with a type named nil
 // 		} else {
 // 			T = check.varType(e)
-// 			if T == Typ[Invalid] {
+// 			if !isValid(T) {
 // 				continue L
 // 			}
 // 			hash = typeHash(T, nil)

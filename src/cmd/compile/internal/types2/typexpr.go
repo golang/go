@@ -78,7 +78,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 
 	case *Const:
 		check.addDeclDep(obj)
-		if typ == Typ[Invalid] {
+		if !isValid(typ) {
 			return
 		}
 		if obj == universeIota {
@@ -108,7 +108,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 			obj.used = true
 		}
 		check.addDeclDep(obj)
-		if typ == Typ[Invalid] {
+		if !isValid(typ) {
 			return
 		}
 		x.mode = variable
@@ -193,7 +193,7 @@ func (check *Checker) definedType(e syntax.Expr, def *Named) Type {
 func (check *Checker) genericType(e syntax.Expr, cause *string) Type {
 	typ := check.typInternal(e, nil)
 	assert(isTyped(typ))
-	if typ != Typ[Invalid] && !isGeneric(typ) {
+	if isValid(typ) && !isGeneric(typ) {
 		if cause != nil {
 			*cause = check.sprintf("%s is not a generic type", typ)
 		}
@@ -323,7 +323,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 			// useful - even a valid dereferenciation will lead to an invalid
 			// type again, and in some cases we get unexpected follow-on errors
 			// (e.g., go.dev/issue/49005). Return an invalid type instead.
-			if typ.base == Typ[Invalid] {
+			if !isValid(typ.base) {
 				return Typ[Invalid]
 			}
 			return typ
@@ -416,7 +416,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 	if cause != "" {
 		check.errorf(x, NotAGenericType, invalidOp+"%s%s (%s)", x, xlist, cause)
 	}
-	if gtyp == Typ[Invalid] {
+	if !isValid(gtyp) {
 		return gtyp // error already reported
 	}
 
@@ -520,7 +520,7 @@ func (check *Checker) typeList(list []syntax.Expr) []Type {
 	res := make([]Type, len(list)) // res != nil even if len(list) == 0
 	for i, x := range list {
 		t := check.varType(x)
-		if t == Typ[Invalid] {
+		if !isValid(t) {
 			res = nil
 		}
 		if res != nil {

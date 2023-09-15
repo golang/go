@@ -67,7 +67,7 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 			return term.typ // typ already recorded through check.typ in parseTilde
 		}
 		if len(terms) >= maxTermCount {
-			if u != Typ[Invalid] {
+			if isValid(u) {
 				check.errorf(x, InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
 				u = Typ[Invalid]
 			}
@@ -81,7 +81,7 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 		}
 	}
 
-	if u == Typ[Invalid] {
+	if !isValid(u) {
 		return u
 	}
 
@@ -90,7 +90,7 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 	// Note: This is a quadratic algorithm, but unions tend to be short.
 	check.later(func() {
 		for i, t := range terms {
-			if t.typ == Typ[Invalid] {
+			if !isValid(t.typ) {
 				continue
 			}
 

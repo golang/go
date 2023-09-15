@@ -795,7 +795,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named, want
 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
-		if under(x.typ) == Typ[Invalid] {
+		if !isValid(under(x.typ)) {
 			goto Error
 		}
 

@@ -182,7 +182,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		typ := check.typ(f.Type)
 		sig, _ := typ.(*Signature)
 		if sig == nil {
-			if typ != Typ[Invalid] {
+			if isValid(typ) {
 				check.errorf(f.Type, InvalidSyntaxTree, "%s is not a method signature", typ)
 			}
 			continue // ignore

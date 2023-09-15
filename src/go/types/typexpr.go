@@ -79,7 +79,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 
 	case *Const:
 		check.addDeclDep(obj)
-		if typ == Typ[Invalid] {
+		if !isValid(typ) {
 			return
 		}
 		if obj == universeIota {
@@ -109,7 +109,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 			obj.used = true
 		}
 		check.addDeclDep(obj)
-		if typ == Typ[Invalid] {
+		if !isValid(typ) {
 			return
 		}
 		x.mode = variable
@@ -193,7 +193,7 @@ func (check *Checker) definedType(e ast.Expr, def *Named) Type {
 func (check *Checker) genericType(e ast.Expr, cause *string) Type {
 	typ := check.typInternal(e, nil)
 	assert(isTyped(typ))
-	if typ != Typ[Invalid] && !isGeneric(typ) {
+	if isValid(typ) && !isGeneric(typ) {
 		if cause != nil {
 			*cause = check.sprintf("%s is not a generic type", typ)
 		}
@@ -407,7 +407,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
 	if cause != "" {
 		check.errorf(ix.Orig, NotAGenericType, invalidOp+"%s (%s)", ix.Orig, cause)
 	}
-	if gtyp == Typ[Invalid] {
+	if !isValid(gtyp) {
 		return gtyp // error already reported
 	}
 
@@ -511,7 +511,7 @@ func (check *Checker) typeList(list []ast.Expr) []Type {
 	res := make([]Type, len(list)) // res != nil even if len(list) == 0
 	for i, x := range list {
 		t := check.varType(x)
-		if t == Typ[Invalid] {
+		if !isValid(t) {
 			res = nil
 		}
 		if res != nil {

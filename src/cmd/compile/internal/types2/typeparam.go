@@ -108,7 +108,7 @@ func (t *TypeParam) iface() *Interface {
 	var ityp *Interface
 	switch u := under(bound).(type) {
 	case *Basic:
-		if u == Typ[Invalid] {
+		if !isValid(u) {
 			// error is reported elsewhere
 			return &emptyInterface
 		}
