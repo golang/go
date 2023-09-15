@@ -29,7 +29,7 @@ func DiffRunes(a, b []rune) []Diff { return diff(runesSeqs{a, b}) }
 
 func diff(seqs sequences) []Diff {
 	// A limit on how deeply the LCS algorithm should search. The value is just a guess.
-	const maxDiffs = 30
+	const maxDiffs = 100
 	diff, _ := compute(seqs, twosided, maxDiffs/2)
 	return diff
 }
