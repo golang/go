@@ -446,7 +446,7 @@ func memequal_varlen(a, b unsafe.Pointer) bool
 func bool2int(x bool) int {
 	// Avoid branches. In the SSA compiler, this compiles to
 	// exactly what you would want it to.
-	return int(uint8(*(*uint8)(unsafe.Pointer(&x))))
+	return int(*(*uint8)(unsafe.Pointer(&x)))
 }
 
 // abort crashes the runtime in situations where even throw might not

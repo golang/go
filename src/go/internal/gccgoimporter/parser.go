@@ -1063,7 +1063,7 @@ func (p *parser) parseTypes(pkg *types.Package) {
 		p.typeData = append(p.typeData, allTypeData[to.offset:to.offset+to.length])
 	}
 
-	for i := 1; i < int(exportedp1); i++ {
+	for i := 1; i < exportedp1; i++ {
 		p.parseSavedType(pkg, i, nil)
 	}
 }

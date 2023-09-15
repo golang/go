@@ -2141,7 +2141,7 @@ func (b *gcBitsArena) tryAlloc(bytes uintptr) *gcBits {
 // newMarkBits returns a pointer to 8 byte aligned bytes
 // to be used for a span's mark bits.
 func newMarkBits(nelems uintptr) *gcBits {
-	blocksNeeded := uintptr((nelems + 63) / 64)
+	blocksNeeded := (nelems + 63) / 64
 	bytesNeeded := blocksNeeded * 8
 
 	// Try directly allocating from the current head arena.
@@ -2253,7 +2253,7 @@ func newArenaMayUnlock() *gcBitsArena {
 	result.next = nil
 	// If result.bits is not 8 byte aligned adjust index so
 	// that &result.bits[result.free] is 8 byte aligned.
-	if uintptr(unsafe.Offsetof(gcBitsArena{}.bits))&7 == 0 {
+	if unsafe.Offsetof(gcBitsArena{}.bits)&7 == 0 {
 		result.free = 0
 	} else {
 		result.free = 8 - (uintptr(unsafe.Pointer(&result.bits[0])) & 7)

@@ -143,7 +143,7 @@ func (frame *stkframe) argMapInternal() (argMap bitvector, hasReflectStackObj bo
 		if !retValid {
 			// argMap.n includes the results, but
 			// those aren't valid, so drop them.
-			n := int32((uintptr(mv.argLen) &^ (goarch.PtrSize - 1)) / goarch.PtrSize)
+			n := int32((mv.argLen &^ (goarch.PtrSize - 1)) / goarch.PtrSize)
 			if n < argMap.n {
 				argMap.n = n
 			}

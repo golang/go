@@ -420,22 +420,22 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 			if fd1, _, err1 = RawSyscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(&psetgroups[0])), uintptr(O_WRONLY), 0, 0, 0); err1 != 0 {
 				goto childerror
 			}
-			pid, _, err1 = RawSyscall(SYS_WRITE, uintptr(fd1), uintptr(unsafe.Pointer(&setgroups[0])), uintptr(len(setgroups)))
+			pid, _, err1 = RawSyscall(SYS_WRITE, fd1, uintptr(unsafe.Pointer(&setgroups[0])), uintptr(len(setgroups)))
 			if err1 != 0 {
 				goto childerror
 			}
-			if _, _, err1 = RawSyscall(SYS_CLOSE, uintptr(fd1), 0, 0); err1 != 0 {
+			if _, _, err1 = RawSyscall(SYS_CLOSE, fd1, 0, 0); err1 != 0 {
 				goto childerror
 			}
 
 			if fd1, _, err1 = RawSyscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(&pgid[0])), uintptr(O_WRONLY), 0, 0, 0); err1 != 0 {
 				goto childerror
 			}
-			pid, _, err1 = RawSyscall(SYS_WRITE, uintptr(fd1), uintptr(unsafe.Pointer(&gidmap[0])), uintptr(len(gidmap)))
+			pid, _, err1 = RawSyscall(SYS_WRITE, fd1, uintptr(unsafe.Pointer(&gidmap[0])), uintptr(len(gidmap)))
 			if err1 != 0 {
 				goto childerror
 			}
-			if _, _, err1 = RawSyscall(SYS_CLOSE, uintptr(fd1), 0, 0); err1 != 0 {
+			if _, _, err1 = RawSyscall(SYS_CLOSE, fd1, 0, 0); err1 != 0 {
 				goto childerror
 			}
 		}
@@ -445,11 +445,11 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 			if fd1, _, err1 = RawSyscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(&puid[0])), uintptr(O_WRONLY), 0, 0, 0); err1 != 0 {
 				goto childerror
 			}
-			pid, _, err1 = RawSyscall(SYS_WRITE, uintptr(fd1), uintptr(unsafe.Pointer(&uidmap[0])), uintptr(len(uidmap)))
+			pid, _, err1 = RawSyscall(SYS_WRITE, fd1, uintptr(unsafe.Pointer(&uidmap[0])), uintptr(len(uidmap)))
 			if err1 != 0 {
 				goto childerror
 			}
-			if _, _, err1 = RawSyscall(SYS_CLOSE, uintptr(fd1), 0, 0); err1 != 0 {
+			if _, _, err1 = RawSyscall(SYS_CLOSE, fd1, 0, 0); err1 != 0 {
 				goto childerror
 			}
 		}

@@ -177,7 +177,7 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 			frame.pc = *(*uintptr)(unsafe.Pointer(frame.sp))
 			frame.lr = 0
 		} else {
-			frame.pc = uintptr(*(*uintptr)(unsafe.Pointer(frame.sp)))
+			frame.pc = *(*uintptr)(unsafe.Pointer(frame.sp))
 			frame.sp += goarch.PtrSize
 		}
 	}

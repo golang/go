@@ -473,7 +473,7 @@ okarg:
 	// compute size needed for return parameters
 	nret := uintptr(0)
 	for _, t := range ft.OutSlice() {
-		nret = alignUp(nret, uintptr(t.Align_)) + uintptr(t.Size_)
+		nret = alignUp(nret, uintptr(t.Align_)) + t.Size_
 	}
 	nret = alignUp(nret, goarch.PtrSize)
 

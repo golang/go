@@ -469,8 +469,8 @@ parseExtras:
 
 				const ticksPerSecond = 1e7    // Windows timestamp resolution
 				ts := int64(attrBuf.uint64()) // ModTime since Windows epoch
-				secs := int64(ts / ticksPerSecond)
-				nsecs := (1e9 / ticksPerSecond) * int64(ts%ticksPerSecond)
+				secs := ts / ticksPerSecond
+				nsecs := (1e9 / ticksPerSecond) * (ts % ticksPerSecond)
 				epoch := time.Date(1601, time.January, 1, 0, 0, 0, 0, time.UTC)
 				modified = time.Unix(epoch.Unix()+secs, nsecs)
 			}

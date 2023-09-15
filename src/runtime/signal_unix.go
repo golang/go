@@ -698,7 +698,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		// the unwinding code.
 		gp.sig = sig
 		gp.sigcode0 = uintptr(c.sigcode())
-		gp.sigcode1 = uintptr(c.fault())
+		gp.sigcode1 = c.fault()
 		gp.sigpc = c.sigpc()
 
 		c.preparePanic(sig, gp)
