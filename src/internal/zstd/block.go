@@ -393,17 +393,17 @@ func (r *Reader) copyFromWindow(rbr *reverseBitReader, offset, match uint32) err
 
 	lenBlock := uint32(len(r.buffer))
 	if lenBlock < offset {
-		lenWindow := uint32(len(r.window))
+		lenWindow := r.window.len()
 		windowOffset := offset - lenBlock
 		if windowOffset > lenWindow {
 			return rbr.makeError("offset past window")
 		}
 		from := lenWindow - windowOffset
 		if from+match <= lenWindow {
-			r.buffer = append(r.buffer, r.window[from:from+match]...)
+			r.buffer = r.window.appendTo(r.buffer, from, from+match)
 			return nil
 		}
-		r.buffer = append(r.buffer, r.window[from:]...)
+		r.buffer = r.window.appendTo(r.buffer, from, lenWindow)
 		copied := lenWindow - from
 		offset -= copied
 		match -= copied
