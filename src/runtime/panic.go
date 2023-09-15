@@ -678,7 +678,7 @@ func readvarintUnsafe(fd unsafe.Pointer) (uint32, unsafe.Pointer) {
 	var r uint32
 	var shift int
 	for {
-		b := *(*uint8)((fd))
+		b := *(*uint8)(fd)
 		fd = add(fd, unsafe.Sizeof(b))
 		if b < 128 {
 			return r + uint32(b)<<shift, fd
