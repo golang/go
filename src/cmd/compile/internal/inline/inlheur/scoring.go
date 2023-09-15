@@ -42,7 +42,7 @@ type scoreAdjustTyp uint
 // there may be control flow that could cause the benefit to be
 // bypassed.
 const (
-	// Catgegory 1 adjustments (see above)
+	// Category 1 adjustments (see above)
 	panicPathAdj scoreAdjustTyp = (1 << iota)
 	initFuncAdj
 	inLoopAdj
@@ -96,7 +96,7 @@ func adjValue(x scoreAdjustTyp) int {
 	}
 }
 
-var mayMust = [...]struct{ may, must scoreAdjustTyp }{
+var mayMustAdj = [...]struct{ may, must scoreAdjustTyp }{
 	{may: passConstToNestedIfAdj, must: passConstToIfAdj},
 	{may: passConcreteToNestedItfCallAdj, must: passConcreteToItfCallAdj},
 	{may: passFuncToNestedIndCallAdj, must: passFuncToNestedIndCallAdj},
@@ -112,7 +112,7 @@ func isMust(x scoreAdjustTyp) bool {
 }
 
 func mayToMust(x scoreAdjustTyp) scoreAdjustTyp {
-	for _, v := range mayMust {
+	for _, v := range mayMustAdj {
 		if x == v.may {
 			return v.must
 		}
@@ -121,7 +121,7 @@ func mayToMust(x scoreAdjustTyp) scoreAdjustTyp {
 }
 
 func mustToMay(x scoreAdjustTyp) scoreAdjustTyp {
-	for _, v := range mayMust {
+	for _, v := range mayMustAdj {
 		if x == v.must {
 			return v.may
 		}
@@ -267,6 +267,67 @@ func adjustScore(typ scoreAdjustTyp, score int, mask scoreAdjustTyp) (int, score
 		mask |= typ
 	}
 	return score, mask
+}
+
+var resultFlagToPositiveAdj map[ResultPropBits]scoreAdjustTyp
+var paramFlagToPositiveAdj map[ParamPropBits]scoreAdjustTyp
+
+func setupFlagToAdjMaps() {
+	resultFlagToPositiveAdj = map[ResultPropBits]scoreAdjustTyp{
+		ResultIsAllocatedMem:     returnFeedsConcreteToInterfaceCallAdj,
+		ResultAlwaysSameFunc:     returnFeedsFuncToIndCallAdj,
+		ResultAlwaysSameConstant: returnFeedsConstToIfAdj,
+	}
+	paramFlagToPositiveAdj = map[ParamPropBits]scoreAdjustTyp{
+		ParamMayFeedInterfaceMethodCall: passConcreteToNestedItfCallAdj,
+		ParamFeedsInterfaceMethodCall:   passConcreteToItfCallAdj,
+		ParamMayFeedIndirectCall:        passInlinableFuncToNestedIndCallAdj,
+		ParamFeedsIndirectCall:          passInlinableFuncToIndCallAdj,
+	}
+}
+
+// largestScoreAdjustment tries to estimate the largest possible
+// negative score adjustment that could be applied to a call of the
+// function with the specified props. Example:
+//
+//	func foo() {                  func bar(x int, p *int) int {
+//	   ...                          if x < 0 { *p = x }
+//	}                               return 99
+//	                              }
+//
+// Function 'foo' above on the left has no interesting properties,
+// thus as a result the most we'll adjust any call to is the value for
+// "call in loop". If the calculated cost of the function is 150, and
+// the in-loop adjustment is 5 (for example), then there is not much
+// point treating it as inlinable. On the other hand "bar" has a param
+// property (parameter "x" feeds unmodified to an "if" statement") and
+// a return property (always returns same constant) meaning that a
+// given call _could_ be rescored down as much as -35 points-- thus if
+// the size of "bar" is 100 (for example) then there is at least a
+// chance that scoring will enable inlining.
+func largestScoreAdjustment(fn *ir.Func, props *FuncProps) int {
+	if resultFlagToPositiveAdj == nil {
+		setupFlagToAdjMaps()
+	}
+	var tmask scoreAdjustTyp
+	score := adjValues[inLoopAdj] // any call can be in a loop
+	for _, pf := range props.ParamFlags {
+		if adj, ok := paramFlagToPositiveAdj[pf]; ok {
+			score, tmask = adjustScore(adj, score, tmask)
+		}
+	}
+	for _, rf := range props.ResultFlags {
+		if adj, ok := resultFlagToPositiveAdj[rf]; ok {
+			score, tmask = adjustScore(adj, score, tmask)
+		}
+	}
+
+	if debugTrace&debugTraceScoring != 0 {
+		fmt.Fprintf(os.Stderr, "=-= largestScore(%v) is %d\n",
+			fn, score)
+	}
+
+	return score
 }
 
 // DumpInlCallSiteScores is invoked by the inliner if the debug flag

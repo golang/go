@@ -285,6 +285,10 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 	if goexperiment.NewInliner || inlheur.UnitTesting() {
 		callCanInline := func(fn *ir.Func) { CanInline(fn, profile) }
 		funcProps = inlheur.AnalyzeFunc(fn, callCanInline, inlineMaxBudget)
+		budgetForFunc := func(fn *ir.Func) int32 {
+			return inlineBudget(fn, profile, true, false)
+		}
+		defer func() { inlheur.RevisitInlinability(fn, budgetForFunc) }()
 	}
 
 	var reason string // reason, if any, that the function was not inlined
