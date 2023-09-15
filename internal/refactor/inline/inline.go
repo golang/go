@@ -378,15 +378,10 @@ func Inline(logf func(string, ...any), caller *Caller, callee *Callee) ([]byte, 
 			f.Decls = prepend[ast.Decl](importDecl, f.Decls...)
 		}
 		for _, spec := range res.newImports {
-			// Check that all imports (in particular, the new ones) are accessible.
-			// TODO(adonovan): allow customization of the accessibility relation
-			// (e.g. for Bazel).
+			// Check that the new imports are accessible.
 			path, _ := strconv.Unquote(spec.Path.Value)
-			// TODO(adonovan): better segment hygiene.
-			if i := strings.Index(path, "/internal/"); i >= 0 {
-				if !strings.HasPrefix(caller.Types.Path(), path[:i]) {
-					return nil, fmt.Errorf("can't inline function %v as its body refers to inaccessible package %q", callee, path)
-				}
+			if !canImport(caller.Types.Path(), path) {
+				return nil, fmt.Errorf("can't inline function %v as its body refers to inaccessible package %q", callee, path)
 			}
 			importDecl.Specs = append(importDecl.Specs, spec)
 		}
@@ -2035,4 +2030,28 @@ func last[T any](slice []T) T {
 		return slice[n-1]
 	}
 	return *new(T)
+}
+
+// canImport reports whether one package is allowed to import another.
+//
+// TODO(adonovan): allow customization of the accessibility relation
+// (e.g. for Bazel).
+func canImport(from, to string) bool {
+	// TODO(adonovan): better segment hygiene.
+	if strings.HasPrefix(to, "internal/") {
+		// Special case: only std packages may import internal/...
+		// We can't reliably know whether we're in std, so we
+		// use a heuristic on the first segment.
+		first, _, _ := strings.Cut(from, "/")
+		if strings.Contains(first, ".") {
+			return false // example.com/foo ∉ std
+		}
+		if first == "testdata" {
+			return false // testdata/foo ∉ std
+		}
+	}
+	if i := strings.LastIndex(to, "/internal/"); i >= 0 {
+		return strings.HasPrefix(from, to[:i])
+	}
+	return true
 }

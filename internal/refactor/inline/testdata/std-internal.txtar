@@ -1,0 +1,15 @@
+
+std packages are a special case of the internal package check.
+
+This test assumes that strings.Index refers to internal/bytealg.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+import "strings"
+
+var _ = strings.Index("", "") //@ inline(re"Index", re`inaccessible package "internal/bytealg"`)
