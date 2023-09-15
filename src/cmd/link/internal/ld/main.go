@@ -236,6 +236,13 @@ func Main(arch *sys.Arch, theArch Arch) {
 		Exitf("dynamic linking required on %s; -d flag cannot be used", buildcfg.GOOS)
 	}
 
+	isPowerOfTwo := func(n int64) bool {
+		return n > 0 && n&(n-1) == 0
+	}
+	if *FlagRound != -1 && (*FlagRound < 4096 || !isPowerOfTwo(*FlagRound)) {
+		Exitf("invalid -R value 0x%x", *FlagRound)
+	}
+
 	checkStrictDups = *FlagStrictDups
 
 	switch flagW {
