@@ -149,7 +149,7 @@ func InlinePackage(p *pgo.Profile) {
 	garbageCollectUnreferencedHiddenClosures()
 
 	if base.Debug.DumpInlFuncProps != "" {
-		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps, nil)
+		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps, nil, inlineMaxBudget)
 	}
 	if goexperiment.NewInliner {
 		postProcessCallSites(p)
@@ -283,8 +283,8 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 
 	var funcProps *inlheur.FuncProps
 	if goexperiment.NewInliner || inlheur.UnitTesting() {
-		funcProps = inlheur.AnalyzeFunc(fn,
-			func(fn *ir.Func) { CanInline(fn, profile) })
+		callCanInline := func(fn *ir.Func) { CanInline(fn, profile) }
+		funcProps = inlheur.AnalyzeFunc(fn, callCanInline, inlineMaxBudget)
 	}
 
 	var reason string // reason, if any, that the function was not inlined
@@ -802,7 +802,7 @@ func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
 	}
 	if base.Debug.DumpInlFuncProps != "" && !fn.Wrapper() {
 		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps,
-			func(fn *ir.Func) { CanInline(fn, profile) })
+			func(fn *ir.Func) { CanInline(fn, profile) }, inlineMaxBudget)
 	}
 	savefn := ir.CurFunc
 	ir.CurFunc = fn

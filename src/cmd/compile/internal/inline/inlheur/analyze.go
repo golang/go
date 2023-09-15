@@ -51,27 +51,29 @@ type propAnalyzer interface {
 // parsing a dump. This is the reason why we have file/fname/line
 // fields below instead of just an *ir.Func field.
 type fnInlHeur struct {
-	fname string
-	file  string
-	line  uint
-	props *FuncProps
-	cstab CallSiteTab
+	fname           string
+	file            string
+	line            uint
+	inlineMaxBudget int32
+	props           *FuncProps
+	cstab           CallSiteTab
 }
 
 var fpmap = map[*ir.Func]fnInlHeur{}
 
-func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
+func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) *FuncProps {
 	if fih, ok := fpmap[fn]; ok {
 		return fih.props
 	}
-	fp, fcstab := computeFuncProps(fn, canInline)
+	fp, fcstab := computeFuncProps(fn, canInline, inlineMaxBudget)
 	file, line := fnFileLine(fn)
 	entry := fnInlHeur{
-		fname: fn.Sym().Name,
-		file:  file,
-		line:  line,
-		props: fp,
-		cstab: fcstab,
+		fname:           fn.Sym().Name,
+		file:            file,
+		line:            line,
+		inlineMaxBudget: inlineMaxBudget,
+		props:           fp,
+		cstab:           fcstab,
 	}
 	// Merge this functions call sites into the package level table.
 	if err := cstab.merge(fcstab); err != nil {
@@ -88,13 +90,13 @@ func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
 // computeFuncProps examines the Go function 'fn' and computes for it
 // a function "properties" object, to be used to drive inlining
 // heuristics. See comments on the FuncProps type for more info.
-func computeFuncProps(fn *ir.Func, canInline func(*ir.Func)) (*FuncProps, CallSiteTab) {
+func computeFuncProps(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) (*FuncProps, CallSiteTab) {
 	enableDebugTraceIfEnv()
 	if debugTrace&debugTraceFuncs != 0 {
 		fmt.Fprintf(os.Stderr, "=-= starting analysis of func %v:\n%+v\n",
 			fn.Sym().Name, fn)
 	}
-	ra := makeResultsAnalyzer(fn, canInline)
+	ra := makeResultsAnalyzer(fn, canInline, inlineMaxBudget)
 	pa := makeParamsAnalyzer(fn)
 	ffa := makeFuncFlagsAnalyzer(fn)
 	analyzers := []propAnalyzer{ffa, ra, pa}
@@ -149,16 +151,15 @@ func UnitTesting() bool {
 // cached set of properties to the file given in 'dumpfile'. Used for
 // the "-d=dumpinlfuncprops=..." command line flag, intended for use
 // primarily in unit testing.
-func DumpFuncProps(fn *ir.Func, dumpfile string, canInline func(*ir.Func)) {
+func DumpFuncProps(fn *ir.Func, dumpfile string, canInline func(*ir.Func), inlineMaxBudget int32) {
 	if fn != nil {
 		enableDebugTraceIfEnv()
 		dmp := func(fn *ir.Func) {
 			if !goexperiment.NewInliner {
 				ScoreCalls(fn)
 			}
-			captureFuncDumpEntry(fn, canInline)
+			captureFuncDumpEntry(fn, canInline, inlineMaxBudget)
 		}
-		captureFuncDumpEntry(fn, canInline)
 		dmp(fn)
 		ir.Visit(fn, func(n ir.Node) {
 			if clo, ok := n.(*ir.ClosureExpr); ok {
@@ -221,7 +222,7 @@ func emitDumpToFile(dumpfile string) {
 // and enqueues it for later dumping. Used for the
 // "-d=dumpinlfuncprops=..." command line flag, intended for use
 // primarily in unit testing.
-func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
+func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) {
 	// avoid capturing compiler-generated equality funcs.
 	if strings.HasPrefix(fn.Sym().Name, ".eq.") {
 		return
@@ -230,7 +231,7 @@ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
 	// Props object should already be present, unless this is a
 	// directly recursive routine.
 	if !ok {
-		AnalyzeFunc(fn, canInline)
+		AnalyzeFunc(fn, canInline, inlineMaxBudget)
 		fih = fpmap[fn]
 		if fn.Inl != nil && fn.Inl.Properties == "" {
 			fn.Inl.Properties = fih.props.SerializeToString()

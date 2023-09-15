@@ -16,10 +16,11 @@ import (
 // computing flags/properties for the return values of a specific Go
 // function, as part of inline heuristics synthesis.
 type returnsAnalyzer struct {
-	fname     string
-	props     []ResultPropBits
-	values    []resultVal
-	canInline func(*ir.Func)
+	fname           string
+	props           []ResultPropBits
+	values          []resultVal
+	canInline       func(*ir.Func)
+	inlineMaxBudget int32
 }
 
 // resultVal captures information about a specific result returned from
@@ -35,7 +36,7 @@ type resultVal struct {
 	derived bool // see deriveReturnFlagsFromCallee below
 }
 
-func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func)) *returnsAnalyzer {
+func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) *returnsAnalyzer {
 	results := fn.Type().Results()
 	props := make([]ResultPropBits, len(results))
 	vals := make([]resultVal, len(results))
@@ -52,9 +53,10 @@ func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func)) *returnsAnalyzer
 		vals[i].top = true
 	}
 	return &returnsAnalyzer{
-		props:     props,
-		values:    vals,
-		canInline: canInline,
+		props:           props,
+		values:          vals,
+		canInline:       canInline,
+		inlineMaxBudget: inlineMaxBudget,
 	}
 }
 
@@ -74,7 +76,14 @@ func (ra *returnsAnalyzer) setResults(fp *FuncProps) {
 					ra.canInline(f)
 				}
 			}
-			if f.Inl != nil {
+			// HACK: in order to allow for call site score
+			// adjustments, we used a relaxed inline budget in
+			// determining inlinability. Here what we want to know is
+			// whether the func in question is likely to be inlined,
+			// as opposed to whether it might possibly be inlined if
+			// all the right score adjustments happened, so check the
+			// cost here as well.
+			if f.Inl != nil && f.Inl.Cost <= ra.inlineMaxBudget {
 				ra.props[i] = ResultAlwaysSameInlinableFunc
 			}
 		}
