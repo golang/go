@@ -136,6 +136,12 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //
 // # Marker types
 //
+// Markers are of two kinds. A few are "value markers" (e.g. @item), which are
+// processed in a first pass and each computes a value that may be referred to
+// by name later. Most are "action markers", which are processed in a second
+// pass and take some action such as testing an LSP operation; they may refer
+// to values computed by value markers.
+//
 // The following markers are supported within marker tests:
 //
 //   - acceptcompletion(location, label, golden): specifies that accepting the
@@ -430,7 +436,7 @@ func RunMarkerTests(t *testing.T, dir string) {
 				test:       test,
 				env:        newEnv(t, cache, test.files, test.proxyFiles, test.writeGoSum, config),
 				settings:   config.Settings,
-				data:       make(map[expect.Identifier]any),
+				values:     make(map[expect.Identifier]any),
 				diags:      make(map[protocol.Location][]protocol.Diagnostic),
 				extraNotes: make(map[protocol.DocumentURI]map[string][]*expect.Note),
 			}
@@ -467,9 +473,9 @@ func RunMarkerTests(t *testing.T, dir string) {
 			var markers []marker
 			for _, note := range test.notes {
 				mark := marker{run: run, note: note}
-				if fn, ok := dataFuncs[note.Name]; ok {
+				if fn, ok := valueMarkerFuncs[note.Name]; ok {
 					fn(mark)
-				} else if _, ok := actionFuncs[note.Name]; ok {
+				} else if _, ok := actionMarkerFuncs[note.Name]; ok {
 					markers = append(markers, mark) // save for later
 				} else {
 					uri := mark.uri()
@@ -482,7 +488,7 @@ func RunMarkerTests(t *testing.T, dir string) {
 
 			// Invoke each remaining marker in the test.
 			for _, mark := range markers {
-				actionFuncs[mark.note.Name](mark)
+				actionMarkerFuncs[mark.note.Name](mark)
 			}
 
 			// Any remaining (un-eliminated) diagnostics are an error.
@@ -558,43 +564,43 @@ func (mark marker) errorf(format string, args ...any) {
 	mark.run.env.T.Errorf("%s: %s", mark.run.fmtPos(mark.note.Pos), msg)
 }
 
-// A dataFunc is a func that binds an identifier to a value. The first argument
-// to the provided func must be of type `marker`, and the func must return
-// exactly one result. dataFuncs run before markerFuncs.
+// valueMarkerFunc returns a wrapper around a function that allows it to be
+// called during the processing of value markers (e.g. @value(v, 123)) with marker
+// arguments converted to function parameters. The provided function's first
+// parameter must be of type 'marker', and it must return a value.
 //
-// When associated with a note, the first argument of the note must be an
-// identifier, and remaining arguments are converted and passed to the provided
-// function along with the mark context.
+// Unlike action markers, which are executed for actions such as test
+// assertions, value markers are all evaluated first, and each computes
+// a value that is recorded by its identifier, which is the marker's first
+// argument. These values may be referred to from an action marker by
+// this identifier, e.g. @action(... , v, ...).
 //
-// For example, given a data func with signature
+// For example, given a fn with signature
 //
 //	func(mark marker, label, details, kind string) CompletionItem
 //
-// The resulting dataFunc can associated with @item notes, and invoked as follows:
+// The result of valueMarkerFunc can associated with @item notes, and invoked
+// as follows:
 //
 //	//@item(FooCompletion, "Foo", "func() int", "func")
 //
-// In this example, the name 'FooCompletion' is bound to the completion item
-// produced with the given arguments, and may be referenced by other marker
-// funcs in the test, by passing the FooCompletion identifier.
-//
-// dataFuncs should not mutate the test environment.
-func dataFunc(fn any) func(marker) {
+// The provided fn should not mutate the test environment.
+func valueMarkerFunc(fn any) func(marker) {
 	ftype := reflect.TypeOf(fn)
 	if ftype.NumIn() == 0 || ftype.In(0) != markerType {
-		panic(fmt.Sprintf("data function %#v must accept marker as its first argument", ftype))
+		panic(fmt.Sprintf("value marker function %#v must accept marker as its first argument", ftype))
 	}
 	if ftype.NumOut() != 1 {
-		panic(fmt.Sprintf("data function %#v must have exactly 1 result", ftype))
+		panic(fmt.Sprintf("value marker function %#v must have exactly 1 result", ftype))
 	}
 
 	return func(mark marker) {
 		if len(mark.note.Args) == 0 || !is[expect.Identifier](mark.note.Args[0]) {
-			mark.errorf("first argument to a data func must be an identifier")
+			mark.errorf("first argument to a value marker function must be an identifier")
 			return
 		}
 		id := mark.note.Args[0].(expect.Identifier)
-		if alt, ok := mark.run.data[id]; ok {
+		if alt, ok := mark.run.values[id]; ok {
 			mark.errorf("%s already declared as %T", id, alt)
 			return
 		}
@@ -605,27 +611,24 @@ func dataFunc(fn any) func(marker) {
 			return
 		}
 		results := reflect.ValueOf(fn).Call(argValues)
-		mark.run.data[id] = results[0].Interface()
+		mark.run.values[id] = results[0].Interface()
 	}
 }
 
-// A markerFunc is a func that executes after all dataFuncs, performs some
-// operation, and verifies an assertion.
+// actionMarkerFunc returns a wrapper around a function that allows it to be
+// called during the processing of action markers (e.g. @action("abc", 123))
+// with marker arguments converted to function parameters. The provided
+// function's first parameter must be of type 'marker', and it must not return
+// any values.
 //
-// The first argument of the provided function must be of type `marker`, and
-// the function must not return any results.
-//
-// When associated with a note, the notes arguments are converted and passed to
-// the provided function along with the mark context.
-//
-// markerFuncs should not mutate the test environment.
-func markerFunc(fn any) func(marker) {
+// The provided fn should not mutate the test environment.
+func actionMarkerFunc(fn any) func(marker) {
 	ftype := reflect.TypeOf(fn)
 	if ftype.NumIn() == 0 || ftype.In(0) != markerType {
-		panic(fmt.Sprintf("marker function %#v must accept marker as its first argument", ftype))
+		panic(fmt.Sprintf("action marker function %#v must accept marker as its first argument", ftype))
 	}
 	if ftype.NumOut() != 0 {
-		panic(fmt.Sprintf("action function %#v cannot have results", ftype))
+		panic(fmt.Sprintf("action marker function %#v cannot have results", ftype))
 	}
 
 	return func(mark marker) {
@@ -651,7 +654,7 @@ func convertArgs(mark marker, ftype reflect.Type, args []any) ([]reflect.Value, 
 			pnext++
 		} else if p == nil || !ftype.IsVariadic() {
 			// The actual number of arguments expected by the mark varies, depending
-			// on whether this is a data func or an action func.
+			// on whether this is a value marker or an action marker.
 			//
 			// Since this error indicates a bug, probably OK to have an imprecise
 			// error message here.
@@ -688,36 +691,36 @@ func is[T any](arg any) bool {
 	return ok
 }
 
-// Supported data functions. See [dataFunc] for more details.
-var dataFuncs = map[string]func(marker){
-	"loc":  dataFunc(locMarker),
-	"item": dataFunc(completionItemMarker),
+// Supported value marker functions. See [valueMarkerFunc] for more details.
+var valueMarkerFuncs = map[string]func(marker){
+	"loc":  valueMarkerFunc(locMarker),
+	"item": valueMarkerFunc(completionItemMarker),
 }
 
-// Supported marker functions. See [markerFunc] for more details.
-var actionFuncs = map[string]func(marker){
-	"acceptcompletion": markerFunc(acceptCompletionMarker),
-	"codeaction":       markerFunc(codeActionMarker),
-	"codeactionerr":    markerFunc(codeActionErrMarker),
-	"codelenses":       markerFunc(codeLensesMarker),
-	"complete":         markerFunc(completeMarker),
-	"def":              markerFunc(defMarker),
-	"diag":             markerFunc(diagMarker),
-	"foldingrange":     markerFunc(foldingRangeMarker),
-	"format":           markerFunc(formatMarker),
-	"highlight":        markerFunc(highlightMarker),
-	"hover":            markerFunc(hoverMarker),
-	"implementation":   markerFunc(implementationMarker),
-	"rank":             markerFunc(rankMarker),
-	"refs":             markerFunc(refsMarker),
-	"rename":           markerFunc(renameMarker),
-	"renameerr":        markerFunc(renameErrMarker),
-	"signature":        markerFunc(signatureMarker),
-	"snippet":          markerFunc(snippetMarker),
-	"suggestedfix":     markerFunc(suggestedfixMarker),
-	"symbol":           markerFunc(symbolMarker),
-	"typedef":          markerFunc(typedefMarker),
-	"workspacesymbol":  markerFunc(workspaceSymbolMarker),
+// Supported action marker functions. See [actionMarkerFunc] for more details.
+var actionMarkerFuncs = map[string]func(marker){
+	"acceptcompletion": actionMarkerFunc(acceptCompletionMarker),
+	"codeaction":       actionMarkerFunc(codeActionMarker),
+	"codeactionerr":    actionMarkerFunc(codeActionErrMarker),
+	"codelenses":       actionMarkerFunc(codeLensesMarker),
+	"complete":         actionMarkerFunc(completeMarker),
+	"def":              actionMarkerFunc(defMarker),
+	"diag":             actionMarkerFunc(diagMarker),
+	"foldingrange":     actionMarkerFunc(foldingRangeMarker),
+	"format":           actionMarkerFunc(formatMarker),
+	"highlight":        actionMarkerFunc(highlightMarker),
+	"hover":            actionMarkerFunc(hoverMarker),
+	"implementation":   actionMarkerFunc(implementationMarker),
+	"rank":             actionMarkerFunc(rankMarker),
+	"refs":             actionMarkerFunc(refsMarker),
+	"rename":           actionMarkerFunc(renameMarker),
+	"renameerr":        actionMarkerFunc(renameErrMarker),
+	"signature":        actionMarkerFunc(signatureMarker),
+	"snippet":          actionMarkerFunc(snippetMarker),
+	"suggestedfix":     actionMarkerFunc(suggestedfixMarker),
+	"symbol":           actionMarkerFunc(symbolMarker),
+	"typedef":          actionMarkerFunc(typedefMarker),
+	"workspacesymbol":  actionMarkerFunc(workspaceSymbolMarker),
 }
 
 // markerTest holds all the test data extracted from a test txtar archive.
@@ -1060,8 +1063,8 @@ type markerTestRun struct {
 
 	// Collected information.
 	// Each @diag/@suggestedfix marker eliminates an entry from diags.
-	data  map[expect.Identifier]any
-	diags map[protocol.Location][]protocol.Diagnostic // diagnostics by position; location end == start
+	values map[expect.Identifier]any
+	diags  map[protocol.Location][]protocol.Diagnostic // diagnostics by position; location end == start
 
 	// Notes that weren't associated with a top-level marker func. They may be
 	// consumed by another marker (e.g. @codelenses collects @codelens markers).
@@ -1210,7 +1213,7 @@ func convert(mark marker, arg any, paramType reflect.Type) (any, error) {
 		return mark.run.test.getGolden(id), nil
 	}
 	if id, ok := arg.(expect.Identifier); ok {
-		if arg, ok := mark.run.data[id]; ok {
+		if arg, ok := mark.run.values[id]; ok {
 			if !reflect.TypeOf(arg).AssignableTo(paramType) {
 				return nil, fmt.Errorf("cannot convert %v to %s", arg, paramType)
 			}
@@ -1885,7 +1888,7 @@ func codeLensesMarker(mark marker) {
 	}
 
 	var want []codeLens
-	mark.consumeExtraNotes("codelens", markerFunc(func(mark marker, loc protocol.Location, title string) {
+	mark.consumeExtraNotes("codelens", actionMarkerFunc(func(mark marker, loc protocol.Location, title string) {
 		want = append(want, codeLens{loc.Range, title})
 	}))
 
