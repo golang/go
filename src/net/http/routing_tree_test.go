@@ -209,6 +209,65 @@ func TestRoutingNodeMatch(t *testing.T) {
 	})
 }
 
+func TestMatchingMethods(t *testing.T) {
+	hostTree := buildTree("GET a.com/", "PUT b.com/", "POST /foo/{x}")
+	for _, test := range []struct {
+		name       string
+		tree       *routingNode
+		host, path string
+		want       string
+	}{
+		{
+			"post",
+			buildTree("POST /"), "", "/foo",
+			"POST",
+		},
+		{
+			"get",
+			buildTree("GET /"), "", "/foo",
+			"GET,HEAD",
+		},
+		{
+			"host",
+			hostTree, "", "/foo",
+			"",
+		},
+		{
+			"host",
+			hostTree, "", "/foo/bar",
+			"POST",
+		},
+		{
+			"host2",
+			hostTree, "a.com", "/foo/bar",
+			"GET,HEAD,POST",
+		},
+		{
+			"host3",
+			hostTree, "b.com", "/bar",
+			"PUT",
+		},
+		{
+			// This case shouldn't come up because we only call matchingMethods
+			// when there was no match, but we include it for completeness.
+			"empty",
+			buildTree("/"), "", "/",
+			"",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ms := map[string]bool{}
+			test.tree.matchingMethods(test.host, test.path, ms)
+			keys := mapKeys(ms)
+			sort.Strings(keys)
+			got := strings.Join(keys, ",")
+			if got != test.want {
+				t.Errorf("got %s, want %s", got, test.want)
+			}
+		})
+	}
+}
+
 func (n *routingNode) print(w io.Writer, level int) {
 	indent := strings.Repeat("    ", level)
 	if n.pattern != nil {

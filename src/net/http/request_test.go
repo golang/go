@@ -15,6 +15,7 @@ import (
 	"io"
 	"math"
 	"mime/multipart"
+	"net/http"
 	. "net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1473,10 +1474,11 @@ func TestPathValue(t *testing.T) {
 		})
 		server := httptest.NewServer(mux)
 		defer server.Close()
-		_, err := Get(server.URL + test.url)
+		res, err := Get(server.URL + test.url)
 		if err != nil {
 			t.Fatal(err)
 		}
+		res.Body.Close()
 	}
 }
 
@@ -1499,8 +1501,57 @@ func TestSetPathValue(t *testing.T) {
 	})
 	server := httptest.NewServer(mux)
 	defer server.Close()
-	_, err := Get(server.URL + "/a/b/c/d/e")
+	res, err := Get(server.URL + "/a/b/c/d/e")
 	if err != nil {
 		t.Fatal(err)
+	}
+	res.Body.Close()
+}
+
+func TestStatus(t *testing.T) {
+	// The main purpose of this test is to check 405 responses and the Allow header.
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+	mux := NewServeMux()
+	mux.Handle("GET /g", h)
+	mux.Handle("POST /p", h)
+	mux.Handle("PATCH /p", h)
+	mux.Handle("PUT /r", h)
+	mux.Handle("GET /r/", h)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	for _, test := range []struct {
+		method, path string
+		wantStatus   int
+		wantAllow    string
+	}{
+		{"GET", "/g", 200, ""},
+		{"HEAD", "/g", 200, ""},
+		{"POST", "/g", 405, "GET, HEAD"},
+		{"GET", "/x", 404, ""},
+		{"GET", "/p", 405, "PATCH, POST"},
+		{"GET", "/./p", 405, "PATCH, POST"},
+		{"GET", "/r/", 200, ""},
+		{"GET", "/r", 200, ""}, // redirected
+		{"HEAD", "/r/", 200, ""},
+		{"HEAD", "/r", 200, ""}, // redirected
+		{"PUT", "/r/", 405, "GET, HEAD"},
+		{"PUT", "/r", 200, ""},
+	} {
+		req, err := http.NewRequest(test.method, server.URL+test.path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if g, w := res.StatusCode, test.wantStatus; g != w {
+			t.Errorf("%s %s: got %d, want %d", test.method, test.path, g, w)
+		}
+		if g, w := res.Header.Get("Allow"), test.wantAllow; g != w {
+			t.Errorf("%s %s, Allow: got %q, want %q", test.method, test.path, g, w)
+		}
 	}
 }

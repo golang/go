@@ -220,3 +220,30 @@ func firstSegment(path string) (seg, rest string) {
 	}
 	return path[:i], path[i:]
 }
+
+// matchingMethods adds to methodSet all the methods that would result in a
+// match if passed to routingNode.match with the given host and path.
+func (root *routingNode) matchingMethods(host, path string, methodSet map[string]bool) {
+	if host != "" {
+		root.findChild(host).matchingMethodsPath(path, methodSet)
+	}
+	root.emptyChild.matchingMethodsPath(path, methodSet)
+	if methodSet["GET"] {
+		methodSet["HEAD"] = true
+	}
+}
+
+func (n *routingNode) matchingMethodsPath(path string, set map[string]bool) {
+	if n == nil {
+		return
+	}
+	n.children.eachPair(func(method string, c *routingNode) bool {
+		if p, _ := c.matchPath(path, nil); p != nil {
+			set[method] = true
+		}
+		return true
+	})
+	// Don't look at the empty child. If there were an empty
+	// child, it would match on any method, but we only
+	// call this when we fail to match on a method.
+}
