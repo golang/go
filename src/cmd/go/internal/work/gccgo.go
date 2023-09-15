@@ -5,6 +5,7 @@
 package work
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -243,12 +244,8 @@ func (tools gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []s
 		return b.run(a, p.Dir, p.ImportPath, nil, tools.ar(), arArgs, "rc", absAfile, absOfiles)
 	}
 
-	if len(output) > 0 {
-		// Show the output if there is any even without errors.
-		b.showOutput(a, p.Dir, p.ImportPath, b.processOutput(output))
-	}
-
-	return nil
+	// Show the output if there is any even without errors.
+	return b.reportCmd(a, nil, "", "", output, nil)
 }
 
 func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string, allactions []*Action, buildmode, desc string) error {
@@ -617,7 +614,10 @@ type I cgo.Incomplete
 
 // supportsCgoIncomplete reports whether the gccgo/GoLLVM compiler
 // being used supports cgo.Incomplete, which was added in GCC 13.
-func (tools gccgoToolchain) supportsCgoIncomplete(b *Builder) bool {
+//
+// This takes an Action only for output reporting purposes.
+// The result value is unrelated to the Action.
+func (tools gccgoToolchain) supportsCgoIncomplete(b *Builder, a *Action) bool {
 	gccgoSupportsCgoIncompleteOnce.Do(func() {
 		fail := func(err error) {
 			fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
@@ -650,14 +650,17 @@ func (tools gccgoToolchain) supportsCgoIncomplete(b *Builder) bool {
 		}
 		cmd := exec.Command(tools.compiler(), "-c", "-o", on, fn)
 		cmd.Dir = tmpdir
-		var buf strings.Builder
+		var buf bytes.Buffer
 		cmd.Stdout = &buf
 		cmd.Stderr = &buf
 		err = cmd.Run()
-		if out := buf.String(); len(out) > 0 && cfg.BuildX {
-			b.showOutput(nil, tmpdir, b.fmtcmd(tmpdir, "%s -c -o %s %s", tools.compiler(), on, fn), out)
-		}
 		gccgoSupportsCgoIncomplete = err == nil
+		if cfg.BuildN || cfg.BuildX {
+			// Show output. We always pass a nil err because errors are an
+			// expected outcome in this case.
+			desc := b.fmtcmd(tmpdir, "%s -c -o %s %s", tools.compiler(), on, fn)
+			b.reportCmd(a, nil, desc, tmpdir, buf.Bytes(), nil)
+		}
 	})
 	return gccgoSupportsCgoIncomplete
 }

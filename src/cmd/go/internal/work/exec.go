@@ -594,7 +594,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	var objects, cgoObjects, pcCFLAGS, pcLDFLAGS []string
 
 	if p.UsesCgo() || p.UsesSwig() {
-		if pcCFLAGS, pcLDFLAGS, err = b.getPkgConfigFlags(p); err != nil {
+		if pcCFLAGS, pcLDFLAGS, err = b.getPkgConfigFlags(a); err != nil {
 			return
 		}
 	}
@@ -868,15 +868,7 @@ OverlayLoop:
 	// Compile Go.
 	objpkg := objdir + "_pkg_.a"
 	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, gofiles)
-	if len(out) > 0 {
-		output := b.processOutput(out)
-		if err != nil {
-			return formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), output)
-		} else {
-			b.showOutput(a, p.Dir, p.Desc(), output)
-		}
-	}
-	if err != nil {
+	if err := b.reportCmd(a, nil, "", "", out, err); err != nil {
 		return err
 	}
 	if ofile != objpkg {
@@ -1000,8 +992,11 @@ func (b *Builder) checkDirectives(a *Action) error {
 		}
 	}
 	if msg != nil {
-		return formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), b.processOutput(msg.Bytes()))
-
+		// We pass a non-nil error to reportCmd to trigger the failure reporting
+		// path, but the content of the error doesn't matter because msg is
+		// non-empty.
+		err := errors.New("invalid directive")
+		return b.reportCmd(a, nil, "", "", msg.Bytes(), err)
 	}
 	return nil
 }
@@ -1616,8 +1611,9 @@ func splitPkgConfigOutput(out []byte) ([]string, error) {
 	return flags, nil
 }
 
-// Calls pkg-config if needed and returns the cflags/ldflags needed to build the package.
-func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, err error) {
+// Calls pkg-config if needed and returns the cflags/ldflags needed to build a's package.
+func (b *Builder) getPkgConfigFlags(a *Action) (cflags, ldflags []string, err error) {
+	p := a.Package
 	if pcargs := p.CgoPkgConfig; len(pcargs) > 0 {
 		// pkg-config permits arguments to appear anywhere in
 		// the command line. Move them all to the front, before --.
@@ -1640,8 +1636,8 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 		var out []byte
 		out, err = b.runOut(nil, p.Dir, nil, b.PkgconfigCmd(), "--cflags", pcflags, "--", pkgs)
 		if err != nil {
-			err = formatOutput(b.WorkDir, p.Dir, p.ImportPath, b.PkgconfigCmd()+" --cflags "+strings.Join(pcflags, " ")+" -- "+strings.Join(pkgs, " "), string(out)+err.Error())
-			return nil, nil, err
+			desc := b.PkgconfigCmd() + " --cflags " + strings.Join(pcflags, " ") + " -- " + strings.Join(pkgs, " ")
+			return nil, nil, b.reportCmd(a, nil, desc, "", out, err)
 		}
 		if len(out) > 0 {
 			cflags, err = splitPkgConfigOutput(bytes.TrimSpace(out))
@@ -1654,8 +1650,8 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 		}
 		out, err = b.runOut(nil, p.Dir, nil, b.PkgconfigCmd(), "--libs", pcflags, "--", pkgs)
 		if err != nil {
-			err = formatOutput(b.WorkDir, p.Dir, p.ImportPath, b.PkgconfigCmd()+" --libs "+strings.Join(pcflags, " ")+" -- "+strings.Join(pkgs, " "), string(out)+err.Error())
-			return nil, nil, err
+			desc := b.PkgconfigCmd() + " --libs " + strings.Join(pcflags, " ") + " -- " + strings.Join(pkgs, " ")
+			return nil, nil, b.reportCmd(a, nil, desc, "", out, err)
 		}
 		if len(out) > 0 {
 			// We need to handle path with spaces so that C:/Program\ Files can pass
@@ -2511,17 +2507,10 @@ var cgoTypeSigRe = lazyregexp.New(`\b_C2?(type|func|var|macro)_\B`)
 // and returns a non-nil error.
 func (b *Builder) run(a *Action, dir string, desc string, env []string, cmdargs ...any) error {
 	out, err := b.runOut(a, dir, env, cmdargs...)
-	if len(out) > 0 {
-		if desc == "" {
-			desc = b.fmtcmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
-		}
-		if err != nil {
-			err = formatOutput(b.WorkDir, dir, a.Package.ImportPath, desc, b.processOutput(out))
-		} else {
-			b.showOutput(a, dir, desc, b.processOutput(out))
-		}
+	if desc == "" {
+		desc = b.fmtcmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
 	}
-	return err
+	return b.reportCmd(a, nil, desc, dir, out, err)
 }
 
 // processOutput prepares the output of runOut to be output to the console.
@@ -2870,38 +2859,33 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 		overlayPath = p
 	}
 	output, err := b.runOut(a, filepath.Dir(overlayPath), b.cCompilerEnv(), compiler, flags, "-o", outfile, "-c", filepath.Base(overlayPath))
-	if len(output) > 0 {
-		// On FreeBSD 11, when we pass -g to clang 3.8 it
-		// invokes its internal assembler with -dwarf-version=2.
-		// When it sees .section .note.GNU-stack, it warns
-		// "DWARF2 only supports one section per compilation unit".
-		// This warning makes no sense, since the section is empty,
-		// but it confuses people.
-		// We work around the problem by detecting the warning
-		// and dropping -g and trying again.
-		if bytes.Contains(output, []byte("DWARF2 only supports one section per compilation unit")) {
-			newFlags := make([]string, 0, len(flags))
-			for _, f := range flags {
-				if !strings.HasPrefix(f, "-g") {
-					newFlags = append(newFlags, f)
-				}
-			}
-			if len(newFlags) < len(flags) {
-				return b.ccompile(a, p, outfile, newFlags, file, compiler)
-			}
-		}
 
-		if err == nil && os.Getenv("GO_BUILDER_NAME") != "" {
-			output = append(output, "C compiler warning promoted to error on Go builders\n"...)
-			err = errors.New("warning promoted to error")
+	// On FreeBSD 11, when we pass -g to clang 3.8 it
+	// invokes its internal assembler with -dwarf-version=2.
+	// When it sees .section .note.GNU-stack, it warns
+	// "DWARF2 only supports one section per compilation unit".
+	// This warning makes no sense, since the section is empty,
+	// but it confuses people.
+	// We work around the problem by detecting the warning
+	// and dropping -g and trying again.
+	if bytes.Contains(output, []byte("DWARF2 only supports one section per compilation unit")) {
+		newFlags := make([]string, 0, len(flags))
+		for _, f := range flags {
+			if !strings.HasPrefix(f, "-g") {
+				newFlags = append(newFlags, f)
+			}
 		}
-		if err != nil {
-			err = formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), b.processOutput(output))
-		} else {
-			b.showOutput(a, p.Dir, p.Desc(), b.processOutput(output))
+		if len(newFlags) < len(flags) {
+			return b.ccompile(a, p, outfile, newFlags, file, compiler)
 		}
 	}
-	return err
+
+	if len(output) > 0 && err == nil && os.Getenv("GO_BUILDER_NAME") != "" {
+		output = append(output, "C compiler warning promoted to error on Go builders\n"...)
+		err = errors.New("warning promoted to error")
+	}
+
+	return b.reportCmd(a, p, "", "", output, err)
 }
 
 // gccld runs the gcc linker to create an executable from a set of object files.
@@ -2915,7 +2899,6 @@ func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flag
 	}
 
 	cmdargs := []any{cmd, "-o", outfile, objs, flags}
-	dir := p.Dir
 	out, err := b.runOut(a, base.Cwd(), b.cCompilerEnv(), cmdargs...)
 
 	if len(out) > 0 {
@@ -2951,9 +2934,11 @@ func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flag
 			save = append(save, line)
 		}
 		out = bytes.Join(save, nil)
-		if len(out) > 0 && (cfg.BuildN || cfg.BuildX) {
-			b.showOutput(nil, dir, p.ImportPath, b.processOutput(out))
-		}
+	}
+	// Note that failure is an expected outcome here, so we report output only
+	// in debug mode and don't report the error.
+	if cfg.BuildN || cfg.BuildX {
+		b.reportCmd(a, p, "", "", out, nil)
 	}
 	return err
 }
@@ -3493,7 +3478,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 		if pkgpath := gccgoPkgpath(p); pkgpath != "" {
 			cgoflags = append(cgoflags, "-gccgopkgpath="+pkgpath)
 		}
-		if !BuildToolchain.(gccgoToolchain).supportsCgoIncomplete(b) {
+		if !BuildToolchain.(gccgoToolchain).supportsCgoIncomplete(b, a) {
 			cgoflags = append(cgoflags, "-gccgo_define_cgoincomplete")
 		}
 	}
@@ -3990,18 +3975,11 @@ func (b *Builder) swigOne(a *Action, p *load.Package, file, objdir string, pcCFL
 	}
 
 	out, err := b.runOut(a, p.Dir, nil, "swig", args, file)
-	if err != nil {
-		if len(out) > 0 {
-			if bytes.Contains(out, []byte("-intgosize")) || bytes.Contains(out, []byte("-cgo")) {
-				return "", "", errors.New("must have SWIG version >= 3.0.6")
-			}
-			// swig error
-			err = formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), b.processOutput(out))
-		}
-		return "", "", err
+	if err != nil && (bytes.Contains(out, []byte("-intgosize")) || bytes.Contains(out, []byte("-cgo"))) {
+		return "", "", errors.New("must have SWIG version >= 3.0.6")
 	}
-	if len(out) > 0 {
-		b.showOutput(a, p.Dir, p.Desc(), b.processOutput(out)) // swig warning
+	if err := b.reportCmd(a, p, "", "", out, err); err != nil {
+		return "", "", err
 	}
 
 	// If the input was x.swig, the output is x.go in the objdir.

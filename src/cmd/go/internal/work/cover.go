@@ -72,9 +72,7 @@ func WriteCoveragePercent(b *Builder, runAct *Action, mf string, w io.Writer) er
 	dir := filepath.Dir(mf)
 	output, cerr := b.CovData(runAct, "percent", "-i", dir)
 	if cerr != nil {
-		p := runAct.Package
-		return formatOutput(b.WorkDir, p.Dir, p.ImportPath,
-			p.Desc(), string(output))
+		return b.reportCmd(runAct, nil, "", "", output, cerr)
 	}
 	_, werr := w.Write(output)
 	return werr
@@ -89,9 +87,7 @@ func WriteCoverageProfile(b *Builder, runAct *Action, mf, outf string, w io.Writ
 	dir := filepath.Dir(mf)
 	output, err := b.CovData(runAct, "textfmt", "-i", dir, "-o", outf)
 	if err != nil {
-		p := runAct.Package
-		return formatOutput(b.WorkDir, p.Dir, p.ImportPath,
-			p.Desc(), string(output))
+		return b.reportCmd(runAct, nil, "", "", output, err)
 	}
 	_, werr := w.Write(output)
 	return werr
