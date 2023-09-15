@@ -19,10 +19,35 @@ import (
 // in which we'll adjust the score of a given callsite.
 type scoreAdjustTyp uint
 
+// These constants capture the various ways in which the inliner's
+// scoring phase can adjust a callsite score based on heuristics. They
+// fall broadly into three categories:
+//
+// 1) adjustments based solely on the callsite context (ex: call
+// appears on panic path)
+//
+// 2) adjustments that take into account specific interesting values
+// passed at a call site (ex: passing a constant that could result in
+// cprop/deadcode in the caller)
+//
+// 3) adjustments that take into account values returned from the call
+// at a callsite (ex: call always returns the same inlinable function,
+// and return value flows unmodified into an indirect call)
+//
+// For categories 2 and 3 above, each adjustment can have either a
+// "must" version and a "may" version (but not both). Here the idea is
+// that in the "must" version the value flow is unconditional: if the
+// callsite executes, then the condition we're interested in (ex:
+// param feeding call) is guaranteed to happen. For the "may" version,
+// there may be control flow that could cause the benefit to be
+// bypassed.
 const (
+	// Catgegory 1 adjustments (see above)
 	panicPathAdj scoreAdjustTyp = (1 << iota)
 	initFuncAdj
 	inLoopAdj
+
+	// Category 2 adjustments (see above).
 	passConstToIfAdj
 	passConstToNestedIfAdj
 	passConcreteToItfCallAdj
@@ -31,8 +56,12 @@ const (
 	passFuncToNestedIndCallAdj
 	passInlinableFuncToIndCallAdj
 	passInlinableFuncToNestedIndCallAdj
-	callResultRescoreAdj
-	lastAdj scoreAdjustTyp = callResultRescoreAdj
+
+	// Category 3 adjustments.
+	returnFeedsConstToIfAdj
+	returnFeedsFuncToIndCallAdj
+	returnFeedsInlinableFuncToIndCallAdj
+	returnFeedsConcreteToInterfaceCallAdj
 )
 
 // This table records the specific values we use to adjust call
@@ -42,18 +71,21 @@ const (
 // what value for each one produces the best performance.
 
 var adjValues = map[scoreAdjustTyp]int{
-	panicPathAdj:                        40,
-	initFuncAdj:                         20,
-	inLoopAdj:                           -5,
-	passConstToIfAdj:                    -20,
-	passConstToNestedIfAdj:              -15,
-	passConcreteToItfCallAdj:            -30,
-	passConcreteToNestedItfCallAdj:      -25,
-	passFuncToIndCallAdj:                -25,
-	passFuncToNestedIndCallAdj:          -20,
-	passInlinableFuncToIndCallAdj:       -45,
-	passInlinableFuncToNestedIndCallAdj: -40,
-	callResultRescoreAdj:                0,
+	panicPathAdj:                          40,
+	initFuncAdj:                           20,
+	inLoopAdj:                             -5,
+	passConstToIfAdj:                      -20,
+	passConstToNestedIfAdj:                -15,
+	passConcreteToItfCallAdj:              -30,
+	passConcreteToNestedItfCallAdj:        -25,
+	passFuncToIndCallAdj:                  -25,
+	passFuncToNestedIndCallAdj:            -20,
+	passInlinableFuncToIndCallAdj:         -45,
+	passInlinableFuncToNestedIndCallAdj:   -40,
+	returnFeedsConstToIfAdj:               -15,
+	returnFeedsFuncToIndCallAdj:           -25,
+	returnFeedsInlinableFuncToIndCallAdj:  -40,
+	returnFeedsConcreteToInterfaceCallAdj: -25,
 }
 
 func adjValue(x scoreAdjustTyp) int {

@@ -267,10 +267,8 @@ func (rua *resultUseAnalyzer) callTargetCheckResults(call ir.Node) {
 				rua.fn.Sym().Name, rname)
 		}
 		if cs := rua.returnHasProp(rname, ResultIsConcreteTypeConvertedToInterface); cs != nil {
-			// FIXME: add cond level support here
-			adj := passConcreteToItfCallAdj
-			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
-			adj = callResultRescoreAdj
+
+			adj := returnFeedsConcreteToInterfaceCallAdj
 			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
 		}
 	case ir.OCALLFUNC:
@@ -285,17 +283,12 @@ func (rua *resultUseAnalyzer) callTargetCheckResults(call ir.Node) {
 			}
 		}
 		if cs := rua.returnHasProp(rname, ResultAlwaysSameInlinableFunc); cs != nil {
-			// FIXME: add cond level support here
-			adj := passInlinableFuncToIndCallAdj
-			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
-			adj = callResultRescoreAdj
+			adj := returnFeedsInlinableFuncToIndCallAdj
 			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
 		} else if cs := rua.returnHasProp(rname, ResultAlwaysSameFunc); cs != nil {
-			// FIXME: add cond level support here
-			adj := passFuncToIndCallAdj
+			adj := returnFeedsFuncToIndCallAdj
 			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
-			adj = callResultRescoreAdj
-			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
+
 		}
 	}
 }
@@ -351,10 +344,7 @@ func (rua *resultUseAnalyzer) foldCheckResults(cond ir.Node) {
 	if !ShouldFoldIfNameConstant(cond, namesUsed) {
 		return
 	}
-	// FIXME: add cond level support here
-	adj := passConstToIfAdj
-	cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
-	adj = callResultRescoreAdj
+	adj := returnFeedsConstToIfAdj
 	cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
 }
 
