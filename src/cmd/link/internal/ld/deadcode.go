@@ -125,7 +125,12 @@ func (d *deadcodePass) flood() {
 
 		// Methods may be called via reflection. Give up on static analysis,
 		// and mark all exported methods of all reachable types as reachable.
-		d.reflectSeen = d.reflectSeen || d.ldr.IsReflectMethod(symIdx)
+		if d.ldr.IsReflectMethod(symIdx) {
+			d.reflectSeen = true
+			if d.ctxt.Debugvlog > 1 {
+				d.ctxt.Logf("deadcode: found reflect method lookup at symbol  %s<%d>\n", d.ldr.SymName(symIdx), symIdx)
+			}
+		}
 
 		isgotype := d.ldr.IsGoType(symIdx)
 		relocs := d.ldr.Relocs(symIdx)
