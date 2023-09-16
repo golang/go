@@ -381,7 +381,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// If it is a Compare-and-Swap-Release operation, set the EH field with
 		// the release hint.
 		if v.AuxInt == 0 {
-			p0.SetFrom3Const(0)
+			p0.AddRestSourceConst(0)
 		}
 		// CMP reg1,reg2
 		p1 := s.Prog(cmp)
@@ -556,7 +556,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		// clrlslwi ra,rs,mb,sh will become rlwinm ra,rs,sh,mb-sh,31-sh as described in ISA
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)}
-		p.SetFrom3Const(ssa.GetPPC64Shiftsh(shifts))
+		p.AddRestSourceConst(ssa.GetPPC64Shiftsh(shifts))
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
@@ -568,19 +568,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		// clrlsldi ra,rs,mb,sh will become rldic ra,rs,sh,mb-sh
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)}
-		p.SetFrom3Const(ssa.GetPPC64Shiftsh(shifts))
-		p.Reg = r1
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-
-		// Mask has been set as sh
-	case ssa.OpPPC64RLDICL:
-		r := v.Reg()
-		r1 := v.Args[0].Reg()
-		shifts := v.AuxInt
-		p := s.Prog(v.Op.Asm())
-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)}
-		p.SetFrom3Const(ssa.GetPPC64Shiftmb(shifts))
+		p.AddRestSourceConst(ssa.GetPPC64Shiftsh(shifts))
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
@@ -623,21 +611,34 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 		// Auxint holds encoded rotate + mask
 	case ssa.OpPPC64RLWINM, ssa.OpPPC64RLWMI:
-		rot, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
+		sh, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
 		p.Reg = v.Args[0].Reg()
-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(rot)}
-		p.SetRestArgs([]obj.Addr{{Type: obj.TYPE_CONST, Offset: mb}, {Type: obj.TYPE_CONST, Offset: me}})
-
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(sh)}
+		p.AddRestSourceArgs([]obj.Addr{{Type: obj.TYPE_CONST, Offset: mb}, {Type: obj.TYPE_CONST, Offset: me}})
 		// Auxint holds mask
+
+	case ssa.OpPPC64RLDICL, ssa.OpPPC64RLDICR:
+		sh, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
+		p := s.Prog(v.Op.Asm())
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: sh}
+		switch v.Op {
+		case ssa.OpPPC64RLDICL:
+			p.AddRestSourceConst(mb)
+		case ssa.OpPPC64RLDICR:
+			p.AddRestSourceConst(me)
+		}
+		p.Reg = v.Args[0].Reg()
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+
 	case ssa.OpPPC64RLWNM:
 		_, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
 		p.Reg = v.Args[0].Reg()
 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[1].Reg()}
-		p.SetRestArgs([]obj.Addr{{Type: obj.TYPE_CONST, Offset: mb}, {Type: obj.TYPE_CONST, Offset: me}})
+		p.AddRestSourceArgs([]obj.Addr{{Type: obj.TYPE_CONST, Offset: mb}, {Type: obj.TYPE_CONST, Offset: me}})
 
 	case ssa.OpPPC64MADDLD:
 		r := v.Reg()
@@ -649,7 +650,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r1
 		p.Reg = r2
-		p.SetFrom3Reg(r3)
+		p.AddRestSourceReg(r3)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
@@ -663,14 +664,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r1
 		p.Reg = r3
-		p.SetFrom3Reg(r2)
+		p.AddRestSourceReg(r2)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
 	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL,
 		ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW,
 		ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD, ssa.OpPPC64FABS, ssa.OpPPC64FNABS,
-		ssa.OpPPC64FROUND, ssa.OpPPC64CNTTZW, ssa.OpPPC64CNTTZD:
+		ssa.OpPPC64FROUND, ssa.OpPPC64CNTTZW, ssa.OpPPC64CNTTZD, ssa.OpPPC64BRH, ssa.OpPPC64BRW, ssa.OpPPC64BRD:
 		r := v.Reg()
 		p := s.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
@@ -717,7 +718,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.OpPPC64SUBCconst:
 		p := s.Prog(v.Op.Asm())
-		p.SetFrom3Const(v.AuxInt)
+		p.AddRestSourceConst(v.AuxInt)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
@@ -725,7 +726,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.OpPPC64SUBFCconst:
 		p := s.Prog(v.Op.Asm())
-		p.SetFrom3Const(v.AuxInt)
+		p.AddRestSourceConst(v.AuxInt)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
@@ -963,9 +964,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 
-	case ssa.OpPPC64ISEL, ssa.OpPPC64ISELB, ssa.OpPPC64ISELZ:
+	case ssa.OpPPC64ISEL, ssa.OpPPC64ISELZ:
 		// ISEL  AuxInt ? arg0 : arg1
-		// ISELB is a special case of ISEL where AuxInt ? $1 (arg0) : $0.
 		// ISELZ is a special case of ISEL where arg1 is implicitly $0.
 		//
 		// AuxInt value indicates conditions 0=LT 1=GT 2=EQ 3=SO 4=GE 5=LE 6=NE 7=NSO.
@@ -974,24 +974,26 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		//
 		// AuxInt&3 ? arg0 : arg1 for conditions LT, GT, EQ, SO
 		// AuxInt&3 ? arg1 : arg0 for conditions GE, LE, NE, NSO
-		p := s.Prog(ppc64.AISEL)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
-		// For ISELB/ISELZ Use R0 for 0 operand to avoid load.
-		r := obj.Addr{Type: obj.TYPE_REG, Reg: ppc64.REG_R0}
+		p := s.Prog(v.Op.Asm())
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+		p.Reg = v.Args[0].Reg()
 		if v.Op == ssa.OpPPC64ISEL {
-			r.Reg = v.Args[1].Reg()
+			p.AddRestSourceReg(v.Args[1].Reg())
+		} else {
+			p.AddRestSourceReg(ppc64.REG_R0)
 		}
 		// AuxInt values 4,5,6 implemented with reverse operand order from 0,1,2
 		if v.AuxInt > 3 {
-			p.Reg = r.Reg
-			p.SetFrom3Reg(v.Args[0].Reg())
-		} else {
-			p.Reg = v.Args[0].Reg()
-			p.SetFrom3(r)
+			p.Reg, p.GetFrom3().Reg = p.GetFrom3().Reg, p.Reg
 		}
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt & 3
+		p.From.SetConst(v.AuxInt & 3)
+
+	case ssa.OpPPC64SETBC, ssa.OpPPC64SETBCR:
+		p := s.Prog(v.Op.Asm())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = int16(ppc64.REG_CR0LT + v.AuxInt)
 
 	case ssa.OpPPC64LoweredQuadZero, ssa.OpPPC64LoweredQuadZeroShort:
 		// The LoweredQuad code generation
@@ -1867,9 +1869,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		pp.From.Offset = ppc64.BO_ALWAYS
 		pp.Reg = ppc64.REG_CR0LT // The preferred value if BI is ignored.
 		pp.To.Reg = ppc64.REG_LR
-		pp.SetFrom3Const(1)
+		pp.AddRestSourceConst(1)
 
-		if base.Ctxt.Flag_shared {
+		if ppc64.NeedTOCpointer(base.Ctxt) {
 			// When compiling Go into PIC, the function we just
 			// called via pointer might have been implemented in
 			// a separate module and so overwritten the TOC
@@ -1886,7 +1888,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = v.Aux.(*obj.LSym)
+		// AuxInt encodes how many buffer entries we need.
+		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
 
 	case ssa.OpPPC64LoweredPanicBoundsA, ssa.OpPPC64LoweredPanicBoundsB, ssa.OpPPC64LoweredPanicBoundsC:
 		p := s.Prog(obj.ACALL)

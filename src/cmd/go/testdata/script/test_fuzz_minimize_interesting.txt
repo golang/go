@@ -21,7 +21,7 @@ go run check_cache/check_cache.go $GOCACHE/fuzz/FuzzMinCache
 # Test that minimization occurs for a crash that appears while minimizing a
 # newly found interesting input. There must be only one worker for this test to
 # be flaky like we want.
-! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerCrashInMinimization -test.run=XXX -test.fuzztime=10000x -test.parallel=1
+! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerCrashInMinimization -test.run=^$ -test.fuzztime=10000x -test.parallel=1
 ! stdout '^ok'
 stdout -count=1 'got the minimum size!'
 stdout -count=1 'bad input'
@@ -32,7 +32,7 @@ go run check_testdata/check_testdata.go FuzzMinimizerCrashInMinimization 1
 
 # Test that a nonrecoverable error that occurs while minimizing an interesting
 # input is reported correctly.
-! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerNonrecoverableCrashInMinimization -test.run=XXX -test.fuzztime=10000x -test.parallel=1
+! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerNonrecoverableCrashInMinimization -test.run=^$ -test.fuzztime=10000x -test.parallel=1
 ! stdout '^ok'
 stdout -count=1 'fuzzing process hung or terminated unexpectedly while minimizing'
 stdout -count=1 'EOF'

@@ -1,4 +1,5 @@
 [compiler:gccgo] skip
+[short] skip 'builds and links another cmd/go'
 
 mkdir $WORK/new/bin
 
@@ -9,15 +10,18 @@ mkdir $WORK/new/bin
 # new cmd/go is built.
 env GOROOT_FINAL=
 
+# $GOROOT/bin/go is whatever the user has already installed
+# (using make.bash or similar). We can't make assumptions about what
+# options it may have been built with, such as -trimpath or GOROOT_FINAL.
+# Instead, we build a fresh copy of the binary with known settings.
 go build -o $WORK/new/bin/go$GOEXE cmd/go &
-go build -o $WORK/bin/check$GOEXE check.go &
+go build -trimpath -o $WORK/bin/check$GOEXE check.go &
 wait
 
 env TESTGOROOT=$GOROOT
 env GOROOT=
 
 # Relocated Executable
-# cp $TESTGOROOT/bin/go$GOEXE $WORK/new/bin/go$GOEXE
 exec $WORK/bin/check$GOEXE $WORK/new/bin/go$GOEXE $TESTGOROOT
 
 # Relocated Tree:

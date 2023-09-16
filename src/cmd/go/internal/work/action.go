@@ -14,6 +14,7 @@ import (
 	"debug/elf"
 	"encoding/json"
 	"fmt"
+	"internal/platform"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/robustio"
+	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/internal/buildid"
 )
@@ -342,7 +344,7 @@ func closeBuilders() {
 	builderWorkDirs.Range(func(bi, _ any) bool {
 		leakedBuilders++
 		if err := bi.(*Builder).Close(); err != nil {
-			base.Errorf("go: %v", err)
+			base.Error(err)
 		}
 		return true
 	})
@@ -354,7 +356,7 @@ func closeBuilders() {
 }
 
 func CheckGOOSARCHPair(goos, goarch string) error {
-	if _, ok := cfg.OSArchSupportsCgo[goos+"/"+goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
+	if !platform.BuildModeSupported(cfg.BuildContext.Compiler, "default", goos, goarch) {
 		return fmt.Errorf("unsupported GOOS/GOARCH pair %s/%s", goos, goarch)
 	}
 	return nil
@@ -370,7 +372,7 @@ func CheckGOOSARCHPair(goos, goarch string) error {
 // be called during action graph execution.
 func (b *Builder) NewObjdir() string {
 	b.objdirSeq++
-	return filepath.Join(b.WorkDir, fmt.Sprintf("b%03d", b.objdirSeq)) + string(filepath.Separator)
+	return str.WithFilePathSeparator(filepath.Join(b.WorkDir, fmt.Sprintf("b%03d", b.objdirSeq)))
 }
 
 // readpkglist returns the list of packages that were built into the shared library
@@ -380,16 +382,23 @@ func (b *Builder) NewObjdir() string {
 func readpkglist(shlibpath string) (pkgs []*load.Package) {
 	var stk load.ImportStack
 	if cfg.BuildToolchainName == "gccgo" {
-		f, _ := elf.Open(shlibpath)
+		f, err := elf.Open(shlibpath)
+		if err != nil {
+			base.Fatal(fmt.Errorf("failed to open shared library: %v", err))
+		}
 		sect := f.Section(".go_export")
-		data, _ := sect.Data()
-		scanner := bufio.NewScanner(bytes.NewBuffer(data))
-		for scanner.Scan() {
-			t := scanner.Text()
-			var found bool
-			if t, found = strings.CutPrefix(t, "pkgpath "); found {
-				t = strings.TrimSuffix(t, ";")
-				pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd(), nil, &stk, nil, 0))
+		if sect == nil {
+			base.Fatal(fmt.Errorf("%s: missing .go_export section", shlibpath))
+		}
+		data, err := sect.Data()
+		if err != nil {
+			base.Fatal(fmt.Errorf("%s: failed to read .go_export section: %v", shlibpath, err))
+		}
+		pkgpath := []byte("pkgpath ")
+		for _, line := range bytes.Split(data, []byte{'\n'}) {
+			if path, found := bytes.CutPrefix(line, pkgpath); found {
+				path = bytes.TrimSuffix(path, []byte{';'})
+				pkgs = append(pkgs, load.LoadPackageWithFlags(string(path), base.Cwd(), &stk, nil, 0))
 			}
 		}
 	} else {
@@ -400,7 +409,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 		scanner := bufio.NewScanner(bytes.NewBuffer(pkglistbytes))
 		for scanner.Scan() {
 			t := scanner.Text()
-			pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd(), nil, &stk, nil, 0))
+			pkgs = append(pkgs, load.LoadPackageWithFlags(t, base.Cwd(), &stk, nil, 0))
 		}
 	}
 	return
@@ -521,7 +530,10 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 		// vet expects to be able to import "fmt".
 		var stk load.ImportStack
 		stk.Push("vet")
-		p1 := load.LoadImportWithFlags("fmt", p.Dir, p, &stk, nil, 0)
+		p1, err := load.LoadImportWithFlags("fmt", p.Dir, p, &stk, nil, 0)
+		if err != nil {
+			base.Fatalf("unexpected error loading fmt package from package %s: %v", p.ImportPath, err)
+		}
 		stk.Pop()
 		aFmt := b.CompileAction(ModeBuild, depMode, p1)
 
@@ -821,7 +833,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 					}
 				}
 				var stk load.ImportStack
-				p := load.LoadImportWithFlags(pkg, base.Cwd(), nil, &stk, nil, 0)
+				p := load.LoadPackageWithFlags(pkg, base.Cwd(), &stk, nil, 0)
 				if p.Error != nil {
 					base.Fatalf("load %s: %v", pkg, p.Error)
 				}
@@ -841,7 +853,11 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 
 			// The linker step still needs all the usual linker deps.
 			// (For example, the linker always opens runtime.a.)
-			for _, dep := range load.LinkerDeps(nil) {
+			ldDeps, err := load.LinkerDeps(nil)
+			if err != nil {
+				base.Error(err)
+			}
+			for _, dep := range ldDeps {
 				add(a, dep, true)
 			}
 		}

@@ -106,7 +106,7 @@ type Handle uintptr
 // The intended use is to pass the returned handle to C code, which
 // passes it back to Go, which calls Value.
 func NewHandle(v any) Handle {
-	h := atomic.AddUintptr(&handleIdx, 1)
+	h := handleIdx.Add(1)
 	if h == 0 {
 		panic("runtime/cgo: ran out of handle space")
 	}
@@ -140,5 +140,5 @@ func (h Handle) Delete() {
 
 var (
 	handles   = sync.Map{} // map[Handle]interface{}
-	handleIdx uintptr      // atomic
+	handleIdx atomic.Uintptr
 )

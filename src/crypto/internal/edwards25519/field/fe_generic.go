@@ -245,7 +245,7 @@ func feSquareGeneric(v, a *Element) {
 	v.carryPropagate()
 }
 
-// carryPropagate brings the limbs below 52 bits by applying the reduction
+// carryPropagateGeneric brings the limbs below 52 bits by applying the reduction
 // identity (a * 2²⁵⁵ + b = a * 19 + b) to the l4 carry.
 func (v *Element) carryPropagateGeneric() *Element {
 	c0 := v.l0 >> 51

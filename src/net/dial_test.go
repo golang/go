@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
+//go:build !js && !wasip1
 
 package net
 
@@ -736,12 +736,6 @@ func TestDialerKeepAlive(t *testing.T) {
 func TestDialCancel(t *testing.T) {
 	mustHaveExternalNetwork(t)
 
-	if strings.HasPrefix(testenv.Builder(), "darwin-arm64") {
-		// The darwin-arm64 machines run in an environment that's not
-		// compatible with this test.
-		t.Skipf("builder %q gives no route to host for 198.18.0.0", testenv.Builder())
-	}
-
 	blackholeIPPort := JoinHostPort(slowDst4, "1234")
 	if !supportsIPv4() {
 		blackholeIPPort = JoinHostPort(slowDst6, "1234")
@@ -786,9 +780,19 @@ func TestDialCancel(t *testing.T) {
 			if ticks < cancelTick {
 				// Using strings.Contains is ugly but
 				// may work on plan9 and windows.
-				if strings.Contains(err.Error(), "connection refused") {
-					t.Skipf("connection to %v failed fast with %v", blackholeIPPort, err)
+				ignorable := []string{
+					"connection refused",
+					"unreachable",
+					"no route to host",
+					"invalid argument",
 				}
+				e := err.Error()
+				for _, ignore := range ignorable {
+					if strings.Contains(e, ignore) {
+						t.Skipf("connection to %v failed fast with %v", blackholeIPPort, err)
+					}
+				}
+
 				t.Fatalf("dial error after %d ticks (%d before cancel sent): %v",
 					ticks, cancelTick-ticks, err)
 			}
@@ -878,23 +882,101 @@ func TestCancelAfterDial(t *testing.T) {
 	}
 }
 
+func TestDialClosedPortFailFast(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		// Reported by go.dev/issues/23366.
+		t.Skip("skipping windows only test")
+	}
+	for _, network := range []string{"tcp", "tcp4", "tcp6"} {
+		t.Run(network, func(t *testing.T) {
+			if !testableNetwork(network) {
+				t.Skipf("skipping: can't listen on %s", network)
+			}
+			// Reserve a local port till the end of the
+			// test by opening a listener and connecting to
+			// it using Dial.
+			ln := newLocalListener(t, network)
+			addr := ln.Addr().String()
+			conn1, err := Dial(network, addr)
+			if err != nil {
+				ln.Close()
+				t.Fatal(err)
+			}
+			defer conn1.Close()
+			// Now close the listener so the next Dial fails
+			// keeping conn1 alive so the port is not made
+			// available.
+			ln.Close()
+
+			maxElapsed := time.Second
+			// The host can be heavy-loaded and take
+			// longer than configured. Retry until
+			// Dial takes less than maxElapsed or
+			// the test times out.
+			for {
+				startTime := time.Now()
+				conn2, err := Dial(network, addr)
+				if err == nil {
+					conn2.Close()
+					t.Fatal("error expected")
+				}
+				elapsed := time.Since(startTime)
+				if elapsed < maxElapsed {
+					break
+				}
+				t.Logf("got %v; want < %v", elapsed, maxElapsed)
+			}
+		})
+	}
+}
+
 // Issue 18806: it should always be possible to net.Dial a
 // net.Listener().Addr().String when the listen address was ":n", even
 // if the machine has halfway configured IPv6 such that it can bind on
 // "::" not connect back to that same address.
 func TestDialListenerAddr(t *testing.T) {
-	mustHaveExternalNetwork(t)
-	ln, err := Listen("tcp", ":0")
+	if !testableNetwork("tcp4") {
+		t.Skipf("skipping: can't listen on tcp4")
+	}
+
+	// The original issue report was for listening on just ":0" on a system that
+	// supports both tcp4 and tcp6 for external traffic but only tcp4 for loopback
+	// traffic. However, the port opened by ":0" is externally-accessible, and may
+	// trigger firewall alerts or otherwise be mistaken for malicious activity
+	// (see https://go.dev/issue/59497). Moreover, it often does not reproduce
+	// the scenario in the issue, in which the port *cannot* be dialed as tcp6.
+	//
+	// To address both of those problems, we open a tcp4-only localhost port, but
+	// then dial the address string that the listener would have reported for a
+	// dual-stack port.
+	ln, err := Listen("tcp4", "localhost:0")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer ln.Close()
-	addr := ln.Addr().String()
-	c, err := Dial("tcp", addr)
+
+	t.Logf("listening on %q", ln.Addr())
+	_, port, err := SplitHostPort(ln.Addr().String())
 	if err != nil {
-		t.Fatalf("for addr %q, dial error: %v", addr, err)
+		t.Fatal(err)
+	}
+
+	// If we had opened a dual-stack port without an explicit "localhost" address,
+	// the Listener would arbitrarily report an empty tcp6 address in its Addr
+	// string.
+	//
+	// The documentation for Dial says ‘if the host is empty or a literal
+	// unspecified IP address, as in ":80", "0.0.0.0:80" or "[::]:80" for TCP and
+	// UDP, "", "0.0.0.0" or "::" for IP, the local system is assumed.’
+	// In #18806, it was decided that that should include the local tcp4 host
+	// even if the string is in the tcp6 format.
+	dialAddr := "[::]:" + port
+	c, err := Dial("tcp4", dialAddr)
+	if err != nil {
+		t.Fatalf(`Dial("tcp4", %q): %v`, dialAddr, err)
 	}
 	c.Close()
+	t.Logf(`Dial("tcp4", %q) succeeded`, dialAddr)
 }
 
 func TestDialerControl(t *testing.T) {
@@ -971,13 +1053,20 @@ func TestDialerControlContext(t *testing.T) {
 }
 
 // mustHaveExternalNetwork is like testenv.MustHaveExternalNetwork
-// except that it won't skip testing on non-mobile builders.
+// except on non-Linux, non-mobile builders it permits the test to
+// run in -short mode.
 func mustHaveExternalNetwork(t *testing.T) {
 	t.Helper()
+	definitelyHasLongtestBuilder := runtime.GOOS == "linux"
 	mobile := runtime.GOOS == "android" || runtime.GOOS == "ios"
-	if testenv.Builder() == "" || mobile {
-		testenv.MustHaveExternalNetwork(t)
+	if testenv.Builder() != "" && !definitelyHasLongtestBuilder && !mobile {
+		// On a non-Linux, non-mobile builder (e.g., freebsd-amd64-13_0).
+		//
+		// Don't skip testing because otherwise the test may never run on
+		// any builder if this port doesn't also have a -longtest builder.
+		return
 	}
+	testenv.MustHaveExternalNetwork(t)
 }
 
 type contextWithNonZeroDeadline struct {

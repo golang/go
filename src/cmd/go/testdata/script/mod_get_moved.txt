@@ -8,7 +8,7 @@ go get example.com/split/subpkg@v1.0.0
 go list -m all
 stdout 'example.com/split v1.0.0'
 
-# A 'go get' that simultaneously upgrades away conflicting package defitions is not ambiguous.
+# A 'go get' that simultaneously upgrades away conflicting package definitions is not ambiguous.
 go get example.com/split/subpkg@v1.1.0
 
 # A 'go get' without an upgrade should find the package.

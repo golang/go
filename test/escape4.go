@@ -1,5 +1,7 @@
 // errorcheck -0 -m
 
+//go:build !goexperiment.newinliner
+
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -38,11 +40,7 @@ func f2() {} // ERROR "can inline f2"
 func f3() { panic(1) } // ERROR "can inline f3" "1 escapes to heap"
 func f4() { recover() }
 
-// TODO(cuonglm): remove f5, f6 //go:noinline and update the error message
-//                once GOEXPERIMENT=nounified is gone.
-
-//go:noinline
-func f5() *byte {
+func f5() *byte { // ERROR "can inline f5"
 	type T struct {
 		x [1]byte
 	}
@@ -50,8 +48,7 @@ func f5() *byte {
 	return &t.x[0]
 }
 
-//go:noinline
-func f6() *byte {
+func f6() *byte { // ERROR "can inline f6"
 	type T struct {
 		x struct {
 			y byte

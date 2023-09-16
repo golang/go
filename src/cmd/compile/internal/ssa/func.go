@@ -7,6 +7,8 @@ package ssa
 import (
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -64,12 +66,6 @@ type Func struct {
 	// AuxCall describing parameters and results for this function.
 	OwnAux *AuxCall
 
-	// WBLoads is a list of Blocks that branch on the write
-	// barrier flag. Safe-points are disabled from the OpLoad that
-	// reads the write-barrier flag until the control flow rejoins
-	// below the two successors of this block.
-	WBLoads []*Block
-
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
 
@@ -90,9 +86,17 @@ type LocalSlotSplitKey struct {
 }
 
 // NewFunc returns a new, empty function object.
-// Caller must set f.Config and f.Cache before using f.
-func NewFunc(fe Frontend) *Func {
-	return &Func{fe: fe, NamedValues: make(map[LocalSlot][]*Value), CanonicalLocalSlots: make(map[LocalSlot]*LocalSlot), CanonicalLocalSplits: make(map[LocalSlotSplitKey]*LocalSlot)}
+// Caller must reset cache before calling NewFunc.
+func (c *Config) NewFunc(fe Frontend, cache *Cache) *Func {
+	return &Func{
+		fe:     fe,
+		Config: c,
+		Cache:  cache,
+
+		NamedValues:          make(map[LocalSlot][]*Value),
+		CanonicalLocalSlots:  make(map[LocalSlot]*LocalSlot),
+		CanonicalLocalSplits: make(map[LocalSlotSplitKey]*LocalSlot),
+	}
 }
 
 // NumBlocks returns an integer larger than the id of any Block in the Func.
@@ -779,8 +783,8 @@ func (f *Func) DebugHashMatch() bool {
 	if !base.HasDebugHash() {
 		return true
 	}
-	name := f.fe.MyImportPath() + "." + f.Name
-	return base.DebugHashMatch(name)
+	sym := f.fe.Func().Sym()
+	return base.DebugHashMatchPkgFunc(sym.Pkg.Path, sym.Name)
 }
 
 func (f *Func) spSb() (sp, sb *Value) {
@@ -814,6 +818,10 @@ func (f *Func) useFMA(v *Value) bool {
 	if base.FmaHash == nil {
 		return true
 	}
-	ctxt := v.Block.Func.Config.Ctxt()
-	return base.FmaHash.DebugHashMatchPos(ctxt, v.Pos)
+	return base.FmaHash.MatchPos(v.Pos, nil)
+}
+
+// NewLocal returns a new anonymous local variable of the given type.
+func (f *Func) NewLocal(pos src.XPos, typ *types.Type) *ir.Name {
+	return typecheck.TempAt(pos, f.fe.Func(), typ) // Note: adds new auto to fn.Dcl list
 }

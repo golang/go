@@ -337,6 +337,8 @@ type Taskstats struct {
 	Ac_exe_inode              uint64
 	Wpcopy_count              uint64
 	Wpcopy_delay_total        uint64
+	Irq_count                 uint64
+	Irq_delay_total           uint64
 }
 
 type cpuMask uint32
@@ -414,7 +416,7 @@ const (
 
 type SockaddrStorage struct {
 	Family uint16
-	_      [122]int8
+	Data   [122]byte
 	_      uint32
 }
 

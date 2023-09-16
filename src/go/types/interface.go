@@ -26,7 +26,7 @@ type Interface struct {
 }
 
 // typeSet returns the type set for interface t.
-func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(t.check, token.NoPos, t) }
+func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(t.check, nopos, t) }
 
 // emptyInterface represents the empty (completed) interface
 var emptyInterface = Interface{complete: true, tset: &topTypeSet}
@@ -104,7 +104,7 @@ func (t *Interface) NumEmbeddeds() int { return len(t.embeddeds) }
 // The result is nil if the i'th embedded type is not a defined type.
 //
 // Deprecated: Use EmbeddedType which is not restricted to defined (*Named) types.
-func (t *Interface) Embedded(i int) *Named { tname, _ := t.embeddeds[i].(*Named); return tname }
+func (t *Interface) Embedded(i int) *Named { return asNamed(t.embeddeds[i]) }
 
 // EmbeddedType returns the i'th embedded type of interface t for 0 <= i < t.NumEmbeddeds().
 func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }
@@ -151,6 +151,7 @@ func (t *Interface) String() string   { return TypeString(t, nil) }
 // Implementation
 
 func (t *Interface) cleanup() {
+	t.typeSet() // any interface that escapes type checking must be safe for concurrent use
 	t.check = nil
 	t.embedPos = nil
 }
@@ -181,7 +182,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		typ := check.typ(f.Type)
 		sig, _ := typ.(*Signature)
 		if sig == nil {
-			if typ != Typ[Invalid] {
+			if isValid(typ) {
 				check.errorf(f.Type, InvalidSyntaxTree, "%s is not a method signature", typ)
 			}
 			continue // ignore

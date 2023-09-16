@@ -76,6 +76,14 @@
 // For debugging, the result of t.String does include the monotonic
 // clock reading if present. If t != u because of different monotonic clock readings,
 // that difference will be visible when printing t.String() and u.String().
+//
+// # Timer Resolution
+//
+// Timer resolution varies depending on the Go runtime, the operating system
+// and the underlying hardware.
+// On Unix, the resolution is approximately 1ms.
+// On Windows, the default resolution is approximately 16ms, but
+// a higher resolution may be requested using [golang.org/x/sys/windows.TimeBeginPeriod].
 package time
 
 import (
@@ -642,8 +650,17 @@ const (
 // second format use a smaller unit (milli-, micro-, or nanoseconds) to ensure
 // that the leading digit is non-zero. The zero duration formats as 0s.
 func (d Duration) String() string {
+	// This is inlinable to take advantage of "function outlining".
+	// Thus, the caller can decide whether a string must be heap allocated.
+	var arr [32]byte
+	n := d.format(&arr)
+	return string(arr[n:])
+}
+
+// format formats the representation of d into the end of buf and
+// returns the offset of the first character.
+func (d Duration) format(buf *[32]byte) int {
 	// Largest time is 2540400h10m10.000000000s
-	var buf [32]byte
 	w := len(buf)
 
 	u := uint64(d)
@@ -661,7 +678,8 @@ func (d Duration) String() string {
 		w--
 		switch {
 		case u == 0:
-			return "0s"
+			buf[w] = '0'
+			return w
 		case u < uint64(Microsecond):
 			// print nanoseconds
 			prec = 0
@@ -711,7 +729,7 @@ func (d Duration) String() string {
 		buf[w] = '-'
 	}
 
-	return string(buf[w:])
+	return w
 }
 
 // fmtFrac formats the fraction of v/10**prec (e.g., ".12345") into the
@@ -883,16 +901,7 @@ func (t Time) Add(d Duration) Time {
 // To compute t-d for a duration d, use t.Add(-d).
 func (t Time) Sub(u Time) Duration {
 	if t.wall&u.wall&hasMonotonic != 0 {
-		te := t.ext
-		ue := u.ext
-		d := Duration(te - ue)
-		if d < 0 && te > ue {
-			return maxDuration // t - u is positive out of range
-		}
-		if d > 0 && te < ue {
-			return minDuration // t - u is negative out of range
-		}
-		return d
+		return subMono(t.ext, u.ext)
 	}
 	d := Duration(t.sec()-u.sec())*Second + Duration(t.nsec()-u.nsec())
 	// Check for overflow or underflow.
@@ -906,30 +915,35 @@ func (t Time) Sub(u Time) Duration {
 	}
 }
 
+func subMono(t, u int64) Duration {
+	d := Duration(t - u)
+	if d < 0 && t > u {
+		return maxDuration // t - u is positive out of range
+	}
+	if d > 0 && t < u {
+		return minDuration // t - u is negative out of range
+	}
+	return d
+}
+
 // Since returns the time elapsed since t.
 // It is shorthand for time.Now().Sub(t).
 func Since(t Time) Duration {
-	var now Time
 	if t.wall&hasMonotonic != 0 {
 		// Common case optimization: if t has monotonic time, then Sub will use only it.
-		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
-	} else {
-		now = Now()
+		return subMono(runtimeNano()-startNano, t.ext)
 	}
-	return now.Sub(t)
+	return Now().Sub(t)
 }
 
 // Until returns the duration until t.
 // It is shorthand for t.Sub(time.Now()).
 func Until(t Time) Duration {
-	var now Time
 	if t.wall&hasMonotonic != 0 {
 		// Common case optimization: if t has monotonic time, then Sub will use only it.
-		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
-	} else {
-		now = Now()
+		return subMono(t.ext, runtimeNano()-startNano)
 	}
-	return t.Sub(now)
+	return t.Sub(Now())
 }
 
 // AddDate returns the time corresponding to adding the

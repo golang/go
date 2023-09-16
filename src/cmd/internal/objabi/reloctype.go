@@ -83,7 +83,8 @@ const (
 	// direct references. (This is used for types reachable by reflection.)
 	R_USETYPE
 	// R_USEIFACE marks a type is converted to an interface in the function this
-	// relocation is applied to. The target is a type descriptor.
+	// relocation is applied to. The target is a type descriptor or an itab
+	// (in the latter case it refers to the concrete type contained in the itab).
 	// This is a marker relocation (0-sized), for the linker's reachabililty
 	// analysis.
 	R_USEIFACE
@@ -93,11 +94,10 @@ const (
 	// This is a marker relocation (0-sized), for the linker's reachabililty
 	// analysis.
 	R_USEIFACEMETHOD
-	// Similar to R_USEIFACEMETHOD, except instead of indicating a type +
-	// method offset with Sym+Add, Sym points to a symbol containing the name
-	// of the method being called. See the description in
-	// cmd/compile/internal/reflectdata/reflect.go:MarkUsedIfaceMethod for details.
-	R_USEGENERICIFACEMETHOD
+	// R_USENAMEDMETHOD marks that methods with a specific name must not be eliminated.
+	// The target is a symbol containing the name of a method called via a generic
+	// interface or looked up via MethodByName("F").
+	R_USENAMEDMETHOD
 	// R_METHODOFF resolves to a 32-bit offset from the beginning of the section
 	// holding the data being relocated to the referenced symbol.
 	// It is a variant of R_ADDROFF used when linking from the uncommonType of a
@@ -229,7 +229,7 @@ const (
 	R_ADDRPOWER_GOT
 
 	// R_ADDRPOWER_GOT_PCREL34 is identical to R_ADDRPOWER_GOT, but uses a PC relative
-	// sequence to generate a GOT symbol addresss.
+	// sequence to generate a GOT symbol addresses.
 	R_ADDRPOWER_GOT_PCREL34
 
 	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but
@@ -268,21 +268,48 @@ const (
 	// only used by the linker and are not emitted by the compiler or assembler.
 	R_RISCV_CALL_TRAMP
 
-	// R_RISCV_PCREL_ITYPE resolves a 32-bit PC-relative address using an
+	// R_RISCV_PCREL_ITYPE resolves a 32 bit PC-relative address using an
 	// AUIPC + I-type instruction pair.
 	R_RISCV_PCREL_ITYPE
 
-	// R_RISCV_PCREL_STYPE resolves a 32-bit PC-relative address using an
+	// R_RISCV_PCREL_STYPE resolves a 32 bit PC-relative address using an
 	// AUIPC + S-type instruction pair.
 	R_RISCV_PCREL_STYPE
 
-	// R_RISCV_TLS_IE_ITYPE resolves a 32-bit TLS initial-exec TOC offset
-	// address using an AUIPC + I-type instruction pair.
-	R_RISCV_TLS_IE_ITYPE
+	// R_RISCV_TLS_IE resolves a 32 bit TLS initial-exec address using an
+	// AUIPC + I-type instruction pair.
+	R_RISCV_TLS_IE
 
-	// R_RISCV_TLS_IE_STYPE resolves a 32-bit TLS initial-exec TOC offset
-	// address using an AUIPC + S-type instruction pair.
-	R_RISCV_TLS_IE_STYPE
+	// R_RISCV_TLS_LE resolves a 32 bit TLS local-exec address using an
+	// LUI + I-type instruction sequence.
+	R_RISCV_TLS_LE
+
+	// R_RISCV_GOT_HI20 resolves the high 20 bits of a 32-bit PC-relative GOT
+	// address.
+	R_RISCV_GOT_HI20
+
+	// R_RISCV_PCREL_HI20 resolves the high 20 bits of a 32-bit PC-relative
+	// address.
+	R_RISCV_PCREL_HI20
+
+	// R_RISCV_PCREL_LO12_I resolves the low 12 bits of a 32-bit PC-relative
+	// address using an I-type instruction.
+	R_RISCV_PCREL_LO12_I
+
+	// R_RISCV_PCREL_LO12_S resolves the low 12 bits of a 32-bit PC-relative
+	// address using an S-type instruction.
+	R_RISCV_PCREL_LO12_S
+
+	// R_RISCV_BRANCH resolves a 12-bit PC-relative branch offset.
+	R_RISCV_BRANCH
+
+	// R_RISCV_RVC_BRANCH resolves an 8-bit PC-relative offset for a CB-type
+	// instruction.
+	R_RISCV_RVC_BRANCH
+
+	// R_RISCV_RVC_JUMP resolves an 11-bit PC-relative offset for a CJ-type
+	// instruction.
+	R_RISCV_RVC_JUMP
 
 	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
@@ -310,6 +337,11 @@ const (
 	// instruction, by encoding the address into the instruction.
 	R_CALLLOONG64
 
+	// R_LOONG64_TLS_IE_PCREL_HI and R_LOONG64_TLS_IE_LO relocates a pcalau12i, ld.d
+	// pair to compute the address of the GOT slot of the tls symbol.
+	R_LOONG64_TLS_IE_PCREL_HI
+	R_LOONG64_TLS_IE_LO
+
 	// R_JMPLOONG64 resolves to non-PC-relative target address of a JMP instruction,
 	// by encoding the address into the instruction.
 	R_JMPLOONG64
@@ -332,6 +364,16 @@ const (
 	// of a symbol. This isn't a real relocation, it can be placed in anywhere
 	// in a symbol and target any symbols.
 	R_XCOFFREF
+
+	// R_PEIMAGEOFF resolves to a 32-bit offset from the start address of where
+	// the executable file is mapped in memory.
+	R_PEIMAGEOFF
+
+	// R_INITORDER specifies an ordering edge between two inittask records.
+	// (From one p..inittask record to another one.)
+	// This relocation does not apply any changes to the actual data, it is
+	// just used in the linker to order the inittask records appropriately.
+	R_INITORDER
 
 	// R_WEAK marks the relocation as a weak reference.
 	// A weak relocation does not make the symbol it refers to reachable,

@@ -89,7 +89,7 @@ TEXT ·Xaddint64(SB), NOSPLIT, $0-24
 //	} else
 //		return 0;
 TEXT ·Casp1(SB), NOSPLIT, $0-25
-	JMP runtime∕internal∕atomic·Cas64(SB)
+	JMP	·Cas64(SB)
 
 // uint32 xadd(uint32 volatile *ptr, int32 delta)
 // Atomically:
@@ -294,13 +294,13 @@ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
 
 // uint32 runtime∕internal∕atomic·LoadAcq(uint32 volatile* ptr)
 TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-12
-	JMP	atomic·Load(SB)
+	JMP	·Load(SB)
 
 // uint64 ·LoadAcq64(uint64 volatile* ptr)
 TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$0-16
-	JMP	atomic·Load64(SB)
+	JMP	·Load64(SB)
 
 // uintptr ·LoadAcquintptr(uintptr volatile* ptr)
 TEXT ·LoadAcquintptr(SB),NOSPLIT|NOFRAME,$0-16
-	JMP     atomic·Load64(SB)
+	JMP	·Load64(SB)
 

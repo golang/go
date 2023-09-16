@@ -3,6 +3,7 @@
 [GOOS:windows] skip
 [!fuzz] skip
 [short] skip
+env GOCACHE=$WORK/cache
 
 # FuzzNonCrash sends itself a signal that does not appear to be a crash.
 # We should not save a crasher.

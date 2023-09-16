@@ -356,8 +356,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpMIPS64TRUNCDV,
 		ssa.OpMIPS64MOVFD,
 		ssa.OpMIPS64MOVDF,
+		ssa.OpMIPS64MOVWfpgp,
+		ssa.OpMIPS64MOVWgpfp,
+		ssa.OpMIPS64MOVVfpgp,
+		ssa.OpMIPS64MOVVgpfp,
 		ssa.OpMIPS64NEGF,
 		ssa.OpMIPS64NEGD,
+		ssa.OpMIPS64ABSD,
 		ssa.OpMIPS64SQRTF,
 		ssa.OpMIPS64SQRTD:
 		p := s.Prog(v.Op.Asm())
@@ -500,7 +505,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = v.Aux.(*obj.LSym)
+		// AuxInt encodes how many buffer entries we need.
+		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
 	case ssa.OpMIPS64LoweredPanicBoundsA, ssa.OpMIPS64LoweredPanicBoundsB, ssa.OpMIPS64LoweredPanicBoundsC:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -670,6 +676,43 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p4.Reg = v.Reg0()
 		p4.To.Type = obj.TYPE_REG
 		p4.To.Reg = v.Reg0()
+	case ssa.OpMIPS64LoweredAtomicAnd32,
+		ssa.OpMIPS64LoweredAtomicOr32:
+		// SYNC
+		// LL	(Rarg0), Rtmp
+		// AND/OR	Rarg1, Rtmp
+		// SC	Rtmp, (Rarg0)
+		// BEQ	Rtmp, -3(PC)
+		// SYNC
+		s.Prog(mips.ASYNC)
+
+		p := s.Prog(mips.ALL)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = mips.REGTMP
+
+		p1 := s.Prog(v.Op.Asm())
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = v.Args[1].Reg()
+		p1.Reg = mips.REGTMP
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = mips.REGTMP
+
+		p2 := s.Prog(mips.ASC)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = mips.REGTMP
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = v.Args[0].Reg()
+
+		p3 := s.Prog(mips.ABEQ)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = mips.REGTMP
+		p3.To.Type = obj.TYPE_BRANCH
+		p3.To.SetTarget(p)
+
+		s.Prog(mips.ASYNC)
+
 	case ssa.OpMIPS64LoweredAtomicCas32, ssa.OpMIPS64LoweredAtomicCas64:
 		// MOVV $0, Rout
 		// SYNC

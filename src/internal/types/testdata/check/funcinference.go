@@ -102,3 +102,11 @@ func (p *Settable) Set(s string) {
 }
 
 var _ = FromStrings[Settable]([]string{"1", "2"})
+
+// Suitable error message when the type parameter is provided (rather than inferred).
+
+func f8[P, Q any](P, Q) {}
+
+func _(s string) {
+	f8[int](s /* ERROR "cannot use s (variable of type string) as int value in argument to f8[int]" */ , s)
+}

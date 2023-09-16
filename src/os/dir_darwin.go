@@ -54,6 +54,15 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 		if entptr == nil { // EOF
 			break
 		}
+		// Darwin may return a zero inode when a directory entry has been
+		// deleted but not yet removed from the directory. The man page for
+		// getdirentries(2) states that programs are responsible for skipping
+		// those entries:
+		//
+		//   Users of getdirentries() should skip entries with d_fileno = 0,
+		//   as such entries represent files which have been deleted but not
+		//   yet removed from the directory entry.
+		//
 		if dirent.Ino == 0 {
 			continue
 		}

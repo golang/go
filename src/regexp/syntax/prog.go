@@ -106,7 +106,9 @@ func EmptyOpContext(r1, r2 rune) EmptyOp {
 // during the evaluation of the \b and \B zero-width assertions.
 // These assertions are ASCII-only: the word characters are [A-Za-z0-9_].
 func IsWordChar(r rune) bool {
-	return 'A' <= r && r <= 'Z' || 'a' <= r && r <= 'z' || '0' <= r && r <= '9' || r == '_'
+	// Test for lowercase letters first, as these occur more
+	// frequently than uppercase letters in common cases.
+	return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || '0' <= r && r <= '9' || r == '_'
 }
 
 // An Inst is a single instruction in a regular expression program.
@@ -245,7 +247,7 @@ func (i *Inst) MatchRunePos(r rune) int {
 	lo := 0
 	hi := len(rune) / 2
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		if c := rune[2*m]; c <= r {
 			if r <= rune[2*m+1] {
 				return m

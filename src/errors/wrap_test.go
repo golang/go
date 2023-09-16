@@ -238,6 +238,27 @@ func TestAsValidation(t *testing.T) {
 	}
 }
 
+func BenchmarkIs(b *testing.B) {
+	err1 := errors.New("1")
+	err2 := multiErr{multiErr{multiErr{err1, errorT{"a"}}, errorT{"b"}}}
+
+	for i := 0; i < b.N; i++ {
+		if !errors.Is(err2, err1) {
+			b.Fatal("Is failed")
+		}
+	}
+}
+
+func BenchmarkAs(b *testing.B) {
+	err := multiErr{multiErr{multiErr{errors.New("a"), errorT{"a"}}, errorT{"b"}}}
+	for i := 0; i < b.N; i++ {
+		var target errorT
+		if !errors.As(err, &target) {
+			b.Fatal("As failed")
+		}
+	}
+}
+
 func TestUnwrap(t *testing.T) {
 	err1 := errors.New("1")
 	erra := wrapped{"wrap 2", err1}
@@ -287,41 +308,4 @@ func (errorUncomparable) Error() string {
 func (errorUncomparable) Is(target error) bool {
 	_, ok := target.(errorUncomparable)
 	return ok
-}
-
-func ExampleIs() {
-	if _, err := os.Open("non-existing"); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			fmt.Println("file does not exist")
-		} else {
-			fmt.Println(err)
-		}
-	}
-
-	// Output:
-	// file does not exist
-}
-
-func ExampleAs() {
-	if _, err := os.Open("non-existing"); err != nil {
-		var pathError *fs.PathError
-		if errors.As(err, &pathError) {
-			fmt.Println("Failed at path:", pathError.Path)
-		} else {
-			fmt.Println(err)
-		}
-	}
-
-	// Output:
-	// Failed at path: non-existing
-}
-
-func ExampleUnwrap() {
-	err1 := errors.New("error1")
-	err2 := fmt.Errorf("error2: [%w]", err1)
-	fmt.Println(err2)
-	fmt.Println(errors.Unwrap(err2))
-	// Output
-	// error2: [error1]
-	// error1
 }

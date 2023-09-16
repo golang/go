@@ -112,7 +112,7 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 	ui.help["details"] = "Show information about the profile and this view"
 	ui.help["graph"] = "Display profile as a directed graph"
 	ui.help["flamegraph"] = "Display profile as a flame graph"
-	ui.help["flamegraph2"] = "Display profile as a flame graph (experimental version that can display caller info on selection)"
+	ui.help["flamegraphold"] = "Display profile as a flame graph (old version; slated for removal)"
 	ui.help["reset"] = "Show the entire profile"
 	ui.help["save_config"] = "Save current settings"
 
@@ -125,15 +125,16 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 		Host:     host,
 		Port:     port,
 		Handlers: map[string]http.Handler{
-			"/":             http.HandlerFunc(ui.dot),
-			"/top":          http.HandlerFunc(ui.top),
-			"/disasm":       http.HandlerFunc(ui.disasm),
-			"/source":       http.HandlerFunc(ui.source),
-			"/peek":         http.HandlerFunc(ui.peek),
-			"/flamegraph":   http.HandlerFunc(ui.flamegraph),
-			"/flamegraph2":  http.HandlerFunc(ui.stackView), // Experimental
-			"/saveconfig":   http.HandlerFunc(ui.saveConfig),
-			"/deleteconfig": http.HandlerFunc(ui.deleteConfig),
+			"/":              http.HandlerFunc(ui.dot),
+			"/top":           http.HandlerFunc(ui.top),
+			"/disasm":        http.HandlerFunc(ui.disasm),
+			"/source":        http.HandlerFunc(ui.source),
+			"/peek":          http.HandlerFunc(ui.peek),
+			"/flamegraphold": http.HandlerFunc(ui.flamegraph),
+			"/flamegraph":    http.HandlerFunc(ui.stackView),
+			"/flamegraph2":   http.HandlerFunc(ui.stackView), // Support older URL
+			"/saveconfig":    http.HandlerFunc(ui.saveConfig),
+			"/deleteconfig":  http.HandlerFunc(ui.deleteConfig),
 			"/download": http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("Content-Type", "application/vnd.google.protobuf+gzip")
 				w.Header().Set("Content-Disposition", "attachment;filename=profile.pb.gz")

@@ -74,8 +74,9 @@ func mustHaveDisasm(t *testing.T) {
 		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
 	}
 
-	// Skip PIE platforms, pprof can't disassemble PIE.
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+	// pprof can only disassemble PIE on some platforms.
+	// Skip the ones it can't handle yet.
+	if runtime.GOOS == "android" && runtime.GOARCH == "arm" {
 		t.Skipf("skipping on %s/%s, issue 46639", runtime.GOOS, runtime.GOARCH)
 	}
 }

@@ -454,7 +454,17 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$28
 TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	JMP	runtime·sigtramp(SB)
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0
+// For cgo unwinding to work, this function must look precisely like
+// the one in glibc. The glibc source code is:
+// https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/i386/libc_sigaction.c;h=0665b41bbcd0986f0b33bf19a7ecbcedf9961d0a#l59
+// The code that cares about the precise instructions used is:
+// https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/config/i386/linux-unwind.h;h=5486223d60272c73d5103b29ae592d2ee998e1cf#l136
+//
+// For gdb unwinding to work, this function must look precisely like the one in
+// glibc and must be named "__restore_rt" or contain the string "sigaction" in
+// the name. The gdb source code is:
+// https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=gdb/i386-linux-tdep.c;h=a6adeca1b97416f7194341151a8ce30723a786a3#l168
+TEXT runtime·sigreturn__sigaction(SB),NOSPLIT,$0
 	MOVL	$SYS_rt_sigreturn, AX
 	// Sigreturn expects same SP as signal handler,
 	// so cannot CALL 0x10(GS) here.

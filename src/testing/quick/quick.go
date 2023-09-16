@@ -115,7 +115,7 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
 		}
 	case reflect.Pointer:
 		if rand.Intn(size) == 0 {
-			v.Set(reflect.Zero(concrete)) // Generate nil pointer.
+			v.SetZero() // Generate nil pointer.
 		} else {
 			elem, ok := sizedValue(concrete.Elem(), rand, size)
 			if !ok {

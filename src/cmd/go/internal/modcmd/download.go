@@ -7,17 +7,18 @@ package modcmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"runtime"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/modload"
 
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 var cmdDownload = &base.Command{
@@ -88,7 +89,8 @@ func init() {
 	base.AddModCommonFlags(&cmdDownload.Flag)
 }
 
-type moduleJSON struct {
+// A ModuleJSON describes the result of go mod download.
+type ModuleJSON struct {
 	Path     string `json:",omitempty"`
 	Version  string `json:",omitempty"`
 	Query    string `json:",omitempty"`
@@ -134,7 +136,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		} else {
 			mainModule := modload.MainModules.Versions()[0]
 			modFile := modload.MainModules.ModFile(mainModule)
-			if modFile.Go == nil || semver.Compare("v"+modFile.Go.Version, modload.ExplicitIndirectVersionV) < 0 {
+			if modFile.Go == nil || gover.Compare(modFile.Go.Version, gover.ExplicitIndirectVersion) < 0 {
 				if len(modFile.Require) > 0 {
 					args = []string{"all"}
 				}
@@ -149,7 +151,10 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 				// However, we also need to load the full module graph, to ensure that
 				// we have downloaded enough of the module graph to run 'go list all',
 				// 'go mod graph', and similar commands.
-				_ = modload.LoadModGraph(ctx, "")
+				_, err := modload.LoadModGraph(ctx, "")
+				if err != nil {
+					base.Fatal(err)
+				}
 
 				for _, m := range modFile.Require {
 					args = append(args, m.Mod.Path)
@@ -167,46 +172,31 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		base.Exit()
 	}
 
-	downloadModule := func(m *moduleJSON) {
-		_, file, err := modfetch.InfoFile(m.Path, m.Version)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-		m.Info = file
-		m.GoMod, err = modfetch.GoModFile(m.Path, m.Version)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-		m.GoModSum, err = modfetch.GoModSum(m.Path, m.Version)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-		mod := module.Version{Path: m.Path, Version: m.Version}
-		m.Zip, err = modfetch.DownloadZip(ctx, mod)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-		m.Sum = modfetch.Sum(mod)
-		m.Dir, err = modfetch.Download(ctx, mod)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-	}
-
-	var mods []*moduleJSON
-
 	if *downloadReuse != "" && modload.HasModRoot() {
 		base.Fatalf("go mod download -reuse cannot be used inside a module")
 	}
 
+	var mods []*ModuleJSON
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 	infos, infosErr := modload.ListModules(ctx, args, 0, *downloadReuse)
+
+	// There is a bit of a chicken-and-egg problem here: ideally we need to know
+	// which Go version to switch to to download the requested modules, but if we
+	// haven't downloaded the module's go.mod file yet the GoVersion field of its
+	// info struct is not yet populated.
+	//
+	// We also need to be careful to only print the info for each module once
+	// if the -json flag is set.
+	//
+	// In theory we could go through each module in the list, attempt to download
+	// its go.mod file, and record the maximum version (either from the file or
+	// from the resulting TooNewError), all before we try the actual full download
+	// of each module.
+	//
+	// For now, we just let it fail: the user can explicitly set GOTOOLCHAIN
+	// and retry if they want to.
+
 	if !haveExplicitArgs && modload.WorkFilePath() == "" {
 		// 'go mod download' is sometimes run without arguments to pre-populate the
 		// module cache. In modules that aren't at go 1.17 or higher, it may fetch
@@ -218,8 +208,8 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		// TODO(#45551): In the future, report an error if go.mod or go.sum need to
 		// be updated after loading the build list. This may require setting
 		// the mode to "mod" or "readonly" depending on haveExplicitArgs.
-		if err := modload.WriteGoMod(ctx); err != nil {
-			base.Fatalf("go: %v", err)
+		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
+			base.Fatal(err)
 		}
 	}
 
@@ -232,7 +222,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 			// Nothing to download.
 			continue
 		}
-		m := &moduleJSON{
+		m := &ModuleJSON{
 			Path:    info.Path,
 			Version: info.Version,
 			Query:   info.Query,
@@ -249,7 +239,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		sem <- token{}
 		go func() {
-			downloadModule(m)
+			DownloadModule(ctx, m)
 			<-sem
 		}()
 	}
@@ -263,7 +253,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		for _, m := range mods {
 			b, err := json.MarshalIndent(m, "", "\t")
 			if err != nil {
-				base.Fatalf("go: %v", err)
+				base.Fatal(err)
 			}
 			os.Stdout.Write(append(b, '\n'))
 			if m.Error != "" {
@@ -273,7 +263,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	} else {
 		for _, m := range mods {
 			if m.Error != "" {
-				base.Errorf("go: %v", m.Error)
+				base.Error(errors.New(m.Error))
 			}
 		}
 		base.ExitIfErrors()
@@ -297,8 +287,8 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// Don't save sums for 'go mod download' without arguments unless we're in
 	// workspace mode; see comment above.
 	if haveExplicitArgs || modload.WorkFilePath() != "" {
-		if err := modload.WriteGoMod(ctx); err != nil {
-			base.Errorf("go: %v", err)
+		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
+			base.Error(err)
 		}
 	}
 
@@ -306,6 +296,40 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// (after we've written the checksums for the modules that were downloaded
 	// successfully).
 	if infosErr != nil {
-		base.Errorf("go: %v", infosErr)
+		base.Error(infosErr)
+	}
+}
+
+// DownloadModule runs 'go mod download' for m.Path@m.Version,
+// leaving the results (including any error) in m itself.
+func DownloadModule(ctx context.Context, m *ModuleJSON) {
+	var err error
+	_, file, err := modfetch.InfoFile(ctx, m.Path, m.Version)
+	if err != nil {
+		m.Error = err.Error()
+		return
+	}
+	m.Info = file
+	m.GoMod, err = modfetch.GoModFile(ctx, m.Path, m.Version)
+	if err != nil {
+		m.Error = err.Error()
+		return
+	}
+	m.GoModSum, err = modfetch.GoModSum(ctx, m.Path, m.Version)
+	if err != nil {
+		m.Error = err.Error()
+		return
+	}
+	mod := module.Version{Path: m.Path, Version: m.Version}
+	m.Zip, err = modfetch.DownloadZip(ctx, mod)
+	if err != nil {
+		m.Error = err.Error()
+		return
+	}
+	m.Sum = modfetch.Sum(ctx, mod)
+	m.Dir, err = modfetch.Download(ctx, mod)
+	if err != nil {
+		m.Error = err.Error()
+		return
 	}
 }

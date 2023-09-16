@@ -494,7 +494,7 @@ func (region *regionDesc) duration() time.Duration {
 func (task *taskDesc) overlappingGCDuration(evs []*trace.Event) (overlapping time.Duration) {
 	for _, ev := range evs {
 		// make sure we only consider the global GC events.
-		if typ := ev.Type; typ != trace.EvGCStart && typ != trace.EvGCSTWStart {
+		if typ := ev.Type; typ != trace.EvGCStart {
 			continue
 		}
 

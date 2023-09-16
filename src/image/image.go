@@ -21,6 +21,20 @@
 //
 // See "The Go image package" for more details:
 // https://golang.org/doc/articles/image_package.html
+//
+// # Security Considerations
+//
+// The image package can be used to parse arbitrarily large images, which can
+// cause resource exhaustion on machines which do not have enough memory to
+// store them. When operating on arbitrary images, DecodeConfig should be called
+// before Decode, so that the program can decide whether the image, as defined
+// in the returned header, can be safely decoded with the available resources. A
+// call to Decode which produces an extremely large image, as defined in the
+// header returned by DecodeConfig, is not considered a security issue,
+// regardless of whether the image is itself malformed or not. A call to
+// DecodeConfig which returns a header which does not match the image returned
+// by Decode may be considered a security issue, and should be reported per the
+// [Go Security Policy](https://go.dev/security/policy).
 package image
 
 import (

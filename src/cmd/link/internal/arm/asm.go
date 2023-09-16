@@ -304,7 +304,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	return true
 }
 
-func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
 	if plt.Size() == 0 {
 		// str lr, [sp, #-4]!
 		plt.AddUint32(ctxt.Arch, 0xe52de004)
@@ -356,6 +356,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 
 	case objabi.R_ADDR:
 		v = ld.IMAGE_REL_ARM_ADDR32
+
+	case objabi.R_PEIMAGEOFF:
+		v = ld.IMAGE_REL_ARM_ADDR32NB
 	}
 
 	out.Write16(uint16(v))
@@ -396,11 +399,28 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 		// laid out. Conservatively use a trampoline. This should be rare, as we lay out packages
 		// in dependency order.
 		if ldr.SymValue(rs) != 0 {
-			// r.Add is the instruction
-			// low 24-bit encodes the target address
-			t = (ldr.SymValue(rs) + int64(signext24(r.Add()&0xffffff)*4) - (ldr.SymValue(s) + int64(r.Off()))) / 4
+			// Workaround for issue #58425: it appears that the
+			// external linker doesn't always take into account the
+			// relocation addend when doing reachability checks. This
+			// means that if you have a call from function XYZ at
+			// offset 8 to runtime.duffzero with addend 800 (for
+			// example), where the distance between the start of XYZ
+			// and the start of runtime.duffzero is just over the
+			// limit (by 100 bytes, say), you can get "relocation
+			// doesn't fit" errors from the external linker. To deal
+			// with this, ignore the addend when performing the
+			// distance calculation (this assumes that we're only
+			// handling backward jumps; ideally we might want to check
+			// both with and without the addend).
+			if ctxt.IsExternal() {
+				t = (ldr.SymValue(rs) - (ldr.SymValue(s) + int64(r.Off()))) / 4
+			} else {
+				// r.Add is the instruction
+				// low 24-bit encodes the target address
+				t = (ldr.SymValue(rs) + int64(signext24(r.Add()&0xffffff)*4) - (ldr.SymValue(s) + int64(r.Off()))) / 4
+			}
 		}
-		if t > 0x7fffff || t < -0x800000 || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
+		if t > 0x7fffff || t <= -0x800000 || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
 			// direct call too far, need to insert trampoline.
 			// look up existing trampolines first. if we found one within the range
 			// of direct call, we can reuse it. otherwise create a new one.

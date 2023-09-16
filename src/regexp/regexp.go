@@ -573,8 +573,8 @@ func Match(pattern string, b []byte) (matched bool, err error) {
 }
 
 // ReplaceAllString returns a copy of src, replacing matches of the Regexp
-// with the replacement string repl. Inside repl, $ signs are interpreted as
-// in Expand, so for instance $1 represents the text of the first submatch.
+// with the replacement string repl.
+// Inside repl, $ signs are interpreted as in Expand.
 func (re *Regexp) ReplaceAllString(src, repl string) string {
 	n := 2
 	if strings.Contains(repl, "$") {
@@ -672,8 +672,8 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst 
 }
 
 // ReplaceAll returns a copy of src, replacing matches of the Regexp
-// with the replacement text repl. Inside repl, $ signs are interpreted as
-// in Expand, so for instance $1 represents the text of the first submatch.
+// with the replacement text repl.
+// Inside repl, $ signs are interpreted as in Expand.
 func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 	n := 2
 	if bytes.IndexByte(repl, '$') >= 0 {
@@ -1282,4 +1282,25 @@ func (re *Regexp) Split(s string, n int) []string {
 	}
 
 	return strings
+}
+
+// MarshalText implements [encoding.TextMarshaler]. The output
+// matches that of calling the [Regexp.String] method.
+//
+// Note that the output is lossy in some cases: This method does not indicate
+// POSIX regular expressions (i.e. those compiled by calling [CompilePOSIX]), or
+// those for which the [Regexp.Longest] method has been called.
+func (re *Regexp) MarshalText() ([]byte, error) {
+	return []byte(re.String()), nil
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler] by calling
+// [Compile] on the encoded value.
+func (re *Regexp) UnmarshalText(text []byte) error {
+	newRE, err := Compile(string(text))
+	if err != nil {
+		return err
+	}
+	*re = *newRE
+	return nil
 }

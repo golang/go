@@ -68,7 +68,7 @@ func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
 		// Don't report a 2nd error if we already know the type is invalid
 		// (e.g., if a cycle was detected earlier, via under).
 		// Note: ensure that t.orig is fully resolved by calling Underlying().
-		if t.Underlying() == Typ[Invalid] {
+		if !isValid(t.Underlying()) {
 			return false
 		}
 
@@ -198,7 +198,7 @@ func makeObjList(tlist []*Named) []Object {
 //         nest = A[A[string]]->B[P]
 //         path = A[A[string]]->B[P]
 //
-// Eventutally we reach the type parameter P of type B (P₂):
+// Eventually we reach the type parameter P of type B (P₂):
 //
 //   P₂
 //         nest = A[A[string]]->B[P]

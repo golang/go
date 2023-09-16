@@ -256,18 +256,24 @@ func processType(t *ast.TypeSpec) {
 	var copyBody strings.Builder
 	var doChildrenBody strings.Builder
 	var editChildrenBody strings.Builder
+	var editChildrenWithHiddenBody strings.Builder
 	for _, f := range fields {
+		names := f.Names
+		ft := f.Type
+		hidden := false
 		if f.Tag != nil {
 			tag := f.Tag.Value[1 : len(f.Tag.Value)-1]
 			if strings.HasPrefix(tag, "mknode:") {
 				if tag[7:] == "\"-\"" {
-					continue
+					if !isNamedType(ft, "Node") {
+						continue
+					}
+					hidden = true
+				} else {
+					panic(fmt.Sprintf("unexpected tag value: %s", tag))
 				}
-				panic(fmt.Sprintf("unexpected tag value: %s", tag))
 			}
 		}
-		names := f.Names
-		ft := f.Type
 		if isNamedType(ft, "Nodes") {
 			// Nodes == []Node
 			ft = &ast.ArrayType{Elt: &ast.Ident{Name: "Node"}}
@@ -286,6 +292,20 @@ func processType(t *ast.TypeSpec) {
 			continue
 		}
 		for _, name := range names {
+			ptr := ""
+			if isPtr {
+				ptr = "*"
+			}
+			if isSlice {
+				fmt.Fprintf(&editChildrenWithHiddenBody,
+					"edit%ss(n.%s, edit)\n", ft, name)
+			} else {
+				fmt.Fprintf(&editChildrenWithHiddenBody,
+					"if n.%s != nil {\nn.%s = edit(n.%s).(%s%s)\n}\n", name, name, name, ptr, ft)
+			}
+			if hidden {
+				continue
+			}
 			if isSlice {
 				fmt.Fprintf(&copyBody, "c.%s = copy%ss(c.%s)\n", name, ft, name)
 				fmt.Fprintf(&doChildrenBody,
@@ -295,10 +315,6 @@ func processType(t *ast.TypeSpec) {
 			} else {
 				fmt.Fprintf(&doChildrenBody,
 					"if n.%s != nil && do(n.%s) {\nreturn true\n}\n", name, name)
-				ptr := ""
-				if isPtr {
-					ptr = "*"
-				}
 				fmt.Fprintf(&editChildrenBody,
 					"if n.%s != nil {\nn.%s = edit(n.%s).(%s%s)\n}\n", name, name, name, ptr, ft)
 			}
@@ -313,12 +329,15 @@ func processType(t *ast.TypeSpec) {
 	fmt.Fprintf(&buf, "func (n *%s) editChildren(edit func(Node) Node) {\n", name)
 	buf.WriteString(editChildrenBody.String())
 	fmt.Fprintf(&buf, "}\n")
+	fmt.Fprintf(&buf, "func (n *%s) editChildrenWithHidden(edit func(Node) Node) {\n", name)
+	buf.WriteString(editChildrenWithHiddenBody.String())
+	fmt.Fprintf(&buf, "}\n")
 }
 
 func generateHelpers() {
-	for _, typ := range []string{"CaseClause", "CommClause", "Name", "Node", "Ntype"} {
+	for _, typ := range []string{"CaseClause", "CommClause", "Name", "Node"} {
 		ptr := "*"
-		if typ == "Node" || typ == "Ntype" {
+		if typ == "Node" {
 			ptr = "" // interfaces don't need *
 		}
 		fmt.Fprintf(&buf, "\n")

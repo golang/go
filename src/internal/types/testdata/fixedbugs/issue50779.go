@@ -15,7 +15,7 @@ type R[S any, P any] struct{}
 type SR = R[SS, ST]
 
 type SS interface {
-	NSR(any) *SR // ERROR invalid use of type alias SR in recursive type
+	NSR(any) *SR // ERROR "invalid use of type alias SR in recursive type"
 }
 
 type C interface {

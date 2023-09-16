@@ -69,6 +69,12 @@ func TestReaderSeek(t *testing.T) {
 		{0x40117e, nil},
 	}
 	testRanges(t, "testdata/line-clang-dwarf5.elf", want)
+
+	want = []wantRange{
+		{0x401126, [][2]uint64{{0x401126, 0x40116a}}},
+		{0x40116a, [][2]uint64{{0x40116a, 0x401180}}},
+	}
+	testRanges(t, "testdata/line-gcc-zstd.elf", want)
 }
 
 func TestRangesSection(t *testing.T) {
@@ -154,6 +160,15 @@ func TestReaderRanges(t *testing.T) {
 				{"main", [][2]uint64{{0x401130, 0x401144}}},
 				{"f1", [][2]uint64{{0x401150, 0x40117e}}},
 				{"f2", [][2]uint64{{0x401180, 0x401197}}},
+			},
+		},
+		{
+			"testdata/line-gcc-zstd.elf",
+			subprograms{
+				{"f2", nil},
+				{"main", [][2]uint64{{0x40114b, 0x40116a}}},
+				{"f1", [][2]uint64{{0x401126, 0x40114b}}},
+				{"f2", [][2]uint64{{0x40116a, 0x401180}}},
 			},
 		},
 	}

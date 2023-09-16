@@ -24,8 +24,8 @@
 # in the CL match the update.bash in the CL.
 
 # Versions to use.
-CODE=2022g
-DATA=2022g
+CODE=2023c
+DATA=2023c
 
 set -e
 
@@ -48,9 +48,8 @@ fi
 cd zoneinfo
 ../mkzip ../../zoneinfo.zip
 cd ../..
-go generate time/tzdata
 
-files="update.bash zoneinfo.zip ../../src/time/tzdata/zipdata.go"
+files="update.bash zoneinfo.zip"
 modified=true
 if git diff --quiet $files; then
 	modified=false

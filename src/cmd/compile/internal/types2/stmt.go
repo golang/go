@@ -64,7 +64,7 @@ func (check *Checker) usage(scope *Scope) {
 		}
 	}
 	sort.Slice(unused, func(i, j int) bool {
-		return unused[i].pos.Cmp(unused[j].pos) < 0
+		return cmpPos(unused[i].pos, unused[j].pos) < 0
 	})
 	for _, v := range unused {
 		check.softErrorf(v.pos, UnusedVar, "%s declared and not used", v.name)
@@ -180,7 +180,7 @@ func (check *Checker) suspendedCall(keyword string, call syntax.Expr) {
 
 	var x operand
 	var msg string
-	switch check.rawExpr(&x, call, nil, false) {
+	switch check.rawExpr(nil, &x, call, nil, false) {
 	case conversion:
 		msg = "requires function call, not conversion"
 	case expression:
@@ -240,7 +240,7 @@ func (check *Checker) caseValues(x *operand, values []syntax.Expr, seen valueMap
 L:
 	for _, e := range values {
 		var v operand
-		check.expr(&v, e)
+		check.expr(nil, &v, e)
 		if x.mode == invalid || v.mode == invalid {
 			continue L
 		}
@@ -279,7 +279,7 @@ L:
 // isNil reports whether the expression e denotes the predeclared value nil.
 func (check *Checker) isNil(e syntax.Expr) bool {
 	// The only way to express the nil value is by literally writing nil (possibly in parentheses).
-	if name, _ := unparen(e).(*syntax.Name); name != nil {
+	if name, _ := syntax.Unparen(e).(*syntax.Name); name != nil {
 		_, ok := check.lookup(name.Value).(*Nil)
 		return ok
 	}
@@ -294,10 +294,10 @@ L:
 		// The spec allows the value nil instead of a type.
 		if check.isNil(e) {
 			T = nil
-			check.expr(&dummy, e) // run e through expr so we get the usual Info recordings
+			check.expr(nil, &dummy, e) // run e through expr so we get the usual Info recordings
 		} else {
 			T = check.varType(e)
-			if T == Typ[Invalid] {
+			if !isValid(T) {
 				continue L
 			}
 		}
@@ -336,12 +336,12 @@ L:
 // 		// The spec allows the value nil instead of a type.
 // 		var hash string
 // 		if check.isNil(e) {
-// 			check.expr(&dummy, e) // run e through expr so we get the usual Info recordings
+// 			check.expr(nil, &dummy, e) // run e through expr so we get the usual Info recordings
 // 			T = nil
 // 			hash = "<nil>" // avoid collision with a type named nil
 // 		} else {
 // 			T = check.varType(e)
-// 			if T == Typ[Invalid] {
+// 			if !isValid(T) {
 // 				continue L
 // 			}
 // 			hash = typeHash(T, nil)
@@ -403,7 +403,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		// function and method calls and receive operations can appear
 		// in statement context. Such statements may be parenthesized."
 		var x operand
-		kind := check.rawExpr(&x, s.X, nil, false)
+		kind := check.rawExpr(nil, &x, s.X, nil, false)
 		var msg string
 		var code Code
 		switch x.mode {
@@ -424,8 +424,8 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 	case *syntax.SendStmt:
 		var ch, val operand
-		check.expr(&ch, s.Chan)
-		check.expr(&val, s.Value)
+		check.expr(nil, &ch, s.Chan)
+		check.expr(nil, &val, s.Value)
 		if ch.mode == invalid || val.mode == invalid {
 			return
 		}
@@ -446,27 +446,24 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.assignment(&val, uch.elem, "send")
 
 	case *syntax.AssignStmt:
-		lhs := unpackExpr(s.Lhs)
 		if s.Rhs == nil {
 			// x++ or x--
-			if len(lhs) != 1 {
-				check.errorf(s, InvalidSyntaxTree, "%s%s requires one operand", s.Op, s.Op)
-				return
-			}
+			// (no need to call unpackExpr as s.Lhs must be single-valued)
 			var x operand
-			check.expr(&x, lhs[0])
+			check.expr(nil, &x, s.Lhs)
 			if x.mode == invalid {
 				return
 			}
 			if !allNumeric(x.typ) {
-				check.errorf(lhs[0], NonNumericIncDec, invalidOp+"%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
+				check.errorf(s.Lhs, NonNumericIncDec, invalidOp+"%s%s%s (non-numeric type %s)", s.Lhs, s.Op, s.Op, x.typ)
 				return
 			}
-			check.assignVar(lhs[0], &x)
+			check.assignVar(s.Lhs, nil, &x)
 			return
 		}
 
-		rhs := unpackExpr(s.Rhs)
+		lhs := syntax.UnpackListExpr(s.Lhs)
+		rhs := syntax.UnpackListExpr(s.Rhs)
 		switch s.Op {
 		case 0:
 			check.assignVars(lhs, rhs)
@@ -484,7 +481,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 		var x operand
 		check.binary(&x, nil, lhs[0], rhs[0], s.Op)
-		check.assignVar(lhs[0], &x)
+		check.assignVar(lhs[0], nil, &x)
 
 	case *syntax.CallStmt:
 		kind := "go"
@@ -497,7 +494,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		res := check.sig.results
 		// Return with implicit results allowed for function with named results.
 		// (If one is named, all are named.)
-		results := unpackExpr(s.Results)
+		results := syntax.UnpackListExpr(s.Results)
 		if len(results) == 0 && res.Len() > 0 && res.vars[0].name != "" {
 			// spec: "Implementation restriction: A compiler may disallow an empty expression
 			// list in a "return" statement if a different entity (constant, type, or variable)
@@ -569,7 +566,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 		check.simpleStmt(s.Init)
 		var x operand
-		check.expr(&x, s.Cond)
+		check.expr(nil, &x, s.Cond)
 		if x.mode != invalid && !allBoolean(x.typ) {
 			check.error(s.Cond, InvalidCond, "non-boolean condition in if statement")
 		}
@@ -624,7 +621,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 			// if present, rhs must be a receive operation
 			if rhs != nil {
-				if x, _ := unparen(rhs).(*syntax.Operation); x != nil && x.Y == nil && x.Op == syntax.Recv {
+				if x, _ := syntax.Unparen(rhs).(*syntax.Operation); x != nil && x.Y == nil && x.Op == syntax.Recv {
 					valid = true
 				}
 			}
@@ -659,7 +656,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.simpleStmt(s.Init)
 		if s.Cond != nil {
 			var x operand
-			check.expr(&x, s.Cond)
+			check.expr(nil, &x, s.Cond)
 			if x.mode != invalid && !allBoolean(x.typ) {
 				check.error(s.Cond, InvalidCond, "non-boolean condition in for statement")
 			}
@@ -683,7 +680,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 
 	var x operand
 	if s.Tag != nil {
-		check.expr(&x, s.Tag)
+		check.expr(nil, &x, s.Tag)
 		// By checking assignment of x to an invisible temporary
 		// (as a compiler would), we get all the relevant checks.
 		check.assignment(&x, nil, "switch expression")
@@ -721,7 +718,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 		} else {
 			inner |= finalSwitchCase
 		}
-		check.caseValues(&x, unpackExpr(clause.Cases), seen)
+		check.caseValues(&x, syntax.UnpackListExpr(clause.Cases), seen)
 		check.openScopeUntil(clause, end, "case")
 		check.stmtList(inner, clause.Body)
 		check.closeScope()
@@ -750,7 +747,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 
 	// check rhs
 	var x operand
-	check.expr(&x, guard.X)
+	check.expr(nil, &x, guard.X)
 	if x.mode == invalid {
 		return
 	}
@@ -781,7 +778,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 			end = s.Body[i+1].Pos()
 		}
 		// Check each type in this type switch case.
-		cases := unpackExpr(clause.Cases)
+		cases := syntax.UnpackListExpr(clause.Cases)
 		T := check.caseTypes(sx, cases, seen)
 		check.openScopeUntil(clause, end, "case")
 		// If lhs exists, declare a corresponding variable in the case-local scope.
@@ -796,7 +793,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 			}
 			obj := NewVar(lhs.Pos(), check.pkg, lhs.Value, T)
 			// TODO(mdempsky): Just use clause.Colon? Why did I even suggest
-			// "at the end of the TypeSwitchCase" in #16794 instead?
+			// "at the end of the TypeSwitchCase" in go.dev/issue/16794 instead?
 			scopePos := clause.Pos() // for default clause (len(List) == 0)
 			if n := len(cases); n > 0 {
 				scopePos = syntax.EndPos(cases[n-1])
@@ -850,7 +847,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 
 	// check expression to iterate over
 	var x operand
-	check.expr(&x, rclause.X)
+	check.expr(nil, &x, rclause.X)
 
 	// determine key/value types
 	var key, val Type
@@ -887,7 +884,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	}
 
 	// Open the for-statement block scope now, after the range clause.
-	// Iteration variables declared with := need to go in this scope (was issue #51437).
+	// Iteration variables declared with := need to go in this scope (was go.dev/issue/51437).
 	check.openScope(s, "range")
 	defer check.closeScope()
 
@@ -953,7 +950,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 				x.mode = value
 				x.expr = lhs // we don't have a better rhs expression to use here
 				x.typ = typ
-				check.assignVar(lhs, &x)
+				check.assignVar(lhs, nil, &x)
 			}
 		}
 	}

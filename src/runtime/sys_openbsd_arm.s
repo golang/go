@@ -419,11 +419,21 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
 	MOVW	R13, R9
 	SUB	$8, R13
 	BIC     $0x7, R13		// align for ELF ABI
-	MOVW	4(R0), R1		// arg 2 cmd
-	MOVW	8(R0), R2		// arg 3 arg (vararg, on stack)
+	MOVW	R0, R8
+	MOVW	0(R8), R0		// arg 1 fd
+	MOVW	4(R8), R1		// arg 2 cmd
+	MOVW	8(R8), R2		// arg 3 arg (vararg, on stack)
 	MOVW	R2, 0(R13)
-	MOVW	0(R0), R0		// arg 1 fd
 	BL	libc_fcntl(SB)
+	MOVW	$0, R1
+	CMP	$-1, R0
+	BNE	noerr
+	BL	libc_errno(SB)
+	MOVW	(R0), R1
+	MOVW	$-1, R0
+noerr:
+	MOVW	R0, 12(R8)
+	MOVW	R1, 16(R8)
 	MOVW	R9, R13
 	RET
 
@@ -804,5 +814,14 @@ TEXT runtime·syscall10X(SB),NOSPLIT,$0
 
 ok:
 	MOVW	$0, R0		// no error (it's ignored anyway)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·issetugid_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	MOVW	R0, R8
+	BIC     $0x7, R13		// align for ELF ABI
+	BL	libc_issetugid(SB)
+	MOVW	R0, 0(R8)
 	MOVW	R9, R13
 	RET

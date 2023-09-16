@@ -1,0 +1,138 @@
+[GOOS:windows] skip 'filesystem normalizes / to \'
+[GOOS:plan9] skip 'filesystem disallows \n in paths'
+
+# If the directory path containing a package to be built includes a newline,
+# the go command should refuse to even try to build the package.
+
+env DIR=$WORK${/}${newline}'package main'${newline}'func main() { panic("uh-oh")'${newline}'/*'
+
+mkdir $DIR
+cd $DIR
+exec pwd
+cp $WORK/go.mod ./go.mod
+cp $WORK/main.go ./main.go
+cp $WORK/main_nocgo.go ./main_nocgo.go
+cp $WORK/main_test.go ./main_test.go
+
+! go build -o $devnull .
+stderr 'package example: invalid package directory .*uh-oh'
+
+[cgo] ! go build -o $devnull main.go
+[!cgo] ! go build -o $devnull main_nocgo.go
+stderr 'package command-line-arguments: invalid package directory .*uh-oh'
+
+! go run .
+stderr 'package example: invalid package directory .*uh-oh'
+
+[cgo] ! go run main.go
+[!cgo] ! go run main_nocgo.go
+stderr 'package command-line-arguments: invalid package directory .*uh-oh'
+
+! go test .
+stderr 'package example: invalid package directory .*uh-oh'
+
+[cgo] ! go test -v main.go main_test.go
+[!cgo] ! go test -v main_nocgo.go main_test.go
+stderr 'package command-line-arguments: invalid package directory .*uh-oh'
+
+go list -compiled -e -f '{{with .CompiledGoFiles}}{{.}}{{end}}' .
+! stdout .
+! stderr .
+! exists obj_
+
+
+# The cgo tool should only accept the source file if the working directory
+# is not written in line directives in the resulting files.
+
+[cgo] ! go tool cgo main.go
+[cgo] stderr 'cgo: input path contains newline character: .*uh-oh'
+[cgo] ! exists _obj
+
+[cgo] go tool cgo -trimpath=$PWD main.go
+[cgo] grep '//line main\.go:1:1' _obj/main.cgo1.go
+[cgo] ! grep 'uh-oh' _obj/main.cgo1.go
+[cgo] rm _obj
+
+
+# Since we do preserve $PWD (or set it appropriately) for commands, and we do
+# not resolve symlinks unnecessarily, referring to the contents of the unsafe
+# directory via a safe symlink should be ok, and should not inject the data from
+# the symlink target path.
+
+[!symlink] stop 'remainder of test checks symlink behavior'
+[short] stop 'links and runs binaries'
+
+symlink $WORK${/}link -> $DIR
+
+[cgo] go run $WORK${/}link${/}main.go
+[!cgo] go run $WORK${/}link${/}main_nocgo.go
+! stdout panic
+! stderr panic
+stderr '^ok$'
+
+[cgo] go test -v $WORK${/}link${/}main.go $WORK${/}link${/}main_test.go
+[!cgo] go test -v $WORK${/}link${/}main_nocgo.go $WORK${/}link${/}main_test.go
+! stdout panic
+! stderr panic
+stdout '^ok$'   # 'go test' combines the test's stdout into stderr
+
+cd $WORK/link
+
+[cgo] ! go run $DIR${/}main.go
+[!cgo] ! go run $DIR${/}main_nocgo.go
+stderr 'package command-line-arguments: invalid package directory .*uh-oh'
+
+go run .
+! stdout panic
+! stderr panic
+stderr '^ok$'
+
+[cgo] go run main.go
+[!cgo] go run main_nocgo.go
+! stdout panic
+! stderr panic
+stderr '^ok$'
+
+go test -v
+! stdout panic
+! stderr panic
+stdout '^ok$'  # 'go test' combines the test's stdout into stderr
+
+go test -v .
+! stdout panic
+! stderr panic
+stdout '^ok$'  # 'go test' combines the test's stdout into stderr
+
+[cgo] go tool cgo main.go
+[cgo] grep '//line .*'${/}'link'${/}'main\.go:1:1' _obj/main.cgo1.go
+[cgo] ! grep 'uh-oh' _obj/main.cgo1.go
+
+-- $WORK/go.mod --
+module example
+go 1.19
+-- $WORK/main.go --
+package main
+
+import "C"
+
+func main() {
+	/* nothing here */
+	println("ok")
+}
+-- $WORK/main_nocgo.go --
+//go:build !cgo
+
+package main
+
+func main() {
+	/* nothing here */
+	println("ok")
+}
+-- $WORK/main_test.go --
+package main
+
+import "testing"
+
+func TestMain(*testing.M) {
+	main()
+}

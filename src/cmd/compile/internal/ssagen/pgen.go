@@ -5,7 +5,9 @@
 package ssagen
 
 import (
+	"fmt"
 	"internal/buildcfg"
+	"os"
 	"sort"
 	"sync"
 
@@ -20,44 +22,65 @@ import (
 )
 
 // cmpstackvarlt reports whether the stack variable a sorts before b.
-//
-// Sort the list of stack variables. Autos after anything else,
-// within autos, unused after used, within used, things with
-// pointers first, zeroed things first, and then decreasing size.
-// Because autos are laid out in decreasing addresses
-// on the stack, pointers first, zeroed things first and decreasing size
-// really means, in memory, things with pointers needing zeroing at
-// the top of the stack and increasing in size.
-// Non-autos sort on offset.
 func cmpstackvarlt(a, b *ir.Name) bool {
+	// Sort non-autos before autos.
 	if needAlloc(a) != needAlloc(b) {
 		return needAlloc(b)
 	}
 
+	// If both are non-auto (e.g., parameters, results), then sort by
+	// frame offset (defined by ABI).
 	if !needAlloc(a) {
 		return a.FrameOffset() < b.FrameOffset()
 	}
 
+	// From here on, a and b are both autos (i.e., local variables).
+
+	// Sort used before unused (so AllocFrame can truncate unused
+	// variables).
 	if a.Used() != b.Used() {
 		return a.Used()
 	}
 
+	// Sort pointer-typed before non-pointer types.
+	// Keeps the stack's GC bitmap compact.
 	ap := a.Type().HasPointers()
 	bp := b.Type().HasPointers()
 	if ap != bp {
 		return ap
 	}
 
+	// Group variables that need zeroing, so we can efficiently zero
+	// them altogether.
 	ap = a.Needzero()
 	bp = b.Needzero()
 	if ap != bp {
 		return ap
 	}
 
-	if a.Type().Size() != b.Type().Size() {
-		return a.Type().Size() > b.Type().Size()
+	// Sort variables in descending alignment order, so we can optimally
+	// pack variables into the frame.
+	if a.Type().Alignment() != b.Type().Alignment() {
+		return a.Type().Alignment() > b.Type().Alignment()
 	}
 
+	// Sort normal variables before open-coded-defer slots, so that the
+	// latter are grouped together and near the top of the frame (to
+	// minimize varint encoding of their varp offset).
+	if a.OpenDeferSlot() != b.OpenDeferSlot() {
+		return a.OpenDeferSlot()
+	}
+
+	// If a and b are both open-coded defer slots, then order them by
+	// index in descending order, so they'll be laid out in the frame in
+	// ascending order.
+	//
+	// Their index was saved in FrameOffset in state.openDeferSave.
+	if a.OpenDeferSlot() {
+		return a.FrameOffset() > b.FrameOffset()
+	}
+
+	// Tie breaker for stable results.
 	return a.Sym().Name < b.Sym().Name
 }
 
@@ -98,6 +121,14 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 
 	// Mark the PAUTO's unused.
 	for _, ln := range fn.Dcl {
+		if ln.OpenDeferSlot() {
+			// Open-coded defer slots have indices that were assigned
+			// upfront during SSA construction, but the defer statement can
+			// later get removed during deadcode elimination (#61895). To
+			// keep their relative offsets correct, treat them all as used.
+			continue
+		}
+
 		if needAlloc(ln) {
 			ln.SetUsed(false)
 		}
@@ -208,8 +239,54 @@ func Compile(fn *ir.Func, worker int) {
 	}
 
 	pp.Flush() // assemble, fill in boilerplate, etc.
+
+	// If we're compiling the package init function, search for any
+	// relocations that target global map init outline functions and
+	// turn them into weak relocs.
+	if fn.IsPackageInit() && base.Debug.WrapGlobalMapCtl != 1 {
+		weakenGlobalMapInitRelocs(fn)
+	}
+
 	// fieldtrack must be called after pp.Flush. See issue 20014.
 	fieldtrack(pp.Text.From.Sym, fn.FieldTrack)
+}
+
+// globalMapInitLsyms records the LSym of each map.init.NNN outlined
+// map initializer function created by the compiler.
+var globalMapInitLsyms map[*obj.LSym]struct{}
+
+// RegisterMapInitLsym records "s" in the set of outlined map initializer
+// functions.
+func RegisterMapInitLsym(s *obj.LSym) {
+	if globalMapInitLsyms == nil {
+		globalMapInitLsyms = make(map[*obj.LSym]struct{})
+	}
+	globalMapInitLsyms[s] = struct{}{}
+}
+
+// weakenGlobalMapInitRelocs walks through all of the relocations on a
+// given a package init function "fn" and looks for relocs that target
+// outlined global map initializer functions; if it finds any such
+// relocs, it flags them as R_WEAK.
+func weakenGlobalMapInitRelocs(fn *ir.Func) {
+	if globalMapInitLsyms == nil {
+		return
+	}
+	for i := range fn.LSym.R {
+		tgt := fn.LSym.R[i].Sym
+		if tgt == nil {
+			continue
+		}
+		if _, ok := globalMapInitLsyms[tgt]; !ok {
+			continue
+		}
+		if base.Debug.WrapGlobalMapDbg > 1 {
+			fmt.Fprintf(os.Stderr, "=-= weakify fn %v reloc %d %+v\n", fn, i,
+				fn.LSym.R[i])
+		}
+		// set the R_WEAK bit, leave rest of reloc type intact
+		fn.LSym.R[i].Type |= objabi.R_WEAK
+	}
 }
 
 // StackOffset returns the stack location of a LocalSlot relative to the
@@ -279,9 +356,9 @@ func CheckLargeStacks() {
 	})
 	for _, large := range largeStackFrames {
 		if large.callee != 0 {
-			base.ErrorfAt(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
+			base.ErrorfAt(large.pos, 0, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
 		} else {
-			base.ErrorfAt(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
+			base.ErrorfAt(large.pos, 0, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
 		}
 	}
 }

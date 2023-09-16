@@ -106,7 +106,7 @@ func is16(ranges []Range16, r uint16) bool {
 	lo := 0
 	hi := len(ranges)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		range_ := &ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
 			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
@@ -139,7 +139,7 @@ func is32(ranges []Range32, r uint32) bool {
 	lo := 0
 	hi := len(ranges)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		range_ := ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
 			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
@@ -216,7 +216,7 @@ func to(_case int, r rune, caseRange []CaseRange) (mappedRune rune, foundMapping
 	lo := 0
 	hi := len(caseRange)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		cr := caseRange[m]
 		if rune(cr.Lo) <= r && r <= rune(cr.Hi) {
 			delta := cr.Delta[_case]
@@ -350,7 +350,7 @@ func SimpleFold(r rune) rune {
 	lo := 0
 	hi := len(caseOrbit)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		if rune(caseOrbit[m].From) < r {
 			lo = m + 1
 		} else {

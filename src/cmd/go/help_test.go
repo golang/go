@@ -5,37 +5,59 @@
 package main_test
 
 import (
-	"bytes"
+	"flag"
 	"go/format"
-	diffpkg "internal/diff"
+	"internal/diff"
+	"internal/testenv"
 	"os"
+	"strings"
 	"testing"
-
-	"cmd/go/internal/help"
-	"cmd/go/internal/modload"
 )
 
+var fixDocs = flag.Bool("fixdocs", false, "if true, update alldocs.go")
+
 func TestDocsUpToDate(t *testing.T) {
-	t.Parallel()
-
-	if !modload.Enabled() {
-		t.Skipf("help.Help in GOPATH mode is configured by main.main")
+	testenv.MustHaveGoBuild(t)
+	if !*fixDocs {
+		t.Parallel()
 	}
 
-	buf := new(bytes.Buffer)
-	// Match the command in mkalldocs.sh that generates alldocs.go.
-	help.Help(buf, []string{"documentation"})
-	internal := buf.Bytes()
-	internal, err := format.Source(internal)
+	// We run 'go help documentation' as a subprocess instead of
+	// calling help.Help directly because it may be sensitive to
+	// init-time configuration
+	cmd := testenv.Command(t, testGo, "help", "documentation")
+	// Unset GO111MODULE so that the 'go get' section matches
+	// the default 'go get' implementation.
+	cmd.Env = append(cmd.Environ(), "GO111MODULE=")
+	cmd.Stderr = new(strings.Builder)
+	out, err := cmd.Output()
 	if err != nil {
-		t.Fatalf("gofmt docs: %v", err)
+		t.Fatalf("%v: %v\n%s", cmd, err, cmd.Stderr)
 	}
-	alldocs, err := os.ReadFile("alldocs.go")
+
+	alldocs, err := format.Source(out)
 	if err != nil {
-		t.Fatalf("error reading alldocs.go: %v", err)
+		t.Fatalf("format.Source($(%v)): %v", cmd, err)
 	}
-	if !bytes.Equal(internal, alldocs) {
-		t.Errorf("alldocs.go is not up to date; run mkalldocs.sh to regenerate it\n%s",
-			diffpkg.Diff("go help documentation | gofmt", internal, "alldocs.go", alldocs))
+
+	const srcPath = `alldocs.go`
+	old, err := os.ReadFile(srcPath)
+	if err != nil {
+		t.Fatalf("error reading %s: %v", srcPath, err)
+	}
+	diff := diff.Diff(srcPath, old, "go help documentation | gofmt", alldocs)
+	if diff == nil {
+		t.Logf("%s is up to date.", srcPath)
+		return
+	}
+
+	if *fixDocs {
+		if err := os.WriteFile(srcPath, alldocs, 0666); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("wrote %d bytes to %s", len(alldocs), srcPath)
+	} else {
+		t.Logf("\n%s", diff)
+		t.Errorf("%s is stale. To update, run 'go generate cmd/go'.", srcPath)
 	}
 }

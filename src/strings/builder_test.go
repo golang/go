@@ -355,6 +355,22 @@ func BenchmarkBuildString_Builder(b *testing.B) {
 	})
 }
 
+func BenchmarkBuildString_WriteString(b *testing.B) {
+	someString := string(someBytes)
+	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
+		for i := 0; i < b.N; i++ {
+			var buf Builder
+			if grow {
+				buf.Grow(len(someString) * numWrite)
+			}
+			for i := 0; i < numWrite; i++ {
+				buf.WriteString(someString)
+			}
+			sinkS = buf.String()
+		}
+	})
+}
+
 func BenchmarkBuildString_ByteBuffer(b *testing.B) {
 	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
 		for i := 0; i < b.N; i++ {

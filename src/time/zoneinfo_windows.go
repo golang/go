@@ -20,8 +20,8 @@ var platformZoneSources []string // none: Windows uses system calls instead
 // time apply to all previous and future years as well.
 
 // matchZoneKey checks if stdname and dstname match the corresponding key
-// values "MUI_Std" and MUI_Dlt" or "Std" and "Dlt" (the latter down-level
-// from Vista) in the kname key stored under the open registry key zones.
+// values "MUI_Std" and MUI_Dlt" or "Std" and "Dlt" in the kname key stored
+// under the open registry key zones.
 func matchZoneKey(zones registry.Key, kname string, stdname, dstname string) (matched bool, err2 error) {
 	k, err := registry.OpenKey(zones, kname, registry.READ)
 	if err != nil {
@@ -30,12 +30,10 @@ func matchZoneKey(zones registry.Key, kname string, stdname, dstname string) (ma
 	defer k.Close()
 
 	var std, dlt string
-	if err = registry.LoadRegLoadMUIString(); err == nil {
-		// Try MUI_Std and MUI_Dlt first, fallback to Std and Dlt if *any* error occurs
-		std, err = k.GetMUIStringValue("MUI_Std")
-		if err == nil {
-			dlt, err = k.GetMUIStringValue("MUI_Dlt")
-		}
+	// Try MUI_Std and MUI_Dlt first, fallback to Std and Dlt if *any* error occurs
+	std, err = k.GetMUIStringValue("MUI_Std")
+	if err == nil {
+		dlt, err = k.GetMUIStringValue("MUI_Dlt")
 	}
 	if err != nil { // Fallback to Std and Dlt
 		if std, _, err = k.GetStringValue("Std"); err != nil {

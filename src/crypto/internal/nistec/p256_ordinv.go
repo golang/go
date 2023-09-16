@@ -25,6 +25,7 @@ func P256OrdInverse(k []byte) ([]byte, error) {
 
 	x := new(p256OrdElement)
 	p256OrdBigToLittle(x, (*[32]byte)(k))
+	p256OrdReduce(x)
 
 	// Inversion is implemented as exponentiation by n - 2, per Fermat's little theorem.
 	//

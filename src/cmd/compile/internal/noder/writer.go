@@ -6,6 +6,9 @@ package noder
 
 import (
 	"fmt"
+	"go/constant"
+	"go/token"
+	"internal/buildcfg"
 	"internal/pkgbits"
 
 	"cmd/compile/internal/base"
@@ -107,7 +110,7 @@ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
 
 // errorf reports a user error about thing p.
 func (pw *pkgWriter) errorf(p poser, msg string, args ...interface{}) {
-	base.ErrorfAt(pw.m.pos(p), msg, args...)
+	base.ErrorfAt(pw.m.pos(p), 0, msg, args...)
 }
 
 // fatalf reports an internal compiler error about thing p.
@@ -122,14 +125,25 @@ func (pw *pkgWriter) unexpected(what string, p poser) {
 }
 
 func (pw *pkgWriter) typeAndValue(x syntax.Expr) syntax.TypeAndValue {
-	tv := x.GetTypeInfo()
-	if tv.Type == nil {
+	tv, ok := pw.maybeTypeAndValue(x)
+	if !ok {
 		pw.fatalf(x, "missing Types entry: %v", syntax.String(x))
 	}
 	return tv
 }
+
 func (pw *pkgWriter) maybeTypeAndValue(x syntax.Expr) (syntax.TypeAndValue, bool) {
 	tv := x.GetTypeInfo()
+
+	// If x is a generic function whose type arguments are inferred
+	// from assignment context, then we need to find its inferred type
+	// in Info.Instances instead.
+	if name, ok := x.(*syntax.Name); ok {
+		if inst, ok := pw.info.Instances[name]; ok {
+			tv.Type = inst.Type
+		}
+	}
+
 	return tv, tv.Type != nil
 }
 
@@ -1003,10 +1017,14 @@ func (w *writer) funcExt(obj *types2.Func) {
 	if pragma&ir.Systemstack != 0 && pragma&ir.Nosplit != 0 {
 		w.p.errorf(decl, "go:nosplit and go:systemstack cannot be combined")
 	}
+	wi := asWasmImport(decl.Pragma)
 
 	if decl.Body != nil {
 		if pragma&ir.Noescape != 0 {
 			w.p.errorf(decl, "can only use //go:noescape with external func implementations")
+		}
+		if wi != nil {
+			w.p.errorf(decl, "can only use //go:wasmimport with external func implementations")
 		}
 		if (pragma&ir.UintptrKeepAlive != 0 && pragma&ir.UintptrEscapes == 0) && pragma&ir.Nosplit == 0 {
 			// Stack growth can't handle uintptr arguments that may
@@ -1028,7 +1046,8 @@ func (w *writer) funcExt(obj *types2.Func) {
 		if base.Flag.Complete || decl.Name.Value == "init" {
 			// Linknamed functions are allowed to have no body. Hopefully
 			// the linkname target has a body. See issue 23311.
-			if _, ok := w.p.linknames[obj]; !ok {
+			// Wasmimport functions are also allowed to have no body.
+			if _, ok := w.p.linknames[obj]; !ok && wi == nil {
 				w.p.errorf(decl, "missing function body")
 			}
 		}
@@ -1041,6 +1060,17 @@ func (w *writer) funcExt(obj *types2.Func) {
 	w.Sync(pkgbits.SyncFuncExt)
 	w.pragmaFlag(pragma)
 	w.linkname(obj)
+
+	if buildcfg.GOARCH == "wasm" {
+		if wi != nil {
+			w.String(wi.Module)
+			w.String(wi.Name)
+		} else {
+			w.String("")
+			w.String("")
+		}
+	}
+
 	w.Bool(false) // stub extension
 	w.Reloc(pkgbits.RelocBody, body)
 	w.Sync(pkgbits.SyncEOF)
@@ -1084,7 +1114,7 @@ func (pw *pkgWriter) bodyIdx(sig *types2.Signature, block *syntax.BlockStmt, dic
 	w.sig = sig
 	w.dict = dict
 
-	w.funcargs(sig)
+	w.declareParams(sig)
 	if w.Bool(block != nil) {
 		w.stmts(block.List)
 		w.pos(block.Rbrace)
@@ -1093,24 +1123,18 @@ func (pw *pkgWriter) bodyIdx(sig *types2.Signature, block *syntax.BlockStmt, dic
 	return w.Flush(), w.closureVars
 }
 
-func (w *writer) funcargs(sig *types2.Signature) {
-	do := func(params *types2.Tuple, result bool) {
+func (w *writer) declareParams(sig *types2.Signature) {
+	addLocals := func(params *types2.Tuple) {
 		for i := 0; i < params.Len(); i++ {
-			w.funcarg(params.At(i), result)
+			w.addLocal(params.At(i))
 		}
 	}
 
 	if recv := sig.Recv(); recv != nil {
-		w.funcarg(recv, false)
+		w.addLocal(recv)
 	}
-	do(sig.Params(), false)
-	do(sig.Results(), true)
-}
-
-func (w *writer) funcarg(param *types2.Var, result bool) {
-	if param.Name() != "" || result {
-		w.addLocal(param)
-	}
+	addLocals(sig.Params())
+	addLocals(sig.Results())
 }
 
 // addLocal records the declaration of a new local variable.
@@ -1178,9 +1202,18 @@ func (w *writer) stmt(stmt syntax.Stmt) {
 }
 
 func (w *writer) stmts(stmts []syntax.Stmt) {
+	dead := false
 	w.Sync(pkgbits.SyncStmts)
 	for _, stmt := range stmts {
+		if dead {
+			// Any statements after a terminating statement are safe to
+			// omit, at least until the next labeled statement.
+			if _, ok := stmt.(*syntax.LabeledStmt); !ok {
+				continue
+			}
+		}
 		w.stmt1(stmt)
+		dead = w.p.terminates(stmt)
 	}
 	w.Code(stmtEnd)
 	w.Sync(pkgbits.SyncStmtsEnd)
@@ -1265,7 +1298,7 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 		dstType := func(i int) types2.Type {
 			return resultTypes.At(i).Type()
 		}
-		w.multiExpr(stmt, dstType, unpackListExpr(stmt.Results))
+		w.multiExpr(stmt, dstType, syntax.UnpackListExpr(stmt.Results))
 
 	case *syntax.SelectStmt:
 		w.Code(stmtSelect)
@@ -1286,7 +1319,7 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 }
 
 func (w *writer) assignList(expr syntax.Expr) {
-	exprs := unpackListExpr(expr)
+	exprs := syntax.UnpackListExpr(expr)
 	w.Len(len(exprs))
 
 	for _, expr := range exprs {
@@ -1295,7 +1328,7 @@ func (w *writer) assignList(expr syntax.Expr) {
 }
 
 func (w *writer) assign(expr syntax.Expr) {
-	expr = unparen(expr)
+	expr = syntax.Unparen(expr)
 
 	if name, ok := expr.(*syntax.Name); ok {
 		if name.Value == "_" {
@@ -1336,8 +1369,8 @@ func (w *writer) declStmt(decl syntax.Decl) {
 
 // assignStmt writes out an assignment for "lhs = rhs".
 func (w *writer) assignStmt(pos poser, lhs0, rhs0 syntax.Expr) {
-	lhs := unpackListExpr(lhs0)
-	rhs := unpackListExpr(rhs0)
+	lhs := syntax.UnpackListExpr(lhs0)
+	rhs := syntax.UnpackListExpr(rhs0)
 
 	w.Code(stmtAssign)
 	w.pos(pos)
@@ -1354,7 +1387,7 @@ func (w *writer) assignStmt(pos poser, lhs0, rhs0 syntax.Expr) {
 		// Finding dstType is somewhat involved, because for VarDecl
 		// statements, the Names are only added to the info.{Defs,Uses}
 		// maps, not to info.Types.
-		if name, ok := unparen(dst).(*syntax.Name); ok {
+		if name, ok := syntax.Unparen(dst).(*syntax.Name); ok {
 			if name.Value == "_" {
 				return nil // ok: no implicit conversion
 			} else if def, ok := w.p.info.Defs[name].(*types2.Var); ok {
@@ -1393,12 +1426,12 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 			w.rtype(xtyp)
 		}
 		{
-			lhs := unpackListExpr(rang.Lhs)
+			lhs := syntax.UnpackListExpr(rang.Lhs)
 			assign := func(i int, src types2.Type) {
 				if i >= len(lhs) {
 					return
 				}
-				dst := unparen(lhs[i])
+				dst := syntax.Unparen(lhs[i])
 				if name, ok := dst.(*syntax.Name); ok && name.Value == "_" {
 					return
 				}
@@ -1421,6 +1454,11 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 		}
 
 	} else {
+		if stmt.Cond != nil && w.p.staticBool(&stmt.Cond) < 0 { // always false
+			stmt.Post = nil
+			stmt.Body.List = nil
+		}
+
 		w.pos(stmt)
 		w.stmt(stmt.Init)
 		w.optExpr(stmt.Cond)
@@ -1428,7 +1466,27 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 	}
 
 	w.blockStmt(stmt.Body)
+	w.Bool(w.distinctVars(stmt))
 	w.closeAnotherScope()
+}
+
+func (w *writer) distinctVars(stmt *syntax.ForStmt) bool {
+	lv := base.Debug.LoopVar
+	v := w.p.info.FileVersions[stmt.Pos().Base()]
+	is122 := v.Major == 0 && v.Minor == 0 || v.Major == 1 && v.Minor >= 22
+
+	// Turning off loopvar for 1.22 is only possible with loopvarhash=qn
+	//
+	// Debug.LoopVar values to be preserved for 1.21 compatibility are 1 and 2,
+	// which are also set (=1) by GOEXPERIMENT=loopvar.  The knobs for turning on
+	// the new, unshared, loopvar behavior apply to versions less than 1.21 because
+	// (1) 1.21 also did that and (2) this is believed to be the likely use case;
+	// anyone checking to see if it affects their code will just run the GOEXPERIMENT
+	// but will not also update all their go.mod files to 1.21.
+	//
+	// -gcflags=-d=loopvar=3 enables logging for 1.22 but does not turn loopvar on for <= 1.21.
+
+	return is122 || lv > 0 && lv != 3
 }
 
 // rangeTypes returns the types of values produced by ranging over
@@ -1456,13 +1514,22 @@ func (pw *pkgWriter) rangeTypes(expr syntax.Expr) (key, value types2.Type) {
 }
 
 func (w *writer) ifStmt(stmt *syntax.IfStmt) {
+	cond := w.p.staticBool(&stmt.Cond)
+
 	w.Sync(pkgbits.SyncIfStmt)
 	w.openScope(stmt.Pos())
 	w.pos(stmt)
 	w.stmt(stmt.Init)
 	w.expr(stmt.Cond)
-	w.blockStmt(stmt.Then)
-	w.stmt(stmt.Else)
+	w.Int(cond)
+	if cond >= 0 {
+		w.blockStmt(stmt.Then)
+	} else {
+		w.pos(stmt.Then.Rbrace)
+	}
+	if cond <= 0 {
+		w.stmt(stmt.Else)
+	}
 	w.closeAnotherScope()
 }
 
@@ -1510,10 +1577,56 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 	} else {
 		tag := stmt.Tag
 
+		var tagValue constant.Value
 		if tag != nil {
-			tagType = w.p.typeOf(tag)
+			tv := w.p.typeAndValue(tag)
+			tagType = tv.Type
+			tagValue = tv.Value
 		} else {
 			tagType = types2.Typ[types2.Bool]
+			tagValue = constant.MakeBool(true)
+		}
+
+		if tagValue != nil {
+			// If the switch tag has a constant value, look for a case
+			// clause that we always branch to.
+			func() {
+				var target *syntax.CaseClause
+			Outer:
+				for _, clause := range stmt.Body {
+					if clause.Cases == nil {
+						target = clause
+					}
+					for _, cas := range syntax.UnpackListExpr(clause.Cases) {
+						tv := w.p.typeAndValue(cas)
+						if tv.Value == nil {
+							return // non-constant case; give up
+						}
+						if constant.Compare(tagValue, token.EQL, tv.Value) {
+							target = clause
+							break Outer
+						}
+					}
+				}
+				// We've found the target clause, if any.
+
+				if target != nil {
+					if hasFallthrough(target.Body) {
+						return // fallthrough is tricky; give up
+					}
+
+					// Rewrite as single "default" case.
+					target.Cases = nil
+					stmt.Body = []*syntax.CaseClause{target}
+				} else {
+					stmt.Body = nil
+				}
+
+				// Clear switch tag (i.e., replace with implicit "true").
+				tag = nil
+				stmt.Tag = nil
+				tagType = types2.Typ[types2.Bool]
+			}()
 		}
 
 		// Walk is going to emit comparisons between the tag value and
@@ -1523,7 +1636,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 		// `any` instead.
 	Outer:
 		for _, clause := range stmt.Body {
-			for _, cas := range unpackListExpr(clause.Cases) {
+			for _, cas := range syntax.UnpackListExpr(clause.Cases) {
 				if casType := w.p.typeOf(cas); !types2.AssignableTo(casType, tagType) {
 					tagType = types2.NewInterfaceType(nil, nil)
 					break Outer
@@ -1545,7 +1658,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 
 		w.pos(clause)
 
-		cases := unpackListExpr(clause.Cases)
+		cases := syntax.UnpackListExpr(clause.Cases)
 		if iface != nil {
 			w.Len(len(cases))
 			for _, cas := range cases {
@@ -1573,7 +1686,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 			// instead just set the variable's DWARF scoping info earlier so
 			// we can give it the correct position information.
 			pos := clause.Pos()
-			if typs := unpackListExpr(clause.Cases); len(typs) != 0 {
+			if typs := syntax.UnpackListExpr(clause.Cases); len(typs) != 0 {
 				pos = typeExprEndPos(typs[len(typs)-1])
 			}
 			w.pos(pos)
@@ -1612,7 +1725,7 @@ func (w *writer) optLabel(label *syntax.Name) {
 func (w *writer) expr(expr syntax.Expr) {
 	base.Assertf(expr != nil, "missing expression")
 
-	expr = unparen(expr) // skip parens; unneeded after typecheck
+	expr = syntax.Unparen(expr) // skip parens; unneeded after typecheck
 
 	obj, inst := lookupObj(w.p, expr)
 	targs := inst.TypeArgs
@@ -1629,16 +1742,11 @@ func (w *writer) expr(expr syntax.Expr) {
 			assert(typ != nil)
 			w.typ(typ)
 			w.Value(tv.Value)
-
-			// TODO(mdempsky): These details are only important for backend
-			// diagnostics. Explore writing them out separately.
-			w.op(constExprOp(expr))
-			w.String(syntax.String(expr))
 			return
 		}
 
 		if _, isNil := obj.(*types2.Nil); isNil {
-			w.Code(exprNil)
+			w.Code(exprZero)
 			w.pos(expr)
 			w.typ(tv.Type)
 			return
@@ -1851,6 +1959,39 @@ func (w *writer) expr(expr syntax.Expr) {
 				w.exprType(nil, expr.ArgList[0])
 				return
 
+			case "Sizeof":
+				assert(len(expr.ArgList) == 1)
+				assert(!expr.HasDots)
+
+				w.Code(exprSizeof)
+				w.pos(expr)
+				w.typ(w.p.typeOf(expr.ArgList[0]))
+				return
+
+			case "Alignof":
+				assert(len(expr.ArgList) == 1)
+				assert(!expr.HasDots)
+
+				w.Code(exprAlignof)
+				w.pos(expr)
+				w.typ(w.p.typeOf(expr.ArgList[0]))
+				return
+
+			case "Offsetof":
+				assert(len(expr.ArgList) == 1)
+				assert(!expr.HasDots)
+				selector := syntax.Unparen(expr.ArgList[0]).(*syntax.SelectorExpr)
+				index := w.p.info.Selections[selector].Index()
+
+				w.Code(exprOffsetof)
+				w.pos(expr)
+				w.typ(deref2(w.p.typeOf(selector.X)))
+				w.Len(len(index) - 1)
+				for _, idx := range index {
+					w.Len(idx)
+				}
+				return
+
 			case "append":
 				rtype = sliceElem(w.p.typeOf(expr))
 			case "copy":
@@ -1871,7 +2012,7 @@ func (w *writer) expr(expr syntax.Expr) {
 		}
 
 		writeFunExpr := func() {
-			fun := unparen(expr.Fun)
+			fun := syntax.Unparen(expr.Fun)
 
 			if selector, ok := fun.(*syntax.SelectorExpr); ok {
 				if sel, ok := w.p.info.Selections[selector]; ok && sel.Kind() == types2.MethodVal {
@@ -2185,7 +2326,7 @@ type posVar struct {
 
 func (w *writer) exprList(expr syntax.Expr) {
 	w.Sync(pkgbits.SyncExprList)
-	w.exprs(unpackListExpr(expr))
+	w.exprs(syntax.UnpackListExpr(expr))
 }
 
 func (w *writer) exprs(exprs []syntax.Expr) {
@@ -2478,6 +2619,8 @@ func (w *writer) pkgInit(noders []*noder) {
 		w.Strings(cgoPragma)
 	}
 
+	w.pkgInitOrder()
+
 	w.Sync(pkgbits.SyncDecls)
 	for _, p := range noders {
 		for _, decl := range p.file.DeclList {
@@ -2487,6 +2630,18 @@ func (w *writer) pkgInit(noders []*noder) {
 	w.Code(declEnd)
 
 	w.Sync(pkgbits.SyncEOF)
+}
+
+func (w *writer) pkgInitOrder() {
+	// TODO(mdempsky): Write as a function body instead?
+	w.Len(len(w.p.info.InitOrder))
+	for _, init := range w.p.info.InitOrder {
+		w.Len(len(init.Lhs))
+		for _, v := range init.Lhs {
+			w.obj(v, nil)
+		}
+		w.expr(init.Rhs)
+	}
 }
 
 func (w *writer) pkgDecl(decl syntax.Decl) {
@@ -2543,15 +2698,7 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 
 	case *syntax.VarDecl:
 		w.Code(declVar)
-		w.pos(decl)
 		w.pkgObjs(decl.NameList...)
-
-		// TODO(mdempsky): It would make sense to use multiExpr here, but
-		// that results in IR that confuses pkginit/initorder.go. So we
-		// continue using exprList, and let typecheck handle inserting any
-		// implicit conversions. That's okay though, because package-scope
-		// assignments never require dictionaries.
-		w.exprList(decl.Values)
 
 		var embeds []pragmaEmbed
 		if p, ok := decl.Pragma.(*pragmas); ok {
@@ -2580,12 +2727,67 @@ func (w *writer) pkgObjs(names ...*syntax.Name) {
 
 // @@@ Helpers
 
+// staticBool analyzes a boolean expression and reports whether it's
+// always true (positive result), always false (negative result), or
+// unknown (zero).
+//
+// It also simplifies the expression while preserving semantics, if
+// possible.
+func (pw *pkgWriter) staticBool(ep *syntax.Expr) int {
+	if val := pw.typeAndValue(*ep).Value; val != nil {
+		if constant.BoolVal(val) {
+			return +1
+		} else {
+			return -1
+		}
+	}
+
+	if e, ok := (*ep).(*syntax.Operation); ok {
+		switch e.Op {
+		case syntax.Not:
+			return pw.staticBool(&e.X)
+
+		case syntax.AndAnd:
+			x := pw.staticBool(&e.X)
+			if x < 0 {
+				*ep = e.X
+				return x
+			}
+
+			y := pw.staticBool(&e.Y)
+			if x > 0 || y < 0 {
+				if pw.typeAndValue(e.X).Value != nil {
+					*ep = e.Y
+				}
+				return y
+			}
+
+		case syntax.OrOr:
+			x := pw.staticBool(&e.X)
+			if x > 0 {
+				*ep = e.X
+				return x
+			}
+
+			y := pw.staticBool(&e.Y)
+			if x < 0 || y > 0 {
+				if pw.typeAndValue(e.X).Value != nil {
+					*ep = e.Y
+				}
+				return y
+			}
+		}
+	}
+
+	return 0
+}
+
 // hasImplicitTypeParams reports whether obj is a defined type with
 // implicit type parameters (e.g., declared within a generic function
 // or method).
-func (p *pkgWriter) hasImplicitTypeParams(obj *types2.TypeName) bool {
-	if obj.Pkg() == p.curpkg {
-		decl, ok := p.typDecls[obj]
+func (pw *pkgWriter) hasImplicitTypeParams(obj *types2.TypeName) bool {
+	if obj.Pkg() == pw.curpkg {
+		decl, ok := pw.typDecls[obj]
 		assert(ok)
 		if len(decl.implicits) != 0 {
 			return true
@@ -2614,7 +2816,7 @@ func isGlobal(obj types2.Object) bool {
 // object is returned as well.
 func lookupObj(p *pkgWriter, expr syntax.Expr) (obj types2.Object, inst types2.Instance) {
 	if index, ok := expr.(*syntax.IndexExpr); ok {
-		args := unpackListExpr(index.Index)
+		args := syntax.UnpackListExpr(index.Index)
 		if len(args) == 1 {
 			tv := p.typeAndValue(args[0])
 			if tv.IsValue() {
@@ -2655,6 +2857,15 @@ func isPkgQual(info *types2.Info, sel *syntax.SelectorExpr) bool {
 func isNil(p *pkgWriter, expr syntax.Expr) bool {
 	tv := p.typeAndValue(expr)
 	return tv.IsNil()
+}
+
+// isBuiltin reports whether expr is a (possibly parenthesized)
+// referenced to the specified built-in function.
+func (pw *pkgWriter) isBuiltin(expr syntax.Expr, builtin string) bool {
+	if name, ok := syntax.Unparen(expr).(*syntax.Name); ok && name.Value == builtin {
+		return pw.typeAndValue(name).IsBuiltin()
+	}
+	return false
 }
 
 // recvBase returns the base type for the given receiver parameter.
@@ -2728,8 +2939,68 @@ func asPragmaFlag(p syntax.Pragma) ir.PragmaFlag {
 	return p.(*pragmas).Flag
 }
 
+func asWasmImport(p syntax.Pragma) *WasmImport {
+	if p == nil {
+		return nil
+	}
+	return p.(*pragmas).WasmImport
+}
+
 // isPtrTo reports whether from is the type *to.
 func isPtrTo(from, to types2.Type) bool {
 	ptr, ok := from.(*types2.Pointer)
 	return ok && types2.Identical(ptr.Elem(), to)
+}
+
+// hasFallthrough reports whether stmts ends in a fallthrough
+// statement.
+func hasFallthrough(stmts []syntax.Stmt) bool {
+	last, ok := lastNonEmptyStmt(stmts).(*syntax.BranchStmt)
+	return ok && last.Tok == syntax.Fallthrough
+}
+
+// lastNonEmptyStmt returns the last non-empty statement in list, if
+// any.
+func lastNonEmptyStmt(stmts []syntax.Stmt) syntax.Stmt {
+	for i := len(stmts) - 1; i >= 0; i-- {
+		stmt := stmts[i]
+		if _, ok := stmt.(*syntax.EmptyStmt); !ok {
+			return stmt
+		}
+	}
+	return nil
+}
+
+// terminates reports whether stmt terminates normal control flow
+// (i.e., does not merely advance to the following statement).
+func (pw *pkgWriter) terminates(stmt syntax.Stmt) bool {
+	switch stmt := stmt.(type) {
+	case *syntax.BranchStmt:
+		if stmt.Tok == syntax.Goto {
+			return true
+		}
+	case *syntax.ReturnStmt:
+		return true
+	case *syntax.ExprStmt:
+		if call, ok := syntax.Unparen(stmt.X).(*syntax.CallExpr); ok {
+			if pw.isBuiltin(call.Fun, "panic") {
+				return true
+			}
+		}
+
+		// The handling of BlockStmt here is approximate, but it serves to
+		// allow dead-code elimination for:
+		//
+		//	if true {
+		//		return x
+		//	}
+		//	unreachable
+	case *syntax.IfStmt:
+		cond := pw.staticBool(&stmt.Cond)
+		return (cond < 0 || pw.terminates(stmt.Then)) && (cond > 0 || pw.terminates(stmt.Else))
+	case *syntax.BlockStmt:
+		return pw.terminates(lastNonEmptyStmt(stmt.List))
+	}
+
+	return false
 }

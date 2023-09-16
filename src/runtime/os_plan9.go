@@ -69,11 +69,6 @@ func errstr() string
 
 type _Plink uintptr
 
-//go:linkname os_sigpipe os.sigpipe
-func os_sigpipe() {
-	throw("too many writes on closed pipe")
-}
-
 func sigpanic() {
 	gp := getg()
 	if !canpanic() {
@@ -319,9 +314,9 @@ func getpid() uint64 {
 }
 
 func osinit() {
+	physPageSize = getPageSize()
 	initBloc()
 	ncpu = getproccount()
-	physPageSize = getPageSize()
 	getg().m.procid = getpid()
 }
 

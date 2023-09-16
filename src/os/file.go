@@ -158,11 +158,19 @@ func (f *File) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func genericReadFrom(f *File, r io.Reader) (int64, error) {
-	return io.Copy(onlyWriter{f}, r)
+	return io.Copy(fileWithoutReadFrom{f}, r)
 }
 
-type onlyWriter struct {
-	io.Writer
+// fileWithoutReadFrom implements all the methods of *File other
+// than ReadFrom. This is used to permit ReadFrom to call io.Copy
+// without leading to a recursive call to ReadFrom.
+type fileWithoutReadFrom struct {
+	*File
+}
+
+// This ReadFrom method hides the *File ReadFrom method.
+func (fileWithoutReadFrom) ReadFrom(fileWithoutReadFrom) {
+	panic("unreachable")
 }
 
 // Write writes len(b) bytes from b to the File.
@@ -338,6 +346,7 @@ var lstat = Lstat
 // Rename renames (moves) oldpath to newpath.
 // If newpath already exists and is not a directory, Rename replaces it.
 // OS-specific restrictions may apply when oldpath and newpath are in different directories.
+// Even within the same directory, on non-Unix platforms Rename is not an atomic operation.
 // If there is an error, it will be of type *LinkError.
 func Rename(oldpath, newpath string) error {
 	return rename(oldpath, newpath)
@@ -352,6 +361,10 @@ func fixCount(n int, err error) (int, error) {
 	return n, err
 }
 
+// checkWrapErr is the test hook to enable checking unexpected wrapped errors of poll.ErrFileClosing.
+// It is set to true in the export_test.go for tests (including fuzz tests).
+var checkWrapErr = false
+
 // wrapErr wraps an error that occurred during an operation on an open file.
 // It passes io.EOF through unchanged, otherwise converts
 // poll.ErrFileClosing to ErrClosed and wraps the error in a PathError.
@@ -361,6 +374,8 @@ func (f *File) wrapErr(op string, err error) error {
 	}
 	if err == poll.ErrFileClosing {
 		err = ErrClosed
+	} else if checkWrapErr && errors.Is(err, poll.ErrFileClosing) {
+		panic("unexpected error wrapping poll.ErrFileClosing: " + err.Error())
 	}
 	return &PathError{Op: op, Path: f.name, Err: err}
 }
@@ -485,6 +500,9 @@ func UserConfigDir() (string, error) {
 // On Unix, including macOS, it returns the $HOME environment variable.
 // On Windows, it returns %USERPROFILE%.
 // On Plan 9, it returns the $home environment variable.
+//
+// If the expected variable is not set in the environment, UserHomeDir
+// returns either a platform-specific default value or a non-nil error.
 func UserHomeDir() (string, error) {
 	env, enverr := "HOME", "$HOME"
 	switch runtime.GOOS {
@@ -598,21 +616,10 @@ func (f *File) SyscallConn() (syscall.RawConn, error) {
 //
 // The directory dir must not be "".
 //
-// The result implements fs.StatFS.
+// The result implements [io/fs.StatFS], [io/fs.ReadFileFS] and
+// [io/fs.ReadDirFS].
 func DirFS(dir string) fs.FS {
 	return dirFS(dir)
-}
-
-// containsAny reports whether any bytes in chars are within s.
-func containsAny(s, chars string) bool {
-	for i := 0; i < len(s); i++ {
-		for j := 0; j < len(chars); j++ {
-			if s[i] == chars[j] {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 type dirFS string
@@ -632,6 +639,28 @@ func (dir dirFS) Open(name string) (fs.File, error) {
 		return nil, err
 	}
 	return f, nil
+}
+
+// The ReadFile method calls the [ReadFile] function for the file
+// with the given name in the directory. The function provides
+// robust handling for small files and special file systems.
+// Through this method, dirFS implements [io/fs.ReadFileFS].
+func (dir dirFS) ReadFile(name string) ([]byte, error) {
+	fullname, err := dir.join(name)
+	if err != nil {
+		return nil, &PathError{Op: "readfile", Path: name, Err: err}
+	}
+	return ReadFile(fullname)
+}
+
+// ReadDir reads the named directory, returning all its directory entries sorted
+// by filename. Through this method, dirFS implements [io/fs.ReadDirFS].
+func (dir dirFS) ReadDir(name string) ([]DirEntry, error) {
+	fullname, err := dir.join(name)
+	if err != nil {
+		return nil, &PathError{Op: "readdir", Path: name, Err: err}
+	}
+	return ReadDir(fullname)
 }
 
 func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
@@ -696,10 +725,6 @@ func ReadFile(name string) ([]byte, error) {
 
 	data := make([]byte, 0, size)
 	for {
-		if len(data) >= cap(data) {
-			d := append(data[:cap(data)], 0)
-			data = d[:len(data)]
-		}
 		n, err := f.Read(data[len(data):cap(data)])
 		data = data[:len(data)+n]
 		if err != nil {
@@ -708,13 +733,18 @@ func ReadFile(name string) ([]byte, error) {
 			}
 			return data, err
 		}
+
+		if len(data) >= cap(data) {
+			d := append(data[:cap(data)], 0)
+			data = d[:len(data)]
+		}
 	}
 }
 
 // WriteFile writes data to the named file, creating it if necessary.
 // If the file does not exist, WriteFile creates it with permissions perm (before umask);
 // otherwise WriteFile truncates it before writing, without changing permissions.
-// Since Writefile requires multiple system calls to complete, a failure mid-operation
+// Since WriteFile requires multiple system calls to complete, a failure mid-operation
 // can leave the file in a partially written state.
 func WriteFile(name string, data []byte, perm FileMode) error {
 	f, err := OpenFile(name, O_WRONLY|O_CREATE|O_TRUNC, perm)

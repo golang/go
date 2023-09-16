@@ -304,7 +304,8 @@
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 (GetCallerSP ...) => (LoweredGetCallerSP ...)
 (Addr {sym} base) => (LoweredAddr {sym} [0] base)
-(LocalAddr {sym} base _) => (LoweredAddr {sym} base)
+(LocalAddr <t> {sym} base mem) && t.Elem().HasPointers() => (LoweredAddr {sym} (SPanchored base mem))
+(LocalAddr <t> {sym} base _)  && !t.Elem().HasPointers() => (LoweredAddr {sym} base)
 
 // Write barrier.
 (WB ...) => (LoweredWB ...)
@@ -371,7 +372,7 @@
 (I64LeU (I64Const [1]) x) => (I64Eqz (I64Eqz x))
 (I64Ne x (I64Const [0])) => (I64Eqz (I64Eqz x))
 
-(I64Add x (I64Const [y])) => (I64AddConst [y] x)
+(I64Add x (I64Const <t> [y])) && !t.IsPtr() => (I64AddConst [y] x)
 (I64AddConst [0] x) => x
 (I64Eqz (I64Eqz (I64Eqz x))) => (I64Eqz x)
 

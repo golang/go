@@ -1,0 +1,28 @@
+# Commands in an old module with no go line and no toolchain line,
+# or with only a go line, should succeed.
+# (They should not fail due to the go.mod not being tidy.)
+
+# No go line, no toolchain line.
+go list
+
+# Old go line, no toolchain line.
+go mod edit -go=1.16
+go list
+
+go mod edit -go=1.20
+go list
+
+# New go line, no toolchain line, using same toolchain.
+env TESTGO_VERSION=1.21
+go mod edit -go=1.21
+go list
+
+# New go line, no toolchain line, using newer Go version.
+# (Until we need to update the go line, no toolchain addition.)
+env TESTGO_VERSION=1.21.0
+go list
+
+-- go.mod --
+module m
+-- p.go --
+package p

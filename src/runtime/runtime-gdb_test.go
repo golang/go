@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/abi"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -33,8 +34,6 @@ func checkGdbEnvironment(t *testing.T) {
 		t.Skip("gdb does not work on darwin")
 	case "netbsd":
 		t.Skip("gdb does not work with threads on NetBSD; see https://golang.org/issue/22893 and https://gnats.netbsd.org/52548")
-	case "windows":
-		t.Skip("gdb tests fail on Windows: https://golang.org/issue/22687")
 	case "linux":
 		if runtime.GOARCH == "ppc64" {
 			t.Skip("skipping gdb tests on linux/ppc64; see https://golang.org/issue/17366")
@@ -114,13 +113,16 @@ func checkCleanBacktrace(t *testing.T, backtrace string) {
 	// TODO(mundaym): check for unknown frames (e.g. "??").
 }
 
-const helloSource = `
+// NOTE: the maps below are allocated larger than abi.MapBucketCount
+// to ensure that they are not "optimized out".
+
+var helloSource = `
 import "fmt"
 import "runtime"
 var gslice []string
 func main() {
-	mapvar := make(map[string]string, 13)
-	slicemap := make(map[string][]string,11)
+	mapvar := make(map[string]string, ` + strconv.FormatInt(abi.MapBucketCount+9, 10) + `)
+	slicemap := make(map[string][]string,` + strconv.FormatInt(abi.MapBucketCount+3, 10) + `)
     chanint := make(chan int, 10)
     chanstr := make(chan string, 10)
     chanint <- 99
@@ -468,15 +470,19 @@ func TestGdbBacktrace(t *testing.T) {
 	got, err := cmd.CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
-		if bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")) {
+		switch {
+		case bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")):
 			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=28551
 			testenv.SkipFlaky(t, 43068)
-		}
-		if bytes.Contains(got, []byte("Couldn't get registers: No such process.")) {
+		case bytes.Contains(got, []byte("Couldn't get registers: No such process.")),
+			bytes.Contains(got, []byte("Unable to fetch general registers.: No such process.")),
+			bytes.Contains(got, []byte("reading register pc (#64): No such process.")):
 			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=9086
 			testenv.SkipFlaky(t, 50838)
-		}
-		if bytes.Contains(got, []byte(" exited normally]\n")) {
+		case bytes.Contains(got, []byte("waiting for new child: No child processes.")):
+			// GDB bug: Sometimes it fails to wait for a clone child.
+			testenv.SkipFlaky(t, 60553)
+		case bytes.Contains(got, []byte(" exited normally]\n")):
 			// GDB bug: Sometimes the inferior exits fine,
 			// but then GDB hangs.
 			testenv.SkipFlaky(t, 37405)
@@ -658,6 +664,10 @@ func TestGdbPanic(t *testing.T) {
 	checkGdbEnvironment(t)
 	t.Parallel()
 	checkGdbVersion(t)
+
+	if runtime.GOOS == "windows" {
+		t.Skip("no signals on windows")
+	}
 
 	dir := t.TempDir()
 

@@ -253,13 +253,17 @@ func (s *Scanner) updateLineInfo(next, offs int, text []byte) {
 		return
 	}
 
+	// Put a cap on the maximum size of line and column numbers.
+	// 30 bits allows for some additional space before wrapping an int32.
+	// Keep this consistent with cmd/compile/internal/syntax.PosMax.
+	const maxLineCol = 1 << 30
 	var line, col int
 	i2, n2, ok2 := trailingDigits(text[:i-1])
 	if ok2 {
 		//line filename:line:col
 		i, i2 = i2, i
 		line, col = n2, n
-		if col == 0 {
+		if col == 0 || col > maxLineCol {
 			s.error(offs+i2, "invalid column number: "+string(text[i2:]))
 			return
 		}
@@ -269,7 +273,7 @@ func (s *Scanner) updateLineInfo(next, offs int, text []byte) {
 		line = n
 	}
 
-	if line == 0 {
+	if line == 0 || line > maxLineCol {
 		s.error(offs+i, "invalid line number: "+string(text[i:]))
 		return
 	}
@@ -939,7 +943,13 @@ scanAgain:
 		default:
 			// next reports unexpected BOMs - don't repeat
 			if ch != bom {
-				s.errorf(s.file.Offset(pos), "illegal character %#U", ch)
+				// Report an informative error for U+201[CD] quotation
+				// marks, which are easily introduced via copy and paste.
+				if ch == '“' || ch == '”' {
+					s.errorf(s.file.Offset(pos), "curly quotation mark %q (use neutral %q)", ch, '"')
+				} else {
+					s.errorf(s.file.Offset(pos), "illegal character %#U", ch)
+				}
 			}
 			insertSemi = s.insertSemi // preserve insertSemi info
 			tok = token.ILLEGAL

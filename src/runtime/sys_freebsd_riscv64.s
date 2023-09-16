@@ -13,11 +13,6 @@
 
 #define CLOCK_REALTIME		0
 #define CLOCK_MONOTONIC		4
-#define FD_CLOEXEC		1
-#define F_SETFD			2
-#define F_GETFL			3
-#define F_SETFL			4
-#define O_NONBLOCK		4
 
 #define SYS_exit		1
 #define SYS_read		3
@@ -33,6 +28,7 @@
 #define SYS_fcntl		92
 #define SYS___sysctl		202
 #define SYS_nanosleep		240
+#define SYS_issetugid		253
 #define SYS_clock_gettime	232
 #define SYS_sched_yield		331
 #define SYS_sigprocmask		340
@@ -420,13 +416,21 @@ ok:
 	MOVW	A0, ret+48(FP)
 	RET
 
-// func closeonexec(fd int32)
-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+// func fcntl(fd, cmd, arg int32) (int32, int32)
+TEXT runtime·fcntl(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), A0
-	MOV	$F_SETFD, A1
-	MOV	$FD_CLOEXEC, A2
+	MOVW	cmd+4(FP), A1
+	MOVW	arg+8(FP), A2
 	MOV	$SYS_fcntl, T0
 	ECALL
+	BEQ	T0, ZERO, noerr
+	MOV	$-1, A1
+	MOVW	A1, ret+16(FP)
+	MOVW	A0, errno+20(FP)
+	RET
+noerr:
+	MOVW	A0, ret+16(FP)
+	MOVW	ZERO, errno+20(FP)
 	RET
 
 // func getCntxct() uint32
@@ -434,3 +438,11 @@ TEXT runtime·getCntxct(SB),NOSPLIT|NOFRAME,$0
 	RDTIME	A0
 	MOVW	A0, ret+0(FP)
 	RET
+
+// func issetugid() int32
+TEXT runtime·issetugid(SB),NOSPLIT|NOFRAME,$0
+	MOV $SYS_issetugid, T0
+	ECALL
+	MOVW	A0, ret+0(FP)
+	RET
+

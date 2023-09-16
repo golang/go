@@ -8,13 +8,15 @@
 // The filepath package uses either forward slashes or backslashes,
 // depending on the operating system. To process paths such as URLs
 // that always use forward slashes regardless of the operating
-// system, see the path package.
+// system, see the [path] package.
 package filepath
 
 import (
 	"errors"
 	"io/fs"
 	"os"
+	"runtime"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -51,6 +53,11 @@ func (b *lazybuf) append(c byte) {
 	b.w++
 }
 
+func (b *lazybuf) prepend(prefix ...byte) {
+	b.buf = slices.Insert(b.buf, 0, prefix...)
+	b.w += len(prefix)
+}
+
 func (b *lazybuf) string() string {
 	if b.buf == nil {
 		return b.volAndPath[:b.volLen+b.w]
@@ -82,6 +89,10 @@ const (
 //
 // If the result of this process is an empty string, Clean
 // returns the string ".".
+//
+// On Windows, Clean does not modify the volume name other than to replace
+// occurrences of "/" with `\`.
+// For example, Clean("//host/share/../x") returns `\\host\share\x`.
 //
 // See also Rob Pike, “Lexical File Names in Plan 9 or
 // Getting Dot-Dot Right,”
@@ -117,21 +128,9 @@ func Clean(path string) string {
 		case os.IsPathSeparator(path[r]):
 			// empty path element
 			r++
-		case path[r] == '.' && r+1 == n:
+		case path[r] == '.' && (r+1 == n || os.IsPathSeparator(path[r+1])):
 			// . element
 			r++
-		case path[r] == '.' && os.IsPathSeparator(path[r+1]):
-			// ./ element
-			r++
-
-			for r < len(path) && os.IsPathSeparator(path[r]) {
-				r++
-			}
-			if out.w == 0 && volumeNameLen(path[r:]) > 0 {
-				// When joining prefix "." and an absolute path on Windows,
-				// the prefix should not be removed.
-				out.append('.')
-			}
 		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || os.IsPathSeparator(path[r+2])):
 			// .. element: remove to last separator
 			r += 2
@@ -167,6 +166,21 @@ func Clean(path string) string {
 	// Turn empty string into "."
 	if out.w == 0 {
 		out.append('.')
+	}
+
+	if runtime.GOOS == "windows" && out.volLen == 0 && out.buf != nil {
+		// If a ':' appears in the path element at the start of a Windows path,
+		// insert a .\ at the beginning to avoid converting relative paths
+		// like a/../c: into c:.
+		for _, c := range out.buf {
+			if os.IsPathSeparator(c) {
+				break
+			}
+			if c == ':' {
+				out.prepend('.', Separator)
+				break
+			}
+		}
 	}
 
 	return FromSlash(out.string())
@@ -531,22 +545,13 @@ func WalkDir(root string, fn fs.WalkDirFunc) error {
 	if err != nil {
 		err = fn(root, nil, err)
 	} else {
-		err = walkDir(root, &statDirEntry{info}, fn)
+		err = walkDir(root, fs.FileInfoToDirEntry(info), fn)
 	}
 	if err == SkipDir || err == SkipAll {
 		return nil
 	}
 	return err
 }
-
-type statDirEntry struct {
-	info fs.FileInfo
-}
-
-func (d *statDirEntry) Name() string               { return d.info.Name() }
-func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
-func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
-func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
 
 // Walk walks the file tree rooted at root, calling fn for each file or
 // directory in the tree, including root.

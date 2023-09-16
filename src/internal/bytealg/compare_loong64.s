@@ -48,6 +48,7 @@ entry:
 	AND	$7, R15
 	BNE	R0, R15, byte_loop
 
+	PCALIGN	$16
 chunk16_loop:
 	BEQ	R0, R14, byte_loop
 	MOVV	(R6), R8

@@ -263,7 +263,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := saferio.SliceCap((*Load)(nil), uint64(f.Ncmd))
+	c := saferio.SliceCap[Load](uint64(f.Ncmd))
 	if c < 0 {
 		return nil, &FormatError{offset, "too many load commands", nil}
 	}
@@ -323,8 +323,8 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			if err := binary.Read(b, bo, &hdr); err != nil {
 				return nil, err
 			}
-			strtab := make([]byte, hdr.Strsize)
-			if _, err := r.ReadAt(strtab, int64(hdr.Stroff)); err != nil {
+			strtab, err := saferio.ReadDataAt(r, uint64(hdr.Strsize), int64(hdr.Stroff))
+			if err != nil {
 				return nil, err
 			}
 			var symsz int
@@ -350,7 +350,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			if err := binary.Read(b, bo, &hdr); err != nil {
 				return nil, err
 			}
-			if hdr.Iundefsym > uint32(len(f.Symtab.Syms)) {
+			if f.Symtab == nil {
+				return nil, &FormatError{offset, "dynamic symbol table seen before any ordinary symbol table", nil}
+			} else if hdr.Iundefsym > uint32(len(f.Symtab.Syms)) {
 				return nil, &FormatError{offset, fmt.Sprintf(
 					"undefined symbols index in dynamic symbol table command is greater than symbol table length (%d > %d)",
 					hdr.Iundefsym, len(f.Symtab.Syms)), nil}
@@ -359,8 +361,8 @@ func NewFile(r io.ReaderAt) (*File, error) {
 					"number of undefined symbols after index in dynamic symbol table command is greater than symbol table length (%d > %d)",
 					hdr.Iundefsym+hdr.Nundefsym, len(f.Symtab.Syms)), nil}
 			}
-			dat := make([]byte, hdr.Nindirectsyms*4)
-			if _, err := r.ReadAt(dat, int64(hdr.Indirectsymoff)); err != nil {
+			dat, err := saferio.ReadDataAt(r, uint64(hdr.Nindirectsyms)*4, int64(hdr.Indirectsymoff))
+			if err != nil {
 				return nil, err
 			}
 			x := make([]uint32, hdr.Nindirectsyms)
@@ -470,7 +472,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 
 func (f *File) parseSymtab(symdat, strtab, cmddat []byte, hdr *SymtabCmd, offset int64) (*Symtab, error) {
 	bo := f.ByteOrder
-	c := saferio.SliceCap((*Symbol)(nil), uint64(hdr.Nsyms))
+	c := saferio.SliceCap[Symbol](uint64(hdr.Nsyms))
 	if c < 0 {
 		return nil, &FormatError{offset, "too many symbols", nil}
 	}

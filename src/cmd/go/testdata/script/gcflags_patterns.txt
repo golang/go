@@ -3,17 +3,15 @@ env GO111MODULE=off
 [!compiler:gc] skip 'using -gcflags and -ldflags'
 [short] skip
 
-env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
-
 # -gcflags=-e applies to named packages, not dependencies
-go build -n -v -gcflags=-e z1 z2
+go build -a -n -v -gcflags=-e z1 z2
 stderr 'compile.* -p z1.* -e '
 stderr 'compile.* -p z2.* -e '
 stderr 'compile.* -p y'
 ! stderr 'compile.* -p [^z].* -e '
 
 # -gcflags can specify package=flags, and can be repeated; last match wins
-go build -n -v -gcflags=-e -gcflags=z1=-N z1 z2
+go build -a -n -v -gcflags=-e -gcflags=z1=-N z1 z2
 stderr 'compile.* -p z1.* -N '
 ! stderr 'compile.* -p z1.* -e '
 ! stderr 'compile.* -p z2.* -N '
@@ -23,11 +21,11 @@ stderr 'compile.* -p y'
 ! stderr 'compile.* -p [^z].* -N '
 
 # -gcflags can have arbitrary spaces around the flags
-go build -n -v -gcflags='  z1 =  	-e 	' z1
+go build -a -n -v -gcflags='  z1 =  	-e 	' z1
 stderr 'compile.* -p z1.* -e '
 
 # -gcflags='all=-e' should apply to all packages, even with go test
-go test -c -n -gcflags='all=-e' z1
+go test -a -c -n -gcflags='all=-e' z1
 stderr 'compile.* -p z3.* -e '
 
 # this particular -gcflags argument made the compiler crash
@@ -39,31 +37,31 @@ stderr 'PhaseOptions usage'
 stderr 'invalid value'
 
 # -ldflags for implicit test package applies to test binary
-go test -c -n -gcflags=-N -ldflags=-X=x.y=z z1
+go test -a -c -n -gcflags=-N -ldflags=-X=x.y=z z1
 stderr 'compile.* -N .*z_test.go'
 stderr 'link.* -X=x.y=z'
 
 # -ldflags for explicit test package applies to test binary
-go test -c -n -gcflags=z1=-N -ldflags=z1=-X=x.y=z z1
+go test -a -c -n -gcflags=z1=-N -ldflags=z1=-X=x.y=z z1
 stderr 'compile.* -N .*z_test.go'
 stderr 'link.* -X=x.y=z'
 
 # -ldflags applies to link of command
-go build -n -ldflags=-X=math.pi=3 my/cmd/prog
+go build -a -n -ldflags=-X=math.pi=3 my/cmd/prog
 stderr 'link.* -X=math.pi=3'
 
 # -ldflags applies to link of command even with strange directory name
-go build -n -ldflags=-X=math.pi=3 my/cmd/prog/
+go build -a -n -ldflags=-X=math.pi=3 my/cmd/prog/
 stderr 'link.* -X=math.pi=3'
 
 # -ldflags applies to current directory
 cd my/cmd/prog
-go build -n -ldflags=-X=math.pi=3
+go build -a -n -ldflags=-X=math.pi=3
 stderr 'link.* -X=math.pi=3'
 
 # -ldflags applies to current directory even if GOPATH is funny
 [!case-sensitive] cd $WORK/GoPath/src/my/cmd/prog
-go build -n -ldflags=-X=math.pi=3
+go build -a -n -ldflags=-X=math.pi=3
 stderr 'link.* -X=math.pi=3'
 
 # cgo.a should not be a dependency of internally-linked go package

@@ -340,7 +340,7 @@ func TestPIESize(t *testing.T) {
 					t.Logf("%s", out)
 				}
 				if err != nil {
-					t.Error(err)
+					t.Log(err)
 				}
 				return err
 			}
@@ -358,6 +358,9 @@ func TestPIESize(t *testing.T) {
 			}()
 			wg.Wait()
 			if errexe != nil || errpie != nil {
+				if runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
+					testenv.SkipFlaky(t, 58806)
+				}
 				t.Fatal("link failed")
 			}
 
@@ -493,5 +496,30 @@ func TestIssue51939(t *testing.T) {
 		if s.Flags&elf.SHF_ALLOC == 0 && s.Addr != 0 {
 			t.Errorf("section %s should not allocated with addr %x", s.Name, s.Addr)
 		}
+	}
+}
+
+func TestFlagR(t *testing.T) {
+	// Test that using the -R flag to specify a (large) alignment generates
+	// a working binary.
+	// (Test only on ELF for now. The alignment allowed differs from platform
+	// to platform.)
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(goSource), 0444); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "x.exe")
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-R=0x100000", "-o", exe, src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed: %v, output:\n%s", err, out)
+	}
+
+	cmd = testenv.Command(t, exe)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
 	}
 }

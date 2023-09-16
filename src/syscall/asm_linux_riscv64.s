@@ -8,11 +8,11 @@
 // System calls for riscv64, Linux
 //
 
-// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
-TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-40
+// func rawVforkSyscall(trap, a1, a2, a3 uintptr) (r1, err uintptr)
+TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-48
 	MOV	a1+8(FP), A0
 	MOV	a2+16(FP), A1
-	MOV	ZERO, A2
+	MOV	a3+24(FP), A2
 	MOV	ZERO, A3
 	MOV	ZERO, A4
 	MOV	ZERO, A5
@@ -20,14 +20,14 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-40
 	ECALL
 	MOV	$-4096, T0
 	BLTU	T0, A0, err
-	MOV	A0, r1+24(FP)	// r1
-	MOV	ZERO, err+32(FP)	// errno
+	MOV	A0, r1+32(FP)	// r1
+	MOV	ZERO, err+40(FP)	// errno
 	RET
 err:
 	MOV	$-1, T0
-	MOV	T0, r1+24(FP)	// r1
+	MOV	T0, r1+32(FP)	// r1
 	SUB	A0, ZERO, A0
-	MOV	A0, err+32(FP)	// errno
+	MOV	A0, err+40(FP)	// errno
 	RET
 
 TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48

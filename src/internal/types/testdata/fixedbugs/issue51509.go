@@ -4,4 +4,4 @@
 
 package p
 
-type T /* ERROR invalid recursive type */ T.x
+type T /* ERROR "invalid recursive type" */ T.x

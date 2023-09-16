@@ -38,5 +38,5 @@ func use[T any](v Value[T]) {
 
 func main() {
 	tr := &taskResult{&taskDefinition{}}
-	use(Value[string](tr))
+	use[string](Value[string](tr))
 }

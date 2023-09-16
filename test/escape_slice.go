@@ -137,7 +137,7 @@ const (
 var v4InV6Prefix = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff}
 
 func IPv4(a, b, c, d byte) IP {
-	p := make(IP, IPv6len) // ERROR "make\(IP, IPv6len\) escapes to heap"
+	p := make(IP, IPv6len) // ERROR "make\(IP, 16\) escapes to heap"
 	copy(p, v4InV6Prefix)
 	p[12] = a
 	p[13] = b

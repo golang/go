@@ -491,6 +491,7 @@ Read:
 		// Nothing to read right now.
 		// Return or sleep according to mode.
 		if mode == profBufNonBlocking {
+			// Necessary on Darwin, notetsleepg below does not work in signal handler, root cause of #61768.
 			return nil, nil, false
 		}
 		if !b.w.cas(bw, bw|profReaderSleeping) {

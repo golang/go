@@ -67,14 +67,14 @@
 # timing information to this file. Useful for profiling where the
 # time goes when these scripts run.
 #
-# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.17.13 for bootstrap.
+# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.20.6 for bootstrap.
 # If $GOROOT_BOOTSTRAP/bin/go is missing, $(go env GOROOT) is
-# tried for all "go" in $PATH. By default, one of $HOME/go1.17.13,
-# $HOME/sdk/go1.17.13, or $HOME/go1.4, whichever exists, in that order.
+# tried for all "go" in $PATH. By default, one of $HOME/go1.20.6,
+# $HOME/sdk/go1.20.6, or $HOME/go1.4, whichever exists, in that order.
 # We still check $HOME/go1.4 to allow for build scripts that still hard-code
 # that name even though they put newer Go toolchains there.
 
-bootgo=1.17.13
+bootgo=1.20.6
 
 set -e
 
@@ -162,16 +162,20 @@ if [ -z "$GOROOT_BOOTSTRAP" ]; then
 fi
 export GOROOT_BOOTSTRAP
 
+nogoenv() {
+	GO111MODULE=off GOENV=off GOOS= GOARCH= GOEXPERIMENT= GOFLAGS= "$@"
+}
+
 export GOROOT="$(cd .. && pwd)"
 IFS=$'\n'; for go_exe in $(type -ap go); do
 	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
-		goroot=$(GOROOT='' GOOS='' GOARCH='' "$go_exe" env GOROOT)
+		goroot=$(GOROOT= nogoenv "$go_exe" env GOROOT)
 		if [ "$goroot" != "$GOROOT" ]; then
 			if [ "$goroot_bootstrap_set" = "true" ]; then
 				printf 'WARNING: %s does not exist, found %s from env\n' "$GOROOT_BOOTSTRAP/bin/go" "$go_exe" >&2
 				printf 'WARNING: set %s as GOROOT_BOOTSTRAP\n' "$goroot" >&2
 			fi
-			GOROOT_BOOTSTRAP=$goroot
+			GOROOT_BOOTSTRAP="$goroot"
 		fi
 	fi
 done; unset IFS
@@ -183,7 +187,7 @@ fi
 # Get the exact bootstrap toolchain version to help with debugging.
 # We clear GOOS and GOARCH to avoid an ominous but harmless warning if
 # the bootstrap doesn't support them.
-GOROOT_BOOTSTRAP_VERSION=$(GOOS= GOARCH= GOEXPERIMENT= $GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //')
+GOROOT_BOOTSTRAP_VERSION=$(nogoenv "$GOROOT_BOOTSTRAP/bin/go" version | sed 's/go version //')
 echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP. ($GOROOT_BOOTSTRAP_VERSION)"
 if $verbose; then
 	echo cmd/dist
@@ -194,7 +198,7 @@ if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
 	exit 1
 fi
 rm -f cmd/dist/dist
-GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" GO111MODULE=off GOEXPERIMENT="" GOENV=off GOFLAGS="" "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
+GOROOT="$GOROOT_BOOTSTRAP" nogoenv "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
 
 # -e doesn't propagate out of eval, so check success by hand.
 eval $(./cmd/dist/dist env -p || echo FAIL=true)

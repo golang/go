@@ -14,6 +14,7 @@ TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
 	BEQ	R4, R5, eq
 	MOVV	size+16(FP), R6
 	ADDV	R4, R6, R7
+	PCALIGN	$16
 loop:
 	BNE	R4, R7, test
 	MOVV	$1, R4

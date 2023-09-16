@@ -7,9 +7,12 @@
 
 [short] skip  # -compiled can be slow (because it compiles things)
 [!cgo] skip
+[GOOS:darwin] skip # net package does not import "C" on Darwin
+[GOOS:windows] skip # net package does not import "C" on Windows
+[GOOS:plan9] skip # net package does not import "C" on Plan 9
 
 env CGO_ENABLED=1
-env GOFLAGS=-tags=netcgo  # Force net to use cgo even on Windows.
+env GOFLAGS=-tags=netcgo  # Force net to use cgo
 
 
 # "runtime/cgo [runtime.test]" appears in the test dependencies of "runtime",

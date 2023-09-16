@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm)
+//go:build unix || (js && wasm) || wasip1
 
 package os
 
@@ -70,6 +70,6 @@ func splitPath(path string) (string, string) {
 	return dirname, basename
 }
 
-func fixRootDirectory(p string) string {
-	return p
+func volumeName(p string) string {
+	return ""
 }

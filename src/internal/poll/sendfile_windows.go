@@ -15,6 +15,9 @@ func SendFile(fd *FD, src syscall.Handle, n int64) (written int64, err error) {
 		// TransmitFile does not work with pipes
 		return 0, syscall.ESPIPE
 	}
+	if ft, _ := syscall.GetFileType(src); ft == syscall.FILE_TYPE_PIPE {
+		return 0, syscall.ESPIPE
+	}
 
 	if err := fd.writeLock(); err != nil {
 		return 0, err

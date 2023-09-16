@@ -234,7 +234,7 @@ func (rng *rngSource) Int63() int64 {
 	return int64(rng.Uint64() & rngMask)
 }
 
-// Uint64 returns a non-negative pseudo-random 64-bit integer as an uint64.
+// Uint64 returns a non-negative pseudo-random 64-bit integer as a uint64.
 func (rng *rngSource) Uint64() uint64 {
 	rng.tap--
 	if rng.tap < 0 {

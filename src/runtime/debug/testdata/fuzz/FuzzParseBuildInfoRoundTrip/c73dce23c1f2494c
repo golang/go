@@ -1,0 +1,2 @@
+go test fuzz v1
+string("build\t0=\" 0\"\n")

@@ -391,6 +391,39 @@ func (n NullTime) Value() (driver.Value, error) {
 	return n.Time, nil
 }
 
+// Null represents a value that may be null.
+// Null implements the Scanner interface so
+// it can be used as a scan destination:
+//
+//	var s Null[string]
+//	err := db.QueryRow("SELECT name FROM foo WHERE id=?", id).Scan(&s)
+//	...
+//	if s.Valid {
+//	   // use s.V
+//	} else {
+//	   // NULL value
+//	}
+type Null[T any] struct {
+	V     T
+	Valid bool
+}
+
+func (n *Null[T]) Scan(value any) error {
+	if value == nil {
+		n.V, n.Valid = *new(T), false
+		return nil
+	}
+	n.Valid = true
+	return convertAssign(&n.V, value)
+}
+
+func (n Null[T]) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return n.V, nil
+}
+
 // Scanner is an interface used by Scan.
 type Scanner interface {
 	// Scan assigns a value from a database driver.
@@ -1947,20 +1980,27 @@ type Conn struct {
 	// it's returned to the connection pool.
 	dc *driverConn
 
-	// done transitions from 0 to 1 exactly once, on close.
+	// done transitions from false to true exactly once, on close.
 	// Once done, all operations fail with ErrConnDone.
-	// Use atomic operations on value when checking value.
-	done int32
+	done atomic.Bool
+
+	// releaseConn is a cache of c.closemuRUnlockCondReleaseConn
+	// to save allocations in a call to grabConn.
+	releaseConnOnce  sync.Once
+	releaseConnCache releaseConn
 }
 
 // grabConn takes a context to implement stmtConnGrabber
 // but the context is not used.
 func (c *Conn) grabConn(context.Context) (*driverConn, releaseConn, error) {
-	if atomic.LoadInt32(&c.done) != 0 {
+	if c.done.Load() {
 		return nil, nil, ErrConnDone
 	}
+	c.releaseConnOnce.Do(func() {
+		c.releaseConnCache = c.closemuRUnlockCondReleaseConn
+	})
 	c.closemu.RLock()
-	return c.dc, c.closemuRUnlockCondReleaseConn, nil
+	return c.dc, c.releaseConnCache, nil
 }
 
 // PingContext verifies the connection to the database is still alive.
@@ -2084,7 +2124,7 @@ func (c *Conn) txCtx() context.Context {
 }
 
 func (c *Conn) close(err error) error {
-	if !atomic.CompareAndSwapInt32(&c.done, 0, 1) {
+	if !c.done.CompareAndSwap(false, true) {
 		return ErrConnDone
 	}
 
@@ -2886,6 +2926,8 @@ type Rows struct {
 	cancel      func()      // called when Rows is closed, may be nil.
 	closeStmt   *driverStmt // if non-nil, statement to Close on close
 
+	contextDone atomic.Pointer[error] // error that awaitDone saw; set before close attempt
+
 	// closemu prevents Rows from closing while there
 	// is an active streaming result. It is held for read during non-close operations
 	// and exclusively during close.
@@ -2898,6 +2940,21 @@ type Rows struct {
 	// lastcols is only used in Scan, Next, and NextResultSet which are expected
 	// not to be called concurrently.
 	lastcols []driver.Value
+
+	// closemuScanHold is whether the previous call to Scan kept closemu RLock'ed
+	// without unlocking it. It does that when the user passes a *RawBytes scan
+	// target. In that case, we need to prevent awaitDone from closing the Rows
+	// while the user's still using the memory. See go.dev/issue/60304.
+	//
+	// It is only used by Scan, Next, and NextResultSet which are expected
+	// not to be called concurrently.
+	closemuScanHold bool
+
+	// hitEOF is whether Next hit the end of the rows without
+	// encountering an error. It's set in Next before
+	// returning. It's only used by Next and Err which are
+	// expected not to be called concurrently.
+	hitEOF bool
 }
 
 // lasterrOrErrLocked returns either lasterr or the provided err.
@@ -2920,22 +2977,31 @@ func (rs *Rows) initContextClose(ctx, txctx context.Context) {
 	if bypassRowsAwaitDone {
 		return
 	}
-	ctx, rs.cancel = context.WithCancel(ctx)
-	go rs.awaitDone(ctx, txctx)
+	closectx, cancel := context.WithCancel(ctx)
+	rs.cancel = cancel
+	go rs.awaitDone(ctx, txctx, closectx)
 }
 
-// awaitDone blocks until either ctx or txctx is canceled. The ctx is provided
-// from the query context and is canceled when the query Rows is closed.
+// awaitDone blocks until ctx, txctx, or closectx is canceled.
+// The ctx is provided from the query context.
 // If the query was issued in a transaction, the transaction's context
-// is also provided in txctx to ensure Rows is closed if the Tx is closed.
-func (rs *Rows) awaitDone(ctx, txctx context.Context) {
+// is also provided in txctx, to ensure Rows is closed if the Tx is closed.
+// The closectx is closed by an explicit call to rs.Close.
+func (rs *Rows) awaitDone(ctx, txctx, closectx context.Context) {
 	var txctxDone <-chan struct{}
 	if txctx != nil {
 		txctxDone = txctx.Done()
 	}
 	select {
 	case <-ctx.Done():
+		err := ctx.Err()
+		rs.contextDone.Store(&err)
 	case <-txctxDone:
+		err := txctx.Err()
+		rs.contextDone.Store(&err)
+	case <-closectx.Done():
+		// rs.cancel was called via Close(); don't store this into contextDone
+		// to ensure Err() is unaffected.
 	}
 	rs.close(ctx.Err())
 }
@@ -2947,12 +3013,24 @@ func (rs *Rows) awaitDone(ctx, txctx context.Context) {
 //
 // Every call to Scan, even the first one, must be preceded by a call to Next.
 func (rs *Rows) Next() bool {
+	// If the user's calling Next, they're done with their previous row's Scan
+	// results (any RawBytes memory), so we can release the read lock that would
+	// be preventing awaitDone from calling close.
+	rs.closemuRUnlockIfHeldByScan()
+
+	if rs.contextDone.Load() != nil {
+		return false
+	}
+
 	var doClose, ok bool
 	withLock(rs.closemu.RLocker(), func() {
 		doClose, ok = rs.nextLocked()
 	})
 	if doClose {
 		rs.Close()
+	}
+	if doClose && !ok {
+		rs.hitEOF = true
 	}
 	return ok
 }
@@ -3001,6 +3079,11 @@ func (rs *Rows) nextLocked() (doClose, ok bool) {
 // scanning. If there are further result sets they may not have rows in the result
 // set.
 func (rs *Rows) NextResultSet() bool {
+	// If the user's calling NextResultSet, they're done with their previous
+	// row's Scan results (any RawBytes memory), so we can release the read lock
+	// that would be preventing awaitDone from calling close.
+	rs.closemuRUnlockIfHeldByScan()
+
 	var doClose bool
 	defer func() {
 		if doClose {
@@ -3037,6 +3120,16 @@ func (rs *Rows) NextResultSet() bool {
 // Err returns the error, if any, that was encountered during iteration.
 // Err may be called after an explicit or implicit Close.
 func (rs *Rows) Err() error {
+	// Return any context error that might've happened during row iteration,
+	// but only if we haven't reported the final Next() = false after rows
+	// are done, in which case the user might've canceled their own context
+	// before calling Rows.Err.
+	if !rs.hitEOF {
+		if errp := rs.contextDone.Load(); errp != nil {
+			return *errp
+		}
+	}
+
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()
 	return rs.lasterrOrErrLocked(nil)
@@ -3151,7 +3244,7 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 		if prop, ok := rowsi.(driver.RowsColumnTypeScanType); ok {
 			ci.scanType = prop.ColumnTypeScanType(i)
 		} else {
-			ci.scanType = reflect.TypeOf(new(any)).Elem()
+			ci.scanType = reflect.TypeFor[any]()
 		}
 		if prop, ok := rowsi.(driver.RowsColumnTypeDatabaseTypeName); ok {
 			ci.databaseType = prop.ColumnTypeDatabaseTypeName(i)
@@ -3230,6 +3323,11 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 // If any of the first arguments implementing Scanner returns an error,
 // that error will be wrapped in the returned error.
 func (rs *Rows) Scan(dest ...any) error {
+	if rs.closemuScanHold {
+		// This should only be possible if the user calls Scan twice in a row
+		// without calling Next.
+		return fmt.Errorf("sql: Scan called without calling Next (closemuScanHold)")
+	}
 	rs.closemu.RLock()
 
 	if rs.lasterr != nil && rs.lasterr != io.EOF {
@@ -3241,21 +3339,48 @@ func (rs *Rows) Scan(dest ...any) error {
 		rs.closemu.RUnlock()
 		return err
 	}
-	rs.closemu.RUnlock()
+
+	if scanArgsContainRawBytes(dest) {
+		rs.closemuScanHold = true
+	} else {
+		rs.closemu.RUnlock()
+	}
 
 	if rs.lastcols == nil {
+		rs.closemuRUnlockIfHeldByScan()
 		return errors.New("sql: Scan called without calling Next")
 	}
 	if len(dest) != len(rs.lastcols) {
+		rs.closemuRUnlockIfHeldByScan()
 		return fmt.Errorf("sql: expected %d destination arguments in Scan, not %d", len(rs.lastcols), len(dest))
 	}
+
 	for i, sv := range rs.lastcols {
 		err := convertAssignRows(dest[i], sv, rs)
 		if err != nil {
+			rs.closemuRUnlockIfHeldByScan()
 			return fmt.Errorf(`sql: Scan error on column index %d, name %q: %w`, i, rs.rowsi.Columns()[i], err)
 		}
 	}
 	return nil
+}
+
+// closemuRUnlockIfHeldByScan releases any closemu.RLock held open by a previous
+// call to Scan with *RawBytes.
+func (rs *Rows) closemuRUnlockIfHeldByScan() {
+	if rs.closemuScanHold {
+		rs.closemuScanHold = false
+		rs.closemu.RUnlock()
+	}
+}
+
+func scanArgsContainRawBytes(args []any) bool {
+	for _, a := range args {
+		if _, ok := a.(*RawBytes); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // rowsCloseHook returns a function so tests may install the
@@ -3267,6 +3392,11 @@ var rowsCloseHook = func() func(*Rows, *error) { return nil }
 // the Rows are closed automatically and it will suffice to check the
 // result of Err. Close is idempotent and does not affect the result of Err.
 func (rs *Rows) Close() error {
+	// If the user's calling Close, they're done with their previous row's Scan
+	// results (any RawBytes memory), so we can release the read lock that would
+	// be preventing awaitDone from calling the unexported close before we do so.
+	rs.closemuRUnlockIfHeldByScan()
+
 	return rs.close(nil)
 }
 

@@ -44,13 +44,6 @@ func (m *mutator) chooseLen(n int) int {
 	}
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // mutate performs several mutations on the provided values.
 func (m *mutator) mutate(vals []any, maxBytes int) {
 	// TODO(katiehockman): pull some of these functions into helper methods and

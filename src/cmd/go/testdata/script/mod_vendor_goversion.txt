@@ -7,7 +7,7 @@
 
 go build example.net/need117
 ! go build example.net/bad114
-stderr '^bad114[/\\]bad114.go:15:2: duplicate method Y$'
+stderr '^bad114[/\\]bad114.go:15:2: duplicate method Y( .*)?$'
 
 
 # With a vendor/modules.txt lacking language versions, the world is topsy-turvy,
@@ -43,7 +43,7 @@ go build example.net/need117
 
 grep '^## explicit; go 1.13$' vendor/modules.txt
 ! go build example.net/bad114
-stderr '^vendor[/\\]example\.net[/\\]bad114[/\\]bad114.go:15:2: duplicate method Y$'
+stderr '^vendor[/\\]example\.net[/\\]bad114[/\\]bad114.go:15:2: duplicate method Y( .+)?$'
 
 -- go.mod --
 module example.net/m

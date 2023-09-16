@@ -70,6 +70,7 @@ const (
 	EntryPkgDef EntryType = iota
 	EntryGoObj
 	EntryNativeObj
+	EntrySentinelNonObj
 )
 
 func (e *Entry) String() string {
@@ -189,7 +190,7 @@ func (r *objReader) readByte() byte {
 	return b
 }
 
-// read reads exactly len(b) bytes from the input file.
+// readFull reads exactly len(b) bytes from the input file.
 // If an error occurs, read returns the error but also
 // records it, so it is safe for callers to ignore the result
 // as long as delaying the report is not a problem.
@@ -357,6 +358,23 @@ func (r *objReader) parseArchive(verbose bool) error {
 				Data:  Data{r.offset, size},
 			})
 			r.skip(size)
+		case "preferlinkext", "dynimportfail":
+			if size == 0 {
+				// These are not actual objects, but rather sentinel
+				// entries put into the archive by the Go command to
+				// be read by the linker. See #62036.
+				r.a.Entries = append(r.a.Entries, Entry{
+					Name:  name,
+					Type:  EntrySentinelNonObj,
+					Mtime: mtime,
+					Uid:   uid,
+					Gid:   gid,
+					Mode:  mode,
+					Data:  Data{r.offset, size},
+				})
+				break
+			}
+			fallthrough
 		default:
 			var typ EntryType
 			var o *GoObj
@@ -368,7 +386,10 @@ func (r *objReader) parseArchive(verbose bool) error {
 			if bytes.Equal(p, goobjHeader) {
 				typ = EntryGoObj
 				o = &GoObj{}
-				r.parseObject(o, size)
+				err := r.parseObject(o, size)
+				if err != nil {
+					return err
+				}
 			} else {
 				typ = EntryNativeObj
 				r.skip(size)

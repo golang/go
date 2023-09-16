@@ -241,3 +241,17 @@ func f9() []int {
 	y := x[:] // ERROR "removed nil check"
 	return y
 }
+
+// See issue 42673.
+func f10(p **int) int {
+	return * // ERROR "removed nil check"
+	/* */
+	*p // ERROR "removed nil check"
+}
+
+func f11(x []byte) {
+	p := (*[0]byte)(x)
+	_ = *p // ERROR "generated nil check"
+	q := (*[4]byte)(x)
+	_ = *q // ERROR "removed nil check"
+}

@@ -77,7 +77,7 @@ func newLocalListener() net.Listener {
 // When debugging a particular http server-based test,
 // this flag lets you run
 //
-//	go test -run=BrokenTest -httptest.serve=127.0.0.1:8000
+//	go test -run='^BrokenTest$' -httptest.serve=127.0.0.1:8000
 //
 // to start the broken server so you can interact with it manually.
 // We only register this flag if it looks like the caller knows about it

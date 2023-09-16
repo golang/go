@@ -22,6 +22,14 @@ import (
 // an existing (or newly allocated) Int must be set to
 // a new value using the Int.Set method; shallow copies
 // of Ints are not supported and may lead to errors.
+//
+// Note that methods may leak the Int's value through timing side-channels.
+// Because of this and because of the scope and complexity of the
+// implementation, Int is not well-suited to implement cryptographic operations.
+// The standard library avoids exposing non-trivial Int methods to
+// attacker-controlled inputs and the determination of whether a bug in math/big
+// is considered a security vulnerability might depend on the impact on the
+// standard library.
 type Int struct {
 	neg bool // sign
 	abs nat  // absolute value of the integer
@@ -440,6 +448,26 @@ func (x *Int) IsInt64() bool {
 // IsUint64 reports whether x can be represented as a uint64.
 func (x *Int) IsUint64() bool {
 	return !x.neg && len(x.abs) <= 64/_W
+}
+
+// Float64 returns the float64 value nearest x,
+// and an indication of any rounding that occurred.
+func (x *Int) Float64() (float64, Accuracy) {
+	n := x.abs.bitLen() // NB: still uses slow crypto impl!
+	if n == 0 {
+		return 0.0, Exact
+	}
+
+	// Fast path: no more than 53 significant bits.
+	if n <= 53 || n < 64 && n-int(x.abs.trailingZeroBits()) <= 53 {
+		f := float64(low64(x.abs))
+		if x.neg {
+			f = -f
+		}
+		return f, Exact
+	}
+
+	return new(Float).SetInt(x).Float64()
 }
 
 // SetString sets z to the value of s, interpreted in the given base,
@@ -974,7 +1002,7 @@ func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
 	return z
 }
 
-// modSqrt5Mod8 uses Atkin's observation that 2 is not a square mod p
+// modSqrt5Mod8Prime uses Atkin's observation that 2 is not a square mod p
 //
 //	alpha ==  (2*a)^((p-5)/8)    mod p
 //	beta  ==  2*a*alpha^2        mod p  is a square root of -1

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build openbsd && !mips64
-// +build openbsd,!mips64
+//go:build openbsd
+// +build openbsd
 
 package unix
 

@@ -6,11 +6,10 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"strconv"
 	"testing"
 )
 
@@ -21,12 +20,26 @@ func TestCGOLTO(t *testing.T) {
 
 	t.Parallel()
 
-	for _, cc := range []string{"gcc", "clang"} {
-		for test := 0; test < 2; test++ {
-			t.Run(fmt.Sprintf("%s-%d", cc, test), func(t *testing.T) {
-				testCGOLTO(t, cc, test)
-			})
+	goEnv := func(arg string) string {
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "env", arg)
+		cmd.Stderr = new(bytes.Buffer)
+
+		line, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("%v: %v\n%s", cmd, err, cmd.Stderr)
 		}
+		out := string(bytes.TrimSpace(line))
+		t.Logf("%v: %q", cmd, out)
+		return out
+	}
+
+	cc := goEnv("CC")
+	cgoCflags := goEnv("CGO_CFLAGS")
+
+	for test := 0; test < 2; test++ {
+		t.Run(strconv.Itoa(test), func(t *testing.T) {
+			testCGOLTO(t, cc, cgoCflags, test)
+		})
 	}
 }
 
@@ -79,12 +92,8 @@ func main() {
 }
 `
 
-func testCGOLTO(t *testing.T, cc string, test int) {
+func testCGOLTO(t *testing.T, cc, cgoCflags string, test int) {
 	t.Parallel()
-
-	if _, err := exec.LookPath(cc); err != nil {
-		t.Skipf("no %s compiler", cc)
-	}
 
 	dir := t.TempDir()
 
@@ -108,12 +117,10 @@ func testCGOLTO(t *testing.T, cc string, test int) {
 
 	cmd := testenv.Command(t, testenv.GoToolPath(t), "build")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(),
-		"CC="+cc,
-		"CGO_CFLAGS=-flto",
-	)
+	cgoCflags += " -flto"
+	cmd.Env = append(cmd.Environ(), "CGO_CFLAGS="+cgoCflags)
 
-	t.Log("go build")
+	t.Logf("CGO_CFLAGS=%q %v", cgoCflags, cmd)
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
 

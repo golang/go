@@ -1,33 +1,45 @@
 # Test go build -pgo=auto flag.
 
+[short] skip 'compiles and links executables'
+
 # use default.pgo for a single main package
-go build -n -pgo=auto ./a/a1
+go build -n -pgo=auto -o a1.exe ./a/a1
 stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
 
 # check that pgo applied to dependencies
 stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
 
+# check that pgo appears in build info
+# N.B. we can't start the stdout check with -pgo because the script assumes that
+# if the first arg starts with - it is a grep flag.
+stderr 'build\\t-pgo=.*default\.pgo'
+
+# check also that -pgo appears with the other flags, before non-flag settings
+! stderr 'build\\t[A-Za-z].*build\\t-pgo'
+
 # use default.pgo for ... with a single main package
 go build -n -pgo=auto ./a/...
 stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
 
-# error with multiple packages
-! go build -n -pgo=auto ./b/...
-stderr '-pgo=auto requires exactly one main package'
+# check that pgo appears in build info
+stderr 'build\\t-pgo=.*default\.pgo'
 
 # build succeeds without PGO when default.pgo file is absent
 go build -n -pgo=auto -o nopgo.exe ./nopgo
 stderr 'compile.*nopgo.go'
-! stderr '-pgoprofile'
+! stderr 'compile.*-pgoprofile'
+
+# check that pgo doesn't appear in build info
+! stderr 'build\\t-pgo='
 
 # other build-related commands
-go install -n -pgo=auto ./a/a1
+go install -a -n -pgo=auto ./a/a1
 stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
 
-go run -n -pgo=auto ./a/a1
+go run -a -n -pgo=auto ./a/a1
 stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
 
-go test -n -pgo=auto ./a/a1
+go test -a -n -pgo=auto ./a/a1
 stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go.*a1_test.go'
 stderr 'compile.*-pgoprofile=.*default\.pgo.*external_test.go'
 
@@ -37,6 +49,30 @@ go list -pgo=auto ./a/a1
 go list -test -pgo=auto ./a/a1
 
 go list -deps -pgo=auto ./a/a1
+
+# -pgo=auto is the default. Commands without explicit -pgo=auto
+# should work as -pgo=auto.
+go build -a -n -o a1.exe ./a/a1
+stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
+
+# check that pgo appears in build info
+stderr 'build\\t-pgo=.*default\.pgo'
+
+go build -a -n -o nopgo.exe ./nopgo
+stderr 'compile.*nopgo.go'
+! stderr 'compile.*-pgoprofile'
+
+# check that pgo doesn't appear in build info
+! stderr 'build\\t-pgo='
+
+# -pgo=off should turn off PGO.
+go build -a -n -pgo=off -o a1.exe ./a/a1
+stderr 'compile.*a1.go'
+! stderr 'compile.*-pgoprofile'
+
+# check that pgo doesn't appear in build info
+! stderr 'build\\t-pgo='
 
 -- go.mod --
 module test
@@ -54,14 +90,6 @@ package main_test
 import "testing"
 func TestExternal(*testing.T) {}
 -- a/a1/default.pgo --
--- b/b1/b1.go --
-package main
-func main() {}
--- b/b1/default.pgo --
--- b/b2/b2.go --
-package main
-func main() {}
--- b/b2/default.pgo --
 -- nopgo/nopgo.go --
 package main
 func main() {}

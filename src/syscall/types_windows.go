@@ -586,7 +586,7 @@ const (
 	SIO_KEEPALIVE_VALS                 = IOC_IN | IOC_VENDOR | 4
 	SIO_UDP_CONNRESET                  = IOC_IN | IOC_VENDOR | 12
 
-	// cf. https://support.microsoft.com/default.aspx?scid=kb;en-us;257460
+	// cf. https://learn.microsoft.com/en-US/troubleshoot/windows/win32/header-library-requirement-socket-ipproto-ip
 
 	IP_TOS             = 0x3
 	IP_TTL             = 0x4

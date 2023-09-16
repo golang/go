@@ -418,22 +418,22 @@ func TestReset(t *testing.T) {
 	// We try to run this test with increasingly larger multiples
 	// until one works so slow, loaded hardware isn't as flaky,
 	// but without slowing down fast machines unnecessarily.
-	const unit = 25 * Millisecond
-	tries := []Duration{
-		1 * unit,
-		3 * unit,
-		7 * unit,
-		15 * unit,
-	}
-	var err error
-	for _, d := range tries {
-		err = testReset(d)
+	//
+	// (maxDuration is several orders of magnitude longer than we
+	// expect this test to actually take on a fast, unloaded machine.)
+	d := 1 * Millisecond
+	const maxDuration = 10 * Second
+	for {
+		err := testReset(d)
 		if err == nil {
-			t.Logf("passed using duration %v", d)
-			return
+			break
 		}
+		d *= 2
+		if d > maxDuration {
+			t.Error(err)
+		}
+		t.Logf("%v; trying duration %v", err, d)
 	}
-	t.Error(err)
 }
 
 // Test that sleeping (via Sleep or Timer) for an interval so large it

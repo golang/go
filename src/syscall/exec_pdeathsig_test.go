@@ -9,6 +9,7 @@ package syscall_test
 import (
 	"bufio"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"os"
 	"os/exec"
@@ -22,6 +23,13 @@ import (
 func TestDeathSignal(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("skipping root only test")
+	}
+	if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
+		// The Go build system's swarming user is known not to be root.
+		// Unfortunately, it sometimes appears as root due the current
+		// implementation of a no-network check using 'unshare -n -r'.
+		// Since this test does need root to work, we need to skip it.
+		t.Skip("skipping root only test on a non-root builder")
 	}
 
 	// Copy the test binary to a location that a non-root user can read/execute

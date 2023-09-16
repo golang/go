@@ -17,13 +17,15 @@ var Syms struct {
 	AssertI2I2        *obj.LSym
 	Asanread          *obj.LSym
 	Asanwrite         *obj.LSym
+	CgoCheckMemmove   *obj.LSym
+	CgoCheckPtrWrite  *obj.LSym
 	CheckPtrAlignment *obj.LSym
 	Deferproc         *obj.LSym
 	DeferprocStack    *obj.LSym
 	Deferreturn       *obj.LSym
 	Duffcopy          *obj.LSym
 	Duffzero          *obj.LSym
-	GCWriteBarrier    *obj.LSym
+	GCWriteBarrier    [8]*obj.LSym
 	Goschedguarded    *obj.LSym
 	Growslice         *obj.LSym
 	Memmove           *obj.LSym
@@ -38,14 +40,17 @@ var Syms struct {
 	PanicdottypeI     *obj.LSym
 	Panicnildottype   *obj.LSym
 	Panicoverflow     *obj.LSym
+	Racefuncenter     *obj.LSym
+	Racefuncexit      *obj.LSym
 	Raceread          *obj.LSym
 	Racereadrange     *obj.LSym
 	Racewrite         *obj.LSym
 	Racewriterange    *obj.LSym
+	WBZero            *obj.LSym
+	WBMove            *obj.LSym
 	// Wasm
 	SigPanic        *obj.LSym
 	Staticuint64s   *obj.LSym
-	Typedmemclr     *obj.LSym
 	Typedmemmove    *obj.LSym
 	Udiv            *obj.LSym
 	WriteBarrier    *obj.LSym

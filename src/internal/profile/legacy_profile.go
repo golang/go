@@ -11,34 +11,34 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/lazyregexp"
 	"io"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 )
 
 var (
-	countStartRE = regexp.MustCompile(`\A(\w+) profile: total \d+\n\z`)
-	countRE      = regexp.MustCompile(`\A(\d+) @(( 0x[0-9a-f]+)+)\n\z`)
+	countStartRE = lazyregexp.New(`\A(\w+) profile: total \d+\n\z`)
+	countRE      = lazyregexp.New(`\A(\d+) @(( 0x[0-9a-f]+)+)\n\z`)
 
-	heapHeaderRE = regexp.MustCompile(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] *@ *(heap[_a-z0-9]*)/?(\d*)`)
-	heapSampleRE = regexp.MustCompile(`(-?\d+): *(-?\d+) *\[ *(\d+): *(\d+) *] @([ x0-9a-f]*)`)
+	heapHeaderRE = lazyregexp.New(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] *@ *(heap[_a-z0-9]*)/?(\d*)`)
+	heapSampleRE = lazyregexp.New(`(-?\d+): *(-?\d+) *\[ *(\d+): *(\d+) *] @([ x0-9a-f]*)`)
 
-	contentionSampleRE = regexp.MustCompile(`(\d+) *(\d+) @([ x0-9a-f]*)`)
+	contentionSampleRE = lazyregexp.New(`(\d+) *(\d+) @([ x0-9a-f]*)`)
 
-	hexNumberRE = regexp.MustCompile(`0x[0-9a-f]+`)
+	hexNumberRE = lazyregexp.New(`0x[0-9a-f]+`)
 
-	growthHeaderRE = regexp.MustCompile(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] @ growthz`)
+	growthHeaderRE = lazyregexp.New(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] @ growthz`)
 
-	fragmentationHeaderRE = regexp.MustCompile(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] @ fragmentationz`)
+	fragmentationHeaderRE = lazyregexp.New(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] @ fragmentationz`)
 
-	threadzStartRE = regexp.MustCompile(`--- threadz \d+ ---`)
-	threadStartRE  = regexp.MustCompile(`--- Thread ([[:xdigit:]]+) \(name: (.*)/(\d+)\) stack: ---`)
+	threadzStartRE = lazyregexp.New(`--- threadz \d+ ---`)
+	threadStartRE  = lazyregexp.New(`--- Thread ([[:xdigit:]]+) \(name: (.*)/(\d+)\) stack: ---`)
 
-	procMapsRE = regexp.MustCompile(`([[:xdigit:]]+)-([[:xdigit:]]+)\s+([-rwxp]+)\s+([[:xdigit:]]+)\s+([[:xdigit:]]+):([[:xdigit:]]+)\s+([[:digit:]]+)\s*(\S+)?`)
+	procMapsRE = lazyregexp.New(`([[:xdigit:]]+)-([[:xdigit:]]+)\s+([-rwxp]+)\s+([[:xdigit:]]+)\s+([[:xdigit:]]+):([[:xdigit:]]+)\s+([[:digit:]]+)\s*(\S+)?`)
 
-	briefMapsRE = regexp.MustCompile(`\s*([[:xdigit:]]+)-([[:xdigit:]]+):\s*(\S+)(\s.*@)?([[:xdigit:]]+)?`)
+	briefMapsRE = lazyregexp.New(`\s*([[:xdigit:]]+)-([[:xdigit:]]+):\s*(\S+)(\s.*@)?([[:xdigit:]]+)?`)
 
 	// LegacyHeapAllocated instructs the heapz parsers to use the
 	// allocated memory stats instead of the default in-use memory. Note

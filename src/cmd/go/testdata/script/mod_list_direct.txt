@@ -2,7 +2,7 @@ env GO111MODULE=on
 env GOPROXY=direct
 env GOSUMDB=off
 
-[!net] skip
+[short] skip
 [!git] skip
 
 # golang.org/issue/33099: if an import path ends in a major-version suffix,

@@ -243,6 +243,10 @@ func (f *file) Mode() fs.FileMode {
 	return 0444
 }
 
+func (f *file) String() string {
+	return fs.FormatFileInfo(f)
+}
+
 // dotFile is a file for the root directory,
 // which is omitted from the files list in a FS.
 var dotFile = &file{name: "./"}
@@ -297,7 +301,7 @@ func (f FS) readDir(dir string) []file {
 
 // Open opens the named file for reading and returns it as an fs.File.
 //
-// The returned file implements io.Seeker when the file is not a directory.
+// The returned file implements io.Seeker and io.ReaderAt when the file is not a directory.
 func (f FS) Open(name string) (fs.File, error) {
 	file := f.lookup(name)
 	if file == nil {
@@ -346,7 +350,8 @@ type openFile struct {
 }
 
 var (
-	_ io.Seeker = (*openFile)(nil)
+	_ io.Seeker   = (*openFile)(nil)
+	_ io.ReaderAt = (*openFile)(nil)
 )
 
 func (f *openFile) Close() error               { return nil }
@@ -378,6 +383,17 @@ func (f *openFile) Seek(offset int64, whence int) (int64, error) {
 	}
 	f.offset = offset
 	return offset, nil
+}
+
+func (f *openFile) ReadAt(b []byte, offset int64) (int, error) {
+	if offset < 0 || offset > int64(len(f.f.data)) {
+		return 0, &fs.PathError{Op: "read", Path: f.f.name, Err: fs.ErrInvalid}
+	}
+	n := copy(b, f.f.data[offset:])
+	if n < len(b) {
+		return n, io.EOF
+	}
+	return n, nil
 }
 
 // An openDir is a directory open for reading.

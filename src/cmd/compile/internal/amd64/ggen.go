@@ -5,7 +5,6 @@
 package amd64
 
 import (
-	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/types"
@@ -63,26 +62,8 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
 		return p
 	}
 
-	if cnt%int64(types.RegSize) != 0 {
-		// should only happen with nacl
-		if cnt%int64(types.PtrSize) != 0 {
-			base.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
-		}
-		if *state&r13 == 0 {
-			p = pp.Append(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_R13, 0)
-			*state |= r13
-		}
-		p = pp.Append(p, x86.AMOVL, obj.TYPE_REG, x86.REG_R13, 0, obj.TYPE_MEM, x86.REG_SP, off)
-		off += int64(types.PtrSize)
-		cnt -= int64(types.PtrSize)
-	}
-
 	if cnt == 8 {
-		if *state&r13 == 0 {
-			p = pp.Append(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_R13, 0)
-			*state |= r13
-		}
-		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_R13, 0, obj.TYPE_MEM, x86.REG_SP, off)
+		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_SP, off)
 	} else if !isPlan9 && cnt <= int64(8*types.RegSize) {
 		for i := int64(0); i < cnt/16; i++ {
 			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_SP, off+i*16)
@@ -120,7 +101,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
 		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_CX, 0, obj.TYPE_REG, x86.REG_R15, 0)
 
 		// Set up the REPSTOSQ and kick it off.
-		p = pp.Append(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
+		p = pp.Append(p, x86.AXORL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_REG, x86.REG_AX, 0)
 		p = pp.Append(p, x86.AMOVQ, obj.TYPE_CONST, 0, cnt/int64(types.RegSize), obj.TYPE_REG, x86.REG_CX, 0)
 		p = pp.Append(p, leaptr, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)
 		p = pp.Append(p, x86.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)

@@ -322,7 +322,7 @@ func (p *spanSetBlockAlloc) free(block *spanSetBlock) {
 	p.stack.push(&block.lfnode)
 }
 
-// haidTailIndex represents a combined 32-bit head and 32-bit tail
+// headTailIndex represents a combined 32-bit head and 32-bit tail
 // of a queue into a single 64-bit value.
 type headTailIndex uint64
 

@@ -211,7 +211,7 @@ type defaultConverter struct{}
 
 var _ ValueConverter = defaultConverter{}
 
-var valuerReflectType = reflect.TypeOf((*Valuer)(nil)).Elem()
+var valuerReflectType = reflect.TypeFor[Valuer]()
 
 // callValuerValue returns vr.Value(), with one exception:
 // If vr.Value is an auto-generated method on a pointer type and the
