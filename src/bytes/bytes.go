@@ -1358,10 +1358,7 @@ func Cut(s, sep []byte) (before, after []byte, found bool) {
 // The result may have additional unused capacity.
 // Clone(nil) returns nil.
 func Clone(b []byte) []byte {
-	if b == nil {
-		return nil
-	}
-	return append([]byte{}, b...)
+	return bytealg.Clone(b)
 }
 
 // CutPrefix returns s without the provided leading prefix byte slice
