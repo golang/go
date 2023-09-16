@@ -806,6 +806,18 @@ func elfwritefreebsdsig(out *OutBuf) int {
 }
 
 func addbuildinfo(val string) {
+	if val == "gobuildid" {
+		buildID := *flagBuildid
+		if buildID == "" {
+			Exitf("-B gobuildid requires a Go build ID supplied via -buildid")
+		}
+
+		hashedBuildID := notsha256.Sum256([]byte(buildID))
+		buildinfo = hashedBuildID[:20]
+
+		return
+	}
+
 	if !strings.HasPrefix(val, "0x") {
 		Exitf("-B argument must start with 0x: %s", val)
 	}
