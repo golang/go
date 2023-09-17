@@ -941,9 +941,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			p.op(opLeftParen).Cap = p.numCap
 			t = t[1:]
 		case '|':
-			if err = p.parseVerticalBar(); err != nil {
-				return nil, err
-			}
+			p.parseVerticalBar()
 			t = t[1:]
 		case ')':
 			if err = p.parseRightParen(); err != nil {
@@ -1328,7 +1326,7 @@ func matchRune(re *Regexp, r rune) bool {
 }
 
 // parseVerticalBar handles a | in the input.
-func (p *parser) parseVerticalBar() error {
+func (p *parser) parseVerticalBar() {
 	p.concat()
 
 	// The concatenation we just parsed is on top of the stack.
@@ -1338,8 +1336,6 @@ func (p *parser) parseVerticalBar() error {
 	if !p.swapVerticalBar() {
 		p.op(opVerticalBar)
 	}
-
-	return nil
 }
 
 // mergeCharClass makes dst = dst|src.

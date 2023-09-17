@@ -753,11 +753,7 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
 	psk := cipherSuite.expandLabel(c.resumptionSecret, "resumption",
 		msg.nonce, cipherSuite.hash.Size())
 
-	session, err := c.sessionState()
-	if err != nil {
-		c.sendAlert(alertInternalError)
-		return err
-	}
+	session := c.sessionState()
 	session.secret = psk
 	session.useBy = uint64(c.config.time().Add(lifetime).Unix())
 	session.ageAdd = msg.ageAdd
