@@ -18,7 +18,7 @@ func lshConst64x64(v int64) int64 {
 
 func rshConst64Ux64(v uint64) uint64 {
 	// ppc64x:"SRD"
-	// riscv64:"SRLI",-"AND",-"SLTIU"
+	// riscv64:"SRLI\t",-"AND",-"SLTIU"
 	return v >> uint64(33)
 }
 
@@ -36,7 +36,7 @@ func lshConst32x64(v int32) int32 {
 
 func rshConst32Ux64(v uint32) uint32 {
 	// ppc64x:"SRW"
-	// riscv64:"SRLI",-"AND",-"SLTIU", -"MOVW"
+	// riscv64:"SRLIW",-"AND",-"SLTIU", -"MOVW"
 	return v >> uint64(29)
 }
 
@@ -54,7 +54,7 @@ func lshConst64x32(v int64) int64 {
 
 func rshConst64Ux32(v uint64) uint64 {
 	// ppc64x:"SRD"
-	// riscv64:"SRLI",-"AND",-"SLTIU"
+	// riscv64:"SRLI\t",-"AND",-"SLTIU"
 	return v >> uint32(33)
 }
 
@@ -79,7 +79,7 @@ func lshMask64x64(v int64, s uint64) int64 {
 func rshMask64Ux64(v uint64, s uint64) uint64 {
 	// arm64:"LSR",-"AND",-"CSEL"
 	// ppc64x:"ANDCC",-"ORN",-"ISEL"
-	// riscv64:"SRL",-"AND\t",-"SLTIU"
+	// riscv64:"SRL\t",-"AND\t",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v >> (s & 63)
 }
@@ -103,9 +103,14 @@ func lshMask32x64(v int32, s uint64) int32 {
 func rshMask32Ux64(v uint32, s uint64) uint32 {
 	// arm64:"LSR",-"AND"
 	// ppc64x:"ISEL",-"ORN"
-	// riscv64:"SRL",-"AND\t",-"SLTIU"
+	// riscv64:"SRLW","SLTIU","NEG","AND\t",-"SRL\t"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v >> (s & 63)
+}
+
+func rsh5Mask32Ux64(v uint32, s uint64) uint32 {
+	// riscv64:"SRLW",-"AND\t",-"SLTIU",-"SRL\t"
+	return v >> (s & 31)
 }
 
 func rshMask32x64(v int32, s uint64) int32 {
@@ -127,7 +132,7 @@ func lshMask64x32(v int64, s uint32) int64 {
 func rshMask64Ux32(v uint64, s uint32) uint64 {
 	// arm64:"LSR",-"AND",-"CSEL"
 	// ppc64x:"ANDCC",-"ORN"
-	// riscv64:"SRL",-"AND\t",-"SLTIU"
+	// riscv64:"SRL\t",-"AND\t",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v >> (s & 63)
 }
@@ -149,7 +154,7 @@ func lshMask64x32Ext(v int64, s int32) int64 {
 
 func rshMask64Ux32Ext(v uint64, s int32) uint64 {
 	// ppc64x:"ANDCC",-"ORN",-"ISEL"
-	// riscv64:"SRL",-"AND\t",-"SLTIU"
+	// riscv64:"SRL\t",-"AND\t",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v >> uint(s&63)
 }
@@ -206,7 +211,7 @@ func lshGuarded64(v int64, s uint) int64 {
 
 func rshGuarded64U(v uint64, s uint) uint64 {
 	if s < 64 {
-		// riscv64:"SRL",-"AND",-"SLTIU"
+		// riscv64:"SRL\t",-"AND",-"SLTIU"
 		// s390x:-"RISBGZ",-"AND",-"LOCGR"
 		// wasm:-"Select",-".*LtU"
 		// arm64:"LSR",-"CSEL"
