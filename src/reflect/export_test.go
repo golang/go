@@ -80,7 +80,7 @@ func TypeLinks() []string {
 	for i, offs := range offset {
 		rodata := sections[i]
 		for _, off := range offs {
-			typ := (*rtype)(resolveTypeOff(unsafe.Pointer(rodata), off))
+			typ := (*rtype)(resolveTypeOff(rodata, off))
 			r = append(r, typ.String())
 		}
 	}

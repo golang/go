@@ -236,7 +236,7 @@ func TestReadFile(t *testing.T) {
 									t.Fatalf("unexpected success; want error containing %q", tc.wantErr)
 								}
 								got := info.String()
-								if clean := cleanOutputForComparison(string(got)); got != tc.want && clean != tc.want {
+								if clean := cleanOutputForComparison(got); got != tc.want && clean != tc.want {
 									t.Fatalf("got:\n%s\nwant:\n%s", got, tc.want)
 								}
 							}

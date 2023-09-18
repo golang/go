@@ -515,7 +515,7 @@ func TestCloneTimeNamespace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	parentTimeNS := string(timens)
+	parentTimeNS := timens
 	childTimeNS := string(out)
 	if childTimeNS == parentTimeNS {
 		t.Fatalf("expected child time namespace to be different from parent time namespace: %s", parentTimeNS)
@@ -717,12 +717,12 @@ func testAmbientCaps(t *testing.T, userns bool) {
 		gid := os.Getgid()
 		cmd.SysProcAttr.UidMappings = []syscall.SysProcIDMap{{
 			ContainerID: int(nobody),
-			HostID:      int(uid),
+			HostID:      uid,
 			Size:        int(1),
 		}}
 		cmd.SysProcAttr.GidMappings = []syscall.SysProcIDMap{{
 			ContainerID: int(nobody),
-			HostID:      int(gid),
+			HostID:      gid,
 			Size:        int(1),
 		}}
 

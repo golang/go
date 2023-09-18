@@ -1186,7 +1186,7 @@ func TestIssue12449(t *testing.T) {
 		0x00, 0x50, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
 	// Read in the archive.
-	_, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
+	_, err := NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		t.Errorf("Error reading the archive: %v", err)
 	}
@@ -1333,7 +1333,7 @@ func TestCVE202127919(t *testing.T) {
 		0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x39, 0x00,
 		0x00, 0x00, 0x59, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
-	r, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
+	r, err := NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != ErrInsecurePath {
 		t.Fatalf("Error reading the archive: %v", err)
 	}
@@ -1559,7 +1559,7 @@ func TestCVE202141772(t *testing.T) {
 		0x00, 0x04, 0x00, 0x04, 0x00, 0x31, 0x01, 0x00,
 		0x00, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
-	r, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
+	r, err := NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != ErrInsecurePath {
 		t.Fatalf("Error reading the archive: %v", err)
 	}
