@@ -1233,18 +1233,6 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		return nil
 	}
 
-	if a.Failed {
-		// We were unable to build the binary.
-		a.Failed = false
-		a.TestOutput = new(bytes.Buffer)
-		fmt.Fprintf(a.TestOutput, "FAIL\t%s [build failed]\n", a.Package.ImportPath)
-		base.SetExitStatus(1)
-
-		// release next test to start
-		close(r.next)
-		return nil
-	}
-
 	var stdout io.Writer = os.Stdout
 	var err error
 	if testJSON {
@@ -1258,6 +1246,16 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 
 	// Release next test to start (test2json.NewConverter writes the start event).
 	close(r.next)
+
+	if a.Failed {
+		// We were unable to build the binary.
+		a.Failed = false
+		fmt.Fprintf(stdout, "FAIL\t%s [build failed]\n", a.Package.ImportPath)
+		// Tell the JSON converter that this was a failure, not a passing run.
+		err = errors.New("build failed")
+		base.SetExitStatus(1)
+		return nil
+	}
 
 	if p := a.Package; len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", p.ImportPath)
