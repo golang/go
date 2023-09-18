@@ -32,11 +32,17 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVW $2147483649, R5            // 6405800060a50001 or 0600800038a00001
 	MOVD $2147483649, R5            // 6405800060a50001 or 0600800038a00001
 	// Hex constant 0xFFFFFFFF80000001
-	MOVD $-2147483647, R5    	// 3ca0800060a50001 or 0603800038a00001
-	// Hex constant 0xFFFFFFFE00000000 (load of constant on < power10, pli on >= power10
-	MOVD $-8589934592, R5   	// 3ca00000e8a50000 or 0602000038a00000
-	// Hex constant 0xFFFFFFFE00000000
-	ADD $-8589934592, R5   		// 3fe0fffe63ff00007bff83e463ff00007cbf2a14 or 0602000038a50000
+	MOVD $-2147483647, R5           // 3ca0800060a50001 or 0603800038a00001
+	// Hex constant 0xFFFFFFFE00000002 (load of constant on < power10, pli on >= power10
+	MOVD $-8589934590, R5           // 3ca00000e8a50000 or 0602000038a00002
+
+	// TODO: These are preprocessed by the assembler into MOVD $const>>shift, R5; SLD $shift, R5.
+	//       This only captures the MOVD. Should the SLD be appended to the encoding by the test?
+	// Hex constant 0x20004000000
+	MOVD $2199090364416, R5         // 60058001
+	// Hex constant 0xFFFFFE0004000000
+	MOVD $-2198956146688, R5        // 38a08001
+
 	MOVD 8(R3), R4                  // e8830008
 	MOVD (R3)(R4), R5               // 7ca4182a
 	MOVD (R3)(R0), R5               // 7ca0182a
@@ -168,6 +174,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ADD $-32767, R5, R4             // 38858001
 	ADD $-32768, R6                 // 38c68000
 	ADD $-32768, R6, R5             // 38a68000
+	// Hex constant 0xFFFFFFFE00000000
+	ADD $-8589934592, R5            // 3fe0fffe63ff00007bff83e463ff00007cbf2a14 or 0602000038a50000
 
 	//TODO: this compiles to add r5,r6,r0. It should be addi r5,r6,0.
 	//      this is OK since r0 == $0, but the latter is preferred.
