@@ -5,13 +5,17 @@
 package syscall_test
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 func TestEscapeArg(t *testing.T) {
@@ -112,4 +116,98 @@ func TestChangingProcessParent(t *testing.T) {
 	if got, want := string(childOutput), fmt.Sprintf("%d", parent.Process.Pid); got != want {
 		t.Fatalf("child output: want %q, got %q", want, got)
 	}
+}
+
+func TestPseudoConsoleProcess(t *testing.T) {
+	pty, err := newConPty()
+	if err != nil {
+		t.Errorf("create pty failed: %v", err)
+	}
+
+	defer pty.Close()
+	cmd := exec.Command("cmd")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		PseudoConsole: syscall.Handle(pty.handle),
+	}
+
+	if err := cmd.Start(); err != nil {
+		t.Errorf("start cmd failed: %v", err)
+	}
+
+	var outBuf bytes.Buffer
+	go func() { pty.inPipe.Write([]byte("exit\r\n")) }()
+	go io.Copy(&outBuf, pty.outPipe)
+
+	_ = cmd.Wait()
+
+	if got, want := outBuf.String(), "Microsoft Windows"; !strings.Contains(got, want) {
+		t.Errorf("cmd output: want %q, got %q", want, got)
+	}
+}
+
+var (
+	kernel32 = syscall.MustLoadDLL("kernel32.dll")
+
+	procCreatePseudoConsole = kernel32.MustFindProc("CreatePseudoConsole")
+	procClosePseudoConsole  = kernel32.MustFindProc("ClosePseudoConsole")
+)
+
+type conPty struct {
+	handle  syscall.Handle
+	inPipe  *os.File
+	outPipe *os.File
+}
+
+func (c *conPty) Close() error {
+	closePseudoConsole(c.handle)
+	if err := c.inPipe.Close(); err != nil {
+		return err
+	}
+	return c.outPipe.Close()
+}
+
+// See https://learn.microsoft.com/en-us/windows/console/creating-a-pseudoconsole-session
+func newConPty() (*conPty, error) {
+	inputRead, inputWrite, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+
+	outputRead, outputWrite, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+
+	var handle syscall.Handle
+	coord := uint32(25<<16) | 80 // 80x25 screen buffer
+	err = createPseudoConsole(coord, syscall.Handle(inputRead.Fd()), syscall.Handle(outputWrite.Fd()), 0, &handle)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := outputWrite.Close(); err != nil {
+		return nil, err
+	}
+	if err := inputRead.Close(); err != nil {
+		return nil, err
+	}
+
+	return &conPty{
+		handle:  handle,
+		inPipe:  inputWrite,
+		outPipe: outputRead,
+	}, nil
+}
+
+func createPseudoConsole(size uint32, in syscall.Handle, out syscall.Handle, flags uint32, pconsole *syscall.Handle) (hr error) {
+	r0, _, _ := syscall.Syscall6(procCreatePseudoConsole.Addr(), 5, uintptr(size), uintptr(in), uintptr(out), uintptr(flags), uintptr(unsafe.Pointer(pconsole)), 0)
+	if r0 != 0 {
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
+func closePseudoConsole(console syscall.Handle) {
+	syscall.Syscall(procClosePseudoConsole.Addr(), 1, uintptr(console), 0, 0)
+	return
 }
