@@ -1334,7 +1334,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) ex
 		}
 		// x.(type) expressions are handled explicitly in type switches
 		if e.Type == nil {
-			// Don't use invalidAST because this can occur in the AST produced by
+			// Don't use InvalidSyntaxTree because this can occur in the AST produced by
 			// go/parser.
 			check.error(e, BadTypeKeyword, "use of .(type) outside type switch")
 			goto Error

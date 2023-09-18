@@ -188,15 +188,13 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			continue // ignore
 		}
 
-		// Always type-check method type parameters but complain if they are not enabled.
-		// (This extra check is needed here because interface method signatures don't have
-		// a receiver specification.)
+		// The go/parser doesn't accept method type parameters but an ast.FuncType may have them.
 		if sig.tparams != nil {
 			var at positioner = f.Type
 			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TypeParams != nil {
 				at = ftyp.TypeParams
 			}
-			check.error(at, InvalidMethodTypeParams, "methods cannot have type parameters")
+			check.error(at, InvalidSyntaxTree, "methods cannot have type parameters")
 		}
 
 		// use named receiver type if available (for better error messages)
