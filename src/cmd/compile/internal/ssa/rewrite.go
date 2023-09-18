@@ -1478,7 +1478,7 @@ func encodePPC64RotateMask(rotate, mask, nbits int64) int64 {
 
 	// Determine boundaries and then decode them
 	if mask == 0 || ^mask == 0 || rotate >= nbits {
-		panic("Invalid PPC64 rotate mask")
+		panic(fmt.Sprintf("invalid PPC64 rotate mask: %x %d %d", uint64(mask), rotate, nbits))
 	} else if nbits == 32 {
 		mb = bits.LeadingZeros32(uint32(mask))
 		me = 32 - bits.TrailingZeros32(uint32(mask))
