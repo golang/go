@@ -29,6 +29,14 @@ func Uintptr(s *obj.LSym, off int, v uint64) int {
 	return UintN(s, off, v, types.PtrSize)
 }
 
+func Bool(s *obj.LSym, off int, v bool) int {
+	w := 0
+	if v {
+		w = 1
+	}
+	return UintN(s, off, uint64(w), 1)
+}
+
 // UintN writes an unsigned integer v of size wid bytes into s at offset off,
 // and returns the next unused offset.
 func UintN(s *obj.LSym, off int, v uint64, wid int) int {

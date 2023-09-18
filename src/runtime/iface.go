@@ -417,21 +417,6 @@ func convI2I(dst *interfacetype, src *itab) *itab {
 	return getitab(dst, src._type, false)
 }
 
-func assertI2I(inter *interfacetype, tab *itab) *itab {
-	if tab == nil {
-		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{nil, nil, &inter.Type, ""})
-	}
-	return getitab(inter, tab._type, false)
-}
-
-func assertI2I2(inter *interfacetype, tab *itab) *itab {
-	if tab == nil {
-		return nil
-	}
-	return getitab(inter, tab._type, true)
-}
-
 func assertE2I(inter *interfacetype, t *_type) *itab {
 	if t == nil {
 		// explicit conversions require non-nil interface value.
@@ -445,6 +430,19 @@ func assertE2I2(inter *interfacetype, t *_type) *itab {
 		return nil
 	}
 	return getitab(inter, t, true)
+}
+
+// typeAssert builds an itab for the concrete type t and the
+// interface type s.Inter. If the conversion is not possible it
+// panics if s.CanFail is false and returns nil if s.CanFail is true.
+func typeAssert(s *abi.TypeAssert, t *_type) *itab {
+	if t == nil {
+		if s.CanFail {
+			return nil
+		}
+		panic(&TypeAssertionError{nil, nil, &s.Inter.Type, ""})
+	}
+	return getitab(s.Inter, t, s.CanFail)
 }
 
 // interfaceSwitch compares t against the list of cases in s.

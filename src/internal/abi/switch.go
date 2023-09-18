@@ -42,3 +42,8 @@ func UseInterfaceSwitchCache(goarch string) bool {
 		return false
 	}
 }
+
+type TypeAssert struct {
+	Inter   *InterfaceType
+	CanFail bool
+}

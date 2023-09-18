@@ -12,6 +12,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
@@ -724,14 +725,41 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
 		n.ITab = reflectdata.ITabAddrAt(base.Pos, n.Type(), n.X.Type())
 	}
+	if n.X.Type().IsInterface() && n.Type().IsInterface() && !n.Type().IsEmptyInterface() {
+		// Converting an interface to a non-empty interface. Needs a runtime call.
+		// Allocate an internal/abi.TypeAssert descriptor for that call.
+		lsym := types.LocalPkg.Lookup(fmt.Sprintf(".typeAssert.%d", typeAssertGen)).LinksymABI(obj.ABI0)
+		typeAssertGen++
+		off := 0
+		off = objw.SymPtr(lsym, off, reflectdata.TypeSym(n.Type()).Linksym(), 0)
+		off = objw.Bool(lsym, off, n.Op() == ir.ODOTTYPE2) // CanFail
+		off += types.PtrSize - 1
+		objw.Global(lsym, int32(off), obj.LOCAL|obj.NOPTR)
+		n.Descriptor = lsym
+	}
 	return n
 }
+
+var typeAssertGen int
 
 // walkDynamicDotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
 func walkDynamicDotType(n *ir.DynamicTypeAssertExpr, init *ir.Nodes) ir.Node {
 	n.X = walkExpr(n.X, init)
 	n.RType = walkExpr(n.RType, init)
 	n.ITab = walkExpr(n.ITab, init)
+	// Convert to non-dynamic if we can.
+	if n.RType != nil && n.RType.Op() == ir.OADDR {
+		addr := n.RType.(*ir.AddrExpr)
+		if addr.X.Op() == ir.OLINKSYMOFFSET {
+			r := ir.NewTypeAssertExpr(n.Pos(), n.X, n.Type())
+			if n.Op() == ir.ODYNAMICDOTTYPE2 {
+				r.SetOp(ir.ODOTTYPE2)
+			}
+			r.SetType(n.Type())
+			r.SetTypecheck(1)
+			return walkExpr(r, init)
+		}
+	}
 	return n
 }
 

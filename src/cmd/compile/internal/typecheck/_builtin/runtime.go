@@ -106,11 +106,10 @@ func convTslice(val []uint8) unsafe.Pointer
 // interface type assertions x.(T)
 func assertE2I(inter *byte, typ *byte) *byte
 func assertE2I2(inter *byte, typ *byte) *byte
-func assertI2I(inter *byte, tab *byte) *byte
-func assertI2I2(inter *byte, tab *byte) *byte
 func panicdottypeE(have, want, iface *byte)
 func panicdottypeI(have, want, iface *byte)
 func panicnildottype(want *byte)
+func typeAssert(s *byte, typ *byte) *byte
 
 // interface switches
 func interfaceSwitch(s *byte, t *byte) (int, *byte)

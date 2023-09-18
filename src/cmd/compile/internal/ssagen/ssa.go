@@ -139,6 +139,7 @@ func InitConfig() {
 	ir.Syms.Racereadrange = typecheck.LookupRuntimeFunc("racereadrange")
 	ir.Syms.Racewrite = typecheck.LookupRuntimeFunc("racewrite")
 	ir.Syms.Racewriterange = typecheck.LookupRuntimeFunc("racewriterange")
+	ir.Syms.TypeAssert = typecheck.LookupRuntimeFunc("typeAssert")
 	ir.Syms.WBZero = typecheck.LookupRuntimeFunc("wbZero")
 	ir.Syms.WBMove = typecheck.LookupRuntimeFunc("wbMove")
 	ir.Syms.X86HasPOPCNT = typecheck.LookupRuntimeVar("x86HasPOPCNT")       // bool
@@ -6528,7 +6529,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	if n.ITab != nil {
 		targetItab = s.expr(n.ITab)
 	}
-	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, nil, target, targetItab, commaok)
+	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, nil, target, targetItab, commaok, n.Descriptor)
 }
 
 func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
@@ -6546,7 +6547,7 @@ func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, 
 	} else {
 		target = s.expr(n.RType)
 	}
-	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, source, target, targetItab, commaok)
+	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, source, target, targetItab, commaok, nil)
 }
 
 // dottype1 implements a x.(T) operation. iface is the argument (x), dst is the type we're asserting to (T)
@@ -6555,7 +6556,9 @@ func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, 
 // target is the *runtime._type of dst.
 // If src is a nonempty interface and dst is not an interface, targetItab is an itab representing (dst, src). Otherwise it is nil.
 // commaok is true if the caller wants a boolean success value. Otherwise, the generated code panics if the conversion fails.
-func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, target, targetItab *ssa.Value, commaok bool) (res, resok *ssa.Value) {
+// descriptor is a compiler-allocated internal/abi.TypeAssert whose address is passed to runtime.typeAssert when
+// the target type is a compile-time-known non-empty interface. It may be nil.
+func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, target, targetItab *ssa.Value, commaok bool, descriptor *obj.LSym) (res, resok *ssa.Value) {
 	byteptr := s.f.Config.Types.BytePtr
 	if dst.IsInterface() {
 		if dst.IsEmptyInterface() {
@@ -6631,26 +6634,66 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 		if base.Debug.TypeAssert > 0 {
 			base.WarnfAt(pos, "type assertion not inlined")
 		}
-		var fn *obj.LSym
+
+		itab := s.newValue1(ssa.OpITab, byteptr, iface)
+		data := s.newValue1(ssa.OpIData, types.Types[types.TUNSAFEPTR], iface)
+
 		if commaok {
-			fn = ir.Syms.AssertI2I2
-			if src.IsEmptyInterface() {
-				fn = ir.Syms.AssertE2I2
-			}
+			// Use a variable to hold the resulting itab. This allows us
+			// to merge a value from the nil and non-nil branches.
+			// (This assignment will be the nil result.)
+			s.vars[typVar] = itab
+		}
+
+		// First, check for nil.
+		bNil := s.f.NewBlock(ssa.BlockPlain)
+		bNonNil := s.f.NewBlock(ssa.BlockPlain)
+		cond := s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], itab, s.constNil(byteptr))
+		b := s.endBlock()
+		b.Kind = ssa.BlockIf
+		b.SetControl(cond)
+		b.Likely = ssa.BranchLikely
+		b.AddEdgeTo(bNonNil)
+		b.AddEdgeTo(bNil)
+
+		if !commaok {
+			// Panic if input is nil.
+			s.startBlock(bNil)
+			s.rtcall(ir.Syms.Panicnildottype, false, nil, target)
+		}
+
+		// Get typ, possibly by loading out of itab.
+		s.startBlock(bNonNil)
+		typ := itab
+		if !src.IsEmptyInterface() {
+			typ = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab))
+		}
+
+		// Call into runtime to get itab for result.
+		if descriptor != nil {
+			d := s.newValue1A(ssa.OpAddr, byteptr, descriptor, s.sb)
+			itab = s.rtcall(ir.Syms.TypeAssert, true, []*types.Type{byteptr}, d, typ)[0]
 		} else {
-			fn = ir.Syms.AssertI2I
-			if src.IsEmptyInterface() {
+			var fn *obj.LSym
+			if commaok {
+				fn = ir.Syms.AssertE2I2
+			} else {
 				fn = ir.Syms.AssertE2I
 			}
+			itab = s.rtcall(fn, true, []*types.Type{byteptr}, target, typ)[0]
 		}
-		data := s.newValue1(ssa.OpIData, types.Types[types.TUNSAFEPTR], iface)
-		tab := s.newValue1(ssa.OpITab, byteptr, iface)
-		tab = s.rtcall(fn, true, []*types.Type{byteptr}, target, tab)[0]
-		var ok *ssa.Value
+		// Build result.
 		if commaok {
-			ok = s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], tab, s.constNil(byteptr))
+			// Merge the nil result and the runtime call result.
+			s.vars[typVar] = itab
+			b := s.endBlock()
+			b.AddEdgeTo(bNil)
+			s.startBlock(bNil)
+			itab = s.variable(typVar, byteptr)
+			ok := s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], itab, s.constNil(byteptr))
+			return s.newValue2(ssa.OpIMake, dst, itab, data), ok
 		}
-		return s.newValue2(ssa.OpIMake, dst, tab, data), ok
+		return s.newValue2(ssa.OpIMake, dst, itab, data), nil
 	}
 
 	if base.Debug.TypeAssert > 0 {
