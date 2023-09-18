@@ -731,10 +731,15 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 		lsym := types.LocalPkg.Lookup(fmt.Sprintf(".typeAssert.%d", typeAssertGen)).LinksymABI(obj.ABI0)
 		typeAssertGen++
 		off := 0
+		off = objw.SymPtr(lsym, off, typecheck.LookupRuntimeVar("emptyTypeAssertCache"), 0)
 		off = objw.SymPtr(lsym, off, reflectdata.TypeSym(n.Type()).Linksym(), 0)
 		off = objw.Bool(lsym, off, n.Op() == ir.ODOTTYPE2) // CanFail
 		off += types.PtrSize - 1
-		objw.Global(lsym, int32(off), obj.LOCAL|obj.NOPTR)
+		objw.Global(lsym, int32(off), obj.LOCAL)
+		// Set the type to be just a single pointer, as the cache pointer is the
+		// only one that GC needs to see.
+		lsym.Gotype = reflectdata.TypeLinksym(types.Types[types.TUINT8].PtrTo())
+
 		n.Descriptor = lsym
 	}
 	return n

@@ -436,14 +436,93 @@ func assertE2I2(inter *interfacetype, t *_type) *itab {
 // interface type s.Inter. If the conversion is not possible it
 // panics if s.CanFail is false and returns nil if s.CanFail is true.
 func typeAssert(s *abi.TypeAssert, t *_type) *itab {
+	var tab *itab
 	if t == nil {
-		if s.CanFail {
-			return nil
+		if !s.CanFail {
+			panic(&TypeAssertionError{nil, nil, &s.Inter.Type, ""})
 		}
-		panic(&TypeAssertionError{nil, nil, &s.Inter.Type, ""})
+	} else {
+		tab = getitab(s.Inter, t, s.CanFail)
 	}
-	return getitab(s.Inter, t, s.CanFail)
+
+	if !abi.UseInterfaceSwitchCache(GOARCH) {
+		return tab
+	}
+
+	// Maybe update the cache, so the next time the generated code
+	// doesn't need to call into the runtime.
+	if fastrand()&1023 != 0 {
+		// Only bother updating the cache ~1 in 1000 times.
+		return tab
+	}
+	// Load the current cache.
+	oldC := (*abi.TypeAssertCache)(atomic.Loadp(unsafe.Pointer(&s.Cache)))
+
+	if fastrand()&uint32(oldC.Mask) != 0 {
+		// As cache gets larger, choose to update it less often
+		// so we can amortize the cost of building a new cache.
+		return tab
+	}
+
+	// Make a new cache.
+	newC := buildTypeAssertCache(oldC, t, tab)
+
+	// Update cache. Use compare-and-swap so if multiple threads
+	// are fighting to update the cache, at least one of their
+	// updates will stick.
+	atomic_casPointer((*unsafe.Pointer)(unsafe.Pointer(&s.Cache)), unsafe.Pointer(oldC), unsafe.Pointer(newC))
+
+	return tab
 }
+
+func buildTypeAssertCache(oldC *abi.TypeAssertCache, typ *_type, tab *itab) *abi.TypeAssertCache {
+	oldEntries := unsafe.Slice(&oldC.Entries[0], oldC.Mask+1)
+
+	// Count the number of entries we need.
+	n := 1
+	for _, e := range oldEntries {
+		if e.Typ != 0 {
+			n++
+		}
+	}
+
+	// Figure out how big a table we need.
+	// We need at least one more slot than the number of entries
+	// so that we are guaranteed an empty slot (for termination).
+	newN := n * 2                         // make it at most 50% full
+	newN = 1 << sys.Len64(uint64(newN-1)) // round up to a power of 2
+
+	// Allocate the new table.
+	newSize := unsafe.Sizeof(abi.TypeAssertCache{}) + uintptr(newN-1)*unsafe.Sizeof(abi.TypeAssertCacheEntry{})
+	newC := (*abi.TypeAssertCache)(mallocgc(newSize, nil, true))
+	newC.Mask = uintptr(newN - 1)
+	newEntries := unsafe.Slice(&newC.Entries[0], newN)
+
+	// Fill the new table.
+	addEntry := func(typ *_type, tab *itab) {
+		h := int(typ.Hash) & (newN - 1)
+		for {
+			if newEntries[h].Typ == 0 {
+				newEntries[h].Typ = uintptr(unsafe.Pointer(typ))
+				newEntries[h].Itab = uintptr(unsafe.Pointer(tab))
+				return
+			}
+			h = (h + 1) & (newN - 1)
+		}
+	}
+	for _, e := range oldEntries {
+		if e.Typ != 0 {
+			addEntry((*_type)(unsafe.Pointer(e.Typ)), (*itab)(unsafe.Pointer(e.Itab)))
+		}
+	}
+	addEntry(typ, tab)
+
+	return newC
+}
+
+// Empty type assert cache. Contains one entry with a nil Typ (which
+// causes a cache lookup to fail immediately.)
+var emptyTypeAssertCache = abi.TypeAssertCache{Mask: 0}
 
 // interfaceSwitch compares t against the list of cases in s.
 // If t matches case i, interfaceSwitch returns the case index i and

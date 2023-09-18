@@ -44,6 +44,18 @@ func UseInterfaceSwitchCache(goarch string) bool {
 }
 
 type TypeAssert struct {
+	Cache   *TypeAssertCache
 	Inter   *InterfaceType
 	CanFail bool
+}
+type TypeAssertCache struct {
+	Mask    uintptr
+	Entries [1]TypeAssertCacheEntry
+}
+type TypeAssertCacheEntry struct {
+	// type of source value (a *runtime._type)
+	Typ uintptr
+	// itab to use for result (a *runtime.itab)
+	// nil if CanFail is set and conversion would fail.
+	Itab uintptr
 }

@@ -139,3 +139,12 @@ func interfaceSwitch(x any) int {
 		return 3
 	}
 }
+
+func interfaceCast(x any) int {
+	// amd64:`CALL\truntime.typeAssert`,`MOVL\t16\(.*\)`,`MOVQ\t8\(.*\)(.*\*1)`
+	// arm64:`CALL\truntime.typeAssert`,`LDAR`,`MOVWU`,`MOVD\t\(R.*\)\(R.*\)`
+	if _, ok := x.(I); ok {
+		return 3
+	}
+	return 5
+}
