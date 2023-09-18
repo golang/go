@@ -273,12 +273,13 @@ func (p1 *pattern) comparePaths(p2 *pattern) relationship {
 	if len(p1.segments) != len(p2.segments) && !p1.lastSegment().multi && !p2.lastSegment().multi {
 		return disjoint
 	}
+
+	// Consider corresponding segments in the two path patterns.
 	var segs1, segs2 []segment
-	// Look at corresponding segments in the two path patterns.
 	rel := equivalent
 	for segs1, segs2 = p1.segments, p2.segments; len(segs1) > 0 && len(segs2) > 0; segs1, segs2 = segs1[1:], segs2[1:] {
 		rel = combineRelationships(rel, compareSegments(segs1[0], segs2[0]))
-		if rel == disjoint || rel == overlaps {
+		if rel == disjoint {
 			return rel
 		}
 	}
@@ -289,12 +290,13 @@ func (p1 *pattern) comparePaths(p2 *pattern) relationship {
 		return rel
 	}
 	// Otherwise, the only way they could fail to be disjoint is if the shorter
-	// pattern ends in a multi and is more general.
-	if len(segs1) < len(segs2) && p1.lastSegment().multi && rel == moreGeneral {
-		return moreGeneral
+	// pattern ends in a multi. In that case, that multi is more general
+	// than the remainder of the longer pattern, so combine those two relationships.
+	if len(segs1) < len(segs2) && p1.lastSegment().multi {
+		return combineRelationships(rel, moreGeneral)
 	}
-	if len(segs2) < len(segs1) && p2.lastSegment().multi && rel == moreSpecific {
-		return moreSpecific
+	if len(segs2) < len(segs1) && p2.lastSegment().multi {
+		return combineRelationships(rel, moreSpecific)
 	}
 	return disjoint
 }
@@ -345,8 +347,13 @@ func combineRelationships(r1, r2 relationship) relationship {
 	switch r1 {
 	case equivalent:
 		return r2
-	case disjoint, overlaps:
-		return r1
+	case disjoint:
+		return disjoint
+	case overlaps:
+		if r2 == disjoint {
+			return disjoint
+		}
+		return overlaps
 	case moreGeneral, moreSpecific:
 		switch r2 {
 		case equivalent:
@@ -372,4 +379,12 @@ func inverseRelationship(r relationship) relationship {
 	default:
 		return r
 	}
+}
+
+// isLitOrSingle reports whether the segment is a non-dollar literal or a single wildcard.
+func isLitOrSingle(seg segment) bool {
+	if seg.wild {
+		return !seg.multi
+	}
+	return seg.s != "/"
 }
