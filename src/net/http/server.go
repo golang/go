@@ -2347,7 +2347,8 @@ func RedirectHandler(url string, code int) Handler {
 type ServeMux struct {
 	mu       sync.RWMutex
 	tree     routingNode
-	patterns []*pattern
+	index    routingIndex
+	patterns []*pattern // TODO(jba): remove if possible
 }
 
 // NewServeMux allocates and returns a new ServeMux.
@@ -2624,8 +2625,8 @@ func (mux *ServeMux) register(pattern string, handler Handler) {
 	}
 }
 
-func (mux *ServeMux) registerErr(pattern string, handler Handler) error {
-	if pattern == "" {
+func (mux *ServeMux) registerErr(patstr string, handler Handler) error {
+	if patstr == "" {
 		return errors.New("http: invalid pattern")
 	}
 	if handler == nil {
@@ -2635,9 +2636,9 @@ func (mux *ServeMux) registerErr(pattern string, handler Handler) error {
 		return errors.New("http: nil handler")
 	}
 
-	pat, err := parsePattern(pattern)
+	pat, err := parsePattern(patstr)
 	if err != nil {
-		return fmt.Errorf("parsing %q: %w", pattern, err)
+		return fmt.Errorf("parsing %q: %w", patstr, err)
 	}
 
 	// Get the caller's location, for better conflict error messages.
@@ -2652,16 +2653,17 @@ func (mux *ServeMux) registerErr(pattern string, handler Handler) error {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 	// Check for conflict.
-	// This makes a quadratic number of calls to conflictsWith: we check
-	// each pattern against every other pattern.
-	// TODO(jba): add indexing to speed this up.
-	for _, pat2 := range mux.patterns {
+	if err := mux.index.possiblyConflictingPatterns(pat, func(pat2 *pattern) error {
 		if pat.conflictsWith(pat2) {
 			return fmt.Errorf("pattern %q (registered at %s) conflicts with pattern %q (registered at %s)",
 				pat, pat.loc, pat2, pat2.loc)
 		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	mux.tree.addPattern(pat, handler)
+	mux.index.addPattern(pat)
 	mux.patterns = append(mux.patterns, pat)
 	return nil
 }
