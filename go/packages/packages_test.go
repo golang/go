@@ -2646,7 +2646,7 @@ func testExternal_NotHandled(t *testing.T, exporter packagestest.Exporter) {
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 )
 
@@ -2659,7 +2659,7 @@ func main() {
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 )
 
