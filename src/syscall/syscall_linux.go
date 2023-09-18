@@ -1246,7 +1246,6 @@ func Setuid(uid int) (err error) {
 //sys	write(fd int, p []byte) (n int, err error)
 //sys	exitThread(code int) (err error) = SYS_EXIT
 //sys	readlen(fd int, p *byte, np int) (n int, err error) = SYS_READ
-//sys	writelen(fd int, p *byte, np int) (n int, err error) = SYS_WRITE
 
 // mmap varies by architecture; see syscall_linux_*.go.
 //sys	munmap(addr uintptr, length uintptr) (err error)
