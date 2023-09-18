@@ -3282,6 +3282,138 @@ func TestFloat32Sqrt(t *testing.T) {
 	}
 }
 
+func TestMaxManyMultipleArgs(t *testing.T) {
+	maximum := MaxMany(3, 5, -2.5, 0)
+	if maximum != 5 {
+		t.Error("Maximum should be 5, not", maximum)
+	}
+}
+
+func TestMaxManyInf(t *testing.T) {
+	maximum := MaxMany(3, 5, -2.5, Inf(1), 0)
+	if !IsInf(maximum, 1) {
+		t.Error("Maximum should be +Inf, not", maximum)
+	}
+}
+
+func TestMaxManyNegativeInf(t *testing.T) {
+	maximum := MaxMany(3, 5, -2.5, Inf(-1), 0)
+	if maximum != 5 {
+		t.Error("Maximum should be 5, not", maximum)
+	}
+}
+
+func TestMaxManyInfOnlyArg(t *testing.T) {
+	maximum := MaxMany(Inf(1))
+	if !IsInf(maximum, 1) {
+		t.Error("Maximum should be inf, not", maximum)
+	}
+}
+
+func TestMaxManyNaN(t *testing.T) {
+	nan := NaN()
+	maximum := MaxMany(3, 5, -2.5, nan, 0)
+	if !IsNaN(maximum) {
+		t.Errorf("Maximum should be %v, not %v", nan, maximum)
+	}
+}
+
+func TestMaxManyNaNOnlyArg(t *testing.T) {
+	nan := NaN()
+	maximum := MaxMany(nan)
+	if !IsNaN(maximum) {
+		t.Errorf("Maximum should be %v, not %v", nan, maximum)
+	}
+}
+
+func TestMaxManyWithBothInfAndNaN(t *testing.T) {
+	nan := NaN()
+	maximum := MaxMany(nan, 3.3, Inf(1), Inf(-1), 0, 9, -5)
+	if !IsInf(maximum, 1) {
+		t.Errorf("Maximum should be +Inf, not %v", maximum)
+	}
+}
+
+func TestMaxManySingleArg(t *testing.T) {
+	maximum := MaxMany(3)
+	if maximum != 3 {
+		t.Error("Maximum should be 3, not", maximum)
+	}
+}
+
+func TestMaxManyEqualArgs(t *testing.T) {
+	maximum := MaxMany(3, 3, 3)
+	if maximum != 3 {
+		t.Error("Maximum should be 3, not", maximum)
+	}
+}
+
+func TestMinManyArgs(t *testing.T) {
+	minimum := MinMany(3, 5, -2.5, 0)
+	if minimum != -2.5 {
+		t.Error("Minimum should be -2.5, not", minimum)
+	}
+}
+
+func TestMinManyInf(t *testing.T) {
+	minimum := MinMany(3, 5, -2.5, Inf(-1), 0)
+	if minimum != Inf(-1) {
+		t.Error("Minimum should be -Inf, not", minimum)
+	}
+}
+
+func TestMinManyPositiveInf(t *testing.T) {
+	minimum := MinMany(3, 5, -2.5, Inf(1), 0)
+	if minimum != -2.5 {
+		t.Error("Minimum should be -2.5, not", minimum)
+	}
+}
+
+func TestMinManyInfOnlyArg(t *testing.T) {
+	minimum := MinMany(Inf(-1))
+	if minimum != Inf(-1) {
+		t.Error("Minimum should be -inf, not", minimum)
+	}
+}
+
+func TestMinManyNaN(t *testing.T) {
+	nan := NaN()
+	minimum := MinMany(3, 5, -2.5, nan, 0)
+	if !IsNaN(minimum) {
+		t.Errorf("Minimum should be %v, not %v", nan, minimum)
+	}
+}
+
+func TestMinManyNaNOnlyArg(t *testing.T) {
+	nan := NaN()
+	minimum := MinMany(nan)
+	if !IsNaN(minimum) {
+		t.Errorf("Minimum should be %v, not %v", nan, minimum)
+	}
+}
+
+func TestMinManyWithBothInfAndNaN(t *testing.T) {
+	nan := NaN()
+	minimum := MinMany(nan, 3.3, Inf(1), Inf(-1), 0, 9, -5)
+	if !IsInf(minimum, -1) {
+		t.Errorf("Minimum should be +Inf, not %v", minimum)
+	}
+}
+
+func TestMinManySingleArg(t *testing.T) {
+	minimum := MinMany(3)
+	if minimum != 3 {
+		t.Error("Minimum should be 3, not", minimum)
+	}
+}
+
+func TestMinManyEqualArgs(t *testing.T) {
+	minimum := MinMany(3, 3, 3)
+	if minimum != 3 {
+		t.Error("Minimum should be 3, not", minimum)
+	}
+}
+
 // Benchmarks
 
 // Global exported variables are used to store the

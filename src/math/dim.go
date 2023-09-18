@@ -98,3 +98,69 @@ func min(x, y float64) float64 {
 	}
 	return y
 }
+
+// rune and byte data types are added implicitly due to them being alias for
+// int32 and uint8 respectively.
+type Number interface {
+	int | int8 | int16 | int32 | int64 |
+		uint | uint8 | uint16 | uint32 | uint64 |
+		float32 | float64
+}
+
+// Returns the highest number among multiple arguments passed in
+//
+// Special cases are:
+//
+//	If +Inf is among the arguments, return +Inf
+//	If NaN is among the arguments, return NaN
+//	If both +Inf and NaN are among the arguments, return +Inf
+func MaxMany[T Number](numbers ...T) float64 {
+	var maximum T
+	var hasNaN bool
+	for index, number := range numbers {
+		numberFloat := float64(number)
+		switch {
+		case index == 0:
+			maximum = number
+		case IsInf(numberFloat, 1):
+			return Inf(1)
+		case IsNaN(numberFloat):
+			hasNaN = true
+		case number > maximum:
+			maximum = number
+		}
+	}
+	if hasNaN {
+		return NaN()
+	}
+	return float64(maximum)
+}
+
+// Returns the lowest number among multiple arguments passed in
+//
+// Special cases are:
+//
+//	If -Inf is among the arguments, return -Inf
+//	If NaN is among the arguments, return NaN
+//	If both -Inf and NaN are among the arguments, return -Inf
+func MinMany[T Number](numbers ...T) float64 {
+	var minimum T
+	var hasNaN bool
+	for index, number := range numbers {
+		numberFloat := float64(number)
+		switch {
+		case index == 0:
+			minimum = number
+		case IsInf(numberFloat, 1):
+			return Inf(-1)
+		case IsNaN(numberFloat):
+			hasNaN = true
+		case number < minimum:
+			minimum = number
+		}
+	}
+	if hasNaN {
+		return NaN()
+	}
+	return float64(minimum)
+}
