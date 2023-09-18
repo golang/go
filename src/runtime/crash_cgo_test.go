@@ -873,7 +873,7 @@ func TestEnsureBindM(t *testing.T) {
 func TestStackSwitchCallback(t *testing.T) {
 	t.Parallel()
 	switch runtime.GOOS {
-	case "windows", "plan9", "android", "openbsd": // no getcontext
+	case "windows", "plan9", "android", "ios", "openbsd": // no getcontext
 		t.Skipf("skipping test on %s", runtime.GOOS)
 	}
 	got := runTestProg(t, "testprogcgo", "StackSwitchCallback")
