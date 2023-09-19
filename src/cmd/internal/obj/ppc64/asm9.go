@@ -194,6 +194,7 @@ var optabBase = []Optab{
 	{as: ACLRLSLWI, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 62, size: 4},
 	{as: ARLDMI, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 30, size: 4},
 	{as: ARLDC, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 29, size: 4},
+	{as: ARLDC, a1: C_REG, a3: C_U8CON, a4: C_U8CON, a6: C_REG, type_: 9, size: 4},
 	{as: ARLDCL, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 29, size: 4},
 	{as: ARLDCL, a1: C_REG, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 14, size: 4},
 	{as: ARLDICL, a1: C_REG, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 14, size: 4},
@@ -2722,6 +2723,14 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 
 		// Sign extend MOVB operations. This is ignored for other cases (o.size == 4).
 		o2 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
+
+	case 9: /* RLDC Ra, $sh, $mb, Rb */
+		sh := uint32(p.RestArgs[0].Addr.Offset) & 0x3F
+		mb := uint32(p.RestArgs[1].Addr.Offset) & 0x3F
+		o1 = AOP_RRR(c.opirr(p.As), uint32(p.From.Reg), uint32(p.To.Reg), (uint32(sh) & 0x1F))
+		o1 |= (sh & 0x20) >> 4 // sh[5] is placed in bit 1.
+		o1 |= (mb & 0x1F) << 6 // mb[0:4] is placed in bits 6-10.
+		o1 |= (mb & 0x20)      // mb[5] is placed in bit 5
 
 	case 10: /* sub Ra,[Rb],Rd => subf Rd,Ra,Rb */
 		r := int(p.Reg)

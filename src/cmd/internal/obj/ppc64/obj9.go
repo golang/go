@@ -39,6 +39,39 @@ import (
 	"math/bits"
 )
 
+// Test if this value can encoded as a mask for
+// li -1, rx; rlic rx,rx,sh,mb.
+// Masks can also extend from the msb and wrap to
+// the lsb too. That is, the valid masks are 32 bit strings
+// of the form: 0..01..10..0 or 1..10..01..1 or 1...1
+func isPPC64DoublewordRotateMask(v64 int64) bool {
+	// Isolate rightmost 1 (if none 0) and add.
+	v := uint64(v64)
+	vp := (v & -v) + v
+	// Likewise, for the wrapping case.
+	vn := ^v
+	vpn := (vn & -vn) + vn
+	return (v&vp == 0 || vn&vpn == 0) && v != 0
+}
+
+// Encode a doubleword rotate mask into mb (mask begin) and
+// me (mask end, inclusive). Note, POWER ISA labels bits in
+// big endian order.
+func encodePPC64RLDCMask(mask int64) (mb, me int) {
+	// Determine boundaries and then decode them
+	mb = bits.LeadingZeros64(uint64(mask))
+	me = 64 - bits.TrailingZeros64(uint64(mask))
+	mbn := bits.LeadingZeros64(^uint64(mask))
+	men := 64 - bits.TrailingZeros64(^uint64(mask))
+	// Check for a wrapping mask (e.g bits at 0 and 63)
+	if mb == 0 && me == 64 {
+		// swap the inverted values
+		mb, me = men, mbn
+	}
+	// Note, me is inclusive.
+	return mb, me - 1
+}
+
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	p.From.Class = 0
 	p.To.Class = 0
@@ -97,10 +130,20 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				// Rewrite this value into MOVD $const>>shift, Rto; SLD $shift, Rto
 				q := obj.Appendp(p, c.newprog)
 				q.As = ASLD
-				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(shift)
+				q.From.SetConst(int64(shift))
 				q.To = p.To
 				p.From.Offset >>= shift
+				p = q
+				// Is this constant a mask value? If so, generate MOVD $-1, Rto; RLDIC Rto, ^me, mb, Rto
+			} else if isPPC64DoublewordRotateMask(val) {
+				mb, me := encodePPC64RLDCMask(val)
+				q := obj.Appendp(p, c.newprog)
+				q.As = ARLDC
+				q.AddRestSourceConst((^int64(me)) & 0x3F)
+				q.AddRestSourceConst(int64(mb))
+				q.From = p.To
+				q.To = p.To
+				p.From.Offset = -1
 				p = q
 			} else {
 				// Load the constant from memory.
