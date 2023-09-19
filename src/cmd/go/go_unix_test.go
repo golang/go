@@ -23,12 +23,27 @@ func TestGoBuildUmask(t *testing.T) {
 	// Do not use tg.parallel; avoid other tests seeing umask manipulation.
 	mask := syscall.Umask(0077) // prohibit low bits
 	defer syscall.Umask(mask)
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.tempFile("x.go", `package main; func main() {}`)
-	// Make sure artifact will be output to /tmp/... in case the user
-	// has POSIX acl's on their go source tree.
-	// See issue 17909.
+
+	// We have set a umask, but if the parent directory happens to have a default
+	// ACL, the umask may be ignored. To prevent spurious failures from an ACL,
+	// we compare the file created by "go build" against a file written explicitly
+	// by os.WriteFile.
+	//
+	// (See https://go.dev/issue/62724, https://go.dev/issue/17909.)
+	control := tg.path("control")
+	tg.creatingTemp(control)
+	if err := os.WriteFile(control, []byte("#!/bin/sh\nexit 0"), 0777); err != nil {
+		t.Fatal(err)
+	}
+	cfi, err := os.Stat(control)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	exe := tg.path("x")
 	tg.creatingTemp(exe)
 	tg.run("build", "-o", exe, tg.path("x.go"))
@@ -36,8 +51,11 @@ func TestGoBuildUmask(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mode := fi.Mode(); mode&0077 != 0 {
-		t.Fatalf("wrote x with mode=%v, wanted no 0077 bits", mode)
+	got, want := fi.Mode(), cfi.Mode()
+	if got == want {
+		t.Logf("wrote x with mode %v", got)
+	} else {
+		t.Fatalf("wrote x with mode %v, wanted no 0077 bits (%v)", got, want)
 	}
 }
 
