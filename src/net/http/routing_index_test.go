@@ -5,7 +5,6 @@
 package http
 
 import (
-	"bytes"
 	"fmt"
 	"slices"
 	"sort"
@@ -14,66 +13,19 @@ import (
 )
 
 func TestIndex(t *testing.T) {
-	pats := []string{"HEAD /", "/a"}
-
-	var patterns []*pattern
+	// Generate every kind of pattern up to some number of segments,
+	// and compare conflicts found during indexing with those found
+	// by exhaustive comparison.
+	patterns := generatePatterns()
 	var idx routingIndex
-	for _, p := range pats {
-		pat := mustParsePattern(t, p)
-		patterns = append(patterns, pat)
+	for i, pat := range patterns {
+		got := indexConflicts(pat, &idx)
+		want := trueConflicts(pat, patterns[:i])
+		if !slices.Equal(got, want) {
+			t.Fatalf("%q:\ngot  %q\nwant %q", pat, got, want)
+		}
 		idx.addPattern(pat)
 	}
-
-	compare := func(pat *pattern) {
-		t.Helper()
-		got := indexConflicts(pat, &idx)
-		want := trueConflicts(pat, patterns)
-		if !slices.Equal(got, want) {
-			t.Errorf("%q:\ngot  %q\nwant %q", pat, got, want)
-		}
-	}
-
-	compare(mustParsePattern(t, "GET /foo"))
-	compare(mustParsePattern(t, "GET /{x}"))
-}
-
-// This test works by comparing possiblyConflictingPatterns with
-// an exhaustive loop through all patterns.
-func FuzzIndex(f *testing.F) {
-	inits := []string{"/a", "/a/b", "/{x0}", "/{x0}/b", "/a/{x0}", "/a/{$}", "/a/b/{$}",
-		"/a/", "/a/b/", "/{x}/b/c/{$}", "GET /{x0}/", "HEAD /a"}
-
-	var patterns []*pattern
-	var idx routingIndex
-
-	// compare takes a fatalf function because fuzzing doesn't like
-	// it when the fuzz function calls f.Fatalf.
-	compare := func(pat *pattern, fatalf func(string, ...any)) {
-		got := indexConflicts(pat, &idx)
-		want := trueConflicts(pat, patterns)
-		if !slices.Equal(got, want) {
-			fatalf("%q:\ngot  %q\nwant %q", pat, got, want)
-		}
-	}
-
-	for _, p := range inits {
-		pat, err := parsePattern(p)
-		if err != nil {
-			f.Fatal(err)
-		}
-		compare(pat, f.Fatalf)
-		patterns = append(patterns, pat)
-		idx.addPattern(pat)
-		f.Add(bytesFromPattern(pat))
-	}
-
-	f.Fuzz(func(t *testing.T, pb []byte) {
-		pat := bytesToPattern(pb)
-		if pat == nil {
-			return
-		}
-		compare(pat, t.Fatalf)
-	})
 }
 
 func trueConflicts(pat *pattern, pats []*pattern) []string {
@@ -99,109 +51,103 @@ func indexConflicts(pat *pattern, idx *routingIndex) []string {
 	return slices.Compact(s)
 }
 
-// TODO: incorporate host and method; make encoding denser.
-func bytesToPattern(bs []byte) *pattern {
-	if len(bs) == 0 {
-		return nil
-	}
-	var sb strings.Builder
-	wc := 0
-	for _, b := range bs[:len(bs)-1] {
-		sb.WriteByte('/')
-		switch b & 0x3 {
-		case 0:
-			fmt.Fprintf(&sb, "{x%d}", wc)
+// generatePatterns generates all possible patterns using a representative
+// sample of parts.
+func generatePatterns() []*pattern {
+	var pats []*pattern
+
+	collect := func(s string) {
+		// Replace duplicate wildcards with unique ones.
+		var b strings.Builder
+		wc := 0
+		for {
+			i := strings.Index(s, "{x}")
+			if i < 0 {
+				b.WriteString(s)
+				break
+			}
+			b.WriteString(s[:i])
+			fmt.Fprintf(&b, "{x%d}", wc)
 			wc++
-		case 1:
-			sb.WriteString("a")
-		case 2:
-			sb.WriteString("b")
-		case 3:
-			sb.WriteString("c")
+			s = s[i+3:]
 		}
+		pat, err := parsePattern(b.String())
+		if err != nil {
+			panic(err)
+		}
+		pats = append(pats, pat)
 	}
-	sb.WriteByte('/')
-	switch bs[len(bs)-1] & 0x7 {
-	case 0:
-		fmt.Fprintf(&sb, "{x%d}", wc)
-	case 1:
-		sb.WriteString("a")
-	case 2:
-		sb.WriteString("b")
-	case 3:
-		sb.WriteString("c")
-	case 4, 5:
-		fmt.Fprintf(&sb, "{x%d...}", wc)
-	default:
-		sb.WriteString("{$}")
-	}
-	pat, err := parsePattern(sb.String())
-	if err != nil {
-		panic(err)
-	}
-	return pat
+
+	var (
+		methods   = []string{"", "GET ", "HEAD ", "POST "}
+		hosts     = []string{"", "h1", "h2"}
+		segs      = []string{"/a", "/b", "/{x}"}
+		finalSegs = []string{"/a", "/b", "/{f}", "/{m...}", "/{$}"}
+	)
+
+	g := genConcat(
+		genChoice(methods),
+		genChoice(hosts),
+		genStar(3, genChoice(segs)),
+		genChoice(finalSegs))
+	g(collect)
+	return pats
 }
 
-func bytesFromPattern(p *pattern) []byte {
-	var bs []byte
-	for _, s := range p.segments {
-		var b byte
-		switch {
-		case s.multi:
-			b = 4
-		case s.wild:
-			b = 0
-		case s.s == "/":
-			b = 7
-		case s.s == "a":
-			b = 1
-		case s.s == "b":
-			b = 2
-		case s.s == "c":
-			b = 3
-		default:
-			panic("bad pattern")
-		}
-		bs = append(bs, b)
+// A generator is a function that calls its argument with the strings that it
+// generates.
+type generator func(collect func(string))
+
+// genConst generates a single constant string.
+func genConst(s string) generator {
+	return func(collect func(string)) {
+		collect(s)
 	}
-	return bs
 }
 
-func TestBytesPattern(t *testing.T) {
-	tests := []struct {
-		bs  []byte
-		pat string
-	}{
-		{[]byte{0, 1, 2, 3}, "/{x0}/a/b/c"},
-		{[]byte{16, 17, 18, 19}, "/{x0}/a/b/c"},
-		{[]byte{4, 4}, "/{x0}/{x1...}"},
-		{[]byte{6, 7}, "/b/{$}"},
+// genChoice generates all the strings in its argument.
+func genChoice(choices []string) generator {
+	return func(collect func(string)) {
+		for _, c := range choices {
+			collect(c)
+		}
 	}
-	t.Run("To", func(t *testing.T) {
-		for _, test := range tests {
-			p := bytesToPattern(test.bs)
-			got := p.String()
-			if got != test.pat {
-				t.Errorf("%v: got %q, want %q", test.bs, got, test.pat)
-			}
-		}
-	})
-	t.Run("From", func(t *testing.T) {
-		for _, test := range tests {
-			p, err := parsePattern(test.pat)
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := bytesFromPattern(p)
-			var want []byte
-			for _, b := range test.bs[:len(test.bs)-1] {
-				want = append(want, b%4)
+}
 
-			}
-			want = append(want, test.bs[len(test.bs)-1]%8)
-			if !bytes.Equal(got, want) {
-				t.Errorf("%s: got %v, want %v", test.pat, got, want)
-			}
+// genConcat2 generates the cross product of the strings of g1 concatenated
+// with those of g2.
+func genConcat2(g1, g2 generator) generator {
+	return func(collect func(string)) {
+		g1(func(s1 string) {
+			g2(func(s2 string) {
+				collect(s1 + s2)
+			})
+		})
+	}
+}
+
+// genConcat generalizes genConcat2 to any number of generators.
+func genConcat(gs ...generator) generator {
+	if len(gs) == 0 {
+		return genConst("")
+	}
+	return genConcat2(gs[0], genConcat(gs[1:]...))
+}
+
+// genRepeat generates strings of exactly n copies of g's strings.
+func genRepeat(n int, g generator) generator {
+	if n == 0 {
+		return genConst("")
+	}
+	return genConcat(g, genRepeat(n-1, g))
+}
+
+// genStar (named after the Kleene star) generates 0, 1, 2, ..., max
+// copies of the strings of g.
+func genStar(max int, g generator) generator {
+	return func(collect func(string)) {
+		for i := 0; i <= max; i++ {
+			genRepeat(i, g)(collect)
 		}
-	})
+	}
 }
