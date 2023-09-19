@@ -219,6 +219,18 @@ which they can be addressed.
     be prepared to eliminate the declaration too---this is where an
     iterative framework for simplification would really help).
 
+  - An expression such as s[i] may be valid if s and i are
+    variables but invalid if either or both of them are constants.
+    For example, a negative constant index s[-1] is always out of
+    bounds, and even a non-negative constant index may be out of
+    bounds depending on the particular string constant (e.g.
+    "abc"[4]).
+
+    So, if a parameter participates in any expression that is
+    subject to additional compile-time checks when its operands are
+    constant, it may be unsafe to substitute that parameter by a
+    constant argument value (#62664).
+
 More complex callee functions are inlinable with more elaborate and
 invasive changes to the statements surrounding the call expression.
 
@@ -252,6 +264,13 @@ TODO(adonovan): future work:
 
   - Eliminate parens and braces inserted conservatively when they
     are redundant.
+
+  - Eliminate explicit conversions of "untyped" literals inserted
+    conservatively when they are redundant. For example, the
+    conversion int32(1) is redundant when this value is used only as a
+    slice index; but it may be crucial if it is used in x := int32(1)
+    as it changes the type of x, which may have further implications.
+    The conversions may also be important to the falcon analysis.
 
   - Allow non-'go' build systems such as Bazel/Blaze a chance to
     decide whether an import is accessible using logic other than

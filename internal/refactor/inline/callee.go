@@ -47,6 +47,7 @@ type gobCallee struct {
 	TotalReturns     int          // number of return statements
 	TrivialReturns   int          // number of return statements with trivial result conversions
 	Labels           []string     // names of all control labels
+	Falcon           falconResult // falcon constraint system
 }
 
 // A freeRef records a reference to a free object.  Gob-serializable.
@@ -331,7 +332,7 @@ func AnalyzeCallee(logf func(string, ...any), fset *token.FileSet, pkg *types.Pa
 		return nil, err
 	}
 
-	params, results, effects := analyzeParams(logf, fset, info, decl)
+	params, results, effects, falcon := analyzeParams(logf, fset, info, decl)
 	return &Callee{gobCallee{
 		Content:          content,
 		PkgPath:          pkg.Path(),
@@ -349,6 +350,7 @@ func AnalyzeCallee(logf func(string, ...any), fset *token.FileSet, pkg *types.Pa
 		TotalReturns:     totalReturns,
 		TrivialReturns:   trivialReturns,
 		Labels:           labels,
+		Falcon:           falcon,
 	}}, nil
 }
 
@@ -365,15 +367,15 @@ func parseCompact(content []byte) (*token.FileSet, *ast.FuncDecl, error) {
 }
 
 // A paramInfo records information about a callee receiver, parameter, or result variable.
-// TODO(adonovan): rename to sigVarInfo or paramOrResultInfo?
 type paramInfo struct {
-	Name     string          // parameter name (may be blank, or even "")
-	Index    int             // index within signature
-	IsResult bool            // false for receiver or parameter, true for result variable
-	Assigned bool            // parameter appears on left side of an assignment statement
-	Escapes  bool            // parameter has its address taken
-	Refs     []int           // FuncDecl-relative byte offset of parameter ref within body
-	Shadow   map[string]bool // names shadowed at one of the above refs
+	Name       string          // parameter name (may be blank, or even "")
+	Index      int             // index within signature
+	IsResult   bool            // false for receiver or parameter, true for result variable
+	Assigned   bool            // parameter appears on left side of an assignment statement
+	Escapes    bool            // parameter has its address taken
+	Refs       []int           // FuncDecl-relative byte offset of parameter ref within body
+	Shadow     map[string]bool // names shadowed at one of the above refs
+	FalconType string          // name of this parameter's type (if basic) in the falcon system
 }
 
 // analyzeParams computes information about parameters of function fn,
@@ -383,7 +385,7 @@ type paramInfo struct {
 // the other of the result variables of function fn.
 //
 // The input must be well-typed.
-func analyzeParams(logf func(string, ...any), fset *token.FileSet, info *types.Info, decl *ast.FuncDecl) (params, results []*paramInfo, effects []int) {
+func analyzeParams(logf func(string, ...any), fset *token.FileSet, info *types.Info, decl *ast.FuncDecl) (params, results []*paramInfo, effects []int, _ falconResult) {
 	fnobj, ok := info.Defs[decl.Name]
 	if !ok {
 		panic(fmt.Sprintf("%s: no func object for %q",
@@ -458,7 +460,9 @@ func analyzeParams(logf func(string, ...any), fset *token.FileSet, info *types.I
 	effects = calleefx(info, decl.Body, paramInfos)
 	logf("effects list = %v", effects)
 
-	return params, results, effects
+	falcon := falcon(logf, fset, paramInfos, info, decl)
+
+	return params, results, effects, falcon
 }
 
 // -- callee helpers --

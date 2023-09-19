@@ -1020,7 +1020,7 @@ func runTests(t *testing.T, tests []testcase) {
 			conf := &types.Config{Error: func(err error) { t.Error(err) }}
 			pkg, err := conf.Check("p", fset, []*ast.File{callerFile, calleeFile}, info)
 			if err != nil {
-				t.Fatal(err)
+				t.Fatal("transformation introduced type errors")
 			}
 
 			// Analyze callee and inline call.
