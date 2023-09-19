@@ -383,7 +383,7 @@ func TestRlimitRestored(t *testing.T) {
 		t.Fatalf("could not parse %q as number: %v", s, v)
 	}
 
-	if v != orig.Cur {
+	if v != uint64(orig.Cur) {
 		t.Errorf("exec rlimit = %d, want %d", v, orig)
 	}
 }
