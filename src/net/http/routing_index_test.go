@@ -151,3 +151,29 @@ func genStar(max int, g generator) generator {
 		}
 	}
 }
+
+func BenchmarkMultiConflicts(b *testing.B) {
+	// How fast is indexing if the corpus is all multis?
+	const nMultis = 1000
+	var pats []*pattern
+	for i := 0; i < nMultis; i++ {
+		pats = append(pats, mustParsePattern(b, fmt.Sprintf("/a/b/{x}/d%d/", i)))
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var idx routingIndex
+		for _, p := range pats {
+			got := indexConflicts(p, &idx)
+			if len(got) != 0 {
+				b.Fatalf("got %d conflicts, want 0", len(got))
+			}
+			idx.addPattern(p)
+		}
+		if i == 0 {
+			// Confirm that all the multis ended up where they belong.
+			if g, w := len(idx.multis), nMultis; g != w {
+				b.Fatalf("got %d multis, want %d", g, w)
+			}
+		}
+	}
+}

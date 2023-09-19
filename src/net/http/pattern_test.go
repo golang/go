@@ -159,11 +159,11 @@ func TestIsValidHTTPToken(t *testing.T) {
 	}
 }
 
-func mustParsePattern(t *testing.T, s string) *pattern {
-	t.Helper()
+func mustParsePattern(tb testing.TB, s string) *pattern {
+	tb.Helper()
 	p, err := parsePattern(s)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	return p
 }
