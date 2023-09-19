@@ -2655,8 +2655,9 @@ func (mux *ServeMux) registerErr(patstr string, handler Handler) error {
 	// Check for conflict.
 	if err := mux.index.possiblyConflictingPatterns(pat, func(pat2 *pattern) error {
 		if pat.conflictsWith(pat2) {
-			return fmt.Errorf("pattern %q (registered at %s) conflicts with pattern %q (registered at %s)",
-				pat, pat.loc, pat2, pat2.loc)
+			d := describeConflict(pat, pat2)
+			return fmt.Errorf("pattern %q (registered at %s) conflicts with pattern %q (registered at %s):\n%s",
+				pat, pat.loc, pat2, pat2.loc, d)
 		}
 		return nil
 	}); err != nil {

@@ -392,3 +392,115 @@ func TestConflictsWith(t *testing.T) {
 		}
 	}
 }
+
+func TestRegisterConflict(t *testing.T) {
+	mux := NewServeMux()
+	pat1 := "/a/{x}/"
+	if err := mux.registerErr(pat1, NotFoundHandler()); err != nil {
+		t.Fatal(err)
+	}
+	pat2 := "/a/{y}/{z...}"
+	err := mux.registerErr(pat2, NotFoundHandler())
+	var got string
+	if err == nil {
+		got = "<nil>"
+	} else {
+		got = err.Error()
+	}
+	want := "matches the same requests as"
+	if !strings.Contains(got, want) {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestDescribeConflict(t *testing.T) {
+	for _, test := range []struct {
+		p1, p2 string
+		want   string
+	}{
+		{"/a/{x}", "/a/{y}", "the same requests"},
+		{"/", "/{m...}", "the same requests"},
+		{"/a/{x}", "/{y}/b", "both match some paths"},
+		{"/a", "GET /{x}", "matches more methods than GET /{x}, but has a more specific path pattern"},
+		{"GET /a", "HEAD /", "matches more methods than HEAD /, but has a more specific path pattern"},
+		{"POST /", "/a", "matches fewer methods than /a, but has a more general path pattern"},
+	} {
+		got := describeConflict(mustParsePattern(t, test.p1), mustParsePattern(t, test.p2))
+		if !strings.Contains(got, test.want) {
+			t.Errorf("%s vs. %s:\ngot:\n%s\nwhich does not contain %q",
+				test.p1, test.p2, got, test.want)
+		}
+	}
+}
+
+func TestCommonPath(t *testing.T) {
+	for _, test := range []struct {
+		p1, p2 string
+		want   string
+	}{
+		{"/a/{x}", "/{x}/a", "/a/a"},
+		{"/a/{z}/", "/{z}/a/", "/a/a/"},
+		{"/a/{z}/{m...}", "/{z}/a/", "/a/a/"},
+		{"/{z}/{$}", "/a/", "/a/"},
+		{"/{z}/{$}", "/a/{x...}", "/a/"},
+		{"/a/{z}/{$}", "/{z}/a/", "/a/a/"},
+		{"/a/{x}/b/{y...}", "/{x}/c/{y...}", "/a/c/b/"},
+		{"/a/{x}/b/", "/{x}/c/{y...}", "/a/c/b/"},
+		{"/a/{x}/b/{$}", "/{x}/c/{y...}", "/a/c/b/"},
+		{"/a/{z}/{x...}", "/{z}/b/{y...}", "/a/b/"},
+	} {
+		pat1 := mustParsePattern(t, test.p1)
+		pat2 := mustParsePattern(t, test.p2)
+		if pat1.comparePaths(pat2) != overlaps {
+			t.Fatalf("%s does not overlap %s", test.p1, test.p2)
+		}
+		got := commonPath(pat1, pat2)
+		if got != test.want {
+			t.Errorf("%s vs. %s: got %q, want %q", test.p1, test.p2, got, test.want)
+		}
+	}
+}
+
+func TestDifferencePath(t *testing.T) {
+	for _, test := range []struct {
+		p1, p2 string
+		want   string
+	}{
+		{"/a/{x}", "/{x}/a", "/a/x"},
+		{"/{x}/a", "/a/{x}", "/x/a"},
+		{"/a/{z}/", "/{z}/a/", "/a/z/"},
+		{"/{z}/a/", "/a/{z}/", "/z/a/"},
+		{"/{a}/a/", "/a/{z}/", "/ax/a/"},
+		{"/a/{z}/{x...}", "/{z}/b/{y...}", "/a/z/"},
+		{"/{z}/b/{y...}", "/a/{z}/{x...}", "/z/b/"},
+		{"/a/b/", "/a/b/c", "/a/b/"},
+		{"/a/b/{x...}", "/a/b/c", "/a/b/"},
+		{"/a/b/{x...}", "/a/b/c/d", "/a/b/"},
+		{"/a/b/{x...}", "/a/b/c/d/", "/a/b/"},
+		{"/a/{z}/{m...}", "/{z}/a/", "/a/z/"},
+		{"/{z}/a/", "/a/{z}/{m...}", "/z/a/"},
+		{"/{z}/{$}", "/a/", "/z/"},
+		{"/a/", "/{z}/{$}", "/a/x"},
+		{"/{z}/{$}", "/a/{x...}", "/z/"},
+		{"/a/{foo...}", "/{z}/{$}", "/a/foo"},
+		{"/a/{z}/{$}", "/{z}/a/", "/a/z/"},
+		{"/{z}/a/", "/a/{z}/{$}", "/z/a/x"},
+		{"/a/{x}/b/{y...}", "/{x}/c/{y...}", "/a/x/b/"},
+		{"/{x}/c/{y...}", "/a/{x}/b/{y...}", "/x/c/"},
+		{"/a/{c}/b/", "/{x}/c/{y...}", "/a/cx/b/"},
+		{"/{x}/c/{y...}", "/a/{c}/b/", "/x/c/"},
+		{"/a/{x}/b/{$}", "/{x}/c/{y...}", "/a/x/b/"},
+		{"/{x}/c/{y...}", "/a/{x}/b/{$}", "/x/c/"},
+	} {
+		pat1 := mustParsePattern(t, test.p1)
+		pat2 := mustParsePattern(t, test.p2)
+		rel := pat1.comparePaths(pat2)
+		if rel != overlaps && rel != moreGeneral {
+			t.Fatalf("%s vs. %s are %s, need overlaps or moreGeneral", pat1, pat2, rel)
+		}
+		got := differencePath(pat1, pat2)
+		if got != test.want {
+			t.Errorf("%s vs. %s: got %q, want %q", test.p1, test.p2, got, test.want)
+		}
+	}
+}

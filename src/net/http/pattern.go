@@ -388,3 +388,132 @@ func isLitOrSingle(seg segment) bool {
 	}
 	return seg.s != "/"
 }
+
+// describeConflict returns an explanation of why two patterns conflict.
+func describeConflict(p1, p2 *pattern) string {
+	mrel := p1.compareMethods(p2)
+	prel := p1.comparePaths(p2)
+	rel := combineRelationships(mrel, prel)
+	if rel == equivalent {
+		return fmt.Sprintf("%s matches the same requests as %s", p1, p2)
+	}
+	if rel != overlaps {
+		panic("describeConflict called with non-conflicting patterns")
+	}
+	if prel == overlaps {
+		return fmt.Sprintf(`%[1]s and %[2]s both match some paths, like %[3]q.
+But neither is more specific than the other.
+%[1]s matches %[4]q, but %[2]s doesn't.
+%[2]s matches %[5]q, but %[1]s doesn't.`,
+			p1, p2, commonPath(p1, p2), differencePath(p1, p2), differencePath(p2, p1))
+	}
+	if mrel == moreGeneral && prel == moreSpecific {
+		return fmt.Sprintf("%s matches more methods than %s, but has a more specific path pattern", p1, p2)
+	}
+	if mrel == moreSpecific && prel == moreGeneral {
+		return fmt.Sprintf("%s matches fewer methods than %s, but has a more general path pattern", p1, p2)
+	}
+	return fmt.Sprintf("bug: unexpected way for two patterns %s and %s to conflict: methods %s, paths %s", p1, p2, mrel, prel)
+}
+
+// writeMatchingPath writes to b a path that matches the segments.
+func writeMatchingPath(b *strings.Builder, segs []segment) {
+	for _, s := range segs {
+		writeSegment(b, s)
+	}
+}
+
+func writeSegment(b *strings.Builder, s segment) {
+	b.WriteByte('/')
+	if !s.multi && s.s != "/" {
+		b.WriteString(s.s)
+	}
+}
+
+// commonPath returns a path that both p1 and p2 match.
+// It assumes there is such a path.
+func commonPath(p1, p2 *pattern) string {
+	var b strings.Builder
+	var segs1, segs2 []segment
+	for segs1, segs2 = p1.segments, p2.segments; len(segs1) > 0 && len(segs2) > 0; segs1, segs2 = segs1[1:], segs2[1:] {
+		if s1 := segs1[0]; s1.wild {
+			writeSegment(&b, segs2[0])
+		} else {
+			writeSegment(&b, s1)
+		}
+	}
+	if len(segs1) > 0 {
+		writeMatchingPath(&b, segs1)
+	} else if len(segs2) > 0 {
+		writeMatchingPath(&b, segs2)
+	}
+	return b.String()
+}
+
+// differencePath returns a path that p1 matches and p2 doesn't.
+// It assumes there is such a path.
+func differencePath(p1, p2 *pattern) string {
+	var b strings.Builder
+
+	var segs1, segs2 []segment
+	for segs1, segs2 = p1.segments, p2.segments; len(segs1) > 0 && len(segs2) > 0; segs1, segs2 = segs1[1:], segs2[1:] {
+		s1 := segs1[0]
+		s2 := segs2[0]
+		if s1.multi && s2.multi {
+			// From here the patterns match the same paths, so we must have found a difference earlier.
+			b.WriteByte('/')
+			return b.String()
+
+		}
+		if s1.multi && !s2.multi {
+			// s1 ends in a "..." wildcard but s2 does not.
+			// A trailing slash will distinguish them, unless s2 ends in "{$}",
+			// in which case any segment will do; prefer the wildcard name if
+			// it has one.
+			b.WriteByte('/')
+			if s2.s == "/" {
+				if s1.s != "" {
+					b.WriteString(s1.s)
+				} else {
+					b.WriteString("x")
+				}
+			}
+			return b.String()
+		}
+		if !s1.multi && s2.multi {
+			writeSegment(&b, s1)
+		} else if s1.wild && s2.wild {
+			// Both patterns will match whatever we put here; use
+			// the first wildcard name.
+			writeSegment(&b, s1)
+		} else if s1.wild && !s2.wild {
+			// s1 is a wildcard, s2 is a literal.
+			// Any segment other than s2.s will work.
+			// Prefer the wildcard name, but if it's the same as the literal,
+			// tweak the literal.
+			if s1.s != s2.s {
+				writeSegment(&b, s1)
+			} else {
+				b.WriteByte('/')
+				b.WriteString(s2.s + "x")
+			}
+		} else if !s1.wild && s2.wild {
+			writeSegment(&b, s1)
+		} else {
+			// Both are literals. A precondition of this function is that the
+			// patterns overlap, so they must be the same literal. Use it.
+			if s1.s != s2.s {
+				panic(fmt.Sprintf("literals differ: %q and %q", s1.s, s2.s))
+			}
+			writeSegment(&b, s1)
+		}
+	}
+	if len(segs1) > 0 {
+		// p1 is longer than p2, and p2 does not end in a multi.
+		// Anything that matches the rest of p1 will do.
+		writeMatchingPath(&b, segs1)
+	} else if len(segs2) > 0 {
+		writeMatchingPath(&b, segs2)
+	}
+	return b.String()
+}
