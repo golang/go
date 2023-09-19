@@ -80,31 +80,42 @@ type segment struct {
 // The "{$}" and "{name...}" wildcard must occur at the end of PATH.
 // PATH may end with a '/'.
 // Wildcard names in a path must be distinct.
-func parsePattern(s string) (*pattern, error) {
+func parsePattern(s string) (_ *pattern, err error) {
 	if len(s) == 0 {
 		return nil, errors.New("empty pattern")
 	}
-	// TODO(jba): record the rune offset in s to provide more information in errors.
+	off := 0 // offset into string
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("at offset %d: %w", off, err)
+		}
+	}()
+
 	method, rest, found := strings.Cut(s, " ")
 	if !found {
 		rest = method
 		method = ""
 	}
 	if method != "" && !validMethod(method) {
-		return nil, fmt.Errorf("net/http: invalid method %q", method)
+		return nil, fmt.Errorf("invalid method %q", method)
 	}
 	p := &pattern{str: s, method: method}
 
+	if found {
+		off = len(method) + 1
+	}
 	i := strings.IndexByte(rest, '/')
 	if i < 0 {
 		return nil, errors.New("host/path missing /")
 	}
 	p.host = rest[:i]
 	rest = rest[i:]
-	if strings.IndexByte(p.host, '{') >= 0 {
+	if j := strings.IndexByte(p.host, '{'); j >= 0 {
+		off += j
 		return nil, errors.New("host contains '{' (missing initial '/'?)")
 	}
 	// At this point, rest is the path.
+	off += i
 
 	// An unclean path with a method that is not CONNECT can never match,
 	// because paths are cleaned before matching.
@@ -116,6 +127,7 @@ func parsePattern(s string) (*pattern, error) {
 	for len(rest) > 0 {
 		// Invariant: rest[0] == '/'.
 		rest = rest[1:]
+		off = len(s) - len(rest)
 		if len(rest) == 0 {
 			// Trailing slash.
 			p.segments = append(p.segments, segment{wild: true, multi: true})

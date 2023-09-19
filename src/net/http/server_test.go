@@ -131,7 +131,7 @@ func TestRegisterErr(t *testing.T) {
 		{"", h, "invalid pattern"},
 		{"/", nil, "nil handler"},
 		{"/", HandlerFunc(nil), "nil handler"},
-		{"/{x", h, `parsing "/\{x": bad wildcard segment`},
+		{"/{x", h, `parsing "/\{x": at offset 1: bad wildcard segment`},
 		{"/a", h, `conflicts with pattern.* \(registered at .*/server_test.go:\d+`},
 	} {
 		t.Run(fmt.Sprintf("%s:%#v", test.pattern, test.handler), func(t *testing.T) {
