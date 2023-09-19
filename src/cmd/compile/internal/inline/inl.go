@@ -86,7 +86,7 @@ func pgoInlinePrologue(p *pgo.Profile, funcs []*ir.Func) {
 			base.Fatalf("invalid PGOInlineCDFThreshold, must be between 0 and 100")
 		}
 	}
-	var hotCallsites []pgo.NodeMapKey
+	var hotCallsites []pgo.NamedCallEdge
 	inlineHotCallSiteThresholdPercent, hotCallsites = hotNodesFromCDF(p)
 	if base.Debug.PGODebug > 0 {
 		fmt.Printf("hot-callsite-thres-from-CDF=%v\n", inlineHotCallSiteThresholdPercent)
@@ -120,19 +120,19 @@ func pgoInlinePrologue(p *pgo.Profile, funcs []*ir.Func) {
 // (currently only used in debug prints) (in case of equal weights,
 // comparing with the threshold may not accurately reflect which nodes are
 // considiered hot).
-func hotNodesFromCDF(p *pgo.Profile) (float64, []pgo.NodeMapKey) {
+func hotNodesFromCDF(p *pgo.Profile) (float64, []pgo.NamedCallEdge) {
 	cum := int64(0)
-	for i, n := range p.NodesByWeight {
-		w := p.NodeMap[n].EWeight
+	for i, n := range p.NamedEdgeMap.ByWeight {
+		w := p.NamedEdgeMap.Weight[n]
 		cum += w
-		if pgo.WeightInPercentage(cum, p.TotalEdgeWeight) > inlineCDFHotCallSiteThresholdPercent {
+		if pgo.WeightInPercentage(cum, p.TotalWeight) > inlineCDFHotCallSiteThresholdPercent {
 			// nodes[:i+1] to include the very last node that makes it to go over the threshold.
 			// (Say, if the CDF threshold is 50% and one hot node takes 60% of weight, we want to
 			// include that node instead of excluding it.)
-			return pgo.WeightInPercentage(w, p.TotalEdgeWeight), p.NodesByWeight[:i+1]
+			return pgo.WeightInPercentage(w, p.TotalWeight), p.NamedEdgeMap.ByWeight[:i+1]
 		}
 	}
-	return 0, p.NodesByWeight
+	return 0, p.NamedEdgeMap.ByWeight
 }
 
 // InlinePackage finds functions that can be inlined and clones them before walk expands them.
