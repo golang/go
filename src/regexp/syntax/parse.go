@@ -1079,7 +1079,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			p.reuse(re)
 
 			// Ordinary single-character escape.
-			if c, t, err = p.parseEscape(t); err != nil {
+			if c, t, err = parseEscape(t); err != nil {
 				return nil, err
 			}
 			p.literal(c)
@@ -1110,7 +1110,7 @@ func (p *parser) parseRepeat(s string) (min, max int, rest string, ok bool) {
 	}
 	s = s[1:]
 	var ok1 bool
-	if min, s, ok1 = p.parseInt(s); !ok1 {
+	if min, s, ok1 = parseInt(s); !ok1 {
 		return
 	}
 	if s == "" {
@@ -1125,7 +1125,7 @@ func (p *parser) parseRepeat(s string) (min, max int, rest string, ok bool) {
 		}
 		if s[0] == '}' {
 			max = -1
-		} else if max, s, ok1 = p.parseInt(s); !ok1 {
+		} else if max, s, ok1 = parseInt(s); !ok1 {
 			return
 		} else if max < 0 {
 			// parseInt found too big a number
@@ -1275,7 +1275,7 @@ func isValidCaptureName(name string) bool {
 }
 
 // parseInt parses a decimal integer.
-func (p *parser) parseInt(s string) (n int, rest string, ok bool) {
+func parseInt(s string) (n int, rest string, ok bool) {
 	if s == "" || s[0] < '0' || '9' < s[0] {
 		return
 	}
@@ -1449,7 +1449,7 @@ func (p *parser) parseRightParen() error {
 
 // parseEscape parses an escape sequence at the beginning of s
 // and returns the rune.
-func (p *parser) parseEscape(s string) (r rune, rest string, err error) {
+func parseEscape(s string) (r rune, rest string, err error) {
 	t := s[1:]
 	if t == "" {
 		return 0, "", &Error{ErrTrailingBackslash, ""}
@@ -1573,7 +1573,7 @@ func (p *parser) parseClassChar(s, wholeClass string) (r rune, rest string, err 
 	// Allow regular escape sequences even though
 	// many need not be escaped in this context.
 	if s[0] == '\\' {
-		return p.parseEscape(s)
+		return parseEscape(s)
 	}
 
 	return nextRune(s)
