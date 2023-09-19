@@ -1339,7 +1339,7 @@ func TestLargeNumberOfSections(t *testing.T) {
 		binary.Write(&buf, binary.LittleEndian, Section32{
 			Name:      0x1B,
 			Type:      uint32(SHT_PROGBITS),
-			Flags:     uint32(uint32(SHF_ALLOC | SHF_EXECINSTR)),
+			Flags:     uint32(SHF_ALLOC | SHF_EXECINSTR),
 			Off:       0x34,
 			Addralign: 0x01,
 		})
