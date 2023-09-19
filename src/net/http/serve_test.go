@@ -107,8 +107,12 @@ type testConn struct {
 	readMu   sync.Mutex // for TestHandlerBodyClose
 	readBuf  bytes.Buffer
 	writeBuf bytes.Buffer
-	closec   chan bool // if non-nil, send value to it on close
+	closec   chan bool // 1-buffered; receives true when Close is called
 	noopConn
+}
+
+func newTestConn() *testConn {
+	return &testConn{closec: make(chan bool, 1)}
 }
 
 func (c *testConn) Read(b []byte) (int, error) {
@@ -4589,10 +4593,10 @@ Host: foo
 }
 
 // If a Handler finishes and there's an unread request body,
-// verify the server try to do implicit read on it before replying.
+// verify the server implicitly tries to do a read on it before replying.
 func TestHandlerFinishSkipBigContentLengthRead(t *testing.T) {
 	setParallel(t)
-	conn := &testConn{closec: make(chan bool)}
+	conn := newTestConn()
 	conn.readBuf.Write([]byte(fmt.Sprintf(
 		"POST / HTTP/1.1\r\n" +
 			"Host: test\r\n" +
@@ -4682,7 +4686,7 @@ func TestServerValidatesHostHeader(t *testing.T) {
 		{"GET / HTTP/3.0", "", 505},
 	}
 	for _, tt := range tests {
-		conn := &testConn{closec: make(chan bool, 1)}
+		conn := newTestConn()
 		methodTarget := "GET / "
 		if !strings.HasPrefix(tt.proto, "HTTP/") {
 			methodTarget = ""
@@ -4780,7 +4784,7 @@ func TestServerValidatesHeaders(t *testing.T) {
 		{"foo: foo\xfffoo\r\n", 200}, // non-ASCII high octets in value are fine
 	}
 	for _, tt := range tests {
-		conn := &testConn{closec: make(chan bool, 1)}
+		conn := newTestConn()
 		io.WriteString(&conn.readBuf, "GET / HTTP/1.1\r\nHost: foo\r\n"+tt.header+"\r\n")
 
 		ln := &oneConnListener{conn}
@@ -5166,11 +5170,7 @@ Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
 `)
 	res := []byte("Hello world!\n")
 
-	conn := &testConn{
-		// testConn.Close will not push into the channel
-		// if it's full.
-		closec: make(chan bool, 1),
-	}
+	conn := newTestConn()
 	handler := HandlerFunc(func(rw ResponseWriter, r *Request) {
 		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
 		rw.Write(res)
@@ -5991,7 +5991,7 @@ func TestServerValidatesMethod(t *testing.T) {
 		{"GE(T", 400},
 	}
 	for _, tt := range tests {
-		conn := &testConn{closec: make(chan bool, 1)}
+		conn := newTestConn()
 		io.WriteString(&conn.readBuf, tt.method+" / HTTP/1.1\r\nHost: foo.example\r\n\r\n")
 
 		ln := &oneConnListener{conn}
