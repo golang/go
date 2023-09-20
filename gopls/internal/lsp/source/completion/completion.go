@@ -594,17 +594,19 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	}
 
 	// Deep search collected candidates and their members for more candidates.
-	c.deepSearch(ctx, deadline)
+	c.deepSearch(ctx, 1, deadline)
 
 	for _, callback := range c.completionCallbacks {
-		if err := c.snapshot.RunProcessEnvFunc(ctx, callback); err != nil {
-			return nil, nil, err
+		if deadline == nil || time.Now().Before(*deadline) {
+			if err := c.snapshot.RunProcessEnvFunc(ctx, callback); err != nil {
+				return nil, nil, err
+			}
 		}
 	}
 
 	// Search candidates populated by expensive operations like
 	// unimportedMembers etc. for more completion items.
-	c.deepSearch(ctx, deadline)
+	c.deepSearch(ctx, 0, deadline)
 
 	// Statement candidates offer an entire statement in certain contexts, as
 	// opposed to a single object. Add statement candidates last because they

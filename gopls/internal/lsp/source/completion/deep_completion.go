@@ -113,7 +113,7 @@ func (s *deepCompletionState) newPath(cand candidate, obj types.Object) []types.
 // deepSearch searches a candidate and its subordinate objects for completion
 // items if deep completion is enabled and adds the valid candidates to
 // completion items.
-func (c *completer) deepSearch(ctx context.Context, deadline *time.Time) {
+func (c *completer) deepSearch(ctx context.Context, minDepth int, deadline *time.Time) {
 	defer func() {
 		// We can return early before completing the search, so be sure to
 		// clear out our queues to not impact any further invocations.
@@ -121,9 +121,25 @@ func (c *completer) deepSearch(ctx context.Context, deadline *time.Time) {
 		c.deepState.nextQueue = c.deepState.nextQueue[:0]
 	}()
 
-	first := true // always fully process the first set of candidates
-	for len(c.deepState.nextQueue) > 0 && (first || deadline == nil || time.Now().Before(*deadline)) {
-		first = false
+	depth := 0 // current depth being processed
+	// Stop reports whether we should stop the search immediately.
+	stop := func() bool {
+		// Context cancellation indicates that the actual completion operation was
+		// cancelled, so ignore minDepth and deadline.
+		select {
+		case <-ctx.Done():
+			return true
+		default:
+		}
+		// Otherwise, only stop if we've searched at least minDepth and reached the deadline.
+		return depth > minDepth && deadline != nil && time.Now().After(*deadline)
+	}
+
+	for len(c.deepState.nextQueue) > 0 {
+		depth++
+		if stop() {
+			return
+		}
 		c.deepState.thisQueue, c.deepState.nextQueue = c.deepState.nextQueue, c.deepState.thisQueue[:0]
 
 	outer:
@@ -172,17 +188,15 @@ func (c *completer) deepSearch(ctx context.Context, deadline *time.Time) {
 
 			c.deepState.candidateCount++
 			if c.opts.budget > 0 && c.deepState.candidateCount%100 == 0 {
-				spent := float64(time.Since(c.startTime)) / float64(c.opts.budget)
-				select {
-				case <-ctx.Done():
+				if stop() {
 					return
-				default:
-					// If we are almost out of budgeted time, no further elements
-					// should be added to the queue. This ensures remaining time is
-					// used for processing current queue.
-					if !c.deepState.queueClosed && spent >= 0.85 {
-						c.deepState.queueClosed = true
-					}
+				}
+				spent := float64(time.Since(c.startTime)) / float64(c.opts.budget)
+				// If we are almost out of budgeted time, no further elements
+				// should be added to the queue. This ensures remaining time is
+				// used for processing current queue.
+				if !c.deepState.queueClosed && spent >= 0.85 {
+					c.deepState.queueClosed = true
 				}
 			}
 
