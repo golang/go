@@ -356,7 +356,7 @@ func TestMapClear(t *testing.T) {
 
 }
 
-func TestMapClearRace(t *testing.T) {
+func TestConcurrentClear(t *testing.T) {
 	var m sync.Map
 
 	wg := sync.WaitGroup{}
