@@ -553,9 +553,10 @@ func BenchmarkClear(b *testing.B) {
 
 				if !ok {
 					b.Errorf("failed to load %v", k)
+					b.Skip()
 				}
 
-				if v1 != k {
+				if v1.(int) != v {
 					b.Errorf("expected %v, got %v", k, v)
 					b.Skip()
 				}
