@@ -562,7 +562,6 @@ func BenchmarkClear(b *testing.B) {
 				}
 
 			}
-
 		},
 	})
 }
