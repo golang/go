@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package append defines an Analyzer that detects
+// Package appends defines an Analyzer that detects
 // if there is only one variable in append.
-package append
+package appends
 
 import (
 	_ "embed"
@@ -21,9 +21,9 @@ import (
 var doc string
 
 var Analyzer = &analysis.Analyzer{
-	Name:     "append",
-	Doc:      analysisutil.MustExtractDoc(doc, "append"),
-	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/append",
+	Name:     "appends",
+	Doc:      analysisutil.MustExtractDoc(doc, "appends"),
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/appends",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

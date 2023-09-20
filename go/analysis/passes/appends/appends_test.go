@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package append_test
+package appends_test
 
 import (
 	"testing"
 
 	"golang.org/x/tools/go/analysis/analysistest"
-	"golang.org/x/tools/go/analysis/passes/append"
+	"golang.org/x/tools/go/analysis/passes/appends"
 )
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
 	tests := []string{"a", "b"}
-	analysistest.Run(t, testdata, append.Analyzer, tests...)
+	analysistest.Run(t, testdata, appends.Analyzer, tests...)
 }
