@@ -357,27 +357,27 @@ func TestMapClear(t *testing.T) {
 }
 
 func TestMapClearRace(t *testing.T) {
-	var myMap sync.Map
+	var m sync.Map
 
 	wg := sync.WaitGroup{}
 	wg.Add(30) // 10 goroutines for writing, 10 goroutines for reading, 10 goroutines for waiting
 
 	// Writing data to the map concurrently
 	for i := 0; i < 10; i++ {
-		go func(key, value int) {
+		go func(k, v int) {
 			defer wg.Done()
-			myMap.Store(key, value)
+			m.Store(k, v)
 		}(i, i*10)
 	}
 
 	// Reading data from the map concurrently
 	for i := 0; i < 10; i++ {
-		go func(key int) {
+		go func(k int) {
 			defer wg.Done()
-			if value, ok := myMap.Load(key); ok {
-				t.Logf("Key: %v, Value: %v\n", key, value)
+			if value, ok := m.Load(k); ok {
+				t.Logf("Key: %v, Value: %v\n", k, value)
 			} else {
-				t.Logf("Key: %v not found\n", key)
+				t.Logf("Key: %v not found\n", k)
 			}
 		}(i)
 	}
@@ -386,16 +386,16 @@ func TestMapClearRace(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func() {
 			defer wg.Done()
-			myMap.Clear()
+			m.Clear()
 		}()
 	}
 
 	wg.Wait()
 
-	myMap.Clear()
+	m.Clear()
 
-	myMap.Range(func(key, val any) bool {
-		t.Errorf("invalid %v:%v", key, val)
+	m.Range(func(k, v any) bool {
+		t.Errorf("invalid %v:%v", k, v)
 
 		return true
 	})
