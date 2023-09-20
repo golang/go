@@ -448,6 +448,7 @@ const (
 // Note that any new influence on this logic must be reported in b.buildActionID above as well.
 func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	p := a.Package
+	sh := b.Shell(a)
 
 	bit := func(x uint32, b bool) uint32 {
 		if b {
@@ -510,11 +511,11 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		// different sections of the bootstrap script have to
 		// be merged, the banners give patch something
 		// to use to find its context.
-		b.Print("\n#\n# " + p.ImportPath + "\n#\n\n")
+		sh.Print("\n#\n# " + p.ImportPath + "\n#\n\n")
 	}
 
 	if cfg.BuildV {
-		b.Print(p.ImportPath + "\n")
+		sh.Print(p.ImportPath + "\n")
 	}
 
 	if p.Error != nil {
@@ -540,7 +541,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		return err
 	}
 
-	if err := b.Mkdir(a.Objdir); err != nil {
+	if err := sh.Mkdir(a.Objdir); err != nil {
 		return err
 	}
 	objdir := a.Objdir
@@ -581,7 +582,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	// make target directory
 	dir, _ := filepath.Split(a.Target)
 	if dir != "" {
-		if err := b.Mkdir(dir); err != nil {
+		if err := sh.Mkdir(dir); err != nil {
 			return err
 		}
 	}
@@ -619,7 +620,7 @@ OverlayLoop:
 				from := mkAbs(p.Dir, fs[i])
 				opath, _ := fsys.OverlayPath(from)
 				dst := objdir + filepath.Base(fs[i])
-				if err := b.CopyFile(dst, opath, 0666, false); err != nil {
+				if err := sh.CopyFile(dst, opath, 0666, false); err != nil {
 					return err
 				}
 				a.nonGoOverlay[from] = dst
@@ -858,7 +859,7 @@ OverlayLoop:
 	if p.Internal.BuildInfo != nil && cfg.ModulesEnabled {
 		prog := modload.ModInfoProg(p.Internal.BuildInfo.String(), cfg.BuildToolchainName == "gccgo")
 		if len(prog) > 0 {
-			if err := b.writeFile(objdir+"_gomod_.go", prog); err != nil {
+			if err := sh.writeFile(objdir+"_gomod_.go", prog); err != nil {
 				return err
 			}
 			gofiles = append(gofiles, objdir+"_gomod_.go")
@@ -868,7 +869,7 @@ OverlayLoop:
 	// Compile Go.
 	objpkg := objdir + "_pkg_.a"
 	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, gofiles)
-	if err := b.reportCmd(a, "", "", out, err); err != nil {
+	if err := sh.reportCmd("", "", out, err); err != nil {
 		return err
 	}
 	if ofile != objpkg {
@@ -886,17 +887,17 @@ OverlayLoop:
 		switch {
 		case strings.HasSuffix(name, _goos_goarch):
 			targ := file[:len(name)-len(_goos_goarch)] + "_GOOS_GOARCH." + ext
-			if err := b.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
+			if err := sh.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goarch):
 			targ := file[:len(name)-len(_goarch)] + "_GOARCH." + ext
-			if err := b.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
+			if err := sh.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goos):
 			targ := file[:len(name)-len(_goos)] + "_GOOS." + ext
-			if err := b.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
+			if err := sh.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		}
@@ -996,7 +997,7 @@ func (b *Builder) checkDirectives(a *Action) error {
 		// path, but the content of the error doesn't matter because msg is
 		// non-empty.
 		err := errors.New("invalid directive")
-		return b.reportCmd(a, "", "", msg.Bytes(), err)
+		return b.Shell(a).reportCmd("", "", msg.Bytes(), err)
 	}
 	return nil
 }
@@ -1024,7 +1025,7 @@ func (b *Builder) loadCachedObjdirFile(a *Action, c cache.Cache, name string) er
 	if err != nil {
 		return err
 	}
-	return b.CopyFile(a.Objdir+name, cached, 0666, true)
+	return b.Shell(a).CopyFile(a.Objdir+name, cached, 0666, true)
 }
 
 func (b *Builder) cacheCgoHdr(a *Action) {
@@ -1229,6 +1230,8 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 		return fmt.Errorf("vet config not found")
 	}
 
+	sh := b.Shell(a)
+
 	vcfg.VetxOnly = a.VetxOnly
 	vcfg.VetxOutput = a.Objdir + "vet.out"
 	vcfg.PackageVetx = make(map[string]string)
@@ -1306,7 +1309,7 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 		return fmt.Errorf("internal error marshaling vet config: %v", err)
 	}
 	js = append(js, '\n')
-	if err := b.writeFile(a.Objdir+"vet.cfg", js); err != nil {
+	if err := sh.writeFile(a.Objdir+"vet.cfg", js); err != nil {
 		return err
 	}
 
@@ -1321,7 +1324,7 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 	if tool == "" {
 		tool = base.Tool("vet")
 	}
-	runErr := b.run(a, p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, vetFlags, a.Objdir+"vet.cfg")
+	runErr := sh.run(p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, vetFlags, a.Objdir+"vet.cfg")
 
 	// If vet wrote export data, save it for input to future vets.
 	if f, err := os.Open(vcfg.VetxOutput); err == nil {
@@ -1428,7 +1431,8 @@ func (b *Builder) link(ctx context.Context, a *Action) (err error) {
 	}
 	defer b.flushOutput(a)
 
-	if err := b.Mkdir(a.Objdir); err != nil {
+	sh := b.Shell(a)
+	if err := sh.Mkdir(a.Objdir); err != nil {
 		return err
 	}
 
@@ -1444,7 +1448,7 @@ func (b *Builder) link(ctx context.Context, a *Action) (err error) {
 	// make target directory
 	dir, _ := filepath.Split(a.Target)
 	if dir != "" {
-		if err := b.Mkdir(dir); err != nil {
+		if err := sh.Mkdir(dir); err != nil {
 			return err
 		}
 	}
@@ -1495,7 +1499,7 @@ func (b *Builder) writeLinkImportcfg(a *Action, file string) error {
 		info = a.Package.Internal.BuildInfo.String()
 	}
 	fmt.Fprintf(&icfg, "modinfo %q\n", modload.ModInfoData(info))
-	return b.writeFile(file, icfg.Bytes())
+	return b.Shell(a).writeFile(file, icfg.Bytes())
 }
 
 // PkgconfigCmd returns a pkg-config binary name
@@ -1614,6 +1618,7 @@ func splitPkgConfigOutput(out []byte) ([]string, error) {
 // Calls pkg-config if needed and returns the cflags/ldflags needed to build a's package.
 func (b *Builder) getPkgConfigFlags(a *Action) (cflags, ldflags []string, err error) {
 	p := a.Package
+	sh := b.Shell(a)
 	if pcargs := p.CgoPkgConfig; len(pcargs) > 0 {
 		// pkg-config permits arguments to appear anywhere in
 		// the command line. Move them all to the front, before --.
@@ -1634,10 +1639,10 @@ func (b *Builder) getPkgConfigFlags(a *Action) (cflags, ldflags []string, err er
 			}
 		}
 		var out []byte
-		out, err = b.runOut(nil, p.Dir, nil, b.PkgconfigCmd(), "--cflags", pcflags, "--", pkgs)
+		out, err = sh.runOut(p.Dir, nil, b.PkgconfigCmd(), "--cflags", pcflags, "--", pkgs)
 		if err != nil {
 			desc := b.PkgconfigCmd() + " --cflags " + strings.Join(pcflags, " ") + " -- " + strings.Join(pkgs, " ")
-			return nil, nil, b.reportCmd(a, desc, "", out, err)
+			return nil, nil, sh.reportCmd(desc, "", out, err)
 		}
 		if len(out) > 0 {
 			cflags, err = splitPkgConfigOutput(bytes.TrimSpace(out))
@@ -1648,10 +1653,10 @@ func (b *Builder) getPkgConfigFlags(a *Action) (cflags, ldflags []string, err er
 				return nil, nil, err
 			}
 		}
-		out, err = b.runOut(nil, p.Dir, nil, b.PkgconfigCmd(), "--libs", pcflags, "--", pkgs)
+		out, err = sh.runOut(p.Dir, nil, b.PkgconfigCmd(), "--libs", pcflags, "--", pkgs)
 		if err != nil {
 			desc := b.PkgconfigCmd() + " --libs " + strings.Join(pcflags, " ") + " -- " + strings.Join(pkgs, " ")
-			return nil, nil, b.reportCmd(a, desc, "", out, err)
+			return nil, nil, sh.reportCmd(desc, "", out, err)
 		}
 		if len(out) > 0 {
 			// We need to handle path with spaces so that C:/Program\ Files can pass
@@ -1674,13 +1679,14 @@ func (b *Builder) installShlibname(ctx context.Context, a *Action) error {
 		return err
 	}
 
+	sh := b.Shell(a)
 	a1 := a.Deps[0]
 	if !cfg.BuildN {
-		if err := b.Mkdir(filepath.Dir(a.Target)); err != nil {
+		if err := sh.Mkdir(filepath.Dir(a.Target)); err != nil {
 			return err
 		}
 	}
-	return b.writeFile(a.Target, []byte(filepath.Base(a1.Target)+"\n"))
+	return sh.writeFile(a.Target, []byte(filepath.Base(a1.Target)+"\n"))
 }
 
 func (b *Builder) linkSharedActionID(a *Action) cache.ActionID {
@@ -1725,7 +1731,7 @@ func (b *Builder) linkShared(ctx context.Context, a *Action) (err error) {
 		return err
 	}
 
-	if err := b.Mkdir(a.Objdir); err != nil {
+	if err := b.Shell(a).Mkdir(a.Objdir); err != nil {
 		return err
 	}
 
@@ -1754,6 +1760,7 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
 			err = fmt.Errorf("go %s%s%s: %v", cfg.CmdName, sep, path, err)
 		}
 	}()
+	sh := b.Shell(a)
 
 	a1 := a.Deps[0]
 	a.buildID = a1.buildID
@@ -1791,7 +1798,7 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
 		// to date).
 		if !a.buggyInstall && !b.IsCmdList {
 			if cfg.BuildN {
-				b.Showcmd("", "touch %s", a.Target)
+				sh.ShowCmd("", "touch %s", a.Target)
 			} else if err := AllowInstall(a); err == nil {
 				now := time.Now()
 				os.Chtimes(a.Target, now, now)
@@ -1810,7 +1817,7 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
 		return err
 	}
 
-	if err := b.Mkdir(a.Objdir); err != nil {
+	if err := sh.Mkdir(a.Objdir); err != nil {
 		return err
 	}
 
@@ -1826,7 +1833,7 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
 	// make target directory
 	dir, _ := filepath.Split(a.Target)
 	if dir != "" {
-		if err := b.Mkdir(dir); err != nil {
+		if err := sh.Mkdir(dir); err != nil {
 			return err
 		}
 	}
@@ -1835,7 +1842,7 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
 		defer b.cleanup(a1)
 	}
 
-	return b.moveOrCopyFile(a.Target, a1.built, perm, false)
+	return sh.moveOrCopyFile(a.Target, a1.built, perm, false)
 }
 
 // AllowInstall returns a non-nil error if this invocation of the go command is
@@ -1855,7 +1862,7 @@ func (b *Builder) cleanup(a *Action) {
 			// Don't say we are removing the directory if
 			// we never created it.
 			if _, err := os.Stat(a.Objdir); err == nil || cfg.BuildN {
-				b.Showcmd("", "rm -r %s", a.Objdir)
+				b.Shell(a).ShowCmd("", "rm -r %s", a.Objdir)
 			}
 		}
 		os.RemoveAll(a.Objdir)
@@ -1863,9 +1870,9 @@ func (b *Builder) cleanup(a *Action) {
 }
 
 // moveOrCopyFile is like 'mv src dst' or 'cp src dst'.
-func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) error {
+func (sh *Shell) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) error {
 	if cfg.BuildN {
-		b.Showcmd("", "mv %s %s", src, dst)
+		sh.ShowCmd("", "mv %s %s", src, dst)
 		return nil
 	}
 
@@ -1874,7 +1881,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) 
 
 	// If the source is in the build cache, we need to copy it.
 	if strings.HasPrefix(src, cache.DefaultDir()) {
-		return b.CopyFile(dst, src, perm, force)
+		return sh.CopyFile(dst, src, perm, force)
 	}
 
 	// On Windows, always copy the file, so that we respect the NTFS
@@ -1882,7 +1889,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) 
 	// What matters here is not cfg.Goos (the system we are building
 	// for) but runtime.GOOS (the system we are building on).
 	if runtime.GOOS == "windows" {
-		return b.CopyFile(dst, src, perm, force)
+		return sh.CopyFile(dst, src, perm, force)
 	}
 
 	// If the destination directory has the group sticky bit set,
@@ -1890,7 +1897,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) 
 	// https://golang.org/issue/18878
 	if fi, err := os.Stat(filepath.Dir(dst)); err == nil {
 		if fi.IsDir() && (fi.Mode()&fs.ModeSetgid) != 0 {
-			return b.CopyFile(dst, src, perm, force)
+			return sh.CopyFile(dst, src, perm, force)
 		}
 	}
 
@@ -1914,19 +1921,19 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) 
 	if err := os.Chmod(src, mode); err == nil {
 		if err := os.Rename(src, dst); err == nil {
 			if cfg.BuildX {
-				b.Showcmd("", "mv %s %s", src, dst)
+				sh.ShowCmd("", "mv %s %s", src, dst)
 			}
 			return nil
 		}
 	}
 
-	return b.CopyFile(dst, src, perm, force)
+	return sh.CopyFile(dst, src, perm, force)
 }
 
 // copyFile is like 'cp src dst'.
-func (b *Builder) CopyFile(dst, src string, perm fs.FileMode, force bool) error {
+func (sh *Shell) CopyFile(dst, src string, perm fs.FileMode, force bool) error {
 	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd("", "cp %s %s", src, dst)
+		sh.ShowCmd("", "cp %s %s", src, dst)
 		if cfg.BuildN {
 			return nil
 		}
@@ -1983,17 +1990,17 @@ func (b *Builder) CopyFile(dst, src string, perm fs.FileMode, force bool) error 
 }
 
 // writeFile writes the text to file.
-func (b *Builder) writeFile(file string, text []byte) error {
+func (sh *Shell) writeFile(file string, text []byte) error {
 	if cfg.BuildN || cfg.BuildX {
 		switch {
 		case len(text) == 0:
-			b.Showcmd("", "echo -n > %s # internal", file)
+			sh.ShowCmd("", "echo -n > %s # internal", file)
 		case bytes.IndexByte(text, '\n') == len(text)-1:
 			// One line. Use a simpler "echo" command.
-			b.Showcmd("", "echo '%s' > %s # internal", bytes.TrimSuffix(text, []byte("\n")), file)
+			sh.ShowCmd("", "echo '%s' > %s # internal", bytes.TrimSuffix(text, []byte("\n")), file)
 		default:
 			// Use the most general form.
-			b.Showcmd("", "cat >%s << 'EOF' # internal\n%sEOF", file, text)
+			sh.ShowCmd("", "cat >%s << 'EOF' # internal\n%sEOF", file, text)
 		}
 	}
 	if cfg.BuildN {
@@ -2004,6 +2011,8 @@ func (b *Builder) writeFile(file string, text []byte) error {
 
 // Install the cgo export header file, if there is one.
 func (b *Builder) installHeader(ctx context.Context, a *Action) error {
+	sh := b.Shell(a)
+
 	src := a.Objdir + "_cgo_install.h"
 	if _, err := os.Stat(src); os.IsNotExist(err) {
 		// If the file does not exist, there are no exported
@@ -2012,7 +2021,7 @@ func (b *Builder) installHeader(ctx context.Context, a *Action) error {
 		// at the right times (not missing rebuilds), here we should
 		// probably delete the installed header, if any.
 		if cfg.BuildX {
-			b.Showcmd("", "# %s not created", src)
+			sh.ShowCmd("", "# %s not created", src)
 		}
 		return nil
 	}
@@ -2023,19 +2032,19 @@ func (b *Builder) installHeader(ctx context.Context, a *Action) error {
 
 	dir, _ := filepath.Split(a.Target)
 	if dir != "" {
-		if err := b.Mkdir(dir); err != nil {
+		if err := sh.Mkdir(dir); err != nil {
 			return err
 		}
 	}
 
-	return b.moveOrCopyFile(a.Target, src, 0666, true)
+	return sh.moveOrCopyFile(a.Target, src, 0666, true)
 }
 
 // cover runs, in effect,
 //
 //	go tool cover -mode=b.coverMode -var="varName" -o dst.go src.go
 func (b *Builder) cover(a *Action, dst, src string, varName string) error {
-	return b.run(a, a.Objdir, "", nil,
+	return b.Shell(a).run(a.Objdir, "", nil,
 		cfg.BuildToolexec,
 		base.Tool("cover"),
 		"-mode", a.Package.Internal.Cover.Mode,
@@ -2068,7 +2077,7 @@ func (b *Builder) cover2(a *Action, infiles, outfiles []string, varName string, 
 		"-outfilelist", covoutputs,
 	}
 	args = append(args, infiles...)
-	if err := b.run(a, a.Objdir, "", nil,
+	if err := b.Shell(a).run(a.Objdir, "", nil,
 		cfg.BuildToolexec, args); err != nil {
 		return nil, err
 	}
@@ -2076,6 +2085,7 @@ func (b *Builder) cover2(a *Action, infiles, outfiles []string, varName string, 
 }
 
 func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsfile string, outfiles []string) error {
+	sh := b.Shell(a)
 	p := a.Package
 	p.Internal.Cover.Cfg = a.Objdir + "coveragecfg"
 	pcfg := covcmd.CoverPkgConfig{
@@ -2100,14 +2110,14 @@ func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsf
 		return err
 	}
 	data = append(data, '\n')
-	if err := b.writeFile(pconfigfile, data); err != nil {
+	if err := sh.writeFile(pconfigfile, data); err != nil {
 		return err
 	}
 	var sb strings.Builder
 	for i := range outfiles {
 		fmt.Fprintf(&sb, "%s\n", outfiles[i])
 	}
-	return b.writeFile(covoutputsfile, []byte(sb.String()))
+	return sh.writeFile(covoutputsfile, []byte(sb.String()))
 }
 
 var objectMagic = [][]byte{
@@ -2154,41 +2164,42 @@ func mayberemovefile(s string) {
 	os.Remove(s)
 }
 
-// fmtcmd formats a command in the manner of fmt.Sprintf but also:
+// fmtCmd formats a command in the manner of fmt.Sprintf but also:
 //
-//	fmtcmd replaces the value of b.WorkDir with $WORK.
-func (b *Builder) fmtcmd(dir string, format string, args ...any) string {
+//	fmtCmd replaces the value of b.WorkDir with $WORK.
+func (sh *Shell) fmtCmd(dir string, format string, args ...any) string {
 	cmd := fmt.Sprintf(format, args...)
-	if b.WorkDir != "" && !strings.HasPrefix(cmd, "cat ") {
-		cmd = strings.ReplaceAll(cmd, b.WorkDir, "$WORK")
-		escaped := strconv.Quote(b.WorkDir)
+	if sh.workDir != "" && !strings.HasPrefix(cmd, "cat ") {
+		cmd = strings.ReplaceAll(cmd, sh.workDir, "$WORK")
+		escaped := strconv.Quote(sh.workDir)
 		escaped = escaped[1 : len(escaped)-1] // strip quote characters
-		if escaped != b.WorkDir {
+		if escaped != sh.workDir {
 			cmd = strings.ReplaceAll(cmd, escaped, "$WORK")
 		}
 	}
 	return cmd
 }
 
-// Showcmd prints the given command to standard output
+// ShowCmd prints the given command to standard output
 // for the implementation of -n or -x.
 //
-// Showcmd also replaces the name of the current script directory with dot (.)
+// ShowCmd also replaces the name of the current script directory with dot (.)
 // but only when it is at the beginning of a space-separated token.
 //
-// If dir is not "" or "/" and not the current script directory, Showcmd first
+// If dir is not "" or "/" and not the current script directory, ShowCmd first
 // prints a "cd" command to switch to dir and updates the script directory.
-func (b *Builder) Showcmd(dir string, format string, args ...any) {
-	b.output.Lock()
-	defer b.output.Unlock()
+func (sh *Shell) ShowCmd(dir string, format string, args ...any) {
+	// Use the output lock directly so we can manage scriptDir.
+	sh.printLock.Lock()
+	defer sh.printLock.Unlock()
 
-	cmd := b.fmtcmd(dir, format, args...)
+	cmd := sh.fmtCmd(dir, format, args...)
 
 	if dir != "" && dir != "/" {
-		if dir != b.scriptDir {
+		if dir != sh.scriptDir {
 			// Show changing to dir and update the current directory.
-			b.Print(b.fmtcmd("", "cd %s\n", dir))
-			b.scriptDir = dir
+			sh.printLocked(sh.fmtCmd("", "cd %s\n", dir))
+			sh.scriptDir = dir
 		}
 		// Replace scriptDir is our working directory. Replace it
 		// with "." in the command.
@@ -2199,7 +2210,7 @@ func (b *Builder) Showcmd(dir string, format string, args ...any) {
 		cmd = strings.ReplaceAll(" "+cmd, " "+dir, dot)[1:]
 	}
 
-	b.Print(cmd + "\n")
+	sh.printLocked(cmd + "\n")
 }
 
 // reportCmd reports the output and exit status of a command. The cmdOut and
@@ -2245,7 +2256,7 @@ func (b *Builder) Showcmd(dir string, format string, args ...any) {
 // desc is optional. If "", a.Package.Desc() is used.
 //
 // dir is optional. If "", a.Package.Dir is used.
-func (b *Builder) reportCmd(a *Action, desc, dir string, cmdOut []byte, cmdErr error) error {
+func (sh *Shell) reportCmd(desc, dir string, cmdOut []byte, cmdErr error) error {
 	if len(cmdOut) == 0 && cmdErr == nil {
 		// Common case
 		return nil
@@ -2263,6 +2274,7 @@ func (b *Builder) reportCmd(a *Action, desc, dir string, cmdOut []byte, cmdErr e
 
 	// Fetch defaults from the package.
 	var p *load.Package
+	a := sh.action
 	if a != nil {
 		p = a.Package
 	}
@@ -2284,7 +2296,7 @@ func (b *Builder) reportCmd(a *Action, desc, dir string, cmdOut []byte, cmdErr e
 	}
 
 	// Replace workDir with $WORK
-	out = replacePrefix(out, b.WorkDir, "$WORK")
+	out = replacePrefix(out, sh.workDir, "$WORK")
 
 	// Rewrite mentions of dir with a relative path to dir
 	// when the relative path is shorter.
@@ -2337,9 +2349,7 @@ func (b *Builder) reportCmd(a *Action, desc, dir string, cmdOut []byte, cmdErr e
 		a.output = append(a.output, err.Error()...)
 	} else {
 		// Write directly to the Builder output.
-		b.output.Lock()
-		defer b.output.Unlock()
-		b.Print(err.Error())
+		sh.Print(err.Error())
 	}
 	return nil
 }
@@ -2390,18 +2400,20 @@ var cgoTypeSigRe = lazyregexp.New(`\b_C2?(type|func|var|macro)_\B`)
 // run runs the command given by cmdline in the directory dir.
 // If the command fails, run prints information about the failure
 // and returns a non-nil error.
-func (b *Builder) run(a *Action, dir string, desc string, env []string, cmdargs ...any) error {
-	out, err := b.runOut(a, dir, env, cmdargs...)
+func (sh *Shell) run(dir string, desc string, env []string, cmdargs ...any) error {
+	out, err := sh.runOut(dir, env, cmdargs...)
 	if desc == "" {
-		desc = b.fmtcmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
+		desc = sh.fmtCmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
 	}
-	return b.reportCmd(a, desc, dir, out, err)
+	return sh.reportCmd(desc, dir, out, err)
 }
 
 // runOut runs the command given by cmdline in the directory dir.
 // It returns the command output and any errors that occurred.
 // It accumulates execution time in a.
-func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...any) ([]byte, error) {
+func (sh *Shell) runOut(dir string, env []string, cmdargs ...any) ([]byte, error) {
+	a := sh.action
+
 	cmdline := str.StringList(cmdargs...)
 
 	for _, arg := range cmdline {
@@ -2427,7 +2439,7 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...any) ([
 			}
 		}
 		envcmdline += joinUnambiguously(cmdline)
-		b.Showcmd(dir, "%s", envcmdline)
+		sh.ShowCmd(dir, "%s", envcmdline)
 		if cfg.BuildN {
 			return nil, nil
 		}
@@ -2514,43 +2526,35 @@ func (b *Builder) cCompilerEnv() []string {
 }
 
 // Mkdir makes the named directory.
-func (b *Builder) Mkdir(dir string) error {
+func (sh *Shell) Mkdir(dir string) error {
 	// Make Mkdir(a.Objdir) a no-op instead of an error when a.Objdir == "".
 	if dir == "" {
 		return nil
 	}
 
-	b.exec.Lock()
-	defer b.exec.Unlock()
 	// We can be a little aggressive about being
 	// sure directories exist. Skip repeated calls.
-	if b.mkdirCache[dir] {
-		return nil
-	}
-	b.mkdirCache[dir] = true
-
-	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd("", "mkdir -p %s", dir)
-		if cfg.BuildN {
-			return nil
+	return sh.mkdirCache.Do(dir, func() error {
+		if cfg.BuildN || cfg.BuildX {
+			sh.ShowCmd("", "mkdir -p %s", dir)
+			if cfg.BuildN {
+				return nil
+			}
 		}
-	}
 
-	if err := os.MkdirAll(dir, 0777); err != nil {
-		return err
-	}
-	return nil
+		return os.MkdirAll(dir, 0777)
+	})
 }
 
 // Symlink creates a symlink newname -> oldname.
-func (b *Builder) Symlink(oldname, newname string) error {
+func (sh *Shell) Symlink(oldname, newname string) error {
 	// It's not an error to try to recreate an existing symlink.
 	if link, err := os.Readlink(newname); err == nil && link == oldname {
 		return nil
 	}
 
 	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd("", "ln -s %s %s", oldname, newname)
+		sh.ShowCmd("", "ln -s %s %s", oldname, newname)
 		if cfg.BuildN {
 			return nil
 		}
@@ -2666,6 +2670,7 @@ func (b *Builder) gfortran(a *Action, workdir, out string, flags []string, ffile
 // ccompile runs the given C or C++ compiler and creates an object from a single source file.
 func (b *Builder) ccompile(a *Action, outfile string, flags []string, file string, compiler []string) error {
 	p := a.Package
+	sh := b.Shell(a)
 	file = mkAbs(p.Dir, file)
 	outfile = mkAbs(p.Dir, outfile)
 
@@ -2730,7 +2735,7 @@ func (b *Builder) ccompile(a *Action, outfile string, flags []string, file strin
 	if p, ok := a.nonGoOverlay[overlayPath]; ok {
 		overlayPath = p
 	}
-	output, err := b.runOut(a, filepath.Dir(overlayPath), b.cCompilerEnv(), compiler, flags, "-o", outfile, "-c", filepath.Base(overlayPath))
+	output, err := sh.runOut(filepath.Dir(overlayPath), b.cCompilerEnv(), compiler, flags, "-o", outfile, "-c", filepath.Base(overlayPath))
 
 	// On FreeBSD 11, when we pass -g to clang 3.8 it
 	// invokes its internal assembler with -dwarf-version=2.
@@ -2757,13 +2762,14 @@ func (b *Builder) ccompile(a *Action, outfile string, flags []string, file strin
 		err = errors.New("warning promoted to error")
 	}
 
-	return b.reportCmd(a, "", "", output, err)
+	return sh.reportCmd("", "", output, err)
 }
 
 // gccld runs the gcc linker to create an executable from a set of object files.
 // Any error output is only displayed for BuildN or BuildX.
 func (b *Builder) gccld(a *Action, objdir, outfile string, flags []string, objs []string) error {
 	p := a.Package
+	sh := b.Shell(a)
 	var cmd []string
 	if len(p.CXXFiles) > 0 || len(p.SwigCXXFiles) > 0 {
 		cmd = b.GxxCmd(p.Dir, objdir)
@@ -2772,7 +2778,7 @@ func (b *Builder) gccld(a *Action, objdir, outfile string, flags []string, objs 
 	}
 
 	cmdargs := []any{cmd, "-o", outfile, objs, flags}
-	out, err := b.runOut(a, base.Cwd(), b.cCompilerEnv(), cmdargs...)
+	out, err := sh.runOut(base.Cwd(), b.cCompilerEnv(), cmdargs...)
 
 	if len(out) > 0 {
 		// Filter out useless linker warnings caused by bugs outside Go.
@@ -2811,7 +2817,7 @@ func (b *Builder) gccld(a *Action, objdir, outfile string, flags []string, objs 
 	// Note that failure is an expected outcome here, so we report output only
 	// in debug mode and don't report the error.
 	if cfg.BuildN || cfg.BuildX {
-		b.reportCmd(a, "", "", out, nil)
+		sh.reportCmd("", "", out, nil)
 	}
 	return err
 }
@@ -2939,6 +2945,11 @@ func (b *Builder) gccNoPie(linker []string) string {
 
 // gccSupportsFlag checks to see if the compiler supports a flag.
 func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
+	// We use the background shell for operations here because, while this is
+	// triggered by some Action, it's not really about that Action, and often we
+	// just get the results from the global cache.
+	sh := b.BackgroundShell()
+
 	key := [2]string{compiler[0], flag}
 
 	// We used to write an empty C file, but that gets complicated with go
@@ -2987,7 +2998,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	cmdArgs = append(cmdArgs, "-x", "c", "-", "-o", tmp)
 
 	if cfg.BuildN {
-		b.Showcmd(b.WorkDir, "%s || true", joinUnambiguously(cmdArgs))
+		sh.ShowCmd(b.WorkDir, "%s || true", joinUnambiguously(cmdArgs))
 		return false
 	}
 
@@ -3015,7 +3026,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	}
 
 	if cfg.BuildX {
-		b.Showcmd(b.WorkDir, "%s || true", joinUnambiguously(cmdArgs))
+		sh.ShowCmd(b.WorkDir, "%s || true", joinUnambiguously(cmdArgs))
 	}
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmd.Dir = b.WorkDir
@@ -3057,8 +3068,13 @@ func statString(info os.FileInfo) string {
 // Other parts of cmd/go can use the id as a hash
 // of the installed compiler version.
 func (b *Builder) gccCompilerID(compiler string) (id cache.ActionID, ok bool) {
+	// We use the background shell for operations here because, while this is
+	// triggered by some Action, it's not really about that Action, and often we
+	// just get the results from the global cache.
+	sh := b.BackgroundShell()
+
 	if cfg.BuildN {
-		b.Showcmd(b.WorkDir, "%s || true", joinUnambiguously([]string{compiler, "--version"}))
+		sh.ShowCmd(b.WorkDir, "%s || true", joinUnambiguously([]string{compiler, "--version"}))
 		return cache.ActionID{}, false
 	}
 
@@ -3239,6 +3255,8 @@ var cgoRe = lazyregexp.New(`[/\\:]`)
 
 func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgofiles, gccfiles, gxxfiles, mfiles, ffiles []string) (outGo, outObj []string, err error) {
 	p := a.Package
+	sh := b.Shell(a)
+
 	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, cgoFFLAGS, cgoLDFLAGS, err := b.CFlags(p)
 	if err != nil {
 		return nil, nil, err
@@ -3283,7 +3301,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	flagLists := [][]string{cgoCFLAGS, cgoCXXFLAGS, cgoFFLAGS}
 	if flagsNotCompatibleWithInternalLinking(flagSources, flagLists) {
 		tokenFile := objdir + "preferlinkext"
-		if err := b.writeFile(tokenFile, nil); err != nil {
+		if err := sh.writeFile(tokenFile, nil); err != nil {
 			return nil, nil, err
 		}
 		outObj = append(outObj, tokenFile)
@@ -3373,7 +3391,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 		cgoflags = append(cgoflags, "-trimpath", strings.Join(trimpath, ";"))
 	}
 
-	if err := b.run(a, p.Dir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
+	if err := sh.run(p.Dir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
 		return nil, nil, err
 	}
 	outGo = append(outGo, gofiles...)
@@ -3563,6 +3581,8 @@ func flagsNotCompatibleWithInternalLinking(sourceList []string, flagListList [][
 // dynOutObj, if not empty, is a new file to add to the generated archive.
 func (b *Builder) dynimport(a *Action, objdir, importGo, cgoExe string, cflags, cgoLDFLAGS, outObj []string) (dynOutGo, dynOutObj string, err error) {
 	p := a.Package
+	sh := b.Shell(a)
+
 	cfile := objdir + "_cgo_main.c"
 	ofile := objdir + "_cgo_main.o"
 	if err := b.gcc(a, objdir, ofile, cflags, cfile); err != nil {
@@ -3618,7 +3638,7 @@ func (b *Builder) dynimport(a *Action, objdir, importGo, cgoExe string, cflags, 
 		// cmd/link explicitly looks for the name "dynimportfail".
 		// See issue #52863.
 		fail := objdir + "dynimportfail"
-		if err := b.writeFile(fail, nil); err != nil {
+		if err := sh.writeFile(fail, nil); err != nil {
 			return "", "", err
 		}
 		return "", fail, nil
@@ -3629,7 +3649,7 @@ func (b *Builder) dynimport(a *Action, objdir, importGo, cgoExe string, cflags, 
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = []string{"-dynlinker"} // record path to dynamic linker
 	}
-	err = b.run(a, base.Cwd(), p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
+	err = sh.run(base.Cwd(), p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
 	if err != nil {
 		return "", "", err
 	}
@@ -3685,7 +3705,8 @@ var (
 )
 
 func (b *Builder) swigDoVersionCheck() error {
-	out, err := b.runOut(nil, ".", nil, "swig", "-version")
+	sh := b.BackgroundShell()
+	out, err := sh.runOut(".", nil, "swig", "-version")
 	if err != nil {
 		return err
 	}
@@ -3789,6 +3810,7 @@ func (b *Builder) swigIntSize(objdir string) (intsize string, err error) {
 // Run SWIG on one SWIG input file.
 func (b *Builder) swigOne(a *Action, file, objdir string, pcCFLAGS []string, cxx bool, intgosize string) (outGo, outC string, err error) {
 	p := a.Package
+	sh := b.Shell(a)
 
 	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, _, _, err := b.CFlags(p)
 	if err != nil {
@@ -3842,11 +3864,11 @@ func (b *Builder) swigOne(a *Action, file, objdir string, pcCFLAGS []string, cxx
 		args = append(args, "-c++")
 	}
 
-	out, err := b.runOut(a, p.Dir, nil, "swig", args, file)
+	out, err := sh.runOut(p.Dir, nil, "swig", args, file)
 	if err != nil && (bytes.Contains(out, []byte("-intgosize")) || bytes.Contains(out, []byte("-cgo"))) {
 		return "", "", errors.New("must have SWIG version >= 3.0.6")
 	}
-	if err := b.reportCmd(a, "", "", out, err); err != nil {
+	if err := sh.reportCmd("", "", out, err); err != nil {
 		return "", "", err
 	}
 
@@ -3861,7 +3883,7 @@ func (b *Builder) swigOne(a *Action, file, objdir string, pcCFLAGS []string, cxx
 	goFile = objdir + goFile
 	newGoFile := objdir + "_" + base + "_swig.go"
 	if cfg.BuildX || cfg.BuildN {
-		b.Showcmd("", "mv %s %s", goFile, newGoFile)
+		sh.ShowCmd("", "mv %s %s", goFile, newGoFile)
 	}
 	if !cfg.BuildN {
 		if err := os.Rename(goFile, newGoFile); err != nil {

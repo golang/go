@@ -57,6 +57,7 @@ func pkgPath(a *Action) string {
 
 func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
 	p := a.Package
+	sh := b.Shell(a)
 	objdir := a.Objdir
 	if archive != "" {
 		ofile = archive
@@ -136,13 +137,13 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		args = append(args, "-D", p.Internal.LocalPrefix)
 	}
 	if importcfg != nil {
-		if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
+		if err := sh.writeFile(objdir+"importcfg", importcfg); err != nil {
 			return "", nil, err
 		}
 		args = append(args, "-importcfg", objdir+"importcfg")
 	}
 	if embedcfg != nil {
-		if err := b.writeFile(objdir+"embedcfg", embedcfg); err != nil {
+		if err := sh.writeFile(objdir+"embedcfg", embedcfg); err != nil {
 			return "", nil, err
 		}
 		args = append(args, "-embedcfg", objdir+"embedcfg")
@@ -174,7 +175,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		args = append(args, f)
 	}
 
-	output, err = b.runOut(a, base.Cwd(), nil, args...)
+	output, err = sh.runOut(base.Cwd(), nil, args...)
 	return ofile, output, err
 }
 
@@ -373,7 +374,7 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
 		ofiles = append(ofiles, ofile)
 		args1 := append(args, "-o", ofile, overlayPath)
-		if err := b.run(a, p.Dir, p.ImportPath, nil, args1...); err != nil {
+		if err := b.Shell(a).run(p.Dir, p.ImportPath, nil, args1...); err != nil {
 			return nil, err
 		}
 	}
@@ -381,6 +382,8 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 }
 
 func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, error) {
+	sh := b.Shell(a)
+
 	mkSymabis := func(p *load.Package, sfiles []string, path string) error {
 		args := asmArgs(a, p)
 		args = append(args, "-gensymabis", "-o", path)
@@ -395,11 +398,11 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
 		// Supply an empty go_asm.h as if the compiler had been run.
 		// -gensymabis parsing is lax enough that we don't need the
 		// actual definitions that would appear in go_asm.h.
-		if err := b.writeFile(a.Objdir+"go_asm.h", nil); err != nil {
+		if err := sh.writeFile(a.Objdir+"go_asm.h", nil); err != nil {
 			return err
 		}
 
-		return b.run(a, p.Dir, p.ImportPath, nil, args...)
+		return sh.run(p.Dir, p.ImportPath, nil, args...)
 	}
 
 	var symabis string // Only set if we actually create the file
@@ -422,7 +425,7 @@ func toolVerify(a *Action, b *Builder, p *load.Package, newTool string, ofile st
 	copy(newArgs, args)
 	newArgs[1] = base.Tool(newTool)
 	newArgs[3] = ofile + ".new" // x.6 becomes x.6.new
-	if err := b.run(a, p.Dir, p.ImportPath, nil, newArgs...); err != nil {
+	if err := b.Shell(a).run(p.Dir, p.ImportPath, nil, newArgs...); err != nil {
 		return err
 	}
 	data1, err := os.ReadFile(ofile)
@@ -456,15 +459,16 @@ func (gcToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) er
 	}
 
 	p := a.Package
+	sh := b.Shell(a)
 	if cfg.BuildN || cfg.BuildX {
 		cmdline := str.StringList(base.Tool("pack"), "r", absAfile, absOfiles)
-		b.Showcmd(p.Dir, "%s # internal", joinUnambiguously(cmdline))
+		sh.ShowCmd(p.Dir, "%s # internal", joinUnambiguously(cmdline))
 	}
 	if cfg.BuildN {
 		return nil
 	}
 	if err := packInternal(absAfile, absOfiles); err != nil {
-		return b.reportCmd(a, "", "", nil, err)
+		return sh.reportCmd("", "", nil, err)
 	}
 	return nil
 }
@@ -648,7 +652,7 @@ func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg s
 	if cfg.BuildTrimpath {
 		env = append(env, "GOROOT_FINAL="+trimPathGoRootFinal)
 	}
-	return b.run(root, dir, root.Package.ImportPath, env, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags, mainpkg)
+	return b.Shell(root).run(dir, root.Package.ImportPath, env, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags, mainpkg)
 }
 
 func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, targetPath, importcfg string, allactions []*Action) error {
@@ -682,7 +686,7 @@ func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action,
 		}
 		ldflags = append(ldflags, d.Package.ImportPath+"="+d.Target)
 	}
-	return b.run(root, ".", targetPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags)
+	return b.Shell(root).run(".", targetPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags)
 }
 
 func (gcToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {

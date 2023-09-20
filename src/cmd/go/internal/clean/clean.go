@@ -150,8 +150,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	var b work.Builder
-	b.Print = fmt.Print
+	sh := work.NewShell("", fmt.Print)
 
 	if cleanCache {
 		dir := cache.DefaultDir()
@@ -164,7 +163,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 			printedErrors := false
 			if len(subdirs) > 0 {
 				if cfg.BuildN || cfg.BuildX {
-					b.Showcmd("", "rm -r %s", strings.Join(subdirs, " "))
+					sh.ShowCmd("", "rm -r %s", strings.Join(subdirs, " "))
 				}
 				if !cfg.BuildN {
 					for _, d := range subdirs {
@@ -180,7 +179,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 
 			logFile := filepath.Join(dir, "log.txt")
 			if cfg.BuildN || cfg.BuildX {
-				b.Showcmd("", "rm -f %s", logFile)
+				sh.ShowCmd("", "rm -f %s", logFile)
 			}
 			if !cfg.BuildN {
 				if err := os.RemoveAll(logFile); err != nil && !printedErrors {
@@ -226,7 +225,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go: cannot clean -modcache without a module cache")
 		}
 		if cfg.BuildN || cfg.BuildX {
-			b.Showcmd("", "rm -rf %s", cfg.GOMODCACHE)
+			sh.ShowCmd("", "rm -rf %s", cfg.GOMODCACHE)
 		}
 		if !cfg.BuildN {
 			if err := modfetch.RemoveAll(cfg.GOMODCACHE); err != nil {
@@ -238,7 +237,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 	if cleanFuzzcache {
 		fuzzDir := cache.Default().FuzzDir()
 		if cfg.BuildN || cfg.BuildX {
-			b.Showcmd("", "rm -rf %s", fuzzDir)
+			sh.ShowCmd("", "rm -rf %s", fuzzDir)
 		}
 		if !cfg.BuildN {
 			if err := os.RemoveAll(fuzzDir); err != nil {
@@ -289,8 +288,7 @@ func clean(p *load.Package) {
 		return
 	}
 
-	var b work.Builder
-	b.Print = fmt.Print
+	sh := work.NewShell("", fmt.Print)
 
 	packageFile := map[string]bool{}
 	if p.Name != "main" {
@@ -353,7 +351,7 @@ func clean(p *load.Package) {
 	}
 
 	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
+		sh.ShowCmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
 	}
 
 	toRemove := map[string]bool{}
@@ -366,7 +364,7 @@ func clean(p *load.Package) {
 			// TODO: Remove once Makefiles are forgotten.
 			if cleanDir[name] {
 				if cfg.BuildN || cfg.BuildX {
-					b.Showcmd(p.Dir, "rm -r %s", name)
+					sh.ShowCmd(p.Dir, "rm -r %s", name)
 					if cfg.BuildN {
 						continue
 					}
@@ -389,7 +387,7 @@ func clean(p *load.Package) {
 
 	if cleanI && p.Target != "" {
 		if cfg.BuildN || cfg.BuildX {
-			b.Showcmd("", "rm -f %s", p.Target)
+			sh.ShowCmd("", "rm -f %s", p.Target)
 		}
 		if !cfg.BuildN {
 			removeFile(p.Target)
