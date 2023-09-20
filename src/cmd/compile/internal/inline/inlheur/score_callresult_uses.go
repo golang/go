@@ -47,9 +47,6 @@ type resultUseAnalyzer struct {
 // and tries to update the scores of calls based on how their results
 // are used in the function.
 func rescoreBasedOnCallResultUses(fn *ir.Func, resultNameTab map[*ir.Name]resultPropAndCS, cstab CallSiteTab) {
-	if os.Getenv("THANM_DEBUG") != "" {
-		return
-	}
 	enableDebugTraceIfEnv()
 	rua := &resultUseAnalyzer{
 		resultNameTab:    resultNameTab,
