@@ -134,15 +134,15 @@ func (s *Server) maybePromptForTelemetry(ctx context.Context) {
 		state    string
 		attempts = 0 // number of times we've asked already
 	)
-	if result, err := os.ReadFile(promptFile); err == nil {
-		if _, err := fmt.Sscanf(string(result), "%s %d", &state, &attempts); err == nil && validStates[state] {
+	if content, err := os.ReadFile(promptFile); err == nil {
+		if _, err := fmt.Sscanf(string(content), "%s %d", &state, &attempts); err == nil && validStates[state] {
 			if state == pYes || state == pNo {
 				// Prompt has been answered. Nothing to do.
 				return
 			}
 		} else {
 			state, attempts = "", 0
-			errorf("malformed prompt result %q", string(result))
+			errorf("malformed prompt result %q", string(content))
 		}
 	} else if !os.IsNotExist(err) {
 		errorf("reading prompt file: %v", err)
@@ -203,6 +203,8 @@ Would you like to enable Go telemetry?
 	item, err := s.client.ShowMessageRequest(ctx, params)
 	if err != nil {
 		errorf("ShowMessageRequest failed: %v", err)
+		// Defensive: ensure item == nil for the logic below.
+		item = nil
 	}
 
 	result := pFailed
