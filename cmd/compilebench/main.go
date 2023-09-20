@@ -578,9 +578,6 @@ func genSymAbisFile(pkg *Pkg, symAbisFile, incdir string) error {
 		"-I", incdir,
 		"-D", "GOOS_" + runtime.GOOS,
 		"-D", "GOARCH_" + runtime.GOARCH}
-	if pkg.ImportPath == "reflect" {
-		args = append(args, "-compiling-runtime")
-	}
 	args = append(args, pkg.SFiles...)
 	if *flagTrace {
 		fmt.Fprintf(os.Stderr, "running: %s %+v\n",
