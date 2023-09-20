@@ -94,12 +94,13 @@ import (
 )
 
 var (
-	goroot    string
-	compiler  string
-	assembler string
-	linker    string
-	runRE     *regexp.Regexp
-	is6g      bool
+	goroot                   string
+	compiler                 string
+	assembler                string
+	linker                   string
+	runRE                    *regexp.Regexp
+	is6g                     bool
+	needCompilingRuntimeFlag bool
 )
 
 var (
@@ -184,6 +185,9 @@ func main() {
 	assembler = *flagAssembler
 	if assembler == "" {
 		_, assembler = toolPath("asm")
+	}
+	if err := checkCompilingRuntimeFlag(assembler); err != nil {
+		log.Fatalf("checkCompilingRuntimeFlag: %v", err)
 	}
 
 	linker = *flagLinker
@@ -566,6 +570,45 @@ func runBuildCmd(name string, count int, dir, tool string, args []string) error 
 	return nil
 }
 
+func checkCompilingRuntimeFlag(assembler string) error {
+	td, err := os.MkdirTemp("", "asmsrcd")
+	if err != nil {
+		return fmt.Errorf("MkdirTemp failed: %v", err)
+	}
+	defer os.RemoveAll(td)
+	src := filepath.Join(td, "asm.s")
+	obj := filepath.Join(td, "asm.o")
+	const code = `
+TEXT ·foo(SB),$0-0
+RET
+`
+	if err := os.WriteFile(src, []byte(code), 0644); err != nil {
+		return fmt.Errorf("writing %s failed: %v", src, err)
+	}
+
+	// Try compiling the assembly source file passing
+	// -compiling-runtime; if it succeeds, then we'll need it
+	// when doing assembly of the reflect package later on.
+	// If it does not succeed, the assumption is that it's not
+	// needed.
+	args := []string{"-o", obj, "-p", "reflect", "-compiling-runtime", src}
+	cmd := exec.Command(assembler, args...)
+	cmd.Dir = td
+	out, aerr := cmd.CombinedOutput()
+	if aerr != nil {
+		if strings.Contains(string(out), "flag provided but not defined: -compiling-runtime") {
+			// flag not defined: assume we're using a recent assembler, so
+			// don't use -compiling-runtime.
+			return nil
+		}
+		// error is not flag-related; report it.
+		return fmt.Errorf("problems invoking assembler with args %+v: error %v\n%s\n", args, aerr, out)
+	}
+	// asm invocation succeeded -- assume we need the flag.
+	needCompilingRuntimeFlag = true
+	return nil
+}
+
 // genSymAbisFile runs the assembler on the target package asm files
 // with "-gensymabis" to produce a symabis file that will feed into
 // the Go source compilation. This is fairly hacky in that if the
@@ -578,6 +621,9 @@ func genSymAbisFile(pkg *Pkg, symAbisFile, incdir string) error {
 		"-I", incdir,
 		"-D", "GOOS_" + runtime.GOOS,
 		"-D", "GOARCH_" + runtime.GOARCH}
+	if pkg.ImportPath == "reflect" && needCompilingRuntimeFlag {
+		args = append(args, "-compiling-runtime")
+	}
 	args = append(args, pkg.SFiles...)
 	if *flagTrace {
 		fmt.Fprintf(os.Stderr, "running: %s %+v\n",
