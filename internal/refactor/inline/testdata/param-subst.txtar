@@ -14,6 +14,6 @@ func add(x, y int) int { return x + 2*y }
 -- add --
 package a
 
-var _ = func(y int) int { return 2 + 2*y }(1 + 1) //@ inline(re"add", add)
+var _ = (2 + 2*(1+1)) //@ inline(re"add", add)
 
 func add(x, y int) int { return x + 2*y }

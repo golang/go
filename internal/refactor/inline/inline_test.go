@@ -245,6 +245,7 @@ func doInlineNote(logf func(string, ...any), pkg *packages.Package, file *ast.Fi
 			return nil, err
 		}
 		callee, err := inline.AnalyzeCallee(
+			logf,
 			calleePkg.Fset,
 			calleePkg.Types,
 			calleePkg.TypesInfo,
@@ -474,11 +475,20 @@ func TestTable(t *testing.T) {
 			`func _(v V) { v.f() }`,
 			`func _(v V) { print(*v.U.T) }`,
 		},
+		// TODO(adonovan): due to former unsoundness in pure(),
+		// the previous outputs of two tests below used to be neater.
+		// A followup analysis (strict effects) will restore tidiness.
 		{
 			"Embedded fields in x.f method selection (implicit &).",
 			`type ( T int; U struct{T}; V struct {U} ); func (t *T) f() { print(t) }`,
 			`func _(v V) { v.f() }`,
-			`func _(v V) { print(&v.U.T) }`,
+			// was `func _(v V) { print(&v.U.T) }`,
+			`func _(v V) {
+	{
+		var t *T = &v.U.T
+		print(t)
+	}
+}`,
 		},
 		// Now the same tests again with T.f(recv).
 		{
@@ -497,9 +507,14 @@ func TestTable(t *testing.T) {
 			"Embedded fields in (*T).f method selection.",
 			`type ( T int; U struct{T}; V struct {U} ); func (t *T) f() { print(t) }`,
 			`func _(v V) { (*V).f(&v) }`,
-			`func _(v V) { print(&(&v).U.T) }`,
+			// was `func _(v V) { print(&(&v).U.T) }`,
+			`func _(v V) {
+	{
+		var t *T = &(&v).U.T
+		print(t)
+	}
+}`,
 		},
-
 		// TODO(adonovan): improve coverage of the cross
 		// product of each strategy with the checklist of
 		// concerns enumerated in the package doc comment.
@@ -570,7 +585,7 @@ func TestTable(t *testing.T) {
 
 			// Analyze callee and inline call.
 			doIt := func() ([]byte, error) {
-				callee, err := inline.AnalyzeCallee(fset, pkg, info, decl, []byte(calleeContent))
+				callee, err := inline.AnalyzeCallee(t.Logf, fset, pkg, info, decl, []byte(calleeContent))
 				if err != nil {
 					return nil, err
 				}

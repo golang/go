@@ -104,7 +104,13 @@ func inlineCall(ctx context.Context, snapshot Snapshot, fh FileHandle, rng proto
 		}()
 	}
 
-	callee, err := inline.AnalyzeCallee(calleePkg.FileSet(), calleePkg.GetTypes(), calleePkg.GetTypesInfo(), calleeDecl, calleePGF.Src)
+	// Users can consult the gopls event log to see
+	// why a particular inlining strategy was chosen.
+	logf := func(format string, args ...any) {
+		event.Log(ctx, "inliner: "+fmt.Sprintf(format, args...))
+	}
+
+	callee, err := inline.AnalyzeCallee(logf, calleePkg.FileSet(), calleePkg.GetTypes(), calleePkg.GetTypesInfo(), calleeDecl, calleePGF.Src)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -119,11 +125,6 @@ func inlineCall(ctx context.Context, snapshot Snapshot, fh FileHandle, rng proto
 		Content: callerPGF.Src,
 	}
 
-	// Users can consult the gopls event log to see
-	// why a particular inlining strategy was chosen.
-	logf := func(format string, args ...any) {
-		event.Log(ctx, "inliner: "+fmt.Sprintf(format, args...))
-	}
 	got, err := inline.Inline(logf, caller, callee)
 	if err != nil {
 		return nil, nil, err

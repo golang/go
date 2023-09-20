@@ -141,6 +141,7 @@ func TestEverything(t *testing.T) {
 						callPosn.Filename, callPosn.Offset)
 
 					callee, err := inline.AnalyzeCallee(
+						t.Logf,
 						calleePkg.Fset,
 						calleePkg.Types,
 						calleePkg.TypesInfo,

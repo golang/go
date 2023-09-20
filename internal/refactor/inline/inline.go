@@ -40,16 +40,13 @@ type Caller struct {
 //
 // Inline does not mutate any part of Caller or Callee.
 //
-// The caller may supply a log function to observe the decision-making process.
+// The log records the decision-making process.
 //
 // TODO(adonovan): provide an API for clients that want structured
 // output: a list of import additions and deletions plus one or more
 // localized diffs (or even AST transformations, though ownership and
 // mutation are tricky) near the call site.
 func Inline(logf func(string, ...any), caller *Caller, callee *Callee) ([]byte, error) {
-	if logf == nil {
-		logf = func(string, ...any) {} // discard
-	}
 	logf("inline %s @ %v",
 		debugFormatNode(caller.Fset, caller.Call),
 		caller.Fset.PositionFor(caller.Call.Lparen, false))
@@ -250,7 +247,25 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		return nil
 	}
 
-	// Import map, initially populated with caller imports.
+	// Find the outermost function enclosing the call site (if any).
+	// Analyze all its local vars for the "single assignment" property
+	// (Taking the address &v counts as a potential assignment.)
+	var assign1 func(v *types.Var) bool // reports whether v a single-assignment local var
+	{
+		updatedLocals := make(map[*types.Var]bool)
+		for _, n := range callerPath {
+			if decl, ok := n.(*ast.FuncDecl); ok {
+				escape(caller.Info, decl.Body, func(v *types.Var, _ bool) {
+					updatedLocals[v] = true
+				})
+				break
+			}
+		}
+		logf("multiple-assignment vars: %v", updatedLocals)
+		assign1 = func(v *types.Var) bool { return !updatedLocals[v] }
+	}
+
+	// import map, initially populated with caller imports.
 	//
 	// For simplicity we ignore existing dot imports, so that a
 	// qualified identifier (QI) in the callee is always
@@ -443,7 +458,8 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		expr       ast.Expr
 		typ        types.Type      // may be tuple for sole non-receiver arg in spread call
 		spread     bool            // final arg is call() assigned to multiple params
-		pure       bool            // expr has no effects
+		pure       bool            // expr is pure (doesn't read variables)
+		effects    bool            // expr has effects (updates variables)
 		duplicable bool            // expr may be duplicated
 		freevars   map[string]bool // free names of expr
 	}
@@ -469,7 +485,8 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 				arg := &argument{
 					expr:       recvArg,
 					typ:        caller.Info.TypeOf(recvArg),
-					pure:       pure(caller.Info, recvArg),
+					pure:       pure(caller.Info, assign1, recvArg),
+					effects:    effects(caller.Info, recvArg),
 					duplicable: duplicable(caller.Info, recvArg),
 					freevars:   freeVars(caller.Info, recvArg),
 				}
@@ -524,7 +541,6 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 					// is also pure; this is very common.
 					//
 					// arg.pure = false
-					// arg.duplicable = false
 				}
 			}
 		}
@@ -534,7 +550,8 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 				expr:       expr,
 				typ:        typ,
 				spread:     is[*types.Tuple](typ), // => last
-				pure:       pure(caller.Info, expr),
+				pure:       pure(caller.Info, assign1, expr),
+				effects:    effects(caller.Info, expr),
 				duplicable: duplicable(caller.Info, expr),
 				freevars:   freeVars(caller.Info, expr),
 			})
@@ -597,10 +614,11 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 					n := len(params) - 1
 					ordinary, extra := args[:n], args[n:]
 					var elts []ast.Expr
-					pure := true
+					pure, effects := true, false
 					for _, arg := range extra {
 						elts = append(elts, arg.expr)
 						pure = pure && arg.pure
+						effects = effects || arg.effects
 					}
 					args = append(ordinary, &argument{
 						expr: &ast.CompositeLit{
@@ -609,6 +627,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 						},
 						typ:        lastParam.obj.Type(),
 						pure:       pure,
+						effects:    effects,
 						duplicable: false,
 						freevars:   nil, // not needed
 					})
@@ -635,6 +654,8 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	//
 	// If all conditions are met then the parameter can be substituted
 	// and each reference to it replaced by the argument.
+	//
+	// TODO(adonovan): extract this into a separate function.
 	{
 		// Inv:
 		//  in        calls to     variadic, len(args) >= len(params)-1
@@ -646,6 +667,13 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	next:
 		for i, param := range params {
 			arg := args[i]
+			// Check argument against parameter.
+			//
+			// Beware: don't use types.Info on arg since
+			// the syntax may be synthetic (not created by parser)
+			// and thus lacking positions and types;
+			// do it earlier (see pure/duplicable/freevars).
+
 			if arg.spread {
 				logf("keeping param %q and following ones: argument %s is spread",
 					param.info.Name, debugFormatNode(caller.Fset, arg.expr))
@@ -660,14 +688,9 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 				logf("keeping param %q: assigned by callee", param.info.Name)
 				continue // callee needs the parameter variable
 			}
-
-			// Check argument against parameter.
-			//
-			// Beware: don't use types.Info on arg since
-			// the syntax may be synthetic (not created by parser)
-			// and thus lacking positions and types;
-			// do it earlier (see pure/duplicable/freevars).
-			if !arg.pure {
+			if !arg.pure || arg.effects {
+				// TODO(adonovan): conduct a deeper analysis of callee effects
+				// to relax this constraint.
 				logf("keeping param %q: argument %s is impure",
 					param.info.Name, debugFormatNode(caller.Fset, arg.expr))
 				continue // unsafe to change order or cardinality of effects
@@ -684,7 +707,8 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 						// TODO(adonovan): be more precise and check
 						// that v is defined within the body of the caller
 						// function (if any) and is indeed referenced
-						// only by the call.
+						// only by the call. (See assign1 for analysis
+						// of enclosing func.)
 						logf("keeping param %q: arg contains perhaps the last reference to possible caller local %v @ %v",
 							param.info.Name, v, caller.Fset.PositionFor(v.Pos(), false))
 						continue next
@@ -1278,83 +1302,196 @@ func freeishNames(free map[string]bool, t ast.Expr) {
 	ast.Inspect(t, visit)
 }
 
-// pure reports whether the expression is pure, that is,
-// has no side effects nor potential to panic.
-//
-// Beware that pure does not imply referentially transparent: for
-// example, new(T) is a pure expression but it returns a different
-// value each time it is evaluated. (One could say that is has effects
-// on the memory allocator.)
-//
-// TODO(adonovan):
-//   - add a unit test of this function.
-//   - "potential to panic": I'm not sure this is an important
-//     criterion. We should be allowed to assume that good programs
-//     don't rely on runtime panics for correct behavior.
-//   - Should a binary + operator be considered pure? For strings, it
-//     allocates memory, but so does a composite literal and that's pure
-//     (but not duplicable). We need clearer definitions here.
-func pure(info *types.Info, e ast.Expr) bool {
-	switch e := e.(type) {
-	case *ast.ParenExpr:
-		return pure(info, e.X)
-	case *ast.Ident:
-		return true
-	case *ast.FuncLit:
-		return true
-	case *ast.BasicLit:
-		return true
-	case *ast.UnaryExpr: // + - ! ^ & but not <-
-		return e.Op != token.ARROW && pure(info, e.X)
-	case *ast.CallExpr:
-		// A conversion is considered pure
-		if info.Types[e.Fun].IsType() {
-			// TODO(adonovan): fix: reject the newly allowed
-			// conversions between T[] and *[k]T, as they may panic.
-			return pure(info, e.Args[0])
-		}
+// effects reports whether an expression might change the state of the
+// program (through function calls and channel receives) and affect
+// the evaluation of subsequent expressions.
+func effects(info *types.Info, expr ast.Expr) bool {
+	effects := false
+	ast.Inspect(expr, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.FuncLit:
+			return false // prune descent
 
-		// Call to these built-ins are pure if their arguments are pure.
-		if id, ok := astutil.Unparen(e.Fun).(*ast.Ident); ok {
-			if b, ok := info.ObjectOf(id).(*types.Builtin); ok {
-				switch b.Name() {
-				case "len", "cap", "complex", "imag", "real", "make", "new", "max", "min":
-					for _, arg := range e.Args {
-						if !pure(info, arg) {
-							return false
+		case *ast.CallExpr:
+			if !info.Types[n.Fun].IsType() {
+				// A conversion T(x) has only the effect of its operand.
+			} else if !callsPureBuiltin(info, n) {
+				// A handful of built-ins have no effect
+				// beyond those of their arguments.
+				// All other calls (including append, copy, recover)
+				// have unknown effects.
+				effects = true
+			}
+
+		case *ast.UnaryExpr:
+			if n.Op == token.ARROW { // <-ch
+				effects = true
+			}
+		}
+		return true
+	})
+	return effects
+}
+
+// pure reports whether an expression has the same result no matter
+// when it is executed relative to other expressions, so it can be
+// commuted with any other expression or statement without changing
+// its meaning.
+//
+// An expression is considered impure if it reads the contents of any
+// variable, with the exception of "single assignment" local variables
+// (as classified by the provided callback), which are never updated
+// after their initialization.
+//
+// Pure does not imply duplicable: for example, new(T) and T{} are
+// pure expressions but both return a different value each time they
+// are evaluated, so they are not safe to duplicate.
+//
+// Purity does not imply freedom from run-time panics. We assume that
+// target programs do not encounter run-time panics nor depend on them
+// for correct operation.
+//
+// TODO(adonovan): add unit tests of this function.
+func pure(info *types.Info, assign1 func(*types.Var) bool, e ast.Expr) bool {
+	var pure func(e ast.Expr) bool
+	pure = func(e ast.Expr) bool {
+		switch e := e.(type) {
+		case *ast.ParenExpr:
+			return pure(e.X)
+
+		case *ast.Ident:
+			if v, ok := info.Uses[e].(*types.Var); ok {
+				// In general variables are impure
+				// as they may be updated, but
+				// single-assignment local variables
+				// never change value.
+				//
+				// We assume all package-level variables
+				// may be updated, but for non-exported
+				// ones we could do better by analyzing
+				// the complete package.
+				return !isPkgLevel(v) && assign1(v)
+			}
+
+			// All other kinds of reference are pure.
+			return true
+
+		case *ast.FuncLit:
+			// A function literal may allocate a closure that
+			// references mutable variables, but mutation
+			// cannot be observed without calling the function,
+			// and calls are considered impure.
+			return true
+
+		case *ast.BasicLit:
+			return true
+
+		case *ast.UnaryExpr: // + - ! ^ & but not <-
+			return e.Op != token.ARROW && pure(e.X)
+
+		case *ast.BinaryExpr: // arithmetic, shifts, comparisons, &&/||
+			return pure(e.X) && pure(e.Y)
+
+		case *ast.CallExpr:
+			// A conversion is as pure as its operand.
+			if info.Types[e.Fun].IsType() {
+				return pure(e.Args[0])
+			}
+
+			// Calls to some built-ins are as pure as their arguments.
+			if callsPureBuiltin(info, e) {
+				for _, arg := range e.Args {
+					if !pure(arg) {
+						return false
+					}
+				}
+				return true
+			}
+
+			// All other calls are impure, so we can
+			// reject them without even looking at e.Fun.
+			//
+			// More sophisticated analysis could infer purity in
+			// commonly used functions such as strings.Contains;
+			// perhaps we could offer the client a hook so that
+			// go/analysis-based implementation could exploit the
+			// results of a purity analysis. But that would make
+			// the inliner's choices harder to explain.
+			return false
+
+		case *ast.CompositeLit:
+			// T{...} is as pure as its elements.
+			for _, elt := range e.Elts {
+				if kv, ok := elt.(*ast.KeyValueExpr); ok {
+					if !pure(kv.Value) {
+						return false
+					}
+					if id, ok := kv.Key.(*ast.Ident); ok {
+						if v, ok := info.Uses[id].(*types.Var); ok && v.IsField() {
+							continue // struct {field: value}
 						}
 					}
-					return true
+					// map/slice/array {key: value}
+					if !pure(kv.Key) {
+						return false
+					}
+
+				} else if !pure(elt) {
+					return false
 				}
 			}
-		}
+			return true
 
-		return false
-	case *ast.KeyValueExpr:
-		// map {key: value} or struct {field: value}
-		return pure(info, e.Key) && pure(info, e.Value)
-	case *ast.CompositeLit:
-		// T{x: 0} is pure (though it may imply
-		// an allocation, so it is not duplicable).
-		for _, elt := range e.Elts {
-			if !pure(info, elt) {
-				return false
+		case *ast.SelectorExpr:
+			if sel, ok := info.Selections[e]; ok {
+				switch sel.Kind() {
+				case types.MethodExpr:
+					// A method expression T.f acts like a
+					// reference to a func decl, so it is pure.
+					return true
+
+				case types.MethodVal:
+					// A method value x.f acts like a
+					// closure around a T.f(x, ...) call,
+					// so it is as pure as x.
+					return pure(e.X)
+
+				case types.FieldVal:
+					// A field selection x.f is pure if
+					// x is pure and the selection does
+					// not indirect a pointer.
+					return !sel.Indirect() && pure(e.X)
+
+				default:
+					panic(sel)
+				}
+			} else {
+				// A qualified identifier is
+				// treated like an unqualified one.
+				return pure(e.Sel)
 			}
+
+		case *ast.StarExpr:
+			return false // *ptr depends on the state of the heap
+
+		default:
+			return false
 		}
-		return true
-	case *ast.SelectorExpr:
-		if sel, ok := info.Selections[e]; ok {
-			// A field or method selection x.f is pure
-			// if it does not indirect a pointer.
-			return !sel.Indirect()
-		}
-		// A qualified identifier pkg.Name is pure.
-		return true
-	case *ast.StarExpr:
-		return false // *ptr may panic
-	default:
-		return false
 	}
+	return pure(e)
+}
+
+func callsPureBuiltin(info *types.Info, call *ast.CallExpr) bool {
+	if id, ok := astutil.Unparen(call.Fun).(*ast.Ident); ok {
+		if b, ok := info.ObjectOf(id).(*types.Builtin); ok {
+			switch b.Name() {
+			case "len", "cap", "complex", "imag", "real", "make", "new", "max", "min":
+				return true
+			}
+			// Not: append clear close copy delete panic print println recover
+		}
+	}
+	return false
 }
 
 // duplicable reports whether it is appropriate for the expression to
@@ -1437,6 +1574,7 @@ func importedPkgName(info *types.Info, imp *ast.ImportSpec) (*types.PkgName, boo
 }
 
 func isPkgLevel(obj types.Object) bool {
+	// TODO(adonovan): why not simply: obj.Parent() == obj.Pkg().Scope()?
 	return obj.Pkg().Scope().Lookup(obj.Name()) == obj
 }
 

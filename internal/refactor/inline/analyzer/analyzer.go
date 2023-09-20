@@ -72,7 +72,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 						pass.Reportf(decl.Doc.Pos(), "invalid inlining candidate: cannot read source file: %v", err)
 						continue
 					}
-					callee, err := inline.AnalyzeCallee(pass.Fset, pass.Pkg, pass.TypesInfo, decl, content)
+					callee, err := inline.AnalyzeCallee(discard, pass.Fset, pass.Pkg, pass.TypesInfo, decl, content)
 					if err != nil {
 						pass.Reportf(decl.Doc.Pos(), "invalid inlining candidate: %v", err)
 						continue
@@ -126,7 +126,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				Call:    call,
 				Content: content,
 			}
-			got, err := inline.Inline(nil, caller, callee)
+			got, err := inline.Inline(discard, caller, callee)
 			if err != nil {
 				pass.Reportf(call.Lparen, "%v", err)
 				return
@@ -161,3 +161,5 @@ type inlineMeFact struct{ callee *inline.Callee }
 
 func (f *inlineMeFact) String() string { return "inlineme " + f.callee.String() }
 func (*inlineMeFact) AFact()           {}
+
+func discard(string, ...any) {}

@@ -74,13 +74,15 @@ type object struct {
 // The content should be the actual input to the compiler, not the
 // apparent source file according to any //line directives that
 // may be present within it.
-func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, decl *ast.FuncDecl, content []byte) (*Callee, error) {
+func AnalyzeCallee(logf func(string, ...any), fset *token.FileSet, pkg *types.Package, info *types.Info, decl *ast.FuncDecl, content []byte) (*Callee, error) {
 	checkInfoFields(info)
 
 	// The client is expected to have determined that the callee
 	// is a function with a declaration (not a built-in or var).
 	fn := info.Defs[decl.Name].(*types.Func)
 	sig := fn.Type().(*types.Signature)
+
+	logf("analyzeCallee %v @ %v", fn, fset.PositionFor(decl.Pos(), false))
 
 	// Create user-friendly name ("pkg.Func" or "(pkg.T).Method")
 	var name string
@@ -336,7 +338,7 @@ func AnalyzeCallee(fset *token.FileSet, pkg *types.Package, info *types.Info, de
 		return nil, err
 	}
 
-	params, results := analyzeParams(fset, info, decl)
+	params, results := analyzeParams(logf, fset, info, decl)
 	return &Callee{gobCallee{
 		Content:          content,
 		PkgPath:          pkg.Path(),
@@ -384,7 +386,7 @@ type paramInfo struct {
 // the other of the result variables of function fn.
 //
 // The input must be well-typed.
-func analyzeParams(fset *token.FileSet, info *types.Info, decl *ast.FuncDecl) (params, results []*paramInfo) {
+func analyzeParams(logf func(string, ...any), fset *token.FileSet, info *types.Info, decl *ast.FuncDecl) (params, results []*paramInfo) {
 	fnobj, ok := info.Defs[decl.Name]
 	if !ok {
 		panic(fmt.Sprintf("%s: no func object for %q",
@@ -410,117 +412,57 @@ func analyzeParams(fset *token.FileSet, info *types.Info, decl *ast.FuncDecl) (p
 		}
 	}
 
-	// lvalue is called for each address-taken expression or LHS of assignment.
-	// Supported forms are: x, (x), x[i], x.f, *x, T{}.
-	var lvalue func(e ast.Expr, escapes bool)
-	lvalue = func(e ast.Expr, escapes bool) {
-		switch e := e.(type) {
-		case *ast.Ident:
-			if v, ok := info.Uses[e].(*types.Var); ok {
-				if info := paramInfos[v]; info != nil {
-					// e is a use of parameter v.
-					if escapes {
-						info.Escapes = true
-					} else {
-						info.Assigned = true
-					}
-				}
-			}
-		case *ast.ParenExpr:
-			lvalue(e.X, escapes)
-		case *ast.IndexExpr:
-			// TODO(adonovan): support generics without assuming e.X has a core type.
-			// Consider:
-			//
-			// func Index[T interface{ [3]int | []int }](t T, i int) *int {
-			//     return &t[i]
-			// }
-			//
-			// We must traverse the normal terms and check
-			// whether any of them is an array.
-			if _, ok := info.TypeOf(e.X).Underlying().(*types.Array); ok {
-				lvalue(e.X, escapes) // &a[i] on array
-			}
-		case *ast.SelectorExpr:
-			if _, ok := info.TypeOf(e.X).Underlying().(*types.Struct); ok {
-				lvalue(e.X, escapes) // &s.f on struct
-			}
-		case *ast.StarExpr:
-			// *ptr indirects an existing pointer
-		case *ast.CompositeLit:
-			// &T{...} creates a new variable
-		default:
-			panic(fmt.Sprintf("&x on %T", e)) // unreachable in well-typed code
-		}
-	}
-
 	// Search function body for operations &x, x.f(), and x = y
-	// where x is a parameter. Each of these treats x as an address.
-	//
-	// Also record locations of all references to parameters.
-	// And record the set of intervening definitions for each parameter.
-	if decl.Body != nil {
-		var stack []ast.Node
-		stack = append(stack, decl.Type) // for scope of function itself
-		ast.Inspect(decl.Body, func(n ast.Node) bool {
-			if n != nil {
-				stack = append(stack, n) // push
+	// where x is a parameter, and record it.
+	escape(info, decl, func(v *types.Var, escapes bool) {
+		if info := paramInfos[v]; info != nil {
+			if escapes {
+				info.Escapes = true
 			} else {
-				stack = stack[:len(stack)-1] // pop
+				info.Assigned = true
 			}
+		}
+	})
 
-			switch n := n.(type) {
-			case *ast.Ident:
-				if v, ok := info.Uses[n].(*types.Var); ok {
-					if pinfo, ok := paramInfos[v]; ok {
-						// Record location of ref to parameter.
-						offset := int(n.Pos() - decl.Pos())
-						pinfo.Refs = append(pinfo.Refs, offset)
+	// Record locations of all references to parameters.
+	// And record the set of intervening definitions for each parameter.
+	var stack []ast.Node
+	stack = append(stack, decl.Type) // for scope of function itself
+	ast.Inspect(decl.Body, func(n ast.Node) bool {
+		if n != nil {
+			stack = append(stack, n) // push
+		} else {
+			stack = stack[:len(stack)-1] // pop
+		}
 
-						// Find set of names shadowed within body
-						// (excluding the parameter itself).
-						// If these names are free in the arg expression,
-						// we can't substitute the parameter.
-						for _, n := range stack {
-							if scope, ok := info.Scopes[n]; ok {
-								for _, name := range scope.Names() {
-									if name != pinfo.Name {
-										if pinfo.Shadow == nil {
-											pinfo.Shadow = make(map[string]bool)
-										}
-										pinfo.Shadow[name] = true
+		if id, ok := n.(*ast.Ident); ok {
+			if v, ok := info.Uses[id].(*types.Var); ok {
+				if pinfo, ok := paramInfos[v]; ok {
+					// Record location of ref to parameter.
+					offset := int(n.Pos() - decl.Pos())
+					pinfo.Refs = append(pinfo.Refs, offset)
+
+					// Find set of names shadowed within body
+					// (excluding the parameter itself).
+					// If these names are free in the arg expression,
+					// we can't substitute the parameter.
+					for _, n := range stack {
+						if scope, ok := info.Scopes[n]; ok {
+							for _, name := range scope.Names() {
+								if name != pinfo.Name {
+									if pinfo.Shadow == nil {
+										pinfo.Shadow = make(map[string]bool)
 									}
+									pinfo.Shadow[name] = true
 								}
 							}
 						}
 					}
 				}
-
-			case *ast.UnaryExpr:
-				if n.Op == token.AND {
-					lvalue(n.X, true) // &x
-				}
-
-			case *ast.CallExpr:
-				// implicit &x in method call x.f(),
-				// where x has type T and method is (*T).f
-				if sel, ok := n.Fun.(*ast.SelectorExpr); ok {
-					if seln, ok := info.Selections[sel]; ok &&
-						seln.Kind() == types.MethodVal &&
-						!seln.Indirect() &&
-						is[*types.Pointer](seln.Obj().Type().(*types.Signature).Recv().Type()) {
-						lvalue(sel.X, true) // &x.f
-					}
-				}
-
-			case *ast.AssignStmt:
-				for _, lhs := range n.Lhs {
-					lvalue(lhs, false)
-				}
 			}
-			return true
-		})
-	}
+		}
+		return true
+	})
 
 	return params, results
 }
