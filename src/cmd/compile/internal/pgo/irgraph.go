@@ -41,16 +41,20 @@
 package pgo
 
 import (
+	"bufio"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/pgo/internal/graph"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/bio"
 	"errors"
 	"fmt"
 	"internal/profile"
+	"log"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 )
 
 // IRGraph is a call graph with nodes pointing to IRs of functions and edges
@@ -105,6 +109,7 @@ type NamedCallEdge struct {
 	CallerName     string
 	CalleeName     string
 	CallSiteOffset int // Line offset from function start line.
+	CallStartLine  int // Start line of the function. Can be 0 which means missing.
 }
 
 // NamedEdgeMap contains all unique call edges in the profile and their
@@ -139,8 +144,52 @@ type Profile struct {
 	WeightedCG *IRGraph
 }
 
-// New generates a profile-graph from the profile.
+var wantHdr = "GO PREPROFILE V1\n"
+
+func isPreProfileFile(filename string) (bool, error) {
+	file, err := bio.Open(filename)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	/* check the header */
+	line, err := file.ReadString('\n')
+	if err != nil {
+		return false, err
+	}
+
+	if wantHdr == line {
+		return true, nil
+	}
+	return false, nil
+}
+
+// New generates a profile-graph from the profile or pre-processed profile.
 func New(profileFile string) (*Profile, error) {
+	var profile *Profile
+	var err error
+	isPreProf, err := isPreProfileFile(profileFile)
+	if err != nil {
+		return nil, fmt.Errorf("error opening profile: %w", err)
+	}
+	if !isPreProf {
+		profile, err = processProto(profileFile)
+		if err != nil {
+			log.Fatalf("%s: PGO error: %v", profileFile, err)
+		}
+	} else {
+		profile, err = processPreprof(profileFile)
+		if err != nil {
+			log.Fatalf("%s: Preprocessed PGO error: %v", profileFile, err)
+		}
+	}
+	return profile, nil
+
+}
+
+// processProto generates a profile-graph from the profile.
+func processProto(profileFile string) (*Profile, error) {
 	f, err := os.Open(profileFile)
 	if err != nil {
 		return nil, fmt.Errorf("error opening profile: %w", err)
@@ -175,7 +224,7 @@ func New(profileFile string) (*Profile, error) {
 		return nil, fmt.Errorf(`profile does not contain a sample index with value/type "samples/count" or cpu/nanoseconds"`)
 	}
 
-	g := graph.NewGraph(p, &graph.Options{
+	g := profile.NewGraph(p, &profile.Options{
 		SampleValue: func(v []int64) int64 { return v[valueIndex] },
 	})
 
@@ -198,45 +247,31 @@ func New(profileFile string) (*Profile, error) {
 	}, nil
 }
 
-// createNamedEdgeMap builds a map of callsite-callee edge weights from the
-// profile-graph.
-//
-// Caller should ignore the profile if totalWeight == 0.
-func createNamedEdgeMap(g *graph.Graph) (edgeMap NamedEdgeMap, totalWeight int64, err error) {
-	seenStartLine := false
-
-	// Process graph and build various node and edge maps which will
-	// be consumed by AST walk.
-	weight := make(map[NamedCallEdge]int64)
-	for _, n := range g.Nodes {
-		seenStartLine = seenStartLine || n.Info.StartLine != 0
-
-		canonicalName := n.Info.Name
-		// Create the key to the nodeMapKey.
-		namedEdge := NamedCallEdge{
-			CallerName:     canonicalName,
-			CallSiteOffset: n.Info.Lineno - n.Info.StartLine,
-		}
-
-		for _, e := range n.Out {
-			totalWeight += e.WeightValue()
-			namedEdge.CalleeName = e.Dest.Info.Name
-			// Create new entry or increment existing entry.
-			weight[namedEdge] += e.WeightValue()
-		}
+// processPreprof generates a profile-graph from the pre-procesed profile.
+func processPreprof(preprofileFile string) (*Profile, error) {
+	namedEdgeMap, totalWeight, err := createNamedEdgeMapFromPreprocess(preprofileFile)
+	if err != nil {
+		return nil, err
 	}
 
 	if totalWeight == 0 {
+		return nil, nil // accept but ignore profile with no samples.
+	}
+
+	// Create package-level call graph with weights from profile and IR.
+	wg := createIRGraph(namedEdgeMap)
+
+	return &Profile{
+		TotalWeight:  totalWeight,
+		NamedEdgeMap: namedEdgeMap,
+		WeightedCG:   wg,
+	}, nil
+}
+
+func postProcessNamedEdgeMap(weight map[NamedCallEdge]int64, weightVal int64) (edgeMap NamedEdgeMap, totalWeight int64, err error) {
+	if weightVal == 0 {
 		return NamedEdgeMap{}, 0, nil // accept but ignore profile with no samples.
 	}
-
-	if !seenStartLine {
-		// TODO(prattmic): If Function.start_line is missing we could
-		// fall back to using absolute line numbers, which is better
-		// than nothing.
-		return NamedEdgeMap{}, 0, fmt.Errorf("profile missing Function.start_line data (Go version of profiled application too old? Go 1.20+ automatically adds this to profiles)")
-	}
-
 	byWeight := make([]NamedCallEdge, 0, len(weight))
 	for namedEdge := range weight {
 		byWeight = append(byWeight, namedEdge)
@@ -261,7 +296,111 @@ func createNamedEdgeMap(g *graph.Graph) (edgeMap NamedEdgeMap, totalWeight int64
 		ByWeight: byWeight,
 	}
 
+	totalWeight = weightVal
+
 	return edgeMap, totalWeight, nil
+}
+
+// restore NodeMap information from a preprocessed profile.
+// The reader can refer to the format of preprocessed profile in cmd/preprofile/main.go.
+func createNamedEdgeMapFromPreprocess(preprofileFile string) (edgeMap NamedEdgeMap, totalWeight int64, err error) {
+	readFile, err := os.Open(preprofileFile)
+	if err != nil {
+		log.Fatal("preprofile: failed to open file " + preprofileFile)
+		return
+	}
+	defer readFile.Close()
+
+	fileScanner := bufio.NewScanner(readFile)
+	fileScanner.Split(bufio.ScanLines)
+	weight := make(map[NamedCallEdge]int64)
+
+	if !fileScanner.Scan() {
+		log.Fatal("fail to parse preprocessed profile: missing header")
+		return
+	}
+	if fileScanner.Text()+"\n" != wantHdr {
+		log.Fatal("fail to parse preprocessed profile: mismatched header")
+		return
+	}
+
+	for fileScanner.Scan() {
+		readStr := fileScanner.Text()
+
+		callerName := readStr
+
+		if !fileScanner.Scan() {
+			log.Fatal("fail to parse preprocessed profile: missing callee")
+			return
+		}
+		calleeName := fileScanner.Text()
+
+		if !fileScanner.Scan() {
+			log.Fatal("fail to parse preprocessed profile: missing weight")
+			return
+		}
+		readStr = fileScanner.Text()
+
+		split := strings.Split(readStr, " ")
+
+		if len(split) == 5 {
+			co, _ := strconv.Atoi(split[0])
+			cs, _ := strconv.Atoi(split[1])
+
+			namedEdge := NamedCallEdge{
+				CallerName:     callerName,
+				CallSiteOffset: co - cs,
+			}
+
+			namedEdge.CalleeName = calleeName
+			EWeight, _ := strconv.ParseInt(split[4], 10, 64)
+
+			weight[namedEdge] += EWeight
+			totalWeight += EWeight
+		} else {
+			log.Fatal("fail to parse preprocessed profile: mismatched fields.\n")
+		}
+	}
+
+	return postProcessNamedEdgeMap(weight, totalWeight)
+
+}
+
+// createNamedEdgeMap builds a map of callsite-callee edge weights from the
+// profile-graph.
+//
+// Caller should ignore the profile if totalWeight == 0.
+func createNamedEdgeMap(g *profile.Graph) (edgeMap NamedEdgeMap, totalWeight int64, err error) {
+	seenStartLine := false
+
+	// Process graph and build various node and edge maps which will
+	// be consumed by AST walk.
+	weight := make(map[NamedCallEdge]int64)
+	for _, n := range g.Nodes {
+		seenStartLine = seenStartLine || n.Info.StartLine != 0
+
+		canonicalName := n.Info.Name
+		// Create the key to the nodeMapKey.
+		namedEdge := NamedCallEdge{
+			CallerName:     canonicalName,
+			CallSiteOffset: n.Info.Lineno - n.Info.StartLine,
+		}
+
+		for _, e := range n.Out {
+			totalWeight += e.WeightValue()
+			namedEdge.CalleeName = e.Dest.Info.Name
+			// Create new entry or increment existing entry.
+			weight[namedEdge] += e.WeightValue()
+		}
+	}
+
+	if !seenStartLine {
+		// TODO(prattmic): If Function.start_line is missing we could
+		// fall back to using absolute line numbers, which is better
+		// than nothing.
+		return NamedEdgeMap{}, 0, fmt.Errorf("profile missing Function.start_line data (Go version of profiled application too old? Go 1.20+ automatically adds this to profiles)")
+	}
+	return postProcessNamedEdgeMap(weight, totalWeight)
 }
 
 // initializeIRGraph builds the IRGraph by visiting all the ir.Func in decl list
