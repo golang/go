@@ -157,7 +157,6 @@ func (m *Map) Store(key, value any) {
 
 // Clear deletes all the keys.
 func (m *Map) Clear() {
-
 	defer m.mu.Unlock()
 	m.mu.Lock()
 
