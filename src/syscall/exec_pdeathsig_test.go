@@ -110,7 +110,7 @@ func deathSignalParent() {
 		Pdeathsig: syscall.SIGUSR1,
 		// UID/GID 99 is the user/group "nobody" on RHEL/Fedora and is
 		// unused on Ubuntu
-		Credential: &syscall.Credential{Uid: 99, Gid: 99},
+		Credential: &syscall.Credential{Uid: uint32(os.Getuid()), Gid: uint32(os.Getegid())},
 	}
 	cmd.SysProcAttr = &attrs
 
