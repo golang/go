@@ -663,12 +663,14 @@ func testServerTimeouts(t *testing.T, mode testMode) {
 
 func testServerTimeoutsWithTimeout(t *testing.T, timeout time.Duration, mode testMode) error {
 	var reqNum atomic.Int32
-	ts := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
 		fmt.Fprintf(res, "req=%d", reqNum.Add(1))
 	}), func(ts *httptest.Server) {
 		ts.Config.ReadTimeout = timeout
 		ts.Config.WriteTimeout = timeout
-	}).ts
+	})
+	defer cst.close()
+	ts := cst.ts
 
 	// Hit the HTTP server successfully.
 	c := ts.Client()
@@ -865,7 +867,7 @@ func TestWriteDeadlineEnforcedPerStream(t *testing.T) {
 
 func testWriteDeadlineEnforcedPerStream(t *testing.T, mode testMode, timeout time.Duration) error {
 	firstRequest := make(chan bool, 1)
-	ts := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
 		select {
 		case firstRequest <- true:
 			// first request succeeds
@@ -875,7 +877,9 @@ func testWriteDeadlineEnforcedPerStream(t *testing.T, mode testMode, timeout tim
 		}
 	}), func(ts *httptest.Server) {
 		ts.Config.WriteTimeout = timeout / 2
-	}).ts
+	})
+	defer cst.close()
+	ts := cst.ts
 
 	c := ts.Client()
 
@@ -923,7 +927,7 @@ func TestNoWriteDeadline(t *testing.T) {
 
 func testNoWriteDeadline(t *testing.T, mode testMode, timeout time.Duration) error {
 	firstRequest := make(chan bool, 1)
-	ts := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
 		select {
 		case firstRequest <- true:
 			// first request succeeds
@@ -931,7 +935,9 @@ func testNoWriteDeadline(t *testing.T, mode testMode, timeout time.Duration) err
 			// second request times out
 			time.Sleep(timeout)
 		}
-	})).ts
+	}))
+	defer cst.close()
+	ts := cst.ts
 
 	c := ts.Client()
 
@@ -5399,13 +5405,15 @@ func testServerIdleTimeout(t *testing.T, mode testMode) {
 		1 * time.Second,
 		10 * time.Second,
 	}, func(t *testing.T, readHeaderTimeout time.Duration) error {
-		ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 			io.Copy(io.Discard, r.Body)
 			io.WriteString(w, r.RemoteAddr)
 		}), func(ts *httptest.Server) {
 			ts.Config.ReadHeaderTimeout = readHeaderTimeout
 			ts.Config.IdleTimeout = 2 * readHeaderTimeout
-		}).ts
+		})
+		defer cst.close()
+		ts := cst.ts
 		t.Logf("ReadHeaderTimeout = %v", ts.Config.ReadHeaderTimeout)
 		t.Logf("IdleTimeout = %v", ts.Config.IdleTimeout)
 		c := ts.Client()
@@ -5719,7 +5727,7 @@ func testServerCancelsReadTimeoutWhenIdle(t *testing.T, mode testMode) {
 		time.Second,
 		2 * time.Second,
 	}, func(t *testing.T, timeout time.Duration) error {
-		ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 			select {
 			case <-time.After(2 * timeout):
 				fmt.Fprint(w, "ok")
@@ -5728,7 +5736,9 @@ func testServerCancelsReadTimeoutWhenIdle(t *testing.T, mode testMode) {
 			}
 		}), func(ts *httptest.Server) {
 			ts.Config.ReadTimeout = timeout
-		}).ts
+		})
+		defer cst.close()
+		ts := cst.ts
 
 		c := ts.Client()
 
@@ -5762,10 +5772,12 @@ func testServerCancelsReadHeaderTimeoutWhenIdle(t *testing.T, mode testMode) {
 		time.Second,
 		2 * time.Second,
 	}, func(t *testing.T, timeout time.Duration) error {
-		ts := newClientServerTest(t, mode, serve(200), func(ts *httptest.Server) {
+		cst := newClientServerTest(t, mode, serve(200), func(ts *httptest.Server) {
 			ts.Config.ReadHeaderTimeout = timeout
 			ts.Config.IdleTimeout = 0 // disable idle timeout
-		}).ts
+		})
+		defer cst.close()
+		ts := cst.ts
 
 		// rather than using an http.Client, create a single connection, so that
 		// we can ensure this connection is not closed.
