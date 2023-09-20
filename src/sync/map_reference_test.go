@@ -22,6 +22,7 @@ type mapInterface interface {
 	CompareAndSwap(key, old, new any) (swapped bool)
 	CompareAndDelete(key, old any) (deleted bool)
 	Range(func(key, value any) (shouldContinue bool))
+	Clear()
 }
 
 var (
@@ -142,6 +143,13 @@ func (m *RWMutexMap) Range(f func(key, value any) (shouldContinue bool)) {
 			break
 		}
 	}
+}
+
+func (m *RWMutexMap) Clear() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	clear(m.dirty)
 }
 
 // DeepCopyMap is an implementation of mapInterface using a Mutex and
@@ -268,4 +276,11 @@ func (m *DeepCopyMap) dirty() map[any]any {
 		dirty[k] = v
 	}
 	return dirty
+}
+
+func (m *DeepCopyMap) Clear() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	clear(m.dirty())
 }
