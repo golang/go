@@ -180,7 +180,8 @@ controlled by that implementation.
 implements the GoStringer interface, that will be invoked.
 
 If the format (which is implicitly %v for Println etc.) is valid
-for a string (%s %q %v %x %X), the following two rules apply:
+for a string (%s %q %x %X), or is %v but not %#v,
+the following two rules apply:
 
 4. If an operand implements the error interface, the Error method
 will be invoked to convert the object to a string, which will then
