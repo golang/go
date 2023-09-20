@@ -325,33 +325,32 @@ func TestMapDelete(t *testing.T) {
 }
 
 func TestMapClear(t *testing.T) {
-
-	var myMap sync.Map
+	var m sync.Map
 
 	key := "go"
 	val := 1.21
-	myMap.Store(key, val)
-	loadedVal, ok := myMap.Load(key)
+	m.Store(key, val)
+	v, ok := m.Load(key)
 
 	if !ok {
 		t.Fatalf("Store failed to store- %v:%v", key, val)
 	}
 
-	if loadedVal != val {
-		t.Fatalf("Load: invalid value- %v:%v", key, loadedVal)
+	if v != val {
+		t.Fatalf("Load: invalid value- %v:%v", key, v)
 	}
 
-	myMap.Clear()
+	m.Clear()
 
-	nilVal, ok := myMap.Load(key)
+	nilVal, ok := m.Load(key)
 
 	if nilVal != nil || ok {
 		t.Fatalf("Clear: failed %v:%v", key, nilVal)
 	}
 
-	myMap.Store(key, val)
+	m.Store(key, val)
 
-	if val1, ok := myMap.Load(key); !ok || val1 != val {
+	if val1, ok := m.Load(key); !ok || val1 != val {
 		t.Fatalf("Store: failed after clear %v:%v", key, val1)
 	}
 
