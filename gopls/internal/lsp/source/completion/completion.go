@@ -232,6 +232,15 @@ type completer struct {
 	// mapper converts the positions in the file from which the completion originated.
 	mapper *protocol.Mapper
 
+	// startTime is when we started processing this completion request. It does
+	// not include any time the request spent in the queue.
+	//
+	// Note: in CL 503016, startTime move to *after* type checking, but it was
+	// subsequently determined that it was better to keep setting it *before*
+	// type checking, so that the completion budget best approximates the user
+	// experience. See golang/go#62665 for more details.
+	startTime time.Time
+
 	// scopes contains all scopes defined by nodes in our path,
 	// including nil values for nodes that don't defined a scope. It
 	// also includes our package scope and the universal scope at the
@@ -437,6 +446,8 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	ctx, done := event.Start(ctx, "completion.Completion")
 	defer done()
 
+	startTime := time.Now()
+
 	pkg, pgf, err := source.NarrowestPackageForFile(ctx, snapshot, fh.URI())
 	if err != nil || pgf.File.Package == token.NoPos {
 		// If we can't parse this file or find position for the package
@@ -451,6 +462,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		}
 		return items, surrounding, nil
 	}
+
 	pos, err := pgf.PositionPos(protoPos)
 	if err != nil {
 		return nil, nil, err
@@ -545,10 +557,12 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		matcher:        prefixMatcher(""),
 		methodSetCache: make(map[methodSetKey]*types.MethodSet),
 		mapper:         pgf.Mapper,
+		startTime:      startTime,
 		scopes:         scopes,
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	// Compute the deadline for this operation. Deadline is relative to the
 	// search operation, not the entire completion RPC, as the work up until this
@@ -562,14 +576,11 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	// Don't overload the context with this deadline, as we don't want to
 	// conflate user cancellation (=fail the operation) with our time limit
 	// (=stop searching and succeed with partial results).
-	start := time.Now()
 	var deadline *time.Time
 	if c.opts.budget > 0 {
-		d := start.Add(c.opts.budget)
+		d := startTime.Add(c.opts.budget)
 		deadline = &d
 	}
-
-	defer cancel()
 
 	if surrounding := c.containingIdent(pgf.Src); surrounding != nil {
 		c.setSurrounding(surrounding)
@@ -583,7 +594,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	}
 
 	// Deep search collected candidates and their members for more candidates.
-	c.deepSearch(ctx, start, deadline)
+	c.deepSearch(ctx, deadline)
 
 	for _, callback := range c.completionCallbacks {
 		if err := c.snapshot.RunProcessEnvFunc(ctx, callback); err != nil {
@@ -593,7 +604,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 
 	// Search candidates populated by expensive operations like
 	// unimportedMembers etc. for more completion items.
-	c.deepSearch(ctx, start, deadline)
+	c.deepSearch(ctx, deadline)
 
 	// Statement candidates offer an entire statement in certain contexts, as
 	// opposed to a single object. Add statement candidates last because they
