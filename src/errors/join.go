@@ -8,7 +8,7 @@ import (
 	"unsafe"
 )
 
-// Join returns an error that wraps the given errors.
+// Join returns an Errors interface that wraps the given errors.
 // Any nil error values are discarded.
 // Join returns nil if every value in errs is nil.
 // The error formats as the concatenation of the strings obtained
@@ -16,7 +16,7 @@ import (
 // between each string.
 //
 // A non-nil error returned by Join implements the Unwrap() []error method.
-func Join(errs ...error) error {
+func Join(errs ...error) Errors {
 	n := 0
 	for _, err := range errs {
 		if err != nil {
@@ -35,6 +35,13 @@ func Join(errs ...error) error {
 		}
 	}
 	return e
+}
+
+// Errors is the interface used in Join method 
+// to satisfy the Unwrap() method
+type Errors interface {
+	Error() string
+	Unwrap() []error
 }
 
 type joinError struct {

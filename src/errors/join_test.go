@@ -6,8 +6,9 @@ package errors_test
 
 import (
 	"errors"
-	"reflect"
 	"testing"
+
+	"slices"
 )
 
 func TestJoinReturnsNil(t *testing.T) {
@@ -22,7 +23,7 @@ func TestJoinReturnsNil(t *testing.T) {
 	}
 }
 
-func TestJoin(t *testing.T) {
+func TestJoinUnwrapMethod(t *testing.T) {
 	err1 := errors.New("err1")
 	err2 := errors.New("err2")
 	for _, test := range []struct {
@@ -38,8 +39,8 @@ func TestJoin(t *testing.T) {
 		errs: []error{err1, nil, err2},
 		want: []error{err1, err2},
 	}} {
-		got := errors.Join(test.errs...).(interface{ Unwrap() []error }).Unwrap()
-		if !reflect.DeepEqual(got, test.want) {
+		got := errors.Join(test.errs...).Unwrap()
+		if !slices.Equal(got, test.want) {
 			t.Errorf("Join(%v) = %v; want %v", test.errs, got, test.want)
 		}
 		if len(got) != cap(got) {
