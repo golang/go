@@ -296,31 +296,31 @@ func TestMapRangeNoAllocations(t *testing.T) { // Issue 62404
 }
 
 func TestMapDelete(t *testing.T) {
-	var myMap sync.Map
+	var m sync.Map
 
-	key := "go"
-	val := 1.21
-	myMap.Store(key, val)
-	loadedVal, ok := myMap.Load(key)
+	k := "go"
+	val := 1.22
+	m.Store(k, val)
+	v, ok := m.Load(k)
 
 	if !ok {
-		t.Fatalf("Store failed to store- %v:%v", key, val)
+		t.Fatalf("Store failed to store- %v:%v", k, val)
 	}
 
-	if loadedVal != val {
-		t.Fatalf("Load: invalid value- %v:%v", key, loadedVal)
+	if v != val {
+		t.Fatalf("Load: invalid value- %v:%v", k, v)
 	}
 
-	myMap.Delete(key)
+	m.Delete(k)
 
-	nilVal, ok := myMap.Load(key)
+	v, ok = m.Load(k)
 
-	if nilVal != nil {
-		t.Fatalf("Delete: failed %v:%v", key, nilVal)
+	if v != nil {
+		t.Fatalf("Delete: failed %v:%v", k, v)
 	}
 
 	if ok {
-		t.Fatalf("Delete: failed found %v:%v", key, nilVal)
+		t.Fatalf("Delete: failed found %v:%v", k, v)
 	}
 }
 
