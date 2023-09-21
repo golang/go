@@ -83,7 +83,19 @@ func Inline(logf func(string, ...any), caller *Caller, callee *Callee) ([]byte, 
 		var out bytes.Buffer
 		out.Write(caller.Content[:start])
 		// TODO(adonovan): might it make more sense to use
-		// callee.Fset when formatting res.new??
+		// callee.Fset when formatting res.new?
+		// The new tree is a mix of (cloned) caller nodes for
+		// the argument expressions and callee nodes for the
+		// function body. In essence the question is: which
+		// is more likely to have comments?
+		// Usually the callee body will be larger and more
+		// statement-heavy than the the arguments, but a
+		// strategy may widen the scope of the replacement
+		// (res.old) from CallExpr to, say, its enclosing
+		// block, so the caller nodes dominate.
+		// Precise comment handling would make this a
+		// non-issue. Formatting wouldn't really need a
+		// FileSet at all.
 		if err := format.Node(&out, caller.Fset, res.new); err != nil {
 			return nil, err
 		}
@@ -497,12 +509,19 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		}
 	}
 
+	// Log effective arguments.
+	for i, arg := range args {
+		logf("arg #%d: %s pure=%t effects=%t duplicable=%t free=%v",
+			i, debugFormatNode(caller.Fset, arg.expr),
+			arg.pure, arg.effects, arg.duplicable, arg.freevars)
+	}
+
 	// Note: computation below should be expressed in terms of
 	// the args and params slices, not the raw material.
 
 	// Perform parameter substitution.
 	// May eliminate some elements of params/args.
-	substitute(logf, caller, params, args, replaceCalleeID)
+	substitute(logf, caller, params, args, callee.Effects, replaceCalleeID)
 
 	// Update the callee's signature syntax.
 	updateCalleeParams(calleeDecl, params)
@@ -667,6 +686,16 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 				// expression context may need parens. Otherwise:
 				//    func two() int { return 1+1 }
 				//    print(-two())  =>  print(-1+1) // oops!
+				//
+				// Usually it is not necessary to insert ParenExprs
+				// as the formatter is smart enough to insert them as
+				// needed by the context. But the res.{old,new}
+				// substitution is done by formatting res.new in isolation
+				// and then splicing its text over res.old, so the
+				// formatter doesn't see the parent node and cannot do
+				// the right thing. (One solution would be to always
+				// format the enclosing node of old, but that requires
+				// non-lossy comment handling, #20744.)
 				//
 				// TODO(adonovan): do better by analyzing 'context'
 				// to see whether ambiguity is possible.
@@ -842,13 +871,14 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 }
 
 type argument struct {
-	expr       ast.Expr
-	typ        types.Type      // may be tuple for sole non-receiver arg in spread call
-	spread     bool            // final arg is call() assigned to multiple params
-	pure       bool            // expr is pure (doesn't read variables)
-	effects    bool            // expr has effects (updates variables)
-	duplicable bool            // expr may be duplicated
-	freevars   map[string]bool // free names of expr
+	expr          ast.Expr
+	typ           types.Type      // may be tuple for sole non-receiver arg in spread call
+	spread        bool            // final arg is call() assigned to multiple params
+	pure          bool            // expr is pure (doesn't read variables)
+	effects       bool            // expr has effects (updates variables)
+	duplicable    bool            // expr may be duplicated
+	freevars      map[string]bool // free names of expr
+	substitutable bool            // is candidate for substitution
 }
 
 // arguments returns the effective arguments of the call.
@@ -929,6 +959,10 @@ func arguments(caller *Caller, calleeDecl *ast.FuncDecl, assign1 func(*types.Var
 					Sel: makeIdent(fld.Name()),
 				}
 				arg.typ = fld.Type()
+				arg.duplicable = false
+			}
+			if seln.Indirect() {
+				arg.pure = false // one or more implicit *ptr operation => impure
 			}
 
 			// Make * or & explicit.
@@ -942,23 +976,7 @@ func arguments(caller *Caller, calleeDecl *ast.FuncDecl, assign1 func(*types.Var
 				// *recv
 				arg.expr = &ast.StarExpr{X: arg.expr}
 				arg.typ = deref(arg.typ)
-
-				// Technically *recv is non-pure and
-				// non-duplicable, as side effects
-				// could change the pointer between
-				// multiple reads. But unfortunately
-				// this really degrades many of our tests.
-				// (The indices loop above should similarly
-				// update these flags when traversing pointers.)
-				//
-				// TODO(adonovan): improve the precision of
-				// purity and duplicability.
-				// For example, *new(T) is actually pure.
-				// And *ptr, where ptr doesn't escape and
-				// has no assignments other than its decl,
-				// is also pure; this is very common.
-				//
-				// arg.pure = false
+				arg.duplicable = false
 			}
 		}
 	}
@@ -1002,7 +1020,7 @@ type parameter struct {
 // parameter, and is provided with its relative offset and replacement
 // expression (argument), and the corresponding elements of params and
 // args are replaced by nil.
-func substitute(logf func(string, ...any), caller *Caller, params []*parameter, args []*argument, replaceCalleeID func(offset int, repl ast.Expr)) {
+func substitute(logf func(string, ...any), caller *Caller, params []*parameter, args []*argument, effects []int, replaceCalleeID func(offset int, repl ast.Expr)) {
 	// Inv:
 	//  in        calls to     variadic, len(args) >= len(params)-1
 	//  in spread calls to non-variadic, len(args) <  len(params)
@@ -1021,9 +1039,10 @@ next:
 		// do it earlier (see pure/duplicable/freevars).
 
 		if arg.spread {
+			// spread => last argument, but not always last parameter
 			logf("keeping param %q and following ones: argument %s is spread",
 				param.info.Name, debugFormatNode(caller.Fset, arg.expr))
-			break // spread => last argument, but not always last parameter
+			return // give up
 		}
 		assert(!param.variadic, "unsimplified variadic parameter")
 		if param.info.Escapes {
@@ -1034,18 +1053,16 @@ next:
 			logf("keeping param %q: assigned by callee", param.info.Name)
 			continue // callee needs the parameter variable
 		}
-		if !arg.pure || arg.effects {
-			// TODO(adonovan): conduct a deeper analysis of callee effects
-			// to relax this constraint.
-			logf("keeping param %q: argument %s is impure",
-				param.info.Name, debugFormatNode(caller.Fset, arg.expr))
-			continue // unsafe to change order or cardinality of effects
-		}
 		if len(param.info.Refs) > 1 && !arg.duplicable {
 			logf("keeping param %q: argument is not duplicable", param.info.Name)
 			continue // incorrect or poor style to duplicate an expression
 		}
 		if len(param.info.Refs) == 0 {
+			if arg.effects {
+				logf("keeping param %q: though unreferenced, it has effects", param.info.Name)
+				continue
+			}
+
 			// Eliminating an unreferenced parameter might
 			// remove the last reference to a caller local var.
 			for free := range arg.freevars {
@@ -1091,19 +1108,122 @@ next:
 			}
 		}
 
-		// It is safe to eliminate param and replace it with arg.
-		// No additional parens are required around arg for
-		// the supported "pure" expressions.
-		//
-		// Because arg.expr belongs to the caller,
-		// we clone it before splicing it into the callee tree.
-		logf("replacing parameter %q by argument %q",
-			param.info.Name, debugFormatNode(caller.Fset, arg.expr))
-		for _, ref := range param.info.Refs {
-			replaceCalleeID(ref, cloneNode(arg.expr).(ast.Expr))
+		arg.substitutable = true // may be substituted, if effects permit
+	}
+
+	// As a final step, introduce bindings to resolve any
+	// evaluation order hazards. This must be done last, as
+	// additional subsequent bindings could introduce new hazards.
+	resolveEffects(logf, args, effects)
+
+	// The remaining candidates are safe to substitute.
+	for i, param := range params {
+		if arg := args[i]; arg.substitutable {
+			// It is safe to substitute param and replace it with arg.
+			// The formatter introduces parens as needed for precedence.
+			logf("replacing parameter %q by argument %q",
+				param.info.Name, debugFormatNode(caller.Fset, arg.expr))
+			for _, ref := range param.info.Refs {
+				replaceCalleeID(ref, cloneNode(arg.expr).(ast.Expr))
+			}
+			params[i] = nil // substituted
+			args[i] = nil   // substituted
 		}
-		params[i] = nil // substituted
-		args[i] = nil   // substituted
+	}
+}
+
+// resolveEffects marks arguments as non-substitutable to resolve
+// hazards resulting from the callee evaluation order described by the
+// effects list.
+//
+// To do this, each argument is categorized as a read (R), write (W),
+// or pure. A hazard occurs when the order of evaluation of a W
+// changes with respect to any R or W. Pure arguments can be
+// effectively ignored, as they can be safely evaluated in any order.
+//
+// The callee effects list contains the index of each parameter in the
+// order it is first evaluated during execution of the callee. In
+// addition, the two special values R∞ and W∞ indicate the relative
+// position of the callee's first non-parameter read and its first
+// effects (or other unknown behavior).
+// For example, the list [0 2 1 R∞ 3 W∞] for func(a, b, c, d)
+// indicates that the callee referenced parameters a, c, and b,
+// followed by an arbitrary read, then parameter d, and finally
+// unknown behavior.
+//
+// When an argument is marked as not substitutable, we say that it is
+// 'bound', in the sense that its evaluation occurs in a binding decl
+// or literalized call. Such bindings always occur in the original
+// callee parameter order.
+//
+// In this context, "resolving hazards" means binding arguments so
+// that they are evaluated in a valid, hazard-free order. A trivial
+// solution to this problem would be to bind all arguments, but of
+// course that's not useful. The goal is to bind as few arguments as
+// possible.
+//
+// The algorithm proceeds by inspecting arguments in reverse parameter
+// order (right to left), preserving the invariant that every
+// higher-ordered argument is either already substituted or does not
+// need to be substituted. At each iteration, if there is an
+// evaluation hazard in the callee effects relative to the current
+// argument, the argument must be bound. Subsequently, if the argument
+// is bound for any reason, each lower-ordered argument must also be
+// bound if either the argument or lower-order argument is a
+// W---otherwise the binding itself would introduce a hazard.
+//
+// Thus, after each iteration, there are no hazards relative to the
+// current argument. Subsequent iterations cannot introduce hazards
+// with that argument because they can result only in additional
+// binding of lower-ordered arguments.
+func resolveEffects(logf func(string, ...any), args []*argument, effects []int) {
+	effectStr := func(effects bool, idx int) string {
+		i := fmt.Sprint(idx)
+		if idx == len(args) {
+			i = "∞"
+		}
+		return string("RW"[btoi(effects)]) + i
+	}
+	for i := len(args) - 1; i >= 0; i-- {
+		argi := args[i]
+		if argi.substitutable && !argi.pure {
+			// i is not bound: check whether it must be bound due to hazards.
+			idx := index(effects, i)
+			if idx >= 0 {
+				for _, j := range effects[:idx] {
+					var (
+						ji int  // effective param index
+						jw bool // j is a write
+					)
+					if j == winf || j == rinf {
+						jw = j == winf
+						ji = len(args)
+					} else {
+						jw = args[j].effects
+						ji = j
+					}
+					if ji > i && (jw || argi.effects) { // out of order evaluation
+						logf("binding argument %s: preceded by %s",
+							effectStr(argi.effects, i), effectStr(jw, ji))
+						argi.substitutable = false
+						break
+					}
+				}
+			}
+		}
+		if !argi.substitutable {
+			for j := 0; j < i; j++ {
+				argj := args[j]
+				if argj.pure {
+					continue
+				}
+				if (argi.effects || argj.effects) && argj.substitutable {
+					logf("binding argument %s: %s is bound",
+						effectStr(argj.effects, j), effectStr(argi.effects, i))
+					argj.substitutable = false
+				}
+			}
+		}
 	}
 }
 
@@ -1405,13 +1525,16 @@ func effects(info *types.Info, expr ast.Expr) bool {
 			return false // prune descent
 
 		case *ast.CallExpr:
-			if !info.Types[n.Fun].IsType() {
+			if info.Types[n.Fun].IsType() {
 				// A conversion T(x) has only the effect of its operand.
 			} else if !callsPureBuiltin(info, n) {
 				// A handful of built-ins have no effect
 				// beyond those of their arguments.
 				// All other calls (including append, copy, recover)
 				// have unknown effects.
+				//
+				// As with 'pure', there is room for
+				// improvement by inspecting the callee.
 				effects = true
 			}
 
@@ -1573,6 +1696,11 @@ func pure(info *types.Info, assign1 func(*types.Var) bool, e ast.Expr) bool {
 	return pure(e)
 }
 
+// callsPureBuiltin reports whether call is a call of a built-in
+// function that is a pure computation over its operands (analogous to
+// a + operator). Because it does not depend on program state, it may
+// be evaluated at any point--though not necessarily at multiple
+// points (consider new, make).
 func callsPureBuiltin(info *types.Info, call *ast.CallExpr) bool {
 	if id, ok := astutil.Unparen(call.Fun).(*ast.Ident); ok {
 		if b, ok := info.ObjectOf(id).(*types.Builtin); ok {
@@ -1666,7 +1794,9 @@ func importedPkgName(info *types.Info, imp *ast.ImportSpec) (*types.PkgName, boo
 }
 
 func isPkgLevel(obj types.Object) bool {
-	// TODO(adonovan): why not simply: obj.Parent() == obj.Pkg().Scope()?
+	// TODO(adonovan): consider using the simpler obj.Parent() ==
+	// obj.Pkg().Scope() instead. But be sure to test carefully
+	// with instantiations of generics.
 	return obj.Pkg().Scope().Lookup(obj.Name()) == obj
 }
 

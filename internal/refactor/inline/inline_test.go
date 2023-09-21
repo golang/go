@@ -448,35 +448,39 @@ func TestTable(t *testing.T) {
 }`,
 		},
 		{
-			"Binding declaration (x eliminated).",
+			"Binding declaration (x, z eliminated).",
 			`func f(w, x, y any, z int) { println(w, y, z) }; func g(int) int`,
 			`func _() { f(g(0), g(1), g(2), g(3)) }`,
 			`func _() {
 	{
-		var (
-			w, _, y any = g(0), g(1), g(2)
-			z       int = g(3)
-		)
-		println(w, y, z)
+		var w, _, y any = g(0), g(1), g(2)
+		println(w, y, g(3))
 	}
 }`,
 		},
 		{
-			"Binding decl in reduction of stmt-context call to { return exprs }",
+			"Reduction of stmt-context call to { return exprs }, with substitution",
 			`func f(ch chan int) int { return <-ch }; func g() chan int`,
 			`func _() { f(g()) }`,
+			`func _() { <-g() }`,
+		},
+		{
+			// Same again, with callee effects:
+			"Binding decl in reduction of stmt-context call to { return exprs }",
+			`func f(x int) int { return <-h(g(2), x) }; func g(int) int; func h(int, int) chan int`,
+			`func _() { f(g(1)) }`,
 			`func _() {
 	{
-		var ch chan int = g()
-		<-ch
+		var x int = g(1)
+		<-h(g(2), x)
 	}
 }`,
 		},
 		{
 			"No binding decl due to shadowing of int",
-			`func f(int, y any, z int) { defer println(int, y, z) }; func g() int`,
-			`func _() { f(g(), g(), g()) }`,
-			`func _() { func(int, y any, z int) { defer println(int, y, z) }(g(), g(), g()) }
+			`func f(int, y any, z int) { defer println(int, y, z) }; func g(int) int`,
+			`func _() { f(g(1), g(2), g(3)) }`,
+			`func _() { func(int, y any) { defer println(int, y, g(3)) }(g(1), g(2)) }
 `,
 		},
 		// Embedded fields:
@@ -492,20 +496,11 @@ func TestTable(t *testing.T) {
 			`func _(v V) { v.f() }`,
 			`func _(v V) { print(*v.U.T) }`,
 		},
-		// TODO(adonovan): due to former unsoundness in pure(),
-		// the previous outputs of two tests below used to be neater.
-		// A followup analysis (strict effects) will restore tidiness.
 		{
 			"Embedded fields in x.f method selection (implicit &).",
 			`type ( T int; U struct{T}; V struct {U} ); func (t *T) f() { print(t) }`,
 			`func _(v V) { v.f() }`,
-			// was `func _(v V) { print(&v.U.T) }`,
-			`func _(v V) {
-	{
-		var t *T = &v.U.T
-		print(t)
-	}
-}`,
+			`func _(v V) { print(&v.U.T) }`,
 		},
 		// Now the same tests again with T.f(recv).
 		{
@@ -524,14 +519,61 @@ func TestTable(t *testing.T) {
 			"Embedded fields in (*T).f method selection.",
 			`type ( T int; U struct{T}; V struct {U} ); func (t *T) f() { print(t) }`,
 			`func _(v V) { (*V).f(&v) }`,
-			// was `func _(v V) { print(&(&v).U.T) }`,
-			`func _(v V) {
+			`func _(v V) { print(&(&v).U.T) }`,
+		},
+		// Parameter effect ordering.
+		{
+			"Arguments have effects, but parameters are evaluated in order.",
+			`func f(a, b, c int) { print(a, b, c) }; func g(int) int`,
+			`func _() { f(g(1), g(2), g(3)) }`,
+			`func _() { print(g(1), g(2), g(3)) }`,
+		},
+		{
+			"Arguments have effects, and parameters are evaluated out of order.",
+			`func f(a, b, c int) { print(a, c, b) }; func g(int) int`,
+			`func _() { f(g(1), g(2), g(3)) }`,
+			`func _() {
 	{
-		var t *T = &(&v).U.T
-		print(t)
+		var a, b int = g(1), g(2)
+		print(a, g(3), b)
 	}
 }`,
 		},
+		{
+			"Pure arguments may commute with argument that have effects.",
+			`func f(a, b, c int) { print(a, c, b) }; func g(int) int`,
+			`func _() { f(g(1), 2, g(3)) }`,
+			`func _() { print(g(1), g(3), 2) }`,
+		},
+		{
+			"Impure arguments may commute with each other.",
+			`func f(a, b, c, d int) { print(a, c, b, d) }; func g(int) int; var x, y int`,
+			`func _() { f(g(1), x, y, g(2)) }`,
+			`func _() { print(g(1), y, x, g(2)) }`,
+		},
+		{
+			"Impure arguments do not commute with arguments that have effects (1)",
+			`func f(a, b, c, d int) { print(a, c, b, d) }; func g(int) int; var x, y int`,
+			`func _() { f(g(1), g(2), y, g(3)) }`,
+			`func _() {
+	{
+		var a, b int = g(1), g(2)
+		print(a, y, b, g(3))
+	}
+}`,
+		},
+		{
+			"Impure arguments do not commute with those that have effects (2).",
+			`func f(a, b, c, d int) { print(a, c, b, d) }; func g(int) int; var x, y int`,
+			`func _() { f(g(1), y, g(2), g(3)) }`,
+			`func _() {
+	{
+		var a, b int = g(1), y
+		print(a, g(2), b, g(3))
+	}
+}`,
+		},
+
 		// Treatment of named result vars across strategies:
 		{
 			"Stmt-context call to {return g()} that mentions named result.",
@@ -544,6 +586,21 @@ func TestTable(t *testing.T) {
 	}
 }`,
 		},
+		{
+			"Ditto, with binding decl again.",
+			`func f(y string) (x int) { return x+x+len(y+y) }`,
+			`func _() { f("") }`,
+			`func _() {
+	{
+		var (
+			y string = ""
+			x int
+		)
+		_ = x + x + len(y+y)
+	}
+}`,
+		},
+
 		{
 			"Ditto, with binding decl (due to repeated y refs).",
 			`func f(y string) (x string) { return x+y+y }`,
@@ -570,16 +627,36 @@ func TestTable(t *testing.T) {
 }`,
 		},
 		{
-			"Ditto, with binding decl again.",
-			`func f(y string) (x int) { return x+x+len(y+y) }`,
-			`func _() { f("") }`,
+			"Callee effects commute with pure arguments.",
+			`func f(a, b, c int) { print(a, c, recover().(int), b) }; func g(int) int`,
+			`func _() { f(g(1), 2, g(3)) }`,
+			`func _() { print(g(1), g(3), recover().(int), 2) }`,
+		},
+		{
+			"Callee reads may commute with impure arguments.",
+			`func f(a, b int) { print(a, x, b) }; func g(int) int; var x, y int`,
+			`func _() { f(g(1), y) }`,
+			`func _() { print(g(1), x, y) }`,
+		},
+		{
+			"All impure parameters preceding a read hazard must be kept.",
+			`func f(a, b, c int) { print(a, b, recover().(int), c) }; var x, y, z int`,
+			`func _() { f(x, y, z) }`,
 			`func _() {
 	{
-		var (
-			y string = ""
-			x int
-		)
-		_ = x + x + len(y+y)
+		var c int = z
+		print(x, y, recover().(int), c)
+	}
+}`,
+		},
+		{
+			"All parameters preceding a write hazard must be kept.",
+			`func f(a, b, c int) { print(a, b, recover().(int), c) }; func g(int) int; var x, y, z int`,
+			`func _() { f(x, y, g(0))  }`,
+			`func _() {
+	{
+		var a, b, c int = x, y, g(0)
+		print(a, b, recover().(int), c)
 	}
 }`,
 		},
@@ -606,6 +683,76 @@ func TestTable(t *testing.T) {
 			`func f(y string) (x y) { return x+x+len(y+y) }; type y = int`,
 			`func _() { f("") }`,
 			`func _() { func(y string) (x y) { return x + x + len(y+y) }("") }`,
+		},
+		{
+			"[W1 R0 W2 W4 R3] -- test case for second iteration of effect loop",
+			`func f(a, b, c, d, e int) { print(b, a, c, e, d) }; func g(int) int; var x, y int`,
+			`func _() { f(x, g(1), g(2), y, g(3))  }`,
+			`func _() {
+	{
+		var a, b, c, d int = x, g(1), g(2), y
+		print(b, a, c, g(3), d)
+	}
+}`,
+		},
+		{
+			// In this example, the set() call is rejected as a substitution
+			// candidate due to a shadowing conflict (x). This must entail that the
+			// selection x.y (R) is also rejected, because it is lower numbered.
+			//
+			// Incidentally this program (which panics when executed) illustrates
+			// that although effects occur left-to-right, read operations such
+			// as x.y are not ordered wrt writes, depending on the compiler.
+			// Changing x.y to identity(x).y forces the ordering and avoids the panic.
+			"Hazards with args already rejected (e.g. due to shadowing) are detected too.",
+			`func f(x, y int) int { return x + y }; func set[T any](ptr *T, old, new T) int { println(old); *ptr = new; return 0; }`,
+			`func _() { x := new(struct{ y int }); f(x.y, set(&x, x, nil)) }`,
+			`func _() {
+	x := new(struct{ y int })
+	{
+		var x, y int = x.y, set(&x, x, nil)
+		_ = x + y
+	}
+}`,
+		},
+		{
+			// Rejection of a later parameter for reasons other than callee
+			// effects (e.g. escape) may create hazards with lower-numbered
+			// parameters that require them to be rejected too.
+			"Hazards with already eliminated parameters (variant)",
+			`func f(x, y int) { _ = &y }; func g(int) int`,
+			`func _() { f(g(1), g(2)) }`,
+			`func _() {
+	{
+		var _, y int = g(1), g(2)
+		_ = &y
+	}
+}`,
+		},
+		{
+			// In this case g(2) is rejected for substitution because it is
+			// unreferenced but has effects, so parameter x must also be rejected
+			// so that its argument v can be evaluated earlier in the binding decl.
+			"Hazards with already eliminated parameters (unreferenced fx variant)",
+			`func f(x, y int) { _ = x }; func g(int) int; var v int`,
+			`func _() { f(v, g(2)) }`,
+			`func _() {
+	{
+		var x, _ int = v, g(2)
+		_ = x
+	}
+}`,
+		},
+		{
+			"Non-duplicable arguments are not substituted even if pure.",
+			`func f(s string, i int) { print(s, s, i, i) }`,
+			`func _() { f("", 0)  }`,
+			`func _() {
+	{
+		var s string = ""
+		print(s, s, 0, 0)
+	}
+}`,
 		},
 
 		// TODO(adonovan): improve coverage of the cross

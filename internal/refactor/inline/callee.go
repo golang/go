@@ -41,6 +41,7 @@ type gobCallee struct {
 	NumResults       int          // number of results (according to type, not ast.FieldList)
 	Params           []*paramInfo // information about parameters (incl. receiver)
 	Results          []*paramInfo // information about result variables
+	Effects          []int        // order in which parameters are evaluated (see calleefx)
 	HasDefer         bool         // uses defer
 	HasBareReturn    bool         // uses bare return in non-void function
 	TotalReturns     int          // number of return statements
@@ -320,7 +321,7 @@ func AnalyzeCallee(logf func(string, ...any), fset *token.FileSet, pkg *types.Pa
 		return nil, err
 	}
 
-	params, results := analyzeParams(logf, fset, info, decl)
+	params, results, effects := analyzeParams(logf, fset, info, decl)
 	return &Callee{gobCallee{
 		Content:          content,
 		PkgPath:          pkg.Path(),
@@ -332,6 +333,7 @@ func AnalyzeCallee(logf func(string, ...any), fset *token.FileSet, pkg *types.Pa
 		NumResults:       sig.Results().Len(),
 		Params:           params,
 		Results:          results,
+		Effects:          effects,
 		HasDefer:         hasDefer,
 		HasBareReturn:    hasBareReturn,
 		TotalReturns:     totalReturns,
@@ -353,8 +355,11 @@ func parseCompact(content []byte) (*token.FileSet, *ast.FuncDecl, error) {
 }
 
 // A paramInfo records information about a callee receiver, parameter, or result variable.
+// TODO(adonovan): rename to sigVarInfo or paramOrResultInfo?
 type paramInfo struct {
 	Name     string          // parameter name (may be blank, or even "")
+	Index    int             // index within signature
+	IsResult bool            // false for receiver or parameter, true for result variable
 	Assigned bool            // parameter appears on left side of an assignment statement
 	Escapes  bool            // parameter has its address taken
 	Refs     []int           // FuncDecl-relative byte offset of parameter ref within body
@@ -368,7 +373,7 @@ type paramInfo struct {
 // the other of the result variables of function fn.
 //
 // The input must be well-typed.
-func analyzeParams(logf func(string, ...any), fset *token.FileSet, info *types.Info, decl *ast.FuncDecl) (params, results []*paramInfo) {
+func analyzeParams(logf func(string, ...any), fset *token.FileSet, info *types.Info, decl *ast.FuncDecl) (params, results []*paramInfo, effects []int) {
 	fnobj, ok := info.Defs[decl.Name]
 	if !ok {
 		panic(fmt.Sprintf("%s: no func object for %q",
@@ -378,19 +383,23 @@ func analyzeParams(logf func(string, ...any), fset *token.FileSet, info *types.I
 	paramInfos := make(map[*types.Var]*paramInfo)
 	{
 		sig := fnobj.Type().(*types.Signature)
-		newParamInfo := func(param *types.Var) *paramInfo {
-			info := &paramInfo{Name: param.Name()}
+		newParamInfo := func(param *types.Var, isResult bool) *paramInfo {
+			info := &paramInfo{
+				Name:     param.Name(),
+				IsResult: isResult,
+				Index:    len(paramInfos),
+			}
 			paramInfos[param] = info
 			return info
 		}
 		if sig.Recv() != nil {
-			params = append(params, newParamInfo(sig.Recv()))
+			params = append(params, newParamInfo(sig.Recv(), false))
 		}
 		for i := 0; i < sig.Params().Len(); i++ {
-			params = append(params, newParamInfo(sig.Params().At(i)))
+			params = append(params, newParamInfo(sig.Params().At(i), false))
 		}
 		for i := 0; i < sig.Results().Len(); i++ {
-			results = append(results, newParamInfo(sig.Results().At(i)))
+			results = append(results, newParamInfo(sig.Results().At(i), true))
 		}
 	}
 
@@ -420,7 +429,7 @@ func analyzeParams(logf func(string, ...any), fset *token.FileSet, info *types.I
 		if id, ok := n.(*ast.Ident); ok {
 			if v, ok := info.Uses[id].(*types.Var); ok {
 				if pinfo, ok := paramInfos[v]; ok {
-					// Record location of ref to parameter.
+					// Record location of ref to parameter/result.
 					offset := int(n.Pos() - decl.Pos())
 					pinfo.Refs = append(pinfo.Refs, offset)
 
@@ -446,7 +455,12 @@ func analyzeParams(logf func(string, ...any), fset *token.FileSet, info *types.I
 		return true
 	})
 
-	return params, results
+	// Compute subset and order of parameters that are strictly evaluated.
+	// (Depends on Refs computed above.)
+	effects = calleefx(info, decl.Body, paramInfos)
+	logf("effects list = %v", effects)
+
+	return params, results, effects
 }
 
 // -- callee helpers --
