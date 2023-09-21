@@ -9,10 +9,16 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/telemetry"
 	"golang.org/x/tools/internal/event"
 )
 
-func (s *Server) symbol(ctx context.Context, params *protocol.WorkspaceSymbolParams) ([]protocol.SymbolInformation, error) {
+func (s *Server) symbol(ctx context.Context, params *protocol.WorkspaceSymbolParams) (_ []protocol.SymbolInformation, rerr error) {
+	recordLatency := telemetry.StartLatencyTimer("symbol")
+	defer func() {
+		recordLatency(ctx, rerr)
+	}()
+
 	ctx, done := event.Start(ctx, "lsp.Server.symbol")
 	defer done()
 

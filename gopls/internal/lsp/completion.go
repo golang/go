@@ -14,11 +14,17 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source/completion"
 	"golang.org/x/tools/gopls/internal/lsp/template"
 	"golang.org/x/tools/gopls/internal/lsp/work"
+	"golang.org/x/tools/gopls/internal/telemetry"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
 )
 
-func (s *Server) completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
+func (s *Server) completion(ctx context.Context, params *protocol.CompletionParams) (_ *protocol.CompletionList, rerr error) {
+	recordLatency := telemetry.StartLatencyTimer("completion")
+	defer func() {
+		recordLatency(ctx, rerr)
+	}()
+
 	ctx, done := event.Start(ctx, "lsp.Server.completion", tag.URI.Of(params.TextDocument.URI))
 	defer done()
 

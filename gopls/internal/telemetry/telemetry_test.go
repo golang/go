@@ -8,6 +8,8 @@
 package telemetry_test
 
 import (
+	"context"
+	"errors"
 	"os"
 	"strconv"
 	"strings"
@@ -21,6 +23,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
+	"golang.org/x/tools/gopls/internal/telemetry"
 )
 
 func TestMain(m *testing.M) {
@@ -39,6 +42,28 @@ func TestTelemetry(t *testing.T) {
 		editor    = "vscode" // We set ClientName("Visual Studio Code") below.
 	)
 
+	// Run gopls once to determine the Go version.
+	WithOptions(
+		Modes(Default),
+	).Run(t, "", func(_ *testing.T, env *Env) {
+		goversion = strconv.Itoa(env.GoVersion())
+	})
+
+	// counters that should be incremented once per session
+	sessionCounters := []*counter.Counter{
+		counter.New("gopls/client:" + editor),
+		counter.New("gopls/goversion:1." + goversion),
+		counter.New("fwd/vscode/linter:a"),
+	}
+	initialCounts := make([]uint64, len(sessionCounters))
+	for i, c := range sessionCounters {
+		count, err := countertest.ReadCounter(c)
+		if err != nil {
+			t.Fatalf("ReadCounter(%s): %v", c.Name(), err)
+		}
+		initialCounts[i] = count
+	}
+
 	// Verify that a properly configured session gets notified of a bug on the
 	// server.
 	WithOptions(
@@ -56,14 +81,11 @@ func TestTelemetry(t *testing.T) {
 	// gopls/editor:client
 	// gopls/goversion:1.x
 	// fwd/vscode/linter:a
-	for _, c := range []*counter.Counter{
-		counter.New("gopls/client:" + editor),
-		counter.New("gopls/goversion:1." + goversion),
-		counter.New("fwd/vscode/linter:a"),
-	} {
-		count, err := countertest.ReadCounter(c)
-		if err != nil || count != 1 {
-			t.Errorf("ReadCounter(%q) = (%v, %v), want (1, nil)", c.Name(), count, err)
+	for i, c := range sessionCounters {
+		want := initialCounts[i] + 1
+		got, err := countertest.ReadCounter(c)
+		if err != nil || got != want {
+			t.Errorf("ReadCounter(%q) = (%v, %v), want (%v, nil)", c.Name(), got, err, want)
 			t.Logf("Current timestamp = %v", time.Now().UTC())
 		}
 	}
@@ -104,4 +126,90 @@ func hasEntry(counts map[string]uint64, pattern string, want uint64) bool {
 		}
 	}
 	return false
+}
+
+func TestLatencyCounter(t *testing.T) {
+	const operation = "TestLatencyCounter" // a unique operation name
+
+	stop := telemetry.StartLatencyTimer(operation)
+	stop(context.Background(), nil)
+
+	for isError, want := range map[bool]uint64{false: 1, true: 0} {
+		if got := totalLatencySamples(t, operation, isError); got != want {
+			t.Errorf("totalLatencySamples(operation=%v, isError=%v) = %d, want %d", operation, isError, got, want)
+		}
+	}
+}
+
+func TestLatencyCounter_Error(t *testing.T) {
+	const operation = "TestLatencyCounter_Error" // a unique operation name
+
+	stop := telemetry.StartLatencyTimer(operation)
+	stop(context.Background(), errors.New("bad"))
+
+	for isError, want := range map[bool]uint64{false: 0, true: 1} {
+		if got := totalLatencySamples(t, operation, isError); got != want {
+			t.Errorf("totalLatencySamples(operation=%v, isError=%v) = %d, want %d", operation, isError, got, want)
+		}
+	}
+}
+
+func TestLatencyCounter_Cancellation(t *testing.T) {
+	const operation = "TestLatencyCounter_Cancellation"
+
+	stop := telemetry.StartLatencyTimer(operation)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	stop(ctx, nil)
+
+	for isError, want := range map[bool]uint64{false: 0, true: 0} {
+		if got := totalLatencySamples(t, operation, isError); got != want {
+			t.Errorf("totalLatencySamples(operation=%v, isError=%v) = %d, want %d", operation, isError, got, want)
+		}
+	}
+}
+
+func totalLatencySamples(t *testing.T, operation string, isError bool) uint64 {
+	var total uint64
+	telemetry.ForEachLatencyCounter(operation, isError, func(c *counter.Counter) {
+		count, err := countertest.ReadCounter(c)
+		if err != nil {
+			t.Errorf("ReadCounter(%s) failed: %v", c.Name(), err)
+		} else {
+			total += count
+		}
+	})
+	return total
+}
+
+func TestLatencyInstrumentation(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.test/a
+go 1.18
+-- a.go --
+package a
+
+func _() {
+	x := 0
+	_ = x
+}
+`
+
+	// Verify that a properly configured session gets notified of a bug on the
+	// server.
+	WithOptions(
+		Modes(Default), // must be in-process to receive the bug report below
+	).Run(t, files, func(_ *testing.T, env *Env) {
+		env.OpenFile("a.go")
+		before := totalLatencySamples(t, "completion", false)
+		loc := env.RegexpSearch("a.go", "x")
+		for i := 0; i < 10; i++ {
+			env.Completion(loc)
+		}
+		after := totalLatencySamples(t, "completion", false)
+		if after-before < 10 {
+			t.Errorf("after 10 completions, completion counter went from %d to %d", before, after)
+		}
+	})
 }
