@@ -6,6 +6,13 @@ package modload
 
 import (
 	"bytes"
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
+	"cmd/go/internal/modfetch/codehost"
+	"cmd/go/internal/modinfo"
+	"cmd/go/internal/search"
+	"cmd/internal/pkgpattern"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,15 +21,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"sync"
-
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/gover"
-	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/modinfo"
-	"cmd/go/internal/search"
-	"cmd/internal/pkgpattern"
 
 	"golang.org/x/mod/module"
 )
@@ -274,35 +272,33 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			continue
 		}
 
-		type token struct{}
-		sem := make(chan token, runtime.GOMAXPROCS(0))
-		var lock sync.Mutex
-		matched := false
+		var matches []module.Version
 		for _, m := range mg.BuildList() {
 			if match(m.Path) {
-				matched = true
 				if !matchedModule[m] {
 					matchedModule[m] = true
-					add := func(m module.Version, mPtr *[]*modinfo.ModulePublic) {
-						sem <- token{}
-						go func() {
-							info := moduleInfo(ctx, rs, m, mode, reuse)
-							lock.Lock()
-							*mPtr = append(*mPtr, info)
-							lock.Unlock()
-							<-sem
-						}()
-					}
-					add(m, &mods)
+					matches = append(matches, m)
 				}
 			}
+		}
+
+		type token struct{}
+		sem := make(chan token, runtime.GOMAXPROCS(0))
+		fetchedMods := make([]*modinfo.ModulePublic, len(matches))
+		for i, m := range matches {
+			sem <- token{}
+			go func(m module.Version, i int) {
+				fetchedMods[i] = moduleInfo(ctx, rs, m, mode, reuse)
+				<-sem
+			}(m, i)
 		}
 		// Fill semaphore channel to wait for all tasks to finish.
 		for n := cap(sem); n > 0; n-- {
 			sem <- token{}
 		}
+		mods = append(mods, fetchedMods...)
 
-		if !matched {
+		if len(matches) == 0 {
 			fmt.Fprintf(os.Stderr, "warning: pattern %q matched no module dependencies\n", arg)
 		}
 	}
