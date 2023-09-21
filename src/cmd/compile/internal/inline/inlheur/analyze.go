@@ -40,7 +40,7 @@ const (
 type propAnalyzer interface {
 	nodeVisitPre(n ir.Node)
 	nodeVisitPost(n ir.Node)
-	setResults(fp *FuncProps)
+	setResults(funcProps *FuncProps)
 }
 
 // fnInlHeur contains inline heuristics state information about a
@@ -62,29 +62,25 @@ type fnInlHeur struct {
 var fpmap = map[*ir.Func]fnInlHeur{}
 
 func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) *FuncProps {
-	if fih, ok := fpmap[fn]; ok {
-		return fih.props
+	if funcInlHeur, ok := fpmap[fn]; ok {
+		return funcInlHeur.props
 	}
-	fp, fcstab := computeFuncProps(fn, canInline, inlineMaxBudget)
+	funcProps, fcstab := computeFuncProps(fn, canInline, inlineMaxBudget)
 	file, line := fnFileLine(fn)
 	entry := fnInlHeur{
 		fname:           fn.Sym().Name,
 		file:            file,
 		line:            line,
 		inlineMaxBudget: inlineMaxBudget,
-		props:           fp,
+		props:           funcProps,
 		cstab:           fcstab,
-	}
-	// Merge this functions call sites into the package level table.
-	if err := cstab.merge(fcstab); err != nil {
-		base.FatalfAt(fn.Pos(), "%v", err)
 	}
 	fn.SetNeverReturns(entry.props.Flags&FuncPropNeverReturns != 0)
 	fpmap[fn] = entry
 	if fn.Inl != nil && fn.Inl.Properties == "" {
 		fn.Inl.Properties = entry.props.SerializeToString()
 	}
-	return fp
+	return funcProps
 }
 
 // computeFuncProps examines the Go function 'fn' and computes for it
@@ -100,15 +96,15 @@ func computeFuncProps(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int
 	pa := makeParamsAnalyzer(fn)
 	ffa := makeFuncFlagsAnalyzer(fn)
 	analyzers := []propAnalyzer{ffa, ra, pa}
-	fp := new(FuncProps)
+	funcProps := new(FuncProps)
 	runAnalyzersOnFunction(fn, analyzers)
 	for _, a := range analyzers {
-		a.setResults(fp)
+		a.setResults(funcProps)
 	}
 	// Now build up a partial table of callsites for this func.
 	cstab := computeCallSiteTable(fn, ffa.panicPathTable())
 	disableDebugTrace()
-	return fp, cstab
+	return funcProps, cstab
 }
 
 func runAnalyzersOnFunction(fn *ir.Func, analyzers []propAnalyzer) {
@@ -127,8 +123,8 @@ func runAnalyzersOnFunction(fn *ir.Func, analyzers []propAnalyzer) {
 }
 
 func propsForFunc(fn *ir.Func) *FuncProps {
-	if fih, ok := fpmap[fn]; ok {
-		return fih.props
+	if funcInlHeur, ok := fpmap[fn]; ok {
+		return funcInlHeur.props
 	} else if fn.Inl != nil && fn.Inl.Properties != "" {
 		// FIXME: considering adding some sort of cache or table
 		// for deserialized properties of imported functions.
@@ -227,14 +223,14 @@ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget
 	if strings.HasPrefix(fn.Sym().Name, ".eq.") {
 		return
 	}
-	fih, ok := fpmap[fn]
+	funcInlHeur, ok := fpmap[fn]
 	// Props object should already be present, unless this is a
 	// directly recursive routine.
 	if !ok {
 		AnalyzeFunc(fn, canInline, inlineMaxBudget)
-		fih = fpmap[fn]
+		funcInlHeur = fpmap[fn]
 		if fn.Inl != nil && fn.Inl.Properties == "" {
-			fn.Inl.Properties = fih.props.SerializeToString()
+			fn.Inl.Properties = funcInlHeur.props.SerializeToString()
 		}
 	}
 	if dumpBuffer == nil {
@@ -248,7 +244,7 @@ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget
 	if debugTrace&debugTraceFuncs != 0 {
 		fmt.Fprintf(os.Stderr, "=-= capturing dump for %v:\n", fn)
 	}
-	dumpBuffer[fn] = fih
+	dumpBuffer[fn] = funcInlHeur
 }
 
 // dumpFilePreamble writes out a file-level preamble for a given
@@ -264,17 +260,17 @@ func dumpFilePreamble(w io.Writer) {
 // Go function as part of a function properties dump. See the
 // README.txt file in testdata/props for more on the format of
 // this preamble.
-func dumpFnPreamble(w io.Writer, fih *fnInlHeur, ecst encodedCallSiteTab, idx, atl uint) error {
+func dumpFnPreamble(w io.Writer, funcInlHeur *fnInlHeur, ecst encodedCallSiteTab, idx, atl uint) error {
 	fmt.Fprintf(w, "// %s %s %d %d %d\n",
-		fih.file, fih.fname, fih.line, idx, atl)
+		funcInlHeur.file, funcInlHeur.fname, funcInlHeur.line, idx, atl)
 	// emit props as comments, followed by delimiter
-	fmt.Fprintf(w, "%s// %s\n", fih.props.ToString("// "), comDelimiter)
-	data, err := json.Marshal(fih.props)
+	fmt.Fprintf(w, "%s// %s\n", funcInlHeur.props.ToString("// "), comDelimiter)
+	data, err := json.Marshal(funcInlHeur.props)
 	if err != nil {
 		return fmt.Errorf("marshall error %v\n", err)
 	}
 	fmt.Fprintf(w, "// %s\n", string(data))
-	dumpCallSiteComments(w, fih.cstab, ecst)
+	dumpCallSiteComments(w, funcInlHeur.cstab, ecst)
 	fmt.Fprintf(w, "// %s\n", fnDelimiter)
 	return nil
 }

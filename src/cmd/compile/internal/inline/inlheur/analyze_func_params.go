@@ -72,8 +72,8 @@ func makeParamsAnalyzer(fn *ir.Func) *paramsAnalyzer {
 	}
 }
 
-func (pa *paramsAnalyzer) setResults(fp *FuncProps) {
-	fp.ParamFlags = pa.values
+func (pa *paramsAnalyzer) setResults(funcProps *FuncProps) {
+	funcProps.ParamFlags = pa.values
 }
 
 func (pa *paramsAnalyzer) findParamIdx(n *ir.Name) int {

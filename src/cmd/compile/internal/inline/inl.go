@@ -978,7 +978,7 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
 
 	metric := callee.Inl.Cost
 	if goexperiment.NewInliner {
-		ok, score := inlheur.GetCallSiteScore(n)
+		score, ok := inlheur.GetCallSiteScore(caller, n)
 		if ok {
 			metric = int32(score)
 		}

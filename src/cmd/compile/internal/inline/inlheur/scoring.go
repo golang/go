@@ -299,7 +299,6 @@ func adjustScore(typ scoreAdjustTyp, score int, mask scoreAdjustTyp) (int, score
 func DumpInlCallSiteScores(profile *pgo.Profile, budgetCallback func(fn *ir.Func, profile *pgo.Profile) (int32, bool)) {
 
 	fmt.Fprintf(os.Stdout, "# scores for package %s\n", types.LocalPkg.Path)
-	cstab := CallSiteTable()
 
 	genstatus := func(cs *CallSite, prof *pgo.Profile) string {
 		hairyval := cs.Callee.Inl.Cost
@@ -330,9 +329,11 @@ func DumpInlCallSiteScores(profile *pgo.Profile, budgetCallback func(fn *ir.Func
 	}
 
 	if base.Debug.DumpInlCallSiteScores != 0 {
-		sl := make([]*CallSite, 0, len(cstab))
-		for _, v := range cstab {
-			sl = append(sl, v)
+		var sl []*CallSite
+		for _, funcInlHeur := range fpmap {
+			for _, cs := range funcInlHeur.cstab {
+				sl = append(sl, cs)
+			}
 		}
 		sort.Slice(sl, func(i, j int) bool {
 			if sl[i].Score != sl[j].Score {

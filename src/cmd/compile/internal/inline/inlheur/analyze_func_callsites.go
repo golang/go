@@ -176,7 +176,7 @@ func ScoreCalls(fn *ir.Func) {
 		fmt.Fprintf(os.Stderr, "=-= ScoreCalls(%v)\n", ir.FuncName(fn))
 	}
 
-	fih, ok := fpmap[fn]
+	funcInlHeur, ok := fpmap[fn]
 	if !ok {
 		// TODO: add an assert/panic here.
 		return
@@ -187,8 +187,8 @@ func ScoreCalls(fn *ir.Func) {
 	// Sort callsites to avoid any surprises with non deterministic
 	// map iteration order (this is probably not needed, but here just
 	// in case).
-	csl := make([]*CallSite, 0, len(fih.cstab))
-	for _, cs := range fih.cstab {
+	csl := make([]*CallSite, 0, len(funcInlHeur.cstab))
+	for _, cs := range funcInlHeur.cstab {
 		csl = append(csl, cs)
 	}
 	sort.Slice(csl, func(i, j int) bool {
@@ -200,8 +200,8 @@ func ScoreCalls(fn *ir.Func) {
 		var cprops *FuncProps
 		fihcprops := false
 		desercprops := false
-		if fih, ok := fpmap[cs.Callee]; ok {
-			cprops = fih.props
+		if funcInlHeur, ok := fpmap[cs.Callee]; ok {
+			cprops = funcInlHeur.props
 			fihcprops = true
 		} else if cs.Callee.Inl != nil {
 			cprops = DeserializeFromString(cs.Callee.Inl.Properties)
@@ -219,11 +219,11 @@ func ScoreCalls(fn *ir.Func) {
 		examineCallResults(cs, resultNameTab)
 
 		if debugTrace&debugTraceScoring != 0 {
-			fmt.Fprintf(os.Stderr, "=-= scoring call at %s: flags=%d score=%d fih=%v deser=%v\n", fmtFullPos(cs.Call.Pos()), cs.Flags, cs.Score, fihcprops, desercprops)
+			fmt.Fprintf(os.Stderr, "=-= scoring call at %s: flags=%d score=%d funcInlHeur=%v deser=%v\n", fmtFullPos(cs.Call.Pos()), cs.Flags, cs.Score, fihcprops, desercprops)
 		}
 	}
 
-	rescoreBasedOnCallResultUses(fn, resultNameTab, fih.cstab)
+	rescoreBasedOnCallResultUses(fn, resultNameTab, funcInlHeur.cstab)
 }
 
 func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {

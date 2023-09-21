@@ -61,8 +61,8 @@ func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget 
 }
 
 // setResults transfers the calculated result properties for this
-// function to 'fp'.
-func (ra *returnsAnalyzer) setResults(fp *FuncProps) {
+// function to 'funcProps'.
+func (ra *returnsAnalyzer) setResults(funcProps *FuncProps) {
 	// Promote ResultAlwaysSameFunc to ResultAlwaysSameInlinableFunc
 	for i := range ra.values {
 		if ra.props[i] == ResultAlwaysSameFunc && !ra.values[i].derived {
@@ -88,7 +88,7 @@ func (ra *returnsAnalyzer) setResults(fp *FuncProps) {
 			}
 		}
 	}
-	fp.ResultFlags = ra.props
+	funcProps.ResultFlags = ra.props
 }
 
 func (ra *returnsAnalyzer) pessimize() {
