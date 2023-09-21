@@ -14,6 +14,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -273,16 +274,34 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			continue
 		}
 
+		type token struct{}
+		sem := make(chan token, runtime.GOMAXPROCS(0))
+		var lock sync.Mutex
 		matched := false
 		for _, m := range mg.BuildList() {
 			if match(m.Path) {
 				matched = true
 				if !matchedModule[m] {
 					matchedModule[m] = true
-					mods = append(mods, moduleInfo(ctx, rs, m, mode, reuse))
+					add := func(m module.Version, mPtr *[]*modinfo.ModulePublic) {
+						sem <- token{}
+						go func() {
+							info := moduleInfo(ctx, rs, m, mode, reuse)
+							lock.Lock()
+							*mPtr = append(*mPtr, info)
+							lock.Unlock()
+							<-sem
+						}()
+					}
+					add(m, &mods)
 				}
 			}
 		}
+		// Fill semaphore channel to wait for all tasks to finish.
+		for n := cap(sem); n > 0; n-- {
+			sem <- token{}
+		}
+
 		if !matched {
 			fmt.Fprintf(os.Stderr, "warning: pattern %q matched no module dependencies\n", arg)
 		}
