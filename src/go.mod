@@ -8,6 +8,6 @@ require (
 )
 
 require (
-	golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c // indirect
+	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
 )

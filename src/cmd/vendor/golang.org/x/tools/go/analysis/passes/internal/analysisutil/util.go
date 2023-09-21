@@ -12,7 +12,7 @@ import (
 	"go/printer"
 	"go/token"
 	"go/types"
-	"io/ioutil"
+	"os"
 )
 
 // Format returns a string representation of the expression.
@@ -69,7 +69,7 @@ func Unparen(e ast.Expr) ast.Expr {
 // ReadFile reads a file and adds it to the FileSet
 // so that we can report errors against it using lineStart.
 func ReadFile(fset *token.FileSet, filename string) ([]byte, *token.File, error) {
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, nil, err
 	}

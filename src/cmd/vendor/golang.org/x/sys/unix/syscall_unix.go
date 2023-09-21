@@ -549,6 +549,9 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
 	if err != nil {
 		return err
 	}
+	if (flag&O_NONBLOCK != 0) == nonblocking {
+		return nil
+	}
 	if nonblocking {
 		flag |= O_NONBLOCK
 	} else {
