@@ -152,7 +152,8 @@ func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
 	}
 	csa.cstab[call] = cs
 	if debugTrace&debugTraceCalls != 0 {
-		fmt.Fprintf(os.Stderr, "=-= added callsite at %s: callee=%s call[%p]=%v\n", fmtFullPos(call.Pos()), callee.Sym().Name, call, call)
+		fmt.Fprintf(os.Stderr, "=-= added callsite: caller=%v callee=%v n=%s\n",
+			csa.fn, callee, fmtFullPos(call.Pos()))
 	}
 }
 
@@ -286,4 +287,67 @@ func (csa *callSiteAnalyzer) containingAssignment(n ir.Node) ir.Node {
 	}
 
 	return nil
+}
+
+// UpdateCallsiteTable handles updating of callerfn's call site table
+// after an inlined has been carried out, e.g. the call at 'n' as been
+// turned into the inlined call expression 'ic' within function
+// callerfn. The chief thing of interest here is to make sure that any
+// call nodes within 'ic' are added to the call site table for
+// 'callerfn' and scored appropriately.
+func UpdateCallsiteTable(callerfn *ir.Func, n *ir.CallExpr, ic *ir.InlinedCallExpr) {
+	enableDebugTraceIfEnv()
+	defer disableDebugTrace()
+
+	funcInlHeur, ok := fpmap[callerfn]
+	if !ok {
+		// This can happen for compiler-generated wrappers.
+		if debugTrace&debugTraceCalls != 0 {
+			fmt.Fprintf(os.Stderr, "=-= early exit, no entry for caller fn %v\n", callerfn)
+		}
+		return
+	}
+
+	if debugTrace&debugTraceCalls != 0 {
+		fmt.Fprintf(os.Stderr, "=-= UpdateCallsiteTable(caller=%v, cs=%s)\n",
+			callerfn, fmtFullPos(n.Pos()))
+	}
+
+	// Mark the call in question as inlined.
+	oldcs, ok := funcInlHeur.cstab[n]
+	if !ok {
+		// This can happen for compiler-generated wrappers.
+		return
+	}
+	oldcs.aux |= csAuxInlined
+
+	if debugTrace&debugTraceCalls != 0 {
+		fmt.Fprintf(os.Stderr, "=-= marked as inlined: callee=%v %s\n",
+			oldcs.Callee, EncodeCallSiteKey(oldcs))
+	}
+
+	// Walk the inlined call region to collect new callsites.
+	var icp pstate
+	if oldcs.Flags&CallSiteOnPanicPath != 0 {
+		icp = psCallsPanic
+	}
+	var loopNestLevel int
+	if oldcs.Flags&CallSiteInLoop != 0 {
+		loopNestLevel = 1
+	}
+	ptab := map[ir.Node]pstate{ic: icp}
+	icstab := computeCallSiteTable(callerfn, ic.Body, nil, ptab, loopNestLevel)
+
+	// Record parent callsite. This is primarily for debug output.
+	for _, cs := range icstab {
+		cs.parent = oldcs
+	}
+
+	// Score the calls in the inlined body. Note the setting of "doCallResults"
+	// to false here: at the moment there isn't any easy way to localize
+	// or region-ize the work done by "rescoreBasedOnCallResultUses", which
+	// currently does a walk over the entire function to look for uses
+	// of a given set of results.
+	const doCallResults = false
+	scoreCallsRegion(callerfn, ic.Body, icstab, doCallResults, ic)
 }

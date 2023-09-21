@@ -27,11 +27,13 @@ import (
 type CallSite struct {
 	Callee    *ir.Func
 	Call      *ir.CallExpr
+	parent    *CallSite
 	Assign    ir.Node
 	Flags     CSPropBits
 	Score     int
 	ScoreMask scoreAdjustTyp
 	ID        uint
+	aux       uint8
 }
 
 // CallSiteTab is a table of call sites, keyed by call expr.
@@ -47,6 +49,12 @@ const (
 	CallSiteInLoop CSPropBits = 1 << iota
 	CallSiteOnPanicPath
 	CallSiteInInitFunc
+)
+
+type csAuxBits uint8
+
+const (
+	csAuxInlined = 1 << iota
 )
 
 // encodedCallSiteTab is a table keyed by "encoded" callsite

@@ -17,16 +17,18 @@ func TestDumpCallSiteScoreDump(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	scenarios := []struct {
-		name      string
-		promoted  int
-		demoted   int
-		unchanged int
+		name               string
+		promoted           int
+		indirectlyPromoted int
+		demoted            int
+		unchanged          int
 	}{
 		{
-			name:      "dumpscores",
-			promoted:  1,
-			demoted:   1,
-			unchanged: 5,
+			name:               "dumpscores",
+			promoted:           1,
+			indirectlyPromoted: 1,
+			demoted:            1,
+			unchanged:          5,
 		},
 	}
 
@@ -41,13 +43,16 @@ func TestDumpCallSiteScoreDump(t *testing.T) {
 		} else {
 			lines = strings.Split(string(content), "\n")
 		}
-		prom, dem, unch := 0, 0, 0
+		prom, indprom, dem, unch := 0, 0, 0, 0
 		for _, line := range lines {
 			switch {
 			case strings.TrimSpace(line) == "":
+			case !strings.Contains(line, "|"):
 			case strings.HasPrefix(line, "#"):
 			case strings.Contains(line, "PROMOTED"):
 				prom++
+			case strings.Contains(line, "INDPROM"):
+				indprom++
 			case strings.Contains(line, "DEMOTED"):
 				dem++
 			default:
@@ -58,6 +63,11 @@ func TestDumpCallSiteScoreDump(t *testing.T) {
 		if prom != scen.promoted {
 			t.Errorf("testcase %q, got %d promoted want %d promoted",
 				scen.name, prom, scen.promoted)
+			showout = true
+		}
+		if indprom != scen.indirectlyPromoted {
+			t.Errorf("testcase %q, got %d indirectly promoted want %d",
+				scen.name, indprom, scen.indirectlyPromoted)
 			showout = true
 		}
 		if dem != scen.demoted {
@@ -88,6 +98,7 @@ func gatherInlCallSitesScoresForFile(t *testing.T, testcase string, td string) (
 	run := []string{testenv.GoToolPath(t), "build",
 		"-gcflags=-d=dumpinlcallsitescores=1", "-o", outpath, gopath}
 	out, err := testenv.Command(t, run[0], run[1:]...).CombinedOutput()
+	t.Logf("run: %+v\n", run)
 	if err != nil {
 		return "", err
 	}
