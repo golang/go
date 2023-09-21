@@ -33,12 +33,14 @@ type Caller struct {
 	File    *ast.File
 	Call    *ast.CallExpr
 	Content []byte // source of file containing
+
+	path []ast.Node
 }
 
 // Inline inlines the called function (callee) into the function call (caller)
 // and returns the updated, formatted content of the caller source file.
 //
-// Inline does not mutate any part of Caller or Callee.
+// Inline does not mutate any public fields of Caller or Callee.
 //
 // The log records the decision-making process.
 //
@@ -229,23 +231,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	// -- analyze callee's free references in caller context --
 
 	// syntax path enclosing Call, innermost first (Path[0]=Call)
-	callerPath, _ := astutil.PathEnclosingInterval(caller.File, caller.Call.Pos(), caller.Call.End())
-	callerLookup := func(name string) types.Object {
-		pos := caller.Call.Pos()
-		for _, n := range callerPath {
-			// The function body scope (containing not just params)
-			// is associated with FuncDecl.Type, not FuncDecl.Body.
-			if decl, ok := n.(*ast.FuncDecl); ok {
-				n = decl.Type
-			}
-			if scope := caller.Info.Scopes[n]; scope != nil {
-				if _, obj := scope.LookupParent(name, pos); obj != nil {
-					return obj
-				}
-			}
-		}
-		return nil
-	}
+	caller.path, _ = astutil.PathEnclosingInterval(caller.File, caller.Call.Pos(), caller.Call.End())
 
 	// Find the outermost function enclosing the call site (if any).
 	// Analyze all its local vars for the "single assignment" property
@@ -253,7 +239,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	var assign1 func(v *types.Var) bool // reports whether v a single-assignment local var
 	{
 		updatedLocals := make(map[*types.Var]bool)
-		for _, n := range callerPath {
+		for _, n := range caller.path {
 			if decl, ok := n.(*ast.FuncDecl); ok {
 				escape(caller.Info, decl.Body, func(v *types.Var, _ bool) {
 					updatedLocals[v] = true
@@ -288,7 +274,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		for _, name := range importMap[path] {
 			// Check that either the import preexisted,
 			// or that it was newly added (no PkgName) but is not shadowed.
-			found := callerLookup(name)
+			found := caller.lookup(name)
 			if is[*types.PkgName](found) || found == nil {
 				return name
 			}
@@ -305,7 +291,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		// use the package's declared name.
 		base := pathpkg.Base(path)
 		name := base
-		for n := 0; callerLookup(name) != nil; n++ {
+		for n := 0; caller.lookup(name) != nil; n++ {
 			name = fmt.Sprintf("%s%d", base, n)
 		}
 
@@ -353,7 +339,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		} else if !obj.ValidPos {
 			// Built-in function, type, or value (e.g. nil, zero):
 			// check not shadowed at caller.
-			found := callerLookup(obj.Name) // always finds something
+			found := caller.lookup(obj.Name) // always finds something
 			if found.Pos().IsValid() {
 				return nil, fmt.Errorf("cannot inline because built-in %q is shadowed in caller by a %s (line %d)",
 					obj.Name, objectKind(found),
@@ -369,7 +355,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 				if samePkg {
 					// Caller and callee are in same package.
 					// Check caller has not shadowed the decl.
-					found := callerLookup(obj.Name) // can't fail
+					found := caller.lookup(obj.Name) // can't fail
 					if !isPkgLevel(found) {
 						return nil, fmt.Errorf("cannot inline because %q is shadowed in caller by a %s (line %d)",
 							obj.Name, objectKind(found),
@@ -424,147 +410,15 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		}
 	}
 
-	// Gather effective argument tuple, including receiver.
-	//
-	// If the receiver argument and parameter have
-	// different pointerness, make the "&" or "*" explicit.
-	//
-	// Also, if x.f() is shorthand for promoted method x.y.f(),
-	// make the .y explicit in T.f(x.y, ...).
-	//
-	// Beware that:
-	//
-	// - a method can only be called through a selection, but only
-	//   the first of these two forms needs special treatment:
-	//
-	//   expr.f(args)     -> ([&*]expr, args)	MethodVal
-	//   T.f(recv, args)  -> (    expr, args)	MethodExpr
-	//
-	// - the presence of a value in receiver-position in the call
-	//   is a property of the caller, not the callee. A method
-	//   (calleeDecl.Recv != nil) may be called like an ordinary
-	//   function.
-	//
-	// - the types.Signatures seen by the caller (from
-	//   StaticCallee) and by the callee (from decl type)
-	//   differ in this case.
-	//
-	// In a spread call f(g()), the sole ordinary argument g(),
-	// always last in args, has a tuple type.
-	//
-	// We compute type-based predicates like pure, duplicable,
-	// freevars, etc, now, before we start modifying things.
-	type argument struct {
-		expr       ast.Expr
-		typ        types.Type      // may be tuple for sole non-receiver arg in spread call
-		spread     bool            // final arg is call() assigned to multiple params
-		pure       bool            // expr is pure (doesn't read variables)
-		effects    bool            // expr has effects (updates variables)
-		duplicable bool            // expr may be duplicated
-		freevars   map[string]bool // free names of expr
-	}
-	var args []*argument // effective arguments; nil => substituted
-	{
-		// TODO(adonovan): extract to a function (in a separate CL).
-		callArgs := caller.Call.Args
-		if calleeDecl.Recv != nil {
-			sel := astutil.Unparen(caller.Call.Fun).(*ast.SelectorExpr)
-			seln := caller.Info.Selections[sel]
-			var recvArg ast.Expr
-			switch seln.Kind() {
-			case types.MethodVal: // recv.f(callArgs)
-				recvArg = sel.X
-			case types.MethodExpr: // T.f(recv, callArgs)
-				recvArg = callArgs[0]
-				callArgs = callArgs[1:]
-			}
-			if recvArg != nil {
-				// Compute all the type-based predicates now,
-				// before we start meddling with the syntax;
-				// the meddling will update them.
-				arg := &argument{
-					expr:       recvArg,
-					typ:        caller.Info.TypeOf(recvArg),
-					pure:       pure(caller.Info, assign1, recvArg),
-					effects:    effects(caller.Info, recvArg),
-					duplicable: duplicable(caller.Info, recvArg),
-					freevars:   freeVars(caller.Info, recvArg),
-				}
-				recvArg = nil // prevent accidental use
-
-				// Move receiver argument recv.f(args) to argument list f(&recv, args).
-				args = append(args, arg)
-
-				// Make field selections explicit (recv.f -> recv.y.f),
-				// updating arg.{expr,typ}.
-				indices := seln.Index()
-				for _, index := range indices[:len(indices)-1] {
-					t := deref(arg.typ)
-					fld := typeparams.CoreType(t).(*types.Struct).Field(index)
-					if fld.Pkg() != caller.Types && !fld.Exported() {
-						return nil, fmt.Errorf("in %s, implicit reference to unexported field .%s cannot be made explicit",
-							debugFormatNode(caller.Fset, caller.Call.Fun),
-							fld.Name())
-					}
-					arg.expr = &ast.SelectorExpr{
-						X:   arg.expr,
-						Sel: makeIdent(fld.Name()),
-					}
-					arg.typ = fld.Type()
-				}
-
-				// Make * or & explicit.
-				argIsPtr := arg.typ != deref(arg.typ)
-				paramIsPtr := is[*types.Pointer](seln.Obj().Type().(*types.Signature).Recv().Type())
-				if !argIsPtr && paramIsPtr {
-					// &recv
-					arg.expr = &ast.UnaryExpr{Op: token.AND, X: arg.expr}
-					arg.typ = types.NewPointer(arg.typ)
-				} else if argIsPtr && !paramIsPtr {
-					// *recv
-					arg.expr = &ast.StarExpr{X: arg.expr}
-					arg.typ = deref(arg.typ)
-
-					// Technically *recv is non-pure and
-					// non-duplicable, as side effects
-					// could change the pointer between
-					// multiple reads. But unfortunately
-					// this really degrades many of our tests.
-					// (The indices loop above should similarly
-					// update these flags when traversing pointers.)
-					//
-					// TODO(adonovan): improve the precision of
-					// purity and duplicability.
-					// For example, *new(T) is actually pure.
-					// And *ptr, where ptr doesn't escape and
-					// has no assignments other than its decl,
-					// is also pure; this is very common.
-					//
-					// arg.pure = false
-				}
-			}
-		}
-		for _, expr := range callArgs {
-			typ := caller.Info.TypeOf(expr)
-			args = append(args, &argument{
-				expr:       expr,
-				typ:        typ,
-				spread:     is[*types.Tuple](typ), // => last
-				pure:       pure(caller.Info, assign1, expr),
-				effects:    effects(caller.Info, expr),
-				duplicable: duplicable(caller.Info, expr),
-				freevars:   freeVars(caller.Info, expr),
-			})
-		}
+	// Gather the effective call arguments, including the receiver.
+	// Later, elements will be eliminated (=> nil) by parameter substitution.
+	args, err := arguments(caller, calleeDecl, assign1)
+	if err != nil {
+		return nil, err // e.g. implicit field selection cannot be made explicit
 	}
 
 	// Gather effective parameter tuple, including the receiver if any.
 	// Simplify variadic parameters to slices (in all cases but one).
-	type parameter struct {
-		obj      *types.Var // parameter var from caller's signature
-		info     *paramInfo // information from AnalyzeCallee
-		variadic bool       // (final) parameter is unsimplified ...T
-	}
 	var params []*parameter // including receiver; nil => parameter substituted
 	{
 		sig := calleeSymbol.Type().(*types.Signature)
@@ -592,6 +446,8 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		// the third is tricky and cannot be reduced, and (if
 		// a receiver is present) cannot even be literalized.
 		// Fortunately it is vanishingly rare.
+		//
+		// TODO(adonovan): extract this to a function.
 		if sig.Variadic() {
 			lastParam := last(params)
 			if len(args) > 0 && last(args).spread {
@@ -639,127 +495,15 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	// Note: computation below should be expressed in terms of
 	// the args and params slices, not the raw material.
 
-	// Parameter substitution
-	//
-	// Consider each parameter and its corresponding argument in turn
-	// and evaluate these conditions:
-	//
-	// - the parameter is neither address-taken nor assigned;
-	// - the argument is pure;
-	// - if the parameter refcount is zero, the argument must
-	//   not contain the last use of a local var;
-	// - if the parameter refcount is > 1, the argument must be duplicable;
-	// - the argument (or types.Default(argument) if it's untyped) has
-	//   the same type as the parameter.
-	//
-	// If all conditions are met then the parameter can be substituted
-	// and each reference to it replaced by the argument.
-	//
-	// TODO(adonovan): extract this into a separate function.
-	{
-		// Inv:
-		//  in        calls to     variadic, len(args) >= len(params)-1
-		//  in spread calls to non-variadic, len(args) <  len(params)
-		//  in spread calls to     variadic, len(args) <= len(params)
-		// (In spread calls len(args) = 1, or 2 if call has receiver.)
-		// Non-spread variadics have been simplified away already,
-		// so the args[i] lookup is safe if we stop after the spread arg.
-	next:
-		for i, param := range params {
-			arg := args[i]
-			// Check argument against parameter.
-			//
-			// Beware: don't use types.Info on arg since
-			// the syntax may be synthetic (not created by parser)
-			// and thus lacking positions and types;
-			// do it earlier (see pure/duplicable/freevars).
+	// Perform parameter substitution.
+	// May eliminate some elements of params/args.
+	substitute(logf, caller, params, args, replaceCalleeID)
 
-			if arg.spread {
-				logf("keeping param %q and following ones: argument %s is spread",
-					param.info.Name, debugFormatNode(caller.Fset, arg.expr))
-				break // spread => last argument, but not always last parameter
-			}
-			assert(!param.variadic, "unsimplified variadic parameter")
-			if param.info.Escapes {
-				logf("keeping param %q: escapes from callee", param.info.Name)
-				continue
-			}
-			if param.info.Assigned {
-				logf("keeping param %q: assigned by callee", param.info.Name)
-				continue // callee needs the parameter variable
-			}
-			if !arg.pure || arg.effects {
-				// TODO(adonovan): conduct a deeper analysis of callee effects
-				// to relax this constraint.
-				logf("keeping param %q: argument %s is impure",
-					param.info.Name, debugFormatNode(caller.Fset, arg.expr))
-				continue // unsafe to change order or cardinality of effects
-			}
-			if len(param.info.Refs) > 1 && !arg.duplicable {
-				logf("keeping param %q: argument is not duplicable", param.info.Name)
-				continue // incorrect or poor style to duplicate an expression
-			}
-			if len(param.info.Refs) == 0 {
-				// Eliminating an unreferenced parameter might
-				// remove the last reference to a caller local var.
-				for free := range arg.freevars {
-					if v, ok := callerLookup(free).(*types.Var); ok {
-						// TODO(adonovan): be more precise and check
-						// that v is defined within the body of the caller
-						// function (if any) and is indeed referenced
-						// only by the call. (See assign1 for analysis
-						// of enclosing func.)
-						logf("keeping param %q: arg contains perhaps the last reference to possible caller local %v @ %v",
-							param.info.Name, v, caller.Fset.PositionFor(v.Pos(), false))
-						continue next
-					}
-				}
-			}
+	// Update the callee's signature syntax.
+	updateCalleeParams(calleeDecl, params)
 
-			// Check that eliminating the parameter wouldn't materially
-			// change the type.
-			//
-			// (We don't simply wrap the argument in an explicit conversion
-			// to the parameter type because that could increase allocation
-			// in the number of (e.g.) string -> any conversions.
-			// Even when Uses = 1, the sole ref might be in a loop or lambda that
-			// is multiply executed.)
-			if len(param.info.Refs) > 0 && !trivialConversion(args[i].typ, params[i].obj) {
-				logf("keeping param %q: argument passing converts %s to type %s",
-					param.info.Name, args[i].typ, params[i].obj.Type())
-				continue // implicit conversion is significant
-			}
-
-			// Check for shadowing.
-			//
-			// Consider inlining a call f(z, 1) to
-			// func f(x, y int) int { z := y; return x + y + z }:
-			// we can't replace x in the body by z (or any
-			// expression that has z as a free identifier)
-			// because there's an intervening declaration of z
-			// that would shadow the caller's one.
-			for free := range arg.freevars {
-				if param.info.Shadow[free] {
-					logf("keeping param %q: cannot replace with argument as it has free ref to %s that is shadowed", param.info.Name, free)
-					continue next // shadowing conflict
-				}
-			}
-
-			// It is safe to eliminate param and replace it with arg.
-			// No additional parens are required around arg for
-			// the supported "pure" expressions.
-			//
-			// Because arg.expr belongs to the caller,
-			// we clone it before splicing it into the callee tree.
-			logf("replacing parameter %q by argument %q",
-				param.info.Name, debugFormatNode(caller.Fset, arg.expr))
-			for _, ref := range param.info.Refs {
-				replaceCalleeID(ref, cloneNode(arg.expr).(ast.Expr))
-			}
-			params[i] = nil // substituted
-			args[i] = nil   // substituted
-		}
-	}
+	// Create a var (param = arg; ...) decl for use by some strategies.
+	bindingDeclStmt := createBindingDecl(logf, caller, args, calleeDecl)
 
 	var remainingArgs []ast.Expr
 	for _, arg := range args {
@@ -767,165 +511,6 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			remainingArgs = append(remainingArgs, arg.expr)
 		}
 	}
-
-	// Modify callee's FuncDecl.Type.Params to remove substituted
-	// parameters and move the receiver (if any) to the head of
-	// the ordinary parameters.
-	//
-	// The logic is fiddly because of the three forms of ast.Field:
-	//   func(int), func(x int), func(x, y int)
-	//
-	// Also, ensure that all remaining parameters are named
-	// to avoid a mix of named/unnamed when joining (recv, params...).
-	// func (T) f(int, bool) -> (_ T, _ int, _ bool)
-	// (Strictly, we need do this only for methods and only when
-	// the namednesses of Recv and Params differ; that might be tidier.)
-	{
-		paramIdx := 0 // index in original parameter list (incl. receiver)
-		var newParams []*ast.Field
-		filterParams := func(field *ast.Field) {
-			var names []*ast.Ident
-			if field.Names == nil {
-				// Unnamed parameter field (e.g. func f(int)
-				if params[paramIdx] != nil {
-					// Give it an explicit name "_" since we will
-					// make the receiver (if any) a regular parameter
-					// and one cannot mix named and unnamed parameters.
-					names = append(names, makeIdent("_"))
-				}
-				paramIdx++
-			} else {
-				// Named parameter field e.g. func f(x, y int)
-				// Remove substituted parameters in place.
-				// If all were substituted, delete field.
-				for _, id := range field.Names {
-					if pinfo := params[paramIdx]; pinfo != nil {
-						// Rename unreferenced parameters with "_".
-						// This is crucial for binding decls, since
-						// unlike parameters, they are subject to
-						// "unreferenced var" checks.
-						if len(pinfo.info.Refs) == 0 {
-							id = makeIdent("_")
-						}
-						names = append(names, id)
-					}
-					paramIdx++
-				}
-			}
-			if names != nil {
-				newParams = append(newParams, &ast.Field{
-					Names: names,
-					Type:  field.Type,
-				})
-			}
-		}
-		if calleeDecl.Recv != nil {
-			filterParams(calleeDecl.Recv.List[0])
-			calleeDecl.Recv = nil
-		}
-		for _, field := range calleeDecl.Type.Params.List {
-			filterParams(field)
-		}
-		calleeDecl.Type.Params.List = newParams
-	}
-
-	// Construct a "binding decl" that implements parameter assignment.
-	//
-	// If we succeed, the declaration may be used by reduction
-	// strategies to relax the requirement that all parameters
-	// have been substituted.
-	//
-	// For example, a call:
-	//    f(a0, a1, a2)
-	// where:
-	//    func f(p0, p1 T0, p2 T1) { body }
-	// reduces to:
-	//    {
-	//      var (
-	//        p0, p1 T0 = a0, a1
-	//        p2     T1 = a2
-	//      )
-	//      body
-	//    }
-	//
-	// so long as p0, p1 ∉ freevars(T1) or freevars(a2), and so on,
-	// because each spec is statically resolved in sequence and
-	// dynamically assigned in sequence. By contrast, all
-	// parameters are resolved simultaneously and assigned
-	// simultaneously.
-	//
-	// The pX names should already be blank ("_") if the parameter
-	// is unreferenced; this avoids "unreferenced local var" checks.
-	//
-	// Strategies may impose additional checks on return
-	// conversions, labels, defer, etc.
-	bindingDeclStmt := func() ast.Stmt {
-		// Spread calls are tricky as they may not align with the
-		// parameters' field groupings nor types.
-		// For example, given
-		//   func g() (int, string)
-		// the call
-		//   f(g())
-		// is legal with these decls of f:
-		//   func f(int, string)
-		//   func f(x, y any)
-		//   func f(x, y ...any)
-		// TODO(adonovan): support binding decls for spread calls by
-		// splitting parameter groupings as needed.
-		if lastArg := last(args); lastArg != nil && lastArg.spread {
-			logf("binding decls not yet supported for spread calls")
-			return nil
-		}
-
-		var (
-			values   = remainingArgs
-			specs    []ast.Spec
-			shadowed = make(map[string]bool) // names defined by previous specs
-		)
-		for _, field := range calleeDecl.Type.Params.List {
-			// Each field (param group) becomes a ValueSpec.
-			spec := &ast.ValueSpec{
-				Names:  field.Names,
-				Type:   field.Type,
-				Values: values[:len(field.Names)],
-			}
-			values = values[len(field.Names):]
-
-			// Compute union of free names of type and values
-			// and detect shadowing. Values is the arguments
-			// (caller syntax), so we can use type info.
-			// But Type is the untyped callee syntax,
-			// so we have to use a syntax-only algorithm.
-			free := make(map[string]bool)
-			for _, value := range spec.Values {
-				for name := range freeVars(caller.Info, value) {
-					free[name] = true
-				}
-			}
-			freeishNames(free, field.Type)
-			for name := range free {
-				if shadowed[name] {
-					logf("binding decl would shadow free name %q", name)
-					return nil
-				}
-			}
-			for _, id := range spec.Names {
-				if id.Name != "_" {
-					shadowed[id.Name] = true
-				}
-			}
-
-			specs = append(specs, spec)
-		}
-		decl := &ast.DeclStmt{
-			Decl: &ast.GenDecl{
-				Tok:   token.VAR,
-				Specs: specs,
-			},
-		}
-		logf("binding decl: %s", debugFormatNode(caller.Fset, decl))
-		return decl
-	}()
 
 	// -- let the inlining strategies begin --
 	//
@@ -955,7 +540,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		logf("strategy: reduce call to empty body")
 
 		// Evaluate the arguments for effects and delete the call entirely.
-		stmt := callStmt(callerPath) // cannot fail
+		stmt := callStmt(caller.path) // cannot fail
 		res.old = stmt
 		if nargs := len(remainingArgs); nargs > 0 {
 			// Emit "_, _ = args" to discard results.
@@ -1013,7 +598,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	if callee.BodyIsReturnExpr {
 		results := calleeDecl.Body.List[0].(*ast.ReturnStmt).Results
 
-		context := callContext(callerPath)
+		context := callContext(caller.path)
 
 		// statement context
 		if stmt, ok := context.(*ast.ExprStmt); ok &&
@@ -1148,11 +733,11 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	// TODO(adonovan): add a strategy for a 'void tail
 	// call', i.e. a call statement prior to an (explicit
 	// or implicit) return.
-	if ret, ok := callContext(callerPath).(*ast.ReturnStmt); ok &&
+	if ret, ok := callContext(caller.path).(*ast.ReturnStmt); ok &&
 		len(ret.Results) == 1 &&
 		callee.TrivialReturns == callee.TotalReturns &&
 		(allParamsSubstituted && noResultEscapes || bindingDeclStmt != nil) &&
-		!hasLabelConflict(callerPath, callee.Labels) &&
+		!hasLabelConflict(caller.path, callee.Labels) &&
 		forall(callee.Results, func(i int, p *paramInfo) bool {
 			// all result vars are unreferenced
 			return len(p.Refs) == 0
@@ -1185,10 +770,10 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	//   (by substitution, or a binding decl),
 	//
 	// If there is only a single statement, the braces are omitted.
-	if stmt := callStmt(callerPath); stmt != nil &&
+	if stmt := callStmt(caller.path); stmt != nil &&
 		(allParamsSubstituted && noResultEscapes || bindingDeclStmt != nil) &&
 		!callee.HasDefer &&
-		!hasLabelConflict(callerPath, callee.Labels) &&
+		!hasLabelConflict(caller.path, callee.Labels) &&
 		callee.TotalReturns == 0 {
 		logf("strategy: reduce stmt-context call to { stmts }")
 		body := calleeDecl.Body
@@ -1251,6 +836,464 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	res.old = caller.Call
 	res.new = newCall
 	return res, nil
+}
+
+type argument struct {
+	expr       ast.Expr
+	typ        types.Type      // may be tuple for sole non-receiver arg in spread call
+	spread     bool            // final arg is call() assigned to multiple params
+	pure       bool            // expr is pure (doesn't read variables)
+	effects    bool            // expr has effects (updates variables)
+	duplicable bool            // expr may be duplicated
+	freevars   map[string]bool // free names of expr
+}
+
+// arguments returns the effective arguments of the call.
+//
+// If the receiver argument and parameter have
+// different pointerness, make the "&" or "*" explicit.
+//
+// Also, if x.f() is shorthand for promoted method x.y.f(),
+// make the .y explicit in T.f(x.y, ...).
+//
+// Beware that:
+//
+//   - a method can only be called through a selection, but only
+//     the first of these two forms needs special treatment:
+//
+//     expr.f(args)     -> ([&*]expr, args)	MethodVal
+//     T.f(recv, args)  -> (    expr, args)	MethodExpr
+//
+//   - the presence of a value in receiver-position in the call
+//     is a property of the caller, not the callee. A method
+//     (calleeDecl.Recv != nil) may be called like an ordinary
+//     function.
+//
+//   - the types.Signatures seen by the caller (from
+//     StaticCallee) and by the callee (from decl type)
+//     differ in this case.
+//
+// In a spread call f(g()), the sole ordinary argument g(),
+// always last in args, has a tuple type.
+//
+// We compute type-based predicates like pure, duplicable,
+// freevars, etc, now, before we start modifying syntax.
+func arguments(caller *Caller, calleeDecl *ast.FuncDecl, assign1 func(*types.Var) bool) ([]*argument, error) {
+	var args []*argument
+
+	callArgs := caller.Call.Args
+	if calleeDecl.Recv != nil {
+		sel := astutil.Unparen(caller.Call.Fun).(*ast.SelectorExpr)
+		seln := caller.Info.Selections[sel]
+		var recvArg ast.Expr
+		switch seln.Kind() {
+		case types.MethodVal: // recv.f(callArgs)
+			recvArg = sel.X
+		case types.MethodExpr: // T.f(recv, callArgs)
+			recvArg = callArgs[0]
+			callArgs = callArgs[1:]
+		}
+		if recvArg != nil {
+			// Compute all the type-based predicates now,
+			// before we start meddling with the syntax;
+			// the meddling will update them.
+			arg := &argument{
+				expr:       recvArg,
+				typ:        caller.Info.TypeOf(recvArg),
+				pure:       pure(caller.Info, assign1, recvArg),
+				effects:    effects(caller.Info, recvArg),
+				duplicable: duplicable(caller.Info, recvArg),
+				freevars:   freeVars(caller.Info, recvArg),
+			}
+			recvArg = nil // prevent accidental use
+
+			// Move receiver argument recv.f(args) to argument list f(&recv, args).
+			args = append(args, arg)
+
+			// Make field selections explicit (recv.f -> recv.y.f),
+			// updating arg.{expr,typ}.
+			indices := seln.Index()
+			for _, index := range indices[:len(indices)-1] {
+				t := deref(arg.typ)
+				fld := typeparams.CoreType(t).(*types.Struct).Field(index)
+				if fld.Pkg() != caller.Types && !fld.Exported() {
+					return nil, fmt.Errorf("in %s, implicit reference to unexported field .%s cannot be made explicit",
+						debugFormatNode(caller.Fset, caller.Call.Fun),
+						fld.Name())
+				}
+				arg.expr = &ast.SelectorExpr{
+					X:   arg.expr,
+					Sel: makeIdent(fld.Name()),
+				}
+				arg.typ = fld.Type()
+			}
+
+			// Make * or & explicit.
+			argIsPtr := arg.typ != deref(arg.typ)
+			paramIsPtr := is[*types.Pointer](seln.Obj().Type().(*types.Signature).Recv().Type())
+			if !argIsPtr && paramIsPtr {
+				// &recv
+				arg.expr = &ast.UnaryExpr{Op: token.AND, X: arg.expr}
+				arg.typ = types.NewPointer(arg.typ)
+			} else if argIsPtr && !paramIsPtr {
+				// *recv
+				arg.expr = &ast.StarExpr{X: arg.expr}
+				arg.typ = deref(arg.typ)
+
+				// Technically *recv is non-pure and
+				// non-duplicable, as side effects
+				// could change the pointer between
+				// multiple reads. But unfortunately
+				// this really degrades many of our tests.
+				// (The indices loop above should similarly
+				// update these flags when traversing pointers.)
+				//
+				// TODO(adonovan): improve the precision of
+				// purity and duplicability.
+				// For example, *new(T) is actually pure.
+				// And *ptr, where ptr doesn't escape and
+				// has no assignments other than its decl,
+				// is also pure; this is very common.
+				//
+				// arg.pure = false
+			}
+		}
+	}
+	for _, expr := range callArgs {
+		typ := caller.Info.TypeOf(expr)
+		args = append(args, &argument{
+			expr:       expr,
+			typ:        typ,
+			spread:     is[*types.Tuple](typ), // => last
+			pure:       pure(caller.Info, assign1, expr),
+			effects:    effects(caller.Info, expr),
+			duplicable: duplicable(caller.Info, expr),
+			freevars:   freeVars(caller.Info, expr),
+		})
+	}
+	return args, nil
+}
+
+type parameter struct {
+	obj      *types.Var // parameter var from caller's signature
+	info     *paramInfo // information from AnalyzeCallee
+	variadic bool       // (final) parameter is unsimplified ...T
+}
+
+// substitute implements parameter elimination by substitution.
+//
+// It considers each parameter and its corresponding argument in turn
+// and evaluate these conditions:
+//
+//   - the parameter is neither address-taken nor assigned;
+//   - the argument is pure;
+//   - if the parameter refcount is zero, the argument must
+//     not contain the last use of a local var;
+//   - if the parameter refcount is > 1, the argument must be duplicable;
+//   - the argument (or types.Default(argument) if it's untyped) has
+//     the same type as the parameter.
+//
+// If all conditions are met then the parameter can be substituted and
+// each reference to it replaced by the argument. In that case, the
+// replaceCalleeID function is called for each reference to the
+// parameter, and is provided with its relative offset and replacement
+// expression (argument), and the corresponding elements of params and
+// args are replaced by nil.
+func substitute(logf func(string, ...any), caller *Caller, params []*parameter, args []*argument, replaceCalleeID func(offset int, repl ast.Expr)) {
+	// Inv:
+	//  in        calls to     variadic, len(args) >= len(params)-1
+	//  in spread calls to non-variadic, len(args) <  len(params)
+	//  in spread calls to     variadic, len(args) <= len(params)
+	// (In spread calls len(args) = 1, or 2 if call has receiver.)
+	// Non-spread variadics have been simplified away already,
+	// so the args[i] lookup is safe if we stop after the spread arg.
+next:
+	for i, param := range params {
+		arg := args[i]
+		// Check argument against parameter.
+		//
+		// Beware: don't use types.Info on arg since
+		// the syntax may be synthetic (not created by parser)
+		// and thus lacking positions and types;
+		// do it earlier (see pure/duplicable/freevars).
+
+		if arg.spread {
+			logf("keeping param %q and following ones: argument %s is spread",
+				param.info.Name, debugFormatNode(caller.Fset, arg.expr))
+			break // spread => last argument, but not always last parameter
+		}
+		assert(!param.variadic, "unsimplified variadic parameter")
+		if param.info.Escapes {
+			logf("keeping param %q: escapes from callee", param.info.Name)
+			continue
+		}
+		if param.info.Assigned {
+			logf("keeping param %q: assigned by callee", param.info.Name)
+			continue // callee needs the parameter variable
+		}
+		if !arg.pure || arg.effects {
+			// TODO(adonovan): conduct a deeper analysis of callee effects
+			// to relax this constraint.
+			logf("keeping param %q: argument %s is impure",
+				param.info.Name, debugFormatNode(caller.Fset, arg.expr))
+			continue // unsafe to change order or cardinality of effects
+		}
+		if len(param.info.Refs) > 1 && !arg.duplicable {
+			logf("keeping param %q: argument is not duplicable", param.info.Name)
+			continue // incorrect or poor style to duplicate an expression
+		}
+		if len(param.info.Refs) == 0 {
+			// Eliminating an unreferenced parameter might
+			// remove the last reference to a caller local var.
+			for free := range arg.freevars {
+				if v, ok := caller.lookup(free).(*types.Var); ok {
+					// TODO(adonovan): be more precise and check
+					// that v is defined within the body of the caller
+					// function (if any) and is indeed referenced
+					// only by the call. (See assign1 for analysis
+					// of enclosing func.)
+					logf("keeping param %q: arg contains perhaps the last reference to possible caller local %v @ %v",
+						param.info.Name, v, caller.Fset.PositionFor(v.Pos(), false))
+					continue next
+				}
+			}
+		}
+
+		// Check that eliminating the parameter wouldn't materially
+		// change the type.
+		//
+		// (We don't simply wrap the argument in an explicit conversion
+		// to the parameter type because that could increase allocation
+		// in the number of (e.g.) string -> any conversions.
+		// Even when Uses = 1, the sole ref might be in a loop or lambda that
+		// is multiply executed.)
+		if len(param.info.Refs) > 0 && !trivialConversion(args[i].typ, params[i].obj) {
+			logf("keeping param %q: argument passing converts %s to type %s",
+				param.info.Name, args[i].typ, params[i].obj.Type())
+			continue // implicit conversion is significant
+		}
+
+		// Check for shadowing.
+		//
+		// Consider inlining a call f(z, 1) to
+		// func f(x, y int) int { z := y; return x + y + z }:
+		// we can't replace x in the body by z (or any
+		// expression that has z as a free identifier)
+		// because there's an intervening declaration of z
+		// that would shadow the caller's one.
+		for free := range arg.freevars {
+			if param.info.Shadow[free] {
+				logf("keeping param %q: cannot replace with argument as it has free ref to %s that is shadowed", param.info.Name, free)
+				continue next // shadowing conflict
+			}
+		}
+
+		// It is safe to eliminate param and replace it with arg.
+		// No additional parens are required around arg for
+		// the supported "pure" expressions.
+		//
+		// Because arg.expr belongs to the caller,
+		// we clone it before splicing it into the callee tree.
+		logf("replacing parameter %q by argument %q",
+			param.info.Name, debugFormatNode(caller.Fset, arg.expr))
+		for _, ref := range param.info.Refs {
+			replaceCalleeID(ref, cloneNode(arg.expr).(ast.Expr))
+		}
+		params[i] = nil // substituted
+		args[i] = nil   // substituted
+	}
+}
+
+// updateCalleeParams updates the calleeDecl syntax to remove
+// substituted parameters and move the receiver (if any) to the head
+// of the ordinary parameters.
+func updateCalleeParams(calleeDecl *ast.FuncDecl, params []*parameter) {
+	// The logic is fiddly because of the three forms of ast.Field:
+	//
+	//	func(int), func(x int), func(x, y int)
+	//
+	// Also, ensure that all remaining parameters are named
+	// to avoid a mix of named/unnamed when joining (recv, params...).
+	// func (T) f(int, bool) -> (_ T, _ int, _ bool)
+	// (Strictly, we need do this only for methods and only when
+	// the namednesses of Recv and Params differ; that might be tidier.)
+
+	paramIdx := 0 // index in original parameter list (incl. receiver)
+	var newParams []*ast.Field
+	filterParams := func(field *ast.Field) {
+		var names []*ast.Ident
+		if field.Names == nil {
+			// Unnamed parameter field (e.g. func f(int)
+			if params[paramIdx] != nil {
+				// Give it an explicit name "_" since we will
+				// make the receiver (if any) a regular parameter
+				// and one cannot mix named and unnamed parameters.
+				names = append(names, makeIdent("_"))
+			}
+			paramIdx++
+		} else {
+			// Named parameter field e.g. func f(x, y int)
+			// Remove substituted parameters in place.
+			// If all were substituted, delete field.
+			for _, id := range field.Names {
+				if pinfo := params[paramIdx]; pinfo != nil {
+					// Rename unreferenced parameters with "_".
+					// This is crucial for binding decls, since
+					// unlike parameters, they are subject to
+					// "unreferenced var" checks.
+					if len(pinfo.info.Refs) == 0 {
+						id = makeIdent("_")
+					}
+					names = append(names, id)
+				}
+				paramIdx++
+			}
+		}
+		if names != nil {
+			newParams = append(newParams, &ast.Field{
+				Names: names,
+				Type:  field.Type,
+			})
+		}
+	}
+	if calleeDecl.Recv != nil {
+		filterParams(calleeDecl.Recv.List[0])
+		calleeDecl.Recv = nil
+	}
+	for _, field := range calleeDecl.Type.Params.List {
+		filterParams(field)
+	}
+	calleeDecl.Type.Params.List = newParams
+}
+
+// createBindingDecl constructs a "binding decl" that implements
+// parameter assignment.
+//
+// If we succeed, the declaration may be used by reduction
+// strategies to relax the requirement that all parameters
+// have been substituted.
+//
+// For example, a call:
+//
+//	f(a0, a1, a2)
+//
+// where:
+//
+//	func f(p0, p1 T0, p2 T1) { body }
+//
+// reduces to:
+//
+//	{
+//	  var (
+//	    p0, p1 T0 = a0, a1
+//	    p2     T1 = a2
+//	  )
+//	  body
+//	}
+//
+// so long as p0, p1 ∉ freevars(T1) or freevars(a2), and so on,
+// because each spec is statically resolved in sequence and
+// dynamically assigned in sequence. By contrast, all
+// parameters are resolved simultaneously and assigned
+// simultaneously.
+//
+// The pX names should already be blank ("_") if the parameter
+// is unreferenced; this avoids "unreferenced local var" checks.
+//
+// Strategies may impose additional checks on return
+// conversions, labels, defer, etc.
+func createBindingDecl(logf func(string, ...any), caller *Caller, args []*argument, calleeDecl *ast.FuncDecl) ast.Stmt {
+	// Spread calls are tricky as they may not align with the
+	// parameters' field groupings nor types.
+	// For example, given
+	//   func g() (int, string)
+	// the call
+	//   f(g())
+	// is legal with these decls of f:
+	//   func f(int, string)
+	//   func f(x, y any)
+	//   func f(x, y ...any)
+	// TODO(adonovan): support binding decls for spread calls by
+	// splitting parameter groupings as needed.
+	if lastArg := last(args); lastArg != nil && lastArg.spread {
+		logf("binding decls not yet supported for spread calls")
+		return nil
+	}
+
+	// Compute remaining argument expressions.
+	var values []ast.Expr
+	for _, arg := range args {
+		if arg != nil {
+			values = append(values, arg.expr)
+		}
+	}
+
+	var (
+		specs    []ast.Spec
+		shadowed = make(map[string]bool) // names defined by previous specs
+	)
+	for _, field := range calleeDecl.Type.Params.List {
+		// Each field (param group) becomes a ValueSpec.
+		spec := &ast.ValueSpec{
+			Names:  field.Names,
+			Type:   field.Type,
+			Values: values[:len(field.Names)],
+		}
+		values = values[len(field.Names):]
+
+		// Compute union of free names of type and values
+		// and detect shadowing. Values is the arguments
+		// (caller syntax), so we can use type info.
+		// But Type is the untyped callee syntax,
+		// so we have to use a syntax-only algorithm.
+		free := make(map[string]bool)
+		for _, value := range spec.Values {
+			for name := range freeVars(caller.Info, value) {
+				free[name] = true
+			}
+		}
+		freeishNames(free, field.Type)
+		for name := range free {
+			if shadowed[name] {
+				logf("binding decl would shadow free name %q", name)
+				return nil
+			}
+		}
+		for _, id := range spec.Names {
+			if id.Name != "_" {
+				shadowed[id.Name] = true
+			}
+		}
+
+		specs = append(specs, spec)
+	}
+	assert(len(values) == 0, "args/params mismatch")
+	decl := &ast.DeclStmt{
+		Decl: &ast.GenDecl{
+			Tok:   token.VAR,
+			Specs: specs,
+		},
+	}
+	logf("binding decl: %s", debugFormatNode(caller.Fset, decl))
+	return decl
+}
+
+// lookup does a symbol lookup in the lexical environment of the caller.
+func (caller *Caller) lookup(name string) types.Object {
+	pos := caller.Call.Pos()
+	for _, n := range caller.path {
+		// The function body scope (containing not just params)
+		// is associated with FuncDecl.Type, not FuncDecl.Body.
+		if decl, ok := n.(*ast.FuncDecl); ok {
+			n = decl.Type
+		}
+		if scope := caller.Info.Scopes[n]; scope != nil {
+			if _, obj := scope.LookupParent(name, pos); obj != nil {
+				return obj
+			}
+		}
+	}
+	return nil
 }
 
 // -- predicates over expressions --
