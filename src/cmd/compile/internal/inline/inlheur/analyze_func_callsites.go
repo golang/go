@@ -23,22 +23,25 @@ type callSiteAnalyzer struct {
 	isInit   bool
 }
 
-func makeCallSiteAnalyzer(fn *ir.Func, ptab map[ir.Node]pstate) *callSiteAnalyzer {
+func makeCallSiteAnalyzer(fn *ir.Func, ptab map[ir.Node]pstate, loopNestingLevel int) *callSiteAnalyzer {
 	isInit := fn.IsPackageInit() || strings.HasPrefix(fn.Sym().Name, "init.")
 	return &callSiteAnalyzer{
-		fn:     fn,
-		cstab:  make(CallSiteTab),
-		ptab:   ptab,
-		isInit: isInit,
+		fn:       fn,
+		cstab:    make(CallSiteTab),
+		ptab:     ptab,
+		isInit:   isInit,
+		loopNest: loopNestingLevel,
+		nstack:   []ir.Node{fn},
 	}
 }
 
-func computeCallSiteTable(fn *ir.Func, ptab map[ir.Node]pstate) CallSiteTab {
-	if debugTrace != 0 {
-		fmt.Fprintf(os.Stderr, "=-= making callsite table for func %v:\n",
-			fn.Sym().Name)
-	}
-	csa := makeCallSiteAnalyzer(fn, ptab)
+// computeCallSiteTable builds and returns a table of call sites for
+// the specified region in function fn. A region here corresponds to a
+// specific subtree within the AST for a function. The main intended
+// use cases are for 'region' to be either A) an entire function body,
+// or B) an inlined call expression.
+func computeCallSiteTable(fn *ir.Func, region ir.Nodes, ptab map[ir.Node]pstate, loopNestingLevel int) CallSiteTab {
+	csa := makeCallSiteAnalyzer(fn, ptab, loopNestingLevel)
 	var doNode func(ir.Node) bool
 	doNode = func(n ir.Node) bool {
 		csa.nodeVisitPre(n)
@@ -46,7 +49,9 @@ func computeCallSiteTable(fn *ir.Func, ptab map[ir.Node]pstate) CallSiteTab {
 		csa.nodeVisitPost(n)
 		return false
 	}
-	doNode(fn)
+	for _, n := range region {
+		doNode(n)
+	}
 	return csa.cstab
 }
 
@@ -152,8 +157,8 @@ func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
 }
 
 // ScoreCalls assigns numeric scores to each of the callsites in
-// function 'fn'; the lower the score, the more helpful we think it
-// will be to inline.
+// function fn; the lower the score, the more helpful we think it will
+// be to inline.
 //
 // Unlike a lot of the other inline heuristics machinery, callsite
 // scoring can't be done as part of the CanInline call for a function,
@@ -181,14 +186,26 @@ func ScoreCalls(fn *ir.Func) {
 		// TODO: add an assert/panic here.
 		return
 	}
+	scoreCallsRegion(fn, fn.Body, funcInlHeur.cstab)
+}
+
+// scoreCallsRegion assigns numeric scores to each of the callsites in
+// region 'region' within function 'fn'. This can be called on
+// an entire function, or with 'region' set to a chunk of
+// code corresponding to an inlined call.
+func scoreCallsRegion(fn *ir.Func, region ir.Nodes, cstab CallSiteTab) {
+	if debugTrace&debugTraceScoring != 0 {
+		fmt.Fprintf(os.Stderr, "=-= scoreCallsRegion(%v, %s)\n",
+			ir.FuncName(fn), region[0].Op().String())
+	}
 
 	resultNameTab := make(map[*ir.Name]resultPropAndCS)
 
 	// Sort callsites to avoid any surprises with non deterministic
 	// map iteration order (this is probably not needed, but here just
 	// in case).
-	csl := make([]*CallSite, 0, len(funcInlHeur.cstab))
-	for _, cs := range funcInlHeur.cstab {
+	csl := make([]*CallSite, 0, len(cstab))
+	for _, cs := range cstab {
 		csl = append(csl, cs)
 	}
 	sort.Slice(csl, func(i, j int) bool {
@@ -219,11 +236,11 @@ func ScoreCalls(fn *ir.Func) {
 		examineCallResults(cs, resultNameTab)
 
 		if debugTrace&debugTraceScoring != 0 {
-			fmt.Fprintf(os.Stderr, "=-= scoring call at %s: flags=%d score=%d funcInlHeur=%v deser=%v\n", fmtFullPos(cs.Call.Pos()), cs.Flags, cs.Score, fihcprops, desercprops)
+			fmt.Fprintf(os.Stderr, "=-= examineCallResults at %s: flags=%d score=%d funcInlHeur=%v deser=%v\n", fmtFullPos(cs.Call.Pos()), cs.Flags, cs.Score, fihcprops, desercprops)
 		}
 	}
 
-	rescoreBasedOnCallResultUses(fn, resultNameTab, funcInlHeur.cstab)
+	rescoreBasedOnCallResultUses(fn, resultNameTab, cstab)
 }
 
 func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {
