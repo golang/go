@@ -435,3 +435,48 @@ use (
 		_, _, _ = env.Editor.Hover(env.Ctx, env.RegexpSearch("go.work", "modb"))
 	})
 }
+
+const embedHover = `
+-- go.mod --
+module mod.com
+go 1.19
+-- main.go --
+package main
+
+import "embed"
+
+//go:embed *.txt
+var foo embed.FS
+
+func main() {
+}
+-- foo.txt --
+FOO
+-- bar.txt --
+BAR
+-- baz.txt --
+BAZ
+-- other.sql --
+SKIPPED
+`
+
+func TestHoverEmbedDirective(t *testing.T) {
+	testenv.NeedsGo1Point(t, 19)
+	Run(t, embedHover, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		from := env.RegexpSearch("main.go", `\*.txt`)
+
+		got, _ := env.Hover(from)
+		if got == nil {
+			t.Fatalf("hover over //go:embed arg not found")
+		}
+		content := got.Value
+
+		wants := []string{"foo.txt", "bar.txt", "baz.txt"}
+		for _, want := range wants {
+			if !strings.Contains(content, want) {
+				t.Errorf("hover: %q does not contain: %q", content, want)
+			}
+		}
+	})
+}

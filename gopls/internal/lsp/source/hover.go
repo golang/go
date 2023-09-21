@@ -14,6 +14,8 @@ import (
 	"go/format"
 	"go/token"
 	"go/types"
+	"io/fs"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -119,6 +121,12 @@ func hover(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Po
 		if lit, _ := path[0].(*ast.BasicLit); lit != nil {
 			return hoverLit(pgf, lit, pos)
 		}
+	}
+
+	// Handle hovering over embed directive argument.
+	pattern, embedRng := parseEmbedDirective(pgf.Mapper, pp)
+	if pattern != "" {
+		return hoverEmbed(fh, embedRng, pattern)
 	}
 
 	// Handle linkname directive by overriding what to look for.
@@ -623,6 +631,48 @@ func hoverLit(pgf *ParsedGoFile, lit *ast.BasicLit, pos token.Pos) (protocol.Ran
 		Synopsis:          hover,
 		FullDocumentation: hover,
 	}, nil
+}
+
+// hoverEmbed computes hover information for a filepath.Match pattern.
+// Assumes that the pattern is relative to the location of fh.
+func hoverEmbed(fh FileHandle, rng protocol.Range, pattern string) (protocol.Range, *HoverJSON, error) {
+	s := &strings.Builder{}
+
+	dir := filepath.Dir(fh.URI().Filename())
+	var matches []string
+	err := filepath.WalkDir(dir, func(abs string, _ fs.DirEntry, e error) error {
+		if e != nil {
+			return e
+		}
+		rel, err := filepath.Rel(dir, abs)
+		if err != nil {
+			return err
+		}
+		ok, err := filepath.Match(pattern, rel)
+		if err != nil {
+			return err
+		}
+		if ok {
+			matches = append(matches, rel)
+		}
+		return nil
+	})
+	if err != nil {
+		return protocol.Range{}, nil, err
+	}
+
+	for _, m := range matches {
+		// TODO: Renders each file as separate markdown paragraphs.
+		// If forcing (a single) newline is possible it might be more clear.
+		fmt.Fprintf(s, "%s\n\n", m)
+	}
+
+	json := &HoverJSON{
+		Signature:         fmt.Sprintf("Embedding %q", pattern),
+		Synopsis:          s.String(),
+		FullDocumentation: s.String(),
+	}
+	return rng, json, nil
 }
 
 // inferredSignatureString is a wrapper around the types.ObjectString function
