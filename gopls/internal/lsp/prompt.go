@@ -60,7 +60,7 @@ func (s *Server) telemetryMode() string {
 		if data, err := os.ReadFile(fake); err == nil {
 			return string(data)
 		}
-		return "local"
+		return "off"
 	}
 	return telemetry.Mode()
 }
@@ -91,10 +91,8 @@ func (s *Server) maybePromptForTelemetry(ctx context.Context) {
 		return // prompt is disabled
 	}
 
-	// Only prompt if telemetry is in the default "local" mode. If it is already
-	// "on" there's nothing to ask about, and if it is explicitly "off" let's
-	// assume the user doesn't want it.
-	if s.telemetryMode() != "local" {
+	if s.telemetryMode() == "on" {
+		// Telemetry is already on -- nothing to ask about.
 		return
 	}
 
