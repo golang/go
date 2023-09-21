@@ -3958,11 +3958,11 @@ func TestCertificateOIDPolicies(t *testing.T) {
 		t.Fatalf("ParseCertificate() unexpected error: %v", err)
 	}
 
-	if !slices.EqualFunc(cert.PolicyIdentifiers, expectPolicyIdentifiers, slices.Equal[asn1.ObjectIdentifier]) {
+	if !slices.EqualFunc(cert.PolicyIdentifiers, expectPolicyIdentifiers, slices.Equal) {
 		t.Errorf("cert.PolicyIdentifiers = %v, want: %v", cert.PolicyIdentifiers, expectPolicyIdentifiers)
 	}
 
-	if !slices.EqualFunc(cert.Policies, expectPolicies, func(o1, o2 OID) bool { return o1.Equal(o2) }) {
+	if !slices.EqualFunc(cert.Policies, expectPolicies, OID.Equal) {
 		t.Errorf("cert.Policies = %v, want: %v", cert.Policies, expectPolicies)
 	}
 }
