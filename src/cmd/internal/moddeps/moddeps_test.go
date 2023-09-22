@@ -12,8 +12,9 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -49,13 +50,15 @@ func TestAllDependencies(t *testing.T) {
 		// This short test does NOT ensure that the vendored contents match
 		// the unmodified contents of the corresponding dependency versions.
 		t.Run(m.Path+"(quick)", func(t *testing.T) {
+			t.Logf("module %s in directory %s", m.Path, m.Dir)
+
 			if m.hasVendor {
 				// Load all of the packages in the module to ensure that their
 				// dependencies are vendored. If any imported package is missing,
 				// 'go list -deps' will fail when attempting to load it.
-				cmd := exec.Command(goBin, "list", "-mod=vendor", "-deps", "./...")
-				cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
+				cmd := testenv.Command(t, goBin, "list", "-mod=vendor", "-deps", "./...")
 				cmd.Dir = m.Dir
+				cmd.Env = append(cmd.Environ(), "GO111MODULE=on", "GOWORK=off")
 				cmd.Stderr = new(strings.Builder)
 				_, err := cmd.Output()
 				if err != nil {
@@ -67,9 +70,9 @@ func TestAllDependencies(t *testing.T) {
 
 			// There is no vendor directory, so the module must have no dependencies.
 			// Check that the list of active modules contains only the main module.
-			cmd := exec.Command(goBin, "list", "-mod=readonly", "-m", "all")
-			cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
+			cmd := testenv.Command(t, goBin, "list", "-mod=readonly", "-m", "all")
 			cmd.Dir = m.Dir
+			cmd.Env = append(cmd.Environ(), "GO111MODULE=on", "GOWORK=off")
 			cmd.Stderr = new(strings.Builder)
 			out, err := cmd.Output()
 			if err != nil {
@@ -105,11 +108,11 @@ func TestAllDependencies(t *testing.T) {
 
 	testenv.MustHaveExternalNetwork(t)
 	if haveDiff := func() bool {
-		diff, err := exec.Command("diff", "--recursive", "--unified", ".", ".").CombinedOutput()
+		diff, err := testenv.Command(t, "diff", "--recursive", "--unified", ".", ".").CombinedOutput()
 		if err != nil || len(diff) != 0 {
 			return false
 		}
-		diff, err = exec.Command("diff", "--recursive", "--unified", ".", "..").CombinedOutput()
+		diff, err = testenv.Command(t, "diff", "--recursive", "--unified", ".", "..").CombinedOutput()
 		if err == nil || len(diff) == 0 {
 			return false
 		}
@@ -129,7 +132,7 @@ func TestAllDependencies(t *testing.T) {
 	// GO_TEST_SHORT=0 causes it to run this portion of the test.)
 	var modcacheEnv []string
 	{
-		out, err := exec.Command(goBin, "env", "GOMODCACHE").Output()
+		out, err := testenv.Command(t, goBin, "env", "GOMODCACHE").Output()
 		if err != nil {
 			t.Fatalf("%s env GOMODCACHE: %v", goBin, err)
 		}
@@ -171,6 +174,8 @@ func TestAllDependencies(t *testing.T) {
 		}
 
 		t.Run(m.Path+"(thorough)", func(t *testing.T) {
+			t.Logf("module %s in directory %s", m.Path, m.Dir)
+
 			defer func() {
 				if t.Failed() {
 					// The test failed, which means it's possible the GOROOT copy
@@ -190,8 +195,7 @@ func TestAllDependencies(t *testing.T) {
 				Env: append(append(os.Environ(), modcacheEnv...),
 					// Set GOROOT.
 					"GOROOT="+gorootCopyDir,
-					// Explicitly override PWD and clear GOROOT_FINAL so that GOROOT=gorootCopyDir is definitely used.
-					"PWD="+filepath.Join(gorootCopyDir, rel),
+					// Explicitly clear GOROOT_FINAL so that GOROOT=gorootCopyDir is definitely used.
 					"GOROOT_FINAL=",
 					// Add GOROOTcopy/bin and bundleDir to front of PATH.
 					"PATH="+filepath.Join(gorootCopyDir, "bin")+string(filepath.ListSeparator)+
@@ -215,7 +219,7 @@ func TestAllDependencies(t *testing.T) {
 			}
 			// TODO(golang.org/issue/43440): Check anything else influenced by dependency versions.
 
-			diff, err := exec.Command("diff", "--recursive", "--unified", r.Dir, m.Dir).CombinedOutput()
+			diff, err := testenv.Command(t, "diff", "--recursive", "--unified", r.Dir, m.Dir).CombinedOutput()
 			if err != nil || len(diff) != 0 {
 				t.Errorf(`Module %s in %s is not tidy (-want +got):
 
@@ -250,6 +254,7 @@ func packagePattern(modulePath string) string {
 // deemed safe to share for the purpose of the TestAllDependencies test.
 func makeGOROOTCopy(t *testing.T) string {
 	t.Helper()
+
 	gorootCopyDir := t.TempDir()
 	err := filepath.Walk(testenv.GOROOT(t), func(src string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -310,6 +315,7 @@ func makeGOROOTCopy(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Logf("copied GOROOT from %s to %s", testenv.GOROOT(t), gorootCopyDir)
 	return gorootCopyDir
 }
 
@@ -321,9 +327,12 @@ type runner struct {
 // run runs the command and requires that it succeeds.
 func (r runner) run(t *testing.T, args ...string) {
 	t.Helper()
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := testenv.Command(t, args[0], args[1:]...)
 	cmd.Dir = r.Dir
-	cmd.Env = r.Env
+	cmd.Env = slices.Clip(r.Env)
+	if r.Dir != "" {
+		cmd.Env = append(cmd.Env, "PWD="+r.Dir)
+	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Logf("> %s\n", strings.Join(args, " "))
@@ -462,9 +471,9 @@ func findGorootModules(t *testing.T) []gorootModule {
 
 			// Use 'go list' to describe the module contained in this directory (but
 			// not its dependencies).
-			cmd := exec.Command(goBin, "list", "-json", "-m")
-			cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
+			cmd := testenv.Command(t, goBin, "list", "-json", "-m")
 			cmd.Dir = dir
+			cmd.Env = append(cmd.Environ(), "GO111MODULE=on", "GOWORK=off")
 			cmd.Stderr = new(strings.Builder)
 			out, err := cmd.Output()
 			if err != nil {
@@ -495,8 +504,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 		knownGOROOTModules := [...]string{
 			"std",
 			"cmd",
-			"misc",
-			"test/bench/go1",
+			// The "misc" module sometimes exists, but cmd/distpack intentionally removes it.
 		}
 		var seen = make(map[string]bool) // Key is module path.
 		for _, m := range goroot.modules {
@@ -508,6 +516,9 @@ func findGorootModules(t *testing.T) []gorootModule {
 				break
 			}
 		}
+		sort.Slice(goroot.modules, func(i, j int) bool {
+			return goroot.modules[i].Dir < goroot.modules[j].Dir
+		})
 	})
 	if goroot.err != nil {
 		t.Fatal(goroot.err)

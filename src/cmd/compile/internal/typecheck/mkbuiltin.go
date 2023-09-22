@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // Generate builtin.go from builtin/runtime.go.
 
@@ -45,7 +44,7 @@ func main() {
 // Not inlining this function removes a significant chunk of init code.
 //go:noinline
 func newSig(params, results []*types.Field) *types.Type {
-	return types.NewSignature(types.NoPkg, nil, nil, params, results)
+	return types.NewSignature(nil, params, results)
 }
 
 func params(tlist ...*types.Type) []*types.Field {
@@ -80,7 +79,7 @@ func params(tlist ...*types.Type) []*types.Field {
 
 func mkbuiltin(w io.Writer, name string) {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, filepath.Join("builtin", name+".go"), nil, 0)
+	f, err := parser.ParseFile(fset, filepath.Join("_builtin", name+".go"), nil, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -202,7 +201,7 @@ func (i *typeInterner) mktype(t ast.Expr) string {
 	case *ast.StarExpr:
 		return fmt.Sprintf("types.NewPtr(%s)", i.subtype(t.X))
 	case *ast.StructType:
-		return fmt.Sprintf("types.NewStruct(types.NoPkg, %s)", i.fields(t.Fields, true))
+		return fmt.Sprintf("types.NewStruct(%s)", i.fields(t.Fields, true))
 
 	default:
 		log.Fatalf("unhandled type: %#v", t)

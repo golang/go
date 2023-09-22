@@ -41,7 +41,7 @@ type reader struct {
 }
 
 // NewReader returns an io.Reader which decompresses bzip2 data from r.
-// If r does not also implement io.ByteReader,
+// If r does not also implement [io.ByteReader],
 // the decompressor may read more data than necessary from r.
 func NewReader(r io.Reader) io.Reader {
 	bz2 := new(reader)

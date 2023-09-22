@@ -7,6 +7,7 @@ package types
 import (
 	"go/ast"
 	"go/token"
+	. "internal/types/errors"
 	"strconv"
 )
 
@@ -101,7 +102,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 	// addInvalid adds an embedded field of invalid type to the struct for
 	// fields with errors; this keeps the number of struct fields in sync
 	// with the source as long as the fields are _ or have different names
-	// (issue #25627).
+	// (go.dev/issue/25627).
 	addInvalid := func(ident *ast.Ident, pos token.Pos) {
 		typ = Typ[Invalid]
 		tag = ""
@@ -121,16 +122,16 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 			// spec: "An embedded type must be specified as a type name T or as a
 			// pointer to a non-interface type name *T, and T itself may not be a
 			// pointer type."
-			pos := f.Type.Pos()
+			pos := f.Type.Pos() // position of type, for errors
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
-				check.invalidAST(f.Type, "embedded field type %s has no name", f.Type)
+				check.errorf(f.Type, InvalidSyntaxTree, "embedded field type %s has no name", f.Type)
 				name = ast.NewIdent("_")
 				name.NamePos = pos
 				addInvalid(name, pos)
 				continue
 			}
-			add(name, true, pos)
+			add(name, true, name.Pos()) // struct{p.T} field has position of T
 
 			// Because we have a name, typ must be of the form T or *T, where T is the name
 			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
@@ -145,26 +146,26 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 				t, isPtr := deref(embeddedTyp)
 				switch u := under(t).(type) {
 				case *Basic:
-					if t == Typ[Invalid] {
+					if !isValid(t) {
 						// error was reported before
 						return
 					}
 					// unsafe.Pointer is treated like a regular pointer
 					if u.kind == UnsafePointer {
-						check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be unsafe.Pointer")
+						check.error(embeddedPos, InvalidPtrEmbed, "embedded field type cannot be unsafe.Pointer")
 					}
 				case *Pointer:
-					check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer")
+					check.error(embeddedPos, InvalidPtrEmbed, "embedded field type cannot be a pointer")
 				case *Interface:
 					if isTypeParam(t) {
 						// The error code here is inconsistent with other error codes for
 						// invalid embedding, because this restriction may be relaxed in the
 						// future, and so it did not warrant a new error code.
-						check.error(embeddedPos, _MisplacedTypeParam, "embedded field type cannot be a (pointer to a) type parameter")
+						check.error(embeddedPos, MisplacedTypeParam, "embedded field type cannot be a (pointer to a) type parameter")
 						break
 					}
 					if isPtr {
-						check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer to an interface")
+						check.error(embeddedPos, InvalidPtrEmbed, "embedded field type cannot be a pointer to an interface")
 					}
 				}
 			}).describef(embeddedPos, "check embedded type %s", embeddedTyp)
@@ -197,7 +198,7 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 
 func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool {
 	if alt := oset.insert(obj); alt != nil {
-		check.errorf(atPos(pos), _DuplicateDecl, "%s redeclared", obj.Name())
+		check.errorf(atPos(pos), DuplicateDecl, "%s redeclared", obj.Name())
 		check.reportAltDecl(alt)
 		return false
 	}
@@ -211,7 +212,7 @@ func (check *Checker) tag(t *ast.BasicLit) string {
 				return val
 			}
 		}
-		check.invalidAST(t, "incorrect tag syntax: %q", t.Value)
+		check.errorf(t, InvalidSyntaxTree, "incorrect tag syntax: %q", t.Value)
 	}
 	return ""
 }

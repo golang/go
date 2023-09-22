@@ -1,4 +1,4 @@
-[!net] skip
+[short] skip
 
 env GO111MODULE=on
 env GOSUMDB=off

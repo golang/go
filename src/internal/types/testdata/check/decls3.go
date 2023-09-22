@@ -99,9 +99,9 @@ func _() {
 	// unsafe.Pointers are treated like regular pointers when embedded
 	type T2 struct {
 		unsafe /* ERROR "cannot be unsafe.Pointer" */ .Pointer
-		*/* ERROR "cannot be unsafe.Pointer" */ /* ERROR "Pointer redeclared" */ unsafe.Pointer
+		*/* ERROR "cannot be unsafe.Pointer" */ unsafe.Pointer /* ERROR "Pointer redeclared" */
 		UP /* ERROR "cannot be unsafe.Pointer" */
-		* /* ERROR "cannot be unsafe.Pointer" */  /* ERROR "UP redeclared" */ UP
+		* /* ERROR "cannot be unsafe.Pointer" */ UP /* ERROR "UP redeclared" */
 	}
 }
 
@@ -223,7 +223,7 @@ func _() {
 	_ = S2{}.D /* ERROR "no field or method" */
 	_ = S3{}.S1 /* ERROR "ambiguous selector S3{}.S1" */
 	_ = S3{}.A
-	_ = S3{}.B /* ERROR "ambiguous selector" S3{}.B */
+	_ = S3{}.B /* ERROR "ambiguous selector S3{}.B" */
 	_ = S3{}.D
 	_ = S3{}.E
 	_ = S4{}.A

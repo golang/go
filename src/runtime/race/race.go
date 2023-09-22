@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (race && linux && amd64) || (race && freebsd && amd64) || (race && netbsd && amd64) || (race && darwin && amd64) || (race && windows && amd64) || (race && linux && ppc64le) || (race && linux && arm64) || (race && darwin && arm64) || (race && openbsd && amd64) || (race && linux && s390x)
+//go:build race && ((linux && (amd64 || arm64 || ppc64le || s390x)) || ((freebsd || netbsd || openbsd || windows) && amd64))
 
 package race
 
@@ -10,6 +10,11 @@ package race
 // this in turn ensures that runtime uses pthread_create to create threads.
 // The prebuilt race runtime lives in race_GOOS_GOARCH.syso.
 // Calls to the runtime are done directly from src/runtime/race.go.
+
+// On darwin we always use system DLLs to create threads,
+// so we use race_darwin_$GOARCH.go to provide the syso-derived
+// symbol information without needing to invoke cgo.
+// This allows -race to be used on Mac systems without a C toolchain.
 
 // void __race_unused_func(void);
 import "C"

@@ -65,30 +65,30 @@ var _ = x == y
 // Test case for issue 6638.
 
 type T interface {
-	m() [T(nil).m /* ERROR undefined */ ()[0]]int
+	m() [T(nil).m /* ERROR "undefined" */ ()[0]]int
 }
 
 // Variations of this test case.
 
-type T1 /* ERROR invalid recursive type */ interface {
+type T1 /* ERROR "invalid recursive type" */ interface {
 	m() [x1.m()[0]]int
 }
 
 var x1 T1
 
-type T2 /* ERROR invalid recursive type */ interface {
+type T2 /* ERROR "invalid recursive type" */ interface {
 	m() [len(x2.m())]int
 }
 
 var x2 T2
 
-type T3 /* ERROR invalid recursive type */ interface {
+type T3 /* ERROR "invalid recursive type" */ interface {
 	m() [unsafe.Sizeof(x3.m)]int
 }
 
 var x3 T3
 
-type T4 /* ERROR invalid recursive type */ interface {
+type T4 /* ERROR "invalid recursive type" */ interface {
 	m() [unsafe.Sizeof(cast4(x4.m))]int // cast is invalid but we have a cycle, so all bets are off
 }
 

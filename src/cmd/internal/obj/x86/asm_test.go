@@ -7,6 +7,10 @@ package x86
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"internal/testenv"
+	"os"
+	"path/filepath"
+	"regexp"
 	"testing"
 )
 
@@ -286,6 +290,53 @@ func TestRegIndex(t *testing.T) {
 				t.Errorf("regIndex(%s):\nhave: %d\nwant: %d",
 					regName, have, want)
 			}
+		}
+	}
+}
+
+// TestPCALIGN verifies the correctness of the PCALIGN by checking if the
+// code can be aligned to the alignment value.
+func TestPCALIGN(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	dir := t.TempDir()
+	tmpfile := filepath.Join(dir, "test.s")
+	tmpout := filepath.Join(dir, "test.o")
+
+	var testCases = []struct {
+		name string
+		code string
+		out  string
+	}{
+		{
+			name: "8-byte alignment",
+			code: "TEXT ·foo(SB),$0-0\nMOVQ $0, AX\nPCALIGN $8\nMOVQ $1, BX\nRET\n",
+			out:  `0x0008\s00008\s\(.*\)\tMOVQ\t\$1,\sBX`,
+		},
+		{
+			name: "16-byte alignment",
+			code: "TEXT ·foo(SB),$0-0\nMOVQ $0, AX\nPCALIGN $16\nMOVQ $2, CX\nRET\n",
+			out:  `0x0010\s00016\s\(.*\)\tMOVQ\t\$2,\sCX`,
+		},
+	}
+
+	for _, test := range testCases {
+		if err := os.WriteFile(tmpfile, []byte(test.code), 0644); err != nil {
+			t.Fatal(err)
+		}
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-o", tmpout, tmpfile)
+		cmd.Env = append(os.Environ(), "GOARCH=amd64", "GOOS=linux")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("The %s build failed: %v, output: %s", test.name, err, out)
+			continue
+		}
+
+		matched, err := regexp.MatchString(test.out, string(out))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !matched {
+			t.Errorf("The %s testing failed!\ninput: %s\noutput: %s\n", test.name, test.code, out)
 		}
 	}
 }

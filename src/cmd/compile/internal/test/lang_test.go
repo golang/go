@@ -7,7 +7,6 @@ package test
 import (
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -23,11 +22,7 @@ func TestInvalidLang(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := os.MkdirTemp("", "TestInvalidLang")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	src := filepath.Join(dir, "alias.go")
 	if err := os.WriteFile(src, []byte(aliasSrc), 0644); err != nil {
@@ -57,7 +52,7 @@ func TestInvalidLang(t *testing.T) {
 func testLang(t *testing.T, lang, src, outfile string) error {
 	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=p", "-lang", lang, "-o", outfile, src}
 	t.Log(run)
-	out, err := exec.Command(run[0], run[1:]...).CombinedOutput()
+	out, err := testenv.Command(t, run[0], run[1:]...).CombinedOutput()
 	t.Logf("%s", out)
 	return err
 }

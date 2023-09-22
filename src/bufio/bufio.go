@@ -70,7 +70,14 @@ func (b *Reader) Size() int { return len(b.buf) }
 // the buffered reader to read from r.
 // Calling Reset on the zero value of Reader initializes the internal buffer
 // to the default size.
+// Calling b.Reset(b) (that is, resetting a Reader to itself) does nothing.
 func (b *Reader) Reset(r io.Reader) {
+	// If a Reader r is passed to NewReader, NewReader will return r.
+	// Different layers of code may do that, and then later pass r
+	// to Reset. Avoid infinite recursion in that case.
+	if b == r {
+		return
+	}
 	if b.buf == nil {
 		b.buf = make([]byte, defaultBufSize)
 	}
@@ -608,7 +615,14 @@ func (b *Writer) Size() int { return len(b.buf) }
 // resets b to write its output to w.
 // Calling Reset on the zero value of Writer initializes the internal buffer
 // to the default size.
+// Calling w.Reset(w) (that is, resetting a Writer to itself) does nothing.
 func (b *Writer) Reset(w io.Writer) {
+	// If a Writer w is passed to NewWriter, NewWriter will return w.
+	// Different layers of code may do that, and then later pass w
+	// to Reset. Avoid infinite recursion in that case.
+	if b == w {
+		return
+	}
 	if b.buf == nil {
 		b.buf = make([]byte, defaultBufSize)
 	}

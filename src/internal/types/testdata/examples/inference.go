@@ -1,3 +1,5 @@
+// -lang=go1.20
+
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -24,13 +26,13 @@ func _() {
 	_ = min(x, 1)
 	_ = min(x, 1.0)
 	_ = min(1, 2)
-	_ = min(1, 2.3 /* ERROR default type float64 .* does not match */)
+	_ = min(1, 2.3)
 
 	var y float64
 	_ = min(1, y)
 	_ = min(1.2, y)
 	_ = min(1.2, 3.4)
-	_ = min(1.2, 3 /* ERROR default type int .* does not match */)
+	_ = min(1.2, 3)
 
 	var s string
 	_ = min(s, "foo")
@@ -51,7 +53,7 @@ func _() {
 
 	// Provided type arguments always take precedence over
 	// inferred types.
-	mixed[int, string](1.1 /* ERROR cannot use 1.1 */, "", false)
+	mixed[int, string](1.1 /* ERROR "cannot use 1.1" */, "", false)
 }
 
 func related1[Slice interface{ ~[]Elem }, Elem any](s Slice, e Elem) {}
@@ -69,13 +71,13 @@ func _() {
 
 	// A type argument inferred from another explicitly provided
 	// type argument overrides whatever value argument type is given.
-	related1[[]string](ss, 0 /* ERROR cannot use 0 */)
+	related1[[]string](ss, 0 /* ERROR "cannot use 0" */)
 
 	// A type argument may be inferred from a value argument
 	// and then help infer another type argument via constraint
 	// type inference.
 	related1(si, 0)
-	related1(si, "foo" /* ERROR cannot use "foo" */)
+	related1(si, "foo" /* ERROR `cannot use "foo"` */)
 }
 
 func related2[Elem any, Slice interface{ []Elem }](e Elem, s Slice) {}
@@ -97,7 +99,7 @@ func _() {
 	// last.
 	related2(1.2, []float64{})
 	related2(1.0, []int{})
-	related2 /* ERROR does not implement */ (float64(1.0), []int{}) // TODO(gri) fix error position
+	related2 /* ERROR "Slice (type []int) does not satisfy interface{[]Elem}" */ (float64(1.0), []int{}) // TODO(gri) better error message
 }
 
 type List[P any] []P
@@ -112,5 +114,50 @@ func _() {
 	// The 2nd type argument cannot be inferred from the first
 	// one because there's two possible choices: []Elem and
 	// List[Elem].
-	related3 /* ERROR cannot infer Slice */ [int]()
+	related3 /* ERROR "cannot infer Slice" */ [int]()
 }
+
+func wantsMethods[P interface {
+	m1(Q)
+	m2() R
+}, Q, R any](P) {
+}
+
+type hasMethods1 struct{}
+
+func (hasMethods1) m1(int)
+func (hasMethods1) m2() string
+
+type hasMethods2 struct{}
+
+func (*hasMethods2) m1(int)
+func (*hasMethods2) m2() string
+
+type hasMethods3 interface {
+	m1(float64)
+	m2() complex128
+}
+
+type hasMethods4 interface {
+	m1()
+}
+
+func _() {
+	// wantsMethod can be called with arguments that have the relevant methods
+	// and wantsMethod's type arguments are inferred from those types' method
+	// signatures.
+	wantsMethods(hasMethods1{})
+	wantsMethods(&hasMethods1{})
+	wantsMethods /* ERROR "P (type hasMethods2) does not satisfy interface{m1(Q); m2() R} (method m1 has pointer receiver)" */ (hasMethods2{})
+	wantsMethods(&hasMethods2{})
+	wantsMethods(hasMethods3(nil))
+	wantsMethods /* ERROR "P (type any) does not satisfy interface{m1(Q); m2() R} (missing method m1)" */ (any(nil))
+	wantsMethods /* ERROR "P (type hasMethods4) does not satisfy interface{m1(Q); m2() R} (wrong type for method m1)" */ (hasMethods4(nil))
+}
+
+// "Reverse" type inference is not yet permitted.
+
+func f[P any](P) {}
+
+// This must not crash.
+var _ func(int) = f // ERROR "implicitly instantiated function in assignment requires go1.21 or later"

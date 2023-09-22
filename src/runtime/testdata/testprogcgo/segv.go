@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build unix
-// +build unix
 
 package main
 
@@ -14,27 +13,7 @@ import "C"
 import "syscall"
 
 func init() {
-	register("Segv", Segv)
 	register("SegvInCgo", SegvInCgo)
-}
-
-var Sum int
-
-func Segv() {
-	c := make(chan bool)
-	go func() {
-		close(c)
-		for i := 0; ; i++ {
-			Sum += i
-		}
-	}()
-
-	<-c
-
-	syscall.Kill(syscall.Getpid(), syscall.SIGSEGV)
-
-	// Wait for the OS to deliver the signal.
-	C.pause()
 }
 
 func SegvInCgo() {

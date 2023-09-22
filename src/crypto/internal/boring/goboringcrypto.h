@@ -144,6 +144,7 @@ GO_BIGNUM* _goboringcrypto_BN_bin2bn(const uint8_t*, size_t, GO_BIGNUM*);
 GO_BIGNUM* _goboringcrypto_BN_le2bn(const uint8_t*, size_t, GO_BIGNUM*);
 size_t _goboringcrypto_BN_bn2bin(const GO_BIGNUM*, uint8_t*);
 int _goboringcrypto_BN_bn2le_padded(uint8_t*, size_t, const GO_BIGNUM*);
+int _goboringcrypto_BN_bn2bin_padded(uint8_t*, size_t, const GO_BIGNUM*);
 
 // #include <openssl/ec.h>
 /*unchecked (opaque)*/ typedef struct GO_EC_GROUP { char data[1]; } GO_EC_GROUP;
@@ -152,9 +153,21 @@ void _goboringcrypto_EC_GROUP_free(GO_EC_GROUP*);
 
 /*unchecked (opaque)*/ typedef struct GO_EC_POINT { char data[1]; } GO_EC_POINT;
 GO_EC_POINT* _goboringcrypto_EC_POINT_new(const GO_EC_GROUP*);
+int _goboringcrypto_EC_POINT_mul(const GO_EC_GROUP*, GO_EC_POINT*, const GO_BIGNUM*, const GO_EC_POINT*, const GO_BIGNUM*, GO_BN_CTX*);
 void _goboringcrypto_EC_POINT_free(GO_EC_POINT*);
 int _goboringcrypto_EC_POINT_get_affine_coordinates_GFp(const GO_EC_GROUP*, const GO_EC_POINT*, GO_BIGNUM*, GO_BIGNUM*, GO_BN_CTX*);
 int _goboringcrypto_EC_POINT_set_affine_coordinates_GFp(const GO_EC_GROUP*, GO_EC_POINT*, const GO_BIGNUM*, const GO_BIGNUM*, GO_BN_CTX*);
+int _goboringcrypto_EC_POINT_oct2point(const GO_EC_GROUP*, GO_EC_POINT*, const uint8_t*, size_t, GO_BN_CTX*);
+GO_EC_POINT* _goboringcrypto_EC_POINT_dup(const GO_EC_POINT*, const GO_EC_GROUP*);
+int _goboringcrypto_EC_POINT_is_on_curve(const GO_EC_GROUP*, const GO_EC_POINT*, GO_BN_CTX*);
+#ifndef OPENSSL_HEADER_EC_H
+typedef enum {
+	GO_POINT_CONVERSION_COMPRESSED = 2,
+	GO_POINT_CONVERSION_UNCOMPRESSED = 4,
+	GO_POINT_CONVERSION_HYBRID = 6,
+} go_point_conversion_form_t;
+#endif
+size_t _goboringcrypto_EC_POINT_point2oct(const GO_EC_GROUP*, const GO_EC_POINT*, go_point_conversion_form_t, uint8_t*, size_t, GO_BN_CTX*);
 
 // #include <openssl/ec_key.h>
 /*unchecked (opaque)*/ typedef struct GO_EC_KEY { char data[1]; } GO_EC_KEY;
@@ -169,6 +182,9 @@ int _goboringcrypto_EC_KEY_is_opaque(const GO_EC_KEY*);
 const GO_BIGNUM* _goboringcrypto_EC_KEY_get0_private_key(const GO_EC_KEY*);
 const GO_EC_POINT* _goboringcrypto_EC_KEY_get0_public_key(const GO_EC_KEY*);
 // TODO: EC_KEY_check_fips?
+
+// #include <openssl/ecdh.h>
+int _goboringcrypto_ECDH_compute_key_fips(uint8_t*, size_t, const GO_EC_POINT*, const GO_EC_KEY*);
 
 // #include <openssl/ecdsa.h>
 typedef struct GO_ECDSA_SIG { char data[16]; } GO_ECDSA_SIG;

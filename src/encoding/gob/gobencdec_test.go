@@ -806,7 +806,7 @@ func TestIgnoreDepthLimit(t *testing.T) {
 	defer func() { maxIgnoreNestingDepth = oldNestingDepth }()
 	b := new(bytes.Buffer)
 	enc := NewEncoder(b)
-	typ := reflect.TypeOf(int(0))
+	typ := reflect.TypeFor[int]()
 	nested := reflect.ArrayOf(1, typ)
 	for i := 0; i < 100; i++ {
 		nested = reflect.ArrayOf(1, nested)

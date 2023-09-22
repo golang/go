@@ -46,7 +46,7 @@ const (
 
 var tinfoMap sync.Map // map[reflect.Type]*typeInfo
 
-var nameType = reflect.TypeOf(Name{})
+var nameType = reflect.TypeFor[Name]()
 
 // getTypeInfo returns the typeInfo structure with details necessary
 // for marshaling and unmarshaling typ.
@@ -251,13 +251,6 @@ func lookupXMLName(typ reflect.Type) (xmlname *fieldInfo) {
 	return nil
 }
 
-func min(a, b int) int {
-	if a <= b {
-		return a
-	}
-	return b
-}
-
 // addFieldInfo adds finfo to tinfo.fields if there are no
 // conflicts, or if conflicts arise from previous fields that were
 // obtained from deeper embedded structures than finfo. In the latter
@@ -292,7 +285,7 @@ Loop:
 				conflicts = append(conflicts, i)
 			}
 		} else {
-			if newf.name == oldf.name {
+			if newf.name == oldf.name && newf.xmlns == oldf.xmlns {
 				conflicts = append(conflicts, i)
 			}
 		}

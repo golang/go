@@ -207,8 +207,8 @@ func TestSetPanicOnFault(t *testing.T) {
 //
 //go:nocheckptr
 func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
-	if GOOS == "js" {
-		t.Skip("js does not support catching faults")
+	if GOOS == "js" || GOOS == "wasip1" {
+		t.Skip(GOOS + " does not support catching faults")
 	}
 
 	defer func() {
@@ -377,7 +377,7 @@ func BenchmarkGoroutineProfile(b *testing.B) {
 				if !ok {
 					b.Fatal("goroutine profile failed")
 				}
-				latencies = append(latencies, time.Now().Sub(start))
+				latencies = append(latencies, time.Since(start))
 			}
 			b.StopTimer()
 

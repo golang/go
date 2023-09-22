@@ -6,7 +6,6 @@ package types_test
 
 import (
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"testing"
 
@@ -33,10 +32,7 @@ func (G[P]) N() (p P) { return }
 
 type Inst = G[int]
 	`
-	pkg, err := pkgForMode("p", src, nil, 0)
-	if err != nil {
-		b.Fatal(err)
-	}
+	pkg := mustTypecheck(src, nil, nil)
 
 	var (
 		T        = pkg.Scope().Lookup("T").Type()
@@ -90,7 +86,7 @@ func mustInstantiate(tb testing.TB, orig Type, targs ...Type) Type {
 	return inst
 }
 
-// Test that types do not expand infinitely, as in golang/go#52715.
+// Test that types do not expand infinitely, as in go.dev/issue/52715.
 func TestFiniteTypeExpansion(t *testing.T) {
 	const src = `
 package p
@@ -111,10 +107,7 @@ type Inst = *Tree[int]
 `
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "foo.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse(fset, src)
 	pkg := NewPackage("p", f.Name.Name)
 	if err := NewChecker(nil, fset, pkg, nil).Files([]*ast.File{f}); err != nil {
 		t.Fatal(err)

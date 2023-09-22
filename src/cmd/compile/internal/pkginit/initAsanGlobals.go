@@ -23,8 +23,7 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 	// var asanglobals []asanGlobalStruct
 	arraytype := types.NewArray(asanGlobalStruct, int64(len(InstrumentGlobalsMap)))
 	symG := lname(".asanglobals")
-	globals := typecheck.NewName(symG)
-	globals.SetType(arraytype)
+	globals := ir.NewNameAt(base.Pos, symG, arraytype)
 	globals.Class = ir.PEXTERN
 	symG.Def = globals
 	typecheck.Target.Externs = append(typecheck.Target.Externs, globals)
@@ -32,8 +31,7 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 	// var asanL []asanLocationStruct
 	arraytype = types.NewArray(asanLocationStruct, int64(len(InstrumentGlobalsMap)))
 	symL := lname(".asanL")
-	asanlocation := typecheck.NewName(symL)
-	asanlocation.SetType(arraytype)
+	asanlocation := ir.NewNameAt(base.Pos, symL, arraytype)
 	asanlocation.Class = ir.PEXTERN
 	symL.Def = asanlocation
 	typecheck.Target.Externs = append(typecheck.Target.Externs, asanlocation)
@@ -43,22 +41,19 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 	// var asanModulename string
 	// var asanFilename string
 	symL = lname(".asanName")
-	asanName := typecheck.NewName(symL)
-	asanName.SetType(types.Types[types.TSTRING])
+	asanName := ir.NewNameAt(base.Pos, symL, types.Types[types.TSTRING])
 	asanName.Class = ir.PEXTERN
 	symL.Def = asanName
 	typecheck.Target.Externs = append(typecheck.Target.Externs, asanName)
 
 	symL = lname(".asanModulename")
-	asanModulename := typecheck.NewName(symL)
-	asanModulename.SetType(types.Types[types.TSTRING])
+	asanModulename := ir.NewNameAt(base.Pos, symL, types.Types[types.TSTRING])
 	asanModulename.Class = ir.PEXTERN
 	symL.Def = asanModulename
 	typecheck.Target.Externs = append(typecheck.Target.Externs, asanModulename)
 
 	symL = lname(".asanFilename")
-	asanFilename := typecheck.NewName(symL)
-	asanFilename.SetType(types.Types[types.TSTRING])
+	asanFilename := ir.NewNameAt(base.Pos, symL, types.Types[types.TSTRING])
 	asanFilename.Class = ir.PEXTERN
 	symL.Def = asanFilename
 	typecheck.Target.Externs = append(typecheck.Target.Externs, asanFilename)
@@ -69,7 +64,7 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 	for i, n := range InstrumentGlobalsSlice {
 		setField := func(f string, val ir.Node, i int) {
 			r := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT,
-				ir.NewIndexExpr(base.Pos, globals, ir.NewInt(int64(i))), lname(f)), val)
+				ir.NewIndexExpr(base.Pos, globals, ir.NewInt(base.Pos, int64(i))), lname(f)), val)
 			init.Append(typecheck.Stmt(r))
 		}
 		// globals[i].beg = uintptr(unsafe.Pointer(&n))
@@ -79,19 +74,19 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 		// Assign globals[i].size.
 		g := n.(*ir.Name)
 		size := g.Type().Size()
-		c = tconv(ir.NewInt(size), types.Types[types.TUINTPTR])
+		c = typecheck.DefaultLit(ir.NewInt(base.Pos, size), types.Types[types.TUINTPTR])
 		setField("size", c, i)
 		// Assign globals[i].sizeWithRedzone.
 		rzSize := GetRedzoneSizeForGlobal(size)
 		sizeWithRz := rzSize + size
-		c = tconv(ir.NewInt(sizeWithRz), types.Types[types.TUINTPTR])
+		c = typecheck.DefaultLit(ir.NewInt(base.Pos, sizeWithRz), types.Types[types.TUINTPTR])
 		setField("sizeWithRedzone", c, i)
 		// The C string type is terminated by a null character "\0", Go should use three-digit
 		// octal "\000" or two-digit hexadecimal "\x00" to create null terminated string.
 		// asanName = symbol's linkname + "\000"
 		// globals[i].name = (*defString)(unsafe.Pointer(&asanName)).data
 		name := g.Linksym().Name
-		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, asanName, ir.NewString(name+"\000"))))
+		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, asanName, ir.NewString(base.Pos, name+"\000"))))
 		c = tconv(typecheck.NodAddr(asanName), types.Types[types.TUNSAFEPTR])
 		c = tconv(c, types.NewPtr(defStringstruct))
 		c = ir.NewSelectorExpr(base.Pos, ir.ODOT, c, lname("data"))
@@ -99,23 +94,23 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 
 		// Set the name of package being compiled as a unique identifier of a module.
 		// asanModulename = pkgName + "\000"
-		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, asanModulename, ir.NewString(types.LocalPkg.Name+"\000"))))
+		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, asanModulename, ir.NewString(base.Pos, types.LocalPkg.Name+"\000"))))
 		c = tconv(typecheck.NodAddr(asanModulename), types.Types[types.TUNSAFEPTR])
 		c = tconv(c, types.NewPtr(defStringstruct))
 		c = ir.NewSelectorExpr(base.Pos, ir.ODOT, c, lname("data"))
 		setField("moduleName", c, i)
 		// Assign asanL[i].filename, asanL[i].line, asanL[i].column
 		// and assign globals[i].location = uintptr(unsafe.Pointer(&asanL[i]))
-		asanLi := ir.NewIndexExpr(base.Pos, asanlocation, ir.NewInt(int64(i)))
-		filename := ir.NewString(base.Ctxt.PosTable.Pos(n.Pos()).Filename() + "\000")
+		asanLi := ir.NewIndexExpr(base.Pos, asanlocation, ir.NewInt(base.Pos, int64(i)))
+		filename := ir.NewString(base.Pos, base.Ctxt.PosTable.Pos(n.Pos()).Filename()+"\000")
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, asanFilename, filename)))
 		c = tconv(typecheck.NodAddr(asanFilename), types.Types[types.TUNSAFEPTR])
 		c = tconv(c, types.NewPtr(defStringstruct))
 		c = ir.NewSelectorExpr(base.Pos, ir.ODOT, c, lname("data"))
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, asanLi, lname("filename")), c)))
-		line := ir.NewInt(int64(n.Pos().Line()))
+		line := ir.NewInt(base.Pos, int64(n.Pos().Line()))
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, asanLi, lname("line")), line)))
-		col := ir.NewInt(int64(n.Pos().Col()))
+		col := ir.NewInt(base.Pos, int64(n.Pos().Col()))
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, asanLi, lname("column")), col)))
 		c = tconv(typecheck.NodAddr(asanLi), types.Types[types.TUNSAFEPTR])
 		c = tconv(c, types.Types[types.TUINTPTR])
@@ -161,7 +156,7 @@ func createtypes() (*types.Type, *types.Type, *types.Type) {
 	fname := typecheck.Lookup
 	nxp := src.NoXPos
 	nfield := types.NewField
-	asanGlobal := types.NewStruct(types.NoPkg, []*types.Field{
+	asanGlobal := types.NewStruct([]*types.Field{
 		nfield(nxp, fname("beg"), up),
 		nfield(nxp, fname("size"), up),
 		nfield(nxp, fname("sizeWithRedzone"), up),
@@ -173,14 +168,14 @@ func createtypes() (*types.Type, *types.Type, *types.Type) {
 	})
 	types.CalcSize(asanGlobal)
 
-	asanLocation := types.NewStruct(types.NoPkg, []*types.Field{
+	asanLocation := types.NewStruct([]*types.Field{
 		nfield(nxp, fname("filename"), up),
 		nfield(nxp, fname("line"), i32),
 		nfield(nxp, fname("column"), i32),
 	})
 	types.CalcSize(asanLocation)
 
-	defString := types.NewStruct(types.NoPkg, []*types.Field{
+	defString := types.NewStruct([]*types.Field{
 		types.NewField(nxp, fname("data"), up),
 		types.NewField(nxp, fname("len"), up),
 	})

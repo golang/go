@@ -139,7 +139,7 @@ var canUseLongPaths bool
 // or contains .. elements), or is short enough, fixLongPath returns
 // path unmodified.
 //
-// See https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath
+// See https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#maximum-path-length-limitation
 func fixLongPath(path string) string {
 	if canUseLongPaths {
 		return path
@@ -213,15 +213,4 @@ func fixLongPath(path string) string {
 		w++
 	}
 	return string(pathbuf[:w])
-}
-
-// fixRootDirectory fixes a reference to a drive's root directory to
-// have the required trailing slash.
-func fixRootDirectory(p string) string {
-	if len(p) == len(`\\?\c:`) {
-		if IsPathSeparator(p[0]) && IsPathSeparator(p[1]) && p[2] == '?' && IsPathSeparator(p[3]) && p[5] == ':' {
-			return p + `\`
-		}
-	}
-	return p
 }

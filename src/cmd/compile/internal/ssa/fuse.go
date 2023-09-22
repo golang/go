@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/internal/src"
+	"fmt"
 )
 
 // fuseEarly runs fuse(f, fuseTypePlain|fuseTypeIntInRange).
@@ -28,7 +29,9 @@ const (
 func fuse(f *Func, typ fuseType) {
 	for changed := true; changed; {
 		changed = false
-		// Fuse from end to beginning, to avoid quadratic behavior in fuseBlockPlain. See issue 13554.
+		// Be sure to avoid quadratic behavior in fuseBlockPlain. See issue 13554.
+		// Previously this was dealt with using backwards iteration, now fuseBlockPlain
+		// handles large runs of blocks.
 		for i := len(f.Blocks) - 1; i >= 0; i-- {
 			b := f.Blocks[i]
 			if typ&fuseTypeIf != 0 {
@@ -44,6 +47,7 @@ func fuse(f *Func, typ fuseType) {
 				changed = shortcircuitBlock(b) || changed
 			}
 		}
+
 		if typ&fuseTypeBranchRedirect != 0 {
 			changed = fuseBranchRedirect(f) || changed
 		}
@@ -172,64 +176,133 @@ func isEmpty(b *Block) bool {
 	return true
 }
 
+// fuseBlockPlain handles a run of blocks with length >= 2,
+// whose interior has single predecessors and successors,
+// b must be BlockPlain, allowing it to be any node except the
+// last (multiple successors means not BlockPlain).
+// Cycles are handled and merged into b's successor.
 func fuseBlockPlain(b *Block) bool {
 	if b.Kind != BlockPlain {
 		return false
 	}
 
 	c := b.Succs[0].b
-	if len(c.Preds) != 1 {
+	if len(c.Preds) != 1 || c == b { // At least 2 distinct blocks.
 		return false
 	}
 
-	// If a block happened to end in a statement marker,
-	// try to preserve it.
-	if b.Pos.IsStmt() == src.PosIsStmt {
-		l := b.Pos.Line()
-		for _, v := range c.Values {
-			if v.Pos.IsStmt() == src.PosNotStmt {
-				continue
+	// find earliest block in run.  Avoid simple cycles.
+	for len(b.Preds) == 1 && b.Preds[0].b != c && b.Preds[0].b.Kind == BlockPlain {
+		b = b.Preds[0].b
+	}
+
+	// find latest block in run.  Still beware of simple cycles.
+	for {
+		if c.Kind != BlockPlain {
+			break
+		} // Has exactly 1 successor
+		cNext := c.Succs[0].b
+		if cNext == b {
+			break
+		} // not a cycle
+		if len(cNext.Preds) != 1 {
+			break
+		} // no other incoming edge
+		c = cNext
+	}
+
+	// Try to preserve any statement marks on the ends of blocks; move values to C
+	var b_next *Block
+	for bx := b; bx != c; bx = b_next {
+		// For each bx with an end-of-block statement marker,
+		// try to move it to a value in the next block,
+		// or to the next block's end, if possible.
+		b_next = bx.Succs[0].b
+		if bx.Pos.IsStmt() == src.PosIsStmt {
+			l := bx.Pos.Line() // looking for another place to mark for line l
+			outOfOrder := false
+			for _, v := range b_next.Values {
+				if v.Pos.IsStmt() == src.PosNotStmt {
+					continue
+				}
+				if l == v.Pos.Line() { // Found a Value with same line, therefore done.
+					v.Pos = v.Pos.WithIsStmt()
+					l = 0
+					break
+				}
+				if l < v.Pos.Line() {
+					// The order of values in a block is not specified so OOO in a block is not interesting,
+					// but they do all come before the end of the block, so this disqualifies attaching to end of b_next.
+					outOfOrder = true
+				}
 			}
-			if l == v.Pos.Line() {
-				v.Pos = v.Pos.WithIsStmt()
-				l = 0
-				break
+			if l != 0 && !outOfOrder && (b_next.Pos.Line() == l || b_next.Pos.IsStmt() != src.PosIsStmt) {
+				b_next.Pos = bx.Pos.WithIsStmt()
 			}
 		}
-		if l != 0 && c.Pos.Line() == l {
-			c.Pos = c.Pos.WithIsStmt()
+		// move all of bx's values to c (note containing loop excludes c)
+		for _, v := range bx.Values {
+			v.Block = c
 		}
 	}
 
-	// move all of b's values to c.
-	for _, v := range b.Values {
-		v.Block = c
+	// Compute the total number of values and find the largest value slice in the run, to maximize chance of storage reuse.
+	total := 0
+	totalBeforeMax := 0 // number of elements preceding the maximum block (i.e. its position in the result).
+	max_b := b          // block with maximum capacity
+
+	for bx := b; ; bx = bx.Succs[0].b {
+		if cap(bx.Values) > cap(max_b.Values) {
+			totalBeforeMax = total
+			max_b = bx
+		}
+		total += len(bx.Values)
+		if bx == c {
+			break
+		}
 	}
-	// Use whichever value slice is larger, in the hopes of avoiding growth.
-	// However, take care to avoid c.Values pointing to b.valstorage.
+
+	// Use c's storage if fused blocks will fit, else use the max if that will fit, else allocate new storage.
+
+	// Take care to avoid c.Values pointing to b.valstorage.
 	// See golang.org/issue/18602.
+
 	// It's important to keep the elements in the same order; maintenance of
 	// debugging information depends on the order of *Values in Blocks.
 	// This can also cause changes in the order (which may affect other
 	// optimizations and possibly compiler output) for 32-vs-64 bit compilation
 	// platforms (word size affects allocation bucket size affects slice capacity).
-	if cap(c.Values) >= cap(b.Values) || len(b.Values) <= len(b.valstorage) {
-		bl := len(b.Values)
-		cl := len(c.Values)
-		var t []*Value // construct t = b.Values followed-by c.Values, but with attention to allocation.
-		if cap(c.Values) < bl+cl {
-			// reallocate
-			t = make([]*Value, bl+cl)
-		} else {
-			// in place.
-			t = c.Values[0 : bl+cl]
-		}
-		copy(t[bl:], c.Values) // possibly in-place
-		c.Values = t
-		copy(c.Values, b.Values)
+
+	// figure out what slice will hold the values,
+	// preposition the destination elements if not allocating new storage
+	var t []*Value
+	if total <= len(c.valstorage) {
+		t = c.valstorage[:total]
+		max_b = c
+		totalBeforeMax = total - len(c.Values)
+		copy(t[totalBeforeMax:], c.Values)
+	} else if total <= cap(max_b.Values) { // in place, somewhere
+		t = max_b.Values[0:total]
+		copy(t[totalBeforeMax:], max_b.Values)
 	} else {
-		c.Values = append(b.Values, c.Values...)
+		t = make([]*Value, total)
+		max_b = nil
 	}
+
+	// copy the values
+	copyTo := 0
+	for bx := b; ; bx = bx.Succs[0].b {
+		if bx != max_b {
+			copy(t[copyTo:], bx.Values)
+		} else if copyTo != totalBeforeMax { // trust but verify.
+			panic(fmt.Errorf("totalBeforeMax (%d) != copyTo (%d), max_b=%v, b=%v, c=%v", totalBeforeMax, copyTo, max_b, b, c))
+		}
+		if bx == c {
+			break
+		}
+		copyTo += len(bx.Values)
+	}
+	c.Values = t
 
 	// replace b->c edge with preds(b) -> c
 	c.predstorage[0] = Edge{}
@@ -247,10 +320,14 @@ func fuseBlockPlain(b *Block) bool {
 		f.Entry = c
 	}
 
-	// trash b, just in case
-	b.Kind = BlockInvalid
-	b.Values = nil
-	b.Preds = nil
-	b.Succs = nil
+	// trash b's fields, just in case
+	for bx := b; bx != c; bx = b_next {
+		b_next = bx.Succs[0].b
+
+		bx.Kind = BlockInvalid
+		bx.Values = nil
+		bx.Preds = nil
+		bx.Succs = nil
+	}
 	return true
 }

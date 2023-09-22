@@ -6,6 +6,8 @@
 
 package runtime
 
+const staticLockRanking = false
+
 // // lockRankStruct is embedded in mutex, but is empty when staticklockranking is
 // disabled (the default)
 type lockRankStruct struct {

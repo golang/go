@@ -35,16 +35,6 @@ func cryptBlock(subkeys []uint64, dst, src []byte, decrypt bool) {
 	binary.BigEndian.PutUint64(dst, permuteFinalBlock(preOutput))
 }
 
-// Encrypt one block from src into dst, using the subkeys.
-func encryptBlock(subkeys []uint64, dst, src []byte) {
-	cryptBlock(subkeys, dst, src, false)
-}
-
-// Decrypt one block from src into dst, using the subkeys.
-func decryptBlock(subkeys []uint64, dst, src []byte) {
-	cryptBlock(subkeys, dst, src, true)
-}
-
 // DES Feistel function. feistelBox must be initialized via
 // feistelBoxOnce.Do(initFeistelBox) first.
 func feistel(l, r uint32, k0, k1 uint64) (lout, rout uint32) {
@@ -83,7 +73,7 @@ var feistelBox [8][64]uint32
 
 var feistelBoxOnce sync.Once
 
-// general purpose function to perform DES block permutations
+// general purpose function to perform DES block permutations.
 func permuteBlock(src uint64, permutation []uint8) (block uint64) {
 	for position, n := range permutation {
 		bit := (src >> n) & 1
@@ -182,7 +172,7 @@ func permuteInitialBlock(block uint64) uint64 {
 	return block
 }
 
-// permuteInitialBlock is equivalent to the permutation defined
+// permuteFinalBlock is equivalent to the permutation defined
 // by finalPermutation.
 func permuteFinalBlock(block uint64) uint64 {
 	// Perform the same bit exchanges as permuteInitialBlock
@@ -209,7 +199,7 @@ func permuteFinalBlock(block uint64) uint64 {
 }
 
 // creates 16 28-bit blocks rotated according
-// to the rotation schedule
+// to the rotation schedule.
 func ksRotate(in uint32) (out []uint32) {
 	out = make([]uint32, 16)
 	last := in
@@ -223,7 +213,7 @@ func ksRotate(in uint32) (out []uint32) {
 	return
 }
 
-// creates 16 56-bit subkeys from the original key
+// creates 16 56-bit subkeys from the original key.
 func (c *desCipher) generateSubkeys(keyBytes []byte) {
 	feistelBoxOnce.Do(initFeistelBox)
 

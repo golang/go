@@ -11,26 +11,25 @@ compiler.
 The test harness compiles Go code inside files in this directory and
 matches the generated assembly (the output of `go tool compile -S`)
 against a set of regexps to be specified in comments that follow a
-special syntax (described below). The test driver is implemented as a
-step of the top-level test/run.go suite, called "asmcheck".
+special syntax (described below). The test driver is implemented as
+an action within the GOROOT/test test suite, called "asmcheck".
 
 The codegen harness is part of the all.bash test suite, but for
 performance reasons only the codegen tests for the host machine's
 GOARCH are enabled by default, and only on GOOS=linux.
 
 To perform comprehensive tests for all the supported architectures
-(even on a non-Linux system), one can run the following command
+(even on a non-Linux system), one can run the following command:
 
-  $ ../bin/go run run.go -all_codegen -v codegen
+  $ ../../bin/go test cmd/internal/testdir -run='Test/codegen' -all_codegen -v
 
-in the top-level test directory. This is recommended after any change
-that affect the compiler's code.
+This is recommended after any change that affect the compiler's code.
 
 The test harness compiles the tests with the same go toolchain that is
-used to run run.go. After writing tests for a newly added codegen
+used to run the test. After writing tests for a newly added codegen
 transformation, it can be useful to first run the test harness with a
 toolchain from a released Go version (and verify that the new tests
-fail), and then re-runnig the tests using the devel toolchain.
+fail), and then re-running the tests using the devel toolchain.
 
 
 - Regexps comments syntax

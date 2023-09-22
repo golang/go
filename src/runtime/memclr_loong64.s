@@ -26,6 +26,7 @@ words:
 	// do 8 bytes at a time if there is room
 	ADDV	$-7, R4, R7
 
+	PCALIGN	$16
 	SGTU	R7, R6, R8
 	BEQ	R8, out
 	MOVV	R0, (R6)

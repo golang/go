@@ -4,7 +4,9 @@
 
 package syntax
 
-type token uint
+type Token uint
+
+type token = Token
 
 //go:generate stringer -type token -linecomment tokens.go
 

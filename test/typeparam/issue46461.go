@@ -6,7 +6,7 @@
 
 package p
 
-type T[U interface{ M() T[U] }] int // ERROR "invalid recursive type T"
+type T[U interface{ M() T[U] }] int // ERROR "invalid recursive type: T refers to itself"
 
 type X int
 

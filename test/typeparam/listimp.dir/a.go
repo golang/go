@@ -41,7 +41,7 @@ type ListNum[T OrderedNum] struct {
 
 const Clip = 5
 
-// clippedLargest returns the largest in the list of OrderNums, but a max of 5.
+// ClippedLargest returns the largest in the list of OrderNums, but a max of 5.
 func (l *ListNum[T]) ClippedLargest() T {
 	var max T
 	for p := l; p != nil; p = p.Next {

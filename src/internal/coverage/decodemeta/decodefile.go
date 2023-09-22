@@ -213,7 +213,7 @@ func (r *CoverageMetaFileReader) GetPackagePayload(pkIdx uint32, payloadbuf []by
 		payload = make([]byte, 0, len)
 	}
 	payload = append(payload, make([]byte, len)...)
-	if _, err := r.f.Seek(int64(off), os.SEEK_SET); err != nil {
+	if _, err := r.f.Seek(int64(off), io.SeekStart); err != nil {
 		return nil, err
 	}
 	if _, err := io.ReadFull(r.f, payload); err != nil {

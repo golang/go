@@ -1,5 +1,5 @@
 [exec:bzr] skip 'tests NOT having bzr'
-[!net] skip
+[!net:launchpad.net] skip
 
 env GO111MODULE=on
 env GOPROXY=direct

@@ -24,6 +24,7 @@ const (
 	_MADV_FREE       = 0x8
 	_MADV_HUGEPAGE   = 0xe
 	_MADV_NOHUGEPAGE = 0xf
+	_MADV_COLLAPSE   = 0x19
 
 	_SA_RESTART  = 0x10000000
 	_SA_ONSTACK  = 0x8000000
@@ -89,17 +90,6 @@ const (
 	_CLOCK_THREAD_CPUTIME_ID = 0x3
 
 	_SIGEV_THREAD_ID = 0x4
-
-	_EPOLLIN       = 0x1
-	_EPOLLOUT      = 0x4
-	_EPOLLERR      = 0x8
-	_EPOLLHUP      = 0x10
-	_EPOLLRDHUP    = 0x2000
-	_EPOLLET       = 0x80000000
-	_EPOLL_CLOEXEC = 0x80000
-	_EPOLL_CTL_ADD = 0x1
-	_EPOLL_CTL_DEL = 0x2
-	_EPOLL_CTL_MOD = 0x3
 )
 
 type timespec struct {
@@ -171,14 +161,11 @@ type sigevent struct {
 	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
 }
 
-type epollevent struct {
-	events    uint32
-	pad_cgo_0 [4]byte
-	data      [8]byte // unaligned uintptr
-}
-
 const (
 	_O_RDONLY   = 0x0
+	_O_WRONLY   = 0x1
+	_O_CREAT    = 0x40
+	_O_TRUNC    = 0x200
 	_O_NONBLOCK = 0x800
 	_O_CLOEXEC  = 0x80000
 )

@@ -1,1 +1,0 @@
-pkg go/token, method (*FileSet) RemoveFile(*File) #53200

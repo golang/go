@@ -15,7 +15,7 @@ func main() {
 	const (
 		a = 1 + iota // ERROR "invalid operation|incompatible types|cannot convert"
 	)
-
+	_, _ = n, y
 }
 
 const (

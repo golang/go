@@ -1,0 +1,19 @@
+[short] skip
+[!git] skip
+[!GOOS:linux] skip  # Uses XDG_CONFIG_HOME
+
+env GIT_CONFIG_GLOBAL=$WORK/.gitconfig
+env GOPRIVATE=vcs-test.golang.org
+
+go mod download -x
+
+-- go.mod --
+module test
+
+go 1.18
+
+require vcs-test.golang.org/git/gitrepo1.git v1.2.3
+
+-- $WORK/.gitconfig --
+[safe]
+bareRepository = explicit

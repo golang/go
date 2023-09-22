@@ -17,7 +17,7 @@ const (
 	nameOffset = 39
 )
 
-// Goenvs caches the Plan 9 environment variables at start of execution into
+// goenvs caches the Plan 9 environment variables at start of execution into
 // string array envs, to supply the initial contents for os.Environ.
 // Subsequent calls to os.Setenv will change this cache, without writing back
 // to the (possibly shared) Plan 9 environment, so that Setenv and Getenv
@@ -70,7 +70,7 @@ func goenvs() {
 	})
 }
 
-// Dofiles reads the directory opened with file descriptor fd, applying function f
+// dofiles reads the directory opened with file descriptor fd, applying function f
 // to each filename in it.
 //
 //go:nosplit
@@ -95,7 +95,7 @@ func dofiles(dirfd int32, f func([]byte)) {
 	}
 }
 
-// Gdirname returns the first filename from a buffer of directory entries,
+// gdirname returns the first filename from a buffer of directory entries,
 // and a slice containing the remaining directory entries.
 // If the buffer doesn't start with a valid directory entry, the returned name is nil.
 //
@@ -117,7 +117,7 @@ func gdirname(buf []byte) (name []byte, rest []byte) {
 	return
 }
 
-// Gbit16 reads a 16-bit little-endian binary number from b and returns it
+// gbit16 reads a 16-bit little-endian binary number from b and returns it
 // with the remaining slice of b.
 //
 //go:nosplit

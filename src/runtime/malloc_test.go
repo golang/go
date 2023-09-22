@@ -268,7 +268,7 @@ func TestArenaCollision(t *testing.T) {
 	// Test that mheap.sysAlloc handles collisions with other
 	// memory mappings.
 	if os.Getenv("TEST_ARENA_COLLISION") != "1" {
-		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestArenaCollision", "-test.v"))
+		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestArenaCollision$", "-test.v"))
 		cmd.Env = append(cmd.Env, "TEST_ARENA_COLLISION=1")
 		out, err := cmd.CombinedOutput()
 		if race.Enabled {
@@ -294,7 +294,11 @@ func TestArenaCollision(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		// Reserve memory at the next hint so it can't be used
 		// for the heap.
-		start, end := MapNextArenaHint()
+		start, end, ok := MapNextArenaHint()
+		if !ok {
+			t.Skipf("failed to reserve memory at next arena hint [%#x, %#x)", start, end)
+		}
+		t.Logf("reserved [%#x, %#x)", start, end)
 		disallowed = append(disallowed, [2]uintptr{start, end})
 		// Allocate until the runtime tries to use the hint we
 		// just mapped over.
@@ -314,46 +318,36 @@ func TestArenaCollision(t *testing.T) {
 	}
 }
 
-var mallocSink uintptr
-
 func BenchmarkMalloc8(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new(int64)
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 func BenchmarkMalloc16(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new([2]int64)
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 func BenchmarkMallocTypeInfo8(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new(struct {
 			p [8 / unsafe.Sizeof(uintptr(0))]*int
 		})
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 func BenchmarkMallocTypeInfo16(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new(struct {
 			p [16 / unsafe.Sizeof(uintptr(0))]*int
 		})
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 type LargeStruct struct {
@@ -361,12 +355,10 @@ type LargeStruct struct {
 }
 
 func BenchmarkMallocLargeStruct(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := make([]LargeStruct, 2)
-		x ^= uintptr(unsafe.Pointer(&p[0]))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 var n = flag.Int("n", 1000, "number of goroutines")

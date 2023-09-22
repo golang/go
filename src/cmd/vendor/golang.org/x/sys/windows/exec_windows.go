@@ -95,12 +95,17 @@ func ComposeCommandLine(args []string) string {
 // DecomposeCommandLine breaks apart its argument command line into unescaped parts using CommandLineToArgv,
 // as gathered from GetCommandLine, QUERY_SERVICE_CONFIG's BinaryPathName argument, or elsewhere that
 // command lines are passed around.
+// DecomposeCommandLine returns error if commandLine contains NUL.
 func DecomposeCommandLine(commandLine string) ([]string, error) {
 	if len(commandLine) == 0 {
 		return []string{}, nil
 	}
+	utf16CommandLine, err := UTF16FromString(commandLine)
+	if err != nil {
+		return nil, errorspkg.New("string with NUL passed to DecomposeCommandLine")
+	}
 	var argc int32
-	argv, err := CommandLineToArgv(StringToUTF16Ptr(commandLine), &argc)
+	argv, err := CommandLineToArgv(&utf16CommandLine[0], &argc)
 	if err != nil {
 		return nil, err
 	}

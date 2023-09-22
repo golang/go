@@ -37,7 +37,7 @@ import (
 // It will be removed before the release.
 // TODO(matloob): Remove enabled once we have more confidence on the
 // module index.
-var enabled bool = godebug.Get("goindex") != "0"
+var enabled = godebug.New("#goindex").Value() != "0"
 
 // Module represents and encoded module index file. It is used to
 // do the equivalent of build.Import of packages in the module and answer other
@@ -61,7 +61,7 @@ func moduleHash(modroot string, ismodcache bool) (cache.ActionID, error) {
 		//
 		// Note that this is true even for modules in GOROOT/src: non-release builds
 		// of the Go toolchain may have arbitrary development changes on top of the
-		// commit reported by runtime.Version, or could be completly artificial due
+		// commit reported by runtime.Version, or could be completely artificial due
 		// to lacking a `git` binary (like "devel gomote.XXXXX", as synthesized by
 		// "gomote push" as of 2022-06-15). (Release builds shouldn't have
 		// modifications, but we don't want to use a behavior for releases that we
@@ -117,8 +117,6 @@ func dirHash(modroot, pkgdir string) (cache.ActionID, error) {
 	return h.Sum(), nil
 }
 
-var modrootCache par.Cache
-
 var ErrNotIndexed = errors.New("not in module index")
 
 var (
@@ -128,7 +126,7 @@ var (
 
 // GetPackage returns the IndexPackage for the package at the given path.
 // It will return ErrNotIndexed if the directory should be read without
-// using the index, for instance because the index is disabled, or the packgae
+// using the index, for instance because the index is disabled, or the package
 // is not in a module.
 func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
 	mi, err := GetModule(modroot)
@@ -146,7 +144,7 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
 
 // GetModule returns the Module for the given modroot.
 // It will return ErrNotIndexed if the directory should be read without
-// using the index, for instance because the index is disabled, or the packgae
+// using the index, for instance because the index is disabled, or the package
 // is not in a module.
 func GetModule(modroot string) (*Module, error) {
 	if !enabled || cache.DefaultDir() == "off" {
@@ -162,78 +160,68 @@ func GetModule(modroot string) (*Module, error) {
 		return nil, errNotFromModuleCache
 	}
 	modroot = filepath.Clean(modroot)
-	if !str.HasFilePathPrefix(modroot, cfg.GOMODCACHE) {
+	if str.HasFilePathPrefix(modroot, cfg.GOROOTsrc) || !str.HasFilePathPrefix(modroot, cfg.GOMODCACHE) {
 		return nil, errNotFromModuleCache
 	}
 	return openIndexModule(modroot, true)
 }
 
-var mcache par.Cache
+var mcache par.ErrCache[string, *Module]
 
 // openIndexModule returns the module index for modPath.
 // It will return ErrNotIndexed if the module can not be read
 // using the index because it contains symlinks.
 func openIndexModule(modroot string, ismodcache bool) (*Module, error) {
-	type result struct {
-		mi  *Module
-		err error
-	}
-	r := mcache.Do(modroot, func() any {
+	return mcache.Do(modroot, func() (*Module, error) {
 		fsys.Trace("openIndexModule", modroot)
 		id, err := moduleHash(modroot, ismodcache)
 		if err != nil {
-			return result{nil, err}
+			return nil, err
 		}
-		data, _, err := cache.Default().GetMmap(id)
+		data, _, err := cache.GetMmap(cache.Default(), id)
 		if err != nil {
 			// Couldn't read from modindex. Assume we couldn't read from
 			// the index because the module hasn't been indexed yet.
 			data, err = indexModule(modroot)
 			if err != nil {
-				return result{nil, err}
+				return nil, err
 			}
-			if err = cache.Default().PutBytes(id, data); err != nil {
-				return result{nil, err}
+			if err = cache.PutBytes(cache.Default(), id, data); err != nil {
+				return nil, err
 			}
 		}
 		mi, err := fromBytes(modroot, data)
 		if err != nil {
-			return result{nil, err}
+			return nil, err
 		}
-		return result{mi, nil}
-	}).(result)
-	return r.mi, r.err
+		return mi, nil
+	})
 }
 
-var pcache par.Cache
+var pcache par.ErrCache[[2]string, *IndexPackage]
 
 func openIndexPackage(modroot, pkgdir string) (*IndexPackage, error) {
-	type result struct {
-		pkg *IndexPackage
-		err error
-	}
-	r := pcache.Do([2]string{modroot, pkgdir}, func() any {
+	return pcache.Do([2]string{modroot, pkgdir}, func() (*IndexPackage, error) {
 		fsys.Trace("openIndexPackage", pkgdir)
 		id, err := dirHash(modroot, pkgdir)
 		if err != nil {
-			return result{nil, err}
+			return nil, err
 		}
-		data, _, err := cache.Default().GetMmap(id)
+		data, _, err := cache.GetMmap(cache.Default(), id)
 		if err != nil {
 			// Couldn't read from index. Assume we couldn't read from
 			// the index because the package hasn't been indexed yet.
 			data = indexPackage(modroot, pkgdir)
-			if err = cache.Default().PutBytes(id, data); err != nil {
-				return result{nil, err}
+			if err = cache.PutBytes(cache.Default(), id, data); err != nil {
+				return nil, err
 			}
 		}
 		pkg, err := packageFromBytes(modroot, data)
 		if err != nil {
-			return result{nil, err}
+			return nil, err
 		}
-		return result{pkg, nil}
-	}).(result)
-	return r.pkg, r.err
+		return pkg, nil
+	})
 }
 
 var errCorrupt = errors.New("corrupt index")
@@ -368,6 +356,8 @@ func relPath(path, modroot string) string {
 	return str.TrimFilePathPrefix(filepath.Clean(path), filepath.Clean(modroot))
 }
 
+var installgorootAll = godebug.New("installgoroot").Value() == "all"
+
 // Import is the equivalent of build.Import given the information in Module.
 func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *build.Package, err error) {
 	defer unprotect(protect(), &err)
@@ -395,6 +385,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 	inTestdata := func(sub string) bool {
 		return strings.Contains(sub, "/testdata/") || strings.HasSuffix(sub, "/testdata") || str.HasPathPrefix(sub, "testdata")
 	}
+	var pkga string
 	if !inTestdata(rp.dir) {
 		// In build.go, p.Root should only be set in the non-local-import case, or in
 		// GOROOT or GOPATH. Since module mode only calls Import with path set to "."
@@ -413,7 +404,6 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			// The fields set below (SrcRoot, PkgRoot, BinDir, PkgTargetRoot, and PkgObj)
 			// are only set in build.Import if p.Root != "".
 			var pkgtargetroot string
-			var pkga string
 			suffix := ""
 			if ctxt.InstallSuffix != "" {
 				suffix = "_" + ctxt.InstallSuffix
@@ -431,8 +421,14 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			p.PkgRoot = ctxt.joinPath(p.Root, "pkg")
 			p.BinDir = ctxt.joinPath(p.Root, "bin")
 			if pkga != "" {
+				// Always set PkgTargetRoot. It might be used when building in shared
+				// mode.
 				p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
-				p.PkgObj = ctxt.joinPath(p.Root, pkga)
+
+				// Set the install target if applicable.
+				if !p.Goroot || (installgorootAll && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
+					p.PkgObj = ctxt.joinPath(p.Root, pkga)
+				}
 			}
 		}
 	}
@@ -450,14 +446,14 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 
 	// We need to do a second round of bad file processing.
 	var badGoError error
-	badFiles := make(map[string]bool)
-	badFile := func(name string, err error) {
+	badGoFiles := make(map[string]bool)
+	badGoFile := func(name string, err error) {
 		if badGoError == nil {
 			badGoError = err
 		}
-		if !badFiles[name] {
+		if !badGoFiles[name] {
 			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
-			badFiles[name] = true
+			badGoFiles[name] = true
 		}
 	}
 
@@ -472,12 +468,16 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 	allTags := make(map[string]bool)
 	for _, tf := range rp.sourceFiles {
 		name := tf.name()
-		if error := tf.error(); error != "" {
-			badFile(name, errors.New(tf.error()))
-			continue
-		} else if parseError := tf.parseError(); parseError != "" {
-			badFile(name, parseErrorFromString(tf.parseError()))
-			// Fall through: we still want to list files with parse errors.
+		// Check errors for go files and call badGoFiles to put them in
+		// InvalidGoFiles if they do have an error.
+		if strings.HasSuffix(name, ".go") {
+			if error := tf.error(); error != "" {
+				badGoFile(name, errors.New(tf.error()))
+				continue
+			} else if parseError := tf.parseError(); parseError != "" {
+				badGoFile(name, parseErrorFromString(tf.parseError()))
+				// Fall through: we still want to list files with parse errors.
+			}
 		}
 
 		var shouldBuild = true
@@ -503,7 +503,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		if !shouldBuild || tf.ignoreFile() {
 			if ext == ".go" {
 				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
-			} else if fileListForExt((*Package)(p), ext) != nil {
+			} else if fileListForExt(p, ext) != nil {
 				p.IgnoredOtherFiles = append(p.IgnoredOtherFiles, name)
 			}
 			continue
@@ -518,7 +518,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			Sfiles = append(Sfiles, name)
 			continue
 		default:
-			if list := fileListForExt((*Package)(p), ext); list != nil {
+			if list := fileListForExt(p, ext); list != nil {
 				*list = append(*list, name)
 			}
 			continue
@@ -547,7 +547,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			// TODO(#45999): The choice of p.Name is arbitrary based on file iteration
 			// order. Instead of resolving p.Name arbitrarily, we should clear out the
 			// existing Name and mark the existing files as also invalid.
-			badFile(name, &MultiplePackageError{
+			badGoFile(name, &MultiplePackageError{
 				Dir:      p.Dir,
 				Packages: []string{p.Name, pkg},
 				Files:    []string{firstFile, name},
@@ -566,20 +566,21 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		for _, imp := range imports {
 			if imp.path == "C" {
 				if isTest {
-					badFile(name, fmt.Errorf("use of cgo in test %s not supported", name))
+					badGoFile(name, fmt.Errorf("use of cgo in test %s not supported", name))
 					continue
 				}
 				isCgo = true
 			}
 		}
 		if directives := tf.cgoDirectives(); directives != "" {
-			if err := ctxt.saveCgo(name, (*Package)(p), directives); err != nil {
-				badFile(name, err)
+			if err := ctxt.saveCgo(name, p, directives); err != nil {
+				badGoFile(name, err)
 			}
 		}
 
 		var fileList *[]string
 		var importMap, embedMap map[string][]token.Position
+		var directives *[]build.Directive
 		switch {
 		case isCgo:
 			allTags["cgo"] = true
@@ -587,6 +588,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 				fileList = &p.CgoFiles
 				importMap = importPos
 				embedMap = embedPos
+				directives = &p.Directives
 			} else {
 				// Ignore Imports and Embeds from cgo files if cgo is disabled.
 				fileList = &p.IgnoredGoFiles
@@ -595,14 +597,17 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			fileList = &p.XTestGoFiles
 			importMap = xTestImportPos
 			embedMap = xTestEmbedPos
+			directives = &p.XTestDirectives
 		case isTest:
 			fileList = &p.TestGoFiles
 			importMap = testImportPos
 			embedMap = testEmbedPos
+			directives = &p.TestDirectives
 		default:
 			fileList = &p.GoFiles
 			importMap = importPos
 			embedMap = embedPos
+			directives = &p.Directives
 		}
 		*fileList = append(*fileList, name)
 		if importMap != nil {
@@ -614,6 +619,9 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			for _, e := range tf.embeds() {
 				embedMap[e.pattern] = append(embedMap[e.pattern], e.position)
 			}
+		}
+		if directives != nil {
+			*directives = append(*directives, tf.directives()...)
 		}
 	}
 
@@ -769,7 +777,7 @@ func shouldBuild(sf *sourceFile, tags map[string]bool) bool {
 	plusBuildConstraints := sf.plusBuildConstraints()
 	for _, text := range plusBuildConstraints {
 		if x, err := constraint.Parse(text); err == nil {
-			if imports.Eval(x, tags, true) == false {
+			if !imports.Eval(x, tags, true) {
 				return false
 			}
 		}
@@ -807,7 +815,7 @@ func (m *Module) Package(path string) *IndexPackage {
 	return m.pkg(i)
 }
 
-// pkgAt returns the i'th IndexPackage in m.
+// pkg returns the i'th IndexPackage in m.
 func (m *Module) pkg(i int) *IndexPackage {
 	r := m.d.readAt(m.pkgOff(i))
 	p := new(IndexPackage)
@@ -902,6 +910,13 @@ func (sf *sourceFile) embedsOffset() int {
 	return pos + 4 + n*(4*5)
 }
 
+func (sf *sourceFile) directivesOffset() int {
+	pos := sf.embedsOffset()
+	n := sf.d.intAt(pos)
+	// each embed is 5 uint32s (string + tokpos)
+	return pos + 4 + n*(4*5)
+}
+
 func (sf *sourceFile) imports() []rawImport {
 	sf.onceReadImports.Do(func() {
 		importsOffset := sf.importsOffset()
@@ -923,6 +938,17 @@ func (sf *sourceFile) embeds() []embed {
 	ret := make([]embed, numEmbeds)
 	for i := range ret {
 		ret[i] = embed{r.string(), r.tokpos()}
+	}
+	return ret
+}
+
+func (sf *sourceFile) directives() []build.Directive {
+	directivesOffset := sf.directivesOffset()
+	r := sf.d.readAt(directivesOffset)
+	numDirectives := r.int()
+	ret := make([]build.Directive, numDirectives)
+	for i := range ret {
+		ret[i] = build.Directive{Text: r.string(), Pos: r.tokpos()}
 	}
 	return ret
 }
@@ -954,7 +980,7 @@ func (d *decoder) boolAt(off int) bool {
 	return d.intAt(off) != 0
 }
 
-// stringTableAt returns the string pointed at by the int at the given offset in d.data.
+// stringAt returns the string pointed at by the int at the given offset in d.data.
 func (d *decoder) stringAt(off int) string {
 	return d.stringTableAt(d.intAt(off))
 }

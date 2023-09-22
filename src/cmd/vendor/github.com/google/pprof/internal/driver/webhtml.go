@@ -65,4 +65,7 @@ func addTemplates(templates *template.Template) {
 	def("sourcelisting", loadFile("html/source.html"))
 	def("plaintext", loadFile("html/plaintext.html"))
 	def("flamegraph", loadFile("html/flamegraph.html"))
+	def("stacks", loadFile("html/stacks.html"))
+	def("stacks_css", loadCSS("html/stacks.css"))
+	def("stacks_js", loadJS("html/stacks.js"))
 }

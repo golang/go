@@ -333,8 +333,22 @@ var optab = []Optab{
 	// undefined (deliberate illegal instruction)
 	{i: 78, as: obj.AUNDEF},
 
+	// Break point instruction(0x0001 opcode)
+	{i: 73, as: ABRRK},
+
 	// 2 byte no-operation
 	{i: 66, as: ANOPH},
+
+	// crypto instructions
+
+	// KM
+	{i: 124, as: AKM, a1: C_REG, a6: C_REG},
+
+	// KDSA
+	{i: 125, as: AKDSA, a1: C_REG, a6: C_REG},
+
+	// KMA
+	{i: 126, as: AKMA, a1: C_REG, a2: C_REG, a6: C_REG},
 
 	// vector instructions
 
@@ -1477,6 +1491,12 @@ func buildop(ctxt *obj.Link) {
 			opset(AVFMSDB, r)
 			opset(AWFMSDB, r)
 			opset(AVPERM, r)
+		case AKM:
+			opset(AKMC, r)
+			opset(AKLMD, r)
+			opset(AKIMD, r)
+		case AKMA:
+			opset(AKMCTR, r)
 		}
 	}
 }
@@ -1881,6 +1901,7 @@ const (
 	op_KM      uint32 = 0xB92E // FORMAT_RRE        CIPHER MESSAGE
 	op_KMAC    uint32 = 0xB91E // FORMAT_RRE        COMPUTE MESSAGE AUTHENTICATION CODE
 	op_KMC     uint32 = 0xB92F // FORMAT_RRE        CIPHER MESSAGE WITH CHAINING
+	op_KMA     uint32 = 0xB929 // FORMAT_RRF2       CIPHER MESSAGE WITH AUTHENTICATION
 	op_KMCTR   uint32 = 0xB92D // FORMAT_RRF2       CIPHER MESSAGE WITH COUNTER
 	op_KMF     uint32 = 0xB92A // FORMAT_RRE        CIPHER MESSAGE WITH CFB
 	op_KMO     uint32 = 0xB92B // FORMAT_RRE        CIPHER MESSAGE WITH OFB
@@ -2470,6 +2491,7 @@ const (
 	op_XSCH    uint32 = 0xB276 // FORMAT_S          CANCEL SUBCHANNEL
 	op_XY      uint32 = 0xE357 // FORMAT_RXY1       EXCLUSIVE OR (32)
 	op_ZAP     uint32 = 0xF800 // FORMAT_SS2        ZERO AND ADD
+	op_BRRK    uint32 = 0x0001 // FORMAT_E          BREAKPOINT
 
 	// added in z13
 	op_CXPT   uint32 = 0xEDAF // 	RSL-b	CONVERT FROM PACKED (to extended DFP)
@@ -2625,6 +2647,10 @@ const (
 	op_VUPLL  uint32 = 0xE7D4 // 	VRR-a	VECTOR UNPACK LOGICAL LOW
 	op_VUPL   uint32 = 0xE7D6 // 	VRR-a	VECTOR UNPACK LOW
 	op_VMSL   uint32 = 0xE7B8 // 	VRR-d	VECTOR MULTIPLY SUM LOGICAL
+
+	// added in z15
+	op_KDSA uint32 = 0xB93A // FORMAT_RRE        COMPUTE DIGITAL SIGNATURE AUTHENTICATION (KDSA)
+
 )
 
 func oclass(a *obj.Addr) int {
@@ -3605,6 +3631,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			zSIL(opcode, uint32(r), uint32(d), uint32(v), asm)
 		}
 
+	case 73: //Illegal opcode with SIGTRAP Exception
+		zE(op_BRRK, asm)
+
 	case 74: // mov reg addr (including relocation)
 		i2 := c.regoff(&p.To)
 		switch p.As {
@@ -4359,6 +4388,86 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		op, _, _ := vop(p.As)
 		m4 := c.regoff(&p.From)
 		zVRRc(op, uint32(p.To.Reg), uint32(p.Reg), uint32(p.GetFrom3().Reg), 0, 0, uint32(m4), asm)
+
+	case 124:
+		var opcode uint32
+		switch p.As {
+		default:
+			c.ctxt.Diag("unexpected opcode %v", p.As)
+		case AKM, AKMC, AKLMD:
+			if p.From.Reg == REG_R0 {
+				c.ctxt.Diag("input must not be R0 in %v", p)
+			}
+			if p.From.Reg&1 != 0 {
+				c.ctxt.Diag("input must be even register in %v", p)
+			}
+			if p.To.Reg == REG_R0 {
+				c.ctxt.Diag("second argument must not be R0 in %v", p)
+			}
+			if p.To.Reg&1 != 0 {
+				c.ctxt.Diag("second argument must be even register in %v", p)
+			}
+			if p.As == AKM {
+				opcode = op_KM
+			} else if p.As == AKMC {
+				opcode = op_KMC
+			} else {
+				opcode = op_KLMD
+			}
+		case AKIMD:
+			if p.To.Reg == REG_R0 {
+				c.ctxt.Diag("second argument must not be R0 in %v", p)
+			}
+			if p.To.Reg&1 != 0 {
+				c.ctxt.Diag("second argument must be even register in %v", p)
+			}
+			opcode = op_KIMD
+		}
+		zRRE(opcode, uint32(p.From.Reg), uint32(p.To.Reg), asm)
+
+	case 125: // KDSA sign and verify
+		if p.To.Reg == REG_R0 {
+			c.ctxt.Diag("second argument must not be R0 in %v", p)
+		}
+		if p.To.Reg&1 != 0 {
+			c.ctxt.Diag("second argument must be an even register in %v", p)
+		}
+		zRRE(op_KDSA, uint32(p.From.Reg), uint32(p.To.Reg), asm)
+
+	case 126: // KMA and KMCTR - CIPHER MESSAGE WITH AUTHENTICATION; CIPHER MESSAGE WITH
+		var opcode uint32
+		switch p.As {
+		default:
+			c.ctxt.Diag("unexpected opcode %v", p.As)
+		case AKMA, AKMCTR:
+			if p.From.Reg == REG_R0 {
+				c.ctxt.Diag("input argument must not be R0 in %v", p)
+			}
+			if p.From.Reg&1 != 0 {
+				c.ctxt.Diag("input argument must be even register in %v", p)
+			}
+			if p.To.Reg == REG_R0 {
+				c.ctxt.Diag("output argument must not be R0 in %v", p)
+			}
+			if p.To.Reg&1 != 0 {
+				c.ctxt.Diag("output argument must be an even register in %v", p)
+			}
+			if p.Reg == REG_R0 {
+				c.ctxt.Diag("third argument must not be R0 in %v", p)
+			}
+			if p.Reg&1 != 0 {
+				c.ctxt.Diag("third argument must be even register in %v", p)
+			}
+			if p.Reg == p.To.Reg || p.Reg == p.From.Reg {
+				c.ctxt.Diag("third argument must not be input or output argument registers in %v", p)
+			}
+			if p.As == AKMA {
+				opcode = op_KMA
+			} else if p.As == AKMCTR {
+				opcode = op_KMCTR
+			}
+		}
+		zRRF(opcode, uint32(p.From.Reg), 0, uint32(p.Reg), uint32(p.To.Reg), asm)
 	}
 }
 
@@ -4374,12 +4483,12 @@ func (c *ctxtz) regoff(a *obj.Addr) int32 {
 	return int32(c.vregoff(a))
 }
 
-// find if the displacement is within 12 bit
+// find if the displacement is within 12 bit.
 func isU12(displacement int32) bool {
 	return displacement >= 0 && displacement < DISP12
 }
 
-// zopload12 returns the RX op with 12 bit displacement for the given load
+// zopload12 returns the RX op with 12 bit displacement for the given load.
 func (c *ctxtz) zopload12(a obj.As) (uint32, bool) {
 	switch a {
 	case AFMOVD:
@@ -4390,7 +4499,7 @@ func (c *ctxtz) zopload12(a obj.As) (uint32, bool) {
 	return 0, false
 }
 
-// zopload returns the RXY op for the given load
+// zopload returns the RXY op for the given load.
 func (c *ctxtz) zopload(a obj.As) uint32 {
 	switch a {
 	// fixed point load
@@ -4428,7 +4537,7 @@ func (c *ctxtz) zopload(a obj.As) uint32 {
 	return 0
 }
 
-// zopstore12 returns the RX op with 12 bit displacement for the given store
+// zopstore12 returns the RX op with 12 bit displacement for the given store.
 func (c *ctxtz) zopstore12(a obj.As) (uint32, bool) {
 	switch a {
 	case AFMOVD:
@@ -4445,7 +4554,7 @@ func (c *ctxtz) zopstore12(a obj.As) (uint32, bool) {
 	return 0, false
 }
 
-// zopstore returns the RXY op for the given store
+// zopstore returns the RXY op for the given store.
 func (c *ctxtz) zopstore(a obj.As) uint32 {
 	switch a {
 	// fixed point store
@@ -4477,7 +4586,7 @@ func (c *ctxtz) zopstore(a obj.As) uint32 {
 	return 0
 }
 
-// zoprre returns the RRE op for the given a
+// zoprre returns the RRE op for the given a.
 func (c *ctxtz) zoprre(a obj.As) uint32 {
 	switch a {
 	case ACMP:
@@ -4495,7 +4604,7 @@ func (c *ctxtz) zoprre(a obj.As) uint32 {
 	return 0
 }
 
-// zoprr returns the RR op for the given a
+// zoprr returns the RR op for the given a.
 func (c *ctxtz) zoprr(a obj.As) uint32 {
 	switch a {
 	case ACMPW:
@@ -4507,7 +4616,7 @@ func (c *ctxtz) zoprr(a obj.As) uint32 {
 	return 0
 }
 
-// zopril returns the RIL op for the given a
+// zopril returns the RIL op for the given a.
 func (c *ctxtz) zopril(a obj.As) uint32 {
 	switch a {
 	case ACMP:

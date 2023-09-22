@@ -297,7 +297,7 @@ func hash4(b []byte) uint32 {
 }
 
 // bulkHash4 will compute hashes using the same
-// algorithm as hash4
+// algorithm as hash4.
 func bulkHash4(b []byte, dst []uint32) {
 	if len(b) < minMatchLength {
 		return

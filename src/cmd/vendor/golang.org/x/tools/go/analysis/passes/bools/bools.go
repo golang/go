@@ -22,6 +22,7 @@ const Doc = "check for common mistakes involving boolean operators"
 var Analyzer = &analysis.Analyzer{
 	Name:     "bools",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/bools",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

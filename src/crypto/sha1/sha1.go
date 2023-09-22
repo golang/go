@@ -10,6 +10,7 @@ package sha1
 
 import (
 	"crypto"
+	"crypto/internal/boring"
 	"encoding/binary"
 	"errors"
 	"hash"
@@ -56,7 +57,7 @@ func (d *digest) MarshalBinary() ([]byte, error) {
 	b = binary.BigEndian.AppendUint32(b, d.h[3])
 	b = binary.BigEndian.AppendUint32(b, d.h[4])
 	b = append(b, d.x[:d.nx]...)
-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
+	b = b[:len(b)+len(d.x)-d.nx] // already zero
 	b = binary.BigEndian.AppendUint64(b, d.len)
 	return b, nil
 }
@@ -107,8 +108,8 @@ func (d *digest) Reset() {
 // implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
 // marshal and unmarshal the internal state of the hash.
 func New() hash.Hash {
-	if boringEnabled {
-		return boringNewSHA1()
+	if boring.Enabled {
+		return boring.NewSHA1()
 	}
 	d := new(digest)
 	d.Reset()
@@ -120,7 +121,7 @@ func (d *digest) Size() int { return Size }
 func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
-	boringUnreachable()
+	boring.Unreachable()
 	nn = len(p)
 	d.len += uint64(nn)
 	if d.nx > 0 {
@@ -144,7 +145,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 }
 
 func (d *digest) Sum(in []byte) []byte {
-	boringUnreachable()
+	boring.Unreachable()
 	// Make a copy of d so that caller can keep writing and summing.
 	d0 := *d
 	hash := d0.checkSum()
@@ -154,18 +155,20 @@ func (d *digest) Sum(in []byte) []byte {
 func (d *digest) checkSum() [Size]byte {
 	len := d.len
 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
-	var tmp [64]byte
+	var tmp [64 + 8]byte // padding + length buffer
 	tmp[0] = 0x80
+	var t uint64
 	if len%64 < 56 {
-		d.Write(tmp[0 : 56-len%64])
+		t = 56 - len%64
 	} else {
-		d.Write(tmp[0 : 64+56-len%64])
+		t = 64 + 56 - len%64
 	}
 
 	// Length in bits.
 	len <<= 3
-	binary.BigEndian.PutUint64(tmp[:], len)
-	d.Write(tmp[0:8])
+	padlen := tmp[:t+8]
+	binary.BigEndian.PutUint64(padlen[t:], len)
+	d.Write(padlen)
 
 	if d.nx != 0 {
 		panic("d.nx != 0")
@@ -252,8 +255,8 @@ func (d *digest) constSum() [Size]byte {
 
 // Sum returns the SHA-1 checksum of the data.
 func Sum(data []byte) [Size]byte {
-	if boringEnabled {
-		return boringSHA1(data)
+	if boring.Enabled {
+		return boring.SHA1(data)
 	}
 	var d digest
 	d.Reset()

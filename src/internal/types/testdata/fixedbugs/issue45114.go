@@ -5,4 +5,4 @@
 package p
 
 var s uint
-var _ = string(1 /* ERROR shifted operand 1 .* must be integer */ << s)
+var _ = string(1 /* ERRORx `shifted operand 1 .* must be integer` */ << s)

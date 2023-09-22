@@ -9,12 +9,19 @@ type _[a t, b t, c /* ERROR "type parameters must be named" */ ] struct{}
 type _ struct {
 	t [n]byte
 	t[a]
+	t[a,]
 	t[a, b]
+	t[a, b,]
+}
+type _ struct {
+	t [n, /* ERROR "unexpected comma; expecting ]" */ ]byte
 }
 type _ interface {
 	t[a]
+	t[a,]
 	m[ /* ERROR "method must have no type parameters" */ _ _, /* ERROR mixed */ _]()
 	t[a, b]
+	t[a, b,]
 }
 
 func _[] /* ERROR "empty type parameter list" */ ()

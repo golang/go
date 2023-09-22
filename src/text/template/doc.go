@@ -5,7 +5,7 @@
 /*
 Package template implements data-driven templates for generating textual output.
 
-To generate HTML output, see package html/template, which has the same interface
+To generate HTML output, see [html/template], which has the same interface
 as this package but automatically secures HTML output against certain attacks.
 
 Templates are executed by applying them to a data structure. Annotations in the

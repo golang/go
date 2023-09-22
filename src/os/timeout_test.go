@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !plan9 && !windows
+//go:build !js && !plan9 && !wasip1 && !windows
 
 package os_test
 
@@ -25,6 +25,7 @@ func TestNonpollableDeadline(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
+	t.Parallel()
 
 	f, err := os.CreateTemp("", "ostest")
 	if err != nil {
@@ -244,7 +245,7 @@ const (
 	minDynamicTimeout = 1 * time.Millisecond
 
 	// maxDynamicTimeout is the maximum timeout to attempt for
-	// tests that automatically increase timeouts until succeess.
+	// tests that automatically increase timeouts until success.
 	//
 	// This should be a strict upper bound on the latency required to hit a
 	// timeout accurately, even on a slow or heavily-loaded machine. If a test
@@ -354,10 +355,11 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 		t.Logf("SetWriteDeadline(+%v)", d)
 		t0 := time.Now()
 		deadline := t0.Add(d)
-		if err = w.SetWriteDeadline(deadline); err != nil {
+		if err := w.SetWriteDeadline(deadline); err != nil {
 			t.Fatalf("SetWriteDeadline(%v): %v", deadline, err)
 		}
 		var n int64
+		var err error
 		for {
 			var dn int
 			dn, err = w.Write([]byte("TIMEOUT TRANSMITTER"))
@@ -367,8 +369,8 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 			}
 		}
 		t1 := time.Now()
-
-		if err == nil || !isDeadlineExceeded(err) {
+		// Inv: err != nil
+		if !isDeadlineExceeded(err) {
 			t.Fatalf("Write did not return (any, timeout): (%d, %v)", n, err)
 		}
 

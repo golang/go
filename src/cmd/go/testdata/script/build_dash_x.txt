@@ -3,7 +3,6 @@
 
 [!exec:/usr/bin/env] skip
 [!exec:bash] skip
-[!exec:cat] skip
 
 mkdir $WORK/tmp/cache
 env GOCACHE=$WORK/tmp/cache
@@ -22,7 +21,7 @@ go build runtime/cgo
 
 go build -x -o main main.go
 cp stderr commands.txt
-exec cat header.txt commands.txt
+cat header.txt commands.txt
 cp stdout test.sh
 
 exec ./main

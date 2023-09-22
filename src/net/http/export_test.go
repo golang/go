@@ -36,7 +36,7 @@ var (
 	Export_is408Message               = is408Message
 )
 
-const MaxWriteWaitBeforeConnReuse = maxWriteWaitBeforeConnReuse
+var MaxWriteWaitBeforeConnReuse = &maxWriteWaitBeforeConnReuse
 
 func init() {
 	// We only want to pay for this cost during testing.
@@ -60,7 +60,7 @@ func init() {
 	}
 }
 
-func CondSkipHTTP2(t *testing.T) {
+func CondSkipHTTP2(t testing.TB) {
 	if omitBundledHTTP2 {
 		t.Skip("skipping HTTP/2 test when nethttpomithttp2 build tag in use")
 	}
@@ -72,8 +72,6 @@ var (
 )
 
 func SetReadLoopBeforeNextReadHook(f func()) {
-	testHookMu.Lock()
-	defer testHookMu.Unlock()
 	unnilTestHook(&f)
 	testHookReadLoopBeforeNextRead = f
 }
@@ -144,9 +142,11 @@ func (t *Transport) IdleConnStrsForTesting_h2() []string {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
-	for k, cc := range pool.conns {
-		for range cc {
-			ret = append(ret, k)
+	for k, ccs := range pool.conns {
+		for _, cc := range ccs {
+			if cc.idleState().canTakeNewRequest {
+				ret = append(ret, k)
+			}
 		}
 	}
 
@@ -314,4 +314,22 @@ func ResponseWriterConnForTesting(w ResponseWriter) (c net.Conn, ok bool) {
 		return r.conn.rwc, true
 	}
 	return nil, false
+}
+
+func init() {
+	// Set the default rstAvoidanceDelay to the minimum possible value to shake
+	// out tests that unexpectedly depend on it. Such tests should use
+	// runTimeSensitiveTest and SetRSTAvoidanceDelay to explicitly raise the delay
+	// if needed.
+	rstAvoidanceDelay = 1 * time.Nanosecond
+}
+
+// SetRSTAvoidanceDelay sets how long we are willing to wait between calling
+// CloseWrite on a connection and fully closing the connection.
+func SetRSTAvoidanceDelay(t *testing.T, d time.Duration) {
+	prevDelay := rstAvoidanceDelay
+	t.Cleanup(func() {
+		rstAvoidanceDelay = prevDelay
+	})
+	rstAvoidanceDelay = d
 }

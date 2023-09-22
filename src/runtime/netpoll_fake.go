@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Fake network poller for wasm/js.
-// Should never be used, because wasm/js network connections do not honor "SetNonblock".
+// Fake network poller for js/wasm.
+// Should never be used, because js/wasm network connections do not honor "SetNonblock".
 
 //go:build js && wasm
 
@@ -30,6 +30,6 @@ func netpollarm(pd *pollDesc, mode int) {
 func netpollBreak() {
 }
 
-func netpoll(delay int64) gList {
-	return gList{}
+func netpoll(delay int64) (gList, int32) {
+	return gList{}, 0
 }

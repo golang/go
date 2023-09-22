@@ -55,22 +55,25 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archinit:         archinit,
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
-		Elfreloc1:        elfreloc1,
-		ElfrelocSize:     24,
-		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
 		MachorelocSize:   8,
 		PEreloc1:         pereloc1,
 		TLSIEtoLE:        tlsIEtoLE,
 
-		Linuxdynld:     "/lib64/ld-linux-x86-64.so.2",
-		LinuxdynldMusl: "/lib/ld-musl-x84_64.so.1",
-		Freebsddynld:   "/libexec/ld-elf.so.1",
-		Openbsddynld:   "/usr/libexec/ld.so",
-		Netbsddynld:    "/libexec/ld.elf_so",
-		Dragonflydynld: "/usr/libexec/ld-elf.so.2",
-		Solarisdynld:   "/lib/amd64/ld.so.1",
+		ELF: ld.ELFArch{
+			Linuxdynld:     "/lib64/ld-linux-x86-64.so.2",
+			LinuxdynldMusl: "/lib/ld-musl-x86_64.so.1",
+			Freebsddynld:   "/libexec/ld-elf.so.1",
+			Openbsddynld:   "/usr/libexec/ld.so",
+			Netbsddynld:    "/libexec/ld.elf_so",
+			Dragonflydynld: "/usr/libexec/ld-elf.so.2",
+			Solarisdynld:   "/lib/amd64/ld.so.1",
+
+			Reloc1:    elfreloc1,
+			RelocSize: 24,
+			SetupPLT:  elfsetupplt,
+		},
 	}
 
 	return arch, theArch
@@ -83,12 +86,11 @@ func archinit(ctxt *ld.Link) {
 
 	case objabi.Hplan9: /* plan 9 */
 		ld.HEADR = 32 + 8
-
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 0x200000 + int64(ld.HEADR)
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 0x200000
+		}
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = ld.Rnd(0x200000, *ld.FlagRound) + int64(ld.HEADR)
 		}
 
 	case objabi.Hdarwin: /* apple MACH */
@@ -97,7 +99,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 4096
 		}
 		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 0x1000000 + int64(ld.HEADR)
+			*ld.FlagTextAddr = ld.Rnd(0x1000000, *ld.FlagRound) + int64(ld.HEADR)
 		}
 
 	case objabi.Hlinux, /* elf64 executable */
@@ -109,11 +111,11 @@ func archinit(ctxt *ld.Link) {
 		ld.Elfinit(ctxt)
 
 		ld.HEADR = ld.ELFRESERVE
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = (1 << 22) + int64(ld.HEADR)
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 4096
+		}
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = ld.Rnd(1<<22, *ld.FlagRound) + int64(ld.HEADR)
 		}
 
 	case objabi.Hwindows: /* PE executable */

@@ -130,7 +130,7 @@ func TestObjImporter(t *testing.T) {
 		t.Skip("This test needs gccgo")
 	}
 
-	verout, err := exec.Command(gpath, "--version").CombinedOutput()
+	verout, err := testenv.Command(t, gpath, "--version").CombinedOutput()
 	if err != nil {
 		t.Logf("%s", verout)
 		t.Fatal(err)
@@ -171,7 +171,7 @@ func TestObjImporter(t *testing.T) {
 		ofile := filepath.Join(tmpdir, test.pkgpath+".o")
 		afile := filepath.Join(artmpdir, "lib"+test.pkgpath+".a")
 
-		cmd := exec.Command(gpath, "-fgo-pkgpath="+test.pkgpath, "-c", "-o", ofile, gofile)
+		cmd := testenv.Command(t, gpath, "-fgo-pkgpath="+test.pkgpath, "-c", "-o", ofile, gofile)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Logf("%s", out)
@@ -180,7 +180,7 @@ func TestObjImporter(t *testing.T) {
 
 		runImporterTest(t, imp, initmap, &test)
 
-		cmd = exec.Command("ar", "cr", afile, ofile)
+		cmd = testenv.Command(t, "ar", "cr", afile, ofile)
 		out, err = cmd.CombinedOutput()
 		if err != nil {
 			t.Logf("%s", out)

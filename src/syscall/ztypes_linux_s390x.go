@@ -449,12 +449,12 @@ type RtAttr struct {
 }
 
 type IfInfomsg struct {
-	Family uint8
-	_      uint8
-	Type   uint16
-	Index  int32
-	Flags  uint32
-	Change uint32
+	Family     uint8
+	X__ifi_pad uint8
+	Type       uint16
+	Index      int32
+	Flags      uint32
+	Change     uint32
 }
 
 type IfAddrmsg struct {
@@ -564,7 +564,7 @@ type Sysinfo_t struct {
 	Totalhigh uint64
 	Freehigh  uint64
 	Unit      uint32
-	_         [0]uint8
+	X_f       [0]uint8
 	_         [4]byte
 }
 

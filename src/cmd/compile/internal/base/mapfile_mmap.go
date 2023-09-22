@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris,go1.20
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
 package base
 
@@ -18,7 +17,7 @@ import (
 // TODO(mdempsky): Is there a higher-level abstraction that still
 // works well for iimport?
 
-// mapFile returns length bytes from the file starting at the
+// MapFile returns length bytes from the file starting at the
 // specified offset as a string.
 func MapFile(f *os.File, offset, length int64) (string, error) {
 	// POSIX mmap: "The implementation may require that off is a

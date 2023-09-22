@@ -8,6 +8,7 @@
 # tests seed values and the worker tests mutated values on the fuzz target.
 
 [short] skip
+env GOCACHE=$WORK/cache
 
 go test -fuzz=FuzzA -fuzztime=100x -parallel=1 -log=fuzz
 go run check_logs.go fuzz fuzz.worker

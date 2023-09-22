@@ -11,8 +11,8 @@ func _(s []int) {
         for range s {}
         for i = range s {}
         for i, j = range s {}
-        for i, j, k /* ERROR range clause permits at most two iteration variables|at most 2 expressions */ = range s {}
-        for i, j, k, l /* ERROR range clause permits at most two iteration variables|at most 2 expressions */ = range s {}
+        for i, j, k /* ERRORx "range clause permits at most two iteration variables|at most 2 expressions" */ = range s {}
+        for i, j, k, l /* ERRORx "range clause permits at most two iteration variables|at most 2 expressions" */ = range s {}
 }
 
 func _(s chan int) {
@@ -21,7 +21,7 @@ func _(s chan int) {
 
         for range s {}
         for i = range s {}
-        for i, j /* ERROR range over .* permits only one iteration variable */ = range s {}
-        for i, j, k /* ERROR range over .* permits only one iteration variable|at most 2 expressions */ = range s {}
-        for i, j, k, l /* ERROR range over .* permits only one iteration variable|at most 2 expressions */ = range s {}
+        for i, j /* ERRORx `range over .* permits only one iteration variable` */ = range s {}
+        for i, j, k /* ERRORx `range over .* permits only one iteration variable|at most 2 expressions` */ = range s {}
+        for i, j, k, l /* ERRORx `range over .* permits only one iteration variable|at most 2 expressions` */ = range s {}
 }

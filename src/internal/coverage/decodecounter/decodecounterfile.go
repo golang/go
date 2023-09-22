@@ -25,7 +25,6 @@ type CounterDataReader struct {
 	osargs   []string
 	goarch   string // GOARCH setting from run that produced counter data
 	goos     string // GOOS setting from run that produced counter data
-	nsegs    int
 	mr       io.ReadSeeker
 	hdr      coverage.CounterFileHeader
 	ftr      coverage.CounterFileFooter
@@ -63,7 +62,7 @@ func NewCounterDataReader(fn string, rs io.ReadSeeker) (*CounterDataReader, erro
 	}
 	// Seek back to just past the file header.
 	hsz := int64(unsafe.Sizeof(cdr.hdr))
-	if _, err := cdr.mr.Seek(hsz, os.SEEK_SET); err != nil {
+	if _, err := cdr.mr.Seek(hsz, io.SeekStart); err != nil {
 		return nil, err
 	}
 	// Read preamble for first segment.
@@ -73,17 +72,6 @@ func NewCounterDataReader(fn string, rs io.ReadSeeker) (*CounterDataReader, erro
 	return cdr, nil
 }
 
-func (cdr *CounterDataReader) readBytes(b []byte) error {
-	nr, err := cdr.mr.Read(b)
-	if err != nil {
-		return err
-	}
-	if nr != len(b) {
-		return io.EOF
-	}
-	return nil
-}
-
 func checkMagic(v [4]byte) bool {
 	g := coverage.CovCounterMagic
 	return v[0] == g[0] && v[1] == g[1] && v[2] == g[2] && v[3] == g[3]
@@ -91,7 +79,7 @@ func checkMagic(v [4]byte) bool {
 
 func (cdr *CounterDataReader) readFooter() error {
 	ftrSize := int64(unsafe.Sizeof(cdr.ftr))
-	if _, err := cdr.mr.Seek(-ftrSize, os.SEEK_END); err != nil {
+	if _, err := cdr.mr.Seek(-ftrSize, io.SeekEnd); err != nil {
 		return err
 	}
 	if err := binary.Read(cdr.mr, binary.LittleEndian, &cdr.ftr); err != nil {
@@ -127,13 +115,13 @@ func (cdr *CounterDataReader) readSegmentPreamble() error {
 		return err
 	}
 	// Seek past any padding to bring us up to a 4-byte boundary.
-	if of, err := cdr.mr.Seek(0, os.SEEK_CUR); err != nil {
+	if of, err := cdr.mr.Seek(0, io.SeekCurrent); err != nil {
 		return err
 	} else {
 		rem := of % 4
 		if rem != 0 {
 			pad := 4 - rem
-			if _, err := cdr.mr.Seek(pad, os.SEEK_CUR); err != nil {
+			if _, err := cdr.mr.Seek(pad, io.SeekCurrent); err != nil {
 				return err
 			}
 		}
@@ -248,7 +236,7 @@ func (cdr *CounterDataReader) NumSegments() uint32 {
 	return cdr.ftr.NumSegments
 }
 
-// BeginNextSegment sets up the the reader to read the next segment,
+// BeginNextSegment sets up the reader to read the next segment,
 // returning TRUE if we do have another segment to read, or FALSE
 // if we're done with all the segments (also an error if
 // something went wrong).
@@ -260,7 +248,7 @@ func (cdr *CounterDataReader) BeginNextSegment() (bool, error) {
 	cdr.fcnCount = 0
 	// Seek past footer from last segment.
 	ftrSize := int64(unsafe.Sizeof(cdr.ftr))
-	if _, err := cdr.mr.Seek(ftrSize, os.SEEK_CUR); err != nil {
+	if _, err := cdr.mr.Seek(ftrSize, io.SeekCurrent); err != nil {
 		return false, err
 	}
 	// Read preamble for this segment.

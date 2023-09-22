@@ -33,7 +33,6 @@
 #define SYS_access		33
 #define SYS_kill		37
 #define SYS_brk 		45
-#define SYS_fcntl		55
 #define SYS_munmap		91
 #define SYS_socketcall		102
 #define SYS_setittimer		104
@@ -52,15 +51,11 @@
 #define SYS_sched_getaffinity	242
 #define SYS_set_thread_area	243
 #define SYS_exit_group		252
-#define SYS_epoll_create	254
-#define SYS_epoll_ctl		255
-#define SYS_epoll_wait		256
 #define SYS_timer_create	259
 #define SYS_timer_settime	260
 #define SYS_timer_delete	263
 #define SYS_clock_gettime	265
 #define SYS_tgkill		270
-#define SYS_epoll_create1	329
 #define SYS_pipe2		331
 
 TEXT runtime·exit(SB),NOSPLIT,$0
@@ -77,7 +72,7 @@ TEXT exit1<>(SB),NOSPLIT,$0
 	INT $3	// not reached
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVL	wait+0(FP), AX
 	// We're done using the stack.
@@ -459,7 +454,17 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$28
 TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	JMP	runtime·sigtramp(SB)
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0
+// For cgo unwinding to work, this function must look precisely like
+// the one in glibc. The glibc source code is:
+// https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/i386/libc_sigaction.c;h=0665b41bbcd0986f0b33bf19a7ecbcedf9961d0a#l59
+// The code that cares about the precise instructions used is:
+// https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/config/i386/linux-unwind.h;h=5486223d60272c73d5103b29ae592d2ee998e1cf#l136
+//
+// For gdb unwinding to work, this function must look precisely like the one in
+// glibc and must be named "__restore_rt" or contain the string "sigaction" in
+// the name. The gdb source code is:
+// https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=gdb/i386-linux-tdep.c;h=a6adeca1b97416f7194341151a8ce30723a786a3#l168
+TEXT runtime·sigreturn__sigaction(SB),NOSPLIT,$0
 	MOVL	$SYS_rt_sigreturn, AX
 	// Sigreturn expects same SP as signal handler,
 	// so cannot CALL 0x10(GS) here.
@@ -724,53 +729,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 	MOVL	buf+8(FP), DX
 	INVOKE_SYSCALL
 	MOVL	AX, ret+12(FP)
-	RET
-
-// int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),NOSPLIT,$0
-	MOVL    $SYS_epoll_create, AX
-	MOVL	size+0(FP), BX
-	INVOKE_SYSCALL
-	MOVL	AX, ret+4(FP)
-	RET
-
-// int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),NOSPLIT,$0
-	MOVL    $SYS_epoll_create1, AX
-	MOVL	flags+0(FP), BX
-	INVOKE_SYSCALL
-	MOVL	AX, ret+4(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT,$0
-	MOVL	$SYS_epoll_ctl, AX
-	MOVL	epfd+0(FP), BX
-	MOVL	op+4(FP), CX
-	MOVL	fd+8(FP), DX
-	MOVL	ev+12(FP), SI
-	INVOKE_SYSCALL
-	MOVL	AX, ret+16(FP)
-	RET
-
-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),NOSPLIT,$0
-	MOVL	$SYS_epoll_wait, AX
-	MOVL	epfd+0(FP), BX
-	MOVL	ev+4(FP), CX
-	MOVL	nev+8(FP), DX
-	MOVL	timeout+12(FP), SI
-	INVOKE_SYSCALL
-	MOVL	AX, ret+16(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVL	$SYS_fcntl, AX
-	MOVL	fd+0(FP), BX  // fd
-	MOVL	$2, CX  // F_SETFD
-	MOVL	$1, DX  // FD_CLOEXEC
-	INVOKE_SYSCALL
 	RET
 
 // int access(const char *name, int mode)

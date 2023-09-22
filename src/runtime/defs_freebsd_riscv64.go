@@ -18,7 +18,10 @@ const (
 	_EAGAIN    = 0x23
 	_ETIMEDOUT = 0x3c
 
+	_O_WRONLY   = 0x1
 	_O_NONBLOCK = 0x4
+	_O_CREAT    = 0x200
+	_O_TRUNC    = 0x400
 	_O_CLOEXEC  = 0x100000
 
 	_PROT_NONE  = 0x0

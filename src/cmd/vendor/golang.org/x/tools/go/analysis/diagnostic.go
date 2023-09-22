@@ -20,14 +20,24 @@ type Diagnostic struct {
 	Category string    // optional
 	Message  string
 
-	// SuggestedFixes contains suggested fixes for a diagnostic which can be used to perform
-	// edits to a file that address the diagnostic.
-	// TODO(matloob): Should multiple SuggestedFixes be allowed for a diagnostic?
+	// URL is the optional location of a web page that provides
+	// additional documentation for this diagnostic.
+	//
+	// If URL is empty but a Category is specified, then the
+	// Analysis driver should treat the URL as "#"+Category.
+	//
+	// The URL may be relative. If so, the base URL is that of the
+	// Analyzer that produced the diagnostic;
+	// see https://pkg.go.dev/net/url#URL.ResolveReference.
+	URL string
+
+	// SuggestedFixes contains suggested fixes for a diagnostic
+	// which can be used to perform edits to a file that address
+	// the diagnostic.
+	//
 	// Diagnostics should not contain SuggestedFixes that overlap.
-	// Experimental: This API is experimental and may change in the future.
 	SuggestedFixes []SuggestedFix // optional
 
-	// Experimental: This API is experimental and may change in the future.
 	Related []RelatedInformation // optional
 }
 
@@ -37,16 +47,16 @@ type Diagnostic struct {
 // declaration.
 type RelatedInformation struct {
 	Pos     token.Pos
-	End     token.Pos
+	End     token.Pos // optional
 	Message string
 }
 
-// A SuggestedFix is a code change associated with a Diagnostic that a user can choose
-// to apply to their code. Usually the SuggestedFix is meant to fix the issue flagged
-// by the diagnostic.
-// TextEdits for a SuggestedFix should not overlap. TextEdits for a SuggestedFix
-// should not contain edits for other packages.
-// Experimental: This API is experimental and may change in the future.
+// A SuggestedFix is a code change associated with a Diagnostic that a
+// user can choose to apply to their code. Usually the SuggestedFix is
+// meant to fix the issue flagged by the diagnostic.
+//
+// TextEdits for a SuggestedFix should not overlap,
+// nor contain edits for other packages.
 type SuggestedFix struct {
 	// A description for this suggested fix to be shown to a user deciding
 	// whether to accept it.
@@ -56,7 +66,6 @@ type SuggestedFix struct {
 
 // A TextEdit represents the replacement of the code between Pos and End with the new text.
 // Each TextEdit should apply to a single file. End should not be earlier in the file than Pos.
-// Experimental: This API is experimental and may change in the future.
 type TextEdit struct {
 	// For a pure insertion, End can either be set to Pos or token.NoPos.
 	Pos     token.Pos

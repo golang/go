@@ -1,0 +1,33 @@
+handle bzr
+
+env BZR_EMAIL='Russ Cox <rsc@google.com>'
+env EMAIL='Russ Cox <rsc@google.com>'
+
+bzr init-repo .
+
+bzr init b
+cd b
+cp ../hello.go .
+bzr add hello.go
+bzr commit --commit-time='2017-09-21 21:20:12 -0400' -m 'hello world'
+bzr push ..
+cd ..
+rm b
+
+bzr log
+cmp stdout .bzr-log
+
+-- .bzr-log --
+------------------------------------------------------------
+revno: 1
+committer: Russ Cox <rsc@google.com>
+branch nick: b
+timestamp: Thu 2017-09-21 21:20:12 -0400
+message:
+  hello world
+-- hello.go --
+package main
+
+func main() {
+	println("hello, world")
+}

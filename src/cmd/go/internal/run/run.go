@@ -69,6 +69,9 @@ func init() {
 	CmdRun.Run = runRun // break init loop
 
 	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
+	if cfg.Experiment != nil && cfg.Experiment.CoverageRedesign {
+		work.AddCoverFlags(CmdRun, nil)
+	}
 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 
@@ -94,7 +97,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	b := work.NewBuilder("")
 	defer func() {
 		if err := b.Close(); err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 	}()
 	b.Print = printStderr
@@ -122,7 +125,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 			var err error
 			pkgs, err = load.PackagesAndErrorsOutsideModule(ctx, pkgOpts, args[:1])
 			if err != nil {
-				base.Fatalf("go: %v", err)
+				base.Fatal(err)
 			}
 		} else {
 			pkgs = load.PackagesAndErrors(ctx, pkgOpts, args[:1])
@@ -145,6 +148,10 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	cmdArgs := args[i:]
 	load.CheckPackageErrors([]*load.Package{p})
+
+	if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+		load.PrepareForCoverageBuild([]*load.Package{p})
+	}
 
 	p.Internal.OmitDebug = true
 	p.Target = "" // must build - not up to date
@@ -170,7 +177,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
-	a := &work.Action{Mode: "go run", Func: buildRunProgram, Args: cmdArgs, Deps: []*work.Action{a1}}
+	a := &work.Action{Mode: "go run", Actor: work.ActorFunc(buildRunProgram), Args: cmdArgs, Deps: []*work.Action{a1}}
 	b.Do(ctx, a)
 }
 

@@ -1243,6 +1243,51 @@ const (
 	DnsSectionAdditional = 0x0003
 )
 
+const (
+	// flags of WSALookupService
+	LUP_DEEP                = 0x0001
+	LUP_CONTAINERS          = 0x0002
+	LUP_NOCONTAINERS        = 0x0004
+	LUP_NEAREST             = 0x0008
+	LUP_RETURN_NAME         = 0x0010
+	LUP_RETURN_TYPE         = 0x0020
+	LUP_RETURN_VERSION      = 0x0040
+	LUP_RETURN_COMMENT      = 0x0080
+	LUP_RETURN_ADDR         = 0x0100
+	LUP_RETURN_BLOB         = 0x0200
+	LUP_RETURN_ALIASES      = 0x0400
+	LUP_RETURN_QUERY_STRING = 0x0800
+	LUP_RETURN_ALL          = 0x0FF0
+	LUP_RES_SERVICE         = 0x8000
+
+	LUP_FLUSHCACHE    = 0x1000
+	LUP_FLUSHPREVIOUS = 0x2000
+
+	LUP_NON_AUTHORITATIVE      = 0x4000
+	LUP_SECURE                 = 0x8000
+	LUP_RETURN_PREFERRED_NAMES = 0x10000
+	LUP_DNS_ONLY               = 0x20000
+
+	LUP_ADDRCONFIG           = 0x100000
+	LUP_DUAL_ADDR            = 0x200000
+	LUP_FILESERVER           = 0x400000
+	LUP_DISABLE_IDN_ENCODING = 0x00800000
+	LUP_API_ANSI             = 0x01000000
+
+	LUP_RESOLUTION_HANDLE = 0x80000000
+)
+
+const (
+	// values of WSAQUERYSET's namespace
+	NS_ALL       = 0
+	NS_DNS       = 12
+	NS_NLA       = 15
+	NS_BTH       = 16
+	NS_EMAIL     = 37
+	NS_PNRPNAME  = 38
+	NS_PNRPCLOUD = 39
+)
+
 type DNSSRVData struct {
 	Target   *uint16
 	Priority uint16
@@ -2175,19 +2220,23 @@ type JOBOBJECT_BASIC_UI_RESTRICTIONS struct {
 }
 
 const (
-	// JobObjectInformationClass
+	// JobObjectInformationClass for QueryInformationJobObject and SetInformationJobObject
 	JobObjectAssociateCompletionPortInformation = 7
+	JobObjectBasicAccountingInformation         = 1
+	JobObjectBasicAndIoAccountingInformation    = 8
 	JobObjectBasicLimitInformation              = 2
+	JobObjectBasicProcessIdList                 = 3
 	JobObjectBasicUIRestrictions                = 4
 	JobObjectCpuRateControlInformation          = 15
 	JobObjectEndOfJobTimeInformation            = 6
 	JobObjectExtendedLimitInformation           = 9
 	JobObjectGroupInformation                   = 11
 	JobObjectGroupInformationEx                 = 14
-	JobObjectLimitViolationInformation2         = 35
+	JobObjectLimitViolationInformation          = 13
+	JobObjectLimitViolationInformation2         = 34
 	JobObjectNetRateControlInformation          = 32
 	JobObjectNotificationLimitInformation       = 12
-	JobObjectNotificationLimitInformation2      = 34
+	JobObjectNotificationLimitInformation2      = 33
 	JobObjectSecurityLimitInformation           = 5
 )
 
@@ -3213,3 +3262,88 @@ type ModuleInfo struct {
 }
 
 const ALL_PROCESSOR_GROUPS = 0xFFFF
+
+type Rect struct {
+	Left   int32
+	Top    int32
+	Right  int32
+	Bottom int32
+}
+
+type GUIThreadInfo struct {
+	Size        uint32
+	Flags       uint32
+	Active      HWND
+	Focus       HWND
+	Capture     HWND
+	MenuOwner   HWND
+	MoveSize    HWND
+	CaretHandle HWND
+	CaretRect   Rect
+}
+
+const (
+	DWMWA_NCRENDERING_ENABLED            = 1
+	DWMWA_NCRENDERING_POLICY             = 2
+	DWMWA_TRANSITIONS_FORCEDISABLED      = 3
+	DWMWA_ALLOW_NCPAINT                  = 4
+	DWMWA_CAPTION_BUTTON_BOUNDS          = 5
+	DWMWA_NONCLIENT_RTL_LAYOUT           = 6
+	DWMWA_FORCE_ICONIC_REPRESENTATION    = 7
+	DWMWA_FLIP3D_POLICY                  = 8
+	DWMWA_EXTENDED_FRAME_BOUNDS          = 9
+	DWMWA_HAS_ICONIC_BITMAP              = 10
+	DWMWA_DISALLOW_PEEK                  = 11
+	DWMWA_EXCLUDED_FROM_PEEK             = 12
+	DWMWA_CLOAK                          = 13
+	DWMWA_CLOAKED                        = 14
+	DWMWA_FREEZE_REPRESENTATION          = 15
+	DWMWA_PASSIVE_UPDATE_MODE            = 16
+	DWMWA_USE_HOSTBACKDROPBRUSH          = 17
+	DWMWA_USE_IMMERSIVE_DARK_MODE        = 20
+	DWMWA_WINDOW_CORNER_PREFERENCE       = 33
+	DWMWA_BORDER_COLOR                   = 34
+	DWMWA_CAPTION_COLOR                  = 35
+	DWMWA_TEXT_COLOR                     = 36
+	DWMWA_VISIBLE_FRAME_BORDER_THICKNESS = 37
+)
+
+type WSAQUERYSET struct {
+	Size                uint32
+	ServiceInstanceName *uint16
+	ServiceClassId      *GUID
+	Version             *WSAVersion
+	Comment             *uint16
+	NameSpace           uint32
+	NSProviderId        *GUID
+	Context             *uint16
+	NumberOfProtocols   uint32
+	AfpProtocols        *AFProtocols
+	QueryString         *uint16
+	NumberOfCsAddrs     uint32
+	SaBuffer            *CSAddrInfo
+	OutputFlags         uint32
+	Blob                *BLOB
+}
+
+type WSAVersion struct {
+	Version                 uint32
+	EnumerationOfComparison int32
+}
+
+type AFProtocols struct {
+	AddressFamily int32
+	Protocol      int32
+}
+
+type CSAddrInfo struct {
+	LocalAddr  SocketAddress
+	RemoteAddr SocketAddress
+	SocketType int32
+	Protocol   int32
+}
+
+type BLOB struct {
+	Size     uint32
+	BlobData *byte
+}

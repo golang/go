@@ -1,6 +1,0 @@
-[!net] skip
-[!exec:git] skip
-env GO111MODULE=off
-
-go get -u rsc.io/pdf/...
-exists $GOPATH/bin/pdfpasswd$GOEXE

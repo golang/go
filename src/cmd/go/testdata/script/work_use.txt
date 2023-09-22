@@ -1,6 +1,10 @@
 go work use -r foo
 cmp go.work go.want_work_r
 
+! go work use other
+stderr '^go: error reading other'${/}'go.mod: missing module declaration'
+
+go mod edit -C other -module=other
 go work use other
 cmp go.work go.want_work_other
 -- go.work --

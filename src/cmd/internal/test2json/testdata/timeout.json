@@ -1,0 +1,8 @@
+{"Action":"start"}
+{"Action":"run","Test":"Test"}
+{"Action":"output","Test":"Test","Output":"=== RUN   Test\n"}
+{"Action":"output","Test":"Test","Output":"panic: test timed out after 1s\n"}
+{"Action":"output","Test":"Test","Output":"\n"}
+{"Action":"output","Output":"FAIL\tp\t1.111s\n"}
+{"Action":"output","Output":"FAIL\n"}
+{"Action":"fail"}

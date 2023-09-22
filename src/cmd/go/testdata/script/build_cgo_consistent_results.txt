@@ -1,8 +1,8 @@
 [short] skip
 [!cgo] skip
 
-[solaris] skip "skipping on Solaris; see golang.org/issue/13247"
-[illumos] skip "skipping on Solaris; see golang.org/issue/13247"
+[GOOS:solaris] skip "skipping on Solaris; see golang.org/issue/13247"
+[GOOS:illumos] skip "skipping on Solaris; see golang.org/issue/13247"
 
 go build -o $WORK/exe1$GOEXE cgotest
 go build -x -o $WORK/exe2$GOEXE cgotest

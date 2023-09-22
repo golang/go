@@ -23,7 +23,7 @@ TEXT _rt0_arm64_windows_lib_go(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$runtime·rt0_go(SB), R2
 	B	(R2)
 
-TEXT main(SB),NOSPLIT,$0
+TEXT main(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$runtime·rt0_go(SB), R2
 	B	(R2)
 

@@ -4,20 +4,20 @@ env GO111MODULE=on
 cd $WORK
 
 go list -e -f {{.Error}} .
-stdout 'no Go files in \$WORK'
+stdout 'no Go files in '$WORK
 
 go list -e -f {{.Error}} ./empty
-stdout 'no Go files in \$WORK[/\\]empty'
+stdout 'no Go files in '$WORK${/}'empty'
 
 go list -e -f {{.Error}} ./exclude
-stdout 'build constraints exclude all Go files in \$WORK[/\\]exclude'
+stdout 'build constraints exclude all Go files in '$WORK${/}'exclude'
 
 go list -e -f {{.Error}} ./missing
 stdout 'stat '$WORK'[/\\]missing: directory not found'
 
 # use 'go build -n' because 'go list' reports no error.
 ! go build -n ./testonly
-stderr 'example.com/m/testonly: no non-test Go files in \$WORK[/\\]testonly'
+stderr 'example.com/m/testonly: no non-test Go files in '$WORK${/}'testonly'
 
 -- $WORK/go.mod --
 module example.com/m

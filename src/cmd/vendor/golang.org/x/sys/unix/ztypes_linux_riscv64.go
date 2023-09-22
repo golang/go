@@ -276,6 +276,12 @@ type Sigset_t struct {
 
 const _C__NSIG = 0x41
 
+const (
+	SIG_BLOCK   = 0x0
+	SIG_UNBLOCK = 0x1
+	SIG_SETMASK = 0x2
+)
+
 type Siginfo struct {
 	Signo int32
 	Errno int32
@@ -351,6 +357,8 @@ type Taskstats struct {
 	Ac_exe_inode              uint64
 	Wpcopy_count              uint64
 	Wpcopy_delay_total        uint64
+	Irq_count                 uint64
+	Irq_delay_total           uint64
 }
 
 type cpuMask uint64
@@ -428,7 +436,7 @@ const (
 
 type SockaddrStorage struct {
 	Family uint16
-	_      [118]uint8
+	Data   [118]byte
 	_      uint64
 }
 
@@ -710,3 +718,26 @@ type SysvShmDesc struct {
 	_      uint64
 	_      uint64
 }
+
+type RISCVHWProbePairs struct {
+	Key   int64
+	Value uint64
+}
+
+const (
+	RISCV_HWPROBE_KEY_MVENDORID          = 0x0
+	RISCV_HWPROBE_KEY_MARCHID            = 0x1
+	RISCV_HWPROBE_KEY_MIMPID             = 0x2
+	RISCV_HWPROBE_KEY_BASE_BEHAVIOR      = 0x3
+	RISCV_HWPROBE_BASE_BEHAVIOR_IMA      = 0x1
+	RISCV_HWPROBE_KEY_IMA_EXT_0          = 0x4
+	RISCV_HWPROBE_IMA_FD                 = 0x1
+	RISCV_HWPROBE_IMA_C                  = 0x2
+	RISCV_HWPROBE_KEY_CPUPERF_0          = 0x5
+	RISCV_HWPROBE_MISALIGNED_UNKNOWN     = 0x0
+	RISCV_HWPROBE_MISALIGNED_EMULATED    = 0x1
+	RISCV_HWPROBE_MISALIGNED_SLOW        = 0x2
+	RISCV_HWPROBE_MISALIGNED_FAST        = 0x3
+	RISCV_HWPROBE_MISALIGNED_UNSUPPORTED = 0x4
+	RISCV_HWPROBE_MISALIGNED_MASK        = 0x7
+)

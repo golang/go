@@ -33,6 +33,7 @@ var Anames = []string{
 	"LU12IW",
 	"LU32ID",
 	"LU52ID",
+	"PCALAU12I",
 	"PCADDU12I",
 	"JIRL",
 	"BGE",
@@ -130,5 +131,8 @@ var Anames = []string{
 	"MOVDV",
 	"MOVVF",
 	"MOVVD",
+	"RDTIMELW",
+	"RDTIMEHW",
+	"RDTIMED",
 	"LAST",
 }

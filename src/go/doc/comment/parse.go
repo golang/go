@@ -5,7 +5,7 @@
 package comment
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -260,10 +260,8 @@ func (d *parseDoc) lookupPkg(pkg string) (importPath string, ok bool) {
 }
 
 func isStdPkg(path string) bool {
-	// TODO(rsc): Use sort.Find once we don't have to worry about
-	// copying this code into older Go environments.
-	i := sort.Search(len(stdPkgs), func(i int) bool { return stdPkgs[i] >= path })
-	return i < len(stdPkgs) && stdPkgs[i] == path
+	_, ok := slices.BinarySearch(stdPkgs, path)
+	return ok
 }
 
 // DefaultLookupPackage is the default package lookup
@@ -851,9 +849,7 @@ func (d *parseDoc) docLink(text, before, after string) (link *DocLink, ok bool) 
 			return nil, false
 		}
 	}
-	if strings.HasPrefix(text, "*") {
-		text = text[1:]
-	}
+	text = strings.TrimPrefix(text, "*")
 	pkg, name, ok := splitDocName(text)
 	var recv string
 	if ok {

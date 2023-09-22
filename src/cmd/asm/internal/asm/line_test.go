@@ -39,7 +39,7 @@ func testBadInstParser(t *testing.T, goarch string, tests []badInstTest) {
 	for i, test := range tests {
 		arch, ctxt := setArch(goarch)
 		tokenizer := lex.NewTokenizer("", strings.NewReader(test.input+"\n"), nil)
-		parser := NewParser(ctxt, arch, tokenizer, false)
+		parser := NewParser(ctxt, arch, tokenizer)
 
 		err := tryParse(t, func() {
 			parser.Parse()

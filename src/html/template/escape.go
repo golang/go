@@ -8,7 +8,9 @@ import (
 	"bytes"
 	"fmt"
 	"html"
+	"internal/godebug"
 	"io"
+	"regexp"
 	"text/template"
 	"text/template/parse"
 )
@@ -160,6 +162,8 @@ func (e *escaper) escape(c context, n parse.Node) context {
 	panic("escaping " + n.String() + " is unimplemented")
 }
 
+var debugAllowActionJSTmpl = godebug.New("jstmpllitinterp")
+
 // escapeAction escapes an action template node.
 func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	if len(n.Pipe.Decl) != 0 {
@@ -223,6 +227,16 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		c.jsCtx = jsCtxDivOp
 	case stateJSDqStr, stateJSSqStr:
 		s = append(s, "_html_template_jsstrescaper")
+	case stateJSBqStr:
+		if debugAllowActionJSTmpl.Value() == "1" {
+			debugAllowActionJSTmpl.IncNonDefault()
+			s = append(s, "_html_template_jsstrescaper")
+		} else {
+			return context{
+				state: stateError,
+				err:   errorf(ErrJSTemplate, n, n.Line, "%s appears in a JS template literal", n),
+			}
+		}
 	case stateJSRegexp:
 		s = append(s, "_html_template_jsregexpescaper")
 	case stateCSS:
@@ -369,9 +383,8 @@ func normalizeEscFn(e string) string {
 // for all x.
 var redundantFuncs = map[string]map[string]bool{
 	"_html_template_commentescaper": {
-		"_html_template_attrescaper":    true,
-		"_html_template_nospaceescaper": true,
-		"_html_template_htmlescaper":    true,
+		"_html_template_attrescaper": true,
+		"_html_template_htmlescaper": true,
 	},
 	"_html_template_cssescaper": {
 		"_html_template_attrescaper": true,
@@ -717,6 +730,26 @@ var delimEnds = [...]string{
 	delimSpaceOrTagEnd: " \t\n\f\r>",
 }
 
+var (
+	// Per WHATWG HTML specification, section 4.12.1.3, there are extremely
+	// complicated rules for how to handle the set of opening tags <!--,
+	// <script, and </script when they appear in JS literals (i.e. strings,
+	// regexs, and comments). The specification suggests a simple solution,
+	// rather than implementing the arcane ABNF, which involves simply escaping
+	// the opening bracket with \x3C. We use the below regex for this, since it
+	// makes doing the case-insensitive find-replace much simpler.
+	specialScriptTagRE          = regexp.MustCompile("(?i)<(script|/script|!--)")
+	specialScriptTagReplacement = []byte("\\x3C$1")
+)
+
+func containsSpecialScriptTag(s []byte) bool {
+	return specialScriptTagRE.Match(s)
+}
+
+func escapeSpecialScriptTags(s []byte) []byte {
+	return specialScriptTagRE.ReplaceAll(s, specialScriptTagReplacement)
+}
+
 var doctypeBytes = []byte("<!DOCTYPE")
 
 // escapeText escapes a text template node.
@@ -745,7 +778,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 		} else if isComment(c.state) && c.delim == delimNone {
 			switch c.state {
 			case stateJSBlockCmt:
-				// https://es5.github.com/#x7.4:
+				// https://es5.github.io/#x7.4:
 				// "Comments behave like white space and are
 				// discarded except that, if a MultiLineComment
 				// contains a line terminator character, then
@@ -765,11 +798,19 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 		if c.state != c1.state && isComment(c1.state) && c1.delim == delimNone {
 			// Preserve the portion between written and the comment start.
 			cs := i1 - 2
-			if c1.state == stateHTMLCmt {
+			if c1.state == stateHTMLCmt || c1.state == stateJSHTMLOpenCmt {
 				// "<!--" instead of "/*" or "//"
 				cs -= 2
+			} else if c1.state == stateJSHTMLCloseCmt {
+				// "-->" instead of "/*" or "//"
+				cs -= 1
 			}
 			b.Write(s[written:cs])
+			written = i1
+		}
+		if isInScriptLiteral(c.state) && containsSpecialScriptTag(s[i:i1]) {
+			b.Write(s[written:i])
+			b.Write(escapeSpecialScriptTags(s[i:i1]))
 			written = i1
 		}
 		if i == i1 && c.state == c1.state {

@@ -41,7 +41,12 @@ func semasleep(ns int64) int32 {
 	if ns >= 0 {
 		start = nanotime()
 	}
-	mp := getg().m
+	g := getg()
+	mp := g.m
+	if g == mp.gsignal {
+		// sema sleep/wakeup are implemented with pthreads, which are not async-signal-safe on Darwin.
+		throw("semasleep on Darwin signal stack")
+	}
 	pthread_mutex_lock(&mp.mutex)
 	for {
 		if mp.count > 0 {
@@ -70,6 +75,9 @@ func semasleep(ns int64) int32 {
 
 //go:nosplit
 func semawakeup(mp *m) {
+	if g := getg(); g == g.m.gsignal {
+		throw("semawakeup on Darwin signal stack")
+	}
 	pthread_mutex_lock(&mp.mutex)
 	mp.count++
 	if mp.count > 0 {
@@ -81,7 +89,7 @@ func semawakeup(mp *m) {
 // The read and write file descriptors used by the sigNote functions.
 var sigNoteRead, sigNoteWrite int32
 
-// sigNoteSetup initializes an async-signal-safe note.
+// sigNoteSetup initializes a single, there-can-only-be-one, async-signal-safe note.
 //
 // The current implementation of notes on Darwin is not async-signal-safe,
 // because the functions pthread_mutex_lock, pthread_cond_signal, and
@@ -93,6 +101,7 @@ var sigNoteRead, sigNoteWrite int32
 // not support timed waits but is async-signal-safe.
 func sigNoteSetup(*note) {
 	if sigNoteRead != 0 || sigNoteWrite != 0 {
+		// Generalizing this would require avoiding the pipe-fork-closeonexec race, which entangles syscall.
 		throw("duplicate sigNoteSetup")
 	}
 	var errno int32
@@ -136,6 +145,8 @@ func osinit() {
 
 	ncpu = getncpu()
 	physPageSize = getPageSize()
+
+	osinit_hack()
 }
 
 func sysctlbynameInt32(name []byte) (int32, int32) {
@@ -208,21 +219,21 @@ func newosproc(mp *m) {
 	var err int32
 	err = pthread_attr_init(&attr)
 	if err != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 
 	// Find out OS stack size for our own stack guard.
 	var stacksize uintptr
 	if pthread_attr_getstacksize(&attr, &stacksize) != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 	mp.g0.stack.hi = stacksize // for mstart
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 
@@ -230,10 +241,12 @@ func newosproc(mp *m) {
 	// setup and then calls mstart.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	err = pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
+	err = retryOnEAGAIN(func() int32 {
+		return pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if err != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 }
@@ -253,7 +266,7 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 	var err int32
 	err = pthread_attr_init(&attr)
 	if err != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 
@@ -263,7 +276,7 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 	// we use the OS default stack size instead of the suggestion.
 	// Find out that stack size for our own stack guard.
 	if pthread_attr_getstacksize(&attr, &stacksize) != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 	g0.stack.hi = stacksize // for mstart
@@ -271,7 +284,7 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 
@@ -282,13 +295,10 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 	err = pthread_create(&attr, fn, nil)
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if err != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 }
-
-var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
-var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 
 // Called to do synchronous initialization of Go code built with
 // -buildmode=c-archive or -buildmode=c-shared.
@@ -334,6 +344,7 @@ func unminit() {
 	if !(GOOS == "ios" && GOARCH == "arm64") {
 		unminitSignals()
 	}
+	getg().m.procid = 0
 }
 
 // Called from exitm, but not from drop, to undo the effect of thread-owned
@@ -412,7 +423,7 @@ func getsig(i uint32) uintptr {
 	return *(*uintptr)(unsafe.Pointer(&sa.__sigaction_u))
 }
 
-// setSignaltstackSP sets the ss_sp field of a stackt.
+// setSignalstackSP sets the ss_sp field of a stackt.
 //
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {

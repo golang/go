@@ -26,7 +26,7 @@ func (c *sigctxt) rsi() uint64 { return c.regs().__gregs[_REG_RSI] }
 func (c *sigctxt) rbp() uint64 { return c.regs().__gregs[_REG_RBP] }
 func (c *sigctxt) rsp() uint64 { return c.regs().__gregs[_REG_RSP] }
 func (c *sigctxt) r8() uint64  { return c.regs().__gregs[_REG_R8] }
-func (c *sigctxt) r9() uint64  { return c.regs().__gregs[_REG_R8] }
+func (c *sigctxt) r9() uint64  { return c.regs().__gregs[_REG_R9] }
 func (c *sigctxt) r10() uint64 { return c.regs().__gregs[_REG_R10] }
 func (c *sigctxt) r11() uint64 { return c.regs().__gregs[_REG_R11] }
 func (c *sigctxt) r12() uint64 { return c.regs().__gregs[_REG_R12] }

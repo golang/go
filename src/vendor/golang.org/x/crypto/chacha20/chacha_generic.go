@@ -12,7 +12,7 @@ import (
 	"errors"
 	"math/bits"
 
-	"golang.org/x/crypto/internal/subtle"
+	"golang.org/x/crypto/internal/alias"
 )
 
 const (
@@ -189,7 +189,7 @@ func (s *Cipher) XORKeyStream(dst, src []byte) {
 		panic("chacha20: output smaller than input")
 	}
 	dst = dst[:len(src)]
-	if subtle.InexactOverlap(dst, src) {
+	if alias.InexactOverlap(dst, src) {
 		panic("chacha20: invalid buffer overlap")
 	}
 

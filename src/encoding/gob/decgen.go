@@ -180,6 +180,7 @@ func main() {
 		fmt.Fprintf(&b, arrayHelper, t.lower, t.upper)
 		fmt.Fprintf(&b, sliceHelper, t.lower, t.upper, t.decoder)
 	}
+	fmt.Fprintf(&b, trailer)
 	source, err := format.Source(b.Bytes())
 	if err != nil {
 		log.Fatal("source format error:", err)
@@ -236,8 +237,29 @@ func dec%[2]sSlice(state *decoderState, v reflect.Value, length int, ovfl error)
 		if state.b.Len() == 0 {
 			errorf("decoding %[1]s array or slice: length exceeds input size (%%d elements)", length)
 		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
+		}
 		%[3]s
 	}
 	return true
+}
+`
+
+const trailer = `
+// growSlice is called for a slice that we only partially allocated,
+// to grow it up to length.
+func growSlice[E any](v reflect.Value, ps *[]E, length int) {
+	var zero E
+	s := *ps
+	s = append(s, zero)
+	cp := cap(s)
+	if cp > length {
+		cp = length
+	}
+	s = s[:cp]
+	v.Set(reflect.ValueOf(s))
+	*ps = s
 }
 `

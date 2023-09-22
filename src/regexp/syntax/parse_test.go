@@ -160,6 +160,7 @@ var parseTests = []parseTest{
 
 	// Test named captures
 	{`(?P<name>a)`, `cap{name:lit{a}}`},
+	{`(?<name>a)`, `cap{name:lit{a}}`},
 
 	// Case-folded literals
 	{`[Aa]`, `litfold{A}`},
@@ -482,14 +483,22 @@ var invalidRegexps = []string{
 	`(?P<name`,
 	`(?P<x y>a)`,
 	`(?P<>a)`,
+	`(?<name>a`,
+	`(?<name>`,
+	`(?<name`,
+	`(?<x y>a)`,
+	`(?<>a)`,
 	`[a-Z]`,
 	`(?i)[a-Z]`,
-	`a{100000}`,
-	`a{100000,}`,
-	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",
-	strings.Repeat("(", 1000) + strings.Repeat(")", 1000),
-	strings.Repeat("(?:", 1000) + strings.Repeat(")*", 1000),
 	`\Q\E*`,
+	`a{100000}`,  // too much repetition
+	`a{100000,}`, // too much repetition
+	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",    // too much repetition
+	strings.Repeat("(", 1000) + strings.Repeat(")", 1000),    // too deep
+	strings.Repeat("(?:", 1000) + strings.Repeat(")*", 1000), // too deep
+	"(" + strings.Repeat("(xx?)", 1000) + "){1000}",          // too long
+	strings.Repeat("(xx?){1000}", 1000),                      // too long
+	strings.Repeat(`\pL`, 27000),                             // too many runes
 }
 
 var onlyPerl = []string{
@@ -578,6 +587,42 @@ func TestToStringEquivalentParse(t *testing.T) {
 			if s != ns {
 				t.Errorf("Parse(%#q) -> %#q -> %#q", tt.Regexp, s, ns)
 			}
+		}
+	}
+}
+
+var stringTests = []struct {
+	re  string
+	out string
+}{
+	{`x(?i:ab*c|d?e)1`, `x(?i:AB*C|D?E)1`},
+	{`x(?i:ab*cd?e)1`, `x(?i:AB*CD?E)1`},
+	{`0(?i:ab*c|d?e)1`, `(?i:0(?:AB*C|D?E)1)`},
+	{`0(?i:ab*cd?e)1`, `(?i:0AB*CD?E1)`},
+	{`x(?i:ab*c|d?e)`, `x(?i:AB*C|D?E)`},
+	{`x(?i:ab*cd?e)`, `x(?i:AB*CD?E)`},
+	{`0(?i:ab*c|d?e)`, `(?i:0(?:AB*C|D?E))`},
+	{`0(?i:ab*cd?e)`, `(?i:0AB*CD?E)`},
+	{`(?i:ab*c|d?e)1`, `(?i:(?:AB*C|D?E)1)`},
+	{`(?i:ab*cd?e)1`, `(?i:AB*CD?E1)`},
+	{`(?i:ab)[123](?i:cd)`, `(?i:AB[1-3]CD)`},
+	{`(?i:ab*c|d?e)`, `(?i:AB*C|D?E)`},
+	{`[Aa][Bb]`, `(?i:AB)`},
+	{`[Aa][Bb]*[Cc]`, `(?i:AB*C)`},
+	{`A(?:[Bb][Cc]|[Dd])[Zz]`, `A(?i:(?:BC|D)Z)`},
+	{`[Aa](?:[Bb][Cc]|[Dd])Z`, `(?i:A(?:BC|D))Z`},
+}
+
+func TestString(t *testing.T) {
+	for _, tt := range stringTests {
+		re, err := Parse(tt.re, Perl)
+		if err != nil {
+			t.Errorf("Parse(%#q): %v", tt.re, err)
+			continue
+		}
+		out := re.String()
+		if out != tt.out {
+			t.Errorf("Parse(%#q).String() = %#q, want %#q", tt.re, out, tt.out)
 		}
 	}
 }

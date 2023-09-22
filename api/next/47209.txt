@@ -1,2 +1,0 @@
-pkg io/fs, var SkipAll error #47209
-pkg path/filepath, var SkipAll error #47209

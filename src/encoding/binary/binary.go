@@ -17,8 +17,8 @@
 //
 // This package favors simplicity over efficiency. Clients that require
 // high-performance serialization, especially for large data structures,
-// should look at more advanced solutions such as the encoding/gob
-// package or protocol buffers.
+// should look at more advanced solutions such as the [encoding/gob]
+// package or [google.golang.org/protobuf] for protocol buffers.
 package binary
 
 import (
@@ -31,6 +31,8 @@ import (
 
 // A ByteOrder specifies how to convert byte slices into
 // 16-, 32-, or 64-bit unsigned integers.
+//
+// It is implemented by [LittleEndian], [BigEndian], and [NativeEndian].
 type ByteOrder interface {
 	Uint16([]byte) uint16
 	Uint32([]byte) uint32
@@ -43,6 +45,8 @@ type ByteOrder interface {
 
 // AppendByteOrder specifies how to append 16-, 32-, or 64-bit unsigned integers
 // into a byte slice.
+//
+// It is implemented by [LittleEndian], [BigEndian], and [NativeEndian].
 type AppendByteOrder interface {
 	AppendUint16([]byte, uint16) []byte
 	AppendUint32([]byte, uint32) []byte
@@ -50,10 +54,10 @@ type AppendByteOrder interface {
 	String() string
 }
 
-// LittleEndian is the little-endian implementation of ByteOrder and AppendByteOrder.
+// LittleEndian is the little-endian implementation of [ByteOrder] and [AppendByteOrder].
 var LittleEndian littleEndian
 
-// BigEndian is the big-endian implementation of ByteOrder and AppendByteOrder.
+// BigEndian is the big-endian implementation of [ByteOrder] and [AppendByteOrder].
 var BigEndian bigEndian
 
 type littleEndian struct{}
@@ -210,6 +214,10 @@ func (bigEndian) String() string { return "BigEndian" }
 
 func (bigEndian) GoString() string { return "binary.BigEndian" }
 
+func (nativeEndian) String() string { return "NativeEndian" }
+
+func (nativeEndian) GoString() string { return "binary.NativeEndian" }
+
 // Read reads structured binary data from r into data.
 // Data must be a pointer to a fixed-size value or a slice
 // of fixed-size values.
@@ -223,9 +231,9 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // When reading into a struct, all non-blank fields must be exported
 // or Read may panic.
 //
-// The error is EOF only if no bytes were read.
-// If an EOF happens after reading some but not all the bytes,
-// Read returns ErrUnexpectedEOF.
+// The error is [io.EOF] only if no bytes were read.
+// If an [io.EOF] happens after reading some but not all the bytes,
+// Read returns [io.ErrUnexpectedEOF].
 func Read(r io.Reader, order ByteOrder, data any) error {
 	// Fast path for basic types and slices.
 	if n := intDataSize(data); n != 0 {
@@ -447,7 +455,7 @@ func Write(w io.Writer, order ByteOrder, data any) error {
 	v := reflect.Indirect(reflect.ValueOf(data))
 	size := dataSize(v)
 	if size < 0 {
-		return errors.New("binary.Write: invalid type " + reflect.TypeOf(data).String())
+		return errors.New("binary.Write: some values are not fixed-sized in type " + reflect.TypeOf(data).String())
 	}
 	buf := make([]byte, size)
 	e := &encoder{order: order, buf: buf}
@@ -456,7 +464,7 @@ func Write(w io.Writer, order ByteOrder, data any) error {
 	return err
 }
 
-// Size returns how many bytes Write would generate to encode the value v, which
+// Size returns how many bytes [Write] would generate to encode the value v, which
 // must be a fixed-size value or a slice of fixed-size values, or a pointer to such data.
 // If v is neither of these, Size returns -1.
 func Size(v any) int {
@@ -475,7 +483,6 @@ func dataSize(v reflect.Value) int {
 		if s := sizeof(v.Type().Elem()); s >= 0 {
 			return s * v.Len()
 		}
-		return -1
 
 	case reflect.Struct:
 		t := v.Type()
@@ -487,8 +494,12 @@ func dataSize(v reflect.Value) int {
 		return size
 
 	default:
-		return sizeof(v.Type())
+		if v.IsValid() {
+			return sizeof(v.Type())
+		}
 	}
+
+	return -1
 }
 
 // sizeof returns the size >= 0 of variables for the given type or -1 if the type is not acceptable.

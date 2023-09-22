@@ -348,7 +348,7 @@ func (r *importReader) obj(name string) {
 
 	case 'T', 'U':
 		// Types can be recursive. We need to setup a stub
-		// declaration before recursing.
+		// declaration before recurring.
 		obj := types.NewTypeName(pos, r.currPkg, name, nil)
 		named := types.NewNamed(obj, nil, nil)
 		// Declare obj before calling r.tparamList, so the new type name is recognized

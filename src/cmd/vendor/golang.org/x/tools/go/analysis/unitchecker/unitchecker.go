@@ -38,7 +38,6 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -50,7 +49,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
-	"golang.org/x/tools/go/analysis/internal/facts"
+	"golang.org/x/tools/internal/facts"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -59,18 +58,19 @@ import (
 // whose name ends with ".cfg".
 type Config struct {
 	ID                        string // e.g. "fmt [fmt.test]"
-	Compiler                  string
-	Dir                       string
-	ImportPath                string
+	Compiler                  string // gc or gccgo, provided to MakeImporter
+	Dir                       string // (unused)
+	ImportPath                string // package path
+	GoVersion                 string // minimum required Go version, such as "go1.21.0"
 	GoFiles                   []string
 	NonGoFiles                []string
 	IgnoredFiles              []string
-	ImportMap                 map[string]string
-	PackageFile               map[string]string
-	Standard                  map[string]bool
-	PackageVetx               map[string]string
-	VetxOnly                  bool
-	VetxOutput                string
+	ImportMap                 map[string]string // maps import path to package path
+	PackageFile               map[string]string // maps package path to file of type information
+	Standard                  map[string]bool   // package belongs to standard library
+	PackageVetx               map[string]string // maps package path to file of fact information
+	VetxOnly                  bool              // run analysis only for facts, not diagnostics
+	VetxOutput                string            // where to write file of fact information
 	SucceedOnTypecheckFailure bool
 }
 
@@ -166,7 +166,7 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
 }
 
 func readConfig(filename string) (*Config, error) {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -183,10 +183,55 @@ func readConfig(filename string) (*Config, error) {
 	return cfg, nil
 }
 
-var importerForCompiler = func(_ *token.FileSet, compiler string, lookup importer.Lookup) types.Importer {
-	// broken legacy implementation (https://golang.org/issue/28995)
-	return importer.For(compiler, lookup)
-}
+type factImporter = func(pkgPath string) ([]byte, error)
+
+// These four hook variables are a proof of concept of a future
+// parameterization of a unitchecker API that allows the client to
+// determine how and where facts and types are produced and consumed.
+// (Note that the eventual API will likely be quite different.)
+//
+// The defaults honor a Config in a manner compatible with 'go vet'.
+var (
+	makeTypesImporter = func(cfg *Config, fset *token.FileSet) types.Importer {
+		compilerImporter := importer.ForCompiler(fset, cfg.Compiler, func(path string) (io.ReadCloser, error) {
+			// path is a resolved package path, not an import path.
+			file, ok := cfg.PackageFile[path]
+			if !ok {
+				if cfg.Compiler == "gccgo" && cfg.Standard[path] {
+					return nil, nil // fall back to default gccgo lookup
+				}
+				return nil, fmt.Errorf("no package file for %q", path)
+			}
+			return os.Open(file)
+		})
+		return importerFunc(func(importPath string) (*types.Package, error) {
+			path, ok := cfg.ImportMap[importPath] // resolve vendoring, etc
+			if !ok {
+				return nil, fmt.Errorf("can't resolve import %q", path)
+			}
+			return compilerImporter.Import(path)
+		})
+	}
+
+	exportTypes = func(*Config, *token.FileSet, *types.Package) error {
+		// By default this is a no-op, because "go vet"
+		// makes the compiler produce type information.
+		return nil
+	}
+
+	makeFactImporter = func(cfg *Config) factImporter {
+		return func(pkgPath string) ([]byte, error) {
+			if vetx, ok := cfg.PackageVetx[pkgPath]; ok {
+				return os.ReadFile(vetx)
+			}
+			return nil, nil // no .vetx file, no facts
+		}
+	}
+
+	exportFacts = func(cfg *Config, data []byte) error {
+		return os.WriteFile(cfg.VetxOutput, data, 0666)
+	}
+)
 
 func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]result, error) {
 	// Load, parse, typecheck.
@@ -203,27 +248,10 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		}
 		files = append(files, f)
 	}
-	compilerImporter := importerForCompiler(fset, cfg.Compiler, func(path string) (io.ReadCloser, error) {
-		// path is a resolved package path, not an import path.
-		file, ok := cfg.PackageFile[path]
-		if !ok {
-			if cfg.Compiler == "gccgo" && cfg.Standard[path] {
-				return nil, nil // fall back to default gccgo lookup
-			}
-			return nil, fmt.Errorf("no package file for %q", path)
-		}
-		return os.Open(file)
-	})
-	importer := importerFunc(func(importPath string) (*types.Package, error) {
-		path, ok := cfg.ImportMap[importPath] // resolve vendoring, etc
-		if !ok {
-			return nil, fmt.Errorf("can't resolve import %q", path)
-		}
-		return compilerImporter.Import(path)
-	})
 	tc := &types.Config{
-		Importer: importer,
-		Sizes:    types.SizesFor("gc", build.Default.GOARCH), // assume gccgo ≡ gc?
+		Importer:  makeTypesImporter(cfg, fset),
+		Sizes:     types.SizesFor("gc", build.Default.GOARCH), // TODO(adonovan): use cfg.Compiler
+		GoVersion: cfg.GoVersion,
 	}
 	info := &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
@@ -249,6 +277,10 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	// In VetxOnly mode, analyzers are only for their facts,
 	// so we can skip any analysis that neither produces facts
 	// nor depends on any analysis that produces facts.
+	//
+	// TODO(adonovan): fix: the command (and logic!) here are backwards.
+	// It should say "...nor is required by any...". (Issue 443099)
+	//
 	// Also build a map to hold working state and result.
 	type action struct {
 		once        sync.Once
@@ -287,13 +319,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	analyzers = filtered
 
 	// Read facts from imported packages.
-	read := func(path string) ([]byte, error) {
-		if vetx, ok := cfg.PackageVetx[path]; ok {
-			return ioutil.ReadFile(vetx)
-		}
-		return nil, nil // no .vetx file, no facts
-	}
-	facts, err := facts.Decode(pkg, read)
+	facts, err := facts.NewDecoder(pkg).Decode(false, makeFactImporter(cfg))
 	if err != nil {
 		return nil, err
 	}
@@ -340,6 +366,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 				Pkg:               pkg,
 				TypesInfo:         info,
 				TypesSizes:        tc.Sizes,
+				TypeErrors:        nil, // unitchecker doesn't RunDespiteErrors
 				ResultOf:          inputs,
 				Report:            func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
 				ImportObjectFact:  facts.ImportObjectFact,
@@ -352,6 +379,16 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 
 			t0 := time.Now()
 			act.result, act.err = a.Run(pass)
+
+			if act.err == nil { // resolve URLs on diagnostics.
+				for i := range act.diagnostics {
+					if url, uerr := analysisflags.ResolveURL(a, act.diagnostics[i]); uerr == nil {
+						act.diagnostics[i].URL = url
+					} else {
+						act.err = uerr // keep the last error
+					}
+				}
+			}
 			if false {
 				log.Printf("analysis %s = %s", pass, time.Since(t0))
 			}
@@ -381,9 +418,12 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		results[i].diagnostics = act.diagnostics
 	}
 
-	data := facts.Encode()
-	if err := ioutil.WriteFile(cfg.VetxOutput, data, 0666); err != nil {
-		return nil, fmt.Errorf("failed to write analysis facts: %v", err)
+	data := facts.Encode(false)
+	if err := exportFacts(cfg, data); err != nil {
+		return nil, fmt.Errorf("failed to export analysis facts: %v", err)
+	}
+	if err := exportTypes(cfg, fset, pkg); err != nil {
+		return nil, fmt.Errorf("failed to export type information: %v", err)
 	}
 
 	return results, nil

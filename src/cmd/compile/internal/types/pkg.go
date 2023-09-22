@@ -8,7 +8,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"fmt"
-	"sort"
 	"strconv"
 	"sync"
 )
@@ -54,25 +53,6 @@ func NewPkg(path, name string) *Pkg {
 
 	return p
 }
-
-// ImportedPkgList returns the list of directly imported packages.
-// The list is sorted by package path.
-func ImportedPkgList() []*Pkg {
-	var list []*Pkg
-	for _, p := range pkgMap {
-		if p.Direct {
-			list = append(list, p)
-		}
-	}
-	sort.Sort(byPath(list))
-	return list
-}
-
-type byPath []*Pkg
-
-func (a byPath) Len() int           { return len(a) }
-func (a byPath) Less(i, j int) bool { return a[i].Path < a[j].Path }
-func (a byPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 var nopkg = &Pkg{
 	Syms: make(map[string]*Sym),

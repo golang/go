@@ -80,22 +80,41 @@ func mimetype(ext string) string {
 	// arm64: `MOVB\s1\(R.*\), R.*$`, `CMPW\s\$104, R.*$`, -`cmpstring`
 	switch ext {
 	// amd64: `CMPL\s\(.*\), \$1836345390$`
-	// arm64: `CMPW\s\$1836345390, R.*$`
+	// arm64: `MOVD\s\$1836345390`, `CMPW\sR.*, R.*$`
 	case ".htm":
 		return "A"
 	// amd64: `CMPL\s\(.*\), \$1953457454$`
-	// arm64: `CMPW\s\$1953457454, R.*$`
+	// arm64: `MOVD\s\$1953457454`, `CMPW\sR.*, R.*$`
 	case ".eot":
 		return "B"
 	// amd64: `CMPL\s\(.*\), \$1735815982$`
-	// arm64: `CMPW\s\$1735815982, R.*$`
+	// arm64: `MOVD\s\$1735815982`, `CMPW\sR.*, R.*$`
 	case ".svg":
 		return "C"
 	// amd64: `CMPL\s\(.*\), \$1718907950$`
-	// arm64: `CMPW\s\$1718907950, R.*$`
+	// arm64: `MOVD\s\$1718907950`, `CMPW\sR.*, R.*$`
 	case ".ttf":
 		return "D"
 	default:
 		return ""
 	}
+}
+
+// use jump tables for type switches to concrete types.
+func typeSwitch(x any) int {
+	// amd64:`JMP\s\(.*\)\(.*\)$`
+	// arm64:`MOVD\s\(R.*\)\(R.*<<3\)`,`JMP\s\(R.*\)$`
+	switch x.(type) {
+	case int:
+		return 0
+	case int8:
+		return 1
+	case int16:
+		return 2
+	case int32:
+		return 3
+	case int64:
+		return 4
+	}
+	return 7
 }

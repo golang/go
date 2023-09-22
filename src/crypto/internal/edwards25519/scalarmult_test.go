@@ -10,12 +10,8 @@ import (
 )
 
 var (
-	// quickCheckConfig32 will make each quickcheck test run (32 * -quickchecks)
-	// times. The default value of -quickchecks is 100.
-	quickCheckConfig32 = &quick.Config{MaxCountScale: 1 << 5}
-
 	// a random scalar generated using dalek.
-	dalekScalar = Scalar{[32]byte{219, 106, 114, 9, 174, 249, 155, 89, 69, 203, 201, 93, 92, 116, 234, 187, 78, 115, 103, 172, 182, 98, 62, 103, 187, 136, 13, 100, 248, 110, 12, 4}}
+	dalekScalar, _ = (&Scalar{}).SetCanonicalBytes([]byte{219, 106, 114, 9, 174, 249, 155, 89, 69, 203, 201, 93, 92, 116, 234, 187, 78, 115, 103, 172, 182, 98, 62, 103, 187, 136, 13, 100, 248, 110, 12, 4})
 	// the above, times the edwards25519 basepoint.
 	dalekScalarBasepoint, _ = new(Point).SetBytes([]byte{0xf4, 0xef, 0x7c, 0xa, 0x34, 0x55, 0x7b, 0x9f, 0x72, 0x3b, 0xb6, 0x1e, 0xf9, 0x46, 0x9, 0x91, 0x1c, 0xb9, 0xc0, 0x6c, 0x17, 0x28, 0x2d, 0x8b, 0x43, 0x2b, 0x5, 0x18, 0x6a, 0x54, 0x3e, 0x48})
 )
@@ -29,8 +25,8 @@ func TestScalarMultSmallScalars(t *testing.T) {
 	}
 	checkOnCurve(t, &p)
 
-	z = Scalar{[32]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
-	p.ScalarMult(&z, B)
+	scEight, _ := (&Scalar{}).SetCanonicalBytes([]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+	p.ScalarMult(scEight, B)
 	if B.Equal(&p) != 1 {
 		t.Error("1*B != 1")
 	}
@@ -39,7 +35,7 @@ func TestScalarMultSmallScalars(t *testing.T) {
 
 func TestScalarMultVsDalek(t *testing.T) {
 	var p Point
-	p.ScalarMult(&dalekScalar, B)
+	p.ScalarMult(dalekScalar, B)
 	if dalekScalarBasepoint.Equal(&p) != 1 {
 		t.Error("Scalar mul does not match dalek")
 	}
@@ -48,7 +44,7 @@ func TestScalarMultVsDalek(t *testing.T) {
 
 func TestBaseMultVsDalek(t *testing.T) {
 	var p Point
-	p.ScalarBaseMult(&dalekScalar)
+	p.ScalarBaseMult(dalekScalar)
 	if dalekScalarBasepoint.Equal(&p) != 1 {
 		t.Error("Scalar mul does not match dalek")
 	}
@@ -58,12 +54,12 @@ func TestBaseMultVsDalek(t *testing.T) {
 func TestVarTimeDoubleBaseMultVsDalek(t *testing.T) {
 	var p Point
 	var z Scalar
-	p.VarTimeDoubleScalarBaseMult(&dalekScalar, B, &z)
+	p.VarTimeDoubleScalarBaseMult(dalekScalar, B, &z)
 	if dalekScalarBasepoint.Equal(&p) != 1 {
 		t.Error("VarTimeDoubleScalarBaseMult fails with b=0")
 	}
 	checkOnCurve(t, &p)
-	p.VarTimeDoubleScalarBaseMult(&z, B, &dalekScalar)
+	p.VarTimeDoubleScalarBaseMult(&z, B, dalekScalar)
 	if dalekScalarBasepoint.Equal(&p) != 1 {
 		t.Error("VarTimeDoubleScalarBaseMult fails with a=0")
 	}
@@ -83,7 +79,7 @@ func TestScalarMultDistributesOverAdd(t *testing.T) {
 		return check.Equal(&r) == 1
 	}
 
-	if err := quick.Check(scalarMultDistributesOverAdd, quickCheckConfig32); err != nil {
+	if err := quick.Check(scalarMultDistributesOverAdd, quickCheckConfig(32)); err != nil {
 		t.Error(err)
 	}
 }
@@ -105,7 +101,7 @@ func TestScalarMultNonIdentityPoint(t *testing.T) {
 		return p.Equal(&q) == 1
 	}
 
-	if err := quick.Check(scalarMultNonIdentityPoint, quickCheckConfig32); err != nil {
+	if err := quick.Check(scalarMultNonIdentityPoint, quickCheckConfig(32)); err != nil {
 		t.Error(err)
 	}
 }
@@ -149,7 +145,7 @@ func TestScalarMultMatchesBaseMult(t *testing.T) {
 		return p.Equal(&q) == 1
 	}
 
-	if err := quick.Check(scalarMultMatchesBaseMult, quickCheckConfig32); err != nil {
+	if err := quick.Check(scalarMultMatchesBaseMult, quickCheckConfig(32)); err != nil {
 		t.Error(err)
 	}
 }
@@ -177,7 +173,7 @@ func TestVarTimeDoubleBaseMultMatchesBaseMult(t *testing.T) {
 		return p.Equal(&check) == 1
 	}
 
-	if err := quick.Check(varTimeDoubleBaseMultMatchesBaseMult, quickCheckConfig32); err != nil {
+	if err := quick.Check(varTimeDoubleBaseMultMatchesBaseMult, quickCheckConfig(32)); err != nil {
 		t.Error(err)
 	}
 }
@@ -188,7 +184,7 @@ func BenchmarkScalarBaseMult(b *testing.B) {
 	var p Point
 
 	for i := 0; i < b.N; i++ {
-		p.ScalarBaseMult(&dalekScalar)
+		p.ScalarBaseMult(dalekScalar)
 	}
 }
 
@@ -196,7 +192,7 @@ func BenchmarkScalarMult(b *testing.B) {
 	var p Point
 
 	for i := 0; i < b.N; i++ {
-		p.ScalarMult(&dalekScalar, B)
+		p.ScalarMult(dalekScalar, B)
 	}
 }
 
@@ -204,6 +200,6 @@ func BenchmarkVarTimeDoubleScalarBaseMult(b *testing.B) {
 	var p Point
 
 	for i := 0; i < b.N; i++ {
-		p.VarTimeDoubleScalarBaseMult(&dalekScalar, B, &dalekScalar)
+		p.VarTimeDoubleScalarBaseMult(dalekScalar, B, dalekScalar)
 	}
 }

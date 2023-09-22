@@ -13,6 +13,8 @@ import (
 	"unicode/utf8"
 )
 
+const maxInt = int(^uint(0) >> 1)
+
 // explode splits s into a slice of UTF-8 strings,
 // one string per Unicode character up to a maximum of n (n < 0 means no limit).
 // Invalid UTF-8 bytes are sliced individually.
@@ -69,6 +71,11 @@ func ContainsRune(s string, r rune) bool {
 	return IndexRune(s, r) >= 0
 }
 
+// ContainsFunc reports whether any Unicode code points r within s satisfy f(r).
+func ContainsFunc(s string, f func(rune) bool) bool {
+	return IndexFunc(s, f) >= 0
+}
+
 // LastIndex returns the index of the last instance of substr in s, or -1 if substr is not present in s.
 func LastIndex(s, substr string) int {
 	n := len(substr)
@@ -76,7 +83,7 @@ func LastIndex(s, substr string) int {
 	case n == 0:
 		return len(s)
 	case n == 1:
-		return LastIndexByte(s, substr[0])
+		return bytealg.LastIndexByteString(s, substr[0])
 	case n == len(s):
 		if substr == s {
 			return 0
@@ -220,12 +227,7 @@ func LastIndexAny(s, chars string) int {
 
 // LastIndexByte returns the index of the last instance of c in s, or -1 if c is not present in s.
 func LastIndexByte(s string, c byte) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
+	return bytealg.LastIndexByteString(s, c)
 }
 
 // Generic split: splits after each instance of sep,
@@ -431,9 +433,19 @@ func Join(elems []string, sep string) string {
 	case 1:
 		return elems[0]
 	}
-	n := len(sep) * (len(elems) - 1)
-	for i := 0; i < len(elems); i++ {
-		n += len(elems[i])
+
+	var n int
+	if len(sep) > 0 {
+		if len(sep) >= maxInt/(len(elems)-1) {
+			panic("strings: Join output length overflow")
+		}
+		n += len(sep) * (len(elems) - 1)
+	}
+	for _, elem := range elems {
+		if len(elem) > maxInt-n {
+			panic("strings: Join output length overflow")
+		}
+		n += len(elem)
 	}
 
 	var b Builder
@@ -446,12 +458,12 @@ func Join(elems []string, sep string) string {
 	return b.String()
 }
 
-// HasPrefix tests whether the string s begins with prefix.
+// HasPrefix reports whether the string s begins with prefix.
 func HasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
 }
 
-// HasSuffix tests whether the string s ends with suffix.
+// HasSuffix reports whether the string s ends with suffix.
 func HasSuffix(s, suffix string) bool {
 	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
 }
@@ -531,20 +543,19 @@ func Repeat(s string, count int) string {
 	}
 
 	// Since we cannot return an error on overflow,
-	// we should panic if the repeat will generate
-	// an overflow.
+	// we should panic if the repeat will generate an overflow.
 	// See golang.org/issue/16237.
 	if count < 0 {
 		panic("strings: negative Repeat count")
-	} else if len(s)*count/count != len(s) {
-		panic("strings: Repeat count causes overflow")
 	}
+	if len(s) >= maxInt/count {
+		panic("strings: Repeat output length overflow")
+	}
+	n := len(s) * count
 
 	if len(s) == 0 {
 		return ""
 	}
-
-	n := len(s) * count
 
 	// Past a certain chunk size it is counterproductive to use
 	// larger chunks as the source of the write, as when the source

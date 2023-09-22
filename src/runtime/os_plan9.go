@@ -69,11 +69,6 @@ func errstr() string
 
 type _Plink uintptr
 
-//go:linkname os_sigpipe os.sigpipe
-func os_sigpipe() {
-	throw("too many writes on closed pipe")
-}
-
 func sigpanic() {
 	gp := getg()
 	if !canpanic() {
@@ -99,7 +94,14 @@ func sigpanic() {
 		if gp.paniconfault {
 			panicmemAddr(gp.sigcode1)
 		}
-		print("unexpected fault address ", hex(gp.sigcode1), "\n")
+		if inUserArenaChunk(gp.sigcode1) {
+			// We could check that the arena chunk is explicitly set to fault,
+			// but the fact that we faulted on accessing it is enough to prove
+			// that it is.
+			print("accessed data from freed user arena ", hex(gp.sigcode1), "\n")
+		} else {
+			print("unexpected fault address ", hex(gp.sigcode1), "\n")
+		}
 		throw("fault")
 	case _SIGTRAP:
 		if gp.paniconfault {
@@ -312,9 +314,9 @@ func getpid() uint64 {
 }
 
 func osinit() {
+	physPageSize = getPageSize()
 	initBloc()
 	ncpu = getproccount()
-	physPageSize = getPageSize()
 	getg().m.procid = getpid()
 }
 
@@ -461,7 +463,7 @@ func newosproc(mp *m) {
 	}
 }
 
-func exitThread(wait *uint32) {
+func exitThread(wait *atomic.Uint32) {
 	// We should never reach exitThread on Plan 9 because we let
 	// the OS clean up threads.
 	throw("exitThread")

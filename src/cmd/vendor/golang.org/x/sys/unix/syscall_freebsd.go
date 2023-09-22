@@ -161,7 +161,8 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 	return
 }
 
-//sys	ioctl(fd int, req uint, arg uintptr) (err error)
+//sys	ioctl(fd int, req uint, arg uintptr) (err error) = SYS_IOCTL
+//sys	ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_IOCTL
 
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
 
@@ -253,6 +254,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 }
 
 //sys	ptrace(request int, pid int, addr uintptr, data int) (err error)
+//sys	ptracePtr(request int, pid int, addr unsafe.Pointer, data int) (err error) = SYS_PTRACE
 
 func PtraceAttach(pid int) (err error) {
 	return ptrace(PT_ATTACH, pid, 0, 0)
@@ -267,19 +269,36 @@ func PtraceDetach(pid int) (err error) {
 }
 
 func PtraceGetFpRegs(pid int, fpregsout *FpReg) (err error) {
-	return ptrace(PT_GETFPREGS, pid, uintptr(unsafe.Pointer(fpregsout)), 0)
+	return ptracePtr(PT_GETFPREGS, pid, unsafe.Pointer(fpregsout), 0)
 }
 
 func PtraceGetRegs(pid int, regsout *Reg) (err error) {
-	return ptrace(PT_GETREGS, pid, uintptr(unsafe.Pointer(regsout)), 0)
+	return ptracePtr(PT_GETREGS, pid, unsafe.Pointer(regsout), 0)
+}
+
+func PtraceIO(req int, pid int, offs uintptr, out []byte, countin int) (count int, err error) {
+	ioDesc := PtraceIoDesc{
+		Op:   int32(req),
+		Offs: offs,
+	}
+	if countin > 0 {
+		_ = out[:countin] // check bounds
+		ioDesc.Addr = &out[0]
+	} else if out != nil {
+		ioDesc.Addr = (*byte)(unsafe.Pointer(&_zero))
+	}
+	ioDesc.SetLen(countin)
+
+	err = ptracePtr(PT_IO, pid, unsafe.Pointer(&ioDesc), 0)
+	return int(ioDesc.Len), err
 }
 
 func PtraceLwpEvents(pid int, enable int) (err error) {
 	return ptrace(PT_LWP_EVENTS, pid, 0, enable)
 }
 
-func PtraceLwpInfo(pid int, info uintptr) (err error) {
-	return ptrace(PT_LWPINFO, pid, info, int(unsafe.Sizeof(PtraceLwpInfoStruct{})))
+func PtraceLwpInfo(pid int, info *PtraceLwpInfoStruct) (err error) {
+	return ptracePtr(PT_LWPINFO, pid, unsafe.Pointer(info), int(unsafe.Sizeof(*info)))
 }
 
 func PtracePeekData(pid int, addr uintptr, out []byte) (count int, err error) {
@@ -299,11 +318,23 @@ func PtracePokeText(pid int, addr uintptr, data []byte) (count int, err error) {
 }
 
 func PtraceSetRegs(pid int, regs *Reg) (err error) {
-	return ptrace(PT_SETREGS, pid, uintptr(unsafe.Pointer(regs)), 0)
+	return ptracePtr(PT_SETREGS, pid, unsafe.Pointer(regs), 0)
 }
 
 func PtraceSingleStep(pid int) (err error) {
 	return ptrace(PT_STEP, pid, 1, 0)
+}
+
+func Dup3(oldfd, newfd, flags int) error {
+	if oldfd == newfd || flags&^O_CLOEXEC != 0 {
+		return EINVAL
+	}
+	how := F_DUP2FD
+	if flags&O_CLOEXEC != 0 {
+		how = F_DUP2FD_CLOEXEC
+	}
+	_, err := fcntl(oldfd, how, newfd)
+	return err
 }
 
 /*
@@ -319,6 +350,7 @@ func PtraceSingleStep(pid int) (err error) {
 //sys	Chmod(path string, mode uint32) (err error)
 //sys	Chown(path string, uid int, gid int) (err error)
 //sys	Chroot(path string) (err error)
+//sys	ClockGettime(clockid int32, time *Timespec) (err error)
 //sys	Close(fd int) (err error)
 //sys	Dup(fd int) (nfd int, err error)
 //sys	Dup2(from int, to int) (err error)
@@ -401,7 +433,6 @@ func PtraceSingleStep(pid int) (err error) {
 //sysnb	Setreuid(ruid int, euid int) (err error)
 //sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
 //sysnb	Setresuid(ruid int, euid int, suid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)

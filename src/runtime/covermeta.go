@@ -24,26 +24,6 @@ var covMeta struct {
 	hardCodedListNeedsUpdating bool
 }
 
-func reportErrorInHardcodedList(slot int32, pkgId int32) {
-	println("internal error in coverage meta-data tracking:")
-	println("encountered bad pkg ID ", pkgId, " at slot ", slot)
-	println("list of hard-coded runtime package IDs needs revising.")
-	println("[see the comment on the 'rtPkgs' var in ")
-	println(" <goroot>/src/internal/coverage/pkid.go]")
-	println("registered list:")
-	for k, b := range covMeta.metaList {
-		print("slot: ", k, " path='", b.PkgPath, "' ")
-		if b.PkgID != -1 {
-			print(" hard-coded id: ", b.PkgID)
-		}
-		println("")
-	}
-	println("remap table:")
-	for from, to := range covMeta.pkgMap {
-		println("from ", from, " to ", to)
-	}
-}
-
 // addCovMeta is invoked during package "init" functions by the
 // compiler when compiling for coverage instrumentation; here 'p' is a
 // meta-data blob of length 'dlen' for the package in question, 'hash'
@@ -79,4 +59,14 @@ func addCovMeta(p unsafe.Pointer, dlen uint32, hash [16]byte, pkpath string, pki
 
 	// ID zero is reserved as invalid.
 	return uint32(slot + 1)
+}
+
+//go:linkname runtime_coverage_getCovMetaList runtime/coverage.getCovMetaList
+func runtime_coverage_getCovMetaList() []rtcov.CovMetaBlob {
+	return covMeta.metaList
+}
+
+//go:linkname runtime_coverage_getCovPkgMap runtime/coverage.getCovPkgMap
+func runtime_coverage_getCovPkgMap() map[int]int {
+	return covMeta.pkgMap
 }

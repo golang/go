@@ -72,6 +72,16 @@ func TestGolden(t *testing.T) {
 				diffJSON(t, buf.Bytes(), want)
 			})
 
+			// In bulk again with \r\n.
+			t.Run("crlf", func(t *testing.T) {
+				buf.Reset()
+				c = NewConverter(&buf, "", 0)
+				in = bytes.ReplaceAll(orig, []byte("\n"), []byte("\r\n"))
+				writeAndKill(c, in)
+				c.Close()
+				diffJSON(t, bytes.ReplaceAll(buf.Bytes(), []byte(`\r\n`), []byte(`\n`)), want)
+			})
+
 			// Write 2 bytes at a time on even boundaries.
 			t.Run("even2", func(t *testing.T) {
 				buf.Reset()
