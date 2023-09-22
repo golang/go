@@ -19,35 +19,36 @@ import (
 )
 
 const (
-	AddDependency         Command = "add_dependency"
-	AddImport             Command = "add_import"
-	AddTelemetryCounters  Command = "add_telemetry_counters"
-	ApplyFix              Command = "apply_fix"
-	CheckUpgrades         Command = "check_upgrades"
-	EditGoDirective       Command = "edit_go_directive"
-	FetchVulncheckResult  Command = "fetch_vulncheck_result"
-	GCDetails             Command = "gc_details"
-	Generate              Command = "generate"
-	GoGetPackage          Command = "go_get_package"
-	ListImports           Command = "list_imports"
-	ListKnownPackages     Command = "list_known_packages"
-	MemStats              Command = "mem_stats"
-	RegenerateCgo         Command = "regenerate_cgo"
-	RemoveDependency      Command = "remove_dependency"
-	ResetGoModDiagnostics Command = "reset_go_mod_diagnostics"
-	RunGoWorkCommand      Command = "run_go_work_command"
-	RunGovulncheck        Command = "run_govulncheck"
-	RunTests              Command = "run_tests"
-	StartDebugging        Command = "start_debugging"
-	StartProfile          Command = "start_profile"
-	StopProfile           Command = "stop_profile"
-	Test                  Command = "test"
-	Tidy                  Command = "tidy"
-	ToggleGCDetails       Command = "toggle_gc_details"
-	UpdateGoSum           Command = "update_go_sum"
-	UpgradeDependency     Command = "upgrade_dependency"
-	Vendor                Command = "vendor"
-	WorkspaceStats        Command = "workspace_stats"
+	AddDependency           Command = "add_dependency"
+	AddImport               Command = "add_import"
+	AddTelemetryCounters    Command = "add_telemetry_counters"
+	ApplyFix                Command = "apply_fix"
+	CheckUpgrades           Command = "check_upgrades"
+	EditGoDirective         Command = "edit_go_directive"
+	FetchVulncheckResult    Command = "fetch_vulncheck_result"
+	GCDetails               Command = "gc_details"
+	Generate                Command = "generate"
+	GoGetPackage            Command = "go_get_package"
+	ListImports             Command = "list_imports"
+	ListKnownPackages       Command = "list_known_packages"
+	MaybePromptForTelemetry Command = "maybe_prompt_for_telemetry"
+	MemStats                Command = "mem_stats"
+	RegenerateCgo           Command = "regenerate_cgo"
+	RemoveDependency        Command = "remove_dependency"
+	ResetGoModDiagnostics   Command = "reset_go_mod_diagnostics"
+	RunGoWorkCommand        Command = "run_go_work_command"
+	RunGovulncheck          Command = "run_govulncheck"
+	RunTests                Command = "run_tests"
+	StartDebugging          Command = "start_debugging"
+	StartProfile            Command = "start_profile"
+	StopProfile             Command = "stop_profile"
+	Test                    Command = "test"
+	Tidy                    Command = "tidy"
+	ToggleGCDetails         Command = "toggle_gc_details"
+	UpdateGoSum             Command = "update_go_sum"
+	UpgradeDependency       Command = "upgrade_dependency"
+	Vendor                  Command = "vendor"
+	WorkspaceStats          Command = "workspace_stats"
 )
 
 var Commands = []Command{
@@ -63,6 +64,7 @@ var Commands = []Command{
 	GoGetPackage,
 	ListImports,
 	ListKnownPackages,
+	MaybePromptForTelemetry,
 	MemStats,
 	RegenerateCgo,
 	RemoveDependency,
@@ -156,6 +158,8 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 			return nil, err
 		}
 		return s.ListKnownPackages(ctx, a0)
+	case "gopls.maybe_prompt_for_telemetry":
+		return nil, s.MaybePromptForTelemetry(ctx)
 	case "gopls.mem_stats":
 		return s.MemStats(ctx)
 	case "gopls.regenerate_cgo":
@@ -396,6 +400,18 @@ func NewListKnownPackagesCommand(title string, a0 URIArg) (protocol.Command, err
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.list_known_packages",
+		Arguments: args,
+	}, nil
+}
+
+func NewMaybePromptForTelemetryCommand(title string) (protocol.Command, error) {
+	args, err := MarshalArgs()
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.maybe_prompt_for_telemetry",
 		Arguments: args,
 	}, nil
 }

@@ -64,7 +64,11 @@ type commandHandler struct {
 	params *protocol.ExecuteCommandParams
 }
 
-// AddTelemetryCounters implements command.Interface.
+func (h *commandHandler) MaybePromptForTelemetry(ctx context.Context) error {
+	go h.s.maybePromptForTelemetry(ctx, true)
+	return nil
+}
+
 func (*commandHandler) AddTelemetryCounters(_ context.Context, args command.AddTelemetryCountersArgs) error {
 	if len(args.Names) != len(args.Values) {
 		return fmt.Errorf("Names and Values must have the same length")

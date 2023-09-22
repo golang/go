@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/lsp"
+	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 )
@@ -176,4 +177,49 @@ func main() {
 			)
 		})
 	}
+}
+
+// Test that gopls prompts for telemetry only when it is supposed to.
+func TestTelemetryPrompt_Conditions2(t *testing.T) {
+	const src = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- main.go --
+package main
+
+func main() {
+}
+`
+	modeFile := filepath.Join(t.TempDir(), "mode")
+	WithOptions(
+		Modes(Default), // no need to run this in all modes
+		EnvVars{
+			lsp.GoplsConfigDirEnvvar:        t.TempDir(),
+			lsp.FakeTelemetryModefileEnvvar: modeFile,
+		},
+		Settings{
+			// off because we are testing
+			// if we can trigger the prompt with command.
+			"telemetryPrompt": false,
+		},
+	).Run(t, src, func(t *testing.T, env *Env) {
+		cmd, err := command.NewMaybePromptForTelemetryCommand("prompt")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var result error
+		env.ExecuteCommand(&protocol.ExecuteCommandParams{
+			Command: cmd.Command,
+		}, &result)
+		if result != nil {
+			t.Fatal(err)
+		}
+		expectation := ShownMessageRequest(".*Would you like to enable Go telemetry?")
+		env.OnceMet(
+			CompletedWork(lsp.TelemetryPromptWorkTitle, 2, true),
+			expectation,
+		)
+	})
 }

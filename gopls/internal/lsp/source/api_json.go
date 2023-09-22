@@ -778,6 +778,11 @@ var GeneratedAPIJSON = &APIJSON{
 			ResultDoc: "{\n\t// Packages is a list of packages relative\n\t// to the URIArg passed by the command request.\n\t// In other words, it omits paths that are already\n\t// imported or cannot be imported due to compiler\n\t// restrictions.\n\t\"Packages\": []string,\n}",
 		},
 		{
+			Command: "gopls.maybe_prompt_for_telemetry",
+			Title:   "checks for the right conditions, and then prompts",
+			Doc:     "the user to ask if they want to enable Go telemetry uploading. If the user\nresponds 'Yes', the telemetry mode is set to \"on\".",
+		},
+		{
 			Command:   "gopls.mem_stats",
 			Title:     "fetch memory statistics",
 			Doc:       "Call runtime.GC multiple times and return memory statistics as reported by\nruntime.MemStats.\n\nThis command is used for benchmarking, and may change in the future.",

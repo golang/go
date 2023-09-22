@@ -195,6 +195,11 @@ type Interface interface {
 	// Gopls will prepend "fwd/" to all the counters updated using this command
 	// to avoid conflicts with other counters gopls collects.
 	AddTelemetryCounters(context.Context, AddTelemetryCountersArgs) error
+
+	// MaybePromptForTelemetry: checks for the right conditions, and then prompts
+	// the user to ask if they want to enable Go telemetry uploading. If the user
+	// responds 'Yes', the telemetry mode is set to "on".
+	MaybePromptForTelemetry(context.Context) error
 }
 
 type RunTestsArgs struct {

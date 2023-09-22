@@ -238,6 +238,12 @@ Result:
 }
 ```
 
+### **checks for the right conditions, and then prompts**
+Identifier: `gopls.maybe_prompt_for_telemetry`
+
+the user to ask if they want to enable Go telemetry uploading. If the user
+responds 'Yes', the telemetry mode is set to "on".
+
 ### **fetch memory statistics**
 Identifier: `gopls.mem_stats`
 
