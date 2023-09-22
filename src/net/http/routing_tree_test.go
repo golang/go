@@ -22,6 +22,8 @@ func TestRoutingFirstSegment(t *testing.T) {
 		{"/a/b/c", []string{"a", "b", "c"}},
 		{"/a/b/", []string{"a", "b", "/"}},
 		{"/", []string{"/"}},
+		{"/a/%62/c", []string{"a", "b", "c"}},
+		{"/a%2Fb%2fc", []string{"a/b/c"}},
 	} {
 		var got []string
 		rest := test.in

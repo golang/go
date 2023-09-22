@@ -1445,23 +1445,22 @@ func TestPathValue(t *testing.T) {
 				"d": "",
 			},
 		},
-		// TODO(jba): uncomment these tests when we implement path escaping (forthcoming).
-		// {
-		// 	"/names/{name}/{other...}",
-		// 	"/names/" + url.PathEscape("/john") + "/address",
-		// 	map[string]string{
-		// 		"name":  "/john",
-		// 		"other": "address",
-		// 	},
-		// },
-		// {
-		// 	"/names/{name}/{other...}",
-		// 	"/names/" + url.PathEscape("john/doe") + "/address",
-		// 	map[string]string{
-		// 		"name":  "john/doe",
-		// 		"other": "address",
-		// 	},
-		// },
+		{
+			"/names/{name}/{other...}",
+			"/names/%2fjohn/address",
+			map[string]string{
+				"name":  "/john",
+				"other": "address",
+			},
+		},
+		{
+			"/names/{name}/{other...}",
+			"/names/john%2Fdoe/there/is%2F/more",
+			map[string]string{
+				"name":  "john/doe",
+				"other": "there/is//more",
+			},
+		},
 	} {
 		mux := NewServeMux()
 		mux.HandleFunc(test.pattern, func(w ResponseWriter, r *Request) {
@@ -1552,6 +1551,57 @@ func TestStatus(t *testing.T) {
 		}
 		if g, w := res.Header.Get("Allow"), test.wantAllow; g != w {
 			t.Errorf("%s %s, Allow: got %q, want %q", test.method, test.path, g, w)
+		}
+	}
+}
+
+func TestEscapedPathsAndPatterns(t *testing.T) {
+	matches := []struct {
+		pattern string
+		paths   []string
+	}{
+		{
+			"/a", // this pattern matches a path that unescapes to "/a"
+			[]string{"/a", "/%61"},
+		},
+		{
+			"/%62", // patterns are unescaped by segment; matches paths that unescape to "/b"
+			[]string{"/b", "/%62"},
+		},
+		{
+			"/%7B/%7D", // the only way to write a pattern that matches '{' or '}'
+			[]string{"/{/}", "/%7b/}", "/{/%7d", "/%7B/%7D"},
+		},
+		{
+			"/%x", // patterns that do not unescape are left unchanged
+			[]string{"/%25x"},
+		},
+	}
+
+	mux := NewServeMux()
+	var gotPattern string
+	for _, m := range matches {
+		mux.HandleFunc(m.pattern, func(w ResponseWriter, r *Request) {
+			gotPattern = m.pattern
+		})
+	}
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	for _, m := range matches {
+		for _, p := range m.paths {
+			res, err := Get(server.URL + p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.StatusCode != 200 {
+				t.Errorf("%s: got code %d, want 200", p, res.StatusCode)
+				continue
+			}
+			if g, w := gotPattern, m.pattern; g != w {
+				t.Errorf("%s: pattern: got %q, want %q", p, g, w)
+			}
 		}
 	}
 }

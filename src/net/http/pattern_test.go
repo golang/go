@@ -94,6 +94,10 @@ func TestParsePattern(t *testing.T) {
 			"a.com/foo//",
 			pattern{host: "a.com", segments: []segment{lit("foo"), lit(""), multi("")}},
 		},
+		{
+			"/%61%62/%7b/%",
+			pattern{segments: []segment{lit("ab"), lit("{"), lit("%")}},
+		},
 	} {
 		got := mustParsePattern(t, test.in)
 		if !got.equal(&test.want) {
@@ -113,6 +117,8 @@ func TestParsePatternError(t *testing.T) {
 		{"/{w}x", "at offset 1: bad wildcard segment"},
 		{"/x{w}", "at offset 1: bad wildcard segment"},
 		{"/{wx", "at offset 1: bad wildcard segment"},
+		{"/a/{/}/c", "at offset 3: bad wildcard segment"},
+		{"/a/{%61}/c", "at offset 3: bad wildcard name"}, // wildcard names aren't unescaped
 		{"/{a$}", "at offset 1: bad wildcard name"},
 		{"/{}", "at offset 1: empty wildcard"},
 		{"POST a.com/x/{}/y", "at offset 13: empty wildcard"},

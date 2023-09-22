@@ -2422,10 +2422,9 @@ func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
 // after the redirect.
 func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *pattern, matches []string) {
 	var n *routingNode
-	// TODO(jba): use escaped path. This is an independent change that is also part
-	// of proposal https://go.dev/issue/61410.
-	path := r.URL.Path
 	host := r.URL.Host
+	escapedPath := r.URL.EscapedPath()
+	path := escapedPath
 	// CONNECT requests are not canonicalized.
 	if r.Method == "CONNECT" {
 		// If r.URL.Path is /tree and its handler is not registered,
@@ -2451,7 +2450,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
 		if u != nil {
 			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path, nil, nil
 		}
-		if path != r.URL.Path {
+		if path != escapedPath {
 			// Redirect to cleaned path.
 			patStr := ""
 			if n != nil {
@@ -2478,8 +2477,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
 }
 
 // matchOrRedirect looks up a node in the tree that matches the host, method and path.
-// The path is known to be in canonical form, except for CONNECT methods.
-
+//
 // If the url argument is non-nil, handler also deals with trailing-slash
 // redirection: when a path doesn't match exactly, the match is tried again
 // after appending "/" to the path. If that second match succeeds, the last
@@ -2496,7 +2494,7 @@ func (mux *ServeMux) matchOrRedirect(host, method, path string, u *url.URL) (_ *
 		path += "/"
 		n2, _ := mux.tree.match(host, method, path)
 		if exactMatch(n2, path) {
-			return nil, nil, &url.URL{Path: path, RawQuery: u.RawQuery}
+			return nil, nil, &url.URL{Path: cleanPath(u.Path) + "/", RawQuery: u.RawQuery}
 		}
 	}
 	return n, matches, nil
