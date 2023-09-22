@@ -10,4 +10,4 @@ part of that page.
 
 ## Reporting a Vulnerability
 
-See https://go.dev/security for how to report a vulnerability.
+See https://go.dev/security/policy for how to report a vulnerability.
