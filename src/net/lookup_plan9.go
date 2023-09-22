@@ -212,9 +212,9 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port 
 	}
 	lines, err := queryCS(ctx, network, "127.0.0.1", toLower(service))
 	if err != nil {
-		return
+		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service}
 	}
-	unknownPortError := &AddrError{Err: "unknown port", Addr: network + "/" + service}
+	unknownPortError := &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
 	if len(lines) == 0 {
 		return 0, unknownPortError
 	}

@@ -96,8 +96,9 @@ func lookupPortMap(network, service string) (port int, error error) {
 		if port, ok := m[string(lowerService[:n])]; ok && n == len(service) {
 			return port, nil
 		}
+		return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
 	}
-	return 0, &AddrError{Err: "unknown port", Addr: network + "/" + service}
+	return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}
 }
 
 // ipVersion returns the provided network's IP version: '4', '6' or 0

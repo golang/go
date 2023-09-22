@@ -1460,3 +1460,11 @@ func testLookupNoData(t *testing.T, prefix string) {
 		return
 	}
 }
+
+func TestLookupPortNotFound(t *testing.T) {
+	_, err := LookupPort("udp", "_-unknown-service-")
+	var dnsErr *DNSError
+	if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
