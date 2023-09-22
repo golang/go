@@ -1443,7 +1443,7 @@ type metaImport struct {
 	Prefix, VCS, RepoRoot string
 }
 
-// A ImportMismatchError is returned where metaImport/s are present
+// An ImportMismatchError is returned where metaImport/s are present
 // but none match our import path.
 type ImportMismatchError struct {
 	importPath string

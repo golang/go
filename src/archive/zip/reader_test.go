@@ -1822,7 +1822,7 @@ func TestBaseOffsetPlusOverflow(t *testing.T) {
 		}
 	}()
 	// Previously, this would trigger a panic as we attempt to read from
-	// a io.SectionReader which would access a slice at a negative offset
+	// an io.SectionReader which would access a slice at a negative offset
 	// as the section reader offset & size were < 0.
 	NewReader(bytes.NewReader(data), int64(len(data))+1875)
 }

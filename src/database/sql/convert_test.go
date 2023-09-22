@@ -123,7 +123,7 @@ func conversionTests() []conversionTest {
 		{s: "256", d: &scanuint8, wanterr: "converting driver.Value type string (\"256\") to a uint8: value out of range"},
 		{s: "256", d: &scanuint16, wantuint: 256},
 		{s: "-1", d: &scanint, wantint: -1},
-		{s: "foo", d: &scanint, wanterr: "converting driver.Value type string (\"foo\") to a int: invalid syntax"},
+		{s: "foo", d: &scanint, wanterr: "converting driver.Value type string (\"foo\") to an int: invalid syntax"},
 
 		// int64 to smaller integers
 		{s: int64(5), d: &scanuint8, wantuint: 5},
