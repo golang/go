@@ -178,6 +178,7 @@ func DefaultOptions(overrides ...func(*Options)) *Options {
 				SubdirWatchPatterns:         SubdirWatchPatternsAuto,
 				ReportAnalysisProgressAfter: 5 * time.Second,
 				TelemetryPrompt:             false,
+				LinkifyShowMessage:          false,
 			},
 			Hooks: Hooks{
 				// TODO(adonovan): switch to new diff.Strings implementation.
@@ -683,6 +684,10 @@ type InternalOptions struct {
 	// Once the prompt is answered, gopls doesn't ask again, but TelemetryPrompt
 	// can prevent the question from ever being asked in the first place.
 	TelemetryPrompt bool
+
+	// LinkifyShowMessage controls whether the client wants gopls
+	// to linkify links in showMessage. e.g. [go.dev](https://go.dev).
+	LinkifyShowMessage bool
 }
 
 type SubdirWatchPatterns string
@@ -1269,6 +1274,8 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 
 	case "telemetryPrompt":
 		result.setBool(&o.TelemetryPrompt)
+	case "linkifyShowMessage":
+		result.setBool(&o.LinkifyShowMessage)
 
 	// Replaced settings.
 	case "experimentalDisabledAnalyses":

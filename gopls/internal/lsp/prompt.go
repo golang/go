@@ -187,11 +187,16 @@ func (s *Server) maybePromptForTelemetry(ctx context.Context) {
 		return
 	}
 
-	const prompt = `Go telemetry helps us improve Go by periodically sending anonymous metrics and crash reports to the Go team. Learn more at https://telemetry.go.dev/privacy.
+	var prompt = `Go telemetry helps us improve Go by periodically sending anonymous metrics and crash reports to the Go team. Learn more at https://telemetry.go.dev/privacy.
 
 Would you like to enable Go telemetry?
 `
+	if s.Options().LinkifyShowMessage {
+		prompt = `Go telemetry helps us improve Go by periodically sending anonymous metrics and crash reports to the Go team. Learn more at [telemetry.go.dev/privacy](https://telemetry.go.dev/privacy).
 
+	Would you like to enable Go telemetry?
+	`
+	}
 	// TODO(rfindley): investigate a "tell me more" action in combination with ShowDocument.
 	params := &protocol.ShowMessageRequestParams{
 		Type:    protocol.Info,
