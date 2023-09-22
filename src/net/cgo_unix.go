@@ -113,8 +113,6 @@ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (p
 	}
 	var res *_C_struct_addrinfo
 	gerrno, err := _C_getaddrinfo(nil, (*_C_char)(unsafe.Pointer(&cservice[0])), hints, &res)
-	println("gerrno: ", gerrno)
-	println("err: ", err)
 	if gerrno != 0 {
 		isTemporary := false
 		switch gerrno {
@@ -122,7 +120,7 @@ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (p
 			if err == nil { // see golang.org/issue/6232
 				err = syscall.EMFILE
 			}
-		case _C_EAI_SERVICE:
+		case _C_EAI_SERVICE, _C_EAI_NONAME: // Darwin returns EAI_NONAME.
 			return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
 		default:
 			err = addrinfoErrno(gerrno)
