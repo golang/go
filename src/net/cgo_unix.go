@@ -14,6 +14,7 @@ package net
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/netip"
 	"syscall"
 	"unsafe"
@@ -126,7 +127,8 @@ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (p
 			err = addrinfoErrno(gerrno)
 			isTemporary = addrinfoErrno(gerrno).Temporary()
 		}
-		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service, IsTemporary: isTemporary}
+		// TODO: remove debug error info
+		return 0, &DNSError{Err: err.Error() + fmt.Sprint("", gerrno), Name: network + "/" + service, IsTemporary: isTemporary}
 	}
 	defer _C_freeaddrinfo(res)
 
