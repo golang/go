@@ -50,7 +50,7 @@ const semTabSize = 251
 
 type semTable [semTabSize]struct {
 	root semaRoot
-	pad  [cpu.CacheLinePadSize - unsafe.Sizeof(semaRoot{})]byte
+	pad  [cpu.CacheLinePadSize - unsafe.Sizeof(semaRoot{}) % cpu.CacheLinePadSize]byte
 }
 
 func (t *semTable) rootFor(addr *uint32) *semaRoot {
