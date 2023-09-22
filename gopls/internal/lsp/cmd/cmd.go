@@ -158,6 +158,12 @@ Command:
 	for _, c := range app.featureCommands() {
 		fmt.Fprintf(w, "  %s\t%s\n", c.Name(), c.ShortHelp())
 	}
+	if app.verbose() {
+		fmt.Fprint(w, "\t\nInternal Use Only\t\n")
+		for _, c := range app.internalCommands() {
+			fmt.Fprintf(w, "  %s\t%s\n", c.Name(), c.ShortHelp())
+		}
+	}
 	fmt.Fprint(w, "\nflags:\n")
 	printFlagDefaults(f)
 }
@@ -263,6 +269,7 @@ func (app *Application) Commands() []tool.Application {
 	var commands []tool.Application
 	commands = append(commands, app.mainCommands()...)
 	commands = append(commands, app.featureCommands()...)
+	commands = append(commands, app.internalCommands()...)
 	return commands
 }
 
@@ -274,6 +281,12 @@ func (app *Application) mainCommands() []tool.Application {
 		&help{app: app},
 		&apiJSON{app: app},
 		&licenses{app: app},
+	}
+}
+
+func (app *Application) internalCommands() []tool.Application {
+	return []tool.Application{
+		&vulncheck{app: app},
 	}
 }
 
@@ -298,8 +311,8 @@ func (app *Application) featureCommands() []tool.Application {
 		&stats{app: app},
 		&suggestedFix{app: app},
 		&symbols{app: app},
+
 		&workspaceSymbol{app: app},
-		&vulncheck{app: app},
 	}
 }
 

@@ -23,11 +23,11 @@ func (v *vulncheck) Name() string   { return "vulncheck" }
 func (v *vulncheck) Parent() string { return v.app.Name() }
 func (v *vulncheck) Usage() string  { return "" }
 func (v *vulncheck) ShortHelp() string {
-	return "run experimental vulncheck analysis (experimental: under development)"
+	return "run vulncheck analysis (internal-use only)"
 }
 func (v *vulncheck) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
-	WARNING: this command is experimental.
+	WARNING: this command is for internal-use only.
 
 	By default, the command outputs a JSON-encoded
 	golang.org/x/tools/gopls/internal/lsp/command.VulncheckResult

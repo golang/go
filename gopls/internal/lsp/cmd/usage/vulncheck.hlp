@@ -1,9 +1,9 @@
-run experimental vulncheck analysis (experimental: under development)
+run vulncheck analysis (internal-use only)
 
 Usage:
   gopls [flags] vulncheck
 
-	WARNING: this command is experimental.
+	WARNING: this command is for internal-use only.
 
 	By default, the command outputs a JSON-encoded
 	golang.org/x/tools/gopls/internal/lsp/command.VulncheckResult

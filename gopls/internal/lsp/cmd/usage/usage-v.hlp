@@ -39,6 +39,9 @@ Features
   fix               apply suggested fixes
   symbols           display selected file's symbols
   workspace_symbol  search symbols in workspace
+                    
+Internal Use Only   
+  vulncheck         run vulncheck analysis (internal-use only)
 
 flags:
   -debug=string
