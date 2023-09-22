@@ -368,7 +368,7 @@ var verifyTests = []verifyTest{
 		},
 	},
 	{
-		// When there are two parents, one with a incorrect subject but matching SKID
+		// When there are two parents, one with an incorrect subject but matching SKID
 		// and one with a correct subject but missing SKID, the latter should be
 		// considered as a possible parent.
 		leaf:        leafMatchingAKIDMatchingIssuer,

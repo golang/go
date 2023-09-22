@@ -53,7 +53,7 @@ func init() {
 		// Older linux kernels seem to have some hiccups delivering the signal
 		// in a timely manner on ppc64 and ppc64le. When running on a
 		// ppc64le/ubuntu 16.04/linux 4.4 host the time can vary quite
-		// substantially even on a idle system. 5 seconds is twice any value
+		// substantially even on an idle system. 5 seconds is twice any value
 		// observed when running 10000 tests on such a system.
 		settleTime = 5 * time.Second
 	} else if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {

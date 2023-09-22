@@ -3652,7 +3652,7 @@ func TestDisableSHA1ForCertOnly(t *testing.T) {
 	}
 
 	// This is an unrelated OCSP response, which will fail signature verification
-	// but shouldn't return a InsecureAlgorithmError, since SHA1 should be allowed
+	// but shouldn't return an InsecureAlgorithmError, since SHA1 should be allowed
 	// for OCSP.
 	ocspTBSHex := "30819fa2160414884451ff502a695e2d88f421bad90cf2cecbea7c180f32303133303631383037323434335a30743072304a300906052b0e03021a0500041448b60d38238df8456e4ee5843ea394111802979f0414884451ff502a695e2d88f421bad90cf2cecbea7c021100f78b13b946fc9635d8ab49de9d2148218000180f32303133303631383037323434335aa011180f32303133303632323037323434335a"
 	ocspTBS, err := hex.DecodeString(ocspTBSHex)
