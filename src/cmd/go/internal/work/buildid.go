@@ -343,16 +343,7 @@ func (b *Builder) gccgoBuildIDFile(a *Action) (string, error) {
 		fmt.Fprintf(&buf, "\t"+`.section .note.GNU-split-stack,"",%s`+"\n", secType)
 	}
 
-	if cfg.BuildN || cfg.BuildX {
-		for _, line := range bytes.Split(buf.Bytes(), []byte("\n")) {
-			b.Showcmd("", "echo '%s' >> %s", line, sfile)
-		}
-		if cfg.BuildN {
-			return sfile, nil
-		}
-	}
-
-	if err := os.WriteFile(sfile, buf.Bytes(), 0666); err != nil {
+	if err := b.writeFile(sfile, buf.Bytes()); err != nil {
 		return "", err
 	}
 

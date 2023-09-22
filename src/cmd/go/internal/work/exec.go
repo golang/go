@@ -1674,19 +1674,13 @@ func (b *Builder) installShlibname(ctx context.Context, a *Action) error {
 		return err
 	}
 
-	// TODO: BuildN
 	a1 := a.Deps[0]
-	if err := b.Mkdir(filepath.Dir(a.Target)); err != nil {
-		return err
+	if !cfg.BuildN {
+		if err := b.Mkdir(filepath.Dir(a.Target)); err != nil {
+			return err
+		}
 	}
-	err := os.WriteFile(a.Target, []byte(filepath.Base(a1.Target)+"\n"), 0666)
-	if err != nil {
-		return err
-	}
-	if cfg.BuildX {
-		b.Showcmd("", "echo '%s' > %s # internal", filepath.Base(a1.Target), a.Target)
-	}
-	return nil
+	return b.writeFile(a.Target, []byte(filepath.Base(a1.Target)+"\n"))
 }
 
 func (b *Builder) linkSharedActionID(a *Action) cache.ActionID {
@@ -1991,7 +1985,16 @@ func (b *Builder) CopyFile(dst, src string, perm fs.FileMode, force bool) error 
 // writeFile writes the text to file.
 func (b *Builder) writeFile(file string, text []byte) error {
 	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd("", "cat >%s << 'EOF' # internal\n%sEOF", file, text)
+		switch {
+		case len(text) == 0:
+			b.Showcmd("", "echo -n > %s # internal", file)
+		case bytes.IndexByte(text, '\n') == len(text)-1:
+			// One line. Use a simpler "echo" command.
+			b.Showcmd("", "echo '%s' > %s # internal", bytes.TrimSuffix(text, []byte("\n")), file)
+		default:
+			// Use the most general form.
+			b.Showcmd("", "cat >%s << 'EOF' # internal\n%sEOF", file, text)
+		}
 	}
 	if cfg.BuildN {
 		return nil
@@ -3273,13 +3276,8 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	flagLists := [][]string{cgoCFLAGS, cgoCXXFLAGS, cgoFFLAGS}
 	if flagsNotCompatibleWithInternalLinking(flagSources, flagLists) {
 		tokenFile := objdir + "preferlinkext"
-		if cfg.BuildN || cfg.BuildX {
-			b.Showcmd("", "echo > %s", tokenFile)
-		}
-		if !cfg.BuildN {
-			if err := os.WriteFile(tokenFile, nil, 0666); err != nil {
-				return nil, nil, err
-			}
+		if err := b.writeFile(tokenFile, nil); err != nil {
+			return nil, nil, err
 		}
 		outObj = append(outObj, tokenFile)
 	}
@@ -3612,13 +3610,8 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 		// cmd/link explicitly looks for the name "dynimportfail".
 		// See issue #52863.
 		fail := objdir + "dynimportfail"
-		if cfg.BuildN || cfg.BuildX {
-			b.Showcmd("", "echo > %s", fail)
-		}
-		if !cfg.BuildN {
-			if err := os.WriteFile(fail, nil, 0666); err != nil {
-				return "", "", err
-			}
+		if err := b.writeFile(fail, nil); err != nil {
+			return "", "", err
 		}
 		return "", fail, nil
 	}
