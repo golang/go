@@ -237,7 +237,7 @@ Would you like to enable Go telemetry?
 		case TelemetryYes:
 			result = pYes
 			if err := s.setTelemetryMode("on"); err == nil {
-				message(protocol.Info, telemetryOnMessage())
+				message(protocol.Info, telemetryOnMessage(s.Options().LinkifyShowMessage))
 			} else {
 				errorf("enabling telemetry failed: %v", err)
 				msg := fmt.Sprintf("Failed to enable Go telemetry: %v\nTo enable telemetry manually, please run `go run golang.org/x/telemetry/cmd/gotelemetry@latest on`", err)
@@ -257,15 +257,25 @@ Would you like to enable Go telemetry?
 	}
 }
 
-func telemetryOnMessage() string {
+func telemetryOnMessage(linkify bool) string {
 	reportDate := time.Now().AddDate(0, 0, 7).Format("2006-01-02")
-	return fmt.Sprintf(`Telemetry uploading is now enabled and may be sent to https://telemetry.go.dev/ starting %s. Uploaded data is used to help improve the Go toolchain and related tools, and it will be published as part of a public dataset.
+	format := `Telemetry uploading is now enabled and may be sent to https://telemetry.go.dev starting %s. Uploaded data is used to help improve the Go toolchain and related tools, and it will be published as part of a public dataset.
 
 For more details, see https://telemetry.go.dev/privacy.
 This data is collected in accordance with the Google Privacy Policy (https://policies.google.com/privacy).
 
 To disable telemetry uploading, run %s.
-`, reportDate, "`go run golang.org/x/telemetry/cmd/gotelemetry@latest off`")
+`
+	if linkify {
+		format = `Telemetry uploading is now enabled and may be sent to [telemetry.go.dev](https://telemetry.go.dev) starting %s. Uploaded data is used to help improve the Go toolchain and related tools, and it will be published as part of a public dataset.
+
+For more details, see [telemetry.go.dev/privacy](https://telemetry.go.dev/privacy).
+This data is collected in accordance with the [Google Privacy Policy](https://policies.google.com/privacy).
+
+To disable telemetry uploading, run [%s](https://golang.org/x/telemetry/cmd/gotelemetry).
+`
+	}
+	return fmt.Sprintf(format, reportDate, "`go run golang.org/x/telemetry/cmd/gotelemetry@latest off`")
 }
 
 // acquireLockFile attempts to "acquire a lock" for writing to path.
