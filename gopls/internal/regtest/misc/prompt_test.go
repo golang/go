@@ -82,12 +82,13 @@ func main() {
 `
 
 	tests := []struct {
-		response string
-		wantMode string
+		response string // response to choose for the telemetry dialog
+		wantMode string // resulting telemetry mode
+		wantMsg  string // substring contained in the follow-up popup (if empty, no popup is expected)
 	}{
-		{"Yes", "on"},
-		{"No", ""},
-		{"", ""},
+		{lsp.TelemetryYes, "on", "uploading is now enabled"},
+		{lsp.TelemetryNo, "", ""},
+		{"", "", ""},
 	}
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("response=%s", test.response), func(t *testing.T) {
@@ -117,8 +118,13 @@ func main() {
 				},
 				MessageResponder(respond),
 			).Run(t, src, func(t *testing.T, env *Env) {
-				env.Await(
+				var postConditions []Expectation
+				if test.wantMsg != "" {
+					postConditions = append(postConditions, ShownMessage(test.wantMsg))
+				}
+				env.OnceMet(
 					CompletedWork(lsp.TelemetryPromptWorkTitle, 1, true),
+					postConditions...,
 				)
 				gotMode := ""
 				if contents, err := os.ReadFile(modeFile); err == nil {
