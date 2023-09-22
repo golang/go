@@ -180,20 +180,6 @@ func parsePattern(s string) (_ *pattern, err error) {
 	return p, nil
 }
 
-// TODO(jba): remove this; it is unused.
-func isValidHTTPToken(s string) bool {
-	if s == "" {
-		return false
-	}
-	// See https://www.rfc-editor.org/rfc/rfc9110#section-5.6.2.
-	for _, r := range s {
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && !strings.ContainsRune("!#$%&'*+.^_`|~-", r) {
-			return false
-		}
-	}
-	return true
-}
-
 func isValidWildcardName(s string) bool {
 	if s == "" {
 		return false

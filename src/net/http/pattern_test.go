@@ -145,26 +145,6 @@ func (p1 *pattern) equal(p2 *pattern) bool {
 		slices.Equal(p1.segments, p2.segments)
 }
 
-func TestIsValidHTTPToken(t *testing.T) {
-	for _, test := range []struct {
-		in   string
-		want bool
-	}{
-		{"", false},
-		{"GET", true},
-		{"get", true},
-		{"white space", false},
-		{"#!~", true},
-		{"a-b1_2", true},
-		{"notok)", false},
-	} {
-		got := isValidHTTPToken(test.in)
-		if g, w := got, test.want; g != w {
-			t.Errorf("%q: got %t, want %t", test.in, g, w)
-		}
-	}
-}
-
 func mustParsePattern(tb testing.TB, s string) *pattern {
 	tb.Helper()
 	p, err := parsePattern(s)
