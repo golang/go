@@ -200,7 +200,7 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 	}()
 
 	for _, sigHash := range defaultSupportedSignatureAlgorithms {
-		t.Run(fmt.Sprintf("%#x", sigHash), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v", sigHash), func(t *testing.T) {
 			serverConfig := testConfig.Clone()
 			serverConfig.Certificates = make([]Certificate, 1)
 
