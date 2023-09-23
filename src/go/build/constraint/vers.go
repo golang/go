@@ -66,7 +66,7 @@ func minVersion(z Expr, sign int) int {
 		if z.Tag == "go1" {
 			return 0
 		}
-		_, v, _ := stringsCut(z.Tag, "go1.")
+		_, v, _ := strings.Cut(z.Tag, "go1.")
 		n, err := strconv.Atoi(v)
 		if err != nil {
 			// not a go1.N tag
@@ -74,14 +74,6 @@ func minVersion(z Expr, sign int) int {
 		}
 		return n
 	}
-}
-
-// TODO: Delete, replace calls with strings.Cut once Go bootstrap toolchain is bumped.
-func stringsCut(s, sep string) (before, after string, found bool) {
-	if i := strings.Index(s, sep); i >= 0 {
-		return s[:i], s[i+len(sep):], true
-	}
-	return s, "", false
 }
 
 // andVersion returns the minimum Go version
