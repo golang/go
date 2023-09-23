@@ -259,6 +259,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		package due to a non-default GODEBUG=httplaxcontentlength=...
 		setting.
 
+	/godebug/non-default-behavior/httpmuxgo121:events
+		The number of non-default behaviors executed by the net/http
+		package due to a non-default GODEBUG=httpmuxgo121=... setting.
+
 	/godebug/non-default-behavior/installgoroot:events
 		The number of non-default behaviors executed by the go/build
 		package due to a non-default GODEBUG=installgoroot=... setting.

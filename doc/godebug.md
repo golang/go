@@ -138,6 +138,12 @@ Go 1.22 made it an error for a request or response read by a net/http
 client or server to have an empty Content-Length header.
 This behavior is controlled by the `httplaxcontentlength` setting.
 
+Go 1.22 changed the behavior of ServeMux to accept extended
+patterns and unescape both patterns and request paths by segment.
+This behavior can be controlled by the
+[`httpmuxgo121` setting](/pkg/net/http/#ServeMux).
+
+
 ### Go 1.21
 
 Go 1.21 made it a run-time error to call `panic` with a nil interface value,
