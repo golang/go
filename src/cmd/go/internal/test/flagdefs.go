@@ -50,6 +50,7 @@ var passAnalyzersToVet = map[string]bool{
 	"cgocall":          true,
 	"composites":       true,
 	"copylocks":        true,
+	"defers":           true,
 	"directive":        true,
 	"errorsas":         true,
 	"framepointer":     true,
