@@ -50,14 +50,14 @@ func (r *Reader) readHuff(data block, off int, table []uint16) (tableBits, roff 
 			return 0, 0, err
 		}
 
-		state1, err := rbr.val(uint8(fseBits))
-		if err != nil {
-			return 0, 0, err
+		state1, ok := rbr.val(uint8(fseBits))
+		if !ok {
+			return 0, 0, rbr.makeEOFError()
 		}
 
-		state2, err := rbr.val(uint8(fseBits))
-		if err != nil {
-			return 0, 0, err
+		state2, ok := rbr.val(uint8(fseBits))
+		if !ok {
+			return 0, 0, rbr.makeEOFError()
 		}
 
 		// There are two independent FSE streams, tracked by
@@ -75,9 +75,9 @@ func (r *Reader) readHuff(data block, off int, table []uint16) (tableBits, roff 
 				break
 			}
 
-			v, err := rbr.val(pt.bits)
-			if err != nil {
-				return 0, 0, err
+			v, ok := rbr.val(pt.bits)
+			if !ok {
+				return 0, 0, rbr.makeEOFError()
 			}
 			state1 = uint32(pt.base) + v
 
@@ -100,9 +100,9 @@ func (r *Reader) readHuff(data block, off int, table []uint16) (tableBits, roff 
 				break
 			}
 
-			v, err = rbr.val(pt.bits)
-			if err != nil {
-				return 0, 0, err
+			v, ok = rbr.val(pt.bits)
+			if !ok {
+				return 0, 0, rbr.makeEOFError()
 			}
 			state2 = uint32(pt.base) + v
 

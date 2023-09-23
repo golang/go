@@ -255,19 +255,19 @@ func (r *Reader) execSeqs(data block, off int, litbuf []byte, seqCount int) erro
 		return err
 	}
 
-	literalState, err := rbr.val(r.seqTableBits[seqLiteral])
-	if err != nil {
-		return err
+	literalState, ok := rbr.val(r.seqTableBits[seqLiteral])
+	if !ok {
+		return rbr.makeEOFError()
 	}
 
-	offsetState, err := rbr.val(r.seqTableBits[seqOffset])
-	if err != nil {
-		return err
+	offsetState, ok := rbr.val(r.seqTableBits[seqOffset])
+	if !ok {
+		return rbr.makeEOFError()
 	}
 
-	matchState, err := rbr.val(r.seqTableBits[seqMatch])
-	if err != nil {
-		return err
+	matchState, ok := rbr.val(r.seqTableBits[seqMatch])
+	if !ok {
+		return rbr.makeEOFError()
 	}
 
 	// Read and perform all the sequences. RFC 3.1.1.4.
@@ -282,21 +282,21 @@ func (r *Reader) execSeqs(data block, off int, litbuf []byte, seqCount int) erro
 		ptmatch := &r.seqTables[seqMatch][matchState]
 		ptliteral := &r.seqTables[seqLiteral][literalState]
 
-		add, err := rbr.val(ptoffset.basebits)
-		if err != nil {
-			return err
+		add, ok := rbr.val(ptoffset.basebits)
+		if !ok {
+			return rbr.makeEOFError()
 		}
 		offset := ptoffset.baseline + add
 
-		add, err = rbr.val(ptmatch.basebits)
-		if err != nil {
-			return err
+		add, ok = rbr.val(ptmatch.basebits)
+		if !ok {
+			return rbr.makeEOFError()
 		}
 		match := ptmatch.baseline + add
 
-		add, err = rbr.val(ptliteral.basebits)
-		if err != nil {
-			return err
+		add, ok = rbr.val(ptliteral.basebits)
+		if !ok {
+			return rbr.makeEOFError()
 		}
 		literal := ptliteral.baseline + add
 
@@ -333,21 +333,21 @@ func (r *Reader) execSeqs(data block, off int, litbuf []byte, seqCount int) erro
 		seq++
 		if seq < seqCount {
 			// Update the states.
-			add, err = rbr.val(ptliteral.bits)
-			if err != nil {
-				return err
+			add, ok = rbr.val(ptliteral.bits)
+			if !ok {
+				return rbr.makeEOFError()
 			}
 			literalState = uint32(ptliteral.base) + add
 
-			add, err = rbr.val(ptmatch.bits)
-			if err != nil {
-				return err
+			add, ok = rbr.val(ptmatch.bits)
+			if !ok {
+				return rbr.makeEOFError()
 			}
 			matchState = uint32(ptmatch.base) + add
 
-			add, err = rbr.val(ptoffset.bits)
-			if err != nil {
-				return err
+			add, ok = rbr.val(ptoffset.bits)
+			if !ok {
+				return rbr.makeEOFError()
 			}
 			offsetState = uint32(ptoffset.base) + add
 		}

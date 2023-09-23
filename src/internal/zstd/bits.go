@@ -97,14 +97,16 @@ func (r *Reader) makeReverseBitReader(data block, off, start int) (reverseBitRea
 }
 
 // val is called to fetch a value of b bits.
-func (rbr *reverseBitReader) val(b uint8) (uint32, error) {
+// It reports false if this can't be done,
+// in which case rbr.makeEOFError should be called to create the error.
+func (rbr *reverseBitReader) val(b uint8) (uint32, bool) {
 	if !rbr.fetch(b) {
-		return 0, rbr.r.makeEOFError(int(rbr.off))
+		return 0, false
 	}
 
 	rbr.cnt -= uint32(b)
 	v := (rbr.bits >> rbr.cnt) & ((1 << b) - 1)
-	return v, nil
+	return v, true
 }
 
 // fetch is called to ensure that at least b bits are available.
@@ -127,4 +129,9 @@ func (rbr *reverseBitReader) fetch(b uint8) bool {
 // makeError returns an error at the current offset wrapping a string.
 func (rbr *reverseBitReader) makeError(msg string) error {
 	return rbr.r.makeError(int(rbr.off), msg)
+}
+
+// makeEOFError returns an error at the current offset wrapping an io.ErrUnexpectedEOF.
+func (rbr *reverseBitReader) makeEOFError() error {
+	return rbr.r.makeEOFError(int(rbr.off))
 }
