@@ -463,7 +463,7 @@ func walkDir(path string, d fs.DirEntry, walkDirFn fs.WalkDirFunc) error {
 		return err
 	}
 
-	dirs, err := readDir(path)
+	dirs, err := os.ReadDir(path)
 	if err != nil {
 		// Second call, to report ReadDir error.
 		err = walkDirFn(path, d, err)
@@ -578,22 +578,6 @@ func Walk(root string, fn WalkFunc) error {
 		return nil
 	}
 	return err
-}
-
-// readDir reads the directory named by dirname and returns
-// a sorted list of directory entries.
-func readDir(dirname string) ([]fs.DirEntry, error) {
-	f, err := os.Open(dirname)
-	if err != nil {
-		return nil, err
-	}
-	dirs, err := f.ReadDir(-1)
-	f.Close()
-	if err != nil {
-		return nil, err
-	}
-	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
-	return dirs, nil
 }
 
 // readDirNames reads the directory named by dirname and returns
