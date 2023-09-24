@@ -42,11 +42,11 @@ type Description struct {
 	// types which their application may not understand.
 	Kind ValueKind
 
-	// Cumulative is whether or not the metric is cumulative. If a cumulative metric is just
+	// Cumulative indicates whether the metric is cumulative. If a cumulative metric is just
 	// a single number, then it increases monotonically. If the metric is a distribution,
 	// then each bucket count increases monotonically.
 	//
-	// This flag thus indicates whether or not it's useful to compute a rate from this value.
+	// This flag thus indicates whether it's useful to compute a rate from this value.
 	Cumulative bool
 }
 
@@ -340,7 +340,7 @@ var allDesc = []Description{
 	},
 	{
 		Name: "/memory/classes/heap/stacks:bytes",
-		Description: "Memory allocated from the heap that is reserved for stack space, whether or not it is currently in-use. " +
+		Description: "Memory allocated from the heap that is reserved for stack space, whether it is currently in-use or not. " +
 			"Currently, this represents all stack memory for goroutines. It also includes all OS thread stacks in non-cgo programs. " +
 			"Note that stacks may be allocated differently in the future, and this may change.",
 		Kind: KindUint64,

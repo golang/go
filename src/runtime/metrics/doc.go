@@ -331,7 +331,7 @@ Below is the full list of supported metrics, ordered lexicographically.
 
 	/memory/classes/heap/stacks:bytes
 		Memory allocated from the heap that is reserved for stack space,
-		whether or not it is currently in-use. Currently, this
+		whether it is currently in-use or not. Currently, this
 		represents all stack memory for goroutines. It also includes all
 		OS thread stacks in non-cgo programs. Note that stacks may be
 		allocated differently in the future, and this may change.
