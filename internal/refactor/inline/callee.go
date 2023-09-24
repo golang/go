@@ -37,8 +37,7 @@ type gobCallee struct {
 	Unexported       []string     // names of free objects that are unexported
 	FreeRefs         []freeRef    // locations of references to free objects
 	FreeObjs         []object     // descriptions of free objects
-	BodyIsReturnExpr bool         // function body is "return expr(s)" with trivial conversion
-	ValidForCallStmt bool         // => bodyIsReturnExpr and sole expr is f() or <-ch
+	ValidForCallStmt bool         // function body is "return expr" where expr is f() or <-ch
 	NumResults       int          // number of results (according to type, not ast.FieldList)
 	Params           []*paramInfo // information about parameters (incl. receiver)
 	Results          []*paramInfo // information about result variables
@@ -208,67 +207,34 @@ func AnalyzeCallee(logf func(string, ...any), fset *token.FileSet, pkg *types.Pa
 	}
 	visit(decl)
 
-	// Analyze callee body for "return results" form, where
-	// results is one or more expressions or an n-ary call,
-	// and the implied conversions are trivial.
+	// Analyze callee body for "return expr" form,
+	// where expr is f() or <-ch. These forms are
+	// safe to inline as a standalone statement.
 	validForCallStmt := false
-	bodyIsReturnExpr := func() bool {
-		if decl.Type.Results != nil &&
-			len(decl.Type.Results.List) > 0 &&
-			len(decl.Body.List) == 1 {
-			if ret, ok := decl.Body.List[0].(*ast.ReturnStmt); ok && len(ret.Results) > 0 {
-				// Don't reduce calls to functions whose
-				// return statement has non trivial conversions.
-				argType := func(i int) types.Type {
-					return info.TypeOf(ret.Results[i])
-				}
-				if len(ret.Results) == 1 && sig.Results().Len() > 1 {
-					// Spread return: return f() where f.Results > 1.
-					tuple := info.TypeOf(ret.Results[0]).(*types.Tuple)
-					argType = func(i int) types.Type {
-						return tuple.At(i).Type()
-					}
-				}
-				for i := 0; i < sig.Results().Len(); i++ {
-					if !trivialConversion(argType(i), sig.Results().At(i)) {
-						return false
-					}
-				}
-
-				return true
-			}
-		}
-		return false
-	}()
-	if bodyIsReturnExpr {
-		ret := decl.Body.List[0].(*ast.ReturnStmt)
-
-		// Ascertain whether the results expression(s)
-		// would be safe to inline as a standalone statement.
-		// (This is true only for a single call or receive expression.)
+	if len(decl.Body.List) != 1 {
+		// not just a return statement
+	} else if ret, ok := decl.Body.List[0].(*ast.ReturnStmt); ok && len(ret.Results) == 1 {
 		validForCallStmt = func() bool {
-			if len(ret.Results) == 1 {
-				switch expr := astutil.Unparen(ret.Results[0]).(type) {
-				case *ast.CallExpr: // f(x)
-					callee := typeutil.Callee(info, expr)
-					if callee == nil {
-						return false // conversion T(x)
-					}
-
-					// The only non-void built-in functions that may be
-					// called as a statement are copy and recover
-					// (though arguably a call to recover should never
-					// be inlined as that changes its behavior).
-					if builtin, ok := callee.(*types.Builtin); ok {
-						return builtin.Name() == "copy" ||
-							builtin.Name() == "recover"
-					}
-
-					return true // ordinary call f()
-
-				case *ast.UnaryExpr: // <-x
-					return expr.Op == token.ARROW // channel receive <-ch
+			switch expr := astutil.Unparen(ret.Results[0]).(type) {
+			case *ast.CallExpr: // f(x)
+				callee := typeutil.Callee(info, expr)
+				if callee == nil {
+					return false // conversion T(x)
 				}
+
+				// The only non-void built-in functions that may be
+				// called as a statement are copy and recover
+				// (though arguably a call to recover should never
+				// be inlined as that changes its behavior).
+				if builtin, ok := callee.(*types.Builtin); ok {
+					return builtin.Name() == "copy" ||
+						builtin.Name() == "recover"
+				}
+
+				return true // ordinary call f()
+
+			case *ast.UnaryExpr: // <-x
+				return expr.Op == token.ARROW // channel receive <-ch
 			}
 
 			// No other expressions are valid statements.
@@ -358,7 +324,6 @@ func AnalyzeCallee(logf func(string, ...any), fset *token.FileSet, pkg *types.Pa
 		Unexported:       unexported,
 		FreeObjs:         freeObjs,
 		FreeRefs:         freeRefs,
-		BodyIsReturnExpr: bodyIsReturnExpr,
 		ValidForCallStmt: validForCallStmt,
 		NumResults:       sig.Results().Len(),
 		Params:           params,

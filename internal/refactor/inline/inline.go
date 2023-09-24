@@ -600,7 +600,10 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	// - no result var escapes,
 	// then the call expression can be replaced by the
 	// callee's body expression, suitably substituted.
-	if callee.BodyIsReturnExpr {
+	if len(calleeDecl.Body.List) == 1 &&
+		is[*ast.ReturnStmt](calleeDecl.Body.List[0]) &&
+		len(calleeDecl.Body.List[0].(*ast.ReturnStmt).Results) > 0 && // not a bare return
+		callee.TrivialReturns == callee.TotalReturns {
 		results := calleeDecl.Body.List[0].(*ast.ReturnStmt).Results
 
 		context := callContext(caller.path)
