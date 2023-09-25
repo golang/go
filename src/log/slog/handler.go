@@ -438,16 +438,17 @@ func (s *handleState) closeGroup(name string) {
 // It handles replacement and checking for an empty key.
 // after replacement).
 func (s *handleState) appendAttr(a Attr) {
+	a.Value = a.Value.Resolve()
 	if rep := s.h.opts.ReplaceAttr; rep != nil && a.Value.Kind() != KindGroup {
 		var gs []string
 		if s.groups != nil {
 			gs = *s.groups
 		}
-		// Resolve before calling ReplaceAttr, so the user doesn't have to.
-		a.Value = a.Value.Resolve()
+		// a.Value is resolved before calling ReplaceAttr, so the user doesn't have to.
 		a = rep(gs, a)
+		// The ReplaceAttr function may return an unresolved Attr.
+		a.Value = a.Value.Resolve()
 	}
-	a.Value = a.Value.Resolve()
 	// Elide empty Attrs.
 	if a.isEmpty() {
 		return

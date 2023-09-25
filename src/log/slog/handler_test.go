@@ -491,6 +491,18 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			wantText: "g.x=0 g.n=4 g.h.b=2",
 			wantJSON: `{"g":{"x":0,"n":4,"h":{"b":2,"i":{}}}}`,
 		},
+		{
+			name: "replace resolved group",
+			replace: func(groups []string, a Attr) Attr {
+				if a.Value.Kind() == KindGroup {
+					return Attr{"bad", IntValue(1)}
+				}
+				return removeKeys(TimeKey, LevelKey, MessageKey)(groups, a)
+			},
+			attrs:    []Attr{Any("name", logValueName{"Perry", "Platypus"})},
+			wantText: "name.first=Perry name.last=Platypus",
+			wantJSON: `{"name":{"first":"Perry","last":"Platypus"}}`,
+		},
 	} {
 		r := NewRecord(testTime, LevelInfo, "message", callerPC(2))
 		line := strconv.Itoa(r.source().Line)
