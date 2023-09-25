@@ -159,7 +159,7 @@ func (m *Map) Store(key, value any) {
 func (m *Map) Clear() {
 	read := m.loadReadOnly()
 	if len(read.m) == 0 && !read.amended {
-		// avoid allocating a new readOnly here if the map was already empty and not amended
+		// Avoid allocating a new readOnly when the map is already clear.
 		return
 	}
 
@@ -170,10 +170,9 @@ func (m *Map) Clear() {
 	if len(read.m) > 0 || read.amended {
 		m.read.Store(&readOnly{})
 	}
-	m.read.Store(new(readOnly))
 
 	clear(m.dirty)
-	m.misses = 0 // don't immediately promote the newly-cleared dirty map on the next operation
+	m.misses = 0 // Don't immediately promote the newly-cleared dirty map on the next operation
 }
 
 // tryCompareAndSwap compare the entry with the given old value and swaps
