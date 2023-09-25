@@ -441,14 +441,29 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		sig := calleeSymbol.Type().(*types.Signature)
 		if sig.Recv() != nil {
 			params = append(params, &parameter{
-				obj:  sig.Recv(),
-				info: callee.Params[0],
+				obj:       sig.Recv(),
+				fieldType: calleeDecl.Recv.List[0].Type,
+				info:      callee.Params[0],
 			})
 		}
+
+		// Flatten the list of syntactic types.
+		var types []ast.Expr
+		for _, field := range calleeDecl.Type.Params.List {
+			if field.Names == nil {
+				types = append(types, field.Type)
+			} else {
+				for range field.Names {
+					types = append(types, field.Type)
+				}
+			}
+		}
+
 		for i := 0; i < sig.Params().Len(); i++ {
 			params = append(params, &parameter{
-				obj:  sig.Params().At(i),
-				info: callee.Params[len(params)],
+				obj:       sig.Params().At(i),
+				fieldType: types[i],
+				info:      callee.Params[len(params)],
 			})
 		}
 
@@ -511,9 +526,9 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 
 	// Log effective arguments.
 	for i, arg := range args {
-		logf("arg #%d: %s pure=%t effects=%t duplicable=%t free=%v",
+		logf("arg #%d: %s pure=%t effects=%t duplicable=%t free=%v type=%v",
 			i, debugFormatNode(caller.Fset, arg.expr),
-			arg.pure, arg.effects, arg.duplicable, arg.freevars)
+			arg.pure, arg.effects, arg.duplicable, arg.freevars, arg.typ)
 	}
 
 	// Note: computation below should be expressed in terms of
@@ -992,13 +1007,44 @@ func arguments(caller *Caller, calleeDecl *ast.FuncDecl, assign1 func(*types.Var
 			freevars:   freeVars(caller.Info, expr),
 		})
 	}
+
+	// Re-typecheck each constant argument expression in a neutral context.
+	//
+	// In a call such as func(int16){}(1), the type checker infers
+	// the type "int16", not "untyped int", for the argument 1,
+	// because it has incorporated information from the left-hand
+	// side of the assignment implicit in parameter passing, but
+	// of course in a different context, the expression 1 may have
+	// a different type.
+	//
+	// So, we must use CheckExpr to recompute the type of the
+	// argument in a neutral context to find its inherent type.
+	// (This is arguably a bug in go/types, but I'm pretty certain
+	// I requested it be this way long ago... -adonovan)
+	//
+	// This is only needed for constants. Other implicit
+	// assignment conversions, such as unnamed-to-named struct or
+	// chan to <-chan, do not result in the type-checker imposing
+	// the LHS type on the RHS value.
+	for _, arg := range args {
+		if caller.Info.Types[arg.expr].Value == nil {
+			continue // not a constant
+		}
+		info := &types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
+		if err := types.CheckExpr(caller.Fset, caller.Types, caller.Call.Pos(), arg.expr, info); err != nil {
+			return nil, err
+		}
+		arg.typ = info.TypeOf(arg.expr)
+	}
+
 	return args, nil
 }
 
 type parameter struct {
-	obj      *types.Var // parameter var from caller's signature
-	info     *paramInfo // information from AnalyzeCallee
-	variadic bool       // (final) parameter is unsimplified ...T
+	obj       *types.Var // parameter var from caller's signature
+	fieldType ast.Expr   // syntax of type, from calleeDecl.Type.{Recv,Params}
+	info      *paramInfo // information from AnalyzeCallee
+	variadic  bool       // (final) parameter is unsimplified ...T
 }
 
 // substitute implements parameter elimination by substitution.
@@ -1079,20 +1125,6 @@ next:
 			}
 		}
 
-		// Check that eliminating the parameter wouldn't materially
-		// change the type.
-		//
-		// (We don't simply wrap the argument in an explicit conversion
-		// to the parameter type because that could increase allocation
-		// in the number of (e.g.) string -> any conversions.
-		// Even when Uses = 1, the sole ref might be in a loop or lambda that
-		// is multiply executed.)
-		if len(param.info.Refs) > 0 && !trivialConversion(args[i].typ, params[i].obj) {
-			logf("keeping param %q: argument passing converts %s to type %s",
-				param.info.Name, args[i].typ, params[i].obj.Type())
-			continue // implicit conversion is significant
-		}
-
 		// Check for shadowing.
 		//
 		// Consider inlining a call f(z, 1) to
@@ -1119,8 +1151,30 @@ next:
 	// The remaining candidates are safe to substitute.
 	for i, param := range params {
 		if arg := args[i]; arg.substitutable {
+
+			// Wrap the argument in an explicit conversion if
+			// substitution might materially change its type.
+			// (We already did the necessary shadowing check
+			// on the parameter type syntax.)
+			//
+			// This is only needed for substituted arguments. All
+			// other arguments are given explicit types in either
+			// a binding decl or when using the literalization
+			// strategy.
+			if len(param.info.Refs) > 0 && !trivialConversion(args[i].typ, params[i].obj) {
+				arg.expr = &ast.CallExpr{
+					Fun:  params[i].fieldType, // formatter adds parens as needed
+					Args: []ast.Expr{arg.expr},
+				}
+				logf("param %q: adding explicit %s -> %s conversion around argument",
+					param.info.Name, args[i].typ, params[i].obj.Type())
+			}
+
 			// It is safe to substitute param and replace it with arg.
 			// The formatter introduces parens as needed for precedence.
+			//
+			// Because arg.expr belongs to the caller,
+			// we clone it before splicing it into the callee tree.
 			logf("replacing parameter %q by argument %q",
 				param.info.Name, debugFormatNode(caller.Fset, arg.expr))
 			for _, ref := range param.info.Refs {

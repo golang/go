@@ -410,7 +410,7 @@ func TestTable(t *testing.T) {
 			"Variadic elimination (literalization).",
 			`func f(x any, rest ...any) { defer println(x, rest) }`, // defer => literalization
 			`func _() { f(1, 2, 3) }`,
-			`func _() { func(x any) { defer println(x, []any{2, 3}) }(1) }`,
+			`func _() { func() { defer println(any(1), []any{2, 3}) }() }`,
 		},
 		{
 			"Variadic elimination (reduction).",
@@ -448,13 +448,13 @@ func TestTable(t *testing.T) {
 }`,
 		},
 		{
-			"Binding declaration (x, z eliminated).",
+			"Binding declaration (x, y, z eliminated).",
 			`func f(w, x, y any, z int) { println(w, y, z) }; func g(int) int`,
 			`func _() { f(g(0), g(1), g(2), g(3)) }`,
 			`func _() {
 	{
-		var w, _, y any = g(0), g(1), g(2)
-		println(w, y, g(3))
+		var w, _ any = g(0), g(1)
+		println(w, any(g(2)), g(3))
 	}
 }`,
 		},
@@ -477,11 +477,16 @@ func TestTable(t *testing.T) {
 }`,
 		},
 		{
-			"No binding decl due to shadowing of int",
+			"Defer f() evaluates f() before unknown effects",
 			`func f(int, y any, z int) { defer println(int, y, z) }; func g(int) int`,
 			`func _() { f(g(1), g(2), g(3)) }`,
-			`func _() { func(int, y any) { defer println(int, y, g(3)) }(g(1), g(2)) }
-`,
+			`func _() { func() { defer println(any(g(1)), any(g(2)), g(3)) }() }`,
+		},
+		{
+			"No binding decl due to shadowing of int",
+			`func f(int, y any, z int) { defer g(0); println(int, y, z) }; func g(int) int`,
+			`func _() { f(g(1), g(2), g(3)) }`,
+			`func _() { func(int, y any, z int) { defer g(0); println(int, y, z) }(g(1), g(2), g(3)) }`,
 		},
 		// Embedded fields:
 		{
@@ -753,6 +758,62 @@ func TestTable(t *testing.T) {
 		print(s, s, 0, 0)
 	}
 }`,
+		},
+		{
+			"Substitution preserves argument type (#63193).",
+			`func f(x int16) { y := x; _ = (*int16)(&y) }`,
+			`func _() { f(1) }`,
+			`func _() {
+	{
+		y := int16(1)
+		_ = (*int16)(&y)
+	}
+}`,
+		},
+		{
+			"Same, with non-constant (unnamed to named struct) conversion.",
+			`func f(x T) { y := x; _ = (*T)(&y) }; type T struct{}`,
+			`func _() { f(struct{}{}) }`,
+			`func _() {
+	{
+		y := T(struct{}{})
+		_ = (*T)(&y)
+	}
+}`,
+		},
+		{
+			"Same, with non-constant (chan to <-chan) conversion.",
+			`func f(x T) { y := x; _ = (*T)(&y) }; type T = <-chan int; var ch chan int`,
+			`func _() { f(ch) }`,
+			`func _() {
+	{
+		y := T(ch)
+		_ = (*T)(&y)
+	}
+}`,
+		},
+		{
+			"Same, with untyped nil to typed nil conversion.",
+			`func f(x *int) { y := x; _ = (**int)(&y) }`,
+			`func _() { f(nil) }`,
+			`func _() {
+	{
+		y := (*int)(nil)
+		_ = (**int)(&y)
+	}
+}`,
+		},
+		{
+			"Conversion of untyped int to named type is made explicit.",
+			`type T int; func (x T) f() { x.g() }; func (T) g() {}`,
+			`func _() { T.f(1) }`,
+			`func _() { T(1).g() }`,
+		},
+		{
+			"Check for shadowing error on type used in the conversion.",
+			`func f(x T) { _ = &x == (*T)(nil) }; type T int16`,
+			`func _() { type T bool; f(1) }`,
+			`error: T.*shadowed.*by.*type`,
 		},
 
 		// TODO(adonovan): improve coverage of the cross
