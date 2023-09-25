@@ -231,7 +231,7 @@ func doInlineNote(logf func(string, ...any), pkg *packages.Package, file *ast.Fi
 		}
 	}
 
-	calleeDecl, err := findFuncByPosition(calleePkg, caller.Fset.Position(fn.Pos()))
+	calleeDecl, err := findFuncByPosition(calleePkg, caller.Fset.PositionFor(fn.Pos(), false))
 	if err != nil {
 		return err
 	}
@@ -297,7 +297,7 @@ func findFuncByPosition(pkg *packages.Package, posn token.Position) (*ast.FuncDe
 		// them, so how are we supposed to find the source? Yuck!
 		// Ugh. need to samefile? Nope $GOROOT just won't work
 		// This is highly client specific anyway.
-		posn2 := pkg.Fset.Position(decl.Name.Pos())
+		posn2 := pkg.Fset.PositionFor(decl.Name.Pos(), false)
 		return posn.Filename == posn2.Filename &&
 			posn.Line == posn2.Line
 	}
