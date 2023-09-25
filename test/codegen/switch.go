@@ -125,6 +125,10 @@ type I interface {
 type J interface {
 	bar()
 }
+type IJ interface {
+	I
+	J
+}
 
 // use a runtime call for type switches to interface types.
 func interfaceSwitch(x any) int {
@@ -147,4 +151,10 @@ func interfaceCast(x any) int {
 		return 3
 	}
 	return 5
+}
+
+func interfaceConv(x IJ) I {
+	// amd64:`CALL\truntime.typeAssert`,`MOVL\t16\(.*\)`,`MOVQ\t8\(.*\)(.*\*1)`
+	// arm64:`CALL\truntime.typeAssert`,`LDAR`,`MOVWU`,`MOVD\t\(R.*\)\(R.*\)`
+	return x
 }

@@ -726,23 +726,28 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 		n.ITab = reflectdata.ITabAddrAt(base.Pos, n.Type(), n.X.Type())
 	}
 	if n.X.Type().IsInterface() && n.Type().IsInterface() && !n.Type().IsEmptyInterface() {
-		// Converting an interface to a non-empty interface. Needs a runtime call.
-		// Allocate an internal/abi.TypeAssert descriptor for that call.
-		lsym := types.LocalPkg.Lookup(fmt.Sprintf(".typeAssert.%d", typeAssertGen)).LinksymABI(obj.ABI0)
-		typeAssertGen++
-		off := 0
-		off = objw.SymPtr(lsym, off, typecheck.LookupRuntimeVar("emptyTypeAssertCache"), 0)
-		off = objw.SymPtr(lsym, off, reflectdata.TypeSym(n.Type()).Linksym(), 0)
-		off = objw.Bool(lsym, off, n.Op() == ir.ODOTTYPE2) // CanFail
-		off += types.PtrSize - 1
-		objw.Global(lsym, int32(off), obj.LOCAL)
-		// Set the type to be just a single pointer, as the cache pointer is the
-		// only one that GC needs to see.
-		lsym.Gotype = reflectdata.TypeLinksym(types.Types[types.TUINT8].PtrTo())
-
-		n.Descriptor = lsym
+		// This kind of conversion needs a runtime call. Allocate
+		// a descriptor for that call.
+		n.Descriptor = makeTypeAssertDescriptor(n.Type(), n.Op() == ir.ODOTTYPE2)
 	}
 	return n
+}
+
+func makeTypeAssertDescriptor(target *types.Type, canFail bool) *obj.LSym {
+	// When converting from an interface to a non-empty interface. Needs a runtime call.
+	// Allocate an internal/abi.TypeAssert descriptor for that call.
+	lsym := types.LocalPkg.Lookup(fmt.Sprintf(".typeAssert.%d", typeAssertGen)).LinksymABI(obj.ABI0)
+	typeAssertGen++
+	off := 0
+	off = objw.SymPtr(lsym, off, typecheck.LookupRuntimeVar("emptyTypeAssertCache"), 0)
+	off = objw.SymPtr(lsym, off, reflectdata.TypeSym(target).Linksym(), 0)
+	off = objw.Bool(lsym, off, canFail)
+	off += types.PtrSize - 1
+	objw.Global(lsym, int32(off), obj.LOCAL)
+	// Set the type to be just a single pointer, as the cache pointer is the
+	// only one that GC needs to see.
+	lsym.Gotype = reflectdata.TypeLinksym(types.Types[types.TUINT8].PtrTo())
+	return lsym
 }
 
 var typeAssertGen int
