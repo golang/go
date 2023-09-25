@@ -395,6 +395,9 @@ func (e *serverMisbehavingError) extendedDNSError() string {
 	case 24:
 		return prefixedErrorString("Invalid Data", e.extendedDNSErrorText)
 	default:
+		if len(e.extendedDNSErrorText) == 0 {
+			return ""
+		}
 		return strconv.Quote(string(e.extendedDNSErrorText))
 	}
 }
