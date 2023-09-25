@@ -538,12 +538,6 @@ func BenchmarkClear(b *testing.B) {
 	const mapSize = 1 << 10
 
 	benchMap(b, bench{
-		setup: func(_ *testing.B, m mapInterface) {
-			for i := 0; i < mapSize; i++ {
-				m.Store(i, i)
-			}
-		},
-
 		perG: func(b *testing.B, pb *testing.PB, i int, m mapInterface) {
 			for ; pb.Next(); i++ {
 				k, v := i, i
@@ -560,7 +554,6 @@ func BenchmarkClear(b *testing.B) {
 					b.Errorf("expected %v, got %v", k, v)
 					b.Skip()
 				}
-
 			}
 		},
 	})
