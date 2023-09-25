@@ -508,7 +508,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	updateCalleeParams(calleeDecl, params)
 
 	// Create a var (param = arg; ...) decl for use by some strategies.
-	bindingDeclStmt := createBindingDecl(logf, caller, args, calleeDecl)
+	bindingDeclStmt := createBindingDecl(logf, caller, args, calleeDecl, callee.Results)
 
 	var remainingArgs []ast.Expr
 	for _, arg := range args {
@@ -577,14 +577,12 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		return res, nil
 	}
 
-	// Attempt to reduce parameterless calls
-	// whose result variables do not escape.
-	allParamsSubstituted := forall(params, func(i int, p *parameter) bool {
-		return p == nil
-	})
-	noResultEscapes := !exists(callee.Results, func(i int, r *paramInfo) bool {
-		return r.Escapes
-	})
+	// If all parameters have been substituted and no result
+	// variable is referenced, we don't need a binding decl.
+	// This may enable better reduction strategies.
+	allResultsUnreferenced := forall(callee.Results, func(i int, r *paramInfo) bool { return len(r.Refs) == 0 })
+	needBindingDecl := !allResultsUnreferenced ||
+		exists(params, func(i int, p *parameter) bool { return p != nil })
 
 	// Special case: call to { return exprs }.
 	//
@@ -595,9 +593,8 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	//
 	// If:
 	// - the body is just "return expr" with trivial implicit conversions,
-	// - all parameters can be eliminated
-	//   (by substitution, or a binding decl),
-	// - no result var escapes,
+	// - all parameters and result vars can be eliminated
+	//   or replaced by a binding decl,
 	// then the call expression can be replaced by the
 	// callee's body expression, suitably substituted.
 	if len(calleeDecl.Body.List) == 1 &&
@@ -610,14 +607,14 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 
 		// statement context
 		if stmt, ok := context.(*ast.ExprStmt); ok &&
-			(allParamsSubstituted && noResultEscapes || bindingDeclStmt != nil) {
+			(!needBindingDecl || bindingDeclStmt != nil) {
 			logf("strategy: reduce stmt-context call to { return exprs }")
 			clearPositions(calleeDecl.Body)
 
 			if callee.ValidForCallStmt {
 				logf("callee body is valid as statement")
 				// Inv: len(results) == 1
-				if allParamsSubstituted && noResultEscapes {
+				if !needBindingDecl {
 					// Reduces to: expr
 					res.old = caller.Call
 					res.new = results[0]
@@ -643,7 +640,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 					Rhs: results,
 				}
 				res.old = stmt
-				if allParamsSubstituted && noResultEscapes {
+				if !needBindingDecl {
 					// Reduces to: _, _ = exprs
 					res.new = discard
 				} else {
@@ -660,7 +657,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		}
 
 		// expression context
-		if allParamsSubstituted && noResultEscapes {
+		if !needBindingDecl {
 			clearPositions(calleeDecl.Body)
 
 			if callee.NumResults == 1 {
@@ -725,12 +722,12 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	//         { var (bindings); body }
 	//         { body }
 	// so long as:
-	// - all parameters can be eliminated
-	//   (by substitution, or a binding decl),
+	// - all parameters can be eliminated or replaced by a binding decl,
 	// - call is a tail-call;
 	// - all returns in body have trivial result conversions;
 	// - there is no label conflict;
-	// - no result variable is referenced by name.
+	// - no result variable is referenced by name,
+	//   or implicitly by a bare return.
 	//
 	// The body may use defer, arbitrary control flow, and
 	// multiple returns.
@@ -744,16 +741,14 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	if ret, ok := callContext(caller.path).(*ast.ReturnStmt); ok &&
 		len(ret.Results) == 1 &&
 		callee.TrivialReturns == callee.TotalReturns &&
-		(allParamsSubstituted && noResultEscapes || bindingDeclStmt != nil) &&
+		!callee.HasBareReturn &&
+		(!needBindingDecl || bindingDeclStmt != nil) &&
 		!hasLabelConflict(caller.path, callee.Labels) &&
-		forall(callee.Results, func(i int, p *paramInfo) bool {
-			// all result vars are unreferenced
-			return len(p.Refs) == 0
-		}) {
+		allResultsUnreferenced {
 		logf("strategy: reduce tail-call")
 		body := calleeDecl.Body
 		clearPositions(body)
-		if !(allParamsSubstituted && noResultEscapes) {
+		if needBindingDecl {
 			body.List = prepend(bindingDeclStmt, body.List...)
 		}
 		res.old = ret
@@ -774,12 +769,12 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	// - callee is a void function (no returns)
 	// - callee does not use defer
 	// - there is no label conflict between caller and callee
-	// - all parameters can be eliminated
-	//   (by substitution, or a binding decl),
+	// - all parameters and result vars can be eliminated
+	//   or replaced by a binding decl,
 	//
 	// If there is only a single statement, the braces are omitted.
 	if stmt := callStmt(caller.path); stmt != nil &&
-		(allParamsSubstituted && noResultEscapes || bindingDeclStmt != nil) &&
+		(!needBindingDecl || bindingDeclStmt != nil) &&
 		!callee.HasDefer &&
 		!hasLabelConflict(caller.path, callee.Labels) &&
 		callee.TotalReturns == 0 {
@@ -787,7 +782,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		body := calleeDecl.Body
 		var repl ast.Stmt = body
 		clearPositions(repl)
-		if !(allParamsSubstituted && noResultEscapes) {
+		if needBindingDecl {
 			body.List = prepend(bindingDeclStmt, body.List...)
 		}
 		if len(body.List) == 1 {
@@ -1175,11 +1170,13 @@ func updateCalleeParams(calleeDecl *ast.FuncDecl, params []*parameter) {
 }
 
 // createBindingDecl constructs a "binding decl" that implements
-// parameter assignment.
+// parameter assignment and declares any named result variables
+// referenced by the callee.
 //
-// If we succeed, the declaration may be used by reduction
-// strategies to relax the requirement that all parameters
-// have been substituted.
+// It may not always be possible to create the decl (e.g. due to
+// shadowing), in which case it returns nil; but if it succeeds, the
+// declaration may be used by reduction strategies to relax the
+// requirement that all parameters have been substituted.
 //
 // For example, a call:
 //
@@ -1210,7 +1207,7 @@ func updateCalleeParams(calleeDecl *ast.FuncDecl, params []*parameter) {
 //
 // Strategies may impose additional checks on return
 // conversions, labels, defer, etc.
-func createBindingDecl(logf func(string, ...any), caller *Caller, args []*argument, calleeDecl *ast.FuncDecl) ast.Stmt {
+func createBindingDecl(logf func(string, ...any), caller *Caller, args []*argument, calleeDecl *ast.FuncDecl, results []*paramInfo) ast.Stmt {
 	// Spread calls are tricky as they may not align with the
 	// parameters' field groupings nor types.
 	// For example, given
@@ -1228,27 +1225,15 @@ func createBindingDecl(logf func(string, ...any), caller *Caller, args []*argume
 		return nil
 	}
 
-	// Compute remaining argument expressions.
-	var values []ast.Expr
-	for _, arg := range args {
-		if arg != nil {
-			values = append(values, arg.expr)
-		}
-	}
-
 	var (
 		specs    []ast.Spec
 		shadowed = make(map[string]bool) // names defined by previous specs
 	)
-	for _, field := range calleeDecl.Type.Params.List {
-		// Each field (param group) becomes a ValueSpec.
-		spec := &ast.ValueSpec{
-			Names:  field.Names,
-			Type:   field.Type,
-			Values: values[:len(field.Names)],
-		}
-		values = values[len(field.Names):]
-
+	// shadow reports whether any name referenced by spec is
+	// shadowed by a name declared by a previous spec (since,
+	// unlike parameters, each spec of a var decl is within the
+	// scope of the previous specs).
+	shadow := func(spec *ast.ValueSpec) bool {
 		// Compute union of free names of type and values
 		// and detect shadowing. Values is the arguments
 		// (caller syntax), so we can use type info.
@@ -1260,11 +1245,11 @@ func createBindingDecl(logf func(string, ...any), caller *Caller, args []*argume
 				free[name] = true
 			}
 		}
-		freeishNames(free, field.Type)
+		freeishNames(free, spec.Type)
 		for name := range free {
 			if shadowed[name] {
 				logf("binding decl would shadow free name %q", name)
-				return nil
+				return true
 			}
 		}
 		for _, id := range spec.Names {
@@ -1272,10 +1257,66 @@ func createBindingDecl(logf func(string, ...any), caller *Caller, args []*argume
 				shadowed[id.Name] = true
 			}
 		}
+		return false
+	}
 
+	// parameters
+	//
+	// Bind parameters that were not eliminated through
+	// substitution. (Non-nil arguments correspond to the
+	// remaining parameters in calleeDecl.)
+	var values []ast.Expr
+	for _, arg := range args {
+		if arg != nil {
+			values = append(values, arg.expr)
+		}
+	}
+	for _, field := range calleeDecl.Type.Params.List {
+		// Each field (param group) becomes a ValueSpec.
+		spec := &ast.ValueSpec{
+			Names:  field.Names,
+			Type:   field.Type,
+			Values: values[:len(field.Names)],
+		}
+		values = values[len(field.Names):]
+		if shadow(spec) {
+			return nil
+		}
 		specs = append(specs, spec)
 	}
 	assert(len(values) == 0, "args/params mismatch")
+
+	// results
+	//
+	// Add specs to declare any named result
+	// variables that are referenced by the body.
+	if calleeDecl.Type.Results != nil {
+		resultIdx := 0
+		for _, field := range calleeDecl.Type.Results.List {
+			if field.Names == nil {
+				resultIdx++
+				continue // unnamed field
+			}
+			var names []*ast.Ident
+			for _, id := range field.Names {
+				if len(results[resultIdx].Refs) > 0 {
+					names = append(names, id)
+				}
+				resultIdx++
+			}
+			if len(names) > 0 {
+				spec := &ast.ValueSpec{
+					Names: names,
+					Type:  field.Type,
+				}
+				if shadow(spec) {
+					return nil
+				}
+				specs = append(specs, spec)
+			}
+		}
+	}
+
 	decl := &ast.DeclStmt{
 		Decl: &ast.GenDecl{
 			Tok:   token.VAR,

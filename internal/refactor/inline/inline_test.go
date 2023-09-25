@@ -526,6 +526,82 @@ func TestTable(t *testing.T) {
 	}
 }`,
 		},
+		// Treatment of named result vars across strategies:
+		{
+			"Stmt-context call to {return g()} that mentions named result.",
+			`func f() (x int) { return g(x) }; func g(int) int`,
+			`func _() { f() }`,
+			`func _() {
+	{
+		var x int
+		g(x)
+	}
+}`,
+		},
+		{
+			"Ditto, with binding decl (due to repeated y refs).",
+			`func f(y string) (x string) { return x+y+y }`,
+			`func _() { f("") }`,
+			`func _() {
+	{
+		var (
+			y string = ""
+			x string
+		)
+		_ = x + y + y
+	}
+}`,
+		},
+		{
+			"Stmt-context call to {return binary} that mentions named result.",
+			`func f() (x int) { return x+x }`,
+			`func _() { f() }`,
+			`func _() {
+	{
+		var x int
+		_ = x + x
+	}
+}`,
+		},
+		{
+			"Ditto, with binding decl again.",
+			`func f(y string) (x int) { return x+x+len(y+y) }`,
+			`func _() { f("") }`,
+			`func _() {
+	{
+		var (
+			y string = ""
+			x int
+		)
+		_ = x + x + len(y+y)
+	}
+}`,
+		},
+		{
+			"Tail call to {return expr} that mentions named result.",
+			`func f() (x int) { return x }`,
+			`func _() int { return f() }`,
+			`func _() int { return func() (x int) { return x }() }`,
+		},
+		{
+			"Tail call to {return} that implicitly reads named result.",
+			`func f() (x int) { return }`,
+			`func _() int { return f() }`,
+			`func _() int { return func() (x int) { return }() }`,
+		},
+		{
+			"Spread-context call to {return expr} that mentions named result.",
+			`func f() (x, y int) { return x, y }`,
+			`func _() { var _, _ = f() }`,
+			`func _() { var _, _ = func() (x, y int) { return x, y }() }`,
+		},
+		{
+			"Shadowing in binding decl for named results => literalization.",
+			`func f(y string) (x y) { return x+x+len(y+y) }; type y = int`,
+			`func _() { f("") }`,
+			`func _() { func(y string) (x y) { return x + x + len(y+y) }("") }`,
+		},
+
 		// TODO(adonovan): improve coverage of the cross
 		// product of each strategy with the checklist of
 		// concerns enumerated in the package doc comment.

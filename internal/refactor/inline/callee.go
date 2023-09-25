@@ -42,6 +42,7 @@ type gobCallee struct {
 	Params           []*paramInfo // information about parameters (incl. receiver)
 	Results          []*paramInfo // information about result variables
 	HasDefer         bool         // uses defer
+	HasBareReturn    bool         // uses bare return in non-void function
 	TotalReturns     int          // number of return statements
 	TrivialReturns   int          // number of return statements with trivial result conversions
 	Labels           []string     // names of all control labels
@@ -246,6 +247,7 @@ func AnalyzeCallee(logf func(string, ...any), fset *token.FileSet, pkg *types.Pa
 	// (but not any nested functions).
 	var (
 		hasDefer       = false
+		hasBareReturn  = false
 		totalReturns   = 0
 		trivialReturns = 0
 		labels         []string
@@ -281,6 +283,8 @@ func AnalyzeCallee(logf func(string, ...any), fset *token.FileSet, pkg *types.Pa
 						break
 					}
 				}
+			} else if sig.Results().Len() > 0 {
+				hasBareReturn = true
 			}
 			if trivial {
 				trivialReturns++
@@ -329,6 +333,7 @@ func AnalyzeCallee(logf func(string, ...any), fset *token.FileSet, pkg *types.Pa
 		Params:           params,
 		Results:          results,
 		HasDefer:         hasDefer,
+		HasBareReturn:    hasBareReturn,
 		TotalReturns:     totalReturns,
 		TrivialReturns:   trivialReturns,
 		Labels:           labels,
