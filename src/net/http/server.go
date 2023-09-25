@@ -33,8 +33,6 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
-// TODO(jba): test
-
 // Errors used by the HTTP server.
 var (
 	// ErrBodyNotAllowed is returned by ResponseWriter.Write calls

@@ -118,6 +118,20 @@ func TestFindHandler(t *testing.T) {
 	}
 }
 
+func TestEmptyServeMux(t *testing.T) {
+	// Verify that a ServeMux with nothing registered
+	// doesn't panic.
+	mux := NewServeMux()
+	var r Request
+	r.Method = "GET"
+	r.Host = "example.com"
+	r.URL = &url.URL{Path: "/"}
+	_, p := mux.Handler(&r)
+	if p != "" {
+		t.Errorf(`got %q, want ""`, p)
+	}
+}
+
 func TestRegisterErr(t *testing.T) {
 	mux := NewServeMux()
 	h := &handler{}
