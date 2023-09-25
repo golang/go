@@ -1,0 +1,45 @@
+Test that attempts to inline with caller or callee in a cgo-generated
+file are rejected.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+/*
+static void f() {}
+*/
+import "C"
+
+func a() {
+	C.f() //@ inline(re"f", re"cannot inline cgo-generated functions")
+	g()   //@ inline(re"g", re`cannot inline calls from files that import "C"`)
+}
+
+func g() {
+	println()
+}
+
+-- a/a2.go --
+package a
+
+func b() {
+	a() //@ inline(re"a", re"cannot inline cgo-generated functions")
+}
+
+func c() {
+	b() //@ inline(re"b", result)
+}
+
+-- result --
+package a
+
+func b() {
+	a() //@ inline(re"a", re"cannot inline cgo-generated functions")
+}
+
+func c() {
+	a() //@ inline(re"b", result)
+}

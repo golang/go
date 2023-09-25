@@ -14,6 +14,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/types/typeutil"
@@ -321,6 +322,17 @@ func AnalyzeCallee(logf func(string, ...any), fset *token.FileSet, pkg *types.Pa
 		}
 		return true
 	})
+
+	// Reject attempts to inline cgo-generated functions.
+	for _, obj := range freeObjs {
+		// There are others (iconst fconst sconst fpvar macro)
+		// but this is probably sufficient.
+		if strings.HasPrefix(obj.Name, "_Cfunc_") ||
+			strings.HasPrefix(obj.Name, "_Ctype_") ||
+			strings.HasPrefix(obj.Name, "_Cvar_") {
+			return nil, fmt.Errorf("cannot inline cgo-generated functions")
+		}
+	}
 
 	// Compact content to just the FuncDecl.
 	//
