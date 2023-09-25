@@ -964,12 +964,7 @@ func (db *DB) shortestIdleTimeLocked() time.Duration {
 	if db.maxLifetime <= 0 {
 		return db.maxIdleTime
 	}
-
-	min := db.maxIdleTime
-	if min > db.maxLifetime {
-		min = db.maxLifetime
-	}
-	return min
+	return min(db.maxIdleTime, db.maxLifetime)
 }
 
 // SetMaxIdleConns sets the maximum number of connections in the idle
