@@ -235,10 +235,7 @@ retry:
 	// Figure out the maximum amount of data we need to retain
 	// for backreferences.
 	var windowSize int
-	if singleSegment {
-		// No window required, as all the data is in a single buffer.
-		windowSize = 0
-	} else {
+	if !singleSegment {
 		// Window descriptor. RFC 3.1.1.1.2.
 		windowDescriptor := r.scratch[0]
 		exponent := uint64(windowDescriptor >> 3)
@@ -251,11 +248,6 @@ retry:
 		// Default zstd sets limits on the window size.
 		if fuzzing && (windowLog > 31 || windowSize > 1<<27) {
 			return r.makeError(relativeOffset, "windowSize too large")
-		}
-
-		// RFC 8878 permits us to set an 8M max on window size.
-		if windowSize > 8<<20 {
-			windowSize = 8 << 20
 		}
 	}
 
@@ -276,6 +268,18 @@ retry:
 		r.remainingFrameSize = binary.LittleEndian.Uint64(fb)
 	default:
 		panic("unreachable")
+	}
+
+	// RFC 3.1.1.1.2.
+	// When Single_Segment_Flag is set, Window_Descriptor is not present.
+	// In this case, Window_Size is Frame_Content_Size.
+	if singleSegment {
+		windowSize = int(r.remainingFrameSize)
+	}
+
+	// RFC 8878 3.1.1.1.1.2. permits us to set an 8M max on window size.
+	if windowSize > 8<<20 {
+		windowSize = 8 << 20
 	}
 
 	relativeOffset += headerSize
