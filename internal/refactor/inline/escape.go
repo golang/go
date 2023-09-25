@@ -57,7 +57,7 @@ func escape(info *types.Info, root ast.Node, f func(v *types.Var, escapes bool))
 		}
 	}
 
-	// Search function body for operations &x, x.f(), and x = y
+	// Search function body for operations &x, x.f(), x++, and x = y
 	// where x is a parameter. Each of these treats x as an address.
 	ast.Inspect(root, func(n ast.Node) bool {
 		switch n := n.(type) {
@@ -88,6 +88,9 @@ func escape(info *types.Info, root ast.Node, f func(v *types.Var, escapes bool))
 					lvalue(lhs, false)
 				}
 			}
+
+		case *ast.IncDecStmt:
+			lvalue(n.X, false)
 		}
 		return true
 	})

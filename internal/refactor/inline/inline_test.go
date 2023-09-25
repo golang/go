@@ -431,6 +431,17 @@ func TestTable(t *testing.T) {
 			`func _() { func(x, y int, rest ...int) { println(x, y, rest) }(g()) }`,
 		},
 		{
+			"IncDec counts as assignment.",
+			`func f(x int) { x++ }`,
+			`func _() { f(1) }`,
+			`func _() {
+	{
+		var x int = 1
+		x++
+	}
+}`,
+		},
+		{
 			"Binding declaration (x eliminated).",
 			`func f(w, x, y any, z int) { println(w, y, z) }; func g(int) int`,
 			`func _() { f(g(0), g(1), g(2), g(3)) }`,
