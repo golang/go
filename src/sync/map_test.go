@@ -407,7 +407,7 @@ func TestConcurrentClear(t *testing.T) {
 	m.Clear()
 
 	m.Range(func(k, v any) bool {
-		t.Errorf("after Clear, Range yielded (%v, %v); want no calls", k, v)
+		t.Errorf("after Clear, Map contains (%v, %v); expected it to be empty", k, v)
 
 		return true
 	})
