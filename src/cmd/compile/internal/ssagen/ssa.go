@@ -2025,6 +2025,7 @@ func (s *state) stmt(n ir.Node) {
 		typs := s.f.Config.Types
 
 		t := s.expr(n.RuntimeType)
+		h := s.expr(n.Hash)
 		d := s.newValue1A(ssa.OpAddr, typs.BytePtr, n.Descriptor, s.sb)
 
 		// Check the cache first.
@@ -2061,10 +2062,9 @@ func (s *state) stmt(n ir.Node) {
 			cache := s.newValue1(ssa.OpSelect0, typs.BytePtr, atomicLoad)
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, atomicLoad)
 
-			// Load hash from type.
-			hash := s.newValue2(ssa.OpLoad, typs.UInt32, s.newValue1I(ssa.OpOffPtr, typs.UInt32Ptr, 2*s.config.PtrSize, t), s.mem())
-			hash = s.newValue1(zext, typs.Uintptr, hash)
-			s.vars[hashVar] = hash
+			// Initialize hash variable.
+			s.vars[hashVar] = s.newValue1(zext, typs.Uintptr, h)
+
 			// Load mask from cache.
 			mask := s.newValue2(ssa.OpLoad, typs.Uintptr, cache, s.mem())
 			// Jump to loop head.
@@ -6703,8 +6703,13 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 				cache := s.newValue1(ssa.OpSelect0, typs.BytePtr, atomicLoad)
 				s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, atomicLoad)
 
-				// Load hash from type.
-				hash := s.newValue2(ssa.OpLoad, typs.UInt32, s.newValue1I(ssa.OpOffPtr, typs.UInt32Ptr, 2*s.config.PtrSize, typ), s.mem())
+				// Load hash from type or itab.
+				var hash *ssa.Value
+				if src.IsEmptyInterface() {
+					hash = s.newValue2(ssa.OpLoad, typs.UInt32, s.newValue1I(ssa.OpOffPtr, typs.UInt32Ptr, 2*s.config.PtrSize, typ), s.mem())
+				} else {
+					hash = s.newValue2(ssa.OpLoad, typs.UInt32, s.newValue1I(ssa.OpOffPtr, typs.UInt32Ptr, 2*s.config.PtrSize, itab), s.mem())
+				}
 				hash = s.newValue1(zext, typs.Uintptr, hash)
 				s.vars[hashVar] = hash
 				// Load mask from cache.

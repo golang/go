@@ -547,7 +547,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 				typeArg = itabType(srcItab)
 			}
 			caseVar := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
-			isw := ir.NewInterfaceSwitchStmt(base.Pos, caseVar, s.itabName, typeArg, lsym)
+			isw := ir.NewInterfaceSwitchStmt(base.Pos, caseVar, s.itabName, typeArg, dotHash, lsym)
 			sw.Compiled.Append(isw)
 
 			// Switch on the result of the call (or cache lookup).
