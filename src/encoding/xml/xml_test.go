@@ -829,6 +829,7 @@ var procInstTests = []struct {
 	{`version="1.0" encoding='utf-8'`, [2]string{"1.0", "utf-8"}},
 	{`version="1.0" encoding='utf-8' `, [2]string{"1.0", "utf-8"}},
 	{`version="1.0" encoding=utf-8`, [2]string{"1.0", ""}},
+	{`version= "1.0" encoding = 'utf-8' `, [2]string{"1.0", "utf-8"}},
 	{`encoding="FOO" `, [2]string{"", "FOO"}},
 }
 

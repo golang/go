@@ -2044,11 +2044,15 @@ func emitCDATA(w io.Writer, s []byte) error {
 func procInst(param, s string) string {
 	// TODO: this parsing is somewhat lame and not exact.
 	// It works for all actual cases, though.
-	param = param + "="
 	_, v, _ := strings.Cut(s, param)
 	if v == "" {
 		return ""
 	}
+	_, v, _ = strings.Cut(v, "=")
+	if v == "" {
+		return ""
+	}
+	v = strings.TrimSpace(v)
 	if v[0] != '\'' && v[0] != '"' {
 		return ""
 	}
