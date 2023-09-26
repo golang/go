@@ -3978,14 +3978,29 @@ func testTransportAndServerSharedBodyRace(t *testing.T, mode testMode) {
 
 		const bodySize = 1 << 20
 
+		var wg sync.WaitGroup
 		backend := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+			// Work around https://go.dev/issue/38370: clientServerTest uses
+			// an httptest.Server under the hood, and in HTTP/2 mode it does not always
+			// “[block] until all outstanding requests on this server have completed”,
+			// causing the call to Logf below to race with the end of the test.
+			//
+			// Since the client doesn't cancel the request until we have copied half
+			// the body, this call to add happens before the test is cleaned up,
+			// preventing the race.
+			wg.Add(1)
+			defer wg.Done()
+
 			n, err := io.CopyN(rw, req.Body, bodySize)
 			t.Logf("backend CopyN: %v, %v", n, err)
 			<-req.Context().Done()
 		}))
 		// We need to close explicitly here so that in-flight server
 		// requests don't race with the call to SetRSTAvoidanceDelay for a retry.
-		defer backend.close()
+		defer func() {
+			wg.Wait()
+			backend.close()
+		}()
 
 		var proxy *clientServerTest
 		proxy = newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
