@@ -535,18 +535,14 @@ func BenchmarkCompareAndDeleteMostlyMisses(b *testing.B) {
 }
 
 func BenchmarkClear(b *testing.B) {
-	const mapSize = 1 << 10
-
 	mu := sync.Mutex{}
 
 	benchMap(b, bench{
 		perG: func(b *testing.B, pb *testing.PB, i int, m mapInterface) {
 			for ; pb.Next(); i++ {
-				k, v := i, i
+				k, v := i%256, i%256
 				mu.Lock()
-				b.StartTimer() // racy but to benchmark this is crucial
 				m.Clear()
-				b.StopTimer() // racy
 				mu.Unlock()
 				m.Store(k, v)
 				v1, ok := m.Load(k)
