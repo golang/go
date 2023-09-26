@@ -45,6 +45,12 @@ func TestData(t *testing.T) {
 		t.Run(filepath.Base(file), func(t *testing.T) {
 			t.Parallel()
 
+			// The few tests that use cgo should be in
+			// files whose name includes "cgo".
+			if strings.Contains(t.Name(), "cgo") {
+				testenv.NeedsTool(t, "cgo")
+			}
+
 			// Extract archive to temporary tree.
 			ar, err := txtar.ParseFile(file)
 			if err != nil {
