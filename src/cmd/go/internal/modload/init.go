@@ -414,7 +414,7 @@ func Init() {
 	// Disable any ssh connection pooling by Git.
 	// If a Git subprocess forks a child into the background to cache a new connection,
 	// that child keeps stdout/stderr open. After the Git subprocess exits,
-	// os /exec expects to be able to read from the stdout/stderr pipe
+	// os/exec expects to be able to read from the stdout/stderr pipe
 	// until EOF to get all the data that the Git subprocess wrote before exiting.
 	// The EOF doesn't come until the child exits too, because the child
 	// is holding the write end of the pipe.
