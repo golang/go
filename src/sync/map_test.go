@@ -361,6 +361,13 @@ func TestMapClear(t *testing.T) {
 
 }
 
+// TestConcurrentClear tests the concurrent behavior of the sync.Map.
+// It launches 30 goroutines divided into three groups:
+// 1. The first group of goroutines stores key-value pairs into the map.
+// 2. The second group attempts to load values from the map.
+// 3. The third group concurrently clears the map.
+// After all goroutines have finished, the function checks that the map is empty.
+// This test ensures that sync.Map's methods behave correctly under concurrent access.
 func TestConcurrentClear(t *testing.T) {
 	var m sync.Map
 
@@ -400,7 +407,7 @@ func TestConcurrentClear(t *testing.T) {
 	m.Clear()
 
 	m.Range(func(k, v any) bool {
-		t.Errorf("invalid %v:%v", k, v)
+		t.Errorf("after Clear, Range yielded (%v, %v); want no calls", k, v)
 
 		return true
 	})
