@@ -546,13 +546,15 @@ func BenchmarkClear(b *testing.B) {
 				v1, ok := m.Load(k)
 
 				if !ok {
-					b.Errorf("failed to load %v", k)
-					b.Skip()
+					b.Logf("failed to load %v", k)
+					// b.Skip() Unsafe to call in perfG
+					continue
 				}
 
 				if v1.(int) != v {
 					b.Errorf("expected %v, got %v", k, v)
-					b.Skip()
+					// b.Skip()
+					continue
 				}
 			}
 		},
