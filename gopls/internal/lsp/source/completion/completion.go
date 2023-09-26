@@ -596,6 +596,17 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	// Deep search collected candidates and their members for more candidates.
 	c.deepSearch(ctx, 1, deadline)
 
+	// At this point we have a sufficiently complete set of results, and want to
+	// return as close to the completion budget as possible. Previously, we
+	// avoided cancelling the context because it could result in partial results
+	// for e.g. struct fields. At this point, we have a minimal valid set of
+	// candidates, and so truncating due to context cancellation is acceptable.
+	if c.opts.budget > 0 {
+		timeoutDuration := time.Until(c.startTime.Add(c.opts.budget))
+		ctx, cancel = context.WithTimeout(ctx, timeoutDuration)
+		defer cancel()
+	}
+
 	for _, callback := range c.completionCallbacks {
 		if deadline == nil || time.Now().Before(*deadline) {
 			if err := c.snapshot.RunProcessEnvFunc(ctx, callback); err != nil {
