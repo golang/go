@@ -1310,7 +1310,11 @@ func GetsockoptString(fd, level, opt int) (string, error) {
 			return "", err
 		}
 	}
-	return string(buf[:vallen-1]), nil
+	if buf[vallen-1] == 0 {
+		return string(buf[:vallen-1]), nil
+	} else {
+		return string(buf[:vallen]), nil
+	}
 }
 
 func GetsockoptTpacketStats(fd, level, opt int) (*TpacketStats, error) {
