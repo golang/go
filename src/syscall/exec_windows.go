@@ -319,17 +319,6 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 		}
 	}
 
-	var maj, min, build uint32
-	rtlGetNtVersionNumbers(&maj, &min, &build)
-	isWin7 := maj < 6 || (maj == 6 && min <= 1)
-	// NT kernel handles are divisible by 4, with the bottom 3 bits left as
-	// a tag. The fully set tag correlates with the types of handles we're
-	// concerned about here.  Except, the kernel will interpret some
-	// special handle values, like -1, -2, and so forth, so kernelbase.dll
-	// checks to see that those bottom three bits are checked, but that top
-	// bit is not checked.
-	isLegacyWin7ConsoleHandle := func(handle Handle) bool { return isWin7 && handle&0x10000003 == 3 }
-
 	p, _ := GetCurrentProcess()
 	parentProcess := p
 	if sys.ParentProcess != 0 {
@@ -338,15 +327,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	fd := make([]Handle, len(attr.Files))
 	for i := range attr.Files {
 		if attr.Files[i] > 0 {
-			destinationProcessHandle := parentProcess
-
-			// On Windows 7, console handles aren't real handles, and can only be duplicated
-			// into the current process, not a parent one, which amounts to the same thing.
-			if parentProcess != p && isLegacyWin7ConsoleHandle(Handle(attr.Files[i])) {
-				destinationProcessHandle = p
-			}
-
-			err := DuplicateHandle(p, Handle(attr.Files[i]), destinationProcessHandle, &fd[i], 0, true, DUPLICATE_SAME_ACCESS)
+			err := DuplicateHandle(p, Handle(attr.Files[i]), parentProcess, &fd[i], 0, true, DUPLICATE_SAME_ACCESS)
 			if err != nil {
 				return 0, 0, err
 			}
@@ -376,14 +357,6 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	si.StdErr = fd[2]
 
 	fd = append(fd, sys.AdditionalInheritedHandles...)
-
-	// On Windows 7, console handles aren't real handles, so don't pass them
-	// through to PROC_THREAD_ATTRIBUTE_HANDLE_LIST.
-	for i := range fd {
-		if isLegacyWin7ConsoleHandle(fd[i]) {
-			fd[i] = 0
-		}
-	}
 
 	// The presence of a NULL handle in the list is enough to cause PROC_THREAD_ATTRIBUTE_HANDLE_LIST
 	// to treat the entire list as empty, so remove NULL handles.
