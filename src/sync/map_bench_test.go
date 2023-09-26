@@ -541,7 +541,9 @@ func BenchmarkClear(b *testing.B) {
 		perG: func(b *testing.B, pb *testing.PB, i int, m mapInterface) {
 			for ; pb.Next(); i++ {
 				k, v := i, i
+				b.StartTimer() // racy but to benchmark this is crucial
 				m.Clear()
+				b.StopTimer() // racy
 				m.Store(k, v)
 				v1, ok := m.Load(k)
 
