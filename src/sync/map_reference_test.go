@@ -282,5 +282,5 @@ func (m *DeepCopyMap) Clear() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	clear(m.dirty())
+	m.clean.Store((map[any]any)(nil))
 }
