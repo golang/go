@@ -866,7 +866,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		return res, nil
 	}
 
-	// TODO(adonovan): parameterless call to { stmt; return expr }
+	// TODO(adonovan): parameterless call to { stmts; return expr }
 	// from one of these contexts:
 	//    x, y     = f()
 	//    x, y    := f()

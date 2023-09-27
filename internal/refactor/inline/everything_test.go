@@ -153,6 +153,7 @@ func TestEverything(t *testing.T) {
 							"has no body",
 							"type parameters are not yet",
 							"line directives",
+							"cgo-generated",
 						} {
 							if strings.Contains(err.Error(), ignore) {
 								return
