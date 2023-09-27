@@ -1178,7 +1178,7 @@ func rewriteValuePPC64_OpBswap16(v *Value) bool {
 		return true
 	}
 	// match: (Bswap16 x:(MOVHZloadidx ptr idx mem))
-	// result: @x.Block (MOVHZreg (MOVHBRloadidx ptr idx mem))
+	// result: @x.Block (MOVHBRloadidx ptr idx mem)
 	for {
 		x := v_0
 		if x.Op != OpPPC64MOVHZloadidx {
@@ -1188,11 +1188,9 @@ func rewriteValuePPC64_OpBswap16(v *Value) bool {
 		ptr := x.Args[0]
 		idx := x.Args[1]
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZreg, typ.Int64)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVHBRloadidx, typ.Int16)
 		v.copyOf(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVHBRloadidx, typ.Int16)
-		v1.AddArg3(ptr, idx, mem)
-		v0.AddArg(v1)
+		v0.AddArg3(ptr, idx, mem)
 		return true
 	}
 	return false
@@ -1235,7 +1233,7 @@ func rewriteValuePPC64_OpBswap32(v *Value) bool {
 		return true
 	}
 	// match: (Bswap32 x:(MOVWZloadidx ptr idx mem))
-	// result: @x.Block (MOVWZreg (MOVWBRloadidx ptr idx mem))
+	// result: @x.Block (MOVWBRloadidx ptr idx mem)
 	for {
 		x := v_0
 		if x.Op != OpPPC64MOVWZloadidx {
@@ -1245,11 +1243,9 @@ func rewriteValuePPC64_OpBswap32(v *Value) bool {
 		ptr := x.Args[0]
 		idx := x.Args[1]
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, typ.Int64)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRloadidx, typ.Int32)
 		v.copyOf(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRloadidx, typ.Int32)
-		v1.AddArg3(ptr, idx, mem)
-		v0.AddArg(v1)
+		v0.AddArg3(ptr, idx, mem)
 		return true
 	}
 	return false
@@ -4446,7 +4442,7 @@ func rewriteValuePPC64_OpPPC64BRH(v *Value) bool {
 	}
 	// match: (BRH x:(MOVHZloadidx ptr idx mem))
 	// cond: x.Uses == 1
-	// result: @x.Block (MOVHZreg (MOVHBRloadidx ptr idx mem))
+	// result: @x.Block (MOVHBRloadidx ptr idx mem)
 	for {
 		x := v_0
 		if x.Op != OpPPC64MOVHZloadidx {
@@ -4459,11 +4455,9 @@ func rewriteValuePPC64_OpPPC64BRH(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZreg, typ.Int64)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVHBRloadidx, typ.Int16)
 		v.copyOf(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVHBRloadidx, typ.Int16)
-		v1.AddArg3(ptr, idx, mem)
-		v0.AddArg(v1)
+		v0.AddArg3(ptr, idx, mem)
 		return true
 	}
 	return false
@@ -4499,7 +4493,7 @@ func rewriteValuePPC64_OpPPC64BRW(v *Value) bool {
 	}
 	// match: (BRW x:(MOVWZloadidx ptr idx mem))
 	// cond: x.Uses == 1
-	// result: @x.Block (MOVWZreg (MOVWBRloadidx ptr idx mem))
+	// result: @x.Block (MOVWBRloadidx ptr idx mem)
 	for {
 		x := v_0
 		if x.Op != OpPPC64MOVWZloadidx {
@@ -4512,11 +4506,9 @@ func rewriteValuePPC64_OpPPC64BRW(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, typ.Int64)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRloadidx, typ.Int32)
 		v.copyOf(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRloadidx, typ.Int32)
-		v1.AddArg3(ptr, idx, mem)
-		v0.AddArg(v1)
+		v0.AddArg3(ptr, idx, mem)
 		return true
 	}
 	return false

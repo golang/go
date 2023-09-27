@@ -999,7 +999,7 @@
 
 // Fold bit reversal into loads.
 (BR(W|H) x:(MOV(W|H)Zload [off] {sym} ptr mem)) && x.Uses == 1 => @x.Block (MOV(W|H)BRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
-(BR(W|H) x:(MOV(W|H)Zloadidx ptr idx      mem)) && x.Uses == 1 => @x.Block (MOV(W|H)Zreg (MOV(W|H)BRloadidx ptr idx mem))
+(BR(W|H) x:(MOV(W|H)Zloadidx ptr idx      mem)) && x.Uses == 1 => @x.Block (MOV(W|H)BRloadidx ptr idx mem)
 (BRD x:(MOVDload [off] {sym} ptr mem)) && x.Uses == 1 => @x.Block (MOVDBRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
 (BRD x:(MOVDloadidx ptr idx      mem)) && x.Uses == 1 => @x.Block (MOVDBRloadidx ptr idx mem)
 
@@ -1010,7 +1010,7 @@
 // GOPPC64<10 rules.
 // These Bswap operations should only be introduced by the memcombine pass in places where they can be folded into loads or stores.
 (Bswap(32|16) x:(MOV(W|H)Zload [off] {sym} ptr mem)) => @x.Block (MOV(W|H)BRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
-(Bswap(32|16) x:(MOV(W|H)Zloadidx ptr idx      mem)) => @x.Block (MOV(W|H)Zreg (MOV(W|H)BRloadidx ptr idx mem))
+(Bswap(32|16) x:(MOV(W|H)Zloadidx ptr idx      mem)) => @x.Block (MOV(W|H)BRloadidx ptr idx mem)
 (Bswap64 x:(MOVDload [off] {sym} ptr mem)) => @x.Block (MOVDBRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
 (Bswap64 x:(MOVDloadidx ptr idx      mem)) => @x.Block (MOVDBRloadidx ptr idx mem)
 (MOV(D|W|H)store [off] {sym} ptr (Bswap(64|32|16) val) mem) => (MOV(D|W|H)BRstore (MOVDaddr <ptr.Type> [off] {sym} ptr) val mem)
