@@ -409,6 +409,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	EXTSHCC R3, R4                  // 7c640735
 	EXTSW R3, R4                    // 7c6407b4
 	EXTSWCC R3, R4                  // 7c6407b5
+	RLWMI $7, R3, $4026531855, R6   // 50663f06
+	RLWMI $7, R3, $1, R6            // 50663ffe
+	RLWMI $7, R3, $2147483648, R6   // 50663800
 	RLWMI $7, R3, $65535, R6        // 50663c3e
 	RLWMI $7, R3, $16, $31, R6      // 50663c3e
 	RLWMICC $7, R3, $65535, R6      // 50663c3f

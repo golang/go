@@ -2490,6 +2490,32 @@ func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32, reuse b
 	return
 }
 
+// Determine the mask begin (mb) and mask end (me) values
+// for a valid word rotate mask. A valid 32 bit mask is of
+// the form 1+0*1+ or 0*1+0*.
+//
+// Note, me is inclusive.
+func decodeMask32(mask uint32) (mb, me uint32, valid bool) {
+	mb = uint32(bits.LeadingZeros32(mask))
+	me = uint32(32 - bits.TrailingZeros32(mask))
+	mbn := uint32(bits.LeadingZeros32(^mask))
+	men := uint32(32 - bits.TrailingZeros32(^mask))
+	// Check for a wrapping mask (e.g bits at 0 and 31)
+	if mb == 0 && me == 32 {
+		// swap the inverted values
+		mb, me = men, mbn
+	}
+
+	// Validate mask is of the binary form 1+0*1+ or 0*1+0*
+	// Isolate rightmost 1 (if none 0) and add.
+	v := mask
+	vp := (v & -v) + v
+	// Likewise, check for the wrapping (inverted) case.
+	vn := ^v
+	vpn := (vn & -vn) + vn
+	return mb, (me - 1) & 31, (v&vp == 0 || vn&vpn == 0) && v != 0
+}
+
 // Decompose a mask of contiguous bits into a begin (mb) and
 // end (me) value.
 //
@@ -2502,55 +2528,7 @@ func decodeMask64(mask int64) (mb, me uint32, valid bool) {
 	mb = uint32(bits.LeadingZeros64(m))
 	me = uint32(64 - bits.TrailingZeros64(m))
 	valid = ((m&-m)+m)&m == 0 && m != 0
-	return mb, me - 1, valid
-}
-
-/*
- * 32-bit masks
- */
-func getmask(m *[2]uint32, v uint32) bool {
-	m[1] = 0
-	m[0] = 0
-	if v != ^uint32(0) && v&(1<<31) != 0 && v&1 != 0 { /* MB > ME */
-		if getmask(m, ^v) {
-			i := m[0]
-			m[0] = m[1] + 1
-			m[1] = i - 1
-			return true
-		}
-
-		return false
-	}
-
-	for i := 0; i < 32; i++ {
-		if v&(1<<uint(31-i)) != 0 {
-			m[0] = uint32(i)
-			for {
-				m[1] = uint32(i)
-				i++
-				if i >= 32 || v&(1<<uint(31-i)) == 0 {
-					break
-				}
-			}
-
-			for ; i < 32; i++ {
-				if v&(1<<uint(31-i)) != 0 {
-					return false
-				}
-			}
-			return true
-		}
-	}
-
-	return false
-}
-
-func (c *ctxt9) maskgen(p *obj.Prog, v uint32) (mb, me uint32) {
-	var m [2]uint32
-	if !getmask(&m, v) {
-		c.ctxt.Diag("cannot generate mask #%x\n%v", v, p)
-	}
-	return m[0], m[1]
+	return mb, (me - 1) & 63, valid
 }
 
 func loadu32(r int, d int64) uint32 {
@@ -3475,7 +3453,12 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 	case 63: /* rlwimi/rlwnm/rlwinm [$sh,b],s,[$mask or mb,me],a*/
 		var mb, me uint32
 		if len(p.RestArgs) == 1 { // Mask needs decomposed into mb and me.
-			mb, me = c.maskgen(p, uint32(p.RestArgs[0].Addr.Offset))
+			var valid bool
+			// Note, optab rules ensure $mask is a 32b constant.
+			mb, me, valid = decodeMask32(uint32(p.RestArgs[0].Addr.Offset))
+			if !valid {
+				c.ctxt.Diag("cannot generate mask #%x\n%v", uint64(p.RestArgs[0].Addr.Offset), p)
+			}
 		} else { // Otherwise, mask is already passed as mb and me in RestArgs.
 			mb, me = uint32(p.RestArgs[0].Addr.Offset), uint32(p.RestArgs[1].Addr.Offset)
 		}
