@@ -8,8 +8,8 @@ import (
 	"cmp"
 	"fmt"
 	"math"
-	"sort"
 	"slices"
+	"sort"
 	"testing"
 )
 
@@ -133,9 +133,9 @@ func ExampleOr() {
 
 func ExampleOr_sort() {
 	type Order struct {
-		Product string
+		Product  string
 		Customer string
-		Price float64
+		Price    float64
 	}
 	orders := []Order{
 		{"foo", "alice", 1.00},
