@@ -2276,16 +2276,22 @@ func OP_RLW(op uint32, a uint32, s uint32, sh uint32, mb uint32, me uint32) uint
 	return op | (s&31)<<21 | (a&31)<<16 | (sh&31)<<11 | (mb&31)<<6 | (me&31)<<1
 }
 
-func AOP_RLDIC(op uint32, a uint32, s uint32, sh uint32, m uint32) uint32 {
-	return op | (s&31)<<21 | (a&31)<<16 | (sh&31)<<11 | ((sh&32)>>5)<<1 | (m&31)<<6 | ((m&32)>>5)<<5
-}
-
 func AOP_EXTSWSLI(op uint32, a uint32, s uint32, sh uint32) uint32 {
 	return op | (a&31)<<21 | (s&31)<<16 | (sh&31)<<11 | ((sh&32)>>5)<<1
 }
 
 func AOP_ISEL(op uint32, t uint32, a uint32, b uint32, bc uint32) uint32 {
 	return op | (t&31)<<21 | (a&31)<<16 | (b&31)<<11 | (bc&0x1F)<<6
+}
+
+/* MD-form 2-register, 2 6-bit immediate operands */
+func AOP_MD(op uint32, a uint32, s uint32, sh uint32, m uint32) uint32 {
+	return op | (s&31)<<21 | (a&31)<<16 | (sh&31)<<11 | ((sh&32)>>5)<<1 | (m&31)<<6 | ((m&32)>>5)<<5
+}
+
+/* MDS-form 3-register, 1 6-bit immediate operands. rsh argument is a register. */
+func AOP_MDS(op, to, from, rsh, m uint32) uint32 {
+	return AOP_MD(op, to, from, rsh&31, m)
 }
 
 func AOP_PFX_00_8LS(r, ie uint32) uint32 {
@@ -2484,6 +2490,21 @@ func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32, reuse b
 	return
 }
 
+// Decompose a mask of contiguous bits into a begin (mb) and
+// end (me) value.
+//
+// 64b mask values cannot wrap on any valid PPC64 instruction.
+// Only masks of the form 0*1+0* are valid.
+//
+// Note, me is inclusive.
+func decodeMask64(mask int64) (mb, me uint32, valid bool) {
+	m := uint64(mask)
+	mb = uint32(bits.LeadingZeros64(m))
+	me = uint32(64 - bits.TrailingZeros64(m))
+	valid = ((m&-m)+m)&m == 0 && m != 0
+	return mb, me - 1, valid
+}
+
 /*
  * 32-bit masks
  */
@@ -2530,41 +2551,6 @@ func (c *ctxt9) maskgen(p *obj.Prog, v uint32) (mb, me uint32) {
 		c.ctxt.Diag("cannot generate mask #%x\n%v", v, p)
 	}
 	return m[0], m[1]
-}
-
-/*
- * 64-bit masks (rldic etc)
- */
-func getmask64(m []byte, v uint64) bool {
-	m[1] = 0
-	m[0] = m[1]
-	for i := 0; i < 64; i++ {
-		if v&(uint64(1)<<uint(63-i)) != 0 {
-			m[0] = byte(i)
-			for {
-				m[1] = byte(i)
-				i++
-				if i >= 64 || v&(uint64(1)<<uint(63-i)) == 0 {
-					break
-				}
-			}
-
-			for ; i < 64; i++ {
-				if v&(uint64(1)<<uint(63-i)) != 0 {
-					return false
-				}
-			}
-			return true
-		}
-	}
-
-	return false
-}
-
-func (c *ctxt9) maskgen64(p *obj.Prog, m []byte, v uint64) {
-	if !getmask64(m, v) {
-		c.ctxt.Diag("cannot generate mask #%x\n%v", v, p)
-	}
 }
 
 func loadu32(r int, d int64) uint32 {
@@ -2674,7 +2660,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		// AROTL and AROTLW are extended mnemonics, which map to RLDCL and RLWNM.
 		switch p.As {
 		case AROTL:
-			o1 = AOP_RLDIC(OP_RLDCL, uint32(p.To.Reg), uint32(r), uint32(p.From.Reg), uint32(0))
+			o1 = AOP_MD(OP_RLDCL, uint32(p.To.Reg), uint32(r), uint32(p.From.Reg), uint32(0))
 		case AROTLW:
 			o1 = OP_RLW(OP_RLWNM, uint32(p.To.Reg), uint32(r), uint32(p.From.Reg), 0, 31)
 		default:
@@ -2804,62 +2790,47 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		}
 
 	case 14: /* rldc[lr] Rb,Rs,$mask,Ra -- left, right give different masks */
-		r := int(p.Reg)
+		r := uint32(p.Reg)
 
 		if r == 0 {
-			r = int(p.To.Reg)
+			r = uint32(p.To.Reg)
 		}
 		d := c.vregoff(p.GetFrom3())
-		var a int
 		switch p.As {
 
 		// These opcodes expect a mask operand that has to be converted into the
 		// appropriate operand.  The way these were defined, not all valid masks are possible.
 		// Left here for compatibility in case they were used or generated.
 		case ARLDCL, ARLDCLCC:
-			var mask [2]uint8
-			c.maskgen64(p, mask[:], uint64(d))
-
-			a = int(mask[0]) /* MB */
-			if mask[1] != 63 {
+			mb, me, valid := decodeMask64(d)
+			if me != 63 || !valid {
 				c.ctxt.Diag("invalid mask for rotate: %x (end != bit 63)\n%v", uint64(d), p)
 			}
-			o1 = LOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(p.From.Reg))
-			o1 |= (uint32(a) & 31) << 6
-			if a&0x20 != 0 {
-				o1 |= 1 << 5 /* mb[5] is top bit */
-			}
+			o1 = AOP_MDS(c.oprrr(p.As), uint32(p.To.Reg), r, uint32(p.From.Reg), mb)
 
 		case ARLDCR, ARLDCRCC:
-			var mask [2]uint8
-			c.maskgen64(p, mask[:], uint64(d))
-
-			a = int(mask[1]) /* ME */
-			if mask[0] != 0 {
-				c.ctxt.Diag("invalid mask for rotate: %x %x (start != 0)\n%v", uint64(d), mask[0], p)
+			mb, me, valid := decodeMask64(d)
+			if mb != 0 || !valid {
+				c.ctxt.Diag("invalid mask for rotate: %x (start != 0)\n%v", uint64(d), p)
 			}
-			o1 = LOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(p.From.Reg))
-			o1 |= (uint32(a) & 31) << 6
-			if a&0x20 != 0 {
-				o1 |= 1 << 5 /* mb[5] is top bit */
-			}
+			o1 = AOP_MDS(c.oprrr(p.As), uint32(p.To.Reg), r, uint32(p.From.Reg), me)
 
 		// These opcodes use a shift count like the ppc64 asm, no mask conversion done
 		case ARLDICR, ARLDICRCC:
-			me := int(d)
+			me := uint32(d)
 			sh := c.regoff(&p.From)
 			if me < 0 || me > 63 || sh > 63 {
 				c.ctxt.Diag("Invalid me or sh for RLDICR: %x %x\n%v", int(d), sh, p)
 			}
-			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(me))
+			o1 = AOP_MD(c.oprrr(p.As), uint32(p.To.Reg), r, uint32(sh), me)
 
 		case ARLDICL, ARLDICLCC, ARLDIC, ARLDICCC:
-			mb := int(d)
+			mb := uint32(d)
 			sh := c.regoff(&p.From)
 			if mb < 0 || mb > 63 || sh > 63 {
 				c.ctxt.Diag("Invalid mb or sh for RLDIC, RLDICL: %x %x\n%v", mb, sh, p)
 			}
-			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(mb))
+			o1 = AOP_MD(c.oprrr(p.As), uint32(p.To.Reg), r, uint32(sh), mb)
 
 		case ACLRLSLDI:
 			// This is an extended mnemonic defined in the ISA section C.8.1
@@ -2871,11 +2842,10 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			if n > b || b > 63 {
 				c.ctxt.Diag("Invalid n or b for CLRLSLDI: %x %x\n%v", n, b, p)
 			}
-			o1 = AOP_RLDIC(OP_RLDIC, uint32(p.To.Reg), uint32(r), uint32(n), uint32(b)-uint32(n))
+			o1 = AOP_MD(OP_RLDIC, uint32(p.To.Reg), uint32(r), uint32(n), uint32(b)-uint32(n))
 
 		default:
 			c.ctxt.Diag("unexpected op in rldc case\n%v", p)
-			a = 0
 		}
 
 	case 17, /* bc bo,bi,lbra (same for now) */
@@ -3015,7 +2985,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			// For backwards compatibility with GOPPC64 < 10, generate 34b constants in register.
 			o1 = LOP_IRR(OP_ADDIS, REGZERO, REGTMP, uint32(d>>32))  // tmp = sign_extend((d>>32)&0xFFFF0000)
 			o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(d>>16))     // tmp |= (d>>16)&0xFFFF
-			o3 = AOP_RLDIC(OP_RLDICR, REGTMP, REGTMP, 16, 63-16)    // tmp <<= 16
+			o3 = AOP_MD(OP_RLDICR, REGTMP, REGTMP, 16, 63-16)       // tmp <<= 16
 			o4 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(uint16(d))) // tmp |= d&0xFFFF
 			o5 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
 		}
@@ -3090,7 +3060,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			o1 = AOP_EXTSWSLI(OP_EXTSWSLI, uint32(r), uint32(p.To.Reg), uint32(v))
 
 		} else {
-			o1 = AOP_RLDIC(op, uint32(p.To.Reg), uint32(r), uint32(v), uint32(a))
+			o1 = AOP_MD(op, uint32(p.To.Reg), uint32(r), uint32(v), uint32(a))
 		}
 		if p.As == ASLDCC || p.As == ASRDCC || p.As == AEXTSWSLICC {
 			o1 |= 1 // Set the condition code bit
@@ -3142,78 +3112,51 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		}
 
 	case 29: /* rldic[lr]? $sh,s,$mask,a -- left, right, plain give different masks */
-		v := c.regoff(&p.From)
-
+		sh := uint32(c.regoff(&p.From))
 		d := c.vregoff(p.GetFrom3())
-		var mask [2]uint8
-		c.maskgen64(p, mask[:], uint64(d))
-		var a int
+		mb, me, valid := decodeMask64(d)
+		var a uint32
 		switch p.As {
 		case ARLDC, ARLDCCC:
-			a = int(mask[0]) /* MB */
-			if int32(mask[1]) != (63 - v) {
-				c.ctxt.Diag("invalid mask for shift: %x %x (shift %d)\n%v", uint64(d), mask[1], v, p)
+			a = mb
+			if me != (63-sh) || !valid {
+				c.ctxt.Diag("invalid mask for shift: %016x (mb=%d,me=%d) (shift %d)\n%v", uint64(d), mb, me, sh, p)
 			}
 
 		case ARLDCL, ARLDCLCC:
-			a = int(mask[0]) /* MB */
-			if mask[1] != 63 {
-				c.ctxt.Diag("invalid mask for shift: %x %s (shift %d)\n%v", uint64(d), mask[1], v, p)
+			a = mb
+			if mb != 63 || !valid {
+				c.ctxt.Diag("invalid mask for shift: %016x (mb=%d,me=%d) (shift %d)\n%v", uint64(d), mb, me, sh, p)
 			}
 
 		case ARLDCR, ARLDCRCC:
-			a = int(mask[1]) /* ME */
-			if mask[0] != 0 {
-				c.ctxt.Diag("invalid mask for shift: %x %x (shift %d)\n%v", uint64(d), mask[0], v, p)
+			a = me
+			if mb != 0 || !valid {
+				c.ctxt.Diag("invalid mask for shift: %016x (mb=%d,me=%d) (shift %d)\n%v", uint64(d), mb, me, sh, p)
 			}
 
 		default:
 			c.ctxt.Diag("unexpected op in rldic case\n%v", p)
-			a = 0
 		}
-
-		o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), (uint32(v) & 0x1F))
-		o1 |= (uint32(a) & 31) << 6
-		if v&0x20 != 0 {
-			o1 |= 1 << 1
-		}
-		if a&0x20 != 0 {
-			o1 |= 1 << 5 /* mb[5] is top bit */
-		}
+		o1 = AOP_MD(c.opirr(p.As), uint32(p.To.Reg), uint32(p.Reg), sh, a)
 
 	case 30: /* rldimi $sh,s,$mask,a */
-		v := c.regoff(&p.From)
-
+		sh := uint32(c.regoff(&p.From))
 		d := c.vregoff(p.GetFrom3())
 
 		// Original opcodes had mask operands which had to be converted to a shift count as expected by
 		// the ppc64 asm.
 		switch p.As {
 		case ARLDMI, ARLDMICC:
-			var mask [2]uint8
-			c.maskgen64(p, mask[:], uint64(d))
-			if int32(mask[1]) != (63 - v) {
-				c.ctxt.Diag("invalid mask for shift: %x %x (shift %d)\n%v", uint64(d), mask[1], v, p)
+			mb, me, valid := decodeMask64(d)
+			if me != (63-sh) || !valid {
+				c.ctxt.Diag("invalid mask for shift: %x %x (shift %d)\n%v", uint64(d), me, sh, p)
 			}
-			o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), (uint32(v) & 0x1F))
-			o1 |= (uint32(mask[0]) & 31) << 6
-			if v&0x20 != 0 {
-				o1 |= 1 << 1
-			}
-			if mask[0]&0x20 != 0 {
-				o1 |= 1 << 5 /* mb[5] is top bit */
-			}
+			o1 = AOP_MD(c.opirr(p.As), uint32(p.To.Reg), uint32(p.Reg), sh, mb)
 
 		// Opcodes with shift count operands.
 		case ARLDIMI, ARLDIMICC:
-			o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), (uint32(v) & 0x1F))
-			o1 |= (uint32(d) & 31) << 6
-			if d&0x20 != 0 {
-				o1 |= 1 << 5
-			}
-			if v&0x20 != 0 {
-				o1 |= 1 << 1
-			}
+			o1 = AOP_MD(c.opirr(p.As), uint32(p.To.Reg), uint32(p.Reg), sh, uint32(d))
 		}
 
 	case 31: /* dword */
