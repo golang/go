@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ppc64 || ppc64le
+//go:build !math_pure_go && (ppc64 || ppc64le)
+// +build !math_pure_go
 // +build ppc64 ppc64le
 
 #include "textflag.h"

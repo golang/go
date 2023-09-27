@@ -4,6 +4,8 @@
 
 // Based on dim_amd64.s
 
+//go:build !math_pure_go
+
 #include "textflag.h"
 
 #define PosInf 0x7FF0000000000000

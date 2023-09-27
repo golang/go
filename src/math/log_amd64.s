@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !math_pure_go
+
 #include "textflag.h"
 
 #define HSqrt2 7.07106781186547524401e-01 // sqrt(2)/2

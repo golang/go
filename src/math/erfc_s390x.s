@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !math_pure_go
+
 #include "textflag.h"
 
 #define Neg2p11 0xC000E147AE147AE1

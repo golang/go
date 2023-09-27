@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !math_pure_go
+
 #include "textflag.h"
 
 #define PosInf   0x7FF0000000000000
