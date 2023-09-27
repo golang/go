@@ -50,10 +50,9 @@ func (r *Reader) compressedBlock(blockSize int) error {
 		if off < len(data) {
 			return r.makeError(off, "extraneous data after no sequences")
 		}
-		if len(litbuf) == 0 {
-			return r.makeError(off, "no sequences and no literals")
-		}
+
 		r.buffer = append(r.buffer, litbuf...)
+
 		return nil
 	}
 
@@ -374,9 +373,7 @@ func (r *Reader) execSeqs(data block, off int, litbuf []byte, seqCount int) erro
 		}
 	}
 
-	if len(litbuf) > 0 {
-		r.buffer = append(r.buffer, litbuf...)
-	}
+	r.buffer = append(r.buffer, litbuf...)
 
 	if rbr.cnt != 0 {
 		return r.makeError(off, "extraneous data after sequences")
