@@ -1,0 +1,63 @@
+This test verifies that unimported completion respects the usePlaceholders setting.
+
+-- flags --
+-ignore_extra_diags
+
+-- settings.json --
+{
+	"usePlaceholders": false
+}
+
+-- go.mod --
+module mod.test
+
+go 1.21
+
+-- foo/foo.go --
+package foo
+
+func _() {
+	// This uses goimports-based completion; TODO: this should insert snippets.
+	os.Open //@acceptcompletion(re"Open()", "Open", open)
+}
+
+func _() {
+	// This uses metadata-based completion.
+	errors.New //@acceptcompletion(re"New()", "New", new)
+}
+
+-- bar/bar.go --
+package bar
+
+import _ "errors" // important: doesn't transitively import os.
+
+-- @new/foo/foo.go --
+package foo
+
+import "errors"
+
+func _() {
+	// This uses goimports-based completion; TODO: this should insert snippets.
+	os.Open //@acceptcompletion(re"Open()", "Open", open)
+}
+
+func _() {
+	// This uses metadata-based completion.
+	errors.New(${1:}) //@acceptcompletion(re"New()", "New", new)
+}
+
+-- @open/foo/foo.go --
+package foo
+
+import "os"
+
+func _() {
+	// This uses goimports-based completion; TODO: this should insert snippets.
+	os.Open //@acceptcompletion(re"Open()", "Open", open)
+}
+
+func _() {
+	// This uses metadata-based completion.
+	errors.New //@acceptcompletion(re"New()", "New", new)
+}
+

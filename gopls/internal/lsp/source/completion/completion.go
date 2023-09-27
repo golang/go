@@ -1320,32 +1320,18 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 
 			// For functions, add a parameter snippet.
 			if fn != nil {
-				var sn snippet.Builder
-				sn.WriteText(id.Name)
-
-				paramList := func(open, close string, list *ast.FieldList) {
+				paramList := func(list *ast.FieldList) []string {
+					var params []string
 					if list != nil {
 						var cfg printer.Config // slight overkill
-						var nparams int
 						param := func(name string, typ ast.Expr) {
-							if nparams > 0 {
-								sn.WriteText(", ")
-							}
-							nparams++
-							if c.opts.placeholders {
-								sn.WritePlaceholder(func(b *snippet.Builder) {
-									var buf strings.Builder
-									buf.WriteString(name)
-									buf.WriteByte(' ')
-									cfg.Fprint(&buf, token.NewFileSet(), typ)
-									b.WriteText(buf.String())
-								})
-							} else {
-								sn.WriteText(name)
-							}
+							var buf strings.Builder
+							buf.WriteString(name)
+							buf.WriteByte(' ')
+							cfg.Fprint(&buf, token.NewFileSet(), typ)
+							params = append(params, buf.String())
 						}
 
-						sn.WriteText(open)
 						for _, field := range list.List {
 							if field.Names != nil {
 								for _, name := range field.Names {
@@ -1355,13 +1341,14 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 								param("_", field.Type)
 							}
 						}
-						sn.WriteText(close)
 					}
+					return params
 				}
 
-				paramList("[", "]", typeparams.ForFuncType(fn.Type))
-				paramList("(", ")", fn.Type.Params)
-
+				tparams := paramList(fn.Type.TypeParams)
+				params := paramList(fn.Type.Params)
+				var sn snippet.Builder
+				c.functionCallSnippet(id.Name, tparams, params, &sn)
 				item.snippet = &sn
 			}
 
