@@ -250,7 +250,7 @@ func (check *Checker) err(at poser, code Code, msg string, soft bool) {
 		pos = check.errpos
 	}
 
-	// If we have an URL for error codes, add a link to the first line.
+	// If we have a URL for error codes, add a link to the first line.
 	if code != 0 && check.conf.ErrorURL != "" {
 		u := fmt.Sprintf(check.conf.ErrorURL, code)
 		if i := strings.Index(msg, "\n"); i >= 0 {
