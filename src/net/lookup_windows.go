@@ -67,12 +67,7 @@ func lookupProtocol(ctx context.Context, name string) (int, error) {
 			if proto, err := lookupProtocolMap(name); err == nil {
 				return proto, nil
 			}
-
-			dnsError := &DNSError{Err: r.err.Error(), Name: name}
-			if r.err == errNoSuchHost {
-				dnsError.IsNotFound = true
-			}
-			r.err = dnsError
+			r.err = newWrappingDNSError(r.err, name, "")
 		}
 		return r.proto, r.err
 	case <-ctx.Done():
@@ -118,7 +113,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 		var result *syscall.AddrinfoW
 		name16p, err := syscall.UTF16PtrFromString(name)
 		if err != nil {
-			return nil, &DNSError{Name: name, Err: err.Error()}
+			return nil, newWrappingDNSError(err, name, "")
 		}
 
 		dnsConf := getSystemDNSConfig()
@@ -132,12 +127,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 			}
 		}
 		if e != nil {
-			err := winError("getaddrinfow", e)
-			dnsError := &DNSError{Err: err.Error(), Name: name}
-			if err == errNoSuchHost {
-				dnsError.IsNotFound = true
-			}
-			return nil, dnsError
+			return nil, newWrappingDNSError(winError("getaddrinfow", e), name, "")
 		}
 		defer syscall.FreeAddrInfoW(result)
 		addrs := make([]IPAddr, 0, 5)
@@ -152,7 +142,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 				zone := zoneCache.name(int((*syscall.RawSockaddrInet6)(addr).Scope_id))
 				addrs = append(addrs, IPAddr{IP: copyIP(a[:]), Zone: zone})
 			default:
-				return nil, &DNSError{Err: syscall.EWINDOWS.Error(), Name: name}
+				return nil, newWrappingDNSError(syscall.EWINDOWS, name, "")
 			}
 		}
 		return addrs, nil
@@ -184,11 +174,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 		//
 		// For now we just let it finish and write to the
 		// buffered channel.
-		return nil, &DNSError{
-			Name:      name,
-			Err:       ctx.Err().Error(),
-			IsTimeout: ctx.Err() == context.DeadlineExceeded,
-		}
+		return nil, newWrappingDNSError(mapErr(ctx.Err()), name, "")
 	}
 }
 
@@ -234,14 +220,13 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 		// for _WSAHOST_NOT_FOUND here to match the cgo (unix) version
 		// cgo_unix.go (cgoLookupServicePort).
 		if e == _WSATYPE_NOT_FOUND || e == _WSAHOST_NOT_FOUND {
-			return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
+			return 0, newWrappingDNSError(errUnknownPort, network+"/"+service, "")
 		}
-		err := os.NewSyscallError("getaddrinfow", e)
-		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service}
+		return 0, newWrappingDNSError(winError("getaddrinfow", e), network+"/"+service, "")
 	}
 	defer syscall.FreeAddrInfoW(result)
 	if result == nil {
-		return 0, &DNSError{Err: syscall.EINVAL.Error(), Name: network + "/" + service}
+		return 0, newWrappingDNSError(syscall.EINVAL, network+"/"+service, "")
 	}
 	addr := unsafe.Pointer(result.Addr)
 	switch result.Family {
@@ -252,7 +237,7 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 		a := (*syscall.RawSockaddrInet6)(addr)
 		return int(syscall.Ntohs(a.Port)), nil
 	}
-	return 0, &DNSError{Err: syscall.EINVAL.Error(), Name: network + "/" + service}
+	return 0, newWrappingDNSError(syscall.EINVAL, network+"/"+service, "")
 }
 
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
@@ -271,7 +256,7 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error)
 		return absDomainName(name), nil
 	}
 	if e != nil {
-		return "", &DNSError{Err: winError("dnsquery", e).Error(), Name: name}
+		return "", newWrappingDNSError(winError("dnsquery", e), name, "")
 	}
 	defer syscall.DnsRecordListFree(rec, 1)
 
@@ -296,7 +281,7 @@ func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (
 	var rec *syscall.DNSRecord
 	e := syscall.DnsQuery(target, syscall.DNS_TYPE_SRV, 0, nil, &rec, nil)
 	if e != nil {
-		return "", nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: target}
+		return "", nil, newWrappingDNSError(winError("dnsquery", e), name, "")
 	}
 	defer syscall.DnsRecordListFree(rec, 1)
 
@@ -319,7 +304,7 @@ func (r *Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
 	var rec *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_MX, 0, nil, &rec, nil)
 	if e != nil {
-		return nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: name}
+		return nil, newWrappingDNSError(winError("dnsquery", e), name, "")
 	}
 	defer syscall.DnsRecordListFree(rec, 1)
 
@@ -342,7 +327,7 @@ func (r *Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
 	var rec *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_NS, 0, nil, &rec, nil)
 	if e != nil {
-		return nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: name}
+		return nil, newWrappingDNSError(winError("dnsquery", e), name, "")
 	}
 	defer syscall.DnsRecordListFree(rec, 1)
 
@@ -364,7 +349,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 	var rec *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_TEXT, 0, nil, &rec, nil)
 	if e != nil {
-		return nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: name}
+		return nil, newWrappingDNSError(winError("dnsquery", e), name, "")
 	}
 	defer syscall.DnsRecordListFree(rec, 1)
 
@@ -395,7 +380,7 @@ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error
 	var rec *syscall.DNSRecord
 	e := syscall.DnsQuery(arpa, syscall.DNS_TYPE_PTR, 0, nil, &rec, nil)
 	if e != nil {
-		return nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: addr}
+		return nil, newWrappingDNSError(winError("dnsquery", e), addr, "")
 	}
 	defer syscall.DnsRecordListFree(rec, 1)
 

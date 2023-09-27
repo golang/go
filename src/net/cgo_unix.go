@@ -88,7 +88,7 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 		*_C_ai_socktype(&hints) = _C_SOCK_DGRAM
 		*_C_ai_protocol(&hints) = _C_IPPROTO_UDP
 	default:
-		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}
+		return 0, newWrappingDNSError(errUnknownNetwork, network+"/"+service, "")
 	}
 	switch ipVersion(network) {
 	case '4':
@@ -105,7 +105,7 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (port int, err error) {
 	cservice, err := syscall.ByteSliceFromString(service)
 	if err != nil {
-		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service}
+		return 0, newWrappingDNSError(err, network+"/"+service, "")
 	}
 	// Lowercase the C service name.
 	for i, b := range cservice[:len(service)] {
@@ -114,19 +114,16 @@ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (p
 	var res *_C_struct_addrinfo
 	gerrno, err := _C_getaddrinfo(nil, (*_C_char)(unsafe.Pointer(&cservice[0])), hints, &res)
 	if gerrno != 0 {
-		isTemporary := false
 		switch gerrno {
 		case _C_EAI_SYSTEM:
 			if err == nil { // see golang.org/issue/6232
 				err = syscall.EMFILE
 			}
 		case _C_EAI_SERVICE, _C_EAI_NONAME: // Darwin returns EAI_NONAME.
-			return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
+			return 0, newWrappingDNSError(errUnknownPort, network+"/"+service, "")
 		default:
-			err = addrinfoErrno(gerrno)
-			isTemporary = addrinfoErrno(gerrno).Temporary()
+			return 0, newWrappingDNSError(addrinfoErrno(gerrno), network+"/"+service, "")
 		}
-		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service, IsTemporary: isTemporary}
 	}
 	defer _C_freeaddrinfo(res)
 
@@ -142,7 +139,7 @@ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (p
 			return int(p[0])<<8 | int(p[1]), nil
 		}
 	}
-	return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
+	return 0, newWrappingDNSError(errUnknownPort, network+"/"+service, "")
 }
 
 func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
@@ -162,13 +159,11 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 
 	h, err := syscall.BytePtrFromString(name)
 	if err != nil {
-		return nil, &DNSError{Err: err.Error(), Name: name}
+		return nil, newWrappingDNSError(err, name, "")
 	}
 	var res *_C_struct_addrinfo
 	gerrno, err := _C_getaddrinfo((*_C_char)(unsafe.Pointer(h)), nil, &hints, &res)
 	if gerrno != 0 {
-		isErrorNoSuchHost := false
-		isTemporary := false
 		switch gerrno {
 		case _C_EAI_SYSTEM:
 			if err == nil {
@@ -181,15 +176,13 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 				// comes up again. golang.org/issue/6232.
 				err = syscall.EMFILE
 			}
+			return nil, newWrappingDNSError(err, name, "")
 		case _C_EAI_NONAME, _C_EAI_NODATA:
-			err = errNoSuchHost
-			isErrorNoSuchHost = true
+			return nil, newWrappingDNSError(errNoSuchHost, name, "")
 		default:
-			err = addrinfoErrno(gerrno)
-			isTemporary = addrinfoErrno(gerrno).Temporary()
+			return nil, newWrappingDNSError(addrinfoErrno(gerrno), name, "")
 		}
 
-		return nil, &DNSError{Err: err.Error(), Name: name, IsNotFound: isErrorNoSuchHost, IsTemporary: isTemporary}
 	}
 	defer _C_freeaddrinfo(res)
 
@@ -234,11 +227,11 @@ const (
 func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error) {
 	ip, err := netip.ParseAddr(addr)
 	if err != nil {
-		return nil, &DNSError{Err: "invalid address", Name: addr}
+		return nil, newWrappingDNSError(errInvalidAddress, addr, "")
 	}
 	sa, salen := cgoSockaddr(IP(ip.AsSlice()), ip.Zone())
 	if sa == nil {
-		return nil, &DNSError{Err: "invalid address " + ip.String(), Name: addr}
+		return nil, newWrappingDNSError(errInvalidAddress, addr, "")
 	}
 
 	return doBlockingWithCtx(ctx, func() ([]string, error) {
@@ -260,21 +253,17 @@ func cgoLookupAddrPTR(addr string, sa *_C_struct_sockaddr, salen _C_socklen_t) (
 		}
 	}
 	if gerrno != 0 {
-		isErrorNoSuchHost := false
-		isTemporary := false
 		switch gerrno {
 		case _C_EAI_SYSTEM:
 			if err == nil { // see golang.org/issue/6232
 				err = syscall.EMFILE
 			}
+			return nil, newWrappingDNSError(err, addr, "")
 		case _C_EAI_NONAME:
-			err = errNoSuchHost
-			isErrorNoSuchHost = true
+			return nil, newWrappingDNSError(errNoSuchHost, addr, "")
 		default:
-			err = addrinfoErrno(gerrno)
-			isTemporary = addrinfoErrno(gerrno).Temporary()
+			return nil, newWrappingDNSError(addrinfoErrno(gerrno), addr, "")
 		}
-		return nil, &DNSError{Err: err.Error(), Name: addr, IsTemporary: isTemporary, IsNotFound: isErrorNoSuchHost}
 	}
 	for i := 0; i < len(b); i++ {
 		if b[i] == 0 {
