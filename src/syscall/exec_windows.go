@@ -118,11 +118,11 @@ func makeCmdLine(args []string) string {
 // terminated strings followed by a nil.
 // Last bytes are two UCS-2 NULs, or four NUL bytes.
 // If any string contains a NUL, it returns (nil, EINVAL).
-func createEnvBlock(envv []string) (*uint16, error) {
+func createEnvBlock(envv []string) ([]uint16, error) {
 	if len(envv) == 0 {
-		return &utf16.Encode([]rune("\x00\x00"))[0], nil
+		return utf16.Encode([]rune("\x00\x00")), nil
 	}
-	length := 0
+	var length int
 	for _, s := range envv {
 		if bytealg.IndexByteString(s, 0) != -1 {
 			return nil, EINVAL
@@ -131,17 +131,15 @@ func createEnvBlock(envv []string) (*uint16, error) {
 	}
 	length += 1
 
-	b := make([]byte, length)
-	i := 0
+	b := make([]uint16, 0, length)
 	for _, s := range envv {
-		l := len(s)
-		copy(b[i:i+l], []byte(s))
-		copy(b[i+l:i+l+1], []byte{0})
-		i = i + l + 1
+		for _, c := range s {
+			b = utf16.AppendRune(b, c)
+		}
+		b = utf16.AppendRune(b, 0)
 	}
-	copy(b[i:i+1], []byte{0})
-
-	return &utf16.Encode([]rune(string(b)))[0], nil
+	b = utf16.AppendRune(b, 0)
+	return b, nil
 }
 
 func CloseOnExec(fd Handle) {
@@ -387,9 +385,9 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	pi := new(ProcessInformation)
 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT | _EXTENDED_STARTUPINFO_PRESENT
 	if sys.Token != 0 {
-		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, envBlock, dirp, &si.StartupInfo, pi)
+		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, &envBlock[0], dirp, &si.StartupInfo, pi)
 	} else {
-		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, envBlock, dirp, &si.StartupInfo, pi)
+		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, &envBlock[0], dirp, &si.StartupInfo, pi)
 	}
 	if err != nil {
 		return 0, 0, err
