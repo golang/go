@@ -142,7 +142,7 @@ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (p
 			return int(p[0])<<8 | int(p[1]), nil
 		}
 	}
-	return 0, &DNSError{Err: "unknown port, internal cgo lookup error", Name: network + "/" + service}
+	return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
 }
 
 func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {

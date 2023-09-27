@@ -218,6 +218,10 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 		if port, err := lookupPortMap(network, service); err == nil {
 			return port, nil
 		}
+
+		// The _WSATYPE_NOT_FOUND error is returned by GetAddrInfoW
+		// when the service name is unknown, instead of the _WSAHOST_NOT_FOUND
+		// used by the winError function.
 		if e == _WSATYPE_NOT_FOUND {
 			return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
 		}
