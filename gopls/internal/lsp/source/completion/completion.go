@@ -1296,7 +1296,7 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 				Label:      id.Name,
 				Detail:     fmt.Sprintf("%s (from %q)", strings.ToLower(tok.String()), m.PkgPath),
 				InsertText: id.Name,
-				Score:      unimportedScore(relevances[path]),
+				Score:      float64(score) * unimportedScore(relevances[path]),
 			}
 			switch tok {
 			case token.FUNC:
@@ -1397,6 +1397,7 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 		if ignoreUnimportedCompletion(pkgExport.Fix) {
 			return
 		}
+
 		mu.Lock()
 		defer mu.Unlock()
 		// TODO(adonovan): what if the actual package has a vendor/ prefix?

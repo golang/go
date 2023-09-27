@@ -1,0 +1,19 @@
+This test verifies that completion of package members in unimported packages
+reflects their fuzzy score, even when those members are present in the
+transitive import graph of the main module. (For technical reasons, this was
+the nature of the regression in golang/go#62560.)
+
+-- go.mod --
+module mod.test
+
+-- foo/foo.go --
+package foo
+
+func _() {
+	json.U //@rankl(re"U()", "Unmarshal", "InvalidUTF8Error"), diag("json", re"(undefined|undeclared)")
+}
+
+-- bar/bar.go --
+package bar
+
+import _ "encoding/json"

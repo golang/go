@@ -232,8 +232,11 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //     request at the given location, and verifies that each expected
 //     completion item occurs in the results, in the expected order. Other
 //     unexpected completion items may occur in the results.
-//     TODO(rfindley): this should accept a slice of labels, rather than
-//     completion items.
+//     TODO(rfindley): this exists for compatibility with the old marker tests.
+//     Replace this with rankl, and rename.
+//
+//   - rankl(location, ...label): like rank, but only cares about completion
+//     item labels.
 //
 //   - refs(location, want ...location): executes a textDocument/references
 //     request at the first location and asserts that the result is the set of
@@ -712,6 +715,7 @@ var actionMarkerFuncs = map[string]func(marker){
 	"hover":            actionMarkerFunc(hoverMarker),
 	"implementation":   actionMarkerFunc(implementationMarker),
 	"rank":             actionMarkerFunc(rankMarker),
+	"rankl":            actionMarkerFunc(ranklMarker),
 	"refs":             actionMarkerFunc(refsMarker),
 	"rename":           actionMarkerFunc(renameMarker),
 	"renameerr":        actionMarkerFunc(renameErrMarker),
@@ -1446,6 +1450,23 @@ func rankMarker(mark marker, src protocol.Location, items ...completionItem) {
 		want = append(want, w.Label)
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
+		mark.errorf("completion rankings do not match (-want +got):\n%s", diff)
+	}
+}
+
+func ranklMarker(mark marker, src protocol.Location, labels ...string) {
+	list := mark.run.env.Completion(src)
+	var got []string
+	// Collect results that are present in items, preserving their order.
+	for _, g := range list.Items {
+		for _, label := range labels {
+			if g.Label == label {
+				got = append(got, g.Label)
+				break
+			}
+		}
+	}
+	if diff := cmp.Diff(labels, got); diff != "" {
 		mark.errorf("completion rankings do not match (-want +got):\n%s", diff)
 	}
 }
