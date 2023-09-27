@@ -58,10 +58,11 @@ type freeRef struct {
 
 // An object abstracts a free types.Object referenced by the callee. Gob-serializable.
 type object struct {
-	Name     string // Object.Name()
-	Kind     string // one of {var,func,const,type,pkgname,nil,builtin}
-	PkgPath  string // pkgpath of object (or of imported package if kind="pkgname")
-	ValidPos bool   // Object.Pos().IsValid()
+	Name     string          // Object.Name()
+	Kind     string          // one of {var,func,const,type,pkgname,nil,builtin}
+	PkgPath  string          // pkgpath of object (or of imported package if kind="pkgname")
+	ValidPos bool            // Object.Pos().IsValid()
+	Shadow   map[string]bool // names shadowed at one of the object's refs
 }
 
 // AnalyzeCallee analyzes a function that is a candidate for inlining
@@ -119,7 +120,14 @@ func AnalyzeCallee(logf func(string, ...any), fset *token.FileSet, pkg *types.Pa
 	)
 	var f func(n ast.Node) bool
 	visit := func(n ast.Node) { ast.Inspect(n, f) }
+	var stack []ast.Node
+	stack = append(stack, decl.Type) // for scope of function itself
 	f = func(n ast.Node) bool {
+		if n != nil {
+			stack = append(stack, n) // push
+		} else {
+			stack = stack[:len(stack)-1] // pop
+		}
 		switch n := n.(type) {
 		case *ast.SelectorExpr:
 			// Check selections of free fields/methods.
@@ -197,6 +205,8 @@ func AnalyzeCallee(logf func(string, ...any), fset *token.FileSet, pkg *types.Pa
 						})
 						freeObjIndex[obj] = objidx
 					}
+
+					freeObjs[objidx].Shadow = addShadows(freeObjs[objidx].Shadow, info, obj.Name(), stack)
 
 					freeRefs = append(freeRefs, freeRef{
 						Offset: int(n.Pos() - decl.Pos()),
@@ -417,6 +427,9 @@ func analyzeParams(logf func(string, ...any), fset *token.FileSet, info *types.I
 
 	// Record locations of all references to parameters.
 	// And record the set of intervening definitions for each parameter.
+	//
+	// TODO(adonovan): combine this traversal with the one that computes
+	// FreeRefs. The tricky part is that calleefx needs this one first.
 	var stack []ast.Node
 	stack = append(stack, decl.Type) // for scope of function itself
 	ast.Inspect(decl.Body, func(n ast.Node) bool {
@@ -429,26 +442,11 @@ func analyzeParams(logf func(string, ...any), fset *token.FileSet, info *types.I
 		if id, ok := n.(*ast.Ident); ok {
 			if v, ok := info.Uses[id].(*types.Var); ok {
 				if pinfo, ok := paramInfos[v]; ok {
-					// Record location of ref to parameter/result.
+					// Record location of ref to parameter/result
+					// and any intervening (shadowing) names.
 					offset := int(n.Pos() - decl.Pos())
 					pinfo.Refs = append(pinfo.Refs, offset)
-
-					// Find set of names shadowed within body
-					// (excluding the parameter itself).
-					// If these names are free in the arg expression,
-					// we can't substitute the parameter.
-					for _, n := range stack {
-						if scope, ok := info.Scopes[n]; ok {
-							for _, name := range scope.Names() {
-								if name != pinfo.Name {
-									if pinfo.Shadow == nil {
-										pinfo.Shadow = make(map[string]bool)
-									}
-									pinfo.Shadow[name] = true
-								}
-							}
-						}
-					}
+					pinfo.Shadow = addShadows(pinfo.Shadow, info, pinfo.Name, stack)
 				}
 			}
 		}
@@ -464,6 +462,29 @@ func analyzeParams(logf func(string, ...any), fset *token.FileSet, info *types.I
 }
 
 // -- callee helpers --
+
+// addShadows returns the shadows set augmented by the set of names
+// locally shadowed at the location of the reference in the callee
+// (identified by the stack). The name of the reference itself is
+// excluded.
+//
+// These shadowed names may not be used in a replacement expression
+// for the reference.
+func addShadows(shadows map[string]bool, info *types.Info, exclude string, stack []ast.Node) map[string]bool {
+	for _, n := range stack {
+		if scope, ok := info.Scopes[n]; ok {
+			for _, name := range scope.Names() {
+				if name != exclude {
+					if shadows == nil {
+						shadows = make(map[string]bool)
+					}
+					shadows[name] = true
+				}
+			}
+		}
+	}
+	return shadows
+}
 
 // deref removes a pointer type constructor from the core type of t.
 func deref(t types.Type) types.Type {

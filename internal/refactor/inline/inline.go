@@ -291,14 +291,17 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 
 	// localImportName returns the local name for a given imported package path.
 	var newImports []*ast.ImportSpec
-	localImportName := func(path string) string {
+	localImportName := func(path string, shadows map[string]bool) string {
 		// Does an import exist?
 		for _, name := range importMap[path] {
 			// Check that either the import preexisted,
-			// or that it was newly added (no PkgName) but is not shadowed.
-			found := caller.lookup(name)
-			if is[*types.PkgName](found) || found == nil {
-				return name
+			// or that it was newly added (no PkgName) but is not shadowed,
+			// either in the callee (shadows) or caller (caller.lookup).
+			if !shadows[name] {
+				found := caller.lookup(name)
+				if is[*types.PkgName](found) || found == nil {
+					return name
+				}
 			}
 		}
 
@@ -313,7 +316,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		// use the package's declared name.
 		base := pathpkg.Base(path)
 		name := base
-		for n := 0; caller.lookup(name) != nil; n++ {
+		for n := 0; shadows[name] || caller.lookup(name) != nil; n++ {
 			name = fmt.Sprintf("%s%d", base, n)
 		}
 
@@ -344,7 +347,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		//   => check not shadowed in caller.
 		// - package-level var/func/const/types
 		//   => same package: check not shadowed in caller.
-		//   => otherwise: import other package form a qualified identifier.
+		//   => otherwise: import other package, form a qualified identifier.
 		//      (Unexported cross-package references were rejected already.)
 		// - type parameter
 		//   => not yet supported
@@ -353,10 +356,14 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		//
 		// There can be no free references to labels, fields, or methods.
 
+		// Note that we must consider potential shadowing both
+		// at the caller side (caller.lookup) and, when
+		// choosing new PkgNames, within the callee (obj.shadow).
+
 		var newName ast.Expr
 		if obj.Kind == "pkgname" {
 			// Use locally appropriate import, creating as needed.
-			newName = makeIdent(localImportName(obj.PkgPath)) // imported package
+			newName = makeIdent(localImportName(obj.PkgPath, obj.Shadow)) // imported package
 
 		} else if !obj.ValidPos {
 			// Built-in function, type, or value (e.g. nil, zero):
@@ -396,7 +403,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 
 			// Form a qualified identifier, pkg.Name.
 			if qualify {
-				pkgName := localImportName(obj.PkgPath)
+				pkgName := localImportName(obj.PkgPath, obj.Shadow)
 				newName = &ast.SelectorExpr{
 					X:   makeIdent(pkgName),
 					Sel: makeIdent(obj.Name),

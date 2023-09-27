@@ -2,13 +2,10 @@ Just because a package (e.g. log) is imported by the caller,
 and the name log is in scope, doesn't mean the name in scope
 refers to the package: it could be locally shadowed.
 
-Two scenarios below:
-
-1. a second (renaming) import is added because the first import is
-   locally shadowed.
-
-2. a new import is added with a fresh name because the default
-   name is locally shadowed.
+In all three scenarios below, renaming import with a fresh name is
+added because the usual name is locally shadowed: in cases 1, 2 an
+existing import is shadowed by (respectively) a local constant,
+parameter; in case 3 there is no existing import.
 
 -- go.mod --
 module testdata
@@ -94,4 +91,35 @@ func A(b int) {
 		b0.One()
 		b0.Two()
 	} //@ inline(re"F", fresult)
+}
+
+-- d/d.go --
+package d
+
+import "testdata/e"
+
+func D() {
+	const log = "shadow"
+	e.E() //@ inline(re"E", eresult)
+}
+
+-- e/e.go --
+package e
+
+import "log"
+
+func E() {
+	log.Printf("")
+}
+
+-- eresult --
+package d
+
+import (
+	log0 "log"
+)
+
+func D() {
+	const log = "shadow"
+	log0.Printf("") //@ inline(re"E", eresult)
 }

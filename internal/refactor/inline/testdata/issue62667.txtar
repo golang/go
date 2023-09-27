@@ -1,0 +1,44 @@
+Regression test for #62667: the callee's reference to Split
+was blindly qualified to path.Split even though the imported
+PkgName path is shadowed by the parameter of the same name.
+
+The defer is to defeat reduction of the call and
+substitution of the path parameter by g().
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+import "testdata/path"
+
+func A() {
+	path.Dir(g()) //@ inline(re"Dir", result)
+}
+
+func g() string
+
+-- path/path.go --
+package path
+
+func Dir(path string) {
+	defer func(){}()
+	Split(path)
+}
+
+func Split(string) {}
+
+-- result --
+package a
+
+import (
+	path0 "testdata/path"
+)
+
+func A() {
+	func(path string) { defer func() {}(); path0.Split(path) }(g()) //@ inline(re"Dir", result)
+}
+
+func g() string
