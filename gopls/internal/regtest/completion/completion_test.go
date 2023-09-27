@@ -952,3 +952,54 @@ func _() {
 		}
 	})
 }
+
+// Fix for golang/go#60062: unimported completion included "golang.org/toolchain" results.
+func TestToolchainCompletions(t *testing.T) {
+	const files = `
+-- go.mod --
+module foo.test/foo
+
+go 1.21
+
+-- foo.go --
+package foo
+
+func _() {
+	os.Open
+}
+
+func _() {
+	strings
+}
+`
+
+	const proxy = `
+-- golang.org/toolchain@v0.0.1-go1.21.1.linux-amd64/go.mod --
+module golang.org/toolchain
+-- golang.org/toolchain@v0.0.1-go1.21.1.linux-amd64/src/os/os.go --
+package os
+
+func Open() {}
+-- golang.org/toolchain@v0.0.1-go1.21.1.linux-amd64/src/strings/strings.go --
+package strings
+
+func Join() {}
+`
+
+	WithOptions(
+		ProxyFiles(proxy),
+	).Run(t, files, func(t *testing.T, env *Env) {
+		env.RunGoCommand("mod", "download", "golang.org/toolchain@v0.0.1-go1.21.1.linux-amd64")
+		env.OpenFile("foo.go")
+
+		for _, pattern := range []string{"os.Open()", "string()"} {
+			loc := env.RegexpSearch("foo.go", pattern)
+			res := env.Completion(loc)
+			for _, item := range res.Items {
+				if strings.Contains(item.Detail, "golang.org/toolchain") {
+					t.Errorf("Completion(...) returned toolchain item %#v", item)
+				}
+			}
+		}
+	})
+}

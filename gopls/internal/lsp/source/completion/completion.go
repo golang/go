@@ -1394,6 +1394,9 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 	ctx, cancel := context.WithCancel(ctx)
 	var mu sync.Mutex
 	add := func(pkgExport imports.PackageExport) {
+		if ignoreUnimportedCompletion(pkgExport.Fix) {
+			return
+		}
 		mu.Lock()
 		defer mu.Unlock()
 		// TODO(adonovan): what if the actual package has a vendor/ prefix?
@@ -1443,6 +1446,13 @@ func (c *completer) packageMembers(pkg *types.Package, score float64, imp *impor
 			addressable: isVar(obj),
 		})
 	}
+}
+
+// ignoreUnimportedCompletion reports whether an unimported completion
+// resulting in the given import should be ignored.
+func ignoreUnimportedCompletion(fix *imports.ImportFix) bool {
+	// golang/go#60062: don't add unimported completion to golang.org/toolchain.
+	return fix != nil && strings.HasPrefix(fix.StmtInfo.ImportPath, "golang.org/toolchain")
 }
 
 func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *importInfo, cb func(candidate)) {
@@ -1757,6 +1767,9 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 
 	var mu sync.Mutex
 	add := func(pkg imports.ImportFix) {
+		if ignoreUnimportedCompletion(&pkg) {
+			return
+		}
 		mu.Lock()
 		defer mu.Unlock()
 		if _, ok := seen[pkg.IdentName]; ok {
