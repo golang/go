@@ -17,6 +17,8 @@ func rewriteValuePPC64latelower(v *Value) bool {
 		return rewriteValuePPC64latelower_OpPPC64SETBC(v)
 	case OpPPC64SETBCR:
 		return rewriteValuePPC64latelower_OpPPC64SETBCR(v)
+	case OpSelect0:
+		return rewriteValuePPC64latelower_OpSelect0(v)
 	}
 	return false
 }
@@ -288,6 +290,28 @@ func rewriteValuePPC64latelower_OpPPC64SETBCR(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
 		v0.AuxInt = int64ToAuxInt(1)
 		v.AddArg2(v0, cmp)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64latelower_OpSelect0(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Select0 z:(ANDCCconst [m] x))
+	// cond: z.Uses == 1 && isPPC64ValidShiftMask(m)
+	// result: (RLDICL [encodePPC64RotateMask(0,m,64)] x)
+	for {
+		z := v_0
+		if z.Op != OpPPC64ANDCCconst {
+			break
+		}
+		m := auxIntToInt64(z.AuxInt)
+		x := z.Args[0]
+		if !(z.Uses == 1 && isPPC64ValidShiftMask(m)) {
+			break
+		}
+		v.reset(OpPPC64RLDICL)
+		v.AuxInt = int64ToAuxInt(encodePPC64RotateMask(0, m, 64))
+		v.AddArg(x)
 		return true
 	}
 	return false
