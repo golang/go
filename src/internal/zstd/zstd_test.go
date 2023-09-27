@@ -6,12 +6,14 @@ package zstd
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"internal/race"
 	"internal/testenv"
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -234,6 +236,39 @@ func TestAlloc(t *testing.T) {
 	})
 	if c != 0 {
 		t.Errorf("got %v allocs, want 0", c)
+	}
+}
+
+func TestFileSamples(t *testing.T) {
+	samples, err := os.ReadDir("testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, sample := range samples {
+		name := sample.Name()
+		if !strings.HasSuffix(name, ".zst") {
+			continue
+		}
+
+		t.Run(name, func(t *testing.T) {
+			f, err := os.Open(filepath.Join("testdata", name))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			r := NewReader(f)
+			h := sha256.New()
+			if _, err := io.Copy(h, r); err != nil {
+				t.Fatal(err)
+			}
+			got := fmt.Sprintf("%x", h.Sum(nil))[:8]
+
+			want, _, _ := strings.Cut(name, ".")
+			if got != want {
+				t.Errorf("Wrong uncompressed content hash: got %s, want %s", got, want)
+			}
+		})
 	}
 }
 
