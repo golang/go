@@ -97,6 +97,17 @@ var tests = []struct {
 		"",
 		"\x28\xb5\x2f\xfd\x00\x00\x15\x00\x00\x00\x00",
 	},
+	{
+		"single skippable frame",
+		"",
+		"\x50\x2a\x4d\x18\x00\x00\x00\x00",
+	},
+	{
+		"two skippable frames",
+		"",
+		"\x50\x2a\x4d\x18\x00\x00\x00\x00" +
+			"\x50\x2a\x4d\x18\x00\x00\x00\x00",
+	},
 }
 
 func TestSamples(t *testing.T) {

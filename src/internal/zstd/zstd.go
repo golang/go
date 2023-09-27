@@ -169,7 +169,7 @@ retry:
 
 	// Read magic number. RFC 3.1.1.
 	if _, err := io.ReadFull(r.r, r.scratch[:4]); err != nil {
-		// We require that the stream contain at least one frame.
+		// We require that the stream contains at least one frame.
 		if err == io.EOF && !r.readOneFrame {
 			err = io.ErrUnexpectedEOF
 		}
@@ -183,6 +183,7 @@ retry:
 			if err := r.skipFrame(); err != nil {
 				return err
 			}
+			r.readOneFrame = true
 			goto retry
 		}
 
