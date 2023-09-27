@@ -36,7 +36,7 @@
 //	data, _ := f.ReadFile("hello.txt")
 //	print(string(data))
 //
-// Directives
+// # Directives
 //
 // A //go:embed directive above a variable declaration specifies which files to embed,
 // using one or more path.Match patterns.
@@ -91,12 +91,13 @@
 // It can only be used with variables at package scope, not with local variables.
 //
 // Patterns must not match files outside the package's module, such as ‘.git/*’ or symbolic links.
+// Patterns must not match files whose names include the special punctuation characters  " * < > ? ` ' | / \ and :.
 // Matches for empty directories are ignored. After that, each pattern in a //go:embed line
 // must match at least one file or non-empty directory.
 //
 // If any patterns are invalid or have invalid matches, the build will fail.
 //
-// Strings and Bytes
+// # Strings and Bytes
 //
 // The //go:embed line for a variable of type string or []byte can have only a single pattern,
 // and that pattern can match only a single file. The string or []byte is initialized with
@@ -105,7 +106,7 @@
 // The //go:embed directive requires importing "embed", even when using a string or []byte.
 // In source files that don't refer to embed.FS, use a blank import (import _ "embed").
 //
-// File Systems
+// # File Systems
 //
 // For embedding a single file, a variable of type string or []byte is often best.
 // The FS type enables embedding a tree of files, such as a directory of static
@@ -120,12 +121,11 @@
 //
 //	template.ParseFS(content, "*.tmpl")
 //
-// Tools
+// # Tools
 //
 // To support tools that analyze Go packages, the patterns found in //go:embed lines
 // are available in “go list” output. See the EmbedPatterns, TestEmbedPatterns,
 // and XTestEmbedPatterns fields in the “go help list” output.
-//
 package embed
 
 import (
@@ -243,6 +243,10 @@ func (f *file) Mode() fs.FileMode {
 	return 0444
 }
 
+func (f *file) String() string {
+	return fs.FormatFileInfo(f)
+}
+
 // dotFile is a file for the root directory,
 // which is omitted from the files list in a FS.
 var dotFile = &file{name: "./"}
@@ -297,7 +301,7 @@ func (f FS) readDir(dir string) []file {
 
 // Open opens the named file for reading and returns it as an fs.File.
 //
-// The returned file implements io.Seeker when the file is not a directory.
+// The returned file implements io.Seeker and io.ReaderAt when the file is not a directory.
 func (f FS) Open(name string) (fs.File, error) {
 	file := f.lookup(name)
 	if file == nil {
@@ -346,7 +350,8 @@ type openFile struct {
 }
 
 var (
-	_ io.Seeker = (*openFile)(nil)
+	_ io.Seeker   = (*openFile)(nil)
+	_ io.ReaderAt = (*openFile)(nil)
 )
 
 func (f *openFile) Close() error               { return nil }
@@ -378,6 +383,17 @@ func (f *openFile) Seek(offset int64, whence int) (int64, error) {
 	}
 	f.offset = offset
 	return offset, nil
+}
+
+func (f *openFile) ReadAt(b []byte, offset int64) (int, error) {
+	if offset < 0 || offset > int64(len(f.f.data)) {
+		return 0, &fs.PathError{Op: "read", Path: f.f.name, Err: fs.ErrInvalid}
+	}
+	n := copy(b, f.f.data[offset:])
+	if n < len(b) {
+		return n, io.EOF
+	}
+	return n, nil
 }
 
 // An openDir is a directory open for reading.

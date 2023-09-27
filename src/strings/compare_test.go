@@ -57,7 +57,7 @@ func TestCompareStrings(t *testing.T) {
 	// unsafeString converts a []byte to a string with no allocation.
 	// The caller must not modify b while the result string is in use.
 	unsafeString := func(b []byte) string {
-		return *(*string)(unsafe.Pointer(&b))
+		return unsafe.String(unsafe.SliceData(b), len(b))
 	}
 
 	lengths := make([]int, 0) // lengths to test in ascending order

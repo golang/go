@@ -33,7 +33,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 
 	switch x := x.(type) {
 	default:
-		buf.WriteString(fmt.Sprintf("(ast: %T)", x)) // nil, ast.BadExpr, ast.KeyValueExpr
+		fmt.Fprintf(buf, "(ast: %T)", x) // nil, ast.BadExpr, ast.KeyValueExpr
 
 	case *ast.Ident:
 		buf.WriteString(x.Name)
@@ -53,9 +53,12 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 		buf.WriteString(" literal)") // shortened
 
 	case *ast.CompositeLit:
-		buf.WriteByte('(')
 		WriteExpr(buf, x.Type)
-		buf.WriteString(" literal)") // shortened
+		buf.WriteByte('{')
+		if len(x.Elts) > 0 {
+			buf.WriteString("…")
+		}
+		buf.WriteByte('}')
 
 	case *ast.ParenExpr:
 		buf.WriteByte('(')
@@ -71,12 +74,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 		ix := typeparams.UnpackIndexExpr(x)
 		WriteExpr(buf, ix.X)
 		buf.WriteByte('[')
-		for i, e := range ix.Indices {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			WriteExpr(buf, e)
-		}
+		writeExprList(buf, ix.Indices)
 		buf.WriteByte(']')
 
 	case *ast.SliceExpr:

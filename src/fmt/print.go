@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strconv"
 	"sync"
 	"unicode/utf8"
 )
@@ -49,13 +50,13 @@ type State interface {
 
 // Formatter is implemented by any value that has a Format method.
 // The implementation controls how State and rune are interpreted,
-// and may call Sprint(f) or Fprint(f) etc. to generate its output.
+// and may call Sprint() or Fprint(f) etc. to generate its output.
 type Formatter interface {
 	Format(f State, verb rune)
 }
 
 // Stringer is implemented by any value that has a String method,
-// which defines the ``native'' format for that value.
+// which defines the “native” format for that value.
 // The String method is used to print values passed as an operand
 // to any format that accepts a string or to an unformatted printer
 // such as Print.
@@ -69,6 +70,31 @@ type Stringer interface {
 // to a %#v format.
 type GoStringer interface {
 	GoString() string
+}
+
+// FormatString returns a string representing the fully qualified formatting
+// directive captured by the State, followed by the argument verb. (State does not
+// itself contain the verb.) The result has a leading percent sign followed by any
+// flags, the width, and the precision. Missing flags, width, and precision are
+// omitted. This function allows a Formatter to reconstruct the original
+// directive triggering the call to Format.
+func FormatString(state State, verb rune) string {
+	var tmp [16]byte // Use a local buffer.
+	b := append(tmp[:0], '%')
+	for _, c := range " +-#0" { // All known flags
+		if state.Flag(int(c)) { // The argument is an int for historical reasons.
+			b = append(b, byte(c))
+		}
+	}
+	if w, ok := state.Width(); ok {
+		b = strconv.AppendInt(b, int64(w), 10)
+	}
+	if p, ok := state.Precision(); ok {
+		b = append(b, '.')
+		b = strconv.AppendInt(b, int64(p), 10)
+	}
+	b = utf8.AppendRune(b, verb)
+	return string(b)
 }
 
 // Use simple []byte instead of bytes.Buffer to avoid large dependency.
@@ -86,19 +112,8 @@ func (b *buffer) writeByte(c byte) {
 	*b = append(*b, c)
 }
 
-func (bp *buffer) writeRune(r rune) {
-	if r < utf8.RuneSelf {
-		*bp = append(*bp, byte(r))
-		return
-	}
-
-	b := *bp
-	n := len(b)
-	for n+utf8.UTFMax > cap(b) {
-		b = append(b, 0)
-	}
-	w := utf8.EncodeRune(b[n:n+utf8.UTFMax], r)
-	*bp = b[:n+w]
+func (b *buffer) writeRune(r rune) {
+	*b = utf8.AppendRune(*b, r)
 }
 
 // pp is used to store a printer's state and is reused with sync.Pool to avoid allocations.
@@ -124,8 +139,8 @@ type pp struct {
 	erroring bool
 	// wrapErrs is set when the format string may contain a %w verb.
 	wrapErrs bool
-	// wrappedErr records the target of the %w verb.
-	wrappedErr error
+	// wrappedErrs records the targets of the %w verb.
+	wrappedErrs []int
 }
 
 var ppFree = sync.Pool{
@@ -146,18 +161,23 @@ func newPrinter() *pp {
 func (p *pp) free() {
 	// Proper usage of a sync.Pool requires each entry to have approximately
 	// the same memory cost. To obtain this property when the stored type
-	// contains a variably-sized buffer, we add a hard limit on the maximum buffer
-	// to place back in the pool.
+	// contains a variably-sized buffer, we add a hard limit on the maximum
+	// buffer to place back in the pool. If the buffer is larger than the
+	// limit, we drop the buffer and recycle just the printer.
 	//
-	// See https://golang.org/issue/23199
-	if cap(p.buf) > 64<<10 {
-		return
+	// See https://golang.org/issue/23199.
+	if cap(p.buf) > 64*1024 {
+		p.buf = nil
+	} else {
+		p.buf = p.buf[:0]
+	}
+	if cap(p.wrappedErrs) > 8 {
+		p.wrappedErrs = nil
 	}
 
-	p.buf = p.buf[:0]
 	p.arg = nil
 	p.value = reflect.Value{}
-	p.wrappedErr = nil
+	p.wrappedErrs = p.wrappedErrs[:0]
 	ppFree.Put(p)
 }
 
@@ -222,6 +242,16 @@ func Sprintf(format string, a ...any) string {
 	return s
 }
 
+// Appendf formats according to a format specifier, appends the result to the byte
+// slice, and returns the updated slice.
+func Appendf(b []byte, format string, a ...any) []byte {
+	p := newPrinter()
+	p.doPrintf(format, a)
+	b = append(b, p.buf...)
+	p.free()
+	return b
+}
+
 // These routines do not take a format string
 
 // Fprint formats using the default formats for its operands and writes to w.
@@ -250,6 +280,16 @@ func Sprint(a ...any) string {
 	s := string(p.buf)
 	p.free()
 	return s
+}
+
+// Append formats using the default formats for its operands, appends the result to
+// the byte slice, and returns the updated slice.
+func Append(b []byte, a ...any) []byte {
+	p := newPrinter()
+	p.doPrint(a)
+	b = append(b, p.buf...)
+	p.free()
+	return b
 }
 
 // These routines end in 'ln', do not take a format string,
@@ -284,8 +324,19 @@ func Sprintln(a ...any) string {
 	return s
 }
 
+// Appendln formats using the default formats for its operands, appends the result
+// to the byte slice, and returns the updated slice. Spaces are always added
+// between operands and a newline is appended.
+func Appendln(b []byte, a ...any) []byte {
+	p := newPrinter()
+	p.doPrintln(a)
+	b = append(b, p.buf...)
+	p.free()
+	return b
+}
+
 // getField gets the i'th field of the struct value.
-// If the field is itself is an interface, return a value for
+// If the field itself is a non-nil interface, return a value for
 // the thing inside the interface, not the interface itself.
 func getField(v reflect.Value, i int) reflect.Value {
 	val := v.Field(i)
@@ -499,7 +550,7 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune) {
 	var u uintptr
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.Slice, reflect.UnsafePointer:
-		u = value.Pointer()
+		u = uintptr(value.UnsafePointer())
 	default:
 		p.badVerb(verb)
 		return
@@ -572,16 +623,12 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 		return
 	}
 	if verb == 'w' {
-		// It is invalid to use %w other than with Errorf, more than once,
-		// or with a non-error arg.
-		err, ok := p.arg.(error)
-		if !ok || !p.wrapErrs || p.wrappedErr != nil {
-			p.wrappedErr = nil
-			p.wrapErrs = false
+		// It is invalid to use %w other than with Errorf or with a non-error arg.
+		_, ok := p.arg.(error)
+		if !ok || !p.wrapErrs {
 			p.badVerb(verb)
 			return true
 		}
-		p.wrappedErr = err
 		// If the arg is a Formatter, pass 'v' as the verb to it.
 		verb = 'v'
 	}
@@ -825,12 +872,10 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 			t := f.Type()
 			if t.Elem().Kind() == reflect.Uint8 {
 				var bytes []byte
-				if f.Kind() == reflect.Slice {
+				if f.Kind() == reflect.Slice || f.CanAddr() {
 					bytes = f.Bytes()
-				} else if f.CanAddr() {
-					bytes = f.Slice(0, f.Len()).Bytes()
 				} else {
-					// We have an array, but we cannot Slice() a non-addressable array,
+					// We have an array, but we cannot Bytes() a non-addressable array,
 					// so we build a slice by hand. This is a rare case but it would be nice
 					// if reflection could help a little more.
 					bytes = make([]byte, f.Len())
@@ -869,7 +914,7 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 	case reflect.Pointer:
 		// pointer to array or slice or struct? ok at top level
 		// but not embedded (avoid loops)
-		if depth == 0 && f.Pointer() != 0 {
+		if depth == 0 && f.UnsafePointer() != nil {
 			switch a := f.Elem(); a.Kind() {
 			case reflect.Array, reflect.Slice, reflect.Struct, reflect.Map:
 				p.buf.writeByte('&')
@@ -1015,7 +1060,11 @@ formatLoop:
 				// Fast path for common case of ascii lower case simple verbs
 				// without precision or width or argument indices.
 				if 'a' <= c && c <= 'z' && argNum < len(a) {
-					if c == 'v' {
+					switch c {
+					case 'w':
+						p.wrappedErrs = append(p.wrappedErrs, argNum)
+						fallthrough
+					case 'v':
 						// Go syntax
 						p.fmt.sharpV = p.fmt.sharp
 						p.fmt.sharp = false
@@ -1110,6 +1159,9 @@ formatLoop:
 			p.badArgNum(verb)
 		case argNum >= len(a): // No argument left over to print for the current verb.
 			p.missingArg(verb)
+		case verb == 'w':
+			p.wrappedErrs = append(p.wrappedErrs, argNum)
+			fallthrough
 		case verb == 'v':
 			// Go syntax
 			p.fmt.sharpV = p.fmt.sharp

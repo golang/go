@@ -5,7 +5,6 @@
 package gccgoimporter
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"go/constant"
@@ -129,16 +128,16 @@ func (p *parser) parseUnquotedString() string {
 	if p.tok == scanner.EOF {
 		p.error("unexpected EOF")
 	}
-	var buf bytes.Buffer
-	buf.WriteString(p.scanner.TokenText())
+	var b strings.Builder
+	b.WriteString(p.scanner.TokenText())
 	// This loop needs to examine each character before deciding whether to consume it. If we see a semicolon,
 	// we need to let it be consumed by p.next().
 	for ch := p.scanner.Peek(); ch != '\n' && ch != ';' && ch != scanner.EOF && p.scanner.Whitespace&(1<<uint(ch)) == 0; ch = p.scanner.Peek() {
-		buf.WriteRune(ch)
+		b.WriteRune(ch)
 		p.scanner.Next()
 	}
 	p.next()
-	return buf.String()
+	return b.String()
 }
 
 func (p *parser) next() {
@@ -187,7 +186,6 @@ func (p *parser) parseQualifiedNameStr(unquotedName string) (pkgpath, name strin
 // getPkg returns the package for a given path. If the package is
 // not found but we have a package name, create the package and
 // add it to the p.imports map.
-//
 func (p *parser) getPkg(pkgpath, name string) *types.Package {
 	// package unsafe is not in the imports map - handle explicitly
 	if pkgpath == "unsafe" {
@@ -934,7 +932,6 @@ func lookupBuiltinType(typ int) types.Type {
 // Type = "<" "type" ( "-" int | int [ TypeSpec ] ) ">" .
 //
 // parseType updates the type map to t for all type numbers n.
-//
 func (p *parser) parseType(pkg *types.Package, n ...any) types.Type {
 	p.expect('<')
 	t, _ := p.parseTypeAfterAngle(pkg, n...)
@@ -1066,7 +1063,7 @@ func (p *parser) parseTypes(pkg *types.Package) {
 		p.typeData = append(p.typeData, allTypeData[to.offset:to.offset+to.length])
 	}
 
-	for i := 1; i < int(exportedp1); i++ {
+	for i := 1; i < exportedp1; i++ {
 		p.parseSavedType(pkg, i, nil)
 	}
 }
@@ -1117,9 +1114,10 @@ func (p *parser) maybeCreatePackage() {
 }
 
 // InitDataDirective = ( "v1" | "v2" | "v3" ) ";" |
-//                     "priority" int ";" |
-//                     "init" { PackageInit } ";" |
-//                     "checksum" unquotedString ";" .
+//
+//	"priority" int ";" |
+//	"init" { PackageInit } ";" |
+//	"checksum" unquotedString ";" .
 func (p *parser) parseInitDataDirective() {
 	if p.tok != scanner.Ident {
 		// unexpected token kind; panic
@@ -1170,15 +1168,16 @@ func (p *parser) parseInitDataDirective() {
 }
 
 // Directive = InitDataDirective |
-//             "package" unquotedString [ unquotedString ] [ unquotedString ] ";" |
-//             "pkgpath" unquotedString ";" |
-//             "prefix" unquotedString ";" |
-//             "import" unquotedString unquotedString string ";" |
-//             "indirectimport" unquotedString unquotedstring ";" |
-//             "func" Func ";" |
-//             "type" Type ";" |
-//             "var" Var ";" |
-//             "const" Const ";" .
+//
+//	"package" unquotedString [ unquotedString ] [ unquotedString ] ";" |
+//	"pkgpath" unquotedString ";" |
+//	"prefix" unquotedString ";" |
+//	"import" unquotedString unquotedString string ";" |
+//	"indirectimport" unquotedString unquotedstring ";" |
+//	"func" Func ";" |
+//	"type" Type ";" |
+//	"var" Var ";" |
+//	"const" Const ";" .
 func (p *parser) parseDirective() {
 	if p.tok != scanner.Ident {
 		// unexpected token kind; panic

@@ -11,7 +11,7 @@ func foo() (int, int) {
 }
 
 func foo2() {
-	return int(2), 2 // ERROR "too many arguments to return\n\thave \(int, number\)\n\twant \(\)|return with value in function with no return type|no result values expected"
+	return int(2), 2 // ERROR "too many (arguments to return|return values)\n\thave \(int, number\)\n\twant \(\)|return with value in function with no return type"
 }
 
 func foo3(v int) (a, b, c, d int) {

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"a"
+	"./a"
 )
 
 func main() {

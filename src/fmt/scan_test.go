@@ -52,6 +52,7 @@ var (
 	uint16Val            uint16
 	uint32Val            uint32
 	uint64Val            uint64
+	uintptrVal           uintptr
 	float32Val           float32
 	float64Val           float64
 	stringVal            string
@@ -162,6 +163,7 @@ var scanTests = []ScanTest{
 	{"28\n", &uint16Val, uint16(28)},
 	{"29\n", &uint32Val, uint32(29)},
 	{"30\n", &uint64Val, uint64(30)},
+	{"31\n", &uintptrVal, uintptr(31)},
 	{"255\n", &uint8Val, uint8(255)},
 	{"32767\n", &int16Val, int16(32767)},
 	{"2.3\n", &float64Val, 2.3},
@@ -247,6 +249,7 @@ var scanfTests = []ScanfTest{
 	{"%d", "74\n", &uint16Val, uint16(74)},
 	{"%d", "75\n", &uint32Val, uint32(75)},
 	{"%d", "76\n", &uint64Val, uint64(76)},
+	{"%d", "77\n", &uintptrVal, uintptr(77)},
 	{"%b", "1001001\n", &uintVal, uint(73)},
 	{"%b", "100_1001\n", &uintVal, uint(4)},
 	{"%o", "075\n", &uintVal, uint(075)},
@@ -1093,10 +1096,10 @@ func testScanInts(t *testing.T, scan func(*RecursiveInt, *bytes.Buffer) error) {
 }
 
 func BenchmarkScanInts(b *testing.B) {
-	b.ResetTimer()
+	b.StopTimer()
 	ints := makeInts(intCount)
 	var r RecursiveInt
-	for i := b.N - 1; i >= 0; i-- {
+	for i := 0; i < b.N; i++ {
 		buf := bytes.NewBuffer(ints)
 		b.StartTimer()
 		scanInts(&r, buf)
@@ -1105,10 +1108,10 @@ func BenchmarkScanInts(b *testing.B) {
 }
 
 func BenchmarkScanRecursiveInt(b *testing.B) {
-	b.ResetTimer()
+	b.StopTimer()
 	ints := makeInts(intCount)
 	var r RecursiveInt
-	for i := b.N - 1; i >= 0; i-- {
+	for i := 0; i < b.N; i++ {
 		buf := bytes.NewBuffer(ints)
 		b.StartTimer()
 		Fscan(buf, &r)
@@ -1117,10 +1120,10 @@ func BenchmarkScanRecursiveInt(b *testing.B) {
 }
 
 func BenchmarkScanRecursiveIntReaderWrapper(b *testing.B) {
-	b.ResetTimer()
+	b.StopTimer()
 	ints := makeInts(intCount)
 	var r RecursiveInt
-	for i := b.N - 1; i >= 0; i-- {
+	for i := 0; i < b.N; i++ {
 		buf := struct{ io.Reader }{strings.NewReader(string(ints))}
 		b.StartTimer()
 		Fscan(buf, &r)

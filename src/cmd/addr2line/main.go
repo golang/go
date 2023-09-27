@@ -6,6 +6,7 @@
 // just enough to support pprof.
 //
 // Usage:
+//
 //	go tool addr2line binary
 //
 // Addr2line reads hexadecimal addresses, one per line and with optional 0x prefix,

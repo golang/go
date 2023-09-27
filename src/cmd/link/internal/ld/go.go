@@ -7,7 +7,6 @@
 package ld
 
 import (
-	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -25,11 +24,6 @@ import (
 )
 
 // go-specific code shared across loaders (5l, 6l, 8l).
-
-// replace all "". with pkg.
-func expandpkg(t0 string, pkg string) string {
-	return strings.Replace(t0, `"".`, pkg+".", -1)
-}
 
 // TODO:
 //	generate debugging section in binary.
@@ -56,11 +50,7 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
 	// process header lines
 	for data != "" {
 		var line string
-		if i := strings.Index(data, "\n"); i >= 0 {
-			line, data = data[:i], data[i+1:]
-		} else {
-			line, data = data, ""
-		}
+		line, data, _ = strings.Cut(data, "\n")
 		if line == "main" {
 			lib.Main = true
 		}
@@ -146,10 +136,9 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 				continue
 			}
 
-			local = expandpkg(local, pkg)
 			q := ""
-			if i := strings.Index(remote, "#"); i >= 0 {
-				remote, q = remote[:i], remote[i+1:]
+			if before, after, found := strings.Cut(remote, "#"); found {
+				remote, q = before, after
 			}
 			s := l.LookupOrCreateSym(local, 0)
 			st := l.SymType(s)
@@ -193,7 +182,6 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 			if len(f) > 2 {
 				remote = f[2]
 			}
-			local = expandpkg(local, pkg)
 			// The compiler adds a fourth argument giving
 			// the definition ABI of function symbols.
 			abi := obj.ABI0
@@ -390,9 +378,9 @@ func Adddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym)
 }
 
 func fieldtrack(arch *sys.Arch, l *loader.Loader) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i := loader.Sym(1); i < loader.Sym(l.NSym()); i++ {
-		if name := l.SymName(i); strings.HasPrefix(name, "go.track.") {
+		if name := l.SymName(i); strings.HasPrefix(name, "go:track.") {
 			if l.AttrReachable(i) {
 				l.SetAttrSpecial(i, true)
 				l.SetAttrNotInSymbolTable(i, true)
@@ -458,50 +446,5 @@ func (ctxt *Link) addexport() {
 
 	for _, lib := range dedupLibraries(ctxt, dynlib) {
 		adddynlib(ctxt, lib)
-	}
-}
-
-type Pkg struct {
-	mark    bool
-	checked bool
-	path    string
-	impby   []*Pkg
-}
-
-var pkgall []*Pkg
-
-func (p *Pkg) cycle() *Pkg {
-	if p.checked {
-		return nil
-	}
-
-	if p.mark {
-		nerrors++
-		fmt.Printf("import cycle:\n")
-		fmt.Printf("\t%s\n", p.path)
-		return p
-	}
-
-	p.mark = true
-	for _, q := range p.impby {
-		if bad := q.cycle(); bad != nil {
-			p.mark = false
-			p.checked = true
-			fmt.Printf("\timports %s\n", p.path)
-			if bad == p {
-				return nil
-			}
-			return bad
-		}
-	}
-
-	p.checked = true
-	p.mark = false
-	return nil
-}
-
-func importcycles() {
-	for _, p := range pkgall {
-		p.cycle()
 	}
 }

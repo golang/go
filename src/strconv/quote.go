@@ -66,7 +66,6 @@ func appendQuotedRuneWith(buf []byte, r rune, quote byte, ASCIIonly, graphicOnly
 }
 
 func appendEscapedRune(buf []byte, r rune, quote byte, ASCIIonly, graphicOnly bool) []byte {
-	var runeTmp [utf8.UTFMax]byte
 	if r == rune(quote) || r == '\\' { // always backslashed
 		buf = append(buf, '\\')
 		buf = append(buf, byte(r))
@@ -78,9 +77,7 @@ func appendEscapedRune(buf []byte, r rune, quote byte, ASCIIonly, graphicOnly bo
 			return buf
 		}
 	} else if IsPrint(r) || graphicOnly && isInGraphicList(r) {
-		n := utf8.EncodeRune(runeTmp[:], r)
-		buf = append(buf, runeTmp[:n]...)
-		return buf
+		return utf8.AppendRune(buf, r)
 	}
 	switch r {
 	case '\a':
@@ -99,7 +96,7 @@ func appendEscapedRune(buf []byte, r rune, quote byte, ASCIIonly, graphicOnly bo
 		buf = append(buf, `\v`...)
 	default:
 		switch {
-		case r < ' ':
+		case r < ' ' || r == 0x7f:
 			buf = append(buf, `\x`...)
 			buf = append(buf, lowerhex[byte(r)>>4])
 			buf = append(buf, lowerhex[byte(r)&0xF])
@@ -165,6 +162,8 @@ func AppendQuoteToGraphic(dst []byte, s string) []byte {
 // QuoteRune returns a single-quoted Go character literal representing the
 // rune. The returned string uses Go escape sequences (\t, \n, \xFF, \u0100)
 // for control characters and non-printable characters as defined by IsPrint.
+// If r is not a valid Unicode code point, it is interpreted as the Unicode
+// replacement character U+FFFD.
 func QuoteRune(r rune) string {
 	return quoteRuneWith(r, '\'', false, false)
 }
@@ -179,6 +178,8 @@ func AppendQuoteRune(dst []byte, r rune) []byte {
 // the rune. The returned string uses Go escape sequences (\t, \n, \xFF,
 // \u0100) for non-ASCII characters and non-printable characters as defined
 // by IsPrint.
+// If r is not a valid Unicode code point, it is interpreted as the Unicode
+// replacement character U+FFFD.
 func QuoteRuneToASCII(r rune) string {
 	return quoteRuneWith(r, '\'', true, false)
 }
@@ -193,6 +194,8 @@ func AppendQuoteRuneToASCII(dst []byte, r rune) []byte {
 // the rune. If the rune is not a Unicode graphic character,
 // as defined by IsGraphic, the returned string will use a Go escape sequence
 // (\t, \n, \xFF, \u0100).
+// If r is not a valid Unicode code point, it is interpreted as the Unicode
+// replacement character U+FFFD.
 func QuoteRuneToGraphic(r rune) string {
 	return quoteRuneWith(r, '\'', false, true)
 }
@@ -243,10 +246,10 @@ func unhex(b byte) (v rune, ok bool) {
 // or character literal represented by the string s.
 // It returns four values:
 //
-//	1) value, the decoded Unicode code point or byte value;
-//	2) multibyte, a boolean indicating whether the decoded character requires a multibyte UTF-8 representation;
-//	3) tail, the remainder of the string after the character; and
-//	4) an error that will be nil if the character is syntactically valid.
+//  1. value, the decoded Unicode code point or byte value;
+//  2. multibyte, a boolean indicating whether the decoded character requires a multibyte UTF-8 representation;
+//  3. tail, the remainder of the string after the character; and
+//  4. an error that will be nil if the character is syntactically valid.
 //
 // The second argument, quote, specifies the type of literal being parsed
 // and therefore which escaped quote character is permitted.
@@ -465,9 +468,7 @@ func unquote(in string, unescape bool) (out, rem string, err error) {
 				if r < utf8.RuneSelf || !multibyte {
 					buf = append(buf, byte(r))
 				} else {
-					var arr [utf8.UTFMax]byte
-					n := utf8.EncodeRune(arr[:], r)
-					buf = append(buf, arr[:n]...)
+					buf = utf8.AppendRune(buf, r)
 				}
 			}
 

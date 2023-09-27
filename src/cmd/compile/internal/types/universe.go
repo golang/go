@@ -42,30 +42,29 @@ var typedefs = [...]struct {
 
 func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 	if PtrSize == 0 {
-		base.Fatalf("typeinit before betypeinit")
+		base.Fatalf("InitTypes called before PtrSize was set")
 	}
 
 	SlicePtrOffset = 0
-	SliceLenOffset = Rnd(SlicePtrOffset+int64(PtrSize), int64(PtrSize))
-	SliceCapOffset = Rnd(SliceLenOffset+int64(PtrSize), int64(PtrSize))
-	SliceSize = Rnd(SliceCapOffset+int64(PtrSize), int64(PtrSize))
+	SliceLenOffset = RoundUp(SlicePtrOffset+int64(PtrSize), int64(PtrSize))
+	SliceCapOffset = RoundUp(SliceLenOffset+int64(PtrSize), int64(PtrSize))
+	SliceSize = RoundUp(SliceCapOffset+int64(PtrSize), int64(PtrSize))
 
 	// string is same as slice wo the cap
-	StringSize = Rnd(SliceLenOffset+int64(PtrSize), int64(PtrSize))
+	StringSize = RoundUp(SliceLenOffset+int64(PtrSize), int64(PtrSize))
 
 	for et := Kind(0); et < NTYPE; et++ {
 		SimType[et] = et
 	}
 
 	Types[TANY] = newType(TANY) // note: an old placeholder type, NOT the new builtin 'any' alias for interface{}
-	Types[TINTER] = NewInterface(LocalPkg, nil, false)
+	Types[TINTER] = NewInterface(nil)
 	CheckSize(Types[TINTER])
 
 	defBasic := func(kind Kind, pkg *Pkg, name string) *Type {
 		typ := newType(kind)
 		obj := defTypeName(pkg.Lookup(name), typ)
-		typ.sym = obj.Sym()
-		typ.nod = obj
+		typ.obj = obj
 		if kind != TANY {
 			CheckSize(typ)
 		}
@@ -112,12 +111,8 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 	// any type (interface)
 	DeferCheckSize()
 	AnyType = defBasic(TFORW, BuiltinPkg, "any")
-	AnyType.SetUnderlying(NewInterface(BuiltinPkg, []*Field{}, false))
+	AnyType.SetUnderlying(NewInterface(nil))
 	ResumeCheckSize()
-
-	if base.Flag.G == 0 {
-		ComparableType.Sym().Def = nil
-	}
 
 	Types[TUNSAFEPTR] = defBasic(TUNSAFEPTR, UnsafePkg, "Pointer")
 
@@ -145,15 +140,15 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 }
 
 func makeErrorInterface() *Type {
-	sig := NewSignature(NoPkg, FakeRecv(), nil, nil, []*Field{
+	sig := NewSignature(FakeRecv(), nil, []*Field{
 		NewField(src.NoXPos, nil, Types[TSTRING]),
 	})
 	method := NewField(src.NoXPos, LocalPkg.Lookup("Error"), sig)
-	return NewInterface(NoPkg, []*Field{method}, false)
+	return NewInterface([]*Field{method})
 }
 
 // makeComparableInterface makes the predefined "comparable" interface in the
 // built-in package. It has a unique name, but no methods.
 func makeComparableInterface() *Type {
-	return NewInterface(NoPkg, nil, false)
+	return NewInterface(nil)
 }

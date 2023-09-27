@@ -10,7 +10,7 @@ TEXT ·kdsa(SB), NOSPLIT|NOFRAME, $0-24
 	MOVD params+8(FP), R1 // address parameter block
 
 loop:
-	WORD $0xB93A0008 // compute digital signature authentication
+	KDSA R0, R4      // compute digital signature authentication
 	BVS  loop        // branch back if interrupted
 	BGT  retry       // signing unsuccessful, but retry with new CSPRN
 	BLT  error       // condition code of 1 indicates a failure

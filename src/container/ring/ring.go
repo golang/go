@@ -10,7 +10,6 @@ package ring
 // serves as reference to the entire ring. Empty rings are represented
 // as nil Ring pointers. The zero value for a Ring is a one-element
 // ring with a nil Value.
-//
 type Ring struct {
 	next, prev *Ring
 	Value      any // for use by client; untouched by this library
@@ -40,7 +39,6 @@ func (r *Ring) Prev() *Ring {
 
 // Move moves n % r.Len() elements backward (n < 0) or forward (n >= 0)
 // in the ring and returns that ring element. r must not be empty.
-//
 func (r *Ring) Move(n int) *Ring {
 	if r.next == nil {
 		return r.init()
@@ -89,7 +87,6 @@ func New(n int) *Ring {
 // them creates a single ring with the elements of s inserted
 // after r. The result points to the element following the
 // last element of s after insertion.
-//
 func (r *Ring) Link(s *Ring) *Ring {
 	n := r.Next()
 	if s != nil {
@@ -107,7 +104,6 @@ func (r *Ring) Link(s *Ring) *Ring {
 // Unlink removes n % r.Len() elements from the ring r, starting
 // at r.Next(). If n % r.Len() == 0, r remains unchanged.
 // The result is the removed subring. r must not be empty.
-//
 func (r *Ring) Unlink(n int) *Ring {
 	if n <= 0 {
 		return nil
@@ -117,7 +113,6 @@ func (r *Ring) Unlink(n int) *Ring {
 
 // Len computes the number of elements in ring r.
 // It executes in time proportional to the number of elements.
-//
 func (r *Ring) Len() int {
 	n := 0
 	if r != nil {

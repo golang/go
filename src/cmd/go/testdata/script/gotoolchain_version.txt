@@ -1,0 +1,22 @@
+[!net:proxy.golang.org] skip
+
+	# In the Go project's official release GOPROXY defaults to proxy.golang.org,
+	# but it may be changed in GOROOT/go.env (such as in third-party
+	# distributions).
+	#
+	# Make sure it is in use here, because the server for releases not served
+	# through the proxy (https://golang.org/toolchain?go-get=1) currently only
+	# serves the latest patch release for each of the supported stable releases.
+
+[go-builder] env GOPROXY=
+[!go-builder] env GOPROXY=https://proxy.golang.org
+
+go list -m -versions go
+stdout 1.20.1 # among others
+stdout 1.19rc2
+! stdout go1.20.1 # no go prefixes
+! stdout go1.19rc2
+
+go list -m -versions toolchain
+stdout go1.20.1 # among others
+stdout go1.19rc2

@@ -13,6 +13,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -82,7 +83,7 @@ func TestUnscaledQuant(t *testing.T) {
 	}
 	if bad {
 		names := [nQuantIndex]string{"Luminance", "Chrominance"}
-		buf := &bytes.Buffer{}
+		buf := &strings.Builder{}
 		for i, name := range names {
 			fmt.Fprintf(buf, "// %s.\n{\n", name)
 			for zig := 0; zig < blockSize; zig++ {

@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -26,12 +27,12 @@ import (
 // syntactically different and simpler than SQL.  The syntax is as
 // follows:
 //
-//   WIPE
-//   CREATE|<tablename>|<col>=<type>,<col>=<type>,...
-//     where types are: "string", [u]int{8,16,32,64}, "bool"
-//   INSERT|<tablename>|col=val,col2=val2,col3=?
-//   SELECT|<tablename>|projectcol1,projectcol2|filtercol=?,filtercol2=?
-//   SELECT|<tablename>|projectcol1,projectcol2|filtercol=?param1,filtercol2=?param2
+//	WIPE
+//	CREATE|<tablename>|<col>=<type>,<col>=<type>,...
+//	  where types are: "string", [u]int{8,16,32,64}, "bool"
+//	INSERT|<tablename>|col=val,col2=val2,col3=?
+//	SELECT|<tablename>|projectcol1,projectcol2|filtercol=?,filtercol2=?
+//	SELECT|<tablename>|projectcol1,projectcol2|filtercol=?param1,filtercol2=?param2
 //
 // Any of these can be preceded by PANIC|<method>|, to cause the
 // named method on fakeStmt to panic.
@@ -89,6 +90,8 @@ func (cc *fakeDriverCtx) OpenConnector(name string) (driver.Connector, error) {
 
 type fakeDB struct {
 	name string
+
+	useRawBytes atomic.Bool
 
 	mu       sync.Mutex
 	tables   map[string]*table
@@ -250,10 +253,11 @@ func setHookOpenErr(fn func() error) {
 }
 
 // Supports dsn forms:
-//    <dbname>
-//    <dbname>;<opts>  (only currently supported option is `badConn`,
-//                      which causes driver.ErrBadConn to be returned on
-//                      every other conn.Begin())
+//
+//	<dbname>
+//	<dbname>;<opts>  (only currently supported option is `badConn`,
+//	                  which causes driver.ErrBadConn to be returned on
+//	                  every other conn.Begin())
 func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
 	hookOpenErr.Lock()
 	fn := hookOpenErr.fn
@@ -510,7 +514,7 @@ func errf(msg string, args ...any) error {
 
 // parts are table|selectCol1,selectCol2|whereCol=?,whereCol2=?
 // (note that where columns must always contain ? marks,
-//  just a limitation for fakedb)
+// just a limitation for fakedb)
 func (c *fakeConn) prepareSelect(stmt *fakeStmt, parts []string) (*fakeStmt, error) {
 	if len(parts) != 3 {
 		stmt.Close()
@@ -642,7 +646,7 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 	}
 
 	if c.stickyBad || (hookPrepareBadConn != nil && hookPrepareBadConn()) {
-		return nil, fakeError{Message: "Preapre: Sticky Bad", Wrapped: driver.ErrBadConn}
+		return nil, fakeError{Message: "Prepare: Sticky Bad", Wrapped: driver.ErrBadConn}
 	}
 
 	c.touchMem()
@@ -676,6 +680,9 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 
 		if c.waiter != nil {
 			c.waiter(ctx)
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 		}
 
 		if stmt.wait > 0 {
@@ -693,6 +700,8 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 		switch cmd {
 		case "WIPE":
 			// Nothing
+		case "USE_RAWBYTES":
+			c.db.useRawBytes.Store(true)
 		case "SELECT":
 			stmt, err = c.prepareSelect(stmt, parts)
 		case "CREATE":
@@ -795,6 +804,9 @@ func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 	switch s.cmd {
 	case "WIPE":
 		db.wipe()
+		return driver.ResultNoRows, nil
+	case "USE_RAWBYTES":
+		s.c.db.useRawBytes.Store(true)
 		return driver.ResultNoRows, nil
 	case "CREATE":
 		if err := db.createTable(s.table, s.colName, s.colType); err != nil {
@@ -925,6 +937,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 				txStatus = "transaction"
 			}
 			cursor := &rowsCursor{
+				db:        s.c.db,
 				parentMem: s.c,
 				posRow:    -1,
 				rows: [][]*row{
@@ -1021,6 +1034,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 	}
 
 	cursor := &rowsCursor{
+		db:        s.c.db,
 		parentMem: s.c,
 		posRow:    -1,
 		rows:      setMRows,
@@ -1063,6 +1077,7 @@ func (tx *fakeTx) Rollback() error {
 }
 
 type rowsCursor struct {
+	db        *fakeDB
 	parentMem memToucher
 	cols      [][]string
 	colType   [][]string
@@ -1085,6 +1100,9 @@ type rowsCursor struct {
 	// This is separate from the fakeConn.line to allow for drivers that
 	// can start multiple queries on the same transaction at the same time.
 	line int64
+
+	// closeErr is returned when rowsCursor.Close
+	closeErr error
 }
 
 func (rc *rowsCursor) touchMem() {
@@ -1096,7 +1114,7 @@ func (rc *rowsCursor) Close() error {
 	rc.touchMem()
 	rc.parentMem.touchMem()
 	rc.closed = true
-	return nil
+	return rc.closeErr
 }
 
 func (rc *rowsCursor) Columns() []string {
@@ -1134,7 +1152,7 @@ func (rc *rowsCursor) Next(dest []driver.Value) error {
 		// messing up conversions or doing them differently.
 		dest[i] = v
 
-		if bs, ok := v.([]byte); ok {
+		if bs, ok := v.([]byte); ok && !rc.db.useRawBytes.Load() {
 			if rc.bytesClone == nil {
 				rc.bytesClone = make(map[*byte][]byte)
 			}
@@ -1171,7 +1189,6 @@ func (rc *rowsCursor) NextResultSet() error {
 // This could be surprising behavior to retroactively apply to
 // driver.String now that Go1 is out, but this is convenient for
 // our TestPointerParamsAndScans.
-//
 type fakeDriverString struct{}
 
 func (fakeDriverString) ConvertValue(v any) (driver.Value, error) {
@@ -1234,33 +1251,33 @@ func converterForType(typ string) driver.ValueConverter {
 func colTypeToReflectType(typ string) reflect.Type {
 	switch typ {
 	case "bool":
-		return reflect.TypeOf(false)
+		return reflect.TypeFor[bool]()
 	case "nullbool":
-		return reflect.TypeOf(NullBool{})
+		return reflect.TypeFor[NullBool]()
 	case "int16":
-		return reflect.TypeOf(int16(0))
+		return reflect.TypeFor[int16]()
 	case "nullint16":
-		return reflect.TypeOf(NullInt16{})
+		return reflect.TypeFor[NullInt16]()
 	case "int32":
-		return reflect.TypeOf(int32(0))
+		return reflect.TypeFor[int32]()
 	case "nullint32":
-		return reflect.TypeOf(NullInt32{})
+		return reflect.TypeFor[NullInt32]()
 	case "string":
-		return reflect.TypeOf("")
+		return reflect.TypeFor[string]()
 	case "nullstring":
-		return reflect.TypeOf(NullString{})
+		return reflect.TypeFor[NullString]()
 	case "int64":
-		return reflect.TypeOf(int64(0))
+		return reflect.TypeFor[int64]()
 	case "nullint64":
-		return reflect.TypeOf(NullInt64{})
+		return reflect.TypeFor[NullInt64]()
 	case "float64":
-		return reflect.TypeOf(float64(0))
+		return reflect.TypeFor[float64]()
 	case "nullfloat64":
-		return reflect.TypeOf(NullFloat64{})
+		return reflect.TypeFor[NullFloat64]()
 	case "datetime":
-		return reflect.TypeOf(time.Time{})
+		return reflect.TypeFor[time.Time]()
 	case "any":
-		return reflect.TypeOf(new(any)).Elem()
+		return reflect.TypeFor[any]()
 	}
 	panic("invalid fakedb column type of " + typ)
 }

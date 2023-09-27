@@ -124,6 +124,7 @@ func TestTRun(t *T) {
 		ok     bool
 		maxPar int
 		chatty bool
+		json   bool
 		output string
 		f      func(*T)
 	}{{
@@ -201,6 +202,36 @@ func TestTRun(t *T) {
 		f: func(t *T) {
 			t.Run("", func(t *T) {
 				t.Run("", func(t *T) {})
+			})
+		},
+	}, {
+		desc:   "chatty with recursion and json",
+		ok:     false,
+		chatty: true,
+		json:   true,
+		output: `
+^V=== RUN   chatty with recursion and json
+^V=== RUN   chatty with recursion and json/#00
+^V=== RUN   chatty with recursion and json/#00/#00
+^V--- PASS: chatty with recursion and json/#00/#00 (N.NNs)
+^V=== NAME  chatty with recursion and json/#00
+^V=== RUN   chatty with recursion and json/#00/#01
+    sub_test.go:NNN: skip
+^V--- SKIP: chatty with recursion and json/#00/#01 (N.NNs)
+^V=== NAME  chatty with recursion and json/#00
+^V=== RUN   chatty with recursion and json/#00/#02
+    sub_test.go:NNN: fail
+^V--- FAIL: chatty with recursion and json/#00/#02 (N.NNs)
+^V=== NAME  chatty with recursion and json/#00
+^V--- FAIL: chatty with recursion and json/#00 (N.NNs)
+^V=== NAME  chatty with recursion and json
+^V--- FAIL: chatty with recursion and json (N.NNs)
+^V=== NAME  `,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				t.Run("", func(t *T) {})
+				t.Run("", func(t *T) { t.Skip("skip") })
+				t.Run("", func(t *T) { t.Fatal("fail") })
 			})
 		},
 	}, {
@@ -476,19 +507,20 @@ func TestTRun(t *T) {
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *T) {
-			ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
-			buf := &bytes.Buffer{}
+			ctx := newTestContext(tc.maxPar, allMatcher())
+			buf := &strings.Builder{}
 			root := &T{
 				common: common{
 					signal:  make(chan bool),
 					barrier: make(chan bool),
-					name:    "Test",
+					name:    "",
 					w:       buf,
 				},
 				context: ctx,
 			}
 			if tc.chatty {
 				root.chatty = newChattyPrinter(root.w)
+				root.chatty.json = tc.json
 			}
 			ok := root.Run(tc.desc, tc.f)
 			ctx.release()
@@ -657,10 +689,14 @@ func TestBRun(t *T) {
 			}
 		},
 	}}
+	hideStdoutForTesting = true
+	defer func() {
+		hideStdoutForTesting = false
+	}()
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *T) {
 			var ok bool
-			buf := &bytes.Buffer{}
+			buf := &strings.Builder{}
 			// This is almost like the Benchmark function, except that we override
 			// the benchtime and catch the failure result of the subbenchmark.
 			root := &B{
@@ -698,6 +734,7 @@ func TestBRun(t *T) {
 
 func makeRegexp(s string) string {
 	s = regexp.QuoteMeta(s)
+	s = strings.ReplaceAll(s, "^V", "\x16")
 	s = strings.ReplaceAll(s, ":NNN:", `:\d\d\d\d?:`)
 	s = strings.ReplaceAll(s, "N\\.NNs", `\d*\.\d*s`)
 	return s
@@ -724,7 +761,7 @@ func TestBenchmarkReadMemStatsBeforeFirstRun(t *T) {
 	var first = true
 	Benchmark(func(b *B) {
 		if first && (b.startAllocs == 0 || b.startBytes == 0) {
-			panic(fmt.Sprintf("ReadMemStats not called before first run"))
+			panic("ReadMemStats not called before first run")
 		}
 		first = false
 	})
@@ -768,13 +805,13 @@ func TestRacyOutput(t *T) {
 		return len(b), nil
 	}
 
-	var wg sync.WaitGroup
 	root := &T{
 		common:  common{w: &funcWriter{raceDetector}},
-		context: newTestContext(1, newMatcher(regexp.MatchString, "", "")),
+		context: newTestContext(1, allMatcher()),
 	}
 	root.chatty = newChattyPrinter(root.w)
 	root.Run("", func(t *T) {
+		var wg sync.WaitGroup
 		for i := 0; i < 100; i++ {
 			wg.Add(1)
 			go func(i int) {
@@ -784,8 +821,8 @@ func TestRacyOutput(t *T) {
 				})
 			}(i)
 		}
+		wg.Wait()
 	})
-	wg.Wait()
 
 	if races > 0 {
 		t.Errorf("detected %d racy Writes", races)
@@ -794,7 +831,7 @@ func TestRacyOutput(t *T) {
 
 // The late log message did not include the test name.  Issue 29388.
 func TestLogAfterComplete(t *T) {
-	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
+	ctx := newTestContext(1, allMatcher())
 	var buf bytes.Buffer
 	t1 := &T{
 		common: common{

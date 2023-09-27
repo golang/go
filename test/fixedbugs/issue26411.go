@@ -1,4 +1,4 @@
-// +build !nacl,!js
+// +build !nacl,!js,!wasip1
 // run
 
 // Copyright 2018 The Go Authors. All rights reserved.
@@ -75,7 +75,7 @@ bar            :
 			log.Printf("#%d: failed to create file %s", i, filename)
 			continue
 		}
-		output, _ := exec.Command("go", "tool", "compile", filename).CombinedOutput()
+		output, _ := exec.Command("go", "tool", "compile", "-p=p", filename).CombinedOutput()
 
 		// remove each matching error from the output
 		for _, err := range test.errors {

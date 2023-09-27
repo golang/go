@@ -47,6 +47,17 @@ func TestIs(t *testing.T) {
 		{&errorUncomparable{}, &errorUncomparable{}, false},
 		{errorUncomparable{}, err1, false},
 		{&errorUncomparable{}, err1, false},
+		{multiErr{}, err1, false},
+		{multiErr{err1, err3}, err1, true},
+		{multiErr{err3, err1}, err1, true},
+		{multiErr{err1, err3}, errors.New("x"), false},
+		{multiErr{err3, errb}, errb, true},
+		{multiErr{err3, errb}, erra, true},
+		{multiErr{err3, errb}, err1, true},
+		{multiErr{errb, err3}, err1, true},
+		{multiErr{poser}, err1, true},
+		{multiErr{poser}, err3, true},
+		{multiErr{nil}, nil, false},
 	}
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
@@ -148,6 +159,41 @@ func TestAs(t *testing.T) {
 		&timeout,
 		true,
 		errF,
+	}, {
+		multiErr{},
+		&errT,
+		false,
+		nil,
+	}, {
+		multiErr{errors.New("a"), errorT{"T"}},
+		&errT,
+		true,
+		errorT{"T"},
+	}, {
+		multiErr{errorT{"T"}, errors.New("a")},
+		&errT,
+		true,
+		errorT{"T"},
+	}, {
+		multiErr{errorT{"a"}, errorT{"b"}},
+		&errT,
+		true,
+		errorT{"a"},
+	}, {
+		multiErr{multiErr{errors.New("a"), errorT{"a"}}, errorT{"b"}},
+		&errT,
+		true,
+		errorT{"a"},
+	}, {
+		multiErr{wrapped{"path error", errF}},
+		&timeout,
+		true,
+		errF,
+	}, {
+		multiErr{nil},
+		&errT,
+		false,
+		nil,
 	}}
 	for i, tc := range testCases {
 		name := fmt.Sprintf("%d:As(Errorf(..., %v), %v)", i, tc.err, tc.target)
@@ -192,6 +238,27 @@ func TestAsValidation(t *testing.T) {
 	}
 }
 
+func BenchmarkIs(b *testing.B) {
+	err1 := errors.New("1")
+	err2 := multiErr{multiErr{multiErr{err1, errorT{"a"}}, errorT{"b"}}}
+
+	for i := 0; i < b.N; i++ {
+		if !errors.Is(err2, err1) {
+			b.Fatal("Is failed")
+		}
+	}
+}
+
+func BenchmarkAs(b *testing.B) {
+	err := multiErr{multiErr{multiErr{errors.New("a"), errorT{"a"}}, errorT{"b"}}}
+	for i := 0; i < b.N; i++ {
+		var target errorT
+		if !errors.As(err, &target) {
+			b.Fatal("As failed")
+		}
+	}
+}
+
 func TestUnwrap(t *testing.T) {
 	err1 := errors.New("1")
 	erra := wrapped{"wrap 2", err1}
@@ -223,8 +290,12 @@ type wrapped struct {
 }
 
 func (e wrapped) Error() string { return e.msg }
-
 func (e wrapped) Unwrap() error { return e.err }
+
+type multiErr []error
+
+func (m multiErr) Error() string   { return "multiError" }
+func (m multiErr) Unwrap() []error { return []error(m) }
 
 type errorUncomparable struct {
 	f []string
@@ -237,41 +308,4 @@ func (errorUncomparable) Error() string {
 func (errorUncomparable) Is(target error) bool {
 	_, ok := target.(errorUncomparable)
 	return ok
-}
-
-func ExampleIs() {
-	if _, err := os.Open("non-existing"); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			fmt.Println("file does not exist")
-		} else {
-			fmt.Println(err)
-		}
-	}
-
-	// Output:
-	// file does not exist
-}
-
-func ExampleAs() {
-	if _, err := os.Open("non-existing"); err != nil {
-		var pathError *fs.PathError
-		if errors.As(err, &pathError) {
-			fmt.Println("Failed at path:", pathError.Path)
-		} else {
-			fmt.Println(err)
-		}
-	}
-
-	// Output:
-	// Failed at path: non-existing
-}
-
-func ExampleUnwrap() {
-	err1 := errors.New("error1")
-	err2 := fmt.Errorf("error2: [%w]", err1)
-	fmt.Println(err2)
-	fmt.Println(errors.Unwrap(err2))
-	// Output
-	// error2: [error1]
-	// error1
 }

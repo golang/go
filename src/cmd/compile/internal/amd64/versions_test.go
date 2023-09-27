@@ -2,13 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// When using GOEXPERIMENT=boringcrypto, the test program links in the boringcrypto syso,
+// which does not respect GOAMD64, so we skip the test if boringcrypto is enabled.
+//go:build !boringcrypto
+
 package amd64_test
 
 import (
 	"bufio"
 	"debug/elf"
 	"debug/macho"
+	"errors"
 	"fmt"
+	"go/build"
 	"internal/testenv"
 	"io"
 	"math"
@@ -31,10 +37,10 @@ func TestGoAMD64v1(t *testing.T) {
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		t.Skip("test only works on elf or macho platforms")
 	}
-	if v := os.Getenv("GOAMD64"); v != "" && v != "v1" {
-		// Test runs only on v1 (which is the default).
-		// TODO: use build tags from #45454 instead.
-		t.Skip("GOAMD64 already set")
+	for _, tag := range build.Default.ToolTags {
+		if tag == "amd64.v2" {
+			t.Skip("compiling for GOAMD64=v2 or higher")
+		}
 	}
 	if os.Getenv("TESTGOAMD64V1") != "" {
 		t.Skip("recursive call")
@@ -66,7 +72,7 @@ func TestGoAMD64v1(t *testing.T) {
 	}
 
 	// Run the resulting binary.
-	cmd := exec.Command(dst.Name())
+	cmd := testenv.Command(t, dst.Name())
 	testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "TESTGOAMD64V1=yes")
 	cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=%s", strings.Join(features, ",")))
@@ -98,7 +104,7 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
 	if false {
 		// TODO: go tool objdump doesn't disassemble the bmi1 instructions
 		// in question correctly. See issue 48584.
-		cmd := exec.Command("go", "tool", "objdump", src)
+		cmd := testenv.Command(t, "go", "tool", "objdump", src)
 		var err error
 		disasm, err = cmd.StdoutPipe()
 		if err != nil {
@@ -107,20 +113,33 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
 		if err := cmd.Start(); err != nil {
 			t.Fatal(err)
 		}
-		re = regexp.MustCompile(`^[^:]*:[-0-9]+\s+0x([0-9a-f]+)\s+([0-9a-f]+)\s+([A-Z]+)`)
+		t.Cleanup(func() {
+			if err := cmd.Wait(); err != nil {
+				t.Error(err)
+			}
+		})
+		re = regexp.MustCompile(`^[^:]*:[-\d]+\s+0x([\da-f]+)\s+([\da-f]+)\s+([A-Z]+)`)
 	} else {
 		// TODO: we're depending on platform-native objdump here. Hence the Skipf
 		// below if it doesn't run for some reason.
-		cmd := exec.Command("objdump", "-d", src)
+		cmd := testenv.Command(t, "objdump", "-d", src)
 		var err error
 		disasm, err = cmd.StdoutPipe()
 		if err != nil {
-			t.Skipf("can't run test due to missing objdump: %s", err)
-		}
-		if err := cmd.Start(); err != nil {
 			t.Fatal(err)
 		}
-		re = regexp.MustCompile(`^\s*([0-9a-f]+):\s*((?:[0-9a-f][0-9a-f] )+)\s*([a-z0-9]+)`)
+		if err := cmd.Start(); err != nil {
+			if errors.Is(err, exec.ErrNotFound) {
+				t.Skipf("can't run test due to missing objdump: %s", err)
+			}
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := cmd.Wait(); err != nil {
+				t.Error(err)
+			}
+		})
+		re = regexp.MustCompile(`^\s*([\da-f]+):\s*((?:[\da-f][\da-f] )+)\s*([a-z\d]+)`)
 	}
 
 	// Find all the instruction addresses we need to edit.
@@ -234,10 +253,31 @@ var featureToOpcodes = map[string][]string{
 	// go tool objdump doesn't include a [QL] on popcnt instructions, until CL 351889
 	// native objdump doesn't include [QL] on linux.
 	"popcnt": {"popcntq", "popcntl", "popcnt"},
-	"bmi1":   {"andnq", "andnl", "andn", "blsiq", "blsil", "blsi", "blsmskq", "blsmskl", "blsmsk", "blsrq", "blsrl", "blsr", "tzcntq", "tzcntl", "tzcnt"},
-	"sse41":  {"roundsd"},
-	"fma":    {"vfmadd231sd"},
-	"movbe":  {"movbeqq", "movbeq", "movbell", "movbel", "movbe"},
+	"bmi1": {
+		"andnq", "andnl", "andn",
+		"blsiq", "blsil", "blsi",
+		"blsmskq", "blsmskl", "blsmsk",
+		"blsrq", "blsrl", "blsr",
+		"tzcntq", "tzcntl", "tzcnt",
+	},
+	"bmi2": {
+		"sarxq", "sarxl", "sarx",
+		"shlxq", "shlxl", "shlx",
+		"shrxq", "shrxl", "shrx",
+	},
+	"sse41": {
+		"roundsd",
+		"pinsrq", "pinsrl", "pinsrd", "pinsrb", "pinsr",
+		"pextrq", "pextrl", "pextrd", "pextrb", "pextr",
+		"pminsb", "pminsd", "pminuw", "pminud", // Note: ub and sw are ok.
+		"pmaxsb", "pmaxsd", "pmaxuw", "pmaxud",
+		"pmovzxbw", "pmovzxbd", "pmovzxbq", "pmovzxwd", "pmovzxwq", "pmovzxdq",
+		"pmovsxbw", "pmovsxbd", "pmovsxbq", "pmovsxwd", "pmovsxwq", "pmovsxdq",
+		"pblendvb",
+	},
+	"fma":   {"vfmadd231sd"},
+	"movbe": {"movbeqq", "movbeq", "movbell", "movbel", "movbe"},
+	"lzcnt": {"lzcntq", "lzcntl", "lzcnt"},
 }
 
 // Test to use POPCNT instruction, if available

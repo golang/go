@@ -102,26 +102,6 @@ type Stat_t struct {
 	Spare         [10]uint64
 }
 
-type stat_freebsd11_t struct {
-	Dev           uint32
-	Ino           uint32
-	Mode          uint16
-	Nlink         uint16
-	Uid           uint32
-	Gid           uint32
-	Rdev          uint32
-	Atimespec     Timespec
-	Mtimespec     Timespec
-	Ctimespec     Timespec
-	Size          int64
-	Blocks        int64
-	Blksize       int32
-	Flags         uint32
-	Gen           uint32
-	Lspare        int32
-	Birthtimespec Timespec
-}
-
 type Statfs_t struct {
 	Version     uint32
 	Type        uint32
@@ -147,31 +127,6 @@ type Statfs_t struct {
 	Mntonname   [1024]int8
 }
 
-type statfs_freebsd11_t struct {
-	Version     uint32
-	Type        uint32
-	Flags       uint64
-	Bsize       uint64
-	Iosize      uint64
-	Blocks      uint64
-	Bfree       uint64
-	Bavail      int64
-	Files       uint64
-	Ffree       int64
-	Syncwrites  uint64
-	Asyncwrites uint64
-	Syncreads   uint64
-	Asyncreads  uint64
-	Spare       [10]uint64
-	Namemax     uint32
-	Owner       uint32
-	Fsid        Fsid
-	Charspare   [80]int8
-	Fstypename  [16]int8
-	Mntfromname [88]int8
-	Mntonname   [88]int8
-}
-
 type Flock_t struct {
 	Start     int64
 	Len       int64
@@ -190,14 +145,6 @@ type Dirent struct {
 	Pad0   uint8
 	Namlen uint16
 	Pad1   uint16
-	Name   [256]int8
-}
-
-type dirent_freebsd11 struct {
-	Fileno uint32
-	Reclen uint16
-	Type   uint8
-	Namlen uint8
 	Name   [256]int8
 }
 

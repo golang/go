@@ -28,7 +28,8 @@ func ResetZoneinfoForTesting() {
 }
 
 var (
-	ForceZipFileForTesting = forceZipFileForTesting
+	DisablePlatformSources = disablePlatformSources
+	GorootZoneSource       = gorootZoneSource
 	ParseTimeZone          = parseTimeZone
 	SetMono                = (*Time).setMono
 	GetMono                = (*Time).mono
@@ -131,3 +132,9 @@ var StdChunkNames = map[int]string{
 }
 
 var Quote = quote
+
+var AppendInt = appendInt
+var AppendFormatAny = Time.appendFormat
+var AppendFormatRFC3339 = Time.appendFormatRFC3339
+var ParseAny = parse
+var ParseRFC3339 = parseRFC3339[string]

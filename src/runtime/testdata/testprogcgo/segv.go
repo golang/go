@@ -2,41 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !plan9 && !windows
-// +build !plan9,!windows
+//go:build unix
 
 package main
 
+// #include <unistd.h>
 // static void nop() {}
 import "C"
 
-import (
-	"syscall"
-	"time"
-)
+import "syscall"
 
 func init() {
-	register("Segv", Segv)
 	register("SegvInCgo", SegvInCgo)
-}
-
-var Sum int
-
-func Segv() {
-	c := make(chan bool)
-	go func() {
-		close(c)
-		for i := 0; ; i++ {
-			Sum += i
-		}
-	}()
-
-	<-c
-
-	syscall.Kill(syscall.Getpid(), syscall.SIGSEGV)
-
-	// Give the OS time to deliver the signal.
-	time.Sleep(time.Second)
 }
 
 func SegvInCgo() {
@@ -52,6 +29,6 @@ func SegvInCgo() {
 
 	syscall.Kill(syscall.Getpid(), syscall.SIGSEGV)
 
-	// Give the OS time to deliver the signal.
-	time.Sleep(time.Second)
+	// Wait for the OS to deliver the signal.
+	C.pause()
 }

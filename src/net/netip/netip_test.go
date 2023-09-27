@@ -10,9 +10,11 @@ import (
 	"flag"
 	"fmt"
 	"internal/intern"
+	"internal/testenv"
 	"net"
 	. "net/netip"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -300,6 +302,41 @@ func TestParseAddr(t *testing.T) {
 	}
 }
 
+func TestAddrFromSlice(t *testing.T) {
+	tests := []struct {
+		ip       []byte
+		wantAddr Addr
+		wantOK   bool
+	}{
+		{
+			ip:       []byte{10, 0, 0, 1},
+			wantAddr: mustIP("10.0.0.1"),
+			wantOK:   true,
+		},
+		{
+			ip:       []byte{0xfe, 0x80, 15: 0x01},
+			wantAddr: mustIP("fe80::01"),
+			wantOK:   true,
+		},
+		{
+			ip:       []byte{0, 1, 2},
+			wantAddr: Addr{},
+			wantOK:   false,
+		},
+		{
+			ip:       nil,
+			wantAddr: Addr{},
+			wantOK:   false,
+		},
+	}
+	for _, tt := range tests {
+		addr, ok := AddrFromSlice(tt.ip)
+		if ok != tt.wantOK || addr != tt.wantAddr {
+			t.Errorf("AddrFromSlice(%#v) = %#v, %v, want %#v, %v", tt.ip, addr, ok, tt.wantAddr, tt.wantOK)
+		}
+	}
+}
+
 func TestIPv4Constructors(t *testing.T) {
 	if AddrFrom4([4]byte{1, 2, 3, 4}) != MustParseAddr("1.2.3.4") {
 		t.Errorf("don't match")
@@ -421,8 +458,8 @@ func TestPrefixMarshalTextString(t *testing.T) {
 		{mustPrefix("1.2.3.4/24"), "1.2.3.4/24"},
 		{mustPrefix("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"), "fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"},
 		{mustPrefix("::ffff:c000:0280/96"), "::ffff:192.0.2.128/96"},
-		{mustPrefix("::ffff:c000:0280%eth0/37"), "::ffff:192.0.2.128/37"}, // Zone should be stripped
 		{mustPrefix("::ffff:192.168.140.255/8"), "::ffff:192.168.140.255/8"},
+		{PrefixFrom(mustIP("::ffff:c000:0280").WithZone("eth0"), 37), "::ffff:192.0.2.128/37"}, // Zone should be stripped
 	}
 	for i, tt := range tests {
 		if got := tt.in.String(); got != tt.want {
@@ -448,7 +485,7 @@ func TestPrefixMarshalUnmarshalBinary(t *testing.T) {
 		{mustPrefix("1.2.3.4/24"), 4 + 1},
 		{mustPrefix("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"), 16 + 1},
 		{mustPrefix("::ffff:c000:0280/96"), 16 + 1},
-		{mustPrefix("::ffff:c000:0280%eth0/37"), 16 + 1}, // Zone should be stripped
+		{PrefixFrom(mustIP("::ffff:c000:0280").WithZone("eth0"), 37), 16 + 1}, // Zone should be stripped
 	}
 	tests = append(tests,
 		testCase{PrefixFrom(tests[0].prefix.Addr(), 33), tests[0].wantSize},
@@ -549,7 +586,6 @@ func TestIPProperties(t *testing.T) {
 		lluZone6 = mustIP("fe80::1%eth0")
 
 		loopback4 = mustIP("127.0.0.1")
-		loopback6 = mustIP("::1")
 
 		ilm6     = mustIP("ff01::1")
 		ilmZone6 = mustIP("ff01::1%eth0")
@@ -558,9 +594,6 @@ func TestIPProperties(t *testing.T) {
 		private4b = mustIP("172.16.0.1")
 		private4c = mustIP("192.168.1.1")
 		private6  = mustIP("fd00::1")
-
-		unspecified4 = AddrFrom4([4]byte{})
-		unspecified6 = IPv6Unspecified()
 	)
 
 	tests := []struct {
@@ -644,7 +677,7 @@ func TestIPProperties(t *testing.T) {
 		},
 		{
 			name:     "loopback v6Addr",
-			ip:       loopback6,
+			ip:       IPv6Loopback(),
 			loopback: true,
 		},
 		{
@@ -685,12 +718,12 @@ func TestIPProperties(t *testing.T) {
 		},
 		{
 			name:        "unspecified v4Addr",
-			ip:          unspecified4,
+			ip:          IPv4Unspecified(),
 			unspecified: true,
 		},
 		{
 			name:        "unspecified v6Addr",
-			ip:          unspecified6,
+			ip:          IPv6Unspecified(),
 			unspecified: true,
 		},
 	}
@@ -752,6 +785,16 @@ func TestAddrWellKnown(t *testing.T) {
 			std:  net.IPv6linklocalallnodes,
 		},
 		{
+			name: "IPv6 link-local all routers",
+			ip:   IPv6LinkLocalAllRouters(),
+			std:  net.IPv6linklocalallrouters,
+		},
+		{
+			name: "IPv6 loopback",
+			ip:   IPv6Loopback(),
+			std:  net.IPv6loopback,
+		},
+		{
 			name: "IPv6 unspecified",
 			ip:   IPv6Unspecified(),
 			std:  net.IPv6unspecified,
@@ -770,7 +813,7 @@ func TestAddrWellKnown(t *testing.T) {
 	}
 }
 
-func TestLessCompare(t *testing.T) {
+func TestAddrLessCompare(t *testing.T) {
 	tests := []struct {
 		a, b Addr
 		want bool
@@ -840,6 +883,109 @@ func TestLessCompare(t *testing.T) {
 	}
 }
 
+func TestAddrPortCompare(t *testing.T) {
+	tests := []struct {
+		a, b AddrPort
+		want int
+	}{
+		{AddrPort{}, AddrPort{}, 0},
+		{AddrPort{}, mustIPPort("1.2.3.4:80"), -1},
+
+		{mustIPPort("1.2.3.4:80"), mustIPPort("1.2.3.4:80"), 0},
+		{mustIPPort("[::1]:80"), mustIPPort("[::1]:80"), 0},
+
+		{mustIPPort("1.2.3.4:80"), mustIPPort("2.3.4.5:22"), -1},
+		{mustIPPort("[::1]:80"), mustIPPort("[::2]:22"), -1},
+
+		{mustIPPort("1.2.3.4:80"), mustIPPort("1.2.3.4:443"), -1},
+		{mustIPPort("[::1]:80"), mustIPPort("[::1]:443"), -1},
+
+		{mustIPPort("1.2.3.4:80"), mustIPPort("[0102:0304::0]:80"), -1},
+	}
+	for _, tt := range tests {
+		got := tt.a.Compare(tt.b)
+		if got != tt.want {
+			t.Errorf("Compare(%q, %q) = %v; want %v", tt.a, tt.b, got, tt.want)
+		}
+
+		// Also check inverse.
+		if got == tt.want {
+			got2 := tt.b.Compare(tt.a)
+			if want2 := -1 * tt.want; got2 != want2 {
+				t.Errorf("Compare(%q, %q) was correctly %v, but Compare(%q, %q) was %v", tt.a, tt.b, got, tt.b, tt.a, got2)
+			}
+		}
+	}
+
+	// And just sort.
+	values := []AddrPort{
+		mustIPPort("[::1]:80"),
+		mustIPPort("[::2]:80"),
+		AddrPort{},
+		mustIPPort("1.2.3.4:443"),
+		mustIPPort("8.8.8.8:8080"),
+		mustIPPort("[::1%foo]:1024"),
+	}
+	slices.SortFunc(values, func(a, b AddrPort) int { return a.Compare(b) })
+	got := fmt.Sprintf("%s", values)
+	want := `[invalid AddrPort 1.2.3.4:443 8.8.8.8:8080 [::1]:80 [::1%foo]:1024 [::2]:80]`
+	if got != want {
+		t.Errorf("unexpected sort\n got: %s\nwant: %s\n", got, want)
+	}
+}
+
+func TestPrefixCompare(t *testing.T) {
+	tests := []struct {
+		a, b Prefix
+		want int
+	}{
+		{Prefix{}, Prefix{}, 0},
+		{Prefix{}, mustPrefix("1.2.3.0/24"), -1},
+
+		{mustPrefix("1.2.3.0/24"), mustPrefix("1.2.3.0/24"), 0},
+		{mustPrefix("fe80::/64"), mustPrefix("fe80::/64"), 0},
+
+		{mustPrefix("1.2.3.0/24"), mustPrefix("1.2.4.0/24"), -1},
+		{mustPrefix("fe80::/64"), mustPrefix("fe90::/64"), -1},
+
+		{mustPrefix("1.2.0.0/16"), mustPrefix("1.2.0.0/24"), -1},
+		{mustPrefix("fe80::/48"), mustPrefix("fe80::/64"), -1},
+
+		{mustPrefix("1.2.3.0/24"), mustPrefix("fe80::/8"), -1},
+	}
+	for _, tt := range tests {
+		got := tt.a.Compare(tt.b)
+		if got != tt.want {
+			t.Errorf("Compare(%q, %q) = %v; want %v", tt.a, tt.b, got, tt.want)
+		}
+
+		// Also check inverse.
+		if got == tt.want {
+			got2 := tt.b.Compare(tt.a)
+			if want2 := -1 * tt.want; got2 != want2 {
+				t.Errorf("Compare(%q, %q) was correctly %v, but Compare(%q, %q) was %v", tt.a, tt.b, got, tt.b, tt.a, got2)
+			}
+		}
+	}
+
+	// And just sort.
+	values := []Prefix{
+		mustPrefix("1.2.3.0/24"),
+		mustPrefix("fe90::/64"),
+		mustPrefix("fe80::/64"),
+		mustPrefix("1.2.0.0/16"),
+		Prefix{},
+		mustPrefix("fe80::/48"),
+		mustPrefix("1.2.0.0/24"),
+	}
+	slices.SortFunc(values, func(a, b Prefix) int { return a.Compare(b) })
+	got := fmt.Sprintf("%s", values)
+	want := `[invalid Prefix 1.2.0.0/16 1.2.0.0/24 1.2.3.0/24 fe80::/48 fe80::/64 fe90::/64]`
+	if got != want {
+		t.Errorf("unexpected sort\n got: %s\nwant: %s\n", got, want)
+	}
+}
+
 func TestIPStringExpanded(t *testing.T) {
 	tests := []struct {
 		ip Addr
@@ -901,25 +1047,25 @@ func TestPrefixMasking(t *testing.T) {
 			{
 				ip:   mustIP(fmt.Sprintf("2001:db8::1%s", zone)),
 				bits: 32,
-				p:    mustPrefix(fmt.Sprintf("2001:db8::%s/32", zone)),
+				p:    mustPrefix("2001:db8::/32"),
 				ok:   true,
 			},
 			{
 				ip:   mustIP(fmt.Sprintf("fe80::dead:beef:dead:beef%s", zone)),
 				bits: 96,
-				p:    mustPrefix(fmt.Sprintf("fe80::dead:beef:0:0%s/96", zone)),
+				p:    mustPrefix("fe80::dead:beef:0:0/96"),
 				ok:   true,
 			},
 			{
 				ip:   mustIP(fmt.Sprintf("aaaa::%s", zone)),
 				bits: 4,
-				p:    mustPrefix(fmt.Sprintf("a000::%s/4", zone)),
+				p:    mustPrefix("a000::/4"),
 				ok:   true,
 			},
 			{
 				ip:   mustIP(fmt.Sprintf("::%s", zone)),
 				bits: 63,
-				p:    mustPrefix(fmt.Sprintf("::%s/63", zone)),
+				p:    mustPrefix("::/63"),
 				ok:   true,
 			},
 		}
@@ -1044,26 +1190,6 @@ func TestPrefixMarshalUnmarshal(t *testing.T) {
 				t.Errorf("Marshal = %q; want %q", back, orig)
 			}
 		})
-	}
-}
-
-func TestPrefixMarshalUnmarshalZone(t *testing.T) {
-	orig := `"fe80::1cc0:3e8c:119f:c2e1%ens18/128"`
-	unzoned := `"fe80::1cc0:3e8c:119f:c2e1/128"`
-
-	var p Prefix
-	if err := json.Unmarshal([]byte(orig), &p); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
-
-	pb, err := json.Marshal(p)
-	if err != nil {
-		t.Fatalf("failed to marshal: %v", err)
-	}
-
-	back := string(pb)
-	if back != unzoned {
-		t.Errorf("Marshal = %q; want %q", back, unzoned)
 	}
 }
 
@@ -1222,14 +1348,6 @@ func TestPrefix(t *testing.T) {
 			contains:    mustIPs("2001:db8::1"),
 			notContains: mustIPs("fe80::1"),
 		},
-		{
-			prefix:      "::%0/00/80",
-			ip:          mustIP("::"),
-			bits:        80,
-			str:         "::/80",
-			contains:    mustIPs("::"),
-			notContains: mustIPs("ff::%0/00", "ff::%1/23", "::%0/00", "::%1/23"),
-		},
 	}
 	for _, test := range tests {
 		t.Run(test.prefix, func(t *testing.T) {
@@ -1347,6 +1465,15 @@ func TestParsePrefixError(t *testing.T) {
 		{
 			prefix: "2001::/129",
 			errstr: "out of range",
+		},
+		// Zones are not allowed: https://go.dev/issue/51899
+		{
+			prefix: "1.1.1.0%a/24",
+			errstr: "unexpected character",
+		},
+		{
+			prefix: "2001:db8::%a/32",
+			errstr: "zones cannot be present",
 		},
 	}
 	for _, test := range tests {
@@ -1776,7 +1903,7 @@ func TestPrefixOverlaps(t *testing.T) {
 		{pfx("1::1/128"), pfx("2::2/128"), false},
 		{pfx("0100::0/8"), pfx("::1/128"), false},
 
-		// v6-mapped v4 should not overlap with IPv4.
+		// IPv4-mapped IPv6 addresses should not overlap with IPv4.
 		{PrefixFrom(AddrFrom16(mustIP("1.2.0.0").As16()), 16), pfx("1.2.3.0/24"), false},
 
 		// Invalid prefixes
@@ -1845,7 +1972,7 @@ func TestNoAllocs(t *testing.T) {
 		})
 	}
 
-	// IP constructors
+	// Addr constructors
 	test("IPv4", func() { sinkIP = IPv4(1, 2, 3, 4) })
 	test("AddrFrom4", func() { sinkIP = AddrFrom4([4]byte{1, 2, 3, 4}) })
 	test("AddrFrom16", func() { sinkIP = AddrFrom16([16]byte{}) })
@@ -1853,43 +1980,45 @@ func TestNoAllocs(t *testing.T) {
 	test("ParseAddr/6", func() { sinkIP = panicIP(ParseAddr("::1")) })
 	test("MustParseAddr", func() { sinkIP = MustParseAddr("1.2.3.4") })
 	test("IPv6LinkLocalAllNodes", func() { sinkIP = IPv6LinkLocalAllNodes() })
+	test("IPv6LinkLocalAllRouters", func() { sinkIP = IPv6LinkLocalAllRouters() })
+	test("IPv6Loopback", func() { sinkIP = IPv6Loopback() })
 	test("IPv6Unspecified", func() { sinkIP = IPv6Unspecified() })
 
-	// IP methods
-	test("IP.IsZero", func() { sinkBool = MustParseAddr("1.2.3.4").IsZero() })
-	test("IP.BitLen", func() { sinkBool = MustParseAddr("1.2.3.4").BitLen() == 8 })
-	test("IP.Zone/4", func() { sinkBool = MustParseAddr("1.2.3.4").Zone() == "" })
-	test("IP.Zone/6", func() { sinkBool = MustParseAddr("fe80::1").Zone() == "" })
-	test("IP.Zone/6zone", func() { sinkBool = MustParseAddr("fe80::1%zone").Zone() == "" })
-	test("IP.Compare", func() {
+	// Addr methods
+	test("Addr.IsZero", func() { sinkBool = MustParseAddr("1.2.3.4").IsZero() })
+	test("Addr.BitLen", func() { sinkBool = MustParseAddr("1.2.3.4").BitLen() == 8 })
+	test("Addr.Zone/4", func() { sinkBool = MustParseAddr("1.2.3.4").Zone() == "" })
+	test("Addr.Zone/6", func() { sinkBool = MustParseAddr("fe80::1").Zone() == "" })
+	test("Addr.Zone/6zone", func() { sinkBool = MustParseAddr("fe80::1%zone").Zone() == "" })
+	test("Addr.Compare", func() {
 		a := MustParseAddr("1.2.3.4")
 		b := MustParseAddr("2.3.4.5")
 		sinkBool = a.Compare(b) == 0
 	})
-	test("IP.Less", func() {
+	test("Addr.Less", func() {
 		a := MustParseAddr("1.2.3.4")
 		b := MustParseAddr("2.3.4.5")
 		sinkBool = a.Less(b)
 	})
-	test("IP.Is4", func() { sinkBool = MustParseAddr("1.2.3.4").Is4() })
-	test("IP.Is6", func() { sinkBool = MustParseAddr("fe80::1").Is6() })
-	test("IP.Is4In6", func() { sinkBool = MustParseAddr("fe80::1").Is4In6() })
-	test("IP.Unmap", func() { sinkIP = MustParseAddr("ffff::2.3.4.5").Unmap() })
-	test("IP.WithZone", func() { sinkIP = MustParseAddr("fe80::1").WithZone("") })
-	test("IP.IsGlobalUnicast", func() { sinkBool = MustParseAddr("2001:db8::1").IsGlobalUnicast() })
-	test("IP.IsInterfaceLocalMulticast", func() { sinkBool = MustParseAddr("fe80::1").IsInterfaceLocalMulticast() })
-	test("IP.IsLinkLocalMulticast", func() { sinkBool = MustParseAddr("fe80::1").IsLinkLocalMulticast() })
-	test("IP.IsLinkLocalUnicast", func() { sinkBool = MustParseAddr("fe80::1").IsLinkLocalUnicast() })
-	test("IP.IsLoopback", func() { sinkBool = MustParseAddr("fe80::1").IsLoopback() })
-	test("IP.IsMulticast", func() { sinkBool = MustParseAddr("fe80::1").IsMulticast() })
-	test("IP.IsPrivate", func() { sinkBool = MustParseAddr("fd00::1").IsPrivate() })
-	test("IP.IsUnspecified", func() { sinkBool = IPv6Unspecified().IsUnspecified() })
-	test("IP.Prefix/4", func() { sinkPrefix = panicPfx(MustParseAddr("1.2.3.4").Prefix(20)) })
-	test("IP.Prefix/6", func() { sinkPrefix = panicPfx(MustParseAddr("fe80::1").Prefix(64)) })
-	test("IP.As16", func() { sinkIP16 = MustParseAddr("1.2.3.4").As16() })
-	test("IP.As4", func() { sinkIP4 = MustParseAddr("1.2.3.4").As4() })
-	test("IP.Next", func() { sinkIP = MustParseAddr("1.2.3.4").Next() })
-	test("IP.Prev", func() { sinkIP = MustParseAddr("1.2.3.4").Prev() })
+	test("Addr.Is4", func() { sinkBool = MustParseAddr("1.2.3.4").Is4() })
+	test("Addr.Is6", func() { sinkBool = MustParseAddr("fe80::1").Is6() })
+	test("Addr.Is4In6", func() { sinkBool = MustParseAddr("fe80::1").Is4In6() })
+	test("Addr.Unmap", func() { sinkIP = MustParseAddr("ffff::2.3.4.5").Unmap() })
+	test("Addr.WithZone", func() { sinkIP = MustParseAddr("fe80::1").WithZone("") })
+	test("Addr.IsGlobalUnicast", func() { sinkBool = MustParseAddr("2001:db8::1").IsGlobalUnicast() })
+	test("Addr.IsInterfaceLocalMulticast", func() { sinkBool = MustParseAddr("fe80::1").IsInterfaceLocalMulticast() })
+	test("Addr.IsLinkLocalMulticast", func() { sinkBool = MustParseAddr("fe80::1").IsLinkLocalMulticast() })
+	test("Addr.IsLinkLocalUnicast", func() { sinkBool = MustParseAddr("fe80::1").IsLinkLocalUnicast() })
+	test("Addr.IsLoopback", func() { sinkBool = MustParseAddr("fe80::1").IsLoopback() })
+	test("Addr.IsMulticast", func() { sinkBool = MustParseAddr("fe80::1").IsMulticast() })
+	test("Addr.IsPrivate", func() { sinkBool = MustParseAddr("fd00::1").IsPrivate() })
+	test("Addr.IsUnspecified", func() { sinkBool = IPv6Unspecified().IsUnspecified() })
+	test("Addr.Prefix/4", func() { sinkPrefix = panicPfx(MustParseAddr("1.2.3.4").Prefix(20)) })
+	test("Addr.Prefix/6", func() { sinkPrefix = panicPfx(MustParseAddr("fe80::1").Prefix(64)) })
+	test("Addr.As16", func() { sinkIP16 = MustParseAddr("1.2.3.4").As16() })
+	test("Addr.As4", func() { sinkIP4 = MustParseAddr("1.2.3.4").As4() })
+	test("Addr.Next", func() { sinkIP = MustParseAddr("1.2.3.4").Next() })
+	test("Addr.Prev", func() { sinkIP = MustParseAddr("1.2.3.4").Prev() })
 
 	// AddrPort constructors
 	test("AddrPortFrom", func() { sinkAddrPort = AddrPortFrom(IPv4(1, 2, 3, 4), 22) })
@@ -1910,7 +2039,37 @@ func TestNoAllocs(t *testing.T) {
 	})
 	test("Prefix.IsZero", func() { sinkBool = MustParsePrefix("1.2.0.0/16").IsZero() })
 	test("Prefix.IsSingleIP", func() { sinkBool = MustParsePrefix("1.2.3.4/32").IsSingleIP() })
-	test("IPPRefix.Masked", func() { sinkPrefix = MustParsePrefix("1.2.3.4/16").Masked() })
+	test("Prefix.Masked", func() { sinkPrefix = MustParsePrefix("1.2.3.4/16").Masked() })
+}
+
+func TestAddrStringAllocs(t *testing.T) {
+	tests := []struct {
+		name       string
+		ip         Addr
+		wantAllocs int
+	}{
+		{"zero", Addr{}, 0},
+		{"ipv4", MustParseAddr("192.168.1.1"), 1},
+		{"ipv6", MustParseAddr("2001:db8::1"), 1},
+		{"ipv6+zone", MustParseAddr("2001:db8::1%eth0"), 1},
+		{"ipv4-in-ipv6", MustParseAddr("::ffff:192.168.1.1"), 1},
+		{"ipv4-in-ipv6+zone", MustParseAddr("::ffff:192.168.1.1%eth0"), 1},
+	}
+	optimizationOff := testenv.OptimizationOff()
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if optimizationOff && strings.HasPrefix(tc.name, "ipv4-in-ipv6") {
+				// Optimizations are required to remove some allocs.
+				t.Skipf("skipping on %v", testenv.Builder())
+			}
+			allocs := int(testing.AllocsPerRun(1000, func() {
+				sinkString = tc.ip.String()
+			}))
+			if allocs != tc.wantAllocs {
+				t.Errorf("allocs=%d, want %d", allocs, tc.wantAllocs)
+			}
+		})
+	}
 }
 
 func TestPrefixString(t *testing.T) {

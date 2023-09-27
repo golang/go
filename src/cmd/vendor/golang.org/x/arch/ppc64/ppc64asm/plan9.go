@@ -83,7 +83,9 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		STH, STHU,
 		STW, STWU,
 		STD, STDU,
-		STQ, STFD, STFDU, STFS, STFSU:
+		STFD, STFDU,
+		STFS, STFSU,
+		STQ, HASHST, HASHSTP:
 		return op + " " + strings.Join(args, ",")
 
 	case FCMPU, FCMPO, CMPD, CMPDI, CMPLD, CMPLDI, CMPW, CMPWI, CMPLW, CMPLWI:
@@ -168,8 +170,9 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 }
 
 // plan9Arg formats arg (which is the argIndex's arg in inst) according to Plan 9 rules.
+//
 // NOTE: because Plan9Syntax is the only caller of this func, and it receives a copy
-//       of inst, it's ok to modify inst.Args here.
+// of inst, it's ok to modify inst.Args here.
 func plan9Arg(inst *Inst, argIndex int, pc uint64, arg Arg, symname func(uint64) (string, uint64)) string {
 	// special cases for load/store instructions
 	if _, ok := arg.(Offset); ok {
@@ -211,8 +214,15 @@ func plan9Arg(inst *Inst, argIndex int, pc uint64, arg Arg, symname func(uint64)
 		return fmt.Sprintf("SPR(%d)", int(arg))
 	case PCRel:
 		addr := pc + uint64(int64(arg))
-		if s, base := symname(addr); s != "" && base == addr {
+		s, base := symname(addr)
+		if s != "" && addr == base {
 			return fmt.Sprintf("%s(SB)", s)
+		}
+		if inst.Op == BL && s != "" && (addr-base) == 8 {
+			// When decoding an object built for PIE, a CALL targeting
+			// a global entry point will be adjusted to the local entry
+			// if any. For now, assume any symname+8 PC is a local call.
+			return fmt.Sprintf("%s+%d(SB)", s, addr-base)
 		}
 		return fmt.Sprintf("%#x", addr)
 	case Label:
@@ -251,7 +261,7 @@ func reverseOperandOrder(op Op) bool {
 		return true
 	case FADDCC, FADDSCC, FSUBCC, FMULCC, FDIVCC, FDIVSCC:
 		return true
-	case OR, ORC, AND, ANDC, XOR, NAND, EQV, NOR, ANDCC, ORCC, XORCC, EQVCC, NORCC, NANDCC:
+	case OR, ORCC, ORC, ORCCC, AND, ANDCC, ANDC, ANDCCC, XOR, XORCC, NAND, NANDCC, EQV, EQVCC, NOR, NORCC:
 		return true
 	case SLW, SLWCC, SLD, SLDCC, SRW, SRAW, SRWCC, SRAWCC, SRD, SRDCC, SRAD, SRADCC:
 		return true
@@ -305,6 +315,7 @@ var plan9OpMap = map[Op]string{
 	ORI:       "OR",
 	ANDICC:    "ANDCC",
 	ANDC:      "ANDN",
+	ANDCCC:    "ANDNCC",
 	ADDEO:     "ADDEV",
 	ADDEOCC:   "ADDEVCC",
 	ADDO:      "ADDV",
@@ -321,8 +332,12 @@ var plan9OpMap = map[Op]string{
 	SUBFZECC:  "SUBZECC",
 	SUBFZEO:   "SUBZEV",
 	SUBFZEOCC: "SUBZEVCC",
+	SUBF:      "SUB",
 	SUBFC:     "SUBC",
+	SUBFCC:    "SUBCC",
+	SUBFCCC:   "SUBCCC",
 	ORC:       "ORN",
+	ORCCC:     "ORNCC",
 	MULLWO:    "MULLWV",
 	MULLWOCC:  "MULLWVCC",
 	MULLDO:    "MULLDV",
@@ -334,7 +349,6 @@ var plan9OpMap = map[Op]string{
 	ADDI:      "ADD",
 	MULLI:     "MULLD",
 	SRADI:     "SRAD",
-	SUBF:      "SUB",
 	STBCXCC:   "STBCCC",
 	STWCXCC:   "STWCCC",
 	STDCXCC:   "STDCCC",

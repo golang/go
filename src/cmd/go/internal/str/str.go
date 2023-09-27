@@ -6,8 +6,8 @@
 package str
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -30,7 +30,9 @@ func StringList(args ...any) []string {
 }
 
 // ToFold returns a string with the property that
+//
 //	strings.EqualFold(s, t) iff ToFold(s) == ToFold(t)
+//
 // This lets us test a large set of strings for fold-equivalent
 // duplicates without making a quadratic number of calls
 // to EqualFold. Note that strings.ToUpper and strings.ToLower
@@ -47,7 +49,7 @@ func ToFold(s string) string {
 	return s
 
 Slow:
-	var buf bytes.Buffer
+	var b strings.Builder
 	for _, r := range s {
 		// SimpleFold(x) cycles to the next equivalent rune > x
 		// or wraps around to smaller values. Iterate until it wraps,
@@ -63,9 +65,9 @@ Slow:
 		if 'A' <= r && r <= 'Z' {
 			r += 'a' - 'A'
 		}
-		buf.WriteRune(r)
+		b.WriteRune(r)
 	}
-	return buf.String()
+	return b.String()
 }
 
 // FoldDup reports a pair of strings from the list that are

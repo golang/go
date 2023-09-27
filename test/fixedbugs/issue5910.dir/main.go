@@ -4,7 +4,7 @@
 
 package main
 
-import "a"
+import "./a"
 
 func main() {
 	f := new(a.Future)

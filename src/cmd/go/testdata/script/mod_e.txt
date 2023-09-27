@@ -7,13 +7,13 @@ cp go.mod go.mod.orig
 
 ! go mod tidy
 
-stderr '^example.com/untidy imports\n\texample.net/directnotfound: cannot find module providing package example.net/directnotfound: module example.net/directnotfound: reading http://.*: 404 Not Found$'
+stderr '^go: example.com/untidy imports\n\texample.net/directnotfound: cannot find module providing package example.net/directnotfound: module example.net/directnotfound: reading http://.*: 404 Not Found$'
 
-stderr '^example.com/untidy imports\n\texample.net/m imports\n\texample.net/indirectnotfound: cannot find module providing package example.net/indirectnotfound: module example.net/indirectnotfound: reading http://.*: 404 Not Found$'
+stderr '^go: example.com/untidy imports\n\texample.net/m imports\n\texample.net/indirectnotfound: cannot find module providing package example.net/indirectnotfound: module example.net/indirectnotfound: reading http://.*: 404 Not Found$'
 
-stderr '^example.com/untidy tested by\n\texample.com/untidy.test imports\n\texample.net/directtestnotfound: cannot find module providing package example.net/directtestnotfound: module example.net/directtestnotfound: reading http://.*: 404 Not Found$'
+stderr '^go: example.com/untidy tested by\n\texample.com/untidy.test imports\n\texample.net/directtestnotfound: cannot find module providing package example.net/directtestnotfound: module example.net/directtestnotfound: reading http://.*: 404 Not Found$'
 
-stderr '^example.com/untidy imports\n\texample.net/m tested by\n\texample.net/m.test imports\n\texample.net/indirecttestnotfound: cannot find module providing package example.net/indirecttestnotfound: module example.net/indirecttestnotfound: reading http://.*: 404 Not Found$'
+stderr '^go: example.com/untidy imports\n\texample.net/m tested by\n\texample.net/m.test imports\n\texample.net/indirecttestnotfound: cannot find module providing package example.net/indirecttestnotfound: module example.net/indirecttestnotfound: reading http://.*: 404 Not Found$'
 
 cmp go.mod.orig go.mod
 
@@ -24,11 +24,11 @@ cmp go.mod.orig go.mod
 
 ! go mod vendor
 
-stderr '^example.com/untidy imports\n\texample.net/directnotfound: no required module provides package example.net/directnotfound; to add it:\n\tgo get example.net/directnotfound$'
+stderr '^go: example.com/untidy imports\n\texample.net/directnotfound: no required module provides package example.net/directnotfound; to add it:\n\tgo get example.net/directnotfound$'
 
-stderr '^example.com/untidy imports\n\texample.net/m: module example.net/m provides package example.net/m and is replaced but not required; to add it:\n\tgo get example.net/m@v0.1.0$'
+stderr '^go: example.com/untidy imports\n\texample.net/m: module example.net/m provides package example.net/m and is replaced but not required; to add it:\n\tgo get example.net/m@v0.1.0$'
 
-stderr '^example.com/untidy tested by\n\texample.com/untidy.test imports\n\texample.net/directtestnotfound: no required module provides package example.net/directtestnotfound; to add it:\n\tgo get example.net/directtestnotfound$'
+stderr '^go: example.com/untidy tested by\n\texample.com/untidy.test imports\n\texample.net/directtestnotfound: no required module provides package example.net/directtestnotfound; to add it:\n\tgo get example.net/directtestnotfound$'
 
 ! stderr 'indirecttestnotfound'  # Vendor prunes test dependencies.
 
@@ -50,7 +50,7 @@ cmp go.mod.final go.mod
 cp go.mod.orig go.mod
 go mod vendor -e
 stderr -count=2 'no required module provides package'
-stderr '^example.com/untidy imports\n\texample.net/m: module example.net/m provides package example.net/m and is replaced but not required; to add it:\n\tgo get example.net/m@v0.1.0$'
+stderr '^go: example.com/untidy imports\n\texample.net/m: module example.net/m provides package example.net/m and is replaced but not required; to add it:\n\tgo get example.net/m@v0.1.0$'
 exists vendor/modules.txt
 ! exists vendor/example.net
 

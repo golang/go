@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package fmtcmd implements the ``go fmt'' command.
+// Package fmtcmd implements the “go fmt” command.
 package fmtcmd
 
 import (
@@ -21,6 +21,7 @@ import (
 
 func init() {
 	base.AddBuildFlagsNX(&CmdFmt.Flag)
+	base.AddChdirFlag(&CmdFmt.Flag)
 	base.AddModFlag(&CmdFmt.Flag)
 	base.AddModCommonFlags(&CmdFmt.Flag)
 }
@@ -97,10 +98,7 @@ func runFmt(ctx context.Context, cmd *base.Command, args []string) {
 }
 
 func gofmtPath() string {
-	gofmt := "gofmt"
-	if base.ToolIsWindows {
-		gofmt += base.ToolWindowsExtension
-	}
+	gofmt := "gofmt" + cfg.ToolExeSuffix()
 
 	gofmtPath := filepath.Join(cfg.GOBIN, gofmt)
 	if _, err := os.Stat(gofmtPath); err == nil {

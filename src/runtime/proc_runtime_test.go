@@ -30,4 +30,21 @@ func RunStealOrderTest() {
 			}
 		}
 	}
+	// Make sure that different arguments to ord.start don't generate the
+	// same pos+inc twice.
+	for procs := 2; procs <= 64; procs++ {
+		ord.reset(uint32(procs))
+		checked := make([]bool, procs*procs)
+		// We want at least procs*len(ord.coprimes) different pos+inc values
+		// before we start repeating.
+		for i := 0; i < procs*len(ord.coprimes); i++ {
+			enum := ord.start(uint32(i))
+			j := enum.pos*uint32(procs) + enum.inc
+			if checked[j] {
+				println("procs:", procs, "pos:", enum.pos, "inc:", enum.inc)
+				panic("duplicate pos+inc during enumeration")
+			}
+			checked[j] = true
+		}
+	}
 }

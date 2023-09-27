@@ -41,6 +41,11 @@ import (
 // free list.
 //
 // A Pool must not be copied after first use.
+//
+// In the terminology of the Go memory model, a call to Put(x) “synchronizes before”
+// a call to Get returning that same value x.
+// Similarly, a call to New returning x “synchronizes before”
+// a call to Get returning that same value x.
 type Pool struct {
 	noCopy noCopy
 
@@ -102,9 +107,7 @@ func (p *Pool) Put(x any) {
 	l, _ := p.pin()
 	if l.private == nil {
 		l.private = x
-		x = nil
-	}
-	if x != nil {
+	} else {
 		l.shared.pushHead(x)
 	}
 	runtime_procUnpin()
@@ -193,6 +196,13 @@ func (p *Pool) getSlow(pid int) any {
 // returns poolLocal pool for the P and the P's id.
 // Caller must call runtime_procUnpin() when done with the pool.
 func (p *Pool) pin() (*poolLocal, int) {
+	// Check whether p is nil to get a panic.
+	// Otherwise the nil dereference happens while the m is pinned,
+	// causing a fatal error rather than a panic.
+	if p == nil {
+		panic("nil Pool")
+	}
+
 	pid := runtime_procPin()
 	// In pinSlow we store to local and then to localSize, here we load in opposite order.
 	// Since we've disabled preemption, GC cannot happen in between.

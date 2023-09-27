@@ -6,8 +6,8 @@ package work
 
 import (
 	"fmt"
-	exec "internal/execabs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -32,7 +32,7 @@ func init() {
 	if GccgoName == "" {
 		GccgoName = "gccgo"
 	}
-	GccgoBin, gccgoErr = exec.LookPath(GccgoName)
+	GccgoBin, gccgoErr = cfg.LookPath(GccgoName)
 }
 
 func (gccgoToolchain) compiler() string {
@@ -45,12 +45,8 @@ func (gccgoToolchain) linker() string {
 	return GccgoBin
 }
 
-func (gccgoToolchain) ar() string {
-	ar := cfg.Getenv("AR")
-	if ar == "" {
-		ar = "ar"
-	}
-	return ar
+func (gccgoToolchain) ar() []string {
+	return envList("AR", "ar")
 }
 
 func checkGccgoBin() {
@@ -157,10 +153,7 @@ func buildImportcfgSymlinks(b *Builder, root string, importcfg []byte) error {
 		} else {
 			verb, args = line[:i], strings.TrimSpace(line[i+1:])
 		}
-		var before, after string
-		if i := strings.Index(args, "="); i >= 0 {
-			before, after = args[:i], args[i+1:]
-		}
+		before, after, _ := strings.Cut(args, "=")
 		switch verb {
 		default:
 			base.Fatalf("importcfg:%d: unknown directive %q", lineNum, verb)
@@ -283,14 +276,12 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		const ldflagsPrefix = "_CGO_LDFLAGS="
 		for _, line := range strings.Split(string(flags), "\n") {
 			if strings.HasPrefix(line, ldflagsPrefix) {
-				newFlags := strings.Fields(line[len(ldflagsPrefix):])
-				for _, flag := range newFlags {
-					// Every _cgo_flags file has -g and -O2 in _CGO_LDFLAGS
-					// but they don't mean anything to the linker so filter
-					// them out.
-					if flag != "-g" && !strings.HasPrefix(flag, "-O") {
-						cgoldflags = append(cgoldflags, flag)
-					}
+				flag := line[len(ldflagsPrefix):]
+				// Every _cgo_flags file has -g and -O2 in _CGO_LDFLAGS
+				// but they don't mean anything to the linker so filter
+				// them out.
+				if flag != "-g" && !strings.HasPrefix(flag, "-O") {
+					cgoldflags = append(cgoldflags, flag)
 				}
 			}
 		}
@@ -391,15 +382,8 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 	}
 
 	for _, a := range allactions {
-		// Gather CgoLDFLAGS, but not from standard packages.
-		// The go tool can dig up runtime/cgo from GOROOT and
-		// think that it should use its CgoLDFLAGS, but gccgo
-		// doesn't use runtime/cgo.
 		if a.Package == nil {
 			continue
-		}
-		if !a.Package.Standard {
-			cgoldflags = append(cgoldflags, a.Package.CgoLDFLAGS...)
 		}
 		if len(a.Package.CgoFiles) > 0 {
 			usesCgo = true
@@ -430,9 +414,6 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 
 	ldflags = append(ldflags, cgoldflags...)
 	ldflags = append(ldflags, envList("CGO_LDFLAGS", "")...)
-	if root.Package != nil {
-		ldflags = append(ldflags, root.Package.CgoLDFLAGS...)
-	}
 	if cfg.Goos != "aix" {
 		ldflags = str.StringList("-Wl,-(", ldflags, "-Wl,-)")
 	}
@@ -605,7 +586,11 @@ var gccgoToSymbolFunc func(string) string
 
 func (tools gccgoToolchain) gccgoCleanPkgpath(b *Builder, p *load.Package) string {
 	gccgoToSymbolFuncOnce.Do(func() {
-		fn, err := pkgpath.ToSymbolFunc(tools.compiler(), b.WorkDir)
+		tmpdir := b.WorkDir
+		if cfg.BuildN {
+			tmpdir = os.TempDir()
+		}
+		fn, err := pkgpath.ToSymbolFunc(tools.compiler(), tmpdir)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
 			base.SetExitStatus(2)
@@ -615,4 +600,64 @@ func (tools gccgoToolchain) gccgoCleanPkgpath(b *Builder, p *load.Package) strin
 	})
 
 	return gccgoToSymbolFunc(gccgoPkgpath(p))
+}
+
+var (
+	gccgoSupportsCgoIncompleteOnce sync.Once
+	gccgoSupportsCgoIncomplete     bool
+)
+
+const gccgoSupportsCgoIncompleteCode = `
+package p
+
+import "runtime/cgo"
+
+type I cgo.Incomplete
+`
+
+// supportsCgoIncomplete reports whether the gccgo/GoLLVM compiler
+// being used supports cgo.Incomplete, which was added in GCC 13.
+func (tools gccgoToolchain) supportsCgoIncomplete(b *Builder) bool {
+	gccgoSupportsCgoIncompleteOnce.Do(func() {
+		fail := func(err error) {
+			fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
+			base.SetExitStatus(2)
+			base.Exit()
+		}
+
+		tmpdir := b.WorkDir
+		if cfg.BuildN {
+			tmpdir = os.TempDir()
+		}
+		f, err := os.CreateTemp(tmpdir, "*_gccgo_cgoincomplete.go")
+		if err != nil {
+			fail(err)
+		}
+		fn := f.Name()
+		f.Close()
+		defer os.Remove(fn)
+
+		if err := os.WriteFile(fn, []byte(gccgoSupportsCgoIncompleteCode), 0644); err != nil {
+			fail(err)
+		}
+
+		on := strings.TrimSuffix(fn, ".go") + ".o"
+		if cfg.BuildN || cfg.BuildX {
+			b.Showcmd(tmpdir, "%s -c -o %s %s || true", tools.compiler(), on, fn)
+			// Since this function affects later builds,
+			// and only generates temporary files,
+			// we run the command even with -n.
+		}
+		cmd := exec.Command(tools.compiler(), "-c", "-o", on, fn)
+		cmd.Dir = tmpdir
+		var buf strings.Builder
+		cmd.Stdout = &buf
+		cmd.Stderr = &buf
+		err = cmd.Run()
+		if out := buf.String(); len(out) > 0 && cfg.BuildX {
+			b.showOutput(nil, tmpdir, b.fmtcmd(tmpdir, "%s -c -o %s %s", tools.compiler(), on, fn), out)
+		}
+		gccgoSupportsCgoIncomplete = err == nil
+	})
+	return gccgoSupportsCgoIncomplete
 }

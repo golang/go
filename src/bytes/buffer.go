@@ -53,6 +53,12 @@ const maxInt = int(^uint(0) >> 1)
 // so immediate changes to the slice will affect the result of future reads.
 func (b *Buffer) Bytes() []byte { return b.buf[b.off:] }
 
+// AvailableBuffer returns an empty buffer with b.Available() capacity.
+// This buffer is intended to be appended to and
+// passed to an immediately succeeding Write call.
+// The buffer is only valid until the next write operation on b.
+func (b *Buffer) AvailableBuffer() []byte { return b.buf[len(b.buf):] }
+
 // String returns the contents of the unread portion of the buffer
 // as a string. If the Buffer is a nil pointer, it returns "<nil>".
 //
@@ -75,6 +81,9 @@ func (b *Buffer) Len() int { return len(b.buf) - b.off }
 // Cap returns the capacity of the buffer's underlying byte slice, that is, the
 // total space allocated for the buffer's data.
 func (b *Buffer) Cap() int { return cap(b.buf) }
+
+// Available returns how many bytes are unused in the buffer.
+func (b *Buffer) Available() int { return cap(b.buf) - len(b.buf) }
 
 // Truncate discards all but the first n unread bytes from the buffer
 // but continues to use the same allocated storage.
@@ -100,7 +109,7 @@ func (b *Buffer) Reset() {
 	b.lastRead = opInvalid
 }
 
-// tryGrowByReslice is a inlineable version of grow for the fast-case where the
+// tryGrowByReslice is an inlineable version of grow for the fast-case where the
 // internal buffer only needs to be resliced.
 // It returns the index where bytes should be written and whether it succeeded.
 func (b *Buffer) tryGrowByReslice(n int) (int, bool) {
@@ -138,10 +147,8 @@ func (b *Buffer) grow(n int) int {
 	} else if c > maxInt-c-n {
 		panic(ErrTooLarge)
 	} else {
-		// Not enough space anywhere, we need to allocate.
-		buf := makeSlice(2*c + n)
-		copy(buf, b.buf[b.off:])
-		b.buf = buf
+		// Add b.off to account for b.buf[:b.off] being sliced off the front.
+		b.buf = growSlice(b.buf[b.off:], b.off+n)
 	}
 	// Restore b.off and len(b.buf).
 	b.off = 0
@@ -217,16 +224,31 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
 	}
 }
 
-// makeSlice allocates a slice of size n. If the allocation fails, it panics
-// with ErrTooLarge.
-func makeSlice(n int) []byte {
-	// If the make fails, give a known error.
+// growSlice grows b by n, preserving the original content of b.
+// If the allocation fails, it panics with ErrTooLarge.
+func growSlice(b []byte, n int) []byte {
 	defer func() {
 		if recover() != nil {
 			panic(ErrTooLarge)
 		}
 	}()
-	return make([]byte, n)
+	// TODO(http://golang.org/issue/51462): We should rely on the append-make
+	// pattern so that the compiler can call runtime.growslice. For example:
+	//	return append(b, make([]byte, n)...)
+	// This avoids unnecessary zero-ing of the first len(b) bytes of the
+	// allocated slice, but this pattern causes b to escape onto the heap.
+	//
+	// Instead use the append-make pattern with a nil slice to ensure that
+	// we allocate buffers rounded up to the closest size class.
+	c := len(b) + n // ensure enough space for n elements
+	if c < 2*cap(b) {
+		// The growth rate has historically always been 2x. In the future,
+		// we could rely purely on append to determine the growth rate.
+		c = 2 * cap(b)
+	}
+	b2 := append([]byte(nil), make([]byte, c)...)
+	copy(b2, b)
+	return b2[:len(b)]
 }
 
 // WriteTo writes data to w until the buffer is drained or an error occurs.
@@ -285,9 +307,8 @@ func (b *Buffer) WriteRune(r rune) (n int, err error) {
 	if !ok {
 		m = b.grow(utf8.UTFMax)
 	}
-	n = utf8.EncodeRune(b.buf[m:m+utf8.UTFMax], r)
-	b.buf = b.buf[:m+n]
-	return n, nil
+	b.buf = utf8.AppendRune(b.buf[:m], r)
+	return len(b.buf) - m, nil
 }
 
 // Read reads the next len(p) bytes from the buffer or until the buffer

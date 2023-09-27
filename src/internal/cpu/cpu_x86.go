@@ -14,6 +14,9 @@ func cpuid(eaxArg, ecxArg uint32) (eax, ebx, ecx, edx uint32)
 // xgetbv with ecx = 0 is implemented in cpu_x86.s.
 func xgetbv() (eax, edx uint32)
 
+// getGOAMD64level is implemented in cpu_x86.s. Returns number in [1,4].
+func getGOAMD64level() int32
+
 const (
 	// edx bits
 	cpuid_SSE2 = 1 << 26
@@ -36,6 +39,7 @@ const (
 	cpuid_BMI2 = 1 << 8
 	cpuid_ERMS = 1 << 9
 	cpuid_ADX  = 1 << 19
+	cpuid_SHA  = 1 << 29
 
 	// edx bits for CPUID 0x80000001
 	cpuid_RDTSCP = 1 << 27
@@ -47,19 +51,31 @@ func doinit() {
 	options = []option{
 		{Name: "adx", Feature: &X86.HasADX},
 		{Name: "aes", Feature: &X86.HasAES},
-		{Name: "avx", Feature: &X86.HasAVX},
-		{Name: "avx2", Feature: &X86.HasAVX2},
-		{Name: "bmi1", Feature: &X86.HasBMI1},
-		{Name: "bmi2", Feature: &X86.HasBMI2},
 		{Name: "erms", Feature: &X86.HasERMS},
-		{Name: "fma", Feature: &X86.HasFMA},
 		{Name: "pclmulqdq", Feature: &X86.HasPCLMULQDQ},
-		{Name: "popcnt", Feature: &X86.HasPOPCNT},
 		{Name: "rdtscp", Feature: &X86.HasRDTSCP},
-		{Name: "sse3", Feature: &X86.HasSSE3},
-		{Name: "sse41", Feature: &X86.HasSSE41},
-		{Name: "sse42", Feature: &X86.HasSSE42},
-		{Name: "ssse3", Feature: &X86.HasSSSE3},
+		{Name: "sha", Feature: &X86.HasSHA},
+	}
+	level := getGOAMD64level()
+	if level < 2 {
+		// These options are required at level 2. At lower levels
+		// they can be turned off.
+		options = append(options,
+			option{Name: "popcnt", Feature: &X86.HasPOPCNT},
+			option{Name: "sse3", Feature: &X86.HasSSE3},
+			option{Name: "sse41", Feature: &X86.HasSSE41},
+			option{Name: "sse42", Feature: &X86.HasSSE42},
+			option{Name: "ssse3", Feature: &X86.HasSSSE3})
+	}
+	if level < 3 {
+		// These options are required at level 3. At lower levels
+		// they can be turned off.
+		options = append(options,
+			option{Name: "avx", Feature: &X86.HasAVX},
+			option{Name: "avx2", Feature: &X86.HasAVX2},
+			option{Name: "bmi1", Feature: &X86.HasBMI1},
+			option{Name: "bmi2", Feature: &X86.HasBMI2},
+			option{Name: "fma", Feature: &X86.HasFMA})
 	}
 
 	maxID, _, _, _ := cpuid(0, 0)
@@ -111,6 +127,7 @@ func doinit() {
 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
 	X86.HasERMS = isSet(ebx7, cpuid_ERMS)
 	X86.HasADX = isSet(ebx7, cpuid_ADX)
+	X86.HasSHA = isSet(ebx7, cpuid_SHA)
 
 	var maxExtendedInformation uint32
 	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)

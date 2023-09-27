@@ -5,7 +5,6 @@
 package ssa
 
 import (
-	"bytes"
 	"cmd/internal/src"
 	"fmt"
 	"hash/crc32"
@@ -24,10 +23,10 @@ import (
 
 // Compile is the main entry point for this package.
 // Compile modifies f so that on return:
-//   · all Values in f map to 0 or 1 assembly instructions of the target architecture
-//   · the order of f.Blocks is the order to emit the Blocks
-//   · the order of b.Values is the order to emit the Values in each Block
-//   · f has a non-nil regAlloc field
+//   - all Values in f map to 0 or 1 assembly instructions of the target architecture
+//   - the order of f.Blocks is the order to emit the Blocks
+//   - the order of b.Values is the order to emit the Values in each Block
+//   - f has a non-nil regAlloc field
 func Compile(f *Func) {
 	// TODO: debugging - set flags to control verbosity of compiler,
 	// which phases to dump IR before/after, etc.
@@ -152,7 +151,7 @@ func Compile(f *Func) {
 			keys = append(keys, key)
 		}
 		sort.Strings(keys)
-		buf := new(bytes.Buffer)
+		buf := new(strings.Builder)
 		fmt.Fprintf(buf, "%s: ", f.Name)
 		for _, key := range keys {
 			fmt.Fprintf(buf, "%s=%d ", key, f.ruleMatches[key])
@@ -250,8 +249,8 @@ var GenssaDump map[string]bool = make(map[string]bool) // names of functions to 
 // version is used as a regular expression to match the phase name(s).
 //
 // Special cases that have turned out to be useful:
-//  ssa/check/on enables checking after each phase
-//  ssa/all/time enables time reporting for all phases
+//   - ssa/check/on enables checking after each phase
+//   - ssa/all/time enables time reporting for all phases
 //
 // See gc/lex.go for dissection of the option string.
 // Example uses:
@@ -259,7 +258,6 @@ var GenssaDump map[string]bool = make(map[string]bool) // names of functions to 
 // GO_GCFLAGS=-d=ssa/generic_cse/time,ssa/generic_cse/stats,ssa/generic_cse/debug=3 ./make.bash
 //
 // BOOT_GO_GCFLAGS=-d='ssa/~^.*scc$/off' GO_GCFLAGS='-d=ssa/~^.*scc$/off' ./make.bash
-//
 func PhaseOption(phase, flag string, val int, valString string) string {
 	switch phase {
 	case "", "help":
@@ -330,7 +328,7 @@ commas. For example:
 		switch flag {
 		case "on":
 			checkEnabled = val != 0
-			debugPoset = checkEnabled // also turn on advanced self-checking in prove's datastructure
+			debugPoset = checkEnabled // also turn on advanced self-checking in prove's data structure
 			return ""
 		case "off":
 			checkEnabled = val == 0
@@ -479,16 +477,19 @@ var passes = [...]pass{
 	{name: "softfloat", fn: softfloat, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
 	{name: "dead auto elim", fn: elimDeadAutosGeneric},
+	{name: "sccp", fn: sccp},
 	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
 	{name: "check bce", fn: checkbce},
 	{name: "branchelim", fn: branchelim},
 	{name: "late fuse", fn: fuseLate},
 	{name: "dse", fn: dse},
+	{name: "memcombine", fn: memcombine},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
 		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
 	{name: "lower", fn: lower, required: true},
 	{name: "addressing modes", fn: addressingModes, required: false},
+	{name: "late lower", fn: lateLower, required: true},
 	{name: "lowered deadcode for cse", fn: deadcode}, // deadcode immediately before CSE avoids CSE making dead values live again
 	{name: "lowered cse", fn: cse},
 	{name: "elim unread autos", fn: elimUnreadAutos},
@@ -497,7 +498,7 @@ var passes = [...]pass{
 	{name: "checkLower", fn: checkLower, required: true},
 	{name: "late phielim", fn: phielim},
 	{name: "late copyelim", fn: copyelim},
-	{name: "tighten", fn: tighten}, // move values closer to their uses
+	{name: "tighten", fn: tighten, required: true}, // move values closer to their uses
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
 	{name: "phi tighten", fn: phiTighten},            // place rematerializable phi args near uses to reduce value lifetimes
@@ -508,7 +509,6 @@ var passes = [...]pass{
 	{name: "flagalloc", fn: flagalloc, required: true}, // allocate flags register
 	{name: "regalloc", fn: regalloc, required: true},   // allocate int & float registers + stack slots
 	{name: "loop rotate", fn: loopRotate},
-	{name: "stackframe", fn: stackframe, required: true},
 	{name: "trim", fn: trim}, // remove empty blocks
 }
 
@@ -561,9 +561,14 @@ var passOrder = [...]constraint{
 	{"critical", "regalloc"},
 	// regalloc requires all the values in a block to be scheduled
 	{"schedule", "regalloc"},
+	// the rules in late lower run after the general rules.
+	{"lower", "late lower"},
+	// late lower may generate some values that need to be CSEed.
+	{"late lower", "lowered cse"},
 	// checkLower must run after lowering & subsequent dead code elim
 	{"lower", "checkLower"},
 	{"lowered deadcode", "checkLower"},
+	{"late lower", "checkLower"},
 	// late nilcheck needs instructions to be scheduled.
 	{"schedule", "late nilcheck"},
 	// flagalloc needs instructions to be scheduled.
@@ -572,10 +577,12 @@ var passOrder = [...]constraint{
 	{"flagalloc", "regalloc"},
 	// loopRotate will confuse regalloc.
 	{"regalloc", "loop rotate"},
-	// stackframe needs to know about spilled registers.
-	{"regalloc", "stackframe"},
 	// trim needs regalloc to be done first.
 	{"regalloc", "trim"},
+	// memcombine works better if fuse happens first, to help merge stores.
+	{"late fuse", "memcombine"},
+	// memcombine is a arch-independent pass.
+	{"memcombine", "lower"},
 }
 
 func init() {

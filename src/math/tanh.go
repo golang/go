@@ -68,6 +68,7 @@ var tanhQ = [...]float64{
 // Tanh returns the hyperbolic tangent of x.
 //
 // Special cases are:
+//
 //	Tanh(±0) = ±0
 //	Tanh(±Inf) = ±1
 //	Tanh(NaN) = NaN

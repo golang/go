@@ -11,7 +11,6 @@ const (
 	_EINTR  = 0x4
 	_ENOMEM = 0xc
 	_EAGAIN = 0xb
-	_ENOSYS = 0x26
 
 	_PROT_NONE  = 0
 	_PROT_READ  = 0x1
@@ -26,6 +25,7 @@ const (
 	_MADV_FREE       = 0x8
 	_MADV_HUGEPAGE   = 0xe
 	_MADV_NOHUGEPAGE = 0xf
+	_MADV_COLLAPSE   = 0x19
 
 	_SA_RESTART     = 0x10000000
 	_SA_ONSTACK     = 0x8000000
@@ -63,6 +63,7 @@ const (
 	_SIGIO          = 0x1d
 	_SIGPWR         = 0x1e
 	_SIGSYS         = 0x1f
+	_SIGRTMIN       = 0x20
 	_FPE_INTDIV     = 0x1
 	_FPE_INTOVF     = 0x2
 	_FPE_FLTDIV     = 0x3
@@ -80,23 +81,15 @@ const (
 	_ITIMER_PROF    = 0x2
 	_ITIMER_VIRTUAL = 0x1
 	_O_RDONLY       = 0
+	_O_WRONLY       = 0x1
+	_O_CREAT        = 0x40
+	_O_TRUNC        = 0x200
 	_O_NONBLOCK     = 0x800
 	_O_CLOEXEC      = 0x80000
 
 	_CLOCK_THREAD_CPUTIME_ID = 0x3
 
 	_SIGEV_THREAD_ID = 0x4
-
-	_EPOLLIN       = 0x1
-	_EPOLLOUT      = 0x4
-	_EPOLLERR      = 0x8
-	_EPOLLHUP      = 0x10
-	_EPOLLRDHUP    = 0x2000
-	_EPOLLET       = 0x80000000
-	_EPOLL_CLOEXEC = 0x80000
-	_EPOLL_CTL_ADD = 0x1
-	_EPOLL_CTL_DEL = 0x2
-	_EPOLL_CTL_MOD = 0x3
 
 	_AF_UNIX    = 0x1
 	_SOCK_DGRAM = 0x2
@@ -206,12 +199,6 @@ type sigactiont struct {
 	sa_flags    uint32
 	sa_restorer uintptr
 	sa_mask     uint64
-}
-
-type epollevent struct {
-	events uint32
-	_pad   uint32
-	data   [8]byte // to match amd64
 }
 
 type sockaddr_un struct {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+//go:build unix
 
 package syscall_test
 
@@ -323,46 +323,6 @@ func TestUnixRightsRoundtrip(t *testing.T) {
 				}
 			}
 		}
-	}
-}
-
-func TestRlimit(t *testing.T) {
-	var rlimit, zero syscall.Rlimit
-	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlimit)
-	if err != nil {
-		t.Fatalf("Getrlimit: save failed: %v", err)
-	}
-	if zero == rlimit {
-		t.Fatalf("Getrlimit: save failed: got zero value %#v", rlimit)
-	}
-	set := rlimit
-	set.Cur = set.Max - 1
-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && set.Cur > 4096 {
-		// rlim_min for RLIMIT_NOFILE should be equal to
-		// or lower than kern.maxfilesperproc, which on
-		// some machines are 4096. See #40564.
-		set.Cur = 4096
-	}
-	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &set)
-	if err != nil {
-		t.Fatalf("Setrlimit: set failed: %#v %v", set, err)
-	}
-	var get syscall.Rlimit
-	err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &get)
-	if err != nil {
-		t.Fatalf("Getrlimit: get failed: %v", err)
-	}
-	set = rlimit
-	set.Cur = set.Max - 1
-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && set.Cur > 4096 {
-		set.Cur = 4096
-	}
-	if set != get {
-		t.Fatalf("Rlimit: change failed: wanted %#v got %#v", set, get)
-	}
-	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlimit)
-	if err != nil {
-		t.Fatalf("Setrlimit: restore failed: %#v %v", rlimit, err)
 	}
 }
 

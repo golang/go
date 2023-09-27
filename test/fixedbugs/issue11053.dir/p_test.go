@@ -5,8 +5,8 @@
 package main
 
 import (
+	"./p"
 	"fmt"
-	"p"
 )
 
 type I interface {

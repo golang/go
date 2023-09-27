@@ -8,7 +8,7 @@ import "cmd/internal/dwarf"
 
 // LoaderSym holds a loader.Sym value. We can't refer to this
 // type from the sym package since loader imports sym.
-type LoaderSym int
+type LoaderSym uint32
 
 // A CompilationUnit represents a set of source files that are compiled
 // together. Since all Go sources in a Go package are compiled together,

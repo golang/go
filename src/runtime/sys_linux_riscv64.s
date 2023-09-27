@@ -18,13 +18,9 @@
 #define SYS_clone		220
 #define SYS_close		57
 #define SYS_connect		203
-#define SYS_epoll_create1	20
-#define SYS_epoll_ctl		21
-#define SYS_epoll_pwait		22
 #define SYS_exit		93
 #define SYS_exit_group		94
 #define SYS_faccessat		48
-#define SYS_fcntl		25
 #define SYS_futex		98
 #define SYS_getpid		172
 #define SYS_gettid		178
@@ -61,7 +57,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	ECALL
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
 	MOV	wait+0(FP), A0
 	// We're done using the stack.
@@ -116,15 +112,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOV	$SYS_read, A7
 	ECALL
 	MOVW	A0, ret+24(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	MOV	$r+0(FP), A0
-	MOV	ZERO, A1
-	MOV	$SYS_pipe2, A7
-	ECALL
-	MOVW	A0, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -426,7 +413,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	RET
 
 // func sigtramp(signo, ureg, ctxt unsafe.Pointer)
-TEXT runtime·sigtramp(SB),NOSPLIT,$64
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
 	MOVW	A0, 8(X2)
 	MOV	A1, 16(X2)
 	MOV	A2, 24(X2)
@@ -585,69 +572,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
 	MOV	$SYS_sched_getaffinity, A7
 	ECALL
 	MOV	A0, ret+24(FP)
-	RET
-
-// func epollcreate(size int32) int32
-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
-	MOV	$0, A0
-	MOV	$SYS_epoll_create1, A7
-	ECALL
-	MOVW	A0, ret+8(FP)
-	RET
-
-// func epollcreate1(flags int32) int32
-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
-	MOVW	flags+0(FP), A0
-	MOV	$SYS_epoll_create1, A7
-	ECALL
-	MOVW	A0, ret+8(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollevent) int32
-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), A0
-	MOVW	op+4(FP), A1
-	MOVW	fd+8(FP), A2
-	MOV	ev+16(FP), A3
-	MOV	$SYS_epoll_ctl, A7
-	ECALL
-	MOVW	A0, ret+24(FP)
-	RET
-
-// func epollwait(epfd int32, ev *epollevent, nev, timeout int32) int32
-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), A0
-	MOV	ev+8(FP), A1
-	MOVW	nev+16(FP), A2
-	MOVW	timeout+20(FP), A3
-	MOV	$0, A4
-	MOV	$SYS_epoll_pwait, A7
-	ECALL
-	MOVW	A0, ret+24(FP)
-	RET
-
-// func closeonexec(int32)
-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
-	MOVW	fd+0(FP), A0  // fd
-	MOV	$2, A1	// F_SETFD
-	MOV	$1, A2	// FD_CLOEXEC
-	MOV	$SYS_fcntl, A7
-	ECALL
-	RET
-
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	fd+0(FP), A0 // fd
-	MOV	$3, A1	// F_GETFL
-	MOV	$0, A2
-	MOV	$SYS_fcntl, A7
-	ECALL
-	MOV	$0x800, A2 // O_NONBLOCK
-	OR	A0, A2
-	MOVW	fd+0(FP), A0 // fd
-	MOV	$4, A1	// F_SETFL
-	MOV	$SYS_fcntl, A7
-	ECALL
 	RET
 
 // func sbrk0() uintptr

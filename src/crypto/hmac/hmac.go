@@ -22,6 +22,7 @@ timing side-channels:
 package hmac
 
 import (
+	"crypto/internal/boring"
 	"crypto/subtle"
 	"hash"
 )
@@ -34,7 +35,7 @@ import (
 // opad = 0x5c byte repeated for key length
 // hmac = H([key ^ opad] H([key ^ ipad] text))
 
-// Marshalable is the combination of encoding.BinaryMarshaler and
+// marshalable is the combination of encoding.BinaryMarshaler and
 // encoding.BinaryUnmarshaler. Their method definitions are repeated here to
 // avoid a dependency on the encoding package.
 type marshalable interface {
@@ -126,6 +127,13 @@ func (h *hmac) Reset() {
 // the returned Hash does not implement encoding.BinaryMarshaler
 // or encoding.BinaryUnmarshaler.
 func New(h func() hash.Hash, key []byte) hash.Hash {
+	if boring.Enabled {
+		hm := boring.NewHMAC(h, key)
+		if hm != nil {
+			return hm
+		}
+		// BoringCrypto did not recognize h, so fall through to standard Go code.
+	}
 	hm := new(hmac)
 	hm.outer = h()
 	hm.inner = h()

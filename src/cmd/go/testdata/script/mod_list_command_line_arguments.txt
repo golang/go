@@ -14,7 +14,7 @@ go build -o a.exe a.go
 go version -m a.exe
 stdout '^\tpath\tcommand-line-arguments$'
 stdout '^\tdep\ta\t\(devel\)\t$'
-! stdout mod
+! stdout mod[^e]
 
 -- a/go.mod --
 module a

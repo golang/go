@@ -17,5 +17,5 @@ func (*T) pm() int {
 
 var (
 	p *T
-	x = p.pm() // ERROR "initialization loop|depends upon itself"
+	x = p.pm() // ERROR "initialization cycle|depends upon itself"
 )

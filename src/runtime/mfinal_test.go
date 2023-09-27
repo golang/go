@@ -21,10 +21,6 @@ type Tinter interface {
 }
 
 func TestFinalizerType(t *testing.T) {
-	if runtime.GOARCH != "amd64" {
-		t.Skipf("Skipping on non-amd64 machine")
-	}
-
 	ch := make(chan bool, 10)
 	finalize := func(x *int) {
 		if *x != 97531 {
@@ -42,9 +38,18 @@ func TestFinalizerType(t *testing.T) {
 		{func(x *int) any { return Tintptr(x) }, func(v *int) { finalize(v) }},
 		{func(x *int) any { return (*Tint)(x) }, func(v *Tint) { finalize((*int)(v)) }},
 		{func(x *int) any { return (*Tint)(x) }, func(v Tinter) { finalize((*int)(v.(*Tint))) }},
+		// Test case for argument spill slot.
+		// If the spill slot was not counted for the frame size, it will (incorrectly) choose
+		// call32 as the result has (exactly) 32 bytes. When the argument actually spills,
+		// it clobbers the caller's frame (likely the return PC).
+		{func(x *int) any { return x }, func(v any) [4]int64 {
+			print() // force spill
+			finalize(v.(*int))
+			return [4]int64{}
+		}},
 	}
 
-	for i, tt := range finalizerTests {
+	for _, tt := range finalizerTests {
 		done := make(chan bool, 1)
 		go func() {
 			// allocate struct with pointer to avoid hitting tinyalloc.
@@ -62,11 +67,7 @@ func TestFinalizerType(t *testing.T) {
 		}()
 		<-done
 		runtime.GC()
-		select {
-		case <-ch:
-		case <-time.After(time.Second * 4):
-			t.Errorf("#%d: finalizer for type %T didn't run", i, tt.finalizer)
-		}
+		<-ch
 	}
 }
 
@@ -77,9 +78,6 @@ type bigValue struct {
 }
 
 func TestFinalizerInterfaceBig(t *testing.T) {
-	if runtime.GOARCH != "amd64" {
-		t.Skipf("Skipping on non-amd64 machine")
-	}
 	ch := make(chan bool)
 	done := make(chan bool, 1)
 	go func() {
@@ -100,11 +98,7 @@ func TestFinalizerInterfaceBig(t *testing.T) {
 	}()
 	<-done
 	runtime.GC()
-	select {
-	case <-ch:
-	case <-time.After(4 * time.Second):
-		t.Errorf("finalizer for type *bigValue didn't run")
-	}
+	<-ch
 }
 
 func fin(v *int) {
@@ -179,11 +173,7 @@ func TestEmptySlice(t *testing.T) {
 	fin := make(chan bool, 1)
 	runtime.SetFinalizer(y, func(z *objtype) { fin <- true })
 	runtime.GC()
-	select {
-	case <-fin:
-	case <-time.After(4 * time.Second):
-		t.Errorf("finalizer of next object in memory didn't run")
-	}
+	<-fin
 	xsglobal = xs // keep empty slice alive until here
 }
 
@@ -211,11 +201,7 @@ func TestEmptyString(t *testing.T) {
 	// set finalizer on string contents of y
 	runtime.SetFinalizer(y, func(z *objtype) { fin <- true })
 	runtime.GC()
-	select {
-	case <-fin:
-	case <-time.After(4 * time.Second):
-		t.Errorf("finalizer of next string in memory didn't run")
-	}
+	<-fin
 	ssglobal = ss // keep 0-length string live until here
 }
 

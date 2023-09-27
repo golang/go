@@ -9,12 +9,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"testing/iotest"
 	"time"
 )
@@ -780,7 +782,7 @@ func TestUSTARLongName(t *testing.T) {
 	// Test that we can get a long name back out of the archive.
 	reader := NewReader(&buf)
 	hdr, err = reader.Next()
-	if err != nil {
+	if err != nil && err != ErrInsecurePath {
 		t.Fatal(err)
 	}
 	if hdr.Name != longName {
@@ -995,11 +997,38 @@ func TestIssue12594(t *testing.T) {
 
 		tr := NewReader(&b)
 		hdr, err := tr.Next()
-		if err != nil {
+		if err != nil && err != ErrInsecurePath {
 			t.Errorf("test %d, unexpected Next error: %v", i, err)
 		}
 		if hdr.Name != name {
 			t.Errorf("test %d, hdr.Name = %s, want %s", i, hdr.Name, name)
+		}
+	}
+}
+
+func TestWriteLongHeader(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		h    *Header
+	}{{
+		name: "name too long",
+		h:    &Header{Name: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "linkname too long",
+		h:    &Header{Linkname: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "uname too long",
+		h:    &Header{Uname: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "gname too long",
+		h:    &Header{Gname: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "PAX header too long",
+		h:    &Header{PAXRecords: map[string]string{"GOLANG.x": strings.Repeat("a", maxSpecialFileSize)}},
+	}} {
+		w := NewWriter(io.Discard)
+		if err := w.WriteHeader(test.h); err != ErrFieldTooLong {
+			t.Errorf("%v: w.WriteHeader() = %v, want ErrFieldTooLong", test.name, err)
 		}
 	}
 }
@@ -1252,7 +1281,7 @@ func TestFileWriter(t *testing.T) {
 
 	for i, v := range vectors {
 		var wantStr string
-		bb := new(bytes.Buffer)
+		bb := new(strings.Builder)
 		w := testNonEmptyWriter{bb}
 		var fw fileWriter
 		switch maker := v.maker.(type) {
@@ -1304,5 +1333,69 @@ func TestFileWriter(t *testing.T) {
 		if got := bb.String(); got != wantStr {
 			t.Fatalf("test %d, String() = %q, want %q", i, got, wantStr)
 		}
+	}
+}
+
+func TestWriterAddFS(t *testing.T) {
+	fsys := fstest.MapFS{
+		"file.go":              {Data: []byte("hello")},
+		"subfolder/another.go": {Data: []byte("world")},
+	}
+	var buf bytes.Buffer
+	tw := NewWriter(&buf)
+	if err := tw.AddFS(fsys); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that we can get the files back from the archive
+	tr := NewReader(&buf)
+
+	entries, err := fsys.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var curfname string
+	for _, entry := range entries {
+		curfname = entry.Name()
+		if entry.IsDir() {
+			curfname += "/"
+			continue
+		}
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break // End of archive
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		data, err := io.ReadAll(tr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if hdr.Name != curfname {
+			t.Fatalf("got filename %v, want %v",
+				curfname, hdr.Name)
+		}
+
+		origdata := fsys[curfname].Data
+		if string(data) != string(origdata) {
+			t.Fatalf("got file content %v, want %v",
+				data, origdata)
+		}
+	}
+}
+
+func TestWriterAddFSNonRegularFiles(t *testing.T) {
+	fsys := fstest.MapFS{
+		"device":  {Data: []byte("hello"), Mode: 0755 | fs.ModeDevice},
+		"symlink": {Data: []byte("world"), Mode: 0755 | fs.ModeSymlink},
+	}
+	var buf bytes.Buffer
+	tw := NewWriter(&buf)
+	if err := tw.AddFS(fsys); err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }

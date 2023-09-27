@@ -6,13 +6,12 @@ package syscall
 
 import "unsafe"
 
-// archHonorsR2 captures the fact that r2 is honored by the
-// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
-// syscall(trap, ...).  Not all architectures define r2 in their
-// ABI. See "man syscall".
-const archHonorsR2 = true
-
-const _SYS_setgroups = SYS_SETGROUPS32
+const (
+	_SYS_setgroups         = SYS_SETGROUPS32
+	_SYS_clone3            = 435
+	_SYS_faccessat2        = 439
+	_SYS_pidfd_send_signal = 424
+)
 
 func setTimespec(sec, nsec int64) Timespec {
 	return Timespec{Sec: int32(sec), Nsec: int32(nsec)}
@@ -25,7 +24,6 @@ func setTimeval(sec, usec int64) Timeval {
 // 64-bit file system and 32-bit uid calls
 // (386 default is 32-bit file system and 16-bit uid).
 //sys	Dup2(oldfd int, newfd int) (err error)
-//sysnb	EpollCreate(size int) (fd int, err error)
 //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
 //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
 //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
@@ -38,8 +36,8 @@ func setTimeval(sec, usec int64) Timeval {
 //sys	Ioperm(from int, num int, on int) (err error)
 //sys	Iopl(level int) (err error)
 //sys	Pause() (err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
 //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
 //sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
@@ -110,9 +108,9 @@ func Getrlimit(resource int, rlim *Rlimit) (err error) {
 	return
 }
 
-//sysnb setrlimit(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
+//sysnb setrlimit1(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
 
-func Setrlimit(resource int, rlim *Rlimit) (err error) {
+func setrlimit(resource int, rlim *Rlimit) (err error) {
 	err = prlimit(0, resource, rlim, nil)
 	if err != ENOSYS {
 		return err
@@ -134,7 +132,34 @@ func Setrlimit(resource int, rlim *Rlimit) (err error) {
 		return EINVAL
 	}
 
-	return setrlimit(resource, &rl)
+	return setrlimit1(resource, &rl)
+}
+
+//go:nosplit
+func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+	_, _, errno := RawSyscall6(SYS_PRLIMIT64, 0, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
+	if errno != ENOSYS {
+		return errno
+	}
+
+	rl := rlimit32{}
+	if rlim.Cur == rlimInf64 {
+		rl.Cur = rlimInf32
+	} else if rlim.Cur < uint64(rlimInf32) {
+		rl.Cur = uint32(rlim.Cur)
+	} else {
+		return EINVAL
+	}
+	if rlim.Max == rlimInf64 {
+		rl.Max = rlimInf32
+	} else if rlim.Max < uint64(rlimInf32) {
+		rl.Max = uint32(rlim.Max)
+	} else {
+		return EINVAL
+	}
+
+	_, _, errno = RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+	return errno
 }
 
 // Underlying system call writes to newoffset via pointer.
@@ -188,14 +213,6 @@ const (
 
 func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
 func rawsocketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
-
-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
-	fd, e := socketcall(_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
-	if e != 0 {
-		err = e
-	}
-	return
-}
 
 func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
 	fd, e := socketcall(_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
@@ -360,5 +377,3 @@ func (msghdr *Msghdr) SetControllen(length int) {
 func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint32(length)
 }
-
-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

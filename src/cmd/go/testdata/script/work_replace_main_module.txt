@@ -1,0 +1,45 @@
+# Ensure that replaces of the main module in workspace modules
+# are ignored, and replaces in the go.work file are disallowed.
+# This tests against an issue where requirements of the
+# main module were being ignored because the main module
+# was replaced in a transitive dependency with another
+# version.
+
+go list example.com/dep
+
+cp replace_main_module.go.work go.work
+! go list example.com/dep
+stderr 'go: workspace module example.com/mainmoda is replaced at all versions in the go.work file. To fix, remove the replacement from the go.work file or specify the version at which to replace the module.'
+
+-- replace_main_module.go.work --
+go 1.18
+use (
+    ./mainmoda
+    ./mainmodb
+)
+replace example.com/mainmoda => ../mainmodareplacement
+-- go.work --
+go 1.18
+use (
+    ./mainmoda
+    ./mainmodb
+)
+-- mainmoda/go.mod --
+module example.com/mainmoda
+
+go 1.18
+
+require example.com/dep v1.0.0
+replace example.com/dep => ../dep
+
+-- dep/go.mod --
+module example.com/dep
+-- dep/dep.go --
+package dep
+-- mainmodb/go.mod --
+module example.com/mainmodb
+go 1.18
+replace example.com/mainmoda => ../mainmodareplacement
+-- mainmodareplacement/go.mod --
+module example.com/mainmoda
+go 1.18

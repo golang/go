@@ -16,6 +16,8 @@ import (
 var isReadonlyError = func(error) bool { return false }
 
 func TestMkdirAll(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := TempDir()
 	path := tmpDir + "/_TestMkdirAll_/dir/./dir2"
 	err := MkdirAll(path, 0777)
@@ -76,6 +78,7 @@ func TestMkdirAll(t *testing.T) {
 
 func TestMkdirAllWithSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
+	t.Parallel()
 
 	tmpDir := t.TempDir()
 	dir := tmpDir + "/dir"
@@ -96,14 +99,13 @@ func TestMkdirAllWithSymlink(t *testing.T) {
 
 func TestMkdirAllAtSlash(t *testing.T) {
 	switch runtime.GOOS {
-	case "android", "plan9", "windows":
+	case "android", "ios", "plan9", "windows":
 		t.Skipf("skipping on %s", runtime.GOOS)
-	case "darwin", "ios":
-		switch runtime.GOARCH {
-		case "arm64":
-			t.Skipf("skipping on darwin/arm64, mkdir returns EPERM")
-		}
 	}
+	if testenv.Builder() == "" {
+		t.Skipf("skipping non-hermetic test outside of Go builders")
+	}
+
 	RemoveAll("/_go_os_test")
 	const dir = "/_go_os_test/dir"
 	err := MkdirAll(dir, 0777)

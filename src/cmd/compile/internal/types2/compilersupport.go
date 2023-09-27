@@ -19,12 +19,12 @@ func AsSignature(t Type) *Signature {
 	return u
 }
 
-// If typ is a type parameter, structuralType returns the single underlying
+// If typ is a type parameter, CoreType returns the single underlying
 // type of all types in the corresponding type constraint if it exists, or
 // nil otherwise. If the type set contains only unrestricted and restricted
 // channel types (with identical element types), the single underlying type
 // is the restricted channel type if the restrictions are always the same.
-// If typ is not a type parameter, structuralType returns the underlying type.
-func StructuralType(t Type) Type {
-	return structuralType(t)
+// If typ is not a type parameter, CoreType returns the underlying type.
+func CoreType(t Type) Type {
+	return coreType(t)
 }

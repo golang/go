@@ -107,14 +107,14 @@ func (r *Replacer) WriteString(w io.Writer, s string) (n int, err error) {
 // and values may be empty. For example, the trie containing keys "ax", "ay",
 // "bcbc", "x" and "xy" could have eight nodes:
 //
-//  n0  -
-//  n1  a-
-//  n2  .x+
-//  n3  .y+
-//  n4  b-
-//  n5  .cbc+
-//  n6  x+
-//  n7  .y+
+//	n0  -
+//	n1  a-
+//	n2  .x+
+//	n3  .y+
+//	n4  b-
+//	n5  .cbc+
+//	n6  x+
+//	n7  .y+
 //
 // n0 is the root node, and its children are n1, n4 and n6; n1's children are
 // n2 and n3; n4's child is n5; n6's child is n7. Nodes n0, n1 and n4 (marked
@@ -455,21 +455,30 @@ func (r *byteReplacer) Replace(s string) string {
 }
 
 func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err error) {
-	// TODO(bradfitz): use io.WriteString with slices of s, avoiding allocation.
-	bufsize := 32 << 10
-	if len(s) < bufsize {
-		bufsize = len(s)
-	}
-	buf := make([]byte, bufsize)
-
-	for len(s) > 0 {
-		ncopy := copy(buf, s)
-		s = s[ncopy:]
-		for i, b := range buf[:ncopy] {
-			buf[i] = r[b]
+	sw := getStringWriter(w)
+	last := 0
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if r[b] == b {
+			continue
 		}
-		wn, err := w.Write(buf[:ncopy])
-		n += wn
+		if last != i {
+			wn, err := sw.WriteString(s[last:i])
+			n += wn
+			if err != nil {
+				return n, err
+			}
+		}
+		last = i + 1
+		nw, err := w.Write(r[b : int(b)+1])
+		n += nw
+		if err != nil {
+			return n, err
+		}
+	}
+	if last != len(s) {
+		nw, err := sw.WriteString(s[last:])
+		n += nw
 		if err != nil {
 			return n, err
 		}

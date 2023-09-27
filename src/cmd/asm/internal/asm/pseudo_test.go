@@ -5,7 +5,6 @@
 package asm
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 
@@ -65,28 +64,28 @@ func TestErroneous(t *testing.T) {
 	}
 
 	testcats := []struct {
-		compilingRuntime bool
-		tests            []errtest
+		allowABI bool
+		tests    []errtest
 	}{
 		{
-			compilingRuntime: false,
-			tests:            nonRuntimeTests,
+			allowABI: false,
+			tests:    nonRuntimeTests,
 		},
 		{
-			compilingRuntime: true,
-			tests:            runtimeTests,
+			allowABI: true,
+			tests:    runtimeTests,
 		},
 	}
 
 	// Note these errors should be independent of the architecture.
 	// Just run the test with amd64.
 	parser := newParser("amd64")
-	var buf bytes.Buffer
+	var buf strings.Builder
 	parser.errorWriter = &buf
 
 	for _, cat := range testcats {
 		for _, test := range cat.tests {
-			parser.compilingRuntime = cat.compilingRuntime
+			parser.allowABI = cat.allowABI
 			parser.errorCount = 0
 			parser.lineNum++
 			if !parser.pseudo(test.pseudo, tokenize(test.operands)) {

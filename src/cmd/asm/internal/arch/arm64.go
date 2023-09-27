@@ -46,13 +46,55 @@ var arm64Jump = map[string]bool{
 	"JMP":   true,
 	"TBNZ":  true,
 	"TBZ":   true,
+
+	// ADR isn't really a jump, but it takes a PC or label reference,
+	// which needs to patched like a jump.
+	"ADR":  true,
+	"ADRP": true,
 }
 
 func jumpArm64(word string) bool {
 	return arm64Jump[word]
 }
 
-// IsARM64CMP reports whether the op (as defined by an arm.A* constant) is
+var arm64SpecialOperand map[string]arm64.SpecialOperand
+
+// GetARM64SpecialOperand returns the internal representation of a special operand.
+func GetARM64SpecialOperand(name string) arm64.SpecialOperand {
+	if arm64SpecialOperand == nil {
+		// Generate the mapping automatically when the first time the function is called.
+		arm64SpecialOperand = map[string]arm64.SpecialOperand{}
+		for opd := arm64.SPOP_BEGIN; opd < arm64.SPOP_END; opd++ {
+			arm64SpecialOperand[opd.String()] = opd
+		}
+
+		// Handle some special cases.
+		specialMapping := map[string]arm64.SpecialOperand{
+			// The internal representation of CS(CC) and HS(LO) are the same.
+			"CS": arm64.SPOP_HS,
+			"CC": arm64.SPOP_LO,
+		}
+		for s, opd := range specialMapping {
+			arm64SpecialOperand[s] = opd
+		}
+	}
+	if opd, ok := arm64SpecialOperand[name]; ok {
+		return opd
+	}
+	return arm64.SPOP_END
+}
+
+// IsARM64ADR reports whether the op (as defined by an arm64.A* constant) is
+// one of the comparison instructions that require special handling.
+func IsARM64ADR(op obj.As) bool {
+	switch op {
+	case arm64.AADR, arm64.AADRP:
+		return true
+	}
+	return false
+}
+
+// IsARM64CMP reports whether the op (as defined by an arm64.A* constant) is
 // one of the comparison instructions that require special handling.
 func IsARM64CMP(op obj.As) bool {
 	switch op {
@@ -76,10 +118,7 @@ func IsARM64STLXR(op obj.As) bool {
 		return true
 	}
 	// LDADDx/SWPx/CASx atomic instructions
-	if arm64.IsAtomicInstruction(op) {
-		return true
-	}
-	return false
+	return arm64.IsAtomicInstruction(op)
 }
 
 // IsARM64TBL reports whether the op (as defined by an arm64.A*
@@ -87,7 +126,7 @@ func IsARM64STLXR(op obj.As) bool {
 // inputs does not fit into prog.Reg, so require special handling.
 func IsARM64TBL(op obj.As) bool {
 	switch op {
-	case arm64.AVTBL, arm64.AVMOVQ:
+	case arm64.AVTBL, arm64.AVTBX, arm64.AVMOVQ:
 		return true
 	}
 	return false

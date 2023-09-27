@@ -6,6 +6,7 @@
 // See https://github.com/WebAssembly/design/issues/1073
 
 // Export some functions via linkname to assembly in sync/atomic.
+//
 //go:linkname Load
 //go:linkname Loadp
 //go:linkname Load64
@@ -337,4 +338,52 @@ func Xaddint64(ptr *int64, delta int64) int64 {
 	new := *ptr + delta
 	*ptr = new
 	return new
+}
+
+//go:nosplit
+//go:noinline
+func And32(ptr *uint32, val uint32) uint32 {
+	old := *ptr
+	*ptr = old & val
+	return old
+}
+
+//go:nosplit
+//go:noinline
+func And64(ptr *uint64, val uint64) uint64 {
+	old := *ptr
+	*ptr = old & val
+	return old
+}
+
+//go:nosplit
+//go:noinline
+func Anduintptr(ptr *uintptr, val uintptr) uintptr {
+	old := *ptr
+	*ptr = old & val
+	return old
+}
+
+//go:nosplit
+//go:noinline
+func Or32(ptr *uint32, val uint32) uint32 {
+	old := *ptr
+	*ptr = old | val
+	return old
+}
+
+//go:nosplit
+//go:noinline
+func Or64(ptr *uint64, val uint64) uint64 {
+	old := *ptr
+	*ptr = old | val
+	return old
+}
+
+//go:nosplit
+//go:noinline
+func Oruintptr(ptr *uintptr, val uintptr) uintptr {
+	old := *ptr
+	*ptr = old | val
+	return old
 }

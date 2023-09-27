@@ -7,6 +7,7 @@
 package net
 
 import (
+	"net/netip"
 	"reflect"
 	"testing"
 )
@@ -14,7 +15,7 @@ import (
 func TestSortByRFC6724(t *testing.T) {
 	tests := []struct {
 		in      []IPAddr
-		srcs    []IP
+		srcs    []netip.Addr
 		want    []IPAddr
 		reverse bool // also test it starting backwards
 	}{
@@ -26,9 +27,9 @@ func TestSortByRFC6724(t *testing.T) {
 				{IP: ParseIP("2001:db8:1::1")},
 				{IP: ParseIP("198.51.100.121")},
 			},
-			srcs: []IP{
-				ParseIP("2001:db8:1::2"),
-				ParseIP("169.254.13.78"),
+			srcs: []netip.Addr{
+				netip.MustParseAddr("2001:db8:1::2"),
+				netip.MustParseAddr("169.254.13.78"),
 			},
 			want: []IPAddr{
 				{IP: ParseIP("2001:db8:1::1")},
@@ -43,9 +44,9 @@ func TestSortByRFC6724(t *testing.T) {
 				{IP: ParseIP("2001:db8:1::1")},
 				{IP: ParseIP("198.51.100.121")},
 			},
-			srcs: []IP{
-				ParseIP("fe80::1"),
-				ParseIP("198.51.100.117"),
+			srcs: []netip.Addr{
+				netip.MustParseAddr("fe80::1"),
+				netip.MustParseAddr("198.51.100.117"),
 			},
 			want: []IPAddr{
 				{IP: ParseIP("198.51.100.121")},
@@ -60,9 +61,9 @@ func TestSortByRFC6724(t *testing.T) {
 				{IP: ParseIP("2001:db8:1::1")},
 				{IP: ParseIP("10.1.2.3")},
 			},
-			srcs: []IP{
-				ParseIP("2001:db8:1::2"),
-				ParseIP("10.1.2.4"),
+			srcs: []netip.Addr{
+				netip.MustParseAddr("2001:db8:1::2"),
+				netip.MustParseAddr("10.1.2.4"),
 			},
 			want: []IPAddr{
 				{IP: ParseIP("2001:db8:1::1")},
@@ -77,9 +78,9 @@ func TestSortByRFC6724(t *testing.T) {
 				{IP: ParseIP("2001:db8:1::1")},
 				{IP: ParseIP("fe80::1")},
 			},
-			srcs: []IP{
-				ParseIP("2001:db8:1::2"),
-				ParseIP("fe80::2"),
+			srcs: []netip.Addr{
+				netip.MustParseAddr("2001:db8:1::2"),
+				netip.MustParseAddr("fe80::2"),
 			},
 			want: []IPAddr{
 				{IP: ParseIP("fe80::1")},
@@ -99,13 +100,13 @@ func TestSortByRFC6724(t *testing.T) {
 				{IP: ParseIP("23.23.134.56")},
 				{IP: ParseIP("23.21.50.150")},
 			},
-			srcs: []IP{
-				ParseIP("10.2.3.4"),
-				ParseIP("10.2.3.4"),
-				ParseIP("10.2.3.4"),
-				ParseIP("10.2.3.4"),
-				ParseIP("10.2.3.4"),
-				ParseIP("10.2.3.4"),
+			srcs: []netip.Addr{
+				netip.MustParseAddr("10.2.3.4"),
+				netip.MustParseAddr("10.2.3.4"),
+				netip.MustParseAddr("10.2.3.4"),
+				netip.MustParseAddr("10.2.3.4"),
+				netip.MustParseAddr("10.2.3.4"),
+				netip.MustParseAddr("10.2.3.4"),
 			},
 			want: []IPAddr{
 				{IP: ParseIP("54.83.193.112")},
@@ -121,7 +122,7 @@ func TestSortByRFC6724(t *testing.T) {
 	for i, tt := range tests {
 		inCopy := make([]IPAddr, len(tt.in))
 		copy(inCopy, tt.in)
-		srcCopy := make([]IP, len(tt.in))
+		srcCopy := make([]netip.Addr, len(tt.in))
 		copy(srcCopy, tt.srcs)
 		sortByRFC6724withSrcs(inCopy, srcCopy)
 		if !reflect.DeepEqual(inCopy, tt.want) {
@@ -145,39 +146,100 @@ func TestSortByRFC6724(t *testing.T) {
 
 }
 
+func TestRFC6724PolicyTableOrder(t *testing.T) {
+	for i := 0; i < len(rfc6724policyTable)-1; i++ {
+		if !(rfc6724policyTable[i].Prefix.Bits() >= rfc6724policyTable[i+1].Prefix.Bits()) {
+			t.Errorf("rfc6724policyTable item number %d sorted in wrong order = %d bits, next item = %d bits;", i, rfc6724policyTable[i].Prefix.Bits(), rfc6724policyTable[i+1].Prefix.Bits())
+		}
+	}
+}
+
+func TestRFC6724PolicyTableContent(t *testing.T) {
+	expectedRfc6724policyTable := policyTable{
+		{
+			Prefix:     netip.MustParsePrefix("::1/128"),
+			Precedence: 50,
+			Label:      0,
+		},
+		{
+			Prefix:     netip.MustParsePrefix("::ffff:0:0/96"),
+			Precedence: 35,
+			Label:      4,
+		},
+		{
+			Prefix:     netip.MustParsePrefix("::/96"),
+			Precedence: 1,
+			Label:      3,
+		},
+		{
+			Prefix:     netip.MustParsePrefix("2001::/32"),
+			Precedence: 5,
+			Label:      5,
+		},
+		{
+			Prefix:     netip.MustParsePrefix("2002::/16"),
+			Precedence: 30,
+			Label:      2,
+		},
+		{
+			Prefix:     netip.MustParsePrefix("3ffe::/16"),
+			Precedence: 1,
+			Label:      12,
+		},
+		{
+			Prefix:     netip.MustParsePrefix("fec0::/10"),
+			Precedence: 1,
+			Label:      11,
+		},
+		{
+			Prefix:     netip.MustParsePrefix("fc00::/7"),
+			Precedence: 3,
+			Label:      13,
+		},
+		{
+			Prefix:     netip.MustParsePrefix("::/0"),
+			Precedence: 40,
+			Label:      1,
+		},
+	}
+	if !reflect.DeepEqual(rfc6724policyTable, expectedRfc6724policyTable) {
+		t.Errorf("rfc6724policyTable has wrong contend = %v; want %v", rfc6724policyTable, expectedRfc6724policyTable)
+	}
+}
+
 func TestRFC6724PolicyTableClassify(t *testing.T) {
 	tests := []struct {
-		ip   IP
+		ip   netip.Addr
 		want policyTableEntry
 	}{
 		{
-			ip: ParseIP("127.0.0.1"),
+			ip: netip.MustParseAddr("127.0.0.1"),
 			want: policyTableEntry{
-				Prefix:     &IPNet{IP: ParseIP("::ffff:0:0"), Mask: CIDRMask(96, 128)},
+				Prefix:     netip.MustParsePrefix("::ffff:0:0/96"),
 				Precedence: 35,
 				Label:      4,
 			},
 		},
 		{
-			ip: ParseIP("2601:645:8002:a500:986f:1db8:c836:bd65"),
+			ip: netip.MustParseAddr("2601:645:8002:a500:986f:1db8:c836:bd65"),
 			want: policyTableEntry{
-				Prefix:     &IPNet{IP: ParseIP("::"), Mask: CIDRMask(0, 128)},
+				Prefix:     netip.MustParsePrefix("::/0"),
 				Precedence: 40,
 				Label:      1,
 			},
 		},
 		{
-			ip: ParseIP("::1"),
+			ip: netip.MustParseAddr("::1"),
 			want: policyTableEntry{
-				Prefix:     &IPNet{IP: ParseIP("::1"), Mask: CIDRMask(128, 128)},
+				Prefix:     netip.MustParsePrefix("::1/128"),
 				Precedence: 50,
 				Label:      0,
 			},
 		},
 		{
-			ip: ParseIP("2002::ab12"),
+			ip: netip.MustParseAddr("2002::ab12"),
 			want: policyTableEntry{
-				Prefix:     &IPNet{IP: ParseIP("2002::"), Mask: CIDRMask(16, 128)},
+				Prefix:     netip.MustParsePrefix("2002::/16"),
 				Precedence: 30,
 				Label:      2,
 			},
@@ -193,24 +255,24 @@ func TestRFC6724PolicyTableClassify(t *testing.T) {
 
 func TestRFC6724ClassifyScope(t *testing.T) {
 	tests := []struct {
-		ip   IP
+		ip   netip.Addr
 		want scope
 	}{
-		{ParseIP("127.0.0.1"), scopeLinkLocal},   // rfc6724#section-3.2
-		{ParseIP("::1"), scopeLinkLocal},         // rfc4007#section-4
-		{ParseIP("169.254.1.2"), scopeLinkLocal}, // rfc6724#section-3.2
-		{ParseIP("fec0::1"), scopeSiteLocal},
-		{ParseIP("8.8.8.8"), scopeGlobal},
+		{netip.MustParseAddr("127.0.0.1"), scopeLinkLocal},   // rfc6724#section-3.2
+		{netip.MustParseAddr("::1"), scopeLinkLocal},         // rfc4007#section-4
+		{netip.MustParseAddr("169.254.1.2"), scopeLinkLocal}, // rfc6724#section-3.2
+		{netip.MustParseAddr("fec0::1"), scopeSiteLocal},
+		{netip.MustParseAddr("8.8.8.8"), scopeGlobal},
 
-		{ParseIP("ff02::"), scopeLinkLocal},  // IPv6 multicast
-		{ParseIP("ff05::"), scopeSiteLocal},  // IPv6 multicast
-		{ParseIP("ff04::"), scopeAdminLocal}, // IPv6 multicast
-		{ParseIP("ff0e::"), scopeGlobal},     // IPv6 multicast
+		{netip.MustParseAddr("ff02::"), scopeLinkLocal},  // IPv6 multicast
+		{netip.MustParseAddr("ff05::"), scopeSiteLocal},  // IPv6 multicast
+		{netip.MustParseAddr("ff04::"), scopeAdminLocal}, // IPv6 multicast
+		{netip.MustParseAddr("ff0e::"), scopeGlobal},     // IPv6 multicast
 
-		{IPv4(0xe0, 0, 0, 0), scopeGlobal},       // IPv4 link-local multicast as 16 bytes
-		{IPv4(0xe0, 2, 2, 2), scopeGlobal},       // IPv4 global multicast as 16 bytes
-		{IPv4(0xe0, 0, 0, 0).To4(), scopeGlobal}, // IPv4 link-local multicast as 4 bytes
-		{IPv4(0xe0, 2, 2, 2).To4(), scopeGlobal}, // IPv4 global multicast as 4 bytes
+		{netip.AddrFrom16([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xe0, 0, 0, 0}), scopeGlobal}, // IPv4 link-local multicast as 16 bytes
+		{netip.AddrFrom16([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xe0, 2, 2, 2}), scopeGlobal}, // IPv4 global multicast as 16 bytes
+		{netip.AddrFrom4([4]byte{0xe0, 0, 0, 0}), scopeGlobal},                                       // IPv4 link-local multicast as 4 bytes
+		{netip.AddrFrom4([4]byte{0xe0, 2, 2, 2}), scopeGlobal},                                       // IPv4 global multicast as 4 bytes
 	}
 	for i, tt := range tests {
 		got := classifyScope(tt.ip)
@@ -222,22 +284,23 @@ func TestRFC6724ClassifyScope(t *testing.T) {
 
 func TestRFC6724CommonPrefixLength(t *testing.T) {
 	tests := []struct {
-		a, b IP
+		a    netip.Addr
+		b    IP
 		want int
 	}{
-		{ParseIP("fe80::1"), ParseIP("fe80::2"), 64},
-		{ParseIP("fe81::1"), ParseIP("fe80::2"), 15},
-		{ParseIP("127.0.0.1"), ParseIP("fe80::1"), 0}, // diff size
-		{IPv4(1, 2, 3, 4), IP{1, 2, 3, 4}, 32},
-		{IP{1, 2, 255, 255}, IP{1, 2, 0, 0}, 16},
-		{IP{1, 2, 127, 255}, IP{1, 2, 0, 0}, 17},
-		{IP{1, 2, 63, 255}, IP{1, 2, 0, 0}, 18},
-		{IP{1, 2, 31, 255}, IP{1, 2, 0, 0}, 19},
-		{IP{1, 2, 15, 255}, IP{1, 2, 0, 0}, 20},
-		{IP{1, 2, 7, 255}, IP{1, 2, 0, 0}, 21},
-		{IP{1, 2, 3, 255}, IP{1, 2, 0, 0}, 22},
-		{IP{1, 2, 1, 255}, IP{1, 2, 0, 0}, 23},
-		{IP{1, 2, 0, 255}, IP{1, 2, 0, 0}, 24},
+		{netip.MustParseAddr("fe80::1"), ParseIP("fe80::2"), 64},
+		{netip.MustParseAddr("fe81::1"), ParseIP("fe80::2"), 15},
+		{netip.MustParseAddr("127.0.0.1"), ParseIP("fe80::1"), 0}, // diff size
+		{netip.AddrFrom4([4]byte{1, 2, 3, 4}), IP{1, 2, 3, 4}, 32},
+		{netip.AddrFrom4([4]byte{1, 2, 255, 255}), IP{1, 2, 0, 0}, 16},
+		{netip.AddrFrom4([4]byte{1, 2, 127, 255}), IP{1, 2, 0, 0}, 17},
+		{netip.AddrFrom4([4]byte{1, 2, 63, 255}), IP{1, 2, 0, 0}, 18},
+		{netip.AddrFrom4([4]byte{1, 2, 31, 255}), IP{1, 2, 0, 0}, 19},
+		{netip.AddrFrom4([4]byte{1, 2, 15, 255}), IP{1, 2, 0, 0}, 20},
+		{netip.AddrFrom4([4]byte{1, 2, 7, 255}), IP{1, 2, 0, 0}, 21},
+		{netip.AddrFrom4([4]byte{1, 2, 3, 255}), IP{1, 2, 0, 0}, 22},
+		{netip.AddrFrom4([4]byte{1, 2, 1, 255}), IP{1, 2, 0, 0}, 23},
+		{netip.AddrFrom4([4]byte{1, 2, 0, 255}), IP{1, 2, 0, 0}, 24},
 	}
 	for i, tt := range tests {
 		got := commonPrefixLen(tt.a, tt.b)

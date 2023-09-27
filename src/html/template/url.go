@@ -5,7 +5,6 @@
 package template
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 )
@@ -19,15 +18,15 @@ import (
 //
 // This filter conservatively assumes that all schemes other than the following
 // are unsafe:
-//    * http:   Navigates to a new website, and may open a new window or tab.
-//              These side effects can be reversed by navigating back to the
-//              previous website, or closing the window or tab. No irreversible
-//              changes will take place without further user interaction with
-//              the new website.
-//    * https:  Same as http.
-//    * mailto: Opens an email program and starts a new draft. This side effect
-//              is not irreversible until the user explicitly clicks send; it
-//              can be undone by closing the email program.
+//   - http:   Navigates to a new website, and may open a new window or tab.
+//     These side effects can be reversed by navigating back to the
+//     previous website, or closing the window or tab. No irreversible
+//     changes will take place without further user interaction with
+//     the new website.
+//   - https:  Same as http.
+//   - mailto: Opens an email program and starts a new draft. This side effect
+//     is not irreversible until the user explicitly clicks send; it
+//     can be undone by closing the email program.
 //
 // To allow URLs containing other schemes to bypass this filter, developers must
 // explicitly indicate that such a URL is expected and safe by encapsulating it
@@ -76,7 +75,7 @@ func urlProcessor(norm bool, args ...any) string {
 	if t == contentTypeURL {
 		norm = true
 	}
-	var b bytes.Buffer
+	var b strings.Builder
 	if processURLOnto(s, norm, &b) {
 		return b.String()
 	}
@@ -85,7 +84,7 @@ func urlProcessor(norm bool, args ...any) string {
 
 // processURLOnto appends a normalized URL corresponding to its input to b
 // and reports whether the appended content differs from s.
-func processURLOnto(s string, norm bool, b *bytes.Buffer) bool {
+func processURLOnto(s string, norm bool, b *strings.Builder) bool {
 	b.Grow(len(s) + 16)
 	written := 0
 	// The byte loop below assumes that all URLs use UTF-8 as the
@@ -149,7 +148,7 @@ func srcsetFilterAndEscaper(args ...any) string {
 	case contentTypeURL:
 		// Normalizing gets rid of all HTML whitespace
 		// which separate the image URL from its metadata.
-		var b bytes.Buffer
+		var b strings.Builder
 		if processURLOnto(s, true, &b) {
 			s = b.String()
 		}
@@ -157,7 +156,7 @@ func srcsetFilterAndEscaper(args ...any) string {
 		return strings.ReplaceAll(s, ",", "%2c")
 	}
 
-	var b bytes.Buffer
+	var b strings.Builder
 	written := 0
 	for i := 0; i < len(s); i++ {
 		if s[i] == ',' {
@@ -183,7 +182,7 @@ func isHTMLSpaceOrASCIIAlnum(c byte) bool {
 	return (c < 0x80) && 0 != (htmlSpaceAndASCIIAlnumBytes[c>>3]&(1<<uint(c&0x7)))
 }
 
-func filterSrcsetElement(s string, left int, right int, b *bytes.Buffer) {
+func filterSrcsetElement(s string, left int, right int, b *strings.Builder) {
 	start := left
 	for start < right && isHTMLSpace(s[start]) {
 		start++

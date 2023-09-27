@@ -19,10 +19,8 @@ env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache
 go build -x golang.org/x/text/language
 stderr 'compile|cp|gccgo .*language\.a$'
 
-# BUG: after the build, the package should not be stale, as 'go install' would
-# not do anything further.
 go list -f '{{.Stale}}' golang.org/x/text/language
-stdout ^true
+stdout ^false
 
 # install after build should not run the compiler again.
 go install -x golang.org/x/text/language

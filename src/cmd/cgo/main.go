@@ -11,7 +11,6 @@
 package main
 
 import (
-	"crypto/md5"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -19,7 +18,6 @@ import (
 	"go/token"
 	"internal/buildcfg"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -28,6 +26,7 @@ import (
 	"strings"
 
 	"cmd/internal/edit"
+	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
 )
 
@@ -39,7 +38,7 @@ type Package struct {
 	IntSize     int64
 	GccOptions  []string
 	GccIsClang  bool
-	CgoFlags    map[string][]string // #cgo flags (CFLAGS, LDFLAGS)
+	LdFlags     []string // #cgo LDFLAGS
 	Written     map[string]bool
 	Name        map[string]*Name // accumulated Name from Files
 	ExpFunc     []*ExpFunc       // accumulated ExpFunc from Files
@@ -49,6 +48,8 @@ type Package struct {
 	Preamble    string          // collected preamble for _cgo_export.h
 	typedefs    map[string]bool // type names that appear in the types of the objects we're interested in
 	typedefList []typedefInfo
+	noCallbacks map[string]bool // C function names with #cgo nocallback directive
+	noEscapes   map[string]bool // C function names with #cgo noescape directive
 }
 
 // A typedefInfo is an element on Package.typedefList: a typedef name
@@ -60,16 +61,18 @@ type typedefInfo struct {
 
 // A File collects information about a single Go input file.
 type File struct {
-	AST      *ast.File           // parsed AST
-	Comments []*ast.CommentGroup // comments from file
-	Package  string              // Package name
-	Preamble string              // C preamble (doc comment on import "C")
-	Ref      []*Ref              // all references to C.xxx in AST
-	Calls    []*Call             // all calls to C.xxx in AST
-	ExpFunc  []*ExpFunc          // exported functions for this file
-	Name     map[string]*Name    // map from Go name to Name
-	NamePos  map[*Name]token.Pos // map from Name to position of the first reference
-	Edit     *edit.Buffer
+	AST         *ast.File           // parsed AST
+	Comments    []*ast.CommentGroup // comments from file
+	Package     string              // Package name
+	Preamble    string              // C preamble (doc comment on import "C")
+	Ref         []*Ref              // all references to C.xxx in AST
+	Calls       []*Call             // all calls to C.xxx in AST
+	ExpFunc     []*ExpFunc          // exported functions for this file
+	Name        map[string]*Name    // map from Go name to Name
+	NamePos     map[*Name]token.Pos // map from Name to position of the first reference
+	NoCallbacks map[string]bool     // C function names that with #cgo nocallback directive
+	NoEscapes   map[string]bool     // C function names that with #cgo noescape directive
+	Edit        *edit.Buffer
 }
 
 func (f *File) offset(p token.Pos) int {
@@ -153,7 +156,6 @@ type Type struct {
 	EnumValues map[string]int64
 	Typedef    string
 	BadPointer bool // this pointer type should be represented as a uintptr (deprecated)
-	NotInHeap  bool // this type should have a go:notinheap annotation
 }
 
 // A FuncType collects information about a function type in both the C and Go worlds.
@@ -175,6 +177,7 @@ var ptrSizeMap = map[string]int64{
 	"amd64":    8,
 	"arm":      4,
 	"arm64":    8,
+	"loong64":  8,
 	"m68k":     4,
 	"mips":     4,
 	"mipsle":   4,
@@ -200,6 +203,7 @@ var intSizeMap = map[string]int64{
 	"amd64":    8,
 	"arm":      4,
 	"arm64":    8,
+	"loong64":  8,
 	"m68k":     4,
 	"mips":     4,
 	"mipsle":   4,
@@ -242,6 +246,7 @@ var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
 var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
 var gccgopkgpath = flag.String("gccgopkgpath", "", "-fgo-pkgpath option used with gccgo")
 var gccgoMangler func(string) string
+var gccgoDefineCgoIncomplete = flag.Bool("gccgo_define_cgoincomplete", false, "define cgo.Incomplete for older gccgo/GoLLVM")
 var importRuntimeCgo = flag.Bool("import_runtime_cgo", true, "import runtime/cgo in generated code")
 var importSyscall = flag.Bool("import_syscall", true, "import syscall in generated code")
 var trimpath = flag.String("trimpath", "", "applies supplied rewrites or trims prefixes to recorded source file paths")
@@ -251,8 +256,15 @@ var gccBaseCmd []string
 
 func main() {
 	objabi.AddVersionFlag() // -V
-	flag.Usage = usage
-	flag.Parse()
+	objabi.Flagparse(usage)
+
+	if *gccgoDefineCgoIncomplete {
+		if !*gccgo {
+			fmt.Fprintf(os.Stderr, "cgo: -gccgo_define_cgoincomplete without -gccgo\n")
+			os.Exit(2)
+		}
+		incomplete = "_cgopackage_Incomplete"
+	}
 
 	if *dynobj != "" {
 		// cgo -dynimport is essentially a separate helper command
@@ -291,6 +303,10 @@ func main() {
 		usage()
 	}
 
+	// Save original command line arguments for the godefs generated comment. Relative file
+	// paths in os.Args will be rewritten to absolute file paths in the loop below.
+	osArgs := make([]string, len(os.Args))
+	copy(osArgs, os.Args[:])
 	goFiles := args[i:]
 
 	for _, arg := range args[:i] {
@@ -325,8 +341,8 @@ func main() {
 	// we use to coordinate between gcc and ourselves.
 	// We already put _cgo_ at the beginning, so the main
 	// concern is other cgo wrappers for the same functions.
-	// Use the beginning of the md5 of the input to disambiguate.
-	h := md5.New()
+	// Use the beginning of the notsha256 of the input to disambiguate.
+	h := notsha256.New()
 	io.WriteString(h, *importPath)
 	fs := make([]*File, len(goFiles))
 	for i, input := range goFiles {
@@ -341,7 +357,7 @@ func main() {
 			input = aname
 		}
 
-		b, err := ioutil.ReadFile(input)
+		b, err := os.ReadFile(input)
 		if err != nil {
 			fatalf("%s", err)
 		}
@@ -351,12 +367,18 @@ func main() {
 
 		// Apply trimpath to the file path. The path won't be read from after this point.
 		input, _ = objabi.ApplyRewrites(input, *trimpath)
+		if strings.ContainsAny(input, "\r\n") {
+			// ParseGo, (*Package).writeOutput, and printer.Fprint in SourcePos mode
+			// all emit line directives, which don't permit newlines in the file path.
+			// Bail early if we see anything newline-like in the trimmed path.
+			fatalf("input path contains newline character: %q", input)
+		}
 		goFiles[i] = input
 
 		f := new(File)
 		f.Edit = edit.NewBuffer(b)
 		f.ParseGo(input, b)
-		f.DiscardCgoDirectives()
+		f.ProcessCgoDirectives()
 		fs[i] = f
 	}
 
@@ -390,9 +412,28 @@ func main() {
 		p.PackagePath = f.Package
 		p.Record(f)
 		if *godefs {
-			os.Stdout.WriteString(p.godefs(f))
+			os.Stdout.WriteString(p.godefs(f, osArgs))
 		} else {
 			p.writeOutput(f, input)
+		}
+	}
+	cFunctions := make(map[string]bool)
+	for _, key := range nameKeys(p.Name) {
+		n := p.Name[key]
+		if n.FuncType != nil {
+			cFunctions[n.C] = true
+		}
+	}
+
+	for funcName := range p.noEscapes {
+		if _, found := cFunctions[funcName]; !found {
+			error_(token.NoPos, "#cgo noescape %s: no matched C function", funcName)
+		}
+	}
+
+	for funcName := range p.noCallbacks {
+		if _, found := cFunctions[funcName]; !found {
+			error_(token.NoPos, "#cgo nocallback %s: no matched C function", funcName)
 		}
 	}
 
@@ -432,10 +473,11 @@ func newPackage(args []string) *Package {
 	os.Setenv("LC_ALL", "C")
 
 	p := &Package{
-		PtrSize:  ptrSize,
-		IntSize:  intSize,
-		CgoFlags: make(map[string][]string),
-		Written:  make(map[string]bool),
+		PtrSize:     ptrSize,
+		IntSize:     intSize,
+		Written:     make(map[string]bool),
+		noCallbacks: make(map[string]bool),
+		noEscapes:   make(map[string]bool),
 	}
 	p.addToFlag("CFLAGS", args)
 	return p
@@ -467,6 +509,14 @@ func (p *Package) Record(f *File) {
 				error_(token.NoPos, "inconsistent definitions for C.%s", fixGo(k))
 			}
 		}
+	}
+
+	// merge nocallback & noescape
+	for k, v := range f.NoCallbacks {
+		p.noCallbacks[k] = v
+	}
+	for k, v := range f.NoEscapes {
+		p.noEscapes[k] = v
 	}
 
 	if f.ExpFunc != nil {

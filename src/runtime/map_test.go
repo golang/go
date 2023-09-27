@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/abi"
 	"internal/goarch"
 	"math"
 	"reflect"
@@ -15,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unsafe"
 )
 
 func TestHmapSize(t *testing.T) {
@@ -29,8 +31,9 @@ func TestHmapSize(t *testing.T) {
 }
 
 // negative zero is a good test because:
-//  1) 0 and -0 are equal, yet have distinct representations.
-//  2) 0 is represented as all zeros, -0 isn't.
+//  1. 0 and -0 are equal, yet have distinct representations.
+//  2. 0 is represented as all zeros, -0 isn't.
+//
 // I'm not sure the language spec actually requires this behavior,
 // but it's what the current map implementation does.
 func TestNegativeZero(t *testing.T) {
@@ -505,7 +508,12 @@ func TestMapNanGrowIterator(t *testing.T) {
 }
 
 func TestMapIterOrder(t *testing.T) {
-	for _, n := range [...]int{3, 7, 9, 15} {
+	sizes := []int{3, 7, 9, 15}
+	if abi.MapBucketCountBits >= 5 {
+		// it gets flaky (often only one iteration order) at size 3 when abi.MapBucketCountBits >=5.
+		t.Fatalf("This test becomes flaky if abi.MapBucketCountBits(=%d) is 5 or larger", abi.MapBucketCountBits)
+	}
+	for _, n := range sizes {
 		for i := 0; i < 1000; i++ {
 			// Make m be {0: true, 1: true, ..., n-1: true}.
 			m := make(map[int]bool)
@@ -672,7 +680,16 @@ func TestIgnoreBogusMapHint(t *testing.T) {
 	}
 }
 
-var mapSink map[int]int
+const bs = abi.MapBucketCount
+
+// belowOverflow should be a pretty-full pair of buckets;
+// atOverflow is 1/8 bs larger = 13/8 buckets or two buckets
+// that are 13/16 full each, which is the overflow boundary.
+// Adding one to that should ensure overflow to the next higher size.
+const (
+	belowOverflow = bs * 3 / 2           // 1.5 bs = 2 buckets @ 75%
+	atOverflow    = belowOverflow + bs/8 // 2 buckets at 13/16 fill.
+)
 
 var mapBucketTests = [...]struct {
 	n        int // n is the number of map elements
@@ -683,11 +700,16 @@ var mapBucketTests = [...]struct {
 	{-1, 1, 1},
 	{0, 1, 1},
 	{1, 1, 1},
-	{8, 1, 1},
-	{9, 2, 2},
-	{13, 2, 2},
-	{14, 4, 4},
-	{26, 4, 4},
+	{bs, 1, 1},
+	{bs + 1, 2, 2},
+	{belowOverflow, 2, 2},  // 1.5 bs = 2 buckets @ 75%
+	{atOverflow + 1, 4, 4}, // 13/8 bs + 1 == overflow to 4
+
+	{2 * belowOverflow, 4, 4}, // 3 bs = 4 buckets @75%
+	{2*atOverflow + 1, 8, 8},  // 13/4 bs + 1 = overflow to 8
+
+	{4 * belowOverflow, 8, 8},  // 6 bs = 8 buckets @ 75%
+	{4*atOverflow + 1, 16, 16}, // 13/2 bs + 1 = overflow to 16
 }
 
 func TestMapBuckets(t *testing.T) {
@@ -709,7 +731,7 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
 				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
 			}
-			escapingMap := map[int]int{}
+			escapingMap := runtime.Escape(map[int]int{})
 			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
 				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
 			}
@@ -719,7 +741,6 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
 				t.Errorf("escape n=%d want %d buckets, got %d", tt.n, tt.escape, got)
 			}
-			mapSink = escapingMap
 		}
 	})
 	t.Run("nohint", func(t *testing.T) {
@@ -734,7 +755,7 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
 				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
 			}
-			escapingMap := make(map[int]int)
+			escapingMap := runtime.Escape(make(map[int]int))
 			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
 				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
 			}
@@ -744,7 +765,6 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
 				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
 			}
-			mapSink = escapingMap
 		}
 	})
 	t.Run("makemap", func(t *testing.T) {
@@ -759,7 +779,7 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
 				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
 			}
-			escapingMap := make(map[int]int, tt.n)
+			escapingMap := runtime.Escape(make(map[int]int, tt.n))
 			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
 				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
 			}
@@ -769,7 +789,6 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
 				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
 			}
-			mapSink = escapingMap
 		}
 	})
 	t.Run("makemap64", func(t *testing.T) {
@@ -784,7 +803,7 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
 				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
 			}
-			escapingMap := make(map[int]int, tt.n)
+			escapingMap := runtime.Escape(make(map[int]int, tt.n))
 			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
 				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
 			}
@@ -794,7 +813,6 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
 				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
 			}
-			mapSink = escapingMap
 		}
 	})
 
@@ -1238,4 +1256,166 @@ func TestMapInterfaceKey(t *testing.T) {
 	if !m[GrabBag{a: [4]string{"foo", "bar", "baz", "bop"}}] {
 		panic("array not found")
 	}
+}
+
+type panicStructKey struct {
+	sli []int
+}
+
+func (p panicStructKey) String() string {
+	return "panic"
+}
+
+type structKey struct {
+}
+
+func (structKey) String() string {
+	return "structKey"
+}
+
+func TestEmptyMapWithInterfaceKey(t *testing.T) {
+	var (
+		b    bool
+		i    int
+		i8   int8
+		i16  int16
+		i32  int32
+		i64  int64
+		ui   uint
+		ui8  uint8
+		ui16 uint16
+		ui32 uint32
+		ui64 uint64
+		uipt uintptr
+		f32  float32
+		f64  float64
+		c64  complex64
+		c128 complex128
+		a    [4]string
+		s    string
+		p    *int
+		up   unsafe.Pointer
+		ch   chan int
+		i0   any
+		i1   interface {
+			String() string
+		}
+		structKey structKey
+		i0Panic   any = []int{}
+		i1Panic   interface {
+			String() string
+		} = panicStructKey{}
+		panicStructKey = panicStructKey{}
+		sli            []int
+		me             = map[any]struct{}{}
+		mi             = map[interface {
+			String() string
+		}]struct{}{}
+	)
+	mustNotPanic := func(f func()) {
+		f()
+	}
+	mustPanic := func(f func()) {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("didn't panic")
+			}
+		}()
+		f()
+	}
+	mustNotPanic(func() {
+		_ = me[b]
+	})
+	mustNotPanic(func() {
+		_ = me[i]
+	})
+	mustNotPanic(func() {
+		_ = me[i8]
+	})
+	mustNotPanic(func() {
+		_ = me[i16]
+	})
+	mustNotPanic(func() {
+		_ = me[i32]
+	})
+	mustNotPanic(func() {
+		_ = me[i64]
+	})
+	mustNotPanic(func() {
+		_ = me[ui]
+	})
+	mustNotPanic(func() {
+		_ = me[ui8]
+	})
+	mustNotPanic(func() {
+		_ = me[ui16]
+	})
+	mustNotPanic(func() {
+		_ = me[ui32]
+	})
+	mustNotPanic(func() {
+		_ = me[ui64]
+	})
+	mustNotPanic(func() {
+		_ = me[uipt]
+	})
+	mustNotPanic(func() {
+		_ = me[f32]
+	})
+	mustNotPanic(func() {
+		_ = me[f64]
+	})
+	mustNotPanic(func() {
+		_ = me[c64]
+	})
+	mustNotPanic(func() {
+		_ = me[c128]
+	})
+	mustNotPanic(func() {
+		_ = me[a]
+	})
+	mustNotPanic(func() {
+		_ = me[s]
+	})
+	mustNotPanic(func() {
+		_ = me[p]
+	})
+	mustNotPanic(func() {
+		_ = me[up]
+	})
+	mustNotPanic(func() {
+		_ = me[ch]
+	})
+	mustNotPanic(func() {
+		_ = me[i0]
+	})
+	mustNotPanic(func() {
+		_ = me[i1]
+	})
+	mustNotPanic(func() {
+		_ = me[structKey]
+	})
+	mustPanic(func() {
+		_ = me[i0Panic]
+	})
+	mustPanic(func() {
+		_ = me[i1Panic]
+	})
+	mustPanic(func() {
+		_ = me[panicStructKey]
+	})
+	mustPanic(func() {
+		_ = me[sli]
+	})
+	mustPanic(func() {
+		_ = me[me]
+	})
+
+	mustNotPanic(func() {
+		_ = mi[structKey]
+	})
+	mustPanic(func() {
+		_ = mi[panicStructKey]
+	})
 }

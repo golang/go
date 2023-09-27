@@ -9,6 +9,8 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"internal/race"
+	"internal/testenv"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -54,6 +56,10 @@ func init() {
 		setFreedFrom(dbConn{db, c}, stack())
 	}
 }
+
+// pollDuration is an arbitrary interval to wait between checks when polling for
+// a condition to occur.
+const pollDuration = 5 * time.Millisecond
 
 const fakeDBName = "foo"
 
@@ -173,7 +179,7 @@ func closeDB(t testing.TB, db *DB) {
 	}
 
 	var numOpen int
-	if !waitCondition(5*time.Second, 5*time.Millisecond, func() bool {
+	if !waitCondition(t, func() bool {
 		numOpen = db.numOpenConns()
 		return numOpen == 0
 	}) {
@@ -197,16 +203,14 @@ func (db *DB) numDeps() int {
 }
 
 // Dependencies are closed via a goroutine, so this polls waiting for
-// numDeps to fall to want, waiting up to d.
-func (db *DB) numDepsPollUntil(want int, d time.Duration) int {
-	deadline := time.Now().Add(d)
-	for {
-		n := db.numDeps()
-		if n <= want || time.Now().After(deadline) {
-			return n
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
+// numDeps to fall to want, waiting up to nearly the test's deadline.
+func (db *DB) numDepsPoll(t *testing.T, want int) int {
+	var n int
+	waitCondition(t, func() bool {
+		n = db.numDeps()
+		return n <= want
+	})
+	return n
 }
 
 func (db *DB) numFreeConns() int {
@@ -229,7 +233,7 @@ func (db *DB) clearAllConns(t *testing.T) {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPollUntil(0, time.Second); n > 0 {
+	if n := db.numDepsPoll(t, 0); n > 0 {
 		t.Errorf("number of dependencies = %d; expected 0", n)
 		db.dumpDeps(t)
 	}
@@ -321,7 +325,7 @@ func TestQueryContext(t *testing.T) {
 	for rows.Next() {
 		if index == 2 {
 			cancel()
-			waitForRowsClose(t, rows, 5*time.Second)
+			waitForRowsClose(t, rows)
 		}
 		var r row
 		err = rows.Scan(&r.age, &r.name)
@@ -355,29 +359,43 @@ func TestQueryContext(t *testing.T) {
 
 	// And verify that the final rows.Next() call, which hit EOF,
 	// also closed the rows connection.
-	waitForRowsClose(t, rows, 5*time.Second)
-	waitForFree(t, db, 5*time.Second, 1)
+	waitForRowsClose(t, rows)
+	waitForFree(t, db, 1)
 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
 }
 
-func waitCondition(waitFor, checkEvery time.Duration, fn func() bool) bool {
-	deadline := time.Now().Add(waitFor)
-	for time.Now().Before(deadline) {
+func waitCondition(t testing.TB, fn func() bool) bool {
+	timeout := 5 * time.Second
+
+	type deadliner interface {
+		Deadline() (time.Time, bool)
+	}
+	if td, ok := t.(deadliner); ok {
+		if deadline, ok := td.Deadline(); ok {
+			timeout = time.Until(deadline)
+			timeout = timeout * 19 / 20 // Give 5% headroom for cleanup and error-reporting.
+		}
+	}
+
+	deadline := time.Now().Add(timeout)
+	for {
 		if fn() {
 			return true
 		}
-		time.Sleep(checkEvery)
+		if time.Until(deadline) < pollDuration {
+			return false
+		}
+		time.Sleep(pollDuration)
 	}
-	return false
 }
 
 // waitForFree checks db.numFreeConns until either it equals want or
 // the maxWait time elapses.
-func waitForFree(t *testing.T, db *DB, maxWait time.Duration, want int) {
+func waitForFree(t *testing.T, db *DB, want int) {
 	var numFree int
-	if !waitCondition(maxWait, 5*time.Millisecond, func() bool {
+	if !waitCondition(t, func() bool {
 		numFree = db.numFreeConns()
 		return numFree == want
 	}) {
@@ -385,8 +403,8 @@ func waitForFree(t *testing.T, db *DB, maxWait time.Duration, want int) {
 	}
 }
 
-func waitForRowsClose(t *testing.T, rows *Rows, maxWait time.Duration) {
-	if !waitCondition(maxWait, 5*time.Millisecond, func() bool {
+func waitForRowsClose(t *testing.T, rows *Rows) {
+	if !waitCondition(t, func() bool {
 		rows.closemu.RLock()
 		defer rows.closemu.RUnlock()
 		return rows.closed
@@ -402,32 +420,47 @@ func TestQueryContextWait(t *testing.T) {
 	defer closeDB(t, db)
 	prepares0 := numPrepares(t, db)
 
-	// TODO(kardianos): convert this from using a timeout to using an explicit
-	// cancel when the query signals that it is "executing" the query.
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// This will trigger the *fakeConn.Prepare method which will take time
 	// performing the query. The ctxDriverPrepare func will check the context
 	// after this and close the rows and return an error.
-	_, err := db.QueryContext(ctx, "WAIT|1s|SELECT|people|age,name|")
-	if err != context.DeadlineExceeded {
+	c, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c.dc.ci.(*fakeConn).waiter = func(c context.Context) {
+		cancel()
+		<-ctx.Done()
+	}
+	_, err = c.QueryContext(ctx, "SELECT|people|age,name|")
+	c.Close()
+	if err != context.Canceled {
 		t.Fatalf("expected QueryContext to error with context deadline exceeded but returned %v", err)
 	}
 
 	// Verify closed rows connection after error condition.
-	waitForFree(t, db, 5*time.Second, 1)
+	waitForFree(t, db, 1)
 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
-		// TODO(kardianos): if the context timeouts before the db.QueryContext
-		// executes this check may fail. After adjusting how the context
-		// is canceled above revert this back to a Fatal error.
-		t.Logf("executed %d Prepare statements; want 1", prepares)
+		t.Fatalf("executed %d Prepare statements; want 1", prepares)
 	}
 }
 
 // TestTxContextWait tests the transaction behavior when the tx context is canceled
 // during execution of the query.
 func TestTxContextWait(t *testing.T) {
+	testContextWait(t, false)
+}
+
+// TestTxContextWaitNoDiscard is the same as TestTxContextWait, but should not discard
+// the final connection.
+func TestTxContextWaitNoDiscard(t *testing.T) {
+	testContextWait(t, true)
+}
+
+func testContextWait(t *testing.T, keepConnOnRollback bool) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
@@ -437,50 +470,25 @@ func TestTxContextWait(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tx.keepConnOnRollback = false
+	tx.keepConnOnRollback = keepConnOnRollback
 
-	go func() {
-		time.Sleep(15 * time.Millisecond)
+	tx.dc.ci.(*fakeConn).waiter = func(c context.Context) {
 		cancel()
-	}()
+		<-ctx.Done()
+	}
 	// This will trigger the *fakeConn.Prepare method which will take time
 	// performing the query. The ctxDriverPrepare func will check the context
 	// after this and close the rows and return an error.
-	_, err = tx.QueryContext(ctx, "WAIT|1s|SELECT|people|age,name|")
+	_, err = tx.QueryContext(ctx, "SELECT|people|age,name|")
 	if err != context.Canceled {
 		t.Fatalf("expected QueryContext to error with context canceled but returned %v", err)
 	}
 
-	waitForFree(t, db, 5*time.Second, 0)
-}
-
-// TestTxContextWaitNoDiscard is the same as TestTxContextWait, but should not discard
-// the final connection.
-func TestTxContextWaitNoDiscard(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Millisecond)
-	defer cancel()
-
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		// Guard against the context being canceled before BeginTx completes.
-		if err == context.DeadlineExceeded {
-			t.Skip("tx context canceled prior to first use")
-		}
-		t.Fatal(err)
+	if keepConnOnRollback {
+		waitForFree(t, db, 1)
+	} else {
+		waitForFree(t, db, 0)
 	}
-
-	// This will trigger the *fakeConn.Prepare method which will take time
-	// performing the query. The ctxDriverPrepare func will check the context
-	// after this and close the rows and return an error.
-	_, err = tx.QueryContext(ctx, "WAIT|1s|SELECT|people|age,name|")
-	if err != context.DeadlineExceeded {
-		t.Fatalf("expected QueryContext to error with context deadline exceeded but returned %v", err)
-	}
-
-	waitForFree(t, db, 5*time.Second, 1)
 }
 
 // TestUnsupportedOptions checks that the database fails when a driver that
@@ -565,7 +573,7 @@ func TestMultiResultSetQuery(t *testing.T) {
 
 	// And verify that the final rows.Next() call, which hit EOF,
 	// also closed the rows connection.
-	waitForFree(t, db, 5*time.Second, 1)
+	waitForFree(t, db, 1)
 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
@@ -1795,6 +1803,18 @@ func TestNullStringParam(t *testing.T) {
 	nullTestRun(t, spec)
 }
 
+func TestGenericNullStringParam(t *testing.T) {
+	spec := nullTestSpec{"nullstring", "string", [6]nullTestRow{
+		{Null[string]{"aqua", true}, "", Null[string]{"aqua", true}},
+		{Null[string]{"brown", false}, "", Null[string]{"", false}},
+		{"chartreuse", "", Null[string]{"chartreuse", true}},
+		{Null[string]{"darkred", true}, "", Null[string]{"darkred", true}},
+		{Null[string]{"eel", false}, "", Null[string]{"", false}},
+		{"foo", Null[string]{"black", false}, nil},
+	}}
+	nullTestRun(t, spec)
+}
+
 func TestNullInt64Param(t *testing.T) {
 	spec := nullTestSpec{"nullint64", "int64", [6]nullTestRow{
 		{NullInt64{31, true}, 1, NullInt64{31, true}},
@@ -1908,8 +1928,9 @@ func nullTestRun(t *testing.T, spec nullTestSpec) {
 	}
 
 	// Can't put null val into non-null col
-	if _, err := stmt.Exec(6, "bob", spec.rows[5].nullParam, spec.rows[5].notNullParam); err == nil {
-		t.Errorf("expected error inserting nil val with prepared statement Exec")
+	row5 := spec.rows[5]
+	if _, err := stmt.Exec(6, "bob", row5.nullParam, row5.notNullParam); err == nil {
+		t.Errorf("expected error inserting nil val with prepared statement Exec: NULL=%#v, NOT-NULL=%#v", row5.nullParam, row5.notNullParam)
 	}
 
 	_, err = db.Exec("INSERT|t|id=?,name=?,nullf=?", 999, nil, nil)
@@ -2083,18 +2104,15 @@ func TestMaxOpenConns(t *testing.T) {
 				}
 			}()
 		}
-		// Sleep for twice the expected length of time for the
-		// batch of 50 queries above to finish before starting
-		// the next round.
-		time.Sleep(2 * sleepMillis * time.Millisecond)
+		// Wait for the batch of queries above to finish before starting the next round.
+		wg.Wait()
 	}
-	wg.Wait()
 
 	if g, w := db.numFreeConns(), 10; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPollUntil(20, time.Second); n > 20 {
+	if n := db.numDepsPoll(t, 20); n > 20 {
 		t.Errorf("number of dependencies = %d; expected <= 20", n)
 		db.dumpDeps(t)
 	}
@@ -2119,7 +2137,7 @@ func TestMaxOpenConns(t *testing.T) {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPollUntil(10, time.Second); n > 10 {
+	if n := db.numDepsPoll(t, 10); n > 10 {
 		t.Errorf("number of dependencies = %d; expected <= 10", n)
 		db.dumpDeps(t)
 	}
@@ -2130,7 +2148,7 @@ func TestMaxOpenConns(t *testing.T) {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPollUntil(5, time.Second); n > 5 {
+	if n := db.numDepsPoll(t, 5); n > 5 {
 		t.Errorf("number of dependencies = %d; expected 0", n)
 		db.dumpDeps(t)
 	}
@@ -2141,7 +2159,7 @@ func TestMaxOpenConns(t *testing.T) {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPollUntil(5, time.Second); n > 5 {
+	if n := db.numDepsPoll(t, 5); n > 5 {
 		t.Errorf("number of dependencies = %d; expected 0", n)
 		db.dumpDeps(t)
 	}
@@ -2400,13 +2418,14 @@ func TestConnMaxLifetime(t *testing.T) {
 	tx2.Commit()
 
 	// Give connectionCleaner chance to run.
-	for i := 0; i < 100 && closes != 1; i++ {
-		time.Sleep(time.Millisecond)
+	waitCondition(t, func() bool {
 		driver.mu.Lock()
 		opens = driver.openCount - opens0
 		closes = driver.closeCount - closes0
 		driver.mu.Unlock()
-	}
+
+		return closes == 1
+	})
 
 	if opens != 3 {
 		t.Errorf("opens = %d; want 3", opens)
@@ -2466,18 +2485,15 @@ func TestStmtCloseDeps(t *testing.T) {
 				}
 			}()
 		}
-		// Sleep for twice the expected length of time for the
-		// batch of 50 queries above to finish before starting
-		// the next round.
-		time.Sleep(2 * sleepMillis * time.Millisecond)
+		// Wait for the batch of queries above to finish before starting the next round.
+		wg.Wait()
 	}
-	wg.Wait()
 
 	if g, w := db.numFreeConns(), 2; g != w {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPollUntil(4, time.Second); n > 4 {
+	if n := db.numDepsPoll(t, 4); n > 4 {
 		t.Errorf("number of dependencies = %d; expected <= 4", n)
 		db.dumpDeps(t)
 	}
@@ -2496,7 +2512,7 @@ func TestStmtCloseDeps(t *testing.T) {
 		db.dumpDeps(t)
 	}
 
-	if !waitCondition(5*time.Second, 5*time.Millisecond, func() bool {
+	if !waitCondition(t, func() bool {
 		return len(stmt.css) <= nquery
 	}) {
 		t.Errorf("len(stmt.css) = %d; want <= %d", len(stmt.css), nquery)
@@ -2510,7 +2526,7 @@ func TestStmtCloseDeps(t *testing.T) {
 		t.Errorf("free conns = %d; want %d", g, w)
 	}
 
-	if n := db.numDepsPollUntil(2, time.Second); n > 2 {
+	if n := db.numDepsPoll(t, 2); n > 2 {
 		t.Errorf("number of dependencies = %d; expected <= 2", n)
 		db.dumpDeps(t)
 	}
@@ -2617,6 +2633,39 @@ func TestRowsImplicitClose(t *testing.T) {
 	}
 	if !r.closed {
 		t.Errorf("r.closed is false, want true")
+	}
+}
+
+func TestRowsCloseError(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer db.Close()
+	rows, err := db.Query("SELECT|people|age,name|")
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	type row struct {
+		age  int
+		name string
+	}
+	got := []row{}
+
+	rc, ok := rows.rowsi.(*rowsCursor)
+	if !ok {
+		t.Fatal("not using *rowsCursor")
+	}
+	rc.closeErr = errors.New("rowsCursor: failed to close")
+
+	for rows.Next() {
+		var r row
+		err = rows.Scan(&r.age, &r.name)
+		if err != nil {
+			t.Fatalf("Scan: %v", err)
+		}
+		got = append(got, r)
+	}
+	err = rows.Err()
+	if err != rc.closeErr {
+		t.Fatalf("unexpected err: got %v, want %v", err, rc.closeErr)
 	}
 }
 
@@ -2942,7 +2991,7 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 					if ct > 0 {
 						return
 					}
-					time.Sleep(10 * time.Millisecond)
+					time.Sleep(pollDuration)
 				}
 			}()
 
@@ -2970,7 +3019,7 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 }
 
 // TestIssue20575 ensures the Rows from query does not block
-// closing a transaction. Ensure Rows is closed while closing a trasaction.
+// closing a transaction. Ensure Rows is closed while closing a transaction.
 func TestIssue20575(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -3720,8 +3769,8 @@ func TestIssue18719(t *testing.T) {
 		cancel()
 
 		// Wait for the context to cancel and tx to rollback.
-		for tx.isDone() == false {
-			time.Sleep(3 * time.Millisecond)
+		for !tx.isDone() {
+			time.Sleep(pollDuration)
 		}
 	}
 	defer func() { hookTxGrabConn = nil }()
@@ -4349,6 +4398,139 @@ func TestRowsScanProperlyWrapsErrors(t *testing.T) {
 	}
 }
 
+func TestContextCancelDuringRawBytesScan(t *testing.T) {
+	for _, mode := range []string{"nocancel", "top", "bottom", "go"} {
+		t.Run(mode, func(t *testing.T) {
+			testContextCancelDuringRawBytesScan(t, mode)
+		})
+	}
+}
+
+// From go.dev/issue/60304
+func testContextCancelDuringRawBytesScan(t *testing.T, mode string) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	if _, err := db.Exec("USE_RAWBYTES"); err != nil {
+		t.Fatal(err)
+	}
+
+	// cancel used to call close asynchronously.
+	// This test checks that it waits so as not to interfere with RawBytes.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	r, err := db.QueryContext(ctx, "SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	numRows := 0
+	var sink byte
+	for r.Next() {
+		if mode == "top" && numRows == 2 {
+			// cancel between Next and Scan is observed by Scan as err = context.Canceled.
+			// The sleep here is only to make it more likely that the cancel will be observed.
+			// If not, the test should still pass, like in "go" mode.
+			cancel()
+			time.Sleep(100 * time.Millisecond)
+		}
+		numRows++
+		var s RawBytes
+		err = r.Scan(&s)
+		if numRows == 3 && err == context.Canceled {
+			if r.closemuScanHold {
+				t.Errorf("expected closemu NOT to be held")
+			}
+			break
+		}
+		if !r.closemuScanHold {
+			t.Errorf("expected closemu to be held")
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("read %q", s)
+		if mode == "bottom" && numRows == 2 {
+			// cancel before Next should be observed by Next, exiting the loop.
+			// The sleep here is only to make it more likely that the cancel will be observed.
+			// If not, the test should still pass, like in "go" mode.
+			cancel()
+			time.Sleep(100 * time.Millisecond)
+		}
+		if mode == "go" && numRows == 2 {
+			// cancel at any future time, to catch other cases
+			go cancel()
+		}
+		for _, b := range s { // some operation reading from the raw memory
+			sink += b
+		}
+	}
+	if r.closemuScanHold {
+		t.Errorf("closemu held; should not be")
+	}
+
+	// There are 3 rows. We canceled after reading 2 so we expect either
+	// 2 or 3 depending on how the awaitDone goroutine schedules.
+	switch numRows {
+	case 0, 1:
+		t.Errorf("got %d rows; want 2+", numRows)
+	case 2:
+		if err := r.Err(); err != context.Canceled {
+			t.Errorf("unexpected error: %v (%T)", err, err)
+		}
+	default:
+		// Made it to the end. This is rare, but fine. Permit it.
+	}
+
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestContextCancelBetweenNextAndErr(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	r, err := db.QueryContext(ctx, "SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for r.Next() {
+	}
+	cancel()                          // wake up the awaitDone goroutine
+	time.Sleep(10 * time.Millisecond) // increase odds of seeing failure
+	if err := r.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNilErrorAfterClose(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	// This WithCancel is important; Rows contains an optimization to avoid
+	// spawning a goroutine when the query/transaction context cannot be
+	// canceled, but this test tests a bug which is caused by said goroutine.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	r, err := db.QueryContext(ctx, "SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(10 * time.Millisecond) // increase odds of seeing failure
+	if err := r.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // badConn implements a bad driver.Conn, for TestBadDriver.
 // The Exec method panics.
 type badConn struct{}
@@ -4548,4 +4730,36 @@ func BenchmarkManyConcurrentQueries(b *testing.B) {
 			rows.Close()
 		}
 	})
+}
+
+func TestGrabConnAllocs(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	if race.Enabled {
+		t.Skip("skipping allocation test when using race detector")
+	}
+	c := new(Conn)
+	ctx := context.Background()
+	n := int(testing.AllocsPerRun(1000, func() {
+		_, release, err := c.grabConn(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		release(nil)
+	}))
+	if n > 0 {
+		t.Fatalf("Conn.grabConn allocated %v objects; want 0", n)
+	}
+}
+
+func BenchmarkGrabConn(b *testing.B) {
+	b.ReportAllocs()
+	c := new(Conn)
+	ctx := context.Background()
+	for i := 0; i < b.N; i++ {
+		_, release, err := c.grabConn(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+		release(nil)
+	}
 }

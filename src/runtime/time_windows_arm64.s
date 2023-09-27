@@ -8,11 +8,7 @@
 #include "textflag.h"
 #include "time_windows.h"
 
-TEXT time·now(SB),NOSPLIT|NOFRAME,$0-24
-	MOVB    runtime·useQPCTime(SB), R0
-	CMP	$0, R0
-	BNE	useQPC
-
+TEXT time·now(SB),NOSPLIT,$0-24
 	MOVD	$_INTERRUPT_TIME, R3
 	MOVD	time_lo(R3), R0
 	MOVD	$100, R1
@@ -42,6 +38,4 @@ TEXT time·now(SB),NOSPLIT|NOFRAME,$0-24
 	MSUB	R1, R0, R2, R0
 	MOVW	R0, nsec+8(FP)
 	RET
-useQPC:
-	B	runtime·nowQPC(SB)		// tail call
 

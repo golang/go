@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+//go:build unix
 
 package os
 
@@ -58,7 +58,9 @@ func removeAll(path string) error {
 func removeAllFrom(parent *File, base string) error {
 	parentFd := int(parent.Fd())
 	// Simple case: if Unlink (aka remove) works, we're done.
-	err := unix.Unlinkat(parentFd, base, 0)
+	err := ignoringEINTR(func() error {
+		return unix.Unlinkat(parentFd, base, 0)
+	})
 	if err == nil || IsNotExist(err) {
 		return nil
 	}
@@ -75,7 +77,9 @@ func removeAllFrom(parent *File, base string) error {
 
 	// Is this a directory we need to recurse into?
 	var statInfo syscall.Stat_t
-	statErr := unix.Fstatat(parentFd, base, &statInfo, unix.AT_SYMLINK_NOFOLLOW)
+	statErr := ignoringEINTR(func() error {
+		return unix.Fstatat(parentFd, base, &statInfo, unix.AT_SYMLINK_NOFOLLOW)
+	})
 	if statErr != nil {
 		if IsNotExist(statErr) {
 			return nil
@@ -151,7 +155,9 @@ func removeAllFrom(parent *File, base string) error {
 	}
 
 	// Remove the directory itself.
-	unlinkError := unix.Unlinkat(parentFd, base, unix.AT_REMOVEDIR)
+	unlinkError := ignoringEINTR(func() error {
+		return unix.Unlinkat(parentFd, base, unix.AT_REMOVEDIR)
+	})
 	if unlinkError == nil || IsNotExist(unlinkError) {
 		return nil
 	}
@@ -188,5 +194,6 @@ func openFdAt(dirfd int, name string) (*File, error) {
 		syscall.CloseOnExec(r)
 	}
 
-	return newFile(uintptr(r), name, kindOpenFile), nil
+	// We use kindNoPoll because we know that this is a directory.
+	return newFile(r, name, kindNoPoll), nil
 }

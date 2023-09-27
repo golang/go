@@ -8,6 +8,7 @@ newer ones.  After you update to a new Go release, fix helps make
 the necessary changes to your programs.
 
 Usage:
+
 	go tool fix [-r name,...] [path ...]
 
 Without an explicit path, fix reads standard input and writes the
@@ -30,7 +31,7 @@ Fix prints the full list of fixes it can apply in its help output;
 to see them, run go tool fix -help.
 
 Fix does not make backup copies of the files that it edits.
-Instead, use a version control system's ``diff'' functionality to inspect
+Instead, use a version control system's “diff” functionality to inspect
 the changes that fix makes before committing them.
 */
 package main

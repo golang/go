@@ -70,6 +70,7 @@ func EINTR() {
 
 // spin does CPU bound spinning and allocating for a millisecond,
 // to get a SIGURG.
+//
 //go:noinline
 func spin() (float64, []byte) {
 	stop := time.Now().Add(time.Millisecond)

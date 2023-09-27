@@ -6,6 +6,7 @@ package syscall_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/fs"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -196,6 +198,13 @@ func TestSyscallNoError(t *testing.T) {
 
 	if os.Getuid() != 0 {
 		t.Skip("skipping root only test")
+	}
+	if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
+		// The Go build system's swarming user is known not to be root.
+		// Unfortunately, it sometimes appears as root due the current
+		// implementation of a no-network check using 'unshare -n -r'.
+		// Since this test does need root to work, we need to skip it.
+		t.Skip("skipping root only test on a non-root builder")
 	}
 
 	if runtime.GOOS == "android" {
@@ -515,6 +524,16 @@ func TestSetuidEtc(t *testing.T) {
 	if syscall.Getuid() != 0 {
 		t.Skip("skipping root only test")
 	}
+	if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
+		// The Go build system's swarming user is known not to be root.
+		// Unfortunately, it sometimes appears as root due the current
+		// implementation of a no-network check using 'unshare -n -r'.
+		// Since this test does need root to work, we need to skip it.
+		t.Skip("skipping root only test on a non-root builder")
+	}
+	if _, err := os.Stat("/etc/alpine-release"); err == nil {
+		t.Skip("skipping glibc test on alpine - go.dev/issue/19938")
+	}
 	vs := []struct {
 		call           string
 		fn             func() error
@@ -564,4 +583,74 @@ func TestSetuidEtc(t *testing.T) {
 			t.Errorf("[%d] %q comparison: %v", i, v.call, err)
 		}
 	}
+}
+
+// TestAllThreadsSyscallError verifies that errors are properly returned when
+// the syscall fails on the original thread.
+func TestAllThreadsSyscallError(t *testing.T) {
+	// SYS_CAPGET takes pointers as the first two arguments. Since we pass
+	// 0, we expect to get EFAULT back.
+	r1, r2, err := syscall.AllThreadsSyscall(syscall.SYS_CAPGET, 0, 0, 0)
+	if err == syscall.ENOTSUP {
+		t.Skip("AllThreadsSyscall disabled with cgo")
+	}
+	if err != syscall.EFAULT {
+		t.Errorf("AllThreadSyscall(SYS_CAPGET) got %d, %d, %v, want err %v", r1, r2, err, syscall.EFAULT)
+	}
+}
+
+// TestAllThreadsSyscallBlockedSyscall confirms that AllThreadsSyscall
+// can interrupt threads in long-running system calls. This test will
+// deadlock if this doesn't work correctly.
+func TestAllThreadsSyscallBlockedSyscall(t *testing.T) {
+	if _, _, err := syscall.AllThreadsSyscall(syscall.SYS_PRCTL, PR_SET_KEEPCAPS, 0, 0); err == syscall.ENOTSUP {
+		t.Skip("AllThreadsSyscall disabled with cgo")
+	}
+
+	rd, wr, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("unable to obtain a pipe: %v", err)
+	}
+
+	// Perform a blocking read on the pipe.
+	var wg sync.WaitGroup
+	ready := make(chan bool)
+	wg.Add(1)
+	go func() {
+		data := make([]byte, 1)
+
+		// To narrow the window we have to wait for this
+		// goroutine to block in read, synchronize just before
+		// calling read.
+		ready <- true
+
+		// We use syscall.Read directly to avoid the poller.
+		// This will return when the write side is closed.
+		n, err := syscall.Read(int(rd.Fd()), data)
+		if !(n == 0 && err == nil) {
+			t.Errorf("expected read to return 0, got %d, %s", n, err)
+		}
+
+		// Clean up rd and also ensure rd stays reachable so
+		// it doesn't get closed by GC.
+		rd.Close()
+		wg.Done()
+	}()
+	<-ready
+
+	// Loop here to give the goroutine more time to block in read.
+	// Generally this will trigger on the first iteration anyway.
+	pid := syscall.Getpid()
+	for i := 0; i < 100; i++ {
+		if id, _, e := syscall.AllThreadsSyscall(syscall.SYS_GETPID, 0, 0, 0); e != 0 {
+			t.Errorf("[%d] getpid failed: %v", i, e)
+		} else if int(id) != pid {
+			t.Errorf("[%d] getpid got=%d, want=%d", i, id, pid)
+		}
+		// Provide an explicit opportunity for this goroutine
+		// to change Ms.
+		runtime.Gosched()
+	}
+	wr.Close()
+	wg.Wait()
 }

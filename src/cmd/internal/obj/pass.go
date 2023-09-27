@@ -112,6 +112,11 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 			break
 		}
 		return
+	case TYPE_SPECIAL:
+		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Class != 0 || a.Sym != nil {
+			break
+		}
+		return
 	}
 
 	ctxt.Diag("invalid encoding for argument %v", p)
@@ -120,8 +125,8 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 	for p := sym.Func().Text; p != nil; p = p.Link {
 		checkaddr(ctxt, p, &p.From)
-		if p.GetFrom3() != nil {
-			checkaddr(ctxt, p, p.GetFrom3())
+		for _, v := range p.RestArgs {
+			checkaddr(ctxt, p, &v.Addr)
 		}
 		checkaddr(ctxt, p, &p.To)
 

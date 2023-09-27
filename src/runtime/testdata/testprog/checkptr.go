@@ -20,6 +20,8 @@ func init() {
 	register("CheckPtrSmall", CheckPtrSmall)
 	register("CheckPtrSliceOK", CheckPtrSliceOK)
 	register("CheckPtrSliceFail", CheckPtrSliceFail)
+	register("CheckPtrStringOK", CheckPtrStringOK)
+	register("CheckPtrStringFail", CheckPtrStringFail)
 	register("CheckPtrAlignmentNested", CheckPtrAlignmentNested)
 }
 
@@ -96,6 +98,17 @@ func CheckPtrSliceFail() {
 	p := new(int64)
 	sink2 = p
 	sink2 = unsafe.Slice(p, 100)
+}
+
+func CheckPtrStringOK() {
+	p := new([4]byte)
+	sink2 = unsafe.String(&p[1], 3)
+}
+
+func CheckPtrStringFail() {
+	p := new(byte)
+	sink2 = p
+	sink2 = unsafe.String(p, 100)
 }
 
 func CheckPtrAlignmentNested() {

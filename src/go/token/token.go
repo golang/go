@@ -4,7 +4,6 @@
 
 // Package token defines constants representing the lexical tokens of the Go
 // programming language and basic operations on tokens (printing, predicates).
-//
 package token
 
 import (
@@ -239,7 +238,6 @@ var tokens = [...]string{
 // token character sequence (e.g., for the token ADD, the string is
 // "+"). For all other tokens the string corresponds to the token
 // constant name (e.g. for the token IDENT, the string is "IDENT").
-//
 func (tok Token) String() string {
 	s := ""
 	if 0 <= tok && tok < Token(len(tokens)) {
@@ -256,7 +254,6 @@ func (tok Token) String() string {
 // starting with precedence 1 up to unary operators. The highest
 // precedence serves as "catch-all" precedence for selector,
 // indexing, and other operator and delimiter tokens.
-//
 const (
 	LowestPrec  = 0 // non-operators
 	UnaryPrec   = 6
@@ -266,7 +263,6 @@ const (
 // Precedence returns the operator precedence of the binary
 // operator op. If op is not a binary operator, the result
 // is LowestPrecedence.
-//
 func (op Token) Precedence() int {
 	switch op {
 	case LOR:
@@ -286,14 +282,13 @@ func (op Token) Precedence() int {
 var keywords map[string]Token
 
 func init() {
-	keywords = make(map[string]Token)
+	keywords = make(map[string]Token, keyword_end-(keyword_beg+1))
 	for i := keyword_beg + 1; i < keyword_end; i++ {
 		keywords[tokens[i]] = i
 	}
 }
 
 // Lookup maps an identifier to its keyword token or IDENT (if not a keyword).
-//
 func Lookup(ident string) Token {
 	if tok, is_keyword := keywords[ident]; is_keyword {
 		return tok
@@ -305,30 +300,25 @@ func Lookup(ident string) Token {
 
 // IsLiteral returns true for tokens corresponding to identifiers
 // and basic type literals; it returns false otherwise.
-//
 func (tok Token) IsLiteral() bool { return literal_beg < tok && tok < literal_end }
 
 // IsOperator returns true for tokens corresponding to operators and
 // delimiters; it returns false otherwise.
-//
 func (tok Token) IsOperator() bool {
 	return (operator_beg < tok && tok < operator_end) || tok == TILDE
 }
 
 // IsKeyword returns true for tokens corresponding to keywords;
 // it returns false otherwise.
-//
 func (tok Token) IsKeyword() bool { return keyword_beg < tok && tok < keyword_end }
 
 // IsExported reports whether name starts with an upper-case letter.
-//
 func IsExported(name string) bool {
 	ch, _ := utf8.DecodeRuneInString(name)
 	return unicode.IsUpper(ch)
 }
 
 // IsKeyword reports whether name is a Go keyword, such as "func" or "return".
-//
 func IsKeyword(name string) bool {
 	// TODO: opt: use a perfect hash function instead of a global map.
 	_, ok := keywords[name]
@@ -338,12 +328,14 @@ func IsKeyword(name string) bool {
 // IsIdentifier reports whether name is a Go identifier, that is, a non-empty
 // string made up of letters, digits, and underscores, where the first character
 // is not a digit. Keywords are not identifiers.
-//
 func IsIdentifier(name string) bool {
+	if name == "" || IsKeyword(name) {
+		return false
+	}
 	for i, c := range name {
 		if !unicode.IsLetter(c) && c != '_' && (i == 0 || !unicode.IsDigit(c)) {
 			return false
 		}
 	}
-	return name != "" && !IsKeyword(name)
+	return true
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+//go:build unix
 
 package signal
 
@@ -47,16 +47,13 @@ func init() {
 		// instead need a test-skip and upstream bug filed against the Solaris
 		// kernel).
 		//
-		// This constant is chosen so as to make the test as generous as possible
-		// while still reliably completing within 3 minutes in non-short mode.
-		//
 		// See https://golang.org/issue/33174.
-		settleTime = 11 * time.Second
+		settleTime = 5 * time.Second
 	} else if runtime.GOOS == "linux" && strings.HasPrefix(runtime.GOARCH, "ppc64") {
 		// Older linux kernels seem to have some hiccups delivering the signal
 		// in a timely manner on ppc64 and ppc64le. When running on a
 		// ppc64le/ubuntu 16.04/linux 4.4 host the time can vary quite
-		// substantially even on a idle system. 5 seconds is twice any value
+		// substantially even on an idle system. 5 seconds is twice any value
 		// observed when running 10000 tests on such a system.
 		settleTime = 5 * time.Second
 	} else if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
@@ -307,7 +304,7 @@ func TestDetectNohup(t *testing.T) {
 		// We have no intention of reading from c.
 		c := make(chan os.Signal, 1)
 		Notify(c, syscall.SIGHUP)
-		if out, err := exec.Command(os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput(); err == nil {
+		if out, err := testenv.Command(t, os.Args[0], "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput(); err == nil {
 			t.Errorf("ran test with -check_sighup_ignored and it succeeded: expected failure.\nOutput:\n%s", out)
 		}
 		Stop(c)
@@ -318,7 +315,7 @@ func TestDetectNohup(t *testing.T) {
 		}
 		Ignore(syscall.SIGHUP)
 		os.Remove("nohup.out")
-		out, err := exec.Command("/usr/bin/nohup", os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput()
+		out, err := testenv.Command(t, "/usr/bin/nohup", os.Args[0], "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput()
 
 		data, _ := os.ReadFile("nohup.out")
 		os.Remove("nohup.out")
@@ -443,14 +440,14 @@ func TestNohup(t *testing.T) {
 
 			args := []string{
 				"-test.v",
-				"-test.run=TestStop",
+				"-test.run=^TestStop$",
 				"-send_uncaught_sighup=" + strconv.Itoa(i),
 				"-die_from_sighup",
 			}
 			if subTimeout != 0 {
 				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
 			}
-			out, err := exec.Command(os.Args[0], args...).CombinedOutput()
+			out, err := testenv.Command(t, os.Args[0], args...).CombinedOutput()
 
 			if err == nil {
 				t.Errorf("ran test with -send_uncaught_sighup=%d and it succeeded: expected failure.\nOutput:\n%s", i, out)
@@ -486,7 +483,7 @@ func TestNohup(t *testing.T) {
 			defer wg.Done()
 
 			// POSIX specifies that nohup writes to a file named nohup.out if standard
-			// output is a terminal. However, for an exec.Command, standard output is
+			// output is a terminal. However, for an exec.Cmd, standard output is
 			// not a terminal — so we don't need to read or remove that file (and,
 			// indeed, cannot even create it if the current user is unable to write to
 			// GOROOT/src, such as when GOROOT is installed and owned by root).
@@ -494,13 +491,13 @@ func TestNohup(t *testing.T) {
 			args := []string{
 				os.Args[0],
 				"-test.v",
-				"-test.run=TestStop",
+				"-test.run=^TestStop$",
 				"-send_uncaught_sighup=" + strconv.Itoa(i),
 			}
 			if subTimeout != 0 {
 				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
 			}
-			out, err := exec.Command("nohup", args...).CombinedOutput()
+			out, err := testenv.Command(t, "nohup", args...).CombinedOutput()
 
 			if err != nil {
 				t.Errorf("ran test with -send_uncaught_sighup=%d under nohup and it failed: expected success.\nError: %v\nOutput:\n%s", i, err, out)
@@ -549,7 +546,7 @@ func TestAtomicStop(t *testing.T) {
 		if deadline, ok := t.Deadline(); ok {
 			timeout = time.Until(deadline).String()
 		}
-		cmd := exec.Command(os.Args[0], "-test.run=TestAtomicStop", "-test.timeout="+timeout)
+		cmd := testenv.Command(t, os.Args[0], "-test.run=^TestAtomicStop$", "-test.timeout="+timeout)
 		cmd.Env = append(os.Environ(), "GO_TEST_ATOMIC_STOP=1")
 		out, err := cmd.CombinedOutput()
 		if err == nil {
@@ -713,7 +710,7 @@ func TestNotifyContextNotifications(t *testing.T) {
 		}
 		wg.Wait()
 		<-ctx.Done()
-		fmt.Print("received SIGINT")
+		fmt.Println("received SIGINT")
 		// Sleep to give time to simultaneous signals to reach the process.
 		// These signals must be ignored given stop() is not called on this code.
 		// We want to guarantee a SIGINT doesn't cause a premature termination of the program.
@@ -730,27 +727,33 @@ func TestNotifyContextNotifications(t *testing.T) {
 		{"multiple", 10},
 	}
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			var subTimeout time.Duration
 			if deadline, ok := t.Deadline(); ok {
-				subTimeout := time.Until(deadline)
-				subTimeout -= subTimeout / 10 // Leave 10% headroom for cleaning up subprocess.
+				timeout := time.Until(deadline)
+				if timeout < 2*settleTime {
+					t.Fatalf("starting test with less than %v remaining", 2*settleTime)
+				}
+				subTimeout = timeout - (timeout / 10) // Leave 10% headroom for cleaning up subprocess.
 			}
 
 			args := []string{
 				"-test.v",
-				"-test.run=TestNotifyContextNotifications$",
+				"-test.run=^TestNotifyContextNotifications$",
 				"-check_notify_ctx",
 				fmt.Sprintf("-ctx_notify_times=%d", tc.n),
 			}
 			if subTimeout != 0 {
 				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
 			}
-			out, err := exec.Command(os.Args[0], args...).CombinedOutput()
+			out, err := testenv.Command(t, os.Args[0], args...).CombinedOutput()
 			if err != nil {
 				t.Errorf("ran test with -check_notify_ctx_notification and it failed with %v.\nOutput:\n%s", err, out)
 			}
-			if want := []byte("received SIGINT"); !bytes.Contains(out, want) {
+			if want := []byte("received SIGINT\n"); !bytes.Contains(out, want) {
 				t.Errorf("got %q, wanted %q", out, want)
 			}
 		})

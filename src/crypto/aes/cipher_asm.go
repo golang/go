@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build amd64 || arm64
+//go:build amd64 || arm64 || ppc64 || ppc64le
 
 package aes
 
 import (
 	"crypto/cipher"
-	"crypto/internal/subtle"
+	"crypto/internal/alias"
+	"crypto/internal/boring"
 	"internal/cpu"
+	"internal/goarch"
 )
 
 // defined in asm_*.s
@@ -27,7 +29,15 @@ type aesCipherAsm struct {
 	aesCipher
 }
 
-var supportsAES = cpu.X86.HasAES || cpu.ARM64.HasAES
+// aesCipherGCM implements crypto/cipher.gcmAble so that crypto/cipher.NewGCM
+// will use the optimised implementation in aes_gcm.go when possible.
+// Instances of this type only exist when hasGCMAsm returns true. Likewise,
+// the gcmAble implementation is in aes_gcm.go.
+type aesCipherGCM struct {
+	aesCipherAsm
+}
+
+var supportsAES = cpu.X86.HasAES || cpu.ARM64.HasAES || goarch.IsPpc64 == 1 || goarch.IsPpc64le == 1
 var supportsGFMUL = cpu.X86.HasPCLMULQDQ || cpu.ARM64.HasPMULL
 
 func newCipher(key []byte) (cipher.Block, error) {
@@ -44,6 +54,8 @@ func newCipher(key []byte) (cipher.Block, error) {
 		rounds = 12
 	case 256 / 8:
 		rounds = 14
+	default:
+		return nil, KeySizeError(len(key))
 	}
 
 	expandKeyAsm(rounds, &key[0], &c.enc[0], &c.dec[0])
@@ -56,26 +68,28 @@ func newCipher(key []byte) (cipher.Block, error) {
 func (c *aesCipherAsm) BlockSize() int { return BlockSize }
 
 func (c *aesCipherAsm) Encrypt(dst, src []byte) {
+	boring.Unreachable()
 	if len(src) < BlockSize {
 		panic("crypto/aes: input not full block")
 	}
 	if len(dst) < BlockSize {
 		panic("crypto/aes: output not full block")
 	}
-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
 	encryptBlockAsm(len(c.enc)/4-1, &c.enc[0], &dst[0], &src[0])
 }
 
 func (c *aesCipherAsm) Decrypt(dst, src []byte) {
+	boring.Unreachable()
 	if len(src) < BlockSize {
 		panic("crypto/aes: input not full block")
 	}
 	if len(dst) < BlockSize {
 		panic("crypto/aes: output not full block")
 	}
-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
 	decryptBlockAsm(len(c.dec)/4-1, &c.dec[0], &dst[0], &src[0])

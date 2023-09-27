@@ -31,8 +31,8 @@ const msanenabled = true
 //
 //go:nosplit
 func msanread(addr unsafe.Pointer, sz uintptr) {
-	g := getg()
-	if g == nil || g.m == nil || g == g.m.g0 || g == g.m.gsignal {
+	gp := getg()
+	if gp == nil || gp.m == nil || gp == gp.m.g0 || gp == gp.m.gsignal {
 		return
 	}
 	domsanread(addr, sz)
@@ -54,6 +54,7 @@ func msanfree(addr unsafe.Pointer, sz uintptr)
 func msanmove(dst, src unsafe.Pointer, sz uintptr)
 
 // These are called from msan_GOARCH.s
+//
 //go:cgo_import_static __msan_read_go
 //go:cgo_import_static __msan_write_go
 //go:cgo_import_static __msan_malloc_go

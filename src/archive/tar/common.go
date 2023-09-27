@@ -13,6 +13,7 @@ package tar
 import (
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io/fs"
 	"math"
 	"path"
@@ -26,11 +27,14 @@ import (
 // architectures. If a large value is encountered when decoding, the result
 // stored in Header will be the truncated version.
 
+var tarinsecurepath = godebug.New("tarinsecurepath")
+
 var (
 	ErrHeader          = errors.New("archive/tar: invalid tar header")
 	ErrWriteTooLong    = errors.New("archive/tar: write too long")
 	ErrFieldTooLong    = errors.New("archive/tar: header field too long")
 	ErrWriteAfterClose = errors.New("archive/tar: write after close")
+	ErrInsecurePath    = errors.New("archive/tar: insecure file path")
 	errMissData        = errors.New("archive/tar: sparse file references non-existent data")
 	errUnrefData       = errors.New("archive/tar: sparse file contains unreferenced data")
 	errWriteHole       = errors.New("archive/tar: write non-NUL byte in sparse hole")
@@ -55,8 +59,10 @@ func (he headerError) Error() string {
 // Type flags for Header.Typeflag.
 const (
 	// Type '0' indicates a regular file.
-	TypeReg  = '0'
-	TypeRegA = '\x00' // Deprecated: Use TypeReg instead.
+	TypeReg = '0'
+
+	// Deprecated: Use TypeReg instead.
+	TypeRegA = '\x00'
 
 	// Type '1' to '6' are header-only flags and may not have a data body.
 	TypeLink    = '1' // Hard link
@@ -221,9 +227,11 @@ func (s sparseEntry) endOffset() int64 { return s.Offset + s.Length }
 // that the file has no data in it, which is rather odd.
 //
 // As an example, if the underlying raw file contains the 10-byte data:
+//
 //	var compactFile = "abcdefgh"
 //
 // And the sparse map has the following entries:
+//
 //	var spd sparseDatas = []sparseEntry{
 //		{Offset: 2,  Length: 5},  // Data fragment for 2..6
 //		{Offset: 18, Length: 3},  // Data fragment for 18..20
@@ -235,6 +243,7 @@ func (s sparseEntry) endOffset() int64 { return s.Offset + s.Length }
 //	}
 //
 // Then the content of the resulting sparse file with a Header.Size of 25 is:
+//
 //	var sparseFile = "\x00"*2 + "abcde" + "\x00"*11 + "fgh" + "\x00"*4
 type (
 	sparseDatas []sparseEntry
@@ -293,9 +302,9 @@ func alignSparseEntries(src []sparseEntry, size int64) []sparseEntry {
 // The input must have been already validated.
 //
 // This function mutates src and returns a normalized map where:
-//	* adjacent fragments are coalesced together
-//	* only the last fragment may be empty
-//	* the endOffset of the last fragment is the total size
+//   - adjacent fragments are coalesced together
+//   - only the last fragment may be empty
+//   - the endOffset of the last fragment is the total size
 func invertSparseEntries(src []sparseEntry, size int64) []sparseEntry {
 	dst := src[:0]
 	var pre sparseEntry
@@ -598,8 +607,14 @@ func (fi headerFileInfo) Mode() (mode fs.FileMode) {
 	return mode
 }
 
+func (fi headerFileInfo) String() string {
+	return fs.FormatFileInfo(fi)
+}
+
 // sysStat, if non-nil, populates h from system-dependent fields of fi.
 var sysStat func(fi fs.FileInfo, h *Header) error
+
+var loadUidAndGid func(fi fs.FileInfo, uid, gid *int)
 
 const (
 	// Mode constants from the USTAR spec:
@@ -626,6 +641,10 @@ const (
 // Since fs.FileInfo's Name method only returns the base name of
 // the file it describes, it may be necessary to modify Header.Name
 // to provide the full path name of the file.
+//
+// If fi implements [FileInfoNames]
+// the Gname and Uname of the header are
+// provided by the methods of the interface.
 func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 	if fi == nil {
 		return nil, errors.New("archive/tar: FileInfo is nil")
@@ -698,10 +717,36 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 			}
 		}
 	}
+	if iface, ok := fi.(FileInfoNames); ok {
+		var err error
+		if loadUidAndGid != nil {
+			loadUidAndGid(fi, &h.Uid, &h.Gid)
+		}
+		h.Gname, err = iface.Gname(h.Gid)
+		if err != nil {
+			return nil, err
+		}
+		h.Uname, err = iface.Uname(h.Uid)
+		if err != nil {
+			return nil, err
+		}
+		return h, nil
+	}
 	if sysStat != nil {
 		return h, sysStat(fi, h)
 	}
 	return h, nil
+}
+
+// FileInfoNames extends [FileInfo] to translate UID/GID to names.
+// Passing an instance of this to [FileInfoHeader] permits the caller
+// to control UID/GID resolution.
+type FileInfoNames interface {
+	fs.FileInfo
+	// Uname should translate a UID into a user name.
+	Uname(uid int) (string, error)
+	// Gname should translate a GID into a group name.
+	Gname(gid int) (string, error)
 }
 
 // isHeaderOnlyType checks if the given type flag is of the type that has no
@@ -713,11 +758,4 @@ func isHeaderOnlyType(flag byte) bool {
 	default:
 		return false
 	}
-}
-
-func min(a, b int64) int64 {
-	if a < b {
-		return a
-	}
-	return b
 }

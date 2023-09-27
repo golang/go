@@ -53,9 +53,9 @@ func TestOverlappingDuration(t *testing.T) {
 
 // prog0 starts three goroutines.
 //
-//   goroutine 1: taskless region
-//   goroutine 2: starts task0, do work in task0.region0, starts task1 which ends immediately.
-//   goroutine 3: do work in task0.region1 and task0.region2, ends task0
+//	goroutine 1: taskless region
+//	goroutine 2: starts task0, do work in task0.region0, starts task1 which ends immediately.
+//	goroutine 3: do work in task0.region1 and task0.region2, ends task0
 func prog0() {
 	ctx := context.Background()
 

@@ -4,7 +4,7 @@
 
 package main
 
-import "b"
+import "./b"
 
 func main() {
 	b.New[int]()

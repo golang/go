@@ -10,7 +10,6 @@ import (
 	"internal/testenv"
 	"os"
 	"os/exec"
-	"strings"
 	"testing"
 )
 
@@ -20,7 +19,7 @@ func MustHaveDebugOptionsSupport(t *testing.T) {
 	}
 }
 
-func MustSupportFeatureDectection(t *testing.T) {
+func MustSupportFeatureDetection(t *testing.T) {
 	// TODO: add platforms that do not have CPU feature detection support.
 }
 
@@ -31,29 +30,25 @@ func runDebugOptionsTest(t *testing.T, test string, options string) {
 
 	env := "GODEBUG=" + options
 
-	cmd := exec.Command(os.Args[0], "-test.run="+test)
+	cmd := exec.Command(os.Args[0], "-test.run=^"+test+"$")
 	cmd.Env = append(cmd.Env, env)
 
 	output, err := cmd.CombinedOutput()
-	lines := strings.Fields(string(output))
-	lastline := lines[len(lines)-1]
-
-	got := strings.TrimSpace(lastline)
-	want := "PASS"
-	if err != nil || got != want {
-		t.Fatalf("%s with %s: want %s, got %v", test, env, want, got)
+	if err != nil {
+		t.Fatalf("%s with %s: run failed: %v output:\n%s\n",
+			test, env, err, string(output))
 	}
 }
 
 func TestDisableAllCapabilities(t *testing.T) {
-	MustSupportFeatureDectection(t)
+	MustSupportFeatureDetection(t)
 	runDebugOptionsTest(t, "TestAllCapabilitiesDisabled", "cpu.all=off")
 }
 
 func TestAllCapabilitiesDisabled(t *testing.T) {
 	MustHaveDebugOptionsSupport(t)
 
-	if godebug.Get("cpu.all") != "off" {
+	if godebug.New("#cpu.all").Value() != "off" {
 		t.Skipf("skipping test: GODEBUG=cpu.all=off not set")
 	}
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || windows
+//go:build unix || windows
 
 package net
 
@@ -18,35 +18,6 @@ func boolint(b bool) int {
 		return 1
 	}
 	return 0
-}
-
-func ipv4AddrToInterface(ip IP) (*Interface, error) {
-	ift, err := Interfaces()
-	if err != nil {
-		return nil, err
-	}
-	for _, ifi := range ift {
-		ifat, err := ifi.Addrs()
-		if err != nil {
-			return nil, err
-		}
-		for _, ifa := range ifat {
-			switch v := ifa.(type) {
-			case *IPAddr:
-				if ip.Equal(v.IP) {
-					return &ifi, nil
-				}
-			case *IPNet:
-				if ip.Equal(v.IP) {
-					return &ifi, nil
-				}
-			}
-		}
-	}
-	if ip.Equal(IPv4zero) {
-		return nil, nil
-	}
-	return nil, errNoSuchInterface
 }
 
 func interfaceToIPv4Addr(ifi *Interface) (IP, error) {

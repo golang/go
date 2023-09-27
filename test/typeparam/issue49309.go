@@ -1,4 +1,4 @@
-// run -gcflags=-G=3
+// run
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -18,6 +18,7 @@ func myfunc(c string) {
 
 //go:noinline
 func test2(a interface{}) {
+	_ = a.(string)
 }
 
 func main() {

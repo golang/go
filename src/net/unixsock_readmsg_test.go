@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+//go:build unix
 
 package net
 
 import (
+	"internal/syscall/unix"
 	"os"
 	"syscall"
 	"testing"
@@ -94,7 +95,7 @@ func TestUnixConnReadMsgUnixSCMRightsCloseOnExec(t *testing.T) {
 		}
 	}()
 
-	flags, err := fcntl(gotFDs[0], syscall.F_GETFD, 0)
+	flags, err := unix.Fcntl(gotFDs[0], syscall.F_GETFD, 0)
 	if err != nil {
 		t.Fatalf("Can't get flags of fd:%#v, with err:%v", gotFDs[0], err)
 	}

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/dsa"
+	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -68,6 +69,20 @@ func TestPKCS1MismatchPublicKeyFormat(t *testing.T) {
 	}
 }
 
+func TestMarshalInvalidPublicKey(t *testing.T) {
+	_, err := MarshalPKIXPublicKey(&ecdsa.PublicKey{})
+	if err == nil {
+		t.Errorf("expected error, got MarshalPKIXPublicKey success")
+	}
+	_, err = MarshalPKIXPublicKey(&ecdsa.PublicKey{
+		Curve: elliptic.P256(),
+		X:     big.NewInt(1), Y: big.NewInt(2),
+	})
+	if err == nil {
+		t.Errorf("expected error, got MarshalPKIXPublicKey success")
+	}
+}
+
 func testParsePKIXPublicKey(t *testing.T, pemBytes string) (pub any) {
 	block, _ := pem.Decode([]byte(pemBytes))
 	pub, err := ParsePKIXPublicKey(block.Bytes)
@@ -101,6 +116,13 @@ func TestParsePKIXPublicKey(t *testing.T) {
 			t.Errorf("Value returned from ParsePKIXPublicKey was not an Ed25519 public key")
 		}
 	})
+	t.Run("X25519", func(t *testing.T) {
+		pub := testParsePKIXPublicKey(t, pemX25519Key)
+		k, ok := pub.(*ecdh.PublicKey)
+		if !ok || k.Curve() != ecdh.X25519() {
+			t.Errorf("Value returned from ParsePKIXPublicKey was not an X25519 public key")
+		}
+	})
 }
 
 var pemPublicKey = `-----BEGIN PUBLIC KEY-----
@@ -132,10 +154,17 @@ wg/HcAJWY60xZTJDFN+Qfx8ZQvBEin6c2/h+zZi5IVY=
 -----END RSA TESTING KEY-----
 `)
 
-// pemEd25519Key is the example from RFC 8410, Secrion 4.
+// pemEd25519Key is the example from RFC 8410, Section 4.
 var pemEd25519Key = `
 -----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAGb9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=
+-----END PUBLIC KEY-----
+`
+
+// pemX25519Key was generated from pemX25519Key with "openssl pkey -pubout".
+var pemX25519Key = `
+-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VuAyEA5yGXrH/6OzxuWEhEWS01/f4OP+Of3Yrddy6/J1kDTVM=
 -----END PUBLIC KEY-----
 `
 
@@ -602,11 +631,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 	for _, test := range tests {
 		commonName := "test.example.com"
 		template := Certificate{
-			// SerialNumber is negative to ensure that negative
-			// values are parsed. This is due to the prevalence of
-			// buggy code that produces certificates with negative
-			// serial numbers.
-			SerialNumber: big.NewInt(-1),
+			SerialNumber: big.NewInt(1),
 			Subject: pkix.Name{
 				CommonName:   commonName,
 				Organization: []string{"Σ Acme Co"},
@@ -704,11 +729,11 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 		}
 
 		if len(cert.PermittedEmailAddresses) != 1 || cert.PermittedEmailAddresses[0] != "foo@example.com" {
-			t.Errorf("%s: failed to parse permitted email addreses: %#v", test.name, cert.PermittedEmailAddresses)
+			t.Errorf("%s: failed to parse permitted email addresses: %#v", test.name, cert.PermittedEmailAddresses)
 		}
 
 		if len(cert.ExcludedEmailAddresses) != 2 || cert.ExcludedEmailAddresses[0] != ".example.com" || cert.ExcludedEmailAddresses[1] != "example.com" {
-			t.Errorf("%s: failed to parse excluded email addreses: %#v", test.name, cert.ExcludedEmailAddresses)
+			t.Errorf("%s: failed to parse excluded email addresses: %#v", test.name, cert.ExcludedEmailAddresses)
 		}
 
 		if len(cert.PermittedURIDomains) != 2 || cert.PermittedURIDomains[0] != ".bar.com" || cert.PermittedURIDomains[1] != "bar.com" {
@@ -1190,13 +1215,13 @@ Data:
 	X509v3 extensions:
 		X509v3 Key Usage: critical
 			Digital Signature, Certificate Sign, CRL Sign
-		X509v3 Extended Key Usage: 
+		X509v3 Extended Key Usage:
 			TLS Web Client Authentication, TLS Web Server Authentication, OCSP Signing
 		X509v3 Basic Constraints: critical
 			CA:TRUE
-		X509v3 Subject Key Identifier: 
+		X509v3 Subject Key Identifier:
 			B7:17:DA:16:EA:C5:ED:1F:18:49:44:D3:D2:E3:A0:35:0A:81:93:60
-		X509v3 Authority Key Identifier: 
+		X509v3 Authority Key Identifier:
 			keyid:B7:17:DA:16:EA:C5:ED:1F:18:49:44:D3:D2:E3:A0:35:0A:81:93:60
 
 Signature Algorithm: ED25519
@@ -1798,16 +1823,18 @@ func TestInsecureAlgorithmErrorString(t *testing.T) {
 }
 
 // These CSR was generated with OpenSSL:
-//  openssl req -out CSR.csr -new -sha256 -nodes -keyout privateKey.key -config openssl.cnf
+//
+//	openssl req -out CSR.csr -new -sha256 -nodes -keyout privateKey.key -config openssl.cnf
 //
 // With openssl.cnf containing the following sections:
-//   [ v3_req ]
-//   basicConstraints = CA:FALSE
-//   keyUsage = nonRepudiation, digitalSignature, keyEncipherment
-//   subjectAltName = email:gopher@golang.org,DNS:test.example.com
-//   [ req_attributes ]
-//   challengePassword = ignored challenge
-//   unstructuredName  = ignored unstructured name
+//
+//	[ v3_req ]
+//	basicConstraints = CA:FALSE
+//	keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+//	subjectAltName = email:gopher@golang.org,DNS:test.example.com
+//	[ req_attributes ]
+//	challengePassword = ignored challenge
+//	unstructuredName  = ignored unstructured name
 var csrBase64Array = [...]string{
 	// Just [ v3_req ]
 	"MIIDHDCCAgQCAQAwfjELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEUMBIGA1UEAwwLQ29tbW9uIE5hbWUxITAfBgkqhkiG9w0BCQEWEnRlc3RAZW1haWwuYWRkcmVzczCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAK1GY4YFx2ujlZEOJxQVYmsjUnLsd5nFVnNpLE4cV+77sgv9NPNlB8uhn3MXt5leD34rm/2BisCHOifPucYlSrszo2beuKhvwn4+2FxDmWtBEMu/QA16L5IvoOfYZm/gJTsPwKDqvaR0tTU67a9OtxwNTBMI56YKtmwd/o8d3hYv9cg+9ZGAZ/gKONcg/OWYx/XRh6bd0g8DMbCikpWgXKDsvvK1Nk+VtkDO1JxuBaj4Lz/p/MifTfnHoqHxWOWl4EaTs4Ychxsv34/rSj1KD1tJqorIv5Xv2aqv4sjxfbrYzX4kvS5SC1goIovLnhj5UjmQ3Qy8u65eow/LLWw+YFcCAwEAAaBZMFcGCSqGSIb3DQEJDjFKMEgwCQYDVR0TBAIwADALBgNVHQ8EBAMCBeAwLgYDVR0RBCcwJYERZ29waGVyQGdvbGFuZy5vcmeCEHRlc3QuZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEBAB6VPMRrchvNW61Tokyq3ZvO6/NoGIbuwUn54q6l5VZW0Ep5Nq8juhegSSnaJ0jrovmUgKDN9vEo2KxuAtwG6udS6Ami3zP+hRd4k9Q8djJPb78nrjzWiindLK5Fps9U5mMoi1ER8ViveyAOTfnZt/jsKUaRsscY2FzE9t9/o5moE6LTcHUS4Ap1eheR+J72WOnQYn3cifYaemsA9MJuLko+kQ6xseqttbh9zjqd9fiCSh/LNkzos9c+mg2yMADitaZinAh+HZi50ooEbjaT3erNq9O6RqwJlgD00g6MQdoz9bTAryCUhCQfkIaepmQ7BxS0pqWNW3MMwfDwx/Snz6g=",
@@ -1864,9 +1891,7 @@ func TestSHA1(t *testing.T) {
 		t.Fatalf("certificate verification returned %v (%T), wanted InsecureAlgorithmError", err, err)
 	}
 
-	defer func(old bool) { debugAllowSHA1 = old }(debugAllowSHA1)
-	debugAllowSHA1 = true
-
+	t.Setenv("GODEBUG", "x509sha1=1")
 	if err = cert.CheckSignatureFrom(cert); err != nil {
 		t.Fatalf("SHA-1 certificate did not verify with GODEBUG=x509sha1=1: %v", err)
 	}
@@ -2409,6 +2434,18 @@ func TestCreateRevocationList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to generate Ed25519 key: %s", err)
 	}
+
+	// Generation command:
+	// openssl req -x509 -newkey rsa -keyout key.pem -out cert.pem -days 365 -nodes -subj '/C=US/ST=California/L=San Francisco/O=Internet Widgets, Inc./OU=WWW/CN=Root/emailAddress=admin@example.com' -sha256 -addext basicConstraints=CA:TRUE -addext "keyUsage = digitalSignature, keyEncipherment, dataEncipherment, cRLSign, keyCertSign" -utf8
+	utf8CAStr := "MIIEITCCAwmgAwIBAgIUXHXy7NdtDv+ClaHvIvlwCYiI4a4wDQYJKoZIhvcNAQELBQAwgZoxCzAJBgNVBAYTAlVTMRMwEQYDVQQIDApDYWxpZm9ybmlhMRYwFAYDVQQHDA1TYW4gRnJhbmNpc2NvMR8wHQYDVQQKDBZJbnRlcm5ldCBXaWRnZXRzLCBJbmMuMQwwCgYDVQQLDANXV1cxDTALBgNVBAMMBFJvb3QxIDAeBgkqhkiG9w0BCQEWEWFkbWluQGV4YW1wbGUuY29tMB4XDTIyMDcwODE1MzgyMFoXDTIzMDcwODE1MzgyMFowgZoxCzAJBgNVBAYTAlVTMRMwEQYDVQQIDApDYWxpZm9ybmlhMRYwFAYDVQQHDA1TYW4gRnJhbmNpc2NvMR8wHQYDVQQKDBZJbnRlcm5ldCBXaWRnZXRzLCBJbmMuMQwwCgYDVQQLDANXV1cxDTALBgNVBAMMBFJvb3QxIDAeBgkqhkiG9w0BCQEWEWFkbWluQGV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmXvp0WNjsZzySWT7Ce5zewQNKq8ujeZGphJ44Vdrwut/b6TcC4iYENds5+7/3PYwBllp3K5TRpCcafSxdhJsvA7/zWlHHNRcJhJLNt9qsKWP6ukI2Iw6OmFMg6kJQ8f67RXkT8HR3v0UqE+lWrA0g+oRuj4erLtfOtSpnl4nsE/Rs2qxbELFWAf7F5qMqH4dUyveWKrNT8eI6YQN+wBg0MAjoKRvDJnBhuo+IvvXX8Aq1QWUcBGPK3or/Ehxy5f/gEmSUXyEU1Ht/vATt2op+eRaEEpBdGRvO+DrKjlcQV2XMN18A9LAX6hCzH43sGye87dj7RZ9yj+waOYNaM7kFQIDAQABo10wWzAdBgNVHQ4EFgQUtbSlrW4hGL2kNjviM6wcCRwvOEEwHwYDVR0jBBgwFoAUtbSlrW4hGL2kNjviM6wcCRwvOEEwDAYDVR0TBAUwAwEB/zALBgNVHQ8EBAMCAbYwDQYJKoZIhvcNAQELBQADggEBAAko82YNNI2n/45L3ya21vufP6nZihIOIxgcRPUMX+IDJZk16qsFdcLgH3KAP8uiVLn8sULuCj35HpViR4IcAk2d+DqfG11l8kY+e5P7nYsViRfy0AatF59/sYlWf+3RdmPXfL70x4mE9OqlMdDm0kR2obps8rng83VLDNvj3R5sBnQwdw6LKLGzaE+RiCTmkH0+P6vnbOJ33su9+9al1+HvJUg3UM1Xq5Bw7TE8DQTetMV3c2Q35RQaJB9pQ4blJOnW9hfnt8yQzU6TU1bU4mRctTm1o1f8btPqUpi+/blhi5MUJK0/myj1XD00pmyfp8QAFl1EfqmTMIBMLg633A0="
+	utf8CABytes, _ := base64.StdEncoding.DecodeString(utf8CAStr)
+	utf8CA, _ := ParseCertificate(utf8CABytes)
+
+	utf8KeyStr := "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCZe+nRY2OxnPJJZPsJ7nN7BA0qry6N5kamEnjhV2vC639vpNwLiJgQ12zn7v/c9jAGWWncrlNGkJxp9LF2Emy8Dv/NaUcc1FwmEks232qwpY/q6QjYjDo6YUyDqQlDx/rtFeRPwdHe/RSoT6VasDSD6hG6Ph6su1861KmeXiewT9GzarFsQsVYB/sXmoyofh1TK95Yqs1Px4jphA37AGDQwCOgpG8MmcGG6j4i+9dfwCrVBZRwEY8reiv8SHHLl/+ASZJRfIRTUe3+8BO3ain55FoQSkF0ZG874OsqOVxBXZcw3XwD0sBfqELMfjewbJ7zt2PtFn3KP7Bo5g1ozuQVAgMBAAECggEAIscjKiD9PAe2Fs9c2tk/LYazfRKI1/pv072nylfGwToffCq8+ZgP7PEDamKLc4QNScME685MbFbkOlYJyBlQriQv7lmGlY/A+Zd3l410XWaGf9IiAP91Sjk13zd0M/micApf23qtlXt/LMwvSadXnvRw4+SjirxCTdBWRt5K2/ZAN550v7bHFk1EZc3UBF6sOoNsjQWh9Ek79UmQYJBPiZDBHO7O2fh2GSIbUutTma+Tb2i1QUZzg+AG3cseF3p1i3uhNrCh+p+01bJSzGTQsRod2xpD1tpWwR3kIftCOmD1XnhpaBQi7PXjEuNbfucaftnoYj2ShDdmgD5RkkbTAQKBgQC8Ghu5MQ/yIeqXg9IpcSxuWtUEAEfK33/cC/IvuntgbNEnWQm5Lif4D6a9zjkxiCS+9HhrUu5U2EV8NxOyaqmtub3Np1Z5mPuI9oiZ119bjUJd4X+jKOTaePWvOv/rL/pTHYqzXohVMrXy+DaTIq4lOcv3n72SuhuTcKU95rhKtQKBgQDQ4t+HsRZd5fJzoCgRQhlNK3EbXQDv2zXqMW3GfpF7GaDP18I530inRURSJa++rvi7/MCFg/TXVS3QC4HXtbzTYTqhE+VHzSr+/OcsqpLE8b0jKBDv/SBkz811PUJDs3LsX31DT3K0zUpMpNSd/5SYTyJKef9L6mxmwlC1S2Yv4QKBgQC57SiYDdnQIRwrtZ2nXvlm/xttAAX2jqJoU9qIuNA4yHaYaRcGVowlUvsiw9OelQ6VPTpGA0wWy0src5lhkrKzSFRHEe+U89U1VVJCljLoYKFIAJvUH5jOJh/am/vYca0COMIfeAJUDHLyfcwb9XyiyRVGZzvP62tUelSq8gIZvQKBgCAHeaDzzWsudCO4ngwvZ3PGwnwgoaElqrmzRJLYG3SVtGvKOJTpINnNLDGwZ6dEaw1gLyEJ38QY4oJxEULDMiXzVasXQuPkmMAqhUP7D7A1JPw8C4TQ+mOa3XUppHx/CpMl/S4SA5OnmsnvyE5Fv0IveCGVXUkFtAN5rihuXEfhAoGANUkuGU3A0Upk2mzv0JTGP4H95JFG93cqnyPNrYs30M6RkZNgTW27yyr+Nhs4/cMdrg1AYTB0+6ItQWSDmYLs7JEbBE/8L8fdD1irIcygjIHE9nJh96TgZCt61kVGLE8758lOdmoB2rZOpGwi16QIhdQb+IyozYqfX+lQUojL/W0="
+	utf8KeyBytes, _ := base64.StdEncoding.DecodeString(utf8KeyStr)
+	utf8KeyRaw, _ := ParsePKCS8PrivateKey(utf8KeyBytes)
+	utf8Key := utf8KeyRaw.(crypto.Signer)
+
 	tests := []struct {
 		name          string
 		key           crypto.Signer
@@ -2481,6 +2518,40 @@ func TestCreateRevocationList(t *testing.T) {
 			expectedError: "x509: template contains nil Number field",
 		},
 		{
+			name: "long Number",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+				Number:     big.NewInt(0).SetBytes(append([]byte{1}, make([]byte, 20)...)),
+			},
+			expectedError: "x509: CRL number exceeds 20 octets",
+		},
+		{
+			name: "long Number (20 bytes, MSB set)",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+				Number:     big.NewInt(0).SetBytes(append([]byte{255}, make([]byte, 19)...)),
+			},
+			expectedError: "x509: CRL number exceeds 20 octets",
+		},
+		{
 			name: "invalid signature algorithm",
 			key:  ec256Priv,
 			issuer: &Certificate{
@@ -2515,10 +2586,61 @@ func TestCreateRevocationList(t *testing.T) {
 				SubjectKeyId: []byte{1, 2, 3},
 			},
 			template: &RevocationList{
-				RevokedCertificates: []pkix.RevokedCertificate{
+				RevokedCertificateEntries: []RevocationListEntry{
 					{
 						SerialNumber:   big.NewInt(2),
 						RevocationTime: time.Time{}.Add(time.Hour),
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
+			name: "valid, reason code",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				RevokedCertificateEntries: []RevocationListEntry{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+						ReasonCode:     1,
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
+			name: "valid, extra entry extension",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				RevokedCertificateEntries: []RevocationListEntry{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+						ExtraExtensions: []pkix.Extension{
+							{
+								Id:    []int{2, 5, 29, 99},
+								Value: []byte{5, 0},
+							},
+						},
 					},
 				},
 				Number:     big.NewInt(5),
@@ -2537,7 +2659,7 @@ func TestCreateRevocationList(t *testing.T) {
 				SubjectKeyId: []byte{1, 2, 3},
 			},
 			template: &RevocationList{
-				RevokedCertificates: []pkix.RevokedCertificate{
+				RevokedCertificateEntries: []RevocationListEntry{
 					{
 						SerialNumber:   big.NewInt(2),
 						RevocationTime: time.Time{}.Add(time.Hour),
@@ -2560,7 +2682,7 @@ func TestCreateRevocationList(t *testing.T) {
 			},
 			template: &RevocationList{
 				SignatureAlgorithm: ECDSAWithSHA512,
-				RevokedCertificates: []pkix.RevokedCertificate{
+				RevokedCertificateEntries: []RevocationListEntry{
 					{
 						SerialNumber:   big.NewInt(2),
 						RevocationTime: time.Time{}.Add(time.Hour),
@@ -2582,7 +2704,7 @@ func TestCreateRevocationList(t *testing.T) {
 				SubjectKeyId: []byte{1, 2, 3},
 			},
 			template: &RevocationList{
-				RevokedCertificates: []pkix.RevokedCertificate{
+				RevokedCertificateEntries: []RevocationListEntry{
 					{
 						SerialNumber:   big.NewInt(2),
 						RevocationTime: time.Time{}.Add(time.Hour),
@@ -2600,6 +2722,34 @@ func TestCreateRevocationList(t *testing.T) {
 			},
 		},
 		{
+			name: "valid, deprecated entries with extension",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				RevokedCertificates: []pkix.RevokedCertificate{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+						Extensions: []pkix.Extension{
+							{
+								Id:    []int{2, 5, 29, 99},
+								Value: []byte{5, 0},
+							},
+						},
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
 			name: "valid, empty list",
 			key:  ec256Priv,
 			issuer: &Certificate{
@@ -2609,6 +2759,16 @@ func TestCreateRevocationList(t *testing.T) {
 				},
 				SubjectKeyId: []byte{1, 2, 3},
 			},
+			template: &RevocationList{
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
+			name:   "valid CA with utf8 Subject fields including Email, empty list",
+			key:    utf8Key,
+			issuer: utf8CA,
 			template: &RevocationList{
 				Number:     big.NewInt(5),
 				ThisUpdate: time.Time{}.Add(time.Hour * 24),
@@ -2631,24 +2791,47 @@ func TestCreateRevocationList(t *testing.T) {
 				return
 			}
 
-			parsedCRL, err := ParseDERCRL(crl)
+			parsedCRL, err := ParseRevocationList(crl)
 			if err != nil {
 				t.Fatalf("Failed to parse generated CRL: %s", err)
 			}
 
 			if tc.template.SignatureAlgorithm != UnknownSignatureAlgorithm &&
-				parsedCRL.SignatureAlgorithm.Algorithm.Equal(signatureAlgorithmDetails[tc.template.SignatureAlgorithm].oid) {
+				parsedCRL.SignatureAlgorithm != tc.template.SignatureAlgorithm {
 				t.Fatalf("SignatureAlgorithm mismatch: got %v; want %v.", parsedCRL.SignatureAlgorithm,
 					tc.template.SignatureAlgorithm)
 			}
 
-			if !reflect.DeepEqual(parsedCRL.TBSCertList.RevokedCertificates, tc.template.RevokedCertificates) {
-				t.Fatalf("RevokedCertificates mismatch: got %v; want %v.",
-					parsedCRL.TBSCertList.RevokedCertificates, tc.template.RevokedCertificates)
+			if len(tc.template.RevokedCertificates) > 0 {
+				if !reflect.DeepEqual(parsedCRL.RevokedCertificates, tc.template.RevokedCertificates) {
+					t.Fatalf("RevokedCertificates mismatch: got %v; want %v.",
+						parsedCRL.RevokedCertificates, tc.template.RevokedCertificates)
+				}
+			} else {
+				if len(parsedCRL.RevokedCertificateEntries) != len(tc.template.RevokedCertificateEntries) {
+					t.Fatalf("RevokedCertificateEntries length mismatch: got %d; want %d.",
+						len(parsedCRL.RevokedCertificateEntries),
+						len(tc.template.RevokedCertificateEntries))
+				}
+				for i, rce := range parsedCRL.RevokedCertificateEntries {
+					expected := tc.template.RevokedCertificateEntries[i]
+					if rce.SerialNumber.Cmp(expected.SerialNumber) != 0 {
+						t.Fatalf("RevocationListEntry serial mismatch: got %d; want %d.",
+							rce.SerialNumber, expected.SerialNumber)
+					}
+					if !rce.RevocationTime.Equal(expected.RevocationTime) {
+						t.Fatalf("RevocationListEntry revocation time mismatch: got %v; want %v.",
+							rce.RevocationTime, expected.RevocationTime)
+					}
+					if rce.ReasonCode != expected.ReasonCode {
+						t.Fatalf("RevocationListEntry reason code mismatch: got %d; want %d.",
+							rce.ReasonCode, expected.ReasonCode)
+					}
+				}
 			}
 
-			if len(parsedCRL.TBSCertList.Extensions) != 2+len(tc.template.ExtraExtensions) {
-				t.Fatalf("Generated CRL has wrong number of extensions, wanted: %d, got: %d", 2+len(tc.template.ExtraExtensions), len(parsedCRL.TBSCertList.Extensions))
+			if len(parsedCRL.Extensions) != 2+len(tc.template.ExtraExtensions) {
+				t.Fatalf("Generated CRL has wrong number of extensions, wanted: %d, got: %d", 2+len(tc.template.ExtraExtensions), len(parsedCRL.Extensions))
 			}
 			expectedAKI, err := asn1.Marshal(authKeyId{Id: tc.issuer.SubjectKeyId})
 			if err != nil {
@@ -2658,9 +2841,9 @@ func TestCreateRevocationList(t *testing.T) {
 				Id:    oidExtensionAuthorityKeyId,
 				Value: expectedAKI,
 			}
-			if !reflect.DeepEqual(parsedCRL.TBSCertList.Extensions[0], akiExt) {
+			if !reflect.DeepEqual(parsedCRL.Extensions[0], akiExt) {
 				t.Fatalf("Unexpected first extension: got %v, want %v",
-					parsedCRL.TBSCertList.Extensions[0], akiExt)
+					parsedCRL.Extensions[0], akiExt)
 			}
 			expectedNum, err := asn1.Marshal(tc.template.Number)
 			if err != nil {
@@ -2670,18 +2853,58 @@ func TestCreateRevocationList(t *testing.T) {
 				Id:    oidExtensionCRLNumber,
 				Value: expectedNum,
 			}
-			if !reflect.DeepEqual(parsedCRL.TBSCertList.Extensions[1], crlExt) {
+			if !reflect.DeepEqual(parsedCRL.Extensions[1], crlExt) {
 				t.Fatalf("Unexpected second extension: got %v, want %v",
-					parsedCRL.TBSCertList.Extensions[1], crlExt)
+					parsedCRL.Extensions[1], crlExt)
 			}
-			if len(parsedCRL.TBSCertList.Extensions[2:]) == 0 && len(tc.template.ExtraExtensions) == 0 {
+
+			// With Go 1.19's updated RevocationList, we can now directly compare
+			// the RawSubject of the certificate to RawIssuer on the parsed CRL.
+			// However, this doesn't work with our hacked issuers above (that
+			// aren't parsed from a proper DER bundle but are instead manually
+			// constructed). Prefer RawSubject when it is set.
+			if len(tc.issuer.RawSubject) > 0 {
+				issuerSubj, err := subjectBytes(tc.issuer)
+				if err != nil {
+					t.Fatalf("failed to get issuer subject: %s", err)
+				}
+				if !bytes.Equal(issuerSubj, parsedCRL.RawIssuer) {
+					t.Fatalf("Unexpected issuer subject; wanted: %v, got: %v", hex.EncodeToString(issuerSubj), hex.EncodeToString(parsedCRL.RawIssuer))
+				}
+			} else {
+				// When we hack our custom Subject in the test cases above,
+				// we don't set the additional fields (such as Names) in the
+				// hacked issuer. Round-trip a parsing of pkix.Name so that
+				// we add these missing fields for the comparison.
+				issuerRDN := tc.issuer.Subject.ToRDNSequence()
+				var caIssuer pkix.Name
+				caIssuer.FillFromRDNSequence(&issuerRDN)
+				if !reflect.DeepEqual(caIssuer, parsedCRL.Issuer) {
+					t.Fatalf("Expected issuer.Subject, parsedCRL.Issuer to be the same; wanted: %#v, got: %#v", caIssuer, parsedCRL.Issuer)
+				}
+			}
+
+			if len(parsedCRL.Extensions[2:]) == 0 && len(tc.template.ExtraExtensions) == 0 {
 				// If we don't have anything to check return early so we don't
 				// hit a [] != nil false positive below.
 				return
 			}
-			if !reflect.DeepEqual(parsedCRL.TBSCertList.Extensions[2:], tc.template.ExtraExtensions) {
+			if !reflect.DeepEqual(parsedCRL.Extensions[2:], tc.template.ExtraExtensions) {
 				t.Fatalf("Extensions mismatch: got %v; want %v.",
-					parsedCRL.TBSCertList.Extensions[2:], tc.template.ExtraExtensions)
+					parsedCRL.Extensions[2:], tc.template.ExtraExtensions)
+			}
+
+			if tc.template.Number != nil && parsedCRL.Number == nil {
+				t.Fatalf("Generated CRL missing Number: got nil, want %s",
+					tc.template.Number.String())
+			}
+			if tc.template.Number != nil && tc.template.Number.Cmp(parsedCRL.Number) != 0 {
+				t.Fatalf("Generated CRL has wrong Number: got %s, want %s",
+					parsedCRL.Number.String(), tc.template.Number.String())
+			}
+			if !bytes.Equal(parsedCRL.AuthorityKeyId, expectedAKI) {
+				t.Fatalf("Generated CRL has wrong Number: got %x, want %x",
+					parsedCRL.AuthorityKeyId, expectedAKI)
 			}
 		})
 	}
@@ -2924,30 +3147,15 @@ func TestCreateCertificateBrokenSigner(t *testing.T) {
 }
 
 func TestCreateCertificateLegacy(t *testing.T) {
-	ecdsaPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatalf("Failed to generate ECDSA key: %s", err)
+	sigAlg := MD5WithRSA
+	template := &Certificate{
+		SerialNumber:       big.NewInt(10),
+		DNSNames:           []string{"example.com"},
+		SignatureAlgorithm: sigAlg,
 	}
-
-	for _, sigAlg := range []SignatureAlgorithm{
-		MD5WithRSA, SHA1WithRSA, ECDSAWithSHA1,
-	} {
-		template := &Certificate{
-			SerialNumber:       big.NewInt(10),
-			DNSNames:           []string{"example.com"},
-			SignatureAlgorithm: sigAlg,
-		}
-		var k crypto.Signer
-		switch sigAlg {
-		case MD5WithRSA, SHA1WithRSA:
-			k = testPrivateKey
-		case ECDSAWithSHA1:
-			k = ecdsaPriv
-		}
-		_, err := CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
-		if err != nil {
-			t.Fatalf("CreateCertificate failed when SignatureAlgorithm = %v: %s", sigAlg, err)
-		}
+	_, err := CreateCertificate(rand.Reader, template, template, testPrivateKey.Public(), &brokenSigner{testPrivateKey.Public()})
+	if err == nil {
+		t.Fatal("CreateCertificate didn't fail when SignatureAlgorithm = MD5WithRSA")
 	}
 }
 
@@ -3251,5 +3459,461 @@ func TestAuthKeyIdOptional(t *testing.T) {
 	_, err := ParseCertificate(b.Bytes)
 	if err != nil {
 		t.Fatalf("ParseCertificate to failed to parse certificate with optional authority key identifier fields: %s", err)
+	}
+}
+
+const largeOIDPEM = `
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            da:ba:53:19:1b:09:4b:82:b2:89:26:7d:c7:6f:a0:02
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: O = Acme Co
+        Validity
+            Not Before: Dec 21 16:59:27 2021 GMT
+            Not After : Dec 21 16:59:27 2022 GMT
+        Subject: O = Acme Co
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                RSA Public-Key: (2048 bit)
+                Modulus:
+                    00:bf:17:16:d8:bc:29:9c:16:e5:76:b4:93:15:78:
+                    ad:6e:45:c5:4a:63:46:a1:b2:76:71:65:51:9c:14:
+                    c4:ea:74:13:e4:34:df:2f:2c:65:11:e8:56:52:69:
+                    11:f9:0e:fc:77:bb:63:a8:7c:1a:c6:a1:7b:6e:6c:
+                    e7:18:25:25:c9:e8:fb:06:7f:a2:a9:98:fe:2a:bc:
+                    8a:b3:75:b6:b8:7d:b6:c9:6b:29:08:32:22:10:cb:
+                    8d:d6:60:c8:83:ad:f5:58:91:d6:11:e8:55:56:fb:
+                    8f:a3:a2:9f:48:cb:79:e4:65:4a:8c:a6:52:64:9f:
+                    99:38:35:d4:d5:ac:6f:cf:a0:cb:42:8c:07:eb:21:
+                    17:31:3a:eb:91:7b:62:43:a4:75:5f:ef:a7:2f:94:
+                    f8:69:0b:d4:ec:09:e6:00:c0:8c:dd:07:63:0b:e4:
+                    77:aa:60:18:3c:a0:e0:ae:0a:ea:0e:52:3b:b4:fa:
+                    6a:30:1b:50:62:21:73:53:33:01:60:a1:6b:99:58:
+                    00:f3:77:c6:0f:46:19:ca:c2:5d:cd:f5:e2:52:4d:
+                    84:94:23:d3:32:2f:ae:5f:da:43:a1:19:95:d2:17:
+                    dd:49:14:b4:d9:48:1c:08:13:93:8e:d5:09:43:21:
+                    b6:ce:52:e8:87:bb:d2:60:0d:c6:4e:bf:c5:93:6a:
+                    c6:bf
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Server Authentication
+            X509v3 Basic Constraints: critical
+                CA:FALSE
+            X509v3 Subject Alternative Name:
+                DNS:longOID.example
+            X509v3 Certificate Policies:
+                Policy: 1.3.6.1.4.1.311.21.8.1492336001
+
+    Signature Algorithm: sha256WithRSAEncryption
+         72:77:8b:de:48:fb:6d:9a:94:b1:be:d4:90:7d:4c:e6:d3:79:
+         fa:fb:fc:3e:d5:3d:e9:a0:ce:28:2b:2f:94:77:3f:87:f8:9c:
+         9f:91:1c:f3:f6:58:91:15:6b:24:b9:ca:ae:9f:ee:ca:c8:31:
+         db:1a:3d:bb:6b:83:6d:bc:81:8b:a1:79:d5:3e:bb:dd:93:fe:
+         35:3e:b7:99:e0:d6:eb:58:0c:fd:42:73:dc:49:da:e2:b7:ae:
+         15:ee:e6:cc:aa:ef:91:41:9a:18:46:8d:4a:39:65:a2:85:3c:
+         7f:0c:41:f8:0b:9c:e8:1f:35:36:60:8d:8c:e0:8e:18:b1:06:
+         57:d0:4e:c4:c3:cd:8f:6f:e7:76:02:52:da:03:43:61:2b:b3:
+         bf:19:fd:73:0d:6a:0b:b4:b6:cb:a9:6f:70:4e:53:2a:54:07:
+         b3:74:fd:85:49:57:5b:23:8d:8c:6b:53:2b:09:e8:41:a5:80:
+         3f:69:1b:11:d1:6b:13:35:2e:f9:d6:50:15:d9:91:38:42:43:
+         e9:17:af:67:d9:96:a4:d1:6a:4f:cc:b4:a7:8e:48:1f:00:72:
+         69:de:4d:f1:73:a4:47:12:67:e9:f9:07:3e:79:75:90:42:b8:
+         d4:b5:fd:d1:7e:35:04:f7:00:04:cf:f1:36:be:0f:27:81:1f:
+         a6:ba:88:6c
+-----BEGIN CERTIFICATE-----
+MIIDHTCCAgWgAwIBAgIRANq6UxkbCUuCsokmfcdvoAIwDQYJKoZIhvcNAQELBQAw
+EjEQMA4GA1UEChMHQWNtZSBDbzAeFw0yMTEyMjExNjU5MjdaFw0yMjEyMjExNjU5
+MjdaMBIxEDAOBgNVBAoTB0FjbWUgQ28wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
+ggEKAoIBAQC/FxbYvCmcFuV2tJMVeK1uRcVKY0ahsnZxZVGcFMTqdBPkNN8vLGUR
+6FZSaRH5Dvx3u2OofBrGoXtubOcYJSXJ6PsGf6KpmP4qvIqzdba4fbbJaykIMiIQ
+y43WYMiDrfVYkdYR6FVW+4+jop9Iy3nkZUqMplJkn5k4NdTVrG/PoMtCjAfrIRcx
+OuuRe2JDpHVf76cvlPhpC9TsCeYAwIzdB2ML5HeqYBg8oOCuCuoOUju0+mowG1Bi
+IXNTMwFgoWuZWADzd8YPRhnKwl3N9eJSTYSUI9MyL65f2kOhGZXSF91JFLTZSBwI
+E5OO1QlDIbbOUuiHu9JgDcZOv8WTasa/AgMBAAGjbjBsMA4GA1UdDwEB/wQEAwIF
+oDATBgNVHSUEDDAKBggrBgEFBQcDATAMBgNVHRMBAf8EAjAAMBoGA1UdEQQTMBGC
+D2xvbmdPSUQuZXhhbXBsZTAbBgNVHSAEFDASMBAGDisGAQQBgjcVCIXHzPsBMA0G
+CSqGSIb3DQEBCwUAA4IBAQByd4veSPttmpSxvtSQfUzm03n6+/w+1T3poM4oKy+U
+dz+H+JyfkRzz9liRFWskucqun+7KyDHbGj27a4NtvIGLoXnVPrvdk/41PreZ4Nbr
+WAz9QnPcSdrit64V7ubMqu+RQZoYRo1KOWWihTx/DEH4C5zoHzU2YI2M4I4YsQZX
+0E7Ew82Pb+d2AlLaA0NhK7O/Gf1zDWoLtLbLqW9wTlMqVAezdP2FSVdbI42Ma1Mr
+CehBpYA/aRsR0WsTNS751lAV2ZE4QkPpF69n2Zak0WpPzLSnjkgfAHJp3k3xc6RH
+Emfp+Qc+eXWQQrjUtf3RfjUE9wAEz/E2vg8ngR+muohs
+-----END CERTIFICATE-----`
+
+func TestLargeOID(t *testing.T) {
+	// See Issue 49678.
+	b, _ := pem.Decode([]byte(largeOIDPEM))
+	if b == nil {
+		t.Fatalf("couldn't decode test certificate")
+	}
+	_, err := ParseCertificate(b.Bytes)
+	if err != nil {
+		t.Fatalf("ParseCertificate to failed to parse certificate with large OID: %s", err)
+	}
+}
+
+const uniqueIDPEM = `-----BEGIN CERTIFICATE-----
+MIIFsDCCBJigAwIBAgIIrOyC1ydafZMwDQYJKoZIhvcNAQEFBQAwgY4xgYswgYgG
+A1UEAx6BgABNAGkAYwByAG8AcwBvAGYAdAAgAEYAbwByAGUAZgByAG8AbgB0ACAA
+VABNAEcAIABIAFQAVABQAFMAIABJAG4AcwBwAGUAYwB0AGkAbwBuACAAQwBlAHIA
+dABpAGYAaQBjAGEAdABpAG8AbgAgAEEAdQB0AGgAbwByAGkAdAB5MB4XDTE0MDEx
+ODAwNDEwMFoXDTE1MTExNTA5Mzc1NlowgZYxCzAJBgNVBAYTAklEMRAwDgYDVQQI
+EwdqYWthcnRhMRIwEAYDVQQHEwlJbmRvbmVzaWExHDAaBgNVBAoTE3N0aG9ub3Jl
+aG90ZWxyZXNvcnQxHDAaBgNVBAsTE3N0aG9ub3JlaG90ZWxyZXNvcnQxJTAjBgNV
+BAMTHG1haWwuc3Rob25vcmVob3RlbHJlc29ydC5jb20wggEiMA0GCSqGSIb3DQEB
+AQUAA4IBDwAwggEKAoIBAQCvuu0qpI+Ko2X84Twkf84cRD/rgp6vpgc5Ebejx/D4
+PEVON5edZkazrMGocK/oQqIlRxx/lefponN/chlGcllcVVPWTuFjs8k+Aat6T1qp
+4iXxZekAqX+U4XZMIGJD3PckPL6G2RQSlF7/LhGCsRNRdKpMWSTbou2Ma39g52Kf
+gsl3SK/GwLiWpxpcSkNQD1hugguEIsQYLxbeNwpcheXZtxbBGguPzQ7rH8c5vuKU
+BkMOzaiNKLzHbBdFSrua8KWwCJg76Vdq/q36O9GlW6YgG3i+A4pCJjXWerI1lWwX
+Ktk5V+SvUHGey1bkDuZKJ6myMk2pGrrPWCT7jP7WskChAgMBAAGBCQBCr1dgEleo
+cKOCAfswggH3MIHDBgNVHREEgbswgbiCHG1haWwuc3Rob25vcmVob3RlbHJlc29y
+dC5jb22CIGFzaGNoc3ZyLnN0aG9ub3JlaG90ZWxyZXNvcnQuY29tgiRBdXRvRGlz
+Y292ZXIuc3Rob25vcmVob3RlbHJlc29ydC5jb22CHEF1dG9EaXNjb3Zlci5ob3Rl
+bHJlc29ydC5jb22CCEFTSENIU1ZSghdzdGhvbm9yZWhvdGVscmVzb3J0LmNvbYIP
+aG90ZWxyZXNvcnQuY29tMCEGCSsGAQQBgjcUAgQUHhIAVwBlAGIAUwBlAHIAdgBl
+AHIwHQYDVR0OBBYEFMAC3UR4FwAdGekbhMgnd6lMejtbMAsGA1UdDwQEAwIFoDAT
+BgNVHSUEDDAKBggrBgEFBQcDATAJBgNVHRMEAjAAMIG/BgNVHQEEgbcwgbSAFGfF
+6xihk+gJJ5TfwvtWe1UFnHLQoYGRMIGOMYGLMIGIBgNVBAMegYAATQBpAGMAcgBv
+AHMAbwBmAHQAIABGAG8AcgBlAGYAcgBvAG4AdAAgAFQATQBHACAASABUAFQAUABT
+ACAASQBuAHMAcABlAGMAdABpAG8AbgAgAEMAZQByAHQAaQBmAGkAYwBhAHQAaQBv
+AG4AIABBAHUAdABoAG8AcgBpAHQAeYIIcKhXEmBXr0IwDQYJKoZIhvcNAQEFBQAD
+ggEBABlSxyCMr3+ANr+WmPSjyN5YCJBgnS0IFCwJAzIYP87bcTye/U8eQ2+E6PqG
+Q7Huj7nfHEw9qnGo+HNyPp1ad3KORzXDb54c6xEoi+DeuPzYHPbn4c3hlH49I0aQ
+eWW2w4RslSWpLvO6Y7Lboyz2/Thk/s2kd4RHxkkWpH2ltPqJuYYg3X6oM5+gIFHJ
+WGnh+ojZ5clKvS5yXh3Wkj78M6sb32KfcBk0Hx6NkCYPt60ODYmWtvqwtw6r73u5
+TnTYWRNvo2svX69TriL+CkHY9O1Hkwf2It5zHl3gNiKTJVaak8AuEz/CKWZneovt
+yYLwhUhg3PX5Co1VKYE+9TxloiE=
+-----END CERTIFICATE-----`
+
+func TestParseUniqueID(t *testing.T) {
+	b, _ := pem.Decode([]byte(uniqueIDPEM))
+	if b == nil {
+		t.Fatalf("couldn't decode test certificate")
+	}
+	cert, err := ParseCertificate(b.Bytes)
+	if err != nil {
+		t.Fatalf("ParseCertificate to failed to parse certificate with unique identifier id: %s", err)
+	}
+	if len(cert.Extensions) != 7 {
+		t.Fatalf("unexpected number of extensions (probably because the extension section was not parsed): got %d, want 7", len(cert.Extensions))
+	}
+}
+
+func TestDisableSHA1ForCertOnly(t *testing.T) {
+	t.Setenv("GODEBUG", "")
+
+	tmpl := &Certificate{
+		SerialNumber:          big.NewInt(1),
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		SignatureAlgorithm:    SHA1WithRSA,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		KeyUsage:              KeyUsageCertSign | KeyUsageCRLSign,
+	}
+	certDER, err := CreateCertificate(rand.Reader, tmpl, tmpl, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err != nil {
+		t.Fatalf("failed to generate test cert: %s", err)
+	}
+	cert, err := ParseCertificate(certDER)
+	if err != nil {
+		t.Fatalf("failed to parse test cert: %s", err)
+	}
+
+	err = cert.CheckSignatureFrom(cert)
+	if err == nil {
+		t.Error("expected CheckSignatureFrom to fail")
+	} else if _, ok := err.(InsecureAlgorithmError); !ok {
+		t.Errorf("expected InsecureAlgorithmError error, got %T", err)
+	}
+
+	crlDER, err := CreateRevocationList(rand.Reader, &RevocationList{
+		SignatureAlgorithm: SHA1WithRSA,
+		Number:             big.NewInt(1),
+		ThisUpdate:         time.Now().Add(-time.Hour),
+		NextUpdate:         time.Now().Add(time.Hour),
+	}, cert, rsaPrivateKey)
+	if err != nil {
+		t.Fatalf("failed to generate test CRL: %s", err)
+	}
+	crl, err := ParseRevocationList(crlDER)
+	if err != nil {
+		t.Fatalf("failed to parse test CRL: %s", err)
+	}
+
+	if err = crl.CheckSignatureFrom(cert); err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	// This is an unrelated OCSP response, which will fail signature verification
+	// but shouldn't return an InsecureAlgorithmError, since SHA1 should be allowed
+	// for OCSP.
+	ocspTBSHex := "30819fa2160414884451ff502a695e2d88f421bad90cf2cecbea7c180f32303133303631383037323434335a30743072304a300906052b0e03021a0500041448b60d38238df8456e4ee5843ea394111802979f0414884451ff502a695e2d88f421bad90cf2cecbea7c021100f78b13b946fc9635d8ab49de9d2148218000180f32303133303631383037323434335aa011180f32303133303632323037323434335a"
+	ocspTBS, err := hex.DecodeString(ocspTBSHex)
+	if err != nil {
+		t.Fatalf("failed to decode OCSP response TBS hex: %s", err)
+	}
+
+	err = cert.CheckSignature(SHA1WithRSA, ocspTBS, nil)
+	if err != rsa.ErrVerification {
+		t.Errorf("unexpected error: %s", err)
+	}
+}
+
+func TestParseRevocationList(t *testing.T) {
+	derBytes := fromBase64(derCRLBase64)
+	certList, err := ParseRevocationList(derBytes)
+	if err != nil {
+		t.Errorf("error parsing: %s", err)
+		return
+	}
+	numCerts := len(certList.RevokedCertificateEntries)
+	numCertsDeprecated := len(certList.RevokedCertificateEntries)
+	expected := 88
+	if numCerts != expected || numCertsDeprecated != expected {
+		t.Errorf("bad number of revoked certificates. got: %d want: %d", numCerts, expected)
+	}
+}
+
+func TestRevocationListCheckSignatureFrom(t *testing.T) {
+	goodKey, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+	badKey, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate test key: %s", err)
+	}
+	tests := []struct {
+		name   string
+		issuer *Certificate
+		err    string
+	}{
+		{
+			name: "valid",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    ECDSA,
+				PublicKey:             goodKey.Public(),
+			},
+		},
+		{
+			name: "valid, key usage set",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    ECDSA,
+				PublicKey:             goodKey.Public(),
+				KeyUsage:              KeyUsageCRLSign,
+			},
+		},
+		{
+			name: "invalid issuer, wrong key usage",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    ECDSA,
+				PublicKey:             goodKey.Public(),
+				KeyUsage:              KeyUsageCertSign,
+			},
+			err: "x509: invalid signature: parent certificate cannot sign this kind of certificate",
+		},
+		{
+			name: "invalid issuer, no basic constraints/ca",
+			issuer: &Certificate{
+				Version:            3,
+				PublicKeyAlgorithm: ECDSA,
+				PublicKey:          goodKey.Public(),
+			},
+			err: "x509: invalid signature: parent certificate cannot sign this kind of certificate",
+		},
+		{
+			name: "invalid issuer, unsupported public key type",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    UnknownPublicKeyAlgorithm,
+				PublicKey:             goodKey.Public(),
+			},
+			err: "x509: cannot verify signature: algorithm unimplemented",
+		},
+		{
+			name: "wrong key",
+			issuer: &Certificate{
+				Version:               3,
+				BasicConstraintsValid: true,
+				IsCA:                  true,
+				PublicKeyAlgorithm:    ECDSA,
+				PublicKey:             badKey.Public(),
+			},
+			err: "x509: ECDSA verification failure",
+		},
+	}
+
+	crlIssuer := &Certificate{
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		PublicKeyAlgorithm:    ECDSA,
+		PublicKey:             goodKey.Public(),
+		KeyUsage:              KeyUsageCRLSign,
+		SubjectKeyId:          []byte{1, 2, 3},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			crlDER, err := CreateRevocationList(rand.Reader, &RevocationList{Number: big.NewInt(1)}, crlIssuer, goodKey)
+			if err != nil {
+				t.Fatalf("failed to generate CRL: %s", err)
+			}
+			crl, err := ParseRevocationList(crlDER)
+			if err != nil {
+				t.Fatalf("failed to parse test CRL: %s", err)
+			}
+			err = crl.CheckSignatureFrom(tc.issuer)
+			if err != nil && err.Error() != tc.err {
+				t.Errorf("unexpected error: got %s, want %s", err, tc.err)
+			} else if err == nil && tc.err != "" {
+				t.Errorf("CheckSignatureFrom did not fail: want %s", tc.err)
+			}
+		})
+	}
+}
+
+func TestOmitEmptyExtensions(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: ":)",
+		},
+		NotAfter:  time.Now().Add(time.Hour),
+		NotBefore: time.Now().Add(-time.Hour),
+	}
+	der, err := CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	emptyExtSeq := []byte{0xA3, 0x02, 0x30, 0x00}
+	if bytes.Contains(der, emptyExtSeq) {
+		t.Error("DER encoding contains the an empty extensions SEQUENCE")
+	}
+}
+
+var negativeSerialCert = `-----BEGIN CERTIFICATE-----
+MIIBBTCBraADAgECAgH/MAoGCCqGSM49BAMCMA0xCzAJBgNVBAMTAjopMB4XDTIy
+MDQxNDIzNTYwNFoXDTIyMDQxNTAxNTYwNFowDTELMAkGA1UEAxMCOikwWTATBgcq
+hkjOPQIBBggqhkjOPQMBBwNCAAQ9ezsIsj+q17K87z/PXE/rfGRN72P/Wyn5d6oo
+5M0ZbSatuntMvfKdX79CQxXAxN4oXk3Aov4jVSG12AcDI8ShMAoGCCqGSM49BAMC
+A0cAMEQCIBzfBU5eMPT6m5lsR6cXaJILpAaiD9YxOl4v6dT3rzEjAiBHmjnHmAss
+RqUAyJKFzqZxOlK2q4j2IYnuj5+LrLGbQA==
+-----END CERTIFICATE-----`
+
+func TestParseNegativeSerial(t *testing.T) {
+	pemBlock, _ := pem.Decode([]byte(negativeSerialCert))
+	_, err := ParseCertificate(pemBlock.Bytes)
+	if err != nil {
+		t.Fatalf("failed to parse certificate: %s", err)
+	}
+}
+
+func TestCreateNegativeSerial(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &Certificate{
+		SerialNumber: big.NewInt(-1),
+		Subject: pkix.Name{
+			CommonName: ":)",
+		},
+		NotAfter:  time.Now().Add(time.Hour),
+		NotBefore: time.Now().Add(-time.Hour),
+	}
+	expectedErr := "x509: serial number must be positive"
+	_, err = CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err == nil || err.Error() != expectedErr {
+		t.Errorf("CreateCertificate returned unexpected error: want %q, got %q", expectedErr, err)
+	}
+}
+
+const dupExtCert = `-----BEGIN CERTIFICATE-----
+MIIBrjCCARegAwIBAgIBATANBgkqhkiG9w0BAQsFADAPMQ0wCwYDVQQDEwR0ZXN0
+MCIYDzAwMDEwMTAxMDAwMDAwWhgPMDAwMTAxMDEwMDAwMDBaMA8xDTALBgNVBAMT
+BHRlc3QwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAMiFchnHms9l9NninAIz
+SkY9acwl9Bk2AtmJrNCenFpiA17AcOO5q8DJYwdXi6WPKlVgcyH+ysW8XMWkq+CP
+yhtF/+LMzl9odaUF2iUy3vgTC5gxGLWH5URVssx21Und2Pm2f4xyou5IVxbS9dxy
+jLvV9PEY9BIb0H+zFthjhihDAgMBAAGjFjAUMAgGAioDBAIFADAIBgIqAwQCBQAw
+DQYJKoZIhvcNAQELBQADgYEAlhQ4TQQKIQ8GUyzGiN/75TCtQtjhMGemxc0cNgre
+d9rmm4DjydH0t7/sMCB56lQrfhJNplguzsbjFW4l245KbNKHfLiqwEGUgZjBNKur
+ot6qX/skahLtt0CNOaFIge75HVKe/69OrWQGdp18dkay/KS4Glu8YMKIjOhfrUi1
+NZA=
+-----END CERTIFICATE-----`
+
+func TestDuplicateExtensionsCert(t *testing.T) {
+	b, _ := pem.Decode([]byte(dupExtCert))
+	if b == nil {
+		t.Fatalf("couldn't decode test certificate")
+	}
+	_, err := ParseCertificate(b.Bytes)
+	if err == nil {
+		t.Fatal("ParseCertificate should fail when parsing certificate with duplicate extensions")
+	}
+}
+
+const dupExtCSR = `-----BEGIN CERTIFICATE REQUEST-----
+MIIBczCB3QIBADAPMQ0wCwYDVQQDEwR0ZXN0MIGfMA0GCSqGSIb3DQEBAQUAA4GN
+ADCBiQKBgQC5PbxMGVJ8aLF9lq/EvGObXTRMB7ieiZL9N+DJZg1n/ECCnZLIvYrr
+ZmmDV7YZsClgxKGfjJB0RQFFyZElFM9EfHEs8NJdidDKCRdIhDXQWRyhXKevHvdm
+CQNKzUeoxvdHpU/uscSkw6BgUzPyLyTx9A6ye2ix94z8Y9hGOBO2DQIDAQABoCUw
+IwYJKoZIhvcNAQkOMRYwFDAIBgIqAwQCBQAwCAYCKgMEAgUAMA0GCSqGSIb3DQEB
+CwUAA4GBAHROEsE7URk1knXmBnQtIHwoq663vlMcX3Hes58pUy020rWP8QkocA+X
+VF18/phg3p5ILlS4fcbbP2bEeV0pePo2k00FDPsJEKCBAX2LKxbU7Vp2OuV2HM2+
+VLOVx0i+/Q7fikp3hbN1JwuMTU0v2KL/IKoUcZc02+5xiYrnOIt5
+-----END CERTIFICATE REQUEST-----`
+
+func TestDuplicateExtensionsCSR(t *testing.T) {
+	b, _ := pem.Decode([]byte(dupExtCSR))
+	if b == nil {
+		t.Fatalf("couldn't decode test CSR")
+	}
+	_, err := ParseCertificateRequest(b.Bytes)
+	if err == nil {
+		t.Fatal("ParseCertificateRequest should fail when parsing CSR with duplicate extensions")
+	}
+}
+
+const dupAttCSR = `-----BEGIN CERTIFICATE REQUEST-----
+MIIBbDCB1gIBADAPMQ0wCwYDVQQDEwR0ZXN0MIGfMA0GCSqGSIb3DQEBAQUAA4GN
+ADCBiQKBgQCj5Po3PKO/JNuxr+B+WNfMIzqqYztdlv+mTQhT0jOR5rTkUvxeeHH8
+YclryES2dOISjaUOTmOAr5GQIIdQl4Ql33Cp7ZR/VWcRn+qvTak0Yow+xVsDo0n4
+7IcvvP6CJ7FRoYBUakVczeXLxCjLwdyK16VGJM06eRzDLykPxpPwLQIDAQABoB4w
+DQYCKgMxBwwFdGVzdDEwDQYCKgMxBwwFdGVzdDIwDQYJKoZIhvcNAQELBQADgYEA
+UJ8hsHxtnIeqb2ufHnQFJO+wEJhx2Uxm/BTuzHOeffuQkwATez4skZ7SlX9exgb7
+6jRMRilqb4F7f8w+uDoqxRrA9zc8mwY16zPsyBhRet+ZGbj/ilgvGmtZ21qZZ/FU
+0pJFJIVLM3l49Onr5uIt5+hCWKwHlgE0nGpjKLR3cMg=
+-----END CERTIFICATE REQUEST-----`
+
+func TestDuplicateAttributesCSR(t *testing.T) {
+	b, _ := pem.Decode([]byte(dupAttCSR))
+	if b == nil {
+		t.Fatalf("couldn't decode test CSR")
+	}
+	_, err := ParseCertificateRequest(b.Bytes)
+	if err != nil {
+		t.Fatal("ParseCertificateRequest should succeed when parsing CSR with duplicate attributes")
 	}
 }

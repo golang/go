@@ -404,7 +404,7 @@ field"`,
 }}
 
 func TestRead(t *testing.T) {
-	newReader := func(tt readTest) (*Reader, [][][2]int, map[int][2]int) {
+	newReader := func(tt readTest) (*Reader, [][][2]int, map[int][2]int, string) {
 		positions, errPositions, input := makePositions(tt.Input)
 		r := NewReader(strings.NewReader(input))
 
@@ -420,12 +420,12 @@ func TestRead(t *testing.T) {
 		r.LazyQuotes = tt.LazyQuotes
 		r.TrimLeadingSpace = tt.TrimLeadingSpace
 		r.ReuseRecord = tt.ReuseRecord
-		return r, positions, errPositions
+		return r, positions, errPositions, input
 	}
 
 	for _, tt := range readTests {
 		t.Run(tt.Name, func(t *testing.T) {
-			r, positions, errPositions := newReader(tt)
+			r, positions, errPositions, input := newReader(tt)
 			out, err := r.ReadAll()
 			if wantErr := firstError(tt.Errors, positions, errPositions); wantErr != nil {
 				if !reflect.DeepEqual(err, wantErr) {
@@ -443,8 +443,15 @@ func TestRead(t *testing.T) {
 				}
 			}
 
+			// Check input offset after call ReadAll()
+			inputByteSize := len(input)
+			inputOffset := r.InputOffset()
+			if err == nil && int64(inputByteSize) != inputOffset {
+				t.Errorf("wrong input offset after call ReadAll():\ngot:  %d\nwant: %d\ninput: %s", inputOffset, inputByteSize, input)
+			}
+
 			// Check field and error positions.
-			r, _, _ = newReader(tt)
+			r, _, _, _ = newReader(tt)
 			for recNum := 0; ; recNum++ {
 				rec, err := r.Read()
 				var wantErr error

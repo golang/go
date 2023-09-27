@@ -5,7 +5,9 @@
 package time_test
 
 import (
+	"bytes"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"testing"
@@ -88,6 +90,51 @@ func TestRFC3339Conversion(t *testing.T) {
 	}
 }
 
+func TestAppendInt(t *testing.T) {
+	tests := []struct {
+		in    int
+		width int
+		want  string
+	}{
+		{0, 0, "0"},
+		{0, 1, "0"},
+		{0, 2, "00"},
+		{0, 3, "000"},
+		{1, 0, "1"},
+		{1, 1, "1"},
+		{1, 2, "01"},
+		{1, 3, "001"},
+		{-1, 0, "-1"},
+		{-1, 1, "-1"},
+		{-1, 2, "-01"},
+		{-1, 3, "-001"},
+		{99, 2, "99"},
+		{100, 2, "100"},
+		{1, 4, "0001"},
+		{12, 4, "0012"},
+		{123, 4, "0123"},
+		{1234, 4, "1234"},
+		{12345, 4, "12345"},
+		{1, 5, "00001"},
+		{12, 5, "00012"},
+		{123, 5, "00123"},
+		{1234, 5, "01234"},
+		{12345, 5, "12345"},
+		{123456, 5, "123456"},
+		{0, 9, "000000000"},
+		{123, 9, "000000123"},
+		{123456, 9, "000123456"},
+		{123456789, 9, "123456789"},
+	}
+	var got []byte
+	for _, tt := range tests {
+		got = AppendInt(got[:0], tt.in, tt.width)
+		if string(got) != tt.want {
+			t.Errorf("appendInt(%d, %d) = %s, want %s", tt.in, tt.width, got, tt.want)
+		}
+	}
+}
+
 type FormatTest struct {
 	name   string
 	format string
@@ -115,7 +162,17 @@ var formatTests = []FormatTest{
 	{"StampMilli", StampMilli, "Feb  4 21:00:57.012"},
 	{"StampMicro", StampMicro, "Feb  4 21:00:57.012345"},
 	{"StampNano", StampNano, "Feb  4 21:00:57.012345600"},
+	{"DateTime", DateTime, "2009-02-04 21:00:57"},
+	{"DateOnly", DateOnly, "2009-02-04"},
+	{"TimeOnly", TimeOnly, "21:00:57"},
 	{"YearDay", "Jan  2 002 __2 2", "Feb  4 035  35 4"},
+	{"Year", "2006 6 06 _6 __6 ___6", "2009 6 09 _6 __6 ___6"},
+	{"Month", "Jan January 1 01 _1", "Feb February 2 02 _2"},
+	{"DayOfMonth", "2 02 _2 __2", "4 04  4  35"},
+	{"DayOfWeek", "Mon Monday", "Wed Wednesday"},
+	{"Hour", "15 3 03 _3", "21 9 09 _9"},
+	{"Minute", "4 04 _4", "0 00 _0"},
+	{"Second", "5 05 _5", "57 57 _57"},
 }
 
 func TestFormat(t *testing.T) {
@@ -408,8 +465,8 @@ func TestParseInLocation(t *testing.T) {
 }
 
 func TestLoadLocationZipFile(t *testing.T) {
-	ForceZipFileForTesting(true)
-	defer ForceZipFileForTesting(false)
+	undo := DisablePlatformSources()
+	defer undo()
 
 	_, err := LoadLocation("Australia/Sydney")
 	if err != nil {
@@ -563,13 +620,13 @@ type ParseErrorTest struct {
 }
 
 var parseErrorTests = []ParseErrorTest{
-	{ANSIC, "Feb  4 21:00:60 2010", "cannot parse"}, // cannot parse Feb as Mon
-	{ANSIC, "Thu Feb  4 21:00:57 @2010", "cannot parse"},
+	{ANSIC, "Feb  4 21:00:60 2010", `cannot parse "Feb  4 21:00:60 2010" as "Mon"`},
+	{ANSIC, "Thu Feb  4 21:00:57 @2010", `cannot parse "@2010" as "2006"`},
 	{ANSIC, "Thu Feb  4 21:00:60 2010", "second out of range"},
 	{ANSIC, "Thu Feb  4 21:61:57 2010", "minute out of range"},
 	{ANSIC, "Thu Feb  4 24:00:60 2010", "hour out of range"},
-	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59x01 2010", "cannot parse"},
-	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59.xxx 2010", "cannot parse"},
+	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59x01 2010", `cannot parse "x01 2010" as ".000"`},
+	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59.xxx 2010", `cannot parse ".xxx 2010" as ".000"`},
 	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59.-123 2010", "fractional second out of range"},
 	// issue 4502. StampNano requires exactly 9 digits of precision.
 	{StampNano, "Dec  7 11:22:01.000000", `cannot parse ".000000" as ".000000000"`},
@@ -581,9 +638,11 @@ var parseErrorTests = []ParseErrorTest{
 	{RFC3339, "2006-01-02T15:04:05Z_abc", `parsing time "2006-01-02T15:04:05Z_abc": extra text: "_abc"`},
 	// invalid second followed by optional fractional seconds
 	{RFC3339, "2010-02-04T21:00:67.012345678-08:00", "second out of range"},
+	// issue 54569
+	{RFC3339, "0000-01-01T00:00:.0+00:00", `parsing time "0000-01-01T00:00:.0+00:00" as "2006-01-02T15:04:05Z07:00": cannot parse ".0+00:00" as "05"`},
 	// issue 21113
-	{"_2 Jan 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
-	{"_2 January 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
+	{"_2 Jan 06 15:04 MST", "4 --- 00 00:00 GMT", `cannot parse "--- 00 00:00 GMT" as "Jan"`},
+	{"_2 January 06 15:04 MST", "4 --- 00 00:00 GMT", `cannot parse "--- 00 00:00 GMT" as "January"`},
 
 	// invalid or mismatched day-of-year
 	{"Jan _2 002 2006", "Feb  4 034 2006", "day-of-year does not match day"},
@@ -592,6 +651,16 @@ var parseErrorTests = []ParseErrorTest{
 	// issue 45391.
 	{`"2006-01-02T15:04:05Z07:00"`, "0", `parsing time "0" as "\"2006-01-02T15:04:05Z07:00\"": cannot parse "0" as "\""`},
 	{RFC3339, "\"", `parsing time "\"" as "2006-01-02T15:04:05Z07:00": cannot parse "\"" as "2006"`},
+
+	// issue 54570
+	{RFC3339, "0000-01-01T00:00:00+00:+0", `parsing time "0000-01-01T00:00:00+00:+0" as "2006-01-02T15:04:05Z07:00": cannot parse "+00:+0" as "Z07:00"`},
+	{RFC3339, "0000-01-01T00:00:00+-0:00", `parsing time "0000-01-01T00:00:00+-0:00" as "2006-01-02T15:04:05Z07:00": cannot parse "+-0:00" as "Z07:00"`},
+
+	// issue 56730
+	{"2006-01-02", "22-10-25", `parsing time "22-10-25" as "2006-01-02": cannot parse "22-10-25" as "2006"`},
+	{"06-01-02", "a2-10-25", `parsing time "a2-10-25" as "06-01-02": cannot parse "a2-10-25" as "06"`},
+	{"03:04PM", "12:03pM", `parsing time "12:03pM" as "03:04PM": cannot parse "pM" as "PM"`},
+	{"03:04pm", "12:03pM", `parsing time "12:03pM" as "03:04pm": cannot parse "pM" as "pm"`},
 }
 
 func TestParseErrors(t *testing.T) {
@@ -853,43 +922,145 @@ func TestFormatFractionalSecondSeparators(t *testing.T) {
 	}
 }
 
-// Issue 48685
+var longFractionalDigitsTests = []struct {
+	value string
+	want  int
+}{
+	// 9 digits
+	{"2021-09-29T16:04:33.000000000Z", 0},
+	{"2021-09-29T16:04:33.000000001Z", 1},
+	{"2021-09-29T16:04:33.100000000Z", 100_000_000},
+	{"2021-09-29T16:04:33.100000001Z", 100_000_001},
+	{"2021-09-29T16:04:33.999999999Z", 999_999_999},
+	{"2021-09-29T16:04:33.012345678Z", 12_345_678},
+	// 10 digits, truncates
+	{"2021-09-29T16:04:33.0000000000Z", 0},
+	{"2021-09-29T16:04:33.0000000001Z", 0},
+	{"2021-09-29T16:04:33.1000000000Z", 100_000_000},
+	{"2021-09-29T16:04:33.1000000009Z", 100_000_000},
+	{"2021-09-29T16:04:33.9999999999Z", 999_999_999},
+	{"2021-09-29T16:04:33.0123456789Z", 12_345_678},
+	// 11 digits, truncates
+	{"2021-09-29T16:04:33.10000000000Z", 100_000_000},
+	{"2021-09-29T16:04:33.00123456789Z", 1_234_567},
+	// 12 digits, truncates
+	{"2021-09-29T16:04:33.000123456789Z", 123_456},
+	// 15 digits, truncates
+	{"2021-09-29T16:04:33.9999999999999999Z", 999_999_999},
+}
+
+// Issue 48685 and 54567.
 func TestParseFractionalSecondsLongerThanNineDigits(t *testing.T) {
-	tests := []struct {
-		s    string
-		want int
-	}{
-		// 9 digits
-		{"2021-09-29T16:04:33.000000000Z", 0},
-		{"2021-09-29T16:04:33.000000001Z", 1},
-		{"2021-09-29T16:04:33.100000000Z", 100_000_000},
-		{"2021-09-29T16:04:33.100000001Z", 100_000_001},
-		{"2021-09-29T16:04:33.999999999Z", 999_999_999},
-		{"2021-09-29T16:04:33.012345678Z", 12_345_678},
-		// 10 digits, truncates
-		{"2021-09-29T16:04:33.0000000000Z", 0},
-		{"2021-09-29T16:04:33.0000000001Z", 0},
-		{"2021-09-29T16:04:33.1000000000Z", 100_000_000},
-		{"2021-09-29T16:04:33.1000000009Z", 100_000_000},
-		{"2021-09-29T16:04:33.9999999999Z", 999_999_999},
-		{"2021-09-29T16:04:33.0123456789Z", 12_345_678},
-		// 11 digits, truncates
-		{"2021-09-29T16:04:33.10000000000Z", 100_000_000},
-		{"2021-09-29T16:04:33.00123456789Z", 1_234_567},
-		// 12 digits, truncates
-		{"2021-09-29T16:04:33.000123456789Z", 123_456},
-		// 15 digits, truncates
-		{"2021-09-29T16:04:33.9999999999999999Z", 999_999_999},
+	for _, tt := range longFractionalDigitsTests {
+		for _, format := range []string{RFC3339, RFC3339Nano} {
+			tm, err := Parse(format, tt.value)
+			if err != nil {
+				t.Errorf("Parse(%q, %q) error: %v", format, tt.value, err)
+				continue
+			}
+			if got := tm.Nanosecond(); got != tt.want {
+				t.Errorf("Parse(%q, %q) = got %d, want %d", format, tt.value, got, tt.want)
+			}
+		}
+	}
+}
+
+func FuzzFormatRFC3339(f *testing.F) {
+	for _, ts := range [][2]int64{
+		{math.MinInt64, math.MinInt64}, // 292277026304-08-26T15:42:51Z
+		{-62167219200, 0},              // 0000-01-01T00:00:00Z
+		{1661201140, 676836973},        // 2022-08-22T20:45:40.676836973Z
+		{253402300799, 999999999},      // 9999-12-31T23:59:59.999999999Z
+		{math.MaxInt64, math.MaxInt64}, // -292277022365-05-08T08:17:07Z
+	} {
+		f.Add(ts[0], ts[1], true, false, 0)
+		f.Add(ts[0], ts[1], false, true, 0)
+		for _, offset := range []int{0, 60, 60 * 60, 99*60*60 + 99*60, 123456789} {
+			f.Add(ts[0], ts[1], false, false, -offset)
+			f.Add(ts[0], ts[1], false, false, +offset)
+		}
 	}
 
-	for _, tt := range tests {
-		tm, err := Parse(RFC3339, tt.s)
-		if err != nil {
-			t.Errorf("Unexpected error: %v", err)
-			continue
+	f.Fuzz(func(t *testing.T, sec, nsec int64, useUTC, useLocal bool, tzOffset int) {
+		var loc *Location
+		switch {
+		case useUTC:
+			loc = UTC
+		case useLocal:
+			loc = Local
+		default:
+			loc = FixedZone("", tzOffset)
 		}
-		if got := tm.Nanosecond(); got != tt.want {
-			t.Errorf("Parse(%q) = got %d, want %d", tt.s, got, tt.want)
+		ts := Unix(sec, nsec).In(loc)
+
+		got := AppendFormatRFC3339(ts, nil, false)
+		want := AppendFormatAny(ts, nil, RFC3339)
+		if !bytes.Equal(got, want) {
+			t.Errorf("Format(%s, RFC3339) mismatch:\n\tgot:  %s\n\twant: %s", ts, got, want)
 		}
+
+		gotNanos := AppendFormatRFC3339(ts, nil, true)
+		wantNanos := AppendFormatAny(ts, nil, RFC3339Nano)
+		if !bytes.Equal(got, want) {
+			t.Errorf("Format(%s, RFC3339Nano) mismatch:\n\tgot:  %s\n\twant: %s", ts, gotNanos, wantNanos)
+		}
+	})
+}
+
+func FuzzParseRFC3339(f *testing.F) {
+	for _, tt := range formatTests {
+		f.Add(tt.result)
 	}
+	for _, tt := range parseTests {
+		f.Add(tt.value)
+	}
+	for _, tt := range parseErrorTests {
+		f.Add(tt.value)
+	}
+	for _, tt := range longFractionalDigitsTests {
+		f.Add(tt.value)
+	}
+
+	f.Fuzz(func(t *testing.T, s string) {
+		// equalTime is like time.Time.Equal, but also compares the time zone.
+		equalTime := func(t1, t2 Time) bool {
+			name1, offset1 := t1.Zone()
+			name2, offset2 := t2.Zone()
+			return t1.Equal(t2) && name1 == name2 && offset1 == offset2
+		}
+
+		for _, tz := range []*Location{UTC, Local} {
+			// Parsing as RFC3339 or RFC3339Nano should be identical.
+			t1, err1 := ParseAny(RFC3339, s, UTC, tz)
+			t2, err2 := ParseAny(RFC3339Nano, s, UTC, tz)
+			switch {
+			case (err1 == nil) != (err2 == nil):
+				t.Fatalf("ParseAny(%q) error mismatch:\n\tgot:  %v\n\twant: %v", s, err1, err2)
+			case !equalTime(t1, t2):
+				t.Fatalf("ParseAny(%q) value mismatch:\n\tgot:  %v\n\twant: %v", s, t1, t2)
+			}
+
+			// TODO(https://go.dev/issue/54580):
+			// Remove these checks after ParseAny rejects all invalid RFC 3339.
+			if err1 == nil {
+				num2 := func(s string) byte { return 10*(s[0]-'0') + (s[1] - '0') }
+				switch {
+				case len(s) > 12 && s[12] == ':':
+					t.Skipf("ParseAny(%q) incorrectly allows single-digit hour fields", s)
+				case len(s) > 19 && s[19] == ',':
+					t.Skipf("ParseAny(%q) incorrectly allows comma as sub-second separator", s)
+				case !strings.HasSuffix(s, "Z") && len(s) > 4 && (num2(s[len(s)-5:]) >= 24 || num2(s[len(s)-2:]) >= 60):
+					t.Skipf("ParseAny(%q) incorrectly allows out-of-range zone offset", s)
+				}
+			}
+
+			// Customized parser should be identical to general parser.
+			switch got, ok := ParseRFC3339(s, tz); {
+			case ok != (err1 == nil):
+				t.Fatalf("ParseRFC3339(%q) error mismatch:\n\tgot:  %v\n\twant: %v", s, ok, err1 == nil)
+			case !equalTime(got, t1):
+				t.Fatalf("ParseRFC3339(%q) value mismatch:\n\tgot:  %v\n\twant: %v", s, got, t2)
+			}
+		}
+	})
 }

@@ -4,7 +4,7 @@
 
 package b
 
-import "a"
+import "./a"
 
 func B() {
 	var x int64

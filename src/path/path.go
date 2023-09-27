@@ -8,8 +8,10 @@
 // The path package should only be used for paths separated by forward
 // slashes, such as the paths in URLs. This package does not deal with
 // Windows paths with drive letters or backslashes; to manipulate
-// operating system paths, use the path/filepath package.
+// operating system paths, use the [path/filepath] package.
 package path
+
+import "internal/bytealg"
 
 // A lazybuf is a lazily constructed path buffer.
 // It supports append, reading previously appended bytes,
@@ -52,20 +54,20 @@ func (b *lazybuf) string() string {
 // by purely lexical processing. It applies the following rules
 // iteratively until no further processing can be done:
 //
-//	1. Replace multiple slashes with a single slash.
-//	2. Eliminate each . path name element (the current directory).
-//	3. Eliminate each inner .. path name element (the parent directory)
-//	   along with the non-.. element that precedes it.
-//	4. Eliminate .. elements that begin a rooted path:
-//	   that is, replace "/.." by "/" at the beginning of a path.
+//  1. Replace multiple slashes with a single slash.
+//  2. Eliminate each . path name element (the current directory).
+//  3. Eliminate each inner .. path name element (the parent directory)
+//     along with the non-.. element that precedes it.
+//  4. Eliminate .. elements that begin a rooted path:
+//     that is, replace "/.." by "/" at the beginning of a path.
 //
 // The returned path ends in a slash only if it is the root "/".
 //
 // If the result of this process is an empty string, Clean
 // returns the string ".".
 //
-// See also Rob Pike, ``Lexical File Names in Plan 9 or
-// Getting Dot-Dot Right,''
+// See also Rob Pike, “Lexical File Names in Plan 9 or
+// Getting Dot-Dot Right,”
 // https://9p.io/sys/doc/lexnames.html
 func Clean(path string) string {
 	if path == "" {
@@ -135,22 +137,13 @@ func Clean(path string) string {
 	return out.string()
 }
 
-// lastSlash(s) is strings.LastIndex(s, "/") but we can't import strings.
-func lastSlash(s string) int {
-	i := len(s) - 1
-	for i >= 0 && s[i] != '/' {
-		i--
-	}
-	return i
-}
-
 // Split splits path immediately following the final slash,
 // separating it into a directory and file name component.
 // If there is no slash in path, Split returns an empty dir and
 // file set to path.
 // The returned values have the property that path = dir+file.
 func Split(path string) (dir, file string) {
-	i := lastSlash(path)
+	i := bytealg.LastIndexByteString(path, '/')
 	return path[:i+1], path[i+1:]
 }
 
@@ -205,7 +198,7 @@ func Base(path string) string {
 		path = path[0 : len(path)-1]
 	}
 	// Find the last element
-	if i := lastSlash(path); i >= 0 {
+	if i := bytealg.LastIndexByteString(path, '/'); i >= 0 {
 		path = path[i+1:]
 	}
 	// If empty now, it had only slashes.

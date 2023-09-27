@@ -29,6 +29,7 @@ func TestCaller(t *testing.T) {
 
 // These are marked noinline so that we can use FuncForPC
 // in testCallerBar.
+//
 //go:noinline
 func testCallerFoo(t *testing.T) {
 	testCallerBar(t)
@@ -200,20 +201,20 @@ func tracebackFunc(t *testing.T) uintptr {
 // Go will never generate a stack trace containing such an address, as it is
 // not a valid call site. However, the cgo traceback function passed to
 // runtime.SetCgoTraceback may not be completely accurate and may incorrect
-// provide PCs in Go code or the alignement region between functions.
+// provide PCs in Go code or the alignment region between functions.
 //
 // Go obviously doesn't easily expose the problematic PCs to running programs,
 // so this test is a bit fragile. Some details:
 //
-// * tracebackFunc is our target function. We want to get a PC in the
-//   alignment region following this function. This function also has other
-//   functions inlined into it to ensure it has an InlTree (this was the source
-//   of the bug in issue 44971).
+//   - tracebackFunc is our target function. We want to get a PC in the
+//     alignment region following this function. This function also has other
+//     functions inlined into it to ensure it has an InlTree (this was the source
+//     of the bug in issue 44971).
 //
-// * We acquire a PC in tracebackFunc, walking forwards until FuncForPC says
-//   we're in a new function. The last PC of the function according to FuncForPC
-//   should be in the alignment region (assuming the function isn't already
-//   perfectly aligned).
+//   - We acquire a PC in tracebackFunc, walking forwards until FuncForPC says
+//     we're in a new function. The last PC of the function according to FuncForPC
+//     should be in the alignment region (assuming the function isn't already
+//     perfectly aligned).
 //
 // This is a regression test for issue 44971.
 func TestFunctionAlignmentTraceback(t *testing.T) {

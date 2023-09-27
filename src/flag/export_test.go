@@ -4,7 +4,10 @@
 
 package flag
 
-import "os"
+import (
+	"io"
+	"os"
+)
 
 // Additional routines compiled into the package only during testing.
 
@@ -15,6 +18,7 @@ var DefaultUsage = Usage
 // exit the program.
 func ResetForTesting(usage func()) {
 	CommandLine = NewFlagSet(os.Args[0], ContinueOnError)
+	CommandLine.SetOutput(io.Discard)
 	CommandLine.Usage = commandLineUsage
 	Usage = usage
 }

@@ -106,6 +106,12 @@ func TestMonotonicAdd(t *testing.T) {
 	if !now.Before(tn1) {
 		t.Errorf("Now().Before(Now().Add(1*Hour)) = false, want true")
 	}
+	if got, want := now.Compare(tn1), -1; got != want {
+		t.Errorf("Now().Compare(Now().Add(1*Hour)) = %d, want %d", got, want)
+	}
+	if got, want := tn1.Compare(now), 1; got != want {
+		t.Errorf("Now().Add(1*Hour).Compare(Now()) = %d, want %d", got, want)
+	}
 }
 
 func TestMonotonicSub(t *testing.T) {
@@ -155,7 +161,7 @@ func TestMonotonicSub(t *testing.T) {
 	sub("t3", "t3", t3, t3w, t3, t3w, 0, 0)
 
 	cmp := func(txs, tys string, tx, txw, ty, tyw Time, c, cw int) {
-		check := func(expr string, b, want bool) {
+		check := func(expr string, b, want any) {
 			if b != want {
 				t.Errorf("%s = %v, want %v", expr, b, want)
 			}
@@ -174,6 +180,11 @@ func TestMonotonicSub(t *testing.T) {
 		check(txs+"w.Equal("+tys+")", txw.Equal(ty), cw == 0)
 		check(txs+".Equal("+tys+"w)", tx.Equal(tyw), cw == 0)
 		check(txs+"w.Equal("+tys+"w)", txw.Equal(tyw), cw == 0)
+
+		check(txs+".Compare("+tys+")", tx.Compare(ty), c)
+		check(txs+"w.Compare("+tys+")", txw.Compare(ty), cw)
+		check(txs+".Compare("+tys+"w)", tx.Compare(tyw), cw)
+		check(txs+"w.Compare("+tys+"w)", txw.Compare(tyw), cw)
 	}
 
 	cmp("t1", "t1", t1, t1w, t1, t1w, 0, 0)
@@ -228,6 +239,12 @@ func TestMonotonicOverflow(t *testing.T) {
 	}
 	if !t2.Before(t1) {
 		t.Errorf("Now().Add(-5*Second).Before(Now().Add(1*Hour)) = false, want true\nt1=%v\nt2=%v", t1, t2)
+	}
+	if got, want := t1.Compare(t2), 1; got != want {
+		t.Errorf("Now().Add(1*Hour).Compare(Now().Add(-5*Second)) = %d, want %d\nt1=%v\nt2=%v", got, want, t1, t2)
+	}
+	if got, want := t2.Compare(t1), -1; got != want {
+		t.Errorf("Now().Add(-5*Second).Before(Now().Add(1*Hour)) = %d, want %d\nt1=%v\nt2=%v", got, want, t1, t2)
 	}
 }
 

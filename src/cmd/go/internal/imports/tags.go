@@ -36,6 +36,9 @@ func loadTags() map[string]bool {
 	for _, tag := range cfg.BuildContext.BuildTags {
 		tags[tag] = true
 	}
+	for _, tag := range cfg.BuildContext.ToolTags {
+		tags[tag] = true
+	}
 	for _, tag := range cfg.BuildContext.ReleaseTags {
 		tags[tag] = true
 	}

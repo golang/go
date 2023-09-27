@@ -8,6 +8,8 @@ import (
 	. "io/fs"
 	"os"
 	pathpkg "path"
+	"path/filepath"
+	"reflect"
 	"testing"
 	"testing/fstest"
 )
@@ -51,7 +53,7 @@ func walkTree(n *Node, path string, f func(path string, n *Node)) {
 	}
 }
 
-func makeTree(t *testing.T) FS {
+func makeTree() FS {
 	fsys := fstest.MapFS{}
 	walkTree(tree, tree.name, func(path string, n *Node) {
 		if n.entries == nil {
@@ -61,17 +63,6 @@ func makeTree(t *testing.T) FS {
 		}
 	})
 	return fsys
-}
-
-func markTree(n *Node) { walkTree(n, "", func(path string, n *Node) { n.mark++ }) }
-
-func checkMarks(t *testing.T, report bool) {
-	walkTree(tree, tree.name, func(path string, n *Node) {
-		if n.mark != 1 && report {
-			t.Errorf("node %s mark = %d; expected 1", path, n.mark)
-		}
-		n.mark = 0
-	})
 }
 
 // Assumes that each node name is unique. Good enough for a test.
@@ -106,7 +97,7 @@ func TestWalkDir(t *testing.T) {
 	}
 	defer os.Chdir(origDir)
 
-	fsys := makeTree(t)
+	fsys := makeTree()
 	errors := make([]error, 0, 10)
 	clear := true
 	markFn := func(path string, entry DirEntry, err error) error {
@@ -120,5 +111,41 @@ func TestWalkDir(t *testing.T) {
 	if len(errors) != 0 {
 		t.Fatalf("unexpected errors: %s", errors)
 	}
-	checkMarks(t, true)
+	walkTree(tree, tree.name, func(path string, n *Node) {
+		if n.mark != 1 {
+			t.Errorf("node %s mark = %d; expected 1", path, n.mark)
+		}
+		n.mark = 0
+	})
+}
+
+func TestIssue51617(t *testing.T) {
+	dir := t.TempDir()
+	for _, sub := range []string{"a", filepath.Join("a", "bad"), filepath.Join("a", "next")} {
+		if err := os.Mkdir(filepath.Join(dir, sub), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	bad := filepath.Join(dir, "a", "bad")
+	if err := os.Chmod(bad, 0); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(bad, 0700) // avoid errors on cleanup
+	var saw []string
+	err := WalkDir(os.DirFS(dir), ".", func(path string, d DirEntry, err error) error {
+		if err != nil {
+			return filepath.SkipDir
+		}
+		if d.IsDir() {
+			saw = append(saw, path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{".", "a", "a/bad", "a/next"}
+	if !reflect.DeepEqual(saw, want) {
+		t.Errorf("got directories %v, want %v", saw, want)
+	}
 }

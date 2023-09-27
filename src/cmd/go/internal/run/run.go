@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package run implements the ``go run'' command.
+// Package run implements the “go run” command.
 package run
 
 import (
@@ -52,6 +52,10 @@ for example 'go_js_wasm_exec a.out arguments...'. This allows execution of
 cross-compiled programs when a simulator or other execution method is
 available.
 
+By default, 'go run' compiles the binary without generating the information
+used by debuggers, to reduce build time. To include debugger information in
+the binary, use 'go build'.
+
 The exit status of Run is not the exit status of the compiled binary.
 
 For more about build flags, see 'go help build'.
@@ -65,7 +69,9 @@ func init() {
 	CmdRun.Run = runRun // break init loop
 
 	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
-	base.AddWorkfileFlag(&CmdRun.Flag)
+	if cfg.Experiment != nil && cfg.Experiment.CoverageRedesign {
+		work.AddCoverFlags(CmdRun, nil)
+	}
 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 
@@ -74,8 +80,6 @@ func printStderr(args ...any) (int, error) {
 }
 
 func runRun(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
-
 	if shouldUseOutsideModuleMode(args) {
 		// Set global module flags for 'go run cmd@version'.
 		// This must be done before modload.Init, but we need to call work.BuildInit
@@ -85,10 +89,17 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		modload.RootMode = modload.NoRoot
 		modload.AllowMissingModuleImports()
 		modload.Init()
+	} else {
+		modload.InitWorkfile()
 	}
+
 	work.BuildInit()
-	var b work.Builder
-	b.Init()
+	b := work.NewBuilder("")
+	defer func() {
+		if err := b.Close(); err != nil {
+			base.Fatal(err)
+		}
+	}()
 	b.Print = printStderr
 
 	i := 0
@@ -114,7 +125,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 			var err error
 			pkgs, err = load.PackagesAndErrorsOutsideModule(ctx, pkgOpts, args[:1])
 			if err != nil {
-				base.Fatalf("go: %v", err)
+				base.Fatal(err)
 			}
 		} else {
 			pkgs = load.PackagesAndErrors(ctx, pkgOpts, args[:1])
@@ -137,6 +148,10 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	cmdArgs := args[i:]
 	load.CheckPackageErrors([]*load.Package{p})
+
+	if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+		load.PrepareForCoverageBuild([]*load.Package{p})
+	}
 
 	p.Internal.OmitDebug = true
 	p.Target = "" // must build - not up to date
@@ -162,7 +177,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
-	a := &work.Action{Mode: "go run", Func: buildRunProgram, Args: cmdArgs, Deps: []*work.Action{a1}}
+	a := &work.Action{Mode: "go run", Actor: work.ActorFunc(buildRunProgram), Args: cmdArgs, Deps: []*work.Action{a1}}
 	b.Do(ctx, a)
 }
 

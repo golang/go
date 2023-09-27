@@ -17,11 +17,13 @@ var hasVX = cpu.S390X.HasVX
 
 // vectorizedCastagnoli implements CRC32 using vector instructions.
 // It is defined in crc32_s390x.s.
+//
 //go:noescape
 func vectorizedCastagnoli(crc uint32, p []byte) uint32
 
 // vectorizedIEEE implements CRC32 using vector instructions.
 // It is defined in crc32_s390x.s.
+//
 //go:noescape
 func vectorizedIEEE(crc uint32, p []byte) uint32
 

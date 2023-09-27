@@ -1,0 +1,63 @@
+This file documents the index format that is read and written by this package.
+The index format is an encoding of a series of RawPackage structs
+
+Field names refer to fields on RawPackage and rawFile.
+The file uses little endian encoding for the uint32s.
+Strings are written into the string table at the end of the file.
+Each string is prefixed with a uvarint-encoded length.
+Bools are written as uint32s: 0 for false and 1 for true.
+
+The following is the format for a full module:
+
+“go index v2\n”
+str uint32 - offset of string table
+n uint32 - number of packages
+for each rawPackage:
+	dirname - string offset
+	package - offset where package begins
+for each rawPackage:
+	error uint32 - string offset // error is produced by fsys.ReadDir or fmt.Errorf
+	dir uint32 - string offset (directory path relative to module root)
+	len(sourceFiles) uint32
+	sourceFiles [n]uint32 - offset to source file (relative to start of index file)
+	for each sourceFile:
+		error - string offset // error is either produced by fmt.Errorf,errors.New or is io.EOF
+		parseError - string offset // if non-empty, a json-encoded parseError struct (see below). Is either produced by io.ReadAll,os.ReadFile,errors.New or is scanner.Error,scanner.ErrorList
+		synopsis - string offset
+		name - string offset
+		pkgName - string offset
+		ignoreFile - int32 bool // report the file in Ignored(Go|Other)Files because there was an error reading it or parsing its build constraints.
+		binaryOnly uint32 bool
+		cgoDirectives string offset // the #cgo directive lines in the comment on import "C"
+		goBuildConstraint  - string offset
+		len(plusBuildConstraints) - uint32
+		plusBuildConstraints - [n]uint32 (string offsets)
+		len(imports) uint32
+		for each rawImport:
+			path - string offset
+			position - file, offset, line, column - uint32
+		len(embeds) uint32
+		for each embed:
+			pattern - string offset
+			position - file, offset, line, column - uint32
+		len(directives) uint32
+		for each directive:
+			text - string offset
+			position - file, offset, line, column - uint32
+[string table]
+0xFF (marker)
+
+The following is the format for a single indexed package:
+
+“go index v0\n”
+str uint32 - offset of string table
+for the single RawPackage:
+	[same RawPackage format as above]
+[string table]
+
+The following is the definition of the json-serialized parseError struct:
+
+type parseError struct {
+	ErrorList *scanner.ErrorList // non-nil if the error was an ErrorList, nil otherwise
+	ErrorString string // non-empty for all other cases
+}

@@ -40,6 +40,15 @@ func rustToString(name string, options []Option) (ret string, err error) {
 
 	name = name[2:]
 	rst := &rustState{orig: name, str: name}
+
+	for _, o := range options {
+		if o == NoTemplateParams {
+			rst.noGenericArgs = true
+		} else if isMaxLength(o) {
+			rst.max = maxLength(o)
+		}
+	}
+
 	rst.symbolName()
 
 	if len(rst.str) > 0 {
@@ -47,24 +56,39 @@ func rustToString(name string, options []Option) (ret string, err error) {
 	}
 
 	if suffix != "" {
-		rst.skip = false
-		rst.writeString(" (")
-		rst.writeString(suffix)
-		rst.writeByte(')')
+		llvmStyle := false
+		for _, o := range options {
+			if o == LLVMStyle {
+				llvmStyle = true
+				break
+			}
+		}
+		if llvmStyle {
+			rst.skip = false
+			rst.writeString(" (")
+			rst.writeString(suffix)
+			rst.writeByte(')')
+		}
 	}
 
-	return rst.buf.String(), nil
+	s := rst.buf.String()
+	if rst.max > 0 && len(s) > rst.max {
+		s = s[:rst.max]
+	}
+	return s, nil
 }
 
 // A rustState holds the current state of demangling a Rust string.
 type rustState struct {
-	orig      string          // the original string being demangled
-	str       string          // remainder of string to demangle
-	off       int             // offset of str within original string
-	buf       strings.Builder // demangled string being built
-	skip      bool            // don't print, just skip
-	lifetimes int64           // number of bound lifetimes
-	last      byte            // last byte written to buffer
+	orig          string          // the original string being demangled
+	str           string          // remainder of string to demangle
+	off           int             // offset of str within original string
+	buf           strings.Builder // demangled string being built
+	skip          bool            // don't print, just skip
+	lifetimes     int64           // number of bound lifetimes
+	last          byte            // last byte written to buffer
+	noGenericArgs bool            // don't demangle generic arguments
+	max           int             // maximum output length
 }
 
 // fail panics with demangleErr, to be caught in rustToString.
@@ -95,6 +119,10 @@ func (rst *rustState) writeByte(c byte) {
 	if rst.skip {
 		return
 	}
+	if rst.max > 0 && rst.buf.Len() > rst.max {
+		rst.skip = true
+		return
+	}
 	rst.last = c
 	rst.buf.WriteByte(c)
 }
@@ -104,14 +132,20 @@ func (rst *rustState) writeString(s string) {
 	if rst.skip {
 		return
 	}
+	if rst.max > 0 && rst.buf.Len() > rst.max {
+		rst.skip = true
+		return
+	}
 	if len(s) > 0 {
 		rst.last = s[len(s)-1]
 		rst.buf.WriteString(s)
 	}
 }
 
-// <symbol-name> = "_R" [<decimal-number>] <path> [<instantiating-crate>]
-// <instantiating-crate> = <path>
+// symbolName parses:
+//
+//	<symbol-name> = "_R" [<decimal-number>] <path> [<instantiating-crate>]
+//	<instantiating-crate> = <path>
 //
 // We've already skipped the "_R".
 func (rst *rustState) symbolName() {
@@ -131,17 +165,19 @@ func (rst *rustState) symbolName() {
 	}
 }
 
-// <path> = "C" <identifier>                    // crate root
-//        | "M" <impl-path> <type>              // <T> (inherent impl)
-//        | "X" <impl-path> <type> <path>       // <T as Trait> (trait impl)
-//        | "Y" <type> <path>                   // <T as Trait> (trait definition)
-//        | "N" <namespace> <path> <identifier> // ...::ident (nested path)
-//        | "I" <path> {<generic-arg>} "E"      // ...<T, U> (generic args)
-//        | <backref>
-// <namespace> = "C"      // closure
-//             | "S"      // shim
-//             | <A-Z>    // other special namespaces
-//             | <a-z>    // internal namespaces
+// path parses:
+//
+//	<path> = "C" <identifier>                    // crate root
+//	       | "M" <impl-path> <type>              // <T> (inherent impl)
+//	       | "X" <impl-path> <type> <path>       // <T as Trait> (trait impl)
+//	       | "Y" <type> <path>                   // <T as Trait> (trait definition)
+//	       | "N" <namespace> <path> <identifier> // ...::ident (nested path)
+//	       | "I" <path> {<generic-arg>} "E"      // ...<T, U> (generic args)
+//	       | <backref>
+//	<namespace> = "C"      // closure
+//	            | "S"      // shim
+//	            | <A-Z>    // other special namespaces
+//	            | <a-z>    // internal namespaces
 //
 // needsSeparator is true if we need to write out :: for a generic;
 // it is passed as false if we are in the middle of a type.
@@ -219,15 +255,7 @@ func (rst *rustState) path(needsSeparator bool) {
 			rst.writeString("::")
 		}
 		rst.writeByte('<')
-		first := true
-		for len(rst.str) > 0 && rst.str[0] != 'E' {
-			if first {
-				first = false
-			} else {
-				rst.writeString(", ")
-			}
-			rst.genericArg()
-		}
+		rst.genericArgs()
 		rst.writeByte('>')
 		rst.checkChar('E')
 	case 'B':
@@ -237,7 +265,9 @@ func (rst *rustState) path(needsSeparator bool) {
 	}
 }
 
-// <impl-path> = [<disambiguator>] <path>
+// implPath parses:
+//
+//	<impl-path> = [<disambiguator>] <path>
 func (rst *rustState) implPath() {
 	// This path is not part of the demangled string.
 	hold := rst.skip
@@ -250,16 +280,20 @@ func (rst *rustState) implPath() {
 	rst.path(false)
 }
 
-// <identifier> = [<disambiguator>] <undisambiguated-identifier>
-// Returns the disambiguator and the identifier.
+// identifier parses:
+//
+//	<identifier> = [<disambiguator>] <undisambiguated-identifier>
+//
+// It returns the disambiguator and the identifier.
 func (rst *rustState) identifier() (int64, string) {
 	dis := rst.disambiguator()
-	ident := rst.undisambiguatedIdentifier()
+	ident, _ := rst.undisambiguatedIdentifier()
 	return dis, ident
 }
 
-// <disambiguator> = "s" <base-62-number>
-// This is optional.
+// disambiguator parses an optional:
+//
+//	<disambiguator> = "s" <base-62-number>
 func (rst *rustState) disambiguator() int64 {
 	if len(rst.str) == 0 || rst.str[0] != 's' {
 		return 0
@@ -268,12 +302,14 @@ func (rst *rustState) disambiguator() int64 {
 	return rst.base62Number() + 1
 }
 
-// <undisambiguated-identifier> = ["u"] <decimal-number> ["_"] <bytes>
-func (rst *rustState) undisambiguatedIdentifier() string {
-	punycode := false
+// undisambiguatedIdentifier parses:
+//
+//	<undisambiguated-identifier> = ["u"] <decimal-number> ["_"] <bytes>
+func (rst *rustState) undisambiguatedIdentifier() (id string, isPunycode bool) {
+	isPunycode = false
 	if len(rst.str) > 0 && rst.str[0] == 'u' {
 		rst.advance(1)
-		punycode = true
+		isPunycode = true
 	}
 
 	val := rst.decimalNumber()
@@ -285,7 +321,7 @@ func (rst *rustState) undisambiguatedIdentifier() string {
 	if len(rst.str) < val {
 		rst.fail("not enough characters for identifier")
 	}
-	id := rst.str[:val]
+	id = rst.str[:val]
 	rst.advance(val)
 
 	for i := 0; i < len(id); i++ {
@@ -300,11 +336,11 @@ func (rst *rustState) undisambiguatedIdentifier() string {
 		}
 	}
 
-	if punycode {
+	if isPunycode {
 		id = rst.expandPunycode(id)
 	}
 
-	return id
+	return id, isPunycode
 }
 
 // expandPunycode decodes the Rust version of punycode.
@@ -320,13 +356,17 @@ func (rst *rustState) expandPunycode(s string) string {
 		initialN    = 128
 	)
 
+	var (
+		output   []rune
+		encoding string
+	)
 	idx := strings.LastIndex(s, "_")
-	if idx < 0 {
-		rst.fail("missing underscore in punycode string")
+	if idx >= 0 {
+		output = []rune(s[:idx])
+		encoding = s[idx+1:]
+	} else {
+		encoding = s
 	}
-
-	output := []rune(s[:idx])
-	encoding := s[idx+1:]
 
 	i := 0
 	n := initialN
@@ -398,6 +438,8 @@ func (rst *rustState) expandPunycode(s string) string {
 		n += i / (len(output) + 1)
 		if n > utf8.MaxRune {
 			rst.fail("punycode rune overflow")
+		} else if !utf8.ValidRune(rune(n)) {
+			rst.fail("punycode invalid code point")
 		}
 		i %= len(output) + 1
 		output = append(output, 0)
@@ -409,10 +451,33 @@ func (rst *rustState) expandPunycode(s string) string {
 	return string(output)
 }
 
-// <generic-arg> = <lifetime>
-//               | <type>
-//               | "K" <const> // forward-compat for const generics
-// <lifetime> = "L" <base-62-number>
+// genericArgs prints a list of generic arguments, without angle brackets.
+func (rst *rustState) genericArgs() {
+	if rst.noGenericArgs {
+		hold := rst.skip
+		rst.skip = true
+		defer func() {
+			rst.skip = hold
+		}()
+	}
+
+	first := true
+	for len(rst.str) > 0 && rst.str[0] != 'E' {
+		if first {
+			first = false
+		} else {
+			rst.writeString(", ")
+		}
+		rst.genericArg()
+	}
+}
+
+// genericArg parses:
+//
+//	<generic-arg> = <lifetime>
+//	              | <type>
+//	              | "K" <const> // forward-compat for const generics
+//	<lifetime> = "L" <base-62-number>
 func (rst *rustState) genericArg() {
 	if len(rst.str) < 1 {
 		rst.fail("expected generic-arg")
@@ -428,8 +493,9 @@ func (rst *rustState) genericArg() {
 	}
 }
 
-// <binder> = "G" <base-62-number>
-// This is optional.
+// binder parses an optional:
+//
+//	<binder> = "G" <base-62-number>
 func (rst *rustState) binder() {
 	if len(rst.str) < 1 || rst.str[0] != 'G' {
 		return
@@ -454,18 +520,20 @@ func (rst *rustState) binder() {
 	rst.writeString("> ")
 }
 
-// <type> = <basic-type>
-//        | <path>                      // named type
-//        | "A" <type> <const>          // [T; N]
-//        | "S" <type>                  // [T]
-//        | "T" {<type>} "E"            // (T1, T2, T3, ...)
-//        | "R" [<lifetime>] <type>     // &T
-//        | "Q" [<lifetime>] <type>     // &mut T
-//        | "P" <type>                  // *const T
-//        | "O" <type>                  // *mut T
-//        | "F" <fn-sig>                // fn(...) -> ...
-//        | "D" <dyn-bounds> <lifetime> // dyn Trait<Assoc = X> + Send + 'a
-//        | <backref>
+// demangleType parses:
+//
+//	<type> = <basic-type>
+//	       | <path>                      // named type
+//	       | "A" <type> <const>          // [T; N]
+//	       | "S" <type>                  // [T]
+//	       | "T" {<type>} "E"            // (T1, T2, T3, ...)
+//	       | "R" [<lifetime>] <type>     // &T
+//	       | "Q" [<lifetime>] <type>     // &mut T
+//	       | "P" <type>                  // *const T
+//	       | "O" <type>                  // *mut T
+//	       | "F" <fn-sig>                // fn(...) -> ...
+//	       | "D" <dyn-bounds> <lifetime> // dyn Trait<Assoc = X> + Send + 'a
+//	       | <backref>
 func (rst *rustState) demangleType() {
 	if len(rst.str) < 1 {
 		rst.fail("expected type")
@@ -577,7 +645,9 @@ var rustBasicTypes = map[byte]string{
 	'z': "!",
 }
 
-// <basic-type>
+// basicType parses:
+//
+//	<basic-type>
 func (rst *rustState) basicType() {
 	if len(rst.str) < 1 {
 		rst.fail("expected basic type")
@@ -590,9 +660,11 @@ func (rst *rustState) basicType() {
 	rst.writeString(str)
 }
 
-// <fn-sig> = [<binder>] ["U"] ["K" <abi>] {<type>} "E" <type>
-// <abi> = "C"
-//       | <undisambiguated-identifier>
+// fnSig parses:
+//
+//	<fn-sig> = [<binder>] ["U"] ["K" <abi>] {<type>} "E" <type>
+//	<abi> = "C"
+//	      | <undisambiguated-identifier>
 func (rst *rustState) fnSig() {
 	rst.binder()
 	if len(rst.str) > 0 && rst.str[0] == 'U' {
@@ -606,7 +678,10 @@ func (rst *rustState) fnSig() {
 			rst.writeString(`extern "C" `)
 		} else {
 			rst.writeString(`extern "`)
-			id := rst.undisambiguatedIdentifier()
+			id, isPunycode := rst.undisambiguatedIdentifier()
+			if isPunycode {
+				rst.fail("punycode used in ABI string")
+			}
 			id = strings.ReplaceAll(id, "_", "-")
 			rst.writeString(id)
 			rst.writeString(`" `)
@@ -632,7 +707,9 @@ func (rst *rustState) fnSig() {
 	}
 }
 
-// <dyn-bounds> = [<binder>] {<dyn-trait>} "E"
+// dynBounds parses:
+//
+//	<dyn-bounds> = [<binder>] {<dyn-trait>} "E"
 func (rst *rustState) dynBounds() {
 	rst.writeString("dyn ")
 	rst.binder()
@@ -648,8 +725,10 @@ func (rst *rustState) dynBounds() {
 	rst.checkChar('E')
 }
 
-// <dyn-trait> = <path> {<dyn-trait-assoc-binding>}
-// <dyn-trait-assoc-binding> = "p" <undisambiguated-identifier> <type>
+// dynTrait parses:
+//
+//	<dyn-trait> = <path> {<dyn-trait-assoc-binding>}
+//	<dyn-trait-assoc-binding> = "p" <undisambiguated-identifier> <type>
 func (rst *rustState) dynTrait() {
 	started := rst.pathStartGenerics()
 	for len(rst.str) > 0 && rst.str[0] == 'p' {
@@ -660,7 +739,8 @@ func (rst *rustState) dynTrait() {
 			rst.writeByte('<')
 			started = true
 		}
-		rst.writeString(rst.undisambiguatedIdentifier())
+		id, _ := rst.undisambiguatedIdentifier()
+		rst.writeString(id)
 		rst.writeString(" = ")
 		rst.demangleType()
 	}
@@ -680,15 +760,7 @@ func (rst *rustState) pathStartGenerics() bool {
 		rst.advance(1)
 		rst.path(false)
 		rst.writeByte('<')
-		first := true
-		for len(rst.str) > 0 && rst.str[0] != 'E' {
-			if first {
-				first = false
-			} else {
-				rst.writeString(", ")
-			}
-			rst.genericArg()
-		}
+		rst.genericArgs()
 		rst.checkChar('E')
 		return true
 	case 'B':
@@ -722,10 +794,12 @@ func (rst *rustState) writeLifetime(lifetime int64) {
 	}
 }
 
-// <const> = <type> <const-data>
-//         | "p" // placeholder, shown as _
-//         | <backref>
-// <const-data> = ["n"] {<hex-digit>} "_"
+// demangleConst parses:
+//
+//	<const> = <type> <const-data>
+//	        | "p" // placeholder, shown as _
+//	        | <backref>
+//	<const-data> = ["n"] {<hex-digit>} "_"
 func (rst *rustState) demangleConst() {
 	if len(rst.str) < 1 {
 		rst.fail("expected constant")
@@ -856,7 +930,9 @@ digitLoop:
 	}
 }
 
-// <base-62-number> = {<0-9a-zA-Z>} "_"
+// base62Number parses:
+//
+//	<base-62-number> = {<0-9a-zA-Z>} "_"
 func (rst *rustState) base62Number() int64 {
 	if len(rst.str) > 0 && rst.str[0] == '_' {
 		rst.advance(1)
@@ -884,7 +960,9 @@ func (rst *rustState) base62Number() int64 {
 	return 0
 }
 
-// <backref> = "B" <base-62-number>
+// backref parses:
+//
+//	<backref> = "B" <base-62-number>
 func (rst *rustState) backref(demangle func()) {
 	backoff := rst.off
 
@@ -892,6 +970,9 @@ func (rst *rustState) backref(demangle func()) {
 	idx64 := rst.base62Number()
 
 	if rst.skip {
+		return
+	}
+	if rst.max > 0 && rst.buf.Len() > rst.max {
 		return
 	}
 
@@ -936,6 +1017,13 @@ func (rst *rustState) decimalNumber() int {
 // oldRustToString demangles a Rust symbol using the old demangling.
 // The second result reports whether this is a valid Rust mangled name.
 func oldRustToString(name string, options []Option) (string, bool) {
+	max := 0
+	for _, o := range options {
+		if isMaxLength(o) {
+			max = maxLength(o)
+		}
+	}
+
 	// We know that the string starts with _ZN.
 	name = name[3:]
 
@@ -954,7 +1042,7 @@ func oldRustToString(name string, options []Option) (string, bool) {
 	// followed by "E". We check that the 16 characters are all hex digits.
 	// Also the hex digits must contain at least 5 distinct digits.
 	seen := uint16(0)
-	for i := len(name) - 17; i < len(name) - 1; i++ {
+	for i := len(name) - 17; i < len(name)-1; i++ {
 		digit, ok := hexDigit(name[i])
 		if !ok {
 			return "", false
@@ -969,6 +1057,10 @@ func oldRustToString(name string, options []Option) (string, bool) {
 	// The name is a sequence of length-preceded identifiers.
 	var sb strings.Builder
 	for len(name) > 0 {
+		if max > 0 && sb.Len() > max {
+			break
+		}
+
 		if !isDigit(name[0]) {
 			return "", false
 		}
@@ -1012,7 +1104,7 @@ func oldRustToString(name string, options []Option) (string, bool) {
 		for len(id) > 0 {
 			switch c := id[0]; c {
 			case '$':
-				codes := map[string]byte {
+				codes := map[string]byte{
 					"SP": '@',
 					"BP": '*',
 					"RF": '&',
@@ -1065,5 +1157,9 @@ func oldRustToString(name string, options []Option) (string, bool) {
 		}
 	}
 
-	return sb.String(), true
+	s := sb.String()
+	if max > 0 && len(s) > max {
+		s = s[:max]
+	}
+	return s, true
 }

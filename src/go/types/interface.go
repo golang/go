@@ -7,6 +7,7 @@ package types
 import (
 	"go/ast"
 	"go/token"
+	. "internal/types/errors"
 )
 
 // ----------------------------------------------------------------------------
@@ -15,7 +16,6 @@ import (
 // An Interface represents an interface type.
 type Interface struct {
 	check     *Checker     // for error reporting; nil once type set is computed
-	obj       *TypeName    // type name object defining this interface; or nil (for better error messages)
 	methods   []*Func      // ordered list of explicitly declared methods
 	embeddeds []Type       // ordered list of explicitly embedded elements
 	embedPos  *[]token.Pos // positions of embedded elements; or nil (for error messages) - use pointer to save space
@@ -26,7 +26,7 @@ type Interface struct {
 }
 
 // typeSet returns the type set for interface t.
-func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(t.check, token.NoPos, t) }
+func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(t.check, nopos, t) }
 
 // emptyInterface represents the empty (completed) interface
 var emptyInterface = Interface{complete: true, tset: &topTypeSet}
@@ -56,7 +56,7 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	}
 
 	// set method receivers if necessary
-	typ := new(Interface)
+	typ := (*Checker)(nil).newInterface()
 	for _, m := range methods {
 		if sig := m.typ.(*Signature); sig.recv == nil {
 			sig.recv = NewVar(m.pos, m.pkg, "", typ)
@@ -70,6 +70,15 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	typ.embeddeds = embeddeds
 	typ.complete = true
 
+	return typ
+}
+
+// check may be nil
+func (check *Checker) newInterface() *Interface {
+	typ := &Interface{check: check}
+	if check != nil {
+		check.needsCleanup(typ)
+	}
 	return typ
 }
 
@@ -95,7 +104,7 @@ func (t *Interface) NumEmbeddeds() int { return len(t.embeddeds) }
 // The result is nil if the i'th embedded type is not a defined type.
 //
 // Deprecated: Use EmbeddedType which is not restricted to defined (*Named) types.
-func (t *Interface) Embedded(i int) *Named { tname, _ := t.embeddeds[i].(*Named); return tname }
+func (t *Interface) Embedded(i int) *Named { return asNamed(t.embeddeds[i]) }
 
 // EmbeddedType returns the i'th embedded type of interface t for 0 <= i < t.NumEmbeddeds().
 func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }
@@ -111,7 +120,7 @@ func (t *Interface) Method(i int) *Func { return t.typeSet().Method(i) }
 func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
 
 // IsComparable reports whether each type in interface t's type set is comparable.
-func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
+func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable(nil) }
 
 // IsMethodSet reports whether the interface t is fully described by its method
 // set.
@@ -141,7 +150,13 @@ func (t *Interface) String() string   { return TypeString(t, nil) }
 // ----------------------------------------------------------------------------
 // Implementation
 
-func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
+func (t *Interface) cleanup() {
+	t.typeSet() // any interface that escapes type checking must be safe for concurrent use
+	t.check = nil
+	t.embedPos = nil
+}
+
+func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *TypeName) {
 	addEmbedded := func(pos token.Pos, typ Type) {
 		ityp.embeddeds = append(ityp.embeddeds, typ)
 		if ityp.embedPos == nil {
@@ -160,34 +175,34 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		// We have a method with name f.Names[0].
 		name := f.Names[0]
 		if name.Name == "_" {
-			check.errorf(name, _BlankIfaceMethod, "invalid method name _")
+			check.error(name, BlankIfaceMethod, "methods must have a unique non-blank name")
 			continue // ignore
 		}
 
 		typ := check.typ(f.Type)
 		sig, _ := typ.(*Signature)
 		if sig == nil {
-			if typ != Typ[Invalid] {
-				check.invalidAST(f.Type, "%s is not a method signature", typ)
+			if isValid(typ) {
+				check.errorf(f.Type, InvalidSyntaxTree, "%s is not a method signature", typ)
 			}
 			continue // ignore
 		}
 
-		// Always type-check method type parameters but complain if they are not enabled.
-		// (This extra check is needed here because interface method signatures don't have
-		// a receiver specification.)
+		// The go/parser doesn't accept method type parameters but an ast.FuncType may have them.
 		if sig.tparams != nil {
 			var at positioner = f.Type
 			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TypeParams != nil {
 				at = ftyp.TypeParams
 			}
-			check.errorf(at, _InvalidMethodTypeParams, "methods cannot have type parameters")
+			check.error(at, InvalidSyntaxTree, "methods cannot have type parameters")
 		}
 
 		// use named receiver type if available (for better error messages)
 		var recvTyp Type = ityp
 		if def != nil {
-			recvTyp = def
+			if named, _ := def.typ.(*Named); named != nil {
+				recvTyp = named
+			}
 		}
 		sig.recv = NewVar(name.Pos(), check.pkg, "", recvTyp)
 
@@ -210,16 +225,10 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	sortMethods(ityp.methods)
 	// (don't sort embeddeds: they must correspond to *embedPos entries)
 
-	// Compute type set with a non-nil *Checker as soon as possible
-	// to report any errors. Subsequent uses of type sets will use
-	// this computed type set and won't need to pass in a *Checker.
-	//
-	// Pin the checker to the interface type in the interim, in case the type set
-	// must be used before delayed funcs are processed (see issue #48234).
-	// TODO(rfindley): clean up use of *Checker with computeInterfaceTypeSet
-	ityp.check = check
+	// Compute type set as soon as possible to report any errors.
+	// Subsequent uses of type sets will use this computed type
+	// set and won't need to pass in a *Checker.
 	check.later(func() {
 		computeInterfaceTypeSet(check, iface.Pos(), ityp)
-		ityp.check = nil
 	}).describef(iface, "compute type set for %s", ityp)
 }

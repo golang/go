@@ -3,16 +3,16 @@
 // license that can be found in the LICENSE file.
 
 // Package netip defines an IP address type that's a small value type.
-// Building on that Addr type, the package also defines AddrPort (an
-// IP address and a port), and Prefix (an IP address and a bit length
+// Building on that [Addr] type, the package also defines [AddrPort] (an
+// IP address and a port) and [Prefix] (an IP address and a bit length
 // prefix).
 //
-// Compared to the net.IP type, this package's Addr type takes less
-// memory, is immutable, and is comparable (supports == and being a
-// map key).
+// Compared to the [net.IP] type, [Addr] type takes less memory, is immutable,
+// and is comparable (supports == and being a map key).
 package netip
 
 import (
+	"cmp"
 	"errors"
 	"math"
 	"strconv"
@@ -28,9 +28,9 @@ import (
 //   netip.Addr: 24 bytes (zone is per-name singleton, shared across all users)
 
 // Addr represents an IPv4 or IPv6 address (with or without a scoped
-// addressing zone), similar to net.IP or net.IPAddr.
+// addressing zone), similar to [net.IP] or [net.IPAddr].
 //
-// Unlike net.IP or net.IPAddr, Addr is a comparable value
+// Unlike [net.IP] or [net.IPAddr], Addr is a comparable value
 // type (it supports == and can be a map key) and is immutable.
 //
 // The zero Addr is not a valid IP address.
@@ -63,8 +63,8 @@ type Addr struct {
 	z *intern.Value
 }
 
-// z0, z4, and z6noz are sentinel IP.z values.
-// See the IP type's field docs.
+// z0, z4, and z6noz are sentinel Addr.z values.
+// See the Addr type's field docs.
 var (
 	z0    = (*intern.Value)(nil)
 	z4    = new(intern.Value)
@@ -74,6 +74,13 @@ var (
 // IPv6LinkLocalAllNodes returns the IPv6 link-local all nodes multicast
 // address ff02::1.
 func IPv6LinkLocalAllNodes() Addr { return AddrFrom16([16]byte{0: 0xff, 1: 0x02, 15: 0x01}) }
+
+// IPv6LinkLocalAllRouters returns the IPv6 link-local all routers multicast
+// address ff02::2.
+func IPv6LinkLocalAllRouters() Addr { return AddrFrom16([16]byte{0: 0xff, 1: 0x02, 15: 0x02}) }
+
+// IPv6Loopback returns the IPv6 loopback address ::1.
+func IPv6Loopback() Addr { return AddrFrom16([16]byte{15: 0x01}) }
 
 // IPv6Unspecified returns the IPv6 unspecified address "::".
 func IPv6Unspecified() Addr { return Addr{z: z6noz} }
@@ -90,21 +97,9 @@ func AddrFrom4(addr [4]byte) Addr {
 }
 
 // AddrFrom16 returns the IPv6 address given by the bytes in addr.
-// An IPv6-mapped IPv4 address is left as an IPv6 address.
+// An IPv4-mapped IPv6 address is left as an IPv6 address.
 // (Use Unmap to convert them if needed.)
 func AddrFrom16(addr [16]byte) Addr {
-	return Addr{
-		addr: uint128{
-			beUint64(addr[:8]),
-			beUint64(addr[8:]),
-		},
-		z: z6noz,
-	}
-}
-
-// ipv6Slice is like IPv6Raw, but operates on a 16-byte slice. Assumes
-// slice is 16 bytes, caller must enforce this.
-func ipv6Slice(addr []byte) Addr {
 	return Addr{
 		addr: uint128{
 			beUint64(addr[:8]),
@@ -345,9 +340,9 @@ func parseIPv6(in string) (Addr, error) {
 func AddrFromSlice(slice []byte) (ip Addr, ok bool) {
 	switch len(slice) {
 	case 4:
-		return AddrFrom4(*(*[4]byte)(slice)), true
+		return AddrFrom4([4]byte(slice)), true
 	case 16:
-		return ipv6Slice(slice), true
+		return AddrFrom16([16]byte(slice)), true
 	}
 	return Addr{}, false
 }
@@ -452,11 +447,9 @@ func (ip Addr) Compare(ip2 Addr) int {
 // IPv6 addresses with zones sort just after the same address without a zone.
 func (ip Addr) Less(ip2 Addr) bool { return ip.Compare(ip2) == -1 }
 
-func (ip Addr) lessOrEq(ip2 Addr) bool { return ip.Compare(ip2) <= 0 }
-
 // Is4 reports whether ip is an IPv4 address.
 //
-// It returns false for IP4-mapped IPv6 addresses. See IP.Unmap.
+// It returns false for IPv4-mapped IPv6 addresses. See Addr.Unmap.
 func (ip Addr) Is4() bool {
 	return ip.z == z4
 }
@@ -474,7 +467,7 @@ func (ip Addr) Is6() bool {
 
 // Unmap returns ip with any IPv4-mapped IPv6 address prefix removed.
 //
-// That is, if ip is an IPv6 address wrapping an IPv4 adddress, it
+// That is, if ip is an IPv6 address wrapping an IPv4 address, it
 // returns the wrapped IPv4 address. Otherwise it returns ip unmodified.
 func (ip Addr) Unmap() Addr {
 	if ip.Is4In6() {
@@ -498,7 +491,7 @@ func (ip Addr) WithZone(zone string) Addr {
 	return ip
 }
 
-// withoutZone unconditionally strips the zone from IP.
+// withoutZone unconditionally strips the zone from ip.
 // It's similar to WithZone, but small enough to be inlinable.
 func (ip Addr) withoutZone() Addr {
 	if !ip.Is6() {
@@ -508,7 +501,7 @@ func (ip Addr) withoutZone() Addr {
 	return ip
 }
 
-// hasZone reports whether IP has an IPv6 zone.
+// hasZone reports whether ip has an IPv6 zone.
 func (ip Addr) hasZone() bool {
 	return ip.z != z0 && ip.z != z4 && ip.z != z6noz
 }
@@ -669,13 +662,8 @@ func (ip Addr) Prefix(b int) (Prefix, error) {
 	return PrefixFrom(ip, b), nil
 }
 
-const (
-	netIPv4len = 4
-	netIPv6len = 16
-)
-
 // As16 returns the IP address in its 16-byte representation.
-// IPv4 addresses are returned in their v6-mapped form.
+// IPv4 addresses are returned as IPv4-mapped IPv6 addresses.
 // IPv6 addresses with zones are returned without their zone (use the
 // Zone method to get it).
 // The ip zero value returns all zeroes.
@@ -758,7 +746,7 @@ func (ip Addr) Prev() Addr {
 //   - IPv6 with zone ("fe80:db8::1%eth0")
 //
 // Note that unlike package net's IP.String method,
-// IP4-mapped IPv6 addresses format with a "::ffff:"
+// IPv4-mapped IPv6 addresses format with a "::ffff:"
 // prefix before the dotted quad.
 func (ip Addr) String() string {
 	switch ip.z {
@@ -768,11 +756,10 @@ func (ip Addr) String() string {
 		return ip.string4()
 	default:
 		if ip.Is4In6() {
-			// TODO(bradfitz): this could alloc less.
 			if z := ip.Zone(); z != "" {
-				return "::ffff:" + ip.Unmap().String() + "%" + z
+				return "::ffff:" + ip.Unmap().string4() + "%" + z
 			} else {
-				return "::ffff:" + ip.Unmap().String()
+				return "::ffff:" + ip.Unmap().string4()
 			}
 		}
 		return ip.string6()
@@ -1018,13 +1005,13 @@ func (ip *Addr) UnmarshalBinary(b []byte) error {
 		*ip = Addr{}
 		return nil
 	case n == 4:
-		*ip = AddrFrom4(*(*[4]byte)(b))
+		*ip = AddrFrom4([4]byte(b))
 		return nil
 	case n == 16:
-		*ip = ipv6Slice(b)
+		*ip = AddrFrom16([16]byte(b))
 		return nil
 	case n > 16:
-		*ip = ipv6Slice(b[:16]).WithZone(string(b[16:]))
+		*ip = AddrFrom16([16]byte(b[:16])).WithZone(string(b[16:]))
 		return nil
 	}
 	return errors.New("unexpected slice size")
@@ -1052,7 +1039,7 @@ func (p AddrPort) Port() uint16 { return p.port }
 // ip string should parse as an IPv6 address or an IPv4 address, in
 // order for s to be a valid ip:port string.
 func splitAddrPort(s string) (ip, port string, v6 bool, err error) {
-	i := stringsLastIndexByte(s, ':')
+	i := bytealg.LastIndexByteString(s, ':')
 	if i == -1 {
 		return "", "", false, errors.New("not an ip:port")
 	}
@@ -1112,12 +1099,19 @@ func MustParseAddrPort(s string) AddrPort {
 	return ip
 }
 
-// isZero reports whether p is the zero AddrPort.
-func (p AddrPort) isZero() bool { return p == AddrPort{} }
-
-// IsValid reports whether p.IP() is valid.
+// IsValid reports whether p.Addr() is valid.
 // All ports are valid, including zero.
 func (p AddrPort) IsValid() bool { return p.ip.IsValid() }
+
+// Compare returns an integer comparing two AddrPorts.
+// The result will be 0 if p == p2, -1 if p < p2, and +1 if p > p2.
+// AddrPorts sort first by IP address, then port.
+func (p AddrPort) Compare(p2 AddrPort) int {
+	if c := p.Addr().Compare(p2.Addr()); c != 0 {
+		return c
+	}
+	return cmp.Compare(p.Port(), p2.Port())
+}
 
 func (p AddrPort) String() string {
 	switch p.ip.z {
@@ -1171,7 +1165,7 @@ func (p AddrPort) AppendTo(b []byte) []byte {
 		b = append(b, ']')
 	}
 	b = append(b, ':')
-	b = strconv.AppendInt(b, int64(p.port), 10)
+	b = strconv.AppendUint(b, uint64(p.port), 10)
 	return b
 }
 
@@ -1236,19 +1230,10 @@ func (p *AddrPort) UnmarshalBinary(b []byte) error {
 type Prefix struct {
 	ip Addr
 
-	// bits is logically a uint8 (storing [0,128]) but also
-	// encodes an "invalid" bit, currently represented by the
-	// invalidPrefixBits sentinel value. It could be packed into
-	// the uint8 more with more complicated expressions in the
-	// accessors, but the extra byte (in padding anyway) doesn't
-	// hurt and simplifies code below.
-	bits int16
+	// bitsPlusOne stores the prefix bit length plus one.
+	// A Prefix is valid if and only if bitsPlusOne is non-zero.
+	bitsPlusOne uint8
 }
-
-// invalidPrefixBits is the Prefix.bits value used when PrefixFrom is
-// outside the range of a uint8. It's returned as the int -1 in the
-// public API.
-const invalidPrefixBits = -1
 
 // PrefixFrom returns a Prefix with the provided IP address and bit
 // prefix length.
@@ -1259,13 +1244,13 @@ const invalidPrefixBits = -1
 // If bits is less than zero or greater than ip.BitLen, Prefix.Bits
 // will return an invalid value -1.
 func PrefixFrom(ip Addr, bits int) Prefix {
-	if bits < 0 || bits > ip.BitLen() {
-		bits = invalidPrefixBits
+	var bitsPlusOne uint8
+	if !ip.isZero() && bits >= 0 && bits <= ip.BitLen() {
+		bitsPlusOne = uint8(bits) + 1
 	}
-	b16 := int16(bits)
 	return Prefix{
-		ip:   ip.withoutZone(),
-		bits: b16,
+		ip:          ip.withoutZone(),
+		bitsPlusOne: bitsPlusOne,
 	}
 }
 
@@ -1275,25 +1260,42 @@ func (p Prefix) Addr() Addr { return p.ip }
 // Bits returns p's prefix length.
 //
 // It reports -1 if invalid.
-func (p Prefix) Bits() int { return int(p.bits) }
+func (p Prefix) Bits() int { return int(p.bitsPlusOne) - 1 }
 
-// IsValid reports whether p.Bits() has a valid range for p.IP().
+// IsValid reports whether p.Bits() has a valid range for p.Addr().
 // If p.Addr() is the zero Addr, IsValid returns false.
 // Note that if p is the zero Prefix, then p.IsValid() == false.
-func (p Prefix) IsValid() bool { return !p.ip.isZero() && p.bits >= 0 && int(p.bits) <= p.ip.BitLen() }
+func (p Prefix) IsValid() bool { return p.bitsPlusOne > 0 }
 
 func (p Prefix) isZero() bool { return p == Prefix{} }
 
 // IsSingleIP reports whether p contains exactly one IP.
-func (p Prefix) IsSingleIP() bool { return p.bits != 0 && int(p.bits) == p.ip.BitLen() }
+func (p Prefix) IsSingleIP() bool { return p.IsValid() && p.Bits() == p.ip.BitLen() }
+
+// Compare returns an integer comparing two prefixes.
+// The result will be 0 if p == p2, -1 if p < p2, and +1 if p > p2.
+// Prefixes sort first by validity (invalid before valid), then
+// address family (IPv4 before IPv6), then prefix length, then
+// address.
+func (p Prefix) Compare(p2 Prefix) int {
+	if c := cmp.Compare(p.Addr().BitLen(), p2.Addr().BitLen()); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(p.Bits(), p2.Bits()); c != 0 {
+		return c
+	}
+	return p.Addr().Compare(p2.Addr())
+}
 
 // ParsePrefix parses s as an IP address prefix.
-// The string can be in the form "192.168.1.0/24" or "2001::db8::/32",
+// The string can be in the form "192.168.1.0/24" or "2001:db8::/32",
 // the CIDR notation defined in RFC 4632 and RFC 4291.
+// IPv6 zones are not permitted in prefixes, and an error will be returned if a
+// zone is present.
 //
 // Note that masked address bits are not zeroed. Use Masked for that.
 func ParsePrefix(s string) (Prefix, error) {
-	i := stringsLastIndexByte(s, '/')
+	i := bytealg.LastIndexByteString(s, '/')
 	if i < 0 {
 		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): no '/'")
 	}
@@ -1301,17 +1303,22 @@ func ParsePrefix(s string) (Prefix, error) {
 	if err != nil {
 		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): " + err.Error())
 	}
+	// IPv6 zones are not allowed: https://go.dev/issue/51899
+	if ip.Is6() && ip.z != z6noz {
+		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): IPv6 zones cannot be present in a prefix")
+	}
+
 	bitsStr := s[i+1:]
 	bits, err := strconv.Atoi(bitsStr)
 	if err != nil {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + ": bad bits after slash: " + strconv.Quote(bitsStr))
+		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): bad bits after slash: " + strconv.Quote(bitsStr))
 	}
 	maxBits := 32
 	if ip.Is6() {
 		maxBits = 128
 	}
 	if bits < 0 || bits > maxBits {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + ": prefix length out of range")
+		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): prefix length out of range")
 	}
 	return PrefixFrom(ip, bits), nil
 }
@@ -1331,16 +1338,14 @@ func MustParsePrefix(s string) Prefix {
 //
 // If p is zero or otherwise invalid, Masked returns the zero Prefix.
 func (p Prefix) Masked() Prefix {
-	if m, err := p.ip.Prefix(int(p.bits)); err == nil {
-		return m
-	}
-	return Prefix{}
+	m, _ := p.ip.Prefix(p.Bits())
+	return m
 }
 
 // Contains reports whether the network p includes ip.
 //
 // An IPv4 address will not match an IPv6 prefix.
-// A v6-mapped IPv6 address will not match an IPv4 prefix.
+// An IPv4-mapped IPv6 address will not match an IPv4 prefix.
 // A zero-value IP will not match any prefix.
 // If ip has an IPv6 zone, Contains returns false,
 // because Prefixes strip zones.
@@ -1360,20 +1365,20 @@ func (p Prefix) Contains(ip Addr) bool {
 		// the compiler doesn't know that, so mask with 63 to help it.
 		// Now truncate to 32 bits, because this is IPv4.
 		// If all the bits we care about are equal, the result will be zero.
-		return uint32((ip.addr.lo^p.ip.addr.lo)>>((32-p.bits)&63)) == 0
+		return uint32((ip.addr.lo^p.ip.addr.lo)>>((32-p.Bits())&63)) == 0
 	} else {
 		// xor the IP addresses together.
 		// Mask away the bits we don't care about.
 		// If all the bits we care about are equal, the result will be zero.
-		return ip.addr.xor(p.ip.addr).and(mask6(int(p.bits))).isZero()
+		return ip.addr.xor(p.ip.addr).and(mask6(p.Bits())).isZero()
 	}
 }
 
 // Overlaps reports whether p and o contain any IP addresses in common.
 //
 // If p and o are of different address families or either have a zero
-// IP, it reports false. Like the Contains method, a prefix with a
-// v6-mapped IPv4 IP is still treated as an IPv6 mask.
+// IP, it reports false. Like the Contains method, a prefix with an
+// IPv4-mapped IPv6 address is still treated as an IPv6 mask.
 func (p Prefix) Overlaps(o Prefix) bool {
 	if !p.IsValid() || !o.IsValid() {
 		return false
@@ -1384,11 +1389,11 @@ func (p Prefix) Overlaps(o Prefix) bool {
 	if p.ip.Is4() != o.ip.Is4() {
 		return false
 	}
-	var minBits int16
-	if p.bits < o.bits {
-		minBits = p.bits
+	var minBits int
+	if pb, ob := p.Bits(), o.Bits(); pb < ob {
+		minBits = pb
 	} else {
-		minBits = o.bits
+		minBits = ob
 	}
 	if minBits == 0 {
 		return true
@@ -1398,10 +1403,10 @@ func (p Prefix) Overlaps(o Prefix) bool {
 	// so the Prefix call on the one that's already minBits serves to zero
 	// out any remaining bits in IP.
 	var err error
-	if p, err = p.ip.Prefix(int(minBits)); err != nil {
+	if p, err = p.ip.Prefix(minBits); err != nil {
 		return false
 	}
-	if o, err = o.ip.Prefix(int(minBits)); err != nil {
+	if o, err = o.ip.Prefix(minBits); err != nil {
 		return false
 	}
 	return p.ip == o.ip
@@ -1431,7 +1436,7 @@ func (p Prefix) AppendTo(b []byte) []byte {
 	}
 
 	b = append(b, '/')
-	b = appendDecimal(b, uint8(p.bits))
+	b = appendDecimal(b, uint8(p.Bits()))
 	return b
 }
 
@@ -1494,5 +1499,5 @@ func (p Prefix) String() string {
 	if !p.IsValid() {
 		return "invalid Prefix"
 	}
-	return p.ip.String() + "/" + itoa.Itoa(int(p.bits))
+	return p.ip.String() + "/" + itoa.Itoa(p.Bits())
 }

@@ -126,7 +126,7 @@ func TestMultipartSlowInput(t *testing.T) {
 func testMultipart(t *testing.T, r io.Reader, onlyNewlines bool) {
 	t.Parallel()
 	reader := NewReader(r, "MyBoundary")
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 
 	// Part1
 	part, err := reader.NextPart()
@@ -291,24 +291,34 @@ func TestLineLimit(t *testing.T) {
 }
 
 func TestMultipartTruncated(t *testing.T) {
-	testBody := `
+	for _, body := range []string{
+		`
 This is a multi-part message.  This line is ignored.
 --MyBoundary
 foo-bar: baz
 
 Oh no, premature EOF!
-`
-	body := strings.ReplaceAll(testBody, "\n", "\r\n")
-	bodyReader := strings.NewReader(body)
-	r := NewReader(bodyReader, "MyBoundary")
+`,
+		`
+This is a multi-part message.  This line is ignored.
+--MyBoundary
+foo-bar: baz
 
-	part, err := r.NextPart()
-	if err != nil {
-		t.Fatalf("didn't get a part")
-	}
-	_, err = io.Copy(io.Discard, part)
-	if err != io.ErrUnexpectedEOF {
-		t.Fatalf("expected error io.ErrUnexpectedEOF; got %v", err)
+Oh no, premature EOF!
+--MyBoundary-`,
+	} {
+		body = strings.ReplaceAll(body, "\n", "\r\n")
+		bodyReader := strings.NewReader(body)
+		r := NewReader(bodyReader, "MyBoundary")
+
+		part, err := r.NextPart()
+		if err != nil {
+			t.Fatalf("didn't get a part")
+		}
+		_, err = io.Copy(io.Discard, part)
+		if err != io.ErrUnexpectedEOF {
+			t.Fatalf("expected error io.ErrUnexpectedEOF; got %v", err)
+		}
 	}
 }
 
@@ -406,7 +416,7 @@ func TestLineContinuation(t *testing.T) {
 		if err != nil {
 			t.Fatalf("didn't get a part")
 		}
-		var buf bytes.Buffer
+		var buf strings.Builder
 		n, err := io.Copy(&buf, part)
 		if err != nil {
 			t.Errorf("error reading part: %v\nread so far: %q", err, buf.String())
@@ -436,7 +446,7 @@ func testQuotedPrintableEncoding(t *testing.T, cte string) {
 	if te, ok := part.Header["Content-Transfer-Encoding"]; ok {
 		t.Errorf("unexpected Content-Transfer-Encoding of %q", te)
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	_, err = io.Copy(&buf, part)
 	if err != nil {
 		t.Error(err)
@@ -474,7 +484,7 @@ Content-Transfer-Encoding: quoted-printable
 	if _, ok := part.Header["Content-Transfer-Encoding"]; !ok {
 		t.Errorf("missing Content-Transfer-Encoding")
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	_, err = io.Copy(&buf, part)
 	if err != nil {
 		t.Error(err)
@@ -751,6 +761,7 @@ html things
 			},
 		},
 	},
+
 	// Issue 12662: Check that we don't consume the leading \r if the peekBuffer
 	// ends in '\r\n--separator-'
 	{
@@ -767,6 +778,7 @@ Content-Type: application/octet-stream
 			},
 		},
 	},
+
 	// Issue 12662: Same test as above with \r\n at the end
 	{
 		name: "peek buffer boundary condition",
@@ -782,6 +794,7 @@ Content-Type: application/octet-stream
 			},
 		},
 	},
+
 	// Issue 12662v2: We want to make sure that for short buffers that end with
 	// '\r\n--separator-' we always consume at least one (valid) symbol from the
 	// peekBuffer
@@ -799,6 +812,7 @@ Content-Type: application/octet-stream
 			},
 		},
 	},
+
 	// Context: https://github.com/camlistore/camlistore/issues/642
 	// If the file contents in the form happens to have a size such as:
 	// size = peekBufferSize - (len("\n--") + len(boundary) + len("\r") + 1), (modulo peekBufferSize)
@@ -829,6 +843,52 @@ val
 			{textproto.MIMEHeader{"Content-Disposition": {`form-data; name="key"`}},
 				"val",
 			},
+		},
+	},
+
+	// Issue 46042; a nested multipart uses the outer separator followed by
+	// a dash.
+	{
+		name: "nested separator prefix is outer separator followed by a dash",
+		sep:  "foo",
+		in: strings.Replace(`--foo
+Content-Type: multipart/alternative; boundary="foo-bar"
+
+--foo-bar
+
+Body
+--foo-bar
+
+Body2
+--foo-bar--
+--foo--`, "\n", "\r\n", -1),
+		want: []headerBody{
+			{textproto.MIMEHeader{"Content-Type": {`multipart/alternative; boundary="foo-bar"`}},
+				strings.Replace(`--foo-bar
+
+Body
+--foo-bar
+
+Body2
+--foo-bar--`, "\n", "\r\n", -1),
+			},
+		},
+	},
+
+	// A nested boundary cannot be the outer separator followed by double dash.
+	{
+		name: "nested separator prefix is outer separator followed by double dash",
+		sep:  "foo",
+		in: strings.Replace(`--foo
+Content-Type: multipart/alternative; boundary="foo--"
+
+--foo--
+
+Body
+
+--foo--`, "\n", "\r\n", -1),
+		want: []headerBody{
+			{textproto.MIMEHeader{"Content-Type": {`multipart/alternative; boundary="foo--"`}}, ""},
 		},
 	},
 
@@ -933,7 +993,7 @@ func roundTripParseTest() parseTest {
 			formData("foo", "bar"),
 		},
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	w := NewWriter(&buf)
 	for _, p := range t.want {
 		pw, err := w.CreatePart(p.header)

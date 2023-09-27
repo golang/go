@@ -13,6 +13,11 @@ import (
 	"os"
 )
 
+// cgoAvailable set to true to indicate that the cgo resolver
+// is available on Plan 9. Note that on Plan 9 the cgo resolver
+// does not actually use cgo.
+const cgoAvailable = true
+
 func query(ctx context.Context, filename, query string, bufSize int) (addrs []string, err error) {
 	queryAddrs := func() (addrs []string, err error) {
 		file, err := os.OpenFile(filename, os.O_RDWR, 0)
@@ -179,7 +184,11 @@ loop:
 	return
 }
 
-func (r *Resolver) lookupIP(ctx context.Context, _, host string) (addrs []IPAddr, err error) {
+func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
+	if order, conf := systemConf().hostLookupOrder(r, host); order != hostLookupCgo {
+		return r.goLookupIP(ctx, network, host, order, conf)
+	}
+
 	lits, err := r.lookupHost(ctx, host)
 	if err != nil {
 		return
@@ -223,7 +232,11 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port 
 	return 0, unknownPortError
 }
 
-func (*Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
+func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
+	if order, conf := systemConf().hostLookupOrder(r, name); order != hostLookupCgo {
+		return r.goLookupCNAME(ctx, name, order, conf)
+	}
+
 	lines, err := queryDNS(ctx, name, "cname")
 	if err != nil {
 		if stringsHasSuffix(err.Error(), "dns failure") || stringsHasSuffix(err.Error(), "resource does not exist; negrcode 0") {
@@ -240,7 +253,10 @@ func (*Resolver) lookupCNAME(ctx context.Context, name string) (cname string, er
 	return "", errors.New("bad response from ndb/dns")
 }
 
-func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
+func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
+	if systemConf().mustUseGoResolver(r) {
+		return r.goLookupSRV(ctx, service, proto, name)
+	}
 	var target string
 	if service == "" && proto == "" {
 		target = name
@@ -269,7 +285,10 @@ func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cn
 	return
 }
 
-func (*Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
+func (r *Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
+	if systemConf().mustUseGoResolver(r) {
+		return r.goLookupMX(ctx, name)
+	}
 	lines, err := queryDNS(ctx, name, "mx")
 	if err != nil {
 		return
@@ -287,7 +306,10 @@ func (*Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err error
 	return
 }
 
-func (*Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err error) {
+func (r *Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err error) {
+	if systemConf().mustUseGoResolver(r) {
+		return r.goLookupNS(ctx, name)
+	}
 	lines, err := queryDNS(ctx, name, "ns")
 	if err != nil {
 		return
@@ -302,7 +324,10 @@ func (*Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err error
 	return
 }
 
-func (*Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err error) {
+func (r *Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err error) {
+	if systemConf().mustUseGoResolver(r) {
+		return r.goLookupTXT(ctx, name)
+	}
 	lines, err := queryDNS(ctx, name, "txt")
 	if err != nil {
 		return
@@ -315,7 +340,10 @@ func (*Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err 
 	return
 }
 
-func (*Resolver) lookupAddr(ctx context.Context, addr string) (name []string, err error) {
+func (r *Resolver) lookupAddr(ctx context.Context, addr string) (name []string, err error) {
+	if order, conf := systemConf().addrLookupOrder(r, addr); order != hostLookupCgo {
+		return r.goLookupPTR(ctx, addr, order, conf)
+	}
 	arpa, err := reverseaddr(addr)
 	if err != nil {
 		return

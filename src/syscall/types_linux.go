@@ -118,7 +118,7 @@ struct my_epoll_event {
 	int32_t padFd;
 #endif
 #if defined(__powerpc64__) || defined(__s390x__) || (defined(__riscv_xlen) && __riscv_xlen == 64) \
-		|| (defined(__mips__) && _MIPS_SIM == _MIPS_SIM_ABI64)
+		|| (defined(__mips__) && _MIPS_SIM == _MIPS_SIM_ABI64) || defined(__loongarch64)
 	int32_t _padFd;
 #endif
 	int32_t fd;
@@ -182,6 +182,10 @@ type _Gid_t C.gid_t
 // Files
 
 type Stat_t C.struct_stat
+
+type statxTimestamp C.struct_statx_timestamp
+
+type statx_t C.struct_statx
 
 type Statfs_t C.struct_statfs
 
@@ -416,6 +420,9 @@ const (
 	_AT_REMOVEDIR        = C.AT_REMOVEDIR
 	_AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
 	_AT_EACCESS          = C.AT_EACCESS
+	_AT_EMPTY_PATH       = C.AT_EMPTY_PATH
+	_AT_NO_AUTOMOUNT     = C.AT_NO_AUTOMOUNT
+	_STATX_BASIC_STATS   = C.STATX_BASIC_STATS
 )
 
 type pollFd C.struct_pollfd

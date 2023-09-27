@@ -5,7 +5,10 @@
 package net
 
 import (
+	"errors"
 	"internal/bytealg"
+	"io/fs"
+	"net/netip"
 	"sync"
 	"time"
 )
@@ -13,19 +16,16 @@ import (
 const cacheMaxAge = 5 * time.Second
 
 func parseLiteralIP(addr string) string {
-	var ip IP
-	var zone string
-	ip = parseIPv4(addr)
-	if ip == nil {
-		ip, zone = parseIPv6Zone(addr)
-	}
-	if ip == nil {
+	ip, err := netip.ParseAddr(addr)
+	if err != nil {
 		return ""
 	}
-	if zone == "" {
-		return ip.String()
-	}
-	return ip.String() + "%" + zone
+	return ip.String()
+}
+
+type byName struct {
+	addrs         []string
+	canonicalName string
 }
 
 // hosts contains known host entries.
@@ -36,7 +36,7 @@ var hosts struct {
 	// name. It would be part of DNS labels, a FQDN or an absolute
 	// FQDN.
 	// For now the key is converted to lower case for convenience.
-	byName map[string][]string
+	byName map[string]byName
 
 	// Key for the list of host names must be a literal IP address
 	// including IPv6 address with zone identifier.
@@ -51,7 +51,7 @@ var hosts struct {
 
 func readHosts() {
 	now := time.Now()
-	hp := testHookHostsPath
+	hp := hostsFilePath
 
 	if now.Before(hosts.expire) && hosts.path == hp && len(hosts.byName) > 0 {
 		return
@@ -62,32 +62,58 @@ func readHosts() {
 		return
 	}
 
-	hs := make(map[string][]string)
+	hs := make(map[string]byName)
 	is := make(map[string][]string)
-	var file *file
-	if file, _ = open(hp); file == nil {
-		return
+
+	file, err := open(hp)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) && !errors.Is(err, fs.ErrPermission) {
+			return
+		}
 	}
-	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
-		if i := bytealg.IndexByteString(line, '#'); i >= 0 {
-			// Discard comments.
-			line = line[0:i]
-		}
-		f := getFields(line)
-		if len(f) < 2 {
-			continue
-		}
-		addr := parseLiteralIP(f[0])
-		if addr == "" {
-			continue
-		}
-		for i := 1; i < len(f); i++ {
-			name := absDomainName(f[i])
-			h := []byte(f[i])
-			lowerASCIIBytes(h)
-			key := absDomainName(string(h))
-			hs[key] = append(hs[key], addr)
-			is[addr] = append(is[addr], name)
+
+	if file != nil {
+		defer file.close()
+		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+			if i := bytealg.IndexByteString(line, '#'); i >= 0 {
+				// Discard comments.
+				line = line[0:i]
+			}
+			f := getFields(line)
+			if len(f) < 2 {
+				continue
+			}
+			addr := parseLiteralIP(f[0])
+			if addr == "" {
+				continue
+			}
+
+			var canonical string
+			for i := 1; i < len(f); i++ {
+				name := absDomainName(f[i])
+				h := []byte(f[i])
+				lowerASCIIBytes(h)
+				key := absDomainName(string(h))
+
+				if i == 1 {
+					canonical = key
+				}
+
+				is[addr] = append(is[addr], name)
+
+				if v, ok := hs[key]; ok {
+					hs[key] = byName{
+						addrs:         append(v.addrs, addr),
+						canonicalName: v.canonicalName,
+					}
+					continue
+				}
+
+				hs[key] = byName{
+					addrs:         []string{addr},
+					canonicalName: canonical,
+				}
+			}
 		}
 	}
 	// Update the data cache.
@@ -97,11 +123,10 @@ func readHosts() {
 	hosts.byAddr = is
 	hosts.mtime = mtime
 	hosts.size = size
-	file.close()
 }
 
-// lookupStaticHost looks up the addresses for the given host from /etc/hosts.
-func lookupStaticHost(host string) []string {
+// lookupStaticHost looks up the addresses and the canonical name for the given host from /etc/hosts.
+func lookupStaticHost(host string) ([]string, string) {
 	hosts.Lock()
 	defer hosts.Unlock()
 	readHosts()
@@ -111,13 +136,13 @@ func lookupStaticHost(host string) []string {
 			lowerASCIIBytes(lowerHost)
 			host = string(lowerHost)
 		}
-		if ips, ok := hosts.byName[absDomainName(host)]; ok {
-			ipsCp := make([]string, len(ips))
-			copy(ipsCp, ips)
-			return ipsCp
+		if byName, ok := hosts.byName[absDomainName(host)]; ok {
+			ipsCp := make([]string, len(byName.addrs))
+			copy(ipsCp, byName.addrs)
+			return ipsCp, byName.canonicalName
 		}
 	}
-	return nil
+	return nil, ""
 }
 
 // lookupStaticAddr looks up the hosts for the given address from /etc/hosts.

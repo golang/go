@@ -9,8 +9,8 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	exec "internal/execabs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -170,7 +170,16 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[any]string, assign map[
 			if err != nil {
 				return err
 			}
-			cmd := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "tool", "cgo", "-objdir", dir, "-srcdir", dir, "in.go")
+			goCmd := "go"
+			if goroot := runtime.GOROOT(); goroot != "" {
+				goCmd = filepath.Join(goroot, "bin", "go")
+			}
+			cmd := exec.Command(goCmd, "tool", "cgo", "-objdir", dir, "-srcdir", dir, "in.go")
+			if reportCgoError != nil {
+				// Since cgo command errors will be reported, also forward the error
+				// output from the command for debugging.
+				cmd.Stderr = os.Stderr
+			}
 			err = cmd.Run()
 			if err != nil {
 				return err
@@ -206,7 +215,11 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[any]string, assign map[
 			return nil
 		}()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "go fix: warning: no cgo types: %s\n", err)
+			if reportCgoError == nil {
+				fmt.Fprintf(os.Stderr, "go fix: warning: no cgo types: %s\n", err)
+			} else {
+				reportCgoError(err)
+			}
 		}
 	}
 
@@ -285,6 +298,10 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[any]string, assign map[
 	return typeof, assign
 }
 
+// reportCgoError, if non-nil, reports a non-nil error from running the "cgo"
+// tool. (Set to a non-nil hook during testing if cgo is expected to work.)
+var reportCgoError func(err error)
+
 func makeExprList(a []*ast.Ident) []ast.Expr {
 	var b []ast.Expr
 	for _, x := range a {
@@ -293,7 +310,7 @@ func makeExprList(a []*ast.Ident) []ast.Expr {
 	return b
 }
 
-// Typecheck1 is the recursive form of typecheck.
+// typecheck1 is the recursive form of typecheck.
 // It is like typecheck but adds to the information in typeof
 // instead of allocating a new map.
 func typecheck1(cfg *TypeConfig, f any, typeof map[any]string, assign map[string][]any) {

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 package net
 
 import (
@@ -113,6 +111,22 @@ func BenchmarkParseIP(b *testing.B) {
 		for _, tt := range parseIPTests {
 			ParseIP(tt.in)
 		}
+	}
+}
+
+func BenchmarkParseIPValidIPv4(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
+	for i := 0; i < b.N; i++ {
+		ParseIP("192.0.2.1")
+	}
+}
+
+func BenchmarkParseIPValidIPv6(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
+	for i := 0; i < b.N; i++ {
+		ParseIP("2001:DB8::1")
 	}
 }
 
@@ -407,6 +421,7 @@ var ipNetStringTests = []struct {
 	{&IPNet{IP: IPv4(192, 168, 1, 0), Mask: IPv4Mask(255, 0, 255, 0)}, "192.168.1.0/ff00ff00"},
 	{&IPNet{IP: ParseIP("2001:db8::"), Mask: CIDRMask(55, 128)}, "2001:db8::/55"},
 	{&IPNet{IP: ParseIP("2001:db8::"), Mask: IPMask(ParseIP("8000:f123:0:cafe::"))}, "2001:db8::/8000f1230000cafe0000000000000000"},
+	{nil, "<nil>"},
 }
 
 func TestIPNetString(t *testing.T) {

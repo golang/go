@@ -7,6 +7,7 @@ package riscv64
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
@@ -178,7 +179,7 @@ func largestMove(alignment int64) (obj.As, int64) {
 	}
 }
 
-// markMoves marks any MOVXconst ops that need to avoid clobbering flags.
+// ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 // RISC-V has no flags, so this is a no-op.
 func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {}
 
@@ -230,6 +231,19 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		ssagen.AddrAuto(&p.To, v)
+	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
+		// The assembler needs to wrap the entry safepoint/stack growth code with spill/unspill
+		// The loop only runs once.
+		for _, a := range v.Block.Func.RegArgs {
+			// Pass the spill/unspill information along to the assembler, offset by size of
+			// the saved LR slot.
+			addr := ssagen.SpillSlotAddr(a, riscv.REG_SP, base.Ctxt.Arch.FixedFrameSize)
+			s.FuncInfo().AddSpill(
+				obj.RegSpill{Reg: a.Reg, Addr: addr, Unspill: loadByType(a.Type), Spill: storeByType(a.Type)})
+		}
+		v.Block.Func.RegArgs = nil
+
+		ssagen.CheckArgReg(v)
 	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
 		// nothing to do
 	case ssa.OpRISCV64MOVBreg, ssa.OpRISCV64MOVHreg, ssa.OpRISCV64MOVWreg,
@@ -318,7 +332,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p2.From.Reg = v.Reg1()
 		p2.To.Type = obj.TYPE_REG
 		p2.To.Reg = v.Reg1()
-	case ssa.OpRISCV64FMADDD, ssa.OpRISCV64FMSUBD, ssa.OpRISCV64FNMADDD, ssa.OpRISCV64FNMSUBD:
+	case ssa.OpRISCV64FMADDD, ssa.OpRISCV64FMSUBD, ssa.OpRISCV64FNMADDD, ssa.OpRISCV64FNMSUBD,
+		ssa.OpRISCV64FMADDS, ssa.OpRISCV64FMSUBS, ssa.OpRISCV64FNMADDS, ssa.OpRISCV64FNMSUBS:
 		r := v.Reg()
 		r1 := v.Args[0].Reg()
 		r2 := v.Args[1].Reg()
@@ -327,7 +342,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r2
 		p.Reg = r1
-		p.SetRestArgs([]obj.Addr{{Type: obj.TYPE_REG, Reg: r3}})
+		p.AddRestSource(obj.Addr{Type: obj.TYPE_REG, Reg: r3})
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpRISCV64FSQRTS, ssa.OpRISCV64FNEGS, ssa.OpRISCV64FABSD, ssa.OpRISCV64FSQRTD, ssa.OpRISCV64FNEGD,
@@ -419,7 +434,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = v.Aux.(*obj.LSym)
+		// AuxInt encodes how many buffer entries we need.
+		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
 	case ssa.OpRISCV64LoweredPanicBoundsA, ssa.OpRISCV64LoweredPanicBoundsB, ssa.OpRISCV64LoweredPanicBoundsC:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -648,14 +664,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 
 	case ssa.OpRISCV64LoweredGetClosurePtr:
-		// Closure pointer is S4 (riscv.REG_CTXT).
+		// Closure pointer is S10 (riscv.REG_CTXT).
 		ssagen.CheckLoweredGetClosurePtr(v)
 
 	case ssa.OpRISCV64LoweredGetCallerSP:
 		// caller's SP is FixedFrameSize below the address of the first arg
 		p := s.Prog(riscv.AMOV)
 		p.From.Type = obj.TYPE_ADDR
-		p.From.Offset = -base.Ctxt.FixedFrameSize()
+		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize
 		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -678,6 +694,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = ir.Syms.Duffcopy
 		p.To.Offset = v.AuxInt
+
+	case ssa.OpRISCV64LoweredRound32F, ssa.OpRISCV64LoweredRound64F:
+		// input is already rounded
 
 	case ssa.OpClobber, ssa.OpClobberReg:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
@@ -772,4 +791,23 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	default:
 		b.Fatalf("Unhandled block: %s", b.LongString())
 	}
+}
+
+func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+	p := s.Prog(loadByType(t))
+	p.From.Type = obj.TYPE_MEM
+	p.From.Name = obj.NAME_AUTO
+	p.From.Sym = n.Linksym()
+	p.From.Offset = n.FrameOffset() + off
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = reg
+	return p
+}
+
+func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+	p = pp.Append(p, storeByType(t), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
+	p.To.Name = obj.NAME_PARAM
+	p.To.Sym = n.Linksym()
+	p.Pos = p.Pos.WithNotStmt()
+	return p
 }

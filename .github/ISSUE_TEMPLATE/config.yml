@@ -3,6 +3,3 @@ contact_links:
   - name: Questions
     about: Please use one of the forums for questions or general discussions
     url:  https://go.dev/wiki/Questions
-  - name: Security Vulnerabilities
-    about: See here for our security policy
-    url: https://go.dev/security

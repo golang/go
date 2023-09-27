@@ -166,6 +166,7 @@ var _lgamW = [...]float64{
 // Lgamma returns the natural logarithm and sign (-1 or +1) of Gamma(x).
 //
 // Special cases are:
+//
 //	Lgamma(+Inf) = +Inf
 //	Lgamma(0) = +Inf
 //	Lgamma(-integer) = +Inf

@@ -10,7 +10,8 @@ import (
 )
 
 // The result of walkStmt MUST be assigned back to n, e.g.
-// 	n.Left = walkStmt(n.Left)
+//
+//	n.Left = walkStmt(n.Left)
 func walkStmt(n ir.Node) ir.Node {
 	if n == nil {
 		return n
@@ -38,6 +39,7 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.OAS2RECV,
 		ir.OAS2FUNC,
 		ir.OAS2MAPR,
+		ir.OCLEAR,
 		ir.OCLOSE,
 		ir.OCOPY,
 		ir.OCALLINTER,
@@ -53,6 +55,7 @@ func walkStmt(n ir.Node) ir.Node {
 		if n.Typecheck() == 0 {
 			base.Fatalf("missing typecheck: %+v", n)
 		}
+
 		init := ir.TakeInit(n)
 		n = walkExpr(n, &init)
 		if n.Op() == ir.ONAME {
@@ -84,13 +87,9 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.OFALL,
 		ir.OGOTO,
 		ir.OLABEL,
+		ir.OJUMPTABLE,
 		ir.ODCL,
-		ir.ODCLCONST,
-		ir.ODCLTYPE,
-		ir.OCHECKNIL,
-		ir.OVARDEF,
-		ir.OVARKILL,
-		ir.OVARLIVE:
+		ir.OCHECKNIL:
 		return n
 
 	case ir.OBLOCK:
@@ -106,10 +105,11 @@ func walkStmt(n ir.Node) ir.Node {
 		n := n.(*ir.GoDeferStmt)
 		ir.CurFunc.SetHasDefer(true)
 		ir.CurFunc.NumDefers++
-		if ir.CurFunc.NumDefers > maxOpenDefers {
+		if ir.CurFunc.NumDefers > maxOpenDefers || n.DeferAt != nil {
 			// Don't allow open-coded defers if there are more than
 			// 8 defers in the function, since we use a single
 			// byte to record active defers.
+			// Also don't allow if we need to use deferprocat.
 			ir.CurFunc.SetOpenCodedDeferDisallowed(true)
 		}
 		if n.Esc() != ir.EscNever {
@@ -122,7 +122,7 @@ func walkStmt(n ir.Node) ir.Node {
 		n := n.(*ir.GoDeferStmt)
 		return walkGoDefer(n)
 
-	case ir.OFOR, ir.OFORUNTIL:
+	case ir.OFOR:
 		n := n.(*ir.ForStmt)
 		return walkFor(n)
 
@@ -176,7 +176,7 @@ func walkStmtList(s []ir.Node) {
 	}
 }
 
-// walkFor walks an OFOR or OFORUNTIL node.
+// walkFor walks an OFOR node.
 func walkFor(n *ir.ForStmt) ir.Node {
 	if n.Cond != nil {
 		init := ir.TakeInit(n.Cond)
@@ -186,9 +186,6 @@ func walkFor(n *ir.ForStmt) ir.Node {
 	}
 
 	n.Post = walkStmt(n.Post)
-	if n.Op() == ir.OFORUNTIL {
-		walkStmtList(n.Late)
-	}
 	walkStmtList(n.Body)
 	return n
 }

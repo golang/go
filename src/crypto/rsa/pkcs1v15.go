@@ -6,17 +6,16 @@ package rsa
 
 import (
 	"crypto"
+	"crypto/internal/boring"
+	"crypto/internal/randutil"
 	"crypto/subtle"
 	"errors"
 	"io"
-	"math/big"
-
-	"crypto/internal/randutil"
 )
 
 // This file implements encryption and decryption using PKCS #1 v1.5 padding.
 
-// PKCS1v15DecrypterOpts is for passing options to PKCS #1 v1.5 decryption using
+// PKCS1v15DecryptOptions is for passing options to PKCS #1 v1.5 decryption using
 // the crypto.Decrypter interface.
 type PKCS1v15DecryptOptions struct {
 	// SessionKeyLen is the length of the session key that is being
@@ -30,14 +29,17 @@ type PKCS1v15DecryptOptions struct {
 // scheme from PKCS #1 v1.5.  The message must be no longer than the
 // length of the public modulus minus 11 bytes.
 //
-// The rand parameter is used as a source of entropy to ensure that
+// The random parameter is used as a source of entropy to ensure that
 // encrypting the same message twice doesn't result in the same
-// ciphertext.
+// ciphertext. Most applications should use [crypto/rand.Reader]
+// as random. Note that the returned ciphertext does not depend
+// deterministically on the bytes read from random, and may change
+// between calls and/or between versions.
 //
 // WARNING: use of this function to encrypt plaintexts other than
 // session keys is dangerous. Use RSA OAEP in new protocols.
-func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
-	randutil.MaybeReadByte(rand)
+func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
+	randutil.MaybeReadByte(random)
 
 	if err := checkPub(pub); err != nil {
 		return nil, err
@@ -47,36 +49,64 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) ([]byte, error)
 		return nil, ErrMessageTooLong
 	}
 
+	if boring.Enabled && random == boring.RandReader {
+		bkey, err := boringPublicKey(pub)
+		if err != nil {
+			return nil, err
+		}
+		return boring.EncryptRSAPKCS1(bkey, msg)
+	}
+	boring.UnreachableExceptTests()
+
 	// EM = 0x00 || 0x02 || PS || 0x00 || M
 	em := make([]byte, k)
 	em[1] = 2
 	ps, mm := em[2:len(em)-len(msg)-1], em[len(em)-len(msg):]
-	err := nonZeroRandomBytes(ps, rand)
+	err := nonZeroRandomBytes(ps, random)
 	if err != nil {
 		return nil, err
 	}
 	em[len(em)-len(msg)-1] = 0
 	copy(mm, msg)
 
-	m := new(big.Int).SetBytes(em)
-	c := encrypt(new(big.Int), pub, m)
+	if boring.Enabled {
+		var bkey *boring.PublicKeyRSA
+		bkey, err = boringPublicKey(pub)
+		if err != nil {
+			return nil, err
+		}
+		return boring.EncryptRSANoPadding(bkey, em)
+	}
 
-	return c.FillBytes(em), nil
+	return encrypt(pub, em)
 }
 
 // DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS #1 v1.5.
-// If rand != nil, it uses RSA blinding to avoid timing side-channel attacks.
+// The random parameter is legacy and ignored, and it can be nil.
 //
 // Note that whether this function returns an error or not discloses secret
 // information. If an attacker can cause this function to run repeatedly and
 // learn whether each instance returned an error then they can decrypt and
 // forge signatures as if they had the private key. See
 // DecryptPKCS1v15SessionKey for a way of solving this problem.
-func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) ([]byte, error) {
+func DecryptPKCS1v15(random io.Reader, priv *PrivateKey, ciphertext []byte) ([]byte, error) {
 	if err := checkPub(&priv.PublicKey); err != nil {
 		return nil, err
 	}
-	valid, out, index, err := decryptPKCS1v15(rand, priv, ciphertext)
+
+	if boring.Enabled {
+		bkey, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, err
+		}
+		out, err := boring.DecryptRSAPKCS1(bkey, ciphertext)
+		if err != nil {
+			return nil, ErrDecryption
+		}
+		return out, nil
+	}
+
+	valid, out, index, err := decryptPKCS1v15(priv, ciphertext)
 	if err != nil {
 		return nil, err
 	}
@@ -86,26 +116,41 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) ([]byt
 	return out[index:], nil
 }
 
-// DecryptPKCS1v15SessionKey decrypts a session key using RSA and the padding scheme from PKCS #1 v1.5.
-// If rand != nil, it uses RSA blinding to avoid timing side-channel attacks.
-// It returns an error if the ciphertext is the wrong length or if the
-// ciphertext is greater than the public modulus. Otherwise, no error is
-// returned. If the padding is valid, the resulting plaintext message is copied
-// into key. Otherwise, key is unchanged. These alternatives occur in constant
-// time. It is intended that the user of this function generate a random
-// session key beforehand and continue the protocol with the resulting value.
-// This will remove any possibility that an attacker can learn any information
-// about the plaintext.
-// See ``Chosen Ciphertext Attacks Against Protocols Based on the RSA
-// Encryption Standard PKCS #1'', Daniel Bleichenbacher, Advances in Cryptology
-// (Crypto '98).
+// DecryptPKCS1v15SessionKey decrypts a session key using RSA and the padding
+// scheme from PKCS #1 v1.5. The random parameter is legacy and ignored, and it
+// can be nil.
+//
+// DecryptPKCS1v15SessionKey returns an error if the ciphertext is the wrong
+// length or if the ciphertext is greater than the public modulus. Otherwise, no
+// error is returned. If the padding is valid, the resulting plaintext message
+// is copied into key. Otherwise, key is unchanged. These alternatives occur in
+// constant time. It is intended that the user of this function generate a
+// random session key beforehand and continue the protocol with the resulting
+// value.
 //
 // Note that if the session key is too small then it may be possible for an
-// attacker to brute-force it. If they can do that then they can learn whether
-// a random value was used (because it'll be different for the same ciphertext)
-// and thus whether the padding was correct. This defeats the point of this
+// attacker to brute-force it. If they can do that then they can learn whether a
+// random value was used (because it'll be different for the same ciphertext)
+// and thus whether the padding was correct. This also defeats the point of this
 // function. Using at least a 16-byte key will protect against this attack.
-func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) error {
+//
+// This method implements protections against Bleichenbacher chosen ciphertext
+// attacks [0] described in RFC 3218 Section 2.3.2 [1]. While these protections
+// make a Bleichenbacher attack significantly more difficult, the protections
+// are only effective if the rest of the protocol which uses
+// DecryptPKCS1v15SessionKey is designed with these considerations in mind. In
+// particular, if any subsequent operations which use the decrypted session key
+// leak any information about the key (e.g. whether it is a static or random
+// key) then the mitigations are defeated. This method must be used extremely
+// carefully, and typically should only be used when absolutely necessary for
+// compatibility with an existing protocol (such as TLS) that is designed with
+// these properties in mind.
+//
+//   - [0] “Chosen Ciphertext Attacks Against Protocols Based on the RSA Encryption
+//     Standard PKCS #1”, Daniel Bleichenbacher, Advances in Cryptology (Crypto '98)
+//   - [1] RFC 3218, Preventing the Million Message Attack on CMS,
+//     https://www.rfc-editor.org/rfc/rfc3218.html
+func DecryptPKCS1v15SessionKey(random io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) error {
 	if err := checkPub(&priv.PublicKey); err != nil {
 		return err
 	}
@@ -114,7 +159,7 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
 		return ErrDecryption
 	}
 
-	valid, em, index, err := decryptPKCS1v15(rand, priv, ciphertext)
+	valid, em, index, err := decryptPKCS1v15(priv, ciphertext)
 	if err != nil {
 		return err
 	}
@@ -130,26 +175,36 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
 	return nil
 }
 
-// decryptPKCS1v15 decrypts ciphertext using priv and blinds the operation if
-// rand is not nil. It returns one or zero in valid that indicates whether the
-// plaintext was correctly structured. In either case, the plaintext is
-// returned in em so that it may be read independently of whether it was valid
-// in order to maintain constant memory access patterns. If the plaintext was
-// valid then index contains the index of the original message in em.
-func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid int, em []byte, index int, err error) {
+// decryptPKCS1v15 decrypts ciphertext using priv. It returns one or zero in
+// valid that indicates whether the plaintext was correctly structured.
+// In either case, the plaintext is returned in em so that it may be read
+// independently of whether it was valid in order to maintain constant memory
+// access patterns. If the plaintext was valid then index contains the index of
+// the original message in em, to allow constant time padding removal.
+func decryptPKCS1v15(priv *PrivateKey, ciphertext []byte) (valid int, em []byte, index int, err error) {
 	k := priv.Size()
 	if k < 11 {
 		err = ErrDecryption
 		return
 	}
 
-	c := new(big.Int).SetBytes(ciphertext)
-	m, err := decrypt(rand, priv, c)
-	if err != nil {
-		return
+	if boring.Enabled {
+		var bkey *boring.PrivateKeyRSA
+		bkey, err = boringPrivateKey(priv)
+		if err != nil {
+			return
+		}
+		em, err = boring.DecryptRSANoPadding(bkey, ciphertext)
+		if err != nil {
+			return
+		}
+	} else {
+		em, err = decrypt(priv, ciphertext, noCheck)
+		if err != nil {
+			return
+		}
 	}
 
-	em = m.FillBytes(make([]byte, k))
 	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
 	secondByteIsTwo := subtle.ConstantTimeByteEq(em[1], 2)
 
@@ -175,15 +230,15 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
 }
 
 // nonZeroRandomBytes fills the given slice with non-zero random octets.
-func nonZeroRandomBytes(s []byte, rand io.Reader) (err error) {
-	_, err = io.ReadFull(rand, s)
+func nonZeroRandomBytes(s []byte, random io.Reader) (err error) {
+	_, err = io.ReadFull(random, s)
 	if err != nil {
 		return
 	}
 
 	for i := 0; i < len(s); i++ {
 		for s[i] == 0 {
-			_, err = io.ReadFull(rand, s[i:i+1])
+			_, err = io.ReadFull(random, s[i:i+1])
 			if err != nil {
 				return
 			}
@@ -197,10 +252,12 @@ func nonZeroRandomBytes(s []byte, rand io.Reader) (err error) {
 }
 
 // These are ASN1 DER structures:
-//   DigestInfo ::= SEQUENCE {
-//     digestAlgorithm AlgorithmIdentifier,
-//     digest OCTET STRING
-//   }
+//
+//	DigestInfo ::= SEQUENCE {
+//	  digestAlgorithm AlgorithmIdentifier,
+//	  digest OCTET STRING
+//	}
+//
 // For performance, we don't use the generic ASN1 encoder. Rather, we
 // precompute a prefix of the digest value that makes a valid ASN1 DER string
 // with the correct contents.
@@ -221,14 +278,13 @@ var hashPrefixes = map[crypto.Hash][]byte{
 // function. If hash is zero, hashed is signed directly. This isn't
 // advisable except for interoperability.
 //
-// If rand is not nil then RSA blinding will be used to avoid timing
-// side-channel attacks.
+// The random parameter is legacy and ignored, and it can be nil.
 //
 // This function is deterministic. Thus, if the set of possible
 // messages is small, an attacker may be able to build a map from
 // messages to signatures and identify the signed messages. As ever,
 // signatures provide authenticity, not confidentiality.
-func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) ([]byte, error) {
+func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) ([]byte, error) {
 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
 	if err != nil {
 		return nil, err
@@ -240,6 +296,14 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
 		return nil, ErrMessageTooLong
 	}
 
+	if boring.Enabled {
+		bkey, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, err
+		}
+		return boring.SignRSAPKCS1v15(bkey, hash, hashed)
+	}
+
 	// EM = 0x00 || 0x01 || PS || 0x00 || T
 	em := make([]byte, k)
 	em[1] = 1
@@ -249,13 +313,7 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
 	copy(em[k-tLen:k-hashLen], prefix)
 	copy(em[k-hashLen:k], hashed)
 
-	m := new(big.Int).SetBytes(em)
-	c, err := decryptAndCheck(rand, priv, m)
-	if err != nil {
-		return nil, err
-	}
-
-	return c.FillBytes(em), nil
+	return decrypt(priv, em, withCheck)
 }
 
 // VerifyPKCS1v15 verifies an RSA PKCS #1 v1.5 signature.
@@ -264,6 +322,17 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
 // returning a nil error. If hash is zero then hashed is used directly. This
 // isn't advisable except for interoperability.
 func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) error {
+	if boring.Enabled {
+		bkey, err := boringPublicKey(pub)
+		if err != nil {
+			return err
+		}
+		if err := boring.VerifyRSAPKCS1v15(bkey, hash, hashed, sig); err != nil {
+			return ErrVerification
+		}
+		return nil
+	}
+
 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
 	if err != nil {
 		return err
@@ -282,9 +351,10 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 		return ErrVerification
 	}
 
-	c := new(big.Int).SetBytes(sig)
-	m := encrypt(new(big.Int), pub, c)
-	em := m.FillBytes(make([]byte, k))
+	em, err := encrypt(pub, sig)
+	if err != nil {
+		return ErrVerification
+	}
 	// EM = 0x00 || 0x01 || PS || 0x00 || T
 
 	ok := subtle.ConstantTimeByteEq(em[0], 0)

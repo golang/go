@@ -1,0 +1,49 @@
+handle git
+
+env GIT_AUTHOR_NAME='Bryan C. Mills'
+env GIT_AUTHOR_EMAIL='bcmills@google.com'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2022-02-23T13:48:02-05:00
+git add README.txt
+git commit -m 'initial state'
+git branch -m main
+git tag 'v2.0.0+incompatible'
+
+at 2022-02-23T13:48:35-05:00
+git rm -r README.txt
+git add go.mod
+git commit -m 'migrate to Go modules'
+git tag 'v0.1.0+build-metadata'
+
+at 2022-02-23T14:41:55-05:00
+git branch v3-dev
+git checkout v3-dev
+cp v3/go.mod go.mod
+git commit go.mod -m 'update to /v3'
+git tag 'v3.0.0-20220223184802-12d19af20458'
+
+git checkout main
+
+git show-ref --tags --heads
+cmp stdout .git-refs
+
+-- .git-refs --
+9d863d525bbfcc8eda09364738c4032393711a56 refs/heads/main
+cce3d0f5d2ec85678cca3c45ac4a87f3be5efaca refs/heads/v3-dev
+9d863d525bbfcc8eda09364738c4032393711a56 refs/tags/v0.1.0+build-metadata
+12d19af204585b0db3d2a876ceddf5b9323f5a4a refs/tags/v2.0.0+incompatible
+cce3d0f5d2ec85678cca3c45ac4a87f3be5efaca refs/tags/v3.0.0-20220223184802-12d19af20458
+-- README.txt --
+This module lacks a go.mod file.
+-- go.mod --
+module vcs-test.golang.org/git/odd-tags.git
+
+go 1.18
+-- v3/go.mod --
+module vcs-test.golang.org/git/odd-tags.git/v3
+
+go 1.18

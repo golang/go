@@ -25,7 +25,9 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"fmt"
+	"internal/abi"
 	"log"
+	"math/bits"
 )
 
 func buildop(ctxt *obj.Link) {}
@@ -39,7 +41,7 @@ func jalToSym(ctxt *obj.Link, p *obj.Prog, lr int16) {
 	}
 
 	p.As = AJAL
-	p.Mark |= NEED_CALL_RELOC
+	p.Mark |= NEED_JAL_RELOC
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = lr
 	p.Reg = obj.REG_NONE
@@ -53,6 +55,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	if p.Reg == obj.REG_NONE {
 		switch p.As {
 		case AADDI, ASLTI, ASLTIU, AANDI, AORI, AXORI, ASLLI, ASRLI, ASRAI,
+			AADDIW, ASLLIW, ASRLIW, ASRAIW, AADDW, ASUBW, ASLLW, ASRLW, ASRAW,
 			AADD, AAND, AOR, AXOR, ASLL, ASRL, ASUB, ASRA,
 			AMUL, AMULH, AMULHU, AMULHSU, AMULW, ADIV, ADIVU, ADIVW, ADIVUW,
 			AREM, AREMU, AREMW, AREMUW:
@@ -82,6 +85,14 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.As = ASRLI
 		case ASRA:
 			p.As = ASRAI
+		case AADDW:
+			p.As = AADDIW
+		case ASLLW:
+			p.As = ASLLIW
+		case ASRLW:
+			p.As = ASRLIW
+		case ASRAW:
+			p.As = ASRAIW
 		}
 	}
 
@@ -131,8 +142,14 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p.As = AEBREAK
 
 	case AMOV:
-		// Put >32-bit constants in memory and load them.
 		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE && int64(int32(p.From.Offset)) != p.From.Offset {
+			ctz := bits.TrailingZeros64(uint64(p.From.Offset))
+			val := p.From.Offset >> ctz
+			if int64(int32(val)) == val {
+				// It's ok. We can handle constants with many trailing zeros.
+				break
+			}
+			// Put >32-bit constants in memory and load them.
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Int64Sym(p.From.Offset)
 			p.From.Name = obj.NAME_EXTERN
@@ -314,10 +331,7 @@ func setPCs(p *obj.Prog, pc int64) int64 {
 // FixedFrameSize makes other packages aware of the space allocated for RA.
 //
 // A nicer version of this diagram can be found on slide 21 of the presentation
-// attached to:
-//
-//   https://golang.org/issue/16922#issuecomment-243748180
-//
+// attached to https://golang.org/issue/16922#issuecomment-243748180.
 func stackOffset(a *obj.Addr, stacksize int64) {
 	switch a.Name {
 	case obj.NAME_AUTO:
@@ -374,7 +388,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	// Save LR unless there is no frame.
 	if !text.From.Sym.NoFrame() {
-		stacksize += ctxt.FixedFrameSize()
+		stacksize += ctxt.Arch.FixedFrameSize
 	}
 
 	cursym.Func().Args = text.To.Val.(int32)
@@ -404,22 +418,32 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		prologue.Spadj = int32(stacksize)
 
 		prologue = ctxt.EndUnsafePoint(prologue, newprog, -1)
+
+		// On Linux, in a cgo binary we may get a SIGSETXID signal early on
+		// before the signal stack is set, as glibc doesn't allow us to block
+		// SIGSETXID. So a signal may land on the current stack and clobber
+		// the content below the SP. We store the LR again after the SP is
+		// decremented.
+		prologue = obj.Appendp(prologue, newprog)
+		prologue.As = AMOV
+		prologue.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
+		prologue.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 0}
 	}
 
 	if cursym.Func().Text.From.Sym.Wrapper() {
 		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 		//
-		//   MOV g_panic(g), X11
-		//   BNE X11, ZERO, adjust
+		//   MOV g_panic(g), X5
+		//   BNE X5, ZERO, adjust
 		// end:
 		//   NOP
 		// ...rest of function..
 		// adjust:
-		//   MOV panic_argp(X11), X12
-		//   ADD $(autosize+FIXED_FRAME), SP, X13
-		//   BNE X12, X13, end
-		//   ADD $FIXED_FRAME, SP, X12
-		//   MOV X12, panic_argp(X11)
+		//   MOV panic_argp(X5), X6
+		//   ADD $(autosize+FIXED_FRAME), SP, X7
+		//   BNE X6, X7, end
+		//   ADD $FIXED_FRAME, SP, X6
+		//   MOV X6, panic_argp(X5)
 		//   JMP end
 		//
 		// The NOP is needed to give the jumps somewhere to land.
@@ -429,11 +453,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		ldpanic.As = AMOV
 		ldpanic.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REGG, Offset: 4 * int64(ctxt.Arch.PtrSize)} // G.panic
 		ldpanic.Reg = obj.REG_NONE
-		ldpanic.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X11}
+		ldpanic.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X5}
 
 		bneadj := obj.Appendp(ldpanic, newprog)
 		bneadj.As = ABNE
-		bneadj.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X11}
+		bneadj.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X5}
 		bneadj.Reg = REG_ZERO
 		bneadj.To.Type = obj.TYPE_BRANCH
 
@@ -447,22 +471,22 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		getargp := obj.Appendp(last, newprog)
 		getargp.As = AMOV
-		getargp.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_X11, Offset: 0} // Panic.argp
+		getargp.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_X5, Offset: 0} // Panic.argp
 		getargp.Reg = obj.REG_NONE
-		getargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
+		getargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X6}
 
 		bneadj.To.SetTarget(getargp)
 
 		calcargp := obj.Appendp(getargp, newprog)
 		calcargp.As = AADDI
-		calcargp.From = obj.Addr{Type: obj.TYPE_CONST, Offset: stacksize + ctxt.FixedFrameSize()}
+		calcargp.From = obj.Addr{Type: obj.TYPE_CONST, Offset: stacksize + ctxt.Arch.FixedFrameSize}
 		calcargp.Reg = REG_SP
-		calcargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X13}
+		calcargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X7}
 
 		testargp := obj.Appendp(calcargp, newprog)
 		testargp.As = ABNE
-		testargp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
-		testargp.Reg = REG_X13
+		testargp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X6}
+		testargp.Reg = REG_X7
 		testargp.To.Type = obj.TYPE_BRANCH
 		testargp.To.SetTarget(endadj)
 
@@ -470,13 +494,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		adjargp.As = AADDI
 		adjargp.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(ctxt.Arch.PtrSize)}
 		adjargp.Reg = REG_SP
-		adjargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
+		adjargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X6}
 
 		setargp := obj.Appendp(adjargp, newprog)
 		setargp.As = AMOV
-		setargp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
+		setargp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X6}
 		setargp.Reg = obj.REG_NONE
-		setargp.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_X11, Offset: 0} // Panic.argp
+		setargp.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_X5, Offset: 0} // Panic.argp
 
 		godone := obj.Appendp(setargp, newprog)
 		godone.As = AJAL
@@ -569,8 +593,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
 			f := cursym.Func()
-			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
-				f.FuncFlag |= objabi.FuncFlag_SPWRITE
+			if f.FuncFlag&abi.FuncFlagSPWrite == 0 {
+				f.FuncFlag |= abi.FuncFlagSPWrite
 				if ctxt.Debugvlog || !ctxt.IsAsm {
 					ctxt.Logf("auto-SPWRITE: %s %v\n", cursym.Name, p)
 					if !ctxt.IsAsm {
@@ -586,7 +610,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var callCount int
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		markRelocs(p)
-		if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
+		if p.Mark&NEED_JAL_RELOC == NEED_JAL_RELOC {
 			callCount++
 		}
 	}
@@ -640,8 +664,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					jmp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
 
 					p.As = AAUIPC
-					p.Mark = (p.Mark &^ NEED_CALL_RELOC) | NEED_PCREL_ITYPE_RELOC
-					p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym})
+					p.Mark = (p.Mark &^ NEED_JAL_RELOC) | NEED_CALL_RELOC
+					p.AddRestSource(obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym})
 					p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 					p.Reg = obj.REG_NONE
 					p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
@@ -726,6 +750,11 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 		// Save LR and REGCTXT
 		const frameSize = 16
 		p = ctxt.StartUnsafePoint(p, newprog)
+
+		// Spill Arguments. This has to happen before we open
+		// any more frame space.
+		p = cursym.Func().SpillRegisterArgs(p, newprog)
+
 		// MOV LR, -16(SP)
 		p = obj.Appendp(p, newprog)
 		p.As = AMOV
@@ -772,13 +801,15 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
 		p.Spadj = -frameSize
 
+		// Unspill arguments
+		p = cursym.Func().UnspillRegisterArgs(p, newprog)
 		p = ctxt.EndUnsafePoint(p, newprog, -1)
 	}
 
 	// Jump back to here after morestack returns.
 	startPred := p
 
-	// MOV	g_stackguard(g), X10
+	// MOV	g_stackguard(g), X6
 	p = obj.Appendp(p, newprog)
 	p.As = AMOV
 	p.From.Type = obj.TYPE_MEM
@@ -788,25 +819,31 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 		p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 	}
 	p.To.Type = obj.TYPE_REG
-	p.To.Reg = REG_X10
+	p.To.Reg = REG_X6
+
+	// Mark the stack bound check and morestack call async nonpreemptible.
+	// If we get preempted here, when resumed the preemption request is
+	// cleared, but we'll still call morestack, which will double the stack
+	// unnecessarily. See issue #35470.
+	p = ctxt.StartUnsafePoint(p, newprog)
 
 	var to_done, to_more *obj.Prog
 
-	if framesize <= objabi.StackSmall {
+	if framesize <= abi.StackSmall {
 		// small stack
 		//	// if SP > stackguard { goto done }
 		//	BLTU	stackguard, SP, done
 		p = obj.Appendp(p, newprog)
 		p.As = ABLTU
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_X10
+		p.From.Reg = REG_X6
 		p.Reg = REG_SP
 		p.To.Type = obj.TYPE_BRANCH
 		to_done = p
 	} else {
 		// large stack: SP-framesize < stackguard-StackSmall
-		offset := int64(framesize) - objabi.StackSmall
-		if framesize > objabi.StackBig {
+		offset := int64(framesize) - abi.StackSmall
+		if framesize > abi.StackBig {
 			// Such a large stack we need to protect against underflow.
 			// The runtime guarantees SP > objabi.StackBig, but
 			// framesize is large enough that SP-framesize may
@@ -814,52 +851,56 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 			// stack guard to incorrectly succeed. We explicitly
 			// guard against underflow.
 			//
-			//	MOV	$(framesize-StackSmall), X11
-			//	BLTU	SP, X11, label-of-call-to-morestack
+			//	MOV	$(framesize-StackSmall), X7
+			//	BLTU	SP, X7, label-of-call-to-morestack
 
 			p = obj.Appendp(p, newprog)
 			p.As = AMOV
 			p.From.Type = obj.TYPE_CONST
 			p.From.Offset = offset
 			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_X11
+			p.To.Reg = REG_X7
 
 			p = obj.Appendp(p, newprog)
 			p.As = ABLTU
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = REG_SP
-			p.Reg = REG_X11
+			p.Reg = REG_X7
 			p.To.Type = obj.TYPE_BRANCH
 			to_more = p
 		}
 
 		// Check against the stack guard. We've ensured this won't underflow.
-		//	ADD	$-(framesize-StackSmall), SP, X11
-		//	// if X11 > stackguard { goto done }
-		//	BLTU	stackguard, X11, done
+		//	ADD	$-(framesize-StackSmall), SP, X7
+		//	// if X7 > stackguard { goto done }
+		//	BLTU	stackguard, X7, done
 		p = obj.Appendp(p, newprog)
 		p.As = AADDI
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = -offset
 		p.Reg = REG_SP
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_X11
+		p.To.Reg = REG_X7
 
 		p = obj.Appendp(p, newprog)
 		p.As = ABLTU
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_X10
-		p.Reg = REG_X11
+		p.From.Reg = REG_X6
+		p.Reg = REG_X7
 		p.To.Type = obj.TYPE_BRANCH
 		to_done = p
 	}
 
-	p = ctxt.EmitEntryLiveness(cursym, p, newprog)
+	// Spill the register args that could be clobbered by the
+	// morestack code
+	p = ctxt.EmitEntryStackMap(cursym, p, newprog)
+	p = cursym.Func().SpillRegisterArgs(p, newprog)
 
 	// CALL runtime.morestack(SB)
 	p = obj.Appendp(p, newprog)
 	p.As = obj.ACALL
 	p.To.Type = obj.TYPE_BRANCH
+
 	if cursym.CFunc() {
 		p.To.Sym = ctxt.Lookup("runtime.morestackc")
 	} else if !cursym.Func().Text.From.Sym.NeedCtxt() {
@@ -871,6 +912,10 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 		to_more.To.SetTarget(p)
 	}
 	jalToSym(ctxt, p, REG_X5)
+
+	// The instructions which unspill regs should be preemptible.
+	p = ctxt.EndUnsafePoint(p, newprog, -1)
+	p = cursym.Func().UnspillRegisterArgs(p, newprog)
 
 	// JMP start
 	p = obj.Appendp(p, newprog)
@@ -897,12 +942,12 @@ func signExtend(val int64, bit uint) int64 {
 // result. For example, high may be used in LUI and low in a following ADDI to
 // generate a full 32-bit constant.
 func Split32BitImmediate(imm int64) (low, high int64, err error) {
-	if !immIFits(imm, 32) {
-		return 0, 0, fmt.Errorf("immediate does not fit in 32 bits: %d", imm)
+	if err := immIFits(imm, 32); err != nil {
+		return 0, 0, err
 	}
 
 	// Nothing special needs to be done if the immediate fits in 12 bits.
-	if immIFits(imm, 12) {
+	if err := immIFits(imm, 12); err == nil {
 		return imm, 0, nil
 	}
 
@@ -929,7 +974,7 @@ func Split32BitImmediate(imm int64) (low, high int64, err error) {
 
 func regVal(r, min, max uint32) uint32 {
 	if r < min || r > max {
-		panic(fmt.Sprintf("register out of range, want %d < %d < %d", min, r, max))
+		panic(fmt.Sprintf("register out of range, want %d <= %d <= %d", min, r, max))
 	}
 	return r - min
 }
@@ -962,26 +1007,41 @@ func regFAddr(a obj.Addr) uint32 {
 	return regAddr(a, REG_F0, REG_F31)
 }
 
-// immIFits reports whether immediate value x fits in nbits bits
-// as a signed integer.
-func immIFits(x int64, nbits uint) bool {
+// immEven checks that the immediate is a multiple of two. If it
+// is not, an error is returned.
+func immEven(x int64) error {
+	if x&1 != 0 {
+		return fmt.Errorf("immediate %#x is not a multiple of two", x)
+	}
+	return nil
+}
+
+// immIFits checks whether the immediate value x fits in nbits bits
+// as a signed integer. If it does not, an error is returned.
+func immIFits(x int64, nbits uint) error {
 	nbits--
-	var min int64 = -1 << nbits
-	var max int64 = 1<<nbits - 1
-	return min <= x && x <= max
+	min := int64(-1) << nbits
+	max := int64(1)<<nbits - 1
+	if x < min || x > max {
+		if nbits <= 16 {
+			return fmt.Errorf("signed immediate %d must be in range [%d, %d] (%d bits)", x, min, max, nbits)
+		}
+		return fmt.Errorf("signed immediate %#x must be in range [%#x, %#x] (%d bits)", x, min, max, nbits)
+	}
+	return nil
 }
 
 // immI extracts the signed integer of the specified size from an immediate.
 func immI(as obj.As, imm int64, nbits uint) uint32 {
-	if !immIFits(imm, nbits) {
-		panic(fmt.Sprintf("%v: signed immediate %d cannot fit in %d bits", as, imm, nbits))
+	if err := immIFits(imm, nbits); err != nil {
+		panic(fmt.Sprintf("%v: %v", as, err))
 	}
 	return uint32(imm)
 }
 
 func wantImmI(ctxt *obj.Link, as obj.As, imm int64, nbits uint) {
-	if !immIFits(imm, nbits) {
-		ctxt.Diag("%v: signed immediate %d cannot be larger than %d bits", as, imm, nbits)
+	if err := immIFits(imm, nbits); err != nil {
+		ctxt.Diag("%v: %v", as, err)
 	}
 }
 
@@ -1013,8 +1073,8 @@ func wantFloatReg(ctxt *obj.Link, as obj.As, pos string, r uint32) {
 
 // wantEvenOffset checks that the offset is a multiple of two.
 func wantEvenOffset(ctxt *obj.Link, as obj.As, offset int64) {
-	if offset%1 != 0 {
-		ctxt.Diag("%v: jump offset %d must be a multiple of two", as, offset)
+	if err := immEven(offset); err != nil {
+		ctxt.Diag("%v: %v", as, err)
 	}
 }
 
@@ -1137,6 +1197,12 @@ func validateRaw(ctxt *obj.Link, ins *instruction) {
 	}
 }
 
+// extractBitAndShift extracts the specified bit from the given immediate,
+// before shifting it to the requested position and returning it.
+func extractBitAndShift(imm uint32, bit, pos int) uint32 {
+	return ((imm >> bit) & 1) << pos
+}
+
 // encodeR encodes an R-type RISC-V instruction.
 func encodeR(as obj.As, rs1, rs2, rd, funct3, funct7 uint32) uint32 {
 	enc := encode(as)
@@ -1228,6 +1294,11 @@ func encodeSF(ins *instruction) uint32 {
 	return encodeS(ins.as, regI(ins.rd), regF(ins.rs1), uint32(ins.imm))
 }
 
+// encodeBImmediate encodes an immediate for a B-type RISC-V instruction.
+func encodeBImmediate(imm uint32) uint32 {
+	return (imm>>12)<<31 | ((imm>>5)&0x3f)<<25 | ((imm>>1)&0xf)<<8 | ((imm>>11)&0x1)<<7
+}
+
 // encodeB encodes a B-type RISC-V instruction.
 func encodeB(ins *instruction) uint32 {
 	imm := immI(ins.as, ins.imm, 13)
@@ -1237,7 +1308,7 @@ func encodeB(ins *instruction) uint32 {
 	if enc == nil {
 		panic("encodeB: could not encode instruction")
 	}
-	return (imm>>12)<<31 | ((imm>>5)&0x3f)<<25 | rs2<<20 | rs1<<15 | enc.funct3<<12 | ((imm>>1)&0xf)<<8 | ((imm>>11)&0x1)<<7 | enc.opcode
+	return encodeBImmediate(imm) | rs2<<20 | rs1<<15 | enc.funct3<<12 | enc.opcode
 }
 
 // encodeU encodes a U-type RISC-V instruction.
@@ -1271,6 +1342,37 @@ func encodeJ(ins *instruction) uint32 {
 	return encodeJImmediate(imm) | rd<<7 | enc.opcode
 }
 
+// encodeCBImmediate encodes an immediate for a CB-type RISC-V instruction.
+func encodeCBImmediate(imm uint32) uint32 {
+	// Bit order - [8|4:3|7:6|2:1|5]
+	bits := extractBitAndShift(imm, 8, 7)
+	bits |= extractBitAndShift(imm, 4, 6)
+	bits |= extractBitAndShift(imm, 3, 5)
+	bits |= extractBitAndShift(imm, 7, 4)
+	bits |= extractBitAndShift(imm, 6, 3)
+	bits |= extractBitAndShift(imm, 2, 2)
+	bits |= extractBitAndShift(imm, 1, 1)
+	bits |= extractBitAndShift(imm, 5, 0)
+	return (bits>>5)<<10 | (bits&0x1f)<<2
+}
+
+// encodeCJImmediate encodes an immediate for a CJ-type RISC-V instruction.
+func encodeCJImmediate(imm uint32) uint32 {
+	// Bit order - [11|4|9:8|10|6|7|3:1|5]
+	bits := extractBitAndShift(imm, 11, 10)
+	bits |= extractBitAndShift(imm, 4, 9)
+	bits |= extractBitAndShift(imm, 9, 8)
+	bits |= extractBitAndShift(imm, 8, 7)
+	bits |= extractBitAndShift(imm, 10, 6)
+	bits |= extractBitAndShift(imm, 6, 5)
+	bits |= extractBitAndShift(imm, 7, 4)
+	bits |= extractBitAndShift(imm, 3, 3)
+	bits |= extractBitAndShift(imm, 2, 2)
+	bits |= extractBitAndShift(imm, 1, 1)
+	bits |= extractBitAndShift(imm, 5, 0)
+	return bits << 2
+}
+
 func encodeRawIns(ins *instruction) uint32 {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
@@ -1280,33 +1382,63 @@ func encodeRawIns(ins *instruction) uint32 {
 	return uint32(ins.imm)
 }
 
-func EncodeJImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 21) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 21 bits", imm)
+func EncodeBImmediate(imm int64) (int64, error) {
+	if err := immIFits(imm, 13); err != nil {
+		return 0, err
 	}
-	if imm&1 != 0 {
-		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+	if err := immEven(imm); err != nil {
+		return 0, err
 	}
-	return int64(encodeJImmediate(uint32(imm))), nil
+	return int64(encodeBImmediate(uint32(imm))), nil
+}
+
+func EncodeCBImmediate(imm int64) (int64, error) {
+	if err := immIFits(imm, 9); err != nil {
+		return 0, err
+	}
+	if err := immEven(imm); err != nil {
+		return 0, err
+	}
+	return int64(encodeCBImmediate(uint32(imm))), nil
+}
+
+func EncodeCJImmediate(imm int64) (int64, error) {
+	if err := immIFits(imm, 12); err != nil {
+		return 0, err
+	}
+	if err := immEven(imm); err != nil {
+		return 0, err
+	}
+	return int64(encodeCJImmediate(uint32(imm))), nil
 }
 
 func EncodeIImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 12) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+	if err := immIFits(imm, 12); err != nil {
+		return 0, err
 	}
 	return imm << 20, nil
 }
 
+func EncodeJImmediate(imm int64) (int64, error) {
+	if err := immIFits(imm, 21); err != nil {
+		return 0, err
+	}
+	if err := immEven(imm); err != nil {
+		return 0, err
+	}
+	return int64(encodeJImmediate(uint32(imm))), nil
+}
+
 func EncodeSImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 12) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+	if err := immIFits(imm, 12); err != nil {
+		return 0, err
 	}
 	return ((imm >> 5) << 25) | ((imm & 0x1f) << 7), nil
 }
 
 func EncodeUImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 20) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 20 bits", imm)
+	if err := immIFits(imm, 20); err != nil {
+		return 0, err
 	}
 	return imm << 12, nil
 }
@@ -1606,10 +1738,10 @@ func (ins *instruction) encode() (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	if enc.length > 0 {
-		return enc.encode(ins), nil
+	if enc.length <= 0 {
+		return 0, fmt.Errorf("%v: encoding called for a pseudo instruction", ins.as)
 	}
-	return 0, fmt.Errorf("fixme")
+	return enc.encode(ins), nil
 }
 
 func (ins *instruction) length() int {
@@ -1648,7 +1780,7 @@ func instructionForProg(p *obj.Prog) *instruction {
 	return ins
 }
 
-// instructionsForOpImmediate returns the machine instructions for a immedate
+// instructionsForOpImmediate returns the machine instructions for an immediate
 // operand. The instruction is specified by as and the source register is
 // specified by rs, instead of the obj.Prog.
 func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction {
@@ -1679,7 +1811,7 @@ func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction
 	}
 
 	// LUI $high, TMP
-	// ADDI $low, TMP, TMP
+	// ADDIW $low, TMP, TMP
 	// <op> TMP, REG, TO
 	insLUI := &instruction{as: ALUI, rd: REG_TMP, imm: high}
 	insADDIW := &instruction{as: AADDIW, rd: REG_TMP, rs1: REG_TMP, imm: low}
@@ -1783,11 +1915,63 @@ func instructionsForStore(p *obj.Prog, as obj.As, rd int16) []*instruction {
 	return []*instruction{insLUI, insADD, ins}
 }
 
+func instructionsForTLS(p *obj.Prog, ins *instruction) []*instruction {
+	insAddTP := &instruction{as: AADD, rd: REG_TMP, rs1: REG_TMP, rs2: REG_TP}
+
+	var inss []*instruction
+	if p.Ctxt.Flag_shared {
+		// TLS initial-exec mode - load TLS offset from GOT, add the thread pointer
+		// register, then load from or store to the resulting memory location.
+		insAUIPC := &instruction{as: AAUIPC, rd: REG_TMP}
+		insLoadTLSOffset := &instruction{as: ALD, rd: REG_TMP, rs1: REG_TMP}
+		inss = []*instruction{insAUIPC, insLoadTLSOffset, insAddTP, ins}
+	} else {
+		// TLS local-exec mode - load upper TLS offset, add the lower TLS offset,
+		// add the thread pointer register, then load from or store to the resulting
+		// memory location. Note that this differs from the suggested three
+		// instruction sequence, as the Go linker does not currently have an
+		// easy way to handle relocation across 12 bytes of machine code.
+		insLUI := &instruction{as: ALUI, rd: REG_TMP}
+		insADDIW := &instruction{as: AADDIW, rd: REG_TMP, rs1: REG_TMP}
+		inss = []*instruction{insLUI, insADDIW, insAddTP, ins}
+	}
+	return inss
+}
+
+func instructionsForTLSLoad(p *obj.Prog) []*instruction {
+	if p.From.Sym.Type != objabi.STLSBSS {
+		p.Ctxt.Diag("%v: %v is not a TLS symbol", p, p.From.Sym)
+		return nil
+	}
+
+	ins := instructionForProg(p)
+	ins.as, ins.rs1, ins.rs2, ins.imm = movToLoad(p.As), REG_TMP, obj.REG_NONE, 0
+
+	return instructionsForTLS(p, ins)
+}
+
+func instructionsForTLSStore(p *obj.Prog) []*instruction {
+	if p.To.Sym.Type != objabi.STLSBSS {
+		p.Ctxt.Diag("%v: %v is not a TLS symbol", p, p.To.Sym)
+		return nil
+	}
+
+	ins := instructionForProg(p)
+	ins.as, ins.rd, ins.rs1, ins.rs2, ins.imm = movToStore(p.As), REG_TMP, uint32(p.From.Reg), obj.REG_NONE, 0
+
+	return instructionsForTLS(p, ins)
+}
+
 // instructionsForMOV returns the machine instructions for an *obj.Prog that
 // uses a MOV pseudo-instruction.
 func instructionsForMOV(p *obj.Prog) []*instruction {
 	ins := instructionForProg(p)
 	inss := []*instruction{ins}
+
+	if p.Reg != 0 {
+		p.Ctxt.Diag("%v: illegal MOV instruction", p)
+		return nil
+	}
 
 	switch {
 	case p.From.Type == obj.TYPE_CONST && p.To.Type == obj.TYPE_REG:
@@ -1795,6 +1979,23 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 		if p.As != AMOV {
 			p.Ctxt.Diag("%v: unsupported constant load", p)
 			return nil
+		}
+
+		// For constants larger than 32 bits in size that have trailing zeros,
+		// use the value with the trailing zeros removed and then use a SLLI
+		// instruction to restore the original constant.
+		// For example:
+		// 	MOV $0x8000000000000000, X10
+		// becomes
+		// 	MOV $1, X10
+		// 	SLLI $63, X10, X10
+		var insSLLI *instruction
+		if err := immIFits(ins.imm, 32); err != nil {
+			ctz := bits.TrailingZeros64(uint64(ins.imm))
+			if err := immIFits(ins.imm>>ctz, 32); err == nil {
+				ins.imm = ins.imm >> ctz
+				insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(ctz)}
+			}
 		}
 
 		low, high, err := Split32BitImmediate(ins.imm)
@@ -1807,17 +2008,18 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 		ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, REG_ZERO, obj.REG_NONE, low
 
 		// LUI is only necessary if the constant does not fit in 12 bits.
-		if high == 0 {
-			break
+		if high != 0 {
+			// LUI top20bits(c), R
+			// ADD bottom12bits(c), R, R
+			insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
+			inss = []*instruction{insLUI}
+			if low != 0 {
+				ins.as, ins.rs1 = AADDIW, ins.rd
+				inss = append(inss, ins)
+			}
 		}
-
-		// LUI top20bits(c), R
-		// ADD bottom12bits(c), R, R
-		insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
-		inss = []*instruction{insLUI}
-		if low != 0 {
-			ins.as, ins.rs1 = AADDIW, ins.rd
-			inss = append(inss, ins)
+		if insSLLI != nil {
+			inss = append(inss, insSLLI)
 		}
 
 	case p.From.Type == obj.TYPE_CONST && p.To.Type != obj.TYPE_REG:
@@ -1867,6 +2069,10 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			inss = instructionsForLoad(p, movToLoad(p.As), addrToReg(p.From))
 
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			if p.From.Sym.Type == objabi.STLSBSS {
+				return instructionsForTLSLoad(p)
+			}
+
 			// Note that the values for $off_hi and $off_lo are currently
 			// zero and will be assigned during relocation.
 			//
@@ -1894,6 +2100,10 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			inss = instructionsForStore(p, movToStore(p.As), addrToReg(p.To))
 
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			if p.To.Sym.Type == objabi.STLSBSS {
+				return instructionsForTLSStore(p)
+			}
+
 			// Note that the values for $off_hi and $off_lo are currently
 			// zero and will be assigned during relocation.
 			//
@@ -1995,17 +2205,22 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		return instructionsForStore(p, ins.as, p.To.Reg)
 
 	case ALRW, ALRD:
-		// Set aq to use acquire access ordering, which matches Go's memory requirements.
+		// Set aq to use acquire access ordering
 		ins.funct7 = 2
 		ins.rs1, ins.rs2 = uint32(p.From.Reg), REG_ZERO
 
 	case AADDI, AANDI, AORI, AXORI:
 		inss = instructionsForOpImmediate(p, ins.as, p.Reg)
 
-	case ASCW, ASCD, AAMOSWAPW, AAMOSWAPD, AAMOADDW, AAMOADDD, AAMOANDW, AAMOANDD, AAMOORW, AAMOORD,
+	case ASCW, ASCD:
+		// Set release access ordering
+		ins.funct7 = 1
+		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
+
+	case AAMOSWAPW, AAMOSWAPD, AAMOADDW, AAMOADDD, AAMOANDW, AAMOANDD, AAMOORW, AAMOORD,
 		AAMOXORW, AAMOXORD, AAMOMINW, AAMOMIND, AAMOMINUW, AAMOMINUD, AAMOMAXW, AAMOMAXD, AAMOMAXUW, AAMOMAXUD:
-		// Set aq to use acquire access ordering, which matches Go's memory requirements.
-		ins.funct7 = 2
+		// Set aqrl to use acquire & release access ordering
+		ins.funct7 = 3
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
 
 	case AECALL, AEBREAK, ARDCYCLE, ARDTIME, ARDINSTRET:
@@ -2105,6 +2320,16 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		// FNEGD rs, rd -> FSGNJND rs, rs, rd
 		ins.as = AFSGNJND
 		ins.rs1 = uint32(p.From.Reg)
+
+	case ASLLI, ASRLI, ASRAI:
+		if ins.imm < 0 || ins.imm > 63 {
+			p.Ctxt.Diag("%v: shift amount out of range 0 to 63", p)
+		}
+
+	case ASLLIW, ASRLIW, ASRAIW:
+		if ins.imm < 0 || ins.imm > 31 {
+			p.Ctxt.Diag("%v: shift amount out of range 0 to 31", p)
+		}
 	}
 	return inss
 }
@@ -2120,13 +2345,13 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case AJAL:
-			if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
+			if p.Mark&NEED_JAL_RELOC == NEED_JAL_RELOC {
 				rel := obj.Addrel(cursym)
 				rel.Off = int32(p.Pc)
 				rel.Siz = 4
 				rel.Sym = p.To.Sym
 				rel.Add = p.To.Offset
-				rel.Type = objabi.R_RISCV_CALL
+				rel.Type = objabi.R_RISCV_JAL
 			}
 		case AJALR:
 			if p.To.Sym != nil {
@@ -2136,7 +2361,10 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		case AAUIPC, AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
 			var addr *obj.Addr
 			var rt objabi.RelocType
-			if p.Mark&NEED_PCREL_ITYPE_RELOC == NEED_PCREL_ITYPE_RELOC {
+			if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
+				rt = objabi.R_RISCV_CALL
+				addr = &p.From
+			} else if p.Mark&NEED_PCREL_ITYPE_RELOC == NEED_PCREL_ITYPE_RELOC {
 				rt = objabi.R_RISCV_PCREL_ITYPE
 				addr = &p.From
 			} else if p.Mark&NEED_PCREL_STYPE_RELOC == NEED_PCREL_STYPE_RELOC {
@@ -2157,10 +2385,10 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				break
 			}
 			if addr.Sym.Type == objabi.STLSBSS {
-				if rt == objabi.R_RISCV_PCREL_ITYPE {
-					rt = objabi.R_RISCV_TLS_IE_ITYPE
-				} else if rt == objabi.R_RISCV_PCREL_STYPE {
-					rt = objabi.R_RISCV_TLS_IE_STYPE
+				if ctxt.Flag_shared {
+					rt = objabi.R_RISCV_TLS_IE
+				} else {
+					rt = objabi.R_RISCV_TLS_LE
 				}
 			}
 

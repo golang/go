@@ -7,8 +7,9 @@ package buildid
 import (
 	"bytes"
 	"crypto/sha256"
+	"debug/elf"
+	"encoding/binary"
 	"internal/obscuretestdata"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -21,7 +22,7 @@ const (
 )
 
 func TestReadFile(t *testing.T) {
-	f, err := ioutil.TempFile("", "buildid-test-")
+	f, err := os.CreateTemp("", "buildid-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +60,7 @@ func TestReadFile(t *testing.T) {
 			t.Errorf("ReadFile(%s) [readSize=2k] = %q, %v, want %q, nil", f, id, err, expectedID)
 		}
 
-		data, err := ioutil.ReadFile(f)
+		data, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -68,7 +69,7 @@ func TestReadFile(t *testing.T) {
 			t.Errorf("FindAndHash(%s): %v", f, err)
 			continue
 		}
-		if err := ioutil.WriteFile(tmp, data, 0666); err != nil {
+		if err := os.WriteFile(tmp, data, 0666); err != nil {
 			t.Error(err)
 			continue
 		}
@@ -90,6 +91,69 @@ func TestReadFile(t *testing.T) {
 		id, err = ReadFile(tmp)
 		if id != newID || err != nil {
 			t.Errorf("ReadFile(%s after Rewrite) = %q, %v, want %q, nil", f, id, err, newID)
+		}
+
+		// Test an ELF PT_NOTE segment with an Align field of 0.
+		// Do this by rewriting the file data.
+		if strings.Contains(name, "elf") {
+			// We only expect a 64-bit ELF file.
+			if elf.Class(data[elf.EI_CLASS]) != elf.ELFCLASS64 {
+				continue
+			}
+
+			// We only expect a little-endian ELF file.
+			if elf.Data(data[elf.EI_DATA]) != elf.ELFDATA2LSB {
+				continue
+			}
+			order := binary.LittleEndian
+
+			var hdr elf.Header64
+			if err := binary.Read(bytes.NewReader(data), order, &hdr); err != nil {
+				t.Error(err)
+				continue
+			}
+
+			phoff := hdr.Phoff
+			phnum := int(hdr.Phnum)
+			phsize := uint64(hdr.Phentsize)
+
+			for i := 0; i < phnum; i++ {
+				var phdr elf.Prog64
+				if err := binary.Read(bytes.NewReader(data[phoff:]), order, &phdr); err != nil {
+					t.Error(err)
+					continue
+				}
+
+				if elf.ProgType(phdr.Type) == elf.PT_NOTE {
+					// Increase the size so we keep
+					// reading notes.
+					order.PutUint64(data[phoff+4*8:], phdr.Filesz+1)
+
+					// Clobber the Align field to zero.
+					order.PutUint64(data[phoff+6*8:], 0)
+
+					// Clobber the note type so we
+					// keep reading notes.
+					order.PutUint32(data[phdr.Off+12:], 0)
+				}
+
+				phoff += phsize
+			}
+
+			if err := os.WriteFile(tmp, data, 0666); err != nil {
+				t.Error(err)
+				continue
+			}
+
+			id, err := ReadFile(tmp)
+			// Because we clobbered the note type above,
+			// we don't expect to see a Go build ID.
+			// The issue we are testing for was a crash
+			// in Readefile; see issue #62097.
+			if id != "" || err != nil {
+				t.Errorf("ReadFile with zero ELF Align = %q, %v, want %q, nil", id, err, "")
+				continue
+			}
 		}
 	}
 }

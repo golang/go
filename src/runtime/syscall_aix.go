@@ -18,6 +18,7 @@ import "unsafe"
 //go:cgo_import_dynamic libc_ioctl ioctl "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_setgid setgid "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_setgroups setgroups "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_setrlimit setrlimit "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_setsid setsid "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_setuid setuid "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_setpgid setpgid "libc.a/shr_64.o"
@@ -31,6 +32,7 @@ import "unsafe"
 //go:linkname libc_ioctl libc_ioctl
 //go:linkname libc_setgid libc_setgid
 //go:linkname libc_setgroups libc_setgroups
+//go:linkname libc_setrlimit libc_setrlimit
 //go:linkname libc_setsid libc_setsid
 //go:linkname libc_setuid libc_setuid
 //go:linkname libc_setpgid libc_setpgid
@@ -45,6 +47,7 @@ var (
 	libc_ioctl,
 	libc_setgid,
 	libc_setgroups,
+	libc_setrlimit,
 	libc_setsid,
 	libc_setuid,
 	libc_setpgid libFunc
@@ -126,9 +129,10 @@ func syscall_chroot1(path uintptr) (err uintptr) {
 }
 
 // like close, but must not split stack, for fork.
-//go:linkname syscall_close syscall.close
+//
+//go:linkname syscall_closeFD syscall.closeFD
 //go:nosplit
-func syscall_close(fd int32) int32 {
+func syscall_closeFD(fd int32) int32 {
 	_, err := syscall1(&libc_close, uintptr(fd))
 	return int32(err)
 }
@@ -148,6 +152,7 @@ func syscall_execve(path, argv, envp uintptr) (err uintptr) {
 }
 
 // like exit, but must not split stack, for fork.
+//
 //go:linkname syscall_exit syscall.exit
 //go:nosplit
 func syscall_exit(code uintptr) {
@@ -194,6 +199,13 @@ func syscall_setgid(gid uintptr) (err uintptr) {
 //go:nosplit
 func syscall_setgroups1(ngid, gid uintptr) (err uintptr) {
 	_, err = syscall2(&libc_setgroups, ngid, gid)
+	return
+}
+
+//go:linkname syscall_setrlimit1 syscall.setrlimit1
+//go:nosplit
+func syscall_setrlimit1(which uintptr, lim unsafe.Pointer) (err uintptr) {
+	_, err = syscall2(&libc_setrlimit, which, uintptr(lim))
 	return
 }
 

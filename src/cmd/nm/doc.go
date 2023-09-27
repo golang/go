@@ -5,6 +5,7 @@
 // Nm lists the symbols defined or used by an object file, archive, or executable.
 //
 // Usage:
+//
 //	go tool nm [options] file...
 //
 // The default output prints one line per symbol, with three space-separated
@@ -37,5 +38,4 @@
 //		size orders from largest to smallest
 //	-type
 //		print symbol type after name
-//
 package main

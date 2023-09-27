@@ -8,10 +8,12 @@ package runtime
 
 import (
 	"internal/abi"
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
 // This is exported via linkname to assembly in runtime/cgo.
+//
 //go:linkname exit
 //go:nosplit
 //go:cgo_unsafe_args
@@ -45,6 +47,7 @@ func thrkill_trampoline()
 // mmap is used to do low-level memory allocation via mmap. Don't allow stack
 // splits, since this function (used by sysAlloc) is called in a lot of low-level
 // parts of the runtime and callers often assume it won't acquire any locks.
+//
 //go:nosplit
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
 	args := struct {
@@ -111,10 +114,6 @@ func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
 }
 func write_trampoline()
 
-func pipe() (r, w int32, errno int32) {
-	return pipe2(0)
-}
-
 func pipe2(flags int32) (r, w int32, errno int32) {
 	var p [2]int32
 	args := struct {
@@ -162,8 +161,13 @@ func sysctl_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func fcntl(fd, cmd, arg int32) int32 {
-	return libcCall(unsafe.Pointer(abi.FuncPCABI0(fcntl_trampoline)), unsafe.Pointer(&fd))
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
+	args := struct {
+		fd, cmd, arg int32
+		ret, errno   int32
+	}{fd, cmd, arg, 0, 0}
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(fcntl_trampoline)), unsafe.Pointer(&args))
+	return args.ret, args.errno
 }
 func fcntl_trampoline()
 
@@ -250,19 +254,17 @@ func sigaltstack(new *stackt, old *stackt) {
 func sigaltstack_trampoline()
 
 // Not used on OpenBSD, but must be defined.
-func exitThread(wait *uint32) {
+func exitThread(wait *atomic.Uint32) {
+	throw("exitThread")
 }
 
 //go:nosplit
-func closeonexec(fd int32) {
-	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+//go:cgo_unsafe_args
+func issetugid() (ret int32) {
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(issetugid_trampoline)), unsafe.Pointer(&ret))
+	return
 }
-
-//go:nosplit
-func setNonblock(fd int32) {
-	flags := fcntl(fd, _F_GETFL, 0)
-	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
-}
+func issetugid_trampoline()
 
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
@@ -295,5 +297,7 @@ func setNonblock(fd int32) {
 
 //go:cgo_import_dynamic libc_sigaction sigaction "libc.so"
 //go:cgo_import_dynamic libc_sigaltstack sigaltstack "libc.so"
+
+//go:cgo_import_dynamic libc_issetugid issetugid "libc.so"
 
 //go:cgo_import_dynamic _ _ "libc.so"

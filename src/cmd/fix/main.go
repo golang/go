@@ -13,6 +13,7 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/token"
+	"internal/diff"
 	"io"
 	"io/fs"
 	"os"
@@ -20,8 +21,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"cmd/internal/diff"
 )
 
 var (
@@ -76,8 +75,8 @@ func main() {
 		}
 		majorStr := (*goVersionStr)[len("go"):]
 		minorStr := "0"
-		if i := strings.Index(majorStr, "."); i >= 0 {
-			majorStr, minorStr = majorStr[:i], majorStr[i+len("."):]
+		if before, after, found := strings.Cut(majorStr, "."); found {
+			majorStr, minorStr = before, after
 		}
 		major, err1 := strconv.Atoi(majorStr)
 		minor, err2 := strconv.Atoi(minorStr)
@@ -142,7 +141,7 @@ func gofmtFile(f *ast.File) ([]byte, error) {
 func processFile(filename string, useStdin bool) error {
 	var f *os.File
 	var err error
-	var fixlog bytes.Buffer
+	var fixlog strings.Builder
 
 	if useStdin {
 		f = os.Stdin
@@ -228,12 +227,7 @@ func processFile(filename string, useStdin bool) error {
 	}
 
 	if *doDiff {
-		data, err := diff.Diff("go-fix", src, newSrc)
-		if err != nil {
-			return fmt.Errorf("computing diff: %s", err)
-		}
-		fmt.Printf("diff %s fixed/%s\n", filename, filename)
-		os.Stdout.Write(data)
+		os.Stdout.Write(diff.Diff(filename, src, "fixed/"+filename, newSrc))
 		return nil
 	}
 
@@ -246,7 +240,7 @@ func processFile(filename string, useStdin bool) error {
 }
 
 func gofmt(n any) string {
-	var gofmtBuf bytes.Buffer
+	var gofmtBuf strings.Builder
 	if err := format.Node(&gofmtBuf, fset, n); err != nil {
 		return "<" + err.Error() + ">"
 	}

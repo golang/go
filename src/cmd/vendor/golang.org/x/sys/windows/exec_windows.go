@@ -9,19 +9,17 @@ package windows
 import (
 	errorspkg "errors"
 	"unsafe"
-
-	"golang.org/x/sys/internal/unsafeheader"
 )
 
 // EscapeArg rewrites command line argument s as prescribed
 // in http://msdn.microsoft.com/en-us/library/ms880421.
 // This function returns "" (2 double quotes) if s is empty.
 // Alternatively, these transformations are done:
-// - every back slash (\) is doubled, but only if immediately
-//   followed by double quote (");
-// - every double quote (") is escaped by back slash (\);
-// - finally, s is wrapped with double quotes (arg -> "arg"),
-//   but only if there is space or tab inside s.
+//   - every back slash (\) is doubled, but only if immediately
+//     followed by double quote (");
+//   - every double quote (") is escaped by back slash (\);
+//   - finally, s is wrapped with double quotes (arg -> "arg"),
+//     but only if there is space or tab inside s.
 func EscapeArg(s string) string {
 	if len(s) == 0 {
 		return "\"\""
@@ -97,12 +95,17 @@ func ComposeCommandLine(args []string) string {
 // DecomposeCommandLine breaks apart its argument command line into unescaped parts using CommandLineToArgv,
 // as gathered from GetCommandLine, QUERY_SERVICE_CONFIG's BinaryPathName argument, or elsewhere that
 // command lines are passed around.
+// DecomposeCommandLine returns error if commandLine contains NUL.
 func DecomposeCommandLine(commandLine string) ([]string, error) {
 	if len(commandLine) == 0 {
 		return []string{}, nil
 	}
+	utf16CommandLine, err := UTF16FromString(commandLine)
+	if err != nil {
+		return nil, errorspkg.New("string with NUL passed to DecomposeCommandLine")
+	}
 	var argc int32
-	argv, err := CommandLineToArgv(StringToUTF16Ptr(commandLine), &argc)
+	argv, err := CommandLineToArgv(&utf16CommandLine[0], &argc)
 	if err != nil {
 		return nil, err
 	}
@@ -147,8 +150,12 @@ func NewProcThreadAttributeList(maxAttrCount uint32) (*ProcThreadAttributeListCo
 		}
 		return nil, err
 	}
+	alloc, err := LocalAlloc(LMEM_FIXED, uint32(size))
+	if err != nil {
+		return nil, err
+	}
 	// size is guaranteed to be ≥1 by InitializeProcThreadAttributeList.
-	al := &ProcThreadAttributeListContainer{data: (*ProcThreadAttributeList)(unsafe.Pointer(&make([]byte, size)[0]))}
+	al := &ProcThreadAttributeListContainer{data: (*ProcThreadAttributeList)(unsafe.Pointer(alloc))}
 	err = initializeProcThreadAttributeList(al.data, maxAttrCount, 0, &size)
 	if err != nil {
 		return nil, err
@@ -157,36 +164,17 @@ func NewProcThreadAttributeList(maxAttrCount uint32) (*ProcThreadAttributeListCo
 }
 
 // Update modifies the ProcThreadAttributeList using UpdateProcThreadAttribute.
-// Note that the value passed to this function will be copied into memory
-// allocated by LocalAlloc, the contents of which should not contain any
-// Go-managed pointers, even if the passed value itself is a Go-managed
-// pointer.
 func (al *ProcThreadAttributeListContainer) Update(attribute uintptr, value unsafe.Pointer, size uintptr) error {
-	alloc, err := LocalAlloc(LMEM_FIXED, uint32(size))
-	if err != nil {
-		return err
-	}
-	var src, dst []byte
-	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&src))
-	hdr.Data = value
-	hdr.Cap = int(size)
-	hdr.Len = int(size)
-	hdr = (*unsafeheader.Slice)(unsafe.Pointer(&dst))
-	hdr.Data = unsafe.Pointer(alloc)
-	hdr.Cap = int(size)
-	hdr.Len = int(size)
-	copy(dst, src)
-	al.heapAllocations = append(al.heapAllocations, alloc)
-	return updateProcThreadAttribute(al.data, 0, attribute, unsafe.Pointer(alloc), size, nil, nil)
+	al.pointers = append(al.pointers, value)
+	return updateProcThreadAttribute(al.data, 0, attribute, value, size, nil, nil)
 }
 
 // Delete frees ProcThreadAttributeList's resources.
 func (al *ProcThreadAttributeListContainer) Delete() {
 	deleteProcThreadAttributeList(al.data)
-	for i := range al.heapAllocations {
-		LocalFree(Handle(al.heapAllocations[i]))
-	}
-	al.heapAllocations = nil
+	LocalFree(Handle(unsafe.Pointer(al.data)))
+	al.data = nil
+	al.pointers = nil
 }
 
 // List returns the actual ProcThreadAttributeList to be passed to StartupInfoEx.

@@ -7,6 +7,7 @@ package escape
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
+	"cmd/compile/internal/types"
 )
 
 func isSliceSelfAssign(dst, src ir.Node) bool {
@@ -150,7 +151,7 @@ func mayAffectMemory(n ir.Node) bool {
 		n := n.(*ir.ConvExpr)
 		return mayAffectMemory(n.X)
 
-	case ir.OLEN, ir.OCAP, ir.ONOT, ir.OBITNOT, ir.OPLUS, ir.ONEG, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+	case ir.OLEN, ir.OCAP, ir.ONOT, ir.OBITNOT, ir.OPLUS, ir.ONEG:
 		n := n.(*ir.UnaryExpr)
 		return mayAffectMemory(n.X)
 
@@ -185,9 +186,15 @@ func HeapAllocReason(n ir.Node) string {
 	if n.Type().Size() > ir.MaxStackVarSize {
 		return "too large for stack"
 	}
+	if n.Type().Alignment() > int64(types.PtrSize) {
+		return "too aligned for stack"
+	}
 
 	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Size() > ir.MaxImplicitStackVarSize {
 		return "too large for stack"
+	}
+	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Alignment() > int64(types.PtrSize) {
+		return "too aligned for stack"
 	}
 
 	if n.Op() == ir.OCLOSURE && typecheck.ClosureType(n.(*ir.ClosureExpr)).Size() > ir.MaxImplicitStackVarSize {

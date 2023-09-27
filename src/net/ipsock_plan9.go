@@ -181,7 +181,6 @@ func dialPlan9(ctx context.Context, net string, laddr, raddr Addr) (fd *netFD, e
 	}
 	resc := make(chan res)
 	go func() {
-		testHookDialChannel()
 		fd, err := dialPlan9Blocking(ctx, net, laddr, raddr)
 		select {
 		case resc <- res{fd, err}:

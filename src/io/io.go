@@ -74,6 +74,9 @@ var ErrNoProgress = errors.New("multiple Read calls return no data or error")
 // that happen after reading some bytes and also both of the
 // allowed EOF behaviors.
 //
+// If len(p) == 0, Read should always return n == 0. It may return a
+// non-nil error if some error condition is known, such as EOF.
+//
 // Implementations of Read are discouraged from returning a
 // zero byte count with a nil error, except when len(p) == 0.
 // Callers should treat a return of 0 and nil as indicating that
@@ -111,7 +114,8 @@ type Closer interface {
 // interpreted according to whence:
 // SeekStart means relative to the start of the file,
 // SeekCurrent means relative to the current offset, and
-// SeekEnd means relative to the end.
+// SeekEnd means relative to the end
+// (for example, offset = -2 specifies the penultimate byte of the file).
 // Seek returns the new offset relative to the start of the
 // file or an error, if any.
 //
@@ -305,8 +309,8 @@ type StringWriter interface {
 }
 
 // WriteString writes the contents of the string s to w, which accepts a slice of bytes.
-// If w implements StringWriter, its WriteString method is invoked directly.
-// Otherwise, w.Write is called exactly once.
+// If w implements [StringWriter], [StringWriter.WriteString] is invoked directly.
+// Otherwise, [Writer.Write] is called exactly once.
 func WriteString(w Writer, s string) (n int, err error) {
 	if sw, ok := w.(StringWriter); ok {
 		return sw.WriteString(s)
@@ -355,8 +359,7 @@ func ReadFull(r Reader, buf []byte) (n int, err error) {
 // error encountered while copying.
 // On return, written == n if and only if err == nil.
 //
-// If dst implements the ReaderFrom interface,
-// the copy is implemented using it.
+// If dst implements [ReaderFrom], the copy is implemented using it.
 func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 	written, err = Copy(dst, LimitReader(src, n))
 	if written == n {
@@ -377,9 +380,9 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 // Because Copy is defined to read from src until EOF, it does
 // not treat an EOF from Read as an error to be reported.
 //
-// If src implements the WriterTo interface,
+// If src implements [WriterTo],
 // the copy is implemented by calling src.WriteTo(dst).
-// Otherwise, if dst implements the ReaderFrom interface,
+// Otherwise, if dst implements [ReaderFrom],
 // the copy is implemented by calling dst.ReadFrom(src).
 func Copy(dst Writer, src Reader) (written int64, err error) {
 	return copyBuffer(dst, src, nil)
@@ -390,7 +393,7 @@ func Copy(dst Writer, src Reader) (written int64, err error) {
 // temporary one. If buf is nil, one is allocated; otherwise if it has
 // zero length, CopyBuffer panics.
 //
-// If either src implements WriterTo or dst implements ReaderFrom,
+// If either src implements [WriterTo] or dst implements [ReaderFrom],
 // buf will not be used to perform the copy.
 func CopyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 	if buf != nil && len(buf) == 0 {
@@ -494,7 +497,7 @@ func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
 }
 
 // SectionReader implements Read, Seek, and ReadAt on a section
-// of an underlying ReaderAt.
+// of an underlying [ReaderAt].
 type SectionReader struct {
 	r     ReaderAt
 	base  int64
@@ -536,7 +539,7 @@ func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
-	if off < 0 || off >= s.limit-s.base {
+	if off < 0 || off >= s.Size() {
 		return 0, EOF
 	}
 	off += s.base
@@ -553,6 +556,50 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
 
 // Size returns the size of the section in bytes.
 func (s *SectionReader) Size() int64 { return s.limit - s.base }
+
+// An OffsetWriter maps writes at offset base to offset base+off in the underlying writer.
+type OffsetWriter struct {
+	w    WriterAt
+	base int64 // the original offset
+	off  int64 // the current offset
+}
+
+// NewOffsetWriter returns an OffsetWriter that writes to w
+// starting at offset off.
+func NewOffsetWriter(w WriterAt, off int64) *OffsetWriter {
+	return &OffsetWriter{w, off, off}
+}
+
+func (o *OffsetWriter) Write(p []byte) (n int, err error) {
+	n, err = o.w.WriteAt(p, o.off)
+	o.off += int64(n)
+	return
+}
+
+func (o *OffsetWriter) WriteAt(p []byte, off int64) (n int, err error) {
+	if off < 0 {
+		return 0, errOffset
+	}
+
+	off += o.base
+	return o.w.WriteAt(p, off)
+}
+
+func (o *OffsetWriter) Seek(offset int64, whence int) (int64, error) {
+	switch whence {
+	default:
+		return 0, errWhence
+	case SeekStart:
+		offset += o.base
+	case SeekCurrent:
+		offset += o.off
+	}
+	if offset < o.base {
+		return 0, errOffset
+	}
+	o.off = offset
+	return offset - o.base, nil
+}
 
 // TeeReader returns a Reader that writes to w what it reads from r.
 // All reads from r performed through it are matched with
@@ -619,9 +666,14 @@ func (discard) ReadFrom(r Reader) (n int64, err error) {
 	}
 }
 
-// NopCloser returns a ReadCloser with a no-op Close method wrapping
-// the provided Reader r.
+// NopCloser returns a [ReadCloser] with a no-op Close method wrapping
+// the provided [Reader] r.
+// If r implements [WriterTo], the returned ReadCloser will implement WriterTo
+// by forwarding calls to r.
 func NopCloser(r Reader) ReadCloser {
+	if _, ok := r.(WriterTo); ok {
+		return nopCloserWriterTo{r}
+	}
 	return nopCloser{r}
 }
 
@@ -631,6 +683,16 @@ type nopCloser struct {
 
 func (nopCloser) Close() error { return nil }
 
+type nopCloserWriterTo struct {
+	Reader
+}
+
+func (nopCloserWriterTo) Close() error { return nil }
+
+func (c nopCloserWriterTo) WriteTo(w Writer) (n int64, err error) {
+	return c.Reader.(WriterTo).WriteTo(w)
+}
+
 // ReadAll reads from r until an error or EOF and returns the data it read.
 // A successful call returns err == nil, not err == EOF. Because ReadAll is
 // defined to read from src until EOF, it does not treat an EOF from Read
@@ -638,10 +700,6 @@ func (nopCloser) Close() error { return nil }
 func ReadAll(r Reader) ([]byte, error) {
 	b := make([]byte, 0, 512)
 	for {
-		if len(b) == cap(b) {
-			// Add more capacity (let append pick how much).
-			b = append(b, 0)[:len(b)]
-		}
 		n, err := r.Read(b[len(b):cap(b)])
 		b = b[:len(b)+n]
 		if err != nil {
@@ -649,6 +707,11 @@ func ReadAll(r Reader) ([]byte, error) {
 				err = nil
 			}
 			return b, err
+		}
+
+		if len(b) == cap(b) {
+			// Add more capacity (let append pick how much).
+			b = append(b, 0)[:len(b)]
 		}
 	}
 }

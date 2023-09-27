@@ -2,6 +2,8 @@
 
 //go:build 386 || amd64
 
+#include "textflag.h"
+
 // runtime·callbackasm is called by external code to
 // execute Go implemented callback function. It is not
 // called from the start, instead runtime·compilecallback
@@ -10,7 +12,7 @@
 // CALL instruction in runtime·callbackasm. This determines
 // which Go callback function is executed later on.
 
-TEXT runtime·callbackasm(SB),7,$0
+TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
 	CALL	runtime·callbackasm1(SB)
 	CALL	runtime·callbackasm1(SB)
 	CALL	runtime·callbackasm1(SB)

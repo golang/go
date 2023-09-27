@@ -4,7 +4,7 @@
 
 package main
 
-import "a"
+import "./a"
 
 type S struct{}
 

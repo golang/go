@@ -49,7 +49,9 @@ type Range32 struct {
 // means the character is in the corresponding case. There is a special
 // case representing sequences of alternating corresponding Upper and Lower
 // pairs. It appears with a fixed Delta of
+//
 //	{UpperLower, UpperLower, UpperLower}
+//
 // The constant UpperLower has an otherwise impossible delta value.
 type CaseRange struct {
 	Lo    uint32
@@ -104,7 +106,7 @@ func is16(ranges []Range16, r uint16) bool {
 	lo := 0
 	hi := len(ranges)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		range_ := &ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
 			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
@@ -137,7 +139,7 @@ func is32(ranges []Range32, r uint32) bool {
 	lo := 0
 	hi := len(ranges)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		range_ := ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
 			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
@@ -214,7 +216,7 @@ func to(_case int, r rune, caseRange []CaseRange) (mappedRune rune, foundMapping
 	lo := 0
 	hi := len(caseRange)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		cr := caseRange[m]
 		if rune(cr.Lo) <= r && r <= rune(cr.Hi) {
 			delta := cr.Delta[_case]
@@ -324,6 +326,7 @@ type foldPair struct {
 // If r is not a valid Unicode code point, SimpleFold(r) returns r.
 //
 // For example:
+//
 //	SimpleFold('A') = 'a'
 //	SimpleFold('a') = 'A'
 //
@@ -334,7 +337,6 @@ type foldPair struct {
 //	SimpleFold('1') = '1'
 //
 //	SimpleFold(-2) = -2
-//
 func SimpleFold(r rune) rune {
 	if r < 0 || r > MaxRune {
 		return r
@@ -348,7 +350,7 @@ func SimpleFold(r rune) rune {
 	lo := 0
 	hi := len(caseOrbit)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		if rune(caseOrbit[m].From) < r {
 			lo = m + 1
 		} else {

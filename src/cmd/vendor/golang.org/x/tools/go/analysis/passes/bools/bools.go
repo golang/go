@@ -22,6 +22,7 @@ const Doc = "check for common mistakes involving boolean operators"
 var Analyzer = &analysis.Analyzer{
 	Name:     "bools",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/bools",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -94,8 +95,10 @@ func (op boolOp) commutativeSets(info *types.Info, e *ast.BinaryExpr, seen map[*
 }
 
 // checkRedundant checks for expressions of the form
-//   e && e
-//   e || e
+//
+//	e && e
+//	e || e
+//
 // Exprs must contain only side effect free expressions.
 func (op boolOp) checkRedundant(pass *analysis.Pass, exprs []ast.Expr) {
 	seen := make(map[string]bool)
@@ -110,8 +113,10 @@ func (op boolOp) checkRedundant(pass *analysis.Pass, exprs []ast.Expr) {
 }
 
 // checkSuspect checks for expressions of the form
-//   x != c1 || x != c2
-//   x == c1 && x == c2
+//
+//	x != c1 || x != c2
+//	x == c1 && x == c2
+//
 // where c1 and c2 are constant expressions.
 // If c1 and c2 are the same then it's redundant;
 // if c1 and c2 are different then it's always true or always false.

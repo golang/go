@@ -88,9 +88,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		if targType == sym.SDYNIMPORT {
 			ldr.Errorf(s, "unexpected R_X86_64_PC32 relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
-		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
-		// sense and should be removed when someone has thought about it properly.
-		if (targType == 0 || targType == sym.SXREF) && !ldr.AttrVisibilityHidden(targ) {
+		if targType == 0 || targType == sym.SXREF {
 			ldr.Errorf(s, "unknown symbol %s in pcrel", ldr.SymName(targ))
 		}
 		su := ldr.MakeSymbolUpdater(s)
@@ -247,8 +245,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	r = relocs.At(rIdx)
 
 	switch r.Type() {
-	case objabi.R_CALL,
-		objabi.R_PCREL:
+	case objabi.R_CALL:
 		if targType != sym.SDYNIMPORT {
 			// nothing to do, the relocation will be laid out in reloc
 			return true
@@ -264,6 +261,30 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su.SetRelocSym(rIdx, syms.PLT)
 		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
 		return true
+
+	case objabi.R_PCREL:
+		if targType == sym.SDYNIMPORT && ldr.SymType(s) == sym.STEXT && target.IsDarwin() {
+			// Loading the address of a dynamic symbol. Rewrite to use GOT.
+			// turn LEAQ symbol address to MOVQ of GOT entry
+			if r.Add() != 0 {
+				ldr.Errorf(s, "unexpected nonzero addend for dynamic symbol %s", ldr.SymName(targ))
+				return false
+			}
+			su := ldr.MakeSymbolUpdater(s)
+			if r.Off() >= 2 && su.Data()[r.Off()-2] == 0x8d {
+				su.MakeWritable()
+				su.Data()[r.Off()-2] = 0x8b
+				if target.IsInternal() {
+					ld.AddGotSym(target, ldr, syms, targ, 0)
+					su.SetRelocSym(rIdx, syms.GOT)
+					su.SetRelocAdd(rIdx, int64(ldr.SymGot(targ)))
+				} else {
+					su.SetRelocType(rIdx, objabi.R_GOTPCREL)
+				}
+				return true
+			}
+			ldr.Errorf(s, "unexpected R_PCREL reloc for dynamic symbol %s: not preceded by LEAQ instruction", ldr.SymName(targ))
+		}
 
 	case objabi.R_ADDR:
 		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
@@ -448,7 +469,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 	rs := r.Xsym
 	rt := r.Type
 
-	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_PCREL || rt == objabi.R_GOTPCREL || rt == objabi.R_CALL {
+	if !ldr.SymType(s).IsDWARF() {
 		if ldr.SymDynid(rs) < 0 {
 			ldr.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
 			return false
@@ -534,6 +555,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 			v = ld.IMAGE_REL_AMD64_ADDR32
 		}
 
+	case objabi.R_PEIMAGEOFF:
+		v = ld.IMAGE_REL_AMD64_ADDR32NB
+
 	case objabi.R_CALL,
 		objabi.R_PCREL:
 		v = ld.IMAGE_REL_AMD64_REL32
@@ -553,7 +577,7 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
 	return -1
 }
 
-func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
 	if plt.Size() == 0 {
 		// pushq got+8(IP)
 		plt.AddUint8(0xff)

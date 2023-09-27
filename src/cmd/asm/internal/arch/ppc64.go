@@ -15,32 +15,10 @@ import (
 
 func jumpPPC64(word string) bool {
 	switch word {
-	case "BC", "BCL", "BEQ", "BGE", "BGT", "BL", "BLE", "BLT", "BNE", "BR", "BVC", "BVS", "CALL", "JMP":
+	case "BC", "BCL", "BEQ", "BGE", "BGT", "BL", "BLE", "BLT", "BNE", "BR", "BVC", "BVS", "BDNZ", "BDZ", "CALL", "JMP":
 		return true
 	}
 	return false
-}
-
-// IsPPC64RLD reports whether the op (as defined by an ppc64.A* constant) is
-// one of the RLD-like instructions that require special handling.
-// The FMADD-like instructions behave similarly.
-func IsPPC64RLD(op obj.As) bool {
-	switch op {
-	case ppc64.ARLDC, ppc64.ARLDCCC, ppc64.ARLDCL, ppc64.ARLDCLCC,
-		ppc64.ARLDCR, ppc64.ARLDCRCC, ppc64.ARLDMI, ppc64.ARLDMICC,
-		ppc64.ARLWMI, ppc64.ARLWMICC, ppc64.ARLWNM, ppc64.ARLWNMCC:
-		return true
-	case ppc64.AFMADD, ppc64.AFMADDCC, ppc64.AFMADDS, ppc64.AFMADDSCC,
-		ppc64.AFMSUB, ppc64.AFMSUBCC, ppc64.AFMSUBS, ppc64.AFMSUBSCC,
-		ppc64.AFNMADD, ppc64.AFNMADDCC, ppc64.AFNMADDS, ppc64.AFNMADDSCC,
-		ppc64.AFNMSUB, ppc64.AFNMSUBCC, ppc64.AFNMSUBS, ppc64.AFNMSUBSCC:
-		return true
-	}
-	return false
-}
-
-func IsPPC64ISEL(op obj.As) bool {
-	return op == ppc64.AISEL
 }
 
 // IsPPC64CMP reports whether the op (as defined by an ppc64.A* constant) is
@@ -76,6 +54,10 @@ func ppc64RegisterNumber(name string, n int16) (int16, bool) {
 	case "CR":
 		if 0 <= n && n <= 7 {
 			return ppc64.REG_CR0 + n, true
+		}
+	case "A":
+		if 0 <= n && n <= 8 {
+			return ppc64.REG_A0 + n, true
 		}
 	case "VS":
 		if 0 <= n && n <= 63 {

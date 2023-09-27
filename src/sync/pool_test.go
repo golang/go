@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Pool is no-op under race detector, so all these tests do not work.
+//
 //go:build !race
 
 package sync_test
@@ -244,6 +245,28 @@ func testPoolDequeue(t *testing.T, d PoolDequeue) {
 	if !testing.Short() && nPopHead == 0 {
 		t.Errorf("popHead never succeeded")
 	}
+}
+
+func TestNilPool(t *testing.T) {
+	catch := func() {
+		if recover() == nil {
+			t.Error("expected panic")
+		}
+	}
+
+	var p *Pool
+	t.Run("Get", func(t *testing.T) {
+		defer catch()
+		if p.Get() != nil {
+			t.Error("expected empty")
+		}
+		t.Error("should have panicked already")
+	})
+	t.Run("Put", func(t *testing.T) {
+		defer catch()
+		p.Put("a")
+		t.Error("should have panicked already")
+	})
 }
 
 func BenchmarkPool(b *testing.B) {

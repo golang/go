@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+//go:build unix
 
 package net
 
@@ -47,6 +47,16 @@ var dnsReadConfigTests = []struct {
 		want: &dnsConfig{
 			servers:  []string{"8.8.8.8:53"},
 			search:   []string{"test.", "invalid."},
+			ndots:    1,
+			timeout:  5 * time.Second,
+			attempts: 2,
+		},
+	},
+	{
+		name: "testdata/search-single-dot-resolv.conf",
+		want: &dnsConfig{
+			servers:  []string{"8.8.8.8:53"},
+			search:   []string{},
 			ndots:    1,
 			timeout:  5 * time.Second,
 			attempts: 2,
@@ -166,13 +176,17 @@ func TestDNSReadConfig(t *testing.T) {
 	getHostname = func() (string, error) { return "host.domain.local", nil }
 
 	for _, tt := range dnsReadConfigTests {
+		want := *tt.want
+		if len(want.search) == 0 {
+			want.search = dnsDefaultSearch()
+		}
 		conf := dnsReadConfig(tt.name)
 		if conf.err != nil {
 			t.Fatal(conf.err)
 		}
 		conf.mtime = time.Time{}
-		if !reflect.DeepEqual(conf, tt.want) {
-			t.Errorf("%s:\ngot: %+v\nwant: %+v", tt.name, conf, tt.want)
+		if !reflect.DeepEqual(conf, &want) {
+			t.Errorf("%s:\ngot: %+v\nwant: %+v", tt.name, conf, want)
 		}
 	}
 }
@@ -259,8 +273,13 @@ func TestDNSNameLength(t *testing.T) {
 			t.Fatal(conf.err)
 		}
 
+		suffixList := tt.want.search
+		if len(suffixList) == 0 {
+			suffixList = dnsDefaultSearch()
+		}
+
 		var shortestSuffix int
-		for _, suffix := range tt.want.search {
+		for _, suffix := range suffixList {
 			if shortestSuffix == 0 || len(suffix) < shortestSuffix {
 				shortestSuffix = len(suffix)
 			}

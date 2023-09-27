@@ -34,5 +34,6 @@ func (fd *FD) OpenDir() (uintptr, string, error) {
 }
 
 // Implemented in syscall/syscall_darwin.go.
+//
 //go:linkname fdopendir syscall.fdopendir
 func fdopendir(fd int) (dir uintptr, err error)

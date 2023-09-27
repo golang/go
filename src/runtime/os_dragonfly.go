@@ -62,10 +62,10 @@ func kqueue() int32
 //go:noescape
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
 
-func pipe() (r, w int32, errno int32)
 func pipe2(flags int32) (r, w int32, errno int32)
-func closeonexec(fd int32)
-func setNonblock(fd int32)
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32)
+
+func issetugid() int32
 
 // From DragonFly's <sys/sysctl.h>
 const (
@@ -144,6 +144,7 @@ func futexwakeup(addr *uint32, cnt uint32) {
 func lwp_start(uintptr)
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
@@ -163,7 +164,10 @@ func newosproc(mp *m) {
 	}
 
 	// TODO: Check for error.
-	lwp_create(&params)
+	retryOnEAGAIN(func() int32 {
+		lwp_create(&params)
+		return 0
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 }
 
@@ -203,9 +207,11 @@ func minit() {
 }
 
 // Called from dropm to undo the effect of an minit.
+//
 //go:nosplit
 func unminit() {
 	unminitSignals()
+	getg().m.procid = 0
 }
 
 // Called from exitm, but not from drop, to undo the effect of thread-owned
@@ -248,7 +254,8 @@ func getsig(i uint32) uintptr {
 	return sa.sa_sigaction
 }
 
-// setSignaltstackSP sets the ss_sp field of a stackt.
+// setSignalstackSP sets the ss_sp field of a stackt.
+//
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
 	s.ss_sp = sp
@@ -292,8 +299,9 @@ func sysargs(argc int32, argv **byte) {
 	// skip NULL separator
 	n++
 
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
-	sysauxv(auxv[:])
+	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+	pairs := sysauxv(auxvp[:])
+	auxv = auxvp[: pairs*2 : pairs*2]
 }
 
 const (
@@ -301,14 +309,16 @@ const (
 	_AT_PAGESZ = 6
 )
 
-func sysauxv(auxv []uintptr) {
-	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+func sysauxv(auxv []uintptr) (pairs int) {
+	var i int
+	for i = 0; auxv[i] != _AT_NULL; i += 2 {
 		tag, val := auxv[i], auxv[i+1]
 		switch tag {
 		case _AT_PAGESZ:
 			physPageSize = val
 		}
 	}
+	return i / 2
 }
 
 // raise sends a signal to the calling thread.
@@ -323,4 +333,13 @@ func raise(sig uint32) {
 
 func signalM(mp *m, sig int) {
 	lwp_kill(-1, int32(mp.procid), sig)
+}
+
+// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
+// number.
+const sigPerThreadSyscall = 1 << 31
+
+//go:nosplit
+func runPerThreadSyscall() {
+	throw("runPerThreadSyscall only valid on linux")
 }

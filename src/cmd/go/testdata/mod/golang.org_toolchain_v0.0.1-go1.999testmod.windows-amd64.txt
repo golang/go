@@ -1,0 +1,10 @@
+golang.org/toolchain@v0.0.1-go1.999testmod.windows-amd64
+
+-- .mod --
+module golang.org/toolchain
+-- .info --
+{"Version":"v0.0.1-go1.999testmod.windows-amd64"}
+-- go.mod --
+module golang.org/toolchain
+-- bin/go.bat --
+@echo go1.999testmod here!

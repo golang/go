@@ -17,6 +17,6 @@ func mine(int b) int { // ERROR "undefined.*b"
 }
 
 func main() {
-	mine()     // GCCGO_ERROR "not enough arguments"
+	mine()     // ERROR "not enough arguments"
 	c = mine() // ERROR "undefined.*c|not enough arguments"
 }

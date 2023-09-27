@@ -7,9 +7,11 @@ const (
 	_EINTR  = 0x4
 	_EFAULT = 0xe
 	_EAGAIN = 0x23
-	_ENOSYS = 0x4e
 
+	_O_WRONLY   = 0x1
 	_O_NONBLOCK = 0x4
+	_O_CREAT    = 0x200
+	_O_TRUNC    = 0x400
 	_O_CLOEXEC  = 0x400000
 
 	_PROT_NONE  = 0x0
@@ -21,7 +23,8 @@ const (
 	_MAP_PRIVATE = 0x2
 	_MAP_FIXED   = 0x10
 
-	_MADV_FREE = 0x6
+	_MADV_DONTNEED = 0x4
+	_MADV_FREE     = 0x6
 
 	_SA_SIGINFO = 0x40
 	_SA_RESTART = 0x2

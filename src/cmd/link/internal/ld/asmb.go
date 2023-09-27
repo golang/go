@@ -14,8 +14,9 @@ import (
 )
 
 // Assembling the binary is broken into two steps:
-//  - writing out the code/data/dwarf Segments, applying relocations on the fly
-//  - writing out the architecture specific pieces.
+//   - writing out the code/data/dwarf Segments, applying relocations on the fly
+//   - writing out the architecture specific pieces.
+//
 // This function handles the first part.
 func asmb(ctxt *Link) {
 	// TODO(jfaller): delete me.
@@ -59,12 +60,20 @@ func asmb(ctxt *Link) {
 
 	writeParallel(&wg, dwarfblk, ctxt, Segdwarf.Fileoff, Segdwarf.Vaddr, Segdwarf.Filelen)
 
+	if Segpdata.Filelen > 0 {
+		writeParallel(&wg, pdatablk, ctxt, Segpdata.Fileoff, Segpdata.Vaddr, Segpdata.Filelen)
+	}
+	if Segxdata.Filelen > 0 {
+		writeParallel(&wg, xdatablk, ctxt, Segxdata.Fileoff, Segxdata.Vaddr, Segxdata.Filelen)
+	}
+
 	wg.Wait()
 }
 
 // Assembling the binary is broken into two steps:
-//  - writing out the code/data/dwarf Segments
-//  - writing out the architecture specific pieces.
+//   - writing out the code/data/dwarf Segments
+//   - writing out the architecture specific pieces.
+//
 // This function handles the second part.
 func asmb2(ctxt *Link) {
 	if thearch.Asmb2 != nil {

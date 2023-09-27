@@ -9,6 +9,7 @@ package importer
 
 import (
 	"cmd/compile/internal/syntax"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types2"
 	"encoding/binary"
 	"fmt"
@@ -52,7 +53,7 @@ const (
 )
 
 type ident struct {
-	pkg  string
+	pkg  *types2.Package
 	name string
 }
 
@@ -76,9 +77,7 @@ const (
 	unionType
 )
 
-const io_SeekCurrent = 1 // io.SeekCurrent (not defined in Go 1.4)
-
-// iImportData imports a package from the serialized package data
+// ImportData imports a package from the serialized package data
 // and returns the number of bytes consumed and a reference to the package.
 // If the export data version is not recognized or the format is otherwise
 // compromised, an error is returned.
@@ -107,10 +106,10 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
 	sLen := int64(r.uint64())
 	dLen := int64(r.uint64())
 
-	whence, _ := r.Seek(0, io_SeekCurrent)
+	whence, _ := r.Seek(0, io.SeekCurrent)
 	stringData := data[whence : whence+sLen]
 	declData := data[whence+sLen : whence+sLen+dLen]
-	r.Seek(sLen+dLen, io_SeekCurrent)
+	r.Seek(sLen+dLen, io.SeekCurrent)
 
 	p := iimporter{
 		exportVersion: version,
@@ -126,7 +125,7 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
 		typCache: make(map[uint64]types2.Type),
 		// Separate map for typeparams, keyed by their package and unique
 		// name (name with subscript).
-		tparamIndex: make(map[ident]types2.Type),
+		tparamIndex: make(map[ident]*types2.TypeParam),
 	}
 
 	for i, pt := range predeclared {
@@ -138,21 +137,18 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
 		pkgPathOff := r.uint64()
 		pkgPath := p.stringAt(pkgPathOff)
 		pkgName := p.stringAt(r.uint64())
-		pkgHeight := int(r.uint64())
+		_ = int(r.uint64()) // was package height, but not necessary anymore.
 
 		if pkgPath == "" {
 			pkgPath = path
 		}
 		pkg := imports[pkgPath]
 		if pkg == nil {
-			pkg = types2.NewPackageHeight(pkgPath, pkgName, pkgHeight)
+			pkg = types2.NewPackage(pkgPath, pkgName)
 			imports[pkgPath] = pkg
 		} else {
 			if pkg.Name() != pkgName {
 				errorf("conflicting names %s and %s for package %q", pkg.Name(), pkgName, path)
-			}
-			if pkg.Height() != pkgHeight {
-				errorf("conflicting heights %v and %v for package %q", pkg.Height(), pkgHeight, path)
 			}
 		}
 
@@ -179,6 +175,14 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
 		p.doDecl(localpkg, name)
 	}
 
+	// SetConstraint can't be called if the constraint type is not yet complete.
+	// When type params are created in the 'P' case of (*importReader).obj(),
+	// the associated constraint type may not be complete due to recursion.
+	// Therefore, we defer calling SetConstraint there, and call it here instead
+	// after all types are complete.
+	for _, d := range p.later {
+		d.t.SetConstraint(d.constraint)
+	}
 	// record all referenced packages as imports
 	list := append(([]*types2.Package)(nil), pkgList[1:]...)
 	sort.Sort(byPath(list))
@@ -188,6 +192,11 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
 	localpkg.MarkComplete()
 
 	return localpkg, nil
+}
+
+type setConstraintArgs struct {
+	t          *types2.TypeParam
+	constraint types2.Type
 }
 
 type iimporter struct {
@@ -202,9 +211,12 @@ type iimporter struct {
 	declData    string
 	pkgIndex    map[*types2.Package]map[string]uint64
 	typCache    map[uint64]types2.Type
-	tparamIndex map[ident]types2.Type
+	tparamIndex map[ident]*types2.TypeParam
 
 	interfaceList []*types2.Interface
+
+	// Arguments for calls to SetConstraint that are deferred due to recursive types
+	later []setConstraintArgs
 }
 
 func (p *iimporter) doDecl(pkg *types2.Package, name string) {
@@ -219,10 +231,7 @@ func (p *iimporter) doDecl(pkg *types2.Package, name string) {
 	}
 
 	r := &importReader{p: p, currPkg: pkg}
-	// Reader.Reset is not available in Go 1.4.
-	// Use bytes.NewReader for now.
-	// r.declReader.Reset(p.declData[off:])
-	r.declReader = *strings.NewReader(p.declData[off:])
+	r.declReader.Reset(p.declData[off:])
 
 	r.obj(name)
 }
@@ -268,10 +277,7 @@ func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
 	}
 
 	r := &importReader{p: p}
-	// Reader.Reset is not available in Go 1.4.
-	// Use bytes.NewReader for now.
-	// r.declReader.Reset(p.declData[off-predeclReserved:])
-	r.declReader = *strings.NewReader(p.declData[off-predeclReserved:])
+	r.declReader.Reset(p.declData[off-predeclReserved:])
 	t := r.doType(base)
 
 	if canReuse(base, t) {
@@ -376,16 +382,16 @@ func (r *importReader) obj(name string) {
 		if r.p.exportVersion < iexportVersionGenerics {
 			errorf("unexpected type param type")
 		}
-		// Remove the "path" from the type param name that makes it unique
-		ix := strings.LastIndex(name, ".")
-		if ix < 0 {
-			errorf("missing path for type param")
+		name0 := typecheck.TparamName(name)
+		if name0 == "" {
+			errorf("malformed type parameter export name %s: missing prefix", name)
 		}
-		tn := types2.NewTypeName(pos, r.currPkg, name[ix+1:], nil)
+
+		tn := types2.NewTypeName(pos, r.currPkg, name0, nil)
 		t := types2.NewTypeParam(tn, nil)
 		// To handle recursive references to the typeparam within its
 		// bound, save the partial type in tparamIndex before reading the bounds.
-		id := ident{r.currPkg.Name(), name}
+		id := ident{r.currPkg, name}
 		r.p.tparamIndex[id] = t
 
 		var implicit bool
@@ -400,7 +406,11 @@ func (r *importReader) obj(name string) {
 			}
 			iface.MarkImplicit()
 		}
-		t.SetConstraint(constraint)
+		// The constraint type may not be complete, if we
+		// are in the middle of a type recursion involving type
+		// constraints. So, we defer SetConstraint until we have
+		// completely set up all types in ImportData.
+		r.p.later = append(r.p.later, setConstraintArgs{t: t, constraint: constraint})
 
 	case 'V':
 		typ := r.typ()
@@ -666,7 +676,7 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 			errorf("unexpected type param type")
 		}
 		pkg, name := r.qualifiedIdent()
-		id := ident{pkg.Name(), name}
+		id := ident{pkg, name}
 		if t, ok := r.p.tparamIndex[id]; ok {
 			// We're already in the process of importing this typeparam.
 			return t

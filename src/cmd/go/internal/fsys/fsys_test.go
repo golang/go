@@ -1,18 +1,20 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package fsys
 
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"internal/testenv"
+	"internal/txtar"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
-
-	"golang.org/x/tools/txtar"
 )
 
 // initOverlay resets the overlay state to reflect the config.
@@ -35,7 +37,6 @@ func initOverlay(t *testing.T, config string) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		overlay = nil
 		if err := os.Chdir(prevwd); err != nil {
 			t.Fatal(err)
 		}
@@ -54,10 +55,13 @@ func initOverlay(t *testing.T, config string) {
 
 	var overlayJSON OverlayJSON
 	if err := json.Unmarshal(a.Comment, &overlayJSON); err != nil {
-		t.Fatal(fmt.Errorf("parsing overlay JSON: %v", err))
+		t.Fatal("parsing overlay JSON:", err)
 	}
 
-	initFromJSON(overlayJSON)
+	if err := initFromJSON(overlayJSON); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { overlay = nil })
 }
 
 func TestIsDir(t *testing.T) {
@@ -761,6 +765,42 @@ func TestWalkSkipDir(t *testing.T) {
 	}
 }
 
+func TestWalkSkipAll(t *testing.T) {
+	initOverlay(t, `
+{
+	"Replace": {
+		"dir/subdir1/foo1": "dummy.txt",
+		"dir/subdir1/foo2": "dummy.txt",
+		"dir/subdir1/foo3": "dummy.txt",
+		"dir/subdir2/foo4": "dummy.txt",
+		"dir/zzlast": "dummy.txt"
+	}
+}
+-- dummy.txt --
+`)
+
+	var seen []string
+	Walk("dir", func(path string, info fs.FileInfo, err error) error {
+		seen = append(seen, filepath.ToSlash(path))
+		if info.Name() == "foo2" {
+			return filepath.SkipAll
+		}
+		return nil
+	})
+
+	wantSeen := []string{"dir", "dir/subdir1", "dir/subdir1/foo1", "dir/subdir1/foo2"}
+
+	if len(seen) != len(wantSeen) {
+		t.Errorf("paths seen in walk: got %v entries; want %v entries", len(seen), len(wantSeen))
+	}
+
+	for i := 0; i < len(seen) && i < len(wantSeen); i++ {
+		if seen[i] != wantSeen[i] {
+			t.Errorf("path %#v seen walking tree: got %q, want %q", i, seen[i], wantSeen[i])
+		}
+	}
+}
+
 func TestWalkError(t *testing.T) {
 	initOverlay(t, "{}")
 
@@ -788,7 +828,7 @@ func TestWalkSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
 	initOverlay(t, `{
-	"Replace": {"overlay_symlink": "symlink"}
+	"Replace": {"overlay_symlink/file": "symlink/file"}
 }
 -- dir/file --`)
 
@@ -802,11 +842,15 @@ func TestWalkSymlink(t *testing.T) {
 		dir       string
 		wantFiles []string
 	}{
-		{"control", "dir", []string{"dir", "dir" + string(filepath.Separator) + "file"}},
+		{"control", "dir", []string{"dir", filepath.Join("dir", "file")}},
 		// ensure Walk doesn't walk into the directory pointed to by the symlink
 		// (because it's supposed to use Lstat instead of Stat).
 		{"symlink_to_dir", "symlink", []string{"symlink"}},
-		{"overlay_to_symlink_to_dir", "overlay_symlink", []string{"overlay_symlink"}},
+		{"overlay_to_symlink_to_dir", "overlay_symlink", []string{"overlay_symlink", filepath.Join("overlay_symlink", "file")}},
+
+		// However, adding filepath.Separator should cause the link to be resolved.
+		{"symlink_with_slash", "symlink" + string(filepath.Separator), []string{"symlink" + string(filepath.Separator), filepath.Join("symlink", "file")}},
+		{"overlay_to_symlink_to_dir", "overlay_symlink" + string(filepath.Separator), []string{"overlay_symlink" + string(filepath.Separator), filepath.Join("overlay_symlink", "file")}},
 	}
 
 	for _, tc := range testCases {
@@ -814,6 +858,7 @@ func TestWalkSymlink(t *testing.T) {
 			var got []string
 
 			err := Walk(tc.dir, func(path string, info fs.FileInfo, err error) error {
+				t.Logf("walk %q", path)
 				got = append(got, path)
 				if err != nil {
 					t.Errorf("walkfn: got non nil err argument: %v, want nil err argument", err)

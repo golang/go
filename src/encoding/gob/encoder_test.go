@@ -1017,7 +1017,7 @@ type Bug4Secret struct {
 
 // Test that a failed compilation doesn't leave around an executable encoder.
 // Issue 3723.
-func TestMutipleEncodingsOfBadType(t *testing.T) {
+func TestMultipleEncodingsOfBadType(t *testing.T) {
 	x := Bug4Public{
 		Name:   "name",
 		Secret: Bug4Secret{1},
@@ -1263,5 +1263,18 @@ func TestDecodePartial(t *testing.T) {
 				t.Errorf("%d/%d: expected io.ErrUnexpectedEOF: %v", i, len(data), err)
 			}
 		}
+	}
+}
+
+func TestDecoderOverflow(t *testing.T) {
+	// Issue 55337.
+	dec := NewDecoder(bytes.NewReader([]byte{
+		0x12, 0xff, 0xff, 0x2, 0x2, 0x20, 0x0, 0xf8, 0x7f, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x20, 0x20, 0x20, 0x20, 0x20,
+	}))
+	var r interface{}
+	err := dec.Decode(r)
+	if err == nil {
+		t.Fatalf("expected an error")
 	}
 }

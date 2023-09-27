@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 package net
 
 import (
@@ -175,7 +173,7 @@ func TestSendfileSeeked(t *testing.T) {
 				return
 			}
 			defer f.Close()
-			if _, err := f.Seek(seekTo, os.SEEK_SET); err != nil {
+			if _, err := f.Seek(seekTo, io.SeekStart); err != nil {
 				errc <- err
 				return
 			}
@@ -209,7 +207,7 @@ func TestSendfileSeeked(t *testing.T) {
 // Test that sendfile doesn't put a pipe into blocking mode.
 func TestSendfilePipe(t *testing.T) {
 	switch runtime.GOOS {
-	case "plan9", "windows":
+	case "plan9", "windows", "js", "wasip1":
 		// These systems don't support deadlines on pipes.
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}

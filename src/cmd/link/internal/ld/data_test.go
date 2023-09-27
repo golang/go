@@ -14,10 +14,9 @@ import (
 
 func setUpContext(arch *sys.Arch, iself bool, ht objabi.HeadType, bm, lm string) *Link {
 	ctxt := linknew(arch)
-	edummy := func(str string, off int) {}
 	ctxt.HeadType = ht
 	er := loader.ErrorReporter{}
-	ctxt.loader = loader.NewLoader(0, edummy, &er)
+	ctxt.loader = loader.NewLoader(0, &er)
 	ctxt.BuildMode.Set(bm)
 	ctxt.LinkMode.Set(lm)
 	ctxt.IsELF = iself

@@ -17,8 +17,8 @@
 //
 // This package favors simplicity over efficiency. Clients that require
 // high-performance serialization, especially for large data structures,
-// should look at more advanced solutions such as the encoding/gob
-// package or protocol buffers.
+// should look at more advanced solutions such as the [encoding/gob]
+// package or [google.golang.org/protobuf] for protocol buffers.
 package binary
 
 import (
@@ -29,8 +29,10 @@ import (
 	"sync"
 )
 
-// A ByteOrder specifies how to convert byte sequences into
+// A ByteOrder specifies how to convert byte slices into
 // 16-, 32-, or 64-bit unsigned integers.
+//
+// It is implemented by [LittleEndian], [BigEndian], and [NativeEndian].
 type ByteOrder interface {
 	Uint16([]byte) uint16
 	Uint32([]byte) uint32
@@ -41,10 +43,21 @@ type ByteOrder interface {
 	String() string
 }
 
-// LittleEndian is the little-endian implementation of ByteOrder.
+// AppendByteOrder specifies how to append 16-, 32-, or 64-bit unsigned integers
+// into a byte slice.
+//
+// It is implemented by [LittleEndian], [BigEndian], and [NativeEndian].
+type AppendByteOrder interface {
+	AppendUint16([]byte, uint16) []byte
+	AppendUint32([]byte, uint32) []byte
+	AppendUint64([]byte, uint64) []byte
+	String() string
+}
+
+// LittleEndian is the little-endian implementation of [ByteOrder] and [AppendByteOrder].
 var LittleEndian littleEndian
 
-// BigEndian is the big-endian implementation of ByteOrder.
+// BigEndian is the big-endian implementation of [ByteOrder] and [AppendByteOrder].
 var BigEndian bigEndian
 
 type littleEndian struct{}
@@ -60,6 +73,13 @@ func (littleEndian) PutUint16(b []byte, v uint16) {
 	b[1] = byte(v >> 8)
 }
 
+func (littleEndian) AppendUint16(b []byte, v uint16) []byte {
+	return append(b,
+		byte(v),
+		byte(v>>8),
+	)
+}
+
 func (littleEndian) Uint32(b []byte) uint32 {
 	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
@@ -71,6 +91,15 @@ func (littleEndian) PutUint32(b []byte, v uint32) {
 	b[1] = byte(v >> 8)
 	b[2] = byte(v >> 16)
 	b[3] = byte(v >> 24)
+}
+
+func (littleEndian) AppendUint32(b []byte, v uint32) []byte {
+	return append(b,
+		byte(v),
+		byte(v>>8),
+		byte(v>>16),
+		byte(v>>24),
+	)
 }
 
 func (littleEndian) Uint64(b []byte) uint64 {
@@ -91,6 +120,19 @@ func (littleEndian) PutUint64(b []byte, v uint64) {
 	b[7] = byte(v >> 56)
 }
 
+func (littleEndian) AppendUint64(b []byte, v uint64) []byte {
+	return append(b,
+		byte(v),
+		byte(v>>8),
+		byte(v>>16),
+		byte(v>>24),
+		byte(v>>32),
+		byte(v>>40),
+		byte(v>>48),
+		byte(v>>56),
+	)
+}
+
 func (littleEndian) String() string { return "LittleEndian" }
 
 func (littleEndian) GoString() string { return "binary.LittleEndian" }
@@ -108,6 +150,13 @@ func (bigEndian) PutUint16(b []byte, v uint16) {
 	b[1] = byte(v)
 }
 
+func (bigEndian) AppendUint16(b []byte, v uint16) []byte {
+	return append(b,
+		byte(v>>8),
+		byte(v),
+	)
+}
+
 func (bigEndian) Uint32(b []byte) uint32 {
 	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
@@ -119,6 +168,15 @@ func (bigEndian) PutUint32(b []byte, v uint32) {
 	b[1] = byte(v >> 16)
 	b[2] = byte(v >> 8)
 	b[3] = byte(v)
+}
+
+func (bigEndian) AppendUint32(b []byte, v uint32) []byte {
+	return append(b,
+		byte(v>>24),
+		byte(v>>16),
+		byte(v>>8),
+		byte(v),
+	)
 }
 
 func (bigEndian) Uint64(b []byte) uint64 {
@@ -139,9 +197,26 @@ func (bigEndian) PutUint64(b []byte, v uint64) {
 	b[7] = byte(v)
 }
 
+func (bigEndian) AppendUint64(b []byte, v uint64) []byte {
+	return append(b,
+		byte(v>>56),
+		byte(v>>48),
+		byte(v>>40),
+		byte(v>>32),
+		byte(v>>24),
+		byte(v>>16),
+		byte(v>>8),
+		byte(v),
+	)
+}
+
 func (bigEndian) String() string { return "BigEndian" }
 
 func (bigEndian) GoString() string { return "binary.BigEndian" }
+
+func (nativeEndian) String() string { return "NativeEndian" }
+
+func (nativeEndian) GoString() string { return "binary.NativeEndian" }
 
 // Read reads structured binary data from r into data.
 // Data must be a pointer to a fixed-size value or a slice
@@ -156,9 +231,9 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // When reading into a struct, all non-blank fields must be exported
 // or Read may panic.
 //
-// The error is EOF only if no bytes were read.
-// If an EOF happens after reading some but not all the bytes,
-// Read returns ErrUnexpectedEOF.
+// The error is [io.EOF] only if no bytes were read.
+// If an [io.EOF] happens after reading some but not all the bytes,
+// Read returns [io.ErrUnexpectedEOF].
 func Read(r io.Reader, order ByteOrder, data any) error {
 	// Fast path for basic types and slices.
 	if n := intDataSize(data); n != 0 {
@@ -380,7 +455,7 @@ func Write(w io.Writer, order ByteOrder, data any) error {
 	v := reflect.Indirect(reflect.ValueOf(data))
 	size := dataSize(v)
 	if size < 0 {
-		return errors.New("binary.Write: invalid type " + reflect.TypeOf(data).String())
+		return errors.New("binary.Write: some values are not fixed-sized in type " + reflect.TypeOf(data).String())
 	}
 	buf := make([]byte, size)
 	e := &encoder{order: order, buf: buf}
@@ -389,7 +464,7 @@ func Write(w io.Writer, order ByteOrder, data any) error {
 	return err
 }
 
-// Size returns how many bytes Write would generate to encode the value v, which
+// Size returns how many bytes [Write] would generate to encode the value v, which
 // must be a fixed-size value or a slice of fixed-size values, or a pointer to such data.
 // If v is neither of these, Size returns -1.
 func Size(v any) int {
@@ -408,7 +483,6 @@ func dataSize(v reflect.Value) int {
 		if s := sizeof(v.Type().Elem()); s >= 0 {
 			return s * v.Len()
 		}
-		return -1
 
 	case reflect.Struct:
 		t := v.Type()
@@ -420,8 +494,12 @@ func dataSize(v reflect.Value) int {
 		return size
 
 	default:
-		return sizeof(v.Type())
+		if v.IsValid() {
+			return sizeof(v.Type())
+		}
 	}
+
+	return -1
 }
 
 // sizeof returns the size >= 0 of variables for the given type or -1 if the type is not acceptable.

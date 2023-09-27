@@ -6,6 +6,7 @@ package utf8_test
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"unicode"
 	. "unicode/utf8"
@@ -554,8 +555,17 @@ func BenchmarkRuneCountInStringTenJapaneseChars(b *testing.B) {
 	}
 }
 
+var ascii100000 = strings.Repeat("0123456789", 10000)
+
 func BenchmarkValidTenASCIIChars(b *testing.B) {
 	s := []byte("0123456789")
+	for i := 0; i < b.N; i++ {
+		Valid(s)
+	}
+}
+
+func BenchmarkValid100KASCIIChars(b *testing.B) {
+	s := []byte(ascii100000)
 	for i := 0; i < b.N; i++ {
 		Valid(s)
 	}
@@ -567,6 +577,19 @@ func BenchmarkValidTenJapaneseChars(b *testing.B) {
 		Valid(s)
 	}
 }
+func BenchmarkValidLongMostlyASCII(b *testing.B) {
+	longMostlyASCII := []byte(longStringMostlyASCII)
+	for i := 0; i < b.N; i++ {
+		Valid(longMostlyASCII)
+	}
+}
+
+func BenchmarkValidLongJapanese(b *testing.B) {
+	longJapanese := []byte(longStringJapanese)
+	for i := 0; i < b.N; i++ {
+		Valid(longJapanese)
+	}
+}
 
 func BenchmarkValidStringTenASCIIChars(b *testing.B) {
 	for i := 0; i < b.N; i++ {
@@ -574,10 +597,45 @@ func BenchmarkValidStringTenASCIIChars(b *testing.B) {
 	}
 }
 
+func BenchmarkValidString100KASCIIChars(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ValidString(ascii100000)
+	}
+}
+
 func BenchmarkValidStringTenJapaneseChars(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ValidString("日本語日本語日本語日")
 	}
+}
+
+func BenchmarkValidStringLongMostlyASCII(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ValidString(longStringMostlyASCII)
+	}
+}
+
+func BenchmarkValidStringLongJapanese(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ValidString(longStringJapanese)
+	}
+}
+
+var longStringMostlyASCII string // ~100KB, ~97% ASCII
+var longStringJapanese string    // ~100KB, non-ASCII
+
+func init() {
+	const japanese = "日本語日本語日本語日"
+	var b strings.Builder
+	for i := 0; b.Len() < 100_000; i++ {
+		if i%100 == 0 {
+			b.WriteString(japanese)
+		} else {
+			b.WriteString("0123456789")
+		}
+	}
+	longStringMostlyASCII = b.String()
+	longStringJapanese = strings.Repeat(japanese, 100_000/len(japanese))
 }
 
 func BenchmarkEncodeASCIIRune(b *testing.B) {

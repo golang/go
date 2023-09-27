@@ -8,8 +8,8 @@ package cgi
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"net"
 	"net/http"
@@ -94,7 +94,7 @@ var cgiTested, cgiWorks bool
 func check(t *testing.T) {
 	if !cgiTested {
 		cgiTested = true
-		cgiWorks = exec.Command("./testdata/test.cgi").Run() == nil
+		cgiWorks = testenv.Command(t, "./testdata/test.cgi").Run() == nil
 	}
 	if !cgiWorks {
 		// No Perl on Windows, needed by test.cgi
@@ -114,7 +114,7 @@ func TestCGIBasicGet(t *testing.T) {
 		"param-a":               "b",
 		"param-foo":             "bar",
 		"env-GATEWAY_INTERFACE": "CGI/1.1",
-		"env-HTTP_HOST":         "example.com",
+		"env-HTTP_HOST":         "example.com:80",
 		"env-PATH_INFO":         "",
 		"env-QUERY_STRING":      "foo=bar&a=b",
 		"env-REMOTE_ADDR":       "1.2.3.4",
@@ -128,7 +128,7 @@ func TestCGIBasicGet(t *testing.T) {
 		"env-SERVER_PORT":       "80",
 		"env-SERVER_SOFTWARE":   "go",
 	}
-	replay := runCgiTest(t, h, "GET /test.cgi?foo=bar&a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
+	replay := runCgiTest(t, h, "GET /test.cgi?foo=bar&a=b HTTP/1.0\nHost: example.com:80\n\n", expectedMap)
 
 	if expected, got := "text/html", replay.Header().Get("Content-Type"); got != expected {
 		t.Errorf("got a Content-Type of %q; expected %q", got, expected)
@@ -463,7 +463,7 @@ func findPerl(t *testing.T) string {
 	}
 	perl, _ = filepath.Abs(perl)
 
-	cmd := exec.Command(perl, "-e", "print 123")
+	cmd := testenv.Command(t, perl, "-e", "print 123")
 	cmd.Env = []string{"PATH=/garbage"}
 	out, err := cmd.Output()
 	if err != nil || string(out) != "123" {
@@ -540,7 +540,7 @@ func TestEnvOverride(t *testing.T) {
 
 func TestHandlerStderr(t *testing.T) {
 	check(t)
-	var stderr bytes.Buffer
+	var stderr strings.Builder
 	h := &Handler{
 		Path:   "testdata/test.cgi",
 		Root:   "/test.cgi",

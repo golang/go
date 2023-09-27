@@ -400,4 +400,18 @@ func main() {
 	case i > x:
 		os.Exit(1)
 	}
+
+	// Unified IR converts the tag and all case values to empty
+	// interface, when any of the case values aren't assignable to the
+	// tag value's type. Make sure that `case nil:` compares against the
+	// tag type's nil value (i.e., `(*int)(nil)`), not nil interface
+	// (i.e., `any(nil)`).
+	switch (*int)(nil) {
+	case nil:
+		// ok
+	case any(nil):
+		assert(false, "case any(nil) matched")
+	default:
+		assert(false, "default matched")
+	}
 }

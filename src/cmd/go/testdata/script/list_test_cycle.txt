@@ -1,0 +1,34 @@
+go list ./p
+stdout 'example/p'
+
+! go list -json=ImportPath -test ./p
+cmp stderr wanterr.txt
+
+! go list -json=ImportPath,Deps -test ./p
+cmp stderr wanterr.txt
+
+! go list -json=ImportPath,Deps -deps -test ./p
+cmp stderr wanterr.txt
+
+! go list -json=ImportPath -deps -test ./p
+cmp stderr wanterr.txt
+
+-- wanterr.txt --
+go: can't load test package: package example/p
+	imports example/q
+	imports example/r
+	imports example/p: import cycle not allowed in test
+-- go.mod --
+module example
+go 1.20
+-- p/p.go --
+package p
+-- p/p_test.go --
+package p
+import "example/q"
+-- q/q.go --
+package q
+import "example/r"
+-- r/r.go --
+package r
+import "example/p"

@@ -4,7 +4,7 @@
 
 package b
 
-import "a"
+import "./a"
 
 type Ap1[A, B any] struct {
 	opt a.Option[A]

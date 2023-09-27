@@ -25,7 +25,7 @@ func GOMAXPROCS(n int) int {
 		return ret
 	}
 
-	stopTheWorldGC("GOMAXPROCS")
+	stopTheWorldGC(stwGOMAXPROCS)
 
 	// newprocs will be processed by startTheWorld
 	newprocs = int32(n)
@@ -69,7 +69,7 @@ func debug_modinfo() string {
 // preemption points. To apply this to all preemption points in the
 // runtime and runtime-like code, use the following in bash or zsh:
 //
-//   X=(-{gc,asm}flags={runtime/...,reflect,sync}=-d=maymorestack=runtime.mayMoreStackPreempt) GOFLAGS=${X[@]}
+//	X=(-{gc,asm}flags={runtime/...,reflect,sync}=-d=maymorestack=runtime.mayMoreStackPreempt) GOFLAGS=${X[@]}
 //
 // This must be deeply nosplit because it is called from a function
 // prologue before the stack is set up and because the compiler will
@@ -79,20 +79,19 @@ func debug_modinfo() string {
 // Ideally it should also use very little stack because the linker
 // doesn't currently account for this in nosplit stack depth checking.
 //
-//go:nosplit
-//
 // Ensure mayMoreStackPreempt can be called for all ABIs.
 //
+//go:nosplit
 //go:linkname mayMoreStackPreempt
 func mayMoreStackPreempt() {
 	// Don't do anything on the g0 or gsignal stack.
-	g := getg()
-	if g == g.m.g0 || g == g.m.gsignal {
+	gp := getg()
+	if gp == gp.m.g0 || gp == gp.m.gsignal {
 		return
 	}
 	// Force a preemption, unless the stack is already poisoned.
-	if g.stackguard0 < stackPoisonMin {
-		g.stackguard0 = stackPreempt
+	if gp.stackguard0 < stackPoisonMin {
+		gp.stackguard0 = stackPreempt
 	}
 }
 
@@ -105,12 +104,12 @@ func mayMoreStackPreempt() {
 //go:linkname mayMoreStackMove
 func mayMoreStackMove() {
 	// Don't do anything on the g0 or gsignal stack.
-	g := getg()
-	if g == g.m.g0 || g == g.m.gsignal {
+	gp := getg()
+	if gp == gp.m.g0 || gp == gp.m.gsignal {
 		return
 	}
 	// Force stack movement, unless the stack is already poisoned.
-	if g.stackguard0 < stackPoisonMin {
-		g.stackguard0 = stackForceMove
+	if gp.stackguard0 < stackPoisonMin {
+		gp.stackguard0 = stackForceMove
 	}
 }

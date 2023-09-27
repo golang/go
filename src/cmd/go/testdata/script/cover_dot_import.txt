@@ -1,5 +1,5 @@
 [short] skip
-[gccgo] skip # gccgo has no cover tool
+[compiler:gccgo] skip # gccgo has no cover tool
 
 go test -coverpkg=coverdot/a,coverdot/b coverdot/b
 ! stderr '[^0-9]0\.0%'

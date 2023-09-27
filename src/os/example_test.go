@@ -15,7 +15,7 @@ import (
 )
 
 func ExampleOpenFile() {
-	f, err := os.OpenFile("notes.txt", os.O_RDWR|os.O_CREATE, 0755)
+	f, err := os.OpenFile("notes.txt", os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -237,6 +237,28 @@ func ExampleReadFile() {
 
 func ExampleWriteFile() {
 	err := os.WriteFile("testdata/hello", []byte("Hello, Gophers!"), 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleMkdir() {
+	err := os.Mkdir("testdir", 0750)
+	if err != nil && !os.IsExist(err) {
+		log.Fatal(err)
+	}
+	err = os.WriteFile("testdir/testfile.txt", []byte("Hello, Gophers!"), 0660)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleMkdirAll() {
+	err := os.MkdirAll("test/subdir", 0750)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = os.WriteFile("test/subdir/testfile.txt", []byte("Hello, Gophers!"), 0660)
 	if err != nil {
 		log.Fatal(err)
 	}

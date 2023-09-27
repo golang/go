@@ -204,7 +204,7 @@ const ( // comments from func aclass in asmz.go
 	C_DCON     // constant (int64 or uint64)
 	C_SACON    // computed address, 16-bit displacement, possibly SP-relative
 	C_LACON    // computed address, 32-bit displacement, possibly SP-relative
-	C_DACON    // computed address, 64-bit displacment?
+	C_DACON    // computed address, 64-bit displacement?
 	C_SBRA     // short branch
 	C_LBRA     // long branch
 	C_SAUTO    // short auto
@@ -479,6 +479,15 @@ const (
 
 	// macros
 	ACLEAR
+
+	// crypto
+	AKM
+	AKMC
+	AKLMD
+	AKIMD
+	AKDSA
+	AKMA
+	AKMCTR
 
 	// vector
 	AVA
@@ -993,6 +1002,9 @@ const (
 	ABYTE
 	AWORD
 	ADWORD
+
+	// Breakpoint
+	ABRRK
 
 	// end marker
 	ALAST

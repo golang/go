@@ -69,9 +69,7 @@ func rewriteFile(fileSet *token.FileSet, pattern, replace ast.Expr, p *ast.File)
 			return reflect.Value{}
 		}
 		val = apply(rewriteVal, val)
-		for k := range m {
-			delete(m, k)
-		}
+		clear(m)
 		if match(m, pat, val) {
 			val = subst(m, repl, reflect.ValueOf(val.Interface().(ast.Node).Pos()))
 		}
@@ -199,7 +197,7 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 		// object pointers and token positions always match
 		return true
 	case callExprType:
-		// For calls, the Ellipsis fields (token.Position) must
+		// For calls, the Ellipsis fields (token.Pos) must
 		// match since that is how f(x) and f(x...) are different.
 		// Check them here but fall through for the remaining fields.
 		p := pattern.Interface().(*ast.CallExpr)

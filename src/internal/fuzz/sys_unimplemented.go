@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// If you update this constraint, also update cmd/internal/sys.FuzzSupported.
+// If you update this constraint, also update internal/platform.FuzzSupported.
 //
-//go:build !darwin && !linux && !windows
+//go:build !darwin && !freebsd && !linux && !windows
 
 package fuzz
 

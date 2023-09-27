@@ -58,10 +58,7 @@ type Flags struct {
 	FieldTrack        bool
 	PreemptibleLoops  bool
 	StaticLockRanking bool
-
-	// Unified enables the compiler's unified IR construction
-	// experiment.
-	Unified bool
+	BoringCrypto      bool
 
 	// Regabi is split into several sub-experiments that can be
 	// enabled individually. Not all combinations work.
@@ -72,11 +69,6 @@ type Flags struct {
 	// ABI0 and ABIInternal functions. Without this, the ABIs are
 	// assumed to be identical so cross-ABI calls are direct.
 	RegabiWrappers bool
-	// RegabiReflect enables the register-passing paths in
-	// reflection calls. This is also gated by intArgRegs in
-	// reflect and runtime (which are disabled by default) so it
-	// can be used in targeted tests.
-	RegabiReflect bool
 	// RegabiArgs enables register arguments/results in all
 	// compiled Go functions.
 	//
@@ -84,16 +76,44 @@ type Flags struct {
 	// reflection calls use registers).
 	RegabiArgs bool
 
-	// PacerRedesign enables the new GC pacer in the runtime.
-	//
-	// Details regarding the new pacer may be found at
-	// https://golang.org/design/44167-gc-pacer-redesign
-	PacerRedesign bool
-
 	// HeapMinimum512KiB reduces the minimum heap size to 512 KiB.
 	//
 	// This was originally reduced as part of PacerRedesign, but
 	// has been broken out to its own experiment that is disabled
 	// by default.
 	HeapMinimum512KiB bool
+
+	// CoverageRedesign enables the new compiler-based code coverage
+	// tooling.
+	CoverageRedesign bool
+
+	// Arenas causes the "arena" standard library package to be visible
+	// to the outside world.
+	Arenas bool
+
+	// PageTrace enables GODEBUG=pagetrace=/path/to/result. This feature
+	// is a GOEXPERIMENT due to a security risk with setuid binaries:
+	// this compels the Go runtime to write to some arbitrary file, which
+	// may be exploited.
+	PageTrace bool
+
+	// CgoCheck2 enables an expensive cgo rule checker.
+	// When this experiment is enabled, cgo rule checks occur regardless
+	// of the GODEBUG=cgocheck setting provided at runtime.
+	CgoCheck2 bool
+
+	// LoopVar changes loop semantics so that each iteration gets its own
+	// copy of the iteration variable.
+	LoopVar bool
+
+	// CacheProg adds support to cmd/go to use a child process to implement
+	// the build cache; see https://github.com/golang/go/issues/59719.
+	CacheProg bool
+
+	// NewInliner enables a new+improved version of the function
+	// inlining phase within the Go compiler.
+	NewInliner bool
+
+	// Range enables range over int and func.
+	Range bool
 }

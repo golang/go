@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 package net
 
 import (
 	"errors"
+	"fmt"
 	"internal/testenv"
+	"net/netip"
 	"os"
 	"reflect"
 	"runtime"
@@ -113,6 +113,10 @@ func TestWriteToUDP(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+
+	if !testableNetwork("udp") {
+		t.Skipf("skipping: udp not supported")
 	}
 
 	c, err := ListenPacket("udp", "127.0.0.1:0")
@@ -220,19 +224,29 @@ func TestUDPConnLocalName(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	for _, tt := range udpConnLocalNameTests {
-		c, err := ListenUDP(tt.net, tt.laddr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer c.Close()
-		la := c.LocalAddr()
-		if a, ok := la.(*UDPAddr); !ok || a.Port == 0 {
-			t.Fatalf("got %v; expected a proper address with non-zero port number", la)
-		}
+		t.Run(fmt.Sprint(tt.laddr), func(t *testing.T) {
+			if !testableNetwork(tt.net) {
+				t.Skipf("skipping: %s not available", tt.net)
+			}
+
+			c, err := ListenUDP(tt.net, tt.laddr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer c.Close()
+			la := c.LocalAddr()
+			if a, ok := la.(*UDPAddr); !ok || a.Port == 0 {
+				t.Fatalf("got %v; expected a proper address with non-zero port number", la)
+			}
+		})
 	}
 }
 
 func TestUDPConnLocalAndRemoteNames(t *testing.T) {
+	if !testableNetwork("udp") {
+		t.Skipf("skipping: udp not available")
+	}
+
 	for _, laddr := range []string{"", "127.0.0.1:0"} {
 		c1, err := ListenPacket("udp", "127.0.0.1:0")
 		if err != nil {
@@ -329,6 +343,9 @@ func TestUDPZeroBytePayload(t *testing.T) {
 	case "darwin", "ios":
 		testenv.SkipFlaky(t, 29225)
 	}
+	if !testableNetwork("udp") {
+		t.Skipf("skipping: udp not available")
+	}
 
 	c := newLocalPacketListener(t, "udp")
 	defer c.Close()
@@ -361,6 +378,9 @@ func TestUDPZeroByteBuffer(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+	if !testableNetwork("udp") {
+		t.Skipf("skipping: udp not available")
 	}
 
 	c := newLocalPacketListener(t, "udp")
@@ -396,6 +416,9 @@ func TestUDPReadSizeError(t *testing.T) {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
+	if !testableNetwork("udp") {
+		t.Skipf("skipping: udp not available")
+	}
 
 	c1 := newLocalPacketListener(t, "udp")
 	defer c1.Close()
@@ -415,19 +438,14 @@ func TestUDPReadSizeError(t *testing.T) {
 		if n != len(b1) {
 			t.Errorf("got %d; want %d", n, len(b1))
 		}
-		c1.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 		b2 := make([]byte, len(b1)-1)
 		if genericRead {
 			n, err = c1.(Conn).Read(b2)
 		} else {
 			n, _, err = c1.ReadFrom(b2)
 		}
-		switch err {
-		case nil: // ReadFrom succeeds
-		default: // Read may timeout, it depends on the platform
-			if nerr, ok := err.(Error); (!ok || !nerr.Timeout()) && runtime.GOOS != "windows" { // Windows returns WSAEMSGSIZE
-				t.Fatal(err)
-			}
+		if err != nil && runtime.GOOS != "windows" { // Windows returns WSAEMSGSIZE
+			t.Fatal(err)
 		}
 		if n != len(b1)-1 {
 			t.Fatalf("got %d; want %d", n, len(b1)-1)
@@ -438,6 +456,10 @@ func TestUDPReadSizeError(t *testing.T) {
 // TestUDPReadTimeout verifies that ReadFromUDP with timeout returns an error
 // without data or an address.
 func TestUDPReadTimeout(t *testing.T) {
+	if !testableNetwork("udp4") {
+		t.Skipf("skipping: udp4 not available")
+	}
+
 	la, err := ResolveUDPAddr("udp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -464,16 +486,17 @@ func TestUDPReadTimeout(t *testing.T) {
 
 func TestAllocs(t *testing.T) {
 	switch runtime.GOOS {
-	case "plan9":
-		// Plan9 wasn't optimized.
+	case "plan9", "js", "wasip1":
+		// These implementations have not been optimized.
 		t.Skipf("skipping on %v", runtime.GOOS)
 	}
-	builder := os.Getenv("GO_BUILDER_NAME")
-	switch builder {
-	case "linux-amd64-noopt":
-		// Optimizations are required to remove the allocs.
-		t.Skipf("skipping on %v", builder)
+	if !testableNetwork("udp4") {
+		t.Skipf("skipping: udp4 not available")
 	}
+
+	// Optimizations are required to remove the allocs.
+	testenv.SkipIfOptimizationOff(t)
+
 	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
 	if err != nil {
 		t.Fatal(err)
@@ -597,6 +620,10 @@ func TestUDPIPVersionReadMsg(t *testing.T) {
 	case "plan9":
 		t.Skipf("skipping on %v", runtime.GOOS)
 	}
+	if !testableNetwork("udp4") {
+		t.Skipf("skipping: udp4 not available")
+	}
+
 	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
 	if err != nil {
 		t.Fatal(err)
@@ -625,5 +652,52 @@ func TestUDPIPVersionReadMsg(t *testing.T) {
 	}
 	if len(soldaddr.IP) != 4 {
 		t.Error("returned UDPAddr is not IPv4")
+	}
+}
+
+// TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion verifies that
+// WriteMsgUDPAddrPort accepts IPv4, IPv4-mapped IPv6, and IPv6 target addresses
+// on a UDPConn listening on "::".
+func TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion(t *testing.T) {
+	if !testableNetwork("udp4") {
+		t.Skipf("skipping: udp4 not available")
+	}
+	if !testableNetwork("udp6") {
+		t.Skipf("skipping: udp6 not available")
+	}
+
+	switch runtime.GOOS {
+	case "dragonfly", "openbsd":
+		// DragonflyBSD's IPv6 sockets are always IPv6-only, according to the man page:
+		// https://www.dragonflybsd.org/cgi/web-man?command=ip6 (search for IPV6_V6ONLY).
+		// OpenBSD's IPv6 sockets are always IPv6-only, according to the man page:
+		// https://man.openbsd.org/ip6#IPV6_V6ONLY
+		t.Skipf("skipping on %v", runtime.GOOS)
+	}
+
+	conn, err := ListenUDP("udp", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	daddr4 := netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 12345)
+	daddr4in6 := netip.AddrPortFrom(netip.MustParseAddr("::ffff:127.0.0.1"), 12345)
+	daddr6 := netip.AddrPortFrom(netip.MustParseAddr("::1"), 12345)
+	buf := make([]byte, 8)
+
+	_, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr4)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr4in6)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr6)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

@@ -151,6 +151,16 @@ type Dirent struct {
 	_       [3]byte
 }
 
+type Attrlist struct {
+	Bitmapcount uint16
+	Reserved    uint16
+	Commonattr  uint32
+	Volattr     uint32
+	Dirattr     uint32
+	Fileattr    uint32
+	Forkattr    uint32
+}
+
 const (
 	PathMax = 0x400
 )
@@ -366,30 +376,57 @@ type ICMPv6Filter struct {
 	Filt [8]uint32
 }
 
+type TCPConnectionInfo struct {
+	State               uint8
+	Snd_wscale          uint8
+	Rcv_wscale          uint8
+	_                   uint8
+	Options             uint32
+	Flags               uint32
+	Rto                 uint32
+	Maxseg              uint32
+	Snd_ssthresh        uint32
+	Snd_cwnd            uint32
+	Snd_wnd             uint32
+	Snd_sbbytes         uint32
+	Rcv_wnd             uint32
+	Rttcur              uint32
+	Srtt                uint32
+	Rttvar              uint32
+	Txpackets           uint64
+	Txbytes             uint64
+	Txretransmitbytes   uint64
+	Rxpackets           uint64
+	Rxbytes             uint64
+	Rxoutoforderbytes   uint64
+	Txretransmitpackets uint64
+}
+
 const (
-	SizeofSockaddrInet4    = 0x10
-	SizeofSockaddrInet6    = 0x1c
-	SizeofSockaddrAny      = 0x6c
-	SizeofSockaddrUnix     = 0x6a
-	SizeofSockaddrDatalink = 0x14
-	SizeofSockaddrCtl      = 0x20
-	SizeofSockaddrVM       = 0xc
-	SizeofXvsockpcb        = 0xa8
-	SizeofXSocket          = 0x64
-	SizeofXSockbuf         = 0x18
-	SizeofXVSockPgen       = 0x20
-	SizeofXucred           = 0x4c
-	SizeofLinger           = 0x8
-	SizeofIovec            = 0x10
-	SizeofIPMreq           = 0x8
-	SizeofIPMreqn          = 0xc
-	SizeofIPv6Mreq         = 0x14
-	SizeofMsghdr           = 0x30
-	SizeofCmsghdr          = 0xc
-	SizeofInet4Pktinfo     = 0xc
-	SizeofInet6Pktinfo     = 0x14
-	SizeofIPv6MTUInfo      = 0x20
-	SizeofICMPv6Filter     = 0x20
+	SizeofSockaddrInet4     = 0x10
+	SizeofSockaddrInet6     = 0x1c
+	SizeofSockaddrAny       = 0x6c
+	SizeofSockaddrUnix      = 0x6a
+	SizeofSockaddrDatalink  = 0x14
+	SizeofSockaddrCtl       = 0x20
+	SizeofSockaddrVM        = 0xc
+	SizeofXvsockpcb         = 0xa8
+	SizeofXSocket           = 0x64
+	SizeofXSockbuf          = 0x18
+	SizeofXVSockPgen        = 0x20
+	SizeofXucred            = 0x4c
+	SizeofLinger            = 0x8
+	SizeofIovec             = 0x10
+	SizeofIPMreq            = 0x8
+	SizeofIPMreqn           = 0xc
+	SizeofIPv6Mreq          = 0x14
+	SizeofMsghdr            = 0x30
+	SizeofCmsghdr           = 0xc
+	SizeofInet4Pktinfo      = 0xc
+	SizeofInet6Pktinfo      = 0x14
+	SizeofIPv6MTUInfo       = 0x20
+	SizeofICMPv6Filter      = 0x20
+	SizeofTCPConnectionInfo = 0x70
 )
 
 const (
@@ -583,6 +620,7 @@ const (
 	AT_REMOVEDIR        = 0x80
 	AT_SYMLINK_FOLLOW   = 0x40
 	AT_SYMLINK_NOFOLLOW = 0x20
+	AT_EACCESS          = 0x10
 )
 
 type PollFd struct {

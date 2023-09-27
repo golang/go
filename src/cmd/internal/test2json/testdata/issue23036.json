@@ -1,3 +1,4 @@
+{"Action":"start"}
 {"Action":"run","Test":"TestActualCase"}
 {"Action":"output","Test":"TestActualCase","Output":"=== RUN   TestActualCase\n"}
 {"Action":"output","Test":"TestActualCase","Output":"--- FAIL: TestActualCase (0.00s)\n"}

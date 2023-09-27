@@ -17,6 +17,7 @@ package profile
 import (
 	"errors"
 	"sort"
+	"strings"
 )
 
 func (p *Profile) decoder() []decoder {
@@ -183,12 +184,13 @@ var profileDecoder = []decoder{
 	// repeated Location location = 4
 	func(b *buffer, m message) error {
 		x := new(Location)
-		x.Line = make([]Line, 0, 8) // Pre-allocate Line buffer
+		x.Line = b.tmpLines[:0] // Use shared space temporarily
 		pp := m.(*Profile)
 		pp.Location = append(pp.Location, x)
 		err := decodeMessage(b, x)
-		var tmp []Line
-		x.Line = append(tmp, x.Line...) // Shrink to allocated size
+		b.tmpLines = x.Line[:0]
+		// Copy to shrink size and detach from shared space.
+		x.Line = append([]Line(nil), x.Line...)
 		return err
 	},
 	// repeated Function function = 5
@@ -252,6 +254,14 @@ func (p *Profile) postDecode() error {
 		} else {
 			mappings[m.ID] = m
 		}
+
+		// If this a main linux kernel mapping with a relocation symbol suffix
+		// ("[kernel.kallsyms]_text"), extract said suffix.
+		// It is fairly hacky to handle at this level, but the alternatives appear even worse.
+		const prefix = "[kernel.kallsyms]"
+		if strings.HasPrefix(m.File, prefix) {
+			m.KernelRelocationSymbol = m.File[len(prefix):]
+		}
 	}
 
 	functions := make(map[uint64]*Function, len(p.Function))
@@ -298,41 +308,52 @@ func (p *Profile) postDecode() error {
 		st.Unit, err = getString(p.stringTable, &st.unitX, err)
 	}
 
+	// Pre-allocate space for all locations.
+	numLocations := 0
 	for _, s := range p.Sample {
-		labels := make(map[string][]string, len(s.labelX))
-		numLabels := make(map[string][]int64, len(s.labelX))
-		numUnits := make(map[string][]string, len(s.labelX))
-		for _, l := range s.labelX {
-			var key, value string
-			key, err = getString(p.stringTable, &l.keyX, err)
-			if l.strX != 0 {
-				value, err = getString(p.stringTable, &l.strX, err)
-				labels[key] = append(labels[key], value)
-			} else if l.numX != 0 || l.unitX != 0 {
-				numValues := numLabels[key]
-				units := numUnits[key]
-				if l.unitX != 0 {
-					var unit string
-					unit, err = getString(p.stringTable, &l.unitX, err)
-					units = padStringArray(units, len(numValues))
-					numUnits[key] = append(units, unit)
-				}
-				numLabels[key] = append(numLabels[key], l.numX)
-			}
-		}
-		if len(labels) > 0 {
-			s.Label = labels
-		}
-		if len(numLabels) > 0 {
-			s.NumLabel = numLabels
-			for key, units := range numUnits {
-				if len(units) > 0 {
-					numUnits[key] = padStringArray(units, len(numLabels[key]))
+		numLocations += len(s.locationIDX)
+	}
+	locBuffer := make([]*Location, numLocations)
+
+	for _, s := range p.Sample {
+		if len(s.labelX) > 0 {
+			labels := make(map[string][]string, len(s.labelX))
+			numLabels := make(map[string][]int64, len(s.labelX))
+			numUnits := make(map[string][]string, len(s.labelX))
+			for _, l := range s.labelX {
+				var key, value string
+				key, err = getString(p.stringTable, &l.keyX, err)
+				if l.strX != 0 {
+					value, err = getString(p.stringTable, &l.strX, err)
+					labels[key] = append(labels[key], value)
+				} else if l.numX != 0 || l.unitX != 0 {
+					numValues := numLabels[key]
+					units := numUnits[key]
+					if l.unitX != 0 {
+						var unit string
+						unit, err = getString(p.stringTable, &l.unitX, err)
+						units = padStringArray(units, len(numValues))
+						numUnits[key] = append(units, unit)
+					}
+					numLabels[key] = append(numLabels[key], l.numX)
 				}
 			}
-			s.NumUnit = numUnits
+			if len(labels) > 0 {
+				s.Label = labels
+			}
+			if len(numLabels) > 0 {
+				s.NumLabel = numLabels
+				for key, units := range numUnits {
+					if len(units) > 0 {
+						numUnits[key] = padStringArray(units, len(numLabels[key]))
+					}
+				}
+				s.NumUnit = numUnits
+			}
 		}
-		s.Location = make([]*Location, len(s.locationIDX))
+
+		s.Location = locBuffer[:len(s.locationIDX)]
+		locBuffer = locBuffer[len(s.locationIDX):]
 		for i, lid := range s.locationIDX {
 			if lid < uint64(len(locationIds)) {
 				s.Location[i] = locationIds[lid]

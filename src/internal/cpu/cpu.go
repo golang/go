@@ -37,6 +37,7 @@ var X86 struct {
 	HasPCLMULQDQ bool
 	HasPOPCNT    bool
 	HasRDTSCP    bool
+	HasSHA       bool
 	HasSSE3      bool
 	HasSSSE3     bool
 	HasSSE41     bool
@@ -56,17 +57,17 @@ var ARM struct {
 // The booleans in ARM64 contain the correspondingly named cpu feature bit.
 // The struct is padded to avoid false sharing.
 var ARM64 struct {
-	_            CacheLinePad
-	HasAES       bool
-	HasPMULL     bool
-	HasSHA1      bool
-	HasSHA2      bool
-	HasCRC32     bool
-	HasATOMICS   bool
-	HasCPUID     bool
-	IsNeoverseN1 bool
-	IsZeus       bool
-	_            CacheLinePad
+	_          CacheLinePad
+	HasAES     bool
+	HasPMULL   bool
+	HasSHA1    bool
+	HasSHA2    bool
+	HasSHA512  bool
+	HasCRC32   bool
+	HasATOMICS bool
+	HasCPUID   bool
+	IsNeoverse bool
+	_          CacheLinePad
 }
 
 var MIPS64X struct {
@@ -81,12 +82,13 @@ var MIPS64X struct {
 // those as well. The minimum processor requirement is POWER8 (ISA 2.07).
 // The struct is padded to avoid false sharing.
 var PPC64 struct {
-	_        CacheLinePad
-	HasDARN  bool // Hardware random number generator (requires kernel enablement)
-	HasSCV   bool // Syscall vectored (requires kernel enablement)
-	IsPOWER8 bool // ISA v2.07 (POWER8)
-	IsPOWER9 bool // ISA v3.00 (POWER9)
-	_        CacheLinePad
+	_         CacheLinePad
+	HasDARN   bool // Hardware random number generator (requires kernel enablement)
+	HasSCV    bool // Syscall vectored (requires kernel enablement)
+	IsPOWER8  bool // ISA v2.07 (POWER8)
+	IsPOWER9  bool // ISA v3.00 (POWER9)
+	IsPOWER10 bool // ISA v3.1  (POWER10)
+	_         CacheLinePad
 }
 
 var S390X struct {

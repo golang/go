@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 package net
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -33,9 +32,20 @@ func testUnixAddr(t testing.TB) string {
 	return filepath.Join(d, "sock")
 }
 
-func newLocalListener(t testing.TB, network string) Listener {
+func newLocalListener(t testing.TB, network string, lcOpt ...*ListenConfig) Listener {
+	var lc *ListenConfig
+	switch len(lcOpt) {
+	case 0:
+		lc = new(ListenConfig)
+	case 1:
+		lc = lcOpt[0]
+	default:
+		t.Helper()
+		t.Fatal("too many ListenConfigs passed to newLocalListener: want 0 or 1")
+	}
+
 	listen := func(net, addr string) Listener {
-		ln, err := Listen(net, addr)
+		ln, err := lc.Listen(context.Background(), net, addr)
 		if err != nil {
 			t.Helper()
 			t.Fatal(err)
@@ -306,9 +316,20 @@ func transceiver(c Conn, wb []byte, ch chan<- error) {
 	}
 }
 
-func newLocalPacketListener(t testing.TB, network string) PacketConn {
+func newLocalPacketListener(t testing.TB, network string, lcOpt ...*ListenConfig) PacketConn {
+	var lc *ListenConfig
+	switch len(lcOpt) {
+	case 0:
+		lc = new(ListenConfig)
+	case 1:
+		lc = lcOpt[0]
+	default:
+		t.Helper()
+		t.Fatal("too many ListenConfigs passed to newLocalListener: want 0 or 1")
+	}
+
 	listenPacket := func(net, addr string) PacketConn {
-		c, err := ListenPacket(net, addr)
+		c, err := lc.ListenPacket(context.Background(), net, addr)
 		if err != nil {
 			t.Helper()
 			t.Fatal(err)
@@ -316,6 +337,7 @@ func newLocalPacketListener(t testing.TB, network string) PacketConn {
 		return c
 	}
 
+	t.Helper()
 	switch network {
 	case "udp":
 		if supportsIPv4() {
@@ -336,7 +358,6 @@ func newLocalPacketListener(t testing.TB, network string) PacketConn {
 		return listenPacket(network, testUnixAddr(t))
 	}
 
-	t.Helper()
 	t.Fatalf("%s is not supported", network)
 	return nil
 }

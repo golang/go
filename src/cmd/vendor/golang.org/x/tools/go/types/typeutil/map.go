@@ -24,7 +24,6 @@ import (
 // Just as with map[K]V, a nil *Map is a valid empty map.
 //
 // Not thread-safe.
-//
 type Map struct {
 	hasher Hasher             // shared by many Maps
 	table  map[uint32][]entry // maps hash to bucket; entry.key==nil means unused
@@ -57,14 +56,12 @@ type entry struct {
 //
 // If SetHasher is not called, the Map will create a private hasher at
 // the first call to Insert.
-//
 func (m *Map) SetHasher(hasher Hasher) {
 	m.hasher = hasher
 }
 
 // Delete removes the entry with the given key, if any.
 // It returns true if the entry was found.
-//
 func (m *Map) Delete(key types.Type) bool {
 	if m != nil && m.table != nil {
 		hash := m.hasher.Hash(key)
@@ -84,7 +81,6 @@ func (m *Map) Delete(key types.Type) bool {
 
 // At returns the map entry for the given key.
 // The result is nil if the entry is not present.
-//
 func (m *Map) At(key types.Type) interface{} {
 	if m != nil && m.table != nil {
 		for _, e := range m.table[m.hasher.Hash(key)] {
@@ -145,7 +141,6 @@ func (m *Map) Len() int {
 // f will not be invoked for it, but if f inserts a map entry that
 // Iterate has not yet reached, whether or not f will be invoked for
 // it is unspecified.
-//
 func (m *Map) Iterate(f func(key types.Type, value interface{})) {
 	if m != nil {
 		for _, bucket := range m.table {
@@ -190,14 +185,12 @@ func (m *Map) toString(values bool) string {
 // String returns a string representation of the map's entries.
 // Values are printed using fmt.Sprintf("%v", v).
 // Order is unspecified.
-//
 func (m *Map) String() string {
 	return m.toString(true)
 }
 
 // KeysString returns a string representation of the map's key set.
 // Order is unspecified.
-//
 func (m *Map) KeysString() string {
 	return m.toString(false)
 }
@@ -339,7 +332,9 @@ func (h Hasher) hashFor(t types.Type) uint32 {
 			// Method order is not significant.
 			// Ignore m.Pkg().
 			m := t.Method(i)
-			hash += 3*hashString(m.Name()) + 5*h.Hash(m.Type())
+			// Use shallow hash on method signature to
+			// avoid anonymous interface cycles.
+			hash += 3*hashString(m.Name()) + 5*h.shallowHash(m.Type())
 		}
 
 		// Hash type restrictions.
@@ -379,7 +374,7 @@ func (h Hasher) hashFor(t types.Type) uint32 {
 func (h Hasher) hashTuple(tuple *types.Tuple) uint32 {
 	// See go/types.identicalTypes for rationale.
 	n := tuple.Len()
-	var hash uint32 = 9137 + 2*uint32(n)
+	hash := 9137 + 2*uint32(n)
 	for i := 0; i < n; i++ {
 		hash += 3 * h.Hash(tuple.At(i).Type())
 	}
@@ -398,7 +393,7 @@ func (h Hasher) hashUnion(t *typeparams.Union) uint32 {
 }
 
 func (h Hasher) hashTermSet(terms []*typeparams.Term) uint32 {
-	var hash uint32 = 9157 + 2*uint32(len(terms))
+	hash := 9157 + 2*uint32(len(terms))
 	for _, term := range terms {
 		// term order is not significant.
 		termHash := h.Hash(term.Type())
@@ -416,14 +411,16 @@ func (h Hasher) hashTermSet(terms []*typeparams.Term) uint32 {
 // If h.sigTParams is set and contains t, then we are in the process of hashing
 // a signature, and the hash value of t must depend only on t's index and
 // constraint: signatures are considered identical modulo type parameter
-// renaming.
+// renaming. To avoid infinite recursion, we only hash the type parameter
+// index, and rely on types.Identical to handle signatures where constraints
+// are not identical.
 //
 // Otherwise the hash of t depends only on t's pointer identity.
 func (h Hasher) hashTypeParam(t *typeparams.TypeParam) uint32 {
 	if h.sigTParams != nil {
 		i := t.Index()
 		if i >= 0 && i < h.sigTParams.Len() && t == h.sigTParams.At(i) {
-			return 9173 + 2*h.Hash(t.Constraint()) + 3*uint32(i)
+			return 9173 + 3*uint32(i)
 		}
 	}
 	return h.hashPtr(t.Obj())
@@ -438,4 +435,77 @@ func (h Hasher) hashPtr(ptr interface{}) uint32 {
 	hash := uint32(reflect.ValueOf(ptr).Pointer())
 	h.ptrMap[ptr] = hash
 	return hash
+}
+
+// shallowHash computes a hash of t without looking at any of its
+// element Types, to avoid potential anonymous cycles in the types of
+// interface methods.
+//
+// When an unnamed non-empty interface type appears anywhere among the
+// arguments or results of an interface method, there is a potential
+// for endless recursion. Consider:
+//
+//	type X interface { m() []*interface { X } }
+//
+// The problem is that the Methods of the interface in m's result type
+// include m itself; there is no mention of the named type X that
+// might help us break the cycle.
+// (See comment in go/types.identical, case *Interface, for more.)
+func (h Hasher) shallowHash(t types.Type) uint32 {
+	// t is the type of an interface method (Signature),
+	// its params or results (Tuples), or their immediate
+	// elements (mostly Slice, Pointer, Basic, Named),
+	// so there's no need to optimize anything else.
+	switch t := t.(type) {
+	case *types.Signature:
+		var hash uint32 = 604171
+		if t.Variadic() {
+			hash *= 971767
+		}
+		// The Signature/Tuple recursion is always finite
+		// and invariably shallow.
+		return hash + 1062599*h.shallowHash(t.Params()) + 1282529*h.shallowHash(t.Results())
+
+	case *types.Tuple:
+		n := t.Len()
+		hash := 9137 + 2*uint32(n)
+		for i := 0; i < n; i++ {
+			hash += 53471161 * h.shallowHash(t.At(i).Type())
+		}
+		return hash
+
+	case *types.Basic:
+		return 45212177 * uint32(t.Kind())
+
+	case *types.Array:
+		return 1524181 + 2*uint32(t.Len())
+
+	case *types.Slice:
+		return 2690201
+
+	case *types.Struct:
+		return 3326489
+
+	case *types.Pointer:
+		return 4393139
+
+	case *typeparams.Union:
+		return 562448657
+
+	case *types.Interface:
+		return 2124679 // no recursion here
+
+	case *types.Map:
+		return 9109
+
+	case *types.Chan:
+		return 9127
+
+	case *types.Named:
+		return h.hashPtr(t.Obj())
+
+	case *typeparams.TypeParam:
+		return h.hashPtr(t.Obj())
+	}
+	panic(fmt.Sprintf("shallowHash: %T: %v", t, t))
 }

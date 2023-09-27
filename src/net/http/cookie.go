@@ -73,6 +73,7 @@ func readSetCookies(h Header) []*Cookie {
 		if !ok {
 			continue
 		}
+		name = textproto.TrimString(name)
 		if !isCookieNameValid(name) {
 			continue
 		}
@@ -246,7 +247,7 @@ func (c *Cookie) Valid() error {
 	if !isCookieNameValid(c.Name) {
 		return errors.New("http: invalid Cookie.Name")
 	}
-	if !validCookieExpires(c.Expires) {
+	if !c.Expires.IsZero() && !validCookieExpires(c.Expires) {
 		return errors.New("http: invalid Cookie.Expires")
 	}
 	for i := 0; i < len(c.Value); i++ {
@@ -272,7 +273,7 @@ func (c *Cookie) Valid() error {
 // readCookies parses all "Cookie" values from the header h and
 // returns the successfully parsed Cookies.
 //
-// if filter isn't empty, only cookies of that name are returned
+// if filter isn't empty, only cookies of that name are returned.
 func readCookies(h Header, filter string) []*Cookie {
 	lines := h["Cookie"]
 	if len(lines) == 0 {
@@ -291,6 +292,7 @@ func readCookies(h Header, filter string) []*Cookie {
 				continue
 			}
 			name, val, _ := strings.Cut(part, "=")
+			name = textproto.TrimString(name)
 			if !isCookieNameValid(name) {
 				continue
 			}
@@ -387,11 +389,13 @@ func sanitizeCookieName(n string) string {
 
 // sanitizeCookieValue produces a suitable cookie-value from v.
 // https://tools.ietf.org/html/rfc6265#section-4.1.1
-// cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
-// cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
-//           ; US-ASCII characters excluding CTLs,
-//           ; whitespace DQUOTE, comma, semicolon,
-//           ; and backslash
+//
+//	cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
+//	cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
+//	          ; US-ASCII characters excluding CTLs,
+//	          ; whitespace DQUOTE, comma, semicolon,
+//	          ; and backslash
+//
 // We loosen this as spaces and commas are common in cookie values
 // but we produce a quoted cookie-value if and only if v contains
 // commas or spaces.

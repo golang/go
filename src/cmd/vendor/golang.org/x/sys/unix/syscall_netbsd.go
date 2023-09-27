@@ -13,7 +13,6 @@
 package unix
 
 import (
-	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -110,14 +109,22 @@ func direntNamlen(buf []byte) (uint64, bool) {
 	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
 }
 
-//sysnb	pipe() (fd1 int, fd2 int, err error)
+func SysctlUvmexp(name string) (*Uvmexp, error) {
+	mib, err := sysctlmib(name)
+	if err != nil {
+		return nil, err
+	}
+
+	n := uintptr(SizeofUvmexp)
+	var u Uvmexp
+	if err := sysctl(mib, (*byte)(unsafe.Pointer(&u)), &n, nil, 0); err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
 
 func Pipe(p []int) (err error) {
-	if len(p) != 2 {
-		return EINVAL
-	}
-	p[0], p[1], err = pipe()
-	return
+	return Pipe2(p, 0)
 }
 
 //sysnb	pipe2(p *[2]_C_int, flags int) (err error)
@@ -128,8 +135,10 @@ func Pipe2(p []int, flags int) error {
 	}
 	var pp [2]_C_int
 	err := pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
 	return err
 }
 
@@ -167,19 +176,14 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 	return -1, ENOSYS
 }
 
-func setattrlistTimes(path string, times []Timespec, flags int) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
-}
-
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
+//sys	ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_IOCTL
 
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
 
 func IoctlGetPtmget(fd int, req uint) (*Ptmget, error) {
 	var value Ptmget
-	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
-	runtime.KeepAlive(value)
+	err := ioctlPtr(fd, req, unsafe.Pointer(&value))
 	return &value, err
 }
 
@@ -254,6 +258,7 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
 //sys	Chmod(path string, mode uint32) (err error)
 //sys	Chown(path string, uid int, gid int) (err error)
 //sys	Chroot(path string) (err error)
+//sys	ClockGettime(clockid int32, time *Timespec) (err error)
 //sys	Close(fd int) (err error)
 //sys	Dup(fd int) (nfd int, err error)
 //sys	Dup2(from int, to int) (err error)
@@ -317,8 +322,8 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Openat(dirfd int, path string, mode int, perm uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Readlink(path string, buf []byte) (n int, err error)
 //sys	Readlinkat(dirfd int, path string, buf []byte) (n int, err error)
@@ -335,7 +340,6 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
@@ -355,6 +359,18 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
 //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
 //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
+
+const (
+	mremapFixed     = MAP_FIXED
+	mremapDontunmap = 0
+	mremapMaymove   = 0
+)
+
+//sys	mremapNetBSD(oldp uintptr, oldsize uintptr, newp uintptr, newsize uintptr, flags int) (xaddr uintptr, err error) = SYS_MREMAP
+
+func mremap(oldaddr uintptr, oldlength uintptr, newlength uintptr, flags int, newaddr uintptr) (uintptr, error) {
+	return mremapNetBSD(oldaddr, oldlength, newaddr, newlength, flags)
+}
 
 /*
  * Unimplemented
@@ -496,7 +512,6 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
 // compat_43_osendmsg
 // compat_43_osethostid
 // compat_43_osethostname
-// compat_43_osetrlimit
 // compat_43_osigblock
 // compat_43_osigsetmask
 // compat_43_osigstack
@@ -561,7 +576,6 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
 // mq_timedreceive
 // mq_timedsend
 // mq_unlink
-// mremap
 // msgget
 // msgrcv
 // msgsnd

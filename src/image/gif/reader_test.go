@@ -28,7 +28,7 @@ const (
 	trailerStr = "\x3b"
 )
 
-// lzw.NewReader wants a io.ByteReader, this ensures we're compatible.
+// lzw.NewReader wants an io.ByteReader, this ensures we're compatible.
 var _ io.ByteReader = (*blockReader)(nil)
 
 // lzwEncode returns an LZW encoding (with 2-bit literals) of in.
@@ -379,7 +379,7 @@ func TestLoopCount(t *testing.T) {
 
 func TestUnexpectedEOF(t *testing.T) {
 	for i := len(testGIF) - 1; i >= 0; i-- {
-		_, err := Decode(bytes.NewReader(testGIF[:i]))
+		_, err := DecodeAll(bytes.NewReader(testGIF[:i]))
 		if err == errNotEnough {
 			continue
 		}

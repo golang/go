@@ -26,7 +26,6 @@ import (
 // advanced arbitrarily far past the last token. Programs that need more
 // control over error handling or large tokens, or must run sequential scans
 // on a reader, should use bufio.Reader instead.
-//
 type Scanner struct {
 	r            io.Reader // The reader provided by the client.
 	split        SplitFunc // The function to split the tokens.
@@ -256,10 +255,10 @@ func (s *Scanner) setErr(err error) {
 	}
 }
 
-// Buffer sets the initial buffer to use when scanning and the maximum
-// size of buffer that may be allocated during scanning. The maximum
-// token size is the larger of max and cap(buf). If max <= cap(buf),
-// Scan will use this buffer only and do no allocation.
+// Buffer sets the initial buffer to use when scanning
+// and the maximum size of buffer that may be allocated during scanning.
+// The maximum token size must be less than the larger of max and cap(buf).
+// If max <= cap(buf), Scan will use this buffer only and do no allocation.
 //
 // By default, Scan uses an internal buffer and sets the
 // maximum token size to MaxScanTokenSize.

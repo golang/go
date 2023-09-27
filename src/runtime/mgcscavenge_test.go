@@ -7,9 +7,12 @@ package runtime_test
 import (
 	"fmt"
 	"internal/goos"
+	"math"
 	"math/rand"
 	. "runtime"
+	"runtime/internal/atomic"
 	"testing"
+	"time"
 )
 
 // makePallocData produces an initialized PallocData by setting
@@ -448,4 +451,434 @@ func TestPageAllocScavenge(t *testing.T) {
 			checkPageAlloc(t, want, b)
 		})
 	}
+}
+
+func TestScavenger(t *testing.T) {
+	// workedTime is a standard conversion of bytes of scavenge
+	// work to time elapsed.
+	workedTime := func(bytes uintptr) int64 {
+		return int64((bytes+4095)/4096) * int64(10*time.Microsecond)
+	}
+
+	// Set up a bunch of state that we're going to track and verify
+	// throughout the test.
+	totalWork := uint64(64<<20 - 3*PhysPageSize)
+	var totalSlept, totalWorked atomic.Int64
+	var availableWork atomic.Uint64
+	var stopAt atomic.Uint64 // How much available work to stop at.
+
+	// Set up the scavenger.
+	var s Scavenger
+	s.Sleep = func(ns int64) int64 {
+		totalSlept.Add(ns)
+		return ns
+	}
+	s.Scavenge = func(bytes uintptr) (uintptr, int64) {
+		avail := availableWork.Load()
+		if uint64(bytes) > avail {
+			bytes = uintptr(avail)
+		}
+		t := workedTime(bytes)
+		if bytes != 0 {
+			availableWork.Add(-int64(bytes))
+			totalWorked.Add(t)
+		}
+		return bytes, t
+	}
+	s.ShouldStop = func() bool {
+		if availableWork.Load() <= stopAt.Load() {
+			return true
+		}
+		return false
+	}
+	s.GoMaxProcs = func() int32 {
+		return 1
+	}
+
+	// Define a helper for verifying that various properties hold.
+	verifyScavengerState := func(t *testing.T, expWork uint64) {
+		t.Helper()
+
+		// Check to make sure it did the amount of work we expected.
+		if workDone := uint64(s.Released()); workDone != expWork {
+			t.Errorf("want %d bytes of work done, got %d", expWork, workDone)
+		}
+		// Check to make sure the scavenger is meeting its CPU target.
+		idealFraction := float64(ScavengePercent) / 100.0
+		cpuFraction := float64(totalWorked.Load()) / float64(totalWorked.Load()+totalSlept.Load())
+		if cpuFraction < idealFraction-0.005 || cpuFraction > idealFraction+0.005 {
+			t.Errorf("want %f CPU fraction, got %f", idealFraction, cpuFraction)
+		}
+	}
+
+	// Start the scavenger.
+	s.Start()
+
+	// Set up some work and let the scavenger run to completion.
+	availableWork.Store(totalWork)
+	s.Wake()
+	if !s.BlockUntilParked(2e9 /* 2 seconds */) {
+		t.Fatal("timed out waiting for scavenger to run to completion")
+	}
+	// Run a check.
+	verifyScavengerState(t, totalWork)
+
+	// Now let's do it again and see what happens when we have no work to do.
+	// It should've gone right back to sleep.
+	s.Wake()
+	if !s.BlockUntilParked(2e9 /* 2 seconds */) {
+		t.Fatal("timed out waiting for scavenger to run to completion")
+	}
+	// Run another check.
+	verifyScavengerState(t, totalWork)
+
+	// One more time, this time doing the same amount of work as the first time.
+	// Let's see if we can get the scavenger to continue.
+	availableWork.Store(totalWork)
+	s.Wake()
+	if !s.BlockUntilParked(2e9 /* 2 seconds */) {
+		t.Fatal("timed out waiting for scavenger to run to completion")
+	}
+	// Run another check.
+	verifyScavengerState(t, 2*totalWork)
+
+	// This time, let's stop after a certain amount of work.
+	//
+	// Pick a stopping point such that when subtracted from totalWork
+	// we get a multiple of a relatively large power of 2. verifyScavengerState
+	// always makes an exact check, but the scavenger might go a little over,
+	// which is OK. If this breaks often or gets annoying to maintain, modify
+	// verifyScavengerState.
+	availableWork.Store(totalWork)
+	stoppingPoint := uint64(1<<20 - 3*PhysPageSize)
+	stopAt.Store(stoppingPoint)
+	s.Wake()
+	if !s.BlockUntilParked(2e9 /* 2 seconds */) {
+		t.Fatal("timed out waiting for scavenger to run to completion")
+	}
+	// Run another check.
+	verifyScavengerState(t, 2*totalWork+(totalWork-stoppingPoint))
+
+	// Clean up.
+	s.Stop()
+}
+
+func TestScavengeIndex(t *testing.T) {
+	// This test suite tests the scavengeIndex data structure.
+
+	// markFunc is a function that makes the address range [base, limit)
+	// available for scavenging in a test index.
+	type markFunc func(base, limit uintptr)
+
+	// findFunc is a function that searches for the next available page
+	// to scavenge in the index. It asserts that the page is found in
+	// chunk "ci" at page "offset."
+	type findFunc func(ci ChunkIdx, offset uint)
+
+	// The structure of the tests below is as follows:
+	//
+	// setup creates a fake scavengeIndex that can be mutated and queried by
+	// the functions it returns. Those functions capture the testing.T that
+	// setup is called with, so they're bound to the subtest they're created in.
+	//
+	// Tests are then organized into test cases which mark some pages as
+	// scavenge-able then try to find them. Tests expect that the initial
+	// state of the scavengeIndex has all of the chunks as dense in the last
+	// generation and empty to the scavenger.
+	//
+	// There are a few additional tests that interleave mark and find operations,
+	// so they're defined separately, but use the same infrastructure.
+	setup := func(t *testing.T, force bool) (mark markFunc, find findFunc, nextGen func()) {
+		t.Helper()
+
+		// Pick some reasonable bounds. We don't need a huge range just to test.
+		si := NewScavengeIndex(BaseChunkIdx, BaseChunkIdx+64)
+
+		// Initialize all the chunks as dense and empty.
+		//
+		// Also, reset search addresses so that we can get page offsets.
+		si.AllocRange(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+64, 0))
+		si.NextGen()
+		si.FreeRange(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+64, 0))
+		for ci := BaseChunkIdx; ci < BaseChunkIdx+64; ci++ {
+			si.SetEmpty(ci)
+		}
+		si.ResetSearchAddrs()
+
+		// Create and return test functions.
+		mark = func(base, limit uintptr) {
+			t.Helper()
+
+			si.AllocRange(base, limit)
+			si.FreeRange(base, limit)
+		}
+		find = func(want ChunkIdx, wantOffset uint) {
+			t.Helper()
+
+			got, gotOffset := si.Find(force)
+			if want != got {
+				t.Errorf("find: wanted chunk index %d, got %d", want, got)
+			}
+			if wantOffset != gotOffset {
+				t.Errorf("find: wanted page offset %d, got %d", wantOffset, gotOffset)
+			}
+			if t.Failed() {
+				t.FailNow()
+			}
+			si.SetEmpty(got)
+		}
+		nextGen = func() {
+			t.Helper()
+
+			si.NextGen()
+		}
+		return
+	}
+
+	// Each of these test cases calls mark and then find once.
+	type testCase struct {
+		name string
+		mark func(markFunc)
+		find func(findFunc)
+	}
+	for _, test := range []testCase{
+		{
+			name: "Uninitialized",
+			mark: func(_ markFunc) {},
+			find: func(_ findFunc) {},
+		},
+		{
+			name: "OnePage",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 3), PageBase(BaseChunkIdx, 4))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx, 3)
+			},
+		},
+		{
+			name: "FirstPage",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx, 1))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx, 0)
+			},
+		},
+		{
+			name: "SeveralPages",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 9), PageBase(BaseChunkIdx, 14))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx, 13)
+			},
+		},
+		{
+			name: "WholeChunk",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx, PallocChunkPages-1)
+			},
+		},
+		{
+			name: "LastPage",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, PallocChunkPages-1), PageBase(BaseChunkIdx+1, 0))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx, PallocChunkPages-1)
+			},
+		},
+		{
+			name: "TwoChunks",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 128), PageBase(BaseChunkIdx+1, 128))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx+1, 127)
+				find(BaseChunkIdx, PallocChunkPages-1)
+			},
+		},
+		{
+			name: "TwoChunksOffset",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx+7, 128), PageBase(BaseChunkIdx+8, 129))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx+8, 128)
+				find(BaseChunkIdx+7, PallocChunkPages-1)
+			},
+		},
+		{
+			name: "SevenChunksOffset",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx+6, 11), PageBase(BaseChunkIdx+13, 15))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx+13, 14)
+				for i := BaseChunkIdx + 12; i >= BaseChunkIdx+6; i-- {
+					find(i, PallocChunkPages-1)
+				}
+			},
+		},
+		{
+			name: "ThirtyTwoChunks",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
+			},
+			find: func(find findFunc) {
+				for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
+					find(i, PallocChunkPages-1)
+				}
+			},
+		},
+		{
+			name: "ThirtyTwoChunksOffset",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx+3, 0), PageBase(BaseChunkIdx+35, 0))
+			},
+			find: func(find findFunc) {
+				for i := BaseChunkIdx + 34; i >= BaseChunkIdx+3; i-- {
+					find(i, PallocChunkPages-1)
+				}
+			},
+		},
+		{
+			name: "Mark",
+			mark: func(mark markFunc) {
+				for i := BaseChunkIdx; i < BaseChunkIdx+32; i++ {
+					mark(PageBase(i, 0), PageBase(i+1, 0))
+				}
+			},
+			find: func(find findFunc) {
+				for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
+					find(i, PallocChunkPages-1)
+				}
+			},
+		},
+		{
+			name: "MarkIdempotentOneChunk",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
+				mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx, PallocChunkPages-1)
+			},
+		},
+		{
+			name: "MarkIdempotentThirtyTwoChunks",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
+				mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
+			},
+			find: func(find findFunc) {
+				for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
+					find(i, PallocChunkPages-1)
+				}
+			},
+		},
+		{
+			name: "MarkIdempotentThirtyTwoChunksOffset",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+31, 0))
+				mark(PageBase(BaseChunkIdx+5, 0), PageBase(BaseChunkIdx+36, 0))
+			},
+			find: func(find findFunc) {
+				for i := BaseChunkIdx + 35; i >= BaseChunkIdx+4; i-- {
+					find(i, PallocChunkPages-1)
+				}
+			},
+		},
+	} {
+		test := test
+		t.Run("Bg/"+test.name, func(t *testing.T) {
+			mark, find, nextGen := setup(t, false)
+			test.mark(mark)
+			find(0, 0)      // Make sure we find nothing at this point.
+			nextGen()       // Move to the next generation.
+			test.find(find) // Now we should be able to find things.
+			find(0, 0)      // The test should always fully exhaust the index.
+		})
+		t.Run("Force/"+test.name, func(t *testing.T) {
+			mark, find, _ := setup(t, true)
+			test.mark(mark)
+			test.find(find) // Finding should always work when forced.
+			find(0, 0)      // The test should always fully exhaust the index.
+		})
+	}
+	t.Run("Bg/MarkInterleaved", func(t *testing.T) {
+		mark, find, nextGen := setup(t, false)
+		for i := BaseChunkIdx; i < BaseChunkIdx+32; i++ {
+			mark(PageBase(i, 0), PageBase(i+1, 0))
+			nextGen()
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+	t.Run("Force/MarkInterleaved", func(t *testing.T) {
+		mark, find, _ := setup(t, true)
+		for i := BaseChunkIdx; i < BaseChunkIdx+32; i++ {
+			mark(PageBase(i, 0), PageBase(i+1, 0))
+			find(i, PallocChunkPages-1)
+		}
+		find(0, 0)
+	})
+}
+
+func TestScavChunkDataPack(t *testing.T) {
+	if !CheckPackScavChunkData(1918237402, 512, 512, 0b11) {
+		t.Error("failed pack/unpack check for scavChunkData 1")
+	}
+	if !CheckPackScavChunkData(^uint32(0), 12, 0, 0b00) {
+		t.Error("failed pack/unpack check for scavChunkData 2")
+	}
+}
+
+func FuzzPIController(f *testing.F) {
+	isNormal := func(x float64) bool {
+		return !math.IsInf(x, 0) && !math.IsNaN(x)
+	}
+	isPositive := func(x float64) bool {
+		return isNormal(x) && x > 0
+	}
+	// Seed with constants from controllers in the runtime.
+	// It's not critical that we keep these in sync, they're just
+	// reasonable seed inputs.
+	f.Add(0.3375, 3.2e6, 1e9, 0.001, 1000.0, 0.01)
+	f.Add(0.9, 4.0, 1000.0, -1000.0, 1000.0, 0.84)
+	f.Fuzz(func(t *testing.T, kp, ti, tt, min, max, setPoint float64) {
+		// Ignore uninteresting invalid parameters. These parameters
+		// are constant, so in practice surprising values will be documented
+		// or will be other otherwise immediately visible.
+		//
+		// We just want to make sure that given a non-Inf, non-NaN input,
+		// we always get a non-Inf, non-NaN output.
+		if !isPositive(kp) || !isPositive(ti) || !isPositive(tt) {
+			return
+		}
+		if !isNormal(min) || !isNormal(max) || min > max {
+			return
+		}
+		// Use a random source, but make it deterministic.
+		rs := rand.New(rand.NewSource(800))
+		randFloat64 := func() float64 {
+			return math.Float64frombits(rs.Uint64())
+		}
+		p := NewPIController(kp, ti, tt, min, max)
+		state := float64(0)
+		for i := 0; i < 100; i++ {
+			input := randFloat64()
+			// Ignore the "ok" parameter. We're just trying to break it.
+			// state is intentionally completely uncorrelated with the input.
+			var ok bool
+			state, ok = p.Next(input, setPoint, 1.0)
+			if !isNormal(state) {
+				t.Fatalf("got NaN or Inf result from controller: %f %v", state, ok)
+			}
+		}
+	})
 }

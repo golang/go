@@ -76,6 +76,14 @@ func NewMethodSet(T Type) *MethodSet {
 	// TODO(rfindley) confirm that this code is in sync with lookupFieldOrMethod
 	//                with respect to type params.
 
+	// Methods cannot be associated with a named pointer type.
+	// (spec: "The type denoted by T is called the receiver base type;
+	// it must not be a pointer or interface type and it must be declared
+	// in the same package as the method.").
+	if t := asNamed(T); t != nil && isPointer(t) {
+		return &emptyMethodSet
+	}
+
 	// method set up to the current depth, allocated lazily
 	var base methodSet
 
@@ -89,14 +97,12 @@ func NewMethodSet(T Type) *MethodSet {
 	// Start with typ as single entry at shallowest depth.
 	current := []embeddedType{{typ, nil, isPtr, false}}
 
-	// Named types that we have seen already, allocated lazily.
+	// seen tracks named types that we have seen already, allocated lazily.
 	// Used to avoid endless searches in case of recursive types.
-	// Since only Named types can be used for recursive types, we
-	// only need to track those.
-	// (If we ever allow type aliases to construct recursive types,
-	// we must use type identity rather than pointer equality for
-	// the map key comparison, as we do in consolidateMultiples.)
-	var seen map[*Named]bool
+	//
+	// We must use a lookup on identity rather than a simple map[*Named]bool as
+	// instantiated types may be identical but not equal.
+	var seen instanceLookup
 
 	// collect methods at current depth
 	for len(current) > 0 {
@@ -111,8 +117,8 @@ func NewMethodSet(T Type) *MethodSet {
 
 			// If we have a named type, we may have associated methods.
 			// Look for those first.
-			if named, _ := typ.(*Named); named != nil {
-				if seen[named] {
+			if named := asNamed(typ); named != nil {
+				if alt := seen.lookup(named); alt != nil {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth
 					// were consolidated before). The type at that depth shadows
@@ -120,22 +126,14 @@ func NewMethodSet(T Type) *MethodSet {
 					// this one.
 					continue
 				}
-				if seen == nil {
-					seen = make(map[*Named]bool)
-				}
-				seen[named] = true
+				seen.add(named)
 
-				mset = mset.add(named.methods, e.index, e.indirect, e.multiples)
-
-				// continue with underlying type, but only if it's not a type parameter
-				// TODO(rFindley): should this use named.under()? Can there be a difference?
-				typ = named.underlying
-				if _, ok := typ.(*TypeParam); ok {
-					continue
+				for i := 0; i < named.NumMethods(); i++ {
+					mset = mset.addOne(named.Method(i), concat(e.index, i), e.indirect, e.multiples)
 				}
 			}
 
-			switch t := typ.(type) {
+			switch t := under(typ).(type) {
 			case *Struct:
 				for i, f := range t.fields {
 					if fset == nil {
@@ -158,9 +156,6 @@ func NewMethodSet(T Type) *MethodSet {
 
 			case *Interface:
 				mset = mset.add(t.typeSet().methods, e.index, true, e.multiples)
-
-			case *TypeParam:
-				mset = mset.add(t.iface().typeSet().methods, e.index, true, e.multiples)
 			}
 		}
 
@@ -224,23 +219,28 @@ func (s methodSet) add(list []*Func, index []int, indirect bool, multiples bool)
 	if len(list) == 0 {
 		return s
 	}
+	for i, f := range list {
+		s = s.addOne(f, concat(index, i), indirect, multiples)
+	}
+	return s
+}
+
+func (s methodSet) addOne(f *Func, index []int, indirect bool, multiples bool) methodSet {
 	if s == nil {
 		s = make(methodSet)
 	}
-	for i, f := range list {
-		key := f.Id()
-		// if f is not in the set, add it
-		if !multiples {
-			// TODO(gri) A found method may not be added because it's not in the method set
-			// (!indirect && f.hasPtrRecv()). A 2nd method on the same level may be in the method
-			// set and may not collide with the first one, thus leading to a false positive.
-			// Is that possible? Investigate.
-			if _, found := s[key]; !found && (indirect || !f.hasPtrRecv()) {
-				s[key] = &Selection{MethodVal, nil, f, concat(index, i), indirect}
-				continue
-			}
+	key := f.Id()
+	// if f is not in the set, add it
+	if !multiples {
+		// TODO(gri) A found method may not be added because it's not in the method set
+		// (!indirect && f.hasPtrRecv()). A 2nd method on the same level may be in the method
+		// set and may not collide with the first one, thus leading to a false positive.
+		// Is that possible? Investigate.
+		if _, found := s[key]; !found && (indirect || !f.hasPtrRecv()) {
+			s[key] = &Selection{MethodVal, nil, f, index, indirect}
+			return s
 		}
-		s[key] = nil // collision
 	}
+	s[key] = nil // collision
 	return s
 }

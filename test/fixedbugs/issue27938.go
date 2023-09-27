@@ -11,13 +11,13 @@
 package p
 
 type _ struct {
-	F sync.Mutex // ERROR "undefined: sync|expected package"
+	F sync.Mutex // ERROR "undefined: sync|expected package|reference to undefined name"
 }
 
 type _ struct {
-	sync.Mutex // ERROR "undefined: sync|expected package"
+	sync.Mutex // ERROR "undefined: sync|expected package|reference to undefined name"
 }
 
 type _ interface {
-	sync.Mutex // ERROR "undefined: sync|expected package|expected signature or type name"
+	sync.Mutex // ERROR "undefined: sync|expected package|expected signature or type name|reference to undefined name"
 }

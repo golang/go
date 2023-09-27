@@ -10,9 +10,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	exec "internal/execabs"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -35,7 +35,6 @@ import (
 // implementation. It is also used by tests.
 //
 // The default behavior (vetTool=="") runs 'go tool vet'.
-//
 var vetTool string // -vettool
 
 func init() {

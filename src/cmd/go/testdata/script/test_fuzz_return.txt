@@ -1,0 +1,19 @@
+[short] skip
+
+! go test .
+stdout '^panic: testing: fuzz target must not return a value \[recovered\]$'
+
+-- go.mod --
+module test
+go 1.18
+-- x_test.go --
+package test
+
+import "testing"
+
+func FuzzReturnErr(f *testing.F) {
+	f.Add("hello, validation!")
+	f.Fuzz(func(t *testing.T, in string) string {
+		return in
+	})
+}

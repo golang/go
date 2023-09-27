@@ -45,6 +45,7 @@ func (s YCbCrSubsampleRatio) String() string {
 // that map to separate chroma samples.
 // It is not an absolute requirement, but YStride and len(Y) are typically
 // multiples of 8, and:
+//
 //	For 4:4:4, CStride == YStride/1 && len(Cb) == len(Cr) == len(Y)/1.
 //	For 4:2:2, CStride == YStride/2 && len(Cb) == len(Cr) == len(Y)/2.
 //	For 4:2:0, CStride == YStride/2 && len(Cb) == len(Cr) == len(Y)/4.

@@ -17,4 +17,4 @@ var _ = struct{}{ /*line :20:1*/foo /*line :21:1*/: /*line :22:1*/0 }
 
 
 
-// ERROR "unknown field 'foo'"
+// ERROR "unknown field foo"

@@ -1,8 +1,6 @@
 package windows
 
 /*
-#cgo amd64 386 CFLAGS: -mnop-fun-dllimport
-
 #include <windows.h>
 
 DWORD agetthread() {

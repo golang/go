@@ -6,7 +6,7 @@ cp go.mod go.mod.orig
 # cannot be resolved.
 
 ! go get
-stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: cannot find module providing package example.net/oops$'
+stderr '^go: example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: cannot find module providing package example.net/oops$'
 cmp go.mod.orig go.mod
 
 cd importsyntax

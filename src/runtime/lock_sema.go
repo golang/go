@@ -23,7 +23,6 @@ import (
 //
 //	func semawakeup(mp *m)
 //		Wake up mp, which is or will soon be sleeping on its semaphore.
-//
 const (
 	locked uintptr = 1
 
@@ -97,8 +96,9 @@ func unlock(l *mutex) {
 	unlockWithRank(l)
 }
 
-//go:nowritebarrier
 // We might not be holding a p in this code.
+//
+//go:nowritebarrier
 func unlock2(l *mutex) {
 	gp := getg()
 	var mp *m
@@ -284,7 +284,7 @@ func notetsleep(n *note, ns int64) bool {
 }
 
 // same as runtime·notetsleep, but called on user g (not g0)
-// calls only nosplit functions between entersyscallblock/exitsyscall
+// calls only nosplit functions between entersyscallblock/exitsyscall.
 func notetsleepg(n *note, ns int64) bool {
 	gp := getg()
 	if gp == gp.m.g0 {

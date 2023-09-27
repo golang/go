@@ -37,7 +37,6 @@ const (
 	EINTR  = C.EINTR
 	EAGAIN = C.EAGAIN
 	ENOMEM = C.ENOMEM
-	ENOSYS = C.ENOSYS
 
 	PROT_NONE  = C.PROT_NONE
 	PROT_READ  = C.PROT_READ
@@ -91,6 +90,8 @@ const (
 	SIGPWR    = C.SIGPWR
 	SIGSYS    = C.SIGSYS
 
+	SIGRTMIN = C.SIGRTMIN
+
 	FPE_INTDIV = C.FPE_INTDIV
 	FPE_INTOVF = C.FPE_INTOVF
 	FPE_FLTDIV = C.FPE_FLTDIV
@@ -114,17 +115,6 @@ const (
 	CLOCK_THREAD_CPUTIME_ID = C.CLOCK_THREAD_CPUTIME_ID
 
 	SIGEV_THREAD_ID = C.SIGEV_THREAD_ID
-
-	EPOLLIN       = C.POLLIN
-	EPOLLOUT      = C.POLLOUT
-	EPOLLERR      = C.POLLERR
-	EPOLLHUP      = C.POLLHUP
-	EPOLLRDHUP    = C.POLLRDHUP
-	EPOLLET       = C.EPOLLET
-	EPOLL_CLOEXEC = C.EPOLL_CLOEXEC
-	EPOLL_CTL_ADD = C.EPOLL_CTL_ADD
-	EPOLL_CTL_DEL = C.EPOLL_CTL_DEL
-	EPOLL_CTL_MOD = C.EPOLL_CTL_MOD
 )
 
 type Sigset C.sigset_t
@@ -135,4 +125,3 @@ type Siginfo C.siginfo_t
 type Itimerspec C.struct_itimerspec
 type Itimerval C.struct_itimerval
 type Sigevent C.struct_sigevent
-type EpollEvent C.struct_epoll_event

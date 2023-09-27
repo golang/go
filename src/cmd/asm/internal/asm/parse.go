@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"text/scanner"
 	"unicode/utf8"
 
@@ -19,48 +20,56 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
+	"cmd/internal/obj/arm64"
 	"cmd/internal/obj/x86"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 )
 
 type Parser struct {
-	lex              lex.TokenReader
-	lineNum          int   // Line number in source file.
-	errorLine        int   // Line number of last error.
-	errorCount       int   // Number of errors.
-	sawCode          bool  // saw code in this file (as opposed to comments and blank lines)
-	pc               int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
-	input            []lex.Token
-	inputPos         int
-	pendingLabels    []string // Labels to attach to next instruction.
-	labels           map[string]*obj.Prog
-	toPatch          []Patch
-	addr             []obj.Addr
-	arch             *arch.Arch
-	ctxt             *obj.Link
-	firstProg        *obj.Prog
-	lastProg         *obj.Prog
-	dataAddr         map[string]int64 // Most recent address for DATA for this symbol.
-	isJump           bool             // Instruction being assembled is a jump.
-	compilingRuntime bool
-	errorWriter      io.Writer
+	lex           lex.TokenReader
+	lineNum       int   // Line number in source file.
+	errorLine     int   // Line number of last error.
+	errorCount    int   // Number of errors.
+	sawCode       bool  // saw code in this file (as opposed to comments and blank lines)
+	pc            int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
+	input         []lex.Token
+	inputPos      int
+	pendingLabels []string // Labels to attach to next instruction.
+	labels        map[string]*obj.Prog
+	toPatch       []Patch
+	addr          []obj.Addr
+	arch          *arch.Arch
+	ctxt          *obj.Link
+	firstProg     *obj.Prog
+	lastProg      *obj.Prog
+	dataAddr      map[string]int64 // Most recent address for DATA for this symbol.
+	isJump        bool             // Instruction being assembled is a jump.
+	allowABI      bool             // Whether ABI selectors are allowed.
+	pkgPrefix     string           // Prefix to add to local symbols.
+	errorWriter   io.Writer
 }
 
 type Patch struct {
-	prog  *obj.Prog
+	addr  *obj.Addr
 	label string
 }
 
-func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader, compilingRuntime bool) *Parser {
+func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
+	pkgPrefix := obj.UnlinkablePkg
+	if ctxt != nil {
+		pkgPrefix = objabi.PathToPrefix(ctxt.Pkgpath)
+	}
 	return &Parser{
-		ctxt:             ctxt,
-		arch:             ar,
-		lex:              lexer,
-		labels:           make(map[string]*obj.Prog),
-		dataAddr:         make(map[string]int64),
-		errorWriter:      os.Stderr,
-		compilingRuntime: compilingRuntime,
+		ctxt:        ctxt,
+		arch:        ar,
+		lex:         lexer,
+		labels:      make(map[string]*obj.Prog),
+		dataAddr:    make(map[string]int64),
+		errorWriter: os.Stderr,
+		allowABI:    ctxt != nil && objabi.LookupPkgSpecial(ctxt.Pkgpath).AllowAsmABI,
+		pkgPrefix:   pkgPrefix,
 	}
 }
 
@@ -161,7 +170,7 @@ func (p *Parser) nextToken() lex.ScanToken {
 
 // line consumes a single assembly line from p.lex of the form
 //
-//   {label:} WORD[.cond] [ arg {, arg} ] (';' | '\n')
+//	{label:} WORD[.cond] [ arg {, arg} ] (';' | '\n')
 //
 // It adds any labels to p.pendingLabels and returns the word, cond,
 // operand list, and true. If there is an error or EOF, it returns
@@ -389,8 +398,19 @@ func (p *Parser) operand(a *obj.Addr) {
 	tok := p.next()
 	name := tok.String()
 	if tok.ScanToken == scanner.Ident && !p.atStartOfRegister(name) {
-		// We have a symbol. Parse $sym±offset(symkind)
-		p.symbolReference(a, name, prefix)
+		switch p.arch.Family {
+		case sys.ARM64:
+			// arm64 special operands.
+			if opd := arch.GetARM64SpecialOperand(name); opd != arm64.SPOP_END {
+				a.Type = obj.TYPE_SPECIAL
+				a.Offset = int64(opd)
+				break
+			}
+			fallthrough
+		default:
+			// We have a symbol. Parse $sym±offset(symkind)
+			p.symbolReference(a, p.qualifySymbol(name), prefix)
+		}
 		// fmt.Printf("SYM %s\n", obj.Dconv(&emptyProg, 0, a))
 		if p.peek() == scanner.EOF {
 			return
@@ -555,10 +575,7 @@ func (p *Parser) atRegisterExtension() bool {
 		return false
 	}
 	// R1.xxx
-	if p.peek() == '.' {
-		return true
-	}
-	return false
+	return p.peek() == '.'
 }
 
 // registerReference parses a register given either the name, R10, or a parenthesized form, SPR(10).
@@ -760,6 +777,16 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
 	}
 }
 
+// qualifySymbol returns name as a package-qualified symbol name. If
+// name starts with a period, qualifySymbol prepends the package
+// prefix. Otherwise it returns name unchanged.
+func (p *Parser) qualifySymbol(name string) string {
+	if strings.HasPrefix(name, ".") {
+		name = p.pkgPrefix + name
+	}
+	return name
+}
+
 // symbolReference parses a symbol that is known not to be a register.
 func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 	// Identifier is a name.
@@ -843,7 +870,6 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, pr
 //
 // Anything else beginning with "<" logs an error if issueError is
 // true, otherwise returns (false, obj.ABI0).
-//
 func (p *Parser) symRefAttrs(name string, issueError bool) (bool, obj.ABI) {
 	abi := obj.ABI0
 	isStatic := false
@@ -856,7 +882,7 @@ func (p *Parser) symRefAttrs(name string, issueError bool) (bool, obj.ABI) {
 		isStatic = true
 	} else if tok == scanner.Ident {
 		abistr := p.get(scanner.Ident).String()
-		if !p.compilingRuntime {
+		if !p.allowABI {
 			if issueError {
 				p.errorf("ABI selector only permitted when compiling runtime, reference was to %q", name)
 			}
@@ -880,7 +906,7 @@ func (p *Parser) symRefAttrs(name string, issueError bool) (bool, obj.ABI) {
 // constrained form of the operand syntax that's always SB-based,
 // non-static, and has at most a simple integer offset:
 //
-//    [$|*]sym[<abi>][+Int](SB)
+//	[$|*]sym[<abi>][+Int](SB)
 func (p *Parser) funcAddress() (string, obj.ABI, bool) {
 	switch p.peek() {
 	case '$', '*':
@@ -893,6 +919,7 @@ func (p *Parser) funcAddress() (string, obj.ABI, bool) {
 	if tok.ScanToken != scanner.Ident || p.atStartOfRegister(name) {
 		return "", obj.ABI0, false
 	}
+	name = p.qualifySymbol(name)
 	// Parse optional <> (indicates a static symbol) or
 	// <ABIxxx> (selecting text symbol with specific ABI).
 	noErrMsg := false
@@ -920,7 +947,7 @@ func (p *Parser) funcAddress() (string, obj.ABI, bool) {
 }
 
 // registerIndirect parses the general form of a register indirection.
-// It is can be (R1), (R2*scale), (R1)(R2*scale), (R1)(R2.SXTX<<3) or (R1)(R2<<3)
+// It can be (R1), (R2*scale), (R1)(R2*scale), (R1)(R2.SXTX<<3) or (R1)(R2<<3)
 // where R1 may be a simple register or register pair R:R or (R, R) or (R+R).
 // Or it might be a pseudo-indirection like (FP).
 // We are sitting on the opening parenthesis.
@@ -964,13 +991,13 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 			return
 		}
 		if p.arch.Family == sys.PPC64 {
-			// Special form for PPC64: (R1+R2); alias for (R1)(R2*1).
+			// Special form for PPC64: (R1+R2); alias for (R1)(R2).
 			if prefix != 0 || scale != 0 {
 				p.errorf("illegal address mode for register+register")
 				return
 			}
 			a.Type = obj.TYPE_MEM
-			a.Scale = 1
+			a.Scale = 0
 			a.Index = r2
 			// Nothing may follow.
 			return
@@ -1003,9 +1030,10 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 				p.errorf("unimplemented two-register form")
 			}
 			a.Index = r1
-			if scale != 0 && scale != 1 && p.arch.Family == sys.ARM64 {
+			if scale != 0 && scale != 1 && (p.arch.Family == sys.ARM64 ||
+				p.arch.Family == sys.PPC64) {
 				// Support (R1)(R2) (no scaling) and (R1)(R2*1).
-				p.errorf("arm64 doesn't support scaled register format")
+				p.errorf("%s doesn't support scaled register format", p.arch.Name)
 			} else {
 				a.Scale = int16(scale)
 			}
@@ -1030,9 +1058,13 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 //
 // For 386/AMD64 register list specifies 4VNNIW-style multi-source operand.
 // For range of 4 elements, Intel manual uses "+3" notation, for example:
+//
 //	VP4DPWSSDS zmm1{k1}{z}, zmm2+3, m128
+//
 // Given asm line:
+//
 //	VP4DPWSSDS Z5, [Z10-Z13], (AX)
+//
 // zmm2 is Z10, and Z13 is the only valid value for it (Z10+3).
 // Only simple ranges are accepted, like [Z0-Z3].
 //
@@ -1136,7 +1168,7 @@ ListLoop:
 		}
 		a.Offset = offset
 	default:
-		p.errorf("register list not supported on this architecuture")
+		p.errorf("register list not supported on this architecture")
 	}
 }
 
@@ -1173,7 +1205,7 @@ func (p *Parser) registerListX86(a *obj.Addr) {
 	a.Offset = x86.EncodeRegisterRange(lo, hi)
 }
 
-// register number is ARM-specific. It returns the number of the specified register.
+// registerNumber is ARM-specific. It returns the number of the specified register.
 func (p *Parser) registerNumber(name string) uint16 {
 	if p.arch.Family == sys.ARM && name == "g" {
 		return 10

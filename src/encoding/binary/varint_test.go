@@ -36,6 +36,12 @@ func testVarint(t *testing.T, x int64) {
 		t.Errorf("Varint(%d): got n = %d; want %d", x, m, n)
 	}
 
+	buf2 := []byte("prefix")
+	buf2 = AppendVarint(buf2, x)
+	if string(buf2) != "prefix"+string(buf[:n]) {
+		t.Errorf("AppendVarint(%d): got %q, want %q", x, buf2, "prefix"+string(buf[:n]))
+	}
+
 	y, err := ReadVarint(bytes.NewReader(buf))
 	if err != nil {
 		t.Errorf("ReadVarint(%d): %s", x, err)
@@ -54,6 +60,12 @@ func testUvarint(t *testing.T, x uint64) {
 	}
 	if n != m {
 		t.Errorf("Uvarint(%d): got n = %d; want %d", x, m, n)
+	}
+
+	buf2 := []byte("prefix")
+	buf2 = AppendUvarint(buf2, x)
+	if string(buf2) != "prefix"+string(buf[:n]) {
+		t.Errorf("AppendUvarint(%d): got %q, want %q", x, buf2, "prefix"+string(buf[:n]))
 	}
 
 	y, err := ReadUvarint(bytes.NewReader(buf))
@@ -116,7 +128,11 @@ func TestBufferTooSmall(t *testing.T) {
 		}
 
 		x, err := ReadUvarint(bytes.NewReader(buf))
-		if x != 0 || err != io.EOF {
+		wantErr := io.EOF
+		if i > 0 {
+			wantErr = io.ErrUnexpectedEOF
+		}
+		if x != 0 || err != wantErr {
 			t.Errorf("ReadUvarint(%v): got x = %d, err = %s", buf, x, err)
 		}
 	}
@@ -196,9 +212,9 @@ func testOverflow(t *testing.T, buf []byte, x0 uint64, n0 int, err0 error) {
 }
 
 func TestOverflow(t *testing.T) {
-	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x2}, 0, -10, overflow)
-	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x1, 0, 0}, 0, -11, overflow)
-	testOverflow(t, []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 1<<64-1, -11, overflow) // 11 bytes, should overflow
+	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x2}, 0, -10, errOverflow)
+	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x1, 0, 0}, 0, -11, errOverflow)
+	testOverflow(t, []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 1<<64-1, -11, errOverflow) // 11 bytes, should overflow
 }
 
 func TestNonCanonicalZero(t *testing.T) {

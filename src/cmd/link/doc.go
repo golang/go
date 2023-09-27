@@ -3,11 +3,11 @@
 // license that can be found in the LICENSE file.
 
 /*
-Link, typically invoked as ``go tool link'', reads the Go archive or object
+Link, typically invoked as “go tool link”, reads the Go archive or object
 for a package main, along with its dependencies, and combines them
 into an executable binary.
 
-Command Line
+# Command Line
 
 Usage:
 
@@ -18,8 +18,8 @@ Flags:
 	-B note
 		Add an ELF_NT_GNU_BUILD_ID note when using ELF.
 		The value should start with 0x and be an even number of hex digits.
-	-D address
-		Set data segment address.
+		Alternatively, you can pass "gobuildid" in order to derive the
+		GNU build ID from the Go build ID.
 	-E entry
 		Set entry symbol name.
 	-H type
@@ -34,7 +34,7 @@ Flags:
 	-R quantum
 		Set address rounding quantum.
 	-T address
-		Set text segment address.
+		Set the start address of text symbols.
 	-V
 		Print linker version and exit.
 	-X importpath.name=value

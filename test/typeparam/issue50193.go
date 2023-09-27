@@ -1,4 +1,4 @@
-// run -gcflags=-G=3
+// run
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -7,17 +7,20 @@
 package main
 
 import (
-	"constraints"
 	"fmt"
 )
 
-func zero[T constraints.Complex]() T {
+type Complex interface {
+	~complex64 | ~complex128
+}
+
+func zero[T Complex]() T {
 	return T(0)
 }
-func pi[T constraints.Complex]() T {
+func pi[T Complex]() T {
 	return T(3.14)
 }
-func sqrtN1[T constraints.Complex]() T {
+func sqrtN1[T Complex]() T {
 	return T(-1i)
 }
 

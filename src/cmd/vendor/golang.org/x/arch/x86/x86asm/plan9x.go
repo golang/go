@@ -66,6 +66,10 @@ func GoSyntax(inst Inst, pc uint64, symname SymLookup) string {
 		s := inst.DataSize
 		if inst.MemBytes != 0 {
 			s = inst.MemBytes * 8
+		} else if inst.Args[1] == nil { // look for register-only 64-bit instruction, like PUSHQ AX
+			if r, ok := inst.Args[0].(Reg); ok && RAX <= r && r <= R15 {
+				s = 64
+			}
 		}
 		switch s {
 		case 8:
@@ -77,6 +81,12 @@ func GoSyntax(inst Inst, pc uint64, symname SymLookup) string {
 		case 64:
 			op += "Q"
 		}
+	}
+
+	if inst.Op == CMP {
+		// Use reads-left-to-right ordering for comparisons.
+		// See issue 60920.
+		args[0], args[1] = args[1], args[0]
 	}
 
 	if args != nil {

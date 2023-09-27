@@ -35,26 +35,33 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+	"internal/abi"
 	"internal/buildcfg"
 	"log"
 	"math"
 )
 
-var complements = []obj.As{
-	AADD:  ASUB,
-	AADDW: ASUBW,
-	ASUB:  AADD,
-	ASUBW: AADDW,
-	ACMP:  ACMN,
-	ACMPW: ACMNW,
-	ACMN:  ACMP,
-	ACMNW: ACMPW,
-}
-
-// noZRreplace is the set of instructions for which $0 in the To operand
-// should NOT be replaced with REGZERO.
-var noZRreplace = map[obj.As]bool{
-	APRFM: true,
+// zrReplace is the set of instructions for which $0 in the From operand
+// should be replaced with REGZERO.
+var zrReplace = map[obj.As]bool{
+	AMOVD:  true,
+	AMOVW:  true,
+	AMOVWU: true,
+	AMOVH:  true,
+	AMOVHU: true,
+	AMOVB:  true,
+	AMOVBU: true,
+	ASBC:   true,
+	ASBCW:  true,
+	ASBCS:  true,
+	ASBCSW: true,
+	AADC:   true,
+	AADCW:  true,
+	AADCS:  true,
+	AADCSW: true,
+	AFMOVD: true,
+	AFMOVS: true,
+	AMSR:   true,
 }
 
 func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
@@ -163,24 +170,16 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
 
 	q := (*obj.Prog)(nil)
-	if framesize <= objabi.StackSmall {
+	if framesize <= abi.StackSmall {
 		// small stack: SP < stackguard
-		//	MOV	SP, RT2
-		//	CMP	stackguard, RT2
-		p = obj.Appendp(p, c.newprog)
-
-		p.As = AMOVD
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REGSP
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REGRT2
+		//	CMP	stackguard, SP
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = ACMP
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REGRT1
-		p.Reg = REGRT2
-	} else if framesize <= objabi.StackBig {
+		p.Reg = REGSP
+	} else if framesize <= abi.StackBig {
 		// large stack: SP-framesize < stackguard-StackSmall
 		//	SUB	$(framesize-StackSmall), SP, RT2
 		//	CMP	stackguard, RT2
@@ -188,7 +187,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 		p.As = ASUB
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) - objabi.StackSmall
+		p.From.Offset = int64(framesize) - abi.StackSmall
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REGRT2
@@ -214,7 +213,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p = obj.Appendp(p, c.newprog)
 		p.As = ASUBS
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) - objabi.StackSmall
+		p.From.Offset = int64(framesize) - abi.StackSmall
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REGRT2
@@ -290,11 +289,12 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	}
 	call.To.Sym = c.ctxt.Lookup(morestack)
 
-	unspill := c.cursym.Func().UnspillRegisterArgs(call, c.newprog)
-	pcdata = c.ctxt.EndUnsafePoint(unspill, c.newprog, -1)
+	// The instructions which unspill regs should be preemptible.
+	pcdata = c.ctxt.EndUnsafePoint(call, c.newprog, -1)
+	unspill := c.cursym.Func().UnspillRegisterArgs(pcdata, c.newprog)
 
 	// B	start
-	jmp := obj.Appendp(pcdata, c.newprog)
+	jmp := obj.Appendp(unspill, c.newprog)
 	jmp.As = AB
 	jmp.To.Type = obj.TYPE_BRANCH
 	jmp.To.SetTarget(startPred.Link)
@@ -309,17 +309,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	p.From.Class = 0
 	p.To.Class = 0
 
-	// $0 results in C_ZCON, which matches both C_REG and various
-	// C_xCON, however the C_REG cases in asmout don't expect a
-	// constant, so they will use the register fields and assemble
-	// a R0. To prevent that, rewrite $0 as ZR.
-	if p.From.Type == obj.TYPE_CONST && p.From.Offset == 0 {
+	// Previously we rewrote $0 to ZR, but we have now removed this change.
+	// In order to be compatible with some previous legal instruction formats,
+	// reserve the previous conversion for some specific instructions.
+	if p.From.Type == obj.TYPE_CONST && p.From.Offset == 0 && zrReplace[p.As] {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REGZERO
-	}
-	if p.To.Type == obj.TYPE_CONST && p.To.Offset == 0 && !noZRreplace[p.As] {
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REGZERO
 	}
 
 	// Rewrite BR/BL to symbol as TYPE_BRANCH.
@@ -335,8 +330,33 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		break
 	}
 
-	// Rewrite float constants to values stored in memory.
+	// Rewrite float and vector constants to values stored in memory.
 	switch p.As {
+	case AVMOVS:
+		if p.From.Type == obj.TYPE_CONST {
+			p.From.Type = obj.TYPE_MEM
+			p.From.Sym = c.ctxt.Int32Sym(p.From.Offset)
+			p.From.Name = obj.NAME_EXTERN
+			p.From.Offset = 0
+		}
+
+	case AVMOVD:
+		if p.From.Type == obj.TYPE_CONST {
+			p.From.Type = obj.TYPE_MEM
+			p.From.Sym = c.ctxt.Int64Sym(p.From.Offset)
+			p.From.Name = obj.NAME_EXTERN
+			p.From.Offset = 0
+		}
+
+	case AVMOVQ:
+		if p.From.Type == obj.TYPE_CONST {
+			p.From.Type = obj.TYPE_MEM
+			p.From.Sym = c.ctxt.Int128Sym(p.GetFrom3().Offset, p.From.Offset)
+			p.From.Name = obj.NAME_EXTERN
+			p.From.Offset = 0
+			p.RestArgs = nil
+		}
+
 	case AFMOVS:
 		if p.From.Type == obj.TYPE_FCONST {
 			f64 := p.From.Val.(float64)
@@ -371,36 +391,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
-
-		break
-	}
-
-	// Rewrite negative immediates as positive immediates with
-	// complementary instruction.
-	switch p.As {
-	case AADD, ASUB, ACMP, ACMN:
-		if p.From.Type == obj.TYPE_CONST && p.From.Offset < 0 && p.From.Offset != -1<<63 {
-			p.From.Offset = -p.From.Offset
-			p.As = complements[p.As]
-		}
-	case AADDW, ASUBW, ACMPW, ACMNW:
-		if p.From.Type == obj.TYPE_CONST && p.From.Offset < 0 && int32(p.From.Offset) != -1<<31 {
-			p.From.Offset = -p.From.Offset
-			p.As = complements[p.As]
-		}
-	}
-
-	// For 32-bit instruction with constant, rewrite
-	// the high 32-bit to be a repetition of the low
-	// 32-bit, so that the BITCON test can be shared
-	// for both 32-bit and 64-bit. 32-bit ops will
-	// zero the high 32-bit of the destination register
-	// anyway.
-	// For MOVW, the destination register can't be ZR,
-	// so don't bother rewriting it in this situation.
-	if (isANDWop(p.As) || isADDWop(p.As) || p.As == AMOVW && p.To.Reg != REGZERO) && p.From.Type == obj.TYPE_CONST {
-		v := p.From.Offset & 0xffffffff
-		p.From.Offset = v | v<<32
 	}
 
 	if c.ctxt.Flag_dynlink {
@@ -617,7 +607,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
-			if p.Mark&LEAF != 0 && c.autosize < objabi.StackSmall {
+			if p.Mark&LEAF != 0 && c.autosize < abi.StackSmall {
 				// A leaf function with a small stack can be marked
 				// NOSPLIT, avoiding a stack check.
 				p.From.Sym.Set(obj.AttrNoSplit, true)
@@ -630,66 +620,85 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			var prologueEnd *obj.Prog
 
 			aoffset := c.autosize
-			if aoffset > 0xF0 {
-				aoffset = 0xF0
+			if aoffset > 0xf0 {
+				// MOVD.W offset variant range is -0x100 to 0xf8, SP should be 16-byte aligned.
+				// so the maximum aoffset value is 0xf0.
+				aoffset = 0xf0
 			}
 
 			// Frame is non-empty. Make sure to save link register, even if
 			// it is a leaf function, so that traceback works.
 			q = p
 			if c.autosize > aoffset {
-				// Frame size is too large for a MOVD.W instruction.
-				// Store link register before decrementing SP, so if a signal comes
-				// during the execution of the function prologue, the traceback
-				// code will not see a half-updated stack frame.
-				// This sequence is not async preemptible, as if we open a frame
-				// at the current SP, it will clobber the saved LR.
-				q = c.ctxt.StartUnsafePoint(q, c.newprog)
+				// Frame size is too large for a MOVD.W instruction. Store the frame pointer
+				// register and link register before decrementing SP, so if a signal comes
+				// during the execution of the function prologue, the traceback code will
+				// not see a half-updated stack frame.
 
-				q = obj.Appendp(q, c.newprog)
-				q.Pos = p.Pos
-				q.As = ASUB
-				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(c.autosize)
-				q.Reg = REGSP
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REGTMP
-
-				prologueEnd = q
-
-				q = obj.Appendp(q, c.newprog)
-				q.Pos = p.Pos
-				q.As = AMOVD
-				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REGLINK
-				q.To.Type = obj.TYPE_MEM
-				q.To.Reg = REGTMP
-
+				// SUB $autosize, RSP, R20
 				q1 = obj.Appendp(q, c.newprog)
+				q1.Pos = p.Pos
+				q1.As = ASUB
+				q1.From.Type = obj.TYPE_CONST
+				q1.From.Offset = int64(c.autosize)
+				q1.Reg = REGSP
+				q1.To.Type = obj.TYPE_REG
+				q1.To.Reg = REG_R20
+
+				prologueEnd = q1
+
+				// STP (R29, R30), -8(R20)
+				q1 = obj.Appendp(q1, c.newprog)
+				q1.Pos = p.Pos
+				q1.As = ASTP
+				q1.From.Type = obj.TYPE_REGREG
+				q1.From.Reg = REGFP
+				q1.From.Offset = REGLINK
+				q1.To.Type = obj.TYPE_MEM
+				q1.To.Reg = REG_R20
+				q1.To.Offset = -8
+
+				// This is not async preemptible, as if we open a frame
+				// at the current SP, it will clobber the saved LR.
+				q1 = c.ctxt.StartUnsafePoint(q1, c.newprog)
+
+				// MOVD R20, RSP
+				q1 = obj.Appendp(q1, c.newprog)
 				q1.Pos = p.Pos
 				q1.As = AMOVD
 				q1.From.Type = obj.TYPE_REG
-				q1.From.Reg = REGTMP
+				q1.From.Reg = REG_R20
 				q1.To.Type = obj.TYPE_REG
 				q1.To.Reg = REGSP
 				q1.Spadj = c.autosize
 
+				q1 = c.ctxt.EndUnsafePoint(q1, c.newprog, -1)
+
 				if buildcfg.GOOS == "ios" {
 					// iOS does not support SA_ONSTACK. We will run the signal handler
 					// on the G stack. If we write below SP, it may be clobbered by
-					// the signal handler. So we save LR after decrementing SP.
+					// the signal handler. So we save FP and LR after decrementing SP.
+					// STP (R29, R30), -8(RSP)
 					q1 = obj.Appendp(q1, c.newprog)
 					q1.Pos = p.Pos
-					q1.As = AMOVD
-					q1.From.Type = obj.TYPE_REG
-					q1.From.Reg = REGLINK
+					q1.As = ASTP
+					q1.From.Type = obj.TYPE_REGREG
+					q1.From.Reg = REGFP
+					q1.From.Offset = REGLINK
 					q1.To.Type = obj.TYPE_MEM
 					q1.To.Reg = REGSP
+					q1.To.Offset = -8
 				}
-
-				q1 = c.ctxt.EndUnsafePoint(q1, c.newprog, -1)
 			} else {
-				// small frame, update SP and save LR in a single MOVD.W instruction
+				// small frame, update SP and save LR in a single MOVD.W instruction.
+				// So if a signal comes during the execution of the function prologue,
+				// the traceback code will not see a half-updated stack frame.
+				// Also, on Linux, in a cgo binary we may get a SIGSETXID signal
+				// early on before the signal stack is set, as glibc doesn't allow
+				// us to block SIGSETXID. So it is important that we don't write below
+				// the SP until the signal stack is set.
+				// Luckily, all the functions from thread entry to setting the signal
+				// stack have small frames.
 				q1 = obj.Appendp(q, c.newprog)
 				q1.As = AMOVD
 				q1.Pos = p.Pos
@@ -702,19 +711,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q1.Spadj = aoffset
 
 				prologueEnd = q1
+
+				// Frame pointer.
+				q1 = obj.Appendp(q1, c.newprog)
+				q1.Pos = p.Pos
+				q1.As = AMOVD
+				q1.From.Type = obj.TYPE_REG
+				q1.From.Reg = REGFP
+				q1.To.Type = obj.TYPE_MEM
+				q1.To.Reg = REGSP
+				q1.To.Offset = -8
 			}
 
 			prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
-
-			// Frame pointer.
-			q1 = obj.Appendp(q1, c.newprog)
-			q1.Pos = p.Pos
-			q1.As = AMOVD
-			q1.From.Type = obj.TYPE_REG
-			q1.From.Reg = REGFP
-			q1.To.Type = obj.TYPE_MEM
-			q1.To.Reg = REGSP
-			q1.To.Offset = -8
 
 			q1 = obj.Appendp(q1, c.newprog)
 			q1.Pos = p.Pos
@@ -858,48 +867,28 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					p.To.Reg = REGFP
 				}
 			} else {
-				/* want write-back pre-indexed SP+autosize -> SP, loading REGLINK*/
-
-				// Frame pointer.
-				p.As = AMOVD
-				p.From.Type = obj.TYPE_MEM
-				p.From.Reg = REGSP
-				p.From.Offset = -8
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REGFP
-				p = obj.Appendp(p, c.newprog)
-
 				aoffset := c.autosize
+				// LDP -8(RSP), (R29, R30)
+				p.As = ALDP
+				p.From.Type = obj.TYPE_MEM
+				p.From.Offset = -8
+				p.From.Reg = REGSP
+				p.To.Type = obj.TYPE_REGREG
+				p.To.Reg = REGFP
+				p.To.Offset = REGLINK
 
-				if aoffset <= 0xF0 {
-					p.As = AMOVD
-					p.From.Type = obj.TYPE_MEM
-					p.Scond = C_XPOST
-					p.From.Offset = int64(aoffset)
-					p.From.Reg = REGSP
-					p.To.Type = obj.TYPE_REG
-					p.To.Reg = REGLINK
-					p.Spadj = -aoffset
-				} else {
-					p.As = AMOVD
-					p.From.Type = obj.TYPE_MEM
-					p.From.Offset = 0
-					p.From.Reg = REGSP
-					p.To.Type = obj.TYPE_REG
-					p.To.Reg = REGLINK
-
-					q = newprog()
-					q.As = AADD
-					q.From.Type = obj.TYPE_CONST
-					q.From.Offset = int64(aoffset)
-					q.To.Type = obj.TYPE_REG
-					q.To.Reg = REGSP
-					q.Link = p.Link
-					q.Spadj = int32(-q.From.Offset)
-					q.Pos = p.Pos
-					p.Link = q
-					p = q
-				}
+				// ADD $aoffset, RSP, RSP
+				q = newprog()
+				q.As = AADD
+				q.From.Type = obj.TYPE_CONST
+				q.From.Offset = int64(aoffset)
+				q.To.Type = obj.TYPE_REG
+				q.To.Reg = REGSP
+				q.Spadj = -aoffset
+				q.Pos = p.Pos
+				q.Link = p.Link
+				p.Link = q
+				p = q
 			}
 
 			// If enabled, this code emits 'MOV PC, R27' before every 'MOV LR, PC',
@@ -1073,8 +1062,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
 			f := c.cursym.Func()
-			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
-				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
+			if f.FuncFlag&abi.FuncFlagSPWrite == 0 {
+				c.cursym.Func().FuncFlag |= abi.FuncFlagSPWrite
 				if ctxt.Debugvlog || !ctxt.IsAsm {
 					ctxt.Logf("auto-SPWRITE: %s %v\n", c.cursym.Name, p)
 					if !ctxt.IsAsm {
@@ -1084,6 +1073,24 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					}
 				}
 			}
+		}
+		if p.From.Type == obj.TYPE_SHIFT && (p.To.Reg == REG_RSP || p.Reg == REG_RSP) {
+			offset := p.From.Offset
+			op := offset & (3 << 22)
+			if op != SHIFT_LL {
+				ctxt.Diag("illegal combination: %v", p)
+			}
+			r := (offset >> 16) & 31
+			shift := (offset >> 10) & 63
+			if shift > 4 {
+				// the shift amount is out of range, in order to avoid repeated error
+				// reportings, don't call ctxt.Diag, because asmout case 27 has the
+				// same check.
+				shift = 7
+			}
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = int16(REG_LSL + r + (shift&7)<<5)
+			p.From.Offset = 0
 		}
 	}
 }

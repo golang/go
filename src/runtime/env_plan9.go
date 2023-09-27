@@ -17,7 +17,7 @@ const (
 	nameOffset = 39
 )
 
-// Goenvs caches the Plan 9 environment variables at start of execution into
+// goenvs caches the Plan 9 environment variables at start of execution into
 // string array envs, to supply the initial contents for os.Environ.
 // Subsequent calls to os.Setenv will change this cache, without writing back
 // to the (possibly shared) Plan 9 environment, so that Setenv and Getenv
@@ -25,6 +25,7 @@ const (
 // For Plan 9 shared environment semantics, instead of Getenv(key) and
 // Setenv(key, value), one can use os.ReadFile("/env/" + key) and
 // os.WriteFile("/env/" + key, value, 0666) respectively.
+//
 //go:nosplit
 func goenvs() {
 	buf := make([]byte, envBufSize)
@@ -69,8 +70,9 @@ func goenvs() {
 	})
 }
 
-// Dofiles reads the directory opened with file descriptor fd, applying function f
+// dofiles reads the directory opened with file descriptor fd, applying function f
 // to each filename in it.
+//
 //go:nosplit
 func dofiles(dirfd int32, f func([]byte)) {
 	dirbuf := new([dirBufSize]byte)
@@ -93,9 +95,10 @@ func dofiles(dirfd int32, f func([]byte)) {
 	}
 }
 
-// Gdirname returns the first filename from a buffer of directory entries,
+// gdirname returns the first filename from a buffer of directory entries,
 // and a slice containing the remaining directory entries.
 // If the buffer doesn't start with a valid directory entry, the returned name is nil.
+//
 //go:nosplit
 func gdirname(buf []byte) (name []byte, rest []byte) {
 	if 2+nameOffset+2 > len(buf) {
@@ -114,8 +117,9 @@ func gdirname(buf []byte) (name []byte, rest []byte) {
 	return
 }
 
-// Gbit16 reads a 16-bit little-endian binary number from b and returns it
+// gbit16 reads a 16-bit little-endian binary number from b and returns it
 // with the remaining slice of b.
+//
 //go:nosplit
 func gbit16(b []byte) (int, []byte) {
 	return int(b[0]) | int(b[1])<<8, b[2:]

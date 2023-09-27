@@ -9,14 +9,13 @@
 // spends all of its time in the race runtime, which isn't a safe
 // point.
 
-//go:build amd64 && linux && !race
+//go:build (amd64 || arm64 || ppc64le) && linux && !race
 
 package runtime_test
 
 import (
 	"fmt"
 	"internal/abi"
-	"internal/goexperiment"
 	"math"
 	"os"
 	"regexp"
@@ -144,7 +143,7 @@ func TestDebugCall(t *testing.T) {
 	intRegs := regs.Ints[:]
 	floatRegs := regs.Floats[:]
 	fval := float64(42.0)
-	if goexperiment.RegabiArgs {
+	if len(intRegs) > 0 {
 		intRegs[0] = 42
 		floatRegs[0] = math.Float64bits(fval)
 	} else {
@@ -159,7 +158,7 @@ func TestDebugCall(t *testing.T) {
 	}
 	var result0 int
 	var result1 float64
-	if goexperiment.RegabiArgs {
+	if len(intRegs) > 0 {
 		result0 = int(intRegs[0])
 		result1 = math.Float64frombits(floatRegs[0])
 	} else {

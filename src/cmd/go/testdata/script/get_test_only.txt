@@ -1,6 +1,0 @@
-[!net] skip
-[!exec:git] skip
-env GO111MODULE=off
-
-go get golang.org/x/tour/content...
-go get -t golang.org/x/tour/content...

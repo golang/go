@@ -6,6 +6,8 @@
 
 package runtime
 
+const staticLockRanking = false
+
 // // lockRankStruct is embedded in mutex, but is empty when staticklockranking is
 // disabled (the default)
 type lockRankStruct struct {
@@ -23,6 +25,7 @@ func lockWithRank(l *mutex, rank lockRank) {
 }
 
 // This function may be called in nosplit context and thus must be nosplit.
+//
 //go:nosplit
 func acquireLockRank(rank lockRank) {
 }
@@ -32,6 +35,7 @@ func unlockWithRank(l *mutex) {
 }
 
 // This function may be called in nosplit context and thus must be nosplit.
+//
 //go:nosplit
 func releaseLockRank(rank lockRank) {
 }

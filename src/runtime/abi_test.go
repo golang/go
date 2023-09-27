@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.regabireflect
+//go:build goexperiment.regabiargs
 
 // This file contains tests specific to making sure the register ABI
 // works in a bunch of contexts in the runtime.
@@ -40,7 +40,7 @@ func TestFinalizerRegisterABI(t *testing.T) {
 	// Actually run the test in a subprocess because we don't want
 	// finalizers from other tests interfering.
 	if os.Getenv("TEST_FINALIZER_REGABI") != "1" {
-		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestFinalizerRegisterABI", "-test.v"))
+		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestFinalizerRegisterABI$", "-test.v"))
 		cmd.Env = append(cmd.Env, "TEST_FINALIZER_REGABI=1")
 		out, err := cmd.CombinedOutput()
 		if !strings.Contains(string(out), "PASS\n") || err != nil {

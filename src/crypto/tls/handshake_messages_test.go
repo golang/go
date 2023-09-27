@@ -6,6 +6,9 @@ package tls
 
 import (
 	"bytes"
+	"crypto/x509"
+	"encoding/hex"
+	"math"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -14,7 +17,7 @@ import (
 	"time"
 )
 
-var tests = []any{
+var tests = []handshakeMessage{
 	&clientHelloMsg{},
 	&serverHelloMsg{},
 	&finishedMsg{},
@@ -27,21 +30,29 @@ var tests = []any{
 	&certificateStatusMsg{},
 	&clientKeyExchangeMsg{},
 	&newSessionTicketMsg{},
-	&sessionState{},
-	&sessionStateTLS13{},
 	&encryptedExtensionsMsg{},
 	&endOfEarlyDataMsg{},
 	&keyUpdateMsg{},
 	&newSessionTicketMsgTLS13{},
 	&certificateRequestMsgTLS13{},
 	&certificateMsgTLS13{},
+	&SessionState{},
+}
+
+func mustMarshal(t *testing.T, msg handshakeMessage) []byte {
+	t.Helper()
+	b, err := msg.marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
 }
 
 func TestMarshalUnmarshal(t *testing.T) {
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	for i, iface := range tests {
-		ty := reflect.ValueOf(iface).Type()
+	for i, m := range tests {
+		ty := reflect.ValueOf(m).Type()
 
 		n := 100
 		if testing.Short() {
@@ -55,16 +66,19 @@ func TestMarshalUnmarshal(t *testing.T) {
 			}
 
 			m1 := v.Interface().(handshakeMessage)
-			marshaled := m1.marshal()
-			m2 := iface.(handshakeMessage)
-			if !m2.unmarshal(marshaled) {
+			marshaled := mustMarshal(t, m1)
+			if !m.unmarshal(marshaled) {
 				t.Errorf("#%d failed to unmarshal %#v %x", i, m1, marshaled)
 				break
 			}
-			m2.marshal() // to fill any marshal cache in the message
+			m.marshal() // to fill any marshal cache in the message
 
-			if !reflect.DeepEqual(m1, m2) {
-				t.Errorf("#%d got:%#v want:%#v %x", i, m2, m1, marshaled)
+			if m, ok := m.(*SessionState); ok {
+				m.activeCertHandles = nil
+			}
+
+			if !reflect.DeepEqual(m1, m) {
+				t.Errorf("#%d got:%#v want:%#v %x", i, m, m1, marshaled)
 				break
 			}
 
@@ -75,7 +89,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 				// data is optional and the length of the
 				// Finished varies across versions.
 				for j := 0; j < len(marshaled); j++ {
-					if m2.unmarshal(marshaled[0:j]) {
+					if m.unmarshal(marshaled[0:j]) {
 						t.Errorf("#%d unmarshaled a prefix of length %d of %#v", i, j, m1)
 						break
 					}
@@ -87,11 +101,9 @@ func TestMarshalUnmarshal(t *testing.T) {
 
 func TestFuzz(t *testing.T) {
 	rand := rand.New(rand.NewSource(0))
-	for _, iface := range tests {
-		m := iface.(handshakeMessage)
-
+	for _, m := range tests {
 		for j := 0; j < 1000; j++ {
-			len := rand.Intn(100)
+			len := rand.Intn(1000)
 			bytes := randomBytes(len, rand)
 			// This just looks for crashes due to bounds errors etc.
 			m.unmarshal(bytes)
@@ -147,10 +159,10 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		}
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
 	}
 	for i := 0; i < rand.Intn(5); i++ {
 		m.alpnProtocols = append(m.alpnProtocols, randomString(rand.Intn(20)+1, rand))
@@ -161,6 +173,9 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	if rand.Intn(10) > 5 {
 		m.secureRenegotiationSupported = true
 		m.secureRenegotiation = randomBytes(rand.Intn(50)+1, rand)
+	}
+	if rand.Intn(10) > 5 {
+		m.extendedMasterSecret = true
 	}
 	for i := 0; i < rand.Intn(5); i++ {
 		m.supportedVersions = append(m.supportedVersions, uint16(rand.Intn(0xffff)+1))
@@ -186,6 +201,9 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		psk.label = randomBytes(rand.Intn(500)+1, rand)
 		m.pskIdentities = append(m.pskIdentities, psk)
 		m.pskBinders = append(m.pskBinders, randomBytes(rand.Intn(50)+32, rand))
+	}
+	if rand.Intn(10) > 5 {
+		m.quicTransportParameters = randomBytes(rand.Intn(500), rand)
 	}
 	if rand.Intn(10) > 5 {
 		m.earlyData = true
@@ -222,6 +240,9 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		m.secureRenegotiation = randomBytes(rand.Intn(50)+1, rand)
 	}
 	if rand.Intn(10) > 5 {
+		m.extendedMasterSecret = true
+	}
+	if rand.Intn(10) > 5 {
 		m.supportedVersion = uint16(rand.Intn(0xffff) + 1)
 	}
 	if rand.Intn(10) > 5 {
@@ -248,6 +269,9 @@ func (*encryptedExtensionsMsg) Generate(rand *rand.Rand, size int) reflect.Value
 
 	if rand.Intn(10) > 5 {
 		m.alpnProtocol = randomString(rand.Intn(32)+1, rand)
+	}
+	if rand.Intn(10) > 5 {
+		m.earlyData = true
 	}
 
 	return reflect.ValueOf(m)
@@ -304,37 +328,86 @@ func (*newSessionTicketMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(m)
 }
 
-func (*sessionState) Generate(rand *rand.Rand, size int) reflect.Value {
-	s := &sessionState{}
-	s.vers = uint16(rand.Intn(10000))
-	s.cipherSuite = uint16(rand.Intn(10000))
-	s.masterSecret = randomBytes(rand.Intn(100)+1, rand)
+var sessionTestCerts []*x509.Certificate
+
+func init() {
+	cert, err := x509.ParseCertificate(testRSACertificate)
+	if err != nil {
+		panic(err)
+	}
+	sessionTestCerts = append(sessionTestCerts, cert)
+	cert, err = x509.ParseCertificate(testRSACertificateIssuer)
+	if err != nil {
+		panic(err)
+	}
+	sessionTestCerts = append(sessionTestCerts, cert)
+}
+
+func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {
+	s := &SessionState{}
+	isTLS13 := rand.Intn(10) > 5
+	if isTLS13 {
+		s.version = VersionTLS13
+	} else {
+		s.version = uint16(rand.Intn(VersionTLS13))
+	}
+	s.isClient = rand.Intn(10) > 5
+	s.cipherSuite = uint16(rand.Intn(math.MaxUint16))
 	s.createdAt = uint64(rand.Int63())
-	for i := 0; i < rand.Intn(20); i++ {
-		s.certificates = append(s.certificates, randomBytes(rand.Intn(500)+1, rand))
+	s.secret = randomBytes(rand.Intn(100)+1, rand)
+	for n, i := rand.Intn(3), 0; i < n; i++ {
+		s.Extra = append(s.Extra, randomBytes(rand.Intn(100), rand))
+	}
+	if rand.Intn(10) > 5 {
+		s.EarlyData = true
+	}
+	if rand.Intn(10) > 5 {
+		s.extMasterSecret = true
+	}
+	if s.isClient || rand.Intn(10) > 5 {
+		if rand.Intn(10) > 5 {
+			s.peerCertificates = sessionTestCerts
+		} else {
+			s.peerCertificates = sessionTestCerts[:1]
+		}
+	}
+	if rand.Intn(10) > 5 && s.peerCertificates != nil {
+		s.ocspResponse = randomBytes(rand.Intn(100)+1, rand)
+	}
+	if rand.Intn(10) > 5 && s.peerCertificates != nil {
+		for i := 0; i < rand.Intn(2)+1; i++ {
+			s.scts = append(s.scts, randomBytes(rand.Intn(500)+1, rand))
+		}
+	}
+	if len(s.peerCertificates) > 0 {
+		for i := 0; i < rand.Intn(3); i++ {
+			if rand.Intn(10) > 5 {
+				s.verifiedChains = append(s.verifiedChains, s.peerCertificates)
+			} else {
+				s.verifiedChains = append(s.verifiedChains, s.peerCertificates[:1])
+			}
+		}
+	}
+	if rand.Intn(10) > 5 && s.EarlyData {
+		s.alpnProtocol = string(randomBytes(rand.Intn(10), rand))
+	}
+	if s.isClient {
+		if isTLS13 {
+			s.useBy = uint64(rand.Int63())
+			s.ageAdd = uint32(rand.Int63() & math.MaxUint32)
+		}
 	}
 	return reflect.ValueOf(s)
 }
 
-func (*sessionStateTLS13) Generate(rand *rand.Rand, size int) reflect.Value {
-	s := &sessionStateTLS13{}
-	s.cipherSuite = uint16(rand.Intn(10000))
-	s.resumptionSecret = randomBytes(rand.Intn(100)+1, rand)
-	s.createdAt = uint64(rand.Int63())
-	for i := 0; i < rand.Intn(2)+1; i++ {
-		s.certificate.Certificate = append(
-			s.certificate.Certificate, randomBytes(rand.Intn(500)+1, rand))
+func (s *SessionState) marshal() ([]byte, error) { return s.Bytes() }
+func (s *SessionState) unmarshal(b []byte) bool {
+	ss, err := ParseSessionState(b)
+	if err != nil {
+		return false
 	}
-	if rand.Intn(10) > 5 {
-		s.certificate.OCSPStaple = randomBytes(rand.Intn(100)+1, rand)
-	}
-	if rand.Intn(10) > 5 {
-		for i := 0; i < rand.Intn(2)+1; i++ {
-			s.certificate.SignedCertificateTimestamps = append(
-				s.certificate.SignedCertificateTimestamps, randomBytes(rand.Intn(500)+1, rand))
-		}
-	}
-	return reflect.ValueOf(s)
+	*s = *ss
+	return true
 }
 
 func (*endOfEarlyDataMsg) Generate(rand *rand.Rand, size int) reflect.Value {
@@ -369,10 +442,10 @@ func (*certificateRequestMsgTLS13) Generate(rand *rand.Rand, size int) reflect.V
 		m.scts = true
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
 	}
 	if rand.Intn(10) > 5 {
 		m.certificateAuthorities = make([][]byte, 3)
@@ -408,12 +481,12 @@ func TestRejectEmptySCTList(t *testing.T) {
 
 	var random [32]byte
 	sct := []byte{0x42, 0x42, 0x42, 0x42}
-	serverHello := serverHelloMsg{
+	serverHello := &serverHelloMsg{
 		vers:   VersionTLS12,
 		random: random[:],
 		scts:   [][]byte{sct},
 	}
-	serverHelloBytes := serverHello.marshal()
+	serverHelloBytes := mustMarshal(t, serverHello)
 
 	var serverHelloCopy serverHelloMsg
 	if !serverHelloCopy.unmarshal(serverHelloBytes) {
@@ -451,15 +524,35 @@ func TestRejectEmptySCT(t *testing.T) {
 	// not be zero length.
 
 	var random [32]byte
-	serverHello := serverHelloMsg{
+	serverHello := &serverHelloMsg{
 		vers:   VersionTLS12,
 		random: random[:],
 		scts:   [][]byte{nil},
 	}
-	serverHelloBytes := serverHello.marshal()
+	serverHelloBytes := mustMarshal(t, serverHello)
 
 	var serverHelloCopy serverHelloMsg
 	if serverHelloCopy.unmarshal(serverHelloBytes) {
 		t.Fatal("Unmarshaled ServerHello with zero-length SCT")
+	}
+}
+
+func TestRejectDuplicateExtensions(t *testing.T) {
+	clientHelloBytes, err := hex.DecodeString("010000440303000000000000000000000000000000000000000000000000000000000000000000000000001c0000000a000800000568656c6c6f0000000a000800000568656c6c6f")
+	if err != nil {
+		t.Fatalf("failed to decode test ClientHello: %s", err)
+	}
+	var clientHelloCopy clientHelloMsg
+	if clientHelloCopy.unmarshal(clientHelloBytes) {
+		t.Error("Unmarshaled ClientHello with duplicate extensions")
+	}
+
+	serverHelloBytes, err := hex.DecodeString("02000030030300000000000000000000000000000000000000000000000000000000000000000000000000080005000000050000")
+	if err != nil {
+		t.Fatalf("failed to decode test ServerHello: %s", err)
+	}
+	var serverHelloCopy serverHelloMsg
+	if serverHelloCopy.unmarshal(serverHelloBytes) {
+		t.Fatal("Unmarshaled ServerHello with duplicate extensions")
 	}
 }

@@ -78,7 +78,7 @@ func concatstring5(buf *tmpBuf, a0, a1, a2, a3, a4 string) string {
 // n is the length of the slice.
 // Buf is a fixed-size buffer for the result,
 // it is not nil if the result does not escape.
-func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
+func slicebytetostring(buf *tmpBuf, ptr *byte, n int) string {
 	if n == 0 {
 		// Turns out to be a relatively common case.
 		// Consider that you want to parse out data between parens in "foo()bar",
@@ -102,9 +102,7 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
 		if goarch.BigEndian {
 			p = add(p, 7)
 		}
-		stringStructOf(&str).str = p
-		stringStructOf(&str).len = 1
-		return
+		return unsafe.String((*byte)(p), 1)
 	}
 
 	var p unsafe.Pointer
@@ -113,16 +111,14 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
 	} else {
 		p = mallocgc(uintptr(n), nil, false)
 	}
-	stringStructOf(&str).str = p
-	stringStructOf(&str).len = n
 	memmove(p, unsafe.Pointer(ptr), uintptr(n))
-	return
+	return unsafe.String((*byte)(p), n)
 }
 
 // stringDataOnStack reports whether the string's data is
 // stored on the current goroutine's stack.
 func stringDataOnStack(s string) bool {
-	ptr := uintptr(stringStructOf(&s).str)
+	ptr := uintptr(unsafe.Pointer(unsafe.StringData(s)))
 	stk := getg().stack
 	return stk.lo <= ptr && ptr < stk.hi
 }
@@ -147,11 +143,11 @@ func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
 // and otherwise intrinsified by the compiler.
 //
 // Some internal compiler optimizations use this function.
-// - Used for m[T1{... Tn{..., string(k), ...} ...}] and m[string(k)]
-//   where k is []byte, T1 to Tn is a nesting of struct and array literals.
-// - Used for "<"+string(b)+">" concatenation where b is []byte.
-// - Used for string(b)=="foo" comparison where b is []byte.
-func slicebytetostringtmp(ptr *byte, n int) (str string) {
+//   - Used for m[T1{... Tn{..., string(k), ...} ...}] and m[string(k)]
+//     where k is []byte, T1 to Tn is a nesting of struct and array literals.
+//   - Used for "<"+string(b)+">" concatenation where b is []byte.
+//   - Used for string(b)=="foo" comparison where b is []byte.
+func slicebytetostringtmp(ptr *byte, n int) string {
 	if raceenabled && n > 0 {
 		racereadrangepc(unsafe.Pointer(ptr),
 			uintptr(n),
@@ -164,9 +160,7 @@ func slicebytetostringtmp(ptr *byte, n int) (str string) {
 	if asanenabled && n > 0 {
 		asanread(unsafe.Pointer(ptr), uintptr(n))
 	}
-	stringStructOf(&str).str = unsafe.Pointer(ptr)
-	stringStructOf(&str).len = n
-	return
+	return unsafe.String(ptr, n)
 }
 
 func stringtoslicebyte(buf *tmpBuf, s string) []byte {
@@ -271,13 +265,7 @@ func intstring(buf *[4]byte, v int64) (s string) {
 // b to set the string contents and then drop b.
 func rawstring(size int) (s string, b []byte) {
 	p := mallocgc(uintptr(size), nil, false)
-
-	stringStructOf(&s).str = p
-	stringStructOf(&s).len = size
-
-	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, size}
-
-	return
+	return unsafe.String((*byte)(p), size), unsafe.Slice((*byte)(p), size)
 }
 
 // rawbyteslice allocates a new byte slice. The byte slice is not zeroed.
@@ -325,6 +313,7 @@ func gobytes(p *byte, n int) (b []byte) {
 }
 
 // This is exported via linkname to assembly in syscall (for Plan9).
+//
 //go:linkname gostring
 func gostring(p *byte) string {
 	l := findnull(p)
@@ -334,6 +323,13 @@ func gostring(p *byte) string {
 	s, b := rawstring(l)
 	memmove(unsafe.Pointer(&b[0]), unsafe.Pointer(p), uintptr(l))
 	return s
+}
+
+// internal_syscall_gostring is a version of gostring for internal/syscall/unix.
+//
+//go:linkname internal_syscall_gostring internal/syscall/unix.gostring
+func internal_syscall_gostring(p *byte) string {
+	return gostring(p)
 }
 
 func gostringn(p *byte, l int) string {
@@ -349,15 +345,19 @@ func hasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
 
+func hasSuffix(s, suffix string) bool {
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+}
+
 const (
-	maxUint = ^uint(0)
-	maxInt  = int(maxUint >> 1)
+	maxUint64 = ^uint64(0)
+	maxInt64  = int64(maxUint64 >> 1)
 )
 
-// atoi parses an int from a string s.
+// atoi64 parses an int64 from a string s.
 // The bool result reports whether s is a number
-// representable by a value of type int.
-func atoi(s string) (int, bool) {
+// representable by a value of type int64.
+func atoi64(s string) (int64, bool) {
 	if s == "" {
 		return 0, false
 	}
@@ -368,18 +368,18 @@ func atoi(s string) (int, bool) {
 		s = s[1:]
 	}
 
-	un := uint(0)
+	un := uint64(0)
 	for i := 0; i < len(s); i++ {
 		c := s[i]
 		if c < '0' || c > '9' {
 			return 0, false
 		}
-		if un > maxUint/10 {
+		if un > maxUint64/10 {
 			// overflow
 			return 0, false
 		}
 		un *= 10
-		un1 := un + uint(c) - '0'
+		un1 := un + uint64(c) - '0'
 		if un1 < un {
 			// overflow
 			return 0, false
@@ -387,14 +387,14 @@ func atoi(s string) (int, bool) {
 		un = un1
 	}
 
-	if !neg && un > uint(maxInt) {
+	if !neg && un > uint64(maxInt64) {
 		return 0, false
 	}
-	if neg && un > uint(maxInt)+1 {
+	if neg && un > uint64(maxInt64)+1 {
 		return 0, false
 	}
 
-	n := int(un)
+	n := int64(un)
 	if neg {
 		n = -n
 	}
@@ -402,13 +402,106 @@ func atoi(s string) (int, bool) {
 	return n, true
 }
 
+// atoi is like atoi64 but for integers
+// that fit into an int.
+func atoi(s string) (int, bool) {
+	if n, ok := atoi64(s); n == int64(int(n)) {
+		return int(n), ok
+	}
+	return 0, false
+}
+
 // atoi32 is like atoi but for integers
 // that fit into an int32.
 func atoi32(s string) (int32, bool) {
-	if n, ok := atoi(s); n == int(int32(n)) {
+	if n, ok := atoi64(s); n == int64(int32(n)) {
 		return int32(n), ok
 	}
 	return 0, false
+}
+
+// parseByteCount parses a string that represents a count of bytes.
+//
+// s must match the following regular expression:
+//
+//	^[0-9]+(([KMGT]i)?B)?$
+//
+// In other words, an integer byte count with an optional unit
+// suffix. Acceptable suffixes include one of
+// - KiB, MiB, GiB, TiB which represent binary IEC/ISO 80000 units, or
+// - B, which just represents bytes.
+//
+// Returns an int64 because that's what its callers want and receive,
+// but the result is always non-negative.
+func parseByteCount(s string) (int64, bool) {
+	// The empty string is not valid.
+	if s == "" {
+		return 0, false
+	}
+	// Handle the easy non-suffix case.
+	last := s[len(s)-1]
+	if last >= '0' && last <= '9' {
+		n, ok := atoi64(s)
+		if !ok || n < 0 {
+			return 0, false
+		}
+		return n, ok
+	}
+	// Failing a trailing digit, this must always end in 'B'.
+	// Also at this point there must be at least one digit before
+	// that B.
+	if last != 'B' || len(s) < 2 {
+		return 0, false
+	}
+	// The one before that must always be a digit or 'i'.
+	if c := s[len(s)-2]; c >= '0' && c <= '9' {
+		// Trivial 'B' suffix.
+		n, ok := atoi64(s[:len(s)-1])
+		if !ok || n < 0 {
+			return 0, false
+		}
+		return n, ok
+	} else if c != 'i' {
+		return 0, false
+	}
+	// Finally, we need at least 4 characters now, for the unit
+	// prefix and at least one digit.
+	if len(s) < 4 {
+		return 0, false
+	}
+	power := 0
+	switch s[len(s)-3] {
+	case 'K':
+		power = 1
+	case 'M':
+		power = 2
+	case 'G':
+		power = 3
+	case 'T':
+		power = 4
+	default:
+		// Invalid suffix.
+		return 0, false
+	}
+	m := uint64(1)
+	for i := 0; i < power; i++ {
+		m *= 1024
+	}
+	n, ok := atoi64(s[:len(s)-3])
+	if !ok || n < 0 {
+		return 0, false
+	}
+	un := uint64(n)
+	if un > maxUint64/m {
+		// Overflow.
+		return 0, false
+	}
+	un *= m
+	if un > uint64(maxInt64) {
+		// Overflow.
+		return 0, false
+	}
+	return int64(un), true
 }
 
 //go:nosplit

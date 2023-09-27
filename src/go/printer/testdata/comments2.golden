@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // This is a package for testing comment placement by go/printer.
-//
 package main
 
 // Test cases for idempotent comment formatting (was issue 1835).

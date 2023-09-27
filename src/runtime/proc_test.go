@@ -415,7 +415,10 @@ func TestNumGoroutine(t *testing.T) {
 		n := runtime.NumGoroutine()
 		buf = buf[:runtime.Stack(buf, true)]
 
-		nstk := strings.Count(string(buf), "goroutine ")
+		// To avoid double-counting "goroutine" in "goroutine $m [running]:"
+		// and "created by $func in goroutine $n", remove the latter
+		output := strings.ReplaceAll(string(buf), "in goroutine", "")
+		nstk := strings.Count(output, "goroutine ")
 		if n == nstk {
 			break
 		}
@@ -477,12 +480,13 @@ func TestPingPongHog(t *testing.T) {
 	<-lightChan
 
 	// Check that hogCount and lightCount are within a factor of
-	// 5, which indicates that both pairs of goroutines handed off
+	// 20, which indicates that both pairs of goroutines handed off
 	// the P within a time-slice to their buddy. We can use a
 	// fairly large factor here to make this robust: if the
-	// scheduler isn't working right, the gap should be ~1000X.
-	const factor = 5
-	if hogCount > lightCount*factor || lightCount > hogCount*factor {
+	// scheduler isn't working right, the gap should be ~1000X
+	// (was 5, increased to 20, see issue 52207).
+	const factor = 20
+	if hogCount/factor > lightCount || lightCount/factor > hogCount {
 		t.Fatalf("want hogCount/lightCount in [%v, %v]; got %d/%d = %g", 1.0/factor, factor, hogCount, lightCount, float64(hogCount)/float64(lightCount))
 	}
 }
@@ -1023,6 +1027,7 @@ func TestLockOSThreadTemplateThreadRace(t *testing.T) {
 }
 
 // fakeSyscall emulates a system call.
+//
 //go:nosplit
 func fakeSyscall(duration time.Duration) {
 	runtime.Entersyscall()
@@ -1039,16 +1044,16 @@ func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
 
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
 
-	interations := 10
+	iterations := 10
 	if testing.Short() {
-		interations = 1
+		iterations = 1
 	}
 	const (
-		maxDuration = 3 * time.Second
+		maxDuration = 5 * time.Second
 		nroutines   = 8
 	)
 
-	for i := 0; i < interations; i++ {
+	for i := 0; i < iterations; i++ {
 		c := make(chan bool, nroutines)
 		stop := uint32(0)
 
@@ -1080,6 +1085,10 @@ func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
 }
 
 func TestPreemptionAfterSyscall(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		testenv.SkipFlaky(t, 41015)
+	}
+
 	for _, i := range []time.Duration{10, 100, 1000} {
 		d := i * time.Microsecond
 		t.Run(fmt.Sprint(d), func(t *testing.T) {

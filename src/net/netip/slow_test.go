@@ -21,22 +21,22 @@ var zeros = []string{"0", "0", "0", "0", "0", "0", "0", "0"}
 // and against which we measure optimized parsers.
 //
 // parseIPSlow understands the following forms of IP addresses:
-//  - Regular IPv4: 1.2.3.4
-//  - IPv4 with many leading zeros: 0000001.0000002.0000003.0000004
-//  - Regular IPv6: 1111:2222:3333:4444:5555:6666:7777:8888
-//  - IPv6 with many leading zeros: 00000001:0000002:0000003:0000004:0000005:0000006:0000007:0000008
-//  - IPv6 with zero blocks elided: 1111:2222::7777:8888
-//  - IPv6 with trailing 32 bits expressed as IPv4: 1111:2222:3333:4444:5555:6666:77.77.88.88
+//   - Regular IPv4: 1.2.3.4
+//   - IPv4 with many leading zeros: 0000001.0000002.0000003.0000004
+//   - Regular IPv6: 1111:2222:3333:4444:5555:6666:7777:8888
+//   - IPv6 with many leading zeros: 00000001:0000002:0000003:0000004:0000005:0000006:0000007:0000008
+//   - IPv6 with zero blocks elided: 1111:2222::7777:8888
+//   - IPv6 with trailing 32 bits expressed as IPv4: 1111:2222:3333:4444:5555:6666:77.77.88.88
 //
 // It does not process the following IP address forms, which have been
 // varyingly accepted by some programs due to an under-specification
 // of the shapes of IPv4 addresses:
 //
-//  - IPv4 as a single 32-bit uint: 4660 (same as "1.2.3.4")
-//  - IPv4 with octal numbers: 0300.0250.0.01 (same as "192.168.0.1")
-//  - IPv4 with hex numbers: 0xc0.0xa8.0x0.0x1 (same as "192.168.0.1")
-//  - IPv4 in "class-B style": 1.2.52 (same as "1.2.3.4")
-//  - IPv4 in "class-A style": 1.564 (same as "1.2.3.4")
+//   - IPv4 as a single 32-bit uint: 4660 (same as "1.2.3.4")
+//   - IPv4 with octal numbers: 0300.0250.0.01 (same as "192.168.0.1")
+//   - IPv4 with hex numbers: 0xc0.0xa8.0x0.0x1 (same as "192.168.0.1")
+//   - IPv4 in "class-B style": 1.2.52 (same as "1.2.3.4")
+//   - IPv4 in "class-A style": 1.564 (same as "1.2.3.4")
 func parseIPSlow(s string) (Addr, error) {
 	// Identify and strip out the zone, if any. There should be 0 or 1
 	// '%' in the string.
@@ -94,13 +94,13 @@ func parseIPSlow(s string) (Addr, error) {
 // function does not verify the contents of each field.
 //
 // This function performs two transformations:
-//  - The last 32 bits of an IPv6 address may be represented in
-//    IPv4-style dotted quad form, as in 1:2:3:4:5:6:7.8.9.10. That
-//    address is transformed to its hex equivalent,
-//    e.g. 1:2:3:4:5:6:708:90a.
-//  - An address may contain one "::", which expands into as many
-//    16-bit blocks of zeros as needed to make the address its correct
-//    full size. For example, fe80::1:2 expands to fe80:0:0:0:0:0:1:2.
+//   - The last 32 bits of an IPv6 address may be represented in
+//     IPv4-style dotted quad form, as in 1:2:3:4:5:6:7.8.9.10. That
+//     address is transformed to its hex equivalent,
+//     e.g. 1:2:3:4:5:6:708:90a.
+//   - An address may contain one "::", which expands into as many
+//     16-bit blocks of zeros as needed to make the address its correct
+//     full size. For example, fe80::1:2 expands to fe80:0:0:0:0:0:1:2.
 //
 // Both short forms may be present in a single address,
 // e.g. fe80::1.2.3.4.

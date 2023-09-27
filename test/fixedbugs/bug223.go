@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// check that initialization loop is diagnosed
+// check that initialization cycle is diagnosed
 // and that closure cannot be used to hide it.
 // error message is not standard format, so no errchk above.
 
@@ -18,4 +18,4 @@ func f() {
 	}
 }
 
-var m = map[string]F{"f": f} // ERROR "initialization loop|depends upon itself|initialization cycle"
+var m = map[string]F{"f": f} // ERROR "initialization cycle|depends upon itself|initialization cycle"

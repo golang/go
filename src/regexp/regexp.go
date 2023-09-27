@@ -9,14 +9,17 @@
 // More precisely, it is the syntax accepted by RE2 and described at
 // https://golang.org/s/re2syntax, except for \C.
 // For an overview of the syntax, run
-//   go doc regexp/syntax
+//
+//	go doc regexp/syntax
 //
 // The regexp implementation provided by this package is
 // guaranteed to run in time linear in the size of the input.
 // (This is a property not guaranteed by most open source
 // implementations of regular expressions.) For more information
 // about this property, see
+//
 //	https://swtch.com/~rsc/regexp/regexp1.html
+//
 // or any book about automata theory.
 //
 // All characters are UTF-8-encoded code points.
@@ -42,11 +45,11 @@
 // successive submatches of the expression. Submatches are matches of
 // parenthesized subexpressions (also known as capturing groups) within the
 // regular expression, numbered from left to right in order of opening
-// parenthesis. Submatch 0 is the match of the entire expression, submatch 1
+// parenthesis. Submatch 0 is the match of the entire expression, submatch 1 is
 // the match of the first parenthesized subexpression, and so on.
 //
 // If 'Index' is present, matches and submatches are identified by byte index
-// pairs within the input string: result[2*n:2*n+1] identifies the indexes of
+// pairs within the input string: result[2*n:2*n+2] identifies the indexes of
 // the nth submatch. The pair for n==0 identifies the match of the entire
 // expression. If 'Index' is not present, the match is identified by the text
 // of the match/submatch. If an index is negative or text is nil, it means that
@@ -64,7 +67,6 @@
 // before returning.
 //
 // (There are a few other methods that do not match this pattern.)
-//
 package regexp
 
 import (
@@ -268,7 +270,7 @@ func (re *Regexp) put(m *machine) {
 	matchPool[re.mpool].Put(m)
 }
 
-// minInputLen walks the regexp to find the minimum length of any matchable input
+// minInputLen walks the regexp to find the minimum length of any matchable input.
 func minInputLen(re *syntax.Regexp) int {
 	switch re.Op {
 	default:
@@ -571,8 +573,8 @@ func Match(pattern string, b []byte) (matched bool, err error) {
 }
 
 // ReplaceAllString returns a copy of src, replacing matches of the Regexp
-// with the replacement string repl. Inside repl, $ signs are interpreted as
-// in Expand, so for instance $1 represents the text of the first submatch.
+// with the replacement string repl.
+// Inside repl, $ signs are interpreted as in Expand.
 func (re *Regexp) ReplaceAllString(src, repl string) string {
 	n := 2
 	if strings.Contains(repl, "$") {
@@ -670,8 +672,8 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst 
 }
 
 // ReplaceAll returns a copy of src, replacing matches of the Regexp
-// with the replacement text repl. Inside repl, $ signs are interpreted as
-// in Expand, so for instance $1 represents the text of the first submatch.
+// with the replacement text repl.
+// Inside repl, $ signs are interpreted as in Expand.
 func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 	n := 2
 	if bytes.IndexByte(repl, '$') >= 0 {
@@ -793,11 +795,12 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
 				accept = false
 			}
 			var width int
-			// TODO: use step()
 			if b == nil {
-				_, width = utf8.DecodeRuneInString(s[pos:end])
+				is := inputString{str: s}
+				_, width = is.step(pos)
 			} else {
-				_, width = utf8.DecodeRune(b[pos:end])
+				ib := inputBytes{str: b}
+				_, width = ib.step(pos)
 			}
 			if width > 0 {
 				pos += width
@@ -1238,13 +1241,15 @@ func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
 // that contains no metacharacters, it is equivalent to strings.SplitN.
 //
 // Example:
-//   s := regexp.MustCompile("a*").Split("abaabaccadaaae", 5)
-//   // s: ["", "b", "b", "c", "cadaaae"]
+//
+//	s := regexp.MustCompile("a*").Split("abaabaccadaaae", 5)
+//	// s: ["", "b", "b", "c", "cadaaae"]
 //
 // The count determines the number of substrings to return:
-//   n > 0: at most n substrings; the last substring will be the unsplit remainder.
-//   n == 0: the result is nil (zero substrings)
-//   n < 0: all substrings
+//
+//	n > 0: at most n substrings; the last substring will be the unsplit remainder.
+//	n == 0: the result is nil (zero substrings)
+//	n < 0: all substrings
 func (re *Regexp) Split(s string, n int) []string {
 
 	if n == 0 {
@@ -1277,4 +1282,25 @@ func (re *Regexp) Split(s string, n int) []string {
 	}
 
 	return strings
+}
+
+// MarshalText implements [encoding.TextMarshaler]. The output
+// matches that of calling the [Regexp.String] method.
+//
+// Note that the output is lossy in some cases: This method does not indicate
+// POSIX regular expressions (i.e. those compiled by calling [CompilePOSIX]), or
+// those for which the [Regexp.Longest] method has been called.
+func (re *Regexp) MarshalText() ([]byte, error) {
+	return []byte(re.String()), nil
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler] by calling
+// [Compile] on the encoded value.
+func (re *Regexp) UnmarshalText(text []byte) error {
+	newRE, err := Compile(string(text))
+	if err != nil {
+		return err
+	}
+	*re = *newRE
+	return nil
 }

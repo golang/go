@@ -67,3 +67,29 @@ func TestWriteHeapDumpFinalizers(t *testing.T) {
 	WriteHeapDump(f.Fd())
 	println("done dump")
 }
+
+type G[T any] struct{}
+type I interface {
+	M()
+}
+
+//go:noinline
+func (g G[T]) M() {}
+
+var dummy I = G[int]{}
+var dummy2 I = G[G[int]]{}
+
+func TestWriteHeapDumpTypeName(t *testing.T) {
+	if runtime.GOOS == "js" {
+		t.Skipf("WriteHeapDump is not available on %s.", runtime.GOOS)
+	}
+	f, err := os.CreateTemp("", "heapdumptest")
+	if err != nil {
+		t.Fatalf("TempFile failed: %v", err)
+	}
+	defer os.Remove(f.Name())
+	defer f.Close()
+	WriteHeapDump(f.Fd())
+	dummy.M()
+	dummy2.M()
+}

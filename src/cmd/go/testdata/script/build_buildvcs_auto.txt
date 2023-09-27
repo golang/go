@@ -1,0 +1,91 @@
+# Regression test for https://go.dev/issue/51748: by default, 'go build' should
+# not attempt to stamp VCS information when the VCS tool is not present.
+
+[short] skip
+[!git] skip
+
+cd sub
+exec git init .
+exec git config user.name 'Nameless Gopher'
+exec git config user.email 'nobody@golang.org'
+exec git add sub.go
+exec git commit -m 'initial state'
+cd ..
+
+exec git init
+exec git config user.name 'Nameless Gopher'
+exec git config user.email 'nobody@golang.org'
+exec git submodule add ./sub
+exec git add go.mod example.go
+exec git commit -m 'initial state'
+
+
+# Control case: with a git binary in $PATH,
+# 'go build' on a package in the same git repo
+# succeeds and stamps VCS metadata by default.
+
+go build -o example.exe .
+go version -m example.exe
+stdout '^\tbuild\tvcs=git$'
+stdout '^\tbuild\tvcs.modified=false$'
+
+
+# Building a binary from a different (nested) VCS repo should not stamp VCS
+# info. It should be an error if VCS stamps are requested explicitly with
+# '-buildvcs' (since we know the VCS metadata exists), but not an error
+# with '-buildvcs=auto'.
+
+go build -o sub.exe ./sub
+go version -m sub.exe
+! stdout '^\tbuild\tvcs'
+
+! go build -buildvcs -o sub.exe ./sub
+stderr '\Aerror obtaining VCS status: main package is in repository ".*" but current directory is in repository ".*"\n\tUse -buildvcs=false to disable VCS stamping.\n\z'
+
+cd ./sub
+go build -o sub.exe .
+go version -m sub.exe
+! stdout '^\tbuild\tvcs'
+
+! go build -buildvcs -o sub.exe .
+stderr '\Aerror obtaining VCS status: main module is in repository ".*" but current directory is in repository ".*"\n\tUse -buildvcs=false to disable VCS stamping.\n\z'
+cd ..
+
+
+# After removing 'git' from $PATH, 'go build -buildvcs' should fail...
+
+env PATH=
+env path=
+! go build -buildvcs -o example.exe .
+stderr 'go: missing Git command\. See https://golang\.org/s/gogetcmd$'
+
+# ...but by default we should omit VCS metadata when the tool is missing.
+
+go build -o example.exe .
+go version -m example.exe
+! stdout '^\tbuild\tvcs'
+
+# The default behavior can be explicitly set with '-buildvcs=auto'.
+
+go build -buildvcs=auto -o example.exe .
+go version -m example.exe
+! stdout '^\tbuild\tvcs'
+
+# Other flag values should be rejected with a useful error message.
+
+! go build -buildvcs=hg -o example.exe .
+stderr '\Ainvalid boolean value "hg" for -buildvcs: value is neither ''auto'' nor a valid bool\nusage: go build .*\nRun ''go help build'' for details.\n\z'
+
+
+-- go.mod --
+module example
+
+go 1.18
+-- example.go --
+package main
+
+func main() {}
+-- sub/sub.go --
+package main
+
+func main() {}

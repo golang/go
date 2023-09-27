@@ -35,12 +35,16 @@ var traceback_env uint32
 //
 //go:nosplit
 func gotraceback() (level int32, all, crash bool) {
-	_g_ := getg()
+	gp := getg()
 	t := atomic.Load(&traceback_cache)
 	crash = t&tracebackCrash != 0
-	all = _g_.m.throwing > 0 || t&tracebackAll != 0
-	if _g_.m.traceback != 0 {
-		level = int32(_g_.m.traceback)
+	all = gp.m.throwing >= throwTypeUser || t&tracebackAll != 0
+	if gp.m.traceback != 0 {
+		level = int32(gp.m.traceback)
+	} else if gp.m.throwing >= throwTypeRuntime {
+		// Always include runtime frames in runtime throws unless
+		// otherwise overridden by m.traceback.
+		level = 2
 	} else {
 		level = int32(t >> tracebackShift)
 	}
@@ -52,7 +56,8 @@ var (
 	argv **byte
 )
 
-// nosplit for use in linux startup sysargs
+// nosplit for use in linux startup sysargs.
+//
 //go:nosplit
 func argv_index(argv **byte, i int32) *byte {
 	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*goarch.PtrSize))
@@ -281,7 +286,7 @@ func check() {
 
 	testAtomic64()
 
-	if _FixedStack != round2(_FixedStack) {
+	if fixedStack != round2(fixedStack) {
 		throw("FixedStack is not power-of-2")
 	}
 
@@ -291,8 +296,10 @@ func check() {
 }
 
 type dbgVar struct {
-	name  string
-	value *int32
+	name   string
+	value  *int32        // for variables that can only be set at startup
+	atomic *atomic.Int32 // for variables that can be changed during execution
+	def    int32         // default value (ideally zero)
 }
 
 // Holds variables parsed from GODEBUG env var,
@@ -302,6 +309,7 @@ type dbgVar struct {
 var debug struct {
 	cgocheck           int32
 	clobberfree        int32
+	dontfreezetheworld int32
 	efence             int32
 	gccheckmark        int32
 	gcpacertrace       int32
@@ -316,6 +324,8 @@ var debug struct {
 	tracebackancestors int32
 	asyncpreemptoff    int32
 	harddecommit       int32
+	adaptivestackstart int32
+	tracefpunwindoff   int32
 
 	// debug.malloc is used as a combined debug check
 	// in the malloc function and should be set
@@ -324,34 +334,41 @@ var debug struct {
 	allocfreetrace int32
 	inittrace      int32
 	sbrk           int32
+
+	panicnil atomic.Int32
 }
 
-var dbgvars = []dbgVar{
-	{"allocfreetrace", &debug.allocfreetrace},
-	{"clobberfree", &debug.clobberfree},
-	{"cgocheck", &debug.cgocheck},
-	{"efence", &debug.efence},
-	{"gccheckmark", &debug.gccheckmark},
-	{"gcpacertrace", &debug.gcpacertrace},
-	{"gcshrinkstackoff", &debug.gcshrinkstackoff},
-	{"gcstoptheworld", &debug.gcstoptheworld},
-	{"gctrace", &debug.gctrace},
-	{"invalidptr", &debug.invalidptr},
-	{"madvdontneed", &debug.madvdontneed},
-	{"sbrk", &debug.sbrk},
-	{"scavtrace", &debug.scavtrace},
-	{"scheddetail", &debug.scheddetail},
-	{"schedtrace", &debug.schedtrace},
-	{"tracebackancestors", &debug.tracebackancestors},
-	{"asyncpreemptoff", &debug.asyncpreemptoff},
-	{"inittrace", &debug.inittrace},
-	{"harddecommit", &debug.harddecommit},
+var dbgvars = []*dbgVar{
+	{name: "allocfreetrace", value: &debug.allocfreetrace},
+	{name: "clobberfree", value: &debug.clobberfree},
+	{name: "cgocheck", value: &debug.cgocheck},
+	{name: "dontfreezetheworld", value: &debug.dontfreezetheworld},
+	{name: "efence", value: &debug.efence},
+	{name: "gccheckmark", value: &debug.gccheckmark},
+	{name: "gcpacertrace", value: &debug.gcpacertrace},
+	{name: "gcshrinkstackoff", value: &debug.gcshrinkstackoff},
+	{name: "gcstoptheworld", value: &debug.gcstoptheworld},
+	{name: "gctrace", value: &debug.gctrace},
+	{name: "invalidptr", value: &debug.invalidptr},
+	{name: "madvdontneed", value: &debug.madvdontneed},
+	{name: "sbrk", value: &debug.sbrk},
+	{name: "scavtrace", value: &debug.scavtrace},
+	{name: "scheddetail", value: &debug.scheddetail},
+	{name: "schedtrace", value: &debug.schedtrace},
+	{name: "tracebackancestors", value: &debug.tracebackancestors},
+	{name: "asyncpreemptoff", value: &debug.asyncpreemptoff},
+	{name: "inittrace", value: &debug.inittrace},
+	{name: "harddecommit", value: &debug.harddecommit},
+	{name: "adaptivestackstart", value: &debug.adaptivestackstart},
+	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
+	{name: "panicnil", atomic: &debug.panicnil},
 }
 
 func parsedebugvars() {
 	// defaults
 	debug.cgocheck = 1
 	debug.invalidptr = 1
+	debug.adaptivestackstart = 1 // set this to 0 to turn larger initial goroutine stacks off
 	if GOOS == "linux" {
 		// On Linux, MADV_FREE is faster than MADV_DONTNEED,
 		// but doesn't affect many of the statistics that
@@ -364,24 +381,101 @@ func parsedebugvars() {
 		debug.madvdontneed = 1
 	}
 
-	for p := gogetenv("GODEBUG"); p != ""; {
-		field := ""
-		i := bytealg.IndexByteString(p, ',')
-		if i < 0 {
-			field, p = p, ""
-		} else {
-			field, p = p[:i], p[i+1:]
+	godebug := gogetenv("GODEBUG")
+
+	p := new(string)
+	*p = godebug
+	godebugEnv.Store(p)
+
+	// apply runtime defaults, if any
+	for _, v := range dbgvars {
+		if v.def != 0 {
+			// Every var should have either v.value or v.atomic set.
+			if v.value != nil {
+				*v.value = v.def
+			} else if v.atomic != nil {
+				v.atomic.Store(v.def)
+			}
 		}
-		i = bytealg.IndexByteString(field, '=')
+	}
+
+	// apply compile-time GODEBUG settings
+	parsegodebug(godebugDefault, nil)
+
+	// apply environment settings
+	parsegodebug(godebug, nil)
+
+	debug.malloc = (debug.allocfreetrace | debug.inittrace | debug.sbrk) != 0
+
+	setTraceback(gogetenv("GOTRACEBACK"))
+	traceback_env = traceback_cache
+}
+
+// reparsedebugvars reparses the runtime's debug variables
+// because the environment variable has been changed to env.
+func reparsedebugvars(env string) {
+	seen := make(map[string]bool)
+	// apply environment settings
+	parsegodebug(env, seen)
+	// apply compile-time GODEBUG settings for as-yet-unseen variables
+	parsegodebug(godebugDefault, seen)
+	// apply defaults for as-yet-unseen variables
+	for _, v := range dbgvars {
+		if v.atomic != nil && !seen[v.name] {
+			v.atomic.Store(0)
+		}
+	}
+}
+
+// parsegodebug parses the godebug string, updating variables listed in dbgvars.
+// If seen == nil, this is startup time and we process the string left to right
+// overwriting older settings with newer ones.
+// If seen != nil, $GODEBUG has changed and we are doing an
+// incremental update. To avoid flapping in the case where a value is
+// set multiple times (perhaps in the default and the environment,
+// or perhaps twice in the environment), we process the string right-to-left
+// and only change values not already seen. After doing this for both
+// the environment and the default settings, the caller must also call
+// cleargodebug(seen) to reset any now-unset values back to their defaults.
+func parsegodebug(godebug string, seen map[string]bool) {
+	for p := godebug; p != ""; {
+		var field string
+		if seen == nil {
+			// startup: process left to right, overwriting older settings with newer
+			i := bytealg.IndexByteString(p, ',')
+			if i < 0 {
+				field, p = p, ""
+			} else {
+				field, p = p[:i], p[i+1:]
+			}
+		} else {
+			// incremental update: process right to left, updating and skipping seen
+			i := len(p) - 1
+			for i >= 0 && p[i] != ',' {
+				i--
+			}
+			if i < 0 {
+				p, field = "", p
+			} else {
+				p, field = p[:i], p[i+1:]
+			}
+		}
+		i := bytealg.IndexByteString(field, '=')
 		if i < 0 {
 			continue
 		}
 		key, value := field[:i], field[i+1:]
+		if seen[key] {
+			continue
+		}
+		if seen != nil {
+			seen[key] = true
+		}
 
 		// Update MemProfileRate directly here since it
 		// is int, not int32, and should only be updated
 		// if specified in GODEBUG.
-		if key == "memprofilerate" {
+		if seen == nil && key == "memprofilerate" {
 			if n, ok := atoi(value); ok {
 				MemProfileRate = n
 			}
@@ -389,17 +483,20 @@ func parsedebugvars() {
 			for _, v := range dbgvars {
 				if v.name == key {
 					if n, ok := atoi32(value); ok {
-						*v.value = n
+						if seen == nil && v.value != nil {
+							*v.value = n
+						} else if v.atomic != nil {
+							v.atomic.Store(n)
+						}
 					}
 				}
 			}
 		}
 	}
 
-	debug.malloc = (debug.allocfreetrace | debug.inittrace | debug.sbrk) != 0
-
-	setTraceback(gogetenv("GOTRACEBACK"))
-	traceback_env = traceback_cache
+	if debug.cgocheck > 1 {
+		throw("cgocheck > 1 mode is no longer supported at runtime. Use GOEXPERIMENT=cgocheck2 at build time instead.")
+	}
 }
 
 //go:linkname setTraceback runtime/debug.SetTraceback
@@ -416,6 +513,13 @@ func setTraceback(level string) {
 		t = 2<<tracebackShift | tracebackAll
 	case "crash":
 		t = 2<<tracebackShift | tracebackAll | tracebackCrash
+	case "wer":
+		if GOOS == "windows" {
+			t = 2<<tracebackShift | tracebackAll | tracebackCrash
+			enableWER()
+			break
+		}
+		fallthrough
 	default:
 		t = tracebackAll
 		if n, ok := atoi(level); ok && n == int(uint32(n)) {
@@ -438,6 +542,7 @@ func setTraceback(level string) {
 // int64 division is lowered into _divv() call on 386, which does not fit into nosplit functions.
 // Handles overflow in a time-specific manner.
 // This keeps us within no-split stack limits on 32-bit processors.
+//
 //go:nosplit
 func timediv(v int64, div int32, rem *int32) int32 {
 	res := int32(0)
@@ -465,18 +570,18 @@ func timediv(v int64, div int32, rem *int32) int32 {
 
 //go:nosplit
 func acquirem() *m {
-	_g_ := getg()
-	_g_.m.locks++
-	return _g_.m
+	gp := getg()
+	gp.m.locks++
+	return gp.m
 }
 
 //go:nosplit
 func releasem(mp *m) {
-	_g_ := getg()
+	gp := getg()
 	mp.locks--
-	if mp.locks == 0 && _g_.preempt {
+	if mp.locks == 0 && gp.preempt {
 		// restore the preemption request in case we've cleared it in newstack
-		_g_.stackguard0 = stackPreempt
+		gp.stackguard0 = stackPreempt
 	}
 }
 
@@ -493,37 +598,43 @@ func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 }
 
 // reflect_resolveNameOff resolves a name offset from a base pointer.
+//
 //go:linkname reflect_resolveNameOff reflect.resolveNameOff
 func reflect_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
-	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).bytes)
+	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).Bytes)
 }
 
 // reflect_resolveTypeOff resolves an *rtype offset from a base type.
+//
 //go:linkname reflect_resolveTypeOff reflect.resolveTypeOff
 func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
-	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
+	return unsafe.Pointer(toRType((*_type)(rtype)).typeOff(typeOff(off)))
 }
 
 // reflect_resolveTextOff resolves a function pointer offset from a base type.
+//
 //go:linkname reflect_resolveTextOff reflect.resolveTextOff
 func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
-	return (*_type)(rtype).textOff(textOff(off))
+	return toRType((*_type)(rtype)).textOff(textOff(off))
 
 }
 
 // reflectlite_resolveNameOff resolves a name offset from a base pointer.
+//
 //go:linkname reflectlite_resolveNameOff internal/reflectlite.resolveNameOff
 func reflectlite_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
-	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).bytes)
+	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).Bytes)
 }
 
 // reflectlite_resolveTypeOff resolves an *rtype offset from a base type.
+//
 //go:linkname reflectlite_resolveTypeOff internal/reflectlite.resolveTypeOff
 func reflectlite_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
-	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
+	return unsafe.Pointer(toRType((*_type)(rtype)).typeOff(typeOff(off)))
 }
 
 // reflect_addReflectOff adds a pointer to the reflection offset lookup map.
+//
 //go:linkname reflect_addReflectOff reflect.addReflectOff
 func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
 	reflectOffsLock()

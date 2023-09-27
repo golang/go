@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+//go:build unix
 
 package net
 
@@ -74,7 +74,7 @@ func fileConn(f *os.File) (Conn, error) {
 	}
 	switch fd.laddr.(type) {
 	case *TCPAddr:
-		return newTCPConn(fd), nil
+		return newTCPConn(fd, defaultTCPKeepAlive, testHookSetKeepAlive), nil
 	case *UDPAddr:
 		return newUDPConn(fd), nil
 	case *IPAddr:

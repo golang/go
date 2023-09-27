@@ -1,0 +1,113 @@
+# Test using -json flag to specify specific fields.
+
+# Test -json produces "full" output by looking for multiple fields present.
+go list -json .
+stdout '"Name": "a"'
+stdout '"Stale": true'
+# Same thing for -json=true
+go list -json=true .
+stdout '"Name": "a"'
+stdout '"Stale": true'
+
+# Test -json=false produces non-json output.
+go list -json=false
+cmp stdout want-non-json.txt
+
+# Test -json=<field> keeps only that field.
+go list -json=Name
+cmp stdout want-json-name.txt
+
+# Test -json=<field> with multiple fields.
+go list -json=ImportPath,Name,GoFiles,Imports
+cmp stdout want-json-multiple.txt
+
+# Test -json=<field> with Deps outputs the Deps field.
+go list -json=Deps
+stdout '"Deps": \['
+stdout '"errors",'
+
+# Test -json=<field> with *EmbedPatterns outputs embed patterns.
+cd embed
+go list -json=EmbedPatterns,TestEmbedPatterns,XTestEmbedPatterns
+stdout '"EmbedPatterns": \['
+stdout '"TestEmbedPatterns": \['
+stdout '"XTestEmbedPatterns": \['
+# Test -json=<field> with *EmbedFiles fails due to broken file reference.
+! go list -json=EmbedFiles
+stderr 'no matching files found'
+! go list -json=TestEmbedFiles
+stderr 'no matching files found'
+! go list -json=XTestEmbedFiles
+stderr 'no matching files found'
+cd ..
+
+[!git] skip
+
+# Test -json=<field> without Stale skips computing buildinfo
+cd repo
+exec git init
+# Control case: with -json=Stale cmd/go executes git status to compute buildinfo
+go list -json=Stale -x
+stderr 'git status'
+# Test case: without -json=Stale cmd/go skips git status
+go list -json=Name -x
+! stderr 'git status'
+
+-- go.mod --
+module example.com/a
+
+go 1.18
+-- a.go --
+package a
+
+import "fmt"
+
+func F() {
+    fmt.Println("hey there")
+}
+-- want-non-json.txt --
+example.com/a
+-- want-json-name.txt --
+{
+	"Name": "a"
+}
+-- want-json-multiple.txt --
+{
+	"ImportPath": "example.com/a",
+	"Name": "a",
+	"GoFiles": [
+		"a.go"
+	],
+	"Imports": [
+		"fmt"
+	]
+}
+-- repo/go.mod --
+module example.com/repo
+-- repo/main.go --
+package main
+
+func main() {}
+-- embed/go.mod --
+module example.com/embed
+-- embed/embed.go --
+package embed
+
+import _ "embed"
+
+//go:embed non-existing-file.txt
+var s string
+-- embed/embed_test.go --
+package embed
+
+import _ "embed"
+
+//go:embed non-existing-file.txt
+var s string
+-- embed/embed_xtest_test.go --
+package embed_test
+
+import _ "embed"
+
+//go:embed non-existing-file.txt
+var s string

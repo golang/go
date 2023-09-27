@@ -1,4 +1,6 @@
-//go:build windows
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
 package runtime_test
 
@@ -10,20 +12,81 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 	"testing"
 )
 
+func TestVectoredHandlerExceptionInNonGoThread(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+	if strings.HasPrefix(testenv.Builder(), "windows-amd64-2012") {
+		testenv.SkipFlaky(t, 49681)
+	}
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveExecPath(t, "gcc")
+	testprog.Lock()
+	defer testprog.Unlock()
+	dir := t.TempDir()
+
+	// build c program
+	dll := filepath.Join(dir, "veh.dll")
+	cmd := exec.Command("gcc", "-shared", "-o", dll, "testdata/testwinlibthrow/veh.c")
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build c exe: %s\n%s", err, out)
+	}
+
+	// build go exe
+	exe := filepath.Join(dir, "test.exe")
+	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "testdata/testwinlibthrow/main.go")
+	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build go library: %s\n%s", err, out)
+	}
+
+	// run test program in same thread
+	cmd = exec.Command(exe)
+	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err == nil {
+		t.Fatal("error expected")
+	}
+	if _, ok := err.(*exec.ExitError); ok && len(out) > 0 {
+		if !bytes.Contains(out, []byte("Exception 0x2a")) {
+			t.Fatalf("unexpected failure while running executable: %s\n%s", err, out)
+		}
+	} else {
+		t.Fatalf("unexpected error while running executable: %s\n%s", err, out)
+	}
+	// run test program in a new thread
+	cmd = exec.Command(exe, "thread")
+	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err == nil {
+		t.Fatal("error expected")
+	}
+	if err, ok := err.(*exec.ExitError); ok {
+		if err.ExitCode() != 42 {
+			t.Fatalf("unexpected failure while running executable: %s\n%s", err, out)
+		}
+	} else {
+		t.Fatalf("unexpected error while running executable: %s\n%s", err, out)
+	}
+}
+
 func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
 	if *flagQuick {
 		t.Skip("-quick")
 	}
-	if runtime.GOARCH != "amd64" {
-		t.Skip("this test can only run on windows/amd64")
+	if runtime.GOARCH == "arm" {
+		//TODO: remove this skip and update testwinlib/main.c
+		// once windows/arm supports c-shared buildmode.
+		// See go.dev/issues/43800.
+		t.Skip("this test can't run on windows/arm")
 	}
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
 	testenv.MustHaveExecPath(t, "gcc")
 	testprog.Lock()
 	defer testprog.Unlock()
@@ -91,13 +154,16 @@ func TestCtrlHandler(t *testing.T) {
 
 	// run test program
 	cmd = exec.Command(exe)
-	var stderr bytes.Buffer
+	var stdout strings.Builder
+	var stderr strings.Builder
+	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	outPipe, err := cmd.StdoutPipe()
+	inPipe, err := cmd.StdinPipe()
 	if err != nil {
-		t.Fatalf("Failed to create stdout pipe: %v", err)
+		t.Fatalf("Failed to create stdin pipe: %v", err)
 	}
-	outReader := bufio.NewReader(outPipe)
+	// keep inPipe alive until the end of the test
+	defer inPipe.Close()
 
 	// in a new command window
 	const _CREATE_NEW_CONSOLE = 0x00000010
@@ -113,28 +179,14 @@ func TestCtrlHandler(t *testing.T) {
 		cmd.Wait()
 	}()
 
-	// wait for child to be ready to receive signals
-	if line, err := outReader.ReadString('\n'); err != nil {
-		t.Fatalf("could not read stdout: %v", err)
-	} else if strings.TrimSpace(line) != "ready" {
-		t.Fatalf("unexpected message: %s", line)
-	}
-
-	// gracefully kill pid, this closes the command window
-	if err := exec.Command("taskkill.exe", "/pid", strconv.Itoa(cmd.Process.Pid)).Run(); err != nil {
-		t.Fatalf("failed to kill: %v", err)
-	}
-
-	// check child received, handled SIGTERM
-	if line, err := outReader.ReadString('\n'); err != nil {
-		t.Fatalf("could not read stdout: %v", err)
-	} else if expected, got := syscall.SIGTERM.String(), strings.TrimSpace(line); expected != got {
-		t.Fatalf("Expected '%s' got: %s", expected, got)
-	}
-
 	// check child exited gracefully, did not timeout
 	if err := cmd.Wait(); err != nil {
 		t.Fatalf("Program exited with error: %v\n%s", err, &stderr)
+	}
+
+	// check child received, handled SIGTERM
+	if expected, got := syscall.SIGTERM.String(), strings.TrimSpace(stdout.String()); expected != got {
+		t.Fatalf("Expected '%s' got: %s", expected, got)
 	}
 }
 
@@ -148,6 +200,7 @@ func TestLibraryCtrlHandler(t *testing.T) {
 		t.Skip("this test can only run on windows/amd64")
 	}
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
 	testenv.MustHaveExecPath(t, "gcc")
 	testprog.Lock()
 	defer testprog.Unlock()
@@ -202,5 +255,61 @@ func TestLibraryCtrlHandler(t *testing.T) {
 	}
 	if err := cmd.Wait(); err != nil {
 		t.Fatalf("Program exited with error: %v\n%s", err, &stderr)
+	}
+}
+
+func TestIssue59213(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("skipping windows only test")
+	}
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	goEnv := func(arg string) string {
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "env", arg)
+		cmd.Stderr = new(bytes.Buffer)
+
+		line, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("%v: %v\n%s", cmd, err, cmd.Stderr)
+		}
+		out := string(bytes.TrimSpace(line))
+		t.Logf("%v: %q", cmd, out)
+		return out
+	}
+
+	cc := goEnv("CC")
+	cgoCflags := goEnv("CGO_CFLAGS")
+
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	dllfile := filepath.Join(tmpdir, "test.dll")
+	exefile := filepath.Join(tmpdir, "gotest.exe")
+
+	// build go dll
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", dllfile, "-buildmode", "c-shared", "testdata/testwintls/main.go")
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build go library: %s\n%s", err, out)
+	}
+
+	// build c program
+	cmd = testenv.Command(t, cc, "-o", exefile, "testdata/testwintls/main.c")
+	testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "CGO_CFLAGS="+cgoCflags)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build c exe: %s\n%s", err, out)
+	}
+
+	// run test program
+	cmd = testenv.Command(t, exefile, dllfile, "GoFunc")
+	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed: %s\n%s", err, out)
 	}
 }

@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -40,21 +41,19 @@ import (
 // When following redirects, the Client will forward all headers set on the
 // initial Request except:
 //
-// • when forwarding sensitive headers like "Authorization",
-// "WWW-Authenticate", and "Cookie" to untrusted targets.
-// These headers will be ignored when following a redirect to a domain
-// that is not a subdomain match or exact match of the initial domain.
-// For example, a redirect from "foo.com" to either "foo.com" or "sub.foo.com"
-// will forward the sensitive headers, but a redirect to "bar.com" will not.
-//
-// • when forwarding the "Cookie" header with a non-nil cookie Jar.
-// Since each redirect may mutate the state of the cookie jar,
-// a redirect may possibly alter a cookie set in the initial request.
-// When forwarding the "Cookie" header, any mutated cookies will be omitted,
-// with the expectation that the Jar will insert those mutated cookies
-// with the updated values (assuming the origin matches).
-// If Jar is nil, the initial cookies are forwarded without change.
-//
+//   - when forwarding sensitive headers like "Authorization",
+//     "WWW-Authenticate", and "Cookie" to untrusted targets.
+//     These headers will be ignored when following a redirect to a domain
+//     that is not a subdomain match or exact match of the initial domain.
+//     For example, a redirect from "foo.com" to either "foo.com" or "sub.foo.com"
+//     will forward the sensitive headers, but a redirect to "bar.com" will not.
+//   - when forwarding the "Cookie" header with a non-nil cookie Jar.
+//     Since each redirect may mutate the state of the cookie jar,
+//     a redirect may possibly alter a cookie set in the initial request.
+//     When forwarding the "Cookie" header, any mutated cookies will be omitted,
+//     with the expectation that the Jar will insert those mutated cookies
+//     with the updated values (assuming the origin matches).
+//     If Jar is nil, the initial cookies are forwarded without change.
 type Client struct {
 	// Transport specifies the mechanism by which individual
 	// HTTP requests are made.
@@ -144,7 +143,8 @@ type RoundTripper interface {
 
 // refererForURL returns a referer without any authentication info or
 // an empty string if lastReq scheme is https and newReq scheme is http.
-func refererForURL(lastReq, newReq *url.URL) string {
+// If the referer was explicitly set, then it will continue to be used.
+func refererForURL(lastReq, newReq *url.URL, explicitRef string) string {
 	// https://tools.ietf.org/html/rfc7231#section-5.5.2
 	//   "Clients SHOULD NOT include a Referer header field in a
 	//    (non-secure) HTTP request if the referring page was
@@ -152,6 +152,10 @@ func refererForURL(lastReq, newReq *url.URL) string {
 	if lastReq.Scheme == "https" && newReq.Scheme == "http" {
 		return ""
 	}
+	if explicitRef != "" {
+		return explicitRef
+	}
+
 	referer := lastReq.String()
 	if lastReq.User != nil {
 		// This is not very efficient, but is the best we can
@@ -198,6 +202,9 @@ func (c *Client) transport() RoundTripper {
 	}
 	return DefaultTransport
 }
+
+// ErrSchemeMismatch is returned when a server returns an HTTP response to an HTTPS client.
+var ErrSchemeMismatch = errors.New("http: server gave HTTP response to HTTPS client")
 
 // send issues an HTTP request.
 // Caller should close resp.Body when done reading from it.
@@ -260,7 +267,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 			// response looks like HTTP and give a more helpful error.
 			// See golang.org/issue/11111.
 			if string(tlsErr.RecordHeader[:]) == "HTTP/" {
-				err = errors.New("http: server gave HTTP response to HTTPS client")
+				err = ErrSchemeMismatch
 			}
 		}
 		return nil, didTimeout, err
@@ -362,7 +369,7 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 	initialReqCancel := req.Cancel // the user's original Request.Cancel, if any
 
 	var cancelCtx func()
-	if oldCtx := req.Context(); timeBeforeContextDeadline(deadline, oldCtx) {
+	if timeBeforeContextDeadline(deadline, oldCtx) {
 		req.ctx, cancelCtx = context.WithDeadline(oldCtx, deadline)
 	}
 
@@ -392,7 +399,7 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 	}
 
 	timer := time.NewTimer(time.Until(deadline))
-	var timedOut atomicBool
+	var timedOut atomic.Bool
 
 	go func() {
 		select {
@@ -400,14 +407,14 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 			doCancel()
 			timer.Stop()
 		case <-timer.C:
-			timedOut.setTrue()
+			timedOut.Store(true)
 			doCancel()
 		case <-stopTimerCh:
 			timer.Stop()
 		}
 	}()
 
-	return stopTimer, timedOut.isSet
+	return stopTimer, timedOut.Load
 }
 
 // See 2 (end of page 4) https://www.ietf.org/rfc/rfc2617.txt
@@ -424,11 +431,11 @@ func basicAuth(username, password string) string {
 // the following redirect codes, Get follows the redirect, up to a
 // maximum of 10 redirects:
 //
-//    301 (Moved Permanently)
-//    302 (Found)
-//    303 (See Other)
-//    307 (Temporary Redirect)
-//    308 (Permanent Redirect)
+//	301 (Moved Permanently)
+//	302 (Found)
+//	303 (See Other)
+//	307 (Temporary Redirect)
+//	308 (Permanent Redirect)
 //
 // An error is returned if there were too many redirects or if there
 // was an HTTP protocol error. A non-2xx response doesn't cause an
@@ -453,11 +460,11 @@ func Get(url string) (resp *Response, err error) {
 // following redirect codes, Get follows the redirect after calling the
 // Client's CheckRedirect function:
 //
-//    301 (Moved Permanently)
-//    302 (Found)
-//    303 (See Other)
-//    307 (Temporary Redirect)
-//    308 (Permanent Redirect)
+//	301 (Moved Permanently)
+//	302 (Found)
+//	303 (See Other)
+//	307 (Temporary Redirect)
+//	308 (Permanent Redirect)
 //
 // An error is returned if the Client's CheckRedirect function fails
 // or if there was an HTTP protocol error. A non-2xx response doesn't
@@ -499,7 +506,7 @@ func (c *Client) checkRedirect(req *Request, via []*Request) error {
 }
 
 // redirectBehavior describes what should happen when the
-// client encounters a 3xx status code from the server
+// client encounters a 3xx status code from the server.
 func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirectMethod string, shouldRedirect, includeBody bool) {
 	switch resp.StatusCode {
 	case 301, 302, 303:
@@ -519,17 +526,6 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
 		shouldRedirect = true
 		includeBody = true
 
-		// Treat 307 and 308 specially, since they're new in
-		// Go 1.8, and they also require re-sending the request body.
-		if resp.Header.Get("Location") == "" {
-			// 308s have been observed in the wild being served
-			// without Location headers. Since Go 1.7 and earlier
-			// didn't follow these codes, just stop here instead
-			// of returning an error.
-			// See Issue 17773.
-			shouldRedirect = false
-			break
-		}
 		if ireq.GetBody == nil && ireq.outgoingLength() != 0 {
 			// We had a request body, and 307/308 require
 			// re-sending it, but GetBody is not defined. So just
@@ -569,7 +565,8 @@ func urlErrorOp(method string) string {
 // connection to the server for a subsequent "keep-alive" request.
 //
 // The request Body, if non-nil, will be closed by the underlying
-// Transport, even on errors.
+// Transport, even on errors. The Body may be closed asynchronously after
+// Do returns.
 //
 // On error, any Response can be ignored. A non-nil Response with a
 // non-nil error only occurs when CheckRedirect fails, and even then
@@ -641,8 +638,10 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 		if len(reqs) > 0 {
 			loc := resp.Header.Get("Location")
 			if loc == "" {
-				resp.closeBody()
-				return nil, uerr(fmt.Errorf("%d response missing Location header", resp.StatusCode))
+				// While most 3xx responses include a Location, it is not
+				// required and 3xx responses without a Location have been
+				// observed in the wild. See issues #17773 and #49281.
+				return resp, nil
 			}
 			u, err := req.URL.Parse(loc)
 			if err != nil {
@@ -685,7 +684,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 
 			// Add the Referer header from the most recent
 			// request URL to the new one, if it's not https->http:
-			if ref := refererForURL(reqs[len(reqs)-1].URL, req.URL); ref != "" {
+			if ref := refererForURL(reqs[len(reqs)-1].URL, req.URL, req.Header.Get("Referer")); ref != "" {
 				req.Header.Set("Referer", ref)
 			}
 			err = c.checkRedirect(req, reqs)
@@ -900,13 +899,13 @@ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err erro
 // the following redirect codes, Head follows the redirect, up to a
 // maximum of 10 redirects:
 //
-//    301 (Moved Permanently)
-//    302 (Found)
-//    303 (See Other)
-//    307 (Temporary Redirect)
-//    308 (Permanent Redirect)
+//	301 (Moved Permanently)
+//	302 (Found)
+//	303 (See Other)
+//	307 (Temporary Redirect)
+//	308 (Permanent Redirect)
 //
-// Head is a wrapper around DefaultClient.Head
+// Head is a wrapper around DefaultClient.Head.
 //
 // To make a request with a specified context.Context, use NewRequestWithContext
 // and DefaultClient.Do.
@@ -918,11 +917,11 @@ func Head(url string) (resp *Response, err error) {
 // following redirect codes, Head follows the redirect after calling the
 // Client's CheckRedirect function:
 //
-//    301 (Moved Permanently)
-//    302 (Found)
-//    303 (See Other)
-//    307 (Temporary Redirect)
-//    308 (Permanent Redirect)
+//	301 (Moved Permanently)
+//	302 (Found)
+//	303 (See Other)
+//	307 (Temporary Redirect)
+//	308 (Permanent Redirect)
 //
 // To make a request with a specified context.Context, use NewRequestWithContext
 // and Client.Do.
@@ -951,9 +950,9 @@ func (c *Client) CloseIdleConnections() {
 }
 
 // cancelTimerBody is an io.ReadCloser that wraps rc with two features:
-// 1) On Read error or close, the stop func is called.
-// 2) On Read failure, if reqDidTimeout is true, the error is wrapped and
-//    marked as net.Error that hit its timeout.
+//  1. On Read error or close, the stop func is called.
+//  2. On Read failure, if reqDidTimeout is true, the error is wrapped and
+//     marked as net.Error that hit its timeout.
 type cancelTimerBody struct {
 	stop          func() // stops the time.Timer waiting to cancel the request
 	rc            io.ReadCloser
@@ -999,8 +998,8 @@ func shouldCopyHeaderOnRedirect(headerKey string, initial, dest *url.URL) bool {
 		// directly, we don't know their scope, so we assume
 		// it's for *.domain.com.
 
-		ihost := canonicalAddr(initial)
-		dhost := canonicalAddr(dest)
+		ihost := idnaASCIIFromURL(initial)
+		dhost := idnaASCIIFromURL(dest)
 		return isDomainOrSubdomain(dhost, ihost)
 	}
 	// All other headers are copied:

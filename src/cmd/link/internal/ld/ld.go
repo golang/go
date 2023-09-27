@@ -32,22 +32,22 @@
 package ld
 
 import (
-	"cmd/internal/goobj"
-	"cmd/link/internal/loader"
-	"cmd/link/internal/sym"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"cmd/internal/goobj"
+	"cmd/link/internal/loader"
+	"cmd/link/internal/sym"
 )
 
 func (ctxt *Link) readImportCfg(file string) {
 	ctxt.PackageFile = make(map[string]string)
 	ctxt.PackageShlib = make(map[string]string)
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		log.Fatalf("-importcfg: %v", err)
 	}
@@ -62,15 +62,13 @@ func (ctxt *Link) readImportCfg(file string) {
 			continue
 		}
 
-		var verb, args string
-		if i := strings.Index(line, " "); i < 0 {
-			verb = line
-		} else {
-			verb, args = line[:i], strings.TrimSpace(line[i+1:])
+		verb, args, found := strings.Cut(line, " ")
+		if found {
+			args = strings.TrimSpace(args)
 		}
-		var before, after string
-		if i := strings.Index(args, "="); i >= 0 {
-			before, after = args[:i], args[i+1:]
+		before, after, exist := strings.Cut(args, "=")
+		if !exist {
+			before = ""
 		}
 		switch verb {
 		default:
@@ -96,19 +94,7 @@ func (ctxt *Link) readImportCfg(file string) {
 }
 
 func pkgname(ctxt *Link, lib string) string {
-	name := path.Clean(lib)
-
-	// When using importcfg, we have the final package name.
-	if ctxt.PackageFile != nil {
-		return name
-	}
-
-	// runtime.a -> runtime, runtime.6 -> runtime
-	pkg := name
-	if len(pkg) >= 2 && pkg[len(pkg)-2] == '.' {
-		pkg = pkg[:len(pkg)-2]
-	}
-	return pkg
+	return path.Clean(lib)
 }
 
 func findlib(ctxt *Link, lib string) (string, bool) {
@@ -127,33 +113,24 @@ func findlib(ctxt *Link, lib string) (string, bool) {
 			return "", false
 		}
 	} else {
-		if filepath.IsAbs(name) {
-			pname = name
-		} else {
-			pkg := pkgname(ctxt, lib)
-			// Add .a if needed; the new -importcfg modes
-			// do not put .a into the package name anymore.
-			// This only matters when people try to mix
-			// compiles using -importcfg with links not using -importcfg,
-			// such as when running quick things like
-			// 'go tool compile x.go && go tool link x.o'
-			// by hand against a standard library built using -importcfg.
-			if !strings.HasSuffix(name, ".a") && !strings.HasSuffix(name, ".o") {
-				name += ".a"
-			}
-			// try dot, -L "libdir", and then goroot.
-			for _, dir := range ctxt.Libdir {
-				if ctxt.linkShared {
-					pname = filepath.Join(dir, pkg+".shlibname")
-					if _, err := os.Stat(pname); err == nil {
-						isshlib = true
-						break
-					}
-				}
-				pname = filepath.Join(dir, name)
+		pkg := pkgname(ctxt, lib)
+
+		// search -L "libdir" directories
+		for _, dir := range ctxt.Libdir {
+			if ctxt.linkShared {
+				pname = filepath.Join(dir, pkg+".shlibname")
 				if _, err := os.Stat(pname); err == nil {
+					isshlib = true
 					break
 				}
+			}
+			pname = filepath.Join(dir, name+".a")
+			if _, err := os.Stat(pname); err == nil {
+				break
+			}
+			pname = filepath.Join(dir, name+".o")
+			if _, err := os.Stat(pname); err == nil {
+				break
 			}
 		}
 		pname = filepath.Clean(pname)
@@ -217,7 +194,7 @@ func addlibpath(ctxt *Link, srcref, objref, file, pkg, shlib string, fingerprint
 	l.Fingerprint = fingerprint
 	if shlib != "" {
 		if strings.HasSuffix(shlib, ".shlibname") {
-			data, err := ioutil.ReadFile(shlib)
+			data, err := os.ReadFile(shlib)
 			if err != nil {
 				Errorf(nil, "cannot read %s: %v", shlib, err)
 			}
@@ -253,7 +230,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
 
 	// Create a new init func text symbol. Caller will populate this
 	// sym with arch-specific content.
-	ifs := ctxt.loader.LookupOrCreateSym("go.link.addmoduledata", 0)
+	ifs := ctxt.loader.LookupOrCreateSym("go:link.addmoduledata", 0)
 	initfunc := ctxt.loader.MakeSymbolUpdater(ifs)
 	ctxt.loader.SetAttrReachable(ifs, true)
 	ctxt.loader.SetAttrLocal(ifs, true)
@@ -266,7 +243,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
 	ctxt.Textp = append(ctxt.Textp, initfunc.Sym())
 
 	// Create an init array entry
-	amdi := ctxt.loader.LookupOrCreateSym("go.link.addmoduledatainit", 0)
+	amdi := ctxt.loader.LookupOrCreateSym("go:link.addmoduledatainit", 0)
 	initarray_entry := ctxt.loader.MakeSymbolUpdater(amdi)
 	ctxt.loader.SetAttrReachable(amdi, true)
 	ctxt.loader.SetAttrLocal(amdi, true)

@@ -1,0 +1,57 @@
+go work sync
+
+go list -f '{{.Dir}}' example.com/test
+stdout '^'$PWD${/}test'$'
+
+-- go.work --
+go 1.18
+
+use (
+	./test2
+	./test2/sub
+)
+-- test/go.mod --
+module example.com/test
+
+go 1.18
+-- test/file.go --
+package test
+
+func DoSomething() {
+}
+-- test2/go.mod --
+module example.com/test2
+
+go 1.18
+
+replace example.com/test => ../test
+
+require example.com/test v0.0.0-00010101000000-000000000000
+-- test2/file.go --
+package test2
+
+import (
+	"example.com/test"
+)
+
+func DoSomething() {
+	test.DoSomething()
+}
+-- test2/sub/go.mod --
+module example.com/test2/sub
+
+go 1.18
+
+replace example.com/test => ../../test
+
+require example.com/test v0.0.0
+-- test2/sub/file.go --
+package test2
+
+import (
+	"example.com/test"
+)
+
+func DoSomething() {
+	test.DoSomething()
+}

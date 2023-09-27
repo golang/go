@@ -11,34 +11,34 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/lazyregexp"
 	"io"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 )
 
 var (
-	countStartRE = regexp.MustCompile(`\A(\w+) profile: total \d+\n\z`)
-	countRE      = regexp.MustCompile(`\A(\d+) @(( 0x[0-9a-f]+)+)\n\z`)
+	countStartRE = lazyregexp.New(`\A(\w+) profile: total \d+\n\z`)
+	countRE      = lazyregexp.New(`\A(\d+) @(( 0x[0-9a-f]+)+)\n\z`)
 
-	heapHeaderRE = regexp.MustCompile(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] *@ *(heap[_a-z0-9]*)/?(\d*)`)
-	heapSampleRE = regexp.MustCompile(`(-?\d+): *(-?\d+) *\[ *(\d+): *(\d+) *] @([ x0-9a-f]*)`)
+	heapHeaderRE = lazyregexp.New(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] *@ *(heap[_a-z0-9]*)/?(\d*)`)
+	heapSampleRE = lazyregexp.New(`(-?\d+): *(-?\d+) *\[ *(\d+): *(\d+) *] @([ x0-9a-f]*)`)
 
-	contentionSampleRE = regexp.MustCompile(`(\d+) *(\d+) @([ x0-9a-f]*)`)
+	contentionSampleRE = lazyregexp.New(`(\d+) *(\d+) @([ x0-9a-f]*)`)
 
-	hexNumberRE = regexp.MustCompile(`0x[0-9a-f]+`)
+	hexNumberRE = lazyregexp.New(`0x[0-9a-f]+`)
 
-	growthHeaderRE = regexp.MustCompile(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] @ growthz`)
+	growthHeaderRE = lazyregexp.New(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] @ growthz`)
 
-	fragmentationHeaderRE = regexp.MustCompile(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] @ fragmentationz`)
+	fragmentationHeaderRE = lazyregexp.New(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] @ fragmentationz`)
 
-	threadzStartRE = regexp.MustCompile(`--- threadz \d+ ---`)
-	threadStartRE  = regexp.MustCompile(`--- Thread ([[:xdigit:]]+) \(name: (.*)/(\d+)\) stack: ---`)
+	threadzStartRE = lazyregexp.New(`--- threadz \d+ ---`)
+	threadStartRE  = lazyregexp.New(`--- Thread ([[:xdigit:]]+) \(name: (.*)/(\d+)\) stack: ---`)
 
-	procMapsRE = regexp.MustCompile(`([[:xdigit:]]+)-([[:xdigit:]]+)\s+([-rwxp]+)\s+([[:xdigit:]]+)\s+([[:xdigit:]]+):([[:xdigit:]]+)\s+([[:digit:]]+)\s*(\S+)?`)
+	procMapsRE = lazyregexp.New(`([[:xdigit:]]+)-([[:xdigit:]]+)\s+([-rwxp]+)\s+([[:xdigit:]]+)\s+([[:xdigit:]]+):([[:xdigit:]]+)\s+([[:digit:]]+)\s*(\S+)?`)
 
-	briefMapsRE = regexp.MustCompile(`\s*([[:xdigit:]]+)-([[:xdigit:]]+):\s*(\S+)(\s.*@)?([[:xdigit:]]+)?`)
+	briefMapsRE = lazyregexp.New(`\s*([[:xdigit:]]+)-([[:xdigit:]]+):\s*(\S+)(\s.*@)?([[:xdigit:]]+)?`)
 
 	// LegacyHeapAllocated instructs the heapz parsers to use the
 	// allocated memory stats instead of the default in-use memory. Note
@@ -192,14 +192,6 @@ func (p *Profile) remapMappingIDs() {
 		}
 	}
 
-	// Subtract the offset from the start of the main mapping if it
-	// ends up at a recognizable start address.
-	const expectedStart = 0x400000
-	if m := p.Mapping[0]; m.Start-m.Offset == expectedStart {
-		m.Start = expectedStart
-		m.Offset = 0
-	}
-
 	for _, l := range p.Location {
 		if a := l.Address; a != 0 {
 			for _, m := range p.Mapping {
@@ -335,11 +327,12 @@ func addTracebackSample(l []*Location, s []string, p *Profile) {
 //
 // The general format for profilez samples is a sequence of words in
 // binary format. The first words are a header with the following data:
-//   1st word -- 0
-//   2nd word -- 3
-//   3rd word -- 0 if a c++ application, 1 if a java application.
-//   4th word -- Sampling period (in microseconds).
-//   5th word -- Padding.
+//
+//	1st word -- 0
+//	2nd word -- 3
+//	3rd word -- 0 if a c++ application, 1 if a java application.
+//	4th word -- Sampling period (in microseconds).
+//	5th word -- Padding.
 func parseCPU(b []byte) (*Profile, error) {
 	var parse func([]byte) (uint64, []byte)
 	var n1, n2, n3, n4, n5 uint64
@@ -410,15 +403,18 @@ func cpuProfile(b []byte, period int64, parse func(b []byte) (uint64, []byte)) (
 //
 // profilez samples are a repeated sequence of stack frames of the
 // form:
-//    1st word -- The number of times this stack was encountered.
-//    2nd word -- The size of the stack (StackSize).
-//    3rd word -- The first address on the stack.
-//    ...
-//    StackSize + 2 -- The last address on the stack
+//
+//	1st word -- The number of times this stack was encountered.
+//	2nd word -- The size of the stack (StackSize).
+//	3rd word -- The first address on the stack.
+//	...
+//	StackSize + 2 -- The last address on the stack
+//
 // The last stack trace is of the form:
-//   1st word -- 0
-//   2nd word -- 1
-//   3rd word -- 0
+//
+//	1st word -- 0
+//	2nd word -- 1
+//	3rd word -- 0
 //
 // Addresses from stack traces may point to the next instruction after
 // each call. Optionally adjust by -1 to land somewhere on the actual
@@ -726,7 +722,7 @@ func parseCppContention(r *bytes.Buffer) (*Profile, error) {
 	var l string
 	var err error
 	// Parse text of the form "attribute = value" before the samples.
-	const delimiter = "="
+	const delimiter = '='
 	for {
 		l, err = r.ReadString('\n')
 		if err != nil {
@@ -750,10 +746,13 @@ func parseCppContention(r *bytes.Buffer) (*Profile, error) {
 			break
 		}
 
-		key, val, ok := strings.Cut(l, delimiter)
-		if !ok {
+		index := strings.IndexByte(l, delimiter)
+		if index < 0 {
 			break
 		}
+		key := l[:index]
+		val := l[index+1:]
+
 		key, val = strings.TrimSpace(key), strings.TrimSpace(val)
 		var err error
 		switch key {
@@ -1027,7 +1026,7 @@ func (p *Profile) ParseMemoryMap(rd io.Reader) error {
 
 	var attrs []string
 	var r *strings.Replacer
-	const delimiter = "="
+	const delimiter = '='
 	for {
 		l, err := b.ReadString('\n')
 		if err != nil {
@@ -1050,7 +1049,10 @@ func (p *Profile) ParseMemoryMap(rd io.Reader) error {
 			if err == errUnrecognized {
 				// Recognize assignments of the form: attr=value, and replace
 				// $attr with value on subsequent mappings.
-				if attr, value, ok := strings.Cut(l, delimiter); ok {
+				idx := strings.IndexByte(l, delimiter)
+				if idx >= 0 {
+					attr := l[:idx]
+					value := l[idx+1:]
 					attrs = append(attrs, "$"+strings.TrimSpace(attr), strings.TrimSpace(value))
 					r = strings.NewReplacer(attrs...)
 				}

@@ -13,9 +13,9 @@ package main
 
 func f(x int, y uint) {
 	if true {
-		return "a" > 10 // ERROR "^too many arguments to return$|return with value in function with no return|mismatched types"
+		return "a" > 10 // ERROR "^too many arguments to return$|return with value in function with no return|no result values expected|mismatched types"
 	}
-	return "gopher" == true, 10 // ERROR "^too many arguments to return$|return with value in function with no return|mismatched types"
+	return "gopher" == true, 10 // ERROR "^too many arguments to return$|return with value in function with no return|no result values expected|mismatched types"
 }
 
 func main() {

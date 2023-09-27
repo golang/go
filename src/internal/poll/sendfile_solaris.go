@@ -7,6 +7,7 @@ package poll
 import "syscall"
 
 // Not strictly needed, but very helpful for debugging, see issue #10221.
+//
 //go:cgo_import_dynamic _ _ "libsendfile.so"
 //go:cgo_import_dynamic _ _ "libsocket.so"
 

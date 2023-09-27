@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -138,7 +139,7 @@ ran outer cleanup
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			cmd := exec.Command(os.Args[0], "-test.run=TestPanicHelper")
+			cmd := exec.Command(os.Args[0], "-test.run=^TestPanicHelper$")
 			cmd.Args = append(cmd.Args, tc.flags...)
 			cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 			b, _ := cmd.CombinedOutput()
@@ -207,4 +208,60 @@ func TestPanicHelper(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMorePanic(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	testCases := []struct {
+		desc  string
+		flags []string
+		want  string
+	}{
+		{
+			desc:  "Issue 48502: call runtime.Goexit in t.Cleanup after panic",
+			flags: []string{"-test.run=^TestGoexitInCleanupAfterPanicHelper$"},
+			want: `panic: die
+	panic: test executed panic(nil) or runtime.Goexit`,
+		},
+		{
+			desc:  "Issue 48515: call t.Run in t.Cleanup should trigger panic",
+			flags: []string{"-test.run=^TestCallRunInCleanupHelper$"},
+			want:  `panic: testing: t.Run called during t.Cleanup`,
+		},
+	}
+
+	for _, tc := range testCases {
+		cmd := exec.Command(os.Args[0], tc.flags...)
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+		b, _ := cmd.CombinedOutput()
+		got := string(b)
+		want := tc.want
+		re := makeRegexp(want)
+		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+			t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, want)
+		}
+	}
+}
+
+func TestCallRunInCleanupHelper(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	t.Cleanup(func() {
+		t.Run("in-cleanup", func(t *testing.T) {
+			t.Log("must not be executed")
+		})
+	})
+}
+
+func TestGoexitInCleanupAfterPanicHelper(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	t.Cleanup(func() { runtime.Goexit() })
+	t.Parallel()
+	panic("die")
 }

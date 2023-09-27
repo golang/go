@@ -32,7 +32,6 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -128,10 +127,6 @@ func testSyntaxErrors(t *testing.T, filename string) {
 	}
 	defer f.Close()
 
-	var mode Mode
-	if strings.HasSuffix(filename, ".go2") {
-		mode = AllowGenerics
-	}
 	ParseFile(filename, func(err error) {
 		e, ok := err.(Error)
 		if !ok {
@@ -166,7 +161,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
 		} else {
 			t.Errorf("%s:%s: unexpected error: %s", filename, orig, e.Msg)
 		}
-	}, nil, mode)
+	}, nil, CheckBranches)
 
 	if *print {
 		fmt.Println()
@@ -182,7 +177,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
 func TestSyntaxErrors(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // we need access to source (testdata)
 
-	list, err := ioutil.ReadDir(testdata)
+	list, err := os.ReadDir(testdata)
 	if err != nil {
 		t.Fatal(err)
 	}

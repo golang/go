@@ -27,10 +27,10 @@ func TestSizeof(t *testing.T) {
 		{Tuple{}, 12, 24},
 		{Signature{}, 28, 56},
 		{Union{}, 12, 24},
-		{Interface{}, 44, 88},
+		{Interface{}, 40, 80},
 		{Map{}, 16, 32},
 		{Chan{}, 12, 24},
-		{Named{}, 68, 128},
+		{Named{}, 60, 112},
 		{TypeParam{}, 28, 48},
 		{term{}, 12, 24},
 
@@ -38,7 +38,7 @@ func TestSizeof(t *testing.T) {
 		{PkgName{}, 48, 88},
 		{Const{}, 48, 88},
 		{TypeName{}, 40, 72},
-		{Var{}, 44, 80},
+		{Var{}, 48, 88},
 		{Func{}, 48, 88},
 		{Label{}, 44, 80},
 		{Builtin{}, 44, 80},
@@ -46,7 +46,7 @@ func TestSizeof(t *testing.T) {
 
 		// Misc
 		{Scope{}, 44, 88},
-		{Package{}, 40, 80},
+		{Package{}, 44, 88},
 		{_TypeSet{}, 28, 56},
 	}
 	for _, test := range tests {

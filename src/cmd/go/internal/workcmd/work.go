@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package workcmd implements the ``go work'' command.
+// Package workcmd implements the “go work” command.
 package workcmd
 
 import (
@@ -12,13 +12,19 @@ import (
 var CmdWork = &base.Command{
 	UsageLine: "go work",
 	Short:     "workspace maintenance",
-	Long: `Go workspace provides access to operations on workspaces.
+	Long: `Work provides access to operations on workspaces.
 
 Note that support for workspaces is built into many other commands, not
 just 'go work'.
 
 See 'go help modules' for information about Go's module system of which
 workspaces are a part.
+
+See https://go.dev/ref/mod#workspaces for an in-depth reference on
+workspaces.
+
+See https://go.dev/doc/tutorial/workspaces for an introductory
+tutorial on workspaces.
 
 A workspace is specified by a go.work file that specifies a set of
 module directories with the "use" directive. These modules are used as
@@ -27,7 +33,7 @@ workspace that does not specify modules to be used cannot be used to do
 builds from local modules.
 
 go.work files are line-oriented. Each line holds a single directive,
-made up of a keyword followed by aruments. For example:
+made up of a keyword followed by arguments. For example:
 
 	go 1.18
 
@@ -68,5 +74,6 @@ used.
 		cmdInit,
 		cmdSync,
 		cmdUse,
+		cmdVendor,
 	},
 }

@@ -12,516 +12,84 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"internal/diff"
+	"internal/txtar"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 )
 
-const exampleTestFile = `
-package foo_test
-
-import (
-	"flag"
-	"fmt"
-	"log"
-	"sort"
-	"os/exec"
-)
-
-func ExampleHello() {
-	fmt.Println("Hello, world!")
-	// Output: Hello, world!
-}
-
-func ExampleImport() {
-	out, err := exec.Command("date").Output()
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("The date is %s\n", out)
-}
-
-func ExampleKeyValue() {
-	v := struct {
-		a string
-		b int
-	}{
-		a: "A",
-		b: 1,
-	}
-	fmt.Print(v)
-	// Output: a: "A", b: 1
-}
-
-func ExampleKeyValueImport() {
-	f := flag.Flag{
-		Name: "play",
-	}
-	fmt.Print(f)
-	// Output: Name: "play"
-}
-
-var keyValueTopDecl = struct {
-	a string
-	b int
-}{
-	a: "B",
-	b: 2,
-}
-
-func ExampleKeyValueTopDecl() {
-	fmt.Print(keyValueTopDecl)
-	// Output: a: "B", b: 2
-}
-
-// Person represents a person by name and age.
-type Person struct {
-    Name string
-    Age  int
-}
-
-// String returns a string representation of the Person.
-func (p Person) String() string {
-    return fmt.Sprintf("%s: %d", p.Name, p.Age)
-}
-
-// ByAge implements sort.Interface for []Person based on
-// the Age field.
-type ByAge []Person
-
-// Len returns the number of elements in ByAge.
-func (a (ByAge)) Len() int { return len(a) }
-
-// Swap swaps the elements in ByAge.
-func (a ByAge) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByAge) Less(i, j int) bool { return a[i].Age < a[j].Age }
-
-// people is the array of Person
-var people = []Person{
-	{"Bob", 31},
-	{"John", 42},
-	{"Michael", 17},
-	{"Jenny", 26},
-}
-
-func ExampleSort() {
-    fmt.Println(people)
-    sort.Sort(ByAge(people))
-    fmt.Println(people)
-    // Output:
-    // [Bob: 31 John: 42 Michael: 17 Jenny: 26]
-    // [Michael: 17 Jenny: 26 Bob: 31 John: 42]
-}
-`
-
-var exampleTestCases = []struct {
-	Name, Play, Output string
-}{
-	{
-		Name:   "Hello",
-		Play:   exampleHelloPlay,
-		Output: "Hello, world!\n",
-	},
-	{
-		Name: "Import",
-		Play: exampleImportPlay,
-	},
-	{
-		Name:   "KeyValue",
-		Play:   exampleKeyValuePlay,
-		Output: "a: \"A\", b: 1\n",
-	},
-	{
-		Name:   "KeyValueImport",
-		Play:   exampleKeyValueImportPlay,
-		Output: "Name: \"play\"\n",
-	},
-	{
-		Name:   "KeyValueTopDecl",
-		Play:   exampleKeyValueTopDeclPlay,
-		Output: "a: \"B\", b: 2\n",
-	},
-	{
-		Name:   "Sort",
-		Play:   exampleSortPlay,
-		Output: "[Bob: 31 John: 42 Michael: 17 Jenny: 26]\n[Michael: 17 Jenny: 26 Bob: 31 John: 42]\n",
-	},
-}
-
-const exampleHelloPlay = `package main
-
-import (
-	"fmt"
-)
-
-func main() {
-	fmt.Println("Hello, world!")
-}
-`
-const exampleImportPlay = `package main
-
-import (
-	"fmt"
-	"log"
-	"os/exec"
-)
-
-func main() {
-	out, err := exec.Command("date").Output()
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("The date is %s\n", out)
-}
-`
-
-const exampleKeyValuePlay = `package main
-
-import (
-	"fmt"
-)
-
-func main() {
-	v := struct {
-		a string
-		b int
-	}{
-		a: "A",
-		b: 1,
-	}
-	fmt.Print(v)
-}
-`
-
-const exampleKeyValueImportPlay = `package main
-
-import (
-	"flag"
-	"fmt"
-)
-
-func main() {
-	f := flag.Flag{
-		Name: "play",
-	}
-	fmt.Print(f)
-}
-`
-
-const exampleKeyValueTopDeclPlay = `package main
-
-import (
-	"fmt"
-)
-
-var keyValueTopDecl = struct {
-	a string
-	b int
-}{
-	a: "B",
-	b: 2,
-}
-
-func main() {
-	fmt.Print(keyValueTopDecl)
-}
-`
-
-const exampleSortPlay = `package main
-
-import (
-	"fmt"
-	"sort"
-)
-
-// Person represents a person by name and age.
-type Person struct {
-	Name string
-	Age  int
-}
-
-// String returns a string representation of the Person.
-func (p Person) String() string {
-	return fmt.Sprintf("%s: %d", p.Name, p.Age)
-}
-
-// ByAge implements sort.Interface for []Person based on
-// the Age field.
-type ByAge []Person
-
-// Len returns the number of elements in ByAge.
-func (a ByAge) Len() int { return len(a) }
-
-// Swap swaps the elements in ByAge.
-func (a ByAge) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByAge) Less(i, j int) bool { return a[i].Age < a[j].Age }
-
-// people is the array of Person
-var people = []Person{
-	{"Bob", 31},
-	{"John", 42},
-	{"Michael", 17},
-	{"Jenny", 26},
-}
-
-func main() {
-	fmt.Println(people)
-	sort.Sort(ByAge(people))
-	fmt.Println(people)
-}
-`
-
 func TestExamples(t *testing.T) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "test.go", strings.NewReader(exampleTestFile), parser.ParseComments)
+	dir := filepath.Join("testdata", "examples")
+	filenames, err := filepath.Glob(filepath.Join(dir, "*.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, e := range doc.Examples(file) {
-		c := exampleTestCases[i]
-		if e.Name != c.Name {
-			t.Errorf("got Name == %q, want %q", e.Name, c.Name)
-		}
-		if w := c.Play; w != "" {
-			g := formatFile(t, fset, e.Play)
-			if g != w {
-				t.Errorf("%s: got Play == %q, want %q", c.Name, g, w)
+	for _, filename := range filenames {
+		t.Run(strings.TrimSuffix(filepath.Base(filename), ".go"), func(t *testing.T) {
+			fset := token.NewFileSet()
+			astFile, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+			if err != nil {
+				t.Fatal(err)
 			}
-		}
-		if g, w := e.Output, c.Output; g != w {
-			t.Errorf("%s: got Output == %q, want %q", c.Name, g, w)
-		}
-	}
-}
+			goldenFilename := strings.TrimSuffix(filename, ".go") + ".golden"
+			archive, err := txtar.ParseFile(goldenFilename)
+			if err != nil {
+				t.Fatal(err)
+			}
+			golden := map[string]string{}
+			for _, f := range archive.Files {
+				golden[f.Name] = strings.TrimSpace(string(f.Data))
+			}
 
-const exampleWholeFile = `package foo_test
+			// Collect the results of doc.Examples in a map keyed by example name.
+			examples := map[string]*doc.Example{}
+			for _, e := range doc.Examples(astFile) {
+				examples[e.Name] = e
+				// Treat missing sections in the golden as empty.
+				for _, kind := range []string{"Play", "Output"} {
+					key := e.Name + "." + kind
+					if _, ok := golden[key]; !ok {
+						golden[key] = ""
+					}
+				}
+			}
 
-type X int
+			// Each section in the golden file corresponds to an example we expect
+			// to see.
+			for sectionName, want := range golden {
+				name, kind, found := strings.Cut(sectionName, ".")
+				if !found {
+					t.Fatalf("bad section name %q, want EXAMPLE_NAME.KIND", sectionName)
+				}
+				ex := examples[name]
+				if ex == nil {
+					t.Fatalf("no example named %q", name)
+				}
 
-func (X) Foo() {
-}
+				var got string
+				switch kind {
+				case "Play":
+					got = strings.TrimSpace(formatFile(t, fset, ex.Play))
 
-func (X) TestBlah() {
-}
+				case "Output":
+					got = strings.TrimSpace(ex.Output)
+				default:
+					t.Fatalf("bad section kind %q", kind)
+				}
 
-func (X) BenchmarkFoo() {
-}
-
-func (X) FuzzFoo() {
-}
-
-func Example() {
-	fmt.Println("Hello, world!")
-	// Output: Hello, world!
-}
-`
-
-const exampleWholeFileOutput = `package main
-
-type X int
-
-func (X) Foo() {
-}
-
-func (X) TestBlah() {
-}
-
-func (X) BenchmarkFoo() {
-}
-
-func (X) FuzzFoo() {
-}
-
-func main() {
-	fmt.Println("Hello, world!")
-}
-`
-
-const exampleWholeFileFunction = `package foo_test
-
-func Foo(x int) {
-}
-
-func Example() {
-	fmt.Println("Hello, world!")
-	// Output: Hello, world!
-}
-`
-
-const exampleWholeFileFunctionOutput = `package main
-
-func Foo(x int) {
-}
-
-func main() {
-	fmt.Println("Hello, world!")
-}
-`
-
-const exampleWholeFileExternalFunction = `package foo_test
-
-func foo(int)
-
-func Example() {
-	foo(42)
-	// Output:
-}
-`
-
-const exampleWholeFileExternalFunctionOutput = `package main
-
-func foo(int)
-
-func main() {
-	foo(42)
-}
-`
-
-var exampleWholeFileTestCases = []struct {
-	Title, Source, Play, Output string
-}{
-	{
-		"Methods",
-		exampleWholeFile,
-		exampleWholeFileOutput,
-		"Hello, world!\n",
-	},
-	{
-		"Function",
-		exampleWholeFileFunction,
-		exampleWholeFileFunctionOutput,
-		"Hello, world!\n",
-	},
-	{
-		"ExternalFunction",
-		exampleWholeFileExternalFunction,
-		exampleWholeFileExternalFunctionOutput,
-		"",
-	},
-}
-
-func TestExamplesWholeFile(t *testing.T) {
-	for _, c := range exampleWholeFileTestCases {
-		fset := token.NewFileSet()
-		file, err := parser.ParseFile(fset, "test.go", strings.NewReader(c.Source), parser.ParseComments)
-		if err != nil {
-			t.Fatal(err)
-		}
-		es := doc.Examples(file)
-		if len(es) != 1 {
-			t.Fatalf("%s: wrong number of examples; got %d want 1", c.Title, len(es))
-		}
-		e := es[0]
-		if e.Name != "" {
-			t.Errorf("%s: got Name == %q, want %q", c.Title, e.Name, "")
-		}
-		if g, w := formatFile(t, fset, e.Play), c.Play; g != w {
-			t.Errorf("%s: got Play == %q, want %q", c.Title, g, w)
-		}
-		if g, w := e.Output, c.Output; g != w {
-			t.Errorf("%s: got Output == %q, want %q", c.Title, g, w)
-		}
-	}
-}
-
-const exampleInspectSignature = `package foo_test
-
-import (
-	"bytes"
-	"io"
-)
-
-func getReader() io.Reader { return nil }
-
-func do(b bytes.Reader) {}
-
-func Example() {
-	getReader()
-	do()
-	// Output:
-}
-
-func ExampleIgnored() {
-}
-`
-
-const exampleInspectSignatureOutput = `package main
-
-import (
-	"bytes"
-	"io"
-)
-
-func getReader() io.Reader { return nil }
-
-func do(b bytes.Reader) {}
-
-func main() {
-	getReader()
-	do()
-}
-`
-
-func TestExampleInspectSignature(t *testing.T) {
-	// Verify that "bytes" and "io" are imported. See issue #28492.
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "test.go", strings.NewReader(exampleInspectSignature), parser.ParseComments)
-	if err != nil {
-		t.Fatal(err)
-	}
-	es := doc.Examples(file)
-	if len(es) != 2 {
-		t.Fatalf("wrong number of examples; got %d want 2", len(es))
-	}
-	// We are interested in the first example only.
-	e := es[0]
-	if e.Name != "" {
-		t.Errorf("got Name == %q, want %q", e.Name, "")
-	}
-	if g, w := formatFile(t, fset, e.Play), exampleInspectSignatureOutput; g != w {
-		t.Errorf("got Play == %q, want %q", g, w)
-	}
-	if g, w := e.Output, ""; g != w {
-		t.Errorf("got Output == %q, want %q", g, w)
-	}
-}
-
-const exampleEmpty = `
-package p
-func Example() {}
-func Example_a()
-`
-
-const exampleEmptyOutput = `package main
-
-func main() {}
-func main()
-`
-
-func TestExampleEmpty(t *testing.T) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "test.go", strings.NewReader(exampleEmpty), parser.ParseComments)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	es := doc.Examples(file)
-	if len(es) != 1 {
-		t.Fatalf("wrong number of examples; got %d want 1", len(es))
-	}
-	e := es[0]
-	if e.Name != "" {
-		t.Errorf("got Name == %q, want %q", e.Name, "")
-	}
-	if g, w := formatFile(t, fset, e.Play), exampleEmptyOutput; g != w {
-		t.Errorf("got Play == %q, want %q", g, w)
-	}
-	if g, w := e.Output, ""; g != w {
-		t.Errorf("got Output == %q, want %q", g, w)
+				if got != want {
+					t.Errorf("%s mismatch:\n%s", sectionName,
+						diff.Diff("want", []byte(want), "got", []byte(got)))
+				}
+			}
+		})
 	}
 }
 
 func formatFile(t *testing.T, fset *token.FileSet, n *ast.File) string {
+	t.Helper()
 	if n == nil {
 		return "<nil>"
 	}
@@ -616,6 +184,12 @@ type (
 )
 
 func (Conflict) Conflict() {}
+
+func GFunc[T any]() {}
+
+type GType[T any] int
+
+func (GType[T]) M() {}
 `
 	const test = `
 package p_test
@@ -675,6 +249,12 @@ func ExampleConflict_Conflict()        {} // ambiguous with either Conflict or C
 func ExampleConflict_conflict()        {} // ambiguous with either Conflict or Conflict_conflict type
 func ExampleConflict_Conflict_suffix() {} // ambiguous with either Conflict or Conflict_Conflict type
 func ExampleConflict_conflict_suffix() {} // ambiguous with either Conflict or Conflict_conflict type
+
+func ExampleGFunc() {}
+func ExampleGFunc_suffix() {}
+
+func ExampleGType_M() {}
+func ExampleGType_M_suffix() {}
 `
 
 	// Parse literal source code as a *doc.Package.
@@ -724,12 +304,19 @@ func ExampleConflict_conflict_suffix() {} // ambiguous with either Conflict or C
 		// These are implementation dependent due to the ambiguous parsing.
 		"Conflict_Conflict": {"", "suffix"},
 		"Conflict_conflict": {"", "suffix"},
+
+		"GFunc":   {"", "suffix"},
+		"GType.M": {"", "suffix"},
 	}
 
 	for id := range got {
 		if !reflect.DeepEqual(got[id], want[id]) {
 			t.Errorf("classification mismatch for %q:\ngot  %q\nwant %q", id, got[id], want[id])
 		}
+		delete(want, id)
+	}
+	if len(want) > 0 {
+		t.Errorf("did not find:\n%q", want)
 	}
 }
 

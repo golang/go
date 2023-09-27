@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
+//go:build unix || (js && wasm)
 
 package mime
 
@@ -11,6 +11,7 @@ import (
 )
 
 func initMimeUnixTest(t *testing.T) {
+	once.Do(initMime)
 	err := loadMimeGlobsFile("testdata/test.types.globs2")
 	if err != nil {
 		t.Fatal(err)
@@ -22,11 +23,16 @@ func initMimeUnixTest(t *testing.T) {
 func TestTypeByExtensionUNIX(t *testing.T) {
 	initMimeUnixTest(t)
 	typeTests := map[string]string{
-		".T1":  "application/test",
-		".t2":  "text/test; charset=utf-8",
-		".t3":  "document/test",
-		".t4":  "example/test",
-		".png": "image/png",
+		".T1":       "application/test",
+		".t2":       "text/test; charset=utf-8",
+		".t3":       "document/test",
+		".t4":       "example/test",
+		".png":      "image/png",
+		",v":        "",
+		"~":         "",
+		".foo?ar":   "",
+		".foo*r":    "",
+		".foo[1-3]": "",
 	}
 
 	for ext, want := range typeTests {

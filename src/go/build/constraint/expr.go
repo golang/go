@@ -5,9 +5,7 @@
 // Package constraint implements parsing and evaluation of build constraint lines.
 // See https://golang.org/cmd/go/#hdr-Build_constraints for documentation about build constraints themselves.
 //
-// This package parses both the original “// +build” syntax and the “//go:build” syntax that will be added in Go 1.17.
-// The parser is being included in Go 1.16 to allow tools that need to process Go 1.17 source code
-// to still be built against the Go 1.16 release.
+// This package parses both the original “// +build” syntax and the “//go:build” syntax that was added in Go 1.17.
 // See https://golang.org/design/draft-gobuild for details about the “//go:build” syntax.
 package constraint
 
@@ -345,7 +343,6 @@ func (p *exprParser) lex() {
 	p.i += len(tag)
 	p.tok = p.s[p.pos:p.i]
 	p.isTag = true
-	return
 }
 
 // IsPlusBuild reports whether the line of text is a “// +build” constraint.

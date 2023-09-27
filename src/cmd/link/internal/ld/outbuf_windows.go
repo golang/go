@@ -5,7 +5,7 @@
 package ld
 
 import (
-	"reflect"
+	"internal/unsafeheader"
 	"syscall"
 	"unsafe"
 )
@@ -35,8 +35,8 @@ func (out *OutBuf) Mmap(filesize uint64) error {
 	if err != nil {
 		return err
 	}
-	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&out.buf))
-	bufHdr.Data = ptr
+	bufHdr := (*unsafeheader.Slice)(unsafe.Pointer(&out.buf))
+	bufHdr.Data = unsafe.Pointer(ptr)
 	bufHdr.Len = int(filesize)
 	bufHdr.Cap = int(filesize)
 
@@ -58,6 +58,18 @@ func (out *OutBuf) munmap() {
 	err := syscall.FlushViewOfFile(uintptr(unsafe.Pointer(&out.buf[0])), 0)
 	if err != nil {
 		Exitf("FlushViewOfFile failed: %v", err)
+	}
+	// Issue 44817: apparently the call below may be needed (according
+	// to the Windows docs) in addition to the FlushViewOfFile call
+	// above, " ... to flush all the dirty pages plus the metadata for
+	// the file and ensure that they are physically written to disk".
+	// Windows DOC links:
+	//
+	// https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-flushviewoffile
+	// https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers
+	err = syscall.FlushFileBuffers(syscall.Handle(out.f.Fd()))
+	if err != nil {
+		Exitf("FlushFileBuffers failed: %v", err)
 	}
 	err = syscall.UnmapViewOfFile(uintptr(unsafe.Pointer(&out.buf[0])))
 	out.buf = nil

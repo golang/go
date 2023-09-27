@@ -27,6 +27,8 @@ type Sym struct {
 	GoType uint64
 	// If this symbol is a function symbol, the corresponding Func
 	Func *Func
+
+	goVersion version
 }
 
 // Static reports whether this symbol is static (not visible outside its file).
@@ -55,9 +57,16 @@ func (s *Sym) nameWithoutInst() string {
 func (s *Sym) PackageName() string {
 	name := s.nameWithoutInst()
 
-	// A prefix of "type." and "go." is a compiler-generated symbol that doesn't belong to any package.
-	// See variable reservedimports in cmd/compile/internal/gc/subr.go
-	if strings.HasPrefix(name, "go.") || strings.HasPrefix(name, "type.") {
+	// Since go1.20, a prefix of "type:" and "go:" is a compiler-generated symbol,
+	// they do not belong to any package.
+	//
+	// See cmd/compile/internal/base/link.go:ReservedImports variable.
+	if s.goVersion >= ver120 && (strings.HasPrefix(name, "go:") || strings.HasPrefix(name, "type:")) {
+		return ""
+	}
+
+	// For go1.18 and below, the prefix are "type." and "go." instead.
+	if s.goVersion <= ver118 && (strings.HasPrefix(name, "go.") || strings.HasPrefix(name, "type.")) {
 		return ""
 	}
 
@@ -86,7 +95,7 @@ func (s *Sym) ReceiverName() string {
 	// Find the first dot after pathend (or from the beginning, if there was
 	// no slash in name).
 	l := strings.Index(name[pathend:], ".")
-	// Find the last dot after pathend (or the beginnng).
+	// Find the last dot after pathend (or the beginning).
 	r := strings.LastIndex(name[pathend:], ".")
 	if l == -1 || r == -1 || l == r {
 		// There is no receiver if we didn't find two distinct dots after pathend.
@@ -350,6 +359,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 		ts.Type = s.typ
 		ts.Value = s.value
 		ts.GoType = s.gotype
+		ts.goVersion = pcln.version
 		switch s.typ {
 		default:
 			// rewrite name to use . instead of · (c2 b7)

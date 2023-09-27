@@ -39,6 +39,47 @@ So, "Hello".
 		},
 		body: "This is a message just to say hello.\nSo, \"Hello\".\n",
 	},
+	{
+		// RFC 5965, Appendix B.1, a part of the multipart message (a header-only sub message)
+		in: `Feedback-Type: abuse
+User-Agent: SomeGenerator/1.0
+Version: 1
+`,
+		header: Header{
+			"Feedback-Type": []string{"abuse"},
+			"User-Agent":    []string{"SomeGenerator/1.0"},
+			"Version":       []string{"1"},
+		},
+		body: "",
+	},
+	{
+		// RFC 5322 permits any printable ASCII character,
+		// except colon, in a header key. Issue #58862.
+		in: `From: iant@golang.org
+Custom/Header: v
+
+Body
+`,
+		header: Header{
+			"From":          []string{"iant@golang.org"},
+			"Custom/Header": []string{"v"},
+		},
+		body: "Body\n",
+	},
+	{
+		// RFC 4155 mbox format. We've historically permitted this,
+		// so we continue to permit it. Issue #60332.
+		in: `From iant@golang.org Mon Jun 19 00:00:00 2023
+From: iant@golang.org
+
+Hello, gophers!
+`,
+		header: Header{
+			"From":                               []string{"iant@golang.org"},
+			"From iant@golang.org Mon Jun 19 00": []string{"00:00 2023"},
+		},
+		body: "Hello, gophers!\n",
+	},
 }
 
 func TestParsing(t *testing.T) {
@@ -265,10 +306,20 @@ func TestDateParsingCFWS(t *testing.T) {
 		{
 			"Tue, 26 May 2020 14:04:40 UT",
 			time.Date(2020, 05, 26, 14, 04, 40, 0, time.UTC),
-			false,
+			true,
 		},
 		{
 			"Thu, 21 May 2020 14:04:40 UT",
+			time.Date(2020, 05, 21, 14, 04, 40, 0, time.UTC),
+			true,
+		},
+		{
+			"Tue, 26 May 2020 14:04:40 XT",
+			time.Date(2020, 05, 26, 14, 04, 40, 0, time.UTC),
+			false,
+		},
+		{
+			"Thu, 21 May 2020 14:04:40 XT",
 			time.Date(2020, 05, 21, 14, 04, 40, 0, time.UTC),
 			false,
 		},
@@ -344,6 +395,17 @@ func TestAddressParsingError(t *testing.T) {
 			t.Errorf(`mail.ParseAddress(%q) #%d want %q, got %v`, tc.text, i, tc.wantErrText, err)
 		}
 	}
+
+	t.Run("CustomWordDecoder", func(t *testing.T) {
+		p := &AddressParser{WordDecoder: &mime.WordDecoder{}}
+		for i, tc := range mustErrTestCases {
+			_, err := p.Parse(tc.text)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErrText) {
+				t.Errorf(`p.Parse(%q) #%d want %q, got %v`, tc.text, i, tc.wantErrText, err)
+			}
+		}
+	})
+
 }
 
 func TestAddressParsing(t *testing.T) {

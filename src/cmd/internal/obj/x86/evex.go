@@ -168,6 +168,7 @@ func evexZcase(zcase uint8) bool {
 // evexSuffixBits carries instruction EVEX suffix set flags.
 //
 // Examples:
+//
 //	"RU_SAE.Z" => {rounding: 3, zeroing: true}
 //	"Z" => {zeroing: true}
 //	"BCST" => {broadcast: true}
@@ -273,10 +274,10 @@ func ParseSuffix(p *obj.Prog, cond string) error {
 // so we can burn some clocks to construct good error message.
 //
 // Reported issues:
-//	- duplicated suffixes
-//	- illegal rounding/SAE+broadcast combinations
-//	- unknown suffixes
-//	- misplaced suffix (e.g. wrong Z suffix position)
+//   - duplicated suffixes
+//   - illegal rounding/SAE+broadcast combinations
+//   - unknown suffixes
+//   - misplaced suffix (e.g. wrong Z suffix position)
 func inferSuffixError(cond string) error {
 	suffixSet := make(map[string]bool)  // Set for duplicates detection.
 	unknownSet := make(map[string]bool) // Set of unknown suffixes.

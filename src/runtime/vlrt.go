@@ -296,11 +296,14 @@ func slowdodiv(n, d uint64) (q, r uint64) {
 // Floating point control word values.
 // Bits 0-5 are bits to disable floating-point exceptions.
 // Bits 8-9 are the precision control:
-//   0 = single precision a.k.a. float32
-//   2 = double precision a.k.a. float64
+//
+//	0 = single precision a.k.a. float32
+//	2 = double precision a.k.a. float64
+//
 // Bits 10-11 are the rounding mode:
-//   0 = round to nearest (even on a tie)
-//   3 = round toward zero
+//
+//	0 = round to nearest (even on a tie)
+//	3 = round toward zero
 var (
 	controlWord64      uint16 = 0x3f + 2<<8 + 0<<10
 	controlWord64trunc uint16 = 0x3f + 2<<8 + 3<<10

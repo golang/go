@@ -10,9 +10,6 @@ package xml
 //    Annotated XML spec: https://www.xml.com/axml/testaxml.htm
 //    XML name spaces: https://www.w3.org/TR/REC-xml-names/
 
-// TODO(rsc):
-//	Test error handling.
-
 import (
 	"bufio"
 	"bytes"
@@ -37,7 +34,7 @@ func (e *SyntaxError) Error() string {
 
 // A Name represents an XML name (Local) annotated
 // with a name space identifier (Space).
-// In tokens returned by Decoder.Token, the Space identifier
+// In tokens returned by [Decoder.Token], the Space identifier
 // is given as a canonical URL, not the short prefix used
 // in the document being parsed.
 type Name struct {
@@ -51,7 +48,7 @@ type Attr struct {
 }
 
 // A Token is an interface holding one of the token types:
-// StartElement, EndElement, CharData, Comment, ProcInst, or Directive.
+// [StartElement], [EndElement], [CharData], [Comment], [ProcInst], or [Directive].
 type Token any
 
 // A StartElement represents an XML start element.
@@ -83,21 +80,15 @@ type EndElement struct {
 // the characters they represent.
 type CharData []byte
 
-func makeCopy(b []byte) []byte {
-	b1 := make([]byte, len(b))
-	copy(b1, b)
-	return b1
-}
-
 // Copy creates a new copy of CharData.
-func (c CharData) Copy() CharData { return CharData(makeCopy(c)) }
+func (c CharData) Copy() CharData { return CharData(bytes.Clone(c)) }
 
 // A Comment represents an XML comment of the form <!--comment-->.
 // The bytes do not include the <!-- and --> comment markers.
 type Comment []byte
 
 // Copy creates a new copy of Comment.
-func (c Comment) Copy() Comment { return Comment(makeCopy(c)) }
+func (c Comment) Copy() Comment { return Comment(bytes.Clone(c)) }
 
 // A ProcInst represents an XML processing instruction of the form <?target inst?>
 type ProcInst struct {
@@ -107,7 +98,7 @@ type ProcInst struct {
 
 // Copy creates a new copy of ProcInst.
 func (p ProcInst) Copy() ProcInst {
-	p.Inst = makeCopy(p.Inst)
+	p.Inst = bytes.Clone(p.Inst)
 	return p
 }
 
@@ -116,7 +107,7 @@ func (p ProcInst) Copy() ProcInst {
 type Directive []byte
 
 // Copy creates a new copy of Directive.
-func (d Directive) Copy() Directive { return Directive(makeCopy(d)) }
+func (d Directive) Copy() Directive { return Directive(bytes.Clone(d)) }
 
 // CopyToken returns a copy of a Token.
 func CopyToken(t Token) Token {
@@ -136,14 +127,14 @@ func CopyToken(t Token) Token {
 }
 
 // A TokenReader is anything that can decode a stream of XML tokens, including a
-// Decoder.
+// [Decoder].
 //
 // When Token encounters an error or end-of-file condition after successfully
 // reading a token, it returns the token. It may return the (non-nil) error from
 // the same call or return the error (and a nil token) from a subsequent call.
 // An instance of this general case is that a TokenReader returning a non-nil
 // token at the end of the token stream may return either io.EOF or a nil error.
-// The next Read should return nil, io.EOF.
+// The next Read should return nil, [io.EOF].
 //
 // Implementations of Token are discouraged from returning a nil token with a
 // nil error. Callers should treat a return of nil, nil as indicating that
@@ -219,12 +210,13 @@ type Decoder struct {
 	ns             map[string]string
 	err            error
 	line           int
+	linestart      int64
 	offset         int64
 	unmarshalDepth int
 }
 
 // NewDecoder creates a new XML parser reading from r.
-// If r does not implement io.ByteReader, NewDecoder will
+// If r does not implement [io.ByteReader], NewDecoder will
 // do its own buffering.
 func NewDecoder(r io.Reader) *Decoder {
 	d := &Decoder{
@@ -254,25 +246,28 @@ func NewTokenDecoder(t TokenReader) *Decoder {
 }
 
 // Token returns the next XML token in the input stream.
-// At the end of the input stream, Token returns nil, io.EOF.
+// At the end of the input stream, Token returns nil, [io.EOF].
 //
 // Slices of bytes in the returned token data refer to the
 // parser's internal buffer and remain valid only until the next
-// call to Token. To acquire a copy of the bytes, call CopyToken
+// call to Token. To acquire a copy of the bytes, call [CopyToken]
 // or the token's Copy method.
 //
 // Token expands self-closing elements such as <br>
 // into separate start and end elements returned by successive calls.
 //
-// Token guarantees that the StartElement and EndElement
+// Token guarantees that the [StartElement] and [EndElement]
 // tokens it returns are properly nested and matched:
 // if Token encounters an unexpected end element
 // or EOF before all expected end elements,
 // it will return an error.
 //
+// If [Decoder.CharsetReader] is called and returns an error,
+// the error is wrapped and returned.
+//
 // Token implements XML name spaces as described by
 // https://www.w3.org/TR/REC-xml-names/. Each of the
-// Name structures contained in the Token has the Space
+// [Name] structures contained in the Token has the Space
 // set to the URL identifying its name space when known.
 // If Token encounters an unrecognized name space prefix,
 // it uses the prefix as the Space rather than report an error.
@@ -322,15 +317,14 @@ func (d *Decoder) Token() (Token, error) {
 			}
 		}
 
+		d.pushElement(t1.Name)
 		d.translate(&t1.Name, true)
 		for i := range t1.Attr {
 			d.translate(&t1.Attr[i].Name, false)
 		}
-		d.pushElement(t1.Name)
 		t = t1
 
 	case EndElement:
-		d.translate(&t1.Name, true)
 		if !d.popElement(&t1) {
 			return nil, d.err
 		}
@@ -499,9 +493,11 @@ func (d *Decoder) popElement(t *EndElement) bool {
 		return false
 	case s.name.Space != name.Space:
 		d.err = d.syntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
-			"closed by </" + name.Local + "> in space " + name.Space)
+			" closed by </" + name.Local + "> in space " + name.Space)
 		return false
 	}
+
+	d.translate(&t.Name, true)
 
 	// Pop stack until a Start or EOF is on the top, undoing the
 	// translations that were associated with the element we just closed.
@@ -523,12 +519,11 @@ func (d *Decoder) autoClose(t Token) (Token, bool) {
 	if d.stk == nil || d.stk.kind != stkStart {
 		return nil, false
 	}
-	name := strings.ToLower(d.stk.name.Local)
 	for _, s := range d.AutoClose {
-		if strings.ToLower(s) == name {
+		if strings.EqualFold(s, d.stk.name.Local) {
 			// This one should be auto closed if t doesn't close it.
 			et, ok := t.(EndElement)
-			if !ok || et.Name.Local != name {
+			if !ok || !strings.EqualFold(et.Name.Local, d.stk.name.Local) {
 				return EndElement{d.stk.name}, true
 			}
 			break
@@ -539,7 +534,7 @@ func (d *Decoder) autoClose(t Token) (Token, bool) {
 
 var errRawToken = errors.New("xml: cannot use RawToken from UnmarshalXML method")
 
-// RawToken is like Token but does not verify that
+// RawToken is like [Decoder.Token] but does not verify that
 // start and end elements match and does not translate
 // name space prefixes to their corresponding URLs.
 func (d *Decoder) RawToken() (Token, error) {
@@ -642,7 +637,7 @@ func (d *Decoder) rawToken() (Token, error) {
 				}
 				newr, err := d.CharsetReader(enc, d.r.(io.Reader))
 				if err != nil {
-					d.err = fmt.Errorf("xml: opening charset %q: %v", enc, err)
+					d.err = fmt.Errorf("xml: opening charset %q: %w", enc, err)
 					return nil, d.err
 				}
 				if newr == nil {
@@ -923,6 +918,7 @@ func (d *Decoder) getc() (b byte, ok bool) {
 	}
 	if b == '\n' {
 		d.line++
+		d.linestart = d.offset + 1
 	}
 	d.offset++
 	return b, true
@@ -933,6 +929,13 @@ func (d *Decoder) getc() (b byte, ok bool) {
 // and the beginning of the next token.
 func (d *Decoder) InputOffset() int64 {
 	return d.offset
+}
+
+// InputPos returns the line of the current decoder position and the 1 based
+// input position of the line. The position gives the location of the end of the
+// most recently returned token.
+func (d *Decoder) InputPos() (line, column int) {
+	return d.line, int(d.offset-d.linestart) + 1
 }
 
 // Return saved offset.
@@ -1095,7 +1098,7 @@ Input:
 
 			if haveText {
 				d.buf.Truncate(before)
-				d.buf.Write([]byte(text))
+				d.buf.WriteString(text)
 				b0, b1 = 0, 0
 				continue Input
 			}
@@ -1163,7 +1166,7 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 		return
 	}
 	if strings.Count(s, ":") > 1 {
-		name.Local = s
+		return name, false
 	} else if space, local, ok := strings.Cut(s, ":"); !ok || space == "" || local == "" {
 		name.Local = s
 	} else {
@@ -1593,7 +1596,7 @@ var second = &unicode.RangeTable{
 // HTMLEntity is an entity map containing translations for the
 // standard HTML entity characters.
 //
-// See the Decoder.Strict and Decoder.Entity fields' documentation.
+// See the [Decoder.Strict] and [Decoder.Entity] fields' documentation.
 var HTMLEntity map[string]string = htmlEntity
 
 var htmlEntity = map[string]string{
@@ -1862,7 +1865,7 @@ var htmlEntity = map[string]string{
 // HTMLAutoClose is the set of HTML elements that
 // should be considered to close automatically.
 //
-// See the Decoder.Strict and Decoder.Entity fields' documentation.
+// See the [Decoder.Strict] and [Decoder.Entity] fields' documentation.
 var HTMLAutoClose []string = htmlAutoClose
 
 var htmlAutoClose = []string{
@@ -1990,9 +1993,9 @@ func (p *printer) EscapeString(s string) {
 	p.WriteString(s[last:])
 }
 
-// Escape is like EscapeText but omits the error return value.
+// Escape is like [EscapeText] but omits the error return value.
 // It is provided for backwards compatibility with Go 1.0.
-// Code targeting Go 1.1 or later should use EscapeText.
+// Code targeting Go 1.1 or later should use [EscapeText].
 func Escape(w io.Writer, s []byte) {
 	EscapeText(w, s)
 }

@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build darwin && go1.12
-// +build darwin,go1.12
-
 package ld
 
 import (
@@ -13,6 +10,7 @@ import (
 )
 
 // Implemented in the syscall package.
+//
 //go:linkname fcntl syscall.fcntl
 func fcntl(fd int, cmd int, arg int) (int, error)
 
@@ -23,7 +21,7 @@ func (out *OutBuf) fallocate(size uint64) error {
 	}
 	// F_PEOFPOSMODE allocates from the end of the file, so we want the size difference.
 	// Apparently, it uses the end of the allocation, instead of the logical end of the
-	// the file.
+	// file.
 	cursize := uint64(stat.Sys().(*syscall.Stat_t).Blocks * 512) // allocated size
 	if size <= cursize {
 		return nil
@@ -45,6 +43,6 @@ func (out *OutBuf) purgeSignatureCache() {
 	// When we mmap the output buffer, it doesn't have a code signature
 	// (as we haven't generated one). Invalidate the kernel cache now that
 	// we have generated the signature. See issue #42684.
-	syscall.Syscall(syscall.SYS_MSYNC, uintptr(unsafe.Pointer(&out.buf[0])), uintptr(len(out.buf)), syscall.MS_INVALIDATE)
+	msync(out.buf, syscall.MS_INVALIDATE)
 	// Best effort. Ignore error.
 }

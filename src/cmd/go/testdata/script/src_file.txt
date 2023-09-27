@@ -1,0 +1,9 @@
+# Files in src should not be treated as packages
+
+exists $GOROOT/src/regexp/testdata/README
+go list -f '{{.Dir}}' regexp/testdata/README
+
+-- go.mod --
+module regexp/testdata/README
+-- p.go --
+package p

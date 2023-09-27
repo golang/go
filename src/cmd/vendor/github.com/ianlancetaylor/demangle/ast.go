@@ -38,25 +38,42 @@ type AST interface {
 // ASTToString returns the demangled name of the AST.
 func ASTToString(a AST, options ...Option) string {
 	tparams := true
+	enclosingParams := true
 	llvmStyle := false
+	max := 0
 	for _, o := range options {
-		switch o {
-		case NoTemplateParams:
+		switch {
+		case o == NoTemplateParams:
 			tparams = false
-		case LLVMStyle:
+		case o == NoEnclosingParams:
+			enclosingParams = false
+		case o == LLVMStyle:
 			llvmStyle = true
+		case isMaxLength(o):
+			max = maxLength(o)
 		}
 	}
 
-	ps := printState{tparams: tparams, llvmStyle: llvmStyle}
+	ps := printState{
+		tparams:         tparams,
+		enclosingParams: enclosingParams,
+		llvmStyle:       llvmStyle,
+		max:             max,
+	}
 	a.print(&ps)
-	return ps.buf.String()
+	s := ps.buf.String()
+	if max > 0 && len(s) > max {
+		s = s[:max]
+	}
+	return s
 }
 
 // The printState type holds information needed to print an AST.
 type printState struct {
-	tparams   bool // whether to print template parameters
-	llvmStyle bool
+	tparams         bool // whether to print template parameters
+	enclosingParams bool // whether to print enclosing parameters
+	llvmStyle       bool
+	max             int // maximum output length
 
 	buf  strings.Builder
 	last byte // Last byte written to buffer.
@@ -88,6 +105,10 @@ func (ps *printState) writeString(s string) {
 
 // Print an AST.
 func (ps *printState) print(a AST) {
+	if ps.max > 0 && ps.buf.Len() > ps.max {
+		return
+	}
+
 	c := 0
 	for _, v := range ps.printing {
 		if v == a {
@@ -1144,7 +1165,7 @@ type FunctionType struct {
 
 func (ft *FunctionType) print(ps *printState) {
 	retType := ft.Return
-	if ft.ForLocalName && !ps.llvmStyle {
+	if ft.ForLocalName && (!ps.enclosingParams || !ps.llvmStyle) {
 		retType = nil
 	}
 	if retType != nil {
@@ -1201,16 +1222,18 @@ func (ft *FunctionType) printArgs(ps *printState) {
 	}
 
 	ps.writeByte('(')
-	first := true
-	for _, a := range ft.Args {
-		if ps.isEmpty(a) {
-			continue
+	if !ft.ForLocalName || ps.enclosingParams {
+		first := true
+		for _, a := range ft.Args {
+			if ps.isEmpty(a) {
+				continue
+			}
+			if !first {
+				ps.writeString(", ")
+			}
+			ps.print(a)
+			first = false
 		}
-		if !first {
-			ps.writeString(", ")
-		}
-		ps.print(a)
-		first = false
 	}
 	ps.writeByte(')')
 
@@ -1449,6 +1472,34 @@ func (ft *FixedType) goString(indent int, field string) string {
 	return fmt.Sprintf("%*s%sFixedType: Accum: %t; Sat: %t\n%s", indent, "", field,
 		ft.Accum, ft.Sat,
 		ft.Base.goString(indent+2, "Base: "))
+}
+
+// BinaryFP is a binary floating-point type.
+type BinaryFP struct {
+	Bits int
+}
+
+func (bfp *BinaryFP) print(ps *printState) {
+	fmt.Fprintf(&ps.buf, "_Float%d", bfp.Bits)
+}
+
+func (bfp *BinaryFP) Traverse(fn func(AST) bool) {
+	fn(bfp)
+}
+
+func (bfp *BinaryFP) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(bfp) {
+		return nil
+	}
+	return fn(bfp)
+}
+
+func (bfp *BinaryFP) GoString() string {
+	return bfp.goString(0, "")
+}
+
+func (bfp *BinaryFP) goString(indent int, field string) string {
+	return fmt.Sprintf("%*s%sBinaryFP: %d", indent, "", field, bfp.Bits)
 }
 
 // VectorType is a vector type.
@@ -2492,6 +2543,7 @@ func (u *Unary) print(ps *printState) {
 	}
 
 	if !u.Suffix {
+		isDelete := op != nil && (op.Name == "delete " || op.Name == "delete[] ")
 		if op != nil && op.Name == "::" {
 			// Don't use parentheses after ::.
 			ps.print(expr)
@@ -2506,11 +2558,11 @@ func (u *Unary) print(ps *printState) {
 			ps.print(expr)
 			ps.writeByte(')')
 		} else if ps.llvmStyle {
-			if op == nil || op.Name != `operator"" ` {
+			if op == nil || (op.Name != `operator"" ` && !isDelete) {
 				ps.writeByte('(')
 			}
 			ps.print(expr)
-			if op == nil || op.Name != `operator"" ` {
+			if op == nil || (op.Name != `operator"" ` && !isDelete) {
 				ps.writeByte(')')
 			}
 		} else {
@@ -2652,6 +2704,9 @@ func (b *Binary) print(ps *printState) {
 		switch op.Name {
 		case ".", "->":
 			skipBothParens = true
+			addSpaces = false
+		case "->*":
+			skipParens = true
 			addSpaces = false
 		}
 	}
@@ -3115,8 +3170,20 @@ type New struct {
 }
 
 func (n *New) print(ps *printState) {
-	// Op doesn't really matter for printing--we always print "new".
-	ps.writeString("new ")
+	if !ps.llvmStyle {
+		// Op doesn't really matter for printing--we always print "new".
+		ps.writeString("new ")
+	} else {
+		op, _ := n.Op.(*Operator)
+		if op != nil {
+			ps.writeString(op.Name)
+			if n.Place == nil {
+				ps.writeByte(' ')
+			}
+		} else {
+			ps.print(n.Op)
+		}
+	}
 	if n.Place != nil {
 		parenthesize(ps, n.Place)
 		ps.writeByte(' ')

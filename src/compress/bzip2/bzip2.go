@@ -41,7 +41,7 @@ type reader struct {
 }
 
 // NewReader returns an io.Reader which decompresses bzip2 data from r.
-// If r does not also implement io.ByteReader,
+// If r does not also implement [io.ByteReader],
 // the decompressor may read more data than necessary from r.
 func NewReader(r io.Reader) io.Reader {
 	bz2 := new(reader)
@@ -447,11 +447,11 @@ func (bz2 *reader) readBlock() (err error) {
 
 // inverseBWT implements the inverse Burrows-Wheeler transform as described in
 // http://www.hpl.hp.com/techreports/Compaq-DEC/SRC-RR-124.pdf, section 4.2.
-// In that document, origPtr is called ``I'' and c is the ``C'' array after the
+// In that document, origPtr is called “I” and c is the “C” array after the
 // first pass over the data. It's an argument here because we merge the first
 // pass with the Huffman decoding.
 //
-// This also implements the ``single array'' method from the bzip2 source code
+// This also implements the “single array” method from the bzip2 source code
 // which leaves the output, still shuffled, in the bottom 8 bits of tt with the
 // index of the next byte in the top 24-bits. The index of the first byte is
 // returned.

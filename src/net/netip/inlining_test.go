@@ -7,7 +7,6 @@ package netip
 import (
 	"internal/testenv"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -17,12 +16,8 @@ import (
 func TestInlining(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	t.Parallel()
-	var exe string
-	if runtime.GOOS == "windows" {
-		exe = ".exe"
-	}
 	out, err := exec.Command(
-		filepath.Join(runtime.GOROOT(), "bin", "go"+exe),
+		testenv.GoToolPath(t),
 		"build",
 		"--gcflags=-m",
 		"net/netip").CombinedOutput()
@@ -47,7 +42,6 @@ func TestInlining(t *testing.T) {
 		"Addr.IsValid",
 		"Addr.IsUnspecified",
 		"Addr.Less",
-		"Addr.lessOrEq",
 		"Addr.Unmap",
 		"Addr.Zone",
 		"Addr.v4",
@@ -86,8 +80,6 @@ func TestInlining(t *testing.T) {
 	case "amd64", "arm64":
 		// These don't inline on 32-bit.
 		wantInlinable = append(wantInlinable,
-			"u64CommonPrefixLen",
-			"uint128.commonPrefixLen",
 			"Addr.Next",
 			"Addr.Prev",
 		)

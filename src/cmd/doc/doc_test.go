@@ -7,6 +7,9 @@ package main
 import (
 	"bytes"
 	"flag"
+	"go/build"
+	"internal/testenv"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,6 +22,12 @@ func TestMain(m *testing.M) {
 	// Clear GOPATH so we don't access the user's own packages in the test.
 	buildCtx.GOPATH = ""
 	testGOPATH = true // force GOPATH mode; module test is in cmd/go/testdata/script/mod_doc.txt
+
+	// Set GOROOT in case runtime.GOROOT is wrong (for example, if the test was
+	// built with -trimpath). dirsInit would identify it using 'go env GOROOT',
+	// but we can't be sure that the 'go' in $PATH is the right one either.
+	buildCtx.GOROOT = testenv.GOROOT(nil)
+	build.Default.GOROOT = testenv.GOROOT(nil)
 
 	// Add $GOROOT/src/cmd/doc/testdata explicitly so we can access its contents in the test.
 	// Normally testdata directories are ignored, but sending it to dirs.scan directly is
@@ -125,6 +134,9 @@ var tests = []test{
 			`func MultiLineFunc\(x interface{ ... }\) \(r struct{ ... }\)`, // Multi line function.
 			`var LongLine = newLongLine\(("someArgument[1-4]", ){4}...\)`,  // Long list of arguments.
 			`type T1 = T2`,                                                 // Type alias
+			`type SimpleConstraint interface{ ... }`,
+			`type TildeConstraint interface{ ... }`,
+			`type StructConstraint interface{ ... }`,
 		},
 		[]string{
 			`const internalConstant = 2`,       // No internal constants.
@@ -145,6 +157,7 @@ var tests = []test{
 			`Method`,                           // No methods.
 			`someArgument[5-8]`,                // No truncated arguments.
 			`type T1 T2`,                       // Type alias does not display as type declaration.
+			`ignore:directive`,                 // Directives should be dropped.
 		},
 	},
 	// Package dump -all
@@ -199,6 +212,10 @@ var tests = []test{
 			`Comment about exported method`,
 			`type T1 = T2`,
 			`type T2 int`,
+			`type SimpleConstraint interface {`,
+			`type TildeConstraint interface {`,
+			`type StructConstraint interface {`,
+			`BUG: function body note`,
 		},
 		[]string{
 			`constThree`,
@@ -209,6 +226,7 @@ var tests = []test{
 			`func internalFunc`,
 			`unexportedField`,
 			`func \(unexportedType\)`,
+			`ignore:directive`,
 		},
 	},
 	// Package with just the package declaration. Issue 31457.
@@ -245,6 +263,7 @@ var tests = []test{
 			`Comment about block of constants`, // No comment for constant block.
 			`Comment about internal function`,  // No comment for internal function.
 			`MultiLine(String|Method|Field)`,   // No data from multi line portions.
+			`ignore:directive`,
 		},
 	},
 	// Package dump -u -all
@@ -297,7 +316,9 @@ var tests = []test{
 			`func \(unexportedType\) ExportedMethod\(\) bool`,
 			`func \(unexportedType\) unexportedMethod\(\) bool`,
 		},
-		nil,
+		[]string{
+			`ignore:directive`,
+		},
 	},
 
 	// Single constant.
@@ -816,18 +837,56 @@ var tests = []test{
     // Text after pre-formatted block\.`,
 			`ExportedField int`,
 		},
-		nil,
+		[]string{"ignore:directive"},
+	},
+	{
+		"formatted doc on entire type",
+		[]string{p, "ExportedFormattedType"},
+		[]string{
+			`type ExportedFormattedType struct`,
+			`	// Comment before exported field with formatting\.
+	//
+	// Example
+	//
+	//	a\.ExportedField = 123
+	//
+	// Text after pre-formatted block\.`,
+			`ExportedField int`,
+		},
+		[]string{"ignore:directive"},
+	},
+	{
+		"formatted doc on entire type with -all",
+		[]string{"-all", p, "ExportedFormattedType"},
+		[]string{
+			`type ExportedFormattedType struct`,
+			`	// Comment before exported field with formatting\.
+	//
+	// Example
+	//
+	//	a\.ExportedField = 123
+	//
+	// Text after pre-formatted block\.`,
+			`ExportedField int`,
+		},
+		[]string{"ignore:directive"},
 	},
 }
 
 func TestDoc(t *testing.T) {
 	maybeSkip(t)
+	defer log.SetOutput(log.Writer())
 	for _, test := range tests {
 		var b bytes.Buffer
 		var flagSet flag.FlagSet
+		var logbuf bytes.Buffer
+		log.SetOutput(&logbuf)
 		err := do(&b, &flagSet, test.args)
 		if err != nil {
 			t.Fatalf("%s %v: %s\n", test.name, test.args, err)
+		}
+		if logbuf.Len() > 0 {
+			t.Errorf("%s %v: unexpected log messages:\n%s", test.name, test.args, logbuf.Bytes())
 		}
 		output := b.Bytes()
 		failed := false
@@ -861,7 +920,9 @@ func TestDoc(t *testing.T) {
 }
 
 // Test the code to try multiple packages. Our test case is
+//
 //	go doc rand.Float64
+//
 // This needs to find math/rand.Float64; however crypto/rand, which doesn't
 // have the symbol, usually appears first in the directory listing.
 func TestMultiplePackages(t *testing.T) {
@@ -918,11 +979,15 @@ func TestMultiplePackages(t *testing.T) {
 }
 
 // Test the code to look up packages when given two args. First test case is
+//
 //	go doc binary BigEndian
+//
 // This needs to find encoding/binary.BigEndian, which means
 // finding the package encoding/binary given only "binary".
 // Second case is
+//
 //	go doc rand Float64
+//
 // which again needs to find math/rand and not give up after crypto/rand,
 // which has no such function.
 func TestTwoArgLookup(t *testing.T) {
@@ -985,7 +1050,7 @@ func TestDotSlashLookup(t *testing.T) {
 	if err := os.Chdir(filepath.Join(buildCtx.GOROOT, "src", "text")); err != nil {
 		t.Fatal(err)
 	}
-	var b bytes.Buffer
+	var b strings.Builder
 	var flagSet flag.FlagSet
 	err = do(&b, &flagSet, []string{"./template"})
 	if err != nil {
@@ -1003,7 +1068,7 @@ func TestDotSlashLookup(t *testing.T) {
 // when there should be no output at all. Issue 37969.
 func TestNoPackageClauseWhenNoMatch(t *testing.T) {
 	maybeSkip(t)
-	var b bytes.Buffer
+	var b strings.Builder
 	var flagSet flag.FlagSet
 	err := do(&b, &flagSet, []string{"template.ZZZ"})
 	// Expect an error.

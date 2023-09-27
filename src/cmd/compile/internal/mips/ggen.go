@@ -20,7 +20,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
 	}
 	if cnt < int64(4*types.PtrSize) {
 		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
-			p = pp.Append(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, base.Ctxt.FixedFrameSize()+off+i)
+			p = pp.Append(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, base.Ctxt.Arch.FixedFrameSize+off+i)
 		}
 	} else {
 		//fmt.Printf("zerorange frame:%v, lo: %v, hi:%v \n", frame ,lo, hi)
@@ -30,7 +30,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
 		//	MOVW	R0, (Widthptr)r1
 		//	ADD 	$Widthptr, r1
 		//	BNE		r1, r2, loop
-		p = pp.Append(p, mips.AADD, obj.TYPE_CONST, 0, base.Ctxt.FixedFrameSize()+off-4, obj.TYPE_REG, mips.REGRT1, 0)
+		p = pp.Append(p, mips.AADD, obj.TYPE_CONST, 0, base.Ctxt.Arch.FixedFrameSize+off-4, obj.TYPE_REG, mips.REGRT1, 0)
 		p.Reg = mips.REGSP
 		p = pp.Append(p, mips.AADD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, mips.REGRT2, 0)
 		p.Reg = mips.REGRT1
@@ -46,10 +46,6 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
 }
 
 func ginsnop(pp *objw.Progs) *obj.Prog {
-	p := pp.Prog(mips.ANOR)
-	p.From.Type = obj.TYPE_REG
-	p.From.Reg = mips.REG_R0
-	p.To.Type = obj.TYPE_REG
-	p.To.Reg = mips.REG_R0
+	p := pp.Prog(mips.ANOOP)
 	return p
 }

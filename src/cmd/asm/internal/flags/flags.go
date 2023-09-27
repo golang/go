@@ -6,6 +6,7 @@
 package flags
 
 import (
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"flag"
 	"fmt"
@@ -15,21 +16,21 @@ import (
 )
 
 var (
-	Debug            = flag.Bool("debug", false, "dump instructions as they are parsed")
-	OutputFile       = flag.String("o", "", "output file; default foo.o for /a/b/c/foo.s as first argument")
-	TrimPath         = flag.String("trimpath", "", "remove prefix from recorded source file paths")
-	Shared           = flag.Bool("shared", false, "generate code that can be linked into a shared library")
-	Dynlink          = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
-	Linkshared       = flag.Bool("linkshared", false, "generate code that will be linked against Go shared libraries")
-	AllErrors        = flag.Bool("e", false, "no limit on number of errors reported")
-	SymABIs          = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
-	Importpath       = flag.String("p", "", "set expected package import to path")
-	Spectre          = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
-	CompilingRuntime = flag.Bool("compiling-runtime", false, "source to be compiled is part of the Go runtime")
+	Debug      = flag.Bool("debug", false, "dump instructions as they are parsed")
+	OutputFile = flag.String("o", "", "output file; default foo.o for /a/b/c/foo.s as first argument")
+	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths")
+	Shared     = flag.Bool("shared", false, "generate code that can be linked into a shared library")
+	Dynlink    = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
+	Linkshared = flag.Bool("linkshared", false, "generate code that will be linked against Go shared libraries")
+	AllErrors  = flag.Bool("e", false, "no limit on number of errors reported")
+	SymABIs    = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
+	Importpath = flag.String("p", obj.UnlinkablePkg, "set expected package import to path")
+	Spectre    = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
 )
 
 var DebugFlags struct {
 	MayMoreStack string `help:"call named function before all stack growth checks"`
+	PCTab        string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
 }
 
 var (
@@ -71,8 +72,7 @@ func Usage() {
 }
 
 func Parse() {
-	flag.Usage = Usage
-	flag.Parse()
+	objabi.Flagparse(Usage)
 	if flag.NArg() == 0 {
 		flag.Usage()
 	}
@@ -83,9 +83,7 @@ func Parse() {
 			flag.Usage()
 		}
 		input := filepath.Base(flag.Arg(0))
-		if strings.HasSuffix(input, ".s") {
-			input = input[:len(input)-2]
-		}
+		input = strings.TrimSuffix(input, ".s")
 		*OutputFile = fmt.Sprintf("%s.o", input)
 	}
 }

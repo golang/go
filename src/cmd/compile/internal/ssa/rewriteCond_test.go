@@ -36,6 +36,7 @@ var crTests = []struct {
 	{"AddConst64", testAddConst64},
 	{"AddConst32", testAddConst32},
 	{"AddVar64", testAddVar64},
+	{"AddVar64Cset", testAddVar64Cset},
 	{"AddVar32", testAddVar32},
 	{"MAddVar64", testMAddVar64},
 	{"MAddVar32", testMAddVar32},
@@ -68,8 +69,10 @@ func TestCondRewrite(t *testing.T) {
 }
 
 // Profile the aforementioned optimization from two angles:
-//   SoloJump: generated branching code has one 'jump', for '<' and '>='
-//   CombJump: generated branching code has two consecutive 'jump', for '<=' and '>'
+//
+//	SoloJump: generated branching code has one 'jump', for '<' and '>='
+//	CombJump: generated branching code has two consecutive 'jump', for '<=' and '>'
+//
 // We expect that 'CombJump' is generally on par with the non-optimized code, and
 // 'SoloJump' demonstrates some improvement.
 // It's for arm64 initially, please see https://github.com/golang/go/issues/38740
@@ -193,6 +196,41 @@ func testAddVar64(t *testing.T) {
 
 	if y64+v64_n <= 0 {
 		t.Errorf("'%#x + %#x <= 0' failed", y64, v64_n)
+	}
+}
+
+// var + var, cset
+func testAddVar64Cset(t *testing.T) {
+	var a int
+	if x64+v64 < 0 {
+		a = 1
+	}
+	if a != 1 {
+		t.Errorf("'%#x + %#x < 0' failed", x64, v64)
+	}
+
+	a = 0
+	if y64+v64_n >= 0 {
+		a = 1
+	}
+	if a != 1 {
+		t.Errorf("'%#x + %#x >= 0' failed", y64, v64_n)
+	}
+
+	a = 1
+	if x64+v64 >= 0 {
+		a = 0
+	}
+	if a == 0 {
+		t.Errorf("'%#x + %#x >= 0' failed", x64, v64)
+	}
+
+	a = 1
+	if y64+v64_n < 0 {
+		a = 0
+	}
+	if a == 0 {
+		t.Errorf("'%#x + %#x < 0' failed", y64, v64_n)
 	}
 }
 

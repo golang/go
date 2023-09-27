@@ -39,10 +39,14 @@ func (e *escape) addr(n ir.Node) hole {
 		if n.X.Type().IsArray() {
 			k = e.addr(n.X)
 		} else {
-			e.discard(n.X)
+			e.mutate(n.X)
 		}
-	case ir.ODEREF, ir.ODOTPTR:
-		e.discard(n)
+	case ir.ODEREF:
+		n := n.(*ir.StarExpr)
+		e.mutate(n.X)
+	case ir.ODOTPTR:
+		n := n.(*ir.SelectorExpr)
+		e.mutate(n.X)
 	case ir.OINDEXMAP:
 		n := n.(*ir.IndexExpr)
 		e.discard(n.X)
@@ -50,6 +54,10 @@ func (e *escape) addr(n ir.Node) hole {
 	}
 
 	return k
+}
+
+func (e *escape) mutate(n ir.Node) {
+	e.expr(e.mutatorHole(), n)
 }
 
 func (e *escape) addrs(l ir.Nodes) []hole {

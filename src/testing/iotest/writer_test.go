@@ -5,7 +5,7 @@
 package iotest
 
 import (
-	"bytes"
+	"strings"
 	"testing"
 )
 
@@ -23,7 +23,7 @@ var truncateWriterTests = []struct {
 
 func TestTruncateWriter(t *testing.T) {
 	for _, tt := range truncateWriterTests {
-		buf := new(bytes.Buffer)
+		buf := new(strings.Builder)
 		tw := TruncateWriter(buf, tt.trunc)
 		n, err := tw.Write([]byte(tt.in))
 		if err != nil {

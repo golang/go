@@ -5,7 +5,6 @@
 package template
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -24,7 +23,7 @@ import (
 // Execute returns that error.
 //
 // Errors returned by Execute wrap the underlying error; call errors.As to
-// uncover them.
+// unwrap them.
 //
 // When template execution invokes a function with an argument list, that list
 // must be assignable to the function's parameter types. Functions meant to
@@ -436,14 +435,33 @@ func basicKind(v reflect.Value) (kind, error) {
 	return invalidKind, errBadComparisonType
 }
 
+// isNil returns true if v is the zero reflect.Value, or nil of its type.
+func isNil(v reflect.Value) bool {
+	if !v.IsValid() {
+		return true
+	}
+	switch v.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return v.IsNil()
+	}
+	return false
+}
+
+// canCompare reports whether v1 and v2 are both the same kind, or one is nil.
+// Called only when dealing with nillable types, or there's about to be an error.
+func canCompare(v1, v2 reflect.Value) bool {
+	k1 := v1.Kind()
+	k2 := v2.Kind()
+	if k1 == k2 {
+		return true
+	}
+	// We know the type can be compared to nil.
+	return k1 == reflect.Invalid || k2 == reflect.Invalid
+}
+
 // eq evaluates the comparison a == b || a == c || ...
 func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
 	arg1 = indirectInterface(arg1)
-	if arg1 != zero {
-		if t1 := arg1.Type(); !t1.Comparable() {
-			return false, fmt.Errorf("uncomparable type %s: %v", t1, arg1)
-		}
-	}
 	if len(arg2) == 0 {
 		return false, errNoComparison
 	}
@@ -460,7 +478,7 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
 			case k1 == uintKind && k2 == intKind:
 				truth = arg.Int() >= 0 && arg1.Uint() == uint64(arg.Int())
 			default:
-				if arg1 != zero && arg != zero {
+				if arg1.IsValid() && arg.IsValid() {
 					return false, errBadComparison
 				}
 			}
@@ -479,11 +497,14 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
 			case uintKind:
 				truth = arg1.Uint() == arg.Uint()
 			default:
-				if arg == zero || arg1 == zero {
-					truth = arg1 == arg
+				if !canCompare(arg1, arg) {
+					return false, fmt.Errorf("non-comparable types %s: %v, %s: %v", arg1, arg1.Type(), arg.Type(), arg)
+				}
+				if isNil(arg1) || isNil(arg) {
+					truth = isNil(arg) == isNil(arg1)
 				} else {
-					if t2 := arg.Type(); !t2.Comparable() {
-						return false, fmt.Errorf("uncomparable type %s: %v", t2, arg)
+					if !arg.Type().Comparable() {
+						return false, fmt.Errorf("non-comparable type %s: %v", arg, arg.Type())
 					}
 					truth = arg1.Interface() == arg.Interface()
 				}
@@ -620,7 +641,7 @@ func HTMLEscapeString(s string) string {
 	if !strings.ContainsAny(s, "'\"&<>\000") {
 		return s
 	}
-	var b bytes.Buffer
+	var b strings.Builder
 	HTMLEscape(&b, []byte(s))
 	return b.String()
 }
@@ -703,7 +724,7 @@ func JSEscapeString(s string) string {
 	if strings.IndexFunc(s, jsIsSpecial) < 0 {
 		return s
 	}
-	var b bytes.Buffer
+	var b strings.Builder
 	JSEscape(&b, []byte(s))
 	return b.String()
 }
@@ -729,7 +750,9 @@ func URLQueryEscaper(args ...any) string {
 }
 
 // evalArgs formats the list of arguments into a string. It is therefore equivalent to
+//
 //	fmt.Sprint(args...)
+//
 // except that each argument is indirected (if a pointer), as required,
 // using the same rules as the default string evaluation during template
 // execution.

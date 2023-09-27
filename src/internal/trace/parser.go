@@ -75,6 +75,7 @@ const (
 	NetpollP // depicts network unblocks
 	SyscallP // depicts returns from syscalls
 	GCP      // depicts GC state
+	ProfileP // depicts recording of CPU profile samples
 )
 
 // ParseResult is the result of Parse.
@@ -150,9 +151,9 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
 		return
 	}
 	switch ver {
-	case 1005, 1007, 1008, 1009, 1010, 1011:
-		// Note: When adding a new version, add canned traces
-		// from the old version to the test suite using mkcanned.bash.
+	case 1005, 1007, 1008, 1009, 1010, 1011, 1019, 1021:
+		// Note: When adding a new version, confirm that canned traces from the
+		// old version are part of the test suite. Add them using mkcanned.bash.
 		break
 	default:
 		err = fmt.Errorf("unsupported trace file version %v.%v (update Go toolchain) %v", ver/1000, ver%1000, ver)
@@ -419,18 +420,29 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 				if raw.typ == EvGoStartLabel {
 					e.SArgs = []string{strings[e.Args[2]]}
 				}
-			case EvGCSTWStart:
+			case EvSTWStart:
 				e.G = 0
-				switch e.Args[0] {
-				case 0:
-					e.SArgs = []string{"mark termination"}
-				case 1:
-					e.SArgs = []string{"sweep termination"}
-				default:
-					err = fmt.Errorf("unknown STW kind %d", e.Args[0])
-					return
+				if ver < 1021 {
+					switch e.Args[0] {
+					case 0:
+						e.SArgs = []string{"mark termination"}
+					case 1:
+						e.SArgs = []string{"sweep termination"}
+					default:
+						err = fmt.Errorf("unknown STW kind %d", e.Args[0])
+						return
+					}
+				} else if ver == 1021 {
+					if kind := e.Args[0]; kind < uint64(len(stwReasonStringsGo121)) {
+						e.SArgs = []string{stwReasonStringsGo121[kind]}
+					} else {
+						e.SArgs = []string{"unknown"}
+					}
+				} else {
+					// Can't make any assumptions.
+					e.SArgs = []string{"unknown"}
 				}
-			case EvGCStart, EvGCDone, EvGCSTWDone:
+			case EvGCStart, EvGCDone, EvSTWDone:
 				e.G = 0
 			case EvGoEnd, EvGoStop, EvGoSched, EvGoPreempt,
 				EvGoSleep, EvGoBlock, EvGoBlockSend, EvGoBlockRecv,
@@ -448,8 +460,27 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 			case EvUserLog:
 				// e.Args 0: taskID, 1:keyID, 2: stackID
 				e.SArgs = []string{strings[e.Args[1]], raw.sargs[0]}
+			case EvCPUSample:
+				e.Ts = int64(e.Args[0])
+				e.P = int(e.Args[1])
+				e.G = e.Args[2]
+				e.Args[0] = 0
 			}
-			batches[lastP] = append(batches[lastP], e)
+			switch raw.typ {
+			default:
+				batches[lastP] = append(batches[lastP], e)
+			case EvCPUSample:
+				// Most events are written out by the active P at the exact
+				// moment they describe. CPU profile samples are different
+				// because they're written to the tracing log after some delay,
+				// by a separate worker goroutine, into a separate buffer.
+				//
+				// We keep these in their own batch until all of the batches are
+				// merged in timestamp order. We also (right before the merge)
+				// re-sort these events by the timestamp captured in the
+				// profiling signal handler.
+				batches[ProfileP] = append(batches[ProfileP], e)
+			}
 		}
 	}
 	if len(batches) == 0 {
@@ -633,20 +664,20 @@ func postProcessTrace(ver int, events []*Event) error {
 			}
 			evGC.Link = ev
 			evGC = nil
-		case EvGCSTWStart:
+		case EvSTWStart:
 			evp := &evSTW
 			if ver < 1010 {
-				// Before 1.10, EvGCSTWStart was per-P.
+				// Before 1.10, EvSTWStart was per-P.
 				evp = &p.evSTW
 			}
 			if *evp != nil {
 				return fmt.Errorf("previous STW is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
 			}
 			*evp = ev
-		case EvGCSTWDone:
+		case EvSTWDone:
 			evp := &evSTW
 			if ver < 1010 {
-				// Before 1.10, EvGCSTWDone was per-P.
+				// Before 1.10, EvSTWDone was per-P.
 				evp = &p.evSTW
 			}
 			if *evp == nil {
@@ -953,7 +984,7 @@ func PrintEvent(ev *Event) {
 
 func (ev *Event) String() string {
 	desc := EventDescriptions[ev.Type]
-	w := new(bytes.Buffer)
+	w := new(strings.Builder)
 	fmt.Fprintf(w, "%v %v p=%v g=%v off=%v", ev.Ts, desc.Name, ev.P, ev.G, ev.Off)
 	for i, a := range desc.Args {
 		fmt.Fprintf(w, " %v=%v", a, ev.Args[i])
@@ -995,7 +1026,7 @@ func argNum(raw rawEvent, ver int) int {
 		if ver < 1007 {
 			narg-- // 1.7 added an additional seq arg
 		}
-	case EvGCSTWStart:
+	case EvSTWStart:
 		if ver < 1010 {
 			narg-- // 1.10 added an argument
 		}
@@ -1018,8 +1049,8 @@ const (
 	EvProcStop          = 6  // stop of P [timestamp]
 	EvGCStart           = 7  // GC start [timestamp, seq, stack id]
 	EvGCDone            = 8  // GC done [timestamp]
-	EvGCSTWStart        = 9  // GC mark termination start [timestamp, kind]
-	EvGCSTWDone         = 10 // GC mark termination done [timestamp]
+	EvSTWStart          = 9  // GC mark termination start [timestamp, kind]
+	EvSTWDone           = 10 // GC mark termination done [timestamp]
 	EvGCSweepStart      = 11 // GC sweep start [timestamp, stack id]
 	EvGCSweepDone       = 12 // GC sweep done [timestamp, swept, reclaimed]
 	EvGoCreate          = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
@@ -1054,11 +1085,12 @@ const (
 	EvGoBlockGC         = 42 // goroutine blocks on GC assist [timestamp, stack]
 	EvGCMarkAssistStart = 43 // GC mark assist start [timestamp, stack]
 	EvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
-	EvUserTaskCreate    = 45 // trace.NewContext [timestamp, internal task id, internal parent id, stack, name string]
+	EvUserTaskCreate    = 45 // trace.NewTask [timestamp, internal task id, internal parent id, name string, stack]
 	EvUserTaskEnd       = 46 // end of task [timestamp, internal task id, stack]
-	EvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
+	EvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), name string, stack]
 	EvUserLog           = 48 // trace.Log [timestamp, internal id, key string id, stack, value string]
-	EvCount             = 49
+	EvCPUSample         = 49 // CPU profiling sample [timestamp, real timestamp, real P id (-1 when absent), goroutine id, stack]
+	EvCount             = 50
 )
 
 var EventDescriptions = [EvCount]struct {
@@ -1077,8 +1109,8 @@ var EventDescriptions = [EvCount]struct {
 	EvProcStop:          {"ProcStop", 1005, false, []string{}, nil},
 	EvGCStart:           {"GCStart", 1005, true, []string{"seq"}, nil}, // in 1.5 format it was {}
 	EvGCDone:            {"GCDone", 1005, false, []string{}, nil},
-	EvGCSTWStart:        {"GCSTWStart", 1005, false, []string{"kindid"}, []string{"kind"}}, // <= 1.9, args was {} (implicitly {0})
-	EvGCSTWDone:         {"GCSTWDone", 1005, false, []string{}, nil},
+	EvSTWStart:          {"STWStart", 1005, false, []string{"kindid"}, []string{"kind"}}, // <= 1.9, args was {} (implicitly {0})
+	EvSTWDone:           {"STWDone", 1005, false, []string{}, nil},
 	EvGCSweepStart:      {"GCSweepStart", 1005, true, []string{}, nil},
 	EvGCSweepDone:       {"GCSweepDone", 1005, false, []string{"swept", "reclaimed"}, nil}, // before 1.9, format was {}
 	EvGoCreate:          {"GoCreate", 1005, true, []string{"g", "stack"}, nil},
@@ -1117,4 +1149,26 @@ var EventDescriptions = [EvCount]struct {
 	EvUserTaskEnd:       {"UserTaskEnd", 1011, true, []string{"taskid"}, nil},
 	EvUserRegion:        {"UserRegion", 1011, true, []string{"taskid", "mode", "typeid"}, []string{"name"}},
 	EvUserLog:           {"UserLog", 1011, true, []string{"id", "keyid"}, []string{"category", "message"}},
+	EvCPUSample:         {"CPUSample", 1019, true, []string{"ts", "p", "g"}, nil},
+}
+
+// Copied from src/runtime/proc.go:stwReasonStrings in Go 1.21.
+var stwReasonStringsGo121 = [...]string{
+	"unknown",
+	"GC mark termination",
+	"GC sweep termination",
+	"write heap dump",
+	"goroutine profile",
+	"goroutine profile cleanup",
+	"all goroutines stack trace",
+	"read mem stats",
+	"AllThreadsSyscall",
+	"GOMAXPROCS",
+	"start trace",
+	"stop trace",
+	"CountPagesInUse (test)",
+	"ReadMetricsSlow (test)",
+	"ReadMemStatsSlow (test)",
+	"PageCachePagesLeaked (test)",
+	"ResetDebugLog (test)",
 }

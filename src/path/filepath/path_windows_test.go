@@ -197,13 +197,17 @@ func TestEvalSymlinksCanonicalNames(t *testing.T) {
 // (where c: is vol parameter) to discover "8dot3 name creation state".
 // The state is combination of 2 flags. The global flag controls if it
 // is per volume or global setting:
-//   0 - Enable 8dot3 name creation on all volumes on the system
-//   1 - Disable 8dot3 name creation on all volumes on the system
-//   2 - Set 8dot3 name creation on a per volume basis
-//   3 - Disable 8dot3 name creation on all volumes except the system volume
+//
+//	0 - Enable 8dot3 name creation on all volumes on the system
+//	1 - Disable 8dot3 name creation on all volumes on the system
+//	2 - Set 8dot3 name creation on a per volume basis
+//	3 - Disable 8dot3 name creation on all volumes except the system volume
+//
 // If global flag is set to 2, then per-volume flag needs to be examined:
-//   0 - Enable 8dot3 name creation on this volume
-//   1 - Disable 8dot3 name creation on this volume
+//
+//	0 - Enable 8dot3 name creation on this volume
+//	1 - Disable 8dot3 name creation on this volume
+//
 // checkVolume8dot3Setting verifies that "8dot3 name creation" flags
 // are set to 2 and 0, if enabled parameter is true, or 2 and 1, if enabled
 // is false. Otherwise checkVolume8dot3Setting returns error.
@@ -343,7 +347,11 @@ func TestToNorm(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, err := filepath.ToNorm(test.arg, stubBase)
+		var path string
+		if test.arg != "" {
+			path = filepath.Clean(test.arg)
+		}
+		got, err := filepath.ToNorm(path, stubBase)
 		if err != nil {
 			t.Errorf("toNorm(%s) failed: %v\n", test.arg, err)
 		} else if got != test.want {
@@ -435,7 +443,9 @@ func TestToNorm(t *testing.T) {
 				continue
 			}
 		}
-
+		if arg != "" {
+			arg = filepath.Clean(arg)
+		}
 		got, err := filepath.ToNorm(arg, filepath.NormBase)
 		if err != nil {
 			t.Errorf("toNorm(%s) failed: %v (wd=%s)\n", arg, err, wd)
@@ -528,5 +538,51 @@ func TestNTNamespaceSymlink(t *testing.T) {
 	}
 	if want := file; got != want {
 		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, filelink, got, want)
+	}
+}
+
+func TestIssue52476(t *testing.T) {
+	tests := []struct {
+		lhs, rhs string
+		want     string
+	}{
+		{`..\.`, `C:`, `..\C:`},
+		{`..`, `C:`, `..\C:`},
+		{`.`, `:`, `.\:`},
+		{`.`, `C:`, `.\C:`},
+		{`.`, `C:/a/b/../c`, `.\C:\a\c`},
+		{`.`, `\C:`, `.\C:`},
+		{`C:\`, `.`, `C:\`},
+		{`C:\`, `C:\`, `C:\C:`},
+		{`C`, `:`, `C\:`},
+		{`\.`, `C:`, `\C:`},
+		{`\`, `C:`, `\C:`},
+	}
+
+	for _, test := range tests {
+		got := filepath.Join(test.lhs, test.rhs)
+		if got != test.want {
+			t.Errorf(`Join(%q, %q): got %q, want %q`, test.lhs, test.rhs, got, test.want)
+		}
+	}
+}
+
+func TestAbsWindows(t *testing.T) {
+	for _, test := range []struct {
+		path string
+		want string
+	}{
+		{`C:\foo`, `C:\foo`},
+		{`\\host\share\foo`, `\\host\share\foo`},
+		{`\\host`, `\\host`},
+		{`\\.\NUL`, `\\.\NUL`},
+		{`NUL`, `\\.\NUL`},
+		{`COM1`, `\\.\COM1`},
+		{`a/NUL`, `\\.\NUL`},
+	} {
+		got, err := filepath.Abs(test.path)
+		if err != nil || got != test.want {
+			t.Errorf("Abs(%q) = %q, %v; want %q, nil", test.path, got, err, test.want)
+		}
 	}
 }

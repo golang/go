@@ -26,9 +26,10 @@ var unkeyedLiteral = map[string]bool{
 	"unicode.Range16": true,
 	"unicode.Range32": true,
 
-	// These three structs are used in generated test main files,
+	// These four structs are used in generated test main files,
 	// but the generator can be trusted.
-	"testing.InternalBenchmark": true,
-	"testing.InternalExample":   true,
-	"testing.InternalTest":      true,
+	"testing.InternalBenchmark":  true,
+	"testing.InternalExample":    true,
+	"testing.InternalTest":       true,
+	"testing.InternalFuzzTarget": true,
 }

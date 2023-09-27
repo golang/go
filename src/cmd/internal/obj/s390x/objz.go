@@ -33,6 +33,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"internal/abi"
 	"log"
 	"math"
 )
@@ -310,10 +311,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if !p.From.Sym.NoFrame() {
 				// If there is a stack frame at all, it includes
 				// space to save the LR.
-				autosize += int32(c.ctxt.FixedFrameSize())
+				autosize += int32(c.ctxt.Arch.FixedFrameSize)
 			}
 
-			if p.Mark&LEAF != 0 && autosize < objabi.StackSmall {
+			if p.Mark&LEAF != 0 && autosize < abi.StackSmall {
 				// A leaf function with a small stack can be marked
 				// NOSPLIT, avoiding a stack check.
 				p.From.Sym.Set(obj.AttrNoSplit, true)
@@ -358,6 +359,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.Spadj = autosize
 
 				q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
+
+				// On Linux, in a cgo binary we may get a SIGSETXID signal early on
+				// before the signal stack is set, as glibc doesn't allow us to block
+				// SIGSETXID. So a signal may land on the current stack and clobber
+				// the content below the SP. We store the LR again after the SP is
+				// decremented.
+				q = obj.Appendp(q, c.newprog)
+				q.As = AMOVD
+				q.From.Type = obj.TYPE_REG
+				q.From.Reg = REG_LR
+				q.To.Type = obj.TYPE_MEM
+				q.To.Reg = REGSP
+				q.To.Offset = 0
 			} else if c.cursym.Func().Text.Mark&LEAF == 0 {
 				// A very few functions that do not return to their caller
 				// (e.g. gogo) are not identified as leaves but still have
@@ -420,7 +434,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = obj.Appendp(q, c.newprog)
 				q.As = AADD
 				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(autosize) + c.ctxt.FixedFrameSize()
+				q.From.Offset = int64(autosize) + c.ctxt.Arch.FixedFrameSize
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R5
@@ -440,7 +454,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = obj.Appendp(q, c.newprog)
 				q.As = AADD
 				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = c.ctxt.FixedFrameSize()
+				q.From.Offset = c.ctxt.Arch.FixedFrameSize
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R6
@@ -555,8 +569,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
 			f := c.cursym.Func()
-			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
-				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
+			if f.FuncFlag&abi.FuncFlagSPWrite == 0 {
+				c.cursym.Func().FuncFlag |= abi.FuncFlagSPWrite
 				if ctxt.Debugvlog || !ctxt.IsAsm {
 					ctxt.Logf("auto-SPWRITE: %s\n", c.cursym.Name)
 					if !ctxt.IsAsm {
@@ -649,7 +663,7 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCh
 	// unnecessarily. See issue #35470.
 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
 
-	if framesize <= objabi.StackSmall {
+	if framesize <= abi.StackSmall {
 		// small stack: SP < stackguard
 		//	CMPUBGE	stackguard, SP, label-of-call-to-morestack
 
@@ -665,8 +679,8 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCh
 
 	// large stack: SP-framesize < stackguard-StackSmall
 
-	offset := int64(framesize) - objabi.StackSmall
-	if framesize > objabi.StackBig {
+	offset := int64(framesize) - abi.StackSmall
+	if framesize > abi.StackBig {
 		// Such a large stack we need to protect against underflow.
 		// The runtime guarantees SP > objabi.StackBig, but
 		// framesize is large enough that SP-framesize may

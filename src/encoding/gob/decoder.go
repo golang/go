@@ -7,6 +7,7 @@ package gob
 import (
 	"bufio"
 	"errors"
+	"internal/saferio"
 	"io"
 	"reflect"
 	"sync"
@@ -36,9 +37,9 @@ type Decoder struct {
 	err          error
 }
 
-// NewDecoder returns a new decoder that reads from the io.Reader.
-// If r does not also implement io.ByteReader, it will be wrapped in a
-// bufio.Reader.
+// NewDecoder returns a new decoder that reads from the [io.Reader].
+// If r does not also implement [io.ByteReader], it will be wrapped in a
+// [bufio.Reader].
 func NewDecoder(r io.Reader) *Decoder {
 	dec := new(Decoder)
 	// We use the ability to read bytes as a plausible surrogate for buffering.
@@ -98,8 +99,9 @@ func (dec *Decoder) readMessage(nbytes int) {
 		panic("non-empty decoder buffer")
 	}
 	// Read the data
-	dec.buf.Size(nbytes)
-	_, dec.err = io.ReadFull(dec.r, dec.buf.Bytes())
+	var buf []byte
+	buf, dec.err = saferio.ReadData(dec.r, uint64(nbytes))
+	dec.buf.SetBytes(buf)
 	if dec.err == io.EOF {
 		dec.err = io.ErrUnexpectedEOF
 	}
@@ -132,7 +134,9 @@ func (dec *Decoder) nextUint() uint64 {
 
 // decodeTypeSequence parses:
 // TypeSequence
+//
 //	(TypeDefinition DelimitedTypeDefinition*)?
+//
 // and returns the type id of the next value. It returns -1 at
 // EOF.  Upon return, the remainder of dec.buf is the value to be
 // decoded. If this is an interface value, it can be ignored by
@@ -184,7 +188,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 // If e is nil, the value will be discarded. Otherwise,
 // the value underlying e must be a pointer to the
 // correct type for the next data item received.
-// If the input is at EOF, Decode returns io.EOF and
+// If the input is at EOF, Decode returns [io.EOF] and
 // does not modify e.
 func (dec *Decoder) Decode(e any) error {
 	if e == nil {
@@ -204,7 +208,7 @@ func (dec *Decoder) Decode(e any) error {
 // If v is the zero reflect.Value (v.Kind() == Invalid), DecodeValue discards the value.
 // Otherwise, it stores the value into v. In that case, v must represent
 // a non-nil pointer to data or be an assignable reflect.Value (v.CanSet())
-// If the input is at EOF, DecodeValue returns io.EOF and
+// If the input is at EOF, DecodeValue returns [io.EOF] and
 // does not modify v.
 func (dec *Decoder) DecodeValue(v reflect.Value) error {
 	if v.IsValid() {

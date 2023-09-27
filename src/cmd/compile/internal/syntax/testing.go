@@ -9,7 +9,6 @@ package syntax
 import (
 	"io"
 	"regexp"
-	"strings"
 )
 
 // CommentsDo parses the given source and calls the provided handler for each
@@ -23,21 +22,18 @@ func CommentsDo(src io.Reader, handler func(line, col uint, text string)) {
 	}
 }
 
-// ERROR comments must start with text `ERROR "msg"` or `ERROR msg`.
-// Space around "msg" or msg is ignored.
-var errRx = regexp.MustCompile(`^ *ERROR *"?([^"]*)"?`)
-
-// ErrorMap collects all comments with comment text of the form
-// `ERROR "msg"` or `ERROR msg` from the given src and returns them
-// as []Error lists in a map indexed by line number. The position
-// for each Error is the position of the token immediately preceding
-// the comment, the Error message is the message msg extracted from
-// the comment, with all errors that are on the same line collected
-// in a slice, in source order. If there is no preceding token (the
-// `ERROR` comment appears in the beginning of the file), then the
-// recorded position is unknown (line, col = 0, 0). If there are no
-// ERROR comments, the result is nil.
-func ErrorMap(src io.Reader) (errmap map[uint][]Error) {
+// CommentMap collects all comments in the given src with comment text
+// that matches the supplied regular expression rx and returns them as
+// []Error lists in a map indexed by line number. The comment text is
+// the comment with any comment markers ("//", "/*", or "*/") stripped.
+// The position for each Error is the position of the token immediately
+// preceding the comment and the Error message is the comment text,
+// with all comments that are on the same line collected in a slice, in
+// source order. If there is no preceding token (the matching comment
+// appears at the beginning of the file), then the recorded position
+// is unknown (line, col = 0, 0). If there are no matching comments,
+// the result is nil.
+func CommentMap(src io.Reader, rx *regexp.Regexp) (res map[uint][]Error) {
 	// position of previous token
 	var base *PosBase
 	var prev struct{ line, col uint }
@@ -45,18 +41,19 @@ func ErrorMap(src io.Reader) (errmap map[uint][]Error) {
 	var s scanner
 	s.init(src, func(_, _ uint, text string) {
 		if text[0] != '/' {
-			return // error, ignore
+			return // not a comment, ignore
 		}
 		if text[1] == '*' {
 			text = text[:len(text)-2] // strip trailing */
 		}
-		if s := errRx.FindStringSubmatch(text[2:]); len(s) == 2 {
+		text = text[2:] // strip leading // or /*
+		if rx.MatchString(text) {
 			pos := MakePos(base, prev.line, prev.col)
-			err := Error{pos, strings.TrimSpace(s[1])}
-			if errmap == nil {
-				errmap = make(map[uint][]Error)
+			err := Error{pos, text}
+			if res == nil {
+				res = make(map[uint][]Error)
 			}
-			errmap[prev.line] = append(errmap[prev.line], err)
+			res[prev.line] = append(res[prev.line], err)
 		}
 	}, comments)
 

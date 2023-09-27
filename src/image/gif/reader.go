@@ -250,6 +250,10 @@ func (d *decoder) decode(r io.Reader, configOnly, keepAllFrames bool) error {
 				return err
 			}
 
+			if !keepAllFrames && len(d.image) == 1 {
+				return nil
+			}
+
 		case sTrailer:
 			if len(d.image) == 0 {
 				return fmt.Errorf("gif: missing image data")

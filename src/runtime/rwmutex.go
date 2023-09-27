@@ -23,8 +23,8 @@ type rwmutex struct {
 	wLock  mutex    // serializes writers
 	writer muintptr // pending writer waiting for completing readers
 
-	readerCount uint32 // number of pending readers
-	readerWait  uint32 // number of departing readers
+	readerCount atomic.Int32 // number of pending readers
+	readerWait  atomic.Int32 // number of departing readers
 }
 
 const rwmutexMaxReaders = 1 << 30
@@ -36,7 +36,7 @@ func (rw *rwmutex) rlock() {
 	// deadlock (issue #20903). Alternatively, we could drop the P
 	// while sleeping.
 	acquirem()
-	if int32(atomic.Xadd(&rw.readerCount, 1)) < 0 {
+	if rw.readerCount.Add(1) < 0 {
 		// A writer is pending. Park on the reader queue.
 		systemstack(func() {
 			lockWithRank(&rw.rLock, lockRankRwmutexR)
@@ -60,12 +60,12 @@ func (rw *rwmutex) rlock() {
 
 // runlock undoes a single rlock call on rw.
 func (rw *rwmutex) runlock() {
-	if r := int32(atomic.Xadd(&rw.readerCount, -1)); r < 0 {
+	if r := rw.readerCount.Add(-1); r < 0 {
 		if r+1 == 0 || r+1 == -rwmutexMaxReaders {
 			throw("runlock of unlocked rwmutex")
 		}
 		// A writer is pending.
-		if atomic.Xadd(&rw.readerWait, -1) == 0 {
+		if rw.readerWait.Add(-1) == 0 {
 			// The last reader unblocks the writer.
 			lockWithRank(&rw.rLock, lockRankRwmutexR)
 			w := rw.writer.ptr()
@@ -84,10 +84,10 @@ func (rw *rwmutex) lock() {
 	lockWithRank(&rw.wLock, lockRankRwmutexW)
 	m := getg().m
 	// Announce that there is a pending writer.
-	r := int32(atomic.Xadd(&rw.readerCount, -rwmutexMaxReaders)) + rwmutexMaxReaders
+	r := rw.readerCount.Add(-rwmutexMaxReaders) + rwmutexMaxReaders
 	// Wait for any active readers to complete.
 	lockWithRank(&rw.rLock, lockRankRwmutexR)
-	if r != 0 && atomic.Xadd(&rw.readerWait, r) != 0 {
+	if r != 0 && rw.readerWait.Add(r) != 0 {
 		// Wait for reader to wake us up.
 		systemstack(func() {
 			rw.writer.set(m)
@@ -103,7 +103,7 @@ func (rw *rwmutex) lock() {
 // unlock unlocks rw for writing.
 func (rw *rwmutex) unlock() {
 	// Announce to readers that there is no active writer.
-	r := int32(atomic.Xadd(&rw.readerCount, rwmutexMaxReaders))
+	r := rw.readerCount.Add(rwmutexMaxReaders)
 	if r >= rwmutexMaxReaders {
 		throw("unlock of unlocked rwmutex")
 	}

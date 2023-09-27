@@ -1729,7 +1729,7 @@ func intstring2() {
 
 func stringtoslicebyte0() {
 	s := "foo"
-	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape$"
+	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape$" "zero-copy string->\[\]byte conversion"
 	_ = x
 }
 

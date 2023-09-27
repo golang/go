@@ -153,7 +153,7 @@ func mutexHog(duration time.Duration, hogger func(mu1, mu2 *sync.Mutex, start ti
 }
 
 func TestDeltaProfile(t *testing.T) {
-	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
+	if strings.HasPrefix(runtime.GOARCH, "arm") {
 		testenv.SkipFlaky(t, 50218)
 	}
 

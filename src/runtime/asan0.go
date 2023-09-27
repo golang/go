@@ -16,7 +16,8 @@ const asanenabled = false
 
 // Because asanenabled is false, none of these functions should be called.
 
-func asanread(addr unsafe.Pointer, sz uintptr)     { throw("asan") }
-func asanwrite(addr unsafe.Pointer, sz uintptr)    { throw("asan") }
-func asanunpoison(addr unsafe.Pointer, sz uintptr) { throw("asan") }
-func asanpoison(addr unsafe.Pointer, sz uintptr)   { throw("asan") }
+func asanread(addr unsafe.Pointer, sz uintptr)            { throw("asan") }
+func asanwrite(addr unsafe.Pointer, sz uintptr)           { throw("asan") }
+func asanunpoison(addr unsafe.Pointer, sz uintptr)        { throw("asan") }
+func asanpoison(addr unsafe.Pointer, sz uintptr)          { throw("asan") }
+func asanregisterglobals(addr unsafe.Pointer, sz uintptr) { throw("asan") }

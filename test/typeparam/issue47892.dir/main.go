@@ -4,15 +4,15 @@
 
 package main
 
-import "a"
+import "./a"
 
 type Model[T any] struct {
-	index       a.Index[T]
+	index a.Index[T]
 }
 
 func NewModel[T any](index a.Index[T]) Model[T] {
 	return Model[T]{
-		index:       index,
+		index: index,
 	}
 }
 

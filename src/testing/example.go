@@ -6,7 +6,6 @@ package testing
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -29,14 +28,11 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
 func runExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ran, ok bool) {
 	ok = true
 
-	var eg InternalExample
+	m := newMatcher(matchString, *match, "-test.run", *skip)
 
+	var eg InternalExample
 	for _, eg = range examples {
-		matched, err := matchString(*match, eg.Name)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.run: %s\n", err)
-			os.Exit(1)
-		}
+		_, matched, _ := m.fullName(nil, eg.Name)
 		if !matched {
 			continue
 		}
@@ -80,17 +76,20 @@ func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Durati
 		}
 	}
 	if fail != "" || !finished || recovered != nil {
-		fmt.Printf("--- FAIL: %s (%s)\n%s", eg.Name, dstr, fail)
+		fmt.Printf("%s--- FAIL: %s (%s)\n%s", chatty.prefix(), eg.Name, dstr, fail)
 		passed = false
-	} else if *chatty {
-		fmt.Printf("--- PASS: %s (%s)\n", eg.Name, dstr)
+	} else if chatty.on {
+		fmt.Printf("%s--- PASS: %s (%s)\n", chatty.prefix(), eg.Name, dstr)
+	}
+
+	if chatty.on && chatty.json {
+		fmt.Printf("%s=== NAME   %s\n", chatty.prefix(), "")
 	}
 
 	if recovered != nil {
 		// Propagate the previously recovered result, by panicking.
 		panic(recovered)
-	}
-	if !finished && recovered == nil {
+	} else if !finished {
 		panic(errNilPanicOrGoexit)
 	}
 

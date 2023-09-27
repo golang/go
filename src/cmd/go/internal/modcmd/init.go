@@ -34,6 +34,7 @@ See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
 }
 
 func init() {
+	base.AddChdirFlag(&cmdInit.Flag)
 	base.AddModCommonFlags(&cmdInit.Flag)
 }
 

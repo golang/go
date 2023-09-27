@@ -18,6 +18,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -92,7 +93,37 @@ func BenchmarkCodeEncoder(b *testing.B) {
 		enc := NewEncoder(io.Discard)
 		for pb.Next() {
 			if err := enc.Encode(&codeStruct); err != nil {
-				b.Fatal("Encode:", err)
+				b.Fatalf("Encode error: %v", err)
+			}
+		}
+	})
+	b.SetBytes(int64(len(codeJSON)))
+}
+
+func BenchmarkCodeEncoderError(b *testing.B) {
+	b.ReportAllocs()
+	if codeJSON == nil {
+		b.StopTimer()
+		codeInit()
+		b.StartTimer()
+	}
+
+	// Trigger an error in Marshal with cyclic data.
+	type Dummy struct {
+		Name string
+		Next *Dummy
+	}
+	dummy := Dummy{Name: "Dummy"}
+	dummy.Next = &dummy
+
+	b.RunParallel(func(pb *testing.PB) {
+		enc := NewEncoder(io.Discard)
+		for pb.Next() {
+			if err := enc.Encode(&codeStruct); err != nil {
+				b.Fatalf("Encode error: %v", err)
+			}
+			if _, err := Marshal(dummy); err == nil {
+				b.Fatal("Marshal error: got nil, want non-nil")
 			}
 		}
 	})
@@ -109,7 +140,36 @@ func BenchmarkCodeMarshal(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			if _, err := Marshal(&codeStruct); err != nil {
-				b.Fatal("Marshal:", err)
+				b.Fatalf("Marshal error: %v", err)
+			}
+		}
+	})
+	b.SetBytes(int64(len(codeJSON)))
+}
+
+func BenchmarkCodeMarshalError(b *testing.B) {
+	b.ReportAllocs()
+	if codeJSON == nil {
+		b.StopTimer()
+		codeInit()
+		b.StartTimer()
+	}
+
+	// Trigger an error in Marshal with cyclic data.
+	type Dummy struct {
+		Name string
+		Next *Dummy
+	}
+	dummy := Dummy{Name: "Dummy"}
+	dummy.Next = &dummy
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if _, err := Marshal(&codeStruct); err != nil {
+				b.Fatalf("Marshal error: %v", err)
+			}
+			if _, err := Marshal(dummy); err == nil {
+				b.Fatal("Marshal error: got nil, want non-nil")
 			}
 		}
 	})
@@ -128,7 +188,37 @@ func benchMarshalBytes(n int) func(*testing.B) {
 	return func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			if _, err := Marshal(v); err != nil {
-				b.Fatal("Marshal:", err)
+				b.Fatalf("Marshal error: %v", err)
+			}
+		}
+	}
+}
+
+func benchMarshalBytesError(n int) func(*testing.B) {
+	sample := []byte("hello world")
+	// Use a struct pointer, to avoid an allocation when passing it as an
+	// interface parameter to Marshal.
+	v := &struct {
+		Bytes []byte
+	}{
+		bytes.Repeat(sample, (n/len(sample))+1)[:n],
+	}
+
+	// Trigger an error in Marshal with cyclic data.
+	type Dummy struct {
+		Name string
+		Next *Dummy
+	}
+	dummy := Dummy{Name: "Dummy"}
+	dummy.Next = &dummy
+
+	return func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if _, err := Marshal(v); err != nil {
+				b.Fatalf("Marshal error: %v", err)
+			}
+			if _, err := Marshal(dummy); err == nil {
+				b.Fatal("Marshal error: got nil, want non-nil")
 			}
 		}
 	}
@@ -143,6 +233,33 @@ func BenchmarkMarshalBytes(b *testing.B) {
 	b.Run("256", benchMarshalBytes(256))
 	// 4096 is large enough that we want to avoid allocating for it.
 	b.Run("4096", benchMarshalBytes(4096))
+}
+
+func BenchmarkMarshalBytesError(b *testing.B) {
+	b.ReportAllocs()
+	// 32 fits within encodeState.scratch.
+	b.Run("32", benchMarshalBytesError(32))
+	// 256 doesn't fit in encodeState.scratch, but is small enough to
+	// allocate and avoid the slower base64.NewEncoder.
+	b.Run("256", benchMarshalBytesError(256))
+	// 4096 is large enough that we want to avoid allocating for it.
+	b.Run("4096", benchMarshalBytesError(4096))
+}
+
+func BenchmarkMarshalMap(b *testing.B) {
+	b.ReportAllocs()
+	m := map[string]int{
+		"key3": 3,
+		"key2": 2,
+		"key1": 1,
+	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if _, err := Marshal(m); err != nil {
+				b.Fatal("Marshal:", err)
+			}
+		}
+	})
 }
 
 func BenchmarkCodeDecoder(b *testing.B) {
@@ -163,7 +280,7 @@ func BenchmarkCodeDecoder(b *testing.B) {
 			buf.WriteByte('\n')
 			buf.WriteByte('\n')
 			if err := dec.Decode(&r); err != nil {
-				b.Fatal("Decode:", err)
+				b.Fatalf("Decode error: %v", err)
 			}
 		}
 	})
@@ -180,7 +297,7 @@ func BenchmarkUnicodeDecoder(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if err := dec.Decode(&out); err != nil {
-			b.Fatal("Decode:", err)
+			b.Fatalf("Decode error: %v", err)
 		}
 		r.Seek(0, 0)
 	}
@@ -194,7 +311,7 @@ func BenchmarkDecoderStream(b *testing.B) {
 	buf.WriteString(`"` + strings.Repeat("x", 1000000) + `"` + "\n\n\n")
 	var x any
 	if err := dec.Decode(&x); err != nil {
-		b.Fatal("Decode:", err)
+		b.Fatalf("Decode error: %v", err)
 	}
 	ones := strings.Repeat(" 1\n", 300000) + "\n\n\n"
 	b.StartTimer()
@@ -203,8 +320,11 @@ func BenchmarkDecoderStream(b *testing.B) {
 			buf.WriteString(ones)
 		}
 		x = nil
-		if err := dec.Decode(&x); err != nil || x != 1.0 {
-			b.Fatalf("Decode: %v after %d", err, i)
+		switch err := dec.Decode(&x); {
+		case err != nil:
+			b.Fatalf("Decode error: %v", err)
+		case x != 1.0:
+			b.Fatalf("Decode: got %v want 1.0", i)
 		}
 	}
 }
@@ -220,7 +340,7 @@ func BenchmarkCodeUnmarshal(b *testing.B) {
 		for pb.Next() {
 			var r codeResponse
 			if err := Unmarshal(codeJSON, &r); err != nil {
-				b.Fatal("Unmarshal:", err)
+				b.Fatalf("Unmarshal error: %v", err)
 			}
 		}
 	})
@@ -238,7 +358,7 @@ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
 		var r codeResponse
 		for pb.Next() {
 			if err := Unmarshal(codeJSON, &r); err != nil {
-				b.Fatal("Unmarshal:", err)
+				b.Fatalf("Unmarshal error: %v", err)
 			}
 		}
 	})
@@ -252,7 +372,7 @@ func BenchmarkUnmarshalString(b *testing.B) {
 		var s string
 		for pb.Next() {
 			if err := Unmarshal(data, &s); err != nil {
-				b.Fatal("Unmarshal:", err)
+				b.Fatalf("Unmarshal error: %v", err)
 			}
 		}
 	})
@@ -265,7 +385,7 @@ func BenchmarkUnmarshalFloat64(b *testing.B) {
 		var f float64
 		for pb.Next() {
 			if err := Unmarshal(data, &f); err != nil {
-				b.Fatal("Unmarshal:", err)
+				b.Fatalf("Unmarshal error: %v", err)
 			}
 		}
 	})
@@ -278,7 +398,20 @@ func BenchmarkUnmarshalInt64(b *testing.B) {
 		var x int64
 		for pb.Next() {
 			if err := Unmarshal(data, &x); err != nil {
-				b.Fatal("Unmarshal:", err)
+				b.Fatalf("Unmarshal error: %v", err)
+			}
+		}
+	})
+}
+
+func BenchmarkUnmarshalMap(b *testing.B) {
+	b.ReportAllocs()
+	data := []byte(`{"key1":"value1","key2":"value2","key3":"value3"}`)
+	b.RunParallel(func(pb *testing.PB) {
+		x := make(map[string]string, 3)
+		for pb.Next() {
+			if err := Unmarshal(data, &x); err != nil {
+				b.Fatalf("Unmarshal error: %v", err)
 			}
 		}
 	})
@@ -291,7 +424,7 @@ func BenchmarkIssue10335(b *testing.B) {
 		var s struct{}
 		for pb.Next() {
 			if err := Unmarshal(j, &s); err != nil {
-				b.Fatal(err)
+				b.Fatalf("Unmarshal error: %v", err)
 			}
 		}
 	})
@@ -307,7 +440,7 @@ func BenchmarkIssue34127(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			if _, err := Marshal(&j); err != nil {
-				b.Fatal(err)
+				b.Fatalf("Marshal error: %v", err)
 			}
 		}
 	})
@@ -320,7 +453,7 @@ func BenchmarkUnmapped(b *testing.B) {
 		var s struct{}
 		for pb.Next() {
 			if err := Unmarshal(j, &s); err != nil {
-				b.Fatal(err)
+				b.Fatalf("Unmarshal error: %v", err)
 			}
 		}
 	})
@@ -336,7 +469,7 @@ func BenchmarkTypeFieldsCache(b *testing.B) {
 	// Dynamically generate many new types.
 	types := make([]reflect.Type, maxTypes)
 	fs := []reflect.StructField{{
-		Type:  reflect.TypeOf(""),
+		Type:  reflect.TypeFor[string](),
 		Index: []int{0},
 	}}
 	for i := range types {
@@ -403,8 +536,38 @@ func BenchmarkEncodeMarshaler(b *testing.B) {
 
 		for pb.Next() {
 			if err := enc.Encode(&m); err != nil {
-				b.Fatal("Encode:", err)
+				b.Fatalf("Encode error: %v", err)
 			}
 		}
 	})
+}
+
+func BenchmarkEncoderEncode(b *testing.B) {
+	b.ReportAllocs()
+	type T struct {
+		X, Y string
+	}
+	v := &T{"foo", "bar"}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if err := NewEncoder(io.Discard).Encode(v); err != nil {
+				b.Fatalf("Encode error: %v", err)
+			}
+		}
+	})
+}
+
+func BenchmarkNumberIsValid(b *testing.B) {
+	s := "-61657.61667E+61673"
+	for i := 0; i < b.N; i++ {
+		isValidNumber(s)
+	}
+}
+
+func BenchmarkNumberIsValidRegexp(b *testing.B) {
+	var jsonNumberRegexp = regexp.MustCompile(`^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$`)
+	s := "-61657.61667E+61673"
+	for i := 0; i < b.N; i++ {
+		jsonNumberRegexp.MatchString(s)
+	}
 }

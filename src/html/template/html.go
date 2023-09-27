@@ -14,6 +14,9 @@ import (
 // htmlNospaceEscaper escapes for inclusion in unquoted attribute values.
 func htmlNospaceEscaper(args ...any) string {
 	s, t := stringify(args...)
+	if s == "" {
+		return filterFailsafe
+	}
 	if t == contentTypeHTML {
 		return htmlReplacer(stripTags(s), htmlNospaceNormReplacementTable, false)
 	}
@@ -84,10 +87,12 @@ var htmlNormReplacementTable = []string{
 // <script>(function () {
 // var a = [], d = document.getElementById("d"), i, c, s;
 // for (i = 0; i < 0x10000; ++i) {
-//   c = String.fromCharCode(i);
-//   d.innerHTML = "<span title=" + c + "lt" + c + "></span>"
-//   s = d.getElementsByTagName("SPAN")[0];
-//   if (!s || s.title !== c + "lt" + c) { a.push(i.toString(16)); }
+//
+//	c = String.fromCharCode(i);
+//	d.innerHTML = "<span title=" + c + "lt" + c + "></span>"
+//	s = d.getElementsByTagName("SPAN")[0];
+//	if (!s || s.title !== c + "lt" + c) { a.push(i.toString(16)); }
+//
 // }
 // document.write(a.join(", "));
 // })()</script>
@@ -174,7 +179,7 @@ func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
 // stripTags takes a snippet of HTML and returns only the text content.
 // For example, `<b>&iexcl;Hi!</b> <script>...</script>` -> `&iexcl;Hi! `.
 func stripTags(html string) string {
-	var b bytes.Buffer
+	var b strings.Builder
 	s, c, i, allText := []byte(html), context{}, 0, true
 	// Using the transition funcs helps us avoid mangling
 	// `<div title="1>2">` or `I <3 Ponies!`.

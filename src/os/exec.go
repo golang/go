@@ -21,7 +21,7 @@ var ErrProcessDone = errors.New("os: process already finished")
 type Process struct {
 	Pid    int
 	handle uintptr      // handle is accessed atomically on Windows
-	isdone uint32       // process has been successfully waited on, non zero if true
+	isdone atomic.Bool  // process has been successfully waited on
 	sigMu  sync.RWMutex // avoid race between wait and signal
 }
 
@@ -32,11 +32,11 @@ func newProcess(pid int, handle uintptr) *Process {
 }
 
 func (p *Process) setDone() {
-	atomic.StoreUint32(&p.isdone, 1)
+	p.isdone.Store(true)
 }
 
 func (p *Process) done() bool {
-	return atomic.LoadUint32(&p.isdone) > 0
+	return p.isdone.Load()
 }
 
 // ProcAttr holds the attributes that will be applied to a new process
@@ -86,7 +86,9 @@ func Getppid() int { return syscall.Getppid() }
 // about the underlying operating system process.
 //
 // On Unix systems, FindProcess always succeeds and returns a Process
-// for the given pid, regardless of whether the process exists.
+// for the given pid, regardless of whether the process exists. To test whether
+// the process actually exists, see whether p.Signal(syscall.Signal(0)) reports
+// an error.
 func FindProcess(pid int) (*Process, error) {
 	return findProcess(pid)
 }

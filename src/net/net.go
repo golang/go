@@ -36,7 +36,7 @@ The Listen function creates servers:
 		go handleConnection(conn)
 	}
 
-Name Resolution
+# Name Resolution
 
 The method for resolving domain names, whether indirectly with functions like Dial
 or directly with functions like LookupHost and LookupAddr, varies by operating system.
@@ -61,7 +61,7 @@ The resolver decision can be overridden by setting the netdns value of the
 GODEBUG environment variable (see package runtime) to go or cgo, as in:
 
 	export GODEBUG=netdns=go    # force pure Go resolver
-	export GODEBUG=netdns=cgo   # force cgo resolver
+	export GODEBUG=netdns=cgo   # force native resolver (cgo, win32)
 
 The decision can also be forced while building the Go source tree
 by setting the netgo or netcgo build tag.
@@ -71,10 +71,14 @@ to print debugging information about its decisions.
 To force a particular resolver while also printing debugging information,
 join the two settings by a plus sign, as in GODEBUG=netdns=go+1.
 
+On macOS, if Go code that uses the net package is built with
+-buildmode=c-archive, linking the resulting archive into a C program
+requires passing -lresolv when linking the C code.
+
 On Plan 9, the resolver always accesses /net/cs and /net/dns.
 
-On Windows, the resolver always uses C library functions, such as GetAddrInfo and DnsQuery.
-
+On Windows, in Go 1.18.x and earlier, the resolver always used C
+library functions, such as GetAddrInfo and DnsQuery.
 */
 package net
 
@@ -87,14 +91,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-)
-
-// netGo and netCgo contain the state of the build tags used
-// to build this binary, and whether cgo is available.
-// conf.go mirrors these into conf for easier testing.
-var (
-	netGo  bool // set true in cgo_stub.go for build tag "netgo" (or no cgo)
-	netCgo bool // set true in conf_netcgo.go for build tag "netcgo"
 )
 
 // Addr represents a network end point address.
@@ -413,15 +409,20 @@ var (
 	errMissingAddress = errors.New("missing address")
 
 	// For both read and write operations.
-	errCanceled         = errors.New("operation was canceled")
+	errCanceled         = canceledError{}
 	ErrWriteToConnected = errors.New("use of WriteTo with pre-connected connection")
 )
 
+// canceledError lets us return the same error string we have always
+// returned, while still being Is context.Canceled.
+type canceledError struct{}
+
+func (canceledError) Error() string { return "operation was canceled" }
+
+func (canceledError) Is(err error) bool { return err == context.Canceled }
+
 // mapErr maps from the context errors to the historical internal net
 // error values.
-//
-// TODO(bradfitz): get rid of this after adjusting tests and making
-// context.DeadlineExceeded implement net.Error?
 func mapErr(err error) error {
 	switch err {
 	case context.Canceled:
@@ -493,7 +494,7 @@ var (
 	// immediate cancellation of dials.
 	aLongTimeAgo = time.Unix(1, 0)
 
-	// nonDeadline and noCancel are just zero values for
+	// noDeadline and noCancel are just zero values for
 	// readability with functions taking too many parameters.
 	noDeadline = time.Time{}
 	noCancel   = (chan struct{})(nil)
@@ -580,10 +581,14 @@ func (e InvalidAddrError) Temporary() bool { return false }
 // errTimeout exists to return the historical "i/o timeout" string
 // for context.DeadlineExceeded. See mapErr.
 // It is also used when Dialer.Deadline is exceeded.
+// error.Is(errTimeout, context.DeadlineExceeded) returns true.
 //
 // TODO(iant): We could consider changing this to os.ErrDeadlineExceeded
-// in the future, but note that that would conflict with the TODO
-// at mapErr that suggests changing it to context.DeadlineExceeded.
+// in the future, if we make
+//
+//	errors.Is(os.ErrDeadlineExceeded, context.DeadlineExceeded)
+//
+// return true.
 var errTimeout error = &timeoutError{}
 
 type timeoutError struct{}
@@ -591,6 +596,10 @@ type timeoutError struct{}
 func (e *timeoutError) Error() string   { return "i/o timeout" }
 func (e *timeoutError) Timeout() bool   { return true }
 func (e *timeoutError) Temporary() bool { return true }
+
+func (e *timeoutError) Is(err error) bool {
+	return err == context.DeadlineExceeded
+}
 
 // DNSConfigError represents an error reading the machine's DNS configuration.
 // (No longer used; kept for compatibility.)
@@ -703,6 +712,12 @@ var (
 	_ io.Reader   = (*Buffers)(nil)
 )
 
+// WriteTo writes contents of the buffers to w.
+//
+// WriteTo implements io.WriterTo for Buffers.
+//
+// WriteTo modifies the slice v as well as v[i] for 0 <= i < len(v),
+// but does not modify v[i][j] for any i, j.
 func (v *Buffers) WriteTo(w io.Writer) (n int64, err error) {
 	if wv, ok := w.(buffersWriter); ok {
 		return wv.writeBuffers(v)
@@ -719,6 +734,12 @@ func (v *Buffers) WriteTo(w io.Writer) (n int64, err error) {
 	return n, nil
 }
 
+// Read from the buffers.
+//
+// Read implements io.Reader for Buffers.
+//
+// Read modifies the slice v as well as v[i] for 0 <= i < len(v),
+// but does not modify v[i][j] for any i, j.
 func (v *Buffers) Read(p []byte) (n int, err error) {
 	for len(p) > 0 && len(*v) > 0 {
 		n0 := copy(p, (*v)[0])

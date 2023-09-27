@@ -7,7 +7,10 @@
 
 package route
 
-import "unsafe"
+import (
+	"syscall"
+	"unsafe"
+)
 
 var (
 	nativeEndian binaryByteOrder
@@ -25,7 +28,7 @@ func init() {
 		nativeEndian = bigEndian
 	}
 	// might get overridden in probeRoutingStack
-	rtmVersion = sysRTM_VERSION
+	rtmVersion = syscall.RTM_VERSION
 	kernelAlign, wireFormats = probeRoutingStack()
 }
 

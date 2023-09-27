@@ -1,3 +1,7 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package fsys is an abstraction for reading files that
 // allows for virtual overlays on top of the files on disk.
 package fsys
@@ -6,15 +10,65 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io/fs"
-	"io/ioutil"
+	"log"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
+
+// Trace emits a trace event for the operation and file path to the trace log,
+// but only when $GODEBUG contains gofsystrace=1.
+// The traces are appended to the file named by the $GODEBUG setting gofsystracelog, or else standard error.
+// For debugging, if the $GODEBUG setting gofsystracestack is non-empty, then trace events for paths
+// matching that glob pattern (using path.Match) will be followed by a full stack trace.
+func Trace(op, path string) {
+	if !doTrace {
+		return
+	}
+	traceMu.Lock()
+	defer traceMu.Unlock()
+	fmt.Fprintf(traceFile, "%d gofsystrace %s %s\n", os.Getpid(), op, path)
+	if pattern := gofsystracestack.Value(); pattern != "" {
+		if match, _ := pathpkg.Match(pattern, path); match {
+			traceFile.Write(debug.Stack())
+		}
+	}
+}
+
+var (
+	doTrace   bool
+	traceFile *os.File
+	traceMu   sync.Mutex
+
+	gofsystrace      = godebug.New("#gofsystrace")
+	gofsystracelog   = godebug.New("#gofsystracelog")
+	gofsystracestack = godebug.New("#gofsystracestack")
+)
+
+func init() {
+	if gofsystrace.Value() != "1" {
+		return
+	}
+	doTrace = true
+	if f := gofsystracelog.Value(); f != "" {
+		// Note: No buffering on writes to this file, so no need to worry about closing it at exit.
+		var err error
+		traceFile, err = os.OpenFile(f, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		traceFile = os.Stderr
+	}
+}
 
 // OverlayFile is the path to a text file in the OverlayJSON format.
 // It is the value of the -overlay flag.
@@ -46,7 +100,7 @@ func (n *node) isDeleted() bool {
 var overlay map[string]*node // path -> file or directory node
 var cwd string               // copy of base.Cwd() to avoid dependency
 
-// Canonicalize a path for looking it up in the overlay.
+// canonicalize a path for looking it up in the overlay.
 // Important: filepath.Join(cwd, path) doesn't always produce
 // the correct absolute path if path is relative, because on
 // Windows producing the correct absolute path requires making
@@ -86,6 +140,7 @@ func Init(wd string) error {
 		return nil
 	}
 
+	Trace("ReadFile", OverlayFile)
 	b, err := os.ReadFile(OverlayFile)
 	if err != nil {
 		return fmt.Errorf("reading overlay file: %v", err)
@@ -191,6 +246,7 @@ func initFromJSON(overlayJSON OverlayJSON) error {
 // IsDir returns true if path is a directory on disk or in the
 // overlay.
 func IsDir(path string) (bool, error) {
+	Trace("IsDir", path)
 	path = canonicalize(path)
 
 	if _, ok := parentIsOverlayFile(path); ok {
@@ -239,27 +295,40 @@ func parentIsOverlayFile(name string) (string, bool) {
 // return an error.
 var errNotDir = errors.New("not a directory")
 
+func nonFileInOverlayError(overlayPath string) error {
+	return fmt.Errorf("replacement path %q is a directory, not a file", overlayPath)
+}
+
 // readDir reads a dir on disk, returning an error that is errNotDir if the dir is not a directory.
-// Unfortunately, the error returned by ioutil.ReadDir if dir is not a directory
+// Unfortunately, the error returned by os.ReadDir if dir is not a directory
 // can vary depending on the OS (Linux, Mac, Windows return ENOTDIR; BSD returns EINVAL).
 func readDir(dir string) ([]fs.FileInfo, error) {
-	fis, err := ioutil.ReadDir(dir)
-	if err == nil {
-		return fis, nil
-	}
-
-	if os.IsNotExist(err) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, err
+		}
+		if dirfi, staterr := os.Stat(dir); staterr == nil && !dirfi.IsDir() {
+			return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
+		}
 		return nil, err
 	}
-	if dirfi, staterr := os.Stat(dir); staterr == nil && !dirfi.IsDir() {
-		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
+
+	fis := make([]fs.FileInfo, 0, len(entries))
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		fis = append(fis, info)
 	}
-	return nil, err
+	return fis, nil
 }
 
 // ReadDir provides a slice of fs.FileInfo entries corresponding
 // to the overlaid files in the directory.
 func ReadDir(dir string) ([]fs.FileInfo, error) {
+	Trace("ReadDir", dir)
 	dir = canonicalize(dir)
 	if _, ok := parentIsOverlayFile(dir); ok {
 		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
@@ -289,18 +358,21 @@ func ReadDir(dir string) ([]fs.FileInfo, error) {
 		case to.isDeleted():
 			delete(files, name)
 		default:
-			// This is a regular file.
-			f, err := os.Lstat(to.actualFilePath)
+			// To keep the data model simple, if the overlay contains a symlink we
+			// always stat through it (using Stat, not Lstat). That way we don't need
+			// to worry about the interaction between Lstat and directories: if a
+			// symlink in the overlay points to a directory, we reject it like an
+			// ordinary directory.
+			fi, err := os.Stat(to.actualFilePath)
 			if err != nil {
 				files[name] = missingFile(name)
 				continue
-			} else if f.IsDir() {
-				return nil, fmt.Errorf("for overlay of %q to %q: overlay Replace entries can't point to dirctories",
-					filepath.Join(dir, name), to.actualFilePath)
+			} else if fi.IsDir() {
+				return nil, &fs.PathError{Op: "Stat", Path: filepath.Join(dir, name), Err: nonFileInOverlayError(to.actualFilePath)}
 			}
 			// Add a fileinfo for the overlaid file, so that it has
 			// the original file's name, but the overlaid file's metadata.
-			files[name] = fakeFile{name, f}
+			files[name] = fakeFile{name, fi}
 		}
 	}
 	sortedFiles := diskfis[:0]
@@ -327,11 +399,17 @@ func OverlayPath(path string) (string, bool) {
 
 // Open opens the file at or overlaid on the given path.
 func Open(path string) (*os.File, error) {
-	return OpenFile(path, os.O_RDONLY, 0)
+	Trace("Open", path)
+	return openFile(path, os.O_RDONLY, 0)
 }
 
 // OpenFile opens the file at or overlaid on the given path with the flag and perm.
 func OpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
+	Trace("OpenFile", path)
+	return openFile(path, flag, perm)
+}
+
+func openFile(path string, flag int, perm os.FileMode) (*os.File, error) {
 	cpath := canonicalize(path)
 	if node, ok := overlay[cpath]; ok {
 		// Opening a file in the overlay.
@@ -360,6 +438,7 @@ func OpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
 // IsDirWithGoFiles reports whether dir is a directory containing Go files
 // either on disk or in the overlay.
 func IsDirWithGoFiles(dir string) (bool, error) {
+	Trace("IsDirWithGoFiles", dir)
 	fis, err := ReadDir(dir)
 	if os.IsNotExist(err) || errors.Is(err, errNotDir) {
 		return false, nil
@@ -405,28 +484,20 @@ func IsDirWithGoFiles(dir string) (bool, error) {
 // walk recursively descends path, calling walkFn. Copied, with some
 // modifications from path/filepath.walk.
 func walk(path string, info fs.FileInfo, walkFn filepath.WalkFunc) error {
-	if !info.IsDir() {
-		return walkFn(path, info, nil)
+	if err := walkFn(path, info, nil); err != nil || !info.IsDir() {
+		return err
 	}
 
-	fis, readErr := ReadDir(path)
-	walkErr := walkFn(path, info, readErr)
-	// If readErr != nil, walk can't walk into this directory.
-	// walkErr != nil means walkFn want walk to skip this directory or stop walking.
-	// Therefore, if one of readErr and walkErr isn't nil, walk will return.
-	if readErr != nil || walkErr != nil {
-		// The caller's behavior is controlled by the return value, which is decided
-		// by walkFn. walkFn may ignore readErr and return nil.
-		// If walkFn returns SkipDir, it will be handled by the caller.
-		// So walk should return whatever walkFn returns.
-		return walkErr
+	fis, err := ReadDir(path)
+	if err != nil {
+		return walkFn(path, info, err)
 	}
 
 	for _, fi := range fis {
 		filename := filepath.Join(path, fi.Name())
-		if walkErr = walk(filename, fi, walkFn); walkErr != nil {
-			if !fi.IsDir() || walkErr != filepath.SkipDir {
-				return walkErr
+		if err := walk(filename, fi, walkFn); err != nil {
+			if !fi.IsDir() || err != filepath.SkipDir {
+				return err
 			}
 		}
 	}
@@ -436,6 +507,7 @@ func walk(path string, info fs.FileInfo, walkFn filepath.WalkFunc) error {
 // Walk walks the file tree rooted at root, calling walkFn for each file or
 // directory in the tree, including root.
 func Walk(root string, walkFn filepath.WalkFunc) error {
+	Trace("Walk", root)
 	info, err := Lstat(root)
 	if err != nil {
 		err = walkFn(root, nil, err)
@@ -448,13 +520,15 @@ func Walk(root string, walkFn filepath.WalkFunc) error {
 	return err
 }
 
-// lstat implements a version of os.Lstat that operates on the overlay filesystem.
+// Lstat implements a version of os.Lstat that operates on the overlay filesystem.
 func Lstat(path string) (fs.FileInfo, error) {
+	Trace("Lstat", path)
 	return overlayStat(path, os.Lstat, "lstat")
 }
 
 // Stat implements a version of os.Stat that operates on the overlay filesystem.
 func Stat(path string) (fs.FileInfo, error) {
+	Trace("Stat", path)
 	return overlayStat(path, os.Stat, "stat")
 }
 
@@ -474,13 +548,21 @@ func overlayStat(path string, osStat func(string) (fs.FileInfo, error), opName s
 
 	switch {
 	case node.isDeleted():
-		return nil, &fs.PathError{Op: "lstat", Path: cpath, Err: fs.ErrNotExist}
+		return nil, &fs.PathError{Op: opName, Path: cpath, Err: fs.ErrNotExist}
 	case node.isDir():
 		return fakeDir(filepath.Base(path)), nil
 	default:
-		fi, err := osStat(node.actualFilePath)
+		// To keep the data model simple, if the overlay contains a symlink we
+		// always stat through it (using Stat, not Lstat). That way we don't need to
+		// worry about the interaction between Lstat and directories: if a symlink
+		// in the overlay points to a directory, we reject it like an ordinary
+		// directory.
+		fi, err := os.Stat(node.actualFilePath)
 		if err != nil {
 			return nil, err
+		}
+		if fi.IsDir() {
+			return nil, &fs.PathError{Op: opName, Path: cpath, Err: nonFileInOverlayError(node.actualFilePath)}
 		}
 		return fakeFile{name: filepath.Base(path), real: fi}, nil
 	}
@@ -501,6 +583,10 @@ func (f fakeFile) ModTime() time.Time { return f.real.ModTime() }
 func (f fakeFile) IsDir() bool        { return f.real.IsDir() }
 func (f fakeFile) Sys() any           { return f.real.Sys() }
 
+func (f fakeFile) String() string {
+	return fs.FormatFileInfo(f)
+}
+
 // missingFile provides an fs.FileInfo for an overlaid file where the
 // destination file in the overlay doesn't exist. It returns zero values
 // for the fileInfo methods other than Name, set to the file's name, and Mode
@@ -514,6 +600,10 @@ func (f missingFile) ModTime() time.Time { return time.Unix(0, 0) }
 func (f missingFile) IsDir() bool        { return false }
 func (f missingFile) Sys() any           { return nil }
 
+func (f missingFile) String() string {
+	return fs.FormatFileInfo(f)
+}
+
 // fakeDir provides an fs.FileInfo implementation for directories that are
 // implicitly created by overlaid files. Each directory in the
 // path of an overlaid file is considered to exist in the overlay filesystem.
@@ -526,8 +616,13 @@ func (f fakeDir) ModTime() time.Time { return time.Unix(0, 0) }
 func (f fakeDir) IsDir() bool        { return true }
 func (f fakeDir) Sys() any           { return nil }
 
+func (f fakeDir) String() string {
+	return fs.FormatFileInfo(f)
+}
+
 // Glob is like filepath.Glob but uses the overlay file system.
 func Glob(pattern string) (matches []string, err error) {
+	Trace("Glob", pattern)
 	// Check pattern is well-formed.
 	if _, err := filepath.Match(pattern, ""); err != nil {
 		return nil, err
@@ -595,7 +690,7 @@ func volumeNameLen(path string) int {
 	if path[1] == ':' && ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
 		return 2
 	}
-	// is it UNC? https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
+	// is it UNC? https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file
 	if l := len(path); l >= 5 && isSlash(path[0]) && isSlash(path[1]) &&
 		!isSlash(path[2]) && path[2] != '.' {
 		// first, leading `\\` and next shouldn't be `\`. its server name.

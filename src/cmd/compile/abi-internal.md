@@ -1,5 +1,7 @@
 # Go internal ABI specification
 
+Self-link: [go.dev/s/regabi](https://go.dev/s/regabi)
+
 This document describes Go’s internal application binary interface
 (ABI), known as ABIInternal.
 Go's ABI defines the layout of data in memory and the conventions for
@@ -30,19 +32,19 @@ specification](/doc/go_spec.html#Size_and_alignment_guarantees).
 Those that aren't guaranteed may change in future versions of Go (for
 example, we've considered changing the alignment of int64 on 32-bit).
 
-| Type | 64-bit |       | 32-bit |       |
-| ---  | ---    | ---   | ---    | ---   |
-|      | Size   | Align | Size   | Align |
-| bool, uint8, int8  | 1  | 1 | 1  | 1 |
-| uint16, int16      | 2  | 2 | 2  | 2 |
-| uint32, int32      | 4  | 4 | 4  | 4 |
-| uint64, int64      | 8  | 8 | 8  | 4 |
-| int, uint          | 8  | 8 | 4  | 4 |
-| float32            | 4  | 4 | 4  | 4 |
-| float64            | 8  | 8 | 8  | 4 |
-| complex64          | 8  | 4 | 8  | 4 |
-| complex128         | 16 | 8 | 16 | 4 |
-| uintptr, *T, unsafe.Pointer | 8 | 8 | 4 | 4 |
+| Type                        | 64-bit |       | 32-bit |       |
+|-----------------------------|--------|-------|--------|-------|
+|                             | Size   | Align | Size   | Align |
+| bool, uint8, int8           | 1      | 1     | 1      | 1     |
+| uint16, int16               | 2      | 2     | 2      | 2     |
+| uint32, int32               | 4      | 4     | 4      | 4     |
+| uint64, int64               | 8      | 8     | 8      | 4     |
+| int, uint                   | 8      | 8     | 4      | 4     |
+| float32                     | 4      | 4     | 4      | 4     |
+| float64                     | 8      | 8     | 8      | 4     |
+| complex64                   | 8      | 4     | 8      | 4     |
+| complex128                  | 16     | 8     | 16     | 4     |
+| uintptr, *T, unsafe.Pointer | 8      | 8     | 4      | 4     |
 
 The types `byte` and `rune` are aliases for `uint8` and `int32`,
 respectively, and hence have the same size and alignment as these
@@ -134,7 +136,7 @@ assigned to registers or the stack using the following algorithm:
 1. Let NI and NFP be the length of integer and floating-point register
    sequences defined by the architecture.
    Let I and FP be 0; these are the indexes of the next integer and
-   floating-pointer register.
+   floating-point register.
    Let S, the type sequence defining the stack frame, be empty.
 1. If F is a method, assign F’s receiver.
 1. For each argument A of F, assign A.
@@ -155,7 +157,7 @@ as follows:
 1. Remember I and FP.
 1. If T has zero size, add T to the stack sequence S and return.
 1. Try to register-assign V.
-1. If step 2 failed, reset I and FP to the values from step 1, add T
+1. If step 3 failed, reset I and FP to the values from step 1, add T
    to the stack sequence S, and assign V to this field in S.
 
 Register-assignment of a value V of underlying type T works as follows:
@@ -729,6 +731,57 @@ branch. The generated code does not set or use CR1-CR7.
 The floating point status and control register (FPSCR) is initialized
 to 0 by the kernel at startup of the Go program and not changed by
 the Go generated code.
+
+### riscv64 architecture
+
+The riscv64 architecture uses X10 – X17, X8, X9, X18 – X23 for integer arguments
+and results.
+
+It uses F10 – F17, F8, F9, F18 – F23 for floating-point arguments and results.
+
+Special-purpose registers used within Go generated code and Go
+assembly code are as follows:
+
+| Register | Call meaning | Return meaning | Body meaning |
+| --- | --- | --- | --- |
+| X0  | Zero value | Same | Same |
+| X1  | Link register | Link register | Scratch |
+| X2  | Stack pointer | Same | Same |
+| X3  | Global pointer | Same | Used by dynamic linker |
+| X4  | TLS (thread pointer) | TLS | Scratch |
+| X24,X25 | Scratch | Scratch | Used by duffcopy, duffzero |
+| X26 | Closure context pointer | Scratch | Scratch |
+| X27 | Current goroutine | Same | Same |
+| X31 | Scratch | Scratch | Scratch |
+
+*Rationale*: These register meanings are compatible with Go’s
+stack-based calling convention. Context register X20 will change to X26,
+duffcopy, duffzero register will change to X24, X25 before this register ABI been adopted.
+X10 – X17, X8, X9, X18 – X23, is the same order as A0 – A7, S0 – S7 in platform ABI.
+F10 – F17, F8, F9, F18 – F23, is the same order as FA0 – FA7, FS0 – FS7 in platform ABI.
+X8 – X23, F8 – F15 are used for compressed instruction (RVC) which will benefit code size in the future.
+
+#### Stack layout
+
+The stack pointer, X2, grows down and is aligned to 8 bytes.
+
+A function's stack frame, after the frame is created, is laid out as
+follows:
+
+    +------------------------------+
+    | ... locals ...               |
+    | ... outgoing arguments ...   |
+    | return PC                    | ← X2 points to
+    +------------------------------+ ↓ lower addresses
+
+The "return PC" is loaded to the link register, X1, as part of the
+riscv64 `CALL` operation.
+
+#### Flags
+
+The riscv64 has Zicsr extension for control and status register (CSR) and
+treated as scratch register.
+All bits in CSR are system flags and are not modified by Go.
 
 ## Future directions
 

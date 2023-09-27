@@ -149,7 +149,7 @@ func TestLoadSystemCertsLoadColonSeparatedDirs(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	rootPEMs := []string{
-		geoTrustRoot,
+		gtsRoot,
 		googleLeaf,
 		startComRoot,
 	}

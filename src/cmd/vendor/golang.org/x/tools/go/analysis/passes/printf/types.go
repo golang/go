@@ -299,13 +299,3 @@ func isConvertibleToString(typ types.Type) bool {
 
 	return false
 }
-
-// hasBasicType reports whether x's type is a types.Basic with the given kind.
-func hasBasicType(pass *analysis.Pass, x ast.Expr, kind types.BasicKind) bool {
-	t := pass.TypesInfo.Types[x].Type
-	if t != nil {
-		t = t.Underlying()
-	}
-	b, ok := t.(*types.Basic)
-	return ok && b.Kind() == kind
-}

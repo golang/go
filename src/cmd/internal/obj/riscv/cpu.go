@@ -125,13 +125,13 @@ const (
 	REG_A7   = REG_X17
 	REG_S2   = REG_X18
 	REG_S3   = REG_X19
-	REG_S4   = REG_X20 // aka REG_CTXT
+	REG_S4   = REG_X20
 	REG_S5   = REG_X21
 	REG_S6   = REG_X22
 	REG_S7   = REG_X23
 	REG_S8   = REG_X24
 	REG_S9   = REG_X25
-	REG_S10  = REG_X26
+	REG_S10  = REG_X26 // aka REG_CTXT
 	REG_S11  = REG_X27 // aka REG_G
 	REG_T3   = REG_X28
 	REG_T4   = REG_X29
@@ -139,8 +139,8 @@ const (
 	REG_T6   = REG_X31 // aka REG_TMP
 
 	// Go runtime register names.
+	REG_CTXT = REG_S10 // Context for closures.
 	REG_G    = REG_S11 // G pointer.
-	REG_CTXT = REG_S4  // Context for closures.
 	REG_LR   = REG_RA  // Link register.
 	REG_TMP  = REG_T6  // Reserved for assembler use.
 
@@ -260,8 +260,13 @@ const (
 	// corresponding *obj.Prog uses the temporary register.
 	USES_REG_TMP = 1 << iota
 
-	// NEED_CALL_RELOC is set on JAL instructions to indicate that a
-	// R_RISCV_CALL relocation is needed.
+	// NEED_JAL_RELOC is set on JAL instructions to indicate that a
+	// R_RISCV_JAL relocation is needed.
+	NEED_JAL_RELOC
+
+	// NEED_CALL_RELOC is set on an AUIPC instruction to indicate that it
+	// is the first instruction in an AUIPC + JAL pair that needs a
+	// R_RISCV_CALL relocation.
 	NEED_CALL_RELOC
 
 	// NEED_PCREL_ITYPE_RELOC is set on AUIPC instructions to indicate that
@@ -276,15 +281,11 @@ const (
 )
 
 // RISC-V mnemonics, as defined in the "opcodes" and "opcodes-pseudo" files
-// from:
-//
-//    https://github.com/riscv/riscv-opcodes
+// at https://github.com/riscv/riscv-opcodes.
 //
 // As well as some pseudo-mnemonics (e.g. MOV) used only in the assembler.
 //
-// See also "The RISC-V Instruction Set Manual" at:
-//
-//    https://riscv.org/specifications/
+// See also "The RISC-V Instruction Set Manual" at https://riscv.org/specifications/.
 //
 // If you modify this table, you MUST run 'go generate' to regenerate anames.go!
 const (
@@ -313,12 +314,6 @@ const (
 	ASUB
 	ASRA
 
-	// The SLL/SRL/SRA instructions differ slightly between RV32 and RV64,
-	// hence there are pseudo-opcodes for the RV32 specific versions.
-	ASLLIRV32
-	ASRLIRV32
-	ASRAIRV32
-
 	// 2.5: Control Transfer Instructions
 	AJAL
 	AJALR
@@ -342,8 +337,8 @@ const (
 
 	// 2.7: Memory Ordering Instructions
 	AFENCE
-	AFENCEI
 	AFENCETSO
+	APAUSE
 
 	// 5.2: Integer Computational Instructions (RV64I)
 	AADDIW
@@ -536,8 +531,6 @@ const (
 	AFSGNJQ
 	AFSGNJNQ
 	AFSGNJXQ
-	AFMVXQ
-	AFMVQX
 
 	// 13.4 Quad-Precision Floating-Point Compare Instructions
 	AFEQQ
@@ -566,7 +559,6 @@ const (
 	// 3.2.2: Trap-Return Instructions
 	AMRET
 	ASRET
-	AURET
 	ADRET
 
 	// 3.2.3: Wait for Interrupt
@@ -574,10 +566,6 @@ const (
 
 	// 4.2.1: Supervisor Memory-Management Fence Instruction
 	ASFENCEVMA
-
-	// Hypervisor Memory-Management Instructions
-	AHFENCEGVMA
-	AHFENCEVVMA
 
 	// The escape hatch. Inserts a single 32-bit word.
 	AWORD
@@ -636,13 +624,25 @@ var unaryDst = map[obj.As]bool{
 
 // Instruction encoding masks.
 const (
-	// JTypeImmMask is a mask including only the immediate portion of
-	// J-type instructions.
-	JTypeImmMask = 0xfffff000
+	// BTypeImmMask is a mask including only the immediate portion of
+	// B-type instructions.
+	BTypeImmMask = 0xfe000f80
+
+	// CBTypeImmMask is a mask including only the immediate portion of
+	// CB-type instructions.
+	CBTypeImmMask = 0x1c7c
+
+	// CJTypeImmMask is a mask including only the immediate portion of
+	// CJ-type instructions.
+	CJTypeImmMask = 0x1f7c
 
 	// ITypeImmMask is a mask including only the immediate portion of
 	// I-type instructions.
 	ITypeImmMask = 0xfff00000
+
+	// JTypeImmMask is a mask including only the immediate portion of
+	// J-type instructions.
+	JTypeImmMask = 0xfffff000
 
 	// STypeImmMask is a mask including only the immediate portion of
 	// S-type instructions.

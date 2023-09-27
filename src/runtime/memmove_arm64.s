@@ -27,11 +27,6 @@
 
 // func memmove(to, from unsafe.Pointer, n uintptr)
 TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-24
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	to+0(FP), R0
-	MOVD	from+8(FP), R1
-	MOVD	n+16(FP), R2
-#endif
 	CBZ	R2, copy0
 
 	// Small copies: 1..16 bytes

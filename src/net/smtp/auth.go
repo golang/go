@@ -16,8 +16,7 @@ type Auth interface {
 	// Start begins an authentication with a server.
 	// It returns the name of the authentication protocol
 	// and optionally data to include in the initial AUTH message
-	// sent to the server. It can return proto == "" to indicate
-	// that the authentication should be skipped.
+	// sent to the server.
 	// If it returns a non-nil error, the SMTP client aborts
 	// the authentication attempt and closes the connection.
 	Start(server *ServerInfo) (proto string, toServer []byte, err error)
@@ -104,7 +103,7 @@ func (a *cramMD5Auth) Next(fromServer []byte, more bool) ([]byte, error) {
 		d := hmac.New(md5.New, []byte(a.secret))
 		d.Write(fromServer)
 		s := make([]byte, 0, d.Size())
-		return []byte(fmt.Sprintf("%s %x", a.username, d.Sum(s))), nil
+		return fmt.Appendf(nil, "%s %x", a.username, d.Sum(s)), nil
 	}
 	return nil, nil
 }

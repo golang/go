@@ -14,7 +14,7 @@ import (
 func fillFileStatFromSys(fs *fileStat, name string) {
 	fs.name = basename(name)
 	fs.size = fs.sys.Size
-	fs.modTime = timespecToTime(fs.sys.Mtime, fs.sys.MtimeNsec)
+	fs.modTime = time.Unix(fs.sys.Mtime, fs.sys.MtimeNsec)
 	fs.mode = FileMode(fs.sys.Mode & 0777)
 	switch fs.sys.Mode & syscall.S_IFMT {
 	case syscall.S_IFBLK:
@@ -43,12 +43,8 @@ func fillFileStatFromSys(fs *fileStat, name string) {
 	}
 }
 
-func timespecToTime(sec, nsec int64) time.Time {
-	return time.Unix(sec, nsec)
-}
-
 // For testing.
 func atime(fi FileInfo) time.Time {
 	st := fi.Sys().(*syscall.Stat_t)
-	return timespecToTime(st.Atime, st.AtimeNsec)
+	return time.Unix(st.Atime, st.AtimeNsec)
 }

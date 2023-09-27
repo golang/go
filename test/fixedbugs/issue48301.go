@@ -1,4 +1,4 @@
-// errorcheck -G=0
+// errorcheck
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -9,5 +9,5 @@
 package p
 
 func _() {
-	type T = T // ERROR "T uses T|invalid recursive type T"
+	type T = T // ERROR "invalid recursive type: T refers to itself"
 }

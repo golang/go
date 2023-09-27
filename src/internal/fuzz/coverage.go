@@ -9,7 +9,7 @@ import (
 	"math/bits"
 )
 
-// ResetCovereage sets all of the counters for each edge of the instrumented
+// ResetCoverage sets all of the counters for each edge of the instrumented
 // source code to 0.
 func ResetCoverage() {
 	cov := coverage()
@@ -64,6 +64,17 @@ func countNewCoverageBits(base, snapshot []byte) int {
 		n += bits.OnesCount8(snapshot[i] &^ base[i])
 	}
 	return n
+}
+
+// isCoverageSubset returns true if all the base coverage bits are set in
+// snapshot.
+func isCoverageSubset(base, snapshot []byte) bool {
+	for i, v := range base {
+		if v&snapshot[i] != v {
+			return false
+		}
+	}
+	return true
 }
 
 // hasCoverageBit returns true if snapshot has at least one bit set that is

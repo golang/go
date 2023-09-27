@@ -6,7 +6,7 @@
 // that are expected to be inlined
 package main
 
-import "a"
+import "./a"
 
 func main() {
 	if !a.G()()() {

@@ -24,7 +24,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
 	}
 
 	// Adjust the frame to account for LR.
-	off += base.Ctxt.FixedFrameSize()
+	off += base.Ctxt.Arch.FixedFrameSize
 	reg := int16(s390x.REGSP)
 
 	// If the off cannot fit in a 12-bit unsigned displacement then we

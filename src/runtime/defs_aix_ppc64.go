@@ -81,7 +81,10 @@ const (
 	_ITIMER_PROF    = 0x2
 
 	_O_RDONLY   = 0x0
+	_O_WRONLY   = 0x1
 	_O_NONBLOCK = 0x4
+	_O_CREAT    = 0x100
+	_O_TRUNC    = 0x200
 
 	_SS_DISABLE  = 0x2
 	_SI_USER     = 0x0
@@ -98,11 +101,9 @@ const (
 	__SC_PAGE_SIZE        = 0x30
 	__SC_NPROCESSORS_ONLN = 0x48
 
-	_F_SETFD    = 0x2
-	_F_SETFL    = 0x4
-	_F_GETFD    = 0x1
-	_F_GETFL    = 0x3
-	_FD_CLOEXEC = 0x1
+	_F_SETFL = 0x4
+	_F_GETFD = 0x1
+	_F_GETFL = 0x3
 )
 
 type sigset [4]uint64

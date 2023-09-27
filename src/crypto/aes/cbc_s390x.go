@@ -6,7 +6,7 @@ package aes
 
 import (
 	"crypto/cipher"
-	"crypto/internal/subtle"
+	"crypto/internal/alias"
 )
 
 // Assert that aesCipherAsm implements the cbcEncAble and cbcDecAble interfaces.
@@ -39,6 +39,7 @@ func (x *cbc) BlockSize() int { return BlockSize }
 
 // cryptBlocksChain invokes the cipher message with chaining (KMC) instruction
 // with the given function code. The length must be a multiple of BlockSize (16).
+//
 //go:noescape
 func cryptBlocksChain(c code, iv, key, dst, src *byte, length int)
 
@@ -49,7 +50,7 @@ func (x *cbc) CryptBlocks(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
-	if subtle.InexactOverlap(dst[:len(src)], src) {
+	if alias.InexactOverlap(dst[:len(src)], src) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
 	if len(src) > 0 {

@@ -35,16 +35,12 @@ func setTimeval(sec, usec int64) Timeval {
 //sys	Iopl(level int) (err error)
 //sys	Lchown(path string, uid int, gid int) (err error) = SYS_LCHOWN32
 //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
 //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
 //sys	setfsgid(gid int) (prev int, err error) = SYS_SETFSGID32
 //sys	setfsuid(uid int) (prev int, err error) = SYS_SETFSUID32
-//sysnb	Setregid(rgid int, egid int) (err error) = SYS_SETREGID32
-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error) = SYS_SETRESGID32
-//sysnb	Setresuid(ruid int, euid int, suid int) (err error) = SYS_SETRESUID32
-//sysnb	Setreuid(ruid int, euid int) (err error) = SYS_SETREUID32
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
 //sys	Stat(path string, stat *Stat_t) (err error) = SYS_STAT64
 //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
@@ -101,33 +97,6 @@ func Getrlimit(resource int, rlim *Rlimit) (err error) {
 	return
 }
 
-//sysnb	setrlimit(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
-
-func Setrlimit(resource int, rlim *Rlimit) (err error) {
-	err = Prlimit(0, resource, rlim, nil)
-	if err != ENOSYS {
-		return err
-	}
-
-	rl := rlimit32{}
-	if rlim.Cur == rlimInf64 {
-		rl.Cur = rlimInf32
-	} else if rlim.Cur < uint64(rlimInf32) {
-		rl.Cur = uint32(rlim.Cur)
-	} else {
-		return EINVAL
-	}
-	if rlim.Max == rlimInf64 {
-		rl.Max = rlimInf32
-	} else if rlim.Max < uint64(rlimInf32) {
-		rl.Max = uint32(rlim.Max)
-	} else {
-		return EINVAL
-	}
-
-	return setrlimit(resource, &rl)
-}
-
 func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 	newoffset, errno := seek(fd, offset, whence)
 	if errno != 0 {
@@ -172,14 +141,6 @@ const (
 	_RECVMMSG    = 19
 	_SENDMMSG    = 20
 )
-
-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
-	fd, e := socketcall(_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
-	if e != 0 {
-		err = e
-	}
-	return
-}
 
 func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
 	fd, e := socketcall(_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)

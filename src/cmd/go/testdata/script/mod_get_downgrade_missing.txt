@@ -23,7 +23,7 @@ cp go.mod.orig go.mod
 # package, then 'go get' should fail with a useful error message.
 
 ! go get example.net/pkgadded@v1.0.0 .
-stderr '^example.com/m imports\n\texample.net/pkgadded/subpkg: cannot find module providing package example.net/pkgadded/subpkg$'
+stderr '^go: example.com/m imports\n\texample.net/pkgadded/subpkg: cannot find module providing package example.net/pkgadded/subpkg$'
 ! stderr 'example.net/pkgadded v1\.2\.0'
 cmp go.mod.orig go.mod
 

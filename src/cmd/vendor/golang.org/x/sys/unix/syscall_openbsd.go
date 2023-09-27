@@ -81,18 +81,22 @@ func Pipe(p []int) (err error) {
 }
 
 //sysnb	pipe2(p *[2]_C_int, flags int) (err error)
+
 func Pipe2(p []int, flags int) error {
 	if len(p) != 2 {
 		return EINVAL
 	}
 	var pp [2]_C_int
 	err := pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
 	return err
 }
 
 //sys	Getdents(fd int, buf []byte) (n int, err error)
+
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	n, err = Getdents(fd, buf)
 	if err != nil || basep == nil {
@@ -147,12 +151,23 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 	return
 }
 
-func setattrlistTimes(path string, times []Timespec, flags int) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
+//sysnb	getresuid(ruid *_C_int, euid *_C_int, suid *_C_int)
+//sysnb	getresgid(rgid *_C_int, egid *_C_int, sgid *_C_int)
+
+func Getresuid() (ruid, euid, suid int) {
+	var r, e, s _C_int
+	getresuid(&r, &e, &s)
+	return int(r), int(e), int(s)
+}
+
+func Getresgid() (rgid, egid, sgid int) {
+	var r, e, s _C_int
+	getresgid(&r, &e, &s)
+	return int(r), int(e), int(s)
 }
 
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
+//sys	ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_IOCTL
 
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
 
@@ -221,6 +236,7 @@ func Uname(uname *Utsname) error {
 //sys	Chmod(path string, mode uint32) (err error)
 //sys	Chown(path string, uid int, gid int) (err error)
 //sys	Chroot(path string) (err error)
+//sys	ClockGettime(clockid int32, time *Timespec) (err error)
 //sys	Close(fd int) (err error)
 //sys	Dup(fd int) (nfd int, err error)
 //sys	Dup2(from int, to int) (err error)
@@ -272,8 +288,8 @@ func Uname(uname *Utsname) error {
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Openat(dirfd int, path string, mode int, perm uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Readlink(path string, buf []byte) (n int, err error)
 //sys	Readlinkat(dirfd int, path string, buf []byte) (n int, err error)
@@ -293,7 +309,6 @@ func Uname(uname *Utsname) error {
 //sysnb	Setreuid(ruid int, euid int) (err error)
 //sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
 //sysnb	Setresuid(ruid int, euid int, suid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setrtable(rtable int) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
@@ -338,8 +353,6 @@ func Uname(uname *Utsname) error {
 // getgid
 // getitimer
 // getlogin
-// getresgid
-// getresuid
 // getthrid
 // ktrace
 // lfs_bmapv

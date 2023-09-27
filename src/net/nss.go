@@ -2,19 +2,99 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-
 package net
 
 import (
 	"errors"
 	"internal/bytealg"
-	"io"
 	"os"
+	"sync"
+	"time"
 )
+
+const (
+	nssConfigPath = "/etc/nsswitch.conf"
+)
+
+var nssConfig nsswitchConfig
+
+type nsswitchConfig struct {
+	initOnce sync.Once // guards init of nsswitchConfig
+
+	// ch is used as a semaphore that only allows one lookup at a
+	// time to recheck nsswitch.conf
+	ch          chan struct{} // guards lastChecked and modTime
+	lastChecked time.Time     // last time nsswitch.conf was checked
+
+	mu      sync.Mutex // protects nssConf
+	nssConf *nssConf
+}
+
+func getSystemNSS() *nssConf {
+	nssConfig.tryUpdate()
+	nssConfig.mu.Lock()
+	conf := nssConfig.nssConf
+	nssConfig.mu.Unlock()
+	return conf
+}
+
+// init initializes conf and is only called via conf.initOnce.
+func (conf *nsswitchConfig) init() {
+	conf.nssConf = parseNSSConfFile("/etc/nsswitch.conf")
+	conf.lastChecked = time.Now()
+	conf.ch = make(chan struct{}, 1)
+}
+
+// tryUpdate tries to update conf.
+func (conf *nsswitchConfig) tryUpdate() {
+	conf.initOnce.Do(conf.init)
+
+	// Ensure only one update at a time checks nsswitch.conf
+	if !conf.tryAcquireSema() {
+		return
+	}
+	defer conf.releaseSema()
+
+	now := time.Now()
+	if conf.lastChecked.After(now.Add(-5 * time.Second)) {
+		return
+	}
+	conf.lastChecked = now
+
+	var mtime time.Time
+	if fi, err := os.Stat(nssConfigPath); err == nil {
+		mtime = fi.ModTime()
+	}
+	if mtime.Equal(conf.nssConf.mtime) {
+		return
+	}
+
+	nssConf := parseNSSConfFile(nssConfigPath)
+	conf.mu.Lock()
+	conf.nssConf = nssConf
+	conf.mu.Unlock()
+}
+
+func (conf *nsswitchConfig) acquireSema() {
+	conf.ch <- struct{}{}
+}
+
+func (conf *nsswitchConfig) tryAcquireSema() bool {
+	select {
+	case conf.ch <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+func (conf *nsswitchConfig) releaseSema() {
+	<-conf.ch
+}
 
 // nssConf represents the state of the machine's /etc/nsswitch.conf file.
 type nssConf struct {
+	mtime   time.Time              // time of nsswitch.conf modification
 	err     error                  // any error encountered opening or parsing the file
 	sources map[string][]nssSource // keyed by database (e.g. "hosts")
 }
@@ -67,56 +147,62 @@ func (c nssCriterion) standardStatusAction(last bool) bool {
 }
 
 func parseNSSConfFile(file string) *nssConf {
-	f, err := os.Open(file)
+	f, err := open(file)
 	if err != nil {
 		return &nssConf{err: err}
 	}
-	defer f.Close()
-	return parseNSSConf(f)
+	defer f.close()
+	mtime, _, err := f.stat()
+	if err != nil {
+		return &nssConf{err: err}
+	}
+
+	conf := parseNSSConf(f)
+	conf.mtime = mtime
+	return conf
 }
 
-func parseNSSConf(r io.Reader) *nssConf {
-	slurp, err := readFull(r)
-	if err != nil {
-		return &nssConf{err: err}
-	}
+func parseNSSConf(f *file) *nssConf {
 	conf := new(nssConf)
-	conf.err = foreachLine(slurp, func(line []byte) error {
+	for line, ok := f.readLine(); ok; line, ok = f.readLine() {
 		line = trimSpace(removeComment(line))
 		if len(line) == 0 {
-			return nil
+			continue
 		}
-		colon := bytealg.IndexByte(line, ':')
+		colon := bytealg.IndexByteString(line, ':')
 		if colon == -1 {
-			return errors.New("no colon on line")
+			conf.err = errors.New("no colon on line")
+			return conf
 		}
-		db := string(trimSpace(line[:colon]))
+		db := trimSpace(line[:colon])
 		srcs := line[colon+1:]
 		for {
 			srcs = trimSpace(srcs)
 			if len(srcs) == 0 {
 				break
 			}
-			sp := bytealg.IndexByte(srcs, ' ')
+			sp := bytealg.IndexByteString(srcs, ' ')
 			var src string
 			if sp == -1 {
-				src = string(srcs)
-				srcs = nil // done
+				src = srcs
+				srcs = "" // done
 			} else {
-				src = string(srcs[:sp])
+				src = srcs[:sp]
 				srcs = trimSpace(srcs[sp+1:])
 			}
 			var criteria []nssCriterion
 			// See if there's a criteria block in brackets.
 			if len(srcs) > 0 && srcs[0] == '[' {
-				bclose := bytealg.IndexByte(srcs, ']')
+				bclose := bytealg.IndexByteString(srcs, ']')
 				if bclose == -1 {
-					return errors.New("unclosed criterion bracket")
+					conf.err = errors.New("unclosed criterion bracket")
+					return conf
 				}
 				var err error
 				criteria, err = parseCriteria(srcs[1:bclose])
 				if err != nil {
-					return errors.New("invalid criteria: " + string(srcs[1:bclose]))
+					conf.err = errors.New("invalid criteria: " + srcs[1:bclose])
+					return conf
 				}
 				srcs = srcs[bclose+1:]
 			}
@@ -128,14 +214,13 @@ func parseNSSConf(r io.Reader) *nssConf {
 				criteria: criteria,
 			})
 		}
-		return nil
-	})
+	}
 	return conf
 }
 
 // parses "foo=bar !foo=bar"
-func parseCriteria(x []byte) (c []nssCriterion, err error) {
-	err = foreachField(x, func(f []byte) error {
+func parseCriteria(x string) (c []nssCriterion, err error) {
+	err = foreachField(x, func(f string) error {
 		not := false
 		if len(f) > 0 && f[0] == '!' {
 			not = true
@@ -144,15 +229,19 @@ func parseCriteria(x []byte) (c []nssCriterion, err error) {
 		if len(f) < 3 {
 			return errors.New("criterion too short")
 		}
-		eq := bytealg.IndexByte(f, '=')
+		eq := bytealg.IndexByteString(f, '=')
 		if eq == -1 {
 			return errors.New("criterion lacks equal sign")
 		}
-		lowerASCIIBytes(f)
+		if hasUpperCase(f) {
+			lower := []byte(f)
+			lowerASCIIBytes(lower)
+			f = string(lower)
+		}
 		c = append(c, nssCriterion{
 			negate: not,
-			status: string(f[:eq]),
-			action: string(f[eq+1:]),
+			status: f[:eq],
+			action: f[eq+1:],
 		})
 		return nil
 	})

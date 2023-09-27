@@ -55,7 +55,6 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"runtime/internal/atomic"
 )
 
 type suspendGState struct {
@@ -173,7 +172,7 @@ func suspendG(gp *g) suspendGState {
 			// _Gscan bit and thus own the stack.
 			gp.preemptStop = false
 			gp.preempt = false
-			gp.stackguard0 = gp.stack.lo + _StackGuard
+			gp.stackguard0 = gp.stack.lo + stackGuard
 
 			// The goroutine was already at a safe-point
 			// and we've now locked that in.
@@ -192,7 +191,7 @@ func suspendG(gp *g) suspendGState {
 		case _Grunning:
 			// Optimization: if there is already a pending preemption request
 			// (from the previous loop iteration), don't bother with the atomics.
-			if gp.preemptStop && gp.preempt && gp.stackguard0 == stackPreempt && asyncM == gp.m && atomic.Load(&asyncM.preemptGen) == asyncGen {
+			if gp.preemptStop && gp.preempt && gp.stackguard0 == stackPreempt && asyncM == gp.m && asyncM.preemptGen.Load() == asyncGen {
 				break
 			}
 
@@ -208,7 +207,7 @@ func suspendG(gp *g) suspendGState {
 
 			// Prepare for asynchronous preemption.
 			asyncM2 := gp.m
-			asyncGen2 := atomic.Load(&asyncM2.preemptGen)
+			asyncGen2 := asyncM2.preemptGen.Load()
 			needAsync := asyncM != asyncM2 || asyncGen != asyncGen2
 			asyncM = asyncM2
 			asyncGen = asyncGen2
@@ -321,7 +320,7 @@ func init() {
 	total += funcMaxSPDelta(f)
 	// Add some overhead for return PCs, etc.
 	asyncPreemptStack = uintptr(total) + 8*goarch.PtrSize
-	if asyncPreemptStack > _StackLimit {
+	if asyncPreemptStack > stackNosplit {
 		// We need more than the nosplit limit. This isn't
 		// unsafe, but it may limit asynchronous preemption.
 		//
@@ -386,7 +385,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		// Not Go code.
 		return false, 0
 	}
-	if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "mips64" || GOARCH == "mips64le") && lr == pc+8 && funcspdelta(f, pc, nil) == 0 {
+	if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "mips64" || GOARCH == "mips64le") && lr == pc+8 && funcspdelta(f, pc) == 0 {
 		// We probably stopped at a half-executed CALL instruction,
 		// where the LR is updated but the PC has not. If we preempt
 		// here we'll see a seemingly self-recursive call, which is in
@@ -397,14 +396,14 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		// use the LR for unwinding, which will be bad.
 		return false, 0
 	}
-	up, startpc := pcdatavalue2(f, _PCDATA_UnsafePoint, pc)
-	if up == _PCDATA_UnsafePointUnsafe {
+	up, startpc := pcdatavalue2(f, abi.PCDATA_UnsafePoint, pc)
+	if up == abi.UnsafePointUnsafe {
 		// Unsafe-point marked by compiler. This includes
 		// atomic sequences (e.g., write barrier) and nosplit
 		// functions (except at calls).
 		return false, 0
 	}
-	if fd := funcdata(f, _FUNCDATA_LocalsPointerMaps); fd == nil || f.flag&funcFlag_ASM != 0 {
+	if fd := funcdata(f, abi.FUNCDATA_LocalsPointerMaps); fd == nil || f.flag&abi.FuncFlagAsm != 0 {
 		// This is assembly code. Don't assume it's well-formed.
 		// TODO: Empirically we still need the fd == nil check. Why?
 		//
@@ -414,14 +413,9 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		// except the ones that have funcFlag_SPWRITE set in f.flag.
 		return false, 0
 	}
-	name := funcname(f)
-	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
-		inltree := (*[1 << 20]inlinedCall)(inldata)
-		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, pc, nil)
-		if ix >= 0 {
-			name = funcnameFromNameoff(f, inltree[ix].func_)
-		}
-	}
+	// Check the inner-most name
+	u, uf := newInlineUnwinder(f, pc)
+	name := u.srcFunc(uf).name()
 	if hasPrefix(name, "runtime.") ||
 		hasPrefix(name, "runtime/internal/") ||
 		hasPrefix(name, "reflect.") {
@@ -438,14 +432,14 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		return false, 0
 	}
 	switch up {
-	case _PCDATA_Restart1, _PCDATA_Restart2:
+	case abi.UnsafePointRestart1, abi.UnsafePointRestart2:
 		// Restartable instruction sequence. Back off PC to
 		// the start PC.
 		if startpc == 0 || startpc > pc || pc-startpc > 20 {
 			throw("bad restart PC")
 		}
 		return true, startpc
-	case _PCDATA_RestartAtEntry:
+	case abi.UnsafePointRestartAtEntry:
 		// Restart from the function entry at resumption.
 		return true, f.entry()
 	}

@@ -33,7 +33,6 @@ import (
 //	if err := fstest.TestFS(myFS, "file/that/should/be/present"); err != nil {
 //		t.Fatal(err)
 //	}
-//
 func TestFS(fsys fs.FS, expected ...string) error {
 	if err := testFS(fsys, expected...); err != nil {
 		return err
@@ -271,7 +270,7 @@ func (t *fsTester) checkDir(dir string) {
 		}
 	}
 
-	t.checkGlob(dir, list)
+	t.checkGlob(dir, list2)
 }
 
 // formatEntry formats an fs.DirEntry into a string for error messages and comparison.

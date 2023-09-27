@@ -7,11 +7,17 @@
 package importer
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types2"
 	"fmt"
 	"go/token"
+	"internal/pkgbits"
 	"sync"
 )
+
+func assert(p bool) {
+	base.Assert(p)
+}
 
 func errorf(format string, args ...interface{}) {
 	panic(fmt.Sprintf(format, args...))
@@ -132,3 +138,15 @@ type anyType struct{}
 
 func (t anyType) Underlying() types2.Type { return t }
 func (t anyType) String() string          { return "any" }
+
+// See cmd/compile/internal/noder.derivedInfo.
+type derivedInfo struct {
+	idx    pkgbits.Index
+	needed bool
+}
+
+// See cmd/compile/internal/noder.typeInfo.
+type typeInfo struct {
+	idx     pkgbits.Index
+	derived bool
+}

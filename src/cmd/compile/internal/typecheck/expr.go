@@ -13,39 +13,8 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
-
-// tcAddr typechecks an OADDR node.
-func tcAddr(n *ir.AddrExpr) ir.Node {
-	n.X = Expr(n.X)
-	if n.X.Type() == nil {
-		n.SetType(nil)
-		return n
-	}
-
-	switch n.X.Op() {
-	case ir.OARRAYLIT, ir.OMAPLIT, ir.OSLICELIT, ir.OSTRUCTLIT:
-		n.SetOp(ir.OPTRLIT)
-
-	default:
-		checklvalue(n.X, "take the address of")
-		r := ir.OuterValue(n.X)
-		if r.Op() == ir.ONAME {
-			r := r.(*ir.Name)
-			if ir.Orig(r) != r {
-				base.Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
-			}
-		}
-		n.X = DefaultLit(n.X, nil)
-		if n.X.Type() == nil {
-			n.SetType(nil)
-			return n
-		}
-	}
-
-	n.SetType(types.NewPtr(n.X.Type()))
-	return n
-}
 
 func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 	if l.Type() == nil || r.Type() == nil {
@@ -56,10 +25,6 @@ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 	t := r.Type()
 	if !t.IsInteger() {
 		base.Errorf("invalid operation: %v (shift count type %v, must be integer)", n, r.Type())
-		return l, r, nil
-	}
-	if t.IsSigned() && !types.AllowsGoVersion(curpkg(), 1, 13) {
-		base.ErrorfVers("go1.13", "invalid operation: %v (signed shift count type %v)", n, r.Type())
 		return l, r, nil
 	}
 	t = l.Type()
@@ -80,8 +45,9 @@ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 // tcArith typechecks operands of a binary arithmetic expression.
 // The result of tcArith MUST be assigned back to original operands,
 // t is the type of the expression, and should be set by the caller. e.g:
-//     n.X, n.Y, t = tcArith(n, op, n.X, n.Y)
-//     n.SetType(t)
+//
+//	n.X, n.Y, t = tcArith(n, op, n.X, n.Y)
+//	n.SetType(t)
 func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 	l, r = defaultlit2(l, r, false)
 	if l.Type() == nil || r.Type() == nil {
@@ -187,18 +153,12 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 		}
 	}
 
-	if (op == ir.ODIV || op == ir.OMOD) && ir.IsConst(r, constant.Int) {
-		if constant.Sign(r.Val()) == 0 {
-			base.Errorf("division by zero")
-			return l, r, nil
-		}
-	}
-
 	return l, r, t
 }
 
 // The result of tcCompLit MUST be assigned back to n, e.g.
-// 	n.Left = tcCompLit(n.Left)
+//
+//	n.Left = tcCompLit(n.Left)
 func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("tcCompLit", n)(&res)
@@ -209,39 +169,10 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 		base.Pos = lno
 	}()
 
-	if n.Ntype == nil {
-		base.ErrorfAt(n.Pos(), "missing type in composite literal")
-		n.SetType(nil)
-		return n
-	}
+	ir.SetPos(n)
 
-	// Save original node (including n.Right)
-	n.SetOrig(ir.Copy(n))
-
-	ir.SetPos(n.Ntype)
-
-	// Need to handle [...]T arrays specially.
-	if array, ok := n.Ntype.(*ir.ArrayType); ok && array.Elem != nil && array.Len == nil {
-		array.Elem = typecheckNtype(array.Elem)
-		elemType := array.Elem.Type()
-		if elemType == nil {
-			n.SetType(nil)
-			return n
-		}
-		length := typecheckarraylit(elemType, -1, n.List, "array literal")
-		n.SetOp(ir.OARRAYLIT)
-		n.SetType(types.NewArray(elemType, length))
-		n.Ntype = nil
-		return n
-	}
-
-	n.Ntype = typecheckNtype(n.Ntype)
-	t := n.Ntype.Type()
-	if t == nil {
-		n.SetType(nil)
-		return n
-	}
-	n.SetType(t)
+	t := n.Type()
+	base.AssertfAt(t != nil, n.Pos(), "missing type in composite literal")
 
 	switch t.Kind() {
 	default:
@@ -251,16 +182,13 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 	case types.TARRAY:
 		typecheckarraylit(t.Elem(), t.NumElem(), n.List, "array literal")
 		n.SetOp(ir.OARRAYLIT)
-		n.Ntype = nil
 
 	case types.TSLICE:
 		length := typecheckarraylit(t.Elem(), -1, n.List, "slice literal")
 		n.SetOp(ir.OSLICELIT)
-		n.Ntype = nil
 		n.Len = length
 
 	case types.TMAP:
-		var cs constSet
 		for i3, l := range n.List {
 			ir.SetPos(l)
 			if l.Op() != ir.OKEY {
@@ -271,19 +199,15 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 			l := l.(*ir.KeyExpr)
 
 			r := l.Key
-			r = pushtype(r, t.Key())
 			r = Expr(r)
 			l.Key = AssignConv(r, t.Key(), "map key")
-			cs.add(base.Pos, l.Key, "key", "map literal")
 
 			r = l.Value
-			r = pushtype(r, t.Elem())
 			r = Expr(r)
 			l.Value = AssignConv(r, t.Elem(), "map value")
 		}
 
 		n.SetOp(ir.OMAPLIT)
-		n.Ntype = nil
 
 	case types.TSTRUCT:
 		// Need valid field offsets for Xoffset below.
@@ -364,7 +288,6 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 		}
 
 		n.SetOp(ir.OSTRUCTLIT)
-		n.Ntype = nil
 	}
 
 	return n
@@ -375,13 +298,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 func tcStructLitKey(typ *types.Type, kv *ir.KeyExpr) *ir.StructKeyExpr {
 	key := kv.Key
 
-	// Sym might have resolved to name in other top-level
-	// package, because of import dot. Redirect to correct sym
-	// before we do the lookup.
 	sym := key.Sym()
-	if id, ok := key.(*ir.Ident); ok && DotImportRefs[id] != nil {
-		sym = Lookup(sym.Name)
-	}
 
 	// An OXDOT uses the Sym field to hold
 	// the field to the right of the dot,
@@ -436,13 +353,7 @@ func tcConv(n *ir.ConvExpr) ir.Node {
 	}
 	op, why := Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
 	if op == ir.OXXX {
-		if !n.Diag() && !n.Type().Broke() && !n.X.Diag() {
-			base.Errorf("cannot convert %L to type %v%s", n.X, n.Type(), why)
-			n.SetDiag(true)
-		}
-		n.SetOp(ir.OCONV)
-		n.SetType(nil)
-		return n
+		base.Fatalf("cannot convert %L to type %v%s", n.X, n.Type(), why)
 	}
 
 	n.SetOp(op)
@@ -466,6 +377,87 @@ func tcConv(n *ir.ConvExpr) ir.Node {
 		if n.X.Op() == ir.OLITERAL {
 			return stringtoruneslit(n)
 		}
+
+	case ir.OBYTES2STR:
+		if t.Elem() != types.ByteType && t.Elem() != types.Types[types.TUINT8] {
+			// If t is a slice of a user-defined byte type B (not uint8
+			// or byte), then add an extra CONVNOP from []B to []byte, so
+			// that the call to slicebytetostring() added in walk will
+			// typecheck correctly.
+			n.X = ir.NewConvExpr(n.X.Pos(), ir.OCONVNOP, types.NewSlice(types.ByteType), n.X)
+			n.X.SetTypecheck(1)
+		}
+
+	case ir.ORUNES2STR:
+		if t.Elem() != types.RuneType && t.Elem() != types.Types[types.TINT32] {
+			// If t is a slice of a user-defined rune type B (not uint32
+			// or rune), then add an extra CONVNOP from []B to []rune, so
+			// that the call to slicerunetostring() added in walk will
+			// typecheck correctly.
+			n.X = ir.NewConvExpr(n.X.Pos(), ir.OCONVNOP, types.NewSlice(types.RuneType), n.X)
+			n.X.SetTypecheck(1)
+		}
+
+	}
+	return n
+}
+
+// DotField returns a field selector expression that selects the
+// index'th field of the given expression, which must be of struct or
+// pointer-to-struct type.
+func DotField(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
+	op, typ := ir.ODOT, x.Type()
+	if typ.IsPtr() {
+		op, typ = ir.ODOTPTR, typ.Elem()
+	}
+	if !typ.IsStruct() {
+		base.FatalfAt(pos, "DotField of non-struct: %L", x)
+	}
+
+	// TODO(mdempsky): This is the backend's responsibility.
+	types.CalcSize(typ)
+
+	field := typ.Field(index)
+	return dot(pos, field.Type, op, x, field)
+}
+
+func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Field) *ir.SelectorExpr {
+	n := ir.NewSelectorExpr(pos, op, x, selection.Sym)
+	n.Selection = selection
+	n.SetType(typ)
+	n.SetTypecheck(1)
+	return n
+}
+
+// XDotMethod returns an expression representing the field selection
+// x.sym. If any implicit field selection are necessary, those are
+// inserted too.
+func XDotField(pos src.XPos, x ir.Node, sym *types.Sym) *ir.SelectorExpr {
+	n := Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
+	if n.Op() != ir.ODOT && n.Op() != ir.ODOTPTR {
+		base.FatalfAt(pos, "unexpected result op: %v (%v)", n.Op(), n)
+	}
+	return n
+}
+
+// XDotMethod returns an expression representing the method value
+// x.sym (i.e., x is a value, not a type). If any implicit field
+// selection are necessary, those are inserted too.
+//
+// If callee is true, the result is an ODOTMETH/ODOTINTER, otherwise
+// an OMETHVALUE.
+func XDotMethod(pos src.XPos, x ir.Node, sym *types.Sym, callee bool) *ir.SelectorExpr {
+	n := ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)
+	if callee {
+		n = Callee(n).(*ir.SelectorExpr)
+		if n.Op() != ir.ODOTMETH && n.Op() != ir.ODOTINTER {
+			base.FatalfAt(pos, "unexpected result op: %v (%v)", n.Op(), n)
+		}
+	} else {
+		n = Expr(n).(*ir.SelectorExpr)
+		if n.Op() != ir.OMETHVALUE {
+			base.FatalfAt(pos, "unexpected result op: %v (%v)", n.Op(), n)
+		}
 	}
 	return n
 }
@@ -481,7 +473,7 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 		}
 	}
 
-	n.X = typecheck(n.X, ctxExpr|ctxType)
+	n.X = Expr(n.X)
 	n.X = DefaultLit(n.X, nil)
 
 	t := n.X.Type()
@@ -492,7 +484,7 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 	}
 
 	if n.X.Op() == ir.OTYPE {
-		return typecheckMethodExpr(n)
+		base.FatalfAt(n.Pos(), "use NewMethodExpr to construct OMETHEXPR")
 	}
 
 	if t.IsPtr() && !t.Elem().IsInterface() {
@@ -559,30 +551,12 @@ func tcDotType(n *ir.TypeAssertExpr) ir.Node {
 		return n
 	}
 
-	if n.Ntype != nil {
-		n.Ntype = typecheckNtype(n.Ntype)
-		n.SetType(n.Ntype.Type())
-		n.Ntype = nil
-		if n.Type() == nil {
-			return n
-		}
-	}
+	base.AssertfAt(n.Type() != nil, n.Pos(), "missing type: %v", n)
 
 	if n.Type() != nil && !n.Type().IsInterface() {
-		var missing, have *types.Field
-		var ptr int
-		if !implements(n.Type(), t, &missing, &have, &ptr) {
-			if have != nil && have.Sym == missing.Sym {
-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+
-					"\t\thave %v%S\n\t\twant %v%S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
-			} else if ptr != 0 {
-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (%v method has pointer receiver)", n.Type(), t, missing.Sym)
-			} else if have != nil {
-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (missing %v method)\n"+
-					"\t\thave %v%S\n\t\twant %v%S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
-			} else {
-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (missing %v method)", n.Type(), t, missing.Sym)
-			}
+		why := ImplementsExplain(n.Type(), t)
+		if why != "" {
+			base.Fatalf("impossible type assertion:\n\t%s", why)
 			n.SetType(nil)
 			return n
 		}
@@ -690,6 +664,40 @@ func tcLenCap(n *ir.UnaryExpr) ir.Node {
 	}
 
 	n.SetType(types.Types[types.TINT])
+	return n
+}
+
+// tcUnsafeData typechecks an OUNSAFESLICEDATA or OUNSAFESTRINGDATA node.
+func tcUnsafeData(n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(n.X)
+	n.X = DefaultLit(n.X, nil)
+	l := n.X
+	t := l.Type()
+	if t == nil {
+		n.SetType(nil)
+		return n
+	}
+
+	var kind types.Kind
+	if n.Op() == ir.OUNSAFESLICEDATA {
+		kind = types.TSLICE
+	} else {
+		/* kind is string */
+		kind = types.TSTRING
+	}
+
+	if t.Kind() != kind {
+		base.Errorf("invalid argument %L for %v", l, n.Op())
+		n.SetType(nil)
+		return n
+	}
+
+	if kind == types.TSTRING {
+		t = types.ByteType
+	} else {
+		t = t.Elem()
+	}
+	n.SetType(types.NewPtr(t))
 	return n
 }
 
@@ -846,6 +854,31 @@ func tcSliceHeader(n *ir.SliceHeaderExpr) ir.Node {
 	return n
 }
 
+// tcStringHeader typechecks an OSTRINGHEADER node.
+func tcStringHeader(n *ir.StringHeaderExpr) ir.Node {
+	t := n.Type()
+	if t == nil {
+		base.Fatalf("no type specified for OSTRINGHEADER")
+	}
+
+	if !t.IsString() {
+		base.Fatalf("invalid type %v for OSTRINGHEADER", n.Type())
+	}
+
+	if n.Ptr == nil || n.Ptr.Type() == nil || !n.Ptr.Type().IsUnsafePtr() {
+		base.Fatalf("need unsafe.Pointer for OSTRINGHEADER")
+	}
+
+	n.Ptr = Expr(n.Ptr)
+	n.Len = DefaultLit(Expr(n.Len), types.Types[types.TINT])
+
+	if ir.IsConst(n.Len, constant.Int) && ir.Int64Val(n.Len) < 0 {
+		base.Fatalf("len for OSTRINGHEADER must be non-negative")
+	}
+
+	return n
+}
+
 // tcStar typechecks an ODEREF node, which may be an expression or a type.
 func tcStar(n *ir.StarExpr, top int) ir.Node {
 	n.X = typecheck(n.X, ctxExpr|ctxType)
@@ -855,11 +888,11 @@ func tcStar(n *ir.StarExpr, top int) ir.Node {
 		n.SetType(nil)
 		return n
 	}
+
+	// TODO(mdempsky): Remove (along with ctxType above) once I'm
+	// confident this code path isn't needed any more.
 	if l.Op() == ir.OTYPE {
-		n.SetOTYPE(types.NewPtr(l.Type()))
-		// Ensure l.Type gets CalcSize'd for the backend. Issue 20174.
-		types.CheckSize(l.Type())
-		return n
+		base.Fatalf("unexpected type in deref expression: %v", l)
 	}
 
 	if !t.IsPtr() {

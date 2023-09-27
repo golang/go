@@ -3,11 +3,11 @@
 // license that can be found in the LICENSE file.
 
 /*
-
 Pack is a simple version of the traditional Unix ar tool.
 It implements only the operations needed by Go.
 
 Usage:
+
 	go tool pack op file.a [name...]
 
 Pack applies the operation to the archive, using the names as arguments to the operation.
@@ -36,6 +36,5 @@ For the c and r commands, names are printed as files are added.
 For the p command, each file is prefixed by the name on a line by itself.
 For the t command, the listing includes additional file metadata.
 For the x command, names are printed as files are extracted.
-
 */
 package main

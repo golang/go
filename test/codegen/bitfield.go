@@ -122,10 +122,10 @@ func sbfx1(x int64) int64 {
 }
 
 func sbfx2(x int64) int64 {
-	return (x << 60) >> 60 // arm64:"SBFX\tZR, R[0-9]+, [$]4",-"LSL",-"ASR"
+	return (x << 60) >> 60 // arm64:"SBFX\t[$]0, R[0-9]+, [$]4",-"LSL",-"ASR"
 }
 
-//  merge shift and sign-extension into sbfx.
+// merge shift and sign-extension into sbfx.
 func sbfx3(x int32) int64 {
 	return int64(x) >> 3 // arm64:"SBFX\t[$]3, R[0-9]+, [$]29",-"ASR"
 }
@@ -321,7 +321,14 @@ func ubfx15(x uint64) bool {
 	return false
 }
 
+// merge ANDconst and ubfx into ubfx
+func ubfx16(x uint64) uint64 {
+	// arm64:"UBFX\t[$]4, R[0-9]+, [$]6",-"AND\t[$]63"
+	return ((x >> 3) & 0xfff) >> 1 & 0x3f
+}
+
 // Check that we don't emit comparisons for constant shifts.
+//
 //go:nosplit
 func shift_no_cmp(x int) int {
 	// arm64:`LSL\t[$]17`,-`CMP`

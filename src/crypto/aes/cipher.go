@@ -6,7 +6,8 @@ package aes
 
 import (
 	"crypto/cipher"
-	"crypto/internal/subtle"
+	"crypto/internal/alias"
+	"crypto/internal/boring"
 	"strconv"
 )
 
@@ -37,6 +38,9 @@ func NewCipher(key []byte) (cipher.Block, error) {
 	case 16, 24, 32:
 		break
 	}
+	if boring.Enabled {
+		return boring.NewAESCipher(key)
+	}
 	return newCipher(key)
 }
 
@@ -58,7 +62,7 @@ func (c *aesCipher) Encrypt(dst, src []byte) {
 	if len(dst) < BlockSize {
 		panic("crypto/aes: output not full block")
 	}
-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
 	encryptBlockGo(c.enc, dst, src)
@@ -71,7 +75,7 @@ func (c *aesCipher) Decrypt(dst, src []byte) {
 	if len(dst) < BlockSize {
 		panic("crypto/aes: output not full block")
 	}
-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
 	decryptBlockGo(c.dec, dst, src)

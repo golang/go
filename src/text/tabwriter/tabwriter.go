@@ -23,7 +23,6 @@ import (
 // The text itself is stored in a separate buffer; cell only describes the
 // segment's size in bytes, its width in runes, and whether it's an htab
 // ('\t') terminated cell.
-//
 type cell struct {
 	size  int  // cell size in bytes
 	width int  // cell width in runes
@@ -87,7 +86,6 @@ type cell struct {
 // The Writer must buffer input internally, because proper spacing
 // of one line may depend on the cells in future lines. Clients must
 // call Flush when done calling Write.
-//
 type Writer struct {
 	// configuration
 	output   io.Writer
@@ -207,7 +205,6 @@ const (
 //			(for correct-looking results, tabwidth must correspond
 //			to the tab width in the viewer displaying the result)
 //	flags		formatting control
-//
 func (b *Writer) Init(output io.Writer, minwidth, tabwidth, padding int, padchar byte, flags uint) *Writer {
 	if minwidth < 0 || tabwidth < 0 || padding < 0 {
 		panic("negative minwidth, tabwidth, or padding")
@@ -350,7 +347,6 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int) {
 // is the buffer position corresponding to the beginning of line0.
 // Returns the buffer position corresponding to the beginning of
 // line1 and an error, if any.
-//
 func (b *Writer) format(pos0 int, line0, line1 int) (pos int) {
 	pos = pos0
 	column := len(b.widths)
@@ -427,7 +423,6 @@ func (b *Writer) updateWidth() {
 // width one for formatting purposes.
 //
 // The value 0xff was chosen because it cannot appear in a valid UTF-8 sequence.
-//
 const Escape = '\xff'
 
 // Start escaped mode.
@@ -446,7 +441,6 @@ func (b *Writer) startEscape(ch byte) {
 // is assumed to be zero for formatting purposes; if it was an HTML entity,
 // its width is assumed to be one. In all other cases, the width is the
 // unicode width of the text.
-//
 func (b *Writer) endEscape() {
 	switch b.endChar {
 	case Escape:
@@ -464,7 +458,6 @@ func (b *Writer) endEscape() {
 
 // Terminate the current cell by adding it to the list of cells of the
 // current line. Returns the number of cells in that line.
-//
 func (b *Writer) terminateCell(htab bool) int {
 	b.cell.htab = htab
 	line := &b.lines[len(b.lines)-1]
@@ -526,7 +519,6 @@ var hbar = []byte("---\n")
 // Write writes buf to the writer b.
 // The only errors returned are ones encountered
 // while writing to the underlying output stream.
-//
 func (b *Writer) Write(buf []byte) (n int, err error) {
 	defer b.handlePanic(&err, "Write")
 
@@ -603,7 +595,6 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
 
 // NewWriter allocates and initializes a new tabwriter.Writer.
 // The parameters are the same as for the Init function.
-//
 func NewWriter(output io.Writer, minwidth, tabwidth, padding int, padchar byte, flags uint) *Writer {
 	return new(Writer).Init(output, minwidth, tabwidth, padding, padchar, flags)
 }

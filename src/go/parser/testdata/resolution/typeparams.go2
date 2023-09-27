@@ -25,10 +25,15 @@ func Add /* =@AddDecl */[T /* =@T */ Addable /* @Addable */](l /* =@l */, r /* =
 
 type Receiver /* =@Receiver */[P /* =@P */ any] struct {}
 
+type RP /* =@RP1 */ struct{}
+
 // TODO(rFindley): make a decision on how/whether to resolve identifiers that
 // refer to receiver type parameters, as is the case for the 'P' result
 // parameter below.
-func (r /* =@recv */ Receiver /* @Receiver */ [P]) m() P {}
+//
+// For now, we ensure that types are not incorrectly resolved when receiver
+// type parameters are in scope.
+func (r /* =@recv */ Receiver /* @Receiver */ [RP]) m(RP) RP {}
 
 func f /* =@f */[T1 /* =@T1 */ interface{~[]T2 /* @T2 */}, T2 /* =@T2 */ any](
   x /* =@x */ T1 /* @T1 */, T1 /* =@T1_duplicate */ y,  // Note that this is a bug:
@@ -41,3 +46,6 @@ func f /* =@f */[T1 /* =@T1 */ interface{~[]T2 /* @T2 */}, T2 /* =@T2 */ any](
   T1 /* @T1 */ := 0
   var t1var /* =@t1var */ T1 /* @T1 */
 }
+
+// From issue #39634
+func(*ph1[e, e])h(d)

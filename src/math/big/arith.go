@@ -41,7 +41,7 @@ const (
 // These operations are used by the vector operations below.
 
 // z1<<_W + z0 = x*y
-func mulWW_g(x, y Word) (z1, z0 Word) {
+func mulWW(x, y Word) (z1, z0 Word) {
 	hi, lo := bits.Mul(uint(x), uint(y))
 	return Word(hi), Word(lo)
 }

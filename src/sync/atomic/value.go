@@ -17,8 +17,8 @@ type Value struct {
 	v any
 }
 
-// ifaceWords is interface{} internal representation.
-type ifaceWords struct {
+// efaceWords is interface{} internal representation.
+type efaceWords struct {
 	typ  unsafe.Pointer
 	data unsafe.Pointer
 }
@@ -26,14 +26,14 @@ type ifaceWords struct {
 // Load returns the value set by the most recent Store.
 // It returns nil if there has been no call to Store for this Value.
 func (v *Value) Load() (val any) {
-	vp := (*ifaceWords)(unsafe.Pointer(v))
+	vp := (*efaceWords)(unsafe.Pointer(v))
 	typ := LoadPointer(&vp.typ)
 	if typ == nil || typ == unsafe.Pointer(&firstStoreInProgress) {
 		// First store not yet completed.
 		return nil
 	}
 	data := LoadPointer(&vp.data)
-	vlp := (*ifaceWords)(unsafe.Pointer(&val))
+	vlp := (*efaceWords)(unsafe.Pointer(&val))
 	vlp.typ = typ
 	vlp.data = data
 	return
@@ -41,15 +41,15 @@ func (v *Value) Load() (val any) {
 
 var firstStoreInProgress byte
 
-// Store sets the value of the Value to x.
+// Store sets the value of the Value v to val.
 // All calls to Store for a given Value must use values of the same concrete type.
 // Store of an inconsistent type panics, as does Store(nil).
 func (v *Value) Store(val any) {
 	if val == nil {
 		panic("sync/atomic: store of nil value into Value")
 	}
-	vp := (*ifaceWords)(unsafe.Pointer(v))
-	vlp := (*ifaceWords)(unsafe.Pointer(&val))
+	vp := (*efaceWords)(unsafe.Pointer(v))
+	vlp := (*efaceWords)(unsafe.Pointer(&val))
 	for {
 		typ := LoadPointer(&vp.typ)
 		if typ == nil {
@@ -91,8 +91,8 @@ func (v *Value) Swap(new any) (old any) {
 	if new == nil {
 		panic("sync/atomic: swap of nil value into Value")
 	}
-	vp := (*ifaceWords)(unsafe.Pointer(v))
-	np := (*ifaceWords)(unsafe.Pointer(&new))
+	vp := (*efaceWords)(unsafe.Pointer(v))
+	np := (*efaceWords)(unsafe.Pointer(&new))
 	for {
 		typ := LoadPointer(&vp.typ)
 		if typ == nil {
@@ -101,7 +101,7 @@ func (v *Value) Swap(new any) (old any) {
 			// active spin wait to wait for completion; and so that
 			// GC does not see the fake type accidentally.
 			runtime_procPin()
-			if !CompareAndSwapPointer(&vp.typ, nil, unsafe.Pointer(^uintptr(0))) {
+			if !CompareAndSwapPointer(&vp.typ, nil, unsafe.Pointer(&firstStoreInProgress)) {
 				runtime_procUnpin()
 				continue
 			}
@@ -111,7 +111,7 @@ func (v *Value) Swap(new any) (old any) {
 			runtime_procUnpin()
 			return nil
 		}
-		if uintptr(typ) == ^uintptr(0) {
+		if typ == unsafe.Pointer(&firstStoreInProgress) {
 			// First store in progress. Wait.
 			// Since we disable preemption around the first store,
 			// we can wait with active spinning.
@@ -121,7 +121,7 @@ func (v *Value) Swap(new any) (old any) {
 		if typ != np.typ {
 			panic("sync/atomic: swap of inconsistently typed value into Value")
 		}
-		op := (*ifaceWords)(unsafe.Pointer(&old))
+		op := (*efaceWords)(unsafe.Pointer(&old))
 		op.typ, op.data = np.typ, SwapPointer(&vp.data, np.data)
 		return old
 	}
@@ -136,9 +136,9 @@ func (v *Value) CompareAndSwap(old, new any) (swapped bool) {
 	if new == nil {
 		panic("sync/atomic: compare and swap of nil value into Value")
 	}
-	vp := (*ifaceWords)(unsafe.Pointer(v))
-	np := (*ifaceWords)(unsafe.Pointer(&new))
-	op := (*ifaceWords)(unsafe.Pointer(&old))
+	vp := (*efaceWords)(unsafe.Pointer(v))
+	np := (*efaceWords)(unsafe.Pointer(&new))
+	op := (*efaceWords)(unsafe.Pointer(&old))
 	if op.typ != nil && np.typ != op.typ {
 		panic("sync/atomic: compare and swap of inconsistently typed values")
 	}
@@ -153,7 +153,7 @@ func (v *Value) CompareAndSwap(old, new any) (swapped bool) {
 			// active spin wait to wait for completion; and so that
 			// GC does not see the fake type accidentally.
 			runtime_procPin()
-			if !CompareAndSwapPointer(&vp.typ, nil, unsafe.Pointer(^uintptr(0))) {
+			if !CompareAndSwapPointer(&vp.typ, nil, unsafe.Pointer(&firstStoreInProgress)) {
 				runtime_procUnpin()
 				continue
 			}
@@ -163,7 +163,7 @@ func (v *Value) CompareAndSwap(old, new any) (swapped bool) {
 			runtime_procUnpin()
 			return true
 		}
-		if uintptr(typ) == ^uintptr(0) {
+		if typ == unsafe.Pointer(&firstStoreInProgress) {
 			// First store in progress. Wait.
 			// Since we disable preemption around the first store,
 			// we can wait with active spinning.
@@ -180,8 +180,8 @@ func (v *Value) CompareAndSwap(old, new any) (swapped bool) {
 		// has not changed since LoadPointer.
 		data := LoadPointer(&vp.data)
 		var i any
-		(*ifaceWords)(unsafe.Pointer(&i)).typ = typ
-		(*ifaceWords)(unsafe.Pointer(&i)).data = data
+		(*efaceWords)(unsafe.Pointer(&i)).typ = typ
+		(*efaceWords)(unsafe.Pointer(&i)).data = data
 		if i != old {
 			return false
 		}
@@ -190,5 +190,5 @@ func (v *Value) CompareAndSwap(old, new any) (swapped bool) {
 }
 
 // Disable/enable preemption, implemented in runtime.
-func runtime_procPin()
+func runtime_procPin() int
 func runtime_procUnpin()

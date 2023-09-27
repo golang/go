@@ -15,12 +15,13 @@ cp empty $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.partial
 go mod verify
 
 # 'go list' should not load packages from the directory.
-# NOTE: the message "directory $dir outside available modules" is reported
-# for directories not in the main module, active modules in the module cache,
-# or local replacements. In this case, the directory is in the right place,
-# but it's incomplete, so 'go list' acts as if it's not an active module.
+# NOTE: the message "directory $dir outside main module or its selected dependencies"
+# is reported for directories not in the main module, active modules in the
+# module cache, or local replacements. In this case, the directory is in the
+# right place, but it's incomplete, so 'go list' acts as if it's not an
+# active module.
 ! go list $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
-stderr 'outside available modules'
+stderr 'outside main module or its selected dependencies'
 
 # 'go list -m' should not print the directory.
 go list -m -f '{{.Dir}}' rsc.io/quote

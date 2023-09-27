@@ -1,6 +1,6 @@
 # Verify that go bug creates the appropriate URL issue body
 
-[!linux] skip
+[!GOOS:linux] skip
 [short] skip
 
 go install

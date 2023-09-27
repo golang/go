@@ -4,9 +4,7 @@
 
 package time
 
-import "errors"
-
-// A Ticker holds a channel that delivers ``ticks'' of a clock
+// A Ticker holds a channel that delivers “ticks” of a clock
 // at intervals.
 type Ticker struct {
 	C <-chan Time // The channel on which the ticks are delivered.
@@ -21,7 +19,7 @@ type Ticker struct {
 // panic. Stop the ticker to release associated resources.
 func NewTicker(d Duration) *Ticker {
 	if d <= 0 {
-		panic(errors.New("non-positive interval for NewTicker"))
+		panic("non-positive interval for NewTicker")
 	}
 	// Give the channel a 1-element time buffer.
 	// If the client falls behind while reading, we drop ticks

@@ -10,15 +10,16 @@
 package macOS
 
 import (
+	"bytes"
 	"errors"
 	"internal/abi"
-	"reflect"
 	"runtime"
 	"time"
 	"unsafe"
 )
 
 // Core Foundation linker flags for the external linker. See Issue 42459.
+//
 //go:cgo_ldflag "-framework"
 //go:cgo_ldflag "CoreFoundation"
 
@@ -30,25 +31,26 @@ type CFRef uintptr
 func CFDataToSlice(data CFRef) []byte {
 	length := CFDataGetLength(data)
 	ptr := CFDataGetBytePtr(data)
-	src := (*[1 << 20]byte)(unsafe.Pointer(ptr))[:length:length]
-	out := make([]byte, length)
-	copy(out, src)
-	return out
+	src := unsafe.Slice((*byte)(unsafe.Pointer(ptr)), length)
+	return bytes.Clone(src)
 }
 
 // CFStringToString returns a Go string representation of the passed
-// in CFString.
+// in CFString, or an empty string if it's invalid.
 func CFStringToString(ref CFRef) string {
-	data := CFStringCreateExternalRepresentation(ref)
+	data, err := CFStringCreateExternalRepresentation(ref)
+	if err != nil {
+		return ""
+	}
 	b := CFDataToSlice(data)
 	CFRelease(data)
 	return string(b)
 }
 
-// TimeToCFDateRef converts a time.Time into an apple CFDateRef
+// TimeToCFDateRef converts a time.Time into an apple CFDateRef.
 func TimeToCFDateRef(t time.Time) CFRef {
 	secs := t.Sub(time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC)).Seconds()
-	ref := CFDateCreate(int(secs))
+	ref := CFDateCreate(secs)
 	return ref
 }
 
@@ -60,7 +62,7 @@ const kCFStringEncodingUTF8 = 0x08000100
 //go:cgo_import_dynamic x509_CFDataCreate CFDataCreate "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
 
 func BytesToCFData(b []byte) CFRef {
-	p := unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data)
+	p := unsafe.Pointer(unsafe.SliceData(b))
 	ret := syscall(abi.FuncPCABI0(x509_CFDataCreate_trampoline), kCFAllocatorDefault, uintptr(p), uintptr(len(b)), 0, 0, 0)
 	runtime.KeepAlive(p)
 	return CFRef(ret)
@@ -71,7 +73,7 @@ func x509_CFDataCreate_trampoline()
 
 // StringToCFString returns a copy of the UTF-8 contents of s as a new CFString.
 func StringToCFString(s string) CFString {
-	p := unsafe.Pointer((*reflect.StringHeader)(unsafe.Pointer(&s)).Data)
+	p := unsafe.Pointer(unsafe.StringData(s))
 	ret := syscall(abi.FuncPCABI0(x509_CFStringCreateWithBytes_trampoline), kCFAllocatorDefault, uintptr(p),
 		uintptr(len(s)), uintptr(kCFStringEncodingUTF8), 0 /* isExternalRepresentation */, 0)
 	runtime.KeepAlive(p)
@@ -170,8 +172,8 @@ func x509_CFArrayAppendValue_trampoline()
 
 //go:cgo_import_dynamic x509_CFDateCreate CFDateCreate "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
 
-func CFDateCreate(seconds int) CFRef {
-	ret := syscall(abi.FuncPCABI0(x509_CFDateCreate_trampoline), kCFAllocatorDefault, uintptr(seconds), 0, 0, 0, 0)
+func CFDateCreate(seconds float64) CFRef {
+	ret := syscall(abi.FuncPCABI0(x509_CFDateCreate_trampoline), kCFAllocatorDefault, 0, 0, 0, 0, seconds)
 	return CFRef(ret)
 }
 func x509_CFDateCreate_trampoline()
@@ -184,16 +186,26 @@ func CFErrorCopyDescription(errRef CFRef) CFRef {
 }
 func x509_CFErrorCopyDescription_trampoline()
 
+//go:cgo_import_dynamic x509_CFErrorGetCode CFErrorGetCode "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+
+func CFErrorGetCode(errRef CFRef) int {
+	return int(syscall(abi.FuncPCABI0(x509_CFErrorGetCode_trampoline), uintptr(errRef), 0, 0, 0, 0, 0))
+}
+func x509_CFErrorGetCode_trampoline()
+
 //go:cgo_import_dynamic x509_CFStringCreateExternalRepresentation CFStringCreateExternalRepresentation "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
 
-func CFStringCreateExternalRepresentation(strRef CFRef) CFRef {
+func CFStringCreateExternalRepresentation(strRef CFRef) (CFRef, error) {
 	ret := syscall(abi.FuncPCABI0(x509_CFStringCreateExternalRepresentation_trampoline), kCFAllocatorDefault, uintptr(strRef), kCFStringEncodingUTF8, 0, 0, 0)
-	return CFRef(ret)
+	if ret == 0 {
+		return 0, errors.New("string can't be represented as UTF-8")
+	}
+	return CFRef(ret), nil
 }
 func x509_CFStringCreateExternalRepresentation_trampoline()
 
 // syscall is implemented in the runtime package (runtime/sys_darwin.go)
-func syscall(fn, a1, a2, a3, a4, a5, a6 uintptr) uintptr
+func syscall(fn, a1, a2, a3, a4, a5 uintptr, f1 float64) uintptr
 
 // ReleaseCFArray iterates through an array, releasing its contents, and then
 // releases the array itself. This is necessary because we cannot, easily, set the

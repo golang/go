@@ -7,11 +7,13 @@
 package errorsas
 
 import (
+	"errors"
 	"go/ast"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 )
@@ -24,6 +26,7 @@ of the second argument is not a pointer to a type implementing error.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "errorsas",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/errorsas",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -34,6 +37,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		// These packages know how to use their own APIs.
 		// Sometimes they are testing what happens to incorrect programs.
 		return nil, nil
+	}
+
+	if !analysisutil.Imports(pass.Pkg, "errors") {
+		return nil, nil // doesn't directly import errors
 	}
 
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
@@ -50,26 +57,39 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if len(call.Args) < 2 {
 			return // not enough arguments, e.g. called with return values of another function
 		}
-		if fn.FullName() == "errors.As" && !pointerToInterfaceOrError(pass, call.Args[1]) {
-			pass.ReportRangef(call, "second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type")
+		if fn.FullName() != "errors.As" {
+			return
+		}
+		if err := checkAsTarget(pass, call.Args[1]); err != nil {
+			pass.ReportRangef(call, "%v", err)
 		}
 	})
 	return nil, nil
 }
 
-var errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+var errorType = types.Universe.Lookup("error").Type()
 
 // pointerToInterfaceOrError reports whether the type of e is a pointer to an interface or a type implementing error,
 // or is the empty interface.
-func pointerToInterfaceOrError(pass *analysis.Pass, e ast.Expr) bool {
+
+// checkAsTarget reports an error if the second argument to errors.As is invalid.
+func checkAsTarget(pass *analysis.Pass, e ast.Expr) error {
 	t := pass.TypesInfo.Types[e].Type
 	if it, ok := t.Underlying().(*types.Interface); ok && it.NumMethods() == 0 {
-		return true
+		// A target of interface{} is always allowed, since it often indicates
+		// a value forwarded from another source.
+		return nil
 	}
 	pt, ok := t.Underlying().(*types.Pointer)
 	if !ok {
-		return false
+		return errors.New("second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type")
+	}
+	if pt.Elem() == errorType {
+		return errors.New("second argument to errors.As should not be *error")
 	}
 	_, ok = pt.Elem().Underlying().(*types.Interface)
-	return ok || types.Implements(pt.Elem(), errorType)
+	if ok || types.Implements(pt.Elem(), errorType.Underlying().(*types.Interface)) {
+		return nil
+	}
+	return errors.New("second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type")
 }

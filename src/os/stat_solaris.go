@@ -9,10 +9,18 @@ import (
 	"time"
 )
 
+// These constants aren't in the syscall package, which is frozen.
+// Values taken from golang.org/x/sys/unix.
+const (
+	_S_IFNAM  = 0x5000
+	_S_IFDOOR = 0xd000
+	_S_IFPORT = 0xe000
+)
+
 func fillFileStatFromSys(fs *fileStat, name string) {
 	fs.name = basename(name)
 	fs.size = fs.sys.Size
-	fs.modTime = timespecToTime(fs.sys.Mtim)
+	fs.modTime = time.Unix(fs.sys.Mtim.Unix())
 	fs.mode = FileMode(fs.sys.Mode & 0777)
 	switch fs.sys.Mode & syscall.S_IFMT {
 	case syscall.S_IFBLK:
@@ -29,6 +37,8 @@ func fillFileStatFromSys(fs *fileStat, name string) {
 		// nothing to do
 	case syscall.S_IFSOCK:
 		fs.mode |= ModeSocket
+	case _S_IFNAM, _S_IFDOOR, _S_IFPORT:
+		fs.mode |= ModeIrregular
 	}
 	if fs.sys.Mode&syscall.S_ISGID != 0 {
 		fs.mode |= ModeSetgid
@@ -41,11 +51,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
 	}
 }
 
-func timespecToTime(ts syscall.Timespec) time.Time {
-	return time.Unix(ts.Sec, ts.Nsec)
-}
-
 // For testing.
 func atime(fi FileInfo) time.Time {
-	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atim)
+	return time.Unix(fi.Sys().(*syscall.Stat_t).Atim.Unix())
 }

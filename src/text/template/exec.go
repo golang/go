@@ -94,6 +94,12 @@ type missingValType struct{}
 
 var missingVal = reflect.ValueOf(missingValType{})
 
+var missingValReflectType = reflect.TypeFor[missingValType]()
+
+func isMissing(v reflect.Value) bool {
+	return v.IsValid() && v.Type() == missingValReflectType
+}
+
 // at marks the state to be on node n, for error reporting.
 func (s *state) at(node parse.Node) {
 	s.node = node
@@ -355,13 +361,29 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	// mark top of stack before any variables in the body are pushed.
 	mark := s.mark()
 	oneIteration := func(index, elem reflect.Value) {
-		// Set top var (lexically the second if there are two) to the element.
 		if len(r.Pipe.Decl) > 0 {
-			s.setTopVar(1, elem)
+			if r.Pipe.IsAssign {
+				// With two variables, index comes first.
+				// With one, we use the element.
+				if len(r.Pipe.Decl) > 1 {
+					s.setVar(r.Pipe.Decl[0].Ident[0], index)
+				} else {
+					s.setVar(r.Pipe.Decl[0].Ident[0], elem)
+				}
+			} else {
+				// Set top var (lexically the second if there
+				// are two) to the element.
+				s.setTopVar(1, elem)
+			}
 		}
-		// Set next var (lexically the first if there are two) to the index.
 		if len(r.Pipe.Decl) > 1 {
-			s.setTopVar(2, index)
+			if r.Pipe.IsAssign {
+				s.setVar(r.Pipe.Decl[1].Ident[0], elem)
+			} else {
+				// Set next var (lexically the first if there
+				// are two) to the index.
+				s.setTopVar(2, index)
+			}
 		}
 		defer s.pop(mark)
 		defer func() {
@@ -471,7 +493,7 @@ func (s *state) evalPipeline(dot reflect.Value, pipe *parse.PipeNode) (value ref
 }
 
 func (s *state) notAFunction(args []parse.Node, final reflect.Value) {
-	if len(args) > 1 || final != missingVal {
+	if len(args) > 1 || !isMissing(final) {
 		s.errorf("can't give argument to non-function %s", args[0])
 	}
 }
@@ -629,7 +651,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 	if method := ptr.MethodByName(fieldName); method.IsValid() {
 		return s.evalCall(dot, method, false, node, fieldName, args, final)
 	}
-	hasArgs := len(args) > 1 || final != missingVal
+	hasArgs := len(args) > 1 || !isMissing(final)
 	// It's not a method; must be a field of a struct or an element of a map.
 	switch receiver.Kind() {
 	case reflect.Struct:
@@ -686,9 +708,9 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 }
 
 var (
-	errorType        = reflect.TypeOf((*error)(nil)).Elem()
-	fmtStringerType  = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
-	reflectValueType = reflect.TypeOf((*reflect.Value)(nil)).Elem()
+	errorType        = reflect.TypeFor[error]()
+	fmtStringerType  = reflect.TypeFor[fmt.Stringer]()
+	reflectValueType = reflect.TypeFor[reflect.Value]()
 )
 
 // evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so
@@ -700,7 +722,7 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 	}
 	typ := fun.Type()
 	numIn := len(args)
-	if final != missingVal {
+	if !isMissing(final) {
 		numIn++
 	}
 	numFixed := len(args)
@@ -763,7 +785,7 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 		}
 	}
 	// Add final value if necessary.
-	if final != missingVal {
+	if !isMissing(final) {
 		t := typ.In(typ.NumIn() - 1)
 		if typ.IsVariadic() {
 			if numIn-1 < numFixed {

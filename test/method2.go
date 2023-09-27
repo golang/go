@@ -28,7 +28,7 @@ type Val interface {
 	val() int
 }
 
-var _ = (*Val).val // ERROR "method"
+var _ = (*Val).val // ERROR "method|type \*Val is pointer to interface, not interface"
 
 var v Val
 var pv = &v

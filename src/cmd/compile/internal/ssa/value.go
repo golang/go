@@ -84,6 +84,13 @@ func (v *Value) AuxInt8() int8 {
 	return int8(v.AuxInt)
 }
 
+func (v *Value) AuxUInt8() uint8 {
+	if opcodeTable[v.Op].auxType != auxUInt8 {
+		v.Fatalf("op %s doesn't have a uint8 aux field", v.Op)
+	}
+	return uint8(v.AuxInt)
+}
+
 func (v *Value) AuxInt16() int16 {
 	if opcodeTable[v.Op].auxType != auxInt16 {
 		v.Fatalf("op %s doesn't have an int16 aux field", v.Op)
@@ -148,21 +155,22 @@ func (v *Value) LongString() string {
 	for _, a := range v.Args {
 		s += fmt.Sprintf(" %v", a)
 	}
-	var r []Location
-	if v.Block != nil {
-		r = v.Block.Func.RegAlloc
+	if v.Block == nil {
+		return s
 	}
+	r := v.Block.Func.RegAlloc
 	if int(v.ID) < len(r) && r[v.ID] != nil {
 		s += " : " + r[v.ID].String()
 	}
+	if reg := v.Block.Func.tempRegs[v.ID]; reg != nil {
+		s += " tmp=" + reg.String()
+	}
 	var names []string
-	if v.Block != nil {
-		for name, values := range v.Block.Func.NamedValues {
-			for _, value := range values {
-				if value == v {
-					names = append(names, name.String())
-					break // drop duplicates.
-				}
+	for name, values := range v.Block.Func.NamedValues {
+		for _, value := range values {
+			if value == v {
+				names = append(names, name.String())
+				break // drop duplicates.
 			}
 		}
 	}
@@ -189,6 +197,8 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" [%d]", v.AuxInt32())
 	case auxInt64, auxInt128:
 		return fmt.Sprintf(" [%d]", v.AuxInt)
+	case auxUInt8:
+		return fmt.Sprintf(" [%d]", v.AuxUInt8())
 	case auxARM64BitField:
 		lsb := v.AuxArm64BitField().getARM64BFlsb()
 		width := v.AuxArm64BitField().getARM64BFwidth()
@@ -201,6 +211,7 @@ func (v *Value) auxString() string {
 		if v.Aux != nil {
 			return fmt.Sprintf(" {%v}", v.Aux)
 		}
+		return ""
 	case auxSymOff, auxCallOff, auxTypSize, auxNameOffsetInt8:
 		s := ""
 		if v.Aux != nil {
@@ -222,12 +233,17 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" {%v}", v.Aux)
 	case auxFlagConstant:
 		return fmt.Sprintf("[%s]", flagConstant(v.AuxInt))
+	case auxNone:
+		return ""
+	default:
+		// If you see this, add a case above instead.
+		return fmt.Sprintf("[auxtype=%d AuxInt=%d Aux=%v]", opcodeTable[v.Op].auxType, v.AuxInt, v.Aux)
 	}
-	return ""
 }
 
 // If/when midstack inlining is enabled (-l=4), the compiler gets both larger and slower.
 // Not-inlining this method is a help (*Value.reset and *Block.NewValue0 are similar).
+//
 //go:noinline
 func (v *Value) AddArg(w *Value) {
 	if v.Args == nil {
@@ -331,6 +347,7 @@ func (v *Value) resetArgs() {
 // reset is called from most rewrite rules.
 // Allowing it to be inlined increases the size
 // of cmd/compile by almost 10%, and slows it down.
+//
 //go:noinline
 func (v *Value) reset(op Op) {
 	if v.InCache {
@@ -377,6 +394,7 @@ func (v *Value) invalidateRecursively() bool {
 
 // copyOf is called from rewrite rules.
 // It modifies v to be (Copy a).
+//
 //go:noinline
 func (v *Value) copyOf(a *Value) {
 	if v == a {
@@ -485,6 +503,15 @@ func (v *Value) Reg1() int16 {
 	return reg.(*Register).objNum
 }
 
+// RegTmp returns the temporary register assigned to v, in cmd/internal/obj/$ARCH numbering.
+func (v *Value) RegTmp() int16 {
+	reg := v.Block.Func.tempRegs[v.ID]
+	if reg == nil {
+		v.Fatalf("nil tmp register for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	return reg.objNum
+}
+
 func (v *Value) RegName() string {
 	reg := v.Block.Func.RegAlloc[v.ID]
 	if reg == nil {
@@ -517,7 +544,7 @@ func (v *Value) LackingPos() bool {
 	// The exact definition of LackingPos is somewhat heuristically defined and may change
 	// in the future, for example if some of these operations are generated more carefully
 	// with respect to their source position.
-	return v.Op == OpVarDef || v.Op == OpVarKill || v.Op == OpVarLive || v.Op == OpPhi ||
+	return v.Op == OpVarDef || v.Op == OpVarLive || v.Op == OpPhi ||
 		(v.Op == OpFwdRef || v.Op == OpCopy) && v.Type == types.TypeMem
 }
 
@@ -541,9 +568,6 @@ func (v *Value) removeable() bool {
 	return true
 }
 
-// TODO(mdempsky): Shouldn't be necessary; see discussion at golang.org/cl/275756
-func (*Value) CanBeAnSSAAux() {}
-
 // AutoVar returns a *Name and int64 representing the auto variable and offset within it
 // where v should be spilled.
 func AutoVar(v *Value) (*ir.Name, int64) {
@@ -556,4 +580,37 @@ func AutoVar(v *Value) (*ir.Name, int64) {
 	// Assume it is a register, return its spill slot, which needs to be live
 	nameOff := v.Aux.(*AuxNameOffset)
 	return nameOff.Name, nameOff.Offset
+}
+
+// CanSSA reports whether values of type t can be represented as a Value.
+func CanSSA(t *types.Type) bool {
+	types.CalcSize(t)
+	if t.Size() > int64(4*types.PtrSize) {
+		// 4*Widthptr is an arbitrary constant. We want it
+		// to be at least 3*Widthptr so slices can be registerized.
+		// Too big and we'll introduce too much register pressure.
+		return false
+	}
+	switch t.Kind() {
+	case types.TARRAY:
+		// We can't do larger arrays because dynamic indexing is
+		// not supported on SSA variables.
+		// TODO: allow if all indexes are constant.
+		if t.NumElem() <= 1 {
+			return CanSSA(t.Elem())
+		}
+		return false
+	case types.TSTRUCT:
+		if t.NumFields() > MaxStruct {
+			return false
+		}
+		for _, t1 := range t.Fields() {
+			if !CanSSA(t1.Type) {
+				return false
+			}
+		}
+		return true
+	default:
+		return true
+	}
 }

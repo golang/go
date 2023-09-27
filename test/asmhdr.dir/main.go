@@ -16,12 +16,15 @@ const (
 	bigInt = 0xffffffffffffffff
 
 	stringVal = "test"
+
+	longStringVal = "this_is_a_string_constant_longer_than_seventy_characters_which_used_to_fail_see_issue_50253"
 )
 
 var (
-	smallIntAsm int64
-	bigIntAsm   uint64
-	stringAsm   [len(stringVal)]byte
+	smallIntAsm   int64
+	bigIntAsm     uint64
+	stringAsm     [len(stringVal)]byte
+	longStringAsm [len(longStringVal)]byte
 )
 
 type typ struct {
@@ -45,6 +48,9 @@ func main() {
 	}
 	if stringVal != string(stringAsm[:]) {
 		println("stringVal", stringVal, "!=", string(stringAsm[:]))
+	}
+	if longStringVal != string(longStringAsm[:]) {
+		println("longStringVal", longStringVal, "!=", string(longStringAsm[:]))
 	}
 
 	// We also include boolean consts in go_asm.h, but they're

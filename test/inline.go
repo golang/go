@@ -1,5 +1,8 @@
 // errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
 
+//go:build !goexperiment.newinliner
+// +build !goexperiment.newinliner
+
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -10,6 +13,7 @@
 package foo
 
 import (
+	"errors"
 	"runtime"
 	"unsafe"
 )
@@ -54,6 +58,8 @@ func f2() int { // ERROR "can inline f2"
 	tmp2 := tmp1
 	return tmp2(0) // ERROR "inlining call to h"
 }
+
+var abc = errors.New("abc") // ERROR "inlining call to errors.New"
 
 var somethingWrong error
 
@@ -112,11 +118,11 @@ func r(z int) int {
 		return x + z
 	}
 	bar := func(x int) int { // ERROR "func literal does not escape" "can inline r.func2"
-		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.func3"
+		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.r.func2.func3"
 			return 2*y + x*z
 		}(x) // ERROR "inlining call to r.func2.1"
 	}
-	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.func3"
+	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.r.func2.func3"
 }
 
 func s0(x int) int { // ERROR "can inline s0"
@@ -158,6 +164,65 @@ func switchType(x interface{}) int { // ERROR "can inline switchType" "x does no
 	default:
 		return 0
 	}
+}
+
+// Test that switches on constant things, with constant cases, only cost anything for
+// the case that matches. See issue 50253.
+func switchConst1(p func(string)) { // ERROR "can inline switchConst" "p does not escape"
+	const c = 1
+	switch c {
+	case 0:
+		p("zero")
+	case 1:
+		p("one")
+	case 2:
+		p("two")
+	default:
+		p("other")
+	}
+}
+
+func switchConst2() string { // ERROR "can inline switchConst2"
+	switch runtime.GOOS {
+	case "linux":
+		return "Leenooks"
+	case "windows":
+		return "Windoze"
+	case "darwin":
+		return "MackBone"
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80", "81", "82", "83", "84", "85", "86", "87", "88", "89", "90", "91", "92", "93", "94", "95", "96", "97", "98", "99", "100":
+		return "Numbers"
+	default:
+		return "oh nose!"
+	}
+}
+func switchConst3() string { // ERROR "can inline switchConst3"
+	switch runtime.GOOS {
+	case "Linux":
+		panic("Linux")
+	case "Windows":
+		panic("Windows")
+	case "Darwin":
+		panic("Darwin")
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80", "81", "82", "83", "84", "85", "86", "87", "88", "89", "90", "91", "92", "93", "94", "95", "96", "97", "98", "99", "100":
+		panic("Numbers")
+	default:
+		return "oh nose!"
+	}
+}
+func switchConst4() { // ERROR "can inline switchConst4"
+	const intSize = 32 << (^uint(0) >> 63)
+	want := func() string { // ERROR "can inline switchConst4.func1"
+		switch intSize {
+		case 32:
+			return "32"
+		case 64:
+			return "64"
+		default:
+			panic("unreachable")
+		}
+	}() // ERROR "inlining call to switchConst4.func1"
+	_ = want
 }
 
 func inlineRangeIntoMe(data []int) { // ERROR "can inline inlineRangeIntoMe" "data does not escape"
@@ -210,13 +275,13 @@ func ff(x int) { // ERROR "can inline ff"
 	if x < 0 {
 		return
 	}
-	gg(x - 1)
+	gg(x - 1) // ERROR "inlining call to gg" "inlining call to hh"
 }
 func gg(x int) { // ERROR "can inline gg"
-	hh(x - 1)
+	hh(x - 1) // ERROR "inlining call to hh" "inlining call to ff"
 }
 func hh(x int) { // ERROR "can inline hh"
-	ff(x - 1) // ERROR "inlining call to ff"  // ERROR "inlining call to gg"
+	ff(x - 1) // ERROR "inlining call to ff" "inlining call to gg"
 }
 
 // Issue #14768 - make sure we can inline for loops.
@@ -302,4 +367,62 @@ func conv2(v uint64) uint64 { // ERROR "can inline conv2"
 }
 func conv1(v uint64) uint64 { // ERROR "can inline conv1"
 	return uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(v)))))))))))
+}
+
+func select1(x, y chan bool) int { // ERROR "can inline select1" "x does not escape" "y does not escape"
+	select {
+	case <-x:
+		return 1
+	case <-y:
+		return 2
+	}
+}
+
+func select2(x, y chan bool) { // ERROR "can inline select2" "x does not escape" "y does not escape"
+loop: // test that labeled select can be inlined.
+	select {
+	case <-x:
+		break loop
+	case <-y:
+	}
+}
+
+func inlineSelect2(x, y chan bool) { // ERROR "can inline inlineSelect2" ERROR "x does not escape" "y does not escape"
+loop:
+	for i := 0; i < 5; i++ {
+		if i == 3 {
+			break loop
+		}
+		select2(x, y) // ERROR "inlining call to select2"
+	}
+}
+
+// Issue #62211: inlining a function with unreachable "return"
+// statements could trip up phi insertion.
+func issue62211(x bool) { // ERROR "can inline issue62211"
+	if issue62211F(x) { // ERROR "inlining call to issue62211F"
+	}
+	if issue62211G(x) { // ERROR "inlining call to issue62211G"
+	}
+
+	// Initial fix CL caused a "non-monotonic scope positions" failure
+	// on code like this.
+	if z := 0; false {
+		panic(z)
+	}
+}
+
+func issue62211F(x bool) bool { // ERROR "can inline issue62211F"
+	if x || true {
+		return true
+	}
+	return true
+}
+
+func issue62211G(x bool) bool { // ERROR "can inline issue62211G"
+	if x || true {
+		return true
+	} else {
+		return true
+	}
 }

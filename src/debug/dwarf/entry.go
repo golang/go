@@ -13,6 +13,7 @@ package dwarf
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"strconv"
 )
 
@@ -33,7 +34,7 @@ type afield struct {
 // a map from entry format ids to their descriptions
 type abbrevTable map[uint32]abbrev
 
-// ParseAbbrev returns the abbreviation table that starts at byte off
+// parseAbbrev returns the abbreviation table that starts at byte off
 // in the .debug_abbrev section.
 func (d *Data) parseAbbrev(off uint64, vers int) (abbrevTable, error) {
 	if m, ok := d.abbrevCache[off]; ok {
@@ -241,21 +242,21 @@ type Entry struct {
 // A value can be one of several "attribute classes" defined by DWARF.
 // The Go types corresponding to each class are:
 //
-//    DWARF class       Go type        Class
-//    -----------       -------        -----
-//    address           uint64         ClassAddress
-//    block             []byte         ClassBlock
-//    constant          int64          ClassConstant
-//    flag              bool           ClassFlag
-//    reference
-//      to info         dwarf.Offset   ClassReference
-//      to type unit    uint64         ClassReferenceSig
-//    string            string         ClassString
-//    exprloc           []byte         ClassExprLoc
-//    lineptr           int64          ClassLinePtr
-//    loclistptr        int64          ClassLocListPtr
-//    macptr            int64          ClassMacPtr
-//    rangelistptr      int64          ClassRangeListPtr
+//	DWARF class       Go type        Class
+//	-----------       -------        -----
+//	address           uint64         ClassAddress
+//	block             []byte         ClassBlock
+//	constant          int64          ClassConstant
+//	flag              bool           ClassFlag
+//	reference
+//	  to info         dwarf.Offset   ClassReference
+//	  to type unit    uint64         ClassReferenceSig
+//	string            string         ClassString
+//	exprloc           []byte         ClassExprLoc
+//	lineptr           int64          ClassLinePtr
+//	loclistptr        int64          ClassLocListPtr
+//	macptr            int64          ClassMacPtr
+//	rangelistptr      int64          ClassRangeListPtr
 //
 // For unrecognized or vendor-defined attributes, Class may be
 // ClassUnknown.
@@ -380,8 +381,8 @@ func (i Class) GoString() string {
 //
 // A common idiom is to merge the check for nil return with
 // the check that the value has the expected dynamic type, as in:
-//	v, ok := e.Val(AttrSibling).(int64)
 //
+//	v, ok := e.Val(AttrSibling).(int64)
 func (e *Entry) Val(a Attr) any {
 	if f := e.AttrField(a); f != nil {
 		return f.Val
@@ -790,7 +791,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 	return e
 }
 
-// A Reader allows reading Entry structures from a DWARF ``info'' section.
+// A Reader allows reading Entry structures from a DWARF “info” section.
 // The Entry structures are arranged in a tree. The Reader's Next function
 // return successive entries from a pre-order traversal of the tree.
 // If an entry has children, its Children field will be true, and the children
@@ -807,7 +808,7 @@ type Reader struct {
 }
 
 // Reader returns a new Reader for Data.
-// The reader is positioned at byte offset 0 in the DWARF ``info'' section.
+// The reader is positioned at byte offset 0 in the DWARF “info” section.
 func (d *Data) Reader() *Reader {
 	r := &Reader{d: d}
 	r.Seek(0)
@@ -977,6 +978,9 @@ func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
 		if err != nil {
 			return nil, err
 		}
+		if e == nil || e.Tag == 0 {
+			return nil, ErrUnknownPC
+		}
 		ranges, err := r.d.Ranges(e)
 		if err != nil {
 			return nil, err
@@ -1103,6 +1107,9 @@ func (d *Data) baseAddressForEntry(e *Entry) (*Entry, uint64, error) {
 }
 
 func (d *Data) dwarf2Ranges(u *unit, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
+	if ranges < 0 || ranges > int64(len(d.ranges)) {
+		return nil, fmt.Errorf("invalid range offset %d (max %d)", ranges, len(d.ranges))
+	}
 	buf := makeBuf(d, u, "ranges", Offset(ranges), d.ranges[ranges:])
 	for len(buf.data) > 0 {
 		low := buf.addr()
@@ -1122,9 +1129,12 @@ func (d *Data) dwarf2Ranges(u *unit, base uint64, ranges int64, ret [][2]uint64)
 	return ret, nil
 }
 
-// dwarf5Ranges interpets a debug_rnglists sequence, see DWARFv5 section
+// dwarf5Ranges interprets a debug_rnglists sequence, see DWARFv5 section
 // 2.17.3 (page 53).
 func (d *Data) dwarf5Ranges(u *unit, cu *Entry, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
+	if ranges < 0 || ranges > int64(len(d.rngLists)) {
+		return nil, fmt.Errorf("invalid rnglist offset %d (max %d)", ranges, len(d.ranges))
+	}
 	var addrBase int64
 	if cu != nil {
 		addrBase, _ = cu.Val(AttrAddrBase).(int64)

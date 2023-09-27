@@ -1,0 +1,13 @@
+# Regression test for https://go.dev/issue/58767:
+# with an empty go.work file in GOPATH mode, calls to load.defaultGODEBUG for a
+# package named "main" panicked in modload.MainModules.GoVersion.
+
+env GO111MODULE=off
+cd example
+go list example/m
+
+-- example/go.work --
+go 1.21
+-- example/m/main.go --
+package main
+func main() {}

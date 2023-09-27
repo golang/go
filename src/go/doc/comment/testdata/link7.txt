@@ -1,0 +1,25 @@
+-- input --
+[math] is a package but this is not a doc link.
+
+[io] is a doc link.
+
+[math]: https://example.com
+-- gofmt --
+[math] is a package but this is not a doc link.
+
+[io] is a doc link.
+
+[math]: https://example.com
+-- text --
+math is a package but this is not a doc link.
+
+io is a doc link.
+
+[math]: https://example.com
+-- markdown --
+[math](https://example.com) is a package but this is not a doc link.
+
+[io](/io) is a doc link.
+-- html --
+<p><a href="https://example.com">math</a> is a package but this is not a doc link.
+<p><a href="/io">io</a> is a doc link.

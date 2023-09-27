@@ -100,9 +100,30 @@ func (l *Location) String() string {
 	return l.get().name
 }
 
+var unnamedFixedZones []*Location
+var unnamedFixedZonesOnce sync.Once
+
 // FixedZone returns a Location that always uses
 // the given zone name and offset (seconds east of UTC).
 func FixedZone(name string, offset int) *Location {
+	// Most calls to FixedZone have an unnamed zone with an offset by the hour.
+	// Optimize for that case by returning the same *Location for a given hour.
+	const hoursBeforeUTC = 12
+	const hoursAfterUTC = 14
+	hour := offset / 60 / 60
+	if name == "" && -hoursBeforeUTC <= hour && hour <= +hoursAfterUTC && hour*60*60 == offset {
+		unnamedFixedZonesOnce.Do(func() {
+			unnamedFixedZones = make([]*Location, hoursBeforeUTC+1+hoursAfterUTC)
+			for hr := -hoursBeforeUTC; hr <= +hoursAfterUTC; hr++ {
+				unnamedFixedZones[hr+hoursBeforeUTC] = fixedZone("", hr*60*60)
+			}
+		})
+		return unnamedFixedZones[hour+hoursBeforeUTC]
+	}
+	return fixedZone(name, offset)
+}
+
+func fixedZone(name string, offset int) *Location {
 	l := &Location{
 		name:       name,
 		zone:       []zone{{name, offset, false}},
@@ -163,7 +184,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64,
 	lo := 0
 	hi := len(tx)
 	for hi-lo > 1 {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		lim := tx[m].when
 		if sec < lim {
 			end = lim
@@ -182,7 +203,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64,
 	// If we're at the end of the known zone transitions,
 	// try the extend string.
 	if lo == len(tx)-1 && l.extend != "" {
-		if ename, eoffset, estart, eend, eisDST, ok := tzset(l.extend, end, sec); ok {
+		if ename, eoffset, estart, eend, eisDST, ok := tzset(l.extend, start, sec); ok {
 			return ename, eoffset, estart, eend, eisDST
 		}
 	}
@@ -197,14 +218,14 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64,
 // The reference implementation in localtime.c from
 // https://www.iana.org/time-zones/repository/releases/tzcode2013g.tar.gz
 // implements the following algorithm for these cases:
-// 1) If the first zone is unused by the transitions, use it.
-// 2) Otherwise, if there are transition times, and the first
-//    transition is to a zone in daylight time, find the first
-//    non-daylight-time zone before and closest to the first transition
-//    zone.
-// 3) Otherwise, use the first zone that is not daylight time, if
-//    there is one.
-// 4) Otherwise, use the first zone.
+//  1. If the first zone is unused by the transitions, use it.
+//  2. Otherwise, if there are transition times, and the first
+//     transition is to a zone in daylight time, find the first
+//     non-daylight-time zone before and closest to the first transition
+//     zone.
+//  3. Otherwise, use the first zone that is not daylight time, if
+//     there is one.
+//  4. Otherwise, use the first zone.
 func (l *Location) lookupFirstZone() int {
 	// Case 1.
 	if !l.firstZoneUsed() {
@@ -243,12 +264,12 @@ func (l *Location) firstZoneUsed() bool {
 }
 
 // tzset takes a timezone string like the one found in the TZ environment
-// variable, the end of the last time zone transition expressed as seconds
+// variable, the time of the last time zone transition expressed as seconds
 // since January 1, 1970 00:00:00 UTC, and a time expressed the same way.
 // We call this a tzset string since in C the function tzset reads TZ.
 // The return values are as for lookup, plus ok which reports whether the
 // parse succeeded.
-func tzset(s string, initEnd, sec int64) (name string, offset int, start, end int64, isDST, ok bool) {
+func tzset(s string, lastTxSec, sec int64) (name string, offset int, start, end int64, isDST, ok bool) {
 	var (
 		stdName, dstName     string
 		stdOffset, dstOffset int
@@ -269,7 +290,7 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 
 	if len(s) == 0 || s[0] == ',' {
 		// No daylight savings time.
-		return stdName, stdOffset, initEnd, omega, false, true
+		return stdName, stdOffset, lastTxSec, omega, false, true
 	}
 
 	dstName, s, ok = tzsetName(s)
@@ -634,10 +655,10 @@ var zoneinfoOnce sync.Once
 // LoadLocation looks for the IANA Time Zone database in the following
 // locations in order:
 //
-// - the directory or uncompressed zip file named by the ZONEINFO environment variable
-// - on a Unix system, the system standard installation location
-// - $GOROOT/lib/time/zoneinfo.zip
-// - the time/tzdata package, if it was imported
+//   - the directory or uncompressed zip file named by the ZONEINFO environment variable
+//   - on a Unix system, the system standard installation location
+//   - $GOROOT/lib/time/zoneinfo.zip
+//   - the time/tzdata package, if it was imported
 func LoadLocation(name string) (*Location, error) {
 	if name == "" || name == "UTC" {
 		return UTC, nil
@@ -665,7 +686,7 @@ func LoadLocation(name string) (*Location, error) {
 			firstErr = err
 		}
 	}
-	if z, err := loadLocation(name, zoneSources); err == nil {
+	if z, err := loadLocation(name, platformZoneSources); err == nil {
 		return z, nil
 	} else if firstErr == nil {
 		firstErr = err

@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+//go:build unix
 
 package syscall
 
 import (
+	errorspkg "errors"
+	"internal/bytealg"
 	"internal/itoa"
 	"internal/oserror"
 	"internal/race"
-	"internal/unsafeheader"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -27,17 +28,10 @@ const (
 	netbsd32Bit = runtime.GOOS == "netbsd" && sizeofPtr == 4
 )
 
-func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
-func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
-func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
-func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
-
 // clen returns the index of the first NULL byte in n or len(n) if n contains no NULL byte.
 func clen(n []byte) int {
-	for i := 0; i < len(n); i++ {
-		if n[i] == 0 {
-			return i
-		}
+	if i := bytealg.IndexByte(n, 0); i != -1 {
+		return i
 	}
 	return len(n)
 }
@@ -63,11 +57,7 @@ func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (d
 	}
 
 	// Use unsafe to turn addr into a []byte.
-	var b []byte
-	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
-	hdr.Data = unsafe.Pointer(addr)
-	hdr.Cap = length
-	hdr.Len = length
+	b := unsafe.Slice((*byte)(unsafe.Pointer(addr)), length)
 
 	// Register mapping in m and return it.
 	p := &b[cap(b)-1]
@@ -102,13 +92,14 @@ func (m *mmapper) Munmap(data []byte) (err error) {
 // An Errno is an unsigned number describing an error condition.
 // It implements the error interface. The zero Errno is by convention
 // a non-error, so code to convert from Errno to error should use:
+//
 //	err = nil
 //	if errno != 0 {
 //		err = errno
 //	}
 //
-// Errno values can be tested against error values from the os package
-// using errors.Is. For example:
+// Errno values can be tested against error values using errors.Is.
+// For example:
 //
 //	_, _, err := syscall.Syscall(...)
 //	if errors.Is(err, fs.ErrNotExist) ...
@@ -132,6 +123,8 @@ func (e Errno) Is(target error) bool {
 		return e == EEXIST || e == ENOTEMPTY
 	case oserror.ErrNotExist:
 		return e == ENOENT
+	case errorspkg.ErrUnsupported:
+		return e == ENOSYS || e == ENOTSUP || e == EOPNOTSUPP
 	}
 	return false
 }
@@ -215,6 +208,42 @@ func Write(fd int, p []byte) (n int, err error) {
 	} else {
 		n, err = write(fd, p)
 	}
+	if race.Enabled && n > 0 {
+		race.ReadRange(unsafe.Pointer(&p[0]), n)
+	}
+	if msanenabled && n > 0 {
+		msanRead(unsafe.Pointer(&p[0]), n)
+	}
+	if asanenabled && n > 0 {
+		asanRead(unsafe.Pointer(&p[0]), n)
+	}
+	return
+}
+
+func Pread(fd int, p []byte, offset int64) (n int, err error) {
+	n, err = pread(fd, p, offset)
+	if race.Enabled {
+		if n > 0 {
+			race.WriteRange(unsafe.Pointer(&p[0]), n)
+		}
+		if err == nil {
+			race.Acquire(unsafe.Pointer(&ioSync))
+		}
+	}
+	if msanenabled && n > 0 {
+		msanWrite(unsafe.Pointer(&p[0]), n)
+	}
+	if asanenabled && n > 0 {
+		asanWrite(unsafe.Pointer(&p[0]), n)
+	}
+	return
+}
+
+func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+	if race.Enabled {
+		race.ReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	n, err = pwrite(fd, p, offset)
 	if race.Enabled && n > 0 {
 		race.ReadRange(unsafe.Pointer(&p[0]), n)
 	}
@@ -411,11 +440,17 @@ func sendtoInet6(fd int, p []byte, flags int, to *SockaddrInet6) (err error) {
 }
 
 func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
-	ptr, n, err := to.sockaddr()
-	if err != nil {
-		return err
+	var (
+		ptr   unsafe.Pointer
+		salen _Socklen
+	)
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return err
+		}
 	}
-	return sendto(fd, p, flags, ptr, n)
+	return sendto(fd, p, flags, ptr, salen)
 }
 
 func SetsockoptByte(fd, level, opt int, value byte) (err error) {

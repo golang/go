@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"os"
 	"os/exec"
@@ -205,6 +206,13 @@ func runCmd(args ...string) ([]byte, error) {
 }
 
 func checkNetsh(t *testing.T) {
+	if testenv.Builder() == "windows-arm64-10" {
+		// netsh was observed to sometimes hang on this builder.
+		// We have not observed failures on windows-arm64-11, so for the
+		// moment we are leaving the test enabled elsewhere on the theory
+		// that it may have been a platform bug fixed in Windows 11.
+		testenv.SkipFlaky(t, 52082)
+	}
 	out, err := runCmd("netsh", "help")
 	if err != nil {
 		t.Fatal(err)

@@ -276,7 +276,6 @@ const (
 	F_CHKFL                       = 0x8
 	F_COMPAT                      = 0x8
 	F_DUP2FD                      = 0x9
-	F_DUP2FD_CLOEXEC              = 0x24
 	F_DUPFD                       = 0x0
 	F_DUPFD_CLOEXEC               = 0x25
 	F_FREESP                      = 0xb
@@ -594,6 +593,7 @@ const (
 	MAP_ALIGN                     = 0x200
 	MAP_ANON                      = 0x100
 	MAP_ANONYMOUS                 = 0x100
+	MAP_FILE                      = 0x0
 	MAP_FIXED                     = 0x10
 	MAP_INITDATA                  = 0x800
 	MAP_NORESERVE                 = 0x40

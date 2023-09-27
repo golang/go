@@ -18,6 +18,14 @@ func BenchmarkFastrand(b *testing.B) {
 	})
 }
 
+func BenchmarkFastrand64(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Fastrand64()
+		}
+	})
+}
+
 func BenchmarkFastrandHashiter(b *testing.B) {
 	var m = make(map[int]int, 10)
 	for i := 0; i < 10; i++ {

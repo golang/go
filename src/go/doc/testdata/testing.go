@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package testing provides support for automated testing of Go packages.
-// It is intended to be used in concert with the ``go test'' utility, which automates
+// It is intended to be used in concert with the “go test” utility, which automates
 // execution of any function of the form
 //     func TestXxx(*testing.T)
 // where Xxx can be any alphanumeric string (but the first letter must not be in
@@ -219,7 +219,7 @@ func tRunner(t *T, test *InternalTest) {
 	// a call to runtime.Goexit, record the duration and send
 	// a signal saying that the test is done.
 	defer func() {
-		t.duration = time.Now().Sub(t.start)
+		t.duration = time.Since(t.start)
 		t.signal <- t
 	}()
 

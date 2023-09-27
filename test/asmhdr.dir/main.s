@@ -14,6 +14,9 @@ GLOBL ·bigIntAsm(SB),RODATA,$8
 DATA ·stringAsm(SB)/4, $const_stringVal
 GLOBL ·stringAsm(SB),RODATA,$4
 
+DATA ·longStringAsm(SB)/91, $const_longStringVal
+GLOBL ·longStringAsm(SB),RODATA,$91
+
 DATA ·typSize(SB)/8, $typ__size
 GLOBL ·typSize(SB),RODATA,$8
 

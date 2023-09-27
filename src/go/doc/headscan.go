@@ -5,18 +5,17 @@
 //go:build ignore
 
 /*
-	The headscan command extracts comment headings from package files;
-	it is used to detect false positives which may require an adjustment
-	to the comment formatting heuristics in comment.go.
+The headscan command extracts comment headings from package files;
+it is used to detect false positives which may require an adjustment
+to the comment formatting heuristics in comment.go.
 
-	Usage: headscan [-root root_directory]
+Usage: headscan [-root root_directory]
 
-	By default, the $GOROOT/src directory is scanned.
+By default, the $GOROOT/src directory is scanned.
 */
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"go/doc"
@@ -46,7 +45,7 @@ func isGoFile(fi fs.FileInfo) bool {
 }
 
 func appendHeadings(list []string, comment string) []string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	doc.ToHTML(&buf, comment, nil)
 	for s := buf.String(); s != ""; {
 		loc := html_h.FindStringIndex(s)

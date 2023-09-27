@@ -8,12 +8,27 @@
 package big
 
 // implemented in arith_$GOARCH.s
-func mulWW(x, y Word) (z1, z0 Word)
+
+//go:noescape
 func addVV(z, x, y []Word) (c Word)
+
+//go:noescape
 func subVV(z, x, y []Word) (c Word)
+
+//go:noescape
 func addVW(z, x []Word, y Word) (c Word)
+
+//go:noescape
 func subVW(z, x []Word, y Word) (c Word)
+
+//go:noescape
 func shlVU(z, x []Word, s uint) (c Word)
+
+//go:noescape
 func shrVU(z, x []Word, s uint) (c Word)
+
+//go:noescape
 func mulAddVWW(z, x []Word, y, r Word) (c Word)
+
+//go:noescape
 func addMulVVW(z, x []Word, y Word) (c Word)

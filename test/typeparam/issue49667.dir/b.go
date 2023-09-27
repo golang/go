@@ -4,7 +4,7 @@
 
 package b
 
-import "a"
+import "./a"
 
 type B[T any] struct {
 	_ a.A[T]

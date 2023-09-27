@@ -60,7 +60,6 @@ func (pos Position) String() string {
 //
 // Use GoTokens to configure the Scanner such that it accepts all Go
 // literal tokens including Go identifiers. Comments will be skipped.
-//
 const (
 	ScanIdents     = 1 << -Ident
 	ScanInts       = 1 << -Int
@@ -346,7 +345,7 @@ func (s *Scanner) errorf(format string, args ...any) {
 
 func (s *Scanner) isIdentRune(ch rune, i int) bool {
 	if s.IsIdentRune != nil {
-		return s.IsIdentRune(ch, i)
+		return ch != EOF && s.IsIdentRune(ch, i)
 	}
 	return ch == '_' || unicode.IsLetter(ch) || unicode.IsDigit(ch) && i > 0
 }

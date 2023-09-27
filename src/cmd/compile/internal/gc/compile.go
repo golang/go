@@ -15,7 +15,7 @@ import (
 	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssagen"
-	"cmd/compile/internal/typecheck"
+	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/types"
 	"cmd/compile/internal/walk"
 	"cmd/internal/obj"
@@ -38,16 +38,25 @@ func enqueueFunc(fn *ir.Func) {
 		return
 	}
 
+	// Don't try compiling dead hidden closure.
+	if fn.IsDeadcodeClosure() {
+		return
+	}
+
 	if clo := fn.OClosure; clo != nil && !ir.IsTrivialClosure(clo) {
 		return // we'll get this as part of its enclosing function
 	}
 
+	if ssagen.CreateWasmImportWrapper(fn) {
+		return
+	}
+
 	if len(fn.Body) == 0 {
 		// Initialize ABI wrappers if necessary.
-		ssagen.InitLSym(fn, false)
+		ir.InitLSym(fn, false)
 		types.CalcSize(fn.Type())
 		a := ssagen.AbiForBodylessFuncStackMap(fn)
-		abiInfo := a.ABIAnalyzeFuncType(fn.Type().FuncType()) // abiInfo has spill/home locations for wrapper
+		abiInfo := a.ABIAnalyzeFuncType(fn.Type()) // abiInfo has spill/home locations for wrapper
 		liveness.WriteFuncMap(fn, abiInfo)
 		if fn.ABI == obj.ABI0 {
 			x := ssagen.EmitArgInfo(fn, abiInfo)
@@ -82,26 +91,28 @@ func prepareFunc(fn *ir.Func) {
 	// Set up the function's LSym early to avoid data races with the assemblers.
 	// Do this before walk, as walk needs the LSym to set attributes/relocations
 	// (e.g. in MarkTypeUsedInInterface).
-	ssagen.InitLSym(fn, true)
+	ir.InitLSym(fn, true)
+
+	// If this function is a compiler-generated outlined global map
+	// initializer function, register its LSym for later processing.
+	if staticinit.MapInitToVar != nil {
+		if _, ok := staticinit.MapInitToVar[fn]; ok {
+			ssagen.RegisterMapInitLsym(fn.Linksym())
+		}
+	}
 
 	// Calculate parameter offsets.
 	types.CalcSize(fn.Type())
 
-	typecheck.DeclContext = ir.PAUTO
 	ir.CurFunc = fn
 	walk.Walk(fn)
 	ir.CurFunc = nil // enforce no further uses of CurFunc
-	typecheck.DeclContext = ir.PEXTERN
 }
 
 // compileFunctions compiles all functions in compilequeue.
 // It fans out nBackendWorkers to do the work
 // and waits for them to complete.
 func compileFunctions() {
-	if len(compilequeue) == 0 {
-		return
-	}
-
 	if race.Enabled {
 		// Randomize compilation order to try to shake out races.
 		tmp := make([]*ir.Func, len(compilequeue))
@@ -126,20 +137,38 @@ func compileFunctions() {
 	}
 
 	if nWorkers := base.Flag.LowerC; nWorkers > 1 {
-		// For concurrent builds, we create a goroutine per task, but
-		// require them to hold a unique worker ID while performing work
-		// to limit parallelism.
-		workerIDs := make(chan int, nWorkers)
-		for i := 0; i < nWorkers; i++ {
-			workerIDs <- i
-		}
-
+		// For concurrent builds, we allow the work queue
+		// to grow arbitrarily large, but only nWorkers work items
+		// can be running concurrently.
+		workq := make(chan func(int))
+		done := make(chan int)
+		go func() {
+			ids := make([]int, nWorkers)
+			for i := range ids {
+				ids[i] = i
+			}
+			var pending []func(int)
+			for {
+				select {
+				case work := <-workq:
+					pending = append(pending, work)
+				case id := <-done:
+					ids = append(ids, id)
+				}
+				for len(pending) > 0 && len(ids) > 0 {
+					work := pending[len(pending)-1]
+					id := ids[len(ids)-1]
+					pending = pending[:len(pending)-1]
+					ids = ids[:len(ids)-1]
+					go func() {
+						work(id)
+						done <- id
+					}()
+				}
+			}
+		}()
 		queue = func(work func(int)) {
-			go func() {
-				worker := <-workerIDs
-				work(worker)
-				workerIDs <- worker
-			}()
+			workq <- work
 		}
 	}
 

@@ -284,7 +284,7 @@ func TestGCTestIsReachable(t *testing.T) {
 	runtime.KeepAlive(half)
 }
 
-var pointerClassSink *int
+var pointerClassBSS *int
 var pointerClassData = 42
 
 func TestGCTestPointerClass(t *testing.T) {
@@ -300,44 +300,43 @@ func TestGCTestPointerClass(t *testing.T) {
 	}
 	var onStack int
 	var notOnStack int
-	pointerClassSink = &notOnStack
 	check(unsafe.Pointer(&onStack), "stack")
-	check(unsafe.Pointer(&notOnStack), "heap")
-	check(unsafe.Pointer(&pointerClassSink), "bss")
+	check(unsafe.Pointer(runtime.Escape(&notOnStack)), "heap")
+	check(unsafe.Pointer(&pointerClassBSS), "bss")
 	check(unsafe.Pointer(&pointerClassData), "data")
 	check(nil, "other")
 }
 
 func BenchmarkSetTypePtr(b *testing.B) {
-	benchSetType(b, new(*byte))
+	benchSetType[*byte](b)
 }
 
 func BenchmarkSetTypePtr8(b *testing.B) {
-	benchSetType(b, new([8]*byte))
+	benchSetType[[8]*byte](b)
 }
 
 func BenchmarkSetTypePtr16(b *testing.B) {
-	benchSetType(b, new([16]*byte))
+	benchSetType[[16]*byte](b)
 }
 
 func BenchmarkSetTypePtr32(b *testing.B) {
-	benchSetType(b, new([32]*byte))
+	benchSetType[[32]*byte](b)
 }
 
 func BenchmarkSetTypePtr64(b *testing.B) {
-	benchSetType(b, new([64]*byte))
+	benchSetType[[64]*byte](b)
 }
 
 func BenchmarkSetTypePtr126(b *testing.B) {
-	benchSetType(b, new([126]*byte))
+	benchSetType[[126]*byte](b)
 }
 
 func BenchmarkSetTypePtr128(b *testing.B) {
-	benchSetType(b, new([128]*byte))
+	benchSetType[[128]*byte](b)
 }
 
 func BenchmarkSetTypePtrSlice(b *testing.B) {
-	benchSetType(b, make([]*byte, 1<<10))
+	benchSetTypeSlice[*byte](b, 1<<10)
 }
 
 type Node1 struct {
@@ -346,11 +345,11 @@ type Node1 struct {
 }
 
 func BenchmarkSetTypeNode1(b *testing.B) {
-	benchSetType(b, new(Node1))
+	benchSetType[Node1](b)
 }
 
 func BenchmarkSetTypeNode1Slice(b *testing.B) {
-	benchSetType(b, make([]Node1, 32))
+	benchSetTypeSlice[Node1](b, 32)
 }
 
 type Node8 struct {
@@ -359,11 +358,11 @@ type Node8 struct {
 }
 
 func BenchmarkSetTypeNode8(b *testing.B) {
-	benchSetType(b, new(Node8))
+	benchSetType[Node8](b)
 }
 
 func BenchmarkSetTypeNode8Slice(b *testing.B) {
-	benchSetType(b, make([]Node8, 32))
+	benchSetTypeSlice[Node8](b, 32)
 }
 
 type Node64 struct {
@@ -372,11 +371,11 @@ type Node64 struct {
 }
 
 func BenchmarkSetTypeNode64(b *testing.B) {
-	benchSetType(b, new(Node64))
+	benchSetType[Node64](b)
 }
 
 func BenchmarkSetTypeNode64Slice(b *testing.B) {
-	benchSetType(b, make([]Node64, 32))
+	benchSetTypeSlice[Node64](b, 32)
 }
 
 type Node64Dead struct {
@@ -385,11 +384,11 @@ type Node64Dead struct {
 }
 
 func BenchmarkSetTypeNode64Dead(b *testing.B) {
-	benchSetType(b, new(Node64Dead))
+	benchSetType[Node64Dead](b)
 }
 
 func BenchmarkSetTypeNode64DeadSlice(b *testing.B) {
-	benchSetType(b, make([]Node64Dead, 32))
+	benchSetTypeSlice[Node64Dead](b, 32)
 }
 
 type Node124 struct {
@@ -398,11 +397,11 @@ type Node124 struct {
 }
 
 func BenchmarkSetTypeNode124(b *testing.B) {
-	benchSetType(b, new(Node124))
+	benchSetType[Node124](b)
 }
 
 func BenchmarkSetTypeNode124Slice(b *testing.B) {
-	benchSetType(b, make([]Node124, 32))
+	benchSetTypeSlice[Node124](b, 32)
 }
 
 type Node126 struct {
@@ -411,11 +410,11 @@ type Node126 struct {
 }
 
 func BenchmarkSetTypeNode126(b *testing.B) {
-	benchSetType(b, new(Node126))
+	benchSetType[Node126](b)
 }
 
 func BenchmarkSetTypeNode126Slice(b *testing.B) {
-	benchSetType(b, make([]Node126, 32))
+	benchSetTypeSlice[Node126](b, 32)
 }
 
 type Node128 struct {
@@ -424,11 +423,11 @@ type Node128 struct {
 }
 
 func BenchmarkSetTypeNode128(b *testing.B) {
-	benchSetType(b, new(Node128))
+	benchSetType[Node128](b)
 }
 
 func BenchmarkSetTypeNode128Slice(b *testing.B) {
-	benchSetType(b, make([]Node128, 32))
+	benchSetTypeSlice[Node128](b, 32)
 }
 
 type Node130 struct {
@@ -437,11 +436,11 @@ type Node130 struct {
 }
 
 func BenchmarkSetTypeNode130(b *testing.B) {
-	benchSetType(b, new(Node130))
+	benchSetType[Node130](b)
 }
 
 func BenchmarkSetTypeNode130Slice(b *testing.B) {
-	benchSetType(b, make([]Node130, 32))
+	benchSetTypeSlice[Node130](b, 32)
 }
 
 type Node1024 struct {
@@ -450,24 +449,21 @@ type Node1024 struct {
 }
 
 func BenchmarkSetTypeNode1024(b *testing.B) {
-	benchSetType(b, new(Node1024))
+	benchSetType[Node1024](b)
 }
 
 func BenchmarkSetTypeNode1024Slice(b *testing.B) {
-	benchSetType(b, make([]Node1024, 32))
+	benchSetTypeSlice[Node1024](b, 32)
 }
 
-func benchSetType(b *testing.B, x any) {
-	v := reflect.ValueOf(x)
-	t := v.Type()
-	switch t.Kind() {
-	case reflect.Pointer:
-		b.SetBytes(int64(t.Elem().Size()))
-	case reflect.Slice:
-		b.SetBytes(int64(t.Elem().Size()) * int64(v.Len()))
-	}
-	b.ResetTimer()
-	runtime.BenchSetType(b.N, x)
+func benchSetType[T any](b *testing.B) {
+	b.SetBytes(int64(unsafe.Sizeof(*new(T))))
+	runtime.BenchSetType[T](b.N, b.ResetTimer)
+}
+
+func benchSetTypeSlice[T any](b *testing.B, len int) {
+	b.SetBytes(int64(unsafe.Sizeof(*new(T)) * uintptr(len)))
+	runtime.BenchSetTypeSlice[T](b.N, b.ResetTimer, len)
 }
 
 func BenchmarkAllocation(b *testing.B) {
@@ -614,14 +610,13 @@ func BenchmarkReadMemStats(b *testing.B) {
 	for i := range x {
 		x[i] = new([1024]byte)
 	}
-	hugeSink = x
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		runtime.ReadMemStats(&ms)
 	}
 
-	hugeSink = nil
+	runtime.KeepAlive(x)
 }
 
 func applyGCLoad(b *testing.B) func() {
@@ -691,7 +686,7 @@ func BenchmarkReadMemStatsLatency(b *testing.B) {
 		time.Sleep(100 * time.Millisecond)
 		start := time.Now()
 		runtime.ReadMemStats(&ms)
-		latencies = append(latencies, time.Now().Sub(start))
+		latencies = append(latencies, time.Since(start))
 	}
 	// Make sure to stop the timer before we wait! The load created above
 	// is very heavy-weight and not easy to stop, so we could end up
@@ -905,4 +900,36 @@ func countpwg(n *int, ready *sync.WaitGroup, teardown chan bool) {
 	}
 	*n--
 	countpwg(n, ready, teardown)
+}
+
+func TestMemoryLimit(t *testing.T) {
+	if testing.Short() {
+		t.Skip("stress test that takes time to run")
+	}
+	if runtime.NumCPU() < 4 {
+		t.Skip("want at least 4 CPUs for this test")
+	}
+	got := runTestProg(t, "testprog", "GCMemoryLimit")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
+func TestMemoryLimitNoGCPercent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("stress test that takes time to run")
+	}
+	if runtime.NumCPU() < 4 {
+		t.Skip("want at least 4 CPUs for this test")
+	}
+	got := runTestProg(t, "testprog", "GCMemoryLimitNoGCPercent")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
+func TestMyGenericFunc(t *testing.T) {
+	runtime.MyGenericFunc[int]()
 }

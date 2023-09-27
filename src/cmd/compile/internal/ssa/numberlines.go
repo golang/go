@@ -32,7 +32,7 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
 	// If the value is the last one in the block, too bad, it will have to do
 	// (this assumes that the value ordering vaguely corresponds to the source
 	// program execution order, which tends to be true directly after ssa is
-	// first built.
+	// first built).
 	if i >= len(b.Values)-1 {
 		return i
 	}
@@ -62,7 +62,7 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
 // statement boundary.
 func notStmtBoundary(op Op) bool {
 	switch op {
-	case OpCopy, OpPhi, OpVarKill, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg, OpArgIntReg, OpArgFloatReg:
+	case OpCopy, OpPhi, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg, OpArgIntReg, OpArgFloatReg:
 		return true
 	}
 	return false

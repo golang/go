@@ -19,13 +19,16 @@ func TestX86ifAVX2hasAVX(t *testing.T) {
 }
 
 func TestDisableSSE3(t *testing.T) {
+	if GetGOAMD64level() > 1 {
+		t.Skip("skipping test: can't run on GOAMD64>v1 machines")
+	}
 	runDebugOptionsTest(t, "TestSSE3DebugOption", "cpu.sse3=off")
 }
 
 func TestSSE3DebugOption(t *testing.T) {
 	MustHaveDebugOptionsSupport(t)
 
-	if godebug.Get("cpu.sse3") != "off" {
+	if godebug.New("#cpu.sse3").Value() != "off" {
 		t.Skipf("skipping test: GODEBUG=cpu.sse3=off not set")
 	}
 

@@ -17,6 +17,13 @@ import (
 	"unsafe"
 )
 
+func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+
+var dupTrampoline = abi.FuncPCABI0(libc_dup2_trampoline)
+
 type SockaddrDatalink struct {
 	Len    uint8
 	Family uint8
@@ -164,12 +171,13 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Mlock(b []byte) (err error)
 //sys	Mlockall(flags int) (err error)
 //sys	Mprotect(b []byte, prot int) (err error)
+//sys	msync(b []byte, flags int) (err error)
 //sys	Munlock(b []byte) (err error)
 //sys	Munlockall() (err error)
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	readdir_r(dir uintptr, entry *Dirent, result **Dirent) (res Errno)
 //sys	Readlink(path string, buf []byte) (n int, err error)
@@ -187,7 +195,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Setprivexec(flag int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
+//sysnb	setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
@@ -219,7 +227,7 @@ func init() {
 
 func fdopendir(fd int) (dir uintptr, err error) {
 	r0, _, e1 := syscallPtr(abi.FuncPCABI0(libc_fdopendir_trampoline), uintptr(fd), 0, 0)
-	dir = uintptr(r0)
+	dir = r0
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -232,15 +240,6 @@ func libc_fdopendir_trampoline()
 
 func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
 	r0, _, e1 := syscall(abi.FuncPCABI0(libc_read_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
-	n = int(r0)
-	if e1 != 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
-
-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
-	r0, _, e1 := syscall(abi.FuncPCABI0(libc_write_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -303,12 +302,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 			break
 		}
 		// Copy entry into return buffer.
-		s := struct {
-			ptr unsafe.Pointer
-			siz int
-			cap int
-		}{ptr: unsafe.Pointer(&entry), siz: reclen, cap: reclen}
-		copy(buf, *(*[]byte)(unsafe.Pointer(&s)))
+		copy(buf, unsafe.Slice((*byte)(unsafe.Pointer(&entry)), reclen))
 		buf = buf[reclen:]
 		n += reclen
 		cnt++

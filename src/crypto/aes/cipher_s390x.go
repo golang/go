@@ -6,7 +6,7 @@ package aes
 
 import (
 	"crypto/cipher"
-	"crypto/internal/subtle"
+	"crypto/internal/alias"
 	"internal/cpu"
 )
 
@@ -28,6 +28,7 @@ type aesCipherAsm struct {
 // cryptBlocks invokes the cipher message (KM) instruction with
 // the given function code. This is equivalent to AES in ECB
 // mode. The length must be a multiple of BlockSize (16).
+//
 //go:noescape
 func cryptBlocks(c code, key, dst, src *byte, length int)
 
@@ -68,7 +69,7 @@ func (c *aesCipherAsm) Encrypt(dst, src []byte) {
 	if len(dst) < BlockSize {
 		panic("crypto/aes: output not full block")
 	}
-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
 	cryptBlocks(c.function, &c.key[0], &dst[0], &src[0], BlockSize)
@@ -81,7 +82,7 @@ func (c *aesCipherAsm) Decrypt(dst, src []byte) {
 	if len(dst) < BlockSize {
 		panic("crypto/aes: output not full block")
 	}
-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
 	// The decrypt function code is equal to the function code + 128.

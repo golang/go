@@ -7,6 +7,7 @@ package types2
 import (
 	"container/heap"
 	"fmt"
+	. "internal/types/errors"
 	"sort"
 )
 
@@ -152,12 +153,16 @@ func findPath(objMap map[Object]*declInfo, from, to Object, seen map[Object]bool
 // reportCycle reports an error for the given cycle.
 func (check *Checker) reportCycle(cycle []Object) {
 	obj := cycle[0]
-	var err error_
-	if check.conf.CompilerErrorMessages {
-		err.errorf(obj, "initialization loop for %s", obj.Name())
-	} else {
-		err.errorf(obj, "initialization cycle for %s", obj.Name())
+
+	// report a more concise error for self references
+	if len(cycle) == 1 {
+		check.errorf(obj, InvalidInitCycle, "initialization cycle: %s refers to itself", obj.Name())
+		return
 	}
+
+	var err error_
+	err.code = InvalidInitCycle
+	err.errorf(obj, "initialization cycle for %s", obj.Name())
 	// subtle loop: print cycle[i] for i = 0, n-1, n-2, ... 1 for len(cycle) = n
 	for i := len(cycle) - 1; i >= 0; i-- {
 		err.errorf(obj, "%s refers to", obj.Name())

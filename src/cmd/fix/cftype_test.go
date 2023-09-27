@@ -13,6 +13,7 @@ var cftypeTests = []testCase{
 		Name: "cftype.localVariable",
 		In: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 func f() {
@@ -23,6 +24,7 @@ func f() {
 `,
 		Out: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 func f() {
@@ -36,6 +38,7 @@ func f() {
 		Name: "cftype.globalVariable",
 		In: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x C.CFTypeRef = nil
@@ -46,6 +49,7 @@ func f() {
 `,
 		Out: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x C.CFTypeRef = 0
@@ -59,6 +63,7 @@ func f() {
 		Name: "cftype.EqualArgument",
 		In: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x C.CFTypeRef
@@ -67,6 +72,7 @@ var z = x != nil
 `,
 		Out: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x C.CFTypeRef
@@ -78,6 +84,7 @@ var z = x != 0
 		Name: "cftype.StructField",
 		In: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 type T struct {
@@ -88,6 +95,7 @@ var t = T{x: nil}
 `,
 		Out: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 type T struct {
@@ -101,6 +109,7 @@ var t = T{x: 0}
 		Name: "cftype.FunctionArgument",
 		In: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 func f(x C.CFTypeRef) {
@@ -112,6 +121,7 @@ func g() {
 `,
 		Out: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 func f(x C.CFTypeRef) {
@@ -126,12 +136,14 @@ func g() {
 		Name: "cftype.ArrayElement",
 		In: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x = [3]C.CFTypeRef{nil, nil, nil}
 `,
 		Out: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x = [3]C.CFTypeRef{0, 0, 0}
@@ -141,12 +153,14 @@ var x = [3]C.CFTypeRef{0, 0, 0}
 		Name: "cftype.SliceElement",
 		In: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x = []C.CFTypeRef{nil, nil, nil}
 `,
 		Out: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x = []C.CFTypeRef{0, 0, 0}
@@ -156,12 +170,14 @@ var x = []C.CFTypeRef{0, 0, 0}
 		Name: "cftype.MapKey",
 		In: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x = map[C.CFTypeRef]int{nil: 0}
 `,
 		Out: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x = map[C.CFTypeRef]int{0: 0}
@@ -171,12 +187,14 @@ var x = map[C.CFTypeRef]int{0: 0}
 		Name: "cftype.MapValue",
 		In: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x = map[int]C.CFTypeRef{0: nil}
 `,
 		Out: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x = map[int]C.CFTypeRef{0: 0}
@@ -186,6 +204,7 @@ var x = map[int]C.CFTypeRef{0: 0}
 		Name: "cftype.Conversion1",
 		In: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x C.CFTypeRef
@@ -193,6 +212,7 @@ var y = (*unsafe.Pointer)(&x)
 `,
 		Out: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x C.CFTypeRef
@@ -203,6 +223,7 @@ var y = (*unsafe.Pointer)(unsafe.Pointer(&x))
 		Name: "cftype.Conversion2",
 		In: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x unsafe.Pointer
@@ -210,6 +231,7 @@ var y = (*C.CFTypeRef)(&x)
 `,
 		Out: `package main
 
+// typedef const void *CFTypeRef;
 import "C"
 
 var x unsafe.Pointer

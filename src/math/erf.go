@@ -182,6 +182,7 @@ const (
 // Erf returns the error function of x.
 //
 // Special cases are:
+//
 //	Erf(+Inf) = 1
 //	Erf(-Inf) = -1
 //	Erf(NaN) = NaN
@@ -266,6 +267,7 @@ func erf(x float64) float64 {
 // Erfc returns the complementary error function of x.
 //
 // Special cases are:
+//
 //	Erfc(+Inf) = 0
 //	Erfc(-Inf) = 2
 //	Erfc(NaN) = NaN

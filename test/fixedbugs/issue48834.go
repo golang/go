@@ -20,5 +20,5 @@ func _() int {
 }
 
 func _() {
-	return 1 // ERROR "too many arguments to return\n\thave \(number\)\n\twant \(\)|no result values expected"
+	return 1 // ERROR "too many (arguments to return|return values)\n\thave \(number\)\n\twant \(\)"
 }
