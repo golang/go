@@ -317,18 +317,27 @@ func findFuncByPosition(pkg *packages.Package, posn token.Position) (*ast.FuncDe
 	return nil, fmt.Errorf("can't find FuncDecl at %v in package %q", posn, pkg.PkgPath)
 }
 
-// TestTable is a table driven test, enabling more compact expression
-// of single-package test cases than is possible with the txtar notation.
-func TestTable(t *testing.T) {
-	// Each callee must declare a function or method named f,
-	// and each caller must call it.
-	const funcName = "f"
+// Each callee must declare a function or method named f,
+// and each caller must call it.
+const funcName = "f"
 
-	var tests = []struct {
-		descr          string
-		callee, caller string // Go source files (sans package decl) of caller, callee
-		want           string // expected new portion of caller file, or "error: regexp"
-	}{
+// A testcase is an item in a table-driven test.
+//
+// The table-driven tests are less flexible, but enable more compact
+// expression of single-package test cases than is possible with the
+// txtar notation.
+//
+// TODO(adonovan): improve coverage of the cross product of each
+// strategy with the checklist of concerns enumerated in the package
+// doc comment.
+type testcase struct {
+	descr          string
+	callee, caller string // Go source files (sans package decl) of caller, callee
+	want           string // expected new portion of caller file, or "error: regexp"
+}
+
+func TestErrors(t *testing.T) {
+	runTests(t, []testcase{
 		{
 			"Generic functions are not yet supported.",
 			`func f[T any](x T) T { return x }`,
@@ -341,6 +350,11 @@ func TestTable(t *testing.T) {
 			`var _ = G[int]{}.f(0)`,
 			`error: type parameters are not yet supported`,
 		},
+	})
+}
+
+func TestBasics(t *testing.T) {
+	runTests(t, []testcase{
 		{
 			"Basic",
 			`func f(x int) int { return x }`,
@@ -360,6 +374,22 @@ func TestTable(t *testing.T) {
 			`func _() { _ = recover().(int) }`,
 		},
 		{
+			"Non-duplicable arguments are not substituted even if pure.",
+			`func f(s string, i int) { print(s, s, i, i) }`,
+			`func _() { f("", 0)  }`,
+			`func _() {
+	{
+		var s string = ""
+		print(s, s, 0, 0)
+	}
+}`,
+		},
+	})
+}
+
+func TestTailCallStrategy(t *testing.T) {
+	runTests(t, []testcase{
+		{
 			"Tail call.",
 			`func f() int { return 1 }`,
 			`func _() int { return f() }`,
@@ -377,6 +407,11 @@ func TestTable(t *testing.T) {
 			`func _() { f() }`,
 			`func _() { func() { defer f(); println() }() }`,
 		},
+	})
+}
+
+func TestSpreadCalls(t *testing.T) {
+	runTests(t, []testcase{
 		{
 			"Edge case: cannot literalize spread method call.",
 			`type I int
@@ -388,6 +423,11 @@ func TestTable(t *testing.T) {
 			`func _() I { return recover().(I).f(g()) }`,
 			`error: can't yet inline spread call to method`,
 		},
+	})
+}
+
+func TestVariadic(t *testing.T) {
+	runTests(t, []testcase{
 		{
 			"Variadic cancellation (basic).",
 			`func f(args ...any) { defer f(&args); println(args) }`,
@@ -436,6 +476,11 @@ func TestTable(t *testing.T) {
 			`func _() { f(g()) }`,
 			`func _() { func(x, y int, rest ...int) { println(x, y, rest) }(g()) }`,
 		},
+	})
+}
+
+func TestEmbeddedFieldsJJJ(t *testing.T) {
+	runTests(t, []testcase{
 		{
 			"IncDec counts as assignment.",
 			`func f(x int) { x++ }`,
@@ -488,7 +533,11 @@ func TestTable(t *testing.T) {
 			`func _() { f(g(1), g(2), g(3)) }`,
 			`func _() { func(int, y any, z int) { defer g(0); println(int, y, z) }(g(1), g(2), g(3)) }`,
 		},
-		// Embedded fields:
+	})
+}
+
+func TestEmbeddedFields(t *testing.T) {
+	runTests(t, []testcase{
 		{
 			"Embedded fields in x.f method selection (direct).",
 			`type T int; func (t T) f() { print(t) }; type U struct{ T }`,
@@ -526,7 +575,11 @@ func TestTable(t *testing.T) {
 			`func _(v V) { (*V).f(&v) }`,
 			`func _(v V) { print(&(&v).U.T) }`,
 		},
-		// Parameter effect ordering.
+	})
+}
+
+func TestSubstitutionPreservesArgumentEffectOrder(t *testing.T) {
+	runTests(t, []testcase{
 		{
 			"Arguments have effects, but parameters are evaluated in order.",
 			`func f(a, b, c int) { print(a, b, c) }; func g(int) int`,
@@ -578,59 +631,6 @@ func TestTable(t *testing.T) {
 	}
 }`,
 		},
-
-		// Treatment of named result vars across strategies:
-		{
-			"Stmt-context call to {return g()} that mentions named result.",
-			`func f() (x int) { return g(x) }; func g(int) int`,
-			`func _() { f() }`,
-			`func _() {
-	{
-		var x int
-		g(x)
-	}
-}`,
-		},
-		{
-			"Ditto, with binding decl again.",
-			`func f(y string) (x int) { return x+x+len(y+y) }`,
-			`func _() { f("") }`,
-			`func _() {
-	{
-		var (
-			y string = ""
-			x int
-		)
-		_ = x + x + len(y+y)
-	}
-}`,
-		},
-
-		{
-			"Ditto, with binding decl (due to repeated y refs).",
-			`func f(y string) (x string) { return x+y+y }`,
-			`func _() { f("") }`,
-			`func _() {
-	{
-		var (
-			y string = ""
-			x string
-		)
-		_ = x + y + y
-	}
-}`,
-		},
-		{
-			"Stmt-context call to {return binary} that mentions named result.",
-			`func f() (x int) { return x+x }`,
-			`func _() { f() }`,
-			`func _() {
-	{
-		var x int
-		_ = x + x
-	}
-}`,
-		},
 		{
 			"Callee effects commute with pure arguments.",
 			`func f(a, b, c int) { print(a, c, recover().(int), b) }; func g(int) int`,
@@ -664,30 +664,6 @@ func TestTable(t *testing.T) {
 		print(a, b, recover().(int), c)
 	}
 }`,
-		},
-		{
-			"Tail call to {return expr} that mentions named result.",
-			`func f() (x int) { return x }`,
-			`func _() int { return f() }`,
-			`func _() int { return func() (x int) { return x }() }`,
-		},
-		{
-			"Tail call to {return} that implicitly reads named result.",
-			`func f() (x int) { return }`,
-			`func _() int { return f() }`,
-			`func _() int { return func() (x int) { return }() }`,
-		},
-		{
-			"Spread-context call to {return expr} that mentions named result.",
-			`func f() (x, y int) { return x, y }`,
-			`func _() { var _, _ = f() }`,
-			`func _() { var _, _ = func() (x, y int) { return x, y }() }`,
-		},
-		{
-			"Shadowing in binding decl for named results => literalization.",
-			`func f(y string) (x y) { return x+x+len(y+y) }; type y = int`,
-			`func _() { f("") }`,
-			`func _() { func(y string) (x y) { return x + x + len(y+y) }("") }`,
 		},
 		{
 			"[W1 R0 W2 W4 R3] -- test case for second iteration of effect loop",
@@ -748,17 +724,91 @@ func TestTable(t *testing.T) {
 	}
 }`,
 		},
+	})
+}
+
+func TestNamedResultVars(t *testing.T) {
+	runTests(t, []testcase{
 		{
-			"Non-duplicable arguments are not substituted even if pure.",
-			`func f(s string, i int) { print(s, s, i, i) }`,
-			`func _() { f("", 0)  }`,
+			"Stmt-context call to {return g()} that mentions named result.",
+			`func f() (x int) { return g(x) }; func g(int) int`,
+			`func _() { f() }`,
 			`func _() {
 	{
-		var s string = ""
-		print(s, s, 0, 0)
+		var x int
+		g(x)
 	}
 }`,
 		},
+		{
+			"Ditto, with binding decl again.",
+			`func f(y string) (x int) { return x+x+len(y+y) }`,
+			`func _() { f("") }`,
+			`func _() {
+	{
+		var (
+			y string = ""
+			x int
+		)
+		_ = x + x + len(y+y)
+	}
+}`,
+		},
+
+		{
+			"Ditto, with binding decl (due to repeated y refs).",
+			`func f(y string) (x string) { return x+y+y }`,
+			`func _() { f("") }`,
+			`func _() {
+	{
+		var (
+			y string = ""
+			x string
+		)
+		_ = x + y + y
+	}
+}`,
+		},
+		{
+			"Stmt-context call to {return binary} that mentions named result.",
+			`func f() (x int) { return x+x }`,
+			`func _() { f() }`,
+			`func _() {
+	{
+		var x int
+		_ = x + x
+	}
+}`,
+		},
+		{
+			"Tail call to {return expr} that mentions named result.",
+			`func f() (x int) { return x }`,
+			`func _() int { return f() }`,
+			`func _() int { return func() (x int) { return x }() }`,
+		},
+		{
+			"Tail call to {return} that implicitly reads named result.",
+			`func f() (x int) { return }`,
+			`func _() int { return f() }`,
+			`func _() int { return func() (x int) { return }() }`,
+		},
+		{
+			"Spread-context call to {return expr} that mentions named result.",
+			`func f() (x, y int) { return x, y }`,
+			`func _() { var _, _ = f() }`,
+			`func _() { var _, _ = func() (x, y int) { return x, y }() }`,
+		},
+		{
+			"Shadowing in binding decl for named results => literalization.",
+			`func f(y string) (x y) { return x+x+len(y+y) }; type y = int`,
+			`func _() { f("") }`,
+			`func _() { func(y string) (x y) { return x + x + len(y+y) }("") }`,
+		},
+	})
+}
+
+func TestSubstitutionPreservesParameterType(t *testing.T) {
+	runTests(t, []testcase{
 		{
 			"Substitution preserves argument type (#63193).",
 			`func f(x int16) { y := x; _ = (*int16)(&y) }`,
@@ -815,11 +865,10 @@ func TestTable(t *testing.T) {
 			`func _() { type T bool; f(1) }`,
 			`error: T.*shadowed.*by.*type`,
 		},
+	})
+}
 
-		// TODO(adonovan): improve coverage of the cross
-		// product of each strategy with the checklist of
-		// concerns enumerated in the package doc comment.
-	}
+func runTests(t *testing.T, tests []testcase) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.descr, func(t *testing.T) {
