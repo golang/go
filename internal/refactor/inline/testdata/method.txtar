@@ -15,7 +15,8 @@ go 1.12
 package a
 
 type T int
-func (T) f0() { println() }
+
+func (recv T) f0() { println(recv) }
 
 func _(x T) {
 	x.f0() //@ inline(re"f0", f0)
@@ -26,19 +27,16 @@ package a
 
 type T int
 
-func (T) f0() { println() }
+func (recv T) f0() { println(recv) }
 
 func _(x T) {
-	{
-		var _ T = x
-		println()
-	} //@ inline(re"f0", f0)
+	println(x) //@ inline(re"f0", f0)
 }
 
 -- a/g0.go --
 package a
 
-func (recv *T) g0() { println() }
+func (recv *T) g0() { println(recv) }
 
 func _(x T) {
 	x.g0() //@ inline(re"g0", g0)
@@ -47,19 +45,16 @@ func _(x T) {
 -- g0 --
 package a
 
-func (recv *T) g0() { println() }
+func (recv *T) g0() { println(recv) }
 
 func _(x T) {
-	{
-		var _ *T = &x
-		println()
-	} //@ inline(re"g0", g0)
+	println(&x) //@ inline(re"g0", g0)
 }
 
 -- a/f1.go --
 package a
 
-func (T) f1(int, int) { println() }
+func (recv T) f1(int, int) { println(recv) }
 
 func _(x T) {
 	x.f1(1, 2) //@ inline(re"f1", f1)
@@ -68,19 +63,16 @@ func _(x T) {
 -- f1 --
 package a
 
-func (T) f1(int, int) { println() }
+func (recv T) f1(int, int) { println(recv) }
 
 func _(x T) {
-	{
-		var _ T = x
-		println()
-	} //@ inline(re"f1", f1)
+	println(x) //@ inline(re"f1", f1)
 }
 
 -- a/g1.go --
 package a
 
-func (recv *T) g1(int, int) { println() }
+func (recv *T) g1(int, int) { println(recv) }
 
 func _(x T) {
 	x.g1(1, 2) //@ inline(re"g1", g1)
@@ -89,13 +81,10 @@ func _(x T) {
 -- g1 --
 package a
 
-func (recv *T) g1(int, int) { println() }
+func (recv *T) g1(int, int) { println(recv) }
 
 func _(x T) {
-	{
-		var _ *T = &x
-		println()
-	} //@ inline(re"g1", g1)
+	println(&x) //@ inline(re"g1", g1)
 }
 
 -- a/h.go --

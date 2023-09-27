@@ -387,6 +387,23 @@ func TestBasics(t *testing.T) {
 	})
 }
 
+func TestSubstitution(t *testing.T) {
+	runTests(t, []testcase{
+		{
+			"Arg to unref'd param can be eliminated if has no effects.",
+			`func f(x, y int) {}; var global int`,
+			`func _() { f(0, global) }`,
+			`func _() {}`,
+		},
+		{
+			"But not if it may contain last reference to a caller local var.",
+			`func f(int) {}`,
+			`func _() { var local int; f(local) }`,
+			`func _() { var local int; _ = local }`,
+		},
+	})
+}
+
 func TestTailCallStrategy(t *testing.T) {
 	runTests(t, []testcase{
 		{
@@ -479,7 +496,7 @@ func TestVariadic(t *testing.T) {
 	})
 }
 
-func TestEmbeddedFieldsJJJ(t *testing.T) {
+func TestParameterBindingDecl(t *testing.T) {
 	runTests(t, []testcase{
 		{
 			"IncDec counts as assignment.",
@@ -520,12 +537,6 @@ func TestEmbeddedFieldsJJJ(t *testing.T) {
 		<-h(g(2), x)
 	}
 }`,
-		},
-		{
-			"Defer f() evaluates f() before unknown effects",
-			`func f(int, y any, z int) { defer println(int, y, z) }; func g(int) int`,
-			`func _() { f(g(1), g(2), g(3)) }`,
-			`func _() { func() { defer println(any(g(1)), any(g(2)), g(3)) }() }`,
 		},
 		{
 			"No binding decl due to shadowing of int",
@@ -723,6 +734,12 @@ func TestSubstitutionPreservesArgumentEffectOrder(t *testing.T) {
 		_ = x
 	}
 }`,
+		},
+		{
+			"Defer f() evaluates f() before unknown effects",
+			`func f(int, y any, z int) { defer println(int, y, z) }; func g(int) int`,
+			`func _() { f(g(1), g(2), g(3)) }`,
+			`func _() { func() { defer println(any(g(1)), any(g(2)), g(3)) }() }`,
 		},
 	})
 }

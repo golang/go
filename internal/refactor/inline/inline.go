@@ -34,7 +34,8 @@ type Caller struct {
 	Call    *ast.CallExpr
 	Content []byte // source of file containing
 
-	path []ast.Node
+	path          []ast.Node    // path from call to root of file syntax tree
+	enclosingFunc *ast.FuncDecl // top-level function/method enclosing the call, if any
 }
 
 // Inline inlines the called function (callee) into the function call (caller)
@@ -247,24 +248,28 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 
 	// -- analyze callee's free references in caller context --
 
-	// syntax path enclosing Call, innermost first (Path[0]=Call)
+	// Compute syntax path enclosing Call, innermost first (Path[0]=Call),
+	// and outermost enclosing function, if any.
 	caller.path, _ = astutil.PathEnclosingInterval(caller.File, caller.Call.Pos(), caller.Call.End())
+	for _, n := range caller.path {
+		if decl, ok := n.(*ast.FuncDecl); ok {
+			caller.enclosingFunc = decl
+			break
+		}
+	}
 
-	// Find the outermost function enclosing the call site (if any).
-	// Analyze all its local vars for the "single assignment" property
+	// If call is within a function, analyze all its
+	// local vars for the "single assignment" property.
 	// (Taking the address &v counts as a potential assignment.)
 	var assign1 func(v *types.Var) bool // reports whether v a single-assignment local var
 	{
 		updatedLocals := make(map[*types.Var]bool)
-		for _, n := range caller.path {
-			if decl, ok := n.(*ast.FuncDecl); ok {
-				escape(caller.Info, decl.Body, func(v *types.Var, _ bool) {
-					updatedLocals[v] = true
-				})
-				break
-			}
+		if caller.enclosingFunc != nil {
+			escape(caller.Info, caller.enclosingFunc, func(v *types.Var, _ bool) {
+				updatedLocals[v] = true
+			})
+			logf("multiple-assignment vars: %v", updatedLocals)
 		}
-		logf("multiple-assignment vars: %v", updatedLocals)
 		assign1 = func(v *types.Var) bool { return !updatedLocals[v] }
 	}
 
@@ -1109,18 +1114,19 @@ next:
 				continue
 			}
 
-			// Eliminating an unreferenced parameter might
+			// If the caller is within a function body,
+			// eliminating an unreferenced parameter might
 			// remove the last reference to a caller local var.
-			for free := range arg.freevars {
-				if v, ok := caller.lookup(free).(*types.Var); ok {
-					// TODO(adonovan): be more precise and check
-					// that v is defined within the body of the caller
-					// function (if any) and is indeed referenced
-					// only by the call. (See assign1 for analysis
-					// of enclosing func.)
-					logf("keeping param %q: arg contains perhaps the last reference to possible caller local %v @ %v",
-						param.info.Name, v, caller.Fset.PositionFor(v.Pos(), false))
-					continue next
+			if caller.enclosingFunc != nil {
+				for free := range arg.freevars {
+					if v, ok := caller.lookup(free).(*types.Var); ok && within(v.Pos(), caller.enclosingFunc.Body) {
+						// TODO(adonovan): be more precise and check that v
+						// is indeed referenced only by call arguments.
+						// Better: proceed, but blank out its declaration as needed.
+						logf("keeping param %q: arg contains perhaps the last reference to possible caller local %v @ %v",
+							param.info.Name, v, caller.Fset.PositionFor(v.Pos(), false))
+						continue next
+					}
 				}
 			}
 		}
