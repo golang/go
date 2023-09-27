@@ -440,6 +440,23 @@ func TestSpreadCalls(t *testing.T) {
 			`func _() I { return recover().(I).f(g()) }`,
 			`error: can't yet inline spread call to method`,
 		},
+		{
+			"Spread argument evaluated for effect.",
+			`func f(int, int) {}; func g() (int, int)`,
+			`func _() { f(g())  }`,
+			`func _() { _, _ = g() }`,
+		},
+		{
+			"Edge case: receiver and spread argument, both evaluated for effect.",
+			`type T int; func (T) f(int, int) {}; func g() (int, int)`,
+			`func _() { T(0).f(g())  }`,
+			`func _() {
+	var (
+		_    = T(0)
+		_, _ = g()
+	)
+}`,
+		},
 	})
 }
 

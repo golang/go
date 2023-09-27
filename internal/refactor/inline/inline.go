@@ -588,27 +588,44 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		res.old = stmt
 		if nargs := len(remainingArgs); nargs > 0 {
 			// Emit "_, _ = args" to discard results.
-			// Make correction for spread calls
-			// f(g()) or x.f(g()) where g() is a tuple.
-			//
-			// TODO(adonovan): fix: it's not valid for a
-			// single AssignStmt to discard a receiver and
-			// a spread argument; use a var decl with two specs.
-			//
+
 			// TODO(adonovan): if args is the []T{a1, ..., an}
 			// literal synthesized during variadic simplification,
 			// consider unwrapping it to its (pure) elements.
 			// Perhaps there's no harm doing this for any slice literal.
-			if last := last(args); last != nil {
-				if tuple, ok := last.typ.(*types.Tuple); ok {
-					nargs += tuple.Len() - 1
+
+			// Make correction for spread calls
+			// f(g()) or recv.f(g()) where g() is a tuple.
+			if last := last(args); last != nil && last.spread {
+				nspread := last.typ.(*types.Tuple).Len()
+				if len(args) > 1 { // [recv, g()]
+					// A single AssignStmt cannot discard both, so use a 2-spec var decl.
+					res.new = &ast.GenDecl{
+						Tok: token.VAR,
+						Specs: []ast.Spec{
+							&ast.ValueSpec{
+								Names:  []*ast.Ident{makeIdent("_")},
+								Values: []ast.Expr{args[0].expr},
+							},
+							&ast.ValueSpec{
+								Names:  blanks[*ast.Ident](nspread),
+								Values: []ast.Expr{args[1].expr},
+							},
+						},
+					}
+					return res, nil
 				}
+
+				// Sole argument is spread call.
+				nargs = nspread
 			}
+
 			res.new = &ast.AssignStmt{
-				Lhs: blanks(nargs),
+				Lhs: blanks[ast.Expr](nargs),
 				Tok: token.ASSIGN,
 				Rhs: remainingArgs,
 			}
+
 		} else {
 			// No remaining arguments: delete call statement entirely
 			res.new = &ast.EmptyStmt{}
@@ -674,7 +691,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 				// (f() or <-ch), explicitly discard the results:
 				// Reduces to: _, _ = exprs
 				discard := &ast.AssignStmt{
-					Lhs: blanks(callee.NumResults),
+					Lhs: blanks[ast.Expr](callee.NumResults),
 					Tok: token.ASSIGN,
 					Rhs: results,
 				}
@@ -1825,13 +1842,13 @@ func assert(cond bool, msg string) {
 }
 
 // blanks returns a slice of n > 0 blank identifiers.
-func blanks(n int) []ast.Expr {
+func blanks[E ast.Expr](n int) []E {
 	if n == 0 {
 		panic("blanks(0)")
 	}
-	res := make([]ast.Expr, n)
+	res := make([]E, n)
 	for i := range res {
-		res[i] = makeIdent("_")
+		res[i] = ast.Expr(makeIdent("_")).(E) // ugh
 	}
 	return res
 }
