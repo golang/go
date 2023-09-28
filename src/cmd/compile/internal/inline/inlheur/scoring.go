@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 )
 
 // These constants enumerate the set of possible ways/scenarios
@@ -62,6 +64,8 @@ const (
 	returnFeedsFuncToIndCallAdj
 	returnFeedsInlinableFuncToIndCallAdj
 	returnFeedsConcreteToInterfaceCallAdj
+
+	sentinelScoreAdj // sentinel; not a real adjustment
 )
 
 // This table records the specific values we use to adjust call
@@ -86,6 +90,56 @@ var adjValues = map[scoreAdjustTyp]int{
 	returnFeedsFuncToIndCallAdj:           -25,
 	returnFeedsInlinableFuncToIndCallAdj:  -40,
 	returnFeedsConcreteToInterfaceCallAdj: -25,
+}
+
+// SetupScoreAdjustments interprets the value of the -d=inlscoreadj
+// debugging option, if set. The value of this flag is expected to be
+// a series of "/"-separated clauses of the form adj1:value1. Example:
+// -d=inlscoreadj=inLoopAdj=0/passConstToIfAdj=-99
+func SetupScoreAdjustments() {
+	if base.Debug.InlScoreAdj == "" {
+		return
+	}
+	if err := parseScoreAdj(base.Debug.InlScoreAdj); err != nil {
+		base.Fatalf("malformed -d=inlscoreadj argument %q: %v",
+			base.Debug.InlScoreAdj, err)
+	}
+}
+
+func adjStringToVal(s string) (scoreAdjustTyp, bool) {
+	for adj := scoreAdjustTyp(1); adj < sentinelScoreAdj; adj <<= 1 {
+		if adj.String() == s {
+			return adj, true
+		}
+	}
+	return 0, false
+}
+
+func parseScoreAdj(val string) error {
+	clauses := strings.Split(val, "/")
+	if len(clauses) == 0 {
+		return fmt.Errorf("no clauses")
+	}
+	for _, clause := range clauses {
+		elems := strings.Split(clause, ":")
+		if len(elems) < 2 {
+			return fmt.Errorf("clause %q: expected colon", clause)
+		}
+		if len(elems) != 2 {
+			return fmt.Errorf("clause %q has %d elements, wanted 2", clause,
+				len(elems))
+		}
+		adj, ok := adjStringToVal(elems[0])
+		if !ok {
+			return fmt.Errorf("clause %q: unknown adjustment", clause)
+		}
+		val, err := strconv.Atoi(elems[1])
+		if err != nil {
+			return fmt.Errorf("clause %q: malformed value: %v", clause, err)
+		}
+		adjValues[adj] = val
+	}
+	return nil
 }
 
 func adjValue(x scoreAdjustTyp) int {
@@ -505,6 +559,27 @@ func GetCallSiteScore(fn *ir.Func, call *ir.CallExpr) (int, bool) {
 		return cs.Score, true
 	}
 	return 0, false
+}
+
+// BudgetExpansion returns the amount to relax/expand the base
+// inlining budget when the new inliner is turned on; the inliner
+// will add the returned value to the hairyness budget.
+//
+// Background: with the new inliner, the score for a given callsite
+// can be adjusted down by some amount due to heuristics, however we
+// won't know whether this is going to happen until much later after
+// the CanInline call. This function returns the amount to relax the
+// budget initially (to allow for a large score adjustment); later on
+// in RevisitInlinability we'll look at each individual function to
+// demote it if needed.
+func BudgetExpansion(maxBudget int32) int32 {
+	if base.Debug.InlBudgetSlack != 0 {
+		return int32(base.Debug.InlBudgetSlack)
+	}
+	// In the default case, return maxBudget, which will effectively
+	// double the budget from 80 to 160; this should be good enough
+	// for most cases.
+	return maxBudget
 }
 
 var allCallSites CallSiteTab
