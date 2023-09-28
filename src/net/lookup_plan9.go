@@ -212,15 +212,17 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port 
 	}
 	lines, err := queryCS(ctx, network, "127.0.0.1", toLower(service))
 	if err != nil {
+		if stringsHasSuffix(err.Error(), "can't translate service") {
+			return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
+		}
 		return
 	}
-	unknownPortError := &AddrError{Err: "unknown port", Addr: network + "/" + service}
 	if len(lines) == 0 {
-		return 0, unknownPortError
+		return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
 	}
 	f := getFields(lines[0])
 	if len(f) < 2 {
-		return 0, unknownPortError
+		return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
 	}
 	s := f[1]
 	if i := bytealg.IndexByteString(s, '!'); i >= 0 {
@@ -229,7 +231,7 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port 
 	if n, _, ok := dtoi(s); ok {
 		return n, nil
 	}
-	return 0, unknownPortError
+	return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
 }
 
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {

@@ -19,6 +19,7 @@ const (
 	_C_AF_UNSPEC    = syscall.AF_UNSPEC
 	_C_EAI_AGAIN    = unix.EAI_AGAIN
 	_C_EAI_NONAME   = unix.EAI_NONAME
+	_C_EAI_SERVICE  = unix.EAI_SERVICE
 	_C_EAI_NODATA   = unix.EAI_NODATA
 	_C_EAI_OVERFLOW = unix.EAI_OVERFLOW
 	_C_EAI_SYSTEM   = unix.EAI_SYSTEM

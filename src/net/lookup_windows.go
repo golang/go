@@ -22,6 +22,7 @@ const cgoAvailable = true
 const (
 	_WSAHOST_NOT_FOUND = syscall.Errno(11001)
 	_WSATRY_AGAIN      = syscall.Errno(11002)
+	_WSATYPE_NOT_FOUND = syscall.Errno(10109)
 )
 
 func winError(call string, err error) error {
@@ -217,12 +218,16 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 		if port, err := lookupPortMap(network, service); err == nil {
 			return port, nil
 		}
-		err := winError("getaddrinfow", e)
-		dnsError := &DNSError{Err: err.Error(), Name: network + "/" + service}
-		if err == errNoSuchHost {
-			dnsError.IsNotFound = true
+
+		// The _WSATYPE_NOT_FOUND error is returned by GetAddrInfoW
+		// when the service name is unknown. We are also checking
+		// for _WSAHOST_NOT_FOUND here to match the cgo (unix) version
+		// cgo_unix.go (cgoLookupServicePort).
+		if e == _WSATYPE_NOT_FOUND || e == _WSAHOST_NOT_FOUND {
+			return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
 		}
-		return 0, dnsError
+		err := os.NewSyscallError("getaddrinfow", e)
+		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service}
 	}
 	defer syscall.FreeAddrInfoW(result)
 	if result == nil {
