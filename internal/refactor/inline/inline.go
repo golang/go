@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/constant"
 	"go/format"
 	"go/parser"
 	"go/token"
@@ -1816,17 +1817,30 @@ func duplicable(info *types.Info, e ast.Expr) bool {
 	switch e := e.(type) {
 	case *ast.ParenExpr:
 		return duplicable(info, e.X)
+
 	case *ast.Ident:
 		return true
+
 	case *ast.BasicLit:
-		return e.Kind == token.INT
+		v := info.Types[e].Value
+		switch e.Kind {
+		case token.INT:
+			return true // any int
+		case token.STRING:
+			return consteq(v, kZeroString) // only ""
+		case token.FLOAT:
+			return consteq(v, kZeroFloat) || consteq(v, kOneFloat) // only 0.0 or 1.0
+		}
+
 	case *ast.UnaryExpr: // e.g. +1, -1
 		return (e.Op == token.ADD || e.Op == token.SUB) && duplicable(info, e.X)
+
 	case *ast.CallExpr:
 		// Don't treat a conversion T(x) as duplicable even
 		// if x is duplicable because it could duplicate
 		// allocations. There may be cases to tease apart here.
 		return false
+
 	case *ast.SelectorExpr:
 		if sel, ok := info.Selections[e]; ok {
 			// A field or method selection x.f is referentially
@@ -1835,10 +1849,20 @@ func duplicable(info *types.Info, e ast.Expr) bool {
 		}
 		// A qualified identifier pkg.Name is referentially transparent.
 		return true
-	default:
-		return false
 	}
+	return false
 }
+
+func consteq(x, y constant.Value) bool {
+	return constant.Compare(x, token.EQL, y)
+}
+
+var (
+	kZeroInt    = constant.MakeInt64(0)
+	kZeroString = constant.MakeString("")
+	kZeroFloat  = constant.MakeFloat64(0.0)
+	kOneFloat   = constant.MakeFloat64(1.0)
+)
 
 // -- inline helpers --
 

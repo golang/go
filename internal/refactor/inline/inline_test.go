@@ -376,10 +376,10 @@ func TestBasics(t *testing.T) {
 		{
 			"Non-duplicable arguments are not substituted even if pure.",
 			`func f(s string, i int) { print(s, s, i, i) }`,
-			`func _() { f("", 0)  }`,
+			`func _() { f("hi", 0)  }`,
 			`func _() {
 	{
-		var s string = ""
+		var s string = "hi"
 		print(s, s, 0, 0)
 	}
 }`,
@@ -777,11 +777,11 @@ func TestNamedResultVars(t *testing.T) {
 		{
 			"Ditto, with binding decl again.",
 			`func f(y string) (x int) { return x+x+len(y+y) }`,
-			`func _() { f("") }`,
+			`func _() { f(".") }`,
 			`func _() {
 	{
 		var (
-			y string = ""
+			y string = "."
 			x int
 		)
 		_ = x + x + len(y+y)
@@ -792,11 +792,11 @@ func TestNamedResultVars(t *testing.T) {
 		{
 			"Ditto, with binding decl (due to repeated y refs).",
 			`func f(y string) (x string) { return x+y+y }`,
-			`func _() { f("") }`,
+			`func _() { f(".") }`,
 			`func _() {
 	{
 		var (
-			y string = ""
+			y string = "."
 			x string
 		)
 		_ = x + y + y
@@ -835,8 +835,8 @@ func TestNamedResultVars(t *testing.T) {
 		{
 			"Shadowing in binding decl for named results => literalization.",
 			`func f(y string) (x y) { return x+x+len(y+y) }; type y = int`,
-			`func _() { f("") }`,
-			`func _() { func(y string) (x y) { return x + x + len(y+y) }("") }`,
+			`func _() { f(".") }`,
+			`func _() { func(y string) (x y) { return x + x + len(y+y) }(".") }`,
 		},
 	})
 }
