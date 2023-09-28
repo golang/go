@@ -235,9 +235,9 @@ func makeSettings(sandbox *Sandbox, config EditorConfig) map[string]interface{} 
 		// asynchronous operations being completed (such as diagnosing a snapshot).
 		"verboseWorkDoneProgress": true,
 
-		// Set a generous completion budget, so that tests don't flake because
+		// Set an unlimited completion budget, so that tests don't flake because
 		// completions are too slow.
-		"completionBudget": "10s",
+		"completionBudget": "0s",
 	}
 
 	for k, v := range config.Settings {
