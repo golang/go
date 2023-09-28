@@ -104,7 +104,7 @@ func (r *Reader) Reset(input io.Reader) {
 	r.frameSizeUnknown = false
 	r.remainingFrameSize = 0
 	r.blockOffset = 0
-	// buffer
+	r.buffer = r.buffer[:0]
 	r.off = 0
 	// repeatedOffset1
 	// repeatedOffset2
