@@ -209,7 +209,7 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 		hints.Protocol = syscall.IPPROTO_TCP
 	case "udp", "udp4", "udp6":
 		hints.Socktype = syscall.SOCK_DGRAM
-		hints.Protocol = syscall.IPPROTO.UDP
+		hints.Protocol = syscall.IPPROTO_UDP
 	default:
 		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}
 	}
