@@ -1470,7 +1470,7 @@ func TestLookupPortNotFound(t *testing.T) {
 }
 
 func TestLookupPortDifferentNetwork(t *testing.T) {
-	// imaps service is only avilable through a tcp network, see:
+	// imaps service is only available through a tcp network, see:
 	// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=imaps
 	_, err := LookupPort("udp", "imaps")
 	var dnsErr *DNSError
