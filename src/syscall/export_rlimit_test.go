@@ -7,8 +7,7 @@
 package syscall
 
 func OrigRlimitNofile() Rlimit {
-	rlim := origRlimitNofile.Load()
-	if rlim != nil {
+	if rlim := origRlimitNofile.Load(); rlim != nil {
 		return *rlim
 	}
 	return Rlimit{0, 0}
