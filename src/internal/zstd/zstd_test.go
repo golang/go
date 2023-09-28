@@ -127,6 +127,26 @@ func TestSamples(t *testing.T) {
 	}
 }
 
+func TestReset(t *testing.T) {
+	input := strings.NewReader("")
+	r := NewReader(input)
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			input.Reset(test.compressed)
+			r.Reset(input)
+			got, err := io.ReadAll(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotstr := string(got)
+			if gotstr != test.uncompressed {
+				t.Errorf("got %q want %q", gotstr, test.uncompressed)
+			}
+		})
+	}
+}
+
 var (
 	bigDataOnce  sync.Once
 	bigDataBytes []byte
