@@ -283,7 +283,7 @@ TEXT ·Or(SB), NOSPLIT, $0-12
 	AMOORW	A1, (A0), ZERO
 	RET
 
-	// func Or32(addr *uint32, v uint32) old uint32
+// func Or32(addr *uint32, v uint32) old uint32
 TEXT ·Or32(SB), NOSPLIT, $0-20
 	MOV	ptr+0(FP), A0
 	MOVW	val+8(FP), A1
