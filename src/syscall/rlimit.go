@@ -40,9 +40,9 @@ func init() {
 func Setrlimit(resource int, rlim *Rlimit) error {
 	err := setrlimit(resource, rlim)
 	if err == nil && resource == RLIMIT_NOFILE {
-		// Store zeroes in origRlimitNofile to tell StartProcess
+		// Store nil in origRlimitNofile to tell StartProcess
 		// to not adjust the rlimit in the child process.
-		origRlimitNofile.Store(&Rlimit{0, 0})
+		origRlimitNofile.Store(nil)
 	}
 	return err
 }
