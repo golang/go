@@ -272,7 +272,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	// Restore original rlimit.
-	if rlim.Cur != 0 {
+	if rlim != nil && rlim.Cur != 0 {
 		rawSyscall(abi.FuncPCABI0(libc_setrlimit_trampoline), uintptr(RLIMIT_NOFILE), uintptr(unsafe.Pointer(rlim)), 0)
 	}
 

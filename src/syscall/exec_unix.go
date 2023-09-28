@@ -282,7 +282,7 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 	runtime_BeforeExec()
 
 	rlim := origRlimitNofile.Load()
-	if rlim.Cur != 0 {
+	if rlim != nil && rlim.Cur != 0 {
 		Setrlimit(RLIMIT_NOFILE, rlim)
 	}
 
