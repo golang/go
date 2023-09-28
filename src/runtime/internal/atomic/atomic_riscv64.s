@@ -282,3 +282,47 @@ TEXT ·Or(SB), NOSPLIT, $0-12
 	MOVW	val+8(FP), A1
 	AMOORW	A1, (A0), ZERO
 	RET
+
+	// func Or32(addr *uint32, v uint32) old uint32
+TEXT ·Or32(SB), NOSPLIT, $0-20
+	MOV	ptr+0(FP), A0
+	MOVW	val+8(FP), A1
+	LRW (A0), A2
+	AMOORW	A1, (A0), ZERO
+	MOVW A2, ret+16(FP)
+	RET
+
+// func And32(addr *uint32, v uint32) old uint32
+TEXT ·And32(SB), NOSPLIT, $0-20
+	MOV	ptr+0(FP), A0
+	MOVW	val+8(FP), A1
+	LRW (A0), A2
+	AMOANDW	A1, (A0), ZERO
+	MOVW A2, ret+16(FP)
+	RET
+
+// func Or64(addr *uint64, v uint64) old uint64
+TEXT ·Or64(SB), NOSPLIT, $0-24
+	MOV	ptr+0(FP), A0
+	MOV	val+8(FP), A1
+	LRD (A0), A2
+	AMOORD	A1, (A0), ZERO
+	MOV A2, ret+16(FP)
+	RET
+
+// func And64(addr *uint64, v uint64) old uint64
+TEXT ·And64(SB), NOSPLIT, $0-24
+	MOV	ptr+0(FP), A0
+	MOV	val+8(FP), A1
+	LRD (A0), A2
+	AMOANDD	A1, (A0), ZERO
+	MOV A2, ret+16(FP)
+	RET
+
+// func Anduintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Anduintptr(SB), NOSPLIT, $0-24
+	JMP	·And64(SB)
+
+// func Oruintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Oruintptr(SB), NOSPLIT, $0-24
+	JMP	·Or64(SB)
