@@ -220,9 +220,10 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 		}
 
 		// The _WSATYPE_NOT_FOUND error is returned by GetAddrInfoW
-		// when the service name is unknown, instead of the _WSAHOST_NOT_FOUND
-		// used by the winError function.
-		if e == _WSATYPE_NOT_FOUND {
+		// when the service name is unknown. We are also checking
+		// for _WSAHOST_NOT_FOUND here to match the cgo (unix) version
+		// cgo_unix.go (cgoLookupServicePort).
+		if e == _WSATYPE_NOT_FOUND || e == _WSAHOST_NOT_FOUND {
 			return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
 		}
 		err := os.NewSyscallError("getaddrinfow", e)
