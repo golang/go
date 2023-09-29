@@ -545,20 +545,6 @@ func BenchmarkClear(b *testing.B) {
 
 				m.Store(k, v)
 				// Skipping load calls due to concurrency
-
-				/*v1, ok := m.Load(k)
-
-				if !ok {
-					b.Logf("failed to load %v", k)
-					// b.Skip() Unsafe to call in perfG
-					continue
-				}
-
-				if v1.(int) != v {
-					b.Errorf("expected %v, got %v", k, v)
-					// b.Skip()
-					continue
-				}*/
 			}
 		},
 	})
