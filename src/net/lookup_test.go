@@ -1471,16 +1471,15 @@ func TestLookupPortNotFound(t *testing.T) {
 	})
 }
 
+// submissions service is only available through a tcp network, see:
+// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=submissions
+const tcpOnlyService = "submissions"
+
 func TestLookupPortDifferentNetwork(t *testing.T) {
 	allResolvers(t, func(t *testing.T) {
-		// imaps service is only available through a tcp network, see:
-		// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=imaps
-		_, err := LookupPort("udp", "imaps")
+		_, err := LookupPort("udp", tcpOnlyService)
 		var dnsErr *DNSError
 		if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
-			// TODO remove, for debugging:
-			goLookupPort("tcp", "imaps")
-			t.Logf("services: %#v", services)
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -1488,7 +1487,16 @@ func TestLookupPortDifferentNetwork(t *testing.T) {
 
 func TestLookupPortEmptyNetworkString(t *testing.T) {
 	allResolvers(t, func(t *testing.T) {
-		_, err := LookupPort("", "imaps")
+		_, err := LookupPort("", tcpOnlyService)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestLookupPortEmptyIPNetworkString(t *testing.T) {
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("ip", tcpOnlyService)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
