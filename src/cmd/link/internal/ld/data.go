@@ -84,6 +84,9 @@ func maxSizeTrampolines(ctxt *Link, ldr *loader.Loader, s loader.Sym, isTramp bo
 		}
 	}
 
+	if ctxt.IsARM() {
+		return n * 20 // Trampolines in ARM range from 3 to 5 instructions.
+	}
 	if ctxt.IsPPC64() {
 		return n * 16 // Trampolines in PPC64 are 4 instructions.
 	}
@@ -2533,15 +2536,22 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 
 // Return whether we may need to split text sections.
 //
-// On PPC64x whem external linking a text section should not be larger than 2^25 bytes
-// due to the size of call target offset field in the bl instruction.  Splitting into
-// smaller text sections smaller than this limit allows the system linker to modify the long
-// calls appropriately. The limit allows for the space needed for tables inserted by the
-// linker.
+// On PPC64x, when external linking, a text section should not be
+// larger than 2^25 bytes due to the size of call target offset field
+// in the 'bl' instruction. Splitting into smaller text sections
+// smaller than this limit allows the system linker to modify the long
+// calls appropriately. The limit allows for the space needed for
+// tables inserted by the linker.
 //
 // The same applies to Darwin/ARM64, with 2^27 byte threshold.
+//
+// Similarly for ARM, we split sections (at 2^25 bytes) to avoid
+// inconsistencies between the Go linker's reachability calculations
+// (e.g. will direct call from X to Y need a trampoline) and similar
+// machinery in the external linker; see #58425 for more on the
+// history here.
 func splitTextSections(ctxt *Link) bool {
-	return (ctxt.IsPPC64() || (ctxt.IsARM64() && ctxt.IsDarwin())) && ctxt.IsExternal()
+	return (ctxt.IsARM() || ctxt.IsPPC64() || (ctxt.IsARM64() && ctxt.IsDarwin())) && ctxt.IsExternal()
 }
 
 // On Wasm, we reserve 4096 bytes for zero page, then 8192 bytes for wasm_exec.js
