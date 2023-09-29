@@ -5,7 +5,10 @@
 package source
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode"
@@ -13,6 +16,59 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
+
+// ErrNoEmbed is returned by EmbedDefinition when no embed
+// directive is found at a particular position.
+// As such it indicates that other definitions could be worth checking.
+var ErrNoEmbed = errors.New("no embed directive found")
+
+var errStopWalk = errors.New("stop walk")
+
+// EmbedDefinition finds a file matching the embed directive at pos in the mapped file.
+// If there is no embed directive at pos, returns ErrNoEmbed.
+// If multiple files match the embed pattern, one is picked at random.
+func EmbedDefinition(m *protocol.Mapper, pos protocol.Position) ([]protocol.Location, error) {
+	pattern, _ := parseEmbedDirective(m, pos)
+	if pattern == "" {
+		return nil, ErrNoEmbed
+	}
+
+	// Find the first matching file.
+	var match string
+	dir := filepath.Dir(m.URI.Filename())
+	err := filepath.WalkDir(dir, func(abs string, d fs.DirEntry, e error) error {
+		if e != nil {
+			return e
+		}
+		rel, err := filepath.Rel(dir, abs)
+		if err != nil {
+			return err
+		}
+		ok, err := filepath.Match(pattern, rel)
+		if err != nil {
+			return err
+		}
+		if ok && !d.IsDir() {
+			match = abs
+			return errStopWalk
+		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, errStopWalk) {
+		return nil, err
+	}
+	if match == "" {
+		return nil, fmt.Errorf("%q does not match any files in %q", pattern, dir)
+	}
+
+	loc := protocol.Location{
+		URI: protocol.URIFromPath(match),
+		Range: protocol.Range{
+			Start: protocol.Position{Line: 0, Character: 0},
+		},
+	}
+	return []protocol.Location{loc}, nil
+}
 
 // parseEmbedDirective attempts to parse a go:embed directive argument at pos.
 // If successful it return the directive argument and its range, else zero values are returned.

@@ -6,6 +6,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -56,6 +57,18 @@ func Definition(ctx context.Context, snapshot Snapshot, fh FileHandle, position 
 			return nil, err
 		}
 		return []protocol.Location{loc}, nil
+	}
+
+	// Handle the case where the cursor is in a linkname directive.
+	locations, err := LinknameDefinition(ctx, snapshot, fh, position)
+	if !errors.Is(err, ErrNoLinkname) {
+		return locations, err
+	}
+
+	// Handle the case where the cursor is in an embed directive.
+	locations, err = EmbedDefinition(pgf.Mapper, position)
+	if !errors.Is(err, ErrNoEmbed) {
+		return locations, err
 	}
 
 	// The general case: the cursor is on an identifier.

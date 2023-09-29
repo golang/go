@@ -640,7 +640,7 @@ func hoverEmbed(fh FileHandle, rng protocol.Range, pattern string) (protocol.Ran
 
 	dir := filepath.Dir(fh.URI().Filename())
 	var matches []string
-	err := filepath.WalkDir(dir, func(abs string, _ fs.DirEntry, e error) error {
+	err := filepath.WalkDir(dir, func(abs string, d fs.DirEntry, e error) error {
 		if e != nil {
 			return e
 		}
@@ -652,7 +652,7 @@ func hoverEmbed(fh FileHandle, rng protocol.Range, pattern string) (protocol.Ran
 		if err != nil {
 			return err
 		}
-		if ok {
+		if ok && !d.IsDir() {
 			matches = append(matches, rel)
 		}
 		return nil

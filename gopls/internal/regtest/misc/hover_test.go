@@ -458,6 +458,8 @@ BAR
 BAZ
 -- other.sql --
 SKIPPED
+-- dir.txt/skip.txt --
+SKIPPED
 `
 
 func TestHoverEmbedDirective(t *testing.T) {
@@ -476,6 +478,15 @@ func TestHoverEmbedDirective(t *testing.T) {
 		for _, want := range wants {
 			if !strings.Contains(content, want) {
 				t.Errorf("hover: %q does not contain: %q", content, want)
+			}
+		}
+
+		// A directory should never be matched, even if it happens to have a matching name.
+		// Content in subdirectories should not match on only one asterisk.
+		skips := []string{"other.sql", "dir.txt", "skip.txt"}
+		for _, skip := range skips {
+			if strings.Contains(content, skip) {
+				t.Errorf("hover: %q should not contain: %q", content, skip)
 			}
 		}
 	})

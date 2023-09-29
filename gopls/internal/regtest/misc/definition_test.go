@@ -529,3 +529,43 @@ const _ = b.K
 		}
 	})
 }
+
+const embedDefinition = `
+-- go.mod --
+module mod.com
+
+-- main.go --
+package main
+
+import (
+	"embed"
+)
+
+//go:embed *.txt
+var foo embed.FS
+
+func main() {}
+
+-- skip.sql --
+SKIP
+
+-- foo.txt --
+FOO
+
+-- skip.bat --
+SKIP
+`
+
+func TestGoToEmbedDefinition(t *testing.T) {
+	Run(t, embedDefinition, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+
+		start := env.RegexpSearch("main.go", `\*.txt`)
+		loc := env.GoToDefinition(start)
+
+		name := env.Sandbox.Workdir.URIToPath(loc.URI)
+		if want := "foo.txt"; name != want {
+			t.Errorf("GoToDefinition: got file %q, want %q", name, want)
+		}
+	})
+}
