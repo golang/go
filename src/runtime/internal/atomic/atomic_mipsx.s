@@ -270,6 +270,14 @@ TEXT ·And32(SB), NOSPLIT, $0-12
 	MOVW R4, ret+8(FP)
 	RET
 
+// func Anduintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Anduintptr(SB), NOSPLIT, $0-12
+	JMP	·And32(SB)
+
+// func Oruintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Oruintptr(SB), NOSPLIT, $0-12
+	JMP	·Or32(SB)
+
 TEXT ·spinLock(SB),NOSPLIT,$0-4
 	MOVW	state+0(FP), R1
 	MOVW	$1, R2

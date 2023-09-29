@@ -106,24 +106,22 @@ func Store64(addr *uint64, val uint64) {
 
 //go:nosplit
 func Or64(addr *uint64, val uint64) (old uint64) {
-	lockAndCheck(addr)
-
-	old = *addr
-	*addr = old | val
-
-	unlockNoFence()
-	return old
+	for {
+		old = *addr
+		if Cas64(addr, old, old|val) {
+			return old
+		}
+	}
 }
 
 //go:nosplit
 func And64(addr *uint64, val uint64) (old uint64) {
-	lockAndCheck(addr)
-
-	old = *addr
-	*addr = old & val
-
-	unlockNoFence()
-	return old
+	for {
+		old = *addr
+		if Cas64(addr, old, old&val) {
+			return old
+		}
+	}
 }
 
 //go:noescape
