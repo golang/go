@@ -1462,19 +1462,47 @@ func testLookupNoData(t *testing.T, prefix string) {
 }
 
 func TestLookupPortNotFound(t *testing.T) {
-	_, err := LookupPort("udp", "_-unknown-service-")
-	var dnsErr *DNSError
-	if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("udp", "_-unknown-service-")
+		var dnsErr *DNSError
+		if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
 }
 
 func TestLookupPortDifferentNetwork(t *testing.T) {
-	// imaps service is only available through a tcp network, see:
-	// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=imaps
-	_, err := LookupPort("udp", "imaps")
-	var dnsErr *DNSError
-	if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	allResolvers(t, func(t *testing.T) {
+		// imaps service is only available through a tcp network, see:
+		// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=imaps
+		_, err := LookupPort("udp", "imaps")
+		var dnsErr *DNSError
+		if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
+			// TODO remove, for debugging:
+			goLookupPort("tcp", "imaps")
+			t.Logf("services: %#v", services)
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestLookupPortEmptyNetworkString(t *testing.T) {
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("", "imaps")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func allResolvers(t *testing.T, f func(t *testing.T)) {
+	t.Run("default resolver", f)
+	t.Run("forced go resolver", func(t *testing.T) {
+		defer forceGoDNS()()
+		f(t)
+	})
+	t.Run("forced cgo resolver", func(t *testing.T) {
+		defer forceCgoDNS()()
+		f(t)
+	})
 }

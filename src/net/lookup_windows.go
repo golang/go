@@ -204,6 +204,7 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 	var hints syscall.AddrinfoW
 
 	switch network {
+	case "ip": // no hints
 	case "tcp", "tcp4", "tcp6":
 		hints.Socktype = syscall.SOCK_STREAM
 		hints.Protocol = syscall.IPPROTO_TCP

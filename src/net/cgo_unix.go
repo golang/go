@@ -80,7 +80,7 @@ func cgoLookupHost(ctx context.Context, name string) (hosts []string, err error)
 func cgoLookupPort(ctx context.Context, network, service string) (port int, err error) {
 	var hints _C_struct_addrinfo
 	switch network {
-	case "": // no hints
+	case "ip": // no hints
 	case "tcp", "tcp4", "tcp6":
 		*_C_ai_socktype(&hints) = _C_SOCK_STREAM
 		*_C_ai_protocol(&hints) = _C_IPPROTO_TCP

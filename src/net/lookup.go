@@ -83,12 +83,21 @@ const maxPortBufSize = len("mobility-header") + 10
 
 func lookupPortMap(network, service string) (port int, error error) {
 	switch network {
-	case "tcp4", "tcp6":
-		network = "tcp"
-	case "udp4", "udp6":
-		network = "udp"
+	case "ip": // no hints
+		if p, err := lookupPortMapWithNetwork("tcp", service); err == nil {
+			return p, nil
+		}
+		// TODO: error is wrong here (Name network)
+		return lookupPortMapWithNetwork("udp", service)
+	case "tcp", "tcp4", "tcp6":
+		return lookupPortMapWithNetwork("tcp", service)
+	case "udp", "udp4", "udp6":
+		return lookupPortMapWithNetwork("udp", service)
 	}
+	return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}
+}
 
+func lookupPortMapWithNetwork(network, service string) (port int, error error) {
 	if m, ok := services[network]; ok {
 		var lowerService [maxPortBufSize]byte
 		n := copy(lowerService[:], service)
@@ -415,11 +424,13 @@ func LookupPort(network, service string) (port int, err error) {
 }
 
 // LookupPort looks up the port for the given network and service.
+//
+// The network must be one of "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6" or "ip".
 func (r *Resolver) LookupPort(ctx context.Context, network, service string) (port int, err error) {
 	port, needsLookup := parsePort(service)
 	if needsLookup {
 		switch network {
-		case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6":
+		case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6", "ip":
 		case "": // a hint wildcard for Go 1.0 undocumented behavior
 			network = "ip"
 		default:
