@@ -331,18 +331,29 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			}
 		}
 
+		newlyAdded := func(name string) bool {
+			for _, new := range newImports {
+				if new.Name.Name == name {
+					return true
+				}
+			}
+			return false
+		}
+
 		// import added by callee
 		//
 		// Choose local PkgName based on last segment of
 		// package path plus, if needed, a numeric suffix to
 		// ensure uniqueness.
 		//
+		// "init" is not a legal PkgName.
+		//
 		// TODO(adonovan): preserve the PkgName used
 		// in the original source, or, for a dot import,
 		// use the package's declared name.
 		base := pathpkg.Base(path)
 		name := base
-		for n := 0; shadows[name] || caller.lookup(name) != nil; n++ {
+		for n := 0; shadows[name] || caller.lookup(name) != nil || newlyAdded(name) || name == "init"; n++ {
 			name = fmt.Sprintf("%s%d", base, n)
 		}
 

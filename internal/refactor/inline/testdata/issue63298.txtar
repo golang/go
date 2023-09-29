@@ -1,0 +1,52 @@
+Regression test for #63298: inlining a function that
+depends on two packages with the same name leads
+to duplicate PkgNames.
+
+-- go.mod --
+module testdata
+go 1.12
+
+-- a/a.go --
+package a
+
+func _() {
+	a2() //@ inline(re"a2", result)
+}
+
+-- a/a2.go --
+package a
+
+import "testdata/b"
+import anotherb "testdata/another/b"
+
+func a2() {
+	b.B()
+	anotherb.B()
+}
+
+-- b/b.go --
+package b
+
+func B() {}
+
+-- b/another/b.go --
+package b
+
+func B() {}
+
+-- result --
+package a
+
+import (
+	b "testdata/b"
+	b0 "testdata/another/b"
+
+	//@ inline(re"a2", result)
+)
+
+func _() {
+	{
+		b.B()
+		b0.B()
+	}
+}
