@@ -401,6 +401,17 @@ func TestSubstitution(t *testing.T) {
 			`func _() { var local int; f(local) }`,
 			`func _() { var local int; _ = local }`,
 		},
+		{
+			"Regression test for detection of shadowing in nested functions.",
+			`func f(x int) { _ = func() { y := 1; print(y); print(x) } }`,
+			`func _(y int) { f(y) } `,
+			`func _(y int) {
+	{
+		var x int = y
+		_ = func() { y := 1; print(y); print(x) }
+	}
+}`,
+		},
 	})
 }
 

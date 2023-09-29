@@ -472,7 +472,7 @@ func analyzeParams(logf func(string, ...any), fset *token.FileSet, info *types.I
 // for the reference.
 func addShadows(shadows map[string]bool, info *types.Info, exclude string, stack []ast.Node) map[string]bool {
 	for _, n := range stack {
-		if scope, ok := info.Scopes[n]; ok {
+		if scope := scopeFor(info, n); scope != nil {
 			for _, name := range scope.Names() {
 				if name != exclude {
 					if shadows == nil {

@@ -1536,18 +1536,25 @@ func createBindingDecl(logf func(string, ...any), caller *Caller, args []*argume
 func (caller *Caller) lookup(name string) types.Object {
 	pos := caller.Call.Pos()
 	for _, n := range caller.path {
-		// The function body scope (containing not just params)
-		// is associated with FuncDecl.Type, not FuncDecl.Body.
-		if decl, ok := n.(*ast.FuncDecl); ok {
-			n = decl.Type
-		}
-		if scope := caller.Info.Scopes[n]; scope != nil {
+		if scope := scopeFor(caller.Info, n); scope != nil {
 			if _, obj := scope.LookupParent(name, pos); obj != nil {
 				return obj
 			}
 		}
 	}
 	return nil
+}
+
+func scopeFor(info *types.Info, n ast.Node) *types.Scope {
+	// The function body scope (containing not just params)
+	// is associated with the function's type, not body.
+	switch fn := n.(type) {
+	case *ast.FuncDecl:
+		n = fn.Type
+	case *ast.FuncLit:
+		n = fn.Type
+	}
+	return info.Scopes[n]
 }
 
 // -- predicates over expressions --
