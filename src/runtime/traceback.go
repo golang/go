@@ -359,15 +359,12 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 		//
 		// uSE uPE inn | action
 		//  T   _   _  | frame.lr = 0
-		//  F   T   F  | frame.lr = 0; print
-		//  F   T   T  | frame.lr = 0
+		//  F   T   _  | frame.lr = 0
 		//  F   F   F  | print; panic
 		//  F   F   T  | ignore SPWrite
-		if u.flags&unwindSilentErrors == 0 && !innermost {
+		if u.flags&(unwindPrintErrors|unwindSilentErrors) == 0 && !innermost {
 			println("traceback: unexpected SPWRITE function", funcname(f))
-			if u.flags&unwindPrintErrors == 0 {
-				throw("traceback")
-			}
+			throw("traceback")
 		}
 		frame.lr = 0
 	} else {
