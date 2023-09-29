@@ -1277,7 +1277,7 @@ func Munmap(b []byte) (err error) {
 func prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) {
 	err = prlimit1(pid, resource, newlimit, old)
 	if err == nil && newlimit != nil && resource == RLIMIT_NOFILE {
-		origRlimitNofile.Store(Rlimit{0, 0})
+		origRlimitNofile.Store(nil)
 	}
 	return err
 }
