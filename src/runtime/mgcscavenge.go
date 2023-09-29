@@ -1145,21 +1145,11 @@ func (s *scavengeIndex) alloc(ci chunkIdx, npages uint) {
 		// Mark that we're considering this chunk as backed by huge pages.
 		sc.setHugePage()
 
-		// Collapse dense chunks into huge pages and mark that
-		// we did that, but only if we're not allocating to
-		// use the entire chunk. If we're allocating an entire chunk,
-		// this is likely part of a much bigger allocation. For
-		// instance, if the caller is allocating a 1 GiB slice of bytes, we
-		// don't want to go and manually collapse all those pages; we want
-		// them to be demand-paged. If the caller is actually going to use
-		// all that memory, it'll naturally get backed by huge pages later.
-		//
-		// This also avoids having sysHugePageCollapse fail. On Linux,
-		// the call requires that some part of the huge page being collapsed
-		// is already paged in.
-		if !s.test && npages < pallocChunkPages {
-			sysHugePageCollapse(unsafe.Pointer(chunkBase(ci)), pallocChunkBytes)
-		}
+		// TODO(mknyszek): Consider eagerly backing memory with huge pages
+		// here. In the past we've attempted to use sysHugePageCollapse
+		// (which uses MADV_COLLAPSE on Linux, and is unsupported elswhere)
+		// for this purpose, but that caused performance issues in production
+		// environments.
 	}
 	s.chunks[ci].store(sc)
 }
