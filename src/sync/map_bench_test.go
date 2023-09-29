@@ -544,7 +544,6 @@ func BenchmarkClear(b *testing.B) {
 				m.Clear()
 
 				m.Store(k, v)
-				// Skipping load calls due to concurrency
 			}
 		},
 	})
