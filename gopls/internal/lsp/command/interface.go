@@ -37,6 +37,7 @@ type Interface interface {
 	//
 	// Applies a fix to a region of source code.
 	ApplyFix(context.Context, ApplyFixArgs) error
+
 	// Test: Run test(s) (legacy)
 	//
 	// Runs `go test` for a specific set of test or benchmark functions.

@@ -5,6 +5,9 @@
 package fuzzy
 
 import (
+	"bytes"
+	"fmt"
+	"log"
 	"unicode"
 )
 
@@ -36,10 +39,12 @@ type SymbolMatcher struct {
 	segments    [256]uint8  // how many segments from the right is each rune
 }
 
+// Rune roles.
 const (
-	segmentStart uint32 = 1 << iota
-	wordStart
-	separator
+	segmentStart uint32 = 1 << iota // input rune starts a segment (i.e. follows '/' or '.')
+	wordStart                       // input rune starts a word, per camel-case naming rules
+	separator                       // input rune is a separator ('/' or '.')
+	upper                           // input rune is an upper case letter
 )
 
 // NewSymbolMatcher creates a SymbolMatcher that may be used to match the given
@@ -61,17 +66,17 @@ func NewSymbolMatcher(pattern string) *SymbolMatcher {
 	return m
 }
 
-// Match looks for the right-most match of the search pattern within the symbol
-// represented by concatenating the given chunks, returning its offset and
-// score.
+// Match searches for the right-most match of the search pattern within the
+// symbol represented by concatenating the given chunks.
 //
-// If a match is found, the first return value will hold the absolute byte
-// offset within all chunks for the start of the symbol. In other words, the
-// index of the match within strings.Join(chunks, ""). If no match is found,
-// the first return value will be -1.
+// If a match is found, the first result holds the absolute byte offset within
+// all chunks for the start of the symbol. In other words, the index of the
+// match within strings.Join(chunks, "").
 //
 // The second return value will be the score of the match, which is always
 // between 0 and 1, inclusive. A score of 0 indicates no match.
+//
+// If no match is found, Match returns (-1, 0).
 func (m *SymbolMatcher) Match(chunks []string) (int, float64) {
 	// Explicit behavior for an empty pattern.
 	//
@@ -81,11 +86,25 @@ func (m *SymbolMatcher) Match(chunks []string) (int, float64) {
 		return -1, 0
 	}
 
-	// First phase: populate the input buffer with lower-cased runes.
+	// Matching implements a heavily optimized linear scoring algorithm on the
+	// input. This is not guaranteed to produce the highest score, but works well
+	// enough, particularly due to the right-to-left significance of qualified
+	// symbols.
+	//
+	// Matching proceeds in three passes through the input:
+	//  - The first pass populates the input buffer and collects rune roles.
+	//  - The second pass proceeds right-to-left to find the right-most match.
+	//  - The third pass proceeds left-to-right from the start of the right-most
+	//    match, to find the most *compact* match, and computes the score of this
+	//    match.
+	//
+	// See below for more details of each pass, as well as the scoring algorithm.
+
+	// First pass: populate the input buffer out of the provided chunks
+	// (lower-casing in the process), and collect rune roles.
 	//
 	// We could also check for a forward match here, but since we'd have to write
 	// the entire input anyway this has negligible impact on performance.
-
 	var (
 		inputLen  = uint8(0)
 		modifiers = wordStart | segmentStart
@@ -107,7 +126,16 @@ input:
 				l = unicode.ToLower(r)
 			}
 			if l != r {
-				modifiers |= wordStart
+				modifiers |= upper
+
+				// If the current rune is capitalized *and the preceding rune was not*,
+				// mark this as a word start. This avoids spuriously high ranking of
+				// non-camelcase naming schemas, such as the
+				// yaml_PARSE_FLOW_SEQUENCE_ENTRY_MAPPING_END_STATE example of
+				// golang/go#60201.
+				if inputLen == 0 || m.roles[inputLen-1]&upper == 0 {
+					modifiers |= wordStart
+				}
 			}
 			m.inputBuffer[inputLen] = l
 			m.roles[inputLen] = modifiers
@@ -125,14 +153,13 @@ input:
 		}
 	}
 
-	// Second phase: find the right-most match, and count segments from the
+	// Second pass: find the right-most match, and count segments from the
 	// right.
-
 	var (
 		pi    = uint8(m.patternLen - 1) // pattern index
 		p     = m.pattern[pi]           // pattern rune
 		start = -1                      // start offset of match
-		rseg  = uint8(0)
+		rseg  = uint8(0)                // effective "depth" from the right of the current rune in consideration
 	)
 	const maxSeg = 3 // maximum number of segments from the right to count, for scoring purposes.
 
@@ -144,6 +171,8 @@ input:
 		m.segments[ii] = rseg
 		if p == r {
 			if pi == 0 {
+				// TODO(rfindley): BUG: the docstring for Match says that it returns an
+				// absolute byte offset, but clearly it is returning a rune offset here.
 				start = int(ii)
 				break
 			}
@@ -161,84 +190,119 @@ input:
 		return -1, 0
 	}
 
-	// Third phase: find the shortest match, and compute the score.
+	// Third pass: find the shortest match and compute the score.
 
-	// Score is the average score for each character.
+	// Score is the average score for each rune.
 	//
-	// A character score is the multiple of:
-	//   1. 1.0 if the character starts a segment or is preceded by a matching
-	//      character, 0.9 if the character starts a mid-segment word, else 0.6.
+	// A rune score is the multiple of:
+	//   1. The base score, which is 1.0 if the rune starts a segment, 0.9 if the
+	//      rune starts a mid-segment word, else 0.6.
 	//
-	//      Note that characters preceded by a matching character get the max
-	//      score of 1.0 so that sequential or exact matches are preferred, even
-	//      if they don't start/end at a segment or word boundary. For example, a
-	//      match for "func" in intfuncs should have a higher score than in
-	//      ifunmatched.
+	//      Runes preceded by a matching rune are treated the same as the start
+	//      of a mid-segment word (with a 0.9 score), so that sequential or exact
+	//      matches are preferred. We call this a sequential bonus.
 	//
-	//      For the final character match, the multiplier from (1) is reduced to
-	//      0.9 if the next character in the input is a mid-segment word, or 0.6
-	//      if the next character in the input is not a word or segment start.
-	//      This ensures that we favor whole-word or whole-segment matches over
-	//      prefix matches.
+	//      For the final rune match, this sequential bonus is reduced to 0.8 if
+	//      the next rune in the input is a mid-segment word, or 0.7 if the next
+	//      rune in the input is not a word or segment start. This ensures that
+	//      we favor whole-word or whole-segment matches over prefix matches.
 	//
-	//   2. 1.0 if the character is part of the last segment, otherwise
+	//   2. 1.0 if the rune is part of the last segment, otherwise
 	//      1.0-0.1*<segments from the right>, with a max segment count of 3.
 	//      Notably 1.0-0.1*3 = 0.7 > 0.6, so that foo/_/_/_/_ (a match very
-	//      early in a qualified symbol name) still scores higher than _f_o_o_
-	//      (a completely split match).
+	//      early in a qualified symbol name) still scores higher than _f_o_o_ (a
+	//      completely split match).
 	//
 	// This is a naive algorithm, but it is fast. There's lots of prior art here
 	// that could be leveraged. For example, we could explicitly consider
-	// character distance, and exact matches of words or segments.
+	// rune distance, and exact matches of words or segments.
 	//
 	// Also note that this might not actually find the highest scoring match, as
 	// doing so could require a non-linear algorithm, depending on how the score
 	// is calculated.
 
+	// debugging support
+	const debug = false // enable to log debugging information
+	var (
+		runeScores []float64
+		runeIdxs   []int
+	)
+
 	pi = 0
 	p = m.pattern[pi]
 
 	const (
-		segStreak  = 1.0 // start of segment or sequential match
-		wordStreak = 0.9 // start of word match
-		noStreak   = 0.6
-		perSegment = 0.1 // we count at most 3 segments above
+		segStartScore = 1.0 // base score of runes starting a segment
+		wordScore     = 0.9 // base score of runes starting or continuing a word
+		noStreak      = 0.6
+		perSegment    = 0.1 // we count at most 3 segments above
 	)
 
-	streakBonus := noStreak
 	totScore := 0.0
+	lastMatch := uint8(255)
 	for ii := uint8(start); ii < inputLen; ii++ {
 		r := m.inputBuffer[ii]
 		if r == p {
 			pi++
+			finalRune := pi >= m.patternLen
 			p = m.pattern[pi]
-			// Note: this could be optimized with some bit operations.
-			switch {
-			case m.roles[ii]&segmentStart != 0 && segStreak > streakBonus:
-				streakBonus = segStreak
-			case m.roles[ii]&wordStart != 0 && wordStreak > streakBonus:
-				streakBonus = wordStreak
-			}
-			finalChar := pi >= m.patternLen
-			// finalCost := 1.0
-			if finalChar && streakBonus > noStreak {
-				switch {
-				case ii == inputLen-1 || m.roles[ii+1]&segmentStart != 0:
-					// Full segment: no reduction
-				case m.roles[ii+1]&wordStart != 0:
-					streakBonus = wordStreak
-				default:
-					streakBonus = noStreak
+
+			baseScore := noStreak
+
+			// Calculate the sequence bonus based on preceding matches.
+			//
+			// We do this first as it is overridden by role scoring below.
+			if lastMatch == ii-1 {
+				baseScore = wordScore
+				// Reduce the sequence bonus for the final rune of the pattern based on
+				// whether it borders a new segment or word.
+				if finalRune {
+					switch {
+					case ii == inputLen-1 || m.roles[ii+1]&separator != 0:
+						// Full segment: no reduction
+					case m.roles[ii+1]&wordStart != 0:
+						baseScore = wordScore - 0.1
+					default:
+						baseScore = wordScore - 0.2
+					}
 				}
 			}
-			totScore += streakBonus * (1.0 - float64(m.segments[ii])*perSegment)
-			if finalChar {
+			lastMatch = ii
+
+			// Calculate the rune's role score. If the rune starts a segment or word,
+			// this overrides the sequence score, as the rune starts a new sequence.
+			switch {
+			case m.roles[ii]&segmentStart != 0:
+				baseScore = segStartScore
+			case m.roles[ii]&wordStart != 0:
+				baseScore = wordScore
+			}
+
+			// Apply the segment-depth penalty (segments from the right).
+			runeScore := baseScore * (1.0 - float64(m.segments[ii])*perSegment)
+			if debug {
+				runeScores = append(runeScores, runeScore)
+				runeIdxs = append(runeIdxs, int(ii))
+			}
+			totScore += runeScore
+			if finalRune {
 				break
 			}
-			streakBonus = segStreak // see above: sequential characters get the max score
-		} else {
-			streakBonus = noStreak
 		}
+	}
+
+	if debug {
+		// Format rune roles and scores in line:
+		// fo[o:.52].[b:1]a[r:.6]
+		var summary bytes.Buffer
+		last := 0
+		for i, idx := range runeIdxs {
+			summary.WriteString(string(m.inputBuffer[last:idx])) // encode runes
+			fmt.Fprintf(&summary, "[%s:%.2g]", string(m.inputBuffer[idx]), runeScores[i])
+			last = idx + 1
+		}
+		summary.WriteString(string(m.inputBuffer[last:inputLen])) // encode runes
+		log.Println(summary.String())
 	}
 
 	return start, totScore / float64(m.patternLen)

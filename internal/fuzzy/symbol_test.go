@@ -5,8 +5,12 @@
 package fuzzy_test
 
 import (
+	"go/ast"
+	"go/token"
+	"sort"
 	"testing"
 
+	"golang.org/x/tools/go/packages"
 	. "golang.org/x/tools/internal/fuzzy"
 )
 
@@ -34,30 +38,173 @@ func TestSymbolMatchIndex(t *testing.T) {
 }
 
 func TestSymbolRanking(t *testing.T) {
-	matcher := NewSymbolMatcher("test")
 
-	// symbols to match, in ascending order of ranking.
-	symbols := []string{
-		"this.is.better.than.most",
-		"test.foo.bar",
-		"thebest",
-		"test.foo",
-		"test.foo",
-		"atest",
-		"testage",
-		"tTest",
-		"foo.test",
-		"test",
+	// query -> symbols to match, in ascending order of score
+	queryRanks := map[string][]string{
+		"test": {
+			"this.is.better.than.most",
+			"test.foo.bar",
+			"thebest",
+			"atest",
+			"test.foo",
+			"testage",
+			"tTest",
+			"foo.test",
+		},
+		"parseside": { // golang/go#60201
+			"yaml_PARSE_FLOW_SEQUENCE_ENTRY_MAPPING_END_STATE",
+			"parseContext.parse_sidebyside",
+		},
+		"cvb": {
+			"filecache_test.testIPCValueB",
+			"cover.Boundary",
+		},
+		"dho": {
+			"gocommand.DebugHangingGoCommands",
+			"protocol.DocumentHighlightOptions",
+		},
+		"flg": {
+			"completion.FALLTHROUGH",
+			"main.flagGoCmd",
+		},
+		"fvi": {
+			"godoc.fileIndexVersion",
+			"macho.FlagSubsectionsViaSymbols",
+		},
 	}
-	prev := 0.0
-	for _, sym := range symbols {
-		_, score := matcher.Match([]string{sym})
-		t.Logf("Match(%q) = %v", sym, score)
-		if score < prev {
-			t.Errorf("Match(%q) = _, %v, want > %v", sym, score, prev)
+
+	for query, symbols := range queryRanks {
+		t.Run(query, func(t *testing.T) {
+			matcher := NewSymbolMatcher(query)
+			prev := 0.0
+			for _, sym := range symbols {
+				_, score := matcher.Match([]string{sym})
+				t.Logf("Match(%q) = %v", sym, score)
+				if score <= prev {
+					t.Errorf("Match(%q) = _, %v, want > %v", sym, score, prev)
+				}
+				prev = score
+			}
+		})
+	}
+}
+
+func TestMatcherSimilarities(t *testing.T) {
+	// This test compares the fuzzy matcher with the symbol matcher on a corpus
+	// of qualified identifiers extracted from x/tools.
+	//
+	// These two matchers are not expected to agree, but inspecting differences
+	// can be useful for finding interesting ranking edge cases.
+	t.Skip("unskip this test to compare matchers")
+
+	idents := collectIdentifiers(t)
+	t.Logf("collected %d unique identifiers", len(idents))
+
+	// TODO: use go1.21 slices.MaxFunc.
+	topMatch := func(score func(string) float64) string {
+		top := ""
+		topScore := 0.0
+		for _, cand := range idents {
+			if s := score(cand); s > topScore {
+				top = cand
+				topScore = s
+			}
 		}
-		prev = score
+		return top
 	}
+
+	agreed := 0
+	total := 0
+	bad := 0
+	patterns := generatePatterns()
+	for _, pattern := range patterns {
+		total++
+
+		fm := NewMatcher(pattern)
+		topFuzzy := topMatch(func(input string) float64 {
+			return float64(fm.Score(input))
+		})
+		sm := NewSymbolMatcher(pattern)
+		topSymbol := topMatch(func(input string) float64 {
+			_, score := sm.Match([]string{input})
+			return score
+		})
+		switch {
+		case topFuzzy == "" && topSymbol != "":
+			if false {
+				// The fuzzy matcher has a bug where it misses some matches; for this
+				// test we only care about the symbol matcher.
+				t.Logf("%q matched %q but no fuzzy match", pattern, topSymbol)
+			}
+			total--
+			bad++
+		case topFuzzy != "" && topSymbol == "":
+			t.Fatalf("%q matched %q but no symbol match", pattern, topFuzzy)
+		case topFuzzy == topSymbol:
+			agreed++
+		default:
+			// Enable this log to see mismatches.
+			if false {
+				t.Logf("mismatch for %q: fuzzy: %q, symbol: %q", pattern, topFuzzy, topSymbol)
+			}
+		}
+	}
+	t.Logf("fuzzy matchers agreed on %d out of %d queries (%d bad)", agreed, total, bad)
+}
+
+func collectIdentifiers(tb testing.TB) []string {
+	cfg := &packages.Config{
+		Mode:  packages.NeedName | packages.NeedSyntax | packages.NeedFiles,
+		Tests: true,
+	}
+	pkgs, err := packages.Load(cfg, "golang.org/x/tools/...")
+	if err != nil {
+		tb.Fatal(err)
+	}
+	uniqueIdents := make(map[string]bool)
+	decls := 0
+	for _, pkg := range pkgs {
+		for _, f := range pkg.Syntax {
+			for _, decl := range f.Decls {
+				decls++
+				switch decl := decl.(type) {
+				case *ast.GenDecl:
+					for _, spec := range decl.Specs {
+						switch decl.Tok {
+						case token.IMPORT:
+						case token.TYPE:
+							name := spec.(*ast.TypeSpec).Name.Name
+							qualified := pkg.Name + "." + name
+							uniqueIdents[qualified] = true
+						case token.CONST, token.VAR:
+							for _, n := range spec.(*ast.ValueSpec).Names {
+								qualified := pkg.Name + "." + n.Name
+								uniqueIdents[qualified] = true
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	var idents []string
+	for k := range uniqueIdents {
+		idents = append(idents, k)
+	}
+	sort.Strings(idents)
+	return idents
+}
+
+func generatePatterns() []string {
+	var patterns []string
+	for x := 'a'; x <= 'z'; x++ {
+		for y := 'a'; y <= 'z'; y++ {
+			for z := 'a'; z <= 'z'; z++ {
+				patterns = append(patterns, string(x)+string(y)+string(z))
+			}
+		}
+	}
+	return patterns
 }
 
 // Test that we strongly prefer exact matches.
@@ -89,9 +236,8 @@ func TestSymbolRanking_Issue60027(t *testing.T) {
 
 func TestChunkedMatch(t *testing.T) {
 	matcher := NewSymbolMatcher("test")
-
+	_, want := matcher.Match([]string{"test"})
 	chunked := [][]string{
-		{"test"},
 		{"", "test"},
 		{"test", ""},
 		{"te", "st"},
@@ -99,7 +245,7 @@ func TestChunkedMatch(t *testing.T) {
 
 	for _, chunks := range chunked {
 		offset, score := matcher.Match(chunks)
-		if offset != 0 || score != 1.0 {
+		if offset != 0 || score != want {
 			t.Errorf("Match(%v) = %v, %v, want 0, 1.0", chunks, offset, score)
 		}
 	}
