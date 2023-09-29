@@ -10,8 +10,7 @@ import (
 	"sync/atomic"
 )
 
-// origRlimitNofile, if non-nil and not dereferenced to {0, 0},
-// is the original soft RLIMIT_NOFILE.
+// origRlimitNofile, if non-nil, is the original soft RLIMIT_NOFILE.
 var origRlimitNofile atomic.Pointer[Rlimit]
 
 // Some systems set an artificially low soft limit on open file count, for compatibility

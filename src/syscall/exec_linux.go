@@ -628,7 +628,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	}
 
 	// Restore original rlimit.
-	if rlim != nil && rlim.Cur != 0 {
+	if rlim != nil {
 		rawSetrlimit(RLIMIT_NOFILE, rlim)
 	}
 
