@@ -1,4 +1,6 @@
-// +build wasm
+//go:build wasm || ppc64 || ppc64le
+// +build wasm ppc64 ppc64le
+
 //
 // Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -9,8 +11,8 @@
 package atomic_test
 
 import (
-	"testing"
 	"runtime/internal/atomic"
+	"testing"
 )
 
 func TestAnd32(t *testing.T) {
@@ -166,4 +168,3 @@ func TestOr64(t *testing.T) {
 		}
 	}
 }
-
