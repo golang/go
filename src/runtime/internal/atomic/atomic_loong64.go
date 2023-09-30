@@ -59,6 +59,24 @@ func Or8(ptr *uint8, val uint8)
 //go:noescape
 func Or(ptr *uint32, val uint32)
 
+//go:noescape
+func And32(ptr *uint32, val uint32) uint32
+
+//go:noescape
+func Or32(ptr *uint32, val uint32) uint32
+
+//go:noescape
+func And64(ptr *uint64, val uint64) uint64
+
+//go:noescape
+func Or64(ptr *uint64, val uint64) uint64
+
+//go:noescape
+func Anduintptr(ptr *uintptr, val uintptr) uintptr
+
+//go:noescape
+func Oruintptr(ptr *uintptr, val uintptr) uintptr
+
 // NOTE: Do not add atomicxor8 (XOR is not idempotent).
 
 //go:noescape
