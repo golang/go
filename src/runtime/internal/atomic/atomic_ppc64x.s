@@ -368,11 +368,10 @@ TEXT ·Or32(SB), NOSPLIT, $0-20
 	LWSYNC
 again:
 	LWAR	(R3), R6
-	MOVW	R6, R7
-	OR	R4, R6
-	STWCCC	R6, (R3)
+	OR	R4, R6, R7
+	STWCCC	R7, (R3)
 	BNE	again
-	MOVW	R7, ret+16(FP)
+	MOVW	R6, ret+16(FP)
 	RET
 
 // func And32(addr *uint32, v uint32) old uint32
@@ -382,11 +381,10 @@ TEXT ·And32(SB), NOSPLIT, $0-20
 	LWSYNC
 again:
 	LWAR	(R3),R6
-	MOVW	R6, R7
-	AND	R4, R6
-	STWCCC	R6, (R3)
+	AND	R4, R6, R7
+	STWCCC	R7, (R3)
 	BNE	again
-	MOVW	R7, ret+16(FP)
+	MOVW	R6, ret+16(FP)
 	RET
 
 // func Or64(addr *uint64, v uint64) old uint64
@@ -396,11 +394,10 @@ TEXT ·Or64(SB), NOSPLIT, $0-24
 	LWSYNC
 again:
 	LDAR	(R3), R6
-	MOVD	R6, R7
-	OR	R4, R6
-	STDCCC	R6, (R3)
+	OR	R4, R6, R7
+	STDCCC	R7, (R3)
 	BNE	again
-	MOVD	R7, ret+16(FP)
+	MOVD	R6, ret+16(FP)
 	RET
 
 // func And64(addr *uint64, v uint64) old uint64
@@ -410,11 +407,10 @@ TEXT ·And64(SB), NOSPLIT, $0-24
 	LWSYNC
 again:
 	LDAR	(R3),R6
-	MOVD	R6, R7
-	AND	R4, R6
-	STDCCC	R6, (R3)
+	AND	R4, R6, R7
+	STDCCC	R7, (R3)
 	BNE	again
-	MOVD	R7, ret+16(FP)
+	MOVD	R6, ret+16(FP)
 	RET
 
 // func Anduintptr(addr *uintptr, v uintptr) old uintptr
