@@ -494,7 +494,9 @@ func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
 		if f(r) {
 			if start >= 0 {
 				spans = append(spans, span{start, i})
-				start = -1
+				// Set start to a negative value.
+				// Be consistent with strings.FieldsFunc.
+				start = ^start
 			}
 		} else {
 			if start < 0 {
