@@ -695,6 +695,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Sym = ir.Syms.Duffcopy
 		p.To.Offset = v.AuxInt
 
+	case ssa.OpRISCV64LoweredPubBarrier:
+		// FENCE
+		s.Prog(v.Op.Asm())
+
 	case ssa.OpRISCV64LoweredRound32F, ssa.OpRISCV64LoweredRound64F:
 		// input is already rounded
 
