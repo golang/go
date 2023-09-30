@@ -254,7 +254,7 @@ TEXT ·Or32(SB), NOSPLIT, $0-20
 	MOVW	(R4), R3
 repeat:
 	OR	R5, R3, R6
-	CSG	R3, R6, (R4) // if R3==(R4) then (R4)=R6 else R3=(R4)
+	CS	R3, R6, (R4) // if R3==(R4) then (R4)=R6 else R3=(R4)
 	BNE	repeat
 	MOVW	R3, ret+16(FP)
 	RET
@@ -266,7 +266,7 @@ TEXT ·And32(SB), NOSPLIT, $0-20
 	MOVW	(R4), R3
 repeat:
 	AND	R5, R3, R6
-	CSG	R3, R6, (R4) // if R3==(R4) then (R4)=R6 else R3=(R4)
+	CS	R3, R6, (R4) // if R3==(R4) then (R4)=R6 else R3=(R4)
 	BNE	repeat
 	MOVW	R3, ret+16(FP)
 	RET
