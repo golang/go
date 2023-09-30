@@ -2051,3 +2051,27 @@ func BenchmarkReplaceAll(b *testing.B) {
 		stringSink = ReplaceAll("banana", "a", "<>")
 	}
 }
+
+func TestStringPointerFrom(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		args args
+		want string
+	}{
+		{
+			args: args{
+				s: "test",
+			},
+			want: "test",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := StringPointerFrom(tt.args.s); *got != tt.want {
+				t.Errorf("StringPointerFrom() = %v, want %v", *got, tt.want)
+			}
+		})
+	}
+}
