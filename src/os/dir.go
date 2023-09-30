@@ -146,7 +146,7 @@ func CopyFS(dir string, fsys fs.FS) error {
 			return err
 		}
 
-		fpath, err := safefilepath.FromFS(path)
+		fpath, err := safefilepath.Localize(path)
 		if err != nil {
 			return err
 		}

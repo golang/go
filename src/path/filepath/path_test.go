@@ -237,6 +237,73 @@ func TestIsLocal(t *testing.T) {
 	}
 }
 
+type LocalizeTest struct {
+	path string
+	want string
+}
+
+var localizetests = []LocalizeTest{
+	{"", ""},
+	{".", "."},
+	{"..", ""},
+	{"a/..", ""},
+	{"/", ""},
+	{"/a", ""},
+	{"a\xffb", ""},
+	{"a/", ""},
+	{"a/./b", ""},
+	{"\x00", ""},
+	{"a", "a"},
+	{"a/b/c", "a/b/c"},
+}
+
+var plan9localizetests = []LocalizeTest{
+	{"#a", ""},
+	{`a\b:c`, `a\b:c`},
+}
+
+var unixlocalizetests = []LocalizeTest{
+	{"#a", "#a"},
+	{`a\b:c`, `a\b:c`},
+}
+
+var winlocalizetests = []LocalizeTest{
+	{"#a", "#a"},
+	{"c:", ""},
+	{`a\b`, ""},
+	{`a:b`, ""},
+	{`a/b:c`, ""},
+	{`NUL`, ""},
+	{`a/NUL`, ""},
+	{`./com1`, ""},
+	{`a/nul/b`, ""},
+}
+
+func TestLocalize(t *testing.T) {
+	tests := localizetests
+	switch runtime.GOOS {
+	case "plan9":
+		tests = append(tests, plan9localizetests...)
+	case "windows":
+		tests = append(tests, winlocalizetests...)
+		for i := range tests {
+			tests[i].want = filepath.FromSlash(tests[i].want)
+		}
+	default:
+		tests = append(tests, unixlocalizetests...)
+	}
+	for _, test := range tests {
+		got, err := filepath.Localize(test.path)
+		wantErr := "<nil>"
+		if test.want == "" {
+			wantErr = "error"
+		}
+		if got != test.want || ((err == nil) != (test.want != "")) {
+			t.Errorf("IsLocal(%q) = %q, %v want %q, %v", test.path, got, err, test.want, wantErr)
+		}
+	}
+}
+
 const sep = filepath.Separator
 
 var slashtests = []PathTest{
