@@ -2057,14 +2057,23 @@ func TestStringPointerFrom(t *testing.T) {
 		s string
 	}
 	tests := []struct {
+		name string
 		args args
 		want string
 	}{
 		{
+			name: "valid string",
 			args: args{
 				s: "test",
 			},
 			want: "test",
+		},
+		{
+			name: "empty string",
+			args: args{
+				s: "",
+			},
+			want: "",
 		},
 	}
 	for _, tt := range tests {
