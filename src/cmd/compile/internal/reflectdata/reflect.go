@@ -18,6 +18,7 @@ import (
 	"cmd/compile/internal/compare"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/typecheck"
@@ -74,7 +75,7 @@ const (
 
 func structfieldSize() int { return abi.StructFieldSize(types.PtrSize) } // Sizeof(runtime.structfield{})
 func imethodSize() int     { return abi.IMethodSize(types.PtrSize) }     // Sizeof(runtime.imethod{})
-func commonSize() int      { return abi.CommonSize(types.PtrSize) }      // Sizeof(runtime._type{})
+func commonSize() int      { return int(rttype.Type.Size()) }            // Sizeof(runtime._type{})
 
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym() == nil && len(methods(t)) == 0 {
@@ -699,10 +700,10 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	//		str           nameOff
 	//		ptrToThis     typeOff
 	//	}
-	ot := 0
-	ot = objw.Uintptr(lsym, ot, uint64(t.Size()))
-	ot = objw.Uintptr(lsym, ot, uint64(ptrdata))
-	ot = objw.Uint32(lsym, ot, types.TypeHash(t))
+	rt := rttype.Type
+	rt.WriteUintptr(lsym, "Size_", uint64(t.Size()))
+	rt.WriteUintptr(lsym, "PtrBytes", uint64(ptrdata))
+	rt.WriteUint32(lsym, "Hash", types.TypeHash(t))
 
 	var tflag abi.TFlag
 	if uncommonSize(t) != 0 {
@@ -738,7 +739,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 		// this should optimize away completely
 		panic("Unexpected change in size of abi.TFlag")
 	}
-	ot = objw.Uint8(lsym, ot, uint8(tflag))
+	rt.WriteUint8(lsym, "TFlag", uint8(tflag))
 
 	// runtime (and common sense) expects alignment to be a power of two.
 	i := int(uint8(t.Alignment()))
@@ -749,8 +750,8 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	if i&(i-1) != 0 {
 		base.Fatalf("invalid alignment %d for %v", uint8(t.Alignment()), t)
 	}
-	ot = objw.Uint8(lsym, ot, uint8(t.Alignment())) // align
-	ot = objw.Uint8(lsym, ot, uint8(t.Alignment())) // fieldAlign
+	rt.WriteUint8(lsym, "Align_", uint8(t.Alignment()))
+	rt.WriteUint8(lsym, "FieldAlign_", uint8(t.Alignment()))
 
 	i = kinds[t.Kind()]
 	if types.IsDirectIface(t) {
@@ -759,26 +760,16 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	if useGCProg {
 		i |= objabi.KindGCProg
 	}
-	ot = objw.Uint8(lsym, ot, uint8(i)) // kind
-	if eqfunc != nil {
-		ot = objw.SymPtr(lsym, ot, eqfunc, 0) // equality function
-	} else {
-		ot = objw.Uintptr(lsym, ot, 0) // type we can't do == with
-	}
-	ot = objw.SymPtr(lsym, ot, gcsym, 0) // gcdata
+	rt.WriteUint8(lsym, "Kind_", uint8(i))
+
+	rt.WritePtr(lsym, "Equal", eqfunc)
+	rt.WritePtr(lsym, "GCData", gcsym)
 
 	nsym := dname(p, "", nil, exported, false)
-	ot = objw.SymPtrOff(lsym, ot, nsym) // str
-	// ptrToThis
-	if sptr == nil {
-		ot = objw.Uint32(lsym, ot, 0)
-	} else if sptrWeak {
-		ot = objw.SymPtrWeakOff(lsym, ot, sptr)
-	} else {
-		ot = objw.SymPtrOff(lsym, ot, sptr)
-	}
+	rt.WriteSymPtrOff(lsym, "Str", nsym, false)
+	rt.WriteSymPtrOff(lsym, "PtrToThis", sptr, sptrWeak)
 
-	return ot
+	return int(rt.Size())
 }
 
 // TrackSym returns the symbol for tracking use of field/method f, assumed

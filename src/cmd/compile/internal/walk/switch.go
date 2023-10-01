@@ -15,6 +15,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -691,7 +692,7 @@ func typeHashFieldOf(pos src.XPos, itab *ir.UnaryExpr) *ir.SelectorExpr {
 	if itab.X.Type().IsEmptyInterface() {
 		// runtime._type's hash field
 		if rtypeHashField == nil {
-			rtypeHashField = runtimeField("hash", int64(2*types.PtrSize), types.Types[types.TUINT32])
+			rtypeHashField = runtimeField("hash", rttype.Type.Offset("Hash"), types.Types[types.TUINT32])
 		}
 		hashField = rtypeHashField
 	} else {
