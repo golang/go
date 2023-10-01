@@ -432,7 +432,7 @@ func (p *proxyRepo) Zip(ctx context.Context, dst io.Writer, version string) erro
 	if _, err := io.Copy(dst, lr); err != nil {
 		// net/http doesn't add context to Body errors, so add it here.
 		// (See https://go.dev/issue/52727.)
-		err = &url.Error{Op: "read", URL: pathpkg.Join(p.redactedURL, path), Err: err}
+		err = &url.Error{Op: "read", URL: strings.TrimSuffix(p.redactedURL, "/") + "/" + path, Err: err}
 		return p.versionError(version, err)
 	}
 	if lr.N <= 0 {
