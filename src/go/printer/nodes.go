@@ -44,10 +44,7 @@ import (
 // linebreaks. At the moment there is no easy way to know about
 // future (not yet interspersed) comments in this function.
 func (p *printer) linebreak(line, min int, ws whiteSpace, newSection bool) (nbreaks int) {
-	n := nlimit(line - p.pos.Line)
-	if n < min {
-		n = min
-	}
+	n := max(nlimit(line-p.pos.Line), min)
 	if n > 0 {
 		p.print(ws)
 		if newSection {
@@ -670,9 +667,7 @@ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
 		h4, h5, mp := walkBinary(l)
 		has4 = has4 || h4
 		has5 = has5 || h5
-		if maxProblem < mp {
-			maxProblem = mp
-		}
+		maxProblem = max(maxProblem, mp)
 	}
 
 	switch r := e.Y.(type) {
@@ -685,9 +680,7 @@ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
 		h4, h5, mp := walkBinary(r)
 		has4 = has4 || h4
 		has5 = has5 || h5
-		if maxProblem < mp {
-			maxProblem = mp
-		}
+		maxProblem = max(maxProblem, mp)
 
 	case *ast.StarExpr:
 		if e.Op == token.QUO { // `*/`
@@ -699,9 +692,7 @@ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
 		case "/*", "&&", "&^":
 			maxProblem = 5
 		case "++", "--":
-			if maxProblem < 4 {
-				maxProblem = 4
-			}
+			maxProblem = max(maxProblem, 4)
 		}
 	}
 	return
