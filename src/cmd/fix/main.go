@@ -74,13 +74,12 @@ func main() {
 			os.Exit(exitCode)
 		}
 		version := (*goVersionStr)[len("go"):]
-		versionParts := strings.SplitN(version, ".", 3);
-		if len(versionParts) < 2 {
-			report(fmt.Errorf("invalid -go=%s", *goVersionStr))
-			os.Exit(exitCode)
+		f := strings.SplitN(version, ".", 3)
+		majorStr := f[0]
+		minorStr := "0"
+		if len(f) >= 1 {
+			minorStr, _, _ = strings.Cut(f[1], "rc")
 		}
-		majorStr := versionParts[0]
-		minorStr, _, _ := strings.Cut(versionParts[1], "rc")
 		major, err1 := strconv.Atoi(majorStr)
 		minor, err2 := strconv.Atoi(minorStr)
 		if err1 != nil || err2 != nil || major < 0 || major >= 100 || minor < 0 || minor >= 100 {
