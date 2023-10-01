@@ -1494,7 +1494,7 @@ func TestLookupPortEmptyNetworkString(t *testing.T) {
 	})
 }
 
-func TestLookupPortEmptyIPNetworkString(t *testing.T) {
+func TestLookupPortIPNetworkString(t *testing.T) {
 	allResolvers(t, func(t *testing.T) {
 		_, err := LookupPort("ip", tcpOnlyService)
 		if err != nil {
