@@ -51,7 +51,7 @@ func g() int { return 1 /*hello*/ + /*there*/ 1 }
 package a
 
 func _() {
-	println((1 + 1)) //@ inline(re"g", g)
+	println(1 + 1) //@ inline(re"g", g)
 }
 
 func g() int { return 1 /*hello*/ + /*there*/ 1 }

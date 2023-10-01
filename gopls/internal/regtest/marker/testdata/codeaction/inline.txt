@@ -17,7 +17,7 @@ func add(x, y int) int { return x + y }
 package a
 
 func _() {
-	println((1 + 2)) //@codeaction("refactor.inline", "add", ")", inline)
+	println(1 + 2) //@codeaction("refactor.inline", "add", ")", inline)
 }
 
 func add(x, y int) int { return x + y }

@@ -73,6 +73,31 @@ func Inline(logf func(string, ...any), caller *Caller, callee *Callee) ([]byte, 
 	assert(res.old != nil, "old is nil")
 	assert(res.new != nil, "new is nil")
 
+	// A single return operand inlined to a unary
+	// expression context may need parens. Otherwise:
+	//    func two() int { return 1+1 }
+	//    print(-two())  =>  print(-1+1) // oops!
+	//
+	// Usually it is not necessary to insert ParenExprs
+	// as the formatter is smart enough to insert them as
+	// needed by the context. But the res.{old,new}
+	// substitution is done by formatting res.new in isolation
+	// and then splicing its text over res.old, so the
+	// formatter doesn't see the parent node and cannot do
+	// the right thing. (One solution would be to always
+	// format the enclosing node of old, but that requires
+	// non-lossy comment handling, #20744.)
+	//
+	// So, we must analyze the call's context
+	// to see whether ambiguity is possible.
+	// For example, if the context is x[y:z], then
+	// the x subtree is subject to precedence ambiguity
+	// (replacing x by p+q would give p+q[y:z] which is wrong)
+	// but the y and z subtrees are safe.
+	if needsParens(caller.path, res.old, res.new) {
+		res.new = &ast.ParenExpr{X: res.new.(ast.Expr)}
+	}
+
 	// Don't call replaceNode(caller.File, res.old, res.new)
 	// as it mutates the caller's syntax tree.
 	// Instead, splice the file, replacing the extent of the "old"
@@ -727,29 +752,8 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 			if callee.NumResults == 1 {
 				logf("strategy: reduce expr-context call to { return expr }")
 
-				// A single return operand inlined to a unary
-				// expression context may need parens. Otherwise:
-				//    func two() int { return 1+1 }
-				//    print(-two())  =>  print(-1+1) // oops!
-				//
-				// Usually it is not necessary to insert ParenExprs
-				// as the formatter is smart enough to insert them as
-				// needed by the context. But the res.{old,new}
-				// substitution is done by formatting res.new in isolation
-				// and then splicing its text over res.old, so the
-				// formatter doesn't see the parent node and cannot do
-				// the right thing. (One solution would be to always
-				// format the enclosing node of old, but that requires
-				// non-lossy comment handling, #20744.)
-				//
-				// TODO(adonovan): do better by analyzing 'context'
-				// to see whether ambiguity is possible.
-				// For example, if the context is x[y:z], then
-				// the x subtree is subject to precedence ambiguity
-				// (replacing x by p+q would give p+q[y:z] which is wrong)
-				// but the y and z subtrees are safe.
 				res.old = caller.Call
-				res.new = &ast.ParenExpr{X: results[0]}
+				res.new = results[0]
 			} else {
 				logf("strategy: reduce spread-context call to { return expr }")
 
@@ -2278,4 +2282,77 @@ func consistentOffsets(caller *Caller) bool {
 		return false
 	}
 	return is[*ast.CallExpr](expr)
+}
+
+// needsParens reports whether parens are required to avoid ambiguity
+// around the new node replacing the specified old node (which is some
+// ancestor of the CallExpr identified by its PathEnclosingInterval).
+func needsParens(callPath []ast.Node, old, new ast.Node) bool {
+	// Find enclosing old node and its parent.
+	// TODO(adonovan): Use index[ast.Node]() in go1.20.
+	i := -1
+	for i = range callPath {
+		if callPath[i] == old {
+			break
+		}
+	}
+	if i == -1 {
+		panic("not found")
+	}
+
+	// There is no precedence ambiguity when replacing
+	// (e.g.) a statement enclosing the call.
+	if !is[ast.Expr](old) {
+		return false
+	}
+
+	// An expression beneath a non-expression
+	// has no precedence ambiguity.
+	parent, ok := callPath[i+1].(ast.Expr)
+	if !ok {
+		return false
+	}
+
+	precedence := func(n ast.Node) int {
+		switch n := n.(type) {
+		case *ast.UnaryExpr, *ast.StarExpr:
+			return token.UnaryPrec
+		case *ast.BinaryExpr:
+			return n.Op.Precedence()
+		}
+		return -1
+	}
+
+	// Parens are not required if the new node
+	// is not unary or binary.
+	newprec := precedence(new)
+	if newprec < 0 {
+		return false
+	}
+
+	// Parens are required if parent and child are both
+	// unary or binary and the parent has higher precedence.
+	if precedence(parent) > newprec {
+		return true
+	}
+
+	// Was the old node the operand of a postfix operator?
+	//  f().sel
+	//  f()[i:j]
+	//  f()[i]
+	//  f().(T)
+	//  f()(x)
+	switch parent := parent.(type) {
+	case *ast.SelectorExpr:
+		return parent.X == old
+	case *ast.IndexExpr:
+		return parent.X == old
+	case *ast.SliceExpr:
+		return parent.X == old
+	case *ast.TypeAssertExpr:
+		return parent.X == old
+	case *ast.CallExpr:
+		return parent.Fun == old
+	}
+	return false
 }

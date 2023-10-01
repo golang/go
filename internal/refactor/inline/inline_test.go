@@ -359,7 +359,7 @@ func TestBasics(t *testing.T) {
 			"Basic",
 			`func f(x int) int { return x }`,
 			`var _ = f(0)`,
-			`var _ = (0)`,
+			`var _ = 0`,
 		},
 		{
 			"Empty body, no arg effects.",
@@ -383,6 +383,51 @@ func TestBasics(t *testing.T) {
 		print(s, s, 0, 0)
 	}
 }`,
+		},
+	})
+}
+
+func TestPrecedenceParens(t *testing.T) {
+	// Ensure that parens are inserted when (and only when) necessary
+	// around the replacement for the call expression. (This is a special
+	// case in the way the inliner uses a combination of AST formatting
+	// for the call and text splicing for the rest of the file.)
+	runTests(t, []testcase{
+		{
+			"Multiplication in addition context (no parens).",
+			`func f(x, y int) int { return x * y }`,
+			`func _() { _ = 1 + f(2, 3) }`,
+			`func _() { _ = 1 + 2*3 }`,
+		},
+		{
+			"Addition in multiplication context (parens).",
+			`func f(x, y int) int { return x + y }`,
+			`func _() { _ = 1 * f(2, 3) }`,
+			`func _() { _ = 1 * (2 + 3) }`,
+		},
+		{
+			"Addition in negation context (parens).",
+			`func f(x, y int) int { return x + y }`,
+			`func _() { _ = -f(1, 2) }`,
+			`func _() { _ = -(1 + 2) }`,
+		},
+		{
+			"Addition in call context (no parens).",
+			`func f(x, y int) int { return x + y }`,
+			`func _() { println(f(1, 2)) }`,
+			`func _() { println(1 + 2) }`,
+		},
+		{
+			"Addition in slice operand context (parens).",
+			`func f(x, y string) string { return x + y }`,
+			`func _() { _ = f("x",  "y")[1:2] }`,
+			`func _() { _ = ("x" + "y")[1:2] }`,
+		},
+		{
+			"String literal in slice operand context (no parens).",
+			`func f(x string) string { return x }`,
+			`func _() { _ = f("xy")[1:2] }`,
+			`func _() { _ = "xy"[1:2] }`,
 		},
 	})
 }
@@ -421,7 +466,7 @@ func TestTailCallStrategy(t *testing.T) {
 			"Tail call.",
 			`func f() int { return 1 }`,
 			`func _() int { return f() }`,
-			`func _() int { return (1) }`,
+			`func _() int { return 1 }`,
 		},
 		{
 			"Void tail call.",

@@ -14,7 +14,7 @@ func zero() int { return 0 }
 -- zero --
 package a
 
-var _ = (0) //@ inline(re"zero", zero)
+var _ = 0 //@ inline(re"zero", zero)
 
 func zero() int { return 0 }
 
@@ -46,5 +46,5 @@ var _ = add(len(""), 2) //@ inline(re"add", add2)
 -- add2 --
 package a
 
-var _ = (len("") + 2) //@ inline(re"add", add2)
+var _ = len("") + 2 //@ inline(re"add", add2)
 
