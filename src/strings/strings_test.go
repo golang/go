@@ -1111,6 +1111,13 @@ func TestCaseConsistency(t *testing.T) {
 }
 
 var longString = "a" + string(make([]byte, 1<<16)) + "z"
+var longSpaces = func() string {
+	b := make([]byte, 200)
+	for i := range b {
+		b[i] = ' '
+	}
+	return string(b)
+}()
 
 var RepeatTests = []struct {
 	in, out string
@@ -1123,6 +1130,12 @@ var RepeatTests = []struct {
 	{"-", "-", 1},
 	{"-", "----------", 10},
 	{"abc ", "abc abc abc ", 3},
+	{" ", " ", 1},
+	{"--", "----", 2},
+	{"===", "======", 2},
+	{"000", "000000000", 3},
+	{"\t\t\t\t", "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t", 4},
+	{" ", longSpaces, len(longSpaces)},
 	// Tests for results over the chunkLimit
 	{string(rune(0)), string(make([]byte, 1<<16)), 1 << 16},
 	{longString, longString + longString, 2},
@@ -1922,6 +1935,13 @@ func BenchmarkRepeatLarge(b *testing.B) {
 				b.SetBytes(int64(n * len(s)))
 			})
 		}
+	}
+}
+
+func BenchmarkRepeatSpaces(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		Repeat(" ", 2)
 	}
 }
 

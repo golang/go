@@ -530,6 +530,27 @@ func Map(mapping func(rune) rune, s string) string {
 	return b.String()
 }
 
+// According to static analysis, spaces, dashes, zeros, equals, and tabs
+// are the most commonly repeated string literal,
+// often used for display on fixed-width terminal windows.
+// Pre-declare constants for these for O(1) repetition in the common-case.
+const (
+	repeatedSpaces = "" +
+		"                                                                " +
+		"                                                                "
+	repeatedDashes = "" +
+		"----------------------------------------------------------------" +
+		"----------------------------------------------------------------"
+	repeatedZeroes = "" +
+		"0000000000000000000000000000000000000000000000000000000000000000"
+	repeatedEquals = "" +
+		"================================================================" +
+		"================================================================"
+	repeatedTabs = "" +
+		"\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t" +
+		"\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"
+)
+
 // Repeat returns a new string consisting of count copies of the string s.
 //
 // It panics if count is negative or if the result of (len(s) * count)
@@ -555,6 +576,23 @@ func Repeat(s string, count int) string {
 
 	if len(s) == 0 {
 		return ""
+	}
+
+	// Optimize for commonly repeated strings of relatively short length.
+	switch s[0] {
+	case ' ', '-', '0', '=', '\t':
+		switch {
+		case n <= len(repeatedSpaces) && HasPrefix(repeatedSpaces, s):
+			return repeatedSpaces[:n]
+		case n <= len(repeatedDashes) && HasPrefix(repeatedDashes, s):
+			return repeatedDashes[:n]
+		case n <= len(repeatedZeroes) && HasPrefix(repeatedZeroes, s):
+			return repeatedZeroes[:n]
+		case n <= len(repeatedEquals) && HasPrefix(repeatedEquals, s):
+			return repeatedEquals[:n]
+		case n <= len(repeatedTabs) && HasPrefix(repeatedTabs, s):
+			return repeatedTabs[:n]
+		}
 	}
 
 	// Past a certain chunk size it is counterproductive to use
