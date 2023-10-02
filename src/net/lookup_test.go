@@ -1476,7 +1476,7 @@ func TestLookupPortNotFound(t *testing.T) {
 var tcpOnlyService = func() string {
 	// plan9 does not have submissions service defined in the service database.
 	if runtime.GOOS == "plan9" {
-		return "smtps"
+		return "https"
 	}
 	return "submissions"
 }()
