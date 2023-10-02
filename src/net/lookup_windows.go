@@ -200,18 +200,28 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
-	var stype int32
+
+	var hints syscall.AddrinfoW
+
 	switch network {
-	case "tcp4", "tcp6":
-		stype = syscall.SOCK_STREAM
-	case "udp4", "udp6":
-		stype = syscall.SOCK_DGRAM
+	case "ip": // no hints
+	case "tcp", "tcp4", "tcp6":
+		hints.Socktype = syscall.SOCK_STREAM
+		hints.Protocol = syscall.IPPROTO_TCP
+	case "udp", "udp4", "udp6":
+		hints.Socktype = syscall.SOCK_DGRAM
+		hints.Protocol = syscall.IPPROTO_UDP
+	default:
+		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}
 	}
-	hints := syscall.AddrinfoW{
-		Family:   syscall.AF_UNSPEC,
-		Socktype: stype,
-		Protocol: syscall.IPPROTO_IP,
+
+	switch ipVersion(network) {
+	case '4':
+		hints.Family = syscall.AF_INET
+	case '6':
+		hints.Family = syscall.AF_INET6
 	}
+
 	var result *syscall.AddrinfoW
 	e := syscall.GetAddrInfoW(nil, syscall.StringToUTF16Ptr(service), &hints, &result)
 	if e != nil {
