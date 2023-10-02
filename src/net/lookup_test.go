@@ -1473,7 +1473,13 @@ func TestLookupPortNotFound(t *testing.T) {
 
 // submissions service is only available through a tcp network, see:
 // https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=submissions
-const tcpOnlyService = "submissions"
+var tcpOnlyService = func() string {
+	// plan9 does not have submissions service defined in the service database.
+	if runtime.GOOS == "plan9" {
+		return "smtps"
+	}
+	return "submissions"
+}()
 
 func TestLookupPortDifferentNetwork(t *testing.T) {
 	allResolvers(t, func(t *testing.T) {
