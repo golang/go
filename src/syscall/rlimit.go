@@ -31,9 +31,10 @@ func init() {
 	var lim Rlimit
 	if err := Getrlimit(RLIMIT_NOFILE, &lim); err == nil && lim.Cur != lim.Max {
 		origRlimitNofile.Store(&lim)
-		lim.Cur = lim.Max
-		adjustFileLimit(&lim)
-		setrlimit(RLIMIT_NOFILE, &lim)
+		nlim := lim
+		nlim.Cur = nlim.Max
+		adjustFileLimit(&nlim)
+		setrlimit(RLIMIT_NOFILE, &nlim)
 	}
 }
 
