@@ -148,15 +148,15 @@ func (w *Writer) CreateFormField(fieldname string) (io.Writer, error) {
 	return w.CreatePart(h)
 }
 
-// FileContentDisposition creates a form-data Content-Disposition header contents
-// using the provided field name and file name.
+// FileContentDisposition returns the value of a Content-Disposition header
+// with the provided field name and file name.
 func FileContentDisposition(fieldname, filename string) string {
 	return fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
 		escapeQuotes(fieldname), escapeQuotes(filename))
 }
 
-// FieldContentDisposition creates a form-data Content-Disposition header contents
-// using the provided field name
+// FieldContentDisposition returns the value of a Content-Disposition header
+// with the provided field name.
 func FieldContentDisposition(fieldname string) string {
 	return fmt.Sprintf(`form-data; name="%s"`,
 		escapeQuotes(fieldname))
