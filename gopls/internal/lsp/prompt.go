@@ -198,8 +198,8 @@ Would you like to enable Go telemetry?
 	if s.Options().LinkifyShowMessage {
 		prompt = `Go telemetry helps us improve Go by periodically sending anonymous metrics and crash reports to the Go team. Learn more at [telemetry.go.dev/privacy](https://telemetry.go.dev/privacy).
 
-	Would you like to enable Go telemetry?
-	`
+Would you like to enable Go telemetry?
+`
 	}
 	// TODO(rfindley): investigate a "tell me more" action in combination with ShowDocument.
 	params := &protocol.ShowMessageRequestParams{
@@ -258,24 +258,15 @@ Would you like to enable Go telemetry?
 }
 
 func telemetryOnMessage(linkify bool) string {
-	reportDate := time.Now().AddDate(0, 0, 7).Format("2006-01-02")
-	format := `Telemetry uploading is now enabled and may be sent to https://telemetry.go.dev starting %s. Uploaded data is used to help improve the Go toolchain and related tools, and it will be published as part of a public dataset.
-
-For more details, see https://telemetry.go.dev/privacy.
-This data is collected in accordance with the Google Privacy Policy (https://policies.google.com/privacy).
+	format := `Thank you. Telemetry uploading is now enabled.
 
 To disable telemetry uploading, run %s.
 `
+	var runCmd = "`go run golang.org/x/telemetry/cmd/gotelemetry@latest off`"
 	if linkify {
-		format = `Telemetry uploading is now enabled and may be sent to [telemetry.go.dev](https://telemetry.go.dev) starting %s. Uploaded data is used to help improve the Go toolchain and related tools, and it will be published as part of a public dataset.
-
-For more details, see [telemetry.go.dev/privacy](https://telemetry.go.dev/privacy).
-This data is collected in accordance with the [Google Privacy Policy](https://policies.google.com/privacy).
-
-To disable telemetry uploading, run [%s](https://golang.org/x/telemetry/cmd/gotelemetry).
-`
+		runCmd = "[gotelemetry off](https://golang.org/x/telemetry/cmd/gotelemetry)"
 	}
-	return fmt.Sprintf(format, reportDate, "`go run golang.org/x/telemetry/cmd/gotelemetry@latest off`")
+	return fmt.Sprintf(format, runCmd)
 }
 
 // acquireLockFile attempts to "acquire a lock" for writing to path.
