@@ -148,7 +148,11 @@ func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
 	return 0, UnknownNetworkError(name)
 }
 
-func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+	if order, conf := systemConf().hostLookupOrder(r, host); order != hostLookupCgo {
+		return r.goLookupHostOrder(ctx, host, order, conf)
+	}
+
 	// Use netdir/cs instead of netdir/dns because cs knows about
 	// host names in local network (e.g. from /lib/ndb/local)
 	lines, err := queryCS(ctx, "net", host, "1")
@@ -203,7 +207,11 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 	return
 }
 
-func (*Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
+func (r *Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
+	if systemConf().mustUseGoResolver(r) {
+		return lookupPortMap(network, service)
+	}
+
 	switch network {
 	case "tcp4", "tcp6":
 		network = "tcp"
