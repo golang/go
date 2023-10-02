@@ -22,21 +22,29 @@ import (
 	"golang.org/x/tools/internal/testenv"
 )
 
-// Run with this command:
-//
-// $ go test ./internal/refactor/inline/ -run=Everything -v -packages=./internal/...
-
-// TODO(adonovan):
-// - report counters (number of attempts, failed AnalyzeCallee, failed
-//   Inline, etc.)
-// - Make a pretty log of the entire output so that we can peruse it
-//   for opportunities for systematic improvement.
-
 var packagesFlag = flag.String("packages", "", "set of packages for TestEverything")
 
 // TestEverything invokes the inliner on every single call site in a
 // given package. and checks that it produces either a reasonable
 // error, or output that parses and type-checks.
+//
+// It does nothing during ordinary testing, but may be used to find
+// inlining bugs in large corpora.
+//
+// Use this command to inline everything in golang.org/x/tools:
+//
+// $ go test ./internal/refactor/inline/ -run=Everything -v -packages=../../../
+//
+// And these commands to inline everything in the kubernetes repository:
+//
+// $ go build -o /tmp/everything ./internal/refactor/inline/
+// $ (cd kubernetes && /tmp/everything -run=Everything -v -packages=./...)
+//
+// TODO(adonovan):
+//   - report counters (number of attempts, failed AnalyzeCallee, failed
+//     Inline, etc.)
+//   - Make a pretty log of the entire output so that we can peruse it
+//     for opportunities for systematic improvement.
 func TestEverything(t *testing.T) {
 	testenv.NeedsGoPackages(t)
 	if testing.Short() {
@@ -48,7 +56,6 @@ func TestEverything(t *testing.T) {
 
 	// Load this package plus dependencies from typed syntax.
 	cfg := &packages.Config{
-		Dir:  "../../..", // root of x/tools
 		Mode: packages.LoadAllSyntax,
 		Env: append(os.Environ(),
 			"GO111MODULES=on",
