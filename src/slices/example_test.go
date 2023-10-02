@@ -34,7 +34,7 @@ func ExampleBinarySearchFunc() {
 		{"Gopher", 13},
 	}
 	n, found := slices.BinarySearchFunc(people, Person{"Bob", 0}, func(a, b Person) int {
-		return cmp.Compare(a.Name, b.Name)
+		return strings.Compare(a.Name, b.Name)
 	})
 	fmt.Println("Bob:", n, found)
 	// Output:
@@ -181,7 +181,7 @@ func ExampleIsSorted() {
 func ExampleIsSortedFunc() {
 	names := []string{"alice", "Bob", "VERA"}
 	isSortedInsensitive := slices.IsSortedFunc(names, func(a, b string) int {
-		return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
+		return strings.Compare(strings.ToLower(a), strings.ToLower(b))
 	})
 	fmt.Println(isSortedInsensitive)
 	fmt.Println(slices.IsSorted(names))
@@ -269,7 +269,7 @@ func ExampleSort() {
 func ExampleSortFunc_caseInsensitive() {
 	names := []string{"Bob", "alice", "VERA"}
 	slices.SortFunc(names, func(a, b string) int {
-		return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
+		return strings.Compare(strings.ToLower(a), strings.ToLower(b))
 	})
 	fmt.Println(names)
 	// Output:
@@ -288,7 +288,7 @@ func ExampleSortFunc_multiField() {
 		{"Alice", 20},
 	}
 	slices.SortFunc(people, func(a, b Person) int {
-		if n := cmp.Compare(a.Name, b.Name); n != 0 {
+		if n := strings.Compare(a.Name, b.Name); n != 0 {
 			return n
 		}
 		// If names are equal, order by age
@@ -312,7 +312,7 @@ func ExampleSortStableFunc() {
 	}
 	// Stable sort by name, keeping age ordering of Alices intact
 	slices.SortStableFunc(people, func(a, b Person) int {
-		return cmp.Compare(a.Name, b.Name)
+		return strings.Compare(a.Name, b.Name)
 	})
 	fmt.Println(people)
 	// Output:
