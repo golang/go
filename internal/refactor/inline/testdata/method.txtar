@@ -104,10 +104,10 @@ func (T) h() int { return 1 }
 
 func _() {
 	var ptr *T
-	{
-		var _ T = *ptr
-		_ = 1
-	} //@ inline(re"h", h)
+
+	var _ T = *ptr
+	_ = 1
+	//@ inline(re"h", h)
 }
 
 -- a/i.go --

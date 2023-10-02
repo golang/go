@@ -54,10 +54,10 @@ package a
 
 func _() {
 	a := 1
-	{
-		z := 1
-		print(a + 2 + z)
-	} //@ inline(re"f", out2)
+
+	z := 1
+	print(a + 2 + z)
+	//@ inline(re"f", out2)
 }
 
 -- a/a3.go --

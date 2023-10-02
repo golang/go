@@ -90,3 +90,16 @@ func funcHasTypeParams(decl *ast.FuncDecl) bool {
 	}
 	return false
 }
+
+// intersects reports whether the maps' key sets intersect.
+func intersects[K comparable, T1, T2 any](x map[K]T1, y map[K]T2) bool {
+	if len(x) > len(y) {
+		return intersects(y, x)
+	}
+	for k := range x {
+		if _, ok := y[k]; ok {
+			return true
+		}
+	}
+	return false
+}

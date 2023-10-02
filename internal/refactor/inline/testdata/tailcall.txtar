@@ -36,19 +36,19 @@ start:
 package a
 
 func _() int {
-	{
-		total := 0
-	start:
-		for i := 1; i <= 2; i++ {
-			total += i
-			if i == 6 {
-				goto start
-			} else if i == 7 {
-				return -1
-			}
+
+	total := 0
+start:
+	for i := 1; i <= 2; i++ {
+		total += i
+		if i == 6 {
+			goto start
+		} else if i == 7 {
+			return -1
 		}
-		return total
-	} //@ inline(re"sum", sum)
+	}
+	return total
+	//@ inline(re"sum", sum)
 }
 
 func sum(lo, hi int) int {

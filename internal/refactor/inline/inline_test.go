@@ -378,10 +378,91 @@ func TestBasics(t *testing.T) {
 			`func f(s string, i int) { print(s, s, i, i) }`,
 			`func _() { f("hi", 0)  }`,
 			`func _() {
-	{
-		var s string = "hi"
-		print(s, s, 0, 0)
+	var s string = "hi"
+	print(s, s, 0, 0)
+}`,
+		},
+	})
+}
+
+func TestExprStmtReduction(t *testing.T) {
+	runTests(t, []testcase{
+		{
+			"A call in an unrestricted ExprStmt may be replaced by the body stmts.",
+			`func f() { var _ = len("") }`,
+			`func _() { f() }`,
+			`func _() { var _ = len("") }`,
+		},
+		{
+			"ExprStmts in the body of a switch case are unrestricted.",
+			`func f() { x := 1; print(x) }`,
+			`func _() { switch { case true: f() } }`,
+			`func _() {
+	switch {
+	case true:
+		x := 1
+		print(x)
 	}
+}`,
+		},
+		{
+			"ExprStmts in the body of a select case are unrestricted.",
+			`func f() { x := 1; print(x) }`,
+			`func _() { select { default: f() } }`,
+			`func _() {
+	select {
+	default:
+		x := 1
+		print(x)
+	}
+}`,
+		},
+		{
+			"Some ExprStmt contexts are restricted to simple statements.",
+			`func f() { var _ = len("") }`,
+			`func _(cond bool) { if f(); cond {} }`,
+			`func _(cond bool) {
+	if func() { var _ = len("") }(); cond {
+	}
+}`,
+		},
+		{
+			"Braces must be preserved to avoid a name conflict (decl before).",
+			`func f() { x := 1; print(x) }`,
+			`func _() { x := 2; print(x); f() }`,
+			`func _() {
+	x := 2
+	print(x)
+	{
+		x := 1
+		print(x)
+	}
+}`,
+		},
+		{
+			"Braces must be preserved to avoid a name conflict (decl after).",
+			`func f() { x := 1; print(x) }`,
+			`func _() { f(); x := 2; print(x) }`,
+			`func _() {
+	{
+		x := 1
+		print(x)
+	}
+	x := 2
+	print(x)
+}`,
+		},
+		{
+			"Braces must be preserved to avoid a forward jump across a decl.",
+			`func f() { x := 1; print(x) }`,
+			`func _() { goto label; f(); label: }`,
+			`func _() {
+	goto label
+	{
+		x := 1
+		print(x)
+	}
+label:
 }`,
 		},
 	})
@@ -576,10 +657,8 @@ func TestParameterBindingDecl(t *testing.T) {
 			`func f(x int) { x++ }`,
 			`func _() { f(1) }`,
 			`func _() {
-	{
-		var x int = 1
-		x++
-	}
+	var x int = 1
+	x++
 }`,
 		},
 		{
@@ -587,10 +666,8 @@ func TestParameterBindingDecl(t *testing.T) {
 			`func f(w, x, y any, z int) { println(w, y, z) }; func g(int) int`,
 			`func _() { f(g(0), g(1), g(2), g(3)) }`,
 			`func _() {
-	{
-		var w, _ any = g(0), g(1)
-		println(w, any(g(2)), g(3))
-	}
+	var w, _ any = g(0), g(1)
+	println(w, any(g(2)), g(3))
 }`,
 		},
 		{
@@ -605,10 +682,8 @@ func TestParameterBindingDecl(t *testing.T) {
 			`func f(x int) int { return <-h(g(2), x) }; func g(int) int; func h(int, int) chan int`,
 			`func _() { f(g(1)) }`,
 			`func _() {
-	{
-		var x int = g(1)
-		<-h(g(2), x)
-	}
+	var x int = g(1)
+	<-h(g(2), x)
 }`,
 		},
 		{
@@ -675,10 +750,8 @@ func TestSubstitutionPreservesArgumentEffectOrder(t *testing.T) {
 			`func f(a, b, c int) { print(a, c, b) }; func g(int) int`,
 			`func _() { f(g(1), g(2), g(3)) }`,
 			`func _() {
-	{
-		var a, b int = g(1), g(2)
-		print(a, g(3), b)
-	}
+	var a, b int = g(1), g(2)
+	print(a, g(3), b)
 }`,
 		},
 		{
@@ -698,10 +771,8 @@ func TestSubstitutionPreservesArgumentEffectOrder(t *testing.T) {
 			`func f(a, b, c, d int) { print(a, c, b, d) }; func g(int) int; var x, y int`,
 			`func _() { f(g(1), g(2), y, g(3)) }`,
 			`func _() {
-	{
-		var a, b int = g(1), g(2)
-		print(a, y, b, g(3))
-	}
+	var a, b int = g(1), g(2)
+	print(a, y, b, g(3))
 }`,
 		},
 		{
@@ -709,10 +780,8 @@ func TestSubstitutionPreservesArgumentEffectOrder(t *testing.T) {
 			`func f(a, b, c, d int) { print(a, c, b, d) }; func g(int) int; var x, y int`,
 			`func _() { f(g(1), y, g(2), g(3)) }`,
 			`func _() {
-	{
-		var a, b int = g(1), y
-		print(a, g(2), b, g(3))
-	}
+	var a, b int = g(1), y
+	print(a, g(2), b, g(3))
 }`,
 		},
 		{
@@ -732,10 +801,8 @@ func TestSubstitutionPreservesArgumentEffectOrder(t *testing.T) {
 			`func f(a, b, c int) { print(a, b, recover().(int), c) }; var x, y, z int`,
 			`func _() { f(x, y, z) }`,
 			`func _() {
-	{
-		var c int = z
-		print(x, y, recover().(int), c)
-	}
+	var c int = z
+	print(x, y, recover().(int), c)
 }`,
 		},
 		{
@@ -743,10 +810,8 @@ func TestSubstitutionPreservesArgumentEffectOrder(t *testing.T) {
 			`func f(a, b, c int) { print(a, b, recover().(int), c) }; func g(int) int; var x, y, z int`,
 			`func _() { f(x, y, g(0))  }`,
 			`func _() {
-	{
-		var a, b, c int = x, y, g(0)
-		print(a, b, recover().(int), c)
-	}
+	var a, b, c int = x, y, g(0)
+	print(a, b, recover().(int), c)
 }`,
 		},
 		{
@@ -754,10 +819,8 @@ func TestSubstitutionPreservesArgumentEffectOrder(t *testing.T) {
 			`func f(a, b, c, d, e int) { print(b, a, c, e, d) }; func g(int) int; var x, y int`,
 			`func _() { f(x, g(1), g(2), y, g(3))  }`,
 			`func _() {
-	{
-		var a, b, c, d int = x, g(1), g(2), y
-		print(b, a, c, g(3), d)
-	}
+	var a, b, c, d int = x, g(1), g(2), y
+	print(b, a, c, g(3), d)
 }`,
 		},
 		{
@@ -788,10 +851,8 @@ func TestSubstitutionPreservesArgumentEffectOrder(t *testing.T) {
 			`func f(x, y int) { _ = &y }; func g(int) int`,
 			`func _() { f(g(1), g(2)) }`,
 			`func _() {
-	{
-		var _, y int = g(1), g(2)
-		_ = &y
-	}
+	var _, y int = g(1), g(2)
+	_ = &y
 }`,
 		},
 		{
@@ -802,10 +863,8 @@ func TestSubstitutionPreservesArgumentEffectOrder(t *testing.T) {
 			`func f(x, y int) { _ = x }; func g(int) int; var v int`,
 			`func _() { f(v, g(2)) }`,
 			`func _() {
-	{
-		var x, _ int = v, g(2)
-		_ = x
-	}
+	var x, _ int = v, g(2)
+	_ = x
 }`,
 		},
 		{
@@ -824,10 +883,8 @@ func TestNamedResultVars(t *testing.T) {
 			`func f() (x int) { return g(x) }; func g(int) int`,
 			`func _() { f() }`,
 			`func _() {
-	{
-		var x int
-		g(x)
-	}
+	var x int
+	g(x)
 }`,
 		},
 		{
@@ -835,13 +892,11 @@ func TestNamedResultVars(t *testing.T) {
 			`func f(y string) (x int) { return x+x+len(y+y) }`,
 			`func _() { f(".") }`,
 			`func _() {
-	{
-		var (
-			y string = "."
-			x int
-		)
-		_ = x + x + len(y+y)
-	}
+	var (
+		y string = "."
+		x int
+	)
+	_ = x + x + len(y+y)
 }`,
 		},
 
@@ -850,13 +905,11 @@ func TestNamedResultVars(t *testing.T) {
 			`func f(y string) (x string) { return x+y+y }`,
 			`func _() { f(".") }`,
 			`func _() {
-	{
-		var (
-			y string = "."
-			x string
-		)
-		_ = x + y + y
-	}
+	var (
+		y string = "."
+		x string
+	)
+	_ = x + y + y
 }`,
 		},
 		{
@@ -864,10 +917,8 @@ func TestNamedResultVars(t *testing.T) {
 			`func f() (x int) { return x+x }`,
 			`func _() { f() }`,
 			`func _() {
-	{
-		var x int
-		_ = x + x
-	}
+	var x int
+	_ = x + x
 }`,
 		},
 		{
@@ -904,10 +955,8 @@ func TestSubstitutionPreservesParameterType(t *testing.T) {
 			`func f(x int16) { y := x; _ = (*int16)(&y) }`,
 			`func _() { f(1) }`,
 			`func _() {
-	{
-		y := int16(1)
-		_ = (*int16)(&y)
-	}
+	y := int16(1)
+	_ = (*int16)(&y)
 }`,
 		},
 		{
@@ -915,10 +964,8 @@ func TestSubstitutionPreservesParameterType(t *testing.T) {
 			`func f(x T) { y := x; _ = (*T)(&y) }; type T struct{}`,
 			`func _() { f(struct{}{}) }`,
 			`func _() {
-	{
-		y := T(struct{}{})
-		_ = (*T)(&y)
-	}
+	y := T(struct{}{})
+	_ = (*T)(&y)
 }`,
 		},
 		{
@@ -926,10 +973,8 @@ func TestSubstitutionPreservesParameterType(t *testing.T) {
 			`func f(x T) { y := x; _ = (*T)(&y) }; type T = <-chan int; var ch chan int`,
 			`func _() { f(ch) }`,
 			`func _() {
-	{
-		y := T(ch)
-		_ = (*T)(&y)
-	}
+	y := T(ch)
+	_ = (*T)(&y)
 }`,
 		},
 		{
@@ -937,10 +982,8 @@ func TestSubstitutionPreservesParameterType(t *testing.T) {
 			`func f(x *int) { y := x; _ = (**int)(&y) }`,
 			`func _() { f(nil) }`,
 			`func _() {
-	{
-		y := (*int)(nil)
-		_ = (**int)(&y)
-	}
+	y := (*int)(nil)
+	_ = (**int)(&y)
 }`,
 		},
 		{
