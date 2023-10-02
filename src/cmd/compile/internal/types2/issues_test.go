@@ -936,3 +936,47 @@ func _()        { f() }
 	conf.Error = func(error) {}
 	typecheck(src, &conf, nil) // must not panic
 }
+
+func TestIssue63260(t *testing.T) {
+	const src = `
+package p
+
+func _() {
+        use(f[*string])
+}
+
+func use(func()) {}
+
+func f[I *T, T any]() {
+        var v T
+        _ = v
+}`
+
+	info := Info{
+		Defs: make(map[*syntax.Name]Object),
+	}
+	pkg := mustTypecheck(src, nil, &info)
+
+	// get type parameter T in signature of f
+	T := pkg.Scope().Lookup("f").Type().(*Signature).TypeParams().At(1)
+	if T.Obj().Name() != "T" {
+		t.Fatalf("got type parameter %s, want T", T)
+	}
+
+	// get type of variable v in body of f
+	var v Object
+	for name, obj := range info.Defs {
+		if name.Value == "v" {
+			v = obj
+			break
+		}
+	}
+	if v == nil {
+		t.Fatal("variable v not found")
+	}
+
+	// type of v and T must be pointer-identical
+	if v.Type() != T {
+		t.Fatalf("types of v and T are not pointer-identical: %p != %p", v.Type().(*TypeParam), T)
+	}
+}
