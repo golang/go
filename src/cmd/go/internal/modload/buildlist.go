@@ -1088,7 +1088,7 @@ func updatePrunedRoots(ctx context.Context, direct map[string]bool, rs *Requirem
 			// relevant dependencies, and we explicitly don't want to pull in
 			// requirements on *irrelevant* requirements that happen to occur in the
 			// go.mod files for these transitive-test-only dependencies. (See the test
-			// in mod_lazy_test_horizon.txt for a concrete example.
+			// in mod_lazy_test_horizon.txt for a concrete example).
 			//
 			// The “goldilocks zone” seems to be to spot-check exactly the same
 			// modules that we promote to explicit roots: namely, those that provide
