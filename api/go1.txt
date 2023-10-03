@@ -4320,8 +4320,6 @@ pkg mime, func AddExtensionType(string, string) error
 pkg mime, func FormatMediaType(string, map[string]string) string
 pkg mime, func ParseMediaType(string) (string, map[string]string, error)
 pkg mime, func TypeByExtension(string) string
-pkg mime/multipart, func FieldContentDisposition(string) string
-pkg mime/multipart, func FileContentDisposition(string, string) string
 pkg mime/multipart, func NewReader(io.Reader, string) *Reader
 pkg mime/multipart, func NewWriter(io.Writer) *Writer
 pkg mime/multipart, method (*FileHeader) Open() (File, error)

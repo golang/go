@@ -144,7 +144,8 @@ func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, error) {
 // given field name.
 func (w *Writer) CreateFormField(fieldname string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
-	h.Set("Content-Disposition", FieldContentDisposition(fieldname))
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"`,
+		escapeQuotes(fieldname)))
 	return w.CreatePart(h)
 }
 
