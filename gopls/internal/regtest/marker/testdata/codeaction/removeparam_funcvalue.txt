@@ -1,0 +1,19 @@
+This test exercises change signature refactoring handling of function values.
+
+TODO(rfindley): use a literalization strategy to allow these references.
+
+-- go.mod --
+module unused.mod
+
+go 1.18
+
+-- a/a.go --
+package a
+
+func A(x, unused int) int { //@codeactionerr("refactor.rewrite", "unused", "unused", re"non-call function reference")
+	return x
+}
+
+func _() {
+	_ = A
+}

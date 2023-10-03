@@ -1210,3 +1210,25 @@ func showDocumentImpl(ctx context.Context, cli protocol.Client, url protocol.URI
 		event.Log(ctx, fmt.Sprintf("client declined to open document %v", url))
 	}
 }
+
+func (c *commandHandler) ChangeSignature(ctx context.Context, args command.ChangeSignatureArgs) error {
+	return c.run(ctx, commandConfig{
+		forURI: args.RemoveParameter.URI,
+	}, func(ctx context.Context, deps commandDeps) error {
+		// For now, gopls only supports removing unused parameters.
+		changes, err := source.RemoveUnusedParameter(ctx, deps.fh, args.RemoveParameter.Range, deps.snapshot)
+		if err != nil {
+			return err
+		}
+		r, err := c.s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
+			Edit: protocol.WorkspaceEdit{
+				DocumentChanges: changes,
+			},
+		})
+		if !r.Applied {
+			return fmt.Errorf("failed to apply edits: %v", r.FailureReason)
+		}
+
+		return nil
+	})
+}

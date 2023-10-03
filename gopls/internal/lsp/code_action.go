@@ -430,6 +430,26 @@ func refactorRewrite(ctx context.Context, snapshot source.Snapshot, pkg source.P
 			rerr = bug.Errorf("refactor.rewrite code actions panicked: %v", r)
 		}
 	}()
+
+	var actions []protocol.CodeAction
+
+	if canRemoveParameter(pkg, pgf, rng) {
+		cmd, err := command.NewChangeSignatureCommand("remove unused parameter", command.ChangeSignatureArgs{
+			RemoveParameter: protocol.Location{
+				URI:   protocol.URIFromSpanURI(pgf.URI),
+				Range: rng,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		actions = append(actions, protocol.CodeAction{
+			Title:   "Refactor: remove unused parameter",
+			Kind:    protocol.RefactorRewrite,
+			Command: &cmd,
+		})
+	}
+
 	start, end, err := pgf.RangePos(rng)
 	if err != nil {
 		return nil, err
@@ -471,7 +491,6 @@ func refactorRewrite(ctx context.Context, snapshot source.Snapshot, pkg source.P
 		}
 	}
 
-	var actions []protocol.CodeAction
 	for i := range commands {
 		actions = append(actions, protocol.CodeAction{
 			Title:   commands[i].Title,
@@ -508,6 +527,43 @@ func refactorRewrite(ctx context.Context, snapshot source.Snapshot, pkg source.P
 	}
 
 	return actions, nil
+}
+
+// canRemoveParameter reports whether we can remove the function parameter
+// indicated by the given [start, end) range.
+//
+// This is true if:
+//   - [start, end) is contained within an unused field or parameter name
+//   - ... of a non-method function declaration.
+func canRemoveParameter(pkg source.Package, pgf *source.ParsedGoFile, rng protocol.Range) bool {
+	info := source.FindParam(pgf, rng)
+	if info.Decl == nil || info.Field == nil {
+		return false
+	}
+
+	if len(info.Field.Names) == 0 {
+		return true // no names => field is unused
+	}
+	if info.Name == nil {
+		return false // no name is indicated
+	}
+	if info.Name.Name == "_" {
+		return true // trivially unused
+	}
+
+	obj := pkg.GetTypesInfo().Defs[info.Name]
+	if obj == nil {
+		return false // something went wrong
+	}
+
+	used := false
+	ast.Inspect(info.Decl.Body, func(node ast.Node) bool {
+		if n, ok := node.(*ast.Ident); ok && pkg.GetTypesInfo().Uses[n] == obj {
+			used = true
+		}
+		return !used // keep going until we find a use
+	})
+	return !used
 }
 
 // refactorInline returns inline actions available at the specified range.

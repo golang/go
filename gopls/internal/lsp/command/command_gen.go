@@ -23,6 +23,7 @@ const (
 	AddImport               Command = "add_import"
 	AddTelemetryCounters    Command = "add_telemetry_counters"
 	ApplyFix                Command = "apply_fix"
+	ChangeSignature         Command = "change_signature"
 	CheckUpgrades           Command = "check_upgrades"
 	EditGoDirective         Command = "edit_go_directive"
 	FetchVulncheckResult    Command = "fetch_vulncheck_result"
@@ -56,6 +57,7 @@ var Commands = []Command{
 	AddImport,
 	AddTelemetryCounters,
 	ApplyFix,
+	ChangeSignature,
 	CheckUpgrades,
 	EditGoDirective,
 	FetchVulncheckResult,
@@ -110,6 +112,12 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 			return nil, err
 		}
 		return nil, s.ApplyFix(ctx, a0)
+	case "gopls.change_signature":
+		var a0 ChangeSignatureArgs
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		return nil, s.ChangeSignature(ctx, a0)
 	case "gopls.check_upgrades":
 		var a0 CheckUpgradesArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
@@ -304,6 +312,18 @@ func NewApplyFixCommand(title string, a0 ApplyFixArgs) (protocol.Command, error)
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.apply_fix",
+		Arguments: args,
+	}, nil
+}
+
+func NewChangeSignatureCommand(title string, a0 ChangeSignatureArgs) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.change_signature",
 		Arguments: args,
 	}, nil
 }

@@ -1001,6 +1001,9 @@ func formatTest(test *markerTest) ([]byte, error) {
 	// ...followed by any new golden files.
 	var newGoldenFiles []txtar.File
 	for filename, data := range updatedGolden {
+		// TODO(rfindley): it looks like this implicitly removes trailing newlines
+		// from golden content. Is there any way to fix that? Perhaps we should
+		// just make the diff tolerant of missing newlines?
 		newGoldenFiles = append(newGoldenFiles, txtar.File{Name: filename, Data: data})
 	}
 	// Sort new golden files lexically.
@@ -2047,7 +2050,7 @@ func codeAction(env *Env, uri protocol.DocumentURI, rng protocol.Range, actionKi
 			Command:   action.Command.Command,
 			Arguments: action.Command.Arguments,
 		}); err != nil {
-			env.T.Fatalf("error converting command %q to edits: %v", action.Command.Command, err)
+			return nil, err
 		}
 
 		if err := applyDocumentChanges(env, env.Awaiter.takeDocumentChanges(), fileChanges); err != nil {

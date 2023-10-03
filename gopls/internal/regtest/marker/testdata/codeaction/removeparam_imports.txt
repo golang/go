@@ -1,0 +1,171 @@
+This test checks the behavior of removing a parameter with respect to various
+import scenarios.
+
+-- go.mod --
+module mod.test
+
+go 1.21
+
+
+-- a/a1.go --
+package a
+
+import "mod.test/b"
+
+func _() {
+	b.B(<-b.Chan, <-b.Chan)
+}
+
+-- a/a2.go --
+package a
+
+import "mod.test/b"
+
+func _() {
+	b.B(<-b.Chan, <-b.Chan)
+	b.B(<-b.Chan, <-b.Chan)
+}
+
+-- a/a3.go --
+package a
+
+import "mod.test/b"
+
+func _() {
+	b.B(<-b.Chan, <-b.Chan)
+}
+
+func _() {
+	b.B(<-b.Chan, <-b.Chan)
+}
+
+-- a/a4.go --
+package a
+
+// TODO(rfindley/adonovan): inlining here adds an additional import of
+// mod.test/b. Can we do better?
+import (
+	. "mod.test/b"
+)
+
+func _() {
+	B(<-Chan, <-Chan)
+}
+
+-- b/b.go --
+package b
+
+import "mod.test/c"
+
+var Chan chan c.C
+
+func B(x, y c.C) { //@codeaction("refactor.rewrite", "x", "x", b)
+}
+
+-- c/c.go --
+package c
+
+type C int
+
+-- d/d.go --
+package d
+
+// Removing the parameter should remove this import.
+import "mod.test/c"
+
+func D(x c.C) { //@codeaction("refactor.rewrite", "x", "x", d)
+}
+
+func _() {
+	D(1)
+}
+
+-- @b/a/a1.go --
+package a
+
+import (
+	"mod.test/b"
+	c "mod.test/c"
+)
+
+func _() {
+
+	var _ c.C = <-b.Chan
+	b.B(<-b.Chan)
+
+}
+-- @b/a/a2.go --
+package a
+
+import (
+	"mod.test/b"
+	c "mod.test/c"
+)
+
+func _() {
+
+	var _ c.C = <-b.Chan
+	b.B(<-b.Chan)
+
+	var _ c.C = <-b.Chan
+	b.B(<-b.Chan)
+
+}
+-- @b/a/a3.go --
+package a
+
+import (
+	"mod.test/b"
+	c "mod.test/c"
+)
+
+func _() {
+
+	var _ c.C = <-b.Chan
+	b.B(<-b.Chan)
+
+}
+
+func _() {
+
+	var _ c.C = <-b.Chan
+	b.B(<-b.Chan)
+
+}
+-- @b/a/a4.go --
+package a
+
+// TODO(rfindley/adonovan): inlining here adds an additional import of
+// mod.test/b. Can we do better?
+import (
+	. "mod.test/b"
+	b "mod.test/b"
+	c "mod.test/c"
+)
+
+func _() {
+
+	var _ c.C = <-Chan
+	b.B(<-Chan)
+
+}
+-- @b/b/b.go --
+package b
+
+import "mod.test/c"
+
+var Chan chan c.C
+
+func B(y c.C) { //@codeaction("refactor.rewrite", "x", "x", b)
+}
+-- @d/d/d.go --
+package d
+
+// Removing the parameter should remove this import.
+
+func D() { //@codeaction("refactor.rewrite", "x", "x", d)
+}
+
+func _() {
+	D()
+}

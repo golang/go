@@ -1487,6 +1487,7 @@ func typeCheckImpl(ctx context.Context, b *typeCheckBatch, inputs typeCheckInput
 	return pkg, nil
 }
 
+// TODO(golang/go#63472): this looks wrong with the new Go version syntax.
 var goVersionRx = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
 
 func doTypeCheck(ctx context.Context, b *typeCheckBatch, inputs typeCheckInputs) (*syntaxPackage, error) {

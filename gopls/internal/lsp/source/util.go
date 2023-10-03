@@ -119,6 +119,8 @@ func nodeAtPos(nodes []ast.Node, pos token.Pos) (ast.Node, int) {
 func FormatNode(fset *token.FileSet, n ast.Node) string {
 	var buf strings.Builder
 	if err := printer.Fprint(&buf, fset, n); err != nil {
+		// TODO(rfindley): we should use bug.Reportf here.
+		// We encounter this during completion.resolveInvalid.
 		return ""
 	}
 	return buf.String()
@@ -531,3 +533,9 @@ func embeddedIdent(x ast.Expr) *ast.Ident {
 	}
 	return nil
 }
+
+// An importFunc is an implementation of the single-method
+// types.Importer interface based on a function value.
+type ImporterFunc func(path string) (*types.Package, error)
+
+func (f ImporterFunc) Import(path string) (*types.Package, error) { return f(path) }

@@ -28,11 +28,20 @@ To reduce false positives it ignores:
 - functions in test files
 - functions with empty bodies or those with just a return stmt`
 
-var Analyzer = &analysis.Analyzer{
-	Name:     "unusedparams",
-	Doc:      Doc,
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
-	Run:      run,
+var (
+	Analyzer = &analysis.Analyzer{
+		Name:     "unusedparams",
+		Doc:      Doc,
+		Requires: []*analysis.Analyzer{inspect.Analyzer},
+		Run:      run,
+	}
+	inspectLits     bool
+	inspectWrappers bool
+)
+
+func init() {
+	Analyzer.Flags.BoolVar(&inspectLits, "lits", true, "inspect function literals")
+	Analyzer.Flags.BoolVar(&inspectWrappers, "wrappers", false, "inspect functions whose body consists of a single return statement")
 }
 
 type paramData struct {
@@ -45,7 +54,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
-		(*ast.FuncLit)(nil),
+	}
+	if inspectLits {
+		nodeFilter = append(nodeFilter, (*ast.FuncLit)(nil))
 	}
 
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
@@ -62,6 +73,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			if f.Recv != nil {
 				return
 			}
+
 			// Ignore functions in _test.go files to reduce false positives.
 			if file := pass.Fset.File(n.Pos()); file != nil && strings.HasSuffix(file.Name(), "_test.go") {
 				return
@@ -76,8 +88,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		switch expr := body.List[0].(type) {
 		case *ast.ReturnStmt:
-			// Ignore functions that only contain a return statement to reduce false positives.
-			return
+			if !inspectWrappers {
+				// Ignore functions that only contain a return statement to reduce false positives.
+				return
+			}
 		case *ast.ExprStmt:
 			callExpr, ok := expr.X.(*ast.CallExpr)
 			if !ok || len(body.List) > 1 {

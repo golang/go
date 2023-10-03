@@ -84,6 +84,26 @@ Args:
 }
 ```
 
+### **performs a "change signature" refactoring.**
+Identifier: `gopls.change_signature`
+
+This command is experimental, currently only supporting parameter removal.
+Its signature will certainly change in the future (pun intended).
+
+Args:
+
+```
+{
+	"RemoveParameter": {
+		"uri": string,
+		"range": {
+			"start": { ... },
+			"end": { ... },
+		},
+	},
+}
+```
+
 ### **Check for upgrades**
 Identifier: `gopls.check_upgrades`
 

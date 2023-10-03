@@ -106,9 +106,7 @@ func inlineCall(ctx context.Context, snapshot Snapshot, fh FileHandle, rng proto
 
 	// Users can consult the gopls event log to see
 	// why a particular inlining strategy was chosen.
-	logf := func(format string, args ...any) {
-		event.Log(ctx, "inliner: "+fmt.Sprintf(format, args...))
-	}
+	logf := logger(ctx, "inliner", snapshot.Options().VerboseOutput)
 
 	callee, err := inline.AnalyzeCallee(logf, calleePkg.FileSet(), calleePkg.GetTypes(), calleePkg.GetTypesInfo(), calleeDecl, calleePGF.Src)
 	if err != nil {
@@ -135,4 +133,15 @@ func inlineCall(ctx context.Context, snapshot Snapshot, fh FileHandle, rng proto
 		Message:   fmt.Sprintf("inline call of %v", callee),
 		TextEdits: diffToTextEdits(callerPGF.Tok, diff.Bytes(callerPGF.Src, got)),
 	}, nil
+}
+
+// TODO(adonovan): change the inliner to instead accept an io.Writer.
+func logger(ctx context.Context, name string, verbose bool) func(format string, args ...any) {
+	if verbose {
+		return func(format string, args ...any) {
+			event.Log(ctx, name+": "+fmt.Sprintf(format, args...))
+		}
+	} else {
+		return func(string, ...any) {}
+	}
 }

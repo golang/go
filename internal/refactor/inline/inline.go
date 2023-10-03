@@ -21,6 +21,7 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/imports"
+	internalastutil "golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -487,8 +488,12 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 				if samePkg {
 					// Caller and callee are in same package.
 					// Check caller has not shadowed the decl.
-					found := caller.lookup(obj.Name) // can't fail
-					if !isPkgLevel(found) {
+					//
+					// This may fail if the callee is "fake", such as for signature
+					// refactoring where the callee is modified to be a trivial wrapper
+					// around the refactored signature.
+					found := caller.lookup(obj.Name)
+					if found != nil && !isPkgLevel(found) {
 						return nil, fmt.Errorf("cannot inline because %q is shadowed in caller by a %s (line %d)",
 							obj.Name, objectKind(found),
 							caller.Fset.PositionFor(found.Pos(), false).Line)
@@ -1323,7 +1328,7 @@ next:
 			logf("replacing parameter %q by argument %q",
 				param.info.Name, debugFormatNode(caller.Fset, arg.expr))
 			for _, ref := range param.info.Refs {
-				replaceCalleeID(ref, cloneNode(arg.expr).(ast.Expr))
+				replaceCalleeID(ref, internalastutil.CloneNode(arg.expr).(ast.Expr))
 			}
 			params[i] = nil // substituted
 			args[i] = nil   // substituted
@@ -2338,60 +2343,6 @@ func replaceNode(root ast.Node, from, to ast.Node) {
 	if !found {
 		panic(fmt.Sprintf("%T not found", from))
 	}
-}
-
-// cloneNode returns a deep copy of a Node.
-// It omits pointers to ast.{Scope,Object} variables.
-func cloneNode(n ast.Node) ast.Node {
-	var clone func(x reflect.Value) reflect.Value
-	set := func(dst, src reflect.Value) {
-		src = clone(src)
-		if src.IsValid() {
-			dst.Set(src)
-		}
-	}
-	clone = func(x reflect.Value) reflect.Value {
-		switch x.Kind() {
-		case reflect.Ptr:
-			if x.IsNil() {
-				return x
-			}
-			// Skip fields of types potentially involved in cycles.
-			switch x.Interface().(type) {
-			case *ast.Object, *ast.Scope:
-				return reflect.Zero(x.Type())
-			}
-			y := reflect.New(x.Type().Elem())
-			set(y.Elem(), x.Elem())
-			return y
-
-		case reflect.Struct:
-			y := reflect.New(x.Type()).Elem()
-			for i := 0; i < x.Type().NumField(); i++ {
-				set(y.Field(i), x.Field(i))
-			}
-			return y
-
-		case reflect.Slice:
-			y := reflect.MakeSlice(x.Type(), x.Len(), x.Cap())
-			for i := 0; i < x.Len(); i++ {
-				set(y.Index(i), x.Index(i))
-			}
-			return y
-
-		case reflect.Interface:
-			y := reflect.New(x.Type()).Elem()
-			set(y, x.Elem())
-			return y
-
-		case reflect.Array, reflect.Chan, reflect.Func, reflect.Map, reflect.UnsafePointer:
-			panic(x) // unreachable in AST
-
-		default:
-			return x // bool, string, number
-		}
-	}
-	return clone(reflect.ValueOf(n)).Interface().(ast.Node)
 }
 
 // clearPositions destroys token.Pos information within the tree rooted at root,

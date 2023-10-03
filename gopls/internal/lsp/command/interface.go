@@ -201,6 +201,12 @@ type Interface interface {
 	// the user to ask if they want to enable Go telemetry uploading. If the user
 	// responds 'Yes', the telemetry mode is set to "on".
 	MaybePromptForTelemetry(context.Context) error
+
+	// ChangeSignature: performs a "change signature" refactoring.
+	//
+	// This command is experimental, currently only supporting parameter removal.
+	// Its signature will certainly change in the future (pun intended).
+	ChangeSignature(context.Context, ChangeSignatureArgs) error
 }
 
 type RunTestsArgs struct {
@@ -518,4 +524,9 @@ type AddTelemetryCountersArgs struct {
 	// Names and Values must have the same length.
 	Names  []string // Name of counters.
 	Values []int64  // Values added to the corresponding counters. Must be non-negative.
+}
+
+// ChangeSignatureArgs specifies a "change signature" refactoring to perform.
+type ChangeSignatureArgs struct {
+	RemoveParameter protocol.Location
 }

@@ -1,0 +1,55 @@
+This test exercises behavior of change signature refactoring with respect to
+comments.
+
+Currently, inline comments around arguments or parameters are dropped, which is
+probably acceptable. Fixing this is likely intractible without fixing comment
+representation in the AST.
+
+-- go.mod --
+module unused.mod
+
+go 1.18
+
+-- a/a.go --
+package a
+
+// A doc comment.
+func A(x /* used parameter */, unused int /* unused parameter */ ) int { //@codeaction("refactor.rewrite", "unused", "unused", a)
+	// about to return
+	return x // returning
+	// just returned
+}
+
+// This function makes calls.
+func _() {
+	// about to call
+	A(one() /* used arg */, 2 /* unused arg */) // calling
+	// just called
+}
+
+func one() int {
+	// I should be unaffected!
+	return 1
+}
+
+-- @a/a/a.go --
+package a
+
+// A doc comment.
+func A(x int) int { //@codeaction("refactor.rewrite", "unused", "unused", a)
+	// about to return
+	return x // returning
+	// just returned
+}
+
+// This function makes calls.
+func _() {
+	// about to call
+	A(one()) // calling
+	// just called
+}
+
+func one() int {
+	// I should be unaffected!
+	return 1
+}

@@ -284,24 +284,44 @@ func SnapshotLabels(snapshot Snapshot) []label.Label {
 	return []label.Label{tag.Snapshot.Of(snapshot.SequenceID()), tag.Directory.Of(snapshot.View().Folder())}
 }
 
-// NarrowestPackageForFile is a convenience function that selects the
-// narrowest non-ITV package to which this file belongs, type-checks
-// it in the requested mode (full or workspace), and returns it, along
-// with the parse tree of that file.
+// NarrowestPackageForFile is a convenience function that selects the narrowest
+// non-ITV package to which this file belongs, type-checks it in the requested
+// mode (full or workspace), and returns it, along with the parse tree of that
+// file.
 //
-// The "narrowest" package is the one with the fewest number of files
-// that includes the given file. This solves the problem of test
-// variants, as the test will have more files than the non-test package.
-// (Historically the preference was a parameter but widest was almost
-// never needed.)
+// The "narrowest" package is the one with the fewest number of files that
+// includes the given file. This solves the problem of test variants, as the
+// test will have more files than the non-test package.
 //
-// An intermediate test variant (ITV) package has identical source
-// to a regular package but resolves imports differently.
-// gopls should never need to type-check them.
+// An intermediate test variant (ITV) package has identical source to a regular
+// package but resolves imports differently. gopls should never need to
+// type-check them.
 //
-// Type-checking is expensive. Call snapshot.ParseGo if all you need
-// is a parse tree, or snapshot.MetadataForFile if you only need metadata.
+// Type-checking is expensive. Call snapshot.ParseGo if all you need is a parse
+// tree, or snapshot.MetadataForFile if you only need metadata.
 func NarrowestPackageForFile(ctx context.Context, snapshot Snapshot, uri span.URI) (Package, *ParsedGoFile, error) {
+	return selectPackageForFile(ctx, snapshot, uri, func(metas []*Metadata) *Metadata { return metas[0] })
+}
+
+// WidestPackageForFile is a convenience function that selects the widest
+// non-ITV package to which this file belongs, type-checks it in the requested
+// mode (full or workspace), and returns it, along with the parse tree of that
+// file.
+//
+// The "widest" package is the one with the most number of files that includes
+// the given file. Which is the test variant if one exists.
+//
+// An intermediate test variant (ITV) package has identical source to a regular
+// package but resolves imports differently. gopls should never need to
+// type-check them.
+//
+// Type-checking is expensive. Call snapshot.ParseGo if all you need is a parse
+// tree, or snapshot.MetadataForFile if you only need metadata.
+func WidestPackageForFile(ctx context.Context, snapshot Snapshot, uri span.URI) (Package, *ParsedGoFile, error) {
+	return selectPackageForFile(ctx, snapshot, uri, func(metas []*Metadata) *Metadata { return metas[len(metas)-1] })
+}
+
+func selectPackageForFile(ctx context.Context, snapshot Snapshot, uri span.URI, selector func([]*Metadata) *Metadata) (Package, *ParsedGoFile, error) {
 	metas, err := snapshot.MetadataForFile(ctx, uri)
 	if err != nil {
 		return nil, nil, err
@@ -310,8 +330,8 @@ func NarrowestPackageForFile(ctx context.Context, snapshot Snapshot, uri span.UR
 	if len(metas) == 0 {
 		return nil, nil, fmt.Errorf("no package metadata for file %s", uri)
 	}
-	narrowest := metas[0]
-	pkgs, err := snapshot.TypeCheck(ctx, narrowest.ID)
+	md := selector(metas)
+	pkgs, err := snapshot.TypeCheck(ctx, md.ID)
 	if err != nil {
 		return nil, nil, err
 	}

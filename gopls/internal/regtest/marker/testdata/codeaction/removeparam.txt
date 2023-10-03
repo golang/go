@@ -1,0 +1,264 @@
+This test exercises the refactoring to remove unused parameters.
+
+-- go.mod --
+module unused.mod
+
+go 1.18
+
+-- a/a.go --
+package a
+
+func A(x, unused int) int { //@codeaction("refactor.rewrite", "unused", "unused", a)
+	return x
+}
+
+-- @a/a/a.go --
+package a
+
+func A(x int) int { //@codeaction("refactor.rewrite", "unused", "unused", a)
+	return x
+}
+
+-- a/a2.go --
+package a
+
+func _() {
+	A(1, 2)
+}
+
+-- a/a_test.go --
+package a
+
+func _() {
+	A(1, 2)
+}
+
+-- a/a_x_test.go --
+package a_test
+
+import "unused.mod/a"
+
+func _() {
+	a.A(1, 2)
+}
+
+-- b/b.go --
+package b
+
+import "unused.mod/a"
+
+func f() int {
+	return 1
+}
+
+func g() int {
+	return 2
+}
+
+func _() {
+	a.A(f(), 1)
+}
+
+-- @a/a/a2.go --
+package a
+
+func _() {
+	A(1)
+}
+-- @a/a/a_test.go --
+package a
+
+func _() {
+	A(1)
+}
+-- @a/a/a_x_test.go --
+package a_test
+
+import "unused.mod/a"
+
+func _() {
+	a.A(1)
+}
+-- @a/b/b.go --
+package b
+
+import "unused.mod/a"
+
+func f() int {
+	return 1
+}
+
+func g() int {
+	return 2
+}
+
+func _() {
+	a.A(f())
+}
+-- field/field.go --
+package field
+
+func Field(x int, field int) { //@codeaction("refactor.rewrite", "int", "int", field)
+}
+
+func _() {
+	Field(1, 2)
+}
+-- @field/field/field.go --
+package field
+
+func Field(field int) { //@codeaction("refactor.rewrite", "int", "int", field)
+}
+
+func _() {
+	Field(2)
+}
+-- ellipsis/ellipsis.go --
+package ellipsis
+
+func Ellipsis(...any) { //@codeaction("refactor.rewrite", "any", "any", ellipsis)
+}
+
+func _() {
+	// TODO(rfindley): investigate the broken formatting resulting from these inlinings.
+	Ellipsis()
+	Ellipsis(1)
+	Ellipsis(1, 2)
+	Ellipsis(1, f(), g())
+	Ellipsis(h())
+	Ellipsis(i()...)
+}
+
+func f() int
+func g() int
+func h() (int, int)
+func i() []any
+
+-- @ellipsis/ellipsis/ellipsis.go --
+package ellipsis
+
+func Ellipsis() { //@codeaction("refactor.rewrite", "any", "any", ellipsis)
+}
+
+func _() {
+	// TODO(rfindley): investigate the broken formatting resulting from these inlinings.
+	Ellipsis()
+	Ellipsis()
+	Ellipsis()
+
+	var _ []any = []any{1, f(), g()}
+	Ellipsis()
+
+	func(_ ...any) {
+		Ellipsis()
+	}(h())
+
+	var _ []any = i()
+	Ellipsis()
+
+}
+
+func f() int
+func g() int
+func h() (int, int)
+func i() []any
+-- ellipsis2/ellipsis2.go --
+package ellipsis2
+
+func Ellipsis2(_, _ int, rest ...int) { //@codeaction("refactor.rewrite", "_", "_", ellipsis2)
+}
+
+func _() {
+	Ellipsis2(1,2,3)
+	Ellipsis2(h())
+	Ellipsis2(1,2, []int{3, 4}...)
+}
+
+func h() (int, int)
+
+-- @ellipsis2/ellipsis2/ellipsis2.go --
+package ellipsis2
+
+func Ellipsis2(_ int, rest ...int) { //@codeaction("refactor.rewrite", "_", "_", ellipsis2)
+}
+
+func _() {
+	Ellipsis2(2, []int{3}...)
+	func(_, blank0 int, rest ...int) {
+		Ellipsis2(blank0, rest...)
+	}(h())
+	Ellipsis2(2, []int{3, 4}...)
+}
+
+func h() (int, int)
+-- overlapping/overlapping.go --
+package overlapping
+
+func Overlapping(i int) int { //@codeaction("refactor.rewrite", re"(i) int", re"(i) int", overlapping)
+	return 0
+}
+
+func _() {
+	x := Overlapping(Overlapping(0))
+	_ = x
+}
+-- @overlapping/overlapping/overlapping.go --
+package overlapping
+
+func Overlapping() int { //@codeaction("refactor.rewrite", re"(i) int", re"(i) int", overlapping)
+	return 0
+}
+
+func _() {
+	x := func(_ int) int {
+		return Overlapping()
+	}(Overlapping())
+	_ = x
+}
+-- effects/effects.go --
+package effects
+
+func effects(x, y int) int { //@codeaction("refactor.rewrite", "y", "y", effects)
+	return x
+}
+
+func f() int
+func g() int
+
+func _() {
+	effects(f(), g())
+	effects(f(), g())
+}
+-- @effects/effects/effects.go --
+package effects
+
+func effects(x int) int { //@codeaction("refactor.rewrite", "y", "y", effects)
+	return x
+}
+
+func f() int
+func g() int
+
+func _() {
+
+	var x, _ int = f(), g()
+	effects(x)
+
+	{
+		var x, _ int = f(), g()
+		effects(x)
+	}
+}
+-- recursive/recursive.go --
+package recursive
+
+func Recursive(x int) int { //@codeaction("refactor.rewrite", "x", "x", recursive)
+	return Recursive(1)
+}
+
+-- @recursive/recursive/recursive.go --
+package recursive
+
+func Recursive() int { //@codeaction("refactor.rewrite", "x", "x", recursive)
+	return Recursive()
+}

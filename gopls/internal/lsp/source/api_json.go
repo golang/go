@@ -734,6 +734,12 @@ var GeneratedAPIJSON = &APIJSON{
 			ArgDoc:  "{\n\t// The fix to apply.\n\t\"Fix\": string,\n\t// The file URI for the document to fix.\n\t\"URI\": string,\n\t// The document range to scan for fixes.\n\t\"Range\": {\n\t\t\"start\": {\n\t\t\t\"line\": uint32,\n\t\t\t\"character\": uint32,\n\t\t},\n\t\t\"end\": {\n\t\t\t\"line\": uint32,\n\t\t\t\"character\": uint32,\n\t\t},\n\t},\n}",
 		},
 		{
+			Command: "gopls.change_signature",
+			Title:   "performs a \"change signature\" refactoring.",
+			Doc:     "This command is experimental, currently only supporting parameter removal.\nIts signature will certainly change in the future (pun intended).",
+			ArgDoc:  "{\n\t\"RemoveParameter\": {\n\t\t\"uri\": string,\n\t\t\"range\": {\n\t\t\t\"start\": { ... },\n\t\t\t\"end\": { ... },\n\t\t},\n\t},\n}",
+		},
+		{
 			Command: "gopls.check_upgrades",
 			Title:   "Check for upgrades",
 			Doc:     "Checks for module upgrades.",
