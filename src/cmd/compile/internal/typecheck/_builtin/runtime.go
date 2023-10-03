@@ -189,8 +189,6 @@ func unsafestringcheckptr(ptr unsafe.Pointer, len int64)
 func panicunsafestringlen()
 func panicunsafestringnilptr()
 
-func mulUintptr(x, y uintptr) (uintptr, bool)
-
 func memmove(to *any, frm *any, length uintptr)
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 func memclrHasPointers(ptr unsafe.Pointer, n uintptr)

@@ -748,11 +748,23 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 			return walkExpr(typecheck.Expr(h), init)
 		}
 
-		// mem, overflow := runtime.mulUintptr(et.size, len)
+		// mem, overflow := math.mulUintptr(et.size, len)
 		mem := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINTPTR])
 		overflow := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
-		fn := typecheck.LookupRuntime("mulUintptr")
-		call := mkcall1(fn, fn.Type().ResultsTuple(), init, ir.NewInt(base.Pos, sliceType.Elem().Size()), typecheck.Conv(typecheck.Conv(len, lenType), types.Types[types.TUINTPTR]))
+
+		decl := types.NewSignature(nil,
+			[]*types.Field{
+				types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+				types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+			},
+			[]*types.Field{
+				types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+				types.NewField(base.Pos, nil, types.Types[types.TBOOL]),
+			})
+
+		fn := ir.NewFunc(n.Pos(), n.Pos(), math_MulUintptr, decl)
+
+		call := mkcall1(fn.Nname, fn.Type().ResultsTuple(), init, ir.NewInt(base.Pos, sliceType.Elem().Size()), typecheck.Conv(typecheck.Conv(len, lenType), types.Types[types.TUINTPTR]))
 		appendWalkStmt(init, ir.NewAssignListStmt(base.Pos, ir.OAS2, []ir.Node{mem, overflow}, []ir.Node{call}))
 
 		// if overflow || mem > -uintptr(ptr) {
@@ -777,6 +789,8 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		typecheck.Conv(len, types.Types[types.TINT]))
 	return walkExpr(typecheck.Expr(h), init)
 }
+
+var math_MulUintptr = &types.Sym{Pkg: types.NewPkg("runtime/internal/math", "math"), Name: "MulUintptr"}
 
 func walkUnsafeString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	ptr := safeExpr(n.X, init)
