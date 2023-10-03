@@ -33,12 +33,12 @@ var packagesFlag = flag.String("packages", "", "set of packages for TestEverythi
 //
 // Use this command to inline everything in golang.org/x/tools:
 //
-// $ go test ./internal/refactor/inline/ -run=Everything -v -packages=../../../
+// $ go test ./internal/refactor/inline/ -run=Everything -packages=../../../
 //
 // And these commands to inline everything in the kubernetes repository:
 //
-// $ go build -o /tmp/everything ./internal/refactor/inline/
-// $ (cd kubernetes && /tmp/everything -run=Everything -v -packages=./...)
+// $ go build -c -o /tmp/everything ./internal/refactor/inline/
+// $ (cd kubernetes && /tmp/everything -test.run=Everything -packages=./...)
 //
 // TODO(adonovan):
 //   - report counters (number of attempts, failed AnalyzeCallee, failed
