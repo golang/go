@@ -532,10 +532,8 @@ func TestSubstitution(t *testing.T) {
 			`func f(x int) { _ = func() { y := 1; print(y); print(x) } }`,
 			`func _(y int) { f(y) } `,
 			`func _(y int) {
-	{
-		var x int = y
-		_ = func() { y := 1; print(y); print(x) }
-	}
+	var x int = y
+	_ = func() { y := 1; print(y); print(x) }
 }`,
 		},
 	})
