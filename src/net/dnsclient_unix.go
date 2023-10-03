@@ -141,7 +141,6 @@ func dnsStreamRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte) 
 	if err != nil {
 		return dnsmessage.Parser{}, dnsmessage.Header{}, err
 	}
-	// TODO: thease errors shouldn't be wrapped.
 	var p dnsmessage.Parser
 	h, err := p.Start(b[:n])
 	if err != nil {
