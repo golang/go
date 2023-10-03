@@ -110,7 +110,8 @@ func Inline(logf func(string, ...any), caller *Caller, callee *Callee) ([]byte, 
 	// (see "statement theory").
 	elideBraces := false
 	if newBlock, ok := res.new.(*ast.BlockStmt); ok {
-		parent := caller.path[nodeIndex(caller.path, res.old)+1]
+		i := nodeIndex(caller.path, res.old)
+		parent := caller.path[i+1]
 		var body []ast.Stmt
 		switch parent := parent.(type) {
 		case *ast.BlockStmt:
@@ -121,11 +122,34 @@ func Inline(logf func(string, ...any), caller *Caller, callee *Callee) ([]byte, 
 			body = parent.Body
 		}
 		if body != nil {
+			callerNames := declares(body)
+
+			// If BlockStmt is a function body,
+			// include its receiver, params, and results.
+			addFieldNames := func(fields *ast.FieldList) {
+				if fields != nil {
+					for _, field := range fields.List {
+						for _, id := range field.Names {
+							callerNames[id.Name] = true
+						}
+					}
+				}
+			}
+			switch f := caller.path[i+2].(type) {
+			case *ast.FuncDecl:
+				addFieldNames(f.Recv)
+				addFieldNames(f.Type.Params)
+				addFieldNames(f.Type.Results)
+			case *ast.FuncLit:
+				addFieldNames(f.Type.Params)
+				addFieldNames(f.Type.Results)
+			}
+
 			if len(callerLabels(caller.path)) > 0 {
 				// TODO(adonovan): be more precise and reject
 				// only forward gotos across the inlined block.
 				logf("keeping block braces: caller uses control labels")
-			} else if intersects(declares(newBlock.List), declares(body)) {
+			} else if intersects(declares(newBlock.List), callerNames) {
 				logf("keeping block braces: avoids name conflict")
 			} else {
 				elideBraces = true
@@ -1060,15 +1084,15 @@ func arguments(caller *Caller, calleeDecl *ast.FuncDecl, assign1 func(*types.Var
 						debugFormatNode(caller.Fset, caller.Call.Fun),
 						fld.Name())
 				}
+				if is[*types.Pointer](arg.typ.Underlying()) {
+					arg.pure = false // implicit *ptr operation => impure
+				}
 				arg.expr = &ast.SelectorExpr{
 					X:   arg.expr,
 					Sel: makeIdent(fld.Name()),
 				}
 				arg.typ = fld.Type()
 				arg.duplicable = false
-			}
-			if seln.Indirect() {
-				arg.pure = false // one or more implicit *ptr operation => impure
 			}
 
 			// Make * or & explicit.
@@ -1083,6 +1107,7 @@ func arguments(caller *Caller, calleeDecl *ast.FuncDecl, assign1 func(*types.Var
 				arg.expr = &ast.StarExpr{X: arg.expr}
 				arg.typ = deref(arg.typ)
 				arg.duplicable = false
+				arg.pure = false
 			}
 		}
 	}

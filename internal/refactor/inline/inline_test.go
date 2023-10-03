@@ -732,6 +732,29 @@ func TestEmbeddedFields(t *testing.T) {
 			`func _(v V) { (*V).f(&v) }`,
 			`func _(v V) { print(&(&v).U.T) }`,
 		},
+		{
+			// x is a single-assign var, and x.f does not load through a pointer
+			// (despite types.Selection.Indirect=true), so x is pure.
+			"No binding decl is required for recv in method-to-method calls.",
+			`type T struct{}; func (x *T) f() { g(); print(*x) }; func g()`,
+			`func (x *T) _() { x.f() }`,
+			`func (x *T) _() {
+	g()
+	print(*x)
+}`,
+		},
+		{
+			"Same, with implicit &recv.",
+			`type T struct{}; func (x *T) f() { g(); print(*x) }; func g()`,
+			`func (x T) _() { x.f() }`,
+			`func (x T) _() {
+	{
+		var x *T = &x
+		g()
+		print(*x)
+	}
+}`,
+		},
 	})
 }
 
