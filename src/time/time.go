@@ -113,7 +113,6 @@ import (
 // Time with a specific Location. Changing the Location of a Time value with
 // these methods does not change the actual instant it represents, only the time
 // zone in which to interpret it.
-
 //
 // Representations of a Time value saved by the GobEncode, MarshalBinary,
 // MarshalJSON, and MarshalText methods store the Time.Location's offset, but not
