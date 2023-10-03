@@ -600,8 +600,8 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
 			} else if t.IsInterface() && !n1.Type().IsInterface() && !types.IsComparable(n1.Type()) {
 				base.ErrorfAt(ncase.Pos(), errors.UndefinedOp, "invalid case %L in switch (incomparable type)", n1)
 			} else {
-				op1, _ := Assignop(n1.Type(), t)
-				op2, _ := Assignop(t, n1.Type())
+				op1, _ := assignOp(n1.Type(), t)
+				op2, _ := assignOp(t, n1.Type())
 				if op1 == ir.OXXX && op2 == ir.OXXX {
 					if n.Tag != nil {
 						base.ErrorfAt(ncase.Pos(), errors.MismatchedTypes, "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Tag, n1.Type(), t)
