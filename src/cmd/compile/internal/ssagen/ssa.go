@@ -314,12 +314,29 @@ func (s *state) emitOpenDeferInfo() {
 // worker indicates which of the backend workers is doing the processing.
 func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	name := ir.FuncName(fn)
+
+	abiSelf := abiForFunc(fn, ssaConfig.ABI0, ssaConfig.ABI1)
+
 	printssa := false
-	if ssaDump != "" { // match either a simple name e.g. "(*Reader).Reset", package.name e.g. "compress/gzip.(*Reader).Reset", or subpackage name "gzip.(*Reader).Reset"
-		pkgDotName := base.Ctxt.Pkgpath + "." + name
-		printssa = name == ssaDump ||
-			strings.HasSuffix(pkgDotName, ssaDump) && (pkgDotName == ssaDump || strings.HasSuffix(pkgDotName, "/"+ssaDump))
+	// match either a simple name e.g. "(*Reader).Reset", package.name e.g. "compress/gzip.(*Reader).Reset", or subpackage name "gzip.(*Reader).Reset"
+	// optionally allows an ABI suffix specification in the GOSSAHASH, e.g. "(*Reader).Reset<0>" etc
+	if strings.Contains(ssaDump, name) { // in all the cases the function name is entirely contained within the GOSSAFUNC string.
+		nameOptABI := name
+		if strings.Contains(ssaDump, ",") { // ABI specification
+			nameOptABI = ssa.FuncNameABI(name, abiSelf.Which())
+		} else if strings.HasSuffix(ssaDump, ">") { // if they use the linker syntax instead....
+			l := len(ssaDump)
+			if l >= 3 && ssaDump[l-3] == '<' {
+				nameOptABI = ssa.FuncNameABI(name, abiSelf.Which())
+				ssaDump = ssaDump[:l-3] + "," + ssaDump[l-2:l-1]
+			}
+		}
+		pkgDotName := base.Ctxt.Pkgpath + "." + nameOptABI
+		printssa = nameOptABI == ssaDump || // "(*Reader).Reset"
+			pkgDotName == ssaDump || // "compress/gzip.(*Reader).Reset"
+			strings.HasSuffix(pkgDotName, ssaDump) && strings.HasSuffix(pkgDotName, "/"+ssaDump) // "gzip.(*Reader).Reset"
 	}
+
 	var astBuf *bytes.Buffer
 	if printssa {
 		astBuf = &bytes.Buffer{}
@@ -366,10 +383,10 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	if fn.Pragma&ir.Nosplit != 0 {
 		s.f.NoSplit = true
 	}
-	s.f.ABI0 = ssaConfig.ABI0.Copy() // Make a copy to avoid racy map operations in type-register-width cache.
-	s.f.ABI1 = ssaConfig.ABI1.Copy()
-	s.f.ABIDefault = abiForFunc(nil, s.f.ABI0, s.f.ABI1)
-	s.f.ABISelf = abiForFunc(fn, s.f.ABI0, s.f.ABI1)
+	s.f.ABI0 = ssaConfig.ABI0
+	s.f.ABI1 = ssaConfig.ABI1
+	s.f.ABIDefault = abiForFunc(nil, ssaConfig.ABI0, ssaConfig.ABI1)
+	s.f.ABISelf = abiSelf
 
 	s.panics = map[funcLine]*ssa.Block{}
 	s.softFloat = s.config.SoftFloat
@@ -381,7 +398,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	if printssa {
 		ssaDF := ssaDumpFile
 		if ssaDir != "" {
-			ssaDF = filepath.Join(ssaDir, base.Ctxt.Pkgpath+"."+name+".html")
+			ssaDF = filepath.Join(ssaDir, base.Ctxt.Pkgpath+"."+s.f.NameABI()+".html")
 			ssaD := filepath.Dir(ssaDF)
 			os.MkdirAll(ssaD, 0755)
 		}
