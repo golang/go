@@ -173,6 +173,26 @@ func handleSelectJSON(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// selection x.f information (if cursor is over .f)
+	for _, n := range path[:2] {
+		if sel, ok := n.(*ast.SelectorExpr); ok {
+			seln, ok := pkg.TypesInfo.Selections[sel]
+			if ok {
+				fmt.Fprintf(out, "Selection: %s recv=%v obj=%v type=%v indirect=%t index=%d\n\n",
+					strings.Fields("FieldVal MethodVal MethodExpr")[seln.Kind()],
+					seln.Recv(),
+					seln.Obj(),
+					seln.Type(),
+					seln.Indirect(),
+					seln.Index())
+
+			} else {
+				fmt.Fprintf(out, "Selector is qualified identifier.\n\n")
+			}
+			break
+		}
+	}
+
 	// Object type information.
 	switch n := path[0].(type) {
 	case *ast.Ident:
