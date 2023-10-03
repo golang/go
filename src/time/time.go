@@ -634,6 +634,7 @@ const (
 //
 //	seconds := 10
 //	fmt.Print(time.Duration(seconds)*time.Second) // prints 10s
+
 const (
 	Nanosecond  Duration = 1
 	Microsecond          = 1000 * Nanosecond
