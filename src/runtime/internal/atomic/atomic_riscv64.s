@@ -288,7 +288,7 @@ TEXT ·Or32(SB), NOSPLIT, $0-20
 	MOV	ptr+0(FP), A0
 	MOVW	val+8(FP), A1
 	AMOORW	A1, (A0), A2
-	MOVW A2, ret+16(FP)
+	MOVW	A2, ret+16(FP)
 	RET
 
 // func And32(addr *uint32, v uint32) old uint32
@@ -296,7 +296,7 @@ TEXT ·And32(SB), NOSPLIT, $0-20
 	MOV	ptr+0(FP), A0
 	MOVW	val+8(FP), A1
 	AMOANDW	A1, (A0), A2
-	MOVW A2, ret+16(FP)
+	MOVW	A2, ret+16(FP)
 	RET
 
 // func Or64(addr *uint64, v uint64) old uint64
@@ -304,7 +304,7 @@ TEXT ·Or64(SB), NOSPLIT, $0-24
 	MOV	ptr+0(FP), A0
 	MOV	val+8(FP), A1
 	AMOORD	A1, (A0), A2
-	MOV A2, ret+16(FP)
+	MOV	A2, ret+16(FP)
 	RET
 
 // func And64(addr *uint64, v uint64) old uint64
@@ -312,7 +312,7 @@ TEXT ·And64(SB), NOSPLIT, $0-24
 	MOV	ptr+0(FP), A0
 	MOV	val+8(FP), A1
 	AMOANDD	A1, (A0), A2
-	MOV A2, ret+16(FP)
+	MOV	A2, ret+16(FP)
 	RET
 
 // func Anduintptr(addr *uintptr, v uintptr) old uintptr
