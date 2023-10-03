@@ -58,6 +58,8 @@ func (pub *PublicKey) Size() int {
 }
 
 // Equal reports whether pub and x have the same value.
+//
+// x must be a pointer to PublicKey
 func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
 	xx, ok := x.(*PublicKey)
 	if !ok {
