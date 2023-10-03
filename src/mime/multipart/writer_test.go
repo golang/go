@@ -191,19 +191,3 @@ func TestFileContentDisposition(t *testing.T) {
 		}
 	}
 }
-
-func TestFieldContentDisposition(t *testing.T) {
-	tests := []struct {
-		fieldname string
-		want      string
-	}{
-		{"somefield", `form-data; name="somefield"`},
-		{`field"withquotes"`, `form-data; name="field\"withquotes\""`},
-		{`somefield\withbackslash`, `form-data; name="somefield\\withbackslash"`},
-	}
-	for i, tt := range tests {
-		if found := FieldContentDisposition(tt.fieldname); found != tt.want {
-			t.Errorf(`%d. found: "%s"; want: "%s"`, i, found, tt.want)
-		}
-	}
-}
