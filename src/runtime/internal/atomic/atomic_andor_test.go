@@ -1,5 +1,4 @@
-//go:build wasm || riscv64
-// +build wasm riscv64
+//go:build riscv64 || wasm
 
 //
 // Copyright 2023 The Go Authors. All rights reserved.
