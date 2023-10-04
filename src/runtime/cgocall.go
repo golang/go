@@ -266,7 +266,7 @@ func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
 		// Don't use these bounds if they don't contain SP. Perhaps we
 		// were called by something not using the standard thread
 		// stack.
-		if bounds[0] != 0  && sp > bounds[0] && sp <= bounds[1] {
+		if bounds[0] != 0 && sp > bounds[0] && sp <= bounds[1] {
 			g0.stack.lo = bounds[0]
 			g0.stack.hi = bounds[1]
 		}
@@ -291,7 +291,8 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	// The call from C is on gp.m's g0 stack, so we must ensure
 	// that we stay on that M. We have to do this before calling
 	// exitsyscall, since it would otherwise be free to move us to
-	// a different M. The call to unlockOSThread is in unwindm.
+	// a different M. The call to unlockOSThread is in this function
+	// after cgocallbackg1, or in the case of panicking, in unwindm.
 	lockOSThread()
 
 	checkm := gp.m
@@ -318,13 +319,14 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 		panic("runtime: function marked with #cgo nocallback called back into Go")
 	}
 
-	cgocallbackg1(fn, frame, ctxt) // will call unlockOSThread
+	cgocallbackg1(fn, frame, ctxt)
 
-	// At this point unlockOSThread has been called.
+	// At this point we're about to call unlockOSThread.
 	// The following code must not change to a different m.
 	// This is enforced by checking incgo in the schedule function.
-
 	gp.m.incgo = true
+	unlockOSThread()
+
 	if gp.m.isextra {
 		gp.m.isExtraInC = true
 	}
@@ -343,10 +345,6 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 
 func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
 	gp := getg()
-
-	// When we return, undo the call to lockOSThread in cgocallbackg.
-	// We must still stay on the same m.
-	defer unlockOSThread()
 
 	if gp.m.needextram || extraMWaiters.Load() > 0 {
 		gp.m.needextram = false
@@ -431,6 +429,14 @@ func unwindm(restore *bool) {
 			mp.ncgo--
 			osPreemptExtExit(mp)
 		}
+
+		// Undo the call to lockOSThread in cgocallbackg, only on the
+		// panicking path. In normal return case cgocallbackg will call
+		// unlockOSThread, ensuring no preemption point after the unlock.
+		// Here we don't need to worry about preemption, because we're
+		// panicking out of the callback and unwinding the g0 stack,
+		// instead of reentering cgo (which requires the same thread).
+		unlockOSThread()
 
 		releasem(mp)
 	}
