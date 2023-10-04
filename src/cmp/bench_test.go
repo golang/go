@@ -2,43 +2,56 @@ package cmp_test
 
 import (
 	"cmp"
-	"slices"
-	"strconv"
+	"math"
 	"testing"
 )
 
-func BenchmarkCompare_int(b *testing.B) {
-	var lst [1_000_000]int
-	for i := range lst {
-		lst[i] = i
-	}
-	b.ResetTimer()
+var sum int
 
+func BenchmarkCompare_int(b *testing.B) {
+	lst := [...]int{
+		0xfa3, 0x7fe, 0x03c, 0xcb9,
+		0x4ce, 0x4fb, 0x7d5, 0x38f,
+		0x73b, 0x322, 0x85c, 0xf4d,
+		0xbbc, 0x032, 0x059, 0xb93,
+	}
 	for n := 0; n < b.N; n++ {
-		slices.SortFunc(lst[:], cmp.Compare)
+		sum += cmp.Compare(lst[n%len(lst)], lst[(2*n)%len(lst)])
 	}
 }
 
 func BenchmarkCompare_float64(b *testing.B) {
-	var lst [1_000_000]float64
-	for i := range lst {
-		lst[i] = float64(i)
+	lst := [...]float64{
+		0.35573281, 0.77552566, 0.19006500, 0.66436280,
+		0.02769279, 0.97572397, 0.40945068, 0.26422857,
+		0.10985792, 0.35659522, 0.82752613, 0.18875522,
+		0.16410543, 0.03578153, 0.51636871, math.NaN(),
 	}
-	b.ResetTimer()
-
 	for n := 0; n < b.N; n++ {
-		slices.SortFunc(lst[:], cmp.Compare)
+		sum += cmp.Compare(lst[n%len(lst)], lst[(2*n)%len(lst)])
 	}
 }
 
-func BenchmarkCompare_string(b *testing.B) {
-	var lst [1_000_000]string
-	for i := range lst {
-		lst[i] = strconv.Itoa(i)
+func BenchmarkCompare_strings(b *testing.B) {
+	lst := [...]string{
+		"time",
+		"person",
+		"year",
+		"way",
+		"day",
+		"thing",
+		"man",
+		"world",
+		"life",
+		"hand",
+		"part",
+		"child",
+		"eye",
+		"woman",
+		"place",
+		"work",
 	}
-	b.ResetTimer()
-
 	for n := 0; n < b.N; n++ {
-		slices.SortFunc(lst[:], cmp.Compare)
+		sum += cmp.Compare(lst[n%len(lst)], lst[(2*n)%len(lst)])
 	}
 }

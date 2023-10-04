@@ -38,19 +38,19 @@ func Less[T Ordered](x, y T) bool {
 // For floating-point types, a NaN is considered less than any non-NaN,
 // a NaN is considered equal to a NaN, and -0.0 is equal to 0.0.
 func Compare[T Ordered](x, y T) int {
-	if x == y {
-		return 0
-	}
-	if x < y {
-		return -1
-	}
-	if isNaN(x) {
-		if isNaN(y) {
-			return 0
+	if x != y {
+		if isNaN(x) {
+			if isNaN(y) {
+				return 0
+			}
+			return -1
 		}
-		return -1
+		if x < y {
+			return -1
+		}
+		return +1
 	}
-	return +1
+	return 0
 }
 
 // isNaN reports whether x is a NaN without requiring the math package.
