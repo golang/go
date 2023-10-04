@@ -1163,26 +1163,6 @@ func TestErrors(t *testing.T) {
 			// html is allowed since it is the last command in the pipeline, but urlquery is not.
 			`predefined escaper "urlquery" disallowed in template`,
 		},
-		// {
-		// 	"<script>var tmpl = `asd {{.}}`;</script>",
-		// 	`{{.}} appears in a JS template literal`,
-		// },
-		// {
-		// 	"<script>var v = `${function(){return `{{.V}}+1`}()}`;</script>",
-		// 	`{{.V}} appears in a JS template literal`,
-		// },
-		// {
-		// 	"<script>var a = `asd ${function(){b = {1:2}; return`{{.}}`}}`</script>",
-		// 	`{{.}} appears in a JS template literal`,
-		// },
-		// {
-		// 	"<script>var tmpl = `${return `{{.}}`}`;</script>",
-		// 	`{{.}} appears in a JS template literal`,
-		// },
-		// {
-		// 	"<script>var tmpl = `${return {`{{.}}`}`;</script>",
-		// 	`{{.}} appears in a JS template literal`,
-		// },
 	}
 	for _, test := range tests {
 		buf := new(bytes.Buffer)
@@ -1799,6 +1779,30 @@ func TestEscapeText(t *testing.T) {
 		{
 			"<script>var foo = `x` + \"${",
 			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			"<script>function f() { var a = `${}`; }",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>{`${}`}",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>`${ function f() { return `${1}` }() }`",
+			context{state: stateJS, element: elementScript, jsCtx: jsCtxDivOp},
+		},
+		{
+			"<script>function f() {`${ function f() { `${1}` } }`}",
+			context{state: stateJS, element: elementScript, jsCtx: jsCtxDivOp},
+		},
+		{
+			"<script>`${ { `` }`",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>`${ { }`",
+			context{state: stateJSTmplLit, element: elementScript},
 		},
 	}
 

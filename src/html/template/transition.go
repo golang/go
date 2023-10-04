@@ -321,6 +321,11 @@ func tJS(c context, s []byte) (context, int) {
 			c.state, i = stateJSLineCmt, i+1
 		}
 	case '{':
+		// We only care about tracking brace depth if we are inside of a
+		// template literal.
+		if c.jsTmplExprDepth == 0 {
+			return c, i + 1
+		}
 		c.jsBraceDepth++
 	case '}':
 		if c.jsTmplExprDepth == 0 {
@@ -349,6 +354,7 @@ func tJS(c context, s []byte) (context, int) {
 }
 
 func tJSTmpl(c context, s []byte) (context, int) {
+	c.jsBraceDepth = 0
 	var k int
 	for {
 		i := k + bytes.IndexAny(s[k:], "`\\$")
@@ -367,6 +373,7 @@ func tJSTmpl(c context, s []byte) (context, int) {
 		case '$':
 			if len(s) >= i+2 && s[i+1] == '{' {
 				c.jsTmplExprDepth++
+				c.jsBraceDepth = 0
 				c.state = stateJS
 				return c, i + 2
 			}
