@@ -1059,6 +1059,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 			Mode:       "test run",
 			Actor:      new(runTestActor),
 			Deps:       []*work.Action{build},
+			Objdir:     b.NewObjdir(),
 			Package:    p,
 			IgnoreFail: true, // run (prepare output) even if build failed
 		}
@@ -1385,12 +1386,18 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	}
 
 	coverProfTempFile := func(a *work.Action) string {
+		if a.Objdir == "" {
+			panic("internal error: objdir not set in coverProfTempFile")
+		}
 		return a.Objdir + "_cover_.out"
 	}
 
 	if p := a.Package; len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		reportNoTestFiles := true
 		if cfg.BuildCover && cfg.Experiment.CoverageRedesign {
+			if err := b.Mkdir(a.Objdir); err != nil {
+				return err
+			}
 			mf, err := work.BuildActionCoverMetaFile(a)
 			if err != nil {
 				return err
