@@ -974,15 +974,24 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		if len(x.Args) > 1 {
 			depth++
 		}
-		var wasIndented bool
-		if _, ok := x.Fun.(*ast.FuncType); ok {
-			// conversions to literal function types require parentheses around the type
-			p.print(token.LPAREN)
-			wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
-			p.print(token.RPAREN)
-		} else {
-			wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
+
+		// Conversions to literal function types or <-chan
+		// types require parentheses around the type.
+		paren := false
+		switch t := x.Fun.(type) {
+		case *ast.FuncType:
+			paren = true
+		case *ast.ChanType:
+			paren = t.Dir == ast.RECV
 		}
+		if paren {
+			p.print(token.LPAREN)
+		}
+		wasIndented := p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
+		if paren {
+			p.print(token.RPAREN)
+		}
+
 		p.setPos(x.Lparen)
 		p.print(token.LPAREN)
 		if x.Ellipsis.IsValid() {

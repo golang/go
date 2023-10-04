@@ -604,6 +604,29 @@ func f()
 	}
 }
 
+// TestChanType tests that the tree for <-(<-chan int), without
+// ParenExpr, is correctly formatted with parens.
+// Test case for issue #63362.
+func TestChanType(t *testing.T) {
+	expr := &ast.UnaryExpr{
+		Op: token.ARROW,
+		X: &ast.CallExpr{
+			Fun: &ast.ChanType{
+				Dir:   ast.RECV,
+				Value: &ast.Ident{Name: "int"},
+			},
+			Args: []ast.Expr{&ast.Ident{Name: "nil"}},
+		},
+	}
+	var buf bytes.Buffer
+	if err := Fprint(&buf, fset, expr); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := buf.String(), `<-(<-chan int)(nil)`; got != want {
+		t.Fatalf("got:\n%s\nwant:\n%s\n", got, want)
+	}
+}
+
 type limitWriter struct {
 	remaining int
 	errCount  int
