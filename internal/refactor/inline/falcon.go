@@ -610,10 +610,7 @@ func (st *falconState) expr(e ast.Expr) (res any) { // = types.TypeAndValue | as
 			// Possible "value out of range".
 			kX := st.expr(e.Args[0])
 			if kX != nil && isBasic(tv.Type, types.IsConstType) {
-				conv := &ast.CallExpr{
-					Fun:  makeIdent(st.typename(tv.Type)),
-					Args: []ast.Expr{st.toExpr(kX)},
-				}
+				conv := convert(makeIdent(st.typename(tv.Type)), st.toExpr(kX))
 				if is[ast.Expr](kX) {
 					st.emit(conv)
 				}

@@ -382,6 +382,12 @@ func TestBasics(t *testing.T) {
 	print(s, s, 0, 0)
 }`,
 		},
+		{
+			"Workaround for T(x) misformatting (#63362).",
+			`func f(ch <-chan int) { <-ch }`,
+			`func _(ch chan int) { f(ch) }`,
+			`func _(ch chan int) { <-(<-chan int)(ch) }`,
+		},
 	})
 }
 

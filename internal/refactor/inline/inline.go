@@ -1284,10 +1284,7 @@ next:
 			// a binding decl or when using the literalization
 			// strategy.
 			if len(param.info.Refs) > 0 && !trivialConversion(args[i].typ, params[i].obj) {
-				arg.expr = &ast.CallExpr{
-					Fun:  params[i].fieldType, // formatter adds parens as needed
-					Args: []ast.Expr{arg.expr},
-				}
+				arg.expr = convert(params[i].fieldType, arg.expr)
 				logf("param %q: adding explicit %s -> %s conversion around argument",
 					param.info.Name, args[i].typ, params[i].obj.Type())
 			}

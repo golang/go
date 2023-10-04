@@ -103,3 +103,17 @@ func intersects[K comparable, T1, T2 any](x map[K]T1, y map[K]T2) bool {
 	}
 	return false
 }
+
+// convert returns syntax for the conversion T(x).
+func convert(T, x ast.Expr) *ast.CallExpr {
+	// The formatter generally adds parens as needed,
+	// but before go1.22 it had a bug (#63362) for
+	// channel types that requires this workaround.
+	if ch, ok := T.(*ast.ChanType); ok && ch.Dir == ast.RECV {
+		T = &ast.ParenExpr{X: T}
+	}
+	return &ast.CallExpr{
+		Fun:  T,
+		Args: []ast.Expr{x},
+	}
+}
