@@ -1508,7 +1508,7 @@ func cmdbootstrap() {
 		xprintf("\n")
 	}
 	xprintf("Building Go toolchain3 using go_bootstrap and Go toolchain2.\n")
-	goInstall(toolenv(), goBootstrap, append([]string{"-a"}, toolchain...)...)
+	goInstall(toolenv(), goBootstrap, append([]string{"-a", pgoFlag()}, toolchain...)...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		copyfile(pathf("%s/compile3", tooldir), pathf("%s/compile", tooldir), writeExec)
@@ -1642,6 +1642,9 @@ func wrapperPathFor(goos, goarch string) string {
 }
 
 func goInstall(env []string, goBinary string, args ...string) {
+	if strings.HasPrefix(args[0], "cmd") {
+		args = append([]string{pgoFlag()}, args...)
+	}
 	goCmd(env, goBinary, "install", args...)
 }
 
@@ -1673,6 +1676,10 @@ func goCmd(env []string, goBinary string, cmd string, args ...string) {
 	runEnv(workdir, ShowOutput|CheckExit, env, append(goCmd, args...)...)
 }
 
+func pgoFlag() string {
+	return fmt.Sprintf("-pgo=%s", filepath.Join(goroot, "src/cmd/compile/default.pgo"))
+}
+
 func checkNotStale(env []string, goBinary string, targets ...string) {
 	goCmd := []string{goBinary, "list"}
 	if noOpt {
@@ -1680,6 +1687,9 @@ func checkNotStale(env []string, goBinary string, targets ...string) {
 	}
 	goCmd = appendCompilerFlags(goCmd)
 	goCmd = append(goCmd, "-f={{if .Stale}}\tSTALE {{.ImportPath}}: {{.StaleReason}}{{end}}")
+	if strings.HasPrefix(targets[0], "cmd") {
+		goCmd = append(goCmd, pgoFlag())
+	}
 
 	out := runEnv(workdir, CheckExit, env, append(goCmd, targets...)...)
 	if strings.Contains(out, "\tSTALE ") {
