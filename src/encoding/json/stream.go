@@ -128,7 +128,7 @@ Input:
 				if dec.scan.step(&dec.scan, ' ') == scanEnd {
 					break Input
 				}
-				if nonSpace(dec.buf) {
+				if bytes.ContainsFunc(dec.buf, func(c rune) bool { return !isSpace(byte(c)) }) {
 					err = io.ErrUnexpectedEOF
 				}
 			}
@@ -166,15 +166,6 @@ func (dec *Decoder) refill() error {
 	dec.buf = dec.buf[0 : len(dec.buf)+n]
 
 	return err
-}
-
-func nonSpace(b []byte) bool {
-	for _, c := range b {
-		if !isSpace(c) {
-			return true
-		}
-	}
-	return false
 }
 
 // An Encoder writes JSON values to an output stream.
