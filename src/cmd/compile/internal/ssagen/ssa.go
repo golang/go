@@ -1480,9 +1480,9 @@ func (s *state) stmt(n ir.Node) {
 	case ir.OCALLINTER:
 		n := n.(*ir.CallExpr)
 		s.callResult(n, callNormal)
-		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class == ir.PFUNC {
-			if fn := n.X.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
-				n.X.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" || fn == "panicunsafeslicenilptr" || fn == "panicunsafestringlen" || fn == "panicunsafestringnilptr") {
+		if n.Op() == ir.OCALLFUNC && n.Fun.Op() == ir.ONAME && n.Fun.(*ir.Name).Class == ir.PFUNC {
+			if fn := n.Fun.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
+				n.Fun.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" || fn == "panicunsafeslicenilptr" || fn == "panicunsafestringlen" || fn == "panicunsafestringnilptr") {
 				m := s.mem()
 				b := s.endBlock()
 				b.Kind = ssa.BlockExit
@@ -3498,7 +3498,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 
 	// Call growslice
 	s.startBlock(grow)
-	taddr := s.expr(n.X)
+	taddr := s.expr(n.Fun)
 	r := s.rtcall(ir.Syms.Growslice, true, []*types.Type{n.Type()}, p, l, c, nargs, taddr)
 
 	// Decompose output slice
@@ -5007,7 +5007,7 @@ func IsIntrinsicCall(n *ir.CallExpr) bool {
 	if n == nil {
 		return false
 	}
-	name, ok := n.X.(*ir.Name)
+	name, ok := n.Fun.(*ir.Name)
 	if !ok {
 		return false
 	}
@@ -5016,7 +5016,7 @@ func IsIntrinsicCall(n *ir.CallExpr) bool {
 
 // intrinsicCall converts a call to a recognized intrinsic function into the intrinsic SSA operation.
 func (s *state) intrinsicCall(n *ir.CallExpr) *ssa.Value {
-	v := findIntrinsic(n.X.Sym())(s, n, s.intrinsicArgs(n))
+	v := findIntrinsic(n.Fun.Sym())(s, n, s.intrinsicArgs(n))
 	if ssa.IntrinsicsDebug > 0 {
 		x := v
 		if x == nil {
@@ -5025,7 +5025,7 @@ func (s *state) intrinsicCall(n *ir.CallExpr) *ssa.Value {
 		if x.Op == ssa.OpSelect0 || x.Op == ssa.OpSelect1 {
 			x = x.Args[0]
 		}
-		base.WarnfAt(n.Pos(), "intrinsic substitution for %v with %s", n.X.Sym().Name, x.LongString())
+		base.WarnfAt(n.Pos(), "intrinsic substitution for %v with %s", n.Fun.Sym().Name, x.LongString())
 	}
 	return v
 }
@@ -5046,14 +5046,14 @@ func (s *state) intrinsicArgs(n *ir.CallExpr) []*ssa.Value {
 // (as well as the deferBits variable), and this will enable us to run the proper
 // defer calls during panics.
 func (s *state) openDeferRecord(n *ir.CallExpr) {
-	if len(n.Args) != 0 || n.Op() != ir.OCALLFUNC || n.X.Type().NumResults() != 0 {
+	if len(n.Args) != 0 || n.Op() != ir.OCALLFUNC || n.Fun.Type().NumResults() != 0 {
 		s.Fatalf("defer call with arguments or results: %v", n)
 	}
 
 	opendefer := &openDeferInfo{
 		n: n,
 	}
-	fn := n.X
+	fn := n.Fun
 	// We must always store the function value in a stack slot for the
 	// runtime panic code to use. But in the defer exit code, we will
 	// call the function directly if it is a static function.
@@ -5167,7 +5167,7 @@ func (s *state) openDeferExit() {
 		// Generate code to call the function call of the defer, using the
 		// closure that were stored in argtmps at the point of the defer
 		// statement.
-		fn := r.n.X
+		fn := r.n.Fun
 		stksize := fn.Type().ArgWidth()
 		var callArgs []*ssa.Value
 		var call *ssa.Value
@@ -5215,14 +5215,14 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 	var codeptr *ssa.Value // ptr to target code (if dynamic)
 	var dextra *ssa.Value  // defer extra arg
 	var rcvr *ssa.Value    // receiver to set
-	fn := n.X
+	fn := n.Fun
 	var ACArgs []*types.Type    // AuxCall args
 	var ACResults []*types.Type // AuxCall results
 	var callArgs []*ssa.Value   // For late-expansion, the args themselves (not stored, args to the call instead).
 
 	callABI := s.f.ABIDefault
 
-	if k != callNormal && k != callTail && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
+	if k != callNormal && k != callTail && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.Fun.Type().NumResults() != 0) {
 		s.Fatalf("go/defer call with arguments: %v", n)
 	}
 
@@ -5273,11 +5273,11 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 		dextra = s.expr(deferExtra)
 	}
 
-	params := callABI.ABIAnalyze(n.X.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */)
+	params := callABI.ABIAnalyze(n.Fun.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */)
 	types.CalcSize(fn.Type())
 	stksize := params.ArgWidth() // includes receiver, args, and results
 
-	res := n.X.Type().Results()
+	res := n.Fun.Type().Results()
 	if k == callNormal || k == callTail {
 		for _, p := range params.OutParams() {
 			ACResults = append(ACResults, p.Type)
@@ -5329,7 +5329,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 		}
 
 		// Write args.
-		t := n.X.Type()
+		t := n.Fun.Type()
 		args := n.Args
 
 		for _, p := range params.InParams() { // includes receiver for interface calls

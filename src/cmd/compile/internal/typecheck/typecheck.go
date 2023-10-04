@@ -438,7 +438,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.UnaryExpr)
 		return tcNew(n)
 
-	case ir.OPRINT, ir.OPRINTN:
+	case ir.OPRINT, ir.OPRINTLN:
 		n := n.(*ir.CallExpr)
 		return tcPrint(n)
 
@@ -626,7 +626,7 @@ func typecheckargs(n ir.InitNode) {
 // RewriteNonNameCall replaces non-Name call expressions with temps,
 // rewriting f()(...) to t0 := f(); t0(...).
 func RewriteNonNameCall(n *ir.CallExpr) {
-	np := &n.X
+	np := &n.Fun
 	if dot, ok := (*np).(*ir.SelectorExpr); ok && (dot.Op() == ir.ODOTMETH || dot.Op() == ir.ODOTINTER || dot.Op() == ir.OMETHVALUE) {
 		np = &dot.X // peel away method selector
 	}

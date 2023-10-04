@@ -546,7 +546,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 	walkExprListCheap(nn.Args, init)
 
 	// For println, add " " between elements and "\n" at the end.
-	if nn.Op() == ir.OPRINTN {
+	if nn.Op() == ir.OPRINTLN {
 		s := nn.Args
 		t := make([]ir.Node, 0, len(s)*2)
 		for i, n := range s {

@@ -260,7 +260,7 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
 	case ir.OCALLFUNC:
 		stat.Interface = false
 
-		callee := pgo.DirectCallee(call.X)
+		callee := pgo.DirectCallee(call.Fun)
 		if callee != nil {
 			stat.Direct = true
 			if stat.Hottest == "" {
@@ -283,7 +283,7 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
 // concretetyp.
 func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *types.Type) ir.Node {
 	if base.Flag.LowerM != 0 {
-		fmt.Printf("%v: PGO devirtualizing %v to %v\n", ir.Line(call), call.X, callee)
+		fmt.Printf("%v: PGO devirtualizing %v to %v\n", ir.Line(call), call.Fun, callee)
 	}
 
 	// We generate an OINCALL of:
@@ -316,13 +316,13 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 
 	var retvars []ir.Node
 
-	sig := call.X.Type()
+	sig := call.Fun.Type()
 
 	for _, ret := range sig.Results() {
 		retvars = append(retvars, typecheck.TempAt(base.Pos, curfn, ret.Type))
 	}
 
-	sel := call.X.(*ir.SelectorExpr)
+	sel := call.Fun.(*ir.SelectorExpr)
 	method := sel.Sel
 	pos := call.Pos()
 	init := ir.TakeInit(call)
@@ -421,7 +421,7 @@ func interfaceCallRecvTypeAndMethod(call *ir.CallExpr) (*types.Type, *types.Sym)
 		base.Fatalf("Call isn't OCALLINTER: %+v", call)
 	}
 
-	sel, ok := call.X.(*ir.SelectorExpr)
+	sel, ok := call.Fun.(*ir.SelectorExpr)
 	if !ok {
 		base.Fatalf("OCALLINTER doesn't contain SelectorExpr: %+v", call)
 	}

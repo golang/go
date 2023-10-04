@@ -97,7 +97,7 @@ func _() {
 	_ = x[OOROR-86]
 	_ = x[OPANIC-87]
 	_ = x[OPRINT-88]
-	_ = x[OPRINTN-89]
+	_ = x[OPRINTLN-89]
 	_ = x[OPAREN-90]
 	_ = x[OSEND-91]
 	_ = x[OSLICE-92]

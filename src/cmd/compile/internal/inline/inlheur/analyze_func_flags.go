@@ -180,7 +180,7 @@ func isExitCall(n ir.Node) bool {
 		return false
 	}
 	cx := n.(*ir.CallExpr)
-	name := ir.StaticCalleeName(cx.X)
+	name := ir.StaticCalleeName(cx.Fun)
 	if name == nil {
 		return false
 	}
@@ -330,7 +330,7 @@ func (ffa *funcFlagsAnalyzer) nodeVisitPost(n ir.Node) {
 	case ir.OFALL:
 		// Not important.
 	case ir.ODCLFUNC, ir.ORECOVER, ir.OAS, ir.OAS2, ir.OAS2FUNC, ir.OASOP,
-		ir.OPRINTN, ir.OPRINT, ir.OLABEL, ir.OCALLINTER, ir.ODEFER,
+		ir.OPRINTLN, ir.OPRINT, ir.OLABEL, ir.OCALLINTER, ir.ODEFER,
 		ir.OSEND, ir.ORECV, ir.OSELRECV2, ir.OGO, ir.OAPPEND, ir.OAS2DOTTYPE,
 		ir.OAS2MAPR, ir.OGETG, ir.ODELETE, ir.OINLMARK, ir.OAS2RECV,
 		ir.OMIN, ir.OMAX, ir.OMAKE, ir.ORECOVERFP, ir.OGETCALLERSP:

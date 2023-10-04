@@ -223,7 +223,7 @@ const (
 	OOROR             // X || Y
 	OPANIC            // panic(X)
 	OPRINT            // print(List)
-	OPRINTN           // println(List)
+	OPRINTLN          // println(List)
 	OPAREN            // (X)
 	OSEND             // Chan <- Value
 	OSLICE            // X[Low : High] (X is untypechecked or slice)

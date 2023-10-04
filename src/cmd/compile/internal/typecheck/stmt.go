@@ -121,7 +121,7 @@ assignOK:
 	if len(lhs) != cr {
 		if r, ok := rhs[0].(*ir.CallExpr); ok && len(rhs) == 1 {
 			if r.Type() != nil {
-				base.ErrorfAt(stmt.Pos(), errors.WrongAssignCount, "assignment mismatch: %d variable%s but %v returns %d value%s", len(lhs), plural(len(lhs)), r.X, cr, plural(cr))
+				base.ErrorfAt(stmt.Pos(), errors.WrongAssignCount, "assignment mismatch: %d variable%s but %v returns %d value%s", len(lhs), plural(len(lhs)), r.Fun, cr, plural(cr))
 			}
 		} else {
 			base.ErrorfAt(stmt.Pos(), errors.WrongAssignCount, "assignment mismatch: %d variable%s but %v value%s", len(lhs), plural(len(lhs)), len(rhs), plural(len(rhs)))
@@ -217,7 +217,7 @@ func tcGoDefer(n *ir.GoDeferStmt) {
 	init.Append(ir.TakeInit(call)...)
 
 	if call, ok := n.Call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
-		if sig := call.X.Type(); sig.NumParams()+sig.NumResults() == 0 {
+		if sig := call.Fun.Type(); sig.NumParams()+sig.NumResults() == 0 {
 			return // already in normal form
 		}
 	}
@@ -303,19 +303,19 @@ func tcGoDefer(n *ir.GoDeferStmt) {
 		call := call.(*ir.CallExpr)
 
 		// If the callee is a named function, link to the original callee.
-		if wrapped := ir.StaticCalleeName(call.X); wrapped != nil {
+		if wrapped := ir.StaticCalleeName(call.Fun); wrapped != nil {
 			wrapperFn.WrappedFunc = wrapped.Func
 		}
 
-		visit(&call.X)
+		visit(&call.Fun)
 		visitList(call.Args)
 
 	case ir.OCALLINTER:
 		call := call.(*ir.CallExpr)
-		argps = append(argps, &call.X.(*ir.SelectorExpr).X) // must be first for OCHECKNIL; see below
+		argps = append(argps, &call.Fun.(*ir.SelectorExpr).X) // must be first for OCHECKNIL; see below
 		visitList(call.Args)
 
-	case ir.OAPPEND, ir.ODELETE, ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
+	case ir.OAPPEND, ir.ODELETE, ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
 		call := call.(*ir.CallExpr)
 		visitList(call.Args)
 		visit(&call.RType)

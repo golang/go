@@ -295,7 +295,7 @@ func (n *CallExpr) doChildren(do func(Node) bool) bool {
 	if doNodes(n.init, do) {
 		return true
 	}
-	if n.X != nil && do(n.X) {
+	if n.Fun != nil && do(n.Fun) {
 		return true
 	}
 	if doNodes(n.Args, do) {
@@ -308,16 +308,16 @@ func (n *CallExpr) doChildren(do func(Node) bool) bool {
 }
 func (n *CallExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
-	if n.X != nil {
-		n.X = edit(n.X).(Node)
+	if n.Fun != nil {
+		n.Fun = edit(n.Fun).(Node)
 	}
 	editNodes(n.Args, edit)
 	editNames(n.KeepAlive, edit)
 }
 func (n *CallExpr) editChildrenWithHidden(edit func(Node) Node) {
 	editNodes(n.init, edit)
-	if n.X != nil {
-		n.X = edit(n.X).(Node)
+	if n.Fun != nil {
+		n.Fun = edit(n.Fun).(Node)
 	}
 	editNodes(n.Args, edit)
 	if n.RType != nil {

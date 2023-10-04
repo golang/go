@@ -51,7 +51,7 @@ func staticCall(call *ir.CallExpr) {
 	if call.Op() != ir.OCALLINTER {
 		return
 	}
-	sel := call.X.(*ir.SelectorExpr)
+	sel := call.Fun.(*ir.SelectorExpr)
 	r := ir.StaticValue(sel.X)
 	if r.Op() != ir.OCONVIFACE {
 		return
@@ -120,14 +120,14 @@ func staticCall(call *ir.CallExpr) {
 			base.WarnfAt(call.Pos(), "devirtualizing %v to %v", sel, typ)
 		}
 		call.SetOp(ir.OCALLMETH)
-		call.X = x
+		call.Fun = x
 	case ir.ODOTINTER:
 		// Promoted method from embedded interface-typed field (#42279).
 		if base.Flag.LowerM != 0 {
 			base.WarnfAt(call.Pos(), "partially devirtualizing %v to %v", sel, typ)
 		}
 		call.SetOp(ir.OCALLINTER)
-		call.X = x
+		call.Fun = x
 	default:
 		base.FatalfAt(call.Pos(), "failed to devirtualize %v (%v)", x, x.Op())
 	}

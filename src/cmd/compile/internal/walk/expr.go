@@ -172,7 +172,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.LogicalExpr)
 		return walkLogical(n, init)
 
-	case ir.OPRINT, ir.OPRINTN:
+	case ir.OPRINT, ir.OPRINTLN:
 		return walkPrint(n.(*ir.CallExpr), init)
 
 	case ir.OPANIC:
@@ -532,7 +532,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	if n.Op() == ir.OCALLMETH {
 		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
 	}
-	if n.Op() == ir.OCALLINTER || n.X.Op() == ir.OMETHEXPR {
+	if n.Op() == ir.OCALLINTER || n.Fun.Op() == ir.OMETHEXPR {
 		// We expect both interface call reflect.Type.Method and concrete
 		// call reflect.(*rtype).Method.
 		usemethod(n)
@@ -541,14 +541,14 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		reflectdata.MarkUsedIfaceMethod(n)
 	}
 
-	if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.OCLOSURE {
+	if n.Op() == ir.OCALLFUNC && n.Fun.Op() == ir.OCLOSURE {
 		directClosureCall(n)
 	}
 
 	if ir.IsFuncPCIntrinsic(n) {
 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function, rewrite
 		// it to the address of the function of the ABI fn is defined.
-		name := n.X.(*ir.Name).Sym().Name
+		name := n.Fun.(*ir.Name).Sym().Name
 		arg := n.Args[0]
 		var wantABI obj.ABI
 		switch name {
@@ -583,7 +583,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		return e
 	}
 
-	if name, ok := n.X.(*ir.Name); ok {
+	if name, ok := n.Fun.(*ir.Name); ok {
 		sym := name.Sym()
 		if sym.Pkg.Path == "go.runtime" && sym.Name == "deferrangefunc" {
 			// Call to runtime.deferrangefunc is being shared with a range-over-func
@@ -609,9 +609,9 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 	}
 
 	args := n.Args
-	params := n.X.Type().Params()
+	params := n.Fun.Type().Params()
 
-	n.X = walkExpr(n.X, init)
+	n.Fun = walkExpr(n.Fun, init)
 	walkExprList(args, init)
 
 	for i, arg := range args {
@@ -633,7 +633,7 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 		}
 	}
 
-	funSym := n.X.Sym()
+	funSym := n.Fun.Sym()
 	if base.Debug.Libfuzzer != 0 && funSym != nil {
 		if hook, found := hooks[funSym.Pkg.Path+"."+funSym.Name]; found {
 			if len(args) != hook.argsNum {
@@ -971,7 +971,7 @@ func usemethod(n *ir.CallExpr) {
 		}
 	}
 
-	dot, ok := n.X.(*ir.SelectorExpr)
+	dot, ok := n.Fun.(*ir.SelectorExpr)
 	if !ok {
 		return
 	}

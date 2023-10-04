@@ -1826,7 +1826,7 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	if ir.CurFunc.LSym == nil {
 		return
 	}
-	dot := n.X.(*ir.SelectorExpr)
+	dot := n.Fun.(*ir.SelectorExpr)
 	ityp := dot.X.Type()
 	if ityp.HasShape() {
 		// Here we're calling a method on a generic interface. Something like:

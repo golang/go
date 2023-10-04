@@ -234,7 +234,7 @@ func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {
 		}
 	case ir.OCALLFUNC:
 		ce := n.(*ir.CallExpr)
-		callee := pgo.DirectCallee(ce.X)
+		callee := pgo.DirectCallee(ce.Fun)
 		if callee != nil && callee.Inl != nil {
 			csa.addCallSite(callee, ce)
 		}

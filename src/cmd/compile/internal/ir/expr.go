@@ -184,7 +184,7 @@ func (n *BinaryExpr) SetOp(op Op) {
 // A CallExpr is a function call X(Args).
 type CallExpr struct {
 	miniExpr
-	X         Node
+	Fun       Node
 	Args      Nodes
 	DeferAt   Node
 	RType     Node    `mknode:"-"` // see reflectdata/helpers.go
@@ -194,7 +194,7 @@ type CallExpr struct {
 }
 
 func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
-	n := &CallExpr{X: fun}
+	n := &CallExpr{Fun: fun}
 	n.pos = pos
 	n.SetOp(op)
 	n.Args = args
@@ -211,7 +211,7 @@ func (n *CallExpr) SetOp(op Op) {
 		OCALL, OCALLFUNC, OCALLINTER, OCALLMETH,
 		ODELETE,
 		OGETG, OGETCALLERPC, OGETCALLERSP,
-		OMAKE, OMAX, OMIN, OPRINT, OPRINTN,
+		OMAKE, OMAX, OMIN, OPRINT, OPRINTLN,
 		ORECOVER, ORECOVERFP:
 		n.op = op
 	}

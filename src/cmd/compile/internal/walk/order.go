@@ -545,7 +545,7 @@ func (o *orderState) call(nn ir.Node) {
 		return
 	}
 
-	n.X = o.expr(n.X, nil)
+	n.Fun = o.expr(n.Fun, nil)
 	o.exprList(n.Args)
 }
 
@@ -753,7 +753,7 @@ func (o *orderState) stmt(n ir.Node) {
 		o.out = append(o.out, n)
 		o.popTemp(t)
 
-	case ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
+	case ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
 		n := n.(*ir.CallExpr)
 		t := o.markTemp()
 		o.call(n)
