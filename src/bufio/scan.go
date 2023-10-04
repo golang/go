@@ -198,9 +198,7 @@ func (s *Scanner) Scan() bool {
 			if newSize == 0 {
 				newSize = startBufSize
 			}
-			if newSize > s.maxTokenSize {
-				newSize = s.maxTokenSize
-			}
+			newSize = min(newSize, s.maxTokenSize)
 			newBuf := make([]byte, newSize)
 			copy(newBuf, s.buf[s.start:s.end])
 			s.buf = newBuf

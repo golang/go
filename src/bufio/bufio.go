@@ -50,11 +50,8 @@ func NewReaderSize(rd io.Reader, size int) *Reader {
 	if ok && len(b.buf) >= size {
 		return b
 	}
-	if size < minReadBufferSize {
-		size = minReadBufferSize
-	}
 	r := new(Reader)
-	r.reset(make([]byte, size), rd)
+	r.reset(make([]byte, max(size, minReadBufferSize)), rd)
 	return r
 }
 
