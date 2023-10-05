@@ -2686,8 +2686,9 @@ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
 func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	if use121 {
 		mux.mux121.handle(pattern, handler)
+	} else {
+		mux.register(pattern, handler)
 	}
-	mux.register(pattern, handler)
 }
 
 // HandleFunc registers the handler function for the given pattern.
@@ -2696,8 +2697,9 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 func (mux *ServeMux) HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
 	if use121 {
 		mux.mux121.handleFunc(pattern, handler)
+	} else {
+		mux.register(pattern, HandlerFunc(handler))
 	}
-	mux.register(pattern, HandlerFunc(handler))
 }
 
 // Handle registers the handler for the given pattern in [DefaultServeMux].
@@ -2705,8 +2707,9 @@ func (mux *ServeMux) HandleFunc(pattern string, handler func(ResponseWriter, *Re
 func Handle(pattern string, handler Handler) {
 	if use121 {
 		DefaultServeMux.mux121.handle(pattern, handler)
+	} else {
+		DefaultServeMux.register(pattern, handler)
 	}
-	DefaultServeMux.register(pattern, handler)
 }
 
 // HandleFunc registers the handler function for the given pattern in [DefaultServeMux].
@@ -2714,8 +2717,9 @@ func Handle(pattern string, handler Handler) {
 func HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
 	if use121 {
 		DefaultServeMux.mux121.handleFunc(pattern, handler)
+	} else {
+		DefaultServeMux.register(pattern, HandlerFunc(handler))
 	}
-	DefaultServeMux.register(pattern, HandlerFunc(handler))
 }
 
 func (mux *ServeMux) register(pattern string, handler Handler) {
