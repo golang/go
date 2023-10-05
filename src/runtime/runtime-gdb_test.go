@@ -275,6 +275,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("gdb exited with error: %v", err)
 	}
 
+	got = bytes.ReplaceAll(got, []byte("\r\n"), []byte("\n")) // normalize line endings
 	firstLine, _, _ := bytes.Cut(got, []byte("\n"))
 	if string(firstLine) != "Loading Go Runtime support." {
 		// This can happen when using all.bash with
