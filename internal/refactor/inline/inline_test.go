@@ -721,6 +721,21 @@ func TestParameterBindingDecl(t *testing.T) {
 			`func _() { f(g(1), g(2), g(3)) }`,
 			`func _() { func(int, y any, z int) { defer g(0); println(int, y, z) }(g(1), g(2), g(3)) }`,
 		},
+		{
+			"An indirect method selection (*x).g acts as a read.",
+			`func f(x *T, y any) any { return x.g(y) }; type T struct{}; func (T) g(x any) any { return x }`,
+			`func _(x *T) { f(x, recover()) }`,
+			`func _(x *T) {
+	var y any = recover()
+	x.g(y)
+}`,
+		},
+		{
+			"A direct method selection x.g is pure.",
+			`func f(x *T, y any) any { return x.g(y) }; type T struct{}; func (*T) g(x any) any { return x }`,
+			`func _(x *T) { f(x, recover()) }`,
+			`func _(x *T) { x.g(recover()) }`,
+		},
 	})
 }
 

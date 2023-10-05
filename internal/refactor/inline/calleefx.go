@@ -116,10 +116,23 @@ func calleefx(info *types.Info, body *ast.BlockStmt, paramInfos map[*types.Var]*
 			visitExpr(n.X)
 
 		case *ast.SelectorExpr:
-			if sel, ok := info.Selections[n]; ok {
+			if seln, ok := info.Selections[n]; ok {
 				visitExpr(n.X)
-				if sel.Indirect() {
-					effect(rinf) // indirect read x.f of heap variable
+
+				// See types.SelectionKind for background.
+				switch seln.Kind() {
+				case types.MethodExpr:
+					// A method expression T.f acts like a
+					// reference to a func decl,
+					// so it doesn't read x until called.
+
+				case types.MethodVal, types.FieldVal:
+					// A field or method value selection x.f
+					// reads x if the selection indirects a pointer.
+
+					if indirectSelection(seln) {
+						effect(rinf)
+					}
 				}
 			} else {
 				// qualified identifier: treat like unqualified

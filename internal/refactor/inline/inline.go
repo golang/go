@@ -1093,7 +1093,7 @@ func arguments(caller *Caller, calleeDecl *ast.FuncDecl, assign1 func(*types.Var
 						debugFormatNode(caller.Fset, caller.Call.Fun),
 						fld.Name())
 				}
-				if is[*types.Pointer](arg.typ.Underlying()) {
+				if isPointer(arg.typ) {
 					arg.pure = false // implicit *ptr operation => impure
 				}
 				arg.expr = &ast.SelectorExpr{
@@ -1105,8 +1105,8 @@ func arguments(caller *Caller, calleeDecl *ast.FuncDecl, assign1 func(*types.Var
 			}
 
 			// Make * or & explicit.
-			argIsPtr := arg.typ != deref(arg.typ)
-			paramIsPtr := is[*types.Pointer](seln.Obj().Type().(*types.Signature).Recv().Type())
+			argIsPtr := isPointer(arg.typ)
+			paramIsPtr := isPointer(seln.Obj().Type().(*types.Signature).Recv().Type())
 			if !argIsPtr && paramIsPtr {
 				// &recv
 				arg.expr = &ast.UnaryExpr{Op: token.AND, X: arg.expr}
@@ -1910,27 +1910,23 @@ func pure(info *types.Info, assign1 func(*types.Var) bool, e ast.Expr) bool {
 			return true
 
 		case *ast.SelectorExpr:
-			if sel, ok := info.Selections[e]; ok {
-				switch sel.Kind() {
+			if seln, ok := info.Selections[e]; ok {
+
+				// See types.SelectionKind for background.
+				switch seln.Kind() {
 				case types.MethodExpr:
 					// A method expression T.f acts like a
 					// reference to a func decl, so it is pure.
 					return true
 
-				case types.MethodVal:
-					// A method value x.f acts like a
-					// closure around a T.f(x, ...) call,
-					// so it is as pure as x.
-					return pure(e.X)
-
-				case types.FieldVal:
-					// A field selection x.f is pure if
-					// x is pure and the selection does
+				case types.MethodVal, types.FieldVal:
+					// A field or method selection x.f is pure
+					// if x is pure and the selection does
 					// not indirect a pointer.
-					return !sel.Indirect() && pure(e.X)
+					return !indirectSelection(seln) && pure(e.X)
 
 				default:
-					panic(sel)
+					panic(seln)
 				}
 			} else {
 				// A qualified identifier is
@@ -1978,7 +1974,7 @@ func callsPureBuiltin(info *types.Info, call *ast.CallExpr) bool {
 // integer literals, unary negation, and selectors x.f where x is not
 // a pointer. But we would not wish to duplicate expressions that:
 // - have side effects (e.g. nearly all calls),
-// - are not referentially transparent (e.g. &T{}, ptr.field), or
+// - are not referentially transparent (e.g. &T{}, ptr.field, *ptr), or
 // - are long (e.g. "huge string literal").
 func duplicable(info *types.Info, e ast.Expr) bool {
 	switch e := e.(type) {
@@ -2009,10 +2005,10 @@ func duplicable(info *types.Info, e ast.Expr) bool {
 		return false
 
 	case *ast.SelectorExpr:
-		if sel, ok := info.Selections[e]; ok {
+		if seln, ok := info.Selections[e]; ok {
 			// A field or method selection x.f is referentially
 			// transparent if it does not indirect a pointer.
-			return !sel.Indirect()
+			return !indirectSelection(seln)
 		}
 		// A qualified identifier pkg.Name is referentially transparent.
 		return true

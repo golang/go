@@ -12,6 +12,8 @@ import (
 	"go/types"
 	"reflect"
 	"strings"
+
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func is[T any](x any) bool {
@@ -116,4 +118,43 @@ func convert(T, x ast.Expr) *ast.CallExpr {
 		Fun:  T,
 		Args: []ast.Expr{x},
 	}
+}
+
+// isPointer reports whether t is a pointer type.
+func isPointer(t types.Type) bool { return t != deref(t) }
+
+// indirectSelection is like seln.Indirect() without bug #8353.
+func indirectSelection(seln *types.Selection) bool {
+	// Work around bug #8353 in Selection.Indirect when Kind=MethodVal.
+	if seln.Kind() == types.MethodVal {
+		tArg, indirect := effectiveReceiver(seln)
+		if indirect {
+			return true
+		}
+
+		tParam := seln.Obj().Type().(*types.Signature).Recv().Type()
+		return isPointer(tArg) && !isPointer(tParam) // implicit *
+	}
+
+	return seln.Indirect()
+}
+
+// effectiveReceiver returns the effective type of the method
+// receiver after all implicit field selections (but not implicit * or
+// & operations) have been applied.
+//
+// The boolean indicates whether any implicit field selection was indirect.
+func effectiveReceiver(seln *types.Selection) (types.Type, bool) {
+	assert(seln.Kind() == types.MethodVal, "not MethodVal")
+	t := seln.Recv()
+	indices := seln.Index()
+	indirect := false
+	for _, index := range indices[:len(indices)-1] {
+		if tElem := deref(t); tElem != t {
+			indirect = true
+			t = tElem
+		}
+		t = typeparams.CoreType(t).(*types.Struct).Field(index).Type()
+	}
+	return t, indirect
 }
