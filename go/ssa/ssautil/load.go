@@ -147,6 +147,7 @@ func BuildPackage(tc *types.Config, fset *token.FileSet, pkg *types.Package, fil
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 	}
 	typeparams.InitInstanceInfo(info)
+	// versions.InitFileVersions(info) // TODO(taking): Enable when internal/versions is available.
 	if err := types.NewChecker(tc, fset, pkg, info).Files(files); err != nil {
 		return nil, nil, err
 	}

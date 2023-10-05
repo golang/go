@@ -72,7 +72,9 @@ func makeWrapper(prog *Program, sel *selection, cr *creator) *Function {
 		Synthetic: description,
 		Prog:      prog,
 		pos:       obj.Pos(),
-		info:      nil, // info is not set on wrappers.
+		// wrappers have no syntax
+		info:      nil,
+		goversion: "",
 	}
 	cr.Add(fn)
 	fn.startBody()
@@ -200,7 +202,9 @@ func makeBound(prog *Program, obj *types.Func, cr *creator) *Function {
 			Synthetic: description,
 			Prog:      prog,
 			pos:       obj.Pos(),
-			info:      nil, // info is not set on wrappers.
+			// wrappers have no syntax
+			info:      nil,
+			goversion: "",
 		}
 		cr.Add(fn)
 

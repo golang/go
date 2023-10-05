@@ -324,6 +324,7 @@ func (f *Function) finishBody() {
 	f.namedResults = nil // (used by lifting)
 	f.info = nil
 	f.subst = nil
+	f.goversion = ""
 
 	numberRegisters(f) // uses f.namedRegisters
 }

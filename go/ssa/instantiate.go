@@ -32,8 +32,8 @@ type instanceSet struct {
 	fn        *Function               // fn.typeparams.Len() > 0 and len(fn.typeargs) == 0.
 	instances map[*typeList]*Function // canonical type arguments to an instance.
 	syntax    *ast.FuncDecl           // fn.syntax copy for instantiating after fn is done. nil on synthetic packages.
-	info      *types.Info             // fn.pkg.info copy for building after fn is done.. nil on synthetic packages.
-
+	info      *types.Info             // fn.pkg.info copy for building after fn is done. nil on synthetic packages.
+	goversion string                  // goversion to build syntax with.
 	// TODO(taking): Consider ways to allow for clearing syntax and info when done building.
 	// May require a public API change as MethodValue can request these be built after prog.Build() is done.
 }
@@ -66,9 +66,10 @@ func (prog *Program) createInstanceSet(fn *Function) {
 
 	if _, ok := prog.instances[fn]; !ok {
 		prog.instances[fn] = &instanceSet{
-			fn:     fn,
-			syntax: syntax,
-			info:   fn.info,
+			fn:        fn,
+			syntax:    syntax,
+			info:      fn.info,
+			goversion: fn.goversion,
 		}
 	}
 }
@@ -169,8 +170,8 @@ func (insts *instanceSet) lookupOrCreate(targs []types.Type, parameterized *tpWa
 		typeargs:       targs,
 		info:           insts.info, // on synthetic packages info is nil.
 		subst:          subst,
+		goversion:      insts.goversion,
 	}
-
 	cr.Add(instance)
 	insts.instances[key] = instance
 	return instance

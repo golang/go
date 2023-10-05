@@ -647,7 +647,8 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 			typeparams:     fn.typeparams, // share the parent's type parameters.
 			typeargs:       fn.typeargs,   // share the parent's type arguments.
 			info:           fn.info,
-			subst:          fn.subst, // share the parent's type substitutions.
+			subst:          fn.subst,     // share the parent's type substitutions.
+			goversion:      fn.goversion, // share the parent's goversion
 		}
 		fn.AnonFuncs = append(fn.AnonFuncs, fn2)
 		b.created.Add(fn2)
@@ -2516,11 +2517,18 @@ func (p *Package) build() {
 	if len(p.info.InitOrder) > 0 && len(p.files) == 0 {
 		panic("no source files provided for package. cannot initialize globals")
 	}
+
 	for _, varinit := range p.info.InitOrder {
 		if init.Prog.mode&LogSource != 0 {
 			fmt.Fprintf(os.Stderr, "build global initializer %v @ %s\n",
 				varinit.Lhs, p.Prog.Fset.Position(varinit.Rhs.Pos()))
 		}
+		// Initializers for global vars are evaluated in dependency
+		// order, but may come from arbitrary files of the package
+		// with different versions, so we transiently update
+		// init.goversion for each one. (Since init is a synthetic
+		// function it has no syntax of its own that needs a version.)
+		init.goversion = p.initVersion[varinit.Rhs]
 		if len(varinit.Lhs) == 1 {
 			// 1:1 initialization: var x, y = a(), b()
 			var lval lvalue
@@ -2541,6 +2549,7 @@ func (p *Package) build() {
 			}
 		}
 	}
+	init.goversion = "" // The rest of the init function is synthetic. No syntax => no goversion.
 
 	// Call all of the declared init() functions in source order.
 	for _, file := range p.files {
@@ -2585,8 +2594,11 @@ func (p *Package) build() {
 		b.needsRuntimeTypes() // Add all of the runtime type information. May CREATE Functions.
 	}
 
-	p.info = nil    // We no longer need ASTs or go/types deductions.
-	p.created = nil // We no longer need created functions.
+	// We no longer need transient information: ASTs or go/types deductions.
+	p.info = nil
+	p.created = nil
+	p.files = nil
+	p.initVersion = nil
 
 	if p.Prog.mode&SanityCheckFunctions != 0 {
 		sanityCheckPackage(p)

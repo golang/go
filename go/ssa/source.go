@@ -11,6 +11,7 @@ package ssa
 // the originating syntax, as specified.
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -129,6 +130,31 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 		}
 	}
 	return nil
+}
+
+// goversionOf returns the goversion of a node in the package
+// where the node is either a function declaration or the initial
+// value of a package level variable declaration.
+func goversionOf(p *Package, file *ast.File) string {
+	if p.info == nil {
+		return ""
+	}
+
+	// TODO(taking): Update to the following when internal/versions available:
+	//	return versions.Lang(versions.FileVersions(p.info, file))
+	return fileVersions(file)
+}
+
+// TODO(taking): Remove when internal/versions is available.
+var fileVersions = func(file *ast.File) string { return "" }
+
+// parses a goXX.YY version or returns a negative version on an error.
+// TODO(taking): Switch to a permanent solution when internal/versions is submitted.
+func parseGoVersion(x string) (major, minor int) {
+	if _, err := fmt.Sscanf(x, "go%d.%d", &major, &minor); err != nil || major < 0 || minor < 0 {
+		return -1, -1
+	}
+	return
 }
 
 // ValueForExpr returns the SSA Value that corresponds to non-constant
