@@ -43,6 +43,7 @@ const (
 //go:cgo_import_dynamic runtime._LoadLibraryExW LoadLibraryExW%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
+//go:cgo_import_dynamic runtime._QueryPerformanceCounter QueryPerformanceCounter%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._RaiseFailFastException RaiseFailFastException%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._RtlLookupFunctionEntry RtlLookupFunctionEntry%3 "kernel32.dll"
@@ -151,7 +152,6 @@ var (
 
 var (
 	advapi32dll = [...]uint16{'a', 'd', 'v', 'a', 'p', 'i', '3', '2', '.', 'd', 'l', 'l', 0}
-	kernel32dll = [...]uint16{'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', 0}
 	ntdlldll    = [...]uint16{'n', 't', 'd', 'l', 'l', '.', 'd', 'l', 'l', 0}
 	powrprofdll = [...]uint16{'p', 'o', 'w', 'r', 'p', 'r', 'o', 'f', '.', 'd', 'l', 'l', 0}
 	winmmdll    = [...]uint16{'w', 'i', 'n', 'm', 'm', '.', 'd', 'l', 'l', 0}
@@ -250,14 +250,7 @@ func windowsLoadSystemLib(name []uint16) uintptr {
 	return stdcall3(_LoadLibraryExW, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
 }
 
-const haveCputicksAsm = GOARCH == "386" || GOARCH == "amd64"
-
 func loadOptionalSyscalls() {
-	k32 := windowsLoadSystemLib(kernel32dll[:])
-	if k32 == 0 {
-		throw("kernel32.dll not found")
-	}
-
 	a32 := windowsLoadSystemLib(advapi32dll[:])
 	if a32 == 0 {
 		throw("advapi32.dll not found")
@@ -270,13 +263,6 @@ func loadOptionalSyscalls() {
 	}
 	_RtlGetCurrentPeb = windowsFindfunc(n32, []byte("RtlGetCurrentPeb\000"))
 	_RtlGetNtVersionNumbers = windowsFindfunc(n32, []byte("RtlGetNtVersionNumbers\000"))
-
-	if !haveCputicksAsm {
-		_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
-		if _QueryPerformanceCounter == nil {
-			throw("could not find QPC syscalls")
-		}
-	}
 
 	m32 := windowsLoadSystemLib(winmmdll[:])
 	if m32 == 0 {
