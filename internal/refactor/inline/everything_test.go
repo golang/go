@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/types"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,7 +38,7 @@ var packagesFlag = flag.String("packages", "", "set of packages for TestEverythi
 //
 // And these commands to inline everything in the kubernetes repository:
 //
-// $ go build -c -o /tmp/everything ./internal/refactor/inline/
+// $ go test -c -o /tmp/everything ./internal/refactor/inline/
 // $ (cd kubernetes && /tmp/everything -test.run=Everything -packages=./...)
 //
 // TODO(adonovan):
@@ -226,7 +227,7 @@ func TestEverything(t *testing.T) {
 			noMutCheck()
 		}
 	}
-	t.Errorf("Analyzed %d packages", len(pkgs))
+	log.Printf("Analyzed %d packages", len(pkgs))
 }
 
 type importerFunc func(path string) (*types.Package, error)
