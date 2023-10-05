@@ -617,6 +617,12 @@ func TestSpreadCalls(t *testing.T) {
 	)
 }`,
 		},
+		{
+			"Spread call in return (#63398).",
+			`func f() (int, error) { return 0, nil }`,
+			`func _() (int, error) { return f() }`,
+			`func _() (int, error) { return 0, nil }`,
+		},
 	})
 }
 

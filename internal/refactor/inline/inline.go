@@ -844,23 +844,30 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 				//       x, y  = f()
 				// or the sole argument to a spread call:
 				//        printf(f())
+				// or spread return statement:
+				//        return f()
 				res.old = context
 				switch context := context.(type) {
 				case *ast.AssignStmt:
-					// Inv: the call is in Rhs[0], not Lhs.
+					// Inv: the call must be in Rhs[0], not Lhs.
 					assign := shallowCopy(context)
 					assign.Rhs = results
 					res.new = assign
 				case *ast.ValueSpec:
-					// Inv: the call is in Values[0], not Names.
+					// Inv: the call must be in Values[0], not Names.
 					spec := shallowCopy(context)
 					spec.Values = results
 					res.new = spec
 				case *ast.CallExpr:
-					// Inv: the Call is Args[0], not Fun.
+					// Inv: the call must be in Args[0], not Fun.
 					call := shallowCopy(context)
 					call.Args = results
 					res.new = call
+				case *ast.ReturnStmt:
+					// Inv: the call must be Results[0].
+					ret := shallowCopy(context)
+					ret.Results = results
+					res.new = ret
 				default:
 					return nil, fmt.Errorf("internal error: unexpected context %T for spread call", context)
 				}
