@@ -565,6 +565,25 @@ func TestTailCallStrategy(t *testing.T) {
 			`func _() { f() }`,
 			`func _() { func() { defer f(); println() }() }`,
 		},
+		// Tests for issue #63336:
+		{
+			"Tail call with non-trivial return conversion (caller.sig = callee.sig).",
+			`func f() error { if true { return nil } else { return e } }; var e struct{error}`,
+			`func _() error { return f() }`,
+			`func _() error {
+	if true {
+		return nil
+	} else {
+		return e
+	}
+}`,
+		},
+		{
+			"Tail call with non-trivial return conversion (caller.sig != callee.sig).",
+			`func f() error { return E{} }; type E struct{error}`,
+			`func _() any { return f() }`,
+			`func _() any { return func() error { return E{} }() }`,
+		},
 	})
 }
 

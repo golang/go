@@ -760,6 +760,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	//
 	// If:
 	// - the body is just "return expr" with trivial implicit conversions,
+	//   or the caller's return type matches the callee's,
 	// - all parameters and result vars can be eliminated
 	//   or replaced by a binding decl,
 	// then the call expression can be replaced by the
@@ -767,7 +768,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	if len(calleeDecl.Body.List) == 1 &&
 		is[*ast.ReturnStmt](calleeDecl.Body.List[0]) &&
 		len(calleeDecl.Body.List[0].(*ast.ReturnStmt).Results) > 0 && // not a bare return
-		callee.TrivialReturns == callee.TotalReturns {
+		safeReturn(caller, calleeSymbol, callee) {
 		results := calleeDecl.Body.List[0].(*ast.ReturnStmt).Results
 
 		context := callContext(caller.path)
@@ -880,7 +881,8 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	// so long as:
 	// - all parameters can be eliminated or replaced by a binding decl,
 	// - call is a tail-call;
-	// - all returns in body have trivial result conversions;
+	// - all returns in body have trivial result conversions,
+	//   or the caller's return type matches the callee's,
 	// - there is no label conflict;
 	// - no result variable is referenced by name,
 	//   or implicitly by a bare return.
@@ -896,7 +898,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	// or implicit) return.
 	if ret, ok := callContext(caller.path).(*ast.ReturnStmt); ok &&
 		len(ret.Results) == 1 &&
-		callee.TrivialReturns == callee.TotalReturns &&
+		safeReturn(caller, calleeSymbol, callee) &&
 		!callee.HasBareReturn &&
 		(!needBindingDecl || bindingDeclStmt != nil) &&
 		!hasLabelConflict(caller.path, callee.Labels) &&
@@ -2600,4 +2602,35 @@ func declares(stmts []ast.Stmt) map[string]bool {
 		}
 	}
 	return names
+}
+
+// safeReturn reports whether the callee's return statements may be safely
+// used to return from the function enclosing the caller (which must exist).
+func safeReturn(caller *Caller, calleeSymbol *types.Func, callee *gobCallee) bool {
+	// It is safe if all callee returns involve only trivial conversions.
+	if callee.TrivialReturns == callee.TotalReturns {
+		return true
+	}
+
+	var callerType types.Type
+	// Find type of innermost function enclosing call.
+	// (Beware: Caller.enclosingFunc is the outermost.)
+loop:
+	for _, n := range caller.path {
+		switch f := n.(type) {
+		case *ast.FuncDecl:
+			callerType = caller.Info.ObjectOf(f.Name).Type()
+			break loop
+		case *ast.FuncLit:
+			callerType = caller.Info.TypeOf(f)
+			break loop
+		}
+	}
+
+	// Non-trivial return conversions in the callee are permitted
+	// if the same non-trivial conversion would occur after inlining,
+	// i.e. if the caller and callee results tuples are identical.
+	callerResults := callerType.(*types.Signature).Results()
+	calleeResults := calleeSymbol.Type().(*types.Signature).Results()
+	return types.Identical(callerResults, calleeResults)
 }
