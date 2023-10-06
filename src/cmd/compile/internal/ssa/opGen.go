@@ -2401,7 +2401,6 @@ const (
 	OpRISCV64SLTI
 	OpRISCV64SLTU
 	OpRISCV64SLTIU
-	OpRISCV64MOVconvert
 	OpRISCV64LoweredRound32F
 	OpRISCV64LoweredRound64F
 	OpRISCV64CALLstatic
@@ -32213,19 +32212,6 @@ var opcodeTable = [...]opInfo{
 		auxType: auxInt64,
 		argLen:  1,
 		asm:     riscv.ASLTIU,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
-			},
-			outputs: []outputInfo{
-				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
-			},
-		},
-	},
-	{
-		name:   "MOVconvert",
-		argLen: 2,
-		asm:    riscv.AMOV,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30

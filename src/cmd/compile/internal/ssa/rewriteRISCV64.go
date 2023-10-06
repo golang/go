@@ -132,9 +132,6 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpConstBool(v)
 	case OpConstNil:
 		return rewriteValueRISCV64_OpConstNil(v)
-	case OpConvert:
-		v.Op = OpRISCV64MOVconvert
-		return true
 	case OpCopysign:
 		v.Op = OpRISCV64FSGNJD
 		return true

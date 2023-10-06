@@ -193,7 +193,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// input args need no code
 	case ssa.OpPhi:
 		ssagen.CheckLoweredPhi(v)
-	case ssa.OpCopy, ssa.OpRISCV64MOVconvert, ssa.OpRISCV64MOVDreg:
+	case ssa.OpCopy, ssa.OpRISCV64MOVDreg:
 		if v.Type.IsMemory() {
 			return
 		}
