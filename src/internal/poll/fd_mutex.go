@@ -10,7 +10,7 @@ import "sync/atomic"
 // lifetime of an fd and serializes access to Read, Write and Close
 // methods on FD.
 type fdMutex struct {
-	state uint64
+	state atomic.Uint64
 	rsema uint32
 	wsema uint32
 }
@@ -52,7 +52,7 @@ const overflowMsg = "too many concurrent operations on a single file or socket (
 // It reports whether mu is available for reading or writing.
 func (mu *fdMutex) incref() bool {
 	for {
-		old := atomic.LoadUint64(&mu.state)
+		old := mu.state.Load()
 		if old&mutexClosed != 0 {
 			return false
 		}
@@ -60,7 +60,7 @@ func (mu *fdMutex) incref() bool {
 		if new&mutexRefMask == 0 {
 			panic(overflowMsg)
 		}
-		if atomic.CompareAndSwapUint64(&mu.state, old, new) {
+		if mu.state.CompareAndSwap(old, new) {
 			return true
 		}
 	}
@@ -70,7 +70,7 @@ func (mu *fdMutex) incref() bool {
 // It returns false if the file was already closed.
 func (mu *fdMutex) increfAndClose() bool {
 	for {
-		old := atomic.LoadUint64(&mu.state)
+		old := mu.state.Load()
 		if old&mutexClosed != 0 {
 			return false
 		}
@@ -81,7 +81,7 @@ func (mu *fdMutex) increfAndClose() bool {
 		}
 		// Remove all read and write waiters.
 		new &^= mutexRMask | mutexWMask
-		if atomic.CompareAndSwapUint64(&mu.state, old, new) {
+		if mu.state.CompareAndSwap(old, new) {
 			// Wake all read and write waiters,
 			// they will observe closed flag after wakeup.
 			for old&mutexRMask != 0 {
@@ -101,12 +101,12 @@ func (mu *fdMutex) increfAndClose() bool {
 // It reports whether there is no remaining reference.
 func (mu *fdMutex) decref() bool {
 	for {
-		old := atomic.LoadUint64(&mu.state)
+		old := mu.state.Load()
 		if old&mutexRefMask == 0 {
 			panic("inconsistent poll.fdMutex")
 		}
 		new := old - mutexRef
-		if atomic.CompareAndSwapUint64(&mu.state, old, new) {
+		if mu.state.CompareAndSwap(old, new) {
 			return new&(mutexClosed|mutexRefMask) == mutexClosed
 		}
 	}
@@ -129,7 +129,7 @@ func (mu *fdMutex) rwlock(read bool) bool {
 		mutexSema = &mu.wsema
 	}
 	for {
-		old := atomic.LoadUint64(&mu.state)
+		old := mu.state.Load()
 		if old&mutexClosed != 0 {
 			return false
 		}
@@ -147,7 +147,7 @@ func (mu *fdMutex) rwlock(read bool) bool {
 				panic(overflowMsg)
 			}
 		}
-		if atomic.CompareAndSwapUint64(&mu.state, old, new) {
+		if mu.state.CompareAndSwap(old, new) {
 			if old&mutexBit == 0 {
 				return true
 			}
@@ -174,7 +174,7 @@ func (mu *fdMutex) rwunlock(read bool) bool {
 		mutexSema = &mu.wsema
 	}
 	for {
-		old := atomic.LoadUint64(&mu.state)
+		old := mu.state.Load()
 		if old&mutexBit == 0 || old&mutexRefMask == 0 {
 			panic("inconsistent poll.fdMutex")
 		}
@@ -183,7 +183,7 @@ func (mu *fdMutex) rwunlock(read bool) bool {
 		if old&mutexMask != 0 {
 			new -= mutexWait
 		}
-		if atomic.CompareAndSwapUint64(&mu.state, old, new) {
+		if mu.state.CompareAndSwap(old, new) {
 			if old&mutexMask != 0 {
 				runtime_Semrelease(mutexSema)
 			}
