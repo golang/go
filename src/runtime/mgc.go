@@ -824,31 +824,22 @@ top:
 
 	// Flush all local buffers and collect flushedWork flags.
 	gcMarkDoneFlushed = 0
-	systemstack(func() {
-		gp := getg().m.curg
-		// Mark the user stack as preemptible so that it may be scanned.
-		// Otherwise, our attempt to force all P's to a safepoint could
-		// result in a deadlock as we attempt to preempt a worker that's
-		// trying to preempt us (e.g. for a stack scan).
-		casGToWaiting(gp, _Grunning, waitReasonGCMarkTermination)
-		forEachP(func(pp *p) {
-			// Flush the write barrier buffer, since this may add
-			// work to the gcWork.
-			wbBufFlush1(pp)
+	forEachP(waitReasonGCMarkTermination, func(pp *p) {
+		// Flush the write barrier buffer, since this may add
+		// work to the gcWork.
+		wbBufFlush1(pp)
 
-			// Flush the gcWork, since this may create global work
-			// and set the flushedWork flag.
-			//
-			// TODO(austin): Break up these workbufs to
-			// better distribute work.
-			pp.gcw.dispose()
-			// Collect the flushedWork flag.
-			if pp.gcw.flushedWork {
-				atomic.Xadd(&gcMarkDoneFlushed, 1)
-				pp.gcw.flushedWork = false
-			}
-		})
-		casgstatus(gp, _Gwaiting, _Grunning)
+		// Flush the gcWork, since this may create global work
+		// and set the flushedWork flag.
+		//
+		// TODO(austin): Break up these workbufs to
+		// better distribute work.
+		pp.gcw.dispose()
+		// Collect the flushedWork flag.
+		if pp.gcw.flushedWork {
+			atomic.Xadd(&gcMarkDoneFlushed, 1)
+			pp.gcw.flushedWork = false
+		}
 	})
 
 	if gcMarkDoneFlushed != 0 {
@@ -1116,18 +1107,16 @@ func gcMarkTermination() {
 	//
 	// Also, flush the pinner cache, to avoid leaking that memory
 	// indefinitely.
-	systemstack(func() {
-		forEachP(func(pp *p) {
-			pp.mcache.prepareForSweep()
-			if pp.status == _Pidle {
-				systemstack(func() {
-					lock(&mheap_.lock)
-					pp.pcache.flush(&mheap_.pages)
-					unlock(&mheap_.lock)
-				})
-			}
-			pp.pinnerCache = nil
-		})
+	forEachP(waitReasonFlushProcCaches, func(pp *p) {
+		pp.mcache.prepareForSweep()
+		if pp.status == _Pidle {
+			systemstack(func() {
+				lock(&mheap_.lock)
+				pp.pcache.flush(&mheap_.pages)
+				unlock(&mheap_.lock)
+			})
+		}
+		pp.pinnerCache = nil
 	})
 	if sl.valid {
 		// Now that we've swept stale spans in mcaches, they don't
