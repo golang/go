@@ -218,7 +218,7 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 func Delete[S ~[]E, E any](s S, i, j int) S {
 	_ = s[i:j] // bounds check
 
-	return append(s[:i], s[j:]...)
+	return s[:i + copy(s[i:], s[j:])]
 }
 
 // DeleteFunc removes any elements from s for which del returns true,
