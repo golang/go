@@ -247,10 +247,10 @@ func deriveReturnFlagsFromCallee(n ir.Node) (ResultPropBits, bool) {
 		return 0, false
 	}
 	ce := n.(*ir.CallExpr)
-	if ce.X.Op() != ir.ONAME {
+	if ce.Fun.Op() != ir.ONAME {
 		return 0, false
 	}
-	called := ir.StaticValue(ce.X)
+	called := ir.StaticValue(ce.Fun)
 	if called.Op() != ir.ONAME {
 		return 0, false
 	}

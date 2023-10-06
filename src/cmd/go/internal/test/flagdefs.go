@@ -40,6 +40,7 @@ var passFlagToTest = map[string]bool{
 }
 
 var passAnalyzersToVet = map[string]bool{
+	"appends":          true,
 	"asmdecl":          true,
 	"assign":           true,
 	"atomic":           true,

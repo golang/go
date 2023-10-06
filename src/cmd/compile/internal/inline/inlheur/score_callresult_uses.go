@@ -386,10 +386,10 @@ func (rua *resultUseAnalyzer) returnHasProp(name *ir.Name, prop ResultPropBits) 
 
 func (rua *resultUseAnalyzer) getCallResultName(ce *ir.CallExpr) *ir.Name {
 	var callTarg ir.Node
-	if sel, ok := ce.X.(*ir.SelectorExpr); ok {
+	if sel, ok := ce.Fun.(*ir.SelectorExpr); ok {
 		// method call
 		callTarg = sel.X
-	} else if ctarg, ok := ce.X.(*ir.Name); ok {
+	} else if ctarg, ok := ce.Fun.(*ir.Name); ok {
 		// regular call
 		callTarg = ctarg
 	} else {

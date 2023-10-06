@@ -8,13 +8,13 @@ package work
 
 import (
 	"bytes"
+	"cmd/internal/cov/covcmd"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"go/token"
-	"internal/coverage/covcmd"
 	"internal/lazyregexp"
 	"io"
 	"io/fs"
@@ -309,8 +309,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		}
 		// TODO(rsc): Should we include the SWIG version?
 	}
-	if p.Internal.CoverMode != "" {
-		fmt.Fprintf(h, "cover %q %q\n", p.Internal.CoverMode, b.toolID("cover"))
+	if p.Internal.Cover.Mode != "" {
+		fmt.Fprintf(h, "cover %q %q\n", p.Internal.Cover.Mode, b.toolID("cover"))
 	}
 	if p.Internal.FuzzInstrument {
 		if fuzzFlags := fuzzInstrumentFlags(); fuzzFlags != nil {
@@ -440,6 +440,7 @@ const (
 	needCgoHdr
 	needVet
 	needCompiledGoFiles
+	needCovMetaFile
 	needStale
 )
 
@@ -456,9 +457,11 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	}
 
 	cachedBuild := false
+	needCovMeta := p.Internal.Cover.GenMeta
 	need := bit(needBuild, !b.IsCmdList && a.needBuild || b.NeedExport) |
 		bit(needCgoHdr, b.needCgoHdr(a)) |
 		bit(needVet, a.needVet) |
+		bit(needCovMetaFile, needCovMeta) |
 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
 
 	if !p.BinaryOnly {
@@ -549,6 +552,15 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		}
 	}
 
+	// Load cached coverage meta-data file fragment, but only if we're
+	// skipping the main build (cachedBuild==true).
+	if cachedBuild && need&needCovMetaFile != 0 {
+		bact := a.Actor.(*buildActor)
+		if err := b.loadCachedObjdirFile(a, cache.Default(), bact.covMetaFileName); err == nil {
+			need &^= needCovMetaFile
+		}
+	}
+
 	// Load cached vet config, but only if that's all we have left
 	// (need == needVet, not testing just the one bit).
 	// If we are going to do a full build anyway,
@@ -607,7 +619,7 @@ OverlayLoop:
 				from := mkAbs(p.Dir, fs[i])
 				opath, _ := fsys.OverlayPath(from)
 				dst := objdir + filepath.Base(fs[i])
-				if err := b.copyFile(dst, opath, 0666, false); err != nil {
+				if err := b.CopyFile(dst, opath, 0666, false); err != nil {
 					return err
 				}
 				a.nonGoOverlay[from] = dst
@@ -629,7 +641,7 @@ OverlayLoop:
 	}
 
 	// If we're doing coverage, preprocess the .go files and put them in the work directory
-	if p.Internal.CoverMode != "" {
+	if p.Internal.Cover.Mode != "" {
 		outfiles := []string{}
 		infiles := []string{}
 		for i, file := range str.StringList(gofiles, cgofiles) {
@@ -684,7 +696,7 @@ OverlayLoop:
 				// users to break things.
 				sum := sha256.Sum256([]byte(a.Package.ImportPath))
 				coverVar := fmt.Sprintf("goCover_%x_", sum[:6])
-				mode := a.Package.Internal.CoverMode
+				mode := a.Package.Internal.Cover.Mode
 				if mode == "" {
 					panic("covermode should be set at this point")
 				}
@@ -700,7 +712,10 @@ OverlayLoop:
 				// the package with the compiler, so set covermode to
 				// the empty string so as to signal that we need to do
 				// that.
-				p.Internal.CoverMode = ""
+				p.Internal.Cover.Mode = ""
+			}
+			if ba, ok := a.Actor.(*buildActor); ok && ba.covMetaFileName != "" {
+				b.cacheObjdirFile(a, cache.Default(), ba.covMetaFileName)
 			}
 		}
 	}
@@ -879,17 +894,17 @@ OverlayLoop:
 		switch {
 		case strings.HasSuffix(name, _goos_goarch):
 			targ := file[:len(name)-len(_goos_goarch)] + "_GOOS_GOARCH." + ext
-			if err := b.copyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
+			if err := b.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goarch):
 			targ := file[:len(name)-len(_goarch)] + "_GOARCH." + ext
-			if err := b.copyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
+			if err := b.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goos):
 			targ := file[:len(name)-len(_goos)] + "_GOOS." + ext
-			if err := b.copyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
+			if err := b.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		}
@@ -1014,7 +1029,7 @@ func (b *Builder) loadCachedObjdirFile(a *Action, c cache.Cache, name string) er
 	if err != nil {
 		return err
 	}
-	return b.copyFile(a.Objdir+name, cached, 0666, true)
+	return b.CopyFile(a.Objdir+name, cached, 0666, true)
 }
 
 func (b *Builder) cacheCgoHdr(a *Action) {
@@ -1869,7 +1884,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) 
 
 	// If the source is in the build cache, we need to copy it.
 	if strings.HasPrefix(src, cache.DefaultDir()) {
-		return b.copyFile(dst, src, perm, force)
+		return b.CopyFile(dst, src, perm, force)
 	}
 
 	// On Windows, always copy the file, so that we respect the NTFS
@@ -1877,7 +1892,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) 
 	// What matters here is not cfg.Goos (the system we are building
 	// for) but runtime.GOOS (the system we are building on).
 	if runtime.GOOS == "windows" {
-		return b.copyFile(dst, src, perm, force)
+		return b.CopyFile(dst, src, perm, force)
 	}
 
 	// If the destination directory has the group sticky bit set,
@@ -1885,7 +1900,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) 
 	// https://golang.org/issue/18878
 	if fi, err := os.Stat(filepath.Dir(dst)); err == nil {
 		if fi.IsDir() && (fi.Mode()&fs.ModeSetgid) != 0 {
-			return b.copyFile(dst, src, perm, force)
+			return b.CopyFile(dst, src, perm, force)
 		}
 	}
 
@@ -1915,11 +1930,11 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) 
 		}
 	}
 
-	return b.copyFile(dst, src, perm, force)
+	return b.CopyFile(dst, src, perm, force)
 }
 
 // copyFile is like 'cp src dst'.
-func (b *Builder) copyFile(dst, src string, perm fs.FileMode, force bool) error {
+func (b *Builder) CopyFile(dst, src string, perm fs.FileMode, force bool) error {
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd("", "cp %s %s", src, dst)
 		if cfg.BuildN {
@@ -2024,7 +2039,7 @@ func (b *Builder) cover(a *Action, dst, src string, varName string) error {
 	return b.run(a, a.Objdir, "cover "+a.Package.ImportPath, nil,
 		cfg.BuildToolexec,
 		base.Tool("cover"),
-		"-mode", a.Package.Internal.CoverMode,
+		"-mode", a.Package.Internal.Cover.Mode,
 		"-var", varName,
 		"-o", dst,
 		src)
@@ -2063,7 +2078,7 @@ func (b *Builder) cover2(a *Action, infiles, outfiles []string, varName string, 
 
 func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsfile string, outfiles []string) error {
 	p := a.Package
-	p.Internal.CoverageCfg = a.Objdir + "coveragecfg"
+	p.Internal.Cover.Cfg = a.Objdir + "coveragecfg"
 	pcfg := covcmd.CoverPkgConfig{
 		PkgPath: p.ImportPath,
 		PkgName: p.Name,
@@ -2072,8 +2087,11 @@ func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsf
 		// test -cover" to select it. This may change in the future
 		// depending on user demand.
 		Granularity: "perblock",
-		OutConfig:   p.Internal.CoverageCfg,
+		OutConfig:   p.Internal.Cover.Cfg,
 		Local:       p.Internal.Local,
+	}
+	if ba, ok := a.Actor.(*buildActor); ok && ba.covMetaFileName != "" {
+		pcfg.EmitMetaFile = a.Objdir + ba.covMetaFileName
 	}
 	if a.Package.Module != nil {
 		pcfg.ModulePath = a.Package.Module.Path
@@ -2082,6 +2100,7 @@ func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsf
 	if err != nil {
 		return err
 	}
+	data = append(data, '\n')
 	if err := b.writeFile(pconfigfile, data); err != nil {
 		return err
 	}

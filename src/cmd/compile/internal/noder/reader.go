@@ -3401,7 +3401,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
 	// may contain side effects. Make sure to preserve these,
 	// if necessary (#42703).
 	if call.Op() == ir.OCALLFUNC {
-		inline.CalleeEffects(&init, call.X)
+		inline.CalleeEffects(&init, call.Fun)
 	}
 
 	var args ir.Nodes

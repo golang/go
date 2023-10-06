@@ -99,7 +99,11 @@ type Optab struct {
 //
 // Likewise, each slice of optab is dynamically sorted using the ocmp Sort interface
 // to arrange entries to minimize text size of each opcode.
-var optab = []Optab{
+//
+// optab is the sorted result of combining optabBase, optabGen, and prefixableOptab.
+var optab []Optab
+
+var optabBase = []Optab{
 	{as: obj.ATEXT, a1: C_LOREG, a6: C_TEXTSIZE, type_: 0, size: 0},
 	{as: obj.ATEXT, a1: C_LOREG, a3: C_LCON, a6: C_TEXTSIZE, type_: 0, size: 0},
 	{as: obj.ATEXT, a1: C_ADDR, a6: C_TEXTSIZE, type_: 0, size: 0},
@@ -190,6 +194,7 @@ var optab = []Optab{
 	{as: ACLRLSLWI, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 62, size: 4},
 	{as: ARLDMI, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 30, size: 4},
 	{as: ARLDC, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 29, size: 4},
+	{as: ARLDC, a1: C_REG, a3: C_U8CON, a4: C_U8CON, a6: C_REG, type_: 9, size: 4},
 	{as: ARLDCL, a1: C_SCON, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 29, size: 4},
 	{as: ARLDCL, a1: C_REG, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 14, size: 4},
 	{as: ARLDICL, a1: C_REG, a2: C_REG, a3: C_LCON, a6: C_REG, type_: 14, size: 4},
@@ -541,7 +546,7 @@ type PrefixableOptab struct {
 //
 // This requires an ISA 3.1 compatible cpu (e.g Power10), and when linking externally an ELFv2 1.5 compliant.
 var prefixableOptab = []PrefixableOptab{
-	{Optab: Optab{as: AMOVD, a1: C_LCON, a6: C_REG, type_: 19, size: 8}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AMOVD, a1: C_S34CON, a6: C_REG, type_: 19, size: 8}, minGOPPC64: 10, pfxsize: 8},
 	{Optab: Optab{as: AMOVD, a1: C_ADDR, a6: C_REG, type_: 75, size: 8}, minGOPPC64: 10, pfxsize: 8},
 	{Optab: Optab{as: AMOVD, a1: C_TLS_LE, a6: C_REG, type_: 79, size: 8}, minGOPPC64: 10, pfxsize: 8},
 	{Optab: Optab{as: AMOVD, a1: C_TLS_IE, a6: C_REG, type_: 80, size: 12}, minGOPPC64: 10, pfxsize: 12},
@@ -574,6 +579,8 @@ var prefixableOptab = []PrefixableOptab{
 
 	{Optab: Optab{as: AADD, a1: C_LCON, a2: C_REG, a6: C_REG, type_: 22, size: 12}, minGOPPC64: 10, pfxsize: 8},
 	{Optab: Optab{as: AADD, a1: C_LCON, a6: C_REG, type_: 22, size: 12}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AADD, a1: C_S34CON, a2: C_REG, a6: C_REG, type_: 22, size: 20}, minGOPPC64: 10, pfxsize: 8},
+	{Optab: Optab{as: AADD, a1: C_S34CON, a6: C_REG, type_: 22, size: 20}, minGOPPC64: 10, pfxsize: 8},
 }
 
 var oprange [ALAST & obj.AMask][]Optab
@@ -1303,10 +1310,6 @@ func buildop(ctxt *obj.Link) {
 			entry.ispfx = true
 			entry.size = entry.pfxsize
 		}
-		// Use the legacy assembler function if none provided.
-		if entry.asmout == nil {
-			entry.asmout = asmout
-		}
 		prefixOptab = append(prefixOptab, entry.Optab)
 
 	}
@@ -1318,16 +1321,20 @@ func buildop(ctxt *obj.Link) {
 			}
 		}
 	}
+
+	// Append the generated entries, sort, and fill out oprange.
+	optab = make([]Optab, 0, len(optabBase)+len(optabGen)+len(prefixOptab))
+	optab = append(optab, optabBase...)
+	optab = append(optab, optabGen...)
+	optab = append(optab, prefixOptab...)
+	sort.Slice(optab, optabLess)
+
 	for i := range optab {
 		// Use the legacy assembler function if none provided.
 		if optab[i].asmout == nil {
 			optab[i].asmout = asmout
 		}
 	}
-	// Append the generated entries, sort, and fill out oprange.
-	optab = append(optab, optabGen...)
-	optab = append(optab, prefixOptab...)
-	sort.Slice(optab, optabLess)
 
 	for i := 0; i < len(optab); {
 		r := optab[i].as
@@ -2717,6 +2724,14 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		// Sign extend MOVB operations. This is ignored for other cases (o.size == 4).
 		o2 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
 
+	case 9: /* RLDC Ra, $sh, $mb, Rb */
+		sh := uint32(p.RestArgs[0].Addr.Offset) & 0x3F
+		mb := uint32(p.RestArgs[1].Addr.Offset) & 0x3F
+		o1 = AOP_RRR(c.opirr(p.As), uint32(p.From.Reg), uint32(p.To.Reg), (uint32(sh) & 0x1F))
+		o1 |= (sh & 0x20) >> 4 // sh[5] is placed in bit 1.
+		o1 |= (mb & 0x1F) << 6 // mb[0:4] is placed in bits 6-10.
+		o1 |= (mb & 0x20)      // mb[5] is placed in bit 5
+
 	case 10: /* sub Ra,[Rb],Rd => subf Rd,Ra,Rb */
 		r := int(p.Reg)
 
@@ -2974,7 +2989,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			o1 = AOP_IRR(c.opirr(AADDIS), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
 		}
 
-	case 22: /* add $lcon/$andcon,r1,r2 ==> oris+ori+add/ori+add */
+	case 22: /* add $lcon/$andcon,r1,r2 ==> oris+ori+add/ori+add, add $s34con,r1 ==> addis+ori+slw+ori+add */
 		if p.To.Reg == REGTMP || p.Reg == REGTMP {
 			c.ctxt.Diag("can't synthesize large constant\n%v", p)
 		}
@@ -2986,19 +3001,23 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		if p.From.Sym != nil {
 			c.ctxt.Diag("%v is not supported", p)
 		}
-		// If operand is ANDCON, generate 2 instructions using
-		// ORI for unsigned value; with LCON 3 instructions.
-		if o.size == 8 {
-			o1 = LOP_IRR(OP_ORI, REGTMP, REGZERO, uint32(int32(d)))
-			o2 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
-		} else {
-			o1 = loadu32(REGTMP, d)
-			o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(int32(d)))
-			o3 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
-		}
-
 		if o.ispfx {
 			o1, o2 = pfxadd(int16(p.To.Reg), int16(r), PFX_R_ABS, d)
+		} else if o.size == 8 {
+			o1 = LOP_IRR(OP_ORI, REGTMP, REGZERO, uint32(int32(d)))          // tmp = uint16(d)
+			o2 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r)) // to = tmp + from
+		} else if o.size == 12 {
+			// Note, o1 is ADDIS if d is negative, ORIS otherwise.
+			o1 = loadu32(REGTMP, d)                                          // tmp = d & 0xFFFF0000
+			o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(int32(d)))           // tmp |= d & 0xFFFF
+			o3 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r)) // to = from + tmp
+		} else {
+			// For backwards compatibility with GOPPC64 < 10, generate 34b constants in register.
+			o1 = LOP_IRR(OP_ADDIS, REGZERO, REGTMP, uint32(d>>32))  // tmp = sign_extend((d>>32)&0xFFFF0000)
+			o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(d>>16))     // tmp |= (d>>16)&0xFFFF
+			o3 = AOP_RLDIC(OP_RLDICR, REGTMP, REGTMP, 16, 63-16)    // tmp <<= 16
+			o4 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(uint16(d))) // tmp |= d&0xFFFF
+			o5 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
 		}
 
 	case 23: /* and $lcon/$addcon,r1,r2 ==> oris+ori+and/addi+and */

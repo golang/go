@@ -42,7 +42,7 @@ func Init() (*sys.Arch, ld.Arch) {
 
 			Freebsddynld:   "/usr/libexec/ld-elf.so.1",
 			Netbsddynld:    "XXX",
-			Openbsddynld:   "XXX",
+			Openbsddynld:   "/usr/libexec/ld.so",
 			Dragonflydynld: "XXX",
 			Solarisdynld:   "XXX",
 
@@ -57,7 +57,7 @@ func Init() (*sys.Arch, ld.Arch) {
 
 func archinit(ctxt *ld.Link) {
 	switch ctxt.HeadType {
-	case objabi.Hlinux, objabi.Hfreebsd:
+	case objabi.Hlinux, objabi.Hfreebsd, objabi.Hopenbsd:
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
 		if *ld.FlagRound == -1 {

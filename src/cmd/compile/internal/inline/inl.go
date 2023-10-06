@@ -536,8 +536,8 @@ opSwitch:
 		//
 		// runtime.throw is a "cheap call" like panic in normal code.
 		var cheap bool
-		if n.X.Op() == ir.ONAME {
-			name := n.X.(*ir.Name)
+		if n.Fun.Op() == ir.ONAME {
+			name := n.Fun.(*ir.Name)
 			if name.Class == ir.PFUNC {
 				switch fn := types.RuntimeSymName(name.Sym()); fn {
 				case "getcallerpc", "getcallersp":
@@ -568,8 +568,8 @@ opSwitch:
 				return false
 			}
 		}
-		if n.X.Op() == ir.OMETHEXPR {
-			if meth := ir.MethodExprName(n.X); meth != nil {
+		if n.Fun.Op() == ir.OMETHEXPR {
+			if meth := ir.MethodExprName(n.Fun); meth != nil {
 				if fn := meth.Func; fn != nil {
 					s := fn.Sym()
 					if types.RuntimeSymName(s) == "heapBits.nextArena" {
@@ -602,7 +602,7 @@ opSwitch:
 
 		// Determine if the callee edge is for an inlinable hot callee or not.
 		if v.profile != nil && v.curFunc != nil {
-			if fn := inlCallee(v.curFunc, n.X, v.profile); fn != nil && typecheck.HaveInlineBody(fn) {
+			if fn := inlCallee(v.curFunc, n.Fun, v.profile); fn != nil && typecheck.HaveInlineBody(fn) {
 				lineOffset := pgo.NodeLineOffset(n, fn)
 				csi := pgo.CallSiteInfo{LineOffset: lineOffset, Caller: v.curFunc}
 				if _, o := candHotEdgeMap[csi]; o {
@@ -618,7 +618,7 @@ opSwitch:
 			break
 		}
 
-		if fn := inlCallee(v.curFunc, n.X, v.profile); fn != nil && typecheck.HaveInlineBody(fn) {
+		if fn := inlCallee(v.curFunc, n.Fun, v.profile); fn != nil && typecheck.HaveInlineBody(fn) {
 			// In the existing inliner, it makes sense to use fn.Inl.Cost
 			// here due to the fact that an "inline F everywhere if F inlinable"
 			// strategy is used. With the new inliner, however, it is not
@@ -902,10 +902,10 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
 		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
 	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
-		if n.X.Op() == ir.OMETHEXPR {
+		if n.Fun.Op() == ir.OMETHEXPR {
 			// Prevent inlining some reflect.Value methods when using checkptr,
 			// even when package reflect was compiled without it (#35073).
-			if meth := ir.MethodExprName(n.X); meth != nil {
+			if meth := ir.MethodExprName(n.Fun); meth != nil {
 				s := meth.Sym()
 				if base.Debug.Checkptr != 0 {
 					switch types.ReflectSymName(s) {
@@ -934,12 +934,12 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
 			break
 		}
 		if base.Flag.LowerM > 3 {
-			fmt.Printf("%v:call to func %+v\n", ir.Line(n), call.X)
+			fmt.Printf("%v:call to func %+v\n", ir.Line(n), call.Fun)
 		}
 		if ir.IsIntrinsicCall(call) {
 			break
 		}
-		if fn := inlCallee(callerfn, call.X, profile); fn != nil && typecheck.HaveInlineBody(fn) {
+		if fn := inlCallee(callerfn, call.Fun, profile); fn != nil && typecheck.HaveInlineBody(fn) {
 			n = mkinlcall(callerfn, call, fn, bigCaller, inlCalls)
 		}
 	}
@@ -1151,12 +1151,12 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool, i
 			// Not a standard call.
 			return
 		}
-		if n.X.Op() != ir.OCLOSURE {
+		if n.Fun.Op() != ir.OCLOSURE {
 			// Not a direct closure call.
 			return
 		}
 
-		clo := n.X.(*ir.ClosureExpr)
+		clo := n.Fun.(*ir.ClosureExpr)
 		if ir.IsTrivialClosure(clo) {
 			// enqueueFunc will handle trivial closures anyways.
 			return
@@ -1276,10 +1276,10 @@ func isIndexingCoverageCounter(n ir.Node) bool {
 // determine whether it represents a call to sync/atomic.AddUint32 to
 // increment a coverage counter.
 func isAtomicCoverageCounterUpdate(cn *ir.CallExpr) bool {
-	if cn.X.Op() != ir.ONAME {
+	if cn.Fun.Op() != ir.ONAME {
 		return false
 	}
-	name := cn.X.(*ir.Name)
+	name := cn.Fun.(*ir.Name)
 	if name.Class != ir.PFUNC {
 		return false
 	}

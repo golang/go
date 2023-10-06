@@ -131,7 +131,7 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
 		if ce.Op() != ir.OCALLINTER {
 			return
 		}
-		sel := ce.X.(*ir.SelectorExpr)
+		sel := ce.Fun.(*ir.SelectorExpr)
 		r := ir.StaticValue(sel.X)
 		if r.Op() != ir.ONAME {
 			return
@@ -147,10 +147,10 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
 				return name == p, false
 			})
 	case ir.OCALLFUNC:
-		if ce.X.Op() != ir.ONAME {
+		if ce.Fun.Op() != ir.ONAME {
 			return
 		}
-		called := ir.StaticValue(ce.X)
+		called := ir.StaticValue(ce.Fun)
 		if called.Op() != ir.ONAME {
 			return
 		}

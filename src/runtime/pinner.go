@@ -267,14 +267,14 @@ func (p *pinnerBits) ofObject(n uintptr) pinState {
 }
 
 func (s *mspan) pinnerBitSize() uintptr {
-	return divRoundUp(s.nelems*2, 8)
+	return divRoundUp(uintptr(s.nelems)*2, 8)
 }
 
 // newPinnerBits returns a pointer to 8 byte aligned bytes to be used for this
 // span's pinner bits. newPinneBits is used to mark objects that are pinned.
 // They are copied when the span is swept.
 func (s *mspan) newPinnerBits() *pinnerBits {
-	return (*pinnerBits)(newMarkBits(s.nelems * 2))
+	return (*pinnerBits)(newMarkBits(uintptr(s.nelems) * 2))
 }
 
 // nosplit, because it's called by isPinned, which is nosplit

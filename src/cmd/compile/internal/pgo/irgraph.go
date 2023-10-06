@@ -436,14 +436,14 @@ func (p *Profile) createIRGraphEdge(fn *ir.Func, callernode *IRNode, name string
 		case ir.OCALLFUNC:
 			call := n.(*ir.CallExpr)
 			// Find the callee function from the call site and add the edge.
-			callee := DirectCallee(call.X)
+			callee := DirectCallee(call.Fun)
 			if callee != nil {
 				p.addIREdge(callernode, name, n, callee)
 			}
 		case ir.OCALLMETH:
 			call := n.(*ir.CallExpr)
 			// Find the callee method from the call site and add the edge.
-			callee := ir.MethodExprName(call.X).Func
+			callee := ir.MethodExprName(call.Fun).Func
 			p.addIREdge(callernode, name, n, callee)
 		}
 	})

@@ -624,6 +624,9 @@ var depsRules = `
 	internal/coverage/cmerge
 	< internal/coverage/cformat;
 
+	internal/coverage, crypto/sha256, FMT
+	< cmd/internal/cov/covcmd;
+
     encoding/json,
 	runtime/debug,
 	internal/coverage/calloc,

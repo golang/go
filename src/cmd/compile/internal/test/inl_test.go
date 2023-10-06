@@ -108,6 +108,9 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Buffer).UnreadByte",
 			"(*Buffer).tryGrowByReslice",
 		},
+		"internal/abi": {
+			"UseInterfaceSwitchCache",
+		},
 		"compress/flate": {
 			"byLiteral.Len",
 			"byLiteral.Less",

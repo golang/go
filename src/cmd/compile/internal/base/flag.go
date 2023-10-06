@@ -5,11 +5,11 @@
 package base
 
 import (
+	"cmd/internal/cov/covcmd"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"internal/buildcfg"
-	"internal/coverage/covcmd"
 	"internal/platform"
 	"log"
 	"os"

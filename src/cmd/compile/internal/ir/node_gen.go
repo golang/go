@@ -295,7 +295,7 @@ func (n *CallExpr) doChildren(do func(Node) bool) bool {
 	if doNodes(n.init, do) {
 		return true
 	}
-	if n.X != nil && do(n.X) {
+	if n.Fun != nil && do(n.Fun) {
 		return true
 	}
 	if doNodes(n.Args, do) {
@@ -308,16 +308,16 @@ func (n *CallExpr) doChildren(do func(Node) bool) bool {
 }
 func (n *CallExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
-	if n.X != nil {
-		n.X = edit(n.X).(Node)
+	if n.Fun != nil {
+		n.Fun = edit(n.Fun).(Node)
 	}
 	editNodes(n.Args, edit)
 	editNames(n.KeepAlive, edit)
 }
 func (n *CallExpr) editChildrenWithHidden(edit func(Node) Node) {
 	editNodes(n.init, edit)
-	if n.X != nil {
-		n.X = edit(n.X).(Node)
+	if n.Fun != nil {
+		n.Fun = edit(n.Fun).(Node)
 	}
 	editNodes(n.Args, edit)
 	if n.RType != nil {
@@ -845,6 +845,52 @@ func (n *InlinedCallExpr) editChildrenWithHidden(edit func(Node) Node) {
 	editNodes(n.init, edit)
 	editNodes(n.Body, edit)
 	editNodes(n.ReturnVars, edit)
+}
+
+func (n *InterfaceSwitchStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *InterfaceSwitchStmt) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	return &c
+}
+func (n *InterfaceSwitchStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Case != nil && do(n.Case) {
+		return true
+	}
+	if n.Itab != nil && do(n.Itab) {
+		return true
+	}
+	if n.RuntimeType != nil && do(n.RuntimeType) {
+		return true
+	}
+	return false
+}
+func (n *InterfaceSwitchStmt) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Case != nil {
+		n.Case = edit(n.Case).(Node)
+	}
+	if n.Itab != nil {
+		n.Itab = edit(n.Itab).(Node)
+	}
+	if n.RuntimeType != nil {
+		n.RuntimeType = edit(n.RuntimeType).(Node)
+	}
+}
+func (n *InterfaceSwitchStmt) editChildrenWithHidden(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Case != nil {
+		n.Case = edit(n.Case).(Node)
+	}
+	if n.Itab != nil {
+		n.Itab = edit(n.Itab).(Node)
+	}
+	if n.RuntimeType != nil {
+		n.RuntimeType = edit(n.RuntimeType).(Node)
+	}
 }
 
 func (n *JumpTableStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }

@@ -52,6 +52,7 @@ golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/internal/analysisflags
+golang.org/x/tools/go/analysis/passes/appends
 golang.org/x/tools/go/analysis/passes/asmdecl
 golang.org/x/tools/go/analysis/passes/assign
 golang.org/x/tools/go/analysis/passes/atomic

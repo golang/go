@@ -2429,6 +2429,7 @@ const (
 	OpRISCV64LoweredGetCallerSP
 	OpRISCV64LoweredGetCallerPC
 	OpRISCV64LoweredWB
+	OpRISCV64LoweredPubBarrier
 	OpRISCV64LoweredPanicBoundsA
 	OpRISCV64LoweredPanicBoundsB
 	OpRISCV64LoweredPanicBoundsC
@@ -32582,6 +32583,13 @@ var opcodeTable = [...]opInfo{
 				{0, 8388608}, // X24
 			},
 		},
+	},
+	{
+		name:           "LoweredPubBarrier",
+		argLen:         1,
+		hasSideEffects: true,
+		asm:            riscv.AFENCE,
+		reg:            regInfo{},
 	},
 	{
 		name:    "LoweredPanicBoundsA",

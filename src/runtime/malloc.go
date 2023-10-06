@@ -886,7 +886,7 @@ var zerobase uintptr
 func nextFreeFast(s *mspan) gclinkptr {
 	theBit := sys.TrailingZeros64(s.allocCache) // Is there a free object in the allocCache?
 	if theBit < 64 {
-		result := s.freeindex + uintptr(theBit)
+		result := s.freeindex + uint16(theBit)
 		if result < s.nelems {
 			freeidx := result + 1
 			if freeidx%64 == 0 && freeidx != s.nelems {
@@ -895,7 +895,7 @@ func nextFreeFast(s *mspan) gclinkptr {
 			s.allocCache >>= uint(theBit + 1)
 			s.freeindex = freeidx
 			s.allocCount++
-			return gclinkptr(result*s.elemsize + s.base())
+			return gclinkptr(uintptr(result)*s.elemsize + s.base())
 		}
 	}
 	return 0
@@ -916,7 +916,7 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
 	freeIndex := s.nextFreeIndex()
 	if freeIndex == s.nelems {
 		// The span is full.
-		if uintptr(s.allocCount) != s.nelems {
+		if s.allocCount != s.nelems {
 			println("runtime: s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
 			throw("s.allocCount != s.nelems && freeIndex == s.nelems")
 		}
@@ -931,9 +931,9 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
 		throw("freeIndex is not valid")
 	}
 
-	v = gclinkptr(freeIndex*s.elemsize + s.base())
+	v = gclinkptr(uintptr(freeIndex)*s.elemsize + s.base())
 	s.allocCount++
-	if uintptr(s.allocCount) > s.nelems {
+	if s.allocCount > s.nelems {
 		println("s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
 		throw("s.allocCount > s.nelems")
 	}

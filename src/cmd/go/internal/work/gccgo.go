@@ -299,7 +299,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 	readAndRemoveCgoFlags := func(archive string) (string, error) {
 		newID++
 		newArchive := root.Objdir + fmt.Sprintf("_pkg%d_.a", newID)
-		if err := b.copyFile(newArchive, archive, 0666, false); err != nil {
+		if err := b.CopyFile(newArchive, archive, 0666, false); err != nil {
 			return "", err
 		}
 		if cfg.BuildN || cfg.BuildX {

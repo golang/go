@@ -118,3 +118,33 @@ func typeSwitch(x any) int {
 	}
 	return 7
 }
+
+type I interface {
+	foo()
+}
+type J interface {
+	bar()
+}
+
+// use a runtime call for type switches to interface types.
+func interfaceSwitch(x any) int {
+	// amd64:`CALL\truntime.interfaceSwitch`,`MOVL\t16\(.*\)`,`MOVQ\t8\(.*\)(.*\*8)`
+	// arm64:`CALL\truntime.interfaceSwitch`,`LDAR`,`MOVWU`,`MOVD\t\(R.*\)\(R.*\)`
+	switch x.(type) {
+	case I:
+		return 1
+	case J:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func interfaceCast(x any) int {
+	// amd64:`CALL\truntime.typeAssert`,`MOVL\t16\(.*\)`,`MOVQ\t8\(.*\)(.*\*1)`
+	// arm64:`CALL\truntime.typeAssert`,`LDAR`,`MOVWU`,`MOVD\t\(R.*\)\(R.*\)`
+	if _, ok := x.(I); ok {
+		return 3
+	}
+	return 5
+}

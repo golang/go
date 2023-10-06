@@ -19,6 +19,7 @@ const (
 	EAI_AGAIN    = 2
 	EAI_NODATA   = 7
 	EAI_NONAME   = 8
+	EAI_SERVICE  = 9
 	EAI_SYSTEM   = 11
 	EAI_OVERFLOW = 14
 

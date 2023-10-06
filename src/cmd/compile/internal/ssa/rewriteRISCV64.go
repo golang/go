@@ -432,6 +432,9 @@ func rewriteValueRISCV64(v *Value) bool {
 		return true
 	case OpPanicBounds:
 		return rewriteValueRISCV64_OpPanicBounds(v)
+	case OpPubBarrier:
+		v.Op = OpRISCV64LoweredPubBarrier
+		return true
 	case OpRISCV64ADD:
 		return rewriteValueRISCV64_OpRISCV64ADD(v)
 	case OpRISCV64ADDI:

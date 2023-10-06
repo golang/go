@@ -1460,3 +1460,67 @@ func testLookupNoData(t *testing.T, prefix string) {
 		return
 	}
 }
+
+func TestLookupPortNotFound(t *testing.T) {
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("udp", "_-unknown-service-")
+		var dnsErr *DNSError
+		if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+// submissions service is only available through a tcp network, see:
+// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=submissions
+var tcpOnlyService = func() string {
+	// plan9 does not have submissions service defined in the service database.
+	if runtime.GOOS == "plan9" {
+		return "https"
+	}
+	return "submissions"
+}()
+
+func TestLookupPortDifferentNetwork(t *testing.T) {
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("udp", tcpOnlyService)
+		var dnsErr *DNSError
+		if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestLookupPortEmptyNetworkString(t *testing.T) {
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("", tcpOnlyService)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestLookupPortIPNetworkString(t *testing.T) {
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("ip", tcpOnlyService)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func allResolvers(t *testing.T, f func(t *testing.T)) {
+	t.Run("default resolver", f)
+	t.Run("forced go resolver", func(t *testing.T) {
+		if fixup := forceGoDNS(); fixup != nil {
+			defer fixup()
+			f(t)
+		}
+	})
+	t.Run("forced cgo resolver", func(t *testing.T) {
+		if fixup := forceCgoDNS(); fixup != nil {
+			defer fixup()
+			f(t)
+		}
+	})
+}

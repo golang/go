@@ -103,7 +103,7 @@ func walkAssign(init *ir.Nodes, n ir.Node) ir.Node {
 			// Left in place for back end.
 			// Do not add a new write barrier.
 			// Set up address of type for back end.
-			r.X = reflectdata.AppendElemRType(base.Pos, r)
+			r.Fun = reflectdata.AppendElemRType(base.Pos, r)
 			return as
 		}
 		// Otherwise, lowered for race detector.

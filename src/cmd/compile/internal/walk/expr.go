@@ -12,6 +12,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
@@ -172,7 +173,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.LogicalExpr)
 		return walkLogical(n, init)
 
-	case ir.OPRINT, ir.OPRINTN:
+	case ir.OPRINT, ir.OPRINTLN:
 		return walkPrint(n.(*ir.CallExpr), init)
 
 	case ir.OPANIC:
@@ -532,7 +533,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	if n.Op() == ir.OCALLMETH {
 		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
 	}
-	if n.Op() == ir.OCALLINTER || n.X.Op() == ir.OMETHEXPR {
+	if n.Op() == ir.OCALLINTER || n.Fun.Op() == ir.OMETHEXPR {
 		// We expect both interface call reflect.Type.Method and concrete
 		// call reflect.(*rtype).Method.
 		usemethod(n)
@@ -541,14 +542,14 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		reflectdata.MarkUsedIfaceMethod(n)
 	}
 
-	if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.OCLOSURE {
+	if n.Op() == ir.OCALLFUNC && n.Fun.Op() == ir.OCLOSURE {
 		directClosureCall(n)
 	}
 
 	if ir.IsFuncPCIntrinsic(n) {
 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function, rewrite
 		// it to the address of the function of the ABI fn is defined.
-		name := n.X.(*ir.Name).Sym().Name
+		name := n.Fun.(*ir.Name).Sym().Name
 		arg := n.Args[0]
 		var wantABI obj.ABI
 		switch name {
@@ -583,7 +584,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		return e
 	}
 
-	if name, ok := n.X.(*ir.Name); ok {
+	if name, ok := n.Fun.(*ir.Name); ok {
 		sym := name.Sym()
 		if sym.Pkg.Path == "go.runtime" && sym.Name == "deferrangefunc" {
 			// Call to runtime.deferrangefunc is being shared with a range-over-func
@@ -609,9 +610,9 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 	}
 
 	args := n.Args
-	params := n.X.Type().Params()
+	params := n.Fun.Type().Params()
 
-	n.X = walkExpr(n.X, init)
+	n.Fun = walkExpr(n.Fun, init)
 	walkExprList(args, init)
 
 	for i, arg := range args {
@@ -633,7 +634,7 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 		}
 	}
 
-	funSym := n.X.Sym()
+	funSym := n.Fun.Sym()
 	if base.Debug.Libfuzzer != 0 && funSym != nil {
 		if hook, found := hooks[funSym.Pkg.Path+"."+funSym.Name]; found {
 			if len(args) != hook.argsNum {
@@ -724,14 +725,46 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
 		n.ITab = reflectdata.ITabAddrAt(base.Pos, n.Type(), n.X.Type())
 	}
+	if n.X.Type().IsInterface() && n.Type().IsInterface() && !n.Type().IsEmptyInterface() {
+		// Converting an interface to a non-empty interface. Needs a runtime call.
+		// Allocate an internal/abi.TypeAssert descriptor for that call.
+		lsym := types.LocalPkg.Lookup(fmt.Sprintf(".typeAssert.%d", typeAssertGen)).LinksymABI(obj.ABI0)
+		typeAssertGen++
+		off := 0
+		off = objw.SymPtr(lsym, off, typecheck.LookupRuntimeVar("emptyTypeAssertCache"), 0)
+		off = objw.SymPtr(lsym, off, reflectdata.TypeSym(n.Type()).Linksym(), 0)
+		off = objw.Bool(lsym, off, n.Op() == ir.ODOTTYPE2) // CanFail
+		off += types.PtrSize - 1
+		objw.Global(lsym, int32(off), obj.LOCAL)
+		// Set the type to be just a single pointer, as the cache pointer is the
+		// only one that GC needs to see.
+		lsym.Gotype = reflectdata.TypeLinksym(types.Types[types.TUINT8].PtrTo())
+
+		n.Descriptor = lsym
+	}
 	return n
 }
+
+var typeAssertGen int
 
 // walkDynamicDotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
 func walkDynamicDotType(n *ir.DynamicTypeAssertExpr, init *ir.Nodes) ir.Node {
 	n.X = walkExpr(n.X, init)
 	n.RType = walkExpr(n.RType, init)
 	n.ITab = walkExpr(n.ITab, init)
+	// Convert to non-dynamic if we can.
+	if n.RType != nil && n.RType.Op() == ir.OADDR {
+		addr := n.RType.(*ir.AddrExpr)
+		if addr.X.Op() == ir.OLINKSYMOFFSET {
+			r := ir.NewTypeAssertExpr(n.Pos(), n.X, n.Type())
+			if n.Op() == ir.ODYNAMICDOTTYPE2 {
+				r.SetOp(ir.ODOTTYPE2)
+			}
+			r.SetType(n.Type())
+			r.SetTypecheck(1)
+			return walkExpr(r, init)
+		}
+	}
 	return n
 }
 
@@ -971,7 +1004,7 @@ func usemethod(n *ir.CallExpr) {
 		}
 	}
 
-	dot, ok := n.X.(*ir.SelectorExpr)
+	dot, ok := n.Fun.(*ir.SelectorExpr)
 	if !ok {
 		return
 	}

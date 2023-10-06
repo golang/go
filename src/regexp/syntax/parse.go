@@ -382,14 +382,12 @@ func minFoldRune(r rune) rune {
 	if r < minFold || r > maxFold {
 		return r
 	}
-	min := r
+	m := r
 	r0 := r
 	for r = unicode.SimpleFold(r); r != r0; r = unicode.SimpleFold(r) {
-		if min > r {
-			min = r
-		}
+		m = min(m, r)
 	}
-	return min
+	return m
 }
 
 // op pushes a regexp with the given op onto the stack

@@ -1372,7 +1372,7 @@ func FreeMSpan(s *MSpan) {
 
 func MSpanCountAlloc(ms *MSpan, bits []byte) int {
 	s := (*mspan)(ms)
-	s.nelems = uintptr(len(bits) * 8)
+	s.nelems = uint16(len(bits) * 8)
 	s.gcmarkBits = (*gcBits)(unsafe.Pointer(&bits[0]))
 	result := s.countAlloc()
 	s.gcmarkBits = nil
@@ -1827,10 +1827,6 @@ func (s *ScavengeIndex) NextGen() {
 
 func (s *ScavengeIndex) SetEmpty(ci ChunkIdx) {
 	s.i.setEmpty(chunkIdx(ci))
-}
-
-func (s *ScavengeIndex) SetNoHugePage(ci ChunkIdx) {
-	s.i.setNoHugePage(chunkIdx(ci))
 }
 
 func CheckPackScavChunkData(gen uint32, inUse, lastInUse uint16, flags uint8) bool {

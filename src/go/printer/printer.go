@@ -861,10 +861,7 @@ func (p *printer) writeWhitespace(n int) {
 
 // nlimit limits n to maxNewlines.
 func nlimit(n int) int {
-	if n > maxNewlines {
-		n = maxNewlines
-	}
-	return n
+	return min(n, maxNewlines)
 }
 
 func mayCombine(prev token.Token, next byte) (b bool) {

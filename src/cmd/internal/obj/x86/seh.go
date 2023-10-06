@@ -97,17 +97,32 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
 	// https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64#struct-unwind_info
 
 	const (
-		UWOP_PUSH_NONVOL = 0
-		UWOP_SET_FPREG   = 3
-		SEH_REG_BP       = 5
+		UWOP_PUSH_NONVOL  = 0
+		UWOP_SET_FPREG    = 3
+		SEH_REG_BP        = 5
+		UNW_FLAG_EHANDLER = 1 << 3
 	)
+
+	var exceptionHandler *obj.LSym
+	var flags uint8
+	if s.Name == "runtime.asmcgocall_landingpad" {
+		// Most cgo calls go through runtime.asmcgocall_landingpad,
+		// we can use it to catch exceptions from C code.
+		// TODO: use a more generic approach to identify which calls need an exception handler.
+		exceptionHandler = ctxt.Lookup("runtime.sehtramp")
+		if exceptionHandler == nil {
+			ctxt.Diag("missing runtime.sehtramp\n")
+			return
+		}
+		flags = UNW_FLAG_EHANDLER
+	}
 
 	// Fow now we only support operations which are encoded
 	// using a single 2-byte node, so the number of nodes
 	// is the number of operations.
 	nodes := uint8(2)
 	buf := newsehbuf(ctxt, nodes)
-	buf.write8(1)                    // Flags + version
+	buf.write8(flags | 1)            // Flags + version
 	buf.write8(uint8(movbp.Link.Pc)) // Size of prolog
 	buf.write8(nodes)                // Count of nodes
 	buf.write8(SEH_REG_BP)           // FP register
@@ -119,8 +134,10 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
 	buf.write8(uint8(pushbp.Link.Pc))
 	buf.writecode(UWOP_PUSH_NONVOL, SEH_REG_BP)
 
-	// The following 4 bytes reference the RVA of the exception handler,
-	// in case the function has one. We don't use it for now.
+	// The following 4 bytes reference the RVA of the exception handler.
+	// The value is set to 0 for now, if an exception handler is needed,
+	// it will be updated later with a R_PEIMAGEOFF relocation to the
+	// exception handler.
 	buf.write32(0)
 
 	// The list of unwind infos in a PE binary have very low cardinality
@@ -134,6 +151,13 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
 		s.Type = objabi.SSEHUNWINDINFO
 		s.Set(obj.AttrDuplicateOK, true)
 		s.Set(obj.AttrLocal, true)
+		if exceptionHandler != nil {
+			r := obj.Addrel(s)
+			r.Off = int32(len(buf.data) - 4)
+			r.Siz = 4
+			r.Sym = exceptionHandler
+			r.Type = objabi.R_PEIMAGEOFF
+		}
 		// Note: AttrContentAddressable cannot be set here,
 		// because the content-addressable-handling code
 		// does not know about aux symbols.

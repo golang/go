@@ -9,6 +9,7 @@ package work
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/cov/covcmd"
 	"container/heap"
 	"context"
 	"debug/elf"
@@ -436,6 +437,32 @@ func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
 	return b.CompileAction(mode, depMode, p)
 }
 
+// buildActor implements the Actor interface for package build
+// actions. For most package builds this simply means invoking th
+// *Builder.build method; in the case of "go test -cover" for
+// a package with no test files, we stores some additional state
+// information in the build actor to help with reporting.
+type buildActor struct {
+	// name of static meta-data file fragment emitted by the cover
+	// tool as part of the package build action, for selected
+	// "go test -cover" runs.
+	covMetaFileName string
+}
+
+// newBuildActor returns a new buildActor object, setting up the
+// covMetaFileName field if 'genCoverMeta' flag is set.
+func newBuildActor(p *load.Package, genCoverMeta bool) *buildActor {
+	ba := &buildActor{}
+	if genCoverMeta {
+		ba.covMetaFileName = covcmd.MetaFileForPackage(p.ImportPath)
+	}
+	return ba
+}
+
+func (ba *buildActor) Act(b *Builder, ctx context.Context, a *Action) error {
+	return b.build(ctx, a)
+}
+
 // CompileAction returns the action for compiling and possibly installing
 // (according to mode) the given package. The resulting action is only
 // for building packages (archives), never for linking executables.
@@ -459,7 +486,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 		a := &Action{
 			Mode:    "build",
 			Package: p,
-			Actor:   ActorFunc((*Builder).build),
+			Actor:   newBuildActor(p, p.Internal.Cover.GenMeta),
 			Objdir:  b.NewObjdir(),
 		}
 
