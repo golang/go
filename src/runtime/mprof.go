@@ -43,7 +43,10 @@ const (
 	// Note that it's only used internally as a guard against
 	// wildly out-of-bounds slicing of the PCs that come after
 	// a bucket struct, and it could increase in the future.
-	maxStack = 32
+	// The "+ 1" is to account for the first stack entry being
+	// taken up by a "skip" sentinel value for profilers which
+	// defer inline frame expansion until the profile is reported.
+	maxStack = 32 + 1
 )
 
 type bucketType int
@@ -502,14 +505,40 @@ func blocksampled(cycles, rate int64) bool {
 	return true
 }
 
+// saveblockevent records a profile event of the type specified by which.
+// cycles is the quantity associated with this event and rate is the sampling rate,
+// used to adjust the cycles value in the manner determined by the profile type.
+// skip is the number of frames to omit from the traceback associated with the event.
+// The traceback will be recorded from the stack of the goroutine associated with the current m.
+// skip should be positive if this event is recorded from the current stack
+// (e.g. when this is not called from a system stack)
 func saveblockevent(cycles, rate int64, skip int, which bucketType) {
-	var nstk int
 	gp := getg()
 	mp := acquirem() // we must not be preempted while accessing profstack
-	if gp.m.curg == nil || gp.m.curg == gp {
-		nstk = callers(skip, mp.profStack)
+	nstk := 1
+	if tracefpunwindoff() || gp.m.hasCgoOnStack() {
+		mp.profStack[0] = logicalStackSentinel
+		if gp.m.curg == nil || gp.m.curg == gp {
+			nstk = callers(skip, mp.profStack[1:])
+		} else {
+			nstk = gcallers(gp.m.curg, skip, mp.profStack[1:])
+		}
 	} else {
-		nstk = gcallers(gp.m.curg, skip, mp.profStack)
+		mp.profStack[0] = uintptr(skip)
+		if gp.m.curg == nil || gp.m.curg == gp {
+			if skip > 0 {
+				// We skip one fewer frame than the provided value for frame
+				// pointer unwinding because the skip value includes the current
+				// frame, whereas the saved frame pointer will give us the
+				// caller's return address first (so, not including
+				// saveblockevent)
+				mp.profStack[0] -= 1
+			}
+			nstk += fpTracebackPCs(unsafe.Pointer(getfp()), mp.profStack[1:])
+		} else {
+			mp.profStack[1] = gp.m.curg.sched.pc
+			nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.m.curg.sched.bp), mp.profStack[2:])
+		}
 	}
 
 	saveBlockEventStack(cycles, rate, mp.profStack[:nstk], which)
@@ -689,9 +718,10 @@ func (prof *mLockProfile) captureStack() {
 	}
 	prof.pending = 0
 
+	prof.stack[0] = logicalStackSentinel
 	if debug.runtimeContentionStacks.Load() == 0 {
-		prof.stack[0] = abi.FuncPCABIInternal(_LostContendedRuntimeLock) + sys.PCQuantum
-		prof.stack[1] = 0
+		prof.stack[1] = abi.FuncPCABIInternal(_LostContendedRuntimeLock) + sys.PCQuantum
+		prof.stack[2] = 0
 		return
 	}
 
@@ -702,7 +732,7 @@ func (prof *mLockProfile) captureStack() {
 	systemstack(func() {
 		var u unwinder
 		u.initAt(pc, sp, 0, gp, unwindSilentErrors|unwindJumpStack)
-		nstk = tracebackPCs(&u, skip, prof.stack)
+		nstk = 1 + tracebackPCs(&u, skip, prof.stack[1:])
 	})
 	if nstk < len(prof.stack) {
 		prof.stack[nstk] = 0
@@ -732,6 +762,7 @@ func (prof *mLockProfile) store() {
 	saveBlockEventStack(cycles, rate, prof.stack[:nstk], mutexProfile)
 	if lost > 0 {
 		lostStk := [...]uintptr{
+			logicalStackSentinel,
 			abi.FuncPCABIInternal(_LostContendedRuntimeLock) + sys.PCQuantum,
 		}
 		saveBlockEventStack(lost, rate, lostStk[:], mutexProfile)
@@ -952,8 +983,8 @@ func record(r *MemProfileRecord, b *bucket) {
 	if asanenabled {
 		asanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
 	}
-	copy(r.Stack0[:], b.stk())
-	clear(r.Stack0[b.nstk:])
+	i := copy(r.Stack0[:], b.stk())
+	clear(r.Stack0[i:])
 }
 
 func iterate_memprof(fn func(*bucket, uintptr, *uintptr, uintptr, uintptr, uintptr)) {
@@ -1008,7 +1039,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 			if asanenabled {
 				asanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
 			}
-			i := copy(r.Stack0[:], b.stk())
+			i := fpunwindExpand(r.Stack0[:], b.stk())
 			clear(r.Stack0[i:])
 			p = p[1:]
 		}
@@ -1036,7 +1067,7 @@ func MutexProfile(p []BlockProfileRecord) (n int, ok bool) {
 			r := &p[0]
 			r.Count = int64(bp.count)
 			r.Cycles = bp.cycles
-			i := copy(r.Stack0[:], b.stk())
+			i := fpunwindExpand(r.Stack0[:], b.stk())
 			clear(r.Stack0[i:])
 			p = p[1:]
 		}
