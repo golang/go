@@ -116,6 +116,47 @@ packages that do not have their own test files. Prior to Go 1.22 a
   <!-- add a new analyzer  for check missing values after append -->
 </p>
 
+<h3 id="vet">Vet</h3>
+
+<h4 id="vet-appends">New warnings for missing values after append</h4>
+
+<p><!-- CL 498416, https://go.dev/issue/60448: add a new analyzer for check missing values after append -->
+  The <code>vet</code> tool now reports calls to
+  <a href="/pkg/builtin/#append"><code>append</code></a> that pass
+  no values to be appended to the slice, such as <code>slice = append(slice)</code>.
+  Such a statement has no effect, and experience has shown that is nearly always a mistake.
+</p>
+
+<h4 id="vet-defers">New warnings for deferring <code>time.Since</code></h4>
+
+<p><!-- CL 527095, https://go.dev/issue/60048: time.Since should not be used in defer statement -->
+  The vet tool now reports a non-deferred call to
+  <a href="/pkg/time/#Since"><code>time.Since(t)</code></a> within a <code>defer</code> statement.
+  This is equivalent to calling <code>time.Now().Sub(t)</code> before the <code>defer</code> statement,
+  not when the deferred function is called. In nearly all cases, the correct code
+  requires deferring the <code>time.Since</code> call. For example:
+</p>
+
+<pre>
+t := time.Now()
+defer log.Println(time.Since(t)) // non-deferred call to time.Since
+tmp := time.Since(t); defer log.Println(tmp) // equivalent to the previous defer
+
+defer func() {
+  log.Println(time.Since(t)) // a correctly deferred call to time.Since
+}()
+</pre>
+
+<h4 id="vet-slog">New warnings for mismatched key-value pairs in <code>log/slog</code> calls</h4>
+
+<p><!-- CL 496156, https://go.dev/issue/59407: log/slog: add vet checks for variadic ...any inputs -->
+  The vet tool now reports invalid arguments in calls to functions and methods
+  in the structured logging package, <a href="/pkg/log/slog"><code>log/slog</code></a>,
+  that accept alternating key/value pairs.
+  It reports calls where an argument in a key position is neither a
+  <code>string</code> nor a <code>slog.Attr</code>, and where a final key is missing its value.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p><!-- CL 543255 -->
