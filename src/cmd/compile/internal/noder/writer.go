@@ -1909,7 +1909,7 @@ func (w *writer) expr(expr syntax.Expr) {
 
 		var rtype types2.Type
 		if tv.IsBuiltin() {
-			switch obj, _ := lookupObj(w.p, expr.Fun); obj.Name() {
+			switch obj, _ := lookupObj(w.p, syntax.Unparen(expr.Fun)); obj.Name() {
 			case "make":
 				assert(len(expr.ArgList) >= 1)
 				assert(!expr.HasDots)
