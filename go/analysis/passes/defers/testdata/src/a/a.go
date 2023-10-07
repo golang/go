@@ -26,8 +26,8 @@ func good() {
 	defer fmt.Println(evalBefore)
 	do := func(f func()) {}
 	defer do(func() { time.Since(now) })
-	defer fmt.Println(Since()) // OK because Since function is not in module time
-
+	defer fmt.Println(Since())       // OK because Since function is not in module time
+	defer copy([]int(nil), []int{1}) // check that a builtin doesn't cause a panic
 }
 
 type y struct{}

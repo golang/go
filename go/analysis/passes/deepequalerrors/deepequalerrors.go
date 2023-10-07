@@ -46,11 +46,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		call := n.(*ast.CallExpr)
-		fn, ok := typeutil.Callee(pass.TypesInfo, call).(*types.Func)
-		if !ok {
-			return
-		}
-		if fn.FullName() == "reflect.DeepEqual" && hasError(pass, call.Args[0]) && hasError(pass, call.Args[1]) {
+		fn, _ := typeutil.Callee(pass.TypesInfo, call).(*types.Func)
+		if analysisutil.IsFunctionNamed(fn, "reflect", "DeepEqual") && hasError(pass, call.Args[0]) && hasError(pass, call.Args[1]) {
 			pass.ReportRangef(call, "avoid using reflect.DeepEqual with errors")
 		}
 	})

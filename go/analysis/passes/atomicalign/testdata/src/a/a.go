@@ -4,6 +4,7 @@
 
 // This file contains tests for the atomic alignment checker.
 
+//go:build arm || 386
 // +build arm 386
 
 package testdata
@@ -102,7 +103,8 @@ func arrayAlignment() {
 
 	atomic.LoadInt64(&a.b) // want "address of non 64-bit aligned field .b passed to atomic.LoadInt64"
 	atomic.LoadInt64(&a.c)
-	atomic.LoadUint64(&a.e) // want "address of non 64-bit aligned field .e passed to atomic.LoadUint64"
+	atomic.LoadUint64(&a.e)   // want "address of non 64-bit aligned field .e passed to atomic.LoadUint64"
+	(atomic.LoadUint64)(&a.e) // want "address of non 64-bit aligned field .e passed to atomic.LoadUint64"
 }
 
 func anonymousFieldAlignment() {

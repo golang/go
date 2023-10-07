@@ -49,11 +49,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				}
 			}
 		case *ast.CallExpr:
-			fn, ok := typeutil.Callee(pass.TypesInfo, n).(*types.Func)
-			if !ok {
-				return
-			}
-			if fn.FullName() == "reflect.DeepEqual" && (isReflectValue(pass, n.Args[0]) || isReflectValue(pass, n.Args[1])) {
+			fn, _ := typeutil.Callee(pass.TypesInfo, n).(*types.Func)
+			if analysisutil.IsFunctionNamed(fn, "reflect", "DeepEqual") && (isReflectValue(pass, n.Args[0]) || isReflectValue(pass, n.Args[1])) {
 				pass.ReportRangef(n, "avoid using reflect.DeepEqual with reflect.Value")
 			}
 		}

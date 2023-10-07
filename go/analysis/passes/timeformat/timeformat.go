@@ -105,12 +105,7 @@ func isTimeDotFormat(f *types.Func) bool {
 }
 
 func isTimeDotParse(f *types.Func) bool {
-	if f.Name() != "Parse" || f.Pkg().Path() != "time" {
-		return false
-	}
-	// Verify that there is no receiver.
-	sig, ok := f.Type().(*types.Signature)
-	return ok && sig.Recv() == nil
+	return analysisutil.IsFunctionNamed(f, "time", "Parse")
 }
 
 // badFormatAt return the start of a bad format in e or -1 if no bad format is found.

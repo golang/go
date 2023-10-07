@@ -129,3 +129,24 @@ func IsNamedType(t types.Type, pkgPath string, names ...string) bool {
 	}
 	return false
 }
+
+// IsFunctionNamed reports whether f is a top-level function defined in the
+// given package and has one of the given names.
+// It returns false if f is nil or a method.
+func IsFunctionNamed(f *types.Func, pkgPath string, names ...string) bool {
+	if f == nil {
+		return false
+	}
+	if f.Pkg().Path() != pkgPath {
+		return false
+	}
+	if f.Type().(*types.Signature).Recv() != nil {
+		return false
+	}
+	for _, n := range names {
+		if f.Name() == n {
+			return true
+		}
+	}
+	return false
+}

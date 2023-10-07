@@ -93,7 +93,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if !ok {
 			return // e.g. var or builtin
 		}
-
 		if sig := fn.Type().(*types.Signature); sig.Recv() != nil {
 			// method (e.g. foo.String())
 			if types.Identical(sig, sigNoArgsStringResult) {
