@@ -16,3 +16,9 @@ func userdefine() {
 	sli = append(sli, 4, 5, 6)
 	sli = append(sli)
 }
+
+func localvar() {
+	append := func(int) int { return 0 }
+	a := append(1)
+	_ = a
+}
