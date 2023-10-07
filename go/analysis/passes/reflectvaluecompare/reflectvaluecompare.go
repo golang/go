@@ -68,11 +68,7 @@ func isReflectValue(pass *analysis.Pass, e ast.Expr) bool {
 		return false
 	}
 	// See if the type is reflect.Value
-	named, ok := tv.Type.(*types.Named)
-	if !ok {
-		return false
-	}
-	if obj := named.Obj(); obj == nil || obj.Pkg() == nil || obj.Pkg().Path() != "reflect" || obj.Name() != "Value" {
+	if !analysisutil.IsNamedType(tv.Type, "reflect", "Value") {
 		return false
 	}
 	if _, ok := e.(*ast.CompositeLit); ok {

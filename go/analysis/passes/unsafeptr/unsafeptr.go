@@ -104,8 +104,7 @@ func isSafeUintptr(info *types.Info, x ast.Expr) bool {
 		}
 		switch sel.Sel.Name {
 		case "Pointer", "UnsafeAddr":
-			t, ok := info.Types[sel.X].Type.(*types.Named)
-			if ok && t.Obj().Pkg().Path() == "reflect" && t.Obj().Name() == "Value" {
+			if analysisutil.IsNamedType(info.Types[sel.X].Type, "reflect", "Value") {
 				return true
 			}
 		}
@@ -153,13 +152,5 @@ func hasBasicType(info *types.Info, x ast.Expr, kind types.BasicKind) bool {
 
 // isReflectHeader reports whether t is reflect.SliceHeader or reflect.StringHeader.
 func isReflectHeader(t types.Type) bool {
-	if named, ok := t.(*types.Named); ok {
-		if obj := named.Obj(); obj.Pkg() != nil && obj.Pkg().Path() == "reflect" {
-			switch obj.Name() {
-			case "SliceHeader", "StringHeader":
-				return true
-			}
-		}
-	}
-	return false
+	return analysisutil.IsNamedType(t, "reflect", "SliceHeader", "StringHeader")
 }

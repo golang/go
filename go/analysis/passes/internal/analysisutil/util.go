@@ -118,3 +118,25 @@ func Imports(pkg *types.Package, path string) bool {
 	}
 	return false
 }
+
+// IsNamedType reports whether t is the named type with the given package path
+// and one of the given names.
+// This function avoids allocating the concatenation of "pkg.Name",
+// which is important for the performance of syntax matching.
+func IsNamedType(t types.Type, pkgPath string, names ...string) bool {
+	n, ok := t.(*types.Named)
+	if !ok {
+		return false
+	}
+	obj := n.Obj()
+	if obj == nil || obj.Pkg() == nil || obj.Pkg().Path() != pkgPath {
+		return false
+	}
+	name := obj.Name()
+	for _, n := range names {
+		if name == n {
+			return true
+		}
+	}
+	return false
+}
