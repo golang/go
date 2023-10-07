@@ -398,10 +398,7 @@ func FieldsFunc(s string, f func(rune) bool) []string {
 		if f(rune) {
 			if start >= 0 {
 				spans = append(spans, span{start, end})
-				// Set start to a negative value.
-				// Note: using -1 here consistently and reproducibly
-				// slows down this code by a several percent on amd64.
-				start = ^start
+				start = -1
 			}
 		} else {
 			if start < 0 {
