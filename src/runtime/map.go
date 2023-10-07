@@ -70,7 +70,7 @@ const (
 	// Because of minimum alignment rules, bucketCnt is known to be at least 8.
 	// Represent as loadFactorNum/loadFactorDen, to allow integer math.
 	loadFactorDen = 2
-	loadFactorNum = (bucketCnt * 13 / 16) * loadFactorDen
+	loadFactorNum = loadFactorDen * bucketCnt * 13 / 16
 
 	// Maximum key or elem size to keep inline (instead of mallocing per element).
 	// Must fit in a uint8.

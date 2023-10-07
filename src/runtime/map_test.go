@@ -1419,3 +1419,18 @@ func TestEmptyMapWithInterfaceKey(t *testing.T) {
 		_ = mi[panicStructKey]
 	})
 }
+
+func TestLoadFactor(t *testing.T) {
+	for b := uint8(0); b < 20; b++ {
+		count := 13 * (1 << b) / 2 // 6.5
+		if b == 0 {
+			count = 8
+		}
+		if runtime.OverLoadFactor(count, b) {
+			t.Errorf("OverLoadFactor(%d,%d)=true, want false", count, b)
+		}
+		if !runtime.OverLoadFactor(count+1, b) {
+			t.Errorf("OverLoadFactor(%d,%d)=false, want true", count+1, b)
+		}
+	}
+}

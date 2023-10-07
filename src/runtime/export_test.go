@@ -583,6 +583,10 @@ func MapBucketsPointerIsNil(m map[int]int) bool {
 	return h.buckets == nil
 }
 
+func OverLoadFactor(count int, B uint8) bool {
+	return overLoadFactor(count, B)
+}
+
 func LockOSCounts() (external, internal uint32) {
 	gp := getg()
 	if gp.m.lockedExt+gp.m.lockedInt == 0 {
