@@ -98,14 +98,14 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
 		delete(need, fi.name)
 	}
 	for name := range need {
-		list = append(list, mapFileInfo{name, &MapFile{Mode: fs.ModeDir}})
+		list = append(list, mapFileInfo{name, &MapFile{Mode: fs.ModeDir | 0555}})
 	}
 	sort.Slice(list, func(i, j int) bool {
 		return list[i].name < list[j].name
 	})
 
 	if file == nil {
-		file = &MapFile{Mode: fs.ModeDir}
+		file = &MapFile{Mode: fs.ModeDir | 0555}
 	}
 	return &mapDir{name, mapFileInfo{elem, file}, list, 0}, nil
 }
