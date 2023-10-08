@@ -55,17 +55,6 @@ func HasSideEffects(info *types.Info, e ast.Expr) bool {
 	return !safe
 }
 
-// Unparen returns e with any enclosing parentheses stripped.
-func Unparen(e ast.Expr) ast.Expr {
-	for {
-		p, ok := e.(*ast.ParenExpr)
-		if !ok {
-			return e
-		}
-		e = p.X
-	}
-}
-
 // ReadFile reads a file and adds it to the FileSet
 // so that we can report errors against it using lineStart.
 func ReadFile(fset *token.FileSet, filename string) ([]byte, *token.File, error) {
