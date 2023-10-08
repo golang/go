@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/diffp"
+	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/txtar"
 )
 
@@ -28,6 +29,9 @@ func init() {
 }
 
 func Test(t *testing.T) {
+	if !testenv.HasExec() {
+		t.Skipf("skipping test: exec not supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
 	exe, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
