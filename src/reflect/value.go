@@ -116,7 +116,7 @@ func (v Value) pointer() unsafe.Pointer {
 }
 
 // packEface converts v to the empty interface.
-func packEface(v Value) any {
+func packEface(v Value, safe bool) any {
 	t := v.typ()
 	var i any
 	e := (*emptyInterface)(unsafe.Pointer(&i))
@@ -129,11 +129,11 @@ func packEface(v Value) any {
 		// Value is indirect, and so is the interface we're making.
 		ptr := v.ptr
 		if v.flag&flagAddr != 0 {
-			// TODO: pass safe boolean from valueInterface so
-			// we don't need to copy if safe==true?
-			c := unsafe_New(t)
-			typedmemmove(t, c, ptr)
-			ptr = c
+			if !safe {
+				c := unsafe_New(t)
+				typedmemmove(t, c, ptr)
+				ptr = c
+			}
 		}
 		e.word = ptr
 	case v.flag&flagIndir != 0:
@@ -1493,10 +1493,12 @@ func (v Value) CanInterface() bool {
 // It panics if the Value was obtained by accessing
 // unexported struct fields.
 func (v Value) Interface() (i any) {
-	return valueInterface(v, true)
+	return valueInterface(v, true, false)
 }
 
-func valueInterface(v Value, safe bool) any {
+// If OnlyInternal==true,
+// assuming it is safe not to copy the go object represented by v
+func valueInterface(v Value, safe bool, OnlyInternal bool) any {
 	if v.flag == 0 {
 		panic(&ValueError{"reflect.Value.Interface", Invalid})
 	}
@@ -1521,9 +1523,15 @@ func valueInterface(v Value, safe bool) any {
 			M()
 		})(v.ptr)
 	}
+	if v.flag&flagAddr != 0 {
+		// For the following situations, we must ensure that w2 does not change the result of r1.
+		// w1. x := ValueOf(&v).Elem()
+		// r1. iface := Value.Interface()
+		// w2. x.Set() or x.SetT()
+		safe = OnlyInternal || false
+	}
 
-	// TODO: pass safe to packEface so we don't need to copy if safe==true?
-	return packEface(v)
+	return packEface(v, safe)
 }
 
 // InterfaceData returns a pair of unspecified uintptr values.
@@ -3296,7 +3304,7 @@ func (v Value) assignTo(context string, dst *abi.Type, target unsafe.Pointer) Va
 			// Avoid the panic by returning a nil dst (e.g., Reader) explicitly.
 			return Value{dst, nil, flag(Interface)}
 		}
-		x := valueInterface(v, false)
+		x := valueInterface(v, false, false)
 		if target == nil {
 			target = unsafe_New(dst)
 		}
@@ -3767,7 +3775,7 @@ func cvtDirect(v Value, typ Type) Value {
 // convertOp: concrete -> interface
 func cvtT2I(v Value, typ Type) Value {
 	target := unsafe_New(typ.common())
-	x := valueInterface(v, false)
+	x := valueInterface(v, false, false)
 	if typ.NumMethod() == 0 {
 		*(*any)(target) = x
 	} else {

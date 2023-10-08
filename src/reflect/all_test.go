@@ -4100,6 +4100,36 @@ func TestAlias(t *testing.T) {
 	}
 }
 
+func TestAliasStruct(t *testing.T) {
+	type S struct {
+		p *int
+	}
+	old, after := 9, 8
+	x := S{p: new(int)}
+	*x.p = old
+	v := ValueOf(&x).Elem()
+	oldvalue := v.Interface()
+	x = S{p: new(int)}
+	*x.p = after
+	v.Set(ValueOf(&x).Elem())
+	newvalue := v.Interface()
+	if *(oldvalue.(S).p) != old || *(newvalue.(S).p) != after {
+		t.Errorf("aliasing: old=%d new=%d, want %d, %d", *(oldvalue.(S).p), *(newvalue.(S).p), old, after)
+	}
+}
+
+func TestAliasInt(t *testing.T) {
+	x := 0
+	v := ValueOf(&x).Elem()
+	oldvalue := v.Interface()
+	v.SetInt(1)
+	newvalue := v.Interface()
+
+	if oldvalue != 0 || newvalue != 1 || x != 1 {
+		t.Errorf("aliasing: old=%d new=%d x=%d, want 0, 1, 1", oldvalue, newvalue, x)
+	}
+}
+
 var V = ValueOf
 
 func EmptyInterfaceV(x any) Value {
