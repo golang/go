@@ -94,8 +94,15 @@ func statUnix(fi fs.FileInfo, h *Header) error {
 			minor := uint32((dev & 0x000000ff) >> 0)
 			minor |= uint32((dev & 0xffff0000) >> 8)
 			h.Devmajor, h.Devminor = int64(major), int64(minor)
+		case "zos":
+			if runtime.GOARCH == "s390x" {
+				// Copied from golang.org/x/sys/unix/dev_zos.go.
+				major := uint32((dev >> 16) & 0x0000FFFF)
+				minor := uint32(dev & 0x0000FFFF)
+				h.Devmajor, h.Devminor = int64(major), int64(minor)
+			}
 		default:
-			// TODO: Implement solaris (see https://golang.org/issue/8106)
+			// TODO: Implement others (see https://golang.org/issue/8106)
 		}
 	}
 	return nil
