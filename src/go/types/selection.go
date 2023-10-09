@@ -137,6 +137,11 @@ func (s *Selection) Index() []int { return s.index }
 
 // Indirect reports whether any pointer indirection was required to get from
 // x to f in x.f.
+//
+// Beware: Indirect spuriously returns true (Go issue #8353) for a
+// MethodVal selection in which the receiver argument and parameter
+// both have type *T so there is no indirection.
+// Unfortunately, a fix is too risky.
 func (s *Selection) Indirect() bool { return s.indirect }
 
 func (s *Selection) String() string { return SelectionString(s, nil) }
