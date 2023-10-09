@@ -45,6 +45,7 @@ func Compare[T Ordered](x, y T) int {
 			}
 			return -1
 		}
+		// If isNaN(y), x < y is false.
 		if x < y {
 			return -1
 		}
