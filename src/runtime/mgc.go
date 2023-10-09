@@ -690,7 +690,7 @@ func gcStart(trigger gcTrigger) {
 		finishsweep_m()
 	})
 
-	// clearpools before we start the GC. If we wait they memory will not be
+	// clearpools before we start the GC. If we wait the memory will not be
 	// reclaimed until the next GC cycle.
 	clearpools()
 
@@ -722,11 +722,11 @@ func gcStart(trigger gcTrigger) {
 	// enabled because they must be enabled before
 	// any non-leaf heap objects are marked. Since
 	// allocations are blocked until assists can
-	// happen, we want enable assists as early as
+	// happen, we want to enable assists as early as
 	// possible.
 	setGCPhase(_GCmark)
 
-	gcBgMarkPrepare() // Must happen before assist enable.
+	gcBgMarkPrepare() // Must happen before assists are enabled.
 	gcMarkRootPrepare()
 
 	// Mark all active tinyalloc blocks. Since we're
