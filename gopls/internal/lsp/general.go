@@ -172,8 +172,8 @@ See https://github.com/golang/go/issues/45732 for more information.`,
 				Range: &protocol.Or_SemanticTokensOptions_range{Value: true},
 				Full:  &protocol.Or_SemanticTokensOptions_full{Value: true},
 				Legend: protocol.SemanticTokensLegend{
-					TokenTypes:     nonNilSliceString(s.Options().SemanticTypes),
-					TokenModifiers: nonNilSliceString(s.Options().SemanticMods),
+					TokenTypes:     nonNilSliceString(options.SemanticTypes),
+					TokenModifiers: nonNilSliceString(options.SemanticMods),
 				},
 			},
 			SignatureHelpProvider: &protocol.SignatureHelpOptions{
@@ -217,7 +217,6 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	}
 	s.notifications = nil
 
-	options := s.Options()
 	if err := s.addFolders(ctx, s.pendingFolders); err != nil {
 		return err
 	}
@@ -225,6 +224,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	s.checkViewGoVersions()
 
 	var registrations []protocol.Registration
+	options := s.Options()
 	if options.ConfigurationSupported && options.DynamicConfigurationSupported {
 		registrations = append(registrations, protocol.Registration{
 			ID:     "workspace/didChangeConfiguration",

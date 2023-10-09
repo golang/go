@@ -44,7 +44,8 @@ type Editor struct {
 	config             EditorConfig                // editor configuration
 	buffers            map[string]buffer           // open buffers (relative path -> buffer content)
 	serverCapabilities protocol.ServerCapabilities // capabilities / options
-	watchPatterns      []*glob.Glob                // glob patterns to watch
+	semTokOpts         protocol.SemanticTokensOptions
+	watchPatterns      []*glob.Glob // glob patterns to watch
 
 	// Call metrics for the purpose of expectations. This is done in an ad-hoc
 	// manner for now. Perhaps in the future we should do something more
@@ -306,8 +307,13 @@ func (e *Editor) initialize(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("initialize: %w", err)
 		}
+		semTokOpts, err := marshalUnmarshal[protocol.SemanticTokensOptions](resp.Capabilities.SemanticTokensProvider)
+		if err != nil {
+			return fmt.Errorf("unmarshalling semantic tokens options: %v", err)
+		}
 		e.mu.Lock()
 		e.serverCapabilities = resp.Capabilities
+		e.semTokOpts = semTokOpts
 		e.mu.Unlock()
 
 		if err := e.Server.Initialized(ctx, &protocol.InitializedParams{}); err != nil {
@@ -316,6 +322,19 @@ func (e *Editor) initialize(ctx context.Context) error {
 	}
 	// TODO: await initial configuration here, or expect gopls to manage that?
 	return nil
+}
+
+// marshalUnmarshal is a helper to json Marshal and then Unmarshal as a
+// different type. Used to work around cases where our protocol types are not
+// specific.
+func marshalUnmarshal[T any](v any) (T, error) {
+	var t T
+	data, err := json.Marshal(v)
+	if err != nil {
+		return t, err
+	}
+	err = json.Unmarshal(data, &t)
+	return t, err
 }
 
 // HasCommand reports whether the connected server supports the command with the given ID.
@@ -1491,4 +1510,62 @@ func (e *Editor) DocumentHighlight(ctx context.Context, loc protocol.Location) (
 	params.Position = loc.Range.Start
 
 	return e.Server.DocumentHighlight(ctx, params)
+}
+
+// SemanticTokens invokes textDocument/semanticTokens/full, and interprets its
+// result.
+func (e *Editor) SemanticTokens(ctx context.Context, path string) ([]SemanticToken, error) {
+	p := &protocol.SemanticTokensParams{
+		TextDocument: protocol.TextDocumentIdentifier{
+			URI: e.sandbox.Workdir.URI(path),
+		},
+	}
+	resp, err := e.Server.SemanticTokensFull(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	content, ok := e.BufferText(path)
+	if !ok {
+		return nil, fmt.Errorf("buffer %s is not open", path)
+	}
+	return e.interpretTokens(resp.Data, content), nil
+}
+
+// A SemanticToken is an interpreted semantic token value.
+type SemanticToken struct {
+	Token     string
+	TokenType string
+	Mod       string
+}
+
+// Note: previously this function elided comment, string, and number tokens.
+// Instead, filtering of token types should be done by the caller.
+func (e *Editor) interpretTokens(x []uint32, contents string) []SemanticToken {
+	e.mu.Lock()
+	legend := e.semTokOpts.Legend
+	e.mu.Unlock()
+	lines := strings.Split(contents, "\n")
+	ans := []SemanticToken{}
+	line, col := 1, 1
+	for i := 0; i < len(x); i += 5 {
+		line += int(x[i])
+		col += int(x[i+1])
+		if x[i] != 0 { // new line
+			col = int(x[i+1]) + 1 // 1-based column numbers
+		}
+		sz := x[i+2]
+		t := legend.TokenTypes[x[i+3]]
+		l := x[i+4]
+		var mods []string
+		for i, mod := range legend.TokenModifiers {
+			if l&(1<<i) != 0 {
+				mods = append(mods, mod)
+			}
+		}
+		// Preexisting note: "col is a utf-8 offset"
+		// TODO(rfindley): is that true? Or is it UTF-16, like other columns in the LSP?
+		tok := lines[line-1][col-1 : col-1+int(sz)]
+		ans = append(ans, SemanticToken{tok, t, strings.Join(mods, " ")})
+	}
+	return ans
 }
