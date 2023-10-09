@@ -6324,7 +6324,7 @@ func rewriteValueRISCV64_OpRISCV64SRL(v *Value) bool {
 func rewriteValueRISCV64_OpRISCV64SRLI(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (SRLI <t> [x] (MOVWUreg y))
-	// result: (SRLIW <t> [x] y)
+	// result: (SRLIW <t> [int64(x&31)] y)
 	for {
 		t := v.Type
 		x := auxIntToInt64(v.AuxInt)
@@ -6334,7 +6334,7 @@ func rewriteValueRISCV64_OpRISCV64SRLI(v *Value) bool {
 		y := v_0.Args[0]
 		v.reset(OpRISCV64SRLIW)
 		v.Type = t
-		v.AuxInt = int64ToAuxInt(x)
+		v.AuxInt = int64ToAuxInt(int64(x & 31))
 		v.AddArg(y)
 		return true
 	}
