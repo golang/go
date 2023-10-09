@@ -7,6 +7,7 @@ package run
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go/build"
 	"os"
@@ -214,6 +215,10 @@ func buildRunProgram(b *work.Builder, ctx context.Context, a *work.Action) error
 		}
 	}
 
-	base.RunStdin(cmdline)
+	err := base.RunStdin(cmdline)
+	if err != nil && errors.Is(err, os.ErrPermission) {
+		printStderr("\tRun 'go env -w GOTMPDIR=...' to specify another temporary directory.\n" +
+			"\tFor more about GOTMPDIR, see 'go help environment'.\n")
+	}
 	return nil
 }

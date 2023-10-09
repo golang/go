@@ -1642,6 +1642,11 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 			// If there was no test output, print the exit status so that the reason
 			// for failure is clear.
 			fmt.Fprintf(cmd.Stdout, "%s\n", err)
+			if errors.Is(err, os.ErrPermission) {
+				fmt.Fprint(cmd.Stdout,
+					"\tRun 'go env -w GOTMPDIR=...' to specify another temporary directory.\n"+
+						"\tFor more about GOTMPDIR, see 'go help environment'.\n")
+			}
 		} else if !bytes.HasSuffix(out, []byte("\n")) {
 			// Otherwise, ensure that the output ends with a newline before the FAIL
 			// line we're about to print (https://golang.org/issue/49317).

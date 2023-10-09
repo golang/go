@@ -187,13 +187,14 @@ func GetExitStatus() int {
 
 // Run runs the command, with stdout and stderr
 // connected to the go command's own stdout and stderr.
-// If the command fails, Run reports the error using Errorf.
-func Run(cmdargs ...any) {
+// If the command fails, Run reports the error using Errorf,
+// and it also returns the error so that the caller can use it.
+func Run(cmdargs ...any) error {
 	cmdline := str.StringList(cmdargs...)
 	if cfg.BuildN || cfg.BuildX {
 		fmt.Printf("%s\n", strings.Join(cmdline, " "))
 		if cfg.BuildN {
-			return
+			return nil
 		}
 	}
 
@@ -202,11 +203,13 @@ func Run(cmdargs ...any) {
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		Errorf("%v", err)
+		return err
 	}
+	return nil
 }
 
 // RunStdin is like run but connects Stdin.
-func RunStdin(cmdline []string) {
+func RunStdin(cmdline []string) error {
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -215,7 +218,9 @@ func RunStdin(cmdline []string) {
 	StartSigHandlers()
 	if err := cmd.Run(); err != nil {
 		Errorf("%v", err)
+		return err
 	}
+	return nil
 }
 
 // Usage is the usage-reporting function, filled in by package main
