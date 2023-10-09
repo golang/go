@@ -174,7 +174,7 @@ func handleSelectJSON(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// selection x.f information (if cursor is over .f)
-	for _, n := range path[:2] {
+	for _, n := range path[:min(2, len(path))] {
 		if sel, ok := n.(*ast.SelectorExpr); ok {
 			seln, ok := pkg.TypesInfo.Selections[sel]
 			if ok {
@@ -334,3 +334,12 @@ textarea { width: 6in; }
 body { color: gray; }
 div#out { font-family: monospace; font-size: 80%; }
 `
+
+// TODO(adonovan): use go1.21 built-in.
+func min(x, y int) int {
+	if x < y {
+		return x
+	} else {
+		return y
+	}
+}
