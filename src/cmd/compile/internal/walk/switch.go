@@ -692,7 +692,7 @@ func typeHashFieldOf(pos src.XPos, itab *ir.UnaryExpr) *ir.SelectorExpr {
 	if itab.X.Type().IsEmptyInterface() {
 		// runtime._type's hash field
 		if rtypeHashField == nil {
-			rtypeHashField = runtimeField("hash", rttype.Type.Offset("Hash"), types.Types[types.TUINT32])
+			rtypeHashField = runtimeField("hash", rttype.Type.OffsetOf("Hash"), types.Types[types.TUINT32])
 		}
 		hashField = rtypeHashField
 	} else {
