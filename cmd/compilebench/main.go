@@ -350,7 +350,7 @@ func (c compile) run(name string, count int) error {
 		return err
 	}
 
-	importcfg, err := genImportcfgFile(c.dir, false)
+	importcfg, err := genImportcfgFile(c.dir, "", false) // TODO: pass compiler flags?
 	if err != nil {
 		return err
 	}
@@ -418,12 +418,19 @@ func (r link) run(name string, count int) error {
 	}
 
 	// Build dependencies.
-	out, err := exec.Command(*flagGoCmd, "build", "-o", "/dev/null", r.dir).CombinedOutput()
+	ldflags := *flagLinkerFlags
+	if r.flags != "" {
+		if ldflags != "" {
+			ldflags += " "
+		}
+		ldflags += r.flags
+	}
+	out, err := exec.Command(*flagGoCmd, "build", "-o", "/dev/null", "-ldflags="+ldflags, r.dir).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("go build -a %s: %v\n%s", r.dir, err, out)
 	}
 
-	importcfg, err := genImportcfgFile(r.dir, true)
+	importcfg, err := genImportcfgFile(r.dir, "-ldflags="+ldflags, true)
 	if err != nil {
 		return err
 	}
@@ -643,15 +650,19 @@ func genSymAbisFile(pkg *Pkg, symAbisFile, incdir string) error {
 // genImportcfgFile generates an importcfg file for building package
 // dir. Returns the generated importcfg file path (or empty string
 // if the package has no dependency).
-func genImportcfgFile(dir string, full bool) (string, error) {
+func genImportcfgFile(dir string, flags string, full bool) (string, error) {
 	need := "{{.Imports}}"
 	if full {
 		// for linking, we need transitive dependencies
 		need = "{{.Deps}}"
 	}
 
+	if flags == "" {
+		flags = "--" // passing "" to go list, it will match to the current directory
+	}
+
 	// find imported/dependent packages
-	cmd := exec.Command(*flagGoCmd, "list", "-f", need, dir)
+	cmd := exec.Command(*flagGoCmd, "list", "-f", need, flags, dir)
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {
@@ -667,7 +678,7 @@ func genImportcfgFile(dir string, full bool) (string, error) {
 	}
 
 	// build importcfg for imported packages
-	cmd = exec.Command(*flagGoCmd, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}")
+	cmd = exec.Command(*flagGoCmd, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", flags)
 	cmd.Args = append(cmd.Args, strings.Fields(string(out))...)
 	cmd.Stderr = os.Stderr
 	out, err = cmd.Output()
