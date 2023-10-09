@@ -287,11 +287,10 @@ func (check *Checker) initFiles(files []*ast.File) {
 		}
 	}
 
+	// collect file versions
 	for _, file := range check.files {
-		fbase := file.FileStart
-		check.recordFileVersion(fbase, check.version) // record package version (possibly zero version)
-		v, _ := parseGoVersion(file.GoVersion)
-		if v.major > 0 {
+		check.recordFileVersion(file, check.conf.GoVersion)
+		if v, _ := parseGoVersion(file.GoVersion); v.major > 0 {
 			if v.equal(check.version) {
 				continue
 			}
@@ -314,16 +313,10 @@ func (check *Checker) initFiles(files []*ast.File) {
 			if check.posVers == nil {
 				check.posVers = make(map[token.Pos]version)
 			}
-			check.posVers[fbase] = v
-			check.recordFileVersion(fbase, v) // overwrite package version
+			check.posVers[file.FileStart] = v
+			check.recordFileVersion(file, file.GoVersion) // overwrite package version
 		}
 	}
-}
-
-// A posVers records that the file starting at pos declares the Go version vers.
-type posVers struct {
-	pos  token.Pos
-	vers version
 }
 
 // A bailout panic is used for early termination.
@@ -640,8 +633,8 @@ func (check *Checker) recordScope(node ast.Node, scope *Scope) {
 	}
 }
 
-func (check *Checker) recordFileVersion(pos token.Pos, v version) {
+func (check *Checker) recordFileVersion(file *ast.File, version string) {
 	if m := check._FileVersions; m != nil {
-		m[pos] = _Version{v.major, v.minor}
+		m[file] = version
 	}
 }
