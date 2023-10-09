@@ -620,7 +620,7 @@ func setup() {
 func mustLinkExternal(goos, goarch string, cgoEnabled bool) bool {
 	if cgoEnabled {
 		switch goarch {
-		case "loong64", "mips", "mipsle", "mips64", "mips64le":
+		case "mips", "mipsle", "mips64", "mips64le":
 			// Internally linking cgo is incomplete on some architectures.
 			// https://golang.org/issue/14449
 			return true

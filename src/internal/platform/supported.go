@@ -85,7 +85,7 @@ func FuzzInstrumented(goos, goarch string) bool {
 func MustLinkExternal(goos, goarch string, withCgo bool) bool {
 	if withCgo {
 		switch goarch {
-		case "loong64", "mips", "mipsle", "mips64", "mips64le":
+		case "mips", "mipsle", "mips64", "mips64le":
 			// Internally linking cgo is incomplete on some architectures.
 			// https://go.dev/issue/14449
 			return true
@@ -225,7 +225,7 @@ func InternalLinkPIESupported(goos, goarch string) bool {
 	switch goos + "/" + goarch {
 	case "android/arm64",
 		"darwin/amd64", "darwin/arm64",
-		"linux/amd64", "linux/arm64", "linux/ppc64le",
+		"linux/amd64", "linux/arm64", "linux/loong64", "linux/ppc64le",
 		"windows/386", "windows/amd64", "windows/arm", "windows/arm64":
 		return true
 	}
