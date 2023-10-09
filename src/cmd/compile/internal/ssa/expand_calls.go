@@ -142,6 +142,10 @@ func expandCalls(f *Func) {
 		call := v.Args[0]
 		aux := call.Aux.(*AuxCall)
 		mem := x.memForCall[call.ID]
+		if mem == nil {
+			mem = call.Block.NewValue1I(call.Pos, OpSelectN, types.TypeMem, int64(aux.abiInfo.OutRegistersUsed()), call)
+			x.memForCall[call.ID] = mem
+		}
 
 		i := v.AuxInt
 		regs := aux.RegsOfResult(i)
