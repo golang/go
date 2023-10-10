@@ -583,6 +583,18 @@ func rewriteValuedec_OpStore(v *Value) bool {
 	b := v.Block
 	config := b.Func.Config
 	typ := &b.Func.Config.Types
+	// match: (Store {t} _ _ mem)
+	// cond: t.Size() == 0
+	// result: mem
+	for {
+		t := auxToType(v.Aux)
+		mem := v_2
+		if !(t.Size() == 0) {
+			break
+		}
+		v.copyOf(mem)
+		return true
+	}
 	// match: (Store {t} dst (ComplexMake real imag) mem)
 	// cond: t.Size() == 8
 	// result: (Store {typ.Float32} (OffPtr <typ.Float32Ptr> [4] dst) imag (Store {typ.Float32} dst real mem))

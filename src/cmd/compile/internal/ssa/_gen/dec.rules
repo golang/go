@@ -7,6 +7,8 @@
 // types.  These rules work together with the decomposeBuiltIn
 // pass which handles phis of these types.
 
+(Store {t} _ _ mem) && t.Size() == 0 => mem
+
 // complex ops
 (ComplexReal (ComplexMake real _  )) => real
 (ComplexImag (ComplexMake _ imag )) => imag
