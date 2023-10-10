@@ -1326,9 +1326,7 @@ func scanobject(b uintptr, gcw *gcWork) {
 		// must be a large object, s.base() is the beginning
 		// of the object.
 		n = s.base() + s.elemsize - b
-		if n > maxObletBytes {
-			n = maxObletBytes
-		}
+		n = min(n, maxObletBytes)
 	}
 
 	hbits := heapBitsForAddr(b, n)

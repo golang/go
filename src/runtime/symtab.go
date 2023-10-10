@@ -1043,16 +1043,14 @@ func funcMaxSPDelta(f funcInfo) int32 {
 	p := datap.pctab[f.pcsp:]
 	pc := f.entry()
 	val := int32(-1)
-	max := int32(0)
+	most := int32(0)
 	for {
 		var ok bool
 		p, ok = step(p, &pc, &val, pc == f.entry())
 		if !ok {
-			return max
+			return most
 		}
-		if val > max {
-			max = val
-		}
+		most = max(most, val)
 	}
 }
 
