@@ -476,7 +476,6 @@ func GC() {
 	// as part of tests and benchmarks to get the system into a
 	// relatively stable and isolated state.
 	for work.cycles.Load() == n+1 && sweepone() != ^uintptr(0) {
-		sweep.nbgsweep++
 		Gosched()
 	}
 
@@ -620,7 +619,6 @@ func gcStart(trigger gcTrigger) {
 	// We check the transition condition continuously here in case
 	// this G gets delayed in to the next GC cycle.
 	for trigger.test() && sweepone() != ^uintptr(0) {
-		sweep.nbgsweep++
 	}
 
 	// Perform GC initialization and the sweep termination
@@ -1046,10 +1044,6 @@ func gcMarkTermination() {
 
 	// Reset idle time stat.
 	sched.idleTime.Store(0)
-
-	// Reset sweep state.
-	sweep.nbgsweep = 0
-	sweep.npausesweep = 0
 
 	if work.userForced {
 		memstats.numforcedgc++
@@ -1589,7 +1583,6 @@ func gcSweep(mode gcMode) bool {
 		}
 		// Sweep all spans eagerly.
 		for sweepone() != ^uintptr(0) {
-			sweep.npausesweep++
 		}
 		// Free workbufs eagerly.
 		prepareFreeWorkbufs()
