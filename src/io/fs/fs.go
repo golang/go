@@ -43,7 +43,7 @@ type FS interface {
 // Note that paths are slash-separated on all systems, even Windows.
 // Paths containing other characters such as backslash and colon
 // are accepted as valid, but those characters must never be
-// interpreted by an FS implementation as path element separators.
+// interpreted by an [FS] implementation as path element separators.
 func ValidPath(name string) bool {
 	if !utf8.ValidString(name) {
 		return false
@@ -73,8 +73,8 @@ func ValidPath(name string) bool {
 
 // A File provides access to a single file.
 // The File interface is the minimum implementation required of the file.
-// Directory files should also implement ReadDirFile.
-// A file may implement io.ReaderAt or io.Seeker as optimizations.
+// Directory files should also implement [ReadDirFile].
+// A file may implement [io.ReaderAt] or [io.Seeker] as optimizations.
 type File interface {
 	Stat() (FileInfo, error)
 	Read([]byte) (int, error)
@@ -82,7 +82,7 @@ type File interface {
 }
 
 // A DirEntry is an entry read from a directory
-// (using the ReadDir function or a ReadDirFile's ReadDir method).
+// (using the ReadDir function or a [ReadDirFile]'s ReadDir method).
 type DirEntry interface {
 	// Name returns the name of the file (or subdirectory) described by the entry.
 	// This name is only the final element of the path (the base name), not the entire path.
@@ -132,7 +132,7 @@ type ReadDirFile interface {
 
 // Generic file system errors.
 // Errors returned by file systems can be tested against these errors
-// using errors.Is.
+// using [errors.Is].
 var (
 	ErrInvalid    = errInvalid()    // "invalid argument"
 	ErrPermission = errPermission() // "permission denied"
@@ -161,10 +161,10 @@ type FileInfo interface {
 // The bits have the same definition on all systems, so that
 // information about files can be moved from one system
 // to another portably. Not all bits apply to all systems.
-// The only required bit is ModeDir for directories.
+// The only required bit is [ModeDir] for directories.
 type FileMode uint32
 
-// The defined file mode bits are the most significant bits of the FileMode.
+// The defined file mode bits are the most significant bits of the [FileMode].
 // The nine least-significant bits are the standard Unix rwxrwxrwx permissions.
 // The values of these bits should be considered part of the public API and
 // may be used in wire protocols or disk representations: they must not be

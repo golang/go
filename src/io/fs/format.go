@@ -52,7 +52,7 @@ func FormatFileInfo(info FileInfo) string {
 }
 
 // FormatDirEntry returns a formatted version of dir for human readability.
-// Implementations of DirEntry can call this from a String method.
+// Implementations of [DirEntry] can call this from a String method.
 // The outputs for a directory named subdir and a file named hello.go are:
 //
 //	d subdir/
