@@ -137,7 +137,7 @@ func IsFunctionNamed(f *types.Func, pkgPath string, names ...string) bool {
 	if f == nil {
 		return false
 	}
-	if f.Pkg().Path() != pkgPath {
+	if f.Pkg() == nil || f.Pkg().Path() != pkgPath {
 		return false
 	}
 	if f.Type().(*types.Signature).Recv() != nil {
