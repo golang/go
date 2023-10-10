@@ -7,7 +7,6 @@ package cache
 import (
 	"path/filepath"
 	"sort"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -56,7 +55,12 @@ func TestFileMap(t *testing.T) {
 
 	// Normalize paths for windows compatibility.
 	normalize := func(path string) string {
-		return strings.TrimPrefix(filepath.ToSlash(path), "C:") // the span packages adds 'C:'
+		y := filepath.ToSlash(path)
+		// Windows paths may start with a drive letter
+		if len(y) > 2 && y[1] == ':' && y[0] >= 'A' && y[0] <= 'Z' {
+			y = y[2:]
+		}
+		return y
 	}
 
 	for _, test := range tests {
