@@ -88,20 +88,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func isTimeDotFormat(f *types.Func) bool {
-	if f.Name() != "Format" || f.Pkg().Path() != "time" {
-		return false
-	}
-	sig, ok := f.Type().(*types.Signature)
-	if !ok {
+	if f.Name() != "Format" || f.Pkg() == nil || f.Pkg().Path() != "time" {
 		return false
 	}
 	// Verify that the receiver is time.Time.
-	recv := sig.Recv()
-	if recv == nil {
-		return false
-	}
-	named, ok := recv.Type().(*types.Named)
-	return ok && named.Obj().Name() == "Time"
+	recv := f.Type().(*types.Signature).Recv()
+	return recv != nil && analysisutil.IsNamedType(recv.Type(), "time", "Time")
 }
 
 func isTimeDotParse(f *types.Func) bool {
