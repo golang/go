@@ -227,6 +227,7 @@ const (
 	C_ADDR
 	C_TLS_LE
 	C_TLS_IE
+	C_GOTADDR
 	C_TEXTSIZE
 
 	C_NCLASS // must be the last
