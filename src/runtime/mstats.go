@@ -31,7 +31,7 @@ type mstats struct {
 
 	// Statistics about the garbage collector.
 
-	// Protected by mheap or stopping the world during GC.
+	// Protected by mheap or worldsema during GC.
 	last_gc_unix    uint64 // last gc (in unix time)
 	pause_total_ns  uint64
 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
@@ -44,12 +44,6 @@ type mstats struct {
 	lastHeapInUse    uint64 // heapInUse at mark termination of the previous GC
 
 	enablegc bool
-
-	// gcPauseDist represents the distribution of all GC-related
-	// application pauses in the runtime.
-	//
-	// Each individual pause is counted separately, unlike pause_ns.
-	gcPauseDist timeHistogram
 }
 
 var memstats mstats
@@ -358,13 +352,13 @@ func init() {
 // collection cycle.
 func ReadMemStats(m *MemStats) {
 	_ = m.Alloc // nil check test before we switch stacks, see issue 61158
-	stopTheWorld(stwReadMemStats)
+	stw := stopTheWorld(stwReadMemStats)
 
 	systemstack(func() {
 		readmemstats_m(m)
 	})
 
-	startTheWorld()
+	startTheWorld(stw)
 }
 
 // readmemstats_m populates stats for internal runtime values.

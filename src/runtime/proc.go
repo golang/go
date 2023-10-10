@@ -1293,6 +1293,10 @@ func (r stwReason) String() string {
 	return stwReasonStrings[r]
 }
 
+func (r stwReason) isGC() bool {
+	return r == stwGCMarkTerm || r == stwGCSweepTerm
+}
+
 // If you add to this list, also add it to src/internal/trace/parser.go.
 // If you change the values of any of the stw* constants, bump the trace
 // version number and make a copy of this.
@@ -1316,6 +1320,18 @@ var stwReasonStrings = [...]string{
 	stwForTestResetDebugLog:        "ResetDebugLog (test)",
 }
 
+// worldStop provides context from the stop-the-world required by the
+// start-the-world.
+type worldStop struct {
+	reason stwReason
+	start  int64
+}
+
+// Temporary variable for stopTheWorld, when it can't write to the stack.
+//
+// Protected by worldsema.
+var stopTheWorldContext worldStop
+
 // stopTheWorld stops all P's from executing goroutines, interrupting
 // all goroutines at GC safe points and records reason as the reason
 // for the stop. On return, only the current goroutine's P is running.
@@ -1330,7 +1346,10 @@ var stwReasonStrings = [...]string{
 // This is also used by routines that do stack dumps. If the system is
 // in panic or being exited, this may not reliably stop all
 // goroutines.
-func stopTheWorld(reason stwReason) {
+//
+// Returns the STW context. When starting the world, this context must be
+// passed to startTheWorld.
+func stopTheWorld(reason stwReason) worldStop {
 	semacquire(&worldsema)
 	gp := getg()
 	gp.m.preemptoff = reason.String()
@@ -1350,14 +1369,17 @@ func stopTheWorld(reason stwReason) {
 		// transition and handles it specially based on the
 		// wait reason.
 		casGToWaiting(gp, _Grunning, waitReasonStoppingTheWorld)
-		stopTheWorldWithSema(reason)
+		stopTheWorldContext = stopTheWorldWithSema(reason) // avoid write to stack
 		casgstatus(gp, _Gwaiting, _Grunning)
 	})
+	return stopTheWorldContext
 }
 
 // startTheWorld undoes the effects of stopTheWorld.
-func startTheWorld() {
-	systemstack(func() { startTheWorldWithSema() })
+//
+// w must be the worldStop returned by stopTheWorld.
+func startTheWorld(w worldStop) {
+	systemstack(func() { startTheWorldWithSema(0, w) })
 
 	// worldsema must be held over startTheWorldWithSema to ensure
 	// gomaxprocs cannot change while worldsema is held.
@@ -1383,14 +1405,16 @@ func startTheWorld() {
 // stopTheWorldGC has the same effect as stopTheWorld, but blocks
 // until the GC is not running. It also blocks a GC from starting
 // until startTheWorldGC is called.
-func stopTheWorldGC(reason stwReason) {
+func stopTheWorldGC(reason stwReason) worldStop {
 	semacquire(&gcsema)
-	stopTheWorld(reason)
+	return stopTheWorld(reason)
 }
 
 // startTheWorldGC undoes the effects of stopTheWorldGC.
-func startTheWorldGC() {
-	startTheWorld()
+//
+// w must be the worldStop returned by stopTheWorld.
+func startTheWorldGC(w worldStop) {
+	startTheWorld(w)
 	semrelease(&gcsema)
 }
 
@@ -1412,13 +1436,18 @@ var gcsema uint32 = 1
 //
 //	semacquire(&worldsema, 0)
 //	m.preemptoff = "reason"
-//	systemstack(stopTheWorldWithSema)
+//	var stw worldStop
+//	systemstack(func() {
+//		stw = stopTheWorldWithSema(reason)
+//	})
 //
 // When finished, the caller must either call startTheWorld or undo
 // these three operations separately:
 //
 //	m.preemptoff = ""
-//	systemstack(startTheWorldWithSema)
+//	systemstack(func() {
+//		now = startTheWorldWithSema(stw)
+//	})
 //	semrelease(&worldsema)
 //
 // It is allowed to acquire worldsema once and then execute multiple
@@ -1427,7 +1456,10 @@ var gcsema uint32 = 1
 // startTheWorldWithSema and stopTheWorldWithSema.
 // Holding worldsema causes any other goroutines invoking
 // stopTheWorld to block.
-func stopTheWorldWithSema(reason stwReason) {
+//
+// Returns the STW context. When starting the world, this context must be
+// passed to startTheWorldWithSema.
+func stopTheWorldWithSema(reason stwReason) worldStop {
 	trace := traceAcquire()
 	if trace.ok() {
 		trace.STWStart(reason)
@@ -1442,6 +1474,7 @@ func stopTheWorldWithSema(reason stwReason) {
 	}
 
 	lock(&sched.lock)
+	start := nanotime() // exclude time waiting for sched.lock from start and total time metrics.
 	sched.stopwait = gomaxprocs
 	sched.gcwaiting.Store(true)
 	preemptall()
@@ -1490,6 +1523,13 @@ func stopTheWorldWithSema(reason stwReason) {
 		}
 	}
 
+	startTime := nanotime() - start
+	if reason.isGC() {
+		sched.stwStoppingTimeGC.record(startTime)
+	} else {
+		sched.stwStoppingTimeOther.record(startTime)
+	}
+
 	// sanity checks
 	bad := ""
 	if sched.stopwait != 0 {
@@ -1514,9 +1554,17 @@ func stopTheWorldWithSema(reason stwReason) {
 	}
 
 	worldStopped()
+
+	return worldStop{reason: reason, start: start}
 }
 
-func startTheWorldWithSema() int64 {
+// reason is the same STW reason passed to stopTheWorld. start is the start
+// time returned by stopTheWorld.
+//
+// now is the current time; prefer to pass 0 to capture a fresh timestamp.
+//
+// stattTheWorldWithSema returns now.
+func startTheWorldWithSema(now int64, w worldStop) int64 {
 	assertWorldStopped()
 
 	mp := acquirem() // disable preemption because it can be holding p in a local var
@@ -1560,7 +1608,15 @@ func startTheWorldWithSema() int64 {
 	}
 
 	// Capture start-the-world time before doing clean-up tasks.
-	startTime := nanotime()
+	if now == 0 {
+		now = nanotime()
+	}
+	totalTime := now - w.start
+	if w.reason.isGC() {
+		sched.stwTotalTimeGC.record(totalTime)
+	} else {
+		sched.stwTotalTimeOther.record(totalTime)
+	}
 	trace := traceAcquire()
 	if trace.ok() {
 		trace.STWDone()
@@ -1574,7 +1630,7 @@ func startTheWorldWithSema() int64 {
 
 	releasem(mp)
 
-	return startTime
+	return now
 }
 
 // usesLibcall indicates whether this runtime performs system calls

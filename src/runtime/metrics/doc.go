@@ -83,10 +83,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		the GC. Even if only one thread is running during the pause,
 		this is computed as GOMAXPROCS times the pause latency because
 		nothing else can be executing. This is the exact sum of samples
-		in /gc/pause:seconds if each sample is multiplied by GOMAXPROCS
-		at the time it is taken. This metric is an overestimate,
-		and not directly comparable to system CPU time measurements.
-		Compare only with other /cpu/classes metrics.
+		in /sched/pauses/total/gc:seconds if each sample is multiplied
+		by GOMAXPROCS at the time it is taken. This metric is an
+		overestimate, and not directly comparable to system CPU time
+		measurements. Compare only with other /cpu/classes metrics.
 
 	/cpu/classes/gc/total:cpu-seconds
 		Estimated total CPU time spent performing GC tasks. This metric
@@ -211,8 +211,7 @@ Below is the full list of supported metrics, ordered lexicographically.
 		1, so a value of 0 indicates that it was never enabled.
 
 	/gc/pauses:seconds
-		Distribution of individual GC-related stop-the-world pause
-		latencies. Bucket counts increase monotonically.
+		Deprecated. Prefer the identical /sched/pauses/total/gc:seconds.
 
 	/gc/scan/globals:bytes
 		The total amount of global variable space that is scannable.
@@ -410,6 +409,38 @@ Below is the full list of supported metrics, ordered lexicographically.
 		Distribution of the time goroutines have spent in the scheduler
 		in a runnable state before actually running. Bucket counts
 		increase monotonically.
+
+	/sched/pauses/stopping/gc:seconds
+		Distribution of individual GC-related stop-the-world stopping
+		latencies. This is the time it takes from deciding to stop the
+		world until all Ps are stopped. This is a subset of the total
+		GC-related stop-the-world time (/sched/pauses/total/gc:seconds).
+		During this time, some threads may be executing. Bucket counts
+		increase monotonically.
+
+	/sched/pauses/stopping/other:seconds
+		Distribution of individual non-GC-related stop-the-world
+		stopping latencies. This is the time it takes from deciding
+		to stop the world until all Ps are stopped. This is a
+		subset of the total non-GC-related stop-the-world time
+		(/sched/pauses/total/other:seconds). During this time, some
+		threads may be executing. Bucket counts increase monotonically.
+
+	/sched/pauses/total/gc:seconds
+		Distribution of individual GC-related stop-the-world pause
+		latencies. This is the time from deciding to stop the world
+		until the world is started again. Some of this time is spent
+		getting all threads to stop (this is measured directly in
+		/sched/pauses/stopping/gc:seconds), during which some threads
+		may still be running. Bucket counts increase monotonically.
+
+	/sched/pauses/total/other:seconds
+		Distribution of individual non-GC-related stop-the-world
+		pause latencies. This is the time from deciding to stop the
+		world until the world is started again. Some of this time
+		is spent getting all threads to stop (measured directly in
+		/sched/pauses/stopping/other:seconds). Bucket counts increase
+		monotonically.
 
 	/sync/mutex/wait/total:seconds
 		Approximate cumulative time goroutines have spent blocked

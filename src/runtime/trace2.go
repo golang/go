@@ -198,7 +198,7 @@ func StartTrace() error {
 	// Note also that stopping the world is necessary to make sure sweep-related events are
 	// coherent. Since the world is stopped and sweeps are non-preemptible, we can never start
 	// the world and see an unpaired sweep 'end' event. Other parts of the tracer rely on this.
-	stopTheWorld(stwStartTrace)
+	stw := stopTheWorld(stwStartTrace)
 
 	// Prevent sysmon from running any code that could generate events.
 	lock(&sched.sysmonlock)
@@ -252,7 +252,7 @@ func StartTrace() error {
 	traceRelease(tl)
 
 	unlock(&sched.sysmonlock)
-	startTheWorld()
+	startTheWorld(stw)
 
 	traceStartReadCPU()
 	traceAdvancer.start()

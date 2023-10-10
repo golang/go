@@ -334,7 +334,7 @@ func StartTrace() error {
 	// Do not stop the world during GC so we ensure we always see
 	// a consistent view of GC-related events (e.g. a start is always
 	// paired with an end).
-	stopTheWorldGC(stwStartTrace)
+	stw := stopTheWorldGC(stwStartTrace)
 
 	// Prevent sysmon from running any code that could generate events.
 	lock(&sched.sysmonlock)
@@ -349,7 +349,7 @@ func StartTrace() error {
 	if trace.enabled || trace.shutdown {
 		unlock(&trace.bufLock)
 		unlock(&sched.sysmonlock)
-		startTheWorldGC()
+		startTheWorldGC(stw)
 		return errorString("tracing is already enabled")
 	}
 
@@ -461,7 +461,7 @@ func StartTrace() error {
 	// the world, and we can safely trace from here.
 	tl.HeapGoal()
 
-	startTheWorldGC()
+	startTheWorldGC(stw)
 	return nil
 }
 
@@ -470,7 +470,7 @@ func StartTrace() error {
 func StopTrace() {
 	// Stop the world so that we can collect the trace buffers from all p's below,
 	// and also to avoid races with traceEvent.
-	stopTheWorldGC(stwStopTrace)
+	stw := stopTheWorldGC(stwStopTrace)
 
 	// See the comment in StartTrace.
 	lock(&sched.sysmonlock)
@@ -481,7 +481,7 @@ func StopTrace() {
 	if !trace.enabled {
 		unlock(&trace.bufLock)
 		unlock(&sched.sysmonlock)
-		startTheWorldGC()
+		startTheWorldGC(stw)
 		return
 	}
 
@@ -540,7 +540,7 @@ func StopTrace() {
 
 	unlock(&sched.sysmonlock)
 
-	startTheWorldGC()
+	startTheWorldGC(stw)
 
 	// The world is started but we've set trace.shutdown, so new tracing can't start.
 	// Wait for the trace reader to flush pending buffers and stop.

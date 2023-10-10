@@ -20,7 +20,7 @@ import (
 
 //go:linkname runtime_debug_WriteHeapDump runtime/debug.WriteHeapDump
 func runtime_debug_WriteHeapDump(fd uintptr) {
-	stopTheWorld(stwWriteHeapDump)
+	stw := stopTheWorld(stwWriteHeapDump)
 
 	// Keep m on this G's stack instead of the system stack.
 	// Both readmemstats_m and writeheapdump_m have pretty large
@@ -37,7 +37,7 @@ func runtime_debug_WriteHeapDump(fd uintptr) {
 		writeheapdump_m(fd, &m)
 	})
 
-	startTheWorld()
+	startTheWorld(stw)
 }
 
 const (
