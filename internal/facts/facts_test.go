@@ -311,7 +311,7 @@ func testEncodeDecode(t *testing.T, files map[string]string, tests []pkgLookups)
 		}
 
 		// decode
-		facts, err := facts.NewDecoder(pkg).Decode(false, read)
+		facts, err := facts.NewDecoder(pkg).Decode(read)
 		if err != nil {
 			t.Fatalf("Decode failed: %v", err)
 		}
@@ -345,7 +345,7 @@ func testEncodeDecode(t *testing.T, files map[string]string, tests []pkgLookups)
 		}
 
 		// encode
-		factmap[pkg.Path()] = facts.Encode(false)
+		factmap[pkg.Path()] = facts.Encode()
 	}
 }
 
@@ -413,7 +413,7 @@ func TestFactFilter(t *testing.T) {
 	}
 
 	obj := pkg.Scope().Lookup("A")
-	s, err := facts.NewDecoder(pkg).Decode(false, func(pkgPath string) ([]byte, error) { return nil, nil })
+	s, err := facts.NewDecoder(pkg).Decode(func(pkgPath string) ([]byte, error) { return nil, nil })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -528,7 +528,7 @@ func TestMalformed(t *testing.T) {
 				packages[pkg.Path()] = pkg
 
 				// decode facts
-				facts, err := facts.NewDecoder(pkg).Decode(false, read)
+				facts, err := facts.NewDecoder(pkg).Decode(read)
 				if err != nil {
 					t.Fatalf("Decode failed: %v", err)
 				}
@@ -555,7 +555,7 @@ func TestMalformed(t *testing.T) {
 				}
 
 				// encode facts
-				factmap[pkg.Path()] = facts.Encode(false)
+				factmap[pkg.Path()] = facts.Encode()
 			}
 		})
 	}
