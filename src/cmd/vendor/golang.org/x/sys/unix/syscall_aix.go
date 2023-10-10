@@ -487,8 +487,6 @@ func Fsync(fd int) error {
 //sys	Unlinkat(dirfd int, path string, flags int) (err error)
 //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
 //sys	write(fd int, p []byte) (n int, err error)
-//sys	readlen(fd int, p *byte, np int) (n int, err error) = read
-//sys	writelen(fd int, p *byte, np int) (n int, err error) = write
 
 //sys	Dup2(oldfd int, newfd int) (err error)
 //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = posix_fadvise64

@@ -326,10 +326,12 @@ const (
 	SO_NOFCS                         = 0x2b
 	SO_OOBINLINE                     = 0x100
 	SO_PASSCRED                      = 0x11
+	SO_PASSPIDFD                     = 0x4c
 	SO_PASSSEC                       = 0x22
 	SO_PEEK_OFF                      = 0x2a
 	SO_PEERCRED                      = 0x12
 	SO_PEERGROUPS                    = 0x3b
+	SO_PEERPIDFD                     = 0x4d
 	SO_PEERSEC                       = 0x1e
 	SO_PREFER_BUSY_POLL              = 0x45
 	SO_PROTOCOL                      = 0x1028

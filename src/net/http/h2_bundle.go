@@ -4394,9 +4394,11 @@ type http2serverConn struct {
 	advMaxStreams               uint32 // our SETTINGS_MAX_CONCURRENT_STREAMS advertised the client
 	curClientStreams            uint32 // number of open streams initiated by the client
 	curPushedStreams            uint32 // number of open streams initiated by server push
+	curHandlers                 uint32 // number of running handler goroutines
 	maxClientStreamID           uint32 // max ever seen from client (odd), or 0 if there have been no client requests
 	maxPushPromiseID            uint32 // ID of the last push promise (even), or 0 if there have been no pushes
 	streams                     map[uint32]*http2stream
+	unstartedHandlers           []http2unstartedHandler
 	initialStreamSendWindowSize int32
 	maxFrameSize                int32
 	peerMaxHeaderListSize       uint32            // zero means unknown (default)
@@ -4797,6 +4799,8 @@ func (sc *http2serverConn) serve() {
 					return
 				case http2gracefulShutdownMsg:
 					sc.startGracefulShutdownInternal()
+				case http2handlerDoneMsg:
+					sc.handlerDone()
 				default:
 					panic("unknown timer")
 				}
@@ -4828,14 +4832,6 @@ func (sc *http2serverConn) serve() {
 	}
 }
 
-func (sc *http2serverConn) awaitGracefulShutdown(sharedCh <-chan struct{}, privateCh chan struct{}) {
-	select {
-	case <-sc.doneServing:
-	case <-sharedCh:
-		close(privateCh)
-	}
-}
-
 type http2serverMessage int
 
 // Message values sent to serveMsgCh.
@@ -4844,6 +4840,7 @@ var (
 	http2idleTimerMsg        = new(http2serverMessage)
 	http2shutdownTimerMsg    = new(http2serverMessage)
 	http2gracefulShutdownMsg = new(http2serverMessage)
+	http2handlerDoneMsg      = new(http2serverMessage)
 )
 
 func (sc *http2serverConn) onSettingsTimer() { sc.sendServeMsg(http2settingsTimerMsg) }
@@ -5718,9 +5715,11 @@ func (st *http2stream) copyTrailersToHandlerRequest() {
 // onReadTimeout is run on its own goroutine (from time.AfterFunc)
 // when the stream's ReadTimeout has fired.
 func (st *http2stream) onReadTimeout() {
-	// Wrap the ErrDeadlineExceeded to avoid callers depending on us
-	// returning the bare error.
-	st.body.CloseWithError(fmt.Errorf("%w", os.ErrDeadlineExceeded))
+	if st.body != nil {
+		// Wrap the ErrDeadlineExceeded to avoid callers depending on us
+		// returning the bare error.
+		st.body.CloseWithError(fmt.Errorf("%w", os.ErrDeadlineExceeded))
+	}
 }
 
 // onWriteTimeout is run on its own goroutine (from time.AfterFunc)
@@ -5838,13 +5837,10 @@ func (sc *http2serverConn) processHeaders(f *http2MetaHeadersFrame) error {
 	// (in Go 1.8), though. That's a more sane option anyway.
 	if sc.hs.ReadTimeout != 0 {
 		sc.conn.SetReadDeadline(time.Time{})
-		if st.body != nil {
-			st.readDeadline = time.AfterFunc(sc.hs.ReadTimeout, st.onReadTimeout)
-		}
+		st.readDeadline = time.AfterFunc(sc.hs.ReadTimeout, st.onReadTimeout)
 	}
 
-	go sc.runHandler(rw, req, handler)
-	return nil
+	return sc.scheduleHandler(id, rw, req, handler)
 }
 
 func (sc *http2serverConn) upgradeRequest(req *Request) {
@@ -5864,6 +5860,10 @@ func (sc *http2serverConn) upgradeRequest(req *Request) {
 		sc.conn.SetReadDeadline(time.Time{})
 	}
 
+	// This is the first request on the connection,
+	// so start the handler directly rather than going
+	// through scheduleHandler.
+	sc.curHandlers++
 	go sc.runHandler(rw, req, sc.handler.ServeHTTP)
 }
 
@@ -6104,8 +6104,62 @@ func (sc *http2serverConn) newResponseWriter(st *http2stream, req *Request) *htt
 	return &http2responseWriter{rws: rws}
 }
 
+type http2unstartedHandler struct {
+	streamID uint32
+	rw       *http2responseWriter
+	req      *Request
+	handler  func(ResponseWriter, *Request)
+}
+
+// scheduleHandler starts a handler goroutine,
+// or schedules one to start as soon as an existing handler finishes.
+func (sc *http2serverConn) scheduleHandler(streamID uint32, rw *http2responseWriter, req *Request, handler func(ResponseWriter, *Request)) error {
+	sc.serveG.check()
+	maxHandlers := sc.advMaxStreams
+	if sc.curHandlers < maxHandlers {
+		sc.curHandlers++
+		go sc.runHandler(rw, req, handler)
+		return nil
+	}
+	if len(sc.unstartedHandlers) > int(4*sc.advMaxStreams) {
+		return sc.countError("too_many_early_resets", http2ConnectionError(http2ErrCodeEnhanceYourCalm))
+	}
+	sc.unstartedHandlers = append(sc.unstartedHandlers, http2unstartedHandler{
+		streamID: streamID,
+		rw:       rw,
+		req:      req,
+		handler:  handler,
+	})
+	return nil
+}
+
+func (sc *http2serverConn) handlerDone() {
+	sc.serveG.check()
+	sc.curHandlers--
+	i := 0
+	maxHandlers := sc.advMaxStreams
+	for ; i < len(sc.unstartedHandlers); i++ {
+		u := sc.unstartedHandlers[i]
+		if sc.streams[u.streamID] == nil {
+			// This stream was reset before its goroutine had a chance to start.
+			continue
+		}
+		if sc.curHandlers >= maxHandlers {
+			break
+		}
+		sc.curHandlers++
+		go sc.runHandler(u.rw, u.req, u.handler)
+		sc.unstartedHandlers[i] = http2unstartedHandler{} // don't retain references
+	}
+	sc.unstartedHandlers = sc.unstartedHandlers[i:]
+	if len(sc.unstartedHandlers) == 0 {
+		sc.unstartedHandlers = nil
+	}
+}
+
 // Run on its own goroutine.
 func (sc *http2serverConn) runHandler(rw *http2responseWriter, req *Request, handler func(ResponseWriter, *Request)) {
+	defer sc.sendServeMsg(http2handlerDoneMsg)
 	didPanic := true
 	defer func() {
 		rw.rws.stream.cancelCtx()
@@ -7312,8 +7366,7 @@ func (t *http2Transport) initConnPool() {
 // HTTP/2 server.
 type http2ClientConn struct {
 	t             *http2Transport
-	tconn         net.Conn // usually *tls.Conn, except specialized impls
-	tconnClosed   bool
+	tconn         net.Conn             // usually *tls.Conn, except specialized impls
 	tlsState      *tls.ConnectionState // nil only for specialized impls
 	reused        uint32               // whether conn is being reused; atomic
 	singleUse     bool                 // whether being used for a single http.Request

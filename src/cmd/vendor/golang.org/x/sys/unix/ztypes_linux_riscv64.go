@@ -733,6 +733,10 @@ const (
 	RISCV_HWPROBE_KEY_IMA_EXT_0          = 0x4
 	RISCV_HWPROBE_IMA_FD                 = 0x1
 	RISCV_HWPROBE_IMA_C                  = 0x2
+	RISCV_HWPROBE_IMA_V                  = 0x4
+	RISCV_HWPROBE_EXT_ZBA                = 0x8
+	RISCV_HWPROBE_EXT_ZBB                = 0x10
+	RISCV_HWPROBE_EXT_ZBS                = 0x20
 	RISCV_HWPROBE_KEY_CPUPERF_0          = 0x5
 	RISCV_HWPROBE_MISALIGNED_UNKNOWN     = 0x0
 	RISCV_HWPROBE_MISALIGNED_EMULATED    = 0x1

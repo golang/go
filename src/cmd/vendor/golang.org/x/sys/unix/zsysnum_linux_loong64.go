@@ -308,4 +308,5 @@ const (
 	SYS_PROCESS_MRELEASE        = 448
 	SYS_FUTEX_WAITV             = 449
 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+	SYS_CACHESTAT               = 451
 )

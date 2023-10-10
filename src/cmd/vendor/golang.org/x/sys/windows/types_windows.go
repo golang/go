@@ -247,6 +247,7 @@ const (
 	PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY = 0x00020007
 	PROC_THREAD_ATTRIBUTE_UMS_THREAD        = 0x00030006
 	PROC_THREAD_ATTRIBUTE_PROTECTION_LEVEL  = 0x0002000b
+	PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE     = 0x00020016
 )
 
 const (
@@ -2137,6 +2138,12 @@ const (
 	ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x4
 	DISABLE_NEWLINE_AUTO_RETURN        = 0x8
 	ENABLE_LVB_GRID_WORLDWIDE          = 0x10
+)
+
+// Pseudo console related constants used for the flags parameter to
+// CreatePseudoConsole. See: https://learn.microsoft.com/en-us/windows/console/createpseudoconsole
+const (
+	PSEUDOCONSOLE_INHERIT_CURSOR = 0x1
 )
 
 type Coord struct {

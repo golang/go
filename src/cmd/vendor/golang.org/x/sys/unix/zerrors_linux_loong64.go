@@ -118,6 +118,8 @@ const (
 	IUCLC                            = 0x200
 	IXOFF                            = 0x1000
 	IXON                             = 0x400
+	LASX_CTX_MAGIC                   = 0x41535801
+	LSX_CTX_MAGIC                    = 0x53580001
 	MAP_ANON                         = 0x20
 	MAP_ANONYMOUS                    = 0x20
 	MAP_DENYWRITE                    = 0x800
@@ -317,10 +319,12 @@ const (
 	SO_NOFCS                         = 0x2b
 	SO_OOBINLINE                     = 0xa
 	SO_PASSCRED                      = 0x10
+	SO_PASSPIDFD                     = 0x4c
 	SO_PASSSEC                       = 0x22
 	SO_PEEK_OFF                      = 0x2a
 	SO_PEERCRED                      = 0x11
 	SO_PEERGROUPS                    = 0x3b
+	SO_PEERPIDFD                     = 0x4d
 	SO_PEERSEC                       = 0x1f
 	SO_PREFER_BUSY_POLL              = 0x45
 	SO_PROTOCOL                      = 0x26

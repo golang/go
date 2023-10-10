@@ -2421,6 +2421,15 @@ const (
 	PR_PAC_GET_ENABLED_KEYS                     = 0x3d
 	PR_PAC_RESET_KEYS                           = 0x36
 	PR_PAC_SET_ENABLED_KEYS                     = 0x3c
+	PR_RISCV_V_GET_CONTROL                      = 0x46
+	PR_RISCV_V_SET_CONTROL                      = 0x45
+	PR_RISCV_V_VSTATE_CTRL_CUR_MASK             = 0x3
+	PR_RISCV_V_VSTATE_CTRL_DEFAULT              = 0x0
+	PR_RISCV_V_VSTATE_CTRL_INHERIT              = 0x10
+	PR_RISCV_V_VSTATE_CTRL_MASK                 = 0x1f
+	PR_RISCV_V_VSTATE_CTRL_NEXT_MASK            = 0xc
+	PR_RISCV_V_VSTATE_CTRL_OFF                  = 0x1
+	PR_RISCV_V_VSTATE_CTRL_ON                   = 0x2
 	PR_SCHED_CORE                               = 0x3e
 	PR_SCHED_CORE_CREATE                        = 0x1
 	PR_SCHED_CORE_GET                           = 0x0
