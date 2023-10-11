@@ -411,7 +411,7 @@ func (obj *Func) Origin() *Func {
 // Pkg returns the package to which the function belongs.
 //
 // The result is nil for methods of types in the Universe scope,
-// like [error.Error].
+// like method Error of the error built-in interface type.
 func (obj *Func) Pkg() *Package { return obj.object.Pkg() }
 
 // hasPtrRecv reports whether the receiver is of the form *T for the given method obj.
