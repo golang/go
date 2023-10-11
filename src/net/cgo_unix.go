@@ -319,8 +319,15 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 	acquireThread()
 	defer releaseThread()
 
-	state := (*_C_struct___res_state)(_C_malloc(unsafe.Sizeof(_C_struct___res_state{})))
-	defer _C_free(unsafe.Pointer(state))
+	resStateSize := unsafe.Sizeof(_C_struct___res_state{})
+	var state *_C_struct___res_state
+	if resStateSize > 0 {
+		mem := _C_malloc(resStateSize)
+		defer _C_free(mem)
+		memSlice := unsafe.Slice((*byte)(mem), resStateSize)
+		clear(memSlice)
+		state = (*_C_struct___res_state)(unsafe.Pointer(&memSlice[0]))
+	}
 	if err := _C_res_ninit(state); err != nil {
 		return nil, errors.New("res_ninit failure: " + err.Error())
 	}
