@@ -2036,7 +2036,7 @@ func (b *Builder) installHeader(ctx context.Context, a *Action) error {
 //
 //	go tool cover -mode=b.coverMode -var="varName" -o dst.go src.go
 func (b *Builder) cover(a *Action, dst, src string, varName string) error {
-	return b.run(a, a.Objdir, "cover "+a.Package.ImportPath, nil,
+	return b.run(a, a.Objdir, "", nil,
 		cfg.BuildToolexec,
 		base.Tool("cover"),
 		"-mode", a.Package.Internal.Cover.Mode,
@@ -2069,7 +2069,7 @@ func (b *Builder) cover2(a *Action, infiles, outfiles []string, varName string, 
 		"-outfilelist", covoutputs,
 	}
 	args = append(args, infiles...)
-	if err := b.run(a, a.Objdir, "cover "+a.Package.ImportPath, nil,
+	if err := b.run(a, a.Objdir, "", nil,
 		cfg.BuildToolexec, args); err != nil {
 		return nil, err
 	}
