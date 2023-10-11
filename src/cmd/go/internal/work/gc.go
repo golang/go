@@ -572,7 +572,7 @@ func pluginPath(a *Action) string {
 	return fmt.Sprintf("plugin/unnamed-%x", h.Sum(nil))
 }
 
-func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) error {
+func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg string) error {
 	cxx := len(root.Package.CXXFiles) > 0 || len(root.Package.SwigCXXFiles) > 0
 	for _, a := range root.Deps {
 		if a.Package != nil && (len(a.Package.CXXFiles) > 0 || len(a.Package.SwigCXXFiles) > 0) {
@@ -641,17 +641,17 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 	// the output file path is recorded in the .gnu.version_d section.
 	dir := "."
 	if cfg.BuildBuildmode == "c-shared" || cfg.BuildBuildmode == "plugin" {
-		dir, out = filepath.Split(out)
+		dir, targetPath = filepath.Split(targetPath)
 	}
 
 	env := []string{}
 	if cfg.BuildTrimpath {
 		env = append(env, "GOROOT_FINAL="+trimPathGoRootFinal)
 	}
-	return b.run(root, dir, root.Package.ImportPath, env, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags, mainpkg)
+	return b.run(root, dir, root.Package.ImportPath, env, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags, mainpkg)
 }
 
-func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
+func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, targetPath, importcfg string, allactions []*Action) error {
 	ldflags := []string{"-installsuffix", cfg.BuildContext.InstallSuffix}
 	ldflags = append(ldflags, "-buildmode=shared")
 	ldflags = append(ldflags, forcedLdflags...)
@@ -682,7 +682,7 @@ func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action,
 		}
 		ldflags = append(ldflags, d.Package.ImportPath+"="+d.Target)
 	}
-	return b.run(root, ".", out, nil, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags)
+	return b.run(root, ".", targetPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags)
 }
 
 func (gcToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {

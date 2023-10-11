@@ -530,12 +530,12 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 	return nil
 }
 
-func (tools gccgoToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) error {
-	return tools.link(b, root, out, importcfg, root.Deps, ldBuildmode, root.Package.ImportPath)
+func (tools gccgoToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg string) error {
+	return tools.link(b, root, targetPath, importcfg, root.Deps, ldBuildmode, root.Package.ImportPath)
 }
 
-func (tools gccgoToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
-	return tools.link(b, root, out, importcfg, allactions, "shared", out)
+func (tools gccgoToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, targetPath, importcfg string, allactions []*Action) error {
+	return tools.link(b, root, targetPath, importcfg, allactions, "shared", targetPath)
 }
 
 func (tools gccgoToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {
