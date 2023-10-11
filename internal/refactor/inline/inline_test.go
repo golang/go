@@ -391,6 +391,56 @@ func TestBasics(t *testing.T) {
 	})
 }
 
+func TestDuplicable(t *testing.T) {
+	runTests(t, []testcase{
+		{
+			"Empty strings are duplicable.",
+			`func f(s string) { print(s, s) }`,
+			`func _() { f("")  }`,
+			`func _() { print("", "") }`,
+		},
+		{
+			"Non-empty string literals are not duplicable.",
+			`func f(s string) { print(s, s) }`,
+			`func _() { f("hi")  }`,
+			`func _() {
+	var s string = "hi"
+	print(s, s)
+}`,
+		},
+		{
+			"Empty array literals are duplicable.",
+			`func f(a [2]int) { print(a, a) }`,
+			`func _() { f([2]int{})  }`,
+			`func _() { print([2]int{}, [2]int{}) }`,
+		},
+		{
+			"Non-empty array literals are not duplicable.",
+			`func f(a [2]int) { print(a, a) }`,
+			`func _() { f([2]int{1, 2})  }`,
+			`func _() {
+	var a [2]int = [2]int{1, 2}
+	print(a, a)
+}`,
+		},
+		{
+			"Empty struct literals are duplicable.",
+			`func f(s S) { print(s, s) }; type S struct { x int }`,
+			`func _() { f(S{})  }`,
+			`func _() { print(S{}, S{}) }`,
+		},
+		{
+			"Non-empty struct literals are not duplicable.",
+			`func f(s S) { print(s, s) }; type S struct { x int }`,
+			`func _() { f(S{x: 1})  }`,
+			`func _() {
+	var s S = S{x: 1}
+	print(s, s)
+}`,
+		},
+	})
+}
+
 func TestExprStmtReduction(t *testing.T) {
 	runTests(t, []testcase{
 		{

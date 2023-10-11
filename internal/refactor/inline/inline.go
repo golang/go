@@ -1998,10 +1998,28 @@ func duplicable(info *types.Info, e ast.Expr) bool {
 	case *ast.UnaryExpr: // e.g. +1, -1
 		return (e.Op == token.ADD || e.Op == token.SUB) && duplicable(info, e.X)
 
+	case *ast.CompositeLit:
+		// Empty struct or array literals T{} are duplicable.
+		// (Non-empty literals are too verbose, and slice/map
+		// literals allocate indirect variables.)
+		if len(e.Elts) == 0 {
+			switch info.TypeOf(e).Underlying().(type) {
+			case *types.Struct, *types.Array:
+				return true
+			}
+		}
+		return false
+
 	case *ast.CallExpr:
 		// Don't treat a conversion T(x) as duplicable even
 		// if x is duplicable because it could duplicate
-		// allocations. There may be cases to tease apart here.
+		// allocations.
+		//
+		// TODO(adonovan): there are cases to tease apart here:
+		// duplicating string([]byte) conversions increases
+		// allocation but doesn't change behavior, but the
+		// reverse, []byte(string), allocates a distinct array,
+		// which is observable
 		return false
 
 	case *ast.SelectorExpr:
