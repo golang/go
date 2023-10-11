@@ -313,7 +313,15 @@ func vendorPkg(vdir, pkg string) {
 			base.Fatalf("internal error: failed to find embedded files of %s: %v\n", pkg, err)
 		}
 	}
-	embedPatterns := str.StringList(bp.EmbedPatterns, bp.TestEmbedPatterns, bp.XTestEmbedPatterns)
+	var embedPatterns []string
+	if gover.Compare(modload.MainModules.GoVersion(), "1.22") >= 0 {
+		embedPatterns = bp.EmbedPatterns
+	} else {
+		// Maintain the behavior of https://github.com/golang/go/issues/63473
+		// so that we continue to agree with older versions of the go command
+		// about the contents of vendor directories in existing modules
+		embedPatterns = str.StringList(bp.EmbedPatterns, bp.TestEmbedPatterns, bp.XTestEmbedPatterns)
+	}
 	embeds, err := load.ResolveEmbed(bp.Dir, embedPatterns)
 	if err != nil {
 		base.Fatal(err)
