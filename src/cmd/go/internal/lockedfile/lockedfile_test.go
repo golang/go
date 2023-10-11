@@ -238,7 +238,7 @@ func TestSpuriousEDEADLK(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := testenv.Command(t, os.Args[0], "-test.run="+t.Name())
+	cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$")
 	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", dirVar, dir))
 
 	qDone := make(chan struct{})

@@ -652,6 +652,38 @@ func bmEqual(equal func([]byte, []byte) bool) func(b *testing.B, n int) {
 	}
 }
 
+func BenchmarkEqualBothUnaligned(b *testing.B) {
+	sizes := []int{64, 4 << 10}
+	if !isRaceBuilder {
+		sizes = append(sizes, []int{4 << 20, 64 << 20}...)
+	}
+	maxSize := 2 * (sizes[len(sizes)-1] + 8)
+	if len(bmbuf) < maxSize {
+		bmbuf = make([]byte, maxSize)
+	}
+
+	for _, n := range sizes {
+		for _, off := range []int{0, 1, 4, 7} {
+			buf1 := bmbuf[off : off+n]
+			buf2Start := (len(bmbuf) / 2) + off
+			buf2 := bmbuf[buf2Start : buf2Start+n]
+			buf1[n-1] = 'x'
+			buf2[n-1] = 'x'
+			b.Run(fmt.Sprint(n, off), func(b *testing.B) {
+				b.SetBytes(int64(n))
+				for i := 0; i < b.N; i++ {
+					eq := Equal(buf1, buf2)
+					if !eq {
+						b.Fatal("bad equal")
+					}
+				}
+			})
+			buf1[n-1] = '\x00'
+			buf2[n-1] = '\x00'
+		}
+	}
+}
+
 func BenchmarkIndex(b *testing.B) {
 	benchBytes(b, indexSizes, func(b *testing.B, n int) {
 		buf := bmbuf[0:n]

@@ -464,7 +464,7 @@ func SetFinalizer(obj any, finalizer any) {
 			// ok - satisfies empty interface
 			goto okarg
 		}
-		if iface := assertE2I2(ityp, *efaceOf(&obj)); iface.tab != nil {
+		if itab := assertE2I2(ityp, efaceOf(&obj)._type); itab != nil {
 			goto okarg
 		}
 	}
@@ -473,7 +473,7 @@ okarg:
 	// compute size needed for return parameters
 	nret := uintptr(0)
 	for _, t := range ft.OutSlice() {
-		nret = alignUp(nret, uintptr(t.Align_)) + uintptr(t.Size_)
+		nret = alignUp(nret, uintptr(t.Align_)) + t.Size_
 	}
 	nret = alignUp(nret, goarch.PtrSize)
 

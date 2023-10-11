@@ -184,6 +184,23 @@ func testScalarMult[P nistPoint[P]](t *testing.T, newPoint func() P, c elliptic.
 			t.Error("[k]G != ScalarBaseMult(k)")
 		}
 
+		expectInfinity := new(big.Int).Mod(new(big.Int).SetBytes(scalar), c.Params().N).Sign() == 0
+		if expectInfinity {
+			if !bytes.Equal(p1.Bytes(), newPoint().Bytes()) {
+				t.Error("ScalarBaseMult(k) != ∞")
+			}
+			if !bytes.Equal(p2.Bytes(), newPoint().Bytes()) {
+				t.Error("[k]G != ∞")
+			}
+		} else {
+			if bytes.Equal(p1.Bytes(), newPoint().Bytes()) {
+				t.Error("ScalarBaseMult(k) == ∞")
+			}
+			if bytes.Equal(p2.Bytes(), newPoint().Bytes()) {
+				t.Error("[k]G == ∞")
+			}
+		}
+
 		d := new(big.Int).SetBytes(scalar)
 		d.Sub(c.Params().N, d)
 		d.Mod(d, c.Params().N)
@@ -222,9 +239,14 @@ func testScalarMult[P nistPoint[P]](t *testing.T, newPoint func() P, c elliptic.
 			checkScalar(t, s.FillBytes(make([]byte, byteLen)))
 		})
 	}
-	// Test N-32...N+32 since they risk overlapping with precomputed table values
+	for i := 0; i <= 64; i++ {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			checkScalar(t, big.NewInt(int64(i)).FillBytes(make([]byte, byteLen)))
+		})
+	}
+	// Test N-64...N+64 since they risk overlapping with precomputed table values
 	// in the final additions.
-	for i := int64(-32); i <= 32; i++ {
+	for i := int64(-64); i <= 64; i++ {
 		t.Run(fmt.Sprintf("N%+d", i), func(t *testing.T) {
 			checkScalar(t, new(big.Int).Add(c.Params().N, big.NewInt(i)).Bytes())
 		})

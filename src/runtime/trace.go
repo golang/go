@@ -15,6 +15,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goos"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -256,11 +257,15 @@ func traceBufPtrOf(b *traceBuf) traceBufPtr {
 }
 
 // traceEnabled returns true if the trace is currently enabled.
+//
+//go:nosplit
 func traceEnabled() bool {
 	return trace.enabled
 }
 
 // traceShuttingDown returns true if the trace is currently shutting down.
+//
+//go:nosplit
 func traceShuttingDown() bool {
 	return trace.shutdown
 }
@@ -452,12 +457,17 @@ func StopTrace() {
 		}
 	}
 
+	// Wait for startNanotime != endNanotime. On Windows the default interval between
+	// system clock ticks is typically between 1 and 15 milliseconds, which may not
+	// have passed since the trace started. Without nanotime moving forward, trace
+	// tooling has no way of identifying how much real time each cputicks time deltas
+	// represent.
 	for {
 		trace.endTime = traceClockNow()
 		trace.endTicks = cputicks()
 		trace.endNanotime = nanotime()
-		// Windows time can tick only every 15ms, wait for at least one tick.
-		if trace.endNanotime != trace.startNanotime {
+
+		if trace.endNanotime != trace.startNanotime || faketime != 0 {
 			break
 		}
 		osyield()
@@ -934,7 +944,7 @@ func traceReadCPU() {
 			}
 			stackID := trace.stackTab.put(buf.stk[:nstk])
 
-			traceEventLocked(0, nil, 0, bufp, traceEvCPUSample, stackID, 1, uint64(timestamp), ppid, goid)
+			traceEventLocked(0, nil, 0, bufp, traceEvCPUSample, stackID, 1, timestamp, ppid, goid)
 		}
 	}
 }
@@ -993,8 +1003,9 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
 
 // tracefpunwindoff returns true if frame pointer unwinding for the tracer is
 // disabled via GODEBUG or not supported by the architecture.
+// TODO(#60254): support frame pointer unwinding on plan9/amd64.
 func tracefpunwindoff() bool {
-	return debug.tracefpunwindoff != 0 || (goarch.ArchFamily != goarch.AMD64 && goarch.ArchFamily != goarch.ARM64)
+	return debug.tracefpunwindoff != 0 || (goarch.ArchFamily != goarch.AMD64 && goarch.ArchFamily != goarch.ARM64) || goos.IsPlan9 == 1
 }
 
 // fpTracebackPCs populates pcBuf with the return addresses for each frame and
@@ -1338,7 +1349,6 @@ func fpunwindExpand(pcBuf []uintptr) []uintptr {
 	}
 
 	var (
-		cache      pcvalueCache
 		lastFuncID = abi.FuncIDNormal
 		newPCBuf   = make([]uintptr, 0, traceStackSize)
 		skip       = pcBuf[0]
@@ -1367,7 +1377,7 @@ outer:
 			continue
 		}
 
-		u, uf := newInlineUnwinder(fi, callPC, &cache)
+		u, uf := newInlineUnwinder(fi, callPC)
 		for ; uf.valid(); uf = u.next(uf) {
 			sf := u.srcFunc(uf)
 			if sf.funcID == abi.FuncIDWrapper && elideWrapperCalling(lastFuncID) {

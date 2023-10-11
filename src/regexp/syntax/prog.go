@@ -247,7 +247,7 @@ func (i *Inst) MatchRunePos(r rune) int {
 	lo := 0
 	hi := len(rune) / 2
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		if c := rune[2*m]; c <= r {
 			if r <= rune[2*m+1] {
 				return m

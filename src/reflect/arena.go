@@ -12,7 +12,7 @@ import "arena"
 // specified type, allocating storage for it in the provided arena. That is,
 // the returned Value's Type is PointerTo(typ).
 func ArenaNew(a *arena.Arena, typ Type) Value {
-	return ValueOf(arena_New(a, typ))
+	return ValueOf(arena_New(a, PointerTo(typ)))
 }
 
 func arena_New(a *arena.Arena, typ any) any

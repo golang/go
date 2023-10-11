@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/importer"
+	"go/parser"
 	"go/token"
 	"internal/testenv"
 	"regexp"
@@ -907,4 +908,85 @@ func _cgoCheckResult(interface{})
 	testFiles(t, []string{"p.go", "_cgo_gotypes.go"}, [][]byte{[]byte(src), []byte(cgoTypes)}, false, func(cfg *Config) {
 		*boolFieldAddr(cfg, "go115UsesCgo") = true
 	})
+}
+
+func TestIssue61931(t *testing.T) {
+	const src = `
+package p
+
+func A(func(any), ...any) {}
+func B[T any](T)          {}
+
+func _() {
+	A(B, nil // syntax error: missing ',' before newline in argument list
+}
+`
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, pkgName(src), src, 0)
+	if err == nil {
+		t.Fatal("expected syntax error")
+	}
+
+	var conf Config
+	conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // must not panic
+}
+
+func TestIssue61938(t *testing.T) {
+	const src = `
+package p
+
+func f[T any]() {}
+func _()        { f() }
+`
+	// no error handler provided (this issue)
+	var conf Config
+	typecheck(src, &conf, nil) // must not panic
+
+	// with error handler (sanity check)
+	conf.Error = func(error) {}
+	typecheck(src, &conf, nil) // must not panic
+}
+
+func TestIssue63260(t *testing.T) {
+	const src = `
+package p
+
+func _() {
+        use(f[*string])
+}
+
+func use(func()) {}
+
+func f[I *T, T any]() {
+        var v T
+        _ = v
+}`
+
+	info := Info{
+		Defs: make(map[*ast.Ident]Object),
+	}
+	pkg := mustTypecheck(src, nil, &info)
+
+	// get type parameter T in signature of f
+	T := pkg.Scope().Lookup("f").Type().(*Signature).TypeParams().At(1)
+	if T.Obj().Name() != "T" {
+		t.Fatalf("got type parameter %s, want T", T)
+	}
+
+	// get type of variable v in body of f
+	var v Object
+	for name, obj := range info.Defs {
+		if name.Name == "v" {
+			v = obj
+			break
+		}
+	}
+	if v == nil {
+		t.Fatal("variable v not found")
+	}
+
+	// type of v and T must be pointer-identical
+	if v.Type() != T {
+		t.Fatalf("types of v and T are not pointer-identical: %p != %p", v.Type().(*TypeParam), T)
+	}
 }

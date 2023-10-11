@@ -77,8 +77,15 @@ var depsRules = `
 	< internal/oserror, math/bits
 	< RUNTIME;
 
-	RUNTIME
-	< sort
+	# slices depends on unsafe for overlapping check, cmp for comparison
+	# semantics, and math/bits for # calculating bitlength of numbers.
+	unsafe, cmp, math/bits
+	< slices;
+
+	RUNTIME, slices
+	< sort;
+
+	sort
 	< container/heap;
 
 	RUNTIME
@@ -203,7 +210,7 @@ var depsRules = `
 
 	# encodings
 	# core ones do not use fmt.
-	io, strconv
+	io, strconv, slices
 	< encoding;
 
 	encoding, reflect
@@ -223,11 +230,6 @@ var depsRules = `
 	< hash
 	< hash/adler32, hash/crc32, hash/crc64, hash/fnv;
 
-	# slices depends on unsafe for overlapping check, cmp for comparison
-	# semantics, and math/bits for # calculating bitlength of numbers.
-	unsafe, cmp, math/bits
-	< slices;
-
 	# math/big
 	FMT, encoding/binary, math/rand
 	< math/big;
@@ -245,14 +247,14 @@ var depsRules = `
 	< text/template
 	< internal/lazytemplate;
 
-	encoding/json, html, text/template
-	< html/template;
-
 	# regexp
 	FMT
 	< regexp/syntax
 	< regexp
 	< internal/lazyregexp;
+
+	encoding/json, html, text/template, regexp
+	< html/template;
 
 	# suffix array
 	encoding/binary, regexp
@@ -286,7 +288,10 @@ var depsRules = `
 	math/big, go/token
 	< go/constant;
 
-	container/heap, go/constant, go/parser, internal/types/errors
+	FMT, internal/goexperiment
+	< internal/buildcfg;
+
+	container/heap, go/constant, go/parser, internal/buildcfg, internal/goversion, internal/types/errors
 	< go/types;
 
 	# The vast majority of standard library packages should not be resorting to regexp.
@@ -296,9 +301,6 @@ var depsRules = `
 
 	go/doc/comment, go/parser, internal/lazyregexp, text/template
 	< go/doc;
-
-	FMT, internal/goexperiment
-	< internal/buildcfg;
 
 	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/platform
 	< go/build;
@@ -562,7 +564,7 @@ var depsRules = `
 	< net/rpc/jsonrpc;
 
 	# System Information
-	internal/cpu, sync
+	bufio, bytes, internal/cpu, io, os, strings, sync
 	< internal/sysinfo;
 
 	# Test-only
@@ -570,14 +572,14 @@ var depsRules = `
 	< testing/iotest
 	< testing/fstest;
 
-	log/slog
-	< testing/slogtest;
-
 	FMT, flag, math/rand
 	< testing/quick;
 
 	FMT, DEBUG, flag, runtime/trace, internal/sysinfo, math/rand
 	< testing;
+
+	log/slog, testing
+	< testing/slogtest;
 
 	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token,
 	internal/godebug, math/rand, encoding/hex, crypto/sha256
@@ -621,6 +623,9 @@ var depsRules = `
 
 	internal/coverage/cmerge
 	< internal/coverage/cformat;
+
+	internal/coverage, crypto/sha256, FMT
+	< cmd/internal/cov/covcmd;
 
     encoding/json,
 	runtime/debug,

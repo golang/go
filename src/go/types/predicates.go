@@ -8,6 +8,9 @@
 
 package types
 
+// isValid reports whether t is a valid type.
+func isValid(t Type) bool { return t != Typ[Invalid] }
+
 // The isX predicates below report whether t is an X.
 // If t is a type parameter the result is false; i.e.,
 // these predicates don't look inside a type parameter.
@@ -126,7 +129,7 @@ func hasEmptyTypeset(t Type) bool {
 // TODO(gri) should we include signatures or assert that they are not present?
 func isGeneric(t Type) bool {
 	// A parameterized type is only generic if it doesn't have an instantiation already.
-	named, _ := t.(*Named)
+	named := asNamed(t)
 	return named != nil && named.obj != nil && named.inst == nil && named.TypeParams().Len() > 0
 }
 
@@ -224,7 +227,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 		return true
 	}
 
-	if c.ignoreInvalids && (x == Typ[Invalid] || y == Typ[Invalid]) {
+	if c.ignoreInvalids && (!isValid(x) || !isValid(y)) {
 		return true
 	}
 
@@ -437,7 +440,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 		// Two named types are identical if their type names originate
 		// in the same type declaration; if they are instantiated they
 		// must have identical type argument lists.
-		if y, ok := y.(*Named); ok {
+		if y := asNamed(y); y != nil {
 			// check type arguments before origins to match unifier
 			// (for correct source code we need to do all checks so
 			// order doesn't matter)
@@ -451,7 +454,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 					return false
 				}
 			}
-			return indenticalOrigin(x, y)
+			return identicalOrigin(x, y)
 		}
 
 	case *TypeParam:
@@ -468,7 +471,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 }
 
 // identicalOrigin reports whether x and y originated in the same declaration.
-func indenticalOrigin(x, y *Named) bool {
+func identicalOrigin(x, y *Named) bool {
 	// TODO(gri) is this correct?
 	return x.Origin().obj == y.Origin().obj
 }
@@ -531,4 +534,10 @@ func maxType(x, y Type) Type {
 		return y
 	}
 	return nil
+}
+
+// clone makes a "flat copy" of *p and returns a pointer to the copy.
+func clone[P *T, T any](p P) P {
+	c := *p
+	return &c
 }

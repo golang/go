@@ -93,37 +93,56 @@ func (r Record) Attrs(f func(Attr) bool) {
 }
 
 // AddAttrs appends the given Attrs to the Record's list of Attrs.
+// It omits empty groups.
 func (r *Record) AddAttrs(attrs ...Attr) {
-	n := copy(r.front[r.nFront:], attrs)
-	r.nFront += n
+	var i int
+	for i = 0; i < len(attrs) && r.nFront < len(r.front); i++ {
+		a := attrs[i]
+		if a.Value.isEmptyGroup() {
+			continue
+		}
+		r.front[r.nFront] = a
+		r.nFront++
+	}
 	// Check if a copy was modified by slicing past the end
 	// and seeing if the Attr there is non-zero.
 	if cap(r.back) > len(r.back) {
 		end := r.back[:len(r.back)+1][len(r.back)]
 		if !end.isEmpty() {
-			panic("copies of a slog.Record were both modified")
+			// Don't panic; copy and muddle through.
+			r.back = slices.Clip(r.back)
+			r.back = append(r.back, String("!BUG", "AddAttrs unsafely called on copy of Record made without using Record.Clone"))
 		}
 	}
-	r.back = append(r.back, attrs[n:]...)
+	ne := countEmptyGroups(attrs[i:])
+	r.back = slices.Grow(r.back, len(attrs[i:])-ne)
+	for _, a := range attrs[i:] {
+		if !a.Value.isEmptyGroup() {
+			r.back = append(r.back, a)
+		}
+	}
 }
 
 // Add converts the args to Attrs as described in [Logger.Log],
 // then appends the Attrs to the Record's list of Attrs.
+// It omits empty groups.
 func (r *Record) Add(args ...any) {
 	var a Attr
 	for len(args) > 0 {
 		a, args = argsToAttr(args)
+		if a.Value.isEmptyGroup() {
+			continue
+		}
 		if r.nFront < len(r.front) {
 			r.front[r.nFront] = a
 			r.nFront++
 		} else {
 			if r.back == nil {
-				r.back = make([]Attr, 0, countAttrs(args))
+				r.back = make([]Attr, 0, countAttrs(args)+1)
 			}
 			r.back = append(r.back, a)
 		}
 	}
-
 }
 
 // countAttrs returns the number of Attrs that would be created from args.

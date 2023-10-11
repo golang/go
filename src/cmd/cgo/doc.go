@@ -420,6 +420,30 @@ passing uninitialized C memory to Go code if the Go code is going to
 store pointer values in it. Zero out the memory in C before passing it
 to Go.
 
+# Optimizing calls of C code
+
+When passing a Go pointer to a C function the compiler normally ensures
+that the Go object lives on the heap. If the C function does not keep
+a copy of the Go pointer, and never passes the Go pointer back to Go code,
+then this is unnecessary. The #cgo noescape directive may be used to tell
+the compiler that no Go pointers escape via the named C function.
+If the noescape directive is used and the C function does not handle the
+pointer safely, the program may crash or see memory corruption.
+
+For example:
+
+	// #cgo noescape cFunctionName
+
+When a Go function calls a C function, it prepares for the C function to
+call back to a Go function. the #cgo nocallback directive may be used to
+tell the compiler that these preparations are not necessary.
+If the nocallback directive is used and the C function does call back into
+Go code, the program will panic.
+
+For example:
+
+	// #cgo nocallback cFunctionName
+
 # Special cases
 
 A few special C types which would normally be represented by a pointer
@@ -686,7 +710,7 @@ files:
 	_cgo_export.c   # for gcc
 	_cgo_export.h   # for gcc
 	_cgo_main.c     # for gcc
-	_cgo_flags      # for alternative build tools
+	_cgo_flags      # for build tool (if -gccgo)
 
 The file x.cgo1.go is a copy of x.go with the import "C" removed and
 references to C.xxx replaced with names like _Cfunc_xxx or _Ctype_xxx.

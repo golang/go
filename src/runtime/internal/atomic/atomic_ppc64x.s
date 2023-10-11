@@ -360,3 +360,63 @@ again:
 	STWCCC	R6, (R3)
 	BNE	again
 	RET
+
+// func Or32(addr *uint32, v uint32) old uint32
+TEXT ·Or32(SB), NOSPLIT, $0-20
+	MOVD	ptr+0(FP), R3
+	MOVW	val+8(FP), R4
+	LWSYNC
+again:
+	LWAR	(R3), R6
+	OR	R4, R6, R7
+	STWCCC	R7, (R3)
+	BNE	again
+	MOVW	R6, ret+16(FP)
+	RET
+
+// func And32(addr *uint32, v uint32) old uint32
+TEXT ·And32(SB), NOSPLIT, $0-20
+	MOVD	ptr+0(FP), R3
+	MOVW	val+8(FP), R4
+	LWSYNC
+again:
+	LWAR	(R3),R6
+	AND	R4, R6, R7
+	STWCCC	R7, (R3)
+	BNE	again
+	MOVW	R6, ret+16(FP)
+	RET
+
+// func Or64(addr *uint64, v uint64) old uint64
+TEXT ·Or64(SB), NOSPLIT, $0-24
+	MOVD	ptr+0(FP), R3
+	MOVD	val+8(FP), R4
+	LWSYNC
+again:
+	LDAR	(R3), R6
+	OR	R4, R6, R7
+	STDCCC	R7, (R3)
+	BNE	again
+	MOVD	R6, ret+16(FP)
+	RET
+
+// func And64(addr *uint64, v uint64) old uint64
+TEXT ·And64(SB), NOSPLIT, $0-24
+	MOVD	ptr+0(FP), R3
+	MOVD	val+8(FP), R4
+	LWSYNC
+again:
+	LDAR	(R3),R6
+	AND	R4, R6, R7
+	STDCCC	R7, (R3)
+	BNE	again
+	MOVD	R6, ret+16(FP)
+	RET
+
+// func Anduintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Anduintptr(SB), NOSPLIT, $0-24
+	JMP	·And64(SB)
+
+// func Oruintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Oruintptr(SB), NOSPLIT, $0-24
+	JMP	·Or64(SB)

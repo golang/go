@@ -155,6 +155,11 @@ func ProfileGuided(fn *ir.Func, p *pgo.Profile) {
 			return n
 		}
 
+		if !base.PGOHash.MatchPosWithInfo(n.Pos(), "devirt", nil) {
+			// De-selected by PGO Hash.
+			return n
+		}
+
 		if stat != nil {
 			stat.Devirtualized = ir.LinkFuncName(callee)
 			stat.DevirtualizedWeight = weight
@@ -223,6 +228,18 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
 
 	offset := pgo.NodeLineOffset(call, fn)
 
+	hotter := func(e *pgo.IREdge) bool {
+		if stat.Hottest == "" {
+			return true
+		}
+		if e.Weight != stat.HottestWeight {
+			return e.Weight > stat.HottestWeight
+		}
+		// If weight is the same, arbitrarily sort lexicographally, as
+		// findHotConcreteCallee does.
+		return e.Dst.Name() < stat.Hottest
+	}
+
 	// Sum of all edges from this callsite, regardless of callee.
 	// For direct calls, this should be the same as the single edge
 	// weight (except for multiple calls on one line, which we
@@ -233,7 +250,7 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
 			continue
 		}
 		stat.Weight += edge.Weight
-		if edge.Weight > stat.HottestWeight {
+		if hotter(edge) {
 			stat.HottestWeight = edge.Weight
 			stat.Hottest = edge.Dst.Name()
 		}
@@ -243,7 +260,7 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
 	case ir.OCALLFUNC:
 		stat.Interface = false
 
-		callee := pgo.DirectCallee(call.X)
+		callee := pgo.DirectCallee(call.Fun)
 		if callee != nil {
 			stat.Direct = true
 			if stat.Hottest == "" {
@@ -266,7 +283,7 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
 // concretetyp.
 func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *types.Type) ir.Node {
 	if base.Flag.LowerM != 0 {
-		fmt.Printf("%v: PGO devirtualizing %v to %v\n", ir.Line(call), call.X, callee)
+		fmt.Printf("%v: PGO devirtualizing %v to %v\n", ir.Line(call), call.Fun, callee)
 	}
 
 	// We generate an OINCALL of:
@@ -299,13 +316,13 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 
 	var retvars []ir.Node
 
-	sig := call.X.Type()
+	sig := call.Fun.Type()
 
-	for _, ret := range sig.Results().FieldSlice() {
-		retvars = append(retvars, typecheck.Temp(ret.Type))
+	for _, ret := range sig.Results() {
+		retvars = append(retvars, typecheck.TempAt(base.Pos, curfn, ret.Type))
 	}
 
-	sel := call.X.(*ir.SelectorExpr)
+	sel := call.Fun.(*ir.SelectorExpr)
 	method := sel.Sel
 	pos := call.Pos()
 	init := ir.TakeInit(call)
@@ -317,7 +334,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 	// recv must be first in the assignment list as its side effects must
 	// be ordered before argument side effects.
 	var lhs, rhs []ir.Node
-	recv := typecheck.Temp(sel.X.Type())
+	recv := typecheck.TempAt(base.Pos, curfn, sel.X.Type())
 	lhs = append(lhs, recv)
 	rhs = append(rhs, sel.X)
 
@@ -326,7 +343,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 	// such as labels (possible in InlinedCall nodes).
 	args := call.Args.Take()
 	for _, arg := range args {
-		argvar := typecheck.Temp(arg.Type())
+		argvar := typecheck.TempAt(base.Pos, curfn, arg.Type())
 
 		lhs = append(lhs, argvar)
 		rhs = append(rhs, arg)
@@ -339,15 +356,15 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
 	argvars := append([]ir.Node(nil), lhs[1:]...)
 	call.Args = argvars
 
-	tmpnode := typecheck.Temp(concretetyp)
-	tmpok := typecheck.Temp(types.Types[types.TBOOL])
+	tmpnode := typecheck.TempAt(base.Pos, curfn, concretetyp)
+	tmpok := typecheck.TempAt(base.Pos, curfn, types.Types[types.TBOOL])
 
 	assert := ir.NewTypeAssertExpr(pos, recv, concretetyp)
 
 	assertAsList := ir.NewAssignListStmt(pos, ir.OAS2, []ir.Node{tmpnode, tmpok}, []ir.Node{typecheck.Expr(assert)})
 	init.Append(typecheck.Stmt(assertAsList))
 
-	concreteCallee := typecheck.Callee(ir.NewSelectorExpr(pos, ir.OXDOT, tmpnode, method))
+	concreteCallee := typecheck.XDotMethod(pos, tmpnode, method, true)
 	// Copy slice so edits in one location don't affect another.
 	argvars = append([]ir.Node(nil), argvars...)
 	concreteCall := typecheck.Call(pos, concreteCallee, argvars, call.IsDDD)
@@ -404,7 +421,7 @@ func interfaceCallRecvTypeAndMethod(call *ir.CallExpr) (*types.Type, *types.Sym)
 		base.Fatalf("Call isn't OCALLINTER: %+v", call)
 	}
 
-	sel, ok := call.X.(*ir.SelectorExpr)
+	sel, ok := call.Fun.(*ir.SelectorExpr)
 	if !ok {
 		base.Fatalf("OCALLINTER doesn't contain SelectorExpr: %+v", call)
 	}

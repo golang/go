@@ -10,11 +10,11 @@
 // System calls for ppc64, Linux
 //
 
-// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
-TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-40
+// func rawVforkSyscall(trap, a1, a2, a3 uintptr) (r1, err uintptr)
+TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-48
 	MOVD	a1+8(FP), R3
 	MOVD	a2+16(FP), R4
-	MOVD	R0, R5
+	MOVD	a3+24(FP), R5
 	MOVD	R0, R6
 	MOVD	R0, R7
 	MOVD	R0, R8
@@ -22,12 +22,12 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-40
 	SYSCALL R9
 	BVC	ok
 	MOVD	$-1, R4
-	MOVD	R4, r1+24(FP)	// r1
-	MOVD	R3, err+32(FP)	// errno
+	MOVD	R4, r1+32(FP)	// r1
+	MOVD	R3, err+40(FP)	// errno
 	RET
 ok:
-	MOVD	R3, r1+24(FP)	// r1
-	MOVD	R0, err+32(FP)	// errno
+	MOVD	R3, r1+32(FP)	// r1
+	MOVD	R0, err+40(FP)	// errno
 	RET
 
 TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48

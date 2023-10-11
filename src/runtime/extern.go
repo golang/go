@@ -87,7 +87,8 @@ It is a comma-separated list of name=val pairs setting these named variables:
 
 	gctrace: setting gctrace=1 causes the garbage collector to emit a single line to standard
 	error at each collection, summarizing the amount of memory collected and the
-	length of the pause. The format of this line is subject to change.
+	length of the pause. The format of this line is subject to change. Included in
+	the explanation below is also the relevant runtime/metrics metric for each field.
 	Currently, it is:
 		gc # @#s #%: #+#+# ms clock, #+#/#/#+# ms cpu, #->#-># MB, # MB goal, # MB stacks, #MB globals, # P
 	where the fields are as follows:
@@ -95,11 +96,11 @@ It is a comma-separated list of name=val pairs setting these named variables:
 		@#s          time in seconds since program start
 		#%           percentage of time spent in GC since program start
 		#+...+#      wall-clock/CPU times for the phases of the GC
-		#->#-># MB   heap size at GC start, at GC end, and live heap
-		# MB goal    goal heap size
-		# MB stacks  estimated scannable stack size
-		# MB globals scannable global size
-		# P          number of processors used
+		#->#-># MB   heap size at GC start, at GC end, and live heap, or /gc/scan/heap:bytes
+		# MB goal    goal heap size, or /gc/heap/goal:bytes
+		# MB stacks  estimated scannable stack size, or /gc/scan/stack:bytes
+		# MB globals scannable global size, or /gc/scan/globals:bytes
+		# P          number of processors used, or /sched/gomaxprocs:threads
 	The phases are stop-the-world (STW) sweep termination, concurrent
 	mark and scan, and STW mark termination. The CPU times
 	for mark/scan are broken down in to assist time (GC performed in

@@ -39,7 +39,10 @@ const (
 	// size of bucket hash table
 	buckHashSize = 179999
 
-	// max depth of stack to record in bucket
+	// maxStack is the max depth of stack to record in bucket.
+	// Note that it's only used internally as a guard against
+	// wildly out-of-bounds slicing of the PCs that come after
+	// a bucket struct, and it could increase in the future.
 	maxStack = 32
 )
 
@@ -553,8 +556,6 @@ func mutexevent(cycles int64, skip int) {
 		cycles = 0
 	}
 	rate := int64(atomic.Load64(&mutexprofilerate))
-	// TODO(pjw): measure impact of always calling fastrand vs using something
-	// like malloc.go:nextSample()
 	if rate > 0 && int64(fastrand())%rate == 0 {
 		saveblockevent(cycles, rate, skip+1, mutexProfile)
 	}

@@ -19,7 +19,7 @@ import (
 // an XML element is an order-dependent collection of anonymous
 // values, while a data structure is an order-independent collection
 // of named values.
-// See package json for a textual representation more suitable
+// See [encoding/json] for a textual representation more suitable
 // to data structures.
 
 // Unmarshal parses the XML-encoded data and stores the result in
@@ -96,7 +96,7 @@ import (
 // If Unmarshal encounters a field type that implements the Unmarshaler
 // interface, Unmarshal calls its UnmarshalXML method to produce the value from
 // the XML element.  Otherwise, if the value implements
-// encoding.TextUnmarshaler, Unmarshal calls that value's UnmarshalText method.
+// [encoding.TextUnmarshaler], Unmarshal calls that value's UnmarshalText method.
 //
 // Unmarshal maps an XML element to a string or []byte by saving the
 // concatenation of that element's character data in the string or
@@ -105,7 +105,7 @@ import (
 // Unmarshal maps an attribute value to a string or []byte by saving
 // the value in the string or slice.
 //
-// Unmarshal maps an attribute value to an Attr by saving the attribute,
+// Unmarshal maps an attribute value to an [Attr] by saving the attribute,
 // including its name, in the Attr.
 //
 // Unmarshal maps an XML element or attribute value to a slice by
@@ -134,16 +134,16 @@ func Unmarshal(data []byte, v any) error {
 	return NewDecoder(bytes.NewReader(data)).Decode(v)
 }
 
-// Decode works like Unmarshal, except it reads the decoder
+// Decode works like [Unmarshal], except it reads the decoder
 // stream to find the start element.
 func (d *Decoder) Decode(v any) error {
 	return d.DecodeElement(v, nil)
 }
 
-// DecodeElement works like Unmarshal except that it takes
+// DecodeElement works like [Unmarshal] except that it takes
 // a pointer to the start XML element to decode into v.
 // It is useful when a client reads some raw XML tokens itself
-// but also wants to defer to Unmarshal for some elements.
+// but also wants to defer to [Unmarshal] for some elements.
 func (d *Decoder) DecodeElement(v any, start *StartElement) error {
 	val := reflect.ValueOf(v)
 	if val.Kind() != reflect.Pointer {
@@ -184,7 +184,7 @@ type Unmarshaler interface {
 // an XML attribute description of themselves.
 //
 // UnmarshalXMLAttr decodes a single XML attribute.
-// If it returns an error, the outer call to Unmarshal stops and
+// If it returns an error, the outer call to [Unmarshal] stops and
 // returns that error.
 // UnmarshalXMLAttr is used only for struct fields with the
 // "attr" option in the field tag.
@@ -304,10 +304,10 @@ func (d *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
 }
 
 var (
-	attrType            = reflect.TypeOf(Attr{})
-	unmarshalerType     = reflect.TypeOf((*Unmarshaler)(nil)).Elem()
-	unmarshalerAttrType = reflect.TypeOf((*UnmarshalerAttr)(nil)).Elem()
-	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	attrType            = reflect.TypeFor[Attr]()
+	unmarshalerType     = reflect.TypeFor[Unmarshaler]()
+	unmarshalerAttrType = reflect.TypeFor[UnmarshalerAttr]()
+	textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
 )
 
 const (

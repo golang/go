@@ -10,6 +10,11 @@ package cmp
 // that supports the operators < <= >= >.
 // If future releases of Go add new ordered types,
 // this constraint will be modified to include them.
+//
+// Note that floating-point types may contain NaN ("not-a-number") values.
+// An operator such as == or < will always report false when
+// comparing a NaN value with any other value, NaN or not.
+// See the [Compare] function for a consistent way to compare NaN values.
 type Ordered interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
 		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
@@ -51,4 +56,16 @@ func Compare[T Ordered](x, y T) int {
 // This will always return false if T is not floating-point.
 func isNaN[T Ordered](x T) bool {
 	return x != x
+}
+
+// Or returns the first of its arguments that is not equal to the zero value.
+// If no argument is non-zero, it returns the zero value.
+func Or[T comparable](vals ...T) T {
+	var zero T
+	for _, val := range vals {
+		if val != zero {
+			return val
+		}
+	}
+	return zero
 }

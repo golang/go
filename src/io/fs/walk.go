@@ -119,23 +119,10 @@ func WalkDir(fsys FS, root string, fn WalkDirFunc) error {
 	if err != nil {
 		err = fn(root, nil, err)
 	} else {
-		err = walkDir(fsys, root, &statDirEntry{info}, fn)
+		err = walkDir(fsys, root, FileInfoToDirEntry(info), fn)
 	}
 	if err == SkipDir || err == SkipAll {
 		return nil
 	}
 	return err
-}
-
-type statDirEntry struct {
-	info FileInfo
-}
-
-func (d *statDirEntry) Name() string            { return d.info.Name() }
-func (d *statDirEntry) IsDir() bool             { return d.info.IsDir() }
-func (d *statDirEntry) Type() FileMode          { return d.info.Mode().Type() }
-func (d *statDirEntry) Info() (FileInfo, error) { return d.info, nil }
-
-func (d *statDirEntry) String() string {
-	return FormatDirEntry(d)
 }

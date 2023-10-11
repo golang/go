@@ -426,11 +426,6 @@ func (p *pageAlloc) grow(base, size uintptr) {
 	// we need to ensure this newly-free memory is visible in the
 	// summaries.
 	p.update(base, size/pageSize, true, false)
-
-	// Mark all new memory as huge page eligible.
-	if !p.test {
-		sysHugePage(unsafe.Pointer(base), size)
-	}
 }
 
 // enableChunkHugePages enables huge pages for the chunk bitmap mappings (disabled by default).

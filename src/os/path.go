@@ -26,19 +26,25 @@ func MkdirAll(path string, perm FileMode) error {
 	}
 
 	// Slow path: make sure parent exists and then call Mkdir for path.
-	i := len(path)
-	for i > 0 && IsPathSeparator(path[i-1]) { // Skip trailing path separator.
+
+	// Extract the parent folder from path by first removing any trailing
+	// path separator and then scanning backward until finding a path
+	// separator or reaching the beginning of the string.
+	i := len(path) - 1
+	for i >= 0 && IsPathSeparator(path[i]) {
 		i--
 	}
-
-	j := i
-	for j > 0 && !IsPathSeparator(path[j-1]) { // Scan backward over element.
-		j--
+	for i >= 0 && !IsPathSeparator(path[i]) {
+		i--
+	}
+	if i < 0 {
+		i = 0
 	}
 
-	if j > 1 {
-		// Create parent.
-		err = MkdirAll(fixRootDirectory(path[:j-1]), perm)
+	// If there is a parent directory, and it is not the volume name,
+	// recurse to ensure parent directory exists.
+	if parent := path[:i]; len(parent) > len(volumeName(path)) {
+		err = MkdirAll(parent, perm)
 		if err != nil {
 			return err
 		}

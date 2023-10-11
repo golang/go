@@ -7,7 +7,6 @@ package ssa
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
-	"cmd/internal/src"
 	"container/heap"
 	"sort"
 )
@@ -65,10 +64,6 @@ func (h ValHeap) Less(i, j int) bool {
 	}
 
 	if x.Pos != y.Pos { // Favor in-order line stepping
-		if x.Block == x.Block.Func.Entry && x.Pos.IsStmt() != y.Pos.IsStmt() {
-			// In the entry block, put statement-marked instructions earlier.
-			return x.Pos.IsStmt() == src.PosIsStmt && y.Pos.IsStmt() != src.PosIsStmt
-		}
 		return x.Pos.Before(y.Pos)
 	}
 	if x.Op != OpPhi {
@@ -185,7 +180,7 @@ func schedule(f *Func) {
 				// Schedule flag register generation as late as possible.
 				// This makes sure that we only have one live flags
 				// value at a time.
-				// Note that this case is afer the case above, so values
+				// Note that this case is after the case above, so values
 				// which both read and generate flags are given ScoreReadFlags.
 				score[v.ID] = ScoreFlags
 			default:

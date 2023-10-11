@@ -198,9 +198,7 @@ func (s *Scanner) Scan() bool {
 			if newSize == 0 {
 				newSize = startBufSize
 			}
-			if newSize > s.maxTokenSize {
-				newSize = s.maxTokenSize
-			}
+			newSize = min(newSize, s.maxTokenSize)
 			newBuf := make([]byte, newSize)
 			copy(newBuf, s.buf[s.start:s.end])
 			s.buf = newBuf
@@ -255,10 +253,10 @@ func (s *Scanner) setErr(err error) {
 	}
 }
 
-// Buffer sets the initial buffer to use when scanning and the maximum
-// size of buffer that may be allocated during scanning. The maximum
-// token size is the larger of max and cap(buf). If max <= cap(buf),
-// Scan will use this buffer only and do no allocation.
+// Buffer sets the initial buffer to use when scanning
+// and the maximum size of buffer that may be allocated during scanning.
+// The maximum token size must be less than the larger of max and cap(buf).
+// If max <= cap(buf), Scan will use this buffer only and do no allocation.
 //
 // By default, Scan uses an internal buffer and sets the
 // maximum token size to MaxScanTokenSize.

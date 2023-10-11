@@ -222,7 +222,7 @@ type peLoaderState struct {
 var comdatDefinitions = make(map[string]int64)
 
 // Load loads the PE file pn from input.
-// Symbols from the object file are created via the loader 'l', and
+// Symbols from the object file are created via the loader 'l',
 // and a slice of the text symbols is returned.
 // If an .rsrc section or set of .rsrc$xx sections is found, its symbols are
 // returned as rsrc.

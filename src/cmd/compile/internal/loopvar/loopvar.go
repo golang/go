@@ -107,7 +107,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 				if base.LoopVarHash.MatchPos(n.Pos(), desc) {
 					// Rename the loop key, prefix body with assignment from loop key
 					transformed = append(transformed, VarAndLoop{n, x, lastPos})
-					tk := typecheck.Temp(n.Type())
+					tk := typecheck.TempAt(base.Pos, fn, n.Type())
 					tk.SetTypecheck(1)
 					as := ir.NewAssignStmt(x.Pos(), n, tk)
 					as.Def = true
@@ -298,7 +298,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 					for _, z := range leaked {
 						transformed = append(transformed, VarAndLoop{z, x, lastPos})
 
-						tz := typecheck.Temp(z.Type())
+						tz := typecheck.TempAt(base.Pos, fn, z.Type())
 						tz.SetTypecheck(1)
 						zPrimeForZ[z] = tz
 
@@ -355,26 +355,17 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 					})
 
 					postNotNil := x.Post != nil
-					var tmpFirstDcl *ir.AssignStmt
+					var tmpFirstDcl ir.Node
 					if postNotNil {
 						// body' = prebody +
 						// (6)     if tmp_first {tmp_first = false} else {Post} +
 						//         if !cond {break} + ...
-						tmpFirst := typecheck.Temp(types.Types[types.TBOOL])
-
-						// tmpFirstAssign assigns val to tmpFirst
-						tmpFirstAssign := func(val bool) *ir.AssignStmt {
-							s := ir.NewAssignStmt(x.Pos(), tmpFirst, typecheck.OrigBool(tmpFirst, val))
-							s.SetTypecheck(1)
-							return s
-						}
-
-						tmpFirstDcl = tmpFirstAssign(true)
-						tmpFirstDcl.Def = true // also declares tmpFirst
-						tmpFirstSetFalse := tmpFirstAssign(false)
+						tmpFirst := typecheck.TempAt(base.Pos, fn, types.Types[types.TBOOL])
+						tmpFirstDcl = typecheck.Stmt(ir.NewAssignStmt(x.Pos(), tmpFirst, ir.NewBool(base.Pos, true)))
+						tmpFirstSetFalse := typecheck.Stmt(ir.NewAssignStmt(x.Pos(), tmpFirst, ir.NewBool(base.Pos, false)))
 						ifTmpFirst := ir.NewIfStmt(x.Pos(), tmpFirst, ir.Nodes{tmpFirstSetFalse}, ir.Nodes{x.Post})
-						ifTmpFirst.SetTypecheck(1)
-						preBody.Append(ifTmpFirst)
+						ifTmpFirst.PtrInit().Append(typecheck.Stmt(ir.NewDecl(base.Pos, ir.ODCL, tmpFirst))) // declares tmpFirst
+						preBody.Append(typecheck.Stmt(ifTmpFirst))
 					}
 
 					// body' = prebody +
@@ -496,8 +487,6 @@ func rewriteNodes(fn *ir.Func, editNodes func(c ir.Nodes) ir.Nodes) {
 		switch x := n.(type) {
 		case *ir.Func:
 			x.Body = editNodes(x.Body)
-			x.Enter = editNodes(x.Enter)
-			x.Exit = editNodes(x.Exit)
 		case *ir.InlinedCallExpr:
 			x.Body = editNodes(x.Body)
 
@@ -605,7 +594,7 @@ func LogTransformations(transformed []VarAndLoop) {
 				// Intended to help with performance debugging, we record whole loop ranges
 				logopt.LogOptRange(pos, last, "loop-modified-"+loopKind, "loopvar", ir.FuncName(l.curfn))
 			}
-			if print && 3 <= base.Debug.LoopVar {
+			if print && 4 <= base.Debug.LoopVar {
 				// TODO decide if we want to keep this, or not.  It was helpful for validating logopt, otherwise, eh.
 				inner := base.Ctxt.InnermostPos(pos)
 				outer := base.Ctxt.OutermostPos(pos)

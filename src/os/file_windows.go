@@ -377,12 +377,6 @@ func normaliseLinkPath(path string) (string, error) {
 
 	// handle paths, like \??\Volume{abc}\...
 
-	err := windows.LoadGetFinalPathNameByHandle()
-	if err != nil {
-		// we must be using old version of Windows
-		return "", err
-	}
-
 	h, err := openSymlink(path)
 	if err != nil {
 		return "", err

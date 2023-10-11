@@ -99,8 +99,10 @@ func (h *header) init(recType recType, reqId uint16, contentLength int) {
 
 // conn sends records over rwc
 type conn struct {
-	mutex sync.Mutex
-	rwc   io.ReadWriteCloser
+	mutex    sync.Mutex
+	rwc      io.ReadWriteCloser
+	closeErr error
+	closed   bool
 
 	// to avoid allocations
 	buf bytes.Buffer
@@ -111,10 +113,15 @@ func newConn(rwc io.ReadWriteCloser) *conn {
 	return &conn{rwc: rwc}
 }
 
+// Close closes the conn if it is not already closed.
 func (c *conn) Close() error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	return c.rwc.Close()
+	if !c.closed {
+		c.closeErr = c.rwc.Close()
+		c.closed = true
+	}
+	return c.closeErr
 }
 
 type record struct {

@@ -10,13 +10,13 @@ import (
 
 // Type is the runtime representation of a Go type.
 //
-// Type is also referenced implicitly
-// (in the form of expressions involving constants and arch.PtrSize)
-// in cmd/compile/internal/reflectdata/reflect.go
-// and cmd/link/internal/ld/decodesym.go
-// (e.g. data[2*arch.PtrSize+4] references the TFlag field)
-// unsafe.OffsetOf(Type{}.TFlag) cannot be used directly in those
-// places because it varies with cross compilation and experiments.
+// Be careful about accessing this type at build time, as the version
+// of this type in the compiler/linker may not have the same layout
+// as the version in the target binary, due to pointer width
+// differences and any experiments. Use cmd/compile/internal/rttype
+// or the functions in compiletype.go to access this type instead.
+// (TODO: this admonition applies to every type in this package.
+// Put it in some shared location?)
 type Type struct {
 	Size_       uintptr
 	PtrBytes    uintptr // number of (prefix) bytes in the type that can contain pointers
@@ -179,7 +179,7 @@ func (t *Type) IsDirectIface() bool {
 }
 
 func (t *Type) GcSlice(begin, end uintptr) []byte {
-	return unsafeSliceFor(t.GCData, int(end))[begin:]
+	return unsafe.Slice(t.GCData, int(end))[begin:]
 }
 
 // Method on non-interface type
@@ -660,7 +660,7 @@ func (n Name) Name() string {
 		return ""
 	}
 	i, l := n.ReadVarint(1)
-	return unsafeStringFor(n.DataChecked(1+i, "non-empty string"), l)
+	return unsafe.String(n.DataChecked(1+i, "non-empty string"), l)
 }
 
 // Tag returns the tag string for n, or empty if there is none.
@@ -670,7 +670,7 @@ func (n Name) Tag() string {
 	}
 	i, l := n.ReadVarint(1)
 	i2, l2 := n.ReadVarint(1 + i + l)
-	return unsafeStringFor(n.DataChecked(1+i+l+i2, "non-empty string"), l2)
+	return unsafe.String(n.DataChecked(1+i+l+i2, "non-empty string"), l2)
 }
 
 func NewName(n, tag string, exported, embedded bool) Name {

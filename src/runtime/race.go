@@ -172,7 +172,7 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
 	pc := ctx.pc
 	fi := findfunc(pc)
 	if fi.valid() {
-		u, uf := newInlineUnwinder(fi, pc, nil)
+		u, uf := newInlineUnwinder(fi, pc)
 		for ; uf.valid(); uf = u.next(uf) {
 			sf := u.srcFunc(uf)
 			if sf.funcID == abi.FuncIDWrapper && u.isInlined(uf) {

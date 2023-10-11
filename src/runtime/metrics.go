@@ -72,7 +72,7 @@ func initMetrics() {
 		// and exclusive lower bound (e.g. 48-byte size class is
 		// (32, 48]) whereas we want and inclusive lower-bound
 		// and exclusive upper-bound (e.g. 48-byte size class is
-		// [33, 49). We can achieve this by shifting all bucket
+		// [33, 49)). We can achieve this by shifting all bucket
 		// boundaries up by 1.
 		//
 		// Also, a float64 can precisely represent integers with
@@ -190,24 +190,28 @@ func initMetrics() {
 			},
 		},
 		"/gc/scan/globals:bytes": {
+			deps: makeStatDepSet(gcStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
 				out.scalar = in.gcStats.globalsScan
 			},
 		},
 		"/gc/scan/heap:bytes": {
+			deps: makeStatDepSet(gcStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
 				out.scalar = in.gcStats.heapScan
 			},
 		},
 		"/gc/scan/stack:bytes": {
+			deps: makeStatDepSet(gcStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
 				out.scalar = in.gcStats.stackScan
 			},
 		},
 		"/gc/scan/total:bytes": {
+			deps: makeStatDepSet(gcStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
 				out.scalar = in.gcStats.totalScan
@@ -217,11 +221,11 @@ func initMetrics() {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(sizeClassBuckets)
-				hist.counts[len(hist.counts)-1] = uint64(in.heapStats.largeAllocCount)
+				hist.counts[len(hist.counts)-1] = in.heapStats.largeAllocCount
 				// Cut off the first index which is ostensibly for size class 0,
 				// but large objects are tracked separately so it's actually unused.
 				for i, count := range in.heapStats.smallAllocCount[1:] {
-					hist.counts[i] = uint64(count)
+					hist.counts[i] = count
 				}
 			},
 		},
@@ -243,11 +247,11 @@ func initMetrics() {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(sizeClassBuckets)
-				hist.counts[len(hist.counts)-1] = uint64(in.heapStats.largeFreeCount)
+				hist.counts[len(hist.counts)-1] = in.heapStats.largeFreeCount
 				// Cut off the first index which is ostensibly for size class 0,
 				// but large objects are tracked separately so it's actually unused.
 				for i, count := range in.heapStats.smallFreeCount[1:] {
-					hist.counts[i] = uint64(count)
+					hist.counts[i] = count
 				}
 			},
 		},
@@ -302,7 +306,7 @@ func initMetrics() {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.heapStats.tinyAllocCount)
+				out.scalar = in.heapStats.tinyAllocCount
 			},
 		},
 		"/gc/limiter/last-enabled:gc-cycle": {
@@ -660,14 +664,14 @@ type cpuStatsAggregate struct {
 // compute populates the cpuStatsAggregate with values from the runtime.
 func (a *cpuStatsAggregate) compute() {
 	a.cpuStats = work.cpuStats
-	// TODO(mknyszek): Update the the CPU stats again so that we're not
+	// TODO(mknyszek): Update the CPU stats again so that we're not
 	// just relying on the STW snapshot. The issue here is that currently
 	// this will cause non-monotonicity in the "user" CPU time metric.
 	//
 	// a.cpuStats.accumulate(nanotime(), gcphase == _GCmark)
 }
 
-// cpuStatsAggregate represents various GC stats obtained from the runtime
+// gcStatsAggregate represents various GC stats obtained from the runtime
 // acquired together to avoid skew and inconsistencies.
 type gcStatsAggregate struct {
 	heapScan    uint64
@@ -679,7 +683,7 @@ type gcStatsAggregate struct {
 // compute populates the gcStatsAggregate with values from the runtime.
 func (a *gcStatsAggregate) compute() {
 	a.heapScan = gcController.heapScan.Load()
-	a.stackScan = uint64(gcController.lastStackScan.Load())
+	a.stackScan = gcController.lastStackScan.Load()
 	a.globalsScan = gcController.globalsScan.Load()
 	a.totalScan = a.heapScan + a.stackScan + a.globalsScan
 }

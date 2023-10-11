@@ -51,6 +51,7 @@ func TestIntendedInlining(t *testing.T) {
 			"getMCache",
 			"isDirectIface",
 			"itabHashFunc",
+			"nextslicecap",
 			"noescape",
 			"pcvalueCacheKey",
 			"readUnaligned32",
@@ -106,6 +107,9 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Buffer).String",
 			"(*Buffer).UnreadByte",
 			"(*Buffer).tryGrowByReslice",
+		},
+		"internal/abi": {
+			"UseInterfaceSwitchCache",
 		},
 		"compress/flate": {
 			"byLiteral.Len",

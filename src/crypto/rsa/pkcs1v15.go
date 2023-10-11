@@ -31,7 +31,10 @@ type PKCS1v15DecryptOptions struct {
 //
 // The random parameter is used as a source of entropy to ensure that
 // encrypting the same message twice doesn't result in the same
-// ciphertext.
+// ciphertext. Most applications should use [crypto/rand.Reader]
+// as random. Note that the returned ciphertext does not depend
+// deterministically on the bytes read from random, and may change
+// between calls and/or between versions.
 //
 // WARNING: use of this function to encrypt plaintexts other than
 // session keys is dangerous. Use RSA OAEP in new protocols.
@@ -79,7 +82,7 @@ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, erro
 }
 
 // DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS #1 v1.5.
-// The random parameter is legacy and ignored, and it can be as nil.
+// The random parameter is legacy and ignored, and it can be nil.
 //
 // Note that whether this function returns an error or not discloses secret
 // information. If an attacker can cause this function to run repeatedly and
@@ -275,7 +278,7 @@ var hashPrefixes = map[crypto.Hash][]byte{
 // function. If hash is zero, hashed is signed directly. This isn't
 // advisable except for interoperability.
 //
-// The random parameter is legacy and ignored, and it can be as nil.
+// The random parameter is legacy and ignored, and it can be nil.
 //
 // This function is deterministic. Thus, if the set of possible
 // messages is small, an attacker may be able to build a map from

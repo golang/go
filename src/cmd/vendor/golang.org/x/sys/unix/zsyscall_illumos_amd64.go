@@ -40,7 +40,7 @@ func readv(fd int, iovs []Iovec) (n int, err error) {
 	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procreadv)), 3, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(iovs)), 0, 0, 0)
 	n = int(r0)
 	if e1 != 0 {
-		err = e1
+		err = errnoErr(e1)
 	}
 	return
 }
@@ -55,7 +55,7 @@ func preadv(fd int, iovs []Iovec, off int64) (n int, err error) {
 	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procpreadv)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(iovs)), uintptr(off), 0, 0)
 	n = int(r0)
 	if e1 != 0 {
-		err = e1
+		err = errnoErr(e1)
 	}
 	return
 }
@@ -70,7 +70,7 @@ func writev(fd int, iovs []Iovec) (n int, err error) {
 	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procwritev)), 3, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(iovs)), 0, 0, 0)
 	n = int(r0)
 	if e1 != 0 {
-		err = e1
+		err = errnoErr(e1)
 	}
 	return
 }
@@ -85,7 +85,7 @@ func pwritev(fd int, iovs []Iovec, off int64) (n int, err error) {
 	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procpwritev)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(iovs)), uintptr(off), 0, 0)
 	n = int(r0)
 	if e1 != 0 {
-		err = e1
+		err = errnoErr(e1)
 	}
 	return
 }
@@ -96,7 +96,7 @@ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, 
 	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procaccept4)), 4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
 	fd = int(r0)
 	if e1 != 0 {
-		err = e1
+		err = errnoErr(e1)
 	}
 	return
 }

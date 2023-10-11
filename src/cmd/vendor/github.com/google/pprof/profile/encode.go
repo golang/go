@@ -258,10 +258,10 @@ func (p *Profile) postDecode() error {
 		// If this a main linux kernel mapping with a relocation symbol suffix
 		// ("[kernel.kallsyms]_text"), extract said suffix.
 		// It is fairly hacky to handle at this level, but the alternatives appear even worse.
-		if strings.HasPrefix(m.File, "[kernel.kallsyms]") {
-			m.KernelRelocationSymbol = strings.ReplaceAll(m.File, "[kernel.kallsyms]", "")
+		const prefix = "[kernel.kallsyms]"
+		if strings.HasPrefix(m.File, prefix) {
+			m.KernelRelocationSymbol = m.File[len(prefix):]
 		}
-
 	}
 
 	functions := make(map[uint64]*Function, len(p.Function))

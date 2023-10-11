@@ -55,11 +55,11 @@ func readCOFFSymbols(fh *FileHeader, r io.ReadSeeker) ([]COFFSymbol, error) {
 	if fh.NumberOfSymbols <= 0 {
 		return nil, nil
 	}
-	_, err := r.Seek(int64(fh.PointerToSymbolTable), seekStart)
+	_, err := r.Seek(int64(fh.PointerToSymbolTable), io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("fail to seek to symbol table: %v", err)
 	}
-	c := saferio.SliceCap((*COFFSymbol)(nil), uint64(fh.NumberOfSymbols))
+	c := saferio.SliceCap[COFFSymbol](uint64(fh.NumberOfSymbols))
 	if c < 0 {
 		return nil, errors.New("too many symbols; file may be corrupt")
 	}

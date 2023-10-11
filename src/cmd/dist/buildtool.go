@@ -63,6 +63,7 @@ var bootstrapDirs = []string{
 	"go/constant",
 	"internal/abi",
 	"internal/coverage",
+	"cmd/internal/cov/covcmd",
 	"internal/bisect",
 	"internal/buildcfg",
 	"internal/goarch",
@@ -70,6 +71,11 @@ var bootstrapDirs = []string{
 	"internal/goexperiment",
 	"internal/goroot",
 	"internal/goversion",
+	// internal/lazyregexp is provided by Go 1.17, which permits it to
+	// be imported by other packages in this list, but is not provided
+	// by the Go 1.17 version of gccgo. It's on this list only to
+	// support gccgo, and can be removed if we require gccgo 14 or later.
+	"internal/lazyregexp",
 	"internal/pkgbits",
 	"internal/platform",
 	"internal/profile",
@@ -80,10 +86,8 @@ var bootstrapDirs = []string{
 	"internal/unsafeheader",
 	"internal/xcoff",
 	"internal/zstd",
-	"math/big",
 	"math/bits",
 	"sort",
-	"strconv",
 }
 
 // File prefixes that are ignored by go/build anyway, and cause
@@ -126,7 +130,6 @@ func bootstrapBuildTools() {
 
 	mkbuildcfg(pathf("%s/src/internal/buildcfg/zbootstrap.go", goroot))
 	mkobjabi(pathf("%s/src/cmd/internal/objabi/zbootstrap.go", goroot))
-	mkzosarch("", pathf("%s/src/internal/platform/zosarch.go", goroot))
 
 	// Use $GOROOT/pkg/bootstrap as the bootstrap workspace root.
 	// We use a subdirectory of $GOROOT/pkg because that's the

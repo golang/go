@@ -13,19 +13,12 @@ func secure() {
 		return
 	}
 
-	// When secure mode is enabled, we do two things:
-	//   1. ensure the file descriptors 0, 1, and 2 are open, and if not open them,
-	//      pointing at /dev/null (or fail)
-	//   2. enforce specific environment variable values (currently we only force
-	//		GOTRACEBACK=none)
+	// When secure mode is enabled, we do one thing: enforce specific
+	// environment variable values (currently we only force GOTRACEBACK=none)
 	//
 	// Other packages may also disable specific functionality when secure mode
 	// is enabled (determined by using linkname to call isSecureMode).
-	//
-	// NOTE: we may eventually want to enforce (1) regardless of whether secure
-	// mode is enabled or not.
 
-	secureFDs()
 	secureEnv()
 }
 
@@ -39,34 +32,5 @@ func secureEnv() {
 	}
 	if !hasTraceback {
 		envs = append(envs, "GOTRACEBACK=none")
-	}
-}
-
-func secureFDs() {
-	const (
-		// F_GETFD and EBADF are standard across all unixes, define
-		// them here rather than in each of the OS specific files
-		F_GETFD = 0x01
-		EBADF   = 0x09
-	)
-
-	devNull := []byte("/dev/null\x00")
-	for i := 0; i < 3; i++ {
-		ret, errno := fcntl(int32(i), F_GETFD, 0)
-		if ret >= 0 {
-			continue
-		}
-		if errno != EBADF {
-			print("runtime: unexpected error while checking standard file descriptor ", i, ", errno=", errno, "\n")
-			throw("cannot secure fds")
-		}
-
-		if ret := open(&devNull[0], 2 /* O_RDWR */, 0); ret < 0 {
-			print("runtime: standard file descriptor ", i, " closed, unable to open /dev/null, errno=", errno, "\n")
-			throw("cannot secure fds")
-		} else if ret != int32(i) {
-			print("runtime: opened unexpected file descriptor ", ret, " when attempting to open ", i, "\n")
-			throw("cannot secure fds")
-		}
 	}
 }

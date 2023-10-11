@@ -64,7 +64,7 @@ var (
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam", "typeparam/mdempsky"}
+	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam", "typeparam/mdempsky", "arenas"}
 )
 
 // Test is the main entrypoint that runs tests in the GOROOT/test directory.
@@ -115,6 +115,15 @@ func Test(t *testing.T) {
 	common := testCommon{
 		gorootTestDir: filepath.Join(testenv.GOROOT(t), "test"),
 		runoutputGate: make(chan bool, *runoutputLimit),
+	}
+
+	// cmd/distpack deletes GOROOT/test, so skip the test if it isn't present.
+	// cmd/distpack also requires GOROOT/VERSION to exist, so use that to
+	// suppress false-positive skips.
+	if _, err := os.Stat(common.gorootTestDir); os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(testenv.GOROOT(t), "VERSION")); err == nil {
+			t.Skipf("skipping: GOROOT/test not present")
+		}
 	}
 
 	for _, dir := range dirs {
@@ -201,7 +210,7 @@ func compileInDir(runcmd runCmd, dir string, flags []string, importcfg string, p
 	return runcmd(cmd...)
 }
 
-var stdlibImportcfgStringOnce sync.Once // TODO(#56102): Use sync.OnceValue once availabe. Also below.
+var stdlibImportcfgStringOnce sync.Once // TODO(#56102): Use sync.OnceValue once available. Also below.
 var stdlibImportcfgString string
 
 func stdlibImportcfg() string {
@@ -468,16 +477,20 @@ func (t test) run() error {
 	}
 	src := string(srcBytes)
 
-	// Execution recipe stops at first blank line.
-	action, _, ok := strings.Cut(src, "\n\n")
-	if !ok {
-		t.Fatalf("double newline ending execution recipe not found in GOROOT/test/%s", t.goFileName())
+	// Execution recipe is contained in a comment in
+	// the first non-empty line that is not a build constraint.
+	var action string
+	for actionSrc := src; action == "" && actionSrc != ""; {
+		var line string
+		line, actionSrc, _ = strings.Cut(actionSrc, "\n")
+		if constraint.IsGoBuild(line) || constraint.IsPlusBuild(line) {
+			continue
+		}
+		action = strings.TrimSpace(strings.TrimPrefix(line, "//"))
 	}
-	if firstLine, rest, ok := strings.Cut(action, "\n"); ok && strings.Contains(firstLine, "+build") {
-		// skip first line
-		action = rest
+	if action == "" {
+		t.Fatalf("execution recipe not found in GOROOT/test/%s", t.goFileName())
 	}
-	action = strings.TrimPrefix(action, "//")
 
 	// Check for build constraints only up to the actual code.
 	header, _, ok := strings.Cut(src, "\npackage")

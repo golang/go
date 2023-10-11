@@ -351,6 +351,26 @@ func TestSizeStructCache(t *testing.T) {
 	}
 }
 
+func TestSizeInvalid(t *testing.T) {
+	testcases := []any{
+		int(0),
+		new(int),
+		(*int)(nil),
+		[1]uint{},
+		new([1]uint),
+		(*[1]uint)(nil),
+		[]int{},
+		[]int(nil),
+		new([]int),
+		(*[]int)(nil),
+	}
+	for _, tc := range testcases {
+		if got := Size(tc); got != -1 {
+			t.Errorf("Size(%T) = %d, want -1", tc, got)
+		}
+	}
+}
+
 // An attempt to read into a struct with an unexported field will
 // panic. This is probably not the best choice, but at this point
 // anything else would be an API change.

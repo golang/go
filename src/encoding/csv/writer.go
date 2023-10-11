@@ -14,19 +14,21 @@ import (
 
 // A Writer writes records using CSV encoding.
 //
-// As returned by NewWriter, a Writer writes records terminated by a
+// As returned by [NewWriter], a Writer writes records terminated by a
 // newline and uses ',' as the field delimiter. The exported fields can be
-// changed to customize the details before the first call to Write or WriteAll.
+// changed to customize the details before
+// the first call to [Writer.Write] or [Writer.WriteAll].
 //
-// Comma is the field delimiter.
+// [Writer.Comma] is the field delimiter.
 //
-// If UseCRLF is true, the Writer ends each output line with \r\n instead of \n.
+// If [Writer.UseCRLF] is true,
+// the Writer ends each output line with \r\n instead of \n.
 //
 // The writes of individual records are buffered.
 // After all data has been written, the client should call the
-// Flush method to guarantee all data has been forwarded to
-// the underlying io.Writer.  Any errors that occurred should
-// be checked by calling the Error method.
+// [Writer.Flush] method to guarantee all data has been forwarded to
+// the underlying [io.Writer].  Any errors that occurred should
+// be checked by calling the [Writer.Error] method.
 type Writer struct {
 	Comma   rune // Field delimiter (set to ',' by NewWriter)
 	UseCRLF bool // True to use \r\n as the line terminator
@@ -43,8 +45,8 @@ func NewWriter(w io.Writer) *Writer {
 
 // Write writes a single CSV record to w along with any necessary quoting.
 // A record is a slice of strings with each string being one field.
-// Writes are buffered, so Flush must eventually be called to ensure
-// that the record is written to the underlying io.Writer.
+// Writes are buffered, so [Writer.Flush] must eventually be called to ensure
+// that the record is written to the underlying [io.Writer].
 func (w *Writer) Write(record []string) error {
 	if !validDelim(w.Comma) {
 		return errInvalidDelim
@@ -118,20 +120,21 @@ func (w *Writer) Write(record []string) error {
 	return err
 }
 
-// Flush writes any buffered data to the underlying io.Writer.
-// To check if an error occurred during the Flush, call Error.
+// Flush writes any buffered data to the underlying [io.Writer].
+// To check if an error occurred during Flush, call [Writer.Error].
 func (w *Writer) Flush() {
 	w.w.Flush()
 }
 
-// Error reports any error that has occurred during a previous Write or Flush.
+// Error reports any error that has occurred during
+// a previous [Writer.Write] or [Writer.Flush].
 func (w *Writer) Error() error {
 	_, err := w.w.Write(nil)
 	return err
 }
 
-// WriteAll writes multiple CSV records to w using Write and then calls Flush,
-// returning any error from the Flush.
+// WriteAll writes multiple CSV records to w using [Writer.Write] and
+// then calls [Writer.Flush], returning any error from the Flush.
 func (w *Writer) WriteAll(records [][]string) error {
 	for _, record := range records {
 		err := w.Write(record)

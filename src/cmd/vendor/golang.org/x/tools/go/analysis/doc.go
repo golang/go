@@ -191,7 +191,7 @@ and buildtag, inspect the raw text of Go source files or even non-Go
 files such as assembly. To report a diagnostic against a line of a
 raw text file, use the following sequence:
 
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil { ... }
 	tf := fset.AddFile(filename, -1, len(content))
 	tf.SetLinesForContent(content)

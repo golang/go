@@ -549,6 +549,58 @@ func issetugid() int32 {
 }
 func issetugid_trampoline()
 
+// mach_vm_region is used to obtain virtual memory mappings for use by the
+// profiling system and is only exported to runtime/pprof. It is restricted
+// to obtaining mappings for the current process.
+//
+//go:linkname mach_vm_region runtime/pprof.mach_vm_region
+func mach_vm_region(address, region_size *uint64, info unsafe.Pointer) int32 {
+	// kern_return_t mach_vm_region(
+	// 	vm_map_read_t target_task,
+	// 	mach_vm_address_t *address,
+	// 	mach_vm_size_t *size,
+	// 	vm_region_flavor_t flavor,
+	// 	vm_region_info_t info,
+	// 	mach_msg_type_number_t *infoCnt,
+	// 	mach_port_t *object_name);
+	var count machMsgTypeNumber = _VM_REGION_BASIC_INFO_COUNT_64
+	var object_name machPort
+	args := struct {
+		address     *uint64
+		size        *uint64
+		flavor      machVMRegionFlavour
+		info        unsafe.Pointer
+		count       *machMsgTypeNumber
+		object_name *machPort
+	}{
+		address:     address,
+		size:        region_size,
+		flavor:      _VM_REGION_BASIC_INFO_64,
+		info:        info,
+		count:       &count,
+		object_name: &object_name,
+	}
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(mach_vm_region_trampoline)), unsafe.Pointer(&args))
+}
+func mach_vm_region_trampoline()
+
+//go:linkname proc_regionfilename runtime/pprof.proc_regionfilename
+func proc_regionfilename(pid int, address uint64, buf *byte, buflen int64) int32 {
+	args := struct {
+		pid     int
+		address uint64
+		buf     *byte
+		bufSize int64
+	}{
+		pid:     pid,
+		address: address,
+		buf:     buf,
+		bufSize: buflen,
+	}
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(proc_regionfilename_trampoline)), unsafe.Pointer(&args))
+}
+func proc_regionfilename_trampoline()
+
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
 
@@ -574,6 +626,9 @@ func issetugid_trampoline()
 //go:cgo_import_dynamic libc_error __error "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_usleep usleep "/usr/lib/libSystem.B.dylib"
 
+//go:cgo_import_dynamic libc_proc_regionfilename proc_regionfilename "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_mach_task_self_ mach_task_self_ "/usr/lib/libSystem.B.dylib""
+//go:cgo_import_dynamic libc_mach_vm_region mach_vm_region "/usr/lib/libSystem.B.dylib""
 //go:cgo_import_dynamic libc_mach_timebase_info mach_timebase_info "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_mach_absolute_time mach_absolute_time "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_clock_gettime clock_gettime "/usr/lib/libSystem.B.dylib"

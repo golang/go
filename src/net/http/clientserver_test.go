@@ -1172,16 +1172,12 @@ func testTransportGCRequest(t *testing.T, mode testMode, body bool) {
 			t.Fatal(err)
 		}
 	})()
-	timeout := time.NewTimer(5 * time.Second)
-	defer timeout.Stop()
 	for {
 		select {
 		case <-didGC:
 			return
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(1 * time.Millisecond):
 			runtime.GC()
-		case <-timeout.C:
-			t.Fatal("never saw GC of request")
 		}
 	}
 }

@@ -70,6 +70,7 @@ const (
 	EntryPkgDef EntryType = iota
 	EntryGoObj
 	EntryNativeObj
+	EntrySentinelNonObj
 )
 
 func (e *Entry) String() string {
@@ -357,6 +358,23 @@ func (r *objReader) parseArchive(verbose bool) error {
 				Data:  Data{r.offset, size},
 			})
 			r.skip(size)
+		case "preferlinkext", "dynimportfail":
+			if size == 0 {
+				// These are not actual objects, but rather sentinel
+				// entries put into the archive by the Go command to
+				// be read by the linker. See #62036.
+				r.a.Entries = append(r.a.Entries, Entry{
+					Name:  name,
+					Type:  EntrySentinelNonObj,
+					Mtime: mtime,
+					Uid:   uid,
+					Gid:   gid,
+					Mode:  mode,
+					Data:  Data{r.offset, size},
+				})
+				break
+			}
+			fallthrough
 		default:
 			var typ EntryType
 			var o *GoObj

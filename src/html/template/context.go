@@ -17,14 +17,16 @@ import (
 // https://www.w3.org/TR/html5/syntax.html#the-end
 // where the context element is null.
 type context struct {
-	state   state
-	delim   delim
-	urlPart urlPart
-	jsCtx   jsCtx
-	attr    attr
-	element element
-	n       parse.Node // for range break/continue
-	err     *Error
+	state           state
+	delim           delim
+	urlPart         urlPart
+	jsCtx           jsCtx
+	jsTmplExprDepth int
+	jsBraceDepth    int
+	attr            attr
+	element         element
+	n               parse.Node // for range break/continue
+	err             *Error
 }
 
 func (c context) String() string {
@@ -120,14 +122,18 @@ const (
 	stateJSDqStr
 	// stateJSSqStr occurs inside a JavaScript single quoted string.
 	stateJSSqStr
-	// stateJSBqStr occurs inside a JavaScript back quoted string.
-	stateJSBqStr
+	// stateJSTmplLit occurs inside a JavaScript back quoted string.
+	stateJSTmplLit
 	// stateJSRegexp occurs inside a JavaScript regexp literal.
 	stateJSRegexp
 	// stateJSBlockCmt occurs inside a JavaScript /* block comment */.
 	stateJSBlockCmt
 	// stateJSLineCmt occurs inside a JavaScript // line comment.
 	stateJSLineCmt
+	// stateJSHTMLOpenCmt occurs inside a JavaScript <!-- HTML-like comment.
+	stateJSHTMLOpenCmt
+	// stateJSHTMLCloseCmt occurs inside a JavaScript --> HTML-like comment.
+	stateJSHTMLCloseCmt
 	// stateCSS occurs inside a <style> element or style attribute.
 	stateCSS
 	// stateCSSDqStr occurs inside a CSS double quoted string.
@@ -155,7 +161,7 @@ const (
 // authors & maintainers, not for end-users or machines.
 func isComment(s state) bool {
 	switch s {
-	case stateHTMLCmt, stateJSBlockCmt, stateJSLineCmt, stateCSSBlockCmt, stateCSSLineCmt:
+	case stateHTMLCmt, stateJSBlockCmt, stateJSLineCmt, stateJSHTMLOpenCmt, stateJSHTMLCloseCmt, stateCSSBlockCmt, stateCSSLineCmt:
 		return true
 	}
 	return false
@@ -165,6 +171,20 @@ func isComment(s state) bool {
 func isInTag(s state) bool {
 	switch s {
 	case stateTag, stateAttrName, stateAfterName, stateBeforeValue, stateAttr:
+		return true
+	}
+	return false
+}
+
+// isInScriptLiteral returns true if s is one of the literal states within a
+// <script> tag, and as such occurrences of "<!--", "<script", and "</script"
+// need to be treated specially.
+func isInScriptLiteral(s state) bool {
+	// Ignore the comment states (stateJSBlockCmt, stateJSLineCmt,
+	// stateJSHTMLOpenCmt, stateJSHTMLCloseCmt) because their content is already
+	// omitted from the output.
+	switch s {
+	case stateJSDqStr, stateJSSqStr, stateJSTmplLit, stateJSRegexp:
 		return true
 	}
 	return false

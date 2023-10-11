@@ -41,20 +41,19 @@ import (
 // When following redirects, the Client will forward all headers set on the
 // initial Request except:
 //
-// • when forwarding sensitive headers like "Authorization",
-// "WWW-Authenticate", and "Cookie" to untrusted targets.
-// These headers will be ignored when following a redirect to a domain
-// that is not a subdomain match or exact match of the initial domain.
-// For example, a redirect from "foo.com" to either "foo.com" or "sub.foo.com"
-// will forward the sensitive headers, but a redirect to "bar.com" will not.
-//
-// • when forwarding the "Cookie" header with a non-nil cookie Jar.
-// Since each redirect may mutate the state of the cookie jar,
-// a redirect may possibly alter a cookie set in the initial request.
-// When forwarding the "Cookie" header, any mutated cookies will be omitted,
-// with the expectation that the Jar will insert those mutated cookies
-// with the updated values (assuming the origin matches).
-// If Jar is nil, the initial cookies are forwarded without change.
+//   - when forwarding sensitive headers like "Authorization",
+//     "WWW-Authenticate", and "Cookie" to untrusted targets.
+//     These headers will be ignored when following a redirect to a domain
+//     that is not a subdomain match or exact match of the initial domain.
+//     For example, a redirect from "foo.com" to either "foo.com" or "sub.foo.com"
+//     will forward the sensitive headers, but a redirect to "bar.com" will not.
+//   - when forwarding the "Cookie" header with a non-nil cookie Jar.
+//     Since each redirect may mutate the state of the cookie jar,
+//     a redirect may possibly alter a cookie set in the initial request.
+//     When forwarding the "Cookie" header, any mutated cookies will be omitted,
+//     with the expectation that the Jar will insert those mutated cookies
+//     with the updated values (assuming the origin matches).
+//     If Jar is nil, the initial cookies are forwarded without change.
 type Client struct {
 	// Transport specifies the mechanism by which individual
 	// HTTP requests are made.
@@ -566,7 +565,8 @@ func urlErrorOp(method string) string {
 // connection to the server for a subsequent "keep-alive" request.
 //
 // The request Body, if non-nil, will be closed by the underlying
-// Transport, even on errors.
+// Transport, even on errors. The Body may be closed asynchronously after
+// Do returns.
 //
 // On error, any Response can be ignored. A non-nil Response with a
 // non-nil error only occurs when CheckRedirect fails, and even then

@@ -497,14 +497,14 @@ func TestIssue43088(t *testing.T) {
 	//                 _ T2
 	//         }
 	// }
-	n1 := NewTypeName(syntax.Pos{}, nil, "T1", nil)
+	n1 := NewTypeName(nopos, nil, "T1", nil)
 	T1 := NewNamed(n1, nil, nil)
-	n2 := NewTypeName(syntax.Pos{}, nil, "T2", nil)
+	n2 := NewTypeName(nopos, nil, "T2", nil)
 	T2 := NewNamed(n2, nil, nil)
-	s1 := NewStruct([]*Var{NewField(syntax.Pos{}, nil, "_", T2, false)}, nil)
+	s1 := NewStruct([]*Var{NewField(nopos, nil, "_", T2, false)}, nil)
 	T1.SetUnderlying(s1)
-	s2 := NewStruct([]*Var{NewField(syntax.Pos{}, nil, "_", T2, false)}, nil)
-	s3 := NewStruct([]*Var{NewField(syntax.Pos{}, nil, "_", s2, false)}, nil)
+	s2 := NewStruct([]*Var{NewField(nopos, nil, "_", T2, false)}, nil)
+	s3 := NewStruct([]*Var{NewField(nopos, nil, "_", s2, false)}, nil)
 	T2.SetUnderlying(s3)
 
 	// These calls must terminate (no endless recursion).
@@ -535,38 +535,69 @@ func TestIssue44515(t *testing.T) {
 }
 
 func TestIssue43124(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
+	// TODO(rFindley) move this to testdata by enhancing support for importing.
+
+	testenv.MustHaveGoBuild(t) // The go command is needed for the importer to determine the locations of stdlib .a files.
 
 	// All involved packages have the same name (template). Error messages should
 	// disambiguate between text/template and html/template by printing the full
 	// path.
 	const (
 		asrc = `package a; import "text/template"; func F(template.Template) {}; func G(int) {}`
-		bsrc = `package b; import ("a"; "html/template"); func _() { a.F(template.Template{}) }`
-		csrc = `package c; import ("a"; "html/template"); func _() { a.G(template.Template{}) }`
+		bsrc = `
+package b
+
+import (
+	"a"
+	"html/template"
+)
+
+func _() {
+	// Packages should be fully qualified when there is ambiguity within the
+	// error string itself.
+	a.F(template /* ERRORx "cannot use.*html/template.* as .*text/template" */ .Template{})
+}
+`
+		csrc = `
+package c
+
+import (
+	"a"
+	"fmt"
+	"html/template"
+)
+
+// go.dev/issue/46905: make sure template is not the first package qualified.
+var _ fmt.Stringer = 1 // ERRORx "cannot use 1.*as fmt\\.Stringer"
+
+// Packages should be fully qualified when there is ambiguity in reachable
+// packages. In this case both a (and for that matter html/template) import
+// text/template.
+func _() { a.G(template /* ERRORx "cannot use .*html/template.*Template" */ .Template{}) }
+`
+
+		tsrc = `
+package template
+
+import "text/template"
+
+type T int
+
+// Verify that the current package name also causes disambiguation.
+var _ T = template /* ERRORx "cannot use.*text/template.* as T value" */.Template{}
+`
 	)
 
 	a := mustTypecheck(asrc, nil, nil)
-	conf := Config{Importer: importHelper{pkg: a, fallback: defaultImporter()}}
+	imp := importHelper{pkg: a, fallback: defaultImporter()}
 
-	// Packages should be fully qualified when there is ambiguity within the
-	// error string itself.
-	_, err := typecheck(bsrc, &conf, nil)
-	if err == nil {
-		t.Fatal("package b had no errors")
-	}
-	if !strings.Contains(err.Error(), "text/template") || !strings.Contains(err.Error(), "html/template") {
-		t.Errorf("type checking error for b does not disambiguate package template: %q", err)
+	withImporter := func(cfg *Config) {
+		cfg.Importer = imp
 	}
 
-	// ...and also when there is any ambiguity in reachable packages.
-	_, err = typecheck(csrc, &conf, nil)
-	if err == nil {
-		t.Fatal("package c had no errors")
-	}
-	if !strings.Contains(err.Error(), "html/template") {
-		t.Errorf("type checking error for c does not disambiguate package template: %q", err)
-	}
+	testFiles(t, []string{"b.go"}, [][]byte{[]byte(bsrc)}, 0, false, withImporter)
+	testFiles(t, []string{"c.go"}, [][]byte{[]byte(csrc)}, 0, false, withImporter)
+	testFiles(t, []string{"t.go"}, [][]byte{[]byte(tsrc)}, 0, false, withImporter)
 }
 
 func TestIssue50646(t *testing.T) {
@@ -868,4 +899,84 @@ func _cgoCheckResult(interface{})
 	testFiles(t, []string{"p.go", "_cgo_gotypes.go"}, [][]byte{[]byte(src), []byte(cgoTypes)}, 0, false, func(cfg *Config) {
 		*boolFieldAddr(cfg, "go115UsesCgo") = true
 	})
+}
+
+func TestIssue61931(t *testing.T) {
+	const src = `
+package p
+
+func A(func(any), ...any) {}
+func B[T any](T)          {}
+
+func _() {
+	A(B, nil // syntax error: missing ',' before newline in argument list
+}
+`
+	f, err := syntax.Parse(syntax.NewFileBase(pkgName(src)), strings.NewReader(src), func(error) {}, nil, 0)
+	if err == nil {
+		t.Fatal("expected syntax error")
+	}
+
+	var conf Config
+	conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // must not panic
+}
+
+func TestIssue61938(t *testing.T) {
+	const src = `
+package p
+
+func f[T any]() {}
+func _()        { f() }
+`
+	// no error handler provided (this issue)
+	var conf Config
+	typecheck(src, &conf, nil) // must not panic
+
+	// with error handler (sanity check)
+	conf.Error = func(error) {}
+	typecheck(src, &conf, nil) // must not panic
+}
+
+func TestIssue63260(t *testing.T) {
+	const src = `
+package p
+
+func _() {
+        use(f[*string])
+}
+
+func use(func()) {}
+
+func f[I *T, T any]() {
+        var v T
+        _ = v
+}`
+
+	info := Info{
+		Defs: make(map[*syntax.Name]Object),
+	}
+	pkg := mustTypecheck(src, nil, &info)
+
+	// get type parameter T in signature of f
+	T := pkg.Scope().Lookup("f").Type().(*Signature).TypeParams().At(1)
+	if T.Obj().Name() != "T" {
+		t.Fatalf("got type parameter %s, want T", T)
+	}
+
+	// get type of variable v in body of f
+	var v Object
+	for name, obj := range info.Defs {
+		if name.Value == "v" {
+			v = obj
+			break
+		}
+	}
+	if v == nil {
+		t.Fatal("variable v not found")
+	}
+
+	// type of v and T must be pointer-identical
+	if v.Type() != T {
+		t.Fatalf("types of v and T are not pointer-identical: %p != %p", v.Type().(*TypeParam), T)
+	}
 }

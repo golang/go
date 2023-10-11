@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"internal/coverage"
 	"io"
-	"reflect"
 	"sync/atomic"
 	"unsafe"
 )
@@ -158,13 +157,8 @@ func ClearCounters() error {
 	// inconsistency when reading the counter array from the thread
 	// running ClearCounters.
 
-	var sd []atomic.Uint32
-
-	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
 	for _, c := range cl {
-		bufHdr.Data = uintptr(unsafe.Pointer(c.Counters))
-		bufHdr.Len = int(c.Len)
-		bufHdr.Cap = int(c.Len)
+		sd := unsafe.Slice((*atomic.Uint32)(unsafe.Pointer(c.Counters)), int(c.Len))
 		for i := 0; i < len(sd); i++ {
 			// Skip ahead until the next non-zero value.
 			sdi := sd[i].Load()

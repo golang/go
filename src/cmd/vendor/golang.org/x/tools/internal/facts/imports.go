@@ -21,6 +21,10 @@ import (
 // Packages in the map that are only indirectly imported may be
 // incomplete (!pkg.Complete()).
 //
+// This function scales very poorly with packages' transitive object
+// references, which can be more than a million for each package near
+// the top of a large project. (This was a significant contributor to
+// #60621.)
 // TODO(adonovan): opt: compute this information more efficiently
 // by obtaining it from the internals of the gcexportdata decoder.
 func importMap(imports []*types.Package) map[string]*types.Package {
@@ -51,7 +55,7 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 			// infinite expansions:
 			//     type N[T any] struct { F *N[N[T]] }
 			// importMap() is called on such types when Analyzer.RunDespiteErrors is true.
-			T = typeparams.NamedTypeOrigin(T).(*types.Named)
+			T = typeparams.NamedTypeOrigin(T)
 			if !typs[T] {
 				typs[T] = true
 				addObj(T.Obj())

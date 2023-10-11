@@ -183,28 +183,28 @@ start:
 	// 8.2: Load-Reserved/Store-Conditional
 	LRW	(X5), X6				// 2fa30214
 	LRD	(X5), X6				// 2fb30214
-	SCW	X5, (X6), X7				// af23531c
-	SCD	X5, (X6), X7				// af33531c
+	SCW	X5, (X6), X7				// af23531a
+	SCD	X5, (X6), X7				// af33531a
 
 	// 8.3: Atomic Memory Operations
-	AMOSWAPW	X5, (X6), X7			// af23530c
-	AMOSWAPD	X5, (X6), X7			// af33530c
-	AMOADDW		X5, (X6), X7			// af235304
-	AMOADDD		X5, (X6), X7			// af335304
-	AMOANDW		X5, (X6), X7			// af235364
-	AMOANDD		X5, (X6), X7			// af335364
-	AMOORW		X5, (X6), X7			// af235344
-	AMOORD		X5, (X6), X7			// af335344
-	AMOXORW		X5, (X6), X7			// af235324
-	AMOXORD		X5, (X6), X7			// af335324
-	AMOMAXW		X5, (X6), X7			// af2353a4
-	AMOMAXD		X5, (X6), X7			// af3353a4
-	AMOMAXUW	X5, (X6), X7			// af2353e4
-	AMOMAXUD	X5, (X6), X7			// af3353e4
-	AMOMINW		X5, (X6), X7			// af235384
-	AMOMIND		X5, (X6), X7			// af335384
-	AMOMINUW	X5, (X6), X7			// af2353c4
-	AMOMINUD	X5, (X6), X7			// af3353c4
+	AMOSWAPW	X5, (X6), X7			// af23530e
+	AMOSWAPD	X5, (X6), X7			// af33530e
+	AMOADDW		X5, (X6), X7			// af235306
+	AMOADDD		X5, (X6), X7			// af335306
+	AMOANDW		X5, (X6), X7			// af235366
+	AMOANDD		X5, (X6), X7			// af335366
+	AMOORW		X5, (X6), X7			// af235346
+	AMOORD		X5, (X6), X7			// af335346
+	AMOXORW		X5, (X6), X7			// af235326
+	AMOXORD		X5, (X6), X7			// af335326
+	AMOMAXW		X5, (X6), X7			// af2353a6
+	AMOMAXD		X5, (X6), X7			// af3353a6
+	AMOMAXUW	X5, (X6), X7			// af2353e6
+	AMOMAXUD	X5, (X6), X7			// af3353e6
+	AMOMINW		X5, (X6), X7			// af235386
+	AMOMIND		X5, (X6), X7			// af335386
+	AMOMINUW	X5, (X6), X7			// af2353c6
+	AMOMINUD	X5, (X6), X7			// af3353c6
 
 	// 10.1: Base Counters and Timers
 	RDCYCLE		X5				// f32200c0
@@ -354,6 +354,14 @@ start:
 	MOVD	F0, 4(X5)				// 27b20200
 	MOVD	F0, F1					// d3000022
 
+	// TLS load with local-exec (LUI + ADDIW + ADD of TP + load)
+	MOV	tls(SB), X5				// b70f00009b8f0f00b38f4f0083b20f00
+	MOVB	tls(SB), X5				// b70f00009b8f0f00b38f4f0083820f00
+
+	// TLS store with local-exec (LUI + ADDIW + ADD of TP + store)
+	MOV	X5, tls(SB)				// b70f00009b8f0f00b38f4f0023b05f00
+	MOVB	X5, tls(SB)				// b70f00009b8f0f00b38f4f0023805f00
+
 	// NOT pseudo-instruction
 	NOT	X5					// 93c2f2ff
 	NOT	X5, X6					// 13c3f2ff
@@ -373,7 +381,7 @@ start:
 	JMP	4(X5)					// 67804200
 
 	// CALL and JMP to symbol are encoded as JAL (using LR or ZERO
-	// respectively), with a R_RISCV_CALL relocation. The linker resolves
+	// respectively), with a R_RISCV_JAL relocation. The linker resolves
 	// the real address and updates the immediate, using a trampoline in
 	// the case where the address is not directly reachable.
 	CALL	asmtest(SB)				// ef000000
@@ -407,3 +415,5 @@ start:
 	FLTD	F0, F1, X5				// d39200a2
 	FLED	F0, F1, X5				// d38200a2
 	FEQD	F0, F1, X5				// d3a200a2
+
+GLOBL tls(SB), TLSBSS, $8

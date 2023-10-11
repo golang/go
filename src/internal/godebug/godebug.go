@@ -180,7 +180,7 @@ func setUpdate(update func(string, string))
 //go:linkname registerMetric
 func registerMetric(name string, read func() uint64)
 
-// setNewNonDefaultInc is provided by package runtime.
+// setNewIncNonDefault is provided by package runtime.
 // The runtime can do
 //
 //	inc := newNonDefaultInc(name)
@@ -285,5 +285,6 @@ func (*runtimeStderr) Write(b []byte) (int, error) {
 
 // Since we cannot import os or syscall, use the runtime's write function
 // to print to standard error.
+//
 //go:linkname write runtime.write
 func write(fd uintptr, p unsafe.Pointer, n int32) int32

@@ -29,7 +29,11 @@ const enableReverseTypeInference = true // disable for debugging
 // If successful, infer returns the complete list of given and inferred type arguments, one for each
 // type parameter. Otherwise the result is nil and appropriate errors will be reported.
 func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (inferred []Type) {
-	if debug {
+	// Don't verify result conditions if there's no error handler installed:
+	// in that case, an error leads to an exit panic and the result value may
+	// be incorrect. But in that case it doesn't matter because callers won't
+	// be able to use it either.
+	if check.conf.Error != nil {
 		defer func() {
 			assert(inferred == nil || len(inferred) == len(tparams) && !containsNil(inferred))
 		}()
@@ -98,7 +102,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// Unify parameter and argument types for generic parameters with typed arguments
 	// and collect the indices of generic parameters with untyped arguments.
 	// Terminology: generic parameter = function parameter with a type-parameterized type
-	u := newUnifier(tparams, targs)
+	u := newUnifier(tparams, targs, check.allowVersion(check.pkg, posn, go1_21))
 
 	errorf := func(kind string, tpar, targ Type, arg *operand) {
 		// provide a better error message if we can

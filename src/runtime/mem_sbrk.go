@@ -163,6 +163,9 @@ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
 func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
 }
 
+func sysHugePageCollapseOS(v unsafe.Pointer, n uintptr) {
+}
+
 func sysMapOS(v unsafe.Pointer, n uintptr) {
 }
 

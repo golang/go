@@ -164,7 +164,30 @@ func DurationValue(v time.Duration) Value {
 // GroupValue returns a new Value for a list of Attrs.
 // The caller must not subsequently mutate the argument slice.
 func GroupValue(as ...Attr) Value {
+	// Remove empty groups.
+	// It is simpler overall to do this at construction than
+	// to check each Group recursively for emptiness.
+	if n := countEmptyGroups(as); n > 0 {
+		as2 := make([]Attr, 0, len(as)-n)
+		for _, a := range as {
+			if !a.Value.isEmptyGroup() {
+				as2 = append(as2, a)
+			}
+		}
+		as = as2
+	}
 	return Value{num: uint64(len(as)), any: groupptr(unsafe.SliceData(as))}
+}
+
+// countEmptyGroups returns the number of empty group values in its argument.
+func countEmptyGroups(as []Attr) int {
+	n := 0
+	for _, a := range as {
+		if a.Value.isEmptyGroup() {
+			n++
+		}
+	}
+	return n
 }
 
 // AnyValue returns a Value for the supplied value.
@@ -304,22 +327,22 @@ func (v Value) Bool() bool {
 	return v.bool()
 }
 
-func (a Value) bool() bool {
-	return a.num == 1
+func (v Value) bool() bool {
+	return v.num == 1
 }
 
 // Duration returns v's value as a time.Duration. It panics
 // if v is not a time.Duration.
-func (a Value) Duration() time.Duration {
-	if g, w := a.Kind(), KindDuration; g != w {
+func (v Value) Duration() time.Duration {
+	if g, w := v.Kind(), KindDuration; g != w {
 		panic(fmt.Sprintf("Value kind is %s, not %s", g, w))
 	}
 
-	return a.duration()
+	return v.duration()
 }
 
-func (a Value) duration() time.Duration {
-	return time.Duration(int64(a.num))
+func (v Value) duration() time.Duration {
+	return time.Duration(int64(v.num))
 }
 
 // Float64 returns v's value as a float64. It panics
@@ -332,8 +355,8 @@ func (v Value) Float64() float64 {
 	return v.float()
 }
 
-func (a Value) float() float64 {
-	return math.Float64frombits(a.num)
+func (v Value) float() float64 {
+	return math.Float64frombits(v.num)
 }
 
 // Time returns v's value as a time.Time. It panics
@@ -397,6 +420,17 @@ func (v Value) Equal(w Value) bool {
 	default:
 		panic(fmt.Sprintf("bad kind: %s", k1))
 	}
+}
+
+// isEmptyGroup reports whether v is a group that has no attributes.
+func (v Value) isEmptyGroup() bool {
+	if v.Kind() != KindGroup {
+		return false
+	}
+	// We do not need to recursively examine the group's Attrs for emptiness,
+	// because GroupValue removed them when the group was constructed, and
+	// groups are immutable.
+	return len(v.group()) == 0
 }
 
 // append appends a text representation of v to dst.

@@ -286,7 +286,12 @@ func Cause(c Context) error {
 		defer cc.mu.Unlock()
 		return cc.cause
 	}
-	return nil
+	// There is no cancelCtxKey value, so we know that c is
+	// not a descendant of some Context created by WithCancelCause.
+	// Therefore, there is no specific cause to return.
+	// If this is not one of the standard Context types,
+	// it might still have an error even though it won't have a cause.
+	return c.Err()
 }
 
 // AfterFunc arranges to call f in its own goroutine after ctx is done
@@ -686,7 +691,7 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 }
 
 // WithTimeoutCause behaves like [WithTimeout] but also sets the cause of the
-// returned Context when the timout expires. The returned [CancelFunc] does
+// returned Context when the timeout expires. The returned [CancelFunc] does
 // not set the cause.
 func WithTimeoutCause(parent Context, timeout time.Duration, cause error) (Context, CancelFunc) {
 	return WithDeadlineCause(parent, time.Now().Add(timeout), cause)

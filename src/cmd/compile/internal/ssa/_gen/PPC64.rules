@@ -238,6 +238,8 @@
 (LocalAddr <t> {sym} base mem) && t.Elem().HasPointers() => (MOVDaddr {sym} (SPanchored base mem))
 (LocalAddr <t> {sym} base _)  && !t.Elem().HasPointers() => (MOVDaddr {sym} base)
 (OffPtr [off] ptr) => (ADD (MOVDconst <typ.Int64> [off]) ptr)
+(MOVDaddr {sym} [n] p:(ADD x y)) && sym == nil && n == 0 => p
+(MOVDaddr {sym} [n] ptr) && sym == nil && n == 0 && (ptr.Op == OpArgIntReg || ptr.Op == OpPhi) => ptr
 
 // TODO: optimize these cases?
 (Ctz32NonZero ...) => (Ctz32 ...)
@@ -559,6 +561,7 @@
 (NOR (MOVDconst [c]) (MOVDconst [d])) => (MOVDconst [^(c|d)])
 
 // Discover consts
+(AND x (MOVDconst [-1])) => x
 (AND x (MOVDconst [c])) && isU16Bit(c) => (Select0 (ANDCCconst [c] x))
 (XOR x (MOVDconst [c])) && isU32Bit(c) => (XORconst [c] x)
 (OR x (MOVDconst [c])) && isU32Bit(c) => (ORconst [c] x)
@@ -588,16 +591,16 @@
 
 // small and of zero-extend => either zero-extend or small and
 (Select0 (ANDCCconst [c] y:(MOVBZreg _))) && c&0xFF == 0xFF => y
-(Select0 (ANDCCconst [0xFF] y:(MOVBreg _))) => y
+(Select0 (ANDCCconst [0xFF] (MOVBreg x))) => (MOVBZreg x)
 (Select0 (ANDCCconst [c] y:(MOVHZreg _)))  && c&0xFFFF == 0xFFFF => y
-(Select0 (ANDCCconst [0xFFFF] y:(MOVHreg _))) => y
+(Select0 (ANDCCconst [0xFFFF] (MOVHreg x))) => (MOVHZreg x)
 
 (AND (MOVDconst [c]) y:(MOVWZreg _))  && c&0xFFFFFFFF == 0xFFFFFFFF => y
 (AND (MOVDconst [0xFFFFFFFF]) y:(MOVWreg x)) => (MOVWZreg x)
 // normal case
-(Select0 (ANDCCconst [c] (MOV(B|BZ)reg x))) => (Select0 (ANDCCconst [c&0xFF] x))
-(Select0 (ANDCCconst [c] (MOV(H|HZ)reg x))) => (Select0 (ANDCCconst [c&0xFFFF] x))
-(Select0 (ANDCCconst [c] (MOV(W|WZ)reg x))) => (Select0 (ANDCCconst [c&0xFFFFFFFF] x))
+(Select0 (ANDCCconst [c] (MOVBZreg x))) => (Select0 (ANDCCconst [c&0xFF] x))
+(Select0 (ANDCCconst [c] (MOVHZreg x))) => (Select0 (ANDCCconst [c&0xFFFF] x))
+(Select0 (ANDCCconst [c] (MOVWZreg x))) => (Select0 (ANDCCconst [c&0xFFFFFFFF] x))
 
 // Eliminate unnecessary sign/zero extend following right shift
 (MOV(B|H|W)Zreg (SRWconst [c] (MOVBZreg x))) => (SRWconst [c] (MOVBZreg x))

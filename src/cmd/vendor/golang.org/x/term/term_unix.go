@@ -60,7 +60,7 @@ func restore(fd int, state *State) error {
 func getSize(fd int) (width, height int, err error) {
 	ws, err := unix.IoctlGetWinsize(fd, unix.TIOCGWINSZ)
 	if err != nil {
-		return -1, -1, err
+		return 0, 0, err
 	}
 	return int(ws.Col), int(ws.Row), nil
 }

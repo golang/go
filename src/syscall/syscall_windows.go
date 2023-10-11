@@ -264,7 +264,7 @@ func NewCallbackCDecl(fn any) uintptr {
 //sys	OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle Handle, err error)
 //sys	TerminateProcess(handle Handle, exitcode uint32) (err error)
 //sys	GetExitCodeProcess(handle Handle, exitcode *uint32) (err error)
-//sys	GetStartupInfo(startupInfo *StartupInfo) (err error) = GetStartupInfoW
+//sys	getStartupInfo(startupInfo *StartupInfo) = GetStartupInfoW
 //sys	GetCurrentProcess() (pseudoHandle Handle, err error)
 //sys	GetProcessTimes(handle Handle, creationTime *Filetime, exitTime *Filetime, kernelTime *Filetime, userTime *Filetime) (err error)
 //sys	DuplicateHandle(hSourceProcessHandle Handle, hSourceHandle Handle, hTargetProcessHandle Handle, lpTargetHandle *Handle, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (err error)
@@ -475,7 +475,7 @@ var procSetFilePointerEx = modkernel32.NewProc("SetFilePointerEx")
 const ptrSize = unsafe.Sizeof(uintptr(0))
 
 // setFilePointerEx calls SetFilePointerEx.
-// See https://msdn.microsoft.com/en-us/library/windows/desktop/aa365542(v=vs.85).aspx
+// See https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfilepointerex
 func setFilePointerEx(handle Handle, distToMove int64, newFilePointer *int64, whence uint32) error {
 	var e1 Errno
 	if unsafe.Sizeof(uintptr(0)) == 8 {
@@ -533,11 +533,21 @@ const ImplementsGetwd = true
 
 func Getwd() (wd string, err error) {
 	b := make([]uint16, 300)
-	n, e := GetCurrentDirectory(uint32(len(b)), &b[0])
-	if e != nil {
-		return "", e
+	// The path of the current directory may not fit in the initial 300-word
+	// buffer when long path support is enabled. The current directory may also
+	// change between subsequent calls of GetCurrentDirectory. As a result, we
+	// need to retry the call in a loop until the current directory fits, each
+	// time with a bigger buffer.
+	for {
+		n, e := GetCurrentDirectory(uint32(len(b)), &b[0])
+		if e != nil {
+			return "", e
+		}
+		if int(n) <= len(b) {
+			return UTF16ToString(b[:n]), nil
+		}
+		b = make([]uint16, n)
 	}
-	return UTF16ToString(b[0:n]), nil
 }
 
 func Chdir(path string) (err error) {
@@ -1426,4 +1436,9 @@ func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LI
 // so call runtime.LockOSThread before calling this function.
 func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) {
 	return regEnumKeyEx(key, index, name, nameLen, reserved, class, classLen, lastWriteTime)
+}
+
+func GetStartupInfo(startupInfo *StartupInfo) error {
+	getStartupInfo(startupInfo)
+	return nil
 }

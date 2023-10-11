@@ -229,6 +229,18 @@ func TestZeroTime(t *testing.T) {
 	}
 }
 
+func TestEmptyGroup(t *testing.T) {
+	g := GroupValue(
+		Int("a", 1),
+		Group("g1", Group("g2")),
+		Group("g3", Group("g4", Int("b", 2))))
+	got := g.Group()
+	want := []Attr{Int("a", 1), Group("g3", Group("g4", Int("b", 2)))}
+	if !attrsEqual(got, want) {
+		t.Errorf("\ngot  %v\nwant %v", got, want)
+	}
+}
+
 type replace struct {
 	v Value
 }

@@ -21,7 +21,7 @@ require example.net/outer/inner v0.1.0 // indirect
 replace (
 	example.net/a v0.1.0 => ./a
 	example.net/b v0.1.0 => ./b
-	example.net/outer v0.1.0 => ./outer1
+	example.net/outer v0.1.0 => ./outer
 	example.net/outer/inner v0.1.0 => ./inner
 )
 -- example.go --
@@ -61,13 +61,9 @@ module example.net/outer/inner
 go 1.21
 -- inner/inner.go --
 package inner
--- outer1/go.mod --
+-- outer/go.mod --
 module example.net/outer
 
 go 1.21
--- outer1/inner/inner.go --
+-- outer/inner/inner.go --
 package inner
--- outer2/go.mod --
-module example.net/outer
-
-go 1.21

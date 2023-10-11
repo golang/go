@@ -1400,7 +1400,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
 	if op.name == "" {
 		// Failed to find the op.
 		// Run through everything again with strict=false
-		// to generate useful diagnosic messages before failing.
+		// to generate useful diagnostic messages before failing.
 		for _, x := range genericOps {
 			match(x, false, "generic")
 		}

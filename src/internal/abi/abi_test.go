@@ -46,7 +46,7 @@ func TestFuncPCCompileError(t *testing.T) {
 	testenv.WriteImportcfg(t, importcfgfile, nil, "internal/abi")
 
 	// parse assembly code for symabi.
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-gensymabis", "-o", symabi, asmSrc)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-p=p", "-gensymabis", "-o", symabi, asmSrc)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool asm -gensymabis failed: %v\n%s", err, out)

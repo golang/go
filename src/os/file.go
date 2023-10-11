@@ -622,18 +622,6 @@ func DirFS(dir string) fs.FS {
 	return dirFS(dir)
 }
 
-// containsAny reports whether any bytes in chars are within s.
-func containsAny(s, chars string) bool {
-	for i := 0; i < len(s); i++ {
-		for j := 0; j < len(chars); j++ {
-			if s[i] == chars[j] {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 type dirFS string
 
 func (dir dirFS) Open(name string) (fs.File, error) {
@@ -737,10 +725,6 @@ func ReadFile(name string) ([]byte, error) {
 
 	data := make([]byte, 0, size)
 	for {
-		if len(data) >= cap(data) {
-			d := append(data[:cap(data)], 0)
-			data = d[:len(data)]
-		}
 		n, err := f.Read(data[len(data):cap(data)])
 		data = data[:len(data)+n]
 		if err != nil {
@@ -748,6 +732,11 @@ func ReadFile(name string) ([]byte, error) {
 				err = nil
 			}
 			return data, err
+		}
+
+		if len(data) >= cap(data) {
+			d := append(data[:cap(data)], 0)
+			data = d[:len(data)]
 		}
 	}
 }

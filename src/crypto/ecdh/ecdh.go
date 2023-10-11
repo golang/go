@@ -16,7 +16,11 @@ import (
 )
 
 type Curve interface {
-	// GenerateKey generates a new PrivateKey from rand.
+	// GenerateKey generates a random PrivateKey.
+	//
+	// Most applications should use [crypto/rand.Reader] as rand. Note that the
+	// returned key does not depend deterministically on the bytes read from rand,
+	// and may change between calls and/or between versions.
 	GenerateKey(rand io.Reader) (*PrivateKey, error)
 
 	// NewPrivateKey checks that key is valid and returns a PrivateKey.
@@ -40,7 +44,7 @@ type Curve interface {
 	// selected public keys can cause ECDH to return an error.
 	NewPublicKey(key []byte) (*PublicKey, error)
 
-	// ecdh performs a ECDH exchange and returns the shared secret. It's exposed
+	// ecdh performs an ECDH exchange and returns the shared secret. It's exposed
 	// as the PrivateKey.ECDH method.
 	//
 	// The private method also allow us to expand the ECDH interface with more
@@ -110,7 +114,7 @@ type PrivateKey struct {
 	publicKeyOnce sync.Once
 }
 
-// ECDH performs a ECDH exchange and returns the shared secret. The PrivateKey
+// ECDH performs an ECDH exchange and returns the shared secret. The PrivateKey
 // and PublicKey must use the same curve.
 //
 // For NIST curves, this performs ECDH as specified in SEC 1, Version 2.0,

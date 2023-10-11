@@ -292,8 +292,8 @@ func (w *writer) StringTable() {
 			// Don't include them if Flag_noRefName
 			return
 		}
-		if w.pkgpath != "" {
-			s.Name = strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
+		if strings.HasPrefix(s.Name, `"".`) {
+			w.ctxt.Diag("unqualified symbol name: %v", s.Name)
 		}
 		w.AddString(s.Name)
 	})
@@ -423,7 +423,7 @@ func (w *writer) Hash(s *LSym) {
 // contentHashSection returns a mnemonic for s's section.
 // The goal is to prevent content-addressability from moving symbols between sections.
 // contentHashSection only distinguishes between sets of sections for which this matters.
-// Allowing flexibility increases the effectiveness of content-addressibility.
+// Allowing flexibility increases the effectiveness of content-addressability.
 // But in some cases, such as doing addressing based on a base symbol,
 // we need to ensure that a symbol is always in a particular section.
 // Some of these conditions are duplicated in cmd/link/internal/ld.(*Link).symtab.
@@ -914,9 +914,9 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 			name = "TLS"
 		}
 		if ctxt.Arch.InFamily(sys.ARM, sys.PPC64) {
-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s%s+%x\n", int(r.Off), r.Siz, r.Type, name, ver, uint64(r.Add))
+			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%v %s%s+%x\n", int(r.Off), r.Siz, r.Type, name, ver, uint64(r.Add))
 		} else {
-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s%s+%d\n", int(r.Off), r.Siz, r.Type, name, ver, r.Add)
+			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%v %s%s+%d\n", int(r.Off), r.Siz, r.Type, name, ver, r.Add)
 		}
 	}
 }

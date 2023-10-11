@@ -922,7 +922,7 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 			// some extra as a result of trying to find an aligned region.
 			//
 			// Divide it up and put it on the ready list.
-			for i := uintptr(userArenaChunkBytes); i < size; i += userArenaChunkBytes {
+			for i := userArenaChunkBytes; i < size; i += userArenaChunkBytes {
 				s := h.allocMSpanLocked()
 				s.init(uintptr(v)+i, userArenaChunkPages)
 				h.userArena.readyList.insertBack(s)

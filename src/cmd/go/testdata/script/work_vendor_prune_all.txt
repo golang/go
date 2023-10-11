@@ -1,0 +1,201 @@
+# This test exercises that vendoring works properly using the workspace in the
+# the work_prune test case.
+
+go work vendor
+cmp vendor/modules.txt modules.txt.want
+go list -f '{{with .Module}}{{.Path}}@{{.Version}}{{end}}' all
+cmp stdout want_versions
+
+go list -f '{{.Dir}}' example.com/q
+stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]q
+go list -f '{{.Dir}}' example.com/b
+stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]b
+go list -f '{{.Dir}}' example.com/w
+stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]w
+go list -f '{{.Dir}}' example.com/z
+stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]z
+
+cmp $GOPATH/src/vendor/example.com/q/q.go q1_1_0/q.go
+
+-- modules.txt.want --
+## workspace
+# example.com/b v1.0.0 => ./b
+## explicit; go 1.18
+example.com/b
+# example.com/q v1.0.0 => ./q1_0_0
+## explicit; go 1.18
+# example.com/q v1.1.0 => ./q1_1_0
+## go 1.18
+example.com/q
+# example.com/w v1.0.0 => ./w
+## go 1.18
+example.com/w
+# example.com/z v1.0.0 => ./z1_0_0
+## explicit; go 1.18
+# example.com/z v1.1.0 => ./z1_1_0
+## go 1.18
+example.com/z
+# example.com/q v1.0.5 => ./q1_0_5
+# example.com/r v1.0.0 => ./r
+# example.com/x v1.0.0 => ./x
+# example.com/y v1.0.0 => ./y
+-- want_versions --
+example.com/a@
+example.com/b@v1.0.0
+example.com/p@
+example.com/q@v1.1.0
+example.com/w@v1.0.0
+example.com/z@v1.1.0
+-- go.work --
+go 1.18
+
+use (
+	./a
+	./p
+)
+
+replace example.com/b v1.0.0 => ./b
+replace example.com/q v1.0.0 => ./q1_0_0
+replace example.com/q v1.0.5 => ./q1_0_5
+replace example.com/q v1.1.0 => ./q1_1_0
+replace example.com/r v1.0.0 => ./r
+replace example.com/w v1.0.0 => ./w
+replace example.com/x v1.0.0 => ./x
+replace example.com/y v1.0.0 => ./y
+replace example.com/z v1.0.0 => ./z1_0_0
+replace example.com/z v1.1.0 => ./z1_1_0
+
+-- a/go.mod --
+module example.com/a
+
+go 1.18
+
+require example.com/b v1.0.0
+require example.com/z v1.0.0
+-- a/foo.go --
+package main
+
+import "example.com/b"
+
+func main() {
+	b.B()
+}
+-- b/go.mod --
+module example.com/b
+
+go 1.18
+
+require example.com/q v1.1.0
+-- b/b.go --
+package b
+
+func B() {
+}
+-- p/go.mod --
+module example.com/p
+
+go 1.18
+
+require example.com/q v1.0.0
+
+replace example.com/q v1.0.0 => ../q1_0_0
+replace example.com/q v1.1.0 => ../q1_1_0
+-- p/main.go --
+package main
+
+import "example.com/q"
+
+func main() {
+	q.PrintVersion()
+}
+-- q1_0_0/go.mod --
+module example.com/q
+
+go 1.18
+-- q1_0_0/q.go --
+package q
+
+import "fmt"
+
+func PrintVersion() {
+	fmt.Println("version 1.0.0")
+}
+-- q1_0_5/go.mod --
+module example.com/q
+
+go 1.18
+
+require example.com/r v1.0.0
+-- q1_0_5/q.go --
+package q
+
+import _ "example.com/r"
+-- q1_1_0/go.mod --
+module example.com/q
+
+require example.com/w v1.0.0
+require example.com/z v1.1.0
+
+go 1.18
+-- q1_1_0/q.go --
+package q
+
+import _ "example.com/w"
+import _ "example.com/z"
+
+import "fmt"
+
+func PrintVersion() {
+	fmt.Println("version 1.1.0")
+}
+-- r/go.mod --
+module example.com/r
+
+go 1.18
+
+require example.com/r v1.0.0
+-- r/r.go --
+package r
+-- w/go.mod --
+module example.com/w
+
+go 1.18
+
+require example.com/x v1.0.0
+-- w/w.go --
+package w
+-- w/w_test.go --
+package w
+
+import _ "example.com/x"
+-- x/go.mod --
+module example.com/x
+
+go 1.18
+-- x/x.go --
+package x
+-- x/x_test.go --
+package x
+import _ "example.com/y"
+-- y/go.mod --
+module example.com/y
+
+go 1.18
+-- y/y.go --
+package y
+-- z1_0_0/go.mod --
+module example.com/z
+
+go 1.18
+
+require example.com/q v1.0.5
+-- z1_0_0/z.go --
+package z
+
+import _ "example.com/q"
+-- z1_1_0/go.mod --
+module example.com/z
+
+go 1.18
+-- z1_1_0/z.go --
+package z

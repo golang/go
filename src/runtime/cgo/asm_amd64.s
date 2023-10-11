@@ -18,7 +18,7 @@ TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
 // Saves C callee-saved registers and calls cgocallback with three arguments.
 // fn is the PC of a func(a unsafe.Pointer) function.
 // This signature is known to SWIG, so we can't change it.
-TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0-0
+TEXT crosscall2(SB),NOSPLIT,$0-0
 	PUSH_REGS_HOST_TO_ABI0()
 
 	// Make room for arguments to cgocallback.

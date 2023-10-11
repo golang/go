@@ -184,7 +184,7 @@ func netpollclose(fd uintptr) int32 {
 
 func netpollBreak() {}
 
-func netpoll(delay int64) gList {
+func netpoll(delay int64) (gList, int32) {
 	lock(&mtx)
 
 	// If delay >= 0, we include a subscription of type Clock that we use as
@@ -201,7 +201,7 @@ func netpoll(delay int64) gList {
 
 	if len(pollsubs) == 0 {
 		unlock(&mtx)
-		return gList{}
+		return gList{}, 0
 	}
 
 	evts = evts[:len(pollsubs)]
@@ -221,12 +221,13 @@ retry:
 		// recalculate how long we should sleep now.
 		if delay > 0 {
 			unlock(&mtx)
-			return gList{}
+			return gList{}, 0
 		}
 		goto retry
 	}
 
 	var toRun gList
+	delta := int32(0)
 	for i := 0; i < int(nevents); i++ {
 		e := &evts[i]
 		if e.typ == eventtypeClock {
@@ -245,10 +246,10 @@ retry:
 			pd := (*pollDesc)(unsafe.Pointer(uintptr(e.userdata)))
 			netpolldisarm(pd, mode)
 			pd.setEventErr(e.error != 0, 0)
-			netpollready(&toRun, pd, mode)
+			delta += netpollready(&toRun, pd, mode)
 		}
 	}
 
 	unlock(&mtx)
-	return toRun
+	return toRun, delta
 }

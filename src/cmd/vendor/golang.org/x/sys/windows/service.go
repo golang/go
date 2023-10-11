@@ -218,6 +218,10 @@ type SERVICE_FAILURE_ACTIONS struct {
 	Actions      *SC_ACTION
 }
 
+type SERVICE_FAILURE_ACTIONS_FLAG struct {
+	FailureActionsOnNonCrashFailures int32
+}
+
 type SC_ACTION struct {
 	Type  uint32
 	Delay uint32

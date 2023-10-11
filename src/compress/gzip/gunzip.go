@@ -83,7 +83,7 @@ type Reader struct {
 }
 
 // NewReader creates a new Reader reading the given reader.
-// If r does not also implement io.ByteReader,
+// If r does not also implement [io.ByteReader],
 // the decompressor may read more data than necessary from r.
 //
 // It is the caller's responsibility to call Close on the Reader when done.

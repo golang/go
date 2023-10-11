@@ -604,6 +604,29 @@ func f()
 	}
 }
 
+// TestChanType tests that the tree for <-(<-chan int), without
+// ParenExpr, is correctly formatted with parens.
+// Test case for issue #63362.
+func TestChanType(t *testing.T) {
+	expr := &ast.UnaryExpr{
+		Op: token.ARROW,
+		X: &ast.CallExpr{
+			Fun: &ast.ChanType{
+				Dir:   ast.RECV,
+				Value: &ast.Ident{Name: "int"},
+			},
+			Args: []ast.Expr{&ast.Ident{Name: "nil"}},
+		},
+	}
+	var buf bytes.Buffer
+	if err := Fprint(&buf, fset, expr); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := buf.String(), `<-(<-chan int)(nil)`; got != want {
+		t.Fatalf("got:\n%s\nwant:\n%s\n", got, want)
+	}
+}
+
 type limitWriter struct {
 	remaining int
 	errCount  int
@@ -795,5 +818,33 @@ func f() {
 	want := "return call()"
 	if got := buf.String(); got != want {
 		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestSourcePosNewline(t *testing.T) {
+	// We don't provide a syntax for escaping or unescaping characters in line
+	// directives (see https://go.dev/issue/24183#issuecomment-372449628).
+	// As a result, we cannot write a line directive with the correct path for a
+	// filename containing newlines. We should return an error rather than
+	// silently dropping or mangling it.
+
+	fname := "foo\nbar/bar.go"
+	src := `package bar`
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, fname, src, parser.ParseComments|parser.AllErrors|parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{
+		Mode:     SourcePos, // emit line comments
+		Tabwidth: 8,
+	}
+	var buf bytes.Buffer
+	if err := cfg.Fprint(&buf, fset, f); err == nil {
+		t.Errorf("Fprint did not error for source file path containing newline")
+	}
+	if buf.Len() != 0 {
+		t.Errorf("unexpected Fprint output:\n%s", buf.Bytes())
 	}
 }

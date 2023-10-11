@@ -13,12 +13,12 @@ func IndexArray(x *[10]int, i int) int {
 }
 
 func IndexString(x string, i int) byte {
-	// amd64:`CMOVQLS`
+	// amd64:`CMOVQ(LS|CC)`
 	return x[i]
 }
 
 func IndexSlice(x []float64, i int) float64 {
-	// amd64:`CMOVQLS`
+	// amd64:`CMOVQ(LS|CC)`
 	return x[i]
 }
 

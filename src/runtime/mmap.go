@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !aix && !darwin && !js && (!linux || !amd64) && (!linux || !arm64) && (!freebsd || !amd64) && !openbsd && !plan9 && !solaris && !windows
+//go:build !aix && !darwin && !js && !((linux && (amd64 || arm64 || loong64)) || (freebsd && amd64)) && !openbsd && !plan9 && !solaris && !windows
 
 package runtime
 

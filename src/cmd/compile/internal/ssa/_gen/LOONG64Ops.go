@@ -289,9 +289,10 @@ func init() {
 			aux:       "Int64",
 			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{gp},
+				inputs:   []regMask{buildReg("R19")},
 				clobbers: buildReg("R19 R1"),
 			},
+			typ:            "Mem",
 			faultOnNilArg0: true,
 		},
 
@@ -309,6 +310,7 @@ func init() {
 				inputs:   []regMask{buildReg("R20"), buildReg("R19")},
 				clobbers: buildReg("R19 R20 R1"),
 			},
+			typ:            "Mem",
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
 		},

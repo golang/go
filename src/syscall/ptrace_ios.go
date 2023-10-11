@@ -6,16 +6,9 @@
 
 package syscall
 
-import "unsafe"
-
 // Nosplit because it is called from forkAndExecInChild.
 //
 //go:nosplit
 func ptrace(request int, pid int, addr uintptr, data uintptr) (err error) {
-	panic("unimplemented")
-}
-
-//go:nosplit
-func ptracePtr(request int, pid int, addr unsafe.Pointer, data uintptr) (err error) {
 	panic("unimplemented")
 }

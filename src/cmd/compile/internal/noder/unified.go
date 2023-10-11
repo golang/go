@@ -5,8 +5,6 @@
 package noder
 
 import (
-	"fmt"
-	"internal/goversion"
 	"internal/pkgbits"
 	"io"
 	"runtime"
@@ -74,16 +72,7 @@ func unified(m posMap, noders []*noder) {
 
 	data := writePkgStub(m, noders)
 
-	// We already passed base.Flag.Lang to types2 to handle validating
-	// the user's source code. Bump it up now to the current version and
-	// re-parse, so typecheck doesn't complain if we construct IR that
-	// utilizes newer Go features.
-	base.Flag.Lang = fmt.Sprintf("go1.%d", goversion.Version)
-	types.ParseLangFlag()
-
 	target := typecheck.Target
-
-	typecheck.TypecheckAllowed = true
 
 	localPkgReader = newPkgReader(pkgbits.NewPkgDecoder(types.LocalPkg.Path, data))
 	readPackage(localPkgReader, types.LocalPkg, true)
@@ -91,30 +80,28 @@ func unified(m posMap, noders []*noder) {
 	r := localPkgReader.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
 	r.pkgInit(types.LocalPkg, target)
 
-	// Type-check any top-level assignments. We ignore non-assignments
-	// here because other declarations are typechecked as they're
-	// constructed.
-	for i, ndecls := 0, len(target.Decls); i < ndecls; i++ {
-		switch n := target.Decls[i]; n.Op() {
-		case ir.OAS, ir.OAS2:
-			target.Decls[i] = typecheck.Stmt(n)
-		}
-	}
-
 	readBodies(target, false)
 
 	// Check that nothing snuck past typechecking.
-	for _, n := range target.Decls {
-		if n.Typecheck() == 0 {
-			base.FatalfAt(n.Pos(), "missed typecheck: %v", n)
+	for _, fn := range target.Funcs {
+		if fn.Typecheck() == 0 {
+			base.FatalfAt(fn.Pos(), "missed typecheck: %v", fn)
 		}
 
 		// For functions, check that at least their first statement (if
 		// any) was typechecked too.
-		if fn, ok := n.(*ir.Func); ok && len(fn.Body) != 0 {
+		if len(fn.Body) != 0 {
 			if stmt := fn.Body[0]; stmt.Typecheck() == 0 {
 				base.FatalfAt(stmt.Pos(), "missed typecheck: %v", stmt)
 			}
+		}
+	}
+
+	// For functions originally came from package runtime,
+	// mark as norace to prevent instrumenting, see issue #60439.
+	for _, fn := range target.Funcs {
+		if !base.Flag.CompilingRuntime && types.RuntimeSymName(fn.Sym()) != "" {
+			fn.Pragma |= ir.Norace
 		}
 	}
 
@@ -128,7 +115,7 @@ func unified(m posMap, noders []*noder) {
 // necessary on instantiations of imported generic functions, so their
 // inlining costs can be computed.
 func readBodies(target *ir.Package, duringInlining bool) {
-	var inlDecls []ir.Node
+	var inlDecls []*ir.Func
 
 	// Don't use range--bodyIdx can add closures to todoBodies.
 	for {
@@ -165,7 +152,7 @@ func readBodies(target *ir.Package, duringInlining bool) {
 				if duringInlining && canSkipNonGenericMethod {
 					inlDecls = append(inlDecls, fn)
 				} else {
-					target.Decls = append(target.Decls, fn)
+					target.Funcs = append(target.Funcs, fn)
 				}
 			}
 
@@ -198,7 +185,7 @@ func readBodies(target *ir.Package, duringInlining bool) {
 		base.Flag.LowerM = oldLowerM
 
 		for _, fn := range inlDecls {
-			fn.(*ir.Func).Body = nil // free memory
+			fn.Body = nil // free memory
 		}
 	}
 }
@@ -321,7 +308,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 
 		if r.Bool() {
 			sym := importpkg.Lookup(".inittask")
-			task := ir.NewNameAt(src.NoXPos, sym)
+			task := ir.NewNameAt(src.NoXPos, sym, nil)
 			task.Class = ir.PEXTERN
 			sym.Def = task
 		}

@@ -1803,6 +1803,18 @@ func TestNullStringParam(t *testing.T) {
 	nullTestRun(t, spec)
 }
 
+func TestGenericNullStringParam(t *testing.T) {
+	spec := nullTestSpec{"nullstring", "string", [6]nullTestRow{
+		{Null[string]{"aqua", true}, "", Null[string]{"aqua", true}},
+		{Null[string]{"brown", false}, "", Null[string]{"", false}},
+		{"chartreuse", "", Null[string]{"chartreuse", true}},
+		{Null[string]{"darkred", true}, "", Null[string]{"darkred", true}},
+		{Null[string]{"eel", false}, "", Null[string]{"", false}},
+		{"foo", Null[string]{"black", false}, nil},
+	}}
+	nullTestRun(t, spec)
+}
+
 func TestNullInt64Param(t *testing.T) {
 	spec := nullTestSpec{"nullint64", "int64", [6]nullTestRow{
 		{NullInt64{31, true}, 1, NullInt64{31, true}},
@@ -1916,8 +1928,9 @@ func nullTestRun(t *testing.T, spec nullTestSpec) {
 	}
 
 	// Can't put null val into non-null col
-	if _, err := stmt.Exec(6, "bob", spec.rows[5].nullParam, spec.rows[5].notNullParam); err == nil {
-		t.Errorf("expected error inserting nil val with prepared statement Exec")
+	row5 := spec.rows[5]
+	if _, err := stmt.Exec(6, "bob", row5.nullParam, row5.notNullParam); err == nil {
+		t.Errorf("expected error inserting nil val with prepared statement Exec: NULL=%#v, NOT-NULL=%#v", row5.nullParam, row5.notNullParam)
 	}
 
 	_, err = db.Exec("INSERT|t|id=?,name=?,nullf=?", 999, nil, nil)
@@ -3756,7 +3769,7 @@ func TestIssue18719(t *testing.T) {
 		cancel()
 
 		// Wait for the context to cancel and tx to rollback.
-		for tx.isDone() == false {
+		for !tx.isDone() {
 			time.Sleep(pollDuration)
 		}
 	}
@@ -4385,8 +4398,16 @@ func TestRowsScanProperlyWrapsErrors(t *testing.T) {
 	}
 }
 
-// From go.dev/issue/60304
 func TestContextCancelDuringRawBytesScan(t *testing.T) {
+	for _, mode := range []string{"nocancel", "top", "bottom", "go"} {
+		t.Run(mode, func(t *testing.T) {
+			testContextCancelDuringRawBytesScan(t, mode)
+		})
+	}
+}
+
+// From go.dev/issue/60304
+func testContextCancelDuringRawBytesScan(t *testing.T, mode string) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
@@ -4394,6 +4415,8 @@ func TestContextCancelDuringRawBytesScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// cancel used to call close asynchronously.
+	// This test checks that it waits so as not to interfere with RawBytes.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -4404,9 +4427,22 @@ func TestContextCancelDuringRawBytesScan(t *testing.T) {
 	numRows := 0
 	var sink byte
 	for r.Next() {
+		if mode == "top" && numRows == 2 {
+			// cancel between Next and Scan is observed by Scan as err = context.Canceled.
+			// The sleep here is only to make it more likely that the cancel will be observed.
+			// If not, the test should still pass, like in "go" mode.
+			cancel()
+			time.Sleep(100 * time.Millisecond)
+		}
 		numRows++
 		var s RawBytes
 		err = r.Scan(&s)
+		if numRows == 3 && err == context.Canceled {
+			if r.closemuScanHold {
+				t.Errorf("expected closemu NOT to be held")
+			}
+			break
+		}
 		if !r.closemuScanHold {
 			t.Errorf("expected closemu to be held")
 		}
@@ -4414,8 +4450,16 @@ func TestContextCancelDuringRawBytesScan(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Logf("read %q", s)
-		if numRows == 2 {
-			cancel() // invalidate the context, which used to call close asynchronously
+		if mode == "bottom" && numRows == 2 {
+			// cancel before Next should be observed by Next, exiting the loop.
+			// The sleep here is only to make it more likely that the cancel will be observed.
+			// If not, the test should still pass, like in "go" mode.
+			cancel()
+			time.Sleep(100 * time.Millisecond)
+		}
+		if mode == "go" && numRows == 2 {
+			// cancel at any future time, to catch other cases
+			go cancel()
 		}
 		for _, b := range s { // some operation reading from the raw memory
 			sink += b
@@ -4456,6 +4500,31 @@ func TestContextCancelBetweenNextAndErr(t *testing.T) {
 	for r.Next() {
 	}
 	cancel()                          // wake up the awaitDone goroutine
+	time.Sleep(10 * time.Millisecond) // increase odds of seeing failure
+	if err := r.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNilErrorAfterClose(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	// This WithCancel is important; Rows contains an optimization to avoid
+	// spawning a goroutine when the query/transaction context cannot be
+	// canceled, but this test tests a bug which is caused by said goroutine.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	r, err := db.QueryContext(ctx, "SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+
 	time.Sleep(10 * time.Millisecond) // increase odds of seeing failure
 	if err := r.Err(); err != nil {
 		t.Fatal(err)

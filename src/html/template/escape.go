@@ -10,6 +10,7 @@ import (
 	"html"
 	"internal/godebug"
 	"io"
+	"regexp"
 	"text/template"
 	"text/template/parse"
 )
@@ -61,22 +62,23 @@ func evalArgs(args ...any) string {
 
 // funcMap maps command names to functions that render their inputs safe.
 var funcMap = template.FuncMap{
-	"_html_template_attrescaper":     attrEscaper,
-	"_html_template_commentescaper":  commentEscaper,
-	"_html_template_cssescaper":      cssEscaper,
-	"_html_template_cssvaluefilter":  cssValueFilter,
-	"_html_template_htmlnamefilter":  htmlNameFilter,
-	"_html_template_htmlescaper":     htmlEscaper,
-	"_html_template_jsregexpescaper": jsRegexpEscaper,
-	"_html_template_jsstrescaper":    jsStrEscaper,
-	"_html_template_jsvalescaper":    jsValEscaper,
-	"_html_template_nospaceescaper":  htmlNospaceEscaper,
-	"_html_template_rcdataescaper":   rcdataEscaper,
-	"_html_template_srcsetescaper":   srcsetFilterAndEscaper,
-	"_html_template_urlescaper":      urlEscaper,
-	"_html_template_urlfilter":       urlFilter,
-	"_html_template_urlnormalizer":   urlNormalizer,
-	"_eval_args_":                    evalArgs,
+	"_html_template_attrescaper":      attrEscaper,
+	"_html_template_commentescaper":   commentEscaper,
+	"_html_template_cssescaper":       cssEscaper,
+	"_html_template_cssvaluefilter":   cssValueFilter,
+	"_html_template_htmlnamefilter":   htmlNameFilter,
+	"_html_template_htmlescaper":      htmlEscaper,
+	"_html_template_jsregexpescaper":  jsRegexpEscaper,
+	"_html_template_jsstrescaper":     jsStrEscaper,
+	"_html_template_jstmpllitescaper": jsTmplLitEscaper,
+	"_html_template_jsvalescaper":     jsValEscaper,
+	"_html_template_nospaceescaper":   htmlNospaceEscaper,
+	"_html_template_rcdataescaper":    rcdataEscaper,
+	"_html_template_srcsetescaper":    srcsetFilterAndEscaper,
+	"_html_template_urlescaper":       urlEscaper,
+	"_html_template_urlfilter":        urlFilter,
+	"_html_template_urlnormalizer":    urlNormalizer,
+	"_eval_args_":                     evalArgs,
 }
 
 // escaper collects type inferences about templates and changes needed to make
@@ -226,16 +228,8 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		c.jsCtx = jsCtxDivOp
 	case stateJSDqStr, stateJSSqStr:
 		s = append(s, "_html_template_jsstrescaper")
-	case stateJSBqStr:
-		if debugAllowActionJSTmpl.Value() == "1" {
-			debugAllowActionJSTmpl.IncNonDefault()
-			s = append(s, "_html_template_jsstrescaper")
-		} else {
-			return context{
-				state: stateError,
-				err:   errorf(ErrJSTemplate, n, n.Line, "%s appears in a JS template literal", n),
-			}
-		}
+	case stateJSTmplLit:
+		s = append(s, "_html_template_jstmpllitescaper")
 	case stateJSRegexp:
 		s = append(s, "_html_template_jsregexpescaper")
 	case stateCSS:
@@ -392,6 +386,9 @@ var redundantFuncs = map[string]map[string]bool{
 		"_html_template_attrescaper": true,
 	},
 	"_html_template_jsstrescaper": {
+		"_html_template_attrescaper": true,
+	},
+	"_html_template_jstmpllitescaper": {
 		"_html_template_attrescaper": true,
 	},
 	"_html_template_urlescaper": {
@@ -729,6 +726,26 @@ var delimEnds = [...]string{
 	delimSpaceOrTagEnd: " \t\n\f\r>",
 }
 
+var (
+	// Per WHATWG HTML specification, section 4.12.1.3, there are extremely
+	// complicated rules for how to handle the set of opening tags <!--,
+	// <script, and </script when they appear in JS literals (i.e. strings,
+	// regexs, and comments). The specification suggests a simple solution,
+	// rather than implementing the arcane ABNF, which involves simply escaping
+	// the opening bracket with \x3C. We use the below regex for this, since it
+	// makes doing the case-insensitive find-replace much simpler.
+	specialScriptTagRE          = regexp.MustCompile("(?i)<(script|/script|!--)")
+	specialScriptTagReplacement = []byte("\\x3C$1")
+)
+
+func containsSpecialScriptTag(s []byte) bool {
+	return specialScriptTagRE.Match(s)
+}
+
+func escapeSpecialScriptTags(s []byte) []byte {
+	return specialScriptTagRE.ReplaceAll(s, specialScriptTagReplacement)
+}
+
 var doctypeBytes = []byte("<!DOCTYPE")
 
 // escapeText escapes a text template node.
@@ -777,11 +794,19 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 		if c.state != c1.state && isComment(c1.state) && c1.delim == delimNone {
 			// Preserve the portion between written and the comment start.
 			cs := i1 - 2
-			if c1.state == stateHTMLCmt {
+			if c1.state == stateHTMLCmt || c1.state == stateJSHTMLOpenCmt {
 				// "<!--" instead of "/*" or "//"
 				cs -= 2
+			} else if c1.state == stateJSHTMLCloseCmt {
+				// "-->" instead of "/*" or "//"
+				cs -= 1
 			}
 			b.Write(s[written:cs])
+			written = i1
+		}
+		if isInScriptLiteral(c.state) && containsSpecialScriptTag(s[i:i1]) {
+			b.Write(s[written:i])
+			b.Write(escapeSpecialScriptTags(s[i:i1]))
 			written = i1
 		}
 		if i == i1 && c.state == c1.state {

@@ -14,6 +14,17 @@
 // A cross-compiled distribution for goos/goarch can be built using:
 //
 //	GOOS=goos GOARCH=goarch ./make.bash -distpack
+//
+// To test that the module downloads are usable with the go command:
+//
+//	./make.bash -distpack
+//	mkdir -p /tmp/goproxy/golang.org/toolchain/
+//	ln -sf $(pwd)/../pkg/distpack /tmp/goproxy/golang.org/toolchain/@v
+//	GOPROXY=file:///tmp/goproxy GOTOOLCHAIN=$(sed 1q ../VERSION) gotip version
+//
+// gotip can be replaced with an older released Go version once there is one.
+// It just can't be the one make.bash built, because it knows it is already that
+// version and will skip the download.
 package main
 
 import (
@@ -116,7 +127,6 @@ func main() {
 		// Generated during cmd/dist. See ../dist/build.go:/gentab.
 		"src/cmd/go/internal/cfg/zdefaultcc.go",
 		"src/go/build/zcgo.go",
-		"src/internal/platform/zosarch.go",
 		"src/runtime/internal/sys/zversion.go",
 		"src/time/tzdata/zzipdata.go",
 
@@ -199,6 +209,8 @@ func main() {
 	)
 	modVers := modVersionPrefix + "-" + version + "." + goosDashGoarch
 	modArch.AddPrefix(modPath + "@" + modVers)
+	modArch.RenameGoMod()
+	modArch.Sort()
 	testMod(modArch)
 
 	// distpack returns the full path to name in the distpack directory.
@@ -234,6 +246,8 @@ func mode(name string, _ fs.FileMode) fs.FileMode {
 		strings.HasSuffix(name, ".sh") ||
 		strings.HasSuffix(name, ".pl") ||
 		strings.HasSuffix(name, ".rc") {
+		return 0o755
+	} else if ok, _ := amatch("**/go_?*_?*_exec", name); ok {
 		return 0o755
 	}
 	return 0o644
@@ -315,8 +329,47 @@ func writeTgz(name string, a *Archive) {
 
 	zw := check(gzip.NewWriterLevel(out, gzip.BestCompression))
 	tw := tar.NewWriter(zw)
+
+	// Find the mode and mtime to use for directory entries,
+	// based on the mode and mtime of the first file we see.
+	// We know that modes and mtimes are uniform across the archive.
+	var dirMode fs.FileMode
+	var mtime time.Time
+	for _, f := range a.Files {
+		dirMode = fs.ModeDir | f.Mode | (f.Mode&0444)>>2 // copy r bits down to x bits
+		mtime = f.Time
+		break
+	}
+
+	// mkdirAll ensures that the tar file contains directory
+	// entries for dir and all its parents. Some programs reading
+	// these tar files expect that. See go.dev/issue/61862.
+	haveDir := map[string]bool{".": true}
+	var mkdirAll func(string)
+	mkdirAll = func(dir string) {
+		if dir == "/" {
+			panic("mkdirAll /")
+		}
+		if haveDir[dir] {
+			return
+		}
+		haveDir[dir] = true
+		mkdirAll(path.Dir(dir))
+		df := &File{
+			Name: dir + "/",
+			Time: mtime,
+			Mode: dirMode,
+		}
+		h := check(tar.FileInfoHeader(df.Info(), ""))
+		h.Name = dir + "/"
+		if err := tw.WriteHeader(h); err != nil {
+			panic(err)
+		}
+	}
+
 	for _, f = range a.Files {
 		h := check(tar.FileInfoHeader(f.Info(), ""))
+		mkdirAll(path.Dir(f.Name))
 		h.Name = f.Name
 		if err := tw.WriteHeader(h); err != nil {
 			panic(err)

@@ -9,6 +9,7 @@ package work
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/cov/covcmd"
 	"container/heap"
 	"context"
 	"debug/elf"
@@ -382,16 +383,23 @@ func (b *Builder) NewObjdir() string {
 func readpkglist(shlibpath string) (pkgs []*load.Package) {
 	var stk load.ImportStack
 	if cfg.BuildToolchainName == "gccgo" {
-		f, _ := elf.Open(shlibpath)
+		f, err := elf.Open(shlibpath)
+		if err != nil {
+			base.Fatal(fmt.Errorf("failed to open shared library: %v", err))
+		}
 		sect := f.Section(".go_export")
-		data, _ := sect.Data()
-		scanner := bufio.NewScanner(bytes.NewBuffer(data))
-		for scanner.Scan() {
-			t := scanner.Text()
-			var found bool
-			if t, found = strings.CutPrefix(t, "pkgpath "); found {
-				t = strings.TrimSuffix(t, ";")
-				pkgs = append(pkgs, load.LoadPackageWithFlags(t, base.Cwd(), &stk, nil, 0))
+		if sect == nil {
+			base.Fatal(fmt.Errorf("%s: missing .go_export section", shlibpath))
+		}
+		data, err := sect.Data()
+		if err != nil {
+			base.Fatal(fmt.Errorf("%s: failed to read .go_export section: %v", shlibpath, err))
+		}
+		pkgpath := []byte("pkgpath ")
+		for _, line := range bytes.Split(data, []byte{'\n'}) {
+			if path, found := bytes.CutPrefix(line, pkgpath); found {
+				path = bytes.TrimSuffix(path, []byte{';'})
+				pkgs = append(pkgs, load.LoadPackageWithFlags(string(path), base.Cwd(), &stk, nil, 0))
 			}
 		}
 	} else {
@@ -429,6 +437,32 @@ func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
 	return b.CompileAction(mode, depMode, p)
 }
 
+// buildActor implements the Actor interface for package build
+// actions. For most package builds this simply means invoking th
+// *Builder.build method; in the case of "go test -cover" for
+// a package with no test files, we stores some additional state
+// information in the build actor to help with reporting.
+type buildActor struct {
+	// name of static meta-data file fragment emitted by the cover
+	// tool as part of the package build action, for selected
+	// "go test -cover" runs.
+	covMetaFileName string
+}
+
+// newBuildActor returns a new buildActor object, setting up the
+// covMetaFileName field if 'genCoverMeta' flag is set.
+func newBuildActor(p *load.Package, genCoverMeta bool) *buildActor {
+	ba := &buildActor{}
+	if genCoverMeta {
+		ba.covMetaFileName = covcmd.MetaFileForPackage(p.ImportPath)
+	}
+	return ba
+}
+
+func (ba *buildActor) Act(b *Builder, ctx context.Context, a *Action) error {
+	return b.build(ctx, a)
+}
+
 // CompileAction returns the action for compiling and possibly installing
 // (according to mode) the given package. The resulting action is only
 // for building packages (archives), never for linking executables.
@@ -452,7 +486,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 		a := &Action{
 			Mode:    "build",
 			Package: p,
-			Actor:   ActorFunc((*Builder).build),
+			Actor:   newBuildActor(p, p.Internal.Cover.GenMeta),
 			Objdir:  b.NewObjdir(),
 		}
 
@@ -846,7 +880,11 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 
 			// The linker step still needs all the usual linker deps.
 			// (For example, the linker always opens runtime.a.)
-			for _, dep := range load.LinkerDeps(nil) {
+			ldDeps, err := load.LinkerDeps(nil)
+			if err != nil {
+				base.Error(err)
+			}
+			for _, dep := range ldDeps {
 				add(a, dep, true)
 			}
 		}

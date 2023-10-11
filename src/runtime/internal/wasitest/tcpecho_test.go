@@ -20,13 +20,18 @@ func TestTCPEcho(t *testing.T) {
 		t.Skip()
 	}
 
-	// We're unable to pass port 0 here (let the OS choose a spare port).
-	// Although wasmtime accepts port 0, and testdata/main.go successfully
-	// listens, there's no way for this test case to query the chosen port
+	// We're unable to use port 0 here (let the OS choose a spare port).
+	// Although the WASM runtime accepts port 0, and the WASM module listens
+	// successfully, there's no way for this test to query the selected port
 	// so that it can connect to the WASM module. The WASM module itself
 	// cannot access any information about the socket due to limitations
-	// with WASI preview 1 networking, and wasmtime does not log the address
-	// when you preopen a socket. Instead, we probe for a free port here.
+	// with WASI preview 1 networking, and the WASM runtimes do not log the
+	// port when you pre-open a socket. So, we probe for a free port here.
+	// Given there's an unavoidable race condition, the test is disabled by
+	// default.
+	if os.Getenv("GOWASIENABLERACYTEST") != "1" {
+		t.Skip("skipping WASI test with unavoidable race condition")
+	}
 	var host string
 	port := rand.Intn(10000) + 40000
 	for attempts := 0; attempts < 10; attempts++ {
@@ -44,7 +49,9 @@ func TestTCPEcho(t *testing.T) {
 	subProcess.Env = append(os.Environ(), "GOOS=wasip1", "GOARCH=wasm")
 
 	switch os.Getenv("GOWASIRUNTIME") {
-	case "wasmtime":
+	case "wazero":
+		subProcess.Env = append(subProcess.Env, "GOWASIRUNTIMEARGS=--listen="+host)
+	case "wasmtime", "":
 		subProcess.Env = append(subProcess.Env, "GOWASIRUNTIMEARGS=--tcplisten="+host)
 	default:
 		t.Skip("WASI runtime does not support sockets")
@@ -62,7 +69,7 @@ func TestTCPEcho(t *testing.T) {
 
 	var conn net.Conn
 	var err error
-	for attempts := 0; attempts < 5; attempts++ {
+	for {
 		conn, err = net.Dial("tcp", host)
 		if err == nil {
 			break

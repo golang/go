@@ -22,7 +22,6 @@ import (
 	"cmd/go/internal/gover"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
-	"cmd/internal/objabi"
 	"cmd/internal/quoted"
 	"crypto/sha1"
 )
@@ -32,20 +31,6 @@ var ToolchainVersion = runtime.Version()
 
 // The 'path' used for GOROOT_FINAL when -trimpath is specified
 const trimPathGoRootFinal string = "$GOROOT"
-
-var runtimePackages = map[string]struct{}{
-	"internal/abi":             struct{}{},
-	"internal/bytealg":         struct{}{},
-	"internal/coverage/rtcov":  struct{}{},
-	"internal/cpu":             struct{}{},
-	"internal/goarch":          struct{}{},
-	"internal/goos":            struct{}{},
-	"runtime":                  struct{}{},
-	"runtime/internal/atomic":  struct{}{},
-	"runtime/internal/math":    struct{}{},
-	"runtime/internal/sys":     struct{}{},
-	"runtime/internal/syscall": struct{}{},
-}
 
 // The Go toolchain.
 
@@ -85,19 +70,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if p.Module != nil {
 		v := p.Module.GoVersion
 		if v == "" {
-			// We started adding a 'go' directive to the go.mod file unconditionally
-			// as of Go 1.12, so any module that still lacks such a directive must
-			// either have been authored before then, or have a hand-edited go.mod
-			// file that hasn't been updated by cmd/go since that edit.
-			//
-			// Unfortunately, through at least Go 1.16 we didn't add versions to
-			// vendor/modules.txt. So this could also be a vendored 1.16 dependency.
-			//
-			// Fortunately, there were no breaking changes to the language between Go
-			// 1.11 and 1.16, so if we assume Go 1.16 semantics we will not introduce
-			// any spurious errors — we will only mask errors, and not particularly
-			// important ones at that.
-			v = "1.16"
+			v = gover.DefaultGoModVersion
 		}
 		if allowedVersion(v) {
 			defaultGcFlags = append(defaultGcFlags, "-lang=go"+gover.Lang(v))
@@ -105,14 +78,6 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	}
 	if p.Standard {
 		defaultGcFlags = append(defaultGcFlags, "-std")
-	}
-	_, compilingRuntime := runtimePackages[p.ImportPath]
-	compilingRuntime = compilingRuntime && p.Standard
-	if compilingRuntime {
-		// runtime compiles with a special gc flag to check for
-		// memory allocations that are invalid in the runtime package,
-		// and to implement some special compiler pragmas.
-		defaultGcFlags = append(defaultGcFlags, "-+")
 	}
 
 	// If we're giving the compiler the entire package (no C etc files), tell it that,
@@ -145,8 +110,8 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if strings.HasPrefix(ToolchainVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
 		defaultGcFlags = append(defaultGcFlags, "-goversion", ToolchainVersion)
 	}
-	if p.Internal.CoverageCfg != "" {
-		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.CoverageCfg)
+	if p.Internal.Cover.Cfg != "" {
+		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.Cover.Cfg)
 	}
 	if p.Internal.PGOProfile != "" {
 		defaultGcFlags = append(defaultGcFlags, "-pgoprofile="+p.Internal.PGOProfile)
@@ -158,18 +123,6 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	gcflags := str.StringList(forcedGcflags, p.Internal.Gcflags)
 	if p.Internal.FuzzInstrument {
 		gcflags = append(gcflags, fuzzInstrumentFlags()...)
-	}
-	if compilingRuntime {
-		// Remove -N, if present.
-		// It is not possible to build the runtime with no optimizations,
-		// because the compiler cannot eliminate enough write barriers.
-		for i := 0; i < len(gcflags); i++ {
-			if gcflags[i] == "-N" {
-				copy(gcflags[i:], gcflags[i+1:])
-				gcflags = gcflags[:len(gcflags)-1]
-				i--
-			}
-		}
 	}
 	// Add -c=N to use concurrent backend compilation, if possible.
 	if c := gcBackendConcurrency(gcflags); c > 1 {
@@ -370,9 +323,6 @@ func asmArgs(a *Action, p *load.Package) []any {
 				args = append(args, "-D=GOBUILDMODE_shared=1")
 			}
 		}
-	}
-	if objabi.IsRuntimePackagePath(pkgpath) {
-		args = append(args, "-compiling-runtime")
 	}
 
 	if cfg.Goarch == "386" {

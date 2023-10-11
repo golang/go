@@ -2,7 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate go test . -run=^TestGenerated$ -fix
+
 package platform
+
+// An OSArch is a pair of GOOS and GOARCH values indicating a platform.
+type OSArch struct {
+	GOOS, GOARCH string
+}
+
+func (p OSArch) String() string {
+	return p.GOOS + "/" + p.GOARCH
+}
 
 // RaceDetectorSupported reports whether goos/goarch supports the race
 // detector. There is a copy of this function in cmd/dist/test.go.
@@ -27,7 +38,7 @@ func RaceDetectorSupported(goos, goarch string) bool {
 func MSanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
-		return goarch == "amd64" || goarch == "arm64"
+		return goarch == "amd64" || goarch == "arm64" || goarch == "loong64"
 	case "freebsd":
 		return goarch == "amd64"
 	default:
@@ -40,7 +51,7 @@ func MSanSupported(goos, goarch string) bool {
 func ASanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
-		return goarch == "arm64" || goarch == "amd64" || goarch == "riscv64" || goarch == "ppc64le"
+		return goarch == "arm64" || goarch == "amd64" || goarch == "loong64" || goarch == "riscv64" || goarch == "ppc64le"
 	default:
 		return false
 	}
@@ -74,9 +85,7 @@ func FuzzInstrumented(goos, goarch string) bool {
 func MustLinkExternal(goos, goarch string, withCgo bool) bool {
 	if withCgo {
 		switch goarch {
-		case "loong64",
-			"mips", "mipsle", "mips64", "mips64le",
-			"riscv64":
+		case "loong64", "mips", "mipsle", "mips64", "mips64le":
 			// Internally linking cgo is incomplete on some architectures.
 			// https://go.dev/issue/14449
 			return true
@@ -88,7 +97,9 @@ func MustLinkExternal(goos, goarch string, withCgo bool) bool {
 		case "ppc64":
 			// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
 			// https://go.dev/issue/8912
-			return true
+			if goos == "aix" || goos == "linux" {
+				return true
+			}
 		}
 
 		switch goos {
@@ -123,11 +134,11 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 		return true
 	}
 
-	platform := goos + "/" + goarch
-	if _, ok := osArchSupportsCgo[platform]; !ok {
+	if _, ok := distInfo[OSArch{goos, goarch}]; !ok {
 		return false // platform unrecognized
 	}
 
+	platform := goos + "/" + goarch
 	switch buildmode {
 	case "archive":
 		return true
@@ -234,14 +245,9 @@ func DefaultPIE(goos, goarch string, isRace bool) bool {
 		}
 		return true
 	case "darwin":
-		return goarch == "arm64"
+		return true
 	}
 	return false
-}
-
-// CgoSupported reports whether goos/goarch supports cgo.
-func CgoSupported(goos, goarch string) bool {
-	return osArchSupportsCgo[goos+"/"+goarch]
 }
 
 // ExecutableHasDWARF reports whether the linked executable includes DWARF
@@ -252,4 +258,29 @@ func ExecutableHasDWARF(goos, goarch string) bool {
 		return false
 	}
 	return true
+}
+
+// osArchInfo describes information about an OSArch extracted from cmd/dist and
+// stored in the generated distInfo map.
+type osArchInfo struct {
+	CgoSupported bool
+	FirstClass   bool
+	Broken       bool
+}
+
+// CgoSupported reports whether goos/goarch supports cgo.
+func CgoSupported(goos, goarch string) bool {
+	return distInfo[OSArch{goos, goarch}].CgoSupported
+}
+
+// FirstClass reports whether goos/goarch is considered a “first class” port.
+// (See https://go.dev/wiki/PortingPolicy#first-class-ports.)
+func FirstClass(goos, goarch string) bool {
+	return distInfo[OSArch{goos, goarch}].FirstClass
+}
+
+// Broken reportsr whether goos/goarch is considered a broken port.
+// (See https://go.dev/wiki/PortingPolicy#broken-ports.)
+func Broken(goos, goarch string) bool {
+	return distInfo[OSArch{goos, goarch}].Broken
 }

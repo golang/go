@@ -172,7 +172,7 @@ func gcPaceScavenger(memoryLimit int64, heapGoal, lastHeapGoal uint64) {
 	// it's simpler.
 
 	// We want to target retaining (100-reduceExtraPercent)% of the heap.
-	memoryLimitGoal := uint64(float64(memoryLimit) * (100.0 - reduceExtraPercent))
+	memoryLimitGoal := uint64(float64(memoryLimit) * (1 - reduceExtraPercent/100.0))
 
 	// mappedReady is comparable to memoryLimit, and represents how much total memory
 	// the Go runtime has committed now (estimated).
@@ -769,10 +769,6 @@ func (p *pageAlloc) scavengeOne(ci chunkIdx, searchIdx uint, max uintptr) uintpt
 			p.chunkOf(ci).allocRange(base, npages)
 			p.update(addr, uintptr(npages), true, true)
 
-			// Grab whether the chunk is hugepage backed and if it is,
-			// clear it. We're about to break up this huge page.
-			shouldNoHugePage := p.scav.index.setNoHugePage(ci)
-
 			// With that done, it's safe to unlock.
 			unlock(p.mheapLock)
 
@@ -781,9 +777,6 @@ func (p *pageAlloc) scavengeOne(ci chunkIdx, searchIdx uint, max uintptr) uintpt
 
 				// Only perform sys* operations if we're not in a test.
 				// It's dangerous to do so otherwise.
-				if shouldNoHugePage {
-					sysNoHugePage(unsafe.Pointer(chunkBase(ci)), pallocChunkBytes)
-				}
 				sysUnused(unsafe.Pointer(addr), uintptr(npages)*pageSize)
 
 				// Update global accounting only when not in test, otherwise
@@ -884,7 +877,7 @@ func fillAligned(x uint64, m uint) uint64 {
 // segment which represents a contiguous region of free and unscavenged memory.
 //
 // searchIdx indicates the page index within this chunk to start the search, but
-// note that findScavengeCandidate searches backwards through the pallocData. As a
+// note that findScavengeCandidate searches backwards through the pallocData. As
 // a result, it will return the highest scavenge candidate in address order.
 //
 // min indicates a hard minimum size and alignment for runs of pages. That is,
@@ -978,7 +971,7 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
 		// to include that huge page.
 
 		// Compute the huge page boundary above our candidate.
-		pagesPerHugePage := uintptr(physHugePageSize / pageSize)
+		pagesPerHugePage := physHugePageSize / pageSize
 		hugePageAbove := uint(alignUp(uintptr(start), pagesPerHugePage))
 
 		// If that boundary is within our current candidate, then we may be breaking
@@ -1101,7 +1094,7 @@ func (s *scavengeIndex) find(force bool) (chunkIdx, uint) {
 	// Starting from searchAddr's chunk, iterate until we find a chunk with pages to scavenge.
 	gen := s.gen
 	min := chunkIdx(s.minHeapIdx.Load())
-	start := chunkIndex(uintptr(searchAddr))
+	start := chunkIndex(searchAddr)
 	// N.B. We'll never map the 0'th chunk, so minHeapIdx ensures this loop overflow.
 	for i := start; i >= min; i-- {
 		// Skip over chunks.
@@ -1110,7 +1103,7 @@ func (s *scavengeIndex) find(force bool) (chunkIdx, uint) {
 		}
 		// We're still scavenging this chunk.
 		if i == start {
-			return i, chunkPageIndex(uintptr(searchAddr))
+			return i, chunkPageIndex(searchAddr)
 		}
 		// Try to reduce searchAddr to newSearchAddr.
 		newSearchAddr := chunkBase(i) + pallocChunkBytes - pageSize
@@ -1134,19 +1127,21 @@ func (s *scavengeIndex) find(force bool) (chunkIdx, uint) {
 }
 
 // alloc updates metadata for chunk at index ci with the fact that
-// an allocation of npages occurred.
+// an allocation of npages occurred. It also eagerly attempts to collapse
+// the chunk's memory into hugepage if the chunk has become sufficiently
+// dense and we're not allocating the whole chunk at once (which suggests
+// the allocation is part of a bigger one and it's probably not worth
+// eagerly collapsing).
 //
 // alloc may only run concurrently with find.
 func (s *scavengeIndex) alloc(ci chunkIdx, npages uint) {
 	sc := s.chunks[ci].load()
 	sc.alloc(npages, s.gen)
-	if !sc.isHugePage() && sc.inUse > scavChunkHiOccPages {
-		// Mark dense chunks as specifically backed by huge pages.
-		sc.setHugePage()
-		if !s.test {
-			sysHugePage(unsafe.Pointer(chunkBase(ci)), pallocChunkBytes)
-		}
-	}
+	// TODO(mknyszek): Consider eagerly backing memory with huge pages
+	// here and track whether we believe this chunk is backed by huge pages.
+	// In the past we've attempted to use sysHugePageCollapse (which uses
+	// MADV_COLLAPSE on Linux, and is unsupported elswhere) for this purpose,
+	// but that caused performance issues in production environments.
 	s.chunks[ci].store(sc)
 }
 
@@ -1198,20 +1193,6 @@ func (s *scavengeIndex) setEmpty(ci chunkIdx) {
 	val := s.chunks[ci].load()
 	val.setEmpty()
 	s.chunks[ci].store(val)
-}
-
-// setNoHugePage updates the backed-by-hugepages status of a particular chunk.
-// Returns true if the set was successful (not already backed by huge pages).
-//
-// setNoHugePage may only run concurrently with find.
-func (s *scavengeIndex) setNoHugePage(ci chunkIdx) bool {
-	val := s.chunks[ci].load()
-	if !val.isHugePage() {
-		return false
-	}
-	val.setNoHugePage()
-	s.chunks[ci].store(val)
-	return true
 }
 
 // atomicScavChunkData is an atomic wrapper around a scavChunkData
@@ -1282,12 +1263,6 @@ const (
 	// file. The reason we say "HasFree" here is so the zero value is
 	// correct for a newly-grown chunk. (New memory is scavenged.)
 	scavChunkHasFree scavChunkFlags = 1 << iota
-	// scavChunkNoHugePage indicates whether this chunk has been marked
-	// sysNoHugePage. If not set, it means the chunk is marked sysHugePage.
-	// The negative here is unfortunate, but necessary to make it so that
-	// the zero value of scavChunkData accurately represents the state of
-	// a newly-grown chunk. (New memory is marked as backed by huge pages.)
-	scavChunkNoHugePage
 
 	// scavChunkMaxFlags is the maximum number of flags we can have, given how
 	// a scavChunkData is packed into 8 bytes.
@@ -1318,21 +1293,6 @@ func (sc *scavChunkFlags) setEmpty() {
 // setNonEmpty sets the hasFree flag.
 func (sc *scavChunkFlags) setNonEmpty() {
 	*sc |= scavChunkHasFree
-}
-
-// isHugePage returns false if the noHugePage flag is set.
-func (sc *scavChunkFlags) isHugePage() bool {
-	return (*sc)&scavChunkNoHugePage == 0
-}
-
-// setHugePage clears the noHugePage flag.
-func (sc *scavChunkFlags) setHugePage() {
-	*sc &^= scavChunkNoHugePage
-}
-
-// setNoHugePage sets the noHugePage flag.
-func (sc *scavChunkFlags) setNoHugePage() {
-	*sc |= scavChunkNoHugePage
 }
 
 // shouldScavenge returns true if the corresponding chunk should be interrogated

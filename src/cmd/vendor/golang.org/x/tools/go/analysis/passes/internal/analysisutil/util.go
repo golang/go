@@ -12,7 +12,7 @@ import (
 	"go/printer"
 	"go/token"
 	"go/types"
-	"io/ioutil"
+	"os"
 )
 
 // Format returns a string representation of the expression.
@@ -69,7 +69,7 @@ func Unparen(e ast.Expr) ast.Expr {
 // ReadFile reads a file and adds it to the FileSet
 // so that we can report errors against it using lineStart.
 func ReadFile(fset *token.FileSet, filename string) ([]byte, *token.File, error) {
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -115,15 +115,6 @@ func Imports(pkg *types.Package, path string) bool {
 		if imp.Path() == path {
 			return true
 		}
-	}
-	return false
-}
-
-// IsNamed reports whether t is exactly a named type in a package with a given path.
-func IsNamed(t types.Type, path, name string) bool {
-	if n, ok := t.(*types.Named); ok {
-		obj := n.Obj()
-		return obj.Pkg().Path() == path && obj.Name() == name
 	}
 	return false
 }

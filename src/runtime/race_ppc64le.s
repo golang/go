@@ -363,7 +363,7 @@ TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-25
 TEXT	racecallatomic<>(SB), NOSPLIT, $0-0
 	// Trigger SIGSEGV early if address passed to atomic function is bad.
 	MOVD	(R6), R7	// 1st arg is addr
-	MOVD	(R7), R9	// segv here if addr is bad
+	MOVB	(R7), R9	// segv here if addr is bad
 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
 	MOVD	runtime·racearenastart(SB), R9
 	CMP	R7, R9

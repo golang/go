@@ -6,6 +6,8 @@ package net
 
 import (
 	"context"
+	"internal/bytealg"
+	"internal/godebug"
 	"internal/nettrace"
 	"syscall"
 	"time"
@@ -20,6 +22,8 @@ const (
 	// See go.dev/issue/56539
 	defaultMPTCPEnabled = false
 )
+
+var multipathtcp = godebug.New("multipathtcp")
 
 // mptcpStatus is a tristate for Multipath TCP, see go.dev/issue/56539
 type mptcpStatus uint8
@@ -37,6 +41,13 @@ func (m *mptcpStatus) get() bool {
 		return true
 	case mptcpDisabled:
 		return false
+	}
+
+	// If MPTCP is forced via GODEBUG=multipathtcp=1
+	if multipathtcp.Value() == "1" {
+		multipathtcp.IncNonDefault()
+
+		return true
 	}
 
 	return defaultMPTCPEnabled
@@ -216,7 +227,7 @@ func (d *Dialer) fallbackDelay() time.Duration {
 }
 
 func parseNetwork(ctx context.Context, network string, needsProto bool) (afnet string, proto int, err error) {
-	i := last(network, ':')
+	i := bytealg.LastIndexByteString(network, ':')
 	if i < 0 { // no colon
 		switch network {
 		case "tcp", "tcp4", "tcp6":
@@ -329,7 +340,7 @@ func (d *Dialer) MultipathTCP() bool {
 
 // SetMultipathTCP directs the Dial methods to use, or not use, MPTCP,
 // if supported by the operating system. This method overrides the
-// system default.
+// system default and the GODEBUG=multipathtcp=... setting if any.
 //
 // If MPTCP is not available on the host or not supported by the server,
 // the Dial methods will fall back to TCP.
@@ -447,6 +458,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 	}
 	deadline := d.deadline(ctx, time.Now())
 	if !deadline.IsZero() {
+		testHookStepTime()
 		if d, ok := ctx.Deadline(); !ok || deadline.Before(d) {
 			subCtx, cancel := context.WithDeadline(ctx, deadline)
 			defer cancel()
@@ -690,7 +702,7 @@ func (lc *ListenConfig) MultipathTCP() bool {
 
 // SetMultipathTCP directs the Listen method to use, or not use, MPTCP,
 // if supported by the operating system. This method overrides the
-// system default.
+// system default and the GODEBUG=multipathtcp=... setting if any.
 //
 // If MPTCP is not available on the host or not supported by the client,
 // the Listen method will fall back to TCP.

@@ -85,12 +85,13 @@ func (m *sharedMem) Close() error {
 // run a worker process.
 func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
 	mem := <-comm.memMu
-	memName := mem.f.Name()
+	memFD := mem.f.Fd()
 	comm.memMu <- mem
 	syscall.SetHandleInformation(syscall.Handle(comm.fuzzIn.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
 	syscall.SetHandleInformation(syscall.Handle(comm.fuzzOut.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GO_TEST_FUZZ_WORKER_HANDLES=%x,%x,%q", comm.fuzzIn.Fd(), comm.fuzzOut.Fd(), memName))
-	cmd.SysProcAttr = &syscall.SysProcAttr{AdditionalInheritedHandles: []syscall.Handle{syscall.Handle(comm.fuzzIn.Fd()), syscall.Handle(comm.fuzzOut.Fd())}}
+	syscall.SetHandleInformation(syscall.Handle(memFD), syscall.HANDLE_FLAG_INHERIT, 1)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GO_TEST_FUZZ_WORKER_HANDLES=%x,%x,%x", comm.fuzzIn.Fd(), comm.fuzzOut.Fd(), memFD))
+	cmd.SysProcAttr = &syscall.SysProcAttr{AdditionalInheritedHandles: []syscall.Handle{syscall.Handle(comm.fuzzIn.Fd()), syscall.Handle(comm.fuzzOut.Fd()), syscall.Handle(memFD)}}
 }
 
 // getWorkerComm returns communication channels in the worker process.
@@ -99,19 +100,15 @@ func getWorkerComm() (comm workerComm, err error) {
 	if v == "" {
 		return workerComm{}, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES not set")
 	}
-	var fuzzInFD, fuzzOutFD uintptr
-	var memName string
-	if _, err := fmt.Sscanf(v, "%x,%x,%q", &fuzzInFD, &fuzzOutFD, &memName); err != nil {
+	var fuzzInFD, fuzzOutFD, memFileFD uintptr
+	if _, err := fmt.Sscanf(v, "%x,%x,%x", &fuzzInFD, &fuzzOutFD, &memFileFD); err != nil {
 		return workerComm{}, fmt.Errorf("parsing GO_TEST_FUZZ_WORKER_HANDLES=%s: %v", v, err)
 	}
 
 	fuzzIn := os.NewFile(fuzzInFD, "fuzz_in")
 	fuzzOut := os.NewFile(fuzzOutFD, "fuzz_out")
-	tmpFile, err := os.OpenFile(memName, os.O_RDWR, 0)
-	if err != nil {
-		return workerComm{}, fmt.Errorf("worker opening temp file: %w", err)
-	}
-	fi, err := tmpFile.Stat()
+	memFile := os.NewFile(memFileFD, "fuzz_mem")
+	fi, err := memFile.Stat()
 	if err != nil {
 		return workerComm{}, fmt.Errorf("worker checking temp file size: %w", err)
 	}
@@ -120,7 +117,7 @@ func getWorkerComm() (comm workerComm, err error) {
 		return workerComm{}, fmt.Errorf("fuzz temp file exceeds maximum size")
 	}
 	removeOnClose := false
-	mem, err := sharedMemMapFile(tmpFile, size, removeOnClose)
+	mem, err := sharedMemMapFile(memFile, size, removeOnClose)
 	if err != nil {
 		return workerComm{}, err
 	}

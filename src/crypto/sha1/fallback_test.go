@@ -16,7 +16,7 @@ import (
 // implementation cannot be used.
 // See also TestBlockGeneric.
 func TestGenericPath(t *testing.T) {
-	if useAsm == false {
+	if !useAsm {
 		t.Skipf("assembly implementation unavailable")
 	}
 	useAsm = false

@@ -7,6 +7,10 @@
 package main
 
 import (
+	"bytes"
+	"cmd/internal/buildid"
+	"cmd/internal/notsha256"
+	"cmd/link/internal/ld"
 	"debug/elf"
 	"fmt"
 	"internal/platform"
@@ -196,6 +200,39 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
+	}
+}
+
+func TestGNUBuildIDDerivedFromGoBuildID(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	goFile := filepath.Join(t.TempDir(), "notes.go")
+	if err := os.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+		t.Fatal(err)
+	}
+	outFile := filepath.Join(t.TempDir(), "notes.exe")
+	goTool := testenv.GoToolPath(t)
+
+	cmd := testenv.Command(t, goTool, "build", "-o", outFile, "-ldflags", "-buildid 0x1234 -B gobuildid", goFile)
+	cmd.Dir = t.TempDir()
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	expectedGoBuildID := notsha256.Sum256([]byte("0x1234"))
+
+	gnuBuildID, err := buildid.ReadELFNote(outFile, string(ld.ELF_NOTE_BUILDINFO_NAME), ld.ELF_NOTE_BUILDINFO_TAG)
+	if err != nil || gnuBuildID == nil {
+		t.Fatalf("can't read GNU build ID")
+	}
+
+	if !bytes.Equal(gnuBuildID, expectedGoBuildID[:20]) {
+		t.Fatalf("build id not matching")
 	}
 }
 
@@ -496,5 +533,30 @@ func TestIssue51939(t *testing.T) {
 		if s.Flags&elf.SHF_ALLOC == 0 && s.Addr != 0 {
 			t.Errorf("section %s should not allocated with addr %x", s.Name, s.Addr)
 		}
+	}
+}
+
+func TestFlagR(t *testing.T) {
+	// Test that using the -R flag to specify a (large) alignment generates
+	// a working binary.
+	// (Test only on ELF for now. The alignment allowed differs from platform
+	// to platform.)
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(goSource), 0444); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "x.exe")
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-R=0x100000", "-o", exe, src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed: %v, output:\n%s", err, out)
+	}
+
+	cmd = testenv.Command(t, exe)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
 	}
 }

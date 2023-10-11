@@ -1,7 +1,7 @@
 package issue8756
 
 /*
-#cgo LDFLAGS: -lm
+#cgo !darwin LDFLAGS: -lm
 #include <math.h>
 */
 import "C"

@@ -1044,16 +1044,16 @@ func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
 
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
 
-	interations := 10
+	iterations := 10
 	if testing.Short() {
-		interations = 1
+		iterations = 1
 	}
 	const (
 		maxDuration = 5 * time.Second
 		nroutines   = 8
 	)
 
-	for i := 0; i < interations; i++ {
+	for i := 0; i < iterations; i++ {
 		c := make(chan bool, nroutines)
 		stop := uint32(0)
 

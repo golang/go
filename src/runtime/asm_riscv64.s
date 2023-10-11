@@ -309,6 +309,15 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	CALL	runtime·abort(SB)
 	RET
 
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet (during needm).
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
+	MOV	fn+0(FP), X5
+	MOV	arg+8(FP), X10
+	JALR	RA, (X5)
+	RET
+
 // func asmcgocall(fn, arg unsafe.Pointer) int32
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
@@ -624,8 +633,8 @@ havem:
 	// 2. or the duration of the C thread alive on pthread platforms.
 	// If the m on entry wasn't nil,
 	// 1. the thread might be a Go thread,
-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
-	//    since the we skip dropm to resue the m in the first call.
+	// 2. or it wasn't the first call from a C thread on pthread platforms,
+	//    since then we skip dropm to reuse the m in the first call.
 	MOV	savedm-8(SP), X5
 	BNE	ZERO, X5, droppedm
 
@@ -740,7 +749,7 @@ TEXT ·unspillArgs(SB),NOSPLIT,$0-0
 //
 // gcWriteBarrier does NOT follow the Go ABI. It accepts the
 // number of bytes of buffer needed in X24, and returns a pointer
-// to the buffer spcae in X24.
+// to the buffer space in X24.
 // It clobbers X31 aka T6 (the linker temp register - REG_TMP).
 // The act of CALLing gcWriteBarrier will clobber RA (LR).
 // It does not clobber any other general-purpose registers,

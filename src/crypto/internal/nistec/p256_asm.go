@@ -294,9 +294,8 @@ func p256OrdLittleToBig(res *[32]byte, in *p256OrdElement)
 // [0]P is the point at infinity and it's not stored.
 type p256Table [16]P256Point
 
-// p256Select sets res to the point at index idx - 1 in the table.
-// idx must be in [1, 16] or res will be set to an undefined value.
-// It executes in constant time.
+// p256Select sets res to the point at index idx in the table.
+// idx must be in [0, 15]. It executes in constant time.
 //
 //go:noescape
 func p256Select(res *P256Point, table *p256Table, idx int)
@@ -336,25 +335,22 @@ func init() {
 	p256Precomputed = (*[43]p256AffineTable)(*p256PrecomputedPtr)
 }
 
-// p256SelectAffine sets res to the point at index idx - 1 in the table.
-// idx must be in [1, 32] or res will be set to an undefined value.
-// It executes in constant time.
+// p256SelectAffine sets res to the point at index idx in the table.
+// idx must be in [0, 31]. It executes in constant time.
 //
 //go:noescape
 func p256SelectAffine(res *p256AffinePoint, table *p256AffineTable, idx int)
 
 // Point addition with an affine point and constant time conditions.
 // If zero is 0, sets res = in2. If sel is 0, sets res = in1.
-// If sign is not 0, sets res = in1 + -in2. Otherwise, sets res = in1 + in2.
-// If neither sel nor zero are 0 and in1 = in2, or both zero and sel are 0,
-// or in1 is the infinity, res is undefined.
+// If sign is not 0, sets res = in1 + -in2. Otherwise, sets res = in1 + in2
 //
 //go:noescape
 func p256PointAddAffineAsm(res, in1 *P256Point, in2 *p256AffinePoint, sign, sel, zero int)
 
-// Point addition. Sets res = in1 + in2 and returns zero if in1 and in2 are not
-// equal. Otherwise, returns one and res is undefined. If in1 or in2 are the
-// point at infinity, res and the return value are undefined.
+// Point addition. Sets res = in1 + in2. Returns one if the two input points
+// were equal and zero otherwise. If in1 or in2 are the point at infinity, res
+// and the return value are undefined.
 //
 //go:noescape
 func p256PointAddAsm(res, in1, in2 *P256Point) int
@@ -607,93 +603,58 @@ func p256Inverse(out, in *p256Element) {
 	p256Mul(out, in, z)
 }
 
-// p256OrdRsh returns the 64 least significant bits of x >> n. n must be lower
-// than 256. The value of n leaks through timing side-channels.
-func p256OrdRsh(x *p256OrdElement, n int) uint64 {
-	i := n / 64
-	n = n % 64
-	res := x[i] >> n
-	// Shift in the more significant limb, if present.
-	if i := i + 1; i < len(x) {
-		res |= x[i] << (64 - n)
-	}
-	return res
-}
-
-func boothW5(in uint64) (int, int) {
-	s := ^((in >> 5) - 1)
-	d := (1 << 6) - in - 1
+func boothW5(in uint) (int, int) {
+	var s uint = ^((in >> 5) - 1)
+	var d uint = (1 << 6) - in - 1
 	d = (d & s) | (in & (^s))
 	d = (d >> 1) + (d & 1)
 	return int(d), int(s & 1)
 }
 
-func boothW6(in uint64) (int, int) {
-	s := ^((in >> 6) - 1)
-	d := (1 << 7) - in - 1
+func boothW6(in uint) (int, int) {
+	var s uint = ^((in >> 6) - 1)
+	var d uint = (1 << 7) - in - 1
 	d = (d & s) | (in & (^s))
 	d = (d >> 1) + (d & 1)
 	return int(d), int(s & 1)
 }
 
 func (p *P256Point) p256BaseMult(scalar *p256OrdElement) {
-	// This function works like p256ScalarMult below, but the table is fixed and
-	// "pre-doubled" for each iteration, so instead of doubling we move to the
-	// next table at each iteration.
-
-	// Start scanning the window from the most significant bits. We move by
-	// 6 bits at a time and need to finish at -1, so -1 + 6 * 42 = 251.
-	index := 251
-
-	sel, sign := boothW6(p256OrdRsh(scalar, index))
-	// sign is always zero because the boothW6 input here is at
-	// most five bits long, so the top bit is never set.
-	_ = sign
-
 	var t0 p256AffinePoint
-	p256SelectAffine(&t0, &p256Precomputed[(index+1)/6], sel)
+
+	wvalue := (scalar[0] << 1) & 0x7f
+	sel, sign := boothW6(uint(wvalue))
+	p256SelectAffine(&t0, &p256Precomputed[0], sel)
 	p.x, p.y, p.z = t0.x, t0.y, p256One
+	p256NegCond(&p.y, sign)
+
+	index := uint(5)
 	zero := sel
 
-	for index >= 5 {
-		index -= 6
-
-		if index >= 0 {
-			sel, sign = boothW6(p256OrdRsh(scalar, index) & 0b1111111)
+	for i := 1; i < 43; i++ {
+		if index < 192 {
+			wvalue = ((scalar[index/64] >> (index % 64)) + (scalar[index/64+1] << (64 - (index % 64)))) & 0x7f
 		} else {
-			// Booth encoding considers a virtual zero bit at index -1,
-			// so we shift left the least significant limb.
-			wvalue := (scalar[0] << 1) & 0b1111111
-			sel, sign = boothW6(wvalue)
+			wvalue = (scalar[index/64] >> (index % 64)) & 0x7f
 		}
-
-		table := &p256Precomputed[(index+1)/6]
-		p256SelectAffine(&t0, table, sel)
-
-		// See p256ScalarMult for the behavior of sign, sel, and zero, that here
-		// is all rolled into the p256PointAddAffineAsm function. We also know
-		// that (if sel and zero are not 0) p != t0 for a similar reason.
+		index += 6
+		sel, sign = boothW6(uint(wvalue))
+		p256SelectAffine(&t0, &p256Precomputed[i], sel)
 		p256PointAddAffineAsm(p, p, &t0, sign, sel, zero)
 		zero |= sel
 	}
 
-	// If zero is 0, the whole scalar was zero, p is undefined,
-	// and the correct result is the infinity.
-	infinity := NewP256Point()
-	p256MovCond(p, p, infinity, zero)
+	// If the whole scalar was zero, set to the point at infinity.
+	p256MovCond(p, p, NewP256Point(), zero)
 }
 
 func (p *P256Point) p256ScalarMult(scalar *p256OrdElement) {
-	// If p is the point at infinity, p256PointAddAsm's behavior below is
-	// undefined. We'll just return the infinity at the end.
-	isInfinity := p.isInfinity()
-
-	// precomp is a table of precomputed points that stores
-	// powers of p from p^1 to p^16.
+	// precomp is a table of precomputed points that stores powers of p
+	// from p^1 to p^16.
 	var precomp p256Table
 	var t0, t1, t2, t3 P256Point
 
-	// Prepare the table by double and adding.
+	// Prepare the table
 	precomp[0] = *p // 1
 
 	p256PointDoubleAsm(&t0, p)
@@ -732,56 +693,52 @@ func (p *P256Point) p256ScalarMult(scalar *p256OrdElement) {
 	precomp[12] = t0 // 13
 	precomp[14] = t2 // 15
 
-	// Start scanning the window from the most significant bits. We move by
-	// 5 bits at a time and need to finish at -1, so -1 + 5 * 51 = 254.
-	index := 254
+	// Start scanning the window from top bit
+	index := uint(254)
+	var sel, sign int
 
-	sel, sign := boothW5(p256OrdRsh(scalar, index))
-	// sign is always zero because the boothW5 input here is at
-	// most two bits long, so the top bit is never set.
-	_ = sign
+	wvalue := (scalar[index/64] >> (index % 64)) & 0x3f
+	sel, _ = boothW5(uint(wvalue))
 
 	p256Select(p, &precomp, sel)
 	zero := sel
 
-	for index >= 4 {
+	for index > 4 {
 		index -= 5
-
 		p256PointDoubleAsm(p, p)
 		p256PointDoubleAsm(p, p)
 		p256PointDoubleAsm(p, p)
 		p256PointDoubleAsm(p, p)
 		p256PointDoubleAsm(p, p)
 
-		if index >= 0 {
-			sel, sign = boothW5(p256OrdRsh(scalar, index) & 0b111111)
+		if index < 192 {
+			wvalue = ((scalar[index/64] >> (index % 64)) + (scalar[index/64+1] << (64 - (index % 64)))) & 0x3f
 		} else {
-			// Booth encoding considers a virtual zero bit at index -1,
-			// so we shift left the least significant limb.
-			wvalue := (scalar[0] << 1) & 0b111111
-			sel, sign = boothW5(wvalue)
+			wvalue = (scalar[index/64] >> (index % 64)) & 0x3f
 		}
+
+		sel, sign = boothW5(uint(wvalue))
 
 		p256Select(&t0, &precomp, sel)
 		p256NegCond(&t0.y, sign)
-
-		// We don't check the return value of p256PointAddAsm because t0 is
-		// [±1-16]P, while p was just doubled five times and can't have wrapped
-		// around because scalar is less than the group order.
 		p256PointAddAsm(&t1, p, &t0)
-
-		// If sel is 0, t0 was undefined and the correct result is p unmodified.
-		// If zero is 0, all previous sel were 0 and the correct result is t0.
-		// If both are 0, the result doesn't matter as it will be thrown out.
 		p256MovCond(&t1, &t1, p, sel)
 		p256MovCond(p, &t1, &t0, zero)
 		zero |= sel
 	}
 
-	// If zero is 0, the whole scalar was zero.
-	// If isInfinity is 1, the input point was the infinity.
-	// In both cases, p is undefined and the correct result is the infinity.
-	infinity := NewP256Point()
-	wantInfinity := zero & (isInfinity - 1)
-	p256MovCond(p, p, infinity, wantInfinity)
+	p256PointDoubleAsm(p, p)
+	p256PointDoubleAsm(p, p)
+	p256PointDoubleAsm(p, p)
+	p256PointDoubleAsm(p, p)
+	p256PointDoubleAsm(p, p)
+
+	wvalue = (scalar[0] << 1) & 0x3f
+	sel, sign = boothW5(uint(wvalue))
+
+	p256Select(&t0, &precomp, sel)
+	p256NegCond(&t0.y, sign)
+	p256PointAddAsm(&t1, p, &t0)
+	p256MovCond(&t1, &t1, p, sel)
+	p256MovCond(p, &t1, &t0, zero)
 }

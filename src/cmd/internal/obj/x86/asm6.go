@@ -301,7 +301,7 @@ const (
 	Py   = 0x80 // defaults to 64-bit mode
 	Py1  = 0x81 // symbolic; exact value doesn't matter
 	Py3  = 0x83 // symbolic; exact value doesn't matter
-	Pavx = 0x84 // symbolic: exact value doesn't matter
+	Pavx = 0x84 // symbolic; exact value doesn't matter
 
 	RxrEvex = 1 << 4 // AVX512 extension to REX.R/VEX.R
 	Rxw     = 1 << 3 // =1, 64-bit operand size
@@ -1978,7 +1978,7 @@ func fusedJump(p *obj.Prog) (bool, uint8) {
 type padJumpsCtx int32
 
 func makePjcCtx(ctxt *obj.Link) padJumpsCtx {
-	// Disable jump padding on 32 bit builds by settting
+	// Disable jump padding on 32 bit builds by setting
 	// padJumps to 0.
 	if ctxt.Arch.Family == sys.I386 {
 		return padJumpsCtx(0)
@@ -2034,6 +2034,31 @@ func (pjc padJumpsCtx) reAssemble(p *obj.Prog) bool {
 type nopPad struct {
 	p *obj.Prog // Instruction before the pad
 	n int32     // Size of the pad
+}
+
+// Padding bytes to add to align code as requested.
+// Alignment is restricted to powers of 2 between 8 and 2048 inclusive.
+//
+// pc: current offset in function, in bytes
+// a: requested alignment, in bytes
+// cursym: current function being assembled
+// returns number of bytes of padding needed
+func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
+	if !((a&(a-1) == 0) && 8 <= a && a <= 2048) {
+		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", a)
+		return 0
+	}
+
+	// By default function alignment is 32 bytes for amd64
+	if cursym.Func().Align < int32(a) {
+		cursym.Func().Align = int32(a)
+	}
+
+	if pc&(a-1) != 0 {
+		return int(a - (pc & (a - 1)))
+	}
+
+	return 0
 }
 
 func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
@@ -2118,6 +2143,19 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		for p := s.Func().Text; p != nil; p = p.Link {
 			c0 := c
 			c = pjc.padJump(ctxt, s, p, c)
+
+			if p.As == obj.APCALIGN {
+				aln := p.From.Offset
+				v := addpad(int64(c), aln, ctxt, s)
+				if v > 0 {
+					s.Grow(int64(c) + int64(v))
+					fillnop(s.P[c:], int(v))
+				}
+
+				c += int32(v)
+				pPrev = p
+				continue
+			}
 
 			if maxLoopPad > 0 && p.Back&branchLoopHead != 0 && c&(loopAlign-1) != 0 {
 				// pad with NOPs

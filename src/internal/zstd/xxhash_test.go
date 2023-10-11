@@ -42,7 +42,11 @@ func TestLargeXXHash(t *testing.T) {
 		t.Skip("skipping expensive test in short mode")
 	}
 
-	data := bigData(t)
+	data, err := os.ReadFile("../../testdata/Isaac.Newton-Opticks.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	var xh xxhash64
 	xh.reset()
 	i := 0

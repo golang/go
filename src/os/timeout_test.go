@@ -245,7 +245,7 @@ const (
 	minDynamicTimeout = 1 * time.Millisecond
 
 	// maxDynamicTimeout is the maximum timeout to attempt for
-	// tests that automatically increase timeouts until succeess.
+	// tests that automatically increase timeouts until success.
 	//
 	// This should be a strict upper bound on the latency required to hit a
 	// timeout accurately, even on a slow or heavily-loaded machine. If a test

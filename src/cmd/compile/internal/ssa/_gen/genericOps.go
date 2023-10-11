@@ -285,6 +285,12 @@ var genericOps = []opData{
 	{name: "Abs", argLength: 1},      // absolute value arg0
 	{name: "Copysign", argLength: 2}, // copy sign from arg0 to arg1
 
+	// Float min/max implementation, if hardware is available.
+	{name: "Min64F", argLength: 2}, // min(arg0,arg1)
+	{name: "Min32F", argLength: 2}, // min(arg0,arg1)
+	{name: "Max64F", argLength: 2}, // max(arg0,arg1)
+	{name: "Max32F", argLength: 2}, // max(arg0,arg1)
+
 	// 3-input opcode.
 	// Fused-multiply-add, float64 only.
 	// When a*b+c is exactly zero (before rounding), then the result is +0 or -0.
@@ -643,6 +649,8 @@ var genericOps = []opData{
 //    Plain                []            [next]
 //       If   [boolean Value]      [then, else]
 //    First                []   [always, never]
+//    Defer             [mem]  [nopanic, panic]                  (control opcode should be OpStaticCall to runtime.deferproc)
+//JumpTable   [integer Value]  [succ1,succ2,..]
 
 var genericBlocks = []blockData{
 	{name: "Plain"},                  // a single successor

@@ -15,7 +15,7 @@ import (
 // vector-capable machine
 
 func TestFunVVnovec(t *testing.T) {
-	if hasVX == true {
+	if hasVX {
 		for _, a := range sumVV {
 			arg := a
 			testFunVV(t, "addVV_novec", addVV_novec, arg)

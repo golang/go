@@ -20,35 +20,6 @@ func boolint(b bool) int {
 	return 0
 }
 
-func ipv4AddrToInterface(ip IP) (*Interface, error) {
-	ift, err := Interfaces()
-	if err != nil {
-		return nil, err
-	}
-	for _, ifi := range ift {
-		ifat, err := ifi.Addrs()
-		if err != nil {
-			return nil, err
-		}
-		for _, ifa := range ifat {
-			switch v := ifa.(type) {
-			case *IPAddr:
-				if ip.Equal(v.IP) {
-					return &ifi, nil
-				}
-			case *IPNet:
-				if ip.Equal(v.IP) {
-					return &ifi, nil
-				}
-			}
-		}
-	}
-	if ip.Equal(IPv4zero) {
-		return nil, nil
-	}
-	return nil, errNoSuchInterface
-}
-
 func interfaceToIPv4Addr(ifi *Interface) (IP, error) {
 	if ifi == nil {
 		return IPv4zero, nil

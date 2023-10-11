@@ -14,7 +14,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"strconv"
 	"sync/atomic"
@@ -447,26 +446,16 @@ func (s *emitState) needMetaDataFile() bool {
 func writeMetaData(w io.Writer, metalist []rtcov.CovMetaBlob, cmode coverage.CounterMode, gran coverage.CounterGranularity, finalHash [16]byte) error {
 	mfw := encodemeta.NewCoverageMetaFileWriter("<io.Writer>", w)
 
-	// Note: "sd" is re-initialized on each iteration of the loop
-	// below, and would normally be declared inside the loop, but
-	// placed here escape analysis since we capture it in bufHdr.
-	var sd []byte
-	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
-
 	var blobs [][]byte
 	for _, e := range metalist {
-		bufHdr.Data = uintptr(unsafe.Pointer(e.P))
-		bufHdr.Len = int(e.Len)
-		bufHdr.Cap = int(e.Len)
+		sd := unsafe.Slice(e.P, int(e.Len))
 		blobs = append(blobs, sd)
 	}
 	return mfw.Write(finalHash, blobs, cmode, gran)
 }
 
 func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
-	var sd []atomic.Uint32
 	var tcounters []uint32
-	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
 
 	rdCounters := func(actrs []atomic.Uint32, ctrs []uint32) []uint32 {
 		ctrs = ctrs[:0]
@@ -478,9 +467,7 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
 
 	dpkg := uint32(0)
 	for _, c := range s.counterlist {
-		bufHdr.Data = uintptr(unsafe.Pointer(c.Counters))
-		bufHdr.Len = int(c.Len)
-		bufHdr.Cap = int(c.Len)
+		sd := unsafe.Slice((*atomic.Uint32)(unsafe.Pointer(c.Counters)), int(c.Len))
 		for i := 0; i < len(sd); i++ {
 			// Skip ahead until the next non-zero value.
 			sdi := sd[i].Load()
@@ -588,7 +575,7 @@ func (s *emitState) emitCounterDataFile(finalHash [16]byte, w io.Writer) error {
 }
 
 // markProfileEmitted signals the runtime/coverage machinery that
-// coverate data output files have already been written out, and there
+// coverage data output files have already been written out, and there
 // is no need to take any additional action at exit time. This
 // function is called (via linknamed reference) from the
 // coverage-related boilerplate code in _testmain.go emitted for go

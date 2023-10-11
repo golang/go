@@ -6,7 +6,6 @@ package main
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 )
 
@@ -77,28 +76,6 @@ func mkobjabi(file string) {
 	var buf strings.Builder
 	writeHeader(&buf)
 	fmt.Fprintf(&buf, "package objabi\n")
-
-	writefile(buf.String(), file, writeSkipSame)
-}
-
-// mkzosarch writes zosarch.go for internal/platform.
-func mkzosarch(dir, file string) {
-	// sort for deterministic file contents.
-	var list []string
-	for plat := range cgoEnabled {
-		list = append(list, plat)
-	}
-	sort.Strings(list)
-
-	var buf strings.Builder
-	writeHeader(&buf)
-	fmt.Fprintf(&buf, "package platform\n")
-	fmt.Fprintln(&buf)
-	fmt.Fprintf(&buf, "var osArchSupportsCgo = map[string]bool{\n")
-	for _, plat := range list {
-		fmt.Fprintf(&buf, "\t\t%s: %v,\n", quote(plat), cgoEnabled[plat])
-	}
-	fmt.Fprintf(&buf, "}\n")
 
 	writefile(buf.String(), file, writeSkipSame)
 }

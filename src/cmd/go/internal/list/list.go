@@ -730,6 +730,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 				a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
 			}
 		}
+		if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+			load.PrepareForCoverageBuild(pkgs)
+		}
 		b.Do(ctx, a)
 	}
 
@@ -777,9 +780,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 					p.Imports[i] = new
 				}
 			}
-			for old := range m {
-				delete(m, old)
-			}
+			clear(m)
 		}
 	}
 
@@ -949,6 +950,18 @@ func collectDepsErrors(p *load.Package) {
 	// one error set on it.
 	sort.Slice(p.DepsErrors, func(i, j int) bool {
 		stki, stkj := p.DepsErrors[i].ImportStack, p.DepsErrors[j].ImportStack
+		// Some packages are missing import stacks. To ensure deterministic
+		// sort order compare two errors that are missing import stacks by
+		// their errors' error texts.
+		if len(stki) == 0 {
+			if len(stkj) != 0 {
+				return true
+			}
+
+			return p.DepsErrors[i].Err.Error() < p.DepsErrors[j].Err.Error()
+		} else if len(stkj) == 0 {
+			return false
+		}
 		pathi, pathj := stki[len(stki)-1], stkj[len(stkj)-1]
 		return pathi < pathj
 	})

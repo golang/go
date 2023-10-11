@@ -29,6 +29,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	_cgo_beginthread(threadentry, ts);
 }
 
+extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
 static void
 threadentry(void *v)
 {
@@ -47,5 +48,5 @@ threadentry(void *v)
 	  :: "r"(ts.tls), "r"(*tls_g)
 	);
 
-	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);
+	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
 }

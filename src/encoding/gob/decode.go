@@ -222,7 +222,7 @@ func ignoreTwoUints(i *decInstr, state *decoderState, v reflect.Value) {
 // decAlloc takes a value and returns a settable value that can
 // be assigned to. If the value is a pointer, decAlloc guarantees it points to storage.
 // The callers to the individual decoders are expected to have used decAlloc.
-// The individual decoders don't need to it.
+// The individual decoders don't need it.
 func decAlloc(v reflect.Value) reflect.Value {
 	for v.Kind() == reflect.Pointer {
 		if v.IsNil() {
@@ -370,7 +370,7 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 		errorf("bad %s slice length: %d", value.Type(), n)
 	}
 	if value.Cap() < n {
-		safe := saferio.SliceCap((*byte)(nil), uint64(n))
+		safe := saferio.SliceCap[byte](uint64(n))
 		if safe < 0 {
 			errorf("%s slice too big: %d elements", value.Type(), n)
 		}
@@ -395,7 +395,7 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 			value.SetLen(ln)
 			sub := value.Slice(i, ln)
 			if _, err := state.b.Read(sub.Bytes()); err != nil {
-				errorf("error decoding []byte at %d: %s", err, i)
+				errorf("error decoding []byte at %d: %s", i, err)
 			}
 			i = ln
 		}
@@ -656,7 +656,7 @@ func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp
 		errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
 	}
 	if value.Cap() < n {
-		safe := saferio.SliceCap(reflect.Zero(reflect.PtrTo(typ.Elem())).Interface(), uint64(n))
+		safe := saferio.SliceCapWithSize(size, uint64(n))
 		if safe < 0 {
 			errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
 		}
@@ -1082,7 +1082,7 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId, inProgress map[re
 func (dec *Decoder) typeString(remoteId typeId) string {
 	typeLock.Lock()
 	defer typeLock.Unlock()
-	if t := idToType[remoteId]; t != nil {
+	if t := idToType(remoteId); t != nil {
 		// globally known type.
 		return t.string()
 	}
@@ -1197,7 +1197,7 @@ func (dec *Decoder) getDecEnginePtr(remoteId typeId, ut *userTypeInfo) (enginePt
 // emptyStruct is the type we compile into when ignoring a struct value.
 type emptyStruct struct{}
 
-var emptyStructType = reflect.TypeOf((*emptyStruct)(nil)).Elem()
+var emptyStructType = reflect.TypeFor[emptyStruct]()
 
 // getIgnoreEnginePtr returns the engine for the specified type when the value is to be discarded.
 func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err error) {

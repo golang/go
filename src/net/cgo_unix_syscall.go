@@ -19,6 +19,7 @@ const (
 	_C_AF_UNSPEC    = syscall.AF_UNSPEC
 	_C_EAI_AGAIN    = unix.EAI_AGAIN
 	_C_EAI_NONAME   = unix.EAI_NONAME
+	_C_EAI_SERVICE  = unix.EAI_SERVICE
 	_C_EAI_NODATA   = unix.EAI_NODATA
 	_C_EAI_OVERFLOW = unix.EAI_OVERFLOW
 	_C_EAI_SYSTEM   = unix.EAI_SYSTEM
@@ -38,10 +39,6 @@ type (
 	_C_struct_addrinfo    = unix.Addrinfo
 	_C_struct_sockaddr    = syscall.RawSockaddr
 )
-
-func _C_GoString(p *_C_char) string {
-	return unix.GoString(p)
-}
 
 func _C_free(p unsafe.Pointer) { runtime.KeepAlive(p) }
 

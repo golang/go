@@ -27,7 +27,7 @@ var _ = fmt.Print
 
 // Sym encapsulates a global symbol index, used to identify a specific
 // Go symbol. The 0-valued Sym is corresponds to an invalid symbol.
-type Sym uint32
+type Sym = sym.LoaderSym
 
 // Relocs encapsulates the set of relocations on a given symbol; an
 // instance of this type is returned by the Loader Relocs() method.
@@ -1036,7 +1036,7 @@ func (l *Loader) SetAttrCgoExportDynamic(i Sym, v bool) {
 	}
 }
 
-// ForAllAttrCgoExportDynamic calls f for every symbol that has been
+// ForAllCgoExportDynamic calls f for every symbol that has been
 // marked with the "cgo_export_dynamic" compiler directive.
 func (l *Loader) ForAllCgoExportDynamic(f func(Sym)) {
 	for s := range l.attrCgoExportDynamic {
@@ -1126,7 +1126,7 @@ func (l *Loader) SetAttrReadOnly(i Sym, v bool) {
 //
 // - Outer symbol covers the address ranges of its sub-symbols.
 //   Outer.Sub is set in this case.
-// - Outer symbol doesn't conver the address ranges. It is zero-sized
+// - Outer symbol doesn't cover the address ranges. It is zero-sized
 //   and doesn't have sub-symbols. In the case, the inner symbol is
 //   not actually a "SubSymbol". (Tricky!)
 //

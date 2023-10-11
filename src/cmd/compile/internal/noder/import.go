@@ -133,7 +133,10 @@ func resolveImportPath(path string) (string, error) {
 		return "", errors.New("cannot import \"main\"")
 	}
 
-	if base.Ctxt.Pkgpath != "" && path == base.Ctxt.Pkgpath {
+	if base.Ctxt.Pkgpath == "" {
+		panic("missing pkgpath")
+	}
+	if path == base.Ctxt.Pkgpath {
 		return "", fmt.Errorf("import %q while compiling that package (import cycle)", path)
 	}
 

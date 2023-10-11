@@ -391,6 +391,39 @@ func (n NullTime) Value() (driver.Value, error) {
 	return n.Time, nil
 }
 
+// Null represents a value that may be null.
+// Null implements the Scanner interface so
+// it can be used as a scan destination:
+//
+//	var s Null[string]
+//	err := db.QueryRow("SELECT name FROM foo WHERE id=?", id).Scan(&s)
+//	...
+//	if s.Valid {
+//	   // use s.V
+//	} else {
+//	   // NULL value
+//	}
+type Null[T any] struct {
+	V     T
+	Valid bool
+}
+
+func (n *Null[T]) Scan(value any) error {
+	if value == nil {
+		n.V, n.Valid = *new(T), false
+		return nil
+	}
+	n.Valid = true
+	return convertAssign(&n.V, value)
+}
+
+func (n Null[T]) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return n.V, nil
+}
+
 // Scanner is an interface used by Scan.
 type Scanner interface {
 	// Scan assigns a value from a database driver.
@@ -931,12 +964,7 @@ func (db *DB) shortestIdleTimeLocked() time.Duration {
 	if db.maxLifetime <= 0 {
 		return db.maxIdleTime
 	}
-
-	min := db.maxIdleTime
-	if min > db.maxLifetime {
-		min = db.maxLifetime
-	}
-	return min
+	return min(db.maxIdleTime, db.maxLifetime)
 }
 
 // SetMaxIdleConns sets the maximum number of connections in the idle
@@ -2944,15 +2972,17 @@ func (rs *Rows) initContextClose(ctx, txctx context.Context) {
 	if bypassRowsAwaitDone {
 		return
 	}
-	ctx, rs.cancel = context.WithCancel(ctx)
-	go rs.awaitDone(ctx, txctx)
+	closectx, cancel := context.WithCancel(ctx)
+	rs.cancel = cancel
+	go rs.awaitDone(ctx, txctx, closectx)
 }
 
-// awaitDone blocks until either ctx or txctx is canceled. The ctx is provided
-// from the query context and is canceled when the query Rows is closed.
+// awaitDone blocks until ctx, txctx, or closectx is canceled.
+// The ctx is provided from the query context.
 // If the query was issued in a transaction, the transaction's context
-// is also provided in txctx to ensure Rows is closed if the Tx is closed.
-func (rs *Rows) awaitDone(ctx, txctx context.Context) {
+// is also provided in txctx, to ensure Rows is closed if the Tx is closed.
+// The closectx is closed by an explicit call to rs.Close.
+func (rs *Rows) awaitDone(ctx, txctx, closectx context.Context) {
 	var txctxDone <-chan struct{}
 	if txctx != nil {
 		txctxDone = txctx.Done()
@@ -2964,6 +2994,9 @@ func (rs *Rows) awaitDone(ctx, txctx context.Context) {
 	case <-txctxDone:
 		err := txctx.Err()
 		rs.contextDone.Store(&err)
+	case <-closectx.Done():
+		// rs.cancel was called via Close(); don't store this into contextDone
+		// to ensure Err() is unaffected.
 	}
 	rs.close(ctx.Err())
 }
@@ -3206,7 +3239,7 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 		if prop, ok := rowsi.(driver.RowsColumnTypeScanType); ok {
 			ci.scanType = prop.ColumnTypeScanType(i)
 		} else {
-			ci.scanType = reflect.TypeOf(new(any)).Elem()
+			ci.scanType = reflect.TypeFor[any]()
 		}
 		if prop, ok := rowsi.(driver.RowsColumnTypeDatabaseTypeName); ok {
 			ci.databaseType = prop.ColumnTypeDatabaseTypeName(i)

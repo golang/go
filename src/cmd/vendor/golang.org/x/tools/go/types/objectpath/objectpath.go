@@ -29,10 +29,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	_ "unsafe"
 
 	"golang.org/x/tools/internal/typeparams"
-
-	_ "unsafe" // for go:linkname
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 // A Path is an opaque name that identifies a types.Object
@@ -123,8 +123,20 @@ func For(obj types.Object) (Path, error) {
 // An Encoder amortizes the cost of encoding the paths of multiple objects.
 // The zero value of an Encoder is ready to use.
 type Encoder struct {
-	scopeNamesMemo   map[*types.Scope][]string      // memoization of Scope.Names()
-	namedMethodsMemo map[*types.Named][]*types.Func // memoization of namedMethods()
+	scopeMemo         map[*types.Scope][]types.Object // memoization of scopeObjects
+	namedMethodsMemo  map[*types.Named][]*types.Func  // memoization of namedMethods()
+	skipMethodSorting bool
+}
+
+// Expose back doors so that gopls can avoid method sorting, which can dominate
+// analysis on certain repositories.
+//
+// TODO(golang/go#61443): remove this.
+func init() {
+	typesinternal.SkipEncoderMethodSorting = func(enc interface{}) {
+		enc.(*Encoder).skipMethodSorting = true
+	}
+	typesinternal.ObjectpathObject = object
 }
 
 // For returns the path to an object relative to its package,
@@ -138,6 +150,17 @@ type Encoder struct {
 // - struct fields
 // These objects are sufficient to define the API of their package.
 // The objects described by a package's export data are drawn from this set.
+//
+// The set of objects accessible from a package's Scope depends on
+// whether the package was produced by type-checking syntax, or
+// reading export data; the latter may have a smaller Scope since
+// export data trims objects that are not reachable from an exported
+// declaration. For example, the For function will return a path for
+// an exported method of an unexported type that is not reachable
+// from any public declaration; this path will cause the Object
+// function to fail if called on a package loaded from export data.
+// TODO(adonovan): is this a bug or feature? Should this package
+// compute accessibility in the same way?
 //
 // For does not return a path for predeclared names, imported package
 // names, local names, and unexported package-level names (except
@@ -257,15 +280,14 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 	// the best paths because non-types may
 	// refer to types, but not the reverse.
 	empty := make([]byte, 0, 48) // initial space
-	names := enc.scopeNames(scope)
-	for _, name := range names {
-		o := scope.Lookup(name)
+	objs := enc.scopeObjects(scope)
+	for _, o := range objs {
 		tname, ok := o.(*types.TypeName)
 		if !ok {
 			continue // handle non-types in second pass
 		}
 
-		path := append(empty, name...)
+		path := append(empty, o.Name()...)
 		path = append(path, opType)
 
 		T := o.Type()
@@ -291,9 +313,8 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 
 	// Then inspect everything else:
 	// non-types, and declared methods of defined types.
-	for _, name := range names {
-		o := scope.Lookup(name)
-		path := append(empty, name...)
+	for _, o := range objs {
+		path := append(empty, o.Name()...)
 		if _, ok := o.(*types.TypeName); !ok {
 			if o.Exported() {
 				// exported non-type (const, var, func)
@@ -307,16 +328,31 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 		// Inspect declared methods of defined types.
 		if T, ok := o.Type().(*types.Named); ok {
 			path = append(path, opType)
-			// Note that method index here is always with respect
-			// to canonical ordering of methods, regardless of how
-			// they appear in the underlying type.
-			for i, m := range enc.namedMethods(T) {
-				path2 := appendOpArg(path, opMethod, i)
-				if m == obj {
-					return Path(path2), nil // found declared method
+			if !enc.skipMethodSorting {
+				// Note that method index here is always with respect
+				// to canonical ordering of methods, regardless of how
+				// they appear in the underlying type.
+				for i, m := range enc.namedMethods(T) {
+					path2 := appendOpArg(path, opMethod, i)
+					if m == obj {
+						return Path(path2), nil // found declared method
+					}
+					if r := find(obj, m.Type(), append(path2, opType), nil); r != nil {
+						return Path(r), nil
+					}
 				}
-				if r := find(obj, m.Type(), append(path2, opType), nil); r != nil {
-					return Path(r), nil
+			} else {
+				// This branch must match the logic in the branch above, using go/types
+				// APIs without sorting.
+				for i := 0; i < T.NumMethods(); i++ {
+					m := T.Method(i)
+					path2 := appendOpArg(path, opMethod, i)
+					if m == obj {
+						return Path(path2), nil // found declared method
+					}
+					if r := find(obj, m.Type(), append(path2, opType), nil); r != nil {
+						return Path(r), nil
+					}
 				}
 			}
 		}
@@ -411,10 +447,23 @@ func (enc *Encoder) concreteMethod(meth *types.Func) (Path, bool) {
 	path := make([]byte, 0, len(name)+8)
 	path = append(path, name...)
 	path = append(path, opType)
-	for i, m := range enc.namedMethods(named) {
-		if m == meth {
-			path = appendOpArg(path, opMethod, i)
-			return Path(path), true
+
+	if !enc.skipMethodSorting {
+		for i, m := range enc.namedMethods(named) {
+			if m == meth {
+				path = appendOpArg(path, opMethod, i)
+				return Path(path), true
+			}
+		}
+	} else {
+		// This branch must match the logic of the branch above, using go/types
+		// APIs without sorting.
+		for i := 0; i < named.NumMethods(); i++ {
+			m := named.Method(i)
+			if m == meth {
+				path = appendOpArg(path, opMethod, i)
+				return Path(path), true
+			}
 		}
 	}
 
@@ -527,11 +576,16 @@ func findTypeParam(obj types.Object, list *typeparams.TypeParamList, path []byte
 
 // Object returns the object denoted by path p within the package pkg.
 func Object(pkg *types.Package, p Path) (types.Object, error) {
-	if p == "" {
+	return object(pkg, string(p), false)
+}
+
+// Note: the skipMethodSorting parameter must match the value of
+// Encoder.skipMethodSorting used during encoding.
+func object(pkg *types.Package, pathstr string, skipMethodSorting bool) (types.Object, error) {
+	if pathstr == "" {
 		return nil, fmt.Errorf("empty path")
 	}
 
-	pathstr := string(p)
 	var pkgobj, suffix string
 	if dot := strings.IndexByte(pathstr, opType); dot < 0 {
 		pkgobj = pathstr
@@ -690,11 +744,15 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 				obj = t.Method(index) // Id-ordered
 
 			case *types.Named:
-				methods := namedMethods(t) // (unmemoized)
-				if index >= len(methods) {
-					return nil, fmt.Errorf("method index %d out of range [0-%d)", index, len(methods))
+				if index >= t.NumMethods() {
+					return nil, fmt.Errorf("method index %d out of range [0-%d)", index, t.NumMethods())
 				}
-				obj = methods[index] // Id-ordered
+				if skipMethodSorting {
+					obj = t.Method(index)
+				} else {
+					methods := namedMethods(t) // (unmemoized)
+					obj = methods[index]       // Id-ordered
+				}
 
 			default:
 				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want interface or named)", code, t, t)
@@ -748,17 +806,22 @@ func (enc *Encoder) namedMethods(named *types.Named) []*types.Func {
 	return methods
 }
 
-// scopeNames is a memoization of scope.Names. Callers must not modify the result.
-func (enc *Encoder) scopeNames(scope *types.Scope) []string {
-	m := enc.scopeNamesMemo
+// scopeObjects is a memoization of scope objects.
+// Callers must not modify the result.
+func (enc *Encoder) scopeObjects(scope *types.Scope) []types.Object {
+	m := enc.scopeMemo
 	if m == nil {
-		m = make(map[*types.Scope][]string)
-		enc.scopeNamesMemo = m
+		m = make(map[*types.Scope][]types.Object)
+		enc.scopeMemo = m
 	}
-	names, ok := m[scope]
+	objs, ok := m[scope]
 	if !ok {
-		names = scope.Names() // allocates and sorts
-		m[scope] = names
+		names := scope.Names() // allocates and sorts
+		objs = make([]types.Object, len(names))
+		for i, name := range names {
+			objs[i] = scope.Lookup(name)
+		}
+		m[scope] = objs
 	}
-	return names
+	return objs
 }

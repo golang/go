@@ -616,3 +616,34 @@ func TestCoverage(t *testing.T) { }
 	cmd.Dir = noeolDir
 	run(cmd, t)
 }
+
+func TestSrcPathWithNewline(t *testing.T) {
+	testenv.MustHaveExec(t)
+	t.Parallel()
+
+	// srcPath is intentionally not clean so that the path passed to testcover
+	// will not normalize the trailing / to a \ on Windows.
+	srcPath := t.TempDir() + string(filepath.Separator) + "\npackage main\nfunc main() { panic(string([]rune{'u', 'h', '-', 'o', 'h'}))\n/*/main.go"
+	mainSrc := ` package main
+
+func main() {
+	/* nothing here */
+	println("ok")
+}
+`
+	if err := os.MkdirAll(filepath.Dir(srcPath), 0777); err != nil {
+		t.Skipf("creating directory with bogus path: %v", err)
+	}
+	if err := os.WriteFile(srcPath, []byte(mainSrc), 0666); err != nil {
+		t.Skipf("writing file with bogus directory: %v", err)
+	}
+
+	cmd := testenv.Command(t, testcover(t), "-mode=atomic", srcPath)
+	cmd.Stderr = new(bytes.Buffer)
+	out, err := cmd.Output()
+	t.Logf("%v:\n%s", cmd, out)
+	t.Logf("stderr:\n%s", cmd.Stderr)
+	if err == nil {
+		t.Errorf("unexpected success; want failure due to newline in file path")
+	}
+}

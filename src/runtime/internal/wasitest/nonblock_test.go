@@ -37,8 +37,6 @@ func TestNonblock(t *testing.T) {
 	}
 
 	switch os.Getenv("GOWASIRUNTIME") {
-	case "wazero", "":
-		t.Skip("wazero does not support non-blocking I/O")
 	case "wasmer":
 		t.Skip("wasmer does not support non-blocking I/O")
 	}

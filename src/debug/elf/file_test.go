@@ -10,6 +10,7 @@ import (
 	"compress/zlib"
 	"debug/dwarf"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -18,6 +19,7 @@ import (
 	"path"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -28,6 +30,7 @@ type fileTest struct {
 	sections []SectionHeader
 	progs    []ProgHeader
 	needed   []string
+	symbols  []Symbol
 }
 
 var fileTests = []fileTest{
@@ -74,6 +77,82 @@ var fileTests = []fileTest{
 			{PT_DYNAMIC, PF_R + PF_W, 0x60c, 0x804960c, 0x804960c, 0x98, 0x98, 0x4},
 		},
 		[]string{"libc.so.6"},
+		[]Symbol{
+			{"", 3, 0, 1, 134512852, 0, "", ""},
+			{"", 3, 0, 2, 134512876, 0, "", ""},
+			{"", 3, 0, 3, 134513020, 0, "", ""},
+			{"", 3, 0, 4, 134513292, 0, "", ""},
+			{"", 3, 0, 5, 134513480, 0, "", ""},
+			{"", 3, 0, 6, 134513512, 0, "", ""},
+			{"", 3, 0, 7, 134513532, 0, "", ""},
+			{"", 3, 0, 8, 134513612, 0, "", ""},
+			{"", 3, 0, 9, 134513996, 0, "", ""},
+			{"", 3, 0, 10, 134514008, 0, "", ""},
+			{"", 3, 0, 11, 134518268, 0, "", ""},
+			{"", 3, 0, 12, 134518280, 0, "", ""},
+			{"", 3, 0, 13, 134518284, 0, "", ""},
+			{"", 3, 0, 14, 134518436, 0, "", ""},
+			{"", 3, 0, 15, 134518444, 0, "", ""},
+			{"", 3, 0, 16, 134518452, 0, "", ""},
+			{"", 3, 0, 17, 134518456, 0, "", ""},
+			{"", 3, 0, 18, 134518484, 0, "", ""},
+			{"", 3, 0, 19, 0, 0, "", ""},
+			{"", 3, 0, 20, 0, 0, "", ""},
+			{"", 3, 0, 21, 0, 0, "", ""},
+			{"", 3, 0, 22, 0, 0, "", ""},
+			{"", 3, 0, 23, 0, 0, "", ""},
+			{"", 3, 0, 24, 0, 0, "", ""},
+			{"", 3, 0, 25, 0, 0, "", ""},
+			{"", 3, 0, 26, 0, 0, "", ""},
+			{"", 3, 0, 27, 0, 0, "", ""},
+			{"", 3, 0, 28, 0, 0, "", ""},
+			{"", 3, 0, 29, 0, 0, "", ""},
+			{"crt1.c", 4, 0, 65521, 0, 0, "", ""},
+			{"/usr/src/lib/csu/i386-elf/crti.S", 4, 0, 65521, 0, 0, "", ""},
+			{"<command line>", 4, 0, 65521, 0, 0, "", ""},
+			{"<built-in>", 4, 0, 65521, 0, 0, "", ""},
+			{"/usr/src/lib/csu/i386-elf/crti.S", 4, 0, 65521, 0, 0, "", ""},
+			{"crtstuff.c", 4, 0, 65521, 0, 0, "", ""},
+			{"__CTOR_LIST__", 1, 0, 14, 134518436, 0, "", ""},
+			{"__DTOR_LIST__", 1, 0, 15, 134518444, 0, "", ""},
+			{"__EH_FRAME_BEGIN__", 1, 0, 12, 134518280, 0, "", ""},
+			{"__JCR_LIST__", 1, 0, 16, 134518452, 0, "", ""},
+			{"p.0", 1, 0, 11, 134518276, 0, "", ""},
+			{"completed.1", 1, 0, 18, 134518484, 1, "", ""},
+			{"__do_global_dtors_aux", 2, 0, 8, 134513760, 0, "", ""},
+			{"object.2", 1, 0, 18, 134518488, 24, "", ""},
+			{"frame_dummy", 2, 0, 8, 134513836, 0, "", ""},
+			{"crtstuff.c", 4, 0, 65521, 0, 0, "", ""},
+			{"__CTOR_END__", 1, 0, 14, 134518440, 0, "", ""},
+			{"__DTOR_END__", 1, 0, 15, 134518448, 0, "", ""},
+			{"__FRAME_END__", 1, 0, 12, 134518280, 0, "", ""},
+			{"__JCR_END__", 1, 0, 16, 134518452, 0, "", ""},
+			{"__do_global_ctors_aux", 2, 0, 8, 134513960, 0, "", ""},
+			{"/usr/src/lib/csu/i386-elf/crtn.S", 4, 0, 65521, 0, 0, "", ""},
+			{"<command line>", 4, 0, 65521, 0, 0, "", ""},
+			{"<built-in>", 4, 0, 65521, 0, 0, "", ""},
+			{"/usr/src/lib/csu/i386-elf/crtn.S", 4, 0, 65521, 0, 0, "", ""},
+			{"hello.c", 4, 0, 65521, 0, 0, "", ""},
+			{"printf", 18, 0, 0, 0, 44, "", ""},
+			{"_DYNAMIC", 17, 0, 65521, 134518284, 0, "", ""},
+			{"__dso_handle", 17, 2, 11, 134518272, 0, "", ""},
+			{"_init", 18, 0, 6, 134513512, 0, "", ""},
+			{"environ", 17, 0, 18, 134518512, 4, "", ""},
+			{"__deregister_frame_info", 32, 0, 0, 0, 0, "", ""},
+			{"__progname", 17, 0, 11, 134518268, 4, "", ""},
+			{"_start", 18, 0, 8, 134513612, 145, "", ""},
+			{"__bss_start", 16, 0, 65521, 134518484, 0, "", ""},
+			{"main", 18, 0, 8, 134513912, 46, "", ""},
+			{"_init_tls", 18, 0, 0, 0, 5, "", ""},
+			{"_fini", 18, 0, 9, 134513996, 0, "", ""},
+			{"atexit", 18, 0, 0, 0, 43, "", ""},
+			{"_edata", 16, 0, 65521, 134518484, 0, "", ""},
+			{"_GLOBAL_OFFSET_TABLE_", 17, 0, 65521, 134518456, 0, "", ""},
+			{"_end", 16, 0, 65521, 134518516, 0, "", ""},
+			{"exit", 18, 0, 0, 0, 68, "", ""},
+			{"_Jv_RegisterClasses", 32, 0, 0, 0, 0, "", ""},
+			{"__register_frame_info", 32, 0, 0, 0, 0, "", ""},
+		},
 	},
 	{
 		"testdata/gcc-amd64-linux-exec",
@@ -128,6 +207,81 @@ var fileTests = []fileTest{
 			{PT_LOOS + 0x474E551, PF_R + PF_W, 0x0, 0x0, 0x0, 0x0, 0x0, 0x8},
 		},
 		[]string{"libc.so.6"},
+		[]Symbol{
+			{"", 3, 0, 1, 4194816, 0, "", ""},
+			{"", 3, 0, 2, 4194844, 0, "", ""},
+			{"", 3, 0, 3, 4194880, 0, "", ""},
+			{"", 3, 0, 4, 4194920, 0, "", ""},
+			{"", 3, 0, 5, 4194952, 0, "", ""},
+			{"", 3, 0, 6, 4195048, 0, "", ""},
+			{"", 3, 0, 7, 4195110, 0, "", ""},
+			{"", 3, 0, 8, 4195120, 0, "", ""},
+			{"", 3, 0, 9, 4195152, 0, "", ""},
+			{"", 3, 0, 10, 4195176, 0, "", ""},
+			{"", 3, 0, 11, 4195224, 0, "", ""},
+			{"", 3, 0, 12, 4195248, 0, "", ""},
+			{"", 3, 0, 13, 4195296, 0, "", ""},
+			{"", 3, 0, 14, 4195732, 0, "", ""},
+			{"", 3, 0, 15, 4195748, 0, "", ""},
+			{"", 3, 0, 16, 4195768, 0, "", ""},
+			{"", 3, 0, 17, 4195808, 0, "", ""},
+			{"", 3, 0, 18, 6293128, 0, "", ""},
+			{"", 3, 0, 19, 6293144, 0, "", ""},
+			{"", 3, 0, 20, 6293160, 0, "", ""},
+			{"", 3, 0, 21, 6293168, 0, "", ""},
+			{"", 3, 0, 22, 6293584, 0, "", ""},
+			{"", 3, 0, 23, 6293592, 0, "", ""},
+			{"", 3, 0, 24, 6293632, 0, "", ""},
+			{"", 3, 0, 25, 6293656, 0, "", ""},
+			{"", 3, 0, 26, 0, 0, "", ""},
+			{"", 3, 0, 27, 0, 0, "", ""},
+			{"", 3, 0, 28, 0, 0, "", ""},
+			{"", 3, 0, 29, 0, 0, "", ""},
+			{"", 3, 0, 30, 0, 0, "", ""},
+			{"", 3, 0, 31, 0, 0, "", ""},
+			{"", 3, 0, 32, 0, 0, "", ""},
+			{"", 3, 0, 33, 0, 0, "", ""},
+			{"init.c", 4, 0, 65521, 0, 0, "", ""},
+			{"initfini.c", 4, 0, 65521, 0, 0, "", ""},
+			{"call_gmon_start", 2, 0, 13, 4195340, 0, "", ""},
+			{"crtstuff.c", 4, 0, 65521, 0, 0, "", ""},
+			{"__CTOR_LIST__", 1, 0, 18, 6293128, 0, "", ""},
+			{"__DTOR_LIST__", 1, 0, 19, 6293144, 0, "", ""},
+			{"__JCR_LIST__", 1, 0, 20, 6293160, 0, "", ""},
+			{"__do_global_dtors_aux", 2, 0, 13, 4195376, 0, "", ""},
+			{"completed.6183", 1, 0, 25, 6293656, 1, "", ""},
+			{"p.6181", 1, 0, 24, 6293648, 0, "", ""},
+			{"frame_dummy", 2, 0, 13, 4195440, 0, "", ""},
+			{"crtstuff.c", 4, 0, 65521, 0, 0, "", ""},
+			{"__CTOR_END__", 1, 0, 18, 6293136, 0, "", ""},
+			{"__DTOR_END__", 1, 0, 19, 6293152, 0, "", ""},
+			{"__FRAME_END__", 1, 0, 17, 4195968, 0, "", ""},
+			{"__JCR_END__", 1, 0, 20, 6293160, 0, "", ""},
+			{"__do_global_ctors_aux", 2, 0, 13, 4195680, 0, "", ""},
+			{"initfini.c", 4, 0, 65521, 0, 0, "", ""},
+			{"hello.c", 4, 0, 65521, 0, 0, "", ""},
+			{"_GLOBAL_OFFSET_TABLE_", 1, 2, 23, 6293592, 0, "", ""},
+			{"__init_array_end", 0, 2, 18, 6293124, 0, "", ""},
+			{"__init_array_start", 0, 2, 18, 6293124, 0, "", ""},
+			{"_DYNAMIC", 1, 2, 21, 6293168, 0, "", ""},
+			{"data_start", 32, 0, 24, 6293632, 0, "", ""},
+			{"__libc_csu_fini", 18, 0, 13, 4195520, 2, "", ""},
+			{"_start", 18, 0, 13, 4195296, 0, "", ""},
+			{"__gmon_start__", 32, 0, 0, 0, 0, "", ""},
+			{"_Jv_RegisterClasses", 32, 0, 0, 0, 0, "", ""},
+			{"puts@@GLIBC_2.2.5", 18, 0, 0, 0, 396, "", ""},
+			{"_fini", 18, 0, 14, 4195732, 0, "", ""},
+			{"__libc_start_main@@GLIBC_2.2.5", 18, 0, 0, 0, 450, "", ""},
+			{"_IO_stdin_used", 17, 0, 15, 4195748, 4, "", ""},
+			{"__data_start", 16, 0, 24, 6293632, 0, "", ""},
+			{"__dso_handle", 17, 2, 24, 6293640, 0, "", ""},
+			{"__libc_csu_init", 18, 0, 13, 4195536, 137, "", ""},
+			{"__bss_start", 16, 0, 65521, 6293656, 0, "", ""},
+			{"_end", 16, 0, 65521, 6293664, 0, "", ""},
+			{"_edata", 16, 0, 65521, 6293656, 0, "", ""},
+			{"main", 18, 0, 13, 4195480, 27, "", ""},
+			{"_init", 18, 0, 11, 4195224, 0, "", ""},
+		},
 	},
 	{
 		"testdata/hello-world-core.gz",
@@ -152,6 +306,7 @@ var fileTests = []fileTest{
 			{Type: PT_LOAD, Flags: PF_X + PF_R, Off: 0x3a000, Vaddr: 0x7fff799f8000, Paddr: 0x0, Filesz: 0x1000, Memsz: 0x1000, Align: 0x1000},
 			{Type: PT_LOAD, Flags: PF_X + PF_R, Off: 0x3b000, Vaddr: 0xffffffffff600000, Paddr: 0x0, Filesz: 0x1000, Memsz: 0x1000, Align: 0x1000},
 		},
+		nil,
 		nil,
 	},
 	{
@@ -182,6 +337,23 @@ var fileTests = []fileTest{
 		},
 		[]ProgHeader{},
 		nil,
+		[]Symbol{
+			{"hello.c", 4, 0, 65521, 0, 0, "", ""},
+			{"", 3, 0, 1, 0, 0, "", ""},
+			{"", 3, 0, 3, 0, 0, "", ""},
+			{"", 3, 0, 4, 0, 0, "", ""},
+			{"", 3, 0, 5, 0, 0, "", ""},
+			{"", 3, 0, 6, 0, 0, "", ""},
+			{"", 3, 0, 8, 0, 0, "", ""},
+			{"", 3, 0, 9, 0, 0, "", ""},
+			{"", 3, 0, 11, 0, 0, "", ""},
+			{"", 3, 0, 13, 0, 0, "", ""},
+			{"", 3, 0, 15, 0, 0, "", ""},
+			{"", 3, 0, 16, 0, 0, "", ""},
+			{"", 3, 0, 14, 0, 0, "", ""},
+			{"main", 18, 0, 1, 0, 23, "", ""},
+			{"puts", 16, 0, 0, 0, 0, "", ""},
+		},
 	},
 	{
 		"testdata/compressed-64.obj",
@@ -211,6 +383,69 @@ var fileTests = []fileTest{
 		},
 		[]ProgHeader{},
 		nil,
+		[]Symbol{
+			{"hello.c", 4, 0, 65521, 0, 0, "", ""},
+			{"", 3, 0, 1, 0, 0, "", ""},
+			{"", 3, 0, 3, 0, 0, "", ""},
+			{"", 3, 0, 4, 0, 0, "", ""},
+			{"", 3, 0, 5, 0, 0, "", ""},
+			{"", 3, 0, 6, 0, 0, "", ""},
+			{"", 3, 0, 8, 0, 0, "", ""},
+			{"", 3, 0, 9, 0, 0, "", ""},
+			{"", 3, 0, 11, 0, 0, "", ""},
+			{"", 3, 0, 13, 0, 0, "", ""},
+			{"", 3, 0, 15, 0, 0, "", ""},
+			{"", 3, 0, 16, 0, 0, "", ""},
+			{"", 3, 0, 14, 0, 0, "", ""},
+			{"main", 18, 0, 1, 0, 27, "", ""},
+			{"puts", 16, 0, 0, 0, 0, "", ""},
+		},
+	},
+	{
+		"testdata/go-relocation-test-gcc620-sparc64.obj",
+		FileHeader{Class: ELFCLASS64, Data: ELFDATA2MSB, Version: EV_CURRENT, OSABI: ELFOSABI_NONE, ABIVersion: 0x0, ByteOrder: binary.BigEndian, Type: ET_REL, Machine: EM_SPARCV9, Entry: 0x0},
+		[]SectionHeader{
+			{"", SHT_NULL, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+			{".text", SHT_PROGBITS, SHF_ALLOC + SHF_EXECINSTR, 0x0, 0x40, 0x2c, 0x0, 0x0, 0x4, 0x0, 0x2c},
+			{".rela.text", SHT_RELA, SHF_INFO_LINK, 0x0, 0xa58, 0x48, 0x13, 0x1, 0x8, 0x18, 0x48},
+			{".data", SHT_PROGBITS, SHF_WRITE + SHF_ALLOC, 0x0, 0x6c, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0},
+			{".bss", SHT_NOBITS, SHF_WRITE + SHF_ALLOC, 0x0, 0x6c, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0},
+			{".rodata", SHT_PROGBITS, SHF_ALLOC, 0x0, 0x70, 0xd, 0x0, 0x0, 0x8, 0x0, 0xd},
+			{".debug_info", SHT_PROGBITS, 0x0, 0x0, 0x7d, 0x346, 0x0, 0x0, 0x1, 0x0, 0x346},
+			{".rela.debug_info", SHT_RELA, SHF_INFO_LINK, 0x0, 0xaa0, 0x630, 0x13, 0x6, 0x8, 0x18, 0x630},
+			{".debug_abbrev", SHT_PROGBITS, 0x0, 0x0, 0x3c3, 0xf1, 0x0, 0x0, 0x1, 0x0, 0xf1},
+			{".debug_aranges", SHT_PROGBITS, 0x0, 0x0, 0x4b4, 0x30, 0x0, 0x0, 0x1, 0x0, 0x30},
+			{".rela.debug_aranges", SHT_RELA, SHF_INFO_LINK, 0x0, 0x10d0, 0x30, 0x13, 0x9, 0x8, 0x18, 0x30},
+			{".debug_line", SHT_PROGBITS, 0x0, 0x0, 0x4e4, 0xd3, 0x0, 0x0, 0x1, 0x0, 0xd3},
+			{".rela.debug_line", SHT_RELA, SHF_INFO_LINK, 0x0, 0x1100, 0x18, 0x13, 0xb, 0x8, 0x18, 0x18},
+			{".debug_str", SHT_PROGBITS, SHF_MERGE + SHF_STRINGS, 0x0, 0x5b7, 0x2a3, 0x0, 0x0, 0x1, 0x1, 0x2a3},
+			{".comment", SHT_PROGBITS, SHF_MERGE + SHF_STRINGS, 0x0, 0x85a, 0x2e, 0x0, 0x0, 0x1, 0x1, 0x2e},
+			{".note.GNU-stack", SHT_PROGBITS, 0x0, 0x0, 0x888, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0},
+			{".debug_frame", SHT_PROGBITS, 0x0, 0x0, 0x888, 0x38, 0x0, 0x0, 0x8, 0x0, 0x38},
+			{".rela.debug_frame", SHT_RELA, SHF_INFO_LINK, 0x0, 0x1118, 0x30, 0x13, 0x10, 0x8, 0x18, 0x30},
+			{".shstrtab", SHT_STRTAB, 0x0, 0x0, 0x1148, 0xb3, 0x0, 0x0, 0x1, 0x0, 0xb3},
+			{".symtab", SHT_SYMTAB, 0x0, 0x0, 0x8c0, 0x180, 0x14, 0xe, 0x8, 0x18, 0x180},
+			{".strtab", SHT_STRTAB, 0x0, 0x0, 0xa40, 0x13, 0x0, 0x0, 0x1, 0x0, 0x13},
+		},
+		[]ProgHeader{},
+		nil,
+		[]Symbol{
+			{"hello.c", 4, 0, 65521, 0, 0, "", ""},
+			{"", 3, 0, 1, 0, 0, "", ""},
+			{"", 3, 0, 3, 0, 0, "", ""},
+			{"", 3, 0, 4, 0, 0, "", ""},
+			{"", 3, 0, 5, 0, 0, "", ""},
+			{"", 3, 0, 6, 0, 0, "", ""},
+			{"", 3, 0, 8, 0, 0, "", ""},
+			{"", 3, 0, 9, 0, 0, "", ""},
+			{"", 3, 0, 11, 0, 0, "", ""},
+			{"", 3, 0, 13, 0, 0, "", ""},
+			{"", 3, 0, 15, 0, 0, "", ""},
+			{"", 3, 0, 16, 0, 0, "", ""},
+			{"", 3, 0, 14, 0, 0, "", ""},
+			{"main", 18, 0, 1, 0, 44, "", ""},
+			{"puts", 16, 0, 0, 0, 0, "", ""},
+		},
 	},
 }
 
@@ -272,6 +507,22 @@ func TestOpen(t *testing.T) {
 		}
 		if !reflect.DeepEqual(tl, fl) {
 			t.Errorf("open %s: DT_NEEDED = %v, want %v", tt.file, tl, fl)
+		}
+		symbols, err := f.Symbols()
+		if tt.symbols == nil {
+			if !errors.Is(err, ErrNoSymbols) {
+				t.Errorf("open %s: Symbols() expected ErrNoSymbols, have nil", tt.file)
+			}
+			if symbols != nil {
+				t.Errorf("open %s: Symbols() expected no symbols, have %v", tt.file, symbols)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("open %s: Symbols() unexpected error %v", tt.file, err)
+			}
+			if !slices.Equal(symbols, tt.symbols) {
+				t.Errorf("open %s: Symbols() = %v, want %v", tt.file, symbols, tt.symbols)
+			}
 		}
 	}
 }
@@ -1088,7 +1339,7 @@ func TestLargeNumberOfSections(t *testing.T) {
 		binary.Write(&buf, binary.LittleEndian, Section32{
 			Name:      0x1B,
 			Type:      uint32(SHT_PROGBITS),
-			Flags:     uint32(uint32(SHF_ALLOC | SHF_EXECINSTR)),
+			Flags:     uint32(SHF_ALLOC | SHF_EXECINSTR),
 			Off:       0x34,
 			Addralign: 0x01,
 		})
@@ -1286,5 +1537,43 @@ func TestIssue59208(t *testing.T) {
 	_, err = nf.DWARF()
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("DWARF = %v; want %q", err, want)
+	}
+}
+
+func BenchmarkSymbols64(b *testing.B) {
+	const testdata = "testdata/gcc-amd64-linux-exec"
+	f, err := Open(testdata)
+	if err != nil {
+		b.Fatalf("could not read %s: %v", testdata, err)
+	}
+	defer f.Close()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		symbols, err := f.Symbols()
+		if err != nil {
+			b.Fatalf("Symbols(): got unexpected error %v", err)
+		}
+		if len(symbols) != 73 {
+			b.Errorf("\nhave %d symbols\nwant %d symbols\n", len(symbols), 73)
+		}
+	}
+}
+
+func BenchmarkSymbols32(b *testing.B) {
+	const testdata = "testdata/gcc-386-freebsd-exec"
+	f, err := Open(testdata)
+	if err != nil {
+		b.Fatalf("could not read %s: %v", testdata, err)
+	}
+	defer f.Close()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		symbols, err := f.Symbols()
+		if err != nil {
+			b.Fatalf("Symbols(): got unexpected error %v", err)
+		}
+		if len(symbols) != 74 {
+			b.Errorf("\nhave %d symbols\nwant %d symbols\n", len(symbols), 74)
+		}
 	}
 }

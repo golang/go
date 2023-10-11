@@ -41,7 +41,7 @@ as a string and passes it to the [log] package.
 	2022/11/08 15:28:26 INFO hello count=3
 
 For more control over the output format, create a logger with a different handler.
-This statement uses [New] to create a new logger with a TextHandler
+This statement uses [New] to create a new logger with a [TextHandler]
 that writes structured records in text form to standard error:
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
@@ -174,9 +174,9 @@ argument, as do their corresponding top-level functions.
 
 Although the convenience methods on Logger (Info and so on) and the
 corresponding top-level functions do not take a context, the alternatives ending
-in "Ctx" do. For example,
+in "Context" do. For example,
 
-	slog.InfoCtx(ctx, "message")
+	slog.InfoContext(ctx, "message")
 
 It is recommended to pass a context to an output method if one is available.
 
@@ -206,11 +206,11 @@ keys and values; this allows it, too, to avoid allocation.
 
 The call
 
-	logger.LogAttrs(nil, slog.LevelInfo, "hello", slog.Int("count", 3))
+	logger.LogAttrs(ctx, slog.LevelInfo, "hello", slog.Int("count", 3))
 
 is the most efficient way to achieve the same output as
 
-	slog.Info("hello", "count", 3)
+	slog.InfoContext(ctx, "hello", "count", 3)
 
 # Customizing a type's logging behavior
 
@@ -231,8 +231,8 @@ and line number of the logging call within the application. This can produce
 incorrect source information for functions that wrap slog. For instance, if you
 define this function in file mylog.go:
 
-	func Infof(format string, args ...any) {
-	    slog.Default().Info(fmt.Sprintf(format, args...))
+	func Infof(logger *slog.Logger, format string, args ...any) {
+	    logger.Info(fmt.Sprintf(format, args...))
 	}
 
 and you call it like this in main.go:
@@ -255,7 +255,7 @@ and hidden fields that refer to state (such as attributes) indirectly. This
 means that modifying a simple copy of a Record (e.g. by calling
 [Record.Add] or [Record.AddAttrs] to add attributes)
 may have unexpected effects on the original.
-Before modifying a Record, use [Clone] to
+Before modifying a Record, use [Record.Clone] to
 create a copy that shares no state with the original,
 or create a new Record with [NewRecord]
 and build up its Attrs by traversing the old ones with [Record.Attrs].

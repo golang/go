@@ -15,6 +15,7 @@
 package main
 
 import (
+	"cmd/go/internal/str"
 	"flag"
 	"fmt"
 	"internal/txtar"

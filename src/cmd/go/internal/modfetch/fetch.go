@@ -504,7 +504,7 @@ const emptyGoModHash = "h1:G7mAYYxgmS0lVkHyy2hEOLQCFB0DlQFTMLWggykrydY="
 
 // readGoSum parses data, which is the content of file,
 // and adds it to goSum.m. The goSum lock must be held.
-func readGoSum(dst map[module.Version][]string, file string, data []byte) error {
+func readGoSum(dst map[module.Version][]string, file string, data []byte) {
 	lineno := 0
 	for len(data) > 0 {
 		var line []byte
@@ -521,7 +521,12 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) error 
 			continue
 		}
 		if len(f) != 3 {
-			return fmt.Errorf("malformed go.sum:\n%s:%d: wrong number of fields %v", file, lineno, len(f))
+			if cfg.CmdName == "mod tidy" {
+				// ignore malformed line so that go mod tidy can fix go.sum
+				continue
+			} else {
+				base.Fatalf("malformed go.sum:\n%s:%d: wrong number of fields %v\n", file, lineno, len(f))
+			}
 		}
 		if f[2] == emptyGoModHash {
 			// Old bug; drop it.
@@ -530,7 +535,6 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) error 
 		mod := module.Version{Path: f[0], Version: f[1]}
 		dst[mod] = append(dst[mod], f[2])
 	}
-	return nil
 }
 
 // HaveSum returns true if the go.sum file contains an entry for mod.

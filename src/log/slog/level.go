@@ -23,7 +23,6 @@ type Level int
 // First, we wanted the default level to be Info, Since Levels are ints, Info is
 // the default value for int, zero.
 //
-
 // Second, we wanted to make it easy to use levels to specify logger verbosity.
 // Since a larger level means a more severe event, a logger that accepts events
 // with smaller (or more negative) level means a more verbose logger. Logger

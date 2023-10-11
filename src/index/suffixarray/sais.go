@@ -141,7 +141,7 @@ func text_32(text []byte, sa []int32) {
 // then the algorithm runs a little faster.
 // If sais_8_32 modifies tmp, it sets tmp[0] = -1 on return.
 func sais_8_32(text []byte, textMax int, sa, tmp []int32) {
-	if len(sa) != len(text) || len(tmp) < int(textMax) {
+	if len(sa) != len(text) || len(tmp) < textMax {
 		panic("suffixarray: misuse of sais_8_32")
 	}
 

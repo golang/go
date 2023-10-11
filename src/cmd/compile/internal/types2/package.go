@@ -10,13 +10,14 @@ import (
 
 // A Package describes a Go package.
 type Package struct {
-	path     string
-	name     string
-	scope    *Scope
-	imports  []*Package
-	complete bool
-	fake     bool // scope lookup errors are silently dropped if package is fake (internal use only)
-	cgo      bool // uses of this package will be rewritten into uses of declarations from _cgo_gotypes.go
+	path      string
+	name      string
+	scope     *Scope
+	imports   []*Package
+	complete  bool
+	fake      bool   // scope lookup errors are silently dropped if package is fake (internal use only)
+	cgo       bool   // uses of this package will be rewritten into uses of declarations from _cgo_gotypes.go
+	goVersion string // minimum Go version required for package (by Config.GoVersion, typically from go.mod)
 }
 
 // NewPackage returns a new Package for the given package path and name.
@@ -34,6 +35,12 @@ func (pkg *Package) Name() string { return pkg.name }
 
 // SetName sets the package name.
 func (pkg *Package) SetName(name string) { pkg.name = name }
+
+// GoVersion returns the minimum Go version required by this package.
+// If the minimum version is unknown, GoVersion returns the empty string.
+// Individual source files may specify a different minimum Go version,
+// as reported in the [go/ast.File.GoVersion] field.
+func (pkg *Package) GoVersion() string { return pkg.goVersion }
 
 // Scope returns the (complete or incomplete) package scope
 // holding the objects declared at package level (TypeNames,
