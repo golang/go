@@ -349,6 +349,10 @@ var lookupCNAMETests = []struct {
 	{"www.google.com", "google.com."},
 	{"google.com", "google.com."},
 	{"cname-to-txt.go4.org", "test-txt-record.go4.org."},
+
+	// Domain that doesn't have any A/AAAA RRs, but has different one (in this case a TXT),
+	// so that it returns an empty response without any error codes (NXDOMAIN).
+	{"golang.rsc.io.", "golang.rsc.io."},
 }
 
 func TestLookupCNAME(t *testing.T) {
@@ -1523,4 +1527,69 @@ func allResolvers(t *testing.T, f func(t *testing.T)) {
 			f(t)
 		}
 	})
+}
+
+func TestLookupCNAMENoSuchHost(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("no supported on plan9")
+	}
+
+	mustHaveExternalNetwork(t)
+
+	if runtime.GOOS != "windows" {
+		testLookupCNAMENoSuchHost(t, "default resolver")
+	}
+
+	func() {
+		if runtime.GOOS != "windows" {
+			defer forceCgoDNS()()
+			testLookupCNAMENoSuchHost(t, "forced cgo resolver")
+		}
+	}()
+
+	func() {
+		defer forceGoDNS()()
+		testLookupCNAMENoSuchHost(t, "forced go resolver")
+	}()
+}
+
+func testLookupCNAMENoSuchHost(t *testing.T, resolver string) {
+	attempts := 0
+	for {
+		ret, err := LookupCNAME("invalid.invalid.")
+		if err == nil {
+			t.Errorf("%v unexpected success: %v", resolver, ret)
+			return
+		}
+
+		var dnsErr *DNSError
+		if errors.As(err, &dnsErr) {
+			succeeded := true
+			if !dnsErr.IsNotFound {
+				succeeded = false
+				t.Logf("%v: IsNotFound is set to false", resolver)
+			}
+
+			if dnsErr.Err != errNoSuchHost.Error() {
+				succeeded = false
+				t.Logf("%v: error message is not equal to: %v", resolver, errNoSuchHost.Error())
+			}
+
+			if succeeded {
+				return
+			}
+		}
+
+		testenv.SkipFlakyNet(t)
+		if attempts < len(backoffDuration) {
+			dur := backoffDuration[attempts]
+			t.Logf("%v: backoff %v after failure %v\n", resolver, dur, err)
+			time.Sleep(dur)
+			attempts++
+			continue
+		}
+
+		t.Errorf("%v: unexpected error: %v", resolver, err)
+		return
+	}
 }

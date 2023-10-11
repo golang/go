@@ -8,6 +8,8 @@ package net
 
 import (
 	"context"
+	"errors"
+	"runtime"
 	"testing"
 )
 
@@ -65,5 +67,23 @@ func TestCgoLookupPTRWithCancel(t *testing.T) {
 	_, err := cgoLookupPTR(ctx, "127.0.0.1")
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestCgoLookupCNAMEHErrno(t *testing.T) {
+	defer dnsWaitGroup.Wait()
+	_, err := cgoLookupCNAME(context.Background(), "invalid.invalid")
+
+	if runtime.GOOS == "openbsd" || runtime.GOOS == "android" {
+		if err != errCgoDNSLookupFailed {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		return
+	}
+
+	var dnsErr *DNSError
+	errors.As(err, &dnsErr)
+	if dnsErr == nil || dnsErr.Err != errNoSuchHost.Error() || !dnsErr.IsNotFound {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

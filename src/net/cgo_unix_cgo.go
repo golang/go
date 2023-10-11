@@ -17,6 +17,7 @@ package net
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <netdb.h>
 
 #ifndef EAI_NODATA
 #define EAI_NODATA -5
@@ -29,6 +30,12 @@ package net
 */
 import "C"
 import "unsafe"
+
+const (
+	_C_HOST_NOT_FOUND = C.HOST_NOT_FOUND
+	_C_TRY_AGAIN      = C.TRY_AGAIN
+	_C_NO_DATA        = C.NO_DATA
+)
 
 const (
 	_C_AF_INET      = C.AF_INET
@@ -56,10 +63,12 @@ type (
 	_C_struct_sockaddr = C.struct_sockaddr
 )
 
+func _C_GoString(p *_C_char) string      { return C.GoString(p) }
 func _C_malloc(n uintptr) unsafe.Pointer { return C.malloc(C.size_t(n)) }
 func _C_free(p unsafe.Pointer)           { C.free(p) }
 
 func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.ai_addr }
+func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.ai_canonname }
 func _C_ai_family(ai *_C_struct_addrinfo) *_C_int            { return &ai.ai_family }
 func _C_ai_flags(ai *_C_struct_addrinfo) *_C_int             { return &ai.ai_flags }
 func _C_ai_next(ai *_C_struct_addrinfo) **_C_struct_addrinfo { return &ai.ai_next }

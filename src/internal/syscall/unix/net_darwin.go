@@ -119,8 +119,11 @@ func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err 
 //go:linkname syscall_syscall9 syscall.syscall9
 func syscall_syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err syscall.Errno)
 
+// Based on https://opensource.apple.com/source/libresolv/libresolv-65/resolv.h.auto.html
 type ResState struct {
-	unexported [69]uintptr
+	_           [496]byte
+	Res_h_errno int32
+	_           [52]byte
 }
 
 //go:cgo_import_dynamic libresolv_res_9_ninit res_9_ninit "/usr/lib/libresolv.9.dylib"

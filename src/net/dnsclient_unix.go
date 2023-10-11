@@ -91,7 +91,7 @@ func checkResponse(reqID uint16, reqQues dnsmessage.Question, respHdr dnsmessage
 	if reqID != respHdr.ID {
 		return false
 	}
-	if reqQues.Type != respQues.Type || reqQues.Class != respQues.Class || !equalASCIIName(reqQues.Name, respQues.Name) {
+	if reqQues.Type != respQues.Type || reqQues.Class != respQues.Class || !equalASCIIName(&reqQues.Name, &respQues.Name) {
 		return false
 	}
 	return true
@@ -323,7 +323,6 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 				if err == errNoSuchHost {
 					// The name does not exist, so trying
 					// another server won't help.
-
 					dnsErr.IsNotFound = true
 					return p, server, dnsErr
 				}
@@ -345,6 +344,7 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 				// server won't help.
 
 				lastErr.(*DNSError).IsNotFound = true
+				lastErr.(*DNSError).isNoData = true
 				return p, server, lastErr
 			}
 		}
@@ -439,26 +439,22 @@ func (conf *resolverConfig) releaseSema() {
 	<-conf.ch
 }
 
-func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type, conf *dnsConfig) (dnsmessage.Parser, string, error) {
+func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type, conf *dnsConfig) (p dnsmessage.Parser, server string, queriedName string, err error) {
 	if !isDomainName(name) {
 		// We used to use "invalid domain name" as the error,
 		// but that is a detail of the specific lookup mechanism.
 		// Other lookups might allow broader name syntax
 		// (for example Multicast DNS allows UTF-8; see RFC 6762).
 		// For consistency with libc resolvers, report no such host.
-		return dnsmessage.Parser{}, "", &DNSError{Err: errNoSuchHost.Error(), Name: name, IsNotFound: true}
+		return dnsmessage.Parser{}, "", "", &DNSError{Err: errNoSuchHost.Error(), Name: name, IsNotFound: true}
 	}
 
 	if conf == nil {
 		conf = getSystemDNSConfig()
 	}
 
-	var (
-		p      dnsmessage.Parser
-		server string
-		err    error
-	)
 	for _, fqdn := range conf.nameList(name) {
+		queriedName = fqdn
 		p, server, err = r.tryOneName(ctx, conf, fqdn, qtype)
 		if err == nil {
 			break
@@ -470,7 +466,7 @@ func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Typ
 		}
 	}
 	if err == nil {
-		return p, server, nil
+		return p, server, queriedName, nil
 	}
 	if err, ok := err.(*DNSError); ok {
 		// Show original name passed to lookup, not suffixed one.
@@ -478,7 +474,7 @@ func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Typ
 		// just one is misleading. See also golang.org/issue/6324.
 		err.Name = name
 	}
-	return dnsmessage.Parser{}, "", err
+	return dnsmessage.Parser{}, "", queriedName, err
 }
 
 // avoidDNS reports whether this is a hostname for which we should not
@@ -644,9 +640,6 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 
 	lane := make(chan result, 1)
 	qtypes := []dnsmessage.Type{dnsmessage.TypeA, dnsmessage.TypeAAAA}
-	if network == "CNAME" {
-		qtypes = append(qtypes, dnsmessage.TypeCNAME)
-	}
 	switch ipVersion(network) {
 	case '4':
 		qtypes = []dnsmessage.Type{dnsmessage.TypeA}
@@ -736,10 +729,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 						break loop
 					}
 					addrs = append(addrs, IPAddr{IP: IP(a.A[:])})
-					if cname.Length == 0 && h.Name.Length != 0 {
-						cname = h.Name
-					}
-
+					cname = h.Name
 				case dnsmessage.TypeAAAA:
 					aaaa, err := result.p.AAAAResource()
 					if err != nil {
@@ -751,24 +741,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 						break loop
 					}
 					addrs = append(addrs, IPAddr{IP: IP(aaaa.AAAA[:])})
-					if cname.Length == 0 && h.Name.Length != 0 {
-						cname = h.Name
-					}
-
-				case dnsmessage.TypeCNAME:
-					c, err := result.p.CNAMEResource()
-					if err != nil {
-						lastErr = &DNSError{
-							Err:    errCannotUnmarshalDNSMessage.Error(),
-							Name:   name,
-							Server: result.server,
-						}
-						break loop
-					}
-					if cname.Length == 0 && c.CNAME.Length > 0 {
-						cname = c.CNAME
-					}
-
+					cname = h.Name
 				default:
 					if err := result.p.SkipAnswer(); err != nil {
 						lastErr = &DNSError{
@@ -778,7 +751,6 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 						}
 						break loop
 					}
-					continue
 				}
 			}
 		}
@@ -789,7 +761,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 			addrs = nil
 			break
 		}
-		if len(addrs) > 0 || network == "CNAME" && cname.Length > 0 {
+		if len(addrs) > 0 {
 			break
 		}
 	}
@@ -800,7 +772,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 		lastErr.Name = name
 	}
 	sortByRFC6724(addrs)
-	if len(addrs) == 0 && !(network == "CNAME" && cname.Length > 0) {
+	if len(addrs) == 0 {
 		if order == hostLookupDNSFiles {
 			var canonical string
 			addrs, canonical = goLookupIPFiles(name)
@@ -820,10 +792,36 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 	return addrs, cname, nil
 }
 
-// goLookupCNAME is the native Go (non-cgo) implementation of LookupCNAME.
-func (r *Resolver) goLookupCNAME(ctx context.Context, host string, order hostLookupOrder, conf *dnsConfig) (string, error) {
-	_, cname, err := r.goLookupIPCNAMEOrder(ctx, "CNAME", host, order, conf)
-	return cname.String(), err
+// goLookupCanonicalName returns the canonical name of the host
+func (r *Resolver) goLookupCanonicalName(ctx context.Context, host string, order hostLookupOrder, conf *dnsConfig) (string, error) {
+	_, cname, err := r.goLookupIPCNAMEOrder(ctx, "ip", host, order, conf)
+	if err != nil {
+		return "", err
+	}
+	return cname.String(), nil
+}
+
+// goLookupCNAME queries the CNAME record and returns the last CNAME in the CNAME chain or when
+// the DNS query returns no answer records it returns the queried name.
+func (r *Resolver) goLookupCNAME(ctx context.Context, host string, conf *dnsConfig) (string, error) {
+	p, server, queriedName, err := r.lookup(ctx, host, dnsmessage.TypeCNAME, conf)
+	if err != nil {
+		var dnsErr *DNSError
+		if errors.As(err, &dnsErr) && dnsErr.isNoData {
+			return absDomainName(queriedName), nil
+		}
+		return "", err
+	}
+
+	cname, err := lastCNAMEinChain(dnsmessage.MustNewName(queriedName), p)
+	if err != nil {
+		return "", &DNSError{
+			Err:    err.Error(),
+			Server: server,
+		}
+	}
+
+	return cname, nil
 }
 
 // goLookupPTR is the native Go implementation of LookupAddr.
@@ -843,7 +841,7 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string, order hostLooku
 	if err != nil {
 		return nil, err
 	}
-	p, server, err := r.lookup(ctx, arpa, dnsmessage.TypePTR, conf)
+	p, server, _, err := r.lookup(ctx, arpa, dnsmessage.TypePTR, conf)
 	if err != nil {
 		var dnsErr *DNSError
 		if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
@@ -893,4 +891,57 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string, order hostLooku
 	}
 
 	return ptrs, nil
+}
+
+func lowerDNSName(a *dnsmessage.Name) {
+	lowerASCIIBytes(a.Data[:a.Length])
+}
+
+// lastCNAMEinChain returns the last CNAME in CNAME chain.
+func lastCNAMEinChain(queryName dnsmessage.Name, p dnsmessage.Parser) (string, error) {
+	curName := queryName
+
+	// All (or most) responses contain the CNAMEs in order
+	// so this in practice should never be used.
+	// The key must be in lower case for case insensitive match.
+	var cnames map[dnsmessage.Name]dnsmessage.Name
+
+	for {
+		hdr, err := p.AnswerHeader()
+		if err == dnsmessage.ErrSectionDone {
+			break
+		}
+		if err != nil || hdr.Class != dnsmessage.ClassINET || hdr.Type != dnsmessage.TypeCNAME {
+			return "", errCannotUnmarshalDNSMessage
+		}
+		cname, err := p.CNAMEResource()
+		if err != nil {
+			return "", errCannotUnmarshalDNSMessage
+		}
+
+		if !equalASCIIName(&curName, &hdr.Name) {
+			// Out of order CNAME record; add it to the map for later processing.
+			if cnames == nil {
+				cnames = make(map[dnsmessage.Name]dnsmessage.Name)
+			}
+			lowerDNSName(&hdr.Name)
+			// Not lowering the cname ASCII case here to preserve the DNS case.
+			cnames[hdr.Name] = cname.CNAME
+			continue
+		}
+
+		curName = cname.CNAME
+	}
+
+	for len(cnames) != 0 {
+		lowerDNSName(&curName)
+		cname, ok := cnames[curName]
+		if !ok {
+			return "", errCannotUnmarshalDNSMessage
+		}
+		delete(cnames, curName)
+		curName = cname
+	}
+
+	return curName.String(), nil
 }

@@ -256,8 +256,8 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 }
 
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
-	if order, conf := systemConf().hostLookupOrder(r, name); order != hostLookupCgo {
-		return r.goLookupCNAME(ctx, name, order, conf)
+	if systemConf().mustUseGoResolver(r) {
+		return r.goLookupCNAME(ctx, name, getSystemDNSConfig())
 	}
 
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.

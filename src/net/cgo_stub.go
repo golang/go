@@ -31,10 +31,22 @@ func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err
 	panic("cgo stub: cgo not available")
 }
 
-func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
+func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error) {
 	panic("cgo stub: cgo not available")
 }
 
 func cgoLookupPTR(ctx context.Context, addr string) (ptrs []string, err error) {
 	panic("cgo stub: cgo not available")
 }
+
+func cgoLookupCanonicalName(ctx context.Context, network string, name string) (cname string, err error) {
+	panic("cgo stub: cgo not available")
+}
+
+type stubError struct{}
+
+func (stubError) Error() string {
+	panic("cgo stub: cgo not available")
+}
+
+var errCgoDNSLookupFailed = stubError{}
