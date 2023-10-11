@@ -11,8 +11,8 @@ import (
 )
 
 var sehp struct {
-	pdata loader.Sym
-	xdata loader.Sym
+	pdata []sym.LoaderSym
+	xdata []sym.LoaderSym
 }
 
 func writeSEH(ctxt *Link) {
@@ -72,6 +72,6 @@ func writeSEHAMD64(ctxt *Link) {
 		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, s, ldr.SymSize(s))
 		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, xdata.Sym(), off)
 	}
-	sehp.pdata = pdata.Sym()
-	sehp.xdata = xdata.Sym()
+	sehp.pdata = append(sehp.pdata, pdata.Sym())
+	sehp.xdata = append(sehp.xdata, xdata.Sym())
 }
