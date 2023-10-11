@@ -313,7 +313,7 @@ func vendorPkg(vdir, pkg string) {
 			base.Fatalf("internal error: failed to find embedded files of %s: %v\n", pkg, err)
 		}
 	}
-	embedPatterns := str.StringList(bp.EmbedPatterns, bp.TestEmbedPatterns, bp.XTestEmbedPatterns)
+	embedPatterns := str.StringList(bp.EmbedPatterns)
 	embeds, err := load.ResolveEmbed(bp.Dir, embedPatterns)
 	if err != nil {
 		base.Fatal(err)

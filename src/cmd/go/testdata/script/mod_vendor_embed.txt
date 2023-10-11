@@ -1,8 +1,6 @@
 go mod vendor
 cmp vendor/example.com/a/samedir_embed.txt a/samedir_embed.txt
 cmp vendor/example.com/a/subdir/embed.txt a/subdir/embed.txt
-cmp vendor/example.com/a/subdir/test/embed.txt a/subdir/test/embed.txt
-cmp vendor/example.com/a/subdir/test/xtest/embed.txt a/subdir/test/xtest/embed.txt
 
 cd broken_no_matching_files
 ! go mod vendor
@@ -59,20 +57,6 @@ var subDir string
 func Str() string {
 	return sameDir + subDir
 }
--- a/a_test.go --
-package a
-
-import _ "embed"
-
-//go:embed subdir/test/embed.txt
-var subderTest string
--- a/a_x_test.go --
-package a_test
-
-import _ "embed"
-
-//go:embed subdir/test/xtest/embed.txt
-var subdirXtest string
 -- a/samedir_embed.txt --
 embedded file in same directory as package
 -- a/subdir/embed.txt --
