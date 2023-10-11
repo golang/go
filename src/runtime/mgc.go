@@ -575,10 +575,6 @@ func (t gcTrigger) test() bool {
 	}
 	switch t.kind {
 	case gcTriggerHeap:
-		// Non-atomic access to gcController.heapLive for performance. If
-		// we are going to trigger on this, this thread just
-		// atomically wrote gcController.heapLive anyway and we'll see our
-		// own write.
 		trigger, _ := gcController.trigger()
 		return gcController.heapLive.Load() >= trigger
 	case gcTriggerTime:
