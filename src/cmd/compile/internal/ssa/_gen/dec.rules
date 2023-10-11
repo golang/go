@@ -118,12 +118,12 @@
 // More annoying case: (ArraySelect[0] (StructSelect[0] isAPtr))
 // There, result of the StructSelect is an Array (not a pointer) and
 // the pre-rewrite input to the ArraySelect is a struct, not a pointer.
-(StructSelect [0] x) && x.Type.IsPtr()  => x
-(ArraySelect [0] x) && x.Type.IsPtr()  => x
+(StructSelect [0] x) && x.Type.IsPtrShaped()  => x
+(ArraySelect [0] x) && x.Type.IsPtrShaped()  => x
 
 // These, too.  Bits is bits.
-(ArrayMake1 x) && x.Type.IsPtr() => x
-(StructMake1 x) && x.Type.IsPtr() => x
+(ArrayMake1 x) && x.Type.IsPtrShaped() => x
+(StructMake1 x) && x.Type.IsPtrShaped() => x
 
 (Store dst (StructMake1 <t> f0) mem) =>
   (Store {t.FieldType(0)} (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem)
