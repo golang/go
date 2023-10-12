@@ -1011,7 +1011,7 @@ func ParseCertificates(der []byte) ([]*Certificate, error) {
 // the actual encoded version, so the version for X.509v2 is 1.
 const x509v2Version = 1
 
-// ParseRevocationList parses a X509 v2 Certificate Revocation List from the given
+// ParseRevocationList parses a X509 v2 [Certificate] Revocation List from the given
 // ASN.1 DER data.
 func ParseRevocationList(der []byte) (*RevocationList, error) {
 	rl := &RevocationList{}
