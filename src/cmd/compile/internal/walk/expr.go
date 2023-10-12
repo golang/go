@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -738,15 +739,12 @@ func makeTypeAssertDescriptor(target *types.Type, canFail bool) *obj.LSym {
 	// Allocate an internal/abi.TypeAssert descriptor for that call.
 	lsym := types.LocalPkg.Lookup(fmt.Sprintf(".typeAssert.%d", typeAssertGen)).LinksymABI(obj.ABI0)
 	typeAssertGen++
-	off := 0
-	off = objw.SymPtr(lsym, off, typecheck.LookupRuntimeVar("emptyTypeAssertCache"), 0)
-	off = objw.SymPtr(lsym, off, reflectdata.TypeSym(target).Linksym(), 0)
-	off = objw.Bool(lsym, off, canFail)
-	off += types.PtrSize - 1
-	objw.Global(lsym, int32(off), obj.LOCAL)
-	// Set the type to be just a single pointer, as the cache pointer is the
-	// only one that GC needs to see.
-	lsym.Gotype = reflectdata.TypeLinksym(types.Types[types.TUINT8].PtrTo())
+	c := rttype.NewCursor(lsym, 0, rttype.TypeAssert)
+	c.Field("Cache").WritePtr(typecheck.LookupRuntimeVar("emptyTypeAssertCache"))
+	c.Field("Inter").WritePtr(reflectdata.TypeSym(target).Linksym())
+	c.Field("CanFail").WriteBool(canFail)
+	objw.Global(lsym, int32(rttype.TypeAssert.Size()), obj.LOCAL)
+	lsym.Gotype = reflectdata.TypeLinksym(rttype.TypeAssert)
 	return lsym
 }
 

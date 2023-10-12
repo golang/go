@@ -38,6 +38,10 @@ var Method *types.Type
 var StructField *types.Type
 var UncommonType *types.Type
 
+// Type switches and asserts
+var InterfaceSwitch *types.Type
+var TypeAssert *types.Type
+
 func Init() {
 	// Note: this has to be called explicitly instead of being
 	// an init function so it runs after the types package has
@@ -56,6 +60,9 @@ func Init() {
 	Method = fromReflect(reflect.TypeOf(abi.Method{}))
 	StructField = fromReflect(reflect.TypeOf(abi.StructField{}))
 	UncommonType = fromReflect(reflect.TypeOf(abi.UncommonType{}))
+
+	InterfaceSwitch = fromReflect(reflect.TypeOf(abi.InterfaceSwitch{}))
+	TypeAssert = fromReflect(reflect.TypeOf(abi.TypeAssert{}))
 
 	// Make sure abi functions are correct. These functions are used
 	// by the linker which doesn't have the ability to do type layout,
@@ -87,6 +94,8 @@ func fromReflect(rt reflect.Type) *types.Type {
 // must be CalcSize'd before using.
 func reflectToType(rt reflect.Type) *types.Type {
 	switch rt.Kind() {
+	case reflect.Bool:
+		return types.Types[types.TBOOL]
 	case reflect.Int:
 		return types.Types[types.TINT]
 	case reflect.Int32:
@@ -181,6 +190,12 @@ func (c Cursor) WriteInt32(val int32) {
 	}
 	objw.Uint32(c.lsym, int(c.offset), uint32(val))
 }
+func (c Cursor) WriteBool(val bool) {
+	if c.typ.Kind() != types.TBOOL {
+		base.Fatalf("can't write bool, it has kind %s", c.typ.Kind())
+	}
+	objw.Bool(c.lsym, int(c.offset), val)
+}
 
 // WriteSymPtrOff writes a "pointer" to the given symbol. The symbol
 // is encoded as a uint32 offset from the start of the section.
@@ -254,4 +269,15 @@ func (a ArrayCursor) Elem(i int) Cursor {
 		base.Fatalf("element index %d out of range [0:%d]", i, a.n)
 	}
 	return Cursor{lsym: a.c.lsym, offset: a.c.offset + int64(i)*a.c.typ.Size(), typ: a.c.typ}
+}
+
+// ModifyArray converts a cursor pointing at a type [k]T to a cursor pointing
+// at a type [n]T.
+// Also returns the size delta, aka (n-k)*sizeof(T).
+func (c Cursor) ModifyArray(n int) (ArrayCursor, int64) {
+	if c.typ.Kind() != types.TARRAY {
+		base.Fatalf("can't call ModifyArray on non-array %v", c.typ)
+	}
+	k := c.typ.NumElem()
+	return ArrayCursor{c: Cursor{lsym: c.lsym, offset: c.offset, typ: c.typ.Elem()}, n: n}, (int64(n) - k) * c.typ.Elem().Size()
 }
