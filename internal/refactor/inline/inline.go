@@ -2622,6 +2622,7 @@ func declares(stmts []ast.Stmt) map[string]bool {
 			}
 		}
 	}
+	delete(names, "_")
 	return names
 }
 

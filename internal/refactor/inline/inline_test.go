@@ -388,6 +388,17 @@ func TestBasics(t *testing.T) {
 			`func _(ch chan int) { f(ch) }`,
 			`func _(ch chan int) { <-(<-chan int)(ch) }`,
 		},
+		{
+			// (a regression test for unnecessary braces)
+			"In block elision, blank decls don't count when computing name conflicts.",
+			`func f(x int) { var _ = x; var _ = 3 }`,
+			`func _() { var _ = 1; f(2) }`,
+			`func _() {
+	var _ = 1
+	var _ = 2
+	var _ = 3
+}`,
+		},
 	})
 }
 
