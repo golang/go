@@ -8,8 +8,8 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/pgo"
-	"cmd/compile/internal/types"
 	"cmd/compile/internal/typecheck"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"testing"
@@ -31,66 +31,81 @@ func makePos(b *src.PosBase, line, col uint) src.XPos {
 	return base.Ctxt.PosTable.XPos(src.MakePos(b, line, col))
 }
 
-func TestFindHotConcreteCallee(t *testing.T) {
+type profileBuilder struct {
+	p *pgo.Profile
+}
+
+func newProfileBuilder() *profileBuilder {
 	// findHotConcreteCallee only uses pgo.Profile.WeightedCG, so we're
 	// going to take a shortcut and only construct that.
-	p := &pgo.Profile{
-		WeightedCG: &pgo.IRGraph{
-			IRNodes: make(map[string]*pgo.IRNode),
+	return &profileBuilder{
+		p: &pgo.Profile{
+			WeightedCG: &pgo.IRGraph{
+				IRNodes: make(map[string]*pgo.IRNode),
+			},
 		},
 	}
+}
 
-	// Create a new IRNode and add it to p.
-	//
-	// fn may be nil, in which case the node will set LinkerSymbolName.
-	newNode := func(name string, fn *ir.Func) *pgo.IRNode {
-		n := &pgo.IRNode{
-			OutEdges: make(map[pgo.NamedCallEdge]*pgo.IREdge),
-		}
-		if fn != nil {
-			n.AST = fn
-		} else {
-			n.LinkerSymbolName = name
-		}
-		p.WeightedCG.IRNodes[name] = n
-		return n
-	}
+// Profile returns the constructed profile.
+func (p *profileBuilder) Profile() *pgo.Profile {
+	return p.p
+}
 
-	// Add a new call edge from caller to callee.
-	addEdge := func(caller, callee *pgo.IRNode, offset int, weight int64) {
-		namedEdge := pgo.NamedCallEdge{
-			CallerName:     caller.Name(),
-			CalleeName:     callee.Name(),
-			CallSiteOffset: offset,
-		}
-		irEdge := &pgo.IREdge{
-			Src:            caller,
-			Dst:            callee,
-			CallSiteOffset: offset,
-			Weight:         weight,
-		}
-		caller.OutEdges[namedEdge] = irEdge
+// NewNode creates a new IRNode and adds it to the profile.
+//
+// fn may be nil, in which case the node will set LinkerSymbolName.
+func (p *profileBuilder) NewNode(name string, fn *ir.Func) *pgo.IRNode {
+	n := &pgo.IRNode{
+		OutEdges: make(map[pgo.NamedCallEdge]*pgo.IREdge),
 	}
+	if fn != nil {
+		n.AST = fn
+	} else {
+		n.LinkerSymbolName = name
+	}
+	p.p.WeightedCG.IRNodes[name] = n
+	return n
+}
+
+// Add a new call edge from caller to callee.
+func addEdge(caller, callee *pgo.IRNode, offset int, weight int64) {
+	namedEdge := pgo.NamedCallEdge{
+		CallerName:     caller.Name(),
+		CalleeName:     callee.Name(),
+		CallSiteOffset: offset,
+	}
+	irEdge := &pgo.IREdge{
+		Src:            caller,
+		Dst:            callee,
+		CallSiteOffset: offset,
+		Weight:         weight,
+	}
+	caller.OutEdges[namedEdge] = irEdge
+}
+
+// Create a new struct type named structName with a method named methName and
+// return the method.
+func makeStructWithMethod(pkg *types.Pkg, structName, methName string) *ir.Func {
+	// type structName struct{}
+	structType := types.NewStruct(nil)
+
+	// func (structName) methodName()
+	recv := types.NewField(src.NoXPos, typecheck.Lookup(structName), structType)
+	sig := types.NewSignature(recv, nil, nil)
+	fn := ir.NewFunc(src.NoXPos, src.NoXPos, pkg.Lookup(structName+"."+methName), sig)
+
+	// Add the method to the struct.
+	structType.SetMethods([]*types.Field{types.NewField(src.NoXPos, typecheck.Lookup(methName), sig)})
+
+	return fn
+}
+
+func TestFindHotConcreteInterfaceCallee(t *testing.T) {
+	p := newProfileBuilder()
 
 	pkgFoo := types.NewPkg("example.com/foo", "foo")
 	basePos := src.NewFileBase("foo.go", "/foo.go")
-
-	// Create a new struct type named structName with a method named methName and
-	// return the method.
-	makeStructWithMethod := func(structName, methName string) *ir.Func {
-		// type structName struct{}
-		structType := types.NewStruct(nil)
-
-		// func (structName) methodName()
-		recv := types.NewField(src.NoXPos, typecheck.Lookup(structName), structType)
-		sig := types.NewSignature(recv, nil, nil)
-		fn := ir.NewFunc(src.NoXPos, src.NoXPos, pkgFoo.Lookup(structName + "." + methName), sig)
-
-		// Add the method to the struct.
-		structType.SetMethods([]*types.Field{types.NewField(src.NoXPos, typecheck.Lookup(methName), sig)})
-
-		return fn
-	}
 
 	const (
 		// Caller start line.
@@ -112,21 +127,21 @@ func TestFindHotConcreteCallee(t *testing.T) {
 
 	callerFn := ir.NewFunc(makePos(basePos, callerStart, 1), src.NoXPos, pkgFoo.Lookup("Caller"), types.NewSignature(nil, nil, nil))
 
-	hotCalleeFn := makeStructWithMethod("HotCallee", "Foo")
-	coldCalleeFn := makeStructWithMethod("ColdCallee", "Foo")
-	wrongLineCalleeFn := makeStructWithMethod("WrongLineCallee", "Foo")
-	wrongMethodCalleeFn := makeStructWithMethod("WrongMethodCallee", "Bar")
+	hotCalleeFn := makeStructWithMethod(pkgFoo, "HotCallee", "Foo")
+	coldCalleeFn := makeStructWithMethod(pkgFoo, "ColdCallee", "Foo")
+	wrongLineCalleeFn := makeStructWithMethod(pkgFoo, "WrongLineCallee", "Foo")
+	wrongMethodCalleeFn := makeStructWithMethod(pkgFoo, "WrongMethodCallee", "Bar")
 
-	callerNode := newNode("example.com/foo.Caller", callerFn)
-	hotCalleeNode := newNode("example.com/foo.HotCallee.Foo", hotCalleeFn)
-	coldCalleeNode := newNode("example.com/foo.ColdCallee.Foo", coldCalleeFn)
-	wrongLineCalleeNode := newNode("example.com/foo.WrongCalleeLine.Foo", wrongLineCalleeFn)
-	wrongMethodCalleeNode := newNode("example.com/foo.WrongCalleeMethod.Foo", wrongMethodCalleeFn)
+	callerNode := p.NewNode("example.com/foo.Caller", callerFn)
+	hotCalleeNode := p.NewNode("example.com/foo.HotCallee.Foo", hotCalleeFn)
+	coldCalleeNode := p.NewNode("example.com/foo.ColdCallee.Foo", coldCalleeFn)
+	wrongLineCalleeNode := p.NewNode("example.com/foo.WrongCalleeLine.Foo", wrongLineCalleeFn)
+	wrongMethodCalleeNode := p.NewNode("example.com/foo.WrongCalleeMethod.Foo", wrongMethodCalleeFn)
 
-	hotMissingCalleeNode := newNode("example.com/bar.HotMissingCallee.Foo", nil)
+	hotMissingCalleeNode := p.NewNode("example.com/bar.HotMissingCallee.Foo", nil)
 
 	addEdge(callerNode, wrongLineCalleeNode, wrongCallOffset, 100) // Really hot, but wrong line.
-	addEdge(callerNode, wrongMethodCalleeNode, callOffset, 100) // Really hot, but wrong method type.
+	addEdge(callerNode, wrongMethodCalleeNode, callOffset, 100)    // Really hot, but wrong method type.
 	addEdge(callerNode, hotCalleeNode, callOffset, 10)
 	addEdge(callerNode, coldCalleeNode, callOffset, 1)
 
@@ -141,11 +156,62 @@ func TestFindHotConcreteCallee(t *testing.T) {
 	sel := typecheck.NewMethodExpr(src.NoXPos, iface, typecheck.Lookup("Foo"))
 	call := ir.NewCallExpr(makePos(basePos, callerStart+callOffset, 1), ir.OCALLINTER, sel, nil)
 
-	gotFn, gotWeight := findHotConcreteCallee(p, callerFn, call)
+	gotFn, gotWeight := findHotConcreteInterfaceCallee(p.Profile(), callerFn, call)
 	if gotFn != hotCalleeFn {
 		t.Errorf("findHotConcreteInterfaceCallee func got %v want %v", gotFn, hotCalleeFn)
 	}
 	if gotWeight != 10 {
 		t.Errorf("findHotConcreteInterfaceCallee weight got %v want 10", gotWeight)
+	}
+}
+
+func TestFindHotConcreteFunctionCallee(t *testing.T) {
+	// TestFindHotConcreteInterfaceCallee already covered basic weight
+	// comparisons, which is shared logic. Here we just test type signature
+	// disambiguation.
+
+	p := newProfileBuilder()
+
+	pkgFoo := types.NewPkg("example.com/foo", "foo")
+	basePos := src.NewFileBase("foo.go", "/foo.go")
+
+	const (
+		// Caller start line.
+		callerStart = 42
+
+		// The line offset of the call we care about.
+		callOffset = 1
+	)
+
+	callerFn := ir.NewFunc(makePos(basePos, callerStart, 1), src.NoXPos, pkgFoo.Lookup("Caller"), types.NewSignature(nil, nil, nil))
+
+	// func HotCallee()
+	hotCalleeFn := ir.NewFunc(src.NoXPos, src.NoXPos, pkgFoo.Lookup("HotCallee"), types.NewSignature(nil, nil, nil))
+
+	// func WrongCallee() bool
+	wrongCalleeFn := ir.NewFunc(src.NoXPos, src.NoXPos, pkgFoo.Lookup("WrongCallee"), types.NewSignature(nil, nil,
+		[]*types.Field{
+			types.NewField(src.NoXPos, nil, types.Types[types.TBOOL]),
+		},
+	))
+
+	callerNode := p.NewNode("example.com/foo.Caller", callerFn)
+	hotCalleeNode := p.NewNode("example.com/foo.HotCallee", hotCalleeFn)
+	wrongCalleeNode := p.NewNode("example.com/foo.WrongCallee", wrongCalleeFn)
+
+	addEdge(callerNode, wrongCalleeNode, callOffset, 100) // Really hot, but wrong function type.
+	addEdge(callerNode, hotCalleeNode, callOffset, 10)
+
+	// var fn func()
+	name := ir.NewNameAt(src.NoXPos, typecheck.Lookup("fn"), types.NewSignature(nil, nil, nil))
+	// fn()
+	call := ir.NewCallExpr(makePos(basePos, callerStart+callOffset, 1), ir.OCALL, name, nil)
+
+	gotFn, gotWeight := findHotConcreteFunctionCallee(p.Profile(), callerFn, call)
+	if gotFn != hotCalleeFn {
+		t.Errorf("findHotConcreteFunctionCallee func got %v want %v", gotFn, hotCalleeFn)
+	}
+	if gotWeight != 10 {
+		t.Errorf("findHotConcreteFunctionCallee weight got %v want 10", gotWeight)
 	}
 }

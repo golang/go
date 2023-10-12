@@ -30,3 +30,31 @@ func (NegMult) Multiply(a, b int) int {
 	}
 	return -1 * a * b
 }
+
+// N.B. Different types than AddFunc to test intra-line disambiguation.
+type MultFunc func(int64, int64) int64
+
+func MultFn(a, b int64) int64 {
+	return a * b
+}
+
+func NegMultFn(a, b int64) int64 {
+	return -1 * a * b
+}
+
+//go:noinline
+func MultClosure() MultFunc {
+	// Explicit closure to differentiate from AddClosure.
+	c := 1
+	return func(a, b int64) int64 {
+		return a * b * int64(c)
+	}
+}
+
+//go:noinline
+func NegMultClosure() MultFunc {
+	c := 1
+	return func(a, b int64) int64 {
+		return -1 * a * b * int64(c)
+	}
+}
