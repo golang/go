@@ -120,8 +120,6 @@ var optabBase = []Optab{
 	{as: AADD, a1: C_SCON, a6: C_REG, type_: 4, size: 4},
 	{as: AADD, a1: C_ADDCON, a2: C_REG, a6: C_REG, type_: 4, size: 4},
 	{as: AADD, a1: C_ADDCON, a6: C_REG, type_: 4, size: 4},
-	{as: AADD, a1: C_UCON, a2: C_REG, a6: C_REG, type_: 20, size: 4},
-	{as: AADD, a1: C_UCON, a6: C_REG, type_: 20, size: 4},
 	{as: AADD, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 22, size: 8},
 	{as: AADD, a1: C_ANDCON, a6: C_REG, type_: 22, size: 8},
 	{as: AADDIS, a1: C_ADDCON, a2: C_REG, a6: C_REG, type_: 20, size: 4},
@@ -138,14 +136,12 @@ var optabBase = []Optab{
 	{as: AANDCC, a1: C_REG, a6: C_REG, type_: 6, size: 4},
 	{as: AANDCC, a1: C_ANDCON, a6: C_REG, type_: 58, size: 4},
 	{as: AANDCC, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 58, size: 4},
-	{as: AANDCC, a1: C_UCON, a6: C_REG, type_: 59, size: 4},
-	{as: AANDCC, a1: C_UCON, a2: C_REG, a6: C_REG, type_: 59, size: 4},
 	{as: AANDCC, a1: C_ADDCON, a6: C_REG, type_: 23, size: 8},
 	{as: AANDCC, a1: C_ADDCON, a2: C_REG, a6: C_REG, type_: 23, size: 8},
 	{as: AANDCC, a1: C_LCON, a6: C_REG, type_: 23, size: 12},
 	{as: AANDCC, a1: C_LCON, a2: C_REG, a6: C_REG, type_: 23, size: 12},
-	{as: AANDISCC, a1: C_ANDCON, a6: C_REG, type_: 59, size: 4},
-	{as: AANDISCC, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 59, size: 4},
+	{as: AANDISCC, a1: C_ANDCON, a6: C_REG, type_: 58, size: 4},
+	{as: AANDISCC, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 58, size: 4},
 	{as: AMULLW, a1: C_REG, a2: C_REG, a6: C_REG, type_: 2, size: 4},
 	{as: AMULLW, a1: C_REG, a6: C_REG, type_: 2, size: 4},
 	{as: AMULLW, a1: C_ADDCON, a2: C_REG, a6: C_REG, type_: 4, size: 4},
@@ -162,14 +158,12 @@ var optabBase = []Optab{
 	{as: AOR, a1: C_REG, a6: C_REG, type_: 6, size: 4},
 	{as: AOR, a1: C_ANDCON, a6: C_REG, type_: 58, size: 4},
 	{as: AOR, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 58, size: 4},
-	{as: AOR, a1: C_UCON, a6: C_REG, type_: 59, size: 4},
-	{as: AOR, a1: C_UCON, a2: C_REG, a6: C_REG, type_: 59, size: 4},
 	{as: AOR, a1: C_ADDCON, a6: C_REG, type_: 23, size: 8},
 	{as: AOR, a1: C_ADDCON, a2: C_REG, a6: C_REG, type_: 23, size: 8},
 	{as: AOR, a1: C_LCON, a6: C_REG, type_: 23, size: 12},
 	{as: AOR, a1: C_LCON, a2: C_REG, a6: C_REG, type_: 23, size: 12},
-	{as: AORIS, a1: C_ANDCON, a6: C_REG, type_: 59, size: 4},
-	{as: AORIS, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 59, size: 4},
+	{as: AORIS, a1: C_ANDCON, a6: C_REG, type_: 58, size: 4},
+	{as: AORIS, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 58, size: 4},
 	{as: ADIVW, a1: C_REG, a2: C_REG, a6: C_REG, type_: 2, size: 4}, /* op r1[,r2],r3 */
 	{as: ADIVW, a1: C_REG, a6: C_REG, type_: 2, size: 4},
 	{as: ASUB, a1: C_REG, a2: C_REG, a6: C_REG, type_: 10, size: 4}, /* op r2[,r1],r3 */
@@ -240,7 +234,6 @@ var optabBase = []Optab{
 
 	{as: AMOVD, a1: C_ADDCON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVD, a1: C_ANDCON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVD, a1: C_UCON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVD, a1: C_SACON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVD, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
 	{as: AMOVD, a1: C_XOREG, a6: C_REG, type_: 109, size: 4},
@@ -254,7 +247,6 @@ var optabBase = []Optab{
 
 	{as: AMOVW, a1: C_ADDCON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVW, a1: C_ANDCON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVW, a1: C_UCON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVW, a1: C_SACON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVW, a1: C_CREG, a6: C_REG, type_: 68, size: 4},
 	{as: AMOVW, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
@@ -1051,10 +1043,6 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			case sbits <= 16:
 				return C_U16CON
 			case sbits <= 31:
-				// Special case, a positive int32 value which is a multiple of 2^16
-				if c.instoffset&0xFFFF == 0 {
-					return C_U3216CON
-				}
 				return C_U32CON
 			case sbits <= 32:
 				return C_U32CON
@@ -1069,10 +1057,6 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			case sbits <= 15:
 				return C_S16CON
 			case sbits <= 31:
-				// Special case, a negative int32 value which is a multiple of 2^16
-				if c.instoffset&0xFFFF == 0 {
-					return C_S3216CON
-				}
 				return C_S32CON
 			case sbits <= 33:
 				return C_S34CON
@@ -1193,14 +1177,11 @@ func cmp(a int, b int) bool {
 	case C_S16CON:
 		return cmp(C_U15CON, b)
 	case C_32CON:
-		return cmp(C_S16CON, b) || cmp(C_U16CON, b) || cmp(C_32S16CON, b)
+		return cmp(C_S16CON, b) || cmp(C_U16CON, b)
 	case C_S34CON:
 		return cmp(C_32CON, b)
 	case C_64CON:
 		return cmp(C_S34CON, b)
-
-	case C_32S16CON:
-		return cmp(C_ZCON, b)
 
 	case C_LACON:
 		return cmp(C_SACON, b)
@@ -2598,20 +2579,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			c.ctxt.Diag("literal operation on R0\n%v", p)
 		}
 		a := OP_ADDI
-		if o.a1 == C_UCON {
-			if d&0xffff != 0 {
-				log.Fatalf("invalid handling of %v", p)
-			}
-			// For UCON operands the value is right shifted 16, using ADDIS if the
-			// value should be signed, ORIS if unsigned.
-			v >>= 16
-			if r == REGZERO && isuint32(uint64(d)) {
-				o1 = LOP_IRR(OP_ORIS, uint32(p.To.Reg), REGZERO, uint32(v))
-				break
-			}
-
-			a = OP_ADDIS
-		} else if int64(int16(d)) != d {
+		if int64(int16(d)) != d {
 			// Operand is 16 bit value with sign bit set
 			if o.a1 == C_ANDCON {
 				// Needs unsigned 16 bit so use ORI
@@ -2944,14 +2912,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		if r == 0 {
 			r = int(p.To.Reg)
 		}
-		if p.As == AADD && (r0iszero == 0 /*TypeKind(100016)*/ && p.Reg == 0 || r0iszero != 0 /*TypeKind(100016)*/ && p.To.Reg == 0) {
-			c.ctxt.Diag("literal operation on R0\n%v", p)
-		}
-		if p.As == AADDIS {
-			o1 = AOP_IRR(c.opirr(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
-		} else {
-			o1 = AOP_IRR(c.opirr(AADDIS), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
-		}
+		o1 = AOP_IRR(c.opirr(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
 
 	case 22: /* add $lcon/$andcon,r1,r2 ==> oris+ori+add/ori+add, add $s34con,r1 ==> addis+ori+slw+ori+add */
 		if p.To.Reg == REGTMP || p.Reg == REGTMP {
@@ -3424,24 +3385,6 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			r = int(p.To.Reg)
 		}
 		o1 = LOP_IRR(c.opirr(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
-
-	case 59: /* or/xor/and $ucon,,r | oris/xoris/andis $addcon,r,r */
-		v := c.regoff(&p.From)
-
-		r := int(p.Reg)
-		if r == 0 {
-			r = int(p.To.Reg)
-		}
-		switch p.As {
-		case AOR:
-			o1 = LOP_IRR(c.opirr(AORIS), uint32(p.To.Reg), uint32(r), uint32(v)>>16) /* oris, xoris, andis. */
-		case AXOR:
-			o1 = LOP_IRR(c.opirr(AXORIS), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
-		case AANDCC:
-			o1 = LOP_IRR(c.opirr(AANDISCC), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
-		default:
-			o1 = LOP_IRR(c.opirr(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
-		}
 
 	case 60: /* tw to,a,b */
 		r := int(c.regoff(&p.From) & 31)
