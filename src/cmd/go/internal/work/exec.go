@@ -2156,27 +2156,24 @@ func mayberemovefile(s string) {
 
 // fmtcmd formats a command in the manner of fmt.Sprintf but also:
 //
-//	If dir is non-empty and the script is not in dir right now,
-//	fmtcmd inserts "cd dir\n" before the command.
-//
 //	fmtcmd replaces the value of b.WorkDir with $WORK.
-//	fmtcmd replaces the value of goroot with $GOROOT.
-//	fmtcmd replaces the value of b.gobin with $GOBIN.
 //
 //	fmtcmd replaces the name of the current directory with dot (.)
 //	but only when it is at the beginning of a space-separated token.
 func (b *Builder) fmtcmd(dir string, format string, args ...any) string {
 	cmd := fmt.Sprintf(format, args...)
-	if dir != "" && dir != "/" {
+	if dir != "" && dir != "/" && b.scriptDir == dir {
+		// In the output stream, scriptDir is our working directory. Replace it
+		// with "." in the command.
+		//
+		// We intentionally don't lock around the access to scriptDir. If this
+		// access is racy, that means our working directory isn't well-defined
+		// at this call, and we want the race detector to catch that.
 		dot := " ."
 		if dir[len(dir)-1] == filepath.Separator {
 			dot += string(filepath.Separator)
 		}
 		cmd = strings.ReplaceAll(" "+cmd, " "+dir, dot)[1:]
-		if b.scriptDir != dir {
-			b.scriptDir = dir
-			cmd = "cd " + dir + "\n" + cmd
-		}
 	}
 	if b.WorkDir != "" && !strings.HasPrefix(cmd, "cat ") {
 		cmd = strings.ReplaceAll(cmd, b.WorkDir, "$WORK")
@@ -2194,6 +2191,13 @@ func (b *Builder) fmtcmd(dir string, format string, args ...any) string {
 func (b *Builder) Showcmd(dir string, format string, args ...any) {
 	b.output.Lock()
 	defer b.output.Unlock()
+
+	if dir != "" && dir != "/" && dir != b.scriptDir {
+		// Show changing to dir and update the current directory.
+		b.Print(b.fmtcmd("", "cd %s\n", dir))
+		b.scriptDir = dir
+	}
+
 	b.Print(b.fmtcmd(dir, format, args...) + "\n")
 }
 
