@@ -100,3 +100,40 @@ func TestCTR_AES(t *testing.T) {
 		}
 	}
 }
+
+func TestCTRWithOffset_AES(t *testing.T) {
+	for _, tt := range ctrAESTests {
+		test := tt.name
+
+		c, err := aes.NewCipher(tt.key)
+		if err != nil {
+			t.Errorf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err)
+			continue
+		}
+
+		for j := 0; j <= 5; j += 5 {
+			in := tt.in[j : len(tt.in)-j]
+			ctr := cipher.NewCTRWithOffset(c, tt.iv, j)
+			encrypted := make([]byte, len(in))
+			ctr.XORKeyStream(encrypted, in)
+			if out := tt.out[j : len(in)+j]; !bytes.Equal(out, encrypted) {
+				t.Errorf("%s/%d: CTR\ninpt %x\nhave %x\nwant %x", test, len(in), in, encrypted, out)
+			}
+		}
+
+		for j := 0; j <= 7; j += 7 {
+			in := tt.out[j : len(tt.out)-j]
+			ctr := cipher.NewCTRWithOffset(c, tt.iv, j)
+			plain := make([]byte, len(in))
+			ctr.XORKeyStream(plain, in)
+			if out := tt.in[j : len(in)+j]; !bytes.Equal(out, plain) {
+				t.Errorf("%s/%d: CTRReader\nhave %x\nwant %x", test, len(out), plain, out)
+			}
+		}
+
+		if t.Failed() {
+			break
+		}
+	}
+
+}
