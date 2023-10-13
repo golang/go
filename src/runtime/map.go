@@ -1651,7 +1651,7 @@ func copyKeys(t *maptype, h *hmap, b *bmap, s *slice, offset uint8) {
 			if s.len >= s.cap {
 				fatal("concurrent map read and map write")
 			}
-			typedmemmove(t.Key, add(s.array, uintptr(s.len)*uintptr(t.KeySize)), k)
+			typedmemmove(t.Key, add(s.array, uintptr(s.len)*uintptr(t.Key.Size())), k)
 			s.len++
 		}
 		b = b.overflow(t)
@@ -1716,7 +1716,7 @@ func copyValues(t *maptype, h *hmap, b *bmap, s *slice, offset uint8) {
 			if s.len >= s.cap {
 				fatal("concurrent map read and map write")
 			}
-			typedmemmove(t.Elem, add(s.array, uintptr(s.len)*uintptr(t.ValueSize)), ele)
+			typedmemmove(t.Elem, add(s.array, uintptr(s.len)*uintptr(t.Elem.Size())), ele)
 			s.len++
 		}
 		b = b.overflow(t)

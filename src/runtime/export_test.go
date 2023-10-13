@@ -53,6 +53,9 @@ var CgoCheckPointer = cgoCheckPointer
 const TracebackInnerFrames = tracebackInnerFrames
 const TracebackOuterFrames = tracebackOuterFrames
 
+var MapKeys = keys
+var MapValues = values
+
 var LockPartialOrder = lockPartialOrder
 
 type LockRank lockRank
