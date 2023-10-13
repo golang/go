@@ -803,7 +803,7 @@ func (f *decompressor) Reset(r io.Reader, dict []byte) error {
 // The reader returns [io.EOF] after the final block in the DEFLATE stream has
 // been encountered. Any trailing data after the final block is ignored.
 //
-// The ReadCloser returned by NewReader also implements [Resetter].
+// The [io.ReadCloser] returned by NewReader also implements [Resetter].
 func NewReader(r io.Reader) io.ReadCloser {
 	fixedHuffmanDecoderInit()
 

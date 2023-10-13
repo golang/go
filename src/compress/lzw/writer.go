@@ -238,7 +238,7 @@ func (w *Writer) Close() error {
 	return w.w.Flush()
 }
 
-// Reset clears the[ Writer]'s state and allows it to be reused again
+// Reset clears the [Writer]'s state and allows it to be reused again
 // as a new [Writer].
 func (w *Writer) Reset(dst io.Writer, order Order, litWidth int) {
 	*w = Writer{}
