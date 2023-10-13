@@ -90,7 +90,7 @@ type actionDesc struct {
 }
 
 // A Checker maintains the state of the type checker.
-// It must be created with NewChecker.
+// It must be created with [NewChecker].
 type Checker struct {
 	// package information
 	// (initialized by NewChecker, valid for the life-time of checker)
@@ -221,8 +221,8 @@ func (check *Checker) needsCleanup(c cleaner) {
 	check.cleaners = append(check.cleaners, c)
 }
 
-// NewChecker returns a new Checker instance for a given package.
-// Package files may be added incrementally via checker.Files.
+// NewChecker returns a new [Checker] instance for a given package.
+// [Package] files may be added incrementally via checker.Files.
 func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Checker {
 	// make sure we have a configuration
 	if conf == nil {

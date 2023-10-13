@@ -18,7 +18,7 @@ type Union struct {
 	terms []*Term // list of syntactical terms (not a canonicalized termlist)
 }
 
-// NewUnion returns a new Union type with the given terms.
+// NewUnion returns a new [Union] type with the given terms.
 // It is an error to create an empty union; they are syntactically not possible.
 func NewUnion(terms []*Term) *Union {
 	if len(terms) == 0 {
@@ -33,7 +33,7 @@ func (u *Union) Term(i int) *Term { return u.terms[i] }
 func (u *Union) Underlying() Type { return u }
 func (u *Union) String() string   { return TypeString(u, nil) }
 
-// A Term represents a term in a Union.
+// A Term represents a term in a [Union].
 type Term term
 
 // NewTerm returns a new union term.
