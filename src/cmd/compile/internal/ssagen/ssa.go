@@ -7,6 +7,7 @@ package ssagen
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"go/constant"
 	"html"
@@ -258,26 +259,15 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
 
 // dvarint writes a varint v to the funcdata in symbol x and returns the new offset.
 func dvarint(x *obj.LSym, off int, v int64) int {
-	if v < 0 || v > 1e9 {
+	if v < 0 {
 		panic(fmt.Sprintf("dvarint: bad offset for funcdata - %v", v))
 	}
-	if v < 1<<7 {
-		return objw.Uint8(x, off, uint8(v))
+	var buf [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(buf[:], uint64(v))
+	for _, b := range buf[:n] {
+		off = objw.Uint8(x, off, b)
 	}
-	off = objw.Uint8(x, off, uint8((v&127)|128))
-	if v < 1<<14 {
-		return objw.Uint8(x, off, uint8(v>>7))
-	}
-	off = objw.Uint8(x, off, uint8(((v>>7)&127)|128))
-	if v < 1<<21 {
-		return objw.Uint8(x, off, uint8(v>>14))
-	}
-	off = objw.Uint8(x, off, uint8(((v>>14)&127)|128))
-	if v < 1<<28 {
-		return objw.Uint8(x, off, uint8(v>>21))
-	}
-	off = objw.Uint8(x, off, uint8(((v>>21)&127)|128))
-	return objw.Uint8(x, off, uint8(v>>28))
+	return off
 }
 
 // emitOpenDeferInfo emits FUNCDATA information about the defers in a function
