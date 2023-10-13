@@ -22,7 +22,7 @@ import (
 // client may instead provide a custom split function.
 //
 // Scanning stops unrecoverably at EOF, the first I/O error, or a token too
-// large to fit in the buffer. When a scan stops, the reader may have
+// large to fit in the [Scanner.Buffer]. When a scan stops, the reader may have
 // advanced arbitrarily far past the last token. Programs that need more
 // control over error handling or large tokens, or must run sequential scans
 // on a reader, should use [bufio.Reader] instead.
