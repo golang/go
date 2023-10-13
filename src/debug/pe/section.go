@@ -66,7 +66,7 @@ func readRelocs(sh *SectionHeader, r io.ReadSeeker) ([]Reloc, error) {
 	return relocs, nil
 }
 
-// SectionHeader is similar to SectionHeader32 with Name
+// SectionHeader is similar to [SectionHeader32] with Name
 // field replaced by Go string.
 type SectionHeader struct {
 	Name                 string

@@ -100,7 +100,7 @@ func (e *formatError) Error() string {
 	return msg
 }
 
-// Open opens the named file using os.Open and prepares it for use as a Plan 9 a.out binary.
+// Open opens the named file using [os.Open] and prepares it for use as a Plan 9 a.out binary.
 func Open(name string) (*File, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -115,8 +115,8 @@ func Open(name string) (*File, error) {
 	return ff, nil
 }
 
-// Close closes the File.
-// If the File was created using NewFile directly instead of Open,
+// Close closes the [File].
+// If the [File] was created using [NewFile] directly instead of [Open],
 // Close has no effect.
 func (f *File) Close() error {
 	var err error
@@ -136,7 +136,7 @@ func parseMagic(magic []byte) (uint32, error) {
 	return 0, &formatError{0, "bad magic number", magic}
 }
 
-// NewFile creates a new File for accessing a Plan 9 binary in an underlying reader.
+// NewFile creates a new [File] for accessing a Plan 9 binary in an underlying reader.
 // The Plan 9 binary is expected to start at position 0 in the ReaderAt.
 func NewFile(r io.ReaderAt) (*File, error) {
 	sr := io.NewSectionReader(r, 0, 1<<63-1)
@@ -309,7 +309,7 @@ func newTable(symtab []byte, ptrsz int) ([]Sym, error) {
 	return syms, nil
 }
 
-// ErrNoSymbols is returned by File.Symbols if there is no such section
+// ErrNoSymbols is returned by [File.Symbols] if there is no such section
 // in the File.
 var ErrNoSymbols = errors.New("no symbol section")
 
