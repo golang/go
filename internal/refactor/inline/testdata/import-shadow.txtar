@@ -87,10 +87,8 @@ import (
 var x b.T
 
 func A(b int) {
-
 	b0.One()
-	b0.Two()
-	//@ inline(re"F", fresult)
+	b0.Two() //@ inline(re"F", fresult)
 }
 
 -- d/d.go --

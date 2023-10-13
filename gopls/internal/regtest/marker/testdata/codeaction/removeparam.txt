@@ -145,17 +145,13 @@ func _() {
 	Ellipsis()
 	Ellipsis()
 	Ellipsis()
-
 	var _ []any = []any{1, f(), g()}
 	Ellipsis()
-
 	func(_ ...any) {
 		Ellipsis()
 	}(h())
-
 	var _ []any = i()
 	Ellipsis()
-
 }
 
 func f() int
@@ -228,10 +224,8 @@ func f() int
 func g() int
 
 func _() {
-
 	var x, _ int = f(), g()
 	effects(x)
-
 	{
 		var x, _ int = f(), g()
 		effects(x)

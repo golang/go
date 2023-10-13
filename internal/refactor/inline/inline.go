@@ -183,15 +183,19 @@ func Inline(logf func(string, ...any), caller *Caller, callee *Callee) ([]byte, 
 		// Precise comment handling would make this a
 		// non-issue. Formatting wouldn't really need a
 		// FileSet at all.
-		mark := out.Len()
-		if err := format.Node(&out, caller.Fset, res.new); err != nil {
-			return nil, err
-		}
 		if elideBraces {
-			// Overwrite unnecessary {...} braces with spaces.
-			// TODO(adonovan): less hacky solution.
-			out.Bytes()[mark] = ' '
-			out.Bytes()[out.Len()-1] = ' '
+			for i, stmt := range res.new.(*ast.BlockStmt).List {
+				if i > 0 {
+					out.WriteByte('\n')
+				}
+				if err := format.Node(&out, caller.Fset, stmt); err != nil {
+					return nil, err
+				}
+			}
+		} else {
+			if err := format.Node(&out, caller.Fset, res.new); err != nil {
+				return nil, err
+			}
 		}
 		out.Write(caller.Content[end:])
 		const mode = parser.ParseComments | parser.SkipObjectResolution | parser.AllErrors
@@ -902,9 +906,6 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	// The body may use defer, arbitrary control flow, and
 	// multiple returns.
 	//
-	// TODO(adonovan): omit the braces if the sets of
-	// names in the two blocks are disjoint.
-	//
 	// TODO(adonovan): add a strategy for a 'void tail
 	// call', i.e. a call statement prior to an (explicit
 	// or implicit) return.
@@ -942,8 +943,6 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	// - all parameters and result vars can be eliminated
 	//   or replaced by a binding decl,
 	// - caller ExprStmt is in unrestricted statement context.
-	//
-	// If there is only a single statement, the braces are omitted.
 	if stmt := callStmt(caller.path, true); stmt != nil &&
 		(!needBindingDecl || bindingDeclStmt != nil) &&
 		!callee.HasDefer &&
@@ -955,9 +954,6 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 		clearPositions(repl)
 		if needBindingDecl {
 			body.List = prepend(bindingDeclStmt, body.List...)
-		}
-		if len(body.List) == 1 { // FIXME do this opt later
-			repl = body.List[0] // singleton: omit braces
 		}
 		res.old = stmt
 		res.new = repl

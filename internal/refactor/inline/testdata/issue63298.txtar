@@ -45,8 +45,6 @@ import (
 )
 
 func _() {
-
 	b.B()
 	b0.B()
-
 }

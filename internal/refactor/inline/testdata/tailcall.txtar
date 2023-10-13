@@ -36,7 +36,6 @@ start:
 package a
 
 func _() int {
-
 	total := 0
 start:
 	for i := 1; i <= 2; i++ {
@@ -47,8 +46,7 @@ start:
 			return -1
 		}
 	}
-	return total
-	//@ inline(re"sum", sum)
+	return total //@ inline(re"sum", sum)
 }
 
 func sum(lo, hi int) int {
