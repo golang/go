@@ -1258,11 +1258,11 @@ next:
 			// remove the last reference to a caller local var.
 			if caller.enclosingFunc != nil {
 				for free := range arg.freevars {
-					if v, ok := caller.lookup(free).(*types.Var); ok && within(v.Pos(), caller.enclosingFunc.Body) {
-						// TODO(adonovan): be more precise and check that v
-						// is indeed referenced only by call arguments.
-						// Better: proceed, but blank out its declaration as needed.
-						logf("keeping param %q: arg contains perhaps the last reference to possible caller local %v @ %v",
+					// TODO(rfindley): we can get this 100% right by looking for
+					// references among other arguments which have non-zero references
+					// within the callee.
+					if v, ok := caller.lookup(free).(*types.Var); ok && within(v.Pos(), caller.enclosingFunc.Body) && !isUsedOutsideCall(caller, v) {
+						logf("keeping param %q: arg contains perhaps the last reference to caller local %v @ %v",
 							param.info.Name, v, caller.Fset.PositionFor(v.Pos(), false))
 						continue next
 					}
@@ -1330,6 +1330,34 @@ next:
 			args[i] = nil   // substituted
 		}
 	}
+}
+
+// isUsedOutsideCall reports whether v is used outside of caller.Call, within
+// the body of caller.enclosingFunc.
+func isUsedOutsideCall(caller *Caller, v *types.Var) bool {
+	used := false
+	ast.Inspect(caller.enclosingFunc.Body, func(n ast.Node) bool {
+		if n == caller.Call {
+			return false
+		}
+		switch n := n.(type) {
+		case *ast.Ident:
+			if use := caller.Info.Uses[n]; use == v {
+				used = true
+			}
+		case *ast.FuncType:
+			// All params are used.
+			for _, fld := range n.Params.List {
+				for _, n := range fld.Names {
+					if def := caller.Info.Defs[n]; def == v {
+						used = true
+					}
+				}
+			}
+		}
+		return !used // keep going until we find a use
+	})
+	return used
 }
 
 // checkFalconConstraints checks whether constant arguments

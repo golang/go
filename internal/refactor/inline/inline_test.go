@@ -595,6 +595,36 @@ func TestSubstitution(t *testing.T) {
 			`func _() { var local int; _ = local }`,
 		},
 		{
+			"Arguments that are used are detected",
+			`func f(int) {}`,
+			`func _() { var local int; _ = local; f(local) }`,
+			`func _() { var local int; _ = local }`,
+		},
+		{
+			"Arguments that are used are detected",
+			`func f(x, y int) { print(x) }`,
+			`func _() { var z int; f(z, z) }`,
+			`func _() {
+	var z int
+	var _ int = z
+	print(z)
+}`,
+		},
+		{
+			"Function parameters are always used",
+			`func f(int) {}`,
+			`func _() {
+	func(local int) {
+		f(local)
+	}(1)
+}`,
+			`func _() {
+	func(local int) {
+
+	}(1)
+}`,
+		},
+		{
 			"Regression test for detection of shadowing in nested functions.",
 			`func f(x int) { _ = func() { y := 1; print(y); print(x) } }`,
 			`func _(y int) { f(y) } `,
