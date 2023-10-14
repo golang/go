@@ -888,7 +888,25 @@ func literalRegexp(s string, flags Flags) *Regexp {
 // Flags, and returns a regular expression parse tree. The syntax is
 // described in the top-level comment.
 func Parse(s string, flags Flags) (*Regexp, error) {
-	return parse(s, flags)
+	// added a cache for better performance
+	cachePath := strings.ToValidUTF8(strconv.FormatUint(uint64(flags), 36)+":"+s, "")
+	if cache, ok := regexpCache.Get(cachePath); ok {
+		cache.lastUse = time.Now()
+		if cache.err != nil {
+			return nil, cache.err
+		}
+		return cache.regexp, nil
+	}
+
+	regexp, err := parse(s, flags)
+
+	regexpCache.Set(cachePath, cacheRegexpItem{
+		regexp: regexp,
+		err: err,
+		lastUse: time.Now(),
+	})
+
+	return regexp, err
 }
 
 func parse(s string, flags Flags) (_ *Regexp, err error) {

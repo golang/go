@@ -69,11 +69,28 @@ type compiler struct {
 // Compile compiles the regexp into a program to be executed.
 // The regexp should have been simplified already (returned from re.Simplify).
 func Compile(re *Regexp) (*Prog, error) {
+	// added a cache for better performance
+	cachePath := strconv.FormatUint(uint64(re.Flags), 36)+":"+re.String()
+	if cache, ok := progCache.Get(cachePath); ok {
+		cache.lastUse = time.Now()
+		if cache.err != nil {
+			return nil, cache.err
+		}
+		return cache.prog, nil
+	}
+
 	var c compiler
 	c.init()
 	f := c.compile(re)
 	f.out.patch(c.p, c.inst(InstMatch).i)
 	c.p.Start = int(f.i)
+
+	progCache.Set(cachePath, cacheProgItem{
+		prog: c.p,
+		err: nil,
+		lastUse: time.Now(),
+	})
+
 	return c.p, nil
 }
 
