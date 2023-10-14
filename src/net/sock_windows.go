@@ -11,8 +11,11 @@ import (
 )
 
 func maxListenerBacklog() int {
-	// TODO: Implement this
-	// NOTE: Never return a number bigger than 1<<16 - 1. See issue 5030.
+	// Windows does not offer a way to peek at the current backlog length.
+	// In a practical case scenario this does not matter since if set to
+	// SOMAXCONN the OS will adjust the backlog to a maximum reasonable
+	// value.
+	// See https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-listen
 	return syscall.SOMAXCONN
 }
 
