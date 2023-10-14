@@ -213,7 +213,7 @@ func hgStatus(vcsHg *Cmd, rootDir string) (Status, error) {
 	}
 
 	// Also look for untracked files.
-	out, err = vcsHg.runOutputVerboseOnly(rootDir, "status")
+	out, err = vcsHg.runOutputVerboseOnly(rootDir, "status -S")
 	if err != nil {
 		return Status{}, err
 	}
