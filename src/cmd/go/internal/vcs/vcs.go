@@ -189,12 +189,11 @@ func hgRemoteRepo(vcsHg *Cmd, rootDir string) (remoteRepo string, err error) {
 
 func hgStatus(vcsHg *Cmd, rootDir string) (Status, error) {
 	// Output changeset ID and seconds since epoch.
-	out, err := vcsHg.runOutputVerboseOnly(rootDir, `log -l1 -T {node}:{date|hgdate}`)
+	out, err := vcsHg.runOutputVerboseOnly(rootDir, `log -r. -T {node}:{date|hgdate}`)
 	if err != nil {
 		return Status{}, err
 	}
 
-	// Successful execution without output indicates an empty repo (no commits).
 	var rev string
 	var commitTime time.Time
 	if len(out) > 0 {

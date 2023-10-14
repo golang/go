@@ -31,13 +31,14 @@ cd ..
 env PATH=$oldpath
 rm .hg
 
-# If there is an empty repository in a parent directory, only "uncommitted" is tagged.
+# An empty repository or one explicitly updated to null uses the null cset ID,
+# and the time is hard set to 1/1/70, regardless of the current time.
 exec hg init
 cd a
 go install
 go version -m $GOBIN/a$GOEXE
-! stdout vcs.revision
-! stdout vcs.time
+stdout '^\tbuild\tvcs.revision=0000000000000000000000000000000000000000$'
+stdout '^\tbuild\tvcs.time=1970-01-01T00:00:00Z$'
 stdout '^\tbuild\tvcs.modified=true$'
 cd ..
 
@@ -65,8 +66,8 @@ exec hg status
 stdout '^.+'
 go install
 go version -m $GOBIN/a$GOEXE
-stdout '^\tbuild\tvcs.revision=958ddd78a073f5f52b4b40838f677a2afc2a0f56$'
-stdout '^\tbuild\tvcs.time=2024-08-01T19:24:38Z$'
+stdout '^\tbuild\tvcs.revision=71eaed52daeaafea83cb604f75b0a0336ef2c345$'
+stdout '^\tbuild\tvcs.time=2024-07-31T01:21:27Z$'
 stdout '^\tbuild\tvcs.modified=true$'
 rm $GOBIN/a$GOEXE
 
