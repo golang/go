@@ -989,15 +989,32 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	}
 
 	// Infallible general case: literalization.
+	//
+	//    func(params) { body }(args)
+	//
 	logf("strategy: literalization")
+	funcLit := &ast.FuncLit{
+		Type: calleeDecl.Type,
+		Body: calleeDecl.Body,
+	}
+
+	// Literalization can still make use of a binding
+	// decl as it gives a more natural reading order:
+	//
+	//    func() { var params = args; body }()
+	//
+	// TODO(adonovan): relax the allResultsUnreferenced requirement
+	// by adding a parameter-only (no named results) binding decl.
+	if bindingDeclStmt != nil && allResultsUnreferenced {
+		funcLit.Type.Params.List = nil
+		remainingArgs = nil
+		funcLit.Body.List = prepend(bindingDeclStmt, funcLit.Body.List...)
+	}
 
 	// Emit a new call to a function literal in place of
 	// the callee name, with appropriate replacements.
 	newCall := &ast.CallExpr{
-		Fun: &ast.FuncLit{
-			Type: calleeDecl.Type,
-			Body: calleeDecl.Body,
-		},
+		Fun:      funcLit,
 		Ellipsis: token.NoPos, // f(slice...) is always simplified
 		Args:     remainingArgs,
 	}
@@ -1536,11 +1553,12 @@ func updateCalleeParams(calleeDecl *ast.FuncDecl, params []*parameter) {
 
 // createBindingDecl constructs a "binding decl" that implements
 // parameter assignment and declares any named result variables
-// referenced by the callee.
+// referenced by the callee. It returns nil if there were no
+// unsubstituted parameters.
 //
 // It may not always be possible to create the decl (e.g. due to
-// shadowing), in which case it returns nil; but if it succeeds, the
-// declaration may be used by reduction strategies to relax the
+// shadowing), in which case it also returns nil; but if it succeeds,
+// the declaration may be used by reduction strategies to relax the
 // requirement that all parameters have been substituted.
 //
 // For example, a call:
@@ -1682,14 +1700,19 @@ func createBindingDecl(logf func(string, ...any), caller *Caller, args []*argume
 		}
 	}
 
-	decl := &ast.DeclStmt{
+	if len(specs) == 0 {
+		logf("binding decl not needed: all parameters substituted")
+		return nil
+	}
+
+	stmt := &ast.DeclStmt{
 		Decl: &ast.GenDecl{
 			Tok:   token.VAR,
 			Specs: specs,
 		},
 	}
-	logf("binding decl: %s", debugFormatNode(caller.Fset, decl))
-	return decl
+	logf("binding decl: %s", debugFormatNode(caller.Fset, stmt))
+	return stmt
 }
 
 // lookup does a symbol lookup in the lexical environment of the caller.

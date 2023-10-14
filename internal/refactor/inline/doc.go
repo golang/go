@@ -251,19 +251,12 @@ TODO(adonovan): future work:
     could be achieved by returning metadata alongside the result
     and having the client conditionally discard the change.
 
-  - Is it acceptable to skip effects that are limited to runtime
-    panics? Can we avoid evaluating an argument x.f
-    or a[i] when the corresponding parameter is unused?
-
   - Support inlining of generic functions, replacing type parameters
     by their instantiations.
 
   - Support inlining of calls to function literals ("closures").
     But note that the existing algorithm makes widespread assumptions
     that the callee is a package-level function or method.
-
-  - Eliminate parens and braces inserted conservatively when they
-    are redundant.
 
   - Eliminate explicit conversions of "untyped" literals inserted
     conservatively when they are redundant. For example, the

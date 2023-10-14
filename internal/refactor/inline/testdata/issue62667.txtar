@@ -38,7 +38,7 @@ import (
 )
 
 func A() {
-	func(path string) { defer func() {}(); path0.Split(path) }(g()) //@ inline(re"Dir", result)
+	func() { var path string = g(); defer func() {}(); path0.Split(path) }() //@ inline(re"Dir", result)
 }
 
 func g() string

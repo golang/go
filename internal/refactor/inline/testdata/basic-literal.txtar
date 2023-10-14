@@ -23,7 +23,7 @@ func add(x, y int) int { defer print(); return x + y }
 package a
 
 func _() {
-	func(x int) int { defer print(); return x + 2 }(recover().(int)) //@ inline(re"add", add1)
+	func() int { var x int = recover().(int); defer print(); return x + 2 }() //@ inline(re"add", add1)
 }
 
 func add(x, y int) int { defer print(); return x + y }
