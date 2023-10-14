@@ -17,7 +17,7 @@ import (
 //
 // The FS interface is the minimum implementation required of the file system.
 // A file system may implement additional interfaces,
-// such as ReadFileFS, to provide additional or optimized functionality.
+// such as [ReadFileFS], to provide additional or optimized functionality.
 type FS interface {
 	// Open opens the named file.
 	//
@@ -82,7 +82,7 @@ type File interface {
 }
 
 // A DirEntry is an entry read from a directory
-// (using the ReadDir function or a [ReadDirFile]'s ReadDir method).
+// (using the [ReadDir] function or a [ReadDirFile]'s ReadDir method).
 type DirEntry interface {
 	// Name returns the name of the file (or subdirectory) described by the entry.
 	// This name is only the final element of the path (the base name), not the entire path.
@@ -147,7 +147,7 @@ func errExist() error      { return oserror.ErrExist }
 func errNotExist() error   { return oserror.ErrNotExist }
 func errClosed() error     { return oserror.ErrClosed }
 
-// A FileInfo describes a file and is returned by Stat.
+// A FileInfo describes a file and is returned by [Stat].
 type FileInfo interface {
 	Name() string       // base name of the file
 	Size() int64        // length in bytes for regular files; system-dependent for others
@@ -219,7 +219,7 @@ func (m FileMode) String() string {
 }
 
 // IsDir reports whether m describes a directory.
-// That is, it tests for the ModeDir bit being set in m.
+// That is, it tests for the [ModeDir] bit being set in m.
 func (m FileMode) IsDir() bool {
 	return m&ModeDir != 0
 }
@@ -230,12 +230,12 @@ func (m FileMode) IsRegular() bool {
 	return m&ModeType == 0
 }
 
-// Perm returns the Unix permission bits in m (m & ModePerm).
+// Perm returns the Unix permission bits in m (m & [ModePerm]).
 func (m FileMode) Perm() FileMode {
 	return m & ModePerm
 }
 
-// Type returns type bits in m (m & ModeType).
+// Type returns type bits in m (m & [ModeType]).
 func (m FileMode) Type() FileMode {
 	return m & ModeType
 }

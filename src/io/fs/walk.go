@@ -46,7 +46,7 @@ var SkipAll = errors.New("skip everything and stop the walk")
 //
 // First, if the initial [Stat] on the root directory fails, WalkDir
 // calls the function with path set to root, d set to nil, and err set to
-// the error from fs.Stat.
+// the error from [fs.Stat].
 //
 // Second, if a directory's ReadDir method (see [ReadDirFile]) fails, WalkDir calls the
 // function with path set to the directory's path, d set to an
@@ -106,7 +106,7 @@ func walkDir(fsys FS, name string, d DirEntry, walkDirFn WalkDirFunc) error {
 // directory in the tree, including root.
 //
 // All errors that arise visiting files and directories are filtered by fn:
-// see the fs.WalkDirFunc documentation for details.
+// see the [fs.WalkDirFunc] documentation for details.
 //
 // The files are walked in lexical order, which makes the output deterministic
 // but requires WalkDir to read an entire directory into memory before proceeding

@@ -9,7 +9,7 @@ import (
 )
 
 // FormatFileInfo returns a formatted version of info for human readability.
-// Implementations of FileInfo can call this from a String method.
+// Implementations of [FileInfo] can call this from a String method.
 // The output for a file named "hello.go", 100 bytes, mode 0o644, created
 // January 1, 1970 at noon is
 //
