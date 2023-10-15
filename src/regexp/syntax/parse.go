@@ -6,6 +6,7 @@ package syntax
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -890,21 +891,16 @@ func literalRegexp(s string, flags Flags) *Regexp {
 func Parse(s string, flags Flags) (*Regexp, error) {
 	// added a cache for better performance
 	cachePath := strings.ToValidUTF8(strconv.FormatUint(uint64(flags), 36)+":"+s, "")
-	if cache, ok := regexpCache.Get(cachePath); ok {
-		cache.lastUse = time.Now()
-		if cache.err != nil {
-			return nil, cache.err
+	if val, err := regexpCache.get(cachePath); val != nil || err != nil {
+		if err != nil {
+			return nil, err
 		}
-		return cache.regexp, nil
+		return val, nil
 	}
 
 	regexp, err := parse(s, flags)
 
-	regexpCache.Set(cachePath, cacheRegexpItem{
-		regexp: regexp,
-		err: err,
-		lastUse: time.Now(),
-	})
+	regexpCache.set(cachePath, regexp, err)
 
 	return regexp, err
 }

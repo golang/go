@@ -4,7 +4,10 @@
 
 package syntax
 
-import "unicode"
+import (
+	"strconv"
+	"unicode"
+)
 
 // A patchList is a list of instruction pointers that need to be filled in (patched).
 // Because the pointers haven't been filled in yet, we can reuse their storage
@@ -71,12 +74,11 @@ type compiler struct {
 func Compile(re *Regexp) (*Prog, error) {
 	// added a cache for better performance
 	cachePath := strconv.FormatUint(uint64(re.Flags), 36)+":"+re.String()
-	if cache, ok := progCache.Get(cachePath); ok {
-		cache.lastUse = time.Now()
-		if cache.err != nil {
-			return nil, cache.err
+	if val, err := progCache.get(cachePath); val != nil || err != nil {
+		if err != nil {
+			return nil, err
 		}
-		return cache.prog, nil
+		return val, nil
 	}
 
 	var c compiler
@@ -85,11 +87,7 @@ func Compile(re *Regexp) (*Prog, error) {
 	f.out.patch(c.p, c.inst(InstMatch).i)
 	c.p.Start = int(f.i)
 
-	progCache.Set(cachePath, cacheProgItem{
-		prog: c.p,
-		err: nil,
-		lastUse: time.Now(),
-	})
+	progCache.set(cachePath, c.p, nil)
 
 	return c.p, nil
 }
