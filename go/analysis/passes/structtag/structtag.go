@@ -13,6 +13,7 @@ import (
 	"go/types"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -83,8 +84,10 @@ func (s *namesSeen) Set(key, name string, level int, pos token.Pos) {
 	(*s)[uniqueName{key, name, level}] = pos
 }
 
-var checkTagDups = []string{"json", "xml"}
-var checkTagSpaces = map[string]bool{"json": true, "xml": true, "asn1": true}
+var (
+	checkTagDups   = []string{"json", "xml"}
+	checkTagSpaces = map[string]bool{"json": true, "xml": true, "asn1": true}
+)
 
 // checkCanonicalFieldTag checks a single struct field tag.
 func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, seen *namesSeen) {
@@ -101,6 +104,20 @@ func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, s
 
 	if err := validateStructTag(tag); err != nil {
 		pass.Reportf(field.Pos(), "struct field tag %#q not compatible with reflect.StructTag.Get: %s", tag, err)
+	}
+
+	// Check for use of json or xml omitempty tags with unsupported field types.
+	for _, enc := range [...]string{"json", "xml"} {
+		typ := field.Type()
+		switch typ.Underlying().(type) {
+		case *types.Basic, *types.Array, *types.Map, *types.Slice, *types.Interface, *types.Pointer:
+			continue
+		}
+
+		val := reflect.StructTag(tag).Get(enc)
+		if slices.Contains(strings.Split(val, ","), "omitempty") {
+			pass.Reportf(field.Pos(), "struct field %s has %s tag but underlying type %s is not an omittable type", field.Name(), val, typ.String())
+		}
 	}
 
 	// Check for use of json or xml tags with unexported fields.
