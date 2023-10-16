@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Sep 13, 2023",
+	"Subtitle": "Version of Oct 16, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -4826,12 +4826,13 @@ For instance, <code>x / y * z</code> is the same as <code>(x / y) * z</code>.
 </p>
 
 <pre>
-+x
-23 + 3*x[i]
-x &lt;= f()
-^a &gt;&gt; b
-f() || g()
-x == y+1 &amp;&amp; &lt;-chanInt &gt; 0
++x                         // x
+42 + a - b                 // (42 + a) - b
+23 + 3*x[i]                // 23 + (3 * x[i])
+x &lt;= f()                   // x &lt;= f()
+^a &gt;&gt; b                    // (^a) >> b
+f() || g()                 // f() || g()
+x == y+1 &amp;&amp; &lt;-chanInt &gt; 0  // (x == (y+1)) && ((<-chanInt) > 0)
 </pre>
 
 
