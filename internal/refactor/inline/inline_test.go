@@ -399,6 +399,16 @@ func TestBasics(t *testing.T) {
 	var _ = 3
 }`,
 		},
+		{
+			// (a regression test for a missing conversion)
+			"Implicit return conversions are inserted in expr-context reduction.",
+			`func f(x int) error { return nil }`,
+			`func _() { if err := f(0); err != nil {} }`,
+			`func _() {
+	if err := error(nil); err != nil {
+	}
+}`,
+		},
 	})
 }
 
@@ -673,7 +683,7 @@ func TestTailCallStrategy(t *testing.T) {
 			"Tail call with non-trivial return conversion (caller.sig != callee.sig).",
 			`func f() error { return E{} }; type E struct{error}`,
 			`func _() any { return f() }`,
-			`func _() any { return func() error { return E{} }() }`,
+			`func _() any { return error(E{}) }`,
 		},
 	})
 }
@@ -713,6 +723,12 @@ func TestSpreadCalls(t *testing.T) {
 			`func f() (int, error) { return 0, nil }`,
 			`func _() (int, error) { return f() }`,
 			`func _() (int, error) { return 0, nil }`,
+		},
+		{
+			"Implicit return conversions defeat reduction of spread returns, for now.",
+			`func f(x int) (_, _ error) { return nil, nil }`,
+			`func _() { _, _ = f(0) }`,
+			`func _() { _, _ = func() (_, _ error) { return nil, nil }() }`,
 		},
 	})
 }

@@ -760,6 +760,16 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	needBindingDecl := !allResultsUnreferenced ||
 		exists(params, func(i int, p *parameter) bool { return p != nil })
 
+	// The two strategies below overlap for a tail call of {return exprs}:
+	// The expr-context reduction is nice because it keeps the
+	// caller's return stmt and merely switches its operand,
+	// without introducing a new block, but it doesn't work with
+	// implicit return conversions.
+	//
+	// TODO(adonovan): unify these cases more cleanly, allowing return-
+	// operand replacement and implicit conversions, by adding
+	// conversions around each return operand (if not a spread return).
+
 	// Special case: call to { return exprs }.
 	//
 	// Reduces to:
@@ -776,8 +786,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	// callee's body expression, suitably substituted.
 	if len(calleeDecl.Body.List) == 1 &&
 		is[*ast.ReturnStmt](calleeDecl.Body.List[0]) &&
-		len(calleeDecl.Body.List[0].(*ast.ReturnStmt).Results) > 0 && // not a bare return
-		safeReturn(caller, calleeSymbol, callee) {
+		len(calleeDecl.Body.List[0].(*ast.ReturnStmt).Results) > 0 { // not a bare return
 		results := calleeDecl.Body.List[0].(*ast.ReturnStmt).Results
 
 		context := callContext(caller.path)
@@ -839,11 +848,24 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 
 			if callee.NumResults == 1 {
 				logf("strategy: reduce expr-context call to { return expr }")
+				// (includes some simple tail-calls)
+
+				// Make implicit return conversion explicit.
+				if callee.TrivialReturns < callee.TotalReturns {
+					results[0] = convert(calleeDecl.Type.Results.List[0].Type, results[0])
+				}
 
 				res.old = caller.Call
 				res.new = results[0]
-			} else {
+				return res, nil
+
+			} else if callee.TrivialReturns == callee.TotalReturns {
 				logf("strategy: reduce spread-context call to { return expr }")
+				// There is no general way to reify conversions in a spread
+				// return, hence the requirement above.
+				//
+				// TODO(adonovan): allow this reduction when no
+				// conversion is required by the context.
 
 				// The call returns multiple results but is
 				// not a standalone call statement. It must
@@ -880,8 +902,8 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 				default:
 					return nil, fmt.Errorf("internal error: unexpected context %T for spread call", context)
 				}
+				return res, nil
 			}
-			return res, nil
 		}
 	}
 
@@ -911,7 +933,7 @@ func inline(logf func(string, ...any), caller *Caller, callee *gobCallee) (*resu
 	// or implicit) return.
 	if ret, ok := callContext(caller.path).(*ast.ReturnStmt); ok &&
 		len(ret.Results) == 1 &&
-		safeReturn(caller, calleeSymbol, callee) &&
+		tailCallSafeReturn(caller, calleeSymbol, callee) &&
 		!callee.HasBareReturn &&
 		(!needBindingDecl || bindingDeclStmt != nil) &&
 		!hasLabelConflict(caller.path, callee.Labels) &&
@@ -2624,9 +2646,9 @@ func declares(stmts []ast.Stmt) map[string]bool {
 	return names
 }
 
-// safeReturn reports whether the callee's return statements may be safely
+// tailCallSafeReturn reports whether the callee's return statements may be safely
 // used to return from the function enclosing the caller (which must exist).
-func safeReturn(caller *Caller, calleeSymbol *types.Func, callee *gobCallee) bool {
+func tailCallSafeReturn(caller *Caller, calleeSymbol *types.Func, callee *gobCallee) bool {
 	// It is safe if all callee returns involve only trivial conversions.
 	if callee.TrivialReturns == callee.TotalReturns {
 		return true
