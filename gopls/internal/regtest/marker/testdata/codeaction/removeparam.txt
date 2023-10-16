@@ -194,7 +194,7 @@ func h() (int, int)
 -- overlapping/overlapping.go --
 package overlapping
 
-func Overlapping(i int) int { //@codeaction("refactor.rewrite", re"(i) int", re"(i) int", overlapping)
+func Overlapping(i int) int { //@codeactionerr("refactor.rewrite", re"(i) int", re"(i) int", re"overlapping")
 	return 0
 }
 
@@ -202,19 +202,7 @@ func _() {
 	x := Overlapping(Overlapping(0))
 	_ = x
 }
--- @overlapping/overlapping/overlapping.go --
-package overlapping
 
-func Overlapping() int { //@codeaction("refactor.rewrite", re"(i) int", re"(i) int", overlapping)
-	return 0
-}
-
-func _() {
-	x := func(_ int) int {
-		return Overlapping()
-	}(Overlapping())
-	_ = x
-}
 -- effects/effects.go --
 package effects
 

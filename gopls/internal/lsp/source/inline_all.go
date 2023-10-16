@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/types"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/types/typeutil"
@@ -170,6 +171,17 @@ func inlineAllCalls(ctx context.Context, logf func(string, ...any), snapshot Sna
 			file    = callInfo.pgf.File
 			content = callInfo.pgf.Src
 		)
+
+		// Check for overlapping calls (such as Foo(Foo())). We can't handle these
+		// because inlining may change the source order of the inner call with
+		// respect to the inlined outer call, and so the heuristic we use to find
+		// the next call (counting from top-to-bottom) does not work.
+		for i := range calls {
+			if i > 0 && calls[i-1].End() > calls[i].Pos() {
+				return nil, fmt.Errorf("%s: can't inline overlapping call %s", uri, types.ExprString(calls[i-1]))
+			}
+		}
+
 		currentCall := 0
 		for currentCall < len(calls) {
 			caller := &inline.Caller{
