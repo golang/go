@@ -7,7 +7,6 @@ package ssagen
 import (
 	"bufio"
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"go/constant"
 	"html"
@@ -257,19 +256,6 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
 	return a
 }
 
-// dvarint writes a varint v to the funcdata in symbol x and returns the new offset.
-func dvarint(x *obj.LSym, off int, v int64) int {
-	if v < 0 {
-		panic(fmt.Sprintf("dvarint: bad offset for funcdata - %v", v))
-	}
-	var buf [binary.MaxVarintLen64]byte
-	n := binary.PutUvarint(buf[:], uint64(v))
-	for _, b := range buf[:n] {
-		off = objw.Uint8(x, off, b)
-	}
-	return off
-}
-
 // emitOpenDeferInfo emits FUNCDATA information about the defers in a function
 // that is using open-coded defers.  This funcdata is used to determine the active
 // defers in a function and execute those defers during panic processing.
@@ -298,8 +284,8 @@ func (s *state) emitOpenDeferInfo() {
 	s.curfn.LSym.Func().OpenCodedDeferInfo = x
 
 	off := 0
-	off = dvarint(x, off, -s.deferBitsTemp.FrameOffset())
-	off = dvarint(x, off, -firstOffset)
+	off = objw.Uvarint(x, off, uint64(-s.deferBitsTemp.FrameOffset()))
+	off = objw.Uvarint(x, off, uint64(-firstOffset))
 }
 
 // buildssa builds an SSA function for fn.
