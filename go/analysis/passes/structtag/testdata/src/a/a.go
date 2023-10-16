@@ -9,6 +9,7 @@ package a
 import (
 	"a/b"
 	"encoding/xml"
+	"time"
 )
 
 type StructTagTest struct {
@@ -44,8 +45,10 @@ type JSONEmbeddedField struct {
 	unexp                     `is:"embedded,notexported" json:"unexp"` // OK for now, see issue 7363
 }
 
-type AnonymousJSON struct{}
-type AnonymousXML struct{}
+type (
+	AnonymousJSON struct{}
+	AnonymousXML  struct{}
+)
 
 type AnonymousJSONField struct {
 	DuplicateAnonJSON int `json:"a"`
@@ -137,4 +140,10 @@ type ShadowingJsonFieldName struct {
 type DuplicateWithAnotherPackage struct {
 	b.AnonymousJSONField
 	AnonymousJSONField2 // want "struct field DuplicateAnonJSON repeats json tag .a. also at b.b.go:8"
+}
+
+type OmitemptyUsage struct {
+	T0 string    `json:",omitempty"`
+	T1 time.Time `json:"omitempty"`
+	T2 time.Time `json:"t2,omitempty"` // want "struct field T2 has t2,omitempty tag but underlying type time.Time is not an omittable type"
 }

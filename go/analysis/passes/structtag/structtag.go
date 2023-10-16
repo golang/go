@@ -106,20 +106,6 @@ func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, s
 		pass.Reportf(field.Pos(), "struct field tag %#q not compatible with reflect.StructTag.Get: %s", tag, err)
 	}
 
-	// Check for use of json or xml omitempty tags with unsupported field types.
-	for _, enc := range [...]string{"json", "xml"} {
-		typ := field.Type()
-		switch typ.Underlying().(type) {
-		case *types.Basic, *types.Array, *types.Map, *types.Slice, *types.Interface, *types.Pointer:
-			continue
-		}
-
-		val := reflect.StructTag(tag).Get(enc)
-		if slices.Contains(strings.Split(val, ","), "omitempty") {
-			pass.Reportf(field.Pos(), "struct field %s has %s tag but underlying type %s is not an omittable type", field.Name(), val, typ.String())
-		}
-	}
-
 	// Check for use of json or xml tags with unexported fields.
 
 	// Embedded struct. Nothing to do for now, but that
@@ -127,6 +113,25 @@ func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, s
 	// TODO(adonovan): investigate, now that that issue is fixed.
 	if field.Anonymous() {
 		return
+	}
+
+	// Check for use of json or xml omitempty tags with unsupported field types.
+	for _, enc := range [...]string{"json", "xml"} {
+		typ := field.Type()
+		switch typ.Underlying().(type) {
+		case *types.Basic, *types.Interface, *types.Map, *types.Pointer, *types.Slice:
+			continue
+		}
+
+		val := reflect.StructTag(tag).Get(enc)
+		pos := strings.IndexRune(val, ',')
+		if pos < 0 {
+			continue
+		}
+
+		if slices.Contains(strings.Split(val[pos+1:], ","), "omitempty") {
+			pass.Reportf(field.Pos(), "struct field %s has %s tag but underlying type %s is not an omittable type", field.Name(), val, typ.String())
+		}
 	}
 
 	if field.Exported() {

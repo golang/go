@@ -108,7 +108,7 @@ type FreeVar struct {
 // types to which it is assignable, and the set of named/*named types
 // (concrete or non-empty interface) which may be assigned to it.
 type Implements struct {
-	T                 ImplementsType   `json:"type,omitempty"`    // the queried type
+	T                 ImplementsType   `json:"type"`              // the queried type
 	AssignableTo      []ImplementsType `json:"to,omitempty"`      // types assignable to T
 	AssignableFrom    []ImplementsType `json:"from,omitempty"`    // interface types assignable from T
 	AssignableFromPtr []ImplementsType `json:"fromptr,omitempty"` // interface types assignable only from *T
