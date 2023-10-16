@@ -1926,7 +1926,7 @@
 //
 // Constraints may appear in any kind of source file (not just Go), but
 // they must appear near the top of the file, preceded
-// only by blank lines and other line comments. These rules mean that in Go
+// only by blank lines and other comments. These rules mean that in Go
 // files a build constraint must appear before the package clause.
 //
 // To distinguish build constraints from package documentation,
