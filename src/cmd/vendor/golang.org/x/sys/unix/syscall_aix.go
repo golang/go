@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix
-// +build aix
 
 // Aix system calls.
 // This file is compiled as ordinary Go code,

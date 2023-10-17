@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && arm64
-// +build linux,arm64
 
 package cpu
 

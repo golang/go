@@ -51,14 +51,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		call := n.(*ast.CallExpr)
 		fn := typeutil.StaticCallee(pass.TypesInfo, call)
-		if fn == nil {
-			return // not a static call
+		if !analysisutil.IsFunctionNamed(fn, "errors", "As") {
+			return
 		}
 		if len(call.Args) < 2 {
 			return // not enough arguments, e.g. called with return values of another function
-		}
-		if fn.FullName() != "errors.As" {
-			return
 		}
 		if err := checkAsTarget(pass, call.Args[1]); err != nil {
 			pass.ReportRangef(call, "%v", err)

@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (freebsd || netbsd || openbsd) && gc
-// +build freebsd netbsd openbsd
-// +build gc
 
 #include "textflag.h"
 

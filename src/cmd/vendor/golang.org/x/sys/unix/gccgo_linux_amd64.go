@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build gccgo && linux && amd64
-// +build gccgo,linux,amd64
 
 package unix
 

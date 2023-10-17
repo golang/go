@@ -511,13 +511,8 @@ func isFormatter(typ types.Type) bool {
 	sig := fn.Type().(*types.Signature)
 	return sig.Params().Len() == 2 &&
 		sig.Results().Len() == 0 &&
-		isNamed(sig.Params().At(0).Type(), "fmt", "State") &&
+		analysisutil.IsNamedType(sig.Params().At(0).Type(), "fmt", "State") &&
 		types.Identical(sig.Params().At(1).Type(), types.Typ[types.Rune])
-}
-
-func isNamed(T types.Type, pkgpath, name string) bool {
-	named, ok := T.(*types.Named)
-	return ok && named.Obj().Pkg().Path() == pkgpath && named.Obj().Name() == name
 }
 
 // formatState holds the parsed representation of a printf directive such as "%3.*[4]d".

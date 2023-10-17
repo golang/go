@@ -2482,3 +2482,5 @@ func SchedGetAttr(pid int, flags uint) (*SchedAttr, error) {
 	}
 	return attr, nil
 }
+
+//sys	Cachestat(fd uint, crange *CachestatRange, cstat *Cachestat_t, flags uint) (err error)
