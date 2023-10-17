@@ -848,3 +848,35 @@ func TestSourcePosNewline(t *testing.T) {
 		t.Errorf("unexpected Fprint output:\n%s", buf.Bytes())
 	}
 }
+
+// TestEmptyDecl tests that empty decls for const, var, import are printed with
+// valid syntax e.g "var ()" instead of just "var", which is invalid and cannot
+// be parsed.
+func TestEmptyDecl(t *testing.T) { // issue 63566
+	var tableTests = []struct {
+		tok      token.Token
+		expected string
+	}{
+		{
+			tok:      token.VAR,
+			expected: "var ()",
+		},
+		{
+			tok:      token.CONST,
+			expected: "const ()",
+		},
+		{
+			tok:      token.IMPORT,
+			expected: "import ()",
+		},
+	}
+
+	for _, tt := range tableTests {
+		var buf bytes.Buffer
+		Fprint(&buf, token.NewFileSet(), &ast.GenDecl{Tok: tt.tok})
+		got := buf.String()
+		if got != tt.expected {
+			t.Errorf("got %q, expected %q\n", got, tt.expected)
+		}
+	}
+}

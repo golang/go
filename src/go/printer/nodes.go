@@ -1739,6 +1739,15 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 	p.setPos(d.Pos())
 	p.print(d.Tok, blank)
 
+	// Empty decls for "var ()", "const ()", "import ()"
+	if len(d.Specs) == 0 {
+		switch d.Tok {
+		case token.VAR, token.CONST, token.IMPORT:
+			p.print(token.LPAREN, token.RPAREN)
+			return
+		}
+	}
+
 	if d.Lparen.IsValid() || len(d.Specs) > 1 {
 		// group of parenthesized declarations
 		p.setPos(d.Lparen)
