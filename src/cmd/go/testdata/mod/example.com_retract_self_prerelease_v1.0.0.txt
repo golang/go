@@ -1,0 +1,16 @@
+Module example.com/retract/self/prerelease is a module that retracts its own
+latest version and all other release version.
+
+A pre-release version higher than the highest release version is still
+available, and that should be matched by @latest.
+
+-- .mod --
+module example.com/retract/self/prerelease
+
+go 1.15
+
+-- .info --
+{"Version":"v1.0.0"}
+
+-- p.go --
+package p

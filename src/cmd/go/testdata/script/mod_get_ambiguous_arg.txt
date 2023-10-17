@@ -1,0 +1,107 @@
+go mod tidy
+cp go.mod go.mod.orig
+
+# If there is no sensible *package* meaning for 'm/p', it should refer
+# to *module* m/p.
+
+go get m/p  # @latest
+go list -m all
+stdout '^m/p v0.3.0 '
+! stdout '^m '
+
+cp go.mod.orig go.mod
+
+go get m/p@v0.1.0
+go list -m all
+stdout '^m/p v0.1.0 '
+! stdout '^m '
+
+# When feasible, the argument 'm/p' in 'go get m/p' refers to *package* m/p,
+# which is in module m.
+#
+# (It only refers to *module* m/p if there is no such package at the
+# requested version.)
+
+go get m/p@v0.2.0
+go list -m all
+stdout '^m v0.2.0 '
+stdout '^m/p v0.1.0 '  # unchanged from the previous case
+
+# Repeating the above with module m/p already in the module graph does not
+# change its meaning.
+
+go get m/p@v0.2.0
+go list -m all
+stdout '^m v0.2.0 '
+stdout '^m/p v0.1.0 '
+
+-- go.mod --
+module example.com
+
+go 1.16
+
+replace (
+	m v0.1.0 => ./m01
+	m v0.2.0 => ./m02
+	m v0.3.0 => ./m03
+	m/p v0.1.0 => ./mp01
+	m/p v0.2.0 => ./mp02
+	m/p v0.3.0 => ./mp03
+)
+-- m01/go.mod --
+module m
+
+go 1.16
+-- m01/README.txt --
+Module m at v0.1.0 does not yet contain package p.
+
+-- m02/go.mod --
+module m
+
+go 1.16
+
+require m/p v0.1.0
+-- m02/p/p.go --
+// Package p is present in module m, but not module m/p.
+package p
+
+-- m03/go.mod --
+module m
+
+go 1.16
+
+require m/p v0.1.0
+-- m03/README.txt --
+Module m at v0.3.0 no longer contains package p.
+
+-- mv2/go.mod --
+module m/v2
+
+go 1.16
+-- mv2/README.txt --
+This module is m/v2. It doesn't actually need to exist,
+but it explains how module m could plausibly exist
+and still contain package p at 'latest' even when module
+m/p also exists.
+
+-- mp01/go.mod --
+module m/p
+
+go 1.16
+-- mp01/README.txt --
+This module is m/p.
+Package m/p does not exist in this module.
+-- mp02/go.mod --
+module m/p
+
+go 1.16
+-- mp02/README.txt --
+This module is m/p.
+Package m/p does not exist in this module.
+-- mp03/go.mod --
+module m/p
+
+go 1.16
+-- mp03/README.txt --
+This module is m/p.
+Package m/p does not exist in this module.

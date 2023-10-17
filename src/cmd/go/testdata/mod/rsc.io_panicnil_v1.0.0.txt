@@ -1,0 +1,13 @@
+rsc.io/panicnil v1.0.0
+written by hand
+
+-- .mod --
+module rsc.io/panicnil
+-- .info --
+{"Version":"v1.0.0"}
+-- fortune.go --
+package main
+
+func main() {
+	panic(nil)
+}

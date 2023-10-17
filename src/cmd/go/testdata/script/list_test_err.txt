@@ -1,0 +1,118 @@
+env GO111MODULE=off
+
+# issue 28491: errors in test source files should not prevent
+# "go list -test" from returning useful information.
+
+# go list -e prints information for all test packages.
+# The syntax error is shown in the package error field.
+go list -e -test -deps -f '{{.ImportPath}} {{.Error | printf "%q"}}' syntaxerr
+stdout 'pkgdep <nil>'
+stdout 'testdep_a <nil>'
+stdout 'testdep_b <nil>'
+stdout 'syntaxerr <nil>'
+stdout 'syntaxerr \[syntaxerr.test\] <nil>'
+stdout 'syntaxerr_test \[syntaxerr.test\] <nil>'
+stdout 'syntaxerr\.test "[^"]*expected declaration'
+! stderr 'expected declaration'
+
+[short] stop
+
+go list -e -test -deps -f '{{.ImportPath}} {{.Error | printf "%q"}}' nameerr
+stdout 'pkgdep <nil>'
+stdout 'testdep_a <nil>'
+stdout 'testdep_b <nil>'
+stdout 'nameerr\.test "[^"]*wrong signature for TestBad'
+! stderr 'wrong signature for TestBad'
+
+# go list prints a useful error for generic test functions
+! go list -test -deps genericerr
+stderr 'wrong signature for TestGeneric, test functions cannot have type parameters'
+
+go list -e -test -deps -f '{{.ImportPath}} {{.Error | printf "%q"}}' cycleerr
+stdout 'cycleerr <nil>'
+stdout 'testdep_a <nil>'
+stdout 'testdep_cycle \[cycleerr.test\] <nil>'
+stdout 'cycleerr \[cycleerr.test\] "[^"]*import cycle not allowed in test'
+! stderr 'import cycle not allowed in test'
+
+-- syntaxerr/syntaxerr.go --
+package syntaxerr
+
+import _ "pkgdep"
+
+-- syntaxerr/syntaxerr_ie_test.go --
+package syntaxerr
+
+!!!syntax error
+
+-- syntaxerr/syntaxerr_xe_test.go --
+package syntaxerr_test
+
+!!!syntax error
+
+-- syntaxerr/syntaxerr_i_test.go --
+package syntaxerr
+
+import _ "testdep_a"
+
+-- syntaxerr/syntaxerr_x_test.go --
+package syntaxerr
+
+import _ "testdep_b"
+
+-- nameerr/nameerr.go --
+package nameerr
+
+import _ "pkgdep"
+
+-- nameerr/nameerr_i_test.go --
+package nameerr
+
+import (
+  _ "testdep_a"
+  "testing"
+)
+
+func TestBad(t *testing.B) {}
+
+-- nameerr/nameerr_x_test.go --
+package nameerr_test
+
+import (
+  _ "testdep_b"
+  "testing"
+)
+
+func TestBad(t *testing.B) {}
+
+-- genericerr/genericerr.go --
+package genericerr
+
+-- genericerr/genericerr_test.go --
+package genericerr
+
+import "testing"
+
+func TestGeneric[T any](t *testing.T) {}
+
+-- cycleerr/cycleerr_test.go --
+package cycleerr
+
+import (
+  _ "testdep_a"
+  _ "testdep_cycle"
+)
+
+-- pkgdep/pkgdep.go --
+package pkgdep
+
+-- testdep_a/testdep_a.go --
+package testdep_a
+
+-- testdep_b/testdep_b.go --
+package testdep_b
+
+-- testdep_cycle/testdep_cycle.go --
+package testdep_cycle
+
+import _ "cycleerr"

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Copyright 2018 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+	DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+	SOURCE="$(readlink "$SOURCE")"
+	[[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+
+# Increase the V8 stack size from the default of 984K
+# to 8192K to ensure all tests can pass without hitting
+# stack size limits.
+exec node --stack-size=8192 "$DIR/wasm_exec_node.js" "$@"

@@ -1,0 +1,130 @@
+pkg bufio, var ErrBadReadCount error
+pkg crypto, method (Hash) String() string
+pkg crypto/ecdsa, func SignASN1(io.Reader, *PrivateKey, []uint8) ([]uint8, error)
+pkg crypto/ecdsa, func VerifyASN1(*PublicKey, []uint8, []uint8) bool
+pkg crypto/ecdsa, method (*PrivateKey) Equal(crypto.PrivateKey) bool
+pkg crypto/ecdsa, method (*PublicKey) Equal(crypto.PublicKey) bool
+pkg crypto/ed25519, method (PrivateKey) Equal(crypto.PrivateKey) bool
+pkg crypto/ed25519, method (PublicKey) Equal(crypto.PublicKey) bool
+pkg crypto/elliptic, func MarshalCompressed(Curve, *big.Int, *big.Int) []uint8
+pkg crypto/elliptic, func UnmarshalCompressed(Curve, []uint8) (*big.Int, *big.Int)
+pkg crypto/rsa, method (*PrivateKey) Equal(crypto.PrivateKey) bool
+pkg crypto/rsa, method (*PublicKey) Equal(crypto.PublicKey) bool
+pkg crypto/tls, method (*Dialer) Dial(string, string) (net.Conn, error)
+pkg crypto/tls, method (*Dialer) DialContext(context.Context, string, string) (net.Conn, error)
+pkg crypto/tls, method (ClientAuthType) String() string
+pkg crypto/tls, method (CurveID) String() string
+pkg crypto/tls, method (SignatureScheme) String() string
+pkg crypto/tls, type Config struct, VerifyConnection func(ConnectionState) error
+pkg crypto/tls, type Dialer struct
+pkg crypto/tls, type Dialer struct, Config *Config
+pkg crypto/tls, type Dialer struct, NetDialer *net.Dialer
+pkg crypto/x509, func CreateRevocationList(io.Reader, *RevocationList, *Certificate, crypto.Signer) ([]uint8, error)
+pkg crypto/x509, type RevocationList struct
+pkg crypto/x509, type RevocationList struct, ExtraExtensions []pkix.Extension
+pkg crypto/x509, type RevocationList struct, NextUpdate time.Time
+pkg crypto/x509, type RevocationList struct, Number *big.Int
+pkg crypto/x509, type RevocationList struct, RevokedCertificates []pkix.RevokedCertificate
+pkg crypto/x509, type RevocationList struct, SignatureAlgorithm SignatureAlgorithm
+pkg crypto/x509, type RevocationList struct, ThisUpdate time.Time
+pkg database/sql, method (*DB) SetConnMaxIdleTime(time.Duration)
+pkg database/sql, method (*Row) Err() error
+pkg database/sql, type DBStats struct, MaxIdleTimeClosed int64
+pkg database/sql/driver, type Validator interface { IsValid }
+pkg database/sql/driver, type Validator interface, IsValid() bool
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_APPCONTAINER = 4096
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_APPCONTAINER ideal-int
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE = 64
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE ideal-int
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_FORCE_INTEGRITY = 128
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_FORCE_INTEGRITY ideal-int
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_GUARD_CF = 16384
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_GUARD_CF ideal-int
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA = 32
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA ideal-int
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_NO_BIND = 2048
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_NO_BIND ideal-int
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_NO_ISOLATION = 512
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_NO_ISOLATION ideal-int
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_NO_SEH = 1024
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_NO_SEH ideal-int
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_NX_COMPAT = 256
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_NX_COMPAT ideal-int
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE = 32768
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE ideal-int
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_WDM_DRIVER = 8192
+pkg debug/pe, const IMAGE_DLLCHARACTERISTICS_WDM_DRIVER ideal-int
+pkg debug/pe, const IMAGE_FILE_32BIT_MACHINE = 256
+pkg debug/pe, const IMAGE_FILE_32BIT_MACHINE ideal-int
+pkg debug/pe, const IMAGE_FILE_AGGRESIVE_WS_TRIM = 16
+pkg debug/pe, const IMAGE_FILE_AGGRESIVE_WS_TRIM ideal-int
+pkg debug/pe, const IMAGE_FILE_BYTES_REVERSED_HI = 32768
+pkg debug/pe, const IMAGE_FILE_BYTES_REVERSED_HI ideal-int
+pkg debug/pe, const IMAGE_FILE_BYTES_REVERSED_LO = 128
+pkg debug/pe, const IMAGE_FILE_BYTES_REVERSED_LO ideal-int
+pkg debug/pe, const IMAGE_FILE_DEBUG_STRIPPED = 512
+pkg debug/pe, const IMAGE_FILE_DEBUG_STRIPPED ideal-int
+pkg debug/pe, const IMAGE_FILE_DLL = 8192
+pkg debug/pe, const IMAGE_FILE_DLL ideal-int
+pkg debug/pe, const IMAGE_FILE_EXECUTABLE_IMAGE = 2
+pkg debug/pe, const IMAGE_FILE_EXECUTABLE_IMAGE ideal-int
+pkg debug/pe, const IMAGE_FILE_LARGE_ADDRESS_AWARE = 32
+pkg debug/pe, const IMAGE_FILE_LARGE_ADDRESS_AWARE ideal-int
+pkg debug/pe, const IMAGE_FILE_LINE_NUMS_STRIPPED = 4
+pkg debug/pe, const IMAGE_FILE_LINE_NUMS_STRIPPED ideal-int
+pkg debug/pe, const IMAGE_FILE_LOCAL_SYMS_STRIPPED = 8
+pkg debug/pe, const IMAGE_FILE_LOCAL_SYMS_STRIPPED ideal-int
+pkg debug/pe, const IMAGE_FILE_NET_RUN_FROM_SWAP = 2048
+pkg debug/pe, const IMAGE_FILE_NET_RUN_FROM_SWAP ideal-int
+pkg debug/pe, const IMAGE_FILE_RELOCS_STRIPPED = 1
+pkg debug/pe, const IMAGE_FILE_RELOCS_STRIPPED ideal-int
+pkg debug/pe, const IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP = 1024
+pkg debug/pe, const IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP ideal-int
+pkg debug/pe, const IMAGE_FILE_SYSTEM = 4096
+pkg debug/pe, const IMAGE_FILE_SYSTEM ideal-int
+pkg debug/pe, const IMAGE_FILE_UP_SYSTEM_ONLY = 16384
+pkg debug/pe, const IMAGE_FILE_UP_SYSTEM_ONLY ideal-int
+pkg debug/pe, const IMAGE_SUBSYSTEM_EFI_APPLICATION = 10
+pkg debug/pe, const IMAGE_SUBSYSTEM_EFI_APPLICATION ideal-int
+pkg debug/pe, const IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER = 11
+pkg debug/pe, const IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER ideal-int
+pkg debug/pe, const IMAGE_SUBSYSTEM_EFI_ROM = 13
+pkg debug/pe, const IMAGE_SUBSYSTEM_EFI_ROM ideal-int
+pkg debug/pe, const IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER = 12
+pkg debug/pe, const IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER ideal-int
+pkg debug/pe, const IMAGE_SUBSYSTEM_NATIVE = 1
+pkg debug/pe, const IMAGE_SUBSYSTEM_NATIVE ideal-int
+pkg debug/pe, const IMAGE_SUBSYSTEM_NATIVE_WINDOWS = 8
+pkg debug/pe, const IMAGE_SUBSYSTEM_NATIVE_WINDOWS ideal-int
+pkg debug/pe, const IMAGE_SUBSYSTEM_OS2_CUI = 5
+pkg debug/pe, const IMAGE_SUBSYSTEM_OS2_CUI ideal-int
+pkg debug/pe, const IMAGE_SUBSYSTEM_POSIX_CUI = 7
+pkg debug/pe, const IMAGE_SUBSYSTEM_POSIX_CUI ideal-int
+pkg debug/pe, const IMAGE_SUBSYSTEM_UNKNOWN = 0
+pkg debug/pe, const IMAGE_SUBSYSTEM_UNKNOWN ideal-int
+pkg debug/pe, const IMAGE_SUBSYSTEM_WINDOWS_BOOT_APPLICATION = 16
+pkg debug/pe, const IMAGE_SUBSYSTEM_WINDOWS_BOOT_APPLICATION ideal-int
+pkg debug/pe, const IMAGE_SUBSYSTEM_WINDOWS_CE_GUI = 9
+pkg debug/pe, const IMAGE_SUBSYSTEM_WINDOWS_CE_GUI ideal-int
+pkg debug/pe, const IMAGE_SUBSYSTEM_WINDOWS_CUI = 3
+pkg debug/pe, const IMAGE_SUBSYSTEM_WINDOWS_CUI ideal-int
+pkg debug/pe, const IMAGE_SUBSYSTEM_WINDOWS_GUI = 2
+pkg debug/pe, const IMAGE_SUBSYSTEM_WINDOWS_GUI ideal-int
+pkg debug/pe, const IMAGE_SUBSYSTEM_XBOX = 14
+pkg debug/pe, const IMAGE_SUBSYSTEM_XBOX ideal-int
+pkg math/big, method (*Int) FillBytes([]uint8) []uint8
+pkg net, method (*Resolver) LookupIP(context.Context, string, string) ([]IP, error)
+pkg net/url, method (*URL) EscapedFragment() string
+pkg net/url, method (*URL) Redacted() string
+pkg net/url, type URL struct, RawFragment string
+pkg os, method (*File) ReadFrom(io.Reader) (int64, error)
+pkg os, var ErrDeadlineExceeded error
+pkg regexp, method (*Regexp) SubexpIndex(string) int
+pkg strconv, func FormatComplex(complex128, uint8, int, int) string
+pkg strconv, func ParseComplex(string, int) (complex128, error)
+pkg sync, method (*Map) LoadAndDelete(interface{}) (interface{}, bool)
+pkg testing, method (*B) TempDir() string
+pkg testing, method (*T) Deadline() (time.Time, bool)
+pkg testing, method (*T) TempDir() string
+pkg testing, type TB interface, TempDir() string
+pkg time, method (*Ticker) Reset(Duration)

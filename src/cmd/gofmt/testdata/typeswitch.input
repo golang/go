@@ -1,0 +1,60 @@
+/*
+Parenthesized type switch expressions originally
+accepted by gofmt must continue to be rewritten
+into the correct unparenthesized form.
+
+Only type-switches that didn't declare a variable
+in the type switch type assertion and which
+contained only "expression-like" (named) types in their
+cases were permitted to have their type assertion parenthesized
+by go/parser (due to a weak predicate in the parser). All others
+were rejected always, either with a syntax error in the
+type switch header or in the case.
+
+See also issue 4470.
+*/
+package p
+
+func f() {
+	var x interface{}
+	switch x.(type) { // should remain the same
+	}
+	switch (x.(type)) { // should become: switch x.(type) {
+	}
+
+	switch x.(type) { // should remain the same
+	case int:
+	}
+	switch (x.(type)) { // should become: switch x.(type) {
+	case int:
+	}
+
+	switch x.(type) { // should remain the same
+	case []int:
+	}
+
+	// Parenthesized (x.(type)) in type switches containing cases
+	// with unnamed (literal) types were never permitted by gofmt;
+	// thus there won't be any code in the wild using this style if
+	// the code was gofmt-ed.
+	/*
+	switch (x.(type)) {
+	case []int:
+	}
+	*/
+
+	switch t := x.(type) { // should remain the same
+	default:
+		_ = t
+	}
+
+	// Parenthesized (x.(type)) in type switches declaring a variable
+	// were never permitted by gofmt; thus there won't be any code in
+	// the wild using this style if the code was gofmt-ed.
+	/*
+	switch t := (x.(type)) {
+	default:
+		_ = t
+	}
+	*/
+}

@@ -1,0 +1,12 @@
+rsc.io/badfile1 v1.0.0
+written by hand
+
+-- .mod --
+module rsc.io/badfile2
+-- .info --
+{"Version":"v1.0.0"}
+-- go.mod --
+module rsc.io/badfile2
+-- ☺.go --
+package smiley
+

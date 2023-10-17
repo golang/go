@@ -1,0 +1,58 @@
+# Verifies golang.org/issue/47738.
+
+# In this test, the user has rewritten their imports to use rsc.io/quote/v3,
+# but their go.mod still requires rsc.io/quote@v1.5.2, and they indirectly
+# require rsc.io/quote@v1.5.1 but don't import anything from it.
+go list -m -f '{{.Path}}@{{.Version}}{{if .Indirect}} indirect{{end}}' all
+stdout '^rsc.io/quote@v1.5.2$'
+! stdout 'rsc.io/quote/v3'
+go list -e all
+! stdout '^rsc.io/quote$'
+
+# 'go mod tidy' should preserve the requirement on rsc.io/quote but mark it
+# indirect. This prevents a downgrade to v1.5.1, which could introduce
+# an ambiguity.
+go mod tidy
+go list -m -f '{{.Path}}@{{.Version}}{{if .Indirect}} indirect{{end}}' all
+stdout '^rsc.io/quote@v1.5.2 indirect$'
+stdout '^rsc.io/quote/v3@v3.0.0$'
+
+-- go.mod --
+module use
+
+go 1.16
+
+require (
+	old-indirect v0.0.0
+	rsc.io/quote v1.5.2
+)
+
+replace old-indirect v0.0.0 => ./old-indirect
+-- go.sum --
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+rsc.io/quote v1.5.1/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
+rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=
+rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
+rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
+rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+-- use.go --
+package use
+
+import (
+	_ "old-indirect/empty"
+
+	_ "rsc.io/quote/v3"
+)
+-- old-indirect/empty/empty.go --
+package empty
+-- old-indirect/go.mod --
+module old-indirect
+
+go 1.16
+
+require rsc.io/quote v1.5.1
+-- old-indirect/go.sum --
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
+rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=

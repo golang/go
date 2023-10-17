@@ -1,0 +1,4 @@
+[compiler:gccgo] skip 'gccgo has no standard packages'
+go build -tags 'tag1 tag2' math
+! go build -tags 'tag1,tag2 tag3' math
+stderr 'space-separated list contains comma'

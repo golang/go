@@ -1,0 +1,30 @@
+# Tests issue 37971. Check that tests are still loaded even when the package has an error.
+
+go list -e -test d
+cmp stdout want_stdout
+
+go list -e -test -deps d
+stdout golang.org/fake/d
+
+-- want_stdout --
+d
+d.test
+d_test [d.test]
+-- go.mod --
+module d
+
+go 1.16
+-- d.go --
+package d
+
+import "net/http"
+
+const d = http.MethodGet
+func Get() string { return d; }
+-- d2.go --
+-- d_test.go --
+package d_test
+
+import "testing"
+import "golang.org/fake/d"
+func TestD(t *testing.T) { d.Get(); }

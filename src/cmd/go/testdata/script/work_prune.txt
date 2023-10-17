@@ -1,0 +1,103 @@
+# This test makes sure workspace mode's handling of the module graph
+# is compatible with module pruning. The graph we load from either of
+# the workspace modules should be the same, even if their graphs
+# don't overlap.
+#
+# This is the module graph in the test:
+#
+#  example.com/a -> example.com/b v1.0.0 -> example.com/q v1.1.0
+#  example.com/p -> example.com/q v1.0.0
+#
+# If we didn't load the whole graph and didn't load the dependencies of b
+# when loading p, we would end up loading q v1.0.0, rather than v1.1.0,
+# which is selected by MVS.
+
+go list -m -f '{{.Version}}' example.com/q
+stdout '^v1.1.0$'
+
+-- go.work --
+go 1.18
+
+use (
+	./a
+	./p
+)
+-- a/go.mod --
+module example.com/a
+
+go 1.18
+
+require example.com/b v1.0.0
+
+replace example.com/b v1.0.0 => ../b
+-- a/foo.go --
+package main
+
+import "example.com/b"
+
+func main() {
+	b.B()
+}
+-- b/go.mod --
+module example.com/b
+
+go 1.18
+
+require example.com/q v1.1.0
+
+replace example.com/q v1.0.0 => ../q1_0_0
+replace example.com/q v1.1.0 => ../q1_1_0
+-- b/b.go --
+package b
+
+func B() {
+}
+-- b/b_test.go --
+package b
+
+import "example.com/q"
+
+func TestB() {
+	q.PrintVersion()
+}
+-- p/go.mod --
+module example.com/p
+
+go 1.18
+
+require example.com/q v1.0.0
+
+replace example.com/q v1.0.0 => ../q1_0_0
+replace example.com/q v1.1.0 => ../q1_1_0
+-- p/main.go --
+package main
+
+import "example.com/q"
+
+func main() {
+	q.PrintVersion()
+}
+-- q1_0_0/go.mod --
+module example.com/q
+
+go 1.18
+-- q1_0_0/q.go --
+package q
+
+import "fmt"
+
+func PrintVersion() {
+	fmt.Println("version 1.0.0")
+}
+-- q1_1_0/go.mod --
+module example.com/q
+
+go 1.18
+-- q1_1_0/q.go --
+package q
+
+import "fmt"
+
+func PrintVersion() {
+	fmt.Println("version 1.1.0")
+}

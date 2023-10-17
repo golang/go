@@ -1,0 +1,130 @@
+env GO111MODULE=on
+env GOFLAGS=-mod=mod
+[short] skip
+
+# TODO(bcmills): Convert the 'go test' calls below to 'go list -test' once 'go
+# list' is more sensitive to package loading errors.
+
+# A test in the module's root package should work.
+cd a/
+cp go.mod.empty go.mod
+go list -test
+! stderr error
+
+cp go.mod.empty go.mod
+go list -deps
+! stdout ^testing$
+
+# list all should include test dependencies, like testing
+cp go.mod.empty go.mod
+go list all
+stdout ^testing$
+stdout ^rsc.io/quote$
+stdout ^rsc.io/testonly$
+
+# list -deps -tests should also include testing
+# but not deps of tests of deps (rsc.io/testonly).
+go list -deps -test
+stdout ^testing$
+stdout ^rsc.io/quote$
+! stdout ^rsc.io/testonly$
+
+# list -test all should succeed
+cp go.mod.empty go.mod
+go list -test all
+stdout '^testing'
+
+cp go.mod.empty go.mod
+go list -test
+! stderr error
+
+# A test with the "_test" suffix in the module root should also work.
+cd ../b/
+go list -test
+! stderr error
+
+# A test with the "_test" suffix of a *package* with a "_test" suffix should
+# even work (not that you should ever do that).
+cd ../c_test
+go list -test
+! stderr error
+
+cd ../d_test
+go list -test
+! stderr error
+
+cd ../e
+go list -test
+! stderr error
+
+-- a/go.mod.empty --
+module example.com/user/a
+
+go 1.11
+
+-- a/a.go --
+package a
+
+-- a/a_test.go --
+package a
+
+import "testing"
+import _ "rsc.io/quote"
+
+func Test(t *testing.T) {}
+
+-- b/go.mod --
+module example.com/user/b
+
+-- b/b.go --
+package b
+
+-- b/b_test.go --
+package b_test
+
+import "testing"
+
+func Test(t *testing.T) {}
+
+-- c_test/go.mod --
+module example.com/c_test
+
+-- c_test/umm.go --
+// Package c_test is the non-test package for its import path!
+package c_test
+
+-- c_test/c_test_test.go --
+package c_test_test
+
+import "testing"
+
+func Test(t *testing.T) {}
+
+-- d_test/go.mod --
+// Package d is an ordinary package in a deceptively-named directory.
+module example.com/d
+
+-- d_test/d.go --
+package d
+
+-- d_test/d_test.go --
+package d_test
+
+import "testing"
+
+func Test(t *testing.T) {}
+
+-- e/go.mod --
+module example.com/e_test
+
+-- e/wat.go --
+// Package e_test is the non-test package for its import path,
+// in a deceptively-named directory!
+package e_test
+
+-- e/e_test.go --
+package e_test_test
+
+import "testing"
+
+func Test(t *testing.T) {}

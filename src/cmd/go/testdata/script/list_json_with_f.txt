@@ -1,0 +1,20 @@
+[short] skip
+
+# list -json should generate output on stdout
+go list -json ./...
+stdout .
+# list -f should generate output on stdout
+go list -f '{{.}}' ./...
+stdout .
+
+# test passing first -json then -f
+! go list -json -f '{{.}}' ./...
+stderr '^go list -f cannot be used with -json$'
+
+# test passing first -f then -json
+! go list -f '{{.}}' -json ./...
+stderr '^go list -f cannot be used with -json$'
+-- go.mod --
+module m
+-- list_test.go --
+package list_test

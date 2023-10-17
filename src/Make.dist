@@ -1,0 +1,19 @@
+# Copyright 2012 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+# Run go tool dist to install a command.
+# The -v causes dist to print the name of each directory as it runs.
+# The -vv causes dist to print each build command as it runs.
+# go tool dist clean cleans all directories, not just this one,
+# but it's as close as we can get.
+
+# Default target (first).
+install:
+	go tool dist install -v
+
+verbose:
+	go tool dist install -vv
+
+clean:
+	go tool dist clean

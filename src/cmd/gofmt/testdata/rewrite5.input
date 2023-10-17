@@ -1,0 +1,17 @@
+//gofmt -r=x+x->2*x
+
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Rewriting of expressions containing nodes with associated comments to
+// expressions without those nodes must also eliminate the associated
+// comments.
+
+package p
+
+func f(x int) int {
+	_ = x + x // this comment remains in the rewrite
+	_ = x /* this comment must not be in the rewrite */ + x
+	return x /* this comment must not be in the rewrite */ + x
+}

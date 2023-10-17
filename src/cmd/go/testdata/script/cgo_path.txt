@@ -1,0 +1,41 @@
+[!cgo] skip
+
+# Require that CC is something that requires a PATH lookup.
+# Normally, the default is gcc or clang, but if CC was set during make.bash,
+# that becomes the default.
+[!cc:clang] [!cc:gcc] skip 'C compiler is not gcc or clang'
+
+env GOCACHE=$WORK/gocache  # Looking for compile flags, so need a clean cache.
+[!GOOS:windows] env PATH=.:$PATH
+[!GOOS:windows] chmod 0755 p/gcc p/clang
+[!GOOS:windows] exists -exec p/gcc p/clang
+[GOOS:windows] exists -exec p/gcc.bat p/clang.bat
+! exists p/bug.txt
+! go build -x
+stderr '^cgo: C compiler "(clang|gcc)" not found: exec: "(clang|gcc)": cannot run executable found relative to current directory'
+! exists p/bug.txt
+
+-- go.mod --
+module m
+
+-- m.go --
+package m
+
+import _ "m/p"
+
+-- p/p.go --
+package p
+
+// #define X 1
+import "C"
+
+-- p/gcc --
+#!/bin/sh
+echo ran gcc >bug.txt
+-- p/clang --
+#!/bin/sh
+echo ran clang >bug.txt
+-- p/gcc.bat --
+echo ran gcc >bug.txt
+-- p/clang.bat --
+echo ran clang >bug.txt

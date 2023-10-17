@@ -1,0 +1,5 @@
+handle svn
+
+# For this path, we turn on the svn handler but don't actually create the repo.
+# svnserve should use the svn protocol to tell the client that the repo doesn't
+# actually exist.

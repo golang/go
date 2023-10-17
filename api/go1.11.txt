@@ -1,0 +1,559 @@
+pkg crypto/cipher, func NewGCMWithTagSize(Block, int) (AEAD, error)
+pkg crypto/rsa, method (*PrivateKey) Size() int
+pkg crypto/rsa, method (*PublicKey) Size() int
+pkg crypto/tls, method (*ConnectionState) ExportKeyingMaterial(string, []uint8, int) ([]uint8, error)
+pkg database/sql, method (IsolationLevel) String() string
+pkg database/sql, type DBStats struct, Idle int
+pkg database/sql, type DBStats struct, InUse int
+pkg database/sql, type DBStats struct, MaxIdleClosed int64
+pkg database/sql, type DBStats struct, MaxLifetimeClosed int64
+pkg database/sql, type DBStats struct, MaxOpenConnections int
+pkg database/sql, type DBStats struct, WaitCount int64
+pkg database/sql, type DBStats struct, WaitDuration time.Duration
+pkg debug/elf, const ELFOSABI_AROS = 15
+pkg debug/elf, const ELFOSABI_AROS OSABI
+pkg debug/elf, const ELFOSABI_CLOUDABI = 17
+pkg debug/elf, const ELFOSABI_CLOUDABI OSABI
+pkg debug/elf, const ELFOSABI_FENIXOS = 16
+pkg debug/elf, const ELFOSABI_FENIXOS OSABI
+pkg debug/elf, const EM_56800EX = 200
+pkg debug/elf, const EM_56800EX Machine
+pkg debug/elf, const EM_68HC05 = 72
+pkg debug/elf, const EM_68HC05 Machine
+pkg debug/elf, const EM_68HC08 = 71
+pkg debug/elf, const EM_68HC08 Machine
+pkg debug/elf, const EM_68HC11 = 70
+pkg debug/elf, const EM_68HC11 Machine
+pkg debug/elf, const EM_68HC16 = 69
+pkg debug/elf, const EM_68HC16 Machine
+pkg debug/elf, const EM_78KOR = 199
+pkg debug/elf, const EM_78KOR Machine
+pkg debug/elf, const EM_8051 = 165
+pkg debug/elf, const EM_8051 Machine
+pkg debug/elf, const EM_ALTERA_NIOS2 = 113
+pkg debug/elf, const EM_ALTERA_NIOS2 Machine
+pkg debug/elf, const EM_AMDGPU = 224
+pkg debug/elf, const EM_AMDGPU Machine
+pkg debug/elf, const EM_ARCA = 109
+pkg debug/elf, const EM_ARCA Machine
+pkg debug/elf, const EM_ARC_COMPACT = 93
+pkg debug/elf, const EM_ARC_COMPACT Machine
+pkg debug/elf, const EM_ARC_COMPACT2 = 195
+pkg debug/elf, const EM_ARC_COMPACT2 Machine
+pkg debug/elf, const EM_AVR = 83
+pkg debug/elf, const EM_AVR Machine
+pkg debug/elf, const EM_AVR32 = 185
+pkg debug/elf, const EM_AVR32 Machine
+pkg debug/elf, const EM_BA1 = 201
+pkg debug/elf, const EM_BA1 Machine
+pkg debug/elf, const EM_BA2 = 202
+pkg debug/elf, const EM_BA2 Machine
+pkg debug/elf, const EM_BLACKFIN = 106
+pkg debug/elf, const EM_BLACKFIN Machine
+pkg debug/elf, const EM_BPF = 247
+pkg debug/elf, const EM_BPF Machine
+pkg debug/elf, const EM_C166 = 116
+pkg debug/elf, const EM_C166 Machine
+pkg debug/elf, const EM_CDP = 215
+pkg debug/elf, const EM_CDP Machine
+pkg debug/elf, const EM_CE = 119
+pkg debug/elf, const EM_CE Machine
+pkg debug/elf, const EM_CLOUDSHIELD = 192
+pkg debug/elf, const EM_CLOUDSHIELD Machine
+pkg debug/elf, const EM_COGE = 216
+pkg debug/elf, const EM_COGE Machine
+pkg debug/elf, const EM_COOL = 217
+pkg debug/elf, const EM_COOL Machine
+pkg debug/elf, const EM_COREA_1ST = 193
+pkg debug/elf, const EM_COREA_1ST Machine
+pkg debug/elf, const EM_COREA_2ND = 194
+pkg debug/elf, const EM_COREA_2ND Machine
+pkg debug/elf, const EM_CR = 103
+pkg debug/elf, const EM_CR Machine
+pkg debug/elf, const EM_CR16 = 177
+pkg debug/elf, const EM_CR16 Machine
+pkg debug/elf, const EM_CRAYNV2 = 172
+pkg debug/elf, const EM_CRAYNV2 Machine
+pkg debug/elf, const EM_CRIS = 76
+pkg debug/elf, const EM_CRIS Machine
+pkg debug/elf, const EM_CRX = 114
+pkg debug/elf, const EM_CRX Machine
+pkg debug/elf, const EM_CSR_KALIMBA = 219
+pkg debug/elf, const EM_CSR_KALIMBA Machine
+pkg debug/elf, const EM_CUDA = 190
+pkg debug/elf, const EM_CUDA Machine
+pkg debug/elf, const EM_CYPRESS_M8C = 161
+pkg debug/elf, const EM_CYPRESS_M8C Machine
+pkg debug/elf, const EM_D10V = 85
+pkg debug/elf, const EM_D10V Machine
+pkg debug/elf, const EM_D30V = 86
+pkg debug/elf, const EM_D30V Machine
+pkg debug/elf, const EM_DSP24 = 136
+pkg debug/elf, const EM_DSP24 Machine
+pkg debug/elf, const EM_DSPIC30F = 118
+pkg debug/elf, const EM_DSPIC30F Machine
+pkg debug/elf, const EM_DXP = 112
+pkg debug/elf, const EM_DXP Machine
+pkg debug/elf, const EM_ECOG1 = 168
+pkg debug/elf, const EM_ECOG1 Machine
+pkg debug/elf, const EM_ECOG16 = 176
+pkg debug/elf, const EM_ECOG16 Machine
+pkg debug/elf, const EM_ECOG1X = 168
+pkg debug/elf, const EM_ECOG1X Machine
+pkg debug/elf, const EM_ECOG2 = 134
+pkg debug/elf, const EM_ECOG2 Machine
+pkg debug/elf, const EM_ETPU = 178
+pkg debug/elf, const EM_ETPU Machine
+pkg debug/elf, const EM_EXCESS = 111
+pkg debug/elf, const EM_EXCESS Machine
+pkg debug/elf, const EM_F2MC16 = 104
+pkg debug/elf, const EM_F2MC16 Machine
+pkg debug/elf, const EM_FIREPATH = 78
+pkg debug/elf, const EM_FIREPATH Machine
+pkg debug/elf, const EM_FR30 = 84
+pkg debug/elf, const EM_FR30 Machine
+pkg debug/elf, const EM_FT32 = 222
+pkg debug/elf, const EM_FT32 Machine
+pkg debug/elf, const EM_FX66 = 66
+pkg debug/elf, const EM_FX66 Machine
+pkg debug/elf, const EM_HUANY = 81
+pkg debug/elf, const EM_HUANY Machine
+pkg debug/elf, const EM_INTEL205 = 205
+pkg debug/elf, const EM_INTEL205 Machine
+pkg debug/elf, const EM_INTEL206 = 206
+pkg debug/elf, const EM_INTEL206 Machine
+pkg debug/elf, const EM_INTEL207 = 207
+pkg debug/elf, const EM_INTEL207 Machine
+pkg debug/elf, const EM_INTEL208 = 208
+pkg debug/elf, const EM_INTEL208 Machine
+pkg debug/elf, const EM_INTEL209 = 209
+pkg debug/elf, const EM_INTEL209 Machine
+pkg debug/elf, const EM_IP2K = 101
+pkg debug/elf, const EM_IP2K Machine
+pkg debug/elf, const EM_JAVELIN = 77
+pkg debug/elf, const EM_JAVELIN Machine
+pkg debug/elf, const EM_K10M = 181
+pkg debug/elf, const EM_K10M Machine
+pkg debug/elf, const EM_KM32 = 210
+pkg debug/elf, const EM_KM32 Machine
+pkg debug/elf, const EM_KMX16 = 212
+pkg debug/elf, const EM_KMX16 Machine
+pkg debug/elf, const EM_KMX32 = 211
+pkg debug/elf, const EM_KMX32 Machine
+pkg debug/elf, const EM_KMX8 = 213
+pkg debug/elf, const EM_KMX8 Machine
+pkg debug/elf, const EM_KVARC = 214
+pkg debug/elf, const EM_KVARC Machine
+pkg debug/elf, const EM_L10M = 180
+pkg debug/elf, const EM_L10M Machine
+pkg debug/elf, const EM_LANAI = 244
+pkg debug/elf, const EM_LANAI Machine
+pkg debug/elf, const EM_LATTICEMICO32 = 138
+pkg debug/elf, const EM_LATTICEMICO32 Machine
+pkg debug/elf, const EM_M16C = 117
+pkg debug/elf, const EM_M16C Machine
+pkg debug/elf, const EM_M32C = 120
+pkg debug/elf, const EM_M32C Machine
+pkg debug/elf, const EM_M32R = 88
+pkg debug/elf, const EM_M32R Machine
+pkg debug/elf, const EM_MANIK = 171
+pkg debug/elf, const EM_MANIK Machine
+pkg debug/elf, const EM_MAX = 102
+pkg debug/elf, const EM_MAX Machine
+pkg debug/elf, const EM_MAXQ30 = 169
+pkg debug/elf, const EM_MAXQ30 Machine
+pkg debug/elf, const EM_MCHP_PIC = 204
+pkg debug/elf, const EM_MCHP_PIC Machine
+pkg debug/elf, const EM_MCST_ELBRUS = 175
+pkg debug/elf, const EM_MCST_ELBRUS Machine
+pkg debug/elf, const EM_METAG = 174
+pkg debug/elf, const EM_METAG Machine
+pkg debug/elf, const EM_MICROBLAZE = 189
+pkg debug/elf, const EM_MICROBLAZE Machine
+pkg debug/elf, const EM_MMDSP_PLUS = 160
+pkg debug/elf, const EM_MMDSP_PLUS Machine
+pkg debug/elf, const EM_MMIX = 80
+pkg debug/elf, const EM_MMIX Machine
+pkg debug/elf, const EM_MN10200 = 90
+pkg debug/elf, const EM_MN10200 Machine
+pkg debug/elf, const EM_MN10300 = 89
+pkg debug/elf, const EM_MN10300 Machine
+pkg debug/elf, const EM_MOXIE = 223
+pkg debug/elf, const EM_MOXIE Machine
+pkg debug/elf, const EM_MSP430 = 105
+pkg debug/elf, const EM_MSP430 Machine
+pkg debug/elf, const EM_NDS32 = 167
+pkg debug/elf, const EM_NDS32 Machine
+pkg debug/elf, const EM_NORC = 218
+pkg debug/elf, const EM_NORC Machine
+pkg debug/elf, const EM_NS32K = 97
+pkg debug/elf, const EM_NS32K Machine
+pkg debug/elf, const EM_OPEN8 = 196
+pkg debug/elf, const EM_OPEN8 Machine
+pkg debug/elf, const EM_OPENRISC = 92
+pkg debug/elf, const EM_OPENRISC Machine
+pkg debug/elf, const EM_PDP10 = 64
+pkg debug/elf, const EM_PDP10 Machine
+pkg debug/elf, const EM_PDP11 = 65
+pkg debug/elf, const EM_PDP11 Machine
+pkg debug/elf, const EM_PDSP = 63
+pkg debug/elf, const EM_PDSP Machine
+pkg debug/elf, const EM_PJ = 91
+pkg debug/elf, const EM_PJ Machine
+pkg debug/elf, const EM_PRISM = 82
+pkg debug/elf, const EM_PRISM Machine
+pkg debug/elf, const EM_QDSP6 = 164
+pkg debug/elf, const EM_QDSP6 Machine
+pkg debug/elf, const EM_R32C = 162
+pkg debug/elf, const EM_R32C Machine
+pkg debug/elf, const EM_RISCV = 243
+pkg debug/elf, const EM_RISCV Machine
+pkg debug/elf, const EM_RL78 = 197
+pkg debug/elf, const EM_RL78 Machine
+pkg debug/elf, const EM_RS08 = 132
+pkg debug/elf, const EM_RS08 Machine
+pkg debug/elf, const EM_RX = 173
+pkg debug/elf, const EM_RX Machine
+pkg debug/elf, const EM_SCORE7 = 135
+pkg debug/elf, const EM_SCORE7 Machine
+pkg debug/elf, const EM_SEP = 108
+pkg debug/elf, const EM_SEP Machine
+pkg debug/elf, const EM_SE_C17 = 139
+pkg debug/elf, const EM_SE_C17 Machine
+pkg debug/elf, const EM_SE_C33 = 107
+pkg debug/elf, const EM_SE_C33 Machine
+pkg debug/elf, const EM_SHARC = 133
+pkg debug/elf, const EM_SHARC Machine
+pkg debug/elf, const EM_SLE9X = 179
+pkg debug/elf, const EM_SLE9X Machine
+pkg debug/elf, const EM_SNP1K = 99
+pkg debug/elf, const EM_SNP1K Machine
+pkg debug/elf, const EM_ST19 = 74
+pkg debug/elf, const EM_ST19 Machine
+pkg debug/elf, const EM_ST200 = 100
+pkg debug/elf, const EM_ST200 Machine
+pkg debug/elf, const EM_ST7 = 68
+pkg debug/elf, const EM_ST7 Machine
+pkg debug/elf, const EM_ST9PLUS = 67
+pkg debug/elf, const EM_ST9PLUS Machine
+pkg debug/elf, const EM_STM8 = 186
+pkg debug/elf, const EM_STM8 Machine
+pkg debug/elf, const EM_STXP7X = 166
+pkg debug/elf, const EM_STXP7X Machine
+pkg debug/elf, const EM_SVX = 73
+pkg debug/elf, const EM_SVX Machine
+pkg debug/elf, const EM_TILE64 = 187
+pkg debug/elf, const EM_TILE64 Machine
+pkg debug/elf, const EM_TILEGX = 191
+pkg debug/elf, const EM_TILEGX Machine
+pkg debug/elf, const EM_TILEPRO = 188
+pkg debug/elf, const EM_TILEPRO Machine
+pkg debug/elf, const EM_TI_ARP32 = 143
+pkg debug/elf, const EM_TI_ARP32 Machine
+pkg debug/elf, const EM_TI_C2000 = 141
+pkg debug/elf, const EM_TI_C2000 Machine
+pkg debug/elf, const EM_TI_C5500 = 142
+pkg debug/elf, const EM_TI_C5500 Machine
+pkg debug/elf, const EM_TI_C6000 = 140
+pkg debug/elf, const EM_TI_C6000 Machine
+pkg debug/elf, const EM_TI_PRU = 144
+pkg debug/elf, const EM_TI_PRU Machine
+pkg debug/elf, const EM_TMM_GPP = 96
+pkg debug/elf, const EM_TMM_GPP Machine
+pkg debug/elf, const EM_TPC = 98
+pkg debug/elf, const EM_TPC Machine
+pkg debug/elf, const EM_TRIMEDIA = 163
+pkg debug/elf, const EM_TRIMEDIA Machine
+pkg debug/elf, const EM_TSK3000 = 131
+pkg debug/elf, const EM_TSK3000 Machine
+pkg debug/elf, const EM_UNICORE = 110
+pkg debug/elf, const EM_UNICORE Machine
+pkg debug/elf, const EM_V850 = 87
+pkg debug/elf, const EM_V850 Machine
+pkg debug/elf, const EM_VAX = 75
+pkg debug/elf, const EM_VAX Machine
+pkg debug/elf, const EM_VIDEOCORE = 95
+pkg debug/elf, const EM_VIDEOCORE Machine
+pkg debug/elf, const EM_VIDEOCORE3 = 137
+pkg debug/elf, const EM_VIDEOCORE3 Machine
+pkg debug/elf, const EM_VIDEOCORE5 = 198
+pkg debug/elf, const EM_VIDEOCORE5 Machine
+pkg debug/elf, const EM_VISIUM = 221
+pkg debug/elf, const EM_VISIUM Machine
+pkg debug/elf, const EM_XCORE = 203
+pkg debug/elf, const EM_XCORE Machine
+pkg debug/elf, const EM_XGATE = 115
+pkg debug/elf, const EM_XGATE Machine
+pkg debug/elf, const EM_XIMO16 = 170
+pkg debug/elf, const EM_XIMO16 Machine
+pkg debug/elf, const EM_XTENSA = 94
+pkg debug/elf, const EM_XTENSA Machine
+pkg debug/elf, const EM_Z80 = 220
+pkg debug/elf, const EM_Z80 Machine
+pkg debug/elf, const EM_ZSP = 79
+pkg debug/elf, const EM_ZSP Machine
+pkg debug/elf, const R_RISCV_32 = 1
+pkg debug/elf, const R_RISCV_32 R_RISCV
+pkg debug/elf, const R_RISCV_64 = 2
+pkg debug/elf, const R_RISCV_64 R_RISCV
+pkg debug/elf, const R_RISCV_ADD16 = 34
+pkg debug/elf, const R_RISCV_ADD16 R_RISCV
+pkg debug/elf, const R_RISCV_ADD32 = 35
+pkg debug/elf, const R_RISCV_ADD32 R_RISCV
+pkg debug/elf, const R_RISCV_ADD64 = 36
+pkg debug/elf, const R_RISCV_ADD64 R_RISCV
+pkg debug/elf, const R_RISCV_ADD8 = 33
+pkg debug/elf, const R_RISCV_ADD8 R_RISCV
+pkg debug/elf, const R_RISCV_ALIGN = 43
+pkg debug/elf, const R_RISCV_ALIGN R_RISCV
+pkg debug/elf, const R_RISCV_BRANCH = 16
+pkg debug/elf, const R_RISCV_BRANCH R_RISCV
+pkg debug/elf, const R_RISCV_CALL = 18
+pkg debug/elf, const R_RISCV_CALL R_RISCV
+pkg debug/elf, const R_RISCV_CALL_PLT = 19
+pkg debug/elf, const R_RISCV_CALL_PLT R_RISCV
+pkg debug/elf, const R_RISCV_COPY = 4
+pkg debug/elf, const R_RISCV_COPY R_RISCV
+pkg debug/elf, const R_RISCV_GNU_VTENTRY = 42
+pkg debug/elf, const R_RISCV_GNU_VTENTRY R_RISCV
+pkg debug/elf, const R_RISCV_GNU_VTINHERIT = 41
+pkg debug/elf, const R_RISCV_GNU_VTINHERIT R_RISCV
+pkg debug/elf, const R_RISCV_GOT_HI20 = 20
+pkg debug/elf, const R_RISCV_GOT_HI20 R_RISCV
+pkg debug/elf, const R_RISCV_GPREL_I = 47
+pkg debug/elf, const R_RISCV_GPREL_I R_RISCV
+pkg debug/elf, const R_RISCV_GPREL_S = 48
+pkg debug/elf, const R_RISCV_GPREL_S R_RISCV
+pkg debug/elf, const R_RISCV_HI20 = 26
+pkg debug/elf, const R_RISCV_HI20 R_RISCV
+pkg debug/elf, const R_RISCV_JAL = 17
+pkg debug/elf, const R_RISCV_JAL R_RISCV
+pkg debug/elf, const R_RISCV_JUMP_SLOT = 5
+pkg debug/elf, const R_RISCV_JUMP_SLOT R_RISCV
+pkg debug/elf, const R_RISCV_LO12_I = 27
+pkg debug/elf, const R_RISCV_LO12_I R_RISCV
+pkg debug/elf, const R_RISCV_LO12_S = 28
+pkg debug/elf, const R_RISCV_LO12_S R_RISCV
+pkg debug/elf, const R_RISCV_NONE = 0
+pkg debug/elf, const R_RISCV_NONE R_RISCV
+pkg debug/elf, const R_RISCV_PCREL_HI20 = 23
+pkg debug/elf, const R_RISCV_PCREL_HI20 R_RISCV
+pkg debug/elf, const R_RISCV_PCREL_LO12_I = 24
+pkg debug/elf, const R_RISCV_PCREL_LO12_I R_RISCV
+pkg debug/elf, const R_RISCV_PCREL_LO12_S = 25
+pkg debug/elf, const R_RISCV_PCREL_LO12_S R_RISCV
+pkg debug/elf, const R_RISCV_RELATIVE = 3
+pkg debug/elf, const R_RISCV_RELATIVE R_RISCV
+pkg debug/elf, const R_RISCV_RELAX = 51
+pkg debug/elf, const R_RISCV_RELAX R_RISCV
+pkg debug/elf, const R_RISCV_RVC_BRANCH = 44
+pkg debug/elf, const R_RISCV_RVC_BRANCH R_RISCV
+pkg debug/elf, const R_RISCV_RVC_JUMP = 45
+pkg debug/elf, const R_RISCV_RVC_JUMP R_RISCV
+pkg debug/elf, const R_RISCV_RVC_LUI = 46
+pkg debug/elf, const R_RISCV_RVC_LUI R_RISCV
+pkg debug/elf, const R_RISCV_SET16 = 55
+pkg debug/elf, const R_RISCV_SET16 R_RISCV
+pkg debug/elf, const R_RISCV_SET32 = 56
+pkg debug/elf, const R_RISCV_SET32 R_RISCV
+pkg debug/elf, const R_RISCV_SET6 = 53
+pkg debug/elf, const R_RISCV_SET6 R_RISCV
+pkg debug/elf, const R_RISCV_SET8 = 54
+pkg debug/elf, const R_RISCV_SET8 R_RISCV
+pkg debug/elf, const R_RISCV_SUB16 = 38
+pkg debug/elf, const R_RISCV_SUB16 R_RISCV
+pkg debug/elf, const R_RISCV_SUB32 = 39
+pkg debug/elf, const R_RISCV_SUB32 R_RISCV
+pkg debug/elf, const R_RISCV_SUB6 = 52
+pkg debug/elf, const R_RISCV_SUB6 R_RISCV
+pkg debug/elf, const R_RISCV_SUB64 = 40
+pkg debug/elf, const R_RISCV_SUB64 R_RISCV
+pkg debug/elf, const R_RISCV_SUB8 = 37
+pkg debug/elf, const R_RISCV_SUB8 R_RISCV
+pkg debug/elf, const R_RISCV_TLS_DTPMOD32 = 6
+pkg debug/elf, const R_RISCV_TLS_DTPMOD32 R_RISCV
+pkg debug/elf, const R_RISCV_TLS_DTPMOD64 = 7
+pkg debug/elf, const R_RISCV_TLS_DTPMOD64 R_RISCV
+pkg debug/elf, const R_RISCV_TLS_DTPREL32 = 8
+pkg debug/elf, const R_RISCV_TLS_DTPREL32 R_RISCV
+pkg debug/elf, const R_RISCV_TLS_DTPREL64 = 9
+pkg debug/elf, const R_RISCV_TLS_DTPREL64 R_RISCV
+pkg debug/elf, const R_RISCV_TLS_GD_HI20 = 22
+pkg debug/elf, const R_RISCV_TLS_GD_HI20 R_RISCV
+pkg debug/elf, const R_RISCV_TLS_GOT_HI20 = 21
+pkg debug/elf, const R_RISCV_TLS_GOT_HI20 R_RISCV
+pkg debug/elf, const R_RISCV_TLS_TPREL32 = 10
+pkg debug/elf, const R_RISCV_TLS_TPREL32 R_RISCV
+pkg debug/elf, const R_RISCV_TLS_TPREL64 = 11
+pkg debug/elf, const R_RISCV_TLS_TPREL64 R_RISCV
+pkg debug/elf, const R_RISCV_TPREL_ADD = 32
+pkg debug/elf, const R_RISCV_TPREL_ADD R_RISCV
+pkg debug/elf, const R_RISCV_TPREL_HI20 = 29
+pkg debug/elf, const R_RISCV_TPREL_HI20 R_RISCV
+pkg debug/elf, const R_RISCV_TPREL_I = 49
+pkg debug/elf, const R_RISCV_TPREL_I R_RISCV
+pkg debug/elf, const R_RISCV_TPREL_LO12_I = 30
+pkg debug/elf, const R_RISCV_TPREL_LO12_I R_RISCV
+pkg debug/elf, const R_RISCV_TPREL_LO12_S = 31
+pkg debug/elf, const R_RISCV_TPREL_LO12_S R_RISCV
+pkg debug/elf, const R_RISCV_TPREL_S = 50
+pkg debug/elf, const R_RISCV_TPREL_S R_RISCV
+pkg debug/elf, method (R_RISCV) GoString() string
+pkg debug/elf, method (R_RISCV) String() string
+pkg debug/elf, type R_RISCV int
+pkg debug/macho, const CpuArm64 = 16777228
+pkg debug/macho, const CpuArm64 Cpu
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_ARCHITECTURE = 7
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_ARCHITECTURE ideal-int
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_BASERELOC = 5
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_BASERELOC ideal-int
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT = 11
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT ideal-int
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR = 14
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR ideal-int
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_DEBUG = 6
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_DEBUG ideal-int
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT = 13
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT ideal-int
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_EXCEPTION = 3
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_EXCEPTION ideal-int
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_EXPORT = 0
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_EXPORT ideal-int
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_GLOBALPTR = 8
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_GLOBALPTR ideal-int
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_IAT = 12
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_IAT ideal-int
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_IMPORT = 1
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_IMPORT ideal-int
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG = 10
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG ideal-int
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_RESOURCE = 2
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_RESOURCE ideal-int
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_SECURITY = 4
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_SECURITY ideal-int
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_TLS = 9
+pkg debug/pe, const IMAGE_DIRECTORY_ENTRY_TLS ideal-int
+pkg debug/pe, const IMAGE_FILE_MACHINE_ARM64 = 43620
+pkg debug/pe, const IMAGE_FILE_MACHINE_ARM64 ideal-int
+pkg go/ast, type CompositeLit struct, Incomplete bool
+pkg go/token, method (*File) AddLineColumnInfo(int, string, int, int)
+pkg go/types, func NewInterfaceType([]*Func, []Type) *Interface
+pkg go/types, method (*Interface) EmbeddedType(int) Type
+pkg go/types, method (*Var) Embedded() bool
+pkg net, method (*ListenConfig) Listen(context.Context, string, string) (Listener, error)
+pkg net, method (*ListenConfig) ListenPacket(context.Context, string, string) (PacketConn, error)
+pkg net, type Dialer struct, Control func(string, string, syscall.RawConn) error
+pkg net, type ListenConfig struct
+pkg net, type ListenConfig struct, Control func(string, string, syscall.RawConn) error
+pkg net/http, const SameSiteDefaultMode = 1
+pkg net/http, const SameSiteDefaultMode SameSite
+pkg net/http, const SameSiteLaxMode = 2
+pkg net/http, const SameSiteLaxMode SameSite
+pkg net/http, const SameSiteStrictMode = 3
+pkg net/http, const SameSiteStrictMode SameSite
+pkg net/http, const StatusMisdirectedRequest = 421
+pkg net/http, const StatusMisdirectedRequest ideal-int
+pkg net/http, type Cookie struct, SameSite SameSite
+pkg net/http, type SameSite int
+pkg net/http, type Transport struct, MaxConnsPerHost int
+pkg net/http/httptrace, type ClientTrace struct, Got1xxResponse func(int, textproto.MIMEHeader) error
+pkg net/http/httptrace, type ClientTrace struct, WroteHeaderField func(string, []string)
+pkg net/http/httputil, type ReverseProxy struct, ErrorHandler func(http.ResponseWriter, *http.Request, error)
+pkg os, const ModeIrregular = 524288
+pkg os, const ModeIrregular FileMode
+pkg os, const ModeType = 2399666176
+pkg os, func UserCacheDir() (string, error)
+pkg os/signal, func Ignored(os.Signal) bool
+pkg regexp/syntax, method (Op) String() string
+pkg runtime/trace, func IsEnabled() bool
+pkg runtime/trace, func Log(context.Context, string, string)
+pkg runtime/trace, func Logf(context.Context, string, string, ...interface{})
+pkg runtime/trace, func NewTask(context.Context, string) (context.Context, *Task)
+pkg runtime/trace, func StartRegion(context.Context, string) *Region
+pkg runtime/trace, func WithRegion(context.Context, string, func())
+pkg runtime/trace, method (*Region) End()
+pkg runtime/trace, method (*Task) End()
+pkg runtime/trace, type Region struct
+pkg runtime/trace, type Task struct
+pkg syscall (netbsd-386), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (netbsd-386), func Pipe2([]int, int) error
+pkg syscall (netbsd-386-cgo), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (netbsd-386-cgo), func Pipe2([]int, int) error
+pkg syscall (netbsd-amd64), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (netbsd-amd64), func Pipe2([]int, int) error
+pkg syscall (netbsd-amd64-cgo), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (netbsd-amd64-cgo), func Pipe2([]int, int) error
+pkg syscall (netbsd-arm), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (netbsd-arm), func Pipe2([]int, int) error
+pkg syscall (netbsd-arm-cgo), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (netbsd-arm-cgo), func Pipe2([]int, int) error
+pkg syscall (openbsd-386), const SOCK_CLOEXEC = 32768
+pkg syscall (openbsd-386), const SOCK_CLOEXEC ideal-int
+pkg syscall (openbsd-386), const SOCK_NONBLOCK = 16384
+pkg syscall (openbsd-386), const SOCK_NONBLOCK ideal-int
+pkg syscall (openbsd-386), const SYS_ACCEPT4 = 93
+pkg syscall (openbsd-386), const SYS_ACCEPT4 ideal-int
+pkg syscall (openbsd-386), const SYS_PIPE2 = 101
+pkg syscall (openbsd-386), const SYS_PIPE2 ideal-int
+pkg syscall (openbsd-386), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (openbsd-386), func Pipe2([]int, int) error
+pkg syscall (openbsd-386-cgo), const SOCK_CLOEXEC = 32768
+pkg syscall (openbsd-386-cgo), const SOCK_CLOEXEC ideal-int
+pkg syscall (openbsd-386-cgo), const SOCK_NONBLOCK = 16384
+pkg syscall (openbsd-386-cgo), const SOCK_NONBLOCK ideal-int
+pkg syscall (openbsd-386-cgo), const SYS_ACCEPT4 = 93
+pkg syscall (openbsd-386-cgo), const SYS_ACCEPT4 ideal-int
+pkg syscall (openbsd-386-cgo), const SYS_PIPE2 = 101
+pkg syscall (openbsd-386-cgo), const SYS_PIPE2 ideal-int
+pkg syscall (openbsd-386-cgo), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (openbsd-386-cgo), func Pipe2([]int, int) error
+pkg syscall (openbsd-amd64), const SOCK_CLOEXEC = 32768
+pkg syscall (openbsd-amd64), const SOCK_CLOEXEC ideal-int
+pkg syscall (openbsd-amd64), const SOCK_NONBLOCK = 16384
+pkg syscall (openbsd-amd64), const SOCK_NONBLOCK ideal-int
+pkg syscall (openbsd-amd64), const SYS_ACCEPT4 = 93
+pkg syscall (openbsd-amd64), const SYS_ACCEPT4 ideal-int
+pkg syscall (openbsd-amd64), const SYS_PIPE2 = 101
+pkg syscall (openbsd-amd64), const SYS_PIPE2 ideal-int
+pkg syscall (openbsd-amd64), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (openbsd-amd64), func Pipe2([]int, int) error
+pkg syscall (openbsd-amd64-cgo), const SOCK_CLOEXEC = 32768
+pkg syscall (openbsd-amd64-cgo), const SOCK_CLOEXEC ideal-int
+pkg syscall (openbsd-amd64-cgo), const SOCK_NONBLOCK = 16384
+pkg syscall (openbsd-amd64-cgo), const SOCK_NONBLOCK ideal-int
+pkg syscall (openbsd-amd64-cgo), const SYS_ACCEPT4 = 93
+pkg syscall (openbsd-amd64-cgo), const SYS_ACCEPT4 ideal-int
+pkg syscall (openbsd-amd64-cgo), const SYS_PIPE2 = 101
+pkg syscall (openbsd-amd64-cgo), const SYS_PIPE2 ideal-int
+pkg syscall (openbsd-amd64-cgo), func Accept4(int, int) (int, Sockaddr, error)
+pkg syscall (openbsd-amd64-cgo), func Pipe2([]int, int) error
+pkg syscall (windows-386), const TOKEN_ADJUST_SESSIONID = 256
+pkg syscall (windows-386), const TOKEN_ADJUST_SESSIONID ideal-int
+pkg syscall (windows-386), const TOKEN_ALL_ACCESS = 983551
+pkg syscall (windows-386), type AddrinfoW struct, Addr Pointer
+pkg syscall (windows-386), type CertChainPolicyPara struct, ExtraPolicyPara Pointer
+pkg syscall (windows-386), type CertChainPolicyStatus struct, ExtraPolicyStatus Pointer
+pkg syscall (windows-386), type CertContext struct, CertInfo *CertInfo
+pkg syscall (windows-386), type CertInfo struct
+pkg syscall (windows-386), type CertRevocationCrlInfo struct
+pkg syscall (windows-386), type CertRevocationInfo struct, CrlInfo *CertRevocationCrlInfo
+pkg syscall (windows-386), type CertRevocationInfo struct, OidSpecificInfo Pointer
+pkg syscall (windows-386), type CertSimpleChain struct, TrustListInfo *CertTrustListInfo
+pkg syscall (windows-386), type CertTrustListInfo struct
+pkg syscall (windows-386), type Pointer *struct
+pkg syscall (windows-amd64), const TOKEN_ADJUST_SESSIONID = 256
+pkg syscall (windows-amd64), const TOKEN_ADJUST_SESSIONID ideal-int
+pkg syscall (windows-amd64), const TOKEN_ALL_ACCESS = 983551
+pkg syscall (windows-amd64), type AddrinfoW struct, Addr Pointer
+pkg syscall (windows-amd64), type CertChainPolicyPara struct, ExtraPolicyPara Pointer
+pkg syscall (windows-amd64), type CertChainPolicyStatus struct, ExtraPolicyStatus Pointer
+pkg syscall (windows-amd64), type CertContext struct, CertInfo *CertInfo
+pkg syscall (windows-amd64), type CertInfo struct
+pkg syscall (windows-amd64), type CertRevocationCrlInfo struct
+pkg syscall (windows-amd64), type CertRevocationInfo struct, CrlInfo *CertRevocationCrlInfo
+pkg syscall (windows-amd64), type CertRevocationInfo struct, OidSpecificInfo Pointer
+pkg syscall (windows-amd64), type CertSimpleChain struct, TrustListInfo *CertTrustListInfo
+pkg syscall (windows-amd64), type CertTrustListInfo struct
+pkg syscall (windows-amd64), type Pointer *struct
+pkg syscall, const ImplementsGetwd = true
+pkg text/template/parse, type PipeNode struct, IsAssign bool

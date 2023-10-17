@@ -1,0 +1,20 @@
+# The directory named go.mod should be ignored
+
+env GO111MODULE=on
+
+cd $WORK/sub
+
+go list .
+stdout 'x/sub'
+
+mkdir go.mod
+exists go.mod
+
+go list .
+stdout 'x/sub'
+
+-- $WORK/go.mod --
+module x
+
+-- $WORK/sub/x.go --
+package x

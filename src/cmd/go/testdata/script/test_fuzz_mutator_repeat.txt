@@ -1,0 +1,75 @@
+# TODO(jayconrod): support shared memory on more platforms.
+[!GOOS:darwin] [!GOOS:linux] [!GOOS:windows] skip
+
+# Verify that the fuzzing engine records the actual crashing input, even when
+# a worker process terminates without communicating the crashing input back
+# to the coordinator.
+
+[short] skip
+env GOCACHE=$WORK/cache
+
+# Start fuzzing. The worker crashes after 100 iterations.
+# The fuzz function writes the crashing input to "want" before exiting.
+# The fuzzing engine reconstructs the crashing input and saves it to testdata.
+! exists want
+! go test -fuzz=. -parallel=1 -fuzztime=110x -fuzzminimizetime=10x -v
+stdout '^\s+fuzzing process hung or terminated unexpectedly: exit status'
+stdout 'Failing input written to testdata'
+
+# Run the fuzz target without fuzzing. The fuzz function is called with the
+# crashing input in testdata. The test passes if that input is identical to
+# the one saved in "want".
+exists want
+go test -want=want
+
+-- go.mod --
+module fuzz
+
+go 1.17
+-- fuzz_test.go --
+package fuzz
+
+import (
+	"bytes"
+	"flag"
+	"os"
+	"testing"
+)
+
+var wantFlag = flag.String("want", "", "file containing previous crashing input")
+
+func FuzzRepeat(f *testing.F) {
+	i := 0
+	f.Fuzz(func(t *testing.T, b []byte) {
+		i++
+		if i == 100 {
+			f, err := os.OpenFile("want", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
+			if err != nil {
+				// Couldn't create the file. Return without crashing, and try
+				// again.
+				i--
+				t.Skip(err)
+			}
+			if _, err := f.Write(b); err != nil {
+				// We already created the file, so if we failed to write it
+				// there's not much we can do. The test will fail anyway, but
+				// at least make sure the error is logged to stdout.
+				t.Fatal(err)
+			}
+			if err := f.Close(); err != nil {
+				t.Fatal(err)
+			}
+			os.Exit(1) // crash without communicating
+		}
+
+		if *wantFlag != "" {
+			want, err := os.ReadFile(*wantFlag)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(want, b) {
+				t.Fatalf("inputs are not equal!\n got: %q\nwant:%q", b, want)
+			}
+		}
+	})
+}

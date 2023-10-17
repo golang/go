@@ -1,0 +1,39 @@
+{"Action":"start"}
+{"Action":"run","Test":"TestOutputWithSubtest"}
+{"Action":"output","Test":"TestOutputWithSubtest","Output":"=== RUN   TestOutputWithSubtest\n"}
+{"Action":"run","Test":"TestOutputWithSubtest/sub_test"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test","Output":"=== RUN   TestOutputWithSubtest/sub_test\n"}
+{"Action":"run","Test":"TestOutputWithSubtest/sub_test/sub2"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test/sub2","Output":"=== RUN   TestOutputWithSubtest/sub_test/sub2\n"}
+{"Action":"run","Test":"TestOutputWithSubtest/sub_test2"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test2","Output":"=== RUN   TestOutputWithSubtest/sub_test2\n"}
+{"Action":"run","Test":"TestOutputWithSubtest/sub_test2/sub2"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test2/sub2","Output":"=== RUN   TestOutputWithSubtest/sub_test2/sub2\n"}
+{"Action":"output","Test":"TestOutputWithSubtest","Output":"--- FAIL: TestOutputWithSubtest (0.00s)\n"}
+{"Action":"output","Test":"TestOutputWithSubtest","Output":"    foo_test.go:6: output before sub tests\n"}
+{"Action":"output","Test":"TestOutputWithSubtest","Output":"    foo_test.go:10: output from root test\n"}
+{"Action":"output","Test":"TestOutputWithSubtest","Output":"    foo_test.go:15: output from root test\n"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test","Output":"    --- PASS: TestOutputWithSubtest/sub_test (0.00s)\n"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test","Output":"        foo_test.go:9: output from sub test\n"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test","Output":"        foo_test.go:11: more output from sub test\n"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test","Output":"        foo_test.go:16: more output from sub test\n"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test/sub2","Output":"        --- PASS: TestOutputWithSubtest/sub_test/sub2 (0.00s)\n"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test/sub2","Output":"            foo_test.go:14: output from sub2 test\n"}
+{"Action":"output","Test":"TestOutputWithSubtest","Output":"    foo_test.go:22: output from root test\n"}
+{"Action":"output","Test":"TestOutputWithSubtest","Output":"    foo_test.go:27: output from root test\n"}
+{"Action":"pass","Test":"TestOutputWithSubtest/sub_test/sub2"}
+{"Action":"pass","Test":"TestOutputWithSubtest/sub_test"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test2","Output":"    --- PASS: TestOutputWithSubtest/sub_test2 (0.00s)\n"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test2","Output":"        foo_test.go:21: output from sub test2\n"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test2","Output":"        foo_test.go:23: more output from sub test2\n"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test2","Output":"        foo_test.go:28: more output from sub test2\n"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test2/sub2","Output":"        --- PASS: TestOutputWithSubtest/sub_test2/sub2 (0.00s)\n"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test2/sub2","Output":"            foo_test.go:26: output from sub2 test\n"}
+{"Action":"output","Test":"TestOutputWithSubtest","Output":"    foo_test.go:32: output after sub test\n"}
+{"Action":"pass","Test":"TestOutputWithSubtest/sub_test2/sub2"}
+{"Action":"pass","Test":"TestOutputWithSubtest/sub_test2"}
+{"Action":"fail","Test":"TestOutputWithSubtest"}
+{"Action":"output","Output":"FAIL\n"}
+{"Action":"output","Output":"FAIL\tgotest.tools/gotestsum/foo\t0.001s\n"}
+{"Action":"output","Output":"FAIL\n"}
+{"Action":"fail"}

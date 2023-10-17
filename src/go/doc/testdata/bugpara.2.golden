@@ -1,0 +1,20 @@
+// 
+PACKAGE bugpara
+
+IMPORTPATH
+	testdata/bugpara
+
+FILENAMES
+	testdata/bugpara.go
+
+BUGS .Bugs is now deprecated, please use .Notes instead
+	Sometimes bugs have multiple paragraphs.
+	
+	Like this one.
+
+
+BUGS
+BUG(rsc)	Sometimes bugs have multiple paragraphs.
+	
+	Like this one.
+

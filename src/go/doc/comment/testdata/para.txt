@@ -1,0 +1,17 @@
+-- input --
+Hello, world.
+This is a paragraph.
+
+-- gofmt --
+Hello, world.
+This is a paragraph.
+
+-- text --
+Hello, world. This is a paragraph.
+
+-- markdown --
+Hello, world. This is a paragraph.
+
+-- html --
+<p>Hello, world.
+This is a paragraph.

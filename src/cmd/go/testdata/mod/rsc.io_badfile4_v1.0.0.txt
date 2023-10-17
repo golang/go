@@ -1,0 +1,15 @@
+rsc.io/badfile4 v1.0.0
+written by hand
+
+-- .mod --
+module rsc.io/badfile4
+-- .info --
+{"Version":"v1.0.0"}
+-- go.mod --
+module rsc.io/badfile4
+-- x/Y.go --
+package x
+-- x/y.go --
+package x
+
+

@@ -1,0 +1,179 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package alignment
+
+// ----------------------------------------------------------------------------
+// Examples from issue #7335.
+
+func main() {
+    z := MyStruct{
+        Foo:      "foo",
+        Bar:      "bar",
+        Name:     "name",
+        LongName: "longname",
+        Baz:      "baz",
+    }
+    y := MyStruct{
+        Foo:                   "foo",
+        Bar:                   "bar",
+        NameXX:                "name",
+        LongNameXXXXXXXXXXXXX: "longname",
+        Baz: "baz",
+    }
+    z := MyStruct{
+        Foo:  "foo",
+        Bar:  "bar",
+        Name: "name",
+        LongNameXXXXXXXXXXXXX: "longname",
+        Baz: "baz",
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Examples from issue #10392.
+
+var kcfg = KubeletConfig{
+    Address:                        s.Address,
+    AllowPrivileged:                s.AllowPrivileged,
+    HostNetworkSources:             hostNetworkSources,
+    HostnameOverride:               s.HostnameOverride,
+    RootDirectory:                  s.RootDirectory,
+    ConfigFile:                     s.Config,
+    ManifestURL:                    s.ManifestURL,
+    FileCheckFrequency:             s.FileCheckFrequency,
+    HTTPCheckFrequency:             s.HTTPCheckFrequency,
+    PodInfraContainerImage:         s.PodInfraContainerImage,
+    SyncFrequency:                  s.SyncFrequency,
+    RegistryPullQPS:                s.RegistryPullQPS,
+    RegistryBurst:                  s.RegistryBurst,
+    MinimumGCAge:                   s.MinimumGCAge,
+    MaxPerPodContainerCount:        s.MaxPerPodContainerCount,
+    MaxContainerCount:              s.MaxContainerCount,
+    ClusterDomain:                  s.ClusterDomain,
+    ClusterDNS:                     s.ClusterDNS,
+    Runonce:                        s.RunOnce,
+    Port:                           s.Port,
+    ReadOnlyPort:                   s.ReadOnlyPort,
+    CadvisorInterface:              cadvisorInterface,
+    EnableServer:                   s.EnableServer,
+    EnableDebuggingHandlers:        s.EnableDebuggingHandlers,
+    DockerClient:                   dockertools.ConnectToDockerOrDie(s.DockerEndpoint),
+    KubeClient:                     client,
+    MasterServiceNamespace:         s.MasterServiceNamespace,
+    VolumePlugins:                  ProbeVolumePlugins(),
+    NetworkPlugins:                 ProbeNetworkPlugins(),
+    NetworkPluginName:              s.NetworkPluginName,
+    StreamingConnectionIdleTimeout: s.StreamingConnectionIdleTimeout,
+    TLSOptions:                     tlsOptions,
+    ImageGCPolicy:                  imageGCPolicy,imageGCPolicy,
+    Cloud:                          cloud,
+    NodeStatusUpdateFrequency: s.NodeStatusUpdateFrequency,
+}
+
+var a = A{
+    Long:                             1,
+    LongLong:                         1,
+    LongLongLong:                     1,
+    LongLongLongLong:                 1,
+    LongLongLongLongLong:             1,
+    LongLongLongLongLongLong:         1,
+    LongLongLongLongLongLongLong:     1,
+    LongLongLongLongLongLongLongLong: 1,
+    Short: 1,
+    LongLongLongLongLongLongLongLongLong: 3,
+}
+
+// ----------------------------------------------------------------------------
+// Examples from issue #22852.
+
+var fmtMap = map[string]string{
+	"1": "123",
+	"12": "123",
+	"123": "123",
+	"1234": "123",
+	"12345": "123",
+	"123456": "123",
+	"12345678901234567890123456789": "123",
+	"abcde": "123",
+	"123456789012345678901234567890": "123",
+	"1234567": "123",
+	"abcdefghijklmnopqrstuvwxyzabcd": "123",
+	"abcd": "123",
+}
+
+type Fmt struct {
+	abcdefghijklmnopqrstuvwx string
+	abcdefghijklmnopqrstuvwxy string
+	abcdefghijklmnopqrstuvwxyz string
+	abcdefghijklmnopqrstuvwxyza string
+	abcdefghijklmnopqrstuvwxyzab string
+	abcdefghijklmnopqrstuvwxyzabc string
+	abcde string
+	abcdefghijklmnopqrstuvwxyzabcde string
+	abcdefg string
+}
+
+func main() {
+	_ := Fmt{
+		abcdefghijklmnopqrstuvwx: "foo",
+		abcdefghijklmnopqrstuvwxyza: "foo",
+		abcdefghijklmnopqrstuvwxyzab: "foo",
+		abcdefghijklmnopqrstuvwxyzabc: "foo",
+		abcde: "foo",
+		abcdefghijklmnopqrstuvwxyzabcde: "foo",
+		abcdefg: "foo",
+		abcdefghijklmnopqrstuvwxy: "foo",
+		abcdefghijklmnopqrstuvwxyz: "foo",
+	}
+}
+
+// ----------------------------------------------------------------------------
+// Examples from issue #26352.
+
+var _ = map[int]string{
+	1: "",
+
+	12345678901234567890123456789: "",
+	12345678901234567890123456789012345678: "",
+}
+
+func f() {
+	_ = map[int]string{
+		1: "",
+
+		12345678901234567: "",
+		12345678901234567890123456789012345678901: "",
+	}
+}
+
+// ----------------------------------------------------------------------------
+// Examples from issue #26930.
+
+var _ = S{
+	F1: []string{
+	},
+	F2____: []string{},
+}
+
+var _ = S{
+	F1: []string{
+
+
+	},
+	F2____: []string{},
+}
+
+var _ = S{
+	F1____: []string{
+	},
+	F2: []string{},
+}
+
+var _ = S{
+	F1____: []string{
+
+	},
+	F2: []string{},
+}

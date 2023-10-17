@@ -1,0 +1,261 @@
+pkg compress/gzip, const HuffmanOnly = -2
+pkg compress/gzip, const HuffmanOnly ideal-int
+pkg compress/zlib, const HuffmanOnly = -2
+pkg compress/zlib, const HuffmanOnly ideal-int
+pkg crypto/tls, const ECDSAWithP256AndSHA256 = 1027
+pkg crypto/tls, const ECDSAWithP256AndSHA256 SignatureScheme
+pkg crypto/tls, const ECDSAWithP384AndSHA384 = 1283
+pkg crypto/tls, const ECDSAWithP384AndSHA384 SignatureScheme
+pkg crypto/tls, const ECDSAWithP521AndSHA512 = 1539
+pkg crypto/tls, const ECDSAWithP521AndSHA512 SignatureScheme
+pkg crypto/tls, const PKCS1WithSHA1 = 513
+pkg crypto/tls, const PKCS1WithSHA1 SignatureScheme
+pkg crypto/tls, const PKCS1WithSHA256 = 1025
+pkg crypto/tls, const PKCS1WithSHA256 SignatureScheme
+pkg crypto/tls, const PKCS1WithSHA384 = 1281
+pkg crypto/tls, const PKCS1WithSHA384 SignatureScheme
+pkg crypto/tls, const PKCS1WithSHA512 = 1537
+pkg crypto/tls, const PKCS1WithSHA512 SignatureScheme
+pkg crypto/tls, const PSSWithSHA256 = 2052
+pkg crypto/tls, const PSSWithSHA256 SignatureScheme
+pkg crypto/tls, const PSSWithSHA384 = 2053
+pkg crypto/tls, const PSSWithSHA384 SignatureScheme
+pkg crypto/tls, const PSSWithSHA512 = 2054
+pkg crypto/tls, const PSSWithSHA512 SignatureScheme
+pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 = 49187
+pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 uint16
+pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305 = 52393
+pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305 uint16
+pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 = 49191
+pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 uint16
+pkg crypto/tls, const TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305 = 52392
+pkg crypto/tls, const TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305 uint16
+pkg crypto/tls, const TLS_RSA_WITH_AES_128_CBC_SHA256 = 60
+pkg crypto/tls, const TLS_RSA_WITH_AES_128_CBC_SHA256 uint16
+pkg crypto/tls, const X25519 = 29
+pkg crypto/tls, const X25519 CurveID
+pkg crypto/tls, method (*Config) Clone() *Config
+pkg crypto/tls, method (*Conn) CloseWrite() error
+pkg crypto/tls, type CertificateRequestInfo struct
+pkg crypto/tls, type CertificateRequestInfo struct, AcceptableCAs [][]uint8
+pkg crypto/tls, type CertificateRequestInfo struct, SignatureSchemes []SignatureScheme
+pkg crypto/tls, type ClientHelloInfo struct, Conn net.Conn
+pkg crypto/tls, type ClientHelloInfo struct, SignatureSchemes []SignatureScheme
+pkg crypto/tls, type ClientHelloInfo struct, SupportedProtos []string
+pkg crypto/tls, type ClientHelloInfo struct, SupportedVersions []uint16
+pkg crypto/tls, type Config struct, GetClientCertificate func(*CertificateRequestInfo) (*Certificate, error)
+pkg crypto/tls, type Config struct, GetConfigForClient func(*ClientHelloInfo) (*Config, error)
+pkg crypto/tls, type Config struct, KeyLogWriter io.Writer
+pkg crypto/tls, type Config struct, VerifyPeerCertificate func([][]uint8, [][]*x509.Certificate) error
+pkg crypto/tls, type SignatureScheme uint16
+pkg crypto/x509, const NameMismatch = 5
+pkg crypto/x509, const NameMismatch InvalidReason
+pkg crypto/x509, const SHA256WithRSAPSS = 13
+pkg crypto/x509, const SHA256WithRSAPSS SignatureAlgorithm
+pkg crypto/x509, const SHA384WithRSAPSS = 14
+pkg crypto/x509, const SHA384WithRSAPSS SignatureAlgorithm
+pkg crypto/x509, const SHA512WithRSAPSS = 15
+pkg crypto/x509, const SHA512WithRSAPSS SignatureAlgorithm
+pkg crypto/x509, type UnknownAuthorityError struct, Cert *Certificate
+pkg database/sql, const LevelDefault = 0
+pkg database/sql, const LevelDefault IsolationLevel
+pkg database/sql, const LevelLinearizable = 7
+pkg database/sql, const LevelLinearizable IsolationLevel
+pkg database/sql, const LevelReadCommitted = 2
+pkg database/sql, const LevelReadCommitted IsolationLevel
+pkg database/sql, const LevelReadUncommitted = 1
+pkg database/sql, const LevelReadUncommitted IsolationLevel
+pkg database/sql, const LevelRepeatableRead = 4
+pkg database/sql, const LevelRepeatableRead IsolationLevel
+pkg database/sql, const LevelSerializable = 6
+pkg database/sql, const LevelSerializable IsolationLevel
+pkg database/sql, const LevelSnapshot = 5
+pkg database/sql, const LevelSnapshot IsolationLevel
+pkg database/sql, const LevelWriteCommitted = 3
+pkg database/sql, const LevelWriteCommitted IsolationLevel
+pkg database/sql/driver, type ConnBeginTx interface { BeginTx }
+pkg database/sql/driver, type ConnBeginTx interface, BeginTx(context.Context, TxOptions) (Tx, error)
+pkg database/sql/driver, type ConnPrepareContext interface { PrepareContext }
+pkg database/sql/driver, type ConnPrepareContext interface, PrepareContext(context.Context, string) (Stmt, error)
+pkg database/sql/driver, type ExecerContext interface { ExecContext }
+pkg database/sql/driver, type ExecerContext interface, ExecContext(context.Context, string, []NamedValue) (Result, error)
+pkg database/sql/driver, type IsolationLevel int
+pkg database/sql/driver, type NamedValue struct
+pkg database/sql/driver, type NamedValue struct, Name string
+pkg database/sql/driver, type NamedValue struct, Ordinal int
+pkg database/sql/driver, type NamedValue struct, Value Value
+pkg database/sql/driver, type Pinger interface { Ping }
+pkg database/sql/driver, type Pinger interface, Ping(context.Context) error
+pkg database/sql/driver, type QueryerContext interface { QueryContext }
+pkg database/sql/driver, type QueryerContext interface, QueryContext(context.Context, string, []NamedValue) (Rows, error)
+pkg database/sql/driver, type RowsColumnTypeDatabaseTypeName interface { Close, ColumnTypeDatabaseTypeName, Columns, Next }
+pkg database/sql/driver, type RowsColumnTypeDatabaseTypeName interface, Close() error
+pkg database/sql/driver, type RowsColumnTypeDatabaseTypeName interface, Columns() []string
+pkg database/sql/driver, type RowsColumnTypeDatabaseTypeName interface, ColumnTypeDatabaseTypeName(int) string
+pkg database/sql/driver, type RowsColumnTypeDatabaseTypeName interface, Next([]Value) error
+pkg database/sql/driver, type RowsColumnTypeLength interface { Close, ColumnTypeLength, Columns, Next }
+pkg database/sql/driver, type RowsColumnTypeLength interface, Close() error
+pkg database/sql/driver, type RowsColumnTypeLength interface, Columns() []string
+pkg database/sql/driver, type RowsColumnTypeLength interface, ColumnTypeLength(int) (int64, bool)
+pkg database/sql/driver, type RowsColumnTypeLength interface, Next([]Value) error
+pkg database/sql/driver, type RowsColumnTypeNullable interface { Close, ColumnTypeNullable, Columns, Next }
+pkg database/sql/driver, type RowsColumnTypeNullable interface, Close() error
+pkg database/sql/driver, type RowsColumnTypeNullable interface, Columns() []string
+pkg database/sql/driver, type RowsColumnTypeNullable interface, ColumnTypeNullable(int) (bool, bool)
+pkg database/sql/driver, type RowsColumnTypeNullable interface, Next([]Value) error
+pkg database/sql/driver, type RowsColumnTypePrecisionScale interface { Close, ColumnTypePrecisionScale, Columns, Next }
+pkg database/sql/driver, type RowsColumnTypePrecisionScale interface, Close() error
+pkg database/sql/driver, type RowsColumnTypePrecisionScale interface, Columns() []string
+pkg database/sql/driver, type RowsColumnTypePrecisionScale interface, ColumnTypePrecisionScale(int) (int64, int64, bool)
+pkg database/sql/driver, type RowsColumnTypePrecisionScale interface, Next([]Value) error
+pkg database/sql/driver, type RowsColumnTypeScanType interface { Close, ColumnTypeScanType, Columns, Next }
+pkg database/sql/driver, type RowsColumnTypeScanType interface, Close() error
+pkg database/sql/driver, type RowsColumnTypeScanType interface, Columns() []string
+pkg database/sql/driver, type RowsColumnTypeScanType interface, ColumnTypeScanType(int) reflect.Type
+pkg database/sql/driver, type RowsColumnTypeScanType interface, Next([]Value) error
+pkg database/sql/driver, type RowsNextResultSet interface { Close, Columns, HasNextResultSet, Next, NextResultSet }
+pkg database/sql/driver, type RowsNextResultSet interface, Close() error
+pkg database/sql/driver, type RowsNextResultSet interface, Columns() []string
+pkg database/sql/driver, type RowsNextResultSet interface, HasNextResultSet() bool
+pkg database/sql/driver, type RowsNextResultSet interface, NextResultSet() error
+pkg database/sql/driver, type RowsNextResultSet interface, Next([]Value) error
+pkg database/sql/driver, type StmtExecContext interface { ExecContext }
+pkg database/sql/driver, type StmtExecContext interface, ExecContext(context.Context, []NamedValue) (Result, error)
+pkg database/sql/driver, type StmtQueryContext interface { QueryContext }
+pkg database/sql/driver, type StmtQueryContext interface, QueryContext(context.Context, []NamedValue) (Rows, error)
+pkg database/sql/driver, type TxOptions struct
+pkg database/sql/driver, type TxOptions struct, Isolation IsolationLevel
+pkg database/sql/driver, type TxOptions struct, ReadOnly bool
+pkg database/sql, func Named(string, interface{}) NamedArg
+pkg database/sql, method (*ColumnType) DatabaseTypeName() string
+pkg database/sql, method (*ColumnType) DecimalSize() (int64, int64, bool)
+pkg database/sql, method (*ColumnType) Length() (int64, bool)
+pkg database/sql, method (*ColumnType) Name() string
+pkg database/sql, method (*ColumnType) Nullable() (bool, bool)
+pkg database/sql, method (*ColumnType) ScanType() reflect.Type
+pkg database/sql, method (*DB) BeginTx(context.Context, *TxOptions) (*Tx, error)
+pkg database/sql, method (*DB) ExecContext(context.Context, string, ...interface{}) (Result, error)
+pkg database/sql, method (*DB) PingContext(context.Context) error
+pkg database/sql, method (*DB) PrepareContext(context.Context, string) (*Stmt, error)
+pkg database/sql, method (*DB) QueryContext(context.Context, string, ...interface{}) (*Rows, error)
+pkg database/sql, method (*DB) QueryRowContext(context.Context, string, ...interface{}) *Row
+pkg database/sql, method (*Rows) ColumnTypes() ([]*ColumnType, error)
+pkg database/sql, method (*Rows) NextResultSet() bool
+pkg database/sql, method (*Stmt) ExecContext(context.Context, ...interface{}) (Result, error)
+pkg database/sql, method (*Stmt) QueryContext(context.Context, ...interface{}) (*Rows, error)
+pkg database/sql, method (*Stmt) QueryRowContext(context.Context, ...interface{}) *Row
+pkg database/sql, method (*Tx) ExecContext(context.Context, string, ...interface{}) (Result, error)
+pkg database/sql, method (*Tx) PrepareContext(context.Context, string) (*Stmt, error)
+pkg database/sql, method (*Tx) QueryContext(context.Context, string, ...interface{}) (*Rows, error)
+pkg database/sql, method (*Tx) QueryRowContext(context.Context, string, ...interface{}) *Row
+pkg database/sql, method (*Tx) StmtContext(context.Context, *Stmt) *Stmt
+pkg database/sql, type ColumnType struct
+pkg database/sql, type IsolationLevel int
+pkg database/sql, type NamedArg struct
+pkg database/sql, type NamedArg struct, Name string
+pkg database/sql, type NamedArg struct, Value interface{}
+pkg database/sql, type TxOptions struct
+pkg database/sql, type TxOptions struct, Isolation IsolationLevel
+pkg database/sql, type TxOptions struct, ReadOnly bool
+pkg debug/pe, method (*COFFSymbol) FullName(StringTable) (string, error)
+pkg debug/pe, method (StringTable) String(uint32) (string, error)
+pkg debug/pe, type File struct, COFFSymbols []COFFSymbol
+pkg debug/pe, type File struct, StringTable StringTable
+pkg debug/pe, type Reloc struct
+pkg debug/pe, type Reloc struct, SymbolTableIndex uint32
+pkg debug/pe, type Reloc struct, Type uint16
+pkg debug/pe, type Reloc struct, VirtualAddress uint32
+pkg debug/pe, type Section struct, Relocs []Reloc
+pkg debug/pe, type StringTable []uint8
+pkg encoding/base64, method (Encoding) Strict() *Encoding
+pkg encoding/json, method (RawMessage) MarshalJSON() ([]uint8, error)
+pkg encoding/json, type UnmarshalTypeError struct, Field string
+pkg encoding/json, type UnmarshalTypeError struct, Struct string
+pkg expvar, func Handler() http.Handler
+pkg expvar, method (*Float) Value() float64
+pkg expvar, method (Func) Value() interface{}
+pkg expvar, method (*Int) Value() int64
+pkg expvar, method (*String) Value() string
+pkg go/doc, func IsPredeclared(string) bool
+pkg go/types, func Default(Type) Type
+pkg go/types, func IdenticalIgnoreTags(Type, Type) bool
+pkg math/big, method (*Float) Scan(fmt.ScanState, int32) error
+pkg math/big, method (*Int) Sqrt(*Int) *Int
+pkg math/rand, func Uint64() uint64
+pkg math/rand, method (*Rand) Uint64() uint64
+pkg math/rand, type Source64 interface, Int63() int64
+pkg math/rand, type Source64 interface { Int63, Seed, Uint64 }
+pkg math/rand, type Source64 interface, Seed(int64)
+pkg math/rand, type Source64 interface, Uint64() uint64
+pkg net/http, const TrailerPrefix ideal-string
+pkg net/http, const TrailerPrefix = "Trailer:"
+pkg net/http/httptrace, type ClientTrace struct, TLSHandshakeDone func(tls.ConnectionState, error)
+pkg net/http/httptrace, type ClientTrace struct, TLSHandshakeStart func()
+pkg net/http/httputil, type ReverseProxy struct, ModifyResponse func(*http.Response) error
+pkg net/http, method (*Server) Close() error
+pkg net/http, method (*Server) Shutdown(context.Context) error
+pkg net/http, type Pusher interface { Push }
+pkg net/http, type Pusher interface, Push(string, *PushOptions) error
+pkg net/http, type PushOptions struct
+pkg net/http, type PushOptions struct, Header Header
+pkg net/http, type PushOptions struct, Method string
+pkg net/http, type Request struct, GetBody func() (io.ReadCloser, error)
+pkg net/http, type Server struct, IdleTimeout time.Duration
+pkg net/http, type Server struct, ReadHeaderTimeout time.Duration
+pkg net/http, type Transport struct, ProxyConnectHeader Header
+pkg net/http, var ErrAbortHandler error
+pkg net/http, var ErrServerClosed error
+pkg net/http, var NoBody noBody
+pkg net/mail, func ParseDate(string) (time.Time, error)
+pkg net, method (*Buffers) Read([]uint8) (int, error)
+pkg net, method (*Buffers) WriteTo(io.Writer) (int64, error)
+pkg net, method (*Resolver) LookupAddr(context.Context, string) ([]string, error)
+pkg net, method (*Resolver) LookupCNAME(context.Context, string) (string, error)
+pkg net, method (*Resolver) LookupHost(context.Context, string) ([]string, error)
+pkg net, method (*Resolver) LookupIPAddr(context.Context, string) ([]IPAddr, error)
+pkg net, method (*Resolver) LookupMX(context.Context, string) ([]*MX, error)
+pkg net, method (*Resolver) LookupNS(context.Context, string) ([]*NS, error)
+pkg net, method (*Resolver) LookupPort(context.Context, string, string) (int, error)
+pkg net, method (*Resolver) LookupSRV(context.Context, string, string, string) (string, []*SRV, error)
+pkg net, method (*Resolver) LookupTXT(context.Context, string) ([]string, error)
+pkg net, method (*UnixListener) SetUnlinkOnClose(bool)
+pkg net, type Buffers [][]uint8
+pkg net, type Dialer struct, Resolver *Resolver
+pkg net, type Resolver struct
+pkg net, type Resolver struct, PreferGo bool
+pkg net/url, func PathEscape(string) string
+pkg net/url, func PathUnescape(string) (string, error)
+pkg net/url, method (*URL) Hostname() string
+pkg net/url, method (*URL) MarshalBinary() ([]uint8, error)
+pkg net/url, method (*URL) Port() string
+pkg net/url, method (*URL) UnmarshalBinary([]uint8) error
+pkg net, var DefaultResolver *Resolver
+pkg os, func Executable() (string, error)
+pkg os, var ErrClosed error
+pkg plugin, func Open(string) (*Plugin, error)
+pkg plugin, method (*Plugin) Lookup(string) (Symbol, error)
+pkg plugin, type Plugin struct
+pkg plugin, type Symbol interface {}
+pkg reflect, func Swapper(interface{}) func(int, int)
+pkg runtime, func MutexProfile([]BlockProfileRecord) (int, bool)
+pkg runtime, func SetMutexProfileFraction(int) int
+pkg runtime, type MemStats struct, NumForcedGC uint32
+pkg sort, func Slice(interface{}, func(int, int) bool)
+pkg sort, func SliceIsSorted(interface{}, func(int, int) bool) bool
+pkg sort, func SliceStable(interface{}, func(int, int) bool)
+pkg syscall (linux-arm-cgo), func TimevalToNsec(Timeval) int64
+pkg syscall (linux-arm), func TimevalToNsec(Timeval) int64
+pkg syscall (openbsd-386), const SYS_KILL = 122
+pkg syscall (openbsd-386-cgo), const SYS_KILL = 122
+pkg syscall (openbsd-amd64), const SYS_KILL = 122
+pkg syscall (openbsd-amd64-cgo), const SYS_KILL = 122
+pkg syscall (windows-386), const ERROR_DIR_NOT_EMPTY = 145
+pkg syscall (windows-386), const ERROR_DIR_NOT_EMPTY Errno
+pkg syscall (windows-amd64), const ERROR_DIR_NOT_EMPTY = 145
+pkg syscall (windows-amd64), const ERROR_DIR_NOT_EMPTY Errno
+pkg testing, func CoverMode() string
+pkg testing, func MainStart(testDeps, []InternalTest, []InternalBenchmark, []InternalExample) *M
+pkg testing, method (*B) Name() string
+pkg testing, method (*T) Name() string
+pkg testing, type TB interface, Name() string
+pkg time, func Until(Time) Duration

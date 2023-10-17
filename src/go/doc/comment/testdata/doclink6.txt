@@ -1,0 +1,5 @@
+{"DocLinkBaseURL": "https://go.dev/pkg/"}
+-- input --
+[encoding/json.Marshal] is a doc link, and so is [rsc.io/quote.NonExist].
+-- markdown --
+[encoding/json.Marshal](https://go.dev/pkg/encoding/json/#Marshal) is a doc link, and so is [rsc.io/quote.NonExist](https://go.dev/pkg/rsc.io/quote/#NonExist).

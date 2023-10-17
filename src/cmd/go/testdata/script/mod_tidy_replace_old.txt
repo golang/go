@@ -1,0 +1,34 @@
+# Regression test for https://golang.org/issue/46659.
+#
+# If a 'replace' directive specifies an older-than-selected version of a module,
+# 'go mod tidy' shouldn't try to add that version to the build list to resolve a
+# missing package: it won't be selected, and would cause the module loader to
+# loop indefinitely trying to resolve the package.
+
+cp go.mod go.mod.orig
+
+! go mod tidy
+! stderr panic
+stderr '^go: golang\.org/issue46659 imports\n\texample\.com/missingpkg/deprecated: package example\.com/missingpkg/deprecated provided by example\.com/missingpkg at latest version v1\.0\.0 but not at required version v1\.0\.1-beta$'
+
+go mod tidy -e
+
+cmp go.mod go.mod.orig
+
+-- go.mod --
+module golang.org/issue46659
+
+go 1.17
+
+replace example.com/missingpkg v1.0.1-alpha => example.com/missingpkg v1.0.0
+
+require example.com/usemissingpre v1.0.0
+
+require example.com/missingpkg v1.0.1-beta // indirect
+-- m.go --
+package m
+
+import (
+	_ "example.com/missingpkg/deprecated"
+	_ "example.com/usemissingpre"
+)

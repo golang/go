@@ -1,0 +1,19 @@
+[short] skip
+
+env GO111MODULE=on
+env GOSUMDB=off
+env GOPROXY=direct
+
+# Server responses should be truncated to some reasonable number of lines.
+# (For now, exactly eight.)
+! go list -m vcs-test.golang.org/auth/ormanylines@latest
+stderr '\tserver response:\n(.|\n)*\tline 8\n\t\[Truncated: too many lines.\]$'
+
+# Server responses should be truncated to some reasonable number of characters.
+! go list -m vcs-test.golang.org/auth/oronelongline@latest
+! stderr 'blah{40}'
+stderr '\tserver response: \[Truncated: too long\.\]$'
+
+# Responses from servers using the 'mod' protocol should be propagated.
+! go list -m vcs-test.golang.org/go/modauth404@latest
+stderr '\tserver response: File\? What file\?'

@@ -1,0 +1,21 @@
+env GO111MODULE=on
+env GOPROXY=direct
+
+# Testing that git export-subst is disabled
+[!net:github.com] skip
+[!git] skip
+go build
+
+-- x.go --
+package x
+
+import _ "github.com/jasonkeene/export-subst"
+
+-- go.mod --
+module x
+
+require github.com/jasonkeene/export-subst v0.0.0-20180927204031-5845945ec626
+
+-- go.sum --
+github.com/jasonkeene/export-subst v0.0.0-20180927204031-5845945ec626 h1:AUkXi/xFnm7lH2pgtvVkGb7buRn1ywFHw+xDpZ29Rz0=
+github.com/jasonkeene/export-subst v0.0.0-20180927204031-5845945ec626/go.mod h1:DwJXqVtrgrQkv3Giuf2Jh4YyubVe7y41S1eOIaysTJw=

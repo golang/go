@@ -1,0 +1,19 @@
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+[!net:golang.org] skip
+[!git] skip
+
+# fetch commit hash reachable from refs/heads/* and refs/tags/* is OK
+go list -m golang.org/x/time@8be79e1e0910c292df4e79c241bb7e8f7e725959 # on master branch
+
+# fetch other commit hash, even with a non-standard ref, is not OK
+! go list -m golang.org/x/time@334d83c35137ac2b376c1dc3e4c7733791855a3a # refs/changes/24/41624/3
+stderr 'unknown revision'
+! go list -m golang.org/x/time@v0.0.0-20170424233410-334d83c35137
+stderr 'unknown revision'
+! go list -m golang.org/x/time@334d83c35137
+stderr 'unknown revision'
+
+-- go.mod --
+module m

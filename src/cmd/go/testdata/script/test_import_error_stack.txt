@@ -1,0 +1,31 @@
+env GO111MODULE=off
+! go test testdep/p1
+stderr 'package testdep/p1 \(test\)\n\timports testdep/p2\n\timports testdep/p3: build constraints exclude all Go files ' # check for full import stack
+! go vet testdep/p1
+stderr 'package testdep/p1 \(test\)\n\timports testdep/p2\n\timports testdep/p3: build constraints exclude all Go files ' # check for full import stack
+
+env GO111MODULE=on
+cd testdep
+! go test testdep/p1
+stderr 'package testdep/p1 \(test\)\n\timports testdep/p2\n\timports testdep/p3: build constraints exclude all Go files ' # check for full import stack
+! go vet testdep/p1
+stderr 'package testdep/p1 \(test\)\n\timports testdep/p2\n\timports testdep/p3: build constraints exclude all Go files ' # check for full import stack
+
+-- testdep/go.mod --
+module testdep
+
+go 1.16
+-- testdep/p1/p1.go --
+package p1
+-- testdep/p1/p1_test.go --
+package p1
+
+import _ "testdep/p2"
+-- testdep/p2/p2.go --
+package p2
+
+import _ "testdep/p3"
+-- testdep/p3/p3.go --
+// +build ignore
+
+package ignored

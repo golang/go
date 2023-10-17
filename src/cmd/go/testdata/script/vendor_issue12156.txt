@@ -1,0 +1,16 @@
+# Tests issue #12156, a former index out of range panic.
+
+env GO111MODULE=off
+env GOPATH=$WORK/gopath/src/testvendor2 # vendor/x is directly in $GOPATH, not in $GOPATH/src
+cd $WORK/gopath/src/testvendor2/src/p
+
+! go build p.go
+! stderr panic # Make sure it doesn't panic
+stderr 'cannot find package "x"'
+
+-- testvendor2/src/p/p.go --
+package p
+
+import "x"
+-- testvendor2/vendor/x/x.go --
+package x

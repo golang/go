@@ -1,0 +1,67 @@
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+
+# Testing that a pseudo-version is based on the semantically-latest
+# tag that appears in any commit that is a (transitive) parent of the commit
+# supplied to 'go get', regardless of branches
+
+[short] skip
+[!git] skip
+
+# For this test repository:
+#  tag v0.2.1 is most recent tag on master itself
+#  tag v0.2.2 is on branch2, which was then merged to master
+#  master is a merge commit with both tags as parents
+#
+# The pseudo-version hence sorts immediately after v0.2.2 rather
+# than v0.2.1, even though the v0.2.2 tag is not on master.
+
+go get vcs-test.golang.org/git/tagtests.git@master
+go list -m all
+stdout '^vcs-test.golang.org/git/tagtests.git v0.2.3-0\.'
+
+-- go.mod --
+module x
+
+go 1.12
+-- x.go --
+package x
+
+import _ "vcs-test.golang.org/git/tagtests.git"
+-- gen_testtags.sh --
+#!/bin/bash
+
+# This is not part of the test.
+# Run this to generate and update the repository on vcs-test.golang.org.
+
+set -euo pipefail
+cd "$(dirname "$0")"
+rm -rf tagtests
+mkdir tagtests
+cd tagtests
+
+git init
+echo module vcs-test.golang.org/git/tagtests.git >go.mod
+echo package tagtests >tagtests.go
+git add go.mod tagtests.go
+git commit -m 'create module tagtests'
+
+git branch b
+
+echo v0.2.1 >v0.2.1
+git add v0.2.1
+git commit -m v0.2.1
+git tag v0.2.1
+
+git checkout b
+echo v0.2.2 >v0.2.2
+git add v0.2.2
+git commit -m v0.2.2
+git tag v0.2.2
+
+git checkout master
+git merge b -m merge
+
+zip -r ../tagtests.zip .
+gsutil cp ../tagtests.zip gs://vcs-test/git/tagtests.zip

@@ -1,0 +1,35 @@
+handle git
+
+env GIT_AUTHOR_NAME='Bryan C. Mills'
+env GIT_AUTHOR_EMAIL='bcmills@google.com'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2022-02-22T15:53:33-05:00
+git add v2sub.go v2
+git commit -m 'all: add package v2sub and v2sub/v2'
+git branch -m main
+git tag v2.0.0
+
+at 2022-02-22T15:55:07-05:00
+git add README.txt
+git commit -m 'v2sub: add README.txt'
+
+git show-ref --tags --heads
+cmp stdout .git-refs
+
+-- .git-refs --
+80beb17a16036f17a5aedd1bb5bd6d407b3c6dc5 refs/heads/main
+5fcd3eaeeb391d399f562fd45a50dac9fc34ae8b refs/tags/v2.0.0
+-- v2/go.mod --
+module vcs-test.golang.org/git/v2sub.git/v2
+
+go 1.16
+-- v2/v2sub.go --
+package v2sub
+-- v2sub.go --
+package v2sub
+-- README.txt --
+This root module lacks a go.mod file.

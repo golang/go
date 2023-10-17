@@ -1,0 +1,10 @@
+! go get example.com/retract/ambiguous/other
+stderr 'ambiguous import: found package example.com/retract/ambiguous/nested in multiple modules:'
+stderr '^go: warning: example.com/retract/ambiguous/nested@v1.9.0-bad: retracted by module author: nested modules are bad$'
+
+-- go.mod --
+module example.com/use
+
+go 1.16
+
+require example.com/retract/ambiguous/nested v1.9.0-bad

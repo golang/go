@@ -1,0 +1,57 @@
+
+cd a
+! go build
+stderr '^ambiguous import: found package image in multiple modules:\s+image\s+.+\s.+image.+\s$'
+
+
+cd ../b
+! go build -mod=vendor
+stderr '^main.go:4:5: ambiguous import: found package image in multiple directories:\s+.+image\s+.+image\s+$'
+
+cd ../c
+! go build -mod=vendor
+stderr 'main.go:4:5: package p is not in std'
+
+-- a/go.mod --
+module image
+
+-- a/main.go --
+package main
+
+func main() {
+    println("hello world!")
+}
+
+-- b/go.mod --
+module test
+
+-- b/vendor/image/b.go --
+package image
+func Add(a, b int) int {
+    return a + b
+}
+
+-- b/main.go --
+package main
+
+import (
+    "image"
+)
+
+func main() {
+    println(image.Add(1,1))
+}
+
+-- c/go.mod --
+module test
+
+-- c/main.go --
+package main
+
+import (
+    "p"
+)
+
+func main() {
+    println(p.Add(1,1))
+}

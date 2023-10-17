@@ -1,0 +1,14 @@
+env GO111MODULE=on
+
+# Download modules to avoid stderr chatter
+go mod download example.com@v1.0.0
+go mod download example.com/newcycle/a@v1.0.0
+go mod download example.com/newcycle/a@v1.0.1
+go mod download example.com/newcycle/b@v1.0.0
+
+go mod init m
+! go get example.com/newcycle/a@v1.0.0
+cmp stderr stderr-expected
+
+-- stderr-expected --
+go: example.com/newcycle/a@v1.0.0 indirectly requires example.com/newcycle/a@v1.0.1, not example.com/newcycle/a@v1.0.0

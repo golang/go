@@ -1,0 +1,17 @@
+handle hg
+hg init
+
+hg add hello.go
+hg commit --user 'Russ Cox <rsc@golang.org>' --date '2017-10-10T19:39:36-04:00' --message 'hello'
+
+hg log -r ':' --template '{node|short} {desc|strip|firstline}\n'
+cmp stdout .hg-log
+
+-- .hg-log --
+a8c8e7a40da9 hello
+-- hello.go --
+package main // import "vcs-test.golang.org/go/custom-hg-hello"
+
+func main() {
+	println("hello")
+}

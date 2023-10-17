@@ -1,0 +1,34 @@
+env GO111MODULE=on
+
+# get should add modules needed to build packages, even if those
+# dependencies are in sources excluded by build tags.
+# All build tags are considered true except "ignore".
+go mod init m
+go get .
+go list -m all
+stdout 'example.com/version v1.1.0'
+stdout 'rsc.io/quote v1.5.2'
+
+-- empty.go --
+package m
+
+-- excluded.go --
+// +build windows,mips
+
+package m
+
+import _ "example.com/version"
+
+-- tools.go --
+// +build tools
+
+package tools
+
+import _ "rsc.io/quote"
+
+-- ignore.go --
+// +build ignore
+
+package ignore
+
+import _ "example.com/doesnotexist"

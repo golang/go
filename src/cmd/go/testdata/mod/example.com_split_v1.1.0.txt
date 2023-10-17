@@ -1,0 +1,9 @@
+Written by hand.
+Test case for getting a package that has been moved to a different module.
+
+-- .mod --
+module example.com/split
+
+require example.com/split/subpkg v1.1.0
+-- .info --
+{"Version": "v1.1.0"}

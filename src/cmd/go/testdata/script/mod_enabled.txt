@@ -1,0 +1,93 @@
+# GO111MODULE=auto should trigger any time a go.mod exists in a parent directory.
+env GO111MODULE=auto
+
+cd $GOPATH/src/x/y/z
+go env GOMOD
+stdout $GOPATH[/\\]src[/\\]x[/\\]y[/\\]z[/\\]go.mod
+go list -m -f {{.GoMod}}
+stdout $GOPATH[/\\]src[/\\]x[/\\]y[/\\]z[/\\]go.mod
+
+cd $GOPATH/src/x/y/z/w
+go env GOMOD
+stdout $GOPATH[/\\]src[/\\]x[/\\]y[/\\]z[/\\]go.mod
+
+cd $GOPATH/src/x/y
+go env GOMOD
+! stdout .
+
+cd $GOPATH/foo
+go env GOMOD
+stdout foo[/\\]go.mod
+go list -m -f {{.GoMod}}
+stdout foo[/\\]go.mod
+
+cd $GOPATH/foo/bar/baz
+go env GOMOD
+stdout foo[/\\]go.mod
+
+# GO111MODULE unset should be equivalent to on.
+env GO111MODULE=
+
+cd $GOPATH/src/x/y/z
+go env GOMOD
+stdout $GOPATH[/\\]src[/\\]x[/\\]y[/\\]z[/\\]go.mod
+
+cd $GOPATH/src/x/y
+go env GOMOD
+stdout 'NUL|/dev/null'
+
+# GO111MODULE=on should trigger everywhere
+env GO111MODULE=on
+
+cd $GOPATH/src/x/y/z
+go env GOMOD
+stdout z[/\\]go.mod
+
+cd $GOPATH/src/x/y/z/w
+go env GOMOD
+stdout z[/\\]go.mod
+
+cd $GOPATH/src/x/y
+go env GOMOD
+stdout 'NUL|/dev/null'
+go list -m
+stdout '^command-line-arguments$'
+
+cd $GOPATH/foo
+go env GOMOD
+stdout foo[/\\]go.mod
+
+cd $GOPATH/foo/bar/baz
+go env GOMOD
+stdout foo[/\\]go.mod
+
+# GO111MODULE=off should trigger nowhere
+env GO111MODULE=off
+
+cd $GOPATH/src/x/y/z
+go env GOMOD
+! stdout .+
+
+cd $GOPATH/foo
+go env GOMOD
+! stdout .+
+
+cd $GOPATH/foo/bar/baz
+go env GOMOD
+! stdout .+
+
+# GO111MODULE=auto should ignore and warn about /tmp/go.mod
+env GO111MODULE=auto
+cp $GOPATH/src/x/y/z/go.mod $WORK/tmp/go.mod
+mkdir $WORK/tmp/mydir
+cd $WORK/tmp/mydir
+go env GOMOD
+! stdout .+
+stderr '^go: warning: ignoring go.mod in system temp root '
+
+-- $GOPATH/src/x/y/z/go.mod --
+module x/y/z
+-- $GOPATH/src/x/y/z/w/w.txt --
+-- $GOPATH/foo/go.mod --
+module example.com/mod
+-- $GOPATH/foo/bar/baz/quux.txt --

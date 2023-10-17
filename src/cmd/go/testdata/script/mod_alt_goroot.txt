@@ -1,0 +1,20 @@
+env GO111MODULE=on
+
+# If the working directory is a different GOROOT, then the 'std' module should be
+# treated as an ordinary module (with an ordinary module prefix).
+# It should not override packages in GOROOT, but should not fail the command.
+# See golang.org/issue/30756.
+go list -e -deps -f '{{.ImportPath}} {{.Dir}}' ./bytes
+stdout ^std/bytes.*$PWD[/\\]bytes
+stdout '^bytes/modified'
+
+-- go.mod --
+module std
+
+go 1.12
+-- bytes/bytes.go --
+package bytes
+
+import _"bytes/modified"
+-- bytes/modified/modified.go --
+package modified

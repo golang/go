@@ -1,0 +1,19 @@
+# Regression test for golang.org/issue/34092: with an empty module cache,
+# 'GOPROXY=direct go get golang.org/x/tools/gopls@master' did not correctly
+# resolve the pseudo-version for its dependency on golang.org/x/tools.
+
+[!net:cloud.google.com] skip
+[!git] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+
+go list -m cloud.google.com/go@main
+! stdout 'v0.0.0-'
+
+-- go.mod --
+module example.com
+
+go 1.14
+-- go.sum --

@@ -1,0 +1,29 @@
+[short] skip
+[compiler:gccgo] skip # gccgo has no cover tool
+
+go test -coverpkg=coverdot/a,coverdot/b coverdot/b
+! stderr '[^0-9]0\.0%'
+! stdout '[^0-9]0\.0%'
+
+-- go.mod --
+module coverdot
+
+go 1.16
+-- a/a.go --
+package a
+
+func F() {}
+-- b/b.go --
+package b
+
+import . "coverdot/a"
+
+func G() { F() }
+-- b/b_test.go --
+package b
+
+import "testing"
+
+func TestG(t *testing.T) {
+	G()
+}

@@ -1,0 +1,9 @@
+// +build y
+
+// other comment
+
+package p
+
+func f()
+
+//go:build x

@@ -1,0 +1,105 @@
+# https://golang.org/issue/46141: 'go mod tidy' for a Go 1.17 module should by
+# default preserve enough checksums for the module to be used by Go 1.16.
+#
+# We don't have a copy of Go 1.16 handy, but we can simulate it by editing the
+# 'go' version in the go.mod file to 1.16, without actually updating the
+# requirements to match.
+
+[short] skip
+
+env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
+
+
+# For this module, Go 1.17 produces an error for one module, and Go 1.16
+# produces a different error for a different module.
+
+cp go.mod go.mod.orig
+
+! go mod tidy
+
+stderr '^go: example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added$'
+
+cmp go.mod go.mod.orig
+
+
+# When we run 'go mod tidy -e', we should proceed past the first error and follow
+# it with a second error describing the version discrepancy.
+#
+# We should not provide advice on how to push past the version discrepancy,
+# because the '-e' flag should already do that, writing out an otherwise-tidied
+# go.mod file.
+
+go mod tidy -e
+
+stderr '^go: example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added\ngo: example\.net/added failed to load from any module,\n\tbut go 1\.16 would load it from example\.net/added@v0\.2\.0$'
+
+! stderr '\n\tgo mod tidy'
+
+cmp go.mod go.mod.tidy
+
+
+-- go.mod --
+module example.com/m
+
+go 1.17
+
+replace (
+	example.net/added v0.1.0 => ./a1
+	example.net/added v0.2.0 => ./a2
+	example.net/added v0.3.0 => ./a1
+	example.net/lazy v0.1.0 => ./lazy
+	example.net/pruned v0.1.0 => ./pruned
+)
+
+require (
+	example.net/added v0.1.0
+	example.net/lazy v0.1.0
+)
+-- go.mod.tidy --
+module example.com/m
+
+go 1.17
+
+replace (
+	example.net/added v0.1.0 => ./a1
+	example.net/added v0.2.0 => ./a2
+	example.net/added v0.3.0 => ./a1
+	example.net/lazy v0.1.0 => ./lazy
+	example.net/pruned v0.1.0 => ./pruned
+)
+
+require example.net/lazy v0.1.0
+-- m.go --
+package m
+
+import (
+	_ "example.net/added"
+	_ "example.net/lazy"
+)
+
+-- a1/go.mod --
+module example.net/added
+
+go 1.17
+-- a2/go.mod --
+module example.net/added
+
+go 1.17
+-- a2/added.go --
+package added
+
+-- lazy/go.mod --
+module example.net/lazy
+
+go 1.17
+
+require example.net/pruned v0.1.0
+-- lazy/lazy.go --
+package lazy
+
+-- pruned/go.mod --
+module example.net/pruned
+
+go 1.17
+
+require example.net/added v0.2.0

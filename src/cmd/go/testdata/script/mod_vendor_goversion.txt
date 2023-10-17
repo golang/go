@@ -1,0 +1,102 @@
+# https://golang.org/issue/36876: As of Go 1.17, vendor/modules.txt should
+# indicate the language version used by each dependency.
+
+[short] skip
+
+# Control case: without a vendor directory, need117 builds and bad114 doesn't.
+
+go build example.net/need117
+! go build example.net/bad114
+stderr '^bad114[/\\]bad114.go:15:2: duplicate method Y( .*)?$'
+
+
+# With a vendor/modules.txt lacking language versions, the world is topsy-turvy,
+# because we have to guess a uniform version for everything.
+#
+# We always guess Go 1.16, because that was the last version for which
+# 'go mod vendor' failed to record dependency versions, and it has most of
+# the language features added since modules were introduced in Go 1.11.
+#
+# Even so, modules that declare 'go 1.17' and use 1.17 features spuriously fail
+# to build, and modules that declare an older version and use features from a
+# newer one spuriously build (instead of failing as they ought to).
+
+go mod vendor
+
+! grep 1.17 vendor/modules.txt
+! go build example.net/need117
+stderr '^vendor[/\\]example\.net[/\\]need117[/\\]need117.go:5:1[89]:'
+stderr 'conversion of slices to array pointers requires go1\.17 or later'
+
+! grep 1.13 vendor/modules.txt
+go build example.net/bad114
+
+
+# Upgrading the main module to 1.17 adds version annotations.
+# Then everything is once again consistent with the non-vendored world.
+
+go mod edit -go=1.17
+go mod vendor
+
+grep '^## explicit; go 1.17$' vendor/modules.txt
+go build example.net/need117
+
+grep '^## explicit; go 1.13$' vendor/modules.txt
+! go build example.net/bad114
+stderr '^vendor[/\\]example\.net[/\\]bad114[/\\]bad114.go:15:2: duplicate method Y( .+)?$'
+
+-- go.mod --
+module example.net/m
+
+go 1.16
+
+require (
+	example.net/bad114 v0.1.0
+	example.net/need117 v0.1.0
+)
+
+replace (
+	example.net/bad114 v0.1.0 => ./bad114
+	example.net/need117 v0.1.0 => ./need117
+)
+-- m.go --
+package m
+
+import _ "example.net/bad114"
+import _ "example.net/need117"
+
+-- bad114/go.mod --
+// Module bad114 requires Go 1.14 or higher, but declares Go 1.13.
+module example.net/bad114
+
+go 1.13
+-- bad114/bad114.go --
+package bad114
+
+type XY interface {
+	X()
+	Y()
+}
+
+type YZ interface {
+	Y()
+	Z()
+}
+
+type XYZ interface {
+	XY
+	YZ
+}
+
+-- need117/go.mod --
+// Module need117 requires Go 1.17 or higher.
+module example.net/need117
+
+go 1.17
+-- need117/need117.go --
+package need117
+
+func init() {
+		 s := make([]byte, 4)
+		 _ = (*[4]byte)(s)
+}

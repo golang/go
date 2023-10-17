@@ -1,0 +1,19 @@
+Written by hand.
+
+Test module containing a package that is also provided by a nested module tagged
+with the same version.
+
+-- .mod --
+module example.net/ambiguous
+
+go 1.16
+-- .info --
+{"Version": "v0.1.0"}
+-- go.mod --
+module example.net/ambiguous
+
+go 1.16
+-- nested/pkg/pkg.go --
+// Package pkg exists in both example.net/ambiguous v0.1.0
+// and example.net/ambiguous/nested v0.1.0
+package pkg

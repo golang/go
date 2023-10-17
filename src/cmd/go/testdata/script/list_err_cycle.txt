@@ -1,0 +1,15 @@
+# Check that we don't get infinite recursion when loading a package with
+# an import cycle and another error. Verifies #25830.
+! go list
+stderr 'found packages a \(a.go\) and b \(b.go\)'
+
+-- go.mod --
+module errcycle
+
+go 1.16
+-- a.go --
+package a
+
+import _ "errcycle"
+-- b.go --
+package b

@@ -1,0 +1,20 @@
+env GO111MODULE=on
+
+# GOPROXY file paths must provide the "file://" prefix explicitly.
+env GOPROXY=$WORK/proxydir
+! go list -versions -m golang.org/x/text
+stderr 'invalid proxy URL.*proxydir'
+
+[!net:proxy.golang.org] stop
+
+# GOPROXY HTTPS paths may elide the "https://" prefix.
+# (See golang.org/issue/32191.)
+env GOPROXY=proxy.golang.org
+env GOSUMDB=
+go list -versions -m golang.org/x/text
+
+-- go.mod --
+module example.com
+go 1.13
+-- $WORK/proxydir/README.md --
+This proxy contains no data.

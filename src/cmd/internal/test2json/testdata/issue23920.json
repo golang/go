@@ -1,0 +1,15 @@
+{"Action":"start"}
+{"Action":"run","Test":"TestWithColons"}
+{"Action":"output","Test":"TestWithColons","Output":"=== RUN   TestWithColons\n"}
+{"Action":"run","Test":"TestWithColons/[::1]"}
+{"Action":"output","Test":"TestWithColons/[::1]","Output":"=== RUN   TestWithColons/[::1]\n"}
+{"Action":"run","Test":"TestWithColons/127.0.0.1:0"}
+{"Action":"output","Test":"TestWithColons/127.0.0.1:0","Output":"=== RUN   TestWithColons/127.0.0.1:0\n"}
+{"Action":"output","Test":"TestWithColons","Output":"--- PASS: TestWithColons (0.00s)\n"}
+{"Action":"output","Test":"TestWithColons/[::1]","Output":"    --- PASS: TestWithColons/[::1] (0.00s)\n"}
+{"Action":"pass","Test":"TestWithColons/[::1]"}
+{"Action":"output","Test":"TestWithColons/127.0.0.1:0","Output":"    --- PASS: TestWithColons/127.0.0.1:0 (0.00s)\n"}
+{"Action":"pass","Test":"TestWithColons/127.0.0.1:0"}
+{"Action":"pass","Test":"TestWithColons"}
+{"Action":"output","Output":"PASS\n"}
+{"Action":"pass"}

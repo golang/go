@@ -1,0 +1,63 @@
+# If the latest unretracted version of a module is replaced, 'go list' should
+# obtain retractions from the replacement.
+
+# Populate go.sum.
+go get
+
+# The latest version, v1.9.0, is not available on the proxy.
+go list -m -retracted example.com/retract/missingmod
+stdout '^example.com/retract/missingmod v1.0.0$'
+exists $GOPATH/pkg/mod/cache/download/example.com/retract/missingmod/@v/v1.9.0.info
+! exists $GOPATH/pkg/mod/cache/download/example.com/retract/missingmod/@v/v1.9.0.mod
+
+# If we replace that version, we should see retractions.
+go mod edit -replace=example.com/retract/missingmod@v1.9.0=./missingmod-v1.9.0
+go list -m -retracted -f '{{range .Retracted}}{{.}}{{end}}' example.com/retract/missingmod
+stdout '^bad version$'
+
+# If we replace the retracted version, we should not see a retraction.
+go mod edit -replace=example.com/retract/missingmod=./missingmod-v1.9.0
+go list -m -retracted -f '{{if not .Retracted}}good version{{end}}' example.com/retract/missingmod
+stdout '^good version$'
+
+
+# If a replacement version is retracted, we should see a retraction.
+# It should appear in both the replaced module and the replacement, as other
+# fields like GoMod do.
+go list -m -retracted -f '{{range .Retracted}}{{.}}{{end}}' example.com/retract
+! stdout .
+go list -m -retracted -f '{{if .Replace}}replaced{{end}}' example.com/retract
+! stdout .
+go mod edit -replace example.com/retract@v1.0.0-good=example.com/retract@v1.0.0-bad
+go list -m -mod=mod -retracted -f '{{range .Retracted}}{{.}}{{end}}' example.com/retract
+stdout '^bad$'
+go list -m -mod=mod -retracted -f '{{with .Replace}}{{range .Retracted}}{{.}}{{end}}{{end}}' example.com/retract
+stdout '^bad$'
+
+-- go.mod --
+module m
+
+go 1.14
+
+require (
+	example.com/retract v1.0.0-good
+	example.com/retract/missingmod v1.0.0
+)
+-- use.go --
+package use
+
+import (
+	_ "example.com/retract"
+	_ "example.com/retract/missingmod"
+)
+-- missingmod-v1.0.0/go.mod --
+module example.com/retract/missingmod
+
+go 1.14
+-- missingmod-v1.9.0/go.mod --
+module example.com/retract/missingmod
+
+go 1.14
+
+// bad version
+retract v1.0.0

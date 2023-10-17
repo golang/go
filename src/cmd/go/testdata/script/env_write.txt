@@ -1,0 +1,206 @@
+env GO111MODULE=off
+
+# go env should default to the right places
+env AppData=$HOME/windowsappdata
+env home=$HOME/plan9home
+go env GOENV
+[GOOS:aix] stdout $HOME/.config/go/env
+[GOOS:darwin] stdout $HOME'/Library/Application Support/go/env'
+[GOOS:freebsd] stdout $HOME/.config/go/env
+[GOOS:linux] stdout $HOME/.config/go/env
+[GOOS:netbsd] stdout $HOME/.config/go/env
+[GOOS:openbsd] stdout $HOME/.config/go/env
+[GOOS:plan9] stdout $HOME/plan9home/lib/go/env
+[GOOS:windows] stdout $HOME\\windowsappdata\\go\\env
+
+# Now override it to something writable.
+env GOENV=$WORK/envdir/go/env
+go env GOENV
+stdout envdir[\\/]go[\\/]env
+
+# go env shows all variables
+go env
+stdout GOARCH=
+stdout GOOS=
+stdout GOROOT=
+
+# go env ignores invalid flag in GOFLAGS environment variable
+env GOFLAGS='=true'
+go env
+
+# checking errors
+! go env -w
+stderr 'go: no KEY=VALUE arguments given'
+! go env -u
+stderr 'go: ''go env -u'' requires an argument'
+
+# go env -w changes default setting
+env root=
+[GOOS:windows] env root=c:
+env GOPATH=
+go env -w GOPATH=$root/non-exist/gopath
+! stderr .+
+grep GOPATH=$root/non-exist/gopath $WORK/envdir/go/env
+go env GOPATH
+stdout /non-exist/gopath
+
+# go env -w does not override OS environment, and warns about that
+env GOPATH=$root/other
+go env -w GOPATH=$root/non-exist/gopath2
+stderr 'warning: go env -w GOPATH=... does not override conflicting OS environment variable'
+go env GOPATH
+stdout $root/other
+
+# but go env -w does do the update, and unsetting the env var exposes the change
+env GOPATH=
+go env GOPATH
+stdout $root/non-exist/gopath2
+
+# unsetting with go env -u does not warn about OS environment overrides,
+# nor does it warn about variables that haven't been set by go env -w.
+env GOPATH=$root/other
+go env -u GOPATH
+! stderr .+
+go env -u GOPATH
+! stderr .+
+
+# go env -w rejects unknown or bad variables
+! go env -w GODEBUG=gctrace=1
+stderr 'unknown go command variable GODEBUG'
+! go env -w GOEXE=.bat
+stderr 'GOEXE cannot be modified'
+! go env -w GOVERSION=customversion
+stderr 'GOVERSION cannot be modified'
+! go env -w GOENV=/env
+stderr 'GOENV can only be set using the OS environment'
+
+# go env -w can set multiple variables
+env CC=
+go env CC
+! stdout ^xyc$
+go env -w GOOS=$GOOS CC=xyc
+grep CC=xyc $GOENV
+# file is maintained in sorted order
+grep 'CC=xyc\nGOOS=' $GOENV
+go env CC
+stdout ^xyc$
+
+# go env -u unsets effect of go env -w.
+go env -u CC
+go env CC
+! stdout ^xyc$
+
+# go env -w rejects double-set variables
+! go env -w GOOS=$GOOS GOOS=$GOOS
+stderr 'multiple values for key: GOOS'
+
+# go env -w rejects missing variables
+! go env -w GOOS
+stderr 'arguments must be KEY=VALUE: invalid argument: GOOS'
+
+# go env -w rejects invalid GO111MODULE values, as otherwise cmd/go would break
+! go env -w GO111MODULE=badvalue
+stderr 'invalid GO111MODULE value "badvalue"'
+
+# go env -w rejects invalid GOPATH values
+! go env -w GOPATH=~/go
+stderr 'GOPATH entry cannot start with shell metacharacter'
+
+! go env -w GOPATH=./go
+stderr 'GOPATH entry is relative; must be absolute path'
+
+# go env -w rejects invalid GOTMPDIR values
+! go env -w GOTMPDIR=x
+stderr 'go: GOTMPDIR must be an absolute path'
+
+# go env -w should accept absolute GOTMPDIR value
+# and should not create it
+[GOOS:windows] go env -w GOTMPDIR=$WORK\x\y\z
+[!GOOS:windows] go env -w GOTMPDIR=$WORK/x/y/z
+! exists $WORK/x/y/z
+# we should be able to clear an env
+go env -u GOTMPDIR
+go env GOTMPDIR
+stdout ^$
+
+[GOOS:windows] go env -w GOTMPDIR=$WORK\x\y\z
+[!GOOS:windows] go env -w GOTMPDIR=$WORK/x/y/z
+go env -w GOTMPDIR=
+go env GOTMPDIR
+stdout ^$
+
+# go env -w rejects relative CC values
+[!GOOS:windows] go env -w CC=/usr/bin/clang
+go env -w CC=clang
+[!GOOS:windows] ! go env -w CC=./clang
+[!GOOS:windows] ! go env -w CC=bin/clang
+[!GOOS:windows] stderr 'go: CC entry is relative; must be absolute path'
+
+[GOOS:windows] go env -w CC=$WORK\bin\clang
+[GOOS:windows] ! go env -w CC=.\clang
+[GOOS:windows] ! go env -w CC=bin\clang
+[GOOS:windows] stderr 'go: CC entry is relative; must be absolute path'
+
+# go env -w rejects relative CXX values
+[!GOOS:windows] go env -w CC=/usr/bin/cpp
+go env -w CXX=cpp
+[!GOOS:windows] ! go env -w CXX=./cpp
+[!GOOS:windows] ! go env -w CXX=bin/cpp
+[!GOOS:windows] stderr 'go: CXX entry is relative; must be absolute path'
+
+[GOOS:windows] go env -w CXX=$WORK\bin\cpp
+[GOOS:windows] ! go env -w CXX=.\cpp
+[GOOS:windows] ! go env -w CXX=bin\cpp
+[GOOS:windows] stderr 'go: CXX entry is relative; must be absolute path'
+
+# go env -w/-u checks validity of GOOS/ARCH combinations
+env GOOS=
+env GOARCH=
+# check -w doesn't allow invalid GOOS
+! go env -w GOOS=linuxx
+stderr 'unsupported GOOS/GOARCH pair linuxx'
+# check -w doesn't allow invalid GOARCH
+! go env -w GOARCH=amd644
+stderr 'unsupported GOOS/GOARCH.*/amd644$'
+# check -w doesn't allow invalid GOOS with valid GOARCH
+! go env -w GOOS=linuxx GOARCH=amd64
+stderr 'unsupported GOOS/GOARCH pair linuxx'
+# check a valid GOOS and GOARCH values but an incompatible combinations
+! go env -w GOOS=android GOARCH=s390x
+stderr 'unsupported GOOS/GOARCH pair android/s390x'
+# check that -u considers explicit envs
+go env -w GOOS=linux GOARCH=mips
+env GOOS=windows
+! go env -u GOOS
+stderr 'unsupported GOOS/GOARCH.*windows/mips$'
+env GOOS=
+
+# go env -w should reject relative paths in GOMODCACHE environment.
+! go env -w GOMODCACHE=~/test
+stderr 'go: GOMODCACHE entry is relative; must be absolute path: "~/test"'
+! go env -w GOMODCACHE=./test
+stderr 'go: GOMODCACHE entry is relative; must be absolute path: "./test"'
+
+# go env -w checks validity of GOEXPERIMENT
+env GOEXPERIMENT=
+! go env -w GOEXPERIMENT=badexp
+stderr 'unknown GOEXPERIMENT badexp'
+go env -w GOEXPERIMENT=fieldtrack
+
+# go env -w and go env -u work on unknown fields already in the go/env file
+cp bad.env $GOENV
+go env GOENV
+cat $GOENV
+go env
+! stdout UNKNOWN
+go env UNKNOWN
+stdout yes
+go env -w UNKNOWN=maybe
+go env UNKNOWN
+stdout maybe
+go env -u UNKNOWN
+go env UNKNOWN
+! stdout . # gone
+
+-- bad.env --
+UNKNOWN=yes

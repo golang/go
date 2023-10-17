@@ -1,0 +1,95 @@
+# go list -e -deps should list imports from any file it can read, even if
+# other files in the same package cause go/build.Import to return an error.
+# Verifies golang.org/issue/38568
+
+go list -e -deps ./scan
+stdout m/want
+
+go list -e -deps ./multi
+stdout m/want
+
+go list -e -deps ./constraint
+stdout m/want
+
+[cgo] go list -e -test -deps ./cgotest
+[cgo] stdout m/want
+
+[cgo] go list -e -deps ./cgoflag
+[cgo] stdout m/want
+
+
+# go list -e should include files with errors in GoFiles, TestGoFiles, and
+# other lists, assuming they match constraints.
+# Verifies golang.org/issue/39986
+go list -e -f '{{range .GoFiles}}{{.}},{{end}}' ./scan
+stdout '^good.go,scan.go,$'
+
+go list -e -f '{{range .GoFiles}}{{.}},{{end}}' ./multi
+stdout '^a.go,b.go,$'
+
+go list -e -f '{{range .GoFiles}}{{.}},{{end}}' ./constraint
+stdout '^good.go,$'
+go list -e -f '{{range .IgnoredGoFiles}}{{.}},{{end}}' ./constraint
+stdout '^constraint.go,$'
+
+[cgo] go list -e -f '{{range .XTestGoFiles}}{{.}},{{end}}' ./cgotest
+[cgo] stdout '^cgo_test.go,$'
+
+[cgo] go list -e -f '{{range .GoFiles}}{{.}},{{end}}' ./cgoflag
+[cgo] stdout '^cgoflag.go,$'
+
+-- go.mod --
+module m
+
+go 1.14
+
+-- want/want.go --
+package want
+
+-- scan/scan.go --
+// scan error
+ʕ◔ϖ◔ʔ
+
+-- scan/good.go --
+package scan
+
+import _ "m/want"
+
+-- multi/a.go --
+package a
+
+-- multi/b.go --
+package b
+
+import _ "m/want"
+
+-- constraint/constraint.go --
+// +build !!nope
+
+package constraint
+
+-- constraint/good.go --
+package constraint
+
+import _ "m/want"
+
+-- cgotest/cgo_test.go --
+package cgo_test
+
+// cgo is not allowed in tests.
+// See golang.org/issue/18647
+
+import "C"
+import (
+	"testing"
+	_ "m/want"
+)
+
+func Test(t *testing.T) {}
+
+-- cgoflag/cgoflag.go --
+package cgoflag
+
+// #cgo ʕ◔ϖ◔ʔ:
+
+import _ "m/want"

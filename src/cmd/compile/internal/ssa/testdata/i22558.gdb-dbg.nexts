@@ -1,0 +1,11 @@
+  src/cmd/compile/internal/ssa/testdata/i22558.go
+19:	func test(t *thing, u *thing) {
+20:		if t.next != nil {
+23:		fmt.Fprintf(os.Stderr, "%s\n", t.name)
+24:		u.self = u
+25:		t.self = t
+26:		t.next = u
+27:		for _, p := range t.stuff {
+28:			if isFoo(t, p) {
+29:				return
+44:	}

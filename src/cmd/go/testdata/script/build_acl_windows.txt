@@ -1,0 +1,44 @@
+[!GOOS:windows] stop
+[!exec:icacls] skip
+[!exec:powershell] skip
+
+# Create $WORK\guest and give the Guests group full access.
+# Files created within that directory will have different security attributes by default.
+mkdir $WORK\guest
+exec icacls $WORK\guest /grant '*S-1-5-32-546:(oi)(ci)f'
+
+env TMP=$WORK\guest
+env TEMP=$WORK\guest
+
+# Build a binary using the guest directory as an intermediate
+cd TestACL
+go build -o main.exe main.go
+# Build the same binary, but write it to the guest directory.
+go build -o $TMP\main.exe main.go
+
+# Read ACLs for the files.
+exec powershell -Command 'Get-Acl main.exe | Select -expand AccessToString'
+cp stdout $WORK\exe-acl.txt
+exec powershell -Command 'Get-Acl main.go | Select -expand AccessToString'
+cp stdout $WORK\src-acl.txt
+cd $TMP
+exec powershell -Command 'Get-Acl main.exe | Select -expand AccessToString'
+cp stdout $WORK\guest-acl.txt
+
+cd $WORK
+
+# The executable written to the source directory should have the same ACL as the source file.
+cmp $WORK\exe-acl.txt $WORK\src-acl.txt
+
+# The file written to the guest-allowed directory should give Guests control.
+grep 'BUILTIN\\Guests\s+Allow' $WORK\guest-acl.txt
+
+# The file written to the ordinary directory should not.
+! grep 'BUILTIN\\Guests\s+Allow' $WORK\exe-acl.txt
+
+
+-- TestACL/go.mod --
+module TestACL
+-- TestACL/main.go --
+package main
+func main() {}

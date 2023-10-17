@@ -1,0 +1,9 @@
+env GO111MODULE=on
+env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
+
+# download -json with version should print JSON on sumdb failure
+! go mod download -json 'rsc.io/quote@<=v1.5.0'
+stdout '"Error": ".*verifying (module|go.mod)'
+
+-- go.mod --
+module m

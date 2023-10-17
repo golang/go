@@ -1,0 +1,36 @@
+-- input --
+✦
+
+Almost a+heading
+
+✦
+
+Don't be a heading
+
+✦
+
+A.b is a heading
+
+✦
+
+A. b is not a heading
+
+✦
+-- gofmt --
+✦
+
+Almost a+heading
+
+✦
+
+Don't be a heading
+
+✦
+
+# A.b is a heading
+
+✦
+
+A. b is not a heading
+
+✦

@@ -1,0 +1,36 @@
+This directory holds Go modules served by a Go module proxy
+that runs on localhost during tests, both to make tests avoid
+requiring specific network servers and also to make them 
+significantly faster.
+
+A small go get'able test module can be added here by running
+
+	cd cmd/go/testdata
+	go run addmod.go path@vers
+
+where path and vers are the module path and version to add here.
+
+For interactive experimentation using this set of modules, run:
+
+	cd cmd/go
+	go test -proxy=localhost:1234 &
+	export GOPROXY=http://localhost:1234/mod
+
+and then run go commands as usual.
+
+Modules saved to this directory should be small: a few kilobytes at most.
+It is acceptable to edit the archives created by addmod.go to remove
+or shorten files. It is also acceptable to write module archives by hand: 
+they need not be backed by some public git repo.
+
+Each module archive is named path_vers.txt, where slashes in path
+have been replaced with underscores. The archive must contain
+two files ".info" and ".mod", to be served as the info and mod files
+in the proxy protocol (see https://research.swtch.com/vgo-module).
+The remaining files are served as the content of the module zip file.
+The path@vers prefix required of files in the zip file is added
+automatically by the proxy: the files in the archive have names without
+the prefix, like plain "go.mod", "x.go", and so on.
+
+See ../addmod.go and ../savedir.go for tools to generate txtar files,
+although again it is also fine to write them by hand.

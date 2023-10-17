@@ -1,0 +1,67 @@
+[!fuzz] skip
+[short] skip
+env GOCACHE=$WORK/cache
+
+# When running seed inputs, T.Parallel should let multiple inputs run in
+# parallel.
+go test -run=FuzzSeed
+
+# When fuzzing, T.Parallel should be safe to call, but it should have no effect.
+# We just check that it doesn't hang, which would be the most obvious
+# failure mode.
+# TODO(jayconrod): check for the string "after T.Parallel". It's not printed
+# by 'go test', so we can't distinguish that crasher from some other panic.
+! go test -run=FuzzMutate -fuzz=FuzzMutate
+exists testdata/fuzz/FuzzMutate
+
+# Testdata should now contain a corpus entry which will fail FuzzMutate.
+# Run the test without fuzzing, setting -parallel to different values to make
+# sure it fails, and doesn't hang.
+! go test -run=FuzzMutate -parallel=1
+! go test -run=FuzzMutate -parallel=2
+! go test -run=FuzzMutate -parallel=4
+
+-- go.mod --
+module fuzz_parallel
+
+go 1.17
+-- fuzz_parallel_test.go --
+package fuzz_parallel
+
+import (
+	"sort"
+	"sync"
+	"testing"
+)
+
+func FuzzSeed(f *testing.F) {
+	for _, v := range [][]byte{{'a'}, {'b'}, {'c'}} {
+		f.Add(v)
+	}
+
+	var mu sync.Mutex
+	var before, after []byte
+	f.Cleanup(func() {
+		sort.Slice(after, func(i, j int) bool { return after[i] < after[j] })
+		got := string(before) + string(after)
+		want := "abcabc"
+		if got != want {
+			f.Fatalf("got %q; want %q", got, want)
+		}
+	})
+
+	f.Fuzz(func(t *testing.T, b []byte) {
+		before = append(before, b...)
+		t.Parallel()
+		mu.Lock()
+		after = append(after, b...)
+		mu.Unlock()
+	})
+}
+
+func FuzzMutate(f *testing.F) {
+	f.Fuzz(func(t *testing.T, _ []byte) {
+		t.Parallel()
+		t.Error("after T.Parallel")
+	})
+}

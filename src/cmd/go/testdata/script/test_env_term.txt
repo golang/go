@@ -1,0 +1,15 @@
+# Tests golang.org/issue/12096
+
+env TERM=''
+go test test_test.go
+! stdout '^ok.*\[no tests to run\]'
+stdout '^ok'
+
+-- test_test.go --
+package main
+import ("os"; "testing")
+func TestEnv(t *testing.T) {
+	if os.Getenv("TERM") != "" {
+		t.Fatal("TERM is set")
+	}
+}

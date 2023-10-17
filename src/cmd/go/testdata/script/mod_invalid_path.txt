@@ -1,0 +1,61 @@
+# Test that mod files with invalid or missing paths produce an error.
+
+# Test that go list fails on a go.mod with no module declaration.
+cd $WORK/gopath/src/mod
+! go list .
+stderr '^go: error reading go.mod: missing module declaration. To specify the module path:\n\tgo mod edit -module=example.com/mod$'
+
+# Test that go mod init in GOPATH doesn't add a module declaration
+# with a path that can't possibly be a module path, because
+# it isn't even a valid import path.
+# The single quote and backtick are the only characters which are not allowed
+# but are a valid Windows file name.
+cd $WORK/'gopath/src/m''d'
+! go mod init
+stderr 'cannot determine module path'
+
+# Test that a go.mod file is rejected when its module declaration has a path that can't
+# possibly be a module path, because it isn't even a valid import path
+cd $WORK/gopath/src/badname
+! go list .
+stderr 'malformed module path'
+
+# Test that an import path containing an element with a leading dot is valid,
+# but such a module path is not.
+# Verifies #43985.
+cd $WORK/gopath/src/dotname
+go list ./.dot
+stdout '^example.com/dotname/.dot$'
+go list ./use
+stdout '^example.com/dotname/use$'
+! go list -m example.com/dotname/.dot@latest
+stderr '^go: example.com/dotname/.dot@latest: malformed module path "example.com/dotname/.dot": leading dot in path element$'
+go get example.com/dotname/.dot
+go get example.com/dotname/use
+go mod tidy
+
+-- mod/go.mod --
+
+-- mod/foo.go --
+package foo
+
+-- m'd/foo.go --
+package mad
+
+-- badname/go.mod --
+
+module .\.
+
+-- badname/foo.go --
+package badname
+
+-- dotname/go.mod --
+module example.com/dotname
+
+go 1.16
+-- dotname/.dot/dot.go --
+package dot
+-- dotname/use/use.go --
+package use
+
+import _ "example.com/dotname/.dot"
