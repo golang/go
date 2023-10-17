@@ -1198,8 +1198,8 @@ func main() {}
 	}
 	exe := filepath.Join(tmpdir, "x.exe")
 
-	// Use a deterministc tmp directory so the temporary file paths are
-	// deterministc.
+	// Use a deterministic tmp directory so the temporary file paths are
+	// deterministic.
 	linktmp := filepath.Join(tmpdir, "linktmp")
 	if err := os.Mkdir(linktmp, 0777); err != nil {
 		t.Fatal(err)
