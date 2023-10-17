@@ -6,7 +6,10 @@ package main
 
 // int the_answer();
 import "C"
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 func TheAnswer() int {
 	return int(C.the_answer())
@@ -14,8 +17,8 @@ func TheAnswer() int {
 
 func main() {
 	if a := TheAnswer(); a != 42 {
-		println("Unexpected result for The Answer. Got:", a, " Want: 42")
+		fmt.Fprintln(os.Stderr, "Unexpected result for The Answer. Got:", a, " Want: 42")
 		os.Exit(1)
 	}
-	println("ok")
+	fmt.Fprintln(os.Stdout, "ok")
 }
