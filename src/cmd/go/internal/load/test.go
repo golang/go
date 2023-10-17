@@ -46,9 +46,10 @@ type TestCover struct {
 }
 
 // TestPackagesFor is like TestPackagesAndErrors but it returns
-// an error if the test packages or their dependencies have errors.
+// the package containing an error if the test packages or
+// their dependencies have errors.
 // Only test packages without errors are returned.
-func TestPackagesFor(ctx context.Context, opts PackageOpts, p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
+func TestPackagesFor(ctx context.Context, opts PackageOpts, p *Package, cover *TestCover) (pmain, ptest, pxtest, perr *Package) {
 	pmain, ptest, pxtest = TestPackagesAndErrors(ctx, nil, opts, p, cover)
 	for _, p1 := range []*Package{ptest, pxtest, pmain} {
 		if p1 == nil {
@@ -56,14 +57,14 @@ func TestPackagesFor(ctx context.Context, opts PackageOpts, p *Package, cover *T
 			continue
 		}
 		if p1.Error != nil {
-			err = p1.Error
+			perr = p1
 			break
 		}
 		if p1.Incomplete {
 			ps := PackageList([]*Package{p1})
 			for _, p := range ps {
 				if p.Error != nil {
-					err = p.Error
+					perr = p
 					break
 				}
 			}
@@ -79,7 +80,7 @@ func TestPackagesFor(ctx context.Context, opts PackageOpts, p *Package, cover *T
 	if pxtest != nil && (pxtest.Error != nil || pxtest.Incomplete) {
 		pxtest = nil
 	}
-	return pmain, ptest, pxtest, err
+	return pmain, ptest, pxtest, perr
 }
 
 // TestPackagesAndErrors returns three packages:

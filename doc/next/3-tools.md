@@ -2,6 +2,12 @@
 
 ### Go command {#go-command}
 
+The `go build` and `go install` commands now accept a `-json` flag that reports
+build output and failures as structured JSON output on standard output.
+Furthermore, passing `-json` to `go test` now reports build output and failures
+in addition to test results in JSON. For details of the reporting format, see
+`go help buildjson`.
+
 ### Cgo {#cgo}
 
 Cgo currently refuses to compile calls to a C function which has multiple

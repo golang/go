@@ -158,6 +158,7 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 	-json
 	    Convert test output to JSON suitable for automated processing.
 	    See 'go doc test2json' for the encoding details.
+	    Also emits build output in JSON. See 'go help buildjson'.
 
 	-o file
 	    Compile the test binary to the named file.
@@ -991,15 +992,26 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Prepare build + run + print actions for all packages being tested.
 	for _, p := range pkgs {
-		buildTest, runTest, printTest, err := builderTest(b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
+		buildTest, runTest, printTest, perr, err := builderTest(b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
 		if err != nil {
 			str := err.Error()
 			if p.ImportPath != "" {
-				base.Errorf("# %s\n%s", p.ImportPath, str)
+				load.DefaultPrinter().Errorf(perr, "# %s\n%s", p.ImportPath, str)
 			} else {
-				base.Errorf("%s", str)
+				load.DefaultPrinter().Errorf(perr, "%s", str)
 			}
-			fmt.Printf("FAIL\t%s [setup failed]\n", p.ImportPath)
+			var stdout io.Writer = os.Stdout
+			if testJSON {
+				json := test2json.NewConverter(stdout, p.ImportPath, test2json.Timestamp)
+				defer func() {
+					json.Exited(err)
+					json.Close()
+				}()
+				json.SetFailedBuild(perr.Desc())
+				stdout = json
+			}
+			fmt.Fprintf(stdout, "FAIL\t%s [setup failed]\n", p.ImportPath)
+			base.SetExitStatus(1)
 			continue
 		}
 		builds = append(builds, buildTest)
@@ -1052,7 +1064,7 @@ var windowsBadWords = []string{
 	"update",
 }
 
-func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool, writeCoverMetaAct *work.Action) (buildAction, runAction, printAction *work.Action, err error) {
+func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool, writeCoverMetaAct *work.Action) (buildAction, runAction, printAction *work.Action, perr *load.Package, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		if cfg.BuildCover && cfg.Experiment.CoverageRedesign {
 			if p.Internal.Cover.GenMeta {
@@ -1093,7 +1105,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 			Package:    p,
 			IgnoreFail: true, // print even if test failed
 		}
-		return build, run, print, nil
+		return build, run, print, nil, nil
 	}
 
 	// Build Package structs describing:
@@ -1109,9 +1121,9 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 			Paths: cfg.BuildCoverPkg,
 		}
 	}
-	pmain, ptest, pxtest, err := load.TestPackagesFor(ctx, pkgOpts, p, cover)
-	if err != nil {
-		return nil, nil, nil, err
+	pmain, ptest, pxtest, perr := load.TestPackagesFor(ctx, pkgOpts, p, cover)
+	if perr != nil {
+		return nil, nil, nil, perr, perr.Error
 	}
 
 	// If imported is true then this package is imported by some
@@ -1128,7 +1140,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 
 	testDir := b.NewObjdir()
 	if err := b.BackgroundShell().Mkdir(testDir); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	pmain.Dir = testDir
@@ -1143,7 +1155,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 		// writeTestmain writes _testmain.go,
 		// using the test description gathered in t.
 		if err := os.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 	}
 
@@ -1292,7 +1304,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 		}
 	}
 
-	return buildAction, runAction, printAction, nil
+	return buildAction, runAction, printAction, nil, nil
 }
 
 func addTestVet(b *work.Builder, p *load.Package, runAction, installAction *work.Action) {
@@ -1375,8 +1387,9 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 
 	var stdout io.Writer = os.Stdout
 	var err error
+	var json *test2json.Converter
 	if testJSON {
-		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
+		json = test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
 		defer func() {
 			json.Exited(err)
 			json.Close()
@@ -1389,6 +1402,9 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 
 	if a.Failed != nil {
 		// We were unable to build the binary.
+		if json != nil && a.Failed.Package != nil {
+			json.SetFailedBuild(a.Failed.Package.Desc())
+		}
 		a.Failed = nil
 		fmt.Fprintf(stdout, "FAIL\t%s [build failed]\n", a.Package.ImportPath)
 		// Tell the JSON converter that this was a failure, not a passing run.

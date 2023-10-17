@@ -1049,8 +1049,9 @@ var HelpBuildJSON = &base.Command{
 	UsageLine: "buildjson",
 	Short:     "build -json encoding",
 	Long: `
-The 'go build' and 'go install' commands take a -json flag that reports
-build output and failures as structured JSON output on standard output.
+The 'go build', 'go install', and 'go test' commands take a -json flag that
+reports build output and failures as structured JSON output on standard
+output.
 
 The JSON stream is a newline-separated sequence of BuildEvent objects
 corresponding to the Go struct:
@@ -1062,7 +1063,9 @@ corresponding to the Go struct:
 	}
 
 The ImportPath field gives the package ID of the package being built.
-This matches the Package.ImportPath field of go list -json.
+This matches the Package.ImportPath field of go list -json and the
+TestEvent.FailedBuild field of go test -json. Note that it does not
+match TestEvent.Package.
 
 The Action field is one of the following:
 
@@ -1075,6 +1078,12 @@ events is the exact output of the build. A single event may contain one
 or more lines of output and there may be more than one output event for
 a given ImportPath. This matches the definition of the TestEvent.Output
 field produced by go test -json.
+
+For go test -json, this struct is designed so that parsers can distinguish
+interleaved TestEvents and BuildEvents by inspecting the Action field.
+Furthermore, as with TestEvent, parsers can simply concatenate the Output
+fields of all events to reconstruct the text format output, as it would
+have appeared from go build without the -json flag.
 
 Note that there may also be non-JSON error text on stdnard error, even
 with the -json flag. Typically, this indicates an early, serious error.

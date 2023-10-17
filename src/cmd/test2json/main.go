@@ -35,12 +35,13 @@
 // corresponding to the Go struct:
 //
 //	type TestEvent struct {
-//		Time    time.Time // encodes as an RFC3339-format string
-//		Action  string
-//		Package string
-//		Test    string
-//		Elapsed float64 // seconds
-//		Output  string
+//		Time        time.Time // encodes as an RFC3339-format string
+//		Action      string
+//		Package     string
+//		Test        string
+//		Elapsed     float64 // seconds
+//		Output      string
+//		FailedBuild string
 //	}
 //
 // The Time field holds the time the event happened.
@@ -78,6 +79,11 @@
 // into valid UTF-8 by use of replacement characters. With that one exception,
 // the concatenation of the Output fields of all output events is the exact
 // output of the test execution.
+//
+// The FailedBuild field is set for Action == "fail" if the test failure was
+// caused by a build failure. It contains the package ID of the package that
+// failed to build. This matches the ImportPath field of the "go list" output,
+// as well as the BuildEvent.ImportPath field as emitted by "go build -json".
 //
 // When a benchmark runs, it typically produces a single line of output
 // giving timing results. That line is reported in an event with Action == "output"

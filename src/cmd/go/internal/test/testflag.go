@@ -6,6 +6,7 @@ package test
 
 import (
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/cmdflag"
 	"cmd/go/internal/work"
 	"errors"
@@ -353,6 +354,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		injectedFlags = append(injectedFlags, "-test.v=test2json")
 		delete(addFromGOFLAGS, "v")
 		delete(addFromGOFLAGS, "test.v")
+
+		cfg.BuildJSON = true
 	}
 
 	// Inject flags from GOFLAGS before the explicit command-line arguments.
