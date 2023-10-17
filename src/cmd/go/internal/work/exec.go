@@ -173,7 +173,8 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 				if a.Package != nil && (!errors.As(err, &ipe) || ipe.ImportPath() != a.Package.ImportPath) {
 					err = fmt.Errorf("%s: %v", a.Package.ImportPath, err)
 				}
-				base.Errorf("%s", err)
+				sh := b.Shell(a)
+				sh.Errorf("%s", err)
 			}
 			a.Failed = true
 		}

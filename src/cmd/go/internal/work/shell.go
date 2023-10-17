@@ -43,7 +43,7 @@ type shellShared struct {
 	workDir string // $WORK, immutable
 
 	printLock sync.Mutex
-	printFunc func(args ...any) (int, error)
+	printer   load.Printer
 	scriptDir string // current directory in printed script
 
 	mkdirCache par.Cache[string, error] // a cache of created directories
@@ -51,19 +51,24 @@ type shellShared struct {
 
 // NewShell returns a new Shell.
 //
-// Shell will internally serialize calls to the print function.
-// If print is nil, it defaults to printing to stderr.
-func NewShell(workDir string, print func(a ...any) (int, error)) *Shell {
-	if print == nil {
-		print = func(a ...any) (int, error) {
-			return fmt.Fprint(os.Stderr, a...)
-		}
+// Shell will internally serialize calls to the printer.
+// If printer is nil, it uses load.DefaultPrinter.
+func NewShell(workDir string, printer load.Printer) *Shell {
+	if printer == nil {
+		printer = load.DefaultPrinter()
 	}
 	shared := &shellShared{
-		workDir:   workDir,
-		printFunc: print,
+		workDir: workDir,
+		printer: printer,
 	}
 	return &Shell{shellShared: shared}
+}
+
+func (sh *Shell) pkg() *load.Package {
+	if sh.action == nil {
+		return nil
+	}
+	return sh.action.Package
 }
 
 // Print emits a to this Shell's output stream, formatting it like fmt.Print.
@@ -71,11 +76,18 @@ func NewShell(workDir string, print func(a ...any) (int, error)) *Shell {
 func (sh *Shell) Print(a ...any) {
 	sh.printLock.Lock()
 	defer sh.printLock.Unlock()
-	sh.printFunc(a...)
+	sh.printer.Output(sh.pkg(), a...)
 }
 
 func (sh *Shell) printLocked(a ...any) {
-	sh.printFunc(a...)
+	sh.printer.Output(sh.pkg(), a...)
+}
+
+// Errorf reports an error on sh's package and sets the process exit status to 1.
+func (sh *Shell) Errorf(format string, a ...any) {
+	sh.printLock.Lock()
+	defer sh.printLock.Unlock()
+	sh.printer.Errorf(sh.pkg(), format, a...)
 }
 
 // WithAction returns a Shell identical to sh, but bound to Action a.

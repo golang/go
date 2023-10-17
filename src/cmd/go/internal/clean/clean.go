@@ -150,7 +150,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	sh := work.NewShell("", fmt.Print)
+	sh := work.NewShell("", &load.TextPrinter{Writer: os.Stdout})
 
 	if cleanCache {
 		dir, _ := cache.DefaultDir()
@@ -269,7 +269,7 @@ func clean(p *load.Package) {
 		return
 	}
 
-	sh := work.NewShell("", fmt.Print)
+	sh := work.NewShell("", &load.TextPrinter{Writer: os.Stdout})
 
 	packageFile := map[string]bool{}
 	if p.Name != "main" {

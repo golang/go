@@ -3053,7 +3053,7 @@ func CheckPackageErrors(pkgs []*Package) {
 		all := PackageList(pkgs)
 		for _, p := range all {
 			if p.Error != nil {
-				base.Errorf("%v", p.Error)
+				DefaultPrinter().Errorf(p, "%v", p.Error)
 			}
 		}
 	}
