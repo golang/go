@@ -1,5 +1,4 @@
 //go:build wasm || ppc64 || ppc64le
-// +build wasm ppc64 ppc64le
 
 //
 // Copyright 2023 The Go Authors. All rights reserved.

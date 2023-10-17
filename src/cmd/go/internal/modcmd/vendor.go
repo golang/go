@@ -299,7 +299,7 @@ func vendorPkg(vdir, pkg string) {
 	// a MultiplePackageError on an otherwise valid package: the package could
 	// have different names for GOOS=windows and GOOS=mac for example. On the
 	// other hand if there's a NoGoError, the package might have source files
-	// specifying "// +build ignore" those packages should be skipped because
+	// specifying "//go:build ignore" those packages should be skipped because
 	// embeds from ignored files can't be used.
 	// TODO(#42504): Find a better way to avoid errors from ImportDir. We'll
 	// need to figure this out when we switch to PackagesAndErrors as per the

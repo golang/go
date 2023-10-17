@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !math_big_pure_go && (mips || mipsle)
-// +build !math_big_pure_go
-// +build mips mipsle
 
 #include "textflag.h"
 
