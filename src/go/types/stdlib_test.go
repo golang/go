@@ -192,7 +192,7 @@ func firstComment(filename string) string {
 				lit = lit[:len(lit)-2]
 			}
 			contents := strings.TrimSpace(lit[2:])
-			if strings.HasPrefix(contents, "+build ") {
+			if strings.HasPrefix(contents, "go:build ") {
 				return "skip"
 			}
 			if first == "" {

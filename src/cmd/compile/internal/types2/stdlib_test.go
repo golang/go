@@ -191,7 +191,7 @@ func firstComment(filename string) (first string) {
 		}
 		text = strings.TrimSpace(text[2:])
 
-		if strings.HasPrefix(text, "+build ") {
+		if strings.HasPrefix(text, "go:build ") {
 			panic("skip")
 		}
 		if first == "" {
