@@ -2379,7 +2379,7 @@ func RedirectHandler(url string, code int) Handler {
 // There is one exception to this rule, for backwards compatibility:
 // if two patterns would otherwise conflict and one has a host while the other does not,
 // then the pattern with the host takes precedence.
-// If a pattern passed [ServeMux.Handle] or [ServeMux.HandleFunc] conflicts with
+// If a pattern passed to [ServeMux.Handle] or [ServeMux.HandleFunc] conflicts with
 // another pattern that is already registered, those functions panic.
 //
 // As an example of the general rule, "/images/thumbnails/" is more specific than "/images/",
