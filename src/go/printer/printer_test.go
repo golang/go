@@ -853,30 +853,13 @@ func TestSourcePosNewline(t *testing.T) {
 // valid syntax e.g "var ()" instead of just "var", which is invalid and cannot
 // be parsed.
 func TestEmptyDecl(t *testing.T) { // issue 63566
-	var tableTests = []struct {
-		tok      token.Token
-		expected string
-	}{
-		{
-			tok:      token.VAR,
-			expected: "var ()",
-		},
-		{
-			tok:      token.CONST,
-			expected: "const ()",
-		},
-		{
-			tok:      token.IMPORT,
-			expected: "import ()",
-		},
-	}
-
-	for _, tt := range tableTests {
+	for _, tok := range []token.Token{token.IMPORT, token.CONST, token.TYPE, token.VAR} {
 		var buf bytes.Buffer
-		Fprint(&buf, token.NewFileSet(), &ast.GenDecl{Tok: tt.tok})
+		Fprint(&buf, token.NewFileSet(), &ast.GenDecl{Tok: tok})
 		got := buf.String()
-		if got != tt.expected {
-			t.Errorf("got %q, expected %q\n", got, tt.expected)
+		want := tok.String() + " ()"
+		if got != want {
+			t.Errorf("got %q, want %q", got, want)
 		}
 	}
 }
