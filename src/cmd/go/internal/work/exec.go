@@ -1858,15 +1858,41 @@ var AllowInstall = func(*Action) error { return nil }
 // this keeps the intermediate objects from hitting the disk.
 func (b *Builder) cleanup(a *Action) {
 	if !cfg.BuildWork {
-		if cfg.BuildX {
-			// Don't say we are removing the directory if
-			// we never created it.
-			if _, err := os.Stat(a.Objdir); err == nil || cfg.BuildN {
-				b.Shell(a).ShowCmd("", "rm -r %s", a.Objdir)
-			}
-		}
-		os.RemoveAll(a.Objdir)
+		b.Shell(a).RemoveAll(a.Objdir)
 	}
+}
+
+// RemoveAll is like 'rm -rf'. It attempts to remove all paths even if there's
+// an error, and returns the first error.
+func (sh *Shell) RemoveAll(paths ...string) error {
+	if cfg.BuildN || cfg.BuildX {
+		// Don't say we are removing the directory if we never created it.
+		show := func() bool {
+			for _, path := range paths {
+				if _, ok := sh.mkdirCache.Get(path); ok {
+					return true
+				}
+				if _, err := os.Stat(path); !os.IsNotExist(err) {
+					return true
+				}
+			}
+			return false
+		}
+		if show() {
+			sh.ShowCmd("", "rm -rf %s", strings.Join(paths, " "))
+		}
+	}
+	if cfg.BuildN {
+		return nil
+	}
+
+	var err error
+	for _, path := range paths {
+		if err2 := os.RemoveAll(path); err2 != nil && err == nil {
+			err = err2
+		}
+	}
+	return err
 }
 
 // moveOrCopyFile is like 'mv src dst' or 'cp src dst'.

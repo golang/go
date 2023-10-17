@@ -15,8 +15,6 @@ import (
 //
 // Shell tracks context related to running commands, and form a tree much like
 // context.Context.
-//
-// TODO: Add a RemoveAll method. "rm -rf" is pretty common.
 type Shell struct {
 	action       *Action // nil for the root shell
 	*shellShared         // per-Builder state shared across Shells

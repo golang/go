@@ -162,30 +162,16 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 			subdirs, _ := filepath.Glob(filepath.Join(str.QuoteGlob(dir), "[0-9a-f][0-9a-f]"))
 			printedErrors := false
 			if len(subdirs) > 0 {
-				if cfg.BuildN || cfg.BuildX {
-					sh.ShowCmd("", "rm -r %s", strings.Join(subdirs, " "))
-				}
-				if !cfg.BuildN {
-					for _, d := range subdirs {
-						// Only print the first error - there may be many.
-						// This also mimics what os.RemoveAll(dir) would do.
-						if err := os.RemoveAll(d); err != nil && !printedErrors {
-							printedErrors = true
-							base.Error(err)
-						}
-					}
+				if err := sh.RemoveAll(subdirs...); err != nil && !printedErrors {
+					printedErrors = true
+					base.Error(err)
 				}
 			}
 
 			logFile := filepath.Join(dir, "log.txt")
-			if cfg.BuildN || cfg.BuildX {
-				sh.ShowCmd("", "rm -f %s", logFile)
-			}
-			if !cfg.BuildN {
-				if err := os.RemoveAll(logFile); err != nil && !printedErrors {
-					printedErrors = true
-					base.Error(err)
-				}
+			if err := sh.RemoveAll(logFile); err != nil && !printedErrors {
+				printedErrors = true
+				base.Error(err)
 			}
 		}
 	}
@@ -236,13 +222,8 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 
 	if cleanFuzzcache {
 		fuzzDir := cache.Default().FuzzDir()
-		if cfg.BuildN || cfg.BuildX {
-			sh.ShowCmd("", "rm -rf %s", fuzzDir)
-		}
-		if !cfg.BuildN {
-			if err := os.RemoveAll(fuzzDir); err != nil {
-				base.Error(err)
-			}
+		if err := sh.RemoveAll(fuzzDir); err != nil {
+			base.Error(err)
 		}
 	}
 }
@@ -363,13 +344,7 @@ func clean(p *load.Package) {
 		if dir.IsDir() {
 			// TODO: Remove once Makefiles are forgotten.
 			if cleanDir[name] {
-				if cfg.BuildN || cfg.BuildX {
-					sh.ShowCmd(p.Dir, "rm -r %s", name)
-					if cfg.BuildN {
-						continue
-					}
-				}
-				if err := os.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
+				if err := sh.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
 					base.Error(err)
 				}
 			}

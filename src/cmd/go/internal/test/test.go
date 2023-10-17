@@ -2041,10 +2041,7 @@ func builderCleanTest(b *work.Builder, ctx context.Context, a *work.Action) erro
 	if cfg.BuildWork {
 		return nil
 	}
-	if cfg.BuildX {
-		b.Shell(a).ShowCmd("", "rm -r %s", a.Objdir)
-	}
-	os.RemoveAll(a.Objdir)
+	b.Shell(a).RemoveAll(a.Objdir)
 	return nil
 }
 
