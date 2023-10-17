@@ -23,6 +23,8 @@ TEXT ·armcas(SB),NOSPLIT,$0-13
 	MOVW	ptr+0(FP), R1
 	MOVW	old+4(FP), R2
 	MOVW	new+8(FP), R3
+
+	DMB	MB_ISHST
 casl:
 	LDREX	(R1), R0
 	CMP	R0, R2
@@ -31,7 +33,6 @@ casl:
 	MOVB	runtime·goarm(SB), R8
 	CMP	$7, R8
 	BLT	2(PC)
-	DMB	MB_ISHST
 
 	STREX	R3, (R1), R0
 	CMP	$0, R0
@@ -45,6 +46,7 @@ casl:
 	MOVB	R0, ret+12(FP)
 	RET
 casfail:
+	DMB	MB_ISH
 	MOVW	$0, R0
 	MOVB	R0, ret+12(FP)
 	RET
@@ -131,14 +133,14 @@ TEXT armCas64<>(SB),NOSPLIT,$0-21
 	MOVW	old_hi+8(FP), R3
 	MOVW	new_lo+12(FP), R4
 	MOVW	new_hi+16(FP), R5
+
+	DMB	MB_ISHST
 cas64loop:
 	LDREXD	(R1), R6	// loads R6 and R7
 	CMP	R2, R6
 	BNE	cas64fail
 	CMP	R3, R7
 	BNE	cas64fail
-
-	DMB	MB_ISHST
 
 	STREXD	R4, (R1), R0	// stores R4 and R5
 	CMP	$0, R0
@@ -150,6 +152,7 @@ cas64loop:
 	MOVBU	R0, swapped+20(FP)
 	RET
 cas64fail:
+	DMB MB_ISH
 	MOVW	$0, R0
 	MOVBU	R0, swapped+20(FP)
 	RET
