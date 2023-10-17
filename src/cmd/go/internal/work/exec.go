@@ -138,7 +138,7 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 			a.json.TimeStart = time.Now()
 		}
 		var err error
-		if a.Actor != nil && (!a.Failed || a.IgnoreFail) {
+		if a.Actor != nil && (a.Failed == nil || a.IgnoreFail) {
 			// TODO(matloob): Better action descriptions
 			desc := "Executing action (" + a.Mode
 			if a.Package != nil {
@@ -176,12 +176,14 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 				sh := b.Shell(a)
 				sh.Errorf("%s", err)
 			}
-			a.Failed = true
+			if a.Failed == nil {
+				a.Failed = a
+			}
 		}
 
 		for _, a0 := range a.triggers {
-			if a.Failed {
-				a0.Failed = true
+			if a.Failed != nil {
+				a0.Failed = a.Failed
 			}
 			if a0.pending--; a0.pending == 0 {
 				b.ready.push(a0)
@@ -1242,9 +1244,9 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 	// a.Deps[0] is the build of the package being vetted.
 	// a.Deps[1] is the build of the "fmt" package.
 
-	a.Failed = false // vet of dependency may have failed but we can still succeed
+	a.Failed = nil // vet of dependency may have failed but we can still succeed
 
-	if a.Deps[0].Failed {
+	if a.Deps[0].Failed != nil {
 		// The build of the package has failed. Skip vet check.
 		// Vet could return export data for non-typecheck errors,
 		// but we ignore it because the package cannot be compiled.
