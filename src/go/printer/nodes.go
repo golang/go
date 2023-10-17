@@ -1740,7 +1740,7 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 	p.print(d.Tok, blank)
 
 	// Empty decls for "var ()", "const ()", "import ()"
-	if len(d.Specs) == 0 {
+	if len(d.Specs) == 0 && d.Lparen == token.NoPos && d.Rparen == token.NoPos {
 		switch d.Tok {
 		case token.VAR, token.CONST, token.IMPORT:
 			p.print(token.LPAREN, token.RPAREN)
