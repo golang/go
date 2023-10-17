@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-func buildPGOInliningTest(t *testing.T, dir string, flags ...string) []byte {
+func buildPGOInliningTest(t *testing.T, dir string, gcflag string) []byte {
 	const pkg = "example.com/pgo/inline"
 
 	// Add a go.mod so we have a consistent symbol names in this temp dir.
@@ -30,10 +30,11 @@ go 1.19
 	}
 
 	exe := filepath.Join(dir, "test.exe")
-	args := []string{"test", "-c", "-o", exe}
-	args = append(args, flags...)
-	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), args...))
+	args := []string{"test", "-c", "-o", exe, "-gcflags=" + gcflag}
+	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 	cmd.Dir = dir
+	cmd = testenv.CleanCmdEnv(cmd)
+	t.Log(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failed: %v, output:\n%s", err, out)
@@ -86,7 +87,7 @@ func testPGOIntendedInlining(t *testing.T, dir string) {
 	// Build the test with the profile. Use a smaller threshold to test.
 	// TODO: maybe adjust the test to work with default threshold.
 	pprof := filepath.Join(dir, "inline_hot.pprof")
-	gcflag := fmt.Sprintf("-gcflags=-m -m -pgoprofile=%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90", pprof)
+	gcflag := fmt.Sprintf("-m -m -pgoprofile=%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90", pprof)
 	out := buildPGOInliningTest(t, dir, gcflag)
 
 	scanner := bufio.NewScanner(bytes.NewReader(out))
@@ -300,6 +301,8 @@ func TestPGOHash(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 	t.Parallel()
 
+	const pkg = "example.com/pgo/inline"
+
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("error getting wd: %v", err)
@@ -316,7 +319,9 @@ func TestPGOHash(t *testing.T) {
 	}
 
 	pprof := filepath.Join(dir, "inline_hot.pprof")
-	gcflag0 := fmt.Sprintf("-gcflags=-pgoprofile=%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90,pgodebug=1,", pprof)
+	// build with -trimpath so the source location (thus the hash)
+	// does not depend on the temporary directory path.
+	gcflag0 := fmt.Sprintf("-pgoprofile=%s -trimpath %s=>%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90,pgodebug=1", pprof, dir, pkg)
 
 	// Check that a hash match allows PGO inlining.
 	const srcPos = "example.com/pgo/inline/inline_hot.go:81:19"
@@ -324,9 +329,7 @@ func TestPGOHash(t *testing.T) {
 	pgoDebugRE := regexp.MustCompile(`hot-budget check allows inlining for call .* at ` + strings.ReplaceAll(srcPos, ".", "\\."))
 	hash := "v1" // 1 matches srcPos, v for verbose (print source location)
 	gcflag := gcflag0 + ",pgohash=" + hash
-	// build with -trimpath so the source location (thus the hash)
-	// does not depend on the temporary directory path.
-	out := buildPGOInliningTest(t, dir, gcflag, "-trimpath")
+	out := buildPGOInliningTest(t, dir, gcflag)
 	if !bytes.Contains(out, []byte(hashMatch)) || !pgoDebugRE.Match(out) {
 		t.Errorf("output does not contain expected source line, out:\n%s", out)
 	}
@@ -334,7 +337,7 @@ func TestPGOHash(t *testing.T) {
 	// Check that a hash mismatch turns off PGO inlining.
 	hash = "v0" // 0 should not match srcPos
 	gcflag = gcflag0 + ",pgohash=" + hash
-	out = buildPGOInliningTest(t, dir, gcflag, "-trimpath")
+	out = buildPGOInliningTest(t, dir, gcflag)
 	if bytes.Contains(out, []byte(hashMatch)) || pgoDebugRE.Match(out) {
 		t.Errorf("output contains unexpected source line, out:\n%s", out)
 	}
