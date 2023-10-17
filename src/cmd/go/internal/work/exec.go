@@ -868,7 +868,7 @@ OverlayLoop:
 	// Compile Go.
 	objpkg := objdir + "_pkg_.a"
 	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, gofiles)
-	if err := b.reportCmd(a, nil, "", "", out, err); err != nil {
+	if err := b.reportCmd(a, "", "", out, err); err != nil {
 		return err
 	}
 	if ofile != objpkg {
@@ -996,7 +996,7 @@ func (b *Builder) checkDirectives(a *Action) error {
 		// path, but the content of the error doesn't matter because msg is
 		// non-empty.
 		err := errors.New("invalid directive")
-		return b.reportCmd(a, nil, "", "", msg.Bytes(), err)
+		return b.reportCmd(a, "", "", msg.Bytes(), err)
 	}
 	return nil
 }
@@ -1637,7 +1637,7 @@ func (b *Builder) getPkgConfigFlags(a *Action) (cflags, ldflags []string, err er
 		out, err = b.runOut(nil, p.Dir, nil, b.PkgconfigCmd(), "--cflags", pcflags, "--", pkgs)
 		if err != nil {
 			desc := b.PkgconfigCmd() + " --cflags " + strings.Join(pcflags, " ") + " -- " + strings.Join(pkgs, " ")
-			return nil, nil, b.reportCmd(a, nil, desc, "", out, err)
+			return nil, nil, b.reportCmd(a, desc, "", out, err)
 		}
 		if len(out) > 0 {
 			cflags, err = splitPkgConfigOutput(bytes.TrimSpace(out))
@@ -1651,7 +1651,7 @@ func (b *Builder) getPkgConfigFlags(a *Action) (cflags, ldflags []string, err er
 		out, err = b.runOut(nil, p.Dir, nil, b.PkgconfigCmd(), "--libs", pcflags, "--", pkgs)
 		if err != nil {
 			desc := b.PkgconfigCmd() + " --libs " + strings.Join(pcflags, " ") + " -- " + strings.Join(pkgs, " ")
-			return nil, nil, b.reportCmd(a, nil, desc, "", out, err)
+			return nil, nil, b.reportCmd(a, desc, "", out, err)
 		}
 		if len(out) > 0 {
 			// We need to handle path with spaces so that C:/Program\ Files can pass
@@ -2241,16 +2241,10 @@ func (b *Builder) Showcmd(dir string, format string, args ...any) {
 // cgo file paths with the original file path, and replaces cgo-mangled names
 // with "C.name".
 //
-// p is optional. If nil, a.Package is used.
+// desc is optional. If "", a.Package.Desc() is used.
 //
-// desc is optional. If "", p.Desc() is used.
-//
-// dir is optional. If "", p.Dir is used.
-func (b *Builder) reportCmd(a *Action, p *load.Package, desc, dir string, cmdOut []byte, cmdErr error) error {
-	// TODO: It seems we can always get p from a.Package, so it should be
-	// possible to drop the "p" argument. However, a lot of callers take both
-	// Action and Package, so we'd want to drop the Package argument from those,
-	// too.
+// dir is optional. If "", a.Package.Dir is used.
+func (b *Builder) reportCmd(a *Action, desc, dir string, cmdOut []byte, cmdErr error) error {
 	if len(cmdOut) == 0 && cmdErr == nil {
 		// Common case
 		return nil
@@ -2267,7 +2261,8 @@ func (b *Builder) reportCmd(a *Action, p *load.Package, desc, dir string, cmdOut
 	}
 
 	// Fetch defaults from the package.
-	if a != nil && p == nil {
+	var p *load.Package
+	if a != nil {
 		p = a.Package
 	}
 	var importPath string
@@ -2397,7 +2392,7 @@ func (b *Builder) run(a *Action, dir string, desc string, env []string, cmdargs 
 	if desc == "" {
 		desc = b.fmtcmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
 	}
-	return b.reportCmd(a, nil, desc, dir, out, err)
+	return b.reportCmd(a, desc, dir, out, err)
 }
 
 // runOut runs the command given by cmdline in the directory dir.
@@ -2759,7 +2754,7 @@ func (b *Builder) ccompile(a *Action, outfile string, flags []string, file strin
 		err = errors.New("warning promoted to error")
 	}
 
-	return b.reportCmd(a, nil, "", "", output, err)
+	return b.reportCmd(a, "", "", output, err)
 }
 
 // gccld runs the gcc linker to create an executable from a set of object files.
@@ -2813,7 +2808,7 @@ func (b *Builder) gccld(a *Action, objdir, outfile string, flags []string, objs 
 	// Note that failure is an expected outcome here, so we report output only
 	// in debug mode and don't report the error.
 	if cfg.BuildN || cfg.BuildX {
-		b.reportCmd(a, nil, "", "", out, nil)
+		b.reportCmd(a, "", "", out, nil)
 	}
 	return err
 }
@@ -3848,7 +3843,7 @@ func (b *Builder) swigOne(a *Action, file, objdir string, pcCFLAGS []string, cxx
 	if err != nil && (bytes.Contains(out, []byte("-intgosize")) || bytes.Contains(out, []byte("-cgo"))) {
 		return "", "", errors.New("must have SWIG version >= 3.0.6")
 	}
-	if err := b.reportCmd(a, nil, "", "", out, err); err != nil {
+	if err := b.reportCmd(a, "", "", out, err); err != nil {
 		return "", "", err
 	}
 

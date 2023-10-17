@@ -245,7 +245,7 @@ func (tools gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []s
 	}
 
 	// Show the output if there is any even without errors.
-	return b.reportCmd(a, nil, "", "", output, nil)
+	return b.reportCmd(a, "", "", output, nil)
 }
 
 func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string, allactions []*Action, buildmode, desc string) error {
@@ -659,7 +659,7 @@ func (tools gccgoToolchain) supportsCgoIncomplete(b *Builder, a *Action) bool {
 			// Show output. We always pass a nil err because errors are an
 			// expected outcome in this case.
 			desc := b.fmtcmd(tmpdir, "%s -c -o %s %s", tools.compiler(), on, fn)
-			b.reportCmd(a, nil, desc, tmpdir, buf.Bytes(), nil)
+			b.reportCmd(a, desc, tmpdir, buf.Bytes(), nil)
 		}
 	})
 	return gccgoSupportsCgoIncomplete

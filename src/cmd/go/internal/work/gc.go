@@ -464,7 +464,7 @@ func (gcToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) er
 		return nil
 	}
 	if err := packInternal(absAfile, absOfiles); err != nil {
-		return b.reportCmd(a, nil, "", "", nil, err)
+		return b.reportCmd(a, "", "", nil, err)
 	}
 	return nil
 }
