@@ -482,6 +482,12 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 	return readMIMEHeader(r, math.MaxInt64, math.MaxInt64)
 }
 
+// ErrMessageTooLarge is an error that signals when a message is exceeding acceptable limits.
+// This error is expected to be used by callers who want to differentiate 'message too large'
+// errors from other kinds of errors. For instance, it's referenced in the mime/multipart
+// package to handle such specific cases.
+var ErrMessageTooLarge = errors.New("message too large")
+
 // readMIMEHeader is a version of ReadMIMEHeader which takes a limit on the header size.
 // It is called by the mime/multipart package.
 func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) {
@@ -544,7 +550,7 @@ func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) 
 
 		maxHeaders--
 		if maxHeaders < 0 {
-			return nil, errors.New("message too large")
+			return nil, ErrMessageTooLarge
 		}
 
 		// Skip initial spaces in value.
@@ -557,9 +563,7 @@ func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) 
 		}
 		maxMemory -= int64(len(value))
 		if maxMemory < 0 {
-			// TODO: This should be a distinguishable error (ErrMessageTooLarge)
-			// to allow mime/multipart to detect it.
-			return m, errors.New("message too large")
+			return m, ErrMessageTooLarge
 		}
 		if vv == nil && len(strs) > 0 {
 			// More than likely this will be a single-element key.

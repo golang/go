@@ -30,6 +30,7 @@ package multipart
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"internal/godebug"
 	"io"
@@ -172,8 +173,7 @@ func (p *Part) populateHeaders(maxMIMEHeaderSize, maxMIMEHeaders int64) error {
 	if err == nil {
 		p.Header = header
 	}
-	// TODO: Add a distinguishable error to net/textproto.
-	if err != nil && err.Error() == "message too large" {
+	if errors.Is(err, textproto.ErrMessageTooLarge) {
 		err = ErrMessageTooLarge
 	}
 	return err
