@@ -2389,7 +2389,7 @@ var cgoTypeSigRe = lazyregexp.New(`\b_C2?(type|func|var|macro)_\B`)
 // and returns a non-nil error.
 func (b *Builder) run(a *Action, dir string, desc string, env []string, cmdargs ...any) error {
 	out, err := b.runOut(a, dir, env, cmdargs...)
-	if desc == "" {
+	if len(out) > 0 && desc == "" {
 		desc = b.fmtcmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
 	}
 	return b.reportCmd(a, desc, dir, out, err)
