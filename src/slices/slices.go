@@ -268,9 +268,7 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
 	if i+len(v) <= j {
 		// Easy, as v fits in the deleted portion.
 		copy(r[i:], v)
-		if i+len(v) != j {
-			copy(r[i+len(v):], s[j:])
-		}
+		copy(r[i+len(v):], s[j:])
 		return r
 	}
 
