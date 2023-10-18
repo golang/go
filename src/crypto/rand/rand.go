@@ -15,7 +15,7 @@ import "io"
 // available, /dev/urandom otherwise.
 // On OpenBSD and macOS, Reader uses getentropy(2).
 // On other Unix-like systems, Reader reads from /dev/urandom.
-// On Windows systems, Reader uses the RtlGenRandom API.
+// On Windows systems, Reader uses the ProcessPrng API.
 // On Wasm, Reader uses the Web Crypto API.
 var Reader io.Reader
 
