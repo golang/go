@@ -2663,7 +2663,7 @@ func handoffp(pp *p) {
 	}
 	// no local work, check that there are no spinning/idle M's,
 	// otherwise our help is not required
-	if sched.nmspinning.Load()+sched.npidle.Load() == 0 && sched.nmspinning.CompareAndSwap(0, 1) { // TODO: fast atomic
+	if sched.nmspinning.Load()+atmoic.Loadint32(&sched.nmidle) == 0 && sched.nmspinning.CompareAndSwap(0, 1) { // TODO: fast atomic
 		sched.needspinning.Store(0)
 		startm(pp, true, false)
 		return
