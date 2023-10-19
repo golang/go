@@ -168,12 +168,10 @@ func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, e
 	// host names in local network (e.g. from /lib/ndb/local)
 	lines, err := queryCS(ctx, "net", host, "1")
 	if err != nil {
-		dnsError := &DNSError{Err: err.Error(), Name: host}
 		if stringsHasSuffix(err.Error(), "dns failure") {
-			dnsError.Err = errNoSuchHost.Error()
-			dnsError.IsNotFound = true
+			return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
 		}
-		return nil, dnsError
+		return nil, handlePlan9DNSError(err, host)
 	}
 loop:
 	for _, line := range lines {
