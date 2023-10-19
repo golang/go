@@ -164,6 +164,7 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 			if b.AllowErrors && a.Package != nil {
 				if a.Package.Error == nil {
 					a.Package.Error = &load.PackageError{Err: err}
+					a.Package.Incomplete = true
 				}
 			} else {
 				var ipe load.ImportPathError
