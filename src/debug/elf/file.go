@@ -1607,6 +1607,15 @@ func (f *File) DynString(tag DynTag) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	dynSize := 8
+	if f.Class == ELFCLASS64 {
+		dynSize = 16
+	}
+	if len(d)%dynSize != 0 {
+		return nil, errors.New("length of dynamic section is not a multiple of dynamic entry size")
+	}
+
 	str, err := f.stringTable(ds.Link)
 	if err != nil {
 		return nil, err
