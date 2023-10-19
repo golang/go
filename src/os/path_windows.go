@@ -4,6 +4,8 @@
 
 package os
 
+import "internal/syscall/windows"
+
 const (
 	PathSeparator     = '\\' // OS-specific path separator
 	PathListSeparator = ';'  // OS-specific path list separator
@@ -128,10 +130,6 @@ func dirname(path string) string {
 	return vol + dir
 }
 
-// This is set via go:linkname on runtime.canUseLongPaths, and is true when the OS
-// supports opting into proper long path handling without the need for fixups.
-var canUseLongPaths bool
-
 // fixLongPath returns the extended-length (\\?\-prefixed) form of
 // path when needed, in order to avoid the default 260 character file
 // path limit imposed by Windows. If path is not easily converted to
@@ -141,7 +139,7 @@ var canUseLongPaths bool
 //
 // See https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#maximum-path-length-limitation
 func fixLongPath(path string) string {
-	if canUseLongPaths {
+	if windows.CanUseLongPaths {
 		return path
 	}
 	// Do nothing (and don't allocate) if the path is "short".
