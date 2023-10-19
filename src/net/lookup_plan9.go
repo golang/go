@@ -106,6 +106,21 @@ func queryDNS(ctx context.Context, addr string, typ string) (res []string, err e
 	return query(ctx, netdir+"/dns", addr+" "+typ, 1024)
 }
 
+func handlePlan9DNSError(err error, name string) error {
+	if stringsHasSuffix(err.Error(), "dns: name does not exist") ||
+		stringsHasSuffix(err.Error(), "dns: resource does not exist; negrcode 0") {
+		return &DNSError{
+			Err:        errNoSuchHost.Error(),
+			Name:       name,
+			IsNotFound: true,
+		}
+	}
+	return &DNSError{
+		Err:  err.Error(),
+		Name: name,
+	}
+}
+
 // toLower returns a lower-case version of in. Restricting us to
 // ASCII is sufficient to handle the IP protocol names and allow
 // us to not depend on the strings and unicode packages.
@@ -277,7 +292,7 @@ func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (
 	}
 	lines, err := queryDNS(ctx, target, "srv")
 	if err != nil {
-		return
+		return "", nil, handlePlan9DNSError(err, name)
 	}
 	for _, line := range lines {
 		f := getFields(line)
@@ -303,7 +318,7 @@ func (r *Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err err
 	}
 	lines, err := queryDNS(ctx, name, "mx")
 	if err != nil {
-		return
+		return nil, handlePlan9DNSError(err, name)
 	}
 	for _, line := range lines {
 		f := getFields(line)
@@ -324,7 +339,7 @@ func (r *Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err err
 	}
 	lines, err := queryDNS(ctx, name, "ns")
 	if err != nil {
-		return
+		return nil, handlePlan9DNSError(err, name)
 	}
 	for _, line := range lines {
 		f := getFields(line)
@@ -342,7 +357,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) (txt []string, er
 	}
 	lines, err := queryDNS(ctx, name, "txt")
 	if err != nil {
-		return
+		return nil, handlePlan9DNSError(err, name)
 	}
 	for _, line := range lines {
 		if i := bytealg.IndexByteString(line, '\t'); i >= 0 {
@@ -362,7 +377,7 @@ func (r *Resolver) lookupAddr(ctx context.Context, addr string) (name []string, 
 	}
 	lines, err := queryDNS(ctx, arpa, "ptr")
 	if err != nil {
-		return
+		return nil, handlePlan9DNSError(err, addr)
 	}
 	for _, line := range lines {
 		f := getFields(line)

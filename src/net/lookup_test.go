@@ -1635,7 +1635,7 @@ func TestLookupNoSuchHost(t *testing.T) {
 					if attempts < len(backoffDuration) {
 						dur := backoffDuration[attempts]
 						t.Logf("backoff %v after failure %v\n", dur, err)
-						time.Sleep(dur / 30)
+						time.Sleep(dur)
 						attempts++
 						continue
 					}
