@@ -168,7 +168,8 @@ func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, e
 	// host names in local network (e.g. from /lib/ndb/local)
 	lines, err := queryCS(ctx, "net", host, "1")
 	if err != nil {
-		if stringsHasSuffix(err.Error(), "dns failure") {
+		if stringsHasSuffix(err.Error(), "dns failure")  ||
+			stringsHasSuffix(err.Error(), "dns: resource does not exist; negrcode") { 
 			return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
 		}
 		return nil, handlePlan9DNSError(err, host)
@@ -265,10 +266,9 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, 
 	lines, err := queryDNS(ctx, name, "cname")
 	if err != nil {
 		if stringsHasSuffix(err.Error(), "dns failure") || stringsHasSuffix(err.Error(), "resource does not exist; negrcode 0") {
-			cname = name + "."
-			err = nil
+			return absDomainName(name), nil
 		}
-		return
+		return "", handlePlan9DNSError(err, cname)
 	}
 	if len(lines) > 0 {
 		if f := getFields(lines[0]); len(f) >= 3 {
