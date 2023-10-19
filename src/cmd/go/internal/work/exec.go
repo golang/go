@@ -2157,24 +2157,8 @@ func mayberemovefile(s string) {
 // fmtcmd formats a command in the manner of fmt.Sprintf but also:
 //
 //	fmtcmd replaces the value of b.WorkDir with $WORK.
-//
-//	fmtcmd replaces the name of the current directory with dot (.)
-//	but only when it is at the beginning of a space-separated token.
 func (b *Builder) fmtcmd(dir string, format string, args ...any) string {
 	cmd := fmt.Sprintf(format, args...)
-	if dir != "" && dir != "/" && b.scriptDir == dir {
-		// In the output stream, scriptDir is our working directory. Replace it
-		// with "." in the command.
-		//
-		// We intentionally don't lock around the access to scriptDir. If this
-		// access is racy, that means our working directory isn't well-defined
-		// at this call, and we want the race detector to catch that.
-		dot := " ."
-		if dir[len(dir)-1] == filepath.Separator {
-			dot += string(filepath.Separator)
-		}
-		cmd = strings.ReplaceAll(" "+cmd, " "+dir, dot)[1:]
-	}
 	if b.WorkDir != "" && !strings.HasPrefix(cmd, "cat ") {
 		cmd = strings.ReplaceAll(cmd, b.WorkDir, "$WORK")
 		escaped := strconv.Quote(b.WorkDir)
@@ -2188,17 +2172,34 @@ func (b *Builder) fmtcmd(dir string, format string, args ...any) string {
 
 // Showcmd prints the given command to standard output
 // for the implementation of -n or -x.
+//
+// Showcmd also replaces the name of the current script directory with dot (.)
+// but only when it is at the beginning of a space-separated token.
+//
+// If dir is not "" or "/" and not the current script directory, Showcmd first
+// prints a "cd" command to switch to dir and updates the script directory.
 func (b *Builder) Showcmd(dir string, format string, args ...any) {
 	b.output.Lock()
 	defer b.output.Unlock()
 
-	if dir != "" && dir != "/" && dir != b.scriptDir {
-		// Show changing to dir and update the current directory.
-		b.Print(b.fmtcmd("", "cd %s\n", dir))
-		b.scriptDir = dir
+	cmd := b.fmtcmd(dir, format, args...)
+
+	if dir != "" && dir != "/" {
+		if dir != b.scriptDir {
+			// Show changing to dir and update the current directory.
+			b.Print(b.fmtcmd("", "cd %s\n", dir))
+			b.scriptDir = dir
+		}
+		// Replace scriptDir is our working directory. Replace it
+		// with "." in the command.
+		dot := " ."
+		if dir[len(dir)-1] == filepath.Separator {
+			dot += string(filepath.Separator)
+		}
+		cmd = strings.ReplaceAll(" "+cmd, " "+dir, dot)[1:]
 	}
 
-	b.Print(b.fmtcmd(dir, format, args...) + "\n")
+	b.Print(cmd + "\n")
 }
 
 // reportCmd reports the output and exit status of a command. The cmdOut and
@@ -2391,7 +2392,7 @@ var cgoTypeSigRe = lazyregexp.New(`\b_C2?(type|func|var|macro)_\B`)
 // and returns a non-nil error.
 func (b *Builder) run(a *Action, dir string, desc string, env []string, cmdargs ...any) error {
 	out, err := b.runOut(a, dir, env, cmdargs...)
-	if len(out) > 0 && desc == "" {
+	if desc == "" {
 		desc = b.fmtcmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
 	}
 	return b.reportCmd(a, desc, dir, out, err)
