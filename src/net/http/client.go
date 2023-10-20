@@ -726,7 +726,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 			reqBodyClosed = true
 			if !deadline.IsZero() && didTimeout() {
 				err = &httpError{
-					err:     err.Error() + " (Client.Timeout exceeded while awaiting headers)",
+					err:     fmt.Errorf("%w (Client.Timeout exceeded while awaiting headers)", err),
 					timeout: true,
 				}
 			}
@@ -969,7 +969,7 @@ func (b *cancelTimerBody) Read(p []byte) (n int, err error) {
 	}
 	if b.reqDidTimeout() {
 		err = &httpError{
-			err:     err.Error() + " (Client.Timeout or context cancellation while reading body)",
+			err:     fmt.Errorf("%w (Client.Timeout exceeded or context cancellation while reading body)", err),
 			timeout: true,
 		}
 	}

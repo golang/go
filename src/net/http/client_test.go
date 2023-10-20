@@ -2127,3 +2127,18 @@ func testProbeZeroLengthBody(t *testing.T, mode testMode) {
 		t.Fatalf("server got body %q, want %q", gotBody, content)
 	}
 }
+
+func TestClientTimeoutErrorWrapping(t *testing.T) { run(t, testClientTimeoutErrorWrapping) }
+func testClientTimeoutErrorWrapping(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		time.Sleep(15 * time.Millisecond)
+		w.WriteHeader(200)
+	}))
+	// simulate a timeout and check that the error is wrapped by using errors.Is(err, context.DeadlineExceeded)
+	cst.c.Timeout = 10 * time.Millisecond
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	_, err := cst.c.Do(req)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected context.DeadlineExceeded, got %v", err)
+	}
+}
