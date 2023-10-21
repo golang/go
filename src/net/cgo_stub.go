@@ -9,7 +9,7 @@
 //   (Darwin always provides the cgo functions, in cgo_unix_syscall.go)
 // - on wasip1, where cgo is never available
 
-//go:build (netgo && unix) || (unix && !cgo && !darwin) || wasip1
+//go:build (netgo && unix) || (unix && !cgo && !darwin) || js || wasip1
 
 package net
 

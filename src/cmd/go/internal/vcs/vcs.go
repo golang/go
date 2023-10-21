@@ -283,15 +283,13 @@ var vcsGit = &Cmd{
 var scpSyntaxRe = lazyregexp.New(`^(\w+)@([\w.-]+):(.*)$`)
 
 func gitRemoteRepo(vcsGit *Cmd, rootDir string) (remoteRepo string, err error) {
-	cmd := "config remote.origin.url"
-	errParse := errors.New("unable to parse output of git " + cmd)
-	errRemoteOriginNotFound := errors.New("remote origin not found")
+	const cmd = "config remote.origin.url"
 	outb, err := vcsGit.run1(rootDir, cmd, nil, false)
 	if err != nil {
 		// if it doesn't output any message, it means the config argument is correct,
 		// but the config value itself doesn't exist
 		if outb != nil && len(outb) == 0 {
-			return "", errRemoteOriginNotFound
+			return "", errors.New("remote origin not found")
 		}
 		return "", err
 	}
@@ -323,7 +321,7 @@ func gitRemoteRepo(vcsGit *Cmd, rootDir string) (remoteRepo string, err error) {
 			return repoURL.String(), nil
 		}
 	}
-	return "", errParse
+	return "", errors.New("unable to parse output of git " + cmd)
 }
 
 func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
@@ -680,7 +678,7 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 		args = args[2:]
 	}
 
-	_, err := exec.LookPath(v.Cmd)
+	_, err := cfg.LookPath(v.Cmd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
 			"go: missing %s command. See https://golang.org/s/gogetcmd\n",
@@ -1443,7 +1441,7 @@ type metaImport struct {
 	Prefix, VCS, RepoRoot string
 }
 
-// A ImportMismatchError is returned where metaImport/s are present
+// An ImportMismatchError is returned where metaImport/s are present
 // but none match our import path.
 type ImportMismatchError struct {
 	importPath string

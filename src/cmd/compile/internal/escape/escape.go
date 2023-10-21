@@ -379,8 +379,8 @@ const (
 
 func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 	name := func() string {
-		if f.Sym != nil {
-			return f.Sym.Name
+		if f.Nname != nil {
+			return f.Nname.Sym().Name
 		}
 		return fmt.Sprintf("arg#%d", narg)
 	}
@@ -481,7 +481,7 @@ func (b *batch) reportLeaks(pos src.XPos, name string, esc leaks, sig *types.Typ
 	}
 	for i := 0; i < numEscResults; i++ {
 		if x := esc.Result(i); x >= 0 {
-			res := sig.Result(i).Sym
+			res := sig.Result(i).Nname.Sym().Name
 			base.WarnfAt(pos, "leaking param: %v to result %v level=%d", name, res, x)
 			warned = true
 		}

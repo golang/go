@@ -849,7 +849,7 @@ func TestReadResponseErrors(t *testing.T) {
 	type testCase struct {
 		name    string // optional, defaults to in
 		in      string
-		wantErr any // nil, err value, or string substring
+		wantErr any // nil, err value, bool value, or string substring
 	}
 
 	status := func(s string, wantErr any) testCase {

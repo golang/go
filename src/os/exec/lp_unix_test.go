@@ -4,30 +4,19 @@
 
 //go:build unix
 
-package exec
+package exec_test
 
 import (
 	"os"
+	"os/exec"
 	"testing"
 )
 
 func TestLookPathUnixEmptyPath(t *testing.T) {
-	// Not parallel: uses os.Chdir.
+	// Not parallel: uses Chdir and Setenv.
 
-	tmp, err := os.MkdirTemp("", "TestLookPathUnixEmptyPath")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmp)
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("Getwd failed: ", err)
-	}
-	err = os.Chdir(tmp)
-	if err != nil {
-		t.Fatal("Chdir failed: ", err)
-	}
-	defer os.Chdir(wd)
+	tmp := t.TempDir()
+	chdir(t, tmp)
 
 	f, err := os.OpenFile("exec_me", os.O_CREATE|os.O_EXCL, 0700)
 	if err != nil {
@@ -40,7 +29,7 @@ func TestLookPathUnixEmptyPath(t *testing.T) {
 
 	t.Setenv("PATH", "")
 
-	path, err := LookPath("exec_me")
+	path, err := exec.LookPath("exec_me")
 	if err == nil {
 		t.Fatal("LookPath found exec_me in empty $PATH")
 	}

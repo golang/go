@@ -81,6 +81,17 @@ func (s *String) ReadUint32(out *uint32) bool {
 	return true
 }
 
+// ReadUint48 decodes a big-endian, 48-bit value into out and advances over it.
+// It reports whether the read was successful.
+func (s *String) ReadUint48(out *uint64) bool {
+	v := s.read(6)
+	if v == nil {
+		return false
+	}
+	*out = uint64(v[0])<<40 | uint64(v[1])<<32 | uint64(v[2])<<24 | uint64(v[3])<<16 | uint64(v[4])<<8 | uint64(v[5])
+	return true
+}
+
 // ReadUint64 decodes a big-endian, 64-bit value into out and advances over it.
 // It reports whether the read was successful.
 func (s *String) ReadUint64(out *uint64) bool {

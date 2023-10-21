@@ -37,7 +37,7 @@ func nametomib(name string) (mib []_C_int, err error) {
 	left := 0
 	right := len(sysctlMib) - 1
 	for {
-		idx := left + (right-left)/2
+		idx := int(uint(left+right) >> 1)
 		switch {
 		case name == sysctlMib[idx].ctlname:
 			return sysctlMib[idx].ctloid, nil

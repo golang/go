@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -22,9 +23,9 @@ var remasterflag = flag.Bool("update-expected", false, "if true, generate update
 
 func TestFuncProperties(t *testing.T) {
 	td := t.TempDir()
-	//td = "/tmp/qqq"
-	//os.RemoveAll(td)
-	//os.Mkdir(td, 0777)
+	// td = "/tmp/qqq"
+	// os.RemoveAll(td)
+	// os.Mkdir(td, 0777)
 	testenv.MustHaveGoBuild(t)
 
 	// NOTE: this testpoint has the unfortunate characteristic that it
@@ -35,29 +36,29 @@ func TestFuncProperties(t *testing.T) {
 	// to building a fresh compiler on the fly, or using some other
 	// scheme.
 
-	testcases := []string{"funcflags", "returns"}
-
+	testcases := []string{"funcflags", "returns", "params",
+		"acrosscall", "calls", "returns2"}
 	for _, tc := range testcases {
 		dumpfile, err := gatherPropsDumpForFile(t, tc, td)
 		if err != nil {
 			t.Fatalf("dumping func props for %q: error %v", tc, err)
 		}
 		// Read in the newly generated dump.
-		dentries, derr := readDump(t, dumpfile)
+		dentries, dcsites, derr := readDump(t, dumpfile)
 		if derr != nil {
 			t.Fatalf("reading func prop dump: %v", derr)
 		}
 		if *remasterflag {
-			updateExpected(t, tc, dentries)
+			updateExpected(t, tc, dentries, dcsites)
 			continue
 		}
 		// Generate expected dump.
-		epath, gerr := genExpected(td, tc)
-		if gerr != nil {
-			t.Fatalf("generating expected func prop dump: %v", gerr)
+		epath, egerr := genExpected(td, tc)
+		if egerr != nil {
+			t.Fatalf("generating expected func prop dump: %v", egerr)
 		}
 		// Read in the expected result entries.
-		eentries, eerr := readDump(t, epath)
+		eentries, ecsites, eerr := readDump(t, epath)
 		if eerr != nil {
 			t.Fatalf("reading expected func prop dump: %v", eerr)
 		}
@@ -66,22 +67,23 @@ func TestFuncProperties(t *testing.T) {
 		eidx := 0
 		for i := 0; i < n; i++ {
 			dentry := dentries[i]
+			dcst := dcsites[i]
 			if !interestingToCompare(dentry.fname) {
 				continue
 			}
 			if eidx >= len(eentries) {
-				t.Errorf("missing expected entry for %s, skipping",
-					dentry.fname)
+				t.Errorf("testcase %s missing expected entry for %s, skipping", tc, dentry.fname)
 				continue
 			}
 			eentry := eentries[eidx]
+			ecst := ecsites[eidx]
 			eidx++
 			if dentry.fname != eentry.fname {
 				t.Errorf("got fn %q wanted %q, skipping checks",
 					dentry.fname, eentry.fname)
 				continue
 			}
-			compareEntries(t, tc, &dentry, &eentry)
+			compareEntries(t, tc, &dentry, dcst, &eentry, ecst)
 		}
 	}
 }
@@ -94,29 +96,46 @@ func propBitsToString[T interface{ String() string }](sl []T) string {
 	return sb.String()
 }
 
-func compareEntries(t *testing.T, tc string, dentry *fnInlHeur, eentry *fnInlHeur) {
+func compareEntries(t *testing.T, tc string, dentry *fnInlHeur, dcsites encodedCallSiteTab, eentry *fnInlHeur, ecsites encodedCallSiteTab) {
 	dfp := dentry.props
 	efp := eentry.props
 	dfn := dentry.fname
 
 	// Compare function flags.
 	if dfp.Flags != efp.Flags {
-		t.Errorf("testcase %s: Flags mismatch for %q: got %s, wanted %s",
+		t.Errorf("testcase %q: Flags mismatch for %q: got %s, wanted %s",
 			tc, dfn, dfp.Flags.String(), efp.Flags.String())
 	}
 	// Compare returns
 	rgot := propBitsToString[ResultPropBits](dfp.ResultFlags)
 	rwant := propBitsToString[ResultPropBits](efp.ResultFlags)
 	if rgot != rwant {
-		t.Errorf("Results mismatch for %q: got:\n%swant:\n%s",
-			dfn, rgot, rwant)
+		t.Errorf("testcase %q: Results mismatch for %q: got:\n%swant:\n%s",
+			tc, dfn, rgot, rwant)
 	}
 	// Compare receiver + params.
 	pgot := propBitsToString[ParamPropBits](dfp.ParamFlags)
 	pwant := propBitsToString[ParamPropBits](efp.ParamFlags)
 	if pgot != pwant {
-		t.Errorf("Params mismatch for %q: got:\n%swant:\n%s",
-			dfn, pgot, pwant)
+		t.Errorf("testcase %q: Params mismatch for %q: got:\n%swant:\n%s",
+			tc, dfn, pgot, pwant)
+	}
+	// Compare call sites.
+	for k, ve := range ecsites {
+		if vd, ok := dcsites[k]; !ok {
+			t.Errorf("testcase %q missing expected callsite %q in func %q", tc, k, dfn)
+			continue
+		} else {
+			if vd != ve {
+				t.Errorf("testcase %q callsite %q in func %q: got %+v want %+v",
+					tc, k, dfn, vd.String(), ve.String())
+			}
+		}
+	}
+	for k := range dcsites {
+		if _, ok := ecsites[k]; !ok {
+			t.Errorf("testcase %q unexpected extra callsite %q in func %q", tc, k, dfn)
+		}
 	}
 }
 
@@ -132,10 +151,10 @@ type dumpReader struct {
 // compiler. It breaks the dump down into separate sections
 // by function, then deserializes each func section into a
 // fnInlHeur object and returns a slice of those objects.
-func readDump(t *testing.T, path string) ([]fnInlHeur, error) {
+func readDump(t *testing.T, path string) ([]fnInlHeur, []encodedCallSiteTab, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	dr := &dumpReader{
 		s:  bufio.NewScanner(strings.NewReader(string(content))),
@@ -152,11 +171,12 @@ func readDump(t *testing.T, path string) ([]fnInlHeur, error) {
 		}
 	}
 	if !found {
-		return nil, fmt.Errorf("malformed testcase file %s, missing preamble delimiter", path)
+		return nil, nil, fmt.Errorf("malformed testcase file %s, missing preamble delimiter", path)
 	}
 	res := []fnInlHeur{}
+	csres := []encodedCallSiteTab{}
 	for {
-		dentry, err := dr.readEntry()
+		dentry, dcst, err := dr.readEntry()
 		if err != nil {
 			t.Fatalf("reading func prop dump: %v", err)
 		}
@@ -164,8 +184,9 @@ func readDump(t *testing.T, path string) ([]fnInlHeur, error) {
 			break
 		}
 		res = append(res, dentry)
+		csres = append(csres, dcst)
 	}
-	return res, nil
+	return res, csres, nil
 }
 
 func (dr *dumpReader) scan() bool {
@@ -212,10 +233,11 @@ func (dr *dumpReader) readObjBlob(delim string) (string, error) {
 // flag. It deserializes the json for the func properties and
 // returns the resulting properties and function name. EOF is
 // signaled by a nil FuncProps return (with no error
-func (dr *dumpReader) readEntry() (fnInlHeur, error) {
+func (dr *dumpReader) readEntry() (fnInlHeur, encodedCallSiteTab, error) {
 	var fih fnInlHeur
+	var callsites encodedCallSiteTab
 	if !dr.scan() {
-		return fih, nil
+		return fih, callsites, nil
 	}
 	// first line contains info about function: file/name/line
 	info := dr.curLine()
@@ -223,7 +245,7 @@ func (dr *dumpReader) readEntry() (fnInlHeur, error) {
 	fih.file = chunks[0]
 	fih.fname = chunks[1]
 	if _, err := fmt.Sscanf(chunks[2], "%d", &fih.line); err != nil {
-		return fih, err
+		return fih, callsites, fmt.Errorf("scanning line %q: %v", info, err)
 	}
 	// consume comments until and including delimiter
 	for {
@@ -240,18 +262,60 @@ func (dr *dumpReader) readEntry() (fnInlHeur, error) {
 	line := dr.curLine()
 	fp := &FuncProps{}
 	if err := json.Unmarshal([]byte(line), fp); err != nil {
-		return fih, err
+		return fih, callsites, err
 	}
 	fih.props = fp
 
-	// Consume delimiter.
+	// Consume callsites.
+	callsites = make(encodedCallSiteTab)
+	for dr.scan() {
+		line := dr.curLine()
+		if line == csDelimiter {
+			break
+		}
+		// expected format: "// callsite: <expanded pos> flagstr <desc> flagval <flags> score <score> mask <scoremask> maskstr <scoremaskstring>"
+		fields := strings.Fields(line)
+		if len(fields) != 12 {
+			return fih, nil, fmt.Errorf("malformed callsite (nf=%d) %s line %d: %s", len(fields), dr.p, dr.ln, line)
+		}
+		if fields[2] != "flagstr" || fields[4] != "flagval" || fields[6] != "score" || fields[8] != "mask" || fields[10] != "maskstr" {
+			return fih, nil, fmt.Errorf("malformed callsite %s line %d: %s",
+				dr.p, dr.ln, line)
+		}
+		tag := fields[1]
+		flagstr := fields[5]
+		flags, err := strconv.Atoi(flagstr)
+		if err != nil {
+			return fih, nil, fmt.Errorf("bad flags val %s line %d: %q err=%v",
+				dr.p, dr.ln, line, err)
+		}
+		scorestr := fields[7]
+		score, err2 := strconv.Atoi(scorestr)
+		if err2 != nil {
+			return fih, nil, fmt.Errorf("bad score val %s line %d: %q err=%v",
+				dr.p, dr.ln, line, err2)
+		}
+		maskstr := fields[9]
+		mask, err3 := strconv.Atoi(maskstr)
+		if err3 != nil {
+			return fih, nil, fmt.Errorf("bad mask val %s line %d: %q err=%v",
+				dr.p, dr.ln, line, err3)
+		}
+		callsites[tag] = propsAndScore{
+			props: CSPropBits(flags),
+			score: score,
+			mask:  scoreAdjustTyp(mask),
+		}
+	}
+
+	// Consume function delimiter.
 	dr.scan()
 	line = dr.curLine()
 	if line != fnDelimiter {
-		return fih, fmt.Errorf("malformed testcase file %q, missing delimiter %q", dr.p, fnDelimiter)
+		return fih, nil, fmt.Errorf("malformed testcase file %q, missing delimiter %q", dr.p, fnDelimiter)
 	}
 
-	return fih, nil
+	return fih, callsites, nil
 }
 
 // gatherPropsDumpForFile builds the specified testcase 'testcase' from
@@ -343,7 +407,7 @@ func mkUpexState(dentries []fnInlHeur) *upexState {
 // generics, where you can have multiple functions that all share the
 // same starting line. Currently we combine up all the dups and
 // closures into the single pre-func comment.
-func updateExpected(t *testing.T, testcase string, dentries []fnInlHeur) {
+func updateExpected(t *testing.T, testcase string, dentries []fnInlHeur, dcsites []encodedCallSiteTab) {
 	nd := len(dentries)
 
 	ues := mkUpexState(dentries)
@@ -367,9 +431,10 @@ func updateExpected(t *testing.T, testcase string, dentries []fnInlHeur) {
 
 	clore := regexp.MustCompile(`.+\.func\d+[\.\d]*$`)
 
-	emitFunc := func(e *fnInlHeur, instance, atl uint) {
+	emitFunc := func(e *fnInlHeur, dcsites encodedCallSiteTab,
+		instance, atl uint) {
 		var sb strings.Builder
-		dumpFnPreamble(&sb, e, instance, atl)
+		dumpFnPreamble(&sb, e, dcsites, instance, atl)
 		ues.newgolines = append(ues.newgolines,
 			strings.Split(strings.TrimSpace(sb.String()), "\n")...)
 	}
@@ -387,7 +452,7 @@ func updateExpected(t *testing.T, testcase string, dentries []fnInlHeur) {
 		atl := ues.atline[dentries[idx].line]
 		for k := uint(0); k < atl; k++ {
 			if emit {
-				emitFunc(&dentries[idx], k, atl)
+				emitFunc(&dentries[idx], dcsites[idx], k, atl)
 			}
 			idx++
 		}
@@ -400,7 +465,7 @@ func updateExpected(t *testing.T, testcase string, dentries []fnInlHeur) {
 			}
 			ncl++
 			if emit {
-				emitFunc(&dentries[idx], 0, 1)
+				emitFunc(&dentries[idx], dcsites[idx], 0, 1)
 			}
 			idx++
 		}

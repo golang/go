@@ -31,7 +31,7 @@ go 1.19
 
 	// Build the test with the profile.
 	pprof := filepath.Join(dir, "devirt.pprof")
-	gcflag := fmt.Sprintf("-gcflags=-m=2 -pgoprofile=%s -d=pgodebug=2", pprof)
+	gcflag := fmt.Sprintf("-gcflags=-m=2 -pgoprofile=%s -d=pgodebug=3", pprof)
 	out := filepath.Join(dir, "test.exe")
 	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "build", "-o", out, gcflag, "."))
 	cmd.Dir = dir
@@ -57,11 +57,11 @@ go 1.19
 
 	want := []devirtualization{
 		{
-			pos:    "./devirt.go:61:21",
+			pos:    "./devirt.go:66:21",
 			callee: "mult.Mult.Multiply",
 		},
 		{
-			pos:    "./devirt.go:61:31",
+			pos:    "./devirt.go:66:31",
 			callee: "Add.Add",
 		},
 	}
@@ -115,10 +115,10 @@ func TestPGODevirtualize(t *testing.T) {
 
 	// Copy the module to a scratch location so we can add a go.mod.
 	dir := t.TempDir()
-	if err := os.Mkdir(filepath.Join(dir, "mult"), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(dir, "mult.pkg"), 0755); err != nil {
 		t.Fatalf("error creating dir: %v", err)
 	}
-	for _, file := range []string{"devirt.go", "devirt_test.go", "devirt.pprof", filepath.Join("mult", "mult.go")} {
+	for _, file := range []string{"devirt.go", "devirt_test.go", "devirt.pprof", filepath.Join("mult.pkg", "mult.go")} {
 		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
 			t.Fatalf("error copying %s: %v", file, err)
 		}

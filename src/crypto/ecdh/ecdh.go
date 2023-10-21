@@ -44,7 +44,7 @@ type Curve interface {
 	// selected public keys can cause ECDH to return an error.
 	NewPublicKey(key []byte) (*PublicKey, error)
 
-	// ecdh performs a ECDH exchange and returns the shared secret. It's exposed
+	// ecdh performs an ECDH exchange and returns the shared secret. It's exposed
 	// as the PrivateKey.ECDH method.
 	//
 	// The private method also allow us to expand the ECDH interface with more
@@ -114,14 +114,14 @@ type PrivateKey struct {
 	publicKeyOnce sync.Once
 }
 
-// ECDH performs a ECDH exchange and returns the shared secret. The PrivateKey
-// and PublicKey must use the same curve.
+// ECDH performs an ECDH exchange and returns the shared secret. The [PrivateKey]
+// and [PublicKey] must use the same curve.
 //
 // For NIST curves, this performs ECDH as specified in SEC 1, Version 2.0,
 // Section 3.3.1, and returns the x-coordinate encoded according to SEC 1,
 // Version 2.0, Section 2.3.5. The result is never the point at infinity.
 //
-// For X25519, this performs ECDH as specified in RFC 7748, Section 6.1. If
+// For [X25519], this performs ECDH as specified in RFC 7748, Section 6.1. If
 // the result is the all-zero value, ECDH returns an error.
 func (k *PrivateKey) ECDH(remote *PublicKey) ([]byte, error) {
 	if k.curve != remote.curve {
@@ -141,7 +141,7 @@ func (k *PrivateKey) Bytes() []byte {
 // Equal returns whether x represents the same private key as k.
 //
 // Note that there can be equivalent private keys with different encodings which
-// would return false from this check but behave the same way as inputs to ECDH.
+// would return false from this check but behave the same way as inputs to [ECDH].
 //
 // This check is performed in constant time as long as the key types and their
 // curve match.
@@ -182,7 +182,7 @@ func (k *PrivateKey) PublicKey() *PublicKey {
 }
 
 // Public implements the implicit interface of all standard library private
-// keys. See the docs of crypto.PrivateKey.
+// keys. See the docs of [crypto.PrivateKey].
 func (k *PrivateKey) Public() crypto.PublicKey {
 	return k.PublicKey()
 }

@@ -15,7 +15,9 @@ import (
 	"io"
 	"math"
 	"mime/multipart"
+	"net/http"
 	. "net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"reflect"
@@ -1412,5 +1414,143 @@ func runFileAndServerBenchmarks(b *testing.B, mode testMode, f *os.File, n int64
 func TestErrNotSupported(t *testing.T) {
 	if !errors.Is(ErrNotSupported, errors.ErrUnsupported) {
 		t.Error("errors.Is(ErrNotSupported, errors.ErrUnsupported) failed")
+	}
+}
+
+func TestPathValueNoMatch(t *testing.T) {
+	// Check that PathValue and SetPathValue work on a Request that was never matched.
+	var r Request
+	if g, w := r.PathValue("x"), ""; g != w {
+		t.Errorf("got %q, want %q", g, w)
+	}
+	r.SetPathValue("x", "a")
+	if g, w := r.PathValue("x"), "a"; g != w {
+		t.Errorf("got %q, want %q", g, w)
+	}
+}
+
+func TestPathValue(t *testing.T) {
+	for _, test := range []struct {
+		pattern string
+		url     string
+		want    map[string]string
+	}{
+		{
+			"/{a}/is/{b}/{c...}",
+			"/now/is/the/time/for/all",
+			map[string]string{
+				"a": "now",
+				"b": "the",
+				"c": "time/for/all",
+				"d": "",
+			},
+		},
+		{
+			"/names/{name}/{other...}",
+			"/names/%2fjohn/address",
+			map[string]string{
+				"name":  "/john",
+				"other": "address",
+			},
+		},
+		{
+			"/names/{name}/{other...}",
+			"/names/john%2Fdoe/there/is%2F/more",
+			map[string]string{
+				"name":  "john/doe",
+				"other": "there/is//more",
+			},
+		},
+	} {
+		mux := NewServeMux()
+		mux.HandleFunc(test.pattern, func(w ResponseWriter, r *Request) {
+			for name, want := range test.want {
+				got := r.PathValue(name)
+				if got != want {
+					t.Errorf("%q, %q: got %q, want %q", test.pattern, name, got, want)
+				}
+			}
+		})
+		server := httptest.NewServer(mux)
+		defer server.Close()
+		res, err := Get(server.URL + test.url)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+	}
+}
+
+func TestSetPathValue(t *testing.T) {
+	mux := NewServeMux()
+	mux.HandleFunc("/a/{b}/c/{d...}", func(_ ResponseWriter, r *Request) {
+		kvs := map[string]string{
+			"b": "X",
+			"d": "Y",
+			"a": "Z",
+		}
+		for k, v := range kvs {
+			r.SetPathValue(k, v)
+		}
+		for k, w := range kvs {
+			if g := r.PathValue(k); g != w {
+				t.Errorf("got %q, want %q", g, w)
+			}
+		}
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	res, err := Get(server.URL + "/a/b/c/d/e")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+}
+
+func TestStatus(t *testing.T) {
+	// The main purpose of this test is to check 405 responses and the Allow header.
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+	mux := NewServeMux()
+	mux.Handle("GET /g", h)
+	mux.Handle("POST /p", h)
+	mux.Handle("PATCH /p", h)
+	mux.Handle("PUT /r", h)
+	mux.Handle("GET /r/", h)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	for _, test := range []struct {
+		method, path string
+		wantStatus   int
+		wantAllow    string
+	}{
+		{"GET", "/g", 200, ""},
+		{"HEAD", "/g", 200, ""},
+		{"POST", "/g", 405, "GET, HEAD"},
+		{"GET", "/x", 404, ""},
+		{"GET", "/p", 405, "PATCH, POST"},
+		{"GET", "/./p", 405, "PATCH, POST"},
+		{"GET", "/r/", 200, ""},
+		{"GET", "/r", 200, ""}, // redirected
+		{"HEAD", "/r/", 200, ""},
+		{"HEAD", "/r", 200, ""}, // redirected
+		{"PUT", "/r/", 405, "GET, HEAD"},
+		{"PUT", "/r", 200, ""},
+	} {
+		req, err := http.NewRequest(test.method, server.URL+test.path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if g, w := res.StatusCode, test.wantStatus; g != w {
+			t.Errorf("%s %s: got %d, want %d", test.method, test.path, g, w)
+		}
+		if g, w := res.Header.Get("Allow"), test.wantAllow; g != w {
+			t.Errorf("%s %s, Allow: got %q, want %q", test.method, test.path, g, w)
+		}
 	}
 }

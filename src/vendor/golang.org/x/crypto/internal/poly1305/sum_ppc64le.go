@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build gc && !purego
-// +build gc,!purego
 
 package poly1305
 

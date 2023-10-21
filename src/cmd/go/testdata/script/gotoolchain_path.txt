@@ -8,10 +8,11 @@ env TESTGO_VERSION=go1.21pre3
 # Compile a fake toolchain to put in the path under various names.
 env GOTOOLCHAIN=
 mkdir $WORK/bin
-[!GOOS:plan9] env PATH=$WORK/bin${:}$PATH
-[GOOS:plan9] env path=$WORK/bin${:}$path
 go build -o $WORK/bin/ ./fakego.go  # adds .exe extension implicitly on Windows
 cp $WORK/bin/fakego$GOEXE $WORK/bin/go1.50.0$GOEXE
+
+[!GOOS:plan9] env PATH=$WORK/bin
+[GOOS:plan9] env path=$WORK/bin
 
 go version
 stdout go1.21pre3

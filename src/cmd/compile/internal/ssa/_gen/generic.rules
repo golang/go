@@ -704,7 +704,7 @@
 	(Store {t2} p2 _
 		mem:(Zero [n] p3 _)))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3)
-	&& fe.CanSSA(t1)
+	&& CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, t2.Size())
 	=> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p3) mem)
 (Load <t1> op:(OffPtr [o1] p1)
@@ -712,7 +712,7 @@
 		(Store {t3} p3 _
 			mem:(Zero [n] p4 _))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4)
-	&& fe.CanSSA(t1)
+	&& CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, t2.Size())
 	&& disjoint(op, t1.Size(), p3, t3.Size())
 	=> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p4) mem)
@@ -722,7 +722,7 @@
 			(Store {t4} p4 _
 				mem:(Zero [n] p5 _)))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5)
-	&& fe.CanSSA(t1)
+	&& CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, t2.Size())
 	&& disjoint(op, t1.Size(), p3, t3.Size())
 	&& disjoint(op, t1.Size(), p4, t4.Size())
@@ -734,7 +734,7 @@
 				(Store {t5} p5 _
 					mem:(Zero [n] p6 _))))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6)
-	&& fe.CanSSA(t1)
+	&& CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, t2.Size())
 	&& disjoint(op, t1.Size(), p3, t3.Size())
 	&& disjoint(op, t1.Size(), p4, t4.Size())
@@ -848,28 +848,28 @@
 (StructSelect [2] (StructMake4 _ _ x _)) => x
 (StructSelect [3] (StructMake4 _ _ _ x)) => x
 
-(Load <t> _ _) && t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t) =>
+(Load <t> _ _) && t.IsStruct() && t.NumFields() == 0 && CanSSA(t) =>
   (StructMake0)
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 1 && CanSSA(t) =>
   (StructMake1
     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem))
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 2 && CanSSA(t) =>
   (StructMake2
     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem))
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 3 && CanSSA(t) =>
   (StructMake3
     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)
     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem))
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 4 && CanSSA(t) =>
   (StructMake4
     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)
     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem)
     (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
 
-(StructSelect [i] x:(Load <t> ptr mem)) && !fe.CanSSA(t) =>
+(StructSelect [i] x:(Load <t> ptr mem)) && !CanSSA(t) =>
   @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
 
 (Store _ (StructMake0) mem) => mem
@@ -911,9 +911,9 @@
 (StructSelect [0] (IData x)) => (IData x)
 
 // un-SSAable values use mem->mem copies
-(Store {t} dst (Load src mem) mem) && !fe.CanSSA(t) =>
+(Store {t} dst (Load src mem) mem) && !CanSSA(t) =>
 	(Move {t} [t.Size()] dst src mem)
-(Store {t} dst (Load src mem) (VarDef {x} mem)) && !fe.CanSSA(t) =>
+(Store {t} dst (Load src mem) (VarDef {x} mem)) && !CanSSA(t) =>
 	(Move {t} [t.Size()] dst src (VarDef {x} mem))
 
 // array ops
@@ -922,7 +922,7 @@
 (Load <t> _ _) && t.IsArray() && t.NumElem() == 0 =>
   (ArrayMake0)
 
-(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && CanSSA(t) =>
   (ArrayMake1 (Load <t.Elem()> ptr mem))
 
 (Store _ (ArrayMake0) mem) => mem

@@ -30,7 +30,7 @@ import (
 //		(*&byref)++
 //	}(byval, &byref, 42)
 func directClosureCall(n *ir.CallExpr) {
-	clo := n.X.(*ir.ClosureExpr)
+	clo := n.Fun.(*ir.ClosureExpr)
 	clofn := clo.Func
 
 	if ir.IsTrivialClosure(clo) {
@@ -72,7 +72,7 @@ func directClosureCall(n *ir.CallExpr) {
 	clofn.Dcl = append(decls, clofn.Dcl...)
 
 	// Rewrite call.
-	n.X = f
+	n.Fun = f
 	n.Args.Prepend(closureArgs(clo)...)
 
 	// Update the call expression's type. We need to do this

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build plan9
-// +build plan9
 
 // Package plan9 contains an interface to the low-level operating system
 // primitives. OS details vary depending on the underlying system, and

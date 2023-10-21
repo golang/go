@@ -490,7 +490,8 @@ func (w *Walker) loadImports() {
 		if w.context.Dir != "" {
 			cmd.Dir = w.context.Dir
 		}
-		out, err := cmd.CombinedOutput()
+		cmd.Stderr = os.Stderr
+		out, err := cmd.Output()
 		if err != nil {
 			log.Fatalf("loading imports: %v\n%s", err, out)
 		}

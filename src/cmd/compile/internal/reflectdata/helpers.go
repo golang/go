@@ -116,11 +116,11 @@ func ConvIfaceTypeWord(pos src.XPos, n *ir.ConvExpr) ir.Node {
 }
 
 // ConvIfaceSrcRType asserts that n is a conversion from
-// non-interface type to interface type (or OCONVIDATA operation), and
+// non-interface type to interface type, and
 // returns an expression that yields the *runtime._type for copying
 // the convertee value to the heap.
 func ConvIfaceSrcRType(pos src.XPos, n *ir.ConvExpr) ir.Node {
-	assertOp2(n, ir.OCONVIFACE, ir.OCONVIDATA)
+	assertOp(n, ir.OCONVIFACE)
 	if hasRType(n, n.SrcRType, "SrcRType") {
 		return n.SrcRType
 	}

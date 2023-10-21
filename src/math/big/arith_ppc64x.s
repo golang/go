@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !math_big_pure_go && (ppc64 || ppc64le)
-// +build !math_big_pure_go
-// +build ppc64 ppc64le
 
 #include "textflag.h"
 

@@ -197,7 +197,7 @@ func (e *FormatError) Error() string {
 	return msg
 }
 
-// Open opens the named file using os.Open and prepares it for use as a Mach-O binary.
+// Open opens the named file using [os.Open] and prepares it for use as a Mach-O binary.
 func Open(name string) (*File, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -212,8 +212,8 @@ func Open(name string) (*File, error) {
 	return ff, nil
 }
 
-// Close closes the File.
-// If the File was created using NewFile directly instead of Open,
+// Close closes the [File].
+// If the [File] was created using [NewFile] directly instead of [Open],
 // Close has no effect.
 func (f *File) Close() error {
 	var err error
@@ -224,7 +224,7 @@ func (f *File) Close() error {
 	return err
 }
 
-// NewFile creates a new File for accessing a Mach-O binary in an underlying reader.
+// NewFile creates a new [File] for accessing a Mach-O binary in an underlying reader.
 // The Mach-O binary is expected to start at position 0 in the ReaderAt.
 func NewFile(r io.ReaderAt) (*File, error) {
 	f := new(File)

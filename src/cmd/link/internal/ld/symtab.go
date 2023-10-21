@@ -45,14 +45,14 @@ import (
 // Symbol table.
 
 func putelfstr(s string) int {
-	if len(Elfstrdat) == 0 && s != "" {
+	if len(elfstrdat) == 0 && s != "" {
 		// first entry must be empty string
 		putelfstr("")
 	}
 
-	off := len(Elfstrdat)
-	Elfstrdat = append(Elfstrdat, s...)
-	Elfstrdat = append(Elfstrdat, 0)
+	off := len(elfstrdat)
+	elfstrdat = append(elfstrdat, s...)
+	elfstrdat = append(elfstrdat, 0)
 	return off
 }
 

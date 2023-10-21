@@ -260,8 +260,13 @@ const (
 	// corresponding *obj.Prog uses the temporary register.
 	USES_REG_TMP = 1 << iota
 
-	// NEED_CALL_RELOC is set on JAL instructions to indicate that a
-	// R_RISCV_CALL relocation is needed.
+	// NEED_JAL_RELOC is set on JAL instructions to indicate that a
+	// R_RISCV_JAL relocation is needed.
+	NEED_JAL_RELOC
+
+	// NEED_CALL_RELOC is set on an AUIPC instruction to indicate that it
+	// is the first instruction in an AUIPC + JAL pair that needs a
+	// R_RISCV_CALL relocation.
 	NEED_CALL_RELOC
 
 	// NEED_PCREL_ITYPE_RELOC is set on AUIPC instructions to indicate that

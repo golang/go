@@ -206,7 +206,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		if mode == invalid {
 			// avoid error if underlying type is invalid
-			if under(x.typ) != Typ[Invalid] {
+			if isValid(under(x.typ)) {
 				code := InvalidCap
 				if id == _Len {
 					code = InvalidLen
@@ -490,7 +490,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// (no argument evaluated yet)
 		arg0 := argList[0]
 		T := check.varType(arg0)
-		if T == Typ[Invalid] {
+		if !isValid(T) {
 			return
 		}
 
@@ -600,7 +600,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// new(T)
 		// (no argument evaluated yet)
 		T := check.varType(argList[0])
-		if T == Typ[Invalid] {
+		if !isValid(T) {
 			return
 		}
 

@@ -463,7 +463,7 @@ func walkDir(path string, d fs.DirEntry, walkDirFn fs.WalkDirFunc) error {
 		return err
 	}
 
-	dirs, err := readDir(path)
+	dirs, err := os.ReadDir(path)
 	if err != nil {
 		// Second call, to report ReadDir error.
 		err = walkDirFn(path, d, err)
@@ -545,25 +545,12 @@ func WalkDir(root string, fn fs.WalkDirFunc) error {
 	if err != nil {
 		err = fn(root, nil, err)
 	} else {
-		err = walkDir(root, &statDirEntry{info}, fn)
+		err = walkDir(root, fs.FileInfoToDirEntry(info), fn)
 	}
 	if err == SkipDir || err == SkipAll {
 		return nil
 	}
 	return err
-}
-
-type statDirEntry struct {
-	info fs.FileInfo
-}
-
-func (d *statDirEntry) Name() string               { return d.info.Name() }
-func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
-func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
-func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
-
-func (d *statDirEntry) String() string {
-	return fs.FormatDirEntry(d)
 }
 
 // Walk walks the file tree rooted at root, calling fn for each file or
@@ -591,22 +578,6 @@ func Walk(root string, fn WalkFunc) error {
 		return nil
 	}
 	return err
-}
-
-// readDir reads the directory named by dirname and returns
-// a sorted list of directory entries.
-func readDir(dirname string) ([]fs.DirEntry, error) {
-	f, err := os.Open(dirname)
-	if err != nil {
-		return nil, err
-	}
-	dirs, err := f.ReadDir(-1)
-	f.Close()
-	if err != nil {
-		return nil, err
-	}
-	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
-	return dirs, nil
 }
 
 // readDirNames reads the directory named by dirname and returns

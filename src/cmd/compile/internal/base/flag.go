@@ -5,11 +5,11 @@
 package base
 
 import (
+	"cmd/internal/cov/covcmd"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"internal/buildcfg"
-	"internal/coverage/covcmd"
 	"internal/platform"
 	"log"
 	"os"
@@ -255,6 +255,9 @@ func ParseFlags() {
 	if Debug.Fmahash != "" {
 		FmaHash = NewHashDebug("fmahash", Debug.Fmahash, nil)
 	}
+	if Debug.PGOHash != "" {
+		PGOHash = NewHashDebug("pgohash", Debug.PGOHash, nil)
+	}
 
 	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
 		log.Fatalf("%s/%s does not support -msan", buildcfg.GOOS, buildcfg.GOARCH)
@@ -334,6 +337,7 @@ func ParseFlags() {
 		// It is not possible to build the runtime with no optimizations,
 		// because the compiler cannot eliminate enough write barriers.
 		Flag.N = 0
+		Ctxt.Flag_optimize = true
 
 		// Runtime can't use -d=checkptr, at least not yet.
 		Debug.Checkptr = 0

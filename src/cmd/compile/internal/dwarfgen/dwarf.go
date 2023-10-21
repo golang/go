@@ -204,7 +204,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		if c == '.' || n.Type().IsUntyped() {
 			continue
 		}
-		if n.Class == ir.PPARAM && !ssagen.TypeOK(n.Type()) {
+		if n.Class == ir.PPARAM && !ssa.CanSSA(n.Type()) {
 			// SSA-able args get location lists, and may move in and
 			// out of registers, so those are handled elsewhere.
 			// Autos and named output params seem to get handled
@@ -323,7 +323,7 @@ func preInliningDcls(fnsym *obj.LSym) []*ir.Name {
 		c := n.Sym().Name[0]
 		// Avoid reporting "_" parameters, since if there are more than
 		// one, it can result in a collision later on, as in #23179.
-		if unversion(n.Sym().Name) == "_" || c == '.' || n.Type().IsUntyped() {
+		if n.Sym().Name == "_" || c == '.' || n.Type().IsUntyped() {
 			continue
 		}
 		rdcl = append(rdcl, n)

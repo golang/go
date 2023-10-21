@@ -6,12 +6,14 @@ package zstd
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"internal/race"
 	"internal/testenv"
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -90,6 +92,22 @@ var tests = []struct {
 		"0\x00\x00\x00\x00\x000\x00\x00\x00\x00\x001\x00\x00\x00\x00\x000000",
 		"(\xb5/\xfd\x04X\x8d\x00\x00P0\x000\x001\x000000\x03T\x02\x00\x01\x01m\xf9\xb7G",
 	},
+	{
+		"empty block",
+		"",
+		"\x28\xb5\x2f\xfd\x00\x00\x15\x00\x00\x00\x00",
+	},
+	{
+		"single skippable frame",
+		"",
+		"\x50\x2a\x4d\x18\x00\x00\x00\x00",
+	},
+	{
+		"two skippable frames",
+		"",
+		"\x50\x2a\x4d\x18\x00\x00\x00\x00" +
+			"\x50\x2a\x4d\x18\x00\x00\x00\x00",
+	},
 }
 
 func TestSamples(t *testing.T) {
@@ -109,16 +127,39 @@ func TestSamples(t *testing.T) {
 	}
 }
 
+func TestReset(t *testing.T) {
+	input := strings.NewReader("")
+	r := NewReader(input)
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			input.Reset(test.compressed)
+			r.Reset(input)
+			got, err := io.ReadAll(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotstr := string(got)
+			if gotstr != test.uncompressed {
+				t.Errorf("got %q want %q", gotstr, test.uncompressed)
+			}
+		})
+	}
+}
+
 var (
 	bigDataOnce  sync.Once
 	bigDataBytes []byte
 	bigDataErr   error
 )
 
-// bigData returns the contents of our large test file.
+// bigData returns the contents of our large test file repeated multiple times.
 func bigData(t testing.TB) []byte {
 	bigDataOnce.Do(func() {
 		bigDataBytes, bigDataErr = os.ReadFile("../../testdata/Isaac.Newton-Opticks.txt")
+		if bigDataErr == nil {
+			bigDataBytes = bytes.Repeat(bigDataBytes, 20)
+		}
 	})
 	if bigDataErr != nil {
 		t.Fatal(bigDataErr)
@@ -226,6 +267,39 @@ func TestAlloc(t *testing.T) {
 	})
 	if c != 0 {
 		t.Errorf("got %v allocs, want 0", c)
+	}
+}
+
+func TestFileSamples(t *testing.T) {
+	samples, err := os.ReadDir("testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, sample := range samples {
+		name := sample.Name()
+		if !strings.HasSuffix(name, ".zst") {
+			continue
+		}
+
+		t.Run(name, func(t *testing.T) {
+			f, err := os.Open(filepath.Join("testdata", name))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			r := NewReader(f)
+			h := sha256.New()
+			if _, err := io.Copy(h, r); err != nil {
+				t.Fatal(err)
+			}
+			got := fmt.Sprintf("%x", h.Sum(nil))[:8]
+
+			want, _, _ := strings.Cut(name, ".")
+			if got != want {
+				t.Errorf("Wrong uncompressed content hash: got %s, want %s", got, want)
+			}
+		})
 	}
 }
 

@@ -18,7 +18,7 @@ from running applications or integration tests. E.g.
 Run covdata via "go tool covdata <mode>", where 'mode' is a subcommand
 selecting a specific reporting, merging, or data manipulation operation.
 Descriptions on the various modes (run "go tool cover <mode> -help" for
-specifics on usage of a given mode:
+specifics on usage of a given mode):
 
 1. Report percent of statements covered in each profiled package
 

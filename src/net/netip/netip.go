@@ -12,6 +12,7 @@
 package netip
 
 import (
+	"cmp"
 	"errors"
 	"math"
 	"strconv"
@@ -1102,6 +1103,16 @@ func MustParseAddrPort(s string) AddrPort {
 // All ports are valid, including zero.
 func (p AddrPort) IsValid() bool { return p.ip.IsValid() }
 
+// Compare returns an integer comparing two AddrPorts.
+// The result will be 0 if p == p2, -1 if p < p2, and +1 if p > p2.
+// AddrPorts sort first by IP address, then port.
+func (p AddrPort) Compare(p2 AddrPort) int {
+	if c := p.Addr().Compare(p2.Addr()); c != 0 {
+		return c
+	}
+	return cmp.Compare(p.Port(), p2.Port())
+}
+
 func (p AddrPort) String() string {
 	switch p.ip.z {
 	case z0:
@@ -1260,6 +1271,21 @@ func (p Prefix) isZero() bool { return p == Prefix{} }
 
 // IsSingleIP reports whether p contains exactly one IP.
 func (p Prefix) IsSingleIP() bool { return p.IsValid() && p.Bits() == p.ip.BitLen() }
+
+// Compare returns an integer comparing two prefixes.
+// The result will be 0 if p == p2, -1 if p < p2, and +1 if p > p2.
+// Prefixes sort first by validity (invalid before valid), then
+// address family (IPv4 before IPv6), then prefix length, then
+// address.
+func (p Prefix) Compare(p2 Prefix) int {
+	if c := cmp.Compare(p.Addr().BitLen(), p2.Addr().BitLen()); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(p.Bits(), p2.Bits()); c != 0 {
+		return c
+	}
+	return p.Addr().Compare(p2.Addr())
+}
 
 // ParsePrefix parses s as an IP address prefix.
 // The string can be in the form "192.168.1.0/24" or "2001:db8::/32",

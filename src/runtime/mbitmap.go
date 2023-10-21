@@ -117,8 +117,8 @@ func (s *mspan) allocBitsForIndex(allocBitIndex uintptr) markBits {
 // and negates them so that ctz (count trailing zeros) instructions
 // can be used. It then places these 8 bytes into the cached 64 bit
 // s.allocCache.
-func (s *mspan) refillAllocCache(whichByte uintptr) {
-	bytes := (*[8]uint8)(unsafe.Pointer(s.allocBits.bytep(whichByte)))
+func (s *mspan) refillAllocCache(whichByte uint16) {
+	bytes := (*[8]uint8)(unsafe.Pointer(s.allocBits.bytep(uintptr(whichByte))))
 	aCache := uint64(0)
 	aCache |= uint64(bytes[0])
 	aCache |= uint64(bytes[1]) << (1 * 8)
@@ -135,7 +135,7 @@ func (s *mspan) refillAllocCache(whichByte uintptr) {
 // or after s.freeindex.
 // There are hardware instructions that can be used to make this
 // faster if profiling warrants it.
-func (s *mspan) nextFreeIndex() uintptr {
+func (s *mspan) nextFreeIndex() uint16 {
 	sfreeindex := s.freeindex
 	snelems := s.nelems
 	if sfreeindex == snelems {
@@ -163,7 +163,7 @@ func (s *mspan) nextFreeIndex() uintptr {
 		// nothing available in cached bits
 		// grab the next 8 bytes and try again.
 	}
-	result := sfreeindex + uintptr(bitIndex)
+	result := sfreeindex + uint16(bitIndex)
 	if result >= snelems {
 		s.freeindex = snelems
 		return snelems
@@ -191,7 +191,7 @@ func (s *mspan) nextFreeIndex() uintptr {
 // been no preemption points since ensuring this (which could allow a
 // GC transition, which would allow the state to change).
 func (s *mspan) isFree(index uintptr) bool {
-	if index < s.freeIndexForScan {
+	if index < uintptr(s.freeIndexForScan) {
 		return false
 	}
 	bytep, mask := s.allocBits.bitp(index)
@@ -751,7 +751,7 @@ func (s *mspan) initHeapBits(forceClear bool) {
 // scanning the allocation bitmap.
 func (s *mspan) countAlloc() int {
 	count := 0
-	bytes := divRoundUp(s.nelems, 8)
+	bytes := divRoundUp(uintptr(s.nelems), 8)
 	// Iterate over each 8-byte chunk and count allocations
 	// with an intrinsic. Note that newMarkBits guarantees that
 	// gcmarkBits will be 8-byte aligned, so we don't have to

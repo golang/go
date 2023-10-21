@@ -18,7 +18,6 @@ import (
 	"internal/platform"
 	"io/fs"
 	"os"
-	"os/exec"
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
@@ -228,9 +227,8 @@ type PackageInternal struct {
 	LocalPrefix       string               // interpret ./ and ../ imports relative to this prefix
 	ExeName           string               // desired name for temporary executable
 	FuzzInstrument    bool                 // package should be instrumented for fuzzing
-	CoverMode         string               // preprocess Go source files with the coverage tool in this mode
+	Cover             CoverSetup           // coverage mode and other setup info of -cover is being applied to this package
 	CoverVars         map[string]*CoverVar // variables created by coverage analysis
-	CoverageCfg       string               // coverage info config file path (passed to compiler)
 	OmitDebug         bool                 // tell linker not to write debug information
 	GobinSubdir       bool                 // install target would be subdir of GOBIN
 	BuildInfo         *debug.BuildInfo     // add this info to package main
@@ -375,6 +373,13 @@ func (p *Package) Resolve(imports []string) []string {
 type CoverVar struct {
 	File string // local file name
 	Var  string // name of count struct
+}
+
+// CoverSetup holds parameters related to coverage setup for a given package (covermode, etc).
+type CoverSetup struct {
+	Mode    string // coverage mode for this package
+	Cfg     string // path to config file to pass to "go tool cover"
+	GenMeta bool   // ask cover tool to emit a static meta data if set
 }
 
 func (p *Package) copyBuild(opts PackageOpts, pp *build.Package) {
@@ -967,7 +972,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 					// accepting them.
 					//
 					// TODO(#41410: Figure out how this actually ought to work and fix
-					// this mess.
+					// this mess).
 				} else {
 					data.err = r.err
 				}
@@ -2483,7 +2488,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 			goto omitVCS
 		}
 		if cfg.BuildBuildvcs == "auto" && vcsCmd != nil && vcsCmd.Cmd != "" {
-			if _, err := exec.LookPath(vcsCmd.Cmd); err != nil {
+			if _, err := cfg.LookPath(vcsCmd.Cmd); err != nil {
 				// We fould a repository, but the required VCS tool is not present.
 				// "-buildvcs=auto" means that we should silently drop the VCS metadata.
 				goto omitVCS
@@ -3496,7 +3501,7 @@ func SelectCoverPackages(roots []*Package, match []func(*Package) bool, op strin
 		}
 
 		// Mark package for instrumentation.
-		p.Internal.CoverMode = cmode
+		p.Internal.Cover.Mode = cmode
 		covered = append(covered, p)
 
 		// Force import of sync/atomic into package if atomic mode.

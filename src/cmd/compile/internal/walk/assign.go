@@ -103,7 +103,7 @@ func walkAssign(init *ir.Nodes, n ir.Node) ir.Node {
 			// Left in place for back end.
 			// Do not add a new write barrier.
 			// Set up address of type for back end.
-			r.X = reflectdata.AppendElemRType(base.Pos, r)
+			r.Fun = reflectdata.AppendElemRType(base.Pos, r)
 			return as
 		}
 		// Otherwise, lowered for race detector.
@@ -392,7 +392,7 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
 			continue
 		}
 
-		if sym := types.OrigSym(name.Sym()); sym == nil || sym.IsBlank() {
+		if ir.IsBlank(name) {
 			// We can ignore assignments to blank or anonymous result parameters.
 			// These can't appear in expressions anyway.
 			continue
@@ -432,7 +432,6 @@ func readsMemory(n ir.Node) bool {
 		ir.OBITNOT,
 		ir.OCONV,
 		ir.OCONVIFACE,
-		ir.OCONVIDATA,
 		ir.OCONVNOP,
 		ir.ODIV,
 		ir.ODOT,

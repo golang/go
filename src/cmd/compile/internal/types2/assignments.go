@@ -102,7 +102,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 }
 
 func (check *Checker) initConst(lhs *Const, x *operand) {
-	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
+	if x.mode == invalid || !isValid(x.typ) || !isValid(lhs.typ) {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -137,7 +137,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 // or Typ[Invalid] in case of an error.
 // If the initialization check fails, x.mode is set to invalid.
 func (check *Checker) initVar(lhs *Var, x *operand, context string) {
-	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
+	if x.mode == invalid || !isValid(x.typ) || !isValid(lhs.typ) {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -202,7 +202,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 		v.used = v_used // restore v.used
 	}
 
-	if x.mode == invalid || x.typ == Typ[Invalid] {
+	if x.mode == invalid || !isValid(x.typ) {
 		return Typ[Invalid]
 	}
 
@@ -234,7 +234,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 // If the assignment check fails and x != nil, x.mode is set to invalid.
 func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand) {
 	T := check.lhsVar(lhs) // nil if lhs is _
-	if T == Typ[Invalid] {
+	if !isValid(T) {
 		if x != nil {
 			x.mode = invalid
 		} else {
@@ -282,7 +282,7 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
 		switch {
 		case t == nil:
 			fallthrough // should not happen but be cautious
-		case t == Typ[Invalid]:
+		case !isValid(t):
 			s = "unknown type"
 		case isUntyped(t):
 			if isNumeric(t) {

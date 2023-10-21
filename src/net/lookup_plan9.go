@@ -203,24 +203,36 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 	return
 }
 
-func (*Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
+func (r *Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
 	switch network {
-	case "tcp4", "tcp6":
-		network = "tcp"
-	case "udp4", "udp6":
-		network = "udp"
+	case "ip": // no hints
+		if p, err := r.lookupPortWithNetwork(ctx, "tcp", "ip", service); err == nil {
+			return p, nil
+		}
+		return r.lookupPortWithNetwork(ctx, "udp", "ip", service)
+	case "tcp", "tcp4", "tcp6":
+		return r.lookupPortWithNetwork(ctx, "tcp", "tcp", service)
+	case "udp", "udp4", "udp6":
+		return r.lookupPortWithNetwork(ctx, "udp", "udp", service)
+	default:
+		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}
 	}
+}
+
+func (*Resolver) lookupPortWithNetwork(ctx context.Context, network, errNetwork, service string) (port int, err error) {
 	lines, err := queryCS(ctx, network, "127.0.0.1", toLower(service))
 	if err != nil {
+		if stringsHasSuffix(err.Error(), "can't translate service") {
+			return 0, &DNSError{Err: "unknown port", Name: errNetwork + "/" + service, IsNotFound: true}
+		}
 		return
 	}
-	unknownPortError := &AddrError{Err: "unknown port", Addr: network + "/" + service}
 	if len(lines) == 0 {
-		return 0, unknownPortError
+		return 0, &DNSError{Err: "unknown port", Name: errNetwork + "/" + service, IsNotFound: true}
 	}
 	f := getFields(lines[0])
 	if len(f) < 2 {
-		return 0, unknownPortError
+		return 0, &DNSError{Err: "unknown port", Name: errNetwork + "/" + service, IsNotFound: true}
 	}
 	s := f[1]
 	if i := bytealg.IndexByteString(s, '!'); i >= 0 {
@@ -229,7 +241,7 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port 
 	if n, _, ok := dtoi(s); ok {
 		return n, nil
 	}
-	return 0, unknownPortError
+	return 0, &DNSError{Err: "unknown port", Name: errNetwork + "/" + service, IsNotFound: true}
 }
 
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {

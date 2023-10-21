@@ -458,7 +458,7 @@ func (conf *Config) Check(path string, files []*syntax.File, info *Info) (*Packa
 func AssertableTo(V *Interface, T Type) bool {
 	// Checker.newAssertableTo suppresses errors for invalid types, so we need special
 	// handling here.
-	if T.Underlying() == Typ[Invalid] {
+	if !isValid(T.Underlying()) {
 		return false
 	}
 	return (*Checker)(nil).newAssertableTo(nopos, V, T, nil)
@@ -496,7 +496,7 @@ func Implements(V Type, T *Interface) bool {
 	}
 	// Checker.implements suppresses errors for invalid types, so we need special
 	// handling here.
-	if V.Underlying() == Typ[Invalid] {
+	if !isValid(V.Underlying()) {
 		return false
 	}
 	return (*Checker)(nil).implements(nopos, V, T, false, nil)

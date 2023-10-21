@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package unix
 
@@ -548,6 +547,9 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
 	flag, err := fcntl(fd, F_GETFL, 0)
 	if err != nil {
 		return err
+	}
+	if (flag&O_NONBLOCK != 0) == nonblocking {
+		return nil
 	}
 	if nonblocking {
 		flag |= O_NONBLOCK

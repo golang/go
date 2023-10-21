@@ -147,7 +147,7 @@ func size(name string, t *testing.T) int64 {
 func equal(name1, name2 string) (r bool) {
 	switch runtime.GOOS {
 	case "windows":
-		r = strings.ToLower(name1) == strings.ToLower(name2)
+		r = strings.EqualFold(name1, name2)
 	default:
 		r = name1 == name2
 	}
@@ -1180,6 +1180,7 @@ func TestRenameCaseDifference(pt *testing.T) {
 			// Stat does not return the real case of the file (it returns what the called asked for)
 			// So we have to use readdir to get the real name of the file.
 			dirNames, err := fd.Readdirnames(-1)
+			fd.Close()
 			if err != nil {
 				t.Fatalf("readdirnames: %s", err)
 			}

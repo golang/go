@@ -34,7 +34,7 @@ type Signature struct {
 // is variadic, it must have at least one parameter, and the last parameter
 // must be of unnamed slice type.
 //
-// Deprecated: Use NewSignatureType instead which allows for type parameters.
+// Deprecated: Use [NewSignatureType] instead which allows for type parameters.
 func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 	return NewSignatureType(recv, nil, nil, params, results, variadic)
 }
@@ -76,7 +76,7 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 // function. It is ignored when comparing signatures for identity.
 //
 // For an abstract method, Recv returns the enclosing interface either
-// as a *Named or an *Interface. Due to embedding, an interface may
+// as a *[Named] or an *[Interface]. Due to embedding, an interface may
 // contain methods whose receiver type is a different interface.
 func (s *Signature) Recv() *Var { return s.recv }
 
@@ -211,7 +211,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		check.later(func() {
 			// spec: "The receiver type must be of the form T or *T where T is a type name."
 			rtyp, _ := deref(recv.typ)
-			if rtyp == Typ[Invalid] {
+			if !isValid(rtyp) {
 				return // error was reported before
 			}
 			// spec: "The type denoted by T is called the receiver base type; it must not

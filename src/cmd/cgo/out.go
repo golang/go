@@ -910,6 +910,8 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wunknown-pragmas\"\n")
 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wpragmas\"\n")
 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Waddress-of-packed-member\"\n")
+	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wunknown-warning-option\"\n")
+	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wunaligned-access\"\n")
 
 	fmt.Fprintf(fgcc, "extern void crosscall2(void (*fn)(void *), void *, int, size_t);\n")
 	fmt.Fprintf(fgcc, "extern size_t _cgo_wait_runtime_init_done(void);\n")
@@ -1522,6 +1524,8 @@ extern char* _cgo_topofstack(void);
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+#pragma GCC diagnostic ignored "-Wunaligned-access"
 
 #include <errno.h>
 #include <string.h>

@@ -60,7 +60,7 @@ const (
 // The alphabet is treated as a sequence of byte values
 // without any special treatment for multi-byte UTF-8.
 // The resulting Encoding uses the default padding character ('='),
-// which may be changed or disabled via WithPadding.
+// which may be changed or disabled via [Encoding.WithPadding].
 func NewEncoding(encoder string) *Encoding {
 	if len(encoder) != 64 {
 		panic("encoding alphabet is not 64-bytes long")
@@ -87,7 +87,7 @@ func NewEncoding(encoder string) *Encoding {
 }
 
 // WithPadding creates a new encoding identical to enc except
-// with a specified padding character, or NoPadding to disable padding.
+// with a specified padding character, or [NoPadding] to disable padding.
 // The padding character must not be '\r' or '\n',
 // must not be contained in the encoding's alphabet,
 // must not be negative, and must be a rune equal or below '\xff'.
@@ -124,24 +124,24 @@ var URLEncoding = NewEncoding("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvw
 
 // RawStdEncoding is the standard raw, unpadded base64 encoding,
 // as defined in RFC 4648 section 3.2.
-// This is the same as StdEncoding but omits padding characters.
+// This is the same as [StdEncoding] but omits padding characters.
 var RawStdEncoding = StdEncoding.WithPadding(NoPadding)
 
 // RawURLEncoding is the unpadded alternate base64 encoding defined in RFC 4648.
 // It is typically used in URLs and file names.
-// This is the same as URLEncoding but omits padding characters.
+// This is the same as [URLEncoding] but omits padding characters.
 var RawURLEncoding = URLEncoding.WithPadding(NoPadding)
 
 /*
  * Encoder
  */
 
-// Encode encodes src using the encoding enc, writing
-// EncodedLen(len(src)) bytes to dst.
+// Encode encodes src using the encoding enc,
+// writing [Encoding.EncodedLen](len(src)) bytes to dst.
 //
 // The encoding pads the output to a multiple of 4 bytes,
 // so Encode is not appropriate for use on individual blocks
-// of a large data stream. Use NewEncoder() instead.
+// of a large data stream. Use [NewEncoder] instead.
 func (enc *Encoding) Encode(dst, src []byte) {
 	if len(src) == 0 {
 		return
@@ -507,9 +507,9 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 }
 
 // Decode decodes src using the encoding enc. It writes at most
-// DecodedLen(len(src)) bytes to dst and returns the number of bytes
+// [Encoding.DecodedLen](len(src)) bytes to dst and returns the number of bytes
 // written. If src contains invalid base64 data, it will return the
-// number of bytes successfully written and CorruptInputError.
+// number of bytes successfully written and [CorruptInputError].
 // New line characters (\r and \n) are ignored.
 func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 	if len(src) == 0 {

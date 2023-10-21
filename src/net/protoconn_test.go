@@ -5,8 +5,6 @@
 // This file implements API tests across platforms and will never have a build
 // tag.
 
-//go:build !js && !wasip1
-
 package net
 
 import (
@@ -39,7 +37,7 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
 	}
 	defer ln.Close()
 	ln.Addr()
-	ln.SetDeadline(time.Now().Add(30 * time.Nanosecond))
+	mustSetDeadline(t, ln.SetDeadline, 30*time.Nanosecond)
 
 	if c, err := ln.Accept(); err != nil {
 		if !err.(Error).Timeout() {
@@ -162,6 +160,10 @@ func TestUDPConnSpecificMethods(t *testing.T) {
 }
 
 func TestIPConnSpecificMethods(t *testing.T) {
+	if !testableNetwork("ip4") {
+		t.Skip("skipping: ip4 not supported")
+	}
+
 	la, err := ResolveIPAddr("ip4", "127.0.0.1")
 	if err != nil {
 		t.Fatal(err)
@@ -217,7 +219,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 	defer ln.Close()
 	defer os.Remove(addr)
 	ln.Addr()
-	ln.SetDeadline(time.Now().Add(30 * time.Nanosecond))
+	mustSetDeadline(t, ln.SetDeadline, 30*time.Nanosecond)
 
 	if c, err := ln.Accept(); err != nil {
 		if !err.(Error).Timeout() {
@@ -235,7 +237,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 	}
 
 	if f, err := ln.File(); err != nil {
-		t.Fatal(err)
+		condFatalf(t, "file+net", "%v", err)
 	} else {
 		f.Close()
 	}
@@ -332,7 +334,7 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 	}
 
 	if f, err := c1.File(); err != nil {
-		t.Fatal(err)
+		condFatalf(t, "file+net", "%v", err)
 	} else {
 		f.Close()
 	}

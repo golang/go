@@ -571,6 +571,13 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 		for i, arg := range args {
 			// generic arguments cannot have a defined (*Named) type - no need for underlying type below
 			if asig, _ := arg.typ.(*Signature); asig != nil && asig.TypeParams().Len() > 0 {
+				// The argument type is a generic function signature. This type is
+				// pointer-identical with (it's copied from) the type of the generic
+				// function argument and thus the function object.
+				// Before we change the type (type parameter renaming, below), make
+				// a clone of it as otherwise we implicitly modify the object's type
+				// (go.dev/issues/63260).
+				asig = clone(asig)
 				// Rename type parameters for cases like f(g, g); this gives each
 				// generic function argument a unique type identity (go.dev/issues/59956).
 				// TODO(gri) Consider only doing this if a function argument appears
@@ -660,7 +667,7 @@ var cgoPrefixes = [...]string{
 	"_Cmacro_", // function to evaluate the expanded expression
 }
 
-func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named, wantType bool) {
+func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, wantType bool) {
 	// these must be declared before the "goto Error" statements
 	var (
 		obj      Object
@@ -761,8 +768,8 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named, want
 	switch x.mode {
 	case typexpr:
 		// don't crash for "type T T.x" (was go.dev/issue/51509)
-		if def != nil && x.typ == def {
-			check.cycleError([]Object{def.obj})
+		if def != nil && def.typ == x.typ {
+			check.cycleError([]Object{def})
 			goto Error
 		}
 	case builtin:
@@ -795,7 +802,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named, want
 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
-		if under(x.typ) == Typ[Invalid] {
+		if !isValid(under(x.typ)) {
 			goto Error
 		}
 

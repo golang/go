@@ -792,9 +792,8 @@ func TestRuntimePanic(t *testing.T) {
 func TestG0StackOverflow(t *testing.T) {
 	testenv.MustHaveExec(t)
 
-	switch runtime.GOOS {
-	case "android", "darwin", "dragonfly", "freebsd", "ios", "linux", "netbsd", "openbsd":
-		t.Skipf("g0 stack is wrong on pthread platforms (see golang.org/issue/26061)")
+	if runtime.GOOS == "ios" {
+		testenv.SkipFlaky(t, 62671)
 	}
 
 	if os.Getenv("TEST_G0_STACK_OVERFLOW") != "1" {

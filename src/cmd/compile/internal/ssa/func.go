@@ -7,7 +7,10 @@ package ssa
 import (
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"math"
@@ -84,9 +87,17 @@ type LocalSlotSplitKey struct {
 }
 
 // NewFunc returns a new, empty function object.
-// Caller must set f.Config and f.Cache before using f.
-func NewFunc(fe Frontend) *Func {
-	return &Func{fe: fe, NamedValues: make(map[LocalSlot][]*Value), CanonicalLocalSlots: make(map[LocalSlot]*LocalSlot), CanonicalLocalSplits: make(map[LocalSlotSplitKey]*LocalSlot)}
+// Caller must reset cache before calling NewFunc.
+func (c *Config) NewFunc(fe Frontend, cache *Cache) *Func {
+	return &Func{
+		fe:     fe,
+		Config: c,
+		Cache:  cache,
+
+		NamedValues:          make(map[LocalSlot][]*Value),
+		CanonicalLocalSlots:  make(map[LocalSlot]*LocalSlot),
+		CanonicalLocalSplits: make(map[LocalSlotSplitKey]*LocalSlot),
+	}
 }
 
 // NumBlocks returns an integer larger than the id of any Block in the Func.
@@ -97,6 +108,21 @@ func (f *Func) NumBlocks() int {
 // NumValues returns an integer larger than the id of any Value in the Func.
 func (f *Func) NumValues() int {
 	return f.vid.num()
+}
+
+// NameABI returns the function name followed by comma and the ABI number.
+// This is intended for use with GOSSAFUNC and HTML dumps, and differs from
+// the linker's "<1>" convention because "<" and ">" require shell quoting
+// and are not legal file names (for use with GOSSADIR) on Windows.
+func (f *Func) NameABI() string {
+	return FuncNameABI(f.Name, f.ABISelf.Which())
+}
+
+// FuncNameABI returns n followed by a comma and the value of a.
+// This is a separate function to allow a single point encoding
+// of the format, which is used in places where there's not a Func yet.
+func FuncNameABI(n string, a obj.ABI) string {
+	return fmt.Sprintf("%s,%d", n, a)
 }
 
 // newSparseSet returns a sparse set that can store at least up to n integers.
@@ -773,7 +799,8 @@ func (f *Func) DebugHashMatch() bool {
 	if !base.HasDebugHash() {
 		return true
 	}
-	return base.DebugHashMatchPkgFunc(f.fe.MyImportPath(), f.Name)
+	sym := f.fe.Func().Sym()
+	return base.DebugHashMatchPkgFunc(sym.Pkg.Path, sym.Name)
 }
 
 func (f *Func) spSb() (sp, sb *Value) {
@@ -808,4 +835,9 @@ func (f *Func) useFMA(v *Value) bool {
 		return true
 	}
 	return base.FmaHash.MatchPos(v.Pos, nil)
+}
+
+// NewLocal returns a new anonymous local variable of the given type.
+func (f *Func) NewLocal(pos src.XPos, typ *types.Type) *ir.Name {
+	return typecheck.TempAt(pos, f.fe.Func(), typ) // Note: adds new auto to fn.Dcl list
 }

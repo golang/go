@@ -26,18 +26,10 @@ func LookupNum(prefix string, n int) *types.Sym {
 }
 
 // Given funarg struct list, return list of fn args.
-func NewFuncParams(origs []*types.Field, mustname bool) []*types.Field {
+func NewFuncParams(origs []*types.Field) []*types.Field {
 	res := make([]*types.Field, len(origs))
 	for i, orig := range origs {
-		s := orig.Sym
-		if mustname && (s == nil || s.Name == "_") {
-			// invent a name so that we can refer to it in the trampoline
-			s = LookupNum(".anon", i)
-		} else if s != nil && s.Pkg != types.LocalPkg {
-			// TODO(mdempsky): Preserve original position, name, and package.
-			s = Lookup(s.Name)
-		}
-		p := types.NewField(orig.Pos, s, orig.Type)
+		p := types.NewField(orig.Pos, orig.Sym, orig.Type)
 		p.SetIsDDD(orig.IsDDD())
 		res[i] = p
 	}
@@ -245,7 +237,7 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 		return n
 	}
 
-	op, why := Assignop(n.Type(), t)
+	op, why := assignOp(n.Type(), t)
 	if op == ir.OXXX {
 		base.Errorf("cannot use %L as type %v in %s%s", n, t, context(), why)
 		op = ir.OCONV
@@ -261,7 +253,7 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 // If so, return op code to use in conversion.
 // If not, return OXXX. In this case, the string return parameter may
 // hold a reason why. In all other cases, it'll be the empty string.
-func Assignop(src, dst *types.Type) (ir.Op, string) {
+func assignOp(src, dst *types.Type) (ir.Op, string) {
 	if src == dst {
 		return ir.OCONVNOP, ""
 	}
@@ -273,10 +265,7 @@ func Assignop(src, dst *types.Type) (ir.Op, string) {
 	if types.Identical(src, dst) {
 		return ir.OCONVNOP, ""
 	}
-	return Assignop1(src, dst)
-}
 
-func Assignop1(src, dst *types.Type) (ir.Op, string) {
 	// 2. src and dst have identical underlying types and
 	//   a. either src or dst is not a named type, or
 	//   b. both are empty interface types, or
@@ -375,7 +364,7 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
 // If not, return OXXX. In this case, the string return parameter may
 // hold a reason why. In all other cases, it'll be the empty string.
 // srcConstant indicates whether the value of type src is a constant.
-func Convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
+func convertOp(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 	if src == dst {
 		return ir.OCONVNOP, ""
 	}
@@ -398,7 +387,7 @@ func Convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 	}
 
 	// 1. src can be assigned to dst.
-	op, why := Assignop(src, dst)
+	op, why := assignOp(src, dst)
 	if op != ir.OXXX {
 		return op, why
 	}

@@ -82,9 +82,6 @@ func slicecopy(toPtr *any, toLen int, fromPtr *any, fromLen int, wid uintptr) in
 func decoderune(string, int) (retv rune, retk int)
 func countrunes(string) int
 
-// Non-empty-interface to non-empty-interface conversion.
-func convI2I(typ *byte, itab *uintptr) (ret *uintptr)
-
 // Convert non-interface type to the data word of a (empty or nonempty) interface.
 func convT(typ *byte, elem *any) unsafe.Pointer
 
@@ -105,17 +102,22 @@ func convTslice(val []uint8) unsafe.Pointer
 
 // interface type assertions x.(T)
 func assertE2I(inter *byte, typ *byte) *byte
-func assertE2I2(inter *byte, eface any) (ret any)
-func assertI2I(inter *byte, tab *byte) *byte
-func assertI2I2(inter *byte, iface any) (ret any)
+func assertE2I2(inter *byte, typ *byte) *byte
 func panicdottypeE(have, want, iface *byte)
 func panicdottypeI(have, want, iface *byte)
 func panicnildottype(want *byte)
+func typeAssert(s *byte, typ *byte) *byte
+
+// interface switches
+func interfaceSwitch(s *byte, t *byte) (int, *byte)
 
 // interface equality. Type/itab pointers are already known to be equal, so
 // we only need to pass one.
 func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
 func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
+
+// defer in range over func
+func deferrangefunc() interface{}
 
 func fastrand() uint32
 
@@ -185,8 +187,6 @@ func panicunsafeslicenilptr()
 func unsafestringcheckptr(ptr unsafe.Pointer, len int64)
 func panicunsafestringlen()
 func panicunsafestringnilptr()
-
-func mulUintptr(x, y uintptr) (uintptr, bool)
 
 func memmove(to *any, frm *any, length uintptr)
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)

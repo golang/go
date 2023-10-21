@@ -41,19 +41,20 @@ var services = map[string]map[string]int{
 		"domain": 53,
 	},
 	"tcp": {
-		"ftp":    21,
-		"ftps":   990,
-		"gopher": 70, // ʕ◔ϖ◔ʔ
-		"http":   80,
-		"https":  443,
-		"imap2":  143,
-		"imap3":  220,
-		"imaps":  993,
-		"pop3":   110,
-		"pop3s":  995,
-		"smtp":   25,
-		"ssh":    22,
-		"telnet": 23,
+		"ftp":         21,
+		"ftps":        990,
+		"gopher":      70, // ʕ◔ϖ◔ʔ
+		"http":        80,
+		"https":       443,
+		"imap2":       143,
+		"imap3":       220,
+		"imaps":       993,
+		"pop3":        110,
+		"pop3s":       995,
+		"smtp":        25,
+		"submissions": 465,
+		"ssh":         22,
+		"telnet":      23,
 	},
 }
 
@@ -83,12 +84,20 @@ const maxPortBufSize = len("mobility-header") + 10
 
 func lookupPortMap(network, service string) (port int, error error) {
 	switch network {
-	case "tcp4", "tcp6":
-		network = "tcp"
-	case "udp4", "udp6":
-		network = "udp"
+	case "ip": // no hints
+		if p, err := lookupPortMapWithNetwork("tcp", "ip", service); err == nil {
+			return p, nil
+		}
+		return lookupPortMapWithNetwork("udp", "ip", service)
+	case "tcp", "tcp4", "tcp6":
+		return lookupPortMapWithNetwork("tcp", "tcp", service)
+	case "udp", "udp4", "udp6":
+		return lookupPortMapWithNetwork("udp", "udp", service)
 	}
+	return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}
+}
 
+func lookupPortMapWithNetwork(network, errNetwork, service string) (port int, error error) {
 	if m, ok := services[network]; ok {
 		var lowerService [maxPortBufSize]byte
 		n := copy(lowerService[:], service)
@@ -96,8 +105,9 @@ func lookupPortMap(network, service string) (port int, error error) {
 		if port, ok := m[string(lowerService[:n])]; ok && n == len(service) {
 			return port, nil
 		}
+		return 0, &DNSError{Err: "unknown port", Name: errNetwork + "/" + service, IsNotFound: true}
 	}
-	return 0, &AddrError{Err: "unknown port", Addr: network + "/" + service}
+	return 0, &DNSError{Err: "unknown network", Name: errNetwork + "/" + service}
 }
 
 // ipVersion returns the provided network's IP version: '4', '6' or 0
@@ -414,11 +424,13 @@ func LookupPort(network, service string) (port int, err error) {
 }
 
 // LookupPort looks up the port for the given network and service.
+//
+// The network must be one of "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6" or "ip".
 func (r *Resolver) LookupPort(ctx context.Context, network, service string) (port int, err error) {
 	port, needsLookup := parsePort(service)
 	if needsLookup {
 		switch network {
-		case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6":
+		case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6", "ip":
 		case "": // a hint wildcard for Go 1.0 undocumented behavior
 			network = "ip"
 		default:

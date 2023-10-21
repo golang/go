@@ -398,7 +398,7 @@ func dumpgoroutine(gp *g) {
 		dumpint(uint64(uintptr(unsafe.Pointer(gp))))
 		eface := efaceOf(&p.arg)
 		dumpint(uint64(uintptr(unsafe.Pointer(eface._type))))
-		dumpint(uint64(uintptr(unsafe.Pointer(eface.data))))
+		dumpint(uint64(uintptr(eface.data)))
 		dumpint(0) // was p->defer, no longer recorded
 		dumpint(uint64(uintptr(unsafe.Pointer(p.link))))
 	}
@@ -488,8 +488,8 @@ func dumpobjs() {
 			throw("freemark array doesn't have enough entries")
 		}
 
-		for freeIndex := uintptr(0); freeIndex < s.nelems; freeIndex++ {
-			if s.isFree(freeIndex) {
+		for freeIndex := uint16(0); freeIndex < s.nelems; freeIndex++ {
+			if s.isFree(uintptr(freeIndex)) {
 				freemark[freeIndex] = true
 			}
 		}

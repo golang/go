@@ -5,6 +5,7 @@
 package types
 
 import (
+	"math"
 	"sort"
 
 	"cmd/compile/internal/base"
@@ -267,39 +268,58 @@ func CalcSize(t *Type) {
 	case TINT8, TUINT8, TBOOL:
 		// bool is int8
 		w = 1
+		t.intRegs = 1
 
 	case TINT16, TUINT16:
 		w = 2
+		t.intRegs = 1
 
-	case TINT32, TUINT32, TFLOAT32:
+	case TINT32, TUINT32:
 		w = 4
+		t.intRegs = 1
 
-	case TINT64, TUINT64, TFLOAT64:
+	case TINT64, TUINT64:
 		w = 8
 		t.align = uint8(RegSize)
+		t.intRegs = uint8(8 / RegSize)
+
+	case TFLOAT32:
+		w = 4
+		t.floatRegs = 1
+
+	case TFLOAT64:
+		w = 8
+		t.align = uint8(RegSize)
+		t.floatRegs = 1
 
 	case TCOMPLEX64:
 		w = 8
 		t.align = 4
+		t.floatRegs = 2
 
 	case TCOMPLEX128:
 		w = 16
 		t.align = uint8(RegSize)
+		t.floatRegs = 2
 
 	case TPTR:
 		w = int64(PtrSize)
+		t.intRegs = 1
 		CheckSize(t.Elem())
 
 	case TUNSAFEPTR:
 		w = int64(PtrSize)
+		t.intRegs = 1
 
 	case TINTER: // implemented as 2 pointers
 		w = 2 * int64(PtrSize)
 		t.align = uint8(PtrSize)
+		t.intRegs = 2
 		expandiface(t)
 
 	case TCHAN: // implemented as pointer
 		w = int64(PtrSize)
+		t.intRegs = 1
 
 		CheckSize(t.Elem())
 
@@ -323,15 +343,14 @@ func CalcSize(t *Type) {
 
 	case TMAP: // implemented as pointer
 		w = int64(PtrSize)
+		t.intRegs = 1
 		CheckSize(t.Elem())
 		CheckSize(t.Key())
 
 	case TFORW: // should have been filled in
 		base.Fatalf("invalid recursive type %v", t)
-		w = 1 // anything will do
 
-	case TANY:
-		// not a real type; should be replaced before use.
+	case TANY: // not a real type; should be replaced before use.
 		base.Fatalf("CalcSize any")
 
 	case TSTRING:
@@ -340,6 +359,7 @@ func CalcSize(t *Type) {
 		}
 		w = StringSize
 		t.align = uint8(PtrSize)
+		t.intRegs = 2
 
 	case TARRAY:
 		if t.Elem() == nil {
@@ -357,6 +377,20 @@ func CalcSize(t *Type) {
 		w = t.NumElem() * t.Elem().width
 		t.align = t.Elem().align
 
+		// ABIInternal only allows "trivial" arrays (i.e., length 0 or 1)
+		// to be passed by register.
+		switch t.NumElem() {
+		case 0:
+			t.intRegs = 0
+			t.floatRegs = 0
+		case 1:
+			t.intRegs = t.Elem().intRegs
+			t.floatRegs = t.Elem().floatRegs
+		default:
+			t.intRegs = math.MaxUint8
+			t.floatRegs = math.MaxUint8
+		}
+
 	case TSLICE:
 		if t.Elem() == nil {
 			break
@@ -364,6 +398,7 @@ func CalcSize(t *Type) {
 		w = SliceSize
 		CheckSize(t.Elem())
 		t.align = uint8(PtrSize)
+		t.intRegs = 3
 
 	case TSTRUCT:
 		if t.IsFuncArgStruct() {
@@ -378,6 +413,7 @@ func CalcSize(t *Type) {
 		t1 := NewFuncArgs(t)
 		CheckSize(t1)
 		w = int64(PtrSize) // width of func type is pointer
+		t.intRegs = 1
 
 	// function is 3 cated structures;
 	// compute their widths as side-effect.
@@ -411,7 +447,7 @@ func CalcSize(t *Type) {
 }
 
 // CalcStructSize calculates the size of t,
-// filling in t.width and t.align,
+// filling in t.width, t.align, t.intRegs, and t.floatRegs,
 // even if size calculation is otherwise disabled.
 func CalcStructSize(t *Type) {
 	var maxAlign uint8 = 1
@@ -438,19 +474,34 @@ func CalcStructSize(t *Type) {
 		size++
 	}
 
-	// The alignment of a struct type is the maximum alignment of its
-	// field types.
+	var intRegs, floatRegs uint64
 	for _, field := range fields {
-		if align := field.Type.align; align > maxAlign {
+		typ := field.Type
+
+		// The alignment of a struct type is the maximum alignment of its
+		// field types.
+		if align := typ.align; align > maxAlign {
 			maxAlign = align
 		}
+
+		// Each field needs its own registers.
+		// We sum in uint64 to avoid possible overflows.
+		intRegs += uint64(typ.intRegs)
+		floatRegs += uint64(typ.floatRegs)
 	}
 
 	// Final size includes trailing padding.
 	size = RoundUp(size, int64(maxAlign))
 
+	if intRegs > math.MaxUint8 || floatRegs > math.MaxUint8 {
+		intRegs = math.MaxUint8
+		floatRegs = math.MaxUint8
+	}
+
 	t.width = size
 	t.align = maxAlign
+	t.intRegs = uint8(intRegs)
+	t.floatRegs = uint8(floatRegs)
 }
 
 func (t *Type) widthCalculated() bool {

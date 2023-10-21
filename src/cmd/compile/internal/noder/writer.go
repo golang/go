@@ -10,6 +10,7 @@ import (
 	"go/token"
 	"internal/buildcfg"
 	"internal/pkgbits"
+	"os"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -1055,6 +1056,9 @@ func (w *writer) funcExt(obj *types2.Func) {
 
 	sig, block := obj.Type().(*types2.Signature), decl.Body
 	body, closureVars := w.p.bodyIdx(sig, block, w.dict)
+	if len(closureVars) > 0 {
+		fmt.Fprintln(os.Stderr, "CLOSURE", closureVars)
+	}
 	assert(len(closureVars) == 0)
 
 	w.Sync(pkgbits.SyncFuncExt)
@@ -1114,7 +1118,7 @@ func (pw *pkgWriter) bodyIdx(sig *types2.Signature, block *syntax.BlockStmt, dic
 	w.sig = sig
 	w.dict = dict
 
-	w.funcargs(sig)
+	w.declareParams(sig)
 	if w.Bool(block != nil) {
 		w.stmts(block.List)
 		w.pos(block.Rbrace)
@@ -1123,24 +1127,18 @@ func (pw *pkgWriter) bodyIdx(sig *types2.Signature, block *syntax.BlockStmt, dic
 	return w.Flush(), w.closureVars
 }
 
-func (w *writer) funcargs(sig *types2.Signature) {
-	do := func(params *types2.Tuple, result bool) {
+func (w *writer) declareParams(sig *types2.Signature) {
+	addLocals := func(params *types2.Tuple) {
 		for i := 0; i < params.Len(); i++ {
-			w.funcarg(params.At(i), result)
+			w.addLocal(params.At(i))
 		}
 	}
 
 	if recv := sig.Recv(); recv != nil {
-		w.funcarg(recv, false)
+		w.addLocal(recv)
 	}
-	do(sig.Params(), false)
-	do(sig.Results(), true)
-}
-
-func (w *writer) funcarg(param *types2.Var, result bool) {
-	if param.Name() != "" || result {
-		w.addLocal(param)
-	}
+	addLocals(sig.Params())
+	addLocals(sig.Results())
 }
 
 // addLocal records the declaration of a new local variable.
@@ -1272,6 +1270,9 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 		w.pos(stmt)
 		w.op(callOps[stmt.Tok])
 		w.expr(stmt.Call)
+		if stmt.Tok == syntax.Defer {
+			w.optExpr(stmt.DeferAt)
+		}
 
 	case *syntax.DeclStmt:
 		for _, decl := range stmt.DeclList {
@@ -1454,7 +1455,7 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 				w.convRTTI(src, dstType)
 			}
 
-			keyType, valueType := w.p.rangeTypes(rang.X)
+			keyType, valueType := types2.RangeKeyVal(w.p.typeOf(rang.X))
 			assign(0, keyType)
 			assign(1, valueType)
 		}
@@ -1493,30 +1494,6 @@ func (w *writer) distinctVars(stmt *syntax.ForStmt) bool {
 	// -gcflags=-d=loopvar=3 enables logging for 1.22 but does not turn loopvar on for <= 1.21.
 
 	return is122 || lv > 0 && lv != 3
-}
-
-// rangeTypes returns the types of values produced by ranging over
-// expr.
-func (pw *pkgWriter) rangeTypes(expr syntax.Expr) (key, value types2.Type) {
-	typ := pw.typeOf(expr)
-	switch typ := types2.CoreType(typ).(type) {
-	case *types2.Pointer: // must be pointer to array
-		return types2.Typ[types2.Int], types2.CoreType(typ.Elem()).(*types2.Array).Elem()
-	case *types2.Array:
-		return types2.Typ[types2.Int], typ.Elem()
-	case *types2.Slice:
-		return types2.Typ[types2.Int], typ.Elem()
-	case *types2.Basic:
-		if typ.Info()&types2.IsString != 0 {
-			return types2.Typ[types2.Int], runeTypeName.Type()
-		}
-	case *types2.Map:
-		return typ.Key(), typ.Elem()
-	case *types2.Chan:
-		return typ.Elem(), nil
-	}
-	pw.fatalf(expr, "unexpected range type: %v", typ)
-	panic("unreachable")
 }
 
 func (w *writer) ifStmt(stmt *syntax.IfStmt) {
@@ -1748,16 +1725,11 @@ func (w *writer) expr(expr syntax.Expr) {
 			assert(typ != nil)
 			w.typ(typ)
 			w.Value(tv.Value)
-
-			// TODO(mdempsky): These details are only important for backend
-			// diagnostics. Explore writing them out separately.
-			w.op(constExprOp(expr))
-			w.String(syntax.String(expr))
 			return
 		}
 
 		if _, isNil := obj.(*types2.Nil); isNil {
-			w.Code(exprNil)
+			w.Code(exprZero)
 			w.pos(expr)
 			w.typ(tv.Type)
 			return
@@ -1937,7 +1909,7 @@ func (w *writer) expr(expr syntax.Expr) {
 
 		var rtype types2.Type
 		if tv.IsBuiltin() {
-			switch obj, _ := lookupObj(w.p, expr.Fun); obj.Name() {
+			switch obj, _ := lookupObj(w.p, syntax.Unparen(expr.Fun)); obj.Name() {
 			case "make":
 				assert(len(expr.ArgList) >= 1)
 				assert(!expr.HasDots)
@@ -1968,6 +1940,39 @@ func (w *writer) expr(expr syntax.Expr) {
 				w.Code(exprNew)
 				w.pos(expr)
 				w.exprType(nil, expr.ArgList[0])
+				return
+
+			case "Sizeof":
+				assert(len(expr.ArgList) == 1)
+				assert(!expr.HasDots)
+
+				w.Code(exprSizeof)
+				w.pos(expr)
+				w.typ(w.p.typeOf(expr.ArgList[0]))
+				return
+
+			case "Alignof":
+				assert(len(expr.ArgList) == 1)
+				assert(!expr.HasDots)
+
+				w.Code(exprAlignof)
+				w.pos(expr)
+				w.typ(w.p.typeOf(expr.ArgList[0]))
+				return
+
+			case "Offsetof":
+				assert(len(expr.ArgList) == 1)
+				assert(!expr.HasDots)
+				selector := syntax.Unparen(expr.ArgList[0]).(*syntax.SelectorExpr)
+				index := w.p.info.Selections[selector].Index()
+
+				w.Code(exprOffsetof)
+				w.pos(expr)
+				w.typ(deref2(w.p.typeOf(selector.X)))
+				w.Len(len(index) - 1)
+				for _, idx := range index {
+					w.Len(idx)
+				}
 				return
 
 			case "append":
@@ -2300,6 +2305,10 @@ func (w *writer) funcLit(expr *syntax.FuncLit) {
 type posVar struct {
 	pos  syntax.Pos
 	var_ *types2.Var
+}
+
+func (p posVar) String() string {
+	return p.pos.String() + ":" + p.var_.String()
 }
 
 func (w *writer) exprList(expr syntax.Expr) {

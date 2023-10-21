@@ -82,8 +82,20 @@ func (ffa *funcFlagsAnalyzer) setstate(n ir.Node, st pstate) {
 	}
 }
 
+func (ffa *funcFlagsAnalyzer) updatestate(n ir.Node, st pstate) {
+	if _, ok := ffa.nstate[n]; !ok {
+		base.Fatalf("funcFlagsAnalyzer: fn %q internal error, expected existing setting for node:\n%+v\n", ffa.fn.Sym().Name, n)
+	} else {
+		ffa.nstate[n] = st
+	}
+}
+
 func (ffa *funcFlagsAnalyzer) setstateSoft(n ir.Node, st pstate) {
 	ffa.nstate[n] = st
+}
+
+func (ffa *funcFlagsAnalyzer) panicPathTable() map[ir.Node]pstate {
+	return ffa.nstate
 }
 
 // blockCombine merges together states as part of a linear sequence of
@@ -132,7 +144,8 @@ func branchCombine(p1, p2 pstate) pstate {
 }
 
 // stateForList walks through a list of statements and computes the
-// state/diposition for the entire list as a whole.
+// state/diposition for the entire list as a whole, as well
+// as updating disposition of intermediate nodes.
 func (ffa *funcFlagsAnalyzer) stateForList(list ir.Nodes) pstate {
 	st := psTop
 	for i := range list {
@@ -143,6 +156,7 @@ func (ffa *funcFlagsAnalyzer) stateForList(list ir.Nodes) pstate {
 				ir.Line(n), n.Op().String(), psi.String())
 		}
 		st = blockCombine(st, psi)
+		ffa.updatestate(n, st)
 	}
 	if st == psTop {
 		st = psNoInfo
@@ -166,7 +180,7 @@ func isExitCall(n ir.Node) bool {
 		return false
 	}
 	cx := n.(*ir.CallExpr)
-	name := ir.StaticCalleeName(cx.X)
+	name := ir.StaticCalleeName(cx.Fun)
 	if name == nil {
 		return false
 	}
@@ -175,10 +189,12 @@ func isExitCall(n ir.Node) bool {
 		isWellKnownFunc(s, "runtime", "throw") {
 		return true
 	}
-	// FIXME: consult results of flags computation for
-	// previously analyzed Go functions, including props
-	// read from export data for functions in other packages.
-	return false
+	if fp := propsForFunc(name.Func); fp != nil {
+		if fp.Flags&FuncPropNeverReturns != 0 {
+			return true
+		}
+	}
+	return name.Func.NeverReturns()
 }
 
 // pessimize is called to record the fact that we saw something in the
@@ -314,7 +330,7 @@ func (ffa *funcFlagsAnalyzer) nodeVisitPost(n ir.Node) {
 	case ir.OFALL:
 		// Not important.
 	case ir.ODCLFUNC, ir.ORECOVER, ir.OAS, ir.OAS2, ir.OAS2FUNC, ir.OASOP,
-		ir.OPRINTN, ir.OPRINT, ir.OLABEL, ir.OCALLINTER, ir.ODEFER,
+		ir.OPRINTLN, ir.OPRINT, ir.OLABEL, ir.OCALLINTER, ir.ODEFER,
 		ir.OSEND, ir.ORECV, ir.OSELRECV2, ir.OGO, ir.OAPPEND, ir.OAS2DOTTYPE,
 		ir.OAS2MAPR, ir.OGETG, ir.ODELETE, ir.OINLMARK, ir.OAS2RECV,
 		ir.OMIN, ir.OMAX, ir.OMAKE, ir.ORECOVERFP, ir.OGETCALLERSP:

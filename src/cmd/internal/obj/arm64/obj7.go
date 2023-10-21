@@ -1,5 +1,5 @@
 // cmd/7l/noop.c, cmd/7l/obj.c, cmd/ld/pass.c from Vita Nuova.
-// https://code.google.com/p/ken-cc/source/browse/
+// https://bitbucket.org/plan9-from-bell-labs/9-cc/src/master/
 //
 // 	Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 // 	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -289,11 +289,12 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	}
 	call.To.Sym = c.ctxt.Lookup(morestack)
 
-	unspill := c.cursym.Func().UnspillRegisterArgs(call, c.newprog)
-	pcdata = c.ctxt.EndUnsafePoint(unspill, c.newprog, -1)
+	// The instructions which unspill regs should be preemptible.
+	pcdata = c.ctxt.EndUnsafePoint(call, c.newprog, -1)
+	unspill := c.cursym.Func().UnspillRegisterArgs(pcdata, c.newprog)
 
 	// B	start
-	jmp := obj.Appendp(pcdata, c.newprog)
+	jmp := obj.Appendp(unspill, c.newprog)
 	jmp.As = AB
 	jmp.To.Type = obj.TYPE_BRANCH
 	jmp.To.SetTarget(startPred.Link)

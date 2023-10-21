@@ -80,8 +80,8 @@ type gcm struct {
 // with the standard nonce length.
 //
 // In general, the GHASH operation performed by this implementation of GCM is not constant-time.
-// An exception is when the underlying Block was created by aes.NewCipher
-// on systems with hardware support for AES. See the crypto/aes package documentation for details.
+// An exception is when the underlying [Block] was created by aes.NewCipher
+// on systems with hardware support for AES. See the [crypto/aes] package documentation for details.
 func NewGCM(cipher Block) (AEAD, error) {
 	return newGCMWithNonceAndTagSize(cipher, gcmStandardNonceSize, gcmTagSize)
 }
@@ -92,7 +92,7 @@ func NewGCM(cipher Block) (AEAD, error) {
 //
 // Only use this function if you require compatibility with an existing
 // cryptosystem that uses non-standard nonce lengths. All other users should use
-// NewGCM, which is faster and more resistant to misuse.
+// [NewGCM], which is faster and more resistant to misuse.
 func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
 	return newGCMWithNonceAndTagSize(cipher, size, gcmTagSize)
 }
@@ -104,7 +104,7 @@ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
 //
 // Only use this function if you require compatibility with an existing
 // cryptosystem that uses non-standard tag lengths. All other users should use
-// NewGCM, which is more resistant to misuse.
+// [NewGCM], which is more resistant to misuse.
 func NewGCMWithTagSize(cipher Block, tagSize int) (AEAD, error) {
 	return newGCMWithNonceAndTagSize(cipher, gcmStandardNonceSize, tagSize)
 }

@@ -390,11 +390,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.CallExpr)
 		return tcCall(n, top)
 
-	case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
-		n := n.(*ir.UnaryExpr)
-		n.SetType(types.Types[types.TUINTPTR])
-		return OrigInt(n, evalunsafe(n))
-
 	case ir.OCAP, ir.OLEN:
 		n := n.(*ir.UnaryExpr)
 		return tcLenCap(n)
@@ -443,7 +438,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.UnaryExpr)
 		return tcNew(n)
 
-	case ir.OPRINT, ir.OPRINTN:
+	case ir.OPRINT, ir.OPRINTLN:
 		n := n.(*ir.CallExpr)
 		return tcPrint(n)
 
@@ -624,11 +619,6 @@ func typecheckargs(n ir.InitNode) {
 		return
 	}
 
-	// Save n as n.Orig for fmt.go.
-	if ir.Orig(n) == n {
-		n.(ir.OrigNode).SetOrig(ir.SepCopy(n))
-	}
-
 	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
 	RewriteMultiValueCall(n, list[0])
 }
@@ -636,7 +626,7 @@ func typecheckargs(n ir.InitNode) {
 // RewriteNonNameCall replaces non-Name call expressions with temps,
 // rewriting f()(...) to t0 := f(); t0(...).
 func RewriteNonNameCall(n *ir.CallExpr) {
-	np := &n.X
+	np := &n.Fun
 	if dot, ok := (*np).(*ir.SelectorExpr); ok && (dot.Op() == ir.ODOTMETH || dot.Op() == ir.ODOTINTER || dot.Op() == ir.OMETHVALUE) {
 		np = &dot.X // peel away method selector
 	}
@@ -1219,7 +1209,7 @@ func checkassignto(src *types.Type, dst ir.Node) {
 		return
 	}
 
-	if op, why := Assignop(src, dst.Type()); op == ir.OXXX {
+	if op, why := assignOp(src, dst.Type()); op == ir.OXXX {
 		base.Errorf("cannot assign %v to %L in multiple assignment%s", src, dst, why)
 		return
 	}

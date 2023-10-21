@@ -281,7 +281,7 @@ func TestDirectoryJunction(t *testing.T) {
 			},
 		},
 		{
-			// Do as junction utility https://technet.microsoft.com/en-au/sysinternals/bb896768.aspx does - set PrintNameLength to 0.
+			// Do as junction utility https://learn.microsoft.com/en-us/sysinternals/downloads/junction does - set PrintNameLength to 0.
 			name: "have_blank_print_name",
 			mklink: func(link, target string) error {
 				var t reparseData
@@ -885,7 +885,7 @@ func main() {
 		` \\\\\""x"""y z`,
 		"\tb\t\"x\ty\"",
 		` "Брад" d e`,
-		// examples from https://msdn.microsoft.com/en-us/library/17w5ykft.aspx
+		// examples from https://learn.microsoft.com/en-us/cpp/cpp/main-function-command-line-args
 		` "abc" d e`,
 		` a\\b d"e f"g h`,
 		` a\\\"b c d`,

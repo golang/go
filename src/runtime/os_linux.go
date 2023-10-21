@@ -346,24 +346,6 @@ func getHugePageSize() uintptr {
 func osinit() {
 	ncpu = getproccount()
 	physHugePageSize = getHugePageSize()
-	if iscgo {
-		// #42494 glibc and musl reserve some signals for
-		// internal use and require they not be blocked by
-		// the rest of a normal C runtime. When the go runtime
-		// blocks...unblocks signals, temporarily, the blocked
-		// interval of time is generally very short. As such,
-		// these expectations of *libc code are mostly met by
-		// the combined go+cgo system of threads. However,
-		// when go causes a thread to exit, via a return from
-		// mstart(), the combined runtime can deadlock if
-		// these signals are blocked. Thus, don't block these
-		// signals when exiting threads.
-		// - glibc: SIGCANCEL (32), SIGSETXID (33)
-		// - musl: SIGTIMER (32), SIGCANCEL (33), SIGSYNCCALL (34)
-		sigdelset(&sigsetAllExiting, 32)
-		sigdelset(&sigsetAllExiting, 33)
-		sigdelset(&sigsetAllExiting, 34)
-	}
 	osArchInit()
 }
 

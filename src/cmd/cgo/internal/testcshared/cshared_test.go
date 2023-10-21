@@ -182,6 +182,8 @@ func run(t *testing.T, extraEnv []string, args ...string) string {
 	if len(extraEnv) > 0 {
 		cmd.Env = append(os.Environ(), extraEnv...)
 	}
+	stderr := new(strings.Builder)
+	cmd.Stderr = stderr
 
 	if GOOS != "windows" {
 		// TestUnexportedSymbols relies on file descriptor 30
@@ -192,11 +194,13 @@ func run(t *testing.T, extraEnv []string, args ...string) string {
 		cmd.ExtraFiles = make([]*os.File, 28)
 	}
 
-	out, err := cmd.CombinedOutput()
+	t.Logf("run: %v", args)
+	out, err := cmd.Output()
+	if stderr.Len() > 0 {
+		t.Logf("stderr:\n%s", stderr)
+	}
 	if err != nil {
 		t.Fatalf("command failed: %v\n%v\n%s\n", args, err, out)
-	} else {
-		t.Logf("run: %v", args)
 	}
 	return string(out)
 }
@@ -602,9 +606,13 @@ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
 	defer os.Remove(bin)
 	defer os.Remove(pkgname + ".h")
 
-	out := runExe(t, nil, bin, "./"+libname)
+	args := []string{bin, "./" + libname}
+	if testing.Verbose() {
+		args = append(args, "verbose")
+	}
+	out := runExe(t, nil, args...)
 	if strings.TrimSpace(out) != "PASS" {
-		t.Error(run(t, nil, bin, libname, "verbose"))
+		t.Errorf("%v%s", args, out)
 	}
 }
 

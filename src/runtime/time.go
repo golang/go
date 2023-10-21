@@ -1016,7 +1016,7 @@ func updateTimer0When(pp *p) {
 func updateTimerModifiedEarliest(pp *p, nextwhen int64) {
 	for {
 		old := pp.timerModifiedEarliest.Load()
-		if old != 0 && int64(old) < nextwhen {
+		if old != 0 && old < nextwhen {
 			return
 		}
 

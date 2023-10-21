@@ -24,7 +24,7 @@ import (
 // Unmarshal returns an [InvalidUnmarshalError].
 //
 // Unmarshal uses the inverse of the encodings that
-// Marshal uses, allocating maps, slices, and pointers as necessary,
+// [Marshal] uses, allocating maps, slices, and pointers as necessary,
 // with the following additional rules:
 //
 // To unmarshal JSON into a pointer, Unmarshal first handles the case of
@@ -41,7 +41,7 @@ import (
 // [encoding.TextUnmarshaler.UnmarshalText] with the unquoted form of the string.
 //
 // To unmarshal JSON into a struct, Unmarshal matches incoming object
-// keys to the keys used by Marshal (either the struct field name or its tag),
+// keys to the keys used by [Marshal] (either the struct field name or its tag),
 // preferring an exact match but also accepting a case-insensitive match. By
 // default, object keys which don't have a corresponding struct field are
 // ignored (see [Decoder.DisallowUnknownFields] for an alternative).
@@ -49,12 +49,12 @@ import (
 // To unmarshal JSON into an interface value,
 // Unmarshal stores one of these in the interface value:
 //
-//	bool, for JSON booleans
-//	float64, for JSON numbers
-//	string, for JSON strings
-//	[]interface{}, for JSON arrays
-//	map[string]interface{}, for JSON objects
-//	nil for JSON null
+//   - bool, for JSON booleans
+//   - float64, for JSON numbers
+//   - string, for JSON strings
+//   - []interface{}, for JSON arrays
+//   - map[string]interface{}, for JSON objects
+//   - nil for JSON null
 //
 // To unmarshal a JSON array into a slice, Unmarshal resets the slice length
 // to zero and then appends each element to the slice.
@@ -72,8 +72,8 @@ import (
 // use. If the map is nil, Unmarshal allocates a new map. Otherwise Unmarshal
 // reuses the existing map, keeping existing entries. Unmarshal then stores
 // key-value pairs from the JSON object into the map. The map's key type must
-// either be any string type, an integer, implement json.Unmarshaler, or
-// implement encoding.TextUnmarshaler.
+// either be any string type, an integer, implement [json.Unmarshaler], or
+// implement [encoding.TextUnmarshaler].
 //
 // If the JSON-encoded data contain a syntax error, Unmarshal returns a [SyntaxError].
 //
@@ -81,7 +81,7 @@ import (
 // or if a JSON number overflows the target type, Unmarshal
 // skips that field and completes the unmarshaling as best it can.
 // If no more serious errors are encountered, Unmarshal returns
-// an UnmarshalTypeError describing the earliest such error. In any
+// an [UnmarshalTypeError] describing the earliest such error. In any
 // case, it's not guaranteed that all the remaining fields following
 // the problematic one will be unmarshaled into the target object.
 //
@@ -114,7 +114,7 @@ func Unmarshal(data []byte, v any) error {
 // a JSON value. UnmarshalJSON must copy the JSON data
 // if it wishes to retain the data after returning.
 //
-// By convention, to approximate the behavior of Unmarshal itself,
+// By convention, to approximate the behavior of [Unmarshal] itself,
 // Unmarshalers implement UnmarshalJSON([]byte("null")) as a no-op.
 type Unmarshaler interface {
 	UnmarshalJSON([]byte) error
@@ -151,8 +151,8 @@ func (e *UnmarshalFieldError) Error() string {
 	return "json: cannot unmarshal object key " + strconv.Quote(e.Key) + " into unexported field " + e.Field.Name + " of type " + e.Type.String()
 }
 
-// An InvalidUnmarshalError describes an invalid argument passed to Unmarshal.
-// (The argument to Unmarshal must be a non-nil pointer.)
+// An InvalidUnmarshalError describes an invalid argument passed to [Unmarshal].
+// (The argument to [Unmarshal] must be a non-nil pointer.)
 type InvalidUnmarshalError struct {
 	Type reflect.Type
 }

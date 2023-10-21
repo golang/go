@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos) && go1.9
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
-// +build go1.9
 
 package unix
 

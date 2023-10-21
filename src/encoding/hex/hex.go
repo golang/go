@@ -38,9 +38,9 @@ const (
 // Specifically, it returns n * 2.
 func EncodedLen(n int) int { return n * 2 }
 
-// Encode encodes src into EncodedLen(len(src))
+// Encode encodes src into [EncodedLen](len(src))
 // bytes of dst. As a convenience, it returns the number
-// of bytes written to dst, but this value is always EncodedLen(len(src)).
+// of bytes written to dst, but this value is always [EncodedLen](len(src)).
 // Encode implements hexadecimal encoding.
 func Encode(dst, src []byte) int {
 	j := 0
@@ -62,8 +62,8 @@ func AppendEncode(dst, src []byte) []byte {
 }
 
 // ErrLength reports an attempt to decode an odd-length input
-// using Decode or DecodeString.
-// The stream-based Decoder returns io.ErrUnexpectedEOF instead of ErrLength.
+// using [Decode] or [DecodeString].
+// The stream-based Decoder returns [io.ErrUnexpectedEOF] instead of ErrLength.
 var ErrLength = errors.New("encoding/hex: odd length hex string")
 
 // InvalidByteError values describe errors resulting from an invalid byte in a hex string.
@@ -77,7 +77,7 @@ func (e InvalidByteError) Error() string {
 // Specifically, it returns x / 2.
 func DecodedLen(x int) int { return x / 2 }
 
-// Decode decodes src into DecodedLen(len(src)) bytes,
+// Decode decodes src into [DecodedLen](len(src)) bytes,
 // returning the actual number of bytes written to dst.
 //
 // Decode expects that src contains only hexadecimal
@@ -171,7 +171,7 @@ type encoder struct {
 	out [bufferSize]byte // output buffer
 }
 
-// NewEncoder returns an io.Writer that writes lowercase hexadecimal characters to w.
+// NewEncoder returns an [io.Writer] that writes lowercase hexadecimal characters to w.
 func NewEncoder(w io.Writer) io.Writer {
 	return &encoder{w: w}
 }
@@ -199,7 +199,7 @@ type decoder struct {
 	arr [bufferSize]byte // backing array for in
 }
 
-// NewDecoder returns an io.Reader that decodes hexadecimal characters from r.
+// NewDecoder returns an [io.Reader] that decodes hexadecimal characters from r.
 // NewDecoder expects that r contain only an even number of hexadecimal characters.
 func NewDecoder(r io.Reader) io.Reader {
 	return &decoder{r: r}
@@ -238,7 +238,7 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 	return numDec, nil
 }
 
-// Dumper returns a WriteCloser that writes a hex dump of all written data to
+// Dumper returns a [io.WriteCloser] that writes a hex dump of all written data to
 // w. The format of the dump matches the output of `hexdump -C` on the command
 // line.
 func Dumper(w io.Writer) io.WriteCloser {

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !wasip1
-
 package net
 
 import (
@@ -187,9 +185,15 @@ func TestWritevError(t *testing.T) {
 	}
 
 	ln := newLocalListener(t, "tcp")
-	defer ln.Close()
 
 	ch := make(chan Conn, 1)
+	defer func() {
+		ln.Close()
+		for c := range ch {
+			c.Close()
+		}
+	}()
+
 	go func() {
 		defer close(ch)
 		c, err := ln.Accept()

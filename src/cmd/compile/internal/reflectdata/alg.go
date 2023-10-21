@@ -156,9 +156,9 @@ func hashFunc(t *types.Type) *ir.Func {
 	sym.Def = fn.Nname
 	fn.Pragma |= ir.Noinline // TODO(mdempsky): We need to emit this during the unified frontend instead, to allow inlining.
 
-	params, _ := typecheck.DeclFunc(fn)
-	np := params[0]
-	nh := params[1]
+	typecheck.DeclFunc(fn)
+	np := fn.Dcl[0]
+	nh := fn.Dcl[1]
 
 	switch t.Kind() {
 	case types.TARRAY:
@@ -382,10 +382,10 @@ func eqFunc(t *types.Type) *ir.Func {
 	sym.Def = fn.Nname
 	fn.Pragma |= ir.Noinline // TODO(mdempsky): We need to emit this during the unified frontend instead, to allow inlining.
 
-	params, results := typecheck.DeclFunc(fn)
-	np := params[0]
-	nq := params[1]
-	nr := results[0]
+	typecheck.DeclFunc(fn)
+	np := fn.Dcl[0]
+	nq := fn.Dcl[1]
+	nr := fn.Dcl[2]
 
 	// Label to jump to if an equality test fails.
 	neq := typecheck.AutoLabel(".neq")

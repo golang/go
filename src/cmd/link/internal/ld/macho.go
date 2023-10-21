@@ -666,7 +666,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 func asmbMacho(ctxt *Link) {
 	machlink := doMachoLink(ctxt)
 	if ctxt.IsExternal() {
-		symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))) + uint64(machlink))
+		symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), *FlagRound)) + uint64(machlink))
 		ctxt.Out.SeekSet(symo)
 		machoEmitReloc(ctxt)
 	}
@@ -708,7 +708,7 @@ func asmbMacho(ctxt *Link) {
 	}
 
 	/* text */
-	v := Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound))
+	v := Rnd(int64(uint64(HEADR)+Segtext.Length), *FlagRound)
 
 	var mstext *MachoSeg
 	if ctxt.LinkMode != LinkExternal {
@@ -803,7 +803,7 @@ func asmbMacho(ctxt *Link) {
 
 		if ctxt.LinkMode != LinkExternal {
 			ms := newMachoSeg("__LINKEDIT", 0)
-			ms.vaddr = uint64(Rnd(int64(Segdata.Vaddr+Segdata.Length), int64(*FlagRound)))
+			ms.vaddr = uint64(Rnd(int64(Segdata.Vaddr+Segdata.Length), *FlagRound))
 			ms.vsize = uint64(s1 + s2 + s3 + s4 + s5 + s6 + s7)
 			ms.fileoffset = uint64(linkoff)
 			ms.filesize = ms.vsize
@@ -1185,7 +1185,7 @@ func doMachoLink(ctxt *Link) int64 {
 	}
 
 	if size > 0 {
-		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound)) + Rnd(int64(Segrelrodata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))
+		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), *FlagRound) + Rnd(int64(Segrelrodata.Filelen), *FlagRound) + Rnd(int64(Segdata.Filelen), *FlagRound) + Rnd(int64(Segdwarf.Filelen), *FlagRound)
 		ctxt.Out.SeekSet(linkoff)
 
 		ctxt.Out.Write(ldr.Data(s1))
@@ -1200,7 +1200,7 @@ func doMachoLink(ctxt *Link) int64 {
 		size += ldr.SymSize(s7)
 	}
 
-	return Rnd(size, int64(*FlagRound))
+	return Rnd(size, *FlagRound)
 }
 
 func machorelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym) {

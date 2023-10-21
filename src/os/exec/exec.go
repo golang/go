@@ -426,6 +426,23 @@ func Command(name string, arg ...string) *Cmd {
 		if err != nil {
 			cmd.Err = err
 		}
+	} else if runtime.GOOS == "windows" && filepath.IsAbs(name) {
+		// We may need to add a filename extension from PATHEXT
+		// or verify an extension that is already present.
+		// Since the path is absolute, its extension should be unambiguous
+		// and independent of cmd.Dir, and we can go ahead and update cmd.Path to
+		// reflect it.
+		//
+		// Note that we cannot add an extension here for relative paths, because
+		// cmd.Dir may be set after we return from this function and that may cause
+		// the command to resolve to a different extension.
+		lp, err := lookExtensions(name, "")
+		if lp != "" {
+			cmd.Path = lp
+		}
+		if err != nil {
+			cmd.Err = err
+		}
 	}
 	return cmd
 }
@@ -623,11 +640,29 @@ func (c *Cmd) Start() error {
 		}
 		return c.Err
 	}
-	lp, err := lookExtensions(c.Path, c.Dir)
-	if err != nil {
-		return err
+	lp := c.Path
+	if runtime.GOOS == "windows" && !filepath.IsAbs(c.Path) {
+		// If c.Path is relative, we had to wait until now
+		// to resolve it in case c.Dir was changed.
+		// (If it is absolute, we already resolved its extension in Command
+		// and shouldn't need to do so again.)
+		//
+		// Unfortunately, we cannot write the result back to c.Path because programs
+		// may assume that they can call Start concurrently with reading the path.
+		// (It is safe and non-racy to do so on Unix platforms, and users might not
+		// test with the race detector on all platforms;
+		// see https://go.dev/issue/62596.)
+		//
+		// So we will pass the fully resolved path to os.StartProcess, but leave
+		// c.Path as is: missing a bit of logging information seems less harmful
+		// than triggering a surprising data race, and if the user really cares
+		// about that bit of logging they can always use LookPath to resolve it.
+		var err error
+		lp, err = lookExtensions(c.Path, c.Dir)
+		if err != nil {
+			return err
+		}
 	}
-	c.Path = lp
 	if c.Cancel != nil && c.ctx == nil {
 		return errors.New("exec: command with a non-nil Cancel was not created with CommandContext")
 	}
@@ -662,7 +697,7 @@ func (c *Cmd) Start() error {
 		return err
 	}
 
-	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
+	c.Process, err = os.StartProcess(lp, c.argv(), &os.ProcAttr{
 		Dir:   c.Dir,
 		Files: childFiles,
 		Env:   env,

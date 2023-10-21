@@ -728,7 +728,7 @@ func fnvString(h uint64, x string) uint64 {
 
 func fnvUint64(h uint64, x uint64) uint64 {
 	for i := 0; i < 8; i++ {
-		h ^= uint64(x & 0xFF)
+		h ^= x & 0xFF
 		x >>= 8
 		h *= prime64
 	}

@@ -46,7 +46,7 @@ var builtinFuncs = [...]struct {
 	{"new", ir.ONEW},
 	{"panic", ir.OPANIC},
 	{"print", ir.OPRINT},
-	{"println", ir.OPRINTN},
+	{"println", ir.OPRINTLN},
 	{"real", ir.OREAL},
 	{"recover", ir.ORECOVER},
 }
@@ -56,9 +56,6 @@ var unsafeFuncs = [...]struct {
 	op   ir.Op
 }{
 	{"Add", ir.OUNSAFEADD},
-	{"Alignof", ir.OALIGNOF},
-	{"Offsetof", ir.OOFFSETOF},
-	{"Sizeof", ir.OSIZEOF},
 	{"Slice", ir.OUNSAFESLICE},
 	{"SliceData", ir.OUNSAFESLICEDATA},
 	{"String", ir.OUNSAFESTRING},

@@ -9,6 +9,7 @@ package pprof
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"internal/abi"
 	"internal/testenv"
 	"os"
@@ -56,19 +57,30 @@ func useVMMap(t *testing.T) (hi, lo uint64) {
 	pid := strconv.Itoa(os.Getpid())
 	testenv.MustHaveExecPath(t, "vmmap")
 	cmd := testenv.Command(t, "vmmap", pid)
-	out, err := cmd.Output()
-	if err != nil {
-		t.Logf("vmmap failed: %s", out)
-		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
-			t.Fatalf("%v: %v\n%s", cmd, err, ee.Stderr)
+	out, cmdErr := cmd.Output()
+	if cmdErr != nil {
+		t.Logf("vmmap output: %s", out)
+		if ee, ok := cmdErr.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+			t.Logf("%v: %v\n%s", cmd, cmdErr, ee.Stderr)
 		}
-		t.Fatalf("%v: %v", cmd, err)
+		t.Logf("%v: %v", cmd, cmdErr)
 	}
-	return parseVmmap(t, out)
+	// Always parse the output of vmmap since it may return an error
+	// code even if it successfully reports the text segment information
+	// required for this test.
+	hi, lo, err := parseVmmap(out)
+	if err != nil {
+		if cmdErr != nil {
+			t.Fatalf("failed to parse vmmap output, vmmap reported an error: %v", err)
+		}
+		t.Logf("vmmap output: %s", out)
+		t.Fatalf("failed to parse vmmap output, vmmap did not report an error: %v", err)
+	}
+	return hi, lo
 }
 
 // parseVmmap parses the output of vmmap and calls addMapping for the first r-x TEXT segment in the output.
-func parseVmmap(t *testing.T, data []byte) (hi, lo uint64) {
+func parseVmmap(data []byte) (hi, lo uint64, err error) {
 	// vmmap 53799
 	// Process:         gopls [53799]
 	// Path:            /Users/USER/*/gopls
@@ -119,13 +131,12 @@ func parseVmmap(t *testing.T, data []byte) (hi, lo uint64) {
 				locs := strings.Split(p[1], "-")
 				start, _ := strconv.ParseUint(locs[0], 16, 64)
 				end, _ := strconv.ParseUint(locs[1], 16, 64)
-				return start, end
+				return start, end, nil
 			}
 		}
 		if strings.HasPrefix(l, banner) {
 			grabbing = true
 		}
 	}
-	t.Fatal("vmmap no text segment found")
-	return 0, 0
+	return 0, 0, fmt.Errorf("vmmap no text segment found")
 }

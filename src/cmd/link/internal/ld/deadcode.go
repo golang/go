@@ -51,6 +51,7 @@ func (d *deadcodePass) init() {
 			s := loader.Sym(i)
 			d.mark(s, 0)
 		}
+		d.mark(d.ctxt.mainInittasks, 0)
 		return
 	}
 

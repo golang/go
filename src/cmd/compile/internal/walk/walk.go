@@ -45,10 +45,6 @@ func Walk(fn *ir.Func) {
 		ir.DumpList(s, ir.CurFunc.Body)
 	}
 
-	if base.Flag.Cfg.Instrumenting {
-		instrument(fn)
-	}
-
 	// Eagerly compute sizes of all variables for SSA.
 	for _, n := range fn.Dcl {
 		types.CalcSize(n.Type())
@@ -333,7 +329,7 @@ func mayCall(n ir.Node) bool {
 			return n.Type().IsString() || n.Type().IsFloat()
 
 		case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OLINKSYMOFFSET, ir.OMETHEXPR,
-			ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOMPLEX, ir.OEFACE,
+			ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOMPLEX, ir.OMAKEFACE,
 			ir.OADDR, ir.OBITNOT, ir.ONOT, ir.OPLUS,
 			ir.OCAP, ir.OIMAG, ir.OLEN, ir.OREAL,
 			ir.OCONVNOP, ir.ODOT,

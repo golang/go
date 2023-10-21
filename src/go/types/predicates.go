@@ -8,6 +8,9 @@
 
 package types
 
+// isValid reports whether t is a valid type.
+func isValid(t Type) bool { return t != Typ[Invalid] }
+
 // The isX predicates below report whether t is an X.
 // If t is a type parameter the result is false; i.e.,
 // these predicates don't look inside a type parameter.
@@ -224,7 +227,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 		return true
 	}
 
-	if c.ignoreInvalids && (x == Typ[Invalid] || y == Typ[Invalid]) {
+	if c.ignoreInvalids && (!isValid(x) || !isValid(y)) {
 		return true
 	}
 
@@ -531,4 +534,10 @@ func maxType(x, y Type) Type {
 		return y
 	}
 	return nil
+}
+
+// clone makes a "flat copy" of *p and returns a pointer to the copy.
+func clone[P *T, T any](p P) P {
+	c := *p
+	return &c
 }

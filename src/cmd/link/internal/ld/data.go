@@ -84,14 +84,15 @@ func maxSizeTrampolines(ctxt *Link, ldr *loader.Loader, s loader.Sym, isTramp bo
 		}
 	}
 
-	if ctxt.IsARM() {
+	switch {
+	case ctxt.IsARM():
 		return n * 20 // Trampolines in ARM range from 3 to 5 instructions.
-	}
-	if ctxt.IsPPC64() {
-		return n * 16 // Trampolines in PPC64 are 4 instructions.
-	}
-	if ctxt.IsARM64() {
+	case ctxt.IsARM64():
 		return n * 12 // Trampolines in ARM64 are 3 instructions.
+	case ctxt.IsPPC64():
+		return n * 16 // Trampolines in PPC64 are 4 instructions.
+	case ctxt.IsRISCV64():
+		return n * 8 // Trampolines in RISCV64 are 2 instructions.
 	}
 	panic("unreachable")
 }
@@ -118,18 +119,21 @@ func trampoline(ctxt *Link, s loader.Sym) {
 			continue // something is wrong. skip it here and we'll emit a better error later
 		}
 
-		// RISC-V is only able to reach +/-1MiB via a JAL instruction,
-		// which we can readily exceed in the same package. As such, we
-		// need to generate trampolines when the address is unknown.
-		if ldr.SymValue(rs) == 0 && !ctxt.Target.IsRISCV64() && ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT {
+		if ldr.SymValue(rs) == 0 && ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT {
+			// Symbols in the same package are laid out together.
+			// Except that if SymPkg(s) == "", it is a host object symbol
+			// which may call an external symbol via PLT.
 			if ldr.SymPkg(s) != "" && ldr.SymPkg(rs) == ldr.SymPkg(s) {
-				// Symbols in the same package are laid out together.
-				// Except that if SymPkg(s) == "", it is a host object symbol
-				// which may call an external symbol via PLT.
-				continue
+				// RISC-V is only able to reach +/-1MiB via a JAL instruction.
+				// We need to generate a trampoline when an address is
+				// currently unknown.
+				if !ctxt.Target.IsRISCV64() {
+					continue
+				}
 			}
+			// Runtime packages are laid out together.
 			if isRuntimeDepPkg(ldr.SymPkg(s)) && isRuntimeDepPkg(ldr.SymPkg(rs)) {
-				continue // runtime packages are laid out together
+				continue
 			}
 		}
 		thearch.Trampoline(ctxt, ldr, ri, rs, s)
@@ -2435,8 +2439,8 @@ func (ctxt *Link) textaddress() {
 		limit = 1
 	}
 
-	// First pass: assign addresses assuming the program is small and
-	// don't generate trampolines.
+	// First pass: assign addresses assuming the program is small and will
+	// not require trampoline generation.
 	big := false
 	for _, s := range ctxt.Textp {
 		sect, n, va = assignAddress(ctxt, sect, n, s, va, false, big)
@@ -2451,21 +2455,45 @@ func (ctxt *Link) textaddress() {
 	if big {
 		// reset addresses
 		for _, s := range ctxt.Textp {
-			if ldr.OuterSym(s) != 0 || s == text {
-				continue
-			}
-			oldv := ldr.SymValue(s)
-			for sub := s; sub != 0; sub = ldr.SubSym(sub) {
-				ldr.SetSymValue(sub, ldr.SymValue(sub)-oldv)
+			if s != text {
+				resetAddress(ctxt, s)
 			}
 		}
 		va = start
 
 		ntramps := 0
-		for _, s := range ctxt.Textp {
+		var curPkg string
+		for i, s := range ctxt.Textp {
+			// When we find the first symbol in a package, perform a
+			// single iteration that assigns temporary addresses to all
+			// of the text in the same package, using the maximum possible
+			// number of trampolines. This allows for better decisions to
+			// be made regarding reachability and the need for trampolines.
+			if symPkg := ldr.SymPkg(s); symPkg != "" && curPkg != symPkg {
+				curPkg = symPkg
+				vaTmp := va
+				for j := i; j < len(ctxt.Textp); j++ {
+					curSym := ctxt.Textp[j]
+					if symPkg := ldr.SymPkg(curSym); symPkg == "" || curPkg != symPkg {
+						break
+					}
+					// We do not pass big to assignAddress here, as this
+					// can result in side effects such as section splitting.
+					sect, n, vaTmp = assignAddress(ctxt, sect, n, curSym, vaTmp, false, false)
+					vaTmp += maxSizeTrampolines(ctxt, ldr, curSym, false)
+				}
+			}
+
+			// Reset address for current symbol.
+			if s != text {
+				resetAddress(ctxt, s)
+			}
+
+			// Assign actual address for current symbol.
 			sect, n, va = assignAddress(ctxt, sect, n, s, va, false, big)
 
-			trampoline(ctxt, s) // resolve jumps, may add trampolines if jump too far
+			// Resolve jumps, adding trampolines if they are needed.
+			trampoline(ctxt, s)
 
 			// lay down trampolines after each function
 			for ; ntramps < len(ctxt.tramps); ntramps++ {
@@ -2613,17 +2641,35 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 	return sect, n, va
 }
 
+func resetAddress(ctxt *Link, s loader.Sym) {
+	ldr := ctxt.loader
+	if ldr.OuterSym(s) != 0 {
+		return
+	}
+	oldv := ldr.SymValue(s)
+	for sub := s; sub != 0; sub = ldr.SubSym(sub) {
+		ldr.SetSymValue(sub, ldr.SymValue(sub)-oldv)
+	}
+}
+
 // Return whether we may need to split text sections.
 //
-// On PPC64x whem external linking a text section should not be larger than 2^25 bytes
-// due to the size of call target offset field in the bl instruction.  Splitting into
-// smaller text sections smaller than this limit allows the system linker to modify the long
-// calls appropriately. The limit allows for the space needed for tables inserted by the
-// linker.
+// On PPC64x, when external linking, a text section should not be
+// larger than 2^25 bytes due to the size of call target offset field
+// in the 'bl' instruction. Splitting into smaller text sections
+// smaller than this limit allows the system linker to modify the long
+// calls appropriately. The limit allows for the space needed for
+// tables inserted by the linker.
 //
 // The same applies to Darwin/ARM64, with 2^27 byte threshold.
+//
+// Similarly for ARM, we split sections (at 2^25 bytes) to avoid
+// inconsistencies between the Go linker's reachability calculations
+// (e.g. will direct call from X to Y need a trampoline) and similar
+// machinery in the external linker; see #58425 for more on the
+// history here.
 func splitTextSections(ctxt *Link) bool {
-	return (ctxt.IsPPC64() || (ctxt.IsARM64() && ctxt.IsDarwin())) && ctxt.IsExternal()
+	return (ctxt.IsARM() || ctxt.IsPPC64() || (ctxt.IsARM64() && ctxt.IsDarwin())) && ctxt.IsExternal()
 }
 
 // On Wasm, we reserve 4096 bytes for zero page, then 8192 bytes for wasm_exec.js
@@ -2667,7 +2713,7 @@ func (ctxt *Link) address() []*sym.Segment {
 		//
 		// Ideally the last page of the text segment would not be
 		// writable even for this short period.
-		va = uint64(Rnd(int64(va), int64(*FlagRound)))
+		va = uint64(Rnd(int64(va), *FlagRound))
 
 		order = append(order, &Segrodata)
 		Segrodata.Rwx = 04
@@ -2683,7 +2729,7 @@ func (ctxt *Link) address() []*sym.Segment {
 	if len(Segrelrodata.Sections) > 0 {
 		// align to page boundary so as not to mix
 		// rodata, rel-ro data, and executable text.
-		va = uint64(Rnd(int64(va), int64(*FlagRound)))
+		va = uint64(Rnd(int64(va), *FlagRound))
 		if ctxt.HeadType == objabi.Haix {
 			// Relro data are inside data segment on AIX.
 			va += uint64(XCOFFDATABASE) - uint64(XCOFFTEXTBASE)
@@ -2701,7 +2747,7 @@ func (ctxt *Link) address() []*sym.Segment {
 		Segrelrodata.Length = va - Segrelrodata.Vaddr
 	}
 
-	va = uint64(Rnd(int64(va), int64(*FlagRound)))
+	va = uint64(Rnd(int64(va), *FlagRound))
 	if ctxt.HeadType == objabi.Haix && len(Segrelrodata.Sections) == 0 {
 		// Data sections are moved to an unreachable segment
 		// to ensure that they are position-independent.
@@ -2746,7 +2792,7 @@ func (ctxt *Link) address() []*sym.Segment {
 	Segdata.Filelen = bss.Vaddr - Segdata.Vaddr
 
 	if len(Segpdata.Sections) > 0 {
-		va = uint64(Rnd(int64(va), int64(*FlagRound)))
+		va = uint64(Rnd(int64(va), *FlagRound))
 		order = append(order, &Segpdata)
 		Segpdata.Rwx = 04
 		Segpdata.Vaddr = va
@@ -2761,7 +2807,7 @@ func (ctxt *Link) address() []*sym.Segment {
 	}
 
 	if len(Segxdata.Sections) > 0 {
-		va = uint64(Rnd(int64(va), int64(*FlagRound)))
+		va = uint64(Rnd(int64(va), *FlagRound))
 		order = append(order, &Segxdata)
 		Segxdata.Rwx = 04
 		Segxdata.Vaddr = va
@@ -2775,7 +2821,7 @@ func (ctxt *Link) address() []*sym.Segment {
 		Segxdata.Length = va - Segxdata.Vaddr
 	}
 
-	va = uint64(Rnd(int64(va), int64(*FlagRound)))
+	va = uint64(Rnd(int64(va), *FlagRound))
 	order = append(order, &Segdwarf)
 	Segdwarf.Rwx = 06
 	Segdwarf.Vaddr = va
@@ -2952,7 +2998,7 @@ func (ctxt *Link) layout(order []*sym.Segment) uint64 {
 				// aligned, the following rounding
 				// should ensure that this segment's
 				// VA ≡ Fileoff mod FlagRound.
-				seg.Fileoff = uint64(Rnd(int64(prev.Fileoff+prev.Filelen), int64(*FlagRound)))
+				seg.Fileoff = uint64(Rnd(int64(prev.Fileoff+prev.Filelen), *FlagRound))
 				if seg.Vaddr%uint64(*FlagRound) != seg.Fileoff%uint64(*FlagRound) {
 					Exitf("bad segment rounding (Vaddr=%#x Fileoff=%#x FlagRound=%#x)", seg.Vaddr, seg.Fileoff, *FlagRound)
 				}

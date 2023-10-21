@@ -27,9 +27,6 @@ import (
 	"strings"
 )
 
-// Avoid use of post-Go 1.4 io features, to make safe for toolchain bootstrap.
-const seekStart = 0
-
 // A File represents an open PE file.
 type File struct {
 	FileHeader
@@ -42,7 +39,7 @@ type File struct {
 	closer io.Closer
 }
 
-// Open opens the named file using os.Open and prepares it for use as a PE binary.
+// Open opens the named file using [os.Open] and prepares it for use as a PE binary.
 func Open(name string) (*File, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -57,8 +54,8 @@ func Open(name string) (*File, error) {
 	return ff, nil
 }
 
-// Close closes the File.
-// If the File was created using NewFile directly instead of Open,
+// Close closes the [File].
+// If the [File] was created using [NewFile] directly instead of [Open],
 // Close has no effect.
 func (f *File) Close() error {
 	var err error
@@ -71,7 +68,7 @@ func (f *File) Close() error {
 
 // TODO(brainman): add Load function, as a replacement for NewFile, that does not call removeAuxSymbols (for performance)
 
-// NewFile creates a new File for accessing a PE binary in an underlying reader.
+// NewFile creates a new [File] for accessing a PE binary in an underlying reader.
 func NewFile(r io.ReaderAt) (*File, error) {
 	f := new(File)
 	sr := io.NewSectionReader(r, 0, 1<<63-1)
@@ -92,7 +89,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	} else {
 		base = int64(0)
 	}
-	sr.Seek(base, seekStart)
+	sr.Seek(base, io.SeekStart)
 	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
 		return nil, err
 	}
@@ -129,7 +126,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 
 	// Seek past file header.
-	_, err = sr.Seek(base+int64(binary.Size(f.FileHeader)), seekStart)
+	_, err = sr.Seek(base+int64(binary.Size(f.FileHeader)), io.SeekStart)
 	if err != nil {
 		return nil, err
 	}

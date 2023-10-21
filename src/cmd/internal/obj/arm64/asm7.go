@@ -1,5 +1,5 @@
 // cmd/7l/asm.c, cmd/7l/asmout.c, cmd/7l/optab.c, cmd/7l/span.c, cmd/ld/sub.c, cmd/ld/mod.c, from Vita Nuova.
-// https://code.google.com/p/ken-cc/source/browse/
+// https://bitbucket.org/plan9-from-bell-labs/9-cc/src/master/
 //
 // 	Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 // 	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)

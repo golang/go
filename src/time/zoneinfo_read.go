@@ -90,7 +90,7 @@ func (d *dataIO) byte() (n byte, ok bool) {
 	return p[0], true
 }
 
-// read returns the read of the data in the buffer.
+// rest returns the rest of the data in the buffer.
 func (d *dataIO) rest() []byte {
 	r := d.p
 	d.p = nil

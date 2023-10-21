@@ -128,7 +128,7 @@ func (o *orderState) cheapExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.UnaryExpr)
+		a := ir.Copy(n).(*ir.UnaryExpr)
 		a.X = l
 		return typecheck.Expr(a)
 	}
@@ -154,7 +154,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.UnaryExpr)
+		a := ir.Copy(n).(*ir.UnaryExpr)
 		a.X = l
 		return typecheck.Expr(a)
 
@@ -164,7 +164,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.SelectorExpr)
+		a := ir.Copy(n).(*ir.SelectorExpr)
 		a.X = l
 		return typecheck.Expr(a)
 
@@ -174,7 +174,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.SelectorExpr)
+		a := ir.Copy(n).(*ir.SelectorExpr)
 		a.X = l
 		return typecheck.Expr(a)
 
@@ -184,7 +184,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.StarExpr)
+		a := ir.Copy(n).(*ir.StarExpr)
 		a.X = l
 		return typecheck.Expr(a)
 
@@ -200,7 +200,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X && r == n.Index {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.IndexExpr)
+		a := ir.Copy(n).(*ir.IndexExpr)
 		a.X = l
 		a.Index = r
 		return typecheck.Expr(a)
@@ -538,14 +538,14 @@ func (o *orderState) call(nn ir.Node) {
 	n := nn.(*ir.CallExpr)
 	typecheck.AssertFixedCall(n)
 
-	if isFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
+	if ir.IsFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function,
 		// do not introduce temporaries here, so it is easier to rewrite it
 		// to symbol address reference later in walk.
 		return
 	}
 
-	n.X = o.expr(n.X, nil)
+	n.Fun = o.expr(n.Fun, nil)
 	o.exprList(n.Args)
 }
 
@@ -753,7 +753,7 @@ func (o *orderState) stmt(n ir.Node) {
 		o.out = append(o.out, n)
 		o.popTemp(t)
 
-	case ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
+	case ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
 		n := n.(*ir.CallExpr)
 		t := o.markTemp()
 		o.call(n)
@@ -830,11 +830,14 @@ func (o *orderState) stmt(n ir.Node) {
 
 		orderBody := true
 		xt := typecheck.RangeExprType(n.X.Type())
-		switch xt.Kind() {
+		switch k := xt.Kind(); {
 		default:
 			base.Fatalf("order.stmt range %v", n.Type())
 
-		case types.TARRAY, types.TSLICE:
+		case types.IsInt[k]:
+			// Used only once, no need to copy.
+
+		case k == types.TARRAY, k == types.TSLICE:
 			if n.Value == nil || ir.IsBlank(n.Value) {
 				// for i := range x will only use x once, to compute len(x).
 				// No need to copy it.
@@ -842,7 +845,7 @@ func (o *orderState) stmt(n ir.Node) {
 			}
 			fallthrough
 
-		case types.TCHAN, types.TSTRING:
+		case k == types.TCHAN, k == types.TSTRING:
 			// chan, string, slice, array ranges use value multiple times.
 			// make copy.
 			r := n.X
@@ -855,7 +858,7 @@ func (o *orderState) stmt(n ir.Node) {
 
 			n.X = o.copyExpr(r)
 
-		case types.TMAP:
+		case k == types.TMAP:
 			if isMapClear(n) {
 				// Preserve the body of the map clear pattern so it can
 				// be detected during walk. The loop body will not be used
@@ -1164,7 +1167,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 
 	// concrete type (not interface) argument might need an addressable
 	// temporary to pass to the runtime conversion routine.
-	case ir.OCONVIFACE, ir.OCONVIDATA:
+	case ir.OCONVIFACE:
 		n := n.(*ir.ConvExpr)
 		n.X = o.expr(n.X, nil)
 		if n.X.Type().IsInterface() {
@@ -1173,7 +1176,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		if _, _, needsaddr := dataWordFuncName(n.X.Type()); needsaddr || isStaticCompositeLiteral(n.X) {
 			// Need a temp if we need to pass the address to the conversion function.
 			// We also process static composite literal node here, making a named static global
-			// whose address we can put directly in an interface (see OCONVIFACE/OCONVIDATA case in walk).
+			// whose address we can put directly in an interface (see OCONVIFACE case in walk).
 			n.X = o.addrTemp(n.X)
 		}
 		return n
@@ -1498,16 +1501,6 @@ func (o *orderState) as2ok(n *ir.AssignListStmt) {
 
 	o.out = append(o.out, n)
 	o.stmt(typecheck.Stmt(as))
-}
-
-// isFuncPCIntrinsic returns whether n is a direct call of internal/abi.FuncPCABIxxx functions.
-func isFuncPCIntrinsic(n *ir.CallExpr) bool {
-	if n.Op() != ir.OCALLFUNC || n.X.Op() != ir.ONAME {
-		return false
-	}
-	fn := n.X.(*ir.Name).Sym()
-	return (fn.Name == "FuncPCABI0" || fn.Name == "FuncPCABIInternal") &&
-		fn.Pkg.Path == "internal/abi"
 }
 
 // isIfaceOfFunc returns whether n is an interface conversion from a direct reference of a func.

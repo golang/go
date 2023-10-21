@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 package net
 
 import (
@@ -153,7 +151,7 @@ func initConfVal() {
 	}
 }
 
-// goosPreferCgo reports whether the GOOS value passed in prefers
+// goosPrefersCgo reports whether the GOOS value passed in prefers
 // the cgo resolver.
 func goosPrefersCgo() bool {
 	switch runtime.GOOS {

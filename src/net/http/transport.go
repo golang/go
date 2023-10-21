@@ -1577,6 +1577,11 @@ func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptr
 	}()
 	if err := <-errc; err != nil {
 		plainConn.Close()
+		if err == (tlsHandshakeTimeoutError{}) {
+			// Now that we have closed the connection,
+			// wait for the call to HandshakeContext to return.
+			<-errc
+		}
 		if trace != nil && trace.TLSHandshakeDone != nil {
 			trace.TLSHandshakeDone(tls.ConnectionState{}, err)
 		}

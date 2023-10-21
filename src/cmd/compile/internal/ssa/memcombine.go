@@ -41,6 +41,7 @@ func memcombineLoads(f *Func) {
 		}
 	}
 	for _, b := range f.Blocks {
+		order = order[:0]
 		for _, v := range b.Values {
 			if v.Op != OpOr16 && v.Op != OpOr32 && v.Op != OpOr64 {
 				continue
@@ -511,6 +512,8 @@ func combineStores(root *Value, n int64) bool {
 	}
 	// Before we sort, grab the memory arg the result should have.
 	mem := a[n-1].store.Args[2]
+	// Also grab position of first store (last in array = first in memory order).
+	pos := a[n-1].store.Pos
 
 	// Sort stores in increasing address order.
 	sort.Slice(a, func(i, j int) bool {
@@ -563,6 +566,7 @@ func combineStores(root *Value, n int64) bool {
 			v := a[i].store
 			if v == root {
 				v.Aux = cv.Type // widen store type
+				v.Pos = pos
 				v.SetArg(0, ptr)
 				v.SetArg(1, cv)
 				v.SetArg(2, mem)
@@ -631,6 +635,7 @@ func combineStores(root *Value, n int64) bool {
 			v := a[i].store
 			if v == root {
 				v.Aux = load.Type // widen store type
+				v.Pos = pos
 				v.SetArg(0, ptr)
 				v.SetArg(1, load)
 				v.SetArg(2, mem)
@@ -702,6 +707,7 @@ func combineStores(root *Value, n int64) bool {
 		v := a[i].store
 		if v == root {
 			v.Aux = sv.Type // widen store type
+			v.Pos = pos
 			v.SetArg(0, ptr)
 			v.SetArg(1, sv)
 			v.SetArg(2, mem)

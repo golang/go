@@ -86,12 +86,11 @@ func archinit(ctxt *ld.Link) {
 
 	case objabi.Hplan9: /* plan 9 */
 		ld.HEADR = 32
-
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 4096
+		}
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = ld.Rnd(4096, *ld.FlagRound) + int64(ld.HEADR)
 		}
 
 	case objabi.Hlinux, /* arm64 elf */
@@ -100,20 +99,20 @@ func archinit(ctxt *ld.Link) {
 		objabi.Hopenbsd:
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 0x10000
+		}
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = ld.Rnd(0x10000, *ld.FlagRound) + int64(ld.HEADR)
 		}
 
 	case objabi.Hdarwin: /* apple MACH */
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 1<<32 + int64(ld.HEADR)
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 16384 // 16K page alignment
+		}
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = ld.Rnd(1<<32, *ld.FlagRound) + int64(ld.HEADR)
 		}
 
 	case objabi.Hwindows: /* PE executable */

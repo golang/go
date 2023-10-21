@@ -54,7 +54,7 @@ func readRelocs(sh *SectionHeader, r io.ReadSeeker) ([]Reloc, error) {
 	if sh.NumberOfRelocations <= 0 {
 		return nil, nil
 	}
-	_, err := r.Seek(int64(sh.PointerToRelocations), seekStart)
+	_, err := r.Seek(int64(sh.PointerToRelocations), io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("fail to seek to %q section relocations: %v", sh.Name, err)
 	}
@@ -66,7 +66,7 @@ func readRelocs(sh *SectionHeader, r io.ReadSeeker) ([]Reloc, error) {
 	return relocs, nil
 }
 
-// SectionHeader is similar to SectionHeader32 with Name
+// SectionHeader is similar to [SectionHeader32] with Name
 // field replaced by Go string.
 type SectionHeader struct {
 	Name                 string

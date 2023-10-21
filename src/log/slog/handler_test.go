@@ -435,6 +435,99 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			wantText: `time.mins=3 time.secs=2 msg=message`,
 			wantJSON: `{"time":{"mins":3,"secs":2},"msg":"message"}`,
 		},
+		{
+			name:     "replace empty",
+			replace:  func([]string, Attr) Attr { return Attr{} },
+			attrs:    []Attr{Group("g", Int("a", 1))},
+			wantText: "",
+			wantJSON: `{}`,
+		},
+		{
+			name: "replace empty 1",
+			with: func(h Handler) Handler {
+				return h.WithGroup("g").WithAttrs([]Attr{Int("a", 1)})
+			},
+			replace:  func([]string, Attr) Attr { return Attr{} },
+			attrs:    []Attr{Group("h", Int("b", 2))},
+			wantText: "",
+			wantJSON: `{}`,
+		},
+		{
+			name: "replace empty 2",
+			with: func(h Handler) Handler {
+				return h.WithGroup("g").WithAttrs([]Attr{Int("a", 1)}).WithGroup("h").WithAttrs([]Attr{Int("b", 2)})
+			},
+			replace:  func([]string, Attr) Attr { return Attr{} },
+			attrs:    []Attr{Group("i", Int("c", 3))},
+			wantText: "",
+			wantJSON: `{}`,
+		},
+		{
+			name:     "replace empty 3",
+			with:     func(h Handler) Handler { return h.WithGroup("g") },
+			replace:  func([]string, Attr) Attr { return Attr{} },
+			attrs:    []Attr{Int("a", 1)},
+			wantText: "",
+			wantJSON: `{}`,
+		},
+		{
+			name: "replace empty inline",
+			with: func(h Handler) Handler {
+				return h.WithGroup("g").WithAttrs([]Attr{Int("a", 1)}).WithGroup("h").WithAttrs([]Attr{Int("b", 2)})
+			},
+			replace:  func([]string, Attr) Attr { return Attr{} },
+			attrs:    []Attr{Group("", Int("c", 3))},
+			wantText: "",
+			wantJSON: `{}`,
+		},
+		{
+			name: "replace partial empty attrs 1",
+			with: func(h Handler) Handler {
+				return h.WithGroup("g").WithAttrs([]Attr{Int("a", 1)}).WithGroup("h").WithAttrs([]Attr{Int("b", 2)})
+			},
+			replace: func(groups []string, attr Attr) Attr {
+				return removeKeys(TimeKey, LevelKey, MessageKey, "a")(groups, attr)
+			},
+			attrs:    []Attr{Group("i", Int("c", 3))},
+			wantText: "g.h.b=2 g.h.i.c=3",
+			wantJSON: `{"g":{"h":{"b":2,"i":{"c":3}}}}`,
+		},
+		{
+			name: "replace partial empty attrs 2",
+			with: func(h Handler) Handler {
+				return h.WithGroup("g").WithAttrs([]Attr{Int("a", 1)}).WithAttrs([]Attr{Int("n", 4)}).WithGroup("h").WithAttrs([]Attr{Int("b", 2)})
+			},
+			replace: func(groups []string, attr Attr) Attr {
+				return removeKeys(TimeKey, LevelKey, MessageKey, "a", "b")(groups, attr)
+			},
+			attrs:    []Attr{Group("i", Int("c", 3))},
+			wantText: "g.n=4 g.h.i.c=3",
+			wantJSON: `{"g":{"n":4,"h":{"i":{"c":3}}}}`,
+		},
+		{
+			name: "replace partial empty attrs 3",
+			with: func(h Handler) Handler {
+				return h.WithGroup("g").WithAttrs([]Attr{Int("x", 0)}).WithAttrs([]Attr{Int("a", 1)}).WithAttrs([]Attr{Int("n", 4)}).WithGroup("h").WithAttrs([]Attr{Int("b", 2)})
+			},
+			replace: func(groups []string, attr Attr) Attr {
+				return removeKeys(TimeKey, LevelKey, MessageKey, "a", "c")(groups, attr)
+			},
+			attrs:    []Attr{Group("i", Int("c", 3))},
+			wantText: "g.x=0 g.n=4 g.h.b=2",
+			wantJSON: `{"g":{"x":0,"n":4,"h":{"b":2}}}`,
+		},
+		{
+			name: "replace resolved group",
+			replace: func(groups []string, a Attr) Attr {
+				if a.Value.Kind() == KindGroup {
+					return Attr{"bad", IntValue(1)}
+				}
+				return removeKeys(TimeKey, LevelKey, MessageKey)(groups, a)
+			},
+			attrs:    []Attr{Any("name", logValueName{"Perry", "Platypus"})},
+			wantText: "name.first=Perry name.last=Platypus",
+			wantJSON: `{"name":{"first":"Perry","last":"Platypus"}}`,
+		},
 	} {
 		r := NewRecord(testTime, LevelInfo, "message", callerPC(2))
 		line := strconv.Itoa(r.source().Line)

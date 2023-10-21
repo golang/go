@@ -113,4 +113,7 @@ type Flags struct {
 	// NewInliner enables a new+improved version of the function
 	// inlining phase within the Go compiler.
 	NewInliner bool
+
+	// Range enables range over int and func.
+	Range bool
 }

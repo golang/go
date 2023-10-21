@@ -191,7 +191,7 @@ func firstComment(filename string) (first string) {
 		}
 		text = strings.TrimSpace(text[2:])
 
-		if strings.HasPrefix(text, "+build ") {
+		if strings.HasPrefix(text, "go:build ") {
 			panic("skip")
 		}
 		if first == "" {
@@ -233,6 +233,9 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		filename := filepath.Join(path, f.Name())
 		goVersion := ""
 		if comment := firstComment(filename); comment != "" {
+			if strings.Contains(comment, "-goexperiment") {
+				continue // ignore this file
+			}
 			fields := strings.Fields(comment)
 			switch fields[0] {
 			case "skip", "compiledir":
@@ -325,6 +328,7 @@ func TestStdFixed(t *testing.T) {
 		"issue49767.go",  // go/types does not have constraints on channel element size
 		"issue49814.go",  // go/types does not have constraints on array size
 		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
+		"issue52697.go",  // types2 does not have constraints on stack size
 
 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
 		// However, types2 does not know about build constraints.

@@ -257,8 +257,23 @@ func TestMkdirStickyUmask(t *testing.T) {
 	const umask = 0077
 	dir := newDir("TestMkdirStickyUmask", t)
 	defer RemoveAll(dir)
+
 	oldUmask := syscall.Umask(umask)
 	defer syscall.Umask(oldUmask)
+
+	// We have set a umask, but if the parent directory happens to have a default
+	// ACL, the umask may be ignored. To prevent spurious failures from an ACL,
+	// we create a non-sticky directory as a “control case” to compare against our
+	// sticky-bit “experiment”.
+	control := filepath.Join(dir, "control")
+	if err := Mkdir(control, 0755); err != nil {
+		t.Fatal(err)
+	}
+	cfi, err := Stat(control)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	p := filepath.Join(dir, "dir1")
 	if err := Mkdir(p, ModeSticky|0755); err != nil {
 		t.Fatal(err)
@@ -267,8 +282,11 @@ func TestMkdirStickyUmask(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mode := fi.Mode(); (mode&umask) != 0 || (mode&^ModePerm) != (ModeDir|ModeSticky) {
-		t.Errorf("unexpected mode %s", mode)
+
+	got := fi.Mode()
+	want := cfi.Mode() | ModeSticky
+	if got != want {
+		t.Errorf("Mkdir(_, ModeSticky|0755) created dir with mode %v; want %v", got, want)
 	}
 }
 

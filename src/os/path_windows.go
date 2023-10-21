@@ -139,7 +139,7 @@ var canUseLongPaths bool
 // or contains .. elements), or is short enough, fixLongPath returns
 // path unmodified.
 //
-// See https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath
+// See https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#maximum-path-length-limitation
 func fixLongPath(path string) string {
 	if canUseLongPaths {
 		return path

@@ -129,7 +129,7 @@ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 ### Go 1.22
 
 Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
-that can be used in TLS handshakes, controlled by the [`tlsmaxrsasize`setting](/pkg/crypto/tls#Conn.Handshake).
+that can be used in TLS handshakes, controlled by the [`tlsmaxrsasize` setting](/pkg/crypto/tls#Conn.Handshake).
 The default is tlsmaxrsasize=8192, limiting RSA to 8192-bit keys. To avoid
 denial of service attacks, this setting and default was backported to Go
 1.19.13, Go 1.20.8, and Go 1.21.1.
@@ -137,6 +137,12 @@ denial of service attacks, this setting and default was backported to Go
 Go 1.22 made it an error for a request or response read by a net/http
 client or server to have an empty Content-Length header.
 This behavior is controlled by the `httplaxcontentlength` setting.
+
+Go 1.22 changed the behavior of ServeMux to accept extended
+patterns and unescape both patterns and request paths by segment.
+This behavior can be controlled by the
+[`httpmuxgo121` setting](/pkg/net/http/#ServeMux).
+
 
 ### Go 1.21
 

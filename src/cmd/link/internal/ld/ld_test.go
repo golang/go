@@ -136,7 +136,7 @@ func TestArchiveBuildInvokeWithExec(t *testing.T) {
 
 func TestLargeTextSectionSplitting(t *testing.T) {
 	switch runtime.GOARCH {
-	case "ppc64", "ppc64le":
+	case "ppc64", "ppc64le", "arm":
 	case "arm64":
 		if runtime.GOOS == "darwin" {
 			break
@@ -342,5 +342,73 @@ func main() {
 				t.Errorf("got %q; want %q", got, tt.wantOut)
 			}
 		})
+	}
+}
+
+func TestRISCVTrampolines(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "x.s")
+
+	// Calling b from a or c should not use trampolines, however
+	// calling from d to a will require one.
+	buf := new(bytes.Buffer)
+	fmt.Fprintf(buf, "TEXT a(SB),$0-0\n")
+	for i := 0; i < 1<<17; i++ {
+		fmt.Fprintf(buf, "\tADD $0, X0, X0\n")
+	}
+	fmt.Fprintf(buf, "\tCALL b(SB)\n")
+	fmt.Fprintf(buf, "\tRET\n")
+	fmt.Fprintf(buf, "TEXT b(SB),$0-0\n")
+	fmt.Fprintf(buf, "\tRET\n")
+	fmt.Fprintf(buf, "TEXT c(SB),$0-0\n")
+	fmt.Fprintf(buf, "\tCALL b(SB)\n")
+	fmt.Fprintf(buf, "\tRET\n")
+	fmt.Fprintf(buf, "TEXT ·d(SB),0,$0-0\n")
+	for i := 0; i < 1<<17; i++ {
+		fmt.Fprintf(buf, "\tADD $0, X0, X0\n")
+	}
+	fmt.Fprintf(buf, "\tCALL a(SB)\n")
+	fmt.Fprintf(buf, "\tCALL c(SB)\n")
+	fmt.Fprintf(buf, "\tRET\n")
+	if err := os.WriteFile(tmpFile, buf.Bytes(), 0644); err != nil {
+		t.Fatalf("Failed to write assembly file: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module riscvtramp"), 0644); err != nil {
+		t.Fatalf("Failed to write file: %v\n", err)
+	}
+	main := `package main
+func main() {
+	d()
+}
+
+func d()
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "x.go"), []byte(main), 0644); err != nil {
+		t.Fatalf("failed to write main: %v\n", err)
+	}
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-linkmode=internal")
+	cmd.Dir = tmpDir
+	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Build failed: %v, output: %s", err, out)
+	}
+
+	// Check what trampolines exist.
+	cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", filepath.Join(tmpDir, "riscvtramp"))
+	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("nm failure: %s\n%s\n", err, string(out))
+	}
+	if !bytes.Contains(out, []byte(" T a-tramp0")) {
+		t.Errorf("Trampoline a-tramp0 is missing")
+	}
+	if bytes.Contains(out, []byte(" T b-tramp0")) {
+		t.Errorf("Trampoline b-tramp0 exists unnecessarily")
 	}
 }

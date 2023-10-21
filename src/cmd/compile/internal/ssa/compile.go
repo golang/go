@@ -472,11 +472,12 @@ var passes = [...]pass{
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
 	{name: "early fuse", fn: fuseEarly},
-	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "expand calls", fn: expandCalls, required: true},
+	{name: "decompose builtin", fn: postExpandCallsDecompose, required: true},
 	{name: "softfloat", fn: softfloat, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
 	{name: "dead auto elim", fn: elimDeadAutosGeneric},
+	{name: "sccp", fn: sccp},
 	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
 	{name: "check bce", fn: checkbce},
 	{name: "branchelim", fn: branchelim},
@@ -508,7 +509,6 @@ var passes = [...]pass{
 	{name: "flagalloc", fn: flagalloc, required: true}, // allocate flags register
 	{name: "regalloc", fn: regalloc, required: true},   // allocate int & float registers + stack slots
 	{name: "loop rotate", fn: loopRotate},
-	{name: "stackframe", fn: stackframe, required: true},
 	{name: "trim", fn: trim}, // remove empty blocks
 }
 
@@ -547,6 +547,8 @@ var passOrder = [...]constraint{
 	{"generic cse", "tighten"},
 	// checkbce needs the values removed
 	{"generic deadcode", "check bce"},
+	// decompose builtin now also cleans up after expand calls
+	{"expand calls", "decompose builtin"},
 	// don't run optimization pass until we've decomposed builtin objects
 	{"decompose builtin", "late opt"},
 	// decompose builtin is the last pass that may introduce new float ops, so run softfloat after it
@@ -577,8 +579,6 @@ var passOrder = [...]constraint{
 	{"flagalloc", "regalloc"},
 	// loopRotate will confuse regalloc.
 	{"regalloc", "loop rotate"},
-	// stackframe needs to know about spilled registers.
-	{"regalloc", "stackframe"},
 	// trim needs regalloc to be done first.
 	{"regalloc", "trim"},
 	// memcombine works better if fuse happens first, to help merge stores.

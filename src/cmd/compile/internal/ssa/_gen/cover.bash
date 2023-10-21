@@ -12,7 +12,7 @@
 # regular 'go run .' usage to run the generator.
 
 cat >main_test.go <<-EOF
-	// +build ignore
+	//go:build ignore
 
 	package main
 

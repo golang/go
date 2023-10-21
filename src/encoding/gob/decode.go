@@ -222,7 +222,7 @@ func ignoreTwoUints(i *decInstr, state *decoderState, v reflect.Value) {
 // decAlloc takes a value and returns a settable value that can
 // be assigned to. If the value is a pointer, decAlloc guarantees it points to storage.
 // The callers to the individual decoders are expected to have used decAlloc.
-// The individual decoders don't need to it.
+// The individual decoders don't need it.
 func decAlloc(v reflect.Value) reflect.Value {
 	for v.Kind() == reflect.Pointer {
 		if v.IsNil() {
@@ -395,7 +395,7 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 			value.SetLen(ln)
 			sub := value.Slice(i, ln)
 			if _, err := state.b.Read(sub.Bytes()); err != nil {
-				errorf("error decoding []byte at %d: %s", err, i)
+				errorf("error decoding []byte at %d: %s", i, err)
 			}
 			i = ln
 		}

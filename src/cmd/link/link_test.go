@@ -267,9 +267,9 @@ func TestBuildForTvOS(t *testing.T) {
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveGoBuild(t)
 
-	// Only run this on darwin/amd64, where we can cross build for tvOS.
-	if runtime.GOARCH != "amd64" || runtime.GOOS != "darwin" {
-		t.Skip("skipping on non-darwin/amd64 platform")
+	// Only run this on darwin, where we can cross build for tvOS.
+	if runtime.GOOS != "darwin" {
+		t.Skip("skipping on non-darwin platform")
 	}
 	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
 		t.Skip("skipping in -short mode with $GO_BUILDER_NAME empty")
@@ -298,14 +298,16 @@ func TestBuildForTvOS(t *testing.T) {
 
 	ar := filepath.Join(tmpDir, "lib.a")
 	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", ar, lib)
-	cmd.Env = append(os.Environ(),
+	env := []string{
 		"CGO_ENABLED=1",
 		"GOOS=ios",
 		"GOARCH=arm64",
-		"CC="+strings.Join(CC, " "),
+		"CC=" + strings.Join(CC, " "),
 		"CGO_CFLAGS=", // ensure CGO_CFLAGS does not contain any flags. Issue #35459
-		"CGO_LDFLAGS="+strings.Join(CGO_LDFLAGS, " "),
-	)
+		"CGO_LDFLAGS=" + strings.Join(CGO_LDFLAGS, " "),
+	}
+	cmd.Env = append(os.Environ(), env...)
+	t.Logf("%q %v", env, cmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
 	}
@@ -314,6 +316,7 @@ func TestBuildForTvOS(t *testing.T) {
 	link.Args = append(link.Args, CGO_LDFLAGS...)
 	link.Args = append(link.Args, "-o", filepath.Join(tmpDir, "a.out")) // Avoid writing to package directory.
 	link.Args = append(link.Args, ar, filepath.Join("testdata", "testBuildFortvOS", "main.m"))
+	t.Log(link)
 	if out, err := link.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", link.Args, err, out)
 	}

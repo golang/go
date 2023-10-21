@@ -9060,7 +9060,7 @@ func rewriteValueS390X_OpS390XMOVDstore(v *Value) bool {
 		return true
 	}
 	// match: (MOVDstore [i] {s} p w1 x:(MOVDstore [i-8] {s} p w0 mem))
-	// cond: p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-8) && clobber(x)
+	// cond: p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-8) && setPos(v, x.Pos) && clobber(x)
 	// result: (STMG2 [i-8] {s} p w0 w1 mem)
 	for {
 		i := auxIntToInt32(v.AuxInt)
@@ -9076,7 +9076,7 @@ func rewriteValueS390X_OpS390XMOVDstore(v *Value) bool {
 			break
 		}
 		w0 := x.Args[1]
-		if !(p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-8) && clobber(x)) {
+		if !(p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-8) && setPos(v, x.Pos) && clobber(x)) {
 			break
 		}
 		v.reset(OpS390XSTMG2)
@@ -9086,7 +9086,7 @@ func rewriteValueS390X_OpS390XMOVDstore(v *Value) bool {
 		return true
 	}
 	// match: (MOVDstore [i] {s} p w2 x:(STMG2 [i-16] {s} p w0 w1 mem))
-	// cond: x.Uses == 1 && is20Bit(int64(i)-16) && clobber(x)
+	// cond: x.Uses == 1 && is20Bit(int64(i)-16) && setPos(v, x.Pos) && clobber(x)
 	// result: (STMG3 [i-16] {s} p w0 w1 w2 mem)
 	for {
 		i := auxIntToInt32(v.AuxInt)
@@ -9103,7 +9103,7 @@ func rewriteValueS390X_OpS390XMOVDstore(v *Value) bool {
 		}
 		w0 := x.Args[1]
 		w1 := x.Args[2]
-		if !(x.Uses == 1 && is20Bit(int64(i)-16) && clobber(x)) {
+		if !(x.Uses == 1 && is20Bit(int64(i)-16) && setPos(v, x.Pos) && clobber(x)) {
 			break
 		}
 		v.reset(OpS390XSTMG3)
@@ -9113,7 +9113,7 @@ func rewriteValueS390X_OpS390XMOVDstore(v *Value) bool {
 		return true
 	}
 	// match: (MOVDstore [i] {s} p w3 x:(STMG3 [i-24] {s} p w0 w1 w2 mem))
-	// cond: x.Uses == 1 && is20Bit(int64(i)-24) && clobber(x)
+	// cond: x.Uses == 1 && is20Bit(int64(i)-24) && setPos(v, x.Pos) && clobber(x)
 	// result: (STMG4 [i-24] {s} p w0 w1 w2 w3 mem)
 	for {
 		i := auxIntToInt32(v.AuxInt)
@@ -9131,7 +9131,7 @@ func rewriteValueS390X_OpS390XMOVDstore(v *Value) bool {
 		w0 := x.Args[1]
 		w1 := x.Args[2]
 		w2 := x.Args[3]
-		if !(x.Uses == 1 && is20Bit(int64(i)-24) && clobber(x)) {
+		if !(x.Uses == 1 && is20Bit(int64(i)-24) && setPos(v, x.Pos) && clobber(x)) {
 			break
 		}
 		v.reset(OpS390XSTMG4)
@@ -10595,7 +10595,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
 		return true
 	}
 	// match: (MOVWstore [i] {s} p w1 x:(MOVWstore [i-4] {s} p w0 mem))
-	// cond: p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-4) && clobber(x)
+	// cond: p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-4) && setPos(v, x.Pos) && clobber(x)
 	// result: (STM2 [i-4] {s} p w0 w1 mem)
 	for {
 		i := auxIntToInt32(v.AuxInt)
@@ -10611,7 +10611,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
 			break
 		}
 		w0 := x.Args[1]
-		if !(p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-4) && clobber(x)) {
+		if !(p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-4) && setPos(v, x.Pos) && clobber(x)) {
 			break
 		}
 		v.reset(OpS390XSTM2)
@@ -10621,7 +10621,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
 		return true
 	}
 	// match: (MOVWstore [i] {s} p w2 x:(STM2 [i-8] {s} p w0 w1 mem))
-	// cond: x.Uses == 1 && is20Bit(int64(i)-8) && clobber(x)
+	// cond: x.Uses == 1 && is20Bit(int64(i)-8) && setPos(v, x.Pos) && clobber(x)
 	// result: (STM3 [i-8] {s} p w0 w1 w2 mem)
 	for {
 		i := auxIntToInt32(v.AuxInt)
@@ -10638,7 +10638,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
 		}
 		w0 := x.Args[1]
 		w1 := x.Args[2]
-		if !(x.Uses == 1 && is20Bit(int64(i)-8) && clobber(x)) {
+		if !(x.Uses == 1 && is20Bit(int64(i)-8) && setPos(v, x.Pos) && clobber(x)) {
 			break
 		}
 		v.reset(OpS390XSTM3)
@@ -10648,7 +10648,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
 		return true
 	}
 	// match: (MOVWstore [i] {s} p w3 x:(STM3 [i-12] {s} p w0 w1 w2 mem))
-	// cond: x.Uses == 1 && is20Bit(int64(i)-12) && clobber(x)
+	// cond: x.Uses == 1 && is20Bit(int64(i)-12) && setPos(v, x.Pos) && clobber(x)
 	// result: (STM4 [i-12] {s} p w0 w1 w2 w3 mem)
 	for {
 		i := auxIntToInt32(v.AuxInt)
@@ -10666,7 +10666,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
 		w0 := x.Args[1]
 		w1 := x.Args[2]
 		w2 := x.Args[3]
-		if !(x.Uses == 1 && is20Bit(int64(i)-12) && clobber(x)) {
+		if !(x.Uses == 1 && is20Bit(int64(i)-12) && setPos(v, x.Pos) && clobber(x)) {
 			break
 		}
 		v.reset(OpS390XSTM4)
@@ -13107,7 +13107,7 @@ func rewriteValueS390X_OpS390XSTM2(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (STM2 [i] {s} p w2 w3 x:(STM2 [i-8] {s} p w0 w1 mem))
-	// cond: x.Uses == 1 && is20Bit(int64(i)-8) && clobber(x)
+	// cond: x.Uses == 1 && is20Bit(int64(i)-8) && setPos(v, x.Pos) && clobber(x)
 	// result: (STM4 [i-8] {s} p w0 w1 w2 w3 mem)
 	for {
 		i := auxIntToInt32(v.AuxInt)
@@ -13125,7 +13125,7 @@ func rewriteValueS390X_OpS390XSTM2(v *Value) bool {
 		}
 		w0 := x.Args[1]
 		w1 := x.Args[2]
-		if !(x.Uses == 1 && is20Bit(int64(i)-8) && clobber(x)) {
+		if !(x.Uses == 1 && is20Bit(int64(i)-8) && setPos(v, x.Pos) && clobber(x)) {
 			break
 		}
 		v.reset(OpS390XSTM4)
@@ -13162,7 +13162,7 @@ func rewriteValueS390X_OpS390XSTMG2(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (STMG2 [i] {s} p w2 w3 x:(STMG2 [i-16] {s} p w0 w1 mem))
-	// cond: x.Uses == 1 && is20Bit(int64(i)-16) && clobber(x)
+	// cond: x.Uses == 1 && is20Bit(int64(i)-16) && setPos(v, x.Pos) && clobber(x)
 	// result: (STMG4 [i-16] {s} p w0 w1 w2 w3 mem)
 	for {
 		i := auxIntToInt32(v.AuxInt)
@@ -13180,7 +13180,7 @@ func rewriteValueS390X_OpS390XSTMG2(v *Value) bool {
 		}
 		w0 := x.Args[1]
 		w1 := x.Args[2]
-		if !(x.Uses == 1 && is20Bit(int64(i)-16) && clobber(x)) {
+		if !(x.Uses == 1 && is20Bit(int64(i)-16) && setPos(v, x.Pos) && clobber(x)) {
 			break
 		}
 		v.reset(OpS390XSTMG4)

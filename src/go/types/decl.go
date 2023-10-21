@@ -53,7 +53,7 @@ func pathString(path []Object) string {
 
 // objDecl type-checks the declaration of obj in its respective (file) environment.
 // For the meaning of def, see Checker.definedType, in typexpr.go.
-func (check *Checker) objDecl(obj Object, def *Named) {
+func (check *Checker) objDecl(obj Object, def *TypeName) {
 	if check.conf._Trace && obj.Type() == nil {
 		if check.indent == 0 {
 			fmt.Println() // empty line between top-level objects for readability
@@ -456,7 +456,7 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr, inherited bool) 
 		if !isConstType(t) {
 			// don't report an error if the type is an invalid C (defined) type
 			// (go.dev/issue/22090)
-			if under(t) != Typ[Invalid] {
+			if isValid(under(t)) {
 				check.errorf(typ, InvalidConstType, "invalid constant type %s", t)
 			}
 			obj.typ = Typ[Invalid]
@@ -552,7 +552,7 @@ func (check *Checker) isImportedConstraint(typ Type) bool {
 	return u != nil && !u.IsMethodSet()
 }
 
-func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName) {
 	assert(obj.typ == nil)
 
 	var rhs Type
@@ -583,7 +583,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 
 	// type definition or generic type declaration
 	named := check.newNamed(obj, nil, nil)
-	def.setUnderlying(named)
+	setDefType(def, named)
 
 	if tdecl.TypeParams != nil {
 		check.openScope(tdecl, "type parameters")
@@ -592,7 +592,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	}
 
 	// determine underlying type of named
-	rhs = check.definedType(tdecl.Type, named)
+	rhs = check.definedType(tdecl.Type, obj)
 	assert(rhs != nil)
 	named.fromRHS = rhs
 

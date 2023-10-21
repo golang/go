@@ -1,5 +1,6 @@
-// +build !gcflags_noopt
 // errorcheck -0 -m
+
+//go:build !gcflags_noopt && !goexperiment.newinliner
 
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

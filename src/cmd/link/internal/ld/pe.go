@@ -777,7 +777,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 				// so the external linker see them as Forwarder RVA exports. See:
 				//
 				//  - https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#export-address-table
-				//  - https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=ld/pe-dll.c;h=e7b82ba6ffadf74dc1b9ee71dc13d48336941e51;hb=HEAD#l972)
+				//  - https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=ld/pe-dll.c;h=e7b82ba6ffadf74dc1b9ee71dc13d48336941e51;hb=HEAD#l972
 				//
 				// CL 317917 changes "." to ":" in symbols name, so these symbols can not be
 				// found by external linker anymore. So a hacky way is adding the
@@ -1149,11 +1149,11 @@ func Peinit(ctxt *Link) {
 	}
 
 	HEADR = PEFILEHEADR
-	if *FlagTextAddr == -1 {
-		*FlagTextAddr = PEBASE + int64(PESECTHEADR)
-	}
 	if *FlagRound == -1 {
-		*FlagRound = int(PESECTALIGN)
+		*FlagRound = PESECTALIGN
+	}
+	if *FlagTextAddr == -1 {
+		*FlagTextAddr = Rnd(PEBASE, *FlagRound) + int64(PESECTHEADR)
 	}
 }
 

@@ -24,15 +24,6 @@ func UncommonSize() uint64 { return 4 + 2 + 2 + 4 + 4 }
 // IMethodSize returns sizeof(IMethod) for a compilation target with a given ptrSize
 func IMethodSize(ptrSize int) int { return 4 + 4 }
 
-// KindOff returns the offset of Type.Kind_ for a compilation target with a given ptrSize
-func KindOff(ptrSize int) int { return 2*ptrSize + 7 }
-
-// SizeOff returns the offset of Type.Size_ for a compilation target with a given ptrSize
-func SizeOff(ptrSize int) int { return 0 }
-
-// PtrBytes returns the offset of Type.PtrBytes for a compilation target with a given ptrSize
-func PtrBytesOff(ptrSize int) int { return ptrSize }
-
 // TFlagOff returns the offset of Type.TFlag for a compilation target with a given ptrSize
 func TFlagOff(ptrSize int) int { return 2*ptrSize + 4 }
 
