@@ -7,6 +7,7 @@
 package http
 
 import (
+	"internal/bytealg"
 	"io"
 	"strconv"
 	"strings"
@@ -47,7 +48,9 @@ func (k *contextKey) String() string { return "net/http context value " + k.name
 
 // Given a string of the form "host", "host:port", or "[ipv6::address]:port",
 // return true if the string includes a port.
-func hasPort(s string) bool { return strings.LastIndex(s, ":") > strings.LastIndex(s, "]") }
+func hasPort(s string) bool {
+	return bytealg.LastIndexByteString(s, ':') > bytealg.LastIndexByteString(s, ']')
+}
 
 // removeEmptyPort strips the empty port in ":port" to ""
 // as mandated by RFC 3986 Section 6.2.3.
