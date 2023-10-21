@@ -1,0 +1,63 @@
+# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository
+name: Bugs
+description: The go command, standard library, or anything else
+labels: [ 'kind/bug', 'bug' ]
+title: "affected/package: "
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping us improve! 🙏 Please answer these questions and provide as much information as possible about your problem.
+
+  - type: textarea
+    id: go-version
+    attributes:
+      label: Golang Version
+      description: What version of Go are you using (`go version`)?
+      value: |
+        <pre>
+        $ go version
+
+
+        </pre>
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce-latest-release
+    attributes:
+      label: "Does this issue reproduce with the latest release?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: os-and-processor
+    attributes:
+      label: "What operating system and processor architecture are you using (`go env`)?"
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-did-you-do
+    attributes:
+      label: "What did you do?"
+      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on go.dev/play is best."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "What did you expect to see?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: "What did you see instead?"
+    validations:
+      required: true
+
