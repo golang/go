@@ -46,7 +46,7 @@ body:
       label: "Editor and settings"
       description: "Your editor and any settings you have configured (for example, your VSCode settings.json file)"
     validations:
-      required: true
+      required: false
   - type: textarea
     id: logs
     attributes:
