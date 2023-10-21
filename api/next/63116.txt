@@ -1,0 +1,2 @@
+pkg net, type DNSError struct, Underlying error #63116
+pkg net, method (*DNSError) Unwrap() error #63116
