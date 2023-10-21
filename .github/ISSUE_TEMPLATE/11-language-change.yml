@@ -19,7 +19,7 @@ body:
       label: "Related proposals"
       description: "Has this idea, or one like it, been proposed before? If so, how does this proposal differ? Does this affect error handling? If so, how does this differ from previous error handling proposals? Is this about generics? If so, how does this relate to the accepted design and other generics proposals?"
     validations:
-      required: true
+      required: false
   - type: textarea
     id: proposal
     attributes:
@@ -33,4 +33,4 @@ body:
       label: "Costs"
       description: "Would this change make Go easier or harder to learn, and why? What is the cost of this proposal? (Every language change has a cost). How many tools (such as vet, gopls, gofmt, goimports, etc.) would be affected? What is the compile time cost? What is the run time cost? Can you describe a possible implementation? Do you have a prototype? (This is not required.)"
     validations:
-      required: true
+      required: false
