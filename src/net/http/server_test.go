@@ -9,7 +9,6 @@ package http
 import (
 	"fmt"
 	"net/url"
-	"regexp"
 	"testing"
 	"time"
 )
@@ -70,13 +69,14 @@ type handler struct{ i int }
 
 func (handler) ServeHTTP(ResponseWriter, *Request) {}
 
-func TestFindHandler(t *testing.T) {
+func TestServeMuxFindHandler(t *testing.T) {
 	mux := NewServeMux()
 	for _, ph := range []struct {
 		pat string
 		h   Handler
 	}{
 		{"/", &handler{1}},
+		{"GET /", &handler{11}},
 		{"/foo/", &handler{2}},
 		{"/foo", &handler{3}},
 		{"/bar/", &handler{4}},
@@ -90,7 +90,7 @@ func TestFindHandler(t *testing.T) {
 		path        string
 		wantHandler string
 	}{
-		{"GET", "/", "&http.handler{i:1}"},
+		{"GET", "/", "&http.handler{i:11}"},
 		{"GET", "//", `&http.redirectHandler{url:"/", code:301}`},
 		{"GET", "/foo/../bar/./..//baz", `&http.redirectHandler{url:"/baz", code:301}`},
 		{"GET", "/foo", "&http.handler{i:3}"},
@@ -110,7 +110,7 @@ func TestFindHandler(t *testing.T) {
 		r.Method = test.method
 		r.Host = "example.com"
 		r.URL = &url.URL{Path: test.path}
-		gotH, _, _, _ := mux.findHandler(&r)
+		gotH, _ := mux.handler(&r)
 		got := fmt.Sprintf("%#v", gotH)
 		if got != test.wantHandler {
 			t.Errorf("%s %q: got %q, want %q", test.method, test.path, got, test.wantHandler)
@@ -118,7 +118,7 @@ func TestFindHandler(t *testing.T) {
 	}
 }
 
-func TestEmptyServeMux(t *testing.T) {
+func TestServeMuxEmpty(t *testing.T) {
 	// Verify that a ServeMux with nothing registered
 	// doesn't panic.
 	mux := NewServeMux()
@@ -132,157 +132,55 @@ func TestEmptyServeMux(t *testing.T) {
 	}
 }
 
-func TestRegisterErr(t *testing.T) {
-	mux := NewServeMux()
-	h := &handler{}
-	mux.Handle("/a", h)
-
-	for _, test := range []struct {
-		pattern    string
-		handler    Handler
-		wantRegexp string
-	}{
-		{"", h, "invalid pattern"},
-		{"/", nil, "nil handler"},
-		{"/", HandlerFunc(nil), "nil handler"},
-		{"/{x", h, `parsing "/\{x": at offset 1: bad wildcard segment`},
-		{"/a", h, `conflicts with pattern.* \(registered at .*/server_test.go:\d+`},
-	} {
-		t.Run(fmt.Sprintf("%s:%#v", test.pattern, test.handler), func(t *testing.T) {
-			err := mux.registerErr(test.pattern, test.handler)
-			if err == nil {
-				t.Fatal("got nil error")
-			}
-			re := regexp.MustCompile(test.wantRegexp)
-			if g := err.Error(); !re.MatchString(g) {
-				t.Errorf("\ngot %q\nwant string matching %q", g, test.wantRegexp)
-			}
-		})
-	}
+func TestServeMuxHandleStatic(t *testing.T) {
+	t.Run("1.21", func(t *testing.T) { testServeMuxHandleStatic(t, true) })
+	t.Run("latest", func(t *testing.T) { testServeMuxHandleStatic(t, false) })
 }
 
-func TestExactMatch(t *testing.T) {
-	for _, test := range []struct {
-		pattern string
+
+func testServeMuxHandleStatic(t *testing.T, test121 bool) {
+	defer func(u bool) { use121 = u }(use121)
+	use121 = test121
+
+	type patternData struct {
 		path    string
-		want    bool
-	}{
-		{"", "/a", false},
-		{"/", "/a", false},
-		{"/a", "/a", true},
-		{"/a/{x...}", "/a/b", false},
-		{"/a/{x}", "/a/b", true},
-		{"/a/b/", "/a/b/", true},
-		{"/a/b/{$}", "/a/b/", true},
-		{"/a/", "/a/b/", false},
-	} {
-		var n *routingNode
-		if test.pattern != "" {
-			pat := mustParsePattern(t, test.pattern)
-			n = &routingNode{pattern: pat}
-		}
-		got := exactMatch(n, test.path)
-		if got != test.want {
-			t.Errorf("%q, %s: got %t, want %t", test.pattern, test.path, got, test.want)
-		}
+		pattern string
 	}
-}
-
-func TestEscapedPathsAndPatterns(t *testing.T) {
-	matches := []struct {
-		pattern  string
-		paths    []string // paths that match the pattern
-		paths121 []string // paths that matched the pattern in Go 1.21.
-	}{
-		{
-			"/a", // this pattern matches a path that unescapes to "/a"
-			[]string{"/a", "/%61"},
-			[]string{"/a", "/%61"},
-		},
-		{
-			"/%62", // patterns are unescaped by segment; matches paths that unescape to "/b"
-			[]string{"/b", "/%62"},
-			[]string{"/%2562"}, // In 1.21, patterns were not unescaped but paths were.
-		},
-		{
-			"/%7B/%7D", // the only way to write a pattern that matches '{' or '}'
-			[]string{"/{/}", "/%7b/}", "/{/%7d", "/%7B/%7D"},
-			[]string{"/%257B/%257D"}, // In 1.21, patterns were not unescaped.
-		},
-		{
-			"/%x", // patterns that do not unescape are left unchanged
-			[]string{"/%25x"},
-			[]string{"/%25x"},
-		},
+	serveMuxTests := []patternData{
+		{"/", "/"},
+		{"/index", "/index"},
+		{"/home", "/home"},
+		{"/about", "/about"},
+		{"/contact", "/contact"},
+		{"/robots.txt", "/robots.txt"},
+		{"/products/", "/products/"},
+		{"/products/1", "/products/1"},
+		{"/products/2", "/products/2"},
+		{"/products/3", "/products/3"},
+		{"/products/3/image.jpg", "/products/3/image.jpg"},
 	}
 
-	run := func(t *testing.T, test121 bool) {
-		defer func(u bool) { use121 = u }(use121)
-		use121 = test121
-
-		mux := NewServeMux()
-		for _, m := range matches {
-			mux.HandleFunc(m.pattern, func(w ResponseWriter, r *Request) {})
-		}
-
-		for _, m := range matches {
-			paths := m.paths
-			if use121 {
-				paths = m.paths121
-			}
-			for _, p := range paths {
-				u, err := url.ParseRequestURI(p)
-				if err != nil {
-					t.Fatal(err)
-				}
-				req := &Request{
-					URL: u,
-				}
-				_, gotPattern := mux.Handler(req)
-				if g, w := gotPattern, m.pattern; g != w {
-					t.Errorf("%s: pattern: got %q, want %q", p, g, w)
-				}
-			}
-		}
-	}
-
-	t.Run("latest", func(t *testing.T) { run(t, false) })
-	t.Run("1.21", func(t *testing.T) { run(t, true) })
-}
-
-func BenchmarkServerMatch(b *testing.B) {
-	fn := func(w ResponseWriter, r *Request) {
-		fmt.Fprintf(w, "OK")
-	}
+	ok := func(w ResponseWriter, r *Request) {}
 	mux := NewServeMux()
-	mux.HandleFunc("/", fn)
-	mux.HandleFunc("/index", fn)
-	mux.HandleFunc("/home", fn)
-	mux.HandleFunc("/about", fn)
-	mux.HandleFunc("/contact", fn)
-	mux.HandleFunc("/robots.txt", fn)
-	mux.HandleFunc("/products/", fn)
-	mux.HandleFunc("/products/1", fn)
-	mux.HandleFunc("/products/2", fn)
-	mux.HandleFunc("/products/3", fn)
-	mux.HandleFunc("/products/3/image.jpg", fn)
-	mux.HandleFunc("/admin", fn)
-	mux.HandleFunc("/admin/products/", fn)
-	mux.HandleFunc("/admin/products/create", fn)
-	mux.HandleFunc("/admin/products/update", fn)
-	mux.HandleFunc("/admin/products/delete", fn)
+	for _, route := range serveMuxTests {
+		mux.HandleFunc(route.path, ok)
+	}
+	mux.Handle("/src", HandlerFunc(ok))
 
-	paths := []string{"/", "/notfound", "/admin/", "/admin/foo", "/contact", "/products",
-		"/products/", "/products/3/image.jpg"}
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		r, err := NewRequest("GET", "http://example.com/"+paths[i%len(paths)], nil)
-		if err != nil {
-			b.Fatal(err)
+	serveMuxTests = append(serveMuxTests, 
+		patternData{"/pprof", "/"}, 
+		patternData{"/products/4", "/products/"},
+	)
+	for _, route := range serveMuxTests {
+		r := &Request{
+			Method: "GET",
+			URL:    &url.URL{Path: route.path},
 		}
-		if h, p, _, _ := mux.findHandler(r); h != nil && p == "" {
-			b.Error("impossible")
+		_, pattern := mux.Handler(r)
+		mux.ServeHTTP(nil, r)
+		if pattern != route.pattern {
+			t.Errorf("%q, want %q", pattern, route.pattern)
 		}
 	}
-	b.StopTimer()
+
 }

@@ -636,6 +636,7 @@ func benchmarkServeMux(b *testing.B, runHandler bool) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, tt := range tests {
+			tt.req.PathValues = tt.req.PathValues[0:0]
 			*rw = httptest.ResponseRecorder{}
 			h, pattern := mux.Handler(tt.req)
 			if runHandler {

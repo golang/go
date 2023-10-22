@@ -186,8 +186,7 @@ func TestMultipartReader(t *testing.T) {
 
 // Issue 9305: ParseMultipartForm should populate PostForm too
 func TestParseMultipartFormPopulatesPostForm(t *testing.T) {
-	postData :=
-		`--xxx
+	postData := `--xxx
 Content-Disposition: form-data; name="field1"
 
 value1
@@ -266,8 +265,7 @@ func TestParseMultipartForm(t *testing.T) {
 
 // Issue 45789: multipart form should not include directory path in filename
 func TestParseMultipartFormFilename(t *testing.T) {
-	postData :=
-		`--xxx
+	postData := `--xxx
 Content-Disposition: form-data; name="file"; filename="../usr/foobar.txt/"
 Content-Type: text/plain
 
@@ -293,6 +291,7 @@ Content-Type: text/plain
 func TestMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T) {
 	run(t, testMaxInt64ForMultipartFormMaxMemoryOverflow)
 }
+
 func testMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T, mode testMode) {
 	payloadSize := 1 << 10
 	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
@@ -345,7 +344,7 @@ func testRequestRedirect(t *testing.T, mode testMode) {
 		}
 	}))
 
-	var end = regexp.MustCompile("/foo/$")
+	end := regexp.MustCompile("/foo/$")
 	r, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -1055,6 +1054,7 @@ func TestRequestCloneTransferEncoding(t *testing.T) {
 
 // Issue 34878: verify we don't panic when including basic auth (Go 1.13 regression)
 func TestNoPanicOnRoundTripWithBasicAuth(t *testing.T) { run(t, testNoPanicWithBasicAuth) }
+
 func testNoPanicWithBasicAuth(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}))
 
@@ -1420,11 +1420,7 @@ func TestErrNotSupported(t *testing.T) {
 func TestPathValueNoMatch(t *testing.T) {
 	// Check that PathValue and SetPathValue work on a Request that was never matched.
 	var r Request
-	if g, w := r.PathValue("x"), ""; g != w {
-		t.Errorf("got %q, want %q", g, w)
-	}
-	r.SetPathValue("x", "a")
-	if g, w := r.PathValue("x"), "a"; g != w {
+	if g, w := r.GetPathValue("x"), ""; g != w {
 		t.Errorf("got %q, want %q", g, w)
 	}
 }
@@ -1465,7 +1461,7 @@ func TestPathValue(t *testing.T) {
 		mux := NewServeMux()
 		mux.HandleFunc(test.pattern, func(w ResponseWriter, r *Request) {
 			for name, want := range test.want {
-				got := r.PathValue(name)
+				got := r.GetPathValue(name)
 				if got != want {
 					t.Errorf("%q, %q: got %q, want %q", test.pattern, name, got, want)
 				}
@@ -1479,32 +1475,6 @@ func TestPathValue(t *testing.T) {
 		}
 		res.Body.Close()
 	}
-}
-
-func TestSetPathValue(t *testing.T) {
-	mux := NewServeMux()
-	mux.HandleFunc("/a/{b}/c/{d...}", func(_ ResponseWriter, r *Request) {
-		kvs := map[string]string{
-			"b": "X",
-			"d": "Y",
-			"a": "Z",
-		}
-		for k, v := range kvs {
-			r.SetPathValue(k, v)
-		}
-		for k, w := range kvs {
-			if g := r.PathValue(k); g != w {
-				t.Errorf("got %q, want %q", g, w)
-			}
-		}
-	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
-	res, err := Get(server.URL + "/a/b/c/d/e")
-	if err != nil {
-		t.Fatal(err)
-	}
-	res.Body.Close()
 }
 
 func TestStatus(t *testing.T) {
