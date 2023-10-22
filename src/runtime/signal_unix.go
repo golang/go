@@ -752,20 +752,34 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	if docrash {
+		isCrashThread := false
+		if crashing == 0 {
+			isCrashThread = true
+		}
 		crashing++
 		if crashing < mcount()-int32(extraMLength.Load()) {
 			// There are other m's that need to dump their stacks.
 			// Relay SIGQUIT to the next m by sending it to the current process.
 			// All m's that have already received SIGQUIT have signal masks blocking
 			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
-			// When the last m receives the SIGQUIT, it will fall through to the call to
-			// crash below. Just in case the relaying gets botched, each m involved in
+			// The first m will wait until all ms received the SIGQUIT, then crash/exit.
+			// Just in case the relaying gets botched, each m involved in
 			// the relay sleeps for 5 seconds and then does the crash/exit itself.
-			// In expected operation, the last m has received the SIGQUIT and run
-			// crash/exit and the process is gone, all long before any of the
-			// 5-second sleeps have finished.
+			// In expected operation, the first m will wait until the last m has received the SIGQUIT,
+			// and then run crash/exit and the process is gone.
+			// However, if it spends more than 5 seconds to send SIGQUIT to all ms,
+			// any of ms may crash/exit the process after waiting for 5 seconds.
 			print("\n-----\n\n")
 			raiseproc(_SIGQUIT)
+		}
+		// fix #63277
+		if isCrashThread {
+			i := 0
+			for (crashing < mcount()-int32(extraMLength.Load()) && i < 10) {
+				i++
+				usleep(500 * 1000)
+			}
+		} else {
 			usleep(5 * 1000 * 1000)
 		}
 		printDebugLog()
