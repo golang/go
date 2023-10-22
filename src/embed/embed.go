@@ -112,7 +112,7 @@
 // The [FS] type enables embedding a tree of files, such as a directory of static
 // web server content, as in the example above.
 //
-// FS implements the [io/fs] package's [FS] interface, so it can be used with any package that
+// [FS] implements the [io/fs.FS] interface, so it can be used with any package that
 // understands file systems, including [net/http], [text/template], and [html/template].
 //
 // For example, given the content variable in the example above, we can write:
