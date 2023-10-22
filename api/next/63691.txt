@@ -1,0 +1,8 @@
+pkg crypto/tls, const QUICResumeSession = 8 #63691
+pkg crypto/tls, const QUICResumeSession QUICEventKind #63691
+pkg crypto/tls, const QUICStoreSession = 9 #63691
+pkg crypto/tls, const QUICStoreSession QUICEventKind #63691
+pkg crypto/tls, method (*QUICConn) StoreSession(*SessionState) error #63691
+pkg crypto/tls, type QUICConfig struct, EnableStoreSessionEvent bool #63691
+pkg crypto/tls, type QUICEvent struct, SessionState *SessionState #63691
+pkg crypto/tls, type QUICSessionTicketOptions struct, Extra [][]uint8 #63691

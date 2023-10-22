@@ -923,7 +923,7 @@ func testResumption(t *testing.T, version uint16) {
 	}
 
 	getTicket := func() []byte {
-		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.ticket
+		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.session.ticket
 	}
 	deleteTicket := func() {
 		ticketKey := clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).sessionKey
@@ -1107,6 +1107,10 @@ func (c *serializingClientCache) Get(sessionKey string) (session *ClientSessionS
 }
 
 func (c *serializingClientCache) Put(sessionKey string, cs *ClientSessionState) {
+	if cs == nil {
+		c.ticket, c.state = nil, nil
+		return
+	}
 	ticket, state, err := cs.ResumptionState()
 	if err != nil {
 		c.t.Error(err)

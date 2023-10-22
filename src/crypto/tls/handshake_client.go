@@ -366,7 +366,7 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 			return nil, nil, nil, nil
 		}
 
-		hello.sessionTicket = cs.ticket
+		hello.sessionTicket = session.ticket
 		return
 	}
 
@@ -394,10 +394,12 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 		return nil, nil, nil, nil
 	}
 
-	if c.quic != nil && session.EarlyData {
+	if c.quic != nil {
+		c.quicResumeSession(session)
+
 		// For 0-RTT, the cipher suite has to match exactly, and we need to be
 		// offering the same ALPN.
-		if mutualCipherSuiteTLS13(hello.cipherSuites, session.cipherSuite) != nil {
+		if session.EarlyData && mutualCipherSuiteTLS13(hello.cipherSuites, session.cipherSuite) != nil {
 			for _, alpn := range hello.alpnProtocols {
 				if alpn == session.alpnProtocol {
 					hello.earlyData = true
@@ -410,7 +412,7 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 	// Set the pre_shared_key extension. See RFC 8446, Section 4.2.11.1.
 	ticketAge := c.config.time().Sub(time.Unix(int64(session.createdAt), 0))
 	identity := pskIdentity{
-		label:               cs.ticket,
+		label:               session.ticket,
 		obfuscatedTicketAge: uint32(ticketAge/time.Millisecond) + session.ageAdd,
 	}
 	hello.pskIdentities = []pskIdentity{identity}
@@ -940,8 +942,9 @@ func (hs *clientHandshakeState) saveSessionTicket() error {
 
 	session := c.sessionState()
 	session.secret = hs.masterSecret
+	session.ticket = hs.ticket
 
-	cs := &ClientSessionState{ticket: hs.ticket, session: session}
+	cs := &ClientSessionState{session: session}
 	c.config.ClientSessionCache.Put(cacheKey, cs)
 	return nil
 }

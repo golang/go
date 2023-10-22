@@ -377,6 +377,12 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 			continue
 		}
 
+		if c.quic != nil {
+			if err := c.quicResumeSession(sessionState); err != nil {
+				return err
+			}
+		}
+
 		hs.earlySecret = hs.suite.extract(sessionState.secret, nil)
 		binderKey := hs.suite.deriveSecret(hs.earlySecret, resumptionBinderLabel, nil)
 		// Clone the transcript in case a HelloRetryRequest was recorded.
@@ -856,10 +862,10 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 	if !hs.shouldSendSessionTickets() {
 		return nil
 	}
-	return c.sendSessionTicket(false)
+	return c.sendSessionTicket(false, nil)
 }
 
-func (c *Conn) sendSessionTicket(earlyData bool) error {
+func (c *Conn) sendSessionTicket(earlyData bool, extra [][]byte) error {
 	suite := cipherSuiteTLS13ByID(c.cipherSuite)
 	if suite == nil {
 		return errors.New("tls: internal error: unknown cipher suite")
@@ -874,6 +880,7 @@ func (c *Conn) sendSessionTicket(earlyData bool) error {
 	state := c.sessionState()
 	state.secret = psk
 	state.EarlyData = earlyData
+	state.Extra = extra
 	if c.config.WrapSession != nil {
 		var err error
 		m.label, err = c.config.WrapSession(c.connectionStateLocked(), state)

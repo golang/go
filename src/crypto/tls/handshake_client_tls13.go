@@ -783,8 +783,12 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
 	session.useBy = uint64(c.config.time().Add(lifetime).Unix())
 	session.ageAdd = msg.ageAdd
 	session.EarlyData = c.quic != nil && msg.maxEarlyData == 0xffffffff // RFC 9001, Section 4.6.1
-	cs := &ClientSessionState{ticket: msg.label, session: session}
-
+	session.ticket = msg.label
+	if c.quic != nil && c.quic.enableStoreSessionEvent {
+		c.quicStoreSession(session)
+		return nil
+	}
+	cs := &ClientSessionState{session: session}
 	if cacheKey := c.clientSessionCacheKey(); cacheKey != "" {
 		c.config.ClientSessionCache.Put(cacheKey, cs)
 	}
