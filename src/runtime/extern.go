@@ -152,6 +152,9 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	risk in that scenario. Currently not supported on Windows, plan9 or js/wasm. Setting this
 	option for some applications can produce large traces, so use with care.
 
+	panicnil: setting panicnil=1 disables the runtime error when calling panic with nil
+	interface value or an untyped nil.
+
 	runtimecontentionstacks: setting runtimecontentionstacks=1 enables inclusion of call stacks
 	related to contention on runtime-internal locks in the "mutex" profile, subject to the
 	MutexProfileFraction setting. When runtimecontentionstacks=0, contention on
