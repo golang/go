@@ -1068,7 +1068,7 @@ func gcDrainMarkWorkerFractional(gcw *gcWork) {
 // credit to gcController.bgScanCredit every gcCreditSlack units of
 // scan work.
 //
-// gcDrain will always return if there is a pending STW.
+// gcDrain will always return if there is a pending STW or forEachP.
 //
 // Disabling write barriers is necessary to ensure that after we've
 // confirmed that we've drained gcw, that we don't accidentally end
@@ -1084,7 +1084,10 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 		throw("gcDrain phase incorrect")
 	}
 
+	// N.B. We must be running in a non-preemptible context, so it's
+	// safe to hold a reference to our P here.
 	gp := getg().m.curg
+	pp := gp.m.p.ptr()
 	preemptible := flags&gcDrainUntilPreempt != 0
 	flushBgCredit := flags&gcDrainFlushBgCredit != 0
 	idle := flags&gcDrainIdle != 0
@@ -1106,8 +1109,9 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 
 	// Drain root marking jobs.
 	if work.markrootNext < work.markrootJobs {
-		// Stop if we're preemptible or if someone wants to STW.
-		for !(gp.preempt && (preemptible || sched.gcwaiting.Load())) {
+		// Stop if we're preemptible, if someone wants to STW, or if
+		// someone is calling forEachP.
+		for !(gp.preempt && (preemptible || sched.gcwaiting.Load() || pp.runSafePointFn != 0)) {
 			job := atomic.Xadd(&work.markrootNext, +1) - 1
 			if job >= work.markrootJobs {
 				break
@@ -1120,8 +1124,16 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	}
 
 	// Drain heap marking jobs.
-	// Stop if we're preemptible or if someone wants to STW.
-	for !(gp.preempt && (preemptible || sched.gcwaiting.Load())) {
+	//
+	// Stop if we're preemptible, if someone wants to STW, or if
+	// someone is calling forEachP.
+	//
+	// TODO(mknyszek): Consider always checking gp.preempt instead
+	// of having the preempt flag, and making an exception for certain
+	// mark workers in retake. That might be simpler than trying to
+	// enumerate all the reasons why we might want to preempt, even
+	// if we're supposed to be mostly non-preemptible.
+	for !(gp.preempt && (preemptible || sched.gcwaiting.Load() || pp.runSafePointFn != 0)) {
 		// Try to keep work available on the global queue. We used to
 		// check if there were waiting workers, but it's better to
 		// just keep work available than to make workers wait. In the
