@@ -57,6 +57,7 @@ skip_erms:
 	JE	loop_preheader_avx2
 	// TODO: for really big clears, use MOVNTDQ, even without AVX2.
 
+	PCALIGN $16
 loop:
 	MOVOU	X15, 0(DI)
 	MOVOU	X15, 16(DI)
@@ -89,6 +90,7 @@ loop_preheader_avx2:
 	CMPQ    BX, $0x2000000
 	JAE	loop_preheader_avx2_huge
 
+	PCALIGN $32
 loop_avx2:
 	VMOVDQU	Y0, 0(DI)
 	VMOVDQU	Y0, 32(DI)
@@ -135,6 +137,7 @@ loop_preheader_avx2_huge:
 	ANDQ	$~31, DI
 	SUBQ	DI, SI
 	ADDQ	SI, BX
+	PCALIGN $32
 loop_avx2_huge:
 	VMOVNTDQ	Y0, 0(DI)
 	VMOVNTDQ	Y0, 32(DI)
