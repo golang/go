@@ -5,7 +5,9 @@
 package gc
 
 import (
+	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	tracepkg "runtime/trace"
@@ -28,18 +30,30 @@ func startProfile() {
 		if base.Flag.MemProfileRate != 0 {
 			runtime.MemProfileRate = base.Flag.MemProfileRate
 		}
-		f, err := os.Create(base.Flag.MemProfile)
+		const (
+			gzipFormat = 0
+			textFormat = 1
+		)
+		// compilebench parses the memory profile to extract memstats,
+		// which are only written in the legacy (text) pprof format.
+		// See golang.org/issue/18641 and runtime/pprof/pprof.go:writeHeap.
+		// gzipFormat is what most people want, otherwise
+		var format = textFormat
+		fn := base.Flag.MemProfile
+		if fi, statErr := os.Stat(fn); statErr == nil && fi.IsDir() {
+			fn = filepath.Join(fn, url.PathEscape(base.Ctxt.Pkgpath)+".mprof")
+			format = gzipFormat
+		}
+
+		f, err := os.Create(fn)
+
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
 		base.AtExit(func() {
 			// Profile all outstanding allocations.
 			runtime.GC()
-			// compilebench parses the memory profile to extract memstats,
-			// which are only written in the legacy pprof format.
-			// See golang.org/issue/18641 and runtime/pprof/pprof.go:writeHeap.
-			const writeLegacyFormat = 1
-			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
+			if err := pprof.Lookup("heap").WriteTo(f, format); err != nil {
 				base.Fatalf("%v", err)
 			}
 		})
