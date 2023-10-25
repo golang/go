@@ -391,7 +391,6 @@ type testgoData struct {
 	tempdir        string
 	ran            bool
 	inParallel     bool
-	hasNet         bool
 	stdout, stderr bytes.Buffer
 	execDir        string // dir for tg.run
 }
@@ -434,9 +433,6 @@ func (tg *testgoData) parallel() {
 	if tg.ran {
 		tg.t.Fatal("internal testsuite error: call to parallel after run")
 	}
-	if tg.hasNet {
-		tg.t.Fatal("internal testsuite error: call to parallel after acquireNet")
-	}
 	for _, e := range tg.env {
 		if strings.HasPrefix(e, "GOROOT=") || strings.HasPrefix(e, "GOPATH=") || strings.HasPrefix(e, "GOBIN=") {
 			val := e[strings.Index(e, "=")+1:]
@@ -447,25 +443,6 @@ func (tg *testgoData) parallel() {
 	}
 	tg.inParallel = true
 	tg.t.Parallel()
-}
-
-// acquireNet skips t if the network is unavailable, and otherwise acquires a
-// netTestSem token for t to be released at the end of the test.
-//
-// t.Parallel must not be called after acquireNet.
-func (tg *testgoData) acquireNet() {
-	tg.t.Helper()
-	if tg.hasNet {
-		return
-	}
-
-	testenv.MustHaveExternalNetwork(tg.t)
-	if netTestSem != nil {
-		netTestSem <- struct{}{}
-		tg.t.Cleanup(func() { <-netTestSem })
-	}
-	tg.setenv("TESTGONETWORK", "")
-	tg.hasNet = true
 }
 
 // pwd returns the current directory.
