@@ -654,39 +654,3 @@ func TestGCMAsm(t *testing.T) {
 		}
 	}
 }
-
-func BenchmarkGCMSeal(b *testing.B) {
-	key, _ := hex.DecodeString("ab72c77b97cb5fe9a382d9fe81ffdbed")
-	nonce, _ := hex.DecodeString("54cc7dc2c37ec006bcc6d1db")
-	plaintext, _ := hex.DecodeString("f1cc3818e421876bb6b8bbd6c9")
-
-	aes, _ := aes.NewCipher(key)
-	aesgcm, _ := cipher.NewGCM(aes)
-
-	ciphertext := make([]byte, 32)
-	b.SetBytes(int64(len(plaintext)))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = aesgcm.Seal(ciphertext[:0], nonce, plaintext, nil)
-	}
-}
-
-func BenchmarkGCMOpen(b *testing.B) {
-	key, _ := hex.DecodeString("ab72c77b97cb5fe9a382d9fe81ffdbed")
-	nonce, _ := hex.DecodeString("54cc7dc2c37ec006bcc6d1db")
-	plaintext, _ := hex.DecodeString("f1cc3818e421876bb6b8bbd6c9")
-
-	aes, _ := aes.NewCipher(key)
-	aesgcm, _ := cipher.NewGCM(aes)
-
-	ciphertext := aesgcm.Seal(nil, nonce, plaintext, nil)
-
-	b.SetBytes(int64(len(ciphertext)))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := aesgcm.Open(plaintext[:0], nonce, ciphertext, nil)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}

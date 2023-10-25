@@ -7,11 +7,40 @@
 package boring
 
 /*
+
 #include "goboringcrypto.h"
-#cgo noescape _goboringcrypto_EVP_AEAD_CTX_seal
-#cgo nocallback _goboringcrypto_EVP_AEAD_CTX_seal
-#cgo noescape _goboringcrypto_EVP_AEAD_CTX_open
-#cgo nocallback _goboringcrypto_EVP_AEAD_CTX_open
+
+// These wrappers allocate out_len on the C stack, and check that it matches the expected
+// value, to avoid having to pass a pointer from Go, which would escape to the heap.
+
+int EVP_AEAD_CTX_seal_wrapper(const GO_EVP_AEAD_CTX *ctx, uint8_t *out,
+							  size_t exp_out_len,
+							  const uint8_t *nonce, size_t nonce_len,
+							  const uint8_t *in, size_t in_len,
+							  const uint8_t *ad, size_t ad_len) {
+	size_t out_len;
+	int ok = _goboringcrypto_EVP_AEAD_CTX_seal(ctx, out, &out_len, exp_out_len,
+		nonce, nonce_len, in, in_len, ad, ad_len);
+	if (out_len != exp_out_len) {
+		return 0;
+	}
+	return ok;
+};
+
+int EVP_AEAD_CTX_open_wrapper(const GO_EVP_AEAD_CTX *ctx, uint8_t *out,
+							  size_t exp_out_len,
+							  const uint8_t *nonce, size_t nonce_len,
+							  const uint8_t *in, size_t in_len,
+							  const uint8_t *ad, size_t ad_len) {
+	size_t out_len;
+	int ok = _goboringcrypto_EVP_AEAD_CTX_open(ctx, out, &out_len, exp_out_len,
+		nonce, nonce_len, in, in_len, ad, ad_len);
+	if (out_len != exp_out_len) {
+		return 0;
+	}
+	return ok;
+};
+
 */
 import "C"
 import (
@@ -289,16 +318,15 @@ func (g *aesGCM) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 		panic("cipher: invalid buffer overlap")
 	}
 
-	var outLen C.size_t
-	expOutLen := C.size_t(len(plaintext) + gcmTagSize)
-	ok := C._goboringcrypto_EVP_AEAD_CTX_seal(
+	outLen := C.size_t(len(plaintext) + gcmTagSize)
+	ok := C.EVP_AEAD_CTX_seal_wrapper(
 		&g.ctx,
-		(*C.uint8_t)(unsafe.Pointer(&dst[n])), &outLen, expOutLen,
+		(*C.uint8_t)(unsafe.Pointer(&dst[n])), outLen,
 		base(nonce), C.size_t(len(nonce)),
 		base(plaintext), C.size_t(len(plaintext)),
 		base(additionalData), C.size_t(len(additionalData)))
 	runtime.KeepAlive(g)
-	if ok == 0 || outLen != expOutLen {
+	if ok == 0 {
 		panic(fail("EVP_AEAD_CTX_seal"))
 	}
 	return dst[:n+int(outLen)]
@@ -329,16 +357,15 @@ func (g *aesGCM) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, er
 		panic("cipher: invalid buffer overlap")
 	}
 
-	var outLen C.size_t
-	expOutLen := C.size_t(len(ciphertext) - gcmTagSize)
-	ok := C._goboringcrypto_EVP_AEAD_CTX_open(
+	outLen := C.size_t(len(ciphertext) - gcmTagSize)
+	ok := C.EVP_AEAD_CTX_open_wrapper(
 		&g.ctx,
-		base(dst[n:]), &outLen, expOutLen,
+		base(dst[n:]), outLen,
 		base(nonce), C.size_t(len(nonce)),
 		base(ciphertext), C.size_t(len(ciphertext)),
 		base(additionalData), C.size_t(len(additionalData)))
 	runtime.KeepAlive(g)
-	if ok == 0 || outLen != expOutLen {
+	if ok == 0 {
 		return nil, errOpen
 	}
 	return dst[:n+int(outLen)], nil
