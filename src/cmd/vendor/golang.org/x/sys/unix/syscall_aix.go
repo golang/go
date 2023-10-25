@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix
-// +build aix
 
 // Aix system calls.
 // This file is compiled as ordinary Go code,
@@ -292,9 +291,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 				break
 			}
 		}
-
-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
-		sa.Name = string(bytes)
+		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
 		return sa, nil
 
 	case AF_INET:
@@ -410,7 +407,8 @@ func (w WaitStatus) CoreDump() bool { return w&0x80 == 0x80 }
 
 func (w WaitStatus) TrapCause() int { return -1 }
 
-//sys	ioctl(fd int, req uint, arg uintptr) (err error)
+//sys	ioctl(fd int, req int, arg uintptr) (err error)
+//sys	ioctlPtr(fd int, req int, arg unsafe.Pointer) (err error) = ioctl
 
 // fcntl must never be called with cmd=F_DUP2FD because it doesn't work on AIX
 // There is no way to create a custom fcntl and to keep //sys fcntl easily,
@@ -488,8 +486,6 @@ func Fsync(fd int) error {
 //sys	Unlinkat(dirfd int, path string, flags int) (err error)
 //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
 //sys	write(fd int, p []byte) (n int, err error)
-//sys	readlen(fd int, p *byte, np int) (n int, err error) = read
-//sys	writelen(fd int, p *byte, np int) (n int, err error) = write
 
 //sys	Dup2(oldfd int, newfd int) (err error)
 //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = posix_fadvise64
@@ -536,21 +532,6 @@ func Fsync(fd int) error {
 //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error) = nsendmsg
 
 //sys	munmap(addr uintptr, length uintptr) (err error)
-
-var mapper = &mmapper{
-	active: make(map[*byte][]byte),
-	mmap:   mmap,
-	munmap: munmap,
-}
-
-func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
-	return mapper.Mmap(fd, offset, length, prot, flags)
-}
-
-func Munmap(b []byte) (err error) {
-	return mapper.Munmap(b)
-}
-
 //sys	Madvise(b []byte, advice int) (err error)
 //sys	Mprotect(b []byte, prot int) (err error)
 //sys	Mlock(b []byte) (err error)

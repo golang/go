@@ -22,3 +22,11 @@ func (f *File) walkUnexpected(x interface{}, context astContext, visit func(*Fil
 		f.walk(n.Indices, ctxExpr, visit)
 	}
 }
+
+func funcTypeTypeParams(n *ast.FuncType) *ast.FieldList {
+	return n.TypeParams
+}
+
+func typeSpecTypeParams(n *ast.TypeSpec) *ast.FieldList {
+	return n.TypeParams
+}

@@ -38,3 +38,14 @@ func TestUitoa(t *testing.T) {
 		}
 	}
 }
+
+func TestUitox(t *testing.T) {
+	tests := []uint{0, 1, 15, 100, 999, math.MaxUint32, uint(maxUint64)}
+	for _, tt := range tests {
+		got := itoa.Uitox(tt)
+		want := fmt.Sprintf("%#x", tt)
+		if want != got {
+			t.Fatalf("Uitox(%x) = %s, want %s", tt, got, want)
+		}
+	}
+}

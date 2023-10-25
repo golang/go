@@ -58,7 +58,6 @@ func syscall9X(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, 
 }
 
 //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_read
-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_write
 //sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = SYS_lseek
 //sys	getcwd(buf []byte) (n int, err error)
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error)

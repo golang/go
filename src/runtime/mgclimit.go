@@ -174,7 +174,7 @@ func (l *gcCPULimiterState) update(now int64) {
 	l.unlock()
 }
 
-// updatedLocked is the implementation of update. l.lock must be held.
+// updateLocked is the implementation of update. l.lock must be held.
 func (l *gcCPULimiterState) updateLocked(now int64) {
 	lastUpdate := l.lastUpdate.Load()
 	if now < lastUpdate {
@@ -212,6 +212,7 @@ func (l *gcCPULimiterState) updateLocked(now int64) {
 				fallthrough
 			case limiterEventIdle:
 				idleTime += duration
+				sched.idleTime.Add(duration)
 			case limiterEventMarkAssist:
 				fallthrough
 			case limiterEventScavengeAssist:

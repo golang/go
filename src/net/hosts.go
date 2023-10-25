@@ -5,7 +5,10 @@
 package net
 
 import (
+	"errors"
 	"internal/bytealg"
+	"io/fs"
+	"net/netip"
 	"sync"
 	"time"
 )
@@ -13,19 +16,11 @@ import (
 const cacheMaxAge = 5 * time.Second
 
 func parseLiteralIP(addr string) string {
-	var ip IP
-	var zone string
-	ip = parseIPv4(addr)
-	if ip == nil {
-		ip, zone = parseIPv6Zone(addr)
-	}
-	if ip == nil {
+	ip, err := netip.ParseAddr(addr)
+	if err != nil {
 		return ""
 	}
-	if zone == "" {
-		return ip.String()
-	}
-	return ip.String() + "%" + zone
+	return ip.String()
 }
 
 type byName struct {
@@ -56,7 +51,7 @@ var hosts struct {
 
 func readHosts() {
 	now := time.Now()
-	hp := testHookHostsPath
+	hp := hostsFilePath
 
 	if now.Before(hosts.expire) && hosts.path == hp && len(hosts.byName) > 0 {
 		return
@@ -70,48 +65,54 @@ func readHosts() {
 	hs := make(map[string]byName)
 	is := make(map[string][]string)
 
-	var file *file
-	if file, _ = open(hp); file == nil {
-		return
+	file, err := open(hp)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) && !errors.Is(err, fs.ErrPermission) {
+			return
+		}
 	}
-	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
-		if i := bytealg.IndexByteString(line, '#'); i >= 0 {
-			// Discard comments.
-			line = line[0:i]
-		}
-		f := getFields(line)
-		if len(f) < 2 {
-			continue
-		}
-		addr := parseLiteralIP(f[0])
-		if addr == "" {
-			continue
-		}
 
-		var canonical string
-		for i := 1; i < len(f); i++ {
-			name := absDomainName(f[i])
-			h := []byte(f[i])
-			lowerASCIIBytes(h)
-			key := absDomainName(string(h))
-
-			if i == 1 {
-				canonical = key
+	if file != nil {
+		defer file.close()
+		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+			if i := bytealg.IndexByteString(line, '#'); i >= 0 {
+				// Discard comments.
+				line = line[0:i]
 			}
-
-			is[addr] = append(is[addr], name)
-
-			if v,ok := hs[key]; ok {
-				hs[key] = byName{
-					addrs:         append(v.addrs, addr),
-					canonicalName: v.canonicalName,
-				}
+			f := getFields(line)
+			if len(f) < 2 {
+				continue
+			}
+			addr := parseLiteralIP(f[0])
+			if addr == "" {
 				continue
 			}
 
-			hs[key] = byName{
-				addrs:         []string{addr},
-				canonicalName: canonical,
+			var canonical string
+			for i := 1; i < len(f); i++ {
+				name := absDomainName(f[i])
+				h := []byte(f[i])
+				lowerASCIIBytes(h)
+				key := absDomainName(string(h))
+
+				if i == 1 {
+					canonical = key
+				}
+
+				is[addr] = append(is[addr], name)
+
+				if v, ok := hs[key]; ok {
+					hs[key] = byName{
+						addrs:         append(v.addrs, addr),
+						canonicalName: v.canonicalName,
+					}
+					continue
+				}
+
+				hs[key] = byName{
+					addrs:         []string{addr},
+					canonicalName: canonical,
+				}
 			}
 		}
 	}
@@ -122,10 +123,9 @@ func readHosts() {
 	hosts.byAddr = is
 	hosts.mtime = mtime
 	hosts.size = size
-	file.close()
 }
 
-// lookupStaticHost looks up the addresses and the cannonical name for the given host from /etc/hosts.
+// lookupStaticHost looks up the addresses and the canonical name for the given host from /etc/hosts.
 func lookupStaticHost(host string) ([]string, string) {
 	hosts.Lock()
 	defer hosts.Unlock()

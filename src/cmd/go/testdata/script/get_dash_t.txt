@@ -1,9 +1,0 @@
-# Tests issue 8181
-
-[!net] skip
-[!git] skip
-env GO111MODULE=off
-
-go get -v -t github.com/rsc/go-get-issue-8181/a github.com/rsc/go-get-issue-8181/b
-go list ...
-stdout 'x/build/gerrit'

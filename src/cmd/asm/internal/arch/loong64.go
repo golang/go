@@ -44,6 +44,17 @@ func IsLoong64MUL(op obj.As) bool {
 	return false
 }
 
+// IsLoong64RDTIME reports whether the op (as defined by an loong64.A*
+// constant) is one of the RDTIMELW/RDTIMEHW/RDTIMED instructions that
+// require special handling.
+func IsLoong64RDTIME(op obj.As) bool {
+	switch op {
+	case loong64.ARDTIMELW, loong64.ARDTIMEHW, loong64.ARDTIMED:
+		return true
+	}
+	return false
+}
+
 func loong64RegisterNumber(name string, n int16) (int16, bool) {
 	switch name {
 	case "F":

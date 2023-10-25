@@ -86,7 +86,7 @@ var unzig = [blockSize]int{
 	53, 60, 61, 54, 47, 55, 62, 63,
 }
 
-// Deprecated: Reader is not used by the image/jpeg package and should
+// Deprecated: Reader is not used by the [image/jpeg] package and should
 // not be used by others. It is kept for compatibility.
 type Reader interface {
 	io.ByteReader
@@ -164,7 +164,10 @@ func (d *decoder) fill() error {
 	n, err := d.r.Read(d.bytes.buf[d.bytes.j:])
 	d.bytes.j += n
 	if n > 0 {
-		err = nil
+		return nil
+	}
+	if err == io.EOF {
+		err = io.ErrUnexpectedEOF
 	}
 	return err
 }
@@ -261,9 +264,6 @@ func (d *decoder) readFull(p []byte) error {
 			break
 		}
 		if err := d.fill(); err != nil {
-			if err == io.EOF {
-				err = io.ErrUnexpectedEOF
-			}
 			return err
 		}
 	}
@@ -291,9 +291,6 @@ func (d *decoder) ignore(n int) error {
 			break
 		}
 		if err := d.fill(); err != nil {
-			if err == io.EOF {
-				err = io.ErrUnexpectedEOF
-			}
 			return err
 		}
 	}
@@ -770,7 +767,7 @@ func (d *decoder) convertToRGB() (image.Image, error) {
 	return img, nil
 }
 
-// Decode reads a JPEG image from r and returns it as an image.Image.
+// Decode reads a JPEG image from r and returns it as an [image.Image].
 func Decode(r io.Reader) (image.Image, error) {
 	var d decoder
 	return d.decode(r, false)

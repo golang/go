@@ -33,7 +33,7 @@ type Hash func(files []string, open func(string) (io.ReadCloser, error)) (string
 // Hash1 is "h1:" followed by the base64-encoded SHA-256 hash of a summary
 // prepared as if by the Unix command:
 //
-//	find . -type f | sort | sha256sum
+//	sha256sum $(find . -type f | sort) | sha256sum
 //
 // More precisely, the hashed summary contains a single line for each file in the list,
 // ordered by sort.Strings applied to the file names, where each line consists of
@@ -90,7 +90,10 @@ func DirFiles(dir, prefix string) ([]string, error) {
 		}
 		if info.IsDir() {
 			return nil
+		} else if file == dir {
+			return fmt.Errorf("%s is not a directory", dir)
 		}
+
 		rel := file
 		if dir != "." {
 			rel = file[len(dir)+1:]

@@ -144,7 +144,7 @@ type Arg interface {
 // the interface value instead of requiring an allocation.
 
 // A Reg is a single register.
-// The zero Reg value has no name but indicates ``no register.''
+// The zero Reg value has no name but indicates “no register.”
 type Reg uint8
 
 const (

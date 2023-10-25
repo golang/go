@@ -30,7 +30,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
 	architecture, ctxt := setArch(goarch)
 	architecture.Init(ctxt)
 	lexer := lex.NewLexer(input)
-	parser := NewParser(ctxt, architecture, lexer, false)
+	parser := NewParser(ctxt, architecture, lexer)
 	pList := new(obj.Plist)
 	var ok bool
 	testOut = new(strings.Builder) // The assembler writes test output to this buffer.
@@ -65,6 +65,11 @@ Diff:
 
 		// Ignore include of textflag.h.
 		if strings.HasPrefix(line, "#include ") {
+			continue
+		}
+
+		// Ignore GLOBL.
+		if strings.HasPrefix(line, "GLOBL ") {
 			continue
 		}
 
@@ -186,7 +191,7 @@ Diff:
 		t.Errorf(format, args...)
 		ok = false
 	}
-	obj.Flushplist(ctxt, pList, nil, "")
+	obj.Flushplist(ctxt, pList, nil)
 
 	for p := top; p != nil; p = p.Link {
 		if p.As == obj.ATEXT {
@@ -272,8 +277,9 @@ var (
 func testErrors(t *testing.T, goarch, file string, flags ...string) {
 	input := filepath.Join("testdata", file+".s")
 	architecture, ctxt := setArch(goarch)
+	architecture.Init(ctxt)
 	lexer := lex.NewLexer(input)
-	parser := NewParser(ctxt, architecture, lexer, false)
+	parser := NewParser(ctxt, architecture, lexer)
 	pList := new(obj.Plist)
 	var ok bool
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
@@ -299,7 +305,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
 		}
 	}
 	pList.Firstpc, ok = parser.Parse()
-	obj.Flushplist(ctxt, pList, nil, "")
+	obj.Flushplist(ctxt, pList, nil)
 	if ok && !failed {
 		t.Errorf("asm: %s had no errors", file)
 	}
@@ -381,6 +387,10 @@ func TestGoBuildErrors(t *testing.T) {
 	testErrors(t, "amd64", "buildtagerror")
 }
 
+func TestGenericErrors(t *testing.T) {
+	testErrors(t, "amd64", "duperror")
+}
+
 func TestARMErrors(t *testing.T) {
 	testErrors(t, "arm", "armerror")
 }
@@ -453,10 +463,14 @@ func TestLOONG64Encoder(t *testing.T) {
 }
 
 func TestPPC64EndToEnd(t *testing.T) {
-	testEndToEnd(t, "ppc64", "ppc64")
-
-	// The assembler accepts all instructions irrespective of the GOPPC64 value.
-	testEndToEnd(t, "ppc64", "ppc64_p10")
+	defer func(old int) { buildcfg.GOPPC64 = old }(buildcfg.GOPPC64)
+	for _, goppc64 := range []int{8, 9, 10} {
+		t.Logf("GOPPC64=power%d", goppc64)
+		buildcfg.GOPPC64 = goppc64
+		// Some pseudo-ops may assemble differently depending on GOPPC64
+		testEndToEnd(t, "ppc64", "ppc64")
+		testEndToEnd(t, "ppc64", "ppc64_p10")
+	}
 }
 
 func TestRISCVEndToEnd(t *testing.T) {

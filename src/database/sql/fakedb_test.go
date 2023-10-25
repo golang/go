@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -89,6 +90,8 @@ func (cc *fakeDriverCtx) OpenConnector(name string) (driver.Connector, error) {
 
 type fakeDB struct {
 	name string
+
+	useRawBytes atomic.Bool
 
 	mu       sync.Mutex
 	tables   map[string]*table
@@ -697,6 +700,8 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 		switch cmd {
 		case "WIPE":
 			// Nothing
+		case "USE_RAWBYTES":
+			c.db.useRawBytes.Store(true)
 		case "SELECT":
 			stmt, err = c.prepareSelect(stmt, parts)
 		case "CREATE":
@@ -799,6 +804,9 @@ func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 	switch s.cmd {
 	case "WIPE":
 		db.wipe()
+		return driver.ResultNoRows, nil
+	case "USE_RAWBYTES":
+		s.c.db.useRawBytes.Store(true)
 		return driver.ResultNoRows, nil
 	case "CREATE":
 		if err := db.createTable(s.table, s.colName, s.colType); err != nil {
@@ -929,6 +937,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 				txStatus = "transaction"
 			}
 			cursor := &rowsCursor{
+				db:        s.c.db,
 				parentMem: s.c,
 				posRow:    -1,
 				rows: [][]*row{
@@ -1025,6 +1034,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 	}
 
 	cursor := &rowsCursor{
+		db:        s.c.db,
 		parentMem: s.c,
 		posRow:    -1,
 		rows:      setMRows,
@@ -1067,6 +1077,7 @@ func (tx *fakeTx) Rollback() error {
 }
 
 type rowsCursor struct {
+	db        *fakeDB
 	parentMem memToucher
 	cols      [][]string
 	colType   [][]string
@@ -1141,7 +1152,7 @@ func (rc *rowsCursor) Next(dest []driver.Value) error {
 		// messing up conversions or doing them differently.
 		dest[i] = v
 
-		if bs, ok := v.([]byte); ok {
+		if bs, ok := v.([]byte); ok && !rc.db.useRawBytes.Load() {
 			if rc.bytesClone == nil {
 				rc.bytesClone = make(map[*byte][]byte)
 			}
@@ -1240,33 +1251,33 @@ func converterForType(typ string) driver.ValueConverter {
 func colTypeToReflectType(typ string) reflect.Type {
 	switch typ {
 	case "bool":
-		return reflect.TypeOf(false)
+		return reflect.TypeFor[bool]()
 	case "nullbool":
-		return reflect.TypeOf(NullBool{})
+		return reflect.TypeFor[NullBool]()
 	case "int16":
-		return reflect.TypeOf(int16(0))
+		return reflect.TypeFor[int16]()
 	case "nullint16":
-		return reflect.TypeOf(NullInt16{})
+		return reflect.TypeFor[NullInt16]()
 	case "int32":
-		return reflect.TypeOf(int32(0))
+		return reflect.TypeFor[int32]()
 	case "nullint32":
-		return reflect.TypeOf(NullInt32{})
+		return reflect.TypeFor[NullInt32]()
 	case "string":
-		return reflect.TypeOf("")
+		return reflect.TypeFor[string]()
 	case "nullstring":
-		return reflect.TypeOf(NullString{})
+		return reflect.TypeFor[NullString]()
 	case "int64":
-		return reflect.TypeOf(int64(0))
+		return reflect.TypeFor[int64]()
 	case "nullint64":
-		return reflect.TypeOf(NullInt64{})
+		return reflect.TypeFor[NullInt64]()
 	case "float64":
-		return reflect.TypeOf(float64(0))
+		return reflect.TypeFor[float64]()
 	case "nullfloat64":
-		return reflect.TypeOf(NullFloat64{})
+		return reflect.TypeFor[NullFloat64]()
 	case "datetime":
-		return reflect.TypeOf(time.Time{})
+		return reflect.TypeFor[time.Time]()
 	case "any":
-		return reflect.TypeOf(new(any)).Elem()
+		return reflect.TypeFor[any]()
 	}
 	panic("invalid fakedb column type of " + typ)
 }

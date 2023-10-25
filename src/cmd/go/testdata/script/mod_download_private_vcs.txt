@@ -1,7 +1,7 @@
 env GO111MODULE=on
 
 # Testing stderr for git ls-remote; turn off proxy.
-[!net] skip
+[!net:github.com] skip
 [!git] skip
 env GOPROXY=direct
 

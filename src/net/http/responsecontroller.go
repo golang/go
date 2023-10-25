@@ -31,6 +31,7 @@ type ResponseController struct {
 //	Hijack() (net.Conn, *bufio.ReadWriter, error)
 //	SetReadDeadline(deadline time.Time) error
 //	SetWriteDeadline(deadline time.Time) error
+//	EnableFullDuplex() error
 //
 // If the ResponseWriter does not support a method, ResponseController returns
 // an error matching ErrNotSupported.
@@ -107,6 +108,30 @@ func (c *ResponseController) SetWriteDeadline(deadline time.Time) error {
 		switch t := rw.(type) {
 		case interface{ SetWriteDeadline(time.Time) error }:
 			return t.SetWriteDeadline(deadline)
+		case rwUnwrapper:
+			rw = t.Unwrap()
+		default:
+			return errNotSupported()
+		}
+	}
+}
+
+// EnableFullDuplex indicates that the request handler will interleave reads from Request.Body
+// with writes to the ResponseWriter.
+//
+// For HTTP/1 requests, the Go HTTP server by default consumes any unread portion of
+// the request body before beginning to write the response, preventing handlers from
+// concurrently reading from the request and writing the response.
+// Calling EnableFullDuplex disables this behavior and permits handlers to continue to read
+// from the request while concurrently writing the response.
+//
+// For HTTP/2 requests, the Go HTTP server always permits concurrent reads and responses.
+func (c *ResponseController) EnableFullDuplex() error {
+	rw := c.rw
+	for {
+		switch t := rw.(type) {
+		case interface{ EnableFullDuplex() error }:
+			return t.EnableFullDuplex()
 		case rwUnwrapper:
 			rw = t.Unwrap()
 		default:

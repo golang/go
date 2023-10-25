@@ -1,2 +1,0 @@
-pkg crypto/ecdsa, method (*PrivateKey) ECDH() (*ecdh.PrivateKey, error) #56088
-pkg crypto/ecdsa, method (*PublicKey) ECDH() (*ecdh.PublicKey, error) #56088

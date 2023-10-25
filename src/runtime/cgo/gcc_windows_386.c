@@ -12,12 +12,15 @@
 #include "libcgo_windows.h"
 
 static void threadentry(void*);
+static void (*setg_gcc)(void*);
+static DWORD *tls_g;
 
 void
-x_cgo_init(G *g)
+x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 {
+	setg_gcc = setg;
+	tls_g = (DWORD *)tlsg;
 }
-
 
 void
 _cgo_sys_thread_start(ThreadStart *ts)
@@ -25,6 +28,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	_cgo_beginthread(threadentry, ts);
 }
 
+extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
 static void
 threadentry(void *v)
 {
@@ -39,11 +43,11 @@ threadentry(void *v)
 	 * Set specific keys in thread local storage.
 	 */
 	asm volatile (
-		"movl %0, %%fs:0x14\n"	// MOVL tls0, 0x14(FS)
-		"movl %%fs:0x14, %%eax\n"	// MOVL 0x14(FS), tmp
-		"movl %1, 0(%%eax)\n"	// MOVL g, 0(FS)
-		:: "r"(ts.tls), "r"(ts.g) : "%eax"
+		"movl %0, %%fs:0(%1)\n"	// MOVL tls0, 0(tls_g)(FS)
+		"movl %%fs:0(%1), %%eax\n"	// MOVL 0(tls_g)(FS), tmp
+		"movl %2, 0(%%eax)\n"	// MOVL g, 0(AX)
+		:: "r"(ts.tls), "r"(*tls_g), "r"(ts.g) : "%eax"
 	);
 
-	crosscall_386(ts.fn);
+	crosscall1(ts.fn, setg_gcc, ts.g);
 }

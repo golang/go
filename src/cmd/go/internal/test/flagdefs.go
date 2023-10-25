@@ -19,6 +19,7 @@ var passFlagToTest = map[string]bool{
 	"cpu":                  true,
 	"cpuprofile":           true,
 	"failfast":             true,
+	"fullpath":             true,
 	"fuzz":                 true,
 	"fuzzminimizetime":     true,
 	"fuzztime":             true,
@@ -39,6 +40,7 @@ var passFlagToTest = map[string]bool{
 }
 
 var passAnalyzersToVet = map[string]bool{
+	"appends":          true,
 	"asmdecl":          true,
 	"assign":           true,
 	"atomic":           true,
@@ -49,6 +51,8 @@ var passAnalyzersToVet = map[string]bool{
 	"cgocall":          true,
 	"composites":       true,
 	"copylocks":        true,
+	"defers":           true,
+	"directive":        true,
 	"errorsas":         true,
 	"framepointer":     true,
 	"httpresponse":     true,
@@ -61,11 +65,13 @@ var passAnalyzersToVet = map[string]bool{
 	"rangeloops":       true,
 	"shift":            true,
 	"sigchanyzer":      true,
+	"slog":             true,
 	"stdmethods":       true,
 	"stringintconv":    true,
 	"structtag":        true,
 	"testinggoroutine": true,
 	"tests":            true,
+	"timeformat":       true,
 	"unmarshal":        true,
 	"unreachable":      true,
 	"unsafeptr":        true,

@@ -181,7 +181,7 @@ type smagicData struct {
 	m uint64 // ⎡2^(n+s)/c⎤
 }
 
-// magic computes the constants needed to strength reduce signed n-bit divides by the constant c.
+// smagic computes the constants needed to strength reduce signed n-bit divides by the constant c.
 // Must have c>0.
 // The return values satisfy for all -2^(n-1) <= x < 2^(n-1)
 //

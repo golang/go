@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build plan9 && !race
-// +build plan9,!race
 
 package plan9
 

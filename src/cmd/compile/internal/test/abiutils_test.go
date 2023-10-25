@@ -22,7 +22,7 @@ import (
 // AMD64 registers available:
 // - integer: RAX, RBX, RCX, RDI, RSI, R8, R9, r10, R11
 // - floating point: X0 - X14
-var configAMD64 = abi.NewABIConfig(9, 15, 0)
+var configAMD64 = abi.NewABIConfig(9, 15, 0, 1)
 
 func TestMain(m *testing.M) {
 	ssagen.Arch.LinkArch = &x86.Linkamd64
@@ -157,7 +157,7 @@ func TestABIUtilsStruct1(t *testing.T) {
 	i16 := types.Types[types.TINT16]
 	i32 := types.Types[types.TINT32]
 	i64 := types.Types[types.TINT64]
-	s := mkstruct([]*types.Type{i8, i8, mkstruct([]*types.Type{}), i8, i16})
+	s := mkstruct(i8, i8, mkstruct(), i8, i16)
 	ft := mkFuncType(nil, []*types.Type{i8, s, i64},
 		[]*types.Type{s, i8, i32})
 
@@ -181,8 +181,8 @@ func TestABIUtilsStruct2(t *testing.T) {
 	//    (r1 fs, r2 fs)
 	f64 := types.Types[types.TFLOAT64]
 	i64 := types.Types[types.TINT64]
-	s := mkstruct([]*types.Type{i64, mkstruct([]*types.Type{})})
-	fs := mkstruct([]*types.Type{f64, s, mkstruct([]*types.Type{})})
+	s := mkstruct(i64, mkstruct())
+	fs := mkstruct(f64, s, mkstruct())
 	ft := mkFuncType(nil, []*types.Type{s, s, fs},
 		[]*types.Type{fs, fs})
 
@@ -213,9 +213,10 @@ func TestABIUtilsEmptyFieldAtEndOfStruct(t *testing.T) {
 	ab2 := types.NewArray(tb, 2)
 	a2 := types.NewArray(i64, 2)
 	a3 := types.NewArray(i16, 3)
-	s := mkstruct([]*types.Type{a2, mkstruct([]*types.Type{})})
-	s2 := mkstruct([]*types.Type{a3, mkstruct([]*types.Type{})})
-	fs := mkstruct([]*types.Type{f64, s, mkstruct([]*types.Type{})})
+	empty := mkstruct()
+	s := mkstruct(a2, empty)
+	s2 := mkstruct(a3, empty)
+	fs := mkstruct(f64, s, empty)
 	ft := mkFuncType(nil, []*types.Type{s, ab2, s2, fs, fs},
 		[]*types.Type{fs, ab2, fs})
 
@@ -233,12 +234,11 @@ func TestABIUtilsEmptyFieldAtEndOfStruct(t *testing.T) {
 
 	abitest(t, ft, exp)
 
-	// Check to make sure that NumParamRegs yields 2 and not 3
-	// for struct "s" (e.g. that it handles the padding properly).
-	nps := configAMD64.NumParamRegs(s)
-	if nps != 2 {
-		t.Errorf("NumParams(%v) returned %d expected %d\n",
-			s, nps, 2)
+	// Test that NumParamRegs doesn't assign registers to trailing padding.
+	typ := mkstruct(i64, i64, mkstruct())
+	have := configAMD64.NumParamRegs(typ)
+	if have != 2 {
+		t.Errorf("NumParams(%v): have %v, want %v", typ, have, 2)
 	}
 }
 
@@ -279,7 +279,7 @@ func TestABIUtilsMethod(t *testing.T) {
 	i16 := types.Types[types.TINT16]
 	i64 := types.Types[types.TINT64]
 	f64 := types.Types[types.TFLOAT64]
-	s1 := mkstruct([]*types.Type{i16, i16, i16})
+	s1 := mkstruct(i16, i16, i16)
 	ps1 := types.NewPtr(s1)
 	a7 := types.NewArray(ps1, 7)
 	ft := mkFuncType(s1, []*types.Type{ps1, a7, f64, i16, i16, i16},
@@ -313,10 +313,10 @@ func TestABIUtilsInterfaces(t *testing.T) {
 	fldt := mkFuncType(types.FakeRecvType(), []*types.Type{},
 		[]*types.Type{types.Types[types.TSTRING]})
 	field := types.NewField(src.NoXPos, typecheck.Lookup("F"), fldt)
-	nei := types.NewInterface(types.LocalPkg, []*types.Field{field}, false)
+	nei := types.NewInterface([]*types.Field{field})
 	i16 := types.Types[types.TINT16]
 	tb := types.Types[types.TBOOL]
-	s1 := mkstruct([]*types.Type{i16, i16, tb})
+	s1 := mkstruct(i16, i16, tb)
 	ft := mkFuncType(nil, []*types.Type{s1, ei, ei, nei, pei, nei, i16},
 		[]*types.Type{ei, nei, pei})
 
@@ -347,8 +347,8 @@ func TestABINumParamRegs(t *testing.T) {
 	c64 := types.Types[types.TCOMPLEX64]
 	c128 := types.Types[types.TCOMPLEX128]
 
-	s := mkstruct([]*types.Type{i8, i8, mkstruct([]*types.Type{}), i8, i16})
-	a := types.NewArray(s, 3)
+	s := mkstruct(i8, i8, mkstruct(), i8, i16)
+	a := mkstruct(s, s, s)
 
 	nrtest(t, i8, 1)
 	nrtest(t, i16, 1)
@@ -360,7 +360,6 @@ func TestABINumParamRegs(t *testing.T) {
 	nrtest(t, c128, 2)
 	nrtest(t, s, 4)
 	nrtest(t, a, 12)
-
 }
 
 func TestABIUtilsComputePadding(t *testing.T) {
@@ -369,11 +368,11 @@ func TestABIUtilsComputePadding(t *testing.T) {
 	i16 := types.Types[types.TINT16]
 	i32 := types.Types[types.TINT32]
 	i64 := types.Types[types.TINT64]
-	emptys := mkstruct([]*types.Type{})
-	s1 := mkstruct([]*types.Type{i8, i16, emptys, i32, i64})
+	emptys := mkstruct()
+	s1 := mkstruct(i8, i16, emptys, i32, i64)
 	// func (p1 int32, p2 s1, p3 emptys, p4 [1]int32)
 	a1 := types.NewArray(i32, 1)
-	ft := mkFuncType(nil, []*types.Type{i32, s1, emptys, a1}, []*types.Type{})
+	ft := mkFuncType(nil, []*types.Type{i32, s1, emptys, a1}, nil)
 
 	// Run abitest() just to document what we're expected to see.
 	exp := makeExpectedDump(`

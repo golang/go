@@ -21,7 +21,7 @@ func exportFilter(name string) bool {
 // only exported nodes remain: all top-level identifiers which are not exported
 // and their associated information (such as type, initial value, or function
 // body) are removed. Non-exported fields and methods of exported types are
-// stripped. The File.Comments list is not changed.
+// stripped. The [File.Comments] list is not changed.
 //
 // FileExports reports whether there are exported declarations.
 func FileExports(src *File) bool {
@@ -246,7 +246,7 @@ func filterDecl(decl Decl, f Filter, export bool) bool {
 // interface method names, but not from parameter lists) that don't
 // pass through the filter f. If the declaration is empty afterwards,
 // the declaration is removed from the AST. Import declarations are
-// always removed. The File.Comments list is not changed.
+// always removed. The [File.Comments] list is not changed.
 //
 // FilterFile reports whether there are any top-level declarations
 // left after filtering.
@@ -293,7 +293,7 @@ func filterPackage(pkg *Package, f Filter, export bool) bool {
 // ----------------------------------------------------------------------------
 // Merging of package files
 
-// The MergeMode flags control the behavior of MergePackageFiles.
+// The MergeMode flags control the behavior of [MergePackageFiles].
 type MergeMode uint
 
 const (
@@ -491,5 +491,5 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	}
 
 	// TODO(gri) need to compute unresolved identifiers!
-	return &File{doc, pos, NewIdent(pkg.Name), decls, minPos, maxPos, pkg.Scope, imports, nil, comments}
+	return &File{doc, pos, NewIdent(pkg.Name), decls, minPos, maxPos, pkg.Scope, imports, nil, comments, ""}
 }

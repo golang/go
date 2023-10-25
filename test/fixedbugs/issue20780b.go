@@ -1,5 +1,6 @@
-// +build cgo,linux,amd64
 // run -race
+
+//go:build cgo && linux && amd64
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

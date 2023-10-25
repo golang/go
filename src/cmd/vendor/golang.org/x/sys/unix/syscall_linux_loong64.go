@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build loong64 && linux
-// +build loong64,linux
 
 package unix
 
@@ -28,7 +27,7 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
 	if timeout != nil {
 		ts = &Timespec{Sec: timeout.Sec, Nsec: timeout.Usec * 1000}
 	}
-	return Pselect(nfd, r, w, e, ts, nil)
+	return pselect6(nfd, r, w, e, ts, nil)
 }
 
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
@@ -123,11 +122,6 @@ func setTimeval(sec, usec int64) Timeval {
 
 func Getrlimit(resource int, rlim *Rlimit) (err error) {
 	err = Prlimit(0, resource, nil, rlim)
-	return
-}
-
-func Setrlimit(resource int, rlim *Rlimit) (err error) {
-	err = Prlimit(0, resource, rlim, nil)
 	return
 }
 

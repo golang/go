@@ -1,2 +1,0 @@
-pkg archive/tar, var ErrInsecurePath error #55356
-pkg archive/zip, var ErrInsecurePath error #55356

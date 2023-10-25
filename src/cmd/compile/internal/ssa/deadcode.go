@@ -290,20 +290,6 @@ func deadcode(f *Func) {
 		b.truncateValues(i)
 	}
 
-	// Remove dead blocks from WBLoads list.
-	i = 0
-	for _, b := range f.WBLoads {
-		if reachable[b.ID] {
-			f.WBLoads[i] = b
-			i++
-		}
-	}
-	clearWBLoads := f.WBLoads[i:]
-	for j := range clearWBLoads {
-		clearWBLoads[j] = nil
-	}
-	f.WBLoads = f.WBLoads[:i]
-
 	// Remove unreachable blocks. Return dead blocks to allocator.
 	i = 0
 	for _, b := range f.Blocks {
@@ -344,7 +330,6 @@ func (b *Block) removeEdge(i int) {
 			continue
 		}
 		c.removePhiArg(v, j)
-		phielimValue(v)
 		// Note: this is trickier than it looks. Replacing
 		// a Phi with a Copy can in general cause problems because
 		// Phi and Copy don't have exactly the same semantics.

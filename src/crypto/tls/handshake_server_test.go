@@ -30,6 +30,13 @@ func testClientHello(t *testing.T, serverConfig *Config, m handshakeMessage) {
 	testClientHelloFailure(t, serverConfig, m, "")
 }
 
+// testFatal is a hack to prevent the compiler from complaining that there is a
+// call to t.Fatal from a non-test goroutine
+func testFatal(t *testing.T, err error) {
+	t.Helper()
+	t.Fatal(err)
+}
+
 func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessage, expectedSubStr string) {
 	c, s := localPipe(t)
 	go func() {
@@ -37,7 +44,9 @@ func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessa
 		if ch, ok := m.(*clientHelloMsg); ok {
 			cli.vers = ch.vers
 		}
-		cli.writeRecord(recordTypeHandshake, m.marshal())
+		if _, err := cli.writeHandshakeRecord(m, nil); err != nil {
+			testFatal(t, err)
+		}
 		c.Close()
 	}()
 	ctx := context.Background()
@@ -194,7 +203,9 @@ func TestRenegotiationExtension(t *testing.T) {
 	go func() {
 		cli := Client(c, testConfig)
 		cli.vers = clientHello.vers
-		cli.writeRecord(recordTypeHandshake, clientHello.marshal())
+		if _, err := cli.writeHandshakeRecord(clientHello, nil); err != nil {
+			testFatal(t, err)
+		}
 
 		buf := make([]byte, 1024)
 		n, err := c.Read(buf)
@@ -253,8 +264,10 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 	go func() {
 		cli := Client(c, testConfig)
 		cli.vers = clientHello.vers
-		cli.writeRecord(recordTypeHandshake, clientHello.marshal())
-		reply, err := cli.readHandshake()
+		if _, err := cli.writeHandshakeRecord(clientHello, nil); err != nil {
+			testFatal(t, err)
+		}
+		reply, err := cli.readHandshake(nil)
 		c.Close()
 		if err != nil {
 			replyChan <- err
@@ -311,8 +324,10 @@ func TestTLSPointFormats(t *testing.T) {
 			go func() {
 				cli := Client(c, testConfig)
 				cli.vers = clientHello.vers
-				cli.writeRecord(recordTypeHandshake, clientHello.marshal())
-				reply, err := cli.readHandshake()
+				if _, err := cli.writeHandshakeRecord(clientHello, nil); err != nil {
+					testFatal(t, err)
+				}
+				reply, err := cli.readHandshake(nil)
 				c.Close()
 				if err != nil {
 					replyChan <- err
@@ -1426,7 +1441,9 @@ func TestSNIGivenOnFailure(t *testing.T) {
 	go func() {
 		cli := Client(c, testConfig)
 		cli.vers = clientHello.vers
-		cli.writeRecord(recordTypeHandshake, clientHello.marshal())
+		if _, err := cli.writeHandshakeRecord(clientHello, nil); err != nil {
+			testFatal(t, err)
+		}
 		c.Close()
 	}()
 	conn := Server(s, serverConfig)

@@ -266,7 +266,7 @@ type PSSOptions struct {
 	Hash crypto.Hash
 }
 
-// HashFunc returns opts.Hash so that PSSOptions implements crypto.SignerOpts.
+// HashFunc returns opts.Hash so that [PSSOptions] implements [crypto.SignerOpts].
 func (opts *PSSOptions) HashFunc() crypto.Hash {
 	return opts.Hash
 }
@@ -285,7 +285,17 @@ var invalidSaltLenErr = errors.New("crypto/rsa: PSSOptions.SaltLength cannot be 
 // digest must be the result of hashing the input message using the given hash
 // function. The opts argument may be nil, in which case sensible defaults are
 // used. If opts.Hash is set, it overrides hash.
+//
+// The signature is randomized depending on the message, key, and salt size,
+// using bytes from rand. Most applications should use [crypto/rand.Reader] as
+// rand.
 func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, opts *PSSOptions) ([]byte, error) {
+	// Note that while we don't commit to deterministic execution with respect
+	// to the rand stream, we also don't apply MaybeReadByte, so per Hyrum's Law
+	// it's probably relied upon by some. It's a tolerable promise because a
+	// well-specified number of random bytes is included in the signature, in a
+	// well-specified way.
+
 	if boring.Enabled && rand == boring.RandReader {
 		bkey, err := boringPrivateKey(priv)
 		if err != nil {

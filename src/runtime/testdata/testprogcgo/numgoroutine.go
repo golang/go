@@ -70,7 +70,7 @@ func checkNumGoroutine(label string, want int) (string, bool) {
 	sbuf = sbuf[:runtime.Stack(sbuf, true)]
 	n = strings.Count(string(sbuf), "goroutine ")
 	if n != want {
-		fmt.Printf("%s Stack: want %d; got %d:\n%s\n", label, want, n, string(sbuf))
+		fmt.Printf("%s Stack: want %d; got %d:\n%s\n", label, want, n, sbuf)
 		return "", false
 	}
 	return string(sbuf), true

@@ -599,12 +599,6 @@ func TestInvalidValues(t *testing.T) {
 }
 
 func TestGetMUIStringValue(t *testing.T) {
-	if err := registry.LoadRegLoadMUIString(); err != nil {
-		t.Skip("regLoadMUIString not supported; skipping")
-	}
-	if err := procGetDynamicTimeZoneInformation.Find(); err != nil {
-		t.Skipf("%s not supported; skipping", procGetDynamicTimeZoneInformation.Name)
-	}
 	var dtzi DynamicTimezoneinformation
 	if _, err := GetDynamicTimeZoneInformation(&dtzi); err != nil {
 		t.Fatal(err)

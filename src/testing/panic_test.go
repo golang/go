@@ -139,7 +139,7 @@ ran outer cleanup
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			cmd := exec.Command(os.Args[0], "-test.run=TestPanicHelper")
+			cmd := exec.Command(os.Args[0], "-test.run=^TestPanicHelper$")
 			cmd.Args = append(cmd.Args, tc.flags...)
 			cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 			b, _ := cmd.CombinedOutput()
@@ -220,13 +220,13 @@ func TestMorePanic(t *testing.T) {
 	}{
 		{
 			desc:  "Issue 48502: call runtime.Goexit in t.Cleanup after panic",
-			flags: []string{"-test.run=TestGoexitInCleanupAfterPanicHelper"},
+			flags: []string{"-test.run=^TestGoexitInCleanupAfterPanicHelper$"},
 			want: `panic: die
 	panic: test executed panic(nil) or runtime.Goexit`,
 		},
 		{
 			desc:  "Issue 48515: call t.Run in t.Cleanup should trigger panic",
-			flags: []string{"-test.run=TestCallRunInCleanupHelper"},
+			flags: []string{"-test.run=^TestCallRunInCleanupHelper$"},
 			want:  `panic: testing: t.Run called during t.Cleanup`,
 		},
 	}

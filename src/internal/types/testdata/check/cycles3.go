@@ -48,7 +48,7 @@ type (
 )
 
 type (
-	U /* ERROR invalid recursive type */ interface {
+	U /* ERROR "invalid recursive type" */ interface {
 		V
 	}
 

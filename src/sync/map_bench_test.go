@@ -389,7 +389,6 @@ func BenchmarkCompareAndSwapNoExistingKey(b *testing.B) {
 }
 
 func BenchmarkCompareAndSwapValueNotEqual(b *testing.B) {
-	const n = 1 << 10
 	benchMap(b, bench{
 		setup: func(_ *testing.B, m mapInterface) {
 			m.Store(0, 0)

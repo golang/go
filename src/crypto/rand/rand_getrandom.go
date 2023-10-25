@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build linux || freebsd || dragonfly || solaris
+//go:build dragonfly || freebsd || linux || solaris
 
 package rand
 
@@ -21,7 +21,7 @@ func init() {
 		//     is returned by a single call to getrandom() on systems where int
 		//     has a size of 32 bits.
 		maxGetRandomRead = (1 << 25) - 1
-	case "freebsd", "dragonfly", "solaris", "illumos":
+	case "dragonfly", "freebsd", "illumos", "solaris":
 		maxGetRandomRead = 1 << 8
 	default:
 		panic("no maximum specified for GetRandom")

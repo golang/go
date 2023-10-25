@@ -1,5 +1,0 @@
-pkg runtime/coverage, func WriteMetaDir(string) error #51430
-pkg runtime/coverage, func WriteMeta(io.Writer) error #51430
-pkg runtime/coverage, func WriteCountersDir(string) error #51430
-pkg runtime/coverage, func WriteCounters(io.Writer) error #51430
-pkg runtime/coverage, func ClearCounters() error #51430

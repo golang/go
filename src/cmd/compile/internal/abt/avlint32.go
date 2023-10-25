@@ -37,7 +37,7 @@ func makeNode(key int32) *node32 {
 	return &node32{key: key, height_: LEAF_HEIGHT}
 }
 
-// IsSingle returns true iff t is empty.
+// IsEmpty returns true iff t is empty.
 func (t *T) IsEmpty() bool {
 	return t.root == nil
 }
@@ -570,7 +570,7 @@ func (t *node32) lub(key int32, allow_eq bool) *node32 {
 			// t is too small, lub is to right.
 			t = t.right
 		} else {
-			// t is a upper bound, record it and seek a better one.
+			// t is an upper bound, record it and seek a better one.
 			best = t
 			t = t.left
 		}

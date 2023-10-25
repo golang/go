@@ -134,7 +134,7 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
 	// Now copy the dwarf data into the output.
 	// Kernel requires all loaded segments to be page-aligned in the file,
 	// even though we mark this one as being 0 bytes of virtual address space.
-	dwarfstart := Rnd(int64(linkseg.Offset), int64(*FlagRound))
+	dwarfstart := Rnd(int64(linkseg.Offset), *FlagRound)
 	if _, err := outf.Seek(dwarfstart, 0); err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
 	if _, err := exef.Seek(int64(linkseg.Offset), 0); err != nil {
 		return err
 	}
-	linkstart := Rnd(dwarfstart+int64(dwarfsize), int64(*FlagRound))
+	linkstart := Rnd(dwarfstart+int64(dwarfsize), *FlagRound)
 	if _, err := outf.Seek(linkstart, 0); err != nil {
 		return err
 	}

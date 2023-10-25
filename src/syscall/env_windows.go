@@ -7,7 +7,6 @@
 package syscall
 
 import (
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -24,7 +23,7 @@ func Getenv(key string) (value string, found bool) {
 			return "", false
 		}
 		if n <= uint32(len(b)) {
-			return string(utf16.Decode(b[:n])), true
+			return UTF16ToString(b[:n]), true
 		}
 	}
 }
@@ -63,7 +62,7 @@ func Clearenv() {
 	for _, s := range Environ() {
 		// Environment variables can begin with =
 		// so start looking for the separator = at j=1.
-		// https://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
+		// https://devblogs.microsoft.com/oldnewthing/20100506-00/?p=14133
 		for j := 1; j < len(s); j++ {
 			if s[j] == '=' {
 				Unsetenv(s[0:j])
@@ -74,21 +73,24 @@ func Clearenv() {
 }
 
 func Environ() []string {
-	s, e := GetEnvironmentStrings()
+	envp, e := GetEnvironmentStrings()
 	if e != nil {
 		return nil
 	}
-	defer FreeEnvironmentStrings(s)
+	defer FreeEnvironmentStrings(envp)
+
 	r := make([]string, 0, 50) // Empty with room to grow.
-	for from, i, p := 0, 0, (*[1 << 24]uint16)(unsafe.Pointer(s)); true; i++ {
-		if p[i] == 0 {
-			// empty string marks the end
-			if i <= from {
-				break
-			}
-			r = append(r, string(utf16.Decode(p[from:i])))
-			from = i + 1
+	const size = unsafe.Sizeof(*envp)
+	for *envp != 0 { // environment block ends with empty string
+		// find NUL terminator
+		end := unsafe.Pointer(envp)
+		for *(*uint16)(end) != 0 {
+			end = unsafe.Add(end, size)
 		}
+
+		entry := unsafe.Slice(envp, (uintptr(end)-uintptr(unsafe.Pointer(envp)))/size)
+		r = append(r, UTF16ToString(entry))
+		envp = (*uint16)(unsafe.Add(end, size))
 	}
 	return r
 }

@@ -7,6 +7,7 @@ package ppc64
 import (
 	"bytes"
 	"fmt"
+	"internal/buildcfg"
 	"internal/testenv"
 	"math"
 	"os"
@@ -28,7 +29,7 @@ var platformEnvs = [][]string{
 const invalidPCAlignSrc = `
 TEXT test(SB),0,$0-0
 ADD $2, R3
-PCALIGN $64
+PCALIGN $128
 RET
 `
 
@@ -198,11 +199,11 @@ func TestPfxAlign(t *testing.T) {
 			t.Errorf("Failed to compile %v: %v\n", pgm, err)
 		}
 		if !strings.Contains(string(out), pgm.align) {
-			t.Errorf(fmt.Sprintf("Fatal, misaligned text with prefixed instructions:\n%s\n", string(out)))
+			t.Errorf("Fatal, misaligned text with prefixed instructions:\n%s", out)
 		}
 		hasNop := strings.Contains(string(out), "00 00 00 60")
 		if hasNop != pgm.hasNop {
-			t.Errorf(fmt.Sprintf("Fatal, prefixed instruction is missing nop padding:\n%s\n", string(out)))
+			t.Errorf("Fatal, prefixed instruction is missing nop padding:\n%s", out)
 		}
 	}
 }
@@ -551,5 +552,20 @@ func TestAddrClassifier(t *testing.T) {
 				t.Errorf("%s.aclass(%v) = %v, expected %v\n", name[i], tst.arg, DRconv(output), DRconv(expect[i]))
 			}
 		}
+	}
+}
+
+// The optab size should remain constant when reinitializing the PPC64 assembler backend.
+func TestOptabReinit(t *testing.T) {
+	buildcfg.GOOS = "linux"
+	buildcfg.GOARCH = "ppc64le"
+	buildcfg.GOPPC64 = 8
+	buildop(nil)
+	optabLen := len(optab)
+	buildcfg.GOPPC64 = 9
+	buildop(nil)
+	reinitOptabLen := len(optab)
+	if reinitOptabLen != optabLen {
+		t.Errorf("rerunning buildop changes optab size from %d to %d", optabLen, reinitOptabLen)
 	}
 }

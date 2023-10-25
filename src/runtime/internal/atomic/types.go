@@ -485,6 +485,7 @@ func (u *UnsafePointer) Store(value unsafe.Pointer) {
 }
 
 // provided by runtime
+//
 //go:linkname storePointer
 func storePointer(ptr *unsafe.Pointer, new unsafe.Pointer)
 
@@ -539,6 +540,7 @@ func (p *Pointer[T]) StoreNoWB(value *T) {
 }
 
 // Store updates the value atomically.
+//
 //go:nosplit
 func (p *Pointer[T]) Store(value *T) {
 	p.u.Store(unsafe.Pointer(value))

@@ -32,7 +32,7 @@ func newBitReader(r io.Reader) bitReader {
 
 // ReadBits64 reads the given number of bits and returns them in the
 // least-significant part of a uint64. In the event of an error, it returns 0
-// and the error can be obtained by calling Err().
+// and the error can be obtained by calling bitReader.Err().
 func (br *bitReader) ReadBits64(bits uint) (n uint64) {
 	for bits > br.bits {
 		b, err := br.r.ReadByte()
@@ -60,7 +60,7 @@ func (br *bitReader) ReadBits64(bits uint) (n uint64) {
 	//        |------------|
 	//           br.bits (num valid bits)
 	//
-	// This the next line right shifts the desired bits into the
+	// The next line right shifts the desired bits into the
 	// least-significant places and masks off anything above.
 	n = (br.n >> (br.bits - bits)) & ((1 << bits) - 1)
 	br.bits -= bits

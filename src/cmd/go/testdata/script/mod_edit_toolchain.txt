@@ -1,0 +1,18 @@
+# Test support for go mod edit -toolchain to set toolchain to use
+
+env GOTOOLCHAIN=local
+env GO111MODULE=on
+
+! grep toolchain go.mod
+go mod edit -toolchain=go1.9
+grep 'toolchain go1.9' go.mod
+
+go mod edit -toolchain=default
+grep 'toolchain default' go.mod
+
+go mod edit -toolchain=none
+! grep toolchain go.mod
+
+-- go.mod --
+module m
+go 1.8

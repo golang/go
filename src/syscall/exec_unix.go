@@ -16,7 +16,8 @@ import (
 	"unsafe"
 )
 
-// Lock synchronizing creation of new file descriptors with fork.
+// ForkLock is used to synchronize creation of new file descriptors
+// with fork.
 //
 // We want the child in a fork/exec sequence to inherit only the
 // file descriptors we intend. To do that, we mark all file
@@ -53,16 +54,14 @@ import (
 // The rules for which file descriptor-creating operations use the
 // ForkLock are as follows:
 //
-// 1) Pipe. Does not block. Use the ForkLock.
-// 2) Socket. Does not block. Use the ForkLock.
-// 3) Accept. If using non-blocking mode, use the ForkLock.
-//             Otherwise, live with the race.
-// 4) Open. Can block. Use O_CLOEXEC if available (Linux).
-//             Otherwise, live with the race.
-// 5) Dup. Does not block. Use the ForkLock.
-//             On Linux, could use fcntl F_DUPFD_CLOEXEC
-//             instead of the ForkLock, but only for dup(fd, -1).
-
+//   - Pipe. Use pipe2 if available. Otherwise, does not block,
+//     so use ForkLock.
+//   - Socket. Use SOCK_CLOEXEC if available. Otherwise, does not
+//     block, so use ForkLock.
+//   - Open. Use O_CLOEXEC if available. Otherwise, may block,
+//     so live with the race.
+//   - Dup. Use F_DUPFD_CLOEXEC or dup3 if available. Otherwise,
+//     does not block, so use ForkLock.
 var ForkLock sync.RWMutex
 
 // StringSlicePtr converts a slice of strings to a slice of pointers
@@ -107,6 +106,9 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
 	flag, err := fcntl(fd, F_GETFL, 0)
 	if err != nil {
 		return err
+	}
+	if (flag&O_NONBLOCK != 0) == nonblocking {
+		return nil
 	}
 	if nonblocking {
 		flag |= O_NONBLOCK
@@ -166,7 +168,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		return 0, err
 	}
 
-	if (runtime.GOOS == "freebsd" || runtime.GOOS == "dragonfly") && len(argv[0]) > len(argv0) {
+	if (runtime.GOOS == "freebsd" || runtime.GOOS == "dragonfly") && len(argv) > 0 && len(argv[0]) > len(argv0) {
 		argvp[0] = argv0p
 	}
 
@@ -194,14 +196,11 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		return 0, errorspkg.New("Setctty set but Ctty not valid in child")
 	}
 
-	// Acquire the fork lock so that no other threads
-	// create new fds that are not yet close-on-exec
-	// before we fork.
-	ForkLock.Lock()
+	acquireForkLock()
 
 	// Allocate child status pipe close on exec.
 	if err = forkExecPipe(p[:]); err != nil {
-		ForkLock.Unlock()
+		releaseForkLock()
 		return 0, err
 	}
 
@@ -210,10 +209,10 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	if err1 != 0 {
 		Close(p[0])
 		Close(p[1])
-		ForkLock.Unlock()
+		releaseForkLock()
 		return 0, Errno(err1)
 	}
-	ForkLock.Unlock()
+	releaseForkLock()
 
 	// Read child error status from pipe.
 	Close(p[1])
@@ -282,6 +281,11 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 	}
 	runtime_BeforeExec()
 
+	rlim := origRlimitNofile.Load()
+	if rlim != nil {
+		Setrlimit(RLIMIT_NOFILE, rlim)
+	}
+
 	var err1 error
 	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "aix" {
 		// RawSyscall should never be used on Solaris, illumos, or AIX.
@@ -292,7 +296,7 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 	} else if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		// Similarly on Darwin.
 		err1 = execveDarwin(argv0p, &argvp[0], &envvp[0])
-	} else if runtime.GOOS == "openbsd" && (runtime.GOARCH == "386" || runtime.GOARCH == "amd64" || runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	} else if runtime.GOOS == "openbsd" && runtime.GOARCH != "mips64" {
 		// Similarly on OpenBSD.
 		err1 = execveOpenBSD(argv0p, &argvp[0], &envvp[0])
 	} else {

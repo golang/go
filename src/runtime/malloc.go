@@ -117,8 +117,6 @@ const (
 	pageShift = _PageShift
 	pageSize  = _PageSize
 
-	concurrentSweep = _ConcurrentSweep
-
 	_PageSize = 1 << _PageShift
 	_PageMask = _PageSize - 1
 
@@ -323,6 +321,28 @@ const (
 	//
 	// This should agree with minZeroPage in the compiler.
 	minLegalPointer uintptr = 4096
+
+	// minHeapForMetadataHugePages sets a threshold on when certain kinds of
+	// heap metadata, currently the arenas map L2 entries and page alloc bitmap
+	// mappings, are allowed to be backed by huge pages. If the heap goal ever
+	// exceeds this threshold, then huge pages are enabled.
+	//
+	// These numbers are chosen with the assumption that huge pages are on the
+	// order of a few MiB in size.
+	//
+	// The kind of metadata this applies to has a very low overhead when compared
+	// to address space used, but their constant overheads for small heaps would
+	// be very high if they were to be backed by huge pages (e.g. a few MiB makes
+	// a huge difference for an 8 MiB heap, but barely any difference for a 1 GiB
+	// heap). The benefit of huge pages is also not worth it for small heaps,
+	// because only a very, very small part of the metadata is used for small heaps.
+	//
+	// N.B. If the heap goal exceeds the threshold then shrinks to a very small size
+	// again, then huge pages will still be enabled for this mapping. The reason is that
+	// there's no point unless we're also returning the physical memory for these
+	// metadata mappings back to the OS. That would be quite complex to do in general
+	// as the heap is likely fragmented after a reduction in heap size.
+	minHeapForMetadataHugePages = 1 << 30
 )
 
 // physPageSize is the size in bytes of the OS's physical pages.
@@ -403,6 +423,10 @@ func mallocinit() {
 	if pagesPerArena%pagesPerReclaimerChunk != 0 {
 		print("pagesPerArena (", pagesPerArena, ") is not divisible by pagesPerReclaimerChunk (", pagesPerReclaimerChunk, ")\n")
 		throw("bad pagesPerReclaimerChunk")
+	}
+
+	if minTagBits > taggedPointerBits {
+		throw("taggedPointerbits too small")
 	}
 
 	// Initialize the heap.
@@ -571,6 +595,9 @@ func mallocinit() {
 		userArenaHint.addr = p
 		userArenaHint.next, mheap_.userArena.arenaHints = mheap_.userArena.arenaHints, userArenaHint
 	}
+	// Initialize the memory limit here because the allocator is going to look at it
+	// but we haven't called gcinit yet and we're definitely going to allocate memory before then.
+	gcController.memoryLimit.Store(maxInt64)
 }
 
 // sysAlloc allocates heap arena space for at least n bytes. The
@@ -711,6 +738,11 @@ mapped:
 			if l2 == nil {
 				throw("out of memory allocating heap arena map")
 			}
+			if h.arenasHugePages {
+				sysHugePage(unsafe.Pointer(l2), unsafe.Sizeof(*l2))
+			} else {
+				sysNoHugePage(unsafe.Pointer(l2), unsafe.Sizeof(*l2))
+			}
 			atomic.StorepNoWB(unsafe.Pointer(&h.arenas[ri.l1()]), unsafe.Pointer(l2))
 		}
 
@@ -810,6 +842,42 @@ retry:
 	}
 }
 
+// enableMetadataHugePages enables huge pages for various sources of heap metadata.
+//
+// A note on latency: for sufficiently small heaps (<10s of GiB) this function will take constant
+// time, but may take time proportional to the size of the mapped heap beyond that.
+//
+// This function is idempotent.
+//
+// The heap lock must not be held over this operation, since it will briefly acquire
+// the heap lock.
+func (h *mheap) enableMetadataHugePages() {
+	// Enable huge pages for page structure.
+	h.pages.enableChunkHugePages()
+
+	// Grab the lock and set arenasHugePages if it's not.
+	//
+	// Once arenasHugePages is set, all new L2 entries will be eligible for
+	// huge pages. We'll set all the old entries after we release the lock.
+	lock(&h.lock)
+	if h.arenasHugePages {
+		unlock(&h.lock)
+		return
+	}
+	h.arenasHugePages = true
+	unlock(&h.lock)
+
+	// N.B. The arenas L1 map is quite small on all platforms, so it's fine to
+	// just iterate over the whole thing.
+	for i := range h.arenas {
+		l2 := (*[1 << arenaL2Bits]*heapArena)(atomic.Loadp(unsafe.Pointer(&h.arenas[i])))
+		if l2 == nil {
+			continue
+		}
+		sysHugePage(unsafe.Pointer(l2), unsafe.Sizeof(*l2))
+	}
+}
+
 // base address for all 0-byte allocations
 var zerobase uintptr
 
@@ -818,7 +886,7 @@ var zerobase uintptr
 func nextFreeFast(s *mspan) gclinkptr {
 	theBit := sys.TrailingZeros64(s.allocCache) // Is there a free object in the allocCache?
 	if theBit < 64 {
-		result := s.freeindex + uintptr(theBit)
+		result := s.freeindex + uint16(theBit)
 		if result < s.nelems {
 			freeidx := result + 1
 			if freeidx%64 == 0 && freeidx != s.nelems {
@@ -827,7 +895,7 @@ func nextFreeFast(s *mspan) gclinkptr {
 			s.allocCache >>= uint(theBit + 1)
 			s.freeindex = freeidx
 			s.allocCount++
-			return gclinkptr(result*s.elemsize + s.base())
+			return gclinkptr(uintptr(result)*s.elemsize + s.base())
 		}
 	}
 	return 0
@@ -848,7 +916,7 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
 	freeIndex := s.nextFreeIndex()
 	if freeIndex == s.nelems {
 		// The span is full.
-		if uintptr(s.allocCount) != s.nelems {
+		if s.allocCount != s.nelems {
 			println("runtime: s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
 			throw("s.allocCount != s.nelems && freeIndex == s.nelems")
 		}
@@ -863,9 +931,9 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
 		throw("freeIndex is not valid")
 	}
 
-	v = gclinkptr(freeIndex*s.elemsize + s.base())
+	v = gclinkptr(uintptr(freeIndex)*s.elemsize + s.base())
 	s.allocCount++
-	if uintptr(s.allocCount) > s.nelems {
+	if s.allocCount > s.nelems {
 		println("s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
 		throw("s.allocCount > s.nelems")
 	}
@@ -949,7 +1017,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	}
 	var span *mspan
 	var x unsafe.Pointer
-	noscan := typ == nil || typ.ptrdata == 0
+	noscan := typ == nil || typ.PtrBytes == 0
 	// In some cases block zeroing can profitably (for latency reduction purposes)
 	// be delayed till preemption is possible; delayedZeroing tracks that state.
 	delayedZeroing := false
@@ -1072,15 +1140,15 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if !noscan {
 		var scanSize uintptr
 		heapBitsSetType(uintptr(x), size, dataSize, typ)
-		if dataSize > typ.size {
+		if dataSize > typ.Size_ {
 			// Array allocation. If there are any
 			// pointers, GC has to scan to the last
 			// element.
-			if typ.ptrdata != 0 {
-				scanSize = dataSize - typ.size + typ.ptrdata
+			if typ.PtrBytes != 0 {
+				scanSize = dataSize - typ.Size_ + typ.PtrBytes
 			}
 		} else {
-			scanSize = typ.ptrdata
+			scanSize = typ.PtrBytes
 		}
 		c.scanAlloc += scanSize
 	}
@@ -1094,7 +1162,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	publicationBarrier()
 	// As x and the heap bits are initialized, update
 	// freeIndexForScan now so x is seen by the GC
-	// (including convervative scan) as an allocated object.
+	// (including conservative scan) as an allocated object.
 	// While this pointer can't escape into user code as a
 	// _live_ pointer until we return, conservative scanning
 	// may find a dead pointer that happens to point into this
@@ -1251,25 +1319,25 @@ func memclrNoHeapPointersChunked(size uintptr, x unsafe.Pointer) {
 // compiler (both frontend and SSA backend) knows the signature
 // of this function.
 func newobject(typ *_type) unsafe.Pointer {
-	return mallocgc(typ.size, typ, true)
+	return mallocgc(typ.Size_, typ, true)
 }
 
 //go:linkname reflect_unsafe_New reflect.unsafe_New
 func reflect_unsafe_New(typ *_type) unsafe.Pointer {
-	return mallocgc(typ.size, typ, true)
+	return mallocgc(typ.Size_, typ, true)
 }
 
 //go:linkname reflectlite_unsafe_New internal/reflectlite.unsafe_New
 func reflectlite_unsafe_New(typ *_type) unsafe.Pointer {
-	return mallocgc(typ.size, typ, true)
+	return mallocgc(typ.Size_, typ, true)
 }
 
 // newarray allocates an array of n elements of type typ.
 func newarray(typ *_type, n int) unsafe.Pointer {
 	if n == 1 {
-		return mallocgc(typ.size, typ, true)
+		return mallocgc(typ.Size_, typ, true)
 	}
-	mem, overflow := math.MulUintptr(typ.size, uintptr(n))
+	mem, overflow := math.MulUintptr(typ.Size_, uintptr(n))
 	if overflow || mem > maxAlloc || n < 0 {
 		panic(plainError("runtime: allocation size out of range"))
 	}

@@ -1,5 +1,6 @@
 # go list all should work with GOOS=linux because all packages build on Linux
 env GOOS=linux
+env GOARCH=amd64
 go list all
 
 # go list all should work with GOOS=darwin, but it used to fail because

@@ -15,11 +15,11 @@ func TestClash(t *testing.T) {
 	m := &cmerge.Merger{}
 	err := m.SetModeAndGranularity("mdf1.data", coverage.CtrModeSet, coverage.CtrGranularityPerBlock)
 	if err != nil {
-		t.Fatalf("unexpected clash")
+		t.Fatalf("unexpected clash: %v", err)
 	}
 	err = m.SetModeAndGranularity("mdf1.data", coverage.CtrModeSet, coverage.CtrGranularityPerBlock)
 	if err != nil {
-		t.Fatalf("unexpected clash")
+		t.Fatalf("unexpected clash: %v", err)
 	}
 	err = m.SetModeAndGranularity("mdf1.data", coverage.CtrModeCount, coverage.CtrGranularityPerBlock)
 	if err == nil {
@@ -29,10 +29,23 @@ func TestClash(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected granularity clash, not found")
 	}
+	m.SetModeMergePolicy(cmerge.ModeMergeRelaxed)
+	err = m.SetModeAndGranularity("mdf1.data", coverage.CtrModeCount, coverage.CtrGranularityPerBlock)
+	if err != nil {
+		t.Fatalf("unexpected clash: %v", err)
+	}
+	err = m.SetModeAndGranularity("mdf1.data", coverage.CtrModeSet, coverage.CtrGranularityPerBlock)
+	if err != nil {
+		t.Fatalf("unexpected clash: %v", err)
+	}
+	err = m.SetModeAndGranularity("mdf1.data", coverage.CtrModeAtomic, coverage.CtrGranularityPerBlock)
+	if err != nil {
+		t.Fatalf("unexpected clash: %v", err)
+	}
 	m.ResetModeAndGranularity()
 	err = m.SetModeAndGranularity("mdf1.data", coverage.CtrModeCount, coverage.CtrGranularityPerFunc)
 	if err != nil {
-		t.Fatalf("unexpected clash after reset")
+		t.Fatalf("unexpected clash after reset: %v", err)
 	}
 }
 

@@ -71,6 +71,42 @@ var _cgo_thread_start = &x_cgo_thread_start
 var x_cgo_sys_thread_create byte
 var _cgo_sys_thread_create = &x_cgo_sys_thread_create
 
+// Indicates whether a dummy thread key has been created or not.
+//
+// When calling go exported function from C, we register a destructor
+// callback, for a dummy thread key, by using pthread_key_create.
+
+//go:cgo_import_static x_cgo_pthread_key_created
+//go:linkname x_cgo_pthread_key_created x_cgo_pthread_key_created
+//go:linkname _cgo_pthread_key_created _cgo_pthread_key_created
+var x_cgo_pthread_key_created byte
+var _cgo_pthread_key_created = &x_cgo_pthread_key_created
+
+// Export crosscall2 to a c function pointer variable.
+// Used to dropm in pthread key destructor, while C thread is exiting.
+
+//go:cgo_import_static x_crosscall2_ptr
+//go:linkname x_crosscall2_ptr x_crosscall2_ptr
+//go:linkname _crosscall2_ptr _crosscall2_ptr
+var x_crosscall2_ptr byte
+var _crosscall2_ptr = &x_crosscall2_ptr
+
+// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+// It's for the runtime package to call at init time.
+func set_crosscall2()
+
+//go:linkname _set_crosscall2 runtime.set_crosscall2
+var _set_crosscall2 = set_crosscall2
+
+// Store the g into the thread-specific value.
+// So that pthread_key_destructor will dropm when the thread is exiting.
+
+//go:cgo_import_static x_cgo_bindm
+//go:linkname x_cgo_bindm x_cgo_bindm
+//go:linkname _cgo_bindm _cgo_bindm
+var x_cgo_bindm byte
+var _cgo_bindm = &x_cgo_bindm
+
 // Notifies that the runtime has been initialized.
 //
 // We currently block at every CGO entry point (via _cgo_wait_runtime_init_done)
@@ -105,3 +141,12 @@ var _cgo_yield unsafe.Pointer
 
 //go:cgo_export_static _cgo_topofstack
 //go:cgo_export_dynamic _cgo_topofstack
+
+// x_cgo_getstackbound gets the thread's C stack size and
+// set the G's stack bound based on the stack size.
+
+//go:cgo_import_static x_cgo_getstackbound
+//go:linkname x_cgo_getstackbound x_cgo_getstackbound
+//go:linkname _cgo_getstackbound _cgo_getstackbound
+var x_cgo_getstackbound byte
+var _cgo_getstackbound = &x_cgo_getstackbound

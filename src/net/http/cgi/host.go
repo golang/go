@@ -39,7 +39,7 @@ var osDefaultInheritEnv = func() []string {
 	switch runtime.GOOS {
 	case "darwin", "ios":
 		return []string{"DYLD_LIBRARY_PATH"}
-	case "linux", "freebsd", "netbsd", "openbsd":
+	case "android", "linux", "freebsd", "netbsd", "openbsd":
 		return []string{"LD_LIBRARY_PATH"}
 	case "hpux":
 		return []string{"LD_LIBRARY_PATH", "SHLIB_PATH"}
@@ -132,6 +132,9 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	port := "80"
+	if req.TLS != nil {
+		port = "443"
+	}
 	if matches := trailingPort.FindStringSubmatch(req.Host); len(matches) != 0 {
 		port = matches[1]
 	}

@@ -1,6 +1,6 @@
 env GO111MODULE=on
 
-[!net] skip
+[short] skip
 [!git] skip
 
 env GOPROXY=direct

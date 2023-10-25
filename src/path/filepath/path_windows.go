@@ -222,31 +222,37 @@ func abs(path string) (string, error) {
 
 func join(elem []string) string {
 	var b strings.Builder
-	appendSep := false
+	var lastChar byte
 	for _, e := range elem {
-		// Strip leading slashes from everything after the first element,
-		// to avoid creating a UNC path (any path starting with "\\") from
-		// non-UNC elements.
-		//
-		// The correct behavior for Join when the first element is an incomplete UNC
-		// path (for example, "\\") is underspecified. We currently join subsequent
-		// elements so Join("\\", "host", "share") produces "\\host\share".
-		for b.Len() > 0 && len(e) > 0 && isSlash(e[0]) {
-			e = e[1:]
-		}
-		if e == "" {
-			continue
-		}
-		if appendSep {
+		switch {
+		case b.Len() == 0:
+			// Add the first non-empty path element unchanged.
+		case isSlash(lastChar):
+			// If the path ends in a slash, strip any leading slashes from the next
+			// path element to avoid creating a UNC path (any path starting with "\\")
+			// from non-UNC elements.
+			//
+			// The correct behavior for Join when the first element is an incomplete UNC
+			// path (for example, "\\") is underspecified. We currently join subsequent
+			// elements so Join("\\", "host", "share") produces "\\host\share".
+			for len(e) > 0 && isSlash(e[0]) {
+				e = e[1:]
+			}
+		case lastChar == ':':
+			// If the path ends in a colon, keep the path relative to the current directory
+			// on a drive and don't add a separator. Preserve leading slashes in the next
+			// path element, which may make the path absolute.
+			//
+			// 	Join(`C:`, `f`) = `C:f`
+			//	Join(`C:`, `\f`) = `C:\f`
+		default:
+			// In all other cases, add a separator between elements.
 			b.WriteByte('\\')
+			lastChar = '\\'
 		}
-		b.WriteString(e)
-		appendSep = !isSlash(e[len(e)-1])
-		if b.Len() == 2 && volumeNameLen(b.String()) == 2 {
-			// If the string is two characters long and consists of nothing but
-			// a volume name, this is either a drive ("C:") or the start of an
-			// incomplete UNC path ("\\"). In either case, don't append a separator.
-			appendSep = false
+		if len(e) > 0 {
+			b.WriteString(e)
+			lastChar = e[len(e)-1]
 		}
 	}
 	if b.Len() == 0 {

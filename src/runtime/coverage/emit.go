@@ -14,8 +14,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
+	"strconv"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -241,7 +241,7 @@ func prepareForMetaEmit() ([]rtcov.CovMetaBlob, error) {
 	return ml, nil
 }
 
-// emitMetaData emits the meta-data output file to the specified
+// emitMetaDataToDirectory emits the meta-data output file to the specified
 // directory, returning an error if something went wrong.
 func emitMetaDataToDirectory(outdir string, ml []rtcov.CovMetaBlob) error {
 	ml, err := prepareForMetaEmit()
@@ -289,7 +289,7 @@ func emitCounterData() {
 	}
 }
 
-// emitMetaData emits the counter-data output file for this coverage run.
+// emitCounterDataToDirectory emits the counter-data output file for this coverage run.
 func emitCounterDataToDirectory(outdir string) error {
 	// Ask the runtime for the list of coverage counter symbols.
 	cl := getCovCounterList()
@@ -336,7 +336,7 @@ func emitCounterDataToDirectory(outdir string) error {
 	return nil
 }
 
-// emitMetaData emits counter data for this coverage run to an io.Writer.
+// emitCounterDataToWriter emits counter data for this coverage run to an io.Writer.
 func (s *emitState) emitCounterDataToWriter(w io.Writer) error {
 	if err := s.emitCounterDataFile(finalHash, w); err != nil {
 		return err
@@ -357,7 +357,7 @@ func (s *emitState) openMetaFile(metaHash [16]byte, metaLen uint64) error {
 	fi, err := os.Stat(s.mfname)
 	if err != nil || fi.Size() != int64(metaLen) {
 		// We need a new meta-file.
-		tname := "tmp." + fn + fmt.Sprintf("%d", time.Now().UnixNano())
+		tname := "tmp." + fn + strconv.FormatInt(time.Now().UnixNano(), 10)
 		s.mftmp = filepath.Join(s.outdir, tname)
 		s.mf, err = os.Create(s.mftmp)
 		if err != nil {
@@ -446,72 +446,16 @@ func (s *emitState) needMetaDataFile() bool {
 func writeMetaData(w io.Writer, metalist []rtcov.CovMetaBlob, cmode coverage.CounterMode, gran coverage.CounterGranularity, finalHash [16]byte) error {
 	mfw := encodemeta.NewCoverageMetaFileWriter("<io.Writer>", w)
 
-	// Note: "sd" is re-initialized on each iteration of the loop
-	// below, and would normally be declared inside the loop, but
-	// placed here escape analysis since we capture it in bufHdr.
-	var sd []byte
-	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
-
 	var blobs [][]byte
 	for _, e := range metalist {
-		bufHdr.Data = uintptr(unsafe.Pointer(e.P))
-		bufHdr.Len = int(e.Len)
-		bufHdr.Cap = int(e.Len)
+		sd := unsafe.Slice(e.P, int(e.Len))
 		blobs = append(blobs, sd)
 	}
 	return mfw.Write(finalHash, blobs, cmode, gran)
 }
 
-func (s *emitState) NumFuncs() (int, error) {
-	var sd []atomic.Uint32
-	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
-
-	totalFuncs := 0
-	for _, c := range s.counterlist {
-		bufHdr.Data = uintptr(unsafe.Pointer(c.Counters))
-		bufHdr.Len = int(c.Len)
-		bufHdr.Cap = int(c.Len)
-		for i := 0; i < len(sd); i++ {
-			// Skip ahead until the next non-zero value.
-			sdi := sd[i].Load()
-			if sdi == 0 {
-				continue
-			}
-
-			// We found a function that was executed.
-			nCtrs := sdi
-
-			// Check to make sure that we have at least one live
-			// counter. See the implementation note in ClearCoverageCounters
-			// for a description of why this is needed.
-			isLive := false
-			st := i + coverage.FirstCtrOffset
-			counters := sd[st : st+int(nCtrs)]
-			for i := 0; i < len(counters); i++ {
-				if counters[i].Load() != 0 {
-					isLive = true
-					break
-				}
-			}
-			if !isLive {
-				// Skip this function.
-				i += coverage.FirstCtrOffset + int(nCtrs) - 1
-				continue
-			}
-
-			totalFuncs++
-
-			// Move to the next function.
-			i += coverage.FirstCtrOffset + int(nCtrs) - 1
-		}
-	}
-	return totalFuncs, nil
-}
-
 func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
-	var sd []atomic.Uint32
 	var tcounters []uint32
-	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
 
 	rdCounters := func(actrs []atomic.Uint32, ctrs []uint32) []uint32 {
 		ctrs = ctrs[:0]
@@ -523,9 +467,7 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
 
 	dpkg := uint32(0)
 	for _, c := range s.counterlist {
-		bufHdr.Data = uintptr(unsafe.Pointer(c.Counters))
-		bufHdr.Len = int(c.Len)
-		bufHdr.Cap = int(c.Len)
+		sd := unsafe.Slice((*atomic.Uint32)(unsafe.Pointer(c.Counters)), int(c.Len))
 		for i := 0; i < len(sd); i++ {
 			// Skip ahead until the next non-zero value.
 			sdi := sd[i].Load()
@@ -613,7 +555,7 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
 // is also used to capture GOOS + GOARCH values as well.
 func captureOsArgs() map[string]string {
 	m := make(map[string]string)
-	m["argc"] = fmt.Sprintf("%d", len(os.Args))
+	m["argc"] = strconv.Itoa(len(os.Args))
 	for k, a := range os.Args {
 		m[fmt.Sprintf("argv%d", k)] = a
 	}
@@ -633,7 +575,7 @@ func (s *emitState) emitCounterDataFile(finalHash [16]byte, w io.Writer) error {
 }
 
 // markProfileEmitted signals the runtime/coverage machinery that
-// coverate data output files have already been written out, and there
+// coverage data output files have already been written out, and there
 // is no need to take any additional action at exit time. This
 // function is called (via linknamed reference) from the
 // coverage-related boilerplate code in _testmain.go emitted for go

@@ -81,13 +81,13 @@ func CoreType(T types.Type) types.Type {
 // restrictions may be arbitrarily complex. For example, consider the
 // following:
 //
-//  type A interface{ ~string|~[]byte }
+//	type A interface{ ~string|~[]byte }
 //
-//  type B interface{ int|string }
+//	type B interface{ int|string }
 //
-//  type C interface { ~string|~int }
+//	type C interface { ~string|~int }
 //
-//  type T[P interface{ A|B; C }] int
+//	type T[P interface{ A|B; C }] int
 //
 // In this example, the structural type restriction of P is ~string|int: A|B
 // expands to ~string|~[]byte|int|string, which reduces to ~string|~[]byte|int,

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !windows
+//go:build !windows && !darwin
 
 package pprof
 
@@ -25,6 +25,6 @@ func (b *profileBuilder) readMapping() {
 	}
 }
 
-func readMainModuleMapping() (start, end uint64, err error) {
-	return 0, 0, errors.New("not implemented")
+func readMainModuleMapping() (start, end uint64, exe, buildID string, err error) {
+	return 0, 0, "", "", errors.New("not implemented")
 }

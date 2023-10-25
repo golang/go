@@ -18,10 +18,12 @@ var (
 	libc_ioctl,
 	libc_setgid,
 	libc_setgroups,
+	libc_setrlimit,
 	libc_setsid,
 	libc_setuid,
 	libc_setpgid,
 	libc_syscall,
+	libc_issetugid,
 	libc_wait4 libcFunc
 )
 
@@ -229,6 +231,19 @@ func syscall_setgroups(ngid, gid uintptr) (err uintptr) {
 		fn:   uintptr(unsafe.Pointer(&libc_setgroups)),
 		n:    2,
 		args: uintptr(unsafe.Pointer(&ngid)),
+	}
+	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&call))
+	return call.err
+}
+
+//go:nosplit
+//go:linkname syscall_setrlimit
+//go:cgo_unsafe_args
+func syscall_setrlimit(which uintptr, lim unsafe.Pointer) (err uintptr) {
+	call := libcall{
+		fn:   uintptr(unsafe.Pointer(&libc_setrlimit)),
+		n:    2,
+		args: uintptr(unsafe.Pointer(&which)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&call))
 	return call.err

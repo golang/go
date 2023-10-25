@@ -9,51 +9,59 @@ import (
 	"math"
 	"math/rand"
 	"reflect"
+	"strings"
 	"testing"
 )
 
-var validTests = []struct {
-	data string
-	ok   bool
-}{
-	{`foo`, false},
-	{`}{`, false},
-	{`{]`, false},
-	{`{}`, true},
-	{`{"foo":"bar"}`, true},
-	{`{"foo":"bar","bar":{"baz":["qux"]}}`, true},
+func indentNewlines(s string) string {
+	return strings.Join(strings.Split(s, "\n"), "\n\t")
+}
+
+func stripWhitespace(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == ' ' || r == '\n' || r == '\r' || r == '\t' {
+			return -1
+		}
+		return r
+	}, s)
 }
 
 func TestValid(t *testing.T) {
-	for _, tt := range validTests {
-		if ok := Valid([]byte(tt.data)); ok != tt.ok {
-			t.Errorf("Valid(%#q) = %v, want %v", tt.data, ok, tt.ok)
-		}
+	tests := []struct {
+		CaseName
+		data string
+		ok   bool
+	}{
+		{Name(""), `foo`, false},
+		{Name(""), `}{`, false},
+		{Name(""), `{]`, false},
+		{Name(""), `{}`, true},
+		{Name(""), `{"foo":"bar"}`, true},
+		{Name(""), `{"foo":"bar","bar":{"baz":["qux"]}}`, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			if ok := Valid([]byte(tt.data)); ok != tt.ok {
+				t.Errorf("%s: Valid(`%s`) = %v, want %v", tt.Where, tt.data, ok, tt.ok)
+			}
+		})
 	}
 }
 
-// Tests of simple examples.
-
-type example struct {
-	compact string
-	indent  string
-}
-
-var examples = []example{
-	{`1`, `1`},
-	{`{}`, `{}`},
-	{`[]`, `[]`},
-	{`{"":2}`, "{\n\t\"\": 2\n}"},
-	{`[3]`, "[\n\t3\n]"},
-	{`[1,2,3]`, "[\n\t1,\n\t2,\n\t3\n]"},
-	{`{"x":1}`, "{\n\t\"x\": 1\n}"},
-	{ex1, ex1i},
-	{"{\"\":\"<>&\u2028\u2029\"}", "{\n\t\"\": \"<>&\u2028\u2029\"\n}"}, // See golang.org/issue/34070
-}
-
-var ex1 = `[true,false,null,"x",1,1.5,0,-5e+2]`
-
-var ex1i = `[
+func TestCompactAndIndent(t *testing.T) {
+	tests := []struct {
+		CaseName
+		compact string
+		indent  string
+	}{
+		{Name(""), `1`, `1`},
+		{Name(""), `{}`, `{}`},
+		{Name(""), `[]`, `[]`},
+		{Name(""), `{"":2}`, "{\n\t\"\": 2\n}"},
+		{Name(""), `[3]`, "[\n\t3\n]"},
+		{Name(""), `[1,2,3]`, "[\n\t1,\n\t2,\n\t3\n]"},
+		{Name(""), `{"x":1}`, "{\n\t\"x\": 1\n}"},
+		{Name(""), `[true,false,null,"x",1,1.5,0,-5e+2]`, `[
 	true,
 	false,
 	null,
@@ -62,25 +70,40 @@ var ex1i = `[
 	1.5,
 	0,
 	-5e+2
-]`
-
-func TestCompact(t *testing.T) {
+]`},
+		{Name(""), "{\"\":\"<>&\u2028\u2029\"}", "{\n\t\"\": \"<>&\u2028\u2029\"\n}"}, // See golang.org/issue/34070
+	}
 	var buf bytes.Buffer
-	for _, tt := range examples {
-		buf.Reset()
-		if err := Compact(&buf, []byte(tt.compact)); err != nil {
-			t.Errorf("Compact(%#q): %v", tt.compact, err)
-		} else if s := buf.String(); s != tt.compact {
-			t.Errorf("Compact(%#q) = %#q, want original", tt.compact, s)
-		}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			buf.Reset()
+			if err := Compact(&buf, []byte(tt.compact)); err != nil {
+				t.Errorf("%s: Compact error: %v", tt.Where, err)
+			} else if got := buf.String(); got != tt.compact {
+				t.Errorf("%s: Compact:\n\tgot:  %s\n\twant: %s", tt.Where, indentNewlines(got), indentNewlines(tt.compact))
+			}
 
-		buf.Reset()
-		if err := Compact(&buf, []byte(tt.indent)); err != nil {
-			t.Errorf("Compact(%#q): %v", tt.indent, err)
-			continue
-		} else if s := buf.String(); s != tt.compact {
-			t.Errorf("Compact(%#q) = %#q, want %#q", tt.indent, s, tt.compact)
-		}
+			buf.Reset()
+			if err := Compact(&buf, []byte(tt.indent)); err != nil {
+				t.Errorf("%s: Compact error: %v", tt.Where, err)
+			} else if got := buf.String(); got != tt.compact {
+				t.Errorf("%s: Compact:\n\tgot:  %s\n\twant: %s", tt.Where, indentNewlines(got), indentNewlines(tt.compact))
+			}
+
+			buf.Reset()
+			if err := Indent(&buf, []byte(tt.indent), "", "\t"); err != nil {
+				t.Errorf("%s: Indent error: %v", tt.Where, err)
+			} else if got := buf.String(); got != tt.indent {
+				t.Errorf("%s: Compact:\n\tgot:  %s\n\twant: %s", tt.Where, indentNewlines(got), indentNewlines(tt.indent))
+			}
+
+			buf.Reset()
+			if err := Indent(&buf, []byte(tt.compact), "", "\t"); err != nil {
+				t.Errorf("%s: Indent error: %v", tt.Where, err)
+			} else if got := buf.String(); got != tt.indent {
+				t.Errorf("%s: Compact:\n\tgot:  %s\n\twant: %s", tt.Where, indentNewlines(got), indentNewlines(tt.indent))
+			}
+		})
 	}
 }
 
@@ -88,38 +111,21 @@ func TestCompactSeparators(t *testing.T) {
 	// U+2028 and U+2029 should be escaped inside strings.
 	// They should not appear outside strings.
 	tests := []struct {
+		CaseName
 		in, compact string
 	}{
-		{"{\"\u2028\": 1}", "{\"\u2028\":1}"},
-		{"{\"\u2029\" :2}", "{\"\u2029\":2}"},
+		{Name(""), "{\"\u2028\": 1}", "{\"\u2028\":1}"},
+		{Name(""), "{\"\u2029\" :2}", "{\"\u2029\":2}"},
 	}
 	for _, tt := range tests {
-		var buf bytes.Buffer
-		if err := Compact(&buf, []byte(tt.in)); err != nil {
-			t.Errorf("Compact(%q): %v", tt.in, err)
-		} else if s := buf.String(); s != tt.compact {
-			t.Errorf("Compact(%q) = %q, want %q", tt.in, s, tt.compact)
-		}
-	}
-}
-
-func TestIndent(t *testing.T) {
-	var buf bytes.Buffer
-	for _, tt := range examples {
-		buf.Reset()
-		if err := Indent(&buf, []byte(tt.indent), "", "\t"); err != nil {
-			t.Errorf("Indent(%#q): %v", tt.indent, err)
-		} else if s := buf.String(); s != tt.indent {
-			t.Errorf("Indent(%#q) = %#q, want original", tt.indent, s)
-		}
-
-		buf.Reset()
-		if err := Indent(&buf, []byte(tt.compact), "", "\t"); err != nil {
-			t.Errorf("Indent(%#q): %v", tt.compact, err)
-			continue
-		} else if s := buf.String(); s != tt.indent {
-			t.Errorf("Indent(%#q) = %#q, want %#q", tt.compact, s, tt.indent)
-		}
+		t.Run(tt.Name, func(t *testing.T) {
+			var buf bytes.Buffer
+			if err := Compact(&buf, []byte(tt.in)); err != nil {
+				t.Errorf("%s: Compact error: %v", tt.Where, err)
+			} else if got := buf.String(); got != tt.compact {
+				t.Errorf("%s: Compact:\n\tgot:  %s\n\twant: %s", tt.Where, indentNewlines(got), indentNewlines(tt.compact))
+			}
+		})
 	}
 }
 
@@ -129,11 +135,11 @@ func TestCompactBig(t *testing.T) {
 	initBig()
 	var buf bytes.Buffer
 	if err := Compact(&buf, jsonBig); err != nil {
-		t.Fatalf("Compact: %v", err)
+		t.Fatalf("Compact error: %v", err)
 	}
 	b := buf.Bytes()
 	if !bytes.Equal(b, jsonBig) {
-		t.Error("Compact(jsonBig) != jsonBig")
+		t.Error("Compact:")
 		diff(t, b, jsonBig)
 		return
 	}
@@ -144,23 +150,23 @@ func TestIndentBig(t *testing.T) {
 	initBig()
 	var buf bytes.Buffer
 	if err := Indent(&buf, jsonBig, "", "\t"); err != nil {
-		t.Fatalf("Indent1: %v", err)
+		t.Fatalf("Indent error: %v", err)
 	}
 	b := buf.Bytes()
 	if len(b) == len(jsonBig) {
 		// jsonBig is compact (no unnecessary spaces);
 		// indenting should make it bigger
-		t.Fatalf("Indent(jsonBig) did not get bigger")
+		t.Fatalf("Indent did not expand the input")
 	}
 
 	// should be idempotent
 	var buf1 bytes.Buffer
 	if err := Indent(&buf1, b, "", "\t"); err != nil {
-		t.Fatalf("Indent2: %v", err)
+		t.Fatalf("Indent error: %v", err)
 	}
 	b1 := buf1.Bytes()
 	if !bytes.Equal(b1, b) {
-		t.Error("Indent(Indent(jsonBig)) != Indent(jsonBig)")
+		t.Error("Indent(Indent(jsonBig)) != Indent(jsonBig):")
 		diff(t, b1, b)
 		return
 	}
@@ -168,40 +174,40 @@ func TestIndentBig(t *testing.T) {
 	// should get back to original
 	buf1.Reset()
 	if err := Compact(&buf1, b); err != nil {
-		t.Fatalf("Compact: %v", err)
+		t.Fatalf("Compact error: %v", err)
 	}
 	b1 = buf1.Bytes()
 	if !bytes.Equal(b1, jsonBig) {
-		t.Error("Compact(Indent(jsonBig)) != jsonBig")
+		t.Error("Compact(Indent(jsonBig)) != jsonBig:")
 		diff(t, b1, jsonBig)
 		return
 	}
 }
 
-type indentErrorTest struct {
-	in  string
-	err error
-}
-
-var indentErrorTests = []indentErrorTest{
-	{`{"X": "foo", "Y"}`, &SyntaxError{"invalid character '}' after object key", 17}},
-	{`{"X": "foo" "Y": "bar"}`, &SyntaxError{"invalid character '\"' after object key:value pair", 13}},
-}
-
 func TestIndentErrors(t *testing.T) {
-	for i, tt := range indentErrorTests {
-		slice := make([]uint8, 0)
-		buf := bytes.NewBuffer(slice)
-		if err := Indent(buf, []uint8(tt.in), "", ""); err != nil {
-			if !reflect.DeepEqual(err, tt.err) {
-				t.Errorf("#%d: Indent: %#v", i, err)
-				continue
+	tests := []struct {
+		CaseName
+		in  string
+		err error
+	}{
+		{Name(""), `{"X": "foo", "Y"}`, &SyntaxError{"invalid character '}' after object key", 17}},
+		{Name(""), `{"X": "foo" "Y": "bar"}`, &SyntaxError{"invalid character '\"' after object key:value pair", 13}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			slice := make([]uint8, 0)
+			buf := bytes.NewBuffer(slice)
+			if err := Indent(buf, []uint8(tt.in), "", ""); err != nil {
+				if !reflect.DeepEqual(err, tt.err) {
+					t.Fatalf("%s: Indent error:\n\tgot:  %v\n\twant: %v", tt.Where, err, tt.err)
+				}
 			}
-		}
+		})
 	}
 }
 
 func diff(t *testing.T, a, b []byte) {
+	t.Helper()
 	for i := 0; ; i++ {
 		if i >= len(a) || i >= len(b) || a[i] != b[i] {
 			j := i - 10
@@ -215,10 +221,7 @@ func diff(t *testing.T, a, b []byte) {
 }
 
 func trim(b []byte) []byte {
-	if len(b) > 20 {
-		return b[0:20]
-	}
-	return b
+	return b[:min(len(b), 20)]
 }
 
 // Generate a random JSON object.

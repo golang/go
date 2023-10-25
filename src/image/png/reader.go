@@ -136,13 +136,6 @@ type UnsupportedError string
 
 func (e UnsupportedError) Error() string { return "png: unsupported feature: " + string(e) }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func (d *decoder) parseIHDR(length uint32) error {
 	if length != 13 {
 		return FormatError("bad IHDR length")
@@ -971,7 +964,7 @@ func (d *decoder) checkHeader() error {
 	return nil
 }
 
-// Decode reads a PNG image from r and returns it as an image.Image.
+// Decode reads a PNG image from r and returns it as an [image.Image].
 // The type of Image returned depends on the PNG contents.
 func Decode(r io.Reader) (image.Image, error) {
 	d := &decoder{

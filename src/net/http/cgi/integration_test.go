@@ -31,7 +31,7 @@ func TestHostingOurselves(t *testing.T) {
 	h := &Handler{
 		Path: os.Args[0],
 		Root: "/test.go",
-		Args: []string{"-test.run=TestBeChildCGIProcess"},
+		Args: []string{"-test.run=^TestBeChildCGIProcess$"},
 	}
 	expectedMap := map[string]string{
 		"test":                  "Hello CGI-in-CGI",
@@ -98,7 +98,7 @@ func TestKillChildAfterCopyError(t *testing.T) {
 	h := &Handler{
 		Path: os.Args[0],
 		Root: "/test.go",
-		Args: []string{"-test.run=TestBeChildCGIProcess"},
+		Args: []string{"-test.run=^TestBeChildCGIProcess$"},
 	}
 	req, _ := http.NewRequest("GET", "http://example.com/test.cgi?write-forever=1", nil)
 	rec := httptest.NewRecorder()
@@ -120,7 +120,7 @@ func TestChildOnlyHeaders(t *testing.T) {
 	h := &Handler{
 		Path: os.Args[0],
 		Root: "/test.go",
-		Args: []string{"-test.run=TestBeChildCGIProcess"},
+		Args: []string{"-test.run=^TestBeChildCGIProcess$"},
 	}
 	expectedMap := map[string]string{
 		"_body": "",
@@ -139,7 +139,7 @@ func TestNilRequestBody(t *testing.T) {
 	h := &Handler{
 		Path: os.Args[0],
 		Root: "/test.go",
-		Args: []string{"-test.run=TestBeChildCGIProcess"},
+		Args: []string{"-test.run=^TestBeChildCGIProcess$"},
 	}
 	expectedMap := map[string]string{
 		"nil-request-body": "false",
@@ -154,7 +154,7 @@ func TestChildContentType(t *testing.T) {
 	h := &Handler{
 		Path: os.Args[0],
 		Root: "/test.go",
-		Args: []string{"-test.run=TestBeChildCGIProcess"},
+		Args: []string{"-test.run=^TestBeChildCGIProcess$"},
 	}
 	var tests = []struct {
 		name   string
@@ -202,7 +202,7 @@ func want500Test(t *testing.T, path string) {
 	h := &Handler{
 		Path: os.Args[0],
 		Root: "/test.go",
-		Args: []string{"-test.run=TestBeChildCGIProcess"},
+		Args: []string{"-test.run=^TestBeChildCGIProcess$"},
 	}
 	expectedMap := map[string]string{
 		"_body": "",

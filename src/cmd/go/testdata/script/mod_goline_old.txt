@@ -1,0 +1,72 @@
+env TESTGO_VERSION=go1.24
+
+go list -f '{{.Module.GoVersion}}'
+stdout 1.15
+
+go mod tidy
+go list -f '{{.Module.GoVersion}}'
+stdout 1.15
+
+go get example.com/a@v1.0.1
+go list -f '{{.Module.GoVersion}}'
+stdout 1.15
+
+go get example.com/a@v1.0.1 go@1.16
+go list -f '{{.Module.GoVersion}}'
+stdout 1.16
+
+-- go.mod --
+module m
+go 1.15
+
+require (
+	example.com/a v1.0.0
+	example.com/b v1.0.0
+)
+
+replace example.com/a v1.0.0 => ./a100
+replace example.com/a v1.0.1 => ./a101
+replace example.com/b v1.0.1 => ./b101
+replace example.com/b v1.0.0 => ./b100
+replace example.com/b v0.9.0 => ./b100
+
+-- x.go --
+package m
+
+import (
+	_ "example.com/a"
+	_ "example.com/b"
+)
+
+-- a100/go.mod --
+module example.com/a
+go 1.16
+
+require example.com/b v1.0.0
+
+-- a100/a.go --
+package a
+
+-- a101/go.mod --
+module example.com/a
+go 1.17
+
+require example.com/b v1.0.1
+
+-- a101/a.go --
+package a
+
+-- b100/go.mod --
+module example.com/b
+go 1.18
+
+-- b100/b.go --
+package b
+
+-- b101/go.mod --
+module example.com/b
+go 1.19
+
+-- b101/b.go --
+package b
+

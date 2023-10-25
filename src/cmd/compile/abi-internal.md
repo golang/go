@@ -136,7 +136,7 @@ assigned to registers or the stack using the following algorithm:
 1. Let NI and NFP be the length of integer and floating-point register
    sequences defined by the architecture.
    Let I and FP be 0; these are the indexes of the next integer and
-   floating-pointer register.
+   floating-point register.
    Let S, the type sequence defining the stack frame, be empty.
 1. If F is a method, assign F’s receiver.
 1. For each argument A of F, assign A.

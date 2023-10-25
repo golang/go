@@ -1,0 +1,134 @@
+# Regression test for https://go.dev/issue/56494:
+# 'go get' in module mode was failing to prune out dependencies
+# through modules whose versions are too low to be selected.
+
+# Initially, modules "a", "b", and "c" are unrelated.
+#
+# The package import graph at v1 of everything looks like:
+#
+# m --- a
+# |
+# + --- b
+# |
+# + --- c
+#
+# At v2, package "a" adds imports of "b" and "c"
+# (and a requirement on "c" v2):
+#
+# a --- b
+# |
+# + --- c
+#
+# And "b" adds an import of "a/sub" (in module "a"):
+#
+# b --- a/sub
+#
+# At v3, "a" no longer imports (nor requires) "c":
+#
+# a --- b
+
+# So upgrading to a3 adds a dependency on b2,
+# b2 adds a dependency on a2 (for "a/sub"),
+# and a2 (but not a3) would add a dependency on c2.
+# Since a2 is lower than a3 it cannot possibly be selected when
+# upgrading to a3: normally a2 is pruned out of a3's module graph,
+# so 'go get' should prune it out too, and c should remain at c1
+# without error.
+
+go get a@v0.3.0
+
+go list -m c
+stdout '^c v0.1.0 '
+
+-- go.mod --
+module m
+
+go 1.19
+
+require (
+	a v0.1.0
+	b v0.1.0
+	c v0.1.0
+)
+
+replace (
+	a v0.1.0 => ./a1
+	a v0.2.0 => ./a2
+	a v0.3.0 => ./a3
+	b v0.1.0 => ./b1
+	b v0.2.0 => ./b2
+	c v0.1.0 => ./c1
+	c v0.2.0 => ./c2
+)
+-- m.go --
+package m
+
+import (
+	_ "a"
+	_ "b"
+	_ "c"
+)
+-- a1/go.mod --
+module a
+
+go 1.19
+-- a1/a.go --
+package a
+-- a2/go.mod --
+module a
+
+go 1.19
+
+require (
+	b v0.1.0
+	c v0.2.0
+)
+-- a2/a.go --
+package a
+
+import (
+	_ "b"
+	_ "c"
+)
+-- a2/sub/sub.go --
+package sub
+-- a3/go.mod --
+module a
+
+go 1.19
+
+require b v0.2.0
+-- a3/a.go --
+package a
+
+import _ "b"
+-- a3/sub/sub.go --
+package sub
+-- b1/go.mod --
+module b
+
+go 1.19
+-- b1/b.go --
+package b
+-- b2/go.mod --
+module b
+
+go 1.19
+
+require a v0.2.0
+-- b2/b.go --
+package b
+
+import "a/sub"
+-- c1/go.mod --
+module c
+
+go 1.19
+-- c1/c.go --
+package c
+-- c2/go.mod --
+module c
+
+go 1.19
+-- c2/c.go --
+package c

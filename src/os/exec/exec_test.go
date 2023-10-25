@@ -77,6 +77,21 @@ func TestMain(m *testing.M) {
 	if os.Getenv("GO_EXEC_TEST_PID") == "" {
 		os.Setenv("GO_EXEC_TEST_PID", strconv.Itoa(pid))
 
+		if runtime.GOOS == "windows" {
+			// Normalize environment so that test behavior is consistent.
+			// (The behavior of LookPath varies depending on this variable.)
+			//
+			// Ideally we would test both with the variable set and with it cleared,
+			// but I (bcmills) am not sure that that's feasible: it may already be set
+			// in the Windows registry, and I'm not sure if it is possible to remove
+			// a registry variable in a program's environment.
+			//
+			// Per https://learn.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-needcurrentdirectoryforexepathw#remarks,
+			// “the existence of the NoDefaultCurrentDirectoryInExePath environment
+			// variable is checked, and not its value.”
+			os.Setenv("NoDefaultCurrentDirectoryInExePath", "TRUE")
+		}
+
 		code := m.Run()
 		if code == 0 && flag.Lookup("test.run").Value.String() == "" && flag.Lookup("test.list").Value.String() == "" {
 			for cmd := range helperCommands {
@@ -178,6 +193,28 @@ var exeOnce struct {
 	path string
 	err  error
 	sync.Once
+}
+
+func chdir(t *testing.T, dir string) {
+	t.Helper()
+
+	prev, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Chdir(%#q)", dir)
+
+	t.Cleanup(func() {
+		if err := os.Chdir(prev); err != nil {
+			// Couldn't chdir back to the original working directory.
+			// panic instead of t.Fatal so that we don't run other tests
+			// in an unexpected location.
+			panic("couldn't restore working directory: " + err.Error())
+		}
+	})
 }
 
 var helperCommandUsed sync.Map
@@ -694,7 +731,7 @@ func TestExtraFiles(t *testing.T) {
 
 	// This test runs with cgo disabled. External linking needs cgo, so
 	// it doesn't work if external linking is required.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	if runtime.GOOS == "windows" {
 		t.Skipf("skipping test on %q", runtime.GOOS)
@@ -752,7 +789,7 @@ func TestExtraFiles(t *testing.T) {
 	tempdir := t.TempDir()
 	exe := filepath.Join(tempdir, "read3.exe")
 
-	c := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "read3.go")
+	c := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, "read3.go")
 	// Build the test without cgo, so that C library functions don't
 	// open descriptors unexpectedly. See issue 25628.
 	c.Env = append(os.Environ(), "CGO_ENABLED=0")
@@ -1039,7 +1076,7 @@ func TestDedupEnvEcho(t *testing.T) {
 
 func TestEnvNULCharacter(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("plan9 explicitly allows NUL in the enviroment")
+		t.Skip("plan9 explicitly allows NUL in the environment")
 	}
 	cmd := helperCommand(t, "echoenv", "FOO", "BAR")
 	cmd.Env = append(cmd.Environ(), "FOO=foo\x00BAR=bar")
@@ -1182,6 +1219,7 @@ func cmdHang(args ...string) {
 			os.Exit(1)
 		}
 		fmt.Fprintf(os.Stderr, "%d: started %d: %v\n", pid, cmd.Process.Pid, cmd)
+		go cmd.Wait() // Release resources if cmd happens not to outlive this process.
 	}
 
 	if *exitOnInterrupt {
@@ -1706,4 +1744,94 @@ func TestCancelErrors(t *testing.T) {
 			t.Errorf("Wait error = %v; want exit status 1", err)
 		}
 	})
+}
+
+// TestConcurrentExec is a regression test for https://go.dev/issue/61080.
+//
+// Forking multiple child processes concurrently would sometimes hang on darwin.
+// (This test hung on a gomote with -count=100 after only a few iterations.)
+func TestConcurrentExec(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// This test will spawn nHangs subprocesses that hang reading from stdin,
+	// and nExits subprocesses that exit immediately.
+	//
+	// When issue #61080 was present, a long-lived "hang" subprocess would
+	// occasionally inherit the fork/exec status pipe from an "exit" subprocess,
+	// causing the parent process (which expects to see an EOF on that pipe almost
+	// immediately) to unexpectedly block on reading from the pipe.
+	var (
+		nHangs       = runtime.GOMAXPROCS(0)
+		nExits       = runtime.GOMAXPROCS(0)
+		hangs, exits sync.WaitGroup
+	)
+	hangs.Add(nHangs)
+	exits.Add(nExits)
+
+	// ready is done when the goroutines have done as much work as possible to
+	// prepare to create subprocesses. It isn't strictly necessary for the test,
+	// but helps to increase the repro rate by making it more likely that calls to
+	// syscall.StartProcess for the "hang" and "exit" goroutines overlap.
+	var ready sync.WaitGroup
+	ready.Add(nHangs + nExits)
+
+	for i := 0; i < nHangs; i++ {
+		go func() {
+			defer hangs.Done()
+
+			cmd := helperCommandContext(t, ctx, "pipetest")
+			stdin, err := cmd.StdinPipe()
+			if err != nil {
+				ready.Done()
+				t.Error(err)
+				return
+			}
+			cmd.Cancel = stdin.Close
+			ready.Done()
+
+			ready.Wait()
+			if err := cmd.Start(); err != nil {
+				if !errors.Is(err, context.Canceled) {
+					t.Error(err)
+				}
+				return
+			}
+
+			cmd.Wait()
+		}()
+	}
+
+	for i := 0; i < nExits; i++ {
+		go func() {
+			defer exits.Done()
+
+			cmd := helperCommandContext(t, ctx, "exit", "0")
+			ready.Done()
+
+			ready.Wait()
+			if err := cmd.Run(); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+
+	exits.Wait()
+	cancel()
+	hangs.Wait()
+}
+
+// TestPathRace tests that [Cmd.String] can be called concurrently
+// with [Cmd.Start].
+func TestPathRace(t *testing.T) {
+	cmd := helperCommand(t, "exit", "0")
+
+	done := make(chan struct{})
+	go func() {
+		out, err := cmd.CombinedOutput()
+		t.Logf("%v: %v\n%s", cmd, err, out)
+		close(done)
+	}()
+
+	t.Logf("running in background: %v", cmd)
+	<-done
 }

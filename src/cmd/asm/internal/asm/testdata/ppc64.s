@@ -20,19 +20,33 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVD $65536, R6                 // 64060001
 	MOVD $-32767, R5                // 38a08001
 	MOVD $-32768, R6                // 38c08000
-	MOVD $1234567, R5               // 6405001260a5d687
+	MOVD $1234567, R5               // 6405001260a5d687 or 0600001238a0d687
 	MOVW $1, R3                     // 38600001
 	MOVW $-1, R4                    // 3880ffff
 	MOVW $65535, R5                 // 6005ffff
 	MOVW $65536, R6                 // 64060001
 	MOVW $-32767, R5                // 38a08001
 	MOVW $-32768, R6                // 38c08000
-	MOVW $1234567, R5               // 6405001260a5d687
+	MOVW $1234567, R5               // 6405001260a5d687 or 0600001238a0d687
 	// Hex constant 0x80000001
-	MOVW $2147483649, R5            // 6405800060a50001
-	MOVD $2147483649, R5            // 6405800060a50001
+	MOVW $2147483649, R5            // 6405800060a50001 or 0600800038a00001
+	MOVD $2147483649, R5            // 6405800060a50001 or 0600800038a00001
 	// Hex constant 0xFFFFFFFF80000001
-	MOVD $-2147483647, R5    	// 3ca0800060a50001
+	MOVD $-2147483647, R5           // 3ca0800060a50001 or 0603800038a00001
+	// Hex constant 0xFFFFFFFE00000002 (load of constant on < power10, pli on >= power10
+	MOVD $-8589934590, R5           // 3ca00000e8a50000 or 0602000038a00002
+
+	// TODO: These are preprocessed by the assembler into MOVD $const>>shift, R5; SLD $shift, R5.
+	//       This only captures the MOVD. Should the SLD be appended to the encoding by the test?
+	// Hex constant 0x20004000000
+	MOVD $2199090364416, R5         // 60058001
+	// Hex constant 0xFFFFFE0004000000
+	MOVD $-2198956146688, R5        // 38a08001
+	// TODO: On GOPPC64={power8,power9}, this is preprocessed into MOVD $-1, R5; RLDC R5, $33, $63, R5.
+	//       This only captures the MOVD. Should the RLDC be appended to the encoding by the test?
+	// Hex constant 0xFFFFFFFE00000001
+	MOVD $-8589934591, R5           // 38a0ffff or 0602000038a00001
+
 	MOVD 8(R3), R4                  // e8830008
 	MOVD (R3)(R4), R5               // 7ca4182a
 	MOVD (R3)(R0), R5               // 7ca0182a
@@ -71,8 +85,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVHBR (R3)(R4), R5             // 7ca41e2c
 	MOVHBR (R3)(R0), R5             // 7ca01e2c
 	MOVHBR (R3), R5                 // 7ca01e2c
-	MOVD $foo+4009806848(FP), R5    // 3ca1ef0138a5cc40
-	MOVD $foo(SB), R5               // 3ca0000038a50000
+	MOVD $foo+4009806848(FP), R5    // 3ca1ef0138a5cc40 or 0600ef0038a1cc40
+	MOVD $foo(SB), R5               // 3ca0000038a50000 or 0610000038a00000
 
 	MOVDU 8(R3), R4                 // e8830009
 	MOVDU (R3)(R4), R5              // 7ca4186a
@@ -156,16 +170,23 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ADD $1, R3, R4                  // 38830001
 	ADD $-1, R4                     // 3884ffff
 	ADD $-1, R4, R5                 // 38a4ffff
-	ADD $65535, R5                  // 601fffff7cbf2a14
-	ADD $65535, R5, R6              // 601fffff7cdf2a14
+	ADD $65535, R5                  // 601fffff7cbf2a14 or 0600000038a5ffff
+	ADD $65535, R5, R6              // 601fffff7cdf2a14 or 0600000038c5ffff
 	ADD $65536, R6                  // 3cc60001
 	ADD $65536, R6, R7              // 3ce60001
 	ADD $-32767, R5                 // 38a58001
 	ADD $-32767, R5, R4             // 38858001
 	ADD $-32768, R6                 // 38c68000
 	ADD $-32768, R6, R5             // 38a68000
-	ADD $1234567, R5                // 641f001263ffd6877cbf2a14
-	ADD $1234567, R5, R6            // 641f001263ffd6877cdf2a14
+	// Hex constant 0xFFFFFFFE00000000
+	ADD $-8589934592, R5            // 3fe0fffe63ff00007bff83e463ff00007cbf2a14 or 0602000038a50000
+
+	//TODO: this compiles to add r5,r6,r0. It should be addi r5,r6,0.
+	//      this is OK since r0 == $0, but the latter is preferred.
+	ADD $0, R6, R5             	// 7ca60214
+
+	ADD $1234567, R5                // 641f001263ffd6877cbf2a14 or 0600001238a5d687
+	ADD $1234567, R5, R6            // 641f001263ffd6877cdf2a14 or 0600001238c5d687
 	ADDEX R3, R5, $3, R6            // 7cc32f54
 	ADDEX R3, $3, R5, R6            // 7cc32f54
 	ADDIS $8, R3                    // 3c630008
@@ -388,12 +409,19 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	EXTSHCC R3, R4                  // 7c640735
 	EXTSW R3, R4                    // 7c6407b4
 	EXTSWCC R3, R4                  // 7c6407b5
+	RLWMI $7, R3, $4026531855, R6   // 50663f06
+	RLWMI $7, R3, $1, R6            // 50663ffe
+	RLWMI $7, R3, $2147483648, R6   // 50663800
 	RLWMI $7, R3, $65535, R6        // 50663c3e
 	RLWMI $7, R3, $16, $31, R6      // 50663c3e
 	RLWMICC $7, R3, $65535, R6      // 50663c3f
 	RLWMICC $7, R3, $16, $31, R6    // 50663c3f
 	RLWNM $3, R4, $7, R6            // 54861f7e
+	RLWNM $0, R4, $7, R6            // 5486077e
+	RLWNM R0, R4, $7, R6            // 5c86077e
 	RLWNM $3, R4, $29, $31, R6      // 54861f7e
+	RLWNM $0, R4, $29, $31, R6      // 5486077e
+	RLWNM R0, R4, $29, $31, R6      // 5c86077e
 	RLWNM R3, R4, $7, R6            // 5c861f7e
 	RLWNM R3, R4, $29, $31, R6      // 5c861f7e
 	RLWNMCC $3, R4, $7, R6          // 54861f7f
@@ -405,6 +433,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	RLDIMI $0, R4, $7, R6           // 788601cc
 	RLDIMICC $0, R4, $7, R6         // 788601cd
 	RLDC $0, R4, $15, R6            // 78860728
+	RLDC R3, $32, $12, R4           // 7864030a
+	RLDC R3, $8, $32, R4            // 78644028
+	RLDCCC R3, $32, $12, R4         // 7864030b
+	RLDCCC R3, $8, $32, R4          // 78644029
 	RLDCCC $0, R4, $15, R6          // 78860729
 	RLDCL $0, R4, $7, R6            // 78860770
 	RLDCLCC $0, R4, $15, R6         // 78860721
@@ -1081,5 +1113,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVD 4(R1), SPR(3)              // ebe100047fe303a6
 	MOVD 4(R1), XER                 // ebe100047fe103a6
 	PNOP                            // 0700000000000000
+
+	SETB CR1,R3                     // 7c640100
+	VCLZLSBB V1, R2			// 10400e02
+	VCTZLSBB V1, R2			// 10410e02
 
 	RET

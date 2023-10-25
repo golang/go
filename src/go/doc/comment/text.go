@@ -21,7 +21,7 @@ type textPrinter struct {
 	width      int
 }
 
-// Text returns a textual formatting of the Doc.
+// Text returns a textual formatting of the [Doc].
 // See the [Printer] documentation for ways to customize the text output.
 func (p *Printer) Text(d *Doc) []byte {
 	tp := &textPrinter{

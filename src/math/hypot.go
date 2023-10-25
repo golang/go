@@ -8,7 +8,7 @@ package math
 	Hypot -- sqrt(p*p + q*q), but overflows only if the result does.
 */
 
-// Hypot returns Sqrt(p*p + q*q), taking care to avoid
+// Hypot returns [Sqrt](p*p + q*q), taking care to avoid
 // unnecessary overflow and underflow.
 //
 // Special cases are:

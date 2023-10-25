@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 package net
 
 import (
+	"internal/testenv"
 	"reflect"
 	"testing"
 )
@@ -94,7 +93,11 @@ func TestIPConnLocalName(t *testing.T) {
 			continue
 		}
 		c, err := ListenIP(tt.net, tt.laddr)
-		if err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			// May be inside a container that disallows creating a socket.
+			t.Logf("skipping %s test: %v", tt.net, err)
+			continue
+		} else if err != nil {
 			t.Fatal(err)
 		}
 		defer c.Close()
@@ -105,13 +108,17 @@ func TestIPConnLocalName(t *testing.T) {
 }
 
 func TestIPConnRemoteName(t *testing.T) {
-	if !testableNetwork("ip:tcp") {
-		t.Skip("ip:tcp test")
+	network := "ip:tcp"
+	if !testableNetwork(network) {
+		t.Skipf("skipping %s test", network)
 	}
 
 	raddr := &IPAddr{IP: IPv4(127, 0, 0, 1).To4()}
-	c, err := DialIP("ip:tcp", &IPAddr{IP: IPv4(127, 0, 0, 1)}, raddr)
-	if err != nil {
+	c, err := DialIP(network, &IPAddr{IP: IPv4(127, 0, 0, 1)}, raddr)
+	if testenv.SyscallIsNotSupported(err) {
+		// May be inside a container that disallows creating a socket.
+		t.Skipf("skipping %s test: %v", network, err)
+	} else if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Close()

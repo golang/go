@@ -4,6 +4,8 @@
 
 package errors
 
+//go:generate stringer -type Code codes.go
+
 type Code int
 
 // This file defines the error codes that can be produced during type-checking.
@@ -882,7 +884,7 @@ const (
 	// context in which it is used.
 	//
 	// Example:
-	//  var _ = 1 + new(int)
+	//  var _ = 1 + []int{}
 	InvalidUntypedConversion
 
 	// BadOffsetofSyntax occurs when unsafe.Offsetof is called with an argument
@@ -1002,12 +1004,12 @@ const (
 	//  }
 	InvalidIterVar
 
-	// InvalidRangeExpr occurs when the type of a range expression is not array,
-	// slice, string, map, or channel.
+	// InvalidRangeExpr occurs when the type of a range expression is not
+	// a valid type for use with a range loop.
 	//
 	// Example:
-	//  func f(i int) {
-	//  	for j := range i {
+	//  func f(f float64) {
+	//  	for j := range f {
 	//  		println(j)
 	//  	}
 	//  }
@@ -1328,10 +1330,10 @@ const (
 	NotAGenericType
 
 	// WrongTypeArgCount occurs when a type or function is instantiated with an
-	// incorrent number of type arguments, including when a generic type or
+	// incorrect number of type arguments, including when a generic type or
 	// function is used without instantiation.
 	//
-	// Errors inolving failed type inference are assigned other error codes.
+	// Errors involving failed type inference are assigned other error codes.
 	//
 	// Example:
 	//  type T[p any] int
@@ -1432,11 +1434,44 @@ const (
 	_ // not used anymore
 
 	// InvalidClear occurs when clear is called with an argument
-	// that is not of map, slice, or pointer-to-array type.
+	// that is not of map or slice type.
 	//
 	// Example:
 	//  func _(x int) {
 	//  	clear(x)
 	//  }
 	InvalidClear
+
+	// TypeTooLarge occurs if unsafe.Sizeof or unsafe.Offsetof is
+	// called with an expression whose type is too large.
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  type E [1 << 31 - 1]int
+	//  var a [1 << 31]E
+	//  var _ = unsafe.Sizeof(a)
+	//
+	// Example:
+	//  import "unsafe"
+	//
+	//  type E [1 << 31 - 1]int
+	//  var s struct {
+	//  	_ [1 << 31]E
+	//  	x int
+	//  }
+	// var _ = unsafe.Offsetof(s.x)
+	TypeTooLarge
+
+	// InvalidMinMaxOperand occurs if min or max is called
+	// with an operand that cannot be ordered because it
+	// does not support the < operator.
+	//
+	// Example:
+	//  const _ = min(true)
+	//
+	// Example:
+	//  var s, t []byte
+	//  var _ = max(s, t)
+	InvalidMinMaxOperand
 )

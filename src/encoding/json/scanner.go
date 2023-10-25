@@ -43,7 +43,7 @@ func checkValid(data []byte, scan *scanner) error {
 }
 
 // A SyntaxError is a description of a JSON syntax error.
-// Unmarshal will return a SyntaxError if the JSON can't be parsed.
+// [Unmarshal] will return a SyntaxError if the JSON can't be parsed.
 type SyntaxError struct {
 	msg    string // description of error
 	Offset int64  // error occurred after reading Offset bytes

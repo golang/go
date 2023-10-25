@@ -134,9 +134,14 @@ func ExampleFormatFloat() {
 	s64 := strconv.FormatFloat(v, 'E', -1, 64)
 	fmt.Printf("%T, %v\n", s64, s64)
 
+	// fmt.Println uses these arguments to print floats
+	fmt64 := strconv.FormatFloat(v, 'g', -1, 64)
+	fmt.Printf("%T, %v\n", fmt64, fmt64)
+
 	// Output:
 	// string, 3.1415927E+00
 	// string, 3.1415926535E+00
+	// string, 3.1415926535
 }
 
 func ExampleFormatInt() {
@@ -362,6 +367,23 @@ func ExampleQuoteToGraphic() {
 	// "☺"
 	// "This is a ☺\t\n"
 	// "\" This is a ☺ \\n \""
+}
+
+func ExampleQuotedPrefix() {
+	s, err := strconv.QuotedPrefix("not a quoted string")
+	fmt.Printf("%q, %v\n", s, err)
+	s, err = strconv.QuotedPrefix("\"double-quoted string\" with trailing text")
+	fmt.Printf("%q, %v\n", s, err)
+	s, err = strconv.QuotedPrefix("`or backquoted` with more trailing text")
+	fmt.Printf("%q, %v\n", s, err)
+	s, err = strconv.QuotedPrefix("'\u263a' is also okay")
+	fmt.Printf("%q, %v\n", s, err)
+
+	// Output:
+	// "", invalid syntax
+	// "\"double-quoted string\"", <nil>
+	// "`or backquoted`", <nil>
+	// "'☺'", <nil>
 }
 
 func ExampleUnquote() {

@@ -12,6 +12,7 @@ const (
 	ConstChase2 = constChase // forward declaration to unexported ident
 	constChase  = AIsLowerA  // forward declaration to exported ident
 
+	// Deprecated: use B.
 	A         = 1
 	a         = 11
 	A64 int64 = 1
@@ -25,7 +26,8 @@ const (
 
 // Variables from function calls.
 var (
-	V      = ptwo.F()
+	V = ptwo.F()
+	// Deprecated: use WError.
 	VError = BarE()
 	V1     = Bar1(1, 2, 3)
 	V2     = ptwo.G()
@@ -50,11 +52,13 @@ type MyInt int
 type Time struct{}
 
 type S struct {
+	// Deprecated: use PublicTime.
 	Public     *int
 	private    *int
 	PublicTime Time
 }
 
+// Deprecated: use URI.
 type URL struct{}
 
 type EmbedURLPtr struct {
@@ -62,6 +66,7 @@ type EmbedURLPtr struct {
 }
 
 type S2 struct {
+	// Deprecated: use T.
 	S
 	Extra bool
 }
@@ -81,6 +86,7 @@ type I interface {
 	Namer
 	ptwo.Twoer
 	Set(name string, balance int64)
+	// Deprecated: use GetNamed.
 	Get(string) int64
 	GetNamed(string) (balance int64)
 	private()
@@ -91,6 +97,7 @@ type Public interface {
 	Y()
 }
 
+// Deprecated: Use Unexported.
 type Private interface {
 	X()
 	y()
@@ -104,6 +111,7 @@ type Error interface {
 func (myInt) privateTypeMethod()           {}
 func (myInt) CapitalMethodUnexportedType() {}
 
+// Deprecated: use TMethod.
 func (s *S2) SMethod(x int8, y int16, z int64) {}
 
 type s struct{}

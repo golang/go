@@ -195,7 +195,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Setprivexec(flag int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
+//sysnb	setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
@@ -240,15 +240,6 @@ func libc_fdopendir_trampoline()
 
 func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
 	r0, _, e1 := syscall(abi.FuncPCABI0(libc_read_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
-	n = int(r0)
-	if e1 != 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
-
-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
-	r0, _, e1 := syscall(abi.FuncPCABI0(libc_write_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)

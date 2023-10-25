@@ -42,7 +42,7 @@ func ParseECPrivateKey(der []byte) (*ecdsa.PrivateKey, error) {
 //
 // This kind of key is commonly encoded in PEM blocks of type "EC PRIVATE KEY".
 // For a more flexible key format which is not EC specific, use
-// MarshalPKCS8PrivateKey.
+// [MarshalPKCS8PrivateKey].
 func MarshalECPrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
 	oid, ok := oidFromNamedCurve(key.Curve)
 	if !ok {
@@ -67,7 +67,7 @@ func marshalECPrivateKeyWithOID(key *ecdsa.PrivateKey, oid asn1.ObjectIdentifier
 	})
 }
 
-// marshalECPrivateKeyWithOID marshals an EC private key into ASN.1, DER format
+// marshalECDHPrivateKey marshals an EC private key into ASN.1, DER format
 // suitable for NIST curves.
 func marshalECDHPrivateKey(key *ecdh.PrivateKey) ([]byte, error) {
 	return asn1.Marshal(ecPrivateKey{

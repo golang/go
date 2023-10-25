@@ -13,6 +13,14 @@
 # GO_BUILDER_NAME: the name of the Go builder that's running the tests.
 # Some tests are conditionally enabled or disabled based on the builder
 # name or the builder name being non-empty.
+#
+# GO_TEST_SHORT: if set to a non-empty, false-ish string, run tests in "-short=false" mode.
+# This environment variable is an internal implementation detail between the
+# Go build system (x/build) and cmd/dist for the purpose of longtest builders,
+# and will be removed if it stops being needed. See go.dev/issue/12508.
+#
+# GO_TEST_TIMEOUT_SCALE: a non-negative integer factor to scale test timeout by.
+# Defaults to 1.
 
 set -e
 
@@ -23,7 +31,6 @@ fi
 
 export GOENV=off
 eval $(../bin/go tool dist env)
-export GOROOT   # The api test requires GOROOT to be set, so set it to match ../bin/go.
 
 unset CDPATH	# in case user has it set
 

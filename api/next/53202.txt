@@ -1,2 +1,0 @@
-pkg go/ast, type File struct, FileEnd token.Pos #53202
-pkg go/ast, type File struct, FileStart token.Pos #53202

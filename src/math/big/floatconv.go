@@ -16,7 +16,7 @@ var floatZero Float
 
 // SetString sets z to the value of s and returns z and a boolean indicating
 // success. s must be a floating-point number of the same format as accepted
-// by Parse, with base argument 0. The entire string (not just a prefix) must
+// by [Float.Parse], with base argument 0. The entire string (not just a prefix) must
 // be valid for success. If the operation failed, the value of z is undefined
 // but the returned value is nil.
 func (z *Float) SetString(s string) (*Float, bool) {
@@ -248,7 +248,7 @@ func (z *Float) pow5(n uint64) *Float {
 // no prefix is accepted. The octal prefix "0" is not supported (a leading
 // "0" is simply considered a "0").
 //
-// A "p" or "P" exponent indicates a base 2 (rather then base 10) exponent;
+// A "p" or "P" exponent indicates a base 2 (rather than base 10) exponent;
 // for instance, "0x1.fffffffffffffp1023" (using base 0) represents the
 // maximum float64 value. For hexadecimal mantissae, the exponent character
 // must be one of 'p' or 'P', if present (an "e" or "E" exponent indicator
@@ -290,9 +290,9 @@ func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b i
 
 var _ fmt.Scanner = (*Float)(nil) // *Float must implement fmt.Scanner
 
-// Scan is a support routine for fmt.Scanner; it sets z to the value of
+// Scan is a support routine for [fmt.Scanner]; it sets z to the value of
 // the scanned number. It accepts formats whose verbs are supported by
-// fmt.Scan for floating point values, which are:
+// [fmt.Scan] for floating point values, which are:
 // 'b' (binary), 'e', 'E', 'f', 'F', 'g' and 'G'.
 // Scan doesn't handle ±Inf.
 func (z *Float) Scan(s fmt.ScanState, ch rune) error {

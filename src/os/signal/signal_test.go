@@ -53,7 +53,7 @@ func init() {
 		// Older linux kernels seem to have some hiccups delivering the signal
 		// in a timely manner on ppc64 and ppc64le. When running on a
 		// ppc64le/ubuntu 16.04/linux 4.4 host the time can vary quite
-		// substantially even on a idle system. 5 seconds is twice any value
+		// substantially even on an idle system. 5 seconds is twice any value
 		// observed when running 10000 tests on such a system.
 		settleTime = 5 * time.Second
 	} else if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
@@ -304,7 +304,7 @@ func TestDetectNohup(t *testing.T) {
 		// We have no intention of reading from c.
 		c := make(chan os.Signal, 1)
 		Notify(c, syscall.SIGHUP)
-		if out, err := exec.Command(os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput(); err == nil {
+		if out, err := testenv.Command(t, os.Args[0], "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput(); err == nil {
 			t.Errorf("ran test with -check_sighup_ignored and it succeeded: expected failure.\nOutput:\n%s", out)
 		}
 		Stop(c)
@@ -315,7 +315,7 @@ func TestDetectNohup(t *testing.T) {
 		}
 		Ignore(syscall.SIGHUP)
 		os.Remove("nohup.out")
-		out, err := exec.Command("/usr/bin/nohup", os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput()
+		out, err := testenv.Command(t, "/usr/bin/nohup", os.Args[0], "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput()
 
 		data, _ := os.ReadFile("nohup.out")
 		os.Remove("nohup.out")
@@ -440,14 +440,14 @@ func TestNohup(t *testing.T) {
 
 			args := []string{
 				"-test.v",
-				"-test.run=TestStop",
+				"-test.run=^TestStop$",
 				"-send_uncaught_sighup=" + strconv.Itoa(i),
 				"-die_from_sighup",
 			}
 			if subTimeout != 0 {
 				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
 			}
-			out, err := exec.Command(os.Args[0], args...).CombinedOutput()
+			out, err := testenv.Command(t, os.Args[0], args...).CombinedOutput()
 
 			if err == nil {
 				t.Errorf("ran test with -send_uncaught_sighup=%d and it succeeded: expected failure.\nOutput:\n%s", i, out)
@@ -483,7 +483,7 @@ func TestNohup(t *testing.T) {
 			defer wg.Done()
 
 			// POSIX specifies that nohup writes to a file named nohup.out if standard
-			// output is a terminal. However, for an exec.Command, standard output is
+			// output is a terminal. However, for an exec.Cmd, standard output is
 			// not a terminal — so we don't need to read or remove that file (and,
 			// indeed, cannot even create it if the current user is unable to write to
 			// GOROOT/src, such as when GOROOT is installed and owned by root).
@@ -491,13 +491,13 @@ func TestNohup(t *testing.T) {
 			args := []string{
 				os.Args[0],
 				"-test.v",
-				"-test.run=TestStop",
+				"-test.run=^TestStop$",
 				"-send_uncaught_sighup=" + strconv.Itoa(i),
 			}
 			if subTimeout != 0 {
 				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
 			}
-			out, err := exec.Command("nohup", args...).CombinedOutput()
+			out, err := testenv.Command(t, "nohup", args...).CombinedOutput()
 
 			if err != nil {
 				t.Errorf("ran test with -send_uncaught_sighup=%d under nohup and it failed: expected success.\nError: %v\nOutput:\n%s", i, err, out)
@@ -546,7 +546,7 @@ func TestAtomicStop(t *testing.T) {
 		if deadline, ok := t.Deadline(); ok {
 			timeout = time.Until(deadline).String()
 		}
-		cmd := exec.Command(os.Args[0], "-test.run=TestAtomicStop", "-test.timeout="+timeout)
+		cmd := testenv.Command(t, os.Args[0], "-test.run=^TestAtomicStop$", "-test.timeout="+timeout)
 		cmd.Env = append(os.Environ(), "GO_TEST_ATOMIC_STOP=1")
 		out, err := cmd.CombinedOutput()
 		if err == nil {
@@ -742,14 +742,14 @@ func TestNotifyContextNotifications(t *testing.T) {
 
 			args := []string{
 				"-test.v",
-				"-test.run=TestNotifyContextNotifications$",
+				"-test.run=^TestNotifyContextNotifications$",
 				"-check_notify_ctx",
 				fmt.Sprintf("-ctx_notify_times=%d", tc.n),
 			}
 			if subTimeout != 0 {
 				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
 			}
-			out, err := exec.Command(os.Args[0], args...).CombinedOutput()
+			out, err := testenv.Command(t, os.Args[0], args...).CombinedOutput()
 			if err != nil {
 				t.Errorf("ran test with -check_notify_ctx_notification and it failed with %v.\nOutput:\n%s", err, out)
 			}

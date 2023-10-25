@@ -576,8 +576,7 @@ func fprint(w io.Writer, n Node) {
 	case *File:
 		file := n
 		seenRewrite := make(map[[3]string]string)
-		fmt.Fprintf(w, "// Code generated from _gen/%s%s.rules; DO NOT EDIT.\n", n.Arch.name, n.Suffix)
-		fmt.Fprintf(w, "// generated with: cd _gen; go run .\n")
+		fmt.Fprintf(w, "// Code generated from _gen/%s%s.rules using 'go generate'; DO NOT EDIT.\n", n.Arch.name, n.Suffix)
 		fmt.Fprintf(w, "\npackage ssa\n")
 		for _, path := range append([]string{
 			"fmt",
@@ -586,6 +585,7 @@ func fprint(w io.Writer, n Node) {
 			"cmd/internal/obj",
 			"cmd/compile/internal/base",
 			"cmd/compile/internal/types",
+			"cmd/compile/internal/ir",
 		}, n.Arch.imports...) {
 			fmt.Fprintf(w, "import %q\n", path)
 		}
@@ -1400,7 +1400,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
 	if op.name == "" {
 		// Failed to find the op.
 		// Run through everything again with strict=false
-		// to generate useful diagnosic messages before failing.
+		// to generate useful diagnostic messages before failing.
 		for _, x := range genericOps {
 			match(x, false, "generic")
 		}

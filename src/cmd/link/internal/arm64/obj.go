@@ -52,9 +52,6 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
 		Extreloc:         extreloc,
-		Elfreloc1:        elfreloc1,
-		ElfrelocSize:     24,
-		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
 		GenSymsLate:      gensymlate,
 		Machoreloc1:      machoreloc1,
@@ -62,15 +59,21 @@ func Init() (*sys.Arch, ld.Arch) {
 		PEreloc1:         pereloc1,
 		Trampoline:       trampoline,
 
-		Androiddynld:   "/system/bin/linker64",
-		Linuxdynld:     "/lib/ld-linux-aarch64.so.1",
-		LinuxdynldMusl: "/lib/ld-musl-aarch64.so.1",
+		ELF: ld.ELFArch{
+			Androiddynld:   "/system/bin/linker64",
+			Linuxdynld:     "/lib/ld-linux-aarch64.so.1",
+			LinuxdynldMusl: "/lib/ld-musl-aarch64.so.1",
 
-		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
-		Openbsddynld:   "/usr/libexec/ld.so",
-		Netbsddynld:    "/libexec/ld.elf_so",
-		Dragonflydynld: "XXX",
-		Solarisdynld:   "XXX",
+			Freebsddynld:   "/usr/libexec/ld-elf.so.1",
+			Openbsddynld:   "/usr/libexec/ld.so",
+			Netbsddynld:    "/libexec/ld.elf_so",
+			Dragonflydynld: "XXX",
+			Solarisdynld:   "XXX",
+
+			Reloc1:    elfreloc1,
+			RelocSize: 24,
+			SetupPLT:  elfsetupplt,
+		},
 	}
 
 	return arch, theArch
@@ -83,12 +86,11 @@ func archinit(ctxt *ld.Link) {
 
 	case objabi.Hplan9: /* plan 9 */
 		ld.HEADR = 32
-
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 4096
+		}
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = ld.Rnd(4096, *ld.FlagRound) + int64(ld.HEADR)
 		}
 
 	case objabi.Hlinux, /* arm64 elf */
@@ -97,20 +99,20 @@ func archinit(ctxt *ld.Link) {
 		objabi.Hopenbsd:
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 0x10000
+		}
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = ld.Rnd(0x10000, *ld.FlagRound) + int64(ld.HEADR)
 		}
 
 	case objabi.Hdarwin: /* apple MACH */
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 1<<32 + int64(ld.HEADR)
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 16384 // 16K page alignment
+		}
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = ld.Rnd(1<<32, *ld.FlagRound) + int64(ld.HEADR)
 		}
 
 	case objabi.Hwindows: /* PE executable */

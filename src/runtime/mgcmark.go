@@ -7,6 +7,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
@@ -414,7 +415,7 @@ func gcAssistAlloc(gp *g) {
 
 	traced := false
 retry:
-	if go119MemoryLimitSupport && gcCPULimiter.limiting() {
+	if gcCPULimiter.limiting() {
 		// If the CPU limiter is enabled, intentionally don't
 		// assist to reduce the amount of CPU time spent in the GC.
 		if traced {
@@ -465,7 +466,7 @@ retry:
 		}
 	}
 
-	if trace.enabled && !traced {
+	if traceEnabled() && !traced {
 		traced = true
 		traceGCMarkAssistStart()
 	}
@@ -536,7 +537,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 		// The gcBlackenEnabled check in malloc races with the
 		// store that clears it but an atomic check in every malloc
 		// would be a performance hit.
-		// Instead we recheck it here on the non-preemptable system
+		// Instead we recheck it here on the non-preemptible system
 		// stack to determine if we should perform an assist.
 
 		// GC is done, so ignore any remaining debt.
@@ -648,7 +649,7 @@ func gcParkAssist() bool {
 		return false
 	}
 	// Park.
-	goparkunlock(&work.assistQueue.lock, waitReasonGCAssistWait, traceEvGoBlockGC, 2)
+	goparkunlock(&work.assistQueue.lock, waitReasonGCAssistWait, traceBlockGCMarkAssist, 2)
 	return true
 }
 
@@ -797,11 +798,10 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 	}
 
 	// Scan the stack. Accumulate a list of stack objects.
-	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
-		scanframeworker(frame, &state, gcw)
-		return true
+	var u unwinder
+	for u.init(gp, 0); u.valid(); u.next() {
+		scanframeworker(&u.frame, &state, gcw)
 	}
-	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
 
 	// Find additional pointers that point into the stack from the heap.
 	// Currently this includes defers and panics. See also function copystack.
@@ -920,8 +920,8 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 		print("scanframe ", funcname(frame.fn), "\n")
 	}
 
-	isAsyncPreempt := frame.fn.valid() && frame.fn.funcID == funcID_asyncPreempt
-	isDebugCall := frame.fn.valid() && frame.fn.funcID == funcID_debugCallV2
+	isAsyncPreempt := frame.fn.valid() && frame.fn.funcID == abi.FuncID_asyncPreempt
+	isDebugCall := frame.fn.valid() && frame.fn.funcID == abi.FuncID_debugCallV2
 	if state.conservative || isAsyncPreempt || isDebugCall {
 		if debugScanConservative {
 			println("conservatively scanning function", funcname(frame.fn), "at PC", hex(frame.continpc))
@@ -964,7 +964,7 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 		return
 	}
 
-	locals, args, objs := frame.getStackMap(&state.cache, false)
+	locals, args, objs := frame.getStackMap(false)
 
 	// Scan local variables if stack frame has been allocated.
 	if locals.n > 0 {
@@ -1011,6 +1011,28 @@ const (
 	gcDrainFractional
 )
 
+// gcDrainMarkWorkerIdle is a wrapper for gcDrain that exists to better account
+// mark time in profiles.
+func gcDrainMarkWorkerIdle(gcw *gcWork) {
+	gcDrain(gcw, gcDrainIdle|gcDrainUntilPreempt|gcDrainFlushBgCredit)
+}
+
+// gcDrainMarkWorkerDedicated is a wrapper for gcDrain that exists to better account
+// mark time in profiles.
+func gcDrainMarkWorkerDedicated(gcw *gcWork, untilPreempt bool) {
+	flags := gcDrainFlushBgCredit
+	if untilPreempt {
+		flags |= gcDrainUntilPreempt
+	}
+	gcDrain(gcw, flags)
+}
+
+// gcDrainMarkWorkerFractional is a wrapper for gcDrain that exists to better account
+// mark time in profiles.
+func gcDrainMarkWorkerFractional(gcw *gcWork) {
+	gcDrain(gcw, gcDrainFractional|gcDrainUntilPreempt|gcDrainFlushBgCredit)
+}
+
 // gcDrain scans roots and objects in work buffers, blackening grey
 // objects until it is unable to get more work. It may return before
 // GC is done; it's the caller's responsibility to balance work from
@@ -1031,6 +1053,14 @@ const (
 // scan work.
 //
 // gcDrain will always return if there is a pending STW.
+//
+// Disabling write barriers is necessary to ensure that after we've
+// confirmed that we've drained gcw, that we don't accidentally end
+// up flipping that condition by immediately adding work in the form
+// of a write barrier buffer flush.
+//
+// Don't set nowritebarrierrec because it's safe for some callees to
+// have write barriers enabled.
 //
 //go:nowritebarrier
 func gcDrain(gcw *gcWork, flags gcDrainFlags) {
@@ -1092,7 +1122,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 				// Flush the write barrier
 				// buffer; this may create
 				// more work.
-				wbBufFlush(nil, 0)
+				wbBufFlush()
 				b = gcw.tryGet()
 			}
 		}
@@ -1171,7 +1201,7 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 			if b == 0 {
 				// Flush the write barrier buffer;
 				// this may create more work.
-				wbBufFlush(nil, 0)
+				wbBufFlush()
 				b = gcw.tryGet()
 			}
 		}
@@ -1296,9 +1326,7 @@ func scanobject(b uintptr, gcw *gcWork) {
 		// must be a large object, s.base() is the beginning
 		// of the object.
 		n = s.base() + s.elemsize - b
-		if n > maxObletBytes {
-			n = maxObletBytes
-		}
+		n = min(n, maxObletBytes)
 	}
 
 	hbits := heapBitsForAddr(b, n)

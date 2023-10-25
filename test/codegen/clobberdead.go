@@ -1,6 +1,6 @@
 // asmcheck -gcflags=-clobberdead
 
-// +build amd64 arm64
+//go:build amd64 || arm64
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

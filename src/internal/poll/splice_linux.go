@@ -5,6 +5,7 @@
 package poll
 
 import (
+	"internal/syscall/unix"
 	"runtime"
 	"sync"
 	"syscall"
@@ -12,7 +13,10 @@ import (
 )
 
 const (
-	// spliceNonblock makes calls to splice(2) non-blocking.
+	// spliceNonblock doesn't make the splice itself necessarily nonblocking
+	// (because the actual file descriptors that are spliced from/to may block
+	// unless they have the O_NONBLOCK flag set), but it makes the splice pipe
+	// operations nonblocking.
 	spliceNonblock = 0x2
 
 	// maxSpliceSize is the maximum amount of data Splice asks
@@ -91,6 +95,10 @@ func spliceDrain(pipefd int, sock *FD, max int) (int, error) {
 		return 0, err
 	}
 	for {
+		// In theory calling splice(2) with SPLICE_F_NONBLOCK could end up an infinite loop here,
+		// because it could return EAGAIN ceaselessly when the write end of the pipe is full,
+		// but this shouldn't be a concern here, since the pipe buffer must be sufficient for
+		// this data transmission on the basis of the workflow in Splice.
 		n, err := splice(pipefd, sock.Sysfd, max, spliceNonblock)
 		if err == syscall.EINTR {
 			continue
@@ -98,8 +106,10 @@ func spliceDrain(pipefd int, sock *FD, max int) (int, error) {
 		if err != syscall.EAGAIN {
 			return n, err
 		}
-		if err := sock.pd.waitRead(sock.isFile); err != nil {
-			return n, err
+		if sock.pd.pollable() {
+			if err := sock.pd.waitRead(sock.isFile); err != nil {
+				return n, err
+			}
 		}
 	}
 }
@@ -127,7 +137,14 @@ func splicePump(sock *FD, pipefd int, inPipe int) (int, error) {
 	}
 	written := 0
 	for inPipe > 0 {
+		// In theory calling splice(2) with SPLICE_F_NONBLOCK could end up an infinite loop here,
+		// because it could return EAGAIN ceaselessly when the read end of the pipe is empty,
+		// but this shouldn't be a concern here, since the pipe buffer must contain inPipe size of
+		// data on the basis of the workflow in Splice.
 		n, err := splice(sock.Sysfd, pipefd, inPipe, spliceNonblock)
+		if err == syscall.EINTR {
+			continue
+		}
 		// Here, the condition n == 0 && err == nil should never be
 		// observed, since Splice controls the write side of the pipe.
 		if n > 0 {
@@ -138,8 +155,10 @@ func splicePump(sock *FD, pipefd int, inPipe int) (int, error) {
 		if err != syscall.EAGAIN {
 			return written, err
 		}
-		if err := sock.pd.waitWrite(sock.isFile); err != nil {
-			return written, err
+		if sock.pd.pollable() {
+			if err := sock.pd.waitWrite(sock.isFile); err != nil {
+				return written, err
+			}
 		}
 	}
 	return written, nil
@@ -219,7 +238,7 @@ func newPipe() *splicePipe {
 	// Set the pipe buffer size to maxSpliceSize to optimize that.
 	// Ignore errors here, as a smaller buffer size will work,
 	// although it will require more system calls.
-	fcntl(fds[0], syscall.F_SETPIPE_SZ, maxSpliceSize)
+	unix.Fcntl(fds[0], syscall.F_SETPIPE_SZ, maxSpliceSize)
 
 	return &splicePipe{splicePipeFields: splicePipeFields{rfd: fds[0], wfd: fds[1]}}
 }

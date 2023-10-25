@@ -5,8 +5,10 @@
 package tar
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"path"
 	"sort"
 	"strings"
@@ -14,7 +16,7 @@ import (
 )
 
 // Writer provides sequential writing of a tar archive.
-// Write.WriteHeader begins a new file with the provided Header,
+// [Writer.WriteHeader] begins a new file with the provided [Header],
 // and then Writer can be treated as an io.Writer to supply that file's data.
 type Writer struct {
 	w    io.Writer
@@ -44,7 +46,7 @@ type fileWriter interface {
 // Flush finishes writing the current file's block padding.
 // The current file must be fully written before Flush can be called.
 //
-// This is unnecessary as the next call to WriteHeader or Close
+// This is unnecessary as the next call to [Writer.WriteHeader] or [Writer.Close]
 // will implicitly flush out the file's padding.
 func (tw *Writer) Flush() error {
 	if tw.err != nil {
@@ -403,6 +405,43 @@ func (tw *Writer) writeRawHeader(blk *block, size int64, flag byte) error {
 	return nil
 }
 
+// AddFS adds the files from fs.FS to the archive.
+// It walks the directory tree starting at the root of the filesystem
+// adding each file to the tar archive while maintaining the directory structure.
+func (tw *Writer) AddFS(fsys fs.FS) error {
+	return fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		// TODO(#49580): Handle symlinks when fs.ReadLinkFS is available.
+		if !info.Mode().IsRegular() {
+			return errors.New("tar: cannot add non-regular file")
+		}
+		h, err := FileInfoHeader(info, "")
+		if err != nil {
+			return err
+		}
+		h.Name = name
+		if err := tw.WriteHeader(h); err != nil {
+			return err
+		}
+		f, err := fsys.Open(name)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		_, err = io.Copy(tw, f)
+		return err
+	})
+}
+
 // splitUSTARPath splits a path according to USTAR prefix and suffix rules.
 // If the path is not splittable, then it will return ("", "", false).
 func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
@@ -425,12 +464,12 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
 }
 
 // Write writes to the current file in the tar archive.
-// Write returns the error ErrWriteTooLong if more than
-// Header.Size bytes are written after WriteHeader.
+// Write returns the error [ErrWriteTooLong] if more than
+// Header.Size bytes are written after [Writer.WriteHeader].
 //
-// Calling Write on special types like TypeLink, TypeSymlink, TypeChar,
-// TypeBlock, TypeDir, and TypeFifo returns (0, ErrWriteTooLong) regardless
-// of what the Header.Size claims.
+// Calling Write on special types like [TypeLink], [TypeSymlink], [TypeChar],
+// [TypeBlock], [TypeDir], and [TypeFifo] returns (0, [ErrWriteTooLong]) regardless
+// of what the [Header.Size] claims.
 func (tw *Writer) Write(b []byte) (int, error) {
 	if tw.err != nil {
 		return 0, tw.err
@@ -464,7 +503,7 @@ func (tw *Writer) readFrom(r io.Reader) (int64, error) {
 }
 
 // Close closes the tar archive by flushing the padding, and writing the footer.
-// If the current file (from a prior call to WriteHeader) is not fully written,
+// If the current file (from a prior call to [Writer.WriteHeader]) is not fully written,
 // then this returns an error.
 func (tw *Writer) Close() error {
 	if tw.err == ErrWriteAfterClose {
@@ -519,7 +558,7 @@ func (fw regFileWriter) logicalRemaining() int64 {
 	return fw.nb
 }
 
-// logicalRemaining implements fileState.physicalRemaining.
+// physicalRemaining implements fileState.physicalRemaining.
 func (fw regFileWriter) physicalRemaining() int64 {
 	return fw.nb
 }

@@ -1,1 +1,0 @@
-pkg net/http, type Transport struct, OnProxyConnectResponse func(context.Context, *url.URL, *Request, *Response) error #54299

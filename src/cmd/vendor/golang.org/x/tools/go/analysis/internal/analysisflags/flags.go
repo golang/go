@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -206,7 +205,7 @@ func (versionFlag) Get() interface{} { return nil }
 func (versionFlag) String() string   { return "" }
 func (versionFlag) Set(s string) error {
 	if s != "full" {
-		log.Fatalf("unsupported flag value: -V=%s", s)
+		log.Fatalf("unsupported flag value: -V=%s (use -V=full)", s)
 	}
 
 	// This replicates the minimal subset of
@@ -218,7 +217,10 @@ func (versionFlag) Set(s string) error {
 	// Formats:
 	//   $progname version devel ... buildID=...
 	//   $progname version go1.9.1
-	progname := os.Args[0]
+	progname, err := os.Executable()
+	if err != nil {
+		return err
+	}
 	f, err := os.Open(progname)
 	if err != nil {
 		log.Fatal(err)
@@ -328,7 +330,7 @@ func PrintPlain(fset *token.FileSet, diag analysis.Diagnostic) {
 		if !end.IsValid() {
 			end = posn
 		}
-		data, _ := ioutil.ReadFile(posn.Filename)
+		data, _ := os.ReadFile(posn.Filename)
 		lines := strings.Split(string(data), "\n")
 		for i := posn.Line - Context; i <= end.Line+Context; i++ {
 			if 1 <= i && i <= len(lines) {
