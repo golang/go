@@ -249,7 +249,7 @@ func elimDeadAutosGeneric(f *Func) {
 		}
 
 		if v.Uses == 0 && v.Op != OpNilCheck && !v.Op.IsCall() && !v.Op.HasSideEffects() || len(args) == 0 {
-			// Nil check has no use, but we need to keep it.
+			// We need to keep nil checks even if they have no use.
 			// Also keep calls and values that have side effects.
 			return
 		}

@@ -981,7 +981,7 @@
     (ConstNil <typ.Uintptr>)
     (ConstNil <typ.BytePtr>))
 
-(NilCheck (GetG mem) mem) => mem
+(NilCheck ptr:(GetG mem) mem) => ptr
 
 (If (Not cond) yes no) => (If cond no yes)
 (If (ConstBool [c]) yes no) && c => (First yes no)
@@ -2055,19 +2055,19 @@
 	&& isSameCall(call.Aux, "runtime.newobject")
 	=> mem
 
-(NilCheck (SelectN [0] call:(StaticLECall _ _)) _)
+(NilCheck ptr:(SelectN [0] call:(StaticLECall _ _)) _)
 	&& isSameCall(call.Aux, "runtime.newobject")
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
-	=> (Invalid)
+	=> ptr
 
-(NilCheck (OffPtr (SelectN [0] call:(StaticLECall _ _))) _)
+(NilCheck ptr:(OffPtr (SelectN [0] call:(StaticLECall _ _))) _)
 	&& isSameCall(call.Aux, "runtime.newobject")
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
-	=> (Invalid)
+	=> ptr
 
 // Addresses of globals are always non-nil.
-(NilCheck          (Addr {_} (SB))    _) => (Invalid)
-(NilCheck (Convert (Addr {_} (SB)) _) _) => (Invalid)
+(NilCheck          ptr:(Addr {_} (SB))    _) => ptr
+(NilCheck ptr:(Convert (Addr {_} (SB)) _) _) => ptr
 
 // for late-expanded calls, recognize memequal applied to a single constant byte
 // Support is limited by 1, 2, 4, 8 byte sizes

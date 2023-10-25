@@ -39823,9 +39823,10 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "NilCheck",
-		argLen:  2,
-		generic: true,
+		name:     "NilCheck",
+		argLen:   2,
+		nilCheck: true,
+		generic:  true,
 	},
 	{
 		name:      "GetG",

@@ -859,6 +859,9 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 			offset += base.AuxInt
 			base = base.Args[0]
 		}
+		if opcodeTable[base.Op].nilCheck {
+			base = base.Args[0]
+		}
 		return base, offset
 	}
 	p1, off1 := baseAndOffset(p1)
