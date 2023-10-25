@@ -55,7 +55,7 @@ type reader struct {
 	scratch      [4]byte
 }
 
-// Resetter resets a ReadCloser returned by NewReader or NewReaderDict
+// Resetter resets a ReadCloser returned by [NewReader] or [NewReaderDict]
 // to switch to a new underlying Reader. This permits reusing a ReadCloser
 // instead of allocating a new one.
 type Resetter interface {
@@ -70,16 +70,16 @@ type Resetter interface {
 // data than necessary from r.
 // It is the caller's responsibility to call Close on the ReadCloser when done.
 //
-// The ReadCloser returned by NewReader also implements Resetter.
+// The [io.ReadCloser] returned by NewReader also implements [Resetter].
 func NewReader(r io.Reader) (io.ReadCloser, error) {
 	return NewReaderDict(r, nil)
 }
 
-// NewReaderDict is like NewReader but uses a preset dictionary.
+// NewReaderDict is like [NewReader] but uses a preset dictionary.
 // NewReaderDict ignores the dictionary if the compressed data does not refer to it.
-// If the compressed data refers to a different dictionary, NewReaderDict returns ErrDictionary.
+// If the compressed data refers to a different dictionary, NewReaderDict returns [ErrDictionary].
 //
-// The ReadCloser returned by NewReaderDict also implements Resetter.
+// The ReadCloser returned by NewReaderDict also implements [Resetter].
 func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, error) {
 	z := new(reader)
 	err := z.Reset(r, dict)
@@ -119,9 +119,9 @@ func (z *reader) Read(p []byte) (int, error) {
 	return n, io.EOF
 }
 
-// Calling Close does not close the wrapped io.Reader originally passed to NewReader.
+// Calling Close does not close the wrapped [io.Reader] originally passed to [NewReader].
 // In order for the ZLIB checksum to be verified, the reader must be
-// fully consumed until the io.EOF.
+// fully consumed until the [io.EOF].
 func (z *reader) Close() error {
 	if z.err != nil && z.err != io.EOF {
 		return z.err

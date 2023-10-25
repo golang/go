@@ -1,4 +1,4 @@
-// +build amd64 386
+//go:build amd64 || 386
 
 package main
 

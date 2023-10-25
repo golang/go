@@ -28,6 +28,7 @@ try_cas:
 	MOVB	R3, ret+12(FP)
 	RET
 cas_fail:
+	SYNC
 	MOVB	R0, ret+12(FP)
 	RET
 

@@ -7,6 +7,8 @@ import "cmd/compile/internal/types"
 
 func rewriteValuePPC64latelower(v *Value) bool {
 	switch v.Op {
+	case OpPPC64ADD:
+		return rewriteValuePPC64latelower_OpPPC64ADD(v)
 	case OpPPC64AND:
 		return rewriteValuePPC64latelower_OpPPC64AND(v)
 	case OpPPC64ISEL:
@@ -17,6 +19,33 @@ func rewriteValuePPC64latelower(v *Value) bool {
 		return rewriteValuePPC64latelower_OpPPC64SETBC(v)
 	case OpPPC64SETBCR:
 		return rewriteValuePPC64latelower_OpPPC64SETBCR(v)
+	case OpSelect0:
+		return rewriteValuePPC64latelower_OpSelect0(v)
+	}
+	return false
+}
+func rewriteValuePPC64latelower_OpPPC64ADD(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ADD (MOVDconst [m]) x)
+	// cond: supportsPPC64PCRel() && (m<<30)>>30 == m
+	// result: (ADDconst [m] x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpPPC64MOVDconst {
+				continue
+			}
+			m := auxIntToInt64(v_0.AuxInt)
+			x := v_1
+			if !(supportsPPC64PCRel() && (m<<30)>>30 == m) {
+				continue
+			}
+			v.reset(OpPPC64ADDconst)
+			v.AuxInt = int64ToAuxInt(m)
+			v.AddArg(x)
+			return true
+		}
+		break
 	}
 	return false
 }
@@ -288,6 +317,28 @@ func rewriteValuePPC64latelower_OpPPC64SETBCR(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
 		v0.AuxInt = int64ToAuxInt(1)
 		v.AddArg2(v0, cmp)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64latelower_OpSelect0(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Select0 z:(ANDCCconst [m] x))
+	// cond: z.Uses == 1 && isPPC64ValidShiftMask(m)
+	// result: (RLDICL [encodePPC64RotateMask(0,m,64)] x)
+	for {
+		z := v_0
+		if z.Op != OpPPC64ANDCCconst {
+			break
+		}
+		m := auxIntToInt64(z.AuxInt)
+		x := z.Args[0]
+		if !(z.Uses == 1 && isPPC64ValidShiftMask(m)) {
+			break
+		}
+		v.reset(OpPPC64RLDICL)
+		v.AuxInt = int64ToAuxInt(encodePPC64RotateMask(0, m, 64))
+		v.AddArg(x)
 		return true
 	}
 	return false

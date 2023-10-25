@@ -1524,3 +1524,125 @@ func allResolvers(t *testing.T, f func(t *testing.T)) {
 		}
 	})
 }
+
+func TestLookupNoSuchHost(t *testing.T) {
+	mustHaveExternalNetwork(t)
+
+	const testNXDOMAIN = "invalid.invalid."
+	const testNODATA = "_ldap._tcp.google.com."
+
+	tests := []struct {
+		name  string
+		query func() error
+	}{
+		{
+			name: "LookupCNAME NXDOMAIN",
+			query: func() error {
+				_, err := LookupCNAME(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupHost NXDOMAIN",
+			query: func() error {
+				_, err := LookupHost(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupHost NODATA",
+			query: func() error {
+				_, err := LookupHost(testNODATA)
+				return err
+			},
+		},
+		{
+			name: "LookupMX NXDOMAIN",
+			query: func() error {
+				_, err := LookupMX(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupMX NODATA",
+			query: func() error {
+				_, err := LookupMX(testNODATA)
+				return err
+			},
+		},
+		{
+			name: "LookupNS NXDOMAIN",
+			query: func() error {
+				_, err := LookupNS(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupNS NODATA",
+			query: func() error {
+				_, err := LookupNS(testNODATA)
+				return err
+			},
+		},
+		{
+			name: "LookupSRV NXDOMAIN",
+			query: func() error {
+				_, _, err := LookupSRV("unknown", "tcp", testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupTXT NXDOMAIN",
+			query: func() error {
+				_, err := LookupTXT(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupTXT NODATA",
+			query: func() error {
+				_, err := LookupTXT(testNODATA)
+				return err
+			},
+		},
+	}
+
+	for _, v := range tests {
+		t.Run(v.name, func(t *testing.T) {
+			allResolvers(t, func(t *testing.T) {
+				attempts := 0
+				for {
+					err := v.query()
+					if err == nil {
+						t.Errorf("unexpected success")
+						return
+					}
+					if dnsErr, ok := err.(*DNSError); ok {
+						succeeded := true
+						if !dnsErr.IsNotFound {
+							succeeded = false
+							t.Log("IsNotFound is set to false")
+						}
+						if dnsErr.Err != errNoSuchHost.Error() {
+							succeeded = false
+							t.Logf("error message is not equal to: %v", errNoSuchHost.Error())
+						}
+						if succeeded {
+							return
+						}
+					}
+					testenv.SkipFlakyNet(t)
+					if attempts < len(backoffDuration) {
+						dur := backoffDuration[attempts]
+						t.Logf("backoff %v after failure %v\n", dur, err)
+						time.Sleep(dur)
+						attempts++
+						continue
+					}
+					t.Errorf("unexpected error: %v", err)
+					return
+				}
+			})
+		})
+	}
+}

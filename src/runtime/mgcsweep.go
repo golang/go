@@ -37,9 +37,6 @@ type sweepdata struct {
 	g      *g
 	parked bool
 
-	nbgsweep    uint32
-	npausesweep uint32
-
 	// active tracks outstanding sweepers and the sweep
 	// termination condition.
 	active activeSweep
@@ -237,7 +234,6 @@ func finishsweep_m() {
 	// instantly. If GC was forced before the concurrent sweep
 	// finished, there may be spans to sweep.
 	for sweepone() != ^uintptr(0) {
-		sweep.npausesweep++
 	}
 
 	// Make sure there aren't any outstanding sweepers left.
@@ -299,7 +295,6 @@ func bgsweep(c chan int) {
 		const sweepBatchSize = 10
 		nSwept := 0
 		for sweepone() != ^uintptr(0) {
-			sweep.nbgsweep++
 			nSwept++
 			if nSwept%sweepBatchSize == 0 {
 				goschedIfBusy()

@@ -68,6 +68,14 @@ func testint3() {
 	}
 }
 
+// Issue #63378.
+func testint4() {
+	for i := range -1 {
+		_ = i
+		panic("must not be executed")
+	}
+}
+
 // test range over functions
 
 var gj int
@@ -377,6 +385,7 @@ func main() {
 	testint1()
 	testint2()
 	testint3()
+	testint4()
 	testfunc0()
 	testfunc1()
 	testfunc2()

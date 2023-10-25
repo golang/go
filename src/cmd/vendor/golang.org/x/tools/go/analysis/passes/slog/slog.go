@@ -139,7 +139,7 @@ func run(pass *analysis.Pass) (any, error) {
 }
 
 func isAttr(t types.Type) bool {
-	return isNamed(t, "log/slog", "Attr")
+	return analysisutil.IsNamedType(t, "log/slog", "Attr")
 }
 
 // shortName returns a name for the function that is shorter than FullName.
@@ -231,13 +231,4 @@ func isMethodExpr(info *types.Info, c *ast.CallExpr) bool {
 	}
 	sel := info.Selections[s]
 	return sel != nil && sel.Kind() == types.MethodExpr
-}
-
-// isNamed reports whether t is exactly a named type in a package with a given path.
-func isNamed(t types.Type, path, name string) bool {
-	if n, ok := t.(*types.Named); ok {
-		obj := n.Obj()
-		return obj.Pkg() != nil && obj.Pkg().Path() == path && obj.Name() == name
-	}
-	return false
 }

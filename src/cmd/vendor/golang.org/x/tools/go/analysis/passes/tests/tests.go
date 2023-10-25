@@ -257,13 +257,7 @@ func isTestingType(typ types.Type, testingType string) bool {
 	if !ok {
 		return false
 	}
-	named, ok := ptr.Elem().(*types.Named)
-	if !ok {
-		return false
-	}
-	obj := named.Obj()
-	// obj.Pkg is nil for the error type.
-	return obj != nil && obj.Pkg() != nil && obj.Pkg().Path() == "testing" && obj.Name() == testingType
+	return analysisutil.IsNamedType(ptr.Elem(), "testing", testingType)
 }
 
 // Validate that fuzz target function's arguments are of accepted types.

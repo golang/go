@@ -17,6 +17,5 @@
 // why Go moved on from Go 1.4 for bootstrap.
 
 //go:build !go1.20
-// +build !go1.20
 
 package building_Go_requires_Go_1_20_6_or_later

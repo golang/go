@@ -48,7 +48,6 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/types/objectpath"
-	"golang.org/x/tools/internal/typesinternal"
 )
 
 const debug = false
@@ -205,9 +204,7 @@ type GetPackageFunc = func(pkgPath string) *types.Package
 //
 // Concurrent calls to Decode are safe, so long as the
 // [GetPackageFunc] (if any) is also concurrency-safe.
-//
-// TODO(golang/go#61443): eliminate skipMethodSorting one way or the other.
-func (d *Decoder) Decode(skipMethodSorting bool, read func(pkgPath string) ([]byte, error)) (*Set, error) {
+func (d *Decoder) Decode(read func(pkgPath string) ([]byte, error)) (*Set, error) {
 	// Read facts from imported packages.
 	// Facts may describe indirectly imported packages, or their objects.
 	m := make(map[key]analysis.Fact) // one big bucket
@@ -247,7 +244,7 @@ func (d *Decoder) Decode(skipMethodSorting bool, read func(pkgPath string) ([]by
 			key := key{pkg: factPkg, t: reflect.TypeOf(f.Fact)}
 			if f.Object != "" {
 				// object fact
-				obj, err := typesinternal.ObjectpathObject(factPkg, string(f.Object), skipMethodSorting)
+				obj, err := objectpath.Object(factPkg, f.Object)
 				if err != nil {
 					// (most likely due to unexported object)
 					// TODO(adonovan): audit for other possibilities.
@@ -271,11 +268,8 @@ func (d *Decoder) Decode(skipMethodSorting bool, read func(pkgPath string) ([]by
 //
 // It may fail if one of the Facts could not be gob-encoded, but this is
 // a sign of a bug in an Analyzer.
-func (s *Set) Encode(skipMethodSorting bool) []byte {
+func (s *Set) Encode() []byte {
 	encoder := new(objectpath.Encoder)
-	if skipMethodSorting {
-		typesinternal.SkipEncoderMethodSorting(encoder)
-	}
 
 	// TODO(adonovan): opt: use a more efficient encoding
 	// that avoids repeating PkgPath for each fact.

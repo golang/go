@@ -2146,3 +2146,11 @@ func isARM64addcon(v int64) bool {
 	}
 	return v <= 0xFFF
 }
+
+// setPos sets the position of v to pos, then returns true.
+// Useful for setting the result of a rewrite's position to
+// something other than the default.
+func setPos(v *Value, pos src.XPos) bool {
+	v.Pos = pos
+	return true
+}

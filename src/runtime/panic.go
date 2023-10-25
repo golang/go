@@ -670,10 +670,8 @@ func printpanics(p *_panic) {
 // readvarintUnsafe reads the uint32 in varint format starting at fd, and returns the
 // uint32 and a pointer to the byte following the varint.
 //
-// There is a similar function runtime.readvarint, which takes a slice of bytes,
-// rather than an unsafe pointer. These functions are duplicated, because one of
-// the two use cases for the functions would get slower if the functions were
-// combined.
+// The implementation is the same with runtime.readvarint, except that this function
+// uses unsafe.Pointer for speed.
 func readvarintUnsafe(fd unsafe.Pointer) (uint32, unsafe.Pointer) {
 	var r uint32
 	var shift int
@@ -683,7 +681,7 @@ func readvarintUnsafe(fd unsafe.Pointer) (uint32, unsafe.Pointer) {
 		if b < 128 {
 			return r + uint32(b)<<shift, fd
 		}
-		r += ((uint32(b) &^ 128) << shift)
+		r += uint32(b&0x7F) << (shift & 31)
 		shift += 7
 		if shift > 28 {
 			panic("Bad varint")

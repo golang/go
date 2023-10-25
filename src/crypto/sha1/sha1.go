@@ -105,7 +105,7 @@ func (d *digest) Reset() {
 }
 
 // New returns a new hash.Hash computing the SHA1 checksum. The Hash also
-// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
+// implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
 // marshal and unmarshal the internal state of the hash.
 func New() hash.Hash {
 	if boring.Enabled {
@@ -185,7 +185,7 @@ func (d *digest) checkSum() [Size]byte {
 	return digest
 }
 
-// ConstantTimeSum computes the same result of Sum() but in constant time
+// ConstantTimeSum computes the same result of [Sum] but in constant time
 func (d *digest) ConstantTimeSum(in []byte) []byte {
 	d0 := *d
 	hash := d0.constSum()

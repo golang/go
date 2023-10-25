@@ -222,7 +222,7 @@ details.
 
 A LogValue method may return a Value that itself implements [LogValuer]. The [Value.Resolve]
 method handles these cases carefully, avoiding infinite loops and unbounded recursion.
-Handler authors and others may wish to use Value.Resolve instead of calling LogValue directly.
+Handler authors and others may wish to use [Value.Resolve] instead of calling LogValue directly.
 
 # Wrapping output methods
 

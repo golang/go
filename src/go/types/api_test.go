@@ -2778,14 +2778,14 @@ func TestFileVersions(t *testing.T) {
 	for _, test := range []struct {
 		moduleVersion string
 		fileVersion   string
-		want          Version
+		wantVersion   string
 	}{
-		{"", "", Version{0, 0}},              // no versions specified
-		{"go1.19", "", Version{1, 19}},       // module version specified
-		{"", "go1.20", Version{0, 0}},        // file upgrade ignored
-		{"go1.19", "go1.20", Version{1, 20}}, // file upgrade permitted
-		{"go1.20", "go1.19", Version{1, 20}}, // file downgrade not permitted
-		{"go1.21", "go1.19", Version{1, 19}}, // file downgrade permitted (module version is >= go1.21)
+		{"", "", ""},                   // no versions specified
+		{"go1.19", "", "go1.19"},       // module version specified
+		{"", "go1.20", ""},             // file upgrade ignored
+		{"go1.19", "go1.20", "go1.20"}, // file upgrade permitted
+		{"go1.20", "go1.19", "go1.20"}, // file downgrade not permitted
+		{"go1.21", "go1.19", "go1.19"}, // file downgrade permitted (module version is >= go1.21)
 	} {
 		var src string
 		if test.fileVersion != "" {
@@ -2794,16 +2794,16 @@ func TestFileVersions(t *testing.T) {
 		src += "package p"
 
 		conf := Config{GoVersion: test.moduleVersion}
-		versions := make(map[*token.File]Version)
+		versions := make(map[*ast.File]string)
 		var info Info
 		*_FileVersionsAddr(&info) = versions
 		mustTypecheck(src, &conf, &info)
 
 		n := 0
 		for _, v := range versions {
-			want := test.want
-			if v.Major != want.Major || v.Minor != want.Minor {
-				t.Errorf("%q: unexpected file version: got %v, want %v", src, v, want)
+			want := test.wantVersion
+			if v != want {
+				t.Errorf("%q: unexpected file version: got %q, want %q", src, v, want)
 			}
 			n++
 		}
@@ -2813,15 +2813,8 @@ func TestFileVersions(t *testing.T) {
 	}
 }
 
-// Version must match types._Version exactly.
-// TODO(gri) remove this declaration once types.Version is exported.
-type Version struct {
-	Major int
-	Minor int
-}
-
 // _FileVersionsAddr(conf) returns the address of the field info._FileVersions.
-func _FileVersionsAddr(info *Info) *map[*token.File]Version {
+func _FileVersionsAddr(info *Info) *map[*ast.File]string {
 	v := reflect.Indirect(reflect.ValueOf(info))
-	return (*map[*token.File]Version)(v.FieldByName("_FileVersions").Addr().UnsafePointer())
+	return (*map[*ast.File]string)(v.FieldByName("_FileVersions").Addr().UnsafePointer())
 }

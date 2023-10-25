@@ -822,7 +822,7 @@ func (c *Config) ticketKeyFromBytes(b [32]byte) (key ticketKey) {
 // ticket, and the lifetime we set for all tickets we send.
 const maxSessionTicketLifetime = 7 * 24 * time.Hour
 
-// Clone returns a shallow clone of c or nil if c is nil. It is safe to clone a Config that is
+// Clone returns a shallow clone of c or nil if c is nil. It is safe to clone a [Config] that is
 // being used concurrently by a TLS client or server.
 func (c *Config) Clone() *Config {
 	if c == nil {
@@ -1157,9 +1157,9 @@ func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, err
 // the client that sent the ClientHello. Otherwise, it returns an error
 // describing the reason for the incompatibility.
 //
-// If this ClientHelloInfo was passed to a GetConfigForClient or GetCertificate
-// callback, this method will take into account the associated Config. Note that
-// if GetConfigForClient returns a different Config, the change can't be
+// If this [ClientHelloInfo] was passed to a GetConfigForClient or GetCertificate
+// callback, this method will take into account the associated [Config]. Note that
+// if GetConfigForClient returns a different [Config], the change can't be
 // accounted for by this method.
 //
 // This function will call x509.ParseCertificate unless c.Leaf is set, which can
@@ -1450,7 +1450,7 @@ type lruSessionCacheEntry struct {
 	state      *ClientSessionState
 }
 
-// NewLRUClientSessionCache returns a ClientSessionCache with the given
+// NewLRUClientSessionCache returns a [ClientSessionCache] with the given
 // capacity that uses an LRU strategy. If capacity is < 1, a default capacity
 // is used instead.
 func NewLRUClientSessionCache(capacity int) ClientSessionCache {
@@ -1499,7 +1499,7 @@ func (c *lruSessionCache) Put(sessionKey string, cs *ClientSessionState) {
 	c.m[sessionKey] = elem
 }
 
-// Get returns the ClientSessionState value associated with a given key. It
+// Get returns the [ClientSessionState] value associated with a given key. It
 // returns (nil, false) if no value is found.
 func (c *lruSessionCache) Get(sessionKey string) (*ClientSessionState, bool) {
 	c.Lock()

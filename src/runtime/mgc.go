@@ -476,7 +476,6 @@ func GC() {
 	// as part of tests and benchmarks to get the system into a
 	// relatively stable and isolated state.
 	for work.cycles.Load() == n+1 && sweepone() != ^uintptr(0) {
-		sweep.nbgsweep++
 		Gosched()
 	}
 
@@ -575,10 +574,6 @@ func (t gcTrigger) test() bool {
 	}
 	switch t.kind {
 	case gcTriggerHeap:
-		// Non-atomic access to gcController.heapLive for performance. If
-		// we are going to trigger on this, this thread just
-		// atomically wrote gcController.heapLive anyway and we'll see our
-		// own write.
 		trigger, _ := gcController.trigger()
 		return gcController.heapLive.Load() >= trigger
 	case gcTriggerTime:
@@ -624,7 +619,6 @@ func gcStart(trigger gcTrigger) {
 	// We check the transition condition continuously here in case
 	// this G gets delayed in to the next GC cycle.
 	for trigger.test() && sweepone() != ^uintptr(0) {
-		sweep.nbgsweep++
 	}
 
 	// Perform GC initialization and the sweep termination
@@ -690,7 +684,7 @@ func gcStart(trigger gcTrigger) {
 		finishsweep_m()
 	})
 
-	// clearpools before we start the GC. If we wait they memory will not be
+	// clearpools before we start the GC. If we wait the memory will not be
 	// reclaimed until the next GC cycle.
 	clearpools()
 
@@ -722,11 +716,11 @@ func gcStart(trigger gcTrigger) {
 	// enabled because they must be enabled before
 	// any non-leaf heap objects are marked. Since
 	// allocations are blocked until assists can
-	// happen, we want enable assists as early as
+	// happen, we want to enable assists as early as
 	// possible.
 	setGCPhase(_GCmark)
 
-	gcBgMarkPrepare() // Must happen before assist enable.
+	gcBgMarkPrepare() // Must happen before assists are enabled.
 	gcMarkRootPrepare()
 
 	// Mark all active tinyalloc blocks. Since we're
@@ -1050,10 +1044,6 @@ func gcMarkTermination() {
 
 	// Reset idle time stat.
 	sched.idleTime.Store(0)
-
-	// Reset sweep state.
-	sweep.nbgsweep = 0
-	sweep.npausesweep = 0
 
 	if work.userForced {
 		memstats.numforcedgc++
@@ -1593,7 +1583,6 @@ func gcSweep(mode gcMode) bool {
 		}
 		// Sweep all spans eagerly.
 		for sweepone() != ^uintptr(0) {
-			sweep.npausesweep++
 		}
 		// Free workbufs eagerly.
 		prepareFreeWorkbufs()

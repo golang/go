@@ -1122,7 +1122,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 	testBinary := testBinaryName(p)
 
 	testDir := b.NewObjdir()
-	if err := b.Mkdir(testDir); err != nil {
+	if err := b.BackgroundShell().Mkdir(testDir); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -1350,6 +1350,8 @@ func (lockedStdout) Write(b []byte) (int, error) {
 }
 
 func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action) error {
+	sh := b.Shell(a)
+
 	// Wait for previous test to get started and print its first json line.
 	select {
 	case <-r.prev:
@@ -1395,7 +1397,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	if p := a.Package; len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		reportNoTestFiles := true
 		if cfg.BuildCover && cfg.Experiment.CoverageRedesign {
-			if err := b.Mkdir(a.Objdir); err != nil {
+			if err := sh.Mkdir(a.Objdir); err != nil {
 				return err
 			}
 			mf, err := work.BuildActionCoverMetaFile(a)
@@ -1491,7 +1493,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	addToEnv := ""
 	if cfg.BuildCover {
 		gcd := filepath.Join(a.Objdir, "gocoverdir")
-		if err := b.Mkdir(gcd); err != nil {
+		if err := sh.Mkdir(gcd); err != nil {
 			// If we can't create a temp dir, terminate immediately
 			// with an error as opposed to returning an error to the
 			// caller; failed MkDir most likely indicates that we're
@@ -1506,7 +1508,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 			// able to find it.
 			src := r.writeCoverMetaAct.Objdir + coverage.MetaFilesFileName
 			dst := filepath.Join(gcd, coverage.MetaFilesFileName)
-			if err := b.CopyFile(dst, src, 0666, false); err != nil {
+			if err := sh.CopyFile(dst, src, 0666, false); err != nil {
 				return err
 			}
 		}
@@ -1528,7 +1530,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	}
 
 	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd("", "%s", strings.Join(args, " "))
+		sh.ShowCmd("", "%s", strings.Join(args, " "))
 		if cfg.BuildN {
 			return nil
 		}
@@ -2039,10 +2041,7 @@ func builderCleanTest(b *work.Builder, ctx context.Context, a *work.Action) erro
 	if cfg.BuildWork {
 		return nil
 	}
-	if cfg.BuildX {
-		b.Showcmd("", "rm -r %s", a.Objdir)
-	}
-	os.RemoveAll(a.Objdir)
+	b.Shell(a).RemoveAll(a.Objdir)
 	return nil
 }
 

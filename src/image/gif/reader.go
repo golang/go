@@ -156,7 +156,7 @@ func (b *blockReader) ReadByte() (byte, error) {
 }
 
 // blockReader must implement io.Reader, but its Read shouldn't ever actually
-// be called in practice. The compress/lzw package will only call ReadByte.
+// be called in practice. The compress/lzw package will only call [blockReader.ReadByte].
 func (b *blockReader) Read(p []byte) (int, error) {
 	if len(p) == 0 || b.err != nil {
 		return 0, b.err
@@ -561,7 +561,7 @@ func uninterlace(m *image.Paletted) {
 }
 
 // Decode reads a GIF image from r and returns the first embedded
-// image as an image.Image.
+// image as an [image.Image].
 func Decode(r io.Reader) (image.Image, error) {
 	var d decoder
 	if err := d.decode(r, false, false); err != nil {

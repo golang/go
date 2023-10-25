@@ -53,6 +53,9 @@ var CgoCheckPointer = cgoCheckPointer
 const TracebackInnerFrames = tracebackInnerFrames
 const TracebackOuterFrames = tracebackOuterFrames
 
+var MapKeys = keys
+var MapValues = values
+
 var LockPartialOrder = lockPartialOrder
 
 type LockRank lockRank
@@ -583,6 +586,10 @@ func MapBucketsPointerIsNil(m map[int]int) bool {
 	return h.buckets == nil
 }
 
+func OverLoadFactor(count int, B uint8) bool {
+	return overLoadFactor(count, B)
+}
+
 func LockOSCounts() (external, internal uint32) {
 	gp := getg()
 	if gp.m.lockedExt+gp.m.lockedInt == 0 {
@@ -799,7 +806,7 @@ func (b *PallocBits) PopcntRange(i, n uint) uint { return (*pageBits)(b).popcntR
 // SummarizeSlow is a slow but more obviously correct implementation
 // of (*pallocBits).summarize. Used for testing.
 func SummarizeSlow(b *PallocBits) PallocSum {
-	var start, max, end uint
+	var start, most, end uint
 
 	const N = uint(len(b)) * 64
 	for start < N && (*pageBits)(b).get(start) == 0 {
@@ -815,11 +822,9 @@ func SummarizeSlow(b *PallocBits) PallocSum {
 		} else {
 			run = 0
 		}
-		if run > max {
-			max = run
-		}
+		most = max(most, run)
 	}
-	return PackPallocSum(start, max, end)
+	return PackPallocSum(start, most, end)
 }
 
 // Expose non-trivial helpers for testing.

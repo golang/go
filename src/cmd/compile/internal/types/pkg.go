@@ -54,6 +54,10 @@ func NewPkg(path, name string) *Pkg {
 	return p
 }
 
+func PkgMap() map[string]*Pkg {
+	return pkgMap
+}
+
 var nopkg = &Pkg{
 	Syms: make(map[string]*Sym),
 }
@@ -100,6 +104,14 @@ func (pkg *Pkg) LookupNum(prefix string, n int) *Sym {
 	copy(buf[:], prefix)
 	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
 	return pkg.LookupBytes(b)
+}
+
+// Selector looks up a selector identifier.
+func (pkg *Pkg) Selector(name string) *Sym {
+	if IsExported(name) {
+		pkg = LocalPkg
+	}
+	return pkg.Lookup(name)
 }
 
 var (

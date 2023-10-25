@@ -15,6 +15,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -526,16 +527,18 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 			// Build an internal/abi.InterfaceSwitch descriptor to pass to the runtime.
 			lsym := types.LocalPkg.Lookup(fmt.Sprintf(".interfaceSwitch.%d", interfaceSwitchGen)).LinksymABI(obj.ABI0)
 			interfaceSwitchGen++
-			off := 0
-			off = objw.SymPtr(lsym, off, typecheck.LookupRuntimeVar("emptyInterfaceSwitchCache"), 0)
-			off = objw.Uintptr(lsym, off, uint64(len(interfaceCases)))
-			for _, c := range interfaceCases {
-				off = objw.SymPtr(lsym, off, reflectdata.TypeSym(c.typ.Type()).Linksym(), 0)
+			c := rttype.NewCursor(lsym, 0, rttype.InterfaceSwitch)
+			c.Field("Cache").WritePtr(typecheck.LookupRuntimeVar("emptyInterfaceSwitchCache"))
+			c.Field("NCases").WriteInt(int64(len(interfaceCases)))
+			array, sizeDelta := c.Field("Cases").ModifyArray(len(interfaceCases))
+			for i, c := range interfaceCases {
+				array.Elem(i).WritePtr(reflectdata.TypeSym(c.typ.Type()).Linksym())
 			}
-			objw.Global(lsym, int32(off), obj.LOCAL)
-			// Set the type to be just a single pointer, as the cache pointer is the
-			// only one that GC needs to see.
-			lsym.Gotype = reflectdata.TypeLinksym(types.Types[types.TUINT8].PtrTo())
+			objw.Global(lsym, int32(rttype.InterfaceSwitch.Size()+sizeDelta), obj.LOCAL)
+			// The GC only needs to see the first pointer in the structure (all the others
+			// are to static locations). So the InterfaceSwitch type itself is fine, even
+			// though it might not cover the whole array we wrote above.
+			lsym.Gotype = reflectdata.TypeLinksym(rttype.InterfaceSwitch)
 
 			// Call runtime to do switch
 			// case, itab = runtime.interfaceSwitch(&descriptor, typeof(arg))
@@ -546,7 +549,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 				typeArg = itabType(srcItab)
 			}
 			caseVar := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
-			isw := ir.NewInterfaceSwitchStmt(base.Pos, caseVar, s.itabName, typeArg, lsym)
+			isw := ir.NewInterfaceSwitchStmt(base.Pos, caseVar, s.itabName, typeArg, dotHash, lsym)
 			sw.Compiled.Append(isw)
 
 			// Switch on the result of the call (or cache lookup).
@@ -691,7 +694,7 @@ func typeHashFieldOf(pos src.XPos, itab *ir.UnaryExpr) *ir.SelectorExpr {
 	if itab.X.Type().IsEmptyInterface() {
 		// runtime._type's hash field
 		if rtypeHashField == nil {
-			rtypeHashField = runtimeField("hash", int64(2*types.PtrSize), types.Types[types.TUINT32])
+			rtypeHashField = runtimeField("hash", rttype.Type.OffsetOf("Hash"), types.Types[types.TUINT32])
 		}
 		hashField = rtypeHashField
 	} else {

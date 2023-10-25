@@ -29,8 +29,12 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 
 	// setup and syntax error reporting
 	files := make([]*syntax.File, len(noders))
+	// posBaseMap maps all file pos bases back to *syntax.File
+	// for checking Go version mismatched.
+	posBaseMap := make(map[*syntax.PosBase]*syntax.File)
 	for i, p := range noders {
 		files[i] = p.file
+		posBaseMap[p.file.Pos().Base()] = p.file
 	}
 
 	// typechecking
@@ -43,17 +47,8 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 		Context:            ctxt,
 		GoVersion:          base.Flag.Lang,
 		IgnoreBranchErrors: true, // parser already checked via syntax.CheckBranches mode
-		Error: func(err error) {
-			terr := err.(types2.Error)
-			msg := terr.Msg
-			// if we have a version error, hint at the -lang setting
-			if versionErrorRx.MatchString(msg) {
-				msg = fmt.Sprintf("%s (-lang was set to %s; check go.mod)", msg, base.Flag.Lang)
-			}
-			base.ErrorfAt(m.makeXPos(terr.Pos), terr.Code, "%s", msg)
-		},
-		Importer: &importer,
-		Sizes:    types2.SizesFor("gc", buildcfg.GOARCH),
+		Importer:           &importer,
+		Sizes:              types2.SizesFor("gc", buildcfg.GOARCH),
 	}
 	if base.Flag.ErrorURL {
 		conf.ErrorURL = " [go.dev/e/%s]"
@@ -68,6 +63,27 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 		Instances:          make(map[*syntax.Name]types2.Instance),
 		FileVersions:       make(map[*syntax.PosBase]types2.Version),
 		// expand as needed
+	}
+	conf.Error = func(err error) {
+		terr := err.(types2.Error)
+		msg := terr.Msg
+		if versionErrorRx.MatchString(msg) {
+			posBase := terr.Pos.Base()
+			for !posBase.IsFileBase() { // line directive base
+				posBase = posBase.Pos().Base()
+			}
+			v := info.FileVersions[posBase]
+			fileVersion := fmt.Sprintf("go%d.%d", v.Major, v.Minor)
+			file := posBaseMap[posBase]
+			if file.GoVersion == fileVersion {
+				// If we have a version error caused by //go:build, report it.
+				msg = fmt.Sprintf("%s (file declares //go:build %s)", msg, fileVersion)
+			} else {
+				// Otherwise, hint at the -lang setting.
+				msg = fmt.Sprintf("%s (-lang was set to %s; check go.mod)", msg, base.Flag.Lang)
+			}
+		}
+		base.ErrorfAt(m.makeXPos(terr.Pos), terr.Code, "%s", msg)
 	}
 
 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)

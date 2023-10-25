@@ -150,8 +150,9 @@
 (Lsh32x(64|32|16|8) x y) && shiftIsBounded(v) => (SLL x y)
 (Lsh64x(64|32|16|8) x y) && shiftIsBounded(v) => (SLL x y)
 
-// SRL only considers the bottom 6 bits of y. If y > 64, the result should
-// always be 0. See Lsh above for a detailed description.
+// SRL only considers the bottom 6 bits of y, similarly SRLW only considers the
+// bottom 5 bits of y. Ensure that the result is always zero if the shift exceeds
+// the maximum value. See Lsh above for a detailed description.
 (Rsh8Ux8   <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> (ZeroExt8to64  x) y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
 (Rsh8Ux16  <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> (ZeroExt8to64  x) y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
 (Rsh8Ux32  <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> (ZeroExt8to64  x) y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
@@ -160,10 +161,10 @@
 (Rsh16Ux16 <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> (ZeroExt16to64 x) y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
 (Rsh16Ux32 <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> (ZeroExt16to64 x) y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
 (Rsh16Ux64 <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> (ZeroExt16to64 x) y) (Neg16 <t> (SLTIU <t> [64] y)))
-(Rsh32Ux8  <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> (ZeroExt32to64 x) y) (Neg32 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
-(Rsh32Ux16 <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> (ZeroExt32to64 x) y) (Neg32 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
-(Rsh32Ux32 <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> (ZeroExt32to64 x) y) (Neg32 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
-(Rsh32Ux64 <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> (ZeroExt32to64 x) y) (Neg32 <t> (SLTIU <t> [64] y)))
+(Rsh32Ux8  <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> (ZeroExt32to64 x) y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt8to64  y))))
+(Rsh32Ux16 <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> (ZeroExt32to64 x) y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt16to64 y))))
+(Rsh32Ux32 <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> (ZeroExt32to64 x) y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt32to64 y))))
+(Rsh32Ux64 <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> (ZeroExt32to64 x) y) (Neg32 <t> (SLTIU <t> [32] y)))
 (Rsh64Ux8  <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> x                 y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
 (Rsh64Ux16 <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> x                 y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
 (Rsh64Ux32 <t> x y) && !shiftIsBounded(v) => (AND (SRL <t> x                 y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
@@ -395,8 +396,6 @@
 		ptr
 		(ADD <ptr.Type> ptr (MOVDconst [s-moveSize(t.Alignment(), config)]))
 		mem)
-
-(Convert ...) => (MOVconvert ...)
 
 // Checks
 (IsNonNil ...) => (SNEZ ...)
@@ -707,6 +706,10 @@
 // But for now, this is enough to get rid of lots of them.
 (MOVDnop (MOVDconst [c])) => (MOVDconst [c])
 
+// Avoid unnecessary zero extension when right shifting.
+(SRL <t> (MOVWUreg x) y) => (SRLW <t> x y)
+(SRLI <t> [x] (MOVWUreg y)) => (SRLIW <t> [int64(x&31)] y)
+
 // Fold constant into immediate instructions where possible.
 (ADD (MOVDconst <t> [val]) x) && is32Bit(val) && !t.IsPtr() => (ADDI [val] x)
 (AND (MOVDconst [val]) x) && is32Bit(val) => (ANDI [val] x)
@@ -714,6 +717,7 @@
 (XOR (MOVDconst [val]) x) && is32Bit(val) => (XORI [val] x)
 (SLL  x (MOVDconst [val])) => (SLLI [int64(val&63)] x)
 (SRL  x (MOVDconst [val])) => (SRLI [int64(val&63)] x)
+(SRLW x (MOVDconst [val])) => (SRLIW [int64(val&31)] x)
 (SRA  x (MOVDconst [val])) => (SRAI [int64(val&63)] x)
 (SLT  x (MOVDconst [val])) && val >= -2048 && val <= 2047 => (SLTI  [val] x)
 (SLTU x (MOVDconst [val])) && val >= -2048 && val <= 2047 => (SLTIU [val] x)

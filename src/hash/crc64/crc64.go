@@ -43,8 +43,8 @@ func buildSlicing8Tables() {
 	slicing8TableECMA = makeSlicingBy8Table(makeTable(ECMA))
 }
 
-// MakeTable returns a Table constructed from the specified polynomial.
-// The contents of this Table must not be modified.
+// MakeTable returns a [Table] constructed from the specified polynomial.
+// The contents of this [Table] must not be modified.
 func MakeTable(poly uint64) *Table {
 	buildSlicing8TablesOnce()
 	switch poly {
@@ -93,9 +93,9 @@ type digest struct {
 }
 
 // New creates a new hash.Hash64 computing the CRC-64 checksum using the
-// polynomial represented by the Table. Its Sum method will lay the
+// polynomial represented by the [Table]. Its Sum method will lay the
 // value out in big-endian byte order. The returned Hash64 also
-// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
+// implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
 // marshal and unmarshal the internal state of the hash.
 func New(tab *Table) hash.Hash64 { return &digest{0, tab} }
 
@@ -210,7 +210,7 @@ func (d *digest) Sum(in []byte) []byte {
 }
 
 // Checksum returns the CRC-64 checksum of data
-// using the polynomial represented by the Table.
+// using the polynomial represented by the [Table].
 func Checksum(data []byte, tab *Table) uint64 { return update(0, tab, data) }
 
 // tableSum returns the ISO checksum of table t.

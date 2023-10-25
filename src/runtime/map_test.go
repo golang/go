@@ -1419,3 +1419,48 @@ func TestEmptyMapWithInterfaceKey(t *testing.T) {
 		_ = mi[panicStructKey]
 	})
 }
+
+func TestLoadFactor(t *testing.T) {
+	for b := uint8(0); b < 20; b++ {
+		count := 13 * (1 << b) / 2 // 6.5
+		if b == 0 {
+			count = 8
+		}
+		if runtime.OverLoadFactor(count, b) {
+			t.Errorf("OverLoadFactor(%d,%d)=true, want false", count, b)
+		}
+		if !runtime.OverLoadFactor(count+1, b) {
+			t.Errorf("OverLoadFactor(%d,%d)=false, want true", count+1, b)
+		}
+	}
+}
+
+func TestMapKeys(t *testing.T) {
+	type key struct {
+		s   string
+		pad [128]byte // sizeof(key) > abi.MapMaxKeyBytes
+	}
+	m := map[key]int{{s: "a"}: 1, {s: "b"}: 2}
+	keys := make([]key, 0, len(m))
+	runtime.MapKeys(m, unsafe.Pointer(&keys))
+	for _, k := range keys {
+		if len(k.s) != 1 {
+			t.Errorf("len(k.s) == %d, want 1", len(k.s))
+		}
+	}
+}
+
+func TestMapValues(t *testing.T) {
+	type val struct {
+		s   string
+		pad [128]byte // sizeof(val) > abi.MapMaxElemBytes
+	}
+	m := map[int]val{1: {s: "a"}, 2: {s: "b"}}
+	vals := make([]val, 0, len(m))
+	runtime.MapValues(m, unsafe.Pointer(&vals))
+	for _, v := range vals {
+		if len(v.s) != 1 {
+			t.Errorf("len(v.s) == %d, want 1", len(v.s))
+		}
+	}
+}

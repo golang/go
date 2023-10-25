@@ -70,8 +70,8 @@ func (a *ints) slice(i, j int) ints {
 	return ints{nil, a.int64[i:j]}
 }
 
-// New creates a new Index for data.
-// Index creation time is O(N) for N = len(data).
+// New creates a new [Index] for data.
+// [Index] creation time is O(N) for N = len(data).
 func New(data []byte) *Index {
 	ix := &Index{data: data}
 	if len(data) <= maxData32 {

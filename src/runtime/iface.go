@@ -408,15 +408,6 @@ func convTslice(val []byte) (x unsafe.Pointer) {
 	return
 }
 
-// convI2I returns the new itab to be used for the destination value
-// when converting a value with itab src to the dst interface.
-func convI2I(dst *interfacetype, src *itab) *itab {
-	if src == nil {
-		return nil
-	}
-	return getitab(dst, src._type, false)
-}
-
 func assertE2I(inter *interfacetype, t *_type) *itab {
 	if t == nil {
 		// explicit conversions require non-nil interface value.

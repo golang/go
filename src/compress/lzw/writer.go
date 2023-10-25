@@ -32,7 +32,7 @@ const (
 )
 
 // Writer is an LZW compressor. It writes the compressed form of the data
-// to an underlying writer (see NewWriter).
+// to an underlying writer (see [NewWriter]).
 type Writer struct {
 	// w is the writer that compressed bytes are written to.
 	w writer
@@ -195,7 +195,7 @@ loop:
 	return n, nil
 }
 
-// Close closes the Writer, flushing any pending output. It does not close
+// Close closes the [Writer], flushing any pending output. It does not close
 // w's underlying writer.
 func (w *Writer) Close() error {
 	if w.err != nil {
@@ -238,22 +238,22 @@ func (w *Writer) Close() error {
 	return w.w.Flush()
 }
 
-// Reset clears the Writer's state and allows it to be reused again
-// as a new Writer.
+// Reset clears the [Writer]'s state and allows it to be reused again
+// as a new [Writer].
 func (w *Writer) Reset(dst io.Writer, order Order, litWidth int) {
 	*w = Writer{}
 	w.init(dst, order, litWidth)
 }
 
-// NewWriter creates a new io.WriteCloser.
-// Writes to the returned io.WriteCloser are compressed and written to w.
+// NewWriter creates a new [io.WriteCloser].
+// Writes to the returned [io.WriteCloser] are compressed and written to w.
 // It is the caller's responsibility to call Close on the WriteCloser when
 // finished writing.
 // The number of bits to use for literal codes, litWidth, must be in the
 // range [2,8] and is typically 8. Input bytes must be less than 1<<litWidth.
 //
-// It is guaranteed that the underlying type of the returned io.WriteCloser
-// is a *Writer.
+// It is guaranteed that the underlying type of the returned [io.WriteCloser]
+// is a *[Writer].
 func NewWriter(w io.Writer, order Order, litWidth int) io.WriteCloser {
 	return newWriter(w, order, litWidth)
 }

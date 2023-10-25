@@ -241,7 +241,7 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 // Subjects returns a list of the DER-encoded subjects of
 // all of the certificates in the pool.
 //
-// Deprecated: if s was returned by SystemCertPool, Subjects
+// Deprecated: if s was returned by [SystemCertPool], Subjects
 // will not include the system roots.
 func (s *CertPool) Subjects() [][]byte {
 	res := make([][]byte, s.len())

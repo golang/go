@@ -57,7 +57,7 @@ func cmov16bit(x, y uint16) uint16 {
 	}
 	// amd64:"CMOVW(HI|CS)"
 	// arm64:"CSNEG\t(LS|HS)"
-	// ppc64x:"ISEL\t[$]0"
+	// ppc64x:"ISEL\t[$][01]"
 	// wasm:"Select"
 	return x
 }
