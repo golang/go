@@ -2186,6 +2186,14 @@ func dropm() {
 
 	setg(nil)
 
+	// Clear g0 stack bounds to ensure that needm always refreshes the
+	// bounds when reusing this M.
+	g0 := mp.g0
+	g0.stack.hi = 0
+	g0.stack.lo = 0
+	g0.stackguard0 = 0
+	g0.stackguard1 = 0
+
 	putExtraM(mp)
 
 	msigrestore(sigmask)
