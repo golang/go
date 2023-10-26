@@ -125,7 +125,7 @@ func (h *defaultHandler) WithGroup(name string) Handler {
 	return &defaultHandler{h.ch.withGroup(name), h.output}
 }
 
-// HandlerOptions are options for a TextHandler or JSONHandler.
+// HandlerOptions are options for a [TextHandler] or [JSONHandler].
 // A zero HandlerOptions consists entirely of default values.
 type HandlerOptions struct {
 	// AddSource causes the handler to compute the source code position

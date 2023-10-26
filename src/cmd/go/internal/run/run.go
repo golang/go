@@ -201,7 +201,7 @@ func shouldUseOutsideModuleMode(args []string) bool {
 func buildRunProgram(b *work.Builder, ctx context.Context, a *work.Action) error {
 	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].Target, a.Args)
 	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd("", "%s", strings.Join(cmdline, " "))
+		b.Shell(a).ShowCmd("", "%s", strings.Join(cmdline, " "))
 		if cfg.BuildN {
 			return nil
 		}

@@ -5,7 +5,7 @@
 // Package embed provides access to files embedded in the running Go program.
 //
 // Go source files that import "embed" can use the //go:embed directive
-// to initialize a variable of type string, []byte, or FS with the contents of
+// to initialize a variable of type string, []byte, or [FS] with the contents of
 // files read from the package directory or subdirectories at compile time.
 //
 // For example, here are three ways to embed a file named hello.txt
@@ -45,7 +45,7 @@
 // Only blank lines and ‘//’ line comments are permitted between the directive and the declaration.
 //
 // The type of the variable must be a string type, or a slice of a byte type,
-// or FS (or an alias of FS).
+// or [FS] (or an alias of [FS]).
 //
 // For example:
 //
@@ -104,16 +104,16 @@
 // the contents of that file.
 //
 // The //go:embed directive requires importing "embed", even when using a string or []byte.
-// In source files that don't refer to embed.FS, use a blank import (import _ "embed").
+// In source files that don't refer to [embed.FS], use a blank import (import _ "embed").
 //
 // # File Systems
 //
 // For embedding a single file, a variable of type string or []byte is often best.
-// The FS type enables embedding a tree of files, such as a directory of static
+// The [FS] type enables embedding a tree of files, such as a directory of static
 // web server content, as in the example above.
 //
-// FS implements the io/fs package's FS interface, so it can be used with any package that
-// understands file systems, including net/http, text/template, and html/template.
+// FS implements the [io/fs] package's [FS] interface, so it can be used with any package that
+// understands file systems, including [net/http], [text/template], and [html/template].
 //
 // For example, given the content variable in the example above, we can write:
 //
@@ -299,9 +299,9 @@ func (f FS) readDir(dir string) []file {
 	return files[i:j]
 }
 
-// Open opens the named file for reading and returns it as an fs.File.
+// Open opens the named file for reading and returns it as an [fs.File].
 //
-// The returned file implements io.Seeker and io.ReaderAt when the file is not a directory.
+// The returned file implements [io.Seeker] and [io.ReaderAt] when the file is not a directory.
 func (f FS) Open(name string) (fs.File, error) {
 	file := f.lookup(name)
 	if file == nil {

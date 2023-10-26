@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build arm64 && netbsd
-// +build arm64,netbsd
 
 package unix
 

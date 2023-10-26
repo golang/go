@@ -930,6 +930,9 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 	systemstack(func() {
 		saveg(pc, sp, ourg, &p[0])
 	})
+	if labels != nil {
+		labels[0] = ourg.labels
+	}
 	ourg.goroutineProfiled.Store(goroutineProfileSatisfied)
 	goroutineProfile.offset.Store(1)
 

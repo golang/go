@@ -58,16 +58,16 @@ const (
 )
 
 // ParseFile parses the source code of a single Go source file and returns
-// the corresponding ast.File node. The source code may be provided via
+// the corresponding [ast.File] node. The source code may be provided via
 // the filename of the source file, or via the src parameter.
 //
 // If src != nil, ParseFile parses the source from src and the filename is
 // only used when recording position information. The type of the argument
-// for the src parameter must be string, []byte, or io.Reader.
+// for the src parameter must be string, []byte, or [io.Reader].
 // If src == nil, ParseFile parses the file specified by filename.
 //
 // The mode parameter controls the amount of source text parsed and
-// other optional parser functionality. If the SkipObjectResolution
+// other optional parser functionality. If the [SkipObjectResolution]
 // mode bit is set (recommended), the object resolution phase of
 // parsing will be skipped, causing File.Scope, File.Unresolved, and
 // all Ident.Obj fields to be nil. Those fields are deprecated; see
@@ -78,7 +78,7 @@ const (
 //
 // If the source couldn't be read, the returned AST is nil and the error
 // indicates the specific failure. If the source was read but syntax
-// errors were found, the result is a partial AST (with ast.Bad* nodes
+// errors were found, the result is a partial AST (with [ast.Bad]* nodes
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by source position.
 func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast.File, err error) {
@@ -126,13 +126,13 @@ func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast
 	return
 }
 
-// ParseDir calls ParseFile for all files with names ending in ".go" in the
+// ParseDir calls [ParseFile] for all files with names ending in ".go" in the
 // directory specified by path and returns a map of package name -> package
 // AST with all the packages found.
 //
-// If filter != nil, only the files with fs.FileInfo entries passing through
+// If filter != nil, only the files with [fs.FileInfo] entries passing through
 // the filter (and ending in ".go") are considered. The mode bits are passed
-// to ParseFile unchanged. Position information is recorded in fset, which
+// to [ParseFile] unchanged. Position information is recorded in fset, which
 // must not be nil.
 //
 // If the directory couldn't be read, a nil map and the respective error are
@@ -179,13 +179,13 @@ func ParseDir(fset *token.FileSet, path string, filter func(fs.FileInfo) bool, m
 }
 
 // ParseExprFrom is a convenience function for parsing an expression.
-// The arguments have the same meaning as for ParseFile, but the source must
+// The arguments have the same meaning as for [ParseFile], but the source must
 // be a valid Go (type or value) expression. Specifically, fset must not
 // be nil.
 //
 // If the source couldn't be read, the returned AST is nil and the error
 // indicates the specific failure. If the source was read but syntax
-// errors were found, the result is a partial AST (with ast.Bad* nodes
+// errors were found, the result is a partial AST (with [ast.Bad]* nodes
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by source position.
 func ParseExprFrom(fset *token.FileSet, filename string, src any, mode Mode) (expr ast.Expr, err error) {
@@ -232,7 +232,7 @@ func ParseExprFrom(fset *token.FileSet, filename string, src any, mode Mode) (ex
 // The position information recorded in the AST is undefined. The filename used
 // in error messages is the empty string.
 //
-// If syntax errors were found, the result is a partial AST (with ast.Bad* nodes
+// If syntax errors were found, the result is a partial AST (with [ast.Bad]* nodes
 // representing the fragments of erroneous source code). Multiple errors are
 // returned via a scanner.ErrorList which is sorted by source position.
 func ParseExpr(x string) (ast.Expr, error) {

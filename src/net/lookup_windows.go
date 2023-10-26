@@ -20,6 +20,9 @@ import (
 const cgoAvailable = true
 
 const (
+	_DNS_ERROR_RCODE_NAME_ERROR = syscall.Errno(9003)
+	_DNS_INFO_NO_RECORDS        = syscall.Errno(9501)
+
 	_WSAHOST_NOT_FOUND = syscall.Errno(11001)
 	_WSATRY_AGAIN      = syscall.Errno(11002)
 	_WSATYPE_NOT_FOUND = syscall.Errno(10109)
@@ -27,7 +30,7 @@ const (
 
 func winError(call string, err error) error {
 	switch err {
-	case _WSAHOST_NOT_FOUND:
+	case _WSAHOST_NOT_FOUND, _DNS_ERROR_RCODE_NAME_ERROR, _DNS_INFO_NO_RECORDS:
 		return errNoSuchHost
 	}
 	return os.NewSyscallError(call, err)
@@ -271,7 +274,8 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error)
 		return absDomainName(name), nil
 	}
 	if e != nil {
-		return "", &DNSError{Err: winError("dnsquery", e).Error(), Name: name}
+		err := winError("dnsquery", e)
+		return "", &DNSError{Err: err.Error(), Name: name, IsNotFound: err == errNoSuchHost}
 	}
 	defer syscall.DnsRecordListFree(rec, 1)
 
@@ -296,7 +300,8 @@ func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (
 	var rec *syscall.DNSRecord
 	e := syscall.DnsQuery(target, syscall.DNS_TYPE_SRV, 0, nil, &rec, nil)
 	if e != nil {
-		return "", nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: target}
+		err := winError("dnsquery", e)
+		return "", nil, &DNSError{Err: err.Error(), Name: name, IsNotFound: err == errNoSuchHost}
 	}
 	defer syscall.DnsRecordListFree(rec, 1)
 
@@ -319,7 +324,8 @@ func (r *Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
 	var rec *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_MX, 0, nil, &rec, nil)
 	if e != nil {
-		return nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: name}
+		err := winError("dnsquery", e)
+		return nil, &DNSError{Err: err.Error(), Name: name, IsNotFound: err == errNoSuchHost}
 	}
 	defer syscall.DnsRecordListFree(rec, 1)
 
@@ -342,7 +348,8 @@ func (r *Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
 	var rec *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_NS, 0, nil, &rec, nil)
 	if e != nil {
-		return nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: name}
+		err := winError("dnsquery", e)
+		return nil, &DNSError{Err: err.Error(), Name: name, IsNotFound: err == errNoSuchHost}
 	}
 	defer syscall.DnsRecordListFree(rec, 1)
 
@@ -364,7 +371,8 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 	var rec *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_TEXT, 0, nil, &rec, nil)
 	if e != nil {
-		return nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: name}
+		err := winError("dnsquery", e)
+		return nil, &DNSError{Err: err.Error(), Name: name, IsNotFound: err == errNoSuchHost}
 	}
 	defer syscall.DnsRecordListFree(rec, 1)
 
@@ -395,7 +403,8 @@ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error
 	var rec *syscall.DNSRecord
 	e := syscall.DnsQuery(arpa, syscall.DNS_TYPE_PTR, 0, nil, &rec, nil)
 	if e != nil {
-		return nil, &DNSError{Err: winError("dnsquery", e).Error(), Name: addr}
+		err := winError("dnsquery", e)
+		return nil, &DNSError{Err: err.Error(), Name: addr, IsNotFound: err == errNoSuchHost}
 	}
 	defer syscall.DnsRecordListFree(rec, 1)
 

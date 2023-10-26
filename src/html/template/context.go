@@ -17,16 +17,19 @@ import (
 // https://www.w3.org/TR/html5/syntax.html#the-end
 // where the context element is null.
 type context struct {
-	state           state
-	delim           delim
-	urlPart         urlPart
-	jsCtx           jsCtx
-	jsTmplExprDepth int
-	jsBraceDepth    int
-	attr            attr
-	element         element
-	n               parse.Node // for range break/continue
-	err             *Error
+	state   state
+	delim   delim
+	urlPart urlPart
+	jsCtx   jsCtx
+	// jsBraceDepth contains the current depth, for each JS template literal
+	// string interpolation expression, of braces we've seen. This is used to
+	// determine if the next } will close a JS template literal string
+	// interpolation expression or not.
+	jsBraceDepth []int
+	attr         attr
+	element      element
+	n            parse.Node // for range break/continue
+	err          *Error
 }
 
 func (c context) String() string {

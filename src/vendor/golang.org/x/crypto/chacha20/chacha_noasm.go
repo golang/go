@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (!arm64 && !s390x && !ppc64le) || !gc || purego
-// +build !arm64,!s390x,!ppc64le !gc purego
 
 package chacha20
 

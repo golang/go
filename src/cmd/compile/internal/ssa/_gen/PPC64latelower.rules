@@ -18,6 +18,9 @@
 (SETBC [1] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [1] (MOVDconst [1]) cmp)
 (SETBCR [1] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [5] (MOVDconst [1]) cmp)
 
+// Avoid using ANDCCconst if the value for CR0 is not needed, since ANDCCconst
+// always sets it.
+(Select0 z:(ANDCCconst [m] x)) && z.Uses == 1 && isPPC64ValidShiftMask(m) => (RLDICL [encodePPC64RotateMask(0,m,64)] x)
 // The upper bits of the smaller than register values is undefined. Take advantage of that.
 (AND <t> x:(MOVDconst [m]) n) && t.Size() <= 2 => (Select0 (ANDCCconst [int64(int16(m))] n))
 
@@ -30,3 +33,6 @@
 
 // Convert rotated 32 bit masks on 32 bit values into rlwinm. In general, this leaves the upper 32 bits in an undefined state.
 (AND <t> x:(MOVDconst [m]) n) && t.Size() == 4 && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(0,m,32)] n)
+
+// When PCRel is supported, paddi can add a 34b signed constant in one instruction.
+(ADD (MOVDconst [m]) x) && supportsPPC64PCRel() && (m<<30)>>30 == m => (ADDconst [m] x)

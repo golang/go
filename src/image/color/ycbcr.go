@@ -225,7 +225,7 @@ func (c YCbCr) RGBA() (uint32, uint32, uint32, uint32) {
 	return uint32(r), uint32(g), uint32(b), 0xffff
 }
 
-// YCbCrModel is the Model for Y'CbCr colors.
+// YCbCrModel is the [Model] for Y'CbCr colors.
 var YCbCrModel Model = ModelFunc(yCbCrModel)
 
 func yCbCrModel(c Color) Color {
@@ -287,7 +287,7 @@ func (c NYCbCrA) RGBA() (uint32, uint32, uint32, uint32) {
 	return uint32(r) * a / 0xffff, uint32(g) * a / 0xffff, uint32(b) * a / 0xffff, a
 }
 
-// NYCbCrAModel is the Model for non-alpha-premultiplied Y'CbCr-with-alpha
+// NYCbCrAModel is the [Model] for non-alpha-premultiplied Y'CbCr-with-alpha
 // colors.
 var NYCbCrAModel Model = ModelFunc(nYCbCrAModel)
 
@@ -332,7 +332,7 @@ func RGBToCMYK(r, g, b uint8) (uint8, uint8, uint8, uint8) {
 	return uint8(c), uint8(m), uint8(y), uint8(0xff - w)
 }
 
-// CMYKToRGB converts a CMYK quadruple to an RGB triple.
+// CMYKToRGB converts a [CMYK] quadruple to an RGB triple.
 func CMYKToRGB(c, m, y, k uint8) (uint8, uint8, uint8) {
 	w := 0xffff - uint32(k)*0x101
 	r := (0xffff - uint32(c)*0x101) * w / 0xffff
@@ -360,7 +360,7 @@ func (c CMYK) RGBA() (uint32, uint32, uint32, uint32) {
 	return r, g, b, 0xffff
 }
 
-// CMYKModel is the Model for CMYK colors.
+// CMYKModel is the [Model] for CMYK colors.
 var CMYKModel Model = ModelFunc(cmykModel)
 
 func cmykModel(c Color) Color {

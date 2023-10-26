@@ -1,5 +1,6 @@
 //errorcheck -0 -race -m -m
-// +build linux,amd64 linux,ppc64le darwin,amd64 freebsd,amd64 netbsd,amd64 windows,amd64
+
+//go:build (linux && amd64) || (linux && ppc64le) || (darwin && amd64) || (freebsd && amd64) || (netbsd && amd64) || (windows && amd64)
 
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

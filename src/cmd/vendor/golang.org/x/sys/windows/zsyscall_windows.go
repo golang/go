@@ -253,6 +253,7 @@ var (
 	procGetFileAttributesW                                   = modkernel32.NewProc("GetFileAttributesW")
 	procGetFileInformationByHandle                           = modkernel32.NewProc("GetFileInformationByHandle")
 	procGetFileInformationByHandleEx                         = modkernel32.NewProc("GetFileInformationByHandleEx")
+	procGetFileTime                                          = modkernel32.NewProc("GetFileTime")
 	procGetFileType                                          = modkernel32.NewProc("GetFileType")
 	procGetFinalPathNameByHandleW                            = modkernel32.NewProc("GetFinalPathNameByHandleW")
 	procGetFullPathNameW                                     = modkernel32.NewProc("GetFullPathNameW")
@@ -2179,6 +2180,14 @@ func GetFileInformationByHandle(handle Handle, data *ByHandleFileInformation) (e
 
 func GetFileInformationByHandleEx(handle Handle, class uint32, outBuffer *byte, outBufferLen uint32) (err error) {
 	r1, _, e1 := syscall.Syscall6(procGetFileInformationByHandleEx.Addr(), 4, uintptr(handle), uintptr(class), uintptr(unsafe.Pointer(outBuffer)), uintptr(outBufferLen), 0, 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func GetFileTime(handle Handle, ctime *Filetime, atime *Filetime, wtime *Filetime) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetFileTime.Addr(), 4, uintptr(handle), uintptr(unsafe.Pointer(ctime)), uintptr(unsafe.Pointer(atime)), uintptr(unsafe.Pointer(wtime)), 0, 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}

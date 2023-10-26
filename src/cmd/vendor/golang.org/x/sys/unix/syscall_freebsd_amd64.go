@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build amd64 && freebsd
-// +build amd64,freebsd
 
 package unix
 

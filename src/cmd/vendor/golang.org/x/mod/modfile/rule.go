@@ -367,7 +367,7 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 				}
 			}
 			if !fixed {
-				errorf("invalid go version '%s': must match format 1.23", args[0])
+				errorf("invalid go version '%s': must match format 1.23.0", args[0])
 				return
 			}
 		}
@@ -384,7 +384,7 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 			errorf("toolchain directive expects exactly one argument")
 			return
 		} else if strict && !ToolchainRE.MatchString(args[0]) {
-			errorf("invalid toolchain version '%s': must match format go1.23 or local", args[0])
+			errorf("invalid toolchain version '%s': must match format go1.23.0 or local", args[0])
 			return
 		}
 		f.Toolchain = &Toolchain{Syntax: line}

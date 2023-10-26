@@ -373,7 +373,7 @@ func ErrorLoadingGetTempPath2() error {
 //sys	DestroyEnvironmentBlock(block *uint16) (err error) = userenv.DestroyEnvironmentBlock
 //sys	CreateEvent(eventAttrs *SecurityAttributes, manualReset uint32, initialState uint32, name *uint16) (handle syscall.Handle, err error) = kernel32.CreateEventW
 
-//sys	RtlGenRandom(buf []byte) (err error) = advapi32.SystemFunction036
+//sys	ProcessPrng(buf []byte) (err error) = bcryptprimitives.ProcessPrng
 
 type FILE_ID_BOTH_DIR_INFO struct {
 	NextEntryOffset uint32

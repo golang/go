@@ -1094,7 +1094,33 @@ const (
 
 	SOMAXCONN = 0x7fffffff
 
-	TCP_NODELAY = 1
+	TCP_NODELAY                    = 1
+	TCP_EXPEDITED_1122             = 2
+	TCP_KEEPALIVE                  = 3
+	TCP_MAXSEG                     = 4
+	TCP_MAXRT                      = 5
+	TCP_STDURG                     = 6
+	TCP_NOURG                      = 7
+	TCP_ATMARK                     = 8
+	TCP_NOSYNRETRIES               = 9
+	TCP_TIMESTAMPS                 = 10
+	TCP_OFFLOAD_PREFERENCE         = 11
+	TCP_CONGESTION_ALGORITHM       = 12
+	TCP_DELAY_FIN_ACK              = 13
+	TCP_MAXRTMS                    = 14
+	TCP_FASTOPEN                   = 15
+	TCP_KEEPCNT                    = 16
+	TCP_KEEPIDLE                   = TCP_KEEPALIVE
+	TCP_KEEPINTVL                  = 17
+	TCP_FAIL_CONNECT_ON_ICMP_ERROR = 18
+	TCP_ICMP_ERROR_INFO            = 19
+
+	UDP_NOCHECKSUM              = 1
+	UDP_SEND_MSG_SIZE           = 2
+	UDP_RECV_MAX_COALESCED_SIZE = 3
+	UDP_CHECKSUM_COVERAGE       = 20
+
+	UDP_COALESCED_INFO = 3
 
 	SHUT_RD   = 0
 	SHUT_WR   = 1
