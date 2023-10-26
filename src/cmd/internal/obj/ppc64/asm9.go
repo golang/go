@@ -892,9 +892,6 @@ func (c *ctxt9) aclassreg(reg int16) int {
 		case REG_LR:
 			return C_LR
 
-		case REG_XER:
-			return C_XER
-
 		case REG_CTR:
 			return C_CTR
 		}
@@ -1153,7 +1150,7 @@ func cmp(a int, b int) bool {
 	switch a {
 
 	case C_SPR:
-		if b == C_LR || b == C_XER || b == C_CTR {
+		if b == C_LR || b == C_CTR {
 			return true
 		}
 
