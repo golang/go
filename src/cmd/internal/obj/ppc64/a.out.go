@@ -428,9 +428,8 @@ const (
 	C_SACON    /* $n(REG) where n <= int16 */
 	C_LACON    /* $n(REG) where n <= int32 */
 	C_DACON    /* $n(REG) where n <= int64 */
-	C_SBRA     /* A short offset argument to a branching instruction */
-	C_LBRA     /* A long offset argument to a branching instruction */
-	C_LBRAPIC  /* Like C_LBRA, but requires an extra NOP for potential TOC restore by the linker. */
+	C_BRA      /* A short offset argument to a branching instruction */
+	C_BRAPIC   /* Like C_BRA, but requires an extra NOP for potential TOC restore by the linker. */
 	C_ZOREG    /* An $0+reg memory op */
 	C_SOREG    /* An $n+reg memory arg where n is a 16 bit signed offset */
 	C_LOREG    /* An $n+reg memory arg where n is a 32 bit signed offset */

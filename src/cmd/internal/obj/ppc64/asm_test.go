@@ -525,8 +525,8 @@ func TestAddrClassifier(t *testing.T) {
 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -(1 << 34)}, C_64CON},
 
 		// Branch like arguments
-		{obj.Addr{Type: obj.TYPE_BRANCH, Sym: &obj.LSym{Type: objabi.SDATA}}, cmplx{C_SBRA, C_LBRAPIC, C_LBRAPIC, C_SBRA}},
-		{obj.Addr{Type: obj.TYPE_BRANCH}, C_SBRA},
+		{obj.Addr{Type: obj.TYPE_BRANCH, Sym: &obj.LSym{Type: objabi.SDATA}}, cmplx{C_BRA, C_BRAPIC, C_BRAPIC, C_BRA}},
+		{obj.Addr{Type: obj.TYPE_BRANCH}, C_BRA},
 	}
 
 	pic_ctxt9 := ctxt9{ctxt: &obj.Link{Flag_shared: true, Arch: &Linkppc64}, autosize: 0}
