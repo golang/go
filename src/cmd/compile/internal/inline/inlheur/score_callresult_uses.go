@@ -46,7 +46,7 @@ type resultUseAnalyzer struct {
 // rescoreBasedOnCallResultUses examines how call results are used,
 // and tries to update the scores of calls based on how their results
 // are used in the function.
-func rescoreBasedOnCallResultUses(fn *ir.Func, resultNameTab map[*ir.Name]resultPropAndCS, cstab CallSiteTab) {
+func (csa *callSiteAnalyzer) rescoreBasedOnCallResultUses(fn *ir.Func, resultNameTab map[*ir.Name]resultPropAndCS, cstab CallSiteTab) {
 	enableDebugTraceIfEnv()
 	rua := &resultUseAnalyzer{
 		resultNameTab:    resultNameTab,
@@ -65,7 +65,7 @@ func rescoreBasedOnCallResultUses(fn *ir.Func, resultNameTab map[*ir.Name]result
 	disableDebugTrace()
 }
 
-func examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS) map[*ir.Name]resultPropAndCS {
+func (csa *callSiteAnalyzer) examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS) map[*ir.Name]resultPropAndCS {
 	if debugTrace&debugTraceScoring != 0 {
 		fmt.Fprintf(os.Stderr, "=-= examining call results for %q\n",
 			EncodeCallSiteKey(cs))
@@ -103,7 +103,7 @@ func examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS
 		if rprop&interesting == 0 {
 			continue
 		}
-		if ir.Reassigned(n) {
+		if csa.nameFinder.reassigned(n) {
 			continue
 		}
 		if resultNameTab == nil {
