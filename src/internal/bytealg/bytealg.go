@@ -24,10 +24,6 @@ const (
 // If MaxLen is not 0, make sure MaxLen >= 4.
 var MaxLen int
 
-// FIXME: the logic of IndexRabinKarpBytes and IndexRabinKarp are exactly the same,
-// except that the types are different.
-// Can we eliminate one of them without causing allocation?
-
 // PrimeRK is the prime base used in Rabin-Karp algorithm.
 const PrimeRK = 16777619
 
@@ -65,34 +61,9 @@ func HashStrRev[T string | []byte](sep T) (uint32, uint32) {
 	return hash, pow
 }
 
-// IndexRabinKarpBytes uses the Rabin-Karp search algorithm to return the index of the
-// first occurrence of substr in s, or -1 if not present.
-func IndexRabinKarpBytes(s, sep []byte) int {
-	// Rabin-Karp search
-	hashsep, pow := HashStr(sep)
-	n := len(sep)
-	var h uint32
-	for i := 0; i < n; i++ {
-		h = h*PrimeRK + uint32(s[i])
-	}
-	if h == hashsep && Equal(s[:n], sep) {
-		return 0
-	}
-	for i := n; i < len(s); {
-		h *= PrimeRK
-		h += uint32(s[i])
-		h -= pow * uint32(s[i-n])
-		i++
-		if h == hashsep && Equal(s[i-n:i], sep) {
-			return i - n
-		}
-	}
-	return -1
-}
-
 // IndexRabinKarp uses the Rabin-Karp search algorithm to return the index of the
 // first occurrence of substr in s, or -1 if not present.
-func IndexRabinKarp(s, substr string) int {
+func IndexRabinKarp[T string | []byte](s, substr T) int {
 	// Rabin-Karp search
 	hashss, pow := HashStr(substr)
 	n := len(substr)
@@ -100,7 +71,7 @@ func IndexRabinKarp(s, substr string) int {
 	for i := 0; i < n; i++ {
 		h = h*PrimeRK + uint32(s[i])
 	}
-	if h == hashss && s[:n] == substr {
+	if h == hashss && string(s[:n]) == string(substr) {
 		return 0
 	}
 	for i := n; i < len(s); {
@@ -108,7 +79,7 @@ func IndexRabinKarp(s, substr string) int {
 		h += uint32(s[i])
 		h -= pow * uint32(s[i-n])
 		i++
-		if h == hashss && s[i-n:i] == substr {
+		if h == hashss && string(s[i-n:i]) == string(substr) {
 			return i - n
 		}
 	}

@@ -1331,7 +1331,7 @@ func Index(s, sep []byte) int {
 			// we should cutover at even larger average skips,
 			// because Equal becomes that much more expensive.
 			// This code does not take that effect into account.
-			j := bytealg.IndexRabinKarpBytes(s[i:], sep)
+			j := bytealg.IndexRabinKarp(s[i:], sep)
 			if j < 0 {
 				return -1
 			}
