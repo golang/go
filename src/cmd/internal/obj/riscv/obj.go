@@ -727,7 +727,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					ctxt.Diag("%v: jump displacement %d too large", p, p.To.Target().Pc-p.Pc)
 				}
 				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high, Sym: cursym}
-				p.Link.From.Offset = low
+				p.Link.To.Offset = low
 			}
 		}
 	}
