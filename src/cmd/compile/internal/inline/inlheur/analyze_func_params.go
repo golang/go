@@ -29,10 +29,33 @@ func getParams(fn *ir.Func) []*ir.Name {
 	return fn.Dcl[:numParams]
 }
 
-func makeParamsAnalyzer(fn *ir.Func) *paramsAnalyzer {
+// addParamsAnalyzer creates a new paramsAnalyzer helper object for
+// the function fn, appends it to the analyzers list, and returns the
+// new list. If the function in question doesn't have any interesting
+// parameters then the analyzer list is returned unchanged, and the
+// params flags in "fp" are updated accordingly.
+func addParamsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps) []propAnalyzer {
+	pa, props := makeParamsAnalyzer(fn)
+	if pa != nil {
+		analyzers = append(analyzers, pa)
+	} else {
+		fp.ParamFlags = props
+	}
+	return analyzers
+}
+
+// makeParamAnalyzer creates a new helper object to analyze parameters
+// of function fn. If the function doesn't have any interesting
+// params, a nil helper is returned along with a set of default param
+// flags for the func.
+func makeParamsAnalyzer(fn *ir.Func) (*paramsAnalyzer, []ParamPropBits) {
 	params := getParams(fn) // includes receiver if applicable
+	if len(params) == 0 {
+		return nil, nil
+	}
 	vals := make([]ParamPropBits, len(params))
 	top := make([]bool, len(params))
+	interestingToAnalyze := false
 	for i, pn := range params {
 		if pn == nil {
 			continue
@@ -48,6 +71,7 @@ func makeParamsAnalyzer(fn *ir.Func) *paramsAnalyzer {
 			continue
 		}
 		top[i] = true
+		interestingToAnalyze = true
 	}
 
 	if debugTrace&debugTraceParams != 0 {
@@ -63,13 +87,18 @@ func makeParamsAnalyzer(fn *ir.Func) *paramsAnalyzer {
 		}
 	}
 
-	return &paramsAnalyzer{
+	if !interestingToAnalyze {
+		return nil, vals
+	}
+
+	pa := &paramsAnalyzer{
 		fname:            fn.Sym().Name,
 		values:           vals,
 		params:           params,
 		top:              top,
 		condLevelTracker: new(condLevelTracker),
 	}
+	return pa, nil
 }
 
 func (pa *paramsAnalyzer) setResults(funcProps *FuncProps) {

@@ -113,11 +113,11 @@ func computeFuncProps(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int
 		fmt.Fprintf(os.Stderr, "=-= starting analysis of func %v:\n%+v\n",
 			fn, fn)
 	}
-	ra := makeResultsAnalyzer(fn, canInline, inlineMaxBudget)
-	pa := makeParamsAnalyzer(fn)
-	ffa := makeFuncFlagsAnalyzer(fn)
-	analyzers := []propAnalyzer{ffa, ra, pa}
 	funcProps := new(FuncProps)
+	ffa := makeFuncFlagsAnalyzer(fn)
+	analyzers := []propAnalyzer{ffa}
+	analyzers = addResultsAnalyzer(fn, canInline, inlineMaxBudget, analyzers, funcProps)
+	analyzers = addParamsAnalyzer(fn, analyzers, funcProps)
 	runAnalyzersOnFunction(fn, analyzers)
 	for _, a := range analyzers {
 		a.setResults(funcProps)
