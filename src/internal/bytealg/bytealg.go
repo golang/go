@@ -24,52 +24,18 @@ const (
 // If MaxLen is not 0, make sure MaxLen >= 4.
 var MaxLen int
 
-// FIXME: the logic of HashStrBytes, HashStrRevBytes, IndexRabinKarpBytes and HashStr, HashStrRev,
-// IndexRabinKarp are exactly the same, except that the types are different. Can we eliminate
-// three of them without causing allocation?
+// FIXME: the logic of IndexRabinKarpBytes and IndexRabinKarp are exactly the same,
+// except that the types are different.
+// Can we eliminate one of them without causing allocation?
 
 // PrimeRK is the prime base used in Rabin-Karp algorithm.
 const PrimeRK = 16777619
 
-// HashStrBytes returns the hash and the appropriate multiplicative
-// factor for use in Rabin-Karp algorithm.
-func HashStrBytes(sep []byte) (uint32, uint32) {
-	hash := uint32(0)
-	for i := 0; i < len(sep); i++ {
-		hash = hash*PrimeRK + uint32(sep[i])
-	}
-	var pow, sq uint32 = 1, PrimeRK
-	for i := len(sep); i > 0; i >>= 1 {
-		if i&1 != 0 {
-			pow *= sq
-		}
-		sq *= sq
-	}
-	return hash, pow
-}
-
 // HashStr returns the hash and the appropriate multiplicative
 // factor for use in Rabin-Karp algorithm.
-func HashStr(sep string) (uint32, uint32) {
+func HashStr[T string | []byte](sep T) (uint32, uint32) {
 	hash := uint32(0)
 	for i := 0; i < len(sep); i++ {
-		hash = hash*PrimeRK + uint32(sep[i])
-	}
-	var pow, sq uint32 = 1, PrimeRK
-	for i := len(sep); i > 0; i >>= 1 {
-		if i&1 != 0 {
-			pow *= sq
-		}
-		sq *= sq
-	}
-	return hash, pow
-}
-
-// HashStrRevBytes returns the hash of the reverse of sep and the
-// appropriate multiplicative factor for use in Rabin-Karp algorithm.
-func HashStrRevBytes(sep []byte) (uint32, uint32) {
-	hash := uint32(0)
-	for i := len(sep) - 1; i >= 0; i-- {
 		hash = hash*PrimeRK + uint32(sep[i])
 	}
 	var pow, sq uint32 = 1, PrimeRK
@@ -84,7 +50,7 @@ func HashStrRevBytes(sep []byte) (uint32, uint32) {
 
 // HashStrRev returns the hash of the reverse of sep and the
 // appropriate multiplicative factor for use in Rabin-Karp algorithm.
-func HashStrRev(sep string) (uint32, uint32) {
+func HashStrRev[T string | []byte](sep T) (uint32, uint32) {
 	hash := uint32(0)
 	for i := len(sep) - 1; i >= 0; i-- {
 		hash = hash*PrimeRK + uint32(sep[i])
@@ -103,7 +69,7 @@ func HashStrRev(sep string) (uint32, uint32) {
 // first occurrence of substr in s, or -1 if not present.
 func IndexRabinKarpBytes(s, sep []byte) int {
 	// Rabin-Karp search
-	hashsep, pow := HashStrBytes(sep)
+	hashsep, pow := HashStr(sep)
 	n := len(sep)
 	var h uint32
 	for i := 0; i < n; i++ {

@@ -122,7 +122,7 @@ func LastIndex(s, sep []byte) int {
 		return -1
 	}
 	// Rabin-Karp search from the end of the string
-	hashss, pow := bytealg.HashStrRevBytes(sep)
+	hashss, pow := bytealg.HashStrRev(sep)
 	last := len(s) - n
 	var h uint32
 	for i := len(s) - 1; i >= last; i-- {
