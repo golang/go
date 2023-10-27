@@ -26,7 +26,7 @@ var MaxLen int
 
 // FIXME: the logic of IndexRabinKarpBytes and IndexRabinKarp are exactly the same,
 // except that the types are different.
-// Can we eliminate three of them without causing allocation?
+// Can we eliminate one of them without causing allocation?
 
 // PrimeRK is the prime base used in Rabin-Karp algorithm.
 const PrimeRK = 16777619
