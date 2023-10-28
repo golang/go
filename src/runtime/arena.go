@@ -83,7 +83,6 @@
 package runtime
 
 import (
-	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/math"
 	"unsafe"
@@ -519,101 +518,6 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
 	releasem(mp)
 
 	return ptr
-}
-
-// userArenaHeapBitsSetType is the equivalent of heapBitsSetType but for
-// non-slice-backing-store Go values allocated in a user arena chunk. It
-// sets up the heap bitmap for the value with type typ allocated at address ptr.
-// base is the base address of the arena chunk.
-func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
-	h := writeHeapBitsForAddr(uintptr(ptr))
-
-	// Our last allocation might have ended right at a noMorePtrs mark,
-	// which we would not have erased. We need to erase that mark here,
-	// because we're going to start adding new heap bitmap bits.
-	// We only need to clear one mark, because below we make sure to
-	// pad out the bits with zeroes and only write one noMorePtrs bit
-	// for each new object.
-	// (This is only necessary at noMorePtrs boundaries, as noMorePtrs
-	// marks within an object allocated with newAt will be erased by
-	// the normal writeHeapBitsForAddr mechanism.)
-	//
-	// Note that we skip this if this is the first allocation in the
-	// arena because there's definitely no previous noMorePtrs mark
-	// (in fact, we *must* do this, because we're going to try to back
-	// up a pointer to fix this up).
-	if uintptr(ptr)%(8*goarch.PtrSize*goarch.PtrSize) == 0 && uintptr(ptr) != base {
-		// Back up one pointer and rewrite that pointer. That will
-		// cause the writeHeapBits implementation to clear the
-		// noMorePtrs bit we need to clear.
-		r := heapBitsForAddr(uintptr(ptr)-goarch.PtrSize, goarch.PtrSize)
-		_, p := r.next()
-		b := uintptr(0)
-		if p == uintptr(ptr)-goarch.PtrSize {
-			b = 1
-		}
-		h = writeHeapBitsForAddr(uintptr(ptr) - goarch.PtrSize)
-		h = h.write(b, 1)
-	}
-
-	p := typ.GCData // start of 1-bit pointer mask (or GC program)
-	var gcProgBits uintptr
-	if typ.Kind_&kindGCProg != 0 {
-		// Expand gc program, using the object itself for storage.
-		gcProgBits = runGCProg(addb(p, 4), (*byte)(ptr))
-		p = (*byte)(ptr)
-	}
-	nb := typ.PtrBytes / goarch.PtrSize
-
-	for i := uintptr(0); i < nb; i += ptrBits {
-		k := nb - i
-		if k > ptrBits {
-			k = ptrBits
-		}
-		h = h.write(readUintptr(addb(p, i/8)), k)
-	}
-	// Note: we call pad here to ensure we emit explicit 0 bits
-	// for the pointerless tail of the object. This ensures that
-	// there's only a single noMorePtrs mark for the next object
-	// to clear. We don't need to do this to clear stale noMorePtrs
-	// markers from previous uses because arena chunk pointer bitmaps
-	// are always fully cleared when reused.
-	h = h.pad(typ.Size_ - typ.PtrBytes)
-	h.flush(uintptr(ptr), typ.Size_)
-
-	if typ.Kind_&kindGCProg != 0 {
-		// Zero out temporary ptrmask buffer inside object.
-		memclrNoHeapPointers(ptr, (gcProgBits+7)/8)
-	}
-
-	// Double-check that the bitmap was written out correctly.
-	//
-	// Derived from heapBitsSetType.
-	const doubleCheck = false
-	if doubleCheck {
-		size := typ.Size_
-		x := uintptr(ptr)
-		h := heapBitsForAddr(x, size)
-		for i := uintptr(0); i < size; i += goarch.PtrSize {
-			// Compute the pointer bit we want at offset i.
-			want := false
-			off := i % typ.Size_
-			if off < typ.PtrBytes {
-				j := off / goarch.PtrSize
-				want = *addb(typ.GCData, j/8)>>(j%8)&1 != 0
-			}
-			if want {
-				var addr uintptr
-				h, addr = h.next()
-				if addr != x+i {
-					throw("userArenaHeapBitsSetType: pointer entry not correct")
-				}
-			}
-		}
-		if _, addr := h.next(); addr != 0 {
-			throw("userArenaHeapBitsSetType: extra pointer")
-		}
-	}
 }
 
 // userArenaHeapBitsSetSliceType is the equivalent of heapBitsSetType but for
