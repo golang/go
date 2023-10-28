@@ -37,6 +37,7 @@ TEXT countbytebody<>(SB),NOSPLIT,$0
 	// Work with not 32-byte aligned head
 	BIC	$0x1f, R0, R3
 	ADD	$0x20, R3
+	PCALIGN $16
 head_loop:
 	MOVBU.P	1(R0), R5
 	CMP	R5, R1
@@ -60,6 +61,7 @@ chunk:
 	// Clear the low 64-bit element of V7 and V8
 	VEOR	V7.B8, V7.B8, V7.B8
 	VEOR	V8.B8, V8.B8, V8.B8
+	PCALIGN $16
 	// Count the target byte in 32-byte chunk
 chunk_loop:
 	VLD1.P	(R0), [V1.B16, V2.B16]
