@@ -288,15 +288,14 @@ func runSessionLeader(t *testing.T, pause time.Duration) {
 
 		// Wait for stop.
 		var status syscall.WaitStatus
-		var errno syscall.Errno
 		for {
-			_, _, errno = syscall.Syscall6(syscall.SYS_WAIT4, uintptr(cmd.Process.Pid), uintptr(unsafe.Pointer(&status)), syscall.WUNTRACED, 0, 0, 0)
-			if errno != syscall.EINTR {
+			_, err = syscall.Wait4(cmd.Process.Pid, &status, syscall.WUNTRACED, nil)
+			if err != syscall.EINTR {
 				break
 			}
 		}
-		if errno != 0 {
-			return fmt.Errorf("error waiting for stop: %w", errno)
+		if err != nil {
+			return fmt.Errorf("error waiting for stop: %w", err)
 		}
 
 		if !status.Stopped() {
@@ -305,7 +304,7 @@ func runSessionLeader(t *testing.T, pause time.Duration) {
 
 		// Take TTY.
 		pgrp := int32(syscall.Getpgrp()) // assume that pid_t is int32
-		_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, ptyFD, syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&pgrp)))
+		_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, ptyFD, syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&pgrp)))
 		if errno != 0 {
 			return fmt.Errorf("error setting tty process group: %w", errno)
 		}
