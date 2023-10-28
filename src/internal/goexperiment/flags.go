@@ -116,4 +116,11 @@ type Flags struct {
 
 	// RangeFunc enables range over func.
 	RangeFunc bool
+
+	// Range enables range over int and func.
+	Range bool
+
+	// AllocHeaders enables a different, more efficient way for the GC to
+	// manage heap metadata.
+	AllocHeaders bool
 }
