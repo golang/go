@@ -563,7 +563,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 	if (dst|src|size)&(goarch.PtrSize-1) != 0 {
 		throw("bulkBarrierPreWrite: unaligned arguments")
 	}
-	if !writeBarrier.needed {
+	if !writeBarrier.enabled {
 		return
 	}
 	if s := spanOf(dst); s == nil {
@@ -633,7 +633,7 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
 	if (dst|src|size)&(goarch.PtrSize-1) != 0 {
 		throw("bulkBarrierPreWrite: unaligned arguments")
 	}
-	if !writeBarrier.needed {
+	if !writeBarrier.enabled {
 		return
 	}
 	buf := &getg().m.p.ptr().wbBuf
@@ -718,7 +718,7 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
 		println("runtime: typeBitsBulkBarrier with type ", toRType(typ).string(), " with GC prog")
 		throw("runtime: invalid typeBitsBulkBarrier")
 	}
-	if !writeBarrier.needed {
+	if !writeBarrier.enabled {
 		return
 	}
 	ptrmask := typ.GCData

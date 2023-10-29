@@ -218,7 +218,6 @@ var gcphase uint32
 var writeBarrier struct {
 	enabled bool    // compiler emits a check of this before calling write barrier
 	pad     [3]byte // compiler uses 32-bit load for "enabled" field
-	needed  bool    // identical to enabled, for now (TODO: dedup)
 	alignme uint64  // guarantee alignment so that compiler can use a 32 or 64-bit load
 }
 
@@ -236,8 +235,7 @@ const (
 //go:nosplit
 func setGCPhase(x uint32) {
 	atomic.Store(&gcphase, x)
-	writeBarrier.needed = gcphase == _GCmark || gcphase == _GCmarktermination
-	writeBarrier.enabled = writeBarrier.needed
+	writeBarrier.enabled = gcphase == _GCmark || gcphase == _GCmarktermination
 }
 
 // gcMarkWorkerMode represents the mode that a concurrent mark worker
