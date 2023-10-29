@@ -15,6 +15,7 @@ const (
 	_SYS_clone3     = 5435
 	_SYS_faccessat2 = 5439
 	_SYS_fchmodat2  = 5452
+	_SYS_setns      = SYS_SETNS
 )
 
 //sys	Dup2(oldfd int, newfd int) (err error)

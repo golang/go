@@ -11,6 +11,7 @@ const (
 	_SYS_clone3     = 435
 	_SYS_faccessat2 = 439
 	_SYS_fchmodat2  = 452
+	_SYS_setns      = SYS_SETNS
 )
 
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT

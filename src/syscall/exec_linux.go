@@ -105,6 +105,22 @@ type SysProcAttr struct {
 	// functionality is supported by the kernel, or -1. Note *PidFD is
 	// changed only if the process starts successfully.
 	PidFD *int
+	// JoinNamespaces to join after fork and before exec. Namespaces are joined
+	// before any unshare calls. If you are using CloneFlags note that those
+	// flags will be used to do the initial fork, so they occur before joining
+	// these namespaces. It is expected that the caller has sorted the list in
+	// the order they want to join. It is possible for ordering to affect
+	// permissions to join other namespaces.
+	JoinNamespaces []LinuxNamespace
+}
+
+// LinuxNamespace represents a Linux namespace that can be joined by a process.
+// See [SysProcAttr.Namespaces].
+type LinuxNamespace struct {
+	// Type of namespace that FD refers to.
+	Type int
+	// FD is the file descriptor referring to the namespace.
+	FD int
 }
 
 var (
@@ -347,6 +363,18 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	// Enable the "keep capabilities" flag to set ambient capabilities later.
 	if len(sys.AmbientCaps) > 0 {
 		_, _, err1 = RawSyscall6(SYS_PRCTL, PR_SET_KEEPCAPS, 1, 0, 0, 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// TODO: I think pid namespaces require some custom handling here.
+	for _, ns := range sys.JoinNamespaces {
+		_, _, err1 = RawSyscall(_SYS_setns, uintptr(ns.FD), uintptr(ns.Type), 0)
+		if err1 != 0 {
+			goto childerror
+		}
+		_, _, err1 = RawSyscall(SYS_CLOSE, uintptr(ns.FD), 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
