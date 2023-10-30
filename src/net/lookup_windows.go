@@ -54,7 +54,10 @@ func lookupProtocol(ctx context.Context, name string) (int, error) {
 	}
 	ch := make(chan result) // unbuffered
 	go func() {
-		acquireThread()
+		if err := acquireThread(ctx); err != nil {
+			ch <- result{err: err}
+			return
+		}
 		defer releaseThread()
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
@@ -111,7 +114,9 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 	}
 
 	getaddr := func() ([]IPAddr, error) {
-		acquireThread()
+		if err := acquireThread(ctx); err != nil {
+			return nil, err
+		}
 		defer releaseThread()
 		hints := syscall.AddrinfoW{
 			Family:   family,
@@ -201,7 +206,9 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 	}
 
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
-	acquireThread()
+	if err := acquireThread(ctx); err != nil {
+		return 0, err
+	}
 	defer releaseThread()
 
 	var hints syscall.AddrinfoW
@@ -264,7 +271,9 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error)
 	}
 
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
-	acquireThread()
+	if err := acquireThread(ctx); err != nil {
+		return "", err
+	}
 	defer releaseThread()
 	var rec *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_CNAME, 0, nil, &rec, nil)
@@ -289,7 +298,9 @@ func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (
 		return r.goLookupSRV(ctx, service, proto, name)
 	}
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
-	acquireThread()
+	if err := acquireThread(ctx); err != nil {
+		return "", nil, err
+	}
 	defer releaseThread()
 	var target string
 	if service == "" && proto == "" {
@@ -319,7 +330,9 @@ func (r *Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
 		return r.goLookupMX(ctx, name)
 	}
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
-	acquireThread()
+	if err := acquireThread(ctx); err != nil {
+		return nil, err
+	}
 	defer releaseThread()
 	var rec *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_MX, 0, nil, &rec, nil)
@@ -343,7 +356,9 @@ func (r *Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
 		return r.goLookupNS(ctx, name)
 	}
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
-	acquireThread()
+	if err := acquireThread(ctx); err != nil {
+		return nil, err
+	}
 	defer releaseThread()
 	var rec *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_NS, 0, nil, &rec, nil)
@@ -366,7 +381,9 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 		return r.goLookupTXT(ctx, name)
 	}
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
-	acquireThread()
+	if err := acquireThread(ctx); err != nil {
+		return nil, err
+	}
 	defer releaseThread()
 	var rec *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_TEXT, 0, nil, &rec, nil)
@@ -394,7 +411,9 @@ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error
 	}
 
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
-	acquireThread()
+	if err := acquireThread(ctx); err != nil {
+		return nil, err
+	}
 	defer releaseThread()
 	arpa, err := reverseaddr(addr)
 	if err != nil {

@@ -40,8 +40,15 @@ func (eai addrinfoErrno) isAddrinfoErrno() {}
 // doBlockingWithCtx executes a blocking function in a separate goroutine when the provided
 // context is cancellable. It is intended for use with calls that don't support context
 // cancellation (cgo, syscalls). blocking func may still be running after this function finishes.
+// For the duration of the execution of the blocking function, the thread is 'acquired' using [acquireThread],
+// blocking might not be executed when the context is cancelled while waiting for acquireThread.
 func doBlockingWithCtx[T any](ctx context.Context, blocking func() (T, error)) (T, error) {
 	if ctx.Done() == nil {
+		if err := acquireThread(ctx); err != nil {
+			var zero T
+			return zero, err
+		}
+		defer releaseThread()
 		return blocking()
 	}
 
@@ -52,6 +59,12 @@ func doBlockingWithCtx[T any](ctx context.Context, blocking func() (T, error)) (
 
 	res := make(chan result, 1)
 	go func() {
+		if err := acquireThread(ctx); err != nil {
+			res <- result{err: err}
+			return
+		}
+		defer releaseThread()
+
 		var r result
 		r.res, r.err = blocking()
 		res <- r
@@ -146,9 +159,6 @@ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (p
 }
 
 func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
-	acquireThread()
-	defer releaseThread()
-
 	var hints _C_struct_addrinfo
 	*_C_ai_flags(&hints) = cgoAddrInfoFlags
 	*_C_ai_socktype(&hints) = _C_SOCK_STREAM
@@ -247,9 +257,6 @@ func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error) 
 }
 
 func cgoLookupAddrPTR(addr string, sa *_C_struct_sockaddr, salen _C_socklen_t) (names []string, err error) {
-	acquireThread()
-	defer releaseThread()
-
 	var gerrno int
 	var b []byte
 	for l := nameinfoLen; l <= maxNameinfoLen; l *= 2 {
@@ -316,9 +323,6 @@ func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmes
 }
 
 func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, error) {
-	acquireThread()
-	defer releaseThread()
-
 	resStateSize := unsafe.Sizeof(_C_struct___res_state{})
 	var state *_C_struct___res_state
 	if resStateSize > 0 {

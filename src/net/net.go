@@ -723,11 +723,16 @@ var threadLimit chan struct{}
 
 var threadOnce sync.Once
 
-func acquireThread() {
+func acquireThread(ctx context.Context) error {
 	threadOnce.Do(func() {
 		threadLimit = make(chan struct{}, concurrentThreadsLimit())
 	})
-	threadLimit <- struct{}{}
+	select {
+	case threadLimit <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return mapErr(ctx.Err())
+	}
 }
 
 func releaseThread() {
