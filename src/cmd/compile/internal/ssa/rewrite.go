@@ -1183,6 +1183,12 @@ func min(x, y int64) int64 {
 	}
 	return y
 }
+func max(x, y int64) int64 {
+	if x > y {
+		return x
+	}
+	return y
+}
 
 func isConstZero(v *Value) bool {
 	switch v.Op {
