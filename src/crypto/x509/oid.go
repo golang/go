@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/asn1"
 	"errors"
+	"math"
 	"math/big"
 	"math/bits"
 	"strconv"
@@ -42,14 +43,6 @@ func newOIDFromDER(der []byte) (OID, bool) {
 	}
 
 	return OID{der}, true
-}
-
-func mustNewOIDFromInts(ints []uint64) OID {
-	oid, err := OIDFromInts(ints)
-	if err != nil {
-		panic("crypto/x509: mustNewOIDFromInts: " + err.Error())
-	}
-	return oid
 }
 
 // OIDFromInts creates a new OID using ints, each integer is a separate component.
@@ -97,57 +90,78 @@ func (oid OID) Equal(other OID) bool {
 	return bytes.Equal(oid.der, other.der)
 }
 
+func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, failed bool) {
+	offset = initOffset
+	var ret64 int64
+	for shifted := 0; offset < len(bytes); shifted++ {
+		// 5 * 7 bits per byte == 35 bits of data
+		// Thus the representation is either non-minimal or too large for an int32
+		if shifted == 5 {
+			failed = true
+			return
+		}
+		ret64 <<= 7
+		b := bytes[offset]
+		// integers should be minimally encoded, so the leading octet should
+		// never be 0x80
+		if shifted == 0 && b == 0x80 {
+			failed = true
+			return
+		}
+		ret64 |= int64(b & 0x7f)
+		offset++
+		if b&0x80 == 0 {
+			ret = int(ret64)
+			// Ensure that the returned value fits in an int on all platforms
+			if ret64 > math.MaxInt32 {
+				failed = true
+			}
+			return
+		}
+	}
+	failed = true
+	return
+}
+
 // EqualASN1OID returns whether an OID equals an asn1.ObjectIdentifier. If
 // asn1.ObjectIdentifier cannot represent the OID specified by oid, because
 // a component of OID requires more than 31 bits, it returns false.
 func (oid OID) EqualASN1OID(other asn1.ObjectIdentifier) bool {
-	const (
-		valSize         = 31 // amount of usable bits of val for OIDs.
-		bitsPerByte     = 7
-		maxValSafeShift = (1 << (valSize - bitsPerByte)) - 1
-	)
-	var (
-		val   = 0
-		first = true
-	)
-	for _, v := range oid.der {
-		if val > maxValSafeShift {
+	if len(other) < 2 {
+		return false
+	}
+	v, offset, failed := parseBase128Int(oid.der, 0)
+	if failed {
+		// This should never happen, since we've already parsed the OID,
+		// but just in case.
+		return false
+	}
+	if v < 80 {
+		a, b := v/40, v%40
+		if other[0] != a || other[1] != b {
 			return false
 		}
-		val <<= bitsPerByte
-		val |= int(v & 0x7F)
-		if v&0x80 == 0 {
-			if first {
-				if len(other) < 2 {
-					return false
-				}
-				var val1, val2 int
-				if val < 80 {
-					val1 = val / 40
-					val2 = val % 40
-				} else {
-					val1 = 2
-					val2 = val - 80
-				}
-				if val1 != other[0] || val2 != other[1] {
-					return false
-				}
-				val = 0
-				first = false
-				other = other[2:]
-				continue
-			}
-			if len(other) == 0 {
-				return false
-			}
-			if val != other[0] {
-				return false
-			}
-			val = 0
-			other = other[1:]
+	} else {
+		a, b := 2, v-80
+		if other[0] != a || other[1] != b {
+			return false
 		}
 	}
-	return true
+
+	i := 2
+	for ; offset < len(oid.der); i++ {
+		v, offset, failed = parseBase128Int(oid.der, offset)
+		if failed {
+			// Again, shouldn't happen, since we've already parsed
+			// the OID, but better safe than sorry.
+			return false
+		}
+		if v != other[i] {
+			return false
+		}
+	}
+
+	return i == len(other)
 }
 
 // Strings returns the string representation of the Object Identifier.
