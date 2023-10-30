@@ -543,16 +543,9 @@ func badctxt() {
 	throw("ctxt != 0")
 }
 
-// crashstack is a space that can be used as the stack when it is
-// crashing on bad stack conditions, e.g. morestack on g0.
-// gcrash is the corresponding (fake) g.
-var crashstack [16384]byte
-
-var gcrash = g{
-	stack:       stack{uintptr(unsafe.Pointer(&crashstack)), uintptr(unsafe.Pointer(&crashstack)) + unsafe.Sizeof(crashstack)},
-	stackguard0: uintptr(unsafe.Pointer(&crashstack)) + 1000,
-	stackguard1: uintptr(unsafe.Pointer(&crashstack)) + 1000,
-}
+// gcrash is a fake g that can be used when crashing due to bad
+// stack conditions.
+var gcrash g
 
 var crashingG atomic.Pointer[g]
 
@@ -802,6 +795,12 @@ func schedinit() {
 	checkfds()
 	parsedebugvars()
 	gcinit()
+
+	// Allocate stack space that can be used when crashing due to bad stack
+	// conditions, e.g. morestack on g0.
+	gcrash.stack = stackalloc(16384)
+	gcrash.stackguard0 = gcrash.stack.lo + 1000
+	gcrash.stackguard1 = gcrash.stack.lo + 1000
 
 	// if disableMemoryProfiling is set, update MemProfileRate to 0 to turn off memprofile.
 	// Note: parsedebugvars may update MemProfileRate, but when disableMemoryProfiling is
