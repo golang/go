@@ -249,7 +249,13 @@ func (pa *paramsAnalyzer) deriveFlagsFromCallee(ce *ir.CallExpr, callee *ir.Func
 			return
 		}
 		callerParamIdx := pa.findParamIdx(name)
-		if callerParamIdx == -1 || pa.params[callerParamIdx] == nil {
+		// note that callerParamIdx may return -1 in the case where
+		// the param belongs not to the current closure func we're
+		// analyzing but to an outer enclosing func.
+		if callerParamIdx == -1 {
+			return
+		}
+		if pa.params[callerParamIdx] == nil {
 			panic("something went wrong")
 		}
 		if !pa.top[callerParamIdx] &&
