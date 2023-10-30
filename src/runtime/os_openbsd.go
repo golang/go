@@ -147,7 +147,6 @@ func semawakeup(mp *m) {
 func osinit() {
 	ncpu = getncpu()
 	physPageSize = getPageSize()
-	haveMapStack = getOSRev() >= 201805 // OpenBSD 6.3
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -264,15 +263,7 @@ func validSIGPROF(mp *m, c *sigctxt) bool {
 	return true
 }
 
-var haveMapStack = false
-
 func osStackAlloc(s *mspan) {
-	// OpenBSD 6.4+ requires that stacks be mapped with MAP_STACK.
-	// It will check this on entry to system calls, traps, and
-	// when switching to the alternate system stack.
-	//
-	// This function is called before s is used for any data, so
-	// it's safe to simply re-map it.
 	osStackRemap(s, _MAP_STACK)
 }
 
@@ -282,13 +273,6 @@ func osStackFree(s *mspan) {
 }
 
 func osStackRemap(s *mspan, flags int32) {
-	if !haveMapStack {
-		// OpenBSD prior to 6.3 did not have MAP_STACK and so
-		// the following mmap will fail. But it also didn't
-		// require MAP_STACK (obviously), so there's no need
-		// to do the mmap.
-		return
-	}
 	a, err := mmap(unsafe.Pointer(s.base()), s.npages*pageSize, _PROT_READ|_PROT_WRITE, _MAP_PRIVATE|_MAP_ANON|_MAP_FIXED|flags, -1, 0)
 	if err != 0 || uintptr(a) != s.base() {
 		print("runtime: remapping stack memory ", hex(s.base()), " ", s.npages*pageSize, " a=", a, " err=", err, "\n")
