@@ -4,17 +4,13 @@
 
 package ssa
 
+// combine copyelim and phielim into a single pass.
 // copyelim removes all uses of OpCopy values from f.
 // A subsequent deadcode pass is needed to actually remove the copies.
 func copyelim(f *Func) {
-	// Modify all values so no arg (including args
-	// of OpCopy) is a copy.
-	for _, b := range f.Blocks {
-		for _, v := range b.Values {
-			copyelimValue(v)
-		}
-	}
+	phielim(f)
 
+	// loop of copyelimValue(v) process has been done in phielim() pass.
 	// Update block control values.
 	for _, b := range f.Blocks {
 		for i, v := range b.ControlValues() {
@@ -81,4 +77,76 @@ func copyelimValue(v *Value) {
 			v.SetArg(i, copySource(a))
 		}
 	}
+}
+
+// phielim eliminates redundant phi values from f.
+// A phi is redundant if its arguments are all equal. For
+// purposes of counting, ignore the phi itself. Both of
+// these phis are redundant:
+//
+//	v = phi(x,x,x)
+//	v = phi(x,v,x,v)
+//
+// We repeat this process to also catch situations like:
+//
+//	v = phi(x, phi(x, x), phi(x, v))
+//
+// TODO: Can we also simplify cases like:
+//
+//	v = phi(v, w, x)
+//	w = phi(v, w, x)
+//
+// and would that be useful?
+func phielim(f *Func) {
+	for {
+		change := false
+		for _, b := range f.Blocks {
+			for _, v := range b.Values {
+				// Modify all values so no arg (including args
+				// of OpCopy) is a copy.
+				copyelimValue(v)
+				change = phielimValue(v) || change
+			}
+		}
+		if !change {
+			break
+		}
+	}
+}
+
+// phielimValue tries to convert the phi v to a copy.
+func phielimValue(v *Value) bool {
+	if v.Op != OpPhi {
+		return false
+	}
+
+	// If there are two distinct args of v which
+	// are not v itself, then the phi must remain.
+	// Otherwise, we can replace it with a copy.
+	var w *Value
+	for _, x := range v.Args {
+		if x == v {
+			continue
+		}
+		if x == w {
+			continue
+		}
+		if w != nil {
+			return false
+		}
+		w = x
+	}
+
+	if w == nil {
+		// v references only itself. It must be in
+		// a dead code loop. Don't bother modifying it.
+		return false
+	}
+	v.Op = OpCopy
+	v.SetArgs1(w)
+	f := v.Block.Func
+	if f.pass.debug > 0 {
+		f.Warnl(v.Pos, "eliminated phi")
+	}
+	return true
 }
