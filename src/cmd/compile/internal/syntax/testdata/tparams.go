@@ -23,7 +23,7 @@ func f[a t, b t, c /* ERROR missing type constraint */ ]()
 
 func f[a b,  /* ERROR expected ] */ 0] ()
 
-// issue #49482
+// go.dev/issue/49482
 type (
 	t[a *[]int] struct{}
 	t[a *t,] struct{}
@@ -35,7 +35,7 @@ type (
 	t[a *struct{}|~t] struct{}
 )
 
-// issue #51488
+// go.dev/issue/51488
 type (
 	t[a *t|t,] struct{}
 	t[a *t|t, b t] struct{}

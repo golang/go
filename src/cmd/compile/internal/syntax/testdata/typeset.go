@@ -44,7 +44,7 @@ type (
         _[_ t|~struct{}] t
         _[_ ~t|~struct{}] t
 
-        // test cases for issue #49175
+        // test cases for go.dev/issue/49175
         _[_ []t]t
         _[_ [1]t]t
         _[_ ~[]t]t
@@ -52,7 +52,7 @@ type (
         t [ /* ERROR type parameters must be named */ t[0]]t
 )
 
-// test cases for issue #49174
+// test cases for go.dev/issue/49174
 func _[_ t]() {}
 func _[_ []t]() {}
 func _[_ [1]t]() {}
