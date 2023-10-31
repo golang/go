@@ -19,8 +19,7 @@ type resultsAnalyzer struct {
 	fname           string
 	props           []ResultPropBits
 	values          []resultVal
-	canInline       func(*ir.Func)
-	inlineMaxBudget int32
+	inlineMaxBudget int
 }
 
 // resultVal captures information about a specific result returned from
@@ -41,8 +40,8 @@ type resultVal struct {
 // new list. If the function in question doesn't have any returns (or
 // any interesting returns) then the analyzer list is left as is, and
 // the result flags in "fp" are updated accordingly.
-func addResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32, analyzers []propAnalyzer, fp *FuncProps) []propAnalyzer {
-	ra, props := makeResultsAnalyzer(fn, canInline, inlineMaxBudget)
+func addResultsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps, inlineMaxBudget int) []propAnalyzer {
+	ra, props := makeResultsAnalyzer(fn, inlineMaxBudget)
 	if ra != nil {
 		analyzers = append(analyzers, ra)
 	} else {
@@ -55,12 +54,15 @@ func addResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget i
 // in function fn. If the function doesn't have any interesting
 // results, a nil helper is returned along with a set of default
 // result flags for the func.
-func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) (*resultsAnalyzer, []ResultPropBits) {
+func makeResultsAnalyzer(fn *ir.Func, inlineMaxBudget int) (*resultsAnalyzer, []ResultPropBits) {
 	results := fn.Type().Results()
 	if len(results) == 0 {
 		return nil, nil
 	}
 	props := make([]ResultPropBits, len(results))
+	if fn.Inl == nil {
+		return nil, props
+	}
 	vals := make([]resultVal, len(results))
 	interestingToAnalyze := false
 	for i := range results {
@@ -78,11 +80,9 @@ func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget 
 	if !interestingToAnalyze {
 		return nil, props
 	}
-
 	ra := &resultsAnalyzer{
 		props:           props,
 		values:          vals,
-		canInline:       canInline,
 		inlineMaxBudget: inlineMaxBudget,
 	}
 	return ra, nil
@@ -95,15 +95,6 @@ func (ra *resultsAnalyzer) setResults(funcProps *FuncProps) {
 	for i := range ra.values {
 		if ra.props[i] == ResultAlwaysSameFunc && !ra.values[i].derived {
 			f := ra.values[i].fn.Func
-			// If the function being returned is a closure that hasn't
-			// yet been checked by CanInline, invoke it now. NB: this
-			// is hacky, it would be better if things were structured
-			// so that all closures were visited ahead of time.
-			if ra.values[i].fnClo {
-				if f != nil && !f.InlinabilityChecked() {
-					ra.canInline(f)
-				}
-			}
 			// HACK: in order to allow for call site score
 			// adjustments, we used a relaxed inline budget in
 			// determining inlinability. For the check below, however,
@@ -111,7 +102,7 @@ func (ra *resultsAnalyzer) setResults(funcProps *FuncProps) {
 			// likely to be inlined, as opposed to whether it might
 			// possibly be inlined if all the right score adjustments
 			// happened, so do a simple check based on the cost.
-			if f.Inl != nil && f.Inl.Cost <= ra.inlineMaxBudget {
+			if f.Inl != nil && f.Inl.Cost <= int32(ra.inlineMaxBudget) {
 				ra.props[i] = ResultAlwaysSameInlinableFunc
 			}
 		}

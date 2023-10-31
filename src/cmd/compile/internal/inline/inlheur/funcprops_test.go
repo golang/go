@@ -346,6 +346,9 @@ func gatherPropsDumpForFile(t *testing.T, testcase string, td string) (string, e
 	run := []string{testenv.GoToolPath(t), "build",
 		"-gcflags=-d=dumpinlfuncprops=" + dumpfile, "-o", outpath, gopath}
 	out, err := testenv.Command(t, run[0], run[1:]...).CombinedOutput()
+	if err != nil {
+		t.Logf("compile command: %+v", run)
+	}
 	if strings.TrimSpace(string(out)) != "" {
 		t.Logf("%s", out)
 	}

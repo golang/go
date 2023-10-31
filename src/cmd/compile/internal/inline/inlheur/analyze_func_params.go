@@ -54,6 +54,9 @@ func makeParamsAnalyzer(fn *ir.Func) (*paramsAnalyzer, []ParamPropBits) {
 		return nil, nil
 	}
 	vals := make([]ParamPropBits, len(params))
+	if fn.Inl == nil {
+		return nil, vals
+	}
 	top := make([]bool, len(params))
 	interestingToAnalyze := false
 	for i, pn := range params {
@@ -73,6 +76,9 @@ func makeParamsAnalyzer(fn *ir.Func) (*paramsAnalyzer, []ParamPropBits) {
 		top[i] = true
 		interestingToAnalyze = true
 	}
+	if !interestingToAnalyze {
+		return nil, vals
+	}
 
 	if debugTrace&debugTraceParams != 0 {
 		fmt.Fprintf(os.Stderr, "=-= param analysis of func %v:\n",
@@ -82,15 +88,10 @@ func makeParamsAnalyzer(fn *ir.Func) (*paramsAnalyzer, []ParamPropBits) {
 			if params[i] != nil {
 				n = params[i].Sym().String()
 			}
-			fmt.Fprintf(os.Stderr, "=-=  %d: %q %s\n",
-				i, n, vals[i].String())
+			fmt.Fprintf(os.Stderr, "=-=  %d: %q %s top=%v\n",
+				i, n, vals[i].String(), top[i])
 		}
 	}
-
-	if !interestingToAnalyze {
-		return nil, vals
-	}
-
 	pa := &paramsAnalyzer{
 		fname:            fn.Sym().Name,
 		values:           vals,
