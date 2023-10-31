@@ -270,6 +270,8 @@ var depsRules = `
 
 	# go parser and friends.
 	FMT
+	< internal/gover
+	< go/version
 	< go/token
 	< go/scanner
 	< go/ast

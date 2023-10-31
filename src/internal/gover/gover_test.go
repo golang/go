@@ -39,6 +39,24 @@ var compareTests = []testCase2[string, string, int]{
 	{"1.99999999999999998", "1.99999999999999999", -1},
 }
 
+func TestParse(t *testing.T) { test1(t, parseTests, "Parse", Parse) }
+
+var parseTests = []testCase1[string, Version]{
+	{"1", Version{"1", "0", "0", "", ""}},
+	{"1.2", Version{"1", "2", "0", "", ""}},
+	{"1.2.3", Version{"1", "2", "3", "", ""}},
+	{"1.2rc3", Version{"1", "2", "", "rc", "3"}},
+	{"1.20", Version{"1", "20", "0", "", ""}},
+	{"1.21", Version{"1", "21", "", "", ""}},
+	{"1.21rc3", Version{"1", "21", "", "rc", "3"}},
+	{"1.21.0", Version{"1", "21", "0", "", ""}},
+	{"1.24", Version{"1", "24", "", "", ""}},
+	{"1.24rc3", Version{"1", "24", "", "rc", "3"}},
+	{"1.24.0", Version{"1", "24", "0", "", ""}},
+	{"1.999testmod", Version{"1", "999", "", "testmod", ""}},
+	{"1.99999999999999999", Version{"1", "99999999999999999", "", "", ""}},
+}
+
 func TestLang(t *testing.T) { test1(t, langTests, "Lang", Lang) }
 
 var langTests = []testCase1[string, string]{
@@ -62,19 +80,6 @@ var isLangTests = []testCase1[string, bool]{
 	{"1.3", false},  // == 1.3.0
 	{"1.2", false},  // == 1.2.0
 	{"1", false},    // == 1.0.0
-}
-
-func TestPrev(t *testing.T) { test1(t, prevTests, "Prev", Prev) }
-
-var prevTests = []testCase1[string, string]{
-	{"", ""},
-	{"0", "0"},
-	{"1.3rc4", "1.2"},
-	{"1.3.5", "1.2"},
-	{"1.3", "1.2"},
-	{"1", "1"},
-	{"1.99999999999999999", "1.99999999999999998"},
-	{"1.40000000000000000", "1.39999999999999999"},
 }
 
 func TestIsValid(t *testing.T) { test1(t, isValidTests, "IsValid", IsValid) }
@@ -128,15 +133,6 @@ func test2[In1, In2, Out any](t *testing.T, tests []testCase2[In1, In2, Out], na
 	for _, tt := range tests {
 		if out := f(tt.in1, tt.in2); !reflect.DeepEqual(out, tt.out) {
 			t.Errorf("%s(%+v, %+v) = %+v, want %+v", name, tt.in1, tt.in2, out, tt.out)
-		}
-	}
-}
-
-func test3[In1, In2, In3, Out any](t *testing.T, tests []testCase3[In1, In2, In3, Out], name string, f func(In1, In2, In3) Out) {
-	t.Helper()
-	for _, tt := range tests {
-		if out := f(tt.in1, tt.in2, tt.in3); !reflect.DeepEqual(out, tt.out) {
-			t.Errorf("%s(%+v, %+v, %+v) = %+v, want %+v", name, tt.in1, tt.in2, tt.in3, out, tt.out)
 		}
 	}
 }
