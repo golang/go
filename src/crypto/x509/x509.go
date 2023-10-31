@@ -772,7 +772,15 @@ type Certificate struct {
 	// CRL Distribution Points
 	CRLDistributionPoints []string
 
+	// PolicyIdentifiers contains asn1.ObjectIdentifiers, the components
+	// of which are limited to int32. If a certificate contains a policy which
+	// cannot be represented by asn1.ObjectIdentifier, it will not be included in
+	// PolicyIdentifiers, but will be present in Policies, which contains all parsed
+	// policy OIDs.
 	PolicyIdentifiers []asn1.ObjectIdentifier
+
+	// Policies contains all policy identifiers included in the certificate.
+	Policies []OID
 }
 
 // ErrUnsupportedAlgorithm results from attempting to perform an operation that
@@ -1179,7 +1187,7 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
 
 	if len(template.PolicyIdentifiers) > 0 &&
 		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
-		ret[n], err = marshalCertificatePolicies(template.PolicyIdentifiers)
+		ret[n], err = marshalCertificatePolicies(template.Policies, template.PolicyIdentifiers)
 		if err != nil {
 			return nil, err
 		}
@@ -1364,14 +1372,27 @@ func marshalBasicConstraints(isCA bool, maxPathLen int, maxPathLenZero bool) (pk
 	return ext, err
 }
 
-func marshalCertificatePolicies(policyIdentifiers []asn1.ObjectIdentifier) (pkix.Extension, error) {
+func marshalCertificatePolicies(policies []OID, policyIdentifiers []asn1.ObjectIdentifier) (pkix.Extension, error) {
 	ext := pkix.Extension{Id: oidExtensionCertificatePolicies}
-	policies := make([]policyInformation, len(policyIdentifiers))
-	for i, policy := range policyIdentifiers {
-		policies[i].Policy = policy
-	}
+
+	b := cryptobyte.NewBuilder(make([]byte, 0, 128))
+	b.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+		for _, v := range policies {
+			child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+				child.AddASN1(cryptobyte_asn1.OBJECT_IDENTIFIER, func(child *cryptobyte.Builder) {
+					child.AddBytes(v.der)
+				})
+			})
+		}
+		for _, v := range policyIdentifiers {
+			child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+				child.AddASN1ObjectIdentifier(v)
+			})
+		}
+	})
+
 	var err error
-	ext.Value, err = asn1.Marshal(policies)
+	ext.Value, err = b.Bytes()
 	return ext, err
 }
 
