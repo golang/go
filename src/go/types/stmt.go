@@ -979,7 +979,7 @@ func rangeKeyVal(typ Type) (key, val Type, cause string, isFunc, ok bool) {
 		if isString(typ) {
 			return Typ[Int], universeRune, "", false, true // use 'rune' name
 		}
-		if buildcfg.Experiment.Range && isInteger(typ) {
+		if isInteger(typ) {
 			return orig, nil, "", false, true
 		}
 	case *Array:
