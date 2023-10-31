@@ -1312,7 +1312,7 @@ func ParsePrefix(s string) (Prefix, error) {
 	bitsStr := s[i+1:]
 
 	// leading zeroes are not valid in a prefix
-	if len(bitsStr) > 1 && bytealg.IndexByteString(bitsStr, '0') == 0 {
+	if len(bitsStr) > 1 && bitsStr[0] == '0' {
 		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): leading zeroes cannot be present in a prefix: " + strconv.Quote(bitsStr))
 	}
 
