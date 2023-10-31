@@ -319,7 +319,7 @@ const pi = 3.1415
 /* 3a */ // 3b
 /* 3c */ const e = 2.7182
 
-// Example from issue 3139
+// Example from go.dev/issue/3139
 func ExampleCount() {
 	fmt.Println(strings.Count("cheese", "e"))
 	fmt.Println(strings.Count("five", "")) // before & after each rune
@@ -335,7 +335,7 @@ func ExampleCount() {
 		{"/* 1a */", "/* 1b */", "/* 1c */", "// 1d"},
 		{"/* 2a\n*/", "// 2b"},
 		{"/* 3a */", "// 3b", "/* 3c */"},
-		{"// Example from issue 3139"},
+		{"// Example from go.dev/issue/3139"},
 		{"// before & after each rune"},
 		{"// Output:", "// 3", "// 5"},
 	}
@@ -735,7 +735,7 @@ func TestScopeDepthLimit(t *testing.T) {
 	}
 }
 
-// proposal #50429
+// proposal go.dev/issue/50429
 func TestRangePos(t *testing.T) {
 	testcases := []string{
 		"package p; func _() { for range x {} }",

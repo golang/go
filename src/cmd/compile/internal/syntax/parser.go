@@ -2021,7 +2021,7 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool)
 
 	// distribute parameter types (len(list) > 0)
 	if named == 0 && !requireNames {
-		// all unnamed => found names are named types
+		// all unnamed and we're not in a type parameter list => found names are named types
 		for _, par := range list {
 			if typ := par.Name; typ != nil {
 				par.Type = typ
@@ -2029,32 +2029,38 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool)
 			}
 		}
 	} else if named != len(list) {
-		// some named => all must have names and types
-		var pos Pos  // left-most error position (or unknown)
-		var typ Expr // current type (from right to left)
+		// some named or we're in a type parameter list => all must be named
+		var errPos Pos // left-most error position (or unknown)
+		var typ Expr   // current type (from right to left)
 		for i := len(list) - 1; i >= 0; i-- {
 			par := list[i]
 			if par.Type != nil {
 				typ = par.Type
 				if par.Name == nil {
-					pos = StartPos(typ)
-					par.Name = NewName(pos, "_")
+					errPos = StartPos(typ)
+					par.Name = NewName(errPos, "_")
 				}
 			} else if typ != nil {
 				par.Type = typ
 			} else {
 				// par.Type == nil && typ == nil => we only have a par.Name
-				pos = par.Name.Pos()
+				errPos = par.Name.Pos()
 				t := p.badExpr()
-				t.pos = pos // correct position
+				t.pos = errPos // correct position
 				par.Type = t
 			}
 		}
-		if pos.IsKnown() {
+		if errPos.IsKnown() {
 			var msg string
 			if requireNames {
+				// Not all parameters are named because named != len(list).
+				// If named == typed we must have parameters that have no types,
+				// and they must be at the end of the parameter list, otherwise
+				// the types would have been filled in by the right-to-left sweep
+				// above and we wouldn't have an error. Since we are in a type
+				// parameter list, the missing types are constraints.
 				if named == typed {
-					pos = end // position error at closing ]
+					errPos = end // position error at closing ]
 					msg = "missing type constraint"
 				} else {
 					msg = "missing type parameter name"
@@ -2066,7 +2072,7 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool)
 			} else {
 				msg = "mixed named and unnamed parameters"
 			}
-			p.syntaxErrorAt(pos, msg)
+			p.syntaxErrorAt(errPos, msg)
 		}
 	}
 
