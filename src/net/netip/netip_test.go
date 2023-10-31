@@ -1452,11 +1452,11 @@ func TestParsePrefixError(t *testing.T) {
 		},
 		{
 			prefix: "1.1.1.0/q",
-			errstr: "bad bits",
+			errstr: "only decimal digits are allowed in a prefix",
 		},
 		{
 			prefix: "1.1.1.0/-1",
-			errstr: "out of range",
+			errstr: "only decimal digits are allowed in a prefix",
 		},
 		{
 			prefix: "1.1.1.0/33",
@@ -1474,6 +1474,22 @@ func TestParsePrefixError(t *testing.T) {
 		{
 			prefix: "2001:db8::%a/32",
 			errstr: "zones cannot be present",
+		},
+		{
+			prefix: "1.1.1.0/+32",
+			errstr: "only decimal digits are allowed in a prefix",
+		},
+		{
+			prefix: "1.1.1.0/-32",
+			errstr: "only decimal digits are allowed in a prefix",
+		},
+		{
+			prefix: "1.1.1.0/032",
+			errstr: "leading zeroes cannot be present in a prefix",
+		},
+		{
+			prefix: "1.1.1.0/0032",
+			errstr: "leading zeroes cannot be present in a prefix",
 		},
 	}
 	for _, test := range tests {
