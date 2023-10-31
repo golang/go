@@ -798,6 +798,9 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 		f.Name = p.name()
 		f.TParamList, f.Type = p.funcType(context)
 	} else {
+		f.Name = NewName(p.pos(), "_")
+		f.Type = new(FuncType)
+		f.Type.pos = p.pos()
 		msg := "expected name or ("
 		if context != "" {
 			msg = "expected name"
