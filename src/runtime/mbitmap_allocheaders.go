@@ -48,9 +48,9 @@
 // is zeroed, so the GC just observes nil pointers.
 // Note that this "tiled" bitmap isn't stored anywhere; it is generated on-the-fly.
 //
-// For objects without their own span, the type metadata is stored in the first
-// word before the object at the beginning of the allocation slot. For objects
-// with their own span, the type metadata is stored in the mspan.
+// For objects without their own span, the type metadata is stored in the last
+// word of the allocation slot. For objects with their own span, the type metadata
+// is stored in the mspan.
 //
 // The bitmap for small unallocated objects in scannable spans is not maintained
 // (can be junk).
@@ -191,9 +191,8 @@ func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
 	// All of these objects have a header.
 	var typ *_type
 	if spc.sizeclass() != 0 {
-		// Pull the allocation header from the first word of the object.
-		typ = *(**_type)(unsafe.Pointer(addr))
-		addr += mallocHeaderSize
+		// Pull the allocation header from the last word of the object.
+		typ = *(**_type)(unsafe.Pointer(addr + span.elemsize - mallocHeaderSize))
 	} else {
 		typ = span.largeType
 	}
