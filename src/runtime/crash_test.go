@@ -804,7 +804,7 @@ func TestG0StackOverflow(t *testing.T) {
 		if n := strings.Count(string(out), "morestack on g0\n"); n != 1 {
 			t.Fatalf("%s\n(exit status %v)", out, err)
 		}
-		if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" {
+		if runtime.CrashStackImplemented {
 			// check for a stack trace
 			want := "runtime.stackOverflow"
 			if n := strings.Count(string(out), want); n < 5 {

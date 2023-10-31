@@ -50,6 +50,8 @@ var MemclrNoHeapPointers = memclrNoHeapPointers
 
 var CgoCheckPointer = cgoCheckPointer
 
+const CrashStackImplemented = crashStackImplemented
+
 const TracebackInnerFrames = tracebackInnerFrames
 const TracebackOuterFrames = tracebackOuterFrames
 

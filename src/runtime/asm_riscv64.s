@@ -153,6 +153,30 @@ TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
 	MOV	T0, ret+0(FP)
 	RET
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
+	MOV	X10, CTXT			// context register
+	MOV	g_m(g), X11			// curm
+
+	// set g to gcrash
+	MOV	$runtime·gcrash(SB), g	// g = &gcrash
+	CALL	runtime·save_g(SB)	// clobbers X31
+	MOV	X11, g_m(g)			// g.m = curm
+	MOV	g, m_g0(X11)			// curm.g0 = g
+
+	// switch to crashstack
+	MOV	(g_stack+stack_hi)(g), X11
+	ADD	$(-4*8), X11
+	MOV	X11, X2
+
+	// call target function
+	MOV	0(CTXT), X10
+	JALR	X1, X10
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
+
 /*
  * support for morestack
  */
@@ -168,6 +192,13 @@ TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
 
 // func morestack()
 TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+	// Called from f.
+	// Set g->sched to context in f.
+	MOV	X2, (g_sched+gobuf_sp)(g)
+	MOV	T0, (g_sched+gobuf_pc)(g)
+	MOV	RA, (g_sched+gobuf_lr)(g)
+	MOV	CTXT, (g_sched+gobuf_ctxt)(g)
+
 	// Cannot grow scheduler stack (m->g0).
 	MOV	g_m(g), A0
 	MOV	m_g0(A0), A1
@@ -180,13 +211,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	BNE	g, A1, 3(PC)
 	CALL	runtime·badmorestackgsignal(SB)
 	CALL	runtime·abort(SB)
-
-	// Called from f.
-	// Set g->sched to context in f.
-	MOV	X2, (g_sched+gobuf_sp)(g)
-	MOV	T0, (g_sched+gobuf_pc)(g)
-	MOV	RA, (g_sched+gobuf_lr)(g)
-	MOV	CTXT, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
