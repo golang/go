@@ -44,3 +44,14 @@ type (
 	t[a ([]t)] struct{}
 	t[a ([]t)|t] struct{}
 )
+
+// go.dev/issue/60812
+type (
+	t [t]struct{}
+	t [[]t]struct{}
+	t [[t]t]struct{}
+	t [/* ERROR missing type parameter name or invalid array length */ t[t]]struct{}
+	t [t t[t], /* ERROR missing type parameter name */ t[t]]struct{}
+	t [/* ERROR missing type parameter name */ t[t], t t[t]]struct{}
+	t [/* ERROR missing type parameter name */ t[t], t[t]]struct{} // report only first error
+)

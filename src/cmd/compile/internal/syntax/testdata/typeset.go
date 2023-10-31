@@ -49,7 +49,7 @@ type (
         _[_ [1]t]t
         _[_ ~[]t]t
         _[_ ~[1]t]t
-        t [ /* ERROR type parameters must be named */ t[0]]t
+        t [ /* ERROR missing type parameter name */ t[0]]t
 )
 
 // test cases for go.dev/issue/49174
@@ -81,11 +81,11 @@ type (
 type (
         _[_ t, t /* ERROR missing type constraint */ ] t
         _[_ ~t, t /* ERROR missing type constraint */ ] t
-        _[_ t, /* ERROR type parameters must be named */ ~t] t
-        _[_ ~t, /* ERROR type parameters must be named */ ~t] t
+        _[_ t, /* ERROR missing type parameter name */ ~t] t
+        _[_ ~t, /* ERROR missing type parameter name */ ~t] t
 
-        _[_ t|t, /* ERROR type parameters must be named */ t|t] t
-        _[_ ~t|t, /* ERROR type parameters must be named */ t|t] t
-        _[_ t|t, /* ERROR type parameters must be named */ ~t|t] t
-        _[_ ~t|t, /* ERROR type parameters must be named */ ~t|t] t
+        _[_ t|t, /* ERROR missing type parameter name */ t|t] t
+        _[_ ~t|t, /* ERROR missing type parameter name */ t|t] t
+        _[_ t|t, /* ERROR missing type parameter name */ ~t|t] t
+        _[_ ~t|t, /* ERROR missing type parameter name */ ~t|t] t
 )

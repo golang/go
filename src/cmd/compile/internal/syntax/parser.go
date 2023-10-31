@@ -2057,7 +2057,11 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool)
 					pos = end // position error at closing ]
 					msg = "missing type constraint"
 				} else {
-					msg = "type parameters must be named"
+					msg = "missing type parameter name"
+					// go.dev/issue/60812
+					if len(list) == 1 {
+						msg += " or invalid array length"
+					}
 				}
 			} else {
 				msg = "mixed named and unnamed parameters"
