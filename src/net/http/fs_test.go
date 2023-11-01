@@ -1621,7 +1621,6 @@ func testFileServerDirWithRootFile(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, FileServer(Dir("testdata/index.html"))).ts
 	defer ts.Close()
 
-	// TODO: try with /test path
 	res, err := ts.Client().Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
