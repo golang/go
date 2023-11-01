@@ -1609,3 +1609,29 @@ func TestServeFileFS(t *testing.T) {
 	}
 	res.Body.Close()
 }
+
+// Issue 63769
+func TestFileServerDirWithRootFile(t *testing.T) { run(t, testFileServerDirWithRootFile) }
+func testFileServerDirWithRootFile(t *testing.T, mode testMode) {
+	filename := "index.html"
+	contents, err := os.ReadFile("testdata/index.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := newClientServerTest(t, mode, FileServer(Dir("testdata/index.html"))).ts
+	defer ts.Close()
+
+	// TODO: try with /test path
+	res, err := ts.Client().Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal("reading Body:", err)
+	}
+	if s := string(b); s != string(contents) {
+		t.Errorf("for path %q got %q, want %q", filename, s, contents)
+	}
+	res.Body.Close()
+}
