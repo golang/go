@@ -144,7 +144,7 @@ func (s *Server) StartTLS() {
 		panic("Server already started")
 	}
 	if s.client == nil {
-		s.client = &http.Client{Transport: &http.Transport{}}
+		s.client = &http.Client{}
 	}
 	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
 	if err != nil {
