@@ -471,7 +471,7 @@ func SetBlockProfileRate(rate int) {
 		r = 1 // profile everything
 	} else {
 		// convert ns to cycles, use float64 to prevent overflow during multiplication
-		r = int64(float64(rate) * float64(tickspersecond()) / (1000 * 1000 * 1000))
+		r = int64(float64(rate) * float64(ticksPerSecond()) / (1000 * 1000 * 1000))
 		if r == 0 {
 			r = 1
 		}

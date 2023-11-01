@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/cpu"
 	"internal/goarch"
+	"internal/goos"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -772,6 +773,7 @@ func schedinit() {
 	// The world starts stopped.
 	worldStopped()
 
+	ticks.init() // run as early as possible
 	moduledataverify()
 	stackinit()
 	mallocinit()
@@ -936,6 +938,20 @@ func (mp *m) becomeSpinning() {
 func (mp *m) hasCgoOnStack() bool {
 	return mp.ncgo > 0 || mp.isextra
 }
+
+const (
+	// osHasLowResTimer indicates that the platform's internal timer system has a low resolution,
+	// typically on the order of 1 ms or more.
+	osHasLowResTimer = GOOS == "windows" || GOOS == "openbsd" || GOOS == "netbsd"
+
+	// osHasLowResClockInt is osHasLowResClock but in integer form, so it can be used to create
+	// constants conditionally.
+	osHasLowResClockInt = goos.IsWindows
+
+	// osHasLowResClock indicates that timestamps produced by nanotime on the platform have a
+	// low resolution, typically on the order of 1 ms or more.
+	osHasLowResClock = osHasLowResClockInt > 0
+)
 
 var fastrandseed uintptr
 
@@ -6599,7 +6615,7 @@ func runqgrab(pp *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool)
 						// between different Ps.
 						// A sync chan send/recv takes ~50ns as of time of
 						// writing, so 3us gives ~50x overshoot.
-						if GOOS != "windows" && GOOS != "openbsd" && GOOS != "netbsd" {
+						if !osHasLowResTimer {
 							usleep(3)
 						} else {
 							// On some platforms system timer granularity is
