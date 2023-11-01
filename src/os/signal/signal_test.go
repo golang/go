@@ -308,6 +308,7 @@ func TestDetectNohup(t *testing.T) {
 			t.Errorf("ran test with -check_sighup_ignored and it succeeded: expected failure.\nOutput:\n%s", out)
 		}
 		Stop(c)
+
 		// Again, this time with nohup, assuming we can find it.
 		_, err := os.Stat("/usr/bin/nohup")
 		if err != nil {
@@ -320,6 +321,13 @@ func TestDetectNohup(t *testing.T) {
 		data, _ := os.ReadFile("nohup.out")
 		os.Remove("nohup.out")
 		if err != nil {
+			// nohup doesn't work on new LUCI darwin builders due to the
+			// type of launchd service the test run under. See
+			// https://go.dev/issue/63875.
+			if runtime.GOOS == "darwin" && strings.Contains(string(out), "nohup: can't detach from console: Inappropriate ioctl for device") {
+				t.Skip("Skipping nohup test due to darwin builder limitation. See https://go.dev/issue/63875.")
+			}
+
 			t.Errorf("ran test with -check_sighup_ignored under nohup and it failed: expected success.\nError: %v\nOutput:\n%s%s", err, out, data)
 		}
 	}
@@ -498,6 +506,16 @@ func TestNohup(t *testing.T) {
 				out, err := testenv.Command(t, "nohup", args...).CombinedOutput()
 
 				if err != nil {
+					// nohup doesn't work on new LUCI darwin builders due to the
+					// type of launchd service the test run under. See
+					// https://go.dev/issue/63875.
+					if runtime.GOOS == "darwin" && strings.Contains(string(out), "nohup: can't detach from console: Inappropriate ioctl for device") {
+						// TODO(go.dev/issue/63799): A false-positive in vet reports a
+						// t.Skip here as invalid. Switch back to t.Skip once fixed.
+						t.Logf("Skipping nohup test due to darwin builder limitation. See https://go.dev/issue/63875.")
+						return
+					}
+
 					t.Errorf("ran test with -send_uncaught_sighup=%d under nohup and it failed: expected success.\nError: %v\nOutput:\n%s", i, err, out)
 				} else {
 					t.Logf("ran test with -send_uncaught_sighup=%d under nohup.\nOutput:\n%s", i, out)
