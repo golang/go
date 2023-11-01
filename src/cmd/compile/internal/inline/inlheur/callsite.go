@@ -25,11 +25,13 @@ import (
 // the site, and "ID" is a numeric ID for the site within its
 // containing function.
 type CallSite struct {
-	Callee    *ir.Func
-	Call      *ir.CallExpr
-	parent    *CallSite
-	Assign    ir.Node
-	Flags     CSPropBits
+	Callee *ir.Func
+	Call   *ir.CallExpr
+	parent *CallSite
+	Assign ir.Node
+	Flags  CSPropBits
+
+	ArgProps  []ActualExprPropBits
 	Score     int
 	ScoreMask scoreAdjustTyp
 	ID        uint
@@ -42,6 +44,17 @@ type CallSite struct {
 // front end saturates column numbers at 255). We also wind up
 // with many calls that share the same auto-generated pos.
 type CallSiteTab map[*ir.CallExpr]*CallSite
+
+// ActualExprPropBits describes a property of an actual expression (value
+// passed to some specific func argument at a call site).
+type ActualExprPropBits uint8
+
+const (
+	ActualExprConstant ActualExprPropBits = 1 << iota
+	ActualExprIsConcreteConvIface
+	ActualExprIsFunc
+	ActualExprIsInlinableFunc
+)
 
 type CSPropBits uint32
 

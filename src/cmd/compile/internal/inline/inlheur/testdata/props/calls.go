@@ -183,7 +183,7 @@ func T_pass_noninlinable_func_to_param_feeding_nested_indirect_call(x int) int {
 // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[0]}
 // callsite: calls.go:209:14|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
 // callsite: calls.go:210:15|1 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
-// callsite: calls.go:212:19|2 flagstr "" flagval 0 score 16 mask 512 maskstr "passInlinableFuncToIndCallAdj"
+// callsite: calls.go:212:19|2 flagstr "" flagval 0 score 36 mask 128 maskstr "passFuncToIndCallAdj"
 // callsite: calls.go:212:19|calls.go:232:10|0 flagstr "" flagval 0 score 4 mask 0 maskstr ""
 // <endcallsites>
 // <endfuncpreamble>
