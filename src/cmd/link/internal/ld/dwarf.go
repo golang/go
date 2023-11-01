@@ -488,7 +488,9 @@ func (d *dwctxt) dotypedef(parent *dwarf.DWDie, name string, def *dwarf.DWDie) *
 	tds := d.ldr.CreateExtSym("", 0)
 	tdsu := d.ldr.MakeSymbolUpdater(tds)
 	tdsu.SetType(sym.SDWARFTYPE)
-	def.Sym = dwSym(tds)
+	if def != nil {
+		def.Sym = dwSym(tds)
+	}
 	d.ldr.SetAttrNotInSymbolTable(tds, true)
 	d.ldr.SetAttrReachable(tds, true)
 
