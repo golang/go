@@ -1311,16 +1311,16 @@ func ParsePrefix(s string) (Prefix, error) {
 
 	bitsStr := s[i+1:]
 
-	// leading zeroes are not valid in a prefix
-	if len(bitsStr) > 1 && bitsStr[0] == '0' {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): leading zeroes cannot be present in a prefix: " + strconv.Quote(bitsStr))
-	}
-
 	// non-digit characters are not valid in a prefix
 	for _, c := range bitsStr {
 		if !unicode.IsDigit(c) {
 			return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): only decimal digits are allowed in a prefix: " + strconv.Quote(bitsStr))
 		}
+	}
+
+	// leading zeroes are not valid in a prefix
+	if len(bitsStr) > 1 && bitsStr[0] == '0' {
+		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): leading zeroes cannot be present in a prefix: " + strconv.Quote(bitsStr))
 	}
 
 	bits, err := strconv.Atoi(bitsStr)
