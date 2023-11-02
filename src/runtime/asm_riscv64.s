@@ -148,11 +148,6 @@ noswitch:
 	ADD	$8, X2
 	JMP	(T1)
 
-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
-	MOV	0(X2), T0		// LR saved by caller
-	MOV	T0, ret+0(FP)
-	RET
-
 // func switchToCrashStack0(fn func())
 TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
 	MOV	X10, CTXT			// context register
