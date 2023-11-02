@@ -294,9 +294,8 @@ noswitch:
 
 // func switchToCrashStack0(fn func())
 TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
-	MOVD	fn+0(FP), R3	// R3 = fn
-	MOVD	R3, R12		// context
-	MOVD	g_m(g), R4	// R4 = m
+	MOVD	fn+0(FP), R12	// context
+	MOVD	g_m(g), R4	// curm
 
 	// set g to gcrash
 	MOVD	$runtime·gcrash(SB), g	// g = &gcrash
@@ -306,8 +305,7 @@ TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
 
 	// switch to crashstack
 	MOVD	(g_stack+stack_hi)(g), R4
-	ADD	$(-4*8), R4
-	MOVD	R4, R15
+	ADD	$(-4*8), R4, R15
 
 	// call target function
 	MOVD	0(R12), R3	// code pointer
