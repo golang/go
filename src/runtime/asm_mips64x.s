@@ -218,8 +218,7 @@ TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-8
 
 	// switch to crashstack
 	MOVV	(g_stack+stack_hi)(g), R2
-	ADDV	$(-4*8), R2
-	MOVV	R2, R29
+	ADDV	$(-4*8), R2, R29
 
 	// call target function
 	MOVV	0(REGCTXT), R25
