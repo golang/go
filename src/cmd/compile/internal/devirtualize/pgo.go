@@ -457,9 +457,12 @@ func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (
 		// Now e.Weight == hottest.Weight, we must select on other
 		// criteria.
 
-		if hottest.Dst.AST == nil && e.Dst.AST != nil {
-			// Prefer the edge with IR available.
-			return true
+		// If only one edge has IR, prefer that one.
+		if (hottest.Dst.AST == nil) != (e.Dst.AST == nil) {
+			if e.Dst.AST != nil {
+				return true
+			}
+			return false
 		}
 
 		// Arbitrary, but the callee names will always differ. Select
