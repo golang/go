@@ -206,9 +206,8 @@ noswitch:
 	JMP	(R4)
 
 // func switchToCrashStack0(fn func())
-TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
-	MOVV	fn+0(FP), R1	// R1 = fn
-	MOVV	R1, REGCTXT	// context register
+TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-8
+	MOVV	fn+0(FP), REGCTXT	// context register
 	MOVV	g_m(g), R2	// curm
 
 	// set g to gcrash
@@ -223,8 +222,8 @@ TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
 	MOVV	R2, R29
 
 	// call target function
-	MOVV	0(REGCTXT), R4
-	JAL	(R4)
+	MOVV	0(REGCTXT), R25
+	JAL	(R25)
 
 	// should never return
 	CALL	runtime·abort(SB)
