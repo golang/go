@@ -94,25 +94,7 @@ func LastIndex(s, substr string) int {
 	case n > len(s):
 		return -1
 	}
-	// Rabin-Karp search from the end of the string
-	hashss, pow := bytealg.HashStrRev(substr)
-	last := len(s) - n
-	var h uint32
-	for i := len(s) - 1; i >= last; i-- {
-		h = h*bytealg.PrimeRK + uint32(s[i])
-	}
-	if h == hashss && s[last:] == substr {
-		return last
-	}
-	for i := last - 1; i >= 0; i-- {
-		h *= bytealg.PrimeRK
-		h += uint32(s[i])
-		h -= pow * uint32(s[i+n])
-		if h == hashss && s[i:i+n] == substr {
-			return i
-		}
-	}
-	return -1
+	return bytealg.LastIndexRabinKarp(s, substr)
 }
 
 // IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
