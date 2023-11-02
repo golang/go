@@ -286,8 +286,7 @@ noswitch:
 
 // func switchToCrashStack0(fn func())
 TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-8
-	MOVD	fn+0(FP), R3	// R3 = fn
-	MOVD	R3, R11		// context register
+	MOVD	fn+0(FP), R11	// context register
 	MOVD	g_m(g), R4	// curm
 
 	// set g to gcrash
@@ -298,12 +297,10 @@ TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-8
 
 	// switch to crashstack
 	MOVD	(g_stack+stack_hi)(g), R4
-	ADD	$(-4*8), R4
-	MOVD	R4, R1
+	ADD	$(-4*8), R4, R1
 
 	// call target function
-	MOVD	0(R11), R12
-	MOVD	R12, CTR
+	MOVD	0(R11), CTR
 	BL	(CTR)
 
 	// should never return
