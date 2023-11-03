@@ -210,14 +210,14 @@ func TestPathInfoDirRoot(t *testing.T) {
 	check(t)
 	h := &Handler{
 		Path: "testdata/test.cgi",
-		Root: "/myscript/",
+		Root: "/myscript//",
 	}
 	expectedMap := map[string]string{
-		"env-PATH_INFO":       "bar",
+		"env-PATH_INFO":       "/bar",
 		"env-QUERY_STRING":    "a=b",
 		"env-REQUEST_URI":     "/myscript/bar?a=b",
 		"env-SCRIPT_FILENAME": "testdata/test.cgi",
-		"env-SCRIPT_NAME":     "/myscript/",
+		"env-SCRIPT_NAME":     "/myscript",
 	}
 	runCgiTest(t, h, "GET /myscript/bar?a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
 }
@@ -278,7 +278,7 @@ func TestPathInfoNoRoot(t *testing.T) {
 		"env-QUERY_STRING":    "a=b",
 		"env-REQUEST_URI":     "/bar?a=b",
 		"env-SCRIPT_FILENAME": "testdata/test.cgi",
-		"env-SCRIPT_NAME":     "/",
+		"env-SCRIPT_NAME":     "",
 	}
 	runCgiTest(t, h, "GET /bar?a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
 }
