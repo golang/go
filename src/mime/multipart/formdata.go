@@ -27,7 +27,7 @@ var ErrMessageTooLarge = errors.New("multipart: message too large")
 // It stores up to maxMemory bytes + 10MB (reserved for non-file parts)
 // in memory. File parts which can't be stored in memory will be stored on
 // disk in temporary files.
-// It returns ErrMessageTooLarge if all non-file parts can't be stored in
+// It returns [ErrMessageTooLarge] if all non-file parts can't be stored in
 // memory.
 func (r *Reader) ReadForm(maxMemory int64) (*Form, error) {
 	return r.readForm(maxMemory)
@@ -228,7 +228,7 @@ func mimeHeaderSize(h textproto.MIMEHeader) (size int64) {
 
 // Form is a parsed multipart form.
 // Its File parts are stored either in memory or on disk,
-// and are accessible via the *FileHeader's Open method.
+// and are accessible via the [*FileHeader]'s Open method.
 // Its Value parts are stored as strings.
 // Both are keyed by field name.
 type Form struct {
@@ -236,7 +236,7 @@ type Form struct {
 	File  map[string][]*FileHeader
 }
 
-// RemoveAll removes any temporary files associated with a Form.
+// RemoveAll removes any temporary files associated with a [Form].
 func (f *Form) RemoveAll() error {
 	var err error
 	for _, fhs := range f.File {
@@ -264,7 +264,7 @@ type FileHeader struct {
 	tmpshared bool
 }
 
-// Open opens and returns the FileHeader's associated File.
+// Open opens and returns the [FileHeader]'s associated File.
 func (fh *FileHeader) Open() (File, error) {
 	if b := fh.content; b != nil {
 		r := io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b)))
