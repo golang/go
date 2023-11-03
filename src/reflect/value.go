@@ -24,7 +24,7 @@ import (
 // inappropriate to the kind of type causes a run time panic.
 //
 // The zero Value represents no value.
-// Its IsValid method returns false, its Kind method returns Invalid,
+// Its [Value.IsValid] method returns false, its Kind method returns [Invalid],
 // its String method returns "<invalid Value>", and all other methods panic.
 // Most functions and methods never return an invalid value.
 // If one does, its documentation states the conditions explicitly.
@@ -1541,7 +1541,7 @@ func (v Value) InterfaceData() [2]uintptr {
 // a chan, func, interface, map, pointer, or slice value; if it is
 // not, IsNil panics. Note that IsNil is not always equivalent to a
 // regular comparison with nil in Go. For example, if v was created
-// by calling ValueOf with an uninitialized interface variable i,
+// by calling [ValueOf] with an uninitialized interface variable i,
 // i==nil will be true but v.IsNil will panic as v will be the zero
 // Value.
 func (v Value) IsNil() bool {
@@ -1566,7 +1566,7 @@ func (v Value) IsNil() bool {
 
 // IsValid reports whether v represents a value.
 // It returns false if v is the zero Value.
-// If IsValid returns false, all other methods except String panic.
+// If [Value.IsValid] returns false, all other methods except String panic.
 // Most functions and methods never return an invalid Value.
 // If one does, its documentation states the conditions explicitly.
 func (v Value) IsValid() bool {
@@ -2503,7 +2503,7 @@ func (v Value) SetUint(x uint64) {
 }
 
 // SetPointer sets the [unsafe.Pointer] value v to x.
-// It panics if v's Kind is not UnsafePointer.
+// It panics if v's Kind is not [UnsafePointer].
 func (v Value) SetPointer(x unsafe.Pointer) {
 	v.mustBeAssignable()
 	v.mustBe(UnsafePointer)
@@ -3054,7 +3054,7 @@ const (
 // then the case is ignored, and the field Send will also be ignored and may be either zero
 // or non-zero.
 //
-// If Dir is SelectRecv, the case represents a receive operation.
+// If Dir is [SelectRecv], the case represents a receive operation.
 // Normally Chan's underlying value must be a channel and Send must be a zero Value.
 // If Chan is a zero Value, then the case is ignored, but Send must still be a zero Value.
 // When a receive operation is selected, the received Value is returned by Select.
@@ -3281,7 +3281,7 @@ func Zero(typ Type) Value {
 var zeroVal [abi.ZeroValSize]byte
 
 // New returns a Value representing a pointer to a new zero value
-// for the specified type. That is, the returned Value's Type is PointerTo(typ).
+// for the specified type. That is, the returned Value's Type is [PointerTo](typ).
 func New(typ Type) Value {
 	if typ == nil {
 		panic("reflect: New(nil)")

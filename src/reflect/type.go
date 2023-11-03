@@ -962,7 +962,7 @@ type StructTag string
 // If there is no such key in the tag, Get returns the empty string.
 // If the tag does not have the conventional format, the value
 // returned by Get is unspecified. To determine whether a tag is
-// explicitly set to the empty string, use Lookup.
+// explicitly set to the empty string, use [StructTag.Lookup].
 func (tag StructTag) Get(key string) string {
 	v, _ := tag.Lookup(key)
 	return v
