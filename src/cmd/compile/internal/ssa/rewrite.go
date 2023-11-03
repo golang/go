@@ -822,7 +822,7 @@ func isSamePtr(p1, p2 *Value) bool {
 	if p1 == p2 {
 		return true
 	}
-	if p1.Op != p2.Op {
+	if p1.Op != p2.Op || p1.Type != p2.Type {
 		return false
 	}
 	switch p1.Op {
