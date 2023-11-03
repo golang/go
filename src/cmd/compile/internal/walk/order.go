@@ -538,7 +538,7 @@ func (o *orderState) call(nn ir.Node) {
 	n := nn.(*ir.CallExpr)
 	typecheck.AssertFixedCall(n)
 
-	if ir.IsFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
+	if ir.IsFuncPCIntrinsic(n) && ir.IsIfaceOfFunc(n.Args[0]) != nil {
 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function,
 		// do not introduce temporaries here, so it is easier to rewrite it
 		// to symbol address reference later in walk.
@@ -1501,9 +1501,4 @@ func (o *orderState) as2ok(n *ir.AssignListStmt) {
 
 	o.out = append(o.out, n)
 	o.stmt(typecheck.Stmt(as))
-}
-
-// isIfaceOfFunc returns whether n is an interface conversion from a direct reference of a func.
-func isIfaceOfFunc(n ir.Node) bool {
-	return n.Op() == ir.OCONVIFACE && n.(*ir.ConvExpr).X.Op() == ir.ONAME && n.(*ir.ConvExpr).X.(*ir.Name).Class == ir.PFUNC
 }
