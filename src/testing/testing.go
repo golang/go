@@ -376,6 +376,7 @@ import (
 	"internal/goexperiment"
 	"internal/race"
 	"io"
+	"log/slog"
 	"math/rand"
 	"os"
 	"reflect"
@@ -1976,6 +1977,17 @@ func (t *T) report() {
 			t.flushToParent(t.name, format, "PASS", t.name, dstr)
 		}
 	}
+}
+
+// Slog returns a structured logger that writes to the test case output, like t.Log does.
+//
+// TODO: Figure out if we want Slog() behaviour to include the following:
+//
+//	When used with go test -json, any log messages are printed in JSON form.
+//	A TestEvent corresponding to a log message has OutputType "slog", and the Output field contains the JSON text.
+func (t *T) Slog() *slog.Logger {
+	// TODO: Add implementation
+	return nil
 }
 
 func listTests(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, fuzzTargets []InternalFuzzTarget, examples []InternalExample) {
