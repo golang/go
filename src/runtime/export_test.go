@@ -425,6 +425,10 @@ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) 
 	initMetrics()
 
 	systemstack(func() {
+		// Donate the racectx to g0. readMetricsLocked calls into the race detector
+		// via map access.
+		getg().racectx = getg().m.curg.racectx
+
 		// Read the metrics once before in case it allocates and skews the metrics.
 		// readMetricsLocked is designed to only allocate the first time it is called
 		// with a given slice of samples. In effect, this extra read tests that this
@@ -442,6 +446,9 @@ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) 
 		// system stack with readmemstats_m so that we don't call into
 		// the stack allocator and adjust metrics between there and here.
 		readMetricsLocked(samplesp, len, cap)
+
+		// Undo the donation.
+		getg().racectx = 0
 	})
 	metricsUnlock()
 
