@@ -378,3 +378,99 @@ func (x *Rat) FloatString(prec int) string {
 
 	return string(buf)
 }
+
+// Note: FloatPrec (below) is in this file rather than rat.go because
+//       its results are relevant for decimal representation/printing.
+
+// FloatPrec returns the number n of non-repeating digits immediately
+// following the decimal point of the decimal representation of x.
+// The boolean result indicates whether a decimal representation of x
+// with that many fractional digits is exact or rounded.
+//
+// Examples:
+//
+//	x      n    exact    decimal representation n fractional digits
+//	0      0    true     0
+//	1      0    true     1
+//	1/2    1    true     0.5
+//	1/3    0    false    0       (0.333... rounded)
+//	1/4    2    true     0.25
+//	1/6    1    false    0.2     (0.166... rounded)
+func (x *Rat) FloatPrec() (n int, exact bool) {
+	// Determine q and largest p2, p5 such that d = q·2^p2·5^p5.
+	// The results n, exact are:
+	//
+	//     n = max(p2, p5)
+	//     exact = q == 1
+	//
+	// See https://en.wikipedia.org/wiki/Repeating_decimal for
+	// details.
+	d := x.Denom().abs // d >= 1
+
+	// Determine p2 by counting factors of 2.
+	// p2 corresponds to the trailing zero bits in d.
+	// Do this first to reduce q as much as possible.
+	var q nat
+	p2 := d.trailingZeroBits()
+	q = q.shr(d, p2)
+
+	// Determine p5 by counting factors of 5.
+
+	// Build a table starting with an initial power of 5,
+	// and using repeated squaring until the factor doesn't
+	// divide q anymore. Then use the table to determine
+	// the power of 5 in q.
+	//
+	// Setting the table limit to 0 turns this off;
+	// a limit of 1 uses just one factor 5^fp.
+	// Larger values build up a more comprehensive table.
+	const fp = 13        // f == 5^fp
+	const limit = 100    // table size limit
+	var tab []nat        // tab[i] == 5^(fp·2^i)
+	f := nat{1220703125} // == 5^fp (must fit into a uint32 Word)
+	var t, r nat         // temporaries
+	for len(tab) < limit {
+		if _, r = t.div(r, q, f); len(r) != 0 {
+			break // f doesn't divide q evenly
+		}
+		tab = append(tab, f)
+		f = f.sqr(f)
+	}
+
+	// TODO(gri) Optimization: don't waste the successful
+	//           division q/f above; instead reduce q and
+	//           count the multiples.
+
+	// Factor q using the table entries, if any.
+	var p5, p uint
+	for i := len(tab) - 1; i >= 0; i-- {
+		q, p = multiples(q, tab[i])
+		p5 += p << i * fp
+	}
+
+	q, p = multiples(q, natFive)
+	p5 += p
+
+	return int(max(p2, p5)), q.cmp(natOne) == 0
+}
+
+// multiples returns d and largest p such that x = d·f^p.
+// x and f must not be 0.
+func multiples(x, f nat) (d nat, p uint) {
+	// Determine p through repeated division.
+	d = d.set(x)
+	// p == 0
+	var q, r nat
+	for {
+		// invariant x == d·f^p
+		q, r = q.div(r, d, f)
+		if len(r) != 0 {
+			return
+		}
+		// q == d/f
+		// x == q·f·f^p
+		p++
+		// x == q·f^p
+		d = d.set(q)
+	}
+}
