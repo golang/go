@@ -299,7 +299,7 @@ func UtimesNano(path string, ts []Timespec) error {
 
 //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
 
-// FcntlFlock performs a fcntl syscall for the F_GETLK, F_SETLK or F_SETLKW command.
+// FcntlFlock performs a fcntl syscall for the [F_GETLK], [F_SETLK] or [F_SETLKW] command.
 func FcntlFlock(fd uintptr, cmd int, lk *Flock_t) error {
 	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_fcntl)), 3, uintptr(fd), uintptr(cmd), uintptr(unsafe.Pointer(lk)), 0, 0, 0)
 	if e1 != 0 {

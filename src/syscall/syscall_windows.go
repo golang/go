@@ -25,7 +25,7 @@ const InvalidHandle = ^Handle(0)
 // with a terminating NUL added. If s contains a NUL byte this
 // function panics instead of returning an error.
 //
-// Deprecated: Use UTF16FromString instead.
+// Deprecated: Use [UTF16FromString] instead.
 func StringToUTF16(s string) []uint16 {
 	a, err := UTF16FromString(s)
 	if err != nil {
@@ -36,7 +36,7 @@ func StringToUTF16(s string) []uint16 {
 
 // UTF16FromString returns the UTF-16 encoding of the UTF-8 string
 // s, with a terminating NUL added. If s contains a NUL byte at any
-// location, it returns (nil, EINVAL). Unpaired surrogates
+// location, it returns (nil, [EINVAL]). Unpaired surrogates
 // are encoded using WTF-8.
 func UTF16FromString(s string) ([]uint16, error) {
 	if bytealg.IndexByteString(s, 0) != -1 {
@@ -102,7 +102,7 @@ func utf16PtrToString(p *uint16) string {
 // contains a NUL byte this function panics instead of
 // returning an error.
 //
-// Deprecated: Use UTF16PtrFromString instead.
+// Deprecated: Use [UTF16PtrFromString] instead.
 func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
 
 // UTF16PtrFromString returns pointer to the UTF-16 encoding of
@@ -119,7 +119,7 @@ func UTF16PtrFromString(s string) (*uint16, error) {
 
 // Errno is the Windows error number.
 //
-// Errno values can be tested against error values using errors.Is.
+// Errno values can be tested against error values using [errors.Is].
 // For example:
 //
 //	_, _, err := syscall.Syscall(...)
@@ -768,7 +768,7 @@ const socket_error = uintptr(^uint32(0))
 //sys	WSAEnumProtocols(protocols *int32, protocolBuffer *WSAProtocolInfo, bufferLength *uint32) (n int32, err error) [failretval==-1] = ws2_32.WSAEnumProtocolsW
 
 // For testing: clients can set this flag to force
-// creation of IPv6 sockets to return EAFNOSUPPORT.
+// creation of IPv6 sockets to return [EAFNOSUPPORT].
 var SocketDisableIPv6 bool
 
 type RawSockaddrInet4 struct {
@@ -1438,7 +1438,7 @@ func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LI
 // decrementing until index 0 is enumerated.
 //
 // Successive calls to this API must happen on the same OS thread,
-// so call runtime.LockOSThread before calling this function.
+// so call [runtime.LockOSThread] before calling this function.
 func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) {
 	return regEnumKeyEx(key, index, name, nameLen, reserved, class, classLen, lastWriteTime)
 }

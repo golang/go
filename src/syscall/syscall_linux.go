@@ -1107,7 +1107,7 @@ func runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, 
 //
 // AllThreadsSyscall is unaware of any threads that are launched
 // explicitly by cgo linked code, so the function always returns
-// ENOTSUP in binaries that use cgo.
+// [ENOTSUP] in binaries that use cgo.
 //
 //go:uintptrescapes
 func AllThreadsSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
@@ -1118,7 +1118,7 @@ func AllThreadsSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
 	return r1, r2, Errno(errno)
 }
 
-// AllThreadsSyscall6 is like AllThreadsSyscall, but extended to six
+// AllThreadsSyscall6 is like [AllThreadsSyscall], but extended to six
 // arguments.
 //
 //go:uintptrescapes
