@@ -18,7 +18,7 @@ type Ticker struct {
 	initTicker bool
 }
 
-// NewTicker returns a new Ticker containing a channel that will send
+// NewTicker returns a new [Ticker] containing a channel that will send
 // the current time on the channel after each tick. The period of the
 // ticks is specified by the duration argument. The ticker will adjust
 // the time interval or drop ticks to make up for slow receivers.
@@ -72,13 +72,13 @@ func (t *Ticker) Reset(d Duration) {
 	resetTimer((*Timer)(unsafe.Pointer(t)), when(d), int64(d))
 }
 
-// Tick is a convenience wrapper for NewTicker providing access to the ticking
+// Tick is a convenience wrapper for [NewTicker] providing access to the ticking
 // channel only. Unlike NewTicker, Tick will return nil if d <= 0.
 //
 // Before Go 1.23, this documentation warned that the underlying
-// Ticker would never be recovered by the garbage collector, and that
+// [Ticker] would never be recovered by the garbage collector, and that
 // if efficiency was a concern, code should use NewTicker instead and
-// call Ticker.Stop when the ticker is no longer needed.
+// call [Ticker.Stop] when the ticker is no longer needed.
 // As of Go 1.23, the garbage collector can recover unreferenced
 // tickers, even if they haven't been stopped.
 // The Stop method is no longer necessary to help the garbage collector.

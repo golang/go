@@ -99,7 +99,7 @@ func (l *Location) get() *Location {
 }
 
 // String returns a descriptive name for the time zone information,
-// corresponding to the name argument to LoadLocation or FixedZone.
+// corresponding to the name argument to [LoadLocation] or [FixedZone].
 func (l *Location) String() string {
 	return l.get().name
 }
@@ -107,7 +107,7 @@ func (l *Location) String() string {
 var unnamedFixedZones []*Location
 var unnamedFixedZonesOnce sync.Once
 
-// FixedZone returns a Location that always uses
+// FixedZone returns a [Location] that always uses
 // the given zone name and offset (seconds east of UTC).
 func FixedZone(name string, offset int) *Location {
 	// Most calls to FixedZone have an unnamed zone with an offset by the hour.
