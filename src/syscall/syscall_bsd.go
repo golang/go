@@ -515,6 +515,7 @@ func Futimes(fd int, tv []Timeval) (err error) {
 }
 
 //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
+//sys	fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) = SYS_FCNTL
 
 var mapper = &mmapper{
 	active: make(map[*byte][]byte),
