@@ -62,7 +62,6 @@ func syscall9X(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, 
 //sys	getcwd(buf []byte) (n int, err error)
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error)
 //sysnb fork() (pid int, err error)
-//sysnb ioctl(fd int, req int, arg int) (err error)
 //sysnb execve(path *byte, argv **byte, envp **byte) (err error)
 //sysnb exit(res int) (err error)
 //sys   ptrace(request int, pid int, addr uintptr, data uintptr) (err error)
