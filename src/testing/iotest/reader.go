@@ -73,7 +73,7 @@ func (r *dataErrReader) Read(p []byte) (n int, err error) {
 // ErrTimeout is a fake timeout error.
 var ErrTimeout = errors.New("timeout")
 
-// TimeoutReader returns ErrTimeout on the second read
+// TimeoutReader returns [ErrTimeout] on the second read
 // with no data. Subsequent calls to read succeed.
 func TimeoutReader(r io.Reader) io.Reader { return &timeoutReader{r, 0} }
 
@@ -90,7 +90,7 @@ func (r *timeoutReader) Read(p []byte) (int, error) {
 	return r.r.Read(p)
 }
 
-// ErrReader returns an io.Reader that returns 0, err from all Read calls.
+// ErrReader returns an [io.Reader] that returns 0, err from all Read calls.
 func ErrReader(err error) io.Reader {
 	return &errReader{err: err}
 }
@@ -128,7 +128,7 @@ func (r *smallByteReader) Read(p []byte) (int, error) {
 
 // TestReader tests that reading from r returns the expected file content.
 // It does reads of different sizes, until EOF.
-// If r implements io.ReaderAt or io.Seeker, TestReader also checks
+// If r implements [io.ReaderAt] or [io.Seeker], TestReader also checks
 // that those operations behave as they should.
 //
 // If TestReader finds any misbehaviors, it returns an error reporting them.
