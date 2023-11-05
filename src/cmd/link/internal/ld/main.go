@@ -168,12 +168,12 @@ func Main(arch *sys.Arch, theArch Arch) {
 		}
 	}
 
-	if final := gorootFinal(); final == "$GOROOT" {
-		// cmd/go sets GOROOT_FINAL to the dummy value "$GOROOT" when -trimpath is set,
-		// but runtime.GOROOT() should return the empty string, not a bogus value.
-		// (See https://go.dev/issue/51461.)
+	if buildcfg.GOROOT == "" {
+		// cmd/go clears the GOROOT variable when -trimpath is set,
+		// so omit it from the binary even if cmd/link itself has an
+		// embedded GOROOT value reported by runtime.GOROOT.
 	} else {
-		addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
+		addstrdata1(ctxt, "runtime.defaultGOROOT="+buildcfg.GOROOT)
 	}
 
 	buildVersion := buildcfg.Version

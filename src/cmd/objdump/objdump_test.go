@@ -152,9 +152,6 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
 	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 	// "Bad line" bug #36683 is sensitive to being run in the source directory.
 	cmd.Dir = "testdata"
-	// Ensure that the source file location embedded in the binary matches our
-	// actual current GOROOT, instead of GOROOT_FINAL if set.
-	cmd.Env = append(os.Environ(), "GOROOT_FINAL=")
 	t.Logf("Running %v", cmd.Args)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

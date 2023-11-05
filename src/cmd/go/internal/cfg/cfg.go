@@ -199,7 +199,6 @@ func SetGOROOT(goroot string, isTestGo bool) {
 		GOROOTpkg = filepath.Join(goroot, "pkg")
 		GOROOTsrc = filepath.Join(goroot, "src")
 	}
-	GOROOT_FINAL = findGOROOT_FINAL(goroot)
 
 	installedGOOS = runtime.GOOS
 	installedGOARCH = runtime.GOARCH
@@ -398,8 +397,6 @@ var (
 	GOROOTpkg string
 	GOROOTsrc string
 
-	GOROOT_FINAL string
-
 	GOBIN      = Getenv("GOBIN")
 	GOMODCACHE = envOr("GOMODCACHE", gopathDir("pkg/mod"))
 
@@ -528,16 +525,6 @@ func findGOROOT(env string) string {
 				}
 			}
 		}
-	}
-	return def
-}
-
-func findGOROOT_FINAL(goroot string) string {
-	// $GOROOT_FINAL is only for use during make.bash
-	// so it is not settable using go/env, so we use os.Getenv here.
-	def := goroot
-	if env := os.Getenv("GOROOT_FINAL"); env != "" {
-		def = filepath.Clean(env)
 	}
 	return def
 }
