@@ -542,20 +542,21 @@ func Repeat(s string, count int) string {
 		return s
 	}
 
+	length := len(s)
+	if length == 0 {
+		return ""
+	}
+
 	// Since we cannot return an error on overflow,
 	// we should panic if the repeat will generate an overflow.
 	// See golang.org/issue/16237.
 	if count < 0 {
 		panic("strings: negative Repeat count")
 	}
-	if len(s) >= maxInt/count {
+	if length >= maxInt/count {
 		panic("strings: Repeat output length overflow")
 	}
-	n := len(s) * count
-
-	if len(s) == 0 {
-		return ""
-	}
+	n := length * count
 
 	// Past a certain chunk size it is counterproductive to use
 	// larger chunks as the source of the write, as when the source
@@ -570,9 +571,9 @@ func Repeat(s string, count int) string {
 	const chunkLimit = 8 * 1024
 	chunkMax := n
 	if n > chunkLimit {
-		chunkMax = chunkLimit / len(s) * len(s)
+		chunkMax = chunkLimit / length * length
 		if chunkMax == 0 {
-			chunkMax = len(s)
+			chunkMax = length
 		}
 	}
 
