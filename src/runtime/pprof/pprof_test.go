@@ -1419,6 +1419,23 @@ func TestGoroutineCounts(t *testing.T) {
 		}
 	})
 
+	SetGoroutineLabels(WithLabels(context.Background(), Labels("self-label", "self-value")))
+	defer SetGoroutineLabels(context.Background())
+
+	garbage := new(*int)
+	fingReady := make(chan struct{})
+	runtime.SetFinalizer(garbage, func(v **int) {
+		Do(context.Background(), Labels("fing-label", "fing-value"), func(ctx context.Context) {
+			close(fingReady)
+			<-c
+		})
+	})
+	garbage = nil
+	for i := 0; i < 2; i++ {
+		runtime.GC()
+	}
+	<-fingReady
+
 	var w bytes.Buffer
 	goroutineProf := Lookup("goroutine")
 
@@ -1428,8 +1445,22 @@ func TestGoroutineCounts(t *testing.T) {
 
 	labels := labelMap{"label": "value"}
 	labelStr := "\n# labels: " + labels.String()
-	if !containsInOrder(prof, "\n50 @ ", "\n44 @", labelStr,
-		"\n40 @", "\n36 @", labelStr, "\n10 @", "\n9 @", labelStr, "\n1 @") {
+	selfLabel := labelMap{"self-label": "self-value"}
+	selfLabelStr := "\n# labels: " + selfLabel.String()
+	fingLabel := labelMap{"fing-label": "fing-value"}
+	fingLabelStr := "\n# labels: " + fingLabel.String()
+	orderedPrefix := []string{
+		"\n50 @ ",
+		"\n44 @", labelStr,
+		"\n40 @",
+		"\n36 @", labelStr,
+		"\n10 @",
+		"\n9 @", labelStr,
+		"\n1 @"}
+	if !containsInOrder(prof, append(orderedPrefix, selfLabelStr)...) {
+		t.Errorf("expected sorted goroutine counts with Labels:\n%s", prof)
+	}
+	if !containsInOrder(prof, append(orderedPrefix, fingLabelStr)...) {
 		t.Errorf("expected sorted goroutine counts with Labels:\n%s", prof)
 	}
 
@@ -1450,7 +1481,7 @@ func TestGoroutineCounts(t *testing.T) {
 		36: {"label": "value"},
 		10: {},
 		9:  {"label": "value"},
-		1:  {},
+		1:  {"self-label": "self-value", "fing-label": "fing-value"},
 	}
 	if !containsCountsLabels(p, expectedLabels) {
 		t.Errorf("expected count profile to contain goroutines with counts and labels %v, got %v",

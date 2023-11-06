@@ -1137,9 +1137,7 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
 	if goal > defaultHeapMinimum && goal-defaultHeapMinimum > maxTrigger {
 		maxTrigger = goal - defaultHeapMinimum
 	}
-	if maxTrigger < minTrigger {
-		maxTrigger = minTrigger
-	}
+	maxTrigger = max(maxTrigger, minTrigger)
 
 	// Compute the trigger from our bounds and the runway stored by commit.
 	var trigger uint64
@@ -1149,12 +1147,8 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
 	} else {
 		trigger = goal - runway
 	}
-	if trigger < minTrigger {
-		trigger = minTrigger
-	}
-	if trigger > maxTrigger {
-		trigger = maxTrigger
-	}
+	trigger = max(trigger, minTrigger)
+	trigger = min(trigger, maxTrigger)
 	if trigger > goal {
 		print("trigger=", trigger, " heapGoal=", goal, "\n")
 		print("minTrigger=", minTrigger, " maxTrigger=", maxTrigger, "\n")

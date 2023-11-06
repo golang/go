@@ -216,6 +216,17 @@ var cases = []testCase{
 			inGroup("G", hasAttr("b", "v2")),
 		},
 	},
+	{
+		name:        "empty-PC",
+		explanation: withSource("a Handler should not output SourceKey if the PC is zero"),
+		f: func(l *slog.Logger) {
+			l.Info("message")
+		},
+		mod: func(r *slog.Record) { r.PC = 0 },
+		checks: []check{
+			missingKey(slog.SourceKey),
+		},
+	},
 }
 
 // TestHandler tests a [slog.Handler].

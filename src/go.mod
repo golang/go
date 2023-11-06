@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	golang.org/x/crypto v0.14.1-0.20231011220222-8779cbd1c995
-	golang.org/x/net v0.17.1-0.20231011215812-d23d9bc54922
+	golang.org/x/net v0.17.1-0.20231025180729-4c7a5b64f145
 )
 
 require (

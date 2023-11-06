@@ -1747,7 +1747,6 @@ var cgoEnabled = map[string]bool{
 var broken = map[string]bool{
 	"linux/sparc64":   true, // An incomplete port. See CL 132155.
 	"openbsd/mips64":  true, // Broken: go.dev/issue/58110.
-	"openbsd/ppc64":   true, // An incomplete port: go.dev/issue/56001.
 	"openbsd/riscv64": true, // An incomplete port: go.dev/issue/55999.
 }
 

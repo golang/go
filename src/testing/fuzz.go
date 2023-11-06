@@ -636,6 +636,7 @@ func fRunner(f *F, fn func(*F)) {
 		// Unfortunately, recovering here adds stack frames, but the location of
 		// the original panic should still be
 		// clear.
+		f.checkRaces()
 		if f.Failed() {
 			numFailed.Add(1)
 		}
@@ -719,6 +720,7 @@ func fRunner(f *F, fn func(*F)) {
 	}()
 
 	f.start = time.Now()
+	f.resetRaces()
 	fn(f)
 
 	// Code beyond this point will not be executed when FailNow or SkipNow

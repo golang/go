@@ -4,7 +4,10 @@
 
 package runtime
 
-import "internal/cpu"
+import (
+	"internal/cpu"
+	"unsafe"
+)
 
 const (
 	_HWCAP_VFP   = 1 << 6
@@ -37,6 +40,8 @@ func archauxv(tag, val uintptr) {
 		cpu.HWCap = uint(val)
 	case _AT_HWCAP2:
 		cpu.HWCap2 = uint(val)
+	case _AT_PLATFORM:
+		cpu.Platform = gostringnocopy((*byte)(unsafe.Pointer(val)))
 	}
 }
 

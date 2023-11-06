@@ -1471,6 +1471,21 @@ func (t *Type) FieldName(i int) string {
 	return t.Field(i).Sym.Name
 }
 
+// OffsetOf reports the offset of the field of a struct.
+// The field is looked up by name.
+func (t *Type) OffsetOf(name string) int64 {
+	if t.kind != TSTRUCT {
+		base.Fatalf("can't call OffsetOf on non-struct %v", t)
+	}
+	for _, f := range t.Fields() {
+		if f.Sym.Name == name {
+			return f.Offset
+		}
+	}
+	base.Fatalf("couldn't find field %s in %v", name, t)
+	return -1
+}
+
 func (t *Type) NumElem() int64 {
 	t.wantEtype(TARRAY)
 	return t.extra.(*Array).Bound

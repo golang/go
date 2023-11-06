@@ -65,6 +65,11 @@ const (
 	PFX_R_PCREL = 1 // Offset is relative to PC, RA should be 0
 )
 
+const (
+	// The preferred hardware nop instruction.
+	NOP = 0x60000000
+)
+
 type Optab struct {
 	as    obj.As // Opcode
 	a1    uint8  // p.From argument (obj.Addr). p is of type obj.Prog.
@@ -831,7 +836,6 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// lay out the code, emitting code and data relocations.
 
 	bp := c.cursym.P
-	nop := LOP_IRR(OP_ORI, REGZERO, REGZERO, 0)
 	var i int32
 	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
 		c.pc = p.Pc
@@ -846,13 +850,13 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if v > 0 {
 				// Same padding instruction for all
 				for i = 0; i < int32(v/4); i++ {
-					c.ctxt.Arch.ByteOrder.PutUint32(bp, nop)
+					c.ctxt.Arch.ByteOrder.PutUint32(bp, NOP)
 					bp = bp[4:]
 				}
 			}
 		} else {
 			if p.Mark&PFX_X64B != 0 {
-				c.ctxt.Arch.ByteOrder.PutUint32(bp, nop)
+				c.ctxt.Arch.ByteOrder.PutUint32(bp, NOP)
 				bp = bp[4:]
 			}
 			o.asmout(&c, p, o, &out)
@@ -2531,6 +2535,18 @@ func decodeMask64(mask int64) (mb, me uint32, valid bool) {
 	return mb, (me - 1) & 63, valid
 }
 
+// Load the lower 16 bits of a constant into register r.
+func loadl16(r int, d int64) uint32 {
+	v := uint16(d)
+	if v == 0 {
+		// Avoid generating "ori r,r,0", r != 0. Instead, generate the architectually preferred nop.
+		// For example, "ori r31,r31,0" is a special execution serializing nop on Power10 called "exser".
+		return NOP
+	}
+	return LOP_IRR(OP_ORI, uint32(r), uint32(r), uint32(v))
+}
+
+// Load the upper 16 bits of a 32b constant into register r.
 func loadu32(r int, d int64) uint32 {
 	v := int32(d >> 16)
 	if isuint32(uint64(d)) {
@@ -2734,7 +2750,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			rel.Add = int64(v)
 			rel.Type = objabi.R_CALLPOWER
 		}
-		o2 = 0x60000000 // nop, sometimes overwritten by ld r2, 24(r1) when dynamic linking
+		o2 = NOP // nop, sometimes overwritten by ld r2, 24(r1) when dynamic linking
 
 	case 13: /* mov[bhwd]{z,} r,r */
 		// This needs to handle "MOV* $0, Rx".  This shows up because $0 also
@@ -2957,14 +2973,14 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		} else if o.size == 12 {
 			// Note, o1 is ADDIS if d is negative, ORIS otherwise.
 			o1 = loadu32(REGTMP, d)                                          // tmp = d & 0xFFFF0000
-			o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(int32(d)))           // tmp |= d & 0xFFFF
+			o2 = loadl16(REGTMP, d)                                          // tmp |= d & 0xFFFF
 			o3 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r)) // to = from + tmp
 		} else {
 			// For backwards compatibility with GOPPC64 < 10, generate 34b constants in register.
-			o1 = LOP_IRR(OP_ADDIS, REGZERO, REGTMP, uint32(d>>32))  // tmp = sign_extend((d>>32)&0xFFFF0000)
-			o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(d>>16))     // tmp |= (d>>16)&0xFFFF
-			o3 = AOP_MD(OP_RLDICR, REGTMP, REGTMP, 16, 63-16)       // tmp <<= 16
-			o4 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(uint16(d))) // tmp |= d&0xFFFF
+			o1 = LOP_IRR(OP_ADDIS, REGZERO, REGTMP, uint32(d>>32)) // tmp = sign_extend((d>>32)&0xFFFF0000)
+			o2 = loadl16(REGTMP, int64(d>>16))                     // tmp |= (d>>16)&0xFFFF
+			o3 = AOP_MD(OP_RLDICR, REGTMP, REGTMP, 16, 63-16)      // tmp <<= 16
+			o4 = loadl16(REGTMP, int64(uint16(d)))                 // tmp |= d&0xFFFF
 			o5 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
 		}
 
@@ -2985,7 +3001,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			o2 = LOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
 		} else {
 			o1 = loadu32(REGTMP, d)
-			o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(int32(d)))
+			o2 = loadl16(REGTMP, d)
 			o3 = LOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), REGTMP, uint32(r))
 		}
 		if p.From.Sym != nil {
@@ -3081,9 +3097,9 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		if p.To.Reg == REGTMP || p.From.Reg == REGTMP {
 			c.ctxt.Diag("can't synthesize large constant\n%v", p)
 		}
-		v := c.regoff(p.GetFrom3())
+		v := c.vregoff(p.GetFrom3())
 		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, uint32(v)>>16)
-		o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(v))
+		o2 = loadl16(REGTMP, v)
 		o3 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), uint32(p.From.Reg), REGTMP)
 		if p.From.Sym != nil {
 			c.ctxt.Diag("%v is not supported", p)

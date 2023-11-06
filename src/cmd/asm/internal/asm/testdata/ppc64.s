@@ -179,7 +179,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ADD $-32768, R6                 // 38c68000
 	ADD $-32768, R6, R5             // 38a68000
 	// Hex constant 0xFFFFFFFE00000000
-	ADD $-8589934592, R5            // 3fe0fffe63ff00007bff83e463ff00007cbf2a14 or 0602000038a50000
+	ADD $-8589934592, R5            // 3fe0fffe600000007bff83e4600000007cbf2a14 or 0602000038a50000
+	// Hex constant 0xFFFFFFFE00010001
+	ADD $-8589869055, R5            // 3fe0fffe63ff00017bff83e463ff00017cbf2a14 or 0602000138a50001
 
 	//TODO: this compiles to add r5,r6,r0. It should be addi r5,r6,0.
 	//      this is OK since r0 == $0, but the latter is preferred.
@@ -223,6 +225,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	OR $-32768, R6, R7              // 3be080007fe73378
 	OR $1234567, R5                 // 641f001263ffd6877fe52b78
 	OR $1234567, R5, R3             // 641f001263ffd6877fe32b78
+	OR $2147483648, R5, R3          // 641f8000600000007fe32b78
+	OR $2147483649, R5, R3          // 641f800063ff00017fe32b78
 	ORIS $255, R3, R4
 
 	XOR $1, R3                      // 68630001
@@ -249,7 +253,6 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	CMPB R3,R4,R4                   // 7c6423f8
 	CMPEQB R3,R4,CR6                // 7f0321c0
 
-	// TODO: constants for ADDC?
 	ADD R3, R4                      // 7c841a14
 	ADD R3, R4, R5                  // 7ca41a14
 	ADDC R3, R4                     // 7c841814
@@ -262,6 +265,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ADDV R3, R4                     // 7c841e14
 	ADDVCC R3, R4                   // 7c841e15
 	ADDCCC R3, R4, R5               // 7ca41815
+	ADDCCC $65536, R4, R5           // 641f0001600000007cbf2015
+	ADDCCC $65537, R4, R5           // 641f000163ff00017cbf2015
 	ADDME R3, R4                    // 7c8301d4
 	ADDMECC R3, R4                  // 7c8301d5
 	ADDMEV R3, R4                   // 7c8305d4
@@ -315,6 +320,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	SUBECC R3, R4, R5               // 7ca32111
 	SUBEV R3, R4, R5                // 7ca32510
 	SUBEVCC R3, R4, R5              // 7ca32511
+	SUBC R3, $65536, R4             // 3fe00001600000007c83f810
+	SUBC R3, $65537, R4             // 3fe0000163ff00017c83f810
 
 	MULLW R3, R4                    // 7c8419d6
 	MULLW R3, R4, R5                // 7ca419d6

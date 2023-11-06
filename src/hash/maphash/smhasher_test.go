@@ -381,7 +381,7 @@ func avalancheTest1(t *testing.T, k key) {
 	// find c such that Prob(mean-c*stddev < x < mean+c*stddev)^N > .9999
 	for c = 0.0; math.Pow(math.Erf(c/math.Sqrt(2)), float64(N)) < .9999; c += .1 {
 	}
-	c *= 8.0 // allowed slack - we don't need to be perfectly random
+	c *= 11.0 // allowed slack: 40% to 60% - we don't need to be perfectly random
 	mean := .5 * REP
 	stddev := .5 * math.Sqrt(REP)
 	low := int(mean - c*stddev)

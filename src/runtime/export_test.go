@@ -50,6 +50,8 @@ var MemclrNoHeapPointers = memclrNoHeapPointers
 
 var CgoCheckPointer = cgoCheckPointer
 
+const CrashStackImplemented = crashStackImplemented
+
 const TracebackInnerFrames = tracebackInnerFrames
 const TracebackOuterFrames = tracebackOuterFrames
 
@@ -421,21 +423,34 @@ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) 
 	// allocate and skew the stats.
 	metricsLock()
 	initMetrics()
-	metricsUnlock()
 
 	systemstack(func() {
+		// Donate the racectx to g0. readMetricsLocked calls into the race detector
+		// via map access.
+		getg().racectx = getg().m.curg.racectx
+
+		// Read the metrics once before in case it allocates and skews the metrics.
+		// readMetricsLocked is designed to only allocate the first time it is called
+		// with a given slice of samples. In effect, this extra read tests that this
+		// remains true, since otherwise the second readMetricsLocked below could
+		// allocate before it returns.
+		readMetricsLocked(samplesp, len, cap)
+
 		// Read memstats first. It's going to flush
 		// the mcaches which readMetrics does not do, so
 		// going the other way around may result in
 		// inconsistent statistics.
 		readmemstats_m(memStats)
-	})
 
-	// Read metrics off the system stack.
-	//
-	// The only part of readMetrics that could allocate
-	// and skew the stats is initMetrics.
-	readMetrics(samplesp, len, cap)
+		// Read metrics again. We need to be sure we're on the
+		// system stack with readmemstats_m so that we don't call into
+		// the stack allocator and adjust metrics between there and here.
+		readMetricsLocked(samplesp, len, cap)
+
+		// Undo the donation.
+		getg().racectx = 0
+	})
+	metricsUnlock()
 
 	startTheWorld()
 }
@@ -694,7 +709,7 @@ func G0StackOverflow() {
 		// The stack bounds for g0 stack is not always precise.
 		// Use an artificially small stack, to trigger a stack overflow
 		// without actually run out of the system stack (which may seg fault).
-		g0.stack.lo = sp - 4096
+		g0.stack.lo = sp - 4096 - stackSystem
 		g0.stackguard0 = g0.stack.lo + stackGuard
 		g0.stackguard1 = g0.stackguard0
 
@@ -806,7 +821,7 @@ func (b *PallocBits) PopcntRange(i, n uint) uint { return (*pageBits)(b).popcntR
 // SummarizeSlow is a slow but more obviously correct implementation
 // of (*pallocBits).summarize. Used for testing.
 func SummarizeSlow(b *PallocBits) PallocSum {
-	var start, max, end uint
+	var start, most, end uint
 
 	const N = uint(len(b)) * 64
 	for start < N && (*pageBits)(b).get(start) == 0 {
@@ -822,11 +837,9 @@ func SummarizeSlow(b *PallocBits) PallocSum {
 		} else {
 			run = 0
 		}
-		if run > max {
-			max = run
-		}
+		most = max(most, run)
 	}
-	return PackPallocSum(start, max, end)
+	return PackPallocSum(start, most, end)
 }
 
 // Expose non-trivial helpers for testing.

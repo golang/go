@@ -181,7 +181,7 @@ func (n *BinaryExpr) SetOp(op Op) {
 	}
 }
 
-// A CallExpr is a function call X(Args).
+// A CallExpr is a function call Fun(Args).
 type CallExpr struct {
 	miniExpr
 	Fun       Node

@@ -7042,7 +7042,7 @@ func verifyGCBitsSlice(t *testing.T, typ Type, cap int, bits []byte) {
 	// repeat a bitmap for a small array or executing a repeat in
 	// a GC program.
 	val := MakeSlice(typ, 0, cap)
-	data := NewAt(ArrayOf(cap, typ), val.UnsafePointer())
+	data := NewAt(ArrayOf(cap, typ.Elem()), val.UnsafePointer())
 	heapBits := GCBits(data.Interface())
 	// Repeat the bitmap for the slice size, trimming scalars in
 	// the last element.

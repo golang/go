@@ -207,6 +207,8 @@ TEXT ·libc_mmap_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_mmap(SB)
 TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_munmap(SB)
+TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_getfsstat(SB)
 TEXT ·libc_utimensat_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_utimensat(SB)
 TEXT ·libc_syscall_trampoline(SB),NOSPLIT,$0-0

@@ -131,7 +131,7 @@ var depsRules = `
 	< math/cmplx;
 
 	MATH
-	< math/rand;
+	< math/rand, math/rand/v2;
 
 	MATH
 	< runtime/metrics;

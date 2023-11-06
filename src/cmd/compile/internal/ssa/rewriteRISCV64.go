@@ -538,6 +538,8 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpRISCV64SRA(v)
 	case OpRISCV64SRAI:
 		return rewriteValueRISCV64_OpRISCV64SRAI(v)
+	case OpRISCV64SRAW:
+		return rewriteValueRISCV64_OpRISCV64SRAW(v)
 	case OpRISCV64SRL:
 		return rewriteValueRISCV64_OpRISCV64SRL(v)
 	case OpRISCV64SRLI:
@@ -6258,6 +6260,20 @@ func rewriteValueRISCV64_OpRISCV64SNEZ(v *Value) bool {
 func rewriteValueRISCV64_OpRISCV64SRA(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	// match: (SRA <t> (MOVWreg x) y)
+	// result: (SRAW <t> x y)
+	for {
+		t := v.Type
+		if v_0.Op != OpRISCV64MOVWreg {
+			break
+		}
+		x := v_0.Args[0]
+		y := v_1
+		v.reset(OpRISCV64SRAW)
+		v.Type = t
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (SRA x (MOVDconst [val]))
 	// result: (SRAI [int64(val&63)] x)
 	for {
@@ -6275,6 +6291,21 @@ func rewriteValueRISCV64_OpRISCV64SRA(v *Value) bool {
 }
 func rewriteValueRISCV64_OpRISCV64SRAI(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (SRAI <t> [x] (MOVWreg y))
+	// result: (SRAIW <t> [int64(x&31)] y)
+	for {
+		t := v.Type
+		x := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpRISCV64MOVWreg {
+			break
+		}
+		y := v_0.Args[0]
+		v.reset(OpRISCV64SRAIW)
+		v.Type = t
+		v.AuxInt = int64ToAuxInt(int64(x & 31))
+		v.AddArg(y)
+		return true
+	}
 	// match: (SRAI [x] (MOVDconst [y]))
 	// result: (MOVDconst [int64(y) >> uint32(x)])
 	for {
@@ -6285,6 +6316,24 @@ func rewriteValueRISCV64_OpRISCV64SRAI(v *Value) bool {
 		y := auxIntToInt64(v_0.AuxInt)
 		v.reset(OpRISCV64MOVDconst)
 		v.AuxInt = int64ToAuxInt(int64(y) >> uint32(x))
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64SRAW(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (SRAW x (MOVDconst [val]))
+	// result: (SRAIW [int64(val&31)] x)
+	for {
+		x := v_0
+		if v_1.Op != OpRISCV64MOVDconst {
+			break
+		}
+		val := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpRISCV64SRAIW)
+		v.AuxInt = int64ToAuxInt(int64(val & 31))
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -7172,7 +7221,7 @@ func rewriteValueRISCV64_OpRsh32x16(v *Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (Rsh32x16 <t> x y)
 	// cond: !shiftIsBounded(v)
-	// result: (SRA <t> (SignExt32to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt16to64 y)))))
+	// result: (SRA <t> (SignExt32to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [32] (ZeroExt16to64 y)))))
 	for {
 		t := v.Type
 		x := v_0
@@ -7188,7 +7237,7 @@ func rewriteValueRISCV64_OpRsh32x16(v *Value) bool {
 		v2 := b.NewValue0(v.Pos, OpRISCV64ADDI, y.Type)
 		v2.AuxInt = int64ToAuxInt(-1)
 		v3 := b.NewValue0(v.Pos, OpRISCV64SLTIU, y.Type)
-		v3.AuxInt = int64ToAuxInt(64)
+		v3.AuxInt = int64ToAuxInt(32)
 		v4 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
 		v4.AddArg(y)
 		v3.AddArg(v4)
@@ -7221,7 +7270,7 @@ func rewriteValueRISCV64_OpRsh32x32(v *Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (Rsh32x32 <t> x y)
 	// cond: !shiftIsBounded(v)
-	// result: (SRA <t> (SignExt32to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt32to64 y)))))
+	// result: (SRA <t> (SignExt32to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [32] (ZeroExt32to64 y)))))
 	for {
 		t := v.Type
 		x := v_0
@@ -7237,7 +7286,7 @@ func rewriteValueRISCV64_OpRsh32x32(v *Value) bool {
 		v2 := b.NewValue0(v.Pos, OpRISCV64ADDI, y.Type)
 		v2.AuxInt = int64ToAuxInt(-1)
 		v3 := b.NewValue0(v.Pos, OpRISCV64SLTIU, y.Type)
-		v3.AuxInt = int64ToAuxInt(64)
+		v3.AuxInt = int64ToAuxInt(32)
 		v4 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v4.AddArg(y)
 		v3.AddArg(v4)
@@ -7270,7 +7319,7 @@ func rewriteValueRISCV64_OpRsh32x64(v *Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (Rsh32x64 <t> x y)
 	// cond: !shiftIsBounded(v)
-	// result: (SRA <t> (SignExt32to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] y))))
+	// result: (SRA <t> (SignExt32to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [32] y))))
 	for {
 		t := v.Type
 		x := v_0
@@ -7286,7 +7335,7 @@ func rewriteValueRISCV64_OpRsh32x64(v *Value) bool {
 		v2 := b.NewValue0(v.Pos, OpRISCV64ADDI, y.Type)
 		v2.AuxInt = int64ToAuxInt(-1)
 		v3 := b.NewValue0(v.Pos, OpRISCV64SLTIU, y.Type)
-		v3.AuxInt = int64ToAuxInt(64)
+		v3.AuxInt = int64ToAuxInt(32)
 		v3.AddArg(y)
 		v2.AddArg(v3)
 		v1.AddArg2(y, v2)
@@ -7317,7 +7366,7 @@ func rewriteValueRISCV64_OpRsh32x8(v *Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (Rsh32x8 <t> x y)
 	// cond: !shiftIsBounded(v)
-	// result: (SRA <t> (SignExt32to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt8to64 y)))))
+	// result: (SRA <t> (SignExt32to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [32] (ZeroExt8to64 y)))))
 	for {
 		t := v.Type
 		x := v_0
@@ -7333,7 +7382,7 @@ func rewriteValueRISCV64_OpRsh32x8(v *Value) bool {
 		v2 := b.NewValue0(v.Pos, OpRISCV64ADDI, y.Type)
 		v2.AuxInt = int64ToAuxInt(-1)
 		v3 := b.NewValue0(v.Pos, OpRISCV64SLTIU, y.Type)
-		v3.AuxInt = int64ToAuxInt(64)
+		v3.AuxInt = int64ToAuxInt(32)
 		v4 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
 		v4.AddArg(y)
 		v3.AddArg(v4)
