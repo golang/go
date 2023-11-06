@@ -39,6 +39,7 @@ body:
       label: Reproduces in latest release
       options:
         - label: Does this issue reproduce with the latest release?
+          required: true
 
   - type: textarea
     id: os-and-processor
