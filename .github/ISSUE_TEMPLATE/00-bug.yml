@@ -33,7 +33,6 @@ body:
     validations:
       required: true
 
-
   - type: checkboxes
     id: reproduce-latest-release
     attributes:
