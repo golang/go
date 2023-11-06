@@ -219,7 +219,7 @@ type peLoaderState struct {
 // comdatDefinitions records the names of symbols for which we've
 // previously seen a definition in COMDAT. Key is symbol name, value
 // is symbol size (or -1 if we're using the "any" strategy).
-var comdatDefinitions = make(map[string]int64)
+var comdatDefinitions map[string]int64
 
 // Load loads the PE file pn from input.
 // Symbols from the object file are created via the loader 'l',
@@ -236,6 +236,9 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		pn:              pn,
 	}
 	createImportSymsState(state.l, state.arch)
+	if comdatDefinitions == nil {
+		comdatDefinitions = make(map[string]int64)
+	}
 
 	// Some input files are archives containing multiple of
 	// object files, and pe.NewFile seeks to the start of
