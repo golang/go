@@ -136,7 +136,6 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 		// Panic if i is strictly larger than
 		// the length (but no larger than the capacity).
 		_ = s[:n:n][i:]
-		_ = s[i:]
 		return s
 	}
 	if i == n {
