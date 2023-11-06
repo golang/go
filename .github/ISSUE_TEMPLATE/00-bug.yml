@@ -36,7 +36,10 @@ body:
   - type: checkboxes
     id: reproduce-latest-release
     attributes:
-      label: "Does this issue reproduce with the latest release?"
+      label: Reproduces in latest go version
+      options:
+        - label: Does this issue reproduce with the latest release?
+          required: true
 
   - type: textarea
     id: os-and-processor
