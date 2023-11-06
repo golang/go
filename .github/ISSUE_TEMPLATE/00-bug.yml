@@ -36,7 +36,7 @@ body:
   - type: checkboxes
     id: reproduce-latest-release
     attributes:
-      label: Reproduces in latest go version
+#      label: Reproduces in latest go version
       options:
         - label: Does this issue reproduce with the latest release?
           required: true
