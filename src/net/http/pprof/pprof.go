@@ -47,12 +47,12 @@
 //	go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
 //
 // Or to look at the goroutine blocking profile, after calling
-// runtime.SetBlockProfileRate in your program:
+// [runtime.SetBlockProfileRate] in your program:
 //
 //	go tool pprof http://localhost:6060/debug/pprof/block
 //
 // Or to look at the holders of contended mutexes, after calling
-// runtime.SetMutexProfileFraction in your program:
+// [runtime.SetMutexProfileFraction] in your program:
 //
 //	go tool pprof http://localhost:6060/debug/pprof/mutex
 //
