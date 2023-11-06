@@ -608,9 +608,6 @@ var depsRules = `
 	FMT
 	< internal/diff, internal/txtar;
 
-	FMT, container/heap, math/rand
-	< internal/trace;
-
 	# v2 execution trace parser.
 	FMT
 	< internal/trace/v2/event;
@@ -632,6 +629,9 @@ var depsRules = `
 
 	regexp, internal/txtar, internal/trace/v2, internal/trace/v2/raw
 	< internal/trace/v2/internal/testgen/go122;
+
+	FMT, container/heap, math/rand, internal/trace/v2
+	< internal/trace;
 
 	# Coverage.
 	FMT, crypto/md5, encoding/binary, regexp, sort, text/tabwriter, unsafe,
