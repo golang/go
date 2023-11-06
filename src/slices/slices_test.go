@@ -542,13 +542,13 @@ func TestInsertPanics(t *testing.T) {
 		name string
 		s    []int
 		i    int
-		v    []int
 	}{
-		{"with negative index", a[:1], -1, nil},
-		{"with out-of-bounds index", a[:1], 2, nil},
-		{"with out-of-bounds index and < cap", a[:1:3], 2, nil},
+		{"with negative index", a[:1:1], -1},
+		{"with out-of-bounds index and > cap", a[:1:1], 2},
+		{"with out-of-bounds index and = cap", a[:1:2], 2},
+		{"with out-of-bounds index and < cap", a[:1:3], 2},
 	} {
-		if !panics(func() { Insert(test.s, test.i, test.v...) }) {
+		if !panics(func() { Insert(test.s, test.i) }) {
 			t.Errorf("Insert %s: got no panic, want panic", test.name)
 		}
 	}
