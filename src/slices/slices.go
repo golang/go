@@ -131,13 +131,12 @@ func ContainsFunc[S ~[]E, E any](s S, f func(E) bool) bool {
 // This function is O(len(s) + len(v)).
 func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 	n := len(s)
-	// Panic if i is strictly larger than
-	// the length (but no larger than the capacity).
-	_ = s[:n:n][i:] // bounds check
-
 	m := len(v)
 	if m == 0 {
-		_ = s[i:] // bounds check
+		// Panic if i is strictly larger than
+		// the length (but no larger than the capacity).
+		_ = s[:n:n][i:]
+		_ = s[i:]
 		return s
 	}
 	if i == n {
