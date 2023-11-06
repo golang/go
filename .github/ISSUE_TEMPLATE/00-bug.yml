@@ -1,4 +1,4 @@
-# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository
+# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository#creating-issue-forms
 name: Bugs
 description: The go command, standard library, or anything else
 labels: [ 'kind/bug', 'bug' ]
@@ -34,12 +34,10 @@ body:
       required: true
 
 
-  - type: textarea
+  - type: checkboxes
     id: reproduce-latest-release
     attributes:
       label: "Does this issue reproduce with the latest release?"
-    validations:
-      required: true
 
   - type: textarea
     id: os-and-processor
