@@ -36,9 +36,16 @@ body:
   - type: checkboxes
     id: reproduce-latest-release
     attributes:
-      label: Reproduces in latest release
+      label: Reproducibility
       options:
         - label: Does this issue reproduce with the latest release?
+
+#  - type: textarea
+#    id: reproduce-latest-release
+#    attributes:
+#      label: "Does this issue reproduce with the latest release?"
+#    validations:
+#      required: true
 
   - type: textarea
     id: os-and-processor
