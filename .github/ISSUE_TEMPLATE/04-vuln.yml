@@ -6,12 +6,12 @@ body:
   - type: markdown
     attributes:
       value: "Please answer these questions before submitting your issue. Thanks! To add a new vulnerability to the Go vulnerability database (https://vuln.go.dev), see https://go.dev/s/vulndb-report-new. To report an issue about a report, see https://go.dev/s/vulndb-report-feedback."
-  - type: textarea
+  - type: input
     id: go-version
     attributes:
-      label: Golang Version
+      label: Golang version
       description: What version of Go are you using (`go version`)?
-      render: shell
+      placeholder: ex. go version go1.20.7 darwin/arm64
     validations:
       required: true
   - type: textarea
