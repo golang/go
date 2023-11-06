@@ -35,10 +35,16 @@ func (NegMult) Multiply(a, b int) int {
 type MultFunc func(int64, int64) int64
 
 func MultFn(a, b int64) int64 {
+	for i := 0; i < 1000; i++ {
+		sink++
+	}
 	return a * b
 }
 
 func NegMultFn(a, b int64) int64 {
+	for i := 0; i < 1000; i++ {
+		sink++
+	}
 	return -1 * a * b
 }
 
@@ -47,6 +53,9 @@ func MultClosure() MultFunc {
 	// Explicit closure to differentiate from AddClosure.
 	c := 1
 	return func(a, b int64) int64 {
+		for i := 0; i < 1000; i++ {
+			sink++
+		}
 		return a * b * int64(c)
 	}
 }
@@ -55,6 +64,9 @@ func MultClosure() MultFunc {
 func NegMultClosure() MultFunc {
 	c := 1
 	return func(a, b int64) int64 {
+		for i := 0; i < 1000; i++ {
+			sink++
+		}
 		return -1 * a * b * int64(c)
 	}
 }

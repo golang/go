@@ -170,13 +170,7 @@ func ExerciseFuncConcrete(iter int, a1, a2 AddFunc, m1, m2 mult.MultFunc) int {
 		// If they were not mutually exclusive (for example, two
 		// AddFunc calls), then we could not definitively select the
 		// correct callee.
-		//
-		// TODO(prattmic): Export data lookup for function value
-		// callees not implemented, meaning the type is unavailable.
-		//sink += int(m(42, int64(a(1, 2))))
-
-		v := selectA(i)(one(i), 2)
-		val += int(m(42, int64(v)))
+		val += int(m(42, int64(selectA(i)(one(i), 2))))
 	}
 	return val
 }
@@ -210,13 +204,7 @@ func ExerciseFuncField(iter int, a1, a2 AddFunc, m1, m2 mult.MultFunc) int {
 		// If they were not mutually exclusive (for example, two
 		// AddFunc calls), then we could not definitively select the
 		// correct callee.
-		//
-		// TODO(prattmic): Export data lookup for function value
-		// callees not implemented, meaning the type is unavailable.
-		//sink += int(ops.m(42, int64(ops.a(1, 2))))
-
-		v := ops.a(1, 2)
-		val += int(ops.m(42, int64(v)))
+		val += int(ops.m(42, int64(ops.a(1, 2))))
 	}
 	return val
 }
@@ -258,13 +246,7 @@ func ExerciseFuncClosure(iter int, a1, a2 AddFunc, m1, m2 mult.MultFunc) int {
 		// If they were not mutually exclusive (for example, two
 		// AddFunc calls), then we could not definitively select the
 		// correct callee.
-		//
-		// TODO(prattmic): Export data lookup for function value
-		// callees not implemented, meaning the type is unavailable.
-		//sink += int(m(42, int64(a(1, 2))))
-
-		v := a(1, 2)
-		val += int(m(42, int64(v)))
+		val += int(m(42, int64(a(1, 2))))
 	}
 	return val
 }

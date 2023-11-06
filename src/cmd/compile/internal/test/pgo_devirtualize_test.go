@@ -77,32 +77,30 @@ go 1.19
 		},
 		// ExerciseFuncConcrete
 		{
-			pos:    "./devirt.go:178:18",
+			pos:    "./devirt.go:173:36",
 			callee: "AddFn",
 		},
-		// TODO(prattmic): Export data lookup for function value callees not implemented.
-		//{
-		//	pos:    "./devirt.go:179:15",
-		//	callee: "mult.MultFn",
-		//},
+		{
+			pos:    "./devirt.go:173:15",
+			callee: "mult.MultFn",
+		},
 		// ExerciseFuncField
 		{
-			pos:    "./devirt.go:218:13",
+			pos:    "./devirt.go:207:35",
 			callee: "AddFn",
 		},
-		// TODO(prattmic): Export data lookup for function value callees not implemented.
-		//{
-		//	pos:    "./devirt.go:219:19",
-		//	callee: "mult.MultFn",
-		//},
+		{
+			pos:    "./devirt.go:207:19",
+			callee: "mult.MultFn",
+		},
 		// ExerciseFuncClosure
 		// TODO(prattmic): Closure callees not implemented.
 		//{
-		//	pos:    "./devirt.go:266:9",
+		//	pos:    "./devirt.go:249:27",
 		//	callee: "AddClosure.func1",
 		//},
 		//{
-		//	pos:    "./devirt.go:267:15",
+		//	pos:    "./devirt.go:249:15",
 		//	callee: "mult.MultClosure.func1",
 		//},
 	}
