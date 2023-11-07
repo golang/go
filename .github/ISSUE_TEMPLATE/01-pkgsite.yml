@@ -24,6 +24,7 @@ body:
     attributes:
       label: "Screenshot"
       description: "Please paste a screenshot of the page."
+      render: bash
     validations:
       required: false
   - type: textarea
