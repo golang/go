@@ -132,13 +132,6 @@ body:
     id: orthogonality
     attributes:
       label: "Orthogonality: how does this change interact or overlap with existing features?"
-    validations:
-      required: false
-
-  - type: textarea
-    id: orthogonality
-    attributes:
-      label: "Orthogonality: how does this change interact or overlap with existing features?"
       description: "Is the goal of this change a performance improvement? If so, what quantifiable improvement should we expect? How would we measure it?"
     validations:
       required: false
