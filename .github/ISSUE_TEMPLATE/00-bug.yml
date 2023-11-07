@@ -13,7 +13,7 @@ body:
 #  - type: textarea
 #    id: go-version
 #    attributes:
-#      label: Golang Version
+#      label: go Version
 #      description: What version of Go are you using (`go version`)?
 #      value: |
 #        <pre>
@@ -27,7 +27,7 @@ body:
   - type: input
     id: go-version
     attributes:
-      label: Golang version
+      label: go version
       description: What version of Go are you using (`go version`)?
       placeholder: ex. go version go1.20.7 darwin/arm64
     validations:
