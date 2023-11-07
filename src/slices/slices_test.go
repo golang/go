@@ -536,6 +536,26 @@ func TestInsertOverlap(t *testing.T) {
 	}
 }
 
+func TestInsertPanics(t *testing.T) {
+	a := [3]int{}
+	for _, test := range []struct {
+		name string
+		s    []int
+		i    int
+		v    []int
+	}{
+		// There are no values.
+		{"with negative index", a[:1:1], -1, nil},
+		{"with out-of-bounds index and > cap", a[:1:1], 2, nil},
+		{"with out-of-bounds index and = cap", a[:1:2], 2, nil},
+		{"with out-of-bounds index and < cap", a[:1:3], 2, nil},
+	} {
+		if !panics(func() { Insert(test.s, test.i, test.v...) }) {
+			t.Errorf("Insert %s: got no panic, want panic", test.name)
+		}
+	}
+}
+
 var deleteTests = []struct {
 	s    []int
 	i, j int
