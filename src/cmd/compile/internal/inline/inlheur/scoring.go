@@ -354,7 +354,7 @@ func setupFlagToAdjMaps() {
 	}
 }
 
-// largestScoreAdjustment tries to estimate the largest possible
+// LargestNegativeScoreAdjustment tries to estimate the largest possible
 // negative score adjustment that could be applied to a call of the
 // function with the specified props. Example:
 //
@@ -373,7 +373,7 @@ func setupFlagToAdjMaps() {
 // given call _could_ be rescored down as much as -35 points-- thus if
 // the size of "bar" is 100 (for example) then there is at least a
 // chance that scoring will enable inlining.
-func largestScoreAdjustment(fn *ir.Func, props *FuncProps) int {
+func LargestNegativeScoreAdjustment(fn *ir.Func, props *FuncProps) int {
 	if resultFlagToPositiveAdj == nil {
 		setupFlagToAdjMaps()
 	}
@@ -396,6 +396,14 @@ func largestScoreAdjustment(fn *ir.Func, props *FuncProps) int {
 	}
 
 	return score
+}
+
+// LargestPositiveScoreAdjustment tries to estimate the largest possible
+// positive score adjustment that could be applied to a given callsite.
+// At the moment we don't have very many positive score adjustments, so
+// this is just hard-coded, not table-driven.
+func LargestPositiveScoreAdjustment(fn *ir.Func) int {
+	return adjValues[panicPathAdj] + adjValues[initFuncAdj]
 }
 
 // callSiteTab contains entries for each call in the function

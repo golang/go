@@ -154,7 +154,7 @@ func revisitInlinability(fn *ir.Func, funcProps *FuncProps, budgetForFunc func(*
 	if fn.Inl == nil {
 		return
 	}
-	maxAdj := int32(largestScoreAdjustment(fn, funcProps))
+	maxAdj := int32(LargestNegativeScoreAdjustment(fn, funcProps))
 	budget := budgetForFunc(fn)
 	if fn.Inl.Cost+maxAdj > budget {
 		fn.Inl = nil
