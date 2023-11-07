@@ -368,11 +368,11 @@ func TestIssue47243_TypedRHS(t *testing.T) {
 }
 
 func TestCheck(t *testing.T) {
-	old := buildcfg.Experiment.Range
+	old := buildcfg.Experiment.RangeFunc
 	defer func() {
-		buildcfg.Experiment.Range = old
+		buildcfg.Experiment.RangeFunc = old
 	}()
-	buildcfg.Experiment.Range = true
+	buildcfg.Experiment.RangeFunc = true
 
 	DefPredeclaredTestFuncs()
 	testDirFiles(t, "../../../../internal/types/testdata/check", 50, false) // TODO(gri) narrow column tolerance
