@@ -5,7 +5,7 @@
 /*
 Package runtime contains operations that interact with Go's runtime system,
 such as functions to control goroutines. It also includes the low-level type information
-used by the reflect package; see reflect's documentation for the programmable
+used by the reflect package; see [reflect]'s documentation for the programmable
 interface to the run-time type system.
 
 # Environment Variables
@@ -285,10 +285,10 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 // It returns the number of entries written to pc.
 //
 // To translate these PCs into symbolic information such as function
-// names and line numbers, use CallersFrames. CallersFrames accounts
+// names and line numbers, use [CallersFrames]. CallersFrames accounts
 // for inlined functions and adjusts the return program counters into
 // call program counters. Iterating over the returned slice of PCs
-// directly is discouraged, as is using FuncForPC on any of the
+// directly is discouraged, as is using [FuncForPC] on any of the
 // returned PCs, since these cannot account for inlining or return
 // program counter adjustment.
 func Callers(skip int, pc []uintptr) int {

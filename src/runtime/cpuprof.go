@@ -202,8 +202,8 @@ func (p *cpuProfile) addExtra() {
 // The details of generating that format have changed,
 // so this functionality has been removed.
 //
-// Deprecated: Use the runtime/pprof package,
-// or the handlers in the net/http/pprof package,
+// Deprecated: Use the [runtime/pprof] package,
+// or the handlers in the [net/http/pprof] package,
 // or the testing package's -test.cpuprofile flag instead.
 func CPUProfile() []byte {
 	panic("CPUProfile no longer available")
