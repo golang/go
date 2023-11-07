@@ -2796,7 +2796,7 @@ func TestFileVersions(t *testing.T) {
 		conf := Config{GoVersion: test.moduleVersion}
 		versions := make(map[*ast.File]string)
 		var info Info
-		*_FileVersionsAddr(&info) = versions
+		info.FileVersions = versions
 		mustTypecheck(src, &conf, &info)
 
 		n := 0
@@ -2811,10 +2811,4 @@ func TestFileVersions(t *testing.T) {
 			t.Errorf("%q: incorrect number of map entries: got %d", src, n)
 		}
 	}
-}
-
-// _FileVersionsAddr(conf) returns the address of the field info._FileVersions.
-func _FileVersionsAddr(info *Info) *map[*ast.File]string {
-	v := reflect.Indirect(reflect.ValueOf(info))
-	return (*map[*ast.File]string)(v.FieldByName("_FileVersions").Addr().UnsafePointer())
 }

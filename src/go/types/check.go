@@ -634,7 +634,7 @@ func (check *Checker) recordScope(node ast.Node, scope *Scope) {
 }
 
 func (check *Checker) recordFileVersion(file *ast.File, version string) {
-	if m := check._FileVersions; m != nil {
+	if m := check.FileVersions; m != nil {
 		m[file] = version
 	}
 }

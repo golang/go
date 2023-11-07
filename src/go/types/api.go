@@ -286,11 +286,12 @@ type Info struct {
 	// appear in this list.
 	InitOrder []*Initializer
 
-	// _FileVersions maps a file to the file's Go version string.
-	// If the file doesn't specify a version and Config.GoVersion
-	// is not given, the reported version is the empty string.
-	// TODO(gri) should this be "go0.0" instead in that case?
-	_FileVersions map[*ast.File]string
+	// FileVersions maps a file to its Go version string.
+	// If the file doesn't specify a version, the reported
+	// string is Config.GoVersion.
+	// Version strings begin with “go”, like “go1.21”, and
+	// are suitable for use with the [go/version] package.
+	FileVersions map[*ast.File]string
 }
 
 func (info *Info) recordTypes() bool {
