@@ -31,10 +31,14 @@ func main() {
 	// Beginning of traced execution.
 	var wg sync.WaitGroup
 	ctx, task := trace.NewTask(bgctx, "task0") // EvUserTaskCreate("task0")
+	trace.StartRegion(ctx, "task0 region")
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		defer task.End() // EvUserTaskEnd("task0")
+
+		trace.StartRegion(ctx, "unended region")
 
 		trace.WithRegion(ctx, "region0", func() {
 			// EvUserRegionBegin("region0", start)
