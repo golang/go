@@ -338,13 +338,6 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 	if stringsHasSuffix(hostname, ".") {
 		hostname = hostname[:len(hostname)-1]
 	}
-	if canUseCgo && stringsHasSuffixFold(hostname, ".local") {
-		// Per RFC 6762, the ".local" TLD is special. And
-		// because Go's native resolver doesn't do mDNS or
-		// similar local resolution mechanisms, assume that
-		// libc might (via Avahi, etc) and use cgo.
-		return hostLookupCgo, dnsConf
-	}
 
 	nss := getSystemNSS()
 	srcs := nss.sources["hosts"]
@@ -404,6 +397,14 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 				}
 				continue
 			case hostname != "" && stringsHasPrefix(src.source, "mdns"):
+				if stringsHasSuffixFold(hostname, ".local") {
+					// Per RFC 6762, the ".local" TLD is special. And
+					// because Go's native resolver doesn't do mDNS or
+					// similar local resolution mechanisms, assume that
+					// libc might (via Avahi, etc) and use cgo.
+					return hostLookupCgo, dnsConf
+				}
+
 				// e.g. "mdns4", "mdns4_minimal"
 				// We already returned true before if it was *.local.
 				// libc wouldn't have found a hit on this anyway.
