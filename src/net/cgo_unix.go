@@ -41,18 +41,12 @@ func (eai addrinfoErrno) isAddrinfoErrno() {}
 // context is cancellable. It is intended for use with calls that don't support context
 // cancellation (cgo, syscalls). blocking func may still be running after this function finishes.
 // For the duration of the execution of the blocking function, the thread is 'acquired' using [acquireThread],
-// blocking might not be executed when the context gets cancelled.
+// blocking might not be executed when the context gets cancelled early.
 func doBlockingWithCtx[T any](ctx context.Context, lookupName string, blocking func() (T, error)) (T, error) {
-	if err := acquireThread(ctx); err != nil {
-		var zero T
-		return zero, &DNSError{
-			Name:      lookupName,
-			Err:       mapErr(ctx.Err()).Error(),
-			IsTimeout: ctx.Err() == context.DeadlineExceeded,
-		}
-	}
-
 	if ctx.Done() == nil {
+		// Context is non-cancellable, so there is no need
+		// to handle the error from acquireThread.
+		acquireThread(ctx)
 		defer releaseThread()
 		return blocking()
 	}
@@ -64,6 +58,16 @@ func doBlockingWithCtx[T any](ctx context.Context, lookupName string, blocking f
 
 	res := make(chan result, 1)
 	go func() {
+		if err := acquireThread(ctx); err != nil {
+			res <- result{
+				err: &DNSError{
+					Name:      lookupName,
+					Err:       mapErr(err).Error(),
+					IsTimeout: err == context.DeadlineExceeded,
+				},
+			}
+			return
+		}
 		defer releaseThread()
 		var r result
 		r.res, r.err = blocking()
@@ -114,7 +118,7 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 		*_C_ai_family(&hints) = _C_AF_INET6
 	}
 
-	return doBlockingWithCtx(ctx, network + "/" + service, func() (int, error) {
+	return doBlockingWithCtx(ctx, network+"/"+service, func() (int, error) {
 		return cgoLookupServicePort(&hints, network, service)
 	})
 }

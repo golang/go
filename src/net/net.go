@@ -731,7 +731,7 @@ func acquireThread(ctx context.Context) error {
 	case threadLimit <- struct{}{}:
 		return nil
 	case <-ctx.Done():
-		return mapErr(ctx.Err())
+		return ctx.Err()
 	}
 }
 
