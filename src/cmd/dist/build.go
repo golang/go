@@ -38,6 +38,7 @@ var (
 	gomips           string
 	gomips64         string
 	goppc64          string
+	goriscv64        string
 	goroot           string
 	goroot_final     string
 	goextlinkenabled string
@@ -177,6 +178,12 @@ func xinit() {
 	}
 	goppc64 = b
 
+	b = os.Getenv("GORISCV64")
+	if b == "" {
+		b = "rva20u64"
+	}
+	goriscv64 = b
+
 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
 		fatalf("$GOROOT is not set correctly or not exported\n"+
 			"\tGOROOT=%s\n"+
@@ -236,6 +243,7 @@ func xinit() {
 	os.Setenv("GOMIPS", gomips)
 	os.Setenv("GOMIPS64", gomips64)
 	os.Setenv("GOPPC64", goppc64)
+	os.Setenv("GORISCV64", goriscv64)
 	os.Setenv("GOROOT", goroot)
 	os.Setenv("GOROOT_FINAL", goroot_final)
 
@@ -891,6 +899,10 @@ func runInstall(pkg string, ch chan struct{}) {
 			asmArgs = append(asmArgs, "-D", "GOPPC64_power8")
 		}
 	}
+	if goarch == "riscv64" {
+		// Define GORISCV64_value from goriscv64
+		asmArgs = append(asmArgs, "-D", "GORISCV64_"+goriscv64)
+	}
 	goasmh := pathf("%s/go_asm.h", workdir)
 
 	// Collect symabis from assembly code.
@@ -1235,6 +1247,9 @@ func cmdenv() {
 	}
 	if goarch == "ppc64" || goarch == "ppc64le" {
 		xprintf(format, "GOPPC64", goppc64)
+	}
+	if goarch == "riscv64" {
+		xprintf(format, "GORISCV64", goriscv64)
 	}
 	xprintf(format, "GOWORK", "off")
 
