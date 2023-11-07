@@ -21,13 +21,21 @@ body:
         - "Experienced"
       default: 0
 
+  - type: input
+    id: other-languages
+    attributes:
+      label: "Other Languages Experience"
+      description: "What other languages do you have experience with?"
+      placeholder: "Go, Python, JS, Rust"
+    validations:
+      required: false
+
 #  - type: dropdown
 #    id: other-languages
 #    attributes:
 #      label: "Other Languages Experience"
 #      description: "What other languages do you have experience with?"
 #      options:
-#        - "None"
 #        - "Java"
 #        - "Python"
 #        - "C++"
