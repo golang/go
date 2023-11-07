@@ -167,7 +167,7 @@ body:
   - type: input
     id: go-toolchain
     attributes:
-      label: Go ToolChain
+      label: Changes to Go ToolChain
       description: "How many tools (such as vet, gopls, gofmt, goimports, etc.) would be affected? "
     validations:
       required: false
