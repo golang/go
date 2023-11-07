@@ -7,19 +7,19 @@ body:
     attributes:
       value: "Our process for evaluating language changes can be found here: https://go.googlesource.com/proposal/+/refs/heads/master#language-changes"
 
-  - type: select
-    id: author-experience
-    attributes:
-      label: "Go Programming Experience"
-      options:
-        - label: "Novice"
-          value: "novice"
-        - label: "Intermediate"
-          value: "intermediate"
-        - label: "Experienced"
-          value: "experienced"
-      validations:
-        required: true
+#  - type: select
+#    id: author-experience
+#    attributes:
+#      label: "Go Programming Experience"
+#      options:
+#        - label: "Novice"
+#          value: "novice"
+#        - label: "Intermediate"
+#          value: "intermediate"
+#        - label: "Experienced"
+#          value: "experienced"
+#      validations:
+#        required: true
 #  - type: textarea
 #    id: author-background
 #    attributes:
