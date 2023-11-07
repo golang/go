@@ -145,22 +145,49 @@ body:
 #    validations:
 #      required: true
 #
-  - type: checkboxes
-    id: costs
-    attributes:
-      label: "Costs"
-      options:
-        - label: "Would this change make Go easier to learn?"
-        - label: ""
-
-
-#  - type: textarea
+#  - type: checkboxes
 #    id: costs
 #    attributes:
 #      label: "Costs"
-#      description: " What is the cost of this proposal? (Every language change has a cost). How many tools (such as vet, gopls, gofmt, goimports, etc.) would be affected? What is the compile time cost? What is the run time cost? Can you describe a possible implementation? Do you have a prototype? (This is not required.)"
-#    validations:
-#      required: false
+#      options:
+#        - label: "Would this change make Go easier to learn?"
+#        - label: ""
+  - type: textarea
+    id: learning-curve
+    attributes:
+      label: "Would this change make Go easier or harder to learn, and why?"
+
+
+  - type: textarea
+    id: cost-description
+    attributes:
+      label: "Cost Description"
+      description: "What is the cost of this proposal? (Every language change has a cost)"
+
+  - type: input
+    id: go-toolchain
+    attributes:
+      label: Go ToolChain
+      description: "How many tools (such as vet, gopls, gofmt, goimports, etc.) would be affected? "
+    validations:
+      required: false
+
+  - type: input
+    id: perf-costs
+    attributes:
+      label: Performance Costs
+      description: "What is the compile time cost? What is the run time cost? "
+    validations:
+      required: false
+
+  - type: textarea
+    id: prototype
+    attributes:
+      label: "Prototype"
+      description: "Can you describe a possible implementation?"
+    validations:
+      required: false
+
 
 #  - type: textarea
 #    id: costs
