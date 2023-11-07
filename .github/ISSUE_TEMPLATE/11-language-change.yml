@@ -94,7 +94,7 @@ body:
       label: "How does this relate to the accepted design and other generics proposals?"
       description: "If this proposal is about generics, describe its relationship to the accepted design and other generics proposals."
     validations:
-      required: this.related-idea[2].value == true
+      required: false
 
 
   - type: textarea
