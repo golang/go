@@ -2,6 +2,7 @@ name: Language Change Proposals
 description: Changes to the language
 title: "proposal: Go 2: "
 labels: ["Proposal", "v2", "LanguageChange"]
+
 body:
   - type: markdown
     attributes:
