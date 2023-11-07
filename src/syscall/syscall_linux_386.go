@@ -11,6 +11,7 @@ const (
 	_SYS_clone3            = 435
 	_SYS_faccessat2        = 439
 	_SYS_pidfd_send_signal = 424
+	_SYS_fchmodat2         = 452
 )
 
 func setTimespec(sec, nsec int64) Timespec {
