@@ -21,17 +21,17 @@ body:
         - "Experienced"
       default: 0
 
-  - type: dropdown
-    id: other-languages
-    attributes:
-      label: "Other Languages Experience"
-      description: "What other languages do you have experience with?"
-      options:
-        - "None"
-        - "Java"
-        - "Python"
-        - "C++"
-        - "Other (please specify)"
+#  - type: dropdown
+#    id: other-languages
+#    attributes:
+#      label: "Other Languages Experience"
+#      description: "What other languages do you have experience with?"
+#      options:
+#        - "None"
+#        - "Java"
+#        - "Python"
+#        - "C++"
+#        - "Other (please specify)"
 #
 #  - type: textarea
 #    id: author-background
