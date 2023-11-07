@@ -63,13 +63,38 @@ body:
         - label: "Does this affect error handling?"
         - label: "Is this about generics?"
 
+#  - type: textarea
+#    id: related-proposals
+#    attributes:
+#      label: "Related proposals"
+#      description: "If so, how does this proposal differ? If so, how does this differ from previous error handling proposals?If so, how does this relate to the accepted design and other generics proposals?"
+#    validations:
+#      required: false
+
   - type: textarea
-    id: related-proposals
+    id: proposal-differences
     attributes:
-      label: "Related proposals"
-      description: "If so, how does this proposal differ? If so, how does this differ from previous error handling proposals?If so, how does this relate to the accepted design and other generics proposals?"
+      label: "How does this proposal differ?"
+      description: "If this proposal differs from previous ones, please describe how."
     validations:
       required: false
+
+  - type: textarea
+    id: error-handling-differences
+    attributes:
+      label: "How does this differ from previous error handling proposals?"
+      description: "If this proposal affects error handling, describe how it differs from previous proposals."
+    validations:
+      required: false
+
+  - type: textarea
+    id: generics-relationship
+    attributes:
+      label: "How does this relate to the accepted design and other generics proposals?"
+      description: "If this proposal is about generics, describe its relationship to the accepted design and other generics proposals."
+    validations:
+      required: false
+
 #
 #  - type: textarea
 #    id: proposal
