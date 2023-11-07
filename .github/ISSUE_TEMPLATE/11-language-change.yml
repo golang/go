@@ -62,6 +62,7 @@ body:
         - label: "Has this idea, or one like it, been proposed before?"
         - label: "Does this affect error handling?"
         - label: "Is this about generics?"
+        - label: "Is this change backward compatible? Breaking the Go 1 compatibility guarantee is a large cost and requires a large benefit"
 
 #  - type: textarea
 #    id: related-proposals
@@ -95,7 +96,55 @@ body:
     validations:
       required: false
 
-#
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposal"
+      description: "What is the proposed change? Who does this proposal help, and why? Please describe as precisely as possible the change to the language."
+    validations:
+      required: true
+
+  - type: textarea
+    id: language-spec-changes
+    attributes:
+      label: "Language Spec Changes"
+      description: "What would change in the language spec?"
+    validations:
+      required: false
+
+  - type: textarea
+    id: informal-change
+    attributes:
+      label: "Informal Change"
+      description: "Please also describe the change informally, as in a class teaching Go."
+    validations:
+      required: false
+
+  - type: textarea
+    id: show-example-code
+    attributes:
+      label: "Show example code before and after the change. "
+    validations:
+      required: false
+
+  - type: textarea
+    id: orthogonality
+    attributes:
+      label: "Orthogonality: how does this change interact or overlap with existing features?"
+    validations:
+      required: false
+
+  - type: textarea
+    id: orthogonality
+    attributes:
+      label: "Orthogonality: how does this change interact or overlap with existing features?"
+      description: "Is the goal of this change a performance improvement? If so, what quantifiable improvement should we expect? How would we measure it?"
+    validations:
+      required: false
+
+
+
 #  - type: textarea
 #    id: proposal
 #    attributes:
