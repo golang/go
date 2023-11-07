@@ -131,11 +131,10 @@ body:
   - type: textarea
     id: orthogonality
     attributes:
-      label: "Orthogonality: how does this change interact or overlap with existing features?"
+      label: "Orthogonality: How does this change interact or overlap with existing features?"
       description: "Is the goal of this change a performance improvement? If so, what quantifiable improvement should we expect? How would we measure it?"
     validations:
       required: false
-
 
 
 #  - type: textarea
@@ -146,6 +145,23 @@ body:
 #    validations:
 #      required: true
 #
+  - type: checkboxes
+    id: costs
+    attributes:
+      label: "Costs"
+      options:
+        - label: "Would this change make Go easier to learn?"
+        - label: ""
+
+
+#  - type: textarea
+#    id: costs
+#    attributes:
+#      label: "Costs"
+#      description: " What is the cost of this proposal? (Every language change has a cost). How many tools (such as vet, gopls, gofmt, goimports, etc.) would be affected? What is the compile time cost? What is the run time cost? Can you describe a possible implementation? Do you have a prototype? (This is not required.)"
+#    validations:
+#      required: false
+
 #  - type: textarea
 #    id: costs
 #    attributes:
