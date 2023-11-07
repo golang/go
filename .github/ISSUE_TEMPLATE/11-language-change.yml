@@ -42,22 +42,32 @@ body:
 #        - "Other (please specify)"
 #
 
-  - type: dropdown
+#  - type: dropdown
+#    id: related-idea
+#    attributes:
+#      label: "Related Idea"
+#      description: "Has this idea, or one like it, been proposed before?"
+#      options:
+#        - "Yes"
+#        - "No"
+#    validations:
+#      required: true
+
+
+  - type: checkboxes
     id: related-idea
     attributes:
       label: "Related Idea"
-      description: "Has this idea, or one like it, been proposed before?"
       options:
-        - "Yes"
-        - "No"
-    validations:
-      required: true
+        - label: "Has this idea, or one like it, been proposed before?"
+        - label: "Does this affect error handling?"
+        - label: "Is this about generics?"
 
   - type: textarea
     id: related-proposals
     attributes:
       label: "Related proposals"
-      description: "Has this idea, or one like it, been proposed before? If so, how does this proposal differ? Does this affect error handling? If so, how does this differ from previous error handling proposals? Is this about generics? If so, how does this relate to the accepted design and other generics proposals?"
+      description: "If so, how does this proposal differ? If so, how does this differ from previous error handling proposals?If so, how does this relate to the accepted design and other generics proposals?"
     validations:
       required: false
 #
