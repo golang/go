@@ -7,19 +7,28 @@ body:
     attributes:
       value: "Our process for evaluating language changes can be found here: https://go.googlesource.com/proposal/+/refs/heads/master#language-changes"
 
-#  - type: select
-#    id: author-experience
-#    attributes:
-#      label: "Go Programming Experience"
-#      options:
-#        - label: "Novice"
-#          value: "novice"
-#        - label: "Intermediate"
-#          value: "intermediate"
-#        - label: "Experienced"
-#          value: "experienced"
-#      validations:
-#        required: true
+  - type: dropdown
+    id: author-experience
+    attributes:
+      label: "Go Programming Experience"
+      description: "Would you consider yourself a novice, intermediate, or experienced Go programmer?"
+      options:
+        - "Novice"
+        - "Intermediate"
+        - "Experienced"
+
+  - type: dropdown
+    id: other-languages
+    attributes:
+      label: "Other Languages Experience"
+      description: "What other languages do you have experience with?"
+      options:
+        - "None"
+        - "Java"
+        - "Python"
+        - "C++"
+        - "Other (please specify)"
+
 #  - type: textarea
 #    id: author-background
 #    attributes:
