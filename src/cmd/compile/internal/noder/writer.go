@@ -1715,6 +1715,15 @@ func (w *writer) expr(expr syntax.Expr) {
 	targs := inst.TypeArgs
 
 	if tv, ok := w.p.maybeTypeAndValue(expr); ok {
+		if tv.IsRuntimeHelper() {
+			if pkg := obj.Pkg(); pkg != nil && pkg.Name() == "runtime" {
+				objName := obj.Name()
+				w.Code(exprRuntimeBuiltin)
+				w.String(objName)
+				return
+			}
+		}
+
 		if tv.IsType() {
 			w.p.fatalf(expr, "unexpected type expression %v", syntax.String(expr))
 		}
