@@ -43,9 +43,7 @@ func FuzzReader(f *testing.F) {
 // explore the space of decompressor behavior, since it can't see
 // what the compressor is doing. But it's better than nothing.
 func FuzzDecompressor(f *testing.F) {
-	if _, err := os.Stat("/usr/bin/zstd"); err != nil {
-		f.Skip("skipping because /usr/bin/zstd does not exist")
-	}
+	zstd := findZstd(f)
 
 	for _, test := range tests {
 		f.Add([]byte(test.uncompressed))
@@ -61,7 +59,7 @@ func FuzzDecompressor(f *testing.F) {
 	f.Add(bigData(f))
 
 	f.Fuzz(func(t *testing.T, b []byte) {
-		cmd := exec.Command("/usr/bin/zstd", "-z")
+		cmd := exec.Command(zstd, "-z")
 		cmd.Stdin = bytes.NewReader(b)
 		var compressed bytes.Buffer
 		cmd.Stdout = &compressed
@@ -84,9 +82,7 @@ func FuzzDecompressor(f *testing.F) {
 // Fuzz test to check that if we can decompress some data,
 // so can zstd, and that we get the same result.
 func FuzzReverse(f *testing.F) {
-	if _, err := os.Stat("/usr/bin/zstd"); err != nil {
-		f.Skip("skipping because /usr/bin/zstd does not exist")
-	}
+	zstd := findZstd(f)
 
 	for _, test := range tests {
 		f.Add([]byte(test.compressed))
@@ -100,7 +96,7 @@ func FuzzReverse(f *testing.F) {
 		r := NewReader(bytes.NewReader(b))
 		goExp, goErr := io.ReadAll(r)
 
-		cmd := exec.Command("/usr/bin/zstd", "-d")
+		cmd := exec.Command(zstd, "-d")
 		cmd.Stdin = bytes.NewReader(b)
 		var uncompressed bytes.Buffer
 		cmd.Stdout = &uncompressed
