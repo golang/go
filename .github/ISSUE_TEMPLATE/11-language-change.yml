@@ -30,17 +30,18 @@ body:
     validations:
       required: false
 
-#  - type: dropdown
-#    id: other-languages
-#    attributes:
-#      label: "Other Languages Experience"
-#      description: "What other languages do you have experience with?"
-#      options:
-#        - "Java"
-#        - "Python"
-#        - "C++"
-#        - "Other (please specify)"
-#
+  # - type: dropdown
+  #   id: other-languages
+  #   attributes:
+  #     multiple: true
+  #     label: "Other Languages Experience"
+  #     description: "What other languages do you have experience with?"
+  #     options:
+  #       - "Java"
+  #       - "Python"
+  #       - "C++"
+  #       - "Other (please specify)"
+
 
 #  - type: dropdown
 #    id: related-idea
