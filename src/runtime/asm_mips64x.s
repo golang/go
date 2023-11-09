@@ -871,3 +871,16 @@ TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
 	MOVV	R3, x+0(FP)
 	MOVV	R4, y+8(FP)
 	JMP	runtime·goPanicSliceConvert(SB)
+
+// check that SP is in range [g->stack.lo, g->stack.hi)
+TEXT runtime·stackcheck(SB), NOSPLIT|NOFRAME, $0-0
+	MOVV	(g_stack+stack_hi)(g), R4
+	SGTU	R29, R4, R5
+	BEQ	R5, 2(PC)
+	JAL	runtime·abort(SB)
+
+	MOVV	(g_stack+stack_lo)(g), R4
+	SGTU	R4, R29, R5
+	BEQ	R5, 2(PC)
+	JAL	runtime·abort(SB)
+	RET

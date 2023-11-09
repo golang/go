@@ -526,7 +526,7 @@ TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0
 	// In child, set up new stack
 	MOVV	R16, g_m(R17)
 	MOVV	R17, g
-	//CALL	runtime·stackcheck(SB)
+	JAL	runtime·stackcheck(SB)
 
 nog:
 	// Call fn
