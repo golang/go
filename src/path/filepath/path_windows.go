@@ -102,12 +102,14 @@ func volumeNameLen(path string) int {
 		// \\.\unc\a\b\..\c into \\.\unc\a\c.
 		return uncLen(path, len(`\\.\UNC\`))
 
-	case pathHasPrefixFold(path, `\\.`):
-		// Path starts with \\., and is a Local Device path.
+	case pathHasPrefixFold(path, `\\.`) ||
+		pathHasPrefixFold(path, `\\?`) || pathHasPrefixFold(path, `\??`):
+		// Path starts with \\.\, and is a Local Device path; or
+		// path starts with \\?\ or \??\ and is a Root Local Device path.
 		//
-		// We currently treat the next component after the \\.\ prefix
-		// as part of the volume name, although there doesn't seem to be
-		// a principled reason to do this.
+		// We treat the next component after the \\.\ prefix as
+		// part of the volume name, which means Clean(`\\?\c:\`)
+		// won't remove the trailing \. (See #64028.)
 		if len(path) == 3 {
 			return 3 // exactly \\.
 		}
@@ -116,14 +118,6 @@ func volumeNameLen(path string) int {
 			return len(path)
 		}
 		return len(path) - len(rest) - 1
-
-	case pathHasPrefixFold(path, `\\?`) || pathHasPrefixFold(path, `\??`):
-		// Path starts with \\?\ or \??\, and is a Root Local Device path.
-		//
-		// While Windows usually treats / and \ as equivalent,
-		// /??/ does not seem to be recognized as a Root Local Device path.
-		// We treat it as one anyway here to be safe.
-		return 3
 
 	case len(path) >= 2 && isSlash(path[1]):
 		// Path starts with \\, and is a UNC path.
