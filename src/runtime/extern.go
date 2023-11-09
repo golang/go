@@ -28,7 +28,7 @@ program. GOMEMLIMIT is a numeric value in bytes with an optional unit suffix.
 The supported suffixes include B, KiB, MiB, GiB, and TiB. These suffixes
 represent quantities of bytes as defined by the IEC 80000-13 standard. That is,
 they are based on powers of two: KiB means 2^10 bytes, MiB means 2^20 bytes,
-and so on. The default setting is math.MaxInt64, which effectively disables the
+and so on. The default setting is [math.MaxInt64], which effectively disables the
 memory limit. [runtime/debug.SetMemoryLimit] allows changing this limit at run
 time.
 
@@ -215,17 +215,17 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	because it also disables the conservative stack scanning used
 	for asynchronously preempted goroutines.
 
-The net and net/http packages also refer to debugging variables in GODEBUG.
+The [net] and [net/http] packages also refer to debugging variables in GODEBUG.
 See the documentation for those packages for details.
 
 The GOMAXPROCS variable limits the number of operating system threads that
 can execute user-level Go code simultaneously. There is no limit to the number of threads
 that can be blocked in system calls on behalf of Go code; those do not count against
-the GOMAXPROCS limit. This package's GOMAXPROCS function queries and changes
+the GOMAXPROCS limit. This package's [GOMAXPROCS] function queries and changes
 the limit.
 
 The GORACE variable configures the race detector, for programs built using -race.
-See https://golang.org/doc/articles/race_detector.html for details.
+See the [Race Detector article] for details.
 
 The GOTRACEBACK variable controls the amount of output generated when a Go
 program fails due to an unrecovered panic or an unexpected runtime condition.
@@ -244,14 +244,13 @@ SIGABRT to trigger a core dump.
 GOTRACEBACK=wer is like “crash” but doesn't disable Windows Error Reporting (WER).
 For historical reasons, the GOTRACEBACK settings 0, 1, and 2 are synonyms for
 none, all, and system, respectively.
-The runtime/debug package's SetTraceback function allows increasing the
+The [runtime/debug.SetTraceback] function allows increasing the
 amount of output at run time, but it cannot reduce the amount below that
 specified by the environment variable.
-See https://golang.org/pkg/runtime/debug/#SetTraceback.
 
 The GOARCH, GOOS, GOPATH, and GOROOT environment variables complete
 the set of Go environment variables. They influence the building of Go programs
-(see https://golang.org/cmd/go and https://golang.org/pkg/go/build).
+(see [cmd/go] and [go/build]).
 GOARCH, GOOS, and GOROOT are recorded at compile time and made available by
 constants or functions in this package, but they do not influence the execution
 of the run-time system.
@@ -274,6 +273,8 @@ things:
     encounters an unrecoverable panic that would otherwise override the value
     of GOTRACEBACK, the goroutine stack, registers, and other memory related
     information are omitted.
+
+[Race Detector article]: https://go.dev/doc/articles/race_detector
 */
 package runtime
 
@@ -285,7 +286,7 @@ import (
 // Caller reports file and line number information about function invocations on
 // the calling goroutine's stack. The argument skip is the number of stack frames
 // to ascend, with 0 identifying the caller of Caller.  (For historical reasons the
-// meaning of skip differs between Caller and Callers.) The return values report the
+// meaning of skip differs between Caller and [Callers].) The return values report the
 // program counter, file name, and line number within the file of the corresponding
 // call. The boolean ok is false if it was not possible to recover the information.
 func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
