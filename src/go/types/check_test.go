@@ -56,7 +56,6 @@ import (
 var (
 	haltOnError  = flag.Bool("halt", false, "halt on error")
 	verifyErrors = flag.Bool("verify", false, "verify errors (rather than list them) in TestManual")
-	enableAlias  = flag.Bool("alias", false, "set Config._EnableAlias for tests")
 )
 
 var fset = token.NewFileSet()
@@ -125,44 +124,33 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
 
 // testFiles type-checks the package consisting of the given files, and
 // compares the resulting errors with the ERROR annotations in the source.
+// Except for manual tests, each package is type-checked twice, once without
+// use of _Alias types, and once with _Alias types.
 //
 // The srcs slice contains the file content for the files named in the
-// filenames slice. The manual parameter specifies whether this is a 'manual'
-// test.
+// filenames slice. The colDelta parameter specifies the tolerance for position
+// mismatch when comparing errors. The manual parameter specifies whether this
+// is a 'manual' test.
 //
 // If provided, opts may be used to mutate the Config before type-checking.
 func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opts ...func(*Config)) {
+	testFilesImpl(t, filenames, srcs, manual, opts...)
+	if !manual {
+		testFilesImpl(t, filenames, srcs, manual, append(opts, func(conf *Config) { *boolFieldAddr(conf, "_EnableAlias") = true })...)
+	}
+}
+
+func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool, opts ...func(*Config)) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
 	}
 
-	var conf Config
-	var goexperiment string
-	flags := flag.NewFlagSet("", flag.PanicOnError)
-	flags.StringVar(&conf.GoVersion, "lang", "", "")
-	flags.StringVar(&goexperiment, "goexperiment", "", "")
-	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
-	flags.BoolVar(boolFieldAddr(&conf, "_EnableAlias"), "alias", *enableAlias, "")
-	if err := parseFlags(srcs[0], flags); err != nil {
-		t.Fatal(err)
-	}
-	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
-	if err != nil {
-		t.Fatal(err)
-	}
-	old := buildcfg.Experiment
-	defer func() {
-		buildcfg.Experiment = old
-	}()
-	buildcfg.Experiment = *exp
-
+	// parse files
 	files, errlist := parseFiles(t, filenames, srcs, parser.AllErrors)
-
 	pkgName := "<no package>"
 	if len(files) > 0 {
 		pkgName = files[0].Name.Name
 	}
-
 	listErrors := manual && !*verifyErrors
 	if listErrors && len(errlist) > 0 {
 		t.Errorf("--- %s:", pkgName)
@@ -171,7 +159,8 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opt
 		}
 	}
 
-	// typecheck and collect typechecker errors
+	// set up typechecker
+	var conf Config
 	*boolFieldAddr(&conf, "_Trace") = manual && testing.Verbose()
 	conf.Importer = importer.Default()
 	conf.Error = func(err error) {
@@ -189,9 +178,30 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opt
 		}
 	}
 
+	// apply custom configuration
 	for _, opt := range opts {
 		opt(&conf)
 	}
+
+	// apply flag setting (overrides custom configuration)
+	var goexperiment string
+	flags := flag.NewFlagSet("", flag.PanicOnError)
+	flags.StringVar(&conf.GoVersion, "lang", "", "")
+	flags.StringVar(&goexperiment, "goexperiment", "", "")
+	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+	flags.BoolVar(boolFieldAddr(&conf, "_EnableAlias"), "alias", false, "")
+	if err := parseFlags(srcs[0], flags); err != nil {
+		t.Fatal(err)
+	}
+	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := buildcfg.Experiment
+	defer func() {
+		buildcfg.Experiment = old
+	}()
+	buildcfg.Experiment = *exp
 
 	// Provide Config.Info with all maps so that info recording is tested.
 	info := Info{
@@ -203,8 +213,9 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opt
 		Selections: make(map[*ast.SelectorExpr]*Selection),
 		Scopes:     make(map[ast.Node]*Scope),
 	}
-	conf.Check(pkgName, fset, files, &info)
 
+	// typecheck
+	conf.Check(pkgName, fset, files, &info)
 	if listErrors {
 		return
 	}
