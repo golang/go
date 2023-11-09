@@ -212,7 +212,7 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 }
 
 // Delete removes the elements s[i:j] from s, returning the modified slice.
-// Delete panics if s[i:j] is not a valid slice of s.
+// Delete panics if j > len(s) or s[i:j] is not a valid slice of s.
 // Delete is O(len(s)-j), so if many items must be deleted, it is better to
 // make a single call deleting them all together than to delete one at a time.
 // Delete might not modify the elements s[len(s)-(j-i):len(s)]. If those
@@ -246,9 +246,10 @@ func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
 }
 
 // Replace replaces the elements s[i:j] by the given v, and returns the
-// modified slice. Replace panics if s[i:j] is not a valid slice of s.
+// modified slice.
+// Replace panics if j > len(s) or s[i:j] is not a valid slice of s.
 func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
-	_ = s[i:j] // verify that i:j is a valid subslice
+	_ = s[i:j] // bounds check
 
 	if i == j {
 		return Insert(s, i, v...)
