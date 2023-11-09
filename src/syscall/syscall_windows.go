@@ -409,6 +409,12 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 		// Necessary for opening directory handles.
 		attrs |= FILE_FLAG_BACKUP_SEMANTICS
 	}
+	if mode&O_SYNC != 0 {
+		// See https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea.
+		// See issue 35358 for details.
+		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
+		attrs |= _FILE_FLAG_WRITE_THROUGH
+	}
 	return CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
 }
 
