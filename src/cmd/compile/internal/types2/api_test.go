@@ -2769,14 +2769,14 @@ func TestFileVersions(t *testing.T) {
 	for _, test := range []struct {
 		moduleVersion string
 		fileVersion   string
-		want          Version
+		wantVersion   string
 	}{
-		{"", "", Version{0, 0}},              // no versions specified
-		{"go1.19", "", Version{1, 19}},       // module version specified
-		{"", "go1.20", Version{0, 0}},        // file upgrade ignored
-		{"go1.19", "go1.20", Version{1, 20}}, // file upgrade permitted
-		{"go1.20", "go1.19", Version{1, 20}}, // file downgrade not permitted
-		{"go1.21", "go1.19", Version{1, 19}}, // file downgrade permitted (module version is >= go1.21)
+		{"", "", ""},                   // no versions specified
+		{"go1.19", "", "go1.19"},       // module version specified
+		{"", "go1.20", ""},             // file upgrade ignored
+		{"go1.19", "go1.20", "go1.20"}, // file upgrade permitted
+		{"go1.20", "go1.19", "go1.20"}, // file downgrade not permitted
+		{"go1.21", "go1.19", "go1.19"}, // file downgrade permitted (module version is >= go1.21)
 	} {
 		var src string
 		if test.fileVersion != "" {
@@ -2785,15 +2785,15 @@ func TestFileVersions(t *testing.T) {
 		src += "package p"
 
 		conf := Config{GoVersion: test.moduleVersion}
-		versions := make(map[*syntax.PosBase]Version)
+		versions := make(map[*syntax.PosBase]string)
 		var info Info
 		info.FileVersions = versions
 		mustTypecheck(src, &conf, &info)
 
 		n := 0
 		for _, v := range info.FileVersions {
-			want := test.want
-			if v.Major != want.Major || v.Minor != want.Minor {
+			want := test.wantVersion
+			if v != want {
 				t.Errorf("%q: unexpected file version: got %v, want %v", src, v, want)
 			}
 			n++

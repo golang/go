@@ -292,8 +292,8 @@ func (check *Checker) initFiles(files []*syntax.File) {
 	}
 
 	for _, file := range check.files {
-		fbase := base(file.Pos())                     // fbase may be nil for tests
-		check.recordFileVersion(fbase, check.version) // record package version (possibly zero version)
+		fbase := base(file.Pos())                            // fbase may be nil for tests
+		check.recordFileVersion(fbase, check.conf.GoVersion) // record package version (possibly zero version)
 		v, _ := parseGoVersion(file.GoVersion)
 		if v.major > 0 {
 			if v.equal(check.version) {
@@ -319,7 +319,7 @@ func (check *Checker) initFiles(files []*syntax.File) {
 				check.posVers = make(map[*syntax.PosBase]version)
 			}
 			check.posVers[fbase] = v
-			check.recordFileVersion(fbase, v) // overwrite package version
+			check.recordFileVersion(fbase, file.GoVersion) // overwrite package version
 		}
 	}
 }
@@ -684,8 +684,8 @@ func (check *Checker) recordScope(node syntax.Node, scope *Scope) {
 	}
 }
 
-func (check *Checker) recordFileVersion(fbase *syntax.PosBase, v version) {
+func (check *Checker) recordFileVersion(fbase *syntax.PosBase, version string) {
 	if m := check.FileVersions; m != nil {
-		m[fbase] = Version{v.major, v.minor}
+		m[fbase] = version
 	}
 }

@@ -296,7 +296,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 
 	// collect file versions
 	for _, file := range check.files {
-		check.recordFileVersion(file, check.conf.GoVersion)
+		check.recordFileVersion(file, check.conf.GoVersion) // record package version (possibly zero version)
 		if v, _ := parseGoVersion(file.GoVersion); v.major > 0 {
 			if v.equal(check.version) {
 				continue

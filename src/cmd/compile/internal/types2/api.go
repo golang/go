@@ -294,10 +294,12 @@ type Info struct {
 	// appear in this list.
 	InitOrder []*Initializer
 
-	// FileVersions maps a file's position base to the file's Go version.
-	// If the file doesn't specify a version and Config.GoVersion is not
-	// given, the reported version is the zero version (Major, Minor = 0, 0).
-	FileVersions map[*syntax.PosBase]Version
+	// FileVersions maps a file to its Go version string.
+	// If the file doesn't specify a version, the reported
+	// string is Config.GoVersion.
+	// Version strings begin with “go”, like “go1.21”, and
+	// are suitable for use with the [go/version] package.
+	FileVersions map[*syntax.PosBase]string
 }
 
 func (info *Info) recordTypes() bool {
@@ -429,12 +431,6 @@ func (init *Initializer) String() string {
 	buf.WriteString(" = ")
 	syntax.Fprint(&buf, init.Rhs, syntax.ShortForm)
 	return buf.String()
-}
-
-// A Version represents a released Go version.
-type Version struct {
-	Major int
-	Minor int
 }
 
 // Check type-checks a package and returns the resulting package object and
