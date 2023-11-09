@@ -88,7 +88,7 @@ func TestIntendedInlining(t *testing.T) {
 			"(*mspan).base",
 			"(*mspan).markBitsForBase",
 			"(*mspan).markBitsForIndex",
-			"(*mspan).writeHeapBits",
+			"(*mspan).writeUserArenaHeapBits",
 			"(*muintptr).set",
 			"(*puintptr).set",
 			"(*wbBuf).get1",

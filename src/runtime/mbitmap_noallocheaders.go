@@ -916,7 +916,7 @@ func (tp typePointers) fastForward(n, limit uintptr) typePointers {
 }
 
 // For goexperiment.AllocHeaders, to pass TestIntendedInlining.
-func (s *mspan) writeHeapBits() {
+func (s *mspan) writeUserArenaHeapBits() {
 	panic("not implemented")
 }
 

@@ -481,14 +481,26 @@ func (s *mspan) initHeapBits(forceClear bool) {
 	}
 }
 
-type writeHeapBits struct {
+// bswapIfBigEndian swaps the byte order of the uintptr on goarch.BigEndian platforms,
+// and leaves it alone elsewhere.
+func bswapIfBigEndian(x uintptr) uintptr {
+	if goarch.BigEndian {
+		if goarch.PtrSize == 8 {
+			return uintptr(sys.Bswap64(uint64(x)))
+		}
+		return uintptr(sys.Bswap32(uint32(x)))
+	}
+	return x
+}
+
+type writeUserArenaHeapBits struct {
 	offset uintptr // offset in span that the low bit of mask represents the pointer state of.
 	mask   uintptr // some pointer bits starting at the address addr.
 	valid  uintptr // number of bits in buf that are valid (including low)
 	low    uintptr // number of low-order bits to not overwrite
 }
 
-func (s *mspan) writeHeapBits(addr uintptr) (h writeHeapBits) {
+func (s *mspan) writeUserArenaHeapBits(addr uintptr) (h writeUserArenaHeapBits) {
 	offset := addr - s.base()
 
 	// We start writing bits maybe in the middle of a heap bitmap word.
@@ -508,7 +520,7 @@ func (s *mspan) writeHeapBits(addr uintptr) (h writeHeapBits) {
 
 // write appends the pointerness of the next valid pointer slots
 // using the low valid bits of bits. 1=pointer, 0=scalar.
-func (h writeHeapBits) write(s *mspan, bits, valid uintptr) writeHeapBits {
+func (h writeUserArenaHeapBits) write(s *mspan, bits, valid uintptr) writeUserArenaHeapBits {
 	if h.valid+valid <= ptrBits {
 		// Fast path - just accumulate the bits.
 		h.mask |= bits << h.valid
@@ -526,7 +538,7 @@ func (h writeHeapBits) write(s *mspan, bits, valid uintptr) writeHeapBits {
 	idx := h.offset / (ptrBits * goarch.PtrSize)
 	m := uintptr(1)<<h.low - 1
 	bitmap := s.heapBits()
-	bitmap[idx] = bitmap[idx]&m | data
+	bitmap[idx] = bswapIfBigEndian(bswapIfBigEndian(bitmap[idx])&m | data)
 	// Note: no synchronization required for this write because
 	// the allocator has exclusive access to the page, and the bitmap
 	// entries are all for a single page. Also, visibility of these
@@ -539,7 +551,7 @@ func (h writeHeapBits) write(s *mspan, bits, valid uintptr) writeHeapBits {
 }
 
 // Add padding of size bytes.
-func (h writeHeapBits) pad(s *mspan, size uintptr) writeHeapBits {
+func (h writeUserArenaHeapBits) pad(s *mspan, size uintptr) writeUserArenaHeapBits {
 	if size == 0 {
 		return h
 	}
@@ -553,7 +565,7 @@ func (h writeHeapBits) pad(s *mspan, size uintptr) writeHeapBits {
 
 // Flush the bits that have been written, and add zeros as needed
 // to cover the full object [addr, addr+size).
-func (h writeHeapBits) flush(s *mspan, addr, size uintptr) {
+func (h writeUserArenaHeapBits) flush(s *mspan, addr, size uintptr) {
 	offset := addr - s.base()
 
 	// zeros counts the number of bits needed to represent the object minus the
@@ -579,7 +591,7 @@ func (h writeHeapBits) flush(s *mspan, addr, size uintptr) {
 	if h.valid != h.low {
 		m := uintptr(1)<<h.low - 1      // don't clear existing bits below "low"
 		m |= ^(uintptr(1)<<h.valid - 1) // don't clear existing bits above "valid"
-		bitmap[idx] = bitmap[idx]&m | h.mask
+		bitmap[idx] = bswapIfBigEndian(bswapIfBigEndian(bitmap[idx])&m | h.mask)
 	}
 	if zeros == 0 {
 		return
@@ -597,7 +609,7 @@ func (h writeHeapBits) flush(s *mspan, addr, size uintptr) {
 		// Write zero bits.
 		idx := h.offset / (ptrBits * goarch.PtrSize)
 		if zeros < ptrBits {
-			bitmap[idx] &^= uintptr(1)<<zeros - 1
+			bitmap[idx] = bswapIfBigEndian(bswapIfBigEndian(bitmap[idx]) &^ (uintptr(1)<<zeros - 1))
 			break
 		} else if zeros == ptrBits {
 			bitmap[idx] = 0
@@ -611,7 +623,15 @@ func (h writeHeapBits) flush(s *mspan, addr, size uintptr) {
 }
 
 // heapBits returns the heap ptr/scalar bits stored at the end of the span for
-// small object spans.
+// small object spans and heap arena spans.
+//
+// Note that the uintptr of each element means something different for small object
+// spans and for heap arena spans. Small object spans are easy: they're never interpreted
+// as anything but uintptr, so they're immune to differences in endianness. However, the
+// heapBits for user arena spans is exposed through a dummy type descriptor, so the byte
+// ordering needs to match the same byte ordering the compiler would emit. The compiler always
+// emits the bitmap data in little endian byte ordering, so on big endian platforms these
+// uintptrs will have their byte orders swapped from what they normally would be.
 //
 // heapBitsInSpan(span.elemsize) or span.isUserArenaChunk must be true.
 //
@@ -1099,7 +1119,7 @@ func getgcmask(ep any) (mask []byte) {
 // base is the base address of the arena chunk.
 func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
 	base := s.base()
-	h := s.writeHeapBits(uintptr(ptr))
+	h := s.writeUserArenaHeapBits(uintptr(ptr))
 
 	p := typ.GCData // start of 1-bit pointer mask (or GC program)
 	var gcProgBits uintptr
@@ -1115,6 +1135,12 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
 		if k > ptrBits {
 			k = ptrBits
 		}
+		// N.B. On big endian platforms we byte swap the data that we
+		// read from GCData, which is always stored in little-endian order
+		// by the compiler. writeUserArenaHeapBits handles data in
+		// a platform-ordered way for efficiency, but stores back the
+		// data in little endian order, since we expose the bitmap through
+		// a dummy type.
 		h = h.write(s, readUintptr(addb(p, i/8)), k)
 	}
 	// Note: we call pad here to ensure we emit explicit 0 bits
