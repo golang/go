@@ -11,6 +11,7 @@ import (
 	"go/importer"
 	"go/parser"
 	"go/token"
+	"internal/goversion"
 	"internal/testenv"
 	"reflect"
 	"regexp"
@@ -2849,11 +2850,28 @@ var _ = f(1, 2)
 	}
 }
 
+func TestModuleVersion(t *testing.T) {
+	// version go1.dd must be able to typecheck go1.dd.0, go1.dd.1, etc.
+	goversion := fmt.Sprintf("go1.%d", goversion.Version)
+	for _, v := range []string{
+		goversion,
+		goversion + ".0",
+		goversion + ".1",
+		goversion + ".rc",
+	} {
+		conf := Config{GoVersion: v}
+		pkg := mustTypecheck("package p", &conf, nil)
+		if pkg.GoVersion() != conf.GoVersion {
+			t.Errorf("got %s; want %s", pkg.GoVersion(), conf.GoVersion)
+		}
+	}
+}
+
 func TestFileVersions(t *testing.T) {
 	for _, test := range []struct {
-		moduleVersion string
-		fileVersion   string
-		wantVersion   string
+		goVersion   string
+		fileVersion string
+		wantVersion string
 	}{
 		{"", "", ""},                   // no versions specified
 		{"go1.19", "", "go1.19"},       // module version specified
@@ -2861,6 +2879,16 @@ func TestFileVersions(t *testing.T) {
 		{"go1.19", "go1.20", "go1.20"}, // file upgrade permitted
 		{"go1.20", "go1.19", "go1.20"}, // file downgrade not permitted
 		{"go1.21", "go1.19", "go1.19"}, // file downgrade permitted (module version is >= go1.21)
+
+		// versions containing release numbers
+		// (file versions containing release numbers are considered invalid)
+		{"go1.19.0", "", "go1.19.0"},         // no file version specified
+		{"go1.20", "go1.20.1", "go1.20"},     // file upgrade ignored
+		{"go1.20.1", "go1.20", "go1.20.1"},   // file upgrade ignored
+		{"go1.20.1", "go1.21", "go1.21"},     // file upgrade permitted
+		{"go1.20.1", "go1.19", "go1.20.1"},   // file downgrade not permitted
+		{"go1.21.1", "go1.19.1", "go1.21.1"}, // file downgrade not permitted (invalid file version)
+		{"go1.21.1", "go1.19", "go1.19"},     // file downgrade permitted (module version is >= go1.21)
 	} {
 		var src string
 		if test.fileVersion != "" {
@@ -2868,7 +2896,7 @@ func TestFileVersions(t *testing.T) {
 		}
 		src += "package p"
 
-		conf := Config{GoVersion: test.moduleVersion}
+		conf := Config{GoVersion: test.goVersion}
 		versions := make(map[*ast.File]string)
 		var info Info
 		info.FileVersions = versions

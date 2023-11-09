@@ -13,7 +13,6 @@ import (
 	"go/constant"
 	"go/token"
 	"internal/godebug"
-	"internal/goversion"
 	. "internal/types/errors"
 )
 
@@ -109,8 +108,7 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	version version                // accepted language version
-	posVers map[token.Pos]version  // maps file start positions to versions (may be nil)
+	version goVersion              // accepted language version
 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
@@ -130,6 +128,7 @@ type Checker struct {
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
 	files         []*ast.File               // package files
+	versions      map[*ast.File]string      // maps files to version strings (each file has an entry)
 	imports       []*PkgName                // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
 	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type
@@ -264,6 +263,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		fset:        fset,
 		pkg:         pkg,
 		Info:        info,
+		version:     asGoVersion(conf.GoVersion),
 		objMap:      make(map[Object]*declInfo),
 		impMap:      make(map[importKey]*Package),
 	}
@@ -305,35 +305,51 @@ func (check *Checker) initFiles(files []*ast.File) {
 		}
 	}
 
-	// collect file versions
+	// reuse Info.FileVersions if provided
+	versions := check.Info.FileVersions
+	if versions == nil {
+		versions = make(map[*ast.File]string)
+	}
+	check.versions = versions
+
+	pkgVersionOk := check.version.isValid()
+	downgradeOk := check.version.cmp(go1_21) >= 0
+
+	// determine Go version for each file
 	for _, file := range check.files {
-		check.recordFileVersion(file, check.conf.GoVersion) // record package version (possibly zero version)
-		if v, _ := parseGoVersion(file.GoVersion); v.major > 0 {
-			if v.equal(check.version) {
-				continue
+		// use unaltered Config.GoVersion by default
+		// (This version string may contain dot-release numbers as in go1.20.1,
+		// unlike file versions which are Go language versions only, if valid.)
+		v := check.conf.GoVersion
+		// use the file version, if applicable
+		// (file versions are either the empty string or of the form go1.dd)
+		if pkgVersionOk {
+			fileVersion := asGoVersion(file.GoVersion)
+			if fileVersion.isValid() {
+				cmp := fileVersion.cmp(check.version)
+				// Go 1.21 introduced the feature of setting the go.mod
+				// go line to an early version of Go and allowing //go:build lines
+				// to “upgrade” (cmp > 0) the Go version in a given file.
+				// We can do that backwards compatibly.
+				//
+				// Go 1.21 also introduced the feature of allowing //go:build lines
+				// to “downgrade” (cmp < 0) the Go version in a given file.
+				// That can't be done compatibly in general, since before the
+				// build lines were ignored and code got the module's Go version.
+				// To work around this, downgrades are only allowed when the
+				// module's Go version is Go 1.21 or later.
+				//
+				// If there is no valid check.version, then we don't really know what
+				// Go version to apply.
+				// Legacy tools may do this, and they historically have accepted everything.
+				// Preserve that behavior by ignoring //go:build constraints entirely in that
+				// case (!pkgVersionOk).
+				if cmp > 0 || cmp < 0 && downgradeOk {
+					v = file.GoVersion
+				}
 			}
-			// Go 1.21 introduced the feature of setting the go.mod
-			// go line to an early version of Go and allowing //go:build lines
-			// to “upgrade” the Go version in a given file.
-			// We can do that backwards compatibly.
-			// Go 1.21 also introduced the feature of allowing //go:build lines
-			// to “downgrade” the Go version in a given file.
-			// That can't be done compatibly in general, since before the
-			// build lines were ignored and code got the module's Go version.
-			// To work around this, downgrades are only allowed when the
-			// module's Go version is Go 1.21 or later.
-			// If there is no check.version, then we don't really know what Go version to apply.
-			// Legacy tools may do this, and they historically have accepted everything.
-			// Preserve that behavior by ignoring //go:build constraints entirely in that case.
-			if (v.before(check.version) && check.version.before(go1_21)) || check.version.equal(go0_0) {
-				continue
-			}
-			if check.posVers == nil {
-				check.posVers = make(map[token.Pos]version)
-			}
-			check.posVers[file.FileStart] = v
-			check.recordFileVersion(file, file.GoVersion) // overwrite package version
 		}
+		versions[file] = v
 	}
 }
 
@@ -364,15 +380,8 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 		return nil
 	}
 
-	// Note: parseGoVersion and the subsequent checks should happen once,
-	//       when we create a new Checker, not for each batch of files.
-	//       We can't change it at this point because NewChecker doesn't
-	//       return an error.
-	check.version, err = parseGoVersion(check.conf.GoVersion)
-	if err != nil {
-		return err
-	}
-	if check.version.after(version{1, goversion.Version}) {
+	// Note: NewChecker doesn't return an error, so we need to check the version here.
+	if check.version.cmp(go_current) > 0 {
 		return fmt.Errorf("package requires newer Go version %v", check.version)
 	}
 	if check.conf.FakeImportC && check.conf.go115UsesCgo {
@@ -648,11 +657,5 @@ func (check *Checker) recordScope(node ast.Node, scope *Scope) {
 	assert(scope != nil)
 	if m := check.Scopes; m != nil {
 		m[node] = scope
-	}
-}
-
-func (check *Checker) recordFileVersion(file *ast.File, version string) {
-	if m := check.FileVersions; m != nil {
-		m[file] = version
 	}
 }
