@@ -285,7 +285,7 @@ func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
 		// Don't use these bounds if they don't contain SP. Perhaps we
 		// were called by something not using the standard thread
 		// stack.
-		if bounds[0] != 0  && sp > bounds[0] && sp <= bounds[1] {
+		if bounds[0] != 0 && sp > bounds[0] && sp <= bounds[1] {
 			g0.stack.lo = bounds[0]
 			g0.stack.hi = bounds[1]
 			mp.g0StackAccurate = true
