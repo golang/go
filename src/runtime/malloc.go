@@ -872,6 +872,10 @@ retry:
 //
 // The heap lock must not be held over this operation, since it will briefly acquire
 // the heap lock.
+//
+// Must be called on the system stack because it acquires the heap lock.
+//
+//go:systemstack
 func (h *mheap) enableMetadataHugePages() {
 	// Enable huge pages for page structure.
 	h.pages.enableChunkHugePages()
