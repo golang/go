@@ -151,7 +151,7 @@ func InlinePackage(p *pgo.Profile) {
 	if base.Debug.DumpInlFuncProps != "" {
 		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps, nil, inlineMaxBudget)
 	}
-	if goexperiment.NewInliner {
+	if useNewInliner() {
 		postProcessCallSites(p)
 	}
 }
@@ -282,7 +282,7 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 	}
 
 	var funcProps *inlheur.FuncProps
-	if goexperiment.NewInliner || inlheur.UnitTesting() {
+	if useNewInliner() {
 		callCanInline := func(fn *ir.Func) { CanInline(fn, profile) }
 		funcProps = inlheur.AnalyzeFunc(fn, callCanInline, inlineMaxBudget)
 		budgetForFunc := func(fn *ir.Func) int32 {
@@ -324,11 +324,8 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 		cc = 1 // this appears to yield better performance than 0.
 	}
 
-	// Used a "relaxed" inline budget if goexperiment.NewInliner is in
-	// effect, or if we're producing a debugging dump.
-	relaxed := goexperiment.NewInliner ||
-		(base.Debug.DumpInlFuncProps != "" ||
-			base.Debug.DumpInlCallSiteScores != 0)
+	// Used a "relaxed" inline budget if the new inliner is enabled.
+	relaxed := useNewInliner()
 
 	// Compute the inline budget for this func.
 	budget := inlineBudget(fn, profile, relaxed, base.Debug.PGODebug > 0)
@@ -362,7 +359,7 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 
 		CanDelayResults: canDelayResults(fn),
 	}
-	if goexperiment.NewInliner {
+	if useNewInliner() {
 		n.Func.Inl.Properties = funcProps.SerializeToString()
 	}
 
@@ -801,8 +798,9 @@ func isBigFunc(fn *ir.Func) bool {
 // InlineCalls/inlnode walks fn's statements and expressions and substitutes any
 // calls made to inlineable functions. This is the external entry point.
 func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
-	if goexperiment.NewInliner && !fn.Wrapper() {
+	if useNewInliner() && !fn.Wrapper() {
 		inlheur.ScoreCalls(fn)
+		defer inlheur.ScoreCallsCleanup()
 	}
 	if base.Debug.DumpInlFuncProps != "" && !fn.Wrapper() {
 		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps,
@@ -981,7 +979,7 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
 	}
 
 	metric := callee.Inl.Cost
-	if goexperiment.NewInliner {
+	if useNewInliner() {
 		score, ok := inlheur.GetCallSiteScore(caller, n)
 		if ok {
 			metric = int32(score)
@@ -1297,6 +1295,11 @@ func isAtomicCoverageCounterUpdate(cn *ir.CallExpr) bool {
 	adn := cn.Args[0].(*ir.AddrExpr)
 	v := isIndexingCoverageCounter(adn.X)
 	return v
+}
+
+func useNewInliner() bool {
+	return goexperiment.NewInliner ||
+		inlheur.UnitTesting()
 }
 
 func postProcessCallSites(profile *pgo.Profile) {

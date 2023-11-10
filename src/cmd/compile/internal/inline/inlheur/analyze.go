@@ -10,7 +10,6 @@ import (
 	"cmd/compile/internal/types"
 	"encoding/json"
 	"fmt"
-	"internal/goexperiment"
 	"io"
 	"os"
 	"path/filepath"
@@ -124,10 +123,7 @@ func computeFuncProps(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int
 		a.setResults(funcProps)
 	}
 	// Now build up a partial table of callsites for this func.
-	if debugTrace&debugTraceCalls != 0 {
-		fmt.Fprintf(os.Stderr, "=-= making callsite table for func %v:\n", fn)
-	}
-	cstab := computeCallSiteTable(fn, fn.Body, ffa.panicPathTable(), 0)
+	cstab := computeCallSiteTable(fn, fn.Body, nil, ffa.panicPathTable(), 0)
 	disableDebugTrace()
 	return funcProps, cstab
 }
@@ -164,29 +160,19 @@ func fnFileLine(fn *ir.Func) (string, uint) {
 }
 
 func UnitTesting() bool {
-	return base.Debug.DumpInlFuncProps != ""
+	return base.Debug.DumpInlFuncProps != "" ||
+		base.Debug.DumpInlCallSiteScores != 0
 }
 
 // DumpFuncProps computes and caches function properties for the func
-// 'fn' and any closures it contains, or if fn is nil, it writes out the
-// cached set of properties to the file given in 'dumpfile'. Used for
-// the "-d=dumpinlfuncprops=..." command line flag, intended for use
+// 'fn', writing out a description of the previously computed set of
+// properties to the file given in 'dumpfile'. Used for the
+// "-d=dumpinlfuncprops=..." command line flag, intended for use
 // primarily in unit testing.
 func DumpFuncProps(fn *ir.Func, dumpfile string, canInline func(*ir.Func), inlineMaxBudget int32) {
 	if fn != nil {
 		enableDebugTraceIfEnv()
-		dmp := func(fn *ir.Func) {
-			if !goexperiment.NewInliner {
-				ScoreCalls(fn)
-			}
-			captureFuncDumpEntry(fn, canInline, inlineMaxBudget)
-		}
-		dmp(fn)
-		ir.Visit(fn, func(n ir.Node) {
-			if clo, ok := n.(*ir.ClosureExpr); ok {
-				dmp(clo.Func)
-			}
-		})
+		captureFuncDumpEntry(fn, canInline, inlineMaxBudget)
 		disableDebugTrace()
 	} else {
 		emitDumpToFile(dumpfile)
@@ -249,14 +235,11 @@ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget
 		return
 	}
 	funcInlHeur, ok := fpmap[fn]
-	// Props object should already be present, unless this is a
-	// directly recursive routine.
 	if !ok {
-		AnalyzeFunc(fn, canInline, inlineMaxBudget)
-		funcInlHeur = fpmap[fn]
-		if fn.Inl != nil && fn.Inl.Properties == "" {
-			fn.Inl.Properties = funcInlHeur.props.SerializeToString()
-		}
+		// Missing entry is expected for functions that are too large
+		// to inline. We still want to write out call site scores in
+		// this case however.
+		funcInlHeur = fnInlHeur{cstab: callSiteTab}
 	}
 	if dumpBuffer == nil {
 		dumpBuffer = make(map[*ir.Func]fnInlHeur)

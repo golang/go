@@ -176,6 +176,39 @@ func T_pass_noninlinable_func_to_param_feeding_nested_indirect_call(x int) int {
 	return callsParamNested(x, calleeNoInline)
 }
 
+// calls.go T_call_scoring_in_noninlinable_func 192 0 1
+// <endpropsdump>
+// {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[0]}
+// callsite: calls.go:206:14|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+// callsite: calls.go:207:15|1 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+// callsite: calls.go:209:19|2 flagstr "" flagval 0 score 16 mask 512 maskstr "passInlinableFuncToIndCallAdj"
+// <endcallsites>
+// <endfuncpreamble>
+// calls.go T_call_scoring_in_noninlinable_func.func1 209 0 1
+// <endpropsdump>
+// {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+// <endcallsites>
+// <endfuncpreamble>
+func T_call_scoring_in_noninlinable_func(x int, sl []int) int {
+	if x == 101 {
+		// Drive up the cost of inlining this funcfunc over the
+		// regular threshold.
+		for i := 0; i < 10; i++ {
+			for j := 0; j < i; j++ {
+				sl = append(sl, append(sl, append(sl, append(sl, x)...)...)...)
+				sl = append(sl, sl[0], sl[1], sl[2])
+				x += calleeNoInline(x)
+			}
+		}
+	}
+	if x < 100 {
+		// make sure this callsite is scored properly
+		G += callee(101)
+		panic(callee(x))
+	}
+	return callsParam(x, func(y int) int { return y + x })
+}
+
 var G int
 
 func callee(x int) int {
