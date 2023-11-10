@@ -30,6 +30,7 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$144
 	MOVD    m_g0(R0), g
 	BL	runtime·save_g(SB)
 
+	BL	runtime·stackcheck(SB)	// fault if stack check is wrong
 	BL	runtime·mstart(SB)
 
 	// Restore callee-save registers.

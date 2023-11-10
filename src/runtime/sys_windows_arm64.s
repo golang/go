@@ -219,7 +219,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$96-0
 	MOVD	R0, g_stackguard0(g)
 	MOVD	R0, g_stackguard1(g)
 
-	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
+	BL	runtime·stackcheck(SB)	// fault if stack check is wrong
 	BL	runtime·mstart(SB)
 
 	RESTORE_R19_TO_R28(8*3)
