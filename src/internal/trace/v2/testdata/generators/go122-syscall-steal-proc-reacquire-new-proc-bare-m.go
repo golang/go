@@ -24,11 +24,11 @@ func gen(t *testgen.Trace) {
 	b0.Event("ProcStatus", trace.ProcID(1), go122.ProcIdle)
 	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
 	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunning)
-	b0.Event("GoSyscallBegin", testgen.NoStack)
+	b0.Event("GoSyscallBegin", testgen.Seq(1), testgen.NoStack)
 	b0.Event("ProcStart", trace.ProcID(1), testgen.Seq(1))
 	b0.Event("GoSyscallEndBlocked")
 
 	// A bare M steals the goroutine's P.
 	b1 := g.Batch(trace.ThreadID(1), 0)
-	b1.Event("ProcSteal", trace.ProcID(0), testgen.Seq(1), trace.ThreadID(0))
+	b1.Event("ProcSteal", trace.ProcID(0), testgen.Seq(2), trace.ThreadID(0))
 }
