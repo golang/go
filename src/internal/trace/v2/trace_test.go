@@ -85,6 +85,8 @@ func TestTraceAnnotationsStress(t *testing.T) {
 }
 
 func TestTraceCgoCallback(t *testing.T) {
+	testenv.MustHaveCGO(t)
+
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("cgo callback test requires pthreads and is not supported on %s", runtime.GOOS)
