@@ -3046,8 +3046,8 @@ type gzipReader struct {
 	_    incomparable
 	body *bodyEOFSignal // underlying HTTP/1 response body framing
 	mu   sync.Mutex     // guards zr and zerr
-	zr   *gzip.Reader
-	zerr error
+	zr   *gzip.Reader   // stores gzip reader from the pool between reads
+	zerr error          // sticky gzip reader init error or sentinel value to detect concurrent read and read after close
 }
 
 type eofReader struct{}
