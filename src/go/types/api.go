@@ -331,6 +331,23 @@ func (info *Info) ObjectOf(id *ast.Ident) Object {
 	return info.Uses[id]
 }
 
+// PkgNameOf returns the local package name defined by the import,
+// or nil if not found.
+//
+// For dot-imports, the package name is ".".
+//
+// Precondition: the Defs and Implicts maps are populated.
+func (info *Info) PkgNameOf(imp *ast.ImportSpec) *PkgName {
+	var obj Object
+	if imp.Name != nil {
+		obj = info.Defs[imp.Name]
+	} else {
+		obj = info.Implicits[imp]
+	}
+	pkgname, _ := obj.(*PkgName)
+	return pkgname
+}
+
 // TypeAndValue reports the type and value (for constants)
 // of the corresponding expression.
 type TypeAndValue struct {

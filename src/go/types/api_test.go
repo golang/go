@@ -960,6 +960,81 @@ func TestImplicitsInfo(t *testing.T) {
 	}
 }
 
+func TestPkgNameOf(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	const src = `
+package p
+
+import (
+	. "os"
+	_ "io"
+	"math"
+	"path/filepath"
+	snort "sort"
+)
+
+// avoid imported and not used errors
+var (
+	_ = Open // os.Open
+	_ = math.Sin
+	_ = filepath.Abs
+	_ = snort.Ints
+)
+`
+
+	var tests = []struct {
+		path string // path string enclosed in "'s
+		want string
+	}{
+		{`"os"`, "."},
+		{`"io"`, "_"},
+		{`"math"`, "math"},
+		{`"path/filepath"`, "filepath"},
+		{`"sort"`, "snort"},
+	}
+
+	fset := token.NewFileSet()
+	f := mustParse(fset, src)
+	info := Info{
+		Defs:      make(map[*ast.Ident]Object),
+		Implicits: make(map[ast.Node]Object),
+	}
+	var conf Config
+	conf.Importer = importer.Default()
+	_, err := conf.Check("p", fset, []*ast.File{f}, &info)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// map import paths to importDecl
+	imports := make(map[string]*ast.ImportSpec)
+	for _, s := range f.Decls[0].(*ast.GenDecl).Specs {
+		if imp, _ := s.(*ast.ImportSpec); imp != nil {
+			imports[imp.Path.Value] = imp
+		}
+	}
+
+	for _, test := range tests {
+		imp := imports[test.path]
+		if imp == nil {
+			t.Fatalf("invalid test case: import path %s not found", test.path)
+		}
+		got := info.PkgNameOf(imp)
+		if got == nil {
+			t.Fatalf("import %s: package name not found", test.path)
+		}
+		if got.Name() != test.want {
+			t.Errorf("import %s: got %s; want %s", test.path, got.Name(), test.want)
+		}
+	}
+
+	// test non-existing importDecl
+	if got := info.PkgNameOf(new(ast.ImportSpec)); got != nil {
+		t.Errorf("got %s for non-existing import declaration", got.Name())
+	}
+}
+
 func predString(tv TypeAndValue) string {
 	var buf strings.Builder
 	pred := func(b bool, s string) {
