@@ -22,7 +22,7 @@ func VisibleFields(t Type) []StructField {
 	}
 	w := &visibleFieldsWalker{
 		byName:   make(map[string]int),
-		visiting: make(map[Type]bool),
+		visiting: make(map[Type]struct{}),
 		fields:   make([]StructField, 0, t.NumField()),
 		index:    make([]int, 0, 2),
 	}
@@ -48,7 +48,7 @@ func VisibleFields(t Type) []StructField {
 
 type visibleFieldsWalker struct {
 	byName   map[string]int
-	visiting map[Type]bool
+	visiting map[Type]struct{}
 	fields   []StructField
 	index    []int
 }
@@ -59,10 +59,10 @@ type visibleFieldsWalker struct {
 // Fields that have been overridden have their
 // Name field cleared.
 func (w *visibleFieldsWalker) walk(t Type) {
-	if w.visiting[t] {
+	if _, found := w.visiting[t]; found {
 		return
 	}
-	w.visiting[t] = true
+	w.visiting[t] = struct{}{}
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		w.index = append(w.index, i)

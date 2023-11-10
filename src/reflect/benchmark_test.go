@@ -408,3 +408,40 @@ func BenchmarkMapIterNext(b *testing.B) {
 		it.Reset(m)
 	}
 }
+
+func BenchmarkVisibleFields(b *testing.B) {
+	type z struct{ int }
+	type y struct{ z }
+	type _x struct{ y }
+	type w struct{ _x }
+	type v struct{ w }
+	type u struct{ v }
+	type t struct{ u }
+	type s struct{ t }
+	type r struct{ s }
+	type q struct{ r }
+	type p struct{ q }
+	type o struct{ p }
+	type n struct{ o }
+	type m struct{ n }
+	type l struct{ m }
+	type k struct{ l }
+	type j struct{ k }
+	type i struct{ j }
+	type h struct{ i }
+	type g struct{ h }
+	type f struct{ g }
+	type e struct{ f }
+	type d struct{ e }
+	type c struct{ d }
+	type _b struct{ c }
+	type a struct{ _b }
+	type nested struct{ a }
+	var x nested
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		typ := TypeOf(x)
+		VisibleFields(typ)
+	}
+}
