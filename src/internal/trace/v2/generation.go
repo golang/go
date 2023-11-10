@@ -95,15 +95,11 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
 	if g.freq == 0 {
 		return nil, nil, fmt.Errorf("no frequency event found")
 	}
-	for _, batches := range g.batches {
-		sorted := slices.IsSortedFunc(batches, func(a, b batch) int {
-			return cmp.Compare(a.time, b.time)
-		})
-		if !sorted {
-			// TODO(mknyszek): Consider just sorting here.
-			return nil, nil, fmt.Errorf("per-M streams are out-of-order")
-		}
-	}
+	// N.B. Trust that the batch order is correct. We can't validate the batch order
+	// by timestamp because the timestamps could just be plain wrong. The source of
+	// truth is the order things appear in the trace and the partial order sequence
+	// numbers on certain events. If it turns out the batch order is actually incorrect
+	// we'll very likely fail to advance a partial order from the frontier.
 
 	// Compactify stacks and strings for better lookup performance later.
 	g.stacks.compactify()
