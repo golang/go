@@ -45,6 +45,7 @@ var All = []Info{
 	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},
 	{Name: "randautoseed", Package: "math/rand"},
 	{Name: "tarinsecurepath", Package: "archive/tar"},
+	{Name: "tls10server", Package: "crypto/tls", Changed: 22, Old: "1"},
 	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
 	{Name: "x509sha1", Package: "crypto/x509"},
 	{Name: "x509usefallbackroots", Package: "crypto/x509"},

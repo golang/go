@@ -1365,6 +1365,7 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			SupportedPoints:   []uint8{pointFormatUncompressed},
 			SignatureSchemes:  []SignatureScheme{Ed25519},
 			SupportedVersions: []uint16{VersionTLS10},
+			config:            &Config{MinVersion: VersionTLS10},
 		}, "doesn't support Ed25519"},
 		{ed25519Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
@@ -1379,6 +1380,7 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			SupportedCurves:   []CurveID{CurveP256}, // only relevant for ECDHE support
 			SupportedPoints:   []uint8{pointFormatUncompressed},
 			SupportedVersions: []uint16{VersionTLS10},
+			config:            &Config{MinVersion: VersionTLS10},
 		}, ""},
 		{rsaCert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
