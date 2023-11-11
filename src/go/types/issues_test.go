@@ -999,9 +999,8 @@ type A = []int
 type S struct{ A }
 `
 
-	var conf Config
-	*boolFieldAddr(&conf, "_EnableAlias") = true
-	pkg := mustTypecheck(src, &conf, nil)
+	t.Setenv("GODEBUG", "gotypesalias=1")
+	pkg := mustTypecheck(src, nil, nil)
 
 	S := pkg.Scope().Lookup("S")
 	if S == nil {

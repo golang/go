@@ -125,7 +125,7 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
 // testFiles type-checks the package consisting of the given files, and
 // compares the resulting errors with the ERROR annotations in the source.
 // Except for manual tests, each package is type-checked twice, once without
-// use of _Alias types, and once with _Alias types.
+// use of Alias types, and once with Alias types.
 //
 // The srcs slice contains the file content for the files named in the
 // filenames slice. The colDelta parameter specifies the tolerance for position
@@ -134,9 +134,11 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
 //
 // If provided, opts may be used to mutate the Config before type-checking.
 func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opts ...func(*Config)) {
+	// Alias types are disabled by default
 	testFilesImpl(t, filenames, srcs, manual, opts...)
 	if !manual {
-		testFilesImpl(t, filenames, srcs, manual, append(opts, func(conf *Config) { *boolFieldAddr(conf, "_EnableAlias") = true })...)
+		t.Setenv("GODEBUG", "gotypesalias=1")
+		testFilesImpl(t, filenames, srcs, manual, opts...)
 	}
 }
 
@@ -184,15 +186,16 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool,
 	}
 
 	// apply flag setting (overrides custom configuration)
-	var goexperiment string
+	var goexperiment, gotypesalias string
 	flags := flag.NewFlagSet("", flag.PanicOnError)
 	flags.StringVar(&conf.GoVersion, "lang", "", "")
 	flags.StringVar(&goexperiment, "goexperiment", "", "")
 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
-	flags.BoolVar(boolFieldAddr(&conf, "_EnableAlias"), "alias", false, "")
+	flags.StringVar(&gotypesalias, "gotypesalias", "", "")
 	if err := parseFlags(srcs[0], flags); err != nil {
 		t.Fatal(err)
 	}
+
 	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
 	if err != nil {
 		t.Fatal(err)
@@ -202,6 +205,11 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool,
 		buildcfg.Experiment = old
 	}()
 	buildcfg.Experiment = *exp
+
+	// By default, gotypesalias is not set.
+	if gotypesalias != "" {
+		t.Setenv("GODEBUG", "gotypesalias="+gotypesalias)
+	}
 
 	// Provide Config.Info with all maps so that info recording is tested.
 	info := Info{

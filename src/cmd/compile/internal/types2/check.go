@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"go/constant"
+	"internal/godebug"
 	"internal/goversion"
 	. "internal/types/errors"
 )
@@ -20,6 +21,9 @@ var nopos syntax.Pos
 
 // debugging/development support
 const debug = false // leave on during development
+
+// gotypesalias controls the use of Alias types.
+var gotypesalias = godebug.New("gotypesalias")
 
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
@@ -93,6 +97,12 @@ type actionDesc struct {
 type Checker struct {
 	// package information
 	// (initialized by NewChecker, valid for the life-time of checker)
+
+	// If enableAlias is set, alias declarations produce an Alias type.
+	// Otherwise the alias information is only in the type name, which
+	// points directly to the actual (aliased) type.
+	enableAlias bool
+
 	conf *Config
 	ctxt *Context // context for de-duplicating instances
 	pkg  *Package
@@ -153,13 +163,13 @@ func (check *Checker) addDeclDep(to Object) {
 }
 
 // Note: The following three alias-related functions are only used
-//       when _Alias types are not enabled.
+//       when Alias types are not enabled.
 
 // brokenAlias records that alias doesn't have a determined type yet.
 // It also sets alias.typ to Typ[Invalid].
-// Not used if check.conf._EnableAlias is set.
+// Not used if check.enableAlias is set.
 func (check *Checker) brokenAlias(alias *TypeName) {
-	assert(!check.conf._EnableAlias)
+	assert(!check.enableAlias)
 	if check.brokenAliases == nil {
 		check.brokenAliases = make(map[*TypeName]bool)
 	}
@@ -169,14 +179,14 @@ func (check *Checker) brokenAlias(alias *TypeName) {
 
 // validAlias records that alias has the valid type typ (possibly Typ[Invalid]).
 func (check *Checker) validAlias(alias *TypeName, typ Type) {
-	assert(!check.conf._EnableAlias)
+	assert(!check.enableAlias)
 	delete(check.brokenAliases, alias)
 	alias.typ = typ
 }
 
 // isBrokenAlias reports whether alias doesn't have a determined type yet.
 func (check *Checker) isBrokenAlias(alias *TypeName) bool {
-	assert(!check.conf._EnableAlias)
+	assert(!check.enableAlias)
 	return check.brokenAliases[alias]
 }
 
@@ -246,12 +256,13 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
 
 	return &Checker{
-		conf:   conf,
-		ctxt:   conf.Context,
-		pkg:    pkg,
-		Info:   info,
-		objMap: make(map[Object]*declInfo),
-		impMap: make(map[importKey]*Package),
+		enableAlias: gotypesalias.Value() == "1",
+		conf:        conf,
+		ctxt:        conf.Context,
+		pkg:         pkg,
+		Info:        info,
+		objMap:      make(map[Object]*declInfo),
+		impMap:      make(map[importKey]*Package),
 	}
 }
 

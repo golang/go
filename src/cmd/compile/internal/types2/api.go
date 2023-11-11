@@ -170,11 +170,6 @@ type Config struct {
 	// for unused imports.
 	DisableUnusedImportCheck bool
 
-	// If EnableAlias is set, alias declarations produce an _Alias type.
-	// Otherwise the alias information is only in the type name, which
-	// points directly to the actual (aliased) type.
-	_EnableAlias bool
-
 	// If a non-empty ErrorURL format string is provided, it is used
 	// to format an error URL link that is appended to the first line
 	// of an error message. ErrorURL must be a format string containing

@@ -544,8 +544,8 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 	case *Basic:
 		// nothing to do
 
-	case *_Alias:
-		return w.isParameterized(_Unalias(t))
+	case *Alias:
+		return w.isParameterized(Unalias(t))
 
 	case *Array:
 		return w.isParameterized(t.elem)
@@ -698,8 +698,8 @@ func (w *cycleFinder) typ(typ Type) {
 	case *Basic:
 		// nothing to do
 
-	case *_Alias:
-		w.typ(_Unalias(t))
+	case *Alias:
+		w.typ(Unalias(t))
 
 	case *Array:
 		w.typ(t.elem)

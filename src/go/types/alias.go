@@ -8,39 +8,42 @@ package types
 
 import "fmt"
 
-// Names starting with a _ are intended to be exported eventually
-// (go.dev/issue/63223).
-
-// An _Alias represents an alias type.
-type _Alias struct {
+// An Alias represents an alias type.
+// Whether or not Alias types are created is controlled by the
+// gotypesalias setting with the GODEBUG environment variable.
+// For gotypesalias=1, alias declarations produce an Alias type.
+// Otherwise, the alias information is only in the type name,
+// which points directly to the actual (aliased) type.
+type Alias struct {
 	obj     *TypeName // corresponding declared alias object
 	fromRHS Type      // RHS of type alias declaration; may be an alias
 	actual  Type      // actual (aliased) type; never an alias
 }
 
-// _NewAlias creates a new Alias type with the given type name and rhs.
+// NewAlias creates a new Alias type with the given type name and rhs.
 // rhs must not be nil.
-func _NewAlias(obj *TypeName, rhs Type) *_Alias {
+func NewAlias(obj *TypeName, rhs Type) *Alias {
 	return (*Checker)(nil).newAlias(obj, rhs)
 }
 
-func (a *_Alias) Underlying() Type { return a.actual.Underlying() }
-func (a *_Alias) String() string   { return TypeString(a, nil) }
+func (a *Alias) Obj() *TypeName   { return a.obj }
+func (a *Alias) Underlying() Type { return a.actual.Underlying() }
+func (a *Alias) String() string   { return TypeString(a, nil) }
 
 // Type accessors
 
-// _Unalias returns t if it is not an alias type;
+// Unalias returns t if it is not an alias type;
 // otherwise it follows t's alias chain until it
 // reaches a non-alias type which is then returned.
 // Consequently, the result is never an alias type.
-func _Unalias(t Type) Type {
-	if a0, _ := t.(*_Alias); a0 != nil {
+func Unalias(t Type) Type {
+	if a0, _ := t.(*Alias); a0 != nil {
 		if a0.actual != nil {
 			return a0.actual
 		}
 		for a := a0; ; {
 			t = a.fromRHS
-			a, _ = t.(*_Alias)
+			a, _ = t.(*Alias)
 			if a == nil {
 				break
 			}
@@ -56,15 +59,15 @@ func _Unalias(t Type) Type {
 // asNamed returns t as *Named if that is t's
 // actual type. It returns nil otherwise.
 func asNamed(t Type) *Named {
-	n, _ := _Unalias(t).(*Named)
+	n, _ := Unalias(t).(*Named)
 	return n
 }
 
 // newAlias creates a new Alias type with the given type name and rhs.
 // rhs must not be nil.
-func (check *Checker) newAlias(obj *TypeName, rhs Type) *_Alias {
+func (check *Checker) newAlias(obj *TypeName, rhs Type) *Alias {
 	assert(rhs != nil)
-	a := &_Alias{obj, rhs, nil}
+	a := &Alias{obj, rhs, nil}
 	if obj.typ == nil {
 		obj.typ = a
 	}
@@ -77,6 +80,6 @@ func (check *Checker) newAlias(obj *TypeName, rhs Type) *_Alias {
 	return a
 }
 
-func (a *_Alias) cleanup() {
-	_Unalias(a)
+func (a *Alias) cleanup() {
+	Unalias(a)
 }
