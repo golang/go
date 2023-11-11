@@ -8,7 +8,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"fmt"
-	"sort"
 	"strconv"
 	"sync"
 )
@@ -55,24 +54,9 @@ func NewPkg(path, name string) *Pkg {
 	return p
 }
 
-// ImportedPkgList returns the list of directly imported packages.
-// The list is sorted by package path.
-func ImportedPkgList() []*Pkg {
-	var list []*Pkg
-	for _, p := range pkgMap {
-		if p.Direct {
-			list = append(list, p)
-		}
-	}
-	sort.Sort(byPath(list))
-	return list
+func PkgMap() map[string]*Pkg {
+	return pkgMap
 }
-
-type byPath []*Pkg
-
-func (a byPath) Len() int           { return len(a) }
-func (a byPath) Less(i, j int) bool { return a[i].Path < a[j].Path }
-func (a byPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 var nopkg = &Pkg{
 	Syms: make(map[string]*Sym),
@@ -122,6 +106,14 @@ func (pkg *Pkg) LookupNum(prefix string, n int) *Sym {
 	return pkg.LookupBytes(b)
 }
 
+// Selector looks up a selector identifier.
+func (pkg *Pkg) Selector(name string) *Sym {
+	if IsExported(name) {
+		pkg = LocalPkg
+	}
+	return pkg.Lookup(name)
+}
+
 var (
 	internedStringsmu sync.Mutex // protects internedStrings
 	internedStrings   = map[string]string{}
@@ -136,13 +128,4 @@ func InternString(b []byte) string {
 	}
 	internedStringsmu.Unlock()
 	return s
-}
-
-// CleanroomDo invokes f in an environment with no preexisting packages.
-// For testing of import/export only.
-func CleanroomDo(f func()) {
-	saved := pkgMap
-	pkgMap = make(map[string]*Pkg)
-	f()
-	pkgMap = saved
 }

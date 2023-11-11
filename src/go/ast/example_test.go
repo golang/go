@@ -136,7 +136,8 @@ func main() {
 	//     57  .  Unresolved: []*ast.Ident (len = 1) {
 	//     58  .  .  0: *(obj @ 29)
 	//     59  .  }
-	//     60  }
+	//     60  .  GoVersion: ""
+	//     61  }
 }
 
 // This example illustrates how to remove a variable declaration

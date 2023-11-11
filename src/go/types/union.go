@@ -18,7 +18,7 @@ type Union struct {
 	terms []*Term // list of syntactical terms (not a canonicalized termlist)
 }
 
-// NewUnion returns a new Union type with the given terms.
+// NewUnion returns a new [Union] type with the given terms.
 // It is an error to create an empty union; they are syntactically not possible.
 func NewUnion(terms []*Term) *Union {
 	if len(terms) == 0 {
@@ -33,7 +33,7 @@ func (u *Union) Term(i int) *Term { return u.terms[i] }
 func (u *Union) Underlying() Type { return u }
 func (u *Union) String() string   { return TypeString(u, nil) }
 
-// A Term represents a term in a Union.
+// A Term represents a term in a [Union].
 type Term term
 
 // NewTerm returns a new union term.
@@ -67,7 +67,7 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 			return term.typ // typ already recorded through check.typ in parseTilde
 		}
 		if len(terms) >= maxTermCount {
-			if u != Typ[Invalid] {
+			if isValid(u) {
 				check.errorf(x, InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
 				u = Typ[Invalid]
 			}
@@ -81,7 +81,7 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 		}
 	}
 
-	if u == Typ[Invalid] {
+	if !isValid(u) {
 		return u
 	}
 
@@ -90,7 +90,7 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
 	// Note: This is a quadratic algorithm, but unions tend to be short.
 	check.later(func() {
 		for i, t := range terms {
-			if t.typ == Typ[Invalid] {
+			if !isValid(t.typ) {
 				continue
 			}
 
@@ -144,7 +144,7 @@ func parseTilde(check *Checker, tx ast.Expr) *Term {
 		tilde = true
 	}
 	typ := check.typ(x)
-	// Embedding stand-alone type parameters is not permitted (issue #47127).
+	// Embedding stand-alone type parameters is not permitted (go.dev/issue/47127).
 	// We don't need this restriction anymore if we make the underlying type of a type
 	// parameter its constraint interface: if we embed a lone type parameter, we will
 	// simply use its underlying type (like we do for other named, embedded interfaces),

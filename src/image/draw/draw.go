@@ -23,10 +23,10 @@ type Image interface {
 	Set(x, y int, c color.Color)
 }
 
-// RGBA64Image extends both the Image and image.RGBA64Image interfaces with a
+// RGBA64Image extends both the [Image] and [image.RGBA64Image] interfaces with a
 // SetRGBA64 method to change a single pixel. SetRGBA64 is equivalent to
 // calling Set, but it can avoid allocations from converting concrete color
-// types to the color.Color interface type.
+// types to the [color.Color] interface type.
 type RGBA64Image interface {
 	image.RGBA64Image
 	Set(x, y int, c color.Color)
@@ -50,20 +50,20 @@ const (
 	Src
 )
 
-// Draw implements the Drawer interface by calling the Draw function with this
-// Op.
+// Draw implements the [Drawer] interface by calling the Draw function with this
+// [Op].
 func (op Op) Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point) {
 	DrawMask(dst, r, src, sp, nil, image.Point{}, op)
 }
 
-// Drawer contains the Draw method.
+// Drawer contains the [Draw] method.
 type Drawer interface {
 	// Draw aligns r.Min in dst with sp in src and then replaces the
 	// rectangle r in dst with the result of drawing src on dst.
 	Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point)
 }
 
-// FloydSteinberg is a Drawer that is the Src Op with Floyd-Steinberg error
+// FloydSteinberg is a [Drawer] that is the [Src] [Op] with Floyd-Steinberg error
 // diffusion.
 var FloydSteinberg Drawer = floydSteinberg{}
 
@@ -106,7 +106,7 @@ func processBackward(dst image.Image, r image.Rectangle, src image.Image, sp ima
 		(sp.Y < r.Min.Y || (sp.Y == r.Min.Y && sp.X < r.Min.X))
 }
 
-// Draw calls DrawMask with a nil mask.
+// Draw calls [DrawMask] with a nil mask.
 func Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point, op Op) {
 	DrawMask(dst, r, src, sp, nil, image.Point{}, op)
 }

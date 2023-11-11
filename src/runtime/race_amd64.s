@@ -24,7 +24,7 @@
 // Arguments are passed in CX, DX, R8, R9, the rest is on stack.
 // Callee-saved registers are: BX, BP, DI, SI, R12-R15.
 // SP must be 16-byte aligned. Windows also requires "stack-backing" for the 4 register arguments:
-// https://msdn.microsoft.com/en-us/library/ms235286.aspx
+// https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention
 // We do not do this, because it seems to be intended for vararg/unprototyped functions.
 // Gcc-compiled race runtime does not try to use that space.
 
@@ -174,7 +174,7 @@ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
 
 // Common code for racefuncenter
 // R11 = caller's return address
-TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+TEXT	racefuncenter<>(SB), NOSPLIT|NOFRAME, $0-0
 	MOVQ	DX, BX		// save function entry context (for closures)
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	MOVQ	R11, RARG1
@@ -196,13 +196,13 @@ TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
 // Atomic operations for sync/atomic package.
 
 // Load
-TEXT	sync∕atomic·LoadInt32(SB), NOSPLIT, $0-12
+TEXT	sync∕atomic·LoadInt32(SB), NOSPLIT|NOFRAME, $0-12
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_load(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·LoadInt64(SB), NOSPLIT, $0-16
+TEXT	sync∕atomic·LoadInt64(SB), NOSPLIT|NOFRAME, $0-16
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_load(SB), AX
 	CALL	racecallatomic<>(SB)
@@ -225,13 +225,13 @@ TEXT	sync∕atomic·LoadPointer(SB), NOSPLIT, $0-16
 	JMP	sync∕atomic·LoadInt64(SB)
 
 // Store
-TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT, $0-12
+TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT|NOFRAME, $0-12
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_store(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·StoreInt64(SB), NOSPLIT, $0-16
+TEXT	sync∕atomic·StoreInt64(SB), NOSPLIT|NOFRAME, $0-16
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_store(SB), AX
 	CALL	racecallatomic<>(SB)
@@ -250,13 +250,13 @@ TEXT	sync∕atomic·StoreUintptr(SB), NOSPLIT, $0-16
 	JMP	sync∕atomic·StoreInt64(SB)
 
 // Swap
-TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT, $0-20
+TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT|NOFRAME, $0-20
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_exchange(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·SwapInt64(SB), NOSPLIT, $0-24
+TEXT	sync∕atomic·SwapInt64(SB), NOSPLIT|NOFRAME, $0-24
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_exchange(SB), AX
 	CALL	racecallatomic<>(SB)
@@ -275,7 +275,7 @@ TEXT	sync∕atomic·SwapUintptr(SB), NOSPLIT, $0-24
 	JMP	sync∕atomic·SwapInt64(SB)
 
 // Add
-TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0-20
+TEXT	sync∕atomic·AddInt32(SB), NOSPLIT|NOFRAME, $0-20
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_fetch_add(SB), AX
 	CALL	racecallatomic<>(SB)
@@ -283,7 +283,7 @@ TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0-20
 	ADDL	AX, ret+16(FP)
 	RET
 
-TEXT	sync∕atomic·AddInt64(SB), NOSPLIT, $0-24
+TEXT	sync∕atomic·AddInt64(SB), NOSPLIT|NOFRAME, $0-24
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_fetch_add(SB), AX
 	CALL	racecallatomic<>(SB)
@@ -304,13 +304,13 @@ TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-24
 	JMP	sync∕atomic·AddInt64(SB)
 
 // CompareAndSwap
-TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0-17
+TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT|NOFRAME, $0-17
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_compare_exchange(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·CompareAndSwapInt64(SB), NOSPLIT, $0-25
+TEXT	sync∕atomic·CompareAndSwapInt64(SB), NOSPLIT|NOFRAME, $0-25
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_compare_exchange(SB), AX
 	CALL	racecallatomic<>(SB)
@@ -330,10 +330,10 @@ TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-25
 
 // Generic atomic operation implementation.
 // AX already contains target function.
-TEXT	racecallatomic<>(SB), NOSPLIT, $0-0
+TEXT	racecallatomic<>(SB), NOSPLIT|NOFRAME, $0-0
 	// Trigger SIGSEGV early.
 	MOVQ	16(SP), R12
-	MOVL	(R12), R13
+	MOVBLZX	(R12), R13
 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
 	CMPQ	R12, runtime·racearenastart(SB)
 	JB	racecallatomic_data
@@ -383,7 +383,7 @@ TEXT	runtime·racecall(SB), NOSPLIT, $0-0
 	JMP	racecall<>(SB)
 
 // Switches SP to g0 stack and calls (AX). Arguments already set.
-TEXT	racecall<>(SB), NOSPLIT, $0-0
+TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
 	MOVQ	g_m(R14), R13
 	// Switch to g0 stack.
 	MOVQ	SP, R12		// callee-saved, preserved across the CALL
@@ -405,7 +405,7 @@ call:
 // The overall effect of Go->C->Go call chain is similar to that of mcall.
 // RARG0 contains command code. RARG1 contains command-specific context.
 // See racecallback for command codes.
-TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $0-0
+TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0-0
 	// Handle command raceGetProcCmd (0) here.
 	// First, code below assumes that we are on curg, while raceGetProcCmd
 	// can be executed on g0. Second, it is called frequently, so will

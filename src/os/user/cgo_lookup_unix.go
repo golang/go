@@ -165,8 +165,8 @@ func (k bufferKind) initialSize() _C_size_t {
 // retryWithBuffer repeatedly calls f(), increasing the size of the
 // buffer each time, until f succeeds, fails with a non-ERANGE error,
 // or the buffer exceeds a reasonable limit.
-func retryWithBuffer(startSize bufferKind, f func([]byte) syscall.Errno) error {
-	buf := make([]byte, startSize)
+func retryWithBuffer(kind bufferKind, f func([]byte) syscall.Errno) error {
+	buf := make([]byte, kind.initialSize())
 	for {
 		errno := f(buf)
 		if errno == 0 {

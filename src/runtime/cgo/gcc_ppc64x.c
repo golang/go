@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ppc64 ppc64le
+//go:build ppc64 || ppc64le
 
 #include <pthread.h>
 #include <string.h>
@@ -18,14 +18,8 @@ static void (*setg_gcc)(void*);
 void
 x_cgo_init(G *g, void (*setg)(void*), void **tlsbase)
 {
-	pthread_attr_t attr;
-	size_t size;
-
 	setg_gcc = setg;
-	pthread_attr_init(&attr);
-	pthread_attr_getstacksize(&attr, &size);
-	g->stacklo = (uintptr)&attr - size + 4096;
-	pthread_attr_destroy(&attr);
+	_cgo_set_stacklo(g, NULL);
 }
 
 void
@@ -61,7 +55,9 @@ threadentry(void *v)
 	ThreadStart ts;
 
 	ts = *(ThreadStart*)v;
+	_cgo_tsan_acquire();
 	free(v);
+	_cgo_tsan_release();
 
 	// Save g for this thread in C TLS
 	setg_gcc((void*)ts.g);

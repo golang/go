@@ -166,6 +166,9 @@ func collectPodsImpl(files []string, dirIndices []int, warn bool) []Pod {
 	pods := make([]Pod, 0, len(mm))
 	for _, p := range mm {
 		sort.Slice(p.elements, func(i, j int) bool {
+			if p.elements[i].origin != p.elements[j].origin {
+				return p.elements[i].origin < p.elements[j].origin
+			}
 			return p.elements[i].file < p.elements[j].file
 		})
 		pod := Pod{

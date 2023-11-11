@@ -187,8 +187,15 @@ exists in PPC64 assembler and is frequently used by PPC64 assembler writers.
 PCALIGN $16
 PCALIGN $8
 
-Functions in Go are aligned to 16 bytes, as is the case in all other compilers
-for PPC64.
+By default, functions in Go are aligned to 16 bytes, as is the case in all
+other compilers for PPC64. If there is a PCALIGN directive requesting alignment
+greater than 16, then the alignment of the containing function must be
+promoted to that same alignment or greater.
+
+The behavior of PCALIGN is changed in Go 1.21 to be more straightforward to
+ensure the alignment required for some instructions in power10. The acceptable
+values are 8, 16, 32 and 64, and the use of those values will always provide the
+specified alignment.
 
 6. Shift instructions
 
@@ -250,5 +257,34 @@ Register names:
 	CRnGT represents CR bit 1 of CR field n. (0-7)
 	CRnEQ represents CR bit 2 of CR field n. (0-7)
 	CRnSO represents CR bit 3 of CR field n. (0-7)
+
+# GOPPC64 >= power10 and its effects on Go asm
+
+When GOPPC64=power10 is used to compile a Go program for ppc64le/linux, MOV*, FMOV*, and ADD
+opcodes which would require 2 or more machine instructions to emulate a 32 bit constant, or
+symbolic reference are implemented using prefixed instructions.
+
+A user who wishes granular control over the generated machine code is advised to use Go asm
+opcodes which explicitly translate to one PPC64 machine instruction. Most common opcodes
+are supported.
+
+Some examples of how pseudo-op assembly changes with GOPPC64:
+
+	Go asm                       GOPPC64 <= power9          GOPPC64 >= power10
+	MOVD mypackage·foo(SB), R3   addis r2, r3, ...          pld r3, ...
+	                             ld    r3, r3, ...
+
+	MOVD 131072(R3), R4          addis r31, r4, 2           pld r4, 131072(r3)
+	                             ld    r4, 0(R3)
+
+	ADD $131073, R3              lis  r31, 2                paddi r3, r3, 131073
+	                             addi r31, 1
+	                             add  r3,r31,r3
+
+	MOVD $131073, R3             lis  r3, 2                 pli r3, 131073
+	                             addi r3, 1
+
+	MOVD $mypackage·foo(SB), R3  addis r2, r3, ...          pla r3, ...
+	                             addi  r3, r3, ...
 */
 package ppc64

@@ -665,8 +665,8 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 
 func asmbMacho(ctxt *Link) {
 	machlink := doMachoLink(ctxt)
-	if !*FlagS && ctxt.IsExternal() {
-		symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))) + uint64(machlink))
+	if ctxt.IsExternal() {
+		symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), *FlagRound)) + uint64(machlink))
 		ctxt.Out.SeekSet(symo)
 		machoEmitReloc(ctxt)
 	}
@@ -708,8 +708,9 @@ func asmbMacho(ctxt *Link) {
 	}
 
 	/* text */
-	v := Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound))
+	v := Rnd(int64(uint64(HEADR)+Segtext.Length), *FlagRound)
 
+	var mstext *MachoSeg
 	if ctxt.LinkMode != LinkExternal {
 		ms = newMachoSeg("__TEXT", 20)
 		ms.vaddr = uint64(va)
@@ -718,6 +719,7 @@ func asmbMacho(ctxt *Link) {
 		ms.filesize = uint64(v)
 		ms.prot1 = 7
 		ms.prot2 = 5
+		mstext = ms
 	}
 
 	for _, sect := range Segtext.Sections {
@@ -801,7 +803,7 @@ func asmbMacho(ctxt *Link) {
 
 		if ctxt.LinkMode != LinkExternal {
 			ms := newMachoSeg("__LINKEDIT", 0)
-			ms.vaddr = uint64(Rnd(int64(Segdata.Vaddr+Segdata.Length), int64(*FlagRound)))
+			ms.vaddr = uint64(Rnd(int64(Segdata.Vaddr+Segdata.Length), *FlagRound))
 			ms.vsize = uint64(s1 + s2 + s3 + s4 + s5 + s6 + s7)
 			ms.fileoffset = uint64(linkoff)
 			ms.filesize = ms.vsize
@@ -831,9 +833,9 @@ func asmbMacho(ctxt *Link) {
 		ml.data[2] = uint32(linkoff + s1 + s2 + s3 + s4 + s5) /* stroff */
 		ml.data[3] = uint32(s6)                               /* strsize */
 
-		machodysymtab(ctxt, linkoff+s1+s2)
-
 		if ctxt.LinkMode != LinkExternal {
+			machodysymtab(ctxt, linkoff+s1+s2)
+
 			ml := newMachoLoad(ctxt.Arch, LC_LOAD_DYLINKER, 6)
 			ml.data[0] = 12 /* offset to string */
 			stringtouint32(ml.data[1:], "/usr/lib/dyld")
@@ -868,14 +870,14 @@ func asmbMacho(ctxt *Link) {
 		if int64(len(data)) != codesigOff {
 			panic("wrong size")
 		}
-		codesign.Sign(ldr.Data(cs), bytes.NewReader(data), "a.out", codesigOff, int64(Segtext.Fileoff), int64(Segtext.Filelen), ctxt.IsExe() || ctxt.IsPIE())
+		codesign.Sign(ldr.Data(cs), bytes.NewReader(data), "a.out", codesigOff, int64(mstext.fileoffset), int64(mstext.filesize), ctxt.IsExe() || ctxt.IsPIE())
 		ctxt.Out.SeekSet(codesigOff)
 		ctxt.Out.Write(ldr.Data(cs))
 	}
 }
 
 func symkind(ldr *loader.Loader, s loader.Sym) int {
-	if ldr.SymType(s) == sym.SDYNIMPORT {
+	if t := ldr.SymType(s); t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
 		return SymKindUndef
 	}
 	if ldr.AttrCgoExport(s) {
@@ -892,30 +894,39 @@ func collectmachosyms(ctxt *Link) {
 		nkind[symkind(ldr, s)]++
 	}
 
-	// Add special runtime.text and runtime.etext symbols.
+	// On Mach-O, even with -s, we still need to keep dynamically exported and
+	// referenced symbols. We can strip defined local text and data symbols.
+	// So *FlagS is applied based on symbol type.
+
+	// Add special runtime.text and runtime.etext symbols (which are local).
 	// We've already included this symbol in Textp on darwin if ctxt.DynlinkingGo().
 	// See data.go:/textaddress
-	if !ctxt.DynlinkingGo() {
-		s := ldr.Lookup("runtime.text", 0)
-		if ldr.SymType(s) == sym.STEXT {
-			addsym(s)
-		}
-		for n := range Segtext.Sections[1:] {
-			s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
-			if s != 0 {
+	if !*FlagS {
+		if !ctxt.DynlinkingGo() {
+			s := ldr.Lookup("runtime.text", 0)
+			if ldr.SymType(s) == sym.STEXT {
 				addsym(s)
-			} else {
-				break
 			}
-		}
-		s = ldr.Lookup("runtime.etext", 0)
-		if ldr.SymType(s) == sym.STEXT {
-			addsym(s)
+			for n := range Segtext.Sections[1:] {
+				s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
+				if s != 0 {
+					addsym(s)
+				} else {
+					break
+				}
+			}
+			s = ldr.Lookup("runtime.etext", 0)
+			if ldr.SymType(s) == sym.STEXT {
+				addsym(s)
+			}
 		}
 	}
 
 	// Add text symbols.
 	for _, s := range ctxt.Textp {
+		if *FlagS && !ldr.AttrCgoExportDynamic(s) {
+			continue
+		}
 		addsym(s)
 	}
 
@@ -944,11 +955,16 @@ func collectmachosyms(ctxt *Link) {
 			if !shouldBeInSymbolTable(s) {
 				continue
 			}
+			if *FlagS && !ldr.AttrCgoExportDynamic(s) {
+				continue
+			}
 			addsym(s)
+			continue
 		}
 
 		switch t {
 		case sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT:
+			// Keep dynamic symbol references even if *FlagS.
 			addsym(s)
 		}
 
@@ -1169,7 +1185,7 @@ func doMachoLink(ctxt *Link) int64 {
 	}
 
 	if size > 0 {
-		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound)) + Rnd(int64(Segrelrodata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))
+		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), *FlagRound) + Rnd(int64(Segrelrodata.Filelen), *FlagRound) + Rnd(int64(Segdata.Filelen), *FlagRound) + Rnd(int64(Segdwarf.Filelen), *FlagRound)
 		ctxt.Out.SeekSet(linkoff)
 
 		ctxt.Out.Write(ldr.Data(s1))
@@ -1184,7 +1200,7 @@ func doMachoLink(ctxt *Link) int64 {
 		size += ldr.SymSize(s7)
 	}
 
-	return Rnd(size, int64(*FlagRound))
+	return Rnd(size, *FlagRound)
 }
 
 func machorelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym) {

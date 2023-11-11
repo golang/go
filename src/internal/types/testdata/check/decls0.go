@@ -55,7 +55,7 @@ type (
 	// The error message below could be better. At the moment
 	// we believe an integer that is too large is not an integer.
 	// But at least we get an error.
-	iA1 [1 /* ERROR "must be integer" */ <<100]int
+	iA1 [1 /* ERROR "invalid array length" */ <<100]int
 	iA2 [- /* ERROR "invalid array length" */ 1]complex128
 	iA3 ["foo" /* ERROR "must be integer" */ ]string
 	iA4 [float64 /* ERROR "must be integer" */ (0)]int

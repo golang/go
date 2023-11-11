@@ -1,6 +1,6 @@
 # Test that minimization doesn't use dirty coverage snapshots when it
 # is unable to actually minimize the input. We do this by checking that
-# a expected value appears in the cache. If a dirty coverage map is used
+# an expected value appears in the cache. If a dirty coverage map is used
 # (i.e. the coverage map generated during the last minimization step,
 # rather than the map provided with the initial input) then this value
 # is unlikely to appear in the cache, since the map generated during

@@ -1,4 +1,4 @@
-# Test that the corect default GOEXPERIMENT is used when cross
+# Test that the correct default GOEXPERIMENT is used when cross
 # building with GOENV (#46815).
 
 # Unset variables set by the TestScript harness. Users typically won't

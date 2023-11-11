@@ -36,7 +36,7 @@ const debugFloat = false // enable for debugging
 //
 // Unless specified otherwise, all operations (including setters) that
 // specify a *Float variable for the result (usually via the receiver
-// with the exception of MantExp), round the numeric result according
+// with the exception of [Float.MantExp]), round the numeric result according
 // to the precision and rounding mode of the result variable.
 //
 // If the provided result precision is 0 (see below), it is set to the
@@ -47,20 +47,20 @@ const debugFloat = false // enable for debugging
 // their mode is the zero value for RoundingMode (ToNearestEven).
 //
 // By setting the desired precision to 24 or 53 and using matching rounding
-// mode (typically ToNearestEven), Float operations produce the same results
+// mode (typically [ToNearestEven]), Float operations produce the same results
 // as the corresponding float32 or float64 IEEE-754 arithmetic for operands
 // that correspond to normal (i.e., not denormal) float32 or float64 numbers.
 // Exponent underflow and overflow lead to a 0 or an Infinity for different
 // values than IEEE-754 because Float exponents have a much larger range.
 //
 // The zero (uninitialized) value for a Float is ready to use and represents
-// the number +0.0 exactly, with precision 0 and rounding mode ToNearestEven.
+// the number +0.0 exactly, with precision 0 and rounding mode [ToNearestEven].
 //
 // Operations always take pointer arguments (*Float) rather
 // than Float values, and each unique Float value requires
 // its own unique *Float pointer. To "copy" a Float value,
 // an existing (or newly allocated) Float must be set to
-// a new value using the Float.Set method; shallow copies
+// a new value using the [Float.Set] method; shallow copies
 // of Floats are not supported and may lead to errors.
 type Float struct {
 	prec uint32
@@ -72,7 +72,7 @@ type Float struct {
 	exp  int32
 }
 
-// An ErrNaN panic is raised by a Float operation that would lead to
+// An ErrNaN panic is raised by a [Float] operation that would lead to
 // a NaN under IEEE-754 rules. An ErrNaN implements the error interface.
 type ErrNaN struct {
 	msg string
@@ -82,9 +82,9 @@ func (err ErrNaN) Error() string {
 	return err.msg
 }
 
-// NewFloat allocates and returns a new Float set to x,
-// with precision 53 and rounding mode ToNearestEven.
-// NewFloat panics with ErrNaN if x is a NaN.
+// NewFloat allocates and returns a new [Float] set to x,
+// with precision 53 and rounding mode [ToNearestEven].
+// NewFloat panics with [ErrNaN] if x is a NaN.
 func NewFloat(x float64) *Float {
 	if math.IsNaN(x) {
 		panic(ErrNaN{"NewFloat(NaN)"})
@@ -126,9 +126,9 @@ const (
 	inf
 )
 
-// RoundingMode determines how a Float value is rounded to the
-// desired precision. Rounding may change the Float value; the
-// rounding error is described by the Float's Accuracy.
+// RoundingMode determines how a [Float] value is rounded to the
+// desired precision. Rounding may change the [Float] value; the
+// rounding error is described by the [Float]'s [Accuracy].
 type RoundingMode byte
 
 // These constants define supported rounding modes.
@@ -144,10 +144,10 @@ const (
 //go:generate stringer -type=RoundingMode
 
 // Accuracy describes the rounding error produced by the most recent
-// operation that generated a Float value, relative to the exact value.
+// operation that generated a [Float] value, relative to the exact value.
 type Accuracy int8
 
-// Constants describing the Accuracy of a Float.
+// Constants describing the [Accuracy] of a [Float].
 const (
 	Below Accuracy = -1
 	Exact Accuracy = 0
@@ -160,7 +160,7 @@ const (
 // value of z. Rounding occurs according to z's rounding mode if the mantissa
 // cannot be represented in prec bits without loss of precision.
 // SetPrec(0) maps all finite values to ±0; infinite values remain unchanged.
-// If prec > MaxPrec, it is set to MaxPrec.
+// If prec > [MaxPrec], it is set to [MaxPrec].
 func (z *Float) SetPrec(prec uint) *Float {
 	z.acc = Exact // optimistically assume no rounding is needed
 
@@ -196,7 +196,7 @@ func makeAcc(above bool) Accuracy {
 
 // SetMode sets z's rounding mode to mode and returns an exact z.
 // z remains unchanged otherwise.
-// z.SetMode(z.Mode()) is a cheap way to set z's accuracy to Exact.
+// z.SetMode(z.Mode()) is a cheap way to set z's accuracy to [Exact].
 func (z *Float) SetMode(mode RoundingMode) *Float {
 	z.mode = mode
 	z.acc = Exact
@@ -302,9 +302,9 @@ func (z *Float) setExpAndRound(exp int64, sbit uint) {
 
 // SetMantExp sets z to mant × 2**exp and returns z.
 // The result z has the same precision and rounding mode
-// as mant. SetMantExp is an inverse of MantExp but does
+// as mant. SetMantExp is an inverse of [Float.MantExp] but does
 // not require 0.5 <= |mant| < 1.0. Specifically, for a
-// given x of type *Float, SetMantExp relates to MantExp
+// given x of type *[Float], SetMantExp relates to [Float.MantExp]
 // as follows:
 //
 //	mant := new(Float)
@@ -365,20 +365,27 @@ func (x *Float) validate() {
 		// avoid performance bugs
 		panic("validate called but debugFloat is not set")
 	}
+	if msg := x.validate0(); msg != "" {
+		panic(msg)
+	}
+}
+
+func (x *Float) validate0() string {
 	if x.form != finite {
-		return
+		return ""
 	}
 	m := len(x.mant)
 	if m == 0 {
-		panic("nonzero finite number with empty mantissa")
+		return "nonzero finite number with empty mantissa"
 	}
 	const msb = 1 << (_W - 1)
 	if x.mant[m-1]&msb == 0 {
-		panic(fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.Text('p', 0)))
+		return fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.Text('p', 0))
 	}
 	if x.prec == 0 {
-		panic("zero precision finite number")
+		return "zero precision finite number"
 	}
+	return ""
 }
 
 // round rounds z according to z.mode to z.prec bits and sets z.acc accordingly.
@@ -541,7 +548,7 @@ func (z *Float) SetInt64(x int64) *Float {
 
 // SetFloat64 sets z to the (possibly rounded) value of x and returns z.
 // If z's precision is 0, it is changed to 53 (and rounding will have
-// no effect). SetFloat64 panics with ErrNaN if x is a NaN.
+// no effect). SetFloat64 panics with [ErrNaN] if x is a NaN.
 func (z *Float) SetFloat64(x float64) *Float {
 	if z.prec == 0 {
 		z.prec = 53
@@ -630,7 +637,7 @@ func (z *Float) SetRat(x *Rat) *Float {
 // SetInf sets z to the infinite Float -Inf if signbit is
 // set, or +Inf if signbit is not set, and returns z. The
 // precision of z is unchanged and the result is always
-// Exact.
+// [Exact].
 func (z *Float) SetInf(signbit bool) *Float {
 	z.acc = Exact
 	z.form = inf
@@ -727,10 +734,10 @@ func msb64(x nat) uint64 {
 }
 
 // Uint64 returns the unsigned integer resulting from truncating x
-// towards zero. If 0 <= x <= math.MaxUint64, the result is Exact
-// if x is an integer and Below otherwise.
-// The result is (0, Above) for x < 0, and (math.MaxUint64, Below)
-// for x > math.MaxUint64.
+// towards zero. If 0 <= x <= math.MaxUint64, the result is [Exact]
+// if x is an integer and [Below] otherwise.
+// The result is (0, [Above]) for x < 0, and ([math.MaxUint64], [Below])
+// for x > [math.MaxUint64].
 func (x *Float) Uint64() (uint64, Accuracy) {
 	if debugFloat {
 		x.validate()
@@ -772,10 +779,10 @@ func (x *Float) Uint64() (uint64, Accuracy) {
 }
 
 // Int64 returns the integer resulting from truncating x towards zero.
-// If math.MinInt64 <= x <= math.MaxInt64, the result is Exact if x is
-// an integer, and Above (x < 0) or Below (x > 0) otherwise.
-// The result is (math.MinInt64, Above) for x < math.MinInt64,
-// and (math.MaxInt64, Below) for x > math.MaxInt64.
+// If [math.MinInt64] <= x <= [math.MaxInt64], the result is [Exact] if x is
+// an integer, and [Above] (x < 0) or [Below] (x > 0) otherwise.
+// The result is ([math.MinInt64], [Above]) for x < [math.MinInt64],
+// and ([math.MaxInt64], [Below]) for x > [math.MaxInt64].
 func (x *Float) Int64() (int64, Accuracy) {
 	if debugFloat {
 		x.validate()
@@ -827,10 +834,10 @@ func (x *Float) Int64() (int64, Accuracy) {
 }
 
 // Float32 returns the float32 value nearest to x. If x is too small to be
-// represented by a float32 (|x| < math.SmallestNonzeroFloat32), the result
-// is (0, Below) or (-0, Above), respectively, depending on the sign of x.
-// If x is too large to be represented by a float32 (|x| > math.MaxFloat32),
-// the result is (+Inf, Above) or (-Inf, Below), depending on the sign of x.
+// represented by a float32 (|x| < [math.SmallestNonzeroFloat32]), the result
+// is (0, [Below]) or (-0, [Above]), respectively, depending on the sign of x.
+// If x is too large to be represented by a float32 (|x| > [math.MaxFloat32]),
+// the result is (+Inf, [Above]) or (-Inf, [Below]), depending on the sign of x.
 func (x *Float) Float32() (float32, Accuracy) {
 	if debugFloat {
 		x.validate()
@@ -947,10 +954,10 @@ func (x *Float) Float32() (float32, Accuracy) {
 }
 
 // Float64 returns the float64 value nearest to x. If x is too small to be
-// represented by a float64 (|x| < math.SmallestNonzeroFloat64), the result
-// is (0, Below) or (-0, Above), respectively, depending on the sign of x.
-// If x is too large to be represented by a float64 (|x| > math.MaxFloat64),
-// the result is (+Inf, Above) or (-Inf, Below), depending on the sign of x.
+// represented by a float64 (|x| < [math.SmallestNonzeroFloat64]), the result
+// is (0, [Below]) or (-0, [Above]), respectively, depending on the sign of x.
+// If x is too large to be represented by a float64 (|x| > [math.MaxFloat64]),
+// the result is (+Inf, [Above]) or (-Inf, [Below]), depending on the sign of x.
 func (x *Float) Float64() (float64, Accuracy) {
 	if debugFloat {
 		x.validate()
@@ -1068,10 +1075,10 @@ func (x *Float) Float64() (float64, Accuracy) {
 
 // Int returns the result of truncating x towards zero;
 // or nil if x is an infinity.
-// The result is Exact if x.IsInt(); otherwise it is Below
-// for x > 0, and Above for x < 0.
-// If a non-nil *Int argument z is provided, Int stores
-// the result in z instead of allocating a new Int.
+// The result is [Exact] if x.IsInt(); otherwise it is [Below]
+// for x > 0, and [Above] for x < 0.
+// If a non-nil *[Int] argument z is provided, [Int] stores
+// the result in z instead of allocating a new [Int].
 func (x *Float) Int(z *Int) (*Int, Accuracy) {
 	if debugFloat {
 		x.validate()
@@ -1125,9 +1132,9 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
 
 // Rat returns the rational number corresponding to x;
 // or nil if x is an infinity.
-// The result is Exact if x is not an Inf.
-// If a non-nil *Rat argument z is provided, Rat stores
-// the result in z instead of allocating a new Rat.
+// The result is [Exact] if x is not an Inf.
+// If a non-nil *[Rat] argument z is provided, [Rat] stores
+// the result in z instead of allocating a new [Rat].
 func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
 	if debugFloat {
 		x.validate()
@@ -1437,7 +1444,7 @@ func (x *Float) ucmp(y *Float) int {
 // it is changed to the larger of x's or y's precision before the operation.
 // Rounding is performed according to z's precision and rounding mode; and
 // z's accuracy reports the result error relative to the exact (not rounded)
-// result. Add panics with ErrNaN if x and y are infinities with opposite
+// result. Add panics with [ErrNaN] if x and y are infinities with opposite
 // signs. The value of z is undefined in that case.
 func (z *Float) Add(x, y *Float) *Float {
 	if debugFloat {
@@ -1510,8 +1517,8 @@ func (z *Float) Add(x, y *Float) *Float {
 }
 
 // Sub sets z to the rounded difference x-y and returns z.
-// Precision, rounding, and accuracy reporting are as for Add.
-// Sub panics with ErrNaN if x and y are infinities with equal
+// Precision, rounding, and accuracy reporting are as for [Float.Add].
+// Sub panics with [ErrNaN] if x and y are infinities with equal
 // signs. The value of z is undefined in that case.
 func (z *Float) Sub(x, y *Float) *Float {
 	if debugFloat {
@@ -1577,8 +1584,8 @@ func (z *Float) Sub(x, y *Float) *Float {
 }
 
 // Mul sets z to the rounded product x*y and returns z.
-// Precision, rounding, and accuracy reporting are as for Add.
-// Mul panics with ErrNaN if one operand is zero and the other
+// Precision, rounding, and accuracy reporting are as for [Float.Add].
+// Mul panics with [ErrNaN] if one operand is zero and the other
 // operand an infinity. The value of z is undefined in that case.
 func (z *Float) Mul(x, y *Float) *Float {
 	if debugFloat {
@@ -1622,8 +1629,8 @@ func (z *Float) Mul(x, y *Float) *Float {
 }
 
 // Quo sets z to the rounded quotient x/y and returns z.
-// Precision, rounding, and accuracy reporting are as for Add.
-// Quo panics with ErrNaN if both operands are zero or infinities.
+// Precision, rounding, and accuracy reporting are as for [Float.Add].
+// Quo panics with [ErrNaN] if both operands are zero or infinities.
 // The value of z is undefined in that case.
 func (z *Float) Quo(x, y *Float) *Float {
 	if debugFloat {

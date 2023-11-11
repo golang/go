@@ -34,7 +34,7 @@ type Signature struct {
 // is variadic, it must have at least one parameter, and the last parameter
 // must be of unnamed slice type.
 //
-// Deprecated: Use NewSignatureType instead which allows for type parameters.
+// Deprecated: Use [NewSignatureType] instead which allows for type parameters.
 func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 	return NewSignatureType(recv, nil, nil, params, results, variadic)
 }
@@ -76,7 +76,7 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 // function. It is ignored when comparing signatures for identity.
 //
 // For an abstract method, Recv returns the enclosing interface either
-// as a *Named or an *Interface. Due to embedding, an interface may
+// as a *[Named] or an *[Interface]. Due to embedding, an interface may
 // contain methods whose receiver type is a different interface.
 func (s *Signature) Recv() *Var { return s.recv }
 
@@ -140,7 +140,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				// Also: Don't report an error via genericType since it will be reported
 				//       again when we type-check the signature.
 				// TODO(gri) maybe the receiver should be marked as invalid instead?
-				if recv, _ := check.genericType(rname, nil).(*Named); recv != nil {
+				if recv := asNamed(check.genericType(rname, nil)); recv != nil {
 					recvTParams = recv.TypeParams().list()
 				}
 			}
@@ -158,7 +158,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 			} else if len(tparams) < len(recvTParams) {
 				// Reporting an error here is a stop-gap measure to avoid crashes in the
 				// compiler when a type parameter/argument cannot be inferred later. It
-				// may lead to follow-on errors (see issues #51339, #51343).
+				// may lead to follow-on errors (see issues go.dev/issue/51339, go.dev/issue/51343).
 				// TODO(gri) find a better solution
 				got := measure(len(tparams), "type parameter")
 				check.errorf(recvPar, BadRecv, "got %s, but receiver base type declares %d", got, len(recvTParams))
@@ -207,17 +207,18 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		sig.recv = recv
 
 		// Delay validation of receiver type as it may cause premature expansion
-		// of types the receiver type is dependent on (see issues #51232, #51233).
+		// of types the receiver type is dependent on (see issues go.dev/issue/51232, go.dev/issue/51233).
 		check.later(func() {
 			// spec: "The receiver type must be of the form T or *T where T is a type name."
 			rtyp, _ := deref(recv.typ)
-			if rtyp == Typ[Invalid] {
+			atyp := _Unalias(rtyp)
+			if !isValid(atyp) {
 				return // error was reported before
 			}
 			// spec: "The type denoted by T is called the receiver base type; it must not
 			// be a pointer or interface type and it must be declared in the same package
 			// as the method."
-			switch T := rtyp.(type) {
+			switch T := atyp.(type) {
 			case *Named:
 				// The receiver type may be an instantiated type referred to
 				// by an alias (which cannot have receiver parameters for now).

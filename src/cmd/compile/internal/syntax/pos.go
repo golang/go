@@ -8,6 +8,8 @@ import "fmt"
 
 // PosMax is the largest line or column value that can be represented without loss.
 // Incoming values (arguments) larger than PosMax will be set to PosMax.
+//
+// Keep this consistent with maxLineCol in go/scanner.
 const PosMax = 1 << 30
 
 // A Pos represents an absolute (line, col) source position

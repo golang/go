@@ -38,7 +38,7 @@ func translateCPUProfile(data []uint64, count int) (*profile.Profile, error) {
 }
 
 // fmtJSON returns a pretty-printed JSON form for x.
-// It works reasonbly well for printing protocol-buffer
+// It works reasonably well for printing protocol-buffer
 // data structures like profile.Profile.
 func fmtJSON(x any) string {
 	js, _ := json.MarshalIndent(x, "", "\t")
@@ -64,13 +64,9 @@ func TestConvertCPUProfileEmpty(t *testing.T) {
 	}
 
 	// Expected PeriodType and SampleType.
-	periodType := &profile.ValueType{Type: "cpu", Unit: "nanoseconds"}
-	sampleType := []*profile.ValueType{
-		{Type: "samples", Unit: "count"},
-		{Type: "cpu", Unit: "nanoseconds"},
-	}
+	sampleType := []*profile.ValueType{{}, {}}
 
-	checkProfile(t, p, 2000*1000, periodType, sampleType, nil, "")
+	checkProfile(t, p, 2000*1000, nil, sampleType, nil, "")
 }
 
 func f1() { f1() }
@@ -101,16 +97,11 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 		addr2 = mprof.Mapping[1].Start
 		map2 = mprof.Mapping[1]
 		map2.BuildID, _ = elfBuildID(map2.File)
-	case "windows":
+	case "windows", "darwin", "ios":
 		addr1 = uint64(abi.FuncPCABIInternal(f1))
 		addr2 = uint64(abi.FuncPCABIInternal(f2))
 
-		exe, err := os.Executable()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		start, end, err := readMainModuleMapping()
+		start, end, exe, buildID, err := readMainModuleMapping()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -120,7 +111,7 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 			Start:        start,
 			Limit:        end,
 			File:         exe,
-			BuildID:      peBuildID(exe),
+			BuildID:      buildID,
 			HasFunctions: true,
 		}
 		map2 = &profile.Mapping{
@@ -128,10 +119,10 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 			Start:        start,
 			Limit:        end,
 			File:         exe,
-			BuildID:      peBuildID(exe),
+			BuildID:      buildID,
 			HasFunctions: true,
 		}
-	case "js":
+	case "js", "wasip1":
 		addr1 = uint64(abi.FuncPCABIInternal(f1))
 		addr2 = uint64(abi.FuncPCABIInternal(f2))
 	default:

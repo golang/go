@@ -1,5 +1,6 @@
 [short] skip
 [compiler:gccgo] skip # gccgo has no cover tool
+[!GOEXPERIMENT:coverageredesign] skip
 
 go test -short -cover -covermode=atomic -coverpkg=coverdep/p1 coverdep
 

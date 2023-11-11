@@ -112,13 +112,6 @@ func (e Edge) String() string {
 }
 
 // BlockKind is the kind of SSA block.
-//
-//	  kind          controls        successors
-//	------------------------------------------
-//	  Exit      [return mem]                []
-//	 Plain                []            [next]
-//	    If   [boolean Value]      [then, else]
-//	 Defer             [mem]  [nopanic, panic]  (control opcode should be OpStaticCall to runtime.deferproc)
 type BlockKind int16
 
 // short form print
@@ -275,8 +268,7 @@ func (b *Block) truncateValues(i int) {
 	b.Values = b.Values[:i]
 }
 
-// AddEdgeTo adds an edge from block b to block c. Used during building of the
-// SSA graph; do not use on an already-completed SSA graph.
+// AddEdgeTo adds an edge from block b to block c.
 func (b *Block) AddEdgeTo(c *Block) {
 	i := len(b.Succs)
 	j := len(c.Preds)
@@ -341,7 +333,7 @@ func (b *Block) swapSuccessors() {
 //	if v.Op != OpPhi {
 //	    continue
 //	}
-//	b.removeArg(v, i)
+//	b.removePhiArg(v, i)
 //
 // }
 func (b *Block) removePhiArg(phi *Value, i int) {
@@ -353,6 +345,7 @@ func (b *Block) removePhiArg(phi *Value, i int) {
 	phi.Args[i] = phi.Args[n]
 	phi.Args[n] = nil
 	phi.Args = phi.Args[:n]
+	phielimValue(phi)
 }
 
 // LackingPos indicates whether b is a block whose position should be inherited
@@ -384,10 +377,10 @@ func (b *Block) AuxIntString() string {
 		return fmt.Sprintf("%v", int8(b.AuxInt))
 	case "uint8":
 		return fmt.Sprintf("%v", uint8(b.AuxInt))
-	default: // type specified but not implemented - print as int64
-		return fmt.Sprintf("%v", b.AuxInt)
 	case "": // no aux int type
 		return ""
+	default: // type specified but not implemented - print as int64
+		return fmt.Sprintf("%v", b.AuxInt)
 	}
 }
 

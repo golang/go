@@ -71,6 +71,10 @@ to print debugging information about its decisions.
 To force a particular resolver while also printing debugging information,
 join the two settings by a plus sign, as in GODEBUG=netdns=go+1.
 
+On macOS, if Go code that uses the net package is built with
+-buildmode=c-archive, linking the resulting archive into a C program
+requires passing -lresolv when linking the C code.
+
 On Plan 9, the resolver always accesses /net/cs and /net/dns.
 
 On Windows, in Go 1.18.x and earlier, the resolver always used C
@@ -87,14 +91,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-)
-
-// netGo and netCgo contain the state of the build tags used
-// to build this binary, and whether cgo is available.
-// conf.go mirrors these into conf for easier testing.
-var (
-	netGo  bool // set true in cgo_stub.go for build tag "netgo" (or no cgo)
-	netCgo bool // set true in conf_netcgo.go for build tag "netcgo"
 )
 
 // Addr represents a network end point address.

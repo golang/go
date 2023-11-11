@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/constant"
 	"io"
-	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -28,7 +27,6 @@ var OpNames = []string{
 	OADDR:             "&",
 	OADD:              "+",
 	OADDSTR:           "+",
-	OALIGNOF:          "unsafe.Alignof",
 	OANDAND:           "&&",
 	OANDNOT:           "&^",
 	OAND:              "&",
@@ -39,6 +37,7 @@ var OpNames = []string{
 	OCALL:             "function call", // not actual syntax
 	OCAP:              "cap",
 	OCASE:             "case",
+	OCLEAR:            "clear",
 	OCLOSE:            "close",
 	OCOMPLEX:          "complex",
 	OBITNOT:           "^",
@@ -63,17 +62,18 @@ var OpNames = []string{
 	OLT:               "<",
 	OMAKE:             "make",
 	ONEG:              "-",
+	OMAX:              "max",
+	OMIN:              "min",
 	OMOD:              "%",
 	OMUL:              "*",
 	ONEW:              "new",
 	ONE:               "!=",
 	ONOT:              "!",
-	OOFFSETOF:         "unsafe.Offsetof",
 	OOROR:             "||",
 	OOR:               "|",
 	OPANIC:            "panic",
 	OPLUS:             "+",
-	OPRINTN:           "println",
+	OPRINTLN:          "println",
 	OPRINT:            "print",
 	ORANGE:            "range",
 	OREAL:             "real",
@@ -83,7 +83,6 @@ var OpNames = []string{
 	ORSH:              ">>",
 	OSELECT:           "select",
 	OSEND:             "<-",
-	OSIZEOF:           "unsafe.Sizeof",
 	OSUB:              "-",
 	OSWITCH:           "switch",
 	OUNSAFEADD:        "unsafe.Add",
@@ -171,7 +170,6 @@ func fmtNode(n Node, s fmt.State, verb rune) {
 }
 
 var OpPrec = []int{
-	OALIGNOF:          8,
 	OAPPEND:           8,
 	OBYTES2STR:        8,
 	OARRAYLIT:         8,
@@ -182,10 +180,10 @@ var OpPrec = []int{
 	OCALLMETH:         8,
 	OCALL:             8,
 	OCAP:              8,
+	OCLEAR:            8,
 	OCLOSE:            8,
 	OCOMPLIT:          8,
 	OCONVIFACE:        8,
-	OCONVIDATA:        8,
 	OCONVNOP:          8,
 	OCONV:             8,
 	OCOPY:             8,
@@ -197,17 +195,17 @@ var OpPrec = []int{
 	OMAKESLICECOPY:    8,
 	OMAKE:             8,
 	OMAPLIT:           8,
+	OMAX:              8,
+	OMIN:              8,
 	ONAME:             8,
 	ONEW:              8,
 	ONIL:              8,
 	ONONAME:           8,
-	OOFFSETOF:         8,
 	OPANIC:            8,
 	OPAREN:            8,
-	OPRINTN:           8,
+	OPRINTLN:          8,
 	OPRINT:            8,
 	ORUNESTR:          8,
-	OSIZEOF:           8,
 	OSLICE2ARR:        8,
 	OSLICE2ARRPTR:     8,
 	OSTR2BYTES:        8,
@@ -415,6 +413,9 @@ func stmtFmt(n Node, s fmt.State) {
 		}
 
 		fmt.Fprint(s, "for")
+		if n.DistinctVars {
+			fmt.Fprint(s, " /* distinct */")
+		}
 		if simpleinit {
 			fmt.Fprintf(s, " %v;", n.Init()[0])
 		} else if n.Post != nil {
@@ -449,6 +450,9 @@ func stmtFmt(n Node, s fmt.State) {
 			fmt.Fprint(s, " =")
 		}
 		fmt.Fprintf(s, " range %v { %v }", n.X, n.Body)
+		if n.DistinctVars {
+			fmt.Fprint(s, " /* distinct vars */")
+		}
 
 	case OSELECT:
 		n := n.(*SelectStmt)
@@ -515,12 +519,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
 			return
 		}
 
-		// We always want the original, if any.
-		if o := Orig(n); o != n {
-			n = o
-			continue
-		}
-
 		// Skip implicit operations introduced during typechecking.
 		switch nn := n; nn.Op() {
 		case OADDR:
@@ -535,7 +533,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 				n = nn.X
 				continue
 			}
-		case OCONV, OCONVNOP, OCONVIFACE, OCONVIDATA:
+		case OCONV, OCONVNOP, OCONVIFACE:
 			nn := nn.(*ConvExpr)
 			if nn.Implicit() {
 				n = nn.X
@@ -556,11 +554,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		return
 	}
 
-	if n, ok := n.(*RawOrigExpr); ok {
-		fmt.Fprint(s, n.Raw)
-		return
-	}
-
 	switch n.Op() {
 	case OPAREN:
 		n := n.(*ParenExpr)
@@ -569,46 +562,29 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case ONIL:
 		fmt.Fprint(s, "nil")
 
-	case OLITERAL: // this is a bit of a mess
-		if !exportFormat && n.Sym() != nil {
+	case OLITERAL:
+		if n.Sym() != nil {
 			fmt.Fprint(s, n.Sym())
 			return
 		}
 
-		needUnparen := false
-		if n.Type() != nil && !n.Type().IsUntyped() {
-			// Need parens when type begins with what might
-			// be misinterpreted as a unary operator: * or <-.
-			if n.Type().IsPtr() || (n.Type().IsChan() && n.Type().ChanDir() == types.Crecv) {
-				fmt.Fprintf(s, "(%v)(", n.Type())
-			} else {
-				fmt.Fprintf(s, "%v(", n.Type())
-			}
-			needUnparen = true
-		}
+		typ := n.Type()
+		val := n.Val()
 
-		if n.Type() == types.UntypedRune {
-			switch x, ok := constant.Uint64Val(n.Val()); {
-			case !ok:
-				fallthrough
-			default:
-				fmt.Fprintf(s, "('\\x00' + %v)", n.Val())
-
-			case x < utf8.RuneSelf:
+		// Special case for rune constants.
+		if typ == types.RuneType || typ == types.UntypedRune {
+			if x, ok := constant.Uint64Val(val); ok && x <= utf8.MaxRune {
 				fmt.Fprintf(s, "%q", x)
-
-			case x < 1<<16:
-				fmt.Fprintf(s, "'\\u%04x'", x)
-
-			case x <= utf8.MaxRune:
-				fmt.Fprintf(s, "'\\U%08x'", x)
+				return
 			}
-		} else {
-			fmt.Fprint(s, types.FmtConst(n.Val(), s.Flag('#')))
 		}
 
-		if needUnparen {
-			fmt.Fprintf(s, ")")
+		// Only include typ if it's neither the default nor untyped type
+		// for the constant value.
+		if k := val.Kind(); typ == types.Types[types.DefaultKinds[k]] || typ == types.UntypedTypes[k] {
+			fmt.Fprint(s, val)
+		} else {
+			fmt.Fprintf(s, "%v(%v)", typ, val)
 		}
 
 	case ODCLFUNC:
@@ -650,33 +626,17 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		}
 		fmt.Fprintf(s, "%v { %v }", n.Type(), n.Func.Body)
 
-	case OCOMPLIT:
-		n := n.(*CompLitExpr)
-		if !exportFormat {
-			if n.Implicit() {
-				fmt.Fprintf(s, "... argument")
-				return
-			}
-			if typ := n.Type(); typ != nil {
-				fmt.Fprintf(s, "%v{%s}", typ, ellipsisIf(len(n.List) != 0))
-				return
-			}
-			fmt.Fprint(s, "composite literal")
-			return
-		}
-		fmt.Fprintf(s, "(%v{ %.v })", n.Type(), n.List)
-
 	case OPTRLIT:
 		n := n.(*AddrExpr)
 		fmt.Fprintf(s, "&%v", n.X)
 
-	case OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
+	case OCOMPLIT, OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
 		n := n.(*CompLitExpr)
-		if !exportFormat {
-			fmt.Fprintf(s, "%v{%s}", n.Type(), ellipsisIf(len(n.List) != 0))
+		if n.Implicit() {
+			fmt.Fprintf(s, "... argument")
 			return
 		}
-		fmt.Fprintf(s, "(%v{ %.v })", n.Type(), n.List)
+		fmt.Fprintf(s, "%v{%s}", n.Type(), ellipsisIf(len(n.List) != 0))
 
 	case OKEY:
 		n := n.(*KeyExpr)
@@ -747,7 +707,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	case OCONV,
 		OCONVIFACE,
-		OCONVIDATA,
 		OCONVNOP,
 		OBYTES2STR,
 		ORUNES2STR,
@@ -767,22 +726,22 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case OREAL,
 		OIMAG,
 		OCAP,
+		OCLEAR,
 		OCLOSE,
 		OLEN,
 		ONEW,
-		OPANIC,
-		OALIGNOF,
-		OOFFSETOF,
-		OSIZEOF:
+		OPANIC:
 		n := n.(*UnaryExpr)
 		fmt.Fprintf(s, "%v(%v)", n.Op(), n.X)
 
 	case OAPPEND,
 		ODELETE,
 		OMAKE,
+		OMAX,
+		OMIN,
 		ORECOVER,
 		OPRINT,
-		OPRINTN:
+		OPRINTLN:
 		n := n.(*CallExpr)
 		if n.IsDDD {
 			fmt.Fprintf(s, "%v(%.v...)", n.Op(), n.Args)
@@ -792,7 +751,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
 		n := n.(*CallExpr)
-		exprFmt(n.X, s, nprec)
+		exprFmt(n.Fun, s, nprec)
 		if n.IsDDD {
 			fmt.Fprintf(s, "(%.v...)", n.Args)
 			return
@@ -1013,7 +972,7 @@ func dumpNodeHeader(w io.Writer, n Node) {
 			name := strings.TrimSuffix(tf.Name, "_")
 			vf := v.Field(i)
 			vfi := vf.Interface()
-			if name == "Offset" && vfi == types.BADWIDTH || name != "Offset" && isZero(vf) {
+			if name == "Offset" && vfi == types.BADWIDTH || name != "Offset" && vf.IsZero() {
 				continue
 			}
 			if vfi == true {
@@ -1077,15 +1036,15 @@ func dumpNodeHeader(w io.Writer, n Node) {
 		case src.PosIsStmt:
 			fmt.Fprint(w, "+")
 		}
-		for i, pos := range base.Ctxt.AllPos(n.Pos(), nil) {
-			if i > 0 {
-				fmt.Fprint(w, ",")
-			}
+		sep := ""
+		base.Ctxt.AllPos(n.Pos(), func(pos src.Pos) {
+			fmt.Fprint(w, sep)
+			sep = " "
 			// TODO(mdempsky): Print line pragma details too.
 			file := filepath.Base(pos.Filename())
 			// Note: this output will be parsed by ssa/html.go:(*HTMLWriter).WriteAST. Keep in sync.
 			fmt.Fprintf(w, "%s:%d:%d", file, pos.Line(), pos.Col())
-		}
+		})
 	}
 }
 
@@ -1170,11 +1129,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
 				dumpNode(w, cv, depth+1)
 			}
 		}
-		if len(fn.Enter) > 0 {
-			indent(w, depth)
-			fmt.Fprintf(w, "%+v-Enter", n.Op())
-			dumpNodes(w, fn.Enter, depth+1)
-		}
 		if len(fn.Body) > 0 {
 			indent(w, depth)
 			fmt.Fprintf(w, "%+v-body", n.Op())
@@ -1250,42 +1204,5 @@ func dumpNodes(w io.Writer, list Nodes, depth int) {
 
 	for _, n := range list {
 		dumpNode(w, n, depth)
-	}
-}
-
-// reflect.IsZero is not available in Go 1.4 (added in Go 1.13), so we use this copy instead.
-func isZero(v reflect.Value) bool {
-	switch v.Kind() {
-	case reflect.Bool:
-		return !v.Bool()
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return v.Int() == 0
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return v.Uint() == 0
-	case reflect.Float32, reflect.Float64:
-		return math.Float64bits(v.Float()) == 0
-	case reflect.Complex64, reflect.Complex128:
-		c := v.Complex()
-		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
-	case reflect.Array:
-		for i := 0; i < v.Len(); i++ {
-			if !isZero(v.Index(i)) {
-				return false
-			}
-		}
-		return true
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
-		return v.IsNil()
-	case reflect.String:
-		return v.Len() == 0
-	case reflect.Struct:
-		for i := 0; i < v.NumField(); i++ {
-			if !isZero(v.Field(i)) {
-				return false
-			}
-		}
-		return true
-	default:
-		return false
 	}
 }

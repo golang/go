@@ -7,9 +7,7 @@ package run
 
 import (
 	"context"
-	"fmt"
 	"go/build"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -75,10 +73,6 @@ func init() {
 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 
-func printStderr(args ...any) (int, error) {
-	return fmt.Fprint(os.Stderr, args...)
-}
-
 func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	if shouldUseOutsideModuleMode(args) {
 		// Set global module flags for 'go run cmd@version'.
@@ -97,10 +91,9 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	b := work.NewBuilder("")
 	defer func() {
 		if err := b.Close(); err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 	}()
-	b.Print = printStderr
 
 	i := 0
 	for i < len(args) && strings.HasSuffix(args[i], ".go") {
@@ -125,7 +118,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 			var err error
 			pkgs, err = load.PackagesAndErrorsOutsideModule(ctx, pkgOpts, args[:1])
 			if err != nil {
-				base.Fatalf("go: %v", err)
+				base.Fatal(err)
 			}
 		} else {
 			pkgs = load.PackagesAndErrors(ctx, pkgOpts, args[:1])
@@ -208,7 +201,7 @@ func shouldUseOutsideModuleMode(args []string) bool {
 func buildRunProgram(b *work.Builder, ctx context.Context, a *work.Action) error {
 	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].Target, a.Args)
 	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd("", "%s", strings.Join(cmdline, " "))
+		b.Shell(a).ShowCmd("", "%s", strings.Join(cmdline, " "))
 		if cfg.BuildN {
 			return nil
 		}

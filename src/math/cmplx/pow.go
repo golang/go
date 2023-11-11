@@ -43,7 +43,7 @@ import "math"
 //    IEEE      -10,+10     30000       9.4e-15     1.5e-15
 
 // Pow returns x**y, the base-x exponential of y.
-// For generalized compatibility with math.Pow:
+// For generalized compatibility with [math.Pow]:
 //
 //	Pow(0, ±0) returns 1+0i
 //	Pow(0, c) for real(c)<0 returns Inf+0i if imag(c) is zero, otherwise Inf+Inf i.

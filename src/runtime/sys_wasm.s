@@ -86,50 +86,9 @@ TEXT runtime·exitThread(SB), NOSPLIT, $0-0
 TEXT runtime·osyield(SB), NOSPLIT, $0-0
 	UNDEF
 
-TEXT runtime·usleep(SB), NOSPLIT, $0-0
-	RET // TODO(neelance): implement usleep
-
-TEXT runtime·currentMemory(SB), NOSPLIT, $0
-	Get SP
-	CurrentMemory
-	I32Store ret+0(FP)
-	RET
-
 TEXT runtime·growMemory(SB), NOSPLIT, $0
 	Get SP
 	I32Load pages+0(FP)
 	GrowMemory
 	I32Store ret+8(FP)
-	RET
-
-TEXT ·resetMemoryDataView(SB), NOSPLIT, $0
-	CallImport
-	RET
-
-TEXT ·wasmExit(SB), NOSPLIT, $0
-	CallImport
-	RET
-
-TEXT ·wasmWrite(SB), NOSPLIT, $0
-	CallImport
-	RET
-
-TEXT ·nanotime1(SB), NOSPLIT, $0
-	CallImport
-	RET
-
-TEXT ·walltime(SB), NOSPLIT, $0
-	CallImport
-	RET
-
-TEXT ·scheduleTimeoutEvent(SB), NOSPLIT, $0
-	CallImport
-	RET
-
-TEXT ·clearTimeoutEvent(SB), NOSPLIT, $0
-	CallImport
-	RET
-
-TEXT ·getRandomData(SB), NOSPLIT, $0
-	CallImport
 	RET

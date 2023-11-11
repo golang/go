@@ -10,6 +10,7 @@ package sha1
 
 import (
 	"crypto"
+	"crypto/internal/boring"
 	"encoding/binary"
 	"errors"
 	"hash"
@@ -104,11 +105,11 @@ func (d *digest) Reset() {
 }
 
 // New returns a new hash.Hash computing the SHA1 checksum. The Hash also
-// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
+// implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
 // marshal and unmarshal the internal state of the hash.
 func New() hash.Hash {
-	if boringEnabled {
-		return boringNewSHA1()
+	if boring.Enabled {
+		return boring.NewSHA1()
 	}
 	d := new(digest)
 	d.Reset()
@@ -120,7 +121,7 @@ func (d *digest) Size() int { return Size }
 func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
-	boringUnreachable()
+	boring.Unreachable()
 	nn = len(p)
 	d.len += uint64(nn)
 	if d.nx > 0 {
@@ -144,7 +145,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 }
 
 func (d *digest) Sum(in []byte) []byte {
-	boringUnreachable()
+	boring.Unreachable()
 	// Make a copy of d so that caller can keep writing and summing.
 	d0 := *d
 	hash := d0.checkSum()
@@ -184,7 +185,7 @@ func (d *digest) checkSum() [Size]byte {
 	return digest
 }
 
-// ConstantTimeSum computes the same result of Sum() but in constant time
+// ConstantTimeSum computes the same result of [Sum] but in constant time
 func (d *digest) ConstantTimeSum(in []byte) []byte {
 	d0 := *d
 	hash := d0.constSum()
@@ -254,8 +255,8 @@ func (d *digest) constSum() [Size]byte {
 
 // Sum returns the SHA-1 checksum of the data.
 func Sum(data []byte) [Size]byte {
-	if boringEnabled {
-		return boringSHA1(data)
+	if boring.Enabled {
+		return boring.SHA1(data)
 	}
 	var d digest
 	d.Reset()

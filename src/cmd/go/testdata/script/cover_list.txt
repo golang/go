@@ -16,6 +16,28 @@ go install m/example
 # with -cover.
 stale -cover m/example
 
+# Collect build ID from for m/example built with -cover.
+go list -cover -export -f '{{.BuildID}}' m/example
+cp stdout $WORK/listbuildid.txt
+
+# Now build the m/example binary with coverage.
+go build -cover -o $WORK/m.exe m/example
+
+# Ask for the binary build ID by running "go tool buildid".
+go tool buildid $WORK/m.exe
+cp stdout $WORK/rawtoolbuildid.txt
+
+# Make sure that the two build IDs agree with respect to the
+# m/example package. Build IDs from binaries are of the form X/Y/Z/W
+# where Y/Z is the package build ID; running the program below will
+# pick out the parts of the ID that we want.
+env GOCOVERDIR=$WORK
+exec $WORK/m.exe $WORK/rawtoolbuildid.txt
+cp stdout $WORK/toolbuildid.txt
+
+# Build IDs should match here.
+cmp $WORK/toolbuildid.txt $WORK/listbuildid.txt
+
 -- go.mod --
 module m
 
@@ -23,6 +45,21 @@ go 1.20
 -- example/main.go --
 package main
 
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
 func main() {
-     println("hi mom")
+	println(os.Args[1])
+	content, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		os.Exit(1)
+	}
+	fields := strings.Split(strings.TrimSpace(string(content)), "/")
+	if len(fields) != 4 {
+		os.Exit(2)
+	}
+	fmt.Println(fields[1] + "/" + fields[2])
 }

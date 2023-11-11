@@ -2,38 +2,37 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package atomic defines an Analyzer that checks for common mistakes
-// using the sync/atomic package.
 package atomic
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/token"
-	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
-const Doc = `check for common mistakes using the sync/atomic package
-
-The atomic checker looks for assignment statements of the form:
-
-	x = atomic.AddUint64(&x, 1)
-
-which are not atomic.`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:             "atomic",
-	Doc:              Doc,
+	Doc:              analysisutil.MustExtractDoc(doc, "atomic"),
+	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/atomic",
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,
 	Run:              run,
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	if !analysisutil.Imports(pass.Pkg, "sync/atomic") {
+		return nil, nil // doesn't directly import sync/atomic
+	}
+
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -53,18 +52,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			if !ok {
 				continue
 			}
-			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok {
-				continue
-			}
-			pkgIdent, _ := sel.X.(*ast.Ident)
-			pkgName, ok := pass.TypesInfo.Uses[pkgIdent].(*types.PkgName)
-			if !ok || pkgName.Imported().Path() != "sync/atomic" {
-				continue
-			}
-
-			switch sel.Sel.Name {
-			case "AddInt32", "AddInt64", "AddUint32", "AddUint64", "AddUintptr":
+			fn := typeutil.StaticCallee(pass.TypesInfo, call)
+			if analysisutil.IsFunctionNamed(fn, "sync/atomic", "AddInt32", "AddInt64", "AddUint32", "AddUint64", "AddUintptr") {
 				checkAtomicAddAssignment(pass, n.Lhs[i], call)
 			}
 		}

@@ -84,6 +84,13 @@ func (v *Value) AuxInt8() int8 {
 	return int8(v.AuxInt)
 }
 
+func (v *Value) AuxUInt8() uint8 {
+	if opcodeTable[v.Op].auxType != auxUInt8 {
+		v.Fatalf("op %s doesn't have a uint8 aux field", v.Op)
+	}
+	return uint8(v.AuxInt)
+}
+
 func (v *Value) AuxInt16() int16 {
 	if opcodeTable[v.Op].auxType != auxInt16 {
 		v.Fatalf("op %s doesn't have an int16 aux field", v.Op)
@@ -190,6 +197,8 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" [%d]", v.AuxInt32())
 	case auxInt64, auxInt128:
 		return fmt.Sprintf(" [%d]", v.AuxInt)
+	case auxUInt8:
+		return fmt.Sprintf(" [%d]", v.AuxUInt8())
 	case auxARM64BitField:
 		lsb := v.AuxArm64BitField().getARM64BFlsb()
 		width := v.AuxArm64BitField().getARM64BFwidth()
@@ -202,6 +211,7 @@ func (v *Value) auxString() string {
 		if v.Aux != nil {
 			return fmt.Sprintf(" {%v}", v.Aux)
 		}
+		return ""
 	case auxSymOff, auxCallOff, auxTypSize, auxNameOffsetInt8:
 		s := ""
 		if v.Aux != nil {
@@ -223,8 +233,12 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" {%v}", v.Aux)
 	case auxFlagConstant:
 		return fmt.Sprintf("[%s]", flagConstant(v.AuxInt))
+	case auxNone:
+		return ""
+	default:
+		// If you see this, add a case above instead.
+		return fmt.Sprintf("[auxtype=%d AuxInt=%d Aux=%v]", opcodeTable[v.Op].auxType, v.AuxInt, v.Aux)
 	}
-	return ""
 }
 
 // If/when midstack inlining is enabled (-l=4), the compiler gets both larger and slower.
@@ -538,7 +552,11 @@ func (v *Value) LackingPos() bool {
 // if its use count drops to 0.
 func (v *Value) removeable() bool {
 	if v.Type.IsVoid() {
-		// Void ops, like nil pointer checks, must stay.
+		// Void ops (inline marks), must stay.
+		return false
+	}
+	if opcodeTable[v.Op].nilCheck {
+		// Nil pointer checks must stay.
 		return false
 	}
 	if v.Type.IsMemory() {
@@ -554,9 +572,6 @@ func (v *Value) removeable() bool {
 	return true
 }
 
-// TODO(mdempsky): Shouldn't be necessary; see discussion at golang.org/cl/275756
-func (*Value) CanBeAnSSAAux() {}
-
 // AutoVar returns a *Name and int64 representing the auto variable and offset within it
 // where v should be spilled.
 func AutoVar(v *Value) (*ir.Name, int64) {
@@ -569,4 +584,37 @@ func AutoVar(v *Value) (*ir.Name, int64) {
 	// Assume it is a register, return its spill slot, which needs to be live
 	nameOff := v.Aux.(*AuxNameOffset)
 	return nameOff.Name, nameOff.Offset
+}
+
+// CanSSA reports whether values of type t can be represented as a Value.
+func CanSSA(t *types.Type) bool {
+	types.CalcSize(t)
+	if t.Size() > int64(4*types.PtrSize) {
+		// 4*Widthptr is an arbitrary constant. We want it
+		// to be at least 3*Widthptr so slices can be registerized.
+		// Too big and we'll introduce too much register pressure.
+		return false
+	}
+	switch t.Kind() {
+	case types.TARRAY:
+		// We can't do larger arrays because dynamic indexing is
+		// not supported on SSA variables.
+		// TODO: allow if all indexes are constant.
+		if t.NumElem() <= 1 {
+			return CanSSA(t.Elem())
+		}
+		return false
+	case types.TSTRUCT:
+		if t.NumFields() > MaxStruct {
+			return false
+		}
+		for _, t1 := range t.Fields() {
+			if !CanSSA(t1.Type) {
+				return false
+			}
+		}
+		return true
+	default:
+		return true
+	}
 }

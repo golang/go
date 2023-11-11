@@ -5,8 +5,10 @@
 // Package elliptic implements the standard NIST P-224, P-256, P-384, and P-521
 // elliptic curves over prime fields.
 //
-// The P224(), P256(), P384() and P521() values are necessary to use the crypto/ecdsa package.
-// Most other uses should migrate to the more efficient and safer crypto/ecdh package.
+// Direct use of this package is deprecated, beyond the [P224], [P256], [P384],
+// and [P521] values necessary to use [crypto/ecdsa]. Most other uses
+// should migrate to the more efficient and safer [crypto/ecdh], or to
+// third-party modules for lower-level functionality.
 package elliptic
 
 import (
@@ -22,31 +24,34 @@ import (
 //
 // Note that the conventional point at infinity (0, 0) is not considered on the
 // curve, although it can be returned by Add, Double, ScalarMult, or
-// ScalarBaseMult (but not the Unmarshal or UnmarshalCompressed functions).
+// ScalarBaseMult (but not the [Unmarshal] or [UnmarshalCompressed] functions).
+//
+// Using Curve implementations besides those returned by [P224], [P256], [P384],
+// and [P521] is deprecated.
 type Curve interface {
 	// Params returns the parameters for the curve.
 	Params() *CurveParams
 
 	// IsOnCurve reports whether the given (x,y) lies on the curve.
 	//
-	// Note: this is a low-level unsafe API. For ECDH, use the crypto/ecdh
+	// Deprecated: this is a low-level unsafe API. For ECDH, use the crypto/ecdh
 	// package. The NewPublicKey methods of NIST curves in crypto/ecdh accept
 	// the same encoding as the Unmarshal function, and perform on-curve checks.
 	IsOnCurve(x, y *big.Int) bool
 
 	// Add returns the sum of (x1,y1) and (x2,y2).
 	//
-	// Note: this is a low-level unsafe API.
+	// Deprecated: this is a low-level unsafe API.
 	Add(x1, y1, x2, y2 *big.Int) (x, y *big.Int)
 
 	// Double returns 2*(x,y).
 	//
-	// Note: this is a low-level unsafe API.
+	// Deprecated: this is a low-level unsafe API.
 	Double(x1, y1 *big.Int) (x, y *big.Int)
 
 	// ScalarMult returns k*(x,y) where k is an integer in big-endian form.
 	//
-	// Note: this is a low-level unsafe API. For ECDH, use the crypto/ecdh
+	// Deprecated: this is a low-level unsafe API. For ECDH, use the crypto/ecdh
 	// package. Most uses of ScalarMult can be replaced by a call to the ECDH
 	// methods of NIST curves in crypto/ecdh.
 	ScalarMult(x1, y1 *big.Int, k []byte) (x, y *big.Int)
@@ -54,7 +59,7 @@ type Curve interface {
 	// ScalarBaseMult returns k*G, where G is the base point of the group
 	// and k is an integer in big-endian form.
 	//
-	// Note: this is a low-level unsafe API. For ECDH, use the crypto/ecdh
+	// Deprecated: this is a low-level unsafe API. For ECDH, use the crypto/ecdh
 	// package. Most uses of ScalarBaseMult can be replaced by a call to the
 	// PrivateKey.PublicKey method in crypto/ecdh.
 	ScalarBaseMult(k []byte) (x, y *big.Int)
@@ -65,7 +70,7 @@ var mask = []byte{0xff, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f}
 // GenerateKey returns a public/private key pair. The private key is
 // generated using the given reader, which must return random data.
 //
-// Note: for ECDH, use the GenerateKey methods of the crypto/ecdh package;
+// Deprecated: for ECDH, use the GenerateKey methods of the [crypto/ecdh] package;
 // for ECDSA, use the GenerateKey function of the crypto/ecdsa package.
 func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err error) {
 	N := curve.Params().N
@@ -99,7 +104,7 @@ func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err e
 // SEC 1, Version 2.0, Section 2.3.3. If the point is not on the curve (or is
 // the conventional point at infinity), the behavior is undefined.
 //
-// Note: for ECDH, use the crypto/ecdh package. This function returns an
+// Deprecated: for ECDH, use the crypto/ecdh package. This function returns an
 // encoding equivalent to that of PublicKey.Bytes in crypto/ecdh.
 func Marshal(curve Curve, x, y *big.Int) []byte {
 	panicIfNotOnCurve(curve, x, y)
@@ -139,11 +144,11 @@ type unmarshaler interface {
 // Assert that the known curves implement unmarshaler.
 var _ = []unmarshaler{p224, p256, p384, p521}
 
-// Unmarshal converts a point, serialized by Marshal, into an x, y pair. It is
+// Unmarshal converts a point, serialized by [Marshal], into an x, y pair. It is
 // an error if the point is not in uncompressed form, is not on the curve, or is
 // the point at infinity. On error, x = nil.
 //
-// Note: for ECDH, use the crypto/ecdh package. This function accepts an
+// Deprecated: for ECDH, use the crypto/ecdh package. This function accepts an
 // encoding equivalent to that of the NewPublicKey methods in crypto/ecdh.
 func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 	if c, ok := curve.(unmarshaler); ok {
@@ -169,7 +174,7 @@ func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 	return
 }
 
-// UnmarshalCompressed converts a point, serialized by MarshalCompressed, into
+// UnmarshalCompressed converts a point, serialized by [MarshalCompressed], into
 // an x, y pair. It is an error if the point is not in compressed form, is not
 // on the curve, or is the point at infinity. On error, x = nil.
 func UnmarshalCompressed(curve Curve, data []byte) (x, y *big.Int) {
@@ -225,8 +230,8 @@ func initAll() {
 	initP521()
 }
 
-// P224 returns a Curve which implements NIST P-224 (FIPS 186-3, section D.2.2),
-// also known as secp224r1. The CurveParams.Name of this Curve is "P-224".
+// P224 returns a [Curve] which implements NIST P-224 (FIPS 186-3, section D.2.2),
+// also known as secp224r1. The CurveParams.Name of this [Curve] is "P-224".
 //
 // Multiple invocations of this function will return the same value, so it can
 // be used for equality checks and switch statements.
@@ -237,8 +242,8 @@ func P224() Curve {
 	return p224
 }
 
-// P256 returns a Curve which implements NIST P-256 (FIPS 186-3, section D.2.3),
-// also known as secp256r1 or prime256v1. The CurveParams.Name of this Curve is
+// P256 returns a [Curve] which implements NIST P-256 (FIPS 186-3, section D.2.3),
+// also known as secp256r1 or prime256v1. The CurveParams.Name of this [Curve] is
 // "P-256".
 //
 // Multiple invocations of this function will return the same value, so it can
@@ -250,8 +255,8 @@ func P256() Curve {
 	return p256
 }
 
-// P384 returns a Curve which implements NIST P-384 (FIPS 186-3, section D.2.4),
-// also known as secp384r1. The CurveParams.Name of this Curve is "P-384".
+// P384 returns a [Curve] which implements NIST P-384 (FIPS 186-3, section D.2.4),
+// also known as secp384r1. The CurveParams.Name of this [Curve] is "P-384".
 //
 // Multiple invocations of this function will return the same value, so it can
 // be used for equality checks and switch statements.
@@ -262,8 +267,8 @@ func P384() Curve {
 	return p384
 }
 
-// P521 returns a Curve which implements NIST P-521 (FIPS 186-3, section D.2.5),
-// also known as secp521r1. The CurveParams.Name of this Curve is "P-521".
+// P521 returns a [Curve] which implements NIST P-521 (FIPS 186-3, section D.2.5),
+// also known as secp521r1. The CurveParams.Name of this [Curve] is "P-521".
 //
 // Multiple invocations of this function will return the same value, so it can
 // be used for equality checks and switch statements.

@@ -1,4 +1,3 @@
-[!net] skip
 env GO111MODULE=off
 
 # Issue 17119: Test more duplicate load errors.

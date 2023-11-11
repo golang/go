@@ -18,6 +18,7 @@ import (
 	"crypto/internal/edwards25519"
 	cryptorand "crypto/rand"
 	"crypto/sha512"
+	"crypto/subtle"
 	"errors"
 	"io"
 	"strconv"
@@ -46,7 +47,7 @@ func (pub PublicKey) Equal(x crypto.PublicKey) bool {
 	if !ok {
 		return false
 	}
-	return bytes.Equal(pub, xx)
+	return subtle.ConstantTimeCompare(pub, xx) == 1
 }
 
 // PrivateKey is the type of Ed25519 private keys. It implements [crypto.Signer].
@@ -65,7 +66,7 @@ func (priv PrivateKey) Equal(x crypto.PrivateKey) bool {
 	if !ok {
 		return false
 	}
-	return bytes.Equal(priv, xx)
+	return subtle.ConstantTimeCompare(priv, xx) == 1
 }
 
 // Seed returns the private key seed corresponding to priv. It is provided for
@@ -75,7 +76,7 @@ func (priv PrivateKey) Seed() []byte {
 	return bytes.Clone(priv[:SeedSize])
 }
 
-// Sign signs the given message with priv. rand is ignored.
+// Sign signs the given message with priv. rand is ignored and can be nil.
 //
 // If opts.HashFunc() is [crypto.SHA512], the pre-hashed variant Ed25519ph is used
 // and message is expected to be a SHA-512 hash, otherwise opts.HashFunc() must
@@ -90,18 +91,21 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	if opts, ok := opts.(*Options); ok {
 		context = opts.Context
 	}
-	if l := len(context); l > 255 {
-		return nil, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
-	}
 	switch {
 	case hash == crypto.SHA512: // Ed25519ph
 		if l := len(message); l != sha512.Size {
 			return nil, errors.New("ed25519: bad Ed25519ph message hash length: " + strconv.Itoa(l))
 		}
+		if l := len(context); l > 255 {
+			return nil, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
+		}
 		signature := make([]byte, SignatureSize)
 		sign(signature, priv, message, domPrefixPh, context)
 		return signature, nil
 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
+		if l := len(context); l > 255 {
+			return nil, errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
+		}
 		signature := make([]byte, SignatureSize)
 		sign(signature, priv, message, domPrefixCtx, context)
 		return signature, nil
@@ -128,6 +132,9 @@ func (o *Options) HashFunc() crypto.Hash { return o.Hash }
 
 // GenerateKey generates a public/private key pair using entropy from rand.
 // If rand is nil, [crypto/rand.Reader] will be used.
+//
+// The output of this function is deterministic, and equivalent to reading
+// [SeedSize] bytes from rand, and passing them to [NewKeyFromSeed].
 func GenerateKey(rand io.Reader) (PublicKey, PrivateKey, error) {
 	if rand == nil {
 		rand = cryptorand.Reader

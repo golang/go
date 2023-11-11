@@ -13,9 +13,11 @@ lable2:
 	BFPF	1(PC)			// 00040048
 	BFPF	lable2	// BFPF 4 	// 1ffcff4b
 
-	JMP	foo(SB)			// 00100050
+	// relocation in play so the assembled offset should be 0
+	JMP	foo(SB)			// 00000050
+
 	JMP	(R4)			// 8000004c
-	JMP	1(PC)			// 00040058
+	JMP	1(PC)			// 00040050
 	MOVW	$65536, R4		// 04020014
 	MOVW	$4096, R4		// 24000014
 	MOVV	$65536, R4		// 04020014
@@ -114,7 +116,13 @@ lable2:
 	ROTRV	$4, R4			// 84104d00
 	SYSCALL				// 00002b00
 	BEQ	R4, R5, 1(PC)		// 85040058
-	BEQ	R4, 1(PC)		// 80040058
+	BEQ	R4, 1(PC)		// 80040040
+	BEQ	R4, R0, 1(PC)		// 80040040
+	BEQ	R0, R4, 1(PC)		// 80040040
+	BNE	R4, R5, 1(PC)		// 8504005c
+	BNE	R4, 1(PC)		// 80040044
+	BNE	R4, R0, 1(PC)		// 80040044
+	BNE	R0, R4, 1(PC)		// 80040044
 	BLTU	R4, 1(PC)		// 80040068
 	MOVW	y+8(FP), F4		// 6440002b
 	MOVF	y+8(FP), F4		// 6440002b
@@ -218,3 +226,10 @@ lable2:
 	CMPGEF	F4, R5			// a090130c
 	CMPGED	F4, R5			// a090230c
 	CMPEQD	F4, R5			// a010220c
+
+	RDTIMELW R4, R0			// 80600000
+	RDTIMEHW R4, R0			// 80640000
+	RDTIMED  R4, R5			// 85680000
+
+	MOVV    FCC0, R4		// 04dc1401
+	MOVV    R4, FCC0		// 80d81401

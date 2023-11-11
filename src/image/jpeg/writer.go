@@ -12,14 +12,6 @@ import (
 	"io"
 )
 
-// min returns the minimum of two integers.
-func min(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
-}
-
 // div returns a/b rounded to the nearest integer, instead of rounded to zero.
 func div(a, b int32) int32 {
 	if a >= 0 {
@@ -571,7 +563,7 @@ type Options struct {
 }
 
 // Encode writes the Image m to w in JPEG 4:2:0 baseline format with the given
-// options. Default parameters are used if a nil *Options is passed.
+// options. Default parameters are used if a nil *[Options] is passed.
 func Encode(w io.Writer, m image.Image, o *Options) error {
 	b := m.Bounds()
 	if b.Dx() >= 1<<16 || b.Dy() >= 1<<16 {

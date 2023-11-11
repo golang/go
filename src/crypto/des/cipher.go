@@ -25,7 +25,7 @@ type desCipher struct {
 	subkeys [16]uint64
 }
 
-// NewCipher creates and returns a new cipher.Block.
+// NewCipher creates and returns a new [cipher.Block].
 func NewCipher(key []byte) (cipher.Block, error) {
 	if len(key) != 8 {
 		return nil, KeySizeError(len(key))
@@ -48,7 +48,7 @@ func (c *desCipher) Encrypt(dst, src []byte) {
 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/des: invalid buffer overlap")
 	}
-	encryptBlock(c.subkeys[:], dst, src)
+	cryptBlock(c.subkeys[:], dst, src, false)
 }
 
 func (c *desCipher) Decrypt(dst, src []byte) {
@@ -61,7 +61,7 @@ func (c *desCipher) Decrypt(dst, src []byte) {
 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/des: invalid buffer overlap")
 	}
-	decryptBlock(c.subkeys[:], dst, src)
+	cryptBlock(c.subkeys[:], dst, src, true)
 }
 
 // A tripleDESCipher is an instance of TripleDES encryption.
@@ -69,7 +69,7 @@ type tripleDESCipher struct {
 	cipher1, cipher2, cipher3 desCipher
 }
 
-// NewTripleDESCipher creates and returns a new cipher.Block.
+// NewTripleDESCipher creates and returns a new [cipher.Block].
 func NewTripleDESCipher(key []byte) (cipher.Block, error) {
 	if len(key) != 24 {
 		return nil, KeySizeError(len(key))

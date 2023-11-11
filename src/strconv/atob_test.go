@@ -39,19 +39,19 @@ func TestParseBool(t *testing.T) {
 		if test.err != nil {
 			// expect an error
 			if e == nil {
-				t.Errorf("%s: expected %s but got nil", test.in, test.err)
+				t.Errorf("ParseBool(%s) = nil; want %s", test.in, test.err)
 			} else {
 				// NumError assertion must succeed; it's the only thing we return.
-				if test.err != e.(*NumError).Err {
-					t.Errorf("%s: expected %s but got %s", test.in, test.err, e)
+				if e.(*NumError).Err != test.err {
+					t.Errorf("ParseBool(%s) = %s; want %s", test.in, e, test.err)
 				}
 			}
 		} else {
 			if e != nil {
-				t.Errorf("%s: expected no error but got %s", test.in, e)
+				t.Errorf("ParseBool(%s) = %s; want nil", test.in, e)
 			}
 			if b != test.out {
-				t.Errorf("%s: expected %t but got %t", test.in, test.out, b)
+				t.Errorf("ParseBool(%s) = %t; want %t", test.in, b, test.out)
 			}
 		}
 	}
@@ -65,7 +65,7 @@ var boolString = map[bool]string{
 func TestFormatBool(t *testing.T) {
 	for b, s := range boolString {
 		if f := FormatBool(b); f != s {
-			t.Errorf(`FormatBool(%v): expected %q but got %q`, b, s, f)
+			t.Errorf("FormatBool(%v) = %q; want %q", b, f, s)
 		}
 	}
 }
@@ -85,7 +85,7 @@ func TestAppendBool(t *testing.T) {
 	for _, test := range appendBoolTests {
 		b := AppendBool(test.in, test.b)
 		if !bytes.Equal(b, test.out) {
-			t.Errorf("AppendBool(%q, %v): expected %q but got %q", test.in, test.b, test.out, b)
+			t.Errorf("AppendBool(%q, %v) = %q; want %q", test.in, test.b, b, test.out)
 		}
 	}
 }

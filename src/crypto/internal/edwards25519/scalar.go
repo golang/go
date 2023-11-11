@@ -104,7 +104,7 @@ func (s *Scalar) Set(x *Scalar) *Scalar {
 // If x is not of the right length, SetUniformBytes returns nil and an error,
 // and the receiver is unchanged.
 //
-// SetUniformBytes can be used to set s to an uniformly distributed value given
+// SetUniformBytes can be used to set s to a uniformly distributed value given
 // 64 uniformly distributed random bytes.
 func (s *Scalar) SetUniformBytes(x []byte) (*Scalar, error) {
 	if len(x) != 64 {

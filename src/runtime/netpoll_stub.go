@@ -9,7 +9,6 @@ package runtime
 import "runtime/internal/atomic"
 
 var netpollInited atomic.Uint32
-var netpollWaiters atomic.Uint32
 
 var netpollStubLock mutex
 var netpollNote note
@@ -34,7 +33,7 @@ func netpollBreak() {
 
 // Polls for ready network connections.
 // Returns list of goroutines that become runnable.
-func netpoll(delay int64) gList {
+func netpoll(delay int64) (gList, int32) {
 	// Implementation for platforms that do not support
 	// integrated network poller.
 	if delay != 0 {
@@ -53,9 +52,16 @@ func netpoll(delay int64) gList {
 		// (eg when running TestNetpollBreak).
 		osyield()
 	}
-	return gList{}
+	return gList{}, 0
 }
 
 func netpollinited() bool {
 	return netpollInited.Load() != 0
+}
+
+func netpollAnyWaiters() bool {
+	return false
+}
+
+func netpollAdjustWaiters(delta int32) {
 }

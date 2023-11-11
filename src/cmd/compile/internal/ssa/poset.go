@@ -56,7 +56,7 @@ const (
 )
 
 // posetUndo represents an undo pass to be performed.
-// It's an union of fields that can be used to store information,
+// It's a union of fields that can be used to store information,
 // and typ is the discriminant, that specifies which kind
 // of operation must be performed. Not all fields are always used.
 type posetUndo struct {
@@ -122,7 +122,7 @@ type posetNode struct {
 // poset is implemented as a forest of DAGs; in each DAG, if there is a path (directed)
 // from node A to B, it means that A<B (or A<=B). Equality is represented by mapping
 // two SSA values to the same DAG node; when a new equality relation is recorded
-// between two existing nodes,the nodes are merged, adjusting incoming and outgoing edges.
+// between two existing nodes, the nodes are merged, adjusting incoming and outgoing edges.
 //
 // Constants are specially treated. When a constant is added to the poset, it is
 // immediately linked to other constants already present; so for instance if the
@@ -964,7 +964,7 @@ func (po *poset) NonEqual(n1, n2 *Value) bool {
 		return false
 	}
 
-	// Check if we recored inequality
+	// Check if we recorded inequality
 	if po.isnoneq(i1, i2) {
 		return true
 	}
@@ -1065,7 +1065,7 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
 				return true
 			}
 
-			// Case #1, #3 o #4: nothing to do
+			// Case #1, #3, or #4: nothing to do
 			return true
 		}
 
@@ -1166,7 +1166,7 @@ func (po *poset) SetEqual(n1, n2 *Value) bool {
 		}
 
 		// If we already knew that n1<=n2, we can collapse the path to
-		// record n1==n2 (and viceversa).
+		// record n1==n2 (and vice versa).
 		if po.reaches(i1, i2, false) {
 			return po.collapsepath(n1, n2)
 		}

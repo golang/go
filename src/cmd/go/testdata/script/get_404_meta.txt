@@ -1,12 +1,9 @@
 # golang.org/issue/13037: 'go get' was not parsing <meta> tags in 404 served over HTTPS.
 
-[!net] skip
+[!net:bazil.org] skip
 [!git] skip
 
 env GONOSUMDB=bazil.org,github.com,golang.org
-env GO111MODULE=off
-go get -d bazil.org/fuse/fs/fstestutil
-
 env GO111MODULE=on
 env GOPROXY=direct
 go get bazil.org/fuse/fs/fstestutil

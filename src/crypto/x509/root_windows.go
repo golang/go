@@ -7,6 +7,7 @@ package x509
 import (
 	"bytes"
 	"errors"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -44,7 +45,7 @@ func createStoreContext(leaf *Certificate, opts *VerifyOptions) (*syscall.CertCo
 
 	if opts.Intermediates != nil {
 		for i := 0; i < opts.Intermediates.len(); i++ {
-			intermediate, err := opts.Intermediates.cert(i)
+			intermediate, _, err := opts.Intermediates.cert(i)
 			if err != nil {
 				return nil, err
 			}
@@ -109,7 +110,7 @@ func checkChainTrustStatus(c *Certificate, chainCtx *syscall.CertChainContext) e
 // checkChainSSLServerPolicy checks that the certificate chain in chainCtx is valid for
 // use as a certificate chain for a SSL/TLS server.
 func checkChainSSLServerPolicy(c *Certificate, chainCtx *syscall.CertChainContext, opts *VerifyOptions) error {
-	servernamep, err := syscall.UTF16PtrFromString(opts.DNSName)
+	servernamep, err := syscall.UTF16PtrFromString(strings.TrimSuffix(opts.DNSName, "."))
 	if err != nil {
 		return err
 	}

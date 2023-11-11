@@ -607,8 +607,14 @@ func (fi headerFileInfo) Mode() (mode fs.FileMode) {
 	return mode
 }
 
+func (fi headerFileInfo) String() string {
+	return fs.FormatFileInfo(fi)
+}
+
 // sysStat, if non-nil, populates h from system-dependent fields of fi.
 var sysStat func(fi fs.FileInfo, h *Header) error
+
+var loadUidAndGid func(fi fs.FileInfo, uid, gid *int)
 
 const (
 	// Mode constants from the USTAR spec:
@@ -628,13 +634,17 @@ const (
 	c_ISSOCK = 0140000 // Socket
 )
 
-// FileInfoHeader creates a partially-populated Header from fi.
+// FileInfoHeader creates a partially-populated [Header] from fi.
 // If fi describes a symlink, FileInfoHeader records link as the link target.
 // If fi describes a directory, a slash is appended to the name.
 //
 // Since fs.FileInfo's Name method only returns the base name of
 // the file it describes, it may be necessary to modify Header.Name
 // to provide the full path name of the file.
+//
+// If fi implements [FileInfoNames]
+// the Gname and Uname of the header are
+// provided by the methods of the interface.
 func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 	if fi == nil {
 		return nil, errors.New("archive/tar: FileInfo is nil")
@@ -707,10 +717,36 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 			}
 		}
 	}
+	if iface, ok := fi.(FileInfoNames); ok {
+		var err error
+		if loadUidAndGid != nil {
+			loadUidAndGid(fi, &h.Uid, &h.Gid)
+		}
+		h.Gname, err = iface.Gname(h.Gid)
+		if err != nil {
+			return nil, err
+		}
+		h.Uname, err = iface.Uname(h.Uid)
+		if err != nil {
+			return nil, err
+		}
+		return h, nil
+	}
 	if sysStat != nil {
 		return h, sysStat(fi, h)
 	}
 	return h, nil
+}
+
+// FileInfoNames extends [FileInfo] to translate UID/GID to names.
+// Passing an instance of this to [FileInfoHeader] permits the caller
+// to control UID/GID resolution.
+type FileInfoNames interface {
+	fs.FileInfo
+	// Uname should translate a UID into a user name.
+	Uname(uid int) (string, error)
+	// Gname should translate a GID into a group name.
+	Gname(gid int) (string, error)
 }
 
 // isHeaderOnlyType checks if the given type flag is of the type that has no
@@ -722,11 +758,4 @@ func isHeaderOnlyType(flag byte) bool {
 	default:
 		return false
 	}
-}
-
-func min(a, b int64) int64 {
-	if a < b {
-		return a
-	}
-	return b
 }

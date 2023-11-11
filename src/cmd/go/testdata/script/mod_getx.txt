@@ -1,5 +1,4 @@
-[short] skip
-[!net] skip
+[!net:golang.org] skip
 [!git] skip
 
 env GO111MODULE=on

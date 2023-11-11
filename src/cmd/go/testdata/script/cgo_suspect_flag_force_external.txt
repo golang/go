@@ -1,0 +1,201 @@
+# Test case to verify that when we have a package that uses CGO in
+# combination with selected "unusual" flags (involving plugins, LTO)
+# that we force external linking.  See related
+# issues 58619,  58620, and 58848.
+
+[compiler:gccgo] skip # only external linking for gccgo
+
+[!cgo] skip 'test verifies behavior that depends on CGO_CFLAGS'
+[mustlinkext] skip 'test expects internal linking for non-cgo programs'
+
+# Here we build three program: one with explicit CGO use, one with no
+# CGO use, and one that uses a stdlib package ("runtime/cgo") that has
+# CGO in it. It used to be that only the explicit use of CGO would
+# trigger external linking, and that the program that only used
+# "runtime/cgo" would always be handled with internal linking. This caused
+# issues when users included odd/unusual flags (ex: -fplugin, -flto)
+# in CGO_CFLAGS, causing the Go linker to have to read and interpret
+# non-standard host objects.
+#
+# As of 1.21 we continue to use internal linking for programs whose
+# CGO use comes only from stdlib packages in the absence of any flag
+# funny business, however if the Go command sees flags that may be suspicious,
+# it signals the Go linker to invoke the external linker.
+
+# The next few tests run builds passing "-n" to the Go command, then
+# checking the output to see if the Go command is trying to pass a
+# "preferlinkext" token to the linker to request external linking.
+
+#-----------------------
+
+# Use a fresh GOCACHE for these next steps, so as to have the real
+# actions for the runtime/cgo package appear in the "-n -x" output.
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
+# First build: there is no CGO in use, so no token should be present regardless
+# of weird CGO flags.
+go build -x -n -o dummy.exe ./noUseOfCgo
+! stderr preferlinkext
+env CGO_CFLAGS=-flto
+go build -x -n -o dummy.exe ./noUseOfCgo
+! stderr preferlinkext
+env CGO_CFLAGS=
+
+# Second build uses CGO, so we expect to see the token present in the
+# -n output only when strange flags are used.
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+env CGO_CFLAGS=-flto
+go build -x -n -o dummy.exe ./usesInternalCgo
+stderr preferlinkext
+env CGO_CFLAGS=-fplugin
+go build -x -n -o dummy.exe ./usesInternalCgo
+stderr preferlinkext
+env CGO_CFLAGS=-fprofile-instr-generate
+go build -x -n -o dummy.exe ./usesInternalCgo
+stderr preferlinkext
+
+# The -fdebug-prefix-map=path is permitted for internal linking.
+env CGO_CFLAGS=-fdebug-prefix-map=/some/sandbox/execroot/workspace=/tmp/new
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+env CGO_CFLAGS=-fdebug-prefix-map=/Users/someone/.cache/bazel/_bazel_someone/3fa7e4650c43657ead684537951f49e2/sandbox/linux-sandbox/10/execroot/rules_go_static=.
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+# The -ffile-prefix-map=path is permitted for internal linking too.
+env CGO_CFLAGS=-ffile-prefix-map=/Users/someone/.cache/bazel/_bazel_someone/3fa7e4650c43657ead684537951f49e2/sandbox/linux-sandbox/10/execroot/rules_go_static/bazel-out/aarch64-fastbuild-ST-b33d65c724e6/bin/external/io_bazel_rules_go/stdlib_=.
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+# Verifying that -fdebug-prefix-map=path, -ffile-prefix-map, -no-canonical-prefixes
+# and -fno-canonical-systemd-headers are permitted for internal linking.
+env CGO_CFLAGS=-fdebug-prefix-map=old=/tmp/new
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+env CGO_CFLAGS=-ffile-prefix-map=/Users/someone/_11233/things=new
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+env CGO_CFLAGS=-no-canonical-prefixes
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+env CGO_CFLAGS=-fno-canonical-system-headers
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+env CGO_CFLAGS=
+
+[short] skip
+
+# In the remaining tests below we do actual builds (without -n) to
+# verify that the Go linker is going the right thing in addition to the
+# Go command. Here the idea is to pass "-tmpdir" to the linker, then
+# check after the link is done for the presence of the file
+# <tmpdir>/go.o, which the Go linker creates prior to kicking off the
+# external linker.
+
+mkdir tmp1
+mkdir tmp2
+mkdir tmp3
+mkdir tmp4
+mkdir tmp5
+
+# First build: no external linking expected
+go build -ldflags=-tmpdir=tmp1 -o $devnull ./noUseOfCgo &
+
+# Second build: using only "runtime/cgo", expect internal linking.
+go build -ldflags=-tmpdir=tmp2 -o $devnull ./usesInternalCgo &
+
+# Third build: program uses only "runtime/cgo", so we would normally
+# expect internal linking, except that cflags contain suspicious entries
+# (in this case, a flag that does not appear on the allow list).
+env CGO_CFLAGS=-fmerge-all-constants
+env CGO_LDFLAGS=-fmerge-all-constants
+go build -ldflags=-tmpdir=tmp3 -o $devnull ./usesInternalCgo &
+env CGO_CFLAGS=
+env CGO_LDFLAGS=
+
+# Fourth build: explicit CGO, expect external linking.
+go build -ldflags=-tmpdir=tmp4 -o $devnull ./usesExplicitCgo &
+
+# Fifth build: explicit CGO, but we specifically asked for internal linking
+# via a flag, so using internal linking it is.
+[cgolinkext] go list ./usesInternalCgo
+[!cgolinkext] go build '-ldflags=-tmpdir=tmp5 -linkmode=internal' -o $devnull ./usesInternalCgo &
+
+# Sixth build: explicit CGO use in a non-main package.
+go build -o p.a ./nonMainPackageUsesExplicitCgo &
+
+wait
+
+# Check first build: no external linking expected
+! exists tmp1/go.o
+
+# Check second build: using only "runtime/cgo", expect internal linking.
+[!cgolinkext] ! exists tmp2/go.o
+[cgolinkext] exists tmp2/go.o
+
+# Check third build: has suspicious flag.
+exists tmp3/go.o
+
+# Fourth build: explicit CGO, expect external linking.
+exists tmp4/go.o
+
+# Fifth build: explicit CGO, -linkmode=internal.
+! exists tmp5/go.o
+
+# Sixth build: make sure that "go tool nm" doesn't get confused
+# by the presence of the "preferlinkext" sentinel.
+go tool nm p.a
+
+-- go.mod --
+
+module cgo.example
+
+go 1.20
+
+-- noUseOfCgo/main.go --
+
+package main
+
+func main() {
+	println("clean as a whistle")
+}
+
+-- usesInternalCgo/main.go --
+
+package main
+
+import (
+	"runtime/cgo"
+)
+
+func main() {
+	q := "hello"
+	h := cgo.NewHandle(q)
+	h.Delete()
+}
+
+-- usesExplicitCgo/main.go --
+
+package main
+
+/*
+int meaningOfLife() { return 42; }
+*/
+import "C"
+
+func main() {
+     println(C.meaningOfLife())
+}
+
+-- nonMainPackageUsesExplicitCgo/main.go --
+
+package p
+
+/*
+int meaningOfLife() { return 42; }
+*/
+import "C"
+
+func PrintIt() {
+     println(C.meaningOfLife())
+}

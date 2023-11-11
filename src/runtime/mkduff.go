@@ -66,7 +66,7 @@ func zeroAMD64(w io.Writer) {
 	// X15: zero
 	// DI: ptr to memory to be zeroed
 	// DI is updated as a side effect.
-	fmt.Fprintln(w, "TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 16; i++ {
 		fmt.Fprintln(w, "\tMOVUPS\tX15,(DI)")
 		fmt.Fprintln(w, "\tMOVUPS\tX15,16(DI)")
@@ -85,7 +85,7 @@ func copyAMD64(w io.Writer) {
 	//
 	// This is equivalent to a sequence of MOVSQ but
 	// for some reason that is 3.5x slower than this code.
-	fmt.Fprintln(w, "TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 64; i++ {
 		fmt.Fprintln(w, "\tMOVUPS\t(SI), X0")
 		fmt.Fprintln(w, "\tADDQ\t$16, SI")
@@ -179,11 +179,11 @@ func copyARM64(w io.Writer) {
 
 func zeroLOONG64(w io.Writer) {
 	// R0: always zero
-	// R19 (aka REGRT1): ptr to memory to be zeroed - 8
+	// R19 (aka REGRT1): ptr to memory to be zeroed
 	// On return, R19 points to the last zeroed dword.
 	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOVV\tR0, 8(R19)")
+		fmt.Fprintln(w, "\tMOVV\tR0, (R19)")
 		fmt.Fprintln(w, "\tADDV\t$8, R19")
 	}
 	fmt.Fprintln(w, "\tRET")

@@ -900,6 +900,7 @@ func testResumption(t *testing.T, version uint16) {
 	}
 
 	testResumeState := func(test string, didResume bool) {
+		t.Helper()
 		_, hs, err := testHandshake(t, clientConfig, serverConfig)
 		if err != nil {
 			t.Fatalf("%s: handshake failed: %s", test, err)
@@ -916,14 +917,14 @@ func testResumption(t *testing.T, version uint16) {
 	}
 
 	getTicket := func() []byte {
-		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.sessionTicket
+		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.ticket
 	}
 	deleteTicket := func() {
 		ticketKey := clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).sessionKey
 		clientConfig.ClientSessionCache.Put(ticketKey, nil)
 	}
 	corruptTicket := func() {
-		clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.masterSecret[0] ^= 0xff
+		clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.session.secret[0] ^= 0xff
 	}
 	randomKey := func() [32]byte {
 		var k [32]byte
@@ -936,21 +937,20 @@ func testResumption(t *testing.T, version uint16) {
 	testResumeState("Handshake", false)
 	ticket := getTicket()
 	testResumeState("Resume", true)
-	if !bytes.Equal(ticket, getTicket()) && version != VersionTLS13 {
-		t.Fatal("first ticket doesn't match ticket after resumption")
-	}
-	if bytes.Equal(ticket, getTicket()) && version == VersionTLS13 {
+	if bytes.Equal(ticket, getTicket()) {
 		t.Fatal("ticket didn't change after resumption")
 	}
 
-	// An old session ticket can resume, but the server will provide a ticket encrypted with a fresh key.
+	// An old session ticket is replaced with a ticket encrypted with a fresh key.
+	ticket = getTicket()
 	serverConfig.Time = func() time.Time { return time.Now().Add(24*time.Hour + time.Minute) }
 	testResumeState("ResumeWithOldTicket", true)
-	if bytes.Equal(ticket[:ticketKeyNameLen], getTicket()[:ticketKeyNameLen]) {
+	if bytes.Equal(ticket, getTicket()) {
 		t.Fatal("old first ticket matches the fresh one")
 	}
 
-	// Now the session tickey key is expired, so a full handshake should occur.
+	// Once the session master secret is expired, a full handshake should occur.
+	ticket = getTicket()
 	serverConfig.Time = func() time.Time { return time.Now().Add(24*8*time.Hour + time.Minute) }
 	testResumeState("ResumeWithExpiredTicket", false)
 	if bytes.Equal(ticket, getTicket()) {
@@ -986,9 +986,11 @@ func testResumption(t *testing.T, version uint16) {
 
 	// Age the session ticket a bit at a time, but don't expire it.
 	d := 0 * time.Hour
+	serverConfig.Time = func() time.Time { return time.Now().Add(d) }
+	deleteTicket()
+	testResumeState("GetFreshSessionTicket", false)
 	for i := 0; i < 13; i++ {
 		d += 12 * time.Hour
-		serverConfig.Time = func() time.Time { return time.Now().Add(d) }
 		testResumeState("OldSessionTicket", true)
 	}
 	// Expire it (now a little more than 7 days) and make sure a full
@@ -996,7 +998,6 @@ func testResumption(t *testing.T, version uint16) {
 	// TLS 1.3 since the client should be using a fresh ticket sent over
 	// by the server.
 	d += 12 * time.Hour
-	serverConfig.Time = func() time.Time { return time.Now().Add(d) }
 	if version == VersionTLS13 {
 		testResumeState("ExpiredSessionTicket", true)
 	} else {
@@ -1028,6 +1029,27 @@ func testResumption(t *testing.T, version uint16) {
 	deleteTicket()
 	testResumeState("WithoutSessionTicket", false)
 
+	// In TLS 1.3, HelloRetryRequest is sent after incorrect key share.
+	// See https://www.rfc-editor.org/rfc/rfc8446#page-14.
+	if version == VersionTLS13 {
+		deleteTicket()
+		serverConfig = &Config{
+			// Use a different curve than the client to force a HelloRetryRequest.
+			CurvePreferences: []CurveID{CurveP521, CurveP384, CurveP256},
+			MaxVersion:       version,
+			Certificates:     testConfig.Certificates,
+		}
+		testResumeState("InitialHandshake", false)
+		testResumeState("WithHelloRetryRequest", true)
+
+		// Reset serverConfig back.
+		serverConfig = &Config{
+			MaxVersion:   version,
+			CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
+			Certificates: testConfig.Certificates,
+		}
+	}
+
 	// Session resumption should work when using client certificates
 	deleteTicket()
 	serverConfig.ClientCAs = rootCAs
@@ -1049,6 +1071,47 @@ func testResumption(t *testing.T, version uint16) {
 
 	clientConfig.ClientSessionCache = nil
 	testResumeState("WithoutSessionCache", false)
+
+	clientConfig.ClientSessionCache = &serializingClientCache{t: t}
+	testResumeState("BeforeSerializingCache", false)
+	testResumeState("WithSerializingCache", true)
+}
+
+type serializingClientCache struct {
+	t *testing.T
+
+	ticket, state []byte
+}
+
+func (c *serializingClientCache) Get(sessionKey string) (session *ClientSessionState, ok bool) {
+	if c.ticket == nil {
+		return nil, false
+	}
+	state, err := ParseSessionState(c.state)
+	if err != nil {
+		c.t.Error(err)
+		return nil, false
+	}
+	cs, err := NewResumptionState(c.ticket, state)
+	if err != nil {
+		c.t.Error(err)
+		return nil, false
+	}
+	return cs, true
+}
+
+func (c *serializingClientCache) Put(sessionKey string, cs *ClientSessionState) {
+	ticket, state, err := cs.ResumptionState()
+	if err != nil {
+		c.t.Error(err)
+		return
+	}
+	stateBytes, err := state.Bytes()
+	if err != nil {
+		c.t.Error(err)
+		return
+	}
+	c.ticket, c.state = ticket, stateBytes
 }
 
 func TestLRUClientSessionCache(t *testing.T) {
@@ -1257,7 +1320,7 @@ func TestServerSelectingUnconfiguredApplicationProtocol(t *testing.T) {
 		cipherSuite:  TLS_RSA_WITH_AES_128_GCM_SHA256,
 		alpnProtocol: "how-about-this",
 	}
-	serverHelloBytes := serverHello.marshal()
+	serverHelloBytes := mustMarshal(t, serverHello)
 
 	s.Write([]byte{
 		byte(recordTypeHandshake),
@@ -1500,7 +1563,7 @@ func TestServerSelectingUnconfiguredCipherSuite(t *testing.T) {
 		random:      make([]byte, 32),
 		cipherSuite: TLS_RSA_WITH_AES_256_GCM_SHA384,
 	}
-	serverHelloBytes := serverHello.marshal()
+	serverHelloBytes := mustMarshal(t, serverHello)
 
 	s.Write([]byte{
 		byte(recordTypeHandshake),
@@ -2593,5 +2656,146 @@ func TestClientHandshakeContextCancellation(t *testing.T) {
 	err = cli.Close()
 	if err == nil {
 		t.Error("Client connection was not closed when the context was canceled")
+	}
+}
+
+// TestTLS13OnlyClientHelloCipherSuite tests that when a client states that
+// it only supports TLS 1.3, it correctly advertises only TLS 1.3 ciphers.
+func TestTLS13OnlyClientHelloCipherSuite(t *testing.T) {
+	tls13Tests := []struct {
+		name    string
+		ciphers []uint16
+	}{
+		{
+			name:    "nil",
+			ciphers: nil,
+		},
+		{
+			name:    "empty",
+			ciphers: []uint16{},
+		},
+		{
+			name:    "some TLS 1.2 cipher",
+			ciphers: []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+		},
+		{
+			name:    "some TLS 1.3 cipher",
+			ciphers: []uint16{TLS_AES_128_GCM_SHA256},
+		},
+		{
+			name:    "some TLS 1.2 and 1.3 ciphers",
+			ciphers: []uint16{TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_AES_256_GCM_SHA384},
+		},
+	}
+	for _, tt := range tls13Tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			testTLS13OnlyClientHelloCipherSuite(t, tt.ciphers)
+		})
+	}
+}
+
+func testTLS13OnlyClientHelloCipherSuite(t *testing.T, ciphers []uint16) {
+	serverConfig := &Config{
+		Certificates: testConfig.Certificates,
+		GetConfigForClient: func(chi *ClientHelloInfo) (*Config, error) {
+			if len(chi.CipherSuites) != len(defaultCipherSuitesTLS13NoAES) {
+				t.Errorf("only TLS 1.3 suites should be advertised, got=%x", chi.CipherSuites)
+			} else {
+				for i := range defaultCipherSuitesTLS13NoAES {
+					if want, got := defaultCipherSuitesTLS13NoAES[i], chi.CipherSuites[i]; want != got {
+						t.Errorf("cipher at index %d does not match, want=%x, got=%x", i, want, got)
+					}
+				}
+			}
+			return nil, nil
+		},
+	}
+	clientConfig := &Config{
+		MinVersion:         VersionTLS13, // client only supports TLS 1.3
+		CipherSuites:       ciphers,
+		InsecureSkipVerify: true,
+	}
+	if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+}
+
+// discardConn wraps a net.Conn but discards all writes, but reports that they happened.
+type discardConn struct {
+	net.Conn
+}
+
+func (dc *discardConn) Write(data []byte) (int, error) {
+	return len(data), nil
+}
+
+// largeRSAKeyCertPEM contains a 8193 bit RSA key
+const largeRSAKeyCertPEM = `-----BEGIN CERTIFICATE-----
+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
+u58=
+-----END CERTIFICATE-----`
+
+func TestHandshakeRSATooBig(t *testing.T) {
+	testCert, _ := pem.Decode([]byte(largeRSAKeyCertPEM))
+
+	c := &Conn{conn: &discardConn{}, config: testConfig.Clone()}
+
+	expectedErr := "tls: server sent certificate containing RSA key larger than 8192 bits"
+	err := c.verifyServerCertificate([][]byte{testCert.Bytes})
+	if err == nil || err.Error() != expectedErr {
+		t.Errorf("Conn.verifyServerCertificate unexpected error: want %q, got %q", expectedErr, err)
+	}
+
+	expectedErr = "tls: client sent certificate containing RSA key larger than 8192 bits"
+	err = c.processCertsFromClient(Certificate{Certificate: [][]byte{testCert.Bytes}})
+	if err == nil || err.Error() != expectedErr {
+		t.Errorf("Conn.processCertsFromClient unexpected error: want %q, got %q", expectedErr, err)
 	}
 }

@@ -6,16 +6,60 @@ package net
 
 import (
 	"context"
+	"internal/bytealg"
+	"internal/godebug"
 	"internal/nettrace"
 	"syscall"
 	"time"
 )
 
-// defaultTCPKeepAlive is a default constant value for TCPKeepAlive times
-// See golang.org/issue/31510
 const (
+	// defaultTCPKeepAlive is a default constant value for TCPKeepAlive times
+	// See go.dev/issue/31510
 	defaultTCPKeepAlive = 15 * time.Second
+
+	// For the moment, MultiPath TCP is not used by default
+	// See go.dev/issue/56539
+	defaultMPTCPEnabled = false
 )
+
+var multipathtcp = godebug.New("multipathtcp")
+
+// mptcpStatus is a tristate for Multipath TCP, see go.dev/issue/56539
+type mptcpStatus uint8
+
+const (
+	// The value 0 is the system default, linked to defaultMPTCPEnabled
+	mptcpUseDefault mptcpStatus = iota
+	mptcpEnabled
+	mptcpDisabled
+)
+
+func (m *mptcpStatus) get() bool {
+	switch *m {
+	case mptcpEnabled:
+		return true
+	case mptcpDisabled:
+		return false
+	}
+
+	// If MPTCP is forced via GODEBUG=multipathtcp=1
+	if multipathtcp.Value() == "1" {
+		multipathtcp.IncNonDefault()
+
+		return true
+	}
+
+	return defaultMPTCPEnabled
+}
+
+func (m *mptcpStatus) set(use bool) {
+	if use {
+		*m = mptcpEnabled
+	} else {
+		*m = mptcpDisabled
+	}
+}
 
 // A Dialer contains options for connecting to an address.
 //
@@ -92,7 +136,7 @@ type Dialer struct {
 	// If Control is not nil, it is called after creating the network
 	// connection but before actually dialing.
 	//
-	// Network and address parameters passed to Control method are not
+	// Network and address parameters passed to Control function are not
 	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
 	// will cause the Control function to be called with "tcp4" or "tcp6".
 	//
@@ -102,12 +146,17 @@ type Dialer struct {
 	// If ControlContext is not nil, it is called after creating the network
 	// connection but before actually dialing.
 	//
-	// Network and address parameters passed to Control method are not
+	// Network and address parameters passed to ControlContext function are not
 	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
-	// will cause the Control function to be called with "tcp4" or "tcp6".
+	// will cause the ControlContext function to be called with "tcp4" or "tcp6".
 	//
 	// If ControlContext is not nil, Control is ignored.
 	ControlContext func(ctx context.Context, network, address string, c syscall.RawConn) error
+
+	// If mptcpStatus is set to a value allowing Multipath TCP (MPTCP) to be
+	// used, any call to Dial with "tcp(4|6)" as network will use MPTCP if
+	// supported by the operating system.
+	mptcpStatus mptcpStatus
 }
 
 func (d *Dialer) dualStack() bool { return d.FallbackDelay >= 0 }
@@ -178,7 +227,7 @@ func (d *Dialer) fallbackDelay() time.Duration {
 }
 
 func parseNetwork(ctx context.Context, network string, needsProto bool) (afnet string, proto int, err error) {
-	i := last(network, ':')
+	i := bytealg.LastIndexByteString(network, ':')
 	if i < 0 { // no colon
 		switch network {
 		case "tcp", "tcp4", "tcp6":
@@ -279,6 +328,24 @@ func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string
 		return nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: hint.String()}
 	}
 	return naddrs, nil
+}
+
+// MultipathTCP reports whether MPTCP will be used.
+//
+// This method doesn't check if MPTCP is supported by the operating
+// system or not.
+func (d *Dialer) MultipathTCP() bool {
+	return d.mptcpStatus.get()
+}
+
+// SetMultipathTCP directs the Dial methods to use, or not use, MPTCP,
+// if supported by the operating system. This method overrides the
+// system default and the GODEBUG=multipathtcp=... setting if any.
+//
+// If MPTCP is not available on the host or not supported by the server,
+// the Dial methods will fall back to TCP.
+func (d *Dialer) SetMultipathTCP(use bool) {
+	d.mptcpStatus.set(use)
 }
 
 // Dial connects to the address on the named network.
@@ -391,6 +458,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 	}
 	deadline := d.deadline(ctx, time.Now())
 	if !deadline.IsZero() {
+		testHookStepTime()
 		if d, ok := ctx.Deadline(); !ok || deadline.Before(d) {
 			subCtx, cancel := context.WithDeadline(ctx, deadline)
 			defer cancel()
@@ -577,7 +645,11 @@ func (sd *sysDialer) dialSingle(ctx context.Context, ra Addr) (c Conn, err error
 	switch ra := ra.(type) {
 	case *TCPAddr:
 		la, _ := la.(*TCPAddr)
-		c, err = sd.dialTCP(ctx, la, ra)
+		if sd.MultipathTCP() {
+			c, err = sd.dialMPTCP(ctx, la, ra)
+		} else {
+			c, err = sd.dialTCP(ctx, la, ra)
+		}
 	case *UDPAddr:
 		la, _ := la.(*UDPAddr)
 		c, err = sd.dialUDP(ctx, la, ra)
@@ -613,6 +685,29 @@ type ListenConfig struct {
 	// that do not support keep-alives ignore this field.
 	// If negative, keep-alives are disabled.
 	KeepAlive time.Duration
+
+	// If mptcpStatus is set to a value allowing Multipath TCP (MPTCP) to be
+	// used, any call to Listen with "tcp(4|6)" as network will use MPTCP if
+	// supported by the operating system.
+	mptcpStatus mptcpStatus
+}
+
+// MultipathTCP reports whether MPTCP will be used.
+//
+// This method doesn't check if MPTCP is supported by the operating
+// system or not.
+func (lc *ListenConfig) MultipathTCP() bool {
+	return lc.mptcpStatus.get()
+}
+
+// SetMultipathTCP directs the Listen method to use, or not use, MPTCP,
+// if supported by the operating system. This method overrides the
+// system default and the GODEBUG=multipathtcp=... setting if any.
+//
+// If MPTCP is not available on the host or not supported by the client,
+// the Listen method will fall back to TCP.
+func (lc *ListenConfig) SetMultipathTCP(use bool) {
+	lc.mptcpStatus.set(use)
 }
 
 // Listen announces on the local network address.
@@ -633,7 +728,11 @@ func (lc *ListenConfig) Listen(ctx context.Context, network, address string) (Li
 	la := addrs.first(isIPv4)
 	switch la := la.(type) {
 	case *TCPAddr:
-		l, err = sl.listenTCP(ctx, la)
+		if sl.MultipathTCP() {
+			l, err = sl.listenMPTCP(ctx, la)
+		} else {
+			l, err = sl.listenTCP(ctx, la)
+		}
 	case *UnixAddr:
 		l, err = sl.listenUnix(ctx, la)
 	default:

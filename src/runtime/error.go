@@ -30,18 +30,18 @@ func (*TypeAssertionError) RuntimeError() {}
 func (e *TypeAssertionError) Error() string {
 	inter := "interface"
 	if e._interface != nil {
-		inter = e._interface.string()
+		inter = toRType(e._interface).string()
 	}
-	as := e.asserted.string()
+	as := toRType(e.asserted).string()
 	if e.concrete == nil {
 		return "interface conversion: " + inter + " is nil, not " + as
 	}
-	cs := e.concrete.string()
+	cs := toRType(e.concrete).string()
 	if e.missingMethod == "" {
 		msg := "interface conversion: " + inter + " is " + cs + ", not " + as
 		if cs == as {
 			// provide slightly clearer error message
-			if e.concrete.pkgpath() != e.asserted.pkgpath() {
+			if toRType(e.concrete).pkgpath() != toRType(e.asserted).pkgpath() {
 				msg += " (types from different packages)"
 			} else {
 				msg += " (types from different scopes)"
@@ -93,7 +93,7 @@ func (e errorAddressString) Error() string {
 // The address provided is best-effort.
 // The veracity of the result may depend on the platform.
 // Errors providing this method will only be returned as
-// a result of using runtime/debug.SetPanicOnFault.
+// a result of using [runtime/debug.SetPanicOnFault].
 func (e errorAddressString) Addr() uintptr {
 	return e.addr
 }
@@ -256,9 +256,9 @@ func printany(i any) {
 
 func printanycustomtype(i any) {
 	eface := efaceOf(&i)
-	typestring := eface._type.string()
+	typestring := toRType(eface._type).string()
 
-	switch eface._type.kind {
+	switch eface._type.Kind_ {
 	case kindString:
 		print(typestring, `("`, *(*string)(eface.data), `")`)
 	case kindBool:
@@ -304,7 +304,7 @@ func printanycustomtype(i any) {
 // It is called from the generated wrapper code.
 func panicwrap() {
 	pc := getcallerpc()
-	name := funcname(findfunc(pc))
+	name := funcNameForPrint(funcname(findfunc(pc)))
 	// name is something like "main.(*T).F".
 	// We want to extract pkg ("main"), typ ("T"), and meth ("F").
 	// Do it by finding the parens.

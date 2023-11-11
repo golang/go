@@ -1,0 +1,32 @@
+[!exec:/bin/sh] skip
+
+chmod 0777 go1.999999-/run.sh
+chmod 0777 run.sh
+
+! go list all
+! stdout 'RAN SCRIPT'
+
+cd subdir
+! go list all
+! stdout 'RAN SCRIPT'
+
+-- go.mod --
+module exploit
+
+go 1.21
+toolchain go1.999999-/run.sh
+-- go1.999999-/run.sh --
+#!/bin/sh
+printf 'RAN SCRIPT\n'
+exit 1
+-- run.sh --
+#!/bin/sh
+printf 'RAN SCRIPT\n'
+exit 1
+-- subdir/go.mod --
+module exploit
+
+go 1.21
+toolchain go1.999999-/../../run.sh
+-- subdir/go1.999999-/README.txt --
+heh heh heh

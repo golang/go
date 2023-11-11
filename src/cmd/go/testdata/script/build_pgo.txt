@@ -1,16 +1,21 @@
 # Test go build -pgo flag.
 # Specifically, the build cache handles profile content correctly.
 
-# this test rebuild runtime with different flags, skip in short mode
-[short] skip
+[short] skip 'compiles and links executables'
 
 # build without PGO
 go build triv.go
 
 # build with PGO, should trigger rebuild
 # starting with an empty profile (the compiler accepts it)
-go build -x -pgo=prof triv.go
+go build -x -pgo=prof -o triv.exe triv.go
 stderr 'compile.*-pgoprofile=.*prof.*triv.go'
+
+# check that PGO appears in build info
+# N.B. we can't start the stdout check with -pgo because the script assumes that
+# if the first arg starts with - it is a grep flag.
+go version -m triv.exe
+stdout 'build\s+-pgo=.*'${/}'prof'
 
 # store the build ID
 go list -export -json=BuildID -pgo=prof triv.go
@@ -18,7 +23,7 @@ stdout '"BuildID":' # check that output actually contains a build ID
 cp stdout list.out
 
 # build again with the same profile, should be cached
-go build -x -pgo=prof triv.go
+go build -x -pgo=prof -o triv.exe triv.go
 ! stderr 'compile.*triv.go'
 
 # check that the build ID is the same
@@ -35,6 +40,13 @@ stderr 'compile.*-pgoprofile=.*prof.*p.go'
 # check that the build ID is different
 go list -export -json=BuildID -pgo=prof triv.go
 ! cmp stdout list.out
+
+# build with trimpath, buildinfo path should be trimmed
+go build -x -pgo=prof -trimpath -o triv.exe triv.go
+
+# check that path is trimmed
+go version -m triv.exe
+stdout 'build\s+-pgo=prof'
 
 -- prof --
 -- triv.go --

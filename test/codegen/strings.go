@@ -14,6 +14,11 @@ func CountRunes(s string) int { // Issue #24923
 	return len([]rune(s))
 }
 
+func CountBytes(s []byte) int {
+	// amd64:-`.*runtime.slicebytetostring`
+	return len(string(s))
+}
+
 func ToByteSlice() []byte { // Issue #24698
 	// amd64:`LEAQ\ttype:\[3\]uint8`
 	// amd64:`CALL\truntime\.newobject`
@@ -60,6 +65,16 @@ func ConstantLoad() {
 	// 1650538808 = 0x62613938
 	// amd64:`MOVQ\t\$3978425819141910832`,`MOVL\t\$1650538808`
 	bsink = []byte("0123456789ab")
+}
+
+// self-equality is always true. See issue 60777.
+func EqualSelf(s string) bool {
+	// amd64:`MOVL\t\$1, AX`,-`.*memequal.*`
+	return s == s
+}
+func NotEqualSelf(s string) bool {
+	// amd64:`XORL\tAX, AX`,-`.*memequal.*`
+	return s != s
 }
 
 var bsink []byte

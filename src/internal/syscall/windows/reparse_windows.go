@@ -12,13 +12,14 @@ import (
 const (
 	FSCTL_SET_REPARSE_POINT    = 0x000900A4
 	IO_REPARSE_TAG_MOUNT_POINT = 0xA0000003
+	IO_REPARSE_TAG_DEDUP       = 0x80000013
 
 	SYMLINK_FLAG_RELATIVE = 1
 )
 
 // These structures are described
-// in https://msdn.microsoft.com/en-us/library/cc232007.aspx
-// and https://msdn.microsoft.com/en-us/library/cc232006.aspx.
+// in https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/ca069dad-ed16-42aa-b057-b6b207f447cc
+// and https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/b41f1cbf-10df-4a47-98d4-1c52a833d913.
 
 type REPARSE_DATA_BUFFER struct {
 	ReparseTag        uint32

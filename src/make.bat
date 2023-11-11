@@ -39,6 +39,10 @@
 
 :: Keep environment variables within this script
 :: unless invoked with --no-local.
+if x%1==x-no-local goto nolocal
+if x%2==x-no-local goto nolocal
+if x%3==x-no-local goto nolocal
+if x%4==x-no-local goto nolocal
 if x%1==x--no-local goto nolocal
 if x%2==x--no-local goto nolocal
 if x%3==x--no-local goto nolocal
@@ -73,7 +77,10 @@ if not exist ..\bin\tool mkdir ..\bin\tool
 if not "x%GOROOT_BOOTSTRAP%"=="x" goto bootstrapset
 for /f "tokens=*" %%g in ('where go 2^>nul') do (
 	if "x%GOROOT_BOOTSTRAP%"=="x" (
-		for /f "tokens=*" %%i in ('%%g env GOROOT 2^>nul') do (
+		setlocal
+		call :nogoenv
+		for /f "tokens=*" %%i in ('"%%g" env GOROOT 2^>nul') do (
+			endlocal
 			if /I not "%%i"=="%GOROOT_TEMP%" (
 				set GOROOT_BOOTSTRAP=%%i
 			)
@@ -81,7 +88,7 @@ for /f "tokens=*" %%g in ('where go 2^>nul') do (
 	)
 )
 
-set bootgo=1.17.13
+set bootgo=1.20.6
 if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\go%bootgo%" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\go%bootgo%
 if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\sdk\go%bootgo%" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\sdk\go%bootgo%
 if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
@@ -92,18 +99,13 @@ set GOROOT=%GOROOT_TEMP%
 set GOROOT_TEMP=
 
 setlocal
-set GOOS=
-set GOARCH=
-set GOEXPERIMENT=
+call :nogoenv
 for /f "tokens=*" %%g IN ('"%GOROOT_BOOTSTRAP%\bin\go" version') do (set GOROOT_BOOTSTRAP_VERSION=%%g)
 set GOROOT_BOOTSTRAP_VERSION=%GOROOT_BOOTSTRAP_VERSION:go version =%
 echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%. (%GOROOT_BOOTSTRAP_VERSION%)
 if x%vflag==x-v echo cmd/dist
 set GOROOT=%GOROOT_BOOTSTRAP%
 set GOBIN=
-set GO111MODULE=off
-set GOENV=off
-set GOFLAGS=
 "%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist
 endlocal
 if errorlevel 1 goto fail
@@ -113,20 +115,40 @@ call .\env.bat
 del env.bat
 if x%vflag==x-v echo.
 
+if x%1==x-dist-tool goto copydist
+if x%2==x-dist-tool goto copydist
+if x%3==x-dist-tool goto copydist
+if x%4==x-dist-tool goto copydist
 if x%1==x--dist-tool goto copydist
 if x%2==x--dist-tool goto copydist
 if x%3==x--dist-tool goto copydist
 if x%4==x--dist-tool goto copydist
 
 set bootstrapflags=
-if x%1==x--no-clean set bootstrapflags=--no-clean
-if x%2==x--no-clean set bootstrapflags=--no-clean
-if x%3==x--no-clean set bootstrapflags=--no-clean
-if x%4==x--no-clean set bootstrapflags=--no-clean
-if x%1==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
-if x%2==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
-if x%3==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
-if x%4==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
+if x%1==x-no-clean set bootstrapflags=-no-clean
+if x%2==x-no-clean set bootstrapflags=-no-clean
+if x%3==x-no-clean set bootstrapflags=-no-clean
+if x%4==x-no-clean set bootstrapflags=-no-clean
+if x%1==x--no-clean set bootstrapflags=-no-clean
+if x%2==x--no-clean set bootstrapflags=-no-clean
+if x%3==x--no-clean set bootstrapflags=-no-clean
+if x%4==x--no-clean set bootstrapflags=-no-clean
+if x%1==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%2==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%3==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%4==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%1==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%2==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%3==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%4==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%1==x-distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%2==x-distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%3==x-distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%4==x-distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%1==x--distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%2==x--distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%3==x--distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%4==x--distpack set bootstrapflags=%bootstrapflags% -distpack
 
 :: Run dist bootstrap to complete make.bash.
 :: Bootstrap installs a proper cmd/dist, built with the new toolchain.
@@ -134,7 +156,7 @@ if x%4==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
 .\cmd\dist\dist.exe bootstrap -a %vflag% %bootstrapflags%
 if errorlevel 1 goto fail
 del .\cmd\dist\dist.exe
-goto end
+goto :eof
 
 :: DO NOT ADD ANY NEW CODE HERE.
 :: The bootstrap+del above are the final step of make.bat.
@@ -145,7 +167,16 @@ goto end
 :copydist
 mkdir "%GOTOOLDIR%" 2>NUL
 copy cmd\dist\dist.exe "%GOTOOLDIR%\"
-goto end
+goto :eof
+
+:nogoenv
+set GO111MODULE=off
+set GOENV=off
+set GOOS=
+set GOARCH=
+set GOEXPERIMENT=
+set GOFLAGS=
+goto :eof
 
 :bootstrapfail
 echo ERROR: Cannot find %GOROOT_BOOTSTRAP%\bin\go.exe
@@ -154,5 +185,3 @@ echo Set GOROOT_BOOTSTRAP to a working Go tree ^>= Go %bootgo%.
 :fail
 set GOBUILDFAIL=1
 if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
-
-:end

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/abi"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -33,8 +34,6 @@ func checkGdbEnvironment(t *testing.T) {
 		t.Skip("gdb does not work on darwin")
 	case "netbsd":
 		t.Skip("gdb does not work with threads on NetBSD; see https://golang.org/issue/22893 and https://gnats.netbsd.org/52548")
-	case "windows":
-		t.Skip("gdb tests fail on Windows: https://golang.org/issue/22687")
 	case "linux":
 		if runtime.GOARCH == "ppc64" {
 			t.Skip("skipping gdb tests on linux/ppc64; see https://golang.org/issue/17366")
@@ -86,8 +85,9 @@ func checkGdbPython(t *testing.T) {
 	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
 		t.Skip("skipping gdb python tests on illumos and solaris; see golang.org/issue/20821")
 	}
-
-	cmd := exec.Command("gdb", "-nx", "-q", "--batch", "-iex", "python import sys; print('go gdb python support')")
+	args := []string{"-nx", "-q", "--batch", "-iex", "python import sys; print('go gdb python support')"}
+	gdbArgsFixup(args)
+	cmd := exec.Command("gdb", args...)
 	out, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -114,13 +114,16 @@ func checkCleanBacktrace(t *testing.T, backtrace string) {
 	// TODO(mundaym): check for unknown frames (e.g. "??").
 }
 
-const helloSource = `
+// NOTE: the maps below are allocated larger than abi.MapBucketCount
+// to ensure that they are not "optimized out".
+
+var helloSource = `
 import "fmt"
 import "runtime"
 var gslice []string
 func main() {
-	mapvar := make(map[string]string, 13)
-	slicemap := make(map[string][]string,11)
+	mapvar := make(map[string]string, ` + strconv.FormatInt(abi.MapBucketCount+9, 10) + `)
+	slicemap := make(map[string][]string,` + strconv.FormatInt(abi.MapBucketCount+3, 10) + `)
     chanint := make(chan int, 10)
     chanstr := make(chan string, 10)
     chanint <- 99
@@ -152,6 +155,25 @@ func lastLine(src []byte) int {
 		}
 	}
 	return 0
+}
+
+func gdbArgsFixup(args []string) {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	// On Windows, some gdb flavors expect -ex and -iex arguments
+	// containing spaces to be double quoted.
+	var quote bool
+	for i, arg := range args {
+		if arg == "-iex" || arg == "-ex" {
+			quote = true
+		} else if quote {
+			if strings.ContainsRune(arg, ' ') {
+				args[i] = `"` + arg + `"`
+			}
+			quote = false
+		}
+	}
 }
 
 func TestGdbPython(t *testing.T) {
@@ -267,12 +289,14 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "echo END\n",
 		filepath.Join(dir, "a.exe"),
 	)
+	gdbArgsFixup(args)
 	got, err := exec.Command("gdb", args...).CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
 		t.Fatalf("gdb exited with error: %v", err)
 	}
 
+	got = bytes.ReplaceAll(got, []byte("\r\n"), []byte("\n")) // normalize line endings
 	firstLine, _, _ := bytes.Cut(got, []byte("\n"))
 	if string(firstLine) != "Loading Go Runtime support." {
 		// This can happen when using all.bash with
@@ -440,6 +464,7 @@ func TestGdbBacktrace(t *testing.T) {
 		"-ex", "continue",
 		filepath.Join(dir, "a.exe"),
 	}
+	gdbArgsFixup(args)
 	cmd = testenv.Command(t, "gdb", args...)
 
 	// Work around the GDB hang reported in https://go.dev/issue/37405.
@@ -468,15 +493,19 @@ func TestGdbBacktrace(t *testing.T) {
 	got, err := cmd.CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
-		if bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")) {
+		switch {
+		case bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")):
 			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=28551
 			testenv.SkipFlaky(t, 43068)
-		}
-		if bytes.Contains(got, []byte("Couldn't get registers: No such process.")) {
+		case bytes.Contains(got, []byte("Couldn't get registers: No such process.")),
+			bytes.Contains(got, []byte("Unable to fetch general registers.: No such process.")),
+			bytes.Contains(got, []byte("reading register pc (#64): No such process.")):
 			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=9086
 			testenv.SkipFlaky(t, 50838)
-		}
-		if bytes.Contains(got, []byte(" exited normally]\n")) {
+		case bytes.Contains(got, []byte("waiting for new child: No child processes.")):
+			// GDB bug: Sometimes it fails to wait for a clone child.
+			testenv.SkipFlaky(t, 60553)
+		case bytes.Contains(got, []byte(" exited normally]\n")):
 			// GDB bug: Sometimes the inferior exits fine,
 			// but then GDB hangs.
 			testenv.SkipFlaky(t, 37405)
@@ -556,6 +585,7 @@ func TestGdbAutotmpTypes(t *testing.T) {
 		"-ex", "info types astruct",
 		filepath.Join(dir, "a.exe"),
 	}
+	gdbArgsFixup(args)
 	got, err := exec.Command("gdb", args...).CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
@@ -624,6 +654,7 @@ func TestGdbConst(t *testing.T) {
 		"-ex", "print 'runtime._PageSize'",
 		filepath.Join(dir, "a.exe"),
 	}
+	gdbArgsFixup(args)
 	got, err := exec.Command("gdb", args...).CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
@@ -659,6 +690,10 @@ func TestGdbPanic(t *testing.T) {
 	t.Parallel()
 	checkGdbVersion(t)
 
+	if runtime.GOOS == "windows" {
+		t.Skip("no signals on windows")
+	}
+
 	dir := t.TempDir()
 
 	// Build the source code.
@@ -682,6 +717,7 @@ func TestGdbPanic(t *testing.T) {
 		"-ex", "backtrace",
 		filepath.Join(dir, "a.exe"),
 	}
+	gdbArgsFixup(args)
 	got, err := exec.Command("gdb", args...).CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
@@ -760,6 +796,7 @@ func TestGdbInfCallstack(t *testing.T) {
 		"-ex", "continue",
 		filepath.Join(dir, "a.exe"),
 	}
+	gdbArgsFixup(args)
 	got, err := exec.Command("gdb", args...).CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {

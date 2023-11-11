@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 // Test that Resolver.Dial can be a func returning an in-memory net.Conn
 // speaking DNS.
 

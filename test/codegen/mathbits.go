@@ -19,8 +19,7 @@ func LeadingZeros(n uint) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
-	// ppc64le:"CNTLZD"
-	// ppc64:"CNTLZD"
+	// ppc64x:"CNTLZD"
 	return bits.LeadingZeros(n)
 }
 
@@ -31,8 +30,7 @@ func LeadingZeros64(n uint64) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
-	// ppc64le:"CNTLZD"
-	// ppc64:"CNTLZD"
+	// ppc64x:"CNTLZD"
 	return bits.LeadingZeros64(n)
 }
 
@@ -43,8 +41,7 @@ func LeadingZeros32(n uint32) int {
 	// arm:"CLZ" arm64:"CLZW"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
-	// ppc64le:"CNTLZW"
-	// ppc64:"CNTLZW"
+	// ppc64x:"CNTLZW"
 	return bits.LeadingZeros32(n)
 }
 
@@ -55,8 +52,7 @@ func LeadingZeros16(n uint16) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
-	// ppc64le:"CNTLZD"
-	// ppc64:"CNTLZD"
+	// ppc64x:"CNTLZD"
 	return bits.LeadingZeros16(n)
 }
 
@@ -67,8 +63,7 @@ func LeadingZeros8(n uint8) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
-	// ppc64le:"CNTLZD"
-	// ppc64:"CNTLZD"
+	// ppc64x:"CNTLZD"
 	return bits.LeadingZeros8(n)
 }
 
@@ -83,8 +78,7 @@ func Len(n uint) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
-	// ppc64le:"SUBC","CNTLZD"
-	// ppc64:"SUBC","CNTLZD"
+	// ppc64x:"SUBC","CNTLZD"
 	return bits.Len(n)
 }
 
@@ -95,14 +89,12 @@ func Len64(n uint64) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
-	// ppc64le:"SUBC","CNTLZD"
-	// ppc64:"SUBC","CNTLZD"
+	// ppc64x:"SUBC","CNTLZD"
 	return bits.Len64(n)
 }
 
 func SubFromLen64(n uint64) int {
-	// ppc64le:"CNTLZD",-"SUBC"
-	// ppc64:"CNTLZD",-"SUBC"
+	// ppc64x:"CNTLZD",-"SUBC"
 	return 64 - bits.Len64(n)
 }
 
@@ -113,8 +105,7 @@ func Len32(n uint32) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
-	// ppc64: "CNTLZW"
-	// ppc64le: "CNTLZW"
+	// ppc64x: "CNTLZW"
 	return bits.Len32(n)
 }
 
@@ -125,8 +116,7 @@ func Len16(n uint16) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
-	// ppc64le:"SUBC","CNTLZD"
-	// ppc64:"SUBC","CNTLZD"
+	// ppc64x:"SUBC","CNTLZD"
 	return bits.Len16(n)
 }
 
@@ -137,8 +127,7 @@ func Len8(n uint8) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
-	// ppc64le:"SUBC","CNTLZD"
-	// ppc64:"SUBC","CNTLZD"
+	// ppc64x:"SUBC","CNTLZD"
 	return bits.Len8(n)
 }
 
@@ -152,8 +141,7 @@ func OnesCount(n uint) int {
 	// amd64:"POPCNTQ"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
-	// ppc64:"POPCNTD"
-	// ppc64le:"POPCNTD"
+	// ppc64x:"POPCNTD"
 	// wasm:"I64Popcnt"
 	return bits.OnesCount(n)
 }
@@ -163,8 +151,7 @@ func OnesCount64(n uint64) int {
 	// amd64:"POPCNTQ"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
-	// ppc64:"POPCNTD"
-	// ppc64le:"POPCNTD"
+	// ppc64x:"POPCNTD"
 	// wasm:"I64Popcnt"
 	return bits.OnesCount64(n)
 }
@@ -174,8 +161,7 @@ func OnesCount32(n uint32) int {
 	// amd64:"POPCNTL"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
-	// ppc64:"POPCNTW"
-	// ppc64le:"POPCNTW"
+	// ppc64x:"POPCNTW"
 	// wasm:"I64Popcnt"
 	return bits.OnesCount32(n)
 }
@@ -185,16 +171,14 @@ func OnesCount16(n uint16) int {
 	// amd64:"POPCNTL"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
-	// ppc64:"POPCNTW"
-	// ppc64le:"POPCNTW"
+	// ppc64x:"POPCNTW"
 	// wasm:"I64Popcnt"
 	return bits.OnesCount16(n)
 }
 
 func OnesCount8(n uint8) int {
 	// s390x:"POPCNT"
-	// ppc64:"POPCNTB"
-	// ppc64le:"POPCNTB"
+	// ppc64x:"POPCNTB"
 	// wasm:"I64Popcnt"
 	return bits.OnesCount8(n)
 }
@@ -205,6 +189,7 @@ func OnesCount8(n uint8) int {
 
 func ReverseBytes(n uint) uint {
 	// amd64:"BSWAPQ"
+	// 386:"BSWAPL"
 	// s390x:"MOVDBR"
 	// arm64:"REV"
 	return bits.ReverseBytes(n)
@@ -212,15 +197,19 @@ func ReverseBytes(n uint) uint {
 
 func ReverseBytes64(n uint64) uint64 {
 	// amd64:"BSWAPQ"
+	// 386:"BSWAPL"
 	// s390x:"MOVDBR"
 	// arm64:"REV"
+	// ppc64x/power10: "BRD"
 	return bits.ReverseBytes64(n)
 }
 
 func ReverseBytes32(n uint32) uint32 {
 	// amd64:"BSWAPL"
+	// 386:"BSWAPL"
 	// s390x:"MOVWBR"
 	// arm64:"REVW"
+	// ppc64x/power10: "BRW"
 	return bits.ReverseBytes32(n)
 }
 
@@ -230,6 +219,7 @@ func ReverseBytes16(n uint16) uint16 {
 	// arm/5:"SLL","SRL","ORR"
 	// arm/6:"REV16"
 	// arm/7:"REV16"
+	// ppc64x/power10: "BRH"
 	return bits.ReverseBytes16(n)
 }
 
@@ -240,8 +230,7 @@ func ReverseBytes16(n uint16) uint16 {
 func RotateLeft64(n uint64) uint64 {
 	// amd64:"ROLQ"
 	// arm64:"ROR"
-	// ppc64:"ROTL"
-	// ppc64le:"ROTL"
+	// ppc64x:"ROTL"
 	// s390x:"RISBGZ\t[$]0, [$]63, [$]37, "
 	// wasm:"I64Rotl"
 	return bits.RotateLeft64(n, 37)
@@ -251,8 +240,7 @@ func RotateLeft32(n uint32) uint32 {
 	// amd64:"ROLL" 386:"ROLL"
 	// arm:`MOVW\tR[0-9]+@>23`
 	// arm64:"RORW"
-	// ppc64:"ROTLW"
-	// ppc64le:"ROTLW"
+	// ppc64x:"ROTLW"
 	// s390x:"RLL"
 	// wasm:"I32Rotl"
 	return bits.RotateLeft32(n, 9)
@@ -273,8 +261,7 @@ func RotateLeft8(n uint8, s int) uint8 {
 func RotateLeftVariable(n uint, m int) uint {
 	// amd64:"ROLQ"
 	// arm64:"ROR"
-	// ppc64:"ROTL"
-	// ppc64le:"ROTL"
+	// ppc64x:"ROTL"
 	// s390x:"RLLG"
 	// wasm:"I64Rotl"
 	return bits.RotateLeft(n, m)
@@ -283,8 +270,7 @@ func RotateLeftVariable(n uint, m int) uint {
 func RotateLeftVariable64(n uint64, m int) uint64 {
 	// amd64:"ROLQ"
 	// arm64:"ROR"
-	// ppc64:"ROTL"
-	// ppc64le:"ROTL"
+	// ppc64x:"ROTL"
 	// s390x:"RLLG"
 	// wasm:"I64Rotl"
 	return bits.RotateLeft64(n, m)
@@ -294,8 +280,7 @@ func RotateLeftVariable32(n uint32, m int) uint32 {
 	// arm:`MOVW\tR[0-9]+@>R[0-9]+`
 	// amd64:"ROLL"
 	// arm64:"RORW"
-	// ppc64:"ROTLW"
-	// ppc64le:"ROTLW"
+	// ppc64x:"ROTLW"
 	// s390x:"RLL"
 	// wasm:"I32Rotl"
 	return bits.RotateLeft32(n, m)
@@ -308,13 +293,12 @@ func RotateLeftVariable32(n uint32, m int) uint32 {
 func TrailingZeros(n uint) int {
 	// amd64/v1,amd64/v2:"BSFQ","MOVL\t\\$64","CMOVQEQ"
 	// amd64/v3:"TZCNTQ"
+	// 386:"BSFL"
 	// arm:"CLZ"
 	// arm64:"RBIT","CLZ"
 	// s390x:"FLOGR"
-	// ppc64/power8:"ANDN","POPCNTD"
-	// ppc64le/power8:"ANDN","POPCNTD"
-	// ppc64/power9: "CNTTZD"
-	// ppc64le/power9: "CNTTZD"
+	// ppc64x/power8:"ANDN","POPCNTD"
+	// ppc64x/power9: "CNTTZD"
 	// wasm:"I64Ctz"
 	return bits.TrailingZeros(n)
 }
@@ -322,52 +306,49 @@ func TrailingZeros(n uint) int {
 func TrailingZeros64(n uint64) int {
 	// amd64/v1,amd64/v2:"BSFQ","MOVL\t\\$64","CMOVQEQ"
 	// amd64/v3:"TZCNTQ"
+	// 386:"BSFL"
 	// arm64:"RBIT","CLZ"
 	// s390x:"FLOGR"
-	// ppc64/power8:"ANDN","POPCNTD"
-	// ppc64le/power8:"ANDN","POPCNTD"
-	// ppc64/power9: "CNTTZD"
-	// ppc64le/power9: "CNTTZD"
+	// ppc64x/power8:"ANDN","POPCNTD"
+	// ppc64x/power9: "CNTTZD"
 	// wasm:"I64Ctz"
 	return bits.TrailingZeros64(n)
 }
 
 func TrailingZeros64Subtract(n uint64) int {
-	// ppc64le/power8:"NEG","SUBC","ANDN","POPCNTD"
-	// ppc64le/power9:"SUBC","CNTTZD"
+	// ppc64x/power8:"NEG","SUBC","ANDN","POPCNTD"
+	// ppc64x/power9:"SUBC","CNTTZD"
 	return bits.TrailingZeros64(1 - n)
 }
 
 func TrailingZeros32(n uint32) int {
 	// amd64/v1,amd64/v2:"BTSQ\\t\\$32","BSFQ"
 	// amd64/v3:"TZCNTL"
+	// 386:"BSFL"
 	// arm:"CLZ"
 	// arm64:"RBITW","CLZW"
 	// s390x:"FLOGR","MOVWZ"
-	// ppc64/power8:"ANDN","POPCNTW"
-	// ppc64le/power8:"ANDN","POPCNTW"
-	// ppc64/power9: "CNTTZW"
-	// ppc64le/power9: "CNTTZW"
+	// ppc64x/power8:"ANDN","POPCNTW"
+	// ppc64x/power9: "CNTTZW"
 	// wasm:"I64Ctz"
 	return bits.TrailingZeros32(n)
 }
 
 func TrailingZeros16(n uint16) int {
-	// amd64:"BSFL","BTSL\\t\\$16"
+	// amd64:"BSFL","ORL\\t\\$65536"
 	// 386:"BSFL\t"
 	// arm:"ORR\t\\$65536","CLZ",-"MOVHU\tR"
 	// arm64:"ORR\t\\$65536","RBITW","CLZW",-"MOVHU\tR",-"RBIT\t",-"CLZ\t"
 	// s390x:"FLOGR","OR\t\\$65536"
-	// ppc64/power8:"POPCNTD","OR\\t\\$65536"
-	// ppc64le/power8:"POPCNTD","OR\\t\\$65536"
-	// ppc64/power9:"CNTTZD","OR\\t\\$65536"
-	// ppc64le/power9:"CNTTZD","OR\\t\\$65536"
+	// ppc64x/power8:"POPCNTD","ORIS\\t\\$1"
+	// ppc64x/power9:"CNTTZD","ORIS\\t\\$1"
 	// wasm:"I64Ctz"
 	return bits.TrailingZeros16(n)
 }
 
 func TrailingZeros8(n uint8) int {
-	// amd64:"BSFL","BTSL\\t\\$8"
+	// amd64:"BSFL","ORL\\t\\$256"
+	// 386:"BSFL"
 	// arm:"ORR\t\\$256","CLZ",-"MOVBU\tR"
 	// arm64:"ORR\t\\$256","RBITW","CLZW",-"MOVBU\tR",-"RBIT\t",-"CLZ\t"
 	// s390x:"FLOGR","OR\t\\$256"
@@ -441,8 +422,7 @@ func IterateBits8(n uint8) int {
 func Add(x, y, ci uint) (r, co uint) {
 	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
-	// ppc64: "ADDC", "ADDE", "ADDZE"
-	// ppc64le: "ADDC", "ADDE", "ADDZE"
+	// ppc64x: "ADDC", "ADDE", "ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
 	// riscv64: "ADD","SLTU"
 	return bits.Add(x, y, ci)
@@ -452,9 +432,9 @@ func AddC(x, ci uint) (r, co uint) {
 	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
 	// loong64: "ADDV", "SGTU"
-	// ppc64: "ADDC", "ADDE", "ADDZE"
-	// ppc64le: "ADDC", "ADDE", "ADDZE"
+	// ppc64x: "ADDC", "ADDE", "ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// mips64:"ADDV","SGTU"
 	// riscv64: "ADD","SLTU"
 	return bits.Add(x, 7, ci)
 }
@@ -463,9 +443,9 @@ func AddZ(x, y uint) (r, co uint) {
 	// arm64:"ADDS","ADC",-"ADCS",-"ADD\t",-"CMP"
 	// amd64:"ADDQ","SBBQ","NEGQ",-"NEGL",-"ADCQ"
 	// loong64: "ADDV", "SGTU"
-	// ppc64: "ADDC", -"ADDE", "ADDZE"
-	// ppc64le: "ADDC", -"ADDE", "ADDZE"
+	// ppc64x: "ADDC", -"ADDE", "ADDZE"
 	// s390x:"ADDC",-"ADDC\t[$]-1,"
+	// mips64:"ADDV","SGTU"
 	// riscv64: "ADD","SLTU"
 	return bits.Add(x, y, 0)
 }
@@ -474,9 +454,9 @@ func AddR(x, y, ci uint) uint {
 	// arm64:"ADDS","ADCS",-"ADD\t",-"CMP"
 	// amd64:"NEGL","ADCQ",-"SBBQ",-"NEGQ"
 	// loong64: "ADDV", -"SGTU"
-	// ppc64: "ADDC", "ADDE", -"ADDZE"
-	// ppc64le: "ADDC", "ADDE", -"ADDZE"
+	// ppc64x: "ADDC", "ADDE", -"ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// mips64:"ADDV",-"SGTU"
 	// riscv64: "ADD",-"SLTU"
 	r, _ := bits.Add(x, y, ci)
 	return r
@@ -496,9 +476,9 @@ func Add64(x, y, ci uint64) (r, co uint64) {
 	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
 	// loong64: "ADDV", "SGTU"
-	// ppc64: "ADDC", "ADDE", "ADDZE"
-	// ppc64le: "ADDC", "ADDE", "ADDZE"
+	// ppc64x: "ADDC", "ADDE", "ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// mips64:"ADDV","SGTU"
 	// riscv64: "ADD","SLTU"
 	return bits.Add64(x, y, ci)
 }
@@ -507,9 +487,9 @@ func Add64C(x, ci uint64) (r, co uint64) {
 	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
 	// loong64: "ADDV", "SGTU"
-	// ppc64: "ADDC", "ADDE", "ADDZE"
-	// ppc64le: "ADDC", "ADDE", "ADDZE"
+	// ppc64x: "ADDC", "ADDE", "ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// mips64:"ADDV","SGTU"
 	// riscv64: "ADD","SLTU"
 	return bits.Add64(x, 7, ci)
 }
@@ -518,9 +498,9 @@ func Add64Z(x, y uint64) (r, co uint64) {
 	// arm64:"ADDS","ADC",-"ADCS",-"ADD\t",-"CMP"
 	// amd64:"ADDQ","SBBQ","NEGQ",-"NEGL",-"ADCQ"
 	// loong64: "ADDV", "SGTU"
-	// ppc64: "ADDC", -"ADDE", "ADDZE"
-	// ppc64le: "ADDC", -"ADDE", "ADDZE"
+	// ppc64x: "ADDC", -"ADDE", "ADDZE"
 	// s390x:"ADDC",-"ADDC\t[$]-1,"
+	// mips64:"ADDV","SGTU"
 	// riscv64: "ADD","SLTU"
 	return bits.Add64(x, y, 0)
 }
@@ -529,9 +509,9 @@ func Add64R(x, y, ci uint64) uint64 {
 	// arm64:"ADDS","ADCS",-"ADD\t",-"CMP"
 	// amd64:"NEGL","ADCQ",-"SBBQ",-"NEGQ"
 	// loong64: "ADDV", -"SGTU"
-	// ppc64: "ADDC", "ADDE", -"ADDZE"
-	// ppc64le: "ADDC", "ADDE", -"ADDZE"
+	// ppc64x: "ADDC", "ADDE", -"ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// mips64:"ADDV",-"SGTU"
 	// riscv64: "ADD",-"SLTU"
 	r, _ := bits.Add64(x, y, ci)
 	return r
@@ -541,19 +521,16 @@ func Add64M(p, q, r *[3]uint64) {
 	r[0], c = bits.Add64(p[0], q[0], c)
 	// arm64:"ADCS",-"ADD\t",-"CMP"
 	// amd64:"ADCQ",-"NEGL",-"SBBQ",-"NEGQ"
-	// ppc64: -"ADDC", "ADDE", -"ADDZE"
-	// ppc64le: -"ADDC", "ADDE", -"ADDZE"
+	// ppc64x: -"ADDC", "ADDE", -"ADDZE"
 	// s390x:"ADDE",-"ADDC\t[$]-1,"
 	r[1], c = bits.Add64(p[1], q[1], c)
 	r[2], c = bits.Add64(p[2], q[2], c)
 }
 
 func Add64MSaveC(p, q, r, c *[2]uint64) {
-	// ppc64: "ADDC\tR", "ADDZE"
-	// ppc64le: "ADDC\tR", "ADDZE"
+	// ppc64x: "ADDC\tR", "ADDZE"
 	r[0], c[0] = bits.Add64(p[0], q[0], 0)
-	// ppc64: "ADDC\t[$]-1", "ADDE", "ADDZE"
-	// ppc64le: "ADDC\t[$]-1", "ADDE", "ADDZE"
+	// ppc64x: "ADDC\t[$]-1", "ADDE", "ADDZE"
 	r[1], c[1] = bits.Add64(p[1], q[1], c[0])
 }
 
@@ -636,18 +613,14 @@ func Add64MultipleChains(a, b, c, d [2]uint64) {
 	b1, b2 := b[0], b[1]
 	c1, c2 := c[0], c[1]
 
-	// ppc64: "ADDC\tR\\d+,", -"ADDE", -"MOVD\tXER"
-	// ppc64le: "ADDC\tR\\d+,", -"ADDE", -"MOVD\tXER"
+	// ppc64x: "ADDC\tR\\d+,", -"ADDE", -"MOVD\tXER"
 	d1, cx = bits.Add64(a1, b1, 0)
-	// ppc64: "ADDE", -"ADDC", -"MOVD\t.*, XER"
-	// ppc64le: "ADDE", -"ADDC", -"MOVD\t.*, XER"
+	// ppc64x: "ADDE", -"ADDC", -"MOVD\t.*, XER"
 	d2, _ = bits.Add64(a2, b2, cx)
 
-	// ppc64: "ADDC\tR\\d+,", -"ADDE", -"MOVD\tXER"
-	// ppc64le: "ADDC\tR\\d+,", -"ADDE", -"MOVD\tXER"
+	// ppc64x: "ADDC\tR\\d+,", -"ADDE", -"MOVD\tXER"
 	d1, cx = bits.Add64(c1, d1, 0)
-	// ppc64: "ADDE", -"ADDC", -"MOVD\t.*, XER"
-	// ppc64le: "ADDE", -"ADDC", -"MOVD\t.*, XER"
+	// ppc64x: "ADDE", -"ADDC", -"MOVD\t.*, XER"
 	d2, _ = bits.Add64(c2, d2, cx)
 	d[0] = d1
 	d[1] = d2
@@ -661,9 +634,9 @@ func Sub(x, y, ci uint) (r, co uint) {
 	// amd64:"NEGL","SBBQ","NEGQ"
 	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
 	// loong64:"SUBV","SGTU"
-	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
-	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
+	// ppc64x:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
+	// mips64:"SUBV","SGTU"
 	// riscv64: "SUB","SLTU"
 	return bits.Sub(x, y, ci)
 }
@@ -672,9 +645,9 @@ func SubC(x, ci uint) (r, co uint) {
 	// amd64:"NEGL","SBBQ","NEGQ"
 	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
 	// loong64:"SUBV","SGTU"
-	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
-	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
+	// ppc64x:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
+	// mips64:"SUBV","SGTU"
 	// riscv64: "SUB","SLTU"
 	return bits.Sub(x, 7, ci)
 }
@@ -683,9 +656,9 @@ func SubZ(x, y uint) (r, co uint) {
 	// amd64:"SUBQ","SBBQ","NEGQ",-"NEGL"
 	// arm64:"SUBS","NGC","NEG",-"SBCS",-"ADD",-"SUB\t",-"CMP"
 	// loong64:"SUBV","SGTU"
-	// ppc64:"SUBC", -"SUBE", "SUBZE", "NEG"
-	// ppc64le:"SUBC", -"SUBE", "SUBZE", "NEG"
+	// ppc64x:"SUBC", -"SUBE", "SUBZE", "NEG"
 	// s390x:"SUBC"
+	// mips64:"SUBV","SGTU"
 	// riscv64: "SUB","SLTU"
 	return bits.Sub(x, y, 0)
 }
@@ -694,8 +667,7 @@ func SubR(x, y, ci uint) uint {
 	// amd64:"NEGL","SBBQ",-"NEGQ"
 	// arm64:"NEGS","SBCS",-"NGC",-"NEG\t",-"ADD",-"SUB",-"CMP"
 	// loong64:"SUBV",-"SGTU"
-	// ppc64:"SUBC", "SUBE", -"SUBZE", -"NEG"
-	// ppc64le:"SUBC", "SUBE", -"SUBZE", -"NEG"
+	// ppc64x:"SUBC", "SUBE", -"SUBZE", -"NEG"
 	// s390x:"SUBE"
 	// riscv64: "SUB",-"SLTU"
 	r, _ := bits.Sub(x, y, ci)
@@ -706,8 +678,7 @@ func SubM(p, q, r *[3]uint) {
 	r[0], c = bits.Sub(p[0], q[0], c)
 	// amd64:"SBBQ",-"NEGL",-"NEGQ"
 	// arm64:"SBCS",-"NEGS",-"NGC",-"NEG",-"ADD",-"SUB",-"CMP"
-	// ppc64:-"SUBC", "SUBE", -"SUBZE", -"NEG"
-	// ppc64le:-"SUBC", "SUBE", -"SUBZE", -"NEG"
+	// ppc64x:-"SUBC", "SUBE", -"SUBZE", -"NEG"
 	// s390x:"SUBE"
 	r[1], c = bits.Sub(p[1], q[1], c)
 	r[2], c = bits.Sub(p[2], q[2], c)
@@ -717,9 +688,9 @@ func Sub64(x, y, ci uint64) (r, co uint64) {
 	// amd64:"NEGL","SBBQ","NEGQ"
 	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
 	// loong64:"SUBV","SGTU"
-	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
-	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
+	// ppc64x:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
+	// mips64:"SUBV","SGTU"
 	// riscv64: "SUB","SLTU"
 	return bits.Sub64(x, y, ci)
 }
@@ -728,9 +699,9 @@ func Sub64C(x, ci uint64) (r, co uint64) {
 	// amd64:"NEGL","SBBQ","NEGQ"
 	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
 	// loong64:"SUBV","SGTU"
-	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
-	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
+	// ppc64x:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
+	// mips64:"SUBV","SGTU"
 	// riscv64: "SUB","SLTU"
 	return bits.Sub64(x, 7, ci)
 }
@@ -739,9 +710,9 @@ func Sub64Z(x, y uint64) (r, co uint64) {
 	// amd64:"SUBQ","SBBQ","NEGQ",-"NEGL"
 	// arm64:"SUBS","NGC","NEG",-"SBCS",-"ADD",-"SUB\t",-"CMP"
 	// loong64:"SUBV","SGTU"
-	// ppc64:"SUBC", -"SUBE", "SUBZE", "NEG"
-	// ppc64le:"SUBC", -"SUBE", "SUBZE", "NEG"
+	// ppc64x:"SUBC", -"SUBE", "SUBZE", "NEG"
 	// s390x:"SUBC"
+	// mips64:"SUBV","SGTU"
 	// riscv64: "SUB","SLTU"
 	return bits.Sub64(x, y, 0)
 }
@@ -750,8 +721,7 @@ func Sub64R(x, y, ci uint64) uint64 {
 	// amd64:"NEGL","SBBQ",-"NEGQ"
 	// arm64:"NEGS","SBCS",-"NGC",-"NEG\t",-"ADD",-"SUB",-"CMP"
 	// loong64:"SUBV",-"SGTU"
-	// ppc64:"SUBC", "SUBE", -"SUBZE", -"NEG"
-	// ppc64le:"SUBC", "SUBE", -"SUBZE", -"NEG"
+	// ppc64x:"SUBC", "SUBE", -"SUBZE", -"NEG"
 	// s390x:"SUBE"
 	// riscv64: "SUB",-"SLTU"
 	r, _ := bits.Sub64(x, y, ci)
@@ -768,11 +738,9 @@ func Sub64M(p, q, r *[3]uint64) {
 }
 
 func Sub64MSaveC(p, q, r, c *[2]uint64) {
-	// ppc64:"SUBC\tR\\d+, R\\d+,", "SUBZE", "NEG"
-	// ppc64le:"SUBC\tR\\d+, R\\d+,", "SUBZE", "NEG"
+	// ppc64x:"SUBC\tR\\d+, R\\d+,", "SUBZE", "NEG"
 	r[0], c[0] = bits.Sub64(p[0], q[0], 0)
-	// ppc64:"SUBC\tR\\d+, [$]0,", "SUBE", "SUBZE", "NEG"
-	// ppc64le:"SUBC\tR\\d+, [$]0,", "SUBE", "SUBZE", "NEG"
+	// ppc64x:"SUBC\tR\\d+, [$]0,", "SUBE", "SUBZE", "NEG"
 	r[1], c[1] = bits.Sub64(p[1], q[1], c[0])
 }
 
@@ -846,8 +814,7 @@ func Sub64MPanicOnOverflowGT(a, b [2]uint64) [2]uint64 {
 func Mul(x, y uint) (hi, lo uint) {
 	// amd64:"MULQ"
 	// arm64:"UMULH","MUL"
-	// ppc64:"MULHDU","MULLD"
-	// ppc64le:"MULHDU","MULLD"
+	// ppc64x:"MULHDU","MULLD"
 	// s390x:"MLGR"
 	// mips64: "MULVU"
 	return bits.Mul(x, y)
@@ -856,8 +823,7 @@ func Mul(x, y uint) (hi, lo uint) {
 func Mul64(x, y uint64) (hi, lo uint64) {
 	// amd64:"MULQ"
 	// arm64:"UMULH","MUL"
-	// ppc64:"MULHDU","MULLD"
-	// ppc64le:"MULHDU","MULLD"
+	// ppc64x:"MULHDU","MULLD"
 	// s390x:"MLGR"
 	// mips64: "MULVU"
 	// riscv64:"MULHU","MUL"

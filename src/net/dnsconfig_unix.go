@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !windows
+//go:build !windows
 
 // Read system DNS config from /etc/resolv.conf
 
@@ -10,6 +10,7 @@ package net
 
 import (
 	"internal/bytealg"
+	"net/netip"
 	"time"
 )
 
@@ -51,9 +52,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 				// One more check: make sure server name is
 				// just an IP address. Otherwise we need DNS
 				// to look it up.
-				if parseIPv4(f[1]) != nil {
-					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
-				} else if ip, _ := parseIPv6Zone(f[1]); ip != nil {
+				if _, err := netip.ParseAddr(f[1]); err == nil {
 					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
 				}
 			}

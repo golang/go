@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// BUG(mikio): On JS and Plan 9, methods and functions related
+// BUG(mikio): On JS, WASIP1 and Plan 9, methods and functions related
 // to UnixConn and UnixListener are not implemented.
 
 // BUG(mikio): On Windows, methods and functions related to UnixConn
@@ -75,7 +75,7 @@ func (c *UnixConn) SyscallConn() (syscall.RawConn, error) {
 	if !c.ok() {
 		return nil, syscall.EINVAL
 	}
-	return newRawConn(c.fd)
+	return newRawConn(c.fd), nil
 }
 
 // CloseRead shuts down the reading side of the Unix domain connection.
@@ -235,7 +235,7 @@ func (l *UnixListener) SyscallConn() (syscall.RawConn, error) {
 	if !l.ok() {
 		return nil, syscall.EINVAL
 	}
-	return newRawListener(l.fd)
+	return newRawListener(l.fd), nil
 }
 
 // AcceptUnix accepts the next incoming call and returns the new
@@ -287,10 +287,7 @@ func (l *UnixListener) SetDeadline(t time.Time) error {
 	if !l.ok() {
 		return syscall.EINVAL
 	}
-	if err := l.fd.pfd.SetDeadline(t); err != nil {
-		return &OpError{Op: "set", Net: l.fd.net, Source: nil, Addr: l.fd.laddr, Err: err}
-	}
-	return nil
+	return l.fd.SetDeadline(t)
 }
 
 // File returns a copy of the underlying os.File.

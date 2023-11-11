@@ -11,7 +11,14 @@ import (
 )
 
 // runtime_FrameStartLine is defined in runtime/symtab.go.
+//
+//go:noescape
 func runtime_FrameStartLine(f *runtime.Frame) int
+
+// runtime_FrameSymbolName is defined in runtime/symtab.go.
+//
+//go:noescape
+func runtime_FrameSymbolName(f *runtime.Frame) string
 
 // runtime_expandFinalInlineFrame is defined in runtime/symtab.go.
 func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr
@@ -24,7 +31,7 @@ func runtime_getProfLabel() unsafe.Pointer
 
 // SetGoroutineLabels sets the current goroutine's labels to match ctx.
 // A new goroutine inherits the labels of the goroutine that created it.
-// This is a lower-level API than Do, which should be used instead when possible.
+// This is a lower-level API than [Do], which should be used instead when possible.
 func SetGoroutineLabels(ctx context.Context) {
 	ctxLabels, _ := ctx.Value(labelContextKey{}).(*labelMap)
 	runtime_setProfLabel(unsafe.Pointer(ctxLabels))

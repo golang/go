@@ -125,7 +125,7 @@ const (
 	ok = byte(iota + 253)
 	bad
 	barn
-	bard // ERROR "cannot convert"
+	bard // ERROR "overflows"
 )
 
 const (

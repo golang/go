@@ -11,7 +11,7 @@ import (
 
 // GOMAXPROCS sets the maximum number of CPUs that can be executing
 // simultaneously and returns the previous setting. It defaults to
-// the value of runtime.NumCPU. If n < 1, it does not change the current setting.
+// the value of [runtime.NumCPU]. If n < 1, it does not change the current setting.
 // This call will go away when the scheduler improves.
 func GOMAXPROCS(n int) int {
 	if GOARCH == "wasm" && n > 1 {
@@ -25,7 +25,7 @@ func GOMAXPROCS(n int) int {
 		return ret
 	}
 
-	stopTheWorldGC("GOMAXPROCS")
+	stopTheWorldGC(stwGOMAXPROCS)
 
 	// newprocs will be processed by startTheWorld
 	newprocs = int32(n)

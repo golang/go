@@ -1,0 +1,50 @@
+[short] skip
+[!fuzz-instrumented] skip
+
+env GOCACHE=$WORK/cache
+! go test -fuzz=FuzzDead -v
+# This is a somewhat inexact check, but since we don't prefix the error with anything
+# and as the error suffix is platform dependent, this is the best we can do. In the
+# deadlock failure case, the test will just deadlock and timeout anyway, so it should
+# be clear that that failure mode is different.
+stdout 'open'
+
+-- go.mod --
+module test
+
+-- cov_test.go --
+package dead
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+)
+
+func FuzzDead(f *testing.F) {
+	go func() {
+		c := filepath.Join(os.Getenv("GOCACHE"), "fuzz", "test", "FuzzDead")
+		t := time.NewTicker(time.Second)
+		for range t.C {
+			files, _ := os.ReadDir(c)
+			if len(files) > 0 {
+				os.RemoveAll(c)
+			}
+		}
+	}()
+
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if len(b) == 8 &&
+			b[0] == 'h' &&
+			b[1] == 'e' &&
+			b[2] == 'l' &&
+			b[3] == 'l' &&
+			b[4] == 'o' &&
+			b[5] == ' ' &&
+			b[6] == ':' &&
+			b[7] == ')' {
+			return
+		}
+	})
+}

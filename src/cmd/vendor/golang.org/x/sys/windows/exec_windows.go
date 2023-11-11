@@ -22,7 +22,7 @@ import (
 //     but only if there is space or tab inside s.
 func EscapeArg(s string) string {
 	if len(s) == 0 {
-		return "\"\""
+		return `""`
 	}
 	n := len(s)
 	hasSpace := false
@@ -35,7 +35,7 @@ func EscapeArg(s string) string {
 		}
 	}
 	if hasSpace {
-		n += 2
+		n += 2 // Reserve space for quotes.
 	}
 	if n == len(s) {
 		return s
@@ -82,34 +82,104 @@ func EscapeArg(s string) string {
 // in CreateProcess's CommandLine argument, CreateService/ChangeServiceConfig's BinaryPathName argument,
 // or any program that uses CommandLineToArgv.
 func ComposeCommandLine(args []string) string {
-	var commandLine string
-	for i := range args {
-		if i > 0 {
-			commandLine += " "
-		}
-		commandLine += EscapeArg(args[i])
+	if len(args) == 0 {
+		return ""
 	}
-	return commandLine
+
+	// Per https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-commandlinetoargvw:
+	// “This function accepts command lines that contain a program name; the
+	// program name can be enclosed in quotation marks or not.”
+	//
+	// Unfortunately, it provides no means of escaping interior quotation marks
+	// within that program name, and we have no way to report them here.
+	prog := args[0]
+	mustQuote := len(prog) == 0
+	for i := 0; i < len(prog); i++ {
+		c := prog[i]
+		if c <= ' ' || (c == '"' && i == 0) {
+			// Force quotes for not only the ASCII space and tab as described in the
+			// MSDN article, but also ASCII control characters.
+			// The documentation for CommandLineToArgvW doesn't say what happens when
+			// the first argument is not a valid program name, but it empirically
+			// seems to drop unquoted control characters.
+			mustQuote = true
+			break
+		}
+	}
+	var commandLine []byte
+	if mustQuote {
+		commandLine = make([]byte, 0, len(prog)+2)
+		commandLine = append(commandLine, '"')
+		for i := 0; i < len(prog); i++ {
+			c := prog[i]
+			if c == '"' {
+				// This quote would interfere with our surrounding quotes.
+				// We have no way to report an error, so just strip out
+				// the offending character instead.
+				continue
+			}
+			commandLine = append(commandLine, c)
+		}
+		commandLine = append(commandLine, '"')
+	} else {
+		if len(args) == 1 {
+			// args[0] is a valid command line representing itself.
+			// No need to allocate a new slice or string for it.
+			return prog
+		}
+		commandLine = []byte(prog)
+	}
+
+	for _, arg := range args[1:] {
+		commandLine = append(commandLine, ' ')
+		// TODO(bcmills): since we're already appending to a slice, it would be nice
+		// to avoid the intermediate allocations of EscapeArg.
+		// Perhaps we can factor out an appendEscapedArg function.
+		commandLine = append(commandLine, EscapeArg(arg)...)
+	}
+	return string(commandLine)
 }
 
 // DecomposeCommandLine breaks apart its argument command line into unescaped parts using CommandLineToArgv,
 // as gathered from GetCommandLine, QUERY_SERVICE_CONFIG's BinaryPathName argument, or elsewhere that
 // command lines are passed around.
+// DecomposeCommandLine returns an error if commandLine contains NUL.
 func DecomposeCommandLine(commandLine string) ([]string, error) {
 	if len(commandLine) == 0 {
 		return []string{}, nil
 	}
+	utf16CommandLine, err := UTF16FromString(commandLine)
+	if err != nil {
+		return nil, errorspkg.New("string with NUL passed to DecomposeCommandLine")
+	}
 	var argc int32
-	argv, err := CommandLineToArgv(StringToUTF16Ptr(commandLine), &argc)
+	argv, err := commandLineToArgv(&utf16CommandLine[0], &argc)
 	if err != nil {
 		return nil, err
 	}
 	defer LocalFree(Handle(unsafe.Pointer(argv)))
+
 	var args []string
-	for _, v := range (*argv)[:argc] {
-		args = append(args, UTF16ToString((*v)[:]))
+	for _, p := range unsafe.Slice(argv, argc) {
+		args = append(args, UTF16PtrToString(p))
 	}
 	return args, nil
+}
+
+// CommandLineToArgv parses a Unicode command line string and sets
+// argc to the number of parsed arguments.
+//
+// The returned memory should be freed using a single call to LocalFree.
+//
+// Note that although the return type of CommandLineToArgv indicates 8192
+// entries of up to 8192 characters each, the actual count of parsed arguments
+// may exceed 8192, and the documentation for CommandLineToArgvW does not mention
+// any bound on the lengths of the individual argument strings.
+// (See https://go.dev/issue/63236.)
+func CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, err error) {
+	argp, err := commandLineToArgv(cmd, argc)
+	argv = (*[8192]*[8192]uint16)(unsafe.Pointer(argp))
+	return argv, err
 }
 
 func CloseOnExec(fd Handle) {

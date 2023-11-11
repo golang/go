@@ -100,9 +100,9 @@ func TestForgetUnshared(t *testing.T) {
 		g.Do(key, func() (i interface{}, e error) {
 			firstStarted.Done()
 			<-firstCh
-			firstFinished.Done()
 			return
 		})
+		firstFinished.Done()
 	}()
 
 	firstStarted.Wait()

@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto"
+	"crypto/internal/boring"
 	"crypto/rand"
 	. "crypto/rsa"
 	"crypto/sha1"
@@ -16,6 +17,7 @@ import (
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"math/big"
 	"strings"
 	"testing"
@@ -126,6 +128,31 @@ func testKeyBasics(t *testing.T, priv *PrivateKey) {
 	}
 	if !bytes.Equal(dec, msg) {
 		t.Errorf("got:%x want:%x (%+v)", dec, msg, priv)
+	}
+}
+
+func TestAllocations(t *testing.T) {
+	if boring.Enabled {
+		t.Skip("skipping allocations test with BoringCrypto")
+	}
+	testenv.SkipIfOptimizationOff(t)
+
+	m := []byte("Hello Gophers")
+	c, err := EncryptPKCS1v15(rand.Reader, &test2048Key.PublicKey, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if allocs := testing.AllocsPerRun(100, func() {
+		p, err := DecryptPKCS1v15(nil, test2048Key, c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(p, m) {
+			t.Fatalf("unexpected output: %q", p)
+		}
+	}); allocs > 10 {
+		t.Errorf("expected less than 10 allocations, got %0.1f", allocs)
 	}
 }
 

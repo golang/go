@@ -5,7 +5,9 @@
 package str
 
 import (
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -28,11 +30,32 @@ func HasPathPrefix(s, prefix string) bool {
 
 // HasFilePathPrefix reports whether the filesystem path s
 // begins with the elements in prefix.
+//
+// HasFilePathPrefix is case-sensitive (except for volume names) even if the
+// filesystem is not, does not apply Unicode normalization even if the
+// filesystem does, and assumes that all path separators are canonicalized to
+// filepath.Separator (as returned by filepath.Clean).
 func HasFilePathPrefix(s, prefix string) bool {
-	sv := strings.ToUpper(filepath.VolumeName(s))
-	pv := strings.ToUpper(filepath.VolumeName(prefix))
+	sv := filepath.VolumeName(s)
+	pv := filepath.VolumeName(prefix)
+
+	// Strip the volume from both paths before canonicalizing sv and pv:
+	// it's unlikely that strings.ToUpper will change the length of the string,
+	// but doesn't seem impossible.
 	s = s[len(sv):]
 	prefix = prefix[len(pv):]
+
+	// Always treat Windows volume names as case-insensitive, even though
+	// we don't treat the rest of the path as such.
+	//
+	// TODO(bcmills): Why do we care about case only for the volume name? It's
+	// been this way since https://go.dev/cl/11316, but I don't understand why
+	// that problem doesn't apply to case differences in the entire path.
+	if sv != pv {
+		sv = strings.ToUpper(sv)
+		pv = strings.ToUpper(pv)
+	}
+
 	switch {
 	default:
 		return false
@@ -50,21 +73,45 @@ func HasFilePathPrefix(s, prefix string) bool {
 	}
 }
 
-// TrimFilePathPrefix returns s without the leading path elements in prefix.
+// TrimFilePathPrefix returns s without the leading path elements in prefix,
+// such that joining the string to prefix produces s.
+//
 // If s does not start with prefix (HasFilePathPrefix with the same arguments
 // returns false), TrimFilePathPrefix returns s. If s equals prefix,
 // TrimFilePathPrefix returns "".
 func TrimFilePathPrefix(s, prefix string) string {
+	if prefix == "" {
+		// Trimming the empty string from a path should join to produce that path.
+		// (Trim("/tmp/foo", "") should give "/tmp/foo", not "tmp/foo".)
+		return s
+	}
 	if !HasFilePathPrefix(s, prefix) {
 		return s
 	}
+
 	trimmed := s[len(prefix):]
-	if len(trimmed) == 0 || trimmed[0] != filepath.Separator {
-		// Prefix either is equal to s, or ends with a separator
-		// (for example, if it is exactly "/").
-		return trimmed
+	if len(trimmed) > 0 && os.IsPathSeparator(trimmed[0]) {
+		if runtime.GOOS == "windows" && prefix == filepath.VolumeName(prefix) && len(prefix) == 2 && prefix[1] == ':' {
+			// Joining a relative path to a bare Windows drive letter produces a path
+			// relative to the working directory on that drive, but the original path
+			// was absolute, not relative. Keep the leading path separator so that it
+			// remains absolute when joined to prefix.
+		} else {
+			// Prefix ends in a regular path element, so strip the path separator that
+			// follows it.
+			trimmed = trimmed[1:]
+		}
 	}
-	return trimmed[1:]
+	return trimmed
+}
+
+// WithFilePathSeparator returns s with a trailing path separator, or the empty
+// string if s is empty.
+func WithFilePathSeparator(s string) string {
+	if s == "" || os.IsPathSeparator(s[len(s)-1]) {
+		return s
+	}
+	return s + string(filepath.Separator)
 }
 
 // QuoteGlob returns s with all Glob metacharacters quoted.

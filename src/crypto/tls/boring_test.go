@@ -200,7 +200,7 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 	}()
 
 	for _, sigHash := range defaultSupportedSignatureAlgorithms {
-		t.Run(fmt.Sprintf("%#x", sigHash), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v", sigHash), func(t *testing.T) {
 			serverConfig := testConfig.Clone()
 			serverConfig.Certificates = make([]Certificate, 1)
 
@@ -269,7 +269,7 @@ func TestBoringClientHello(t *testing.T) {
 
 	go Client(c, clientConfig).Handshake()
 	srv := Server(s, testConfig)
-	msg, err := srv.readHandshake()
+	msg, err := srv.readHandshake(nil)
 	if err != nil {
 		t.Fatal(err)
 	}

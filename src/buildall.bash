@@ -6,8 +6,12 @@
 # Usage: buildall.bash [-e] [pattern]
 #
 # buildall.bash builds the standard library for all Go-supported
-# architectures. It is used by the "misc-compile" trybot builders,
-# as a smoke test to quickly flag portability issues.
+# architectures.
+#
+# Originally the Go build system used it as a smoke test to quickly
+# flag portability issues in builders named "misc-compile" or "all-compile".
+# As of CL 464955, the build system uses make.bash -compile-only instead,
+# so this script no longer runs in any automated fashion.
 #
 # Options:
 #   -e: stop at first failure
@@ -36,7 +40,8 @@ fi
 GOROOT="$(cd .. && pwd)"
 
 gettargets() {
-	../bin/go tool dist list | sed -e 's|/|-|'
+	../bin/go tool dist list | sed -e 's|/|-|' |
+		egrep -v '^(android|ios)' # need C toolchain even for cross-compiling
 	echo linux-arm-arm5
 }
 

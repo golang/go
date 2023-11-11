@@ -28,6 +28,7 @@ Also report certain struct tags (json, xml) used with unexported fields.`
 var Analyzer = &analysis.Analyzer{
 	Name:             "structtag",
 	Doc:              Doc,
+	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/structtag",
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,
 	Run:              run,

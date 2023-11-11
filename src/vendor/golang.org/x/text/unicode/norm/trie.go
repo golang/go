@@ -29,7 +29,7 @@ var (
 	nfkcData = newNfkcTrie(0)
 )
 
-// lookupValue determines the type of block n and looks up the value for b.
+// lookup determines the type of block n and looks up the value for b.
 // For n < t.cutoff, the block is a simple lookup table. Otherwise, the block
 // is a list of ranges with an accompanying value. Given a matching range r,
 // the value for b is by r.value + (b - r.lo) * stride.

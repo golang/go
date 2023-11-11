@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"math"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -55,6 +57,8 @@ func TestEncode(t *testing.T) {
 	for _, p := range pairs {
 		got := StdEncoding.EncodeToString([]byte(p.decoded))
 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, got, p.encoded)
+		dst := StdEncoding.AppendEncode([]byte("lead"), []byte(p.decoded))
+		testEqual(t, `AppendEncode("lead", %q) = %q, want %q`, p.decoded, string(dst), "lead"+p.encoded)
 	}
 }
 
@@ -97,13 +101,22 @@ func TestDecode(t *testing.T) {
 		if len(p.encoded) > 0 {
 			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded)-1] == '='))
 		}
-		testEqual(t, "Decode(%q) = %q, want %q", p.encoded,
-			string(dbuf[0:count]),
-			p.decoded)
+		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded)
 
 		dbuf, err = StdEncoding.DecodeString(p.encoded)
 		testEqual(t, "DecodeString(%q) = error %v, want %v", p.encoded, err, error(nil))
 		testEqual(t, "DecodeString(%q) = %q, want %q", p.encoded, string(dbuf), p.decoded)
+
+		dst, err := StdEncoding.AppendDecode([]byte("lead"), []byte(p.encoded))
+		testEqual(t, "AppendDecode(%q) = error %v, want %v", p.encoded, err, error(nil))
+		testEqual(t, `AppendDecode("lead", %q) = %q, want %q`, p.encoded, string(dst), "lead"+p.decoded)
+
+		dst2, err := StdEncoding.AppendDecode(dst[:0:len(p.decoded)], []byte(p.encoded))
+		testEqual(t, "AppendDecode(%q) = error %v, want %v", p.encoded, err, error(nil))
+		testEqual(t, `AppendDecode("", %q) = %q, want %q`, p.encoded, string(dst2), p.decoded)
+		if len(dst) > 0 && len(dst2) > 0 && &dst[0] != &dst2[0] {
+			t.Errorf("unexpected capacity growth: got %d, want %d", cap(dst2), cap(dst))
+		}
 	}
 }
 
@@ -679,52 +692,86 @@ func TestBufferedDecodingPadding(t *testing.T) {
 	}
 }
 
-func TestEncodedDecodedLen(t *testing.T) {
+func TestEncodedLen(t *testing.T) {
+	var rawStdEncoding = StdEncoding.WithPadding(NoPadding)
 	type test struct {
-		in      int
-		wantEnc int
-		wantDec int
+		enc  *Encoding
+		n    int
+		want int64
 	}
-	data := bytes.Repeat([]byte("x"), 100)
-	for _, test := range []struct {
-		name  string
-		enc   *Encoding
-		cases []test
-	}{
-		{"StdEncoding", StdEncoding, []test{
-			{0, 0, 0},
-			{1, 8, 5},
-			{5, 8, 5},
-			{6, 16, 10},
-			{10, 16, 10},
-		}},
-		{"NoPadding", StdEncoding.WithPadding(NoPadding), []test{
-			{0, 0, 0},
-			{1, 2, 1},
-			{2, 4, 2},
-			{5, 8, 5},
-			{6, 10, 6},
-			{7, 12, 7},
-			{10, 16, 10},
-			{11, 18, 11},
-		}},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			for _, tc := range test.cases {
-				encLen := test.enc.EncodedLen(tc.in)
-				decLen := test.enc.DecodedLen(encLen)
-				enc := test.enc.EncodeToString(data[:tc.in])
-				if len(enc) != encLen {
-					t.Fatalf("EncodedLen(%d) = %d but encoded to %q (%d)", tc.in, encLen, enc, len(enc))
-				}
-				if encLen != tc.wantEnc {
-					t.Fatalf("EncodedLen(%d) = %d; want %d", tc.in, encLen, tc.wantEnc)
-				}
-				if decLen != tc.wantDec {
-					t.Fatalf("DecodedLen(%d) = %d; want %d", encLen, decLen, tc.wantDec)
-				}
-			}
-		})
+	tests := []test{
+		{StdEncoding, 0, 0},
+		{StdEncoding, 1, 8},
+		{StdEncoding, 2, 8},
+		{StdEncoding, 3, 8},
+		{StdEncoding, 4, 8},
+		{StdEncoding, 5, 8},
+		{StdEncoding, 6, 16},
+		{StdEncoding, 10, 16},
+		{StdEncoding, 11, 24},
+		{rawStdEncoding, 0, 0},
+		{rawStdEncoding, 1, 2},
+		{rawStdEncoding, 2, 4},
+		{rawStdEncoding, 3, 5},
+		{rawStdEncoding, 4, 7},
+		{rawStdEncoding, 5, 8},
+		{rawStdEncoding, 6, 10},
+		{rawStdEncoding, 7, 12},
+		{rawStdEncoding, 10, 16},
+		{rawStdEncoding, 11, 18},
+	}
+	// check overflow
+	switch strconv.IntSize {
+	case 32:
+		tests = append(tests, test{rawStdEncoding, (math.MaxInt-4)/8 + 1, 429496730})
+		tests = append(tests, test{rawStdEncoding, math.MaxInt/8*5 + 4, math.MaxInt})
+	case 64:
+		tests = append(tests, test{rawStdEncoding, (math.MaxInt-4)/8 + 1, 1844674407370955162})
+		tests = append(tests, test{rawStdEncoding, math.MaxInt/8*5 + 4, math.MaxInt})
+	}
+	for _, tt := range tests {
+		if got := tt.enc.EncodedLen(tt.n); int64(got) != tt.want {
+			t.Errorf("EncodedLen(%d): got %d, want %d", tt.n, got, tt.want)
+		}
+	}
+}
+
+func TestDecodedLen(t *testing.T) {
+	var rawStdEncoding = StdEncoding.WithPadding(NoPadding)
+	type test struct {
+		enc  *Encoding
+		n    int
+		want int64
+	}
+	tests := []test{
+		{StdEncoding, 0, 0},
+		{StdEncoding, 8, 5},
+		{StdEncoding, 16, 10},
+		{StdEncoding, 24, 15},
+		{rawStdEncoding, 0, 0},
+		{rawStdEncoding, 2, 1},
+		{rawStdEncoding, 4, 2},
+		{rawStdEncoding, 5, 3},
+		{rawStdEncoding, 7, 4},
+		{rawStdEncoding, 8, 5},
+		{rawStdEncoding, 10, 6},
+		{rawStdEncoding, 12, 7},
+		{rawStdEncoding, 16, 10},
+		{rawStdEncoding, 18, 11},
+	}
+	// check overflow
+	switch strconv.IntSize {
+	case 32:
+		tests = append(tests, test{rawStdEncoding, math.MaxInt/5 + 1, 268435456})
+		tests = append(tests, test{rawStdEncoding, math.MaxInt, 1342177279})
+	case 64:
+		tests = append(tests, test{rawStdEncoding, math.MaxInt/5 + 1, 1152921504606846976})
+		tests = append(tests, test{rawStdEncoding, math.MaxInt, 5764607523034234879})
+	}
+	for _, tt := range tests {
+		if got := tt.enc.DecodedLen(tt.n); int64(got) != tt.want {
+			t.Errorf("DecodedLen(%d): got %d, want %d", tt.n, got, tt.want)
+		}
 	}
 }
 

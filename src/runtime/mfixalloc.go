@@ -13,7 +13,7 @@ import (
 	"unsafe"
 )
 
-// FixAlloc is a simple free-list allocator for fixed size objects.
+// fixalloc is a simple free-list allocator for fixed size objects.
 // Malloc uses a FixAlloc wrapped around sysAlloc to manage its
 // mcache and mspan objects.
 //
@@ -57,9 +57,7 @@ func (f *fixalloc) init(size uintptr, first func(arg, p unsafe.Pointer), arg uns
 	if size > _FixAllocChunk {
 		throw("runtime: fixalloc size too large")
 	}
-	if min := unsafe.Sizeof(mlink{}); size < min {
-		size = min
-	}
+	size = max(size, unsafe.Sizeof(mlink{}))
 
 	f.size = size
 	f.first = first

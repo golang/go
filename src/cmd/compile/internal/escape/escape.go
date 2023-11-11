@@ -12,6 +12,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
 // Escape analysis.
@@ -88,8 +89,10 @@ type batch struct {
 	allLocs  []*location
 	closures []closure
 
-	heapLoc  location
-	blankLoc location
+	heapLoc    location
+	mutatorLoc location
+	calleeLoc  location
+	blankLoc   location
 }
 
 // A closure holds a closure expression and its spill hole (i.e.,
@@ -115,21 +118,17 @@ type escape struct {
 	loopDepth int
 }
 
-func Funcs(all []ir.Node) {
+func Funcs(all []*ir.Func) {
 	ir.VisitFuncsBottomUp(all, Batch)
 }
 
 // Batch performs escape analysis on a minimal batch of
 // functions.
 func Batch(fns []*ir.Func, recursive bool) {
-	for _, fn := range fns {
-		if fn.Op() != ir.ODCLFUNC {
-			base.Fatalf("unexpected node: %v", fn)
-		}
-	}
-
 	var b batch
-	b.heapLoc.escapes = true
+	b.heapLoc.attrs = attrEscapes | attrPersists | attrMutates | attrCalls
+	b.mutatorLoc.attrs = attrMutates
+	b.calleeLoc.attrs = attrCalls
 
 	// Construct data-flow graph from syntax trees.
 	for _, fn := range fns {
@@ -184,19 +183,19 @@ func (b *batch) initFunc(fn *ir.Func) {
 
 	// Allocate locations for local variables.
 	for _, n := range fn.Dcl {
-		e.newLoc(n, false)
+		e.newLoc(n, true)
 	}
 
 	// Also for hidden parameters (e.g., the ".this" parameter to a
 	// method value wrapper).
 	if fn.OClosure == nil {
 		for _, n := range fn.ClosureVars {
-			e.newLoc(n.Canonical(), false)
+			e.newLoc(n.Canonical(), true)
 		}
 	}
 
 	// Initialize resultIndex for result parameters.
-	for i, f := range fn.Type().Results().FieldSlice() {
+	for i, f := range fn.Type().Results() {
 		e.oldLoc(f.Nname.(*ir.Name)).resultIndex = 1 + i
 	}
 }
@@ -274,12 +273,8 @@ func (b *batch) finish(fns []*ir.Func) {
 	for _, fn := range fns {
 		fn.SetEsc(escFuncTagged)
 
-		narg := 0
-		for _, fs := range &types.RecvsParams {
-			for _, f := range fs(fn.Type()).Fields().Slice() {
-				narg++
-				f.Note = b.paramTag(fn, narg, f)
-			}
+		for i, param := range fn.Type().RecvParams() {
+			param.Note = b.paramTag(fn, 1+i, param)
 		}
 	}
 
@@ -288,6 +283,7 @@ func (b *batch) finish(fns []*ir.Func) {
 		if n == nil {
 			continue
 		}
+
 		if n.Op() == ir.ONAME {
 			n := n.(*ir.Name)
 			n.Opt = nil
@@ -300,10 +296,10 @@ func (b *batch) finish(fns []*ir.Func) {
 		// TODO(mdempsky): Update tests to expect this.
 		goDeferWrapper := n.Op() == ir.OCLOSURE && n.(*ir.ClosureExpr).Func.Wrapper()
 
-		if loc.escapes {
+		if loc.hasAttr(attrEscapes) {
 			if n.Op() == ir.ONAME {
 				if base.Flag.CompilingRuntime {
-					base.ErrorfAt(n.Pos(), "%v escapes to heap, not allowed in runtime", n)
+					base.ErrorfAt(n.Pos(), 0, "%v escapes to heap, not allowed in runtime", n)
 				}
 				if base.Flag.LowerM != 0 {
 					base.WarnfAt(n.Pos(), "moved to heap: %v", n)
@@ -323,7 +319,7 @@ func (b *batch) finish(fns []*ir.Func) {
 				base.WarnfAt(n.Pos(), "%v does not escape", n)
 			}
 			n.SetEsc(ir.EscNone)
-			if loc.transient {
+			if !loc.hasAttr(attrPersists) {
 				switch n.Op() {
 				case ir.OCLOSURE:
 					n := n.(*ir.ClosureExpr)
@@ -337,6 +333,17 @@ func (b *batch) finish(fns []*ir.Func) {
 				}
 			}
 		}
+
+		// If the result of a string->[]byte conversion is never mutated,
+		// then it can simply reuse the string's memory directly.
+		if base.Debug.ZeroCopy != 0 {
+			if n, ok := n.(*ir.ConvExpr); ok && n.Op() == ir.OSTR2BYTES && !loc.hasAttr(attrMutates) {
+				if base.Flag.LowerM >= 1 {
+					base.WarnfAt(n.Pos(), "zero-copy string->[]byte conversion")
+				}
+				n.SetOp(ir.OSTR2BYTESTMP)
+			}
+		}
 	}
 }
 
@@ -345,10 +352,10 @@ func (b *batch) finish(fns []*ir.Func) {
 // fn has not yet been analyzed, so its parameters and results
 // should be incorporated directly into the flow graph instead of
 // relying on its escape analysis tagging.
-func (e *escape) inMutualBatch(fn *ir.Name) bool {
+func (b *batch) inMutualBatch(fn *ir.Name) bool {
 	if fn.Defn != nil && fn.Defn.Esc() < escFuncTagged {
 		if fn.Defn.Esc() == escFuncUnknown {
-			base.Fatalf("graph inconsistency: %v", fn)
+			base.FatalfAt(fn.Pos(), "graph inconsistency: %v", fn)
 		}
 		return true
 	}
@@ -372,8 +379,8 @@ const (
 
 func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 	name := func() string {
-		if f.Sym != nil {
-			return f.Sym.Name
+		if f.Nname != nil {
+			return f.Nname.Sym().Name
 		}
 		return fmt.Sprintf("arg#%d", narg)
 	}
@@ -411,6 +418,8 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 			if diagnose && f.Sym != nil {
 				base.WarnfAt(f.Pos, "%v does not escape", name())
 			}
+			esc.AddMutator(0)
+			esc.AddCallee(0)
 		} else {
 			if diagnose && f.Sym != nil {
 				base.WarnfAt(f.Pos, "leaking param: %v", name())
@@ -452,25 +461,49 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 	esc := loc.paramEsc
 	esc.Optimize()
 
-	if diagnose && !loc.escapes {
-		if esc.Empty() {
-			base.WarnfAt(f.Pos, "%v does not escape", name())
-		}
-		if x := esc.Heap(); x >= 0 {
-			if x == 0 {
-				base.WarnfAt(f.Pos, "leaking param: %v", name())
-			} else {
-				// TODO(mdempsky): Mention level=x like below?
-				base.WarnfAt(f.Pos, "leaking param content: %v", name())
-			}
-		}
-		for i := 0; i < numEscResults; i++ {
-			if x := esc.Result(i); x >= 0 {
-				res := fn.Type().Results().Field(i).Sym
-				base.WarnfAt(f.Pos, "leaking param: %v to result %v level=%d", name(), res, x)
-			}
-		}
+	if diagnose && !loc.hasAttr(attrEscapes) {
+		b.reportLeaks(f.Pos, name(), esc, fn.Type())
 	}
 
 	return esc.Encode()
+}
+
+func (b *batch) reportLeaks(pos src.XPos, name string, esc leaks, sig *types.Type) {
+	warned := false
+	if x := esc.Heap(); x >= 0 {
+		if x == 0 {
+			base.WarnfAt(pos, "leaking param: %v", name)
+		} else {
+			// TODO(mdempsky): Mention level=x like below?
+			base.WarnfAt(pos, "leaking param content: %v", name)
+		}
+		warned = true
+	}
+	for i := 0; i < numEscResults; i++ {
+		if x := esc.Result(i); x >= 0 {
+			res := sig.Result(i).Nname.Sym().Name
+			base.WarnfAt(pos, "leaking param: %v to result %v level=%d", name, res, x)
+			warned = true
+		}
+	}
+
+	if base.Debug.EscapeMutationsCalls <= 0 {
+		if !warned {
+			base.WarnfAt(pos, "%v does not escape", name)
+		}
+		return
+	}
+
+	if x := esc.Mutator(); x >= 0 {
+		base.WarnfAt(pos, "mutates param: %v derefs=%v", name, x)
+		warned = true
+	}
+	if x := esc.Callee(); x >= 0 {
+		base.WarnfAt(pos, "calls param: %v derefs=%v", name, x)
+		warned = true
+	}
+
+	if !warned {
+		base.WarnfAt(pos, "%v does not escape, mutate, or call", name)
+	}
 }

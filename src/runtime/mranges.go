@@ -271,7 +271,7 @@ func (a *addrRanges) findSucc(addr uintptr) int {
 	const iterMax = 8
 	bot, top := 0, len(a.ranges)
 	for top-bot > iterMax {
-		i := ((top - bot) / 2) + bot
+		i := int(uint(bot+top) >> 1)
 		if a.ranges[i].contains(base.addr()) {
 			// a.ranges[i] contains base, so
 			// its successor is the next index.

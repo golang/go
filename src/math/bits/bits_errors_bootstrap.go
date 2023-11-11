@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build compiler_bootstrap
-// +build compiler_bootstrap
 
 // This version used only for bootstrap (on this path we want
 // to avoid use of go:linkname as applied to variables).

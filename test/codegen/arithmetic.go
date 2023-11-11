@@ -11,6 +11,21 @@ package codegen
 // For codegen tests on float types, see floats.go.
 
 // ----------------- //
+//    Addition       //
+// ----------------- //
+
+func AddLargeConst(a uint64, out []uint64) {
+	// ppc64x/power10:"ADD\t[$]4294967296,"
+	// ppc64x/power9:"MOVD\t[$]1", "SLD\t[$]32" "ADD\tR[0-9]*"
+	// ppc64x/power8:"MOVD\t[$]1", "SLD\t[$]32" "ADD\tR[0-9]*"
+	out[0] = a + 0x100000000
+	// ppc64x/power10:"ADD\t[$]-8589934592,"
+	// ppc64x/power9:"MOVD\t[$]-1", "SLD\t[$]33" "ADD\tR[0-9]*"
+	// ppc64x/power8:"MOVD\t[$]-1", "SLD\t[$]33" "ADD\tR[0-9]*"
+	out[1] = a + 0xFFFFFFFE00000000
+}
+
+// ----------------- //
 //    Subtraction    //
 // ----------------- //
 
@@ -43,75 +58,81 @@ func SubMem(arr []int, b, c, d int) int {
 }
 
 func SubFromConst(a int) int {
-	// ppc64le: `SUBC\tR[0-9]+,\s[$]40,\sR`
-	// ppc64: `SUBC\tR[0-9]+,\s[$]40,\sR`
+	// ppc64x: `SUBC\tR[0-9]+,\s[$]40,\sR`
 	b := 40 - a
 	return b
 }
 
 func SubFromConstNeg(a int) int {
-	// ppc64le: `ADD\t[$]40,\sR[0-9]+,\sR`
-	// ppc64: `ADD\t[$]40,\sR[0-9]+,\sR`
+	// ppc64x: `ADD\t[$]40,\sR[0-9]+,\sR`
 	c := 40 - (-a)
 	return c
 }
 
 func SubSubFromConst(a int) int {
-	// ppc64le: `ADD\t[$]20,\sR[0-9]+,\sR`
-	// ppc64: `ADD\t[$]20,\sR[0-9]+,\sR`
+	// ppc64x: `ADD\t[$]20,\sR[0-9]+,\sR`
 	c := 40 - (20 - a)
 	return c
 }
 
 func AddSubFromConst(a int) int {
-	// ppc64le: `SUBC\tR[0-9]+,\s[$]60,\sR`
-	// ppc64: `SUBC\tR[0-9]+,\s[$]60,\sR`
+	// ppc64x: `SUBC\tR[0-9]+,\s[$]60,\sR`
 	c := 40 + (20 - a)
 	return c
 }
 
 func NegSubFromConst(a int) int {
-	// ppc64le: `ADD\t[$]-20,\sR[0-9]+,\sR`
-	// ppc64: `ADD\t[$]-20,\sR[0-9]+,\sR`
+	// ppc64x: `ADD\t[$]-20,\sR[0-9]+,\sR`
 	c := -(20 - a)
 	return c
 }
 
 func NegAddFromConstNeg(a int) int {
-	// ppc64le: `SUBC\tR[0-9]+,\s[$]40,\sR`
-	// ppc64: `SUBC\tR[0-9]+,\s[$]40,\sR`
+	// ppc64x: `SUBC\tR[0-9]+,\s[$]40,\sR`
 	c := -(-40 + a)
 	return c
 }
 
 func SubSubNegSimplify(a, b int) int {
 	// amd64:"NEGQ"
-	// ppc64:"NEG"
-	// ppc64le:"NEG"
+	// ppc64x:"NEG"
 	r := (a - b) - a
 	return r
 }
 
 func SubAddSimplify(a, b int) int {
 	// amd64:-"SUBQ",-"ADDQ"
-	// ppc64:-"SUB",-"ADD"
-	// ppc64le:-"SUB",-"ADD"
+	// ppc64x:-"SUB",-"ADD"
 	r := a + (b - a)
 	return r
 }
 
+func SubAddSimplify2(a, b, c int) (int, int, int, int, int, int) {
+	// amd64:-"ADDQ"
+	r := (a + b) - (a + c)
+	// amd64:-"ADDQ"
+	r1 := (a + b) - (c + a)
+	// amd64:-"ADDQ"
+	r2 := (b + a) - (a + c)
+	// amd64:-"ADDQ"
+	r3 := (b + a) - (c + a)
+	// amd64:-"SUBQ"
+	r4 := (a - c) + (c + b)
+	// amd64:-"SUBQ"
+	r5 := (a - c) + (b + c)
+	return r, r1, r2, r3, r4, r5
+}
+
 func SubAddNegSimplify(a, b int) int {
 	// amd64:"NEGQ",-"ADDQ",-"SUBQ"
-	// ppc64:"NEG",-"ADD",-"SUB"
-	// ppc64le:"NEG",-"ADD",-"SUB"
+	// ppc64x:"NEG",-"ADD",-"SUB"
 	r := a - (b + a)
 	return r
 }
 
 func AddAddSubSimplify(a, b, c int) int {
 	// amd64:-"SUBQ"
-	// ppc64:-"SUB"
-	// ppc64le:-"SUB"
+	// ppc64x:-"SUB"
 	r := a + (b + (c - a))
 	return r
 }
@@ -125,16 +146,14 @@ func Pow2Muls(n1, n2 int) (int, int) {
 	// 386:"SHLL\t[$]5",-"IMULL"
 	// arm:"SLL\t[$]5",-"MUL"
 	// arm64:"LSL\t[$]5",-"MUL"
-	// ppc64:"SLD\t[$]5",-"MUL"
-	// ppc64le:"SLD\t[$]5",-"MUL"
+	// ppc64x:"SLD\t[$]5",-"MUL"
 	a := n1 * 32
 
 	// amd64:"SHLQ\t[$]6",-"IMULQ"
 	// 386:"SHLL\t[$]6",-"IMULL"
 	// arm:"SLL\t[$]6",-"MUL"
 	// arm64:`NEG\sR[0-9]+<<6,\sR[0-9]+`,-`LSL`,-`MUL`
-	// ppc64:"SLD\t[$]6","NEG\\sR[0-9]+,\\sR[0-9]+",-"MUL"
-	// ppc64le:"SLD\t[$]6","NEG\\sR[0-9]+,\\sR[0-9]+",-"MUL"
+	// ppc64x:"SLD\t[$]6","NEG\\sR[0-9]+,\\sR[0-9]+",-"MUL"
 	b := -64 * n2
 
 	return a, b
@@ -167,40 +186,36 @@ func MulMemSrc(a []uint32, b []float32) {
 func MergeMuls1(n int) int {
 	// amd64:"IMUL3Q\t[$]46"
 	// 386:"IMUL3L\t[$]46"
-	// ppc64le:"MULLD\t[$]46"
-	// ppc64:"MULLD\t[$]46"
+	// ppc64x:"MULLD\t[$]46"
 	return 15*n + 31*n // 46n
 }
 
 func MergeMuls2(n int) int {
 	// amd64:"IMUL3Q\t[$]23","(ADDQ\t[$]29)|(LEAQ\t29)"
 	// 386:"IMUL3L\t[$]23","ADDL\t[$]29"
-	// ppc64le/power9:"MADDLD",-"MULLD\t[$]23",-"ADD\t[$]29"
-	// ppc64le/power8:"MULLD\t[$]23","ADD\t[$]29"
+	// ppc64x/power9:"MADDLD",-"MULLD\t[$]23",-"ADD\t[$]29"
+	// ppc64x/power8:"MULLD\t[$]23","ADD\t[$]29"
 	return 5*n + 7*(n+1) + 11*(n+2) // 23n + 29
 }
 
 func MergeMuls3(a, n int) int {
 	// amd64:"ADDQ\t[$]19",-"IMULQ\t[$]19"
 	// 386:"ADDL\t[$]19",-"IMULL\t[$]19"
-	// ppc64:"ADD\t[$]19",-"MULLD\t[$]19"
-	// ppc64le:"ADD\t[$]19",-"MULLD\t[$]19"
+	// ppc64x:"ADD\t[$]19",-"MULLD\t[$]19"
 	return a*n + 19*n // (a+19)n
 }
 
 func MergeMuls4(n int) int {
 	// amd64:"IMUL3Q\t[$]14"
 	// 386:"IMUL3L\t[$]14"
-	// ppc64:"MULLD\t[$]14"
-	// ppc64le:"MULLD\t[$]14"
+	// ppc64x:"MULLD\t[$]14"
 	return 23*n - 9*n // 14n
 }
 
 func MergeMuls5(a, n int) int {
 	// amd64:"ADDQ\t[$]-19",-"IMULQ\t[$]19"
 	// 386:"ADDL\t[$]-19",-"IMULL\t[$]19"
-	// ppc64:"ADD\t[$]-19",-"MULLD\t[$]19"
-	// ppc64le:"ADD\t[$]-19",-"MULLD\t[$]19"
+	// ppc64x:"ADD\t[$]-19",-"MULLD\t[$]19"
 	return a*n - 19*n // (a-19)n
 }
 
@@ -219,16 +234,14 @@ func Pow2Divs(n1 uint, n2 int) (uint, int) {
 	// amd64:"SHRQ\t[$]5",-"DIVQ"
 	// arm:"SRL\t[$]5",-".*udiv"
 	// arm64:"LSR\t[$]5",-"UDIV"
-	// ppc64:"SRD"
-	// ppc64le:"SRD"
+	// ppc64x:"SRD"
 	a := n1 / 32 // unsigned
 
 	// amd64:"SARQ\t[$]6",-"IDIVQ"
 	// 386:"SARL\t[$]6",-"IDIVL"
 	// arm:"SRA\t[$]6",-".*udiv"
 	// arm64:"ASR\t[$]6",-"SDIV"
-	// ppc64:"SRAD"
-	// ppc64le:"SRAD"
+	// ppc64x:"SRAD"
 	b := n2 / 64 // signed
 
 	return a, b
@@ -262,16 +275,14 @@ func Pow2Mods(n1 uint, n2 int) (uint, int) {
 	// amd64:"ANDL\t[$]31",-"DIVQ"
 	// arm:"AND\t[$]31",-".*udiv"
 	// arm64:"AND\t[$]31",-"UDIV"
-	// ppc64:"ANDCC\t[$]31"
-	// ppc64le:"ANDCC\t[$]31"
+	// ppc64x:"RLDICL"
 	a := n1 % 32 // unsigned
 
 	// 386:"SHRL",-"IDIVL"
 	// amd64:"SHRQ",-"IDIVQ"
 	// arm:"SRA",-".*udiv"
 	// arm64:"ASR",-"REM"
-	// ppc64:"SRAD"
-	// ppc64le:"SRAD"
+	// ppc64x:"SRAD"
 	b := n2 % 64 // signed
 
 	return a, b
@@ -283,16 +294,14 @@ func Pow2DivisibleSigned(n1, n2 int) (bool, bool) {
 	// amd64:"TESTQ\t[$]63",-"DIVQ",-"SHRQ"
 	// arm:"AND\t[$]63",-".*udiv",-"SRA"
 	// arm64:"TST\t[$]63",-"UDIV",-"ASR",-"AND"
-	// ppc64:"ANDCC\t[$]63",-"SRAD"
-	// ppc64le:"ANDCC\t[$]63",-"SRAD"
+	// ppc64x:"RLDICL",-"SRAD"
 	a := n1%64 == 0 // signed divisible
 
 	// 386:"TESTL\t[$]63",-"DIVL",-"SHRL"
 	// amd64:"TESTQ\t[$]63",-"DIVQ",-"SHRQ"
 	// arm:"AND\t[$]63",-".*udiv",-"SRA"
 	// arm64:"TST\t[$]63",-"UDIV",-"ASR",-"AND"
-	// ppc64:"ANDCC\t[$]63",-"SRAD"
-	// ppc64le:"ANDCC\t[$]63",-"SRAD"
+	// ppc64x:"RLDICL",-"SRAD"
 	b := n2%64 != 0 // signed indivisible
 
 	return a, b
@@ -316,44 +325,42 @@ func ConstMods(n1 uint, n2 int) (uint, int) {
 }
 
 // Check that divisibility checks x%c==0 are converted to MULs and rotates
-func Divisible(n1 uint, n2 int) (bool, bool, bool, bool) {
+func DivisibleU(n uint) (bool, bool) {
 	// amd64:"MOVQ\t[$]-6148914691236517205","IMULQ","ROLQ\t[$]63",-"DIVQ"
 	// 386:"IMUL3L\t[$]-1431655765","ROLL\t[$]31",-"DIVQ"
 	// arm64:"MOVD\t[$]-6148914691236517205","MOVD\t[$]3074457345618258602","MUL","ROR",-"DIV"
 	// arm:"MUL","CMP\t[$]715827882",-".*udiv"
-	// ppc64:"MULLD","ROTL\t[$]63"
-	// ppc64le:"MULLD","ROTL\t[$]63"
-	evenU := n1%6 == 0
+	// ppc64x:"MULLD","ROTL\t[$]63"
+	even := n%6 == 0
 
 	// amd64:"MOVQ\t[$]-8737931403336103397","IMULQ",-"ROLQ",-"DIVQ"
 	// 386:"IMUL3L\t[$]678152731",-"ROLL",-"DIVQ"
 	// arm64:"MOVD\t[$]-8737931403336103397","MUL",-"ROR",-"DIV"
 	// arm:"MUL","CMP\t[$]226050910",-".*udiv"
-	// ppc64:"MULLD",-"ROTL"
-	// ppc64le:"MULLD",-"ROTL"
-	oddU := n1%19 == 0
+	// ppc64x:"MULLD",-"ROTL"
+	odd := n%19 == 0
 
+	return even, odd
+}
+
+func Divisible(n int) (bool, bool) {
 	// amd64:"IMULQ","ADD","ROLQ\t[$]63",-"DIVQ"
 	// 386:"IMUL3L\t[$]-1431655765","ADDL\t[$]715827882","ROLL\t[$]31",-"DIVQ"
-	// arm64:"MUL","ADD\tR","ROR",-"DIV"
+	// arm64:"MOVD\t[$]-6148914691236517205","MOVD\t[$]3074457345618258602","MUL","ADD\tR","ROR",-"DIV"
 	// arm:"MUL","ADD\t[$]715827882",-".*udiv"
-	// ppc64/power8:"MULLD","ADD","ROTL\t[$]63"
-	// ppc64le/power8:"MULLD","ADD","ROTL\t[$]63"
-	// ppc64/power9:"MADDLD","ROTL\t[$]63"
-	// ppc64le/power9:"MADDLD","ROTL\t[$]63"
-	evenS := n2%6 == 0
+	// ppc64x/power8:"MULLD","ADD","ROTL\t[$]63"
+	// ppc64x/power9:"MADDLD","ROTL\t[$]63"
+	even := n%6 == 0
 
 	// amd64:"IMULQ","ADD",-"ROLQ",-"DIVQ"
 	// 386:"IMUL3L\t[$]678152731","ADDL\t[$]113025455",-"ROLL",-"DIVQ"
 	// arm64:"MUL","MOVD\t[$]485440633518672410","ADD",-"ROR",-"DIV"
 	// arm:"MUL","ADD\t[$]113025455",-".*udiv"
-	// ppc64/power8:"MULLD","ADD",-"ROTL"
-	// ppc64/power9:"MADDLD",-"ROTL"
-	// ppc64le/power8:"MULLD","ADD",-"ROTL"
-	// ppc64le/power9:"MADDLD",-"ROTL"
-	oddS := n2%19 == 0
+	// ppc64x/power8:"MULLD","ADD",-"ROTL"
+	// ppc64x/power9:"MADDLD",-"ROTL"
+	odd := n%19 == 0
 
-	return evenU, oddU, evenS, oddS
+	return even, odd
 }
 
 // Check that fix-up code is not generated for divisions where it has been proven that
@@ -453,8 +460,7 @@ func LenDiv1(a []int) int {
 	// amd64:"SHRQ\t[$]10"
 	// arm64:"LSR\t[$]10",-"SDIV"
 	// arm:"SRL\t[$]10",-".*udiv"
-	// ppc64:"SRD"\t[$]10"
-	// ppc64le:"SRD"\t[$]10"
+	// ppc64x:"SRD"\t[$]10"
 	return len(a) / 1024
 }
 
@@ -463,8 +469,7 @@ func LenDiv2(s string) int {
 	// amd64:"SHRQ\t[$]11"
 	// arm64:"LSR\t[$]11",-"SDIV"
 	// arm:"SRL\t[$]11",-".*udiv"
-	// ppc64:"SRD\t[$]11"
-	// ppc64le:"SRD\t[$]11"
+	// ppc64x:"SRD\t[$]11"
 	return len(s) / (4097 >> 1)
 }
 
@@ -474,8 +479,7 @@ func LenMod1(a []int) int {
 	// arm64:"AND\t[$]1023",-"SDIV"
 	// arm/6:"AND",-".*udiv"
 	// arm/7:"BFC",-".*udiv",-"AND"
-	// ppc64:"ANDCC\t[$]1023"
-	// ppc64le:"ANDCC\t[$]1023"
+	// ppc64x:"RLDICL"
 	return len(a) % 1024
 }
 
@@ -485,8 +489,7 @@ func LenMod2(s string) int {
 	// arm64:"AND\t[$]2047",-"SDIV"
 	// arm/6:"AND",-".*udiv"
 	// arm/7:"BFC",-".*udiv",-"AND"
-	// ppc64:"ANDCC\t[$]2047"
-	// ppc64le:"ANDCC\t[$]2047"
+	// ppc64x:"RLDICL"
 	return len(s) % (4097 >> 1)
 }
 
@@ -495,8 +498,7 @@ func CapDiv(a []int) int {
 	// amd64:"SHRQ\t[$]12"
 	// arm64:"LSR\t[$]12",-"SDIV"
 	// arm:"SRL\t[$]12",-".*udiv"
-	// ppc64:"SRD\t[$]12"
-	// ppc64le:"SRD\t[$]12"
+	// ppc64x:"SRD\t[$]12"
 	return cap(a) / ((1 << 11) + 2048)
 }
 
@@ -506,8 +508,7 @@ func CapMod(a []int) int {
 	// arm64:"AND\t[$]4095",-"SDIV"
 	// arm/6:"AND",-".*udiv"
 	// arm/7:"BFC",-".*udiv",-"AND"
-	// ppc64:"ANDCC\t[$]4095"
-	// ppc64le:"ANDCC\t[$]4095"
+	// ppc64x:"RLDICL"
 	return cap(a) % ((1 << 11) + 2048)
 }
 
@@ -525,8 +526,7 @@ func MULA(a, b, c uint32) (uint32, uint32, uint32) {
 	r1 := c*79 + a
 	// arm:`ADD`,-`MULA`,-`MUL\s`
 	// arm64:`ADD`,-`MADD`,-`MULW`
-	// ppc64:`ADD`,-`MULLD`
-	// ppc64le:`ADD`,-`MULLD`
+	// ppc64x:`ADD`,-`MULLD`
 	r2 := b*64 + c
 	return r0, r1, r2
 }
@@ -542,8 +542,7 @@ func MULS(a, b, c uint32) (uint32, uint32, uint32) {
 	r1 := a - c*79
 	// arm/7:`SUB`,-`MULS`,-`MUL\s`
 	// arm64:`SUB`,-`MSUBW`,-`MULW`
-	// ppc64:`SUB`,-`MULLD`
-	// ppc64le:`SUB`,-`MULLD`
+	// ppc64x:`SUB`,-`MULLD`
 	r2 := c - b*64
 	return r0, r1, r2
 }
@@ -572,20 +571,16 @@ func divInt(v int64) int64 {
 // "(z + C) -x -> C + (z - x)" can optimize the following cases.
 func constantFold1(i0, j0, i1, j1, i2, j2, i3, j3 int) (int, int, int, int) {
 	// arm64:"SUB","ADD\t[$]2"
-	// ppc64:"SUB","ADD\t[$]2"
-	// ppc64le:"SUB","ADD\t[$]2"
+	// ppc64x:"SUB","ADD\t[$]2"
 	r0 := (i0 + 3) - (j0 + 1)
 	// arm64:"SUB","SUB\t[$]4"
-	// ppc64:"SUB","ADD\t[$]-4"
-	// ppc64le:"SUB","ADD\t[$]-4"
+	// ppc64x:"SUB","ADD\t[$]-4"
 	r1 := (i1 - 3) - (j1 + 1)
 	// arm64:"SUB","ADD\t[$]4"
-	// ppc64:"SUB","ADD\t[$]4"
-	// ppc64le:"SUB","ADD\t[$]4"
+	// ppc64x:"SUB","ADD\t[$]4"
 	r2 := (i2 + 3) - (j2 - 1)
 	// arm64:"SUB","SUB\t[$]2"
-	// ppc64:"SUB","ADD\t[$]-2"
-	// ppc64le:"SUB","ADD\t[$]-2"
+	// ppc64x:"SUB","ADD\t[$]-2"
 	r3 := (i3 - 3) - (j3 - 1)
 	return r0, r1, r2, r3
 }
@@ -594,20 +589,17 @@ func constantFold1(i0, j0, i1, j1, i2, j2, i3, j3 int) (int, int, int, int) {
 // "(C - z) - x -> C - (z + x)" can optimize the following cases.
 func constantFold2(i0, j0, i1, j1 int) (int, int) {
 	// arm64:"ADD","MOVD\t[$]2","SUB"
-	// ppc64le: `SUBC\tR[0-9]+,\s[$]2,\sR`
-	// ppc64: `SUBC\tR[0-9]+,\s[$]2,\sR`
+	// ppc64x: `SUBC\tR[0-9]+,\s[$]2,\sR`
 	r0 := (3 - i0) - (j0 + 1)
 	// arm64:"ADD","MOVD\t[$]4","SUB"
-	// ppc64le: `SUBC\tR[0-9]+,\s[$]4,\sR`
-	// ppc64: `SUBC\tR[0-9]+,\s[$]4,\sR`
+	// ppc64x: `SUBC\tR[0-9]+,\s[$]4,\sR`
 	r1 := (3 - i1) - (j1 - 1)
 	return r0, r1
 }
 
 func constantFold3(i, j int) int {
 	// arm64: "MOVD\t[$]30","MUL",-"ADD",-"LSL"
-	// ppc64:"MULLD\t[$]30","MULLD"
-	// ppc64le:"MULLD\t[$]30","MULLD"
+	// ppc64x:"MULLD\t[$]30","MULLD"
 	r := (5 * i) * (6 * j)
 	return r
 }

@@ -4,6 +4,8 @@
 
 package x509
 
+import "internal/goos"
+
 // Possible certificate files; stop after finding one.
 var certFiles = []string{
 	"/etc/ssl/certs/ca-certificates.crt",                // Debian/Ubuntu/Gentoo etc.
@@ -16,7 +18,15 @@ var certFiles = []string{
 
 // Possible directories with certificate files; all will be read.
 var certDirectories = []string{
-	"/etc/ssl/certs",               // SLES10/SLES11, https://golang.org/issue/12139
-	"/etc/pki/tls/certs",           // Fedora/RHEL
-	"/system/etc/security/cacerts", // Android
+	"/etc/ssl/certs",     // SLES10/SLES11, https://golang.org/issue/12139
+	"/etc/pki/tls/certs", // Fedora/RHEL
+}
+
+func init() {
+	if goos.IsAndroid == 1 {
+		certDirectories = append(certDirectories,
+			"/system/etc/security/cacerts",    // Android system roots
+			"/data/misc/keychain/certs-added", // User trusted CA folder
+		)
+	}
 }

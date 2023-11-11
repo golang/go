@@ -73,27 +73,41 @@ func cname(s string) string {
 	return s
 }
 
-// DiscardCgoDirectives processes the import C preamble, and discards
-// all #cgo CFLAGS and LDFLAGS directives, so they don't make their
-// way into _cgo_export.h.
-func (f *File) DiscardCgoDirectives() {
+// ProcessCgoDirectives processes the import C preamble:
+//  1. discards all #cgo CFLAGS, LDFLAGS, nocallback and noescape directives,
+//     so they don't make their way into _cgo_export.h.
+//  2. parse the nocallback and noescape directives.
+func (f *File) ProcessCgoDirectives() {
 	linesIn := strings.Split(f.Preamble, "\n")
 	linesOut := make([]string, 0, len(linesIn))
+	f.NoCallbacks = make(map[string]bool)
+	f.NoEscapes = make(map[string]bool)
 	for _, line := range linesIn {
 		l := strings.TrimSpace(line)
 		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(rune(l[4])) {
 			linesOut = append(linesOut, line)
 		} else {
 			linesOut = append(linesOut, "")
+
+			// #cgo (nocallback|noescape) <function name>
+			if fields := strings.Fields(l); len(fields) == 3 {
+				directive := fields[1]
+				funcName := fields[2]
+				if directive == "nocallback" {
+					fatalf("#cgo nocallback disabled until Go 1.23")
+					f.NoCallbacks[funcName] = true
+				} else if directive == "noescape" {
+					fatalf("#cgo noescape disabled until Go 1.23")
+					f.NoEscapes[funcName] = true
+				}
+			}
 		}
 	}
 	f.Preamble = strings.Join(linesOut, "\n")
 }
 
-// addToFlag appends args to flag. All flags are later written out onto the
-// _cgo_flags file for the build system to use.
+// addToFlag appends args to flag.
 func (p *Package) addToFlag(flag string, args []string) {
-	p.CgoFlags[flag] = append(p.CgoFlags[flag], args...)
 	if flag == "CFLAGS" {
 		// We'll also need these when preprocessing for dwarf information.
 		// However, discard any -g options: we need to be able
@@ -103,6 +117,9 @@ func (p *Package) addToFlag(flag string, args []string) {
 				p.GccOptions = append(p.GccOptions, arg)
 			}
 		}
+	}
+	if flag == "LDFLAGS" {
+		p.LdFlags = append(p.LdFlags, args...)
 	}
 }
 
@@ -581,7 +598,7 @@ func (p *Package) loadDWARF(f *File, conv *typeConv, names []*Name) {
 			// As of https://reviews.llvm.org/D123534, clang
 			// now emits DW_TAG_variable DIEs that have
 			// no name (so as to be able to describe the
-			// type and source locations of constant strings
+			// type and source locations of constant strings)
 			// like the second arg in the call below:
 			//
 			//     myfunction(42, "foo")
@@ -938,7 +955,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 		// constants to the parameter type, to avoid a type mismatch.
 		ptype := p.rewriteUnsafe(param.Go)
 
-		if !p.needsPointerCheck(f, param.Go, args[i]) || param.BadPointer {
+		if !p.needsPointerCheck(f, param.Go, args[i]) || param.BadPointer || p.checkUnsafeStringData(args[i]) {
 			if ptype != param.Go {
 				needsUnsafe = true
 			}
@@ -954,6 +971,11 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 
 		// Check for &x.
 		if p.checkAddr(&sb, &sbCheck, arg, i) {
+			continue
+		}
+
+		// Check for a[:].
+		if p.checkSlice(&sb, &sbCheck, arg, i) {
 			continue
 		}
 
@@ -1178,7 +1200,10 @@ func (p *Package) checkIndex(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) boo
 	x := arg
 	for {
 		c, ok := x.(*ast.CallExpr)
-		if !ok || len(c.Args) != 1 || !p.isType(c.Fun) {
+		if !ok || len(c.Args) != 1 {
+			break
+		}
+		if !p.isType(c.Fun) && !p.isUnsafeData(c.Fun, false) {
 			break
 		}
 		x = c.Args[0]
@@ -1232,7 +1257,10 @@ func (p *Package) checkAddr(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool
 	px := &arg
 	for {
 		c, ok := (*px).(*ast.CallExpr)
-		if !ok || len(c.Args) != 1 || !p.isType(c.Fun) {
+		if !ok || len(c.Args) != 1 {
+			break
+		}
+		if !p.isType(c.Fun) && !p.isUnsafeData(c.Fun, false) {
 			break
 		}
 		px = &c.Args[0]
@@ -1253,6 +1281,71 @@ func (p *Package) checkAddr(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool
 	fmt.Fprintf(sbCheck, "_cgoCheckPointer(_cgoBase%d, 0 == 0); ", i)
 
 	return true
+}
+
+// checkSlice checks whether arg has the form x[i:j], possibly inside
+// type conversions. If so, it writes
+//
+//	_cgoSliceNN := x[i:j]
+//	_cgoNN := _cgoSliceNN // with type conversions, if any
+//
+// to sb, and writes
+//
+//	_cgoCheckPointer(_cgoSliceNN, true)
+//
+// to sbCheck, and returns true. This tells _cgoCheckPointer to check
+// just the contents of the slice being passed, not any other part
+// of the memory allocation.
+func (p *Package) checkSlice(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool {
+	// Strip type conversions.
+	px := &arg
+	for {
+		c, ok := (*px).(*ast.CallExpr)
+		if !ok || len(c.Args) != 1 {
+			break
+		}
+		if !p.isType(c.Fun) && !p.isUnsafeData(c.Fun, false) {
+			break
+		}
+		px = &c.Args[0]
+	}
+	if _, ok := (*px).(*ast.SliceExpr); !ok {
+		return false
+	}
+
+	fmt.Fprintf(sb, "_cgoSlice%d := %s; ", i, gofmtPos(*px, (*px).Pos()))
+
+	origX := *px
+	*px = ast.NewIdent(fmt.Sprintf("_cgoSlice%d", i))
+	fmt.Fprintf(sb, "_cgo%d := %s; ", i, gofmtPos(arg, arg.Pos()))
+	*px = origX
+
+	// Use 0 == 0 to do the right thing in the unlikely event
+	// that "true" is shadowed.
+	fmt.Fprintf(sbCheck, "_cgoCheckPointer(_cgoSlice%d, 0 == 0); ", i)
+
+	return true
+}
+
+// checkUnsafeStringData checks for a call to unsafe.StringData.
+// The result of that call can't contain a pointer so there is
+// no need to call _cgoCheckPointer.
+func (p *Package) checkUnsafeStringData(arg ast.Expr) bool {
+	x := arg
+	for {
+		c, ok := x.(*ast.CallExpr)
+		if !ok || len(c.Args) != 1 {
+			break
+		}
+		if p.isUnsafeData(c.Fun, true) {
+			return true
+		}
+		if !p.isType(c.Fun) {
+			break
+		}
+		x = c.Args[0]
+	}
+	return false
 }
 
 // isType reports whether the expression is definitely a type.
@@ -1297,6 +1390,28 @@ func (p *Package) isType(t ast.Expr) bool {
 		return true
 	}
 	return false
+}
+
+// isUnsafeData reports whether the expression is unsafe.StringData
+// or unsafe.SliceData. We can ignore these when checking for pointers
+// because they don't change whether or not their argument contains
+// any Go pointers. If onlyStringData is true we only check for StringData.
+func (p *Package) isUnsafeData(x ast.Expr, onlyStringData bool) bool {
+	st, ok := x.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	id, ok := st.X.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	if id.Name != "unsafe" {
+		return false
+	}
+	if !onlyStringData && st.Sel.Name == "SliceData" {
+		return true
+	}
+	return st.Sel.Name == "StringData"
 }
 
 // isVariable reports whether x is a variable, possibly with field references.
@@ -3227,7 +3342,7 @@ func (c *typeConv) badVoidPointerTypedef(dt *dwarf.TypedefType) bool {
 	return false
 }
 
-// badStructPointerTypedef is like badVoidPointerTypedefs but for structs.
+// badStructPointerTypedef is like badVoidPointerTypedef but for structs.
 func (c *typeConv) badStructPointerTypedef(name string, dt *dwarf.StructType) bool {
 	// Windows handle types can all potentially contain non-pointers.
 	// badVoidPointerTypedef handles the "void *" HANDLE type, but other

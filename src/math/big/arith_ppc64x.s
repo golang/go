@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !math_big_pure_go && (ppc64 || ppc64le)
-// +build !math_big_pure_go
-// +build ppc64 ppc64le
 
 #include "textflag.h"
 
@@ -45,7 +43,7 @@ TEXT ·addVV(SB), NOSPLIT, $0
 	// gain significant performance as z_len increases (up to
 	// 1.45x).
 
-	PCALIGN $32
+	PCALIGN $16
 loop:
 	MOVD  8(R8), R11      // R11 = x[i]
 	MOVD  16(R8), R12     // R12 = x[i+1]
@@ -134,7 +132,7 @@ TEXT ·subVV(SB), NOSPLIT, $0
 	// gain significant performance as z_len increases (up to
 	// 1.45x).
 
-	PCALIGN $32
+	PCALIGN $16
 loop:
 	MOVD  8(R8), R11      // R11 = x[i]
 	MOVD  16(R8), R12     // R12 = x[i+1]
@@ -216,7 +214,7 @@ TEXT ·addVW(SB), NOSPLIT, $0
 	CMP   R0, R9
 	MOVD  R9, CTR		// Set up the loop counter
 	BEQ   tail		// If R9 = 0, we can't use the loop
-	PCALIGN $32
+	PCALIGN $16
 
 loop:
 	MOVD  8(R8), R20	// R20 = x[i]
@@ -294,7 +292,7 @@ TEXT ·subVW(SB), NOSPLIT, $0
 	// we don't need to capture CA every iteration because we've already
 	// done that above.
 
-	PCALIGN $32
+	PCALIGN $16
 loop:
 	MOVD  8(R8), R20
 	MOVD  16(R8), R21
@@ -365,7 +363,7 @@ TEXT ·shlVU(SB), NOSPLIT, $0
 	CMP     R5, R0          // iterate from i=len(z)-1 to 0
 	BEQ     loopexit        // Already at end?
 	MOVD	0(R15),R10	// x[i]
-	PCALIGN $32
+	PCALIGN $16
 shloop:
 	SLD     R9, R10, R10    // x[i]<<s
 	MOVDU   -8(R15), R14
@@ -528,7 +526,7 @@ TEXT ·mulAddVWW(SB), NOSPLIT, $0
 	CMP     R0, R14
 	MOVD    R14, CTR          // Set up the loop counter
 	BEQ     tail              // If R9 = 0, we can't use the loop
-	PCALIGN $32
+	PCALIGN $16
 
 loop:
 	MOVD    8(R8), R20        // R20 = x[i]
@@ -611,7 +609,7 @@ TEXT ·addMulVVW(SB), NOSPLIT, $0
 	MOVD R0, R4		// R4 = c = 0
 	MOVD R22, CTR		// Initialize loop counter
 	BEQ  done
-	PCALIGN $32
+	PCALIGN $16
 
 loop:
 	MOVD  (R8)(R3), R20	// Load x[i]

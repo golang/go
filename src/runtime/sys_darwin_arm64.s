@@ -309,11 +309,22 @@ ok:
 
 TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
 	SUB	$16, RSP
-	MOVW	4(R0), R1	// arg 2 cmd
-	MOVW	8(R0), R2	// arg 3 arg
+	MOVD	R0, R19
+	MOVW	0(R19), R0	// arg 1 fd
+	MOVW	4(R19), R1	// arg 2 cmd
+	MOVW	8(R19), R2	// arg 3 arg
 	MOVW	R2, (RSP)	// arg 3 is variadic, pass on stack
-	MOVW	0(R0), R0	// arg 1 fd
 	BL	libc_fcntl(SB)
+	MOVD	$0, R1
+	MOVD	$-1, R2
+	CMP	R0, R2
+	BNE	noerr
+	BL	libc_error(SB)
+	MOVW	(R0), R1
+	MOVW	$-1, R0
+noerr:
+	MOVW	R0, 12(R19)
+	MOVW	R1, 16(R19)
 	ADD	$16, RSP
 	RET
 
@@ -751,4 +762,31 @@ TEXT runtime·syscall_x509(SB),NOSPLIT,$0
 	MOVD	(RSP), R2	// pop structure pointer
 	ADD	$16, RSP
 	MOVD	R0, 56(R2)	// save r1
+	RET
+
+TEXT runtime·issetugid_trampoline(SB),NOSPLIT,$0
+	BL	libc_issetugid(SB)
+	RET
+
+// mach_vm_region_trampoline calls mach_vm_region from libc.
+TEXT runtime·mach_vm_region_trampoline(SB),NOSPLIT,$0
+	MOVD	0(R0), R1	// address
+	MOVD	8(R0), R2	// size
+	MOVW	16(R0), R3	// flavor
+	MOVD	24(R0), R4	// info
+	MOVD	32(R0), R5	// count
+	MOVD	40(R0), R6  // object_name
+	MOVD	$libc_mach_task_self_(SB), R0
+	MOVW	0(R0), R0
+	BL	libc_mach_vm_region(SB)
+	RET
+
+// proc_regionfilename_trampoline calls proc_regionfilename for
+// the current process.
+TEXT runtime·proc_regionfilename_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// address
+	MOVD	16(R0), R2	// buffer
+	MOVD	24(R0), R3	// buffer_size
+	MOVD	0(R0), R0 // pid
+	BL	libc_proc_regionfilename(SB)
 	RET

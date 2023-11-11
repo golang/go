@@ -37,7 +37,7 @@ func nametomib(name string) (mib []_C_int, err error) {
 	left := 0
 	right := len(sysctlMib) - 1
 	for {
-		idx := left + (right-left)/2
+		idx := int(uint(left+right) >> 1)
 		switch {
 		case name == sysctlMib[idx].ctlname:
 			return sysctlMib[idx].ctloid, nil
@@ -116,18 +116,13 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 }
 
 func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
-	var _p0 unsafe.Pointer
+	var bufptr *Statfs_t
 	var bufsize uintptr
 	if len(buf) > 0 {
-		_p0 = unsafe.Pointer(&buf[0])
+		bufptr = &buf[0]
 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
 	}
-	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
-	n = int(r0)
-	if e1 != 0 {
-		err = e1
-	}
-	return
+	return getfsstat(bufptr, bufsize, flags)
 }
 
 /*
@@ -196,7 +191,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
+//sysnb	setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
@@ -212,4 +207,5 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 //sys	writev(fd int, iovecs []Iovec) (n uintptr, err error)
 //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
 //sys	munmap(addr uintptr, length uintptr) (err error)
+//sys	getfsstat(stat *Statfs_t, bufsize uintptr, flags int) (n int, err error)
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)

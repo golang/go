@@ -3,9 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && (ppc64 || ppc64le) && gc
-// +build linux
-// +build ppc64 ppc64le
-// +build gc
 
 #include "textflag.h"
 

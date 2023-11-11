@@ -42,7 +42,7 @@ func blockGeneric(dig *digest, p []byte) {
 		}
 		for ; i < 20; i++ {
 			tmp := w[(i-3)&0xf] ^ w[(i-8)&0xf] ^ w[(i-14)&0xf] ^ w[(i)&0xf]
-			w[i&0xf] = tmp<<1 | tmp>>(32-1)
+			w[i&0xf] = bits.RotateLeft32(tmp, 1)
 
 			f := b&c | (^b)&d
 			t := bits.RotateLeft32(a, 5) + f + e + w[i&0xf] + _K0
@@ -50,21 +50,21 @@ func blockGeneric(dig *digest, p []byte) {
 		}
 		for ; i < 40; i++ {
 			tmp := w[(i-3)&0xf] ^ w[(i-8)&0xf] ^ w[(i-14)&0xf] ^ w[(i)&0xf]
-			w[i&0xf] = tmp<<1 | tmp>>(32-1)
+			w[i&0xf] = bits.RotateLeft32(tmp, 1)
 			f := b ^ c ^ d
 			t := bits.RotateLeft32(a, 5) + f + e + w[i&0xf] + _K1
 			a, b, c, d, e = t, a, bits.RotateLeft32(b, 30), c, d
 		}
 		for ; i < 60; i++ {
 			tmp := w[(i-3)&0xf] ^ w[(i-8)&0xf] ^ w[(i-14)&0xf] ^ w[(i)&0xf]
-			w[i&0xf] = tmp<<1 | tmp>>(32-1)
+			w[i&0xf] = bits.RotateLeft32(tmp, 1)
 			f := ((b | c) & d) | (b & c)
 			t := bits.RotateLeft32(a, 5) + f + e + w[i&0xf] + _K2
 			a, b, c, d, e = t, a, bits.RotateLeft32(b, 30), c, d
 		}
 		for ; i < 80; i++ {
 			tmp := w[(i-3)&0xf] ^ w[(i-8)&0xf] ^ w[(i-14)&0xf] ^ w[(i)&0xf]
-			w[i&0xf] = tmp<<1 | tmp>>(32-1)
+			w[i&0xf] = bits.RotateLeft32(tmp, 1)
 			f := b ^ c ^ d
 			t := bits.RotateLeft32(a, 5) + f + e + w[i&0xf] + _K3
 			a, b, c, d, e = t, a, bits.RotateLeft32(b, 30), c, d

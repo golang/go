@@ -254,7 +254,7 @@ func TestBinomial(t *testing.T) {
 
 func BenchmarkBinomial(b *testing.B) {
 	var z Int
-	for i := b.N - 1; i >= 0; i-- {
+	for i := 0; i < b.N; i++ {
 		z.Binomial(1000, 990)
 	}
 }
@@ -1425,7 +1425,6 @@ func BenchmarkBitset(b *testing.B) {
 	z := new(Int)
 	z.SetBit(z, 512, 1)
 	b.ResetTimer()
-	b.StartTimer()
 	for i := b.N - 1; i >= 0; i-- {
 		z.SetBit(z, i&512, 1)
 	}
@@ -1435,7 +1434,6 @@ func BenchmarkBitsetNeg(b *testing.B) {
 	z := NewInt(-1)
 	z.SetBit(z, 512, 0)
 	b.ResetTimer()
-	b.StartTimer()
 	for i := b.N - 1; i >= 0; i-- {
 		z.SetBit(z, i&512, 0)
 	}
@@ -1445,7 +1443,6 @@ func BenchmarkBitsetOrig(b *testing.B) {
 	z := new(Int)
 	altSetBit(z, z, 512, 1)
 	b.ResetTimer()
-	b.StartTimer()
 	for i := b.N - 1; i >= 0; i-- {
 		altSetBit(z, z, i&512, 1)
 	}
@@ -1455,7 +1452,6 @@ func BenchmarkBitsetNegOrig(b *testing.B) {
 	z := NewInt(-1)
 	altSetBit(z, z, 512, 0)
 	b.ResetTimer()
-	b.StartTimer()
 	for i := b.N - 1; i >= 0; i-- {
 		altSetBit(z, z, i&512, 0)
 	}
@@ -1952,6 +1948,55 @@ func TestNewIntAllocs(t *testing.T) {
 		})
 		if got != 0 {
 			t.Errorf("x.Add(x, NewInt(%d)), wanted 0 allocations, got %f", n, got)
+		}
+	}
+}
+
+func TestFloat64(t *testing.T) {
+	for _, test := range []struct {
+		istr string
+		f    float64
+		acc  Accuracy
+	}{
+		{"-1000000000000000000000000000000000000000000000000000000", -1000000000000000078291540404596243842305360299886116864.000000, Below},
+		{"-9223372036854775809", math.MinInt64, Above},
+		{"-9223372036854775808", -9223372036854775808, Exact}, // -2^63
+		{"-9223372036854775807", -9223372036854775807, Below},
+		{"-18014398509481985", -18014398509481984.000000, Above},
+		{"-18014398509481984", -18014398509481984.000000, Exact}, // -2^54
+		{"-18014398509481983", -18014398509481984.000000, Below},
+		{"-9007199254740993", -9007199254740992.000000, Above},
+		{"-9007199254740992", -9007199254740992.000000, Exact}, // -2^53
+		{"-9007199254740991", -9007199254740991.000000, Exact},
+		{"-4503599627370497", -4503599627370497.000000, Exact},
+		{"-4503599627370496", -4503599627370496.000000, Exact}, // -2^52
+		{"-4503599627370495", -4503599627370495.000000, Exact},
+		{"-12345", -12345, Exact},
+		{"-1", -1, Exact},
+		{"0", 0, Exact},
+		{"1", 1, Exact},
+		{"12345", 12345, Exact},
+		{"0x1010000000000000", 0x1010000000000000, Exact}, // >2^53 but exact nonetheless
+		{"9223372036854775807", 9223372036854775808, Above},
+		{"9223372036854775808", 9223372036854775808, Exact}, // +2^63
+		{"1000000000000000000000000000000000000000000000000000000", 1000000000000000078291540404596243842305360299886116864.000000, Above},
+	} {
+		i, ok := new(Int).SetString(test.istr, 0)
+		if !ok {
+			t.Errorf("SetString(%s) failed", test.istr)
+			continue
+		}
+
+		// Test against expectation.
+		f, acc := i.Float64()
+		if f != test.f || acc != test.acc {
+			t.Errorf("%s: got %f (%s); want %f (%s)", test.istr, f, acc, test.f, test.acc)
+		}
+
+		// Cross-check the fast path against the big.Float implementation.
+		f2, acc2 := new(Float).SetInt(i).Float64()
+		if f != f2 || acc != acc2 {
+			t.Errorf("%s: got %f (%s); Float.Float64 gives %f (%s)", test.istr, f, acc, f2, acc2)
 		}
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"io/fs"
 	"os"
@@ -31,8 +32,50 @@ type ActionID [HashSize]byte
 // An OutputID is a cache output key, the hash of an output of a computation.
 type OutputID [HashSize]byte
 
+// Cache is the interface as used by the cmd/go.
+type Cache interface {
+	// Get returns the cache entry for the provided ActionID.
+	// On miss, the error type should be of type *entryNotFoundError.
+	//
+	// After a success call to Get, OutputFile(Entry.OutputID) must
+	// exist on disk for until Close is called (at the end of the process).
+	Get(ActionID) (Entry, error)
+
+	// Put adds an item to the cache.
+	//
+	// The seeker is only used to seek to the beginning. After a call to Put,
+	// the seek position is not guaranteed to be in any particular state.
+	//
+	// As a special case, if the ReadSeeker is of type noVerifyReadSeeker,
+	// the verification from GODEBUG=goverifycache=1 is skipped.
+	//
+	// After a success call to Get, OutputFile(Entry.OutputID) must
+	// exist on disk for until Close is called (at the end of the process).
+	Put(ActionID, io.ReadSeeker) (_ OutputID, size int64, _ error)
+
+	// Close is called at the end of the go process. Implementations can do
+	// cache cleanup work at this phase, or wait for and report any errors from
+	// background cleanup work started earlier. Any cache trimming should in one
+	// process should not violate cause the invariants of this interface to be
+	// violated in another process. Namely, a cache trim from one process should
+	// not delete an ObjectID from disk that was recently Get or Put from
+	// another process. As a rule of thumb, don't trim things used in the last
+	// day.
+	Close() error
+
+	// OutputFile returns the path on disk where OutputID is stored.
+	//
+	// It's only called after a successful get or put call so it doesn't need
+	// to return an error; it's assumed that if the previous get or put succeeded,
+	// it's already on disk.
+	OutputFile(OutputID) string
+
+	// FuzzDir returns where fuzz files are stored.
+	FuzzDir() string
+}
+
 // A Cache is a package cache, backed by a file system directory tree.
-type Cache struct {
+type DiskCache struct {
 	dir string
 	now func() time.Time
 }
@@ -48,7 +91,7 @@ type Cache struct {
 // to share a cache directory (for example, if the directory were stored
 // in a network file system). File locking is notoriously unreliable in
 // network file systems and may not suffice to protect the cache.
-func Open(dir string) (*Cache, error) {
+func Open(dir string) (*DiskCache, error) {
 	info, err := os.Stat(dir)
 	if err != nil {
 		return nil, err
@@ -62,7 +105,7 @@ func Open(dir string) (*Cache, error) {
 			return nil, err
 		}
 	}
-	c := &Cache{
+	c := &DiskCache{
 		dir: dir,
 		now: time.Now,
 	}
@@ -70,7 +113,7 @@ func Open(dir string) (*Cache, error) {
 }
 
 // fileName returns the name of the file corresponding to the given id.
-func (c *Cache) fileName(id [HashSize]byte, key string) string {
+func (c *DiskCache) fileName(id [HashSize]byte, key string) string {
 	return filepath.Join(c.dir, fmt.Sprintf("%02x", id[0]), fmt.Sprintf("%x", id)+"-"+key)
 }
 
@@ -115,20 +158,24 @@ var DebugTest = false
 
 func init() { initEnv() }
 
+var (
+	goCacheVerify = godebug.New("gocacheverify")
+	goDebugHash   = godebug.New("gocachehash")
+	goCacheTest   = godebug.New("gocachetest")
+)
+
 func initEnv() {
-	verify = false
-	debugHash = false
-	debug := strings.Split(os.Getenv("GODEBUG"), ",")
-	for _, f := range debug {
-		if f == "gocacheverify=1" {
-			verify = true
-		}
-		if f == "gocachehash=1" {
-			debugHash = true
-		}
-		if f == "gocachetest=1" {
-			DebugTest = true
-		}
+	if goCacheVerify.Value() == "1" {
+		goCacheVerify.IncNonDefault()
+		verify = true
+	}
+	if goDebugHash.Value() == "1" {
+		goDebugHash.IncNonDefault()
+		debugHash = true
+	}
+	if goCacheTest.Value() == "1" {
+		goCacheTest.IncNonDefault()
+		DebugTest = true
 	}
 }
 
@@ -136,7 +183,7 @@ func initEnv() {
 // returning the corresponding output ID and file size, if any.
 // Note that finding an output ID does not guarantee that the
 // saved file for that output ID is still available.
-func (c *Cache) Get(id ActionID) (Entry, error) {
+func (c *DiskCache) Get(id ActionID) (Entry, error) {
 	if verify {
 		return Entry{}, &entryNotFoundError{Err: errVerifyMode}
 	}
@@ -146,11 +193,11 @@ func (c *Cache) Get(id ActionID) (Entry, error) {
 type Entry struct {
 	OutputID OutputID
 	Size     int64
-	Time     time.Time
+	Time     time.Time // when added to cache
 }
 
 // get is Get but does not respect verify mode, so that Put can use it.
-func (c *Cache) get(id ActionID) (Entry, error) {
+func (c *DiskCache) get(id ActionID) (Entry, error) {
 	missing := func(reason error) (Entry, error) {
 		return Entry{}, &entryNotFoundError{Err: reason}
 	}
@@ -214,7 +261,7 @@ func (c *Cache) get(id ActionID) (Entry, error) {
 
 // GetFile looks up the action ID in the cache and returns
 // the name of the corresponding data file.
-func (c *Cache) GetFile(id ActionID) (file string, entry Entry, err error) {
+func GetFile(c Cache, id ActionID) (file string, entry Entry, err error) {
 	entry, err = c.Get(id)
 	if err != nil {
 		return "", Entry{}, err
@@ -233,7 +280,7 @@ func (c *Cache) GetFile(id ActionID) (file string, entry Entry, err error) {
 // GetBytes looks up the action ID in the cache and returns
 // the corresponding output bytes.
 // GetBytes should only be used for data that can be expected to fit in memory.
-func (c *Cache) GetBytes(id ActionID) ([]byte, Entry, error) {
+func GetBytes(c Cache, id ActionID) ([]byte, Entry, error) {
 	entry, err := c.Get(id)
 	if err != nil {
 		return nil, entry, err
@@ -248,7 +295,7 @@ func (c *Cache) GetBytes(id ActionID) ([]byte, Entry, error) {
 // GetMmap looks up the action ID in the cache and returns
 // the corresponding output bytes.
 // GetMmap should only be used for data that can be expected to fit in memory.
-func (c *Cache) GetMmap(id ActionID) ([]byte, Entry, error) {
+func GetMmap(c Cache, id ActionID) ([]byte, Entry, error) {
 	entry, err := c.Get(id)
 	if err != nil {
 		return nil, entry, err
@@ -264,7 +311,7 @@ func (c *Cache) GetMmap(id ActionID) ([]byte, Entry, error) {
 }
 
 // OutputFile returns the name of the cache file storing output with the given OutputID.
-func (c *Cache) OutputFile(out OutputID) string {
+func (c *DiskCache) OutputFile(out OutputID) string {
 	file := c.fileName(out, "d")
 	c.used(file)
 	return file
@@ -297,7 +344,7 @@ const (
 // mtime is more than an hour old. This heuristic eliminates
 // nearly all of the mtime updates that would otherwise happen,
 // while still keeping the mtimes useful for cache trimming.
-func (c *Cache) used(file string) {
+func (c *DiskCache) used(file string) {
 	info, err := os.Stat(file)
 	if err == nil && c.now().Sub(info.ModTime()) < mtimeInterval {
 		return
@@ -305,8 +352,10 @@ func (c *Cache) used(file string) {
 	os.Chtimes(file, c.now(), c.now())
 }
 
+func (c *DiskCache) Close() error { return c.Trim() }
+
 // Trim removes old cache entries that are likely not to be reused.
-func (c *Cache) Trim() {
+func (c *DiskCache) Trim() error {
 	now := c.now()
 
 	// We maintain in dir/trim.txt the time of the last completed cache trim.
@@ -320,7 +369,7 @@ func (c *Cache) Trim() {
 		if t, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64); err == nil {
 			lastTrim := time.Unix(t, 0)
 			if d := now.Sub(lastTrim); d < trimInterval && d > -mtimeInterval {
-				return
+				return nil
 			}
 		}
 	}
@@ -339,12 +388,14 @@ func (c *Cache) Trim() {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "%d", now.Unix())
 	if err := lockedfile.Write(filepath.Join(c.dir, "trim.txt"), &b, 0666); err != nil {
-		return
+		return err
 	}
+
+	return nil
 }
 
 // trimSubdir trims a single cache subdirectory.
-func (c *Cache) trimSubdir(subdir string, cutoff time.Time) {
+func (c *DiskCache) trimSubdir(subdir string, cutoff time.Time) {
 	// Read all directory entries from subdir before removing
 	// any files, in case removing files invalidates the file offset
 	// in the directory scan. Also, ignore error from f.Readdirnames,
@@ -372,7 +423,7 @@ func (c *Cache) trimSubdir(subdir string, cutoff time.Time) {
 
 // putIndexEntry adds an entry to the cache recording that executing the action
 // with the given id produces an output with the given output id (hash) and size.
-func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify bool) error {
+func (c *DiskCache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify bool) error {
 	// Note: We expect that for one reason or another it may happen
 	// that repeating an action produces a different output hash
 	// (for example, if the output contains a time stamp or temp dir name).
@@ -426,21 +477,32 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
 	return nil
 }
 
+// noVerifyReadSeeker is an io.ReadSeeker wrapper sentinel type
+// that says that Cache.Put should skip the verify check
+// (from GODEBUG=goverifycache=1).
+type noVerifyReadSeeker struct {
+	io.ReadSeeker
+}
+
 // Put stores the given output in the cache as the output for the action ID.
 // It may read file twice. The content of file must not change between the two passes.
-func (c *Cache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
-	return c.put(id, file, true)
+func (c *DiskCache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
+	wrapper, isNoVerify := file.(noVerifyReadSeeker)
+	if isNoVerify {
+		file = wrapper.ReadSeeker
+	}
+	return c.put(id, file, !isNoVerify)
 }
 
 // PutNoVerify is like Put but disables the verify check
 // when GODEBUG=goverifycache=1 is set.
 // It is meant for data that is OK to cache but that we expect to vary slightly from run to run,
 // like test output containing times and the like.
-func (c *Cache) PutNoVerify(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
-	return c.put(id, file, false)
+func PutNoVerify(c Cache, id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
+	return c.Put(id, noVerifyReadSeeker{file})
 }
 
-func (c *Cache) put(id ActionID, file io.ReadSeeker, allowVerify bool) (OutputID, int64, error) {
+func (c *DiskCache) put(id ActionID, file io.ReadSeeker, allowVerify bool) (OutputID, int64, error) {
 	// Compute output ID.
 	h := sha256.New()
 	if _, err := file.Seek(0, 0); err != nil {
@@ -463,14 +525,14 @@ func (c *Cache) put(id ActionID, file io.ReadSeeker, allowVerify bool) (OutputID
 }
 
 // PutBytes stores the given bytes in the cache as the output for the action ID.
-func (c *Cache) PutBytes(id ActionID, data []byte) error {
+func PutBytes(c Cache, id ActionID, data []byte) error {
 	_, _, err := c.Put(id, bytes.NewReader(data))
 	return err
 }
 
 // copyFile copies file into the cache, expecting it to have the given
 // output ID and size, if that file is not present already.
-func (c *Cache) copyFile(file io.ReadSeeker, out OutputID, size int64) error {
+func (c *DiskCache) copyFile(file io.ReadSeeker, out OutputID, size int64) error {
 	name := c.fileName(out, "d")
 	info, err := os.Stat(name)
 	if err == nil && info.Size() == size {
@@ -560,6 +622,6 @@ func (c *Cache) copyFile(file io.ReadSeeker, out OutputID, size int64) error {
 // They may be removed with 'go clean -fuzzcache'.
 //
 // TODO(#48526): make Trim remove unused files from this directory.
-func (c *Cache) FuzzDir() string {
+func (c *DiskCache) FuzzDir() string {
 	return filepath.Join(c.dir, "fuzz")
 }

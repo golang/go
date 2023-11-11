@@ -4,7 +4,7 @@
 
 //go:build boringcrypto
 
-package api
+package main
 
 import (
 	"fmt"

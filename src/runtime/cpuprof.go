@@ -202,8 +202,8 @@ func (p *cpuProfile) addExtra() {
 // The details of generating that format have changed,
 // so this functionality has been removed.
 //
-// Deprecated: Use the runtime/pprof package,
-// or the handlers in the net/http/pprof package,
+// Deprecated: Use the [runtime/pprof] package,
+// or the handlers in the [net/http/pprof] package,
 // or the testing package's -test.cpuprofile flag instead.
 func CPUProfile() []byte {
 	panic("CPUProfile no longer available")
@@ -211,7 +211,7 @@ func CPUProfile() []byte {
 
 //go:linkname runtime_pprof_runtime_cyclesPerSecond runtime/pprof.runtime_cyclesPerSecond
 func runtime_pprof_runtime_cyclesPerSecond() int64 {
-	return tickspersecond()
+	return ticksPerSecond()
 }
 
 // readProfile, provided to runtime/pprof, returns the next chunk of
@@ -227,7 +227,11 @@ func runtime_pprof_readProfile() ([]uint64, []unsafe.Pointer, bool) {
 	lock(&cpuprof.lock)
 	log := cpuprof.log
 	unlock(&cpuprof.lock)
-	data, tags, eof := log.read(profBufBlocking)
+	readMode := profBufBlocking
+	if GOOS == "darwin" || GOOS == "ios" {
+		readMode = profBufNonBlocking // For #61768; on Darwin notes are not async-signal-safe.  See sigNoteSetup in os_darwin.go.
+	}
+	data, tags, eof := log.read(readMode)
 	if len(data) == 0 && eof {
 		lock(&cpuprof.lock)
 		cpuprof.log = nil

@@ -6,6 +6,8 @@
 
 [short] skip 'copies the cmd/go binary'
 [!symlink] skip 'tests symlink-specific behavior'
+[GOOS:darwin] skip 'Lstat on darwin does not conform to POSIX pathname resolution; see #59586'
+[GOOS:ios] skip 'Lstat on ios does not conform to POSIX pathname resolution; see #59586'
 
 # Ensure that the relative path to $WORK/lib/goroot/src from $PWD is a different
 # number of ".." hops than the relative path to it from $WORK/share/goroot/src.
@@ -45,10 +47,8 @@ stdout $WORK${/}lib${/}goroot
 exec $WORK/lib/goroot/bin/go list -f '{{.ImportPath}}: {{.Dir}}' encoding/binary
 stdout '^encoding/binary: '$WORK${/}lib${/}goroot${/}src${/}encoding${/}binary'$'
 
-	# BUG(#50807): This doesn't work on Windows for some reason — perhaps
-	# a bug in the Windows Lstat implementation with trailing separators?
-[!GOOS:windows] exec $WORK/lib/goroot/bin/go list -f '{{.ImportPath}}: {{.Dir}}' std
-[!GOOS:windows] stdout '^encoding/binary: '$WORK${/}lib${/}goroot${/}src${/}encoding${/}binary'$'
+exec $WORK/lib/goroot/bin/go list -f '{{.ImportPath}}: {{.Dir}}' std
+stdout '^encoding/binary: '$WORK${/}lib${/}goroot${/}src${/}encoding${/}binary'$'
 
 # Most path lookups in GOROOT are not sensitive to symlinks. However, patterns
 # involving '...' wildcards must use Walk to check the GOROOT tree, which makes
@@ -57,7 +57,6 @@ stdout '^encoding/binary: '$WORK${/}lib${/}goroot${/}src${/}encoding${/}binary'$
 # So we check such a pattern to confirm that it works and reports a path relative
 # to $GOROOT/src (and not the symlink target).
 
-	# BUG(#50807): This should report encoding/binary, not "matched no packages".
 exec $WORK/lib/goroot/bin/go list -f '{{.ImportPath}}: {{.Dir}}' .../binary
-! stdout .
-stderr '^go: warning: "\.\.\./binary" matched no packages$'
+stdout '^encoding/binary: '$WORK${/}lib${/}goroot${/}src${/}encoding${/}binary'$'
+! stderr .

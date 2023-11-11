@@ -455,14 +455,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$176
 	CBZ	R0, 2(PC)
 	BL	runtime·load_g(SB)
 
-#ifdef GOEXPERIMENT_regabiargs
 	// Restore signum to R0.
 	MOVW	8(RSP), R0
 	// R1 and R2 already contain info and ctx, respectively.
-#else
-	MOVD	R1, 16(RSP)
-	MOVD	R2, 24(RSP)
-#endif
 	MOVD	$runtime·sigtrampgo<ABIInternal>(SB), R3
 	BL	(R3)
 
@@ -478,13 +473,7 @@ TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$176
 	SAVE_R19_TO_R28(8*4)
 	SAVE_F8_TO_F15(8*14)
 
-#ifdef GOEXPERIMENT_regabiargs
 	// R0, R1 and R2 already contain sig, info and ctx, respectively.
-#else
-	MOVW	R0, 8(RSP)	// sig
-	MOVD	R1, 16(RSP)	// info
-	MOVD	R2, 24(RSP)	// ctx
-#endif
 	CALL	runtime·sigprofNonGo<ABIInternal>(SB)
 
 	// Restore callee-save registers.
@@ -795,7 +784,4 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
 	MOVD	$SYS_brk, R8
 	SVC
 	MOVD	R0, ret+0(FP)
-	RET
-
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
 	RET

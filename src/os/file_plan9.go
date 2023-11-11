@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/bytealg"
 	"internal/poll"
 	"io"
 	"runtime"
@@ -387,7 +388,7 @@ func hasPrefix(s, prefix string) bool {
 }
 
 func rename(oldname, newname string) error {
-	dirname := oldname[:lastIndex(oldname, '/')+1]
+	dirname := oldname[:bytealg.LastIndexByteString(oldname, '/')+1]
 	if hasPrefix(newname, dirname) {
 		newname = newname[len(dirname):]
 	} else {
@@ -396,7 +397,7 @@ func rename(oldname, newname string) error {
 
 	// If newname still contains slashes after removing the oldname
 	// prefix, the rename is cross-directory and must be rejected.
-	if lastIndex(newname, '/') >= 0 {
+	if bytealg.LastIndexByteString(newname, '/') >= 0 {
 		return &LinkError{"rename", oldname, newname, ErrInvalid}
 	}
 
@@ -447,6 +448,7 @@ func chmod(name string, mode FileMode) error {
 
 // Chtimes changes the access and modification times of the named
 // file, similar to the Unix utime() or utimes() functions.
+// A zero time.Time value will leave the corresponding file time unchanged.
 //
 // The underlying filesystem may truncate or round the values to a
 // less precise time unit.
@@ -457,6 +459,12 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	d.Null()
 	d.Atime = uint32(atime.Unix())
 	d.Mtime = uint32(mtime.Unix())
+	if atime.IsZero() {
+		d.Atime = 0xFFFFFFFF
+	}
+	if mtime.IsZero() {
+		d.Mtime = 0xFFFFFFFF
+	}
 
 	var buf [syscall.STATFIXLEN]byte
 	n, err := d.Marshal(buf[:])

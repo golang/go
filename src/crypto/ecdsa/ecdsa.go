@@ -68,7 +68,7 @@ func (k *PublicKey) ECDH() (*ecdh.PublicKey, error) {
 // Equal reports whether pub and x have the same value.
 //
 // Two keys are only considered to have the same value if they have the same Curve value.
-// Note that for example elliptic.P256() and elliptic.P256().Params() are different
+// Note that for example [elliptic.P256] and elliptic.P256().Params() are different
 // values, as the latter is a generic not constant time implementation.
 func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
 	xx, ok := x.(*PublicKey)
@@ -91,7 +91,7 @@ type PrivateKey struct {
 
 // ECDH returns k as a [ecdh.PrivateKey]. It returns an error if the key is
 // invalid according to the definition of [ecdh.Curve.NewPrivateKey], or if the
-// Curve is not supported by crypto/ecdh.
+// Curve is not supported by [crypto/ecdh].
 func (k *PrivateKey) ECDH() (*ecdh.PrivateKey, error) {
 	c := curveToECDH(k.Curve)
 	if c == nil {
@@ -124,7 +124,7 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
 
 // Equal reports whether priv and x have the same value.
 //
-// See PublicKey.Equal for details on how Curve is compared.
+// See [PublicKey.Equal] for details on how Curve is compared.
 func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
 	xx, ok := x.(*PrivateKey)
 	if !ok {
@@ -145,12 +145,16 @@ func bigIntEqual(a, b *big.Int) bool {
 //
 // This method implements crypto.Signer, which is an interface to support keys
 // where the private part is kept in, for example, a hardware module. Common
-// uses can use the SignASN1 function in this package directly.
+// uses can use the [SignASN1] function in this package directly.
 func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
 	return SignASN1(rand, priv, digest)
 }
 
-// GenerateKey generates a public and private key pair.
+// GenerateKey generates a new ECDSA private key for the specified curve.
+//
+// Most applications should use [crypto/rand.Reader] as rand. Note that the
+// returned key does not depend deterministically on the bytes read from rand,
+// and may change between calls and/or between versions.
 func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
 	randutil.MaybeReadByte(rand)
 
@@ -245,6 +249,10 @@ var errNoAsm = errors.New("no assembly implementation available")
 // using the private key, priv. If the hash is longer than the bit-length of the
 // private key's curve order, the hash will be truncated to that length. It
 // returns the ASN.1 encoded signature.
+//
+// The signature is randomized. Most applications should use [crypto/rand.Reader]
+// as rand. Note that the returned signature does not depend deterministically on
+// the bytes read from rand, and may change between calls and/or between versions.
 func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
 	randutil.MaybeReadByte(rand)
 
@@ -380,7 +388,7 @@ func hashToNat[Point nistPoint[Point]](c *nistCurve[Point], e *bigmod.Nat, hash 
 	// an integer modulo N. This is the absolute worst of all worlds: we still
 	// have to reduce, because the result might still overflow N, but to take
 	// the left-most bits for P-521 we have to do a right shift.
-	if size := c.N.Size(); len(hash) > size {
+	if size := c.N.Size(); len(hash) >= size {
 		hash = hash[:size]
 		if excess := len(hash)*8 - c.N.BitLen(); excess > 0 {
 			hash = bytes.Clone(hash)
@@ -655,6 +663,10 @@ func p521() *nistCurve[*nistec.P521Point] {
 func precomputeParams[Point nistPoint[Point]](c *nistCurve[Point], curve elliptic.Curve) {
 	params := curve.Params()
 	c.curve = curve
-	c.N = bigmod.NewModulusFromBig(params.N)
+	var err error
+	c.N, err = bigmod.NewModulusFromBig(params.N)
+	if err != nil {
+		panic(err)
+	}
 	c.nMinus2 = new(big.Int).Sub(params.N, big.NewInt(2)).Bytes()
 }

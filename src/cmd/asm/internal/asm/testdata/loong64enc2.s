@@ -61,22 +61,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	XOR	$-1, R4			// 1efcbf0284f81500
 	MOVH	R4, R5			// 85c04000a5c04800
 
-	// relocation	instructions
-	MOVW	R4, name(SB)		// 1e00001cc4038029
-	MOVWU	R4, name(SB)		// 1e00001cc4038029
-	MOVV	R4, name(SB)		// 1e00001cc403c029
-	MOVB	R4, name(SB)		// 1e00001cc4030029
-	MOVBU	R4, name(SB)		// 1e00001cc4030029
-	MOVF	F4, name(SB)		// 1e00001cc403402b
-	MOVD	F4, name(SB)		// 1e00001cc403c02b
-	MOVW	name(SB), R4		// 1e00001cc4038028
-	MOVWU	name(SB), R4		// 1e00001cc403802a
-	MOVV	name(SB), R4		// 1e00001cc403c028
-	MOVB	name(SB), R4		// 1e00001cc4030028
-	MOVBU	name(SB), R4		// 1e00001cc403002a
-	MOVF	name(SB), F4		// 1e00001cc403002b
-	MOVD	name(SB), F4		// 1e00001cc403802b
-	MOVH	R4, name(SB)		// 1e00001cc4034029
-	MOVH	name(SB), R4		// 1e00001cc4034028
-	MOVHU	R4, name(SB)		// 1e00001cc4034029
-	MOVHU	name(SB), R4		// 1e00001cc403402a
+	// relocation instructions
+	MOVW	R4, name(SB)		// 1e00001ac4038029
+	MOVWU	R4, name(SB)		// 1e00001ac4038029
+	MOVV	R4, name(SB)		// 1e00001ac403c029
+	MOVB	R4, name(SB)		// 1e00001ac4030029
+	MOVBU	R4, name(SB)		// 1e00001ac4030029
+	MOVF	F4, name(SB)		// 1e00001ac403402b
+	MOVD	F4, name(SB)		// 1e00001ac403c02b
+	MOVW	name(SB), R4		// 1e00001ac4038028
+	MOVWU	name(SB), R4		// 1e00001ac403802a
+	MOVV	name(SB), R4		// 1e00001ac403c028
+	MOVB	name(SB), R4		// 1e00001ac4030028
+	MOVBU	name(SB), R4		// 1e00001ac403002a
+	MOVF	name(SB), F4		// 1e00001ac403002b
+	MOVD	name(SB), F4		// 1e00001ac403802b
+	MOVH	R4, name(SB)		// 1e00001ac4034029
+	MOVH	name(SB), R4		// 1e00001ac4034028
+	MOVHU	R4, name(SB)		// 1e00001ac4034029
+	MOVHU	name(SB), R4		// 1e00001ac403402a

@@ -518,7 +518,7 @@ end:
 #define CALC_F2_POST(REG_A,REG_B,REG_C,REG_E) \
 	XORL REG_B, REG_A \
 	ADDL R12, REG_E \
-        XORL REG_C, REG_A
+	XORL REG_C, REG_A
 
 #define CALC_19 \
 	CALC_F2_PRE(0x8c,DX,CX,AX) \

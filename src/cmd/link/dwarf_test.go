@@ -10,6 +10,7 @@ import (
 	"cmd/internal/objfile"
 	"cmd/internal/quoted"
 	"debug/dwarf"
+	"internal/platform"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -54,8 +55,8 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	if !platform.ExecutableHasDWARF(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s: no DWARF symbol table in executables", runtime.GOOS, runtime.GOARCH)
 	}
 
 	t.Parallel()
@@ -191,6 +192,9 @@ func TestDWARF(t *testing.T) {
 	if !testing.Short() {
 		if runtime.GOOS == "windows" {
 			t.Skip("skipping Windows/c-archive; see Issue 35512 for more.")
+		}
+		if !platform.BuildModeSupported(runtime.Compiler, "c-archive", runtime.GOOS, runtime.GOARCH) {
+			t.Skipf("skipping c-archive test on unsupported platform %s-%s", runtime.GOOS, runtime.GOARCH)
 		}
 		t.Run("c-archive", func(t *testing.T) {
 			testDWARF(t, "c-archive", true)
