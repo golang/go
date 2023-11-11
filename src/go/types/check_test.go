@@ -213,13 +213,14 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool,
 
 	// Provide Config.Info with all maps so that info recording is tested.
 	info := Info{
-		Types:      make(map[ast.Expr]TypeAndValue),
-		Instances:  make(map[*ast.Ident]Instance),
-		Defs:       make(map[*ast.Ident]Object),
-		Uses:       make(map[*ast.Ident]Object),
-		Implicits:  make(map[ast.Node]Object),
-		Selections: make(map[*ast.SelectorExpr]*Selection),
-		Scopes:     make(map[ast.Node]*Scope),
+		Types:        make(map[ast.Expr]TypeAndValue),
+		Instances:    make(map[*ast.Ident]Instance),
+		Defs:         make(map[*ast.Ident]Object),
+		Uses:         make(map[*ast.Ident]Object),
+		Implicits:    make(map[ast.Node]Object),
+		Selections:   make(map[*ast.SelectorExpr]*Selection),
+		Scopes:       make(map[ast.Node]*Scope),
+		FileVersions: make(map[*ast.File]string),
 	}
 
 	// typecheck
