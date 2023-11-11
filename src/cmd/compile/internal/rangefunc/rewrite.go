@@ -554,6 +554,11 @@ func rewriteFunc(pkg *types2.Package, info *types2.Info, typ *syntax.FuncType, b
 	}
 }
 
+// checkFuncMisuse reports whether to check for misuse of iterator callbacks functions.
+func (r *rewriter) checkFuncMisuse() bool {
+	return base.Debug.RangeFuncCheck != 0
+}
+
 // inspect is a callback for syntax.Inspect that drives the actual rewriting.
 // If it sees a func literal, it kicks off a separate rewrite for that literal.
 // Otherwise, it maintains a stack of range-over-func loops and
@@ -621,7 +626,10 @@ func (r *rewriter) startLoop(loop *forLoop) {
 		r.false = types2.Universe.Lookup("false")
 		r.rewritten = make(map[*syntax.ForStmt]syntax.Stmt)
 	}
-	loop.exitFlag, loop.exitFlagDecl = r.exitVar(loop.nfor.Pos())
+	if r.checkFuncMisuse() {
+		// declare the exit flag for this loop's body
+		loop.exitFlag, loop.exitFlagDecl = r.exitVar(loop.nfor.Pos())
+	}
 }
 
 // editStmt returns the replacement for the statement x,
@@ -714,8 +722,11 @@ func (r *rewriter) editReturn(x *syntax.ReturnStmt) syntax.Stmt {
 		bl.List = append(bl.List, &syntax.AssignStmt{Lhs: r.useList(r.retVars), Rhs: x.Results})
 	}
 	bl.List = append(bl.List, &syntax.AssignStmt{Lhs: r.next(), Rhs: r.intConst(next)})
-	for i := 0; i < len(r.forStack); i++ {
-		bl.List = append(bl.List, r.setExitedAt(i))
+	if r.checkFuncMisuse() {
+		// mark all enclosing loop bodies as exited
+		for i := 0; i < len(r.forStack); i++ {
+			bl.List = append(bl.List, r.setExitedAt(i))
+		}
 	}
 	bl.List = append(bl.List, &syntax.ReturnStmt{Results: r.useVar(r.false)})
 	setPos(bl, x.Pos())
@@ -811,8 +822,14 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
 		// If this is a simple break, mark this loop as exited and return false.
 		// No adjustments to #next.
 		if depth == 0 {
+			var stmts []syntax.Stmt
+			if r.checkFuncMisuse() {
+				stmts = []syntax.Stmt{r.setExited(), ret}
+			} else {
+				stmts = []syntax.Stmt{ret}
+			}
 			bl := &syntax.BlockStmt{
-				List: []syntax.Stmt{r.setExited(), ret},
+				List: stmts,
 			}
 			setPos(bl, x.Pos())
 			return bl
@@ -846,9 +863,11 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
 		List: []syntax.Stmt{as},
 	}
 
-	// Set #exitK for this loop and those exited by the control flow.
-	for i := exitFrom; i < len(r.forStack); i++ {
-		bl.List = append(bl.List, r.setExitedAt(i))
+	if r.checkFuncMisuse() {
+		// Set #exitK for this loop and those exited by the control flow.
+		for i := exitFrom; i < len(r.forStack); i++ {
+			bl.List = append(bl.List, r.setExitedAt(i))
+		}
 	}
 
 	bl.List = append(bl.List, ret)
@@ -953,12 +972,18 @@ func (r *rewriter) endLoop(loop *forLoop) {
 	}
 
 	// declare the exitFlag here so it has proper scope and zeroing
-	exitFlagDecl := &syntax.DeclStmt{DeclList: []syntax.Decl{loop.exitFlagDecl}}
-	block.List = append(block.List, exitFlagDecl)
+	if r.checkFuncMisuse() {
+		exitFlagDecl := &syntax.DeclStmt{DeclList: []syntax.Decl{loop.exitFlagDecl}}
+		block.List = append(block.List, exitFlagDecl)
+	}
 
+	// iteratorFunc(bodyFunc)
 	block.List = append(block.List, call)
 
-	block.List = append(block.List, r.setExited())
+	if r.checkFuncMisuse() {
+		// iteratorFunc has exited, mark the exit flag for the body
+		block.List = append(block.List, r.setExited())
+	}
 	block.List = append(block.List, checks...)
 
 	if len(r.forStack) == 1 { // ending an outermost loop
@@ -1037,7 +1062,9 @@ func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, fty
 
 	loop := r.forStack[len(r.forStack)-1]
 
-	bodyFunc.Body.List = append(bodyFunc.Body.List, r.assertNotExited(start, loop))
+	if r.checkFuncMisuse() {
+		bodyFunc.Body.List = append(bodyFunc.Body.List, r.assertNotExited(start, loop))
+	}
 
 	// Original loop body (already rewritten by editStmt during inspect).
 	bodyFunc.Body.List = append(bodyFunc.Body.List, body...)
