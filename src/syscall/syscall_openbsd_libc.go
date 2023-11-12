@@ -19,10 +19,26 @@ func init() {
 //sys directSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr) (ret uintptr, err error) = SYS_syscall
 
 func syscallInternal(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
+	// OpenBSD 7.5+ no longer supports indirect syscalls. A number of Go
+	// packages make use of syscall.Syscall with SYS_IOCTL since it is
+	// not well supported by golang.org/x/sys/unix. Reroute this system
+	// call number to the respective libc stub so that it continues to
+	// work for the time being. See #63900 for further details.
+	if trap == SYS_IOCTL {
+		return syscallX(abi.FuncPCABI0(libc_ioctl_trampoline), a1, a2, a3)
+	}
 	return syscall6X(abi.FuncPCABI0(libc_syscall_trampoline), trap, a1, a2, a3, 0, 0)
 }
 
 func syscall6Internal(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
+	// OpenBSD 7.5+ no longer supports indirect syscalls. A number of Go
+	// packages make use of syscall.Syscall with SYS___SYSCTL since it is
+	// not well supported by golang.org/x/sys/unix. Reroute this system
+	// call number to the respective libc stub so that it continues to
+	// work for the time being. See #63900 for further details.
+	if trap == SYS___SYSCTL {
+		return syscall6X(abi.FuncPCABI0(libc_sysctl_trampoline), a1, a2, a3, a4, a5, a6)
+	}
 	return syscall10X(abi.FuncPCABI0(libc_syscall_trampoline), trap, a1, a2, a3, a4, a5, a6, 0, 0, 0)
 }
 
