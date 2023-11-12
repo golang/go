@@ -139,8 +139,13 @@ func main() {
 	log.Printf("Opening browser. Trace viewer is listening on %s", addr)
 	browser.Open(addr)
 
-	// Start http server.
+	// Install MMU handlers.
+	traceviewer.InstallMMUHandlers(http.DefaultServeMux, ranges, mutatorUtil)
+
+	// Install main handler.
 	http.Handle("/", traceviewer.MainHandler(ranges))
+
+	// Start http server.
 	err = http.Serve(ln, nil)
 	dief("failed to start http server: %v\n", err)
 }
@@ -227,4 +232,12 @@ func reportMemoryUsage(msg string) {
 	var dummy string
 	fmt.Printf("Enter to continue...")
 	fmt.Scanf("%s", &dummy)
+}
+
+func mutatorUtil(flags trace.UtilFlags) ([][]trace.MutatorUtil, error) {
+	events, err := parseEvents()
+	if err != nil {
+		return nil, err
+	}
+	return trace.MutatorUtilization(events, flags), nil
 }

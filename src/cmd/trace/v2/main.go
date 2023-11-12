@@ -70,6 +70,12 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
 	mux.HandleFunc("/goroutines", GoroutinesHandlerFunc(gSummaries))
 	mux.HandleFunc("/goroutine", GoroutineHandler(gSummaries))
 
+	// Install MMU handlers.
+	mutatorUtil := func(flags trace.UtilFlags) ([][]trace.MutatorUtil, error) {
+		return trace.MutatorUtilizationV2(parsed.events, flags), nil
+	}
+	traceviewer.InstallMMUHandlers(mux, ranges, mutatorUtil)
+
 	err = http.Serve(ln, mux)
 	return fmt.Errorf("failed to start http server: %w", err)
 }
