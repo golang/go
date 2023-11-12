@@ -62,6 +62,10 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
 	log.Printf("Opening browser. Trace viewer is listening on %s", addr)
 	browser.Open(addr)
 
+	mutatorUtil := func(flags trace.UtilFlags) ([][]trace.MutatorUtil, error) {
+		return trace.MutatorUtilizationV2(parsed.events, flags), nil
+	}
+
 	mux := http.NewServeMux()
 	mux.Handle("/", traceviewer.MainHandler(ranges))
 	mux.Handle("/trace", traceviewer.TraceHandler())
@@ -69,12 +73,7 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
 	mux.Handle("/static/", traceviewer.StaticHandler())
 	mux.HandleFunc("/goroutines", GoroutinesHandlerFunc(gSummaries))
 	mux.HandleFunc("/goroutine", GoroutineHandler(gSummaries))
-
-	// Install MMU handlers.
-	mutatorUtil := func(flags trace.UtilFlags) ([][]trace.MutatorUtil, error) {
-		return trace.MutatorUtilizationV2(parsed.events, flags), nil
-	}
-	traceviewer.InstallMMUHandlers(mux, ranges, mutatorUtil)
+	mux.HandleFunc("/mmu", traceviewer.MMUHandlerFunc(ranges, mutatorUtil))
 
 	err = http.Serve(ln, mux)
 	return fmt.Errorf("failed to start http server: %w", err)

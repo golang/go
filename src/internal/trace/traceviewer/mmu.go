@@ -40,19 +40,23 @@ import (
 
 type MutatorUtilFunc func(trace.UtilFlags) ([][]trace.MutatorUtil, error)
 
-func InstallMMUHandlers(mux *http.ServeMux, ranges []Range, f MutatorUtilFunc) {
+func MMUHandlerFunc(ranges []Range, f MutatorUtilFunc) http.HandlerFunc {
 	mmu := &mmu{
 		cache:  make(map[trace.UtilFlags]*mmuCacheEntry),
 		f:      f,
 		ranges: ranges,
 	}
-	mux.HandleFunc("/mmu", func(w http.ResponseWriter, r *http.Request) {
-		// N.B. templMMU has Javascript that implicitly relies upon the existence
-		// of /mmuPlot and /mmuDetails on the same server.
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.FormValue("mode") {
+		case "plot":
+			mmu.HandlePlot(w, r)
+			return
+		case "details":
+			mmu.HandleDetails(w, r)
+			return
+		}
 		http.ServeContent(w, r, "", time.Time{}, strings.NewReader(templMMU))
-	})
-	mux.HandleFunc("/mmuPlot", mmu.HandlePlot)
-	mux.HandleFunc("/mmuDetails", mmu.HandleDetails)
+	}
 }
 
 var utilFlagNames = map[string]trace.UtilFlags{
@@ -209,7 +213,7 @@ var templMMU = `<!doctype html>
         container.css('opacity', '.5');
         refreshChart.count++;
         var seq = refreshChart.count;
-        $.getJSON('/mmuPlot?flags=' + mmuFlags())
+        $.getJSON('?mode=plot&flags=' + mmuFlags())
          .fail(function(xhr, status, error) {
            alert('failed to load plot: ' + status);
          })
@@ -282,7 +286,7 @@ var templMMU = `<!doctype html>
         var details = $('#details');
         details.empty();
         var windowNS = curve[items[0].row][0];
-        var url = '/mmuDetails?window=' + windowNS + '&flags=' + mmuFlags();
+        var url = '?mode=details&window=' + windowNS + '&flags=' + mmuFlags();
         $.getJSON(url)
          .fail(function(xhr, status, error) {
             details.text(status + ': ' + url + ' could not be loaded');

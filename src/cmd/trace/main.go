@@ -139,8 +139,8 @@ func main() {
 	log.Printf("Opening browser. Trace viewer is listening on %s", addr)
 	browser.Open(addr)
 
-	// Install MMU handlers.
-	traceviewer.InstallMMUHandlers(http.DefaultServeMux, ranges, mutatorUtil)
+	// Install MMU handler.
+	http.HandleFunc("/mmu", traceviewer.MMUHandlerFunc(ranges, mutatorUtil))
 
 	// Install main handler.
 	http.Handle("/", traceviewer.MainHandler(ranges))
