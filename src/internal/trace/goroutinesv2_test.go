@@ -7,6 +7,7 @@ package trace
 import (
 	tracev2 "internal/trace/v2"
 	"internal/trace/v2/testtrace"
+	"io"
 	"testing"
 )
 
@@ -95,11 +96,22 @@ func summarizeTraceTest(t *testing.T, testPath string) map[tracev2.GoID]*Gorouti
 	if err != nil {
 		t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 	}
-	summaries, err := SummarizeGoroutines(r)
+	var events []tracev2.Event
+	tr, err := tracev2.NewReader(r)
 	if err != nil {
-		t.Fatalf("failed to process trace %s: %v", testPath, err)
+		t.Fatalf("failed to create trace reader %s: %v", testPath, err)
 	}
-	return summaries
+	for {
+		ev, err := tr.ReadEvent()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("failed to process trace %s: %v", testPath, err)
+		}
+		events = append(events, ev)
+	}
+	return SummarizeGoroutines(events)
 }
 
 func checkRegionEvents(t *testing.T, wantStart, wantEnd tracev2.EventKind, goid tracev2.GoID, region *UserRegionSummary) {

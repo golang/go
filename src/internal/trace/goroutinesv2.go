@@ -58,13 +58,51 @@ type UserRegionSummary struct {
 // GoroutineExecStats contains statistics about a goroutine's execution
 // during a period of time.
 type GoroutineExecStats struct {
+	// These stats are all non-overlapping.
 	ExecTime          time.Duration
 	SchedWaitTime     time.Duration
 	BlockTimeByReason map[string]time.Duration
 	SyscallTime       time.Duration
 	SyscallBlockTime  time.Duration
-	RangeTime         map[string]time.Duration
-	TotalTime         time.Duration
+
+	// TotalTime is the duration of the goroutine's presence in the trace.
+	// Necessarily overlaps with other stats.
+	TotalTime time.Duration
+
+	// Total time the goroutine spent in certain ranges; may overlap
+	// with other stats.
+	RangeTime map[string]time.Duration
+}
+
+func (s GoroutineExecStats) NonOverlappingStats() map[string]time.Duration {
+	stats := map[string]time.Duration{
+		"Execution time":         s.ExecTime,
+		"Sched wait time":        s.SchedWaitTime,
+		"Syscall execution time": s.SyscallTime,
+		"Block time (syscall)":   s.SyscallBlockTime,
+		"Unknown time":           s.UnknownTime(),
+	}
+	for reason, dt := range s.BlockTimeByReason {
+		stats["Block time ("+reason+")"] += dt
+	}
+	// N.B. Don't include RangeTime or TotalTime; they overlap with these other
+	// stats.
+	return stats
+}
+
+// UnknownTime returns whatever isn't accounted for in TotalTime.
+func (s GoroutineExecStats) UnknownTime() time.Duration {
+	sum := s.ExecTime + s.SchedWaitTime + s.SyscallTime +
+		s.SyscallBlockTime
+	for _, dt := range s.BlockTimeByReason {
+		sum += dt
+	}
+	// N.B. Don't include range time. Ranges overlap with
+	// other stats, whereas these stats are non-overlapping.
+	if sum < s.TotalTime {
+		return s.TotalTime - sum
+	}
+	return 0
 }
 
 // sub returns the stats v-s.
@@ -172,7 +210,7 @@ type goroutineSummary struct {
 }
 
 // SummarizeGoroutines generates statistics for all goroutines in the trace.
-func SummarizeGoroutines(trace io.Reader) (map[tracev2.GoID]*GoroutineSummary, error) {
+func SummarizeGoroutines(events []tracev2.Event) map[tracev2.GoID]*GoroutineSummary {
 	// Create the analysis state.
 	b := goroutineStatsBuilder{
 		gs:          make(map[tracev2.GoID]*GoroutineSummary),
@@ -182,21 +220,11 @@ func SummarizeGoroutines(trace io.Reader) (map[tracev2.GoID]*GoroutineSummary, e
 	}
 
 	// Process the trace.
-	r, err := tracev2.NewReader(trace)
-	if err != nil {
-		return nil, err
-	}
-	for {
-		ev, err := r.ReadEvent()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
+	for i := range events {
+		ev := &events[i]
 		b.event(ev)
 	}
-	return b.finalize(), nil
+	return b.finalize()
 }
 
 // goroutineStatsBuilder constructs per-goroutine time statistics for v2 traces.
@@ -225,7 +253,7 @@ type rangeP struct {
 }
 
 // event feeds a single event into the stats builder.
-func (b *goroutineStatsBuilder) event(ev tracev2.Event) {
+func (b *goroutineStatsBuilder) event(ev *tracev2.Event) {
 	if b.syncTs == 0 {
 		b.syncTs = ev.Time()
 	}
@@ -280,7 +308,7 @@ func (b *goroutineStatsBuilder) event(ev tracev2.Event) {
 					regions := creatorG.activeRegions
 					s := regions[len(regions)-1]
 					if s.TaskID != tracev2.NoTask {
-						g.activeRegions = []*UserRegionSummary{{TaskID: s.TaskID, Start: &ev}}
+						g.activeRegions = []*UserRegionSummary{{TaskID: s.TaskID, Start: ev}}
 					}
 				}
 				b.gs[g.ID] = g
@@ -358,7 +386,7 @@ func (b *goroutineStatsBuilder) event(ev tracev2.Event) {
 				// "Forever" is like goroutine death.
 				fallthrough
 			case tracev2.GoNotExist:
-				g.finalize(ev.Time(), &ev)
+				g.finalize(ev.Time(), ev)
 			case tracev2.GoSyscall:
 				b.syscallingP[ev.Proc()] = id
 				b.syscallingG[id] = ev.Proc()
@@ -445,7 +473,7 @@ func (b *goroutineStatsBuilder) event(ev tracev2.Event) {
 		g.activeRegions = append(g.activeRegions, &UserRegionSummary{
 			Name:               r.Type,
 			TaskID:             r.Task,
-			Start:              &ev,
+			Start:              ev,
 			GoroutineExecStats: g.snapshotStat(ev.Time()),
 		})
 	case tracev2.EventRegionEnd:
@@ -463,7 +491,7 @@ func (b *goroutineStatsBuilder) event(ev tracev2.Event) {
 			sd = &UserRegionSummary{Name: r.Type, TaskID: r.Task}
 		}
 		sd.GoroutineExecStats = g.snapshotStat(ev.Time()).sub(sd.GoroutineExecStats)
-		sd.End = &ev
+		sd.End = ev
 		g.Regions = append(g.Regions, sd)
 	}
 }

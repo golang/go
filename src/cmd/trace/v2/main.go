@@ -6,6 +6,7 @@ package trace
 
 import (
 	"fmt"
+	"internal/trace"
 	"internal/trace/traceviewer"
 	tracev2 "internal/trace/v2"
 	"io"
@@ -39,9 +40,9 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
 	if err != nil {
 		return fmt.Errorf("failed to create server socket: %w", err)
 	}
-
 	addr := "http://" + ln.Addr().String()
-	log.Print("Parsing trace...")
+
+	log.Print("Preparing trace for viewer...")
 	parsed, err := parseTrace(tracef)
 	if err != nil {
 		return err
@@ -50,11 +51,13 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
 	// We might double-close, but that's fine; we ignore the error.
 	tracef.Close()
 
-	log.Print("Splitting trace...")
+	log.Print("Splitting trace for viewer...")
 	ranges, err := splitTrace(parsed)
 	if err != nil {
 		return err
 	}
+	log.Printf("Analyzing goroutines...")
+	gSummaries := trace.SummarizeGoroutines(parsed.events)
 
 	log.Printf("Opening browser. Trace viewer is listening on %s", addr)
 	browser.Open(addr)
@@ -64,6 +67,8 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
 	mux.Handle("/trace", traceviewer.TraceHandler())
 	mux.Handle("/jsontrace", JSONTraceHandler(parsed))
 	mux.Handle("/static/", traceviewer.StaticHandler())
+	mux.HandleFunc("/goroutines", GoroutinesHandlerFunc(gSummaries))
+	mux.HandleFunc("/goroutine", GoroutineHandler(gSummaries))
 
 	err = http.Serve(ln, mux)
 	return fmt.Errorf("failed to start http server: %w", err)

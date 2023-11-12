@@ -21,9 +21,7 @@ func MainHandler(ranges []Range) http.Handler {
 	})
 }
 
-var templMain = template.Must(template.New("").Parse(`
-<html>
-<style>
+const CommonStyle = `
 /* See https://github.com/golang/pkgsite/blob/master/static/shared/typography/typography.css */
 body {
   font-family:	-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
@@ -40,7 +38,30 @@ h1,h2 {
   word-break: break-word;
 }
 p  { color: grey85; font-size:85%; }
-</style>
+code,
+pre,
+textarea.code {
+  font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5em;
+}
+
+pre,
+textarea.code {
+  background-color: var(--color-background-accented);
+  border: var(--border);
+  border-radius: var(--border-radius);
+  color: var(--color-text);
+  overflow-x: auto;
+  padding: 0.625rem;
+  tab-size: 4;
+  white-space: pre;
+}
+`
+
+var templMain = template.Must(template.New("").Parse(`
+<html>
+<style>` + CommonStyle + `</style>
 <body>
 <h1>cmd/trace: the Go trace event viewer</h1>
 <p>
