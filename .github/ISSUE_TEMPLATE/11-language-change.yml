@@ -74,12 +74,18 @@ body:
 #      required: false
 
   - type: textarea
-    id: proposal-differences
+    id: related-proposals
     attributes:
-      label: "How does this proposal differ?"
-      description: "If this proposal differs from previous ones, please describe how."
+      label: "Has this idea, or one like it, been proposed before?"
+      description: "If so, how does this proposal differ?"
+      placeholder: |
+       Yes or No
+
+       If yes, 
+        1. Mention the related proposals 
+        2. then describe how this proposal differs       
     validations:
-      required: false
+      required: true
 
   - type: textarea
     id: error-handling-differences
