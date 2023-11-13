@@ -12,14 +12,14 @@ import (
 )
 
 func TestSummarizeGoroutinesTrace(t *testing.T) {
-	summaries := summarizeTraceTest(t, "v2/testdata/tests/go122-gc-stress.test")
+	summaries := summarizeTraceTest(t, "v2/testdata/tests/go122-gc-stress.test").Goroutines
 	var (
 		hasSchedWaitTime    bool
 		hasSyncBlockTime    bool
 		hasGCMarkAssistTime bool
 	)
 	for _, summary := range summaries {
-		basicSummaryChecks(t, summary)
+		basicGoroutineSummaryChecks(t, summary)
 		hasSchedWaitTime = hasSchedWaitTime || summary.SchedWaitTime > 0
 		if dt, ok := summary.BlockTimeByReason["sync"]; ok && dt > 0 {
 			hasSyncBlockTime = true
@@ -40,7 +40,7 @@ func TestSummarizeGoroutinesTrace(t *testing.T) {
 }
 
 func TestSummarizeGoroutinesRegionsTrace(t *testing.T) {
-	summaries := summarizeTraceTest(t, "v2/testdata/tests/go122-annotations.test")
+	summaries := summarizeTraceTest(t, "v2/testdata/tests/go122-annotations.test").Goroutines
 	type region struct {
 		startKind tracev2.EventKind
 		endKind   tracev2.EventKind
@@ -58,7 +58,7 @@ func TestSummarizeGoroutinesRegionsTrace(t *testing.T) {
 		"post-existing region": {tracev2.EventRegionBegin, tracev2.EventBad},
 	}
 	for _, summary := range summaries {
-		basicSummaryChecks(t, summary)
+		basicGoroutineSummaryChecks(t, summary)
 		for _, region := range summary.Regions {
 			want, ok := wantRegions[region.Name]
 			if !ok {
@@ -73,7 +73,166 @@ func TestSummarizeGoroutinesRegionsTrace(t *testing.T) {
 	}
 }
 
-func basicSummaryChecks(t *testing.T, summary *GoroutineSummary) {
+func TestSummarizeTasksTrace(t *testing.T) {
+	summaries := summarizeTraceTest(t, "v2/testdata/tests/go122-annotations-stress.test").Tasks
+	type task struct {
+		name       string
+		parent     *tracev2.TaskID
+		children   []tracev2.TaskID
+		logs       []tracev2.Log
+		goroutines []tracev2.GoID
+	}
+	parent := func(id tracev2.TaskID) *tracev2.TaskID {
+		p := new(tracev2.TaskID)
+		*p = id
+		return p
+	}
+	wantTasks := map[tracev2.TaskID]task{
+		tracev2.BackgroundTask: {
+			// The background task (0) is never any task's parent.
+			logs: []tracev2.Log{
+				{Task: tracev2.BackgroundTask, Category: "log", Message: "before do"},
+				{Task: tracev2.BackgroundTask, Category: "log", Message: "before do"},
+			},
+			goroutines: []tracev2.GoID{1},
+		},
+		1: {
+			// This started before tracing started and has no parents.
+			// Task 2 is technically a child, but we lost that information.
+			children: []tracev2.TaskID{3, 7, 16},
+			logs: []tracev2.Log{
+				{Task: 1, Category: "log", Message: "before do"},
+				{Task: 1, Category: "log", Message: "before do"},
+			},
+			goroutines: []tracev2.GoID{1},
+		},
+		2: {
+			// This started before tracing started and its parent is technically (1), but that information was lost.
+			children: []tracev2.TaskID{8, 17},
+			logs: []tracev2.Log{
+				{Task: 2, Category: "log", Message: "before do"},
+				{Task: 2, Category: "log", Message: "before do"},
+			},
+			goroutines: []tracev2.GoID{1},
+		},
+		3: {
+			parent:   parent(1),
+			children: []tracev2.TaskID{10, 19},
+			logs: []tracev2.Log{
+				{Task: 3, Category: "log", Message: "before do"},
+				{Task: 3, Category: "log", Message: "before do"},
+			},
+			goroutines: []tracev2.GoID{1},
+		},
+		4: {
+			// Explicitly, no parent.
+			children: []tracev2.TaskID{12, 21},
+			logs: []tracev2.Log{
+				{Task: 4, Category: "log", Message: "before do"},
+				{Task: 4, Category: "log", Message: "before do"},
+			},
+			goroutines: []tracev2.GoID{1},
+		},
+		12: {
+			parent:   parent(4),
+			children: []tracev2.TaskID{13},
+			logs: []tracev2.Log{
+				// TODO(mknyszek): This is computed asynchronously in the trace,
+				// which makes regenerating this test very annoying, since it will
+				// likely break this test. Resolve this by making the order not matter.
+				{Task: 12, Category: "log2", Message: "do"},
+				{Task: 12, Category: "log", Message: "fanout region4"},
+				{Task: 12, Category: "log", Message: "fanout region0"},
+				{Task: 12, Category: "log", Message: "fanout region1"},
+				{Task: 12, Category: "log", Message: "fanout region2"},
+				{Task: 12, Category: "log", Message: "before do"},
+				{Task: 12, Category: "log", Message: "fanout region3"},
+			},
+			goroutines: []tracev2.GoID{1, 5, 6, 7, 8, 9},
+		},
+		13: {
+			// Explicitly, no children.
+			parent: parent(12),
+			logs: []tracev2.Log{
+				{Task: 13, Category: "log2", Message: "do"},
+			},
+			goroutines: []tracev2.GoID{7},
+		},
+	}
+	for id, summary := range summaries {
+		want, ok := wantTasks[id]
+		if !ok {
+			continue
+		}
+		if id != summary.ID {
+			t.Errorf("ambiguous task %d (or %d?): field likely set incorrectly", id, summary.ID)
+		}
+
+		// Check parent.
+		if want.parent != nil {
+			if summary.Parent == nil {
+				t.Errorf("expected parent %d for task %d without a parent", *want.parent, id)
+			} else if summary.Parent.ID != *want.parent {
+				t.Errorf("bad parent for task %d: want %d, got %d", id, *want.parent, summary.Parent.ID)
+			}
+		} else if summary.Parent != nil {
+			t.Errorf("unexpected parent %d for task %d", summary.Parent.ID, id)
+		}
+
+		// Check children.
+		gotChildren := make(map[tracev2.TaskID]struct{})
+		for _, child := range summary.Children {
+			gotChildren[child.ID] = struct{}{}
+		}
+		for _, wantChild := range want.children {
+			if _, ok := gotChildren[wantChild]; ok {
+				delete(gotChildren, wantChild)
+			} else {
+				t.Errorf("expected child task %d for task %d not found", wantChild, id)
+			}
+		}
+		if len(gotChildren) != 0 {
+			for child := range gotChildren {
+				t.Errorf("unexpected child task %d for task %d", child, id)
+			}
+		}
+
+		// Check logs.
+		if len(want.logs) != len(summary.Logs) {
+			t.Errorf("wanted %d logs for task %d, got %d logs instead", len(want.logs), id, len(summary.Logs))
+		} else {
+			for i := range want.logs {
+				if want.logs[i] != summary.Logs[i].Log() {
+					t.Errorf("log mismatch: want %#v, got %#v", want.logs[i], summary.Logs[i].Log())
+				}
+			}
+		}
+
+		// Check goroutines.
+		if len(want.goroutines) != len(summary.Goroutines) {
+			t.Errorf("wanted %d goroutines for task %d, got %d goroutines instead", len(want.goroutines), id, len(summary.Goroutines))
+		} else {
+			for _, goid := range want.goroutines {
+				g, ok := summary.Goroutines[goid]
+				if !ok {
+					t.Errorf("want goroutine %d for task %d, not found", goid, id)
+					continue
+				}
+				if g.ID != goid {
+					t.Errorf("goroutine summary for %d does not match task %d listing of %d", g.ID, id, goid)
+				}
+			}
+		}
+
+		// Marked as seen.
+		delete(wantTasks, id)
+	}
+	if len(wantTasks) != 0 {
+		t.Errorf("failed to find tasks: %#v", wantTasks)
+	}
+}
+
+func basicGoroutineSummaryChecks(t *testing.T, summary *GoroutineSummary) {
 	if summary.ID == tracev2.NoGoroutine {
 		t.Error("summary found for no goroutine")
 		return
@@ -91,13 +250,13 @@ func basicSummaryChecks(t *testing.T, summary *GoroutineSummary) {
 	}
 }
 
-func summarizeTraceTest(t *testing.T, testPath string) map[tracev2.GoID]*GoroutineSummary {
+func summarizeTraceTest(t *testing.T, testPath string) *Summary {
 	trace, _, err := testtrace.ParseFile(testPath)
 	if err != nil {
 		t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 	}
 	// Create the analysis state.
-	s := NewGoroutineSummarizer()
+	s := NewSummarizer()
 
 	// Create a reader.
 	r, err := tracev2.NewReader(trace)

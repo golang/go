@@ -11,6 +11,12 @@ import (
 	"time"
 )
 
+// Summary is the analysis result produced by the summarizer.
+type Summary struct {
+	Goroutines map[tracev2.GoID]*GoroutineSummary
+	Tasks      map[tracev2.TaskID]*UserTaskSummary
+}
+
 // GoroutineSummary contains statistics and execution details of a single goroutine.
 // (For v2 traces.)
 type GoroutineSummary struct {
@@ -33,6 +39,29 @@ type GoroutineSummary struct {
 	// More specifically, if it's nil, it indicates that this summary has
 	// already been finalized.
 	*goroutineSummary
+}
+
+// UserTaskSummary represents a task in the trace.
+type UserTaskSummary struct {
+	ID       tracev2.TaskID
+	Name     string
+	Parent   *UserTaskSummary // nil if the parent is unknown.
+	Children []*UserTaskSummary
+
+	// Task begin event. An EventTaskBegin event or nil.
+	Start *tracev2.Event
+
+	// End end event. Normally EventTaskEnd event or nil,
+	End *tracev2.Event
+
+	// Logs is a list of tracev2.EventLog events associated with the task.
+	Logs []*tracev2.Event
+
+	// List of regions in the task, sorted based on the start time.
+	Regions []*UserRegionSummary
+
+	// Goroutines is the set of goroutines associated with this task.
+	Goroutines map[tracev2.GoID]*GoroutineSummary
 }
 
 // UserRegionSummary represents a region and goroutine execution stats
@@ -209,10 +238,13 @@ type goroutineSummary struct {
 	activeRegions        []*UserRegionSummary // stack of active regions
 }
 
-// GoroutineSummarizer constructs per-goroutine time statistics for v2 traces.
-type GoroutineSummarizer struct {
+// Summarizer constructs per-goroutine time statistics for v2 traces.
+type Summarizer struct {
 	// gs contains the map of goroutine summaries we're building up to return to the caller.
 	gs map[tracev2.GoID]*GoroutineSummary
+
+	// tasks contains the map of task summaries we're building up to return to the caller.
+	tasks map[tracev2.TaskID]*UserTaskSummary
 
 	// syscallingP and syscallingG represent a binding between a P and G in a syscall.
 	// Used to correctly identify and clean up after syscalls (blocking or otherwise).
@@ -229,10 +261,11 @@ type GoroutineSummarizer struct {
 	syncTs tracev2.Time // timestamp of the last sync event processed (or the first timestamp in the trace).
 }
 
-// NewGoroutineSummarizer creates a new struct to build goroutine stats from a trace.
-func NewGoroutineSummarizer() *GoroutineSummarizer {
-	return &GoroutineSummarizer{
+// NewSummarizer creates a new struct to build goroutine stats from a trace.
+func NewSummarizer() *Summarizer {
+	return &Summarizer{
 		gs:          make(map[tracev2.GoID]*GoroutineSummary),
+		tasks:       make(map[tracev2.TaskID]*UserTaskSummary),
 		syscallingP: make(map[tracev2.ProcID]tracev2.GoID),
 		syscallingG: make(map[tracev2.GoID]tracev2.ProcID),
 		rangesP:     make(map[rangeP]tracev2.GoID),
@@ -245,7 +278,7 @@ type rangeP struct {
 }
 
 // Event feeds a single event into the stats summarizer.
-func (s *GoroutineSummarizer) Event(ev *tracev2.Event) {
+func (s *Summarizer) Event(ev *tracev2.Event) {
 	if s.syncTs == 0 {
 		s.syncTs = ev.Time()
 	}
@@ -460,12 +493,17 @@ func (s *GoroutineSummarizer) Event(ev *tracev2.Event) {
 	case tracev2.EventRegionBegin:
 		g := s.gs[ev.Goroutine()]
 		r := ev.Region()
-		g.activeRegions = append(g.activeRegions, &UserRegionSummary{
+		region := &UserRegionSummary{
 			Name:               r.Type,
 			TaskID:             r.Task,
 			Start:              ev,
 			GoroutineExecStats: g.snapshotStat(ev.Time()),
-		})
+		}
+		g.activeRegions = append(g.activeRegions, region)
+		// Associate the region and current goroutine to the task.
+		task := s.getOrAddTask(r.Task)
+		task.Regions = append(task.Regions, region)
+		task.Goroutines[g.ID] = g
 	case tracev2.EventRegionEnd:
 		g := s.gs[ev.Goroutine()]
 		r := ev.Region()
@@ -476,19 +514,61 @@ func (s *GoroutineSummarizer) Event(ev *tracev2.Event) {
 			sd = regionStk[n-1]
 			regionStk = regionStk[:n-1]
 			g.activeRegions = regionStk
+			// N.B. No need to add the region to a task; the EventRegionBegin already handled it.
 		} else {
 			// This is an "end" without a start. Just fabricate the region now.
 			sd = &UserRegionSummary{Name: r.Type, TaskID: r.Task}
+			// Associate the region and current goroutine to the task.
+			task := s.getOrAddTask(r.Task)
+			task.Goroutines[g.ID] = g
+			task.Regions = append(task.Regions, sd)
 		}
 		sd.GoroutineExecStats = g.snapshotStat(ev.Time()).sub(sd.GoroutineExecStats)
 		sd.End = ev
 		g.Regions = append(g.Regions, sd)
+
+	// Handle tasks and logs.
+	case tracev2.EventTaskBegin, tracev2.EventTaskEnd:
+		// Initialize the task.
+		t := ev.Task()
+		task := s.getOrAddTask(t.ID)
+		task.Name = t.Type
+		task.Goroutines[ev.Goroutine()] = s.gs[ev.Goroutine()]
+		if ev.Kind() == tracev2.EventTaskBegin {
+			task.Start = ev
+		} else {
+			task.End = ev
+		}
+		// Initialize the parent, if one exists and it hasn't been done yet.
+		// We need to avoid doing it twice, otherwise we could appear twice
+		// in the parent's Children list.
+		if t.Parent != tracev2.NoTask && task.Parent == nil {
+			parent := s.getOrAddTask(t.Parent)
+			task.Parent = parent
+			parent.Children = append(parent.Children, task)
+		}
+	case tracev2.EventLog:
+		log := ev.Log()
+		// Just add the log to the task. We'll create the task if it
+		// doesn't exist (it's just been mentioned now).
+		task := s.getOrAddTask(log.Task)
+		task.Goroutines[ev.Goroutine()] = s.gs[ev.Goroutine()]
+		task.Logs = append(task.Logs, ev)
 	}
+}
+
+func (s *Summarizer) getOrAddTask(id tracev2.TaskID) *UserTaskSummary {
+	task := s.tasks[id]
+	if task == nil {
+		task = &UserTaskSummary{ID: id, Goroutines: make(map[tracev2.GoID]*GoroutineSummary)}
+		s.tasks[id] = task
+	}
+	return task
 }
 
 // Finalize indicates to the summarizer that we're done processing the trace.
 // It cleans up any remaining state and returns the full summary.
-func (s *GoroutineSummarizer) Finalize() map[tracev2.GoID]*GoroutineSummary {
+func (s *Summarizer) Finalize() *Summary {
 	for _, g := range s.gs {
 		g.finalize(s.lastTs, nil)
 
@@ -506,7 +586,10 @@ func (s *GoroutineSummarizer) Finalize() map[tracev2.GoID]*GoroutineSummary {
 		})
 		g.goroutineSummary = nil
 	}
-	return s.gs
+	return &Summary{
+		Goroutines: s.gs,
+		Tasks:      s.tasks,
+	}
 }
 
 // RelatedGoroutinesV2 finds a set of goroutines related to goroutine goid for v2 traces.

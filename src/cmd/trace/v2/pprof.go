@@ -57,7 +57,7 @@ func pprofMatchingGoroutines(id string, t *parsedTrace) (map[tracev2.GoID][]inte
 		return nil, fmt.Errorf("invalid goroutine type: %v", id)
 	}
 	res := make(map[tracev2.GoID][]interval)
-	for _, g := range t.gSummaries {
+	for _, g := range t.summary.Goroutines {
 		if g.PC != pc {
 			continue
 		}
@@ -81,7 +81,7 @@ func pprofMatchingRegions(filter *regionFilter, t *parsedTrace) (map[tracev2.GoI
 	}
 
 	gToIntervals := make(map[tracev2.GoID][]interval)
-	for _, g := range t.gSummaries {
+	for _, g := range t.summary.Goroutines {
 		for _, r := range g.Regions {
 			if !filter.match(t, r) {
 				continue
