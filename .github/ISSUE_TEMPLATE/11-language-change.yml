@@ -156,11 +156,25 @@ body:
       required: false
 
   - type: textarea
-    id: show-example-code
+    id: go-backwards-compatiblity
     attributes:
-      label: "Show example code before and after the change. "
+      label: Is this change backward compatible?
+      description: Breaking the Go 1 compatibility guarantee is a large cost and requires a large benefit.
+      placeholder: |
+       Yes or No
+
+       If yes, 
+        1. Show example code before and after the change.
+
     validations:
-      required: false
+      required: true
+
+  # - type: textarea
+  #   id: show-example-code
+  #   attributes:
+  #     label: "Show example code before and after the change. "
+  #   validations:
+  #     required: false
 
   - type: textarea
     id: orthogonality
