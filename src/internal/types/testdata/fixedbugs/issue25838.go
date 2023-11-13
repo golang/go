@@ -24,3 +24,17 @@ type (
 	P = *T
 	T P
 )
+
+func newA(c funcAlias) A {
+	return A{c: c}
+}
+
+type B struct {
+	a *A
+}
+
+type A struct {
+	c funcAlias
+}
+
+type funcAlias = func(B)

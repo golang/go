@@ -32,8 +32,7 @@ var sigset_all = ^sigset(0)
 
 // From OpenBSD's <sys/sysctl.h>
 const (
-	_CTL_KERN   = 1
-	_KERN_OSREV = 3
+	_CTL_KERN = 1
 
 	_CTL_HW        = 6
 	_HW_NCPU       = 3
@@ -82,13 +81,6 @@ func getncpu() int32 {
 func getPageSize() uintptr {
 	if ps, ok := sysctlInt([]uint32{_CTL_HW, _HW_PAGESIZE}); ok {
 		return uintptr(ps)
-	}
-	return 0
-}
-
-func getOSRev() int {
-	if osrev, ok := sysctlInt([]uint32{_CTL_KERN, _KERN_OSREV}); ok {
-		return int(osrev)
 	}
 	return 0
 }

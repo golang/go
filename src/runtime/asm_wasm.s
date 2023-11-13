@@ -223,7 +223,7 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
 
 	// Cannot grow scheduler stack (m->g0).
 	Get g
-	Get R1
+	Get R2
 	I64Eq
 	If
 		CALLNORESUME runtime·badmorestackg0(SB)

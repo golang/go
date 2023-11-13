@@ -340,7 +340,7 @@ func runtimeTypes() []*types.Type {
 	typs[102] = types.NewChan(typs[2], types.Csend)
 	typs[103] = newSig(params(typs[102], typs[3]), nil)
 	typs[104] = types.NewArray(typs[0], 3)
-	typs[105] = types.NewStruct([]*types.Field{types.NewField(src.NoXPos, Lookup("enabled"), typs[6]), types.NewField(src.NoXPos, Lookup("pad"), typs[104]), types.NewField(src.NoXPos, Lookup("needed"), typs[6]), types.NewField(src.NoXPos, Lookup("cgo"), typs[6]), types.NewField(src.NoXPos, Lookup("alignme"), typs[24])})
+	typs[105] = types.NewStruct([]*types.Field{types.NewField(src.NoXPos, Lookup("enabled"), typs[6]), types.NewField(src.NoXPos, Lookup("pad"), typs[104]), types.NewField(src.NoXPos, Lookup("cgo"), typs[6]), types.NewField(src.NoXPos, Lookup("alignme"), typs[24])})
 	typs[106] = newSig(params(typs[1], typs[3], typs[3]), nil)
 	typs[107] = newSig(params(typs[1], typs[3]), nil)
 	typs[108] = newSig(params(typs[1], typs[3], typs[15], typs[3], typs[15]), params(typs[15]))

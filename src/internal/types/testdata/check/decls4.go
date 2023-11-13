@@ -59,7 +59,7 @@ var (
 )
 
 // alias receiver types
-func (Ai /* ERROR "cannot define new methods on non-local type int" */) m1() {}
+func (Ai /* ERRORx "cannot define new methods on non-local type (int|Ai)" */) m1() {}
 func (T0) m1() {}
 func (A0) m1 /* ERROR "already declared" */ () {}
 func (A0) m2 () {}
@@ -115,8 +115,8 @@ type (
 	B2 = int
 )
 
-func (B0 /* ERROR "cannot define new methods on non-local type int" */ ) m() {}
-func (B1 /* ERROR "cannot define new methods on non-local type int" */ ) n() {}
+func (B0 /* ERRORx "cannot define new methods on non-local type (int|B)" */ ) m() {}
+func (B1 /* ERRORx "cannot define new methods on non-local type (int|B)" */ ) n() {}
 
 // cycles
 type (

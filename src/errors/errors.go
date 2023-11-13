@@ -26,7 +26,7 @@
 // itself followed by the tree of each of its children in turn
 // (pre-order, depth-first traversal).
 //
-// Is examines the tree of its first argument looking for an error that
+// [Is] examines the tree of its first argument looking for an error that
 // matches the second. It reports whether it finds a match. It should be
 // used in preference to simple equality checks:
 //
@@ -38,7 +38,7 @@
 //
 // because the former will succeed if err wraps [io/fs.ErrExist].
 //
-// As examines the tree of its first argument looking for an error that can be
+// [As] examines the tree of its first argument looking for an error that can be
 // assigned to its second argument, which must be a pointer. If it succeeds, it
 // performs the assignment and returns true. Otherwise, it returns false. The form
 //
@@ -80,7 +80,7 @@ func (e *errorString) Error() string {
 //
 //	errors.Is(err, errors.ErrUnsupported)
 //
-// either by directly wrapping ErrUnsupported or by implementing an Is method.
+// either by directly wrapping ErrUnsupported or by implementing an [Is] method.
 //
 // Functions and methods should document the cases in which an error
 // wrapping this will be returned.

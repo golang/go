@@ -1186,7 +1186,7 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
 		n++
 	}
 
-	if len(template.PolicyIdentifiers) > 0 &&
+	if (len(template.PolicyIdentifiers) > 0 || len(template.Policies) > 0) &&
 		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
 		ret[n], err = marshalCertificatePolicies(template.Policies, template.PolicyIdentifiers)
 		if err != nil {
@@ -1378,14 +1378,27 @@ func marshalCertificatePolicies(policies []OID, policyIdentifiers []asn1.ObjectI
 
 	b := cryptobyte.NewBuilder(make([]byte, 0, 128))
 	b.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+		// added is used to track OIDs which are duplicated in both Policies and PolicyIdentifiers
+		// so they can be skipped. Note that this explicitly doesn't check for duplicate OIDs in
+		// Policies or in PolicyIdentifiers themselves, as this would be considered breaking behavior.
+		added := map[string]bool{}
 		for _, v := range policies {
 			child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
 				child.AddASN1(cryptobyte_asn1.OBJECT_IDENTIFIER, func(child *cryptobyte.Builder) {
+					oidStr := v.String()
+					added[oidStr] = true
+					if len(v.der) == 0 {
+						child.SetError(errors.New("invalid policy object identifier"))
+						return
+					}
 					child.AddBytes(v.der)
 				})
 			})
 		}
 		for _, v := range policyIdentifiers {
+			if added[v.String()] {
+				continue
+			}
 			child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
 				child.AddASN1ObjectIdentifier(v)
 			})
@@ -1534,6 +1547,7 @@ var emptyASN1Subject = []byte{0x30, 0}
 //   - PermittedIPRanges
 //   - PermittedURIDomains
 //   - PolicyIdentifiers
+//   - Policies
 //   - SerialNumber
 //   - SignatureAlgorithm
 //   - Subject
@@ -1557,6 +1571,9 @@ var emptyASN1Subject = []byte{0x30, 0}
 //
 // If SubjectKeyId from template is empty and the template is a CA, SubjectKeyId
 // will be generated from the hash of the public key.
+//
+// If both PolicyIdentifiers and Policies are populated, any OID which appears
+// in both slices will only be added to the certificate policies extension once.
 func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv any) ([]byte, error) {
 	key, ok := priv.(crypto.Signer)
 	if !ok {

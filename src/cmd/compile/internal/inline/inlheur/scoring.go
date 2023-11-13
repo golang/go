@@ -19,10 +19,35 @@ import (
 // in which we'll adjust the score of a given callsite.
 type scoreAdjustTyp uint
 
+// These constants capture the various ways in which the inliner's
+// scoring phase can adjust a callsite score based on heuristics. They
+// fall broadly into three categories:
+//
+// 1) adjustments based solely on the callsite context (ex: call
+// appears on panic path)
+//
+// 2) adjustments that take into account specific interesting values
+// passed at a call site (ex: passing a constant that could result in
+// cprop/deadcode in the caller)
+//
+// 3) adjustments that take into account values returned from the call
+// at a callsite (ex: call always returns the same inlinable function,
+// and return value flows unmodified into an indirect call)
+//
+// For categories 2 and 3 above, each adjustment can have either a
+// "must" version and a "may" version (but not both). Here the idea is
+// that in the "must" version the value flow is unconditional: if the
+// callsite executes, then the condition we're interested in (ex:
+// param feeding call) is guaranteed to happen. For the "may" version,
+// there may be control flow that could cause the benefit to be
+// bypassed.
 const (
+	// Category 1 adjustments (see above)
 	panicPathAdj scoreAdjustTyp = (1 << iota)
 	initFuncAdj
 	inLoopAdj
+
+	// Category 2 adjustments (see above).
 	passConstToIfAdj
 	passConstToNestedIfAdj
 	passConcreteToItfCallAdj
@@ -31,8 +56,12 @@ const (
 	passFuncToNestedIndCallAdj
 	passInlinableFuncToIndCallAdj
 	passInlinableFuncToNestedIndCallAdj
-	callResultRescoreAdj
-	lastAdj scoreAdjustTyp = callResultRescoreAdj
+
+	// Category 3 adjustments.
+	returnFeedsConstToIfAdj
+	returnFeedsFuncToIndCallAdj
+	returnFeedsInlinableFuncToIndCallAdj
+	returnFeedsConcreteToInterfaceCallAdj
 )
 
 // This table records the specific values we use to adjust call
@@ -42,18 +71,21 @@ const (
 // what value for each one produces the best performance.
 
 var adjValues = map[scoreAdjustTyp]int{
-	panicPathAdj:                        40,
-	initFuncAdj:                         20,
-	inLoopAdj:                           -5,
-	passConstToIfAdj:                    -20,
-	passConstToNestedIfAdj:              -15,
-	passConcreteToItfCallAdj:            -30,
-	passConcreteToNestedItfCallAdj:      -25,
-	passFuncToIndCallAdj:                -25,
-	passFuncToNestedIndCallAdj:          -20,
-	passInlinableFuncToIndCallAdj:       -45,
-	passInlinableFuncToNestedIndCallAdj: -40,
-	callResultRescoreAdj:                0,
+	panicPathAdj:                          40,
+	initFuncAdj:                           20,
+	inLoopAdj:                             -5,
+	passConstToIfAdj:                      -20,
+	passConstToNestedIfAdj:                -15,
+	passConcreteToItfCallAdj:              -30,
+	passConcreteToNestedItfCallAdj:        -25,
+	passFuncToIndCallAdj:                  -25,
+	passFuncToNestedIndCallAdj:            -20,
+	passInlinableFuncToIndCallAdj:         -45,
+	passInlinableFuncToNestedIndCallAdj:   -40,
+	returnFeedsConstToIfAdj:               -15,
+	returnFeedsFuncToIndCallAdj:           -25,
+	returnFeedsInlinableFuncToIndCallAdj:  -40,
+	returnFeedsConcreteToInterfaceCallAdj: -25,
 }
 
 func adjValue(x scoreAdjustTyp) int {
@@ -64,7 +96,7 @@ func adjValue(x scoreAdjustTyp) int {
 	}
 }
 
-var mayMust = [...]struct{ may, must scoreAdjustTyp }{
+var mayMustAdj = [...]struct{ may, must scoreAdjustTyp }{
 	{may: passConstToNestedIfAdj, must: passConstToIfAdj},
 	{may: passConcreteToNestedItfCallAdj, must: passConcreteToItfCallAdj},
 	{may: passFuncToNestedIndCallAdj, must: passFuncToNestedIndCallAdj},
@@ -80,7 +112,7 @@ func isMust(x scoreAdjustTyp) bool {
 }
 
 func mayToMust(x scoreAdjustTyp) scoreAdjustTyp {
-	for _, v := range mayMust {
+	for _, v := range mayMustAdj {
 		if x == v.may {
 			return v.must
 		}
@@ -89,7 +121,7 @@ func mayToMust(x scoreAdjustTyp) scoreAdjustTyp {
 }
 
 func mustToMay(x scoreAdjustTyp) scoreAdjustTyp {
-	for _, v := range mayMust {
+	for _, v := range mayMustAdj {
 		if x == v.must {
 			return v.may
 		}
@@ -237,6 +269,67 @@ func adjustScore(typ scoreAdjustTyp, score int, mask scoreAdjustTyp) (int, score
 	return score, mask
 }
 
+var resultFlagToPositiveAdj map[ResultPropBits]scoreAdjustTyp
+var paramFlagToPositiveAdj map[ParamPropBits]scoreAdjustTyp
+
+func setupFlagToAdjMaps() {
+	resultFlagToPositiveAdj = map[ResultPropBits]scoreAdjustTyp{
+		ResultIsAllocatedMem:     returnFeedsConcreteToInterfaceCallAdj,
+		ResultAlwaysSameFunc:     returnFeedsFuncToIndCallAdj,
+		ResultAlwaysSameConstant: returnFeedsConstToIfAdj,
+	}
+	paramFlagToPositiveAdj = map[ParamPropBits]scoreAdjustTyp{
+		ParamMayFeedInterfaceMethodCall: passConcreteToNestedItfCallAdj,
+		ParamFeedsInterfaceMethodCall:   passConcreteToItfCallAdj,
+		ParamMayFeedIndirectCall:        passInlinableFuncToNestedIndCallAdj,
+		ParamFeedsIndirectCall:          passInlinableFuncToIndCallAdj,
+	}
+}
+
+// largestScoreAdjustment tries to estimate the largest possible
+// negative score adjustment that could be applied to a call of the
+// function with the specified props. Example:
+//
+//	func foo() {                  func bar(x int, p *int) int {
+//	   ...                          if x < 0 { *p = x }
+//	}                               return 99
+//	                              }
+//
+// Function 'foo' above on the left has no interesting properties,
+// thus as a result the most we'll adjust any call to is the value for
+// "call in loop". If the calculated cost of the function is 150, and
+// the in-loop adjustment is 5 (for example), then there is not much
+// point treating it as inlinable. On the other hand "bar" has a param
+// property (parameter "x" feeds unmodified to an "if" statement") and
+// a return property (always returns same constant) meaning that a
+// given call _could_ be rescored down as much as -35 points-- thus if
+// the size of "bar" is 100 (for example) then there is at least a
+// chance that scoring will enable inlining.
+func largestScoreAdjustment(fn *ir.Func, props *FuncProps) int {
+	if resultFlagToPositiveAdj == nil {
+		setupFlagToAdjMaps()
+	}
+	var tmask scoreAdjustTyp
+	score := adjValues[inLoopAdj] // any call can be in a loop
+	for _, pf := range props.ParamFlags {
+		if adj, ok := paramFlagToPositiveAdj[pf]; ok {
+			score, tmask = adjustScore(adj, score, tmask)
+		}
+	}
+	for _, rf := range props.ResultFlags {
+		if adj, ok := resultFlagToPositiveAdj[rf]; ok {
+			score, tmask = adjustScore(adj, score, tmask)
+		}
+	}
+
+	if debugTrace&debugTraceScoring != 0 {
+		fmt.Fprintf(os.Stderr, "=-= largestScore(%v) is %d\n",
+			fn, score)
+	}
+
+	return score
+}
+
 // DumpInlCallSiteScores is invoked by the inliner if the debug flag
 // "-d=dumpinlcallsitescores" is set; it dumps out a human-readable
 // summary of all (potentially) inlinable callsites in the package,
@@ -267,7 +360,6 @@ func adjustScore(typ scoreAdjustTyp, score int, mask scoreAdjustTyp) (int, score
 func DumpInlCallSiteScores(profile *pgo.Profile, budgetCallback func(fn *ir.Func, profile *pgo.Profile) (int32, bool)) {
 
 	fmt.Fprintf(os.Stdout, "# scores for package %s\n", types.LocalPkg.Path)
-	cstab := CallSiteTable()
 
 	genstatus := func(cs *CallSite, prof *pgo.Profile) string {
 		hairyval := cs.Callee.Inl.Cost
@@ -298,9 +390,11 @@ func DumpInlCallSiteScores(profile *pgo.Profile, budgetCallback func(fn *ir.Func
 	}
 
 	if base.Debug.DumpInlCallSiteScores != 0 {
-		sl := make([]*CallSite, 0, len(cstab))
-		for _, v := range cstab {
-			sl = append(sl, v)
+		var sl []*CallSite
+		for _, funcInlHeur := range fpmap {
+			for _, cs := range funcInlHeur.cstab {
+				sl = append(sl, cs)
+			}
 		}
 		sort.Slice(sl, func(i, j int) bool {
 			if sl[i].Score != sl[j].Score {

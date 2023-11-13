@@ -193,7 +193,7 @@ type Source struct {
 	Line int    `json:"line"`
 }
 
-// attrs returns the non-zero fields of s as a slice of attrs.
+// group returns the non-zero fields of s as a slice of attrs.
 // It is similar to a LogValue method, but we don't want Source
 // to implement LogValuer because it would be resolved before
 // the ReplaceAttr function was called.

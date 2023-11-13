@@ -39,24 +39,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="cgo">Cgo</h3>
 
-<p><!-- CL 497837 --> The special comment that precedes
-  <code>import</code> <code>"C"</code> may now include two
-  new <code>#cgo</code> directives.
-  <ul>
-    <li>
-      <code>#cgo</code> <code>noescape</code> <code>cFunctionName</code>
-      tells cgo that Go pointers passed to the C function
-      <code>cFunctionName</code> do not escape.
-    </li>
-    <li>
-      <code>#cgo</code> <code>nocallback</code> <code>cFunctionName</code>
-      tells cgo that the C function <code>cFunctionName</code> does
-      not call any Go functions.
-    </li>
-  </ul>
-  See <a href="/cmd/cgo#hdr-Optimizing_calls_of_C_code">the <code>cgo</code>
-  documentation</a> for more details.
-</p>
+<!-- CL 497837 reverted -->
 
 <h2 id="runtime">Runtime</h2>
 

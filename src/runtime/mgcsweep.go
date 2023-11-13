@@ -25,6 +25,7 @@
 package runtime
 
 import (
+	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -515,8 +516,10 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		throw("mspan.sweep: bad span state")
 	}
 
-	if traceEnabled() {
-		traceGCSweepSpan(s.npages * _PageSize)
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.GCSweepSpan(s.npages * _PageSize)
+		traceRelease(trace)
 	}
 
 	mheap_.pagesSwept.Add(int64(s.npages))
@@ -786,6 +789,15 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 			} else {
 				mheap_.freeSpan(s)
 			}
+			if goexperiment.AllocHeaders && s.largeType != nil && s.largeType.Kind_&kindGCProg != 0 {
+				// In the allocheaders experiment, the unrolled GCProg bitmap is allocated separately.
+				// Free the space for the unrolled bitmap.
+				systemstack(func() {
+					s := spanOf(uintptr(unsafe.Pointer(s.largeType)))
+					mheap_.freeManual(s, spanAllocPtrScalarBits)
+				})
+				s.largeType = nil
+			}
 
 			// Count the free in the consistent, external stats.
 			stats := memstats.heapStats.acquire()
@@ -879,8 +891,10 @@ func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
 		return
 	}
 
-	if traceEnabled() {
-		traceGCSweepStart()
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.GCSweepStart()
+		traceRelease(trace)
 	}
 
 	// Fix debt if necessary.
@@ -919,8 +933,10 @@ retry:
 		}
 	}
 
-	if traceEnabled() {
-		traceGCSweepDone()
+	trace = traceAcquire()
+	if trace.ok() {
+		trace.GCSweepDone()
+		traceRelease(trace)
 	}
 }
 

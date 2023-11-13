@@ -1009,7 +1009,7 @@ func rangeKeyVal(typ Type) (key, val Type, cause string, isFunc, ok bool) {
 		}
 		return typ.elem, nil, "", false, true
 	case *Signature:
-		if !buildcfg.Experiment.Range {
+		if !buildcfg.Experiment.RangeFunc {
 			break
 		}
 		assert(typ.Recv() == nil)

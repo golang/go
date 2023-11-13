@@ -536,6 +536,26 @@ func TestInsertOverlap(t *testing.T) {
 	}
 }
 
+func TestInsertPanics(t *testing.T) {
+	a := [3]int{}
+	for _, test := range []struct {
+		name string
+		s    []int
+		i    int
+		v    []int
+	}{
+		// There are no values.
+		{"with negative index", a[:1:1], -1, nil},
+		{"with out-of-bounds index and > cap", a[:1:1], 2, nil},
+		{"with out-of-bounds index and = cap", a[:1:2], 2, nil},
+		{"with out-of-bounds index and < cap", a[:1:3], 2, nil},
+	} {
+		if !panics(func() { Insert(test.s, test.i, test.v...) }) {
+			t.Errorf("Insert %s: got no panic, want panic", test.name)
+		}
+	}
+}
+
 var deleteTests = []struct {
 	s    []int
 	i, j int
@@ -639,6 +659,10 @@ func panics(f func()) (b bool) {
 }
 
 func TestDeletePanics(t *testing.T) {
+	s := []int{0, 1, 2, 3, 4}
+	s = s[0:2]
+	_ = s[0:4] // this is a valid slice of s
+
 	for _, test := range []struct {
 		name string
 		s    []int
@@ -649,6 +673,7 @@ func TestDeletePanics(t *testing.T) {
 		{"with out-of-bounds first index", []int{42}, 2, 3},
 		{"with out-of-bounds second index", []int{42}, 0, 2},
 		{"with invalid i>j", []int{42}, 1, 0},
+		{"s[i:j] is valid and j > len(s)", s, 0, 4},
 	} {
 		if !panics(func() { Delete(test.s, test.i, test.j) }) {
 			t.Errorf("Delete %s: got no panic, want panic", test.name)
@@ -908,6 +933,10 @@ func TestReplace(t *testing.T) {
 }
 
 func TestReplacePanics(t *testing.T) {
+	s := []int{0, 1, 2, 3, 4}
+	s = s[0:2]
+	_ = s[0:4] // this is a valid slice of s
+
 	for _, test := range []struct {
 		name string
 		s, v []int
@@ -916,6 +945,7 @@ func TestReplacePanics(t *testing.T) {
 		{"indexes out of order", []int{1, 2}, []int{3}, 2, 1},
 		{"large index", []int{1, 2}, []int{3}, 1, 10},
 		{"negative index", []int{1, 2}, []int{3}, -1, 2},
+		{"s[i:j] is valid and j > len(s)", s, nil, 0, 4},
 	} {
 		ss, vv := Clone(test.s), Clone(test.v)
 		if !panics(func() { Replace(ss, test.i, test.j, vv...) }) {

@@ -343,9 +343,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 	}
 
 	w.Header().Set("Accept-Ranges", "bytes")
-	if w.Header().Get("Content-Encoding") == "" {
-		w.Header().Set("Content-Length", strconv.FormatInt(sendSize, 10))
-	}
+	w.Header().Set("Content-Length", strconv.FormatInt(sendSize, 10))
 
 	w.WriteHeader(code)
 

@@ -14,8 +14,8 @@ func (A1[P]) m2() {}
 
 type A2 = T[int]
 
-func (A2 /* ERROR "cannot define new methods on instantiated type T[int]" */) m3()   {}
-func (_ /* ERROR "cannot define new methods on instantiated type T[int]" */ A2) m4() {}
+func (A2 /* ERRORx `cannot define new methods on instantiated type (T\[int\]|A2)` */) m3()   {}
+func (_ /* ERRORx `cannot define new methods on instantiated type (T\[int\]|A2)` */ A2) m4() {}
 
 func (T[int]) m5()                                     {} // int is the type parameter name, not an instantiation
 func (T[* /* ERROR "must be an identifier" */ int]) m6() {} // syntax error

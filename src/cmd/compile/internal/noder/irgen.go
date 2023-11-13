@@ -61,7 +61,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 		Implicits:          make(map[syntax.Node]types2.Object),
 		Scopes:             make(map[syntax.Node]*types2.Scope),
 		Instances:          make(map[*syntax.Name]types2.Instance),
-		FileVersions:       make(map[*syntax.PosBase]types2.Version),
+		FileVersions:       make(map[*syntax.PosBase]string),
 		// expand as needed
 	}
 	conf.Error = func(err error) {
@@ -72,8 +72,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 			for !posBase.IsFileBase() { // line directive base
 				posBase = posBase.Pos().Base()
 			}
-			v := info.FileVersions[posBase]
-			fileVersion := fmt.Sprintf("go%d.%d", v.Major, v.Minor)
+			fileVersion := info.FileVersions[posBase]
 			file := posBaseMap[posBase]
 			if file.GoVersion == fileVersion {
 				// If we have a version error caused by //go:build, report it.

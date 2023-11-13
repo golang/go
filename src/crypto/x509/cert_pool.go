@@ -44,6 +44,11 @@ type lazyCert struct {
 	// fewer allocations.
 	rawSubject []byte
 
+	// constraint is a function to run against a chain when it is a candidate to
+	// be added to the chain. This allows adding arbitrary constraints that are
+	// not specified in the certificate itself.
+	constraint func([]*Certificate) error
+
 	// getCert returns the certificate.
 	//
 	// It is not meant to do network operations or anything else
@@ -73,8 +78,9 @@ func (s *CertPool) len() int {
 }
 
 // cert returns cert index n in s.
-func (s *CertPool) cert(n int) (*Certificate, error) {
-	return s.lazyCerts[n].getCert()
+func (s *CertPool) cert(n int) (*Certificate, func([]*Certificate) error, error) {
+	cert, err := s.lazyCerts[n].getCert()
+	return cert, s.lazyCerts[n].constraint, err
 }
 
 // Clone returns a copy of s.
@@ -116,9 +122,14 @@ func SystemCertPool() (*CertPool, error) {
 	return loadSystemRoots()
 }
 
-// findPotentialParents returns the indexes of certificates in s which might
-// have signed cert.
-func (s *CertPool) findPotentialParents(cert *Certificate) []*Certificate {
+type potentialParent struct {
+	cert       *Certificate
+	constraint func([]*Certificate) error
+}
+
+// findPotentialParents returns the certificates in s which might have signed
+// cert.
+func (s *CertPool) findPotentialParents(cert *Certificate) []potentialParent {
 	if s == nil {
 		return nil
 	}
@@ -129,21 +140,21 @@ func (s *CertPool) findPotentialParents(cert *Certificate) []*Certificate {
 	//   AKID and SKID match
 	//   AKID present, SKID missing / AKID missing, SKID present
 	//   AKID and SKID don't match
-	var matchingKeyID, oneKeyID, mismatchKeyID []*Certificate
+	var matchingKeyID, oneKeyID, mismatchKeyID []potentialParent
 	for _, c := range s.byName[string(cert.RawIssuer)] {
-		candidate, err := s.cert(c)
+		candidate, constraint, err := s.cert(c)
 		if err != nil {
 			continue
 		}
 		kidMatch := bytes.Equal(candidate.SubjectKeyId, cert.AuthorityKeyId)
 		switch {
 		case kidMatch:
-			matchingKeyID = append(matchingKeyID, candidate)
+			matchingKeyID = append(matchingKeyID, potentialParent{candidate, constraint})
 		case (len(candidate.SubjectKeyId) == 0 && len(cert.AuthorityKeyId) > 0) ||
 			(len(candidate.SubjectKeyId) > 0 && len(cert.AuthorityKeyId) == 0):
-			oneKeyID = append(oneKeyID, candidate)
+			oneKeyID = append(oneKeyID, potentialParent{candidate, constraint})
 		default:
-			mismatchKeyID = append(mismatchKeyID, candidate)
+			mismatchKeyID = append(mismatchKeyID, potentialParent{candidate, constraint})
 		}
 	}
 
@@ -151,7 +162,7 @@ func (s *CertPool) findPotentialParents(cert *Certificate) []*Certificate {
 	if found == 0 {
 		return nil
 	}
-	candidates := make([]*Certificate, 0, found)
+	candidates := make([]potentialParent, 0, found)
 	candidates = append(candidates, matchingKeyID...)
 	candidates = append(candidates, oneKeyID...)
 	candidates = append(candidates, mismatchKeyID...)
@@ -172,7 +183,7 @@ func (s *CertPool) AddCert(cert *Certificate) {
 	}
 	s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*Certificate, error) {
 		return cert, nil
-	})
+	}, nil)
 }
 
 // addCertFunc adds metadata about a certificate to a pool, along with
@@ -180,7 +191,7 @@ func (s *CertPool) AddCert(cert *Certificate) {
 //
 // The rawSubject is Certificate.RawSubject and must be non-empty.
 // The getCert func may be called 0 or more times.
-func (s *CertPool) addCertFunc(rawSum224 sum224, rawSubject string, getCert func() (*Certificate, error)) {
+func (s *CertPool) addCertFunc(rawSum224 sum224, rawSubject string, getCert func() (*Certificate, error), constraint func([]*Certificate) error) {
 	if getCert == nil {
 		panic("getCert can't be nil")
 	}
@@ -194,6 +205,7 @@ func (s *CertPool) addCertFunc(rawSum224 sum224, rawSubject string, getCert func
 	s.lazyCerts = append(s.lazyCerts, lazyCert{
 		rawSubject: []byte(rawSubject),
 		getCert:    getCert,
+		constraint: constraint,
 	})
 	s.byName[rawSubject] = append(s.byName[rawSubject], len(s.lazyCerts)-1)
 }
@@ -231,7 +243,7 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 				certBytes = nil
 			})
 			return lazyCert.v, nil
-		})
+		}, nil)
 		ok = true
 	}
 
@@ -265,4 +277,18 @@ func (s *CertPool) Equal(other *CertPool) bool {
 		}
 	}
 	return true
+}
+
+// AddCertWithConstraint adds a certificate to the pool with the additional
+// constraint. When Certificate.Verify builds a chain which is rooted by cert,
+// it will additionally pass the whole chain to constraint to determine its
+// validity. If constraint returns a non-nil error, the chain will be discarded.
+// constraint may be called concurrently from multiple goroutines.
+func (s *CertPool) AddCertWithConstraint(cert *Certificate, constraint func([]*Certificate) error) {
+	if cert == nil {
+		panic("adding nil Certificate to CertPool")
+	}
+	s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*Certificate, error) {
+		return cert, nil
+	}, constraint)
 }

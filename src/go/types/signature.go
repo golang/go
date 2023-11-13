@@ -211,13 +211,14 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		check.later(func() {
 			// spec: "The receiver type must be of the form T or *T where T is a type name."
 			rtyp, _ := deref(recv.typ)
-			if !isValid(rtyp) {
+			atyp := _Unalias(rtyp)
+			if !isValid(atyp) {
 				return // error was reported before
 			}
 			// spec: "The type denoted by T is called the receiver base type; it must not
 			// be a pointer or interface type and it must be declared in the same package
 			// as the method."
-			switch T := rtyp.(type) {
+			switch T := atyp.(type) {
 			case *Named:
 				// The receiver type may be an instantiated type referred to
 				// by an alias (which cannot have receiver parameters for now).

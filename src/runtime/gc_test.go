@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/goexperiment"
 	"math/rand"
 	"os"
 	"reflect"
@@ -457,11 +458,17 @@ func BenchmarkSetTypeNode1024Slice(b *testing.B) {
 }
 
 func benchSetType[T any](b *testing.B) {
+	if goexperiment.AllocHeaders {
+		b.Skip("not supported with allocation headers experiment")
+	}
 	b.SetBytes(int64(unsafe.Sizeof(*new(T))))
 	runtime.BenchSetType[T](b.N, b.ResetTimer)
 }
 
 func benchSetTypeSlice[T any](b *testing.B, len int) {
+	if goexperiment.AllocHeaders {
+		b.Skip("not supported with allocation headers experiment")
+	}
 	b.SetBytes(int64(unsafe.Sizeof(*new(T)) * uintptr(len)))
 	runtime.BenchSetTypeSlice[T](b.N, b.ResetTimer, len)
 }

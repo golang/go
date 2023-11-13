@@ -326,6 +326,7 @@ var debug struct {
 	harddecommit       int32
 	adaptivestackstart int32
 	tracefpunwindoff   int32
+	traceadvanceperiod int32
 
 	// debug.malloc is used as a combined debug check
 	// in the malloc function and should be set
@@ -362,6 +363,7 @@ var dbgvars = []*dbgVar{
 	{name: "adaptivestackstart", value: &debug.adaptivestackstart},
 	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
 	{name: "panicnil", atomic: &debug.panicnil},
+	{name: "traceadvanceperiod", value: &debug.traceadvanceperiod},
 }
 
 func parsedebugvars() {
@@ -380,6 +382,7 @@ func parsedebugvars() {
 		// Hence, default to MADV_DONTNEED.
 		debug.madvdontneed = 1
 	}
+	debug.traceadvanceperiod = defaultTraceAdvancePeriod
 
 	godebug := gogetenv("GODEBUG")
 
