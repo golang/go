@@ -182,9 +182,6 @@ type peImportSymsState struct {
 	// Text and non-text sections read in by the host object loader.
 	secSyms []loader.Sym
 
-	// SDYNIMPORT symbols encountered along the way
-	dynimports map[loader.Sym]struct{}
-
 	// Loader and arch, for use in postprocessing.
 	l    *loader.Loader
 	arch *sys.Arch
@@ -197,9 +194,8 @@ func createImportSymsState(l *loader.Loader, arch *sys.Arch) {
 		return
 	}
 	importSymsState = &peImportSymsState{
-		dynimports: make(map[loader.Sym]struct{}),
-		l:          l,
-		arch:       arch,
+		l:    l,
+		arch: arch,
 	}
 }
 
