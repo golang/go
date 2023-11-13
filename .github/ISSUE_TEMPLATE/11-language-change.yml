@@ -96,7 +96,7 @@ body:
   #     required: false
 
   - type: textarea
-    id: error-handling-proposal-type
+    id: error-handling-proposal
     attributes:
       label: Does this affect error handling?
       description: If so, how does this differ from previous error handling proposals?
@@ -105,18 +105,31 @@ body:
 
        If yes, 
         1.how does this differ from previous error handling proposals?
-        
+
     validations:
       required: true
 
-  - type: textarea
-    id: generics-relationship
-    attributes:
-      label: "How does this relate to the accepted design and other generics proposals?"
-      description: "If this proposal is about generics, describe its relationship to the accepted design and other generics proposals."
-    validations:
-      required: false
+  # - type: textarea
+  #   id: generics-proposal
+  #   attributes:
+  #     label: "How does this relate to the accepted design and other generics proposals?"
+  #     description: "If this proposal is about generics, describe its relationship to the accepted design and other generics proposals."
+  #   validations:
+  #     required: false
 
+  - type: textarea
+    id: generics-proposal
+    attributes:
+      label: Is this about generics?
+      description: If so, how does this relate to the accepted design and other generics proposals?
+      placeholder: |
+       Yes or No
+
+       If yes, 
+        1. how does this relate to the accepted design and other generics proposals?
+
+    validations:
+      required: true
 
   - type: textarea
     id: proposal
