@@ -213,23 +213,21 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 
 // Delete removes the elements s[i:j] from s, returning the modified slice.
 // Delete panics if j > len(s) or s[i:j] is not a valid slice of s.
-// Delete is O(len(s)-j), so if many items must be deleted, it is better to
+// Delete is O(len(s)-i), so if many items must be deleted, it is better to
 // make a single call deleting them all together than to delete one at a time.
-// Delete might not modify the elements s[len(s)-(j-i):len(s)]. If those
-// elements contain pointers you might consider zeroing those elements so that
-// objects they reference can be garbage collected.
+// Delete zeroes the elements s[len(s)-(j-i):len(s)].
 func Delete[S ~[]E, E any](s S, i, j int) S {
 	_ = s[i:j] // bounds check
 
-	return append(s[:i], s[j:]...)
+	oldlen := len(s)
+	s = append(s[:i], s[j:]...)
+	clear(s[len(s):oldlen]) // zero/nil out the obsolete elements, for GC
+	return s
 }
 
 // DeleteFunc removes any elements from s for which del returns true,
 // returning the modified slice.
-// When DeleteFunc removes m elements, it might not modify the elements
-// s[len(s)-m:len(s)]. If those elements contain pointers you might consider
-// zeroing those elements so that objects they reference can be garbage
-// collected.
+// DeleteFunc zeroes the elements between the new length and the original length.
 func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
 	i := IndexFunc(s, del)
 	if i == -1 {
@@ -242,12 +240,14 @@ func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
 			i++
 		}
 	}
+	clear(s[i:]) // zero/nil out the obsolete elements, for GC
 	return s[:i]
 }
 
 // Replace replaces the elements s[i:j] by the given v, and returns the
 // modified slice.
 // Replace panics if j > len(s) or s[i:j] is not a valid slice of s.
+// When len(v) < (j-i), Replace zeroes the elements between the new length and the original length.
 func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
 	_ = s[i:j] // bounds check
 
@@ -273,6 +273,7 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
 		// Easy, as v fits in the deleted portion.
 		copy(r[i:], v)
 		copy(r[i+len(v):], s[j:])
+		clear(s[tot:]) // zero/nil out the obsolete elements, for GC
 		return r
 	}
 
@@ -343,9 +344,7 @@ func Clone[S ~[]E, E any](s S) S {
 // This is like the uniq command found on Unix.
 // Compact modifies the contents of the slice s and returns the modified slice,
 // which may have a smaller length.
-// When Compact discards m elements in total, it might not modify the elements
-// s[len(s)-m:len(s)]. If those elements contain pointers you might consider
-// zeroing those elements so that objects they reference can be garbage collected.
+// Compact zeroes the elements between the new length and the original length.
 func Compact[S ~[]E, E comparable](s S) S {
 	if len(s) < 2 {
 		return s
@@ -359,11 +358,13 @@ func Compact[S ~[]E, E comparable](s S) S {
 			i++
 		}
 	}
+	clear(s[i:]) // zero/nil out the obsolete elements, for GC
 	return s[:i]
 }
 
 // CompactFunc is like [Compact] but uses an equality function to compare elements.
 // For runs of elements that compare equal, CompactFunc keeps the first one.
+// CompactFunc zeroes the elements between the new length and the original length.
 func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
 	if len(s) < 2 {
 		return s
@@ -377,6 +378,7 @@ func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
 			i++
 		}
 	}
+	clear(s[i:]) // zero/nil out the obsolete elements, for GC
 	return s[:i]
 }
 
