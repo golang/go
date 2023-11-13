@@ -94,6 +94,10 @@ start:
 
 	SUB	X6, X5, X7				// b3836240
 	SUB	X5, X6					// 33035340
+	SUB	$-2047, X5, X6				// 1383f27f
+	SUB	$2048, X5, X6				// 13830280
+	SUB	$-2047, X5				// 9382f27f
+	SUB	$2048, X5				// 93820280
 
 	SRA	X6, X5, X7				// b3d36240
 	SRA	X5, X6					// 33535340
@@ -157,6 +161,7 @@ start:
 	ADDW	$1, X6					// 1b031300
 	SLLW	$1, X6					// 1b131300
 	SRLW	$1, X6					// 1b531300
+	SUBW	$1, X6					// 1b03f3ff
 	SRAW	$1, X6					// 1b531340
 
 	// 5.3: Load and Store Instructions (RV64I)

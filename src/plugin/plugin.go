@@ -74,7 +74,7 @@ type Plugin struct {
 }
 
 // Open opens a Go plugin.
-// If a path has already been opened, then the existing *Plugin is returned.
+// If a path has already been opened, then the existing *[Plugin] is returned.
 // It is safe for concurrent use by multiple goroutines.
 func Open(path string) (*Plugin, error) {
 	return open(path)
@@ -100,7 +100,7 @@ func (p *Plugin) Lookup(symName string) (Symbol, error) {
 //
 //	func F() { fmt.Printf("Hello, number %d\n", V) }
 //
-// may be loaded with the Open function and then the exported package
+// may be loaded with the [Open] function and then the exported package
 // symbols V and F can be accessed
 //
 //	p, err := plugin.Open("plugin_name.so")

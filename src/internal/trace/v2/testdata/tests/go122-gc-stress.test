@@ -1,0 +1,2444 @@
+-- expect --
+SUCCESS
+-- trace --
+Trace Go1.22
+EventBatch gen=6 m=18446744073709551615 time=22352100137206 size=5
+Frequency freq=15625000
+EventBatch gen=6 m=298977 time=22352100074002 size=210
+ProcStatus dt=1 p=18 pstatus=1
+GoStatus dt=2 g=46 m=298977 gstatus=2
+GoBlock dt=11 reason_string=15 stack=7
+GoStart dt=20 g=113 g_seq=1
+HeapAlloc dt=296 heapalloc_value=199905624
+GoStop dt=6015 reason_string=16 stack=3
+GoStart dt=10924 g=107 g_seq=1
+HeapAlloc dt=62 heapalloc_value=202878552
+GoStop dt=15189 reason_string=16 stack=3
+GoUnblock dt=15 g=46 g_seq=13 stack=0
+GoStart dt=6 g=46 g_seq=14
+GoLabel dt=1 label_string=2
+GoBlock dt=427 reason_string=15 stack=7
+GoStart dt=15 g=92 g_seq=4
+HeapAlloc dt=1205 heapalloc_value=203730520
+GoStop dt=13 reason_string=16 stack=3
+GoStart dt=11 g=103 g_seq=1
+HeapAlloc dt=53241 heapalloc_value=205831256
+GoStop dt=9 reason_string=16 stack=3
+GoStart dt=29 g=98 g_seq=3
+HeapAlloc dt=22 heapalloc_value=205921368
+HeapAlloc dt=45 heapalloc_value=206027864
+GoStop dt=58721 reason_string=16 stack=3
+GoStart dt=9 g=98 g_seq=4
+HeapAlloc dt=98 heapalloc_value=210099288
+HeapAlloc dt=29 heapalloc_value=210238552
+GoStop dt=5122 reason_string=16 stack=3
+GoStart dt=169 g=97 g_seq=5
+HeapAlloc dt=96 heapalloc_value=210459544
+HeapAlloc dt=95 heapalloc_value=210516888
+HeapAlloc dt=16 heapalloc_value=210582424
+HeapAlloc dt=36 heapalloc_value=210639768
+GCMarkAssistBegin dt=15 stack=2
+GoBlock dt=54 reason_string=10 stack=19
+ProcStop dt=59
+ProcStart dt=654 p=18 p_seq=1
+GoStart dt=16 g=85 g_seq=5
+HeapAlloc dt=4270 heapalloc_value=211139480
+GoStop dt=11 reason_string=16 stack=3
+GoStart dt=37 g=85 g_seq=6
+GCMarkAssistBegin dt=9 stack=2
+GoBlock dt=23 reason_string=10 stack=19
+ProcStop dt=1324
+EventBatch gen=6 m=298976 time=22352100053556 size=187
+ProcStatus dt=2 p=2 pstatus=1
+GoStatus dt=2 g=39 m=298976 gstatus=2
+GoBlock dt=12 reason_string=15 stack=7
+GoUnblock dt=18 g=39 g_seq=1 stack=0
+GoStart dt=5 g=39 g_seq=2
+GoLabel dt=1 label_string=2
+GoBlock dt=21748 reason_string=15 stack=7
+GoStart dt=10826 g=101 g_seq=2
+HeapAlloc dt=3329 heapalloc_value=202296920
+GoStop dt=64 reason_string=16 stack=3
+GoUnblock dt=16 g=39 g_seq=7 stack=0
+GoStart dt=5 g=39 g_seq=8
+GoLabel dt=2 label_string=2
+GoBlock dt=753 reason_string=15 stack=7
+GoStart dt=10 g=101 g_seq=3
+HeapAlloc dt=29 heapalloc_value=202477144
+HeapAlloc dt=45 heapalloc_value=202534488
+HeapAlloc dt=98 heapalloc_value=202591832
+HeapAlloc dt=47 heapalloc_value=202600024
+HeapAlloc dt=17 heapalloc_value=202649176
+HeapAlloc dt=144 heapalloc_value=202755672
+GoStop dt=51392 reason_string=16 stack=3
+GoStart dt=35 g=101 g_seq=4
+HeapAlloc dt=70 heapalloc_value=205085784
+HeapAlloc dt=58112 heapalloc_value=208591960
+GoStop dt=18 reason_string=16 stack=3
+GoStart dt=21 g=104 g_seq=3
+HeapAlloc dt=72 heapalloc_value=208739416
+HeapAlloc dt=49 heapalloc_value=208854104
+HeapAlloc dt=67 heapalloc_value=209009752
+GoStop dt=41544 reason_string=16 stack=3
+GoStart dt=66 g=58 g_seq=8
+HeapAlloc dt=80 heapalloc_value=212466200
+HeapAlloc dt=11761 heapalloc_value=213989912
+GoStop dt=3879 reason_string=16 stack=3
+ProcStop dt=11
+EventBatch gen=6 m=298975 time=22352100055368 size=212
+ProcStatus dt=1 p=6 pstatus=1
+GoStatus dt=2 g=88 m=298975 gstatus=2
+GCMarkAssistActive dt=1 g=88
+GCMarkAssistEnd dt=7
+HeapAlloc dt=41 heapalloc_value=190880856
+HeapAlloc dt=87 heapalloc_value=190930008
+GCMarkAssistBegin dt=55 stack=2
+GCMarkAssistEnd dt=4370
+HeapAlloc dt=35 heapalloc_value=194197592
+HeapAlloc dt=187 heapalloc_value=194476120
+HeapAlloc dt=108 heapalloc_value=194558040
+HeapAlloc dt=170 heapalloc_value=194902104
+HeapAlloc dt=40 heapalloc_value=194916696
+GCMarkAssistBegin dt=15 stack=2
+GCMarkAssistEnd dt=3044
+HeapAlloc dt=60 heapalloc_value=197620056
+HeapAlloc dt=60 heapalloc_value=197701976
+HeapAlloc dt=41 heapalloc_value=197775704
+HeapAlloc dt=13131 heapalloc_value=200978776
+GoStop dt=22 reason_string=16 stack=3
+GoUnblock dt=12889 g=16 g_seq=3 stack=0
+GoStart dt=8 g=16 g_seq=4
+GoLabel dt=1 label_string=2
+GoBlock dt=1560 reason_string=15 stack=7
+GoStart dt=1275 g=100 g_seq=2
+GoStatus dt=32 g=95 m=18446744073709551615 gstatus=4
+GoUnblock dt=6 g=95 g_seq=1 stack=5
+HeapAlloc dt=78 heapalloc_value=203116120
+GoStop dt=22757 reason_string=16 stack=3
+GoStart dt=16 g=85 g_seq=3
+HeapAlloc dt=60903 heapalloc_value=206576728
+GoStop dt=16 reason_string=16 stack=3
+GoStart dt=38 g=111 g_seq=4
+HeapAlloc dt=271 heapalloc_value=206634072
+GoStop dt=50124 reason_string=16 stack=3
+GoStart dt=3215 g=111 g_seq=5
+GCMarkAssistBegin dt=13 stack=2
+GoBlock dt=32 reason_string=10 stack=19
+GoStart dt=1255 g=130 g_seq=7
+GoBlock dt=19 reason_string=10 stack=18
+ProcStop dt=48
+EventBatch gen=6 m=298974 time=22352100052338 size=394
+ProcStatus dt=1 p=31 pstatus=1
+GoStatus dt=3 g=130 m=298974 gstatus=2
+ProcsChange dt=195 procs_value=48 stack=1
+GCActive dt=3 gc_seq=7
+HeapAlloc dt=616 heapalloc_value=188981464
+HeapAlloc dt=138 heapalloc_value=189161688
+HeapAlloc dt=509 heapalloc_value=189636440
+HeapAlloc dt=452 heapalloc_value=189947736
+HeapAlloc dt=239 heapalloc_value=189955160
+HeapAlloc dt=149 heapalloc_value=190012504
+HeapAlloc dt=415 heapalloc_value=190504024
+HeapAlloc dt=153 heapalloc_value=190635096
+HeapAlloc dt=331 heapalloc_value=191003736
+HeapAlloc dt=516 heapalloc_value=191085656
+HeapAlloc dt=158 heapalloc_value=191265496
+HeapAlloc dt=134 heapalloc_value=191339224
+HeapAlloc dt=142 heapalloc_value=191387736
+HeapAlloc dt=868 heapalloc_value=191625304
+HeapAlloc dt=899 heapalloc_value=192665688
+GoStop dt=16317 reason_string=16 stack=9
+GoStart dt=21 g=94 g_seq=1
+HeapAlloc dt=9193 heapalloc_value=201339224
+GoStop dt=60 reason_string=16 stack=3
+GoUnblock dt=21 g=16 g_seq=1 stack=0
+GoStart dt=8 g=16 g_seq=2
+GoLabel dt=2 label_string=2
+GoBlock dt=4316 reason_string=15 stack=7
+GoStart dt=16 g=96 g_seq=2
+HeapAlloc dt=69 heapalloc_value=202215000
+GoStop dt=42112 reason_string=16 stack=3
+GoUnblock dt=35 g=15 g_seq=25 stack=0
+GoStart dt=11 g=15 g_seq=26
+GoLabel dt=1 label_string=2
+GoStop dt=4149 reason_string=16 stack=10
+GoStart dt=7 g=83 g_seq=4
+HeapAlloc dt=55170 heapalloc_value=208018520
+GoStop dt=7 reason_string=16 stack=3
+GoStart dt=20 g=109 g_seq=6
+HeapAlloc dt=25 heapalloc_value=208084056
+GoStop dt=5099 reason_string=16 stack=3
+GoStart dt=12 g=64 g_seq=4
+HeapAlloc dt=4840 heapalloc_value=208354392
+GoStop dt=9 reason_string=16 stack=3
+GoStart dt=10 g=89 g_seq=3
+HeapAlloc dt=418 heapalloc_value=208395352
+HeapAlloc dt=72 heapalloc_value=208452696
+HeapAlloc dt=24 heapalloc_value=208493656
+HeapAlloc dt=45 heapalloc_value=208641112
+HeapAlloc dt=15 heapalloc_value=208690264
+HeapAlloc dt=110 heapalloc_value=208763992
+HeapAlloc dt=43 heapalloc_value=208903256
+HeapAlloc dt=72 heapalloc_value=209116248
+GoStop dt=4753 reason_string=16 stack=3
+GoStart dt=9 g=108 g_seq=5
+HeapAlloc dt=17 heapalloc_value=209329240
+GoStop dt=4771 reason_string=16 stack=3
+GoStart dt=9 g=61 g_seq=3
+HeapAlloc dt=37 heapalloc_value=209525848
+GoStop dt=4792 reason_string=16 stack=3
+GoStart dt=9 g=55 g_seq=7
+HeapAlloc dt=41 heapalloc_value=209656920
+HeapAlloc dt=21 heapalloc_value=209665112
+HeapAlloc dt=73 heapalloc_value=209804376
+GoStop dt=5092 reason_string=16 stack=3
+GoStart dt=10 g=55 g_seq=8
+HeapAlloc dt=32 heapalloc_value=209910872
+HeapAlloc dt=98 heapalloc_value=210017368
+HeapAlloc dt=46 heapalloc_value=210164824
+GoStop dt=24428 reason_string=16 stack=3
+ProcStop dt=151
+ProcStart dt=1506 p=31 p_seq=1
+ProcStop dt=75
+EventBatch gen=6 m=298973 time=22352100052423 size=176
+ProcStatus dt=1 p=26 pstatus=1
+GoStatus dt=2 g=84 m=298973 gstatus=2
+HeapAlloc dt=3 heapalloc_value=188760280
+HeapAlloc dt=88 heapalloc_value=188834008
+HeapAlloc dt=66 heapalloc_value=188899544
+GCMarkAssistBegin dt=75 stack=2
+GCMarkAssistEnd dt=4559
+HeapAlloc dt=15 heapalloc_value=191518808
+HeapAlloc dt=892 heapalloc_value=192444504
+HeapAlloc dt=108 heapalloc_value=192649304
+GCMarkAssistBegin dt=160 stack=2
+GCMarkAssistEnd dt=4061
+HeapAlloc dt=56 heapalloc_value=196997464
+HeapAlloc dt=616 heapalloc_value=197194072
+HeapAlloc dt=4462 heapalloc_value=199741784
+HeapAlloc dt=16222 heapalloc_value=201396568
+GoStop dt=16 reason_string=16 stack=3
+GoUnblock dt=24 g=25 g_seq=1 stack=0
+GoStart dt=9 g=25 g_seq=2
+GoLabel dt=1 label_string=2
+GoBlock dt=3553 reason_string=15 stack=7
+GoStart dt=16 g=99 g_seq=3
+HeapAlloc dt=30 heapalloc_value=201928280
+HeapAlloc dt=49586 heapalloc_value=204549528
+GoStop dt=18 reason_string=16 stack=3
+GoStart dt=66 g=89 g_seq=2
+HeapAlloc dt=57 heapalloc_value=204688728
+GoStop dt=57848 reason_string=16 stack=3
+GoStart dt=14 g=93 g_seq=3
+HeapAlloc dt=41 heapalloc_value=208272472
+GoStop dt=47024 reason_string=16 stack=3
+GoStart dt=126 g=101 g_seq=6
+GCMarkAssistBegin dt=13 stack=2
+GoBlock dt=40 reason_string=10 stack=19
+ProcStop dt=70
+EventBatch gen=6 m=298972 time=22352100057302 size=288
+ProcStatus dt=1 p=12 pstatus=1
+GoStatus dt=2 g=54 m=298972 gstatus=2
+GCMarkAssistActive dt=1 g=54
+GCMarkAssistEnd dt=2
+HeapAlloc dt=36 heapalloc_value=191617112
+HeapAlloc dt=391 heapalloc_value=191887448
+HeapAlloc dt=104 heapalloc_value=192067672
+GCMarkAssistBegin dt=141 stack=2
+GCMarkAssistEnd dt=2786
+HeapAlloc dt=43 heapalloc_value=195268952
+HeapAlloc dt=196 heapalloc_value=195473752
+HeapAlloc dt=160 heapalloc_value=195637592
+GCMarkAssistBegin dt=23 stack=2
+GCMarkAssistEnd dt=6451
+HeapAlloc dt=15930 heapalloc_value=201281880
+GoStop dt=19 reason_string=16 stack=3
+GoUnblock dt=17 g=39 g_seq=3 stack=0
+GoStart dt=6 g=39 g_seq=4
+GoLabel dt=1 label_string=2
+GoBlock dt=3845 reason_string=15 stack=7
+GoStart dt=1314 g=59 g_seq=2
+GoStatus dt=24 g=115 m=18446744073709551615 gstatus=4
+GoUnblock dt=11 g=115 g_seq=1 stack=5
+HeapAlloc dt=41617 heapalloc_value=204213848
+GoStop dt=21 reason_string=16 stack=3
+GoStart dt=21 g=55 g_seq=2
+HeapAlloc dt=219 heapalloc_value=204312152
+GoStop dt=6348 reason_string=16 stack=3
+GoStart dt=73 g=130 g_seq=3
+HeapAlloc dt=38 heapalloc_value=204557656
+GoBlock dt=30 reason_string=12 stack=17
+GoUnblock dt=14 g=130 g_seq=4 stack=0
+GoStart dt=8 g=130 g_seq=5
+HeapAlloc dt=39 heapalloc_value=204762392
+HeapAlloc dt=37 heapalloc_value=204770520
+HeapAlloc dt=19 heapalloc_value=204778584
+HeapAlloc dt=30 heapalloc_value=204786264
+HeapAlloc dt=34 heapalloc_value=204793944
+HeapAlloc dt=40 heapalloc_value=204801112
+HeapAlloc dt=87 heapalloc_value=204807256
+GoBlock dt=383 reason_string=10 stack=18
+GoStart dt=13 g=104 g_seq=2
+HeapAlloc dt=48 heapalloc_value=204921944
+GoStop dt=62156 reason_string=16 stack=3
+GoStart dt=15 g=108 g_seq=4
+HeapAlloc dt=230 heapalloc_value=208551000
+GoStop dt=2947 reason_string=16 stack=3
+GoStart dt=10 g=95 g_seq=4
+HeapAlloc dt=38 heapalloc_value=209280088
+GoStop dt=39489 reason_string=16 stack=3
+GoStart dt=163 g=86 g_seq=5
+HeapAlloc dt=6283 heapalloc_value=213719576
+GoStop dt=6937 reason_string=16 stack=3
+ProcStop dt=8
+EventBatch gen=6 m=298971 time=22352100074727 size=135
+ProcStatus dt=1 p=3 pstatus=1
+GoStatus dt=2 g=44 m=298971 gstatus=2
+GoBlock dt=8 reason_string=15 stack=7
+GoUnblock dt=9213 g=12 g_seq=1 stack=0
+GoStart dt=12 g=12 g_seq=2
+GoLabel dt=1 label_string=2
+GoBlock dt=1136 reason_string=15 stack=7
+GoUnblock dt=14 g=12 g_seq=3 stack=0
+GoStart dt=3 g=12 g_seq=4
+GoLabel dt=1 label_string=2
+GoBlock dt=2373 reason_string=15 stack=7
+GoStart dt=3642 g=115 g_seq=2
+GoStatus dt=29 g=87 m=18446744073709551615 gstatus=4
+GoUnblock dt=6 g=87 g_seq=1 stack=5
+HeapAlloc dt=81 heapalloc_value=202821208
+GoStop dt=55810 reason_string=16 stack=3
+GoStart dt=49 g=115 g_seq=3
+HeapAlloc dt=59 heapalloc_value=205282392
+GoStop dt=58208 reason_string=16 stack=3
+GoStart dt=17 g=86 g_seq=4
+HeapAlloc dt=55 heapalloc_value=209394776
+GoStop dt=37479 reason_string=16 stack=3
+GoStart dt=26 g=95 g_seq=5
+HeapAlloc dt=13313 heapalloc_value=214243864
+GoStop dt=14 reason_string=16 stack=3
+ProcStop dt=113
+EventBatch gen=6 m=298970 time=22352100053999 size=340
+ProcStatus dt=2 p=10 pstatus=1
+GoStatus dt=1 g=108 m=298970 gstatus=2
+GCMarkAssistActive dt=2 g=108
+GCMarkAssistEnd dt=2
+HeapAlloc dt=48 heapalloc_value=189890392
+GoStop dt=34 reason_string=16 stack=3
+GoStatus dt=13 g=96 m=298970 gstatus=1
+GoStart dt=1 g=96 g_seq=1
+GoStatus dt=22 g=114 m=18446744073709551615 gstatus=4
+GoUnblock dt=10 g=114 g_seq=1 stack=5
+GCMarkAssistBegin dt=10 stack=2
+GCMarkAssistEnd dt=5450
+HeapAlloc dt=39 heapalloc_value=194009176
+HeapAlloc dt=551 heapalloc_value=194517080
+GCMarkAssistBegin dt=54 stack=2
+GCMarkAssistEnd dt=3263
+HeapAlloc dt=67 heapalloc_value=197570904
+HeapAlloc dt=50 heapalloc_value=197677400
+HeapAlloc dt=55 heapalloc_value=197767512
+HeapAlloc dt=159 heapalloc_value=198054232
+HeapAlloc dt=151 heapalloc_value=198226264
+HeapAlloc dt=191 heapalloc_value=198357336
+HeapAlloc dt=12880 heapalloc_value=201011544
+GoStop dt=18 reason_string=16 stack=3
+GoUnblock dt=10965 g=39 g_seq=5 stack=0
+GoStart dt=7 g=39 g_seq=6
+GoLabel dt=1 label_string=2
+GoBlock dt=167 reason_string=15 stack=7
+GoStart dt=1196 g=111 g_seq=2
+GoStatus dt=28 g=85 m=18446744073709551615 gstatus=4
+GoUnblock dt=6 g=85 g_seq=1 stack=5
+HeapAlloc dt=66 heapalloc_value=202346072
+GoStop dt=17042 reason_string=16 stack=3
+GoUnblock dt=17 g=25 g_seq=7 stack=0
+GoStart dt=5 g=25 g_seq=8
+GoLabel dt=1 label_string=2
+GoBlock dt=2416 reason_string=15 stack=7
+GoStart dt=13 g=90 g_seq=3
+HeapAlloc dt=71 heapalloc_value=203837016
+GoStop dt=62121 reason_string=16 stack=3
+GoStart dt=39 g=60 g_seq=3
+HeapAlloc dt=82 heapalloc_value=206437464
+GoStop dt=54604 reason_string=16 stack=3
+GoStart dt=23 g=60 g_seq=4
+HeapAlloc dt=81 heapalloc_value=210664344
+HeapAlloc dt=64 heapalloc_value=210697112
+HeapAlloc dt=18 heapalloc_value=210738072
+GCMarkAssistBegin dt=94 stack=2
+GoBlock dt=43 reason_string=10 stack=19
+GoStart dt=7 g=90 g_seq=5
+HeapAlloc dt=25 heapalloc_value=210803608
+HeapAlloc dt=13 heapalloc_value=210852760
+HeapAlloc dt=21 heapalloc_value=210893720
+GoStop dt=10 reason_string=16 stack=3
+GoStart dt=6 g=90 g_seq=6
+HeapAlloc dt=12 heapalloc_value=210942872
+GCMarkAssistBegin dt=11 stack=2
+GoBlock dt=20 reason_string=10 stack=19
+GoStart dt=53 g=92 g_seq=6
+HeapAlloc dt=201 heapalloc_value=211008408
+HeapAlloc dt=40 heapalloc_value=211041176
+GCMarkAssistBegin dt=14 stack=2
+GoBlock dt=21 reason_string=10 stack=19
+ProcStop dt=73
+ProcStart dt=336 p=44 p_seq=2
+ProcStop dt=4479
+EventBatch gen=6 m=298969 time=22352100069956 size=128
+ProcStatus dt=2 p=43 pstatus=2
+ProcStart dt=2 p=43 p_seq=1
+GoStatus dt=15 g=42 m=18446744073709551615 gstatus=4
+GoUnblock dt=4 g=42 g_seq=1 stack=0
+GoStart dt=224 g=42 g_seq=2
+GoLabel dt=2 label_string=2
+GoBlock dt=7220 reason_string=15 stack=7
+GoUnblock dt=11092 g=41 g_seq=3 stack=0
+GoStart dt=7 g=41 g_seq=4
+GoLabel dt=1 label_string=2
+GoBlock dt=61 reason_string=15 stack=7
+GoStart dt=3782 g=85 g_seq=2
+GoStatus dt=29 g=86 m=18446744073709551615 gstatus=4
+GoUnblock dt=8 g=86 g_seq=1 stack=5
+HeapAlloc dt=23022 heapalloc_value=204074584
+GoStop dt=16 reason_string=16 stack=3
+GoStart dt=37 g=100 g_seq=3
+HeapAlloc dt=62404 heapalloc_value=206683224
+GoStop dt=35 reason_string=16 stack=3
+GoStart dt=35 g=107 g_seq=4
+HeapAlloc dt=53117 heapalloc_value=211180440
+GoStop dt=20 reason_string=16 stack=3
+ProcStop dt=1371
+EventBatch gen=6 m=298968 time=22352100074716 size=174
+ProcStatus dt=1 p=5 pstatus=1
+GoStatus dt=3 g=16 m=298968 gstatus=2
+GoBlock dt=7 reason_string=15 stack=7
+GoUnblock dt=8057 g=42 g_seq=3 stack=0
+GoStart dt=8 g=42 g_seq=4
+GoLabel dt=1 label_string=2
+GoBlock dt=169 reason_string=10 stack=11
+GoStart dt=2502 g=81 g_seq=2
+GoStatus dt=28 g=111 m=18446744073709551615 gstatus=4
+GoUnblock dt=7 g=111 g_seq=1 stack=5
+HeapAlloc dt=78 heapalloc_value=201445720
+GoStop dt=34580 reason_string=16 stack=3
+GoStart dt=12 g=81 g_seq=3
+HeapAlloc dt=62668 heapalloc_value=206863448
+GoStop dt=31 reason_string=16 stack=3
+GoStart dt=32 g=81 g_seq=4
+HeapAlloc dt=44 heapalloc_value=206961752
+GoStop dt=48130 reason_string=16 stack=3
+GoStart dt=66 g=107 g_seq=5
+HeapAlloc dt=66 heapalloc_value=211221400
+GCMarkAssistBegin dt=33 stack=2
+GoBlock dt=36 reason_string=13 stack=21
+ProcStop dt=1336
+ProcStart dt=2637 p=5 p_seq=1
+ProcStop dt=58
+ProcStart dt=2377 p=5 p_seq=2
+ProcStop dt=48
+ProcStart dt=1225 p=5 p_seq=3
+ProcStop dt=52
+ProcStart dt=32 p=5 p_seq=4
+GoStart dt=60 g=114 g_seq=6
+HeapAlloc dt=43 heapalloc_value=212089368
+GoStop dt=7372 reason_string=16 stack=3
+GoStart dt=11 g=114 g_seq=7
+GCMarkAssistBegin dt=18 stack=2
+GoBlock dt=37 reason_string=10 stack=19
+ProcStop dt=52
+EventBatch gen=6 m=298967 time=22352100057154 size=271
+ProcStatus dt=1 p=24 pstatus=1
+GoStatus dt=2 g=60 m=298967 gstatus=2
+GCMarkAssistActive dt=1 g=60
+GCMarkAssistEnd dt=4
+HeapAlloc dt=41 heapalloc_value=191469656
+HeapAlloc dt=298 heapalloc_value=191674456
+HeapAlloc dt=100 heapalloc_value=191805528
+HeapAlloc dt=60 heapalloc_value=191830104
+HeapAlloc dt=64 heapalloc_value=191838296
+HeapAlloc dt=105 heapalloc_value=192026712
+HeapAlloc dt=110 heapalloc_value=192239704
+GCMarkAssistBegin dt=186 stack=2
+GCMarkAssistEnd dt=2876
+HeapAlloc dt=39 heapalloc_value=195531096
+HeapAlloc dt=154 heapalloc_value=195703128
+HeapAlloc dt=50 heapalloc_value=195744088
+HeapAlloc dt=96 heapalloc_value=195760472
+HeapAlloc dt=51 heapalloc_value=195793240
+HeapAlloc dt=66 heapalloc_value=195850584
+GCMarkAssistBegin dt=92 stack=2
+GCMarkAssistEnd dt=1801
+HeapAlloc dt=48 heapalloc_value=197480792
+HeapAlloc dt=52 heapalloc_value=197513560
+HeapAlloc dt=149 heapalloc_value=197661016
+HeapAlloc dt=42 heapalloc_value=197685592
+HeapAlloc dt=150 heapalloc_value=197931352
+HeapAlloc dt=12267 heapalloc_value=200470872
+GoStop dt=18073 reason_string=16 stack=3
+GoUnblock dt=14 g=39 g_seq=9 stack=0
+GoStart dt=6 g=39 g_seq=10
+GoLabel dt=1 label_string=2
+GoBlock dt=10705 reason_string=15 stack=7
+GoUnblock dt=11 g=39 g_seq=11 stack=0
+GoStart dt=9 g=39 g_seq=12
+GoLabel dt=1 label_string=2
+GoBlock dt=1769 reason_string=15 stack=7
+GoUnblock dt=8 g=39 g_seq=13 stack=0
+GoStart dt=4 g=39 g_seq=14
+GoLabel dt=1 label_string=2
+GoBlock dt=950 reason_string=15 stack=7
+GoStart dt=13 g=56 g_seq=1
+HeapAlloc dt=68 heapalloc_value=203615832
+GoStop dt=49082 reason_string=16 stack=3
+GoStart dt=26 g=91 g_seq=4
+HeapAlloc dt=46 heapalloc_value=205683800
+GoStop dt=58167 reason_string=16 stack=3
+GoStart dt=11 g=61 g_seq=4
+HeapAlloc dt=43 heapalloc_value=209706072
+GoStop dt=29030 reason_string=16 stack=3
+GoStart dt=29 g=61 g_seq=5
+HeapAlloc dt=5293 heapalloc_value=213752344
+GoStop dt=12 reason_string=16 stack=3
+ProcStop dt=2659
+EventBatch gen=6 m=298966 time=22352100072475 size=160
+ProcStatus dt=1 p=45 pstatus=2
+ProcStart dt=2 p=45 p_seq=1
+GoStart dt=1382 g=109 g_seq=2
+GoStatus dt=23 g=63 m=18446744073709551615 gstatus=4
+GoUnblock dt=7 g=63 g_seq=1 stack=5
+HeapAlloc dt=2114 heapalloc_value=200339800
+HeapAlloc dt=92 heapalloc_value=200544600
+GoStop dt=13419 reason_string=16 stack=3
+GoUnblock dt=17 g=48 g_seq=5 stack=0
+GoStart dt=5 g=48 g_seq=6
+GoLabel dt=1 label_string=2
+GoBlock dt=2630 reason_string=15 stack=7
+GoStart dt=2485 g=95 g_seq=2
+GoStatus dt=36 g=57 m=18446744073709551615 gstatus=4
+GoUnblock dt=8 g=57 g_seq=1 stack=5
+HeapAlloc dt=72 heapalloc_value=203214424
+GoStop dt=47481 reason_string=16 stack=3
+GoStart dt=29 g=95 g_seq=3
+HeapAlloc dt=21 heapalloc_value=205151320
+GoStop dt=58442 reason_string=16 stack=3
+GoStart dt=16 g=112 g_seq=4
+HeapAlloc dt=58 heapalloc_value=209165400
+GoStop dt=41373 reason_string=16 stack=3
+GoStart dt=80 g=112 g_seq=5
+HeapAlloc dt=298 heapalloc_value=212867608
+HeapAlloc dt=6484 heapalloc_value=213604888
+GoStop dt=7201 reason_string=16 stack=3
+ProcStop dt=7
+EventBatch gen=6 m=298965 time=22352100054801 size=252
+ProcStatus dt=1 p=33 pstatus=1
+GoStart dt=2 g=99 g_seq=2
+GoStatus dt=33 g=110 m=18446744073709551615 gstatus=4
+GoUnblock dt=16 g=110 g_seq=1 stack=5
+HeapAlloc dt=64 heapalloc_value=190315608
+HeapAlloc dt=105 heapalloc_value=190479448
+GCMarkAssistBegin dt=99 stack=2
+GCMarkAssistEnd dt=2171
+HeapAlloc dt=33 heapalloc_value=191576152
+HeapAlloc dt=269 heapalloc_value=191797336
+HeapAlloc dt=145 heapalloc_value=191944792
+HeapAlloc dt=104 heapalloc_value=192133208
+HeapAlloc dt=200 heapalloc_value=192338008
+GCMarkAssistBegin dt=35 stack=2
+GCMarkAssistEnd dt=1722
+HeapAlloc dt=80 heapalloc_value=194148440
+HeapAlloc dt=131 heapalloc_value=194263128
+HeapAlloc dt=101 heapalloc_value=194435160
+GCMarkAssistBegin dt=20 stack=2
+GCMarkAssistEnd dt=164
+HeapAlloc dt=299 heapalloc_value=195105112
+HeapAlloc dt=106 heapalloc_value=195162456
+HeapAlloc dt=158 heapalloc_value=195309912
+GCMarkAssistBegin dt=93 stack=2
+GCMarkAssistEnd dt=3303
+HeapAlloc dt=56 heapalloc_value=198586712
+HeapAlloc dt=173 heapalloc_value=198717784
+HeapAlloc dt=64 heapalloc_value=198832472
+HeapAlloc dt=141 heapalloc_value=199111000
+HeapAlloc dt=11337 heapalloc_value=200429912
+GoStop dt=11027 reason_string=16 stack=3
+GoUnblock dt=22 g=65 g_seq=11 stack=0
+GoStart dt=8 g=65 g_seq=12
+GoLabel dt=1 label_string=2
+GoBlock dt=267 reason_string=15 stack=7
+GoUnblock dt=15 g=65 g_seq=13 stack=0
+GoStart dt=4 g=65 g_seq=14
+GoLabel dt=1 label_string=2
+GoBlock dt=57 reason_string=15 stack=7
+GoStart dt=11 g=58 g_seq=3
+HeapAlloc dt=37 heapalloc_value=201993816
+GoStop dt=90596 reason_string=16 stack=3
+GoStart dt=50 g=100 g_seq=4
+HeapAlloc dt=86 heapalloc_value=206797912
+GoStop dt=52843 reason_string=16 stack=3
+GoStart dt=46 g=100 g_seq=5
+GCMarkAssistBegin dt=16 stack=2
+GoBlock dt=40 reason_string=10 stack=19
+ProcStop dt=1323
+EventBatch gen=6 m=298964 time=22352100053523 size=171
+ProcStatus dt=2 p=30 pstatus=1
+GoStatus dt=1 g=62 m=298964 gstatus=2
+GCMarkAssistActive dt=1 g=62
+GCMarkAssistEnd dt=3
+HeapAlloc dt=46 heapalloc_value=189268184
+HeapAlloc dt=81 heapalloc_value=189432024
+HeapAlloc dt=98 heapalloc_value=189538136
+GCMarkAssistBegin dt=17 stack=2
+GCMarkAssistEnd dt=3690
+HeapAlloc dt=121 heapalloc_value=191739992
+HeapAlloc dt=199 heapalloc_value=191985752
+GCMarkAssistBegin dt=73 stack=2
+GCMarkAssistEnd dt=1274
+HeapAlloc dt=29 heapalloc_value=193443928
+HeapAlloc dt=172 heapalloc_value=193607768
+HeapAlloc dt=170 heapalloc_value=193919064
+GCMarkAssistBegin dt=32 stack=2
+GCMarkAssistEnd dt=4117
+HeapAlloc dt=61 heapalloc_value=197824856
+GoStop dt=13187 reason_string=16 stack=3
+GoUnblock dt=10226 g=13 g_seq=7 stack=0
+GoStart dt=17 g=13 g_seq=8
+GoLabel dt=1 label_string=2
+GoBlock dt=314 reason_string=15 stack=7
+GoStart dt=15 g=102 g_seq=3
+HeapAlloc dt=74 heapalloc_value=202051160
+GoStop dt=95370 reason_string=16 stack=3
+GoStart dt=23 g=63 g_seq=5
+HeapAlloc dt=43 heapalloc_value=207027288
+GoStop dt=48065 reason_string=16 stack=3
+GoStart dt=27 g=63 g_seq=6
+GCMarkAssistBegin dt=11 stack=2
+GoBlock dt=27 reason_string=10 stack=19
+GoStart dt=10 g=81 g_seq=5
+GCMarkAssistBegin dt=11 stack=2
+GoBlock dt=30 reason_string=10 stack=19
+ProcStop dt=1354
+EventBatch gen=6 m=298963 time=22352100054549 size=142
+ProcStatus dt=2 p=25 pstatus=1
+GoStatus dt=2 g=56 m=298963 gstatus=2
+GCMarkAssistActive dt=1 g=56
+GCMarkAssistEnd dt=3
+HeapAlloc dt=36 heapalloc_value=190004312
+HeapAlloc dt=92 heapalloc_value=190078040
+HeapAlloc dt=167 heapalloc_value=190225496
+GCMarkAssistBegin dt=70 stack=2
+GCMarkAssistEnd dt=4319
+HeapAlloc dt=51 heapalloc_value=193558616
+HeapAlloc dt=111 heapalloc_value=193738840
+GCMarkAssistBegin dt=39 stack=2
+GCMarkAssistEnd dt=4233
+HeapAlloc dt=77 heapalloc_value=197882200
+HeapAlloc dt=12335 heapalloc_value=200479064
+HeapAlloc dt=48 heapalloc_value=200552792
+HeapAlloc dt=31 heapalloc_value=200610136
+GoStop dt=17373 reason_string=16 stack=3
+GoUnblock dt=24 g=13 g_seq=11 stack=0
+GoStart dt=6 g=13 g_seq=12
+GoLabel dt=1 label_string=2
+GoBlock dt=10590 reason_string=15 stack=7
+GoUnblock dt=15 g=13 g_seq=13 stack=0
+GoStart dt=7 g=13 g_seq=14
+GoLabel dt=1 label_string=2
+GoBlock dt=6272 reason_string=15 stack=7
+GoStart dt=13 g=92 g_seq=5
+HeapAlloc dt=115919 heapalloc_value=211000216
+GoStop dt=19 reason_string=16 stack=3
+ProcStop dt=88
+EventBatch gen=6 m=298962 time=22352100074194 size=135
+ProcStatus dt=2 p=46 pstatus=2
+ProcStart dt=1 p=46 p_seq=1
+GoStart dt=10862 g=116 g_seq=2
+GoStatus dt=28 g=105 m=18446744073709551615 gstatus=4
+GoUnblock dt=10 g=105 g_seq=1 stack=5
+HeapAlloc dt=35063 heapalloc_value=204115544
+GoStop dt=17 reason_string=16 stack=3
+GoStart dt=51 g=116 g_seq=3
+HeapAlloc dt=67815 heapalloc_value=207264856
+GoStop dt=19 reason_string=16 stack=3
+GoStart dt=55 g=62 g_seq=3
+HeapAlloc dt=67 heapalloc_value=207469656
+HeapAlloc dt=21 heapalloc_value=207551576
+HeapAlloc dt=43205 heapalloc_value=211278744
+GoStop dt=14 reason_string=16 stack=3
+GoStart dt=32 g=62 g_seq=4
+HeapAlloc dt=42 heapalloc_value=211336088
+HeapAlloc dt=36 heapalloc_value=211385240
+HeapAlloc dt=19 heapalloc_value=211426200
+GCMarkAssistBegin dt=39 stack=2
+GoBlock dt=37 reason_string=10 stack=19
+GoStart dt=9 g=116 g_seq=5
+HeapAlloc dt=12 heapalloc_value=211467160
+GoStop dt=3168 reason_string=16 stack=3
+ProcStop dt=221
+EventBatch gen=6 m=298961 time=22352100074702 size=120
+ProcStatus dt=1 p=1 pstatus=1
+GoStatus dt=4 g=12 m=298961 gstatus=2
+GoBlock dt=7 reason_string=15 stack=7
+GoUnblock dt=9690 g=46 g_seq=1 stack=0
+GoStart dt=7 g=46 g_seq=2
+GoLabel dt=2 label_string=2
+GoBlock dt=7805 reason_string=15 stack=7
+GoStart dt=3710 g=87 g_seq=2
+GoStatus dt=23 g=61 m=18446744073709551615 gstatus=4
+GoUnblock dt=7 g=61 g_seq=1 stack=5
+HeapAlloc dt=58 heapalloc_value=203320920
+GoStop dt=55875 reason_string=16 stack=3
+GoStart dt=31 g=61 g_seq=2
+HeapAlloc dt=51 heapalloc_value=205552728
+GoStop dt=53444 reason_string=16 stack=3
+GoStart dt=12 g=115 g_seq=4
+HeapAlloc dt=37 heapalloc_value=209460312
+GoStop dt=37651 reason_string=16 stack=3
+GoStart dt=192 g=115 g_seq=5
+HeapAlloc dt=5284 heapalloc_value=213482008
+GoStop dt=5400 reason_string=16 stack=3
+ProcStop dt=9
+EventBatch gen=6 m=298960 time=22352100055448 size=241
+ProcStatus dt=1 p=19 pstatus=1
+GoStatus dt=1 g=113 m=298960 gstatus=2
+GCMarkAssistActive dt=1 g=113
+GCMarkAssistEnd dt=3
+HeapAlloc dt=56 heapalloc_value=190995544
+HeapAlloc dt=61 heapalloc_value=191069272
+HeapAlloc dt=85 heapalloc_value=191077464
+GCMarkAssistBegin dt=16 stack=2
+GCMarkAssistEnd dt=4112
+HeapAlloc dt=55 heapalloc_value=194115672
+HeapAlloc dt=264 heapalloc_value=194426968
+HeapAlloc dt=272 heapalloc_value=194787416
+HeapAlloc dt=163 heapalloc_value=195015000
+GCMarkAssistBegin dt=59 stack=2
+GCMarkAssistEnd dt=4242
+HeapAlloc dt=42 heapalloc_value=199225688
+HeapAlloc dt=121 heapalloc_value=199389528
+HeapAlloc dt=231 heapalloc_value=199692632
+GoStop dt=8746 reason_string=16 stack=3
+GoUnblock dt=23 g=13 g_seq=1 stack=0
+GoStart dt=8 g=13 g_seq=2
+GoLabel dt=1 label_string=2
+GoBlock dt=4314 reason_string=15 stack=7
+GoUnblock dt=14654 g=46 g_seq=3 stack=0
+GoStart dt=5 g=46 g_seq=4
+GoLabel dt=3 label_string=2
+GoBlock dt=9490 reason_string=15 stack=7
+GoUnblock dt=14 g=46 g_seq=5 stack=0
+GoStart dt=5 g=46 g_seq=6
+GoLabel dt=2 label_string=2
+GoBlock dt=23 reason_string=15 stack=7
+GoUnblock dt=10 g=46 g_seq=7 stack=0
+GoStart dt=1 g=46 g_seq=8
+GoLabel dt=1 label_string=2
+GoBlock dt=1339 reason_string=15 stack=7
+GoUnblock dt=6 g=46 g_seq=9 stack=0
+GoStart dt=5 g=46 g_seq=10
+GoLabel dt=1 label_string=2
+GoBlock dt=1072 reason_string=15 stack=7
+GoUnblock dt=7 g=46 g_seq=11 stack=0
+GoStart dt=3 g=46 g_seq=12
+GoLabel dt=1 label_string=2
+GoBlock dt=945 reason_string=15 stack=7
+GoStart dt=11 g=97 g_seq=3
+HeapAlloc dt=66 heapalloc_value=203492952
+HeapAlloc dt=31 heapalloc_value=203558488
+GoStop dt=4677 reason_string=16 stack=3
+GoStart dt=11 g=97 g_seq=4
+HeapAlloc dt=60587 heapalloc_value=206380120
+GoStop dt=54398 reason_string=16 stack=3
+ProcStop dt=148
+EventBatch gen=6 m=298959 time=22352100055250 size=167
+ProcStatus dt=2 p=15 pstatus=1
+GoStatus dt=4 g=94 m=298959 gstatus=2
+GCMarkAssistActive dt=1 g=94
+GCMarkAssistEnd dt=3
+HeapAlloc dt=29 heapalloc_value=190790744
+HeapAlloc dt=116 heapalloc_value=190823512
+GCMarkAssistBegin dt=54 stack=2
+GCMarkAssistEnd dt=693
+HeapAlloc dt=22 heapalloc_value=191216728
+HeapAlloc dt=116 heapalloc_value=191273688
+GCMarkAssistBegin dt=16 stack=2
+GCMarkAssistEnd dt=2777
+HeapAlloc dt=64 heapalloc_value=193394776
+HeapAlloc dt=324 heapalloc_value=193869912
+GCMarkAssistBegin dt=99 stack=2
+GCMarkAssistEnd dt=2889
+HeapAlloc dt=53 heapalloc_value=197054808
+HeapAlloc dt=12006 heapalloc_value=199913816
+GoStop dt=34 reason_string=16 stack=3
+GoUnblock dt=22 g=131 g_seq=5 stack=0
+GoStart dt=6 g=131 g_seq=6
+GoBlock dt=51 reason_string=15 stack=8
+GoStart dt=20 g=130 g_seq=1
+ProcStatus dt=6935 p=47 pstatus=2
+GoStop dt=53912 reason_string=16 stack=14
+GoUnblock dt=16 g=12 g_seq=19 stack=0
+GoStart dt=5 g=12 g_seq=20
+GoLabel dt=1 label_string=2
+HeapAlloc dt=181 heapalloc_value=204402072
+GoBlock dt=34 reason_string=10 stack=13
+GoStart dt=10 g=15 g_seq=27
+GoBlock dt=11 reason_string=10 stack=13
+GoStart dt=5 g=130 g_seq=2
+GoUnblock dt=18 g=42 g_seq=5 stack=15
+GoSyscallBegin dt=13 stack=16
+ProcStop dt=2
+GoSyscallEndBlocked dt=92
+EventBatch gen=6 m=298958 time=22352100057824 size=243
+ProcStatus dt=1 p=23 pstatus=1
+GoStatus dt=6 g=55 m=298958 gstatus=2
+GCMarkAssistActive dt=1 g=55
+GCMarkAssistEnd dt=1
+HeapAlloc dt=129 heapalloc_value=192256088
+HeapAlloc dt=108 heapalloc_value=192362584
+HeapAlloc dt=94 heapalloc_value=192526424
+HeapAlloc dt=197 heapalloc_value=192731224
+HeapAlloc dt=118 heapalloc_value=192886872
+HeapAlloc dt=109 heapalloc_value=193017944
+GCMarkAssistBegin dt=47 stack=2
+GCMarkAssistEnd dt=3127
+HeapAlloc dt=37 heapalloc_value=196145496
+HeapAlloc dt=191 heapalloc_value=196292952
+HeapAlloc dt=99 heapalloc_value=196473176
+HeapAlloc dt=161 heapalloc_value=196653400
+HeapAlloc dt=124 heapalloc_value=196825432
+HeapAlloc dt=12580 heapalloc_value=200085848
+HeapAlloc dt=66 heapalloc_value=200135000
+GoStop dt=8789 reason_string=16 stack=3
+GoUnblock dt=28 g=65 g_seq=3 stack=0
+GoStart dt=7 g=65 g_seq=4
+GoLabel dt=3 label_string=2
+GoBlock dt=2673 reason_string=15 stack=7
+GoUnblock dt=12 g=65 g_seq=5 stack=0
+GoStart dt=7 g=65 g_seq=6
+GoLabel dt=1 label_string=2
+GoBlock dt=84 reason_string=15 stack=7
+GoUnblock dt=13 g=65 g_seq=7 stack=0
+GoStart dt=7 g=65 g_seq=8
+GoLabel dt=1 label_string=2
+GoBlock dt=13 reason_string=15 stack=7
+GoUnblock dt=4 g=65 g_seq=9 stack=0
+GoStart dt=2 g=65 g_seq=10
+GoLabel dt=1 label_string=2
+GoBlock dt=93 reason_string=15 stack=7
+GoStart dt=10 g=94 g_seq=2
+HeapAlloc dt=73 heapalloc_value=201552216
+HeapAlloc dt=44 heapalloc_value=201593176
+GoStop dt=33291 reason_string=16 stack=3
+GoStart dt=16 g=94 g_seq=3
+HeapAlloc dt=62857 heapalloc_value=207076440
+GoStop dt=21 reason_string=16 stack=3
+GoStart dt=29 g=102 g_seq=4
+HeapAlloc dt=22 heapalloc_value=207117400
+GoStop dt=48081 reason_string=16 stack=3
+GoStart dt=28 g=102 g_seq=5
+GCMarkAssistBegin dt=12 stack=2
+GoBlock dt=37 reason_string=10 stack=19
+ProcStop dt=1268
+EventBatch gen=6 m=298957 time=22352100074742 size=104
+ProcStatus dt=2 p=14 pstatus=1
+GoStatus dt=4 g=41 m=298957 gstatus=2
+GoBlock dt=8 reason_string=15 stack=7
+GoUnblock dt=12874 g=12 g_seq=5 stack=0
+GoStart dt=8 g=12 g_seq=6
+GoLabel dt=1 label_string=2
+GoBlock dt=3050 reason_string=15 stack=7
+GoStart dt=16 g=112 g_seq=2
+HeapAlloc dt=51363 heapalloc_value=205003864
+GoStop dt=13 reason_string=16 stack=3
+GoStart dt=27 g=112 g_seq=3
+HeapAlloc dt=58371 heapalloc_value=208796760
+GoStop dt=11 reason_string=16 stack=3
+GoStart dt=11 g=101 g_seq=5
+HeapAlloc dt=42 heapalloc_value=208944216
+HeapAlloc dt=38 heapalloc_value=209058904
+GoStop dt=41552 reason_string=16 stack=3
+GoStart dt=91 g=93 g_seq=4
+HeapAlloc dt=14775 heapalloc_value=214301208
+GoStop dt=17 reason_string=16 stack=3
+ProcStop dt=8
+EventBatch gen=6 m=298956 time=22352100058565 size=191
+ProcStatus dt=1 p=38 pstatus=2
+ProcStart dt=1 p=38 p_seq=1
+GoStart dt=1643 g=114 g_seq=2
+GoStatus dt=30 g=83 m=18446744073709551615 gstatus=4
+GoUnblock dt=11 g=83 g_seq=1 stack=5
+GCMarkAssistBegin dt=20 stack=2
+GCMarkAssistEnd dt=3521
+HeapAlloc dt=61 heapalloc_value=198087000
+HeapAlloc dt=58 heapalloc_value=198144344
+HeapAlloc dt=269 heapalloc_value=198422872
+HeapAlloc dt=230 heapalloc_value=198701400
+HeapAlloc dt=254 heapalloc_value=199061848
+HeapAlloc dt=9896 heapalloc_value=199938392
+HeapAlloc dt=97 heapalloc_value=200069464
+GoStop dt=5718 reason_string=16 stack=3
+GoUnblock dt=11407 g=16 g_seq=5 stack=0
+GoStart dt=6 g=16 g_seq=6
+GoLabel dt=1 label_string=2
+GoBlock dt=579 reason_string=10 stack=13
+GoStart dt=12 g=91 g_seq=3
+HeapAlloc dt=36 heapalloc_value=203001432
+HeapAlloc dt=65 heapalloc_value=203058776
+GoStop dt=64200 reason_string=16 stack=3
+GoStart dt=30 g=113 g_seq=4
+HeapAlloc dt=49 heapalloc_value=205634648
+GoStop dt=58413 reason_string=16 stack=3
+GoStart dt=23 g=87 g_seq=4
+GCMarkAssistBegin dt=22 stack=2
+GoBlock dt=50 reason_string=10 stack=19
+GoStart dt=12 g=113 g_seq=5
+HeapAlloc dt=29475 heapalloc_value=213006872
+GoStop dt=21 reason_string=16 stack=3
+GoStart dt=138 g=55 g_seq=9
+HeapAlloc dt=3368 heapalloc_value=213326360
+GoStop dt=5812 reason_string=16 stack=6
+ProcStop dt=10
+EventBatch gen=6 m=298955 time=22352100052620 size=567
+ProcStatus dt=1 p=22 pstatus=1
+GoStatus dt=4 g=112 m=298955 gstatus=2
+GCMarkAssistActive dt=1 g=112
+GCMarkAssistEnd dt=2
+HeapAlloc dt=37 heapalloc_value=188907736
+GoStop dt=31 reason_string=16 stack=3
+GoStatus dt=9 g=131 m=18446744073709551615 gstatus=4
+GoUnblock dt=4 g=131 g_seq=1 stack=0
+GoStart dt=5 g=131 g_seq=2
+GoSyscallBegin dt=71 stack=4
+GoSyscallEnd dt=202
+GoSyscallBegin dt=32 stack=4
+GoSyscallEnd dt=71
+GoSyscallBegin dt=14 stack=4
+GoSyscallEnd dt=74
+GoSyscallBegin dt=14 stack=4
+GoSyscallEnd dt=65
+GoSyscallBegin dt=12 stack=4
+GoSyscallEnd dt=67
+GoSyscallBegin dt=12 stack=4
+GoSyscallEnd dt=71
+GoSyscallBegin dt=14 stack=4
+GoSyscallEnd dt=66
+GoSyscallBegin dt=16 stack=4
+GoSyscallEnd dt=66
+GoSyscallBegin dt=14 stack=4
+GoSyscallEnd dt=67
+GoSyscallBegin dt=13 stack=4
+GoSyscallEnd dt=345
+GoSyscallBegin dt=15 stack=4
+GoSyscallEnd dt=71
+GoSyscallBegin dt=13 stack=4
+GoSyscallEnd dt=63
+GoSyscallBegin dt=14 stack=4
+GoSyscallEnd dt=63
+GoSyscallBegin dt=9 stack=4
+GoSyscallEnd dt=64
+GoSyscallBegin dt=12 stack=4
+GoSyscallEnd dt=64
+GoSyscallBegin dt=17 stack=4
+GoSyscallEnd dt=64
+GoSyscallBegin dt=12 stack=4
+GoSyscallEnd dt=69
+GoSyscallBegin dt=16 stack=4
+GoSyscallEnd dt=69
+GoSyscallBegin dt=11 stack=4
+GoSyscallEnd dt=69
+GoSyscallBegin dt=13 stack=4
+GoSyscallEnd dt=169
+GoSyscallBegin dt=14 stack=4
+GoSyscallEnd dt=69
+GoSyscallBegin dt=11 stack=4
+GoSyscallEnd dt=65
+GoSyscallBegin dt=14 stack=4
+GoSyscallEnd dt=66
+GoSyscallBegin dt=27 stack=4
+GoSyscallEnd dt=64
+GoSyscallBegin dt=15 stack=4
+GoSyscallEnd dt=71
+GoSyscallBegin dt=25 stack=4
+GoSyscallEnd dt=70
+GoSyscallBegin dt=14 stack=4
+GoSyscallEnd dt=63
+GoSyscallBegin dt=11 stack=4
+GoSyscallEnd dt=62
+GoSyscallBegin dt=12 stack=4
+GoSyscallEnd dt=168
+GoSyscallBegin dt=13 stack=4
+GoSyscallEnd dt=68
+GoSyscallBegin dt=13 stack=4
+GoSyscallEnd dt=66
+GoSyscallBegin dt=12 stack=4
+GoSyscallEnd dt=66
+GoSyscallBegin dt=10 stack=4
+GoSyscallEnd dt=69
+GoSyscallBegin dt=14 stack=4
+GoSyscallEnd dt=65
+GoSyscallBegin dt=15 stack=4
+GoSyscallEnd dt=64
+GoSyscallBegin dt=13 stack=4
+GoSyscallEnd dt=64
+GoSyscallBegin dt=9 stack=4
+GoSyscallEnd dt=61
+GoSyscallBegin dt=10 stack=4
+GoSyscallEnd dt=65
+GoSyscallBegin dt=12 stack=4
+GoSyscallEnd dt=65
+GoSyscallBegin dt=14 stack=4
+GoSyscallEnd dt=64
+GoSyscallBegin dt=11 stack=4
+GoSyscallEnd dt=64
+GoSyscallBegin dt=10 stack=4
+GoSyscallEnd dt=167
+GoSyscallBegin dt=18 stack=4
+GoSyscallEnd dt=65
+GoSyscallBegin dt=12 stack=4
+GoSyscallEnd dt=67
+GoSyscallBegin dt=9 stack=4
+GoSyscallEnd dt=63
+GoSyscallBegin dt=15 stack=4
+GoSyscallEnd dt=67
+GoSyscallBegin dt=13 stack=4
+GoSyscallEnd dt=212
+GoSyscallBegin dt=16 stack=4
+GoSyscallEnd dt=72
+GoSyscallBegin dt=11 stack=4
+GoSyscallEnd dt=165
+GoSyscallBegin dt=17 stack=4
+GoSyscallEnd dt=71
+GoBlock dt=17 reason_string=15 stack=8
+GoStart dt=1433 g=90 g_seq=2
+GoStatus dt=39 g=91 m=18446744073709551615 gstatus=4
+GoUnblock dt=17 g=91 g_seq=1 stack=5
+GCMarkAssistBegin dt=19 stack=2
+GCMarkAssistEnd dt=727
+HeapAlloc dt=84 heapalloc_value=194361432
+HeapAlloc dt=197 heapalloc_value=194656344
+GCMarkAssistBegin dt=166 stack=2
+GCMarkAssistEnd dt=1362
+HeapAlloc dt=53 heapalloc_value=196202840
+HeapAlloc dt=209 heapalloc_value=196424024
+HeapAlloc dt=75 heapalloc_value=196530520
+GCMarkAssistBegin dt=232 stack=2
+GCMarkAssistEnd dt=1810
+HeapAlloc dt=38 heapalloc_value=198537560
+HeapAlloc dt=99 heapalloc_value=198644056
+HeapAlloc dt=104 heapalloc_value=198709592
+HeapAlloc dt=75 heapalloc_value=198775128
+HeapAlloc dt=71 heapalloc_value=198938968
+HeapAlloc dt=30018 heapalloc_value=203148888
+GoStop dt=20 reason_string=16 stack=3
+GoUnblock dt=15 g=65 g_seq=15 stack=0
+GoStart dt=9 g=65 g_seq=16
+GoLabel dt=2 label_string=2
+GoBlock dt=8230 reason_string=15 stack=7
+GoUnblock dt=12 g=65 g_seq=17 stack=0
+GoStart dt=4 g=65 g_seq=18
+GoLabel dt=1 label_string=2
+GoBlock dt=202 reason_string=15 stack=7
+GoUnblock dt=12 g=47 g_seq=17 stack=0
+GoStart dt=1 g=47 g_seq=18
+GoLabel dt=1 label_string=2
+GoBlock dt=3053 reason_string=15 stack=7
+GoUnblock dt=11 g=47 g_seq=19 stack=0
+GoStart dt=7 g=47 g_seq=20
+GoLabel dt=1 label_string=2
+GoBlock dt=1447 reason_string=15 stack=7
+GoStart dt=10 g=106 g_seq=2
+HeapAlloc dt=130 heapalloc_value=203656792
+GoStop dt=49161 reason_string=16 stack=3
+GoStart dt=22 g=56 g_seq=2
+HeapAlloc dt=36 heapalloc_value=205724760
+GoStop dt=58278 reason_string=16 stack=3
+GoStart dt=26 g=56 g_seq=3
+HeapAlloc dt=75 heapalloc_value=209861720
+GoStop dt=29113 reason_string=16 stack=3
+GoStart dt=229 g=56 g_seq=4
+HeapAlloc dt=4776 heapalloc_value=213842456
+GoStop dt=20 reason_string=16 stack=3
+ProcStop dt=4494
+EventBatch gen=6 m=298954 time=22352100066840 size=175
+ProcStatus dt=2 p=41 pstatus=2
+ProcStart dt=1 p=41 p_seq=1
+GoUnblock dt=15 g=131 g_seq=3 stack=0
+GoStart dt=187 g=131 g_seq=4
+GoSyscallBegin dt=54 stack=4
+GoSyscallEnd dt=344
+GoSyscallBegin dt=19 stack=4
+GoSyscallEnd dt=475
+GoBlock dt=22 reason_string=15 stack=8
+GoStart dt=1623 g=58 g_seq=2
+GoStatus dt=19 g=109 m=18446744073709551615 gstatus=4
+GoUnblock dt=6 g=109 g_seq=1 stack=5
+HeapAlloc dt=34 heapalloc_value=199749976
+HeapAlloc dt=6278 heapalloc_value=200266072
+GoStop dt=11153 reason_string=16 stack=3
+GoUnblock dt=25 g=40 g_seq=3 stack=0
+GoStart dt=10 g=40 g_seq=4
+GoLabel dt=2 label_string=2
+GoBlock dt=168 reason_string=15 stack=7
+GoUnblock dt=10 g=40 g_seq=5 stack=0
+GoStart dt=3 g=40 g_seq=6
+GoLabel dt=1 label_string=2
+GoBlock dt=151 reason_string=15 stack=7
+GoStart dt=10 g=64 g_seq=2
+HeapAlloc dt=43 heapalloc_value=202002008
+HeapAlloc dt=128 heapalloc_value=202165848
+GoStop dt=48234 reason_string=16 stack=3
+GoStart dt=25 g=64 g_seq=3
+HeapAlloc dt=81 heapalloc_value=204475800
+HeapAlloc dt=45 heapalloc_value=204516760
+GoStop dt=53879 reason_string=16 stack=3
+GoStart dt=73 g=114 g_seq=5
+HeapAlloc dt=49034 heapalloc_value=212023832
+GoStop dt=20 reason_string=16 stack=3
+ProcStop dt=101
+EventBatch gen=6 m=298953 time=22352100053030 size=226
+ProcStatus dt=3 p=34 pstatus=1
+GoStatus dt=3 g=106 m=298953 gstatus=1
+GoStart dt=3 g=106 g_seq=1
+GoStatus dt=27 g=99 m=18446744073709551615 gstatus=4
+GoUnblock dt=16 g=99 g_seq=1 stack=5
+HeapAlloc dt=75 heapalloc_value=189038808
+HeapAlloc dt=107 heapalloc_value=189153496
+HeapAlloc dt=560 heapalloc_value=189718360
+GCMarkAssistBegin dt=75 stack=2
+GCMarkAssistEnd dt=4456
+HeapAlloc dt=87 heapalloc_value=192804952
+HeapAlloc dt=128 heapalloc_value=192976984
+HeapAlloc dt=158 heapalloc_value=193132632
+GCMarkAssistBegin dt=44 stack=2
+GCMarkAssistEnd dt=2106
+HeapAlloc dt=57 heapalloc_value=195375448
+HeapAlloc dt=153 heapalloc_value=195580248
+GCMarkAssistBegin dt=104 stack=2
+GCMarkAssistEnd dt=3936
+HeapAlloc dt=81 heapalloc_value=199643480
+HeapAlloc dt=11145 heapalloc_value=200741208
+GoStop dt=17413 reason_string=16 stack=3
+GoUnblock dt=17 g=41 g_seq=9 stack=0
+GoStart dt=10 g=41 g_seq=10
+GoLabel dt=1 label_string=2
+GoBlock dt=8939 reason_string=15 stack=7
+GoUnblock dt=16 g=41 g_seq=11 stack=0
+GoStart dt=4 g=41 g_seq=12
+GoLabel dt=1 label_string=2
+GoBlock dt=3754 reason_string=15 stack=7
+GoUnblock dt=14 g=41 g_seq=13 stack=0
+GoStart dt=18 g=41 g_seq=14
+GoLabel dt=1 label_string=2
+GoBlock dt=2612 reason_string=15 stack=7
+GoUnblock dt=5 g=41 g_seq=15 stack=0
+GoStart dt=3 g=41 g_seq=16
+GoLabel dt=1 label_string=2
+GoBlock dt=454 reason_string=15 stack=7
+GoStart dt=14 g=107 g_seq=2
+HeapAlloc dt=52 heapalloc_value=204017240
+GoStop dt=61524 reason_string=16 stack=3
+GoStart dt=37 g=90 g_seq=4
+HeapAlloc dt=42 heapalloc_value=206339160
+GoStop dt=54917 reason_string=16 stack=3
+ProcStop dt=306
+EventBatch gen=6 m=298952 time=22352100054724 size=262
+ProcStatus dt=1 p=13 pstatus=1
+GoStatus dt=2 g=89 m=298952 gstatus=2
+GCMarkAssistActive dt=1 g=89
+GCMarkAssistEnd dt=3
+HeapAlloc dt=35 heapalloc_value=190143576
+HeapAlloc dt=129 heapalloc_value=190282840
+HeapAlloc dt=326 heapalloc_value=190676056
+GCMarkAssistBegin dt=104 stack=2
+GCMarkAssistEnd dt=3450
+HeapAlloc dt=21 heapalloc_value=193189976
+HeapAlloc dt=139 heapalloc_value=193329240
+GCMarkAssistBegin dt=62 stack=2
+GCMarkAssistEnd dt=1487
+HeapAlloc dt=84 heapalloc_value=195064152
+GCMarkAssistBegin dt=158 stack=2
+GCMarkAssistEnd dt=3005
+HeapAlloc dt=61 heapalloc_value=197996888
+HeapAlloc dt=174 heapalloc_value=198168920
+HeapAlloc dt=34 heapalloc_value=198267224
+HeapAlloc dt=113 heapalloc_value=198308184
+HeapAlloc dt=81 heapalloc_value=198488408
+HeapAlloc dt=178 heapalloc_value=198668632
+HeapAlloc dt=192 heapalloc_value=198881624
+HeapAlloc dt=11450 heapalloc_value=200372568
+GoStop dt=16 reason_string=16 stack=3
+GoStatus dt=9299 g=40 m=18446744073709551615 gstatus=4
+GoUnblock dt=4 g=40 g_seq=1 stack=0
+GoStart dt=6 g=40 g_seq=2
+GoLabel dt=1 label_string=2
+GoBlock dt=1400 reason_string=15 stack=7
+GoStart dt=14 g=110 g_seq=3
+HeapAlloc dt=180 heapalloc_value=201642328
+GoStop dt=43649 reason_string=16 stack=3
+GoUnblock dt=20 g=41 g_seq=21 stack=0
+GoStart dt=6 g=41 g_seq=22
+GoLabel dt=3 label_string=2
+GoBlock dt=2073 reason_string=15 stack=7
+GoUnblock dt=11 g=41 g_seq=23 stack=0
+GoStart dt=4 g=41 g_seq=24
+GoLabel dt=1 label_string=2
+GoBlock dt=21 reason_string=15 stack=7
+GoStart dt=5 g=109 g_seq=4
+HeapAlloc dt=46 heapalloc_value=204353112
+GoStop dt=55612 reason_string=16 stack=3
+GoStart dt=25 g=96 g_seq=4
+HeapAlloc dt=582 heapalloc_value=207805528
+GoStop dt=42839 reason_string=16 stack=3
+GoStart dt=22 g=96 g_seq=5
+HeapAlloc dt=13877 heapalloc_value=213072408
+GoStop dt=12 reason_string=16 stack=3
+ProcStop dt=98
+EventBatch gen=6 m=298951 time=22352100068109 size=116
+ProcStatus dt=2 p=8 pstatus=1
+GoStatus dt=1 g=65 m=298951 gstatus=2
+GoBlock dt=10 reason_string=15 stack=7
+GoUnblock dt=15 g=65 g_seq=1 stack=0
+GoStart dt=5 g=65 g_seq=2
+GoLabel dt=1 label_string=2
+GoBlock dt=6954 reason_string=15 stack=7
+GoStart dt=11496 g=84 g_seq=1
+HeapAlloc dt=43795 heapalloc_value=204181080
+GoStop dt=21 reason_string=16 stack=3
+GoUnblock dt=20 g=41 g_seq=17 stack=0
+GoStart dt=8 g=41 g_seq=18
+GoLabel dt=1 label_string=2
+GoBlock dt=92 reason_string=15 stack=7
+GoUnblock dt=5 g=41 g_seq=19 stack=0
+GoStart dt=1 g=41 g_seq=20
+GoLabel dt=1 label_string=2
+GoBlock dt=9 reason_string=15 stack=7
+GoStart dt=4 g=84 g_seq=2
+HeapAlloc dt=57645 heapalloc_value=207502424
+GoStop dt=19 reason_string=16 stack=3
+GoStart dt=37 g=116 g_seq=4
+HeapAlloc dt=548 heapalloc_value=207756376
+GoStop dt=42819 reason_string=16 stack=3
+ProcStop dt=80
+EventBatch gen=6 m=298950 time=22352100135980 size=90
+ProcStart dt=2 p=15 p_seq=1
+GoStart dt=8 g=42 g_seq=6
+GoUnblock dt=90894 g=130 g_seq=6 stack=20
+STWBegin dt=21516 kind_string=21 stack=22
+GoUnblock dt=10613 g=107 g_seq=6 stack=23
+GoUnblock dt=28 g=11 g_seq=4 stack=24
+HeapAlloc dt=52 heapalloc_value=108748264
+GoStatus dt=12 g=3 m=18446744073709551615 gstatus=4
+GoUnblock dt=7 g=3 g_seq=1 stack=25
+GCEnd dt=3 gc_seq=8
+HeapGoal dt=5 heapgoal_value=217937288
+ProcsChange dt=54 procs_value=48 stack=26
+STWEnd dt=296
+GoUnblock dt=6174 g=130 g_seq=8 stack=27
+GoBlock dt=10 reason_string=15 stack=7
+GoStart dt=11 g=130 g_seq=9
+EventBatch gen=6 m=298949 time=22352100056289 size=215
+ProcStatus dt=1 p=37 pstatus=2
+ProcStart dt=2 p=37 p_seq=1
+GoStart dt=1522 g=110 g_seq=2
+GoStatus dt=38 g=92 m=18446744073709551615 gstatus=4
+GoUnblock dt=13 g=92 g_seq=1 stack=5
+GCMarkAssistBegin dt=22 stack=2
+GCMarkAssistEnd dt=2834
+HeapAlloc dt=53 heapalloc_value=195227992
+HeapAlloc dt=132 heapalloc_value=195318104
+GCMarkAssistBegin dt=16 stack=2
+GCMarkAssistEnd dt=1308
+HeapAlloc dt=37 heapalloc_value=196710744
+HeapAlloc dt=215 heapalloc_value=196972888
+HeapAlloc dt=14118 heapalloc_value=200905048
+GoStop dt=7236 reason_string=16 stack=6
+GoUnblock dt=26 g=44 g_seq=1 stack=0
+GoStart dt=7 g=44 g_seq=2
+GoLabel dt=1 label_string=2
+GoBlock dt=3277 reason_string=15 stack=7
+GoStart dt=30 g=89 g_seq=1
+HeapAlloc dt=70 heapalloc_value=201781592
+GoStop dt=49808 reason_string=16 stack=3
+GoStart dt=87 g=99 g_seq=4
+HeapAlloc dt=75 heapalloc_value=204754264
+GoStop dt=62615 reason_string=16 stack=3
+GoStart dt=12 g=64 g_seq=5
+HeapAlloc dt=42368 heapalloc_value=212417048
+GoStop dt=16 reason_string=16 stack=3
+GoStart dt=49 g=64 g_seq=6
+GCMarkAssistBegin dt=11 stack=2
+GoBlock dt=37 reason_string=10 stack=19
+ProcStop dt=75
+ProcStart dt=59 p=17 p_seq=3
+GoStart dt=49 g=99 g_seq=6
+HeapAlloc dt=64 heapalloc_value=212908568
+GCMarkAssistBegin dt=31 stack=2
+GoBlock dt=62 reason_string=10 stack=19
+ProcStop dt=65
+ProcStart dt=274 p=17 p_seq=4
+ProcStop dt=83
+ProcStart dt=463 p=17 p_seq=5
+GoStart dt=349 g=82 g_seq=5
+HeapAlloc dt=3568 heapalloc_value=213211672
+GoStop dt=1964 reason_string=16 stack=3
+ProcStop dt=3243
+EventBatch gen=6 m=298948 time=22352100060734 size=207
+ProcStatus dt=1 p=39 pstatus=2
+ProcStart dt=2 p=39 p_seq=1
+GoStart dt=1518 g=83 g_seq=2
+GoStatus dt=57 g=97 m=18446744073709551615 gstatus=4
+GoUnblock dt=19 g=97 g_seq=1 stack=5
+HeapAlloc dt=92 heapalloc_value=196907352
+HeapAlloc dt=21356 heapalloc_value=201306456
+GoStop dt=130 reason_string=16 stack=3
+GoUnblock dt=20 g=48 g_seq=3 stack=0
+GoStart dt=5 g=48 g_seq=4
+GoLabel dt=3 label_string=2
+GoBlock dt=5026 reason_string=15 stack=7
+GoStart dt=11 g=93 g_seq=1
+HeapAlloc dt=107 heapalloc_value=202272344
+GoStop dt=47997 reason_string=16 stack=3
+GoStart dt=39 g=55 g_seq=3
+HeapAlloc dt=49 heapalloc_value=204623192
+GoStop dt=4878 reason_string=16 stack=3
+GoStart dt=13 g=55 g_seq=4
+HeapAlloc dt=26 heapalloc_value=205012056
+HeapAlloc dt=60 heapalloc_value=205069400
+GoStop dt=4849 reason_string=16 stack=3
+GoStart dt=7 g=55 g_seq=5
+HeapAlloc dt=18 heapalloc_value=205216856
+GoStop dt=4785 reason_string=16 stack=3
+GoStart dt=7 g=55 g_seq=6
+HeapAlloc dt=24 heapalloc_value=205331544
+HeapAlloc dt=73 heapalloc_value=205438040
+GoStop dt=58361 reason_string=16 stack=3
+GoStart dt=11 g=82 g_seq=4
+HeapAlloc dt=50 heapalloc_value=209566808
+GoStop dt=33213 reason_string=16 stack=3
+ProcStop dt=141
+ProcStart dt=1686 p=39 p_seq=2
+ProcStop dt=82
+ProcStart dt=288 p=39 p_seq=3
+GoStart dt=197 g=96 g_seq=6
+HeapAlloc dt=8148 heapalloc_value=214104600
+GoStop dt=3433 reason_string=16 stack=3
+ProcStop dt=10
+EventBatch gen=6 m=298947 time=22352100053318 size=276
+ProcStatus dt=1 p=4 pstatus=1
+GoStatus dt=2 g=64 m=298947 gstatus=2
+GCMarkAssistActive dt=1 g=64
+GCMarkAssistEnd dt=1
+HeapAlloc dt=760 heapalloc_value=189939544
+GoStop dt=27 reason_string=16 stack=6
+GoStart dt=15 g=101 g_seq=1
+GCMarkAssistBegin dt=22 stack=2
+GCMarkAssistEnd dt=3644
+HeapAlloc dt=64 heapalloc_value=192174168
+HeapAlloc dt=169 heapalloc_value=192297048
+HeapAlloc dt=123 heapalloc_value=192460888
+HeapAlloc dt=65 heapalloc_value=192583768
+HeapAlloc dt=42 heapalloc_value=192657496
+HeapAlloc dt=41 heapalloc_value=192706648
+HeapAlloc dt=114 heapalloc_value=192780376
+GCMarkAssistBegin dt=24 stack=2
+GCMarkAssistEnd dt=1806
+HeapAlloc dt=99 heapalloc_value=194730072
+HeapAlloc dt=86 heapalloc_value=194877528
+HeapAlloc dt=99 heapalloc_value=194974040
+GCMarkAssistBegin dt=32 stack=2
+GCMarkAssistEnd dt=2927
+HeapAlloc dt=29 heapalloc_value=197554520
+HeapAlloc dt=11123 heapalloc_value=200003928
+GoStop dt=9182 reason_string=16 stack=3
+GoUnblock dt=25 g=41 g_seq=1 stack=0
+GoStart dt=6 g=41 g_seq=2
+GoLabel dt=1 label_string=2
+GoBlock dt=4592 reason_string=15 stack=7
+GoStart dt=1288 g=105 g_seq=2
+GoStatus dt=32 g=100 m=18446744073709551615 gstatus=4
+GoUnblock dt=71 g=100 g_seq=1 stack=5
+HeapAlloc dt=63 heapalloc_value=202436184
+GoStop dt=12498 reason_string=16 stack=3
+GoUnblock dt=16 g=44 g_seq=3 stack=0
+GoStart dt=7 g=44 g_seq=4
+GoLabel dt=1 label_string=2
+GoBlock dt=458 reason_string=15 stack=7
+GoUnblock dt=17 g=44 g_seq=5 stack=0
+GoStart dt=1 g=44 g_seq=6
+GoLabel dt=3 label_string=2
+GoStop dt=7641 reason_string=16 stack=10
+GoStart dt=9 g=44 g_seq=7
+GoBlock dt=18 reason_string=10 stack=13
+GoStart dt=1380 g=57 g_seq=2
+HeapAlloc dt=59534 heapalloc_value=206494808
+GoStop dt=55054 reason_string=16 stack=3
+GoStart dt=193 g=57 g_seq=3
+HeapAlloc dt=51 heapalloc_value=211082136
+GoStop dt=18763 reason_string=16 stack=3
+GoStart dt=78 g=57 g_seq=4
+HeapAlloc dt=2983 heapalloc_value=213539352
+GoStop dt=5422 reason_string=16 stack=6
+ProcStop dt=11
+EventBatch gen=6 m=298946 time=22352100052360 size=246
+ProcStatus dt=2 p=27 pstatus=1
+GoStatus dt=2 g=104 m=298946 gstatus=2
+HeapAlloc dt=2 heapalloc_value=188686552
+HeapAlloc dt=78 heapalloc_value=188801240
+GCMarkAssistBegin dt=103 stack=2
+GCMarkAssistEnd dt=5192
+HeapAlloc dt=288 heapalloc_value=192329816
+HeapAlloc dt=175 heapalloc_value=192575576
+GCMarkAssistBegin dt=137 stack=2
+GCMarkAssistEnd dt=6429
+HeapAlloc dt=229 heapalloc_value=199323992
+HeapAlloc dt=106 heapalloc_value=199463256
+HeapAlloc dt=93 heapalloc_value=199577944
+HeapAlloc dt=11111 heapalloc_value=200675672
+GoStop dt=13375 reason_string=16 stack=6
+GoUnblock dt=105 g=13 g_seq=9 stack=0
+GoStart dt=6 g=13 g_seq=10
+GoLabel dt=1 label_string=2
+GoBlock dt=1498 reason_string=15 stack=7
+GoStart dt=15 g=113 g_seq=2
+HeapAlloc dt=57 heapalloc_value=202944088
+HeapAlloc dt=5655 heapalloc_value=203361880
+GoStop dt=54795 reason_string=16 stack=3
+GoStart dt=22 g=113 g_seq=3
+HeapAlloc dt=36 heapalloc_value=205388888
+GoStop dt=4787 reason_string=16 stack=3
+GoStart dt=12 g=53 g_seq=3
+HeapAlloc dt=4732 heapalloc_value=205765720
+GoStop dt=8 reason_string=16 stack=3
+GoStart dt=11 g=106 g_seq=3
+HeapAlloc dt=41 heapalloc_value=205855832
+HeapAlloc dt=56 heapalloc_value=205986904
+GoStop dt=4700 reason_string=16 stack=3
+GoStart dt=11 g=60 g_seq=2
+GoStop dt=2703 reason_string=16 stack=3
+GoStart dt=5 g=106 g_seq=4
+HeapAlloc dt=47 heapalloc_value=206134360
+HeapAlloc dt=27 heapalloc_value=206150744
+HeapAlloc dt=42 heapalloc_value=206167128
+HeapAlloc dt=17 heapalloc_value=206232664
+GoStop dt=56497 reason_string=16 stack=3
+GoStart dt=34 g=98 g_seq=5
+HeapAlloc dt=59 heapalloc_value=210304088
+HeapAlloc dt=20 heapalloc_value=210369624
+HeapAlloc dt=39 heapalloc_value=210402200
+GCMarkAssistBegin dt=17 stack=2
+GoBlock dt=75 reason_string=10 stack=19
+ProcStop dt=61
+EventBatch gen=6 m=298945 time=22352100067410 size=164
+ProcStatus dt=2 p=42 pstatus=2
+ProcStart dt=1 p=42 p_seq=1
+GoStart dt=1294 g=97 g_seq=2
+GoStatus dt=22 g=102 m=18446744073709551615 gstatus=4
+GoUnblock dt=7 g=102 g_seq=1 stack=5
+HeapAlloc dt=11776 heapalloc_value=201249112
+GoStop dt=12 reason_string=16 stack=3
+GoUnblock dt=12808 g=12 g_seq=9 stack=0
+GoStart dt=8 g=12 g_seq=10
+GoLabel dt=1 label_string=2
+GoBlock dt=6859 reason_string=15 stack=7
+GoUnblock dt=11 g=12 g_seq=11 stack=0
+GoStart dt=4 g=12 g_seq=12
+GoLabel dt=1 label_string=2
+GoBlock dt=5880 reason_string=15 stack=7
+GoUnblock dt=11 g=12 g_seq=13 stack=0
+GoStart dt=5 g=12 g_seq=14
+GoLabel dt=1 label_string=2
+GoBlock dt=403 reason_string=15 stack=7
+GoUnblock dt=5 g=12 g_seq=15 stack=0
+GoStart dt=4 g=12 g_seq=16
+GoLabel dt=1 label_string=2
+GoBlock dt=2539 reason_string=15 stack=7
+GoStart dt=10 g=88 g_seq=2
+HeapAlloc dt=47 heapalloc_value=203845208
+HeapAlloc dt=39 heapalloc_value=203910744
+GoStop dt=116409 reason_string=16 stack=3
+GoStart dt=43 g=106 g_seq=5
+GCMarkAssistBegin dt=14 stack=2
+GoBlock dt=41 reason_string=10 stack=19
+GoStart dt=8 g=88 g_seq=3
+GCMarkAssistBegin dt=6 stack=2
+HeapAlloc dt=36 heapalloc_value=210377624
+GoBlock dt=23 reason_string=10 stack=19
+ProcStop dt=53
+EventBatch gen=6 m=298944 time=22352100059296 size=185
+ProcStatus dt=1 p=29 pstatus=1
+GoStatus dt=1 g=93 m=298944 gstatus=2
+GCMarkAssistActive dt=1 g=93
+GCMarkAssistEnd dt=2
+HeapAlloc dt=44 heapalloc_value=193656920
+HeapAlloc dt=122 heapalloc_value=193845336
+HeapAlloc dt=189 heapalloc_value=194033752
+HeapAlloc dt=82 heapalloc_value=194050136
+GCMarkAssistBegin dt=44 stack=2
+GCMarkAssistEnd dt=2530
+HeapAlloc dt=52 heapalloc_value=196759896
+HeapAlloc dt=641 heapalloc_value=197095768
+HeapAlloc dt=147 heapalloc_value=197235032
+HeapAlloc dt=33 heapalloc_value=197349720
+HeapAlloc dt=11079 heapalloc_value=199864664
+GoStop dt=1809 reason_string=16 stack=6
+GoUnblock dt=12877 g=41 g_seq=5 stack=0
+GoStart dt=12 g=41 g_seq=6
+GoLabel dt=2 label_string=2
+GoBlock dt=262 reason_string=15 stack=7
+GoStart dt=9 g=11 g_seq=3
+GoBlock dt=20 reason_string=10 stack=13
+GoStart dt=14195 g=82 g_seq=2
+HeapAlloc dt=91 heapalloc_value=203419224
+GoStop dt=48301 reason_string=16 stack=3
+GoStart dt=39 g=82 g_seq=3
+HeapAlloc dt=26 heapalloc_value=205446232
+HeapAlloc dt=35 heapalloc_value=205487192
+GoStop dt=58315 reason_string=16 stack=3
+GoStart dt=22 g=108 g_seq=6
+HeapAlloc dt=83 heapalloc_value=209624152
+GoStop dt=33380 reason_string=16 stack=3
+GoStart dt=44 g=108 g_seq=7
+HeapAlloc dt=4101 heapalloc_value=213277208
+GoStop dt=1593 reason_string=16 stack=3
+ProcStop dt=3483
+EventBatch gen=6 m=298943 time=22352100071944 size=232
+ProcStatus dt=1 p=16 pstatus=1
+GoStatus dt=4 g=47 m=298943 gstatus=2
+GoBlock dt=9 reason_string=15 stack=7
+GoUnblock dt=13 g=47 g_seq=1 stack=0
+GoStart dt=6 g=47 g_seq=2
+GoLabel dt=1 label_string=2
+GoBlock dt=2713 reason_string=15 stack=7
+GoUnblock dt=7579 g=13 g_seq=3 stack=0
+GoStart dt=6 g=13 g_seq=4
+GoLabel dt=1 label_string=2
+GoBlock dt=644 reason_string=15 stack=7
+GoStart dt=1315 g=63 g_seq=2
+GoStop dt=50 reason_string=16 stack=12
+GoUnblock dt=18 g=47 g_seq=3 stack=0
+GoStart dt=6 g=47 g_seq=4
+GoLabel dt=1 label_string=2
+GoBlock dt=2816 reason_string=15 stack=7
+GoStatus dt=19 g=15 m=18446744073709551615 gstatus=4
+GoUnblock dt=2 g=15 g_seq=1 stack=0
+GoStart dt=22 g=15 g_seq=2
+GoLabel dt=1 label_string=2
+GoBlock dt=2881 reason_string=15 stack=7
+GoStart dt=13 g=109 g_seq=3
+HeapAlloc dt=70 heapalloc_value=202452568
+HeapAlloc dt=40260 heapalloc_value=204148312
+GoStop dt=23 reason_string=16 stack=3
+GoUnblock dt=14 g=40 g_seq=23 stack=0
+GoStart dt=8 g=40 g_seq=24
+GoLabel dt=1 label_string=2
+GoBlock dt=2697 reason_string=15 stack=7
+GoStart dt=12 g=54 g_seq=2
+HeapAlloc dt=55473 heapalloc_value=207690840
+GoStop dt=20 reason_string=16 stack=3
+GoStart dt=43 g=110 g_seq=5
+HeapAlloc dt=608 heapalloc_value=207846488
+GoStop dt=45542 reason_string=16 stack=6
+GoStart dt=19 g=116 g_seq=6
+GCMarkAssistBegin dt=16 stack=2
+GoBlock dt=30 reason_string=10 stack=19
+GoStart dt=5 g=110 g_seq=6
+GoStop dt=2708 reason_string=16 stack=3
+GoStart dt=9 g=110 g_seq=7
+HeapAlloc dt=27 heapalloc_value=211737304
+GoStop dt=8503 reason_string=16 stack=3
+GoStart dt=24 g=110 g_seq=8
+HeapAlloc dt=3299 heapalloc_value=213817880
+GoStop dt=7494 reason_string=16 stack=3
+ProcStop dt=10
+EventBatch gen=6 m=298941 time=22352100063047 size=263
+ProcStatus dt=2 p=40 pstatus=2
+ProcStart dt=2 p=40 p_seq=1
+GoStart dt=1596 g=92 g_seq=2
+GoStatus dt=38 g=58 m=18446744073709551615 gstatus=4
+GoUnblock dt=9 g=58 g_seq=1 stack=5
+HeapAlloc dt=55 heapalloc_value=199127384
+HeapAlloc dt=73 heapalloc_value=199184728
+HeapAlloc dt=97 heapalloc_value=199266648
+HeapAlloc dt=149 heapalloc_value=199430488
+GoStop dt=8973 reason_string=16 stack=3
+GoStart dt=15 g=92 g_seq=3
+HeapAlloc dt=3312 heapalloc_value=201109848
+GoStop dt=16150 reason_string=16 stack=3
+GoUnblock dt=120 g=47 g_seq=9 stack=0
+GoStart dt=6 g=47 g_seq=10
+GoLabel dt=1 label_string=2
+GoBlock dt=8966 reason_string=15 stack=7
+GoUnblock dt=15 g=47 g_seq=11 stack=0
+GoStart dt=6 g=47 g_seq=12
+GoLabel dt=1 label_string=2
+GoBlock dt=18 reason_string=15 stack=7
+GoUnblock dt=3 g=47 g_seq=13 stack=0
+GoStart dt=2 g=47 g_seq=14
+GoLabel dt=1 label_string=2
+GoBlock dt=142 reason_string=15 stack=7
+GoUnblock dt=8 g=47 g_seq=15 stack=0
+GoStart dt=3 g=47 g_seq=16
+GoLabel dt=1 label_string=2
+GoBlock dt=284 reason_string=15 stack=7
+GoUnblock dt=10 g=65 g_seq=19 stack=0
+GoStart dt=2 g=65 g_seq=20
+GoLabel dt=1 label_string=2
+GoBlock dt=40 reason_string=15 stack=7
+GoUnblock dt=9 g=65 g_seq=21 stack=0
+GoStart dt=1 g=65 g_seq=22
+GoLabel dt=1 label_string=2
+GoBlock dt=3003 reason_string=15 stack=7
+GoUnblock dt=9 g=65 g_seq=23 stack=0
+GoStart dt=10 g=65 g_seq=24
+GoLabel dt=1 label_string=2
+GoBlock dt=1552 reason_string=15 stack=7
+GoStart dt=9 g=98 g_seq=2
+HeapAlloc dt=33 heapalloc_value=203722328
+GoStop dt=53654 reason_string=16 stack=3
+GoStart dt=24 g=53 g_seq=4
+HeapAlloc dt=40 heapalloc_value=205904984
+GoStop dt=58773 reason_string=16 stack=3
+GoStart dt=15 g=53 g_seq=5
+HeapAlloc dt=55 heapalloc_value=209951832
+HeapAlloc dt=73 heapalloc_value=210189400
+GCMarkAssistBegin dt=36 stack=2
+GoBlock dt=62 reason_string=10 stack=19
+GoStart dt=107 g=105 g_seq=4
+GCMarkAssistBegin dt=11 stack=2
+GoBlock dt=30 reason_string=10 stack=19
+ProcStop dt=42
+EventBatch gen=6 m=298940 time=22352100055781 size=192
+ProcStatus dt=1 p=36 pstatus=2
+ProcStart dt=2 p=36 p_seq=1
+GoStart dt=208 g=64 g_seq=1
+HeapAlloc dt=158 heapalloc_value=191151192
+HeapAlloc dt=54 heapalloc_value=191257688
+HeapAlloc dt=87 heapalloc_value=191331032
+HeapAlloc dt=125 heapalloc_value=191363800
+HeapAlloc dt=44 heapalloc_value=191380184
+HeapAlloc dt=64 heapalloc_value=191428696
+GCMarkAssistBegin dt=47 stack=2
+GCMarkAssistEnd dt=3374
+HeapAlloc dt=145 heapalloc_value=194312280
+HeapAlloc dt=175 heapalloc_value=194599000
+HeapAlloc dt=112 heapalloc_value=194844760
+GCMarkAssistBegin dt=153 stack=2
+GCMarkAssistEnd dt=8435
+HeapAlloc dt=6737 heapalloc_value=200225112
+GoStop dt=11419 reason_string=16 stack=3
+GoUnblock dt=20 g=47 g_seq=5 stack=0
+GoStart dt=9 g=47 g_seq=6
+GoLabel dt=1 label_string=2
+GoBlock dt=304 reason_string=15 stack=7
+GoStart dt=24 g=108 g_seq=2
+HeapAlloc dt=78 heapalloc_value=202116696
+GoStop dt=49507 reason_string=16 stack=3
+GoStart dt=120 g=93 g_seq=2
+HeapAlloc dt=57752 heapalloc_value=208215128
+GoStop dt=10 reason_string=16 stack=3
+GoStart dt=12 g=109 g_seq=7
+HeapAlloc dt=47161 heapalloc_value=212384280
+GoStop dt=14 reason_string=16 stack=3
+GoStart dt=63 g=104 g_seq=4
+HeapAlloc dt=146 heapalloc_value=212564504
+HeapAlloc dt=182 heapalloc_value=212720152
+HeapAlloc dt=5919 heapalloc_value=213441048
+GoStop dt=5645 reason_string=16 stack=3
+ProcStop dt=13
+EventBatch gen=6 m=298939 time=22352100070982 size=194
+ProcStatus dt=1 p=0 pstatus=1
+GoStatus dt=1 g=48 m=298939 gstatus=2
+GoBlock dt=8 reason_string=15 stack=7
+GoUnblock dt=17 g=48 g_seq=1 stack=0
+GoStart dt=7 g=48 g_seq=2
+GoLabel dt=1 label_string=2
+GoBlock dt=3708 reason_string=15 stack=7
+GoStart dt=11051 g=55 g_seq=1
+HeapAlloc dt=79 heapalloc_value=201535832
+GoStop dt=39046 reason_string=16 stack=3
+GoUnblock dt=13 g=15 g_seq=19 stack=0
+GoStart dt=6 g=15 g_seq=20
+GoLabel dt=1 label_string=2
+GoBlock dt=812 reason_string=15 stack=7
+GoUnblock dt=10 g=15 g_seq=21 stack=0
+GoStart dt=2 g=15 g_seq=22
+GoLabel dt=1 label_string=2
+GoBlock dt=3928 reason_string=15 stack=7
+GoUnblock dt=8 g=15 g_seq=23 stack=0
+GoStart dt=4 g=15 g_seq=24
+GoLabel dt=1 label_string=2
+GoBlock dt=211 reason_string=15 stack=7
+GoStart dt=5 g=62 g_seq=2
+HeapAlloc dt=58114 heapalloc_value=207207512
+GoStop dt=40 reason_string=16 stack=3
+GoStart dt=28 g=58 g_seq=5
+HeapAlloc dt=32 heapalloc_value=207436888
+HeapAlloc dt=1332 heapalloc_value=207961176
+GoStop dt=45629 reason_string=16 stack=3
+GoStart dt=26 g=58 g_seq=6
+HeapAlloc dt=32 heapalloc_value=211630808
+HeapAlloc dt=28 heapalloc_value=211671768
+GoStop dt=3420 reason_string=16 stack=3
+GoStart dt=146 g=94 g_seq=6
+HeapAlloc dt=7711 heapalloc_value=213170712
+GoStop dt=9 reason_string=16 stack=3
+GoStart dt=9 g=94 g_seq=7
+HeapAlloc dt=7566 heapalloc_value=214022680
+GoStop dt=3662 reason_string=16 stack=3
+ProcStop dt=10
+EventBatch gen=6 m=298938 time=22352100069981 size=136
+ProcStatus dt=1 p=7 pstatus=1
+GoStatus dt=2 g=13 m=298938 gstatus=2
+GoBlock dt=12 reason_string=15 stack=7
+GoStart dt=1329 g=91 g_seq=2
+GoStatus dt=21 g=81 m=18446744073709551615 gstatus=4
+GoUnblock dt=5 g=81 g_seq=1 stack=5
+HeapAlloc dt=9016 heapalloc_value=201167192
+GoStop dt=12 reason_string=16 stack=3
+GoStart dt=14556 g=86 g_seq=2
+GoStatus dt=28 g=82 m=18446744073709551615 gstatus=4
+GoUnblock dt=11 g=82 g_seq=1 stack=5
+HeapAlloc dt=88 heapalloc_value=203255384
+GoStop dt=51998 reason_string=16 stack=3
+GoStart dt=53 g=86 g_seq=3
+HeapAlloc dt=57 heapalloc_value=205323352
+GoStop dt=58203 reason_string=16 stack=3
+GoStart dt=19 g=89 g_seq=4
+HeapAlloc dt=37936 heapalloc_value=212933144
+GoStop dt=17 reason_string=16 stack=3
+GoStart dt=25 g=89 g_seq=5
+HeapAlloc dt=5828 heapalloc_value=213670424
+GoStop dt=7076 reason_string=16 stack=3
+ProcStop dt=15
+EventBatch gen=6 m=298937 time=22352100085521 size=142
+ProcStart dt=2 p=47 p_seq=1
+GoStart dt=22 g=54 g_seq=1
+HeapAlloc dt=68 heapalloc_value=201494872
+GoStop dt=44827 reason_string=16 stack=3
+GoStart dt=45 g=96 g_seq=3
+HeapAlloc dt=169 heapalloc_value=204254808
+GoStop dt=57598 reason_string=16 stack=3
+GoStart dt=27 g=84 g_seq=3
+HeapAlloc dt=50340 heapalloc_value=211819224
+GoStop dt=12 reason_string=16 stack=3
+GoStart dt=18 g=58 g_seq=7
+HeapAlloc dt=34 heapalloc_value=211892952
+HeapAlloc dt=42 heapalloc_value=211966680
+HeapAlloc dt=3017 heapalloc_value=212130328
+HeapAlloc dt=58 heapalloc_value=212187672
+HeapAlloc dt=20 heapalloc_value=212245016
+HeapAlloc dt=76 heapalloc_value=212302360
+GoStop dt=7 reason_string=16 stack=3
+GoStart dt=310 g=83 g_seq=6
+HeapAlloc dt=220 heapalloc_value=212589080
+HeapAlloc dt=37 heapalloc_value=212605464
+HeapAlloc dt=36 heapalloc_value=212662808
+HeapAlloc dt=52 heapalloc_value=212810264
+HeapAlloc dt=7271 heapalloc_value=213924376
+GoStop dt=14 reason_string=16 stack=3
+ProcStop dt=4501
+EventBatch gen=6 m=298936 time=22352100074733 size=130
+ProcStatus dt=1 p=9 pstatus=1
+GoStatus dt=1 g=25 m=298936 gstatus=2
+GoBlock dt=5 reason_string=15 stack=7
+GoUnblock dt=8533 g=13 g_seq=5 stack=0
+GoStart dt=8 g=13 g_seq=6
+GoLabel dt=1 label_string=2
+GoBlock dt=3821 reason_string=15 stack=7
+GoStart dt=18 g=83 g_seq=3
+HeapAlloc dt=80 heapalloc_value=201724248
+GoStop dt=43910 reason_string=16 stack=3
+GoUnblock dt=17 g=12 g_seq=17 stack=0
+GoStart dt=9 g=12 g_seq=18
+GoLabel dt=1 label_string=2
+GoBlock dt=2743 reason_string=15 stack=7
+GoStart dt=13 g=110 g_seq=4
+HeapAlloc dt=47 heapalloc_value=204394072
+GoStop dt=54670 reason_string=16 stack=3
+GoStart dt=18 g=59 g_seq=4
+HeapAlloc dt=739 heapalloc_value=207895640
+GoStop dt=45539 reason_string=16 stack=3
+GoStart dt=22 g=59 g_seq=5
+HeapAlloc dt=56 heapalloc_value=211499928
+HeapAlloc dt=46 heapalloc_value=211565464
+GCMarkAssistBegin dt=20 stack=2
+HeapAlloc dt=45 heapalloc_value=211573464
+GoBlock dt=23 reason_string=10 stack=19
+ProcStop dt=76
+EventBatch gen=6 m=298935 time=22352100072681 size=123
+ProcStatus dt=1 p=20 pstatus=1
+GoStatus dt=1 g=11 m=298935 gstatus=2
+GoBlock dt=9 reason_string=15 stack=7
+GoUnblock dt=13 g=11 g_seq=1 stack=0
+GoStart dt=5 g=11 g_seq=2
+GoLabel dt=1 label_string=2
+GoStop dt=5841 reason_string=16 stack=10
+GoUnblock dt=10852 g=41 g_seq=7 stack=0
+GoStart dt=5 g=41 g_seq=8
+GoLabel dt=1 label_string=2
+GoBlock dt=1138 reason_string=15 stack=7
+GoStart dt=16 g=104 g_seq=1
+HeapAlloc dt=141 heapalloc_value=202714712
+GoStop dt=46559 reason_string=16 stack=3
+GoUnblock dt=34 g=131 g_seq=7 stack=0
+GoStart dt=7 g=131 g_seq=8
+GoSyscallBegin dt=28 stack=4
+GoSyscallEnd dt=196
+GoBlock dt=15 reason_string=15 stack=8
+GoStart dt=15 g=108 g_seq=3
+HeapAlloc dt=30 heapalloc_value=204872792
+GoStop dt=62326 reason_string=16 stack=3
+GoStart dt=21 g=99 g_seq=5
+HeapAlloc dt=2336 heapalloc_value=209214552
+GoStop dt=40137 reason_string=16 stack=3
+ProcStop dt=113
+EventBatch gen=6 m=298934 time=22352100061326 size=259
+ProcStatus dt=1 p=28 pstatus=1
+GoStatus dt=6 g=103 m=298934 gstatus=2
+GCMarkAssistActive dt=1 g=103
+GCMarkAssistEnd dt=3
+HeapAlloc dt=134 heapalloc_value=195907928
+HeapAlloc dt=105 heapalloc_value=195965272
+HeapAlloc dt=77 heapalloc_value=196006232
+HeapAlloc dt=77 heapalloc_value=196079960
+HeapAlloc dt=97 heapalloc_value=196178264
+HeapAlloc dt=70 heapalloc_value=196260184
+HeapAlloc dt=122 heapalloc_value=196350296
+HeapAlloc dt=197 heapalloc_value=196596056
+HeapAlloc dt=879 heapalloc_value=197161304
+HeapAlloc dt=193 heapalloc_value=197407064
+HeapAlloc dt=13277 heapalloc_value=200847704
+GoStop dt=17620 reason_string=16 stack=3
+GoUnblock dt=13 g=40 g_seq=7 stack=0
+GoStart dt=6 g=40 g_seq=8
+GoLabel dt=1 label_string=2
+GoBlock dt=8277 reason_string=15 stack=7
+GoUnblock dt=12 g=40 g_seq=9 stack=0
+GoStart dt=5 g=40 g_seq=10
+GoLabel dt=1 label_string=2
+GoBlock dt=23 reason_string=15 stack=7
+GoUnblock dt=13 g=40 g_seq=11 stack=0
+GoStart dt=3 g=40 g_seq=12
+GoLabel dt=1 label_string=2
+GoBlock dt=19 reason_string=15 stack=7
+GoUnblock dt=9 g=40 g_seq=13 stack=0
+GoStart dt=1 g=40 g_seq=14
+GoLabel dt=1 label_string=2
+GoBlock dt=223 reason_string=15 stack=7
+GoUnblock dt=6 g=40 g_seq=15 stack=0
+GoStart dt=1 g=40 g_seq=16
+GoLabel dt=1 label_string=2
+GoBlock dt=153 reason_string=15 stack=7
+GoUnblock dt=9 g=40 g_seq=17 stack=0
+GoStart dt=2 g=40 g_seq=18
+GoLabel dt=1 label_string=2
+GoBlock dt=3978 reason_string=15 stack=7
+GoUnblock dt=8 g=40 g_seq=19 stack=0
+GoStart dt=10 g=40 g_seq=20
+GoLabel dt=1 label_string=2
+GoBlock dt=1477 reason_string=15 stack=7
+GoUnblock dt=7 g=40 g_seq=21 stack=0
+GoStart dt=6 g=40 g_seq=22
+GoLabel dt=1 label_string=2
+GoBlock dt=682 reason_string=15 stack=7
+GoStart dt=8 g=105 g_seq=3
+HeapAlloc dt=30 heapalloc_value=203918936
+HeapAlloc dt=86 heapalloc_value=203976280
+GoStop dt=111329 reason_string=16 stack=3
+ProcStop dt=144
+ProcStart dt=5242 p=28 p_seq=1
+ProcStop dt=58
+EventBatch gen=6 m=298933 time=22352100053200 size=226
+ProcStatus dt=1 p=17 pstatus=1
+GoStatus dt=1 g=107 m=298933 gstatus=2
+GCMarkAssistActive dt=1 g=107
+GCMarkAssistEnd dt=2
+HeapAlloc dt=42 heapalloc_value=189120728
+HeapAlloc dt=264 heapalloc_value=189227224
+HeapAlloc dt=84 heapalloc_value=189325528
+HeapAlloc dt=94 heapalloc_value=189481176
+HeapAlloc dt=74 heapalloc_value=189628248
+HeapAlloc dt=109 heapalloc_value=189833048
+GCMarkAssistBegin dt=90 stack=2
+GCMarkAssistEnd dt=5207
+HeapAlloc dt=36 heapalloc_value=193501272
+HeapAlloc dt=169 heapalloc_value=193730648
+GCMarkAssistBegin dt=51 stack=2
+GCMarkAssistEnd dt=6796
+HeapAlloc dt=8003 heapalloc_value=199807320
+GoStop dt=5332 reason_string=16 stack=3
+GoUnblock dt=11228 g=12 g_seq=7 stack=0
+GoStart dt=5 g=12 g_seq=8
+GoLabel dt=2 label_string=2
+GoBlock dt=1271 reason_string=15 stack=7
+GoStart dt=17 g=114 g_seq=3
+HeapAlloc dt=43665 heapalloc_value=204459416
+GoStop dt=15 reason_string=16 stack=3
+GoStart dt=15 g=114 g_seq=4
+HeapAlloc dt=54071 heapalloc_value=208165976
+GoStop dt=14 reason_string=16 stack=3
+GoStart dt=30 g=94 g_seq=5
+HeapAlloc dt=48764 heapalloc_value=211851992
+GoStop dt=11 reason_string=16 stack=3
+GoStart dt=22 g=84 g_seq=4
+GCMarkAssistBegin dt=14 stack=2
+HeapAlloc dt=41 heapalloc_value=211974680
+GoBlock dt=18 reason_string=10 stack=19
+ProcStop dt=58
+ProcStart dt=1875 p=17 p_seq=1
+ProcStop dt=52
+ProcStart dt=1583 p=17 p_seq=2
+ProcStop dt=80
+ProcStart dt=136 p=37 p_seq=2
+ProcStop dt=46
+ProcStart dt=1570 p=37 p_seq=3
+ProcStop dt=79
+ProcStart dt=571 p=37 p_seq=4
+GoStart dt=211 g=113 g_seq=6
+HeapAlloc dt=9100 heapalloc_value=214186520
+GoStop dt=24 reason_string=16 stack=3
+ProcStop dt=12
+EventBatch gen=6 m=298932 time=22352100053080 size=255
+ProcStatus dt=2 p=21 pstatus=1
+GoStatus dt=1 g=98 m=298932 gstatus=2
+GCMarkAssistActive dt=1 g=98
+GCMarkAssistEnd dt=2
+HeapAlloc dt=33 heapalloc_value=188973272
+GoStop dt=30 reason_string=16 stack=6
+GoStart dt=20 g=112 g_seq=1
+HeapAlloc dt=64 heapalloc_value=189063384
+HeapAlloc dt=421 heapalloc_value=189382872
+HeapAlloc dt=68 heapalloc_value=189530328
+HeapAlloc dt=114 heapalloc_value=189767512
+GCMarkAssistBegin dt=89 stack=2
+GCMarkAssistEnd dt=4433
+HeapAlloc dt=40 heapalloc_value=192772184
+HeapAlloc dt=119 heapalloc_value=192936024
+GCMarkAssistBegin dt=98 stack=2
+GCMarkAssistEnd dt=2290
+HeapAlloc dt=56 heapalloc_value=195432792
+HeapAlloc dt=167 heapalloc_value=195629400
+GCMarkAssistBegin dt=126 stack=2
+GCMarkAssistEnd dt=3342
+HeapAlloc dt=27 heapalloc_value=199004504
+HeapAlloc dt=25041 heapalloc_value=202370648
+GoStop dt=23 reason_string=16 stack=3
+GoUnblock dt=121 g=47 g_seq=7 stack=0
+GoStart dt=7 g=47 g_seq=8
+GoLabel dt=1 label_string=2
+GoBlock dt=1306 reason_string=15 stack=7
+GoStart dt=14 g=88 g_seq=1
+HeapAlloc dt=60 heapalloc_value=202763864
+HeapAlloc dt=988 heapalloc_value=202993240
+GoStop dt=10203 reason_string=16 stack=3
+GoUnblock dt=12 g=25 g_seq=3 stack=0
+GoStart dt=6 g=25 g_seq=4
+GoLabel dt=3 label_string=2
+GoBlock dt=545 reason_string=15 stack=7
+GoUnblock dt=14 g=25 g_seq=5 stack=0
+GoStart dt=2 g=25 g_seq=6
+GoLabel dt=1 label_string=2
+GoBlock dt=2034 reason_string=15 stack=7
+GoStart dt=17 g=53 g_seq=2
+HeapAlloc dt=31 heapalloc_value=203476568
+GoStop dt=46975 reason_string=16 stack=3
+GoStart dt=25 g=87 g_seq=3
+HeapAlloc dt=127 heapalloc_value=205593688
+GoStop dt=62846 reason_string=16 stack=3
+GoStart dt=15 g=91 g_seq=5
+HeapAlloc dt=51 heapalloc_value=209755224
+GoStop dt=28867 reason_string=16 stack=3
+GoStart dt=36 g=91 g_seq=6
+HeapAlloc dt=5493 heapalloc_value=213899800
+GoStop dt=15 reason_string=16 stack=3
+ProcStop dt=4058
+EventBatch gen=6 m=298931 time=22352100053599 size=231
+ProcStatus dt=1 p=32 pstatus=1
+GoStatus dt=2 g=53 m=298931 gstatus=1
+GoStart dt=3 g=53 g_seq=1
+GoStatus dt=35 g=90 m=18446744073709551615 gstatus=4
+GoUnblock dt=10 g=90 g_seq=1 stack=5
+GCMarkAssistBegin dt=17 stack=2
+GCMarkAssistEnd dt=1232
+HeapAlloc dt=83 heapalloc_value=190422104
+HeapAlloc dt=73 heapalloc_value=190495832
+HeapAlloc dt=128 heapalloc_value=190626904
+HeapAlloc dt=72 heapalloc_value=190741592
+GCMarkAssistBegin dt=110 stack=2
+GCMarkAssistEnd dt=3949
+HeapAlloc dt=91 heapalloc_value=193796184
+HeapAlloc dt=75 heapalloc_value=193894488
+HeapAlloc dt=112 heapalloc_value=193943640
+GCMarkAssistBegin dt=51 stack=2
+GCMarkAssistEnd dt=3467
+HeapAlloc dt=48 heapalloc_value=197300568
+HeapAlloc dt=13944 heapalloc_value=201068888
+GoStop dt=16005 reason_string=16 stack=3
+GoUnblock dt=17 g=48 g_seq=7 stack=0
+GoStart dt=4 g=48 g_seq=8
+GoLabel dt=1 label_string=2
+GoBlock dt=9466 reason_string=15 stack=7
+GoUnblock dt=20 g=48 g_seq=9 stack=0
+GoStart dt=5 g=48 g_seq=10
+GoLabel dt=2 label_string=2
+GoBlock dt=4295 reason_string=15 stack=7
+GoUnblock dt=15 g=48 g_seq=11 stack=0
+GoStart dt=5 g=48 g_seq=12
+GoLabel dt=1 label_string=2
+GoBlock dt=691 reason_string=15 stack=7
+GoStart dt=20 g=60 g_seq=1
+HeapAlloc dt=668 heapalloc_value=203771480
+GoStop dt=53288 reason_string=16 stack=6
+GoStart dt=19 g=103 g_seq=2
+HeapAlloc dt=45 heapalloc_value=206077016
+GoStop dt=58752 reason_string=16 stack=3
+GoStart dt=10 g=103 g_seq=3
+HeapAlloc dt=20 heapalloc_value=210279512
+GoStop dt=24827 reason_string=16 stack=3
+GoStart dt=28 g=103 g_seq=4
+HeapAlloc dt=3043 heapalloc_value=213375512
+GoStop dt=4094 reason_string=16 stack=6
+ProcStop dt=9
+EventBatch gen=6 m=298930 time=22352100070576 size=103
+ProcStatus dt=2 p=44 pstatus=2
+ProcStart dt=2 p=44 p_seq=1
+GoStart dt=1540 g=102 g_seq=2
+GoStatus dt=30 g=116 m=18446744073709551615 gstatus=4
+GoUnblock dt=12 g=116 g_seq=1 stack=5
+HeapAlloc dt=14927 heapalloc_value=201675096
+GoStop dt=57 reason_string=16 stack=3
+GoStart dt=30 g=63 g_seq=3
+GoStatus dt=8 g=59 m=18446744073709551615 gstatus=4
+GoUnblock dt=4 g=59 g_seq=1 stack=5
+HeapAlloc dt=30 heapalloc_value=201732440
+HeapAlloc dt=57 heapalloc_value=201847128
+GoStop dt=89122 reason_string=16 stack=3
+GoStart dt=59 g=85 g_seq=4
+HeapAlloc dt=50174 heapalloc_value=211032984
+GoStop dt=18 reason_string=16 stack=3
+ProcStop dt=157
+EventBatch gen=6 m=298928 time=22352100055167 size=202
+ProcStatus dt=1 p=35 pstatus=2
+ProcStart dt=2 p=35 p_seq=1
+GoStart dt=231 g=108 g_seq=1
+HeapAlloc dt=58 heapalloc_value=190889048
+GCMarkAssistBegin dt=68 stack=2
+GCMarkAssistEnd dt=7788
+HeapAlloc dt=61 heapalloc_value=197464408
+HeapAlloc dt=12050 heapalloc_value=200175960
+GoStop dt=11791 reason_string=16 stack=3
+GoStart dt=19 g=62 g_seq=1
+HeapAlloc dt=32 heapalloc_value=201789784
+HeapAlloc dt=27 heapalloc_value=201863512
+HeapAlloc dt=42 heapalloc_value=201920856
+GoStop dt=37489 reason_string=16 stack=3
+GoUnblock dt=9 g=13 g_seq=15 stack=0
+GoStart dt=5 g=13 g_seq=16
+GoLabel dt=1 label_string=2
+GoBlock dt=6604 reason_string=15 stack=7
+GoUnblock dt=10 g=13 g_seq=17 stack=0
+GoStart dt=5 g=13 g_seq=18
+GoLabel dt=1 label_string=2
+GoBlock dt=1630 reason_string=15 stack=7
+GoUnblock dt=6 g=13 g_seq=19 stack=0
+GoStart dt=6 g=13 g_seq=20
+GoLabel dt=1 label_string=2
+GoBlock dt=56 reason_string=15 stack=7
+GoStart dt=7 g=59 g_seq=3
+HeapAlloc dt=55288 heapalloc_value=207666264
+GoStop dt=16 reason_string=16 stack=3
+GoStart dt=29 g=109 g_seq=5
+HeapAlloc dt=816 heapalloc_value=207854680
+GoStop dt=19 reason_string=16 stack=3
+GoStart dt=7 g=54 g_seq=3
+HeapAlloc dt=66 heapalloc_value=207903832
+HeapAlloc dt=45927 heapalloc_value=211696344
+GoStop dt=14 reason_string=16 stack=3
+GoStart dt=87 g=54 g_seq=4
+HeapAlloc dt=10627 heapalloc_value=213137944
+GoStop dt=10 reason_string=16 stack=3
+GoStart dt=11 g=54 g_seq=5
+GCMarkAssistBegin dt=8 stack=2
+GoBlock dt=32 reason_string=10 stack=19
+ProcStop dt=57
+EventBatch gen=6 m=298942 time=22352100052369 size=445
+ProcStatus dt=1 p=11 pstatus=1
+GoStatus dt=2 g=101 m=298942 gstatus=2
+HeapAlloc dt=3 heapalloc_value=188727512
+GCMarkAssistBegin dt=239 stack=2
+GCMarkAssistEnd dt=1085
+HeapAlloc dt=61 heapalloc_value=189595480
+GoStop dt=47 reason_string=16 stack=3
+GoStart dt=18 g=98 g_seq=1
+HeapAlloc dt=1100 heapalloc_value=190348376
+HeapAlloc dt=176 heapalloc_value=190569560
+GCMarkAssistBegin dt=146 stack=2
+GCMarkAssistEnd dt=3384
+HeapAlloc dt=50 heapalloc_value=193058904
+HeapAlloc dt=125 heapalloc_value=193230936
+HeapAlloc dt=117 heapalloc_value=193288280
+GCMarkAssistBegin dt=83 stack=2
+GCMarkAssistEnd dt=2981
+HeapAlloc dt=59 heapalloc_value=196407640
+HeapAlloc dt=329 heapalloc_value=196858200
+GCMarkAssistBegin dt=65 stack=2
+GCMarkAssistEnd dt=2618
+HeapAlloc dt=79 heapalloc_value=199528792
+HeapAlloc dt=11372 heapalloc_value=200798552
+GoStop dt=17631 reason_string=16 stack=3
+GoUnblock dt=19 g=15 g_seq=3 stack=0
+GoStart dt=7 g=15 g_seq=4
+GoLabel dt=1 label_string=2
+GoBlock dt=8503 reason_string=15 stack=7
+GoUnblock dt=14 g=15 g_seq=5 stack=0
+GoStart dt=9 g=15 g_seq=6
+GoLabel dt=1 label_string=2
+GoBlock dt=337 reason_string=15 stack=7
+GoUnblock dt=9 g=15 g_seq=7 stack=0
+GoStart dt=2 g=15 g_seq=8
+GoLabel dt=1 label_string=2
+GoBlock dt=2961 reason_string=15 stack=7
+GoUnblock dt=10 g=15 g_seq=9 stack=0
+GoStart dt=5 g=15 g_seq=10
+GoLabel dt=1 label_string=2
+GoBlock dt=36 reason_string=15 stack=7
+GoUnblock dt=9 g=15 g_seq=11 stack=0
+GoStart dt=6 g=15 g_seq=12
+GoLabel dt=1 label_string=2
+GoBlock dt=2736 reason_string=15 stack=7
+GoUnblock dt=6 g=15 g_seq=13 stack=0
+GoStart dt=5 g=15 g_seq=14
+GoLabel dt=1 label_string=2
+GoBlock dt=674 reason_string=15 stack=7
+GoUnblock dt=3 g=15 g_seq=15 stack=0
+GoStart dt=2 g=15 g_seq=16
+GoLabel dt=1 label_string=2
+GoBlock dt=72 reason_string=15 stack=7
+GoUnblock dt=5 g=15 g_seq=17 stack=0
+GoStart dt=1 g=15 g_seq=18
+GoLabel dt=1 label_string=2
+GoBlock dt=125 reason_string=15 stack=7
+GoStart dt=8 g=111 g_seq=3
+HeapAlloc dt=61520 heapalloc_value=206273624
+GoStop dt=5050 reason_string=16 stack=3
+GoStart dt=32 g=107 g_seq=3
+HeapAlloc dt=38 heapalloc_value=206543960
+GoStop dt=1497 reason_string=16 stack=3
+GoStart dt=13 g=63 g_seq=4
+HeapAlloc dt=28 heapalloc_value=206748760
+GoStop dt=4984 reason_string=16 stack=3
+GoStart dt=12 g=58 g_seq=4
+HeapAlloc dt=35 heapalloc_value=206912600
+HeapAlloc dt=5020 heapalloc_value=207150168
+GoStop dt=12 reason_string=16 stack=3
+GoStart dt=16 g=94 g_seq=4
+HeapAlloc dt=57 heapalloc_value=207232088
+HeapAlloc dt=16 heapalloc_value=207330392
+HeapAlloc dt=47 heapalloc_value=207387736
+HeapAlloc dt=84 heapalloc_value=207445080
+HeapAlloc dt=70 heapalloc_value=207592536
+HeapAlloc dt=50 heapalloc_value=207633496
+GoStop dt=1541 reason_string=16 stack=3
+GoStart dt=21 g=83 g_seq=5
+HeapAlloc dt=47 heapalloc_value=208174168
+HeapAlloc dt=52209 heapalloc_value=212359704
+GoStop dt=10 reason_string=16 stack=3
+GoStart dt=97 g=109 g_seq=8
+HeapAlloc dt=78 heapalloc_value=212515352
+HeapAlloc dt=253 heapalloc_value=212777496
+GoStop dt=3145 reason_string=16 stack=3
+GoStart dt=20 g=109 g_seq=9
+HeapAlloc dt=8297 heapalloc_value=213957144
+GoStop dt=4182 reason_string=16 stack=3
+ProcStop dt=12
+ProcStart dt=2175 p=0 p_seq=1
+GoStart dt=5243 g=61 g_seq=6
+HeapAlloc dt=29 heapalloc_value=108803560
+EventBatch gen=6 m=18446744073709551615 time=22352100266394 size=533
+GoStatus dt=1 g=1 m=18446744073709551615 gstatus=4
+GoStatus dt=4 g=2 m=18446744073709551615 gstatus=4
+GoStatus dt=4 g=4 m=18446744073709551615 gstatus=4
+GoStatus dt=1 g=5 m=18446744073709551615 gstatus=4
+GoStatus dt=1 g=6 m=18446744073709551615 gstatus=4
+GoStatus dt=2 g=17 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=33 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=18 m=18446744073709551615 gstatus=4
+GoStatus dt=2 g=19 m=18446744073709551615 gstatus=4
+GoStatus dt=1 g=34 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=20 m=18446744073709551615 gstatus=4
+GoStatus dt=1 g=21 m=18446744073709551615 gstatus=4
+GoStatus dt=2 g=7 m=18446744073709551615 gstatus=4
+GoStatus dt=7 g=35 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=8 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=22 m=18446744073709551615 gstatus=4
+GoStatus dt=2 g=36 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=23 m=18446744073709551615 gstatus=4
+GoStatus dt=1 g=9 m=18446744073709551615 gstatus=4
+GoStatus dt=2 g=24 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=37 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=10 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=38 m=18446744073709551615 gstatus=4
+GoStatus dt=7 g=26 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=27 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=14 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=28 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=29 m=18446744073709551615 gstatus=4
+GoStatus dt=2 g=43 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=30 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=45 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=49 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=50 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=31 m=18446744073709551615 gstatus=4
+GoStatus dt=2 g=32 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=51 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=52 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=129 m=18446744073709551615 gstatus=4
+EventBatch gen=6 m=18446744073709551615 time=22352100266614 size=703
+Stacks
+Stack id=22 nframes=1
+	pc=4302372 func=22 file=23 line=1435
+Stack id=6 nframes=2
+	pc=4500744 func=24 file=25 line=103
+	pc=4802747 func=26 file=27 line=60
+Stack id=5 nframes=4
+	pc=4295433 func=28 file=23 line=629
+	pc=4246870 func=29 file=30 line=1240
+	pc=4500744 func=24 file=25 line=103
+	pc=4802747 func=26 file=27 line=60
+Stack id=15 nframes=2
+	pc=4540401 func=31 file=32 line=549
+	pc=4544653 func=33 file=32 line=836
+Stack id=9 nframes=1
+	pc=4544653 func=33 file=32 line=836
+Stack id=3 nframes=2
+	pc=4500744 func=24 file=25 line=103
+	pc=4802747 func=26 file=27 line=60
+Stack id=1 nframes=3
+	pc=4553227 func=34 file=35 line=248
+	pc=4539108 func=31 file=32 line=381
+	pc=4544653 func=33 file=32 line=836
+Stack id=27 nframes=3
+	pc=4300843 func=36 file=23 line=1198
+	pc=4297205 func=37 file=23 line=928
+	pc=4302372 func=22 file=23 line=1435
+Stack id=16 nframes=1
+	pc=4544653 func=33 file=32 line=836
+Stack id=25 nframes=4
+	pc=4612359 func=38 file=39 line=474
+	pc=4297943 func=36 file=23 line=966
+	pc=4297205 func=37 file=23 line=928
+	pc=4302372 func=22 file=23 line=1435
+Stack id=14 nframes=1
+	pc=4544653 func=33 file=32 line=836
+Stack id=11 nframes=2
+	pc=4296712 func=37 file=23 line=825
+	pc=4302372 func=22 file=23 line=1435
+Stack id=4 nframes=7
+	pc=4707386 func=40 file=41 line=949
+	pc=4736391 func=42 file=43 line=209
+	pc=4736383 func=44 file=45 line=736
+	pc=4735936 func=46 file=45 line=380
+	pc=4737808 func=47 file=48 line=46
+	pc=4737800 func=49 file=50 line=183
+	pc=4801434 func=51 file=52 line=134
+Stack id=10 nframes=1
+	pc=0 func=0 file=0 line=0
+Stack id=23 nframes=6
+	pc=4557335 func=53 file=54 line=163
+	pc=4557266 func=55 file=35 line=438
+	pc=4446426 func=56 file=57 line=3694
+	pc=4313849 func=58 file=59 line=714
+	pc=4297142 func=37 file=23 line=911
+	pc=4302372 func=22 file=23 line=1435
+Stack id=8 nframes=1
+	pc=4801444 func=51 file=52 line=130
+Stack id=2 nframes=6
+	pc=4555265 func=60 file=35 line=371
+	pc=4312132 func=61 file=59 line=536
+	pc=4247187 func=62 file=30 line=1285
+	pc=4245160 func=29 file=30 line=1000
+	pc=4500744 func=24 file=25 line=103
+	pc=4802747 func=26 file=27 line=60
+Stack id=21 nframes=6
+	pc=4314084 func=63 file=59 line=749
+	pc=4312420 func=61 file=59 line=589
+	pc=4247187 func=62 file=30 line=1285
+	pc=4245160 func=29 file=30 line=1000
+	pc=4500744 func=24 file=25 line=103
+	pc=4802747 func=26 file=27 line=60
+Stack id=13 nframes=2
+	pc=4296530 func=37 file=23 line=809
+	pc=4302372 func=22 file=23 line=1435
+Stack id=26 nframes=3
+	pc=4298844 func=36 file=23 line=1089
+	pc=4297205 func=37 file=23 line=928
+	pc=4302372 func=22 file=23 line=1435
+Stack id=12 nframes=5
+	pc=4295449 func=64 file=65 line=172
+	pc=4295433 func=28 file=23 line=629
+	pc=4246870 func=29 file=30 line=1240
+	pc=4500744 func=24 file=25 line=103
+	pc=4802747 func=26 file=27 line=60
+Stack id=19 nframes=6
+	pc=4296530 func=37 file=23 line=809
+	pc=4312348 func=61 file=59 line=564
+	pc=4247187 func=62 file=30 line=1285
+	pc=4245160 func=29 file=30 line=1000
+	pc=4500744 func=24 file=25 line=103
+	pc=4802747 func=26 file=27 line=60
+Stack id=7 nframes=2
+	pc=4418189 func=66 file=57 line=402
+	pc=4301764 func=22 file=23 line=1299
+Stack id=24 nframes=2
+	pc=4297143 func=37 file=23 line=916
+	pc=4302372 func=22 file=23 line=1435
+Stack id=20 nframes=2
+	pc=4296840 func=37 file=23 line=853
+	pc=4302372 func=22 file=23 line=1435
+Stack id=18 nframes=2
+	pc=4538917 func=31 file=32 line=353
+	pc=4544653 func=33 file=32 line=836
+Stack id=17 nframes=3
+	pc=4217457 func=67 file=68 line=442
+	pc=4544813 func=69 file=32 line=880
+	pc=4544646 func=33 file=32 line=833
+EventBatch gen=6 m=18446744073709551615 time=22352100052158 size=2344
+Strings
+String id=1
+	data="Not worker"
+String id=2
+	data="GC (dedicated)"
+String id=3
+	data="GC (fractional)"
+String id=4
+	data="GC (idle)"
+String id=5
+	data="unspecified"
+String id=6
+	data="forever"
+String id=7
+	data="network"
+String id=8
+	data="select"
+String id=9
+	data="sync.(*Cond).Wait"
+String id=10
+	data="sync"
+String id=11
+	data="chan send"
+String id=12
+	data="chan receive"
+String id=13
+	data="GC mark assist wait for work"
+String id=14
+	data="GC background sweeper wait"
+String id=15
+	data="system goroutine wait"
+String id=16
+	data="preempted"
+String id=17
+	data="wait for debug call"
+String id=18
+	data="wait until GC ends"
+String id=19
+	data="sleep"
+String id=20
+	data="runtime.GoSched"
+String id=21
+	data="GC mark termination"
+String id=22
+	data="runtime.gcBgMarkWorker"
+String id=23
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/mgc.go"
+String id=24
+	data="runtime.makeslice"
+String id=25
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/slice.go"
+String id=26
+	data="main.main.func1"
+String id=27
+	data="/usr/local/google/home/mknyszek/work/go-1/src/internal/trace/v2/testdata/testprog/gc-stress.go"
+String id=28
+	data="runtime.gcStart"
+String id=29
+	data="runtime.mallocgc"
+String id=30
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/malloc.go"
+String id=31
+	data="runtime.traceAdvance"
+String id=32
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/trace2.go"
+String id=33
+	data="runtime.(*traceAdvancerState).start.func1"
+String id=34
+	data="runtime.traceLocker.Gomaxprocs"
+String id=35
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/trace2runtime.go"
+String id=36
+	data="runtime.gcMarkTermination"
+String id=37
+	data="runtime.gcMarkDone"
+String id=38
+	data="runtime.systemstack_switch"
+String id=39
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/asm_amd64.s"
+String id=40
+	data="syscall.write"
+String id=41
+	data="/usr/local/google/home/mknyszek/work/go-1/src/syscall/zsyscall_linux_amd64.go"
+String id=42
+	data="syscall.Write"
+String id=43
+	data="/usr/local/google/home/mknyszek/work/go-1/src/syscall/syscall_unix.go"
+String id=44
+	data="internal/poll.ignoringEINTRIO"
+String id=45
+	data="/usr/local/google/home/mknyszek/work/go-1/src/internal/poll/fd_unix.go"
+String id=46
+	data="internal/poll.(*FD).Write"
+String id=47
+	data="os.(*File).write"
+String id=48
+	data="/usr/local/google/home/mknyszek/work/go-1/src/os/file_posix.go"
+String id=49
+	data="os.(*File).Write"
+String id=50
+	data="/usr/local/google/home/mknyszek/work/go-1/src/os/file.go"
+String id=51
+	data="runtime/trace.Start.func1"
+String id=52
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/trace/trace.go"
+String id=53
+	data="runtime.traceLocker.stack"
+String id=54
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/trace2event.go"
+String id=55
+	data="runtime.traceLocker.GoUnpark"
+String id=56
+	data="runtime.injectglist"
+String id=57
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/proc.go"
+String id=58
+	data="runtime.gcWakeAllAssists"
+String id=59
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/mgcmark.go"
+String id=60
+	data="runtime.traceLocker.GCMarkAssistStart"
+String id=61
+	data="runtime.gcAssistAlloc"
+String id=62
+	data="runtime.deductAssistCredit"
+String id=63
+	data="runtime.gcParkAssist"
+String id=64
+	data="runtime.semrelease"
+String id=65
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/sema.go"
+String id=66
+	data="runtime.gopark"
+String id=67
+	data="runtime.chanrecv1"
+String id=68
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/chan.go"
+String id=69
+	data="runtime.(*wakeableSleep).sleep"

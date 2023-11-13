@@ -322,8 +322,17 @@ func (w *typeWriter) typ(typ Type) {
 			// error messages. This doesn't need to be super-elegant; we just
 			// need a clear indication that this is not a predeclared name.
 			if w.ctxt == nil && Universe.Lookup(t.obj.name) != nil {
-				w.string(sprintf(nil, false, " /* with %s declared at %s */", t.obj.name, t.obj.Pos()))
+				w.string(fmt.Sprintf(" /* with %s declared at %s */", t.obj.name, t.obj.Pos()))
 			}
+		}
+
+	case *_Alias:
+		w.typeName(t.obj)
+		if w.ctxt != nil {
+			// TODO(gri) do we need to print the alias type name, too?
+			w.typ(_Unalias(t.obj.typ))
+		} else {
+			w.string(fmt.Sprintf(" /* = %s */", _Unalias(t.obj.typ)))
 		}
 
 	default:

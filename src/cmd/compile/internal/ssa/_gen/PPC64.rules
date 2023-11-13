@@ -800,6 +800,7 @@
 (AtomicOr(8|32)   ...) => (LoweredAtomicOr(8|32)   ...)
 
 (Slicemask <t> x) => (SRADconst (NEG <t> x) [63])
+(Select0 (ANDCCconst [1] z:(SRADconst [63] x))) && z.Uses == 1  => (SRDconst [63] x)
 
 // Note that MOV??reg returns a 64-bit int, x is not necessarily that wide
 // This may interact with other patterns in the future. (Compare with arm64)

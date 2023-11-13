@@ -27,7 +27,6 @@ var cnames9 = []string{
 	"U15CON",
 	"S16CON",
 	"U16CON",
-	"32S16CON",
 	"32CON",
 	"S34CON",
 	"64CON",

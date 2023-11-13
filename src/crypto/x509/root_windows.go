@@ -45,7 +45,7 @@ func createStoreContext(leaf *Certificate, opts *VerifyOptions) (*syscall.CertCo
 
 	if opts.Intermediates != nil {
 		for i := 0; i < opts.Intermediates.len(); i++ {
-			intermediate, err := opts.Intermediates.cert(i)
+			intermediate, _, err := opts.Intermediates.cert(i)
 			if err != nil {
 				return nil, err
 			}

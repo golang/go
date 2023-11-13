@@ -249,10 +249,14 @@ loop:
 			// the syntactic information. We should consider storing
 			// this information explicitly in the object.
 			var alias bool
-			if d := check.objMap[obj]; d != nil {
-				alias = d.tdecl.Assign.IsValid() // package-level object
+			if check.conf._EnableAlias {
+				alias = obj.IsAlias()
 			} else {
-				alias = obj.IsAlias() // function local object
+				if d := check.objMap[obj]; d != nil {
+					alias = d.tdecl.Assign.IsValid() // package-level object
+				} else {
+					alias = obj.IsAlias() // function local object
+				}
 			}
 			if !alias {
 				ndef++
@@ -320,7 +324,11 @@ func (check *Checker) cycleError(cycle []Object) {
 	// If obj is a type alias, mark it as valid (not broken) in order to avoid follow-on errors.
 	tname, _ := obj.(*TypeName)
 	if tname != nil && tname.IsAlias() {
-		check.validAlias(tname, Typ[Invalid])
+		// If we use Alias nodes, it is initialized with Typ[Invalid].
+		// TODO(gri) Adjust this code if we initialize with nil.
+		if !check.conf._EnableAlias {
+			check.validAlias(tname, Typ[Invalid])
+		}
 	}
 
 	// report a more concise error for self references
@@ -564,20 +572,32 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName
 		_ = check.isImportedConstraint(rhs) && check.verifyVersionf(tdecl.Type, go1_18, "using type constraint %s", rhs)
 	}).describef(obj, "validType(%s)", obj.Name())
 
-	alias := tdecl.Assign.IsValid()
-	if alias && tdecl.TypeParams.NumFields() != 0 {
+	aliasDecl := tdecl.Assign.IsValid()
+	if aliasDecl && tdecl.TypeParams.NumFields() != 0 {
 		// The parser will ensure this but we may still get an invalid AST.
 		// Complain and continue as regular type definition.
 		check.error(atPos(tdecl.Assign), BadDecl, "generic type cannot be alias")
-		alias = false
+		aliasDecl = false
 	}
 
 	// alias declaration
-	if alias {
+	if aliasDecl {
 		check.verifyVersionf(atPos(tdecl.Assign), go1_9, "type aliases")
-		check.brokenAlias(obj)
-		rhs = check.typ(tdecl.Type)
-		check.validAlias(obj, rhs)
+		if check.conf._EnableAlias {
+			// TODO(gri) Should be able to use nil instead of Typ[Invalid] to mark
+			//           the alias as incomplete. Currently this causes problems
+			//           with certain cycles. Investigate.
+			alias := check.newAlias(obj, Typ[Invalid])
+			setDefType(def, alias)
+			rhs = check.definedType(tdecl.Type, obj)
+			assert(rhs != nil)
+			alias.fromRHS = rhs
+			_Unalias(alias) // resolve alias.actual
+		} else {
+			check.brokenAlias(obj)
+			rhs = check.typ(tdecl.Type)
+			check.validAlias(obj, rhs)
+		}
 		return
 	}
 

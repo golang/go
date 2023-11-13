@@ -214,6 +214,14 @@ func (r *Reader) readLiteralsFourStreams(data block, off, totalStreamsSize, rege
 	if totalStreamsSize < 6 {
 		return nil, r.makeError(off, "total streams size too small for jump table")
 	}
+	// RFC 3.1.1.3.1.6.
+	// "The decompressed size of each stream is equal to (Regenerated_Size+3)/4,
+	// except for the last stream, which may be up to 3 bytes smaller,
+	// to reach a total decompressed size as specified in Regenerated_Size."
+	regeneratedStreamSize := (regeneratedSize + 3) / 4
+	if regeneratedSize < regeneratedStreamSize*3 {
+		return nil, r.makeError(off, "regenerated size too small to decode streams")
+	}
 
 	streamSize1 := binary.LittleEndian.Uint16(data[off:])
 	streamSize2 := binary.LittleEndian.Uint16(data[off+2:])
@@ -261,8 +269,6 @@ func (r *Reader) readLiteralsFourStreams(data block, off, totalStreamsSize, rege
 	if err != nil {
 		return nil, err
 	}
-
-	regeneratedStreamSize := (regeneratedSize + 3) / 4
 
 	out1 := len(outbuf)
 	out2 := out1 + regeneratedStreamSize

@@ -179,17 +179,18 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 	// For 1 we don't need any division/multiplication.
 	// For goarch.PtrSize, compiler will optimize division/multiplication into a shift by a constant.
 	// For powers of 2, use a variable shift.
+	noscan := et.PtrBytes == 0
 	switch {
 	case et.Size_ == 1:
 		lenmem = uintptr(oldLen)
 		newlenmem = uintptr(newLen)
-		capmem = roundupsize(uintptr(newcap))
+		capmem = roundupsize(uintptr(newcap), noscan)
 		overflow = uintptr(newcap) > maxAlloc
 		newcap = int(capmem)
 	case et.Size_ == goarch.PtrSize:
 		lenmem = uintptr(oldLen) * goarch.PtrSize
 		newlenmem = uintptr(newLen) * goarch.PtrSize
-		capmem = roundupsize(uintptr(newcap) * goarch.PtrSize)
+		capmem = roundupsize(uintptr(newcap)*goarch.PtrSize, noscan)
 		overflow = uintptr(newcap) > maxAlloc/goarch.PtrSize
 		newcap = int(capmem / goarch.PtrSize)
 	case isPowerOfTwo(et.Size_):
@@ -202,7 +203,7 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 		}
 		lenmem = uintptr(oldLen) << shift
 		newlenmem = uintptr(newLen) << shift
-		capmem = roundupsize(uintptr(newcap) << shift)
+		capmem = roundupsize(uintptr(newcap)<<shift, noscan)
 		overflow = uintptr(newcap) > (maxAlloc >> shift)
 		newcap = int(capmem >> shift)
 		capmem = uintptr(newcap) << shift
@@ -210,7 +211,7 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 		lenmem = uintptr(oldLen) * et.Size_
 		newlenmem = uintptr(newLen) * et.Size_
 		capmem, overflow = math.MulUintptr(et.Size_, uintptr(newcap))
-		capmem = roundupsize(capmem)
+		capmem = roundupsize(capmem, noscan)
 		newcap = int(capmem / et.Size_)
 		capmem = uintptr(newcap) * et.Size_
 	}

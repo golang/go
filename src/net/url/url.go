@@ -970,7 +970,7 @@ func parseQuery(m Values, query string) (err error) {
 // Encode encodes the values into “URL encoded” form
 // ("bar=baz&foo=quux") sorted by key.
 func (v Values) Encode() string {
-	if v == nil {
+	if len(v) == 0 {
 		return ""
 	}
 	var buf strings.Builder

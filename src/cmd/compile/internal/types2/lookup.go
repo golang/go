@@ -527,7 +527,7 @@ func (check *Checker) newAssertableTo(pos syntax.Pos, V, T Type, cause *string) 
 // with an underlying pointer type!) and returns its base and true.
 // Otherwise it returns (typ, false).
 func deref(typ Type) (Type, bool) {
-	if p, _ := typ.(*Pointer); p != nil {
+	if p, _ := _Unalias(typ).(*Pointer); p != nil {
 		// p.base should never be nil, but be conservative
 		if p.base == nil {
 			if debug {

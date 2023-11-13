@@ -823,14 +823,24 @@ func readMetricNames() []string {
 //
 //go:linkname readMetrics runtime/metrics.runtime_readMetrics
 func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
-	// Construct a slice from the args.
-	sl := slice{samplesp, len, cap}
-	samples := *(*[]metricSample)(unsafe.Pointer(&sl))
-
 	metricsLock()
 
 	// Ensure the map is initialized.
 	initMetrics()
+
+	// Read the metrics.
+	readMetricsLocked(samplesp, len, cap)
+	metricsUnlock()
+}
+
+// readMetricsLocked is the internal, locked portion of readMetrics.
+//
+// Broken out for more robust testing. metricsLock must be held and
+// initMetrics must have been called already.
+func readMetricsLocked(samplesp unsafe.Pointer, len int, cap int) {
+	// Construct a slice from the args.
+	sl := slice{samplesp, len, cap}
+	samples := *(*[]metricSample)(unsafe.Pointer(&sl))
 
 	// Clear agg defensively.
 	agg = statAggregate{}
@@ -850,6 +860,4 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
 		// Compute the value based on the stats we have.
 		data.compute(&agg, &sample.value)
 	}
-
-	metricsUnlock()
 }

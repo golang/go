@@ -471,7 +471,7 @@ func SetBlockProfileRate(rate int) {
 		r = 1 // profile everything
 	} else {
 		// convert ns to cycles, use float64 to prevent overflow during multiplication
-		r = int64(float64(rate) * float64(tickspersecond()) / (1000 * 1000 * 1000))
+		r = int64(float64(rate) * float64(ticksPerSecond()) / (1000 * 1000 * 1000))
 		if r == 0 {
 			r = 1
 		}
@@ -792,7 +792,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 // If len(p) >= n, MutexProfile copies the profile into p and returns n, true.
 // Otherwise, MutexProfile does not change p, and returns n, false.
 //
-// Most clients should use the runtime/pprof package
+// Most clients should use the [runtime/pprof] package
 // instead of calling MutexProfile directly.
 func MutexProfile(p []BlockProfileRecord) (n int, ok bool) {
 	lock(&profBlockLock)
@@ -1169,7 +1169,7 @@ func goroutineProfileWithLabelsSync(p []StackRecord, labels []unsafe.Pointer) (n
 // If len(p) >= n, GoroutineProfile copies the profile into p and returns n, true.
 // If len(p) < n, GoroutineProfile does not change p and returns n, false.
 //
-// Most clients should use the runtime/pprof package instead
+// Most clients should use the [runtime/pprof] package instead
 // of calling GoroutineProfile directly.
 func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 

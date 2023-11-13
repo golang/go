@@ -100,7 +100,7 @@ func newDefaultHandler(output func(uintptr, []byte) error) *defaultHandler {
 }
 
 func (*defaultHandler) Enabled(_ context.Context, l Level) bool {
-	return l >= LevelInfo
+	return l >= logLoggerLevel.Level()
 }
 
 // Collect the level, attributes and message in a string and

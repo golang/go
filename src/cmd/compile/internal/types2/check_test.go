@@ -112,6 +112,8 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
 
 // testFiles type-checks the package consisting of the given files, and
 // compares the resulting errors with the ERROR annotations in the source.
+// Except for manual tests, each package is type-checked twice, once without
+// use of _Alias types, and once with _Alias types.
 //
 // The srcs slice contains the file content for the files named in the
 // filenames slice. The colDelta parameter specifies the tolerance for position
@@ -120,36 +122,23 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
 //
 // If provided, opts may be used to mutate the Config before type-checking.
 func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
+	testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
+	if !manual {
+		testFilesImpl(t, filenames, srcs, colDelta, manual, append(opts, func(conf *Config) { *boolFieldAddr(conf, "_EnableAlias") = true })...)
+	}
+}
+
+func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
 	}
 
-	var conf Config
-	var goexperiment string
-	flags := flag.NewFlagSet("", flag.PanicOnError)
-	flags.StringVar(&conf.GoVersion, "lang", "", "")
-	flags.StringVar(&goexperiment, "goexperiment", "", "")
-	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
-	if err := parseFlags(srcs[0], flags); err != nil {
-		t.Fatal(err)
-	}
-	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
-	if err != nil {
-		t.Fatal(err)
-	}
-	old := buildcfg.Experiment
-	defer func() {
-		buildcfg.Experiment = old
-	}()
-	buildcfg.Experiment = *exp
-
+	// parse files
 	files, errlist := parseFiles(t, filenames, srcs, 0)
-
 	pkgName := "<no package>"
 	if len(files) > 0 {
 		pkgName = files[0].PkgName.Value
 	}
-
 	listErrors := manual && !*verifyErrors
 	if listErrors && len(errlist) > 0 {
 		t.Errorf("--- %s:", pkgName)
@@ -158,7 +147,8 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, m
 		}
 	}
 
-	// typecheck and collect typechecker errors
+	// set up typechecker
+	var conf Config
 	conf.Trace = manual && testing.Verbose()
 	conf.Importer = defaultImporter()
 	conf.Error = func(err error) {
@@ -172,9 +162,30 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, m
 		errlist = append(errlist, err)
 	}
 
+	// apply custom configuration
 	for _, opt := range opts {
 		opt(&conf)
 	}
+
+	// apply flag setting (overrides custom configuration)
+	var goexperiment string
+	flags := flag.NewFlagSet("", flag.PanicOnError)
+	flags.StringVar(&conf.GoVersion, "lang", "", "")
+	flags.StringVar(&goexperiment, "goexperiment", "", "")
+	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+	flags.BoolVar(boolFieldAddr(&conf, "_EnableAlias"), "alias", false, "")
+	if err := parseFlags(srcs[0], flags); err != nil {
+		t.Fatal(err)
+	}
+	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := buildcfg.Experiment
+	defer func() {
+		buildcfg.Experiment = old
+	}()
+	buildcfg.Experiment = *exp
 
 	// Provide Config.Info with all maps so that info recording is tested.
 	info := Info{
@@ -186,8 +197,9 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, m
 		Selections: make(map[*syntax.SelectorExpr]*Selection),
 		Scopes:     make(map[syntax.Node]*Scope),
 	}
-	conf.Check(pkgName, files, &info)
 
+	// typecheck
+	conf.Check(pkgName, files, &info)
 	if listErrors {
 		return
 	}
@@ -368,11 +380,11 @@ func TestIssue47243_TypedRHS(t *testing.T) {
 }
 
 func TestCheck(t *testing.T) {
-	old := buildcfg.Experiment.Range
+	old := buildcfg.Experiment.RangeFunc
 	defer func() {
-		buildcfg.Experiment.Range = old
+		buildcfg.Experiment.RangeFunc = old
 	}()
-	buildcfg.Experiment.Range = true
+	buildcfg.Experiment.RangeFunc = true
 
 	DefPredeclaredTestFuncs()
 	testDirFiles(t, "../../../../internal/types/testdata/check", 50, false) // TODO(gri) narrow column tolerance

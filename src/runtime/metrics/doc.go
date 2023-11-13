@@ -18,7 +18,7 @@ metric sets may not intersect.
 
 Metrics are designated by a string key, rather than, for example, a field name in
 a struct. The full list of supported metrics is always available in the slice of
-Descriptions returned by All. Each Description also includes useful information
+Descriptions returned by [All]. Each [Description] also includes useful information
 about the metric.
 
 Thus, users of this API are encouraged to sample supported metrics defined by the

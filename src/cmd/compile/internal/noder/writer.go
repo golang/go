@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"go/version"
 	"internal/buildcfg"
 	"internal/pkgbits"
 	"os"
@@ -1479,8 +1480,8 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 
 func (w *writer) distinctVars(stmt *syntax.ForStmt) bool {
 	lv := base.Debug.LoopVar
-	v := w.p.info.FileVersions[stmt.Pos().Base()]
-	is122 := v.Major == 0 && v.Minor == 0 || v.Major == 1 && v.Minor >= 22
+	fileVersion := w.p.info.FileVersions[stmt.Pos().Base()]
+	is122 := fileVersion == "" || version.Compare(fileVersion, "go1.22") >= 0
 
 	// Turning off loopvar for 1.22 is only possible with loopvarhash=qn
 	//

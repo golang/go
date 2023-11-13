@@ -152,9 +152,14 @@ func (check *Checker) addDeclDep(to Object) {
 	from.addDep(to)
 }
 
+// Note: The following three alias-related functions are only used
+//       when _Alias types are not enabled.
+
 // brokenAlias records that alias doesn't have a determined type yet.
 // It also sets alias.typ to Typ[Invalid].
+// Not used if check.conf._EnableAlias is set.
 func (check *Checker) brokenAlias(alias *TypeName) {
+	assert(!check.conf._EnableAlias)
 	if check.brokenAliases == nil {
 		check.brokenAliases = make(map[*TypeName]bool)
 	}
@@ -164,13 +169,15 @@ func (check *Checker) brokenAlias(alias *TypeName) {
 
 // validAlias records that alias has the valid type typ (possibly Typ[Invalid]).
 func (check *Checker) validAlias(alias *TypeName, typ Type) {
+	assert(!check.conf._EnableAlias)
 	delete(check.brokenAliases, alias)
 	alias.typ = typ
 }
 
 // isBrokenAlias reports whether alias doesn't have a determined type yet.
 func (check *Checker) isBrokenAlias(alias *TypeName) bool {
-	return !isValid(alias.typ) && check.brokenAliases[alias]
+	assert(!check.conf._EnableAlias)
+	return check.brokenAliases[alias]
 }
 
 func (check *Checker) rememberUntyped(e syntax.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
@@ -285,8 +292,8 @@ func (check *Checker) initFiles(files []*syntax.File) {
 	}
 
 	for _, file := range check.files {
-		fbase := base(file.Pos())                     // fbase may be nil for tests
-		check.recordFileVersion(fbase, check.version) // record package version (possibly zero version)
+		fbase := base(file.Pos())                            // fbase may be nil for tests
+		check.recordFileVersion(fbase, check.conf.GoVersion) // record package version (possibly zero version)
 		v, _ := parseGoVersion(file.GoVersion)
 		if v.major > 0 {
 			if v.equal(check.version) {
@@ -312,7 +319,7 @@ func (check *Checker) initFiles(files []*syntax.File) {
 				check.posVers = make(map[*syntax.PosBase]version)
 			}
 			check.posVers[fbase] = v
-			check.recordFileVersion(fbase, v) // overwrite package version
+			check.recordFileVersion(fbase, file.GoVersion) // overwrite package version
 		}
 	}
 }
@@ -677,8 +684,8 @@ func (check *Checker) recordScope(node syntax.Node, scope *Scope) {
 	}
 }
 
-func (check *Checker) recordFileVersion(fbase *syntax.PosBase, v version) {
+func (check *Checker) recordFileVersion(fbase *syntax.PosBase, version string) {
 	if m := check.FileVersions; m != nil {
-		m[fbase] = Version{v.major, v.minor}
+		m[fbase] = version
 	}
 }
