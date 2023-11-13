@@ -346,7 +346,7 @@ Table of contents
 		<td> <a href="/block?id={{.PC}}">graph</a> <a href="/block?id={{.PC}}&raw=1" download="block.profile">(download)</a></td>
 	</tr>
 	<tr>
-		<td>Syscall block profile:</td>
+		<td>Syscall profile:</td>
 		<td> <a href="/syscall?id={{.PC}}">graph</a> <a href="/syscall?id={{.PC}}&raw=1" download="syscall.profile">(download)</a></td>
 		</tr>
 	<tr>

@@ -56,8 +56,6 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Analyzing goroutines...")
-	gSummaries := trace.SummarizeGoroutines(parsed.events)
 
 	log.Printf("Opening browser. Trace viewer is listening on %s", addr)
 	browser.Open(addr)
@@ -67,28 +65,50 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
 	}
 
 	mux := http.NewServeMux()
+
+	// Main endpoint.
 	mux.Handle("/", traceviewer.MainHandler(ranges))
+
+	// Catapult handlers.
 	mux.Handle("/trace", traceviewer.TraceHandler())
 	mux.Handle("/jsontrace", JSONTraceHandler(parsed))
 	mux.Handle("/static/", traceviewer.StaticHandler())
-	mux.HandleFunc("/goroutines", GoroutinesHandlerFunc(gSummaries))
-	mux.HandleFunc("/goroutine", GoroutineHandler(gSummaries))
+
+	// Goroutines handlers.
+	mux.HandleFunc("/goroutines", GoroutinesHandlerFunc(parsed.gSummaries))
+	mux.HandleFunc("/goroutine", GoroutineHandler(parsed.gSummaries))
+
+	// MMU handler.
 	mux.HandleFunc("/mmu", traceviewer.MMUHandlerFunc(ranges, mutatorUtil))
+
+	// Basic pprof endpoints.
+	mux.HandleFunc("/io", traceviewer.SVGProfileHandlerFunc(pprofByGoroutine(computePprofIO(), parsed)))
+	mux.HandleFunc("/block", traceviewer.SVGProfileHandlerFunc(pprofByGoroutine(computePprofBlock(), parsed)))
+	mux.HandleFunc("/syscall", traceviewer.SVGProfileHandlerFunc(pprofByGoroutine(computePprofSyscall(), parsed)))
+	mux.HandleFunc("/sched", traceviewer.SVGProfileHandlerFunc(pprofByGoroutine(computePprofSched(), parsed)))
+
+	// Region-based pprof endpoints.
+	mux.HandleFunc("/regionio", traceviewer.SVGProfileHandlerFunc(pprofByRegion(computePprofIO(), parsed)))
+	mux.HandleFunc("/regionblock", traceviewer.SVGProfileHandlerFunc(pprofByRegion(computePprofBlock(), parsed)))
+	mux.HandleFunc("/regionsyscall", traceviewer.SVGProfileHandlerFunc(pprofByRegion(computePprofSyscall(), parsed)))
+	mux.HandleFunc("/regionsched", traceviewer.SVGProfileHandlerFunc(pprofByRegion(computePprofSched(), parsed)))
 
 	err = http.Serve(ln, mux)
 	return fmt.Errorf("failed to start http server: %w", err)
 }
 
 type parsedTrace struct {
-	events []tracev2.Event
+	events     []tracev2.Event
+	gSummaries map[tracev2.GoID]*trace.GoroutineSummary
 }
 
-func parseTrace(trace io.Reader) (*parsedTrace, error) {
-	r, err := tracev2.NewReader(trace)
+func parseTrace(tr io.Reader) (*parsedTrace, error) {
+	r, err := tracev2.NewReader(tr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace reader: %w", err)
 	}
-	var t parsedTrace
+	s := trace.NewGoroutineSummarizer()
+	t := new(parsedTrace)
 	for {
 		ev, err := r.ReadEvent()
 		if err == io.EOF {
@@ -97,8 +117,18 @@ func parseTrace(trace io.Reader) (*parsedTrace, error) {
 			return nil, fmt.Errorf("failed to read event: %w", err)
 		}
 		t.events = append(t.events, ev)
+		s.Event(&t.events[len(t.events)-1])
 	}
-	return &t, nil
+	t.gSummaries = s.Finalize()
+	return t, nil
+}
+
+func (t *parsedTrace) startTime() tracev2.Time {
+	return t.events[0].Time()
+}
+
+func (t *parsedTrace) endTime() tracev2.Time {
+	return t.events[len(t.events)-1].Time()
 }
 
 // splitTrace splits the trace into a number of ranges, each resulting in approx 100 MiB of

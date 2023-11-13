@@ -92,26 +92,30 @@ func basicSummaryChecks(t *testing.T, summary *GoroutineSummary) {
 }
 
 func summarizeTraceTest(t *testing.T, testPath string) map[tracev2.GoID]*GoroutineSummary {
-	r, _, err := testtrace.ParseFile(testPath)
+	trace, _, err := testtrace.ParseFile(testPath)
 	if err != nil {
 		t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 	}
-	var events []tracev2.Event
-	tr, err := tracev2.NewReader(r)
+	// Create the analysis state.
+	s := NewGoroutineSummarizer()
+
+	// Create a reader.
+	r, err := tracev2.NewReader(trace)
 	if err != nil {
-		t.Fatalf("failed to create trace reader %s: %v", testPath, err)
+		t.Fatalf("failed to create trace reader for %s: %v", testPath, err)
 	}
+	// Process the trace.
 	for {
-		ev, err := tr.ReadEvent()
+		ev, err := r.ReadEvent()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			t.Fatalf("failed to process trace %s: %v", testPath, err)
 		}
-		events = append(events, ev)
+		s.Event(&ev)
 	}
-	return SummarizeGoroutines(events)
+	return s.Finalize()
 }
 
 func checkRegionEvents(t *testing.T, wantStart, wantEnd tracev2.EventKind, goid tracev2.GoID, region *UserRegionSummary) {

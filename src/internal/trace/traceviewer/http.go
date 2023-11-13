@@ -185,7 +185,7 @@ var templMain = template.Must(template.New("").Parse(`
 <ul>
 <li><a href="/io">Network blocking profile</a> (<a href="/io?raw=1" download="io.profile">⬇</a>)</li>
 <li><a href="/block">Synchronization blocking profile</a> (<a href="/block?raw=1" download="block.profile">⬇</a>)</li>
-<li><a href="/syscall">Syscall blocking profile</a> (<a href="/syscall?raw=1" download="syscall.profile">⬇</a>)</li>
+<li><a href="/syscall">Syscall profile</a> (<a href="/syscall?raw=1" download="syscall.profile">⬇</a>)</li>
 <li><a href="/sched">Scheduler latency profile</a> (<a href="/sched?raw=1" download="sched.profile">⬇</a>)</li>
 </ul>
 
