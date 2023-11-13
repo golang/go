@@ -639,6 +639,7 @@ var depsRules = `
 	embed,
 	encoding/json,
 	html/template,
+	internal/profile,
 	internal/trace,
 	internal/trace/traceviewer/format,
 	net/http

@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"internal/trace"
 	"internal/trace/traceviewer"
-	"io"
 	"log"
 	"net"
 	"net/http"
@@ -91,7 +90,7 @@ func main() {
 		return
 	}
 
-	var pprofFunc func(io.Writer, *http.Request) error
+	var pprofFunc traceviewer.ProfileFunc
 	switch *pprofFlag {
 	case "net":
 		pprofFunc = pprofByGoroutine(computePprofIO)
@@ -103,7 +102,11 @@ func main() {
 		pprofFunc = pprofByGoroutine(computePprofSched)
 	}
 	if pprofFunc != nil {
-		if err := pprofFunc(os.Stdout, &http.Request{}); err != nil {
+		records, err := pprofFunc(&http.Request{})
+		if err != nil {
+			dief("failed to generate pprof: %v\n", err)
+		}
+		if err := traceviewer.BuildProfile(records).Write(os.Stdout); err != nil {
 			dief("failed to generate pprof: %v\n", err)
 		}
 		os.Exit(0)
