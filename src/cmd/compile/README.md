@@ -63,7 +63,6 @@ Unified IR is also involved in import/export of packages and inlining.
 
 ### 4. Middle end
 
-* `cmd/compile/internal/deadcode` (dead code elimination)
 * `cmd/compile/internal/inline` (function call inlining)
 * `cmd/compile/internal/devirtualize` (devirtualization of known interface method calls)
 * `cmd/compile/internal/escape` (escape analysis)
