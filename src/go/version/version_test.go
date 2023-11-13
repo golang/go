@@ -48,6 +48,7 @@ var langTests = []testCase1[string, string]{
 	{"go1.2.3", "go1.2"},
 	{"go1.2", "go1.2"},
 	{"go1", "go1"},
+	{"go222", "go222.0"},
 	{"go1.999testmod", "go1.999"},
 }
 

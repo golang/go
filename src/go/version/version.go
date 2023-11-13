@@ -7,7 +7,10 @@
 // [Go versions]: https://go.dev/doc/toolchain#version
 package version // import "go/version"
 
-import "internal/gover"
+import (
+	"internal/gover"
+	"strings"
+)
 
 // stripGo converts from a "go1.21" version to a "1.21" version.
 // If v does not start with "go", stripGo returns the empty string (a known invalid version).
@@ -33,7 +36,11 @@ func Lang(x string) string {
 	if v == "" {
 		return ""
 	}
-	return x[:2+len(v)] // "go"+v without allocation
+	if strings.HasPrefix(x[2:], v) {
+		return x[:2+len(v)] // "go"+v without allocation
+	} else {
+		return "go" + v
+	}
 }
 
 // Compare returns -1, 0, or +1 depending on whether
