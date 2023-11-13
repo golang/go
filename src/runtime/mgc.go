@@ -419,7 +419,6 @@ type workType struct {
 	tSweepTerm, tMark, tMarkTerm, tEnd int64 // nanotime() of phase start
 
 	pauseNS    int64 // total STW time this cycle
-	pauseStart int64 // nanotime() of last STW
 
 	// debug.gctrace heap sizes for this cycle.
 	heap0, heap1, heap2 uint64
@@ -677,7 +676,7 @@ func gcStart(trigger gcTrigger) {
 
 	now := nanotime()
 	work.tSweepTerm = now
-	work.pauseStart = now
+	pauseStart := now
 	systemstack(func() { stopTheWorldWithSema(stwGCSweepTerm) })
 	// Finish sweep before we start concurrent scan.
 	systemstack(func() {
@@ -744,9 +743,9 @@ func gcStart(trigger gcTrigger) {
 	// Concurrent mark.
 	systemstack(func() {
 		now = startTheWorldWithSema()
-		work.pauseNS += now - work.pauseStart
+		work.pauseNS += now - pauseStart
 		work.tMark = now
-		memstats.gcPauseDist.record(now - work.pauseStart)
+		memstats.gcPauseDist.record(now - pauseStart)
 
 		sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
 		work.cpuStats.gcPauseTime += sweepTermCpu
@@ -858,7 +857,7 @@ top:
 	// shaded. Transition to mark termination.
 	now := nanotime()
 	work.tMarkTerm = now
-	work.pauseStart = now
+	pauseStart := now
 	getg().m.preemptoff = "gcing"
 	systemstack(func() { stopTheWorldWithSema(stwGCMarkTerm) })
 	// The gcphase is _GCmark, it will transition to _GCmarktermination
@@ -888,8 +887,8 @@ top:
 		getg().m.preemptoff = ""
 		systemstack(func() {
 			now := startTheWorldWithSema()
-			work.pauseNS += now - work.pauseStart
-			memstats.gcPauseDist.record(now - work.pauseStart)
+			work.pauseNS += now - pauseStart
+			memstats.gcPauseDist.record(now - pauseStart)
 		})
 		semrelease(&worldsema)
 		goto top
@@ -923,12 +922,12 @@ top:
 	gcController.endCycle(now, int(gomaxprocs), work.userForced)
 
 	// Perform mark termination. This will restart the world.
-	gcMarkTermination()
+	gcMarkTermination(pauseStart)
 }
 
 // World must be stopped and mark assists and background workers must be
 // disabled.
-func gcMarkTermination() {
+func gcMarkTermination(pauseStart int64) {
 	// Start marktermination (write barrier remains enabled for now).
 	setGCPhase(_GCmarktermination)
 
@@ -1009,9 +1008,9 @@ func gcMarkTermination() {
 	now := nanotime()
 	sec, nsec, _ := time_now()
 	unixNow := sec*1e9 + int64(nsec)
-	work.pauseNS += now - work.pauseStart
+	work.pauseNS += now - pauseStart
 	work.tEnd = now
-	memstats.gcPauseDist.record(now - work.pauseStart)
+	memstats.gcPauseDist.record(now - pauseStart)
 	atomic.Store64(&memstats.last_gc_unix, uint64(unixNow)) // must be Unix time to make sense to user
 	atomic.Store64(&memstats.last_gc_nanotime, uint64(now)) // monotonic time for us
 	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(work.pauseNS)
