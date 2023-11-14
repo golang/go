@@ -7,8 +7,7 @@
 package syscall
 
 import (
-	err2 "errors"
-	"io/fs"
+	"internal/oserror"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -69,7 +68,11 @@ func NetlinkRIB(proto, family int) ([]byte, error) {
 	sa := &SockaddrNetlink{Family: AF_NETLINK}
 	if err := Bind(s, sa); err != nil {
 		// Bind operation of Netlink socket is prohibited in Android11 and later versions
-		if !(runtime.GOOS == "android" && err2.Is(err, fs.ErrPermission)) {
+		if runtime.GOOS != "android" {
+			return nil, err
+		}
+
+		if e, ok := err.(Errno); !ok && !e.Is(oserror.ErrPermission) {
 			return nil, err
 		}
 	}
