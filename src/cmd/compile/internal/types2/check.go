@@ -23,7 +23,7 @@ var nopos syntax.Pos
 const debug = false // leave on during development
 
 // gotypesalias controls the use of Alias types.
-var gotypesalias = godebug.New("gotypesalias")
+var gotypesalias = godebug.New("#gotypesalias")
 
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
