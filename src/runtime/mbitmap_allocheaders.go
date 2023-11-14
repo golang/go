@@ -58,6 +58,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goarch"
 	"runtime/internal/sys"
 	"unsafe"
@@ -196,6 +197,29 @@ func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
 	} else {
 		typ = span.largeType
 	}
+	gcdata := typ.GCData
+	return typePointers{elem: addr, addr: addr, mask: readUintptr(gcdata), typ: typ}
+}
+
+// typePointersOfType is like typePointersOf, but assumes addr points to one or more
+// contiguous instances of the provided type. The provided type must not be nil and
+// it must not have its type metadata encoded as a gcprog.
+//
+// It returns an iterator that tiles typ.GCData starting from addr. It's the caller's
+// responsibility to limit iteration.
+//
+// nosplit because its callers are nosplit and require all their callees to be nosplit.
+//
+//go:nosplit
+func (span *mspan) typePointersOfType(typ *abi.Type, addr uintptr) typePointers {
+	const doubleCheck = false
+	if doubleCheck && (typ == nil || typ.Kind_&kindGCProg != 0) {
+		throw("bad type passed to typePointersOfType")
+	}
+	if span.spanclass.noscan() {
+		return typePointers{}
+	}
+	// Since we have the type, pretend we have a header.
 	gcdata := typ.GCData
 	return typePointers{elem: addr, addr: addr, mask: readUintptr(gcdata), typ: typ}
 }
@@ -368,15 +392,30 @@ func (span *mspan) objBase(addr uintptr) uintptr {
 // The caller is also responsible for cgo pointer checks if this
 // may be writing Go pointers into non-Go memory.
 //
-// The pointer bitmap is not maintained for allocations containing
+// Pointer data is not maintained for allocations containing
 // no pointers at all; any caller of bulkBarrierPreWrite must first
 // make sure the underlying allocation contains pointers, usually
 // by checking typ.PtrBytes.
 //
+// The typ argument is the type of the space at src and dst (and the
+// element type if src and dst refer to arrays) and it is optional.
+// If typ is nil, the barrier will still behave as expected and typ
+// is used purely as an optimization. However, it must be used with
+// care.
+//
+// If typ is not nil, then src and dst must point to one or more values
+// of type typ. The caller must ensure that the ranges [src, src+size)
+// and [dst, dst+size) refer to one or more whole values of type src and
+// dst (leaving off the pointerless tail of the space is OK). If this
+// precondition is not followed, this function will fail to scan the
+// right pointers.
+//
+// When in doubt, pass nil for typ. That is safe and will always work.
+//
 // Callers must perform cgo checks if goexperiment.CgoCheck2.
 //
 //go:nosplit
-func bulkBarrierPreWrite(dst, src, size uintptr) {
+func bulkBarrierPreWrite(dst, src, size uintptr, typ *abi.Type) {
 	if (dst|src|size)&(goarch.PtrSize-1) != 0 {
 		throw("bulkBarrierPreWrite: unaligned arguments")
 	}
@@ -411,7 +450,18 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 	}
 	buf := &getg().m.p.ptr().wbBuf
 
-	tp := s.typePointersOf(dst, size)
+	// Double-check that the bitmaps generated in the two possible paths match.
+	const doubleCheck = false
+	if doubleCheck {
+		doubleCheckTypePointersOfType(s, typ, dst, size)
+	}
+
+	var tp typePointers
+	if typ != nil && typ.Kind_&kindGCProg == 0 {
+		tp = s.typePointersOfType(typ, dst)
+	} else {
+		tp = s.typePointersOf(dst, size)
+	}
 	if src == 0 {
 		for {
 			var addr uintptr
@@ -446,8 +496,12 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 // This is used for special cases where e.g. dst was just
 // created and zeroed with malloc.
 //
+// The type of the space can be provided purely as an optimization.
+// See bulkBarrierPreWrite's comment for more details -- use this
+// optimization with great care.
+//
 //go:nosplit
-func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
+func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr, typ *abi.Type) {
 	if (dst|src|size)&(goarch.PtrSize-1) != 0 {
 		throw("bulkBarrierPreWrite: unaligned arguments")
 	}
@@ -455,7 +509,20 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
 		return
 	}
 	buf := &getg().m.p.ptr().wbBuf
-	tp := spanOf(dst).typePointersOf(dst, size)
+	s := spanOf(dst)
+
+	// Double-check that the bitmaps generated in the two possible paths match.
+	const doubleCheck = false
+	if doubleCheck {
+		doubleCheckTypePointersOfType(s, typ, dst, size)
+	}
+
+	var tp typePointers
+	if typ != nil && typ.Kind_&kindGCProg == 0 {
+		tp = s.typePointersOfType(typ, dst)
+	} else {
+		tp = s.typePointersOf(dst, size)
+	}
 	for {
 		var addr uintptr
 		if tp, addr = tp.next(dst + size); addr == 0 {
@@ -993,6 +1060,52 @@ func doubleCheckHeapPointersInterior(x, interior, size, dataSize uintptr, typ *_
 	throw("heapSetType: pointer entry not correct")
 }
 
+//go:nosplit
+func doubleCheckTypePointersOfType(s *mspan, typ *_type, addr, size uintptr) {
+	if typ == nil || typ.Kind_&kindGCProg != 0 {
+		return
+	}
+	if typ.Kind_&kindMask == kindInterface {
+		// Interfaces are unfortunately inconsistently handled
+		// when it comes to the type pointer, so it's easy to
+		// produce a lot of false positives here.
+		return
+	}
+	tp0 := s.typePointersOfType(typ, addr)
+	tp1 := s.typePointersOf(addr, size)
+	failed := false
+	for {
+		var addr0, addr1 uintptr
+		tp0, addr0 = tp0.next(addr + size)
+		tp1, addr1 = tp1.next(addr + size)
+		if addr0 != addr1 {
+			failed = true
+			break
+		}
+		if addr0 == 0 {
+			break
+		}
+	}
+	if failed {
+		tp0 := s.typePointersOfType(typ, addr)
+		tp1 := s.typePointersOf(addr, size)
+		print("runtime: addr=", hex(addr), " size=", size, "\n")
+		print("runtime: type=", toRType(typ).string(), "\n")
+		dumpTypePointers(tp0)
+		dumpTypePointers(tp1)
+		for {
+			var addr0, addr1 uintptr
+			tp0, addr0 = tp0.next(addr + size)
+			tp1, addr1 = tp1.next(addr + size)
+			print("runtime: ", hex(addr0), " ", hex(addr1), "\n")
+			if addr0 == 0 && addr1 == 0 {
+				break
+			}
+		}
+		throw("mismatch between typePointersOfType and typePointersOf")
+	}
+}
+
 func dumpTypePointers(tp typePointers) {
 	print("runtime: tp.elem=", hex(tp.elem), " tp.typ=", unsafe.Pointer(tp.typ), "\n")
 	print("runtime: tp.addr=", hex(tp.addr), " tp.mask=")
@@ -1015,12 +1128,19 @@ func getgcmask(ep any) (mask []byte) {
 	e := *efaceOf(&ep)
 	p := e.data
 	t := e._type
+
+	var et *_type
+	if t.Kind_&kindMask != kindPtr {
+		throw("bad argument to getgcmask: expected type to be a pointer to the value type whose mask is being queried")
+	}
+	et = (*ptrtype)(unsafe.Pointer(t)).Elem
+
 	// data or bss
 	for _, datap := range activeModules() {
 		// data
 		if datap.data <= uintptr(p) && uintptr(p) < datap.edata {
 			bitmap := datap.gcdatamask.bytedata
-			n := (*ptrtype)(unsafe.Pointer(t)).Elem.Size_
+			n := et.Size_
 			mask = make([]byte, n/goarch.PtrSize)
 			for i := uintptr(0); i < n; i += goarch.PtrSize {
 				off := (uintptr(p) + i - datap.data) / goarch.PtrSize
@@ -1032,7 +1152,7 @@ func getgcmask(ep any) (mask []byte) {
 		// bss
 		if datap.bss <= uintptr(p) && uintptr(p) < datap.ebss {
 			bitmap := datap.gcbssmask.bytedata
-			n := (*ptrtype)(unsafe.Pointer(t)).Elem.Size_
+			n := et.Size_
 			mask = make([]byte, n/goarch.PtrSize)
 			for i := uintptr(0); i < n; i += goarch.PtrSize {
 				off := (uintptr(p) + i - datap.bss) / goarch.PtrSize
@@ -1056,13 +1176,13 @@ func getgcmask(ep any) (mask []byte) {
 		base = tp.addr
 
 		// Unroll the full bitmap the GC would actually observe.
-		mask = make([]byte, (limit-base)/goarch.PtrSize)
+		maskFromHeap := make([]byte, (limit-base)/goarch.PtrSize)
 		for {
 			var addr uintptr
 			if tp, addr = tp.next(limit); addr == 0 {
 				break
 			}
-			mask[(addr-base)/goarch.PtrSize] = 1
+			maskFromHeap[(addr-base)/goarch.PtrSize] = 1
 		}
 
 		// Double-check that every part of the ptr/scalar we're not
@@ -1074,10 +1194,60 @@ func getgcmask(ep any) (mask []byte) {
 			}
 		}
 
-		// Callers expect this mask to end at the last pointer.
-		for len(mask) > 0 && mask[len(mask)-1] == 0 {
-			mask = mask[:len(mask)-1]
+		// Callers (and a check we're about to run) expects this mask
+		// to end at the last pointer.
+		for len(maskFromHeap) > 0 && maskFromHeap[len(maskFromHeap)-1] == 0 {
+			maskFromHeap = maskFromHeap[:len(maskFromHeap)-1]
 		}
+
+		if et.Kind_&kindGCProg == 0 {
+			// Unroll again, but this time from the type information.
+			maskFromType := make([]byte, (limit-base)/goarch.PtrSize)
+			tp = s.typePointersOfType(et, base)
+			for {
+				var addr uintptr
+				if tp, addr = tp.next(limit); addr == 0 {
+					break
+				}
+				maskFromType[(addr-base)/goarch.PtrSize] = 1
+			}
+
+			// Validate that the prefix of maskFromType is equal to
+			// maskFromHeap. maskFromType may contain more pointers than
+			// maskFromHeap produces because maskFromHeap may be able to
+			// get exact type information for certain classes of objects.
+			// With maskFromType, we're always just tiling the type bitmap
+			// through to the elemsize.
+			//
+			// It's OK if maskFromType has pointers in elemsize that extend
+			// past the actual populated space; we checked above that all
+			// that space is zeroed, so just the GC will just see nil pointers.
+			differs := false
+			for i := range maskFromHeap {
+				if maskFromHeap[i] != maskFromType[i] {
+					differs = true
+					break
+				}
+			}
+
+			if differs {
+				print("runtime: heap mask=")
+				for _, b := range maskFromHeap {
+					print(b)
+				}
+				println()
+				print("runtime: type mask=")
+				for _, b := range maskFromType {
+					print(b)
+				}
+				println()
+				print("runtime: type=", toRType(et).string(), "\n")
+				throw("found two different masks from two different methods")
+			}
+		}
+
+		// Select the heap mask to return. We may not have a type mask.
+		mask = maskFromHeap
 
 		// Make sure we keep ep alive. We may have stopped referencing
 		// ep's data pointer sometime before this point and it's possible

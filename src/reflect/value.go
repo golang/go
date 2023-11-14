@@ -1723,7 +1723,7 @@ func (v Value) SetZero() {
 	case Slice:
 		*(*unsafeheader.Slice)(v.ptr) = unsafeheader.Slice{}
 	case Interface:
-		*(*[2]unsafe.Pointer)(v.ptr) = [2]unsafe.Pointer{}
+		*(*emptyInterface)(v.ptr) = emptyInterface{}
 	case Chan, Func, Map, Pointer, UnsafePointer:
 		*(*unsafe.Pointer)(v.ptr) = nil
 	case Array, Struct:

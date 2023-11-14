@@ -42,6 +42,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goarch"
 	"runtime/internal/sys"
 	"unsafe"
@@ -233,10 +234,13 @@ func (h heapBits) nextFast() (heapBits, uintptr) {
 // make sure the underlying allocation contains pointers, usually
 // by checking typ.PtrBytes.
 //
+// The type of the space can be provided purely as an optimization,
+// however it is not used with GOEXPERIMENT=noallocheaders.
+//
 // Callers must perform cgo checks if goexperiment.CgoCheck2.
 //
 //go:nosplit
-func bulkBarrierPreWrite(dst, src, size uintptr) {
+func bulkBarrierPreWrite(dst, src, size uintptr, _ *abi.Type) {
 	if (dst|src|size)&(goarch.PtrSize-1) != 0 {
 		throw("bulkBarrierPreWrite: unaligned arguments")
 	}
@@ -305,8 +309,11 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 // This is used for special cases where e.g. dst was just
 // created and zeroed with malloc.
 //
+// The type of the space can be provided purely as an optimization,
+// however it is not used with GOEXPERIMENT=noallocheaders.
+//
 //go:nosplit
-func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
+func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr, _ *abi.Type) {
 	if (dst|src|size)&(goarch.PtrSize-1) != 0 {
 		throw("bulkBarrierPreWrite: unaligned arguments")
 	}
