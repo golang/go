@@ -719,6 +719,28 @@ func BenchmarkFloatPrecExact(b *testing.B) {
 	}
 }
 
+func BenchmarkFloatPrecMixed(b *testing.B) {
+	for _, n := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6} {
+		// d := (3·5·7·11)^n
+		d := NewInt(3 * 5 * 7 * 11)
+		p := NewInt(int64(n))
+		d.Exp(d, p, nil)
+
+		// r := 1/d
+		var r Rat
+		r.SetFrac(NewInt(1), d)
+
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				prec, ok := r.FloatPrec()
+				if prec != n || ok {
+					b.Fatalf("got exact, ok = %d, %v; want %d, %v", prec, ok, uint64(n), false)
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkFloatPrecInexact(b *testing.B) {
 	for _, n := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6} {
 		// d := 5^n + 1

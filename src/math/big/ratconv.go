@@ -415,62 +415,45 @@ func (x *Rat) FloatPrec() (n int, exact bool) {
 	q = q.shr(d, p2)
 
 	// Determine p5 by counting factors of 5.
-
 	// Build a table starting with an initial power of 5,
-	// and using repeated squaring until the factor doesn't
+	// and use repeated squaring until the factor doesn't
 	// divide q anymore. Then use the table to determine
 	// the power of 5 in q.
-	//
-	// Setting the table limit to 0 turns this off;
-	// a limit of 1 uses just one factor 5^fp.
-	// Larger values build up a more comprehensive table.
 	const fp = 13        // f == 5^fp
-	const limit = 100    // table size limit
-	var tab []nat        // tab[i] == 5^(fp·2^i)
+	var tab []nat        // tab[i] == (5^fp)^(2^i) == 5^(fp·2^i)
 	f := nat{1220703125} // == 5^fp (must fit into a uint32 Word)
 	var t, r nat         // temporaries
-	for len(tab) < limit {
+	for {
 		if _, r = t.div(r, q, f); len(r) != 0 {
 			break // f doesn't divide q evenly
 		}
 		tab = append(tab, f)
-		f = f.sqr(f)
+		f = nat(nil).sqr(f) // nat(nil) to ensure a new f for each table entry
 	}
-
-	// TODO(gri) Optimization: don't waste the successful
-	//           division q/f above; instead reduce q and
-	//           count the multiples.
 
 	// Factor q using the table entries, if any.
-	var p5, p uint
+	// We start with the largest factor f = tab[len(tab)-1]
+	// that evenly divides q. It does so at most once because
+	// otherwise f·f would also divide q. That can't be true
+	// because f·f is the next higher table entry, contradicting
+	// how f was chosen in the first place.
+	// The same reasoning applies to the subsequent factors.
+	var p5 uint
 	for i := len(tab) - 1; i >= 0; i-- {
-		q, p = multiples(q, tab[i])
-		p5 += p << i * fp
+		if t, r = t.div(r, q, tab[i]); len(r) == 0 {
+			p5 += fp * (1 << i) // tab[i] == 5^(fp·2^i)
+			q = q.set(t)
+		}
 	}
 
-	q, p = multiples(q, natFive)
-	p5 += p
+	// If fp != 1, we may still have multiples of 5 left.
+	for {
+		if t, r = t.div(r, q, natFive); len(r) != 0 {
+			break
+		}
+		p5++
+		q = q.set(t)
+	}
 
 	return int(max(p2, p5)), q.cmp(natOne) == 0
-}
-
-// multiples returns d and largest p such that x = d·f^p.
-// x and f must not be 0.
-func multiples(x, f nat) (d nat, p uint) {
-	// Determine p through repeated division.
-	d = d.set(x)
-	// p == 0
-	var q, r nat
-	for {
-		// invariant x == d·f^p
-		q, r = q.div(r, d, f)
-		if len(r) != 0 {
-			return
-		}
-		// q == d/f
-		// x == q·f·f^p
-		p++
-		// x == q·f^p
-		d = d.set(q)
-	}
 }
