@@ -64,6 +64,7 @@ assistQueue,
 < sched;
 sched < allg, allp;
 allp < timers;
+timers < wakeableSleep;
 timers < netpollInit;
 
 # Channels

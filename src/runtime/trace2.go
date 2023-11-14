@@ -85,7 +85,7 @@ var trace struct {
 	cpuLogRead  *profBuf
 	signalLock  atomic.Uint32           // protects use of the following member, only usable in signal handlers
 	cpuLogWrite atomic.Pointer[profBuf] // copy of cpuLogRead for use in signal handlers, set without signalLock
-	cpuSleep    wakeableSleep
+	cpuSleep    *wakeableSleep
 	cpuLogDone  <-chan struct{}
 	cpuBuf      [2]*traceBuf
 
@@ -856,7 +856,7 @@ func traceReaderAvailable() *g {
 var traceAdvancer traceAdvancerState
 
 type traceAdvancerState struct {
-	timer wakeableSleep
+	timer *wakeableSleep
 	done  chan struct{}
 }
 
@@ -864,7 +864,7 @@ type traceAdvancerState struct {
 func (s *traceAdvancerState) start() {
 	// Start a goroutine to periodically advance the trace generation.
 	s.done = make(chan struct{})
-	s.timer.init()
+	s.timer = newWakeableSleep()
 	go func() {
 		for traceEnabled() {
 			// Set a timer to wake us up
@@ -895,50 +895,76 @@ const defaultTraceAdvancePeriod = 1e9 // 1 second.
 // close to free up resources. Once close is called, init
 // must be called before another use.
 type wakeableSleep struct {
-	timer  *timer
+	timer *timer
+
+	// lock protects access to wakeup, but not send/recv on it.
+	lock   mutex
 	wakeup chan struct{}
 }
 
-// init initializes the timer.
-func (s *wakeableSleep) init() {
+// newWakeableSleep initializes a new wakeableSleep and returns it.
+func newWakeableSleep() *wakeableSleep {
+	s := new(wakeableSleep)
+	lockInit(&s.lock, lockRankWakeableSleep)
 	s.wakeup = make(chan struct{}, 1)
 	s.timer = new(timer)
 	s.timer.arg = s
 	s.timer.f = func(s any, _ uintptr) {
 		s.(*wakeableSleep).wake()
 	}
+	return s
 }
 
 // sleep sleeps for the provided duration in nanoseconds or until
 // another goroutine calls wake.
 //
-// Must not be called by more than one goroutine at a time.
+// Must not be called by more than one goroutine at a time and
+// must not be called concurrently with close.
 func (s *wakeableSleep) sleep(ns int64) {
 	resetTimer(s.timer, nanotime()+ns)
-	<-s.wakeup
+	lock(&s.lock)
+	wakeup := s.wakeup
+	unlock(&s.lock)
+	<-wakeup
 	stopTimer(s.timer)
 }
 
 // wake awakens any goroutine sleeping on the timer.
 //
-// Safe for concurrent use.
+// Safe for concurrent use with all other methods.
 func (s *wakeableSleep) wake() {
-	// Non-blocking send.
-	//
-	// Others may also write to this channel and we don't
-	// want to block on the receiver waking up. This also
-	// effectively batches together wakeup notifications.
-	select {
-	case s.wakeup <- struct{}{}:
-	default:
+	// Grab the wakeup channel, which may be nil if we're
+	// racing with close.
+	lock(&s.lock)
+	if s.wakeup != nil {
+		// Non-blocking send.
+		//
+		// Others may also write to this channel and we don't
+		// want to block on the receiver waking up. This also
+		// effectively batches together wakeup notifications.
+		select {
+		case s.wakeup <- struct{}{}:
+		default:
+		}
 	}
+	unlock(&s.lock)
 }
 
 // close wakes any goroutine sleeping on the timer and prevents
 // further sleeping on it.
 //
+// Once close is called, the wakeableSleep must no longer be used.
+//
 // It must only be called once no goroutine is sleeping on the
 // timer *and* nothing else will call wake concurrently.
 func (s *wakeableSleep) close() {
-	close(s.wakeup)
+	// Set wakeup to nil so that a late timer ends up being a no-op.
+	lock(&s.lock)
+	wakeup := s.wakeup
+	s.wakeup = nil
+
+	// Close the channel.
+	close(wakeup)
+	unlock(&s.lock)
+	return
 }
