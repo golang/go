@@ -1118,12 +1118,10 @@ func (p AddrPort) String() string {
 	case z0:
 		return "invalid AddrPort"
 	case z4:
-		a := p.ip.As4()
-		buf := make([]byte, 0, 21)
-		for i := range a {
-			buf = strconv.AppendUint(buf, uint64(a[i]), 10)
-			buf = append(buf, "...:"[i])
-		}
+		const max = len("255.255.255.255:65535")
+		buf := make([]byte, 0, max)
+		buf = p.ip.appendTo4(buf)
+		buf = append(buf, ':')
 		buf = strconv.AppendUint(buf, uint64(p.port), 10)
 		return string(buf)
 	default:
