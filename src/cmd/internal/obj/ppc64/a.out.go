@@ -449,12 +449,6 @@ const (
 	C_TEXTSIZE /* An argument with Type obj.TYPE_TEXTSIZE */
 
 	C_NCLASS /* must be the last */
-
-	/* Aliased names which should be cleaned up, or integrated. */
-	C_SCON   = C_U15CON
-	C_ADDCON = C_S16CON
-	C_ANDCON = C_U16CON
-	C_LCON   = C_32CON
 )
 
 const (
