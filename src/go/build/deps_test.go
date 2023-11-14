@@ -45,6 +45,7 @@ var depsRules = `
 	  internal/cpu, internal/goarch, internal/godebugs,
 	  internal/goexperiment, internal/goos,
 	  internal/goversion, internal/nettrace, internal/platform,
+	  internal/trace/traceviewer/format,
 	  log/internal,
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
@@ -632,6 +633,16 @@ var depsRules = `
 
 	FMT, container/heap, math/rand, internal/trace/v2
 	< internal/trace;
+
+	# cmd/trace dependencies.
+	FMT,
+	embed,
+	encoding/json,
+	html/template,
+	internal/trace,
+	internal/trace/traceviewer/format,
+	net/http
+	< internal/trace/traceviewer;
 
 	# Coverage.
 	FMT, crypto/md5, encoding/binary, regexp, sort, text/tabwriter, unsafe,

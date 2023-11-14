@@ -29,6 +29,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"internal/trace"
+	"internal/trace/traceviewer"
 	"log"
 	"math"
 	"net/http"
@@ -393,7 +394,7 @@ type linkedUtilWindow struct {
 
 func newLinkedUtilWindow(ui trace.UtilWindow, window time.Duration) linkedUtilWindow {
 	// Find the range containing this window.
-	var r Range
+	var r traceviewer.Range
 	for _, r = range ranges {
 		if r.EndTime > ui.Time {
 			break
