@@ -60,12 +60,7 @@ func newLocalListener(t testing.TB, network string, lcOpt ...*ListenConfig) List
 	switch network {
 	case "tcp":
 		if supportsIPv4() {
-			if !supportsIPv6() {
-				return listen("tcp4", "127.0.0.1:0")
-			}
-			if ln, err := Listen("tcp4", "127.0.0.1:0"); err == nil {
-				return ln
-			}
+			return listen("tcp4", "127.0.0.1:0")
 		}
 		if supportsIPv6() {
 			return listen("tcp6", "[::1]:0")
