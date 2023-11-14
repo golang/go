@@ -59,8 +59,8 @@ func T_calls_in_pseudo_loop(x int, q []string) {
 // calls.go T_calls_on_panic_paths 67 0 1
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
-// callsite: calls.go:69:9|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
-// callsite: calls.go:73:9|1 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+// callsite: calls.go:69:9|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+// callsite: calls.go:73:9|1 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
 // callsite: calls.go:77:12|2 flagstr "CallSiteOnPanicPath" flagval 2 score 102 mask 1 maskstr "panicPathAdj"
 // <endcallsites>
 // <endfuncpreamble>
@@ -87,7 +87,7 @@ func T_calls_on_panic_paths(x int, q []string) {
 // callsite: calls.go:103:9|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
 // callsite: calls.go:112:9|1 flagstr "" flagval 0 score 2 mask 0 maskstr ""
 // callsite: calls.go:115:9|2 flagstr "" flagval 0 score 2 mask 0 maskstr ""
-// callsite: calls.go:119:12|3 flagstr "" flagval 0 score 62 mask 0 maskstr ""
+// callsite: calls.go:119:12|3 flagstr "CallSiteOnPanicPath" flagval 2 score 102 mask 1 maskstr "panicPathAdj"
 // <endcallsites>
 // <endfuncpreamble>
 func T_calls_not_on_panic_paths(x int, q []string) {
