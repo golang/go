@@ -1016,7 +1016,7 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			case sbits <= 16:
 				return C_U16CON
 			case sbits <= 31:
-				return C_U32CON
+				return C_U31CON
 			case sbits <= 32:
 				return C_U32CON
 			case sbits <= 33:
@@ -1144,13 +1144,20 @@ func cmp(a int, b int) bool {
 		return cmp(C_U5CON, b)
 	case C_U15CON:
 		return cmp(C_U8CON, b)
-	case C_U16CON:
-		return cmp(C_U15CON, b)
-
 	case C_S16CON:
 		return cmp(C_U15CON, b)
-	case C_32CON:
+	case C_U16CON:
+		return cmp(C_U15CON, b)
+	case C_16CON:
 		return cmp(C_S16CON, b) || cmp(C_U16CON, b)
+	case C_U31CON:
+		return cmp(C_U16CON, b)
+	case C_U32CON:
+		return cmp(C_U31CON, b)
+	case C_S32CON:
+		return cmp(C_U31CON, b) || cmp(C_S16CON, b)
+	case C_32CON:
+		return cmp(C_S32CON, b) || cmp(C_U32CON, b)
 	case C_S34CON:
 		return cmp(C_32CON, b)
 	case C_64CON:
