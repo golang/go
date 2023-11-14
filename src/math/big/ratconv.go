@@ -403,8 +403,8 @@ func (x *Rat) FloatPrec() (n int, exact bool) {
 	//     n = max(p2, p5)
 	//     exact = q == 1
 	//
-	// See https://en.wikipedia.org/wiki/Repeating_decimal for
-	// details.
+	// For details see:
+	// https://en.wikipedia.org/wiki/Repeating_decimal#Reciprocals_of_integers_not_coprime_to_10
 	d := x.Denom().abs // d >= 1
 
 	// Determine p2 by counting factors of 2.
