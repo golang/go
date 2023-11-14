@@ -67,7 +67,7 @@ var templGoroutines = template.Must(template.New("").Parse(`
 <html>
 <style>` + traceviewer.CommonStyle + `
 table {
-    border-collapse: collapse;
+  border-collapse: collapse;
 }
 td,
 th {
@@ -259,7 +259,7 @@ var templGoroutine = template.Must(template.New("").Funcs(template.FuncMap{
 	},
 }).Parse(`
 <!DOCTYPE html>
-<title>Goroutine {{.Name}}</title>
+<title>Goroutines: {{.Name}}</title>
 <style>` + traceviewer.CommonStyle + `
 th {
   background-color: #050505;
@@ -313,7 +313,7 @@ function reloadTable(key, value) {
 }
 </script>
 
-<h1>Goroutine breakdown</h1>
+<h1>Goroutines</h1>
 
 Table of contents
 <ul>

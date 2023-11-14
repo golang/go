@@ -93,6 +93,14 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
 	mux.HandleFunc("/regionsyscall", traceviewer.SVGProfileHandlerFunc(pprofByRegion(computePprofSyscall(), parsed)))
 	mux.HandleFunc("/regionsched", traceviewer.SVGProfileHandlerFunc(pprofByRegion(computePprofSched(), parsed)))
 
+	// Region endpoints.
+	mux.HandleFunc("/userregions", UserRegionsHandlerFunc(parsed))
+	mux.HandleFunc("/userregion", UserRegionHandlerFunc(parsed))
+
+	// Task endpoints.
+	mux.HandleFunc("/usertasks", UserTasksHandlerFunc(parsed))
+	mux.HandleFunc("/usertask", UserTaskHandlerFunc(parsed))
+
 	err = http.Serve(ln, mux)
 	return fmt.Errorf("failed to start http server: %w", err)
 }

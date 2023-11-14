@@ -64,6 +64,12 @@ type UserTaskSummary struct {
 	Goroutines map[tracev2.GoID]*GoroutineSummary
 }
 
+// Complete returns true if we have complete information about the task
+// from the trace: both a start and an end.
+func (s *UserTaskSummary) Complete() bool {
+	return s.Start != nil && s.End != nil
+}
+
 // UserRegionSummary represents a region and goroutine execution stats
 // while the region was active. (For v2 traces.)
 type UserRegionSummary struct {

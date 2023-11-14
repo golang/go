@@ -13,7 +13,6 @@ import (
 	"internal/trace/traceviewer"
 	tracev2 "internal/trace/v2"
 	"net/http"
-	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -343,93 +342,4 @@ func pcsForStack(stack tracev2.Stack, pcs *[pprofMaxStack]uint64) {
 		i++
 		return i < len(pcs)
 	})
-}
-
-func regionInterval(t *parsedTrace, s *trace.UserRegionSummary) interval {
-	var i interval
-	if s.Start != nil {
-		i.start = s.Start.Time()
-	} else {
-		i.start = t.startTime()
-	}
-	if s.End != nil {
-		i.end = s.End.Time()
-	} else {
-		i.end = t.endTime()
-	}
-	return i
-}
-
-// regionFilter represents a region filter specified by a user of cmd/trace.
-type regionFilter struct {
-	name   string
-	params url.Values
-	cond   []func(*parsedTrace, *trace.UserRegionSummary) bool
-}
-
-// match returns true if a region, described by its ID and summary, matches
-// the filter.
-func (f *regionFilter) match(t *parsedTrace, s *trace.UserRegionSummary) bool {
-	for _, c := range f.cond {
-		if !c(t, s) {
-			return false
-		}
-	}
-	return true
-}
-
-// newRegionFilter creates a new region filter from URL query variables.
-func newRegionFilter(r *http.Request) (*regionFilter, error) {
-	if err := r.ParseForm(); err != nil {
-		return nil, err
-	}
-
-	var name []string
-	var conditions []func(*parsedTrace, *trace.UserRegionSummary) bool
-	filterParams := make(url.Values)
-
-	param := r.Form
-	if typ, ok := param["type"]; ok && len(typ) > 0 {
-		name = append(name, "type="+typ[0])
-		conditions = append(conditions, func(_ *parsedTrace, r *trace.UserRegionSummary) bool {
-			return r.Name == typ[0]
-		})
-		filterParams.Add("type", typ[0])
-	}
-	if pc, err := strconv.ParseUint(r.FormValue("pc"), 16, 64); err == nil {
-		encPC := fmt.Sprintf("%x", pc)
-		name = append(name, "pc="+encPC)
-		conditions = append(conditions, func(_ *parsedTrace, r *trace.UserRegionSummary) bool {
-			var regionPC uint64
-			if r.Start != nil && r.Start.Stack() != tracev2.NoStack {
-				r.Start.Stack().Frames(func(f tracev2.StackFrame) bool {
-					regionPC = f.PC
-					return false
-				})
-			}
-			return regionPC == pc
-		})
-		filterParams.Add("pc", encPC)
-	}
-
-	if lat, err := time.ParseDuration(r.FormValue("latmin")); err == nil {
-		name = append(name, fmt.Sprintf("latency >= %s", lat))
-		conditions = append(conditions, func(t *parsedTrace, r *trace.UserRegionSummary) bool {
-			return regionInterval(t, r).duration() >= lat
-		})
-		filterParams.Add("latmin", lat.String())
-	}
-	if lat, err := time.ParseDuration(r.FormValue("latmax")); err == nil {
-		name = append(name, fmt.Sprintf("latency <= %s", lat))
-		conditions = append(conditions, func(t *parsedTrace, r *trace.UserRegionSummary) bool {
-			return regionInterval(t, r).duration() <= lat
-		})
-		filterParams.Add("latmax", lat.String())
-	}
-
-	return &regionFilter{
-		name:   strings.Join(name, ","),
-		cond:   conditions,
-		params: filterParams,
-	}, nil
 }
