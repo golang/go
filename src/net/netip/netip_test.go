@@ -390,6 +390,7 @@ func TestAddrPortMarshalTextString(t *testing.T) {
 		want string
 	}{
 		{mustIPPort("1.2.3.4:80"), "1.2.3.4:80"},
+		{mustIPPort("[::]:80"), "[::]:80"},
 		{mustIPPort("[1::CAFE]:80"), "[1::cafe]:80"},
 		{mustIPPort("[1::CAFE%en0]:80"), "[1::cafe%en0]:80"},
 		{mustIPPort("[::FFFF:192.168.140.255]:80"), "[::ffff:192.168.140.255]:80"},

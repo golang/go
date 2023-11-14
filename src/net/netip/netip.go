@@ -1128,17 +1128,8 @@ func (p AddrPort) String() string {
 		return string(buf)
 	default:
 		// TODO: this could be more efficient allocation-wise:
-		return joinHostPort(p.ip.String(), itoa.Itoa(int(p.port)))
+		return "[" + p.ip.String() + "]:" + itoa.Uitoa(uint(p.port))
 	}
-}
-
-func joinHostPort(host, port string) string {
-	// We assume that host is a literal IPv6 address if host has
-	// colons.
-	if bytealg.IndexByteString(host, ':') >= 0 {
-		return "[" + host + "]:" + port
-	}
-	return host + ":" + port
 }
 
 // AppendTo appends a text encoding of p,
