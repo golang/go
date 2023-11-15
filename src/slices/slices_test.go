@@ -552,7 +552,7 @@ func TestInsertPanics(t *testing.T) {
 		{"with out-of-bounds index and < cap", a[:1:3], 2, nil},
 
 		// There are values.
-		{"with negative index", a[:1:1], -1, nil},
+		{"with negative index", a[:1:1], -1, b[:]},
 		{"with out-of-bounds index and > cap", a[:1:1], 2, b[:]},
 		{"with out-of-bounds index and = cap", a[:1:2], 2, b[:]},
 		{"with out-of-bounds index and < cap", a[:1:3], 2, b[:]},
