@@ -11,20 +11,6 @@ body:
       value: |
         Thanks for helping us improve! 🙏 Please answer these questions and provide as much information as possible about your problem.
 
-#  - type: textarea
-#    id: go-version
-#    attributes:
-#      label: go Version
-#      description: What version of Go are you using (`go version`)?
-#      value: |
-#        <pre>
-#        $ go version
-#
-#
-#        </pre>
-#    validations:
-#      required: true
-
   - type: input
     id: go-version
     attributes:
@@ -40,13 +26,6 @@ body:
       label: Reproducibility
       options:
         - label: Does this issue reproduce with the latest release?
-
-#  - type: textarea
-#    id: reproduce-latest-release
-#    attributes:
-#      label: "Does this issue reproduce with the latest release?"
-#    validations:
-#      required: true
 
   - type: textarea
     id: os-and-processor
