@@ -6750,3 +6750,101 @@ func testRequestSanitization(t *testing.T, mode testMode) {
 		resp.Body.Close()
 	}
 }
+
+func TestHttpClientHighConcurrency(t *testing.T) {
+	srvs := [10]*Server{}
+	var ports []int
+	for i := 0; i < len(srvs); i++ {
+		port := 5130 + i
+		ports = append(ports, 5130+i)
+		srvs[i] = &Server{
+			Addr: fmt.Sprintf("127.0.0.1:%d", port),
+			Handler: HandlerFunc(func(w ResponseWriter, r *Request) {
+				Error(w, StatusText(StatusUnauthorized), StatusUnauthorized)
+			}),
+		}
+
+		go func(srv *Server) {
+			fmt.Println(srv.ListenAndServe())
+		}(srvs[i])
+	}
+
+	hosts := []string{"127.0.0.1"}
+
+	client := &Client{}
+	wg := &sync.WaitGroup{}
+	for _, h := range hosts {
+		for _, p := range ports {
+			for i := 0; i < 100; i++ {
+				wg.Add(1)
+				go func(host string, port int) {
+					n := 0
+					for {
+						n++
+						if n%10 == 0 {
+							println(host, n)
+						}
+						if n%100 == 0 {
+							wg.Done()
+							return
+						}
+						write(client, host, port)
+						writeCancel(client, host, port)
+					}
+				}(h, p)
+			}
+		}
+	}
+
+	for _, srv := range srvs {
+		srv.Close()
+	}
+
+	wg.Wait()
+}
+
+func write(client *Client, host string, port int) {
+	req, err := NewRequest(MethodPost, fmt.Sprintf("http://%s:%d/hello", host, port), bytes.NewReader([]byte(`{}`)))
+	if err != nil {
+		panic(err)
+	}
+
+	resp, err := client.Do(req)
+	defer CloseSafe(resp)
+	if err != nil {
+		return
+	}
+
+	handleError(resp)
+}
+
+func writeCancel(client *Client, host string, port int) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	req, err := NewRequestWithContext(ctx, MethodPost, fmt.Sprintf("http://%s:%d/hello", host, port), bytes.NewReader([]byte(`{}`)))
+	if err != nil {
+		panic(err)
+	}
+
+	go cancel()
+
+	resp, err := client.Do(req)
+	defer CloseSafe(resp)
+}
+
+func handleError(resp *Response) {
+	if resp.StatusCode != StatusOK {
+		_, err := io.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func CloseSafe(resp *Response) {
+	if resp == nil || resp.Body == nil {
+		return
+	}
+
+	_, _ = io.Copy(io.Discard, resp.Body)
+	_ = resp.Body.Close()
+}
