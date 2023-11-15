@@ -382,19 +382,10 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 		createmode = OPEN_EXISTING
 	}
 
-	// See https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea.
-	// See issue 35358 for details.
-	const _FILE_FLAG_WRITE_THROUGH = 0x80000000
-	setFlagWriteThrough := false
-
 	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
 	if perm&S_IWRITE == 0 {
 		attrs = FILE_ATTRIBUTE_READONLY
 		if createmode == CREATE_ALWAYS {
-			if mode&O_SYNC != 0 {
-				attrs |= _FILE_FLAG_WRITE_THROUGH
-				setFlagWriteThrough = true
-			}
 			// We have been asked to create a read-only file.
 			// If the file already exists, the semantics of
 			// the Unix open system call is to preserve the
@@ -419,7 +410,8 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 		// Necessary for opening directory handles.
 		attrs |= FILE_FLAG_BACKUP_SEMANTICS
 	}
-	if !setFlagWriteThrough && mode&O_SYNC != 0 {
+	if mode&O_SYNC != 0 {
+		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
 		attrs |= _FILE_FLAG_WRITE_THROUGH
 	}
 	return CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
