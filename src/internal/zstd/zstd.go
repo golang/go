@@ -61,6 +61,11 @@ type Reader struct {
 	// The window for back references.
 	window window
 
+	// Block_Maximum_Size is constant for a given frame.
+	// This maximum is applicable to both the decompressed size and
+	// the compressed size of any block in the frame.
+	blockMaximumSize int
+
 	// A buffer available to hold a compressed block.
 	compressedBuf []byte
 
@@ -308,6 +313,7 @@ retry:
 	r.repeatedOffset3 = 8
 	r.huffmanTableBits = 0
 	r.window.reset(windowSize)
+	r.blockMaximumSize = min(windowSize, 128<<10)
 	r.seqTables[0] = nil
 	r.seqTables[1] = nil
 	r.seqTables[2] = nil
@@ -404,7 +410,7 @@ func (r *Reader) readBlock() error {
 	// Maximum block size is smaller of window size and 128K.
 	// We don't record the window size for a single segment frame,
 	// so just use 128K. RFC 3.1.1.2.3, 3.1.1.2.4.
-	if blockSize > 128<<10 || (r.window.size > 0 && blockSize > r.window.size) {
+	if blockSize > r.blockMaximumSize {
 		return r.makeError(relativeOffset, "block size too large")
 	}
 
