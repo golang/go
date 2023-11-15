@@ -116,8 +116,6 @@ var optabBase = []Optab{
 	/* move register */
 	{as: AADD, a1: C_REG, a2: C_REG, a6: C_REG, type_: 2, size: 4},
 	{as: AADD, a1: C_REG, a6: C_REG, type_: 2, size: 4},
-	{as: AADD, a1: C_U15CON, a2: C_REG, a6: C_REG, type_: 4, size: 4},
-	{as: AADD, a1: C_U15CON, a6: C_REG, type_: 4, size: 4},
 	{as: AADD, a1: C_S16CON, a2: C_REG, a6: C_REG, type_: 4, size: 4},
 	{as: AADD, a1: C_S16CON, a6: C_REG, type_: 4, size: 4},
 	{as: AADD, a1: C_U16CON, a2: C_REG, a6: C_REG, type_: 22, size: 8},
@@ -146,8 +144,6 @@ var optabBase = []Optab{
 	{as: AMULLW, a1: C_REG, a6: C_REG, type_: 2, size: 4},
 	{as: AMULLW, a1: C_S16CON, a2: C_REG, a6: C_REG, type_: 4, size: 4},
 	{as: AMULLW, a1: C_S16CON, a6: C_REG, type_: 4, size: 4},
-	{as: AMULLW, a1: C_U16CON, a2: C_REG, a6: C_REG, type_: 4, size: 4},
-	{as: AMULLW, a1: C_U16CON, a6: C_REG, type_: 4, size: 4},
 	{as: AMULLW, a1: C_32CON, a2: C_REG, a6: C_REG, type_: 22, size: 12},
 	{as: AMULLW, a1: C_32CON, a6: C_REG, type_: 22, size: 12},
 	{as: ASUBC, a1: C_REG, a2: C_REG, a6: C_REG, type_: 10, size: 4},
@@ -232,8 +228,7 @@ var optabBase = []Optab{
 	{as: AMOVBZ, a1: C_REG, a6: C_XOREG, type_: 108, size: 4},
 	{as: AMOVBZ, a1: C_REG, a6: C_REG, type_: 13, size: 4},
 
-	{as: AMOVD, a1: C_S16CON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVD, a1: C_U16CON, a6: C_REG, type_: 3, size: 4},
+	{as: AMOVD, a1: C_16CON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVD, a1: C_SACON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVD, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
 	{as: AMOVD, a1: C_XOREG, a6: C_REG, type_: 109, size: 4},
@@ -245,8 +240,7 @@ var optabBase = []Optab{
 	{as: AMOVD, a1: C_REG, a6: C_SPR, type_: 66, size: 4},
 	{as: AMOVD, a1: C_REG, a6: C_REG, type_: 13, size: 4},
 
-	{as: AMOVW, a1: C_S16CON, a6: C_REG, type_: 3, size: 4},
-	{as: AMOVW, a1: C_U16CON, a6: C_REG, type_: 3, size: 4},
+	{as: AMOVW, a1: C_16CON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVW, a1: C_SACON, a6: C_REG, type_: 3, size: 4},
 	{as: AMOVW, a1: C_CREG, a6: C_REG, type_: 68, size: 4},
 	{as: AMOVW, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
@@ -391,9 +385,7 @@ var optabBase = []Optab{
 	{as: AVSEL, a1: C_VREG, a2: C_VREG, a3: C_VREG, a6: C_VREG, type_: 83, size: 4}, /* vector select, va-form */
 
 	/* Vector splat */
-	{as: AVSPLTB, a1: C_U15CON, a2: C_VREG, a6: C_VREG, type_: 82, size: 4}, /* vector splat, vx-form */
 	{as: AVSPLTB, a1: C_S16CON, a2: C_VREG, a6: C_VREG, type_: 82, size: 4},
-	{as: AVSPLTISB, a1: C_U15CON, a6: C_VREG, type_: 82, size: 4}, /* vector splat immediate, vx-form */
 	{as: AVSPLTISB, a1: C_S16CON, a6: C_VREG, type_: 82, size: 4},
 
 	/* Vector AES */
@@ -2544,33 +2536,25 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		}
 		o1 = AOP_RRR(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(p.From.Reg))
 
-	case 3: /* mov $soreg/addcon/andcon/ucon, r ==> addis/oris/addi/ori $i,reg',r */
+	case 3: /* mov $soreg/16con, r ==> addi/ori $i,reg',r */
 		d := c.vregoff(&p.From)
 
 		v := int32(d)
 		r := int(p.From.Reg)
-		// p.From may be a constant value or an offset(reg) type argument.
-		isZeroOrR0 := r&0x1f == 0
 
 		if r0iszero != 0 /*TypeKind(100016)*/ && p.To.Reg == 0 && (r != 0 || v != 0) {
 			c.ctxt.Diag("literal operation on R0\n%v", p)
 		}
-		a := OP_ADDI
-		if int64(int16(d)) != d {
-			// Operand is 16 bit value with sign bit set
-			if o.a1 == C_U16CON {
-				// Needs unsigned 16 bit so use ORI
-				if isZeroOrR0 {
-					o1 = LOP_IRR(uint32(OP_ORI), uint32(p.To.Reg), uint32(0), uint32(v))
-					break
-				}
-				// With S16CON, needs signed 16 bit value, fall through to use ADDI
-			} else if o.a1 != C_S16CON {
-				log.Fatalf("invalid handling of %v", p)
+		if int64(int16(d)) == d {
+			// MOVD $int16, Ry  or  MOVD $offset(Rx), Ry
+			o1 = AOP_IRR(uint32(OP_ADDI), uint32(p.To.Reg), uint32(r), uint32(v))
+		} else {
+			// MOVD $uint16, Ry
+			if int64(uint16(d)) != d || (r != 0 && r != REGZERO) {
+				c.ctxt.Diag("Rule expects a uint16 constant load. got:\n%v", p)
 			}
+			o1 = LOP_IRR(uint32(OP_ORI), uint32(p.To.Reg), uint32(0), uint32(v))
 		}
-
-		o1 = AOP_IRR(uint32(a), uint32(p.To.Reg), uint32(r), uint32(v))
 
 	case 4: /* add/mul $scon,[r1],r2 */
 		v := c.regoff(&p.From)
