@@ -409,6 +409,10 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 		// Necessary for opening directory handles.
 		attrs |= FILE_FLAG_BACKUP_SEMANTICS
 	}
+	if mode&O_SYNC != 0 {
+		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
+		attrs |= _FILE_FLAG_WRITE_THROUGH
+	}
 	return CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
 }
 
