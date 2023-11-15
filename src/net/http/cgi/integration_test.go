@@ -20,7 +20,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 )
 
 // This test is a CGI host (testing host.go) that runs its own binary
@@ -31,7 +30,6 @@ func TestHostingOurselves(t *testing.T) {
 	h := &Handler{
 		Path: os.Args[0],
 		Root: "/test.go",
-		Args: []string{"-test.run=^TestBeChildCGIProcess$"},
 	}
 	expectedMap := map[string]string{
 		"test":                  "Hello CGI-in-CGI",
@@ -98,9 +96,8 @@ func TestKillChildAfterCopyError(t *testing.T) {
 	h := &Handler{
 		Path: os.Args[0],
 		Root: "/test.go",
-		Args: []string{"-test.run=^TestBeChildCGIProcess$"},
 	}
-	req, _ := http.NewRequest("GET", "http://example.com/test.cgi?write-forever=1", nil)
+	req, _ := http.NewRequest("GET", "http://example.com/test.go?write-forever=1", nil)
 	rec := httptest.NewRecorder()
 	var out bytes.Buffer
 	const writeLen = 50 << 10
@@ -120,7 +117,6 @@ func TestChildOnlyHeaders(t *testing.T) {
 	h := &Handler{
 		Path: os.Args[0],
 		Root: "/test.go",
-		Args: []string{"-test.run=^TestBeChildCGIProcess$"},
 	}
 	expectedMap := map[string]string{
 		"_body": "",
@@ -139,7 +135,6 @@ func TestNilRequestBody(t *testing.T) {
 	h := &Handler{
 		Path: os.Args[0],
 		Root: "/test.go",
-		Args: []string{"-test.run=^TestBeChildCGIProcess$"},
 	}
 	expectedMap := map[string]string{
 		"nil-request-body": "false",
@@ -154,7 +149,6 @@ func TestChildContentType(t *testing.T) {
 	h := &Handler{
 		Path: os.Args[0],
 		Root: "/test.go",
-		Args: []string{"-test.run=^TestBeChildCGIProcess$"},
 	}
 	var tests = []struct {
 		name   string
@@ -202,7 +196,6 @@ func want500Test(t *testing.T, path string) {
 	h := &Handler{
 		Path: os.Args[0],
 		Root: "/test.go",
-		Args: []string{"-test.run=^TestBeChildCGIProcess$"},
 	}
 	expectedMap := map[string]string{
 		"_body": "",
@@ -211,62 +204,4 @@ func want500Test(t *testing.T, path string) {
 	if replay.Code != 500 {
 		t.Errorf("Got code %d; want 500", replay.Code)
 	}
-}
-
-type neverEnding byte
-
-func (b neverEnding) Read(p []byte) (n int, err error) {
-	for i := range p {
-		p[i] = byte(b)
-	}
-	return len(p), nil
-}
-
-// Note: not actually a test.
-func TestBeChildCGIProcess(t *testing.T) {
-	if os.Getenv("REQUEST_METHOD") == "" {
-		// Not in a CGI environment; skipping test.
-		return
-	}
-	switch os.Getenv("REQUEST_URI") {
-	case "/immediate-disconnect":
-		os.Exit(0)
-	case "/no-content-type":
-		fmt.Printf("Content-Length: 6\n\nHello\n")
-		os.Exit(0)
-	case "/empty-headers":
-		fmt.Printf("\nHello")
-		os.Exit(0)
-	}
-	Serve(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		if req.FormValue("nil-request-body") == "1" {
-			fmt.Fprintf(rw, "nil-request-body=%v\n", req.Body == nil)
-			return
-		}
-		rw.Header().Set("X-Test-Header", "X-Test-Value")
-		req.ParseForm()
-		if req.FormValue("no-body") == "1" {
-			return
-		}
-		if eb, ok := req.Form["exact-body"]; ok {
-			io.WriteString(rw, eb[0])
-			return
-		}
-		if req.FormValue("write-forever") == "1" {
-			io.Copy(rw, neverEnding('a'))
-			for {
-				time.Sleep(5 * time.Second) // hang forever, until killed
-			}
-		}
-		fmt.Fprintf(rw, "test=Hello CGI-in-CGI\n")
-		for k, vv := range req.Form {
-			for _, v := range vv {
-				fmt.Fprintf(rw, "param-%s=%s\n", k, v)
-			}
-		}
-		for _, kv := range os.Environ() {
-			fmt.Fprintf(rw, "env-%s\n", kv)
-		}
-	}))
-	os.Exit(0)
 }

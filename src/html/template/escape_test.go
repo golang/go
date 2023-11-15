@@ -1797,11 +1797,23 @@ func TestEscapeText(t *testing.T) {
 			context{state: stateJS, element: elementScript, jsCtx: jsCtxDivOp},
 		},
 		{
-			"<script>`${ { `` }`",
+			"<script>`${ { `` }",
 			context{state: stateJS, element: elementScript},
 		},
 		{
 			"<script>`${ { }`",
+			context{state: stateJSTmplLit, element: elementScript},
+		},
+		{
+			"<script>var foo = `${ foo({ a: { c: `${",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>var foo = `${ foo({ a: { c: `${ {{.}} }` }, b: ",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>`${ `}",
 			context{state: stateJSTmplLit, element: elementScript},
 		},
 	}

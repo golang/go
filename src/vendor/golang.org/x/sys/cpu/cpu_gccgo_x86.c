@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (386 || amd64 || amd64p32) && gccgo
-// +build 386 amd64 amd64p32
-// +build gccgo
 
 #include <cpuid.h>
 #include <stdint.h>

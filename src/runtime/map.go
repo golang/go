@@ -70,7 +70,7 @@ const (
 	// Because of minimum alignment rules, bucketCnt is known to be at least 8.
 	// Represent as loadFactorNum/loadFactorDen, to allow integer math.
 	loadFactorDen = 2
-	loadFactorNum = (bucketCnt * 13 / 16) * loadFactorDen
+	loadFactorNum = loadFactorDen * bucketCnt * 13 / 16
 
 	// Maximum key or elem size to keep inline (instead of mallocing per element).
 	// Must fit in a uint8.
@@ -354,7 +354,7 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
 		// used with this value of b.
 		nbuckets += bucketShift(b - 4)
 		sz := t.Bucket.Size_ * nbuckets
-		up := roundupsize(sz)
+		up := roundupsize(sz, t.Bucket.PtrBytes == 0)
 		if up != sz {
 			nbuckets = up / t.Bucket.Size_
 		}
@@ -1651,7 +1651,7 @@ func copyKeys(t *maptype, h *hmap, b *bmap, s *slice, offset uint8) {
 			if s.len >= s.cap {
 				fatal("concurrent map read and map write")
 			}
-			typedmemmove(t.Key, add(s.array, uintptr(s.len)*uintptr(t.KeySize)), k)
+			typedmemmove(t.Key, add(s.array, uintptr(s.len)*uintptr(t.Key.Size())), k)
 			s.len++
 		}
 		b = b.overflow(t)
@@ -1716,7 +1716,7 @@ func copyValues(t *maptype, h *hmap, b *bmap, s *slice, offset uint8) {
 			if s.len >= s.cap {
 				fatal("concurrent map read and map write")
 			}
-			typedmemmove(t.Elem, add(s.array, uintptr(s.len)*uintptr(t.ValueSize)), ele)
+			typedmemmove(t.Elem, add(s.array, uintptr(s.len)*uintptr(t.Elem.Size())), ele)
 			s.len++
 		}
 		b = b.overflow(t)

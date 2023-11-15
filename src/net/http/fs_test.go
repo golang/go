@@ -571,7 +571,7 @@ func testServeDirWithoutTrailingSlash(t *testing.T, mode testMode) {
 	}
 }
 
-// Tests that ServeFile doesn't add a Content-Length if a Content-Encoding is
+// Tests that ServeFile adds a Content-Length even if a Content-Encoding is
 // specified.
 func TestServeFileWithContentEncoding(t *testing.T) { run(t, testServeFileWithContentEncoding) }
 func testServeFileWithContentEncoding(t *testing.T, mode testMode) {
@@ -593,7 +593,7 @@ func testServeFileWithContentEncoding(t *testing.T, mode testMode) {
 		t.Fatal(err)
 	}
 	resp.Body.Close()
-	if g, e := resp.ContentLength, int64(-1); g != e {
+	if g, e := resp.ContentLength, int64(11); g != e {
 		t.Errorf("Content-Length mismatch: got %d, want %d", g, e)
 	}
 }

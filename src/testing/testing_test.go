@@ -6,9 +6,12 @@ package testing_test
 
 import (
 	"bytes"
+	"internal/race"
 	"internal/testenv"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sync"
 	"testing"
 )
 
@@ -17,7 +20,22 @@ import (
 // standard library with a TestMain, so that code is executed.
 
 func TestMain(m *testing.M) {
-	os.Exit(m.Run())
+	if os.Getenv("GO_WANT_RACE_BEFORE_TESTS") == "1" {
+		doRace()
+	}
+
+	m.Run()
+
+	// Note: m.Run currently prints the final "PASS" line, so if any race is
+	// reported here (after m.Run but before the process exits), it will print
+	// "PASS", then print the stack traces for the race, then exit with nonzero
+	// status.
+	//
+	// This is a somewhat fundamental race: because the race detector hooks into
+	// the runtime at a very low level, no matter where we put the printing it
+	// would be possible to report a race that occurs afterward. However, we could
+	// theoretically move the printing after TestMain, which would at least do a
+	// better job of diagnosing races in cleanup functions within TestMain itself.
 }
 
 func TestTempDirInCleanup(t *testing.T) {
@@ -292,4 +310,329 @@ func TestTesting(t *testing.T) {
 	if s != "false" {
 		t.Errorf("in non-test testing.Test() returned %q, want %q", s, "false")
 	}
+}
+
+// runTest runs a helper test with -test.v, ignoring its exit status.
+// runTest both logs and returns the test output.
+func runTest(t *testing.T, test string) []byte {
+	t.Helper()
+
+	testenv.MustHaveExec(t)
+
+	exe, err := os.Executable()
+	if err != nil {
+		t.Skipf("can't find test executable: %v", err)
+	}
+
+	cmd := testenv.Command(t, exe, "-test.run=^"+test+"$", "-test.bench="+test, "-test.v", "-test.parallel=2", "-test.benchtime=2x")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%v: %v\n%s", cmd, err, out)
+
+	return out
+}
+
+// doRace provokes a data race that generates a race detector report if run
+// under the race detector and is otherwise benign.
+func doRace() {
+	var x int
+	c1 := make(chan bool)
+	go func() {
+		x = 1 // racy write
+		c1 <- true
+	}()
+	_ = x // racy read
+	<-c1
+}
+
+func TestRaceReports(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		// Generate a race detector report in a sub test.
+		t.Run("Sub", func(t *testing.T) {
+			doRace()
+		})
+		return
+	}
+
+	out := runTest(t, "TestRaceReports")
+
+	// We should see at most one race detector report.
+	c := bytes.Count(out, []byte("race detected"))
+	want := 0
+	if race.Enabled {
+		want = 1
+	}
+	if c != want {
+		t.Errorf("got %d race reports, want %d", c, want)
+	}
+}
+
+// Issue #60083. This used to fail on the race builder.
+func TestRaceName(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		doRace()
+		return
+	}
+
+	out := runTest(t, "TestRaceName")
+
+	if regexp.MustCompile(`=== NAME\s*$`).Match(out) {
+		t.Errorf("incorrectly reported test with no name")
+	}
+}
+
+func TestRaceSubReports(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		t.Parallel()
+		c1 := make(chan bool, 1)
+		t.Run("sub", func(t *testing.T) {
+			t.Run("subsub1", func(t *testing.T) {
+				t.Parallel()
+				doRace()
+				c1 <- true
+			})
+			t.Run("subsub2", func(t *testing.T) {
+				t.Parallel()
+				doRace()
+				<-c1
+			})
+		})
+		doRace()
+		return
+	}
+
+	out := runTest(t, "TestRaceSubReports")
+
+	// There should be three race reports: one for each subtest, and one for the
+	// race after the subtests complete. Note that because the subtests run in
+	// parallel, the race stacks may both be printed in with one or the other
+	// test's logs.
+	cReport := bytes.Count(out, []byte("race detected during execution of test"))
+	wantReport := 0
+	if race.Enabled {
+		wantReport = 3
+	}
+	if cReport != wantReport {
+		t.Errorf("got %d race reports, want %d", cReport, wantReport)
+	}
+
+	// Regardless of when the stacks are printed, we expect each subtest to be
+	// marked as failed, and that failure should propagate up to the parents.
+	cFail := bytes.Count(out, []byte("--- FAIL:"))
+	wantFail := 0
+	if race.Enabled {
+		wantFail = 4
+	}
+	if cFail != wantFail {
+		t.Errorf(`got %d "--- FAIL:" lines, want %d`, cReport, wantReport)
+	}
+}
+
+func TestRaceInCleanup(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		t.Cleanup(doRace)
+		t.Parallel()
+		t.Run("sub", func(t *testing.T) {
+			t.Parallel()
+			// No race should be reported for sub.
+		})
+		return
+	}
+
+	out := runTest(t, "TestRaceInCleanup")
+
+	// There should be one race report, for the parent test only.
+	cReport := bytes.Count(out, []byte("race detected during execution of test"))
+	wantReport := 0
+	if race.Enabled {
+		wantReport = 1
+	}
+	if cReport != wantReport {
+		t.Errorf("got %d race reports, want %d", cReport, wantReport)
+	}
+
+	// Only the parent test should be marked as failed.
+	// (The subtest does not race, and should pass.)
+	cFail := bytes.Count(out, []byte("--- FAIL:"))
+	wantFail := 0
+	if race.Enabled {
+		wantFail = 1
+	}
+	if cFail != wantFail {
+		t.Errorf(`got %d "--- FAIL:" lines, want %d`, cReport, wantReport)
+	}
+}
+
+func TestDeepSubtestRace(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		t.Run("sub", func(t *testing.T) {
+			t.Run("subsub", func(t *testing.T) {
+				t.Run("subsubsub", func(t *testing.T) {
+					doRace()
+				})
+			})
+			doRace()
+		})
+		return
+	}
+
+	out := runTest(t, "TestDeepSubtestRace")
+
+	c := bytes.Count(out, []byte("race detected during execution of test"))
+	want := 0
+	// There should be two race reports.
+	if race.Enabled {
+		want = 2
+	}
+	if c != want {
+		t.Errorf("got %d race reports, want %d", c, want)
+	}
+}
+
+func TestRaceDuringParallelFailsAllSubtests(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		var ready sync.WaitGroup
+		ready.Add(2)
+		done := make(chan struct{})
+		go func() {
+			ready.Wait()
+			doRace() // This race happens while both subtests are running.
+			close(done)
+		}()
+
+		t.Run("sub", func(t *testing.T) {
+			t.Run("subsub1", func(t *testing.T) {
+				t.Parallel()
+				ready.Done()
+				<-done
+			})
+			t.Run("subsub2", func(t *testing.T) {
+				t.Parallel()
+				ready.Done()
+				<-done
+			})
+		})
+
+		return
+	}
+
+	out := runTest(t, "TestRaceDuringParallelFailsAllSubtests")
+
+	c := bytes.Count(out, []byte("race detected during execution of test"))
+	want := 0
+	// Each subtest should report the race independently.
+	if race.Enabled {
+		want = 2
+	}
+	if c != want {
+		t.Errorf("got %d race reports, want %d", c, want)
+	}
+}
+
+func TestRaceBeforeParallel(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		t.Run("sub", func(t *testing.T) {
+			doRace()
+			t.Parallel()
+		})
+		return
+	}
+
+	out := runTest(t, "TestRaceBeforeParallel")
+
+	c := bytes.Count(out, []byte("race detected during execution of test"))
+	want := 0
+	// We should see one race detector report.
+	if race.Enabled {
+		want = 1
+	}
+	if c != want {
+		t.Errorf("got %d race reports, want %d", c, want)
+	}
+}
+
+func TestRaceBeforeTests(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	exe, err := os.Executable()
+	if err != nil {
+		t.Skipf("can't find test executable: %v", err)
+	}
+
+	cmd := testenv.Command(t, exe, "-test.run=^$")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_WANT_RACE_BEFORE_TESTS=1")
+	out, _ := cmd.CombinedOutput()
+	t.Logf("%s", out)
+
+	c := bytes.Count(out, []byte("race detected outside of test execution"))
+
+	want := 0
+	if race.Enabled {
+		want = 1
+	}
+	if c != want {
+		t.Errorf("got %d race reports; want %d", c, want)
+	}
+}
+
+func TestBenchmarkRace(t *testing.T) {
+	out := runTest(t, "BenchmarkRacy")
+	c := bytes.Count(out, []byte("race detected during execution of test"))
+
+	want := 0
+	// We should see one race detector report.
+	if race.Enabled {
+		want = 1
+	}
+	if c != want {
+		t.Errorf("got %d race reports; want %d", c, want)
+	}
+}
+
+func BenchmarkRacy(b *testing.B) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		b.Skipf("skipping intentionally-racy benchmark")
+	}
+	for i := 0; i < b.N; i++ {
+		doRace()
+	}
+}
+
+func TestBenchmarkSubRace(t *testing.T) {
+	out := runTest(t, "BenchmarkSubRacy")
+	c := bytes.Count(out, []byte("race detected during execution of test"))
+
+	want := 0
+	// We should see two race detector reports:
+	// one in the sub-bencmark, and one in the parent afterward.
+	if race.Enabled {
+		want = 2
+	}
+	if c != want {
+		t.Errorf("got %d race reports; want %d", c, want)
+	}
+}
+
+func BenchmarkSubRacy(b *testing.B) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		b.Skipf("skipping intentionally-racy benchmark")
+	}
+
+	b.Run("non-racy", func(b *testing.B) {
+		tot := 0
+		for i := 0; i < b.N; i++ {
+			tot++
+		}
+		_ = tot
+	})
+
+	b.Run("racy", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			doRace()
+		}
+	})
+
+	doRace() // should be reported separately
 }

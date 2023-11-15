@@ -5,7 +5,8 @@
 package main
 
 /*
-// ERROR MESSAGE: #cgo noescape noMatchedCFunction: no matched C function
+// TODO(#56378): change back to "#cgo noescape noMatchedCFunction: no matched C function" in Go 1.23
+// ERROR MESSAGE: #cgo noescape disabled until Go 1.23
 #cgo noescape noMatchedCFunction
 */
 import "C"

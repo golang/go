@@ -12,7 +12,9 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -557,30 +559,11 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		case "FuncPCABIInternal":
 			wantABI = obj.ABIInternal
 		}
-		if isIfaceOfFunc(arg) {
-			fn := arg.(*ir.ConvExpr).X.(*ir.Name)
-			abi := fn.Func.ABI
-			if abi != wantABI {
-				base.ErrorfAt(n.Pos(), 0, "internal/abi.%s expects an %v function, %s is defined as %v", name, wantABI, fn.Sym().Name, abi)
-			}
-			var e ir.Node = ir.NewLinksymExpr(n.Pos(), fn.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
-			e = ir.NewAddrExpr(n.Pos(), e)
-			e.SetType(types.Types[types.TUINTPTR].PtrTo())
-			return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, n.Type(), e))
+		if n.Type() != types.Types[types.TUINTPTR] {
+			base.FatalfAt(n.Pos(), "FuncPC intrinsic should return uintptr, got %v", n.Type()) // as expected by typecheck.FuncPC.
 		}
-		// fn is not a defined function. It must be ABIInternal.
-		// Read the address from func value, i.e. *(*uintptr)(idata(fn)).
-		if wantABI != obj.ABIInternal {
-			base.ErrorfAt(n.Pos(), 0, "internal/abi.%s does not accept func expression, which is ABIInternal", name)
-		}
-		arg = walkExpr(arg, init)
-		var e ir.Node = ir.NewUnaryExpr(n.Pos(), ir.OIDATA, arg)
-		e.SetType(n.Type().PtrTo())
-		e.SetTypecheck(1)
-		e = ir.NewStarExpr(n.Pos(), e)
-		e.SetType(n.Type())
-		e.SetTypecheck(1)
-		return e
+		n := ir.FuncPC(n.Pos(), arg, wantABI)
+		return walkExpr(n, init)
 	}
 
 	if name, ok := n.Fun.(*ir.Name); ok {
@@ -724,14 +707,48 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
 		n.ITab = reflectdata.ITabAddrAt(base.Pos, n.Type(), n.X.Type())
 	}
+	if n.X.Type().IsInterface() && n.Type().IsInterface() && !n.Type().IsEmptyInterface() {
+		// This kind of conversion needs a runtime call. Allocate
+		// a descriptor for that call.
+		n.Descriptor = makeTypeAssertDescriptor(n.Type(), n.Op() == ir.ODOTTYPE2)
+	}
 	return n
 }
+
+func makeTypeAssertDescriptor(target *types.Type, canFail bool) *obj.LSym {
+	// When converting from an interface to a non-empty interface. Needs a runtime call.
+	// Allocate an internal/abi.TypeAssert descriptor for that call.
+	lsym := types.LocalPkg.Lookup(fmt.Sprintf(".typeAssert.%d", typeAssertGen)).LinksymABI(obj.ABI0)
+	typeAssertGen++
+	c := rttype.NewCursor(lsym, 0, rttype.TypeAssert)
+	c.Field("Cache").WritePtr(typecheck.LookupRuntimeVar("emptyTypeAssertCache"))
+	c.Field("Inter").WritePtr(reflectdata.TypeSym(target).Linksym())
+	c.Field("CanFail").WriteBool(canFail)
+	objw.Global(lsym, int32(rttype.TypeAssert.Size()), obj.LOCAL)
+	lsym.Gotype = reflectdata.TypeLinksym(rttype.TypeAssert)
+	return lsym
+}
+
+var typeAssertGen int
 
 // walkDynamicDotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
 func walkDynamicDotType(n *ir.DynamicTypeAssertExpr, init *ir.Nodes) ir.Node {
 	n.X = walkExpr(n.X, init)
 	n.RType = walkExpr(n.RType, init)
 	n.ITab = walkExpr(n.ITab, init)
+	// Convert to non-dynamic if we can.
+	if n.RType != nil && n.RType.Op() == ir.OADDR {
+		addr := n.RType.(*ir.AddrExpr)
+		if addr.X.Op() == ir.OLINKSYMOFFSET {
+			r := ir.NewTypeAssertExpr(n.Pos(), n.X, n.Type())
+			if n.Op() == ir.ODYNAMICDOTTYPE2 {
+				r.SetOp(ir.ODOTTYPE2)
+			}
+			r.SetType(n.Type())
+			r.SetTypecheck(1)
+			return walkExpr(r, init)
+		}
+	}
 	return n
 }
 

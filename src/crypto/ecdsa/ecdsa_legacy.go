@@ -54,7 +54,7 @@ var errZeroParam = errors.New("zero parameter")
 // using the private key, priv. If the hash is longer than the bit-length of the
 // private key's curve order, the hash will be truncated to that length. It
 // returns the signature as a pair of integers. Most applications should use
-// SignASN1 instead of dealing directly with r, s.
+// [SignASN1] instead of dealing directly with r, s.
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
 	sig, err := SignASN1(rand, priv, hash)
 	if err != nil {

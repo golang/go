@@ -321,10 +321,9 @@ func init() {
 		// arg2 = mem
 		// auxint = alignment
 		// returns mem
-		//	SUBV	$8, R19
-		//	MOVV	R0, 8(R19)
-		//	ADDV	$8, R19
-		//	BNE	Rarg1, R19, -2(PC)
+		//	MOVx	R0, (R19)
+		//	ADDV	$sz, R19
+		//	BGEU	Rarg1, R19, -2(PC)
 		{
 			name:      "LoweredZero",
 			aux:       "Int64",
@@ -333,32 +332,31 @@ func init() {
 				inputs:   []regMask{buildReg("R19"), gp},
 				clobbers: buildReg("R19"),
 			},
-			clobberFlags:   true,
+			typ:            "Mem",
 			faultOnNilArg0: true,
 		},
 
 		// large or unaligned move
-		// arg0 = address of dst memory (in R4, changed as side effect)
+		// arg0 = address of dst memory (in R20, changed as side effect)
 		// arg1 = address of src memory (in R19, changed as side effect)
 		// arg2 = address of the last element of src
 		// arg3 = mem
 		// auxint = alignment
 		// returns mem
-		//	SUBV	$8, R19
-		//	MOVV	8(R19), Rtmp
-		//	MOVV	Rtmp, (R4)
-		//	ADDV	$8, R19
-		//	ADDV	$8, R4
-		//	BNE	Rarg2, R19, -4(PC)
+		//	MOVx	(R19), Rtmp
+		//	MOVx	Rtmp, (R20)
+		//	ADDV	$sz, R19
+		//	ADDV	$sz, R20
+		//	BGEU	Rarg2, R19, -4(PC)
 		{
 			name:      "LoweredMove",
 			aux:       "Int64",
 			argLength: 4,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R4"), buildReg("R19"), gp},
-				clobbers: buildReg("R19 R4"),
+				inputs:   []regMask{buildReg("R20"), buildReg("R19"), gp},
+				clobbers: buildReg("R19 R20"),
 			},
-			clobberFlags:   true,
+			typ:            "Mem",
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
 		},

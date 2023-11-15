@@ -282,3 +282,43 @@ TEXT ·Or(SB), NOSPLIT, $0-12
 	MOVW	val+8(FP), A1
 	AMOORW	A1, (A0), ZERO
 	RET
+
+// func Or32(ptr *uint32, val uint32) uint32
+TEXT ·Or32(SB), NOSPLIT, $0-20
+	MOV	ptr+0(FP), A0
+	MOVW	val+8(FP), A1
+	AMOORW	A1, (A0), A2
+	MOVW	A2, ret+16(FP)
+	RET
+
+// func And32(ptr *uint32, val uint32) uint32
+TEXT ·And32(SB), NOSPLIT, $0-20
+	MOV	ptr+0(FP), A0
+	MOVW	val+8(FP), A1
+	AMOANDW	A1, (A0), A2
+	MOVW	A2, ret+16(FP)
+	RET
+
+// func Or64(ptr *uint64, val uint64) uint64
+TEXT ·Or64(SB), NOSPLIT, $0-24
+	MOV	ptr+0(FP), A0
+	MOV	val+8(FP), A1
+	AMOORD	A1, (A0), A2
+	MOV	A2, ret+16(FP)
+	RET
+
+// func And64(ptr *uint64, val uint64) uint64
+TEXT ·And64(SB), NOSPLIT, $0-24
+	MOV	ptr+0(FP), A0
+	MOV	val+8(FP), A1
+	AMOANDD	A1, (A0), A2
+	MOV	A2, ret+16(FP)
+	RET
+
+// func Anduintptr(ptr *uintptr, val uintptr) uintptr
+TEXT ·Anduintptr(SB), NOSPLIT, $0-24
+	JMP	·And64(SB)
+
+// func Oruintptr(ptr *uintptr, val uintptr) uintptr
+TEXT ·Oruintptr(SB), NOSPLIT, $0-24
+	JMP	·Or64(SB)

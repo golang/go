@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"go/version"
 	"internal/buildcfg"
 	"internal/pkgbits"
 	"os"
@@ -1479,8 +1480,8 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 
 func (w *writer) distinctVars(stmt *syntax.ForStmt) bool {
 	lv := base.Debug.LoopVar
-	v := w.p.info.FileVersions[stmt.Pos().Base()]
-	is122 := v.Major == 0 && v.Minor == 0 || v.Major == 1 && v.Minor >= 22
+	fileVersion := w.p.info.FileVersions[stmt.Pos().Base()]
+	is122 := fileVersion == "" || version.Compare(fileVersion, "go1.22") >= 0
 
 	// Turning off loopvar for 1.22 is only possible with loopvarhash=qn
 	//
@@ -1909,7 +1910,7 @@ func (w *writer) expr(expr syntax.Expr) {
 
 		var rtype types2.Type
 		if tv.IsBuiltin() {
-			switch obj, _ := lookupObj(w.p, expr.Fun); obj.Name() {
+			switch obj, _ := lookupObj(w.p, syntax.Unparen(expr.Fun)); obj.Name() {
 			case "make":
 				assert(len(expr.ArgList) >= 1)
 				assert(!expr.HasDots)
@@ -2483,7 +2484,7 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
 	case *syntax.ImportDecl:
 		pw.checkPragmas(n.Pragma, 0, false)
 
-		switch pkgNameOf(pw.info, n).Imported().Path() {
+		switch pw.info.PkgNameOf(n).Imported().Path() {
 		case "embed":
 			c.file.importedEmbed = true
 		case "unsafe":

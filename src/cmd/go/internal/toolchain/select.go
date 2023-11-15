@@ -167,12 +167,14 @@ func Select() {
 			gover.Startup.AutoToolchain = toolchain
 		} else {
 			if toolchain != "" {
-				// Accept toolchain only if it is >= our min.
+				// Accept toolchain only if it is > our min.
+				// (If it is equal, then min satisfies it anyway: that can matter if min
+				// has a suffix like "go1.21.1-foo" and toolchain is "go1.21.1".)
 				toolVers := gover.FromToolchain(toolchain)
 				if toolVers == "" || (!strings.HasPrefix(toolchain, "go") && !strings.Contains(toolchain, "-go")) {
 					base.Fatalf("invalid toolchain %q in %s", toolchain, base.ShortPath(file))
 				}
-				if gover.Compare(toolVers, minVers) >= 0 {
+				if gover.Compare(toolVers, minVers) > 0 {
 					gotoolchain = toolchain
 					minVers = toolVers
 					gover.Startup.AutoToolchain = toolchain

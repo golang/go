@@ -40,8 +40,8 @@ func makeFuncFlagsAnalyzer(fn *ir.Func) *funcFlagsAnalyzer {
 	}
 }
 
-// setResults transfers func flag results to 'fp'.
-func (ffa *funcFlagsAnalyzer) setResults(fp *FuncProps) {
+// setResults transfers func flag results to 'funcProps'.
+func (ffa *funcFlagsAnalyzer) setResults(funcProps *FuncProps) {
 	var rv FuncPropBits
 	if !ffa.noInfo && ffa.stateForList(ffa.fn.Body) == psCallsPanic {
 		rv = FuncPropNeverReturns
@@ -63,7 +63,7 @@ func (ffa *funcFlagsAnalyzer) setResults(fp *FuncProps) {
 	if isMainMain(ffa.fn) {
 		rv &^= FuncPropNeverReturns
 	}
-	fp.Flags = rv
+	funcProps.Flags = rv
 }
 
 func (ffa *funcFlagsAnalyzer) getstate(n ir.Node) pstate {
@@ -189,8 +189,8 @@ func isExitCall(n ir.Node) bool {
 		isWellKnownFunc(s, "runtime", "throw") {
 		return true
 	}
-	if fp := propsForFunc(name.Func); fp != nil {
-		if fp.Flags&FuncPropNeverReturns != 0 {
+	if funcProps := propsForFunc(name.Func); funcProps != nil {
+		if funcProps.Flags&FuncPropNeverReturns != 0 {
 			return true
 		}
 	}

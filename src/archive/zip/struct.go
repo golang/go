@@ -160,12 +160,12 @@ type FileHeader struct {
 	ExternalAttrs uint32 // Meaning depends on CreatorVersion
 }
 
-// FileInfo returns an fs.FileInfo for the FileHeader.
+// FileInfo returns an fs.FileInfo for the [FileHeader].
 func (h *FileHeader) FileInfo() fs.FileInfo {
 	return headerFileInfo{h}
 }
 
-// headerFileInfo implements fs.FileInfo.
+// headerFileInfo implements [fs.FileInfo].
 type headerFileInfo struct {
 	fh *FileHeader
 }
@@ -194,7 +194,7 @@ func (fi headerFileInfo) String() string {
 	return fs.FormatFileInfo(fi)
 }
 
-// FileInfoHeader creates a partially-populated FileHeader from an
+// FileInfoHeader creates a partially-populated [FileHeader] from an
 // fs.FileInfo.
 // Because fs.FileInfo's Name method returns only the base name of
 // the file it describes, it may be necessary to modify the Name field
@@ -273,17 +273,17 @@ func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
 }
 
 // ModTime returns the modification time in UTC using the legacy
-// ModifiedDate and ModifiedTime fields.
+// [ModifiedDate] and [ModifiedTime] fields.
 //
-// Deprecated: Use Modified instead.
+// Deprecated: Use [Modified] instead.
 func (h *FileHeader) ModTime() time.Time {
 	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
 }
 
-// SetModTime sets the Modified, ModifiedTime, and ModifiedDate fields
+// SetModTime sets the [Modified], [ModifiedTime], and [ModifiedDate] fields
 // to the given time in UTC.
 //
-// Deprecated: Use Modified instead.
+// Deprecated: Use [Modified] instead.
 func (h *FileHeader) SetModTime(t time.Time) {
 	t = t.UTC() // Convert to UTC for compatibility
 	h.Modified = t
@@ -309,7 +309,7 @@ const (
 	msdosReadOnly = 0x01
 )
 
-// Mode returns the permission and mode bits for the FileHeader.
+// Mode returns the permission and mode bits for the [FileHeader].
 func (h *FileHeader) Mode() (mode fs.FileMode) {
 	switch h.CreatorVersion >> 8 {
 	case creatorUnix, creatorMacOSX:
@@ -323,7 +323,7 @@ func (h *FileHeader) Mode() (mode fs.FileMode) {
 	return mode
 }
 
-// SetMode changes the permission and mode bits for the FileHeader.
+// SetMode changes the permission and mode bits for the [FileHeader].
 func (h *FileHeader) SetMode(mode fs.FileMode) {
 	h.CreatorVersion = h.CreatorVersion&0xff | creatorUnix<<8
 	h.ExternalAttrs = fileModeToUnixMode(mode) << 16

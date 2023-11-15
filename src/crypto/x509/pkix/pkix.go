@@ -102,7 +102,7 @@ type AttributeTypeAndValue struct {
 }
 
 // AttributeTypeAndValueSET represents a set of ASN.1 sequences of
-// AttributeTypeAndValue sequences from RFC 2986 (PKCS #10).
+// [AttributeTypeAndValue] sequences from RFC 2986 (PKCS #10).
 type AttributeTypeAndValueSET struct {
 	Type  asn1.ObjectIdentifier
 	Value [][]AttributeTypeAndValue `asn1:"set"`
@@ -119,7 +119,7 @@ type Extension struct {
 // Name represents an X.509 distinguished name. This only includes the common
 // elements of a DN. Note that Name is only an approximation of the X.509
 // structure. If an accurate representation is needed, asn1.Unmarshal the raw
-// subject or issuer as an RDNSequence.
+// subject or issuer as an [RDNSequence].
 type Name struct {
 	Country, Organization, OrganizationalUnit []string
 	Locality, Province                        []string
@@ -138,7 +138,7 @@ type Name struct {
 	ExtraNames []AttributeTypeAndValue
 }
 
-// FillFromRDNSequence populates n from the provided RDNSequence.
+// FillFromRDNSequence populates n from the provided [RDNSequence].
 // Multi-entry RDNs are flattened, all entries are added to the
 // relevant n fields, and the grouping is not preserved.
 func (n *Name) FillFromRDNSequence(rdns *RDNSequence) {
@@ -211,7 +211,7 @@ func (n Name) appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentif
 	return append(in, s)
 }
 
-// ToRDNSequence converts n into a single RDNSequence. The following
+// ToRDNSequence converts n into a single [RDNSequence]. The following
 // attributes are encoded as multi-value RDNs:
 //
 //   - Country

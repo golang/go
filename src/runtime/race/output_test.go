@@ -208,8 +208,8 @@ func TestFail(t *testing.T) {
 `, []string{`
 ==================
 --- FAIL: TestFail \([0-9.]+s\)
-.*main_test.go:14: true
 .*testing.go:.*: race detected during execution of test
+.*main_test.go:14: true
 FAIL`}},
 
 	{"slicebytetostring_pc", "run", "", "atexit_sleep_ms=0", `

@@ -150,7 +150,7 @@ type commentPrinter struct {
 	*Printer
 }
 
-// Comment returns the standard Go formatting of the Doc,
+// Comment returns the standard Go formatting of the [Doc],
 // without any comment markers.
 func (p *Printer) Comment(d *Doc) []byte {
 	cp := &commentPrinter{Printer: p}

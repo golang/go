@@ -367,6 +367,7 @@ openbsd_ppc64)
 	# API consistent between platforms.
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
 	mkasm="go run mkasm.go"
+	;;
 openbsd_riscv64)
 	GOOSARCH_in="syscall_openbsd_libc.go syscall_openbsd_$GOARCH.go"
 	mkerrors="$mkerrors -m64"

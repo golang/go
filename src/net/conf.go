@@ -151,7 +151,7 @@ func initConfVal() {
 	}
 }
 
-// goosPreferCgo reports whether the GOOS value passed in prefers
+// goosPrefersCgo reports whether the GOOS value passed in prefers
 // the cgo resolver.
 func goosPrefersCgo() bool {
 	switch runtime.GOOS {

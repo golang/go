@@ -192,7 +192,7 @@ func firstComment(filename string) string {
 				lit = lit[:len(lit)-2]
 			}
 			contents := strings.TrimSpace(lit[2:])
-			if strings.HasPrefix(contents, "+build ") {
+			if strings.HasPrefix(contents, "go:build ") {
 				return "skip"
 			}
 			if first == "" {
@@ -330,6 +330,7 @@ func TestStdFixed(t *testing.T) {
 		"issue49767.go",  // go/types does not have constraints on channel element size
 		"issue49814.go",  // go/types does not have constraints on array size
 		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
+		"issue52697.go",  // go/types does not have constraints on stack size
 
 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
 		// However, go/types does not know about build constraints.

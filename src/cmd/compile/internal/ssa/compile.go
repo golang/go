@@ -472,8 +472,8 @@ var passes = [...]pass{
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
 	{name: "early fuse", fn: fuseEarly},
-	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "expand calls", fn: expandCalls, required: true},
+	{name: "decompose builtin", fn: postExpandCallsDecompose, required: true},
 	{name: "softfloat", fn: softfloat, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
 	{name: "dead auto elim", fn: elimDeadAutosGeneric},
@@ -547,6 +547,8 @@ var passOrder = [...]constraint{
 	{"generic cse", "tighten"},
 	// checkbce needs the values removed
 	{"generic deadcode", "check bce"},
+	// decompose builtin now also cleans up after expand calls
+	{"expand calls", "decompose builtin"},
 	// don't run optimization pass until we've decomposed builtin objects
 	{"decompose builtin", "late opt"},
 	// decompose builtin is the last pass that may introduce new float ops, so run softfloat after it

@@ -862,7 +862,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, int32, error) {
 	if n > 0 {
 		sl += int32(n) + 1
 	}
-	if sa.raw.Path[0] == '@' {
+	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
+		// Check sl > 3 so we don't change unnamed socket behavior.
 		sa.raw.Path[0] = 0
 		// Don't count trailing NUL for abstract address.
 		sl--

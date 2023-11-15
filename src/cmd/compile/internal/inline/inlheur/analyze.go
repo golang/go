@@ -40,7 +40,7 @@ const (
 type propAnalyzer interface {
 	nodeVisitPre(n ir.Node)
 	nodeVisitPost(n ir.Node)
-	setResults(fp *FuncProps)
+	setResults(funcProps *FuncProps)
 }
 
 // fnInlHeur contains inline heuristics state information about a
@@ -51,62 +51,85 @@ type propAnalyzer interface {
 // parsing a dump. This is the reason why we have file/fname/line
 // fields below instead of just an *ir.Func field.
 type fnInlHeur struct {
-	fname string
-	file  string
-	line  uint
-	props *FuncProps
-	cstab CallSiteTab
+	fname           string
+	file            string
+	line            uint
+	inlineMaxBudget int32
+	props           *FuncProps
+	cstab           CallSiteTab
 }
 
 var fpmap = map[*ir.Func]fnInlHeur{}
 
-func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
-	if fih, ok := fpmap[fn]; ok {
-		return fih.props
+func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) *FuncProps {
+	if funcInlHeur, ok := fpmap[fn]; ok {
+		return funcInlHeur.props
 	}
-	fp, fcstab := computeFuncProps(fn, canInline)
+	funcProps, fcstab := computeFuncProps(fn, canInline, inlineMaxBudget)
 	file, line := fnFileLine(fn)
 	entry := fnInlHeur{
-		fname: fn.Sym().Name,
-		file:  file,
-		line:  line,
-		props: fp,
-		cstab: fcstab,
-	}
-	// Merge this functions call sites into the package level table.
-	if err := cstab.merge(fcstab); err != nil {
-		base.FatalfAt(fn.Pos(), "%v", err)
+		fname:           fn.Sym().Name,
+		file:            file,
+		line:            line,
+		inlineMaxBudget: inlineMaxBudget,
+		props:           funcProps,
+		cstab:           fcstab,
 	}
 	fn.SetNeverReturns(entry.props.Flags&FuncPropNeverReturns != 0)
 	fpmap[fn] = entry
 	if fn.Inl != nil && fn.Inl.Properties == "" {
 		fn.Inl.Properties = entry.props.SerializeToString()
 	}
-	return fp
+	return funcProps
+}
+
+// RevisitInlinability revisits the question of whether to continue to
+// treat function 'fn' as an inline candidate based on the set of
+// properties we've computed for it. If (for example) it has an
+// initial size score of 150 and no interesting properties to speak
+// of, then there isn't really any point to moving ahead with it as an
+// inline candidate.
+func RevisitInlinability(fn *ir.Func, budgetForFunc func(*ir.Func) int32) {
+	if fn.Inl == nil {
+		return
+	}
+	entry, ok := fpmap[fn]
+	if !ok {
+		//FIXME: issue error?
+		return
+	}
+	mxAdjust := int32(largestScoreAdjustment(fn, entry.props))
+	budget := budgetForFunc(fn)
+	if fn.Inl.Cost+mxAdjust > budget {
+		fn.Inl = nil
+	}
 }
 
 // computeFuncProps examines the Go function 'fn' and computes for it
 // a function "properties" object, to be used to drive inlining
 // heuristics. See comments on the FuncProps type for more info.
-func computeFuncProps(fn *ir.Func, canInline func(*ir.Func)) (*FuncProps, CallSiteTab) {
+func computeFuncProps(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) (*FuncProps, CallSiteTab) {
 	enableDebugTraceIfEnv()
 	if debugTrace&debugTraceFuncs != 0 {
 		fmt.Fprintf(os.Stderr, "=-= starting analysis of func %v:\n%+v\n",
-			fn.Sym().Name, fn)
+			fn, fn)
 	}
-	ra := makeResultsAnalyzer(fn, canInline)
+	ra := makeResultsAnalyzer(fn, canInline, inlineMaxBudget)
 	pa := makeParamsAnalyzer(fn)
 	ffa := makeFuncFlagsAnalyzer(fn)
 	analyzers := []propAnalyzer{ffa, ra, pa}
-	fp := new(FuncProps)
+	funcProps := new(FuncProps)
 	runAnalyzersOnFunction(fn, analyzers)
 	for _, a := range analyzers {
-		a.setResults(fp)
+		a.setResults(funcProps)
 	}
 	// Now build up a partial table of callsites for this func.
-	cstab := computeCallSiteTable(fn, ffa.panicPathTable())
+	if debugTrace&debugTraceCalls != 0 {
+		fmt.Fprintf(os.Stderr, "=-= making callsite table for func %v:\n", fn)
+	}
+	cstab := computeCallSiteTable(fn, fn.Body, ffa.panicPathTable(), 0)
 	disableDebugTrace()
-	return fp, cstab
+	return funcProps, cstab
 }
 
 func runAnalyzersOnFunction(fn *ir.Func, analyzers []propAnalyzer) {
@@ -125,8 +148,8 @@ func runAnalyzersOnFunction(fn *ir.Func, analyzers []propAnalyzer) {
 }
 
 func propsForFunc(fn *ir.Func) *FuncProps {
-	if fih, ok := fpmap[fn]; ok {
-		return fih.props
+	if funcInlHeur, ok := fpmap[fn]; ok {
+		return funcInlHeur.props
 	} else if fn.Inl != nil && fn.Inl.Properties != "" {
 		// FIXME: considering adding some sort of cache or table
 		// for deserialized properties of imported functions.
@@ -149,16 +172,15 @@ func UnitTesting() bool {
 // cached set of properties to the file given in 'dumpfile'. Used for
 // the "-d=dumpinlfuncprops=..." command line flag, intended for use
 // primarily in unit testing.
-func DumpFuncProps(fn *ir.Func, dumpfile string, canInline func(*ir.Func)) {
+func DumpFuncProps(fn *ir.Func, dumpfile string, canInline func(*ir.Func), inlineMaxBudget int32) {
 	if fn != nil {
 		enableDebugTraceIfEnv()
 		dmp := func(fn *ir.Func) {
 			if !goexperiment.NewInliner {
 				ScoreCalls(fn)
 			}
-			captureFuncDumpEntry(fn, canInline)
+			captureFuncDumpEntry(fn, canInline, inlineMaxBudget)
 		}
-		captureFuncDumpEntry(fn, canInline)
 		dmp(fn)
 		ir.Visit(fn, func(n ir.Node) {
 			if clo, ok := n.(*ir.ClosureExpr); ok {
@@ -221,19 +243,19 @@ func emitDumpToFile(dumpfile string) {
 // and enqueues it for later dumping. Used for the
 // "-d=dumpinlfuncprops=..." command line flag, intended for use
 // primarily in unit testing.
-func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
+func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) {
 	// avoid capturing compiler-generated equality funcs.
 	if strings.HasPrefix(fn.Sym().Name, ".eq.") {
 		return
 	}
-	fih, ok := fpmap[fn]
+	funcInlHeur, ok := fpmap[fn]
 	// Props object should already be present, unless this is a
 	// directly recursive routine.
 	if !ok {
-		AnalyzeFunc(fn, canInline)
-		fih = fpmap[fn]
+		AnalyzeFunc(fn, canInline, inlineMaxBudget)
+		funcInlHeur = fpmap[fn]
 		if fn.Inl != nil && fn.Inl.Properties == "" {
-			fn.Inl.Properties = fih.props.SerializeToString()
+			fn.Inl.Properties = funcInlHeur.props.SerializeToString()
 		}
 	}
 	if dumpBuffer == nil {
@@ -247,7 +269,7 @@ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
 	if debugTrace&debugTraceFuncs != 0 {
 		fmt.Fprintf(os.Stderr, "=-= capturing dump for %v:\n", fn)
 	}
-	dumpBuffer[fn] = fih
+	dumpBuffer[fn] = funcInlHeur
 }
 
 // dumpFilePreamble writes out a file-level preamble for a given
@@ -263,17 +285,17 @@ func dumpFilePreamble(w io.Writer) {
 // Go function as part of a function properties dump. See the
 // README.txt file in testdata/props for more on the format of
 // this preamble.
-func dumpFnPreamble(w io.Writer, fih *fnInlHeur, ecst encodedCallSiteTab, idx, atl uint) error {
+func dumpFnPreamble(w io.Writer, funcInlHeur *fnInlHeur, ecst encodedCallSiteTab, idx, atl uint) error {
 	fmt.Fprintf(w, "// %s %s %d %d %d\n",
-		fih.file, fih.fname, fih.line, idx, atl)
+		funcInlHeur.file, funcInlHeur.fname, funcInlHeur.line, idx, atl)
 	// emit props as comments, followed by delimiter
-	fmt.Fprintf(w, "%s// %s\n", fih.props.ToString("// "), comDelimiter)
-	data, err := json.Marshal(fih.props)
+	fmt.Fprintf(w, "%s// %s\n", funcInlHeur.props.ToString("// "), comDelimiter)
+	data, err := json.Marshal(funcInlHeur.props)
 	if err != nil {
 		return fmt.Errorf("marshall error %v\n", err)
 	}
 	fmt.Fprintf(w, "// %s\n", string(data))
-	dumpCallSiteComments(w, fih.cstab, ecst)
+	dumpCallSiteComments(w, funcInlHeur.cstab, ecst)
 	fmt.Fprintf(w, "// %s\n", fnDelimiter)
 	return nil
 }

@@ -11,6 +11,10 @@ import (
 	"unsafe"
 )
 
+const (
+	offsetARMHasV7Atomics = unsafe.Offsetof(cpu.ARM.HasV7Atomics)
+)
+
 // Export some functions via linkname to assembly in sync/atomic.
 //
 //go:linkname Xchg
@@ -200,6 +204,66 @@ func And(addr *uint32, v uint32) {
 		old := *addr
 		if Cas(addr, old, old&v) {
 			return
+		}
+	}
+}
+
+//go:nosplit
+func Or32(addr *uint32, v uint32) uint32 {
+	for {
+		old := *addr
+		if Cas(addr, old, old|v) {
+			return old
+		}
+	}
+}
+
+//go:nosplit
+func And32(addr *uint32, v uint32) uint32 {
+	for {
+		old := *addr
+		if Cas(addr, old, old&v) {
+			return old
+		}
+	}
+}
+
+//go:nosplit
+func Or64(addr *uint64, v uint64) uint64 {
+	for {
+		old := *addr
+		if Cas64(addr, old, old|v) {
+			return old
+		}
+	}
+}
+
+//go:nosplit
+func And64(addr *uint64, v uint64) uint64 {
+	for {
+		old := *addr
+		if Cas64(addr, old, old&v) {
+			return old
+		}
+	}
+}
+
+//go:nosplit
+func Oruintptr(addr *uintptr, v uintptr) uintptr {
+	for {
+		old := *addr
+		if Casuintptr(addr, old, old|v) {
+			return old
+		}
+	}
+}
+
+//go:nosplit
+func Anduintptr(addr *uintptr, v uintptr) uintptr {
+	for {
+		old := *addr
+		if Casuintptr(addr, old, old&v) {
+			return old
 		}
 	}
 }

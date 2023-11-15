@@ -495,13 +495,13 @@ func (p *Package) IsCommand() bool {
 	return p.Name == "main"
 }
 
-// ImportDir is like Import but processes the Go package found in
+// ImportDir is like [Import] but processes the Go package found in
 // the named directory.
 func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
 	return ctxt.Import(".", dir, mode)
 }
 
-// NoGoError is the error used by Import to describe a directory
+// NoGoError is the error used by [Import] to describe a directory
 // containing no buildable Go source files. (It may still contain
 // test files, files hidden by build tags, and so on.)
 type NoGoError struct {
@@ -549,7 +549,7 @@ var installgoroot = godebug.New("installgoroot")
 //   - files with build constraints not satisfied by the context
 //
 // If an error occurs, Import returns a non-nil error and a non-nil
-// *Package containing partial information.
+// *[Package] containing partial information.
 func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Package, error) {
 	p := &Package{
 		ImportPath: path,
@@ -1389,7 +1389,7 @@ func parseWord(data []byte) (word, rest []byte) {
 }
 
 // MatchFile reports whether the file with the given name in the given directory
-// matches the context and would be included in a Package created by ImportDir
+// matches the context and would be included in a [Package] created by [ImportDir]
 // of that directory.
 //
 // MatchFile considers the name of the file and may use ctxt.OpenFile to

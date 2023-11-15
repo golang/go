@@ -10,7 +10,7 @@ The following numeric types are supported:
 	Rat    rational numbers
 	Float  floating-point numbers
 
-The zero value for an Int, Rat, or Float correspond to 0. Thus, new
+The zero value for an [Int], [Rat], or [Float] correspond to 0. Thus, new
 values can be declared in the usual ways and denote 0 without further
 initialization:
 
@@ -23,9 +23,9 @@ functions of the form:
 
 	func NewT(v V) *T
 
-For instance, NewInt(x) returns an *Int set to the value of the int64
-argument x, NewRat(a, b) returns a *Rat set to the fraction a/b where
-a and b are int64 values, and NewFloat(f) returns a *Float initialized
+For instance, [NewInt](x) returns an *[Int] set to the value of the int64
+argument x, [NewRat](a, b) returns a *[Rat] set to the fraction a/b where
+a and b are int64 values, and [NewFloat](f) returns a *[Float] initialized
 to the float64 argument f. More flexibility is provided with explicit
 setters, for instance:
 
@@ -42,7 +42,7 @@ the form:
 	func (z *T) Binary(x, y *T) *T    // z = x binary y
 	func (x *T) Pred() P              // p = pred(x)
 
-with T one of Int, Rat, or Float. For unary and binary operations, the
+with T one of [Int], [Rat], or [Float]. For unary and binary operations, the
 result is the receiver (usually named z in that case; see below); if it
 is one of the operands x or y it may be safely overwritten (and its memory
 reused).
@@ -81,18 +81,18 @@ Methods of this form typically return the incoming receiver as well, to
 enable simple call chaining.
 
 Methods which don't require a result value to be passed in (for instance,
-Int.Sign), simply return the result. In this case, the receiver is typically
+[Int.Sign]), simply return the result. In this case, the receiver is typically
 the first operand, named x:
 
 	func (x *Int) Sign() int
 
 Various methods support conversions between strings and corresponding
-numeric values, and vice versa: *Int, *Rat, and *Float values implement
+numeric values, and vice versa: *[Int], *[Rat], and *[Float] values implement
 the Stringer interface for a (default) string representation of the value,
 but also provide SetString methods to initialize a value from a string in
 a variety of supported formats (see the respective SetString documentation).
 
-Finally, *Int, *Rat, and *Float satisfy [fmt.Scanner] for scanning
-and (except for *Rat) the Formatter interface for formatted printing.
+Finally, *[Int], *[Rat], and *[Float] satisfy [fmt.Scanner] for scanning
+and (except for *[Rat]) the Formatter interface for formatted printing.
 */
 package big

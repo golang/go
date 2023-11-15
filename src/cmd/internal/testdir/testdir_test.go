@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -417,13 +418,12 @@ func (ctxt *context) match(name string) bool {
 		}
 	}
 
+	if slices.Contains(build.Default.ReleaseTags, name) {
+		return true
+	}
+
 	if strings.HasPrefix(name, "goexperiment.") {
-		for _, tag := range build.Default.ToolTags {
-			if tag == name {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(build.Default.ToolTags, name)
 	}
 
 	if name == "cgo" && ctxt.cgoEnabled {
@@ -1751,6 +1751,9 @@ func TestShouldTest(t *testing.T) {
 
 	// Test that (!a OR !b) matches anything.
 	assert(shouldTest("// +build !windows !plan9", "windows", "amd64"))
+
+	// Test that //go:build tag match.
+	assert(shouldTest("//go:build go1.4", "linux", "amd64"))
 }
 
 // overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.

@@ -19,6 +19,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 const debug = false
@@ -64,7 +65,7 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
 
 		// Is this a C.f() call?
 		var name string
-		if sel, ok := analysisutil.Unparen(call.Fun).(*ast.SelectorExpr); ok {
+		if sel, ok := astutil.Unparen(call.Fun).(*ast.SelectorExpr); ok {
 			if id, ok := sel.X.(*ast.Ident); ok && id.Name == "C" {
 				name = sel.Sel.Name
 			}

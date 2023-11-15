@@ -435,23 +435,23 @@ func parseExtKeyUsageExtension(der cryptobyte.String) ([]ExtKeyUsage, []asn1.Obj
 	return extKeyUsages, unknownUsages, nil
 }
 
-func parseCertificatePoliciesExtension(der cryptobyte.String) ([]asn1.ObjectIdentifier, error) {
-	var oids []asn1.ObjectIdentifier
+func parseCertificatePoliciesExtension(der cryptobyte.String) ([]OID, error) {
+	var oids []OID
 	if !der.ReadASN1(&der, cryptobyte_asn1.SEQUENCE) {
 		return nil, errors.New("x509: invalid certificate policies")
 	}
 	for !der.Empty() {
 		var cp cryptobyte.String
-		if !der.ReadASN1(&cp, cryptobyte_asn1.SEQUENCE) {
+		var OIDBytes cryptobyte.String
+		if !der.ReadASN1(&cp, cryptobyte_asn1.SEQUENCE) || !cp.ReadASN1(&OIDBytes, cryptobyte_asn1.OBJECT_IDENTIFIER) {
 			return nil, errors.New("x509: invalid certificate policies")
 		}
-		var oid asn1.ObjectIdentifier
-		if !cp.ReadASN1ObjectIdentifier(&oid) {
+		oid, ok := newOIDFromDER(OIDBytes)
+		if !ok {
 			return nil, errors.New("x509: invalid certificate policies")
 		}
 		oids = append(oids, oid)
 	}
-
 	return oids, nil
 }
 
@@ -748,9 +748,15 @@ func processExtensions(out *Certificate) error {
 				}
 				out.SubjectKeyId = skid
 			case 32:
-				out.PolicyIdentifiers, err = parseCertificatePoliciesExtension(e.Value)
+				out.Policies, err = parseCertificatePoliciesExtension(e.Value)
 				if err != nil {
 					return err
+				}
+				out.PolicyIdentifiers = make([]asn1.ObjectIdentifier, 0, len(out.Policies))
+				for _, oid := range out.Policies {
+					if oid, ok := oid.toASN1OID(); ok {
+						out.PolicyIdentifiers = append(out.PolicyIdentifiers, oid)
+					}
 				}
 			default:
 				// Unknown extensions are recorded if critical.
@@ -1011,7 +1017,7 @@ func ParseCertificates(der []byte) ([]*Certificate, error) {
 // the actual encoded version, so the version for X.509v2 is 1.
 const x509v2Version = 1
 
-// ParseRevocationList parses a X509 v2 Certificate Revocation List from the given
+// ParseRevocationList parses a X509 v2 [Certificate] Revocation List from the given
 // ASN.1 DER data.
 func ParseRevocationList(der []byte) (*RevocationList, error) {
 	rl := &RevocationList{}

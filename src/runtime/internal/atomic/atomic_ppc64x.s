@@ -101,6 +101,7 @@ cas_again:
 	MOVB	R3, ret+16(FP)
 	RET
 cas_fail:
+	LWSYNC
 	MOVB	R0, ret+16(FP)
 	RET
 
@@ -128,6 +129,7 @@ cas64_again:
 	MOVB	R3, ret+24(FP)
 	RET
 cas64_fail:
+	LWSYNC
 	MOVB	R0, ret+24(FP)
 	RET
 

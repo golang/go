@@ -8,7 +8,6 @@
 // On other platforms (those using this source file), they don't.
 
 //go:build !amd64
-// +build !amd64
 
 TEXT ·BoringCrypto(SB),$0
 	RET

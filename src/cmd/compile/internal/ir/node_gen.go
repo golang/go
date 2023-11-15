@@ -847,6 +847,52 @@ func (n *InlinedCallExpr) editChildrenWithHidden(edit func(Node) Node) {
 	editNodes(n.ReturnVars, edit)
 }
 
+func (n *InterfaceSwitchStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *InterfaceSwitchStmt) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	return &c
+}
+func (n *InterfaceSwitchStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Case != nil && do(n.Case) {
+		return true
+	}
+	if n.Itab != nil && do(n.Itab) {
+		return true
+	}
+	if n.RuntimeType != nil && do(n.RuntimeType) {
+		return true
+	}
+	return false
+}
+func (n *InterfaceSwitchStmt) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Case != nil {
+		n.Case = edit(n.Case).(Node)
+	}
+	if n.Itab != nil {
+		n.Itab = edit(n.Itab).(Node)
+	}
+	if n.RuntimeType != nil {
+		n.RuntimeType = edit(n.RuntimeType).(Node)
+	}
+}
+func (n *InterfaceSwitchStmt) editChildrenWithHidden(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Case != nil {
+		n.Case = edit(n.Case).(Node)
+	}
+	if n.Itab != nil {
+		n.Itab = edit(n.Itab).(Node)
+	}
+	if n.RuntimeType != nil {
+		n.RuntimeType = edit(n.RuntimeType).(Node)
+	}
+}
+
 func (n *JumpTableStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *JumpTableStmt) copy() Node {
 	c := *n

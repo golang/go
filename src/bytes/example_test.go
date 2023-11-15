@@ -212,6 +212,17 @@ func ExampleContainsRune() {
 	// false
 }
 
+func ExampleContainsFunc() {
+	f := func(r rune) bool {
+		return r >= 'a' && r <= 'z'
+	}
+	fmt.Println(bytes.ContainsFunc([]byte("HELLO"), f))
+	fmt.Println(bytes.ContainsFunc([]byte("World"), f))
+	// Output:
+	// false
+	// true
+}
+
 func ExampleCount() {
 	fmt.Println(bytes.Count([]byte("cheese"), []byte("e")))
 	fmt.Println(bytes.Count([]byte("five"), []byte(""))) // before & after each rune

@@ -1288,7 +1288,8 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			SignatureSchemes:  []SignatureScheme{PKCS1WithSHA1},
 			SupportedVersions: []uint16{VersionTLS13, VersionTLS12},
 			config: &Config{
-				MaxVersion: VersionTLS12,
+				CipherSuites: []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
+				MaxVersion:   VersionTLS12,
 			},
 		}, ""}, // Check that mutual version selection works.
 
@@ -1365,6 +1366,7 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			SupportedPoints:   []uint8{pointFormatUncompressed},
 			SignatureSchemes:  []SignatureScheme{Ed25519},
 			SupportedVersions: []uint16{VersionTLS10},
+			config:            &Config{MinVersion: VersionTLS10},
 		}, "doesn't support Ed25519"},
 		{ed25519Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
@@ -1379,10 +1381,14 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			SupportedCurves:   []CurveID{CurveP256}, // only relevant for ECDHE support
 			SupportedPoints:   []uint8{pointFormatUncompressed},
 			SupportedVersions: []uint16{VersionTLS10},
+			config:            &Config{MinVersion: VersionTLS10},
 		}, ""},
 		{rsaCert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
 			SupportedVersions: []uint16{VersionTLS12},
+			config: &Config{
+				CipherSuites: []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
+			},
 		}, ""}, // static RSA fallback
 	}
 	for i, tt := range tests {

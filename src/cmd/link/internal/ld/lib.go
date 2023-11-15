@@ -2220,15 +2220,21 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		0xc401, // arm
 		0x64aa: // arm64
 		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
+			ls, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
 			}
-			if len(rsrc) != 0 {
-				setpersrc(ctxt, rsrc)
+			if len(ls.Resources) != 0 {
+				setpersrc(ctxt, ls.Resources)
 			}
-			ctxt.Textp = append(ctxt.Textp, textp...)
+			if ls.PData != 0 {
+				sehp.pdata = append(sehp.pdata, ls.PData)
+			}
+			if ls.XData != 0 {
+				sehp.xdata = append(sehp.xdata, ls.XData)
+			}
+			ctxt.Textp = append(ctxt.Textp, ls.Textp...)
 		}
 		return ldhostobj(ldpe, ctxt.HeadType, f, pkg, length, pn, file)
 	}

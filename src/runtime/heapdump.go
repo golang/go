@@ -14,6 +14,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"unsafe"
 )
 
@@ -737,16 +738,28 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
 	for i := uintptr(0); i < nptr/8+1; i++ {
 		tmpbuf[i] = 0
 	}
-
-	hbits := heapBitsForAddr(p, size)
-	for {
-		var addr uintptr
-		hbits, addr = hbits.next()
-		if addr == 0 {
-			break
+	if goexperiment.AllocHeaders {
+		s := spanOf(p)
+		tp := s.typePointersOf(p, size)
+		for {
+			var addr uintptr
+			if tp, addr = tp.next(p + size); addr == 0 {
+				break
+			}
+			i := (addr - p) / goarch.PtrSize
+			tmpbuf[i/8] |= 1 << (i % 8)
 		}
-		i := (addr - p) / goarch.PtrSize
-		tmpbuf[i/8] |= 1 << (i % 8)
+	} else {
+		hbits := heapBitsForAddr(p, size)
+		for {
+			var addr uintptr
+			hbits, addr = hbits.next()
+			if addr == 0 {
+				break
+			}
+			i := (addr - p) / goarch.PtrSize
+			tmpbuf[i/8] |= 1 << (i % 8)
+		}
 	}
 	return bitvector{int32(nptr), &tmpbuf[0]}
 }

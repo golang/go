@@ -54,7 +54,7 @@ func (n *miniExpr) Init() Nodes           { return n.init }
 func (n *miniExpr) PtrInit() *Nodes       { return &n.init }
 func (n *miniExpr) SetInit(x Nodes)       { n.init = x }
 
-// An AddStringExpr is a string concatenation Expr[0] + Exprs[1] + ... + Expr[len(Expr)-1].
+// An AddStringExpr is a string concatenation List[0] + List[1] + ... + List[len(List)-1].
 type AddStringExpr struct {
 	miniExpr
 	List     Nodes
@@ -181,7 +181,7 @@ func (n *BinaryExpr) SetOp(op Op) {
 	}
 }
 
-// A CallExpr is a function call X(Args).
+// A CallExpr is a function call Fun(Args).
 type CallExpr struct {
 	miniExpr
 	Fun       Node
@@ -673,6 +673,9 @@ type TypeAssertExpr struct {
 	// Runtime type information provided by walkDotType for
 	// assertions from non-empty interface to concrete type.
 	ITab Node `mknode:"-"` // *runtime.itab for Type implementing X's type
+
+	// An internal/abi.TypeAssert descriptor to pass to the runtime.
+	Descriptor *obj.LSym
 }
 
 func NewTypeAssertExpr(pos src.XPos, x Node, typ *types.Type) *TypeAssertExpr {
@@ -1184,6 +1187,51 @@ func MethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
 	b.WriteString(msym.Name)
 	b.WriteString(suffix)
 	return rpkg.LookupBytes(b.Bytes())
+}
+
+// LookupMethodSelector returns the types.Sym of the selector for a method
+// named in local symbol name, as well as the types.Sym of the receiver.
+//
+// TODO(prattmic): this does not attempt to handle method suffixes (wrappers).
+func LookupMethodSelector(pkg *types.Pkg, name string) (typ, meth *types.Sym, err error) {
+	typeName, methName := splitType(name)
+	if typeName == "" {
+		return nil, nil, fmt.Errorf("%s doesn't contain type split", name)
+	}
+
+	if len(typeName) > 3 && typeName[:2] == "(*" && typeName[len(typeName)-1] == ')' {
+		// Symbol name is for a pointer receiver method. We just want
+		// the base type name.
+		typeName = typeName[2 : len(typeName)-1]
+	}
+
+	typ = pkg.Lookup(typeName)
+	meth = pkg.Selector(methName)
+	return typ, meth, nil
+}
+
+// splitType splits a local symbol name into type and method (fn). If this a
+// free function, typ == "".
+//
+// N.B. closures and methods can be ambiguous (e.g., bar.func1). These cases
+// are returned as methods.
+func splitType(name string) (typ, fn string) {
+	// Types are split on the first dot, ignoring everything inside
+	// brackets (instantiation of type parameter, usually including
+	// "go.shape").
+	bracket := 0
+	for i, r := range name {
+		if r == '.' && bracket == 0 {
+			return name[:i], name[i+1:]
+		}
+		if r == '[' {
+			bracket++
+		}
+		if r == ']' {
+			bracket--
+		}
+	}
+	return "", name
 }
 
 // MethodExprName returns the ONAME representing the method

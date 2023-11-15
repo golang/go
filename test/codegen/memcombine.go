@@ -748,16 +748,16 @@ func zero_byte_4(b1, b2 []byte) {
 
 func zero_byte_8(b []byte) {
 	_ = b[7]
-	b[0], b[1], b[2], b[3] = 0, 0, 0, 0
-	b[4], b[5], b[6], b[7] = 0, 0, 0, 0 // arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
+	b[0], b[1], b[2], b[3] = 0, 0, 0, 0 // arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
+	b[4], b[5], b[6], b[7] = 0, 0, 0, 0
 }
 
 func zero_byte_16(b []byte) {
 	_ = b[15]
-	b[0], b[1], b[2], b[3] = 0, 0, 0, 0
+	b[0], b[1], b[2], b[3] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH",-"MOVW"
 	b[4], b[5], b[6], b[7] = 0, 0, 0, 0
 	b[8], b[9], b[10], b[11] = 0, 0, 0, 0
-	b[12], b[13], b[14], b[15] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH",-"MOVW"
+	b[12], b[13], b[14], b[15] = 0, 0, 0, 0
 }
 
 func zero_byte_30(a *[30]byte) {
@@ -809,8 +809,8 @@ func zero_uint16_4(h1, h2 []uint16) {
 
 func zero_uint16_8(h []uint16) {
 	_ = h[7]
-	h[0], h[1], h[2], h[3] = 0, 0, 0, 0
-	h[4], h[5], h[6], h[7] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
+	h[0], h[1], h[2], h[3] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
+	h[4], h[5], h[6], h[7] = 0, 0, 0, 0
 }
 
 func zero_uint32_2(w1, w2 []uint32) {
@@ -857,4 +857,28 @@ func loadstore2(p, q *S1) {
 	// amd64:"MOVL",-"MOVW"
 	// arm64:"MOVW",-"MOVH"
 	q.a, q.b = a, b
+}
+
+func wideStore(p *[8]uint64) {
+	if p == nil {
+		return
+	}
+
+	// amd64:"MOVUPS",-"MOVQ"
+	// arm64:"STP",-"MOVD"
+	p[0] = 0
+	// amd64:-"MOVUPS",-"MOVQ"
+	// arm64:-"STP",-"MOVD"
+	p[1] = 0
+}
+
+func wideStore2(p *[8]uint64, x, y uint64) {
+	if p == nil {
+		return
+	}
+
+	// s390x:"STMG"
+	p[0] = x
+	// s390x:-"STMG",-"MOVD"
+	p[1] = y
 }

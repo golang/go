@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !purego && (386 || amd64 || ppc64le || ppc64)
-// +build !purego
-// +build 386 amd64 ppc64le ppc64
 
 package notsha256
 

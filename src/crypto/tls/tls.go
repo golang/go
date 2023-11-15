@@ -71,7 +71,7 @@ func (l *listener) Accept() (net.Conn, error) {
 }
 
 // NewListener creates a Listener which accepts connections from an inner
-// Listener and wraps each connection with Server.
+// Listener and wraps each connection with [Server].
 // The configuration config must be non-nil and must include
 // at least one certificate or else set GetCertificate.
 func NewListener(inner net.Listener, config *Config) net.Listener {
@@ -109,10 +109,10 @@ func (timeoutError) Temporary() bool { return true }
 // handshake as a whole.
 //
 // DialWithDialer interprets a nil configuration as equivalent to the zero
-// configuration; see the documentation of Config for the defaults.
+// configuration; see the documentation of [Config] for the defaults.
 //
 // DialWithDialer uses context.Background internally; to specify the context,
-// use Dialer.DialContext with NetDialer set to the desired dialer.
+// use [Dialer.DialContext] with NetDialer set to the desired dialer.
 func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*Conn, error) {
 	return dial(context.Background(), dialer, network, addr, config)
 }
@@ -189,10 +189,10 @@ type Dialer struct {
 // Dial connects to the given network address and initiates a TLS
 // handshake, returning the resulting TLS connection.
 //
-// The returned Conn, if any, will always be of type *Conn.
+// The returned [Conn], if any, will always be of type *[Conn].
 //
 // Dial uses context.Background internally; to specify the context,
-// use DialContext.
+// use [Dialer.DialContext].
 func (d *Dialer) Dial(network, addr string) (net.Conn, error) {
 	return d.DialContext(context.Background(), network, addr)
 }
@@ -212,7 +212,7 @@ func (d *Dialer) netDialer() *net.Dialer {
 // connected, any expiration of the context will not affect the
 // connection.
 //
-// The returned Conn, if any, will always be of type *Conn.
+// The returned [Conn], if any, will always be of type *[Conn].
 func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	c, err := dial(ctx, d.netDialer(), network, addr, d.Config)
 	if err != nil {

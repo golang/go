@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ppc64 && openbsd
-// +build ppc64,openbsd
 
 package unix
 

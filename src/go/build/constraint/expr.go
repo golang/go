@@ -17,7 +17,7 @@ import (
 )
 
 // An Expr is a build tag constraint expression.
-// The underlying concrete type is *AndExpr, *OrExpr, *NotExpr, or *TagExpr.
+// The underlying concrete type is *[AndExpr], *[OrExpr], *[NotExpr], or *[TagExpr].
 type Expr interface {
 	// String returns the string form of the expression,
 	// using the boolean syntax used in //go:build lines.
@@ -33,7 +33,7 @@ type Expr interface {
 	isExpr()
 }
 
-// A TagExpr is an Expr for the single tag Tag.
+// A TagExpr is an [Expr] for the single tag Tag.
 type TagExpr struct {
 	Tag string // for example, “linux” or “cgo”
 }

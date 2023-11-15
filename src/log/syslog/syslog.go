@@ -18,9 +18,9 @@ import (
 )
 
 // The Priority is a combination of the syslog facility and
-// severity. For example, LOG_ALERT | LOG_FTP sends an alert severity
-// message from the FTP facility. The default severity is LOG_EMERG;
-// the default facility is LOG_KERN.
+// severity. For example, [LOG_ALERT] | [LOG_FTP] sends an alert severity
+// message from the FTP facility. The default severity is [LOG_EMERG];
+// the default facility is [LOG_KERN].
 type Priority int
 
 const severityMask = 0x07
@@ -103,7 +103,7 @@ type netConn struct {
 // New establishes a new connection to the system log daemon. Each
 // write to the returned writer sends a log message with the given
 // priority (a combination of the syslog facility and severity) and
-// prefix tag. If tag is empty, the os.Args[0] is used.
+// prefix tag. If tag is empty, the [os.Args][0] is used.
 func New(priority Priority, tag string) (*Writer, error) {
 	return Dial("", "", priority, tag)
 }
@@ -111,7 +111,7 @@ func New(priority Priority, tag string) (*Writer, error) {
 // Dial establishes a connection to a log daemon by connecting to
 // address raddr on the specified network. Each write to the returned
 // writer sends a log message with the facility and severity
-// (from priority) and tag. If tag is empty, the os.Args[0] is used.
+// (from priority) and tag. If tag is empty, the [os.Args][0] is used.
 // If network is empty, Dial will connect to the local syslog server.
 // Otherwise, see the documentation for net.Dial for valid values
 // of network and raddr.
@@ -191,56 +191,56 @@ func (w *Writer) Close() error {
 	return nil
 }
 
-// Emerg logs a message with severity LOG_EMERG, ignoring the severity
+// Emerg logs a message with severity [LOG_EMERG], ignoring the severity
 // passed to New.
 func (w *Writer) Emerg(m string) error {
 	_, err := w.writeAndRetry(LOG_EMERG, m)
 	return err
 }
 
-// Alert logs a message with severity LOG_ALERT, ignoring the severity
+// Alert logs a message with severity [LOG_ALERT], ignoring the severity
 // passed to New.
 func (w *Writer) Alert(m string) error {
 	_, err := w.writeAndRetry(LOG_ALERT, m)
 	return err
 }
 
-// Crit logs a message with severity LOG_CRIT, ignoring the severity
+// Crit logs a message with severity [LOG_CRIT], ignoring the severity
 // passed to New.
 func (w *Writer) Crit(m string) error {
 	_, err := w.writeAndRetry(LOG_CRIT, m)
 	return err
 }
 
-// Err logs a message with severity LOG_ERR, ignoring the severity
+// Err logs a message with severity [LOG_ERR], ignoring the severity
 // passed to New.
 func (w *Writer) Err(m string) error {
 	_, err := w.writeAndRetry(LOG_ERR, m)
 	return err
 }
 
-// Warning logs a message with severity LOG_WARNING, ignoring the
+// Warning logs a message with severity [LOG_WARNING], ignoring the
 // severity passed to New.
 func (w *Writer) Warning(m string) error {
 	_, err := w.writeAndRetry(LOG_WARNING, m)
 	return err
 }
 
-// Notice logs a message with severity LOG_NOTICE, ignoring the
+// Notice logs a message with severity [LOG_NOTICE], ignoring the
 // severity passed to New.
 func (w *Writer) Notice(m string) error {
 	_, err := w.writeAndRetry(LOG_NOTICE, m)
 	return err
 }
 
-// Info logs a message with severity LOG_INFO, ignoring the severity
+// Info logs a message with severity [LOG_INFO], ignoring the severity
 // passed to New.
 func (w *Writer) Info(m string) error {
 	_, err := w.writeAndRetry(LOG_INFO, m)
 	return err
 }
 
-// Debug logs a message with severity LOG_DEBUG, ignoring the severity
+// Debug logs a message with severity [LOG_DEBUG], ignoring the severity
 // passed to New.
 func (w *Writer) Debug(m string) error {
 	_, err := w.writeAndRetry(LOG_DEBUG, m)
@@ -305,10 +305,10 @@ func (n *netConn) close() error {
 	return n.conn.Close()
 }
 
-// NewLogger creates a log.Logger whose output is written to the
+// NewLogger creates a [log.Logger] whose output is written to the
 // system log service with the specified priority, a combination of
 // the syslog facility and severity. The logFlag argument is the flag
-// set passed through to log.New to create the Logger.
+// set passed through to [log.New] to create the Logger.
 func NewLogger(p Priority, logFlag int) (*log.Logger, error) {
 	s, err := New(p, "")
 	if err != nil {

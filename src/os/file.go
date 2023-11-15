@@ -627,7 +627,7 @@ type dirFS string
 func (dir dirFS) Open(name string) (fs.File, error) {
 	fullname, err := dir.join(name)
 	if err != nil {
-		return nil, &PathError{Op: "stat", Path: name, Err: err}
+		return nil, &PathError{Op: "open", Path: name, Err: err}
 	}
 	f, err := Open(fullname)
 	if err != nil {

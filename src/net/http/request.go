@@ -111,10 +111,6 @@ var reqWriteExcludeHeader = map[string]bool{
 type Request struct {
 	// Method specifies the HTTP method (GET, POST, PUT, etc.).
 	// For client requests, an empty string means GET.
-	//
-	// Go's HTTP client does not support sending a request with
-	// the CONNECT method. See the documentation on Transport for
-	// details.
 	Method string
 
 	// URL specifies either the URI being requested (for server

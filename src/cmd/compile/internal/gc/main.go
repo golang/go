@@ -20,6 +20,7 @@ import (
 	"cmd/compile/internal/pgo"
 	"cmd/compile/internal/pkginit"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticinit"
@@ -190,6 +191,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	typecheck.InitUniverse()
 	typecheck.InitRuntime()
+	rttype.Init()
 
 	// Parse and typecheck input.
 	noder.LoadPackage(flag.Args())

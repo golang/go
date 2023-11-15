@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"hash"
 	"internal/cpu"
+	"internal/godebug"
 	"runtime"
 
 	"golang.org/x/crypto/chacha20poly1305"
@@ -45,7 +46,7 @@ var (
 
 // CipherSuites returns a list of cipher suites currently implemented by this
 // package, excluding those with security issues, which are returned by
-// InsecureCipherSuites.
+// [InsecureCipherSuites].
 //
 // The list is sorted by ID. Note that the default cipher suites selected by
 // this package might depend on logic that can't be captured by a static list,
@@ -78,7 +79,7 @@ func CipherSuites() []*CipherSuite {
 // this package and which have security issues.
 //
 // Most applications should not use the cipher suites in this list, and should
-// only use those returned by CipherSuites.
+// only use those returned by [CipherSuites].
 func InsecureCipherSuites() []*CipherSuite {
 	// This list includes RC4, CBC_SHA256, and 3DES cipher suites. See
 	// cipherSuitesPreferenceOrder for details.
@@ -335,9 +336,34 @@ var disabledCipherSuites = []uint16{
 }
 
 var (
-	defaultCipherSuitesLen = len(cipherSuitesPreferenceOrder) - len(disabledCipherSuites)
-	defaultCipherSuites    = cipherSuitesPreferenceOrder[:defaultCipherSuitesLen]
+	defaultCipherSuitesLen int
+	defaultCipherSuites    []uint16
 )
+
+// rsaKexCiphers contains the ciphers which use RSA based key exchange,
+// which we disable by default.
+var rsaKexCiphers = map[uint16]bool{
+	TLS_RSA_WITH_RC4_128_SHA:        true,
+	TLS_RSA_WITH_3DES_EDE_CBC_SHA:   true,
+	TLS_RSA_WITH_AES_128_CBC_SHA:    true,
+	TLS_RSA_WITH_AES_256_CBC_SHA:    true,
+	TLS_RSA_WITH_AES_128_CBC_SHA256: true,
+	TLS_RSA_WITH_AES_128_GCM_SHA256: true,
+	TLS_RSA_WITH_AES_256_GCM_SHA384: true,
+}
+
+var rsaKEXgodebug = godebug.New("tlsrsakex")
+
+func init() {
+	rsaKexEnabled := rsaKEXgodebug.Value() == "1"
+	for _, c := range cipherSuitesPreferenceOrder[:len(cipherSuitesPreferenceOrder)-len(disabledCipherSuites)] {
+		if !rsaKexEnabled && rsaKexCiphers[c] {
+			continue
+		}
+		defaultCipherSuites = append(defaultCipherSuites, c)
+	}
+	defaultCipherSuitesLen = len(defaultCipherSuites)
+}
 
 // defaultCipherSuitesTLS13 is also the preference order, since there are no
 // disabled by default TLS 1.3 cipher suites. The same AES vs ChaCha20 logic as

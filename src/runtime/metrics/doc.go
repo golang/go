@@ -18,7 +18,7 @@ metric sets may not intersect.
 
 Metrics are designated by a string key, rather than, for example, a field name in
 a struct. The full list of supported metrics is always available in the slice of
-Descriptions returned by All. Each Description also includes useful information
+Descriptions returned by [All]. Each [Description] also includes useful information
 about the metric.
 
 Thus, users of this API are encouraged to sample supported metrics defined by the
@@ -246,6 +246,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the cmd/go
 		package due to a non-default GODEBUG=gocacheverify=... setting.
 
+	/godebug/non-default-behavior/gotypesalias:events
+		The number of non-default behaviors executed by the go/types
+		package due to a non-default GODEBUG=gotypesalias=... setting.
+
 	/godebug/non-default-behavior/http2client:events
 		The number of non-default behaviors executed by the net/http
 		package due to a non-default GODEBUG=http2client=... setting.
@@ -299,9 +303,17 @@ Below is the full list of supported metrics, ordered lexicographically.
 		package due to a non-default GODEBUG=tarinsecurepath=...
 		setting.
 
+	/godebug/non-default-behavior/tls10server:events
+		The number of non-default behaviors executed by the crypto/tls
+		package due to a non-default GODEBUG=tls10server=... setting.
+
 	/godebug/non-default-behavior/tlsmaxrsasize:events
 		The number of non-default behaviors executed by the crypto/tls
 		package due to a non-default GODEBUG=tlsmaxrsasize=... setting.
+
+	/godebug/non-default-behavior/tlsrsakex:events
+		The number of non-default behaviors executed by the crypto/tls
+		package due to a non-default GODEBUG=tlsrsakex=... setting.
 
 	/godebug/non-default-behavior/x509sha1:events
 		The number of non-default behaviors executed by the crypto/x509

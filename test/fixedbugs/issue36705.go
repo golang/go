@@ -1,5 +1,6 @@
-// +build cgo,!windows
 // run fake-arg-to-force-use-of-go-run
+
+//go:build cgo && !windows
 
 // Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

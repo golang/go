@@ -1739,7 +1739,7 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 	p.setPos(d.Pos())
 	p.print(d.Tok, blank)
 
-	if d.Lparen.IsValid() || len(d.Specs) > 1 {
+	if d.Lparen.IsValid() || len(d.Specs) != 1 {
 		// group of parenthesized declarations
 		p.setPos(d.Lparen)
 		p.print(token.LPAREN)

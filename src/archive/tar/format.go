@@ -33,7 +33,7 @@ import "strings"
 //	sub-second times  |     no |       yes |        no
 //	sparse files      |     no |       yes |       yes
 //
-// The table's upper portion shows the Header fields, where each format reports
+// The table's upper portion shows the [Header] fields, where each format reports
 // the maximum number of bytes allowed for each string field and
 // the integer type used to store each numeric field
 // (where timestamps are stored as the number of seconds since the Unix epoch).

@@ -440,7 +440,6 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 var (
 	errIllegalDomain   = errors.New("cookiejar: illegal cookie domain attribute")
 	errMalformedDomain = errors.New("cookiejar: malformed cookie domain attribute")
-	errNoHostname      = errors.New("cookiejar: no host name available (IP only)")
 )
 
 // endOfTime is the time when session (non-persistent) cookies expire.

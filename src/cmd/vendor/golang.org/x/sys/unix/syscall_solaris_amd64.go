@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build amd64 && solaris
-// +build amd64,solaris
 
 package unix
 

@@ -10,13 +10,13 @@ import (
 
 // Type is the runtime representation of a Go type.
 //
-// Type is also referenced implicitly
-// (in the form of expressions involving constants and arch.PtrSize)
-// in cmd/compile/internal/reflectdata/reflect.go
-// and cmd/link/internal/ld/decodesym.go
-// (e.g. data[2*arch.PtrSize+4] references the TFlag field)
-// unsafe.OffsetOf(Type{}.TFlag) cannot be used directly in those
-// places because it varies with cross compilation and experiments.
+// Be careful about accessing this type at build time, as the version
+// of this type in the compiler/linker may not have the same layout
+// as the version in the target binary, due to pointer width
+// differences and any experiments. Use cmd/compile/internal/rttype
+// or the functions in compiletype.go to access this type instead.
+// (TODO: this admonition applies to every type in this package.
+// Put it in some shared location?)
 type Type struct {
 	Size_       uintptr
 	PtrBytes    uintptr // number of (prefix) bytes in the type that can contain pointers
