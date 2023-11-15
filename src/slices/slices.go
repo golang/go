@@ -127,7 +127,7 @@ func ContainsFunc[S ~[]E, E any](s S, f func(E) bool) bool {
 // The elements at s[i:] are shifted up to make room.
 // In the returned slice r, r[i] == v[0],
 // and r[i+len(v)] == value originally at r[i].
-// Insert panics if i is out of range.
+// Insert panics if i is out of range, which means i > len(s).
 // This function is O(len(s) + len(v)).
 func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 	n := len(s)
