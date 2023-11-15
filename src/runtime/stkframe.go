@@ -283,7 +283,7 @@ func stkobjinit() {
 	methodValueCallFrameObjs[0] = stackObjectRecord{
 		off:       -int32(alignUp(abiRegArgsType.Size_, 8)), // It's always the highest address local.
 		size:      int32(abiRegArgsType.Size_),
-		_ptrdata:  int32(abiRegArgsType.PtrBytes),
+		ptrBytes:  int32(abiRegArgsType.PtrBytes),
 		gcdataoff: uint32(uintptr(unsafe.Pointer(abiRegArgsType.GCData)) - mod.rodata),
 	}
 }
