@@ -464,7 +464,5 @@ func TestDialWhenConnectionIsBad(t *testing.T) {
 		t.Errorf("Info() failed: %v", err)
 	}
 
-	// fmt.Println(<-done)
-
 	check(t, msg, <-done, tr)
 }
