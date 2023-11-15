@@ -219,6 +219,10 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 func Delete[S ~[]E, E any](s S, i, j int) S {
 	_ = s[i:j] // bounds check
 
+	if i == j {
+		return s
+	}
+
 	oldlen := len(s)
 	s = append(s[:i], s[j:]...)
 	clear(s[len(s):oldlen]) // zero/nil out the obsolete elements, for GC
