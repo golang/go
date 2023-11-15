@@ -744,6 +744,11 @@ func getgcmask(ep any) (mask []byte) {
 		for len(mask) > 0 && mask[len(mask)-1] == 0 {
 			mask = mask[:len(mask)-1]
 		}
+
+		// Make sure we keep ep alive. We may have stopped referencing
+		// ep's data pointer sometime before this point and it's possible
+		// for that memory to get freed.
+		KeepAlive(ep)
 		return
 	}
 
