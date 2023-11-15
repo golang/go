@@ -217,7 +217,11 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 // make a single call deleting them all together than to delete one at a time.
 // Delete zeroes the elements s[len(s)-(j-i):len(s)].
 func Delete[S ~[]E, E any](s S, i, j int) S {
-	_ = s[i:j] // bounds check
+	_ = s[i:j:len(s)] // bounds check
+
+	if i == j {
+		return s
+	}
 
 	oldlen := len(s)
 	s = append(s[:i], s[j:]...)
