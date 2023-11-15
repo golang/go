@@ -381,7 +381,6 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	default:
 		createmode = OPEN_EXISTING
 	}
-
 	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
 	if perm&S_IWRITE == 0 {
 		attrs = FILE_ATTRIBUTE_READONLY
