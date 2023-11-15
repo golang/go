@@ -136,7 +136,6 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 	if m == 0 {
 		return s
 	}
-
 	n := len(s)
 	if i == n {
 		return append(s, v...)
