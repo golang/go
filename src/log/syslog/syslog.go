@@ -125,22 +125,13 @@ func Dial(network, raddr string, priority Priority, tag string) (*Writer, error)
 	}
 	hostname, _ := os.Hostname()
 
-	w := &Writer{
+	return &Writer{
 		priority: priority,
 		tag:      tag,
 		hostname: hostname,
 		network:  network,
 		raddr:    raddr,
-	}
-
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	err := w.connect()
-	if err != nil {
-		return nil, err
-	}
-	return w, err
+	}, nil
 }
 
 // connect makes a connection to the syslog server.
