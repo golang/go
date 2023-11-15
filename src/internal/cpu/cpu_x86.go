@@ -41,6 +41,9 @@ const (
 	cpuid_ADX  = 1 << 19
 	cpuid_SHA  = 1 << 29
 
+	// edx bits
+	cpuid_AMX = 1 << 24
+
 	// edx bits for CPUID 0x80000001
 	cpuid_RDTSCP = 1 << 27
 )
@@ -73,6 +76,7 @@ func doinit() {
 		options = append(options,
 			option{Name: "avx", Feature: &X86.HasAVX},
 			option{Name: "avx2", Feature: &X86.HasAVX2},
+			option{Name: "amx", Feature: &X86.HasAMX},
 			option{Name: "bmi1", Feature: &X86.HasBMI1},
 			option{Name: "bmi2", Feature: &X86.HasBMI2},
 			option{Name: "fma", Feature: &X86.HasFMA})
@@ -121,14 +125,14 @@ func doinit() {
 		return
 	}
 
-	_, ebx7, _, _ := cpuid(7, 0)
+	_, ebx7, _, edx7 := cpuid(7, 0)
 	X86.HasBMI1 = isSet(ebx7, cpuid_BMI1)
 	X86.HasAVX2 = isSet(ebx7, cpuid_AVX2) && osSupportsAVX
+	X86.HasAMX = isSet(edx7, cpuid_AMX)
 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
 	X86.HasERMS = isSet(ebx7, cpuid_ERMS)
 	X86.HasADX = isSet(ebx7, cpuid_ADX)
 	X86.HasSHA = isSet(ebx7, cpuid_SHA)
-
 	var maxExtendedInformation uint32
 	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)
 

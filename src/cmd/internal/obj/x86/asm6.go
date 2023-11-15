@@ -192,6 +192,7 @@ const (
 	Ytextsize
 	Yindir
 	Ymax
+	Ytm
 )
 
 const (
@@ -311,10 +312,6 @@ const (
 )
 
 const (
-	// Encoding for VEX prefix in tables.
-	// The P, L, and W fields are chosen to match
-	// their eventual locations in the VEX prefix bytes.
-
 	// Encoding for VEX prefix in tables.
 	// The P, L, and W fields are chosen to match
 	// their eventual locations in the VEX prefix bytes.
@@ -2509,6 +2506,10 @@ func instinit(ctxt *obj.Link) {
 			}
 		}
 
+		if i >= REG_TM0 && i <= REG_TM0+7 {
+			reg[i] = (i - REG_TM0) & 7
+		}
+
 		if i >= REG_CR+8 && i <= REG_CR+15 {
 			regrex[i] = Rxr
 		}
@@ -3118,6 +3119,16 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 			return Yxxx
 		}
 		return Yzr
+
+	case REG_TM0 + 0,
+		REG_TM0 + 1,
+		REG_TM0 + 2,
+		REG_TM0 + 3,
+		REG_TM0 + 4,
+		REG_TM0 + 5,
+		REG_TM0 + 6,
+		REG_TM0 + 7:
+		return Ytm
 
 	case REG_K0:
 		return Yk0

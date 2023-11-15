@@ -928,6 +928,30 @@ var _yvzeroall = []ytab{
 	{zcase: Zvex, zoffset: 2, args: argList{}},
 }
 
+var _yldtilecfg = []ytab{
+	{zcase: Zvex_rm_v_ro, zoffset: 3, args: argList{Ym}},
+}
+
+var _ytdpbf16ps = []ytab{
+	{zcase: Zvex_v_rm_r, zoffset: 2, args: argList{Ytm, Ytm, Ytm}},
+}
+
+var _ytileloadd = []ytab{
+	{zcase: Zvex_rm_v_r, zoffset: 2, args: argList{Ym, Ytm}},
+}
+
+var _ytilestored = []ytab{
+	{zcase: Zvex_r_v_rm, zoffset: 2, args: argList{Ytm, Ym}},
+}
+
+var _ytilezero = []ytab{
+	{zcase: Zvex_r_v_rm, zoffset: 2, args: argList{Ytm}},
+}
+
+var _ytilerelease = []ytab{
+	{zcase: Zvex_rm_v_ro, zoffset: 3, args: argList{}},
+}
+
 var avxOptab = [...]Optab{
 	{as: AANDNL, ytab: _yandnl, prefix: Pavx, op: opBytes{
 		avxEscape | vex128 | vex0F38 | vexW0, 0xF2,
@@ -4624,5 +4648,41 @@ var avxOptab = [...]Optab{
 	}},
 	{as: AVZEROUPPER, ytab: _yvzeroall, prefix: Pavx, op: opBytes{
 		avxEscape | vex128 | vex0F | vexW0, 0x77,
+	}},
+	{as: ALDTILECFG, ytab: _yldtilecfg, prefix: Pavx, op: opBytes{
+		avxEscape | vex128 | vex0F38 | vexW0, 0x49, 00,
+	}},
+	{as: ASTTILECFG, ytab: _yldtilecfg, prefix: Pavx, op: opBytes{
+		avxEscape | vex128 | vex66 | vex0F38 | vexW0, 0x49, 00,
+	}},
+	{as: ATDPBF16PS, ytab: _ytdpbf16ps, prefix: Pavx, op: opBytes{
+		avxEscape | vex128 | vexF3 | vex0F38 | vexW0, 0x5C,
+	}},
+	{as: ATDPBSSD, ytab: _ytdpbf16ps, prefix: Pavx, op: opBytes{
+		avxEscape | vex128 | vexF2 | vex0F38 | vexW0, 0x5E,
+	}},
+	{as: ATDPBSUD, ytab: _ytdpbf16ps, prefix: Pavx, op: opBytes{
+		avxEscape | vex128 | vexF3 | vex0F38 | vexW0, 0x5E,
+	}},
+	{as: ATDPBUSD, ytab: _ytdpbf16ps, prefix: Pavx, op: opBytes{
+		avxEscape | vex128 | vex66 | vex0F38 | vexW0, 0x5E,
+	}},
+	{as: ATDPBUUD, ytab: _ytdpbf16ps, prefix: Pavx, op: opBytes{
+		avxEscape | vex128 | vex0F38 | vexW0, 0x5E,
+	}},
+	{as: ATILELOADD, ytab: _ytileloadd, prefix: Pavx, op: opBytes{
+		avxEscape | vex128 | vexF2 | vex0F38 | vexW0, 0x4B,
+	}},
+	{as: ATILELOADDT1, ytab: _ytileloadd, prefix: Pavx, op: opBytes{
+		avxEscape | vex128 | vex66 | vex0F38 | vexW0, 0x4B,
+	}},
+	{as: ATILESTORED, ytab: _ytilestored, prefix: Pavx, op: opBytes{
+		avxEscape | vex128 | vexF3 | vex0F38 | vexW0, 0x4B,
+	}},
+	{as: ATILEZERO, ytab: _ytilezero, prefix: Pavx, op: opBytes{
+		avxEscape | vex128 | vexF2 | vex0F38 | vexW0, 0x49,
+	}},
+	{as: ATILERELEASE, ytab: _ytilerelease, prefix: Pavx, op: opBytes{
+		avxEscape | vex128 | vex0F38 | vexW0, 0x49, 00,
 	}},
 }
