@@ -216,34 +216,35 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	if err != nil {
 		return nil, err
 	}
-	revErr := &modfetch.RevInfo{Origin: versions.Origin} // RevInfo to return with error
+	origin := versions.Origin
+
+	revWithOrigin := func(rev *modfetch.RevInfo) *modfetch.RevInfo {
+		if rev == nil {
+			if origin == nil {
+				return nil
+			}
+			return &modfetch.RevInfo{Origin: origin}
+		}
+
+		clone := *rev
+		clone.Origin = origin
+		return &clone
+	}
 
 	releases, prereleases, err := qm.filterVersions(ctx, versions.List)
 	if err != nil {
-		return revErr, err
-	}
-
-	mergeRevOrigin := func(rev *modfetch.RevInfo, origin *codehost.Origin) *modfetch.RevInfo {
-		merged := mergeOrigin(rev.Origin, origin)
-		if merged == rev.Origin {
-			return rev
-		}
-		clone := new(modfetch.RevInfo)
-		*clone = *rev
-		clone.Origin = merged
-		return clone
+		return revWithOrigin(nil), err
 	}
 
 	lookup := func(v string) (*modfetch.RevInfo, error) {
 		rev, err := repo.Stat(ctx, v)
-		// Stat can return a non-nil rev and a non-nil err,
-		// in order to provide origin information to make the error cacheable.
-		if rev == nil && err != nil {
-			return revErr, err
+		if rev != nil {
+			// Note that Stat can return a non-nil rev and a non-nil err,
+			// in order to provide origin information to make the error cacheable.
+			origin = mergeOrigin(origin, rev.Origin)
 		}
-		rev = mergeRevOrigin(rev, versions.Origin)
 		if err != nil {
-			return rev, err
+			return revWithOrigin(nil), err
 		}
 
 		if (query == "upgrade" || query == "patch") && module.IsPseudoVersion(current) && !rev.Time.IsZero() {
@@ -268,18 +269,20 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 			currentTime, err := module.PseudoVersionTime(current)
 			if err == nil && rev.Time.Before(currentTime) {
 				if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
-					return revErr, err
+					return revWithOrigin(nil), err
 				}
 				rev, err = repo.Stat(ctx, current)
-				if rev == nil && err != nil {
-					return revErr, err
+				if rev != nil {
+					origin = mergeOrigin(origin, rev.Origin)
 				}
-				rev = mergeRevOrigin(rev, versions.Origin)
-				return rev, err
+				if err != nil {
+					return revWithOrigin(nil), err
+				}
+				return revWithOrigin(rev), nil
 			}
 		}
 
-		return rev, nil
+		return revWithOrigin(rev), nil
 	}
 
 	if qm.preferLower {
@@ -300,24 +303,27 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 
 	if qm.mayUseLatest {
 		latest, err := repo.Latest(ctx)
+		if latest != nil {
+			origin = mergeOrigin(origin, latest.Origin)
+		}
 		if err == nil {
 			if qm.allowsVersion(ctx, latest.Version) {
 				return lookup(latest.Version)
 			}
 		} else if !errors.Is(err, fs.ErrNotExist) {
-			return revErr, err
+			return revWithOrigin(nil), err
 		}
 	}
 
 	if (query == "upgrade" || query == "patch") && current != "" && current != "none" {
 		// "upgrade" and "patch" may stay on the current version if allowed.
 		if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
-			return nil, err
+			return revWithOrigin(nil), err
 		}
 		return lookup(current)
 	}
 
-	return revErr, &NoMatchingVersionError{query: query, current: current}
+	return revWithOrigin(nil), &NoMatchingVersionError{query: query, current: current}
 }
 
 // IsRevisionQuery returns true if vers is a version query that may refer to
