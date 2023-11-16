@@ -78,11 +78,16 @@ func (d Dir) Open(name string) (File, error) {
 	if dir == "" {
 		dir = "."
 	}
+	fi, err := os.Stat(dir)
+	if err != nil || !fi.IsDir() {
+		return nil, errors.New("http: invalid directory path")
+	}
 	fullName := filepath.Join(dir, path)
 	f, err := os.Open(fullName)
 	if err != nil {
 		return nil, mapOpenError(err, fullName, filepath.Separator, os.Stat)
 	}
+
 	return f, nil
 }
 
@@ -661,7 +666,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 				return
 			}
 		} else {
-			if url != "/" && url[len(url)-1] == '/' {
+			if url[len(url)-1] == '/' {
 				localRedirect(w, r, "../"+path.Base(url))
 				return
 			}

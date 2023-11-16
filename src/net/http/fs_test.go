@@ -475,12 +475,6 @@ func TestDirJoin(t *testing.T) {
 	test(Dir("/etc"), "/hosts")
 	test(Dir("/etc"), "hosts")
 	test(Dir("/etc"), "../../../../hosts")
-
-	// Not really directories, but since we use this trick in
-	// ServeFile, test it:
-	test(Dir("/etc/hosts"), "")
-	test(Dir("/etc/hosts"), "/")
-	test(Dir("/etc/hosts"), "../")
 }
 
 func TestEmptyDirOpenCWD(t *testing.T) {
@@ -495,6 +489,22 @@ func TestEmptyDirOpenCWD(t *testing.T) {
 	test(Dir(""))
 	test(Dir("."))
 	test(Dir("./"))
+}
+
+// issue 63769
+func TestDirNormalFile(t *testing.T) {
+	test := func(d Dir, filename string) {
+		f, err := d.Open(filename)
+		if err == nil {
+			f.Close()
+			t.Fatalf("got nil, want error")
+		}
+	}
+
+	test(Dir("testdata/index.html"), "")
+	test(Dir("testdata/index.html"), "/")
+	test(Dir("testdata/index.html"), "..")
+	test(Dir("testdata/index.html"), "../")
 }
 
 func TestServeFileContentType(t *testing.T) { run(t, testServeFileContentType) }
@@ -1672,11 +1682,6 @@ func (grw gzipResponseWriter) Flush() {
 // Issue 63769
 func TestFileServerDirWithRootFile(t *testing.T) { run(t, testFileServerDirWithRootFile) }
 func testFileServerDirWithRootFile(t *testing.T, mode testMode) {
-	filename := "index.html"
-	contents, err := os.ReadFile("testdata/index.html")
-	if err != nil {
-		t.Fatal(err)
-	}
 	ts := newClientServerTest(t, mode, FileServer(Dir("testdata/index.html"))).ts
 	defer ts.Close()
 
@@ -1684,12 +1689,8 @@ func testFileServerDirWithRootFile(t *testing.T, mode testMode) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Fatal("reading Body:", err)
-	}
-	if s := string(b); s != string(contents) {
-		t.Errorf("for path %q got %q, want %q", filename, s, contents)
+	if s := res.StatusCode; s != StatusInternalServerError {
+		t.Errorf("got %q, want 500", s)
 	}
 	res.Body.Close()
 }
