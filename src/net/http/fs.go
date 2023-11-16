@@ -29,7 +29,7 @@ import (
 // specific directory tree.
 //
 // While the FileSystem.Open method takes '/'-separated paths, a Dir's string
-// value is a filename on the native file system, not a URL, so it is separated
+// value is a directory path on the native file system, not a URL, so it is separated
 // by filepath.Separator, which isn't necessarily '/'.
 //
 // Note that Dir could expose sensitive files and directories. Dir will follow
