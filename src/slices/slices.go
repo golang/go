@@ -130,7 +130,7 @@ func ContainsFunc[S ~[]E, E any](s S, f func(E) bool) bool {
 // Insert panics if i is out of range.
 // This function is O(len(s) + len(v)).
 func Insert[S ~[]E, E any](s S, i int, v ...E) S {
-	_ = s[i:]
+	_ = s[i:] // bounds check
 
 	m := len(v)
 	if m == 0 {
