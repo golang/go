@@ -16,6 +16,10 @@ func getPidfd(_ *syscall.SysProcAttr) uintptr {
 	return unsetHandle
 }
 
+func pidfdFind(_ int) (uintptr, error) {
+	return unsetHandle, syscall.ENOSYS
+}
+
 func (p *Process) pidfdRelease() {}
 
 func (_ *Process) pidfdWait() (*ProcessState, error) {
