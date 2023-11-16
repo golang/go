@@ -3232,25 +3232,12 @@ func Indirect(v Value) Value {
 	return v.Elem()
 }
 
-// Before Go 1.21, ValueOf always escapes and a Value's content
-// is always heap allocated.
-// Set go121noForceValueEscape to true to avoid the forced escape,
-// allowing Value content to be on the stack.
-// Set go121noForceValueEscape to false for the legacy behavior
-// (for debugging).
-const go121noForceValueEscape = true
-
 // ValueOf returns a new Value initialized to the concrete value
 // stored in the interface i. ValueOf(nil) returns the zero Value.
 func ValueOf(i any) Value {
 	if i == nil {
 		return Value{}
 	}
-
-	if !go121noForceValueEscape {
-		escapes(i)
-	}
-
 	return unpackEface(i)
 }
 
