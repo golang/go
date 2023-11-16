@@ -141,6 +141,37 @@ TODO: What about:
 With this rewrite the "return true" is not visible after yield returns,
 but maybe it should be?
 
+# Checking
+
+To permit checking that an iterator is well-behaved -- that is, that
+it does not call the loop body again after it has returned false or
+after the entire loop has exited (it might retain a copy of the body
+function, or pass it to another goroutine) -- each generated loop has
+its own #exitK flag that is checked before each iteration, and set both
+at any early exit and after the iteration completes.
+
+For example:
+
+	for x := range f {
+		...
+		if ... { break }
+		...
+	}
+
+becomes
+
+	{
+		var #exit1 bool
+		f(func(x T1) bool {
+			if #exit1 { runtime.panicrangeexit() }
+			...
+			if ... { #exit1 = true ; return false }
+			...
+			return true
+		})
+		#exit1 = true
+	}
+
 # Nested Loops
 
 So far we've only considered a single loop. If a function contains a
@@ -175,23 +206,30 @@ becomes
 			#r1 type1
 			#r2 type2
 		)
+		var #exit1 bool
 		f(func() {
+			if #exit1 { runtime.panicrangeexit() }
+			var #exit2 bool
 			g(func() {
+				if #exit2 { runtime.panicrangeexit() }
 				...
 				{
 					// return a, b
 					#r1, #r2 = a, b
 					#next = -2
+					#exit1, #exit2 = true, true
 					return false
 				}
 				...
 				return true
 			})
+			#exit2 = true
 			if #next < 0 {
 				return false
 			}
 			return true
 		})
+		#exit1 = true
 		if #next == -2 {
 			return #r1, #r2
 		}
@@ -205,7 +243,8 @@ return with a single check.
 For a labeled break or continue of an outer range-over-func, we
 use positive #next values. Any such labeled break or continue
 really means "do N breaks" or "do N breaks and 1 continue".
-We encode that as 2*N or 2*N+1 respectively.
+We encode that as perLoopStep*N or perLoopStep*N+1 respectively.
+
 Loops that might need to propagate a labeled break or continue
 add one or both of these to the #next checks:
 
@@ -239,30 +278,40 @@ becomes
 
 	{
 		var #next int
+		var #exit1 bool
 		f(func() {
+			if #exit1 { runtime.panicrangeexit() }
+			var #exit2 bool
 			g(func() {
+				if #exit2 { runtime.panicrangeexit() }
+				var #exit3 bool
 				h(func() {
+					if #exit3 { runtime.panicrangeexit() }
 					...
 					{
 						// break F
 						#next = 4
+						#exit1, #exit2, #exit3 = true, true, true
 						return false
 					}
 					...
 					{
 						// continue F
 						#next = 3
+						#exit2, #exit3 = true, true
 						return false
 					}
 					...
 					return true
 				})
+				#exit3 = true
 				if #next >= 2 {
 					#next -= 2
 					return false
 				}
 				return true
 			})
+			#exit2 = true
 			if #next >= 2 {
 				#next -= 2
 				return false
@@ -274,6 +323,7 @@ becomes
 			...
 			return true
 		})
+		#exit1 = true
 	}
 
 Note that the post-h checks only consider a break,
@@ -299,6 +349,7 @@ For example
 	Top: print("start\n")
 	for range f {
 		for range g {
+			...
 			for range h {
 				...
 				goto Top
@@ -312,28 +363,39 @@ becomes
 	Top: print("start\n")
 	{
 		var #next int
+		var #exit1 bool
 		f(func() {
+			if #exit1 { runtime.panicrangeexit() }
+			var #exit2 bool
 			g(func() {
+				if #exit2 { runtime.panicrangeexit() }
+				...
+				var #exit3 bool
 				h(func() {
+				if #exit3 { runtime.panicrangeexit() }
 					...
 					{
 						// goto Top
 						#next = -3
+						#exit1, #exit2, #exit3 = true, true, true
 						return false
 					}
 					...
 					return true
 				})
+				#exit3 = true
 				if #next < 0 {
 					return false
 				}
 				return true
 			})
+			#exit2 = true
 			if #next < 0 {
 				return false
 			}
 			return true
 		})
+		#exit1 = true
 		if #next == -3 {
 			#next = 0
 			goto Top
@@ -431,10 +493,11 @@ type rewriter struct {
 	rewritten map[*syntax.ForStmt]syntax.Stmt
 
 	// Declared variables in generated code for outermost loop.
-	declStmt *syntax.DeclStmt
-	nextVar  types2.Object
-	retVars  []types2.Object
-	defers   types2.Object
+	declStmt     *syntax.DeclStmt
+	nextVar      types2.Object
+	retVars      []types2.Object
+	defers       types2.Object
+	exitVarCount int // exitvars are referenced from their respective loops
 }
 
 // A branch is a single labeled branch.
@@ -445,7 +508,9 @@ type branch struct {
 
 // A forLoop describes a single range-over-func loop being processed.
 type forLoop struct {
-	nfor *syntax.ForStmt // actual syntax
+	nfor         *syntax.ForStmt // actual syntax
+	exitFlag     *types2.Var     // #exit variable for this loop
+	exitFlagDecl *syntax.VarDecl
 
 	checkRet      bool     // add check for "return" after loop
 	checkRetArgs  bool     // add check for "return args" after loop
@@ -487,6 +552,11 @@ func rewriteFunc(pkg *types2.Package, info *types2.Info, typ *syntax.FuncType, b
 	if (base.Flag.W != 0) && r.forStack != nil {
 		syntax.Fdump(os.Stderr, body)
 	}
+}
+
+// checkFuncMisuse reports whether to check for misuse of iterator callbacks functions.
+func (r *rewriter) checkFuncMisuse() bool {
+	return base.Debug.RangeFuncCheck != 0
 }
 
 // inspect is a callback for syntax.Inspect that drives the actual rewriting.
@@ -556,6 +626,10 @@ func (r *rewriter) startLoop(loop *forLoop) {
 		r.false = types2.Universe.Lookup("false")
 		r.rewritten = make(map[*syntax.ForStmt]syntax.Stmt)
 	}
+	if r.checkFuncMisuse() {
+		// declare the exit flag for this loop's body
+		loop.exitFlag, loop.exitFlagDecl = r.exitVar(loop.nfor.Pos())
+	}
 }
 
 // editStmt returns the replacement for the statement x,
@@ -605,6 +679,19 @@ func (r *rewriter) editDefer(x *syntax.CallStmt) syntax.Stmt {
 	return x
 }
 
+func (r *rewriter) exitVar(pos syntax.Pos) (*types2.Var, *syntax.VarDecl) {
+	r.exitVarCount++
+
+	name := fmt.Sprintf("#exit%d", r.exitVarCount)
+	typ := r.bool.Type()
+	obj := types2.NewVar(pos, r.pkg, name, typ)
+	n := syntax.NewName(pos, name)
+	setValueType(n, typ)
+	r.info.Defs[n] = obj
+
+	return obj, &syntax.VarDecl{NameList: []*syntax.Name{n}}
+}
+
 // editReturn returns the replacement for the return statement x.
 // See the "Return" section in the package doc comment above for more context.
 func (r *rewriter) editReturn(x *syntax.ReturnStmt) syntax.Stmt {
@@ -635,10 +722,23 @@ func (r *rewriter) editReturn(x *syntax.ReturnStmt) syntax.Stmt {
 		bl.List = append(bl.List, &syntax.AssignStmt{Lhs: r.useList(r.retVars), Rhs: x.Results})
 	}
 	bl.List = append(bl.List, &syntax.AssignStmt{Lhs: r.next(), Rhs: r.intConst(next)})
+	if r.checkFuncMisuse() {
+		// mark all enclosing loop bodies as exited
+		for i := 0; i < len(r.forStack); i++ {
+			bl.List = append(bl.List, r.setExitedAt(i))
+		}
+	}
 	bl.List = append(bl.List, &syntax.ReturnStmt{Results: r.useVar(r.false)})
 	setPos(bl, x.Pos())
 	return bl
 }
+
+// perLoopStep is part of the encoding of loop-spanning control flow
+// for function range iterators.  Each multiple of two encodes a "return false"
+// passing control to an enclosing iterator; a terminal value of 1 encodes
+// "return true" (i.e., local continue) from the body function, and a terminal
+// value of 0 encodes executing the remainder of the body function.
+const perLoopStep = 2
 
 // editBranch returns the replacement for the branch statement x,
 // or x itself if it should be left alone.
@@ -660,6 +760,9 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
 	for i >= 0 && r.forStack[i].nfor != targ {
 		i--
 	}
+	// exitFrom is the index of the loop interior to the target of the control flow,
+	// if such a loop exists (it does not if i == len(r.forStack) - 1)
+	exitFrom := i + 1
 
 	// Compute the value to assign to #next and the specific return to use.
 	var next int
@@ -688,6 +791,7 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
 		for i >= 0 && r.forStack[i].nfor != targ {
 			i--
 		}
+		exitFrom = i + 1
 
 		// Mark loop we exit to get to targ to check for that branch.
 		// When i==-1 that's the outermost func body
@@ -707,34 +811,47 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
 
 		// For continue of innermost loop, use "return true".
 		// Otherwise we are breaking the innermost loop, so "return false".
-		retVal := r.false
-		if depth == 0 && x.Tok == syntax.Continue {
-			retVal = r.true
-		}
-		ret = &syntax.ReturnStmt{Results: r.useVar(retVal)}
 
-		// If we're only operating on the innermost loop, the return is all we need.
-		if depth == 0 {
+		if depth == 0 && x.Tok == syntax.Continue {
+			ret = &syntax.ReturnStmt{Results: r.useVar(r.true)}
 			setPos(ret, x.Pos())
 			return ret
+		}
+		ret = &syntax.ReturnStmt{Results: r.useVar(r.false)}
+
+		// If this is a simple break, mark this loop as exited and return false.
+		// No adjustments to #next.
+		if depth == 0 {
+			var stmts []syntax.Stmt
+			if r.checkFuncMisuse() {
+				stmts = []syntax.Stmt{r.setExited(), ret}
+			} else {
+				stmts = []syntax.Stmt{ret}
+			}
+			bl := &syntax.BlockStmt{
+				List: stmts,
+			}
+			setPos(bl, x.Pos())
+			return bl
 		}
 
 		// The loop inside the one we are break/continue-ing
 		// needs to make that happen when we break out of it.
 		if x.Tok == syntax.Continue {
-			r.forStack[i+1].checkContinue = true
+			r.forStack[exitFrom].checkContinue = true
 		} else {
-			r.forStack[i+1].checkBreak = true
+			exitFrom = i
+			r.forStack[exitFrom].checkBreak = true
 		}
 
 		// The loops along the way just need to break.
-		for j := i + 2; j < len(r.forStack); j++ {
+		for j := exitFrom + 1; j < len(r.forStack); j++ {
 			r.forStack[j].checkBreak = true
 		}
 
 		// Set next to break the appropriate number of times;
 		// the final time may be a continue, not a break.
-		next = 2 * depth
+		next = perLoopStep * depth
 		if x.Tok == syntax.Continue {
 			next--
 		}
@@ -743,8 +860,17 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
 	// Assign #next = next and do the return.
 	as := &syntax.AssignStmt{Lhs: r.next(), Rhs: r.intConst(next)}
 	bl := &syntax.BlockStmt{
-		List: []syntax.Stmt{as, ret},
+		List: []syntax.Stmt{as},
 	}
+
+	if r.checkFuncMisuse() {
+		// Set #exitK for this loop and those exited by the control flow.
+		for i := exitFrom; i < len(r.forStack); i++ {
+			bl.List = append(bl.List, r.setExitedAt(i))
+		}
+	}
+
+	bl.List = append(bl.List, ret)
 	setPos(bl, x.Pos())
 	return bl
 }
@@ -844,7 +970,20 @@ func (r *rewriter) endLoop(loop *forLoop) {
 		setPos(r.declStmt, start)
 		block.List = append(block.List, r.declStmt)
 	}
+
+	// declare the exitFlag here so it has proper scope and zeroing
+	if r.checkFuncMisuse() {
+		exitFlagDecl := &syntax.DeclStmt{DeclList: []syntax.Decl{loop.exitFlagDecl}}
+		block.List = append(block.List, exitFlagDecl)
+	}
+
+	// iteratorFunc(bodyFunc)
 	block.List = append(block.List, call)
+
+	if r.checkFuncMisuse() {
+		// iteratorFunc has exited, mark the exit flag for the body
+		block.List = append(block.List, r.setExited())
+	}
 	block.List = append(block.List, checks...)
 
 	if len(r.forStack) == 1 { // ending an outermost loop
@@ -855,6 +994,18 @@ func (r *rewriter) endLoop(loop *forLoop) {
 	}
 
 	r.rewritten[nfor] = block
+}
+
+func (r *rewriter) setExited() *syntax.AssignStmt {
+	return r.setExitedAt(len(r.forStack) - 1)
+}
+
+func (r *rewriter) setExitedAt(index int) *syntax.AssignStmt {
+	loop := r.forStack[index]
+	return &syntax.AssignStmt{
+		Lhs: r.useVar(loop.exitFlag),
+		Rhs: r.useVar(r.true),
+	}
 }
 
 // bodyFunc converts the loop body (control flow has already been updated)
@@ -909,6 +1060,12 @@ func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, fty
 	tv.SetIsValue()
 	bodyFunc.SetTypeInfo(tv)
 
+	loop := r.forStack[len(r.forStack)-1]
+
+	if r.checkFuncMisuse() {
+		bodyFunc.Body.List = append(bodyFunc.Body.List, r.assertNotExited(start, loop))
+	}
+
 	// Original loop body (already rewritten by editStmt during inspect).
 	bodyFunc.Body.List = append(bodyFunc.Body.List, body...)
 
@@ -948,10 +1105,10 @@ func (r *rewriter) checks(loop *forLoop, pos syntax.Pos) []syntax.Stmt {
 			list = append(list, r.ifNext(syntax.Lss, 0, retStmt(r.useVar(r.false))))
 		}
 		if loop.checkBreak {
-			list = append(list, r.ifNext(syntax.Geq, 2, retStmt(r.useVar(r.false))))
+			list = append(list, r.ifNext(syntax.Geq, perLoopStep, retStmt(r.useVar(r.false))))
 		}
 		if loop.checkContinue {
-			list = append(list, r.ifNext(syntax.Eql, 1, retStmt(r.useVar(r.true))))
+			list = append(list, r.ifNext(syntax.Eql, perLoopStep-1, retStmt(r.useVar(r.true))))
 		}
 	}
 
@@ -1000,6 +1157,36 @@ func (r *rewriter) ifNext(op syntax.Operator, c int, then syntax.Stmt) syntax.St
 		nif.Then.List = []syntax.Stmt{clr, then}
 	}
 
+	return nif
+}
+
+// setValueType marks x as a value with type typ.
+func setValueType(x syntax.Expr, typ syntax.Type) {
+	tv := syntax.TypeAndValue{Type: typ}
+	tv.SetIsValue()
+	x.SetTypeInfo(tv)
+}
+
+// assertNotExited returns the statement:
+//
+//	if #exitK { runtime.panicrangeexit() }
+//
+// where #exitK is the exit guard for loop.
+func (r *rewriter) assertNotExited(start syntax.Pos, loop *forLoop) syntax.Stmt {
+	callPanicExpr := &syntax.CallExpr{
+		Fun: runtimeSym(r.info, "panicrangeexit"),
+	}
+	setValueType(callPanicExpr, nil) // no result type
+
+	callPanic := &syntax.ExprStmt{X: callPanicExpr}
+
+	nif := &syntax.IfStmt{
+		Cond: r.useVar(loop.exitFlag),
+		Then: &syntax.BlockStmt{
+			List: []syntax.Stmt{callPanic},
+		},
+	}
+	setPos(nif, start)
 	return nif
 }
 
@@ -1099,7 +1286,11 @@ var runtimePkg = func() *types2.Package {
 	anyType := types2.Universe.Lookup("any").Type()
 
 	// func deferrangefunc() unsafe.Pointer
-	obj := types2.NewVar(nopos, pkg, "deferrangefunc", types2.NewSignatureType(nil, nil, nil, nil, types2.NewTuple(types2.NewParam(nopos, pkg, "extra", anyType)), false))
+	obj := types2.NewFunc(nopos, pkg, "deferrangefunc", types2.NewSignatureType(nil, nil, nil, nil, types2.NewTuple(types2.NewParam(nopos, pkg, "extra", anyType)), false))
+	pkg.Scope().Insert(obj)
+
+	// func panicrangeexit()
+	obj = types2.NewFunc(nopos, pkg, "panicrangeexit", types2.NewSignatureType(nil, nil, nil, nil, nil, false))
 	pkg.Scope().Insert(obj)
 
 	return pkg
@@ -1111,6 +1302,7 @@ func runtimeSym(info *types2.Info, name string) *syntax.Name {
 	n := syntax.NewName(nopos, "runtime."+name)
 	tv := syntax.TypeAndValue{Type: obj.Type()}
 	tv.SetIsValue()
+	tv.SetIsRuntimeHelper()
 	n.SetTypeInfo(tv)
 	info.Uses[n] = obj
 	return n

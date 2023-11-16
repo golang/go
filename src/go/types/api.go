@@ -286,11 +286,12 @@ type Info struct {
 	// appear in this list.
 	InitOrder []*Initializer
 
-	// _FileVersions maps a file to the file's Go version string.
-	// If the file doesn't specify a version and Config.GoVersion
-	// is not given, the reported version is the empty string.
-	// TODO(gri) should this be "go0.0" instead in that case?
-	_FileVersions map[*ast.File]string
+	// FileVersions maps a file to its Go version string.
+	// If the file doesn't specify a version, the reported
+	// string is Config.GoVersion.
+	// Version strings begin with “go”, like “go1.21”, and
+	// are suitable for use with the [go/version] package.
+	FileVersions map[*ast.File]string
 }
 
 func (info *Info) recordTypes() bool {
@@ -323,6 +324,23 @@ func (info *Info) ObjectOf(id *ast.Ident) Object {
 		return obj
 	}
 	return info.Uses[id]
+}
+
+// PkgNameOf returns the local package name defined by the import,
+// or nil if not found.
+//
+// For dot-imports, the package name is ".".
+//
+// Precondition: the Defs and Implicts maps are populated.
+func (info *Info) PkgNameOf(imp *ast.ImportSpec) *PkgName {
+	var obj Object
+	if imp.Name != nil {
+		obj = info.Defs[imp.Name]
+	} else {
+		obj = info.Implicits[imp]
+	}
+	pkgname, _ := obj.(*PkgName)
+	return pkgname
 }
 
 // TypeAndValue reports the type and value (for constants)

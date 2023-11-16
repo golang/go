@@ -39,31 +39,13 @@ var compareTests = []testCase2[string, string, int]{
 	{"1.99999999999999998", "1.99999999999999999", -1},
 }
 
-func TestParse(t *testing.T) { test1(t, parseTests, "parse", parse) }
-
-var parseTests = []testCase1[string, version]{
-	{"1", version{"1", "0", "0", "", ""}},
-	{"1.2", version{"1", "2", "0", "", ""}},
-	{"1.2.3", version{"1", "2", "3", "", ""}},
-	{"1.2rc3", version{"1", "2", "", "rc", "3"}},
-	{"1.20", version{"1", "20", "0", "", ""}},
-	{"1.21", version{"1", "21", "", "", ""}},
-	{"1.21rc3", version{"1", "21", "", "rc", "3"}},
-	{"1.21.0", version{"1", "21", "0", "", ""}},
-	{"1.24", version{"1", "24", "", "", ""}},
-	{"1.24rc3", version{"1", "24", "", "rc", "3"}},
-	{"1.24.0", version{"1", "24", "0", "", ""}},
-	{"1.999testmod", version{"1", "999", "", "testmod", ""}},
-	{"1.99999999999999999", version{"1", "99999999999999999", "", "", ""}},
-}
-
 func TestLang(t *testing.T) { test1(t, langTests, "Lang", Lang) }
 
 var langTests = []testCase1[string, string]{
 	{"1.2rc3", "1.2"},
 	{"1.2.3", "1.2"},
 	{"1.2", "1.2"},
-	{"1", "1.0"},
+	{"1", "1"},
 	{"1.999testmod", "1.999"},
 }
 

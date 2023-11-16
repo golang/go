@@ -35,12 +35,12 @@ func DumpDebugLog() string {
 }
 
 func ResetDebugLog() {
-	stopTheWorld(stwForTestResetDebugLog)
+	stw := stopTheWorld(stwForTestResetDebugLog)
 	for l := allDloggers; l != nil; l = l.allLink {
 		l.w.write = 0
 		l.w.tick, l.w.nano = 0, 0
 		l.w.r.begin, l.w.r.end = 0, 0
 		l.w.r.tick, l.w.r.nano = 0, 0
 	}
-	startTheWorld()
+	startTheWorld(stw)
 }

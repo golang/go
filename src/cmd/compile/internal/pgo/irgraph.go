@@ -366,9 +366,9 @@ func addIREdge(callerNode *IRNode, callerName string, call ir.Node, callee *ir.F
 	callerNode.OutEdges[namedEdge] = edge
 }
 
-// LookupMethodFunc looks up a method in export data. It is expected to be
-// overridden by package noder, to break a dependency cycle.
-var LookupMethodFunc = func(fullName string) (*ir.Func, error) {
+// LookupFunc looks up a function or method in export data. It is expected to
+// be overridden by package noder, to break a dependency cycle.
+var LookupFunc = func(fullName string) (*ir.Func, error) {
 	base.Fatalf("pgo.LookupMethodFunc not overridden")
 	panic("unreachable")
 }
@@ -425,9 +425,7 @@ func addIndirectEdges(g *IRGraph, namedEdgeMap NamedEdgeMap) {
 			// function may still be available from export data of
 			// a transitive dependency.
 			//
-			// TODO(prattmic): Currently we only attempt to lookup
-			// methods because we can only devirtualize interface
-			// calls, not any function pointer. Generic types are
+			// TODO(prattmic): Parameterized types/functions are
 			// not supported.
 			//
 			// TODO(prattmic): This eager lookup during graph load
@@ -437,7 +435,7 @@ func addIndirectEdges(g *IRGraph, namedEdgeMap NamedEdgeMap) {
 			// devirtualization. Instantiation of generic functions
 			// will likely need to be done at the devirtualization
 			// site, if at all.
-			fn, err := LookupMethodFunc(key.CalleeName)
+			fn, err := LookupFunc(key.CalleeName)
 			if err == nil {
 				if base.Debug.PGODebug >= 3 {
 					fmt.Printf("addIndirectEdges: %s found in export data\n", key.CalleeName)

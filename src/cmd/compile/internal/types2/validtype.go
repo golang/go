@@ -23,7 +23,7 @@ func (check *Checker) validType(typ *Named) {
 // (say S->F->S) we have an invalid recursive type. The path list is the full
 // path of named types in a cycle, it is only needed for error reporting.
 func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
-	switch t := typ.(type) {
+	switch t := Unalias(typ).(type) {
 	case nil:
 		// We should never see a nil type but be conservative and panic
 		// only in debug mode.

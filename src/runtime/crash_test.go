@@ -795,6 +795,9 @@ func TestG0StackOverflow(t *testing.T) {
 	if runtime.GOOS == "ios" {
 		testenv.SkipFlaky(t, 62671)
 	}
+	if runtime.GOOS == "windows" && runtime.GOARCH == "arm64" {
+		testenv.SkipFlaky(t, 63938) // TODO(cherry): fix and unskip
+	}
 
 	if os.Getenv("TEST_G0_STACK_OVERFLOW") != "1" {
 		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestG0StackOverflow$", "-test.v"))
@@ -804,7 +807,7 @@ func TestG0StackOverflow(t *testing.T) {
 		if n := strings.Count(string(out), "morestack on g0\n"); n != 1 {
 			t.Fatalf("%s\n(exit status %v)", out, err)
 		}
-		if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" {
+		if runtime.CrashStackImplemented {
 			// check for a stack trace
 			want := "runtime.stackOverflow"
 			if n := strings.Count(string(out), want); n < 5 {

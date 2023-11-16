@@ -9,6 +9,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/goos"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
@@ -49,6 +50,8 @@ var Memmove = memmove
 var MemclrNoHeapPointers = memclrNoHeapPointers
 
 var CgoCheckPointer = cgoCheckPointer
+
+const CrashStackImplemented = crashStackImplemented
 
 const TracebackInnerFrames = tracebackInnerFrames
 const TracebackOuterFrames = tracebackOuterFrames
@@ -324,6 +327,14 @@ func BenchSetTypeSlice[T any](n int, resetTimer func(), len int) {
 // no valid racectx, but if we're instantiated in the runtime_test package,
 // we might accidentally cause runtime code to be incorrectly instrumented.
 func benchSetType(n int, resetTimer func(), len int, x unsafe.Pointer, t *_type) {
+	// This benchmark doesn't work with the allocheaders experiment. It sets up
+	// an elaborate scenario to be able to benchmark the function safely, but doing
+	// this work for the allocheaders' version of the function would be complex.
+	// Just fail instead and rely on the test code making sure we never get here.
+	if goexperiment.AllocHeaders {
+		panic("called benchSetType with allocheaders experiment enabled")
+	}
+
 	// Compute the input sizes.
 	size := t.Size() * uintptr(len)
 
@@ -338,7 +349,7 @@ func benchSetType(n int, resetTimer func(), len int, x unsafe.Pointer, t *_type)
 
 	// Round up the size to the size class to make the benchmark a little more
 	// realistic. However, validate it, to make sure this is safe.
-	allocSize := roundupsize(size)
+	allocSize := roundupsize(size, t.PtrBytes == 0)
 	if s.npages*pageSize < allocSize {
 		panic("backing span not large enough for benchmark")
 	}
@@ -372,7 +383,7 @@ var ReadUnaligned32 = readUnaligned32
 var ReadUnaligned64 = readUnaligned64
 
 func CountPagesInUse() (pagesInUse, counted uintptr) {
-	stopTheWorld(stwForTestCountPagesInUse)
+	stw := stopTheWorld(stwForTestCountPagesInUse)
 
 	pagesInUse = mheap_.pagesInUse.Load()
 
@@ -382,7 +393,7 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 		}
 	}
 
-	startTheWorld()
+	startTheWorld(stw)
 
 	return
 }
@@ -415,35 +426,48 @@ func (p *ProfBuf) Close() {
 }
 
 func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
-	stopTheWorld(stwForTestReadMetricsSlow)
+	stw := stopTheWorld(stwForTestReadMetricsSlow)
 
 	// Initialize the metrics beforehand because this could
 	// allocate and skew the stats.
 	metricsLock()
 	initMetrics()
-	metricsUnlock()
 
 	systemstack(func() {
+		// Donate the racectx to g0. readMetricsLocked calls into the race detector
+		// via map access.
+		getg().racectx = getg().m.curg.racectx
+
+		// Read the metrics once before in case it allocates and skews the metrics.
+		// readMetricsLocked is designed to only allocate the first time it is called
+		// with a given slice of samples. In effect, this extra read tests that this
+		// remains true, since otherwise the second readMetricsLocked below could
+		// allocate before it returns.
+		readMetricsLocked(samplesp, len, cap)
+
 		// Read memstats first. It's going to flush
 		// the mcaches which readMetrics does not do, so
 		// going the other way around may result in
 		// inconsistent statistics.
 		readmemstats_m(memStats)
+
+		// Read metrics again. We need to be sure we're on the
+		// system stack with readmemstats_m so that we don't call into
+		// the stack allocator and adjust metrics between there and here.
+		readMetricsLocked(samplesp, len, cap)
+
+		// Undo the donation.
+		getg().racectx = 0
 	})
+	metricsUnlock()
 
-	// Read metrics off the system stack.
-	//
-	// The only part of readMetrics that could allocate
-	// and skew the stats is initMetrics.
-	readMetrics(samplesp, len, cap)
-
-	startTheWorld()
+	startTheWorld(stw)
 }
 
 // ReadMemStatsSlow returns both the runtime-computed MemStats and
 // MemStats accumulated by scanning the heap.
 func ReadMemStatsSlow() (base, slow MemStats) {
-	stopTheWorld(stwForTestReadMemStatsSlow)
+	stw := stopTheWorld(stwForTestReadMemStatsSlow)
 
 	// Run on the system stack to avoid stack growth allocation.
 	systemstack(func() {
@@ -520,7 +544,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 		getg().m.mallocing--
 	})
 
-	startTheWorld()
+	startTheWorld(stw)
 	return
 }
 
@@ -1300,7 +1324,7 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 }
 
 func PageCachePagesLeaked() (leaked uintptr) {
-	stopTheWorld(stwForTestPageCachePagesLeaked)
+	stw := stopTheWorld(stwForTestPageCachePagesLeaked)
 
 	// Walk over destroyed Ps and look for unflushed caches.
 	deadp := allp[len(allp):cap(allp)]
@@ -1312,7 +1336,7 @@ func PageCachePagesLeaked() (leaked uintptr) {
 		}
 	}
 
-	startTheWorld()
+	startTheWorld(stw)
 	return
 }
 

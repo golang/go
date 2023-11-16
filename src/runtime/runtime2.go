@@ -479,6 +479,9 @@ type g struct {
 	// park on a chansend or chanrecv. Used to signal an unsafe point
 	// for stack shrinking.
 	parkingOnChan atomic.Bool
+	// inMarkAssist indicates whether the goroutine is in mark assist.
+	// Used by the execution tracer.
+	inMarkAssist bool
 
 	raceignore    int8  // ignore race detection events
 	nocgocallback bool  // whether disable callback from C
@@ -572,6 +575,7 @@ type m struct {
 	incgo         bool          // m is executing a cgo call
 	isextra       bool          // m is an extra m
 	isExtraInC    bool          // m is an extra m that is not executing Go code
+	isExtraInSig  bool          // m is an extra m in a signal handler
 	freeWait      atomic.Uint32 // Whether it is safe to free g0 and delete m (one of freeMRef, freeMStack, freeMWait)
 	fastrand      uint64
 	needextram    bool
@@ -881,6 +885,21 @@ type schedt struct {
 	// totalMutexWaitTime is the sum of time goroutines have spent in _Gwaiting
 	// with a waitreason of the form waitReasonSync{RW,}Mutex{R,}Lock.
 	totalMutexWaitTime atomic.Int64
+
+	// stwStoppingTimeGC/Other are distributions of stop-the-world stopping
+	// latencies, defined as the time taken by stopTheWorldWithSema to get
+	// all Ps to stop. stwStoppingTimeGC covers all GC-related STWs,
+	// stwStoppingTimeOther covers the others.
+	stwStoppingTimeGC    timeHistogram
+	stwStoppingTimeOther timeHistogram
+
+	// stwTotalTimeGC/Other are distributions of stop-the-world total
+	// latencies, defined as the total time from stopTheWorldWithSema to
+	// startTheWorldWithSema. This is a superset of
+	// stwStoppingTimeGC/Other. stwTotalTimeGC covers all GC-related STWs,
+	// stwTotalTimeOther covers the others.
+	stwTotalTimeGC    timeHistogram
+	stwTotalTimeOther timeHistogram
 }
 
 // Values for the flags field of a sigTabT.
@@ -1112,6 +1131,9 @@ const (
 	waitReasonDebugCall                               // "debug call"
 	waitReasonGCMarkTermination                       // "GC mark termination"
 	waitReasonStoppingTheWorld                        // "stopping the world"
+	waitReasonFlushProcCaches                         // "flushing proc caches"
+	waitReasonTraceGoroutineStatus                    // "trace goroutine status"
+	waitReasonTraceProcStatus                         // "trace proc status"
 )
 
 var waitReasonStrings = [...]string{
@@ -1147,6 +1169,9 @@ var waitReasonStrings = [...]string{
 	waitReasonDebugCall:             "debug call",
 	waitReasonGCMarkTermination:     "GC mark termination",
 	waitReasonStoppingTheWorld:      "stopping the world",
+	waitReasonFlushProcCaches:       "flushing proc caches",
+	waitReasonTraceGoroutineStatus:  "trace goroutine status",
+	waitReasonTraceProcStatus:       "trace proc status",
 }
 
 func (w waitReason) String() string {

@@ -15,7 +15,6 @@ import (
 	"errors"
 	"io/fs"
 	"os"
-	"runtime"
 	"slices"
 	"sort"
 	"strings"
@@ -168,21 +167,7 @@ func Clean(path string) string {
 		out.append('.')
 	}
 
-	if runtime.GOOS == "windows" && out.volLen == 0 && out.buf != nil {
-		// If a ':' appears in the path element at the start of a Windows path,
-		// insert a .\ at the beginning to avoid converting relative paths
-		// like a/../c: into c:.
-		for _, c := range out.buf {
-			if os.IsPathSeparator(c) {
-				break
-			}
-			if c == ':' {
-				out.prepend('.', Separator)
-				break
-			}
-		}
-	}
-
+	postClean(&out) // avoid creating absolute paths on Windows
 	return FromSlash(out.string())
 }
 

@@ -9,7 +9,7 @@
 // func rt0_go()
 TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// X2 = stack; A0 = argc; A1 = argv
-	ADD	$-24, X2
+	SUB	$24, X2
 	MOV	A0, 8(X2)	// argc
 	MOV	A1, 16(X2)	// argv
 
@@ -57,7 +57,7 @@ nocgo:
 
 	// create a new goroutine to start program
 	MOV	$runtime·mainPC(SB), T0		// entry
-	ADD	$-16, X2
+	SUB	$16, X2
 	MOV	T0, 8(X2)
 	MOV	ZERO, 0(X2)
 	CALL	runtime·newproc(SB)
@@ -148,10 +148,29 @@ noswitch:
 	ADD	$8, X2
 	JMP	(T1)
 
-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
-	MOV	0(X2), T0		// LR saved by caller
-	MOV	T0, ret+0(FP)
-	RET
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
+	MOV	X10, CTXT			// context register
+	MOV	g_m(g), X11			// curm
+
+	// set g to gcrash
+	MOV	$runtime·gcrash(SB), g	// g = &gcrash
+	CALL	runtime·save_g(SB)	// clobbers X31
+	MOV	X11, g_m(g)			// g.m = curm
+	MOV	g, m_g0(X11)			// curm.g0 = g
+
+	// switch to crashstack
+	MOV	(g_stack+stack_hi)(g), X11
+	SUB	$(4*8), X11
+	MOV	X11, X2
+
+	// call target function
+	MOV	0(CTXT), X10
+	JALR	X1, X10
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
 
 /*
  * support for morestack
@@ -168,6 +187,13 @@ TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
 
 // func morestack()
 TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+	// Called from f.
+	// Set g->sched to context in f.
+	MOV	X2, (g_sched+gobuf_sp)(g)
+	MOV	T0, (g_sched+gobuf_pc)(g)
+	MOV	RA, (g_sched+gobuf_lr)(g)
+	MOV	CTXT, (g_sched+gobuf_ctxt)(g)
+
 	// Cannot grow scheduler stack (m->g0).
 	MOV	g_m(g), A0
 	MOV	m_g0(A0), A1
@@ -182,13 +208,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	CALL	runtime·abort(SB)
 
 	// Called from f.
-	// Set g->sched to context in f.
-	MOV	X2, (g_sched+gobuf_sp)(g)
-	MOV	T0, (g_sched+gobuf_pc)(g)
-	MOV	RA, (g_sched+gobuf_lr)(g)
-	MOV	CTXT, (g_sched+gobuf_ctxt)(g)
-
-	// Called from f.
 	// Set m->morebuf to f's caller.
 	MOV	RA, (m_morebuf+gobuf_pc)(A0)	// f's caller's PC
 	MOV	X2, (m_morebuf+gobuf_sp)(A0)	// f's caller's SP
@@ -200,7 +219,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	MOV	(g_sched+gobuf_sp)(g), X2
 	// Create a stack frame on g0 to call newstack.
 	MOV	ZERO, -8(X2)	// Zero saved LR in frame
-	ADD	$-8, X2
+	SUB	$8, X2
 	CALL	runtime·newstack(SB)
 
 	// Not reached, but make sure the return PC from the call to newstack
@@ -285,7 +304,7 @@ TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
 	MOV	0(CTXT), T1			// code pointer
 	MOV	(g_sched+gobuf_sp)(g), X2	// sp = m->g0->sched.sp
 	// we don't need special macro for regabi since arg0(X10) = g
-	ADD	$-16, X2
+	SUB	$16, X2
 	MOV	X10, 8(X2)			// setup g
 	MOV	ZERO, 0(X2)			// clear return address
 	JALR	RA, T1
@@ -347,7 +366,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	// Now on a scheduling stack (a pthread-created stack).
 g0:
 	// Save room for two of our pointers.
-	ADD	$-16, X2
+	SUB	$16, X2
 	MOV	X9, 0(X2)	// save old g on stack
 	MOV	(g_stack+stack_hi)(X9), X9
 	SUB	X8, X9, X8

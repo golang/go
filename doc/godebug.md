@@ -143,6 +143,21 @@ patterns and unescape both patterns and request paths by segment.
 This behavior can be controlled by the
 [`httpmuxgo121` setting](/pkg/net/http/#ServeMux).
 
+Go 1.22 added the [Alias type](/pkg/go/types#Alias) to [go/types](/pkg/go/types)
+for the explicit representation of [type aliases](/ref/spec#Type_declarations).
+Whether the type checker produces `Alias` types or not is controlled by the
+[`gotypesalias` setting](/pkg/go/types#Alias).
+For Go 1.22 it defaults to `gotypesalias=0`.
+For Go 1.23, `gotypealias=1` will become the default.
+This setting will be removed in a future release, Go 1.24 at the earliest.
+
+Go 1.22 changed the default minimum TLS version supported by both servers
+and clients to TLS 1.2. The default can be reverted to TLS 1.0 using the
+[`tls10server` setting](/pkg/crypto/tls/#Config).
+
+Go 1.22 changed the default TLS cipher suites used by clients and servers when
+not explicitly configured, removing the cipher suites which used RSA based key
+exchange. The default can be revert using the [`tlsrsakex` setting](/pkg/crypto/tls/#Config).
 
 ### Go 1.21
 

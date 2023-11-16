@@ -354,7 +354,7 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
 		// used with this value of b.
 		nbuckets += bucketShift(b - 4)
 		sz := t.Bucket.Size_ * nbuckets
-		up := roundupsize(sz)
+		up := roundupsize(sz, t.Bucket.PtrBytes == 0)
 		if up != sz {
 			nbuckets = up / t.Bucket.Size_
 		}

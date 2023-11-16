@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"internal/goexperiment"
 	"internal/trace"
 	"reflect"
 	. "runtime/trace"
@@ -42,6 +43,10 @@ func BenchmarkNewTask(b *testing.B) {
 }
 
 func TestUserTaskRegion(t *testing.T) {
+	if goexperiment.ExecTracer2 {
+		// An equivalent test exists in internal/trace/v2.
+		t.Skip("skipping because this test is incompatible with the new tracer")
+	}
 	if IsEnabled() {
 		t.Skip("skipping because -test.trace is set")
 	}

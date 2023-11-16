@@ -576,7 +576,7 @@ func genRISCV64() {
 	}
 
 	p("MOV X1, -%d(X2)", l.stack)
-	p("ADD $-%d, X2", l.stack)
+	p("SUB $%d, X2", l.stack)
 	l.save()
 	p("CALL ·asyncPreempt2(SB)")
 	l.restore()

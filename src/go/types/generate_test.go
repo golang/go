@@ -143,7 +143,6 @@ var filemap = map[string]action{
 	"universe.go":      fixGlobalTypVarDecl,
 	"util_test.go":     fixTokenPos,
 	"validtype.go":     nil,
-	"version_test.go":  nil,
 }
 
 // TODO(gri) We should be able to make these rewriters more configurable/composable.

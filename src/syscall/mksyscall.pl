@@ -284,6 +284,7 @@ while(<>) {
 	if($libc) {
 		if($funcname eq "") {
 			$sysname = substr $sysname, 4;
+			$sysname =~ y/A-Z/a-z/;
 			$funcname = "libc_$sysname";
 		}
 		$sysname = "abi.FuncPCABI0(${funcname}_trampoline)";

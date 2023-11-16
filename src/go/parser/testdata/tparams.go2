@@ -4,8 +4,8 @@
 
 package p
 
-type _[a /* ERROR "type parameters must be named" */, b] struct{}
-type _[a t, b t, c /* ERROR "type parameters must be named" */ ] struct{}
+type _[a, b] /* ERROR "missing type constraint" */ struct{}
+type _[a t, b t, c]  /* ERROR "missing type constraint" */ struct{}
 type _ struct {
 	t [n]byte
 	t[a]
@@ -25,13 +25,13 @@ type _ interface {
 }
 
 func _[] /* ERROR "empty type parameter list" */ ()
-func _[a /* ERROR "type parameters must be named" */, b ]()
-func _[a t, b t, c /* ERROR "type parameters must be named" */ ]()
+func _[a, b ] /* ERROR "missing type constraint" */ ()
+func _[a t, b t, c] /* ERROR "missing type constraint" */ ()
 
 // TODO(rfindley) incorrect error message (see existing TODO in parser)
 func f[a b, 0 /* ERROR "expected '\)', found 0" */ ] ()
 
-// issue #49482
+// go.dev/issue/49482
 type (
 	_[a *[]int] struct{}
 	_[a *t,] struct{}
@@ -43,7 +43,7 @@ type (
 	_[a *struct{}|~t] struct{}
 )
 
-// issue #51488
+// go.dev/issue/51488
 type (
 	_[a *t|t,] struct{}
 	_[a *t|t, b t] struct{}
@@ -51,4 +51,15 @@ type (
 	_[a *[]t|t] struct{}
 	_[a ([]t)] struct{}
 	_[a ([]t)|t] struct{}
+)
+
+// go.dev/issue/60812
+type (
+	_ [t]struct{}
+	_ [[]t]struct{}
+	_ [[t]t]struct{}
+	_ [t /* ERROR "missing type parameter name or invalid array length" */ [t]]struct{}
+	_ [t t[t], t /* ERROR "missing type parameter name" */ [t]]struct{}
+	_ [t /* ERROR "missing type parameter name" */ [t], t t[t]]struct{}
+	_ [t /* ERROR "missing type parameter name" */ [t], t[t]]struct{} // report only first error
 )

@@ -64,6 +64,9 @@ TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
 TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
 	CALL	libc_fcntl(SB)
 	RET
+TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
+	CALL	libc_ioctl(SB)
+	RET
 TEXT ·libc_pipe2_trampoline(SB),NOSPLIT,$0-0
 	CALL	libc_pipe2(SB)
 	RET
@@ -310,6 +313,9 @@ TEXT ·libc_mmap_trampoline(SB),NOSPLIT,$0-0
 TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0
 	CALL	libc_munmap(SB)
 	RET
+TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
+	CALL	libc_getfsstat(SB)
+	RET
 TEXT ·libc_utimensat_trampoline(SB),NOSPLIT,$0-0
 	CALL	libc_utimensat(SB)
 	RET
@@ -327,9 +333,6 @@ TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
 	RET
 TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
 	CALL	libc_fork(SB)
-	RET
-TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
-	CALL	libc_ioctl(SB)
 	RET
 TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
 	CALL	libc_execve(SB)

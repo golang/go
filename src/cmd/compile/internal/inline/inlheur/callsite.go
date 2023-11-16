@@ -27,11 +27,13 @@ import (
 type CallSite struct {
 	Callee    *ir.Func
 	Call      *ir.CallExpr
+	parent    *CallSite
 	Assign    ir.Node
 	Flags     CSPropBits
 	Score     int
 	ScoreMask scoreAdjustTyp
 	ID        uint
+	aux       uint8
 }
 
 // CallSiteTab is a table of call sites, keyed by call expr.
@@ -41,27 +43,18 @@ type CallSite struct {
 // with many calls that share the same auto-generated pos.
 type CallSiteTab map[*ir.CallExpr]*CallSite
 
-// Package-level table of callsites.
-var cstab = CallSiteTab{}
-
-func GetCallSiteScore(ce *ir.CallExpr) (bool, int) {
-	cs, ok := cstab[ce]
-	if !ok {
-		return false, 0
-	}
-	return true, cs.Score
-}
-
-func CallSiteTable() CallSiteTab {
-	return cstab
-}
-
 type CSPropBits uint32
 
 const (
 	CallSiteInLoop CSPropBits = 1 << iota
 	CallSiteOnPanicPath
 	CallSiteInInitFunc
+)
+
+type csAuxBits uint8
+
+const (
+	csAuxInlined = 1 << iota
 )
 
 // encodedCallSiteTab is a table keyed by "encoded" callsite

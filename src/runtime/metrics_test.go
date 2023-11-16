@@ -5,10 +5,13 @@
 package runtime_test
 
 import (
+	"bytes"
+	"os"
 	"reflect"
 	"runtime"
 	"runtime/debug"
 	"runtime/metrics"
+	"runtime/trace"
 	"sort"
 	"strings"
 	"sync"
@@ -56,7 +59,7 @@ func TestReadMetrics(t *testing.T) {
 	}
 
 	// Check to make sure the values we read line up with other values we read.
-	var allocsBySize *metrics.Float64Histogram
+	var allocsBySize, gcPauses, schedPausesTotalGC *metrics.Float64Histogram
 	var tinyAllocs uint64
 	var mallocs, frees uint64
 	for i := range samples {
@@ -171,6 +174,10 @@ func TestReadMetrics(t *testing.T) {
 			checkUint64(t, name, samples[i].Value.Uint64(), uint64(mstats.NumForcedGC))
 		case "/gc/cycles/total:gc-cycles":
 			checkUint64(t, name, samples[i].Value.Uint64(), uint64(mstats.NumGC))
+		case "/gc/pauses:seconds":
+			gcPauses = samples[i].Value.Float64Histogram()
+		case "/sched/pauses/total/gc:seconds":
+			schedPausesTotalGC = samples[i].Value.Float64Histogram()
 		}
 	}
 
@@ -184,6 +191,14 @@ func TestReadMetrics(t *testing.T) {
 	// Check allocation and free counts.
 	checkUint64(t, "/gc/heap/allocs:objects", mallocs, mstats.Mallocs-tinyAllocs)
 	checkUint64(t, "/gc/heap/frees:objects", frees, mstats.Frees-tinyAllocs)
+
+	// Verify that /gc/pauses:seconds is a copy of /sched/pauses/total/gc:seconds
+	if !reflect.DeepEqual(gcPauses.Buckets, schedPausesTotalGC.Buckets) {
+		t.Errorf("/gc/pauses:seconds buckets %v do not match /sched/pauses/total/gc:seconds buckets %v", gcPauses.Buckets, schedPausesTotalGC.Counts)
+	}
+	if !reflect.DeepEqual(gcPauses.Counts, schedPausesTotalGC.Counts) {
+		t.Errorf("/gc/pauses:seconds counts %v do not match /sched/pauses/total/gc:seconds counts %v", gcPauses.Counts, schedPausesTotalGC.Counts)
+	}
 }
 
 func TestReadMetricsConsistency(t *testing.T) {
@@ -760,4 +775,160 @@ func TestCPUMetricsSleep(t *testing.T) {
 		t.Logf("\t%s %0.3f\n", names[i], m2[i].Value.Float64()-m1[i].Value.Float64())
 	}
 	t.Errorf(`time.Sleep did not contribute enough to "idle" class: minimum idle time = %.5fs`, minIdleCPUSeconds)
+}
+
+// Call f() and verify that the correct STW metrics increment. If isGC is true,
+// fn triggers a GC STW. Otherwise, fn triggers an other STW.
+func testSchedPauseMetrics(t *testing.T, fn func(t *testing.T), isGC bool) {
+	t.Helper()
+
+	m := []metrics.Sample{
+		{Name: "/sched/pauses/stopping/gc:seconds"},
+		{Name: "/sched/pauses/stopping/other:seconds"},
+		{Name: "/sched/pauses/total/gc:seconds"},
+		{Name: "/sched/pauses/total/other:seconds"},
+	}
+
+	stoppingGC := &m[0]
+	stoppingOther := &m[1]
+	totalGC := &m[2]
+	totalOther := &m[3]
+
+	sampleCount := func(s *metrics.Sample) uint64 {
+		h := s.Value.Float64Histogram()
+
+		var n uint64
+		for _, c := range h.Counts {
+			n += c
+		}
+		return n
+	}
+
+	// Read baseline.
+	metrics.Read(m)
+
+	baselineStartGC := sampleCount(stoppingGC)
+	baselineStartOther := sampleCount(stoppingOther)
+	baselineTotalGC := sampleCount(totalGC)
+	baselineTotalOther := sampleCount(totalOther)
+
+	fn(t)
+
+	metrics.Read(m)
+
+	if isGC {
+		if got := sampleCount(stoppingGC); got <= baselineStartGC {
+			t.Errorf("/sched/pauses/stopping/gc:seconds sample count %d did not increase from baseline of %d", got, baselineStartGC)
+		}
+		if got := sampleCount(totalGC); got <= baselineTotalGC {
+			t.Errorf("/sched/pauses/total/gc:seconds sample count %d did not increase from baseline of %d", got, baselineTotalGC)
+		}
+
+		if got := sampleCount(stoppingOther); got != baselineStartOther {
+			t.Errorf("/sched/pauses/stopping/other:seconds sample count %d changed from baseline of %d", got, baselineStartOther)
+		}
+		if got := sampleCount(totalOther); got != baselineTotalOther {
+			t.Errorf("/sched/pauses/stopping/other:seconds sample count %d changed from baseline of %d", got, baselineTotalOther)
+		}
+	} else {
+		if got := sampleCount(stoppingGC); got != baselineStartGC {
+			t.Errorf("/sched/pauses/stopping/gc:seconds sample count %d changed from baseline of %d", got, baselineStartGC)
+		}
+		if got := sampleCount(totalGC); got != baselineTotalGC {
+			t.Errorf("/sched/pauses/total/gc:seconds sample count %d changed from baseline of %d", got, baselineTotalGC)
+		}
+
+		if got := sampleCount(stoppingOther); got <= baselineStartOther {
+			t.Errorf("/sched/pauses/stopping/other:seconds sample count %d did not increase from baseline of %d", got, baselineStartOther)
+		}
+		if got := sampleCount(totalOther); got <= baselineTotalOther {
+			t.Errorf("/sched/pauses/stopping/other:seconds sample count %d did not increase from baseline of %d", got, baselineTotalOther)
+		}
+	}
+}
+
+func TestSchedPauseMetrics(t *testing.T) {
+	tests := []struct{
+		name string
+		isGC bool
+		fn   func(t *testing.T)
+	}{
+		{
+			name: "runtime.GC",
+			isGC: true,
+			fn:   func(t *testing.T) {
+				runtime.GC()
+			},
+		},
+		{
+			name: "runtime.GOMAXPROCS",
+			fn:   func(t *testing.T) {
+				if runtime.GOARCH == "wasm" {
+					t.Skip("GOMAXPROCS >1 not supported on wasm")
+				}
+
+				n := runtime.GOMAXPROCS(0)
+				defer runtime.GOMAXPROCS(n)
+
+				runtime.GOMAXPROCS(n+1)
+			},
+		},
+		{
+			name: "runtime.GoroutineProfile",
+			fn:   func(t *testing.T) {
+				var s [1]runtime.StackRecord
+				runtime.GoroutineProfile(s[:])
+			},
+		},
+		{
+			name: "runtime.ReadMemStats",
+			fn:   func(t *testing.T) {
+				var mstats runtime.MemStats
+				runtime.ReadMemStats(&mstats)
+			},
+		},
+		{
+			name: "runtime.Stack",
+			fn:   func(t *testing.T) {
+				var b [64]byte
+				runtime.Stack(b[:], true)
+			},
+		},
+		{
+			name: "runtime/debug.WriteHeapDump",
+			fn:   func(t *testing.T) {
+				if runtime.GOOS == "js" {
+					t.Skip("WriteHeapDump not supported on js")
+				}
+
+				f, err := os.CreateTemp(t.TempDir(), "heapdumptest")
+				if err != nil {
+					t.Fatalf("os.CreateTemp failed: %v", err)
+				}
+				defer os.Remove(f.Name())
+				defer f.Close()
+				debug.WriteHeapDump(f.Fd())
+			},
+		},
+		{
+			name: "runtime/trace.Start",
+			fn:   func(t *testing.T) {
+				if trace.IsEnabled() {
+					t.Skip("tracing already enabled")
+				}
+
+				var buf bytes.Buffer
+				if err := trace.Start(&buf); err != nil {
+					t.Errorf("trace.Start err got %v want nil", err)
+				}
+				trace.Stop()
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			testSchedPauseMetrics(t, tc.fn, tc.isGC)
+		})
+	}
 }
