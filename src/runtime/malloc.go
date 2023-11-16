@@ -1153,7 +1153,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				memclrNoHeapPointers(x, size)
 			}
 			if goexperiment.AllocHeaders && hasHeader {
-				header = (**_type)(unsafe.Pointer(uintptr(v) + size - mallocHeaderSize))
+				header = (**_type)(x)
+				x = add(x, mallocHeaderSize)
 				size -= mallocHeaderSize
 			}
 		}
