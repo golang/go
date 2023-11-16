@@ -133,7 +133,7 @@ func runtime_AfterForkInChild()
 func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
 	// Set up and fork. This returns immediately in the parent or
 	// if there's an error.
-	upid, err, mapPipe, locked := forkAndExecInChild1(argv0, argv, envv, chroot, dir, attr, sys, pipe)
+	upid, pidfd, err, mapPipe, locked := forkAndExecInChild1(argv0, argv, envv, chroot, dir, attr, sys, pipe)
 	if locked {
 		runtime_AfterFork()
 	}
@@ -143,6 +143,9 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 
 	// parent; return PID
 	pid = int(upid)
+	if sys.PidFD != nil {
+		*sys.PidFD = int(pidfd)
+	}
 
 	if sys.UidMappings != nil || sys.GidMappings != nil {
 		Close(mapPipe[0])
@@ -210,7 +213,7 @@ type cloneArgs struct {
 //go:noinline
 //go:norace
 //go:nocheckptr
-func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid uintptr, err1 Errno, mapPipe [2]int, locked bool) {
+func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid uintptr, pidfd int32, err1 Errno, mapPipe [2]int, locked bool) {
 	// Defined in linux/prctl.h starting with Linux 4.3.
 	const (
 		PR_CAP_AMBIENT       = 0x2f
@@ -241,12 +244,12 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		uidmap, setgroups, gidmap []byte
 		clone3                    *cloneArgs
 		pgrp                      int32
-		pidfd                     _C_int = -1
 		dirfd                     int
 		cred                      *Credential
 		ngroups, groups           uintptr
 		c                         uintptr
 	)
+	pidfd = -1
 
 	rlim := origRlimitNofile.Load()
 
@@ -340,10 +343,6 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	}
 
 	// Fork succeeded, now in child.
-
-	if sys.PidFD != nil {
-		*sys.PidFD = int(pidfd)
-	}
 
 	// Enable the "keep capabilities" flag to set ambient capabilities later.
 	if len(sys.AmbientCaps) > 0 {

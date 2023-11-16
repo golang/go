@@ -522,7 +522,7 @@ func TestCloneTimeNamespace(t *testing.T) {
 	}
 }
 
-func testPidFD(t *testing.T) error {
+func testPidFD(t *testing.T, userns bool) error {
 	testenv.MustHaveExec(t)
 
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
@@ -540,6 +540,9 @@ func testPidFD(t *testing.T) error {
 	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		PidFD: &pidfd,
+	}
+	if userns {
+		cmd.SysProcAttr.Cloneflags = syscall.CLONE_NEWUSER
 	}
 	if err := cmd.Start(); err != nil {
 		return err
@@ -572,7 +575,13 @@ func testPidFD(t *testing.T) error {
 }
 
 func TestPidFD(t *testing.T) {
-	if err := testPidFD(t); err != nil {
+	if err := testPidFD(t, false); err != nil {
+		t.Fatal("can't start a process:", err)
+	}
+}
+
+func TestPidFDWithUserNS(t *testing.T) {
+	if err := testPidFD(t, true); err != nil {
 		t.Fatal("can't start a process:", err)
 	}
 }
@@ -581,7 +590,7 @@ func TestPidFDClone3(t *testing.T) {
 	*syscall.ForceClone3 = true
 	defer func() { *syscall.ForceClone3 = false }()
 
-	if err := testPidFD(t); err != nil {
+	if err := testPidFD(t, false); err != nil {
 		if testenv.SyscallIsNotSupported(err) {
 			t.Skip("clone3 not supported:", err)
 		}
