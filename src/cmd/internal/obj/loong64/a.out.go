@@ -225,8 +225,6 @@ const (
 	REGZERO = REG_R0 // set to zero
 	REGLINK = REG_R1
 	REGSP   = REG_R3
-	REGRET  = REG_R20 // not use
-	REGARG  = -1      // -1 disables passing the first argument in register
 	REGRT1  = REG_R20 // reserved for runtime, duffzero and duffcopy
 	REGRT2  = REG_R21 // reserved for runtime, duffcopy
 	REGCTXT = REG_R29 // context for closures
