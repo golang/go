@@ -362,7 +362,7 @@ func (r *codeRepo) convert(ctx context.Context, info *codehost.RevInfo, statVers
 			}
 			tags, tagsErr := r.code.Tags(ctx, prefix)
 			if tagsErr != nil {
-				origin.ClearCheckable()
+				revInfo.Origin = nil
 				if err == nil {
 					err = tagsErr
 				}

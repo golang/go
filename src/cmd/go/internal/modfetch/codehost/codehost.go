@@ -122,21 +122,6 @@ type Origin struct {
 	RepoSum string `json:",omitempty"`
 }
 
-// Checkable reports whether the Origin contains anything that can be checked.
-// If not, the Origin is purely informational and should fail a CheckReuse call.
-func (o *Origin) Checkable() bool {
-	return o != nil && (o.TagSum != "" || o.Ref != "" || o.Hash != "" || o.RepoSum != "")
-}
-
-// ClearCheckable clears the Origin enough to make Checkable return false.
-func (o *Origin) ClearCheckable() {
-	o.TagSum = ""
-	o.TagPrefix = ""
-	o.Ref = ""
-	o.Hash = ""
-	o.RepoSum = ""
-}
-
 // A Tags describes the available tags in a code repository.
 type Tags struct {
 	Origin *Origin

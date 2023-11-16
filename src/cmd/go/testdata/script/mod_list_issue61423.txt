@@ -51,9 +51,19 @@ env GOMODCACHE=$WORK/modcache2
 # it is only going to have Git origin information about the one
 # commit — not the other tags that would go into resolving
 # the underlying version list.
+# 'go list' should not emit the partial information,
+# since it isn't enough to reconstruct the result.
 
 go list -m -json vcs-test.golang.org/git/issue61415.git@latest
 cp stdout proxy-latest.json
+stdout '"Version": "v0.0.0-20231114180000-08a4fa6bb9c0"'
+! stdout '"Origin":'
+
+# However, if we list a specific, stable version, we should get
+# whatever origin metadata the proxy has for the version.
+
+go list -m -json vcs-test.golang.org/git/issue61415.git@v0.0.0-20231114180000-08a4fa6bb9c0
+cp stdout proxy-version.json
 stdout '"Version": "v0.0.0-20231114180000-08a4fa6bb9c0"'
 stdout '"Origin":'
 stdout '"VCS": "git"'
@@ -63,7 +73,8 @@ stdout '"Hash": "08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a"'
 
 # The -reuse flag has no effect with a proxy, since the proxy can serve
 # metadata about a given module version cheaply anyway.
-go list -reuse=proxy-latest.json -m -json vcs-test.golang.org/git/issue61415.git@latest
+
+go list -reuse=proxy-version.json -m -json vcs-test.golang.org/git/issue61415.git@v0.0.0-20231114180000-08a4fa6bb9c0
 stdout '"Version": "v0.0.0-20231114180000-08a4fa6bb9c0"'
 stdout '"Origin":'
 stdout '"VCS": "git"'

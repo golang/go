@@ -111,8 +111,8 @@ func checkReuse(ctx context.Context, m module.Version, old *codehost.Origin) err
 }
 
 func checkReuseRepo(ctx context.Context, repo versionRepo, path, query string, origin *codehost.Origin) error {
-	if !origin.Checkable() {
-		return errors.New("Origin is not checkable")
+	if origin == nil {
+		return errors.New("nil Origin")
 	}
 
 	// Ensure that the Origin actually includes enough fields to resolve the query.
@@ -138,6 +138,9 @@ func checkReuseRepo(ctx context.Context, repo versionRepo, path, query string, o
 		// If the version did not successfully resolve, the origin may indicate
 		// a TagSum and/or RepoSum instead of a Hash, in which case we still need
 		// to check those to ensure that the error is still applicable.
+		if origin.Hash == "" && origin.Ref == "" && origin.TagSum == "" {
+			return errors.New("no Origin information to check")
+		}
 
 	case IsRevisionQuery(path, query):
 		// This query may refer to a branch, non-version tag, or commit ID.
@@ -225,7 +228,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 		return nil, err
 	}
 
-	if old := reuse[module.Version{Path: path, Version: query}]; old != nil && old.Origin.Checkable() {
+	if old := reuse[module.Version{Path: path, Version: query}]; old != nil {
 		if err := checkReuseRepo(ctx, repo, path, query, old.Origin); err == nil {
 			info := &modfetch.RevInfo{
 				Version: old.Version,
