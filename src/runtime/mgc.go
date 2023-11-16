@@ -418,7 +418,7 @@ type workType struct {
 	stwprocs, maxprocs                 int32
 	tSweepTerm, tMark, tMarkTerm, tEnd int64 // nanotime() of phase start
 
-	pauseNS    int64 // total STW time this cycle
+	pauseNS int64 // total STW time this cycle
 
 	// debug.gctrace heap sizes for this cycle.
 	heap0, heap1, heap2 uint64

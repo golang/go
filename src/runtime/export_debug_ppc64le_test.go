@@ -116,7 +116,7 @@ func storeRegArgs(dst *sigcontext, src *abi.RegArgs) {
 
 func loadRegArgs(dst *abi.RegArgs, src *sigcontext) {
 	// Gprs R3..R10, R14..R17 are used to pass int arguments in registers on PPC64
-	for i, _ := range [12]int{} {
+	for i := range [12]int{} {
 		if i > 7 {
 			dst.Ints[i] = uintptr(src.gp_regs[i+6])
 		} else {
@@ -124,7 +124,7 @@ func loadRegArgs(dst *abi.RegArgs, src *sigcontext) {
 		}
 	}
 	// Fprs F1..F13 are used to pass float arguments in registers on PPC64
-	for i, _ := range [12]int{} {
+	for i := range [12]int{} {
 		dst.Floats[i] = math.Float64bits(src.fp_regs[i+1])
 	}
 

@@ -848,7 +848,7 @@ func testSchedPauseMetrics(t *testing.T, fn func(t *testing.T), isGC bool) {
 }
 
 func TestSchedPauseMetrics(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		name string
 		isGC bool
 		fn   func(t *testing.T)
@@ -856,13 +856,13 @@ func TestSchedPauseMetrics(t *testing.T) {
 		{
 			name: "runtime.GC",
 			isGC: true,
-			fn:   func(t *testing.T) {
+			fn: func(t *testing.T) {
 				runtime.GC()
 			},
 		},
 		{
 			name: "runtime.GOMAXPROCS",
-			fn:   func(t *testing.T) {
+			fn: func(t *testing.T) {
 				if runtime.GOARCH == "wasm" {
 					t.Skip("GOMAXPROCS >1 not supported on wasm")
 				}
@@ -870,33 +870,33 @@ func TestSchedPauseMetrics(t *testing.T) {
 				n := runtime.GOMAXPROCS(0)
 				defer runtime.GOMAXPROCS(n)
 
-				runtime.GOMAXPROCS(n+1)
+				runtime.GOMAXPROCS(n + 1)
 			},
 		},
 		{
 			name: "runtime.GoroutineProfile",
-			fn:   func(t *testing.T) {
+			fn: func(t *testing.T) {
 				var s [1]runtime.StackRecord
 				runtime.GoroutineProfile(s[:])
 			},
 		},
 		{
 			name: "runtime.ReadMemStats",
-			fn:   func(t *testing.T) {
+			fn: func(t *testing.T) {
 				var mstats runtime.MemStats
 				runtime.ReadMemStats(&mstats)
 			},
 		},
 		{
 			name: "runtime.Stack",
-			fn:   func(t *testing.T) {
+			fn: func(t *testing.T) {
 				var b [64]byte
 				runtime.Stack(b[:], true)
 			},
 		},
 		{
 			name: "runtime/debug.WriteHeapDump",
-			fn:   func(t *testing.T) {
+			fn: func(t *testing.T) {
 				if runtime.GOOS == "js" {
 					t.Skip("WriteHeapDump not supported on js")
 				}
@@ -912,7 +912,7 @@ func TestSchedPauseMetrics(t *testing.T) {
 		},
 		{
 			name: "runtime/trace.Start",
-			fn:   func(t *testing.T) {
+			fn: func(t *testing.T) {
 				if trace.IsEnabled() {
 					t.Skip("tracing already enabled")
 				}
