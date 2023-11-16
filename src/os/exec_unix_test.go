@@ -37,7 +37,10 @@ func TestUNIXProcessAlive(t *testing.T) {
 	}
 	defer p.Kill()
 
-	proc, _ := FindProcess(p.Pid)
+	proc, err := FindProcess(p.Pid)
+	if err != nil {
+		t.Errorf("OS reported error for running process: %v", err)
+	}
 	err = proc.Signal(syscall.Signal(0))
 	if err != nil {
 		t.Errorf("OS reported error for running process: %v", err)

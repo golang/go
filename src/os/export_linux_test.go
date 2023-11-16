@@ -9,4 +9,5 @@ var (
 	PollSpliceFile      = &pollSplice
 	GetPollFDAndNetwork = getPollFDAndNetwork
 	CheckPidfdOnce      = checkPidfdOnce
+	PidDone             = pidDone
 )

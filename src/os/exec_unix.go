@@ -13,8 +13,19 @@ import (
 	"time"
 )
 
+const (
+	// Special values for Process.Pid.
+	pidUnset    = 0
+	pidReleased = -1
+	pidDone     = -2
+)
+
 func (p *Process) wait() (ps *ProcessState, err error) {
-	if p.Pid == -1 {
+	switch p.Pid {
+	case pidDone:
+		return nil, ErrProcessDone
+	case pidReleased:
+		// Process already released.
 		return nil, syscall.EINVAL
 	}
 	// Wait on pidfd if possible; fallback to using pid on ENOSYS.
@@ -67,10 +78,12 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 }
 
 func (p *Process) signal(sig Signal) error {
-	if p.Pid == -1 {
+	switch p.Pid {
+	case pidDone:
+		return ErrProcessDone
+	case pidReleased:
 		return errors.New("os: process already released")
-	}
-	if p.Pid == 0 {
+	case pidUnset:
 		return errors.New("os: process not initialized")
 	}
 	s, ok := sig.(syscall.Signal)
@@ -98,15 +111,23 @@ func convertESRCH(err error) error {
 
 func (p *Process) release() error {
 	p.pidfdRelease()
-	p.Pid = -1
+	p.Pid = pidReleased
 	// no need for a finalizer anymore
 	runtime.SetFinalizer(p, nil)
 	return nil
 }
 
 func findProcess(pid int) (p *Process, err error) {
-	// NOOP for unix.
-	return newProcess(pid, unsetHandle), nil
+	h, err := pidfdFind(pid)
+	if err == ErrProcessDone {
+		// Can't return an error here since users are not expecting it.
+		// Instead, return a process with Pid=pidDone and let a
+		// subsequent Signal or Wait call catch that.
+		return newProcess(pidDone, unsetHandle), nil
+	}
+	// Ignore all other errors from pidfdFind, as the callers
+	// do not expect them, and we can use pid anyway.
+	return newProcess(pid, h), nil
 }
 
 func (p *ProcessState) userTime() time.Duration {
