@@ -214,6 +214,10 @@ func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
 // Excluded versions will be omitted. If listRetracted is false, retracted
 // versions will also be omitted.
 func addVersions(ctx context.Context, m *modinfo.ModulePublic, listRetracted bool) {
+	// TODO(bcmills): Would it make sense to check for reuse here too?
+	// Perhaps that doesn't buy us much, though: we would always have to fetch
+	// all of the version tags to list the available versions anyway.
+
 	allowed := CheckAllowed
 	if listRetracted {
 		allowed = CheckExclusions
@@ -319,21 +323,23 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 			return
 		}
 
-		if old := reuse[module.Version{Path: m.Path, Version: m.Version}]; old != nil {
-			if err := checkReuse(ctx, m.Path, old.Origin); err == nil {
-				*m = *old
-				m.Query = ""
-				m.Dir = ""
-				return
-			}
-		}
-
 		checksumOk := func(suffix string) bool {
 			return rs == nil || m.Version == "" || !mustHaveSums() ||
 				modfetch.HaveSum(module.Version{Path: m.Path, Version: m.Version + suffix})
 		}
 
+		mod := module.Version{Path: m.Path, Version: m.Version}
+
 		if m.Version != "" {
+			if old := reuse[mod]; old != nil && old.Origin.Checkable() {
+				if err := checkReuse(ctx, mod, old.Origin); err == nil {
+					*m = *old
+					m.Query = ""
+					m.Dir = ""
+					return
+				}
+			}
+
 			if q, err := Query(ctx, m.Path, m.Version, "", nil); err != nil {
 				m.Error = &modinfo.ModuleError{Err: err.Error()}
 			} else {
@@ -341,7 +347,6 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 				m.Time = &q.Time
 			}
 		}
-		mod := module.Version{Path: m.Path, Version: m.Version}
 
 		if m.GoVersion == "" && checksumOk("/go.mod") {
 			// Load the go.mod file to determine the Go version, since it hasn't
