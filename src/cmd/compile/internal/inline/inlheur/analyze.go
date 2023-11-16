@@ -10,7 +10,7 @@ import (
 	"cmd/compile/internal/types"
 	"encoding/json"
 	"fmt"
-	"internal/goexperiment"
+	"internal/buildcfg"
 	"io"
 	"os"
 	"path/filepath"
@@ -213,7 +213,7 @@ func fnFileLine(fn *ir.Func) (string, uint) {
 }
 
 func Enabled() bool {
-	return goexperiment.NewInliner || UnitTesting()
+	return buildcfg.Experiment.NewInliner || UnitTesting()
 }
 
 func UnitTesting() bool {

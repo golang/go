@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"go/constant"
 	"internal/buildcfg"
-	"internal/goexperiment"
 	"internal/pkgbits"
 	"path/filepath"
 	"strings"
@@ -1103,7 +1102,7 @@ func (r *reader) funcExt(name *ir.Name, method *types.Sym) {
 				Cost:            int32(r.Len()),
 				CanDelayResults: r.Bool(),
 			}
-			if goexperiment.NewInliner {
+			if buildcfg.Experiment.NewInliner {
 				fn.Inl.Properties = r.String()
 			}
 		}
