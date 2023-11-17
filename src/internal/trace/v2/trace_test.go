@@ -35,7 +35,7 @@ func TestTraceAnnotations(t *testing.T) {
 			{trace.EventRegionEnd, trace.TaskID(1), []string{"region0"}},
 			{trace.EventTaskEnd, trace.TaskID(1), []string{"task0"}},
 			//  Currently, pre-existing region is not recorded to avoid allocations.
-			{trace.EventRegionBegin, trace.NoTask, []string{"post-existing region"}},
+			{trace.EventRegionBegin, trace.BackgroundTask, []string{"post-existing region"}},
 		}
 		r, err := trace.NewReader(bytes.NewReader(tb))
 		if err != nil {

@@ -525,6 +525,13 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		// Get the parent ID, but don't validate it. There's no guarantee
 		// we actually have information on whether it's active.
 		parentID := TaskID(ev.args[1])
+		if parentID == BackgroundTask {
+			// Note: a value of 0 here actually means no parent, *not* the
+			// background task. Automatic background task attachment only
+			// applies to regions.
+			parentID = NoTask
+			ev.args[1] = uint64(NoTask)
+		}
 
 		// Validate the name and record it. We'll need to pass it through to
 		// EvUserTaskEnd.

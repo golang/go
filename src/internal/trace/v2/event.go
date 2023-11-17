@@ -203,8 +203,14 @@ type RangeAttribute struct {
 // are of the same type).
 type TaskID uint64
 
-// NoTask indicates the lack of a task.
-const NoTask = TaskID(0)
+const (
+	// NoTask indicates the lack of a task.
+	NoTask = TaskID(^uint64(0))
+
+	// BackgroundTask is the global task that events are attached to if there was
+	// no other task in the context at the point the event was emitted.
+	BackgroundTask = TaskID(0)
+)
 
 // Task provides details about a Task event.
 type Task struct {

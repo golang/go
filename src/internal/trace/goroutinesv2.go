@@ -299,9 +299,7 @@ func (s *GoroutineSummarizer) Event(ev *tracev2.Event) {
 				if creatorG := s.gs[ev.Goroutine()]; creatorG != nil && len(creatorG.activeRegions) > 0 {
 					regions := creatorG.activeRegions
 					s := regions[len(regions)-1]
-					if s.TaskID != tracev2.NoTask {
-						g.activeRegions = []*UserRegionSummary{{TaskID: s.TaskID, Start: ev}}
-					}
+					g.activeRegions = []*UserRegionSummary{{TaskID: s.TaskID, Start: ev}}
 				}
 				s.gs[g.ID] = g
 			case tracev2.GoRunning:
