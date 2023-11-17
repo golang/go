@@ -282,7 +282,7 @@ type issue25301b /* ERROR "invalid recursive type" */ = interface {
 }
 
 type issue25301c interface {
-	notE // ERROR "non-interface type struct{}"
+	notE // ERRORx "non-interface type (struct{}|notE)"
 }
 
 type notE = struct{}

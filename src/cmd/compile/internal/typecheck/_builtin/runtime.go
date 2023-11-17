@@ -116,6 +116,9 @@ func interfaceSwitch(s *byte, t *byte) (int, *byte)
 func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
 func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
 
+// panic for iteration after exit in range func
+func panicrangeexit()
+
 // defer in range over func
 func deferrangefunc() interface{}
 
@@ -160,7 +163,6 @@ func closechan(hchan any)
 var writeBarrier struct {
 	enabled bool
 	pad     [3]byte
-	needed  bool
 	cgo     bool
 	alignme uint64
 }

@@ -1598,18 +1598,24 @@ func (v Value) IsZero() bool {
 	case Complex64, Complex128:
 		return v.Complex() == 0
 	case Array:
+		array := (*abi.ArrayType)(unsafe.Pointer(v.typ()))
+		// Avoid performance degradation of small benchmarks.
 		// If the type is comparable, then compare directly with zero.
-		if v.typ().Equal != nil && v.typ().Size() <= maxZero {
+		if array.Equal != nil && array.Size() <= maxZero {
 			if v.flag&flagIndir == 0 {
 				return v.ptr == nil
 			}
 			// v.ptr doesn't escape, as Equal functions are compiler generated
 			// and never escape. The escape analysis doesn't know, as it is a
 			// function pointer call.
-			return v.typ().Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
+			return array.Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
 		}
-
-		n := v.Len()
+		if array.TFlag&abi.TFlagRegularMemory != 0 {
+			// For some types where the zero value is a value where all bits of this type are 0
+			// optimize it.
+			return isZero(unsafe.Slice(((*byte)(v.ptr)), array.Size()))
+		}
+		n := int(array.Len)
 		for i := 0; i < n; i++ {
 			if !v.Index(i).IsZero() {
 				return false
@@ -1642,6 +1648,37 @@ func (v Value) IsZero() bool {
 		// as a default value doesn't makes sense here.
 		panic(&ValueError{"reflect.Value.IsZero", v.Kind()})
 	}
+}
+
+// isZero must have len(b)>256+7 to ensure at
+// least one 8-byte aligned [256]byte,
+// otherwise the access will be out of bounds.
+// For all zeros, performance is not as good as
+// return bytealg.Count(b, byte(0)) == len(b)
+func isZero(b []byte) bool {
+	const n = 32
+	const bit = n * 8
+	// Align memory addresses to 8 bytes
+	for uintptr(unsafe.Pointer(&b[0]))%8 != 0 {
+		if b[0] != 0 {
+			return false
+		}
+		b = b[1:]
+	}
+	for len(b)%bit != 0 {
+		if b[len(b)-1] != 0 {
+			return false
+		}
+		b = b[:len(b)-1]
+	}
+	w := unsafe.Slice((*uint64)(unsafe.Pointer(&b[0])), len(b)/8)
+	for len(w) >= n {
+		if w[0] != 0 || w[1] != 0 || w[2] != 0 || w[3] != 0 || w[4] != 0 || w[5] != 0 || w[6] != 0 || w[7] != 0 || w[8] != 0 || w[9] != 0 || w[10] != 0 || w[11] != 0 || w[12] != 0 || w[13] != 0 || w[14] != 0 || w[15] != 0 || w[16] != 0 || w[17] != 0 || w[18] != 0 || w[19] != 0 || w[20] != 0 || w[21] != 0 || w[22] != 0 || w[23] != 0 || w[24] != 0 || w[25] != 0 || w[26] != 0 || w[27] != 0 || w[28] != 0 || w[29] != 0 || w[30] != 0 || w[31] != 0 {
+			return false
+		}
+		w = w[n:]
+	}
+	return true
 }
 
 // SetZero sets v to be the zero value of v's type.
@@ -1686,7 +1723,7 @@ func (v Value) SetZero() {
 	case Slice:
 		*(*unsafeheader.Slice)(v.ptr) = unsafeheader.Slice{}
 	case Interface:
-		*(*[2]unsafe.Pointer)(v.ptr) = [2]unsafe.Pointer{}
+		*(*emptyInterface)(v.ptr) = emptyInterface{}
 	case Chan, Func, Map, Pointer, UnsafePointer:
 		*(*unsafe.Pointer)(v.ptr) = nil
 	case Array, Struct:
@@ -3195,25 +3232,12 @@ func Indirect(v Value) Value {
 	return v.Elem()
 }
 
-// Before Go 1.21, ValueOf always escapes and a Value's content
-// is always heap allocated.
-// Set go121noForceValueEscape to true to avoid the forced escape,
-// allowing Value content to be on the stack.
-// Set go121noForceValueEscape to false for the legacy behavior
-// (for debugging).
-const go121noForceValueEscape = true
-
 // ValueOf returns a new Value initialized to the concrete value
 // stored in the interface i. ValueOf(nil) returns the zero Value.
 func ValueOf(i any) Value {
 	if i == nil {
 		return Value{}
 	}
-
-	if !go121noForceValueEscape {
-		escapes(i)
-	}
-
 	return unpackEface(i)
 }
 

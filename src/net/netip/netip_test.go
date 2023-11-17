@@ -1456,7 +1456,7 @@ func TestParsePrefixError(t *testing.T) {
 		},
 		{
 			prefix: "1.1.1.0/-1",
-			errstr: "out of range",
+			errstr: "bad bits",
 		},
 		{
 			prefix: "1.1.1.0/33",
@@ -1474,6 +1474,22 @@ func TestParsePrefixError(t *testing.T) {
 		{
 			prefix: "2001:db8::%a/32",
 			errstr: "zones cannot be present",
+		},
+		{
+			prefix: "1.1.1.0/+32",
+			errstr: "bad bits",
+		},
+		{
+			prefix: "1.1.1.0/-32",
+			errstr: "bad bits",
+		},
+		{
+			prefix: "1.1.1.0/032",
+			errstr: "bad bits",
+		},
+		{
+			prefix: "1.1.1.0/0032",
+			errstr: "bad bits",
 		},
 	}
 	for _, test := range tests {

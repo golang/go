@@ -471,7 +471,7 @@ func SetBlockProfileRate(rate int) {
 		r = 1 // profile everything
 	} else {
 		// convert ns to cycles, use float64 to prevent overflow during multiplication
-		r = int64(float64(rate) * float64(tickspersecond()) / (1000 * 1000 * 1000))
+		r = int64(float64(rate) * float64(ticksPerSecond()) / (1000 * 1000 * 1000))
 		if r == 0 {
 			r = 1
 		}
@@ -792,7 +792,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 // If len(p) >= n, MutexProfile copies the profile into p and returns n, true.
 // Otherwise, MutexProfile does not change p, and returns n, false.
 //
-// Most clients should use the runtime/pprof package
+// Most clients should use the [runtime/pprof] package
 // instead of calling MutexProfile directly.
 func MutexProfile(p []BlockProfileRecord) (n int, ok bool) {
 	lock(&profBlockLock)
@@ -902,7 +902,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 
 	ourg := getg()
 
-	stopTheWorld(stwGoroutineProfile)
+	stw := stopTheWorld(stwGoroutineProfile)
 	// Using gcount while the world is stopped should give us a consistent view
 	// of the number of live goroutines, minus the number of goroutines that are
 	// alive and permanently marked as "system". But to make this count agree
@@ -919,7 +919,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 		// There's not enough space in p to store the whole profile, so (per the
 		// contract of runtime.GoroutineProfile) we're not allowed to write to p
 		// at all and must return n, false.
-		startTheWorld()
+		startTheWorld(stw)
 		semrelease(&goroutineProfile.sema)
 		return n, false
 	}
@@ -930,6 +930,9 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 	systemstack(func() {
 		saveg(pc, sp, ourg, &p[0])
 	})
+	if labels != nil {
+		labels[0] = ourg.labels
+	}
 	ourg.goroutineProfiled.Store(goroutineProfileSatisfied)
 	goroutineProfile.offset.Store(1)
 
@@ -950,7 +953,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 			doRecordGoroutineProfile(fing)
 		}
 	}
-	startTheWorld()
+	startTheWorld(stw)
 
 	// Visit each goroutine that existed as of the startTheWorld call above.
 	//
@@ -967,12 +970,12 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 		tryRecordGoroutineProfile(gp1, Gosched)
 	})
 
-	stopTheWorld(stwGoroutineProfileCleanup)
+	stw = stopTheWorld(stwGoroutineProfileCleanup)
 	endOffset := goroutineProfile.offset.Swap(0)
 	goroutineProfile.active = false
 	goroutineProfile.records = nil
 	goroutineProfile.labels = nil
-	startTheWorld()
+	startTheWorld(stw)
 
 	// Restore the invariant that every goroutine struct in allgs has its
 	// goroutineProfiled field cleared.
@@ -1102,7 +1105,7 @@ func goroutineProfileWithLabelsSync(p []StackRecord, labels []unsafe.Pointer) (n
 		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1, false)
 	}
 
-	stopTheWorld(stwGoroutineProfile)
+	stw := stopTheWorld(stwGoroutineProfile)
 
 	// World is stopped, no locking required.
 	n = 1
@@ -1158,7 +1161,7 @@ func goroutineProfileWithLabelsSync(p []StackRecord, labels []unsafe.Pointer) (n
 		raceacquire(unsafe.Pointer(&labelSync))
 	}
 
-	startTheWorld()
+	startTheWorld(stw)
 	return n, ok
 }
 
@@ -1166,7 +1169,7 @@ func goroutineProfileWithLabelsSync(p []StackRecord, labels []unsafe.Pointer) (n
 // If len(p) >= n, GoroutineProfile copies the profile into p and returns n, true.
 // If len(p) < n, GoroutineProfile does not change p and returns n, false.
 //
-// Most clients should use the runtime/pprof package instead
+// Most clients should use the [runtime/pprof] package instead
 // of calling GoroutineProfile directly.
 func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 
@@ -1187,8 +1190,9 @@ func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
 // If all is true, Stack formats stack traces of all other goroutines
 // into buf after the trace for the current goroutine.
 func Stack(buf []byte, all bool) int {
+	var stw worldStop
 	if all {
-		stopTheWorld(stwAllGoroutinesStack)
+		stw = stopTheWorld(stwAllGoroutinesStack)
 	}
 
 	n := 0
@@ -1215,7 +1219,7 @@ func Stack(buf []byte, all bool) int {
 	}
 
 	if all {
-		startTheWorld()
+		startTheWorld(stw)
 	}
 	return n
 }

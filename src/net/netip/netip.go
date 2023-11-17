@@ -1309,6 +1309,12 @@ func ParsePrefix(s string) (Prefix, error) {
 	}
 
 	bitsStr := s[i+1:]
+
+	// strconv.Atoi accepts a leading sign and leading zeroes, but we don't want that.
+	if len(bitsStr) > 1 && (bitsStr[0] < '1' || bitsStr[0] > '9') {
+		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): bad bits after slash: " + strconv.Quote(bitsStr))
+	}
+
 	bits, err := strconv.Atoi(bitsStr)
 	if err != nil {
 		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): bad bits after slash: " + strconv.Quote(bitsStr))

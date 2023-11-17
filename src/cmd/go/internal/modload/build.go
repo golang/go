@@ -162,7 +162,7 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 }
 
 // mergeOrigin merges two origins,
-// returning and possibly modifying one of its arguments.
+// returning either a new origin or one of its unmodified arguments.
 // If the two origins conflict, mergeOrigin returns a non-specific one
 // that will not pass CheckReuse.
 // If m1 or m2 is nil, the other is returned unmodified.
@@ -194,11 +194,17 @@ func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
 		merged.TagPrefix = m2.TagPrefix
 	}
 	if m2.Hash != "" {
-		if m1.Hash != "" && (m1.Hash != m2.Hash || m1.Ref != m2.Ref) {
+		if m1.Hash != "" && m1.Hash != m2.Hash {
 			merged.ClearCheckable()
 			return merged
 		}
 		merged.Hash = m2.Hash
+	}
+	if m2.Ref != "" {
+		if m1.Ref != "" && m1.Ref != m2.Ref {
+			merged.ClearCheckable()
+			return merged
+		}
 		merged.Ref = m2.Ref
 	}
 	return merged

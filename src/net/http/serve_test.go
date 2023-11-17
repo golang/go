@@ -1400,27 +1400,28 @@ func TestTLSHandshakeTimeout(t *testing.T) {
 	run(t, testTLSHandshakeTimeout, []testMode{https1Mode, http2Mode})
 }
 func testTLSHandshakeTimeout(t *testing.T, mode testMode) {
-	errc := make(chanWriter, 10) // but only expecting 1
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}),
+	errLog := new(strings.Builder)
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}),
 		func(ts *httptest.Server) {
 			ts.Config.ReadTimeout = 250 * time.Millisecond
-			ts.Config.ErrorLog = log.New(errc, "", 0)
+			ts.Config.ErrorLog = log.New(errLog, "", 0)
 		},
-	).ts
+	)
+	ts := cst.ts
+
 	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
 	if err != nil {
 		t.Fatalf("Dial: %v", err)
 	}
-	defer conn.Close()
-
 	var buf [1]byte
 	n, err := conn.Read(buf[:])
 	if err == nil || n != 0 {
 		t.Errorf("Read = %d, %v; want an error and no bytes", n, err)
 	}
+	conn.Close()
 
-	v := <-errc
-	if !strings.Contains(v, "timeout") && !strings.Contains(v, "TLS handshake") {
+	cst.close()
+	if v := errLog.String(); !strings.Contains(v, "timeout") && !strings.Contains(v, "TLS handshake") {
 		t.Errorf("expected a TLS handshake timeout error; got %q", v)
 	}
 }

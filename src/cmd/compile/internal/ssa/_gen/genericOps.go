@@ -477,7 +477,7 @@ var genericOps = []opData{
 	{name: "IsNonNil", argLength: 1, typ: "Bool"},        // arg0 != nil
 	{name: "IsInBounds", argLength: 2, typ: "Bool"},      // 0 <= arg0 < arg1. arg1 is guaranteed >= 0.
 	{name: "IsSliceInBounds", argLength: 2, typ: "Bool"}, // 0 <= arg0 <= arg1. arg1 is guaranteed >= 0.
-	{name: "NilCheck", argLength: 2, typ: "Void"},        // arg0=ptr, arg1=mem. Panics if arg0 is nil. Returns void.
+	{name: "NilCheck", argLength: 2, nilCheck: true},     // arg0=ptr, arg1=mem. Panics if arg0 is nil. Returns the ptr unmodified.
 
 	// Pseudo-ops
 	{name: "GetG", argLength: 1, zeroWidth: true}, // runtime.getg() (read g pointer). arg0=mem

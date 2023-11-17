@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/syntax"
 	"errors"
 	"fmt"
+	"internal/goversion"
 	"internal/testenv"
 	"reflect"
 	"regexp"
@@ -955,6 +956,80 @@ func TestImplicitsInfo(t *testing.T) {
 		if got != test.want {
 			t.Errorf("package %s: got %q; want %q", name, got, test.want)
 		}
+	}
+}
+
+func TestPkgNameOf(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	const src = `
+package p
+
+import (
+	. "os"
+	_ "io"
+	"math"
+	"path/filepath"
+	snort "sort"
+)
+
+// avoid imported and not used errors
+var (
+	_ = Open // os.Open
+	_ = math.Sin
+	_ = filepath.Abs
+	_ = snort.Ints
+)
+`
+
+	var tests = []struct {
+		path string // path string enclosed in "'s
+		want string
+	}{
+		{`"os"`, "."},
+		{`"io"`, "_"},
+		{`"math"`, "math"},
+		{`"path/filepath"`, "filepath"},
+		{`"sort"`, "snort"},
+	}
+
+	f := mustParse(src)
+	info := Info{
+		Defs:      make(map[*syntax.Name]Object),
+		Implicits: make(map[syntax.Node]Object),
+	}
+	var conf Config
+	conf.Importer = defaultImporter()
+	_, err := conf.Check("p", []*syntax.File{f}, &info)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// map import paths to importDecl
+	imports := make(map[string]*syntax.ImportDecl)
+	for _, d := range f.DeclList {
+		if imp, _ := d.(*syntax.ImportDecl); imp != nil {
+			imports[imp.Path.Value] = imp
+		}
+	}
+
+	for _, test := range tests {
+		imp := imports[test.path]
+		if imp == nil {
+			t.Fatalf("invalid test case: import path %s not found", test.path)
+		}
+		got := info.PkgNameOf(imp)
+		if got == nil {
+			t.Fatalf("import %s: package name not found", test.path)
+		}
+		if got.Name() != test.want {
+			t.Errorf("import %s: got %s; want %s", test.path, got.Name(), test.want)
+		}
+	}
+
+	// test non-existing importDecl
+	if got := info.PkgNameOf(new(syntax.ImportDecl)); got != nil {
+		t.Errorf("got %s for non-existing import declaration", got.Name())
 	}
 }
 
@@ -2765,18 +2840,45 @@ var _ = f(1, 2)
 	}
 }
 
+func TestModuleVersion(t *testing.T) {
+	// version go1.dd must be able to typecheck go1.dd.0, go1.dd.1, etc.
+	goversion := fmt.Sprintf("go1.%d", goversion.Version)
+	for _, v := range []string{
+		goversion,
+		goversion + ".0",
+		goversion + ".1",
+		goversion + ".rc",
+	} {
+		conf := Config{GoVersion: v}
+		pkg := mustTypecheck("package p", &conf, nil)
+		if pkg.GoVersion() != conf.GoVersion {
+			t.Errorf("got %s; want %s", pkg.GoVersion(), conf.GoVersion)
+		}
+	}
+}
+
 func TestFileVersions(t *testing.T) {
 	for _, test := range []struct {
-		moduleVersion string
-		fileVersion   string
-		want          Version
+		goVersion   string
+		fileVersion string
+		wantVersion string
 	}{
-		{"", "", Version{0, 0}},              // no versions specified
-		{"go1.19", "", Version{1, 19}},       // module version specified
-		{"", "go1.20", Version{0, 0}},        // file upgrade ignored
-		{"go1.19", "go1.20", Version{1, 20}}, // file upgrade permitted
-		{"go1.20", "go1.19", Version{1, 20}}, // file downgrade not permitted
-		{"go1.21", "go1.19", Version{1, 19}}, // file downgrade permitted (module version is >= go1.21)
+		{"", "", ""},                   // no versions specified
+		{"go1.19", "", "go1.19"},       // module version specified
+		{"", "go1.20", ""},             // file upgrade ignored
+		{"go1.19", "go1.20", "go1.20"}, // file upgrade permitted
+		{"go1.20", "go1.19", "go1.20"}, // file downgrade not permitted
+		{"go1.21", "go1.19", "go1.19"}, // file downgrade permitted (module version is >= go1.21)
+
+		// versions containing release numbers
+		// (file versions containing release numbers are considered invalid)
+		{"go1.19.0", "", "go1.19.0"},         // no file version specified
+		{"go1.20", "go1.20.1", "go1.20"},     // file upgrade ignored
+		{"go1.20.1", "go1.20", "go1.20.1"},   // file upgrade ignored
+		{"go1.20.1", "go1.21", "go1.21"},     // file upgrade permitted
+		{"go1.20.1", "go1.19", "go1.20.1"},   // file downgrade not permitted
+		{"go1.21.1", "go1.19.1", "go1.21.1"}, // file downgrade not permitted (invalid file version)
+		{"go1.21.1", "go1.19", "go1.19"},     // file downgrade permitted (module version is >= go1.21)
 	} {
 		var src string
 		if test.fileVersion != "" {
@@ -2784,16 +2886,16 @@ func TestFileVersions(t *testing.T) {
 		}
 		src += "package p"
 
-		conf := Config{GoVersion: test.moduleVersion}
-		versions := make(map[*syntax.PosBase]Version)
+		conf := Config{GoVersion: test.goVersion}
+		versions := make(map[*syntax.PosBase]string)
 		var info Info
 		info.FileVersions = versions
 		mustTypecheck(src, &conf, &info)
 
 		n := 0
 		for _, v := range info.FileVersions {
-			want := test.want
-			if v.Major != want.Major || v.Minor != want.Minor {
+			want := test.wantVersion
+			if v != want {
 				t.Errorf("%q: unexpected file version: got %v, want %v", src, v, want)
 			}
 			n++

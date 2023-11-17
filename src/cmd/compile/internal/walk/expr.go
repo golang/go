@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -558,30 +559,11 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		case "FuncPCABIInternal":
 			wantABI = obj.ABIInternal
 		}
-		if isIfaceOfFunc(arg) {
-			fn := arg.(*ir.ConvExpr).X.(*ir.Name)
-			abi := fn.Func.ABI
-			if abi != wantABI {
-				base.ErrorfAt(n.Pos(), 0, "internal/abi.%s expects an %v function, %s is defined as %v", name, wantABI, fn.Sym().Name, abi)
-			}
-			var e ir.Node = ir.NewLinksymExpr(n.Pos(), fn.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
-			e = ir.NewAddrExpr(n.Pos(), e)
-			e.SetType(types.Types[types.TUINTPTR].PtrTo())
-			return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, n.Type(), e))
+		if n.Type() != types.Types[types.TUINTPTR] {
+			base.FatalfAt(n.Pos(), "FuncPC intrinsic should return uintptr, got %v", n.Type()) // as expected by typecheck.FuncPC.
 		}
-		// fn is not a defined function. It must be ABIInternal.
-		// Read the address from func value, i.e. *(*uintptr)(idata(fn)).
-		if wantABI != obj.ABIInternal {
-			base.ErrorfAt(n.Pos(), 0, "internal/abi.%s does not accept func expression, which is ABIInternal", name)
-		}
-		arg = walkExpr(arg, init)
-		var e ir.Node = ir.NewUnaryExpr(n.Pos(), ir.OIDATA, arg)
-		e.SetType(n.Type().PtrTo())
-		e.SetTypecheck(1)
-		e = ir.NewStarExpr(n.Pos(), e)
-		e.SetType(n.Type())
-		e.SetTypecheck(1)
-		return e
+		n := ir.FuncPC(n.Pos(), arg, wantABI)
+		return walkExpr(n, init)
 	}
 
 	if name, ok := n.Fun.(*ir.Name); ok {
@@ -738,15 +720,12 @@ func makeTypeAssertDescriptor(target *types.Type, canFail bool) *obj.LSym {
 	// Allocate an internal/abi.TypeAssert descriptor for that call.
 	lsym := types.LocalPkg.Lookup(fmt.Sprintf(".typeAssert.%d", typeAssertGen)).LinksymABI(obj.ABI0)
 	typeAssertGen++
-	off := 0
-	off = objw.SymPtr(lsym, off, typecheck.LookupRuntimeVar("emptyTypeAssertCache"), 0)
-	off = objw.SymPtr(lsym, off, reflectdata.TypeSym(target).Linksym(), 0)
-	off = objw.Bool(lsym, off, canFail)
-	off += types.PtrSize - 1
-	objw.Global(lsym, int32(off), obj.LOCAL)
-	// Set the type to be just a single pointer, as the cache pointer is the
-	// only one that GC needs to see.
-	lsym.Gotype = reflectdata.TypeLinksym(types.Types[types.TUINT8].PtrTo())
+	c := rttype.NewCursor(lsym, 0, rttype.TypeAssert)
+	c.Field("Cache").WritePtr(typecheck.LookupRuntimeVar("emptyTypeAssertCache"))
+	c.Field("Inter").WritePtr(reflectdata.TypeSym(target).Linksym())
+	c.Field("CanFail").WriteBool(canFail)
+	objw.Global(lsym, int32(rttype.TypeAssert.Size()), obj.LOCAL)
+	lsym.Gotype = reflectdata.TypeLinksym(rttype.TypeAssert)
 	return lsym
 }
 

@@ -40,8 +40,8 @@ func makeFuncFlagsAnalyzer(fn *ir.Func) *funcFlagsAnalyzer {
 	}
 }
 
-// setResults transfers func flag results to 'fp'.
-func (ffa *funcFlagsAnalyzer) setResults(fp *FuncProps) {
+// setResults transfers func flag results to 'funcProps'.
+func (ffa *funcFlagsAnalyzer) setResults(funcProps *FuncProps) {
 	var rv FuncPropBits
 	if !ffa.noInfo && ffa.stateForList(ffa.fn.Body) == psCallsPanic {
 		rv = FuncPropNeverReturns
@@ -63,7 +63,7 @@ func (ffa *funcFlagsAnalyzer) setResults(fp *FuncProps) {
 	if isMainMain(ffa.fn) {
 		rv &^= FuncPropNeverReturns
 	}
-	fp.Flags = rv
+	funcProps.Flags = rv
 }
 
 func (ffa *funcFlagsAnalyzer) getstate(n ir.Node) pstate {
@@ -148,14 +148,28 @@ func branchCombine(p1, p2 pstate) pstate {
 // as updating disposition of intermediate nodes.
 func (ffa *funcFlagsAnalyzer) stateForList(list ir.Nodes) pstate {
 	st := psTop
-	for i := range list {
+	// Walk the list backwards so that we can update the state for
+	// earlier list elements based on what we find out about their
+	// successors. Example:
+	//
+	//        if ... {
+	//  L10:    foo()
+	//  L11:    <stmt>
+	//  L12:    panic(...)
+	//        }
+	//
+	// After combining the dispositions for line 11 and 12, we want to
+	// update the state for the call at line 10 based on that combined
+	// disposition (if L11 has no path to "return", then the call at
+	// line 10 will be on a panic path).
+	for i := len(list) - 1; i >= 0; i-- {
 		n := list[i]
 		psi := ffa.getstate(n)
 		if debugTrace&debugTraceFuncFlags != 0 {
 			fmt.Fprintf(os.Stderr, "=-= %v: stateForList n=%s ps=%s\n",
 				ir.Line(n), n.Op().String(), psi.String())
 		}
-		st = blockCombine(st, psi)
+		st = blockCombine(psi, st)
 		ffa.updatestate(n, st)
 	}
 	if st == psTop {
@@ -189,8 +203,8 @@ func isExitCall(n ir.Node) bool {
 		isWellKnownFunc(s, "runtime", "throw") {
 		return true
 	}
-	if fp := propsForFunc(name.Func); fp != nil {
-		if fp.Flags&FuncPropNeverReturns != 0 {
+	if funcProps := propsForFunc(name.Func); funcProps != nil {
+		if funcProps.Flags&FuncPropNeverReturns != 0 {
 			return true
 		}
 	}

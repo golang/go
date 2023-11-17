@@ -64,13 +64,9 @@ func TestConvertCPUProfileEmpty(t *testing.T) {
 	}
 
 	// Expected PeriodType and SampleType.
-	periodType := &profile.ValueType{Type: "cpu", Unit: "nanoseconds"}
-	sampleType := []*profile.ValueType{
-		{Type: "samples", Unit: "count"},
-		{Type: "cpu", Unit: "nanoseconds"},
-	}
+	sampleType := []*profile.ValueType{{}, {}}
 
-	checkProfile(t, p, 2000*1000, periodType, sampleType, nil, "")
+	checkProfile(t, p, 2000*1000, nil, sampleType, nil, "")
 }
 
 func f1() { f1() }

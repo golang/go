@@ -39,25 +39,27 @@ type TypeAndValue struct {
 	exprFlags
 }
 
-type exprFlags uint8
+type exprFlags uint16
 
-func (f exprFlags) IsVoid() bool      { return f&1 != 0 }
-func (f exprFlags) IsType() bool      { return f&2 != 0 }
-func (f exprFlags) IsBuiltin() bool   { return f&4 != 0 }
-func (f exprFlags) IsValue() bool     { return f&8 != 0 }
-func (f exprFlags) IsNil() bool       { return f&16 != 0 }
-func (f exprFlags) Addressable() bool { return f&32 != 0 }
-func (f exprFlags) Assignable() bool  { return f&64 != 0 }
-func (f exprFlags) HasOk() bool       { return f&128 != 0 }
+func (f exprFlags) IsVoid() bool          { return f&1 != 0 }
+func (f exprFlags) IsType() bool          { return f&2 != 0 }
+func (f exprFlags) IsBuiltin() bool       { return f&4 != 0 } // a language builtin that resembles a function call, e.g., "make, append, new"
+func (f exprFlags) IsValue() bool         { return f&8 != 0 }
+func (f exprFlags) IsNil() bool           { return f&16 != 0 }
+func (f exprFlags) Addressable() bool     { return f&32 != 0 }
+func (f exprFlags) Assignable() bool      { return f&64 != 0 }
+func (f exprFlags) HasOk() bool           { return f&128 != 0 }
+func (f exprFlags) IsRuntimeHelper() bool { return f&256 != 0 } // a runtime function called from transformed syntax
 
-func (f *exprFlags) SetIsVoid()      { *f |= 1 }
-func (f *exprFlags) SetIsType()      { *f |= 2 }
-func (f *exprFlags) SetIsBuiltin()   { *f |= 4 }
-func (f *exprFlags) SetIsValue()     { *f |= 8 }
-func (f *exprFlags) SetIsNil()       { *f |= 16 }
-func (f *exprFlags) SetAddressable() { *f |= 32 }
-func (f *exprFlags) SetAssignable()  { *f |= 64 }
-func (f *exprFlags) SetHasOk()       { *f |= 128 }
+func (f *exprFlags) SetIsVoid()          { *f |= 1 }
+func (f *exprFlags) SetIsType()          { *f |= 2 }
+func (f *exprFlags) SetIsBuiltin()       { *f |= 4 }
+func (f *exprFlags) SetIsValue()         { *f |= 8 }
+func (f *exprFlags) SetIsNil()           { *f |= 16 }
+func (f *exprFlags) SetAddressable()     { *f |= 32 }
+func (f *exprFlags) SetAssignable()      { *f |= 64 }
+func (f *exprFlags) SetHasOk()           { *f |= 128 }
+func (f *exprFlags) SetIsRuntimeHelper() { *f |= 256 }
 
 // a typeAndValue contains the results of typechecking an expression.
 // It is embedded in expression nodes.

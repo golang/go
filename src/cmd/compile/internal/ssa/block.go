@@ -377,10 +377,10 @@ func (b *Block) AuxIntString() string {
 		return fmt.Sprintf("%v", int8(b.AuxInt))
 	case "uint8":
 		return fmt.Sprintf("%v", uint8(b.AuxInt))
-	default: // type specified but not implemented - print as int64
-		return fmt.Sprintf("%v", b.AuxInt)
 	case "": // no aux int type
 		return ""
+	default: // type specified but not implemented - print as int64
+		return fmt.Sprintf("%v", b.AuxInt)
 	}
 }
 

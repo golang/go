@@ -1,0 +1,26 @@
+-- expect --
+SUCCESS
+-- trace --
+Trace Go1.22
+EventBatch gen=1 m=0 time=0 size=15
+ProcStatus dt=1 p=0 pstatus=1
+GoStatus dt=1 g=1 m=0 gstatus=2
+UserTaskBegin dt=1 task=2 parent_task=0 name_string=1 stack=0
+EventBatch gen=1 m=18446744073709551615 time=0 size=5
+Frequency freq=15625000
+EventBatch gen=1 m=18446744073709551615 time=0 size=1
+Stacks
+EventBatch gen=1 m=18446744073709551615 time=0 size=11
+Strings
+String id=1
+	data="my task"
+EventBatch gen=2 m=0 time=5 size=13
+ProcStatus dt=1 p=0 pstatus=1
+GoStatus dt=1 g=1 m=0 gstatus=2
+UserTaskEnd dt=1 task=2 stack=0
+EventBatch gen=2 m=18446744073709551615 time=0 size=5
+Frequency freq=15625000
+EventBatch gen=2 m=18446744073709551615 time=0 size=1
+Stacks
+EventBatch gen=2 m=18446744073709551615 time=0 size=1
+Strings

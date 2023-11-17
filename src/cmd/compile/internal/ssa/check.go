@@ -317,7 +317,28 @@ func checkFunc(f *Func) {
 				if !v.Aux.(*ir.Name).Type().HasPointers() {
 					f.Fatalf("vardef must have pointer type %s", v.Aux.(*ir.Name).Type().String())
 				}
-
+			case OpNilCheck:
+				// nil checks have pointer type before scheduling, and
+				// void type after scheduling.
+				if f.scheduled {
+					if v.Uses != 0 {
+						f.Fatalf("nilcheck must have 0 uses %s", v.Uses)
+					}
+					if !v.Type.IsVoid() {
+						f.Fatalf("nilcheck must have void type %s", v.Type.String())
+					}
+				} else {
+					if !v.Type.IsPtrShaped() && !v.Type.IsUintptr() {
+						f.Fatalf("nilcheck must have pointer type %s", v.Type.String())
+					}
+				}
+				if !v.Args[0].Type.IsPtrShaped() && !v.Args[0].Type.IsUintptr() {
+					f.Fatalf("nilcheck must have argument of pointer type %s", v.Args[0].Type.String())
+				}
+				if !v.Args[1].Type.IsMemory() {
+					f.Fatalf("bad arg 1 type to %s: want mem, have %s",
+						v.Op, v.Args[1].Type.String())
+				}
 			}
 
 			// TODO: check for cycles in values

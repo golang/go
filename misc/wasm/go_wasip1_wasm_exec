@@ -14,7 +14,8 @@ case "$GOWASIRUNTIME" in
 		exec wazero run -mount /:/ -env-inherit -cachedir "${TMPDIR:-/tmp}"/wazero ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
 		;;
 	"wasmtime" | "")
-		exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" --max-wasm-stack 1048576 ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
+		# TODO(go.dev/issue/63718): Switch to the new CLI offered in the major version 14 of Wasmtime.
+		exec env WASMTIME_NEW_CLI=0 wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" --max-wasm-stack 1048576 ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
 		;;
 	*)
 		echo "Unknown Go WASI runtime specified: $GOWASIRUNTIME"
