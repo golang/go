@@ -60,7 +60,12 @@ func TestParseAddr(t *testing.T) {
 		// 4-in-6 with octet with leading zero
 		{
 			in:      "::ffff:1.2.03.4",
-			wantErr: `ParseAddr("::ffff:1.2.03.4"): ParseAddr("1.2.03.4"): IPv4 field has octet with leading zero (at "1.2.03.4")`,
+			wantErr: `ParseAddr("::ffff:1.2.03.4"): IPv4 field has octet with leading zero`,
+		},
+		// 4-in-6 with octet with unexpected character
+		{
+			in:      "::ffff:1.2.3.z",
+			wantErr: `ParseAddr("::ffff:1.2.3.z"): unexpected character (at "z")`,
 		},
 		// Basic zero IPv6 address.
 		{
