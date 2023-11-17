@@ -90,14 +90,8 @@ func TestImportTestdata(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	testfiles := map[string][]string{
-		"exports.go":  {"go/ast", "go/token"},
+		"exports.go":  {"go/ast"},
 		"generics.go": nil,
-	}
-	if true /* was goexperiment.Unified */ {
-		// TODO(mdempsky): Fix test below to flatten the transitive
-		// Package.Imports graph. Unified IR is more precise about
-		// recreating the package import graph.
-		testfiles["exports.go"] = []string{"go/ast"}
 	}
 
 	for testfile, wantImports := range testfiles {
@@ -336,14 +330,7 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types2.Named, level int) {
 	// The unified IR importer always sets interface method receiver
 	// parameters to point to the Interface type, rather than the Named.
 	// See #49906.
-	//
-	// TODO(mdempsky): This is only true for the types2 importer. For
-	// the go/types importer, we duplicate the Interface and rewrite its
-	// receiver methods to match historical behavior.
-	var want types2.Type = named
-	if true /* was goexperiment.Unified */ {
-		want = iface
-	}
+	var want types2.Type = iface
 
 	// check explicitly declared methods
 	for i := 0; i < iface.NumExplicitMethods(); i++ {
