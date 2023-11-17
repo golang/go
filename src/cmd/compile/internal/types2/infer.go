@@ -56,6 +56,14 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 		return targs
 	}
 
+	// If we have invalid (ordinary) arguments, an error was reported before.
+	// Avoid additional inference errors and exit early (go.dev/issue/60434).
+	for _, arg := range args {
+		if arg.mode == invalid {
+			return nil
+		}
+	}
+
 	// Make sure we have a "full" list of type arguments, some of which may
 	// be nil (unknown). Make a copy so as to not clobber the incoming slice.
 	if len(targs) < n {
