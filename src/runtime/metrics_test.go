@@ -40,7 +40,7 @@ func TestReadMetrics(t *testing.T) {
 	oldLimit := debug.SetMemoryLimit(limit)
 	defer debug.SetMemoryLimit(oldLimit)
 
-	// Set an GC percent to check the metric for it
+	// Set a GC percent to check the metric for it
 	gcPercent := 99
 	oldGCPercent := debug.SetGCPercent(gcPercent)
 	defer debug.SetGCPercent(oldGCPercent)

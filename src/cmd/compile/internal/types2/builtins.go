@@ -954,7 +954,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
 }
 
 // applyTypeFunc applies f to x. If x is a type parameter,
-// the result is a type parameter constrained by an new
+// the result is a type parameter constrained by a new
 // interface bound. The type bounds for that interface
 // are computed by applying f to each of the type bounds
 // of x. If any of these applications of f return nil,

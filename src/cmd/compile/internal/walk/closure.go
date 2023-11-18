@@ -144,7 +144,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 	return walkExpr(cfn, init)
 }
 
-// closureArgs returns a slice of expressions that an be used to
+// closureArgs returns a slice of expressions that can be used to
 // initialize the given closure's free variables. These correspond
 // one-to-one with the variables in clo.Func.ClosureVars, and will be
 // either an ONAME node (if the variable is captured by value) or an

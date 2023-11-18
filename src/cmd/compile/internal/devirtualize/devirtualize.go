@@ -70,7 +70,7 @@ func staticCall(call *ir.CallExpr) {
 		return
 	}
 
-	// If typ *has* a shape type, then it's an shaped, instantiated
+	// If typ *has* a shape type, then it's a shaped, instantiated
 	// type like T[go.shape.int], and its methods (may) have an extra
 	// dictionary parameter. We could devirtualize this call if we
 	// could derive an appropriate dictionary argument.
