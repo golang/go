@@ -152,44 +152,53 @@ func (err parseAddrError) Error() string {
 	return "ParseAddr(" + q(err.in) + "): " + err.msg
 }
 
-// parseIPv4 parses s as an IPv4 address (in form "192.168.0.1").
-func parseIPv4(s string) (ip Addr, err error) {
-	var fields [4]uint8
+func parseIPv4Fields(in string, off, end int, fields []uint8) error {
 	var val, pos int
 	var digLen int // number of digits in current octet
+	s := in[off:end]
 	for i := 0; i < len(s); i++ {
 		if s[i] >= '0' && s[i] <= '9' {
 			if digLen == 1 && val == 0 {
-				return Addr{}, parseAddrError{in: s, msg: "IPv4 field has octet with leading zero"}
+				return parseAddrError{in: in, msg: "IPv4 field has octet with leading zero"}
 			}
 			val = val*10 + int(s[i]) - '0'
 			digLen++
 			if val > 255 {
-				return Addr{}, parseAddrError{in: s, msg: "IPv4 field has value >255"}
+				return parseAddrError{in: in, msg: "IPv4 field has value >255"}
 			}
 		} else if s[i] == '.' {
 			// .1.2.3
 			// 1.2.3.
 			// 1..2.3
 			if i == 0 || i == len(s)-1 || s[i-1] == '.' {
-				return Addr{}, parseAddrError{in: s, msg: "IPv4 field must have at least one digit", at: s[i:]}
+				return parseAddrError{in: in, msg: "IPv4 field must have at least one digit", at: s[i:]}
 			}
 			// 1.2.3.4.5
 			if pos == 3 {
-				return Addr{}, parseAddrError{in: s, msg: "IPv4 address too long"}
+				return parseAddrError{in: in, msg: "IPv4 address too long"}
 			}
 			fields[pos] = uint8(val)
 			pos++
 			val = 0
 			digLen = 0
 		} else {
-			return Addr{}, parseAddrError{in: s, msg: "unexpected character", at: s[i:]}
+			return parseAddrError{in: in, msg: "unexpected character", at: s[i:]}
 		}
 	}
 	if pos < 3 {
-		return Addr{}, parseAddrError{in: s, msg: "IPv4 address too short"}
+		return parseAddrError{in: in, msg: "IPv4 address too short"}
 	}
 	fields[3] = uint8(val)
+	return nil
+}
+
+// parseIPv4 parses s as an IPv4 address (in form "192.168.0.1").
+func parseIPv4(s string) (ip Addr, err error) {
+	var fields [4]uint8
+	err = parseIPv4Fields(s, 0, len(s), fields[:])
+	if err != nil {
+		return Addr{}, err
+	}
 	return AddrFrom4(fields), nil
 }
 
@@ -262,17 +271,15 @@ func parseIPv6(in string) (Addr, error) {
 				// Not enough room.
 				return Addr{}, parseAddrError{in: in, msg: "too many hex fields to fit an embedded IPv4 at the end of the address", at: s}
 			}
-			// TODO: could make this a bit faster by having a helper
-			// that parses to a [4]byte, and have both parseIPv4 and
-			// parseIPv6 use it.
-			ip4, err := parseIPv4(s)
-			if err != nil {
-				return Addr{}, parseAddrError{in: in, msg: err.Error(), at: s}
+
+			end := len(in)
+			if len(zone) > 0 {
+				end -= len(zone) + 1
 			}
-			ip[i] = ip4.v4(0)
-			ip[i+1] = ip4.v4(1)
-			ip[i+2] = ip4.v4(2)
-			ip[i+3] = ip4.v4(3)
+			err := parseIPv4Fields(in, end-len(s), end, ip[i:i+4])
+			if err != nil {
+				return Addr{}, err
+			}
 			s = ""
 			i += 4
 			break
