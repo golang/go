@@ -12,8 +12,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"time"
 )
+
+var neverReady = make(chan struct{}) // never closed
 
 // This example passes a context with a signal to tell a blocking function that
 // it should abandon its work after a signal is received.
@@ -35,8 +36,8 @@ func ExampleNotifyContext() {
 	}
 
 	select {
-	case <-time.After(time.Second):
-		fmt.Println("missed signal")
+	case <-neverReady:
+		fmt.Println("ready")
 	case <-ctx.Done():
 		fmt.Println(ctx.Err()) // prints "context canceled"
 		stop()                 // stop receiving signal notifications as soon as possible.

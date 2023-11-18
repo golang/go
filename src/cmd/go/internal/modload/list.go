@@ -57,8 +57,7 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
 				}
 				return nil, fmt.Errorf("parsing %s: %v", reuseFile, err)
 			}
-			if m.Origin == nil || !m.Origin.Checkable() {
-				// Nothing to check to validate reuse.
+			if m.Origin == nil {
 				continue
 			}
 			m.Reuse = true

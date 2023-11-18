@@ -29,7 +29,6 @@ package inline
 import (
 	"fmt"
 	"go/constant"
-	"internal/goexperiment"
 	"strconv"
 
 	"cmd/compile/internal/base"
@@ -141,6 +140,8 @@ func InlinePackage(p *pgo.Profile) {
 		p = nil
 	}
 
+	inlheur.SetupScoreAdjustments()
+
 	InlineDecls(p, typecheck.Target.Funcs, true)
 
 	// Perform a garbage collection of hidden closures functions that
@@ -149,10 +150,11 @@ func InlinePackage(p *pgo.Profile) {
 	garbageCollectUnreferencedHiddenClosures()
 
 	if base.Debug.DumpInlFuncProps != "" {
-		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps, nil)
+		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps)
 	}
-	if goexperiment.NewInliner {
+	if inlheur.Enabled() {
 		postProcessCallSites(p)
+		inlheur.TearDown()
 	}
 }
 
@@ -172,6 +174,9 @@ func InlineDecls(p *pgo.Profile, funcs []*ir.Func, doInline bool) {
 			if base.Flag.LowerM > 1 && n.OClosure == nil {
 				fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
 			}
+		}
+		if inlheur.Enabled() {
+			analyzeFuncProps(n, p)
 		}
 	}
 
@@ -268,7 +273,7 @@ func inlineBudget(fn *ir.Func, profile *pgo.Profile, relaxed bool, verbose bool)
 		}
 	}
 	if relaxed {
-		budget += inlineMaxBudget
+		budget += inlheur.BudgetExpansion(inlineMaxBudget)
 	}
 	return budget
 }
@@ -279,12 +284,6 @@ func inlineBudget(fn *ir.Func, profile *pgo.Profile, relaxed bool, verbose bool)
 func CanInline(fn *ir.Func, profile *pgo.Profile) {
 	if fn.Nname == nil {
 		base.Fatalf("CanInline no nname %+v", fn)
-	}
-
-	var funcProps *inlheur.FuncProps
-	if goexperiment.NewInliner || inlheur.UnitTesting() {
-		funcProps = inlheur.AnalyzeFunc(fn,
-			func(fn *ir.Func) { CanInline(fn, profile) })
 	}
 
 	var reason string // reason, if any, that the function was not inlined
@@ -320,11 +319,8 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 		cc = 1 // this appears to yield better performance than 0.
 	}
 
-	// Used a "relaxed" inline budget if goexperiment.NewInliner is in
-	// effect, or if we're producing a debugging dump.
-	relaxed := goexperiment.NewInliner ||
-		(base.Debug.DumpInlFuncProps != "" ||
-			base.Debug.DumpInlCallSiteScores != 0)
+	// Used a "relaxed" inline budget if the new inliner is enabled.
+	relaxed := inlheur.Enabled()
 
 	// Compute the inline budget for this func.
 	budget := inlineBudget(fn, profile, relaxed, base.Debug.PGODebug > 0)
@@ -357,9 +353,6 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 		HaveDcl: true,
 
 		CanDelayResults: canDelayResults(fn),
-	}
-	if goexperiment.NewInliner {
-		n.Func.Inl.Properties = funcProps.SerializeToString()
 	}
 
 	if base.Flag.LowerM > 1 {
@@ -527,6 +520,8 @@ opSwitch:
 				case "throw":
 					v.budget -= inlineExtraThrowCost
 					break opSwitch
+				case "panicrangeexit":
+					cheap = true
 				}
 				// Special case for reflect.noescape. It does just type
 				// conversions to appease the escape analysis, and doesn't
@@ -797,12 +792,12 @@ func isBigFunc(fn *ir.Func) bool {
 // InlineCalls/inlnode walks fn's statements and expressions and substitutes any
 // calls made to inlineable functions. This is the external entry point.
 func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
-	if goexperiment.NewInliner && !fn.Wrapper() {
+	if inlheur.Enabled() && !fn.Wrapper() {
 		inlheur.ScoreCalls(fn)
+		defer inlheur.ScoreCallsCleanup()
 	}
 	if base.Debug.DumpInlFuncProps != "" && !fn.Wrapper() {
-		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps,
-			func(fn *ir.Func) { CanInline(fn, profile) })
+		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps)
 	}
 	savefn := ir.CurFunc
 	ir.CurFunc = fn
@@ -977,8 +972,8 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
 	}
 
 	metric := callee.Inl.Cost
-	if goexperiment.NewInliner {
-		ok, score := inlheur.GetCallSiteScore(n)
+	if inlheur.Enabled() {
+		score, ok := inlheur.GetCallSiteScore(caller, n)
 		if ok {
 			metric = int32(score)
 		}
@@ -1190,6 +1185,10 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool, i
 		fmt.Printf("%v: After inlining %+v\n\n", ir.Line(res), res)
 	}
 
+	if inlheur.Enabled() {
+		inlheur.UpdateCallsiteTable(callerfn, n, res)
+	}
+
 	*inlCalls = append(*inlCalls, res)
 
 	return res
@@ -1303,4 +1302,12 @@ func postProcessCallSites(profile *pgo.Profile) {
 		}
 		inlheur.DumpInlCallSiteScores(profile, budgetCallback)
 	}
+}
+
+func analyzeFuncProps(fn *ir.Func, p *pgo.Profile) {
+	canInline := func(fn *ir.Func) { CanInline(fn, p) }
+	budgetForFunc := func(fn *ir.Func) int32 {
+		return inlineBudget(fn, p, true, false)
+	}
+	inlheur.AnalyzeFunc(fn, canInline, budgetForFunc, inlineMaxBudget)
 }

@@ -297,7 +297,7 @@ func (check *Checker) softErrorf(at poser, code Code, format string, args ...int
 	check.err(at, code, check.sprintf(format, args...), true)
 }
 
-func (check *Checker) versionErrorf(at poser, v version, format string, args ...interface{}) {
+func (check *Checker) versionErrorf(at poser, v goVersion, format string, args ...interface{}) {
 	msg := check.sprintf(format, args...)
 	msg = fmt.Sprintf("%s requires %s or later", msg, v)
 	check.err(at, UnsupportedFeature, msg, true)

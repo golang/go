@@ -223,6 +223,7 @@ type symbolizeDataContext struct {
 
 func raceSymbolizeData(ctx *symbolizeDataContext) {
 	if base, span, _ := findObject(ctx.addr, 0, 0); base != 0 {
+		// TODO: Does this need to handle malloc headers?
 		ctx.heap = 1
 		ctx.start = base
 		ctx.size = span.elemsize

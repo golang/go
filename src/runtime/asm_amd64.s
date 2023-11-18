@@ -144,12 +144,12 @@ GLOBL bad_cpu_msg<>(SB), RODATA, $84
 #define commpage64_base_address         0x00007fffffe00000
 #define commpage64_cpu_capabilities64   (commpage64_base_address+0x010)
 #define commpage64_version              (commpage64_base_address+0x01E)
-#define hasAVX512F                      0x0000004000000000
-#define hasAVX512CD                     0x0000008000000000
-#define hasAVX512DQ                     0x0000010000000000
-#define hasAVX512BW                     0x0000020000000000
-#define hasAVX512VL                     0x0000100000000000
-#define NEED_DARWIN_SUPPORT             (hasAVX512F | hasAVX512DQ | hasAVX512CD | hasAVX512BW | hasAVX512VL)
+#define AVX512F                         0x0000004000000000
+#define AVX512CD                        0x0000008000000000
+#define AVX512DQ                        0x0000010000000000
+#define AVX512BW                        0x0000020000000000
+#define AVX512VL                        0x0000100000000000
+#define NEED_DARWIN_SUPPORT             (AVX512F | AVX512DQ | AVX512CD | AVX512BW | AVX512VL)
 #else
 #define NEED_OS_SUPPORT_AX V4_OS_SUPPORT_AX
 #endif
@@ -1486,6 +1486,7 @@ aes129plus:
 	DECQ	CX
 	SHRQ	$7, CX
 
+	PCALIGN $16
 aesloop:
 	// scramble state
 	AESENC	X8, X8

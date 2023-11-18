@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -24,6 +23,18 @@ import (
 	"testing"
 	"time"
 )
+
+// TestMain executes the test binary as the cgi server if
+// SERVER_SOFTWARE is set, and runs the tests otherwise.
+func TestMain(m *testing.M) {
+	// SERVER_SOFTWARE swap variable is set when starting the cgi server.
+	if os.Getenv("SERVER_SOFTWARE") != "" {
+		cgiMain()
+		os.Exit(0)
+	}
+
+	os.Exit(m.Run())
+}
 
 func newRequest(httpreq string) *http.Request {
 	buf := bufio.NewReader(strings.NewReader(httpreq))
@@ -89,24 +100,10 @@ readlines:
 	}
 }
 
-var cgiTested, cgiWorks bool
-
-func check(t *testing.T) {
-	if !cgiTested {
-		cgiTested = true
-		cgiWorks = testenv.Command(t, "./testdata/test.cgi").Run() == nil
-	}
-	if !cgiWorks {
-		// No Perl on Windows, needed by test.cgi
-		// TODO: make the child process be Go, not Perl.
-		t.Skip("Skipping test: test.cgi failed.")
-	}
-}
-
 func TestCGIBasicGet(t *testing.T) {
-	check(t)
+	testenv.MustHaveExec(t)
 	h := &Handler{
-		Path: "testdata/test.cgi",
+		Path: os.Args[0],
 		Root: "/test.cgi",
 	}
 	expectedMap := map[string]string{
@@ -122,7 +119,7 @@ func TestCGIBasicGet(t *testing.T) {
 		"env-REMOTE_PORT":       "1234",
 		"env-REQUEST_METHOD":    "GET",
 		"env-REQUEST_URI":       "/test.cgi?foo=bar&a=b",
-		"env-SCRIPT_FILENAME":   "testdata/test.cgi",
+		"env-SCRIPT_FILENAME":   os.Args[0],
 		"env-SCRIPT_NAME":       "/test.cgi",
 		"env-SERVER_NAME":       "example.com",
 		"env-SERVER_PORT":       "80",
@@ -139,9 +136,9 @@ func TestCGIBasicGet(t *testing.T) {
 }
 
 func TestCGIEnvIPv6(t *testing.T) {
-	check(t)
+	testenv.MustHaveExec(t)
 	h := &Handler{
-		Path: "testdata/test.cgi",
+		Path: os.Args[0],
 		Root: "/test.cgi",
 	}
 	expectedMap := map[string]string{
@@ -157,7 +154,7 @@ func TestCGIEnvIPv6(t *testing.T) {
 		"env-REMOTE_PORT":       "12345",
 		"env-REQUEST_METHOD":    "GET",
 		"env-REQUEST_URI":       "/test.cgi?foo=bar&a=b",
-		"env-SCRIPT_FILENAME":   "testdata/test.cgi",
+		"env-SCRIPT_FILENAME":   os.Args[0],
 		"env-SCRIPT_NAME":       "/test.cgi",
 		"env-SERVER_NAME":       "example.com",
 		"env-SERVER_PORT":       "80",
@@ -172,27 +169,27 @@ func TestCGIEnvIPv6(t *testing.T) {
 }
 
 func TestCGIBasicGetAbsPath(t *testing.T) {
-	check(t)
-	pwd, err := os.Getwd()
+	absPath, err := filepath.Abs(os.Args[0])
 	if err != nil {
-		t.Fatalf("getwd error: %v", err)
+		t.Fatal(err)
 	}
+	testenv.MustHaveExec(t)
 	h := &Handler{
-		Path: pwd + "/testdata/test.cgi",
+		Path: absPath,
 		Root: "/test.cgi",
 	}
 	expectedMap := map[string]string{
 		"env-REQUEST_URI":     "/test.cgi?foo=bar&a=b",
-		"env-SCRIPT_FILENAME": pwd + "/testdata/test.cgi",
+		"env-SCRIPT_FILENAME": absPath,
 		"env-SCRIPT_NAME":     "/test.cgi",
 	}
 	runCgiTest(t, h, "GET /test.cgi?foo=bar&a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
 }
 
 func TestPathInfo(t *testing.T) {
-	check(t)
+	testenv.MustHaveExec(t)
 	h := &Handler{
-		Path: "testdata/test.cgi",
+		Path: os.Args[0],
 		Root: "/test.cgi",
 	}
 	expectedMap := map[string]string{
@@ -200,36 +197,36 @@ func TestPathInfo(t *testing.T) {
 		"env-PATH_INFO":       "/extrapath",
 		"env-QUERY_STRING":    "a=b",
 		"env-REQUEST_URI":     "/test.cgi/extrapath?a=b",
-		"env-SCRIPT_FILENAME": "testdata/test.cgi",
+		"env-SCRIPT_FILENAME": os.Args[0],
 		"env-SCRIPT_NAME":     "/test.cgi",
 	}
 	runCgiTest(t, h, "GET /test.cgi/extrapath?a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
 }
 
 func TestPathInfoDirRoot(t *testing.T) {
-	check(t)
+	testenv.MustHaveExec(t)
 	h := &Handler{
-		Path: "testdata/test.cgi",
-		Root: "/myscript/",
+		Path: os.Args[0],
+		Root: "/myscript//",
 	}
 	expectedMap := map[string]string{
-		"env-PATH_INFO":       "bar",
+		"env-PATH_INFO":       "/bar",
 		"env-QUERY_STRING":    "a=b",
 		"env-REQUEST_URI":     "/myscript/bar?a=b",
-		"env-SCRIPT_FILENAME": "testdata/test.cgi",
-		"env-SCRIPT_NAME":     "/myscript/",
+		"env-SCRIPT_FILENAME": os.Args[0],
+		"env-SCRIPT_NAME":     "/myscript",
 	}
 	runCgiTest(t, h, "GET /myscript/bar?a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
 }
 
 func TestDupHeaders(t *testing.T) {
-	check(t)
+	testenv.MustHaveExec(t)
 	h := &Handler{
-		Path: "testdata/test.cgi",
+		Path: os.Args[0],
 	}
 	expectedMap := map[string]string{
 		"env-REQUEST_URI":     "/myscript/bar?a=b",
-		"env-SCRIPT_FILENAME": "testdata/test.cgi",
+		"env-SCRIPT_FILENAME": os.Args[0],
 		"env-HTTP_COOKIE":     "nom=NOM; yum=YUM",
 		"env-HTTP_X_FOO":      "val1, val2",
 	}
@@ -246,13 +243,13 @@ func TestDupHeaders(t *testing.T) {
 // Verify we don't set the HTTP_PROXY environment variable.
 // Hope nobody was depending on it. It's not a known header, though.
 func TestDropProxyHeader(t *testing.T) {
-	check(t)
+	testenv.MustHaveExec(t)
 	h := &Handler{
-		Path: "testdata/test.cgi",
+		Path: os.Args[0],
 	}
 	expectedMap := map[string]string{
 		"env-REQUEST_URI":     "/myscript/bar?a=b",
-		"env-SCRIPT_FILENAME": "testdata/test.cgi",
+		"env-SCRIPT_FILENAME": os.Args[0],
 		"env-HTTP_X_FOO":      "a",
 	}
 	runCgiTest(t, h, "GET /myscript/bar?a=b HTTP/1.0\n"+
@@ -268,23 +265,23 @@ func TestDropProxyHeader(t *testing.T) {
 }
 
 func TestPathInfoNoRoot(t *testing.T) {
-	check(t)
+	testenv.MustHaveExec(t)
 	h := &Handler{
-		Path: "testdata/test.cgi",
+		Path: os.Args[0],
 		Root: "",
 	}
 	expectedMap := map[string]string{
 		"env-PATH_INFO":       "/bar",
 		"env-QUERY_STRING":    "a=b",
 		"env-REQUEST_URI":     "/bar?a=b",
-		"env-SCRIPT_FILENAME": "testdata/test.cgi",
-		"env-SCRIPT_NAME":     "/",
+		"env-SCRIPT_FILENAME": os.Args[0],
+		"env-SCRIPT_NAME":     "",
 	}
 	runCgiTest(t, h, "GET /bar?a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
 }
 
 func TestCGIBasicPost(t *testing.T) {
-	check(t)
+	testenv.MustHaveExec(t)
 	postReq := `POST /test.cgi?a=b HTTP/1.0
 Host: example.com
 Content-Type: application/x-www-form-urlencoded
@@ -292,7 +289,7 @@ Content-Length: 15
 
 postfoo=postbar`
 	h := &Handler{
-		Path: "testdata/test.cgi",
+		Path: os.Args[0],
 		Root: "/test.cgi",
 	}
 	expectedMap := map[string]string{
@@ -311,7 +308,7 @@ func chunk(s string) string {
 
 // The CGI spec doesn't allow chunked requests.
 func TestCGIPostChunked(t *testing.T) {
-	check(t)
+	testenv.MustHaveExec(t)
 	postReq := `POST /test.cgi?a=b HTTP/1.1
 Host: example.com
 Content-Type: application/x-www-form-urlencoded
@@ -320,7 +317,7 @@ Transfer-Encoding: chunked
 ` + chunk("postfoo") + chunk("=") + chunk("postbar") + chunk("")
 
 	h := &Handler{
-		Path: "testdata/test.cgi",
+		Path: os.Args[0],
 		Root: "/test.cgi",
 	}
 	expectedMap := map[string]string{}
@@ -332,9 +329,9 @@ Transfer-Encoding: chunked
 }
 
 func TestRedirect(t *testing.T) {
-	check(t)
+	testenv.MustHaveExec(t)
 	h := &Handler{
-		Path: "testdata/test.cgi",
+		Path: os.Args[0],
 		Root: "/test.cgi",
 	}
 	rec := runCgiTest(t, h, "GET /test.cgi?loc=http://foo.com/ HTTP/1.0\nHost: example.com\n\n", nil)
@@ -347,13 +344,13 @@ func TestRedirect(t *testing.T) {
 }
 
 func TestInternalRedirect(t *testing.T) {
-	check(t)
+	testenv.MustHaveExec(t)
 	baseHandler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(rw, "basepath=%s\n", req.URL.Path)
 		fmt.Fprintf(rw, "remoteaddr=%s\n", req.RemoteAddr)
 	})
 	h := &Handler{
-		Path:                "testdata/test.cgi",
+		Path:                os.Args[0],
 		Root:                "/test.cgi",
 		PathLocationHandler: baseHandler,
 	}
@@ -367,12 +364,12 @@ func TestInternalRedirect(t *testing.T) {
 // TestCopyError tests that we kill the process if there's an error copying
 // its output. (for example, from the client having gone away)
 func TestCopyError(t *testing.T) {
-	check(t)
+	testenv.MustHaveExec(t)
 	if runtime.GOOS == "windows" {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 	h := &Handler{
-		Path: "testdata/test.cgi",
+		Path: os.Args[0],
 		Root: "/test.cgi",
 	}
 	ts := httptest.NewServer(h)
@@ -427,14 +424,11 @@ func TestCopyError(t *testing.T) {
 	}
 }
 
-func TestDirUnix(t *testing.T) {
-	check(t)
-	if runtime.GOOS == "windows" {
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	}
+func TestDir(t *testing.T) {
+	testenv.MustHaveExec(t)
 	cwd, _ := os.Getwd()
 	h := &Handler{
-		Path: "testdata/test.cgi",
+		Path: os.Args[0],
 		Root: "/test.cgi",
 		Dir:  cwd,
 	}
@@ -444,67 +438,10 @@ func TestDirUnix(t *testing.T) {
 	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
 
 	cwd, _ = os.Getwd()
-	cwd = filepath.Join(cwd, "testdata")
+	cwd, _ = filepath.Split(os.Args[0])
 	h = &Handler{
-		Path: "testdata/test.cgi",
+		Path: os.Args[0],
 		Root: "/test.cgi",
-	}
-	expectedMap = map[string]string{
-		"cwd": cwd,
-	}
-	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
-}
-
-func findPerl(t *testing.T) string {
-	t.Helper()
-	perl, err := exec.LookPath("perl")
-	if err != nil {
-		t.Skip("Skipping test: perl not found.")
-	}
-	perl, _ = filepath.Abs(perl)
-
-	cmd := testenv.Command(t, perl, "-e", "print 123")
-	cmd.Env = []string{"PATH=/garbage"}
-	out, err := cmd.Output()
-	if err != nil || string(out) != "123" {
-		t.Skipf("Skipping test: %s is not functional", perl)
-	}
-	return perl
-}
-
-func TestDirWindows(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("Skipping windows specific test.")
-	}
-
-	cgifile, _ := filepath.Abs("testdata/test.cgi")
-
-	perl := findPerl(t)
-
-	cwd, _ := os.Getwd()
-	h := &Handler{
-		Path: perl,
-		Root: "/test.cgi",
-		Dir:  cwd,
-		Args: []string{cgifile},
-		Env:  []string{"SCRIPT_FILENAME=" + cgifile},
-	}
-	expectedMap := map[string]string{
-		"cwd": cwd,
-	}
-	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
-
-	// If not specify Dir on windows, working directory should be
-	// base directory of perl.
-	cwd, _ = filepath.Split(perl)
-	if cwd != "" && cwd[len(cwd)-1] == filepath.Separator {
-		cwd = cwd[:len(cwd)-1]
-	}
-	h = &Handler{
-		Path: perl,
-		Root: "/test.cgi",
-		Args: []string{cgifile},
-		Env:  []string{"SCRIPT_FILENAME=" + cgifile},
 	}
 	expectedMap = map[string]string{
 		"cwd": cwd,
@@ -513,17 +450,14 @@ func TestDirWindows(t *testing.T) {
 }
 
 func TestEnvOverride(t *testing.T) {
-	check(t)
+	testenv.MustHaveExec(t)
 	cgifile, _ := filepath.Abs("testdata/test.cgi")
-
-	perl := findPerl(t)
 
 	cwd, _ := os.Getwd()
 	h := &Handler{
-		Path: perl,
+		Path: os.Args[0],
 		Root: "/test.cgi",
 		Dir:  cwd,
-		Args: []string{cgifile},
 		Env: []string{
 			"SCRIPT_FILENAME=" + cgifile,
 			"REQUEST_URI=/foo/bar",
@@ -539,10 +473,10 @@ func TestEnvOverride(t *testing.T) {
 }
 
 func TestHandlerStderr(t *testing.T) {
-	check(t)
+	testenv.MustHaveExec(t)
 	var stderr strings.Builder
 	h := &Handler{
-		Path:   "testdata/test.cgi",
+		Path:   os.Args[0],
 		Root:   "/test.cgi",
 		Stderr: &stderr,
 	}

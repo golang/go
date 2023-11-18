@@ -726,7 +726,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
 	// N.B. Internally, this function does not depend on STW to
 	// successfully change every thread. It is only needed for user
 	// expectations, per above.
-	stopTheWorld(stwAllThreadsSyscall)
+	stw := stopTheWorld(stwAllThreadsSyscall)
 
 	// This function depends on several properties:
 	//
@@ -770,7 +770,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
 	if errno != 0 {
 		releasem(getg().m)
 		allocmLock.unlock()
-		startTheWorld()
+		startTheWorld(stw)
 		return r1, r2, errno
 	}
 
@@ -855,7 +855,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
 
 	releasem(getg().m)
 	allocmLock.unlock()
-	startTheWorld()
+	startTheWorld(stw)
 
 	return r1, r2, errno
 }

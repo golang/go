@@ -340,8 +340,8 @@ func TrailingZeros16(n uint16) int {
 	// arm:"ORR\t\\$65536","CLZ",-"MOVHU\tR"
 	// arm64:"ORR\t\\$65536","RBITW","CLZW",-"MOVHU\tR",-"RBIT\t",-"CLZ\t"
 	// s390x:"FLOGR","OR\t\\$65536"
-	// ppc64x/power8:"POPCNTD","OR\\t\\$65536"
-	// ppc64x/power9:"CNTTZD","OR\\t\\$65536"
+	// ppc64x/power8:"POPCNTD","ORIS\\t\\$1"
+	// ppc64x/power9:"CNTTZD","ORIS\\t\\$1"
 	// wasm:"I64Ctz"
 	return bits.TrailingZeros16(n)
 }

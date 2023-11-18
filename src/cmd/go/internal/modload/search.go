@@ -213,8 +213,6 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 		}
 		walkPkgs(root, modPrefix, prune)
 	}
-
-	return
 }
 
 // walkFromIndex matches packages in a module using the module index. modroot

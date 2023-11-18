@@ -1316,14 +1316,6 @@ func (l *Loader) SetSymSect(i Sym, sect *sym.Section) {
 	l.symSects[i] = sect.Index
 }
 
-// growSects grows the slice used to store symbol sections.
-func (l *Loader) growSects(reqLen int) {
-	curLen := len(l.symSects)
-	if reqLen > curLen {
-		l.symSects = append(l.symSects, make([]uint16, reqLen+1-curLen)...)
-	}
-}
-
 // NewSection creates a new (output) section.
 func (l *Loader) NewSection() *sym.Section {
 	sect := new(sym.Section)

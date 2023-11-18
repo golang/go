@@ -176,10 +176,6 @@ func (sb *SymbolBuilder) SetReachable(v bool) {
 	sb.l.SetAttrReachable(sb.symIdx, v)
 }
 
-func (sb *SymbolBuilder) setReachable() {
-	sb.SetReachable(true)
-}
-
 func (sb *SymbolBuilder) ReadOnly() bool {
 	return sb.l.AttrReadOnly(sb.symIdx)
 }

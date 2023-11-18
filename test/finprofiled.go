@@ -57,6 +57,11 @@ func main() {
 	for _, p := range prof {
 		bytes := p.AllocBytes - p.FreeBytes
 		nobj := p.AllocObjects - p.FreeObjects
+		if nobj == 0 {
+			// There may be a record that has had all of its objects
+			// freed. That's fine. Avoid a divide-by-zero and skip.
+			continue
+		}
 		size := bytes / nobj
 		if size == tinyBlockSize {
 			totalBytes += bytes

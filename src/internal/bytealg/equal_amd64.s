@@ -52,6 +52,7 @@ TEXT memeqbody<>(SB),NOSPLIT,$0-0
 	JE	hugeloop_avx2
 
 	// 64 bytes at a time using xmm registers
+	PCALIGN $16
 hugeloop:
 	CMPQ	BX, $64
 	JB	bigloop
@@ -81,6 +82,7 @@ hugeloop:
 #endif
 
 	// 64 bytes at a time using ymm registers
+	PCALIGN $16
 hugeloop_avx2:
 	CMPQ	BX, $64
 	JB	bigloop_avx2
@@ -105,6 +107,7 @@ bigloop_avx2:
 	VZEROUPPER
 
 	// 8 bytes at a time using 64-bit register
+	PCALIGN $16
 bigloop:
 	CMPQ	BX, $8
 	JBE	leftover

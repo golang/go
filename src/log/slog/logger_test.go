@@ -191,6 +191,7 @@ func TestCallDepth(t *testing.T) {
 		}
 	}
 
+	defer SetDefault(Default()) // restore
 	logger := New(h)
 	SetDefault(logger)
 
@@ -361,6 +362,71 @@ func TestSetDefault(t *testing.T) {
 	if err := ctx.Err(); err != context.Canceled {
 		t.Errorf("wanted canceled, got %v", err)
 	}
+}
+
+// Test defaultHandler minimum level without calling slog.SetDefault.
+func TestLogLoggerLevelForDefaultHandler(t *testing.T) {
+	// Revert any changes to the default logger, flags, and level of log and slog.
+	currentLogLoggerLevel := logLoggerLevel.Level()
+	currentLogWriter := log.Writer()
+	currentLogFlags := log.Flags()
+	t.Cleanup(func() {
+		logLoggerLevel.Set(currentLogLoggerLevel)
+		log.SetOutput(currentLogWriter)
+		log.SetFlags(currentLogFlags)
+	})
+
+	var logBuf bytes.Buffer
+	log.SetOutput(&logBuf)
+	log.SetFlags(0)
+
+	for _, test := range []struct {
+		logLevel Level
+		logFn    func(string, ...any)
+		want     string
+	}{
+		{LevelDebug, Debug, "DEBUG a"},
+		{LevelDebug, Info, "INFO a"},
+		{LevelInfo, Debug, ""},
+		{LevelInfo, Info, "INFO a"},
+	} {
+		SetLogLoggerLevel(test.logLevel)
+		test.logFn("a")
+		checkLogOutput(t, logBuf.String(), test.want)
+		logBuf.Reset()
+	}
+}
+
+// Test handlerWriter minimum level by calling slog.SetDefault.
+func TestLogLoggerLevelForHandlerWriter(t *testing.T) {
+	removeTime := func(_ []string, a Attr) Attr {
+		if a.Key == TimeKey {
+			return Attr{}
+		}
+		return a
+	}
+
+	// Revert any changes to the default logger. This is important because other
+	// tests might change the default logger using SetDefault. Also ensure we
+	// restore the default logger at the end of the test.
+	currentLogger := Default()
+	currentLogLoggerLevel := logLoggerLevel.Level()
+	currentLogWriter := log.Writer()
+	currentFlags := log.Flags()
+	t.Cleanup(func() {
+		SetDefault(currentLogger)
+		logLoggerLevel.Set(currentLogLoggerLevel)
+		log.SetOutput(currentLogWriter)
+		log.SetFlags(currentFlags)
+	})
+
+	var logBuf bytes.Buffer
+	log.SetOutput(&logBuf)
+	log.SetFlags(0)
+	SetLogLoggerLevel(LevelError)
+	SetDefault(New(NewTextHandler(&logBuf, &HandlerOptions{ReplaceAttr: removeTime})))
+	log.Print("error")
+	checkLogOutput(t, logBuf.String(), `level=ERROR msg=error`)
 }
 
 func TestLoggerError(t *testing.T) {

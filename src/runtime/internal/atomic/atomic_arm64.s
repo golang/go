@@ -331,3 +331,81 @@ load_store_loop:
 	STLXRW	R2, (R0), R3
 	CBNZ	R3, load_store_loop
 	RET
+
+// func Or32(addr *uint32, v uint32) old uint32
+TEXT ·Or32(SB), NOSPLIT, $0-20
+	MOVD	ptr+0(FP), R0
+	MOVW	val+8(FP), R1
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+	LDORALW	R1, (R0), R2
+	MOVD	R2, ret+16(FP)
+	RET
+load_store_loop:
+	LDAXRW	(R0), R2
+	ORR	R1, R2, R3
+	STLXRW	R3, (R0), R4
+	CBNZ	R4, load_store_loop
+	MOVD R2, ret+16(FP)
+	RET
+
+// func And32(addr *uint32, v uint32) old uint32
+TEXT ·And32(SB), NOSPLIT, $0-20
+	MOVD	ptr+0(FP), R0
+	MOVW	val+8(FP), R1
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+	MVN 	R1, R2
+	LDCLRALW	R2, (R0), R3
+	MOVD	R3, ret+16(FP)
+	RET
+load_store_loop:
+	LDAXRW	(R0), R2
+	AND	R1, R2, R3
+	STLXRW	R3, (R0), R4
+	CBNZ	R4, load_store_loop
+	MOVD R2, ret+16(FP)
+	RET
+
+// func Or64(addr *uint64, v uint64) old uint64
+TEXT ·Or64(SB), NOSPLIT, $0-24
+	MOVD	ptr+0(FP), R0
+	MOVD	val+8(FP), R1
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+	LDORALD	R1, (R0), R2
+	MOVD	R2, ret+16(FP)
+	RET
+load_store_loop:
+	LDAXR	(R0), R2
+	ORR	R1, R2, R3
+	STLXR	R3, (R0), R4
+	CBNZ	R4, load_store_loop
+	MOVD 	R2, ret+16(FP)
+	RET
+
+// func And64(addr *uint64, v uint64) old uint64
+TEXT ·And64(SB), NOSPLIT, $0-24
+	MOVD	ptr+0(FP), R0
+	MOVD	val+8(FP), R1
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+	MVN 	R1, R2
+	LDCLRALD	R2, (R0), R3
+	MOVD	R3, ret+16(FP)
+	RET
+load_store_loop:
+	LDAXR	(R0), R2
+	AND	R1, R2, R3
+	STLXR	R3, (R0), R4
+	CBNZ	R4, load_store_loop
+	MOVD 	R2, ret+16(FP)
+	RET
+
+// func Anduintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Anduintptr(SB), NOSPLIT, $0-24
+	B	·And64(SB)
+
+// func Oruintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Oruintptr(SB), NOSPLIT, $0-24
+	B	·Or64(SB)

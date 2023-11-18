@@ -15,7 +15,7 @@ import "unsafe"
 // ResultFlags
 //   0 ResultIsAllocatedMem
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":[],"ResultFlags":[2]}
+// {"Flags":0,"ParamFlags":null,"ResultFlags":[2]}
 // <endcallsites>
 // <endfuncpreamble>
 func T_simple_allocmem() *Bar {
@@ -66,7 +66,7 @@ func T_allocmem_three_returns(x int) []*Bar {
 // ResultFlags
 //   0 ResultAlwaysSameConstant
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":[],"ResultFlags":[8]}
+// {"Flags":0,"ParamFlags":null,"ResultFlags":[8]}
 // <endcallsites>
 // <endfuncpreamble>
 func T_return_nil() *Bar {
@@ -247,7 +247,7 @@ func T_return_concrete_type_to_itf_mixed(x, y int) Itf {
 // ResultFlags
 //   0 ResultAlwaysSameInlinableFunc
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":[],"ResultFlags":[32]}
+// {"Flags":0,"ParamFlags":null,"ResultFlags":[32]}
 // <endcallsites>
 // <endfuncpreamble>
 func T_return_same_func() func(int) int {
@@ -260,7 +260,7 @@ func T_return_same_func() func(int) int {
 
 // returns.go T_return_different_funcs 266 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":[],"ResultFlags":[0]}
+// {"Flags":0,"ParamFlags":null,"ResultFlags":[0]}
 // <endcallsites>
 // <endfuncpreamble>
 func T_return_different_funcs() func(int) int {
@@ -275,7 +275,7 @@ func T_return_different_funcs() func(int) int {
 // ResultFlags
 //   0 ResultAlwaysSameInlinableFunc
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":[],"ResultFlags":[32]}
+// {"Flags":0,"ParamFlags":null,"ResultFlags":[32]}
 // <endcallsites>
 // <endfuncpreamble>
 // returns.go T_return_same_closure.func1 287 0 1
@@ -294,7 +294,7 @@ func T_return_same_closure() func(int) int {
 
 // returns.go T_return_different_closures 312 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":[],"ResultFlags":[0]}
+// {"Flags":0,"ParamFlags":null,"ResultFlags":[0]}
 // <endcallsites>
 // <endfuncpreamble>
 // returns.go T_return_different_closures.func1 313 0 1
@@ -318,21 +318,22 @@ func T_return_different_closures() func(int) int {
 	}
 }
 
-// returns.go T_return_noninlinable 338 0 1
+// returns.go T_return_noninlinable 339 0 1
 // ResultFlags
 //   0 ResultAlwaysSameFunc
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[0],"ResultFlags":[16]}
 // <endcallsites>
 // <endfuncpreamble>
-// returns.go T_return_noninlinable.func1 339 0 1
+// returns.go T_return_noninlinable.func1 340 0 1
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+// callsite: returns.go:343:4|0 flagstr "" flagval 0 score 4 mask 0 maskstr ""
 // <endcallsites>
 // <endfuncpreamble>
-// returns.go T_return_noninlinable.func1.1 340 0 1
+// returns.go T_return_noninlinable.func1.1 341 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":[],"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
 // <endcallsites>
 // <endfuncpreamble>
 func T_return_noninlinable(x int) func(int) int {
