@@ -1113,20 +1113,21 @@ func (p AddrPort) Compare(p2 AddrPort) int {
 	return cmp.Compare(p.Port(), p2.Port())
 }
 
+const (
+	ipv4MaxAddrPortLen = len("255.255.255.255:65535")
+	ipv6MaxAddrPortLen = len("[ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0]:65535")
+)
+
 func (p AddrPort) String() string {
 	switch p.ip.z {
 	case z0:
 		return "invalid AddrPort"
 	case z4:
-		const max = len("255.255.255.255:65535")
-		buf := make([]byte, 0, max)
-		buf = p.ip.appendTo4(buf)
-		buf = append(buf, ':')
-		buf = strconv.AppendUint(buf, uint64(p.port), 10)
-		return string(buf)
+		buf := make([]byte, 0, ipv4MaxAddrPortLen)
+		return string(p.AppendTo(buf))
 	default:
-		// TODO: this could be more efficient allocation-wise:
-		return "[" + p.ip.String() + "]:" + itoa.Uitoa(uint(p.port))
+		buf := make([]byte, 0, ipv6MaxAddrPortLen)
+		return string(p.AppendTo(buf))
 	}
 }
 
@@ -1162,17 +1163,18 @@ func (p AddrPort) AppendTo(b []byte) []byte {
 // encoding is the same as returned by String, with one exception: if
 // p.Addr() is the zero Addr, the encoding is the empty string.
 func (p AddrPort) MarshalText() ([]byte, error) {
-	var max int
 	switch p.ip.z {
 	case z0:
+		return []byte{}, nil
 	case z4:
-		max = len("255.255.255.255:65535")
+		buf := make([]byte, 0, ipv4MaxAddrPortLen)
+		buf = p.AppendTo(buf)
+		return buf, nil
 	default:
-		max = len("[ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0]:65535")
+		buf := make([]byte, 0, ipv6MaxAddrPortLen)
+		buf = p.AppendTo(buf)
+		return buf, nil
 	}
-	b := make([]byte, 0, max)
-	b = p.AppendTo(b)
-	return b, nil
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler
