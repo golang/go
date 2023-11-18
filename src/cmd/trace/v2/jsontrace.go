@@ -11,12 +11,44 @@ import (
 	"strconv"
 	"time"
 
+	"internal/trace"
 	"internal/trace/traceviewer"
 	tracev2 "internal/trace/v2"
 )
 
 func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		opts := defaultGenOpts()
+
+		if goids := r.FormValue("goid"); goids != "" {
+			// Render trace focused on a particular goroutine.
+
+			id, err := strconv.ParseUint(goids, 10, 64)
+			if err != nil {
+				log.Printf("failed to parse goid parameter %q: %v", goids, err)
+				return
+			}
+			goid := tracev2.GoID(id)
+			g, ok := parsed.summary.Goroutines[goid]
+			if !ok {
+				log.Printf("failed to find goroutine %d", goid)
+				return
+			}
+			opts.mode = traceviewer.ModeGoroutineOriented
+			if g.StartTime != 0 {
+				opts.startTime = g.StartTime.Sub(parsed.startTime())
+			} else {
+				opts.startTime = 0
+			}
+			if g.EndTime != 0 {
+				opts.endTime = g.EndTime.Sub(parsed.startTime())
+			} else { // The goroutine didn't end.
+				opts.endTime = parsed.endTime().Sub(parsed.startTime())
+			}
+			opts.focusGoroutine = goid
+			opts.goroutines = trace.RelatedGoroutinesV2(parsed.events, goid)
+		}
+
 		// Parse start and end options. Both or none must be present.
 		start := int64(0)
 		end := int64(math.MaxInt64)
@@ -36,7 +68,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 		}
 
 		c := traceviewer.ViewerDataTraceConsumer(w, start, end)
-		if err := generateTrace(parsed, c); err != nil {
+		if err := generateTrace(parsed, opts, c); err != nil {
 			log.Printf("failed to generate trace: %v", err)
 		}
 	})
@@ -55,13 +87,36 @@ func (ctx *traceContext) elapsed(now tracev2.Time) time.Duration {
 	return now.Sub(ctx.startTime)
 }
 
-func generateTrace(parsed *parsedTrace, c traceviewer.TraceConsumer) error {
+type genOpts struct {
+	mode      traceviewer.Mode
+	startTime time.Duration
+	endTime   time.Duration
+
+	// Used if mode != 0.
+	focusGoroutine tracev2.GoID
+	goroutines     map[tracev2.GoID]struct{} // Goroutines to be displayed for goroutine-oriented or task-oriented view. goroutines[0] is the main goroutine.
+}
+
+func defaultGenOpts() *genOpts {
+	return &genOpts{
+		startTime: time.Duration(0),
+		endTime:   time.Duration(math.MaxInt64),
+	}
+}
+
+func generateTrace(parsed *parsedTrace, opts *genOpts, c traceviewer.TraceConsumer) error {
 	ctx := &traceContext{
-		Emitter:   traceviewer.NewEmitter(c, 0, time.Duration(0), time.Duration(math.MaxInt64)),
+		Emitter:   traceviewer.NewEmitter(c, 0, opts.startTime, opts.endTime),
 		startTime: parsed.events[0].Time(),
 	}
 	defer ctx.Flush()
 
-	runGenerator(ctx, newProcGenerator(), parsed)
+	var g generator
+	if opts.mode&traceviewer.ModeGoroutineOriented != 0 {
+		g = newGoroutineGenerator(ctx, opts.focusGoroutine, opts.goroutines)
+	} else {
+		g = newProcGenerator()
+	}
+	runGenerator(ctx, g, parsed)
 	return nil
 }

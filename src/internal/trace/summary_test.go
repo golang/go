@@ -375,15 +375,33 @@ func basicGoroutineExecStatsChecks(t *testing.T, stats *GoroutineExecStats) {
 
 func TestRelatedGoroutinesV2Trace(t *testing.T) {
 	testPath := "v2/testdata/tests/go122-gc-stress.test"
-	r, _, err := testtrace.ParseFile(testPath)
+	trace, _, err := testtrace.ParseFile(testPath)
 	if err != nil {
 		t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 	}
-	targetg := tracev2.GoID(86)
-	got, err := RelatedGoroutinesV2(r, targetg)
+
+	// Create a reader.
+	r, err := tracev2.NewReader(trace)
 	if err != nil {
-		t.Fatalf("failed to find related goroutines for %s: %v", testPath, err)
+		t.Fatalf("failed to create trace reader for %s: %v", testPath, err)
 	}
+
+	// Collect all the events.
+	var events []tracev2.Event
+	for {
+		ev, err := r.ReadEvent()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("failed to process trace %s: %v", testPath, err)
+		}
+		events = append(events, ev)
+	}
+
+	// Test the function.
+	targetg := tracev2.GoID(86)
+	got := RelatedGoroutinesV2(events, targetg)
 	want := map[tracev2.GoID]struct{}{
 		tracev2.GoID(86):  struct{}{}, // N.B. Result includes target.
 		tracev2.GoID(71):  struct{}{},

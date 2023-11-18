@@ -145,7 +145,7 @@ func splitTrace(parsed *parsedTrace) ([]traceviewer.Range, error) {
 	// TODO(mknyszek): Split traces by generation by doing a quick first pass over the
 	// trace to identify all the generation boundaries.
 	s, c := traceviewer.SplittingTraceConsumer(100 << 20) // 100 MiB
-	if err := generateTrace(parsed, c); err != nil {
+	if err := generateTrace(parsed, defaultGenOpts(), c); err != nil {
 		return nil, err
 	}
 	return s.Ranges, nil

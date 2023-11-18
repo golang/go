@@ -6,7 +6,6 @@ package trace
 
 import (
 	tracev2 "internal/trace/v2"
-	"io"
 	"sort"
 	"time"
 )
@@ -601,11 +600,7 @@ func (s *Summarizer) Finalize() *Summary {
 // RelatedGoroutinesV2 finds a set of goroutines related to goroutine goid for v2 traces.
 // The association is based on whether they have synchronized with each other in the Go
 // scheduler (one has unblocked another).
-func RelatedGoroutinesV2(trace io.Reader, goid tracev2.GoID) (map[tracev2.GoID]struct{}, error) {
-	r, err := tracev2.NewReader(trace)
-	if err != nil {
-		return nil, err
-	}
+func RelatedGoroutinesV2(events []tracev2.Event, goid tracev2.GoID) map[tracev2.GoID]struct{} {
 	// Process all the events, looking for transitions of goroutines
 	// out of GoWaiting. If there was an active goroutine when this
 	// happened, then we know that active goroutine unblocked another.
@@ -615,14 +610,7 @@ func RelatedGoroutinesV2(trace io.Reader, goid tracev2.GoID) (map[tracev2.GoID]s
 		operand  tracev2.GoID
 	}
 	var unblockEdges []unblockEdge
-	for {
-		ev, err := r.ReadEvent()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
+	for _, ev := range events {
 		if ev.Goroutine() == tracev2.NoGoroutine {
 			continue
 		}
@@ -660,5 +648,5 @@ func RelatedGoroutinesV2(trace io.Reader, goid tracev2.GoID) (map[tracev2.GoID]s
 		}
 		gmap = gmap1
 	}
-	return gmap, nil
+	return gmap
 }
