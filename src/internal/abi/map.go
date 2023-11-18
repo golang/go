@@ -12,3 +12,5 @@ const (
 	MapMaxKeyBytes     = 128 // Must fit in a uint8.
 	MapMaxElemBytes    = 128 // Must fit in a uint8.
 )
+
+const MaxZero = 1024
