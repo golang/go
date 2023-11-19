@@ -1689,8 +1689,8 @@ func testFileServerDirWithRootFile(t *testing.T, mode testMode) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s := res.StatusCode; s != StatusInternalServerError {
-		t.Errorf("got %q, want 500", s)
+	if g, w := res.StatusCode, StatusInternalServerError; g != w {
+		t.Errorf("StatusCode mismatch: got %d, want: %d", g, w)
 	}
 	res.Body.Close()
 }

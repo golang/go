@@ -78,9 +78,8 @@ func (d Dir) Open(name string) (File, error) {
 	if dir == "" {
 		dir = "."
 	}
-	fi, err := os.Stat(dir)
-	if err != nil || !fi.IsDir() {
-		return nil, errors.New("http: invalid directory path")
+	if fi, _ := os.Stat(dir); fi != nil && !fi.IsDir() {
+		return nil, errors.New("http: attempting to traverse a non-directory")
 	}
 	fullName := filepath.Join(dir, path)
 	f, err := os.Open(fullName)
