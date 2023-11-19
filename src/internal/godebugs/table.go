@@ -33,6 +33,7 @@ var All = []Info{
 	{Name: "http2client", Package: "net/http"},
 	{Name: "http2debug", Package: "net/http", Opaque: true},
 	{Name: "http2server", Package: "net/http"},
+	{Name: "httpdircache", Package: "net/http", Changed: 23, Old: "0"},
 	{Name: "httplaxcontentlength", Package: "net/http", Changed: 22, Old: "1"},
 	{Name: "httpmuxgo121", Package: "net/http", Changed: 22, Old: "1"},
 	{Name: "installgoroot", Package: "go/build"},

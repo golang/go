@@ -333,3 +333,5 @@ func SetRSTAvoidanceDelay(t *testing.T, d time.Duration) {
 	})
 	rstAvoidanceDelay = d
 }
+
+var Test = &test
