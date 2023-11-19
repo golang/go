@@ -12,7 +12,7 @@ import "os"
 
 // calls.go T_call_in_panic_arg 19 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[0],"ResultFlags":null}
 // callsite: calls.go:21:15|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
 // <endcallsites>
 // <endfuncpreamble>
@@ -24,7 +24,7 @@ func T_call_in_panic_arg(x int) {
 
 // calls.go T_calls_in_loops 32 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[0,0],"ResultFlags":null}
 // callsite: calls.go:34:9|0 flagstr "CallSiteInLoop" flagval 1 score -3 mask 4 maskstr "inLoopAdj"
 // callsite: calls.go:37:9|1 flagstr "CallSiteInLoop" flagval 1 score -3 mask 4 maskstr "inLoopAdj"
 // <endcallsites>
@@ -40,7 +40,7 @@ func T_calls_in_loops(x int, q []string) {
 
 // calls.go T_calls_in_pseudo_loop 48 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[0,0],"ResultFlags":null}
 // callsite: calls.go:50:9|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
 // callsite: calls.go:54:9|1 flagstr "" flagval 0 score 2 mask 0 maskstr ""
 // <endcallsites>
@@ -58,7 +58,7 @@ func T_calls_in_pseudo_loop(x int, q []string) {
 
 // calls.go T_calls_on_panic_paths 67 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[0,0],"ResultFlags":null}
 // callsite: calls.go:69:9|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
 // callsite: calls.go:73:9|1 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
 // callsite: calls.go:77:12|2 flagstr "CallSiteOnPanicPath" flagval 2 score 102 mask 1 maskstr "panicPathAdj"
@@ -83,7 +83,7 @@ func T_calls_on_panic_paths(x int, q []string) {
 //   0 ParamFeedsIfOrSwitch|ParamMayFeedIfOrSwitch
 //   1 ParamNoInfo
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":[96,0],"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":[96,0],"ResultFlags":null}
 // callsite: calls.go:103:9|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
 // callsite: calls.go:112:9|1 flagstr "" flagval 0 score 2 mask 0 maskstr ""
 // callsite: calls.go:115:9|2 flagstr "" flagval 0 score 2 mask 0 maskstr ""
@@ -122,7 +122,7 @@ func T_calls_not_on_panic_paths(x int, q []string) {
 
 // calls.go init.0 129 0 1
 // <endpropsdump>
-// {"Flags":0,"ParamFlags":[],"ResultFlags":[]}
+// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
 // callsite: calls.go:130:16|0 flagstr "CallSiteInInitFunc" flagval 4 score 22 mask 2 maskstr "initFuncAdj"
 // <endcallsites>
 // <endfuncpreamble>

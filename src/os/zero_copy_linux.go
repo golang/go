@@ -13,7 +13,32 @@ import (
 var (
 	pollCopyFileRange = poll.CopyFileRange
 	pollSplice        = poll.Splice
+	pollSendFile      = poll.SendFile
 )
+
+func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
+	pfd, network := getPollFDAndNetwork(w)
+	// TODO(panjf2000): same as File.spliceToFile.
+	if pfd == nil || !pfd.IsStream || !isUnixOrTCP(string(network)) {
+		return
+	}
+
+	sc, err := f.SyscallConn()
+	if err != nil {
+		return
+	}
+
+	rerr := sc.Read(func(fd uintptr) (done bool) {
+		written, err, handled = pollSendFile(pfd, int(fd), 1<<63-1)
+		return true
+	})
+
+	if err == nil {
+		err = rerr
+	}
+
+	return written, handled, wrapSyscallError("sendfile", err)
+}
 
 func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
 	// Neither copy_file_range(2) nor splice(2) supports destinations opened with
@@ -41,7 +66,7 @@ func (f *File) spliceToFile(r io.Reader) (written int64, handled bool, err error
 		return 0, true, nil
 	}
 
-	pfd := getPollFD(r)
+	pfd, _ := getPollFDAndNetwork(r)
 	// TODO(panjf2000): run some tests to see if we should unlock the non-streams for splice.
 	// Streams benefit the most from the splice(2), non-streams are not even supported in old kernels
 	// where splice(2) will just return EINVAL; newer kernels support non-streams like UDP, but I really
@@ -63,25 +88,6 @@ func (f *File) spliceToFile(r io.Reader) (written int64, handled bool, err error
 	return written, handled, wrapSyscallError(syscallName, err)
 }
 
-// getPollFD tries to get the poll.FD from the given io.Reader by expecting
-// the underlying type of r to be the implementation of syscall.Conn that contains
-// a *net.rawConn.
-func getPollFD(r io.Reader) *poll.FD {
-	sc, ok := r.(syscall.Conn)
-	if !ok {
-		return nil
-	}
-	rc, err := sc.SyscallConn()
-	if err != nil {
-		return nil
-	}
-	ipfd, ok := rc.(interface{ PollFD() *poll.FD })
-	if !ok {
-		return nil
-	}
-	return ipfd.PollFD()
-}
-
 func (f *File) copyFileRange(r io.Reader) (written int64, handled bool, err error) {
 	var (
 		remain int64
@@ -91,10 +97,16 @@ func (f *File) copyFileRange(r io.Reader) (written int64, handled bool, err erro
 		return 0, true, nil
 	}
 
-	src, ok := r.(*File)
-	if !ok {
+	var src *File
+	switch v := r.(type) {
+	case *File:
+		src = v
+	case fileWithoutWriteTo:
+		src = v.File
+	default:
 		return 0, false, nil
 	}
+
 	if src.checkValid("ReadFrom") != nil {
 		// Avoid returning the error as we report handled as false,
 		// leave further error handling as the responsibility of the caller.
@@ -106,6 +118,28 @@ func (f *File) copyFileRange(r io.Reader) (written int64, handled bool, err erro
 		lr.N -= written
 	}
 	return written, handled, wrapSyscallError("copy_file_range", err)
+}
+
+// getPollFDAndNetwork tries to get the poll.FD and network type from the given interface
+// by expecting the underlying type of i to be the implementation of syscall.Conn
+// that contains a *net.rawConn.
+func getPollFDAndNetwork(i any) (*poll.FD, poll.String) {
+	sc, ok := i.(syscall.Conn)
+	if !ok {
+		return nil, ""
+	}
+	rc, err := sc.SyscallConn()
+	if err != nil {
+		return nil, ""
+	}
+	irc, ok := rc.(interface {
+		PollFD() *poll.FD
+		Network() poll.String
+	})
+	if !ok {
+		return nil, ""
+	}
+	return irc.PollFD(), irc.Network()
 }
 
 // tryLimitedReader tries to assert the io.Reader to io.LimitedReader, it returns the io.LimitedReader,
@@ -121,4 +155,13 @@ func tryLimitedReader(r io.Reader) (*io.LimitedReader, io.Reader, int64) {
 
 	remain = lr.N
 	return lr, lr.R, remain
+}
+
+func isUnixOrTCP(network string) bool {
+	switch network {
+	case "tcp", "tcp4", "tcp6", "unix":
+		return true
+	default:
+		return false
+	}
 }

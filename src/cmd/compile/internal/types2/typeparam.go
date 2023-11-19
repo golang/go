@@ -9,11 +9,11 @@ import "sync/atomic"
 // Note: This is a uint32 rather than a uint64 because the
 // respective 64 bit atomic instructions are not available
 // on all platforms.
-var lastID uint32
+var lastID atomic.Uint32
 
 // nextID returns a value increasing monotonically by 1 with
 // each call, starting with 1. It may be called concurrently.
-func nextID() uint64 { return uint64(atomic.AddUint32(&lastID, 1)) }
+func nextID() uint64 { return uint64(lastID.Add(1)) }
 
 // A TypeParam represents a type parameter type.
 type TypeParam struct {

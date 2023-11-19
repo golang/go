@@ -121,8 +121,8 @@ func (s *Span) Done() {
 type tracer struct {
 	file chan traceFile // 1-buffered
 
-	nextTID    uint64
-	nextFlowID uint64
+	nextTID    atomic.Uint64
+	nextFlowID atomic.Uint64
 }
 
 func (t *tracer) writeEvent(ev *traceviewer.Event) error {
@@ -161,11 +161,11 @@ func (t *tracer) Close() error {
 }
 
 func (t *tracer) getNextTID() uint64 {
-	return atomic.AddUint64(&t.nextTID, 1)
+	return t.nextTID.Add(1)
 }
 
 func (t *tracer) getNextFlowID() uint64 {
-	return atomic.AddUint64(&t.nextFlowID, 1)
+	return t.nextFlowID.Add(1)
 }
 
 // traceKey is the context key for tracing information. It is unexported to prevent collisions with context keys defined in

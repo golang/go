@@ -145,6 +145,14 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	risk in that scenario. Currently not supported on Windows, plan9 or js/wasm. Setting this
 	option for some applications can produce large traces, so use with care.
 
+	profileruntimelocks: setting profileruntimelocks=1 includes call stacks related to
+	contention on runtime-internal locks in the "mutex" profile, subject to the
+	MutexProfileFraction setting. The call stacks will correspond to the unlock call that
+	released the lock. But instead of the value corresponding to the amount of contention that
+	call stack caused, it corresponds to the amount of time the caller of unlock had to wait
+	in its original call to lock. A future release is expected to align those and remove this
+	setting.
+
 	invalidptr: invalidptr=1 (the default) causes the garbage collector and stack
 	copier to crash the program if an invalid pointer value (for example, 1)
 	is found in a pointer-typed location. Setting invalidptr=0 disables this check.

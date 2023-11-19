@@ -461,9 +461,8 @@ func (s *handleState) appendAttrs(as []Attr) bool {
 	return nonEmpty
 }
 
-// appendAttr appends the Attr's key and value using app.
+// appendAttr appends the Attr's key and value.
 // It handles replacement and checking for an empty key.
-// after replacement).
 // It reports whether something was appended.
 func (s *handleState) appendAttr(a Attr) bool {
 	a.Value = a.Value.Resolve()

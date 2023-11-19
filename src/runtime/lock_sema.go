@@ -48,6 +48,8 @@ func lock2(l *mutex) {
 	}
 	semacreate(gp.m)
 
+	timer := &lockTimer{lock: l}
+	timer.begin()
 	// On uniprocessor's, no point spinning.
 	// On multiprocessors, spin for ACTIVE_SPIN attempts.
 	spin := 0
@@ -60,6 +62,7 @@ Loop:
 		if v&locked == 0 {
 			// Unlocked. Try to lock.
 			if atomic.Casuintptr(&l.key, v, v|locked) {
+				timer.end()
 				return
 			}
 			i = 0
@@ -119,6 +122,7 @@ func unlock2(l *mutex) {
 			}
 		}
 	}
+	gp.m.mLockProfile.recordUnlock(l)
 	gp.m.locks--
 	if gp.m.locks < 0 {
 		throw("runtime·unlock: lock count")

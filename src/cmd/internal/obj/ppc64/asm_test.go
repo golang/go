@@ -465,7 +465,6 @@ func TestAddrClassifier(t *testing.T) {
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_CR1}, C_CREG},
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_CR1SO}, C_CRBIT},
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0}, C_SPR},
-		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 1}, C_XER},
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 8}, C_LR},
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 9}, C_CTR},
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_FPSCR}, C_FPSCR},

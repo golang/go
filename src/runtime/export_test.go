@@ -1340,6 +1340,27 @@ func PageCachePagesLeaked() (leaked uintptr) {
 	return
 }
 
+type Mutex = mutex
+
+var Lock = lock
+var Unlock = unlock
+
+func MutexContended(l *mutex) bool {
+	switch atomic.Loaduintptr(&l.key) {
+	case 0: // unlocked
+		return false
+	case 1: // locked
+		return false
+	default: // an M is sleeping
+		return true
+	}
+}
+
+func SemRootLock(addr *uint32) *mutex {
+	root := semtable.rootFor(addr)
+	return &root.lock
+}
+
 var Semacquire = semacquire
 var Semrelease1 = semrelease1
 

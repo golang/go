@@ -1118,27 +1118,16 @@ func (p AddrPort) String() string {
 	case z0:
 		return "invalid AddrPort"
 	case z4:
-		a := p.ip.As4()
-		buf := make([]byte, 0, 21)
-		for i := range a {
-			buf = strconv.AppendUint(buf, uint64(a[i]), 10)
-			buf = append(buf, "...:"[i])
-		}
+		const max = len("255.255.255.255:65535")
+		buf := make([]byte, 0, max)
+		buf = p.ip.appendTo4(buf)
+		buf = append(buf, ':')
 		buf = strconv.AppendUint(buf, uint64(p.port), 10)
 		return string(buf)
 	default:
 		// TODO: this could be more efficient allocation-wise:
-		return joinHostPort(p.ip.String(), itoa.Itoa(int(p.port)))
+		return "[" + p.ip.String() + "]:" + itoa.Uitoa(uint(p.port))
 	}
-}
-
-func joinHostPort(host, port string) string {
-	// We assume that host is a literal IPv6 address if host has
-	// colons.
-	if bytealg.IndexByteString(host, ':') >= 0 {
-		return "[" + host + "]:" + port
-	}
-	return host + ":" + port
 }
 
 // AppendTo appends a text encoding of p,

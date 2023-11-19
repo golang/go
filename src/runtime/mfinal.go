@@ -9,6 +9,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -410,13 +411,18 @@ func SetFinalizer(obj any, finalizer any) {
 	}
 
 	// find the containing object
-	base, _, _ := findObject(uintptr(e.data), 0, 0)
+	base, span, _ := findObject(uintptr(e.data), 0, 0)
 
 	if base == 0 {
 		if isGoPointerWithoutSpan(e.data) {
 			return
 		}
 		throw("runtime.SetFinalizer: pointer not in allocated block")
+	}
+
+	// Move base forward if we've got an allocation header.
+	if goexperiment.AllocHeaders && !span.spanclass.noscan() && !heapBitsInSpan(span.elemsize) && span.spanclass.sizeclass() != 0 {
+		base += mallocHeaderSize
 	}
 
 	if uintptr(e.data) != base {

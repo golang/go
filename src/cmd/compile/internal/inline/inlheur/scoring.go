@@ -8,11 +8,12 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/pgo"
-	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 )
 
 // These constants enumerate the set of possible ways/scenarios
@@ -62,6 +63,8 @@ const (
 	returnFeedsFuncToIndCallAdj
 	returnFeedsInlinableFuncToIndCallAdj
 	returnFeedsConcreteToInterfaceCallAdj
+
+	sentinelScoreAdj // sentinel; not a real adjustment
 )
 
 // This table records the specific values we use to adjust call
@@ -86,6 +89,56 @@ var adjValues = map[scoreAdjustTyp]int{
 	returnFeedsFuncToIndCallAdj:           -25,
 	returnFeedsInlinableFuncToIndCallAdj:  -40,
 	returnFeedsConcreteToInterfaceCallAdj: -25,
+}
+
+// SetupScoreAdjustments interprets the value of the -d=inlscoreadj
+// debugging option, if set. The value of this flag is expected to be
+// a series of "/"-separated clauses of the form adj1:value1. Example:
+// -d=inlscoreadj=inLoopAdj=0/passConstToIfAdj=-99
+func SetupScoreAdjustments() {
+	if base.Debug.InlScoreAdj == "" {
+		return
+	}
+	if err := parseScoreAdj(base.Debug.InlScoreAdj); err != nil {
+		base.Fatalf("malformed -d=inlscoreadj argument %q: %v",
+			base.Debug.InlScoreAdj, err)
+	}
+}
+
+func adjStringToVal(s string) (scoreAdjustTyp, bool) {
+	for adj := scoreAdjustTyp(1); adj < sentinelScoreAdj; adj <<= 1 {
+		if adj.String() == s {
+			return adj, true
+		}
+	}
+	return 0, false
+}
+
+func parseScoreAdj(val string) error {
+	clauses := strings.Split(val, "/")
+	if len(clauses) == 0 {
+		return fmt.Errorf("no clauses")
+	}
+	for _, clause := range clauses {
+		elems := strings.Split(clause, ":")
+		if len(elems) < 2 {
+			return fmt.Errorf("clause %q: expected colon", clause)
+		}
+		if len(elems) != 2 {
+			return fmt.Errorf("clause %q has %d elements, wanted 2", clause,
+				len(elems))
+		}
+		adj, ok := adjStringToVal(elems[0])
+		if !ok {
+			return fmt.Errorf("clause %q: unknown adjustment", clause)
+		}
+		val, err := strconv.Atoi(elems[1])
+		if err != nil {
+			return fmt.Errorf("clause %q: malformed value: %v", clause, err)
+		}
+		adjValues[adj] = val
+	}
+	return nil
 }
 
 func adjValue(x scoreAdjustTyp) int {
@@ -133,8 +186,13 @@ func mustToMay(x scoreAdjustTyp) scoreAdjustTyp {
 // callee function is 'callee' and with previously computed call site
 // properties 'csflags', then computes a score for the callsite that
 // combines the size cost of the callee with heuristics based on
-// previously parameter and function properties.
-func computeCallSiteScore(callee *ir.Func, calleeProps *FuncProps, call ir.Node, csflags CSPropBits) (int, scoreAdjustTyp) {
+// previously parameter and function properties, then stores the score
+// and the adjustment mask in the appropriate fields in 'cs'
+func (cs *CallSite) computeCallSiteScore(calleeProps *FuncProps) {
+	callee := cs.Callee
+	csflags := cs.Flags
+	call := cs.Call
+
 	// Start with the size-based score for the callee.
 	score := int(callee.Inl.Cost)
 	var tmask scoreAdjustTyp
@@ -157,33 +215,38 @@ func computeCallSiteScore(callee *ir.Func, calleeProps *FuncProps, call ir.Node,
 		score, tmask = adjustScore(inLoopAdj, score, tmask)
 	}
 
+	// Stop here if no callee props.
 	if calleeProps == nil {
-		return score, tmask
+		cs.Score, cs.ScoreMask = score, tmask
+		return
 	}
 
 	// Walk through the actual expressions being passed at the call.
 	calleeRecvrParms := callee.Type().RecvParams()
-	ce := call.(*ir.CallExpr)
-	for idx := range ce.Args {
+	for idx := range call.Args {
 		// ignore blanks
 		if calleeRecvrParms[idx].Sym == nil ||
 			calleeRecvrParms[idx].Sym.IsBlank() {
 			continue
 		}
-		arg := ce.Args[idx]
+		arg := call.Args[idx]
 		pflag := calleeProps.ParamFlags[idx]
 		if debugTrace&debugTraceScoring != 0 {
 			fmt.Fprintf(os.Stderr, "=-= arg %d of %d: val %v flags=%s\n",
-				idx, len(ce.Args), arg, pflag.String())
-		}
-		_, islit := isLiteral(arg)
-		iscci := isConcreteConvIface(arg)
-		fname, isfunc, _ := isFuncName(arg)
-		if debugTrace&debugTraceScoring != 0 {
-			fmt.Fprintf(os.Stderr, "=-= isLit=%v iscci=%v isfunc=%v for arg %v\n", islit, iscci, isfunc, arg)
+				idx, len(call.Args), arg, pflag.String())
 		}
 
-		if islit {
+		if len(cs.ArgProps) == 0 {
+			continue
+		}
+		argProps := cs.ArgProps[idx]
+
+		if debugTrace&debugTraceScoring != 0 {
+			fmt.Fprintf(os.Stderr, "=-= arg %d props %s value %v\n",
+				idx, argProps.String(), arg)
+		}
+
+		if argProps&ActualExprConstant != 0 {
 			if pflag&ParamMayFeedIfOrSwitch != 0 {
 				score, tmask = adjustScore(passConstToNestedIfAdj, score, tmask)
 			}
@@ -192,7 +255,7 @@ func computeCallSiteScore(callee *ir.Func, calleeProps *FuncProps, call ir.Node,
 			}
 		}
 
-		if iscci {
+		if argProps&ActualExprIsConcreteConvIface != 0 {
 			// FIXME: ideally here it would be nice to make a
 			// distinction between the inlinable case and the
 			// non-inlinable case, but this is hard to do. Example:
@@ -225,10 +288,10 @@ func computeCallSiteScore(callee *ir.Func, calleeProps *FuncProps, call ir.Node,
 			}
 		}
 
-		if isfunc {
+		if argProps&(ActualExprIsFunc|ActualExprIsInlinableFunc) != 0 {
 			mayadj := passFuncToNestedIndCallAdj
 			mustadj := passFuncToIndCallAdj
-			if fn := fname.Func; fn != nil && typecheck.HaveInlineBody(fn) {
+			if argProps&ActualExprIsInlinableFunc != 0 {
 				mayadj = passInlinableFuncToNestedIndCallAdj
 				mustadj = passInlinableFuncToIndCallAdj
 			}
@@ -241,7 +304,7 @@ func computeCallSiteScore(callee *ir.Func, calleeProps *FuncProps, call ir.Node,
 		}
 	}
 
-	return score, tmask
+	cs.Score, cs.ScoreMask = score, tmask
 }
 
 func adjustScore(typ scoreAdjustTyp, score int, mask scoreAdjustTyp) (int, scoreAdjustTyp) {
@@ -447,7 +510,7 @@ func scoreCallsRegion(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, doCallRes
 				continue
 			}
 		}
-		cs.Score, cs.ScoreMask = computeCallSiteScore(cs.Callee, cprops, cs.Call, cs.Flags)
+		cs.computeCallSiteScore(cprops)
 
 		if doCallResults {
 			if debugTrace&debugTraceScoring != 0 {
@@ -505,6 +568,27 @@ func GetCallSiteScore(fn *ir.Func, call *ir.CallExpr) (int, bool) {
 		return cs.Score, true
 	}
 	return 0, false
+}
+
+// BudgetExpansion returns the amount to relax/expand the base
+// inlining budget when the new inliner is turned on; the inliner
+// will add the returned value to the hairyness budget.
+//
+// Background: with the new inliner, the score for a given callsite
+// can be adjusted down by some amount due to heuristics, however we
+// won't know whether this is going to happen until much later after
+// the CanInline call. This function returns the amount to relax the
+// budget initially (to allow for a large score adjustment); later on
+// in RevisitInlinability we'll look at each individual function to
+// demote it if needed.
+func BudgetExpansion(maxBudget int32) int32 {
+	if base.Debug.InlBudgetSlack != 0 {
+		return int32(base.Debug.InlBudgetSlack)
+	}
+	// In the default case, return maxBudget, which will effectively
+	// double the budget from 80 to 160; this should be good enough
+	// for most cases.
+	return maxBudget
 }
 
 var allCallSites CallSiteTab

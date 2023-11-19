@@ -130,14 +130,13 @@ func ContainsFunc[S ~[]E, E any](s S, f func(E) bool) bool {
 // Insert panics if i is out of range.
 // This function is O(len(s) + len(v)).
 func Insert[S ~[]E, E any](s S, i int, v ...E) S {
-	n := len(s)
+	_ = s[i:] // bounds check
+
 	m := len(v)
 	if m == 0 {
-		// Panic if i is not in the range [0:n] inclusive.
-		// See issue 63913.
-		_ = s[:n:n][i:]
 		return s
 	}
+	n := len(s)
 	if i == n {
 		return append(s, v...)
 	}
@@ -217,7 +216,11 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 // make a single call deleting them all together than to delete one at a time.
 // Delete zeroes the elements s[len(s)-(j-i):len(s)].
 func Delete[S ~[]E, E any](s S, i, j int) S {
-	_ = s[i:j] // bounds check
+	_ = s[i:j:len(s)] // bounds check
+
+	if i == j {
+		return s
+	}
 
 	oldlen := len(s)
 	s = append(s[:i], s[j:]...)

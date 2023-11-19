@@ -7,6 +7,7 @@ package inlheur
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/pgo"
+	"cmd/compile/internal/typecheck"
 	"fmt"
 	"os"
 	"strings"
@@ -124,15 +125,58 @@ func (csa *callSiteAnalyzer) determinePanicPathBits(call ir.Node, r CSPropBits) 
 	return r
 }
 
+// propsForArg returns property bits for a given call argument expression arg.
+func (csa *callSiteAnalyzer) propsForArg(arg ir.Node) ActualExprPropBits {
+	_, islit := isLiteral(arg)
+	if islit {
+		return ActualExprConstant
+	}
+	if isConcreteConvIface(arg) {
+		return ActualExprIsConcreteConvIface
+	}
+	fname, isfunc, _ := isFuncName(arg)
+	if isfunc {
+		if fn := fname.Func; fn != nil && typecheck.HaveInlineBody(fn) {
+			return ActualExprIsInlinableFunc
+		}
+		return ActualExprIsFunc
+	}
+	return 0
+}
+
+// argPropsForCall returns a slice of argument properties for the
+// expressions being passed to the callee in the specific call
+// expression; these will be stored in the CallSite object for a given
+// call and then consulted when scoring. If no arg has any interesting
+// properties we try to save some space and return a nil slice.
+func (csa *callSiteAnalyzer) argPropsForCall(ce *ir.CallExpr) []ActualExprPropBits {
+	rv := make([]ActualExprPropBits, len(ce.Args))
+	somethingInteresting := false
+	for idx := range ce.Args {
+		argProp := csa.propsForArg(ce.Args[idx])
+		somethingInteresting = somethingInteresting || (argProp != 0)
+		rv[idx] = argProp
+	}
+	if !somethingInteresting {
+		return nil
+	}
+	return rv
+}
+
 func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
 	flags := csa.flagsForNode(call)
+	argProps := csa.argPropsForCall(call)
+	if debugTrace&debugTraceCalls != 0 {
+		fmt.Fprintf(os.Stderr, "=-= props %+v for call %v\n", argProps, call)
+	}
 	// FIXME: maybe bulk-allocate these?
 	cs := &CallSite{
-		Call:   call,
-		Callee: callee,
-		Assign: csa.containingAssignment(call),
-		Flags:  flags,
-		ID:     uint(len(csa.cstab)),
+		Call:     call,
+		Callee:   callee,
+		Assign:   csa.containingAssignment(call),
+		ArgProps: argProps,
+		Flags:    flags,
+		ID:       uint(len(csa.cstab)),
 	}
 	if _, ok := csa.cstab[call]; ok {
 		fmt.Fprintf(os.Stderr, "*** cstab duplicate entry at: %s\n",
@@ -140,12 +184,10 @@ func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
 		fmt.Fprintf(os.Stderr, "*** call: %+v\n", call)
 		panic("bad")
 	}
-	if callee.Inl != nil {
-		// Set initial score for callsite to the cost computed
-		// by CanInline; this score will be refined later based
-		// on heuristics.
-		cs.Score = int(callee.Inl.Cost)
-	}
+	// Set initial score for callsite to the cost computed
+	// by CanInline; this score will be refined later based
+	// on heuristics.
+	cs.Score = int(callee.Inl.Cost)
 
 	if csa.cstab == nil {
 		csa.cstab = make(CallSiteTab)

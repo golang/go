@@ -12,15 +12,14 @@ import (
 	"os"
 )
 
-// returnsAnalyzer stores state information for the process of
+// resultsAnalyzer stores state information for the process of
 // computing flags/properties for the return values of a specific Go
 // function, as part of inline heuristics synthesis.
-type returnsAnalyzer struct {
+type resultsAnalyzer struct {
 	fname           string
 	props           []ResultPropBits
 	values          []resultVal
-	canInline       func(*ir.Func)
-	inlineMaxBudget int32
+	inlineMaxBudget int
 }
 
 // resultVal captures information about a specific result returned from
@@ -36,54 +35,74 @@ type resultVal struct {
 	derived bool // see deriveReturnFlagsFromCallee below
 }
 
-func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) *returnsAnalyzer {
+// addResultsAnalyzer creates a new resultsAnalyzer helper object for
+// the function fn, appends it to the analyzers list, and returns the
+// new list. If the function in question doesn't have any returns (or
+// any interesting returns) then the analyzer list is left as is, and
+// the result flags in "fp" are updated accordingly.
+func addResultsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps, inlineMaxBudget int) []propAnalyzer {
+	ra, props := makeResultsAnalyzer(fn, inlineMaxBudget)
+	if ra != nil {
+		analyzers = append(analyzers, ra)
+	} else {
+		fp.ResultFlags = props
+	}
+	return analyzers
+}
+
+// makeResultsAnalyzer creates a new helper object to analyze results
+// in function fn. If the function doesn't have any interesting
+// results, a nil helper is returned along with a set of default
+// result flags for the func.
+func makeResultsAnalyzer(fn *ir.Func, inlineMaxBudget int) (*resultsAnalyzer, []ResultPropBits) {
 	results := fn.Type().Results()
+	if len(results) == 0 {
+		return nil, nil
+	}
 	props := make([]ResultPropBits, len(results))
+	if fn.Inl == nil {
+		return nil, props
+	}
 	vals := make([]resultVal, len(results))
+	interestingToAnalyze := false
 	for i := range results {
 		rt := results[i].Type
 		if !rt.IsScalar() && !rt.HasNil() {
 			// existing properties not applicable here (for things
 			// like structs, arrays, slices, etc).
-			props[i] = ResultNoInfo
 			continue
 		}
 		// set the "top" flag (as in "top element of data flow lattice")
 		// meaning "we have no info yet, but we might later on".
 		vals[i].top = true
+		interestingToAnalyze = true
 	}
-	return &returnsAnalyzer{
+	if !interestingToAnalyze {
+		return nil, props
+	}
+	ra := &resultsAnalyzer{
 		props:           props,
 		values:          vals,
-		canInline:       canInline,
 		inlineMaxBudget: inlineMaxBudget,
 	}
+	return ra, nil
 }
 
 // setResults transfers the calculated result properties for this
 // function to 'funcProps'.
-func (ra *returnsAnalyzer) setResults(funcProps *FuncProps) {
+func (ra *resultsAnalyzer) setResults(funcProps *FuncProps) {
 	// Promote ResultAlwaysSameFunc to ResultAlwaysSameInlinableFunc
 	for i := range ra.values {
 		if ra.props[i] == ResultAlwaysSameFunc && !ra.values[i].derived {
 			f := ra.values[i].fn.Func
-			// If the function being returns is a closure that hasn't
-			// yet been checked by CanInline, invoke it now. NB: this
-			// is hacky, it would be better if things were structured
-			// so that all closures were visited ahead of time.
-			if ra.values[i].fnClo {
-				if f != nil && !f.InlinabilityChecked() {
-					ra.canInline(f)
-				}
-			}
 			// HACK: in order to allow for call site score
 			// adjustments, we used a relaxed inline budget in
-			// determining inlinability. Here what we want to know is
-			// whether the func in question is likely to be inlined,
-			// as opposed to whether it might possibly be inlined if
-			// all the right score adjustments happened, so check the
-			// cost here as well.
-			if f.Inl != nil && f.Inl.Cost <= ra.inlineMaxBudget {
+			// determining inlinability. For the check below, however,
+			// we want to know is whether the func in question is
+			// likely to be inlined, as opposed to whether it might
+			// possibly be inlined if all the right score adjustments
+			// happened, so do a simple check based on the cost.
+			if f.Inl != nil && f.Inl.Cost <= int32(ra.inlineMaxBudget) {
 				ra.props[i] = ResultAlwaysSameInlinableFunc
 			}
 		}
@@ -91,16 +110,16 @@ func (ra *returnsAnalyzer) setResults(funcProps *FuncProps) {
 	funcProps.ResultFlags = ra.props
 }
 
-func (ra *returnsAnalyzer) pessimize() {
+func (ra *resultsAnalyzer) pessimize() {
 	for i := range ra.props {
 		ra.props[i] = ResultNoInfo
 	}
 }
 
-func (ra *returnsAnalyzer) nodeVisitPre(n ir.Node) {
+func (ra *resultsAnalyzer) nodeVisitPre(n ir.Node) {
 }
 
-func (ra *returnsAnalyzer) nodeVisitPost(n ir.Node) {
+func (ra *resultsAnalyzer) nodeVisitPost(n ir.Node) {
 	if len(ra.values) == 0 {
 		return
 	}
@@ -153,7 +172,7 @@ func isFuncName(n ir.Node) (*ir.Name, bool, bool) {
 // applies a dataflow "meet" operation to combine this result with any
 // previous result (for the given return slot) that we've already
 // processed.
-func (ra *returnsAnalyzer) analyzeResult(ii int, n ir.Node) {
+func (ra *resultsAnalyzer) analyzeResult(ii int, n ir.Node) {
 	isAllocMem := isAllocatedMem(n)
 	isConcConvItf := isConcreteConvIface(n)
 	lit, isConst := isLiteral(n)

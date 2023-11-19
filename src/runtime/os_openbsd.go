@@ -32,8 +32,6 @@ var sigset_all = ^sigset(0)
 
 // From OpenBSD's <sys/sysctl.h>
 const (
-	_CTL_KERN = 1
-
 	_CTL_HW        = 6
 	_HW_NCPU       = 3
 	_HW_PAGESIZE   = 7
