@@ -871,7 +871,7 @@ func TestAddrLessCompare(t *testing.T) {
 	values := []Addr{
 		mustIP("::1"),
 		mustIP("::2"),
-		Addr{},
+		{},
 		mustIP("1.2.3.4"),
 		mustIP("8.8.8.8"),
 		mustIP("::1%foo"),
@@ -922,7 +922,7 @@ func TestAddrPortCompare(t *testing.T) {
 	values := []AddrPort{
 		mustIPPort("[::1]:80"),
 		mustIPPort("[::2]:80"),
-		AddrPort{},
+		{},
 		mustIPPort("1.2.3.4:443"),
 		mustIPPort("8.8.8.8:8080"),
 		mustIPPort("[::1%foo]:1024"),
@@ -975,7 +975,7 @@ func TestPrefixCompare(t *testing.T) {
 		mustPrefix("fe90::/64"),
 		mustPrefix("fe80::/64"),
 		mustPrefix("1.2.0.0/16"),
-		Prefix{},
+		{},
 		mustPrefix("fe80::/48"),
 		mustPrefix("1.2.0.0/24"),
 	}

@@ -3975,7 +3975,7 @@ func TestInvalidPolicyOID(t *testing.T) {
 		NotBefore:         time.Now(),
 		NotAfter:          time.Now().Add(time.Hour),
 		PolicyIdentifiers: []asn1.ObjectIdentifier{[]int{1, 2, 3}},
-		Policies:          []OID{OID{}},
+		Policies:          []OID{{}},
 	}
 	_, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
 	expected := "invalid policy object identifier"

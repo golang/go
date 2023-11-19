@@ -2135,7 +2135,7 @@ func TestNullMX(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LookupMX: %v", err)
 	}
-	if want := []*MX{&MX{Host: "."}}; !reflect.DeepEqual(rrset, want) {
+	if want := []*MX{{Host: "."}}; !reflect.DeepEqual(rrset, want) {
 		records := []string{}
 		for _, rr := range rrset {
 			records = append(records, fmt.Sprintf("%v", rr))
@@ -2176,7 +2176,7 @@ func TestRootNS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LookupNS: %v", err)
 	}
-	if want := []*NS{&NS{Host: "i.root-servers.net."}}; !reflect.DeepEqual(rrset, want) {
+	if want := []*NS{{Host: "i.root-servers.net."}}; !reflect.DeepEqual(rrset, want) {
 		records := []string{}
 		for _, rr := range rrset {
 			records = append(records, fmt.Sprintf("%v", rr))

@@ -138,7 +138,7 @@ func testPGOIntendedInlining(t *testing.T, dir string) {
 
 	// If the list expectedNotInlinedList is not empty, it indicates
 	// the functions in the expectedNotInlinedList are marked with caninline.
-	for fullName, _ := range expectedNotInlinedList {
+	for fullName := range expectedNotInlinedList {
 		t.Errorf("%s was expected not inlined", fullName)
 	}
 }

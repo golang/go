@@ -31,15 +31,15 @@ func fpeq(fp1, fp2 FuncProps) bool {
 
 func TestSerDeser(t *testing.T) {
 	testcases := []FuncProps{
-		FuncProps{},
-		FuncProps{
+		{},
+		{
 			Flags: 0xfffff,
 		},
-		FuncProps{
+		{
 			Flags:       1,
 			ResultFlags: []ResultPropBits{ResultAlwaysSameConstant},
 		},
-		FuncProps{
+		{
 			Flags:       1,
 			ParamFlags:  []ParamPropBits{0x99, 0xaa, 0xfffff},
 			ResultFlags: []ResultPropBits{0xfeedface},

@@ -18,17 +18,17 @@ type testpoint struct {
 
 func TestReadCOFFSymbolAuxInfo(t *testing.T) {
 	testpoints := map[int]testpoint{
-		39: testpoint{
+		39: {
 			name:   ".rdata$.refptr.__native_startup_lock",
 			ok:     true,
 			auxstr: "{Size:8 NumRelocs:1 NumLineNumbers:0 Checksum:0 SecNum:16 Selection:2 _:[0 0 0]}",
 		},
-		81: testpoint{
+		81: {
 			name:   ".debug_line",
 			ok:     true,
 			auxstr: "{Size:994 NumRelocs:1 NumLineNumbers:0 Checksum:1624223678 SecNum:32 Selection:0 _:[0 0 0]}",
 		},
-		155: testpoint{
+		155: {
 			name: ".file",
 			ok:   false,
 			err:  "incorrect symbol storage class",

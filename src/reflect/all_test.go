@@ -1269,7 +1269,7 @@ var deepEqualPerfTests = []struct {
 	{x: [][]byte{[]byte("abcdef")}, y: [][]byte{[]byte("abcdef")}},
 
 	{x: [6]byte{'a', 'b', 'c', 'a', 'b', 'c'}, y: [6]byte{'a', 'b', 'c', 'a', 'b', 'c'}},
-	{x: [][6]byte{[6]byte{'a', 'b', 'c', 'a', 'b', 'c'}}, y: [][6]byte{[6]byte{'a', 'b', 'c', 'a', 'b', 'c'}}},
+	{x: [][6]byte{{'a', 'b', 'c', 'a', 'b', 'c'}}, y: [][6]byte{{'a', 'b', 'c', 'a', 'b', 'c'}}},
 }
 
 func TestDeepEqualAllocs(t *testing.T) {
