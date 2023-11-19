@@ -679,8 +679,10 @@ func TestDeletePanics(t *testing.T) {
 		{"with negative second index", []int{42}, 1, -1},
 		{"with out-of-bounds first index", []int{42}, 2, 3},
 		{"with out-of-bounds second index", []int{42}, 0, 2},
+		{"with out-of-bounds both indexes", []int{42}, 2, 2},
 		{"with invalid i>j", []int{42}, 1, 0},
 		{"s[i:j] is valid and j > len(s)", s, 0, 4},
+		{"s[i:j] is valid and i == j > len(s)", s, 3, 3},
 	} {
 		if !panics(func() { Delete(test.s, test.i, test.j) }) {
 			t.Errorf("Delete %s: got no panic, want panic", test.name)
