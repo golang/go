@@ -761,7 +761,7 @@ var compactTests = []struct {
 		[]int{1, 2, 3},
 	},
 	{
-		"1 item",
+		"2 items",
 		[]int{1, 1, 2},
 		[]int{1, 2},
 	},
@@ -774,6 +774,11 @@ var compactTests = []struct {
 		"many",
 		[]int{1, 2, 2, 3, 3, 4},
 		[]int{1, 2, 3, 4},
+	},
+	{
+		"dup start",
+		[]int{1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+		[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
 	},
 }
 
@@ -800,11 +805,17 @@ func BenchmarkCompact(b *testing.B) {
 }
 
 func BenchmarkCompact_Large(b *testing.B) {
-	type Large [4 * 1024]byte
+	type Large [16]int
 
-	ss := make([]Large, 1024)
+	ss1 := make([]Large, 1024)
+	ss2 := make([]Large, 1024)
+	for i := range ss2 {
+		ss2[i][0] = i
+	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = Compact(ss)
+		_ = Compact(ss1)
+		_ = Compact(ss2)
 	}
 }
 
@@ -813,6 +824,8 @@ func TestCompactFunc(t *testing.T) {
 		copy := Clone(test.s)
 		if got := CompactFunc(copy, equal[int]); !Equal(got, test.want) {
 			t.Errorf("CompactFunc(%v, equal[int]) = %v, want %v", test.s, got, test.want)
+		} else {
+			t.Logf("CompactFunc(%v, equal[int]) = %v, want %v", test.s, got, test.want)
 		}
 	}
 
@@ -821,6 +834,8 @@ func TestCompactFunc(t *testing.T) {
 	want := []string{"a", "B"}
 	if got := CompactFunc(copy, strings.EqualFold); !Equal(got, want) {
 		t.Errorf("CompactFunc(%v, strings.EqualFold) = %v, want %v", s1, got, want)
+	} else {
+		t.Logf("CompactFunc(%v, strings.EqualFold) = %v, want %v", s1, got, want)
 	}
 }
 
@@ -871,12 +886,31 @@ func TestCompactFuncClearTail(t *testing.T) {
 	}
 }
 
-func BenchmarkCompactFunc_Large(b *testing.B) {
-	type Large [4 * 1024]byte
+func BenchmarkCompactFunc(b *testing.B) {
+	for _, c := range compactTests {
+		b.Run(c.name, func(b *testing.B) {
+			ss := make([]int, 0, 64)
+			for k := 0; k < b.N; k++ {
+				ss = ss[:0]
+				ss = append(ss, c.s...)
+				_ = CompactFunc(ss, func(a, b int) bool { return a == b })
+			}
+		})
+	}
+}
 
-	ss := make([]Large, 1024)
+func BenchmarkCompactFunc_Large(b *testing.B) {
+	type Element = int
+
+	ss1 := make([]Element, 1024*1024)
+	ss2 := make([]Element, 1024*1024)
+	for i := range ss2 {
+		ss2[i] = i
+	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = CompactFunc(ss, func(a, b Large) bool { return a == b })
+		_ = CompactFunc(ss1, func(a, b Element) bool { return a == b })
+		_ = CompactFunc(ss2, func(a, b Element) bool { return a == b })
 	}
 }
 
