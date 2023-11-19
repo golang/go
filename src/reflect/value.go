@@ -1627,13 +1627,19 @@ func (v Value) IsZero() bool {
 	case String:
 		return v.Len() == 0
 	case Struct:
+		if v.flag&flagIndir == 0 {
+			return v.ptr == nil
+		}
+		typ := (*abi.StructType)(unsafe.Pointer(v.typ()))
 		// If the type is comparable, then compare directly with zero.
-		if v.typ().Equal != nil && v.typ().Size() <= maxZero {
-			if v.flag&flagIndir == 0 {
-				return v.ptr == nil
-			}
+		if typ.Equal != nil && typ.Size() <= maxZero {
 			// See noescape justification above.
-			return v.typ().Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
+			return typ.Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
+		}
+		if typ.TFlag&abi.TFlagRegularMemory != 0 {
+			// For some types where the zero value is a value where all bits of this type are 0
+			// optimize it.
+			return isZero(unsafe.Slice(((*byte)(v.ptr)), typ.Size()))
 		}
 
 		n := v.NumField()
@@ -1650,28 +1656,39 @@ func (v Value) IsZero() bool {
 	}
 }
 
-// isZero must have len(b)>256+7 to ensure at
-// least one 8-byte aligned [256]byte,
-// otherwise the access will be out of bounds.
-// For all zeros, performance is not as good as
+// isZero For all zeros, performance is not as good as
 // return bytealg.Count(b, byte(0)) == len(b)
 func isZero(b []byte) bool {
+	if len(b) == 0 {
+		return true
+	}
 	const n = 32
-	const bit = n * 8
 	// Align memory addresses to 8 bytes
 	for uintptr(unsafe.Pointer(&b[0]))%8 != 0 {
 		if b[0] != 0 {
 			return false
 		}
 		b = b[1:]
+		if len(b) == 0 {
+			return true
+		}
 	}
-	for len(b)%bit != 0 {
+	for len(b)%8 != 0 {
 		if b[len(b)-1] != 0 {
 			return false
 		}
 		b = b[:len(b)-1]
 	}
+	if len(b) == 0 {
+		return true
+	}
 	w := unsafe.Slice((*uint64)(unsafe.Pointer(&b[0])), len(b)/8)
+	for len(w)%n != 0 {
+		if w[0] != 0 {
+			return false
+		}
+		w = w[1:]
+	}
 	for len(w) >= n {
 		if w[0] != 0 || w[1] != 0 || w[2] != 0 || w[3] != 0 || w[4] != 0 || w[5] != 0 || w[6] != 0 || w[7] != 0 || w[8] != 0 || w[9] != 0 || w[10] != 0 || w[11] != 0 || w[12] != 0 || w[13] != 0 || w[14] != 0 || w[15] != 0 || w[16] != 0 || w[17] != 0 || w[18] != 0 || w[19] != 0 || w[20] != 0 || w[21] != 0 || w[22] != 0 || w[23] != 0 || w[24] != 0 || w[25] != 0 || w[26] != 0 || w[27] != 0 || w[28] != 0 || w[29] != 0 || w[30] != 0 || w[31] != 0 {
 			return false
