@@ -576,7 +576,7 @@ func switchToCrashStack(fn func()) {
 	abort()
 }
 
-const crashStackImplemented = GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64"
+const crashStackImplemented = GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "wasm"
 
 //go:noescape
 func switchToCrashStack0(fn func()) // in assembly
