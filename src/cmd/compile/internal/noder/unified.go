@@ -280,7 +280,7 @@ func readBodies(target *ir.Package, duringInlining bool) {
 
 		oldLowerM := base.Flag.LowerM
 		base.Flag.LowerM = 0
-		inline.InlineDecls(nil, inlDecls, false)
+		inline.CanInlineFuncs(inlDecls, nil)
 		base.Flag.LowerM = oldLowerM
 
 		for _, fn := range inlDecls {

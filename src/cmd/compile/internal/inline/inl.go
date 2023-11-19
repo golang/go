@@ -76,8 +76,8 @@ var (
 	inlineHotMaxBudget int32 = 2000
 )
 
-// pgoInlinePrologue records the hot callsites from ir-graph.
-func pgoInlinePrologue(p *pgo.Profile, funcs []*ir.Func) {
+// PGOInlinePrologue records the hot callsites from ir-graph.
+func PGOInlinePrologue(p *pgo.Profile, funcs []*ir.Func) {
 	if base.Debug.PGOInlineCDFThreshold != "" {
 		if s, err := strconv.ParseFloat(base.Debug.PGOInlineCDFThreshold, 64); err == nil && s >= 0 && s <= 100 {
 			inlineCDFHotCallSiteThresholdPercent = s
@@ -134,79 +134,52 @@ func hotNodesFromCDF(p *pgo.Profile) (float64, []pgo.NamedCallEdge) {
 	return 0, p.NamedEdgeMap.ByWeight
 }
 
-// InlinePackage finds functions that can be inlined and clones them before walk expands them.
-func InlinePackage(p *pgo.Profile) {
-	if base.Debug.PGOInline == 0 {
-		p = nil
+// CanInlineFuncs computes whether a batch of functions are inlinable.
+func CanInlineFuncs(funcs []*ir.Func, profile *pgo.Profile) {
+	if profile != nil {
+		PGOInlinePrologue(profile, funcs)
 	}
 
-	inlheur.SetupScoreAdjustments()
-
-	InlineDecls(p, typecheck.Target.Funcs, true)
-
-	// Perform a garbage collection of hidden closures functions that
-	// are no longer reachable from top-level functions following
-	// inlining. See #59404 and #59638 for more context.
-	garbageCollectUnreferencedHiddenClosures()
-
-	if base.Debug.DumpInlFuncProps != "" {
-		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps)
-	}
-	if inlheur.Enabled() {
-		postProcessCallSites(p)
-		inlheur.TearDown()
-	}
+	ir.VisitFuncsBottomUp(funcs, func(list []*ir.Func, recursive bool) {
+		CanInlineSCC(list, recursive, profile)
+	})
 }
 
-// InlineDecls applies inlining to the given batch of declarations.
-func InlineDecls(p *pgo.Profile, funcs []*ir.Func, doInline bool) {
-	if p != nil {
-		pgoInlinePrologue(p, funcs)
+// CanInlineSCC computes the inlinability of functions within an SCC
+// (strongly connected component).
+//
+// CanInlineSCC is designed to be used by ir.VisitFuncsBottomUp
+// callbacks.
+func CanInlineSCC(funcs []*ir.Func, recursive bool, profile *pgo.Profile) {
+	if base.Flag.LowerL == 0 {
+		return
 	}
 
-	doCanInline := func(n *ir.Func, recursive bool, numfns int) {
+	numfns := numNonClosures(funcs)
+
+	for _, fn := range funcs {
 		if !recursive || numfns > 1 {
 			// We allow inlining if there is no
 			// recursion, or the recursion cycle is
 			// across more than one function.
-			CanInline(n, p)
+			CanInline(fn, profile)
 		} else {
-			if base.Flag.LowerM > 1 && n.OClosure == nil {
-				fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
+			if base.Flag.LowerM > 1 && fn.OClosure == nil {
+				fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(fn), fn.Nname)
 			}
 		}
 		if inlheur.Enabled() {
-			analyzeFuncProps(n, p)
+			analyzeFuncProps(fn, profile)
 		}
 	}
-
-	ir.VisitFuncsBottomUp(funcs, func(list []*ir.Func, recursive bool) {
-		numfns := numNonClosures(list)
-		// We visit functions within an SCC in fairly arbitrary order,
-		// so by computing inlinability for all functions in the SCC
-		// before performing any inlining, the results are less
-		// sensitive to the order within the SCC (see #58905 for an
-		// example).
-
-		// First compute inlinability for all functions in the SCC ...
-		for _, n := range list {
-			doCanInline(n, recursive, numfns)
-		}
-		// ... then make a second pass to do inlining of calls.
-		if doInline {
-			for _, n := range list {
-				InlineCalls(n, p)
-			}
-		}
-	})
 }
 
-// garbageCollectUnreferencedHiddenClosures makes a pass over all the
+// GarbageCollectUnreferencedHiddenClosures makes a pass over all the
 // top-level (non-hidden-closure) functions looking for nested closure
 // functions that are reachable, then sweeps through the Target.Decls
 // list and marks any non-reachable hidden closure function as dead.
 // See issues #59404 and #59638 for more context.
-func garbageCollectUnreferencedHiddenClosures() {
+func GarbageCollectUnreferencedHiddenClosures() {
 
 	liveFuncs := make(map[*ir.Func]bool)
 
@@ -336,7 +309,7 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 
 	visitor := hairyVisitor{
 		curFunc:       fn,
-		isBigFunc:     isBigFunc(fn),
+		isBigFunc:     IsBigFunc(fn),
 		budget:        budget,
 		maxBudget:     budget,
 		extraCallCost: cc,
@@ -732,14 +705,16 @@ opSwitch:
 		// particular, to avoid breaking the existing inlinability regress
 		// tests), we need to compensate for this here.
 		//
-		// See also identical logic in isBigFunc.
-		if init := n.Rhs[0].Init(); len(init) == 1 {
-			if _, ok := init[0].(*ir.AssignListStmt); ok {
-				// 4 for each value, because each temporary variable now
-				// appears 3 times (DCL, LHS, RHS), plus an extra DCL node.
-				//
-				// 1 for the extra "tmp1, tmp2 = f()" assignment statement.
-				v.budget += 4*int32(len(n.Lhs)) + 1
+		// See also identical logic in IsBigFunc.
+		if len(n.Rhs) > 0 {
+			if init := n.Rhs[0].Init(); len(init) == 1 {
+				if _, ok := init[0].(*ir.AssignListStmt); ok {
+					// 4 for each value, because each temporary variable now
+					// appears 3 times (DCL, LHS, RHS), plus an extra DCL node.
+					//
+					// 1 for the extra "tmp1, tmp2 = f()" assignment statement.
+					v.budget += 4*int32(len(n.Lhs)) + 1
+				}
 			}
 		}
 
@@ -771,12 +746,15 @@ opSwitch:
 	return ir.DoChildren(n, v.do)
 }
 
-func isBigFunc(fn *ir.Func) bool {
+// IsBigFunc reports whether fn is a "big" function.
+//
+// Note: The criteria for "big" is heuristic and subject to change.
+func IsBigFunc(fn *ir.Func) bool {
 	budget := inlineBigFunctionNodes
 	return ir.Any(fn, func(n ir.Node) bool {
 		// See logic in hairyVisitor.doNode, explaining unified IR's
 		// handling of "a, b = f()" assignments.
-		if n, ok := n.(*ir.AssignListStmt); ok && n.Op() == ir.OAS2 {
+		if n, ok := n.(*ir.AssignListStmt); ok && n.Op() == ir.OAS2 && len(n.Rhs) > 0 {
 			if init := n.Rhs[0].Init(); len(init) == 1 {
 				if _, ok := init[0].(*ir.AssignListStmt); ok {
 					budget += 4*len(n.Lhs) + 1
@@ -789,109 +767,40 @@ func isBigFunc(fn *ir.Func) bool {
 	})
 }
 
-// InlineCalls/inlnode walks fn's statements and expressions and substitutes any
-// calls made to inlineable functions. This is the external entry point.
-func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
-	if inlheur.Enabled() && !fn.Wrapper() {
-		inlheur.ScoreCalls(fn)
-		defer inlheur.ScoreCallsCleanup()
+// TryInlineCall returns an inlined call expression for call, or nil
+// if inlining is not possible.
+func TryInlineCall(callerfn *ir.Func, call *ir.CallExpr, bigCaller bool, profile *pgo.Profile) *ir.InlinedCallExpr {
+	if base.Flag.LowerL == 0 {
+		return nil
 	}
-	if base.Debug.DumpInlFuncProps != "" && !fn.Wrapper() {
-		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps)
+	if call.Op() != ir.OCALLFUNC {
+		return nil
 	}
-	savefn := ir.CurFunc
-	ir.CurFunc = fn
-	bigCaller := isBigFunc(fn)
-	if bigCaller && base.Flag.LowerM > 1 {
-		fmt.Printf("%v: function %v considered 'big'; reducing max cost of inlinees\n", ir.Line(fn), fn)
-	}
-	var inlCalls []*ir.InlinedCallExpr
-	var edit func(ir.Node) ir.Node
-	edit = func(n ir.Node) ir.Node {
-		return inlnode(fn, n, bigCaller, &inlCalls, edit, profile)
-	}
-	ir.EditChildren(fn, edit)
-
-	// If we inlined any calls, we want to recursively visit their
-	// bodies for further inlining. However, we need to wait until
-	// *after* the original function body has been expanded, or else
-	// inlCallee can have false positives (e.g., #54632).
-	for len(inlCalls) > 0 {
-		call := inlCalls[0]
-		inlCalls = inlCalls[1:]
-		ir.EditChildren(call, edit)
+	if call.GoDefer || call.NoInline {
+		return nil
 	}
 
-	ir.CurFunc = savefn
-}
-
-// inlnode recurses over the tree to find inlineable calls, which will
-// be turned into OINLCALLs by mkinlcall. When the recursion comes
-// back up will examine left, right, list, rlist, ninit, ntest, nincr,
-// nbody and nelse and use one of the 4 inlconv/glue functions above
-// to turn the OINLCALL into an expression, a statement, or patch it
-// in to this nodes list or rlist as appropriate.
-// NOTE it makes no sense to pass the glue functions down the
-// recursion to the level where the OINLCALL gets created because they
-// have to edit /this/ n, so you'd have to push that one down as well,
-// but then you may as well do it here.  so this is cleaner and
-// shorter and less complicated.
-// The result of inlnode MUST be assigned back to n, e.g.
-//
-//	n.Left = inlnode(n.Left)
-func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.InlinedCallExpr, edit func(ir.Node) ir.Node, profile *pgo.Profile) ir.Node {
-	if n == nil {
-		return n
-	}
-
-	switch n.Op() {
-	case ir.OTAILCALL:
-		n := n.(*ir.TailCallStmt)
-		n.Call.NoInline = true // Not inline a tail call for now. Maybe we could inline it just like RETURN fn(arg)?
-	case ir.OCALLFUNC:
-		n := n.(*ir.CallExpr)
-		if n.Fun.Op() == ir.OMETHEXPR {
-			// Prevent inlining some reflect.Value methods when using checkptr,
-			// even when package reflect was compiled without it (#35073).
-			if meth := ir.MethodExprName(n.Fun); meth != nil {
-				s := meth.Sym()
-				if base.Debug.Checkptr != 0 {
-					switch types.ReflectSymName(s) {
-					case "Value.UnsafeAddr", "Value.Pointer":
-						n.NoInline = true
-					}
-				}
+	// Prevent inlining some reflect.Value methods when using checkptr,
+	// even when package reflect was compiled without it (#35073).
+	if base.Debug.Checkptr != 0 && call.Fun.Op() == ir.OMETHEXPR {
+		if method := ir.MethodExprName(call.Fun); method != nil {
+			switch types.ReflectSymName(method.Sym()) {
+			case "Value.UnsafeAddr", "Value.Pointer":
+				return nil
 			}
 		}
 	}
 
-	lno := ir.SetPos(n)
-
-	ir.EditChildren(n, edit)
-
-	// with all the branches out of the way, it is now time to
-	// transmogrify this node itself unless inhibited by the
-	// switch at the top of this function.
-	switch n.Op() {
-	case ir.OCALLFUNC:
-		call := n.(*ir.CallExpr)
-		if call.GoDefer || call.NoInline {
-			break
-		}
-		if base.Flag.LowerM > 3 {
-			fmt.Printf("%v:call to func %+v\n", ir.Line(n), call.Fun)
-		}
-		if ir.IsIntrinsicCall(call) {
-			break
-		}
-		if fn := inlCallee(callerfn, call.Fun, profile); fn != nil && typecheck.HaveInlineBody(fn) {
-			n = mkinlcall(callerfn, call, fn, bigCaller, inlCalls)
-		}
+	if base.Flag.LowerM > 3 {
+		fmt.Printf("%v:call to func %+v\n", ir.Line(call), call.Fun)
 	}
-
-	base.Pos = lno
-
-	return n
+	if ir.IsIntrinsicCall(call) {
+		return nil
+	}
+	if fn := inlCallee(callerfn, call.Fun, profile); fn != nil && typecheck.HaveInlineBody(fn) {
+		return mkinlcall(callerfn, call, fn, bigCaller)
+	}
+	return nil
 }
 
 // inlCallee takes a function-typed expression and returns the underlying function ONAME
@@ -1082,17 +991,16 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 	return true
 }
 
-// If n is a OCALLFUNC node, and fn is an ONAME node for a
-// function with an inlinable body, return an OINLCALL node that can replace n.
-// The returned node's Ninit has the parameter assignments, the Nbody is the
-// inlined function body, and (List, Rlist) contain the (input, output)
-// parameters.
+// mkinlcall returns an OINLCALL node that can replace OCALLFUNC n, or
+// nil if it cannot be inlined. callerfn is the function that contains
+// n, and fn is the function being called.
+//
 // The result of mkinlcall MUST be assigned back to n, e.g.
 //
 //	n.Left = mkinlcall(n.Left, fn, isddd)
-func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool, inlCalls *[]*ir.InlinedCallExpr) ir.Node {
+func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool) *ir.InlinedCallExpr {
 	if !canInlineCallExpr(callerfn, n, fn, bigCaller, true) {
-		return n
+		return nil
 	}
 	typecheck.AssertFixedCall(n)
 
@@ -1169,8 +1077,6 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool, i
 	if inlheur.Enabled() {
 		inlheur.UpdateCallsiteTable(callerfn, n, res)
 	}
-
-	*inlCalls = append(*inlCalls, res)
 
 	return res
 }
@@ -1275,7 +1181,7 @@ func isAtomicCoverageCounterUpdate(cn *ir.CallExpr) bool {
 	return v
 }
 
-func postProcessCallSites(profile *pgo.Profile) {
+func PostProcessCallSites(profile *pgo.Profile) {
 	if base.Debug.DumpInlCallSiteScores != 0 {
 		budgetCallback := func(fn *ir.Func, prof *pgo.Profile) (int32, bool) {
 			v := inlineBudget(fn, prof, false, false)

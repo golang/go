@@ -18,22 +18,9 @@ import (
 	"cmd/compile/internal/types"
 )
 
-// Static devirtualizes calls within fn where possible when the concrete callee
+// StaticCall devirtualizes the given call if possible when the concrete callee
 // is available statically.
-func Static(fn *ir.Func) {
-	ir.CurFunc = fn
-
-	ir.VisitList(fn.Body, func(n ir.Node) {
-		switch n := n.(type) {
-		case *ir.CallExpr:
-			staticCall(n)
-		}
-	})
-}
-
-// staticCall devirtualizes the given call if possible when the concrete callee
-// is available statically.
-func staticCall(call *ir.CallExpr) {
+func StaticCall(call *ir.CallExpr) {
 	// For promoted methods (including value-receiver methods promoted
 	// to pointer-receivers), the interface method wrapper may contain
 	// expressions that can panic (e.g., ODEREF, ODOTPTR,
@@ -51,6 +38,7 @@ func staticCall(call *ir.CallExpr) {
 	if call.Op() != ir.OCALLINTER {
 		return
 	}
+
 	sel := call.Fun.(*ir.SelectorExpr)
 	r := ir.StaticValue(sel.X)
 	if r.Op() != ir.OCONVIFACE {
