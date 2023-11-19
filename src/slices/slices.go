@@ -349,23 +349,17 @@ func Compact[S ~[]E, E comparable](s S) S {
 	if len(s) < 2 {
 		return s
 	}
-	k := 1
-	for ; k < len(s); k++ {
-		if s[k] == s[k-1] {
-			s2 := s[k-1:]
-			k2 := 1
-			for ; k2 < len(s2); k2++ {
-				if s2[k2] != s2[k2-1] {
-					s[k] = s2[k2]
-					k++
-				}
+	i := 1
+	for k := 1; k < len(s); k++ {
+		if s[k] != s[k-1] {
+			if i != k {
+				s[i] = s[k]
 			}
-
-			clear(s[k:]) // zero/nil out the obsolete elements, for GC
-			return s[:k]
+			i++
 		}
 	}
-	return s
+	clear(s[i:]) // zero/nil out the obsolete elements, for GC
+	return s[:i]
 }
 
 // CompactFunc is like [Compact] but uses an equality function to compare elements.
@@ -375,24 +369,17 @@ func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
 	if len(s) < 2 {
 		return s
 	}
-
-	k := 1
-	for ; k < len(s); k++ {
-		if eq(s[k], s[k-1]) {
-			s2 := s[k-1:]
-			k2 := 1
-			for ; k2 < len(s2); k2++ {
-				if !eq(s2[k2], s2[k2-1]) {
-					s[k] = s2[k2]
-					k++
-				}
+	i := 1
+	for k := 1; k < len(s); k++ {
+		if !eq(s[k], s[k-1]) {
+			if i != k {
+				s[i] = s[k]
 			}
-
-			clear(s[k:]) // zero/nil out the obsolete elements, for GC
-			return s[:k]
+			i++
 		}
 	}
-	return s
+	clear(s[i:]) // zero/nil out the obsolete elements, for GC
+	return s[:i]
 }
 
 // Grow increases the slice's capacity, if necessary, to guarantee space for
