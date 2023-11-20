@@ -350,7 +350,7 @@ func Compact[S ~[]E, E comparable](s S) S {
 		k := 1
 		for ; k < len(s); k++ {
 			if s[k] == s[k-1] {
-				s2 := s[k-1:]
+				s2 := s[k:]
 				k2 := 1
 				for ; k2 < len(s2); k2++ {
 					if s2[k2] != s2[k2-1] {
@@ -375,7 +375,7 @@ func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
 		k := 1
 		for ; k < len(s); k++ {
 			if eq(s[k], s[k-1]) {
-				s2 := s[k-1:]
+				s2 := s[k:]
 				k2 := 1
 				for ; k2 < len(s2); k2++ {
 					if !eq(s2[k2], s2[k2-1]) {
