@@ -824,8 +824,6 @@ func TestCompactFunc(t *testing.T) {
 		copy := Clone(test.s)
 		if got := CompactFunc(copy, equal[int]); !Equal(got, test.want) {
 			t.Errorf("CompactFunc(%v, equal[int]) = %v, want %v", test.s, got, test.want)
-		} else {
-			t.Logf("CompactFunc(%v, equal[int]) = %v, want %v", test.s, got, test.want)
 		}
 	}
 
@@ -834,8 +832,6 @@ func TestCompactFunc(t *testing.T) {
 	want := []string{"a", "B"}
 	if got := CompactFunc(copy, strings.EqualFold); !Equal(got, want) {
 		t.Errorf("CompactFunc(%v, strings.EqualFold) = %v, want %v", s1, got, want)
-	} else {
-		t.Logf("CompactFunc(%v, strings.EqualFold) = %v, want %v", s1, got, want)
 	}
 }
 
