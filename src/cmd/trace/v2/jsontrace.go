@@ -64,39 +64,54 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 				log.Printf("failed to find task with id %d", taskid)
 				return
 			}
-			opts.mode = traceviewer.ModeTaskOriented
+			opts.setTask(parsed, task)
+		} else if taskids := r.FormValue("taskid"); taskids != "" {
+			taskid, err := strconv.ParseUint(taskids, 10, 64)
+			if err != nil {
+				log.Printf("failed to parse taskid parameter %q: %v", taskids, err)
+				return
+			}
+			task, ok := parsed.summary.Tasks[tracev2.TaskID(taskid)]
+			if !ok {
+				log.Printf("failed to find task with id %d", taskid)
+				return
+			}
+			// This mode is goroutine-oriented.
+			opts.mode = traceviewer.ModeGoroutineOriented
+			opts.setTask(parsed, task)
+
+			// Pick the goroutine to orient ourselves around by just
+			// trying to pick the earliest event in the task that makes
+			// any sense. Though, we always want the start if that's there.
+			var firstEv *tracev2.Event
 			if task.Start != nil {
-				opts.startTime = task.Start.Time().Sub(parsed.startTime())
-			} else { // The task started before the trace did.
-				opts.startTime = 0
+				firstEv = task.Start
+			} else {
+				for _, logEv := range task.Logs {
+					if firstEv == nil || logEv.Time() < firstEv.Time() {
+						firstEv = logEv
+					}
+				}
+				if task.End != nil && (firstEv == nil || task.End.Time() < firstEv.Time()) {
+					firstEv = task.End
+				}
 			}
-			if task.End != nil {
-				opts.endTime = task.End.Time().Sub(parsed.startTime())
-			} else { // The task didn't end.
-				opts.endTime = parsed.endTime().Sub(parsed.startTime())
+			if firstEv == nil || firstEv.Goroutine() == tracev2.NoGoroutine {
+				log.Printf("failed to find task with id %d", taskid)
+				return
 			}
-			opts.tasks = task.Descendents()
-			slices.SortStableFunc(opts.tasks, func(a, b *trace.UserTaskSummary) int {
-				aStart, bStart := parsed.startTime(), parsed.startTime()
-				if a.Start != nil {
-					aStart = a.Start.Time()
+
+			// Set the goroutine filtering options.
+			goid := firstEv.Goroutine()
+			opts.focusGoroutine = goid
+			goroutines := make(map[tracev2.GoID]struct{})
+			for _, task := range opts.tasks {
+				// Find only directly involved goroutines.
+				for id := range task.Goroutines {
+					goroutines[id] = struct{}{}
 				}
-				if b.Start != nil {
-					bStart = b.Start.Time()
-				}
-				if a.Start != b.Start {
-					return cmp.Compare(aStart, bStart)
-				}
-				// Break ties with the end time.
-				aEnd, bEnd := parsed.endTime(), parsed.endTime()
-				if a.End != nil {
-					aEnd = a.End.Time()
-				}
-				if b.End != nil {
-					bEnd = b.End.Time()
-				}
-				return cmp.Compare(aEnd, bEnd)
-			})
+			}
+			opts.goroutines = goroutines
 		}
 
 		// Parse start and end options. Both or none must be present.
@@ -147,6 +162,43 @@ type genOpts struct {
 	focusGoroutine tracev2.GoID
 	goroutines     map[tracev2.GoID]struct{} // Goroutines to be displayed for goroutine-oriented or task-oriented view. goroutines[0] is the main goroutine.
 	tasks          []*trace.UserTaskSummary
+}
+
+// setTask sets a task to focus on.
+func (opts *genOpts) setTask(parsed *parsedTrace, task *trace.UserTaskSummary) {
+	opts.mode |= traceviewer.ModeTaskOriented
+	if task.Start != nil {
+		opts.startTime = task.Start.Time().Sub(parsed.startTime())
+	} else { // The task started before the trace did.
+		opts.startTime = 0
+	}
+	if task.End != nil {
+		opts.endTime = task.End.Time().Sub(parsed.startTime())
+	} else { // The task didn't end.
+		opts.endTime = parsed.endTime().Sub(parsed.startTime())
+	}
+	opts.tasks = task.Descendents()
+	slices.SortStableFunc(opts.tasks, func(a, b *trace.UserTaskSummary) int {
+		aStart, bStart := parsed.startTime(), parsed.startTime()
+		if a.Start != nil {
+			aStart = a.Start.Time()
+		}
+		if b.Start != nil {
+			bStart = b.Start.Time()
+		}
+		if a.Start != b.Start {
+			return cmp.Compare(aStart, bStart)
+		}
+		// Break ties with the end time.
+		aEnd, bEnd := parsed.endTime(), parsed.endTime()
+		if a.End != nil {
+			aEnd = a.End.Time()
+		}
+		if b.End != nil {
+			bEnd = b.End.Time()
+		}
+		return cmp.Compare(aEnd, bEnd)
+	})
 }
 
 func defaultGenOpts() *genOpts {
