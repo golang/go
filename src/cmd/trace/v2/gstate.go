@@ -14,7 +14,9 @@ import (
 )
 
 // resource is a generic constraint interface for resource IDs.
-type resource interface{ tracev2.GoID | tracev2.ProcID }
+type resource interface {
+	tracev2.GoID | tracev2.ProcID | tracev2.ThreadID
+}
 
 // noResource indicates the lack of a resource.
 const noResource = -1
@@ -214,20 +216,29 @@ func (gs *gState[R]) blockedSyscallEnd(ts tracev2.Time, stack tracev2.Stack, ctx
 
 // unblock indicates that the goroutine gs represents has been unblocked.
 func (gs *gState[R]) unblock(ts tracev2.Time, stack tracev2.Stack, resource R, ctx *traceContext) {
-	// Unblocking goroutine.
 	name := "unblock"
 	viewerResource := uint64(resource)
+	if gs.startBlockReason != "" {
+		name = fmt.Sprintf("%s (%s)", name, gs.startBlockReason)
+	}
 	if strings.Contains(gs.startBlockReason, "network") {
-		// Emit an unblock instant event for the "Network" lane.
+		// Attribute the network instant to the nebulous "NetpollP" if
+		// resource isn't a thread, because there's a good chance that
+		// resource isn't going to be valid in this case.
+		//
+		// TODO(mknyszek): Handle this invalidness in a more general way.
+		if _, ok := any(resource).(tracev2.ThreadID); !ok {
+			// Emit an unblock instant event for the "Network" lane.
+			viewerResource = trace.NetpollP
+		}
 		ctx.Instant(traceviewer.InstantEvent{
 			Name:     name,
 			Ts:       ctx.elapsed(ts),
-			Resource: trace.NetpollP,
+			Resource: viewerResource,
 			Stack:    ctx.Stack(viewerFrames(stack)),
 		})
-		gs.startBlockReason = ""
-		viewerResource = trace.NetpollP
 	}
+	gs.startBlockReason = ""
 	if viewerResource != 0 {
 		gs.setStartCause(ts, name, viewerResource, stack)
 	}

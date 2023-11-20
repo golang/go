@@ -282,6 +282,7 @@ type Mode int
 const (
 	ModeGoroutineOriented Mode = 1 << iota
 	ModeTaskOriented
+	ModeThreadOriented // Mutually exclusive with ModeGoroutineOriented.
 )
 
 // NewEmitter returns a new Emitter that writes to c. The rangeStart and

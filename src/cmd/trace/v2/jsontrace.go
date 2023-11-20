@@ -22,6 +22,10 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		opts := defaultGenOpts()
 
+		switch r.FormValue("view") {
+		case "thread":
+			opts.mode = traceviewer.ModeThreadOriented
+		}
 		if goids := r.FormValue("goid"); goids != "" {
 			// Render trace focused on a particular goroutine.
 
@@ -163,6 +167,8 @@ func generateTrace(parsed *parsedTrace, opts *genOpts, c traceviewer.TraceConsum
 	var g generator
 	if opts.mode&traceviewer.ModeGoroutineOriented != 0 {
 		g = newGoroutineGenerator(ctx, opts.focusGoroutine, opts.goroutines)
+	} else if opts.mode&traceviewer.ModeThreadOriented != 0 {
+		g = newThreadGenerator()
 	} else {
 		g = newProcGenerator()
 	}

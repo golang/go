@@ -159,7 +159,7 @@ func checkNetworkUnblock(t *testing.T, data format.Data) {
 	count := 0
 	var netBlockEv *format.Event
 	for _, e := range data.Events {
-		if e.TID == tracev1.NetpollP && e.Name == "unblock" && e.Phase == "I" && e.Scope == "t" {
+		if e.TID == tracev1.NetpollP && e.Name == "unblock (network)" && e.Phase == "I" && e.Scope == "t" {
 			count++
 			netBlockEv = e
 		}

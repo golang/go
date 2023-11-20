@@ -410,5 +410,5 @@ func (m *mmu) newLinkedUtilWindow(ui trace.UtilWindow, window time.Duration) lin
 			break
 		}
 	}
-	return linkedUtilWindow{ui, fmt.Sprintf("%s#%v:%v", r.URL(), float64(ui.Time)/1e6, float64(ui.Time+int64(window))/1e6)}
+	return linkedUtilWindow{ui, fmt.Sprintf("%s#%v:%v", r.URL(ViewProc), float64(ui.Time)/1e6, float64(ui.Time+int64(window))/1e6)}
 }

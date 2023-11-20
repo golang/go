@@ -146,7 +146,9 @@ func main() {
 	http.HandleFunc("/mmu", traceviewer.MMUHandlerFunc(ranges, mutatorUtil))
 
 	// Install main handler.
-	http.Handle("/", traceviewer.MainHandler(ranges))
+	http.Handle("/", traceviewer.MainHandler([]traceviewer.View{
+		{Type: traceviewer.ViewProc, Ranges: ranges},
+	}))
 
 	// Start http server.
 	err = http.Serve(ln, nil)

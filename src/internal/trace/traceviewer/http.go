@@ -12,9 +12,9 @@ import (
 	"strings"
 )
 
-func MainHandler(ranges []Range) http.Handler {
+func MainHandler(views []View) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		if err := templMain.Execute(w, ranges); err != nil {
+		if err := templMain.Execute(w, views); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -70,25 +70,32 @@ var templMain = template.Must(template.New("").Parse(`
 </p>
 
 <h2>Event timelines for running goroutines</h2>
-{{if $}}
+{{range $i, $view := $}}
+{{if $view.Ranges}}
+{{if eq $i 0}}
 <p>
   Large traces are split into multiple sections of equal data size
   (not duration) to avoid overwhelming the visualizer.
 </p>
+{{end}}
 <ul>
-	{{range $e := $}}
-		<li><a href="{{$e.URL}}">View trace ({{$e.Name}})</a></li>
+	{{range $index, $e := $view.Ranges}}
+		<li><a href="{{$view.URL $index}}">View trace by {{$view.Type}} ({{$e.Name}})</a></li>
 	{{end}}
 </ul>
 {{else}}
 <ul>
-	<li><a href="/trace">View trace</a></li>
+	<li><a href="{{$view.URL -1}}">View trace by {{$view.Type}}</a></li>
 </ul>
 {{end}}
+{{end}}
 <p>
-  This view displays a timeline for each of the GOMAXPROCS logical
-  processors, showing which goroutine (if any) was running on that
+  This view displays a series of timelines for a type of resource.
+  The "by proc" view consists of a timeline for each of the GOMAXPROCS
+  logical processors, showing which goroutine (if any) was running on that
   logical processor at each moment.
+  The "by thread" view (if available) consists of a similar timeline for each
+  OS thread.
 
   Each goroutine has an identifying number (e.g. G123), main function,
   and color.
@@ -237,6 +244,25 @@ var templMain = template.Must(template.New("").Parse(`
 </html>
 `))
 
+type View struct {
+	Type   ViewType
+	Ranges []Range
+}
+
+type ViewType string
+
+const (
+	ViewProc   ViewType = "proc"
+	ViewThread ViewType = "thread"
+)
+
+func (v View) URL(rangeIdx int) string {
+	if rangeIdx < 0 {
+		return fmt.Sprintf("/trace?view=%s", v.Type)
+	}
+	return v.Ranges[rangeIdx].URL(v.Type)
+}
+
 type Range struct {
 	Name      string
 	Start     int
@@ -245,8 +271,8 @@ type Range struct {
 	EndTime   int64
 }
 
-func (r Range) URL() string {
-	return fmt.Sprintf("/trace?start=%d&end=%d", r.Start, r.End)
+func (r Range) URL(viewType ViewType) string {
+	return fmt.Sprintf("/trace?view=%s&start=%d&end=%d", viewType, r.Start, r.End)
 }
 
 func TraceHandler() http.Handler {

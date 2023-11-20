@@ -67,7 +67,13 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
 	mux := http.NewServeMux()
 
 	// Main endpoint.
-	mux.Handle("/", traceviewer.MainHandler(ranges))
+	mux.Handle("/", traceviewer.MainHandler([]traceviewer.View{
+		{Type: traceviewer.ViewProc, Ranges: ranges},
+		// N.B. Use the same ranges for threads. It takes a long time to compute
+		// the split a second time, but the makeup of the events are similar enough
+		// that this is still a good split.
+		{Type: traceviewer.ViewThread, Ranges: ranges},
+	}))
 
 	// Catapult handlers.
 	mux.Handle("/trace", traceviewer.TraceHandler())
